@@ -5,6 +5,10 @@ import type {
   PirateRelocationPlan,
 } from '@/core/pirate-state';
 import { PIRATE_RELOCATION_DIRECTIONS } from '@/core/pirate-state';
+import {
+  OPPONENT_CHALLENGE_PROFILES,
+  resolveOpponentChallenge,
+} from '@/core/opponent-challenge';
 import { isAlwaysHostilePair } from '@/core/owner-kind';
 import {
   getWrappedHexNeighbors,
@@ -16,7 +20,7 @@ import {
 } from './hex-utils';
 import { createRng } from './map-generator';
 import { PIRATE_PLUNDER_CAP } from './pirate-definitions';
-import { getMovementStepCost, moveUnit, UNIT_DEFINITIONS } from './unit-system';
+import { findPath, getMovementStepCost, moveUnit, UNIT_DEFINITIONS } from './unit-system';
 
 export type PirateIntent = PirateIntentState;
 
@@ -247,6 +251,166 @@ export function choosePirateIntent(state: GameState, factionId: string): PirateI
     }
   }
   return null;
+}
+
+export function getPirateFleetLeader(state: GameState, factionId: string): Unit | null {
+  const faction = state.pirates?.factions[factionId];
+  if (!faction) return null;
+  if (faction.headquarters.kind === 'deep-sea-flotilla') {
+    const flagship = state.units[faction.headquarters.flagshipUnitId];
+    if (flagship && faction.shipIds.includes(flagship.id)) return flagship;
+  }
+  return faction.shipIds
+    .map(unitId => state.units[unitId])
+    .filter((unit): unit is Unit => Boolean(unit))
+    .sort((a, b) =>
+      UNIT_DEFINITIONS[b.type].strength - UNIT_DEFINITIONS[a.type].strength
+      || a.id.localeCompare(b.id))[0] ?? null;
+}
+
+function pirateIntentTargetPosition(
+  state: GameState,
+  intent: PirateIntentState,
+): HexCoord | null {
+  if (intent.targetUnitId) return state.units[intent.targetUnitId]?.position ?? null;
+  if (intent.targetCityId) return state.cities[intent.targetCityId]?.position ?? null;
+  return null;
+}
+
+function pirateApproachPositions(
+  state: GameState,
+  target: HexCoord,
+): HexCoord[] {
+  const targetTerrain = state.map.tiles[hexKey(target)]?.terrain;
+  if (targetTerrain === 'coast' || targetTerrain === 'ocean') return [target];
+  return neighbors(state, target)
+    .filter(coord => {
+      const terrain = state.map.tiles[hexKey(coord)]?.terrain;
+      return terrain === 'coast' || terrain === 'ocean';
+    })
+    .sort((a, b) => a.q - b.q || a.r - b.r);
+}
+
+function hasPiratePathToIntent(
+  state: GameState,
+  factionId: string,
+  intent: PirateIntentState,
+): boolean {
+  const leader = getPirateFleetLeader(state, factionId);
+  const target = pirateIntentTargetPosition(state, intent);
+  if (!leader || !target) return false;
+  return pirateApproachPositions(state, target).some(position =>
+    Boolean(findPath(leader.position, position, state.map, 'naval', { unit: leader })));
+}
+
+function headquartersDefenseIntent(
+  state: GameState,
+  factionId: string,
+): PirateIntentState | null {
+  const faction = state.pirates?.factions[factionId];
+  const leader = getPirateFleetLeader(state, factionId);
+  if (!faction || !leader) return null;
+  const headquartersPosition = faction.headquarters.kind === 'coastal-enclave'
+    ? faction.headquarters.position
+    : leader.position;
+  const threat = Object.values(state.units)
+    .filter(unit =>
+      !unit.transportId
+      && isCombatNaval(unit)
+      && isEligibleVictim(state, factionId, unit.owner)
+      && isAlwaysHostilePair(factionId, unit.owner)
+      && distance(state, headquartersPosition, unit.position) <= 2)
+    .sort((a, b) =>
+      distance(state, headquartersPosition, a.position) - distance(state, headquartersPosition, b.position)
+      || a.id.localeCompare(b.id))[0];
+  return threat ? {
+    kind: 'raid',
+    targetCivId: threat.owner,
+    targetUnitId: threat.id,
+    plannedRound: state.turn,
+    lastProgressRound: state.turn,
+    lastTargetDistance: distance(state, leader.position, threat.position),
+    mode: 'engage',
+    leaderUnitId: leader.id,
+  } : null;
+}
+
+export function shouldPirateFleetWithdraw(state: GameState, factionId: string): boolean {
+  const faction = state.pirates?.factions[factionId];
+  const leader = getPirateFleetLeader(state, factionId);
+  if (!faction || !leader) return false;
+  const ships = faction.shipIds
+    .map(unitId => state.units[unitId])
+    .filter((unit): unit is Unit => Boolean(unit));
+  if (ships.length === 0) return false;
+  const averageHealth = ships.reduce((total, unit) => total + unit.health, 0) / ships.length;
+  const profile = OPPONENT_CHALLENGE_PROFILES[resolveOpponentChallenge(state)];
+  const healthThreshold = Math.max(0, profile.retreatHealthPercent - (faction.contract ? 10 : 0));
+  if (averageHealth < healthThreshold) return true;
+
+  const fleetStrength = ships.reduce(
+    (total, unit) => total + UNIT_DEFINITIONS[unit.type].strength,
+    0,
+  );
+  const hostileStrength = Object.values(state.units)
+    .filter(unit =>
+      !unit.transportId
+      && isCombatNaval(unit)
+      && isEligibleVictim(state, factionId, unit.owner)
+      && isAlwaysHostilePair(factionId, unit.owner)
+      && distance(state, leader.position, unit.position) <= PIRATE_LOCAL_RISK_RADIUS)
+    .reduce((total, unit) => total + UNIT_DEFINITIONS[unit.type].strength, 0);
+  const minimumRatio = faction.contract ? 0.45 : 0.7;
+  return hostileStrength > 0 && fleetStrength < hostileStrength * minimumRatio;
+}
+
+const PIRATE_LOCAL_RISK_RADIUS = 7;
+
+function isPersistentPirateIntentValid(
+  state: GameState,
+  factionId: string,
+  intent: PirateIntentState,
+): boolean {
+  const faction = state.pirates?.factions[factionId];
+  if (!faction || intent.mode === 'withdraw') return false;
+  if (state.turn - (intent.lastProgressRound ?? intent.plannedRound) >= 3) return false;
+  if (intent.targetCivId && !isEligibleVictim(state, factionId, intent.targetCivId)) return false;
+  if (faction.contract && intent.targetCivId !== faction.contract.targetId) return false;
+  if (!pirateIntentTargetPosition(state, intent)) return false;
+  return hasPiratePathToIntent(state, factionId, intent);
+}
+
+export function choosePersistentPirateIntent(
+  state: GameState,
+  factionId: string,
+): PirateIntentState | null {
+  const faction = state.pirates?.factions[factionId];
+  const leader = getPirateFleetLeader(state, factionId);
+  if (!faction || !leader) return null;
+
+  if (shouldPirateFleetWithdraw(state, factionId)) {
+    return {
+      kind: 'patrol',
+      plannedRound: state.turn,
+      lastProgressRound: state.turn,
+      mode: 'withdraw',
+      leaderUnitId: leader.id,
+    };
+  }
+  const defense = headquartersDefenseIntent(state, factionId);
+  if (defense) return defense;
+  if (faction.intent && isPersistentPirateIntentValid(state, factionId, faction.intent)) {
+    return { ...faction.intent, leaderUnitId: leader.id, mode: 'engage' };
+  }
+  const chosen = choosePirateIntent(state, factionId);
+  const target = chosen ? pirateIntentTargetPosition(state, chosen) : null;
+  return chosen ? {
+    ...chosen,
+    lastProgressRound: state.turn,
+    lastTargetDistance: target ? distance(state, leader.position, target) : undefined,
+    mode: 'engage',
+    leaderUnitId: leader.id,
+  } : null;
 }
 
 function relocationAnchorRound(faction: NonNullable<GameState['pirates']>['factions'][string]): number {

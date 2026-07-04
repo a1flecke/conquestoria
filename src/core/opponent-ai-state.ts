@@ -140,7 +140,13 @@ function normalizePlan(
     requiredRoles,
     assignedUnitIds: Array.isArray(plan.assignedUnitIds)
       ? [...new Set(plan.assignedUnitIds.filter(unitId =>
-          typeof unitId === 'string' && state.units[unitId]?.owner === actorId))]
+          typeof unitId === 'string'
+          && (
+            state.units[unitId]?.owner === actorId
+            || state.barbarianCamps[actorId]
+              && state.units[unitId]?.owner === 'barbarian'
+              && state.opponentAI?.barbarianHomeCampByUnitId?.[unitId] === actorId
+          )))]
       : [],
     ...(isFiniteCoord(plan.rallyPoint) ? { rallyPoint: { ...plan.rallyPoint } } : { rallyPoint: undefined }),
   };

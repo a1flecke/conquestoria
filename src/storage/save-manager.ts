@@ -16,6 +16,7 @@ import {
   type PirateFactionState,
   type PirateHeadquarters,
   type PirateHistoryEntry,
+  type PirateIntentState,
   type PirateRelocationDirection,
   type PirateState,
 } from '@/core/pirate-state';
@@ -268,6 +269,50 @@ function normalizePirateIntel(value: unknown, state: GameState, factions: Pirate
   return intelByCiv;
 }
 
+function normalizePirateIntent(
+  value: unknown,
+  state: GameState,
+  faction: PirateFactionState,
+): PirateIntentState | null {
+  if (!isRecord(value)) return null;
+  if (value.kind !== 'patrol' && value.kind !== 'raid' && value.kind !== 'blockade') return null;
+  if (!Number.isFinite(value.plannedRound)) return null;
+  const targetCivId = typeof value.targetCivId === 'string' && state.civilizations[value.targetCivId]
+    ? value.targetCivId
+    : undefined;
+  const targetUnitId = typeof value.targetUnitId === 'string' && state.units[value.targetUnitId]
+    ? value.targetUnitId
+    : undefined;
+  const targetCityId = typeof value.targetCityId === 'string' && state.cities[value.targetCityId]
+    ? value.targetCityId
+    : undefined;
+  if (targetUnitId && targetCityId) return null;
+  if (value.kind !== 'patrol' && !targetUnitId && !targetCityId) return null;
+  if (targetUnitId && targetCivId && state.units[targetUnitId]?.owner !== targetCivId) return null;
+  if (targetCityId && targetCivId && state.cities[targetCityId]?.owner !== targetCivId) return null;
+  const leaderUnitId = typeof value.leaderUnitId === 'string'
+    && faction.shipIds.includes(value.leaderUnitId)
+    && state.units[value.leaderUnitId]
+    ? value.leaderUnitId
+    : undefined;
+  if ((value.mode !== 'engage' && value.mode !== 'withdraw') || !leaderUnitId) return null;
+  return {
+    kind: value.kind,
+    ...(targetCivId ? { targetCivId } : {}),
+    ...(targetUnitId ? { targetUnitId } : {}),
+    ...(targetCityId ? { targetCityId } : {}),
+    plannedRound: Math.max(0, Number(value.plannedRound)),
+    ...(Number.isFinite(value.lastProgressRound)
+      ? { lastProgressRound: Math.max(0, Number(value.lastProgressRound)) }
+      : {}),
+    ...(Number.isFinite(value.lastTargetDistance)
+      ? { lastTargetDistance: Math.max(0, Number(value.lastTargetDistance)) }
+      : {}),
+    mode: value.mode,
+    leaderUnitId,
+  };
+}
+
 export function normalizePirateState(state: GameState): PirateState {
   const raw = isRecord(state.pirates) ? (state.pirates as unknown as Record<string, unknown>) : {};
   const normalized = createEmptyPirateState();
@@ -389,6 +434,7 @@ export function normalizePirateState(state: GameState): PirateState {
           };
         }
       }
+      faction.intent = normalizePirateIntent(rawFaction.intent, state, faction);
       if (headquarters.kind === 'deep-sea-flotilla' && !state.units?.[headquarters.flagshipUnitId]) {
         if (!normalized.history.some(entry => entry.kind === 'destroyed' && entry.factionId === faction.id)) {
           normalized.history.push({

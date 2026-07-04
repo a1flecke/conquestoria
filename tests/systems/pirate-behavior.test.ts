@@ -8,6 +8,9 @@ import {
   derivePirateBlockades,
   derivePirateRaids,
   getRelocationDirectionForViewer,
+  choosePersistentPirateIntent,
+  getPirateFleetLeader,
+  shouldPirateFleetWithdraw,
   isTransportEscorted,
   planFlotillaRelocation,
 } from '@/systems/pirate-behavior';
@@ -89,6 +92,102 @@ function faction(
 }
 
 describe('pirate escort and targeting', () => {
+  it('retains a valid intent and replaces it after three rounds without progress', () => {
+    const state = stateWithMap(oceanGrid());
+    addUnit(state, unit('flagship', 'pirate_frigate', 'pirate-1', { q: 1, r: 1 }));
+    addUnit(state, unit('old-target', 'transport', 'player', { q: 8, r: 8 }));
+    addUnit(state, unit('new-target', 'transport', 'ai-1', { q: 4, r: 1 }));
+    const current = faction('pirate-1', 'raiding', {
+      kind: 'deep-sea-flotilla',
+      flagshipUnitId: 'flagship',
+      relocation: { planned: null, lastRelocatedRound: null },
+    }, ['flagship']);
+    current.intent = {
+      kind: 'raid',
+      targetCivId: 'player',
+      targetUnitId: 'old-target',
+      plannedRound: 1,
+      lastProgressRound: 3,
+      lastTargetDistance: 10,
+    };
+    state.turn = 5;
+    state.pirates!.factions[current.id] = current;
+
+    expect(choosePersistentPirateIntent(state, current.id)).toMatchObject({
+      targetUnitId: 'old-target',
+    });
+
+    state.turn = 6;
+    expect(choosePersistentPirateIntent(state, current.id)).toMatchObject({
+      targetUnitId: 'new-target',
+    });
+  });
+
+  it('selects a stable leader and falls back to the strongest surviving hull', () => {
+    const state = stateWithMap(oceanGrid());
+    addUnit(state, unit('flagship', 'pirate_corsair', 'pirate-1', { q: 2, r: 2 }));
+    addUnit(state, unit('strong-b', 'pirate_frigate', 'pirate-1', { q: 2, r: 3 }));
+    addUnit(state, unit('strong-a', 'pirate_frigate', 'pirate-1', { q: 3, r: 2 }));
+    state.pirates!.factions['pirate-1'] = faction('pirate-1', 'raiding', {
+      kind: 'deep-sea-flotilla',
+      flagshipUnitId: 'flagship',
+      relocation: { planned: null, lastRelocatedRound: null },
+    }, ['flagship', 'strong-b', 'strong-a']);
+
+    expect(getPirateFleetLeader(state, 'pirate-1')?.id).toBe('flagship');
+    delete state.units.flagship;
+    expect(getPirateFleetLeader(state, 'pirate-1')?.id).toBe('strong-a');
+  });
+
+  it('withdraws for challenge health or overwhelming visible local force', () => {
+    const state = stateWithMap(oceanGrid());
+    const flagship = unit('flagship', 'pirate_frigate', 'pirate-1', { q: 2, r: 2 });
+    flagship.health = 30;
+    addUnit(state, flagship);
+    addUnit(state, unit('hostile', 'pirate_mothership', 'player', { q: 3, r: 2 }));
+    state.pirates!.factions['pirate-1'] = faction('pirate-1', 'raiding', {
+      kind: 'deep-sea-flotilla',
+      flagshipUnitId: 'flagship',
+      relocation: { planned: null, lastRelocatedRound: null },
+    }, ['flagship']);
+    state.opponentChallenge = 'standard';
+
+    expect(shouldPirateFleetWithdraw(state, 'pirate-1')).toBe(true);
+    flagship.health = 100;
+    expect(shouldPirateFleetWithdraw(state, 'pirate-1')).toBe(true);
+  });
+
+  it('lets a contract reduce the health threshold without attacking below 0.45x force', () => {
+    const state = stateWithMap(oceanGrid());
+    const flagship = unit('flagship', 'pirate_frigate', 'pirate-1', { q: 2, r: 2 });
+    flagship.health = 35;
+    addUnit(state, flagship);
+    const current = faction('pirate-1', 'raiding', {
+      kind: 'deep-sea-flotilla',
+      flagshipUnitId: 'flagship',
+      relocation: { planned: null, lastRelocatedRound: null },
+    }, ['flagship'], 5);
+    state.pirates!.factions[current.id] = current;
+    state.opponentChallenge = 'standard';
+    expect(shouldPirateFleetWithdraw(state, current.id)).toBe(true);
+
+    current.contract = {
+      employerId: 'ai-1',
+      targetId: 'player',
+      startedRound: 1,
+      expiresAfterRound: 20,
+      successfulRaidCount: 0,
+      exposed: false,
+      exposureResolvedRaidKeys: [],
+    };
+    expect(shouldPirateFleetWithdraw(state, current.id)).toBe(false);
+
+    addUnit(state, unit('hostile-a', 'pirate_mothership', 'player', { q: 3, r: 2 }));
+    addUnit(state, unit('hostile-b', 'pirate_mothership', 'player', { q: 3, r: 3 }));
+    addUnit(state, unit('hostile-c', 'pirate_mothership', 'player', { q: 2, r: 3 }));
+    expect(shouldPirateFleetWithdraw(state, current.id)).toBe(true);
+  });
+
   it('ignores targets outside the bounded naval search neighborhood', () => {
     const state = stateWithMap(oceanGrid(0, 60));
     addUnit(state, unit('pirate', 'pirate_frigate', 'pirate-1', { q: 1, r: 1 }));

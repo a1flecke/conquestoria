@@ -60,6 +60,89 @@ function faction(headquarters: PirateFactionState['headquarters'], shipIds: stri
 }
 
 describe('completed-round pirate coordinator', () => {
+  it('moves a purposeful fleet along canonical multi-step cohesive paths and retains intent', () => {
+    const state = fixture();
+    addCity(state);
+    addUnit(state, 'leader', 'pirate_frigate', 'pirate-1', { q: 5, r: 1 });
+    addUnit(state, 'escort', 'pirate_corsair', 'pirate-1', { q: 4, r: 1 });
+    state.pirates!.factions['pirate-1'] = faction({
+      kind: 'coastal-enclave',
+      position: { q: 1, r: 1 },
+      integrity: 100,
+      maxIntegrity: 100,
+    }, ['leader', 'escort']);
+    const before = structuredClone(state);
+    const bus = new EventBus();
+    const moveEvents: Array<{ unitId: string }> = [];
+    bus.on('unit:move', event => moveEvents.push(event));
+
+    const result = processPiratesForCompletedRound(
+      state,
+      bus,
+      { purposefulAIEnabled: true },
+    );
+
+    expect(state).toEqual(before);
+    expect(result.state.pirates!.factions['pirate-1'].intent).toMatchObject({
+      targetCityId: 'port',
+      mode: 'engage',
+      leaderUnitId: 'leader',
+    });
+    expect(result.facts.movements.some(movement => movement.path.length > 1)).toBe(true);
+    expect(result.state.units.leader.movementPointsLeft).toBeLessThan(4);
+    expect(Math.max(
+      Math.abs(result.state.units.leader.position.q - result.state.units.escort.position.q),
+      Math.abs(result.state.units.leader.position.r - result.state.units.escort.position.r),
+    )).toBeLessThanOrEqual(2);
+    expect(moveEvents).toHaveLength(result.facts.movements.length);
+  });
+
+  it('repairs a missing purposeful flagship to the strongest stable surviving hull', () => {
+    const state = fixture();
+    addUnit(state, 'strong-b', 'pirate_frigate', 'pirate-1', { q: 5, r: 3 });
+    addUnit(state, 'strong-a', 'pirate_frigate', 'pirate-1', { q: 5, r: 4 });
+    state.pirates!.factions['pirate-1'] = faction({
+      kind: 'deep-sea-flotilla',
+      flagshipUnitId: 'missing',
+      relocation: { planned: null, lastRelocatedRound: null },
+    }, ['missing', 'strong-b', 'strong-a']);
+
+    const result = processPiratesForCompletedRound(
+      state,
+      new EventBus(),
+      { purposefulAIEnabled: true },
+    );
+
+    expect(result.state.pirates!.factions['pirate-1']).toBeDefined();
+    expect(result.state.pirates!.factions['pirate-1'].headquarters).toMatchObject({
+      kind: 'deep-sea-flotilla',
+      flagshipUnitId: 'strong-a',
+    });
+  });
+
+  it('withdraws a damaged purposeful fleet instead of attacking', () => {
+    const state = fixture();
+    addUnit(state, 'raider', 'pirate_frigate', 'pirate-1', { q: 5, r: 3 }).health = 10;
+    addUnit(state, 'target', 'galley', 'player', { q: 5, r: 2 });
+    state.civilizations.player.units = ['target'];
+    state.pirates!.factions['pirate-1'] = faction({
+      kind: 'coastal-enclave',
+      position: { q: 1, r: 1 },
+      integrity: 100,
+      maxIntegrity: 100,
+    }, ['raider']);
+
+    const result = processPiratesForCompletedRound(
+      state,
+      new EventBus(),
+      { purposefulAIEnabled: true },
+    );
+
+    expect(result.state.pirates!.factions['pirate-1'].intent?.mode).toBe('withdraw');
+    expect(result.facts.attacks).toEqual([]);
+    expect(result.state.units.target.health).toBe(100);
+  });
+
   it('advances factions with deterministic mixed-fleet reinforcements without upgrading old ships', () => {
     const state = fixture();
     state.pirates!.nextSpawnCheckTurn = 99;

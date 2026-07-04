@@ -62,6 +62,66 @@ describe('pirate feature completion gate', () => {
 });
 
 describe('deterministic pirate campaign lifecycle', () => {
+  it('preserves validated purposeful fleet intent across save normalization', () => {
+    const state = scenarioState();
+    const flagship: Unit = {
+      id: 'flagship',
+      type: 'pirate_frigate',
+      owner: 'pirate-1',
+      position: { q: 4, r: 4 },
+      movementPointsLeft: 4,
+      health: 100,
+      experience: 0,
+      hasMoved: false,
+      hasActed: false,
+      isResting: false,
+    };
+    state.units[flagship.id] = flagship;
+    const target: Unit = {
+      ...flagship,
+      id: 'target',
+      type: 'transport',
+      owner: 'player',
+      position: { q: 6, r: 4 },
+    };
+    state.units[target.id] = target;
+    state.civilizations.player.units = [target.id];
+    state.pirates!.factions['pirate-1'] = {
+      id: 'pirate-1',
+      name: 'The Red Wake',
+      spawnedRound: 1,
+      behavior: 'raiding',
+      maritimeStage: 3,
+      notoriety: 2,
+      shipIds: [flagship.id],
+      headquarters: {
+        kind: 'deep-sea-flotilla',
+        flagshipUnitId: flagship.id,
+        relocation: { planned: null, lastRelocatedRound: null },
+      },
+      tributeByCiv: {},
+      demandByCiv: {},
+      contract: null,
+      intent: {
+        kind: 'raid',
+        targetCivId: 'player',
+        targetUnitId: target.id,
+        plannedRound: 1,
+        lastProgressRound: 1,
+        lastTargetDistance: 2,
+        mode: 'engage',
+        leaderUnitId: flagship.id,
+      },
+      transitionGuards: { emittedEventKeys: [] },
+    };
+
+    const loaded = normalizeLoadedState(JSON.parse(JSON.stringify(state)) as GameState);
+
+    expect(loaded.pirates!.factions['pirate-1'].intent).toEqual(
+      state.pirates!.factions['pirate-1'].intent,
+    );
+  });
+
   it('composes activation, spawn, save/load, tribute, contract, exposure bookkeeping, and destruction', () => {
     const state = scenarioState();
     expect(processPirateEcology(state, new EventBus(), 'before-galleys')).toBe(state);
