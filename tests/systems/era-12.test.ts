@@ -2,6 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { TECH_TREE } from '@/systems/tech-definitions';
 import { ERA_NAMES } from '@/ui/tech-panel';
 import { BUILDINGS, TRAINABLE_UNITS } from '@/systems/city-system';
+import { UNIT_DEFINITIONS } from '@/systems/unit-system';
+import { UNIT_SFX } from '@/audio/sfx-catalog';
 
 const era12Techs = TECH_TREE.filter(t => t.era === 12);
 
@@ -60,6 +62,51 @@ describe('era 12 tech tree', () => {
         expect(unitTypes.has(entry as any), `tech ${t.id} unlocks entry "${entry}" is a bare unit type`).toBe(false);
       }
     }
+  });
+});
+
+describe('era 12 units — spec stats', () => {
+  it('cyber_unit has strength 0, movementPoints 3, productionCost 120', () => {
+    const def = UNIT_DEFINITIONS['cyber_unit'];
+    expect(def.strength).toBe(0);
+    expect(def.movementPoints).toBe(3);
+    expect(def.productionCost).toBe(120);
+    expect(def.domain ?? 'land').toBe('land');
+  });
+
+  it('stealth_bomber has strength 52, movementPoints 5, productionCost 360, range 3', () => {
+    const def = UNIT_DEFINITIONS['stealth_bomber'];
+    expect(def.strength).toBe(52);
+    expect(def.movementPoints).toBe(5);
+    expect(def.productionCost).toBe(360);
+    expect((def as any).attackProfile?.range).toBe(3);
+  });
+
+  it('cyber_unit in TRAINABLE_UNITS gated by cyber-warfare, no trainedFromBuilding', () => {
+    const entry = TRAINABLE_UNITS.find(u => u.type === 'cyber_unit');
+    expect(entry).toBeDefined();
+    expect(entry!.techRequired).toBe('cyber-warfare');
+    expect(entry!.trainedFromBuilding).toBeUndefined();
+    expect(entry!.cost).toBe(120);
+  });
+
+  it('stealth_bomber TRAINABLE_UNITS cost updated to 360', () => {
+    const entry = TRAINABLE_UNITS.find(u => u.type === 'stealth_bomber');
+    expect(entry!.cost).toBe(360);
+  });
+});
+
+describe('era 12 units — SFX catalog', () => {
+  it('stealth_bomber has ranged-loose, ranged-impact, and death SFX', () => {
+    const sfx = UNIT_SFX['stealth_bomber'];
+    expect(sfx).toBeDefined();
+    expect(sfx!['ranged-loose']).toBeDefined();
+    expect(sfx!['ranged-impact']).toBeDefined();
+    expect(sfx!['death']).toBeDefined();
+  });
+
+  it('cyber_unit has death SFX', () => {
+    expect(UNIT_SFX['cyber_unit']?.['death']).toBeDefined();
   });
 });
 

@@ -392,18 +392,18 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
   },
   // Era 12 units
   cyber_unit: {
-    type: 'cyber_unit', name: 'Cyber Operative', movementPoints: 2,
-    visionRange: 2, strength: 70, canFoundCity: false,
-    canBuildImprovements: false, productionCost: 280,
+    type: 'cyber_unit', name: 'Cyber Unit', movementPoints: 3,
+    visionRange: 2, strength: 0, canFoundCity: false,
+    canBuildImprovements: false, productionCost: 120,
     domain: 'land',
-    attackProfile: { kind: 'ranged', range: 1, targets: ['city'] },
+    // strength 0: capturable economic saboteur, not a combatant — no attackProfile
   },
   stealth_bomber: {
-    type: 'stealth_bomber', name: 'Stealth Bomber', movementPoints: 7,
-    visionRange: 4, strength: 65, canFoundCity: false,
-    canBuildImprovements: false, productionCost: 320,
+    type: 'stealth_bomber', name: 'Stealth Bomber', movementPoints: 5,
+    visionRange: 3, strength: 52, canFoundCity: false,
+    canBuildImprovements: false, productionCost: 360,
     domain: 'air',
-    attackProfile: { kind: 'ranged', range: 2, targets: ['unit', 'city'] },
+    attackProfile: { kind: 'ranged', range: 3, targets: ['unit', 'city'] },
   },
 };
 
@@ -576,8 +576,8 @@ export const UNIT_DESCRIPTIONS: Record<UnitType, string> = {
   beast_roc: 'The Storm Roc nests on the high peaks and dives on anything that crosses its skies. It flies over terrain that would stop an army.',
   beast_hydra: 'The Swamp Hydra regrows flesh as fast as you can cut it — 10 health every turn. Strike hard and finish it in one assault.',
   beast_dragon: 'The Ancient Dragon, terror of the volcanic peaks. Its fire breath strikes from 2 hexes away. Slaying it is the deed of a lifetime — the hoard contains everything.',
-  cyber_unit: 'Elite cyber operative deployed on the battlefield. Drains enemy city gold each turn when adjacent; cities without a Cyber Defense Center are fully exposed to economic sabotage.',
-  stealth_bomber: 'Advanced stealth aircraft invisible to radar. Evades detection unless an enemy Signals Hub is within 2 hexes — then it must contend with interceptors. Delivers precision strikes from 2 hexes.',
+  cyber_unit: 'A non-combat economic saboteur. Drains −2 gold per turn from adjacent enemy cities lacking a Cyber Defense Center. Strength 0: capturable by any enemy unit that enters its hex (transferred to that civ, not destroyed). Gene Therapy does not apply.',
+  stealth_bomber: 'A long-range strategic bomber invisible to standard radar. Cannot be targeted by ranged attacks unless an enemy Signals Hub is within 2 hexes of the bomber. Must be trained at a Stealth Airbase. Range 3, strength 52.',
 };
 
 export function getUnmovedUnits(
