@@ -8,7 +8,7 @@ import type {
   UnitType,
 } from '@/core/types';
 import type { EventBus } from '@/core/event-bus';
-import { BUILDINGS, completeCityProductionItem, getProductionCostForItem, TRAINABLE_UNITS } from './city-system';
+import { BUILDINGS, completeCityProductionItem, getProductionCostForItem, isBuildingObsolete, TRAINABLE_UNITS } from './city-system';
 import { calculateProjectedCityYields } from './city-work-system';
 import { createSpyFromUnit, isSpyUnitType } from './espionage-system';
 import { getLegendaryWonderCityYieldBonus, getLegendaryWonderCivYieldBonus } from './legendary-wonder-system';
@@ -328,13 +328,13 @@ export function calculateCityBuildingMaintenance(state: GameState, cityOrId: Cit
   const owner = state.civilizations[city.owner];
 
   for (const buildingId of city.buildings) {
-    if (!BUILDINGS[buildingId]) continue;
+    const building = BUILDINGS[buildingId];
+    if (!building) continue;
     if (ECONOMY_RULES.coreFreeBuildings.has(buildingId)) {
       exemptBuildings.push({ id: buildingId, label: getBuildingLabel(buildingId), upkeep: 0, reason: 'exempt' });
       continue;
     }
-    const building = BUILDINGS[buildingId];
-    if (building?.obsoletedByTech && owner?.techState.completed.includes(building.obsoletedByTech)) {
+    if (isBuildingObsolete(building, owner?.techState.completed ?? [])) {
       exemptBuildings.push({ id: buildingId, label: getBuildingLabel(buildingId), upkeep: 0, reason: 'obsolete' });
       continue;
     }

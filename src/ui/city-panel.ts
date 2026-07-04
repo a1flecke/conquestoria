@@ -246,11 +246,11 @@ export function createCityPanel(
           }
         }
       }
-      let obsoleteBadge = '';
-      if (b.obsoletedByTech && state.civilizations[city.owner]?.techState.completed.includes(b.obsoletedByTech)) {
-        obsoleteBadge = ' <span style="color:#e88;font-size:10px;" title="This building\'s purpose no longer applies — later technology has moved past it. No upkeep cost, but no effect either.">⚠️ (obsolete)</span>';
-      }
-      const upkeepText = row?.reason === 'obsolete'
+      const isObsolete = row?.reason === 'obsolete';
+      const obsoleteBadge = isObsolete
+        ? ' <span style="color:#e88;font-size:10px;" title="This building\'s purpose no longer applies — later technology has moved past it. No upkeep cost, but no effect either.">⚠️ (obsolete)</span>'
+        : '';
+      const upkeepText = isObsolete
         ? 'Obsolete — no upkeep'
         : upkeep > 0
           ? `Upkeep: -${upkeep} gold/turn`
