@@ -21,6 +21,7 @@ import type { City, GameMap, HexCoord, ResourceType, UnitType } from '@/core/typ
 import { UNIT_DEFINITIONS, UNIT_DESCRIPTIONS } from '@/systems/unit-system';
 import { generateMap } from '@/systems/map-generator';
 import { hexKey } from '@/systems/hex-utils';
+import { TECH_TREE } from '@/systems/tech-definitions';
 
 const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
 
@@ -361,6 +362,19 @@ describe('#443 — building obsolescence matches the retired unit line', () => {
     );
     expect(units.some(u => u.type === 'catapult')).toBe(false);
     expect(units.some(u => u.type === 'ballista')).toBe(false);
+  });
+});
+
+describe('#443 — excluded buildings never obsolete (negative regression)', () => {
+  it('armory, war-academy, safehouse remain available even with every tech in the game completed', () => {
+    const map = generateMap(30, 30, 'city-test');
+    const landTile = Object.values(map.tiles).find(t => t.terrain === 'grassland')!;
+    const city = foundCity('p1', landTile.coord, map, mkC());
+    const allTechs = TECH_TREE.map(t => t.id);
+    const available = getAvailableBuildings(city, allTechs, map, new Set<ResourceType>(['copper', 'iron', 'horses', 'stone']));
+    expect(available.find(b => b.id === 'armory')).toBeDefined();
+    expect(available.find(b => b.id === 'war-academy')).toBeDefined();
+    expect(available.find(b => b.id === 'safehouse')).toBeDefined();
   });
 });
 
