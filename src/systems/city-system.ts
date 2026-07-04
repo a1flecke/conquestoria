@@ -1662,6 +1662,10 @@ export function processCity(
       if (item.startsWith('legendary:')) return true;
       if (BUILDING_IDS.has(item)) {
         const building = BUILDINGS[item];
+        if (building?.obsoletedByTech && completedTechs.includes(building.obsoletedByTech)) {
+          droppedProductionItem ??= item;
+          return false;
+        }
         if (building?.resourceRequired?.length && availableResources !== undefined) {
           if (!building.resourceRequired.every(r => availableResources!.has(r))) return false;
         }

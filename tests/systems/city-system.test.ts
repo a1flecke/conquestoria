@@ -467,6 +467,40 @@ describe('processCity', () => {
     expect(result.city.productionProgress).toBe(5);
   });
 
+  it('processCity silently dequeues a not-yet-built stable once tank-warfare completes, and reports droppedProductionItem', () => {
+    const map = generateMap(30, 30, 'obsolete-building-drop-test');
+    const landTile = Object.values(map.tiles).find(t => t.terrain === 'grassland' || t.terrain === 'plains')!;
+    const city = {
+      ...foundCity('p1', landTile.coord, map, mkC()),
+      buildings: [],
+      productionQueue: ['stable'],
+      productionProgress: 0,
+    };
+
+    const result = processCity(city, map, 2, 100, undefined, ['horseback-riding', 'tank-warfare']);
+
+    expect(result.droppedProductionItem).toBe('stable');
+    expect(result.city.productionQueue).not.toContain('stable');
+    expect(result.completedBuilding).toBeNull();
+    expect(result.city.productionProgress).toBe(0);
+  });
+
+  it('processCity does NOT dequeue a queued stable when tank-warfare has not completed', () => {
+    const map = generateMap(30, 30, 'obsolete-building-keep-test');
+    const landTile = Object.values(map.tiles).find(t => t.terrain === 'grassland' || t.terrain === 'plains')!;
+    const city = {
+      ...foundCity('p1', landTile.coord, map, mkC()),
+      buildings: [],
+      productionQueue: ['stable'],
+      productionProgress: 0,
+    };
+
+    const result = processCity(city, map, 2, 1, undefined, ['horseback-riding']);
+
+    expect(result.droppedProductionItem).toBeNull();
+    expect(result.city.productionQueue).toContain('stable');
+  });
+
   it('processCity dequeues harbor when city is not coastal and returns droppedBuilding', () => {
     const map = generateMap(30, 30, 'coastal-test');
     const inlandTile = Object.values(map.tiles).find(t =>
