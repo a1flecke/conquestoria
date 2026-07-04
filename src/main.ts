@@ -213,6 +213,7 @@ import { beginCampaignEntry } from '@/ui/campaign-entry-flow';
 import { showLegacyOpponentChallengePrompt } from '@/ui/legacy-opponent-challenge-prompt';
 import { updateAndRefreshVisibility, reconstructLastSeenFromMap } from '@/systems/last-seen-presentation';
 import { calculateCivEconomy, formatGoldHudText, rushBuyActiveProduction } from '@/systems/economy-system';
+import { appeaseFaction } from '@/systems/faction-system';
 import { createTreasuryDrawer, type TreasuryDrawer } from '@/ui/treasury-drawer';
 import { getCivHappinessFromResources, getCivAvailableResources, canEstablishOutpost, performEstablishOutpost, canBuyResourceAccess, performBuyResourceAccess } from '@/systems/resource-acquisition-system';
 import { fireResourceDiscoveredTip } from '@/ui/advisor-system';
@@ -541,7 +542,7 @@ function updateHUD(): void {
 
   const goldBtn = document.createElement('button');
   goldBtn.style.cssText =
-    'background:transparent;color:inherit;border:none;font-size:inherit;padding:0;cursor:pointer;min-height:44px;display:inline-flex;align-items:center;';
+    'background:transparent;color:inherit;border:none;font-size:inherit;padding:0;cursor:pointer;min-height:44px;display:inline-flex;align-items:center;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex-shrink:1;';
   goldBtn.textContent = `💰 ${formatGoldHudText(economyStatus, civ.gold)}`;
   goldBtn.addEventListener('click', () => drawer?.toggle());
   yieldsRow.appendChild(goldBtn);
@@ -1156,6 +1157,20 @@ function openCityPanelForCity(city: import('@/core/types').City): void {
       renderLoop.setGameState(gameState);
       updateHUD();
       showNotification(`${targetCity.name}: rush bought ${result.label} for ${result.cost} gold.`, 'success');
+      return gameState;
+    },
+    onAppeaseFaction: (cityId) => {
+      const targetCity = gameState.cities[cityId];
+      if (!targetCity) return gameState;
+      const result = appeaseFaction(gameState, cityId, gameState.currentPlayer);
+      if (!result.success) {
+        showNotification(result.message, 'warning');
+        return gameState;
+      }
+      gameState = result.state;
+      renderLoop.setGameState(gameState);
+      updateHUD();
+      showNotification(result.message, 'success');
       return gameState;
     },
     onFindResources: (highlights, toasts) => {
