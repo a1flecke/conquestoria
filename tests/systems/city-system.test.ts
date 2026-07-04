@@ -501,6 +501,21 @@ describe('processCity', () => {
     expect(result.city.productionQueue).toContain('stable');
   });
 
+  it('processCity does NOT demolish an already-built obsolete building — it stays in city.buildings forever, upkeep-free', () => {
+    const map = generateMap(30, 30, 'obsolete-building-no-demolish-test');
+    const landTile = Object.values(map.tiles).find(t => t.terrain === 'grassland' || t.terrain === 'plains')!;
+    const city = {
+      ...foundCity('p1', landTile.coord, map, mkC()),
+      buildings: ['cavalry-academy'],
+      productionQueue: [],
+      productionProgress: 0,
+    };
+
+    const result = processCity(city, map, 2, 5, undefined, ['horseback-riding', 'tank-warfare']);
+
+    expect(result.city.buildings).toContain('cavalry-academy');
+  });
+
   it('processCity dequeues harbor when city is not coastal and returns droppedBuilding', () => {
     const map = generateMap(30, 30, 'coastal-test');
     const inlandTile = Object.values(map.tiles).find(t =>

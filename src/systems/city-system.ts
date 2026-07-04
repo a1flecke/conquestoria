@@ -1526,6 +1526,10 @@ export function isCityCoastal(city: City, map: GameMap): boolean {
   });
 }
 
+export function isBuildingObsolete(building: Building | undefined, completedTechs: string[]): boolean {
+  return !!building?.obsoletedByTech && completedTechs.includes(building.obsoletedByTech);
+}
+
 export function getAvailableBuildings(
   city: City,
   completedTechs: string[],
@@ -1539,7 +1543,7 @@ export function getAvailableBuildings(
   return Object.values(BUILDINGS).filter(b => {
     if (city.buildings.includes(b.id)) return false;
     if (b.techRequired && !completedTechs.includes(b.techRequired)) return false;
-    if (b.obsoletedByTech && completedTechs.includes(b.obsoletedByTech)) return false;
+    if (isBuildingObsolete(b, completedTechs)) return false;
     if (b.coastalRequired && !coastal) return false;
     if (availableResources !== undefined && b.resourceRequired?.length) {
       if (!b.resourceRequired.every(r => availableResources.has(r))) return false;
@@ -1662,7 +1666,7 @@ export function processCity(
       if (item.startsWith('legendary:')) return true;
       if (BUILDING_IDS.has(item)) {
         const building = BUILDINGS[item];
-        if (building?.obsoletedByTech && completedTechs.includes(building.obsoletedByTech)) {
+        if (isBuildingObsolete(building, completedTechs)) {
           droppedProductionItem ??= item;
           return false;
         }
