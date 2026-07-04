@@ -207,6 +207,37 @@ produced. Once `stable` is filtered out there, both paths naturally stop conside
 no AI code changes needed; the existing `availableBuildings.includes(...)` guards are
 already correct.
 
+## Regression safety check — `MaintenanceReason`
+
+Confirmed via grep that no exhaustive switch/match anywhere outside `economy-system.ts`
+itself consumes `MaintenanceReason` (the only other `.reason ===` sites in the codebase are
+unrelated `reason` fields on different types — territory-founding blockers, claim results).
+Adding `'obsolete'` to the union is safe and cannot silently break an existing exhaustiveness
+check elsewhere.
+
+## Test fixture conventions to reuse (don't invent new ones)
+
+- **`calculateCityBuildingMaintenance` / upkeep tests** — `tests/systems/economy-system.test.ts`
+  already has the exact fixture to extend: `makeState()` (builds a real city via `foundCity`,
+  id `'capital'`, owner `'player'`) plus the `city(state)` accessor. See the existing
+  `describe('economy maintenance', ...)` block (e.g. "keeps core buildings exempt; gives one
+  free slot..." at the top of that describe) for the established assertion style
+  (`calculateCityBuildingMaintenance(state, 'capital')`, checking `.upkeep`/`.paidBuildings`/
+  `.freeBuildings`/`.rows`). Add `state.civilizations.player.techState.completed.push('tank-warfare')`
+  (or set the array directly) to simulate the obsoleting tech being done, then assert the row
+  for `'cavalry-academy'` has `reason: 'obsolete'` and `upkeep: 0`.
+- **City panel UI tests** — `tests/ui/city-panel.test.ts` already imports
+  `makeWonderPanelFixture()` and `collectText()` from `./helpers/wonder-panel-fixture` (see the
+  `city-panel unrest section — #436` describe block for the exact usage pattern:
+  `const { container, city, state } = makeWonderPanelFixture();`). **Note:** the existing
+  national-project `fadingBadge` feature has *no* test coverage in this file at all (checked —
+  zero hits for "fading" in `tests/ui/city-panel.test.ts`), so there's no existing badge test
+  to mirror structurally; write the new obsolete-badge test fresh using the same
+  `makeWonderPanelFixture()`/`collectText()` pattern the unrest-section tests already use.
+  `makeWonderPanelFixture()`'s default state has `completedTechs: ['philosophy', 'pilgrimages']`
+  — override by pushing `'tank-warfare'` onto `state.civilizations[state.currentPlayer].techState.completed`
+  after construction, and set `city.buildings = ['cavalry-academy']` before rendering.
+
 ## Testing strategy
 
 No completeness test (see below for why). Instead:
