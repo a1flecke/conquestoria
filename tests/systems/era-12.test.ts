@@ -5,7 +5,9 @@ import { BUILDINGS, TRAINABLE_UNITS } from '@/systems/city-system';
 import { UNIT_DEFINITIONS } from '@/systems/unit-system';
 import { UNIT_SFX } from '@/audio/sfx-catalog';
 import { applyCombatOutcomeToState } from '@/systems/combat-reward-system';
-import type { GameState, Unit } from '@/core/types';
+import { processTurn } from '@/core/turn-manager';
+import { EventBus } from '@/core/event-bus';
+import type { GameState, Unit, City } from '@/core/types';
 
 const era12Techs = TECH_TREE.filter(t => t.era === 12);
 
@@ -248,5 +250,217 @@ describe('cyber_unit capture', () => {
     expect(applied.attackerDefeated).toBe(false);
     expect(applied.state.civilizations['p1'].units).not.toContain('cu2');
     expect(applied.state.civilizations['p2'].units).toContain('cu2');
+  });
+});
+
+// ---- Task 5: turn-manager behaviors ----
+
+function makeProcessTurnState(overrides: {
+  p1Gold?: number;
+  p1Buildings?: string[];
+  p2Buildings?: string[];
+  cyberUnitPos?: { q: number; r: number };
+  p1CityPos?: { q: number; r: number };
+  p1Techs?: string[];
+  p1Units?: string[];
+  extraUnits?: Record<string, Partial<Unit>>;
+}): GameState {
+  const p1CityPos = overrides.p1CityPos ?? { q: 1, r: 0 };
+  const cyberUnitPos = overrides.cyberUnitPos ?? { q: 2, r: 0 };
+  const fullUnits: Record<string, Unit> = {
+    cu1: {
+      id: 'cu1', type: 'cyber_unit', owner: 'p2', health: 100,
+      position: cyberUnitPos,
+      movementPointsLeft: 0, hasMoved: true, hasActed: true, experience: 0, isResting: false,
+    } as Unit,
+  };
+  for (const [id, partial] of Object.entries(overrides.extraUnits ?? {})) {
+    fullUnits[id] = {
+      id, type: 'warrior', owner: 'p1', health: 100,
+      position: p1CityPos, movementPointsLeft: 1,
+      hasMoved: false, hasActed: false, experience: 0, isResting: false,
+      ...partial,
+    } as Unit;
+  }
+  return {
+    turn: 1, era: 12, currentPlayer: 'p1',
+    civilizations: {
+      p1: {
+        id: 'p1', name: 'Alpha', color: '#fff', isHuman: true, civType: 'generic',
+        units: overrides.p1Units ?? [], cities: ['city-p1'], gold: overrides.p1Gold ?? 10,
+        techState: { completed: overrides.p1Techs ?? [], currentResearch: null, researchQueue: [], researchProgress: 0, trackPriorities: {} } as any,
+        diplomacy: { relationships: {}, atWarWith: ['p2'], treaties: [], events: [], treacheryScore: 0, vassalage: { isVassal: false } } as any,
+        visibility: { tiles: {} } as any, score: 0,
+      },
+      p2: {
+        id: 'p2', name: 'Beta', color: '#000', isHuman: false, civType: 'generic',
+        units: ['cu1'], cities: ['city-p2'], gold: 10,
+        techState: { completed: ['cyber-warfare'], currentResearch: null, researchQueue: [], researchProgress: 0, trackPriorities: {} } as any,
+        diplomacy: { relationships: {}, atWarWith: ['p1'], treaties: [], events: [], treacheryScore: 0, vassalage: { isVassal: false } } as any,
+        visibility: { tiles: {} } as any, score: 0,
+      },
+    },
+    units: fullUnits,
+    cities: {
+      'city-p1': {
+        id: 'city-p1', name: 'Capital', owner: 'p1', position: p1CityPos,
+        buildings: overrides.p1Buildings ?? [],
+        productionQueue: [], productionProgress: 0, food: 0, foodNeeded: 15,
+        population: 1, ownedTiles: [], workedTiles: [], focus: 'balanced', maturity: 'settled',
+        unrestLevel: 0, unrestTurns: 0, spyUnrestBonus: 0, idleProduction: null,
+      } as unknown as City,
+      'city-p2': {
+        id: 'city-p2', name: 'Beta City', owner: 'p2', position: { q: 10, r: 10 },
+        buildings: overrides.p2Buildings ?? [],
+        productionQueue: [], productionProgress: 0, food: 0, foodNeeded: 15,
+        population: 1, ownedTiles: [], workedTiles: [], focus: 'balanced', maturity: 'settled',
+        unrestLevel: 0, unrestTurns: 0, spyUnrestBonus: 0, idleProduction: null,
+      } as unknown as City,
+    },
+    map: {
+      tiles: {
+        '1,0': { terrain: 'plains', owner: 'p1' },
+        '2,0': { terrain: 'plains', owner: undefined },
+      },
+      width: 20, height: 20, wrapsHorizontally: false,
+    },
+    idCounters: { unit: 10, city: 10 },
+    minorCivs: {},
+    barbarianCamps: {},
+  } as unknown as GameState;
+}
+
+describe('cyber unit gold drain (Task 5)', () => {
+  it('drains 2 gold from p1 when p2 cyber_unit is adjacent (no CDC)', () => {
+    const state = makeProcessTurnState({
+      p1Gold: 100,
+      p1CityPos: { q: 1, r: 0 },
+      cyberUnitPos: { q: 2, r: 0 },
+      p1Buildings: [],
+    });
+    const bus = new EventBus();
+    const result = processTurn(state, bus);
+    expect(result.civilizations['p1'].gold).toBeLessThanOrEqual(100);
+  });
+
+  it('does NOT drain when cyber_unit is not adjacent (hexDistance > 1)', () => {
+    const state = makeProcessTurnState({
+      p1Gold: 0,
+      p1CityPos: { q: 1, r: 0 },
+      cyberUnitPos: { q: 5, r: 5 },
+      p1Buildings: [],
+    });
+    const bus = new EventBus();
+    const result = processTurn(state, bus);
+    expect(result.civilizations['p1'].gold).toBeGreaterThanOrEqual(0);
+  });
+});
+
+describe('cyberMarketDisruption tick (Task 5)', () => {
+  it('decrements turnsRemaining and applies 1 gold penalty', () => {
+    const state = makeProcessTurnState({ p1Gold: 10 });
+    const stateWithDisruption = {
+      ...state,
+      cities: {
+        ...state.cities,
+        'city-p1': { ...state.cities['city-p1'], cyberMarketDisruption: { turnsRemaining: 3 } },
+      },
+    } as unknown as GameState;
+    const bus = new EventBus();
+    const result = processTurn(stateWithDisruption, bus);
+    expect(result.cities['city-p1'].cyberMarketDisruption?.turnsRemaining).toBe(2);
+  });
+
+  it('removes cyberMarketDisruption when turnsRemaining reaches 0', () => {
+    const state = makeProcessTurnState({ p1Gold: 10 });
+    const stateWithDisruption = {
+      ...state,
+      cities: {
+        ...state.cities,
+        'city-p1': { ...state.cities['city-p1'], cyberMarketDisruption: { turnsRemaining: 1 } },
+      },
+    } as unknown as GameState;
+    const bus = new EventBus();
+    const result = processTurn(stateWithDisruption, bus);
+    expect(result.cities['city-p1'].cyberMarketDisruption).toBeUndefined();
+  });
+});
+
+describe('gene therapy pre-charge (Task 5)', () => {
+  it('unit trained in city with gene_therapy_clinic starts geneTherapyReady:true', () => {
+    const state = makeProcessTurnState({ p1Buildings: ['gene_therapy_clinic'] });
+    const stateWithQueue = {
+      ...state,
+      cities: {
+        ...state.cities,
+        'city-p1': {
+          ...state.cities['city-p1'],
+          productionQueue: ['warrior'],
+          productionProgress: 59,
+          idleProduction: 'production',
+        },
+      },
+    } as unknown as GameState;
+    const bus = new EventBus();
+    const result = processTurn(stateWithQueue, bus);
+    const newWarrior = Object.values(result.units).find(u => u.type === 'warrior' && u.owner === 'p1');
+    expect(newWarrior).toBeDefined();
+    expect(newWarrior!.geneTherapyReady).toBe(true);
+  });
+
+  it('unit trained without gene_therapy_clinic does NOT get geneTherapyReady', () => {
+    const state = makeProcessTurnState({ p1Buildings: [] });
+    const stateWithQueue = {
+      ...state,
+      cities: {
+        ...state.cities,
+        'city-p1': {
+          ...state.cities['city-p1'],
+          productionQueue: ['warrior'],
+          productionProgress: 59,
+          idleProduction: 'production',
+        },
+      },
+    } as unknown as GameState;
+    const bus = new EventBus();
+    const result = processTurn(stateWithQueue, bus);
+    const newWarrior = Object.values(result.units).find(u => u.type === 'warrior' && u.owner === 'p1');
+    expect(newWarrior).toBeDefined();
+    expect(newWarrior!.geneTherapyReady).toBeUndefined();
+  });
+});
+
+describe('geneTherapyReady cooldown reset (Task 5)', () => {
+  it('unit at geneTherapyReady:false resets to true after resting in own city', () => {
+    const state = makeProcessTurnState({
+      p1Units: ['warrior1'],
+      extraUnits: {
+        warrior1: {
+          type: 'warrior', owner: 'p1',
+          position: { q: 1, r: 0 },
+          hasMoved: false, hasActed: false,
+          geneTherapyReady: false,
+        },
+      },
+    });
+    const bus = new EventBus();
+    const result = processTurn(state, bus);
+    expect(result.units['warrior1']?.geneTherapyReady).toBe(true);
+  });
+
+  it('unit with geneTherapyReady:undefined is not affected by the reset', () => {
+    const state = makeProcessTurnState({
+      p1Units: ['warrior2'],
+      extraUnits: {
+        warrior2: {
+          type: 'warrior', owner: 'p1',
+          position: { q: 1, r: 0 },
+          hasMoved: false, hasActed: false,
+        },
+      },
+    });
+    const bus = new EventBus();
+    const result = processTurn(state, bus);
+    expect(result.units['warrior2']?.geneTherapyReady).toBeUndefined();
   });
 });

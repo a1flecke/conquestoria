@@ -24,7 +24,7 @@ import { applyCombatOutcomeToState } from '@/systems/combat-reward-system';
 import { PIRATE_OWNER, recordCombatForCiv, processThreatPressure } from '@/systems/threat-pressure-system';
 import { emitMinorCivQuestTransitions } from '@/systems/quest-chain-system';
 import { applyAutoExploreOrder } from '@/systems/auto-explore-system';
-import { hexKey } from '@/systems/hex-utils';
+import { hexKey, hexDistance } from '@/systems/hex-utils';
 import { executeUnitMove } from '@/systems/unit-movement-system';
 import { buildCombatPresentation } from '@/systems/viewer-event-presentation';
 import { calculateCityYields } from '@/systems/resource-system';
@@ -191,8 +191,48 @@ export function processTurn(
       );
       totalGold += result.idleGoldBonus;
       totalScience += result.idleScienceBonus;
+
+      // Cyber drain: adjacent enemy cyber_units drain 2 gold per turn
+      {
+        const enemyCyberUnits = Object.values(newState.units).filter(
+          u => u.type === 'cyber_unit' && u.owner !== civId,
+        );
+        if (enemyCyberUnits.length > 0) {
+          const cityBuildings = newState.cities[cityId]?.buildings ?? [];
+          const hasCDC = cityBuildings.includes('cyber_defense_center');
+          const hasHub = cityBuildings.includes('signals_hub');
+          const blockChance = hasCDC ? (hasHub ? 0.75 : 0.65) : 0;
+          for (const cyberUnit of enemyCyberUnits) {
+            if (hexDistance(cyberUnit.position, city.position) !== 1) continue;
+            let s = Math.abs(newState.turn * 16807 + city.id.charCodeAt(0) + cyberUnit.id.charCodeAt(0));
+            s = (s * 48271) % 2147483647;
+            const roll = s / 2147483647;
+            if (roll < blockChance) continue;
+            totalGold = Math.max(0, totalGold - 2);
+            bus.emit('city:cyber-drained', {
+              cityId, cityName: city.name,
+              drainerOwner: cyberUnit.owner, drainerUnitId: cyberUnit.id,
+              goldLost: 2,
+            });
+          }
+        }
+      }
+
       const maturityResult = applyCityMaturity(result.city, civ.techState.completed);
       newState.cities[cityId] = maturityResult.city;
+
+      // cyberMarketDisruption tick: 1 gold penalty per turn remaining, then expire
+      {
+        const disruptedCity = newState.cities[cityId];
+        if (disruptedCity?.cyberMarketDisruption && disruptedCity.cyberMarketDisruption.turnsRemaining > 0) {
+          totalGold = Math.max(0, totalGold - 1);
+          const remaining = disruptedCity.cyberMarketDisruption.turnsRemaining - 1;
+          newState.cities[cityId] = {
+            ...disruptedCity,
+            cyberMarketDisruption: remaining > 0 ? { turnsRemaining: remaining } : undefined,
+          };
+        }
+      }
       if (maturityResult.changed && maturityResult.previous !== maturityResult.current) {
         bus.emit('city:maturity-upgraded', {
           cityId,
@@ -250,6 +290,13 @@ export function processTurn(
             newUnit.movementPointsLeft += navalMoveBonus;
             newUnit.movementBonus = (newUnit.movementBonus ?? 0) + navalMoveBonus;
           }
+        }
+        if (unitDef?.domain === 'air' && civ.techState.completed.includes('private-spaceflight')) {
+          newUnit.movementPointsLeft += 1;
+          newUnit.movementBonus = (newUnit.movementBonus ?? 0) + 1;
+        }
+        if (newState.cities[cityId]?.buildings.includes('gene_therapy_clinic')) {
+          newUnit.geneTherapyReady = true;
         }
         newState.units[newUnit.id] = newUnit;
         newState.civilizations[civId].units.push(newUnit.id);
@@ -362,6 +409,17 @@ export function processTurn(
       const inFriendlyCity = cityPositionsSet.has(posKey) && (tile?.owner === civId);
       const inFriendlyTerritory = !inFriendlyCity && (tile?.owner === civId);
       newState.units[unitId] = healUnit(unit, inFriendlyCity, inFriendlyTerritory);
+    }
+
+    // Reset geneTherapyReady cooldown for units that rested a full turn in a friendly city
+    for (const unitId of civ.units) {
+      const unit = newState.units[unitId];
+      if (!unit || unit.geneTherapyReady !== false) continue;
+      const posKey = `${unit.position.q},${unit.position.r}`;
+      const tile = newState.map.tiles[posKey];
+      if (cityPositionsSet.has(posKey) && tile?.owner === civId && !unit.hasMoved && !unit.hasActed) {
+        newState.units[unitId] = { ...unit, geneTherapyReady: true };
+      }
     }
 
     // Reset unit movement

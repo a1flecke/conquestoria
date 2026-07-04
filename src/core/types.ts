@@ -1453,6 +1453,7 @@ export interface GameEvents {
   'city:national-project-expired': { civId: string; cityId: string; buildingId: string };
   'city:national-project-dequeued': { civId: string; cityId: string; buildingId: string };
   'city:unit-trained': { cityId: string; unitType: UnitType };
+  'city:cyber-drained': { cityId: string; cityName: string; drainerOwner: string; drainerUnitId: string; goldLost: number };
   'city:grew': { cityId: string; newPopulation: number };
   'city:maturity-upgraded': { cityId: string; previous: CityMaturity; current: CityMaturity };
   'economy:treasury-strain': { civId: string; level: Exclude<TreasuryStrainLevel, 'none'>; netGoldPerTurn: number; unpaidMaintenance: number };
