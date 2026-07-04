@@ -18,6 +18,11 @@ import {
   wrapHexCoord,
   wrappedHexDistance,
 } from './hex-utils';
+import {
+  deriveHumansMateriallyAffectedByPosition,
+  reserveIndependentThreatForHumans,
+  type IndependentThreatSpawnPolicy,
+} from './threat-pressure-system';
 import { calculateProjectedCityYields } from './city-work-system';
 import { resolveCivDefinition } from './civ-registry';
 import { createRng } from './map-generator';
@@ -456,7 +461,12 @@ function hasPirateActivationTech(state: GameState): boolean {
   return Object.values(state.civilizations).some(civ => civ.techState.completed.includes('galleys'));
 }
 
-export function processPirateEcology(state: GameState, bus: EventBus, seed: string): GameState {
+export function processPirateEcology(
+  state: GameState,
+  bus: EventBus,
+  seed: string,
+  options: { spawnPolicy?: IndependentThreatSpawnPolicy } = {},
+): GameState {
   if (!hasPirateActivationTech(state)) return state;
   const pirates = state.pirates ?? createEmptyPirateState();
   if (pirates.activatedTurn === null) {
@@ -491,7 +501,31 @@ export function processPirateEcology(state: GameState, bus: EventBus, seed: stri
   if (pressureValue < PIRATE_PRESSURE.threshold) return nextState;
   const plan = choosePirateSpawn(nextState, `${seed}:${state.turn}`);
   if (!plan) return nextState;
+  const pendingFactionId = `pirate-${nextState.idCounters.nextPirateFactionId ?? 1}`;
+  const affectedHumanIds = deriveHumansMateriallyAffectedByPosition(
+    nextState,
+    plan.position,
+    20,
+  );
+  if (
+    affectedHumanIds.length > 0
+    && options.spawnPolicy
+    && !options.spawnPolicy.canStart(nextState, {
+      threatId: `pirate:${pendingFactionId}`,
+      position: { ...plan.position },
+      affectedHumanIds,
+    })
+  ) {
+    return nextState;
+  }
   nextState = spawnPirateFaction(nextState, plan, bus, `${seed}:${state.turn}`);
+  if (options.spawnPolicy && affectedHumanIds.length > 0) {
+    nextState = reserveIndependentThreatForHumans(
+      nextState,
+      `pirate:${pendingFactionId}`,
+      affectedHumanIds,
+    );
+  }
   return {
     ...nextState,
     pirates: {

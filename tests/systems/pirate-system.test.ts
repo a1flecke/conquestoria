@@ -4,6 +4,7 @@ import { createNewGame } from '@/core/game-state';
 import { createEmptyPirateState, type PirateFactionState } from '@/core/pirate-state';
 import type { City, CombatResult, GameState, HexCoord, Unit, UnitType } from '@/core/types';
 import { processPiratesForCompletedRound, PIRATE_ROUND_TRACE } from '@/systems/pirate-system';
+import { createEmptyOpponentAIState } from '@/core/opponent-ai-state';
 
 function fixture(): GameState {
   const state = createNewGame(undefined, 'pirate-round', 'small');
@@ -60,6 +61,57 @@ function faction(headquarters: PirateFactionState['headquarters'], shipIds: stri
 }
 
 describe('completed-round pirate coordinator', () => {
+  it('threads pressure gating through ecology without faction, unit, intel, notification, or audio side effects', () => {
+    const state = fixture();
+    state.opponentChallenge = 'explorer';
+    state.opponentAI = createEmptyOpponentAIState();
+    state.barbarianCamps['existing-pressure'] = {
+      id: 'existing-pressure',
+      position: { q: 1, r: 1 },
+      strength: 5,
+      spawnCooldown: 2,
+    };
+    state.opponentAI.pressureByHuman.player = {
+      activeIndependentThreatIds: ['barbarian:existing-pressure'],
+      recoveryUntilTurn: 0,
+      lastResolvedThreatTurn: null,
+      lastWarningTurnByKey: {},
+      lastStrategicAudioTurn: null,
+    };
+    state.civilizations.player.techState.completed = ['galleys'];
+    state.pirates = {
+      ...createEmptyPirateState(),
+      activatedTurn: 1,
+      nextSpawnCheckTurn: state.turn,
+      pressure: { value: 17, suppression: [] },
+    };
+    const playerCity = {
+      ...Object.values(createNewGame(undefined, 'pirate-city-template', 'small').cities)[0],
+      id: 'distant-port',
+      owner: 'player',
+      position: { q: 0, r: 0 },
+    };
+    state.cities[playerCity.id] = playerCity;
+    state.civilizations.player.cities = [playerCity.id];
+    const bus = new EventBus();
+    const sideEffects: unknown[] = [];
+    bus.on('unit:created', event => sideEffects.push(event));
+    bus.on('pirate:faction-spawned', event => sideEffects.push(event));
+    bus.on('pirate:audio-cue', event => sideEffects.push(event));
+
+    const result = processPiratesForCompletedRound(state, bus, {
+      purposefulAIEnabled: true,
+    });
+
+    expect(result.state.pirates!.factions).toEqual({});
+    expect(result.state.pirates!.pressure.value).toBe(18);
+    expect(Object.values(result.state.pirates!.intelByCiv).every(
+      viewerIntel => Object.keys(viewerIntel).length === 0,
+    )).toBe(true);
+    expect(result.state.pendingEvents?.player ?? []).toEqual([]);
+    expect(sideEffects).toEqual([]);
+  });
+
   it('moves a purposeful fleet along canonical multi-step cohesive paths and retains intent', () => {
     const state = fixture();
     addCity(state);

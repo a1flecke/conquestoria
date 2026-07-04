@@ -27,6 +27,12 @@ import {
   PIRATE_NOTORIETY,
 } from './pirate-definitions';
 import { getPirateMaritimeStage, processPirateEcology } from './pirate-ecology';
+import {
+  canStartIndependentThreat,
+  reserveIndependentThreatForHumans,
+  type IndependentThreatSpawnCandidate,
+  type IndependentThreatSpawnPolicy,
+} from './threat-pressure-system';
 import { refreshPirateIntel } from './pirate-presentation';
 import {
   applyPirateNotifications,
@@ -391,6 +397,7 @@ function processPurposefulMovementAndCombat(
   state: GameState,
   relocated: Set<string>,
   bus: EventBus,
+  spawnPolicy?: IndependentThreatSpawnPolicy,
 ): {
   state: GameState;
   facts: PirateRoundFacts;
@@ -408,7 +415,30 @@ function processPurposefulMovementAndCombat(
   for (const factionId of Object.keys(state.pirates?.factions ?? {}).sort()) {
     let faction = nextState.pirates?.factions[factionId];
     if (!faction) continue;
-    const intent = choosePersistentPirateIntent(nextState, factionId);
+    let intent = choosePersistentPirateIntent(nextState, factionId);
+    const targetCivId = intent?.targetCivId;
+    if (targetCivId && nextState.civilizations[targetCivId]?.isHuman) {
+      const leader = getPirateFleetLeader(nextState, factionId);
+      const targetPosition = intent?.targetCityId
+        ? nextState.cities[intent.targetCityId]?.position
+        : intent?.targetUnitId
+          ? nextState.units[intent.targetUnitId]?.position
+          : leader?.position;
+      const candidate: IndependentThreatSpawnCandidate = {
+        threatId: `pirate:${factionId}`,
+        position: targetPosition ? { ...targetPosition } : { q: 0, r: 0 },
+        affectedHumanIds: [targetCivId],
+      };
+      if (spawnPolicy && !spawnPolicy.canStart(nextState, candidate)) {
+        intent = null;
+      } else {
+        nextState = reserveIndependentThreatForHumans(
+          nextState,
+          candidate.threatId,
+          candidate.affectedHumanIds,
+        );
+      }
+    }
     faction = { ...faction, intent };
     nextState = {
       ...nextState,
@@ -662,9 +692,17 @@ function advanceStageAndReinforce(state: GameState, bus: EventBus): GameState {
 export function processPiratesForCompletedRound(
   state: GameState,
   bus: EventBus,
-  options: { purposefulAIEnabled?: boolean } = {},
+  options: {
+    purposefulAIEnabled?: boolean;
+    spawnPolicy?: IndependentThreatSpawnPolicy;
+  } = {},
 ): ProcessPiratesResult {
   const purposefulAIEnabled = options.purposefulAIEnabled ?? PURPOSEFUL_AI_FEATURE_ENABLED;
+  const spawnPolicy = options.spawnPolicy ?? (purposefulAIEnabled ? {
+    canStart: (candidateState: GameState, candidate: IndependentThreatSpawnCandidate) =>
+      candidate.affectedHumanIds.every(humanId =>
+        canStartIndependentThreat(candidateState, humanId, candidate.threatId).allowed),
+  } : undefined);
   const trace = [...PIRATE_ROUND_TRACE];
   const wasActivated = state.pirates?.activatedTurn !== null;
   let normalized = normalizeRoundState(state, purposefulAIEnabled);
@@ -710,7 +748,7 @@ export function processPiratesForCompletedRound(
     if (result.facts.relocation.status === 'moved') events.push({ type: 'relocated', factionId });
   }
   const processed = purposefulAIEnabled
-    ? processPurposefulMovementAndCombat(nextState, relocated, bus)
+    ? processPurposefulMovementAndCombat(nextState, relocated, bus, spawnPolicy)
     : processMovementAndCombat(nextState, relocated);
   nextState = processed.state;
   const facts: PirateRoundFacts = {
@@ -738,7 +776,12 @@ export function processPiratesForCompletedRound(
   nextState = advanced.state;
   events.push(...advanced.events);
   nextState = advanceStageAndReinforce(nextState, bus);
-  nextState = processPirateEcology(nextState, bus, state.gameId ?? 'pirates');
+  nextState = processPirateEcology(
+    nextState,
+    bus,
+    state.gameId ?? 'pirates',
+    { spawnPolicy },
+  );
   if (!wasActivated && nextState.pirates?.activatedTurn !== null) events.push({ type: 'activated', factionId: '' });
   const previousIntel = state.pirates?.intelByCiv ?? {};
   for (const viewerId of Object.keys(nextState.civilizations)) {

@@ -1,11 +1,324 @@
-import type { BarbarianCamp, City, PirateFleet, GameState, GameMap, HexCoord } from '@/core/types';
+import type {
+  AIStrategicPlan,
+  BarbarianCamp,
+  City,
+  PirateFleet,
+  GameState,
+  GameMap,
+  HexCoord,
+  HumanPressureLedger,
+} from '@/core/types';
 import type { EventBus } from '@/core/event-bus';
-import { hexKey, hexNeighbors, hexDistance } from './hex-utils';
+import { createEmptyOpponentAIState } from '@/core/opponent-ai-state';
+import {
+  OPPONENT_CHALLENGE_PROFILES,
+  resolveOpponentChallenge,
+} from '@/core/opponent-challenge';
+import { BEAST_DEFINITIONS } from './beast-definitions';
+import { hexKey, hexNeighbors, hexDistance, wrappedHexDistance } from './hex-utils';
 import { createUnit } from './unit-system';
 
 export const PIRATE_OWNER = 'pirate';
 
 const NON_VIABLE_TERRAIN = new Set(['ocean', 'coast', 'mountain', 'snow']);
+const BARBARIAN_OPERATIONAL_RADIUS = 7;
+
+export interface IndependentThreatDecision {
+  allowed: boolean;
+  reason: 'allowed' | 'migration-grace' | 'recovery' | 'pressure-cap';
+  activeCount: number;
+  cap: number;
+}
+
+export interface IndependentThreatSpawnCandidate {
+  threatId: string;
+  position: HexCoord;
+  affectedHumanIds: string[];
+}
+
+export interface IndependentThreatSpawnPolicy {
+  canStart(state: GameState, candidate: IndependentThreatSpawnCandidate): boolean;
+}
+
+function emptyPressureLedger(): HumanPressureLedger {
+  return {
+    activeIndependentThreatIds: [],
+    recoveryUntilTurn: 0,
+    lastResolvedThreatTurn: null,
+    lastWarningTurnByKey: {},
+    lastStrategicAudioTurn: null,
+  };
+}
+
+function threatDistance(state: GameState, a: HexCoord, b: HexCoord): number {
+  return state.map.wrapsHorizontally
+    ? wrappedHexDistance(a, b, state.map.width)
+    : hexDistance(a, b);
+}
+
+function humanAssetPositions(state: GameState, humanId: string): HexCoord[] {
+  return [
+    ...Object.values(state.cities)
+      .filter(city => city.owner === humanId)
+      .map(city => city.position),
+    ...Object.values(state.units)
+      .filter(unit => unit.owner === humanId && !unit.transportId)
+      .map(unit => unit.position),
+    ...Object.values(state.map.tiles)
+      .filter(tile =>
+        tile.owner === humanId
+        && tile.resource !== null
+        && tile.improvement !== 'none'
+        && tile.improvementTurnsLeft === 0)
+      .map(tile => tile.coord),
+  ];
+}
+
+export function deriveHumansMateriallyAffectedByPosition(
+  state: GameState,
+  position: HexCoord,
+  radius: number,
+): string[] {
+  return Object.values(state.civilizations)
+    .filter(civ => civ.isHuman && !civ.isEliminated)
+    .filter(civ =>
+      humanAssetPositions(state, civ.id)
+        .some(asset => threatDistance(state, position, asset) <= radius))
+    .map(civ => civ.id)
+    .sort();
+}
+
+function planTargetOwner(state: GameState, plan: AIStrategicPlan): string | null {
+  if (plan.target.kind === 'city') return state.cities[plan.target.id]?.owner ?? null;
+  if (plan.target.kind === 'unit') return state.units[plan.target.id]?.owner ?? null;
+  if (plan.target.kind === 'resource') {
+    return state.map.tiles[hexKey(plan.target.position)]?.owner ?? null;
+  }
+  return null;
+}
+
+function barbarianMateriallyAffectsHuman(
+  state: GameState,
+  campId: string,
+  humanId: string,
+): boolean {
+  const plan = state.opponentAI?.barbarianCamps[campId];
+  if (plan && planTargetOwner(state, plan) === humanId) return true;
+  if (!plan) return false;
+  const assets = humanAssetPositions(state, humanId);
+  return plan.assignedUnitIds.some(unitId => {
+    const unit = state.units[unitId];
+    return unit?.owner === 'barbarian'
+      && assets.some(position =>
+        threatDistance(state, unit.position, position) <= BARBARIAN_OPERATIONAL_RADIUS);
+  });
+}
+
+function pirateMateriallyAffectsHuman(
+  state: GameState,
+  factionId: string,
+  humanId: string,
+): boolean {
+  const faction = state.pirates?.factions[factionId];
+  if (!faction) return false;
+  if (faction.contract?.targetId === humanId) return true;
+  if (faction.intent?.targetCivId === humanId) return true;
+  if (
+    faction.intent?.targetCityId
+    && state.cities[faction.intent.targetCityId]?.owner === humanId
+  ) return true;
+  if (
+    faction.intent?.targetUnitId
+    && state.units[faction.intent.targetUnitId]?.owner === humanId
+  ) return true;
+  return Object.values(state.pirateFleets ?? {})
+    .some(fleet => fleet.targetCivId === humanId && fleet.id === factionId);
+}
+
+function beastMateriallyAffectsHuman(
+  state: GameState,
+  lairId: string,
+  humanId: string,
+): boolean {
+  const lair = state.beasts?.lairs[lairId];
+  if (!lair || lair.status !== 'awake') return false;
+  const radius = BEAST_DEFINITIONS[lair.beastId].leashRadius;
+  const origins = [
+    lair.position,
+    ...lair.unitIds.flatMap(unitId => {
+      const unit = state.units[unitId];
+      return unit ? [unit.position] : [];
+    }),
+  ];
+  return humanAssetPositions(state, humanId)
+    .some(asset => origins.some(origin => threatDistance(state, origin, asset) <= radius));
+}
+
+function isIndependentThreatLive(state: GameState, threatId: string): boolean {
+  if (threatId.startsWith('barbarian:')) {
+    return Boolean(state.barbarianCamps[threatId.slice('barbarian:'.length)]);
+  }
+  if (threatId.startsWith('pirate:')) {
+    return Boolean(state.pirates?.factions[threatId.slice('pirate:'.length)]);
+  }
+  if (threatId.startsWith('beast:')) {
+    return state.beasts?.lairs[threatId.slice('beast:'.length)]?.status === 'awake';
+  }
+  return false;
+}
+
+export function deriveActiveIndependentThreatIds(
+  state: GameState,
+  humanId: string,
+): string[] {
+  const human = state.civilizations[humanId];
+  if (!human?.isHuman || human.isEliminated) return [];
+  const active = new Set<string>();
+  for (const campId of Object.keys(state.barbarianCamps).sort()) {
+    if (barbarianMateriallyAffectsHuman(state, campId, humanId)) {
+      active.add(`barbarian:${campId}`);
+    }
+  }
+  for (const factionId of Object.keys(state.pirates?.factions ?? {}).sort()) {
+    if (pirateMateriallyAffectsHuman(state, factionId, humanId)) {
+      active.add(`pirate:${factionId}`);
+    }
+  }
+  for (const lairId of Object.keys(state.beasts?.lairs ?? {}).sort()) {
+    if (beastMateriallyAffectsHuman(state, lairId, humanId)) {
+      active.add(`beast:${lairId}`);
+    }
+  }
+  for (
+    const threatId of state.opponentAI?.pressureByHuman[humanId]
+      ?.activeIndependentThreatIds ?? []
+  ) {
+    if (isIndependentThreatLive(state, threatId)) active.add(threatId);
+  }
+  return [...active].sort();
+}
+
+export function canStartIndependentThreat(
+  state: GameState,
+  humanId: string,
+  threatId: string,
+): IndependentThreatDecision {
+  const profile = OPPONENT_CHALLENGE_PROFILES[resolveOpponentChallenge(state)];
+  const ledger = state.opponentAI?.pressureByHuman[humanId] ?? emptyPressureLedger();
+  const activeCount = ledger.activeIndependentThreatIds.length;
+  const base = { activeCount, cap: profile.maxIndependentCrisesPerHuman };
+  if (ledger.activeIndependentThreatIds.includes(threatId)) {
+    return { ...base, allowed: true, reason: 'allowed' };
+  }
+  if ((state.opponentAI?.migrationGraceRoundsRemaining ?? 0) > 0) {
+    return { ...base, allowed: false, reason: 'migration-grace' };
+  }
+  if (state.turn < ledger.recoveryUntilTurn) {
+    return { ...base, allowed: false, reason: 'recovery' };
+  }
+  if (activeCount >= profile.maxIndependentCrisesPerHuman) {
+    return { ...base, allowed: false, reason: 'pressure-cap' };
+  }
+  return { ...base, allowed: true, reason: 'allowed' };
+}
+
+export function reserveIndependentThreatForHumans(
+  state: GameState,
+  threatId: string,
+  humanIds: string[],
+): GameState {
+  if (!state.opponentAI) return state;
+  const pressureByHuman = { ...state.opponentAI.pressureByHuman };
+  let changed = false;
+  for (const humanId of [...new Set(humanIds)].sort()) {
+    const civ = state.civilizations[humanId];
+    if (!civ?.isHuman || civ.isEliminated) continue;
+    const ledger = pressureByHuman[humanId] ?? emptyPressureLedger();
+    if (ledger.activeIndependentThreatIds.includes(threatId)) continue;
+    changed = true;
+    pressureByHuman[humanId] = {
+      ...ledger,
+      activeIndependentThreatIds: [
+        ...ledger.activeIndependentThreatIds,
+        threatId,
+      ].sort(),
+    };
+  }
+  return changed ? {
+    ...state,
+    opponentAI: { ...state.opponentAI, pressureByHuman },
+  } : state;
+}
+
+export function processIndependentThreatPressureForHumans(
+  state: GameState,
+  bus: EventBus,
+): GameState {
+  const initialOpponentAI = structuredClone(state.opponentAI ?? createEmptyOpponentAIState());
+  const profile = OPPONENT_CHALLENGE_PROFILES[resolveOpponentChallenge(state)];
+  const humanIds = Object.values(state.civilizations)
+    .filter(civ => civ.isHuman && !civ.isEliminated)
+    .map(civ => civ.id)
+    .sort();
+  initialOpponentAI.pressureByHuman = Object.fromEntries(humanIds.map(humanId => [
+    humanId,
+    initialOpponentAI.pressureByHuman[humanId] ?? emptyPressureLedger(),
+  ]));
+  const pressureByHuman: Record<string, HumanPressureLedger> = {};
+  for (const humanId of humanIds) {
+    const previous = initialOpponentAI.pressureByHuman[humanId] ?? emptyPressureLedger();
+    const activeIndependentThreatIds = deriveActiveIndependentThreatIds(state, humanId);
+    const resolved = previous.activeIndependentThreatIds
+      .filter(threatId => !activeIndependentThreatIds.includes(threatId));
+    pressureByHuman[humanId] = {
+      ...previous,
+      activeIndependentThreatIds,
+      ...(resolved.length > 0 ? {
+        recoveryUntilTurn: state.turn + profile.recoveryRounds,
+        lastResolvedThreatTurn: state.turn,
+      } : {}),
+    };
+  }
+  initialOpponentAI.pressureByHuman = pressureByHuman;
+  let nextState: GameState = { ...state, opponentAI: initialOpponentAI };
+  const spawnPolicy: IndependentThreatSpawnPolicy = {
+    canStart: (candidateState, candidate) =>
+      candidate.affectedHumanIds.every(humanId =>
+        canStartIndependentThreat(candidateState, humanId, candidate.threatId).allowed),
+  };
+  for (const humanId of humanIds) {
+    const landmassIds = [...new Set(
+      nextState.civilizations[humanId].cities.flatMap(cityId => {
+        const city = nextState.cities[cityId];
+        const regionKey = city
+          ? nextState.map.tiles[hexKey(city.position)]?.regionKey
+          : undefined;
+        return regionKey ? [regionKey] : [];
+      }),
+    )].sort();
+    for (const landmassId of landmassIds) {
+      let candidate: IndependentThreatSpawnCandidate | null = null;
+      const previousCounter = nextState.idCounters.nextCampId;
+      const spawned = processLandResurgence(nextState, humanId, landmassId, bus, {
+        spawnPolicy: {
+          canStart: (candidateState, nextCandidate) => {
+            candidate = nextCandidate;
+            return spawnPolicy.canStart(candidateState, nextCandidate);
+          },
+        },
+      });
+      if (spawned.idCounters.nextCampId === previousCounter || !candidate) continue;
+      const accepted = candidate as IndependentThreatSpawnCandidate;
+      nextState = reserveIndependentThreatForHumans(
+        spawned,
+        accepted.threatId,
+        accepted.affectedHumanIds,
+      );
+    }
+  }
+
+  return nextState;
+}
 
 // ── Pure helpers ─────────────────────────────────────────────────────────────
 
@@ -115,6 +428,7 @@ export function processLandResurgence(
   civId: string,
   landmassId: string,
   bus: EventBus,
+  options: { spawnPolicy?: IndependentThreatSpawnPolicy } = {},
 ): GameState {
   const cooldownKey = `${civId}:${landmassId}`;
   const cooldownUntil = state.resurgentCampCooldownByCivLandmass?.[cooldownKey] ?? 0;
@@ -157,7 +471,22 @@ export function processLandResurgence(
   const strength = resurgenceCampStrength(state.era, rng);
   const civ = state.civilizations[civId];
 
-  const campId = `camp-${state.idCounters.nextCampId++}`;
+  const campId = `camp-${state.idCounters.nextCampId}`;
+  const affectedHumanIds = [...new Set([
+    civId,
+    ...deriveHumansMateriallyAffectedByPosition(
+      state,
+      chosen.coord,
+      BARBARIAN_OPERATIONAL_RADIUS,
+    ),
+  ])].sort();
+  if (options.spawnPolicy && !options.spawnPolicy.canStart(state, {
+    threatId: `barbarian:${campId}`,
+    position: { ...chosen.coord },
+    affectedHumanIds,
+  })) {
+    return state;
+  }
   const camp: BarbarianCamp = {
     id: campId,
     position: { ...chosen.coord },
@@ -169,6 +498,7 @@ export function processLandResurgence(
 
   const updatedState: GameState = {
     ...state,
+    idCounters: { ...state.idCounters, nextCampId: state.idCounters.nextCampId + 1 },
     barbarianCamps: { ...state.barbarianCamps, [campId]: camp },
     resurgentCampCooldownByCivLandmass: {
       ...(state.resurgentCampCooldownByCivLandmass ?? {}),
