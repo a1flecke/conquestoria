@@ -378,6 +378,20 @@ describe('#443 — excluded buildings never obsolete (negative regression)', () 
   });
 });
 
+describe('#443 — soft-lock guard', () => {
+  it('no Building.requiresBuildings chain references stable, cavalry-academy, or siege-workshop as a prerequisite', () => {
+    const obsoletableIds = new Set(['stable', 'cavalry-academy', 'siege-workshop']);
+    const offenders: string[] = [];
+    for (const b of Object.values(BUILDINGS)) {
+      if (!b.requiresBuildings?.length) continue;
+      for (const req of b.requiresBuildings) {
+        if (obsoletableIds.has(req)) offenders.push(`${b.id} requires ${req}`);
+      }
+    }
+    expect(offenders, `hiding an obsoleted building from the queue would permanently block: ${offenders.join(', ')}`).toEqual([]);
+  });
+});
+
 describe('getTrainableUnitsForCity', () => {
   function coastalGateMap(): GameMap {
     return {
