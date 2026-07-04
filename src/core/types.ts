@@ -406,6 +406,7 @@ export interface Building {
   uniquePerEmpire?: true;         // only one instance per civ (used by national projects)
   nationalProject?: NationalProject;  // present when this building is a national project
   civYieldBonus?: Partial<ResourceYield>;  // empire-wide yield bonus while active
+  obsoletedByTech?: string;  // once this tech completes, building is hidden from queue, silently dequeued, upkeep-free
 }
 
 export interface OccupiedCityState {

@@ -294,6 +294,27 @@ describe('getAvailableBuildings', () => {
   });
 });
 
+describe('#443 — building obsolescence data', () => {
+  it('stable obsoletes at tank-warfare (mounted-unit line fully retires there)', () => {
+    expect(BUILDINGS.stable.obsoletedByTech).toBe('tank-warfare');
+  });
+
+  it('cavalry-academy obsoletes at tank-warfare (same mounted-unit line)', () => {
+    expect(BUILDINGS['cavalry-academy'].obsoletedByTech).toBe('tank-warfare');
+  });
+
+  it('siege-workshop obsoletes at black-powder (catapult/ballista line fully retires there)', () => {
+    expect(BUILDINGS['siege-workshop'].obsoletedByTech).toBe('black-powder');
+  });
+
+  it('armory, war-academy, safehouse, artillery_corps_hq do NOT get obsoletedByTech (melee/ranged/spy categories never fully empty; artillery_corps_hq already has its own national-project fade lifecycle)', () => {
+    expect(BUILDINGS.armory.obsoletedByTech).toBeUndefined();
+    expect(BUILDINGS['war-academy'].obsoletedByTech).toBeUndefined();
+    expect(BUILDINGS.safehouse.obsoletedByTech).toBeUndefined();
+    expect(BUILDINGS.artillery_corps_hq.obsoletedByTech).toBeUndefined();
+  });
+});
+
 describe('getTrainableUnitsForCity', () => {
   function coastalGateMap(): GameMap {
     return {

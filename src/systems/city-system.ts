@@ -62,7 +62,7 @@ export const BUILDINGS: Record<string, Building> = {
   // Military
   barracks: { id: 'barracks', name: 'Barracks', category: 'military', yields: { food: 0, production: 0, gold: 0, science: 0 }, productionCost: 10, description: 'A training ground. Required by future military doctrines.', techRequired: null, pacing: { band: 'starter', role: 'military-enabler', impact: 1, scope: 'city', snowball: 1, urgency: 1.15, situationality: 1, unlockBreadth: 1.05 } },
   walls: { id: 'walls', name: 'Walls', category: 'military', yields: { food: 0, production: 0, gold: 0, science: 0 }, productionCost: 60, description: 'Defends the city', techRequired: 'fortification' },
-  stable: { id: 'stable', name: 'Stable', category: 'military', yields: { food: 0, production: 0, gold: 0, science: 0 }, productionCost: 55, description: 'Trains mounted units', techRequired: 'horseback-riding' },
+  stable: { id: 'stable', name: 'Stable', category: 'military', yields: { food: 0, production: 0, gold: 0, science: 0 }, productionCost: 55, description: 'Trains mounted units', techRequired: 'horseback-riding', obsoletedByTech: 'tank-warfare' },
 
   // Culture
   temple: { id: 'temple', name: 'Temple', category: 'culture', yields: { food: 0, production: 0, gold: 0, science: 1 }, productionCost: 45, description: 'Spiritual center', techRequired: 'philosophy' },
@@ -135,7 +135,7 @@ export const BUILDINGS: Record<string, Building> = {
     description: 'Mounted warfare school. Reduces cavalry unit training cost by 15% in this city.',
     techRequired: 'horseback-riding',
     resourceRequired: ['horses'],
-   
+    obsoletedByTech: 'tank-warfare',
     pacing: { band: 'power-spike', role: 'cavalry-cost-reduction', impact: 1.15, scope: 'city', snowball: 1, urgency: 1, situationality: 1.15, unlockBreadth: 1 },
   },
   // S4b — Strategic resource buildings (iron)
@@ -177,7 +177,7 @@ export const BUILDINGS: Record<string, Building> = {
     description: 'Siege engine fabrication. Reduces Catapult and Ballista training cost by 20% in this city.',
     techRequired: 'siege-warfare',
     resourceRequired: ['stone'],
-   
+    obsoletedByTech: 'black-powder',
     pacing: { band: 'infrastructure', role: 'siege-cost-reduction', impact: 1.2, scope: 'city', snowball: 1, urgency: 1, situationality: 1.2, unlockBreadth: 1 },
   },
   // S5 — Trade infrastructure buildings
