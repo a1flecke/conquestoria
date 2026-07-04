@@ -2186,3 +2186,4 @@ Expected: exit 0.
 - **Cyber Unit Option B (ranged economic strike)** — issue #419.
 - **Market Manipulation spy action wiring** — fintech_hub enables it; spy system wiring in a separate espionage sprint.
 - **Wonder canvas render function** — `src/renderer/wonders/world-wide-web.ts` placeholder needed for visual; deferred to sprite sprint.
+- **Unit combat SFX (placeholder OGGs)** — `cyber-unit-death.ogg`, `stealth-bomber-drop.ogg`, `stealth-bomber-impact.ogg`, `stealth-bomber-death.ogg` are ffmpeg sine-wave placeholders. Replace with real curated audio in the next audio curation MR (after era-base MR5 / PR #227). Use the generate-sprite-prompt skill to request Claude Design audio assets, or source from a licensed SFX library.
