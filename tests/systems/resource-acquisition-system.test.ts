@@ -186,6 +186,46 @@ describe('getCivAvailableResources', () => {
     expect(isResourceTileDeniedByHostileOccupation(state, 'player', { q: 4, r: 3 })).toBe(false);
   });
 
+  it('does not deny an unimproved or city-center resource', () => {
+    const unimproved = makeState({
+      tileResource: 'silk',
+      tileImprovement: 'none',
+      completed: ['irrigation'],
+    });
+    unimproved.units = {
+      raider: {
+        id: 'raider',
+        type: 'warrior',
+        owner: 'barbarian',
+        position: { q: 4, r: 3 },
+      } as never,
+    };
+    expect(isResourceTileDeniedByHostileOccupation(
+      unimproved,
+      'player',
+      { q: 4, r: 3 },
+    )).toBe(false);
+
+    const cityCenter = makeState({
+      tileResource: 'horses',
+      tileIsCity: true,
+      completed: ['animal-husbandry'],
+    });
+    cityCenter.units = {
+      raider: {
+        id: 'raider',
+        type: 'warrior',
+        owner: 'barbarian',
+        position: { q: 3, r: 3 },
+      } as never,
+    };
+    expect(getCivAvailableResources(
+      cityCenter,
+      'player',
+      { hostileOccupationEnabled: true },
+    ).has('horses')).toBe(true);
+  });
+
   it('returns empty set for unknown civId', () => {
     const state = makeState({});
     const result = getCivAvailableResources(state, 'ghost-civ');

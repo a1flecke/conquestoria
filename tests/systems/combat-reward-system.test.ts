@@ -255,6 +255,50 @@ describe('applyCombatOutcomeToState', () => {
       .not.toContainEqual(expect.objectContaining({ type: 'military_attacked' }));
   });
 
+  it('records a recent aggressor in minor-civ diplomacy at the combat source', () => {
+    const state = makeRewardState();
+    state.units.defender.owner = 'mc-test';
+    state.civilizations['ai-1'].units = [];
+    state.minorCivs['mc-test'] = {
+      id: 'mc-test',
+      definitionId: 'sparta',
+      cityId: 'minor-city',
+      units: ['defender'],
+      diplomacy: {
+        relationships: { player: -50 },
+        treaties: [],
+        events: [],
+        atWarWith: ['player'],
+      },
+      activeQuests: {},
+      chainStatusByCiv: {},
+      questCooldownUntilByCiv: {},
+      lastNotifiedStatusByCiv: {},
+      isDestroyed: false,
+      garrisonCooldown: 0,
+      lastEraUpgrade: 1,
+    } as never;
+    const result: CombatResult = {
+      attackerId: 'attacker',
+      defenderId: 'defender',
+      attackerDamage: 5,
+      defenderDamage: 5,
+      attackerSurvived: true,
+      defenderSurvived: true,
+      attackerPosition: { q: 0, r: 0 },
+      defenderPosition: { q: 1, r: 0 },
+    };
+
+    const applied = applyCombatOutcomeToState(state, result, 64);
+
+    expect(applied.state.minorCivs['mc-test'].diplomacy.events).toContainEqual({
+      type: 'military_attacked',
+      turn: state.turn,
+      otherCiv: 'player',
+      weight: 1,
+    });
+  });
+
   it('removes the defeated unit, spends the attacker, and applies XP, healing, and gold', () => {
     const state = makeRewardState();
     const result: CombatResult = {

@@ -677,6 +677,17 @@ export function processTurn(
       cities: { ...newState.cities, [order.cityId]: { ...city, hp: newHp } },
     };
     bus.emit('barbarian:city-attacked', { attackerUnitId: order.attackerUnitId, cityId: order.cityId, hpLost: currentHp - newHp });
+    if (purposefulAIEnabled && newState.opponentAI) {
+      const campId = newState.opponentAI.barbarianHomeCampByUnitId[order.attackerUnitId];
+      const plan = campId ? newState.opponentAI.barbarianCamps[campId] : undefined;
+      if (plan?.target.kind === 'city' && plan.target.id === order.cityId) {
+        newState.opponentAI.barbarianCamps[campId] = {
+          ...plan,
+          phase: 'withdrawing',
+          lastProgressTurn: newState.turn,
+        };
+      }
+    }
 
     if (newHp === 0) {
       const ownerId = city.owner;

@@ -325,6 +325,18 @@ export function validateUnitMove(
   const domain = UNIT_DEFINITIONS[unit.type]?.domain ?? 'land';
   const path = findPath(from, target, state.map, domain, { unit, completedTechs });
   if (!path) return movementFailure(from, target, [from], 'unreachable', 'No passable route to that tile.');
+  const pathCrossesHostileOccupant = path.slice(1, -1).some(coord =>
+    getUnitIdsAtCoord(occupancy, coord).some(id =>
+      id !== unitId && occupancy.ownersByUnitId[id] !== unit.owner));
+  if (pathCrossesHostileOccupant) {
+    return movementFailure(
+      from,
+      target,
+      path,
+      'occupied',
+      'An enemy unit is blocking the way.',
+    );
+  }
   const pathCrossesBlockedForeignCity = path.slice(1).some(coord =>
     Object.values(state.cities).some(city =>
       city.owner !== unit.owner

@@ -158,6 +158,27 @@ describe('unit-movement-system', () => {
     expect(state.units[mover.id].position).toEqual({ q: 0, r: 0 });
   });
 
+  it('does not let world actors path through an occupied intermediate tile', () => {
+    const mover = createUnit('warrior', 'barbarian', { q: 0, r: 0 }, mkC());
+    mover.id = 'world-mover';
+    mover.movementPointsLeft = 3;
+    const blocker = createUnit('worker', 'player', { q: 1, r: 0 }, mkC());
+    blocker.id = 'blocker';
+    const state = movementState(mover, [
+      tile({ q: 0, r: 0 }),
+      tile({ q: 1, r: 0 }),
+      tile({ q: 2, r: 0 }),
+    ], { extraUnits: [blocker] });
+    delete state.civilizations.barbarian;
+
+    expect(executeUnitMove(
+      state,
+      mover.id,
+      { q: 2, r: 0 },
+      { actor: 'world' },
+    )).toMatchObject({ ok: false, reason: 'occupied' });
+  });
+
   it('reserves foreign-city entry for an explicit canonical capture flow', () => {
     const mover = createUnit('warrior', 'player', { q: 0, r: 0 }, mkC());
     mover.id = 'mover';

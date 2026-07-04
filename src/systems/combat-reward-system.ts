@@ -235,6 +235,7 @@ export function applyCombatOutcomeToState(
 
   let units = { ...state.units };
   let civilizations = { ...state.civilizations };
+  let minorCivs = { ...state.minorCivs };
   let espionage = state.espionage ? { ...state.espionage } : state.espionage;
 
   const defenderCiv = civilizations[defenderBefore.owner];
@@ -247,6 +248,17 @@ export function applyCombatOutcomeToState(
       ...defenderCiv,
       diplomacy: recordMilitaryAttack(
         defenderCiv.diplomacy,
+        attackerBefore.owner,
+        state.turn,
+      ),
+    };
+  }
+  const defenderMinor = minorCivs[defenderBefore.owner];
+  if (attackerBefore.owner !== defenderBefore.owner && defenderMinor?.diplomacy) {
+    minorCivs[defenderBefore.owner] = {
+      ...defenderMinor,
+      diplomacy: recordMilitaryAttack(
+        defenderMinor.diplomacy,
         attackerBefore.owner,
         state.turn,
       ),
@@ -307,6 +319,7 @@ export function applyCombatOutcomeToState(
       ...state,
       units,
       civilizations,
+      minorCivs,
       espionage,
   };
   const pirateEvents: PirateActionEvent[] = [];

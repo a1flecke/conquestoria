@@ -25,6 +25,12 @@ export function isResourceTileDeniedByHostileOccupation(
   coord: HexCoord,
 ): boolean {
   const civ = state.civilizations[civId];
+  const tile = state.map.tiles[hexKey(coord)];
+  if (
+    !tile?.resource
+    || tile.improvement === 'none'
+    || tile.improvementTurnsLeft !== 0
+  ) return false;
   return Object.values(state.units ?? {}).some(unit => {
     if (unit.transportId || unit.owner === civId || hexKey(unit.position) !== hexKey(coord)) {
       return false;
