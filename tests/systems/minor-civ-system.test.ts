@@ -117,7 +117,6 @@ describe('minor civ turn processing', () => {
     const result = processMinorCivTurn(
       state,
       new EventBus(),
-      { purposefulAIEnabled: true },
     );
 
     expect(state).toEqual(before);
@@ -147,7 +146,6 @@ describe('minor civ turn processing', () => {
     const result = processMinorCivTurn(
       state,
       new EventBus(),
-      { purposefulAIEnabled: true },
     );
 
     expect(result.opponentAI?.minorCivs[mcId].target).toMatchObject({
@@ -175,7 +173,6 @@ describe('minor civ turn processing', () => {
     const result = processMinorCivTurn(
       state,
       new EventBus(),
-      { purposefulAIEnabled: true },
     );
 
     expect(hexDistance(result.units[garrison.id].position, city.position))

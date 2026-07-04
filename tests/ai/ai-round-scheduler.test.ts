@@ -48,18 +48,20 @@ describe('AI round scheduler', () => {
     const seen: string[] = [];
 
     const result = processNonHumanMajorRound(state, new EventBus(), {
-      execute: (current, civId) => {
-        seen.push(civId);
-        return current;
+      prepare: (snapshot, civId) => prepared(snapshot as typeof state, civId),
+      executePrepared: (current, value) => {
+        seen.push(value.civId);
+        return { state: current };
       },
     });
 
     expect(seen).toEqual(['ai-2', 'ai-3', 'ai-1']);
     expect(result.state.opponentAI?.lastProcessedRound).toBe(1);
     processNonHumanMajorRound(result.state, new EventBus(), {
-      execute: (current, civId) => {
-        seen.push(civId);
-        return current;
+      prepare: (snapshot, civId) => prepared(snapshot as typeof state, civId),
+      executePrepared: (current, value) => {
+        seen.push(value.civId);
+        return { state: current };
       },
     });
     expect(seen).toHaveLength(3);
@@ -87,21 +89,24 @@ describe('AI round scheduler', () => {
 
   it('freezes the actor list so AI records added during execution wait until next round', () => {
     const state = createNewGame(undefined, 'scheduler-frozen', 'small');
-    const execute = vi.fn((current, civId: string) => {
-      if (civId === 'ai-1') {
+    const executePrepared = vi.fn((current, value: PreparedMajorCivPlan) => {
+      if (value.civId === 'ai-1') {
         current.civilizations['ai-new'] = {
           ...structuredClone(current.civilizations['ai-1']),
           id: 'ai-new',
           name: 'Late Arrival',
         };
       }
-      return current;
+      return { state: current };
     });
 
-    processNonHumanMajorRound(state, new EventBus(), { execute });
+    processNonHumanMajorRound(state, new EventBus(), {
+      prepare: (snapshot, civId) => prepared(snapshot as typeof state, civId),
+      executePrepared,
+    });
 
-    expect(execute).toHaveBeenCalledTimes(1);
-    expect(execute).not.toHaveBeenCalledWith(expect.anything(), 'ai-new', expect.anything());
+    expect(executePrepared).toHaveBeenCalledTimes(1);
+    expect(executePrepared.mock.calls.every(([, value]) => value.civId !== 'ai-new')).toBe(true);
   });
 
   it('handles zero actors and negative or large rotation rounds deterministically', () => {
@@ -121,7 +126,6 @@ describe('AI round scheduler', () => {
     const snapshots: Readonly<typeof state>[] = [];
 
     const result = processNonHumanMajorRound(state, new EventBus(), {
-      strategicPlanningEnabled: true,
       prepare: (snapshot, civId) => {
         snapshots.push(snapshot);
         return prepared(snapshot as typeof state, civId);
@@ -147,7 +151,6 @@ describe('AI round scheduler', () => {
     const seen: PreparedMajorCivPlan[] = [];
 
     processNonHumanMajorRound(state, new EventBus(), {
-      strategicPlanningEnabled: true,
       prepare: (snapshot, civId) => {
         const value = prepared(snapshot as typeof state, civId);
         value.portfolio.primaryPlan = {
@@ -204,7 +207,6 @@ describe('AI round scheduler', () => {
     bus.on('city:founded', founded);
 
     const result = processNonHumanMajorRound(state, bus, {
-      strategicPlanningEnabled: true,
       prepare: (snapshot, civId) => {
         const value = prepared(snapshot as typeof state, civId);
         const settler = state.units[settlerId];
@@ -264,7 +266,6 @@ describe('AI round scheduler', () => {
     const executed: PreparedMajorCivPlan[] = [];
 
     const result = processNonHumanMajorRound(state, new EventBus(), {
-      strategicPlanningEnabled: true,
       prepare: (snapshot, civId) => {
         const value = prepared(snapshot as typeof state, civId);
         if (civId === 'ai-2') {
@@ -342,7 +343,6 @@ describe('AI round scheduler', () => {
     let executedAiTwo: PreparedMajorCivPlan | null = null;
 
     const result = processNonHumanMajorRound(state, new EventBus(), {
-      strategicPlanningEnabled: true,
       prepare: (snapshot, civId) => {
         const value = prepared(snapshot as typeof state, civId);
         if (civId === 'ai-2') {
@@ -445,7 +445,6 @@ describe('AI round scheduler', () => {
     }> = [];
 
     const result = processNonHumanMajorRound(state, new EventBus(), {
-      strategicPlanningEnabled: true,
       prepare: (snapshot, civId) => {
         const value = prepared(snapshot as typeof state, civId);
         if (civId === 'ai-2') {
@@ -493,21 +492,6 @@ describe('AI round scheduler', () => {
     expect(result.state.opponentAI?.majorCivs['ai-2']?.primaryPlan).toBeNull();
   });
 
-  it('keeps the existing live AI path when strategic planning is disabled', () => {
-    const state = createNewGame(undefined, 'scheduler-disabled', 'small');
-    const prepare = vi.fn();
-    const execute = vi.fn(current => current);
-
-    processNonHumanMajorRound(state, new EventBus(), {
-      strategicPlanningEnabled: false,
-      prepare,
-      execute,
-    });
-
-    expect(prepare).not.toHaveBeenCalled();
-    expect(execute).toHaveBeenCalledOnce();
-  });
-
   it('isolates a failed actor preparation and reports it without blocking peers', () => {
     const state = createNewGame({
       civType: 'egypt',
@@ -519,7 +503,6 @@ describe('AI round scheduler', () => {
     const executed: string[] = [];
 
     const result = processNonHumanMajorRound(state, new EventBus(), {
-      strategicPlanningEnabled: true,
       prepare: (snapshot, civId) => civId === 'ai-1'
         ? {
             ...prepared(snapshot as typeof state, civId),
@@ -553,7 +536,6 @@ describe('AI round scheduler', () => {
     const executedIds: string[] = [];
 
     processNonHumanMajorRound(state, new EventBus(), {
-      strategicPlanningEnabled: true,
       prepare: (snapshot, civId) => {
         preparedIds.push(civId);
         return prepared(snapshot as typeof state, civId);

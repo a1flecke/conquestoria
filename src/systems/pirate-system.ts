@@ -2,7 +2,6 @@ import type { EventBus } from '@/core/event-bus';
 import type { CombatResult, GameState, HexCoord, Unit, UnitType } from '@/core/types';
 import type { PirateFactionState } from '@/core/pirate-state';
 import { isMajorCivOwner } from '@/core/owner-kind';
-import { PURPOSEFUL_AI_FEATURE_ENABLED } from '@/core/feature-flags';
 import { canUnitAttackTarget } from './attack-targeting';
 import { applyCombatOutcomeToState } from './combat-reward-system';
 import { resolveCombat } from './combat-system';
@@ -95,7 +94,6 @@ function neighbors(state: GameState, coord: HexCoord): HexCoord[] {
 
 function normalizeRoundState(
   state: GameState,
-  purposefulAIEnabled: boolean,
 ): { state: GameState; events: PirateTransitionEvent[] } {
   if (!state.pirates) return { state, events: [] };
   let nextState = state;
@@ -103,7 +101,7 @@ function normalizeRoundState(
   for (const originalFaction of Object.values(state.pirates.factions)) {
     let faction = originalFaction;
     if (faction.headquarters.kind === 'deep-sea-flotilla' && !state.units[faction.headquarters.flagshipUnitId]) {
-      const replacement = purposefulAIEnabled ? getPirateFleetLeader(state, faction.id) : null;
+      const replacement = getPirateFleetLeader(state, faction.id);
       if (replacement) {
         faction = {
           ...faction,
@@ -693,19 +691,17 @@ export function processPiratesForCompletedRound(
   state: GameState,
   bus: EventBus,
   options: {
-    purposefulAIEnabled?: boolean;
     spawnPolicy?: IndependentThreatSpawnPolicy;
   } = {},
 ): ProcessPiratesResult {
-  const purposefulAIEnabled = options.purposefulAIEnabled ?? PURPOSEFUL_AI_FEATURE_ENABLED;
-  const spawnPolicy = options.spawnPolicy ?? (purposefulAIEnabled ? {
+  const spawnPolicy = options.spawnPolicy ?? {
     canStart: (candidateState: GameState, candidate: IndependentThreatSpawnCandidate) =>
       candidate.affectedHumanIds.every(humanId =>
         canStartIndependentThreat(candidateState, humanId, candidate.threatId).allowed),
-  } : undefined);
+  };
   const trace = [...PIRATE_ROUND_TRACE];
   const wasActivated = state.pirates?.activatedTurn !== null;
-  let normalized = normalizeRoundState(state, purposefulAIEnabled);
+  let normalized = normalizeRoundState(state);
   let nextState = normalized.state;
   const events: PirateTransitionEvent[] = [...normalized.events];
   const relocated = new Set<string>();
@@ -747,9 +743,12 @@ export function processPiratesForCompletedRound(
     }
     if (result.facts.relocation.status === 'moved') events.push({ type: 'relocated', factionId });
   }
-  const processed = purposefulAIEnabled
-    ? processPurposefulMovementAndCombat(nextState, relocated, bus, spawnPolicy)
-    : processMovementAndCombat(nextState, relocated);
+  const processed = processPurposefulMovementAndCombat(
+    nextState,
+    relocated,
+    bus,
+    spawnPolicy,
+  );
   nextState = processed.state;
   const facts: PirateRoundFacts = {
     movements: [...relocationFacts, ...processed.facts.movements],

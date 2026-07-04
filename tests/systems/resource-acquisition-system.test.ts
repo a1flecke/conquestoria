@@ -139,19 +139,10 @@ describe('getCivAvailableResources', () => {
     };
 
     expect(isResourceTileDeniedByHostileOccupation(state, 'player', { q: 4, r: 3 })).toBe(true);
-    expect(getCivAvailableResources(state, 'player').has('silk')).toBe(true);
-    expect(getCivAvailableResources(
-      state,
-      'player',
-      { hostileOccupationEnabled: true },
-    ).has('silk')).toBe(false);
+    expect(getCivAvailableResources(state, 'player').has('silk')).toBe(false);
 
     delete state.units.raider;
-    expect(getCivAvailableResources(
-      state,
-      'player',
-      { hostileOccupationEnabled: true },
-    ).has('silk')).toBe(true);
+    expect(getCivAvailableResources(state, 'player').has('silk')).toBe(true);
   });
 
   it('does not deny resources for cargo, neutral, or friendly occupants', () => {
@@ -219,11 +210,7 @@ describe('getCivAvailableResources', () => {
         position: { q: 3, r: 3 },
       } as never,
     };
-    expect(getCivAvailableResources(
-      cityCenter,
-      'player',
-      { hostileOccupationEnabled: true },
-    ).has('horses')).toBe(true);
+    expect(getCivAvailableResources(cityCenter, 'player').has('horses')).toBe(true);
   });
 
   it('returns empty set for unknown civId', () => {

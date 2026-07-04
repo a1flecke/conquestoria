@@ -1,7 +1,6 @@
 import { createSavePanel } from '@/ui/save-panel';
 import { createGameButton } from '@/ui/ui-kit';
 import type { OpponentChallenge } from '@/core/types';
-import { PURPOSEFUL_AI_FEATURE_ENABLED } from '@/core/feature-flags';
 import {
   OPPONENT_CHALLENGE_COPY,
   createOpponentChallengeSelector,
@@ -33,10 +32,6 @@ export interface PauseMenuCallbacks {
   opponentChallenge: OpponentChallenge;
   pendingOpponentChallenge?: OpponentChallenge;
   onOpponentChallengeChange: (challenge: OpponentChallenge) => void;
-}
-
-export interface PauseMenuOptions {
-  purposefulAIEnabled?: boolean;
 }
 
 interface PauseMenuViewState {
@@ -226,7 +221,6 @@ function buildOpponentChallengeSettings(
 }
 
 interface PauseMenuMainViewOptions {
-  purposefulAIEnabled: boolean;
   announcement: string;
   onOpponentChallengeSelect: (challenge: OpponentChallenge) => void;
 }
@@ -279,13 +273,11 @@ function buildMainView(
   newGameBtn.addEventListener('click', () => buildConfirmView(panel, body, container, callbacks, options));
   body.appendChild(newGameBtn);
 
-  if (options.purposefulAIEnabled) {
-    body.appendChild(buildOpponentChallengeSettings(
-      callbacks,
-      options.announcement,
-      options.onOpponentChallengeSelect,
-    ));
-  }
+  body.appendChild(buildOpponentChallengeSettings(
+    callbacks,
+    options.announcement,
+    options.onOpponentChallengeSelect,
+  ));
 
   // Spec 3: per-channel audio settings at bottom of pause menu
   body.appendChild(buildAudioSettings(callbacks));
@@ -339,11 +331,9 @@ function buildConfirmView(
 function renderPauseMenu(
   container: HTMLElement,
   callbacks: PauseMenuCallbacks,
-  options: PauseMenuOptions,
   viewState: PauseMenuViewState,
 ): HTMLElement {
   document.getElementById('pause-menu')?.remove();
-  const purposefulAIEnabled = options.purposefulAIEnabled ?? PURPOSEFUL_AI_FEATURE_ENABLED;
 
   const overlay = document.createElement('div');
   overlay.id = 'pause-menu';
@@ -363,7 +353,7 @@ function renderPauseMenu(
     border: '1px solid rgba(255,255,255,0.2)',
     borderRadius: '12px',
     padding: '20px',
-    width: purposefulAIEnabled ? 'min(760px, calc(100vw - 32px))' : '280px',
+    width: 'min(760px, calc(100vw - 32px))',
     maxHeight: 'min(90dvh, 760px)',
     overflowY: 'auto',
     color: '#f4f1e8',
@@ -377,7 +367,6 @@ function renderPauseMenu(
   container.appendChild(overlay);
 
   buildMainView(overlay, body, container, callbacks, {
-    purposefulAIEnabled,
     announcement: viewState.announcement ?? '',
     onOpponentChallengeSelect: challenge => {
       callbacks.onOpponentChallengeChange(challenge);
@@ -387,7 +376,6 @@ function renderPauseMenu(
       renderPauseMenu(
         container,
         { ...callbacks, pendingOpponentChallenge },
-        options,
         {
           announcement: pendingOpponentChallenge
             ? `${OPPONENT_CHALLENGE_COPY[challenge].label} will apply next round`
@@ -410,7 +398,6 @@ function renderPauseMenu(
 export function showPauseMenu(
   container: HTMLElement,
   callbacks: PauseMenuCallbacks,
-  options: PauseMenuOptions = {},
 ): HTMLElement {
-  return renderPauseMenu(container, callbacks, options, {});
+  return renderPauseMenu(container, callbacks, {});
 }

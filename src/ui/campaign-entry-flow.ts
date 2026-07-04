@@ -16,7 +16,6 @@ export type CampaignEntryCandidate =
   | { kind: 'import'; state: GameState };
 
 export interface CampaignEntryDependencies {
-  purposefulAIEnabled: boolean;
   persistStoredChoice: typeof rewriteLoadedSaveEntry;
   persistImport: typeof autoSave;
   showChallengePrompt: typeof showLegacyOpponentChallengePrompt;
@@ -39,7 +38,7 @@ export function beginCampaignEntry(
     return 'entered';
   };
 
-  if (!dependencies.purposefulAIEnabled || isOpponentChallenge(normalized.opponentChallenge)) {
+  if (isOpponentChallenge(normalized.opponentChallenge)) {
     return enter(normalized);
   }
 

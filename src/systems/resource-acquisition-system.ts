@@ -47,7 +47,6 @@ export function isResourceTileDeniedByHostileOccupation(
 export function getCivAvailableResources(
   state: GameState,
   civId: string,
-  options: { hostileOccupationEnabled?: boolean } = {},
 ): Set<ResourceType> {
   const result = new Set<ResourceType>();
   const civ = state.civilizations[civId];
@@ -72,10 +71,7 @@ export function getCivAvailableResources(
 
       // Tech gate — must have researched the revealing tech.
       if (!completedTechs.has(def.tech)) continue;
-      if (
-        options.hostileOccupationEnabled
-        && isResourceTileDeniedByHostileOccupation(state, civId, coord)
-      ) continue;
+      if (isResourceTileDeniedByHostileOccupation(state, civId, coord)) continue;
 
       if (key === cityKey) {
         // City-center exception: tech alone grants the resource.
@@ -105,10 +101,7 @@ export function getCivAvailableResources(
     const def = resourceDefMap.get(tile.resource as ResourceType);
     if (!def) continue;
     if (!completedTechs.has(def.tech)) continue;
-    if (
-      options.hostileOccupationEnabled
-      && isResourceTileDeniedByHostileOccupation(state, civId, tile.coord)
-    ) continue;
+    if (isResourceTileDeniedByHostileOccupation(state, civId, tile.coord)) continue;
 
     result.add(tile.resource as ResourceType);
   }
@@ -139,10 +132,9 @@ export function getCivAvailableResources(
 export function getCivResourceYieldBonus(
   state: GameState,
   civId: string,
-  options: { hostileOccupationEnabled?: boolean } = {},
 ): ResourceYield {
   const bonus: ResourceYield = { food: 0, production: 0, gold: 0, science: 0 };
-  const owned = getCivAvailableResources(state, civId, options);
+  const owned = getCivAvailableResources(state, civId);
 
   for (const def of RESOURCE_DEFINITIONS) {
     if (!def.effect || def.effect.type === 'happiness') continue;
@@ -166,9 +158,8 @@ export function getCivResourceYieldBonus(
 export function getCivHappinessFromResources(
   state: GameState,
   civId: string,
-  options: { hostileOccupationEnabled?: boolean } = {},
 ): number {
-  const owned = getCivAvailableResources(state, civId, options);
+  const owned = getCivAvailableResources(state, civId);
   let count = 0;
 
   for (const def of RESOURCE_DEFINITIONS) {

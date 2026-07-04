@@ -1,6 +1,5 @@
 import type { GameState, Unit, HexCoord, PersonalityTraits, SpyMissionType, City, UnitType } from '@/core/types';
 import { EventBus } from '@/core/event-bus';
-import { PURPOSEFUL_AI_FEATURE_ENABLED } from '@/core/feature-flags';
 import { hexKey, wrappedHexDistance, hexDistance } from '@/systems/hex-utils';
 import { getTrainableUnitsForCiv, getDetectionUnitTypeForCiv } from '@/systems/city-system';
 import { foundCityInState } from '@/systems/city-founding-system';
@@ -514,11 +513,7 @@ function scoreLegendaryWonderOpportunity(state: GameState, civId: string, cityId
   return 100 + cityBonus + rewardBonus + techMomentum - costPenalty;
 }
 
-export interface ProcessAITurnOptions {
-  purposefulAIEnabled?: boolean;
-}
-
-interface ProcessAITurnInternalOptions extends ProcessAITurnOptions {
+interface ProcessAITurnInternalOptions {
   prepared?: PreparedMajorCivPlan;
 }
 
@@ -558,8 +553,6 @@ function processAITurnInternal(
   bus: EventBus,
   options: ProcessAITurnInternalOptions = {},
 ): GameState {
-  const purposefulAIEnabled = options.purposefulAIEnabled
-    ?? PURPOSEFUL_AI_FEATURE_ENABLED;
   let preparedForTurn = options.prepared;
   let newState = initializeLegendaryWonderProjectsForAllCities(structuredClone(state));
   let civ = newState.civilizations[civId];
@@ -567,28 +560,6 @@ function processAITurnInternal(
 
   const personality = getPersonality(newState, civ.civType ?? 'generic');
   const civDef = resolveCivDefinition(newState, civ.civType ?? '');
-  const ownedBreakaway = Object.values(newState.civilizations).find(other =>
-    other.breakaway?.originOwnerId === civId
-    && other.breakaway.status === 'secession'
-    && !civ.diplomacy.atWarWith.includes(other.id)
-  );
-
-  if (ownedBreakaway && !purposefulAIEnabled) {
-    newState.civilizations[civId].diplomacy = declareWar(
-      civ.diplomacy,
-      ownedBreakaway.id,
-      newState.turn,
-      false,
-    );
-    newState.civilizations[ownedBreakaway.id].diplomacy = declareWar(
-      ownedBreakaway.diplomacy,
-      civId,
-      newState.turn,
-      false,
-    );
-    bus.emit('diplomacy:war-declared', { attackerId: civId, defenderId: ownedBreakaway.id, opponentKind: resolveOpponentKind(ownedBreakaway.id) });
-  }
-
   const abandonment = abandonLostLegendaryWonderRace(newState, civId);
   newState = abandonment.state;
   civ = newState.civilizations[civId];
@@ -596,277 +567,102 @@ function processAITurnInternal(
     bus.emit('wonder:legendary-lost', event);
   }
 
-  if (purposefulAIEnabled) {
-    preparedForTurn ??= prepareMajorCivStrategicPlan(
-      structuredClone(newState),
-      civId,
-    );
-    newState = processMajorCivStrategicTurn(
-      newState,
-      preparedForTurn,
-      bus,
-    ).state;
-    civ = newState.civilizations[civId];
-  }
-  const administrativePerception = purposefulAIEnabled && preparedForTurn
-    ? preparedForTurn.perception
-    : buildMajorCivPerception(newState, civId);
+  preparedForTurn ??= prepareMajorCivStrategicPlan(
+    structuredClone(newState),
+    civId,
+  );
 
-  if (!purposefulAIEnabled) {
-  // --- Handle settlers: found cities ---
+  // Strategic movement is plan-driven, while settlement remains a shared
+  // administrative action using the canonical mutation helper.
   const settlers = civ.units
     .map(id => newState.units[id])
-    .filter((u): u is Unit => u !== undefined && u.type === 'settler');
-
+    .filter((unit): unit is Unit => unit?.type === 'settler');
   for (const settler of settlers) {
-    const tile = newState.map.tiles[hexKey(settler.position)];
     if (
-      tile
-      && !settler.hasActed
+      !settler.hasActed
       && settler.movementPointsLeft > 0
       && canFoundCityAt(newState, settler.position)
     ) {
-      const result = foundCityInState(newState, settler.id, bus);
-      newState = result.state;
-      newState = {
-        ...newState,
-        cities: {
-          ...newState.cities,
-          [result.cityId]: {
-            ...newState.cities[result.cityId],
-            productionQueue: ['warrior'],
-          },
-        },
-      };
+      newState = foundCityInState(newState, settler.id, bus).state;
       civ = newState.civilizations[civId];
     }
   }
+
+  // Cargo handling is administrative rather than a competing strategic
+  // chase path, so retain the canonical all-cargo load/unload behavior.
+  const transportHostileOwners = new Set<string>([
+    'barbarian',
+    ...(newState.settings?.aiContestsBeasts === true ? [BEAST_OWNER] : []),
+    ...(civ.diplomacy?.atWarWith ?? []),
+  ]);
+  addAlwaysHostileOwners(
+    newState,
+    civId,
+    transportHostileOwners,
+    newState.settings?.aiContestsBeasts === true,
+  );
+  for (const [minorCivId, minor] of Object.entries(newState.minorCivs)) {
+    if (minor.diplomacy?.atWarWith?.includes(civId)) {
+      transportHostileOwners.add(minorCivId);
+    }
   }
-
-  const contestsBeasts = newState.settings?.aiContestsBeasts === true;
-
-  if (!purposefulAIEnabled) {
-  // --- Handle transports: unload onto enemy coast, then load idle land units ---
-  const transportHostileOwners = new Set<string>(['barbarian', ...(contestsBeasts ? [BEAST_OWNER] : []), ...(civ.diplomacy?.atWarWith ?? [])]);
-  addAlwaysHostileOwners(newState, civId, transportHostileOwners, contestsBeasts);
-  for (const [mcId, mc] of Object.entries(newState.minorCivs)) {
-    if (mc.diplomacy?.atWarWith?.includes(civId)) transportHostileOwners.add(mcId);
-  }
-
   const idleTransports = civ.units
     .map(id => newState.units[id])
-    .filter((u): u is Unit => !!u && (UNIT_DEFINITIONS[u.type]?.domain ?? 'land') === 'naval' && UNIT_DEFINITIONS[u.type]?.cargoCapacity !== undefined);
-
+    .filter((unit): unit is Unit =>
+      Boolean(unit)
+      && UNIT_DEFINITIONS[unit.type]?.domain === 'naval'
+      && UNIT_DEFINITIONS[unit.type]?.cargoCapacity !== undefined);
   for (const transport of idleTransports) {
-    // 1. Unload all eligible cargo onto adjacent enemy-owned tiles
-    const cargo = getTransportCargo(newState, transport.id);
-    let didUnload = false;
-    for (const cargoUnit of cargo) {
-      // Refresh from newState: a previous iteration may have updated action state
-      const freshCargo = newState.units[cargoUnit.id];
-      if (!freshCargo || freshCargo.hasActed || freshCargo.movementPointsLeft <= 0) continue;
-      const destinations = getUnloadDestinations(newState, transport.id, freshCargo.id);
-      const enemyDest = destinations.find(dest => {
-        const tile = newState.map.tiles[hexKey(dest)];
-        return tile && tile.owner && transportHostileOwners.has(tile.owner);
-      });
-      if (enemyDest) {
-        const result = unloadUnitFromTransport(newState, transport.id, freshCargo.id, enemyDest);
-        if (result.ok) {
-          newState = result.state;
-          civ = newState.civilizations[civId];
-          didUnload = true;
-          // Don't break — unload all eligible cargo in one turn
-        }
+    let unloaded = false;
+    for (const cargo of getTransportCargo(newState, transport.id)) {
+      const current = newState.units[cargo.id];
+      if (!current || current.hasActed || current.movementPointsLeft <= 0) continue;
+      const destination = getUnloadDestinations(newState, transport.id, current.id)
+        .find(coord => {
+          const owner = newState.map.tiles[hexKey(coord)]?.owner;
+          return owner !== null && owner !== undefined && transportHostileOwners.has(owner);
+        });
+      if (!destination) continue;
+      const result = unloadUnitFromTransport(newState, transport.id, current.id, destination);
+      if (result.ok) {
+        newState = result.state;
+        civ = newState.civilizations[civId];
+        unloaded = true;
       }
     }
-    if (didUnload) continue;
-
-    // 2. Load all adjacent idle land units up to capacity
-    const loadCandidates = civ.units
+    if (unloaded) continue;
+    for (const candidate of civ.units
       .map(id => newState.units[id])
-      .filter((u): u is Unit =>
-        !!u && !u.transportId && !u.hasActed && u.movementPointsLeft > 0
-        && (UNIT_DEFINITIONS[u.type]?.domain ?? 'land') === 'land',
-      );
-    for (const candidate of loadCandidates) {
-      // Re-check capacity each iteration: multi-slot units (cavalry, catapult) may fill the hold
-      const used = getTransportCargoUsed(newState, transport.id);
-      const cap = getTransportCapacity(newState.units[transport.id]!);
-      if (used >= cap) break;
+      .filter((unit): unit is Unit =>
+        Boolean(unit)
+        && !unit.transportId
+        && !unit.hasActed
+        && unit.movementPointsLeft > 0
+        && (UNIT_DEFINITIONS[unit.type]?.domain ?? 'land') === 'land')) {
+      if (getTransportCargoUsed(newState, transport.id)
+        >= getTransportCapacity(newState.units[transport.id]!)) break;
       const check = canLoadUnitOntoTransport(newState, candidate.id, transport.id);
-      if (check.ok) {
-        const result = loadUnitOntoTransport(newState, candidate.id, transport.id);
-        if (result.ok) {
-          newState = result.state;
-          civ = newState.civilizations[civId];
-        }
+      if (!check.ok) continue;
+      const result = loadUnitOntoTransport(newState, candidate.id, transport.id);
+      if (result.ok) {
+        newState = result.state;
+        civ = newState.civilizations[civId];
       }
     }
   }
-  }
+
+  newState = processMajorCivStrategicTurn(
+    newState,
+    preparedForTurn,
+    bus,
+  ).state;
+  civ = newState.civilizations[civId];
+  const administrativePerception = preparedForTurn.perception;
 
   newState = applyPirateAiResponse(newState, civId, bus);
   civ = newState.civilizations[civId];
   const piratePresentation = getPirateWatersPresentation(newState, civId);
   const knownPirateUnitIds = knownPirateResponseUnitIds(newState, civId, piratePresentation.factions);
-
-  // --- Handle military units: explore or attack ---
-  const militaryUnits = civ.units
-    .map(id => newState.units[id])
-    .filter((u): u is Unit => u !== undefined && u.type !== 'settler' && u.type !== 'worker');
-
-  if (!purposefulAIEnabled) {
-  for (const unit of militaryUnits) {
-    if (unit.movementPointsLeft <= 0) continue;
-
-    let attacked = false;
-    const attackTargets = getAttackTargets(newState, unit, { requireVisibility: false });
-    for (const target of attackTargets) {
-      if (target.result.targetType === 'unit') {
-        const occupant = newState.units[target.result.targetUnitId];
-        if (occupant) {
-          if (classifyOwner(occupant.owner) === 'pirate' && !knownPirateUnitIds.has(occupant.id)) continue;
-          if (classifyOwner(occupant.owner) === 'pirate' && !isFavorablePirateFight(unit, occupant)) continue;
-          // Beast guard: only engage beasts when enabled AND the fight is clearly winnable
-          if (isBeastUnit(occupant)) {
-            if (!contestsBeasts) continue;
-            if (!canUnitAttackBeast(unit, occupant).allowed) continue;
-            const myStrength = UNIT_DEFINITIONS[unit.type].strength * (unit.health / 100);
-            const beastStrength = UNIT_DEFINITIONS[occupant.type].strength * (occupant.health / 100);
-            if (myStrength < beastStrength * 1.5) continue;
-          }
-          const seed = newState.turn * 16807 + unit.id.charCodeAt(0);
-          const attackerBonus = resolveCivDefinition(newState, civ.civType ?? '')?.bonusEffect;
-          const defenderBonus = resolveCivDefinition(newState, newState.civilizations[occupant.owner]?.civType ?? '')?.bonusEffect;
-          const result = resolveCombat(
-            unit,
-            occupant,
-            newState.map,
-            seed,
-            { attackerBonus, defenderBonus },
-            newState.era,
-          );
-          const combatPresentation = buildCombatPresentation(newState, result, unit, occupant);
-          const applied = applyCombatOutcomeToState(newState, result, seed);
-          newState = applied.state;
-          emitMinorCivQuestTransitions(bus, applied.questTransitions, newState);
-          civ = newState.civilizations[civId];
-          if (applied.defenderDefeated) {
-            const destroyedCamp = applyCampDestructionAtTarget(newState, civId, occupant.position, newState.turn);
-            if (destroyedCamp.campId) {
-              newState = destroyedCamp.state;
-              emitMinorCivQuestTransitions(bus, destroyedCamp.questTransitions, newState);
-              for (const mcId of Object.keys(newState.minorCivs)) {
-                applyDiplomaticReaction(newState, 'camp_destroyed_nearby', civId, mcId);
-              }
-            }
-          }
-          bus.emit('combat:resolved', { result, ...combatPresentation });
-          for (const reward of applied.rewards) {
-            bus.emit('combat:reward-earned', { reward });
-          }
-          attacked = true;
-          break;
-        }
-      }
-    }
-
-    if (attacked) continue;
-
-    const exposedEnemyCity = Object.values(newState.cities).find(city =>
-      city.owner !== civId
-      && !city.owner.startsWith('mc-')
-      && (civ.diplomacy?.atWarWith.includes(city.owner) ?? false)
-      && hexDistance(unit.position, city.position) === 1,
-    );
-
-    if (exposedEnemyCity) {
-      const prevOwnerIdForCapture = exposedEnemyCity.owner;
-      const assault = beginMajorCityAssault(
-        newState,
-        unit.id,
-        exposedEnemyCity.id,
-        { actor: 'ai', civId, bus },
-      );
-      if (!assault.ok) continue;
-      newState = assault.state;
-      const beforeCapture = newState;
-      const captureResult = resolveMajorCityCapture(
-        newState,
-        exposedEnemyCity.id,
-        civId,
-        'occupy',
-        newState.turn,
-      );
-      newState = captureResult.state;
-      emitMajorCityCaptureEvents(
-        beforeCapture,
-        captureResult,
-        exposedEnemyCity.id,
-        civId,
-        prevOwnerIdForCapture,
-        bus,
-      );
-      civ = newState.civilizations[civId];
-      continue;
-    }
-
-    // Explore: move toward unexplored territory
-    const occupancy = buildUnitOccupancy(newState.units);
-    const aiHostileOwners = new Set<string>(['barbarian', ...(contestsBeasts ? [BEAST_OWNER] : []), ...(civ.diplomacy?.atWarWith ?? [])]);
-    addAlwaysHostileOwners(newState, civId, aiHostileOwners, contestsBeasts);
-    for (const [mcId, mc] of Object.entries(newState.minorCivs)) {
-      if (mc.diplomacy?.atWarWith?.includes(civId)) {
-        aiHostileOwners.add(mcId);
-      }
-    }
-    const range = getMovementRange(
-      unit,
-      newState.map,
-      occupancy.unitIdsByHex,
-      occupancy.ownersByUnitId,
-      aiHostileOwners,
-      { completedTechs: civ.techState.completed },
-    );
-    if (range.length > 0) {
-      const unitDef = UNIT_DEFINITIONS[unit.type];
-      const isWarship = (unitDef?.domain ?? 'land') === 'naval' && (unitDef?.strength ?? 0) > 0;
-      if (isWarship) {
-        const enemyNaval = Object.values(newState.units).filter(u => {
-          if (u.owner === civId || !aiHostileOwners.has(u.owner)) return false;
-          if (classifyOwner(u.owner) === 'pirate' && !knownPirateUnitIds.has(u.id)) return false;
-          return (UNIT_DEFINITIONS[u.type]?.domain ?? 'land') === 'naval';
-        });
-        if (enemyNaval.length > 0) {
-          let bestCoord = range[0];
-          let bestDist = Infinity;
-          for (const coord of range) {
-            const minDist = Math.min(...enemyNaval.map(e =>
-              newState.map.wrapsHorizontally
-                ? wrappedHexDistance(e.position, coord, newState.map.width)
-                : hexDistance(e.position, coord),
-            ));
-            if (minDist < bestDist) {
-              bestDist = minDist;
-              bestCoord = coord;
-            }
-          }
-          newState.units[unit.id] = moveUnit(unit, bestCoord, 1);
-          continue;
-        }
-      }
-
-      const unexplored = range.filter(
-        coord => civ.visibility.tiles[hexKey(coord)] !== 'visible',
-      );
-      const candidates = unexplored.length > 0 ? unexplored : range;
-      const moveSeed = newState.turn * 16807 + unit.id.charCodeAt(0);
-      const target = candidates[moveSeed % candidates.length];
-      newState.units[unit.id] = moveUnit(unit, target, 1);
-    }
-  }
-  }
 
   // Pursue assigned economic chain steps before discretionary spending.
   for (const minorCivId of Object.keys(newState.minorCivs).sort()) {
@@ -895,13 +691,11 @@ function processAITurnInternal(
   for (const caravan of idleCaravans) {
     // Try domestic cities first (own city), then foreign
     const ownCities = civ.cities.map(id => newState.cities[id]).filter((c): c is City => !!c);
-    const knownForeignCityIds = purposefulAIEnabled
-      ? new Set(
-          administrativePerception.knownCities
-            .filter(city => city.owner !== civId && city.position !== null)
-            .map(city => city.id),
-        )
-      : null;
+    const knownForeignCityIds = new Set(
+      administrativePerception.knownCities
+        .filter(city => city.owner !== civId && city.position !== null)
+        .map(city => city.id),
+    );
     const foreignCities = Object.values(newState.cities).filter(city =>
       city.owner !== civId
       && (!knownForeignCityIds || knownForeignCityIds.has(city.id)));
@@ -927,59 +721,32 @@ function processAITurnInternal(
     }
   }
 
-  // --- Handle expedition outpost establishment ---
-  if (!purposefulAIEnabled) {
-  const idleExpeditions = (civ.units ?? [])
+  for (const expedition of civ.units
     .map(id => newState.units[id])
-    .filter((u): u is Unit => !!u && u.type === 'expedition' && !u.hasActed && !u.hasMoved);
-
-  for (const exp of idleExpeditions) {
-    if (canEstablishOutpost(newState, exp.id)) {
-      newState = performEstablishOutpost(newState, exp.id);
+    .filter((unit): unit is Unit =>
+      unit?.type === 'expedition' && !unit.hasActed && !unit.hasMoved)) {
+    if (canEstablishOutpost(newState, expedition.id)) {
+      newState = performEstablishOutpost(newState, expedition.id);
       civ = newState.civilizations[civId];
-      continue;
     }
-    // Move toward nearest unowned resource tile the civ has tech for
-    const nearest = findNearestResourceTile(newState, exp, civId);
-    if (nearest) {
-      const path = findPath(exp.position, nearest, newState.map);
-      if (path && path.length >= 2) {
-        const next = path[1];
-        const occupied = Object.values(newState.units).some(
-          u => u.id !== exp.id && hexKey(u.position) === hexKey(next),
-        );
-        if (!occupied) {
-          newState.units[exp.id] = moveUnit(exp, next, 1);
-        }
-      }
-    }
-  }
   }
 
+  // --- Handle expedition outpost establishment ---
   // --- Handle research (personality-driven) ---
-  if (purposefulAIEnabled && preparedForTurn) {
-    const research = applyAIResearch(
-      newState,
-      civId,
-      preparedForTurn,
-      personality,
-    );
-    newState = research.state;
-    civ = newState.civilizations[civId];
-    if (research.startedTechId) {
-      bus.emit('tech:started', { civId, techId: research.startedTechId });
-    }
-  } else if (!civ.techState.currentResearch) {
-    const available = getAvailableTechs(civ.techState);
-    if (available.length > 0) {
-      const chosen = chooseTech(personality, available);
-      newState.civilizations[civId].techState = startResearch(civ.techState, chosen.id);
-      bus.emit('tech:started', { civId, techId: chosen.id });
-    }
+  civ.techState.researchQueue ??= [];
+  const research = applyAIResearch(
+    newState,
+    civId,
+    preparedForTurn,
+    personality,
+  );
+  newState = research.state;
+  civ = newState.civilizations[civId];
+  if (research.startedTechId) {
+    bus.emit('tech:started', { civId, techId: research.startedTechId });
   }
 
   // --- Handle city production (personality-driven) ---
-  const isUnderThreat = militaryUnits.length < civ.cities.length;
   for (const cityId of civ.cities) {
     const city = newState.cities[cityId];
     if (!city || city.unrestLevel === 0) continue;
@@ -1033,7 +800,7 @@ function processAITurnInternal(
         }
       }
 
-      if (purposefulAIEnabled) continue;
+      continue;
 
       const civAvailableResources = getCivAvailableResources(newState, civId);
       const trainableUnits = getTrainableUnitsForCiv(
@@ -1270,8 +1037,7 @@ function processAITurnInternal(
         });
         const cityPos = city.position;
         const hasNearbyUnownedResource = hasForagingTech && (
-          purposefulAIEnabled
-            ? administrativePerception.knownResources.some(resource => {
+          administrativePerception.knownResources.some(resource => {
                 if (resource.owner !== null) return false;
                 const resDef = RESOURCE_DEFINITIONS.find(
                   definition => definition.id === resource.resource,
@@ -1291,51 +1057,28 @@ function processAITurnInternal(
                   : hexDistance(resource.position, cityPos);
                 return dist <= 8;
               })
-            : Object.values(newState.map.tiles).some(tile => {
-                if (
-                  !tile.resource
-                  || tile.owner !== null
-                  || tile.improvement !== 'none'
-                ) {
-                  return false;
-                }
-                const resDef = RESOURCE_DEFINITIONS.find(
-                  definition => definition.id === tile.resource,
-                );
-                if (
-                  !resDef
-                  || !civ.techState.completed.includes(resDef.tech)
-                ) {
-                  return false;
-                }
-                const dist = newState.map.wrapsHorizontally
-                  ? wrappedHexDistance(
-                      tile.coord,
-                      cityPos,
-                      newState.map.width,
-                    )
-                  : hexDistance(tile.coord, cityPos);
-                return dist <= 8;
-              })
         );
         if (hasForagingTech && !hasUncommittedExpedition && trainableUnits.includes('expedition') && hasNearbyUnownedResource) {
           city.productionQueue = ['expedition'];
         } else {
-          const chosen = chooseProduction(personality, derivedItems.length > 0 ? derivedItems : ['warrior'], isUnderThreat, civ.cities.length);
+          const chosen = chooseProduction(
+            personality,
+            derivedItems.length > 0 ? derivedItems : ['warrior'],
+            false,
+            civ.cities.length,
+          );
           city.productionQueue = [chosen];
         }
       }
     }
   }
-  if (purposefulAIEnabled && preparedForTurn) {
-    newState = applyAIProduction(
-      newState,
-      civId,
-      preparedForTurn.forceDemands,
-      personality,
-    );
-    civ = newState.civilizations[civId];
-  }
+  newState = applyAIProduction(
+    newState,
+    civId,
+    preparedForTurn.forceDemands,
+    personality,
+  );
+  civ = newState.civilizations[civId];
 
   // --- Handle diplomacy ---
   if (civ.diplomacy) {
@@ -1397,7 +1140,7 @@ function processAITurnInternal(
       newState.turn,
       diplomacyContext,
     );
-    if (purposefulAIEnabled && preparedForTurn) {
+    {
       const plannedWarTarget = preparedForTurn.perception.knownCivIds
         .find(targetCivId =>
           canDeclareWarForPreparedPlan(
@@ -1442,17 +1185,11 @@ function processAITurnInternal(
       }
       switch (decision.action) {
         case 'declare_war':
-          if (
-            purposefulAIEnabled
-            && (
-              !preparedForTurn
-              || !canDeclareWarForPreparedPlan(
-                newState,
-                preparedForTurn,
-                decision.targetCiv,
-              )
-            )
-          ) {
+          if (!canDeclareWarForPreparedPlan(
+            newState,
+            preparedForTurn,
+            decision.targetCiv,
+          )) {
             break;
           }
           newState.civilizations[civId].diplomacy = declareWar(
@@ -1551,45 +1288,6 @@ function processAITurnInternal(
     }
   }
 
-  // AI espionage decisions — queue spy units in cities (physical-spy model)
-  if (!purposefulAIEnabled && shouldAiRecruitSpy(newState, civId)) {
-    const espState = newState.espionage?.[civId];
-    if (espState) {
-      const activeSpies = Object.values(espState.spies).filter(s => s.status !== 'captured').length;
-      if (activeSpies < espState.maxSpies) {
-        const availableSpyTypes = getTrainableUnitsForCiv(civ.techState.completed, civ.civType)
-          .filter(u => isSpyUnitType(u.type));
-        if (availableSpyTypes.length > 0) {
-          const bestType = availableSpyTypes[availableSpyTypes.length - 1];
-          for (const cityId of civ.cities) {
-            const city = newState.cities[cityId];
-            if (city && city.productionQueue.length === 0) {
-              newState.cities[cityId] = { ...city, productionQueue: [bestType.type] };
-              break;
-            }
-          }
-        }
-      }
-    }
-  }
-
-  // Queue detection unit when lookouts tech researched and no detection unit already queued/deployed
-  if (!purposefulAIEnabled && civ.techState.completed.includes('lookouts')) {
-    const detectionType = getDetectionUnitTypeForCiv(civ.civType);
-    const hasDetectionUnit = Object.values(newState.units).some(
-      u => u.owner === civId && !!UNIT_DEFINITIONS[u.type]?.spyDetectionChance,
-    );
-    if (!hasDetectionUnit) {
-      for (const cityId of civ.cities) {
-        const city = newState.cities[cityId];
-        if (city && city.productionQueue.length === 0) {
-          newState.cities[cityId] = { ...city, productionQueue: [detectionType] };
-          break;
-        }
-      }
-    }
-  }
-
   if (shouldAiStationDefensiveSpy(newState, civId)) {
     const capital = getCapitalCity(newState, civId);
     const espState = newState.espionage?.[civId];
@@ -1624,20 +1322,11 @@ function processAITurnInternal(
         && u.movementPointsLeft > 0);
 
     for (const spyUnit of idleSpyUnits) {
-      const candidates = (purposefulAIEnabled
-        ? administrativePerception.knownCities.filter(city =>
-            city.owner !== civId
-            && city.position !== null
-            && city.confidence !== 'rumored')
-        : Object.values(newState.cities)
-            .filter(city => city.owner !== civId)
-            .map(city => ({
-              id: city.id,
-              owner: city.owner,
-              position: city.position,
-              confidence: 'visible' as const,
-              observedTurn: newState.turn,
-            })))
+      const candidates = administrativePerception.knownCities
+        .filter(city =>
+          city.owner !== civId
+          && city.position !== null
+          && city.confidence !== 'rumored')
         .sort((a, b) => {
           const da = hexDistance(spyUnit.position, a.position!);
           const db = hexDistance(spyUnit.position, b.position!);
@@ -1770,7 +1459,7 @@ function processAITurnInternal(
         : chooseAiSpyTarget(
             newState,
             civId,
-            purposefulAIEnabled ? administrativePerception : undefined,
+            administrativePerception,
           );
       if (target) {
         newState.espionage![civId] = startMission(
@@ -1915,9 +1604,8 @@ export function processAITurn(
   state: GameState,
   civId: string,
   bus: EventBus,
-  options: ProcessAITurnOptions = {},
 ): GameState {
-  return processAITurnInternal(state, civId, bus, options);
+  return processAITurnInternal(state, civId, bus);
 }
 
 export function processPreparedAITurn(
@@ -1927,7 +1615,6 @@ export function processPreparedAITurn(
 ): { state: GameState } {
   return {
     state: processAITurnInternal(state, prepared.civId, bus, {
-      purposefulAIEnabled: true,
       prepared,
     }),
   };

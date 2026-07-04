@@ -115,14 +115,10 @@ describe('processTurn', () => {
       new EventBus(),
     ).barbarianCamps).some(camp => camp.resurgent)).toBe(true);
 
-    const legacy = processTurn(structuredClone(state), new EventBus());
-    const purposeful = processTurn(structuredClone(state), new EventBus(), {
-      purposefulAIEnabled: true,
-    });
+    const result = processTurn(structuredClone(state), new EventBus());
 
-    expect(Object.values(legacy.barbarianCamps).filter(camp => camp.resurgent)).toHaveLength(0);
-    expect(Object.values(purposeful.barbarianCamps).some(camp => camp.resurgent)).toBe(true);
-    expect(purposeful.opponentAI!.pressureByHuman['ai-1'].activeIndependentThreatIds)
+    expect(Object.values(result.barbarianCamps).some(camp => camp.resurgent)).toBe(true);
+    expect(result.opponentAI!.pressureByHuman['ai-1'].activeIndependentThreatIds)
       .toEqual(expect.arrayContaining([expect.stringMatching(/^barbarian:camp-/)]));
   });
 

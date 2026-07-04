@@ -1,16 +1,14 @@
 import type { AdvisorType, GameState } from './types';
 import { EventBus } from './event-bus';
 import { checkDominationVictory } from '@/systems/victory-system';
-import { resetUnitTurn, createUnit, healUnit, moveUnit, findPath, UNIT_DEFINITIONS } from '@/systems/unit-system';
+import { resetUnitTurn, createUnit, healUnit, findPath, UNIT_DEFINITIONS } from '@/systems/unit-system';
 import { processCity, TRAINABLE_UNITS, BUILDINGS } from '@/systems/city-system';
 import { getCivAvailableResources } from '@/systems/resource-acquisition-system';
 import { applyCityMaturity } from '@/systems/city-maturity-system';
 import { assignCityFocus, normalizeWorkedTilesForCity } from '@/systems/city-work-system';
 import { processResearch, getTechById } from '@/systems/tech-system';
 import {
-  processBarbarians,
   processPurposefulBarbarians,
-  type PurposefulBarbarianProcessResult,
 } from '@/systems/barbarian-system';
 import {
   processBeasts, placeBeastLairs, recordBeastSlain, BEAST_OWNER,
@@ -25,7 +23,6 @@ import {
   PIRATE_OWNER,
   processIndependentThreatPressureForHumans,
   recordCombatForCiv,
-  processThreatPressure,
 } from '@/systems/threat-pressure-system';
 import { emitMinorCivQuestTransitions } from '@/systems/quest-chain-system';
 import { applyAutoExploreOrder } from '@/systems/auto-explore-system';
@@ -89,11 +86,6 @@ import {
 import type { PirateEconomyModifiers } from '@/systems/economy-system';
 import { processPiratesForCompletedRound } from '@/systems/pirate-system';
 import { classifyOwner } from './owner-kind';
-import { PURPOSEFUL_AI_FEATURE_ENABLED } from './feature-flags';
-
-export interface ProcessTurnOptions {
-  purposefulAIEnabled?: boolean;
-}
 
 export function finalizeOpponentRoundState(state: GameState): GameState {
   const normalized = normalizeOpponentAIState(state);
@@ -115,11 +107,9 @@ export function finalizeOpponentRoundState(state: GameState): GameState {
 export function processTurn(
   state: GameState,
   bus: EventBus,
-  options: ProcessTurnOptions = {},
 ): GameState {
-  const purposefulAIEnabled = options.purposefulAIEnabled ?? PURPOSEFUL_AI_FEATURE_ENABLED;
   let newState = initializeLegendaryWonderProjectsForAllCities(structuredClone(state));
-  if (purposefulAIEnabled) newState = normalizeOpponentAIState(newState);
+  newState = normalizeOpponentAIState(newState);
 
   bus.emit('turn:end', { turn: newState.turn, playerId: newState.currentPlayer });
 
@@ -148,9 +138,7 @@ export function processTurn(
     let totalScience = 0;
     let totalGold = 0;
 
-    const resourceYieldBonus = getCivResourceYieldBonus(newState, civId, {
-      hostileOccupationEnabled: purposefulAIEnabled,
-    });
+    const resourceYieldBonus = getCivResourceYieldBonus(newState, civId);
     const npCivBonuses = getNationalProjectCivYieldBonus(newState, civId);
 
     for (const cityId of civ.cities) {
@@ -176,9 +164,7 @@ export function processTurn(
       totalScience += yields.science;
       totalGold += yields.gold;
       const effectiveProduction = isCityProductionLocked(city) ? 0 : yields.production;
-      const availableResources = getCivAvailableResources(newState, civId, {
-        hostileOccupationEnabled: purposefulAIEnabled,
-      });
+      const availableResources = getCivAvailableResources(newState, civId);
       const npKeysForCiv = new Set(
         Object.keys(newState.builtNationalProjects ?? {}).filter(k => k.startsWith(`${civId}:`))
       );
@@ -643,28 +629,9 @@ export function processTurn(
       newState.units[unitId] = resetUnitTurn(unit);
     }
   }
-  const playerUnits = Object.values(newState.units).filter(unit => {
-    const kind = classifyOwner(unit.owner);
-    return kind !== 'barbarian' && kind !== 'beast' && kind !== 'minor';
-  });
-  const barbarianUnits = Object.values(newState.units).filter(u => u.owner === 'barbarian');
   const barbSeed = newState.turn * 31337 + Object.keys(newState.barbarianCamps).length;
-  const cityTargets = Object.values(newState.cities)
-    .filter(city => city.owner !== 'barbarian' && !city.owner.startsWith('mc-') && city.owner !== BEAST_OWNER)
-    .map(city => ({ id: city.id, position: city.position, owner: city.owner }));
-  const barbResult = purposefulAIEnabled
-    ? processPurposefulBarbarians(newState)
-    : processBarbarians(
-        Object.values(newState.barbarianCamps),
-        newState.map,
-        playerUnits,
-        barbSeed,
-        barbarianUnits,
-        cityTargets,
-      );
-  if (purposefulAIEnabled) {
-    newState.opponentAI = (barbResult as PurposefulBarbarianProcessResult).opponentAI;
-  }
+  const barbResult = processPurposefulBarbarians(newState);
+  newState.opponentAI = barbResult.opponentAI;
   newState.barbarianCamps = {};
   for (const camp of barbResult.updatedCamps) {
     newState.barbarianCamps[camp.id] = camp;
@@ -674,7 +641,7 @@ export function processTurn(
   for (const spawn of barbResult.spawnedUnits) {
     const raider = createUnit(spawn.unitType ?? 'warrior', 'barbarian', spawn.position, newState.idCounters);
     newState.units[raider.id] = raider;
-    if (purposefulAIEnabled && newState.opponentAI) {
+    if (newState.opponentAI) {
       newState.opponentAI.barbarianHomeCampByUnitId[raider.id] = spawn.campId;
     }
     bus.emit('barbarian:spawned', { campId: spawn.campId, unitId: raider.id });
@@ -684,13 +651,7 @@ export function processTurn(
   for (const order of barbResult.moveOrders) {
     const unit = newState.units[order.unitId];
     if (unit) {
-      if (purposefulAIEnabled) {
-        executeUnitMove(newState, order.unitId, order.toCoord, { actor: 'world', bus });
-      } else {
-        const tile = newState.map.tiles[`${order.toCoord.q},${order.toCoord.r}`];
-        const cost = tile?.terrain === 'hills' || tile?.terrain === 'forest' ? 2 : 1;
-        newState.units[order.unitId] = moveUnit(unit, order.toCoord, cost);
-      }
+      executeUnitMove(newState, order.unitId, order.toCoord, { actor: 'world', bus });
     }
   }
 
@@ -739,7 +700,7 @@ export function processTurn(
       cities: { ...newState.cities, [order.cityId]: { ...city, hp: newHp } },
     };
     bus.emit('barbarian:city-attacked', { attackerUnitId: order.attackerUnitId, cityId: order.cityId, hpLost: currentHp - newHp });
-    if (purposefulAIEnabled && newState.opponentAI) {
+    if (newState.opponentAI) {
       const campId = newState.opponentAI.barbarianHomeCampByUnitId[order.attackerUnitId];
       const plan = campId ? newState.opponentAI.barbarianCamps[campId] : undefined;
       if (plan?.target.kind === 'city' && plan.target.id === order.cityId) {
@@ -770,7 +731,7 @@ export function processTurn(
   }
 
   // --- Minor civ turn phase ---
-  newState = processMinorCivTurn(newState, bus, { purposefulAIEnabled });
+  newState = processMinorCivTurn(newState, bus);
 
   // --- Barbarian evolution check ---
   const evolution = checkCampEvolution(newState, newState.turn);
@@ -912,11 +873,7 @@ export function processTurn(
   }
 
   // --- Threat pressure (spawn phase: land resurgence + pirate spawn) ---
-  newState = purposefulAIEnabled
-    ? processIndependentThreatPressureForHumans(newState, bus)
-    : processThreatPressure(newState, newState.currentPlayer, bus, {
-        includeLegacyPirates: false,
-      });
+  newState = processIndependentThreatPressureForHumans(newState, bus);
 
   // --- Process espionage ---
   newState = processEspionageTurn(newState, bus);
@@ -1121,7 +1078,7 @@ export function processTurn(
   }
 
   let pirateEconomyModifiers: PirateEconomyModifiers | undefined;
-  const pirateRound = processPiratesForCompletedRound(newState, bus, { purposefulAIEnabled });
+  const pirateRound = processPiratesForCompletedRound(newState, bus);
   newState = pirateRound.state;
   pirateEconomyModifiers = pirateRound.economyModifiers;
 

@@ -110,9 +110,7 @@ describe('AI vs beasts', () => {
     const bus = new EventBus();
     bus.on('combat:resolved', payload => combatEvents.push(payload));
 
-    const result = processAITurn(state, 'ai-1', bus, {
-      purposefulAIEnabled: true,
-    });
+    const result = processAITurn(state, 'ai-1', bus);
 
     expect(combatEvents).toHaveLength(0);
     expect(result.units['beast-1']).toBeDefined();
@@ -123,9 +121,7 @@ describe('AI vs beasts', () => {
     ).toHaveLength(0);
   });
 
-  it('attacks an adjacent beast when enabled AND local strength advantage >= 1.5x', () => {
-    // swordsman (str 25, health 100) vs badly wounded boar (str 18, health 20)
-    // myStrength = 25; beastStrength = 18 * 0.2 = 3.6; 25 >= 3.6 * 1.5 → attack
+  it('does not bypass strategic planning for an opportunistic beast attack', () => {
     const state = makeBeastState({
       aiUnitType: 'swordsman', aiUnitHealth: 100,
       beastType: 'beast_boar', beastHealth: 20,
@@ -137,7 +133,7 @@ describe('AI vs beasts', () => {
 
     processAITurn(state, 'ai-1', bus);
 
-    expect(combatEvents).toHaveLength(1);
+    expect(combatEvents).toHaveLength(0);
   });
 
   it('does not attack when enabled but the beast is too strong (< 1.5x advantage)', () => {
