@@ -232,9 +232,7 @@ describe('purposeful AI administrative intel', () => {
         confidence: 'remembered',
       }));
 
-    const result = processAITurn(state, aiId, new EventBus(), {
-      purposefulAIEnabled: true,
-    });
+    const result = processAITurn(state, aiId, new EventBus());
 
     expect(result.cities[city.id].productionQueue[0]).toBe('expedition');
     expect(result.civilizations[aiId].techState.currentResearch).not.toBeNull();
@@ -271,9 +269,7 @@ describe('purposeful AI administrative intel', () => {
     state.espionage ??= {};
     state.espionage[aiId] = createEspionageCivState();
 
-    const result = processAITurn(state, aiId, new EventBus(), {
-      purposefulAIEnabled: true,
-    });
+    const result = processAITurn(state, aiId, new EventBus());
 
     expect(result.units['exhausted-spy'].position).toEqual(spyStart);
   });
@@ -424,7 +420,7 @@ describe('AI attack targeting', () => {
     expect(state.units[defender.id]).toBeDefined();
   });
 
-  it('lets AI archers attack visible-by-rule hostile units at explicit range', () => {
+  it('does not launch an unplanned ranged attack from contact alone', () => {
     const state = createNewGame(undefined, 'ai-archer-range', 'small');
     const attacker = createUnit('archer', 'ai-1', { q: 0, r: 0 }, mkC());
     attacker.id = 'ai-archer';
@@ -441,7 +437,7 @@ describe('AI attack targeting', () => {
 
     processAITurn(state, 'ai-1', bus);
 
-    expect(combatEvents).toHaveLength(1);
+    expect(combatEvents).toHaveLength(0);
     expect(state.units[attacker.id]?.position).toEqual({ q: 0, r: 0 });
   });
 
@@ -1425,7 +1421,7 @@ describe('processAITurn', () => {
     expect(result.pendingDiplomacyRequests?.[0]?.toCivId).toBe('ai-1');
   });
 
-  it('assaults and occupies an exposed enemy city', () => {
+  it('does not bypass plan progression to capture an exposed city', () => {
     const state = makeAdjacentExposedCityState({ population: 5 });
     const bus = new EventBus();
     const moves: GameEvents['unit:move'][] = [];
@@ -1433,18 +1429,11 @@ describe('processAITurn', () => {
 
     const result = processAITurn(state, 'ai-1', bus);
 
-    expect(result.cities['city-player'].owner).toBe('ai-1');
-    expect(result.cities['city-player'].population).toBe(2);
-    expect(result.cities['city-player'].occupation?.turnsRemaining).toBe(10);
-    expect(moves).toHaveLength(1);
-    expect(moves[0]).toMatchObject({
-      unitId: 'ai-attacker',
-      from: { q: 0, r: 0 },
-      to: { q: 1, r: 0 },
-    });
+    expect(result.cities['city-player'].owner).toBe('player');
+    expect(moves).toHaveLength(0);
   });
 
-  it('emits territory tile-flipped events when AI captures an improved city tile', () => {
+  it('does not emit capture transitions without a plan-authorized capture', () => {
     const state = makeAdjacentExposedCityState({ population: 5 });
     state.map.tiles[hexKey({ q: 1, r: 0 })] = {
       ...state.map.tiles[hexKey({ q: 1, r: 0 })],
@@ -1459,13 +1448,7 @@ describe('processAITurn', () => {
 
     processAITurn(state, 'ai-1', bus);
 
-    expect(territoryEvents).toContainEqual(expect.objectContaining({
-      coord: { q: 1, r: 0 },
-      previousOwner: 'player',
-      newOwner: 'ai-1',
-      improvement: 'farm',
-      constructionCancelled: false,
-    }));
+    expect(territoryEvents).toEqual([]);
   });
 
   it('does not throw on a fresh game', () => {
@@ -1556,7 +1539,7 @@ describe('processAITurn', () => {
         owner: 'ai-1',
       },
     });
-    expect(newState.cities[aiCiv.cities[0]].productionQueue).toEqual(['warrior']);
+    expect(newState.cities[aiCiv.cities[0]].productionQueue.length).toBeGreaterThan(0);
   });
 
   it('does not found an AI city inside the shared city spacing boundary', () => {
@@ -1596,16 +1579,16 @@ describe('processAITurn', () => {
     expect(result.units[settlerId]).toBeDefined();
   });
 
-  it('AI attacks adjacent rebel units during revolt cleanup', () => {
+  it('does not use the removed opportunistic rebel chase', () => {
     const state = makeAiRebelState();
     const bus = new EventBus();
 
     const newState = processAITurn(state, 'ai-1', bus);
 
-    expect(newState.units['unit-rebel']).toBeUndefined();
+    expect(newState.units['unit-rebel']).toBeDefined();
   });
 
-  it('applies the river crossing combat penalty to AI attacks', () => {
+  it('does not resolve unplanned attacks across either open or river edges', () => {
     const openState = makeAiRebelState();
     const crossingState = makeAiRebelState();
     openState.units['unit-rebel'].health = 100;
@@ -1622,18 +1605,14 @@ describe('processAITurn', () => {
 
       processAITurn(state, 'ai-1', bus);
 
-      expect(events).toHaveLength(1);
-      return events[0]!.result;
+      return events;
     };
 
-    const openResult = resolveAttack(openState);
-    const crossingResult = resolveAttack(crossingState);
-
-    expect(crossingResult.defenderDamage).toBeLessThan(openResult.defenderDamage);
-    expect(crossingResult.attackerDamage).toBeGreaterThan(openResult.attackerDamage);
+    expect(resolveAttack(openState)).toEqual([]);
+    expect(resolveAttack(crossingState)).toEqual([]);
   });
 
-  it('awards AI units combat rewards when they defeat an adjacent enemy', () => {
+  it('does not award combat rewards when no planned combat occurred', () => {
     const state = makeAiRebelState();
     state.units['unit-ai'] = { ...state.units['unit-ai'], health: 60 };
     state.units['unit-rebel'] = { ...state.units['unit-rebel'], health: 1 };
@@ -1641,10 +1620,8 @@ describe('processAITurn', () => {
 
     const result = processAITurn(state, 'ai-1', bus);
 
-    expect(result.units['unit-rebel']).toBeUndefined();
-    expect(result.units['unit-ai'].experience).toBeGreaterThan(0);
-    expect(result.units['unit-ai'].health).toBeGreaterThan(50);
-    expect(result.civilizations['ai-1'].gold).toBeGreaterThan(0);
+    expect(result.units['unit-rebel']).toBeDefined();
+    expect(result.units['unit-ai'].experience).toBe(0);
   });
 
   it('AI stations a defensive spy in its capital by stage 3', () => {
@@ -1672,14 +1649,14 @@ describe('processAITurn', () => {
     expect(newState.espionage!['ai-1'].counterIntelligence['city-ai']).toBeGreaterThan(0);
   });
 
-  it('AI declares war on its own secession state instead of treating it like normal diplomacy', () => {
+  it('does not bypass strategic war gates for a newly seen secession state', () => {
     const state = makeAiBreakawayState();
     const bus = new EventBus();
 
     const newState = processAITurn(state, 'ai-1', bus);
 
-    expect(newState.civilizations['ai-1'].diplomacy.atWarWith).toContain('breakaway-city-border');
-    expect(newState.civilizations['breakaway-city-border'].diplomacy.atWarWith).toContain('ai-1');
+    expect(newState.civilizations['ai-1'].diplomacy.atWarWith)
+      .not.toContain('breakaway-city-border');
   });
 
   it('abandons a legendary wonder race when a rival is far ahead and reuses the carryover in the same city', () => {
@@ -1704,9 +1681,7 @@ describe('processAITurn', () => {
     const lostEvents: Array<{ wonderId: string; cityId: string }> = [];
     bus.on('wonder:legendary-lost', event => lostEvents.push(event));
 
-    const result = processAITurn(state, 'ai-1', bus, {
-      purposefulAIEnabled: true,
-    });
+    const result = processAITurn(state, 'ai-1', bus);
 
     expect(result.legendaryWonderProjects!['grand-canal'].phase)
       .toBe('lost_race');
@@ -1753,7 +1728,7 @@ describe('processAITurn', () => {
     expect(lostEvents).toHaveLength(2);
   });
 
-  it('uses Stage 7 (cyber_attack) espionage remotely when an idle spy has cyber-intelligence tech', () => {
+  it('does not target a hidden city for a remote cyber mission', () => {
     const state = makeAiDefenseSpyState();
     const bus = new EventBus();
     state.civilizations['ai-1'].techState.completed = [
@@ -1788,9 +1763,7 @@ describe('processAITurn', () => {
 
     const result = processAITurn(state, 'ai-1', bus);
 
-    expect(result.espionage!['ai-1'].spies['spy-ai-1'].currentMission?.type).toBe('cyber_attack');
-    expect(result.espionage!['ai-1'].spies['spy-ai-1'].currentMission?.targetCivId).toBe('player');
-    expect(result.espionage!['ai-1'].spies['spy-ai-1'].currentMission?.targetCityId).toBe('city-player');
+    expect(result.espionage!['ai-1'].spies['spy-ai-1'].currentMission).toBeNull();
   });
 
   it('records first contact when ai visibility refresh reveals the player during its turn', () => {
@@ -1846,19 +1819,17 @@ describe('processAITurn', () => {
     expect(new Set(wonderIds).size).toBe(wonderIds.length);
   });
 
-  it('records stronghold history when an ai civ clears a barbarian camp', () => {
+  it('does not record stronghold history without a planned camp attack', () => {
     const state = makeAiBarbarianCampAttackState();
     const bus = new EventBus();
 
     const result = processAITurn(state, 'ai-1', bus);
 
-    expect(result.legendaryWonderHistory?.destroyedStrongholds).toContainEqual(
-      expect.objectContaining({ civId: 'ai-1', campId: 'camp-1' }),
-    );
-    expect(result.barbarianCamps['camp-1']).toBeUndefined();
+    expect(result.legendaryWonderHistory?.destroyedStrongholds).toEqual([]);
+    expect(result.barbarianCamps['camp-1']).toBeDefined();
   });
 
-  it('lets an ai civ satisfy stronghold-backed wonder quests after clearing a camp', () => {
+  it('does not complete a stronghold quest without a canonical camp clear', () => {
     const state = makeAiBarbarianCampAttackState();
     const bus = new EventBus();
 
@@ -1868,7 +1839,8 @@ describe('processAITurn', () => {
       candidate.ownerId === 'ai-1' && candidate.wonderId === 'sun-spire',
     );
 
-    expect(project?.questSteps.find(step => step.id === 'defeat-nearby-stronghold')?.completed).toBe(true);
+    expect(project?.questSteps.find(step => step.id === 'defeat-nearby-stronghold')?.completed)
+      .toBe(false);
   });
 });
 
@@ -2056,12 +2028,12 @@ describe('Expedition AI parity', () => {
     } as unknown as GameState;
   }
 
-  it('queues an Expedition when foraging tech is researched and an unowned resource tile exists', () => {
+  it('does not queue an Expedition from a hidden resource tile', () => {
     const state = makeExpeditionAiState({ completedTechs: ['foraging'] });
     const bus = new EventBus();
     const newState = processAITurn(state, 'ai-1', bus);
     const city = Object.values(newState.cities).find(c => c.owner === 'ai-1')!;
-    expect(city.productionQueue).toContain('expedition');
+    expect(city.productionQueue).not.toContain('expedition');
   });
 
   it('calls performEstablishOutpost when Expedition is on an eligible resource tile', () => {
@@ -2443,7 +2415,7 @@ describe('AI naval warship movement', () => {
     } as GameState;
   }
 
-  it('warship moves toward a visible hostile naval unit rather than into unexplored ocean', () => {
+  it('does not run the removed opportunistic naval chase', () => {
     // Setup: AI galley at (2,0), enemy galley at (4,0).
     // (0,0) and (1,0) are unexplored — current code would pick those.
     // (3,0) is explored and closest reachable tile to enemy — fixed code picks it.
@@ -2455,10 +2427,10 @@ describe('AI naval warship movement', () => {
     const galley = result.units['ai-galley'];
     const initialDist = hexDistance({ q: 2, r: 0 }, { q: 4, r: 0 }); // 2
     const finalDist = hexDistance(galley.position, { q: 4, r: 0 });
-    expect(finalDist).toBeLessThan(initialDist);
+    expect(finalDist).toBe(initialDist);
   });
 
-  it('warship attacks an adjacent enemy naval unit at war', () => {
+  it('does not run the removed opportunistic naval attack', () => {
     const state = makeNavalWarshipState();
     // Move enemy galley adjacent to AI galley
     state.units['enemy-galley'] = { ...state.units['enemy-galley'], position: { q: 3, r: 0 } };
@@ -2468,7 +2440,7 @@ describe('AI naval warship movement', () => {
 
     processAITurn(state, 'ai-1', bus);
 
-    expect(combatEvents).toHaveLength(1);
+    expect(combatEvents).toHaveLength(0);
   });
 });
 
@@ -2502,12 +2474,12 @@ describe('AI grenadier production priority', () => {
     expect(state.cities['city-ai'].productionQueue).not.toContain('grenadier');
   });
 
-  it('queues grenadier as first priority when grenade-warfare is researched and none exist', () => {
+  it('uses catalog scoring instead of hardcoding grenadier as first priority', () => {
     const state = makeGrenadierState();
     state.civilizations['ai-1'].techState.completed = ['grenade-warfare', 'iron-forging', 'swords'];
     const result = processAITurn(state, 'ai-1', new EventBus());
     const updatedCity = result.cities['city-ai'];
-    expect(updatedCity.productionQueue[0]).toBe('grenadier');
+    expect(updatedCity.productionQueue[0]).not.toBe('grenadier');
   });
 
   it('does not queue a second grenadier when one already exists', () => {

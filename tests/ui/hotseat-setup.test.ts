@@ -39,6 +39,7 @@ function setInputValue(selector: string, value: string): void {
 
 function advanceThroughMapType(): void {
   click('#hs-map-type-next');
+  click('#hs-challenge-next');
 }
 
 function chooseCiv(civId: string): void {
@@ -84,17 +85,17 @@ beforeEach(() => {
 });
 
 describe('hotseat-setup', () => {
-  it('keeps opponent challenge controls hidden while purposeful AI is disabled', () => {
+  it('always routes through opponent challenge selection after launch', () => {
     showHotSeatSetup(document.body, {
       onComplete: vi.fn(),
       onCancel: vi.fn(),
     });
 
     click('[data-size="small"]');
-    advanceThroughMapType();
+    click('#hs-map-type-next');
 
-    expect(document.querySelector('[data-opponent-challenge-selector]')).toBeNull();
-    expect(document.body.textContent).toContain('How Many Players?');
+    expect(document.querySelector('[data-opponent-challenge-selector]')).not.toBeNull();
+    expect(document.body.textContent).toContain('Choose Opponent Challenge');
   });
 
   it('chooses challenge as a group before private hot-seat setup and returns it separately', () => {
@@ -102,7 +103,6 @@ describe('hotseat-setup', () => {
     showHotSeatSetup(
       document.body,
       { onComplete, onCancel: vi.fn() },
-      { purposefulAIEnabled: true },
     );
 
     click('[data-size="small"]');
@@ -197,7 +197,7 @@ describe('hotseat-setup', () => {
           isHuman: true,
         }),
       ]),
-    }));
+    }), 'standard');
   });
 
   it('preserves a saved custom civ in the hot-seat completion config registry', () => {
@@ -235,7 +235,7 @@ describe('hotseat-setup', () => {
     expect(onComplete).toHaveBeenCalledTimes(1);
     expect(onComplete).toHaveBeenCalledWith(expect.objectContaining({
       customCivilizations: [customCiv],
-    }));
+    }), 'standard');
   });
 
   it('reopens the hot-seat civ picker with one live picker after saving a custom civ and lets the flow continue', async () => {
@@ -593,7 +593,7 @@ describe('hotseat-setup', () => {
 
       expect(onComplete).toHaveBeenCalledWith(expect.objectContaining({
         mapScript: 'balanced',
-      }));
+      }), 'standard');
     });
 
     it('defaults to earth when no map type card is clicked before Next', () => {
@@ -613,7 +613,7 @@ describe('hotseat-setup', () => {
 
       expect(onComplete).toHaveBeenCalledWith(expect.objectContaining({
         mapScript: 'earth',
-      }));
+      }), 'standard');
     });
   });
 });

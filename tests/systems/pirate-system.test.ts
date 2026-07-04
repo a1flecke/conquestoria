@@ -99,9 +99,7 @@ describe('completed-round pirate coordinator', () => {
     bus.on('pirate:faction-spawned', event => sideEffects.push(event));
     bus.on('pirate:audio-cue', event => sideEffects.push(event));
 
-    const result = processPiratesForCompletedRound(state, bus, {
-      purposefulAIEnabled: true,
-    });
+    const result = processPiratesForCompletedRound(state, bus);
 
     expect(result.state.pirates!.factions).toEqual({});
     expect(result.state.pirates!.pressure.value).toBe(18);
@@ -131,7 +129,6 @@ describe('completed-round pirate coordinator', () => {
     const result = processPiratesForCompletedRound(
       state,
       bus,
-      { purposefulAIEnabled: true },
     );
 
     expect(state).toEqual(before);
@@ -162,7 +159,6 @@ describe('completed-round pirate coordinator', () => {
     const result = processPiratesForCompletedRound(
       state,
       new EventBus(),
-      { purposefulAIEnabled: true },
     );
 
     expect(result.state.pirates!.factions['pirate-1']).toBeDefined();
@@ -187,7 +183,6 @@ describe('completed-round pirate coordinator', () => {
     const result = processPiratesForCompletedRound(
       state,
       new EventBus(),
-      { purposefulAIEnabled: true },
     );
 
     expect(result.state.pirates!.factions['pirate-1'].intent?.mode).toBe('withdraw');

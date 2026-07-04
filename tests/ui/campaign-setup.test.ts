@@ -102,13 +102,13 @@ describe('campaign-setup', () => {
     expect(startButton.dataset.ready).toBe('true');
   });
 
-  it('keeps opponent challenge controls hidden while purposeful AI is disabled', () => {
+  it('always exposes opponent challenge controls after launch', () => {
     showCampaignSetup(document.body, {
       onStartSolo: vi.fn(),
       onCancel: vi.fn(),
     });
 
-    expect(document.querySelector('[data-opponent-challenge-selector]')).toBeNull();
+    expect(document.querySelector('[data-opponent-challenge-selector]')).not.toBeNull();
   });
 
   it('passes the selected challenge from enabled solo setup', () => {
@@ -116,7 +116,6 @@ describe('campaign-setup', () => {
     const panel = showCampaignSetup(
       document.body,
       { onStartSolo, onCancel: vi.fn() },
-      { purposefulAIEnabled: true },
     );
 
     panel.querySelector<HTMLButtonElement>('[data-challenge="explorer"]')!.click();

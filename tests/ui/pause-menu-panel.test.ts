@@ -38,10 +38,10 @@ beforeEach(() => {
 });
 
 describe('pause-menu-panel', () => {
-  it('keeps opponent challenge controls hidden while purposeful AI is disabled', () => {
+  it('always exposes opponent challenge controls after launch', () => {
     showPauseMenu(document.body, makeCallbacks());
 
-    expect(document.querySelector('[data-opponent-challenge-selector]')).toBeNull();
+    expect(document.querySelector('[data-opponent-challenge-selector]')).not.toBeNull();
   });
 
   it('shows active and pending challenge without claiming pending is active', () => {
@@ -51,7 +51,6 @@ describe('pause-menu-panel', () => {
         opponentChallenge: 'standard',
         pendingOpponentChallenge: 'explorer',
       }),
-      { purposefulAIEnabled: true },
     );
 
     expect(panel.textContent).toContain('Standard active');
@@ -67,7 +66,6 @@ describe('pause-menu-panel', () => {
         opponentChallenge: 'standard',
         onOpponentChallengeChange,
       }),
-      { purposefulAIEnabled: true },
     );
 
     document.querySelector<HTMLButtonElement>('[data-challenge="explorer"]')!.click();

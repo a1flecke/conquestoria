@@ -30,11 +30,11 @@ describe('completed-round AI wiring', () => {
     expect(main).not.toContain("'ai-1'");
   });
 
-  it('keeps strategic warnings dark behind the real false flag while wiring postprocess', () => {
+  it('runs strategic warning postprocess on the live completed-round path', () => {
     const main = readFileSync(resolve(PROJECT_ROOT, 'src/main.ts'), 'utf8');
 
     expect(main).toContain('applyStrategicWarningTransitions(beforeRound, current, eventBus');
-    expect(main).toContain('purposefulAIEnabled: PURPOSEFUL_AI_FEATURE_ENABLED');
+    expect(main).toContain('applyStrategicWarningTransitions(beforeRound, current, eventBus)');
     expect(main).toContain("bus.on('ai:strategic-warning'");
   });
 
@@ -114,15 +114,15 @@ describe('shared city assault wiring', () => {
     );
   });
 
-  it('routes player and legacy AI capture transitions through the shared emitter', () => {
+  it('routes player and strategic AI capture transitions through the shared emitter', () => {
     const main = readFileSync(resolve(PROJECT_ROOT, 'src/main.ts'), 'utf8');
-    const basicAi = readFileSync(
-      resolve(PROJECT_ROOT, 'src/ai/basic-ai.ts'),
+    const strategicAi = readFileSync(
+      resolve(PROJECT_ROOT, 'src/ai/ai-major-turn.ts'),
       'utf8',
     );
 
     expect(main).toContain('emitMajorCityCaptureEvents(');
-    expect(basicAi).toContain('emitMajorCityCaptureEvents(');
+    expect(strategicAi).toContain('emitMajorCityCaptureEvents(');
   });
 
   it('does not resolve minor-civilization conquest after failed movement', () => {

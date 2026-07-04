@@ -11,7 +11,6 @@ import type {
 import type { EventBus } from '@/core/event-bus';
 import { createEmptyOpponentAIState } from '@/core/opponent-ai-state';
 import { OPPONENT_CHALLENGE_PROFILES, resolveOpponentChallenge } from '@/core/opponent-challenge';
-import { PURPOSEFUL_AI_FEATURE_ENABLED } from '@/core/feature-flags';
 import { isAlwaysHostilePair } from '@/core/owner-kind';
 import { MINOR_CIV_DEFINITIONS } from './minor-civ-definitions';
 import { TECH_TREE } from './tech-definitions';
@@ -182,21 +181,17 @@ function hashSeed(seed: string): number {
 export function processMinorCivTurn(
   state: GameState,
   bus: EventBus,
-  options: { purposefulAIEnabled?: boolean } = {},
 ): GameState {
   let nextState = structuredClone(state);
-  const purposefulAIEnabled = options.purposefulAIEnabled ?? PURPOSEFUL_AI_FEATURE_ENABLED;
-  if (purposefulAIEnabled && !nextState.opponentAI) {
+  if (!nextState.opponentAI) {
     nextState.opponentAI = createEmptyOpponentAIState();
   }
-  if (purposefulAIEnabled) {
-    nextState.opponentAI!.minorCivs = Object.fromEntries(
-      Object.entries(nextState.opponentAI!.minorCivs).filter(([minorCivId]) => {
-        const minor = nextState.minorCivs[minorCivId];
-        return Boolean(minor && !minor.isDestroyed && nextState.cities[minor.cityId]);
-      }),
-    );
-  }
+  nextState.opponentAI!.minorCivs = Object.fromEntries(
+    Object.entries(nextState.opponentAI!.minorCivs).filter(([minorCivId]) => {
+      const minor = nextState.minorCivs[minorCivId];
+      return Boolean(minor && !minor.isDestroyed && nextState.cities[minor.cityId]);
+    }),
+  );
   for (const mcId of Object.keys(nextState.minorCivs).sort()) {
     let mc = nextState.minorCivs[mcId];
     if (mc.isDestroyed) continue;
@@ -204,21 +199,17 @@ export function processMinorCivTurn(
     const def = MINOR_CIV_DEFINITIONS.find(d => d.id === mc.definitionId);
     if (!def) continue;
 
-    if (purposefulAIEnabled) {
-      for (const unitId of mc.units) {
-        const unit = nextState.units[unitId];
-        if (unit) nextState.units[unitId] = resetUnitTurn(unit);
-      }
-      const planned = planPurposefulMinorCivTurn(nextState, mcId);
-      if (planned.plan) {
-        nextState.opponentAI!.minorCivs[mcId] = planned.plan;
-      } else {
-        delete nextState.opponentAI!.minorCivs[mcId];
-      }
-      nextState = executePurposefulMinorCivOrders(nextState, planned, bus);
-    } else {
-      processMovement(nextState, mc);
+    for (const unitId of mc.units) {
+      const unit = nextState.units[unitId];
+      if (unit) nextState.units[unitId] = resetUnitTurn(unit);
     }
+    const planned = planPurposefulMinorCivTurn(nextState, mcId);
+    if (planned.plan) {
+      nextState.opponentAI!.minorCivs[mcId] = planned.plan;
+    } else {
+      delete nextState.opponentAI!.minorCivs[mcId];
+    }
+    nextState = executePurposefulMinorCivOrders(nextState, planned, bus);
     nextState = processQuests(nextState, mcId, def, bus);
     mc = nextState.minorCivs[mcId];
     nextState = applyAllyBonuses(nextState, mc, def);

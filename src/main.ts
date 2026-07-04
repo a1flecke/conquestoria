@@ -10,7 +10,6 @@ import '@/assets/dragon-animations.css';
 import { EventBus } from '@/core/event-bus';
 import { createNewGame, createHotSeatGame, createDefaultSettings } from '@/core/game-state';
 import { resolveOpponentChallenge, setPendingOpponentChallenge } from '@/core/opponent-challenge';
-import { PURPOSEFUL_AI_FEATURE_ENABLED } from '@/core/feature-flags';
 import { processTurn } from '@/core/turn-manager';
 import { processNonHumanMajorRound } from '@/ai/ai-round-scheduler';
 import { RenderLoop } from '@/renderer/render-loop';
@@ -3141,9 +3140,7 @@ function runCurrentCompletedRound(state: GameState) {
     majors: (current, eventBus) => processNonHumanMajorRound(current, eventBus).state,
     world: (current, eventBus) => processTurn(current, eventBus),
     postprocess: (beforeRound, current, eventBus) =>
-      applyStrategicWarningTransitions(beforeRound, current, eventBus, {
-        purposefulAIEnabled: PURPOSEFUL_AI_FEATURE_ENABLED,
-      }),
+      applyStrategicWarningTransitions(beforeRound, current, eventBus),
   });
 }
 
@@ -4061,7 +4058,6 @@ async function showStartSavePanel(): Promise<void> {
         { kind: 'stored', loaded },
         invoker,
         {
-          purposefulAIEnabled: PURPOSEFUL_AI_FEATURE_ENABLED,
           persistStoredChoice: rewriteLoadedSaveEntry,
           persistImport: autoSave,
           showChallengePrompt: showLegacyOpponentChallengePrompt,
@@ -4076,7 +4072,6 @@ async function showStartSavePanel(): Promise<void> {
         { kind: 'stored', loaded },
         invoker,
         {
-          purposefulAIEnabled: PURPOSEFUL_AI_FEATURE_ENABLED,
           persistStoredChoice: rewriteLoadedSaveEntry,
           persistImport: autoSave,
           showChallengePrompt: showLegacyOpponentChallengePrompt,
@@ -4089,7 +4084,6 @@ async function showStartSavePanel(): Promise<void> {
         { kind: 'import', state },
         invoker,
         {
-          purposefulAIEnabled: PURPOSEFUL_AI_FEATURE_ENABLED,
           persistStoredChoice: rewriteLoadedSaveEntry,
           persistImport: autoSave,
           showChallengePrompt: showLegacyOpponentChallengePrompt,

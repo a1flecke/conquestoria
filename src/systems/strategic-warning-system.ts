@@ -16,10 +16,6 @@ import {
   isResourceTileDeniedByHostileOccupation,
 } from '@/systems/resource-acquisition-system';
 
-export interface StrategicWarningOptions {
-  purposefulAIEnabled?: boolean;
-}
-
 type StrategicWarning = GameEvents['ai:strategic-warning'];
 
 function emptyLedger(): HumanPressureLedger {
@@ -283,12 +279,8 @@ function deriveResourceWarnings(
   after: GameState,
   viewerId: string,
 ): StrategicWarning[] {
-  const beforeResources = getCivAvailableResources(before, viewerId, {
-    hostileOccupationEnabled: true,
-  });
-  const afterResources = getCivAvailableResources(after, viewerId, {
-    hostileOccupationEnabled: true,
-  });
+  const beforeResources = getCivAvailableResources(before, viewerId);
+  const afterResources = getCivAvailableResources(after, viewerId);
   const allResources = [...new Set([...beforeResources, ...afterResources])].sort();
   const warnings: StrategicWarning[] = [];
   for (const resource of allResources) {
@@ -344,9 +336,7 @@ export function deriveStrategicWarningTransitions(
   beforeRound: Readonly<GameState>,
   finalState: GameState,
   viewerId: string,
-  options: StrategicWarningOptions = {},
 ): StrategicWarning[] {
-  if (!options.purposefulAIEnabled) return [];
   const viewer = finalState.civilizations[viewerId];
   if (!viewer?.isHuman || viewer.isEliminated) return [];
   const ledger = finalState.opponentAI?.pressureByHuman[viewerId] ?? emptyLedger();
@@ -374,9 +364,7 @@ export function applyStrategicWarningTransitions(
   beforeRound: Readonly<GameState>,
   finalState: GameState,
   bus: EventBus,
-  options: StrategicWarningOptions = {},
 ): GameState {
-  if (!options.purposefulAIEnabled) return finalState;
   const opponentAI = structuredClone(
     finalState.opponentAI ?? createEmptyOpponentAIState(),
   );
@@ -389,7 +377,6 @@ export function applyStrategicWarningTransitions(
       beforeRound,
       finalState,
       viewerId,
-      options,
     );
     if (viewerWarnings.length === 0) continue;
     const ledger = opponentAI.pressureByHuman[viewerId] ?? emptyLedger();

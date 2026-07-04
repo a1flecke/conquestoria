@@ -263,9 +263,7 @@ function assertLegalChoices(
       throw new Error(`${seed}: ${civ.id} has no legal research choice`);
     }
     if (!lateEra) continue;
-    const resources = getCivAvailableResources(state, civ.id, {
-      hostileOccupationEnabled: true,
-    });
+    const resources = getCivAvailableResources(state, civ.id);
     for (const cityId of civ.cities) {
       const city = state.cities[cityId];
       if (!city) continue;
@@ -422,21 +420,15 @@ function simulate(
     const completed = runCompletedRound(state, bus, {
       improvements: (current, eventBus) => processImprovementTurns(current, eventBus),
       majors: (current, eventBus) => {
-        const result = processNonHumanMajorRound(current, eventBus, {
-          strategicPlanningEnabled: true,
-        });
+        const result = processNonHumanMajorRound(current, eventBus);
         traces = result.traces;
         planningErrors = result.planningErrors.map(error =>
           `${error.actorId}: ${error.message}`);
         return result.state;
       },
-      world: (current, eventBus) => processTurn(current, eventBus, {
-        purposefulAIEnabled: true,
-      }),
+      world: (current, eventBus) => processTurn(current, eventBus),
       postprocess: (beforeRound, current, eventBus) =>
-        applyStrategicWarningTransitions(beforeRound, current, eventBus, {
-          purposefulAIEnabled: true,
-        }),
+        applyStrategicWarningTransitions(beforeRound, current, eventBus),
     });
     if (!completed.ok) {
       throw new Error(`${options.seed}: completed round ${round + 1} failed`, {

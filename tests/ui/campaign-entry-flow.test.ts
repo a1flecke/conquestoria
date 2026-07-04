@@ -28,7 +28,6 @@ function makeDependencies(
   overrides: Partial<CampaignEntryDependencies> = {},
 ): CampaignEntryDependencies {
   return {
-    purposefulAIEnabled: true,
     persistStoredChoice: vi.fn(async () => {}),
     persistImport: vi.fn(async () => {}),
     showChallengePrompt: showLegacyOpponentChallengePrompt,
@@ -154,23 +153,4 @@ describe('campaign entry flow', () => {
     }
   });
 
-  it('bypasses the prompt while the rollout flag is false', async () => {
-    const showChallengePrompt = vi.fn(showLegacyOpponentChallengePrompt);
-    const dependencies = makeDependencies({
-      purposefulAIEnabled: false,
-      showChallengePrompt,
-    });
-
-    const result = await beginCampaignEntry({
-      kind: 'stored',
-      loaded: {
-        state: normalizeLoadedState(makeState('disabled-legacy', null)),
-        source: { id: 'slot-legacy', kind: 'manual' },
-      },
-    }, makeInvoker(), dependencies);
-
-    expect(result).toBe('entered');
-    expect(showChallengePrompt).not.toHaveBeenCalled();
-    expect(dependencies.persistStoredChoice).not.toHaveBeenCalled();
-  });
 });

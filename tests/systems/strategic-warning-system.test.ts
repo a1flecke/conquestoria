@@ -83,9 +83,7 @@ describe('strategic warning transition derivation', () => {
       lastKnownPosition: { q: 99, r: 99 },
     });
 
-    const [warning] = deriveStrategicWarningTransitions(before, after, 'player', {
-      purposefulAIEnabled: true,
-    });
+    const [warning] = deriveStrategicWarningTransitions(before, after, 'player');
 
     expect(warning).toMatchObject({
       viewerId: 'player',
@@ -111,9 +109,7 @@ describe('strategic warning transition derivation', () => {
       lastKnownPosition: targetCity.position,
     });
 
-    const [warning] = deriveStrategicWarningTransitions(before, after, 'player', {
-      purposefulAIEnabled: true,
-    });
+    const [warning] = deriveStrategicWarningTransitions(before, after, 'player');
 
     expect(warning.targetLabel).toBe(targetCity.name);
     expect(warning.target).toEqual({
@@ -149,9 +145,7 @@ describe('strategic warning transition derivation', () => {
       anchor: { q: 8, r: 4 },
     });
 
-    expect(deriveStrategicWarningTransitions(before, after, 'player', {
-      purposefulAIEnabled: true,
-    })).toEqual([
+    expect(deriveStrategicWarningTransitions(before, after, 'player')).toEqual([
       expect.objectContaining({ evidence: 'remembered', regionLabel: expect.any(String) }),
     ]);
   });
@@ -167,9 +161,7 @@ describe('strategic warning transition derivation', () => {
       lastKnownPosition: { q: 8, r: 8 },
     });
 
-    expect(deriveStrategicWarningTransitions(before, after, 'player', {
-      purposefulAIEnabled: true,
-    })).toEqual([]);
+    expect(deriveStrategicWarningTransitions(before, after, 'player')).toEqual([]);
   });
 
   it('derives pirate behavior only from the viewer persisted intel snapshot', () => {
@@ -207,14 +199,10 @@ describe('strategic warning transition derivation', () => {
     };
     after.pirates.intelByCiv.player = structuredClone(before.pirates.intelByCiv.player);
 
-    expect(deriveStrategicWarningTransitions(before, after, 'player', {
-      purposefulAIEnabled: true,
-    })).toEqual([]);
+    expect(deriveStrategicWarningTransitions(before, after, 'player')).toEqual([]);
 
     after.pirates.intelByCiv.player['pirate-1'].knownBehavior = 'blockading';
-    const [warning] = deriveStrategicWarningTransitions(before, after, 'player', {
-      purposefulAIEnabled: true,
-    });
+    const [warning] = deriveStrategicWarningTransitions(before, after, 'player');
     expect(warning).toMatchObject({
       actorId: 'pirate-1',
       actorName: 'Pirates',
@@ -252,14 +240,10 @@ describe('strategic warning transition derivation', () => {
     barbarianPlan.objective = 'raid';
     after.opponentAI!.barbarianCamps['camp-1'] = barbarianPlan;
 
-    expect(deriveStrategicWarningTransitions(before, after, 'player', {
-      purposefulAIEnabled: true,
-    })).toEqual([]);
+    expect(deriveStrategicWarningTransitions(before, after, 'player')).toEqual([]);
 
     setVisibility(after, 'player', after.units[raiderId].position, 'visible');
-    expect(deriveStrategicWarningTransitions(before, after, 'player', {
-      purposefulAIEnabled: true,
-    })).toEqual([
+    expect(deriveStrategicWarningTransitions(before, after, 'player')).toEqual([
       expect.objectContaining({
         actorId: 'barbarian:camp-1',
         kind: 'raid',
@@ -296,9 +280,7 @@ describe('strategic warning transition derivation', () => {
       isResting: false,
     };
 
-    const denied = deriveStrategicWarningTransitions(before, after, 'player', {
-      purposefulAIEnabled: true,
-    });
+    const denied = deriveStrategicWarningTransitions(before, after, 'player');
     expect(denied).toEqual([
       expect.objectContaining({
         kind: 'resource-denied',
@@ -306,21 +288,15 @@ describe('strategic warning transition derivation', () => {
         target: { kind: 'map', coord, label: expect.any(String) },
       }),
     ]);
-    expect(deriveStrategicWarningTransitions(after, after, 'player', {
-      purposefulAIEnabled: true,
-    })).toEqual([]);
+    expect(deriveStrategicWarningTransitions(after, after, 'player')).toEqual([]);
 
     const restored = structuredClone(after);
     delete restored.units.raider;
     restored.turn++;
-    expect(deriveStrategicWarningTransitions(after, restored, 'player', {
-      purposefulAIEnabled: true,
-    })).toEqual([
+    expect(deriveStrategicWarningTransitions(after, restored, 'player')).toEqual([
       expect.objectContaining({ kind: 'resource-restored', resource: 'iron' }),
     ]);
-    expect(deriveStrategicWarningTransitions(restored, restored, 'player', {
-      purposefulAIEnabled: true,
-    })).toEqual([]);
+    expect(deriveStrategicWarningTransitions(restored, restored, 'player')).toEqual([]);
   });
 
   it('ignores non-hostile, transported, and second-occupier resource near misses', () => {
@@ -345,9 +321,7 @@ describe('strategic warning transition derivation', () => {
       transportId: 'transport',
       position: coord,
     } as GameState['units'][string];
-    expect(deriveStrategicWarningTransitions(before, after, 'player', {
-      purposefulAIEnabled: true,
-    })).toEqual([]);
+    expect(deriveStrategicWarningTransitions(before, after, 'player')).toEqual([]);
 
     delete after.units.cargo;
     after.units.neutral = {
@@ -356,9 +330,7 @@ describe('strategic warning transition derivation', () => {
       owner: 'ai-1',
       position: coord,
     } as GameState['units'][string];
-    expect(deriveStrategicWarningTransitions(before, after, 'player', {
-      purposefulAIEnabled: true,
-    })).toEqual([]);
+    expect(deriveStrategicWarningTransitions(before, after, 'player')).toEqual([]);
 
     const deniedBefore = structuredClone(before);
     const deniedAfter = structuredClone(after);
@@ -372,12 +344,10 @@ describe('strategic warning transition derivation', () => {
       } as GameState['units'][string];
     }
     deniedAfter.units.raider.id = 'replacement-raider';
-    expect(deriveStrategicWarningTransitions(deniedBefore, deniedAfter, 'player', {
-      purposefulAIEnabled: true,
-    })).toEqual([]);
+    expect(deriveStrategicWarningTransitions(deniedBefore, deniedAfter, 'player')).toEqual([]);
   });
 
-  it('emits recovery only from an explicit pressure-ledger resolution and stays dark when disabled', () => {
+  it('emits recovery only from an explicit pressure-ledger resolution', () => {
     const { before, after } = fixture();
     before.opponentAI!.pressureByHuman.player.activeIndependentThreatIds = ['barbarian:camp-1'];
     after.opponentAI!.pressureByHuman.player = {
@@ -387,10 +357,8 @@ describe('strategic warning transition derivation', () => {
       recoveryUntilTurn: after.turn + 2,
     };
 
-    expect(deriveStrategicWarningTransitions(before, after, 'player', {
-      purposefulAIEnabled: true,
-    })).toEqual([expect.objectContaining({ kind: 'recovery' })]);
-    expect(deriveStrategicWarningTransitions(before, after, 'player')).toEqual([]);
+    expect(deriveStrategicWarningTransitions(before, after, 'player'))
+      .toEqual([expect.objectContaining({ kind: 'recovery' })]);
   });
 
   it('applies dedup ledger updates immutably and emits at most one audio request per viewer round', () => {
@@ -406,17 +374,13 @@ describe('strategic warning transition derivation', () => {
     const warnings: unknown[] = [];
     bus.on('ai:strategic-warning', warning => warnings.push(warning));
 
-    const applied = applyStrategicWarningTransitions(before, after, bus, {
-      purposefulAIEnabled: true,
-    });
+    const applied = applyStrategicWarningTransitions(before, after, bus);
 
     expect(warnings).toHaveLength(1);
     expect(warnings.filter((warning: any) => warning.playAudio)).toHaveLength(1);
     expect(Object.keys(applied.opponentAI!.pressureByHuman.player.lastWarningTurnByKey))
       .toHaveLength(1);
     expect(after).toEqual(snapshot);
-    expect(deriveStrategicWarningTransitions(before, applied, 'player', {
-      purposefulAIEnabled: true,
-    })).toEqual([]);
+    expect(deriveStrategicWarningTransitions(before, applied, 'player')).toEqual([]);
   });
 });

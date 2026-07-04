@@ -1,6 +1,5 @@
 import type { CustomCivDefinition, HotSeatConfig, HotSeatPlayer, MapScript, OpponentChallenge } from '@/core/types';
 import { MAP_DIMENSIONS } from '@/core/game-state';
-import { PURPOSEFUL_AI_FEATURE_ENABLED } from '@/core/feature-flags';
 import { createCivSelectPanel } from './civ-select';
 import { createCustomCivPanel } from './custom-civ-panel';
 import { createDefaultSettings } from '@/core/game-state';
@@ -18,7 +17,6 @@ export interface HotSeatSetupCallbacks {
 
 export interface HotSeatSetupOptions {
   initialCustomCivilizations?: CustomCivDefinition[];
-  purposefulAIEnabled?: boolean;
 }
 
 export function showHotSeatSetup(
@@ -28,7 +26,6 @@ export function showHotSeatSetup(
 ): void {
   const existing = document.getElementById('hotseat-setup');
   if (existing) existing.remove();
-  const purposefulAIEnabled = options?.purposefulAIEnabled ?? PURPOSEFUL_AI_FEATURE_ENABLED;
 
   const panel = document.createElement('div');
   panel.id = 'hotseat-setup';
@@ -220,11 +217,7 @@ export function showHotSeatSetup(
     nextBtn.style.cssText = 'padding:10px 24px;min-height:44px;background:rgba(232,193,112,0.3);border:2px solid #e8c170;border-radius:8px;color:#e8c170;cursor:pointer;font-size:14px;font-weight:bold;';
     nextBtn.textContent = 'Next';
     nextBtn.addEventListener('click', () => {
-      if (purposefulAIEnabled) {
-        showOpponentChallengeStage();
-      } else {
-        showPlayerCountStage();
-      }
+      showOpponentChallengeStage();
     });
 
     nav.appendChild(backBtn);
@@ -461,10 +454,6 @@ export function showHotSeatSetup(
     };
 
     panel.remove();
-    if (purposefulAIEnabled) {
-      callbacks.onComplete(config, selectedOpponentChallenge);
-    } else {
-      callbacks.onComplete(config);
-    }
+    callbacks.onComplete(config, selectedOpponentChallenge);
   }
 }

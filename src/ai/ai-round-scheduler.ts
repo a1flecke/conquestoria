@@ -1,9 +1,5 @@
-import {
-  processAITurn,
-  processPreparedAITurn,
-} from '@/ai/basic-ai';
+import { processPreparedAITurn } from '@/ai/basic-ai';
 import type { EventBus } from '@/core/event-bus';
-import { PURPOSEFUL_AI_FEATURE_ENABLED } from '@/core/feature-flags';
 import {
   createEmptyMajorCivPlanPortfolio,
   normalizeOpponentAIState,
@@ -38,8 +34,6 @@ export function rotateIdsForRound(ids: readonly string[], turn: number): string[
 }
 
 export interface ProcessNonHumanRoundOptions {
-  execute?: (state: GameState, civId: string, bus: EventBus) => GameState;
-  strategicPlanningEnabled?: boolean;
   prepare?: PrepareMajorCivPlan;
   executePrepared?: ExecutePreparedMajorCivPlan;
 }
@@ -214,88 +208,59 @@ export function processNonHumanMajorRound(
 
   const stableActorIds = getLivingNonHumanMajorIds(working);
   const actorIds = rotateIdsForRound(stableActorIds, working.turn);
-  if (
-    options.strategicPlanningEnabled
-    ?? PURPOSEFUL_AI_FEATURE_ENABLED
-  ) {
-    let refreshed = working;
-    for (const civId of stableActorIds) {
-      refreshed = refreshMajorCivIntel(refreshed, civId);
-    }
-    const planningSnapshot = deepFreeze(structuredClone(refreshed));
-    const prepare = options.prepare ?? prepareMajorCivStrategicPlan;
-    const preparedPlans: PreparedMajorCivPlan[] = [];
-    const planningErrors: ProcessNonHumanRoundResult['planningErrors'] = [];
-    for (const civId of stableActorIds) {
-      try {
-        const prepared = prepare(planningSnapshot, civId);
-        if (prepared.civId !== civId) {
-          throw new Error(
-            `Prepared actor mismatch: expected ${civId}, received ${prepared.civId}`,
-          );
-        }
-        preparedPlans.push(prepared);
-      } catch (error) {
-        planningErrors.push({
-          actorId: civId,
-          phase: 'prepare',
-          message: error instanceof Error ? error.message : String(error),
-        });
+  let refreshed = working;
+  for (const civId of stableActorIds) {
+    refreshed = refreshMajorCivIntel(refreshed, civId);
+  }
+  const planningSnapshot = deepFreeze(structuredClone(refreshed));
+  const prepare = options.prepare ?? prepareMajorCivStrategicPlan;
+  const preparedPlans: PreparedMajorCivPlan[] = [];
+  const planningErrors: ProcessNonHumanRoundResult['planningErrors'] = [];
+  for (const civId of stableActorIds) {
+    try {
+      const prepared = prepare(planningSnapshot, civId);
+      if (prepared.civId !== civId) {
+        throw new Error(
+          `Prepared actor mismatch: expected ${civId}, received ${prepared.civId}`,
+        );
       }
-    }
-    const preparedByCiv = new Map(preparedPlans.map(prepared => [prepared.civId, prepared]));
-    const traces = preparedPlans.flatMap(prepared => prepared.traces);
-    working = writePreparedPortfolios(refreshed, preparedPlans);
-
-    const executePrepared = options.executePrepared ?? processPreparedAITurn;
-    for (const civId of actorIds) {
-      const prepared = preparedByCiv.get(civId);
-      const civ = working.civilizations[civId];
-      const portfolio = working.opponentAI?.majorCivs[civId];
-      if (
-        !prepared
-        || !civ
-        || civ.isHuman
-        || civ.isEliminated
-        || portfolio?.lastExecutedTurn === working.turn
-      ) {
-        continue;
-      }
-      const revalidated = revalidatePreparedPlan(working, prepared);
-      working = withMajorPortfolio(working, civId, revalidated.portfolio);
-      working = executePrepared(working, revalidated, bus).state;
-      working = normalizeOpponentAIState(working);
-      const executedPortfolio = working.opponentAI!.majorCivs[civId]
-        ?? createEmptyMajorCivPlanPortfolio();
-      working = withMajorPortfolio(working, civId, {
-        ...executedPortfolio,
-        lastExecutedTurn: working.turn,
+      preparedPlans.push(prepared);
+    } catch (error) {
+      planningErrors.push({
+        actorId: civId,
+        phase: 'prepare',
+        message: error instanceof Error ? error.message : String(error),
       });
     }
-
-    working = normalizeOpponentAIState(working);
-    return {
-      state: {
-        ...working,
-        opponentAI: {
-          ...working.opponentAI!,
-          lastPlannedRound: working.turn,
-          lastProcessedRound: working.turn,
-        },
-      },
-      traces,
-      planningErrors,
-    };
   }
+  const preparedByCiv = new Map(preparedPlans.map(prepared => [prepared.civId, prepared]));
+  const traces = preparedPlans.flatMap(prepared => prepared.traces);
+  working = writePreparedPortfolios(refreshed, preparedPlans);
 
-  const execute = options.execute ?? processAITurn;
+  const executePrepared = options.executePrepared ?? processPreparedAITurn;
   for (const civId of actorIds) {
+    const prepared = preparedByCiv.get(civId);
     const civ = working.civilizations[civId];
-    if (!civ || civ.isHuman || civ.isEliminated) continue;
-    const hasLiveAsset = civ.cities.some(id => working.cities[id]?.owner === civId)
-      || civ.units.some(id => working.units[id]?.owner === civId);
-    if (!hasLiveAsset) continue;
-    working = execute(working, civId, bus);
+    const portfolio = working.opponentAI?.majorCivs[civId];
+    if (
+      !prepared
+      || !civ
+      || civ.isHuman
+      || civ.isEliminated
+      || portfolio?.lastExecutedTurn === working.turn
+    ) {
+      continue;
+    }
+    const revalidated = revalidatePreparedPlan(working, prepared);
+    working = withMajorPortfolio(working, civId, revalidated.portfolio);
+    working = executePrepared(working, revalidated, bus).state;
+    working = normalizeOpponentAIState(working);
+    const executedPortfolio = working.opponentAI!.majorCivs[civId]
+      ?? createEmptyMajorCivPlanPortfolio();
+    working = withMajorPortfolio(working, civId, {
+      ...executedPortfolio,
+      lastExecutedTurn: working.turn,
+    });
   }
 
   working = normalizeOpponentAIState(working);
@@ -304,10 +269,11 @@ export function processNonHumanMajorRound(
       ...working,
       opponentAI: {
         ...working.opponentAI!,
+        lastPlannedRound: working.turn,
         lastProcessedRound: working.turn,
       },
     },
-    traces: [],
-    planningErrors: [],
+    traces,
+    planningErrors,
   };
 }

@@ -54,7 +54,7 @@ describe('pirate feature completion gate', () => {
     const main = readFileSync(resolve(PROJECT_ROOT, 'src/main.ts'), 'utf8');
     expect(definitions).not.toContain('PIRATE_IMPLEMENTATION_READY');
     expect(turns).not.toContain('PIRATE_IMPLEMENTATION_READY');
-    expect(turns).toContain('includeLegacyPirates: false');
+    expect(turns).not.toContain('includeLegacyPirates');
     expect(turns).not.toContain('processPirateFleets(');
     expect(main).not.toContain("bus.on('threat:pirate-");
     expect(main).not.toContain('(gameState as any).pirateFleets');
