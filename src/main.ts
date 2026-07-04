@@ -112,9 +112,12 @@ import { getWonderDefinition } from '@/systems/wonder-definitions';
 import { buildWonderDiscoveryRevealItem } from '@/systems/wonder-discovery-reveal';
 import { getAvailableTechs } from '@/systems/tech-system';
 import { getNextPlayer, isRoundComplete } from '@/core/turn-cycling';
-import { showTurnHandoff } from '@/ui/turn-handoff';
+import {
+  acknowledgeTurnHandoffSummary,
+  showTurnHandoff,
+} from '@/ui/turn-handoff';
 import { showHotSeatSetup } from '@/ui/hotseat-setup';
-import { clearEventsForPlayer, collectCouncilInterrupt, collectEvent } from '@/core/hotseat-events';
+import { collectCouncilInterrupt, collectEvent } from '@/core/hotseat-events';
 import { refreshKnownCivilizations, syncCivilizationContactsFromVisibility } from '@/systems/discovery-system';
 import { getMinorCivPresentationForPlayer } from '@/systems/minor-civ-presentation';
 import { getMinorCivNotification } from '@/ui/minor-civ-notifications';
@@ -200,6 +203,8 @@ import {
   routePeaceRequested,
   routeTerritoryTileFlipped,
   routeWarDeclared,
+  queueStrategicWarningPendingEvent,
+  routeStrategicWarning,
   type NotificationSink,
 } from '@/ui/notification-routing';
 import { registerConquestoriaServiceWorker } from '@/platform/service-worker';
@@ -231,6 +236,7 @@ import { runCompletedRound } from '@/core/completed-round-orchestrator';
 import { createCompletedRoundHandoffTransaction } from '@/core/completed-round-handoff';
 import { processImprovementTurns } from '@/systems/improvement-turn-system';
 import { handleCombatResolvedEvent } from '@/ui/combat-resolved-presentation';
+import { applyStrategicWarningTransitions } from '@/systems/strategic-warning-system';
 
 // --- App State ---
 let gameState: GameState;
@@ -3134,6 +3140,10 @@ function runCurrentCompletedRound(state: GameState) {
     improvements: (current, eventBus) => processImprovementTurns(current, eventBus),
     majors: (current, eventBus) => processNonHumanMajorRound(current, eventBus).state,
     world: (current, eventBus) => processTurn(current, eventBus),
+    postprocess: (beforeRound, current, eventBus) =>
+      applyStrategicWarningTransitions(beforeRound, current, eventBus, {
+        purposefulAIEnabled: PURPOSEFUL_AI_FEATURE_ENABLED,
+      }),
   });
 }
 
@@ -3185,11 +3195,13 @@ async function beginHotSeatHandoff(
     {
       initiallyReady: false,
       preparingLabel: 'Preparing next turn…',
-      onReady: async () => {
-        gameState = {
-          ...gameState,
-          pendingEvents: clearEventsForPlayer(gameState.pendingEvents ?? {}, nextSlotId),
-        };
+      onReady: async summary => {
+        const acknowledgement = acknowledgeTurnHandoffSummary(
+          gameState,
+          nextSlotId,
+          summary,
+        );
+        gameState = acknowledgement.state;
         let acknowledgementFailed = false;
         try {
           await autoSave(gameState);
@@ -3197,6 +3209,12 @@ async function beginHotSeatHandoff(
           acknowledgementFailed = true;
         }
         releaseHandoffToViewer(nextSlotId);
+        if (acknowledgement.playStrategicWarningAudio) {
+          bus.emit('ai:strategic-warning-audio', {
+            viewerId: nextSlotId,
+            turn: summary.turn,
+          });
+        }
         if (acknowledgementFailed) {
           showNotification('Turn opened, but its summary may repeat after reload.', 'warning');
         }
@@ -3805,6 +3823,13 @@ bus.on('beast:sighted', ({ beastId, civId }) => {
 
 registerMinorCivNotificationListeners(bus, () => gameState, { appendToCivLog });
 
+bus.on('ai:strategic-warning', event => {
+  routeStrategicWarning(event, appendToCivLog);
+  if (gameState.hotSeat) {
+    queueStrategicWarningPendingEvent(gameState, event);
+  }
+});
+
 function appendFactionNotice(civId: string, message: string, type: NotificationEntry['type']): void {
   appendToCivLog(civId, message, type);
   if (gameState.pendingEvents) {
@@ -3975,12 +4000,14 @@ function enterCampaign(
     {
       initiallyReady: !persistBeforeReady,
       preparingLabel: 'Saving campaign…',
-      onReady: async () => {
+      onReady: async summary => {
         const viewerId = gameState.currentPlayer;
-        gameState = {
-          ...gameState,
-          pendingEvents: clearEventsForPlayer(gameState.pendingEvents ?? {}, viewerId),
-        };
+        const acknowledgement = acknowledgeTurnHandoffSummary(
+          gameState,
+          viewerId,
+          summary,
+        );
+        gameState = acknowledgement.state;
         try {
           await autoSave(gameState);
         } catch {
@@ -3990,6 +4017,12 @@ function enterCampaign(
         setBlockingOverlay(null);
         startGame();
         audio.setMasterVolume(currentMasterVolume);
+        if (acknowledgement.playStrategicWarningAudio) {
+          bus.emit('ai:strategic-warning-audio', {
+            viewerId,
+            turn: summary.turn,
+          });
+        }
         showNotification(message, 'info');
       },
     },

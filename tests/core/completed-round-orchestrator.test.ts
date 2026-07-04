@@ -37,7 +37,7 @@ describe('runCompletedRound', () => {
     expect(state.gameTitle).not.toBe('improved-ai');
   });
 
-  it.each(['improvements', 'majors', 'world'] as const)(
+  it.each(['improvements', 'majors', 'world', 'postprocess'] as const)(
     'restores the untouched input and discards events when %s throws',
     failingPhase => {
       const state = createNewGame(undefined, `round-failure-${failingPhase}`, 'small');
@@ -54,6 +54,18 @@ describe('runCompletedRound', () => {
         world: (current: typeof state) => {
           if (failingPhase === 'world') throw new Error('failed');
           return { ...current, turn: 40 };
+        },
+        postprocess: (
+          _before: Readonly<typeof state>,
+          current: typeof state,
+          bus: EventBus,
+        ) => {
+          bus.emit('ai:strategic-warning-audio', {
+            viewerId: current.currentPlayer,
+            turn: current.turn,
+          });
+          if (failingPhase === 'postprocess') throw new Error('failed');
+          return current;
         },
       };
 

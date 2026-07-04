@@ -1049,6 +1049,7 @@ export interface GameEvent {
   type: string;
   message: string;
   turn: number;
+  target?: { kind: 'map'; coord: HexCoord; label: string };
 }
 
 export type OpponentChallenge = 'explorer' | 'standard' | 'veteran';
@@ -1431,6 +1432,30 @@ export interface GameEvents {
     viewerIds: string[];
   };
   'pirate:headquarters-destroyed': { factionId: string; viewerIds: string[] };
+  'ai:strategic-warning': {
+    viewerId: string;
+    actorId: string;
+    actorName: string;
+    warningKey: string;
+    kind:
+      | 'mobilizing'
+      | 'raid'
+      | 'blockade'
+      | 'resource-denied'
+      | 'resource-restored'
+      | 'withdrawing'
+      | 'recovery';
+    evidence: 'visible' | 'remembered' | 'earned-intel';
+    targetLabel?: string;
+    regionLabel?: string;
+    resource?: ResourceType;
+    target?: { kind: 'map'; coord: HexCoord; label: string };
+    playAudio: boolean;
+  };
+  'ai:strategic-warning-audio': {
+    viewerId: string;
+    turn: number;
+  };
   'city:founded': { city: City; founderId: string };
   'city:captured': { cityId: string; newOwner: string; previousOwner: string };
   'diplomacy:vassalage-offered': { fromCivId: string; toCivId: string };

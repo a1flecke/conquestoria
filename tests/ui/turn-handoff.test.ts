@@ -2,7 +2,12 @@
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createHotSeatGame } from '@/core/game-state';
-import { showTurnHandoff } from '@/ui/turn-handoff';
+import {
+  acknowledgeTurnHandoffSummary,
+  showTurnHandoff,
+} from '@/ui/turn-handoff';
+import { generateSummary } from '@/core/hotseat-events';
+import { createEmptyOpponentAIState } from '@/core/opponent-ai-state';
 
 function makeFixture() {
   const state = createHotSeatGame({
@@ -24,6 +29,65 @@ function makeFixture() {
 afterEach(() => document.body.replaceChildren());
 
 describe('turn handoff', () => {
+  it('acknowledges multiple warning rows with one post-handoff cue and does not replay after reload', () => {
+    const { state } = makeFixture();
+    state.opponentAI = createEmptyOpponentAIState();
+    state.opponentAI.pressureByHuman['player-2'] = {
+      activeIndependentThreatIds: [],
+      recoveryUntilTurn: 0,
+      lastResolvedThreatTurn: null,
+      lastWarningTurnByKey: {},
+      lastStrategicAudioTurn: null,
+    };
+    state.pendingEvents = {
+      'player-2': [
+        { type: 'ai:strategic-warning', message: 'Warning one', turn: state.turn },
+        { type: 'ai:strategic-warning', message: 'Warning two', turn: state.turn },
+      ],
+    };
+    const summary = generateSummary(state, 'player-2');
+
+    const first = acknowledgeTurnHandoffSummary(state, 'player-2', summary);
+    const reloadedSummary = generateSummary(first.state, 'player-2');
+    const replay = acknowledgeTurnHandoffSummary(first.state, 'player-2', {
+      ...summary,
+      events: summary.events,
+    });
+
+    expect(first.playStrategicWarningAudio).toBe(true);
+    expect(first.state.pendingEvents?.['player-2']).toEqual([]);
+    expect(first.state.opponentAI!.pressureByHuman['player-2'].lastStrategicAudioTurn)
+      .toBe(summary.turn);
+    expect(reloadedSummary.events).toEqual([]);
+    expect(replay.playStrategicWarningAudio).toBe(false);
+  });
+
+  it('renders viewer warning rows after identity confirmation and passes that exact summary on Start Turn', async () => {
+    const { state, layer } = makeFixture();
+    const warning = {
+      type: 'ai:strategic-warning',
+      message: 'A Roman force is gathering near our border.',
+      turn: state.turn,
+      target: { kind: 'map' as const, coord: { q: 2, r: 3 }, label: 'Border' },
+    };
+    state.pendingEvents = { 'player-2': [warning] };
+    const onReady = vi.fn();
+    showTurnHandoff(layer, state, 'player-2', 'Bob', {
+      initiallyReady: true,
+      onReady,
+    });
+
+    expect(document.body.textContent).not.toContain(warning.message);
+    document.querySelector<HTMLButtonElement>('#handoff-confirm')!.click();
+    expect(document.querySelector('[data-handoff-summary-events]')?.textContent)
+      .toContain(warning.message);
+    document.querySelector<HTMLButtonElement>('#handoff-start')!.click();
+
+    await vi.waitFor(() => expect(onReady).toHaveBeenCalledOnce());
+    const renderedSummary = onReady.mock.calls[0]![0];
+    expect(renderedSummary.events).toEqual([warning]);
+  });
+
   it('is opaque and blocked until setReady supplies the completed state', async () => {
     const { state, shell, layer } = makeFixture();
     const onReady = vi.fn();

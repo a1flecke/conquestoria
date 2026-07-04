@@ -29,6 +29,29 @@ describe('completed-round AI wiring', () => {
     expect(main).not.toContain("getAIPlayers(");
     expect(main).not.toContain("'ai-1'");
   });
+
+  it('keeps strategic warnings dark behind the real false flag while wiring postprocess', () => {
+    const main = readFileSync(resolve(PROJECT_ROOT, 'src/main.ts'), 'utf8');
+
+    expect(main).toContain('applyStrategicWarningTransitions(beforeRound, current, eventBus');
+    expect(main).toContain('purposefulAIEnabled: PURPOSEFUL_AI_FEATURE_ENABLED');
+    expect(main).toContain("bus.on('ai:strategic-warning'");
+  });
+
+  it('emits one warning cue only after the exact rendered handoff summary is acknowledged', () => {
+    const main = readFileSync(resolve(PROJECT_ROOT, 'src/main.ts'), 'utf8');
+    const handoff = main.slice(
+      main.indexOf('async function beginHotSeatHandoff'),
+      main.indexOf('async function endTurn'),
+    );
+
+    expect(handoff).toContain('onReady: async summary =>');
+    expect(handoff).toMatch(
+      /acknowledgeTurnHandoffSummary\(\s*gameState,\s*nextSlotId,\s*summary,\s*\)/,
+    );
+    expect(handoff.indexOf('releaseHandoffToViewer(nextSlotId)'))
+      .toBeLessThan(handoff.indexOf("bus.emit('ai:strategic-warning-audio'"));
+  });
 });
 
 describe('shared city founding wiring', () => {

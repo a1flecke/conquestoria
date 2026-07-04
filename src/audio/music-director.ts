@@ -132,6 +132,17 @@ export class MusicDirector {
       .then(() => this.playStingerWithDuck(STINGER.eraAdvance[resolveEra(p.era)].file));
   }
 
+  handleStrategicWarning(
+    era: number,
+    canPlay: () => boolean = () => true,
+  ): void {
+    this.currentEra = era;
+    this.currentStingerPromise = this.playStingerWithDuck(
+      STINGER.eraTransitionCue[resolveEra(era)].file,
+      canPlay,
+    );
+  }
+
   handleWarDeclared(_p: WarDeclaredPayload): void {
     this.atWar = true;
     this.applySnapshot(CROSSFADE_MS);
@@ -223,9 +234,17 @@ export class MusicDirector {
     return this.currentStingerPromise;
   }
 
-  async playStingerWithDuck(path: string): Promise<void> {
+  async playStingerWithDuck(
+    path: string,
+    canPlay: () => boolean = () => true,
+  ): Promise<void> {
+    if (!canPlay()) return;
     this.mixer.setSnapshot('stinger-duck', STINGER_DUCK_FADE_MS);
     const buffer = await this.loader.get(path);
+    if (!canPlay()) {
+      this.mixer.setSnapshot(this.resolveSnapshot(), STINGER_RESTORE_MS);
+      return;
+    }
     await this.mixer.playOneShot('stinger', buffer);
     this.mixer.setSnapshot(this.resolveSnapshot(), STINGER_RESTORE_MS);
   }
