@@ -970,6 +970,12 @@ describe('#429 — expanded obsolescence coverage', () => {
     { type: 'grenadier', unlockTech: 'grenade-warfare', obsoleteTech: 'mass-firepower' },
     { type: 'rifleman', unlockTech: 'rifled-infantry', obsoleteTech: 'mass-firepower' },
     { type: 'biplane', unlockTech: 'air-superiority', obsoleteTech: 'jet-aviation' },
+    // jet_fighter was correctly terminal when #429 shipped, but era-12 work landed
+    // stealth_bomber afterward — same targets (unit/city), same domain (air), same
+    // range, strictly higher strength/cost/movement/vision, requiring a much later
+    // tech. Caught by rebasing this PR onto main during a full review pass and
+    // re-chained here rather than left stale in TERMINAL_COMBAT_UNITS.
+    { type: 'jet_fighter', unlockTech: 'jet-aviation', obsoleteTech: 'stealth-technology' },
   ];
 
   for (const c of CASES) {

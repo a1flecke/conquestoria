@@ -1105,7 +1105,8 @@ export const TRAINABLE_UNITS: Array<TrainableUnitEntry & { pacing?: Building['pa
 export const TERMINAL_COMBAT_UNITS: Partial<Record<UnitType, string>> = {
   tank: 'current top-tier armor, no later replacement in the roster yet',
   submarine: 'current top-tier submarine, no later replacement in the roster yet',
-  jet_fighter: 'current air-combat apex, no later replacement in the roster yet',
+  stealth_bomber: 'current air-combat apex (era 12), no later replacement in the roster yet',
+  cyber_unit: 'era 12 economic-sabotage unit, unique role (city-only ranged target), no later replacement in the roster yet',
   carrier: 'current top-tier naval projection, no later replacement in the roster yet',
   attack_helicopter: 'era 11, newest air-assault unit, no later replacement yet',
   missile_submarine: 'era 11, newest naval-deterrent unit, no later replacement yet',
