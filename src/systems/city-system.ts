@@ -1539,6 +1539,7 @@ export function getAvailableBuildings(
   return Object.values(BUILDINGS).filter(b => {
     if (city.buildings.includes(b.id)) return false;
     if (b.techRequired && !completedTechs.includes(b.techRequired)) return false;
+    if (b.obsoletedByTech && completedTechs.includes(b.obsoletedByTech)) return false;
     if (b.coastalRequired && !coastal) return false;
     if (availableResources !== undefined && b.resourceRequired?.length) {
       if (!b.resourceRequired.every(r => availableResources.has(r))) return false;

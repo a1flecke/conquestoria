@@ -292,6 +292,32 @@ describe('getAvailableBuildings', () => {
     const available = getAvailableBuildings(city, ['harbor-tech'], map);
     expect(available.find(b => b.id === 'harbor')).toBeDefined();
   });
+
+  it('offers stable and cavalry-academy before tank-warfare completes', () => {
+    const map = generateMap(30, 30, 'city-test');
+    const landTile = Object.values(map.tiles).find(t => t.terrain === 'grassland')!;
+    const city = foundCity('p1', landTile.coord, map, mkC());
+    const available = getAvailableBuildings(city, ['horseback-riding'], map);
+    expect(available.find(b => b.id === 'stable')).toBeDefined();
+    expect(available.find(b => b.id === 'cavalry-academy')).toBeDefined();
+  });
+
+  it('hides stable and cavalry-academy once tank-warfare completes', () => {
+    const map = generateMap(30, 30, 'city-test');
+    const landTile = Object.values(map.tiles).find(t => t.terrain === 'grassland')!;
+    const city = foundCity('p1', landTile.coord, map, mkC());
+    const available = getAvailableBuildings(city, ['horseback-riding', 'tank-warfare'], map);
+    expect(available.find(b => b.id === 'stable')).toBeUndefined();
+    expect(available.find(b => b.id === 'cavalry-academy')).toBeUndefined();
+  });
+
+  it('hides siege-workshop once black-powder completes', () => {
+    const map = generateMap(30, 30, 'city-test');
+    const landTile = Object.values(map.tiles).find(t => t.terrain === 'grassland')!;
+    const city = foundCity('p1', landTile.coord, map, mkC());
+    const available = getAvailableBuildings(city, ['siege-warfare', 'black-powder'], map);
+    expect(available.find(b => b.id === 'siege-workshop')).toBeUndefined();
+  });
 });
 
 describe('#443 — building obsolescence data', () => {
