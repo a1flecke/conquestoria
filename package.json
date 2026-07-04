@@ -13,6 +13,7 @@
     "tauri:check:mac-artifacts": "node scripts/check-tauri-macos-artifacts.mjs",
     "setup:hooks": "sh scripts/setup-git-hooks.sh",
     "test": "vitest run && bash tests/hooks/run.sh",
+    "test:ai-playability": "bash scripts/run-ai-playability-regressions.sh",
     "test:hooks": "bash tests/hooks/run.sh",
     "test:web-smoke": "playwright test",
     "test:watch": "vitest",
