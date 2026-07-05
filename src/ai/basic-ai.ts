@@ -1,7 +1,7 @@
 import type { GameState, Unit, HexCoord, PersonalityTraits, SpyMissionType, City, UnitType } from '@/core/types';
 import { EventBus } from '@/core/event-bus';
 import { hexKey, wrappedHexDistance, hexDistance } from '@/systems/hex-utils';
-import { getTrainableUnitsForCiv, getDetectionUnitTypeForCiv } from '@/systems/city-system';
+import { getDetectionUnitTypeForCiv } from '@/systems/city-system';
 import { foundCityInState } from '@/systems/city-founding-system';
 import { canFoundCityAt } from '@/systems/city-territory-system';
 import { getMovementRange, moveUnit, findPath, createUnit, UNIT_DEFINITIONS } from '@/systems/unit-system';
@@ -17,7 +17,6 @@ import {
 } from '@/systems/transport-system';
 import { resolveCombat } from '@/systems/combat-system';
 import { applyCombatOutcomeToState } from '@/systems/combat-reward-system';
-import { getAttackTargets } from '@/systems/attack-targeting';
 import { buildUnitOccupancy } from '@/systems/unit-occupancy';
 import { getAvailableTechs, startResearch } from '@/systems/tech-system';
 import { resolveCivilizationEra } from '@/systems/tech-definitions';
@@ -25,7 +24,7 @@ import { updateAndRefreshVisibility } from '@/systems/last-seen-presentation';
 import { resolveCivDefinition } from '@/systems/civ-registry';
 import { hasMetCivilization, syncCivilizationContactsFromVisibility } from '@/systems/discovery-system';
 
-import { chooseTech, chooseProduction } from './ai-strategy';
+import { chooseProduction } from './ai-strategy';
 import { evaluateDiplomacy, evaluateMinorCivDiplomacy, evaluateVassalage, evaluateEmbargoResponse, evaluateLeagueResponse } from './ai-diplomacy';
 import {
   declareWar,
@@ -38,11 +37,6 @@ import {
   getAvailableActions,
   resolveOpponentKind,
 } from '@/systems/diplomacy-system';
-import {
-  beginMajorCityAssault,
-  emitMajorCityCaptureEvents,
-  resolveMajorCityCapture,
-} from '@/systems/city-capture-system';
 import {
   getAvailableMissions,
   embedSpy,
@@ -71,7 +65,7 @@ import { applyCampDestructionAtTarget } from '@/systems/barbarian-system';
 import { BEAST_OWNER, isBeastUnit, canUnitAttackBeast } from '@/systems/beast-system';
 import { applyDiplomaticReaction } from '@/systems/minor-civ-system';
 import { getCivAvailableResources, canEstablishOutpost, performEstablishOutpost } from '@/systems/resource-acquisition-system';
-import { canEstablishRoute, getRouteCapacity, RESOURCE_DEFINITIONS } from '@/systems/trade-system';
+import { canEstablishRoute, RESOURCE_DEFINITIONS } from '@/systems/trade-system';
 import { establishQuestAwareRoute } from '@/systems/quest-aware-trade-system';
 import { emitMinorCivQuestTransitions } from '@/systems/quest-chain-system';
 import { performMinorCivFestival, performMinorCivGift } from '@/systems/minor-civ-actions';
@@ -756,320 +750,30 @@ function processAITurnInternal(
     }
   }
 
-  // Computed once before the city loop — civUnits reflects already-trained units,
-  // which is stable within the loop (production-queued items aren't in units[] yet).
-  const civUnitsForAir = (civ.units ?? []).map(id => newState.units[id]).filter(Boolean);
-  const hasBalloon = civUnitsForAir.some(u => u?.type === 'observation_balloon');
-  const hasBiplane = civUnitsForAir.some(u => u?.type === 'biplane');
-  const hasJetFighter = civUnitsForAir.some(u => u?.type === 'jet_fighter');
-  const hasAttackHelicopter = civUnitsForAir.some(u => u?.type === 'attack_helicopter');
-  const hasCarrier = (civ.units ?? []).some(id => newState.units[id]?.type === 'carrier');
-  const hasMissileSubmarine = (civ.units ?? []).some(id => newState.units[id]?.type === 'missile_submarine');
-  let hasQueuedCarrierThisTurn = false;
-  let hasQueuedAttackHelicopterThisTurn = false;
-  let hasQueuedMissileSubThisTurn = false;
-  const hasAirSuperiorityTech = civ.techState.completed.includes('air-superiority');
-  const hasJetAviationTech = civ.techState.completed.includes('jet-aviation');
-  const hasHelicopterWarfareTech = civ.techState.completed.includes('helicopter-warfare');
-  const hasNuclearSubsTech = civ.techState.completed.includes('nuclear-submarines');
-
   for (const cityId of civ.cities) {
     const city = newState.cities[cityId];
-    if (city && city.productionQueue.length === 0) {
-      const activeWonderBuilds = Object.values(newState.cities).filter(candidate =>
-        candidate.owner === civId && candidate.productionQueue[0]?.startsWith('legendary:'),
-      ).length;
-      if (activeWonderBuilds < 2) {
-        const wonderCandidates = getEligibleLegendaryWonders(newState, civId, cityId)
-          .filter(wonderId =>
-            Object.values(newState.legendaryWonderProjects ?? {}).some(project =>
-              project.ownerId === civId
-              && project.cityId === cityId
-              && project.wonderId === wonderId
-              && project.phase === 'ready_to_build',
-            ),
-          )
-          .sort((left, right) =>
-            scoreLegendaryWonderOpportunity(newState, civId, cityId, right)
-            - scoreLegendaryWonderOpportunity(newState, civId, cityId, left),
-          );
+    if (!city || city.productionQueue.length > 0) continue;
+    const activeWonderBuilds = Object.values(newState.cities).filter(candidate =>
+      candidate.owner === civId && candidate.productionQueue[0]?.startsWith('legendary:'),
+    ).length;
+    if (activeWonderBuilds >= 2) continue;
 
-        if (wonderCandidates.length > 0) {
-          newState = startLegendaryWonderBuild(newState, civId, cityId, wonderCandidates[0], bus);
-          continue;
-        }
-      }
+    const wonderCandidates = getEligibleLegendaryWonders(newState, civId, cityId)
+      .filter(wonderId =>
+        Object.values(newState.legendaryWonderProjects ?? {}).some(project =>
+          project.ownerId === civId
+          && project.cityId === cityId
+          && project.wonderId === wonderId
+          && project.phase === 'ready_to_build',
+        ),
+      )
+      .sort((left, right) =>
+        scoreLegendaryWonderOpportunity(newState, civId, cityId, right)
+        - scoreLegendaryWonderOpportunity(newState, civId, cityId, left),
+      );
 
-      continue;
-
-      const civAvailableResources = getCivAvailableResources(newState, civId);
-      const trainableUnits = getTrainableUnitsForCiv(
-        civ.techState.completed,
-        civ.civType,
-        civAvailableResources,
-      ).map(u => u.type as string);
-      const aiNPKeys = getReservedNationalProjectKeys(newState, civId);
-      const availableBuildingsList = getAvailableBuildings(
-        city,
-        civ.techState.completed,
-        newState.map,
-        civAvailableResources,
-        newState.era,
-        aiNPKeys,
-        civId,
-      ).map(b => b.id);
-      const derivedItems = [...trainableUnits, ...availableBuildingsList];
-
-      // National project priority: queue matching NP if city is idle and personality aligns
-      const availableNPs = getAvailableBuildings(
-        city,
-        civ.techState.completed,
-        newState.map,
-        civAvailableResources,
-        newState.era,
-        aiNPKeys,
-        civId,
-      ).filter(b => b.nationalProject);
-      if (availableNPs.length > 0) {
-        const primaryTrait = resolveCivDefinition(newState, civ.civType ?? '')?.personality?.traits?.[0];
-        const bestNP = availableNPs.find(np => {
-          if (primaryTrait === 'aggressive' && (np.civYieldBonus?.production ?? 0) > 0) return true;
-          if (primaryTrait === 'trader' && (np.civYieldBonus?.gold ?? 0) > 0) return true;
-          return false;
-        }) ?? availableNPs[0];
-        if (bestNP) {
-          newState = {
-            ...newState,
-            cities: { ...newState.cities, [cityId]: { ...city, productionQueue: [bestNP.id] } },
-          };
-          continue;
-        }
-      }
-
-      // Prioritise caravan training when conditions are met
-      const hasTradeTech = civ.techState.completed.includes('trade-routes');
-      const hasRouteCapacity = civ.cities.some(cid => {
-        const c = newState.cities[cid];
-        if (!c) return false;
-        const usedSlots = (newState.marketplace?.tradeRoutes ?? []).filter(r => r.fromCityId === cid).length;
-        return getRouteCapacity(newState, cid) > usedSlots;
-      });
-      const hasUncommittedCaravan = (civ.units ?? []).some(id => {
-        const u = newState.units[id];
-        return u?.type === 'caravan' && !u.committedToRouteId;
-      });
-      // Prioritise cannon as soon as black-powder is researched and civ has none
-      const hasCannon = (civ.units ?? []).some(id => newState.units[id]?.type === 'cannon');
-      if (civ.techState.completed.includes('black-powder') && !hasCannon && trainableUnits.includes('cannon')) {
-        newState = {
-          ...newState,
-          cities: { ...newState.cities, [cityId]: { ...city, productionQueue: ['cannon'] } },
-        };
-        continue;
-      }
-      // Prioritise grenadier when grenade-warfare is researched and civ has none
-      const hasGrenadier = (civ.units ?? []).some(id => newState.units[id]?.type === 'grenadier');
-      if (civ.techState.completed.includes('grenade-warfare') && !hasGrenadier && trainableUnits.includes('grenadier')) {
-        newState = {
-          ...newState,
-          cities: { ...newState.cities, [cityId]: { ...city, productionQueue: ['grenadier'] } },
-        };
-        continue;
-      }
-      // Prioritise rifleman when rifled-infantry is researched and civ has none
-      const hasRifleman = (civ.units ?? []).some(id => newState.units[id]?.type === 'rifleman');
-      if (civ.techState.completed.includes('rifled-infantry') && !hasRifleman && trainableUnits.includes('rifleman')) {
-        newState = {
-          ...newState,
-          cities: { ...newState.cities, [cityId]: { ...city, productionQueue: ['rifleman'] } },
-        };
-        continue;
-      }
-      // Prioritise ironclad when ironclad-warships is researched and civ has no ironclad (coastal cities only)
-      const hasIronclad = (civ.units ?? []).some(id => newState.units[id]?.type === 'ironclad');
-      if (civ.techState.completed.includes('ironclad-warships') && !hasIronclad && trainableUnits.includes('ironclad')) {
-        newState = {
-          ...newState,
-          cities: { ...newState.cities, [cityId]: { ...city, productionQueue: ['ironclad'] } },
-        };
-        continue;
-      }
-      // Prioritise machine_gunner when mass-firepower is researched and civ has none
-      const hasMachineGunner = (civ.units ?? []).some(id => newState.units[id]?.type === 'machine_gunner');
-      if (civ.techState.completed.includes('mass-firepower') && !hasMachineGunner && trainableUnits.includes('machine_gunner')) {
-        newState = {
-          ...newState,
-          cities: { ...newState.cities, [cityId]: { ...city, productionQueue: ['machine_gunner'] } },
-        };
-        continue;
-      }
-      // Prioritise pre_dreadnought when naval-armor is researched and civ has none (coastal cities only)
-      const hasPreDreadnought = (civ.units ?? []).some(id => newState.units[id]?.type === 'pre_dreadnought');
-      if (civ.techState.completed.includes('naval-armor') && !hasPreDreadnought && trainableUnits.includes('pre_dreadnought')) {
-        newState = {
-          ...newState,
-          cities: { ...newState.cities, [cityId]: { ...city, productionQueue: ['pre_dreadnought'] } },
-        };
-        continue;
-      }
-      // Prioritise tank when tank-warfare is researched and civ has none
-      const hasTank = (civ.units ?? []).some(id => newState.units[id]?.type === 'tank');
-      if (civ.techState.completed.includes('tank-warfare') && !hasTank && trainableUnits.includes('tank')) {
-        newState = {
-          ...newState,
-          cities: { ...newState.cities, [cityId]: { ...city, productionQueue: ['tank'] } },
-        };
-        continue;
-      }
-      // Prioritise submarine when submarine-warfare is researched and civ has none (coastal cities only)
-      const hasSubmarine = (civ.units ?? []).some(id => newState.units[id]?.type === 'submarine');
-      if (civ.techState.completed.includes('submarine-warfare') && !hasSubmarine && trainableUnits.includes('submarine')) {
-        newState = {
-          ...newState,
-          cities: { ...newState.cities, [cityId]: { ...city, productionQueue: ['submarine'] } },
-        };
-        continue;
-      }
-      // Build anti_air_battery when air-superiority is unlocked (city not already protected)
-      if (
-        hasAirSuperiorityTech &&
-        !city.buildings.includes('anti_air_battery') &&
-        !city.productionQueue.includes('anti_air_battery')
-      ) {
-        newState = {
-          ...newState,
-          cities: { ...newState.cities, [cityId]: { ...city, productionQueue: ['anti_air_battery'] } },
-        };
-        continue;
-      }
-      // Queue one observation balloon per civ — pure recon, no multiples needed early
-      if (
-        civ.techState.completed.includes('balloon-corps') &&
-        !hasBalloon &&
-        trainableUnits.includes('observation_balloon') &&
-        city.productionQueue.length === 0
-      ) {
-        newState = {
-          ...newState,
-          cities: { ...newState.cities, [cityId]: { ...city, productionQueue: ['observation_balloon'] } },
-        };
-        continue;
-      }
-      // Queue one biplane per civ when air-superiority is researched
-      if (
-        hasAirSuperiorityTech &&
-        !hasBiplane &&
-        trainableUnits.includes('biplane') &&
-        city.productionQueue.length === 0
-      ) {
-        newState = {
-          ...newState,
-          cities: { ...newState.cities, [cityId]: { ...city, productionQueue: ['biplane'] } },
-        };
-        continue;
-      }
-      // Queue one jet_fighter per civ when jet-aviation is researched
-      if (
-        hasJetAviationTech &&
-        !hasJetFighter &&
-        trainableUnits.includes('jet_fighter') &&
-        city.productionQueue.length === 0
-      ) {
-        newState = {
-          ...newState,
-          cities: { ...newState.cities, [cityId]: { ...city, productionQueue: ['jet_fighter'] } },
-        };
-        continue;
-      }
-      // Queue one carrier per civ when carrier-warfare is researched
-      if (
-        civ.techState.completed.includes('carrier-warfare') &&
-        !hasCarrier && !hasQueuedCarrierThisTurn &&
-        trainableUnits.includes('carrier') &&
-        city.productionQueue.length === 0
-      ) {
-        hasQueuedCarrierThisTurn = true;
-        newState = {
-          ...newState,
-          cities: { ...newState.cities, [cityId]: { ...city, productionQueue: ['carrier'] } },
-        };
-        continue;
-      }
-      // Queue one attack_helicopter per civ when helicopter-warfare is researched
-      if (
-        hasHelicopterWarfareTech &&
-        !hasAttackHelicopter && !hasQueuedAttackHelicopterThisTurn &&
-        trainableUnits.includes('attack_helicopter') &&
-        city.productionQueue.length === 0
-      ) {
-        hasQueuedAttackHelicopterThisTurn = true;
-        newState = {
-          ...newState,
-          cities: { ...newState.cities, [cityId]: { ...city, productionQueue: ['attack_helicopter'] } },
-        };
-        continue;
-      }
-      // Queue one missile_submarine per civ when nuclear-submarines is researched (coastal only)
-      if (
-        hasNuclearSubsTech &&
-        !hasMissileSubmarine && !hasQueuedMissileSubThisTurn &&
-        trainableUnits.includes('missile_submarine') &&
-        city.productionQueue.length === 0
-      ) {
-        hasQueuedMissileSubThisTurn = true;
-        newState = {
-          ...newState,
-          cities: { ...newState.cities, [cityId]: { ...city, productionQueue: ['missile_submarine'] } },
-        };
-        continue;
-      }
-      // cyber_unit and stealth_bomber are handled by the catalog-driven ai-production.ts path
-      // (purposefulAI only) — no one-off legacy branch added per end-to-end-wiring rule.
-      if (hasTradeTech && hasRouteCapacity && !hasUncommittedCaravan && trainableUnits.includes('caravan')) {
-        city.productionQueue = ['caravan'];
-      } else {
-        // Train Expedition when: foraging tech, an unowned resource tile within
-        // 8 hex distance exists, and civ has no uncommitted expedition unit.
-        const hasForagingTech = civ.techState.completed.includes('foraging');
-        const hasUncommittedExpedition = (civ.units ?? []).some(id => {
-          const u = newState.units[id];
-          return u?.type === 'expedition' && !u.hasActed;
-        });
-        const cityPos = city.position;
-        const hasNearbyUnownedResource = hasForagingTech && (
-          administrativePerception.knownResources.some(resource => {
-                if (resource.owner !== null) return false;
-                const resDef = RESOURCE_DEFINITIONS.find(
-                  definition => definition.id === resource.resource,
-                );
-                if (
-                  !resDef
-                  || !civ.techState.completed.includes(resDef.tech)
-                ) {
-                  return false;
-                }
-                const dist = newState.map.wrapsHorizontally
-                  ? wrappedHexDistance(
-                      resource.position,
-                      cityPos,
-                      newState.map.width,
-                    )
-                  : hexDistance(resource.position, cityPos);
-                return dist <= 8;
-              })
-        );
-        if (hasForagingTech && !hasUncommittedExpedition && trainableUnits.includes('expedition') && hasNearbyUnownedResource) {
-          city.productionQueue = ['expedition'];
-        } else {
-          const chosen = chooseProduction(
-            personality,
-            derivedItems.length > 0 ? derivedItems : ['warrior'],
-            false,
-            civ.cities.length,
-          );
-          city.productionQueue = [chosen];
-        }
-      }
+    if (wonderCandidates.length > 0) {
+      newState = startLegendaryWonderBuild(newState, civId, cityId, wonderCandidates[0], bus);
     }
   }
   newState = applyAIProduction(
