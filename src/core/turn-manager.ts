@@ -1267,6 +1267,7 @@ export function processTurn(
     if (victorId !== null) {
       newState.gameOver = true;
       newState.winner = victorId;
+      newState.gameOverReason = 'domination';
     }
   }
 

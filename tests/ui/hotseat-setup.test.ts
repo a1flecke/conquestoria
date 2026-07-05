@@ -45,6 +45,8 @@ function advanceThroughMapType(): void {
 function chooseCiv(civId: string): void {
   click(`.civ-card[data-civ-id="${civId}"]`);
   click('#civ-start');
+  const reviewStart = document.querySelector<HTMLElement>('#hs-review-start');
+  if (reviewStart) reviewStart.click();
 }
 
 function primaryCivActionLabel(): string {
@@ -85,6 +87,66 @@ beforeEach(() => {
 });
 
 describe('hotseat-setup', () => {
+  it('defaults geographic maps to balanced placement and hides the choice for generated maps', () => {
+    showHotSeatSetup(document.body, {
+      onComplete: vi.fn(),
+      onCancel: vi.fn(),
+    });
+
+    click('[data-size="small"]');
+    expect(document.querySelector('[data-placement-mode="balanced"]')?.getAttribute('data-selected'))
+      .toBe('true');
+    click('[data-map-script="balanced"]');
+    expect((document.querySelector('[data-role="start-placement-options"]') as HTMLElement).hidden)
+      .toBe(true);
+  });
+
+  it('chooses AI count independently and previews exactly that many roster-aware opponents', () => {
+    const onComplete = vi.fn();
+    showHotSeatSetup(document.body, { onComplete, onCancel: vi.fn() });
+
+    click('[data-size="medium"]');
+    advanceThroughMapType();
+    click('[data-count="2"]');
+    click('[data-ai-count="2"]');
+    click('#hs-names-next');
+    chooseCiv('england');
+    click('#hs-civ-ready');
+    click('.civ-card[data-civ-id="germany"]');
+    click('#civ-start');
+
+    expect(document.querySelector('[data-role="hotseat-final-review"]')?.textContent)
+      .toContain('AI opponents (2)');
+    click('#hs-review-start');
+
+    const config = onComplete.mock.calls[0]![0];
+    expect(config.players.filter((player: { isHuman: boolean }) => !player.isHuman)).toHaveLength(2);
+    expect(config.startPlacementMode).toBe('balanced');
+  });
+
+  it('requires explicit confirmation for a crowded true-start roster', () => {
+    const onComplete = vi.fn();
+    showHotSeatSetup(document.body, { onComplete, onCancel: vi.fn() });
+
+    click('[data-size="large"]');
+    click('[data-placement-mode="historical"]');
+    advanceThroughMapType();
+    click('[data-count="2"]');
+    click('#hs-names-next');
+    chooseCiv('england');
+    click('#hs-civ-ready');
+    click('.civ-card[data-civ-id="germany"]');
+    click('#civ-start');
+
+    expect(document.querySelector('[data-role="historical-crowding-warning"]')).not.toBeNull();
+    click('#hs-review-start');
+    expect(onComplete).not.toHaveBeenCalled();
+    expect(document.querySelector('#hs-review-start')?.textContent)
+      .toContain('Start Crowded Historical Game');
+    click('#hs-review-start');
+    expect(onComplete).toHaveBeenCalledOnce();
+  });
+
   it('always routes through opponent challenge selection after launch', () => {
     showHotSeatSetup(document.body, {
       onComplete: vi.fn(),
@@ -186,6 +248,7 @@ describe('hotseat-setup', () => {
     expect(secondPlayerCiv).toBeTruthy();
     secondPlayerCiv?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     click('#civ-start');
+    click('#hs-review-start');
 
     expect(onComplete).toHaveBeenCalledTimes(1);
     expect(onComplete).toHaveBeenCalledWith(expect.objectContaining({
@@ -231,6 +294,7 @@ describe('hotseat-setup', () => {
     expect(secondPlayerCiv).toBeTruthy();
     secondPlayerCiv?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     click('#civ-start');
+    click('#hs-review-start');
 
     expect(onComplete).toHaveBeenCalledTimes(1);
     expect(onComplete).toHaveBeenCalledWith(expect.objectContaining({

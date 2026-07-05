@@ -1,5 +1,5 @@
-import type { CustomCivDefinition, HotSeatConfig, HotSeatPlayer, MapScript, OpponentChallenge } from '@/core/types';
-import { MAP_DIMENSIONS } from '@/core/game-state';
+import type { CustomCivDefinition, HotSeatConfig, HotSeatPlayer, MapScript, OpponentChallenge, StartPlacementMode } from '@/core/types';
+import { GameCreationError, MAP_DIMENSIONS } from '@/core/game-state';
 import { createCivSelectPanel } from './civ-select';
 import { createCustomCivPanel } from './custom-civ-panel';
 import { createDefaultSettings } from '@/core/game-state';
@@ -8,6 +8,7 @@ import { buildCustomCivId, customCivDefinitionsEqual, mergeCustomCivDefinitions 
 import { loadSettings, saveSettings } from '@/storage/save-manager';
 import { createOpponentChallengeSelector } from '@/ui/opponent-challenge-selector';
 import { createGameButton } from '@/ui/ui-kit';
+import { selectAIRoster } from '@/systems/ai-roster-selection';
 
 export interface HotSeatSetupCallbacks {
   onComplete: (config: HotSeatConfig, opponentChallenge?: OpponentChallenge) => void;
@@ -33,8 +34,10 @@ export function showHotSeatSetup(
 
   let selectedMapSize: 'small' | 'medium' | 'large' | null = null;
   let selectedMapScript: MapScript = 'earth';
+  let selectedPlacementMode: StartPlacementMode = 'balanced';
   let selectedOpponentChallenge: OpponentChallenge = 'standard';
   let playerCount = 0;
+  let aiCount = 1;
   const players: HotSeatPlayer[] = [];
   const chosenCivs: string[] = [];
   let customCivilizations: CustomCivDefinition[] = [...(options?.initialCustomCivilizations ?? [])];
@@ -110,17 +113,17 @@ export function showHotSeatSetup(
       earth: {
         emoji: '🌍',
         label: 'Earth',
-        description: 'Real-world geography. Civilizations start near their historical homelands; fantasy and out-of-region civs get good constrained starts. Resources follow real-world distribution.',
+        description: 'Real-world geography with your choice of separated Balanced starts or exact True Starts.',
       },
       'old-world': {
         emoji: '🗺️',
         label: 'Old World',
-        description: 'Europe, Asia, and Africa. Historical civilizations start at their homelands. Best for Old World civs — Aztec gets a constrained random start.',
+        description: 'Europe, Asia, and Africa with Balanced or exact True Start placement.',
       },
       'new-world': {
         emoji: '🌎',
         label: 'New World',
-        description: 'North and South America. Aztec starts in Central Mexico. England and France land on the eastern seaboard; Spain lands on the Gulf of Mexico.',
+        description: 'North and South America with Balanced or exact True Start placement.',
       },
       balanced: {
         emoji: '⚖️',
@@ -156,6 +159,47 @@ export function showHotSeatSetup(
     descEl.style.cssText = 'font-size:12px;opacity:0.82;margin:12px 0;text-align:center;max-width:420px;line-height:1.45;';
     panel.appendChild(descEl);
 
+    const placement = document.createElement('div');
+    placement.dataset.role = 'start-placement-options';
+    placement.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap;justify-content:center;max-width:480px;';
+    const balancedPlacement = createGameButton('Balanced (Recommended)', 'secondary');
+    balancedPlacement.dataset.placementMode = 'balanced';
+    const historicalPlacement = createGameButton('True Start', 'secondary');
+    historicalPlacement.dataset.placementMode = 'historical';
+    placement.append(balancedPlacement, historicalPlacement);
+    panel.appendChild(placement);
+
+    const placementDescription = document.createElement('p');
+    placementDescription.dataset.role = 'start-placement-description';
+    placementDescription.style.cssText = 'font-size:12px;opacity:0.82;margin:8px 0;text-align:center;max-width:420px;line-height:1.45;';
+    panel.appendChild(placementDescription);
+
+    const syncPlacement = (): void => {
+      const geographic = selectedMapScript === 'earth'
+        || selectedMapScript === 'old-world'
+        || selectedMapScript === 'new-world';
+      placement.hidden = !geographic;
+      placementDescription.hidden = !geographic;
+      if (!geographic) selectedPlacementMode = 'balanced';
+      for (const button of [balancedPlacement, historicalPlacement]) {
+        button.dataset.selected = button.dataset.placementMode === selectedPlacementMode
+          ? 'true'
+          : 'false';
+        button.style.outline = button.dataset.selected === 'true' ? '2px solid #e8c170' : 'none';
+      }
+      placementDescription.textContent = selectedPlacementMode === 'balanced'
+        ? 'Separated viable starts are guaranteed; historical regions are soft preferences.'
+        : 'Exact known homelands are used. Nearby civilizations may begin close together.';
+    };
+    balancedPlacement.addEventListener('click', () => {
+      selectedPlacementMode = 'balanced';
+      syncPlacement();
+    });
+    historicalPlacement.addEventListener('click', () => {
+      selectedPlacementMode = 'historical';
+      syncPlacement();
+    });
+
     const buttons = new Map<MapScriptKey, HTMLButtonElement>();
 
     const syncCards = (current: MapScriptKey): void => {
@@ -167,6 +211,7 @@ export function showHotSeatSetup(
         btn.style.color = sel ? '#f7f1d7' : '#f4f1e8';
       }
       descEl.textContent = MAP_SCRIPT_LABELS[current].description;
+      syncPlacement();
     };
 
     for (const script of MAP_SCRIPT_ORDER) {
@@ -310,6 +355,18 @@ export function showHotSeatSetup(
     panel.innerHTML = `
       <h1 style="font-size:22px;color:#e8c170;margin:24px 0 8px;text-align:center;">Player Names</h1>
       <p style="font-size:13px;opacity:0.6;margin-bottom:16px;text-align:center;">Enter names for each player</p>
+      <div data-role="ai-count-options" style="margin-bottom:16px;text-align:center;">
+        <div style="font-size:13px;color:#e8c170;margin-bottom:8px;">AI opponents</div>
+        <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
+          ${Array.from(
+            { length: MAP_DIMENSIONS[selectedMapSize!].maxPlayers - playerCount },
+            (_, index) => index + 1,
+          ).map(count => `
+            <button type="button" data-ai-count="${count}" style="min-height:44px;min-width:44px;padding:8px;background:rgba(255,255,255,0.08);color:white;border:1px solid rgba(255,255,255,0.2);border-radius:8px;">${count}</button>
+          `).join('')}
+        </div>
+        <p style="font-size:11px;opacity:0.65;margin:6px 0 0;">Choose independently; map capacity is a limit, not a target.</p>
+      </div>
       <div style="max-width:300px;width:100%;display:flex;flex-direction:column;gap:10px;">
         ${defaultNames.map((_name, i) => `
           <input class="player-name-input" data-idx="${i}" type="text"
@@ -321,6 +378,25 @@ export function showHotSeatSetup(
         <button id="hs-names-next" style="padding:10px 24px;background:rgba(232,193,112,0.3);border:2px solid #e8c170;border-radius:8px;color:#e8c170;cursor:pointer;font-size:14px;font-weight:bold;">Next</button>
       </div>
     `;
+
+    aiCount = Math.max(1, Math.min(
+      aiCount,
+      MAP_DIMENSIONS[selectedMapSize!].maxPlayers - playerCount,
+    ));
+    const syncAICount = (): void => {
+      panel.querySelectorAll<HTMLButtonElement>('[data-ai-count]').forEach(button => {
+        const selected = Number(button.dataset.aiCount) === aiCount;
+        button.dataset.selected = selected ? 'true' : 'false';
+        button.style.borderColor = selected ? '#e8c170' : 'rgba(255,255,255,0.2)';
+      });
+    };
+    panel.querySelectorAll<HTMLButtonElement>('[data-ai-count]').forEach(button => {
+      button.addEventListener('click', () => {
+        aiCount = Number(button.dataset.aiCount);
+        syncAICount();
+      });
+    });
+    syncAICount();
 
     // Set placeholder and value via DOM properties (not attributes) to avoid XSS
     const inputs = panel.querySelectorAll('.player-name-input') as NodeListOf<HTMLInputElement>;
@@ -415,7 +491,7 @@ export function showHotSeatSetup(
           if (playerIdx + 1 < players.length) {
             showCivPickStage(playerIdx + 1);
           } else {
-            finalize();
+            showFinalReview();
           }
         },
         onCreateCustomCiv: () => {
@@ -430,30 +506,110 @@ export function showHotSeatSetup(
     });
   }
 
-  function finalize() {
-    // Add AI players to fill remaining map slots
-    const max = MAP_DIMENSIONS[selectedMapSize!].maxPlayers;
-    const aiCount = Math.max(1, max - playerCount); // at least 1 AI
-    const availableCivs = civDefinitions.filter(c => !chosenCivs.includes(c.id));
-
-    for (let i = 0; i < aiCount && i < availableCivs.length; i++) {
-      players.push({
-        name: availableCivs[i].name,
-        slotId: `ai-${i + 1}`,
-        civType: availableCivs[i].id,
+  function buildFinalConfig(): {
+    config: HotSeatConfig;
+    minimumHistoricalDistance: number | null;
+    fallbackCivilizationTypeIds: string[];
+  } {
+    const humanPlayers = players.filter(player => player.isHuman);
+    const selection = selectAIRoster({
+      definitions: civDefinitions,
+      humanCivilizationTypeIds: humanPlayers.map(player => player.civType),
+      count: aiCount,
+      mapScript: selectedMapScript,
+      mapSize: selectedMapSize!,
+      placementMode: selectedPlacementMode,
+      seed: 'hotseat-roster-preview',
+    });
+    const aiPlayers = selection.civilizationTypeIds.map((id, index) => {
+      const definition = civDefinitions.find(candidate => candidate.id === id);
+      return {
+        name: definition?.name ?? id,
+        slotId: `ai-${index + 1}`,
+        civType: id,
         isHuman: false,
-      });
-    }
-
-    const config: HotSeatConfig = {
-      playerCount: players.length,
+      };
+    });
+    return {
+      config: {
+      playerCount: humanPlayers.length + aiPlayers.length,
       mapSize: selectedMapSize!,
       mapScript: selectedMapScript,
-      players,
+      startPlacementMode: selectedPlacementMode,
+      players: [...humanPlayers, ...aiPlayers],
       customCivilizations,
+      },
+      minimumHistoricalDistance: selection.minimumHistoricalDistance,
+      fallbackCivilizationTypeIds: selection.fallbackCivilizationTypeIds,
     };
+  }
 
-    panel.remove();
-    callbacks.onComplete(config, selectedOpponentChallenge);
+  function showFinalReview() {
+    const review = buildFinalConfig();
+    const humans = review.config.players.filter(player => player.isHuman);
+    const ais = review.config.players.filter(player => !player.isHuman);
+    const crowded = selectedPlacementMode === 'historical'
+      && review.minimumHistoricalDistance !== null
+      && review.minimumHistoricalDistance < 9;
+    panel.replaceChildren();
+    const title = document.createElement('h1');
+    title.textContent = 'Review Campaign';
+    title.style.cssText = 'font-size:22px;color:#e8c170;margin:24px 0 12px;text-align:center;';
+    panel.appendChild(title);
+    const summary = document.createElement('div');
+    summary.dataset.role = 'hotseat-final-review';
+    summary.style.cssText = 'max-width:520px;width:100%;background:rgba(255,255,255,0.06);border-radius:12px;padding:16px;line-height:1.6;';
+    const lines = [
+      `Map: ${selectedMapSize} ${selectedMapScript}`,
+      `Starts: ${selectedPlacementMode === 'balanced' ? 'Balanced' : 'True Start'}`,
+      `Humans: ${humans.map(player => `${player.name} (${player.civType})`).join(', ')}`,
+      `AI opponents (${ais.length}): ${ais.map(player => player.civType).join(', ')}`,
+    ];
+    for (const line of lines) {
+      const row = document.createElement('p');
+      row.textContent = line;
+      row.style.margin = '0 0 6px';
+      summary.appendChild(row);
+    }
+    if (review.fallbackCivilizationTypeIds.length > 0) {
+      const fallback = document.createElement('p');
+      fallback.textContent = `Fallback starts: ${review.fallbackCivilizationTypeIds.join(', ')}`;
+      fallback.style.margin = '0 0 6px';
+      summary.appendChild(fallback);
+    }
+    if (crowded) {
+      const warning = document.createElement('p');
+      warning.dataset.role = 'historical-crowding-warning';
+      warning.textContent = `Warning: this roster has historical starts only ${review.minimumHistoricalDistance} hexes apart.`;
+      warning.style.cssText = 'color:#ffb870;font-weight:bold;margin:10px 0 0;';
+      summary.appendChild(warning);
+    }
+    panel.appendChild(summary);
+
+    const start = createGameButton(
+      crowded ? 'Review Crowding Risk' : 'Start Game',
+      'primary',
+    );
+    start.id = 'hs-review-start';
+    start.style.marginTop = '16px';
+    start.addEventListener('click', () => {
+      if (crowded && start.dataset.confirmed !== 'true') {
+        start.dataset.confirmed = 'true';
+        start.textContent = 'Start Crowded Historical Game';
+        return;
+      }
+      try {
+        callbacks.onComplete(review.config, selectedOpponentChallenge);
+        panel.remove();
+      } catch (error) {
+        if (!(error instanceof GameCreationError)) throw error;
+        const message = document.createElement('p');
+        message.dataset.role = 'setup-error';
+        message.textContent = error.message;
+        message.style.cssText = 'color:#ffb4ab;font-size:12px;font-weight:bold;margin:10px 0 0;';
+        summary.appendChild(message);
+      }
+    });
+    panel.appendChild(start);
   }
 }

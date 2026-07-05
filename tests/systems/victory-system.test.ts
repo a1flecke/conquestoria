@@ -111,6 +111,7 @@ describe('processTurn victory wiring', () => {
 
     expect(result.gameOver).toBe(true);
     expect(result.winner).toBe('player');
+    expect(result.gameOverReason).toBe('domination');
   });
 
   it('does NOT set gameOver when both civs have cities', () => {

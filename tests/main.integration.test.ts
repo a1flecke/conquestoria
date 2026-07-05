@@ -18,6 +18,18 @@ describe('campaign entry wiring', () => {
     expect(main).not.toContain('loadAutoSave()');
     expect(main).not.toContain('loadGame(slotId)');
   });
+
+  it('restores terminal saves before entering a hot-seat handoff', () => {
+    const main = readFileSync(resolve(PROJECT_ROOT, 'src/main.ts'), 'utf8');
+    const entry = main.slice(
+      main.indexOf('function enterCampaign('),
+      main.indexOf('async function showStartSavePanel'),
+    );
+
+    expect(entry.indexOf('if (gameState.gameOver)'))
+      .toBeLessThan(entry.indexOf('if (!gameState.hotSeat)'));
+    expect(entry).toContain('handleVictoryIfNeeded()');
+  });
 });
 
 describe('land-unit water recovery wiring', () => {
