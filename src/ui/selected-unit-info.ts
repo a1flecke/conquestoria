@@ -24,6 +24,10 @@ import { canEstablishOutpost } from '@/systems/resource-acquisition-system';
 import { getTransportCargo, getTransportCapacity, getTransportCargoUsed } from '@/systems/transport-system';
 import { calculateCivUnitMaintenance } from '@/systems/economy-system';
 import { RESOURCE_DEFINITIONS } from '@/systems/resource-definitions';
+import {
+  getLandUnitWaterRecoveryPanelMessage,
+  type LandUnitWaterRecovery,
+} from '@/systems/unit-water-recovery';
 
 export interface TransportLoadOption {
   transportId: string;
@@ -87,6 +91,10 @@ export interface SelectedUnitInfoCallbacks {
   onOpenPirateAssault?: (factionId: string, unitId: string) => void;
 }
 
+export interface SelectedUnitInfoPresentation {
+  waterRecovery?: LandUnitWaterRecovery;
+}
+
 function makeButton(label: string, color: string, onClick?: () => void): HTMLButtonElement {
   const button = document.createElement('button');
   button.type = 'button';
@@ -137,6 +145,7 @@ export function renderSelectedUnitInfo(
   state: GameState,
   unitId: string,
   callbacks: SelectedUnitInfoCallbacks,
+  presentation: SelectedUnitInfoPresentation = {},
 ): void {
   const unit = state.units[unitId];
   if (!unit) {
@@ -187,6 +196,16 @@ export function renderSelectedUnitInfo(
 
   wrapper.appendChild(topRow);
   wrapper.appendChild(descDiv);
+
+  const waterRecoveryMessage = presentation.waterRecovery
+    ? getLandUnitWaterRecoveryPanelMessage(presentation.waterRecovery)
+    : null;
+  if (waterRecoveryMessage) {
+    const recoveryLine = document.createElement('div');
+    recoveryLine.style.cssText = 'margin-top:8px;padding:8px;border-radius:8px;background:rgba(245,184,73,0.16);color:#f5b849;font-size:11px;font-weight:600;';
+    recoveryLine.textContent = waterRecoveryMessage;
+    wrapper.appendChild(recoveryLine);
+  }
 
   const tier = getVeterancyTier(unit);
   const nextTierXp = getExperienceToNextTier(unit);
