@@ -39,11 +39,11 @@ describe('negative tests — blocked actions', () => {
 
   it('cannot join second league', () => {
     const league = { id: 'l-1', members: ['self', 'other'], formedTurn: 1 };
-    expect(canProposeLeague(['science-writing'], [], league)).toBe(false);
+    expect(canProposeLeague(['writing'], [], league)).toBe(false);
   });
 
   it('vassal cannot propose league', () => {
-    expect(canProposeLeague(['science-writing'], [], null, true)).toBe(false);
+    expect(canProposeLeague(['writing'], [], null, true)).toBe(false);
   });
 
   it('vassal cannot declare war independently', () => {

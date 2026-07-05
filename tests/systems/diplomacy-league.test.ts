@@ -24,7 +24,7 @@ function makeDipState(overrides?: Partial<DiplomacyState>): DiplomacyState {
 describe('defensive leagues', () => {
   describe('canProposeLeague', () => {
     it('returns true with writing tech', () => {
-      expect(canProposeLeague(['science-writing'], [], null)).toBe(true);
+      expect(canProposeLeague(['writing'], [], null)).toBe(true);
     });
 
     it('returns false without writing tech', () => {
@@ -33,11 +33,11 @@ describe('defensive leagues', () => {
 
     it('returns false if already in a league', () => {
       const league: DefensiveLeague = { id: 'l-1', members: ['self'], formedTurn: 1 };
-      expect(canProposeLeague(['science-writing'], [], league)).toBe(false);
+      expect(canProposeLeague(['writing'], [], league)).toBe(false);
     });
 
     it('returns false if vassal', () => {
-      expect(canProposeLeague(['science-writing'], [], null, true)).toBe(false);
+      expect(canProposeLeague(['writing'], [], null, true)).toBe(false);
     });
   });
 

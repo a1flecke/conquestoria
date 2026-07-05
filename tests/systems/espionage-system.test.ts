@@ -26,6 +26,7 @@ import {
   verifyAgent,
   } from '@/systems/espionage-system';
 import { createDiplomacyState } from '@/systems/diplomacy-system';
+import { createNewGame } from '@/core/game-state';
 
 // MR1: legacy fixture helper for tests that need a spy in state without going through city production
 function makeTestSpy(id: string, owner: string, overrides: Partial<Spy> = {}): Spy {
@@ -163,6 +164,40 @@ describe('espionage tech definitions', () => {
       for (const prereq of tech.prerequisites) {
         expect(allIds.has(prereq), `${tech.id} has invalid prerequisite ${prereq}`).toBe(true);
       }
+    }
+  });
+});
+
+describe('maxSpies progression via per-turn update', () => {
+  const progression: Array<[string, number]> = [
+    ['espionage-scouting', 1],
+    ['espionage-informants', 2],
+    ['spy-networks', 3],
+    ['cryptography', 4],
+    ['counter-intelligence', 5],
+    ['black-chambers', 6],
+    ['covert-operations', 8],
+    ['political-intelligence', 11],
+  ];
+
+  it('maxSpies climbs 1→2→3→4→5→6→8→11 as techs complete', () => {
+    let state = createNewGame(undefined, 'max-spies-progression', 'small');
+    const bus = new EventBus();
+    const completed: string[] = [];
+    for (const [techId, expectedMax] of progression) {
+      completed.push(techId);
+      state = {
+        ...state,
+        civilizations: {
+          ...state.civilizations,
+          player: {
+            ...state.civilizations.player,
+            techState: { ...state.civilizations.player.techState, completed: [...completed] },
+          },
+        },
+      };
+      state = processEspionageTurn(state, bus);
+      expect(state.espionage!.player.maxSpies).toBe(expectedMax);
     }
   });
 });
