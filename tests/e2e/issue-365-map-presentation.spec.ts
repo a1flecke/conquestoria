@@ -36,8 +36,14 @@ async function installFixture(page: Page): Promise<void> {
 
 async function continueFixture(page: Page): Promise<void> {
   await page.goto('/');
-  await page.getByRole('button', { name: 'Continue' }).click();
-  await expect(page.getByRole('button', { name: 'Continue' })).toBeHidden();
+  const continueButton = page.getByRole('button', { name: 'Continue', exact: true });
+  await continueButton.click();
+  await expect(page.getByRole('dialog', { name: 'Choose Opponent Challenge' })).toBeVisible();
+  await page.locator(
+    '[data-opponent-challenge-selector="migration"] [data-challenge="standard"]',
+  ).click();
+  await page.getByRole('button', { name: 'Continue Campaign', exact: true }).click();
+  await expect(continueButton).toBeHidden();
   await expect(page.locator('#game-canvas')).toBeVisible();
   await page.waitForTimeout(500);
 }
