@@ -6,10 +6,18 @@ import {
   applyEmpireTechPercents,
   getTradeRouteTechGold,
   getCivLuxuryTechGold,
+  getEmpireFlatTechYields,
+  getTradeRouteTechGoldPercent,
+  getCivWonderTechGold,
+  getCivRoutePartnerTechGold,
+  getTerrainTechYieldBonus,
+  getMaintenanceDiscountMultiplier,
+  getLowestCityScienceBonus,
 } from '@/systems/tech-yield-system';
 import { TECH_YIELD_MODIFIERS, TECH_COST_DISCOUNTS, getFoundingBonusFood } from '@/systems/tech-yield-definitions';
 import { TECH_TREE } from '@/systems/tech-definitions';
 import { BUILDINGS, foundCity } from '@/systems/city-system';
+import { calculateCityYields } from '@/systems/resource-system';
 import { generateMap } from '@/systems/map-generator';
 import { hexKey, hexNeighbors } from '@/systems/hex-utils';
 
@@ -62,6 +70,10 @@ describe('TECH_YIELD_MODIFIERS / TECH_COST_DISCOUNTS integrity', () => {
       if (effect.kind === 'cityFlatConditional') {
         for (const id of effect.requiresAnyBuilding ?? []) expect(BUILDINGS[id]).toBeDefined();
         for (const id of effect.requiresMissingBuilding ?? []) expect(BUILDINGS[id]).toBeDefined();
+        for (const id of effect.requiresAllBuildings ?? []) expect(BUILDINGS[id]).toBeDefined();
+      }
+      if (effect.kind === 'perCityRoute') {
+        expect(BUILDINGS[effect.requiresBuilding]).toBeDefined();
       }
     }
   });
@@ -279,5 +291,152 @@ describe('Era-5 scenario: guilds + scientific-method + 2 libraries + 3 routes', 
     const threeRoutesGold = [route, route, route]
       .reduce((sum, r) => sum + getTradeRouteTechGold(r, ['guilds']), 0);
     expect(threeRoutesGold).toBe(3);
+  });
+});
+
+describe('MR6: requiresAllBuildings (smart-cities)', () => {
+  let map: GameMap;
+  beforeAll(() => {
+    map = generateMap(20, 20, 'tech-yield-mr6-test');
+  });
+  function makeCity(overrides: Partial<City> = {}): City {
+    const coord = Object.values(map.tiles).find(t => t.terrain === 'grassland' && !t.hasRiver)!.coord;
+    const city = foundCity('player', coord, map, mkC());
+    return { ...city, population: 4, ...overrides };
+  }
+
+  it('applies only when ALL required buildings are present', () => {
+    const both = makeCity({ buildings: ['factory', 'semiconductor_fab'] });
+    expect(getCityTechYields(both, map, ['smart-cities']).total).toEqual({ food: 0, production: 2, gold: 0, science: 1 });
+  });
+
+  it('does not apply with only one of the required buildings', () => {
+    const onlyFactory = makeCity({ buildings: ['factory'] });
+    const onlyFab = makeCity({ buildings: ['semiconductor_fab'] });
+    expect(getCityTechYields(onlyFactory, map, ['smart-cities']).total).toEqual({ food: 0, production: 0, gold: 0, science: 0 });
+    expect(getCityTechYields(onlyFab, map, ['smart-cities']).total).toEqual({ food: 0, production: 0, gold: 0, science: 0 });
+  });
+});
+
+describe('MR6: empirePercent resource "all" (pragmatism)', () => {
+  it('applies the percent to every resource key', () => {
+    const percents = getEmpireTechPercents(['pragmatism']);
+    expect(percents).toEqual({ food: 5, production: 5, gold: 5, science: 5 });
+  });
+});
+
+describe('MR6: tradeRoutePercent (finance-capitalism)', () => {
+  it('sums percent bonuses that apply to trade-route gold only', () => {
+    expect(getTradeRouteTechGoldPercent(['finance-capitalism'])).toBe(25);
+    expect(getTradeRouteTechGoldPercent([])).toBe(0);
+  });
+});
+
+describe('MR6: empireFlat (e.g. decolonization)', () => {
+  it('returns the flat civ-total yields once, not per city', () => {
+    expect(getEmpireFlatTechYields(['decolonization']).gold).toBe(2);
+    expect(getEmpireFlatTechYields([]).gold).toBe(0);
+  });
+
+  it('sums multiple empireFlat techs', () => {
+    const yields = getEmpireFlatTechYields(['decolonization', 'international-institutions']);
+    expect(yields.gold).toBe(3);
+    expect(yields.science).toBe(1);
+  });
+});
+
+describe('MR6: perCompletedLegendaryWonder (digital-art)', () => {
+  it('multiplies flat gold by completed wonder count', () => {
+    expect(getCivWonderTechGold(['digital-art'], 3)).toBe(3);
+    expect(getCivWonderTechGold(['digital-art'], 0)).toBe(0);
+    expect(getCivWonderTechGold([], 3)).toBe(0);
+  });
+});
+
+describe('MR6: perRoutePartnerCiv (globalization)', () => {
+  it('multiplies flat gold by distinct partner civ count', () => {
+    expect(getCivRoutePartnerTechGold(['globalization'], 4)).toBe(4);
+    expect(getCivRoutePartnerTechGold([], 4)).toBe(0);
+  });
+});
+
+describe('MR6: perCityRoute (digital-economy)', () => {
+  let map: GameMap;
+  beforeAll(() => {
+    map = generateMap(20, 20, 'tech-yield-percityroute-test');
+  });
+  function makeCity(overrides: Partial<City> = {}): City {
+    const coord = Object.values(map.tiles).find(t => t.terrain === 'grassland' && !t.hasRiver)!.coord;
+    const city = foundCity('player', coord, map, mkC());
+    return { ...city, population: 1, ...overrides };
+  }
+
+  it('applies gold per active route only in cities with the fintech hub', () => {
+    const withHub = makeCity({ buildings: ['fintech_hub'] });
+    expect(getCityTechYields(withHub, map, ['digital-economy'], { activeRouteCount: 3 }).total.gold).toBe(3);
+  });
+
+  it('does not apply without the fintech hub', () => {
+    const withoutHub = makeCity({ buildings: [] });
+    expect(getCityTechYields(withoutHub, map, ['digital-economy'], { activeRouteCount: 3 }).total.gold).toBe(0);
+  });
+
+  it('is zero with no active routes even with the hub', () => {
+    const withHub = makeCity({ buildings: ['fintech_hub'] });
+    expect(getCityTechYields(withHub, map, ['digital-economy'], {}).total.gold).toBe(0);
+  });
+});
+
+describe('MR6: terrainYield (polar-operations)', () => {
+  it('applies the bonus only to matching terrains', () => {
+    expect(getTerrainTechYieldBonus('tundra', ['polar-operations'])).toEqual({ food: 1, production: 1, gold: 0, science: 0 });
+    expect(getTerrainTechYieldBonus('snow', ['polar-operations'])).toEqual({ food: 1, production: 1, gold: 0, science: 0 });
+    expect(getTerrainTechYieldBonus('grassland', ['polar-operations'])).toEqual({ food: 0, production: 0, gold: 0, science: 0 });
+  });
+
+  it('is a no-op without the tech', () => {
+    expect(getTerrainTechYieldBonus('tundra', [])).toEqual({ food: 0, production: 0, gold: 0, science: 0 });
+  });
+});
+
+describe('MR6: maintenanceDiscount (green-architecture)', () => {
+  it('applies the multiplier at or above minBuildings', () => {
+    expect(getMaintenanceDiscountMultiplier(['green-architecture'], 6)).toBe(0.9);
+    expect(getMaintenanceDiscountMultiplier(['green-architecture'], 10)).toBe(0.9);
+  });
+
+  it('does not apply below minBuildings or without the tech', () => {
+    expect(getMaintenanceDiscountMultiplier(['green-architecture'], 5)).toBe(1);
+    expect(getMaintenanceDiscountMultiplier([], 6)).toBe(1);
+  });
+});
+
+describe('MR6: lowestCityScience (network-governance)', () => {
+  it('exposes the flat science bonus value for the caller to apply to the lowest-science city', () => {
+    expect(getLowestCityScienceBonus(['network-governance'])).toBe(2);
+    expect(getLowestCityScienceBonus([])).toBe(0);
+  });
+});
+
+describe('MR6: foodFromScience (genomics)', () => {
+  let map: GameMap;
+  beforeAll(() => {
+    map = generateMap(20, 20, 'tech-yield-genomics-test');
+  });
+
+  it('adds +1 food per 3 science this city generates that turn', () => {
+    const coord = Object.values(map.tiles).find(t => t.terrain === 'grassland' && !t.hasRiver)!.coord;
+    const city = { ...foundCity('player', coord, map, mkC()), buildings: ['library'], population: 1 };
+    const withoutGenomics = calculateCityYields(city, map, undefined, ['scientific-method']);
+    const withGenomics = calculateCityYields(city, map, undefined, ['scientific-method', 'genomics']);
+    expect(withGenomics.food).toBe(withoutGenomics.food + Math.floor(withoutGenomics.science / 3));
+  });
+
+  it('is a no-op without the tech', () => {
+    const coord = Object.values(map.tiles).find(t => t.terrain === 'grassland' && !t.hasRiver)!.coord;
+    const city = { ...foundCity('player', coord, map, mkC()), population: 1 };
+    const withoutGenomics = calculateCityYields(city, map, undefined, []);
+    const withoutGenomicsAgain = calculateCityYields(city, map, undefined, []);
+    expect(withoutGenomics.food).toBe(withoutGenomicsAgain.food);
   });
 });

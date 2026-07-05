@@ -1,4 +1,4 @@
-import type { City, GameMap, HexCoord, ResourceYield, TradeRoute } from '@/core/types';
+import type { City, GameMap, HexCoord, ResourceYield, TerrainType, TradeRoute } from '@/core/types';
 import { BUILDINGS, isCityCoastal } from './city-system';
 import { hexKey, wrapHexCoord } from './hex-utils';
 import { TECH_YIELD_MODIFIERS, type TechYieldModifier, type YieldKind } from './tech-yield-definitions';
@@ -38,6 +38,9 @@ function cityFlatConditionalMatches(
   if (effect.requiresAnyBuilding && !effect.requiresAnyBuilding.some(id => city.buildings.includes(id))) {
     return false;
   }
+  if (effect.requiresAllBuildings && !effect.requiresAllBuildings.every(id => city.buildings.includes(id))) {
+    return false;
+  }
   if (effect.requiresMissingBuilding && effect.requiresMissingBuilding.some(id => city.buildings.includes(id))) {
     return false;
   }
@@ -65,10 +68,16 @@ export interface TechYieldPart {
  * dedicated helpers below — each is listed explicitly (as a no-op) here so
  * the switch stays exhaustive and a future unhandled kind fails the build.
  */
+export interface CityTechYieldContext {
+  /** Active trade routes (sent or received) touching this city — powers `perCityRoute`. */
+  activeRouteCount?: number;
+}
+
 export function getCityTechYields(
   city: City,
   map: GameMap,
   completedTechs: string[],
+  context: CityTechYieldContext = {},
 ): { total: ResourceYield; parts: TechYieldPart[] } {
   const total = emptyYield();
   const parts: TechYieldPart[] = [];
@@ -119,11 +128,26 @@ export function getCityTechYields(
       case 'perOwnedNaturalWonder':
         contribution.science += effect.science * naturalWonderCount;
         break;
+      case 'perCityRoute': {
+        if (city.buildings.includes(effect.requiresBuilding)) {
+          contribution.gold += effect.gold * (context.activeRouteCount ?? 0);
+        }
+        break;
+      }
       case 'empirePercent':
       case 'perTradeRoute':
       case 'perLuxuryResource':
       case 'foundingBonus':
-        // Resolved by getEmpireTechPercents / getTradeRouteTechGold / getCivLuxuryTechGold / getFoundingBonusFood.
+      case 'empireFlat':
+      case 'terrainYield':
+      case 'perCompletedLegendaryWonder':
+      case 'perRoutePartnerCiv':
+      case 'lowestCityScience':
+      case 'foodFromScience':
+      case 'maintenanceDiscount':
+      case 'tradeRoutePercent':
+        // Resolved by their own dedicated helpers/hooks (see each kind's comment in
+        // tech-yield-definitions.ts) — not per-city cityFlat-style contributions.
         break;
       default:
         assertNever(effect);
@@ -138,6 +162,8 @@ export function getCityTechYields(
   return { total, parts };
 }
 
+const ALL_RESOURCE_KEYS: (keyof ResourceYield)[] = ['food', 'production', 'gold', 'science'];
+
 /** Multiplicative empire-wide percents; two +5% entries for the same resource sum to +10%. */
 export function getEmpireTechPercents(completedTechs: string[]): Partial<Record<keyof ResourceYield, number>> {
   const techSet = new Set(completedTechs);
@@ -146,7 +172,10 @@ export function getEmpireTechPercents(completedTechs: string[]): Partial<Record<
   for (const modifier of TECH_YIELD_MODIFIERS) {
     if (modifier.effect.kind !== 'empirePercent') continue;
     if (!techSet.has(modifier.techId)) continue;
-    percents[modifier.effect.resource] = (percents[modifier.effect.resource] ?? 0) + modifier.effect.percent;
+    const keys = modifier.effect.resource === 'all' ? ALL_RESOURCE_KEYS : [modifier.effect.resource];
+    for (const key of keys) {
+      percents[key] = (percents[key] ?? 0) + modifier.effect.percent;
+    }
   }
 
   return percents;
@@ -196,4 +225,104 @@ export function getCivLuxuryTechGold(completedTechs: string[], ownedLuxuryResour
   }
 
   return perResource * ownedLuxuryResourceCount;
+}
+
+/** Flat civ-total bonus applied once (not per city) — MR6's "empire-wide" texts. */
+export function getEmpireFlatTechYields(completedTechs: string[]): ResourceYield {
+  const techSet = new Set(completedTechs);
+  const total = emptyYield();
+
+  for (const modifier of TECH_YIELD_MODIFIERS) {
+    if (modifier.effect.kind !== 'empireFlat') continue;
+    if (!techSet.has(modifier.techId)) continue;
+    addYield(total, modifier.effect.yields);
+  }
+
+  return total;
+}
+
+/** Percent bonus applied to trade-route gold only (distinct from empirePercent's gold key). */
+export function getTradeRouteTechGoldPercent(completedTechs: string[]): number {
+  const techSet = new Set(completedTechs);
+  let percent = 0;
+
+  for (const modifier of TECH_YIELD_MODIFIERS) {
+    if (modifier.effect.kind !== 'tradeRoutePercent') continue;
+    if (!techSet.has(modifier.techId)) continue;
+    percent += modifier.effect.percent;
+  }
+
+  return percent;
+}
+
+/** Flat gold per completed legendary wonder the civ owns (e.g. digital-art). */
+export function getCivWonderTechGold(completedTechs: string[], completedWonderCount: number): number {
+  const techSet = new Set(completedTechs);
+  let perWonder = 0;
+
+  for (const modifier of TECH_YIELD_MODIFIERS) {
+    if (modifier.effect.kind !== 'perCompletedLegendaryWonder') continue;
+    if (!techSet.has(modifier.techId)) continue;
+    perWonder += modifier.effect.gold;
+  }
+
+  return perWonder * completedWonderCount;
+}
+
+/** Flat gold per distinct peacetime foreign trade-route partner civ (e.g. globalization). */
+export function getCivRoutePartnerTechGold(completedTechs: string[], distinctPartnerCivCount: number): number {
+  const techSet = new Set(completedTechs);
+  let perPartner = 0;
+
+  for (const modifier of TECH_YIELD_MODIFIERS) {
+    if (modifier.effect.kind !== 'perRoutePartnerCiv') continue;
+    if (!techSet.has(modifier.techId)) continue;
+    perPartner += modifier.effect.gold;
+  }
+
+  return perPartner * distinctPartnerCivCount;
+}
+
+/** Tile-terrain tech bonus (e.g. polar-operations tundra/snow) — consumed by tile-yield.ts. */
+export function getTerrainTechYieldBonus(terrain: string, completedTechs: string[]): Partial<ResourceYield> {
+  const techSet = new Set(completedTechs);
+  const total = emptyYield();
+
+  for (const modifier of TECH_YIELD_MODIFIERS) {
+    if (modifier.effect.kind !== 'terrainYield') continue;
+    if (!techSet.has(modifier.techId)) continue;
+    if (!modifier.effect.terrains.includes(terrain as TerrainType)) continue;
+    addYield(total, modifier.effect.yields);
+  }
+
+  return total;
+}
+
+/** Building-upkeep multiplier for a city with `buildingCount` buildings (e.g. green-architecture). */
+export function getMaintenanceDiscountMultiplier(completedTechs: string[], buildingCount: number): number {
+  const techSet = new Set(completedTechs);
+  let multiplier = 1;
+
+  for (const modifier of TECH_YIELD_MODIFIERS) {
+    if (modifier.effect.kind !== 'maintenanceDiscount') continue;
+    if (!techSet.has(modifier.techId)) continue;
+    if (buildingCount < modifier.effect.minBuildings) continue;
+    multiplier *= modifier.effect.multiplier;
+  }
+
+  return multiplier;
+}
+
+/** Science bonus granted to the civ's single lowest-science city (e.g. network-governance). Which city gets it is resolved by the caller (turn-manager) since that needs cross-city context. */
+export function getLowestCityScienceBonus(completedTechs: string[]): number {
+  const techSet = new Set(completedTechs);
+  let bonus = 0;
+
+  for (const modifier of TECH_YIELD_MODIFIERS) {
+    if (modifier.effect.kind !== 'lowestCityScience') continue;
+    if (!techSet.has(modifier.techId)) continue;
+    bonus += modifier.effect.science;
+  }
+
+  return bonus;
 }

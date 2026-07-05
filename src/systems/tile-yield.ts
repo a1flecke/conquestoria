@@ -4,6 +4,7 @@ import { getImprovementYieldBonus } from './improvement-system';
 import { getWonderYieldBonus } from './wonder-system';
 import { getWonderDefinition } from './wonder-definitions';
 import { getRiverYieldBonus } from './river-system';
+import { getTerrainTechYieldBonus } from './tech-yield-system';
 
 export const TERRAIN_YIELDS: Record<string, ResourceYield> = {
   grassland:  { food: 2, production: 0, gold: 0, science: 0 },
@@ -49,6 +50,7 @@ export function getTileYield(
 
   addYield(total, TERRAIN_YIELDS[tile.terrain] ?? total);
   addYield(total, getRiverYieldBonus(tile.hasRiver));
+  addYield(total, getTerrainTechYieldBonus(tile.terrain, completedTechs));
 
   if (tile.hasRiver && tile.improvement === 'farm' && tile.improvementTurnsLeft === 0) {
     total.food += 1;

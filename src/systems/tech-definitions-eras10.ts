@@ -79,7 +79,7 @@ const ERA_10_TECHS: Tech[] = [
     unlocks: ['+2 gold in cities with an art gallery; raw emotional abstraction dominates postwar cultural life'], era: 10 },
   { id: 'rock-and-roll', name: 'Rock and Roll', track: 'arts', cost: 285,
     prerequisites: ['jazz-age', 'radio-broadcast'],
-    unlocks: ['+2 gold in cities with a music hall; amplified popular music crosses class and cultural boundaries overnight'], era: 10 },
+    unlocks: ['+2 gold in cities with a concert hall; amplified popular music crosses class and cultural boundaries overnight'], era: 10 },
 
   // MARITIME (2)
   { id: 'carrier-warfare', name: 'Carrier Warfare', track: 'maritime', cost: 295,
@@ -102,7 +102,7 @@ const ERA_10_TECHS: Tech[] = [
   // CONSTRUCTION (2)
   { id: 'nuclear-power', name: 'Nuclear Power', track: 'construction', cost: 295,
     prerequisites: ['nuclear-physics', 'hydroelectric-power'],
-    unlocks: ['+4 production in cities with a nuclear power plant; atomic reactors generate electricity without fuel costs'],
+    unlocks: ['Atomic reactors generate electricity without fuel costs; the nuclear power plant already provides ample production on its own'],
     unlocksBuildings: ['nuclear_power_plant'], era: 10 },
   { id: 'highway-network', name: 'Highway Network', track: 'construction', cost: 285,
     prerequisites: ['motorized-transport', 'steel-skyscrapers'],

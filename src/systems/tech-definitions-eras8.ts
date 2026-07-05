@@ -23,7 +23,7 @@ const ERA_8_TECHS: Tech[] = [
   // SCIENCE (2)
   { id: 'germ-biology', name: 'Germ Biology', track: 'science', cost: 240,
     prerequisites: ['germ-theory', 'applied-chemistry'],
-    unlocks: ['Germ culture techniques unlock disease treatments; units heal faster in cities with medical buildings'],
+    unlocks: ['Germ culture techniques advance urban sanitation; +1 food per city with a bacteriology lab'],
     unlocksBuildings: ['bacteriology_lab'], era: 8 },
   { id: 'engineering-exhibition', name: 'Engineering Exhibition', track: 'science', cost: 235,
     prerequisites: ['industrialization', 'urban-planning'],
@@ -33,7 +33,7 @@ const ERA_8_TECHS: Tech[] = [
   // CIVICS (2)
   { id: 'labor-rights', name: 'Labor Rights', track: 'civics', cost: 235,
     prerequisites: ['social-reform', 'nationalism'],
-    unlocks: ['Workers\' rights reduce unrest; +1 happiness in all cities with a marketplace'],
+    unlocks: ['Workers\' rights improve provisioning; +1 food per city with a marketplace'],
     unlocksBuildings: ['labor_hall'], era: 8 },
   { id: 'public-records', name: 'Public Records', track: 'civics', cost: 240,
     prerequisites: ['nationalism', 'popular-press'],
@@ -51,10 +51,10 @@ const ERA_8_TECHS: Tech[] = [
   // AGRICULTURE (2)
   { id: 'refrigeration', name: 'Refrigeration', track: 'agriculture', cost: 235,
     prerequisites: ['agricultural-machinery'],
-    unlocks: ['+2 food per city; food spoilage events eliminated empire-wide'], era: 8 },
+    unlocks: ['+2 food all cities; refrigerated storage keeps harvests from going to waste'], era: 8 },
   { id: 'scientific-breeding', name: 'Scientific Breeding', track: 'agriculture', cost: 240,
     prerequisites: ['agricultural-machinery', 'mechanized-farming'],
-    unlocks: ['+1 food per farm improvement; granary food bonus doubled'], era: 8 },
+    unlocks: ['+1 food per farm improvement; +1 additional food per granary'], era: 8 },
 
   // MEDICINE (2)
   { id: 'antiseptic-surgery', name: 'Antiseptic Surgery', track: 'medicine', cost: 240,
@@ -98,7 +98,7 @@ const ERA_8_TECHS: Tech[] = [
     unlocksBuildings: ['steel_foundry'], era: 8 },
   { id: 'structural-engineering', name: 'Structural Engineering', track: 'metallurgy', cost: 245,
     prerequisites: ['railway-expansion', 'urban-planning'],
-    unlocks: ['+1 production per construction building in cities; structural iron enables modern architecture'],
+    unlocks: ['+1 production per production building empire-wide; structural iron enables modern architecture'],
     unlocksBuildings: ['power_station'], era: 8 },
 
   // CONSTRUCTION (2)

@@ -18,7 +18,15 @@ import { getClaimedTrophyGoldPerTurn } from './beast-system';
 import { createUnit, UNIT_DEFINITIONS } from './unit-system';
 import { resolveCivDefinition } from './civ-registry';
 import { getCivHappinessFromResources } from './resource-acquisition-system';
-import { getEmpireTechPercents, getCivLuxuryTechGold } from './tech-yield-system';
+import {
+  getEmpireTechPercents,
+  getCivLuxuryTechGold,
+  getEmpireFlatTechYields,
+  getCivWonderTechGold,
+  getCivRoutePartnerTechGold,
+  getMaintenanceDiscountMultiplier,
+} from './tech-yield-system';
+import { isAtWar } from './diplomacy-system';
 
 export const ECONOMY_RULES = {
   rushBuyMultiplier: 2.5,
@@ -352,7 +360,8 @@ export function calculateCityBuildingMaintenance(state: GameState, cityOrId: Cit
 
   const supportedBuildings = candidates.slice(0, freeSupport).map(row => ({ ...row, upkeep: 0, reason: 'free-support' as const }));
   const paidBuildings = candidates.slice(freeSupport).map(row => ({ ...row, reason: 'paid' as const }));
-  const upkeep = paidBuildings.reduce((sum, row) => sum + row.upkeep, 0);
+  const maintenanceMultiplier = getMaintenanceDiscountMultiplier(owner?.techState.completed ?? [], city.buildings.length);
+  const upkeep = Math.round(paidBuildings.reduce((sum, row) => sum + row.upkeep, 0) * maintenanceMultiplier);
 
   return {
     cityId,
@@ -501,6 +510,27 @@ export function projectCivGrossGold(
   const npCivBonuses = getNationalProjectCivYieldBonus(state, civId);
   grossGold += npCivBonuses.gold ?? 0;
   grossGold += getCivLuxuryTechGold(civ.techState.completed, getCivHappinessFromResources(state, civId));
+  grossGold += getEmpireFlatTechYields(civ.techState.completed).gold;
+
+  const completedWonderCount = Object.values(state.completedLegendaryWonders ?? {})
+    .filter(wonder => wonder.ownerId === civId).length;
+  grossGold += getCivWonderTechGold(civ.techState.completed, completedWonderCount);
+
+  const routePartnerCivIds = new Set<string>();
+  for (const route of state.marketplace?.tradeRoutes ?? []) {
+    const routeFromCity = state.cities[route.fromCityId];
+    const routeToCity = state.cities[route.toCityId];
+    let partnerCivId: string | undefined;
+    if (routeFromCity?.owner === civId && route.foreignCivId) {
+      partnerCivId = route.foreignCivId;
+    } else if (routeToCity?.owner === civId && routeFromCity && routeFromCity.owner !== civId) {
+      partnerCivId = routeFromCity.owner;
+    }
+    if (!partnerCivId || !state.civilizations[partnerCivId]) continue;
+    if (isAtWar(civ.diplomacy, partnerCivId)) continue;
+    routePartnerCivIds.add(partnerCivId);
+  }
+  grossGold += getCivRoutePartnerTechGold(civ.techState.completed, routePartnerCivIds.size);
 
   if (civDef?.bonusEffect.type === 'allied_kingdoms') {
     const allianceCount = civ.diplomacy.treaties.filter(treaty => treaty.type === 'alliance').length;
@@ -641,7 +671,7 @@ export function getEconomyStatusForCiv(state: GameState, civId: string): Economy
   return normalizeEconomyStatus(state.economyStatusByCiv?.[civId] as LegacyEconomyStatus | undefined, civId, state.turn);
 }
 
-function getProductionLabel(itemId: string): string {
+export function getProductionLabel(itemId: string): string {
   return BUILDINGS[itemId]?.name
     ?? TRAINABLE_UNITS.find(unit => unit.type === itemId)?.name
     ?? itemId;

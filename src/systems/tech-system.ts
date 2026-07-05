@@ -52,8 +52,9 @@ export function processResearch(state: TechState, sciencePoints: number): Resear
   }
 
   const newProgress = state.researchProgress + sciencePoints;
+  const effectiveCost = getEffectiveTechCost(tech, state.completed);
 
-  if (newProgress >= tech.cost) {
+  if (newProgress >= effectiveCost) {
     const [nextQueuedResearch, ...remainingQueue] = state.researchQueue;
     return {
       state: {
@@ -91,4 +92,17 @@ export function applyResearchBonus(state: TechState, scienceBonus: number): Rese
 
 export function getTechById(id: string): Tech | undefined {
   return TECH_TREE.find(t => t.id === id);
+}
+
+/**
+ * The single source of truth for a tech's research cost. quantum-computing (era 12) discounts
+ * unresearched science-track techs by 15% — every reader of `tech.cost` for research-progress
+ * purposes MUST go through this function instead (turn-manager, tech-progression, tech-panel,
+ * pacing ETA estimates) so the discount is never silently bypassed.
+ */
+export function getEffectiveTechCost(tech: Tech, completedTechs: string[]): number {
+  if (tech.track === 'science' && completedTechs.includes('quantum-computing')) {
+    return Math.ceil(tech.cost * 0.85);
+  }
+  return tech.cost;
 }

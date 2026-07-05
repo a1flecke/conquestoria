@@ -72,7 +72,7 @@ const ERA_11_TECHS: Tech[] = [
     unlocks: ['+2 science empire-wide; systematic analysis reveals hidden patterns in language, culture, and society'], era: 11 },
   { id: 'postmodernism', name: 'Postmodernism', track: 'philosophy', cost: 305,
     prerequisites: ['post-colonial-theory', 'abstract-expressionism'],
-    unlocks: ['+1 gold per arts building empire-wide; suspicion of grand narratives opens space for pluralism and cultural diversity'], era: 11 },
+    unlocks: ['+1 gold per culture building empire-wide; suspicion of grand narratives opens space for pluralism and cultural diversity'], era: 11 },
 
   // ARTS (2)
   { id: 'pop-art', name: 'Pop Art', track: 'arts', cost: 300,
@@ -80,7 +80,7 @@ const ERA_11_TECHS: Tech[] = [
     unlocks: ['+2 gold in cities with an art gallery; mass-production aesthetics cross the boundary between commerce and fine art'], era: 11 },
   { id: 'counterculture', name: 'Counterculture', track: 'arts', cost: 305,
     prerequisites: ['rock-and-roll', 'liberation-theology'],
-    unlocks: ['+2 gold in cities with a music hall; youth rebellion drives music, cinema, and fashion revolution'], era: 11 },
+    unlocks: ['+2 gold in cities with a concert hall; youth rebellion drives music, cinema, and fashion revolution'], era: 11 },
 
   // MARITIME (2)
   { id: 'nuclear-submarines', name: 'Nuclear Submarines', track: 'maritime', cost: 315,
@@ -132,7 +132,7 @@ const ERA_11_TECHS: Tech[] = [
     unlocks: ['+1 science +1 food empire-wide; Christian and inter-faith reconciliation movements build civic bridges across traditions'], era: 11 },
   { id: 'new-age-spirituality', name: 'New Age Spirituality', track: 'spirituality', cost: 300,
     prerequisites: ['interfaith-council', 'rock-and-roll'],
-    unlocks: ['+2 gold in cities with a temple or mosque; eastern philosophy and nature mysticism enter western popular culture'], era: 11 },
+    unlocks: ['+2 gold in cities with a temple or monastery; eastern philosophy and nature mysticism enter western popular culture'], era: 11 },
 ];
 
 export const TECH_TREE_ERAS_11: Tech[] = [

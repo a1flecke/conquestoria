@@ -18,7 +18,7 @@ const ERA_12_TECHS: Tech[] = [
     era: 12 },
   { id: 'digital-economy', name: 'Digital Economy', track: 'economy', cost: 385,
     prerequisites: ['petrodollar-system', 'container-shipping'],
-    unlocks: ['Cities with a market gain +1 gold per active trade route (sent or received)'],
+    unlocks: ['Cities with a fintech hub gain +1 gold per active trade route (sent or received)'],
     unlocksBuildings: ['fintech_hub'], era: 12 },
 
   // SCIENCE (2)
@@ -58,7 +58,7 @@ const ERA_12_TECHS: Tech[] = [
     unlocksBuildings: ['precision_farm'], era: 12 },
   { id: 'lab-grown-food', name: 'Lab-Grown Food', track: 'agriculture', cost: 385,
     prerequisites: ['aquaculture', 'organ-transplantation'],
-    unlocks: ['Cities do not suffer food penalties from naval blockades'],
+    unlocks: ['+2 food all cities'],
     era: 12 },
 
   // MEDICINE (2)
@@ -74,7 +74,7 @@ const ERA_12_TECHS: Tech[] = [
   // MARITIME (2)
   { id: 'autonomous-shipping', name: 'Autonomous Shipping', track: 'maritime', cost: 385,
     prerequisites: ['container-shipping', 'offshore-platforms'],
-    unlocks: ['All trade routes cost 0 gold maintenance per turn'],
+    unlocks: ['+1 gold per active trade route empire-wide'],
     unlocksBuildings: ['automated_port'], era: 12 },
   { id: 'deep-ocean-research', name: 'Deep Ocean Research', track: 'maritime', cost: 380,
     prerequisites: ['container-shipping', 'nuclear-submarines'],
@@ -98,7 +98,7 @@ const ERA_12_TECHS: Tech[] = [
     unlocksBuildings: ['smart_grid'], era: 12 },
   { id: 'green-architecture', name: 'Green Architecture', track: 'construction', cost: 380,
     prerequisites: ['offshore-platforms', 'green-revolution-crops'],
-    unlocks: ['Cities with 6 or more buildings ignore gold overextension penalties'],
+    unlocks: ['Cities with 6 or more buildings pay 10% less building maintenance'],
     era: 12 },
 
   // COMMUNICATION (2)
@@ -128,7 +128,7 @@ const ERA_12_TECHS: Tech[] = [
     era: 12 },
   { id: 'secular-rationalism', name: 'Secular Rationalism', track: 'philosophy', cost: 380,
     prerequisites: ['postmodernism', 'civil-rights-legislation'],
-    unlocks: ['Each civics-category building generates +1 science per turn'],
+    unlocks: ['Each culture-category building generates +1 science per turn'],
     era: 12 },
 
   // ARTS (2)
@@ -138,7 +138,7 @@ const ERA_12_TECHS: Tech[] = [
     era: 12 },
   { id: 'video-games', name: 'Video Games', track: 'arts', cost: 385,
     prerequisites: ['counterculture', 'petrodollar-system'],
-    unlocks: ['Entertainment-category buildings generate 50% more gold per turn'],
+    unlocks: ['Each culture-category building generates +2 gold per turn'],
     era: 12 },
 
   // SPIRITUALITY (2)

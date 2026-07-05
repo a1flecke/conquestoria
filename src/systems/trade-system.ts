@@ -165,8 +165,9 @@ export function getRouteCapacity(state: GameState, cityId: string): number {
     + (b.includes('marketplace')   ? 1 : 0)
     + (b.includes('bank')          ? 1 : 0)
     + (b.includes('stock_exchange') ? 1 : 0)
-    + (completedTechs.includes('mercantilism') ? 1 : 0);
-  return Math.min(total, 5);
+    + (completedTechs.includes('mercantilism') ? 1 : 0)
+    + (completedTechs.includes('deep-ocean-research') && isCityCoastal(city, state.map) ? 1 : 0);
+  return Math.min(total, 6);
 }
 
 function routesFromCity(state: GameState, cityId: string): number {
