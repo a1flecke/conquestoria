@@ -73,6 +73,7 @@ export function showCampaignSetup(container: HTMLElement, callbacks: CampaignSet
     subtitle: 'Choose your civilization, world size, and rival count before your people settle their first city.',
   });
   const panel = shell.surface;
+  const setupSeed = `solo-setup-${Date.now()}`;
 
   const hero = document.createElement('div');
   hero.dataset.role = 'setup-hero';
@@ -537,7 +538,7 @@ export function showCampaignSetup(container: HTMLElement, callbacks: CampaignSet
       mapScript,
       mapSize,
       placementMode: selectedPlacementMode,
-      seed: 'solo-roster-preview',
+      seed: setupSeed,
     });
     const crowded = selectedPlacementMode === 'historical'
       && preview.minimumHistoricalDistance !== null
@@ -556,6 +557,7 @@ export function showCampaignSetup(container: HTMLElement, callbacks: CampaignSet
         opponentCount: Number(opponentsField.select.value),
         gameTitle,
         customCivilizations,
+        seed: setupSeed,
         mapScript,
         startPlacementMode: selectedPlacementMode,
         opponentChallenge: selectedOpponentChallenge,

@@ -60,4 +60,14 @@ describe('roster-aware AI selection', () => {
       historicalMinimum(['england', ...result.civilizationTypeIds]),
     );
   });
+
+  it('reports anchorless humans as fallback starts in the reviewed roster', () => {
+    const result = selectAIRoster({
+      ...input,
+      humanCivilizationTypeIds: ['custom-sunfolk'],
+      count: 1,
+    });
+
+    expect(result.fallbackCivilizationTypeIds).toContain('custom-sunfolk');
+  });
 });

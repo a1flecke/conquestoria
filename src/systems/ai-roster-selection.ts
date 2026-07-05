@@ -123,10 +123,11 @@ export function selectAIRoster(input: AIRosterSelectionInput): AIRosterSelection
     }
   }
 
+  const allCivilizationTypeIds = [...input.humanCivilizationTypeIds, ...selected];
   return {
     civilizationTypeIds: selected,
     minimumHistoricalDistance,
-    fallbackCivilizationTypeIds: selected
+    fallbackCivilizationTypeIds: allCivilizationTypeIds
       .filter(id => locationFor(id, input).fallback),
   };
 }

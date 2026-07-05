@@ -124,6 +124,16 @@ describe('hotseat-setup', () => {
     expect(config.startPlacementMode).toBe('balanced');
   });
 
+  it('reserves capacity for an explicitly chosen AI instead of offering every seat to humans', () => {
+    showHotSeatSetup(document.body, { onComplete: vi.fn(), onCancel: vi.fn() });
+    click('[data-size="large"]');
+    advanceThroughMapType();
+
+    expect(document.body.textContent).toContain('choose AI opponents separately');
+    expect(document.querySelector('[data-count="7"]')).not.toBeNull();
+    expect(document.querySelector('[data-count="8"]')).toBeNull();
+  });
+
   it('requires explicit confirmation for a crowded true-start roster', () => {
     const onComplete = vi.fn();
     showHotSeatSetup(document.body, { onComplete, onCancel: vi.fn() });

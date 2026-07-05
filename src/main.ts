@@ -4319,6 +4319,7 @@ function showGameModeSelection(): void {
             // Merge: persisted A/V settings first, then per-game setup choices (e.g. beastsMode) win
             settingsOverrides: { ...getPersistedSettingsOverrides(), ...config.settingsOverrides },
             customCivilizations: config.customCivilizations,
+            seed: config.seed,
             mapScript: config.mapScript,
             startPlacementMode: config.startPlacementMode,
             opponentChallenge: config.opponentChallenge,

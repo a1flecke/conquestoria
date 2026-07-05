@@ -4,7 +4,7 @@ import type {
   MapScript,
   StartPlacementMode,
 } from '@/core/types';
-import { hexKey } from '@/systems/hex-utils';
+import { getWrappedHexesInRange, hexesInRange, hexKey } from '@/systems/hex-utils';
 import {
   getGeographicStartAnchor,
   getStartPositionDistance,
@@ -67,8 +67,12 @@ function stableHash(value: string): number {
 function candidateQuality(map: GameMap, coord: HexCoord): number {
   let workable = 0;
   let fertility = 0;
-  for (const tile of Object.values(map.tiles)) {
-    if (getStartPositionDistance(map, coord, tile.coord) > 2) continue;
+  const neighborhood = map.wrapsHorizontally
+    ? getWrappedHexesInRange(coord, 2, map.width)
+    : hexesInRange(coord, 2);
+  for (const nearby of neighborhood) {
+    const tile = map.tiles[hexKey(nearby)];
+    if (!tile) continue;
     if (!isValidStartTile(tile)) continue;
     workable++;
     if (tile.terrain === 'grassland' || tile.terrain === 'forest' || tile.terrain === 'jungle') {
@@ -89,18 +93,12 @@ function collectCandidates(input: StartPlacementInput): Candidate[] {
       quality: candidateQuality(input.map, tile.coord),
       tieRank: stableHash(`${input.seed}:${hexKey(tile.coord)}`),
     }));
-  const preferred = valid.filter(candidate =>
-    candidate.coord.r > 3
-    && candidate.coord.r < input.map.height - 4
-    && candidate.quality >= 70,
-  );
-  return (preferred.length >= input.civilizationTypeIds.length ? preferred : valid)
-    .sort((a, b) =>
+  return valid.sort((a, b) =>
       b.quality - a.quality
       || a.tieRank - b.tieRank
       || a.coord.r - b.coord.r
       || a.coord.q - b.coord.q,
-    );
+  );
 }
 
 function compareSolutions(a: Candidate[], b: Candidate[], map: GameMap): number {
@@ -122,7 +120,7 @@ function selectBalancedSites(
   if (count === 0) return { sites: [], maximumPlaced: 0 };
   let best: Candidate[] | null = null;
   let maximumPlaced = 0;
-  const firstChoices = candidates.slice(0, Math.min(candidates.length, 128));
+  const firstChoices = candidates.slice(0, Math.min(candidates.length, 256));
 
   for (const first of firstChoices) {
     const selected = [first];
@@ -148,6 +146,34 @@ function selectBalancedSites(
     if (selected.length === count && (!best || compareSolutions(selected, best, map) > 0)) {
       best = selected;
     }
+  }
+  if (!best) {
+    const selected: Candidate[] = [];
+    let visited = 0;
+    const visit = (startIndex: number): Candidate[] | null => {
+      maximumPlaced = Math.max(maximumPlaced, selected.length);
+      if (selected.length === count) return [...selected];
+      if (visited >= 100_000 || candidates.length - startIndex < count - selected.length) {
+        return null;
+      }
+      for (let index = startIndex; index < candidates.length; index++) {
+        const candidate = candidates[index];
+        if (selected.some(existing =>
+          getStartPositionDistance(map, candidate.coord, existing.coord)
+            < MIN_MAJOR_CIV_START_DISTANCE,
+        )) {
+          continue;
+        }
+        visited++;
+        selected.push(candidate);
+        const result = visit(index + 1);
+        if (result) return result;
+        selected.pop();
+        if (visited >= 100_000) break;
+      }
+      return null;
+    };
+    best = visit(0);
   }
   return { sites: best, maximumPlaced };
 }
