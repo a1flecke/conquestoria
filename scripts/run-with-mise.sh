@@ -90,7 +90,7 @@ if [ -n "$MAIN_ROOT" ] && [ "$CURRENT_ROOT" != "$MAIN_ROOT" ]; then
       # string, so it must be kept in sync here by hand.
       (cd "$MAIN_ROOT" && run_without_local_git_env "$MAIN_RUN" yarn tsc --project "$CURRENT_ROOT/tsconfig.json" --noEmit) \
         && (cd "$MAIN_ROOT" && run_without_local_git_env "$MAIN_RUN" yarn vite build "$CURRENT_ROOT") \
-        && (cd "$CURRENT_ROOT" && node "$CURRENT_ROOT/scripts/version-sw-cache.mjs")
+        && run_without_local_git_env "$CURRENT_ROOT/scripts/run-with-mise.sh" yarn node "$CURRENT_ROOT/scripts/version-sw-cache.mjs"
       exit
       ;;
     yarn,build:tauri)
