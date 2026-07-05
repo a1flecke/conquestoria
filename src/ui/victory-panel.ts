@@ -1,6 +1,11 @@
+import type { GameOverReason } from '@/core/types';
+import { createGameButton } from '@/ui/ui-kit';
+
 export interface VictoryPanelOptions {
   winnerName: string;
   victoryType: string;
+  outcome?: 'victory' | 'defeat';
+  reason?: GameOverReason;
   turn: number;
   onNewGame: () => void;
 }
@@ -18,11 +23,12 @@ export function showVictoryPanel(container: HTMLElement, options: VictoryPanelOp
   ].join('');
 
   const trophy = document.createElement('div');
-  trophy.textContent = '🏆';
+  const isDefeat = options.outcome === 'defeat';
+  trophy.textContent = isDefeat ? '⚔️' : '🏆';
   trophy.style.cssText = 'font-size:64px;margin-bottom:16px;';
 
   const title = document.createElement('h1');
-  title.textContent = 'Victory!';
+  title.textContent = isDefeat ? 'Defeat' : 'Victory!';
   title.style.cssText = 'font-size:32px;color:#e8c170;margin:0 0 8px;';
 
   const type = document.createElement('h2');
@@ -31,21 +37,18 @@ export function showVictoryPanel(container: HTMLElement, options: VictoryPanelOp
 
   const winner = document.createElement('p');
   winner.style.cssText = 'font-size:22px;color:white;margin:0 0 8px;';
-  winner.textContent = options.winnerName;
+  winner.textContent = options.reason === 'all-humans-eliminated'
+    ? 'No human civilizations remain.'
+    : options.winnerName;
 
   const turnLine = document.createElement('p');
   turnLine.style.cssText = 'font-size:14px;color:#aaa;margin:0 0 32px;';
   turnLine.textContent = `Turn ${options.turn}`;
 
-  const btn = document.createElement('button');
+  const btn = createGameButton('New Game', 'primary');
   btn.id = 'victory-new-game-btn';
   btn.type = 'button';
-  btn.textContent = 'New Game';
-  btn.style.cssText = [
-    'padding:14px 40px;border-radius:10px;',
-    'background:#e8c170;border:none;',
-    'color:#1a1a2e;font-weight:bold;font-size:16px;cursor:pointer;',
-  ].join('');
+  btn.style.padding = '14px 40px';
   btn.addEventListener('click', options.onNewGame);
 
   overlay.appendChild(trophy);

@@ -15,6 +15,7 @@ export interface TurnHandoffOptions {
 }
 
 export interface TurnHandoffController {
+  setRecipient(state: GameState, nextCivId: string, playerName: string): void;
   setReady(state: GameState): void;
   setError(
     message: string,
@@ -80,19 +81,27 @@ function appendText(
 export function showTurnHandoff(
   container: HTMLElement,
   state: GameState,
-  nextCivId: string,
-  playerName: string,
+  nextCivId: string | null,
+  playerName: string | null,
   options: TurnHandoffOptions,
 ): TurnHandoffController {
   activeHandoffController?.remove();
 
   let currentState = state;
+  let currentNextCivId = nextCivId;
+  let currentPlayerName = playerName;
   let ready = options.initiallyReady;
   let removed = false;
   let controller: TurnHandoffController;
-  const civ = state.civilizations[nextCivId];
-  const civDef = resolveCivDefinition(state, civ?.civType ?? '');
-  const color = civ?.color ?? civDef?.color ?? '#e8c170';
+  let color = '#e8c170';
+  const updateColor = (): void => {
+    const civ = currentNextCivId
+      ? currentState.civilizations[currentNextCivId]
+      : undefined;
+    const civDef = resolveCivDefinition(currentState, civ?.civType ?? '');
+    color = civ?.color ?? civDef?.color ?? '#e8c170';
+  };
+  updateColor();
   const accessibilityRoot = container.closest<HTMLElement>('#game-shell') ?? container;
   const previousAriaHidden = accessibilityRoot.getAttribute('aria-hidden');
   const previousInert = Boolean(accessibilityRoot.inert);
@@ -188,16 +197,24 @@ export function showTurnHandoff(
 
   const renderPassTo = (): void => {
     card.replaceChildren();
+    if (!currentNextCivId || !currentPlayerName) {
+      const title = appendText(card, 'h2', options.preparingLabel ?? 'Preparing next turn…');
+      title.id = 'turn-handoff-title';
+      title.tabIndex = -1;
+      title.style.cssText = 'font-size:20px;margin:0;color:#e8c170;';
+      title.focus();
+      return;
+    }
     const avatar = appendText(card, 'div', '👤');
     avatar.style.cssText = `width:60px;height:60px;border-radius:50%;background:${color};margin:0 auto 16px;display:flex;align-items:center;justify-content:center;font-size:24px;`;
     const title = appendText(card, 'h2', 'Pass to');
     title.id = 'turn-handoff-title';
     title.tabIndex = -1;
     title.style.cssText = 'font-size:20px;margin:0 0 8px;color:#e8c170;';
-    const name = appendText(card, 'h1', playerName);
+    const name = appendText(card, 'h1', currentPlayerName);
     name.style.cssText = `font-size:clamp(22px, 7vw, 30px);margin:0 0 24px;color:${color};`;
     confirmButton = createGameButton(
-      ready ? `I'm ${playerName}` : (options.preparingLabel ?? 'Preparing next turn…'),
+      ready ? `I'm ${currentPlayerName}` : (options.preparingLabel ?? 'Preparing next turn…'),
       'primary',
       { disabled: !ready },
     );
@@ -212,13 +229,14 @@ export function showTurnHandoff(
   };
 
   const renderSummary = (): void => {
-    const summary = generateSummary(currentState, nextCivId);
-    const summaryCiv = currentState.civilizations[nextCivId];
+    if (!currentNextCivId || !currentPlayerName) return;
+    const summary = generateSummary(currentState, currentNextCivId);
+    const summaryCiv = currentState.civilizations[currentNextCivId];
     const warNames = summary.atWarWith.map(id => currentState.civilizations[id]?.name ?? id);
     const allyNames = summary.allies.map(id => currentState.civilizations[id]?.name ?? id);
     card.replaceChildren();
 
-    const title = appendText(card, 'h2', playerName);
+    const title = appendText(card, 'h2', currentPlayerName);
     title.id = 'turn-handoff-title';
     title.style.cssText = `font-size:20px;color:${color};margin:0 0 4px;`;
     appendText(card, 'p', `Turn ${summary.turn} · Era ${summary.era}`)
@@ -332,11 +350,19 @@ export function showTurnHandoff(
   renderPassTo();
 
   controller = {
+    setRecipient(updatedState, recipientId, recipientName) {
+      currentState = updatedState;
+      currentNextCivId = recipientId;
+      currentPlayerName = recipientName;
+      ready = true;
+      updateColor();
+      renderPassTo();
+    },
     setReady(updatedState) {
       currentState = updatedState;
       ready = true;
       if (confirmButton?.isConnected) {
-        confirmButton.textContent = `I'm ${playerName}`;
+        confirmButton.textContent = `I'm ${currentPlayerName ?? 'Player'}`;
         setButtonDisabled(confirmButton, false);
         confirmButton.focus();
       } else {

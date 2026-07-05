@@ -55,4 +55,35 @@ describe('showVictoryPanel', () => {
     expect((window as unknown as Record<string, unknown>).__xss).toBeUndefined();
     expect(container.querySelector('#victory-panel')!.textContent).toContain('<script>');
   });
+
+  it('renders defeat instead of victory when every human is eliminated', () => {
+    const container = document.createElement('div');
+    showVictoryPanel(container, {
+      winnerName: '',
+      victoryType: 'Campaign Defeat',
+      outcome: 'defeat',
+      reason: 'all-humans-eliminated',
+      turn: 12,
+      onNewGame: () => {},
+    });
+
+    expect(container.textContent).toContain('Defeat');
+    expect(container.textContent).toContain('No human civilizations remain');
+    expect(container.textContent).not.toContain('Victory!');
+  });
+
+  it('identifies the conquering civilization when another actor wins', () => {
+    const container = document.createElement('div');
+    showVictoryPanel(container, {
+      winnerName: 'Rome',
+      victoryType: 'Domination',
+      outcome: 'defeat',
+      reason: 'domination',
+      turn: 20,
+      onNewGame: () => {},
+    });
+
+    expect(container.textContent).toContain('Defeat');
+    expect(container.textContent).toContain('Rome');
+  });
 });

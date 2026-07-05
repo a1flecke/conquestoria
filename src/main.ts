@@ -116,7 +116,11 @@ import { visitVillage } from '@/systems/village-system';
 import { getWonderDefinition } from '@/systems/wonder-definitions';
 import { buildWonderDiscoveryRevealItem } from '@/systems/wonder-discovery-reveal';
 import { getAvailableTechs, getEffectiveTechCost } from '@/systems/tech-system';
-import { getNextPlayer, isRoundComplete } from '@/core/turn-cycling';
+import {
+  getNextActiveHumanPlayerId,
+  isActiveHumanRoundComplete,
+} from '@/core/turn-cycling';
+import { resolveHotSeatPostSimulation } from '@/core/hotseat-outcome';
 import {
   acknowledgeTurnHandoffSummary,
   showTurnHandoff,
@@ -3093,13 +3097,18 @@ function handleHexLongPress(rawCoord: HexCoord): void {
 }
 
 function handleVictoryIfNeeded(): boolean {
-  if (!gameState.gameOver || !gameState.winner) return false;
-  const winnerCiv = gameState.civilizations[gameState.winner];
-  const winnerName = winnerCiv?.name ?? gameState.winner;
+  if (!gameState.gameOver) return false;
+  const winnerCiv = gameState.winner
+    ? gameState.civilizations[gameState.winner]
+    : undefined;
+  const winnerName = winnerCiv?.name ?? gameState.winner ?? '';
+  const outcome = gameState.winner === gameState.currentPlayer ? 'victory' : 'defeat';
   setBlockingOverlay('victory');
   showVictoryPanel(uiLayer, {
     winnerName,
-    victoryType: 'Domination Victory',
+    victoryType: outcome === 'victory' ? 'Domination Victory' : 'Campaign Defeat',
+    outcome,
+    reason: gameState.gameOverReason ?? 'domination',
     turn: gameState.turn,
     onNewGame: () => {
       document.getElementById('victory-panel')?.remove();
@@ -3191,8 +3200,11 @@ async function beginHotSeatHandoff(
   completesRound: boolean,
 ): Promise<void> {
   const preSimulationState = gameState;
-  const nextSlotId = getNextPlayer(hotSeat, preSimulationState.currentPlayer);
-  const nextPlayer = hotSeat.players.find(player => player.slotId === nextSlotId);
+  const previousHumanId = preSimulationState.currentPlayer;
+  let resolvedNextSlotId = completesRound
+    ? null
+    : getNextActiveHumanPlayerId(preSimulationState, previousHumanId);
+  const nextPlayer = hotSeat.players.find(player => player.slotId === resolvedNextSlotId);
   closePirateWatersPanels(uiLayer);
   renderLoop.setSelectedPirateFactionId(null);
   audio.stopPirateAmbience('player-changed');
@@ -3202,15 +3214,16 @@ async function beginHotSeatHandoff(
   const controller = showTurnHandoff(
     uiLayer,
     preSimulationState,
-    nextSlotId,
-    nextPlayer?.name ?? 'Player',
+    resolvedNextSlotId,
+    resolvedNextSlotId ? (nextPlayer?.name ?? 'Player') : null,
     {
       initiallyReady: false,
       preparingLabel: 'Preparing next turn…',
       onReady: async summary => {
+        if (!resolvedNextSlotId) return;
         const acknowledgement = acknowledgeTurnHandoffSummary(
           gameState,
-          nextSlotId,
+          resolvedNextSlotId,
           summary,
         );
         gameState = acknowledgement.state;
@@ -3220,10 +3233,10 @@ async function beginHotSeatHandoff(
         } catch {
           acknowledgementFailed = true;
         }
-        releaseHandoffToViewer(nextSlotId);
+        releaseHandoffToViewer(resolvedNextSlotId);
         if (acknowledgement.playStrategicWarningAudio) {
           bus.emit('ai:strategic-warning-audio', {
-            viewerId: nextSlotId,
+            viewerId: resolvedNextSlotId,
             turn: summary.turn,
           });
         }
@@ -3255,7 +3268,13 @@ async function beginHotSeatHandoff(
   };
 
   if (!completesRound) {
-    gameState = { ...preSimulationState, currentPlayer: nextSlotId };
+    if (!resolvedNextSlotId) {
+      gameState = resolveHotSeatPostSimulation(preSimulationState, previousHumanId).state;
+      controller.remove();
+      handleVictoryIfNeeded();
+      return;
+    }
+    gameState = { ...preSimulationState, currentPlayer: resolvedNextSlotId };
     void persistIntermediateHandoff();
     return;
   }
@@ -3263,7 +3282,8 @@ async function beginHotSeatHandoff(
   const transaction = createCompletedRoundHandoffTransaction({
     initialState: preSimulationState,
     runCompletedRound: runCurrentCompletedRound,
-    prepareCompletedState: state => ({ ...state, currentPlayer: nextSlotId }),
+    prepareCompletedState: state =>
+      resolveHotSeatPostSimulation(state, previousHumanId).state,
     eventTarget: bus,
     adoptState: state => {
       gameState = state;
@@ -3279,7 +3299,14 @@ async function beginHotSeatHandoff(
   const persistCompletedHandoff = async (): Promise<void> => {
     const outcome = await transaction.persistCompletedRoundHandoff();
     if (outcome.status === 'ready') {
-      controller.setReady(outcome.state);
+      if (outcome.state.gameOver) {
+        controller.remove();
+        handleVictoryIfNeeded();
+        return;
+      }
+      resolvedNextSlotId = outcome.state.currentPlayer;
+      const recipient = hotSeat.players.find(player => player.slotId === resolvedNextSlotId);
+      controller.setRecipient(outcome.state, resolvedNextSlotId, recipient?.name ?? 'Player');
       return;
     }
     controller.setError(
@@ -3313,7 +3340,14 @@ async function beginHotSeatHandoff(
       );
       return;
     }
-    controller.setReady(outcome.state);
+    if (outcome.state.gameOver) {
+      controller.remove();
+      handleVictoryIfNeeded();
+      return;
+    }
+    resolvedNextSlotId = outcome.state.currentPlayer;
+    const recipient = hotSeat.players.find(player => player.slotId === resolvedNextSlotId);
+    controller.setRecipient(outcome.state, resolvedNextSlotId, recipient?.name ?? 'Player');
   };
   void simulate();
 }
@@ -3336,7 +3370,10 @@ async function endTurn(options: { allowUnmovedUnits?: boolean } = {}): Promise<v
     const hotSeat = gameState.hotSeat;
 
     if (hotSeat) {
-      await beginHotSeatHandoff(hotSeat, isRoundComplete(hotSeat, gameState.currentPlayer));
+      await beginHotSeatHandoff(
+        hotSeat,
+        isActiveHumanRoundComplete(gameState, gameState.currentPlayer),
+      );
     } else {
       // --- Solo Mode ---
       const result = runCurrentCompletedRound(gameState);
