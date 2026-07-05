@@ -143,7 +143,7 @@ describe('campaign-setup', () => {
     expect(Array.from(document.querySelectorAll('[data-opponent-count]')).map(card => card.getAttribute('data-opponent-count'))).toEqual(['1', '2', '3', '4']);
     expect(opponentsSelect.value).toBe('1');
     expect(document.querySelector('[data-role="start-spacing-note"]')?.textContent)
-      .toContain('Balanced starts keep rival civilizations from beginning next door');
+      .toContain('Balanced mode guarantees separated starts');
 
     click(document, '[data-size="large"]');
 
@@ -541,6 +541,8 @@ describe('map type selection', () => {
     const desc = document.querySelector('[data-role="map-description"]') as HTMLElement;
     expect(desc).not.toBeNull();
     expect(desc.textContent).toContain('Real-world geography');
+    expect(document.querySelector('[data-placement-mode="balanced"]')?.getAttribute('data-selected'))
+      .toBe('true');
   });
 
   it('updates description when a different map type is clicked', () => {
@@ -549,6 +551,8 @@ describe('map type selection', () => {
     balancedBtn.click();
     const desc = document.querySelector('[data-role="map-description"]') as HTMLElement;
     expect(desc.textContent).toContain('algorithmically fair');
+    expect((document.querySelector('[data-role="campaign-placement-options"]') as HTMLElement).hidden)
+      .toBe(true);
   });
 
   it('includes mapScript in the GameConfig passed to onStartSolo', async () => {
@@ -577,6 +581,24 @@ describe('map type selection', () => {
     expect(onStartSolo).toHaveBeenCalled();
     const config = onStartSolo.mock.calls[0][0];
     expect(config.mapScript).toBe('single-continent');
+    expect(config.startPlacementMode).toBe('balanced');
+  });
+
+  it('passes an explicit true-start choice for geographic maps', async () => {
+    const onStartSolo = vi.fn();
+    showCampaignSetup(document.body, { onStartSolo, onCancel: vi.fn() });
+    click(document, '[data-placement-mode="historical"]');
+    clickButtonWithText('Choose civilization');
+    await flushAsyncWork();
+    (document.querySelector('.civ-card') as HTMLElement)
+      .dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    click(document, '#civ-start');
+    clickButtonWithText('Start Campaign');
+    const confirmation = Array.from(document.querySelectorAll('button'))
+      .find(button => button.textContent === 'Start Crowded Historical Game') as HTMLButtonElement | undefined;
+    confirmation?.click();
+
+    expect(onStartSolo.mock.calls[0]?.[0].startPlacementMode).toBe('historical');
   });
 });
 

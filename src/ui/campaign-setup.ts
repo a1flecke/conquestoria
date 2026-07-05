@@ -1,5 +1,5 @@
-import type { BeastsMode, CustomCivDefinition, SoloSetupConfig, MapScript, OpponentChallenge } from '@/core/types';
-import { MAP_DIMENSIONS } from '@/core/game-state';
+import type { BeastsMode, CustomCivDefinition, SoloSetupConfig, MapScript, OpponentChallenge, StartPlacementMode } from '@/core/types';
+import { GameCreationError, MAP_DIMENSIONS } from '@/core/game-state';
 import { createCivSelectPanel } from '@/ui/civ-select';
 import { createCustomCivPanel } from '@/ui/custom-civ-panel';
 import { getPlayableCivDefinitions } from '@/systems/civ-registry';
@@ -9,6 +9,7 @@ import { loadSettings, saveSettings } from '@/storage/save-manager';
 import { createSetupSection, createSetupShell } from '@/ui/setup-shell';
 import { createGameButton, setButtonDisabled } from '@/ui/ui-kit';
 import { createOpponentChallengeSelector } from '@/ui/opponent-challenge-selector';
+import { selectAIRoster } from '@/systems/ai-roster-selection';
 
 export interface CampaignSetupCallbacks {
   onStartSolo: (config: SoloSetupConfig) => void;
@@ -131,15 +132,15 @@ export function showCampaignSetup(container: HTMLElement, callbacks: CampaignSet
   const MAP_SCRIPT_LABELS: Record<string, { emoji: string; label: string; description: string }> = {
     earth: {
       emoji: '🌍', label: 'Earth',
-      description: 'Real-world geography. Civilizations start near their historical homelands; fantasy and out-of-region civs get good constrained starts. Resources follow real-world distribution.',
+      description: 'Real-world geography with your choice of separated Balanced starts or exact True Starts.',
     },
     'old-world': {
       emoji: '🗺️', label: 'Old World',
-      description: 'Europe, Asia, and Africa. Historical civilizations start at their homelands. Best for Old World civs — Aztec gets a constrained random start. Resources follow real-world distribution.',
+      description: 'Europe, Asia, and Africa with Balanced or exact True Start placement.',
     },
     'new-world': {
       emoji: '🌎', label: 'New World',
-      description: 'North and South America. Aztec starts in Central Mexico. England and France land on the eastern seaboard; Spain lands on the Gulf of Mexico; Viking land in Newfoundland. Other civs get a constrained random start.',
+      description: 'North and South America with Balanced or exact True Start placement.',
     },
     balanced: {
       emoji: '⚖️', label: 'Balanced',
@@ -188,6 +189,43 @@ export function showCampaignSetup(container: HTMLElement, callbacks: CampaignSet
   });
   mapSection.content.appendChild(mapDescEl);
 
+  let selectedPlacementMode: StartPlacementMode = 'balanced';
+  const placementRow = document.createElement('div');
+  placementRow.dataset.role = 'campaign-placement-options';
+  placementRow.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap;margin:0 0 8px;';
+  const balancedPlacement = createChoiceButton('Balanced (Recommended)');
+  balancedPlacement.dataset.placementMode = 'balanced';
+  const historicalPlacement = createChoiceButton('True Start');
+  historicalPlacement.dataset.placementMode = 'historical';
+  placementRow.append(balancedPlacement, historicalPlacement);
+  mapSection.content.appendChild(placementRow);
+  const placementHelp = document.createElement('p');
+  placementHelp.dataset.role = 'campaign-placement-description';
+  placementHelp.style.cssText = 'font-size:12px;opacity:0.82;margin:0 0 10px;line-height:1.45;';
+  mapSection.content.appendChild(placementHelp);
+
+  const syncPlacement = (): void => {
+    const geographic = mapScriptSelect.value === 'earth'
+      || mapScriptSelect.value === 'old-world'
+      || mapScriptSelect.value === 'new-world';
+    placementRow.hidden = !geographic;
+    placementHelp.hidden = !geographic;
+    if (!geographic) selectedPlacementMode = 'balanced';
+    syncChoiceButtonState(balancedPlacement, selectedPlacementMode === 'balanced');
+    syncChoiceButtonState(historicalPlacement, selectedPlacementMode === 'historical');
+    placementHelp.textContent = selectedPlacementMode === 'balanced'
+      ? 'Separated viable starts are guaranteed; homelands are soft preferences.'
+      : 'Exact known homelands are used. Close neighboring starts may occur.';
+  };
+  balancedPlacement.addEventListener('click', () => {
+    selectedPlacementMode = 'balanced';
+    syncPlacement();
+  });
+  historicalPlacement.addEventListener('click', () => {
+    selectedPlacementMode = 'historical';
+    syncPlacement();
+  });
+
   const mapScriptCards = new Map<MapScriptKey, HTMLButtonElement>();
 
   const syncMapScriptCards = (): void => {
@@ -196,6 +234,7 @@ export function showCampaignSetup(container: HTMLElement, callbacks: CampaignSet
       syncChoiceButtonState(btn, script === current);
     }
     mapDescEl.textContent = MAP_SCRIPT_LABELS[current]?.description ?? '';
+    syncPlacement();
   };
 
   for (const script of MAP_SCRIPT_ORDER) {
@@ -225,7 +264,7 @@ export function showCampaignSetup(container: HTMLElement, callbacks: CampaignSet
 
   const startSpacingNote = document.createElement('p');
   startSpacingNote.dataset.role = 'start-spacing-note';
-  startSpacingNote.textContent = 'Balanced starts keep rival civilizations from beginning next door, including across the wrapped map edge.';
+  startSpacingNote.textContent = 'Balanced mode guarantees separated starts. True Start uses exact homelands and may place neighbors close together.';
   Object.assign(startSpacingNote.style, {
     margin: '0',
     fontSize: '12px',
@@ -407,6 +446,8 @@ export function showCampaignSetup(container: HTMLElement, callbacks: CampaignSet
     const isDisabled = !selectedCivId || !gameTitle;
     setButtonDisabled(startButton, isDisabled);
     startButton.dataset.ready = isDisabled ? 'false' : 'true';
+    delete startButton.dataset.confirmedHistorical;
+    startButton.textContent = 'Start Campaign';
   };
 
   const replaceSetupOverlay = (render: () => void): void => {
@@ -487,20 +528,53 @@ export function showCampaignSetup(container: HTMLElement, callbacks: CampaignSet
     if (!gameTitle) {
       return;
     }
-    panel.remove();
-    callbacks.onStartSolo({
-      civType: selectedCivId,
-      mapSize: mapSizeField.select.value as 'small' | 'medium' | 'large',
-      opponentCount: Number(opponentsField.select.value),
-      gameTitle,
-      customCivilizations,
-      mapScript: mapScriptSelect.value as MapScript,
-      opponentChallenge: selectedOpponentChallenge,
-      settingsOverrides: { beastsMode: beastsModeSelected },
+    const mapScript = mapScriptSelect.value as MapScript;
+    const mapSize = mapSizeField.select.value as 'small' | 'medium' | 'large';
+    const preview = selectAIRoster({
+      definitions: civDefinitions,
+      humanCivilizationTypeIds: [selectedCivId],
+      count: Number(opponentsField.select.value),
+      mapScript,
+      mapSize,
+      placementMode: selectedPlacementMode,
+      seed: 'solo-roster-preview',
     });
+    const crowded = selectedPlacementMode === 'historical'
+      && preview.minimumHistoricalDistance !== null
+      && preview.minimumHistoricalDistance < 9;
+    if (crowded && startButton.dataset.confirmedHistorical !== 'true') {
+      startButton.dataset.confirmedHistorical = 'true';
+      startButton.textContent = 'Start Crowded Historical Game';
+      historicalWarning.hidden = false;
+      historicalWarning.textContent = `Warning: previewed historical starts are only ${preview.minimumHistoricalDistance} hexes apart. Press again to confirm.`;
+      return;
+    }
+    try {
+      callbacks.onStartSolo({
+        civType: selectedCivId,
+        mapSize,
+        opponentCount: Number(opponentsField.select.value),
+        gameTitle,
+        customCivilizations,
+        mapScript,
+        startPlacementMode: selectedPlacementMode,
+        opponentChallenge: selectedOpponentChallenge,
+        settingsOverrides: { beastsMode: beastsModeSelected },
+      });
+      panel.remove();
+    } catch (error) {
+      if (!(error instanceof GameCreationError)) throw error;
+      historicalWarning.hidden = false;
+      historicalWarning.textContent = error.message;
+    }
   });
   buttonRow.appendChild(startButton);
 
+  const historicalWarning = document.createElement('p');
+  historicalWarning.dataset.role = 'campaign-historical-warning';
+  historicalWarning.hidden = true;
+  historicalWarning.style.cssText = 'color:#ffb870;font-size:12px;font-weight:bold;margin:0 0 8px;';
+  shell.actions.appendChild(historicalWarning);
   shell.actions.appendChild(buttonRow);
 
   titleInput.addEventListener('input', syncCampaignReadiness);

@@ -4043,6 +4043,11 @@ function enterCampaign(
   document.getElementById('save-panel')?.remove();
   gameState = state;
   migrateLegacySave();
+  if (gameState.gameOver) {
+    startGame();
+    handleVictoryIfNeeded();
+    return;
+  }
   if (!gameState.hotSeat) {
     startGame();
     showNotification(message, 'info');
@@ -4315,6 +4320,7 @@ function showGameModeSelection(): void {
             settingsOverrides: { ...getPersistedSettingsOverrides(), ...config.settingsOverrides },
             customCivilizations: config.customCivilizations,
             mapScript: config.mapScript,
+            startPlacementMode: config.startPlacementMode,
             opponentChallenge: config.opponentChallenge,
           });
           if (persistedSettings?.councilTalkLevel) {
