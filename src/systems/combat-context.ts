@@ -2,7 +2,10 @@ import type { GameState, Unit } from '@/core/types';
 import type { CombatContext } from './combat-system';
 import { resolveCivDefinition } from './civ-registry';
 import { hexKey } from './hex-utils';
+import { isCityCoastal } from './city-system';
 import { UNIT_DEFINITIONS } from './unit-system';
+import { getActiveNationalProjectsForCiv } from './national-project-system';
+import { getCombatModifier } from './unit-modifier-system';
 
 // Shared by the human attack flow (main.ts), every AI attack path
 // (ai-major-turn.ts, ai-tactics.ts), and the combat preview so the
@@ -16,6 +19,15 @@ export function buildCombatContextForDefender(
   const defenderCity = Object.values(state.cities).find(
     city => hexKey(city.position) === defenderKey,
   );
+  const attackerKey = hexKey(attacker.position);
+  const attackerCity = Object.values(state.cities).find(
+    city => hexKey(city.position) === attackerKey,
+  );
+
+  const attackerCompletedTechs = state.civilizations[attacker.owner]?.techState.completed ?? [];
+  const defenderCompletedTechs = state.civilizations[defender.owner]?.techState.completed ?? [];
+  const defenderInFriendlyCity = !!defenderCity && defenderCity.owner === defender.owner;
+  const attackerInFriendlyCity = !!attackerCity && attackerCity.owner === attacker.owner;
 
   return {
     attackerBonus: resolveCivDefinition(
@@ -29,15 +41,28 @@ export function buildCombatContextForDefender(
     defenderCityHasAntiAir: Object.values(state.cities).some(city =>
       hexKey(city.position) === defenderKey
       && city.buildings.includes('anti_air_battery')),
-    attackerHasAirForceCommand: Object.values(state.cities).some(city =>
-      city.owner === attacker.owner
-      && city.buildings.includes('air_force_command')),
     defenderCity: defenderCity
       ? {
           cityBuildings: defenderCity.buildings,
-          defenderCompletedTechs: state.civilizations[defender.owner]?.techState.completed ?? [],
+          defenderCompletedTechs,
           attackerDomain: UNIT_DEFINITIONS[attacker.type]?.domain ?? 'land',
         }
       : undefined,
+    attackerModifiers: getCombatModifier(attacker.type, 'attacker', {
+      completedTechs: attackerCompletedTechs,
+      activeNationalProjects: getActiveNationalProjectsForCiv(state, attacker.owner),
+      fullHP: attacker.health >= 100,
+      inFriendlyCity: attackerInFriendlyCity,
+      targetIsCoastalCity: defenderCity ? isCityCoastal(defenderCity, state.map) : false,
+      opponentType: defender.type,
+      opponentInFriendlyCity: defenderInFriendlyCity,
+    }),
+    defenderModifiers: getCombatModifier(defender.type, 'defender', {
+      completedTechs: defenderCompletedTechs,
+      activeNationalProjects: getActiveNationalProjectsForCiv(state, defender.owner),
+      fullHP: defender.health >= 100,
+      inFriendlyCity: defenderInFriendlyCity,
+      opponentType: attacker.type,
+    }),
   };
 }

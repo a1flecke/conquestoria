@@ -477,6 +477,7 @@ export function healUnit(
   unit: Unit,
   inFriendlyCity: boolean,
   inFriendlyTerritory: boolean,
+  bonus?: { flat: number; mult: number },
 ): Unit {
   if (unit.health >= 100) return unit;
 
@@ -491,6 +492,11 @@ export function healUnit(
     healAmount = HEAL_PASSIVE;
   } else {
     return unit; // moved or acted without resting — no heal
+  }
+
+  if (bonus) {
+    // Flat tech/NP bonuses stack first; the single multiplier (mindfulness-movement) applies last.
+    healAmount = Math.round((healAmount + bonus.flat) * bonus.mult);
   }
 
   return { ...unit, health: Math.min(100, unit.health + healAmount) };

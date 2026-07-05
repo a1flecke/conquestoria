@@ -223,7 +223,12 @@ function assertPlanInvariants(state: GameState, seed: string): void {
       throw new Error(`${seed}: ${actorId} exceeded four retained defense plans`);
     }
     for (const plan of plans) {
-      if (state.turn > plan.expiresAfterTurn) {
+      // The majors phase runs BEFORE the world phase advances state.turn each round
+      // (see runCompletedRound below), so a plan refreshed this round at context.turn = T
+      // legitimately survives one tick to state.turn = T + 1 before its next refresh
+      // opportunity at the following round's majors phase. Only turn = T + 2 or later
+      // means a plan genuinely survived a full round without being reconsidered.
+      if (state.turn > plan.expiresAfterTurn + 1) {
         throw new Error(`${seed}: ${plan.id} remained active after expiry`);
       }
       if (!targetWasPerceived(state, actorId, plan)) {

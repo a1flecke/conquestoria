@@ -8,6 +8,8 @@ import type {
   Unit,
 } from '@/core/types';
 import { getVisibility, isForestConcealedUnit, updateVisibility } from '@/systems/fog-of-war';
+import { getActiveNationalProjectsForCiv } from '@/systems/national-project-system';
+import { getVisionBonus } from '@/systems/unit-modifier-system';
 import { hexKey, parseHexKey, wrapHexCoord } from '@/systems/hex-utils';
 import { canInspectUnitForViewer } from './viewer-intel';
 import { getVisibleUnitsForPlayer } from './espionage-stealth';
@@ -166,6 +168,8 @@ export function updateAndRefreshVisibility(state: GameState, civId: string): voi
   const cityPositions = civ.cities
     .map(id => state.cities[id]?.position)
     .filter((p): p is HexCoord => p !== undefined);
-  updateVisibility(civ.visibility, units, state.map, cityPositions);
+  const activeNPs = getActiveNationalProjectsForCiv(state, civId);
+  updateVisibility(civ.visibility, units, state.map, cityPositions,
+    unit => getVisionBonus(unit.type, civ.techState.completed, activeNPs));
   refreshLastSeenPresentationsForCiv(state, civId);
 }
