@@ -111,6 +111,9 @@ export function eliminateCivilization(
     .filter(league => league.members.length >= 2);
   next.pendingDiplomacyRequests = (next.pendingDiplomacyRequests ?? [])
     .filter(request => request.fromCivId !== civId && request.toCivId !== civId);
+  if (next.pendingEvents) {
+    delete next.pendingEvents[civId];
+  }
 
   const removedSpyIds = Object.keys(next.espionage?.[civId]?.spies ?? {});
   if (next.espionage) {

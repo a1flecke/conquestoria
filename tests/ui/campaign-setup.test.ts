@@ -582,6 +582,7 @@ describe('map type selection', () => {
     const config = onStartSolo.mock.calls[0][0];
     expect(config.mapScript).toBe('single-continent');
     expect(config.startPlacementMode).toBe('balanced');
+    expect(config.seed).toMatch(/^solo-setup-/);
   });
 
   it('passes an explicit true-start choice for geographic maps', async () => {

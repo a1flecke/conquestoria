@@ -313,11 +313,11 @@ export function showHotSeatSetup(
   function showPlayerCountStage() {
     const max = MAP_DIMENSIONS[selectedMapSize!].maxPlayers;
 
-    const counts = Array.from({ length: max - 1 }, (_, i) => i + 2);
+    const counts = Array.from({ length: Math.max(1, max - 2) }, (_, i) => i + 2);
 
     panel.innerHTML = `
       <h1 style="font-size:22px;color:#e8c170;margin:24px 0 8px;text-align:center;">How Many Players?</h1>
-      <p style="font-size:13px;opacity:0.6;margin-bottom:16px;text-align:center;">Human players (AI opponents will fill remaining slots)</p>
+      <p style="font-size:13px;opacity:0.6;margin-bottom:16px;text-align:center;">Human players (choose AI opponents separately on the next screen)</p>
       <div style="display:flex;gap:12px;flex-wrap:wrap;justify-content:center;">
         ${counts.map(n => `
           <div class="count-card" data-count="${n}" style="background:rgba(255,255,255,0.08);border:2px solid transparent;border-radius:12px;padding:16px 24px;cursor:pointer;text-align:center;transition:border-color 0.2s;">

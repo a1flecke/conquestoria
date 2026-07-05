@@ -501,8 +501,6 @@ export function findStartPositions(
 
     let bestCandidate: HexCoord | null = null;
     let bestMinDist = -1;
-    let bestFallback: HexCoord | null = null;
-    let bestFallbackDist = -1;
 
     for (const c of allCandidates) {
       if (used.has(hexKey(c))) continue;
@@ -510,22 +508,23 @@ export function findStartPositions(
         ? Infinity
         : Math.min(...placedPositions.map(p => getStartPositionDistance(map, c, p)));
 
-      if (minDist > bestFallbackDist) {
-        bestFallbackDist = minDist;
-        bestFallback = c;
-      }
       if (minDist >= minimumDistance && minDist > bestMinDist) {
         bestMinDist = minDist;
         bestCandidate = c;
       }
     }
 
-    const selected = bestCandidate ?? bestFallback;
-    if (!selected) break;
+    const selected = bestCandidate;
+    if (!selected) {
+      throw new Error(
+        `[findStartPositions] Could not place ${count} civilizations at least `
+        + `${minimumDistance} hexes apart; placed ${placedPositions.length}.`,
+      );
+    }
     positions[i] = selected;
     used.add(hexKey(selected));
     placedPositions.push(selected);
   }
 
-  return positions.filter(Boolean) as HexCoord[];
+  return positions as HexCoord[];
 }

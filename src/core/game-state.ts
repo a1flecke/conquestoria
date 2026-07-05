@@ -1,9 +1,9 @@
 import type { GameState, Civilization, Unit, HotSeatConfig, GameSettings, SoloSetupConfig, MapScript, GameMap, HexCoord, OpponentChallenge, StartPlacementMode } from './types';
 import { generateMap, findStartPositions, createRng, guaranteeStartResources } from '@/systems/map-generator';
 import { loadGeoMap } from '@/systems/geo-map-loader';
-import { EARTH_TILES, EARTH_START_POSITIONS, EARTH_RIVERS } from '@/systems/earth-map-data';
-import { OLD_WORLD_TILES, OLD_WORLD_START_POSITIONS, OLD_WORLD_RIVERS } from '@/systems/old-world-map-data';
-import { NEW_WORLD_TILES, NEW_WORLD_START_POSITIONS, NEW_WORLD_RIVERS } from '@/systems/new-world-map-data';
+import { EARTH_TILES, EARTH_RIVERS } from '@/systems/earth-map-data';
+import { OLD_WORLD_TILES, OLD_WORLD_RIVERS } from '@/systems/old-world-map-data';
+import { NEW_WORLD_TILES, NEW_WORLD_RIVERS } from '@/systems/new-world-map-data';
 import { generateBalancedMap } from '@/systems/balanced-map-generator';
 import { generateContinentMap } from '@/systems/continent-map-generator';
 import { createUnit } from '@/systems/unit-system';
@@ -179,7 +179,7 @@ export function createNewGame(
   const mapScript: MapScript = config.mapScript ?? 'procedural';
   const startPlacementMode = resolveStartPlacementMode(mapScript, config.startPlacementMode);
 
-  // Determine civ types before map generation so findStartPositions can use real civ IDs
+  // Determine civ types before map generation so placement can use real civ IDs.
   const settings = createDefaultSettings(actualSize, {
     ...config.settingsOverrides,
     customCivilizations: config.customCivilizations,
@@ -229,12 +229,12 @@ export function createNewGame(
     case 'single-continent': {
       const result = generateContinentMap(dims.width, dims.height, gameSeed);
       map = result.map;
-      startPositions = placeStartsOrThrow(map, civTypeIds, 'single-continent', actualSize, startPlacementMode, gameSeed, result.continentHexes);
+      startPositions = findStartPositions(map, civTypeIds, 'single-continent', actualSize, result.continentHexes);
       break;
     }
     default: // 'procedural' and old saves
       map = generateMap(dims.width, dims.height, gameSeed);
-      startPositions = placeStartsOrThrow(map, civTypeIds, 'procedural', actualSize, startPlacementMode, gameSeed);
+      startPositions = findStartPositions(map, civTypeIds, 'procedural', actualSize);
       break;
   }
 
@@ -416,12 +416,12 @@ export function createHotSeatGame(
     case 'single-continent': {
       const result = generateContinentMap(dims.width, dims.height, gameSeed);
       map = result.map;
-      startPositions = placeStartsOrThrow(map, civTypeIds, 'single-continent', config.mapSize, startPlacementMode, gameSeed, result.continentHexes);
+      startPositions = findStartPositions(map, civTypeIds, 'single-continent', config.mapSize, result.continentHexes);
       break;
     }
     default: // 'procedural' and old saves
       map = generateMap(dims.width, dims.height, gameSeed);
-      startPositions = placeStartsOrThrow(map, civTypeIds, 'procedural', config.mapSize, startPlacementMode, gameSeed);
+      startPositions = findStartPositions(map, civTypeIds, 'procedural', config.mapSize);
       break;
   }
 

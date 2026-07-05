@@ -2,10 +2,13 @@ import { describe, expect, it } from 'vitest';
 import type { GameMap, HexTile } from '@/core/types';
 import { MAP_DIMENSIONS } from '@/core/game-state';
 import { EARTH_RIVERS, EARTH_TILES } from '@/systems/earth-map-data';
+import { OLD_WORLD_RIVERS, OLD_WORLD_TILES } from '@/systems/old-world-map-data';
+import { NEW_WORLD_RIVERS, NEW_WORLD_TILES } from '@/systems/new-world-map-data';
 import { loadGeoMap } from '@/systems/geo-map-loader';
 import {
   getGeographicStartAnchor,
   getStartPositionDistance,
+  findStartPositions,
   MIN_MAJOR_CIV_START_DISTANCE,
 } from '@/systems/map-generator';
 import { placeCivilizationStarts } from '@/systems/start-placement-system';
@@ -106,6 +109,8 @@ describe('civilization start placement', () => {
       requested: 2,
       available: 1,
     });
+    expect(() => findStartPositions(map, ['a', 'b'], 'procedural', 'small'))
+      .toThrow(/at least 9 hexes apart/);
   });
 
   it('is deterministic and preserves input civilization alignment', () => {
@@ -125,5 +130,45 @@ describe('civilization start placement', () => {
     expect(second).toEqual(first);
     expect(first.ok && first.assignments.map(assignment => assignment.civilizationTypeId))
       .toEqual(input.civilizationTypeIds);
+  });
+
+  it('finds strict starts at every supported geographic map capacity', () => {
+    const scripts = [
+      { id: 'earth' as const, tiles: EARTH_TILES, rivers: EARTH_RIVERS, wraps: true },
+      { id: 'old-world' as const, tiles: OLD_WORLD_TILES, rivers: OLD_WORLD_RIVERS, wraps: false },
+      { id: 'new-world' as const, tiles: NEW_WORLD_TILES, rivers: NEW_WORLD_RIVERS, wraps: false },
+    ];
+    for (const script of scripts) {
+      for (const size of ['small', 'medium', 'large'] as const) {
+        const dimensions = MAP_DIMENSIONS[size];
+        const map = loadGeoMap(
+          script.tiles[size],
+          script.rivers[size],
+          dimensions,
+          script.wraps,
+        );
+        const result = placeCivilizationStarts({
+          map,
+          civilizationTypeIds: Array.from(
+            { length: dimensions.maxPlayers },
+            (_, index) => `custom-${index}`,
+          ),
+          mapScript: script.id,
+          mapSize: size,
+          mode: 'balanced',
+          seed: `capacity-${script.id}-${size}`,
+        });
+
+        expect(result.ok, `${script.id} ${size}`).toBe(true);
+        if (!result.ok) continue;
+        expect(result.positions).toHaveLength(dimensions.maxPlayers);
+        for (let i = 0; i < result.positions.length; i++) {
+          for (let j = i + 1; j < result.positions.length; j++) {
+            expect(getStartPositionDistance(map, result.positions[i], result.positions[j]))
+              .toBeGreaterThanOrEqual(MIN_MAJOR_CIV_START_DISTANCE);
+          }
+        }
+      }
+    }
   });
 });
