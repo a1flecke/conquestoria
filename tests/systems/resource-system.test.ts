@@ -5,6 +5,8 @@ import { generateMap } from '@/systems/map-generator';
 import { foundCity, BUILDINGS } from '@/systems/city-system';
 import { recalculateTerritory } from '@/systems/city-territory-system';
 import { hexKey } from '@/systems/hex-utils';
+import { calculateWorkedTileYield } from '@/systems/city-work-system';
+import type { GameState } from '@/core/types';
 
 const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
 
@@ -279,5 +281,34 @@ describe('new terrain yields', () => {
 
   it('mountain tile yields 1 production (issue #280)', () => {
     expect(TERRAIN_YIELDS.mountain).toEqual({ food: 0, production: 1, gold: 0, science: 0 });
+  });
+});
+
+describe('tile-yield consolidation (single source of truth)', () => {
+  it('calculateCityYields equals base + calculateWorkedTileYield(s) + building yields', () => {
+    const map = generateMap(30, 30, 'consolidation-test');
+    const grass = Object.values(map.tiles).find(t => t.terrain === 'grassland' && !t.hasRiver)!.coord;
+    const city = foundCity('player', grass, map, mkC());
+    const workTile = city.ownedTiles.find(c => hexKey(c) !== hexKey(city.position))!;
+    const workKey = hexKey(workTile);
+    map.tiles[workKey] = { ...map.tiles[workKey], terrain: 'hills', elevation: 'highland', improvement: 'none', improvementTurnsLeft: 0, hasRiver: false, wonder: null, resource: null };
+    const completedTechs = ['irrigation'];
+    const testCity = { ...city, population: 1, workedTiles: [workTile], buildings: ['library'] };
+
+    const fakeState = {
+      map,
+      civilizations: { player: { techState: { completed: completedTechs } } },
+    } as unknown as GameState;
+
+    const cityYields = calculateCityYields(testCity, map, undefined, completedTechs);
+    const tileYield = calculateWorkedTileYield(fakeState, workTile);
+    const buildingYield = BUILDINGS.library.yields;
+
+    expect(cityYields).toEqual({
+      food: 1 + tileYield.food + buildingYield.food,
+      production: 1 + tileYield.production + buildingYield.production,
+      gold: 1 + tileYield.gold + buildingYield.gold,
+      science: 1 + tileYield.science + buildingYield.science,
+    });
   });
 });

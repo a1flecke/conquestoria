@@ -2009,3 +2009,31 @@ describe('city-panel Citizens tab', () => {
     expect(view.querySelector('[data-worked-tile-action="work"]')).toBeNull();
   });
 });
+
+describe('city-panel tech-yield breakdown', () => {
+  it('shows a "From technology" breakdown line when a river tech is completed', () => {
+    const { container, city, state } = makeWonderPanelFixture();
+    state.civilizations.player.techState.completed.push('hydraulics');
+
+    const panel = createCityPanel(container, city, state, {
+      onBuild: () => {},
+      onOpenWonderPanel: () => {},
+      onClose: () => {},
+    });
+
+    expect(panel.textContent).toContain('From technology');
+    expect(panel.querySelector('[data-tech-yield="0"]')?.textContent).toContain('+2');
+  });
+
+  it('omits the "From technology" section without any active tech yield', () => {
+    const { container, city, state } = makeWonderPanelFixture();
+
+    const panel = createCityPanel(container, city, state, {
+      onBuild: () => {},
+      onOpenWonderPanel: () => {},
+      onClose: () => {},
+    });
+
+    expect(panel.textContent).not.toContain('From technology');
+  });
+});

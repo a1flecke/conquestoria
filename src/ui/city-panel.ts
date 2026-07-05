@@ -27,6 +27,7 @@ import { UNIT_DEFINITIONS } from '@/systems/unit-system';
 import { getUnrestYieldMultiplier, getCityAppeaseCost, isCityProductionLocked } from '@/systems/faction-system';
 import { getOccupiedCityMood, getOccupiedCityYieldMultiplier } from '@/systems/city-occupation-system';
 import { calculateProjectedCityYields } from '@/systems/city-work-system';
+import { getCityTechYields } from '@/systems/tech-yield-system';
 import { resolveCivDefinition } from '@/systems/civ-registry';
 import { createCityWorkSection } from './city-grid';
 import { createCityDistrictsTab } from './city-districts';
@@ -112,6 +113,11 @@ export function createCityPanel(
 
   const baseYields = calculateProjectedCityYields(state, city.id);
   const yieldMultiplier = Math.min(getUnrestYieldMultiplier(city), getOccupiedCityYieldMultiplier(city));
+  const techYieldParts = getCityTechYields(
+    city,
+    state.map,
+    state.civilizations[city.owner]?.techState.completed ?? [],
+  ).parts;
   const yields = {
     food: Math.floor(baseYields.food * yieldMultiplier),
     production: Math.floor(baseYields.production * yieldMultiplier),
@@ -180,6 +186,7 @@ export function createCityPanel(
     city,
     bonusEffect: civDef?.bonusEffect,
     era: state.era,
+    completedTechs: currentCiv.techState.completed,
   });
   const builtNPKeys = getReservedNationalProjectKeys(state, city.owner);
   const availableBuildings = getAvailableBuildings(
@@ -549,6 +556,11 @@ export function createCityPanel(
       <span>💰 +<span data-text="yield-gold"></span></span>
       <span>🔬 +<span data-text="yield-science"></span></span>
     </div>
+    ${techYieldParts.length > 0 ? `
+    <div style="background:rgba(255,255,255,0.06);border-radius:8px;padding:10px 12px;margin-bottom:16px;">
+      <div style="font-size:13px;font-weight:bold;color:#e8c170;margin-bottom:6px;">From technology</div>
+      ${techYieldParts.map((_, idx) => `<div style="font-size:12px;opacity:0.85;" data-tech-yield="${idx}"></div>`).join('')}
+    </div>` : ''}
     ${resourceBonusSectionHtml}
     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:16px;font-size:12px;color:#d9d3c0;">
       <span title="" data-maintenance-summary>Free support: ${cityFreeBuildings} buildings, ${economyStatus.breakdown.freeUnits} units</span>
@@ -602,6 +614,18 @@ export function createCityPanel(
   setText('yield-prod', String(yields.production));
   setText('yield-gold', String(yields.gold));
   setText('yield-science', String(yields.science));
+
+  // Tech-yield breakdown rows via textContent (XSS-safe)
+  techYieldParts.forEach((part, idx) => {
+    const el = panel.querySelector(`[data-tech-yield="${idx}"]`);
+    if (!el) return;
+    const pieces: string[] = [];
+    if (part.yields.food) pieces.push(`+${part.yields.food} 🌾`);
+    if (part.yields.production) pieces.push(`+${part.yields.production} ⚒️`);
+    if (part.yields.gold) pieces.push(`+${part.yields.gold} 💰`);
+    if (part.yields.science) pieces.push(`+${part.yields.science} 🔬`);
+    el.textContent = `${part.label}: ${pieces.join(' ')}`;
+  });
 
   // Populate resource bonus rows via textContent (XSS-safe)
   for (const def of happinessResources) {

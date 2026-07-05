@@ -1,10 +1,7 @@
 import type { CityFocus, CivBonusEffect, GameState, HexCoord, ResourceYield } from '@/core/types';
-import { hexKey, hexNeighbors } from './hex-utils';
-import { getImprovementYieldBonus } from './improvement-system';
-import { calculateCityYields, TERRAIN_YIELDS } from './resource-system';
-import { getWonderDefinition } from './wonder-definitions';
-import { getWonderYieldBonus } from './wonder-system';
-import { getRiverYieldBonus } from './river-system';
+import { hexKey } from './hex-utils';
+import { calculateCityYields } from './resource-system';
+import { getTileYield } from './tile-yield';
 import {
   buildCityWorkClaimIndex,
   canonicalizeCityCoord,
@@ -27,59 +24,16 @@ export interface CityWorkMutationResult {
   unassignedCitizens: number;
 }
 
-function addYield(total: ResourceYield, bonus: Partial<ResourceYield>): void {
-  total.food += bonus.food ?? 0;
-  total.production += bonus.production ?? 0;
-  total.gold += bonus.gold ?? 0;
-  total.science += bonus.science ?? 0;
-}
-
 export function calculateWorkedTileYield(state: GameState, coord: HexCoord): ResourceYield {
   const canonical = canonicalizeCityCoord(coord, state.map);
   const tile = state.map.tiles[hexKey(canonical)];
-  const total: ResourceYield = { food: 0, production: 0, gold: 0, science: 0 };
-  if (!tile) return total;
+  if (!tile) return { food: 0, production: 0, gold: 0, science: 0 };
 
-  const terrain = TERRAIN_YIELDS[tile.terrain] ?? total;
-  addYield(total, terrain);
+  const completedTechs = tile.owner != null
+    ? (state.civilizations[tile.owner]?.techState.completed ?? [])
+    : [];
 
-  addYield(total, getRiverYieldBonus(tile.hasRiver));
-  if (tile.hasRiver && tile.improvement === 'farm' && tile.improvementTurnsLeft === 0) {
-    total.food += 1;
-    const completedTechs = tile.owner != null
-      ? (state.civilizations[tile.owner]?.techState.completed ?? [])
-      : [];
-    if (completedTechs.includes('irrigation')) {
-      total.production += 1;
-    }
-  }
-
-  if (tile.improvement !== 'none' && tile.improvementTurnsLeft === 0) {
-    const improvement = getImprovementYieldBonus(tile.improvement);
-    addYield(total, improvement);
-  }
-
-  if (tile.wonder) {
-    addYield(total, getWonderYieldBonus(tile.wonder));
-  }
-
-  const seenNeighborKeys = new Set<string>();
-  for (const rawNeighbor of hexNeighbors(canonical)) {
-    const neighbor = canonicalizeCityCoord(rawNeighbor, state.map);
-    const neighborKey = hexKey(neighbor);
-    if (seenNeighborKeys.has(neighborKey)) continue;
-    seenNeighborKeys.add(neighborKey);
-
-    const neighborTile = state.map.tiles[neighborKey];
-    if (!neighborTile?.wonder) continue;
-
-    const wonder = getWonderDefinition(neighborTile.wonder);
-    if (wonder?.effect.type === 'adjacent_yield_bonus') {
-      addYield(total, wonder.effect.yields);
-    }
-  }
-
-  return total;
+  return getTileYield(tile, state.map, canonical, { completedTechs });
 }
 
 function sameCoord(left: HexCoord, right: HexCoord): boolean {
@@ -250,7 +204,8 @@ export function calculateProjectedCityYields(
     ? normalizeWorkedTilesForCity(state, cityId)
     : assignCityFocus(state, cityId, city.focus);
   const projectedCity = workResult.state.cities[cityId] ?? city;
-  const yields = calculateCityYields(projectedCity, workResult.state.map, bonusEffect);
+  const completedTechs = workResult.state.civilizations?.[projectedCity.owner]?.techState.completed ?? [];
+  const yields = calculateCityYields(projectedCity, workResult.state.map, bonusEffect, completedTechs);
 
   if (city.productionQueue.length === 0 && city.idleProduction) {
     if (city.idleProduction === 'gold') {

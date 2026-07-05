@@ -17,6 +17,8 @@ import { processTradeRouteIncome } from './trade-system';
 import { getClaimedTrophyGoldPerTurn } from './beast-system';
 import { createUnit, UNIT_DEFINITIONS } from './unit-system';
 import { resolveCivDefinition } from './civ-registry';
+import { getCivHappinessFromResources } from './resource-acquisition-system';
+import { getEmpireTechPercents, getCivLuxuryTechGold } from './tech-yield-system';
 
 export const ECONOMY_RULES = {
   rushBuyMultiplier: 2.5,
@@ -484,12 +486,13 @@ export function projectCivGrossGold(
 
   const civDef = resolveCivDefinition(state, civ.civType ?? '');
   const blockadedCityIds = new Set(pirateModifiers.blockadedCityIds);
+  const empireTechPercents = getEmpireTechPercents(civ.techState.completed);
   let grossGold = 0;
 
   for (const cityId of civ.cities) {
     const projected = calculateProjectedCityYields(state, cityId, civDef?.bonusEffect);
     const wonderCityBonuses = getLegendaryWonderCityYieldBonus(state, civId, cityId);
-    const cityGold = projected.gold + (wonderCityBonuses.gold ?? 0);
+    const cityGold = (projected.gold + (wonderCityBonuses.gold ?? 0)) * (1 + (empireTechPercents.gold ?? 0) / 100);
     grossGold += blockadedCityIds.has(cityId) ? cityGold * 0.75 : cityGold;
   }
 
@@ -497,6 +500,7 @@ export function projectCivGrossGold(
   grossGold += wonderCivBonuses.gold ?? 0;
   const npCivBonuses = getNationalProjectCivYieldBonus(state, civId);
   grossGold += npCivBonuses.gold ?? 0;
+  grossGold += getCivLuxuryTechGold(civ.techState.completed, getCivHappinessFromResources(state, civId));
 
   if (civDef?.bonusEffect.type === 'allied_kingdoms') {
     const allianceCount = civ.diplomacy.treaties.filter(treaty => treaty.type === 'alliance').length;
@@ -516,6 +520,7 @@ export function projectCivGrossGold(
         && !blockadedCityIds.has(route.fromCityId)
         && !blockadedCityIds.has(route.toCityId),
       ),
+      state,
     );
   }
 
@@ -676,7 +681,7 @@ export function getRushBuyQuote(state: GameState, civId: string, cityId: string)
   }
 
   const civDef = resolveCivDefinition(state, civ.civType ?? '');
-  const cost = getProductionCostForItem(itemId, { city, bonusEffect: civDef?.bonusEffect, era: state.era });
+  const cost = getProductionCostForItem(itemId, { city, bonusEffect: civDef?.bonusEffect, era: state.era, completedTechs: civ.techState.completed });
   if (cost <= 0) {
     return { available: false, itemId, cost: 0, reason: 'invalid-active-item', message: 'This production item cannot be bought.', status: ownerStatus };
   }

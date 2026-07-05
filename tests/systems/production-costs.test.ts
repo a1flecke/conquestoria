@@ -48,4 +48,37 @@ describe('production cost catalog', () => {
       expect(UNIT_DEFINITIONS[unit.type].productionCost).toBe(unit.cost);
     }
   });
+
+  it('applies vaulted-ceilings -10% to a 100-cost building', () => {
+    expect(BUILDINGS.observatory.productionCost).toBe(100);
+    expect(getProductionCostForItem('observatory', { completedTechs: ['vaulted-ceilings'] })).toBe(90);
+    expect(getProductionCostForItem('observatory', { completedTechs: [] })).toBe(100);
+  });
+
+  it('does not apply the buildings-only vaulted-ceilings discount to units', () => {
+    const baseline = getProductionCostForItem('settler', { era: 1 });
+    expect(getProductionCostForItem('settler', { era: 1, completedTechs: ['vaulted-ceilings'] })).toBe(baseline);
+  });
+
+  it('stacks vaulted-ceilings multiplicatively with the masonry-works walls discount', () => {
+    expect(BUILDINGS.walls.productionCost).toBe(60);
+    const cost = getProductionCostForItem('walls', {
+      city: { buildings: ['masonry-works'] },
+      completedTechs: ['vaulted-ceilings'],
+    });
+    expect(cost).toBe(Math.ceil(60 * 0.8 * 0.9));
+  });
+
+  it('applies cannon-casting -15% only to cannon', () => {
+    const withoutTech = getProductionCostForItem('cannon', {});
+    const withTech = getProductionCostForItem('cannon', { completedTechs: ['cannon-casting'] });
+    expect(withTech).toBe(Math.ceil(withoutTech * 0.85));
+    expect(getProductionCostForItem('catapult', { completedTechs: ['cannon-casting'] })).toBe(getProductionCostForItem('catapult', {}));
+  });
+
+  it('applies manifest-destiny -20% only to settlers', () => {
+    const baseline = getProductionCostForItem('settler', { era: 3 });
+    expect(getProductionCostForItem('settler', { era: 3, completedTechs: ['manifest-destiny'] })).toBe(Math.ceil(baseline * 0.8));
+    expect(getProductionCostForItem('worker', { era: 3, completedTechs: ['manifest-destiny'] })).toBe(getProductionCostForItem('worker', { era: 3 }));
+  });
 });

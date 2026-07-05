@@ -286,6 +286,7 @@ function generateWithResidual(
       city,
       bonusEffect: civDefinition?.bonusEffect,
       era: state.era,
+      completedTechs: civ.techState.completed,
     });
     const productionTurns = Math.max(1, Math.ceil(cost / productionPerTurn));
     const roleDemandScore = fulfilled.missing * 40 + fulfilled.priority / 5;
@@ -340,6 +341,7 @@ function generateWithResidual(
       city,
       bonusEffect: civDefinition?.bonusEffect,
       era: state.era,
+      completedTechs: civ.techState.completed,
     });
     const productionTurns = Math.max(1, Math.ceil(cost / productionPerTurn));
     const personalityScore = weightProductionRoles(personality, []);

@@ -708,6 +708,7 @@ function applyPredictedAction(
           civType: civ.civType,
           civName: civ.name,
           usedNames: collectUsedCityNames(next),
+          completedTechs: civ.techState.completed,
         },
       );
       next.cities[city.id] = city;

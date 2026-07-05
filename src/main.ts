@@ -230,7 +230,7 @@ import { fireResourceDiscoveredTip } from '@/ui/advisor-system';
 import { createWonderDiscoveryRevealQueue } from '@/ui/wonder-discovery-queue';
 import { buildLegendaryWonderCompletionCeremonyItem } from '@/systems/legendary-wonder-completion-presentation';
 import { createLegendaryWonderCompletionQueue } from '@/ui/legendary-wonder-completion-queue';
-import { removeRouteForUnit, createMarketplaceState, getEffectiveGoldPerTurn } from '@/systems/trade-system';
+import { removeRouteForUnit, createMarketplaceState, getEffectiveGoldPerTurn, getRouteTechGoldBonus } from '@/systems/trade-system';
 import { establishQuestAwareRoute } from '@/systems/quest-aware-trade-system';
 import { emitMinorCivQuestTransitions } from '@/systems/quest-chain-system';
 import { performMinorCivFestival, performMinorCivGift, setMinorCivWarState } from '@/systems/minor-civ-actions';
@@ -3961,7 +3961,7 @@ bus.on('trade:route-created', ({ route }) => {
   const ownerCity = gameState.cities[route.fromCityId];
   const toCity = gameState.cities[route.toCityId];
   if (!ownerCity) return;
-  const goldPerTurn = getEffectiveGoldPerTurn(route);
+  const goldPerTurn = getEffectiveGoldPerTurn(route, getRouteTechGoldBonus(gameState, route));
   appendToCivLog(ownerCity.owner, `Trade route to ${toCity?.name ?? route.toCityId} established (+${goldPerTurn} gold/turn)`, 'success');
 });
 

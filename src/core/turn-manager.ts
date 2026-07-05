@@ -30,7 +30,8 @@ import { hexKey } from '@/systems/hex-utils';
 import { executeUnitMove } from '@/systems/unit-movement-system';
 import { buildCombatPresentation } from '@/systems/viewer-event-presentation';
 import { calculateCityYields } from '@/systems/resource-system';
-import { getCivResourceYieldBonus } from '@/systems/resource-acquisition-system';
+import { getCivResourceYieldBonus, getCivHappinessFromResources } from '@/systems/resource-acquisition-system';
+import { getEmpireTechPercents, getCivLuxuryTechGold } from '@/systems/tech-yield-system';
 import type { HexCoord } from './types';
 import { updateVisibility, revealMinorCivCities, applySharedVision, applySatelliteSurveillance } from '@/systems/fog-of-war';
 import { getActiveNationalProjectsForCiv } from '@/systems/national-project-system';
@@ -147,6 +148,7 @@ export function processTurn(
 
     const resourceYieldBonus = getCivResourceYieldBonus(newState, civId);
     const npCivBonuses = getNationalProjectCivYieldBonus(newState, civId);
+    const empireTechPercents = getEmpireTechPercents(civ.techState.completed);
 
     for (const cityId of civ.cities) {
       let city = newState.cities[cityId];
@@ -159,14 +161,14 @@ export function processTurn(
       city = newState.cities[cityId];
       if (!city) continue;
 
-      const baseYields = calculateCityYields(city, newState.map, civDef?.bonusEffect);
+      const baseYields = calculateCityYields(city, newState.map, civDef?.bonusEffect, civ.techState.completed);
       const wonderCityBonuses = getLegendaryWonderCityYieldBonus(newState, civId, cityId);
       const unrestMultiplier = Math.min(getUnrestYieldMultiplier(city), getOccupiedCityYieldMultiplier(city));
       const yields = {
         food:       Math.floor((baseYields.food       + (wonderCityBonuses.food       ?? 0) + resourceYieldBonus.food       + (npCivBonuses.food       ?? 0)) * unrestMultiplier),
-        production: Math.floor((baseYields.production + (wonderCityBonuses.production ?? 0) + resourceYieldBonus.production + (npCivBonuses.production ?? 0)) * unrestMultiplier),
-        gold:       Math.floor((baseYields.gold       + (wonderCityBonuses.gold       ?? 0) + resourceYieldBonus.gold)       * unrestMultiplier),
-        science:    Math.floor((baseYields.science    + (wonderCityBonuses.science    ?? 0))                                 * unrestMultiplier),
+        production: Math.floor((baseYields.production + (wonderCityBonuses.production ?? 0) + resourceYieldBonus.production + (npCivBonuses.production ?? 0)) * unrestMultiplier * (1 + (empireTechPercents.production ?? 0) / 100)),
+        gold:       Math.floor((baseYields.gold       + (wonderCityBonuses.gold       ?? 0) + resourceYieldBonus.gold)       * unrestMultiplier * (1 + (empireTechPercents.gold ?? 0) / 100)),
+        science:    Math.floor((baseYields.science    + (wonderCityBonuses.science    ?? 0))                                 * unrestMultiplier * (1 + (empireTechPercents.science ?? 0) / 100)),
       };
       totalScience += yields.science;
       totalGold += yields.gold;
@@ -304,6 +306,7 @@ export function processTurn(
     totalGold += wonderCivBonuses.gold ?? 0;
     totalScience += npCivBonuses.science ?? 0;
     // NP food/production applied per-city above; NP gold handled in economy-system.ts to avoid double-counting
+    totalGold += getCivLuxuryTechGold(civ.techState.completed, getCivHappinessFromResources(newState, civId));
     if (civDef?.bonusEffect.type === 'allied_kingdoms') {
       const allianceCount = civ.diplomacy.treaties.filter(t => t.type === 'alliance').length;
       totalScience += allianceCount * civDef.bonusEffect.allianceYieldBonus;
@@ -1098,6 +1101,7 @@ export function processTurn(
           const city = newState.cities[route.fromCityId];
           return city?.owner === civId;
         }),
+        newState,
       );
       grossGoldByCiv[civId] = (grossGoldByCiv[civId] ?? 0) + civRouteIncome;
     }
