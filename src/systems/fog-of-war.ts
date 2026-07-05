@@ -48,6 +48,7 @@ export function updateVisibility(
   units: Unit[],
   map: GameMap,
   cityPositions: HexCoord[] = [],
+  getVisionBonus?: (unit: Unit) => number,
 ): HexCoord[] {
   // Downgrade all 'visible' to 'fog'
   for (const key of Object.keys(vis.tiles)) {
@@ -80,8 +81,9 @@ export function updateVisibility(
     const unitTile = map.tiles[hexKey(unitPosition)];
     const bonus = unitTile ? getTerrainVisionBonus(unitTile.terrain) : 0;
     const wonderBonus = unitTile?.wonder ? getWonderVisionBonus(unitTile.wonder) : 0;
+    const techBonus = getVisionBonus ? getVisionBonus(unit) : 0;
 
-    const visible = getVisibilityRange(unitPosition, visionRange + bonus + wonderBonus, map);
+    const visible = getVisibilityRange(unitPosition, visionRange + bonus + wonderBonus + techBonus, map);
     for (const coord of visible) {
       revealTile(coord);
     }

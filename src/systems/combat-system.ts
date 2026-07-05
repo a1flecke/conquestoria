@@ -4,6 +4,7 @@ import { UNIT_DEFINITIONS } from './unit-system';
 import { getWonderCombatBonus } from './wonder-system';
 import { getVeterancyCombatModifier } from './combat-reward-system';
 import { getRiverDefensePenalty, isRiverBetween } from './river-system';
+import type { ModifierPart } from './unit-modifier-system';
 
 export function getTerrainDefenseBonus(terrain: string): number {
   const bonuses: Record<string, number> = {
@@ -99,12 +100,21 @@ export function getCityDefenseBreakdown(input: CityDefenseInput): CityDefenseBre
   return { multiplier, flatBonus, parts };
 }
 
+export interface UnitModifierBreakdown {
+  mult: number;
+  flat: number;
+  parts: ModifierPart[];
+}
+
 export interface CombatContext {
   attackerBonus?: CivBonusEffect;
   defenderBonus?: CivBonusEffect;
   defenderCity?: CityDefenseInput;
   defenderCityHasAntiAir?: boolean;
-  attackerHasAirForceCommand?: boolean;
+  // Precomputed by buildCombatContextForDefender (unit-modifier-system's getCombatModifier)
+  // so combat-system.ts stays a pure function of its inputs.
+  attackerModifiers?: UnitModifierBreakdown;
+  defenderModifiers?: UnitModifierBreakdown;
 }
 
 export interface CombatStrengthBreakdown {
@@ -113,6 +123,8 @@ export interface CombatStrengthBreakdown {
   terrainDefenseBonus: number;
   riverAttackPenalty: number;
   cityDefense?: CityDefenseBreakdown;
+  attackerModifierParts?: ModifierPart[];
+  defenderModifierParts?: ModifierPart[];
 }
 
 export function calculateCombatStrengths(
@@ -153,6 +165,15 @@ export function calculateCombatStrengths(
     defenderStrength *= 1.25;
   }
 
+  // Unit-modifier engine (MR4): tech/national-project combat modifiers + class counters.
+  // Order: after terrain/fortify/civ-bonus multipliers above, before MR3 city-defense below.
+  if (context?.attackerModifiers) {
+    attackerStrength = attackerStrength * context.attackerModifiers.mult + context.attackerModifiers.flat;
+  }
+  if (context?.defenderModifiers) {
+    defenderStrength = defenderStrength * context.defenderModifiers.mult + context.defenderModifiers.flat;
+  }
+
   let cityDefense: CityDefenseBreakdown | undefined;
   if (context?.defenderCity) {
     cityDefense = getCityDefenseBreakdown(context.defenderCity);
@@ -162,11 +183,6 @@ export function calculateCombatStrengths(
   // Anti-air battery: +8 flat defense against air attacker domain
   if (context?.defenderCityHasAntiAir && UNIT_DEFINITIONS[attacker.type]?.domain === 'air') {
     defenderStrength += 8;
-  }
-
-  // Air Force Command NP: air units gain +4 attack strength
-  if (context?.attackerHasAirForceCommand && UNIT_DEFINITIONS[attacker.type]?.domain === 'air') {
-    attackerStrength += 4;
   }
 
   if (
@@ -182,6 +198,8 @@ export function calculateCombatStrengths(
     terrainDefenseBonus,
     riverAttackPenalty,
     cityDefense,
+    attackerModifierParts: context?.attackerModifiers?.parts,
+    defenderModifierParts: context?.defenderModifiers?.parts,
   };
 }
 

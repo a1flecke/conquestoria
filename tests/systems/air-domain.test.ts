@@ -6,6 +6,7 @@ import {
   createUnit,
 } from '@/systems/unit-system';
 import { calculateCombatStrengths } from '@/systems/combat-system';
+import { getCombatModifier } from '@/systems/unit-modifier-system';
 import { generateMap } from '@/systems/map-generator';
 import { hexKey } from '@/systems/hex-utils';
 import type { GameMap, Unit } from '@/core/types';
@@ -162,12 +163,24 @@ describe('air_force_command combat modifier', () => {
     return createUnit(type, owner, { q, r }, mkC());
   }
 
-  it('biplane attacker: +4 attack when attackerHasAirForceCommand is true', () => {
+  // Migrated to the MR4 unit-modifier table (unit-modifier-definitions.ts) — this is the
+  // exact +4 parity assertion required before deleting the old ad-hoc combat-system branch.
+  const airForceCommandModifiers = getCombatModifier('biplane', 'attacker', {
+    completedTechs: [],
+    activeNationalProjects: [{ id: 'air_force_command', fadeMultiplier: 1 }],
+    fullHP: true,
+    inFriendlyCity: false,
+    opponentType: 'rifleman',
+  });
+
+  it('biplane attacker: +4 attack when air_force_command is active', () => {
     const biplane  = makeUnit('biplane', 'p1', 0, 0);
     const defender = makeUnit('rifleman', 'p2', 1, 0);
 
     const without = calculateCombatStrengths(biplane, defender, map, {});
-    const with_   = calculateCombatStrengths(biplane, defender, map, { attackerHasAirForceCommand: true });
+    const with_   = calculateCombatStrengths(biplane, defender, map, {
+      attackerModifiers: airForceCommandModifiers,
+    });
 
     expect(with_.attackerStrength - without.attackerStrength).toBe(4);
   });
@@ -176,8 +189,16 @@ describe('air_force_command combat modifier', () => {
     const warrior  = makeUnit('warrior', 'p1', 0, 0);
     const defender = makeUnit('rifleman', 'p2', 1, 0);
 
+    const warriorModifiers = getCombatModifier('warrior', 'attacker', {
+      completedTechs: [],
+      activeNationalProjects: [{ id: 'air_force_command', fadeMultiplier: 1 }],
+      fullHP: true,
+      inFriendlyCity: false,
+      opponentType: 'rifleman',
+    });
+
     const without = calculateCombatStrengths(warrior, defender, map, {});
-    const with_   = calculateCombatStrengths(warrior, defender, map, { attackerHasAirForceCommand: true });
+    const with_   = calculateCombatStrengths(warrior, defender, map, { attackerModifiers: warriorModifiers });
 
     expect(with_.attackerStrength).toBeCloseTo(without.attackerStrength, 6);
   });
@@ -189,7 +210,7 @@ describe('air_force_command combat modifier', () => {
     const base       = calculateCombatStrengths(biplane, defender, map, {});
     const bothActive = calculateCombatStrengths(biplane, defender, map, {
       defenderCityHasAntiAir: true,
-      attackerHasAirForceCommand: true,
+      attackerModifiers: airForceCommandModifiers,
     });
 
     expect(bothActive.attackerStrength - base.attackerStrength).toBe(4);

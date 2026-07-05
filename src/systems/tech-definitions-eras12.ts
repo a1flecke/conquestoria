@@ -68,7 +68,7 @@ const ERA_12_TECHS: Tech[] = [
     unlocksBuildings: ['gene_therapy_clinic'], era: 12 },
   { id: 'telemedicine', name: 'Telemedicine', track: 'medicine', cost: 380,
     prerequisites: ['vaccination-campaigns', 'civil-rights-legislation'],
-    unlocks: ['Friendly units within 3 hexes of any friendly city heal +1 additional HP per turn'],
+    unlocks: ['Friendly units near a Telemedicine Hub heal +1 HP per turn'],
     unlocksBuildings: ['telemedicine_hub'], era: 12 },
 
   // MARITIME (2)
@@ -84,7 +84,7 @@ const ERA_12_TECHS: Tech[] = [
   // METALLURGY (2)
   { id: 'nanomaterials', name: 'Nanomaterials', track: 'metallurgy', cost: 390,
     prerequisites: ['carbon-fiber', 'precision-engineering'],
-    unlocks: ['All newly trained units gain +3 base strength permanently'],
+    unlocks: ['All units gain +3 strength'],
     era: 12 },
   { id: '3d-printing', name: '3D Printing', track: 'metallurgy', cost: 385,
     prerequisites: ['precision-engineering', 'megastructures'],

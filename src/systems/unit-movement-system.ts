@@ -1,6 +1,8 @@
 import type { EventBus } from '@/core/event-bus';
 import type { GameState, HexCoord, VillageOutcomeType } from '@/core/types';
 import { getVisibility, updateVisibility } from '@/systems/fog-of-war';
+import { getActiveNationalProjectsForCiv } from '@/systems/national-project-system';
+import { getVisionBonus } from '@/systems/unit-modifier-system';
 import { syncCivilizationContactsFromVisibility } from '@/systems/discovery-system';
 import { hexKey, wrappedHexDistance, hexDistance } from '@/systems/hex-utils';
 import {
@@ -164,11 +166,14 @@ export function executeUnitMove(
     });
   }
 
+  const movementCompletedTechs = state.civilizations[options.civId]?.techState.completed ?? [];
+  const movementActiveNPs = getActiveNationalProjectsForCiv(state, options.civId);
   const revealedTiles = updateVisibility(
     state.civilizations[options.civId].visibility,
     getCivUnits(state, options.civId),
     state.map,
     getCivCityPositions(state, options.civId),
+    unit => getVisionBonus(unit.type, movementCompletedTechs, movementActiveNPs),
   );
   refreshLastSeenPresentationsForCiv(state, options.civId);
   const contacts = syncCivilizationContactsFromVisibility(state, options.civId);

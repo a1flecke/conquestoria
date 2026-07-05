@@ -51,7 +51,7 @@ const ERA_9_TECHS: Tech[] = [
     unlocks: ['Automobiles and trucks reshape logistics; supply chains reach further than ever'], era: 9 },
   { id: 'aerial-survey', name: 'Aerial Survey', track: 'exploration', cost: 260,
     prerequisites: ['imperial-survey', 'aviation'],
-    unlocks: ['Aircraft map terrain from above; scouts reveal 50% more territory per turn'], era: 9 },
+    unlocks: ['+1 vision range for air units'], era: 9 },
 
   // AGRICULTURE (2)
   { id: 'chemical-fertilizers', name: 'Chemical Fertilizers', track: 'agriculture', cost: 265,

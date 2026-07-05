@@ -29,6 +29,21 @@ export function getReservedNationalProjectKeys(
   return keys;
 }
 
+export function getActiveNationalProjectsForCiv(
+  state: GameState,
+  civId: string,
+): Array<{ id: string; fadeMultiplier: number }> {
+  const result: Array<{ id: string; fadeMultiplier: number }> = [];
+  for (const [key, record] of Object.entries(state.builtNationalProjects ?? {})) {
+    if (record.civId !== civId) continue;
+    const fadeMultiplier = getNationalProjectMultiplier(state.era, record.eraBuilt);
+    if (fadeMultiplier === 0) continue;
+    const buildingId = key.split(':').slice(1).join(':');
+    result.push({ id: buildingId, fadeMultiplier });
+  }
+  return result;
+}
+
 function addYield(acc: Partial<ResourceYield>, delta: Partial<ResourceYield>): Partial<ResourceYield> {
   return {
     food: (acc.food ?? 0) + (delta.food ?? 0),

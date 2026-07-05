@@ -33,6 +33,8 @@ import { calculateCityYields } from '@/systems/resource-system';
 import { getCivResourceYieldBonus } from '@/systems/resource-acquisition-system';
 import type { HexCoord } from './types';
 import { updateVisibility, revealMinorCivCities, applySharedVision, applySatelliteSurveillance } from '@/systems/fog-of-war';
+import { getActiveNationalProjectsForCiv } from '@/systems/national-project-system';
+import { getHealingBonus, getVisionBonus, isWithinRangeOfTelemedicineHub } from '@/systems/unit-modifier-system';
 import { syncCivilizationContactsFromVisibility } from '@/systems/discovery-system';
 import { refreshLastSeenPresentationsForCiv } from '@/systems/last-seen-presentation';
 import {
@@ -385,6 +387,8 @@ export function processTurn(
     const cityPositionsSet = new Set(
       civ.cities.map(id => newState.cities[id]).filter(Boolean).map(c => `${c!.position.q},${c!.position.r}`),
     );
+    const healCompletedTechs = civ.techState.completed;
+    const healActiveNPs = getActiveNationalProjectsForCiv(newState, civId);
     for (const unitId of civ.units) {
       const unit = newState.units[unitId];
       if (!unit || unit.health >= 100) continue;
@@ -393,7 +397,15 @@ export function processTurn(
       const tile = newState.map.tiles[posKey];
       const inFriendlyCity = cityPositionsSet.has(posKey) && (tile?.owner === civId);
       const inFriendlyTerritory = !inFriendlyCity && (tile?.owner === civId);
-      newState.units[unitId] = healUnit(unit, inFriendlyCity, inFriendlyTerritory);
+      const withinRangeOfFriendlyCity3 = isWithinRangeOfTelemedicineHub(newState, civId, unit.position, 3);
+      const healingBonus = getHealingBonus({
+        completedTechs: healCompletedTechs,
+        activeNationalProjects: healActiveNPs,
+        inFriendlyCity,
+        inFriendlyTerritory,
+        withinRangeOfFriendlyCity3,
+      });
+      newState.units[unitId] = healUnit(unit, inFriendlyCity, inFriendlyTerritory, healingBonus);
     }
 
     // Reset geneTherapyReady cooldown for units that rested a full turn in a friendly city
@@ -480,7 +492,17 @@ export function processTurn(
     }
 
     // Update visibility
-    updateVisibility(newState.civilizations[civId].visibility, civUnits, newState.map, cityPositions);
+    {
+      const visionCompletedTechs = newState.civilizations[civId].techState.completed;
+      const visionActiveNPs = getActiveNationalProjectsForCiv(newState, civId);
+      updateVisibility(
+        newState.civilizations[civId].visibility,
+        civUnits,
+        newState.map,
+        cityPositions,
+        unit => getVisionBonus(unit.type, visionCompletedTechs, visionActiveNPs),
+      );
+    }
     for (const contact of syncCivilizationContactsFromVisibility(newState, civId)) {
       bus.emit('civilization:first-contact', contact);
     }

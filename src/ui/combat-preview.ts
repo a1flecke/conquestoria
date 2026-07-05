@@ -12,6 +12,12 @@ export function formatCombatPreviewDetails(
   if (preview.riverAttackPenalty < 0) {
     details.push(`${Math.round(preview.riverAttackPenalty * 100)}% river crossing`);
   }
+  for (const part of preview.attackerModifierParts ?? []) {
+    details.push(part.label);
+  }
+  for (const part of preview.defenderModifierParts ?? []) {
+    details.push(part.label);
+  }
   for (const part of preview.cityDefense?.parts ?? []) {
     details.push(part.label);
   }
