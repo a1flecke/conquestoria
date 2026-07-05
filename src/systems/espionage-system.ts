@@ -1048,12 +1048,15 @@ function pruneDetectedThreats(
 
 // --- Top-level turn integration ---
 
-const ESPIONAGE_TECH_MAX_SPIES: Record<string, number> = {
+export const ESPIONAGE_TECH_MAX_SPIES: Record<string, number> = {
   'espionage-scouting': 1,
   'espionage-informants': 2,
   'spy-networks': 3,
   'cryptography': 4,
   'counter-intelligence': 5,
+  'black-chambers': 6,          // era 5: "+1 spy slot empire-wide"
+  'covert-operations': 8,       // era 7: "+2 spy slots empire-wide"
+  'political-intelligence': 11, // era 8: "+3 spy slots empire-wide"
 };
 
 export function initializeEspionage(state: GameState): EspionageState {

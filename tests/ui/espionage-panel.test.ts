@@ -169,6 +169,13 @@ describe('espionage-panel', () => {
       expect(data.activeSpyCount).toBe(0);
     });
 
+    it('reflects 8 spy slots after covert-operations', () => {
+      const state = makeEspUiState();
+      state.espionage!.player.maxSpies = 8;
+      const data = getEspionagePanelData(state);
+      expect(data.maxSpies).toBe(8);
+    });
+
     it('surfaces stage metadata for available missions', () => {
       const state = makeEspUiState();
       state.civilizations.player.techState.completed = [

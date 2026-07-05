@@ -1149,11 +1149,11 @@ export function getCatalogProductionCost(itemId: string, era: number = 1): numbe
   return unit.cost;
 }
 
-const MELEE_RANGED_UNIT_TYPES: string[] = [
+export const MELEE_RANGED_UNIT_TYPES: string[] = [
   'warrior', 'axeman', 'spearman', 'swordsman', 'pikeman', 'musketeer', 'archer', 'crossbowman',
 ];
-const CAVALRY_UNIT_TYPES: string[] = ['horseman', 'cavalry', 'knight'];
-const SIEGE_UNIT_TYPES: string[] = ['catapult', 'ballista', 'cannon'];
+export const CAVALRY_UNIT_TYPES: string[] = ['horseman', 'cavalry', 'knight'];
+export const SIEGE_UNIT_TYPES: string[] = ['catapult', 'ballista', 'cannon'];
 
 function getBuildingDiscountMultiplier(itemId: string, cityBuildings: string[]): number {
   let best = 1;

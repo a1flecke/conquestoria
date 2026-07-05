@@ -260,9 +260,12 @@ export function tickTreaties(state: DiplomacyState): DiplomacyState {
   return { ...state, treaties: remaining };
 }
 
-const CIVICS_TECHS = ['code-of-laws', 'early-empire', 'political-philosophy', 'diplomacy', 'foreign-trade'];
-const TRADE_TECHS = ['trade-routes', 'currency', 'banking', 'coinage'];
-const ALLIANCE_TECHS = ['diplomacy', 'political-philosophy'];
+// IDs must exist in TECH_TREE — see tests/systems/diplomacy-tech-gates.test.ts
+export const TRADE_TECHS = ['trade-routes', 'currency', 'banking'];
+// IDs must exist in TECH_TREE — see tests/systems/diplomacy-tech-gates.test.ts
+export const ALLIANCE_TECHS = ['political-philosophy']; // its unlock text: "Unlock alliances"
+// IDs must exist in TECH_TREE — see tests/systems/diplomacy-tech-gates.test.ts
+export const NAP_TECHS = ['diplomacy-tech']; // its unlock text: "Unlock Non-Aggression Pacts"
 
 export function getAvailableActions(
   state: DiplomacyState,
@@ -278,7 +281,7 @@ export function getAvailableActions(
   } else {
     actions.push('declare_war');
 
-    const hasCivicsTech = completedTechs.some(t => CIVICS_TECHS.includes(t));
+    const hasNAPTech = completedTechs.some(t => NAP_TECHS.includes(t));
     const hasTradeTech = completedTechs.some(t => TRADE_TECHS.includes(t));
     const hasAllianceTech = completedTechs.some(t => ALLIANCE_TECHS.includes(t));
     const hasNAP = state.treaties.some(
@@ -289,7 +292,7 @@ export function getAvailableActions(
     );
     const relationship = getRelationship(state, targetCivId);
 
-    if ((era >= 2 || hasCivicsTech) && !hasNAP) {
+    if ((era >= 2 || hasNAPTech) && !hasNAP) {
       actions.push('non_aggression_pact');
     }
     if ((era >= 3 || hasTradeTech) && relationship > 0 && !hasTrade) {
@@ -310,13 +313,13 @@ export function getAvailableActions(
     }
 
     // Embargo (requires currency tech or era >= 2, not vassal)
-    const hasEmbargoTech = completedTechs.some(t => ['currency', 'foreign-trade', 'banking'].includes(t));
+    const hasEmbargoTech = completedTechs.some(t => EMBARGO_TECHS.includes(t));
     if ((era >= 2 || hasEmbargoTech) && !state.vassalage?.overlord) {
       actions.push('propose_embargo');
     }
 
     // League (requires writing tech, not in a league, not vassal)
-    const hasWritingTech = completedTechs.some(t => ['science-writing', 'communication-writing', 'writing'].includes(t));
+    const hasWritingTech = completedTechs.some(t => WRITING_TECHS.includes(t));
     if (hasWritingTech && !state.vassalage?.overlord) {
       actions.push('propose_league');
     }
@@ -808,7 +811,8 @@ export function onVassalAttacked(
 
 // --- Embargoes ---
 
-const EMBARGO_TECHS = ['currency', 'foreign-trade', 'banking'];
+// IDs must exist in TECH_TREE — see tests/systems/diplomacy-tech-gates.test.ts
+export const EMBARGO_TECHS = ['currency', 'banking'];
 
 export function canProposeEmbargo(
   completedTechs: string[],
@@ -918,7 +922,8 @@ export function endVassalageUnilateral(
 
 // --- Defensive Leagues ---
 
-const WRITING_TECHS = ['science-writing', 'communication-writing', 'writing'];
+// IDs must exist in TECH_TREE — see tests/systems/diplomacy-tech-gates.test.ts
+export const WRITING_TECHS = ['writing'];
 
 export function canProposeLeague(
   completedTechs: string[],

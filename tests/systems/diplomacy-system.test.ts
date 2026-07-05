@@ -213,9 +213,9 @@ describe('diplomacy-system', () => {
       expect(actions).not.toContain('declare_war');
     });
 
-    it('includes non_aggression_pact with civics tech', () => {
+    it('includes non_aggression_pact with diplomacy-tech', () => {
       const state = createDiplomacyState(civIds, 'player');
-      const actions = getAvailableActions(state, 'ai-egypt', ['code-of-laws'], 1);
+      const actions = getAvailableActions(state, 'ai-egypt', ['diplomacy-tech'], 1);
       expect(actions).toContain('non_aggression_pact');
     });
 
