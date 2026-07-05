@@ -65,6 +65,37 @@ function createCanvas(): HTMLCanvasElement {
 describe('render-loop wrap parity', () => {
   (globalThis as typeof globalThis & { window?: unknown }).window = { devicePixelRatio: 1 } as Window & typeof globalThis;
 
+  it('draws water-recovery highlights with the amber recovery color', () => {
+    rendererMocks.drawHexHighlight.mockReset();
+    const loop = new RenderLoop(createCanvas());
+    const state = {
+      turn: 1,
+      currentPlayer: 'player',
+      map: { width: 5, height: 3, wrapsHorizontally: false, tiles: {}, rivers: [] },
+      tribalVillages: {},
+      minorCivs: {},
+      cities: {},
+      units: {},
+      civilizations: {
+        player: { color: '#4a90d9', visibility: { tiles: {} } },
+      },
+    } as unknown as GameState;
+
+    loop.setGameState(state);
+    loop.setHighlights([{ coord: { q: 0, r: 0 }, type: 'water-recovery' }]);
+    loop.camera.isHexVisible = () => true;
+
+    (loop as unknown as { render: () => void }).render();
+
+    expect(rendererMocks.drawHexHighlight).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.any(Number),
+      expect.any(Number),
+      expect.any(Number),
+      'rgba(245, 184, 73, 0.55)',
+    );
+  });
+
   it('mirrors movement highlights through the horizontal seam', () => {
     rendererMocks.drawHexHighlight.mockReset();
     const loop = new RenderLoop(createCanvas());

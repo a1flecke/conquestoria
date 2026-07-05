@@ -8,6 +8,71 @@ import { createUnit } from '@/systems/unit-system';
 const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
 
 describe('selected-unit-highlights', () => {
+  it('marks legal non-combat land exits as water-recovery without changing movement truth', () => {
+    const state = createNewGame(undefined, 'water-recovery-highlight', 'small');
+    state.currentPlayer = 'player';
+    state.units = {
+      warrior: {
+        ...createUnit('warrior', 'player', { q: 1, r: 1 }, mkC()),
+        id: 'warrior',
+        movementPointsLeft: 2,
+      },
+    };
+    state.civilizations.player.units = ['warrior'];
+    state.civilizations.player.visibility.tiles = { '1,1': 'visible', '2,1': 'visible' };
+    state.map.tiles['1,1'] = {
+      ...state.map.tiles['1,1'],
+      coord: { q: 1, r: 1 },
+      terrain: 'coast',
+    };
+    state.map.tiles['2,1'] = {
+      ...state.map.tiles['2,1'],
+      coord: { q: 2, r: 1 },
+      terrain: 'plains',
+    };
+
+    const result = buildSelectedUnitHighlights(state, 'warrior');
+
+    expect(result.waterRecovery.kind).toBe('recoverable');
+    expect(result.movementRange.map(hexKey)).toContain('2,1');
+    expect(result.highlights).toContainEqual({
+      coord: { q: 2, r: 1 },
+      type: 'water-recovery',
+    });
+  });
+
+  it('keeps hostile land targets as attack highlights during water recovery', () => {
+    const state = createNewGame(undefined, 'water-recovery-attack', 'small');
+    state.currentPlayer = 'player';
+    state.units = {
+      warrior: {
+        ...createUnit('warrior', 'player', { q: 1, r: 1 }, mkC()),
+        id: 'warrior',
+        movementPointsLeft: 2,
+      },
+      enemy: {
+        ...createUnit('warrior', 'ai-1', { q: 2, r: 1 }, mkC()),
+        id: 'enemy',
+      },
+    };
+    state.civilizations.player.units = ['warrior'];
+    state.civilizations.player.diplomacy.atWarWith = ['ai-1'];
+    state.civilizations.player.visibility.tiles = { '1,1': 'visible', '2,1': 'visible' };
+    state.map.tiles['1,1'] = { ...state.map.tiles['1,1'], terrain: 'coast' };
+    state.map.tiles['2,1'] = { ...state.map.tiles['2,1'], terrain: 'plains' };
+
+    const result = buildSelectedUnitHighlights(state, 'warrior');
+
+    expect(result.highlights).toContainEqual({
+      coord: { q: 2, r: 1 },
+      type: 'attack',
+    });
+    expect(result.highlights).not.toContainEqual({
+      coord: { q: 2, r: 1 },
+      type: 'water-recovery',
+    });
+  });
+
   it('does not mark non-adjacent melee targets as attack highlights', () => {
     const state = createNewGame(undefined, 'melee-highlight', 'small');
     state.currentPlayer = 'player';
