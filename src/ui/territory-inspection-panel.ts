@@ -150,6 +150,8 @@ export function createTerritoryInspectionPanel(
     }
   }
   if (tile.improvement !== 'none') addLine(panel, 'Improvement', getImprovementDisplayName(tile.improvement));
+  if (tile.hasRoad) addLine(panel, 'Road', 'Built');
+  else if ((tile.roadTurnsLeft ?? 0) > 0) addLine(panel, 'Road', `In progress (${tile.roadTurnsLeft} turns)`);
   if (tile.wonder) addLine(panel, 'Wonder', getWonderDefinition(tile.wonder)?.name ?? tile.wonder);
 
   if (visibility === 'fog') {

@@ -144,6 +144,10 @@ Canvas-drawn emoji icons. Target: replace with proper SVG marker images.
 | quarry | ⚠️ `'⚒️'` emoji |
 | resource_outpost | ✅ SVG marker (`src/renderer/improvements/resource-outpost-marker.ts`) |
 
+Roads are **not** an improvement marker — they're a tile overlay (`HexTile.hasRoad`) drawn as
+programmatic canvas lines between hex centers in `src/renderer/hex-renderer.ts` → `drawRoads`,
+the same technique used for rivers (`drawRivers`). No sprite art exists or is planned yet.
+
 ### Legendary Wonders — `src/systems/legendary-wonder-definitions.ts`
 No map sprites yet. Production queue falls back to `'🏗️'`. Codex images exist in `public/images/wonders/codex/*.jpg` (lore art only, not map sprites).
 

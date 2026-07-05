@@ -606,3 +606,62 @@ describe('AI tactical action ranking', () => {
     expect(foundings).toHaveLength(1);
   });
 });
+
+describe('AI road-building', () => {
+  it('queues build_road for an idle worker standing on the road-building target tile', () => {
+    const state = makeState('veteran');
+    state.civilizations[AI].techState.completed = ['road-building'];
+    const capital = addCity(state, 'capital', AI, { q: 0, r: 0 });
+    const outpost = addCity(state, 'outpost', AI, { q: 2, r: 0 });
+    for (const key of Object.keys(state.map.tiles)) {
+      state.map.tiles[key].owner = AI;
+    }
+    const worker = addUnit(state, 'road-worker', 'worker', AI, { q: 1, r: 0 });
+    const plan = makePlan(
+      { kind: 'region', id: 'infra', anchor: capital.position },
+      [worker.id],
+      { objective: 'expand', requiredRoles: {} },
+    );
+
+    const action = chooseUnitTacticalAction(context(state, plan), worker.id);
+    expect(action).toEqual({ kind: 'worker-action', unitId: worker.id, action: 'build_road' });
+    expect(outpost.id).toBe('outpost'); // sanity: second city exists and is the disconnection target
+  });
+
+  it('moves the worker toward the road target when not yet standing on it', () => {
+    const state = makeState('veteran');
+    state.civilizations[AI].techState.completed = ['road-building'];
+    addCity(state, 'capital', AI, { q: 0, r: 0 });
+    addCity(state, 'outpost', AI, { q: 2, r: 0 });
+    for (const key of Object.keys(state.map.tiles)) {
+      state.map.tiles[key].owner = AI;
+    }
+    const worker = addUnit(state, 'road-worker', 'worker', AI, { q: 0, r: 1 });
+    const plan = makePlan(
+      { kind: 'region', id: 'infra', anchor: { q: 0, r: 0 } },
+      [worker.id],
+      { objective: 'expand', requiredRoles: {} },
+    );
+
+    const action = chooseUnitTacticalAction(context(state, plan), worker.id);
+    expect(action.kind).toBe('move');
+  });
+
+  it('does not queue road-building without the tech (negative)', () => {
+    const state = makeState('veteran');
+    addCity(state, 'capital', AI, { q: 0, r: 0 });
+    addCity(state, 'outpost', AI, { q: 2, r: 0 });
+    for (const key of Object.keys(state.map.tiles)) {
+      state.map.tiles[key].owner = AI;
+    }
+    const worker = addUnit(state, 'road-worker', 'worker', AI, { q: 1, r: 0 });
+    const plan = makePlan(
+      { kind: 'region', id: 'infra', anchor: { q: 0, r: 0 } },
+      [worker.id],
+      { objective: 'expand', requiredRoles: {} },
+    );
+
+    const action = chooseUnitTacticalAction(context(state, plan), worker.id);
+    expect(action.kind === 'worker-action' ? action.action : null).not.toBe('build_road');
+  });
+});

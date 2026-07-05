@@ -394,6 +394,8 @@ function executeAction(
       for (const event of result.events) {
         if (event.type === 'improvement:started') {
           bus.emit('improvement:started', event.payload);
+        } else if (event.type === 'road:started') {
+          bus.emit('road:started', event.payload);
         } else {
           bus.emit('unit:destroyed', event.payload);
         }

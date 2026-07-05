@@ -95,6 +95,7 @@ function createTilePresentation(
     owner: tile.owner,
     hasRiver: tile.hasRiver,
     wonder: tile.wonder,
+    hasRoad: tile.hasRoad,
     city: city
       ? { id: city.id, name: city.name, owner: city.owner, population: city.population }
       : undefined,

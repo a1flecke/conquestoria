@@ -13,6 +13,8 @@ import {
   getTerrainTechYieldBonus,
   getMaintenanceDiscountMultiplier,
   getLowestCityScienceBonus,
+  getRoadTileTechGold,
+  getConnectedCityTechGold,
 } from '@/systems/tech-yield-system';
 import { TECH_YIELD_MODIFIERS, TECH_COST_DISCOUNTS, getFoundingBonusFood } from '@/systems/tech-yield-definitions';
 import { TECH_TREE } from '@/systems/tech-definitions';
@@ -438,5 +440,45 @@ describe('MR6: foodFromScience (genomics)', () => {
     const withoutGenomics = calculateCityYields(city, map, undefined, []);
     const withoutGenomicsAgain = calculateCityYields(city, map, undefined, []);
     expect(withoutGenomics.food).toBe(withoutGenomicsAgain.food);
+  });
+});
+
+describe('MR7: getRoadTileTechGold (postal-service)', () => {
+  it('is a no-op without the tech', () => {
+    expect(getRoadTileTechGold([], 7)).toBe(0);
+  });
+
+  it('grants +1 gold per owned road tile', () => {
+    expect(getRoadTileTechGold(['postal-service'], 4)).toBe(4);
+  });
+
+  it('caps at +10 regardless of road tile count', () => {
+    expect(getRoadTileTechGold(['postal-service'], 25)).toBe(10);
+  });
+});
+
+describe('MR7: getConnectedCityTechGold (courier-network / colonial-railways / transcontinental-rail)', () => {
+  it('is a no-op without any of the techs', () => {
+    expect(getConnectedCityTechGold([], 3)).toBe(0);
+  });
+
+  it('is a no-op for an unconnected city count of zero', () => {
+    expect(getConnectedCityTechGold(['courier-network', 'colonial-railways'], 0)).toBe(0);
+  });
+
+  it('courier-network alone grants +1 gold per connected city', () => {
+    expect(getConnectedCityTechGold(['courier-network'], 3)).toBe(3);
+  });
+
+  it('colonial-railways stacks with courier-network for +3 gold per connected city', () => {
+    expect(getConnectedCityTechGold(['courier-network', 'colonial-railways'], 2)).toBe(6);
+  });
+
+  it('transcontinental-rail requires railway-expansion too before it stacks in', () => {
+    expect(getConnectedCityTechGold(['courier-network', 'colonial-railways', 'transcontinental-rail'], 1)).toBe(3);
+    expect(getConnectedCityTechGold(
+      ['courier-network', 'colonial-railways', 'transcontinental-rail', 'railway-expansion'],
+      1,
+    )).toBe(5);
   });
 });

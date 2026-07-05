@@ -1,12 +1,12 @@
 import type { GameState, HexCoord, Unit, VisibilityMap } from '@/core/types';
 import { Camera } from './camera';
-import { drawHexMap, drawRivers, drawMinorCivTerritory, drawHexHighlight } from './hex-renderer';
+import { drawHexMap, drawRivers, drawRoads, drawMinorCivTerritory, drawHexHighlight } from './hex-renderer';
 import { MINOR_CIV_DEFINITIONS } from '@/systems/minor-civ-definitions';
 import { drawFogOfWar } from './fog-renderer';
 import { drawUnitPresentations } from './unit-renderer';
 import { drawCities } from './city-renderer';
 import { AnimationSystem } from './animation-system';
-import { hexToPixel } from '@/systems/hex-utils';
+import { hexToPixel, hexKey } from '@/systems/hex-utils';
 import { getHorizontalWrapRenderCoords } from './wrap-rendering';
 import { getVisibility } from '@/systems/fog-of-war';
 import { createMovementAnimation, getMovementAnimationPosition, getMovingUnitIds, type UnitMovementAnimation } from './unit-movement-animation';
@@ -446,6 +446,10 @@ export class RenderLoop {
 
     // Draw rivers
     drawRivers(this.ctx, this.state.map, this.camera, viewerVisibility);
+
+    // Draw roads (overlay, drawn under units — see drawUnits below)
+    const cityTileKeys = new Set(Object.values(this.state.cities).map(city => hexKey(city.position)));
+    drawRoads(this.ctx, this.state.map, this.camera, cityTileKeys, viewerVisibility);
 
     // Draw minor civ territory
     if (this.state.minorCivs) {

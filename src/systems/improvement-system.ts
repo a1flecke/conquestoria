@@ -217,14 +217,17 @@ export function canDrainSwamp(
   return tile.terrain === 'swamp' && tile.improvement === 'none';
 }
 
+/** Improvement/drain_swamp actions only — road building is a separate overlay handled by road-system.ts. */
+export type ImprovementWorkerActionType = BuildableImprovementType | 'drain_swamp';
+
 export function getAvailableWorkerActions(
   tile: HexTile | undefined,
   completedTechs: string[] = [],
   ownerId?: string,
   options: WorkerActionEligibilityOptions = {},
-): WorkerActionType[] {
+): ImprovementWorkerActionType[] {
   if (!tile) return [];
-  const actions: WorkerActionType[] = [];
+  const actions: ImprovementWorkerActionType[] = [];
   for (const type of Object.keys(IMPROVEMENT_DEFINITIONS) as BuildableImprovementType[]) {
     if (canBuildImprovement(tile, type, completedTechs, ownerId, options)) actions.push(type);
   }
@@ -234,7 +237,7 @@ export function getAvailableWorkerActions(
 
 export function getWorkerActionBlockerReason(
   tile: HexTile | undefined,
-  action: WorkerActionType,
+  action: ImprovementWorkerActionType,
   completedTechs: string[] = [],
   ownerId?: string,
   options: WorkerActionEligibilityOptions = {},
@@ -297,7 +300,7 @@ export function formatImprovementYieldLabel(type: ImprovementType): string {
   return parts.length ? `(${parts.join(', ')})` : '';
 }
 
-export function getWorkerActionLabel(action: WorkerActionType): string {
+export function getWorkerActionLabel(action: ImprovementWorkerActionType): string {
   if (action === 'drain_swamp') return 'Drain Swamp (20% worker risk)';
   const yieldLabel = formatImprovementYieldLabel(action);
   return `Build ${getImprovementDisplayName(action)}${yieldLabel ? ` ${yieldLabel}` : ''}`;

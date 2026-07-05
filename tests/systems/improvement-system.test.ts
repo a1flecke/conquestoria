@@ -383,11 +383,11 @@ describe('getWorkerActionBlockerReason — missing-resource', () => {
   }
 
   it('plantation on grassland without resource returns missing-resource', () => {
-    expect(getWorkerActionBlockerReason(rt('grassland'), 'plantation' as import('@/core/types').WorkerActionType)).toBe('missing-resource');
+    expect(getWorkerActionBlockerReason(rt('grassland'), 'plantation' as import('@/systems/improvement-system').ImprovementWorkerActionType)).toBe('missing-resource');
   });
 
   it('plantation on grassland with known silk returns none', () => {
-    expect(getWorkerActionBlockerReason(rt('grassland', 'silk'), 'plantation' as import('@/core/types').WorkerActionType, [], undefined, { knownResource: 'silk' })).toBe('none');
+    expect(getWorkerActionBlockerReason(rt('grassland', 'silk'), 'plantation' as import('@/systems/improvement-system').ImprovementWorkerActionType, [], undefined, { knownResource: 'silk' })).toBe('none');
   });
 
   it('formatWorkerActionBlockerReason missing-resource returns human-readable message', () => {

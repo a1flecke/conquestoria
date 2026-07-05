@@ -679,12 +679,27 @@ export function getMovementStepCost(
   const tile = map.tiles[hexKey(to)];
   if (!tile) return Infinity;
 
-  const terrainCost = getMovementCostForUnitInContext(unit, tile.terrain, context);
-  if (terrainCost === Infinity) return Infinity;
-
   const domain = UNIT_DEFINITIONS[unit.type]?.domain ?? 'land';
+  const completedTechs = context.completedTechs ?? [];
+  let terrainCost: number;
+
+  if (domain === 'land' && tile.hasRoad) {
+    // Roads cost 1 movement regardless of terrain; Military Logistics OR Railway
+    // Expansion halves that to 0.5 — the two do not stack (see game-balance.md).
+    const hasRoadDiscount = completedTechs.includes('military-logistics')
+      || completedTechs.includes('railway-expansion');
+    terrainCost = hasRoadDiscount ? 0.5 : 1;
+  } else {
+    terrainCost = getMovementCostForUnitInContext(unit, tile.terrain, context);
+    if (terrainCost === Infinity) return Infinity;
+
+    if (domain === 'land' && tile.owner === unit.owner && completedTechs.includes('gps-navigation')) {
+      terrainCost = 1;
+    }
+  }
+
   const crossesUnbridgedRiver = domain !== 'naval' && domain !== 'air'
-    && !context.completedTechs?.includes('bridge-building')
+    && !completedTechs.includes('bridge-building')
     && isRiverBetween(map, from, to);
   return terrainCost + (crossesUnbridgedRiver ? 1 : 0);
 }

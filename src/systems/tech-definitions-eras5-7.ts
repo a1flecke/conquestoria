@@ -115,7 +115,7 @@ const ERA_5_TECHS: Tech[] = [
     unlocks: ['+1 science per library empire-wide'], era: 5 },
   { id: 'postal-service', name: 'Postal Service', track: 'communication', cost: 145,
     prerequisites: ['road-building'],
-    unlocks: ['+1 gold per road tile in empire'], era: 5 },
+    unlocks: ['+1 gold per road tile in your territory (max +10)'], era: 5 },
 
   // ESPIONAGE (2)
   { id: 'black-chambers', name: 'Black Chambers', track: 'espionage', cost: 155,
@@ -237,7 +237,7 @@ const ERA_6_TECHS: Tech[] = [
     unlocks: ['+2 science empire-wide'], era: 6 },
   { id: 'courier-network', name: 'Courier Network', track: 'communication', cost: 180,
     prerequisites: ['postal-service'],
-    unlocks: ['+1 gold per road connection between your cities'], era: 6 },
+    unlocks: ['+1 gold per own city connected by road to your capital'], era: 6 },
 
   // ESPIONAGE (2)
   { id: 'counter-espionage', name: 'Counter-Espionage', track: 'espionage', cost: 185,
@@ -296,7 +296,7 @@ const ERA_7_TECHS: Tech[] = [
   // EXPLORATION (2)
   { id: 'colonial-railways', name: 'Colonial Railways', track: 'exploration', cost: 200,
     prerequisites: ['land-survey', 'courier-network'],
-    unlocks: ['+2 gold per city connected by road to capital; railway construction speeds up settler founding'], era: 7 },
+    unlocks: ['+2 gold per city connected by road to your capital'], era: 7 },
   { id: 'manifest-destiny', name: 'Manifest Destiny', track: 'exploration', cost: 210,
     prerequisites: ['colonial-administration', 'land-survey'],
     unlocks: ['Settlers cost 20% less production; frontier cities founded with +5 food bonus'], era: 7 },
@@ -347,7 +347,7 @@ const ERA_7_TECHS: Tech[] = [
     unlocks: ['Steel Mill unlocked — advanced iron processing building'], unlocksBuildings: ['steel_mill'], era: 7 },
   { id: 'railway-expansion', name: 'Railway Expansion', track: 'metallurgy', cost: 215,
     prerequisites: ['precision-casting', 'fortification-engineering'],
-    unlocks: ['Land units move ×2 on road tiles; National Railway national project available'], unlocksBuildings: ['national_railway'], era: 7 },
+    unlocks: ['Roads become railways: half movement on roads (does not stack with Military Logistics); National Railway national project available'], unlocksBuildings: ['national_railway'], era: 7 },
 
   // CONSTRUCTION (2)
   { id: 'urban-planning', name: 'Urban Planning', track: 'construction', cost: 200,
