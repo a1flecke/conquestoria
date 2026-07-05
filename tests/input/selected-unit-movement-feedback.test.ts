@@ -50,13 +50,14 @@ describe('selected-unit blocked movement feedback', () => {
     );
     const showNotification = vi.fn();
     const reselectUnit = vi.fn();
+    const playError = vi.fn();
 
     const handled = handleSelectedUnitMovementBlocker(
       state,
       'warrior',
       { q: 1, r: 2 },
       recovery,
-      { showNotification, reselectUnit },
+      { showNotification, reselectUnit, playError },
     );
 
     expect(handled).toBe(true);
@@ -65,6 +66,7 @@ describe('selected-unit blocked movement feedback', () => {
       'warning',
     );
     expect(reselectUnit).toHaveBeenCalledWith('warrior');
+    expect(playError).toHaveBeenCalledTimes(1);
   });
 
   it('keeps generic water copy for an ordinary land unit on land', () => {
@@ -77,7 +79,7 @@ describe('selected-unit blocked movement feedback', () => {
       'warrior',
       { q: 1, r: 2 },
       recovery,
-      { showNotification, reselectUnit: vi.fn() },
+      { showNotification, reselectUnit: vi.fn(), playError: vi.fn() },
     );
 
     expect(showNotification).toHaveBeenCalledWith(
@@ -90,18 +92,38 @@ describe('selected-unit blocked movement feedback', () => {
     const state = feedbackState(true);
     const recovery = getLandUnitWaterRecovery(state, 'warrior', []);
     const showNotification = vi.fn();
+    const playError = vi.fn();
 
     handleSelectedUnitMovementBlocker(
       state,
       'warrior',
       { q: 1, r: 2 },
       recovery,
-      { showNotification, reselectUnit: vi.fn() },
+      { showNotification, reselectUnit: vi.fn(), playError },
     );
 
     expect(showNotification).toHaveBeenCalledWith(
       'This land unit is stranded on water with no reachable land escape this turn.',
       'warning',
     );
+    expect(playError).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not play the error cue for informational fog feedback', () => {
+    const state = feedbackState(false);
+    state.civilizations.player.visibility.tiles['2,1'] = 'unexplored';
+    const showNotification = vi.fn();
+    const playError = vi.fn();
+
+    handleSelectedUnitMovementBlocker(
+      state,
+      'warrior',
+      { q: 2, r: 1 },
+      getLandUnitWaterRecovery(state, 'warrior', []),
+      { showNotification, reselectUnit: vi.fn(), playError },
+    );
+
+    expect(showNotification).toHaveBeenCalledWith('Too far away to spot.', 'info');
+    expect(playError).not.toHaveBeenCalled();
   });
 });

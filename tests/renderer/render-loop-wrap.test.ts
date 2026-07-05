@@ -93,6 +93,7 @@ describe('render-loop wrap parity', () => {
       expect.any(Number),
       expect.any(Number),
       'rgba(245, 184, 73, 0.55)',
+      '#fff0a8',
     );
   });
 

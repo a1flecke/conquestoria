@@ -197,12 +197,16 @@ export function renderSelectedUnitInfo(
   wrapper.appendChild(topRow);
   wrapper.appendChild(descDiv);
 
-  const waterRecoveryMessage = presentation.waterRecovery
-    ? getLandUnitWaterRecoveryPanelMessage(presentation.waterRecovery)
+  const waterRecovery = presentation.waterRecovery;
+  const waterRecoveryMessage = waterRecovery
+    ? getLandUnitWaterRecoveryPanelMessage(waterRecovery)
     : null;
-  if (waterRecoveryMessage) {
+  if (waterRecovery && waterRecoveryMessage) {
     const recoveryLine = document.createElement('div');
-    recoveryLine.style.cssText = 'margin-top:8px;padding:8px;border-radius:8px;background:rgba(245,184,73,0.16);color:#f5b849;font-size:11px;font-weight:600;';
+    recoveryLine.dataset.waterRecoveryKind = waterRecovery.kind;
+    recoveryLine.setAttribute('role', 'status');
+    recoveryLine.setAttribute('aria-live', 'polite');
+    recoveryLine.style.cssText = 'margin-top:8px;padding:8px;border:1px solid rgba(245,184,73,0.45);border-radius:8px;background:rgba(245,184,73,0.16);color:#f5b849;font-size:12px;font-weight:600;line-height:1.4;';
     recoveryLine.textContent = waterRecoveryMessage;
     wrapper.appendChild(recoveryLine);
   }

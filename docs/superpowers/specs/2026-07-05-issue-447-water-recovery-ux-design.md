@@ -71,7 +71,9 @@ When recovery is `recoverable`:
 - hostile land targets remain attack highlights and are not presented as guaranteed
   recovery exits.
 
-The renderer gives `water-recovery` a distinct amber treatment. Ordinary move, attack,
+The renderer gives `water-recovery` a distinct amber treatment with a pale
+high-contrast outline. The outline keeps the recovery affordance visible on yellow
+plains and other terrain whose base palette is close to amber. Ordinary move, attack,
 and worker guidance colors remain unchanged.
 
 `selectUnit` passes the derived recovery result to `renderSelectedUnitInfo`. The panel
@@ -98,6 +100,20 @@ recovery-specific guidance:
 
 The tap does not mutate state, deselect the unit, or clear highlights. A normal land unit
 standing on land continues to receive `Land units cannot cross water yet.`
+
+Warning-level blocked taps play the standard invalid-action error cue and silently
+refresh the selected-unit presentation. They must not replay the ordinary unit-selection
+cue. Informational fog/unknown-tile feedback keeps the notification cue without adding
+the error cue.
+
+## Accessibility and mobile presentation
+
+Recovery guidance is a polite status region with a stable recovery-kind data attribute
+for browser regression coverage. Its text is at least 12px with a bordered treatment and
+must remain fully contained in the 390px mobile viewport.
+
+Route-committed units are excluded from recovery presentation because the player cannot
+manually move them. Their selection has no movement, attack, or recovery highlights.
 
 ## Player truth table
 
@@ -160,6 +176,14 @@ Add the smallest regressions that prove the contract:
 - live flow:
   - an invalid water tap preserves selection/highlights;
   - moving ashore removes the derived recovery presentation on rerender.
+- browser replay:
+  - load a real saved-game fixture containing a Warrior on coast;
+  - select it through the live stack picker;
+  - verify amber fill plus high-contrast outlines and panel status guidance;
+  - tap water and verify contextual warning, error cue, no selection cue, and preserved
+    guidance;
+  - move ashore and verify recovery presentation disappears;
+  - repeat the presentation check at a 390px mobile viewport.
 
 ## Verification
 

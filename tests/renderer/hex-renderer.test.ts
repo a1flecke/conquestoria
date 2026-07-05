@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import type { Camera } from '@/renderer/camera';
-import { drawHexMap, drawMinorCivTerritory, IMPROVEMENT_ICONS } from '@/renderer/hex-renderer';
+import {
+  drawHexHighlight,
+  drawHexMap,
+  drawMinorCivTerritory,
+  IMPROVEMENT_ICONS,
+} from '@/renderer/hex-renderer';
 import type { GameMap, VisibilityMap } from '@/core/types';
 
 class MockCanvasContext {
@@ -186,6 +191,25 @@ describe('hex renderer privacy', () => {
 
     expect((ctx as unknown as MockCanvasContext).strokeCalls.length).toBeGreaterThan(0);
     expect((ctx as unknown as MockCanvasContext).strokeCalls.length).toBeLessThan(19);
+  });
+});
+
+describe('hex highlight rendering', () => {
+  it('adds a high-contrast outline when the highlight style supplies one', () => {
+    const mock = new MockCanvasContext();
+
+    drawHexHighlight(
+      mock as unknown as CanvasRenderingContext2D,
+      50,
+      50,
+      48,
+      'rgba(245, 184, 73, 0.55)',
+      '#fff0a8',
+    );
+
+    expect(mock.fillStyle).toBe('rgba(245, 184, 73, 0.55)');
+    expect(mock.strokeCalls).toEqual(['#fff0a8']);
+    expect(mock.lineWidth).toBe(3);
   });
 });
 

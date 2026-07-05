@@ -41,7 +41,10 @@ import { buildCombatContextForDefender } from '@/systems/combat-context';
 import { canUnitAttackTarget } from '@/systems/attack-targeting';
 import { buildSelectedUnitHighlights } from '@/input/selected-unit-highlights';
 import { handleSelectedUnitMovementBlocker } from '@/input/selected-unit-movement-feedback';
-import { getLandUnitWaterRecovery } from '@/systems/unit-water-recovery';
+import {
+  NO_LAND_UNIT_WATER_RECOVERY,
+  type LandUnitWaterRecovery,
+} from '@/systems/unit-water-recovery';
 import { applyCombatOutcomeToState } from '@/systems/combat-reward-system';
 import { recordCombatForCiv } from '@/systems/threat-pressure-system';
 import { applyWorkerAction } from '@/systems/worker-action-system';
@@ -244,6 +247,7 @@ import { applyStrategicWarningTransitions } from '@/systems/strategic-warning-sy
 let gameState: GameState;
 let drawer: TreasuryDrawer;
 let selectedUnitId: string | null = null;
+let selectedUnitWaterRecovery: LandUnitWaterRecovery = NO_LAND_UNIT_WATER_RECOVERY;
 let selectedPirateFactionId: string | null = null;
 let selectedPirateHistoryId: string | null = null;
 let movementRange: HexCoord[] = [];
@@ -1624,7 +1628,13 @@ function openUnitStackPicker(coord: HexCoord, unitIds: string[]): void {
   }, { selectedUnitId });
 }
 
-function selectUnit(unitId: string, opts?: { pendingUnloadUnitName?: string }): void {
+function selectUnit(
+  unitId: string,
+  opts?: {
+    pendingUnloadUnitName?: string;
+    suppressSelectionSfx?: boolean;
+  },
+): void {
   if (renderLoop.hasMovingUnit(unitId)) {
     showNotification('Unit is moving.', 'info');
     return;
@@ -1635,6 +1645,7 @@ function selectUnit(unitId: string, opts?: { pendingUnloadUnitName?: string }): 
   renderLoop.setSelectedUnitId(unitId);
 
   const highlightResult = buildSelectedUnitHighlights(gameState, unitId);
+  selectedUnitWaterRecovery = highlightResult.waterRecovery;
   if (gameState.units[unitId]?.committedToRouteId) {
     // Committed caravans cannot move or attack — keep highlights empty
     movementRange = [];
@@ -1987,11 +1998,12 @@ function selectUnit(unitId: string, opts?: { pendingUnloadUnitName?: string }): 
     }, { waterRecovery: highlightResult.waterRecovery });
   }
 
-  SFX.select();
+  if (!opts?.suppressSelectionSfx) SFX.select();
 }
 
 function deselectUnit(): void {
   selectedUnitId = null;
+  selectedUnitWaterRecovery = NO_LAND_UNIT_WATER_RECOVERY;
   renderLoop.setSelectedUnitId(null);
   movementRange = [];
   attackRange = [];
@@ -2627,21 +2639,15 @@ function handleHexTap(rawCoord: HexCoord): void {
           return;
         }
       }
-      const nonCombatMovementRange = movementRange.filter(moveCoord =>
-        !attackRange.some(target => hexKey(target) === hexKey(moveCoord)));
-      const waterRecovery = getLandUnitWaterRecovery(
-        gameState,
-        selectedUnitId,
-        nonCombatMovementRange,
-      );
       if (handleSelectedUnitMovementBlocker(
         gameState,
         selectedUnitId,
         coord,
-        waterRecovery,
+        selectedUnitWaterRecovery,
         {
           showNotification,
-          reselectUnit: selectUnit,
+          reselectUnit: unitId => selectUnit(unitId, { suppressSelectionSfx: true }),
+          playError: SFX.error,
         },
       )) {
         return;

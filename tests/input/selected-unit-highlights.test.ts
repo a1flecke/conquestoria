@@ -41,6 +41,47 @@ describe('selected-unit-highlights', () => {
     });
   });
 
+  it('derives recovery for the active hot-seat player instead of a hardcoded owner', () => {
+    const state = createNewGame(undefined, 'water-recovery-hot-seat-viewer', 'small');
+    state.currentPlayer = 'ai-1';
+    state.hotSeat = {
+      playerCount: 2,
+      mapSize: 'small',
+      players: [
+        { name: 'Player One', slotId: 'player', civType: 'generic', isHuman: true },
+        { name: 'Player Two', slotId: 'ai-1', civType: 'generic', isHuman: true },
+      ],
+    };
+    state.units = {
+      warrior: {
+        ...createUnit('warrior', 'ai-1', { q: 1, r: 1 }, mkC()),
+        id: 'warrior',
+        movementPointsLeft: 2,
+      },
+    };
+    state.civilizations.player.units = [];
+    state.civilizations['ai-1'].units = ['warrior'];
+    state.civilizations['ai-1'].visibility.tiles = { '1,1': 'visible', '2,1': 'visible' };
+    state.map.tiles['1,1'] = {
+      ...state.map.tiles['1,1'],
+      coord: { q: 1, r: 1 },
+      terrain: 'coast',
+    };
+    state.map.tiles['2,1'] = {
+      ...state.map.tiles['2,1'],
+      coord: { q: 2, r: 1 },
+      terrain: 'plains',
+    };
+
+    const result = buildSelectedUnitHighlights(state, 'warrior');
+
+    expect(result.waterRecovery.kind).toBe('recoverable');
+    expect(result.highlights).toContainEqual({
+      coord: { q: 2, r: 1 },
+      type: 'water-recovery',
+    });
+  });
+
   it('keeps hostile land targets as attack highlights during water recovery', () => {
     const state = createNewGame(undefined, 'water-recovery-attack', 'small');
     state.currentPlayer = 'player';
@@ -71,6 +112,38 @@ describe('selected-unit-highlights', () => {
       coord: { q: 2, r: 1 },
       type: 'water-recovery',
     });
+  });
+
+  it('does not offer water recovery to a route-committed land unit', () => {
+    const state = createNewGame(undefined, 'water-recovery-committed-route', 'small');
+    state.currentPlayer = 'player';
+    state.units = {
+      caravan: {
+        ...createUnit('caravan', 'player', { q: 1, r: 1 }, mkC()),
+        id: 'caravan',
+        movementPointsLeft: 3,
+        committedToRouteId: 'route-1',
+      },
+    };
+    state.civilizations.player.units = ['caravan'];
+    state.civilizations.player.visibility.tiles = { '1,1': 'visible', '2,1': 'visible' };
+    state.map.tiles['1,1'] = {
+      ...state.map.tiles['1,1'],
+      coord: { q: 1, r: 1 },
+      terrain: 'coast',
+    };
+    state.map.tiles['2,1'] = {
+      ...state.map.tiles['2,1'],
+      coord: { q: 2, r: 1 },
+      terrain: 'plains',
+    };
+
+    const result = buildSelectedUnitHighlights(state, 'caravan');
+
+    expect(result.waterRecovery).toEqual({ kind: 'none', destinations: [] });
+    expect(result.movementRange).toEqual([]);
+    expect(result.attackTargets).toEqual([]);
+    expect(result.highlights).toEqual([]);
   });
 
   it('does not mark non-adjacent melee targets as attack highlights', () => {

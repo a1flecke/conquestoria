@@ -158,6 +158,10 @@ const HEX_HIGHLIGHT_COLORS: Record<HexHighlight['type'], string> = {
   'worker-foreign-blocked': 'rgba(217, 74, 74, 0.35)',
 };
 
+const HEX_HIGHLIGHT_OUTLINES: Partial<Record<HexHighlight['type'], string>> = {
+  'water-recovery': '#fff0a8',
+};
+
 function prefersReducedMotion(): boolean {
   return typeof window !== 'undefined'
     && typeof window.matchMedia === 'function'
@@ -477,7 +481,8 @@ export class RenderLoop {
         const screen = this.camera.worldToScreen(pixel.x, pixel.y);
         const scaledSize = this.camera.hexSize * this.camera.zoom;
         const color = HEX_HIGHLIGHT_COLORS[highlight.type];
-        drawHexHighlight(this.ctx, screen.x, screen.y, scaledSize, color);
+        const outline = HEX_HIGHLIGHT_OUTLINES[highlight.type];
+        drawHexHighlight(this.ctx, screen.x, screen.y, scaledSize, color, outline);
       }
     }
 

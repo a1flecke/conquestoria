@@ -9,6 +9,7 @@ import {
 export interface SelectedUnitMovementFeedbackCallbacks {
   showNotification: (message: string, type: 'info' | 'warning') => void;
   reselectUnit: (unitId: string) => void;
+  playError: () => void;
 }
 
 export function handleSelectedUnitMovementBlocker(
@@ -40,6 +41,7 @@ export function handleSelectedUnitMovementBlocker(
     ? 'info'
     : 'warning';
   callbacks.showNotification(recoveryMessage ?? reason.message, type);
+  if (type === 'warning') callbacks.playError();
   callbacks.reselectUnit(unitId);
   return true;
 }

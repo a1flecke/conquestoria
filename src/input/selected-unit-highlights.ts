@@ -105,6 +105,14 @@ export function buildSelectedUnitHighlights(state: GameState, unitId: string): S
       waterRecovery: NO_LAND_UNIT_WATER_RECOVERY,
     };
   }
+  if (unit.committedToRouteId) {
+    return {
+      movementRange: [],
+      attackTargets: [],
+      highlights: [],
+      waterRecovery: NO_LAND_UNIT_WATER_RECOVERY,
+    };
+  }
 
   const occupancy = buildUnitOccupancy(state.units);
   const hostileOwners = buildHostileOwners(state, state.currentPlayer);
