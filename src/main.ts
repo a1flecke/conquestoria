@@ -3603,6 +3603,18 @@ bus.on('city:building-dropped', ({ cityId, buildingId }) => {
   );
 });
 
+bus.on('city:cyber-drained', ({ cityName, drainerOwner, goldLost, blocked, victimCivId }) => {
+  const drainerName = gameState.civilizations[drainerOwner]?.name ?? drainerOwner;
+  const victimName = gameState.civilizations[victimCivId]?.name ?? victimCivId;
+  if (blocked) {
+    appendToCivLog(victimCivId, `Cyber Defense Center blocked an intrusion in ${cityName}.`, 'success');
+    appendToCivLog(drainerOwner, `Cyber attack on ${cityName} was blocked by ${victimName}'s Cyber Defense Center.`, 'warning');
+    return;
+  }
+  appendToCivLog(victimCivId, `Cyber attack: ${cityName} lost ${goldLost} gold (${drainerName} cyber unit).`, 'warning');
+  appendToCivLog(drainerOwner, `Cyber unit stole ${goldLost} gold from ${victimName}'s ${cityName}.`, 'success');
+});
+
 bus.on('village:visited', ({ civId, outcome, message }) => {
   if (outcome === 'gold') advisorSystem.resetMessage('treasurer_village_gold');
   if (outcome === 'science') advisorSystem.resetMessage('scholar_village_science');

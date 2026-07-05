@@ -1019,6 +1019,52 @@ describe('renderSelectedUnitInfo - fortify button', () => {
   });
 });
 
+describe('renderSelectedUnitInfo - upgrade button building gate', () => {
+  beforeEach(installMockDocument);
+  afterEach(restoreMockDocument);
+
+  function makeJetFighterState(cityBuildings: string[]): GameState {
+    return {
+      turn: 1, era: 12, currentPlayer: 'player', gameOver: false, winner: null,
+      map: { width: 10, height: 10, tiles: {}, wrapsHorizontally: false, rivers: [] },
+      units: {
+        'jet-1': { id: 'jet-1', type: 'jet_fighter', owner: 'player', position: { q: 0, r: 0 }, health: 100, experience: 0, movementPointsLeft: 2, hasMoved: false, hasActed: false, isResting: false },
+      },
+      cities: {
+        'city-1': { id: 'city-1', owner: 'player', position: { q: 0, r: 0 }, buildings: cityBuildings },
+      },
+      civilizations: {
+        player: { color: '#fff', gold: 1000, techState: { completed: ['jet-aviation', 'stealth-technology'] } },
+      },
+    } as unknown as GameState;
+  }
+
+  it('renders the Upgrade button when the city has stealth_airbase', () => {
+    const state = makeJetFighterState(['stealth_airbase']);
+    const container = new MockElement('div');
+
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'jet-1', {
+      onUpgradeUnit: () => {},
+    });
+
+    const texts = findButtons(container).map(b => b.textContent);
+    expect(texts.some(t => t.startsWith('Upgrade → Stealth Bomber'))).toBe(true);
+  });
+
+  it('hides the Upgrade button and shows a missing-building reason when stealth_airbase is absent', () => {
+    const state = makeJetFighterState([]);
+    const container = new MockElement('div');
+
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'jet-1', {
+      onUpgradeUnit: () => {},
+    });
+
+    const texts = findButtons(container).map(b => b.textContent);
+    expect(texts.some(t => t.startsWith('Upgrade'))).toBe(false);
+    expect(collectAllText(container).join(' ')).toContain('Stealth Airbase');
+  });
+});
+
 describe('renderSelectedUnitInfo - transport actions', () => {
   beforeEach(installMockDocument);
   afterEach(restoreMockDocument);
