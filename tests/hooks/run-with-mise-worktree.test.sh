@@ -58,6 +58,13 @@ exit 0
 EOF
 chmod +x "$fake_bin/mise"
 
+cat > "$fake_bin/node" <<'EOF'
+#!/bin/sh
+echo "worktree wrapper invoked node outside mise" >&2
+exit 43
+EOF
+chmod +x "$fake_bin/node"
+
 linked_git_dir="$(git -C "$linked" rev-parse --git-dir)"
 
 rm -f "$mise_log"
@@ -104,6 +111,19 @@ cat > "$linked/tests/hooks/run.sh" <<'EOF'
 }
 EOF
 chmod +x "$linked/tests/hooks/run.sh"
+
+rm -f "$mise_log"
+(
+  cd "$linked"
+  PATH="$fake_bin:$PATH" \
+    MISE_LOG="$mise_log" \
+    ./scripts/run-with-mise.sh yarn build
+)
+grep -Fq "$linked|exec -- node $linked/scripts/version-sw-cache.mjs" "$mise_log" || {
+  echo "worktree build did not route service-worker versioning through mise"
+  exit 1
+}
+
 verify_marker="$tmpdir/linked-verifier-ran"
 cat > "$linked/scripts/verify-before-push.sh" <<EOF
 #!/bin/sh
