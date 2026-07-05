@@ -20,6 +20,24 @@ describe('campaign entry wiring', () => {
   });
 });
 
+describe('land-unit water recovery wiring', () => {
+  it('routes the live selected-unit panel and blocked-tap path through recovery helpers', () => {
+    const main = readFileSync(resolve(PROJECT_ROOT, 'src/main.ts'), 'utf8');
+    const selectFlow = main.slice(
+      main.indexOf('function selectUnit('),
+      main.indexOf('function deselectUnit('),
+    );
+    const tapFlow = main.slice(
+      main.indexOf('const selectedUnitCanMoveToTappedHex'),
+      main.indexOf('const defenderEntryAtHex'),
+    );
+
+    expect(selectFlow).toContain('waterRecovery: highlightResult.waterRecovery');
+    expect(tapFlow).toContain('handleSelectedUnitMovementBlocker(');
+    expect(tapFlow).toContain('reselectUnit: selectUnit');
+  });
+});
+
 describe('completed-round AI wiring', () => {
   it('uses one shared non-human scheduler for solo and hot-seat completed rounds', () => {
     const main = readFileSync(resolve(PROJECT_ROOT, 'src/main.ts'), 'utf8');

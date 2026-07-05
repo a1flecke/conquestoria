@@ -84,6 +84,78 @@ function findButtons(node: unknown): MockElement[] {
   return result;
 }
 
+describe('land-unit water recovery guidance', () => {
+  beforeEach(installMockDocument);
+  afterEach(restoreMockDocument);
+
+  it('renders recoverable guidance supplied by the live selection presentation', () => {
+    const state = createNewGame(undefined, 'water-panel-recoverable', 'small');
+    const unit = {
+      ...createUnit('warrior', 'player', { q: 1, r: 1 }, {
+        nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1,
+      }),
+      id: 'warrior',
+    };
+    state.currentPlayer = 'player';
+    state.units = { warrior: unit };
+    state.civilizations.player.units = ['warrior'];
+    const container = new MockElement('div');
+
+    renderSelectedUnitInfo(
+      container as unknown as HTMLElement,
+      state,
+      'warrior',
+      {},
+      {
+        waterRecovery: {
+          kind: 'recoverable',
+          destinations: [{ q: 2, r: 1 }],
+        },
+      },
+    );
+
+    expect(collectAllText(container).join(' ')).toContain(
+      'This land unit is on water. Move to an amber land tile to return ashore.',
+    );
+  });
+
+  it('renders blocked guidance and omits guidance for none', () => {
+    const state = createNewGame(undefined, 'water-panel-blocked', 'small');
+    const unit = {
+      ...createUnit('warrior', 'player', { q: 1, r: 1 }, {
+        nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1,
+      }),
+      id: 'warrior',
+    };
+    state.currentPlayer = 'player';
+    state.units = { warrior: unit };
+    state.civilizations.player.units = ['warrior'];
+    const blocked = new MockElement('div');
+    const normal = new MockElement('div');
+
+    renderSelectedUnitInfo(
+      blocked as unknown as HTMLElement,
+      state,
+      'warrior',
+      {},
+      { waterRecovery: { kind: 'blocked', destinations: [] } },
+    );
+    renderSelectedUnitInfo(
+      normal as unknown as HTMLElement,
+      state,
+      'warrior',
+      {},
+      { waterRecovery: { kind: 'none', destinations: [] } },
+    );
+
+    expect(collectAllText(blocked).join(' ')).toContain(
+      'This land unit is stranded on water. No land escape is currently reachable this turn.',
+    );
+    expect(collectAllText(normal).join(' ')).not.toContain('return ashore');
+    expect(collectAllText(normal).join(' ')).not.toContain('stranded on water');
+  });
+});
+
 
 function makeSpyState(
   techs: string[],

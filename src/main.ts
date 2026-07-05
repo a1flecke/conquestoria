@@ -21,7 +21,7 @@ import { TouchHandler, type InputCallbacks } from '@/input/touch-handler';
 import { MouseHandler } from '@/input/mouse-handler';
 import { installKeyboardShortcuts } from '@/input/keyboard-shortcuts';
 import { hexKey, hexToPixel, hexesInRange, parseHexKey, wrapHexCoord } from '@/systems/hex-utils';
-import { moveUnit, getMovementCost, UNIT_DEFINITIONS, UNIT_DESCRIPTIONS, restUnit, canHeal, getUnmovedUnits, createUnit, getMovementBlockerReason, findPath } from '@/systems/unit-system';
+import { moveUnit, getMovementCost, UNIT_DEFINITIONS, UNIT_DESCRIPTIONS, restUnit, canHeal, getUnmovedUnits, createUnit, findPath } from '@/systems/unit-system';
 import { classifyOwner, isAlwaysHostilePair, isMajorCivOwner } from '@/core/owner-kind';
 import { BUILDINGS, getProductionDisplayName } from '@/systems/city-system';
 import { foundCityInState } from '@/systems/city-founding-system';
@@ -40,6 +40,8 @@ import { calculateCombatStrengths, resolveCombat, selectDefenderForAttack } from
 import { buildCombatContextForDefender } from '@/systems/combat-context';
 import { canUnitAttackTarget } from '@/systems/attack-targeting';
 import { buildSelectedUnitHighlights } from '@/input/selected-unit-highlights';
+import { handleSelectedUnitMovementBlocker } from '@/input/selected-unit-movement-feedback';
+import { getLandUnitWaterRecovery } from '@/systems/unit-water-recovery';
 import { applyCombatOutcomeToState } from '@/systems/combat-reward-system';
 import { recordCombatForCiv } from '@/systems/threat-pressure-system';
 import { applyWorkerAction } from '@/systems/worker-action-system';
@@ -1982,7 +1984,7 @@ function selectUnit(unitId: string, opts?: { pendingUnloadUnitName?: string }): 
           },
         });
       },
-    });
+    }, { waterRecovery: highlightResult.waterRecovery });
   }
 
   SFX.select();
@@ -2625,14 +2627,23 @@ function handleHexTap(rawCoord: HexCoord): void {
           return;
         }
       }
-      const civ = currentCiv();
-      const visibilityState = civ.visibility ? getVisibility(civ.visibility, coord) : undefined;
-      const completedTechs = gameState.civilizations[selectedUnit.owner]?.techState.completed ?? [];
-      const reason = getMovementBlockerReason(selectedUnit, coord, gameState.map, { visibilityState, completedTechs });
-      if (reason) {
-        const type = reason.code === 'unexplored' || reason.code === 'unknown-tile' ? 'info' : 'warning';
-        showNotification(reason.message, type);
-        selectUnit(selectedUnitId);
+      const nonCombatMovementRange = movementRange.filter(moveCoord =>
+        !attackRange.some(target => hexKey(target) === hexKey(moveCoord)));
+      const waterRecovery = getLandUnitWaterRecovery(
+        gameState,
+        selectedUnitId,
+        nonCombatMovementRange,
+      );
+      if (handleSelectedUnitMovementBlocker(
+        gameState,
+        selectedUnitId,
+        coord,
+        waterRecovery,
+        {
+          showNotification,
+          reselectUnit: selectUnit,
+        },
+      )) {
         return;
       }
     }
