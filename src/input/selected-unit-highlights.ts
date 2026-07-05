@@ -6,11 +6,17 @@ import { hexDistance, hexKey, wrappedHexDistance } from '@/systems/hex-utils';
 import { getAvailableWorkerActions, getKnownTileResourceForWorkerAction } from '@/systems/improvement-system';
 import { buildUnitOccupancy } from '@/systems/unit-occupancy';
 import { getMovementRange } from '@/systems/unit-system';
+import {
+  getLandUnitWaterRecovery,
+  NO_LAND_UNIT_WATER_RECOVERY,
+  type LandUnitWaterRecovery,
+} from '@/systems/unit-water-recovery';
 
 export interface SelectedUnitHighlightResult {
   movementRange: HexCoord[];
   attackTargets: AttackTarget[];
   highlights: HexHighlight[];
+  waterRecovery: LandUnitWaterRecovery;
 }
 
 const WORKER_ACTIONS: WorkerActionType[] = ['farm', 'mine', 'lumber_camp', 'watermill', 'drain_swamp'];
@@ -92,7 +98,12 @@ function isPreviewableMoveDestination(state: GameState, from: HexCoord, to: HexC
 export function buildSelectedUnitHighlights(state: GameState, unitId: string): SelectedUnitHighlightResult {
   const unit = state.units[unitId];
   if (!unit || unit.owner !== state.currentPlayer) {
-    return { movementRange: [], attackTargets: [], highlights: [] };
+    return {
+      movementRange: [],
+      attackTargets: [],
+      highlights: [],
+      waterRecovery: NO_LAND_UNIT_WATER_RECOVERY,
+    };
   }
 
   const occupancy = buildUnitOccupancy(state.units);
@@ -109,17 +120,32 @@ export function buildSelectedUnitHighlights(state: GameState, unitId: string): S
   const attackTargets = getAttackTargets(state, unit, { viewerId: state.currentPlayer })
     .filter(target => target.result.targetType === 'unit');
   const attackKeys = new Set(attackTargets.map(target => hexKey(target.coord)));
+  const nonCombatMovementRange = movementRange
+    .filter(coord => !attackKeys.has(hexKey(coord)));
+  const waterRecovery = getLandUnitWaterRecovery(
+    state,
+    unitId,
+    nonCombatMovementRange,
+  );
+  const recoveryKeys = new Set(
+    waterRecovery.destinations.map(coord => hexKey(coord)),
+  );
 
-  const moveHighlights = movementRange
-    .filter(coord => !attackKeys.has(hexKey(coord)))
-    .map(coord => ({ coord, type: 'move' as const }));
+  const moveHighlights = nonCombatMovementRange.map(coord => ({
+    coord,
+    type: recoveryKeys.has(hexKey(coord))
+      ? 'water-recovery' as const
+      : 'move' as const,
+  }));
 
   const attackHighlights = attackTargets.map(target => ({ coord: target.coord, type: 'attack' as const }));
-  const workerHighlights = buildWorkerGuidanceHighlights(state, unitId, movementRange);
+  const workerHighlights = buildWorkerGuidanceHighlights(state, unitId, movementRange)
+    .filter(highlight => !recoveryKeys.has(hexKey(highlight.coord)));
 
   return {
     movementRange,
     attackTargets,
     highlights: [...moveHighlights, ...attackHighlights, ...workerHighlights],
+    waterRecovery,
   };
 }
