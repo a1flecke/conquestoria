@@ -2,7 +2,8 @@ import type { BuildableImprovementType, GameState, DisguiseType, HexCoord, Worke
 import { UNIT_DEFINITIONS, UNIT_DESCRIPTIONS, canHeal } from '@/systems/unit-system';
 import { getExperienceToNextTier, getVeterancyCombatModifier, getVeterancyTier } from '@/systems/combat-reward-system';
 import { isSpyUnitType } from '@/systems/espionage-system';
-import { canUpgradeUnit } from '@/systems/unit-upgrade-system';
+import { canUpgradeUnit, getCanonicalUpgradeTarget } from '@/systems/unit-upgrade-system';
+import { TRAINABLE_UNITS, BUILDINGS } from '@/systems/city-system';
 import {
   formatImprovementYieldLabel,
   formatWorkerActionBlockerReason,
@@ -597,6 +598,16 @@ export function renderSelectedUnitInfo(
           () => callbacks.onUpgradeUnit!(unitId, homeCity.id),
         );
         actionsDiv.appendChild(btn);
+      } else if (upgrade.reason === 'missing-building') {
+        const targetType = getCanonicalUpgradeTarget(unit, completedTechs);
+        const requiredBuilding = targetType
+          ? TRAINABLE_UNITS.find(candidate => candidate.type === targetType)?.trainedFromBuilding
+          : undefined;
+        const buildingName = requiredBuilding ? BUILDINGS[requiredBuilding]?.name ?? requiredBuilding : 'the required building';
+        const blockerDiv = document.createElement('div');
+        blockerDiv.style.cssText = 'font-size:11px;color:#f8d28a;margin-top:4px;';
+        blockerDiv.textContent = `Upgrade requires ${buildingName} in this city.`;
+        wrapper.appendChild(blockerDiv);
       }
     }
   }

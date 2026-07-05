@@ -26,7 +26,7 @@ import {
 } from '@/systems/threat-pressure-system';
 import { emitMinorCivQuestTransitions } from '@/systems/quest-chain-system';
 import { applyAutoExploreOrder } from '@/systems/auto-explore-system';
-import { hexKey, hexDistance } from '@/systems/hex-utils';
+import { hexKey } from '@/systems/hex-utils';
 import { executeUnitMove } from '@/systems/unit-movement-system';
 import { buildCombatPresentation } from '@/systems/viewer-event-presentation';
 import { calculateCityYields } from '@/systems/resource-system';
@@ -60,6 +60,8 @@ import { createRng } from '@/systems/map-generator';
 import { processMinorCivTurn, checkEraAdvancement, processMinorCivEraUpgrade, checkCampEvolution } from '@/systems/minor-civ-system';
 import { resolveCivDefinition } from '@/systems/civ-registry';
 import { applyProductionBonus } from '@/systems/city-system';
+import { chargeUnitsOnGeneTherapyResearch, applyGeneTherapyRecharge } from '@/systems/gene-therapy-system';
+import { processCyberDrain } from '@/systems/cyber-warfare-system';
 import { processEspionageTurn, isSpyUnitType, createSpyFromUnit, processInterrogation, applyBuildingCI } from '@/systems/espionage-system';
 import { processDetection } from '@/systems/detection-system';
 import { applyPendingOpponentChallenge } from '@/core/opponent-challenge';
@@ -134,6 +136,9 @@ export function processTurn(
   for (const [civId, civ] of Object.entries(newState.civilizations)) {
     const currentCivState = newState.civilizations[civId];
     const civDef = resolveCivDefinition(newState, civ.civType ?? '');
+    // Snapshot before production creates new units this turn — geneTherapyReady recharge
+    // must only consider units that already existed at turn start (see gene-therapy-system.ts).
+    const unitIdsAtTurnStart = [...civ.units];
     // Process cities: food, growth, production
     let totalScience = 0;
     let totalGold = 0;
@@ -182,31 +187,6 @@ export function processTurn(
       );
       totalGold += result.idleGoldBonus;
       totalScience += result.idleScienceBonus;
-
-      // Cyber drain: adjacent enemy cyber_units drain 2 gold per turn
-      {
-        const enemyCyberUnits = Object.values(newState.units).filter(
-          u => u.type === 'cyber_unit' && u.owner !== civId,
-        );
-        if (enemyCyberUnits.length > 0) {
-          const hasCDC = city.buildings.includes('cyber_defense_center');
-          const hasHub = city.buildings.includes('signals_hub');
-          const blockChance = hasCDC ? (hasHub ? 0.75 : 0.65) : 0;
-          for (const cyberUnit of enemyCyberUnits) {
-            if (hexDistance(cyberUnit.position, city.position) !== 1) continue;
-            let s = Math.abs(newState.turn * 16807 + city.id.charCodeAt(0) + cyberUnit.id.charCodeAt(0));
-            s = (s * 48271) % 2147483647;
-            const roll = s / 2147483647;
-            if (roll < blockChance) continue;
-            totalGold = Math.max(0, totalGold - 2);
-            bus.emit('city:cyber-drained', {
-              cityId, cityName: city.name,
-              drainerOwner: cyberUnit.owner, drainerUnitId: cyberUnit.id,
-              goldLost: 2,
-            });
-          }
-        }
-      }
 
       const maturityResult = applyCityMaturity(result.city, civ.techState.completed);
       newState.cities[cityId] = maturityResult.city;
@@ -285,8 +265,8 @@ export function processTurn(
           newUnit.movementPointsLeft += 1;
           newUnit.movementBonus = (newUnit.movementBonus ?? 0) + 1;
         }
-        if (newState.cities[cityId]?.buildings.includes('gene_therapy_clinic')) {
-          newUnit.geneTherapyReady = true;
+        if (civ.techState.completed.includes('gene-therapy')) {
+          newUnit.geneTherapyReady = newState.cities[cityId]?.buildings.includes('gene_therapy_clinic') ?? false;
         }
         newState.units[newUnit.id] = newUnit;
         newState.civilizations[civId].units.push(newUnit.id);
@@ -303,6 +283,17 @@ export function processTurn(
           bus.emit('espionage:spy-recruited', { civId, spy });
         }
       }
+    }
+
+    // Cyber drain: enemy cyber_units adjacent to this civ's cities steal 2 gold/turn each
+    // (blocked by Cyber Defense Center / Signals Hub); stolen gold is credited to the attacker.
+    const cyberDrainResult = processCyberDrain(newState, civId, totalGold);
+    totalGold = cyberDrainResult.remainingGold;
+    for (const [ownerCivId, amount] of Object.entries(cyberDrainResult.creditsByOwner)) {
+      grossGoldByCiv[ownerCivId] = (grossGoldByCiv[ownerCivId] ?? 0) + amount;
+    }
+    for (const event of cyberDrainResult.events) {
+      bus.emit('city:cyber-drained', { ...event, victimCivId: civId });
     }
 
     // Process research
@@ -326,6 +317,10 @@ export function processTurn(
     if (researchResult.completedTech) {
       const techId = researchResult.completedTech;
       bus.emit('tech:completed', { civId, techId });
+
+      if (techId === 'gene-therapy') {
+        newState = chargeUnitsOnGeneTherapyResearch(newState, civId);
+      }
 
       // Inline obsolescence scan — runs once synchronously per completed tech
       const obsoletedTypes = TRAINABLE_UNITS
@@ -402,15 +397,7 @@ export function processTurn(
     }
 
     // Reset geneTherapyReady cooldown for units that rested a full turn in a friendly city
-    for (const unitId of civ.units) {
-      const unit = newState.units[unitId];
-      if (!unit || unit.geneTherapyReady !== false) continue;
-      const posKey = `${unit.position.q},${unit.position.r}`;
-      const tile = newState.map.tiles[posKey];
-      if (cityPositionsSet.has(posKey) && tile?.owner === civId && !unit.hasMoved && !unit.hasActed) {
-        newState.units[unitId] = { ...unit, geneTherapyReady: true };
-      }
-    }
+    newState = applyGeneTherapyRecharge(newState, civId, unitIdsAtTurnStart);
 
     // Reset unit movement
     for (const unitId of civ.units) {

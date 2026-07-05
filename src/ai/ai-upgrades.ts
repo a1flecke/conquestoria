@@ -272,12 +272,9 @@ export function processAIUpgrades(
       continue;
     }
     const destinations = Object.values(working.cities)
-      .filter(cityCandidate => safeCity(
-        working,
-        civId,
-        cityCandidate,
-        prepared,
-      ))
+      .filter(cityCandidate =>
+        safeCity(working, civId, cityCandidate, prepared)
+        && getCanonicalUpgradeTarget(current, civ.techState.completed, cityCandidate.buildings))
       .flatMap(cityCandidate => {
         const path = routePath(
           working,

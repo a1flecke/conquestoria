@@ -371,6 +371,58 @@ describe('cyber unit gold drain (Task 5)', () => {
   });
 });
 
+describe('cyber unit gold drain — theft and war-gate (Task 2 fixes)', () => {
+  it('credits the drained gold to the cyber unit owner instead of destroying it', () => {
+    const state = makeProcessTurnState({
+      p1Gold: 100,
+      p1CityPos: { q: 1, r: 0 },
+      cyberUnitPos: { q: 2, r: 0 },
+      p1Buildings: [],
+    });
+    const bus = new EventBus();
+    const result = processTurn(state, bus);
+    expect(result.civilizations['p2'].gold).toBeGreaterThan(state.civilizations['p2'].gold);
+  });
+
+  it('does NOT drain when the owner is not at war with the victim', () => {
+    const state = makeProcessTurnState({
+      p1Gold: 100,
+      p1CityPos: { q: 1, r: 0 },
+      cyberUnitPos: { q: 2, r: 0 },
+      p1Buildings: [],
+    });
+    const atPeaceState = {
+      ...state,
+      civilizations: {
+        ...state.civilizations,
+        p1: { ...state.civilizations['p1'], diplomacy: { ...state.civilizations['p1'].diplomacy, atWarWith: [] } },
+        p2: { ...state.civilizations['p2'], diplomacy: { ...state.civilizations['p2'].diplomacy, atWarWith: [] } },
+      },
+    } as unknown as GameState;
+    const bus = new EventBus();
+    const events: any[] = [];
+    bus.on('city:cyber-drained', e => events.push(e));
+    processTurn(atPeaceState, bus);
+    expect(events).toEqual([]);
+  });
+
+  it('emits city:cyber-drained with blocked:true and no gold movement when CDC blocks it', () => {
+    const state = makeProcessTurnState({
+      p1Gold: 100,
+      p1CityPos: { q: 1, r: 0 },
+      cyberUnitPos: { q: 2, r: 0 },
+      p1Buildings: ['cyber_defense_center'],
+    });
+    const bus = new EventBus();
+    const events: any[] = [];
+    bus.on('city:cyber-drained', e => events.push(e));
+    const result = processTurn(state, bus);
+    expect(result.civilizations['p1'].gold).toBeGreaterThanOrEqual(100);
+    expect(events.some(e => e.blocked === true)).toBe(true);
+    expect(events.some(e => e.blocked === false)).toBe(false);
+  });
+});
+
 describe('cyberMarketDisruption tick (Task 5)', () => {
   it('decrements turnsRemaining and applies 1 gold penalty', () => {
     const state = makeProcessTurnState({ p1Gold: 10 });
@@ -403,7 +455,7 @@ describe('cyberMarketDisruption tick (Task 5)', () => {
 
 describe('gene therapy pre-charge (Task 5)', () => {
   it('unit trained in city with gene_therapy_clinic starts geneTherapyReady:true', () => {
-    const state = makeProcessTurnState({ p1Buildings: ['gene_therapy_clinic'] });
+    const state = makeProcessTurnState({ p1Buildings: ['gene_therapy_clinic'], p1Techs: ['gene-therapy'] });
     const stateWithQueue = {
       ...state,
       cities: {
@@ -442,6 +494,79 @@ describe('gene therapy pre-charge (Task 5)', () => {
     const newWarrior = Object.values(result.units).find(u => u.type === 'warrior' && u.owner === 'p1');
     expect(newWarrior).toBeDefined();
     expect(newWarrior!.geneTherapyReady).toBeUndefined();
+  });
+
+  it('unit trained without gene_therapy_clinic BUT with gene-therapy researched gets geneTherapyReady:false (not undefined)', () => {
+    const state = makeProcessTurnState({ p1Buildings: [], p1Techs: ['gene-therapy'] });
+    const stateWithQueue = {
+      ...state,
+      cities: {
+        ...state.cities,
+        'city-p1': {
+          ...state.cities['city-p1'],
+          productionQueue: ['warrior'],
+          productionProgress: 59,
+          idleProduction: 'production',
+        },
+      },
+    } as unknown as GameState;
+    const bus = new EventBus();
+    const result = processTurn(stateWithQueue, bus);
+    const newWarrior = Object.values(result.units).find(u => u.type === 'warrior' && u.owner === 'p1');
+    expect(newWarrior).toBeDefined();
+    expect(newWarrior!.geneTherapyReady).toBe(false);
+  });
+});
+
+describe('gene therapy charge on research completion (Task 1)', () => {
+  it('charges all existing combat units and skips strength-0 units when gene-therapy completes', () => {
+    const base = makeProcessTurnState({
+      p1Units: ['warrior1', 'settler1'],
+      extraUnits: {
+        warrior1: { type: 'warrior', owner: 'p1', position: { q: 1, r: 0 } },
+        settler1: { type: 'settler', owner: 'p1', position: { q: 1, r: 0 } },
+      },
+    });
+    const state = {
+      ...base,
+      civilizations: {
+        ...base.civilizations,
+        p1: {
+          ...base.civilizations.p1,
+          techState: { ...base.civilizations.p1.techState, currentResearch: 'gene-therapy', researchProgress: 390 },
+        },
+      },
+    } as unknown as GameState;
+    const bus = new EventBus();
+    const result = processTurn(state, bus);
+    expect(result.units['warrior1']?.geneTherapyReady).toBe(true);
+    expect(result.units['settler1']?.geneTherapyReady).toBeUndefined();
+  });
+
+  it('parity: an AI civ (isHuman:false) also gets its units charged on gene-therapy completion', () => {
+    const base = makeProcessTurnState({});
+    const state = {
+      ...base,
+      units: {
+        ...base.units,
+        warriorAI: {
+          id: 'warriorAI', type: 'warrior', owner: 'p2', health: 100,
+          position: { q: 10, r: 10 }, movementPointsLeft: 1,
+          hasMoved: false, hasActed: false, experience: 0, isResting: false,
+        },
+      },
+      civilizations: {
+        ...base.civilizations,
+        p2: {
+          ...base.civilizations.p2,
+          units: [...base.civilizations.p2.units, 'warriorAI'],
+          techState: { ...base.civilizations.p2.techState, currentResearch: 'gene-therapy', researchProgress: 390 },
+        },
+      },
+    } as unknown as GameState;
+    const bus = new EventBus();
+    const result = processTurn(state, bus);
+    expect(result.units['warriorAI']?.geneTherapyReady).toBe(true);
   });
 });
 

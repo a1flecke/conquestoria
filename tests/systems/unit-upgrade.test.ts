@@ -97,6 +97,75 @@ describe('explicit upgrade chains', () => {
   });
 });
 
+describe('trainedFromBuilding upgrade gate (Stealth Airbase)', () => {
+  const completedTechs = ['jet-aviation', 'stealth-technology'];
+
+  it('blocks jet_fighter -> stealth_bomber upgrade in a city without stealth_airbase, with reason missing-building', () => {
+    const unit = makeUnit('jet_fighter');
+    const city = { id: 'c1', owner: 'player', position: { q: 0, r: 0 }, buildings: [] } as any;
+    const result = canUpgradeUnit(unit, 'c1', { c1: city }, completedTechs);
+    expect(result.canUpgrade).toBe(false);
+    expect(result.targetType).toBeNull();
+    expect(result.reason).toBe('missing-building');
+  });
+
+  it('allows jet_fighter -> stealth_bomber upgrade in a city with stealth_airbase and deducts gold', () => {
+    const unit = makeUnit('jet_fighter');
+    const city = { id: 'c1', owner: 'player', position: { q: 0, r: 0 }, buildings: ['stealth_airbase'] } as any;
+    const result = canUpgradeUnit(unit, 'c1', { c1: city }, completedTechs, 1000);
+    expect(result.canUpgrade).toBe(true);
+    expect(result.targetType).toBe('stealth_bomber');
+  });
+
+  it('regression: musketeer -> rifleman (no trainedFromBuilding) is unaffected by building gate', () => {
+    const unit = makeUnit('musketeer');
+    const city = { id: 'c1', owner: 'player', position: { q: 0, r: 0 }, buildings: [] } as any;
+    const result = canUpgradeUnit(unit, 'c1', { c1: city }, ['tactics', 'rifled-infantry']);
+    expect(result.canUpgrade).toBe(true);
+    expect(result.targetType).toBe('rifleman');
+  });
+
+  it('applyUnitUpgradeToState rejects the upgrade when the host city lacks the required building', () => {
+    const state = createNewGame(undefined, 'building-gate-upgrade', 'small');
+    const civ = state.civilizations.player;
+    const source = civ.units.map(id => state.units[id]).find(Boolean)!;
+    const city = foundCity(civ.id, source.position, state.map, state.idCounters);
+    state.cities[city.id] = city;
+    civ.cities = [city.id];
+    source.id = 'upgrade-unit';
+    source.type = 'jet_fighter';
+    state.units = { [source.id]: source };
+    civ.units = [source.id];
+    civ.techState.completed = completedTechs;
+    civ.gold = 1000;
+
+    const result = applyUnitUpgradeToState(state, 'upgrade-unit', 'stealth_bomber');
+
+    expect(result).toEqual({ state, upgraded: false, reason: 'tech-unavailable' });
+  });
+
+  it('applyUnitUpgradeToState allows the upgrade once stealth_airbase is present in the host city', () => {
+    const state = createNewGame(undefined, 'building-gate-upgrade-ok', 'small');
+    const civ = state.civilizations.player;
+    const source = civ.units.map(id => state.units[id]).find(Boolean)!;
+    const city = foundCity(civ.id, source.position, state.map, state.idCounters);
+    city.buildings = [...city.buildings, 'stealth_airbase'];
+    state.cities[city.id] = city;
+    civ.cities = [city.id];
+    source.id = 'upgrade-unit';
+    source.type = 'jet_fighter';
+    state.units = { [source.id]: source };
+    civ.units = [source.id];
+    civ.techState.completed = completedTechs;
+    civ.gold = 1000;
+
+    const result = applyUnitUpgradeToState(state, 'upgrade-unit', 'stealth_bomber');
+
+    expect(result.upgraded).toBe(true);
+    expect(result.state.units['upgrade-unit'].type).toBe('stealth_bomber');
+  });
+});
+
 describe('getUpgradeCost', () => {
   it('returns half of the target unit production cost from the canonical catalog', () => {
     const cost = getUpgradeCost('spy_informant');

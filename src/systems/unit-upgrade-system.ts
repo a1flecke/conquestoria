@@ -12,14 +12,20 @@ export function canUpgradeUnit(
   cities: Record<string, City>,
   completedTechs: string[],
   civGold?: number,
-): { canUpgrade: boolean; targetType: UnitType | null; cost: number } {
+): { canUpgrade: boolean; targetType: UnitType | null; cost: number; reason?: 'missing-building' } {
   const city = cities[cityId];
   if (!city || city.owner !== unit.owner) return { canUpgrade: false, targetType: null, cost: 0 };
   if (unit.position.q !== city.position.q || unit.position.r !== city.position.r) {
     return { canUpgrade: false, targetType: null, cost: 0 };
   }
-  const targetType = getCanonicalUpgradeTarget(unit, completedTechs);
-  if (!targetType) return { canUpgrade: false, targetType: null, cost: 0 };
+  const targetType = getCanonicalUpgradeTarget(unit, completedTechs, city.buildings);
+  if (!targetType) {
+    const targetInPrinciple = getCanonicalUpgradeTarget(unit, completedTechs);
+    if (targetInPrinciple) {
+      return { canUpgrade: false, targetType: null, cost: getUpgradeCost(targetInPrinciple), reason: 'missing-building' };
+    }
+    return { canUpgrade: false, targetType: null, cost: 0 };
+  }
   const cost = getUpgradeCost(targetType);
   if (civGold !== undefined && civGold < cost) return { canUpgrade: false, targetType: null, cost };
   return { canUpgrade: true, targetType, cost };
@@ -28,6 +34,7 @@ export function canUpgradeUnit(
 export function getCanonicalUpgradeTarget(
   unit: Unit,
   completedTechs: readonly string[],
+  cityBuildings?: readonly string[],
 ): UnitType | null {
   const currentEntry = TRAINABLE_UNITS.find(candidate => candidate.type === unit.type);
   if (
@@ -47,6 +54,9 @@ export function getCanonicalUpgradeTarget(
       && completedTechs.includes(target.obsoletedByTech)
     )
   ) {
+    return null;
+  }
+  if (target.trainedFromBuilding && cityBuildings && !cityBuildings.includes(target.trainedFromBuilding)) {
     return null;
   }
   return target.type;
@@ -90,7 +100,7 @@ export function applyUnitUpgradeToState(
   if (!city) {
     return { state, upgraded: false, reason: 'not-in-friendly-city' };
   }
-  const canonicalTarget = getCanonicalUpgradeTarget(unit, civ.techState.completed);
+  const canonicalTarget = getCanonicalUpgradeTarget(unit, civ.techState.completed, city.buildings);
   if (!canonicalTarget) {
     return { state, upgraded: false, reason: 'tech-unavailable' };
   }
