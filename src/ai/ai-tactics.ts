@@ -59,6 +59,8 @@ import {
   applyWorkerAction,
   getWorkerChargesRemaining,
 } from '@/systems/worker-action-system';
+import { chooseRoadBuilderUnit } from '@/systems/road-network';
+import { canBuildRoad } from '@/systems/road-system';
 import { getAIStrategicRoles, hasAICombatRole } from './ai-unit-roles';
 import { isAIHostileOwner } from './ai-hostility';
 
@@ -468,6 +470,21 @@ function rankCivilianAndTransportActions(
     const completedTechs = context.state.civilizations[context.actorId]?.techState.completed ?? [];
     const isCityTile = Object.values(context.state.cities)
       .some(city => hexKey(city.position) === hexKey(unit.position));
+
+    const roadBuilder = chooseRoadBuilderUnit(context.state, context.actorId);
+    if (roadBuilder && roadBuilder.workerId === unit.id) {
+      if (hexKey(unit.position) === hexKey(roadBuilder.targetCoord)) {
+        if (canBuildRoad(tile, completedTechs, context.actorId, isCityTile)) {
+          return [ranked({ kind: 'worker-action', unitId: unit.id, action: 'build_road' }, 640)];
+        }
+      } else if (unit.movementPointsLeft > 0) {
+        const path = findPath(unit.position, roadBuilder.targetCoord, context.state.map, 'land', { unit, completedTechs });
+        if (path && path.length > 1) {
+          return [ranked({ kind: 'move', unitId: unit.id, destination: path[1]! }, 630)];
+        }
+      }
+    }
+
     const actions = getAvailableWorkerActions(
       tile,
       completedTechs,

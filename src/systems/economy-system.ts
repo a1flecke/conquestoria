@@ -25,7 +25,10 @@ import {
   getCivWonderTechGold,
   getCivRoutePartnerTechGold,
   getMaintenanceDiscountMultiplier,
+  getRoadTileTechGold,
+  getConnectedCityTechGold,
 } from './tech-yield-system';
+import { getOwnedRoadTileCount, getCitiesConnectedToCapital } from './road-network';
 import { isAtWar } from './diplomacy-system';
 
 export const ECONOMY_RULES = {
@@ -511,6 +514,8 @@ export function projectCivGrossGold(
   grossGold += npCivBonuses.gold ?? 0;
   grossGold += getCivLuxuryTechGold(civ.techState.completed, getCivHappinessFromResources(state, civId));
   grossGold += getEmpireFlatTechYields(civ.techState.completed).gold;
+  grossGold += getRoadTileTechGold(civ.techState.completed, getOwnedRoadTileCount(state, civId));
+  grossGold += getConnectedCityTechGold(civ.techState.completed, getCitiesConnectedToCapital(state, civId).size);
 
   const completedWonderCount = Object.values(state.completedLegendaryWonders ?? {})
     .filter(wonder => wonder.ownerId === civId).length;

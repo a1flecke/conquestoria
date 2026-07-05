@@ -227,7 +227,7 @@ export type ImprovementType = 'farm' | 'mine' | 'lumber_camp' | 'watermill'
   | 'plantation' | 'pasture' | 'camp' | 'quarry' | 'resource_outpost' | 'none';
 // resource_outpost is excluded: only Expeditions can establish outposts, not Workers
 export type BuildableImprovementType = Exclude<ImprovementType, 'none' | 'resource_outpost'>;
-export type WorkerActionType = BuildableImprovementType | 'drain_swamp';
+export type WorkerActionType = BuildableImprovementType | 'drain_swamp' | 'build_road';
 
 export interface HexTile {
   coord: HexCoord;
@@ -241,6 +241,10 @@ export interface HexTile {
   hasRiver: boolean;
   wonder: string | null;           // wonder definition ID
   regionKey?: string;              // landmass ID for threat pressure (e.g. 'continent-0', 'island-2')
+  // Roads are an overlay, not a replacement improvement — a tile can have a farm AND a road.
+  hasRoad?: boolean;               // optional: legacy saves default falsy, no migration needed
+  roadTurnsLeft?: number;          // turns remaining to complete an in-progress road
+  roadOwner?: string;              // civ that started the in-progress road
 }
 
 export interface GameMap {
@@ -295,6 +299,7 @@ export interface LastSeenTilePresentation {
   owner: string | null;
   hasRiver: boolean;
   wonder: string | null;
+  hasRoad?: boolean;
   city?: LastSeenCityPresentation;
   observedTurn?: number;
   source?: 'observed' | 'legacy-reconstructed';
@@ -348,7 +353,7 @@ export interface UnitDefinition {
 }
 
 export interface WorkerTask {
-  action: BuildableImprovementType;
+  action: WorkerActionType;
   coord: HexCoord;
 }
 
@@ -1496,6 +1501,8 @@ export interface GameEvents {
   'fog:revealed': { tiles: HexCoord[] };
   'improvement:started': { unitId: string; coord: HexCoord; type: ImprovementType };
   'improvement:completed': { coord: HexCoord; type: ImprovementType };
+  'road:started': { unitId: string; coord: HexCoord };
+  'road:completed': { coord: HexCoord };
   'territory:tile-flipped': {
     coord: HexCoord;
     previousOwner: string;

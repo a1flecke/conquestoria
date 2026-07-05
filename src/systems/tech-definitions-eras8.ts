@@ -43,7 +43,7 @@ const ERA_8_TECHS: Tech[] = [
   // EXPLORATION (2)
   { id: 'transcontinental-rail', name: 'Transcontinental Rail', track: 'exploration', cost: 245,
     prerequisites: ['colonial-railways', 'railway-expansion'],
-    unlocks: ['Continental railway networks halve travel time between cities; +2 gold per rail connection'], era: 8 },
+    unlocks: ['Railway-connected cities earn +2 gold'], era: 8 },
   { id: 'imperial-survey', name: 'Imperial Survey', track: 'exploration', cost: 240,
     prerequisites: ['manifest-destiny', 'electric-telegraph'],
     unlocks: ['Systematic mapping of imperial territory; scouts reveal terrain faster; +1 vision range scouts'], era: 8 },

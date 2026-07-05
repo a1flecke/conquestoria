@@ -458,3 +458,48 @@ describe('IMPROVEMENT_ICONS', () => {
     expect(IMPROVEMENT_ICONS['none']).toBeUndefined();
   });
 });
+
+describe('drawRoads', () => {
+  it('draws one segment between two adjacent road tiles, including wrap-around ghost tiles', async () => {
+    const { drawRoads } = await import('@/renderer/hex-renderer');
+    const map: GameMap = {
+      width: 4,
+      height: 1,
+      wrapsHorizontally: true,
+      rivers: [],
+      tiles: {
+        '0,0': { coord: { q: 0, r: 0 }, terrain: 'grassland', elevation: 'lowland', resource: null, improvement: 'none', owner: 'player', improvementTurnsLeft: 0, hasRiver: false, wonder: null, hasRoad: true },
+        '1,0': { coord: { q: 1, r: 0 }, terrain: 'grassland', elevation: 'lowland', resource: null, improvement: 'none', owner: 'player', improvementTurnsLeft: 0, hasRiver: false, wonder: null, hasRoad: false },
+        '3,0': { coord: { q: 3, r: 0 }, terrain: 'grassland', elevation: 'lowland', resource: null, improvement: 'none', owner: 'player', improvementTurnsLeft: 0, hasRiver: false, wonder: null, hasRoad: true },
+      },
+    } as unknown as GameMap;
+    const ctx = new MockCanvasContext() as unknown as CanvasRenderingContext2D;
+    drawRoads(ctx, map, makeCamera(), new Set());
+    expect((ctx as unknown as MockCanvasContext).strokeCalls.length).toBeGreaterThan(0);
+  });
+
+  it('draws a road segment into a city tile even without hasRoad on the city hex', async () => {
+    const { drawRoads } = await import('@/renderer/hex-renderer');
+    const map: GameMap = {
+      width: 2,
+      height: 1,
+      wrapsHorizontally: false,
+      rivers: [],
+      tiles: {
+        '0,0': { coord: { q: 0, r: 0 }, terrain: 'grassland', elevation: 'lowland', resource: null, improvement: 'none', owner: 'player', improvementTurnsLeft: 0, hasRiver: false, wonder: null, hasRoad: false },
+        '1,0': { coord: { q: 1, r: 0 }, terrain: 'grassland', elevation: 'lowland', resource: null, improvement: 'none', owner: 'player', improvementTurnsLeft: 0, hasRiver: false, wonder: null, hasRoad: true },
+      },
+    } as unknown as GameMap;
+    const ctx = new MockCanvasContext() as unknown as CanvasRenderingContext2D;
+    drawRoads(ctx, map, makeCamera(), new Set(['0,0']));
+    expect((ctx as unknown as MockCanvasContext).strokeCalls.length).toBeGreaterThan(0);
+  });
+
+  it('draws nothing when no tile has a road (negative)', async () => {
+    const { drawRoads } = await import('@/renderer/hex-renderer');
+    const map = makeMap();
+    const ctx = new MockCanvasContext() as unknown as CanvasRenderingContext2D;
+    drawRoads(ctx, map, makeCamera(), new Set());
+    expect((ctx as unknown as MockCanvasContext).strokeCalls.length).toBe(0);
+  });
+});

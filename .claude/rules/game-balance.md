@@ -47,7 +47,11 @@ Movement bonuses are the most easily broken stat — small integers stack to pro
 | Navigator's Compass wonder | wonder (special) | naval units | +1 move | era 5+ (permanent) |
 | Road Corps national project | national project | — | (road construction speed, no movement) | era 3–5 |
 | National Railway national project | national project | — | (trade route gold, no movement) | era 7–9 |
-| `railway-expansion` tech | tech | all land units | ×2 speed on roads (not additive +N) | era 7+ |
+| `military-logistics` tech | tech | all land units | road entry cost 1 → 0.5 (not additive +N) | era 4+ |
+| `railway-expansion` tech | tech | all land units | road entry cost 1 → 0.5 (not additive +N; does not stack with Military Logistics) | era 7+ |
+| `gps-navigation` tech | tech | land units in own territory | ignores hills/forest extra cost (terrain cost 1) | era 12+ |
+
+**Roads discount, they don't stack:** entering a `hasRoad` tile always costs 1 movement, or 0.5 if the moving unit's owner has `military-logistics` **or** `railway-expansion` — never both at once (0.5 is the floor, not 0.25). See `tests/systems/road-system.test.ts` for the explicit no-stack regression.
 
 **Why Road Corps and National Railway don't grant movement:** early drafts gave both +1 road movement, which stacked to +2 on roads for an era 3–8 overlap window. Both were revised to non-movement effects to respect this policy.
 

@@ -65,14 +65,18 @@ export type ExecuteUnitMoveResult =
       discoveredWonders: [];
     };
 
+function isWorkerTaskInProgress(tile: GameState['map']['tiles'][string] | undefined, task: NonNullable<GameState['units'][string]['workerTask']>): boolean {
+  if (!tile) return false;
+  if (task.action === 'build_road') return (tile.roadTurnsLeft ?? 0) > 0;
+  return tile.improvement === task.action && tile.improvementTurnsLeft > 0;
+}
+
 export function isWorkerBusy(state: GameState, unitId: string): boolean {
   const unit = state.units[unitId];
   if (!unit || unit.type !== 'worker' || !unit.workerTask) return false;
   const taskKey = hexKey(unit.workerTask.coord);
   const tile = state.map.tiles[taskKey];
-  return hexKey(unit.position) === taskKey
-    && tile?.improvement === unit.workerTask.action
-    && tile.improvementTurnsLeft > 0;
+  return hexKey(unit.position) === taskKey && isWorkerTaskInProgress(tile, unit.workerTask);
 }
 
 export function abandonWorkerTask(state: GameState, unitId: string): void {
@@ -80,9 +84,13 @@ export function abandonWorkerTask(state: GameState, unitId: string): void {
   if (!unit?.workerTask) return;
   const key = hexKey(unit.workerTask.coord);
   const tile = state.map.tiles[key];
-  if (tile?.improvement === unit.workerTask.action && tile.improvementTurnsLeft > 0) {
-    tile.improvement = 'none';
-    tile.improvementTurnsLeft = 0;
+  if (isWorkerTaskInProgress(tile, unit.workerTask)) {
+    if (unit.workerTask.action === 'build_road') {
+      tile!.roadTurnsLeft = 0;
+    } else {
+      tile!.improvement = 'none';
+      tile!.improvementTurnsLeft = 0;
+    }
   }
   state.units = {
     ...state.units,

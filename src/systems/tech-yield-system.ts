@@ -213,6 +213,25 @@ export function getTradeRouteTechGold(
   return gold;
 }
 
+/** postal-service: +1 gold per road tile the civ owns, capped at +10. */
+export function getRoadTileTechGold(completedTechs: string[], ownedRoadTileCount: number): number {
+  if (!completedTechs.includes('postal-service')) return 0;
+  return Math.min(10, ownedRoadTileCount);
+}
+
+/**
+ * Gold per city road-connected to the capital. courier-network (+1),
+ * colonial-railways (+2), and transcontinental-rail (+2, requires
+ * railway-expansion too) all stack per the MR7 spec — up to +5/connected city.
+ */
+export function getConnectedCityTechGold(completedTechs: string[], connectedCityCount: number): number {
+  let perCity = 0;
+  if (completedTechs.includes('courier-network')) perCity += 1;
+  if (completedTechs.includes('colonial-railways')) perCity += 2;
+  if (completedTechs.includes('transcontinental-rail') && completedTechs.includes('railway-expansion')) perCity += 2;
+  return perCity * connectedCityCount;
+}
+
 /** Flat gold per distinct owned luxury resource (e.g. distillation). */
 export function getCivLuxuryTechGold(completedTechs: string[], ownedLuxuryResourceCount: number): number {
   const techSet = new Set(completedTechs);

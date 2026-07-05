@@ -188,7 +188,7 @@ import {
 } from '@/systems/transport-system';
 import { getPendingUnload, getUnloadRange, setPendingUnload, clearPendingUnload } from '@/ui/transport-ui-state';
 import { getCapitalCity } from '@/systems/capital-system';
-import type { CombatResult, GameState, HexCoord, Unit, UnitType, DiplomaticAction, CivBonusEffect, WorkerActionType } from '@/core/types';
+import type { CombatResult, GameState, HexCoord, ImprovementType, Unit, UnitType, DiplomaticAction, CivBonusEffect, WorkerActionType } from '@/core/types';
 import {
   appendNotification,
   getNotificationsForPlayer,
@@ -1980,6 +1980,8 @@ function selectUnit(
             for (const event of result.events) {
               if (event.type === 'improvement:started') {
                 bus.emit('improvement:started', event.payload);
+              } else if (event.type === 'road:started') {
+                bus.emit('road:started', event.payload);
               } else {
                 bus.emit('unit:destroyed', event.payload);
               }
@@ -2247,6 +2249,8 @@ function performWorkerAction(action: WorkerActionType): void {
   for (const event of result.events) {
     if (event.type === 'improvement:started') {
       bus.emit('improvement:started', event.payload);
+    } else if (event.type === 'road:started') {
+      bus.emit('road:started', event.payload);
     } else {
       bus.emit('unit:destroyed', event.payload);
     }
@@ -2969,9 +2973,12 @@ function handleHexTap(rawCoord: HexCoord): void {
         const selectedId = selectedUnitId;
         const task = gameState.units[selectedId]?.workerTask;
         const taskTile = task ? gameState.map.tiles[hexKey(task.coord)] : undefined;
+        const isRoadTask = task?.action === 'build_road';
         createWorkerTaskWarningPanel(uiLayer, {
-          improvementName: task ? getImprovementDisplayName(task.action) : 'Improvement',
-          turnsLeft: taskTile?.improvementTurnsLeft ?? 1,
+          improvementName: task
+            ? (isRoadTask ? 'Road' : getImprovementDisplayName(task.action as ImprovementType))
+            : 'Improvement',
+          turnsLeft: (isRoadTask ? taskTile?.roadTurnsLeft : taskTile?.improvementTurnsLeft) ?? 1,
           onCancel: () => selectUnit(selectedId),
           onConfirm: () => {
             executeAnimatedUnitMove(selectedId, () => confirmBusyWorkerMove(gameState, selectedId, coord, {

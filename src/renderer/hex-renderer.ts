@@ -1,5 +1,5 @@
 import type { GameMap, HexCoord, HexTile, TerrainType, VisibilityMap } from '@/core/types';
-import { hexToPixel, hexesInRange, HEX_CORNERS_POINTY } from '@/systems/hex-utils';
+import { hexToPixel, hexesInRange, HEX_CORNERS_POINTY, hexNeighbors, getWrappedHexNeighbors, hexKey } from '@/systems/hex-utils';
 import { Camera } from './camera';
 import { getHorizontalWrapRenderCoords } from './wrap-rendering';
 import { shouldRenderOwnedTileBorder, shouldRenderOwnedTileBorderForPresentation } from './render-visibility';
@@ -218,6 +218,96 @@ export function drawRivers(
 function canRenderRiverEndpoint(map: GameMap, visibility: VisibilityMap | undefined, coord: HexCoord): boolean {
   const presentation = resolveTilePresentationForViewer(map, visibility, coord);
   return presentation.kind === 'live' || presentation.kind === 'last-seen';
+}
+
+// --- Roads (drawn as programmatic lines, like rivers — no sprite art yet) ---
+
+function roadConnects(
+  map: GameMap,
+  visibility: VisibilityMap | undefined,
+  cityTileKeys: ReadonlySet<string>,
+  coord: HexCoord,
+): boolean {
+  const presentation = resolveTilePresentationForViewer(map, visibility, coord);
+  if (presentation.kind !== 'live' && presentation.kind !== 'last-seen') return false;
+  return Boolean(presentation.tile.hasRoad) || cityTileKeys.has(hexKey(coord));
+}
+
+function drawRoadSegment(
+  ctx: CanvasRenderingContext2D,
+  camera: Camera,
+  from: HexCoord,
+  to: HexCoord,
+): void {
+  const fromPixel = hexToPixel(from, camera.hexSize);
+  const toPixel = hexToPixel(to, camera.hexSize);
+  const fromScreen = camera.worldToScreen(fromPixel.x, fromPixel.y);
+  const toScreen = camera.worldToScreen(toPixel.x, toPixel.y);
+  ctx.beginPath();
+  ctx.moveTo(fromScreen.x, fromScreen.y);
+  ctx.lineTo(toScreen.x, toScreen.y);
+  ctx.stroke();
+}
+
+function forEachRoadSegment(
+  map: GameMap,
+  visibility: VisibilityMap | undefined,
+  cityTileKeys: ReadonlySet<string>,
+  onSegment: (from: HexCoord, to: HexCoord) => void,
+): void {
+  const seenPairs = new Set<string>();
+  for (const tile of Object.values(map.tiles)) {
+    if (!roadConnects(map, visibility, cityTileKeys, tile.coord)) continue;
+    const neighbors = map.wrapsHorizontally
+      ? getWrappedHexNeighbors(tile.coord, map.width)
+      : hexNeighbors(tile.coord);
+    for (const neighbor of neighbors) {
+      if (!roadConnects(map, visibility, cityTileKeys, neighbor)) continue;
+      const pairKey = [hexKey(tile.coord), hexKey(neighbor)].sort().join('|');
+      if (seenPairs.has(pairKey)) continue;
+      seenPairs.add(pairKey);
+      onSegment(tile.coord, neighbor);
+    }
+  }
+}
+
+export function drawRoads(
+  ctx: CanvasRenderingContext2D,
+  map: GameMap,
+  camera: Camera,
+  cityTileKeys: ReadonlySet<string>,
+  viewerVisibility?: VisibilityMap,
+): void {
+  ctx.strokeStyle = '#8a6a3a';
+  ctx.lineWidth = 3 * camera.zoom;
+  ctx.lineCap = 'round';
+
+  forEachRoadSegment(map, viewerVisibility, cityTileKeys, (from, to) => {
+    if (camera.isHexVisible(from) || camera.isHexVisible(to)) {
+      drawRoadSegment(ctx, camera, from, to);
+    }
+  });
+
+  if (map.wrapsHorizontally) {
+    drawWrapGhostRoads(ctx, map, camera, cityTileKeys, viewerVisibility);
+  }
+}
+
+export function drawWrapGhostRoads(
+  ctx: CanvasRenderingContext2D,
+  map: GameMap,
+  camera: Camera,
+  cityTileKeys: ReadonlySet<string>,
+  viewerVisibility?: VisibilityMap,
+): void {
+  forEachRoadSegment(map, viewerVisibility, cityTileKeys, (from, to) => {
+    for (const offset of getHorizontalWrapOffsetsForRiver(from, to, map.width)) {
+      const ghostFrom: HexCoord = { q: from.q + offset, r: from.r };
+      const ghostTo: HexCoord = { q: to.q + offset, r: to.r };
+      if (!camera.isHexVisible(ghostFrom) && !camera.isHexVisible(ghostTo)) continue;
+      drawRoadSegment(ctx, camera, ghostFrom, ghostTo);
+    }
+  });
 }
 
 function drawRiverSegment(

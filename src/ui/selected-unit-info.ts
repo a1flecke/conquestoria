@@ -7,6 +7,7 @@ import { TRAINABLE_UNITS, BUILDINGS } from '@/systems/city-system';
 import {
   formatImprovementYieldLabel,
   formatWorkerActionBlockerReason,
+  type ImprovementWorkerActionType,
   getAvailableWorkerActions,
   getImprovementDisplayName,
   getKnownTileResourceForWorkerAction,
@@ -17,6 +18,7 @@ import {
   type WorkerActionEligibilityOptions,
 } from '@/systems/improvement-system';
 import { DEFAULT_WORKER_CHARGES, getWorkerChargesRemaining } from '@/systems/worker-action-system';
+import { getRoadBlockerReason, formatRoadBlockerReason } from '@/systems/road-system';
 import { hexKey } from '@/systems/hex-utils';
 import { canFoundCityAt, formatCityFoundingBlockerMessage, getCityFoundingBlockers } from '@/systems/city-territory-system';
 import { resolveFromCity } from '@/systems/trade-system';
@@ -118,7 +120,7 @@ function nextTierLabel(currentLabel: string): string | null {
   return null;
 }
 
-const WORKER_ACTIONS: WorkerActionType[] = [
+const WORKER_ACTIONS: ImprovementWorkerActionType[] = [
   'farm', 'mine', 'lumber_camp', 'watermill',
   'plantation', 'pasture', 'camp', 'quarry',
   'drain_swamp',
@@ -367,6 +369,19 @@ export function renderSelectedUnitInfo(
         }
         actionsDiv.appendChild(makeButton(label, color, () => callbacks.onWorkerAction!(action)));
       }
+
+      const roadBlockerReason = getRoadBlockerReason(tile, completedTechs, unit.owner, isCityTile);
+      if (roadBlockerReason === 'none') {
+        actionsDiv.appendChild(makeButton('Build Road (2 turns)', '#8a6a3a', () => callbacks.onWorkerAction!('build_road')));
+      } else if (roadBlockerReason === 'requires-tech' || roadBlockerReason === 'outside-territory') {
+        const btn = makeButton('Build Road (2 turns)', '#8a6a3a');
+        btn.disabled = true;
+        btn.style.opacity = '0.5';
+        btn.style.cursor = 'not-allowed';
+        btn.title = formatRoadBlockerReason(roadBlockerReason);
+        actionsDiv.appendChild(btn);
+      }
+
       if (workerActions.length === 0) {
         const eligibilityOpts = workerEligibilityOptions;
         if (tile && tile.improvement !== 'none' && callbacks.onReplaceImprovement) {

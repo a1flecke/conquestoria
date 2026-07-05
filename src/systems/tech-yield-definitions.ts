@@ -63,7 +63,7 @@ export const TECH_YIELD_MODIFIERS: TechYieldModifier[] = [
   { techId: 'plantation-farming', label: 'Farms yield +1 food', effect: { kind: 'perImprovement', improvement: 'farm', yields: { food: 1 } } },
   { techId: 'monastic-orders', label: '+1 science and +1 gold per city with temple', effect: { kind: 'cityFlatConditional', requiresAnyBuilding: ['temple'], yields: { science: 1, gold: 1 } } },
   { techId: 'reformation', label: '+2 science in cities with a temple', effect: { kind: 'cityFlatConditional', requiresAnyBuilding: ['temple'], yields: { science: 2 } } },
-  // postal-service: '+1 gold per road tile in empire' — road-dependent, deferred to MR7
+  // postal-service: '+1 gold per road tile in your territory (max +10)' — resolved by getRoadTileTechGold (needs the owned-road-tile count, not table-drivable).
 
   // --- Era 6 ---
   { techId: 'mercantilism', label: '+5% gold empire-wide', effect: { kind: 'empirePercent', resource: 'gold', percent: 5 } },
@@ -82,7 +82,7 @@ export const TECH_YIELD_MODIFIERS: TechYieldModifier[] = [
   { techId: 'aqueduct-expansion', label: '+2 food in all cities with aqueduct', effect: { kind: 'cityFlatConditional', requiresAnyBuilding: ['aqueduct'], yields: { food: 2 } } },
   { techId: 'newspaper-press', label: '+2 science empire-wide', effect: { kind: 'cityFlat', yields: { science: 2 } } },
   { techId: 'ecumenical-council', label: '+2 gold per city with a temple empire-wide', effect: { kind: 'cityFlatConditional', requiresAnyBuilding: ['temple'], yields: { gold: 2 } } },
-  // courier-network: road-dependent, deferred to MR7
+  // courier-network / colonial-railways / transcontinental-rail: resolved by getConnectedCityTechGold (needs road-BFS connectivity, not table-drivable).
 
   // --- Era 7 ---
   { techId: 'mass-production', label: '+10% production empire-wide', effect: { kind: 'empirePercent', resource: 'production', percent: 10 } },
@@ -177,6 +177,8 @@ export const TECH_YIELD_MODIFIERS: TechYieldModifier[] = [
   { techId: 'electronic-computing', label: '+3 science in cities with a research institute', effect: { kind: 'cityFlatConditional', requiresAnyBuilding: ['research_institute'], yields: { science: 3 } } },
   { techId: 'liberation-theology', label: '+1 food in cities with a temple', effect: { kind: 'cityFlatConditional', requiresAnyBuilding: ['temple'], yields: { food: 1 } } },
   { techId: 'interfaith-council', label: '+1 science in cities with a religion building', effect: { kind: 'cityFlatConditional', requiresAnyBuilding: ['temple', 'monastery'], yields: { science: 1 } } },
+  // highway-network has no road-tile dependency ("+2 gold empire-wide" as written) — grouped here with the other road-family effects.
+  { techId: 'highway-network', label: '+2 gold empire-wide', effect: { kind: 'empireFlat', yields: { gold: 2 } } },
 
   // --- Era 11 ---
   { techId: 'stagflation-response', label: '+3 gold all cities', effect: { kind: 'cityFlat', yields: { gold: 3 } } },

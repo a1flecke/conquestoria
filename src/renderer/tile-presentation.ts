@@ -34,6 +34,7 @@ function lastSeenToTile(snapshot: LastSeenTilePresentation): HexTile {
     improvementTurnsLeft: snapshot.improvementTurnsLeft,
     hasRiver: snapshot.hasRiver,
     wonder: snapshot.wonder,
+    hasRoad: snapshot.hasRoad,
   };
 }
 

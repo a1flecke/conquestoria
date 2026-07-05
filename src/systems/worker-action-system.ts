@@ -16,6 +16,8 @@ import {
   getWorkerActionBlockerReason,
   getWorkerActionLabel,
 } from './improvement-system';
+import { getRoadBlockerReason, getRoadBuildTurns } from './road-system';
+import { getActiveNationalProjectsForCiv } from './national-project-system';
 
 export const DEFAULT_WORKER_CHARGES = 2;
 export const MAX_WORKER_CHARGES = 5;
@@ -24,6 +26,7 @@ export const SWAMP_DRAIN_WORKER_LOSS_CHANCE = 0.2;
 
 type WorkerActionEvent =
   | { type: 'improvement:started'; payload: GameEvents['improvement:started'] }
+  | { type: 'road:started'; payload: GameEvents['road:started'] }
   | { type: 'unit:destroyed'; payload: GameEvents['unit:destroyed'] };
 
 export type WorkerActionFailureReason =
@@ -61,7 +64,7 @@ export type WorkerActionResult =
     };
 
 function isBuildableImprovement(action: WorkerActionType): action is BuildableImprovementType {
-  return action !== 'drain_swamp';
+  return action !== 'drain_swamp' && action !== 'build_road';
 }
 
 export function getWorkerChargesRemaining(unit: Unit): number {
@@ -125,8 +128,62 @@ export function applyWorkerAction(
   if (!tile) return { ok: false, state, reason: 'missing-tile', events: [] };
 
   const completedTechs = state.civilizations[unit.owner]?.techState.completed ?? [];
+  const isCityTile = isCityCenterTile(state, unit.position);
+
+  if (action === 'build_road') {
+    const roadReason = getRoadBlockerReason(tile, completedTechs, unit.owner, isCityTile);
+    if (roadReason !== 'none') {
+      return {
+        ok: false,
+        state,
+        reason: roadReason === 'outside-territory' ? 'outside-territory' : 'invalid-action',
+        events: [],
+      };
+    }
+
+    const hasRoadCorps = getActiveNationalProjectsForCiv(state, unit.owner).some(np => np.id === 'road_corps');
+    const buildTurns = getRoadBuildTurns(hasRoadCorps);
+    const chargesAfterRoad = Math.max(0, chargesBefore - 1);
+    const nextTile = { ...tile, roadTurnsLeft: buildTurns, roadOwner: unit.owner };
+    const updatedRoadUnit = {
+      ...unit,
+      hasActed: true,
+      movementPointsLeft: 0,
+      chargesRemaining: chargesAfterRoad,
+      workerTask: { action: 'build_road' as const, coord: { ...tile.coord } },
+    };
+
+    let nextRoadState: GameState = {
+      ...state,
+      map: { ...state.map, tiles: { ...state.map.tiles, [key]: nextTile } },
+      units: { ...state.units, [unitId]: updatedRoadUnit },
+    };
+
+    const roadEvents: WorkerActionEvent[] = [
+      { type: 'road:started', payload: { unitId, coord: { ...tile.coord } } },
+    ];
+    const roadWorkerConsumed = chargesAfterRoad === 0;
+    if (roadWorkerConsumed) {
+      nextRoadState = removeUnit(nextRoadState, updatedRoadUnit);
+      roadEvents.push({ type: 'unit:destroyed', payload: { unitId, position: { ...unit.position } } });
+    }
+
+    return {
+      ok: true,
+      state: nextRoadState,
+      action,
+      message: `Building Road (${buildTurns} turns)${roadWorkerConsumed ? ' - worker used up' : ` - ${chargesAfterRoad}/${DEFAULT_WORKER_CHARGES} charges left`}`,
+      events: roadEvents,
+      workerConsumed: roadWorkerConsumed,
+      workerLost: false,
+      chargesRemaining: chargesAfterRoad,
+      forestProductionBonus: 0,
+      boostedCityId: null,
+    };
+  }
+
   const eligibilityOptions = {
-    isCityTile: isCityCenterTile(state, unit.position),
+    isCityTile,
     allowReplacement: options.allowReplacement,
     knownResource: getKnownTileResourceForWorkerAction(tile, completedTechs),
   };
@@ -260,6 +317,32 @@ export function clearCompletedWorkerTasksForImprovement(
       unit.workerTask
       && hexKey(unit.workerTask.coord) === key
       && unit.workerTask.action === tile.improvement
+    ) {
+      nextUnits[unitId] = { ...unit, workerTask: undefined };
+      changed = true;
+    } else {
+      nextUnits[unitId] = unit;
+    }
+  }
+
+  return changed ? { ...state, units: nextUnits } : state;
+}
+
+export function clearCompletedWorkerTasksForRoad(
+  state: GameState,
+  coord: HexCoord,
+): GameState {
+  const key = hexKey(coord);
+  const tile = state.map.tiles[key];
+  if (!tile || (tile.roadTurnsLeft ?? 0) > 0) return state;
+
+  let changed = false;
+  const nextUnits: GameState['units'] = {};
+  for (const [unitId, unit] of Object.entries(state.units)) {
+    if (
+      unit.workerTask
+      && unit.workerTask.action === 'build_road'
+      && hexKey(unit.workerTask.coord) === key
     ) {
       nextUnits[unitId] = { ...unit, workerTask: undefined };
       changed = true;
