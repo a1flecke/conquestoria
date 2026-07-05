@@ -68,10 +68,24 @@ describe('completed-round AI wiring', () => {
 
     expect(handoff).toContain('onReady: async summary =>');
     expect(handoff).toMatch(
-      /acknowledgeTurnHandoffSummary\(\s*gameState,\s*nextSlotId,\s*summary,\s*\)/,
+      /acknowledgeTurnHandoffSummary\(\s*gameState,\s*resolvedNextSlotId,\s*summary,\s*\)/,
     );
-    expect(handoff.indexOf('releaseHandoffToViewer(nextSlotId)'))
+    expect(handoff.indexOf('releaseHandoffToViewer(resolvedNextSlotId)'))
       .toBeLessThan(handoff.indexOf("bus.emit('ai:strategic-warning-audio'"));
+  });
+
+  it('keeps completed-round handoff anonymous and resolves its recipient after simulation', () => {
+    const main = readFileSync(resolve(PROJECT_ROOT, 'src/main.ts'), 'utf8');
+    const handoff = main.slice(
+      main.indexOf('async function beginHotSeatHandoff'),
+      main.indexOf('async function endTurn'),
+    );
+
+    expect(handoff).toContain('const previousHumanId = preSimulationState.currentPlayer');
+    expect(handoff).toContain('const nextPlayer = hotSeat.players.find');
+    expect(handoff).toContain('resolveHotSeatPostSimulation(state, previousHumanId).state');
+    expect(handoff).toContain('resolvedNextSlotId = outcome.state.currentPlayer');
+    expect(handoff).toContain('controller.setRecipient(outcome.state, resolvedNextSlotId');
   });
 });
 

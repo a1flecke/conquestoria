@@ -29,6 +29,23 @@ function makeFixture() {
 afterEach(() => document.body.replaceChildren());
 
 describe('turn handoff', () => {
+  it('keeps completed-round preparation anonymous until the authoritative recipient is bound', () => {
+    const { state, layer } = makeFixture();
+    const controller = showTurnHandoff(layer, state, null, null, {
+      initiallyReady: false,
+      onReady: vi.fn(),
+    });
+
+    expect(document.body.textContent).toContain('Preparing next turn…');
+    expect(document.body.textContent).not.toContain('Alice');
+    expect(document.body.textContent).not.toContain('Bob');
+
+    controller.setRecipient(state, 'player-2', 'Bob');
+    expect(document.body.textContent).toContain('Pass to');
+    expect(document.body.textContent).toContain('Bob');
+    expect(document.querySelector<HTMLButtonElement>('#handoff-confirm')?.disabled).toBe(false);
+  });
+
   it('acknowledges multiple warning rows with one post-handoff cue and does not replay after reload', () => {
     const { state } = makeFixture();
     state.opponentAI = createEmptyOpponentAIState();

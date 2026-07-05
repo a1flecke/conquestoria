@@ -22,6 +22,7 @@ import { executeUnitMove } from '@/systems/unit-movement-system';
 import { buildUnitOccupancy, getUnitIdsAtCoord } from '@/systems/unit-occupancy';
 import { UNIT_DEFINITIONS } from '@/systems/unit-system';
 import { buildMovePresentationByViewer } from '@/systems/viewer-event-presentation';
+import { eliminateCivilization } from '@/systems/civilization-elimination-system';
 
 export type MajorCityCaptureDisposition = 'occupy' | 'raze';
 
@@ -30,6 +31,12 @@ export interface MajorCityCaptureResult {
   outcome: 'occupied' | 'razed';
   goldAwarded: number;
   territoryEvents: GameEvents['territory:tile-flipped'][];
+  elimination?: {
+    civId: string;
+    eliminatedBy: string;
+    removedUnitIds: string[];
+    removedSpyIds: string[];
+  };
 }
 
 export function emitMajorCityCaptureEvents(
@@ -53,13 +60,10 @@ export function emitMajorCityCaptureEvents(
 
   const previousOwnerBefore = before.civilizations[previousOwnerId];
   const previousOwnerAfter = result.state.civilizations[previousOwnerId];
-  if (
-    previousOwnerAfter?.cities.length === 0
-    && (previousOwnerBefore?.cities.length ?? 0) > 0
-  ) {
+  if (result.elimination) {
     bus.emit('civ:eliminated', {
-      civId: previousOwnerId,
-      eliminatedBy: newOwnerId,
+      civId: result.elimination.civId,
+      eliminatedBy: result.elimination.eliminatedBy,
     });
   } else if (
     previousOwnerBefore?.nearDefeat !== true
@@ -309,6 +313,7 @@ function buildCaptureResult(
   outcome: MajorCityCaptureResult['outcome'],
   goldAwarded: number,
   capturedCityId?: string,
+  elimination?: MajorCityCaptureResult['elimination'],
 ): MajorCityCaptureResult {
   const postWorkState = capturedCityId
     ? normalizeCityWorkAfterTerritoryChange(territoryResult.state, capturedCityId).state
@@ -322,6 +327,7 @@ function buildCaptureResult(
       postWorkState,
       territoryResult.resolutions,
     ),
+    elimination,
   };
 }
 
@@ -401,7 +407,6 @@ export function resolveMajorCityCapture(
             // nearDefeat flag: true when previous owner now has ≤ 1 city
             // Used by audio system and handoff payload computation
             nearDefeat: previousOwner.cities.filter(id => id !== cityId).length <= 1,
-            isEliminated: previousOwner.cities.filter(id => id !== cityId).length === 0,
           },
         } : {}),
         [newOwnerId]: {
@@ -417,12 +422,26 @@ export function resolveMajorCityCapture(
         newOwnerId,
       ),
     };
-    const territoryResult = recalculateTerritory(nextState, {
+    const elimination = eliminateCivilization(nextState, previousOwnerId, newOwnerId);
+    const stateAfterElimination = elimination.state;
+    const territoryResult = recalculateTerritory(stateAfterElimination, {
       reason: 'capture',
       preserveCurrentHolderOnTie: true,
     });
 
-    return buildCaptureResult(nextState, territoryResult, 'occupied', 0, cityId);
+    return buildCaptureResult(
+      stateAfterElimination,
+      territoryResult,
+      'occupied',
+      0,
+      cityId,
+      elimination.eliminated ? {
+        civId: elimination.civId,
+        eliminatedBy: elimination.eliminatedBy,
+        removedUnitIds: elimination.removedUnitIds,
+        removedSpyIds: elimination.removedSpyIds,
+      } : undefined,
+    );
   }
 
   const goldAwarded = computeRazeGold(city);
@@ -435,7 +454,6 @@ export function resolveMajorCityCapture(
         diplomacy: modifyRelationship(previousOwner.diplomacy, newOwnerId, -40),
         // nearDefeat flag: true when previous owner now has ≤ 1 city (raze path)
         nearDefeat: previousOwner.cities.filter(id => id !== cityId).length <= 1,
-        isEliminated: previousOwner.cities.filter(id => id !== cityId).length === 0,
       },
     } : {}),
     [newOwnerId]: {
@@ -453,12 +471,26 @@ export function resolveMajorCityCapture(
     civilizations: nextCivilizations,
     legendaryWonderProjects: removeLegendaryWonderProjectsForCity(state.legendaryWonderProjects, cityId),
   };
-  const territoryResult = recalculateTerritory(nextState, {
+  const elimination = eliminateCivilization(nextState, previousOwnerId, newOwnerId);
+  const stateAfterElimination = elimination.state;
+  const territoryResult = recalculateTerritory(stateAfterElimination, {
     reason: 'raze',
     preserveCurrentHolderOnTie: true,
   });
 
-  return buildCaptureResult(nextState, territoryResult, 'razed', goldAwarded, cityId);
+  return buildCaptureResult(
+    stateAfterElimination,
+    territoryResult,
+    'razed',
+    goldAwarded,
+    cityId,
+    elimination.eliminated ? {
+      civId: elimination.civId,
+      eliminatedBy: elimination.eliminatedBy,
+      removedUnitIds: elimination.removedUnitIds,
+      removedSpyIds: elimination.removedSpyIds,
+    } : undefined,
+  );
 }
 
 export function transferCapturedCityOwnership(
@@ -513,7 +545,8 @@ export function transferCapturedCityOwnership(
       },
     },
   };
-  return recalculateTerritory(nextState, {
+  const eliminatedState = eliminateCivilization(nextState, previousOwnerId, newOwnerId).state;
+  return recalculateTerritory(eliminatedState, {
     reason: 'capture',
     preserveCurrentHolderOnTie: true,
   }).state;

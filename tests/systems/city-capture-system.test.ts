@@ -502,20 +502,27 @@ describe('city-capture-system', () => {
 
   it('sets isEliminated on the previous owner when their last city is occupied', () => {
     const state = makeExposedCityCaptureState({ population: 4, buildings: [] });
+    const defeatedUnits = [...state.civilizations['ai-1'].units];
     // ai-1 starts with only 'athens'
     expect(state.civilizations['ai-1'].cities).toEqual(['athens']);
 
     const result = resolveMajorCityCapture(state, 'athens', 'player', 'occupy', state.turn);
 
     expect(result.state.civilizations['ai-1'].isEliminated).toBe(true);
+    expect(result.state.civilizations['ai-1'].units).toEqual([]);
+    expect(defeatedUnits.every(id => result.state.units[id] === undefined)).toBe(true);
+    expect(result.elimination?.civId).toBe('ai-1');
   });
 
   it('sets isEliminated on the previous owner when their last city is razed', () => {
     const state = makeExposedCityCaptureState({ population: 4, buildings: [] });
+    const defeatedUnits = [...state.civilizations['ai-1'].units];
 
     const result = resolveMajorCityCapture(state, 'athens', 'player', 'raze', state.turn);
 
     expect(result.state.civilizations['ai-1'].isEliminated).toBe(true);
+    expect(defeatedUnits.every(id => result.state.units[id] === undefined)).toBe(true);
+    expect(result.elimination?.civId).toBe('ai-1');
   });
 
   it('does not set isEliminated when the previous owner still has other cities', () => {
