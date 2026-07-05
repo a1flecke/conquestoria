@@ -1018,6 +1018,9 @@ export type MapScript =
   | 'balanced'
   | 'single-continent';
 
+export type StartPlacementMode = 'balanced' | 'historical';
+export type GameOverReason = 'domination' | 'all-humans-eliminated';
+
 // --- Game Modes ---
 
 export type GameMode = 'solo' | 'hotseat';
@@ -1034,6 +1037,7 @@ export interface HotSeatConfig {
   mapSize: 'small' | 'medium' | 'large';
   /** Keep map generation fields in sync with SoloSetupConfig. */
   mapScript?: MapScript;
+  startPlacementMode?: StartPlacementMode;
   players: HotSeatPlayer[];
   customCivilizations?: CustomCivDefinition[];
 }
@@ -1048,6 +1052,7 @@ export interface SoloSetupConfig {
   seed?: string;
   customCivilizations?: CustomCivDefinition[];
   mapScript?: MapScript;
+  startPlacementMode?: StartPlacementMode;
 }
 
 export interface GameEvent {
@@ -1360,6 +1365,7 @@ export interface GameState {
   currentPlayer: string;     // civ ID whose turn it is
   gameOver: boolean;
   winner: string | null;
+  gameOverReason?: GameOverReason;
   settings: GameSettings;
   marketplace?: MarketplaceState;
   economyStatusByCiv?: Record<string, EconomyStatus>;
@@ -1387,6 +1393,7 @@ export interface GameState {
   pendingDiplomacyRequests?: PendingDiplomaticRequest[];
   territoryFrontiers?: Record<string, TerritoryFrontierState>;
   mapScript?: MapScript;  // undefined on old saves → treat as 'procedural'
+  startPlacementMode?: StartPlacementMode;
 }
 
 export interface GameSettings {
