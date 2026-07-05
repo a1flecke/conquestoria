@@ -19,11 +19,11 @@ import {
   calculateCombatStrengths,
   resolveCombat,
 } from '@/systems/combat-system';
+import { buildCombatContextForDefender } from '@/systems/combat-context';
 import { resolveMajorCityCapture } from '@/systems/city-capture-system';
 import { collectUsedCityNames } from '@/systems/city-name-system';
 import { foundCity } from '@/systems/city-system';
 import { canFoundCityAt } from '@/systems/city-territory-system';
-import { resolveCivDefinition } from '@/systems/civ-registry';
 import { getVisibility } from '@/systems/fog-of-war';
 import {
   hexDistance,
@@ -163,19 +163,6 @@ function hostileOwners(state: GameState, actorId: string): Set<string> {
     if (isAIHostileOwner(state, actorId, unit.owner)) atWar.add(unit.owner);
   }
   return atWar;
-}
-
-function combatContext(state: GameState, attacker: Unit, defender: Unit) {
-  return {
-    attackerBonus: resolveCivDefinition(
-      state,
-      state.civilizations[attacker.owner]?.civType ?? '',
-    )?.bonusEffect,
-    defenderBonus: resolveCivDefinition(
-      state,
-      state.civilizations[defender.owner]?.civType ?? '',
-    )?.bonusEffect,
-  };
 }
 
 function visibleThreatCount(
@@ -321,7 +308,7 @@ function rankAttacks(
       unit,
       defender,
       context.state.map,
-      combatContext(context.state, unit, defender),
+      buildCombatContextForDefender(context.state, unit, defender),
     );
     const expectedDamageRatio = Math.min(
       2,
@@ -343,7 +330,7 @@ function rankAttacks(
       defender,
       context.state.map,
       combatSeed(context, action),
-      combatContext(context.state, unit, defender),
+      buildCombatContextForDefender(context.state, unit, defender),
       context.state.era,
     );
     const likelyFinish = !preview.defenderSurvived;
@@ -654,7 +641,7 @@ function applyPredictedAction(
         defender,
         next.map,
         seed,
-        combatContext(next, unit, defender),
+        buildCombatContextForDefender(next, unit, defender),
         next.era,
       );
       return applyCombatOutcomeToState(next, result, seed).state;

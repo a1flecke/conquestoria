@@ -26,4 +26,33 @@ describe('formatCombatPreviewDetails', () => {
 
     expect(details).not.toContain('river crossing');
   });
+
+  it('shows city defense modifier lines when the defender is in a walled city', () => {
+    const details = formatCombatPreviewDetails('Rival', 100, {
+      attackerStrength: 10,
+      defenderStrength: 12.5,
+      terrainDefenseBonus: 0,
+      riverAttackPenalty: 0,
+      cityDefense: {
+        multiplier: 1.25,
+        flatBonus: 0,
+        parts: [{ source: 'walls', label: 'Walls ×1.25', kind: 'mult', value: 1.25 }],
+      },
+    });
+
+    expect(details).toContain('Walls ×1.25');
+  });
+
+  it('omits city defense modifier lines when the defender is not in a city (negative test)', () => {
+    const details = formatCombatPreviewDetails('Rival', 100, {
+      attackerStrength: 10,
+      defenderStrength: 10,
+      terrainDefenseBonus: 0,
+      riverAttackPenalty: 0,
+    });
+
+    expect(details).not.toContain('Walls');
+    expect(details).not.toContain('Star Fort');
+    expect(details).not.toContain('Professional Army');
+  });
 });

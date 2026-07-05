@@ -430,6 +430,7 @@ function chooseLegendaryWonderFallback(
     return 'warrior';
   }
 
+  // walls now grant ×1.25 city defense (combat-system getCityDefenseBreakdown)
   if (!city.buildings.includes('walls')) {
     return 'walls';
   }
