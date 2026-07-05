@@ -115,7 +115,7 @@ import { estimateTurnsToComplete } from '@/systems/pacing-model';
 import { visitVillage } from '@/systems/village-system';
 import { getWonderDefinition } from '@/systems/wonder-definitions';
 import { buildWonderDiscoveryRevealItem } from '@/systems/wonder-discovery-reveal';
-import { getAvailableTechs } from '@/systems/tech-system';
+import { getAvailableTechs, getEffectiveTechCost } from '@/systems/tech-system';
 import { getNextPlayer, isRoundComplete } from '@/core/turn-cycling';
 import {
   acknowledgeTurnHandoffSummary,
@@ -1232,7 +1232,7 @@ function showRequiredChoicesIfNeeded(): boolean {
     ? getAvailableTechs(civ.techState).slice(0, 3).map(tech => ({
       techId: tech.id,
       label: tech.name,
-      turns: estimateTurnsToComplete({ cost: tech.cost, outputPerTurn: sciencePerTurn }),
+      turns: estimateTurnsToComplete({ cost: getEffectiveTechCost(tech, civ.techState.completed), outputPerTurn: sciencePerTurn }),
     }))
     : [];
 

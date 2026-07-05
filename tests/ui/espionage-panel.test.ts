@@ -249,6 +249,40 @@ describe('espionage-panel', () => {
       const data = getEspionagePanelData(state);
       expect(data.spies.every(s => s.owner === state.currentPlayer)).toBe(true);
     });
+
+    describe('MR6: cyber-intelligence production-queue reveal', () => {
+      it('reveals the infiltrated city production queue with the tech and a stationed spy', () => {
+        const state = makeEspUiState();
+        state.civilizations.player.techState.completed = ['espionage-scouting', 'cyber-intelligence'];
+        state.cities['city-egypt-1'].productionQueue = ['granary'];
+        const spy = makeTestSpy('spy-1', 'player', { status: 'stationed', infiltrationCityId: 'city-egypt-1', targetCivId: 'ai-egypt' });
+        state.espionage!['player'] = addSpy(state.espionage!['player'], spy);
+
+        const data = getEspionagePanelData(state);
+        expect(data.spySummaries[0].revealedProductionQueue).toEqual(['Granary']);
+      });
+
+      it('does not reveal the queue without cyber-intelligence', () => {
+        const state = makeEspUiState();
+        state.cities['city-egypt-1'].productionQueue = ['granary'];
+        const spy = makeTestSpy('spy-1', 'player', { status: 'stationed', infiltrationCityId: 'city-egypt-1', targetCivId: 'ai-egypt' });
+        state.espionage!['player'] = addSpy(state.espionage!['player'], spy);
+
+        const data = getEspionagePanelData(state);
+        expect(data.spySummaries[0].revealedProductionQueue).toBeUndefined();
+      });
+
+      it('does not reveal the queue for a spy that is not stationed/embedded', () => {
+        const state = makeEspUiState();
+        state.civilizations.player.techState.completed = ['espionage-scouting', 'cyber-intelligence'];
+        state.cities['city-egypt-1'].productionQueue = ['granary'];
+        const spy = makeTestSpy('spy-1', 'player', { status: 'idle' });
+        state.espionage!['player'] = addSpy(state.espionage!['player'], spy);
+
+        const data = getEspionagePanelData(state);
+        expect(data.spySummaries[0].revealedProductionQueue).toBeUndefined();
+      });
+    });
   });
 
   describe('getSpyActions', () => {

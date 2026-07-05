@@ -1,4 +1,4 @@
-import type { GameState, HexCoord, NormalizedLegendaryWonderIntelEntry } from '@/core/types';
+import type { GameState, HexCoord, LegendaryWonderProject, NormalizedLegendaryWonderIntelEntry } from '@/core/types';
 import { getLegendaryWonderDefinition } from '@/systems/legendary-wonder-definitions';
 import { getLegendaryWonderIntelForViewer } from '@/systems/legendary-wonder-intel';
 
@@ -149,6 +149,46 @@ export function isLegendaryWonderVisibleToPlayer(
   if (owned && owned.phase !== 'locked') return true;
   const summaries = precomputedRivalIntel ?? getLegendaryWonderRivalIntelSummariesForViewer(state, viewerId);
   return summaries.has(wonderId);
+}
+
+export interface SocialMediaRivalProjectDetail {
+  civId: string;
+  civName: string;
+  cityName: string;
+  phase: LegendaryWonderProject['phase'];
+  investedProduction: number;
+}
+
+/**
+ * social-media: while the viewer is racing a wonder (has an active, non-locked/lost project for
+ * it), reveal every other civ's project phase + invested production for that same wonder. Gated
+ * on the viewer actually being in the race — must not leak intel for wonders they aren't building.
+ */
+export function getSocialMediaRivalProjectDetails(
+  state: GameState,
+  viewerId: string,
+  wonderId: string,
+): SocialMediaRivalProjectDetail[] {
+  const viewer = state.civilizations[viewerId];
+  if (!viewer?.techState.completed.includes('social-media')) return [];
+
+  const viewerProject = Object.values(state.legendaryWonderProjects ?? {}).find(
+    project => project.ownerId === viewerId && project.wonderId === wonderId,
+  );
+  if (!viewerProject || viewerProject.phase === 'locked' || viewerProject.phase === 'lost_race') {
+    return [];
+  }
+
+  return Object.values(state.legendaryWonderProjects ?? {})
+    .filter(project => project.wonderId === wonderId && project.ownerId !== viewerId && project.phase !== 'locked')
+    .map(project => ({
+      civId: project.ownerId,
+      civName: state.civilizations[project.ownerId]?.name ?? project.ownerId,
+      cityName: state.cities[project.cityId]?.name ?? project.cityId,
+      phase: project.phase,
+      investedProduction: project.investedProduction,
+    }))
+    .sort((a, b) => a.civId.localeCompare(b.civId));
 }
 
 export function getLegendaryWonderHostLocationIntelForViewer(

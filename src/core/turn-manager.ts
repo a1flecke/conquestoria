@@ -6,7 +6,7 @@ import { processCity, TRAINABLE_UNITS, BUILDINGS } from '@/systems/city-system';
 import { getCivAvailableResources } from '@/systems/resource-acquisition-system';
 import { applyCityMaturity } from '@/systems/city-maturity-system';
 import { assignCityFocus, normalizeWorkedTilesForCity } from '@/systems/city-work-system';
-import { processResearch, getTechById } from '@/systems/tech-system';
+import { processResearch, getTechById, getEffectiveTechCost } from '@/systems/tech-system';
 import {
   processPurposefulBarbarians,
 } from '@/systems/barbarian-system';
@@ -31,9 +31,16 @@ import { executeUnitMove } from '@/systems/unit-movement-system';
 import { buildCombatPresentation } from '@/systems/viewer-event-presentation';
 import { calculateCityYields } from '@/systems/resource-system';
 import { getCivResourceYieldBonus, getCivHappinessFromResources } from '@/systems/resource-acquisition-system';
-import { getEmpireTechPercents, getCivLuxuryTechGold } from '@/systems/tech-yield-system';
+import {
+  getEmpireTechPercents,
+  getCivLuxuryTechGold,
+  getEmpireFlatTechYields,
+  getLowestCityScienceBonus,
+  getCivWonderTechGold,
+  getCivRoutePartnerTechGold,
+} from '@/systems/tech-yield-system';
 import type { HexCoord } from './types';
-import { updateVisibility, revealMinorCivCities, applySharedVision, applySatelliteSurveillance } from '@/systems/fog-of-war';
+import { updateVisibility, revealMinorCivCities, applySharedVision, applySatelliteSurveillance, applyMassSurveillanceReveal } from '@/systems/fog-of-war';
 import { getActiveNationalProjectsForCiv } from '@/systems/national-project-system';
 import { getHealingBonus, getVisionBonus, isWithinRangeOfTelemedicineHub } from '@/systems/unit-modifier-system';
 import { syncCivilizationContactsFromVisibility } from '@/systems/discovery-system';
@@ -49,6 +56,7 @@ import {
   endVassalage,
   endVassalageUnilateral,
   declareWar,
+  isAtWar,
   decayTreachery,
   joinEmbargo,
   cleanupEmbargoes,
@@ -150,6 +158,30 @@ export function processTurn(
     const npCivBonuses = getNationalProjectCivYieldBonus(newState, civId);
     const empireTechPercents = getEmpireTechPercents(civ.techState.completed);
 
+    // MR6 "empire-wide" texts without a per-city/all-cities qualifier resolve to a single flat
+    // civ-total bonus. Gold/science have real civ-wide pools (totalGold/totalScience below);
+    // food/production don't, so they're credited once to a single deterministic city — the
+    // civ's cities sorted by id, first entry — rather than fabricating a new civ-wide stockpile.
+    const empireFlatTechYields = getEmpireFlatTechYields(civ.techState.completed);
+    const empireFlatTargetCityId = civ.cities.length > 0 ? [...civ.cities].sort()[0] : undefined;
+
+    // network-governance: lowest-science city determined from this turn's un-reassigned base
+    // yields, before empire percents — deterministic tiebreak by sorted city id.
+    const networkGovernanceBonus = getLowestCityScienceBonus(civ.techState.completed);
+    let lowestScienceCityId: string | undefined;
+    if (networkGovernanceBonus > 0) {
+      let lowestScience = Infinity;
+      for (const cid of [...civ.cities].sort()) {
+        const candidateCity = newState.cities[cid];
+        if (!candidateCity) continue;
+        const candidateScience = calculateCityYields(candidateCity, newState.map, civDef?.bonusEffect, civ.techState.completed).science;
+        if (candidateScience < lowestScience) {
+          lowestScience = candidateScience;
+          lowestScienceCityId = cid;
+        }
+      }
+    }
+
     for (const cityId of civ.cities) {
       let city = newState.cities[cityId];
       if (!city) continue;
@@ -161,14 +193,19 @@ export function processTurn(
       city = newState.cities[cityId];
       if (!city) continue;
 
-      const baseYields = calculateCityYields(city, newState.map, civDef?.bonusEffect, civ.techState.completed);
+      const activeRouteCount = (newState.marketplace?.tradeRoutes ?? [])
+        .filter(route => route.fromCityId === cityId || route.toCityId === cityId).length;
+      const baseYields = calculateCityYields(city, newState.map, civDef?.bonusEffect, civ.techState.completed, { activeRouteCount });
       const wonderCityBonuses = getLegendaryWonderCityYieldBonus(newState, civId, cityId);
       const unrestMultiplier = Math.min(getUnrestYieldMultiplier(city), getOccupiedCityYieldMultiplier(city));
+      const empireFlatFoodForCity = cityId === empireFlatTargetCityId ? empireFlatTechYields.food : 0;
+      const empireFlatProductionForCity = cityId === empireFlatTargetCityId ? empireFlatTechYields.production : 0;
+      const networkGovernanceScienceForCity = cityId === lowestScienceCityId ? networkGovernanceBonus : 0;
       const yields = {
-        food:       Math.floor((baseYields.food       + (wonderCityBonuses.food       ?? 0) + resourceYieldBonus.food       + (npCivBonuses.food       ?? 0)) * unrestMultiplier),
-        production: Math.floor((baseYields.production + (wonderCityBonuses.production ?? 0) + resourceYieldBonus.production + (npCivBonuses.production ?? 0)) * unrestMultiplier * (1 + (empireTechPercents.production ?? 0) / 100)),
+        food:       Math.floor((baseYields.food       + (wonderCityBonuses.food       ?? 0) + resourceYieldBonus.food       + (npCivBonuses.food       ?? 0) + empireFlatFoodForCity) * unrestMultiplier),
+        production: Math.floor((baseYields.production + (wonderCityBonuses.production ?? 0) + resourceYieldBonus.production + (npCivBonuses.production ?? 0) + empireFlatProductionForCity) * unrestMultiplier * (1 + (empireTechPercents.production ?? 0) / 100)),
         gold:       Math.floor((baseYields.gold       + (wonderCityBonuses.gold       ?? 0) + resourceYieldBonus.gold)       * unrestMultiplier * (1 + (empireTechPercents.gold ?? 0) / 100)),
-        science:    Math.floor((baseYields.science    + (wonderCityBonuses.science    ?? 0))                                 * unrestMultiplier * (1 + (empireTechPercents.science ?? 0) / 100)),
+        science:    Math.floor((baseYields.science    + (wonderCityBonuses.science    ?? 0) + networkGovernanceScienceForCity) * unrestMultiplier * (1 + (empireTechPercents.science ?? 0) / 100)),
       };
       totalScience += yields.science;
       totalGold += yields.gold;
@@ -307,6 +344,31 @@ export function processTurn(
     totalScience += npCivBonuses.science ?? 0;
     // NP food/production applied per-city above; NP gold handled in economy-system.ts to avoid double-counting
     totalGold += getCivLuxuryTechGold(civ.techState.completed, getCivHappinessFromResources(newState, civId));
+    totalGold += empireFlatTechYields.gold;
+    totalScience += empireFlatTechYields.science;
+
+    // digital-art: +gold per completed legendary wonder this civ owns.
+    const completedWonderCount = Object.values(newState.completedLegendaryWonders ?? {})
+      .filter(wonder => wonder.ownerId === civId).length;
+    totalGold += getCivWonderTechGold(civ.techState.completed, completedWonderCount);
+
+    // globalization: +gold per distinct peacetime foreign trade-route partner civ.
+    const routePartnerCivIds = new Set<string>();
+    for (const route of newState.marketplace?.tradeRoutes ?? []) {
+      const fromCity = newState.cities[route.fromCityId];
+      const toCity = newState.cities[route.toCityId];
+      let partnerCivId: string | undefined;
+      if (fromCity?.owner === civId && route.foreignCivId) {
+        partnerCivId = route.foreignCivId;
+      } else if (toCity?.owner === civId && fromCity && fromCity.owner !== civId) {
+        partnerCivId = fromCity.owner;
+      }
+      if (!partnerCivId) continue;
+      if (!newState.civilizations[partnerCivId]) continue;
+      if (isAtWar(civ.diplomacy, partnerCivId)) continue;
+      routePartnerCivIds.add(partnerCivId);
+    }
+    totalGold += getCivRoutePartnerTechGold(civ.techState.completed, routePartnerCivIds.size);
     if (civDef?.bonusEffect.type === 'allied_kingdoms') {
       const allianceCount = civ.diplomacy.treaties.filter(t => t.type === 'alliance').length;
       totalScience += allianceCount * civDef.bonusEffect.allianceYieldBonus;
@@ -508,6 +570,10 @@ export function processTurn(
     }
     for (const contact of syncCivilizationContactsFromVisibility(newState, civId)) {
       bus.emit('civilization:first-contact', contact);
+    }
+
+    if (civ.techState.completed.includes('mass-surveillance')) {
+      newState = applyMassSurveillanceReveal(newState, civId);
     }
 
     for (const [targetCivId, turnsRemaining] of Object.entries(currentCivState.satelliteSurveillanceTargets ?? {})) {
@@ -912,7 +978,8 @@ export function processTurn(
         const cap = newState.civilizations[captorId];
         if (cap) {
           const currentTechId = cap.techState.currentResearch;
-          const techCost = currentTechId ? (getTechById(currentTechId)?.cost ?? 0) : 0;
+          const currentTech = currentTechId ? getTechById(currentTechId) : undefined;
+          const techCost = currentTech ? getEffectiveTechCost(currentTech, cap.techState.completed) : 0;
           const progressGain = techCost > 0 ? Math.floor(bonus * techCost) : 0;
           if (progressGain > 0) {
             newState = {

@@ -8,7 +8,7 @@ import {
   type TechProgressionNode,
   type TechTreeZoom,
 } from '@/systems/tech-progression';
-import { TECH_TREE } from '@/systems/tech-system';
+import { TECH_TREE, getEffectiveTechCost } from '@/systems/tech-system';
 import { UNIT_DEFINITIONS } from '@/systems/unit-system';
 
 function getUnlockLines(tech: Tech): string[] {
@@ -141,7 +141,7 @@ function getQueuedResearchTiming(
     const currentTech = TECH_TREE.find(tech => tech.id === civ.techState.currentResearch);
     if (currentTech) {
       elapsedTurns = estimateTurnsToComplete({
-        cost: Math.max(0, currentTech.cost - civ.techState.researchProgress),
+        cost: Math.max(0, getEffectiveTechCost(currentTech, civ.techState.completed) - civ.techState.researchProgress),
         outputPerTurn: sciencePerTurn,
       });
     }
@@ -155,7 +155,7 @@ function getQueuedResearchTiming(
 
     const startTurns = elapsedTurns;
     const finishTurns = startTurns + estimateTurnsToComplete({
-      cost: tech.cost,
+      cost: getEffectiveTechCost(tech, civ.techState.completed),
       outputPerTurn: sciencePerTurn,
     });
 
@@ -172,6 +172,7 @@ function createTechNode(
     isFocused: boolean;
     isSelected: boolean;
     isPath: boolean;
+    effectiveCost: number;
     onSelect: (techId: string) => void;
     onQueueResearch: (techId: string) => void;
   },
@@ -216,7 +217,7 @@ function createTechNode(
   detail.style.cssText = 'font-size:11px;opacity:0.72;line-height:1.3;margin-top:5px;';
   const etaText = formatTechNodeEta(node);
   const etaSegment = etaText ? ` · ${etaText}` : '';
-  detail.textContent = `${getFirstUnlockHint(node.tech)}${etaSegment} · Cost: ${node.tech.cost}`;
+  detail.textContent = `${getFirstUnlockHint(node.tech)}${etaSegment} · Cost: ${opts.effectiveCost}`;
   item.appendChild(detail);
 
   item.addEventListener('click', () => {
@@ -412,11 +413,11 @@ export function createTechPanel(
     ? TECH_TREE.find(tech => tech.id === civ.techState.currentResearch)
     : undefined;
   const currentProgress = currentTech
-    ? Math.round((civ.techState.researchProgress / currentTech.cost) * 100)
+    ? Math.round((civ.techState.researchProgress / getEffectiveTechCost(currentTech, civ.techState.completed)) * 100)
     : 0;
   const turnsRemaining = currentTech
     ? estimateTurnsToComplete({
-      cost: Math.max(0, currentTech.cost - civ.techState.researchProgress),
+      cost: Math.max(0, getEffectiveTechCost(currentTech, civ.techState.completed) - civ.techState.researchProgress),
       outputPerTurn: sciencePerTurn,
     })
     : null;
@@ -719,6 +720,7 @@ export function createTechPanel(
         isFocused: progression.focusTechId === node.tech.id,
         isSelected: selectedTechId === node.tech.id,
         isPath: progression.selectedPathIds.has(node.tech.id),
+        effectiveCost: getEffectiveTechCost(node.tech, civ.techState.completed),
         onSelect: updateSelection,
         onQueueResearch: queueResearchAndReopen,
       });

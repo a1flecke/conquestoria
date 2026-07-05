@@ -1602,7 +1602,18 @@ export interface CityProductionCompletionResult {
   completedUnit: UnitType | null;
 }
 
-export function completeCityProductionItem(city: City, itemId: string): CityProductionCompletionResult {
+export interface CompleteCityProductionItemOptions {
+  /** Production cost of the completed item — required to compute 3d-printing overflow. */
+  cost?: number;
+  /** civ.techState.completed — when it includes '3d-printing', leftover progress carries to the next queue item. */
+  completedTechs?: string[];
+}
+
+export function completeCityProductionItem(
+  city: City,
+  itemId: string,
+  options: CompleteCityProductionItemOptions = {},
+): CityProductionCompletionResult {
   const newQueue = [...city.productionQueue];
   const newBuildings = [...city.buildings];
   let completedBuilding: string | null = null;
@@ -1626,10 +1637,18 @@ export function completeCityProductionItem(city: City, itemId: string): CityProd
     }
   }
 
+  // 3d-printing: overflow production beyond the completed item's cost carries to the next
+  // queue item instead of being discarded. Only applies when a next item is actually queued —
+  // there's nothing to carry overflow into otherwise, and productionProgress must stay 0.
+  const hasOverflow = Boolean(options.completedTechs?.includes('3d-printing')) && newQueue.length > 0;
+  const overflow = hasOverflow && options.cost !== undefined
+    ? Math.max(0, city.productionProgress - options.cost)
+    : 0;
+
   let nextCity: City = {
     ...city,
     productionQueue: newQueue,
-    productionProgress: 0,
+    productionProgress: overflow,
     buildings: newBuildings,
   };
 
@@ -1751,10 +1770,12 @@ export function processCity(
     const currentItem = newQueue[0];
 
     const unitDef = TRAINABLE_UNITS.find(u => u.type === currentItem);
-    if ((BUILDINGS[currentItem] || unitDef) && newProgress >= getProductionCostForItem(currentItem, { city, bonusEffect, era })) {
+    const currentItemCost = getProductionCostForItem(currentItem, { city, bonusEffect, era });
+    if ((BUILDINGS[currentItem] || unitDef) && newProgress >= currentItemCost) {
       const completion = completeCityProductionItem(
         { ...city, productionQueue: newQueue, productionProgress: newProgress, buildings: newBuildings },
         currentItem,
+        { cost: currentItemCost, completedTechs },
       );
       newQueue.length = 0;
       newQueue.push(...completion.city.productionQueue);

@@ -14,6 +14,7 @@ import {
 } from '@/systems/wonder-codex/video-presentation';
 import {
   getLegendaryWonderRivalIntelSummariesForViewer,
+  getSocialMediaRivalProjectDetails,
   isLegendaryWonderVisibleToPlayer,
   type LegendaryWonderRivalIntelSummary,
 } from '@/systems/legendary-wonder-intel-presentation';
@@ -204,6 +205,10 @@ function buildLegendaryStatus(
   const project = ownedProject(state, viewerId, wonderId);
   if (project?.phase === 'building') {
     statusLines.push(`Progress recorded in your city: ${project.investedProduction} production invested.`);
+  }
+
+  for (const rival of getSocialMediaRivalProjectDetails(state, viewerId, wonderId)) {
+    statusLines.push(`Social Media network: ${rival.civName} has invested ${rival.investedProduction} production in ${rival.cityName} (${rival.phase.replace('_', ' ')}).`);
   }
 
   const canStartBuild = label === 'Available';

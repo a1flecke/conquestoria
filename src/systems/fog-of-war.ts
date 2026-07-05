@@ -198,6 +198,33 @@ export function applySatelliteSurveillance(
   return nextState;
 }
 
+/**
+ * mass-surveillance: reveals the current tile of every unit owned by a civ the viewer is at war
+ * with — positions only, not map-wide vision. Never reveals the viewer's own units or units of
+ * civs it isn't at war with.
+ */
+export function applyMassSurveillanceReveal(state: GameState, viewerCivId: string): GameState {
+  const nextState = structuredClone(state);
+  const viewer = nextState.civilizations[viewerCivId];
+  const visibility = viewer?.visibility;
+  if (!visibility || !viewer.diplomacy) return nextState;
+
+  const atWarWith = new Set(viewer.diplomacy.atWarWith);
+  if (atWarWith.size === 0) return nextState;
+
+  for (const unit of Object.values(nextState.units)) {
+    if (unit.owner === viewerCivId) continue;
+    if (!atWarWith.has(unit.owner)) continue;
+    const coord = canonicalVisibilityCoord(unit.position, nextState.map);
+    const key = hexKey(coord);
+    if (nextState.map.tiles[key]) {
+      visibility.tiles[key] = 'visible';
+    }
+  }
+
+  return nextState;
+}
+
 export function isForestConcealedUnit(
   state: GameState,
   viewerCivId: string,

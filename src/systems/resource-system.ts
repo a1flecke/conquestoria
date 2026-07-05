@@ -3,7 +3,7 @@ import { hexKey } from './hex-utils';
 import { BUILDINGS } from './city-system';
 import { canonicalizeCityCoord } from './city-territory-system';
 import { getTileYield, TERRAIN_YIELDS } from './tile-yield';
-import { getCityTechYields } from './tech-yield-system';
+import { getCityTechYields, type CityTechYieldContext } from './tech-yield-system';
 
 export { TERRAIN_YIELDS };
 
@@ -12,6 +12,7 @@ export function calculateCityYields(
   map: GameMap,
   bonusEffect?: CivBonusEffect,
   completedTechs: string[] = [],
+  techYieldContext: CityTechYieldContext = {},
 ): ResourceYield {
   const yields: ResourceYield = { food: 0, production: 0, gold: 0, science: 0 };
 
@@ -84,11 +85,17 @@ export function calculateCityYields(
   }
 
   // Tech-driven economy modifiers (cityFlat/conditional/perBuilding/perPopulation/perImprovement)
-  const techYields = getCityTechYields(city, map, completedTechs).total;
+  const techYields = getCityTechYields(city, map, completedTechs, techYieldContext).total;
   yields.food += techYields.food;
   yields.production += techYields.production;
   yields.gold += techYields.gold;
   yields.science += techYields.science;
+
+  // genomics: +1 food per 3 science this city generates per turn, evaluated on the pre-empire-percent
+  // total (this function's own science output, before turn-manager applies civ-wide percent bonuses).
+  if (completedTechs.includes('genomics')) {
+    yields.food += Math.floor(yields.science / 3);
+  }
 
   return yields;
 }

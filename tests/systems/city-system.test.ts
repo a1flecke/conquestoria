@@ -808,6 +808,63 @@ describe('completeCityProductionItem', () => {
   });
 });
 
+describe('MR6: 3d-printing production overflow', () => {
+  it('carries leftover production to the next queue item exactly', () => {
+    const map = generateMap(30, 30, '3d-printing-overflow-carry');
+    const landTile = Object.values(map.tiles).find(t => t.terrain === 'grassland')!;
+    const city = {
+      ...foundCity('p1', landTile.coord, map, mkC()),
+      productionQueue: ['library', 'granary'],
+      productionProgress: 0,
+    };
+
+    const result = processCity(city, map, 2, 20, undefined, ['3d-printing']);
+
+    expect(result.completedBuilding).toBe('library');
+    expect(result.city.productionQueue).toEqual(['granary']);
+    expect(result.city.productionProgress).toBe(4); // 20 yield - 16 library cost
+  });
+
+  it('discards leftover production without the tech', () => {
+    const map = generateMap(30, 30, '3d-printing-overflow-no-tech');
+    const landTile = Object.values(map.tiles).find(t => t.terrain === 'grassland')!;
+    const city = {
+      ...foundCity('p1', landTile.coord, map, mkC()),
+      productionQueue: ['library', 'granary'],
+      productionProgress: 0,
+    };
+
+    const result = processCity(city, map, 2, 20, undefined, []);
+
+    expect(result.completedBuilding).toBe('library');
+    expect(result.city.productionQueue).toEqual(['granary']);
+    expect(result.city.productionProgress).toBe(0);
+  });
+
+  it('does not smuggle overflow through a same-turn dequeue-drop', () => {
+    const map = generateMap(30, 30, '3d-printing-overflow-drop');
+    const inlandTile = Object.values(map.tiles).find(t =>
+      t.terrain === 'grassland' &&
+      !Object.values(map.tiles).some(n =>
+        Math.abs(n.coord.q - t.coord.q) <= 1 &&
+        Math.abs(n.coord.r - t.coord.r) <= 1 &&
+        (n.terrain === 'ocean' || n.terrain === 'coast')
+      )
+    )!;
+    const city = {
+      ...foundCity('p1', inlandTile.coord, map, mkC()),
+      productionQueue: ['dock', 'library'],
+      productionProgress: 50,
+    };
+
+    const result = processCity(city, map, 2, 0, undefined, ['3d-printing']);
+
+    expect(result.droppedBuilding).toBe('dock');
+    expect(result.city.productionQueue).toEqual(['library']);
+    expect(result.city.productionProgress).toBe(0);
+  });
+});
+
 describe('expanded buildings', () => {
   it('has at least 20 buildings defined', () => {
     expect(Object.keys(BUILDINGS).length).toBeGreaterThanOrEqual(20);

@@ -1,6 +1,7 @@
 // src/ui/espionage-panel.ts
 import type { AdvisorType, GameState, Spy, SpyMissionType, SpyPromotion, InterrogationIntel } from '../core/types';
 import { getAvailableMissions, getSpySuccessChance, missionRequiresPlacedSpy } from '../systems/espionage-system';
+import { getProductionLabel } from '../systems/economy-system';
 
 export interface MissionCatalogEntry {
   id: SpyMissionType;
@@ -22,6 +23,8 @@ export interface SpySummary {
   currentMission: SpyMissionType | null;
   cooldownMode?: 'stay_low' | 'passive_observe';
   lastSweepTurn?: number;
+  /** cyber-intelligence: full production queue of the infiltrated city, when stationed/embedded there. */
+  revealedProductionQueue?: string[];
 }
 
 export interface EspionagePanelData {
@@ -261,6 +264,16 @@ function appendSpyCard(
   const target = createEl('div', spy.targetCivId ? `Target: ${spy.targetCivId} / ${spy.targetCityId ?? 'unknown city'}` : 'No target assigned');
   target.style.cssText = 'font-size:11px;opacity:0.7;';
   card.appendChild(target);
+
+  if (spy.revealedProductionQueue !== undefined) {
+    const queueLabel = spy.revealedProductionQueue.length > 0
+      ? `Production queue: ${spy.revealedProductionQueue.join(', ')}`
+      : 'Production queue: empty';
+    const queueEl = createEl('div', queueLabel);
+    queueEl.dataset.spyRevealedQueue = 'true';
+    queueEl.style.cssText = 'font-size:11px;color:#e8c170;opacity:0.85;';
+    card.appendChild(queueEl);
+  }
 
   const actions = getSpyActions(state, spy.id);
   if (spy.status === 'captured') {
@@ -568,20 +581,30 @@ export function getEspionagePanelData(state: GameState): EspionagePanelData {
         confidence: 'detected' as const,
       }))
     : [];
-  const spySummaries = spies.map((spy) => ({
-    id: spy.id,
-    name: spy.name,
-    status: spy.status,
-    targetCityId: spy.targetCityId,
-    targetCivId: spy.targetCivId,
-    infiltrationCityId: spy.infiltrationCityId ?? null,
-    experience: spy.experience,
-    promotion: spy.promotion,
-    promotionReady: spy.promotionAvailable || (spy.experience >= 60 && spy.promotion === undefined),
-    currentMission: spy.currentMission?.type ?? null,
-    cooldownMode: spy.cooldownMode,
-    lastSweepTurn: spy.lastSweepTurn,
-  }));
+  const hasCyberIntelligence = playerTechs.includes('cyber-intelligence');
+  const spySummaries = spies.map((spy) => {
+    const canRevealQueue = hasCyberIntelligence
+      && (spy.status === 'stationed' || spy.status === 'embedded')
+      && Boolean(spy.infiltrationCityId);
+    const revealedProductionQueue = canRevealQueue
+      ? (state.cities[spy.infiltrationCityId!]?.productionQueue ?? []).map(getProductionLabel)
+      : undefined;
+    return {
+      id: spy.id,
+      name: spy.name,
+      status: spy.status,
+      targetCityId: spy.targetCityId,
+      targetCivId: spy.targetCivId,
+      infiltrationCityId: spy.infiltrationCityId ?? null,
+      experience: spy.experience,
+      promotion: spy.promotion,
+      promotionReady: spy.promotionAvailable || (spy.experience >= 60 && spy.promotion === undefined),
+      currentMission: spy.currentMission?.type ?? null,
+      cooldownMode: spy.cooldownMode,
+      lastSweepTurn: spy.lastSweepTurn,
+      ...(revealedProductionQueue !== undefined ? { revealedProductionQueue } : {}),
+    };
+  });
 
   const stationedSpy = spies.find(
     s => (s.status === 'stationed' || s.status === 'on_mission') && s.infiltrationCityId && s.targetCivId,

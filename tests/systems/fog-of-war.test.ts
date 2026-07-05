@@ -1,4 +1,4 @@
-import { createVisibilityMap, updateVisibility, isVisible, isFog, isUnexplored, getTerrainVisionBonus, revealMinorCivCities, applySharedVision, applySatelliteSurveillance, isForestConcealedUnit, getVisibility } from '@/systems/fog-of-war';
+import { createVisibilityMap, updateVisibility, isVisible, isFog, isUnexplored, getTerrainVisionBonus, revealMinorCivCities, applySharedVision, applySatelliteSurveillance, applyMassSurveillanceReveal, isForestConcealedUnit, getVisibility } from '@/systems/fog-of-war';
 import type { VisibilityMap, GameMap, Unit, GameState, HexCoord } from '@/core/types';
 import { generateMap } from '@/systems/map-generator';
 import { hexKey } from '@/systems/hex-utils';
@@ -361,6 +361,113 @@ describe('satellite surveillance', () => {
 
     const freshVisibility = createVisibilityMap();
     expect(freshVisibility.tiles['5,5']).toBeUndefined();
+  });
+});
+
+describe('MR6: mass-surveillance reveal', () => {
+  function makeMassSurveillanceFixture() {
+    return {
+      turn: 1,
+      era: 12,
+      currentPlayer: 'player',
+      gameOver: false,
+      winner: null,
+      map: {
+        width: 12,
+        height: 12,
+        wrapsHorizontally: false,
+        rivers: [],
+        tiles: {
+          '5,5': { coord: { q: 5, r: 5 }, terrain: 'grassland', elevation: 'lowland', resource: null, improvement: 'none', owner: null, improvementTurnsLeft: 0, hasRiver: false, wonder: null },
+          '6,6': { coord: { q: 6, r: 6 }, terrain: 'grassland', elevation: 'lowland', resource: null, improvement: 'none', owner: null, improvementTurnsLeft: 0, hasRiver: false, wonder: null },
+          '7,7': { coord: { q: 7, r: 7 }, terrain: 'grassland', elevation: 'lowland', resource: null, improvement: 'none', owner: null, improvementTurnsLeft: 0, hasRiver: false, wonder: null },
+        },
+      },
+      units: {
+        'enemy-unit': { id: 'enemy-unit', type: 'warrior', owner: 'ai-enemy', position: { q: 5, r: 5 }, movementPointsLeft: 2, health: 100, experience: 0, hasMoved: false, hasActed: false, isResting: false },
+        'neutral-unit': { id: 'neutral-unit', type: 'warrior', owner: 'ai-neutral', position: { q: 6, r: 6 }, movementPointsLeft: 2, health: 100, experience: 0, hasMoved: false, hasActed: false, isResting: false },
+        'own-unit': { id: 'own-unit', type: 'warrior', owner: 'player', position: { q: 7, r: 7 }, movementPointsLeft: 2, health: 100, experience: 0, hasMoved: false, hasActed: false, isResting: false },
+      },
+      cities: {},
+      civilizations: {
+        player: {
+          id: 'player',
+          name: 'Player',
+          color: '#4a90d9',
+          isHuman: true,
+          civType: 'generic',
+          cities: [],
+          units: ['own-unit'],
+          techState: { completed: ['mass-surveillance'], currentResearch: null, researchProgress: 0, researchQueue: [], trackPriorities: {} as any },
+          gold: 0,
+          visibility: createVisibilityMap(),
+          score: 0,
+          diplomacy: { atWarWith: ['ai-enemy'] } as any,
+        },
+        'ai-enemy': {
+          id: 'ai-enemy',
+          name: 'Enemy',
+          color: '#c4a94d',
+          isHuman: false,
+          civType: 'generic',
+          cities: [],
+          units: ['enemy-unit'],
+          techState: { completed: [], currentResearch: null, researchProgress: 0, researchQueue: [], trackPriorities: {} as any },
+          gold: 0,
+          visibility: createVisibilityMap(),
+          score: 0,
+          diplomacy: { atWarWith: [] } as any,
+        },
+        'ai-neutral': {
+          id: 'ai-neutral',
+          name: 'Neutral',
+          color: '#88cc88',
+          isHuman: false,
+          civType: 'generic',
+          cities: [],
+          units: ['neutral-unit'],
+          techState: { completed: [], currentResearch: null, researchProgress: 0, researchQueue: [], trackPriorities: {} as any },
+          gold: 0,
+          visibility: createVisibilityMap(),
+          score: 0,
+          diplomacy: { atWarWith: [] } as any,
+        },
+      },
+      barbarianCamps: {},
+      minorCivs: {},
+      tutorial: { active: false, currentStep: 'complete', completedSteps: [] },
+      settings: { mapSize: 'small', soundEnabled: false, musicEnabled: false, musicVolume: 0, sfxVolume: 0, tutorialEnabled: false, advisorsEnabled: {} as any, councilTalkLevel: 'normal' },
+      tribalVillages: {},
+      discoveredWonders: {},
+      wonderDiscoverers: {},
+      embargoes: [],
+      defensiveLeagues: [],
+      idCounters: { nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 },
+    } as GameState;
+  }
+
+  it('reveals the tile of an at-war civ unit', () => {
+    const state = makeMassSurveillanceFixture();
+    const result = applyMassSurveillanceReveal(state, 'player');
+    expect(result.civilizations.player.visibility.tiles['5,5']).toBe('visible');
+  });
+
+  it('does not reveal a neutral (not-at-war) civ unit', () => {
+    const state = makeMassSurveillanceFixture();
+    const result = applyMassSurveillanceReveal(state, 'player');
+    expect(result.civilizations.player.visibility.tiles['6,6']).toBeUndefined();
+  });
+
+  it('does not reveal the viewer\'s own units', () => {
+    const state = makeMassSurveillanceFixture();
+    const result = applyMassSurveillanceReveal(state, 'player');
+    expect(result.civilizations.player.visibility.tiles['7,7']).toBeUndefined();
+  });
+
+  it('is per-viewer: revealing for the player does not affect another civ\'s visibility', () => {
+    const state = makeMassSurveillanceFixture();
+    const result = applyMassSurveillanceReveal(state, 'player');
+    expect(result.civilizations['ai-neutral'].visibility.tiles['5,5']).toBeUndefined();
   });
 });
 

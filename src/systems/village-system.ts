@@ -1,7 +1,7 @@
 import type { GameMap, HexCoord, GameState, TechState, Unit, TribalVillage, VillageOutcomeType } from '@/core/types';
 import { hexKey, hexDistance, hexNeighbors } from './hex-utils';
 import { createUnit } from './unit-system';
-import { TECH_TREE, applyResearchBonus } from './tech-system';
+import { TECH_TREE, applyResearchBonus, getEffectiveTechCost } from './tech-system';
 import { createRng } from './map-generator';
 import { recordLegendaryWonderDiscoverySite } from './legendary-wonder-history';
 
@@ -71,7 +71,7 @@ function capVillageResearchBonus(techState: TechState, amount: number): number {
   const tech = getCurrentResearchTech(techState);
   if (!tech) return amount;
 
-  const remaining = tech.cost - techState.researchProgress;
+  const remaining = getEffectiveTechCost(tech, techState.completed) - techState.researchProgress;
   if (remaining <= 1) return amount;
   return Math.min(amount, remaining - 1);
 }
@@ -168,7 +168,7 @@ export function visitVillage(
       if (availableTechs.length > 0) {
         const tech = availableTechs[Math.floor(rng() * availableTechs.length)];
         if (civ.techState.currentResearch === tech.id) {
-          const remainingCost = Math.max(0, tech.cost - civ.techState.researchProgress);
+          const remainingCost = Math.max(0, getEffectiveTechCost(tech, civ.techState.completed) - civ.techState.researchProgress);
           civ.techState = applyResearchBonus(civ.techState, remainingCost).state;
         } else {
           civ.techState = {

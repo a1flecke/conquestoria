@@ -1,6 +1,6 @@
 import type { Tech, TechState, TechTrack } from '@/core/types';
 import { estimateTurnsToComplete } from '@/systems/pacing-model';
-import { TECH_TREE } from '@/systems/tech-system';
+import { TECH_TREE, getEffectiveTechCost } from '@/systems/tech-system';
 
 export type TechNodeState = 'completed' | 'current' | 'queued' | 'available' | 'next-layer' | 'locked';
 export type TechEdgeState = 'satisfied' | 'planned' | 'open' | 'blocked';
@@ -212,13 +212,14 @@ export function buildTechProgressionView(
     );
     const visibleByDefault = visibleInFocus;
     const queuedIndex = state.researchQueue.indexOf(tech.id);
+    const effectiveCost = getEffectiveTechCost(tech, state.completed);
     const turnsToResearch = state.currentResearch === tech.id
       ? estimateTurnsToComplete({
-        cost: Math.max(0, tech.cost - state.researchProgress),
+        cost: Math.max(0, effectiveCost - state.researchProgress),
         outputPerTurn: sciencePerTurn,
       })
       : queuedIndex >= 0 || queueableIds.has(tech.id)
-        ? estimateTurnsToComplete({ cost: tech.cost, outputPerTurn: sciencePerTurn })
+        ? estimateTurnsToComplete({ cost: effectiveCost, outputPerTurn: sciencePerTurn })
         : null;
 
     if (visibleByDefault) defaultVisibleIds.add(tech.id);
