@@ -14,6 +14,7 @@ import { canUnitAttackTarget } from '@/systems/attack-targeting';
 import { applyCampDestructionAtTarget } from '@/systems/barbarian-system';
 import { applyCombatOutcomeToState } from '@/systems/combat-reward-system';
 import { resolveCombat } from '@/systems/combat-system';
+import { buildCombatContextForDefender } from '@/systems/combat-context';
 import {
   beginMajorCityAssault,
   canUnitOccupyCity,
@@ -21,7 +22,6 @@ import {
   resolveMajorCityCapture,
 } from '@/systems/city-capture-system';
 import { foundCityInState } from '@/systems/city-founding-system';
-import { resolveCivDefinition } from '@/systems/civ-registry';
 import { getVisibility } from '@/systems/fog-of-war';
 import { hexDistance, hexKey, wrappedHexDistance } from '@/systems/hex-utils';
 import { conquestMinorCiv } from '@/systems/minor-civ-system';
@@ -101,26 +101,6 @@ function deterministicCombatSeed(
     hash = Math.imul(hash, 16777619);
   }
   return Math.max(1, hash >>> 0);
-}
-
-function combatContext(state: GameState, attacker: Unit, defender: Unit) {
-  const defenderKey = hexKey(defender.position);
-  return {
-    attackerBonus: resolveCivDefinition(
-      state,
-      state.civilizations[attacker.owner]?.civType ?? '',
-    )?.bonusEffect,
-    defenderBonus: resolveCivDefinition(
-      state,
-      state.civilizations[defender.owner]?.civType ?? '',
-    )?.bonusEffect,
-    defenderCityHasAntiAir: Object.values(state.cities).some(city =>
-      hexKey(city.position) === defenderKey
-      && city.buildings.includes('anti_air_battery')),
-    attackerHasAirForceCommand: Object.values(state.cities).some(city =>
-      city.owner === attacker.owner
-      && city.buildings.includes('air_force_command')),
-  };
 }
 
 function actionMatches(
@@ -226,7 +206,7 @@ function executeAttack(
     defender,
     next.map,
     seed,
-    combatContext(next, attacker, defender),
+    buildCombatContextForDefender(next, attacker, defender),
     next.era,
   );
   const presentation = buildCombatPresentation(next, combat, attacker, defender);

@@ -37,6 +37,7 @@ import { createWorkerReplacementConfirmPanel, createWorkerTaskWarningPanel } fro
 import { createWonderPanel } from '@/ui/wonder-panel';
 import { createWonderAtlasPanel } from '@/ui/wonder-atlas-panel';
 import { calculateCombatStrengths, resolveCombat, selectDefenderForAttack } from '@/systems/combat-system';
+import { buildCombatContextForDefender } from '@/systems/combat-context';
 import { canUnitAttackTarget } from '@/systems/attack-targeting';
 import { buildSelectedUnitHighlights } from '@/input/selected-unit-highlights';
 import { applyCombatOutcomeToState } from '@/systems/combat-reward-system';
@@ -2361,24 +2362,17 @@ function executeAttack(attackerId: string, targetKey: string): void {
 
   const seed = gameState.turn * 16807 + attacker.id.charCodeAt(0) + defender.id.charCodeAt(0);
   const attackerBonus = currentCivDef()?.bonusEffect;
-  const defenderBonus = resolveCivDefinition(gameState, gameState.civilizations[defender.owner]?.civType ?? '')?.bonusEffect;
   // Capture defender position before combat (defender may be removed from state after)
   const defenderPosition = { ...defender.position };
   // Capture route IDs before combat (units may be removed from state after)
   const attackerRouteId = attacker.committedToRouteId;
   const defenderRouteId = defender.committedToRouteId;
-  const defenderKey = hexKey(defender.position);
-  const defenderCityHasAntiAir = Object.values(gameState.cities).some(
-    c => hexKey(c.position) === defenderKey && c.buildings.includes('anti_air_battery'),
-  );
-  const attackerCivCities = Object.values(gameState.cities).filter(c => c.owner === attacker.owner);
-  const attackerHasAirForceCommand = attackerCivCities.some(c => c.buildings.includes('air_force_command'));
   const result = resolveCombat(
     attacker,
     gameState.units[defenderId] ?? defender,
     gameState.map,
     seed,
-    { attackerBonus, defenderBonus, defenderCityHasAntiAir, attackerHasAirForceCommand },
+    buildCombatContextForDefender(gameState, attacker, defender),
     gameState.era,
   );
   bus.emit('combat:resolved', {
@@ -2765,15 +2759,12 @@ function handleHexTap(rawCoord: HexCoord): void {
       }
       const atkDef = UNIT_DEFINITIONS[unit.type];
       const defDef = UNIT_DEFINITIONS[defender.type];
-      const attackerBonus = currentCivDef()?.bonusEffect;
-      const defenderBonus = resolveCivDefinition(
-        gameState,
-        gameState.civilizations[defender.owner]?.civType ?? '',
-      )?.bonusEffect;
-      const strengthPreview = calculateCombatStrengths(unit, defender, gameState.map, {
-        attackerBonus,
-        defenderBonus,
-      });
+      const strengthPreview = calculateCombatStrengths(
+        unit,
+        defender,
+        gameState.map,
+        buildCombatContextForDefender(gameState, unit, defender),
+      );
       const atkStr = Math.round(strengthPreview.attackerStrength);
       const defStr = Math.round(strengthPreview.defenderStrength);
 

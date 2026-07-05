@@ -41,10 +41,68 @@ export function selectDefenderForAttack(defenders: Unit[], map: GameMap): Unit |
   })[0];
 }
 
+export interface CityDefenseInput {
+  cityBuildings: readonly string[];
+  defenderCompletedTechs: readonly string[];
+  attackerDomain: 'land' | 'naval' | 'air';
+}
+
+export interface CityDefensePart {
+  source: string;
+  label: string;
+  kind: 'mult' | 'flat';
+  value: number;
+}
+
+export interface CityDefenseBreakdown {
+  multiplier: number;
+  flatBonus: number;
+  parts: CityDefensePart[];
+}
+
+export function getCityDefenseBreakdown(input: CityDefenseInput): CityDefenseBreakdown {
+  const hasWalls = input.cityBuildings.includes('walls');
+  const parts: CityDefensePart[] = [];
+  let multiplier = 1;
+  let flatBonus = 0;
+
+  if (hasWalls) {
+    multiplier *= 1.25;
+    parts.push({ source: 'walls', label: 'Walls ×1.25', kind: 'mult', value: 1.25 });
+  }
+
+  if (hasWalls && input.cityBuildings.includes('star_fort')) {
+    flatBonus += 5;
+    parts.push({ source: 'star_fort', label: 'Star Fort +5', kind: 'flat', value: 5 });
+  }
+
+  if (hasWalls && input.defenderCompletedTechs.includes('fortification-engineering')) {
+    flatBonus += 5;
+    parts.push({
+      source: 'fortification-engineering',
+      label: 'Fortification Engineering +5',
+      kind: 'flat',
+      value: 5,
+    });
+  }
+
+  if (input.defenderCompletedTechs.includes('professional-army')) {
+    multiplier *= 1.10;
+    parts.push({ source: 'professional-army', label: 'Professional Army ×1.10', kind: 'mult', value: 1.10 });
+  }
+
+  if (input.attackerDomain === 'naval' && input.defenderCompletedTechs.includes('torpedo-warfare')) {
+    flatBonus += 5;
+    parts.push({ source: 'torpedo-warfare', label: 'Torpedo Warfare +5', kind: 'flat', value: 5 });
+  }
+
+  return { multiplier, flatBonus, parts };
+}
+
 export interface CombatContext {
   attackerBonus?: CivBonusEffect;
   defenderBonus?: CivBonusEffect;
-  defenderInFortifiedCity?: boolean;
+  defenderCity?: CityDefenseInput;
   defenderCityHasAntiAir?: boolean;
   attackerHasAirForceCommand?: boolean;
 }
@@ -54,6 +112,7 @@ export interface CombatStrengthBreakdown {
   defenderStrength: number;
   terrainDefenseBonus: number;
   riverAttackPenalty: number;
+  cityDefense?: CityDefenseBreakdown;
 }
 
 export function calculateCombatStrengths(
@@ -94,6 +153,12 @@ export function calculateCombatStrengths(
     defenderStrength *= 1.25;
   }
 
+  let cityDefense: CityDefenseBreakdown | undefined;
+  if (context?.defenderCity) {
+    cityDefense = getCityDefenseBreakdown(context.defenderCity);
+    defenderStrength = defenderStrength * cityDefense.multiplier + cityDefense.flatBonus;
+  }
+
   // Anti-air battery: +8 flat defense against air attacker domain
   if (context?.defenderCityHasAntiAir && UNIT_DEFINITIONS[attacker.type]?.domain === 'air') {
     defenderStrength += 8;
@@ -116,6 +181,7 @@ export function calculateCombatStrengths(
     defenderStrength,
     terrainDefenseBonus,
     riverAttackPenalty,
+    cityDefense,
   };
 }
 
@@ -187,7 +253,7 @@ export function resolveCombat(
 
   // Ottoman siege bonus
   let siegeMultiplier = 1;
-  if (context?.attackerBonus?.type === 'siege_bonus' && context?.defenderInFortifiedCity) {
+  if (context?.attackerBonus?.type === 'siege_bonus' && context?.defenderCity) {
     siegeMultiplier = context.attackerBonus.damageMultiplier;
   }
 
