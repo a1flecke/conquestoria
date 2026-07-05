@@ -57,6 +57,47 @@ function makeLocalStorageMock() {
   };
 }
 
+describe('save-manager setup and outcome migration', () => {
+  it('labels legacy geographic games historical without moving units or cities', () => {
+    const legacy = createNewGame(undefined, 'legacy-geographic-placement', 'small');
+    legacy.mapScript = 'earth';
+    delete legacy.startPlacementMode;
+    const unitPositions = Object.fromEntries(
+      Object.entries(legacy.units).map(([id, unit]) => [id, structuredClone(unit.position)]),
+    );
+    const cityPositions = Object.fromEntries(
+      Object.entries(legacy.cities).map(([id, city]) => [id, structuredClone(city.position)]),
+    );
+
+    const normalized = normalizeLoadedStateForTest(legacy);
+
+    expect(normalized.startPlacementMode).toBe('historical');
+    expect(Object.fromEntries(
+      Object.entries(normalized.units).map(([id, unit]) => [id, unit.position]),
+    )).toEqual(unitPositions);
+    expect(Object.fromEntries(
+      Object.entries(normalized.cities).map(([id, city]) => [id, city.position]),
+    )).toEqual(cityPositions);
+  });
+
+  it('labels legacy generated games balanced', () => {
+    const legacy = createNewGame(undefined, 'legacy-generated-placement', 'small');
+    legacy.mapScript = 'single-continent';
+    delete legacy.startPlacementMode;
+
+    expect(normalizeLoadedStateForTest(legacy).startPlacementMode).toBe('balanced');
+  });
+
+  it('infers domination for legacy terminal saves with a winner', () => {
+    const legacy = createNewGame(undefined, 'legacy-terminal-outcome', 'small');
+    legacy.gameOver = true;
+    legacy.winner = 'player';
+    delete legacy.gameOverReason;
+
+    expect(normalizeLoadedStateForTest(legacy).gameOverReason).toBe('domination');
+  });
+});
+
 describe('save-manager autosave listing', () => {
   beforeEach(() => {
     dbState.clear();

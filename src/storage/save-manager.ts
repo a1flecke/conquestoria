@@ -769,6 +769,17 @@ export function normalizeLoadedState(state: GameState): NormalizedGameState {
   normalizedCityState.pirates = normalizePirateState(normalizedCityState);
   normalizedCityState.notificationLog = normalizeNotificationLog(normalizedCityState.notificationLog);
   normalizedCityState.idCounters = normalizeIdCounters(normalizedCityState);
+  const usesGeographicMap = normalizedCityState.mapScript === 'earth'
+    || normalizedCityState.mapScript === 'old-world'
+    || normalizedCityState.mapScript === 'new-world';
+  normalizedCityState.startPlacementMode ??= usesGeographicMap ? 'historical' : 'balanced';
+  if (
+    normalizedCityState.gameOver
+    && normalizedCityState.winner
+    && !normalizedCityState.gameOverReason
+  ) {
+    normalizedCityState.gameOverReason = 'domination';
+  }
   if (!isOpponentChallenge(normalizedCityState.opponentChallenge)) {
     delete normalizedCityState.opponentChallenge;
   }
