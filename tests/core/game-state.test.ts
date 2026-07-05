@@ -446,4 +446,39 @@ describe('createHotSeatGame — mapScript', () => {
     expect(state.map.width).toBe(30);
     expect(state.mapScript).toBe('earth');
   });
+
+  it('defaults new geographic games to balanced placement', () => {
+    const state = createHotSeatGame({
+      playerCount: 2,
+      mapSize: 'large',
+      mapScript: 'earth',
+      players: [
+        { name: 'England', slotId: 'player-1', civType: 'england', isHuman: true },
+        { name: 'Germany', slotId: 'player-2', civType: 'germany', isHuman: true },
+        { name: 'Rome', slotId: 'ai-1', civType: 'rome', isHuman: false },
+      ],
+    }, 'issue-439-balanced-creation');
+
+    expect(state.startPlacementMode).toBe('balanced');
+    expectMajorStartsToRespectSpacing(state);
+  });
+
+  it('preserves exact known anchors only when historical placement is requested', () => {
+    const state = createHotSeatGame({
+      playerCount: 2,
+      mapSize: 'large',
+      mapScript: 'earth',
+      startPlacementMode: 'historical',
+      players: [
+        { name: 'England', slotId: 'player-1', civType: 'england', isHuman: true },
+        { name: 'Germany', slotId: 'player-2', civType: 'germany', isHuman: true },
+        { name: 'Rome', slotId: 'ai-1', civType: 'rome', isHuman: false },
+      ],
+    }, 'issue-439-historical-creation');
+
+    expect(state.startPlacementMode).toBe('historical');
+    expect(getStartingSettlerByOwner(state, 'player-1')).toEqual({ q: 41, r: 15 });
+    expect(getStartingSettlerByOwner(state, 'player-2')).toEqual({ q: 46, r: 14 });
+    expect(getStartingSettlerByOwner(state, 'ai-1')).toEqual({ q: 44, r: 17 });
+  });
 });

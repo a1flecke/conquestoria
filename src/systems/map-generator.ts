@@ -411,6 +411,17 @@ const GEO_START_TABLES: Partial<Record<MapScript, Record<'small' | 'medium' | 'l
   'new-world': NEW_WORLD_START_POSITIONS,
 };
 
+export type GeographicMapScript = 'earth' | 'old-world' | 'new-world';
+
+export function getGeographicStartAnchor(
+  mapScript: GeographicMapScript,
+  size: 'small' | 'medium' | 'large',
+  civilizationTypeId: string,
+): HexCoord | null {
+  const anchor = GEO_START_TABLES[mapScript]?.[size]?.[civilizationTypeId];
+  return anchor ? { ...anchor } : null;
+}
+
 /**
  * Find start positions for all civs. Returns positions in the same order as civTypeIds.
  *
