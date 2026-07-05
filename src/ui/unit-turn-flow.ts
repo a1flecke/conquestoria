@@ -1,7 +1,7 @@
 import type { GameState, HexCoord } from '@/core/types';
 import { getUnmovedUnitsForEndTurn, removePlayerUnitFromState, skipUnitInState } from '@/systems/unit-lifecycle-system';
 import { UNIT_DEFINITIONS } from '@/systems/unit-system';
-import { getEffectiveGoldPerTurn } from '@/systems/trade-system';
+import { getEffectiveGoldPerTurn, getRouteTechGoldBonus } from '@/systems/trade-system';
 import { createEndTurnWarningPanel } from '@/ui/end-turn-warning-panel';
 import { createUnitDeleteConfirmationPanel } from '@/ui/unit-delete-confirmation-panel';
 
@@ -70,7 +70,7 @@ export function createUnitTurnFlow(deps: UnitTurnFlowDeps): UnitTurnFlow {
       if (route) {
         const fromName = state.cities[route.fromCityId]?.name ?? route.fromCityId;
         const toName = state.cities[route.toCityId]?.name ?? route.toCityId;
-        const goldLoss = getEffectiveGoldPerTurn(route);
+        const goldLoss = getEffectiveGoldPerTurn(route, getRouteTechGoldBonus(state, route));
         displayName = `Caravan (${fromName} → ${toName})`;
         bodyText = `Disbanding this Caravan will end your ${fromName} → ${toName} trade route (-${goldLoss.toFixed(1)} gold/turn). Continue?`;
       }

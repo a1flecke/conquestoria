@@ -3,6 +3,7 @@ import { isSpyUnitType } from './espionage-system';
 import { hexKey, hexesInRange, hexNeighbors, wrapHexCoord } from './hex-utils';
 import { drawNextCityName, DEFAULT_CITY_NAMES } from './city-name-system';
 import { INITIAL_CITY_FOCUS, INITIAL_CITY_MATURITY } from './city-maturity-system';
+import { TECH_COST_DISCOUNTS, getFoundingBonusFood } from './tech-yield-definitions';
 import {
   getLegendaryWonderDisplayName,
   getLegendaryWonderProductionCost,
@@ -16,6 +17,7 @@ export interface FoundCityOptions {
   namingPool?: string[];
   usedNames?: Set<string>;
   civName?: string;
+  completedTechs?: string[];
 }
 
 export const BUILDINGS: Record<string, Building> = {
@@ -1174,12 +1176,27 @@ function getBuildingDiscountMultiplier(itemId: string, cityBuildings: string[]):
   return best;
 }
 
+function getTechCostDiscountMultiplier(itemId: string, isUnit: boolean, completedTechs: string[]): number {
+  let multiplier = 1;
+  for (const discount of TECH_COST_DISCOUNTS) {
+    if (!completedTechs.includes(discount.techId)) continue;
+    const applies = discount.appliesTo === 'buildings'
+      ? !isUnit
+      : discount.appliesTo === 'units'
+        ? isUnit
+        : (discount.appliesTo as string[]).includes(itemId);
+    if (applies) multiplier *= discount.multiplier;
+  }
+  return multiplier;
+}
+
 export function getProductionCostForItem(
   itemId: string,
   options: {
     city?: Pick<City, 'buildings'>;
     bonusEffect?: CivBonusEffect;
     era?: number;
+    completedTechs?: string[];
   } = {},
 ): number {
   const baseCost = getCatalogProductionCost(itemId, options.era);
@@ -1196,7 +1213,9 @@ export function getProductionCostForItem(
     const d = getBuildingDiscountMultiplier(itemId, options.city.buildings);
     if (d < 1) discounts.push(d);
   }
-  const discountMultiplier = discounts.length > 0 ? Math.min(...discounts) : 1;
+  const buildingDiscountMultiplier = discounts.length > 0 ? Math.min(...discounts) : 1;
+  const techDiscountMultiplier = getTechCostDiscountMultiplier(itemId, unit != null, options.completedTechs ?? []);
+  const discountMultiplier = buildingDiscountMultiplier * techDiscountMultiplier;
   const effective = baseCost * civMultiplier * discountMultiplier;
   return discountMultiplier < 1 ? Math.ceil(effective) : Math.round(effective);
 }
@@ -1494,6 +1513,7 @@ export function foundCity(owner: string, position: HexCoord, map: GameMap, count
     }
   }
   const ownedTiles = Array.from(ownedTileMap.values());
+  const foundingBonusFood = getFoundingBonusFood(options.completedTechs ?? []);
 
   return {
     id: `city-${counters.nextCityId++}`,
@@ -1501,7 +1521,7 @@ export function foundCity(owner: string, position: HexCoord, map: GameMap, count
     owner,
     position: canonicalPosition,
     population: 1,
-    food: 0,
+    food: foundingBonusFood,
     foodNeeded: 15,
     buildings: [],
     productionQueue: [],

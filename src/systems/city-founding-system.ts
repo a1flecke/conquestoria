@@ -46,6 +46,7 @@ export function foundCityInState(
       namingPool: definition?.cityNames,
       civName: definition?.name ?? nextCivilization.name,
       usedNames: collectUsedCityNames(nextState),
+      completedTechs: nextCivilization.techState.completed,
     },
   );
   const existingOwnedCityIds = nextCivilization.cities.filter(cityId =>

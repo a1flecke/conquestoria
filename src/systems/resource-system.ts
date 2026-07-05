@@ -1,29 +1,18 @@
 import type { City, GameMap, ResourceYield, CivBonusEffect } from '@/core/types';
-import { hexKey, hexNeighbors } from './hex-utils';
-import { getImprovementYieldBonus } from './improvement-system';
+import { hexKey } from './hex-utils';
 import { BUILDINGS } from './city-system';
-import { getWonderYieldBonus } from './wonder-system';
-import { getWonderDefinition } from './wonder-definitions';
 import { canonicalizeCityCoord } from './city-territory-system';
-import { getRiverYieldBonus } from './river-system';
+import { getTileYield, TERRAIN_YIELDS } from './tile-yield';
+import { getCityTechYields } from './tech-yield-system';
 
-export const TERRAIN_YIELDS: Record<string, ResourceYield> = {
-  grassland:  { food: 2, production: 0, gold: 0, science: 0 },
-  plains:     { food: 1, production: 1, gold: 0, science: 0 },
-  desert:     { food: 0, production: 0, gold: 0, science: 0 },
-  tundra:     { food: 1, production: 0, gold: 0, science: 0 },
-  snow:       { food: 0, production: 0, gold: 0, science: 0 },
-  forest:     { food: 1, production: 1, gold: 0, science: 0 },
-  hills:      { food: 0, production: 2, gold: 0, science: 0 },
-  mountain:   { food: 0, production: 1, gold: 0, science: 0 },
-  ocean:      { food: 1, production: 0, gold: 0, science: 0 },
-  coast:      { food: 2, production: 0, gold: 1, science: 0 },
-  jungle:     { food: 2, production: 0, gold: 0, science: 0 },
-  swamp:      { food: 1, production: 0, gold: 0, science: 0 },
-  volcanic:   { food: 0, production: 0, gold: 0, science: 0 },
-};
+export { TERRAIN_YIELDS };
 
-export function calculateCityYields(city: City, map: GameMap, bonusEffect?: CivBonusEffect): ResourceYield {
+export function calculateCityYields(
+  city: City,
+  map: GameMap,
+  bonusEffect?: CivBonusEffect,
+  completedTechs: string[] = [],
+): ResourceYield {
   const yields: ResourceYield = { food: 0, production: 0, gold: 0, science: 0 };
 
   // Base yield from city center
@@ -42,57 +31,11 @@ export function calculateCityYields(city: City, map: GameMap, bonusEffect?: CivB
     const tile = map.tiles[hexKey(coord)];
     if (!tile) continue;
 
-    const terrainYield = TERRAIN_YIELDS[tile.terrain] ?? { food: 0, production: 0, gold: 0, science: 0 };
-    yields.food += terrainYield.food;
-    yields.production += terrainYield.production;
-    yields.gold += terrainYield.gold;
-    yields.science += terrainYield.science;
-
-    const riverBonus = getRiverYieldBonus(tile.hasRiver);
-    yields.food += riverBonus.food;
-    yields.production += riverBonus.production;
-    yields.gold += riverBonus.gold;
-    yields.science += riverBonus.science;
-
-    if (tile.hasRiver) {
-      if (tile.improvement === 'farm' && tile.improvementTurnsLeft === 0) {
-        yields.food += 1;
-      }
-    }
-
-    // Improvement bonuses
-    if (tile.improvement !== 'none' && tile.improvementTurnsLeft === 0) {
-      const bonus = getImprovementYieldBonus(tile.improvement);
-      yields.food += bonus.food;
-      yields.production += bonus.production;
-      yields.gold += bonus.gold;
-      yields.science += bonus.science;
-    }
-
-    // Wonder yields (add to terrain yields)
-    if (tile.wonder) {
-      const wonderYields = getWonderYieldBonus(tile.wonder);
-      yields.food += wonderYields.food;
-      yields.production += wonderYields.production;
-      yields.gold += wonderYields.gold;
-      yields.science += wonderYields.science;
-    }
-
-    // Adjacent wonder bonus
-    const neighbors = hexNeighbors(coord);
-    for (const neighbor of neighbors) {
-      const neighborTile = map.tiles[hexKey(neighbor)];
-      if (neighborTile?.wonder) {
-        const wonderDef = getWonderDefinition(neighborTile.wonder);
-        if (wonderDef?.effect.type === 'adjacent_yield_bonus') {
-          const bonusYields = wonderDef.effect.yields;
-          if (bonusYields.food) yields.food += bonusYields.food;
-          if (bonusYields.production) yields.production += bonusYields.production;
-          if (bonusYields.gold) yields.gold += bonusYields.gold;
-          if (bonusYields.science) yields.science += bonusYields.science;
-        }
-      }
-    }
+    const tileYield = getTileYield(tile, map, coord, { completedTechs });
+    yields.food += tileYield.food;
+    yields.production += tileYield.production;
+    yields.gold += tileYield.gold;
+    yields.science += tileYield.science;
   }
 
   // Russia tundra bonus
@@ -139,6 +82,13 @@ export function calculateCityYields(city: City, map: GameMap, bonusEffect?: CivB
       yields.science += building.yields.science;
     }
   }
+
+  // Tech-driven economy modifiers (cityFlat/conditional/perBuilding/perPopulation/perImprovement)
+  const techYields = getCityTechYields(city, map, completedTechs).total;
+  yields.food += techYields.food;
+  yields.production += techYields.production;
+  yields.gold += techYields.gold;
+  yields.science += techYields.science;
 
   return yields;
 }

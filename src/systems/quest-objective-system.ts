@@ -79,7 +79,7 @@ function queueCostBeforeCaravan(state: GameState, cityId: string): number | null
 
   for (let index = 0; index < city.productionQueue.length; index++) {
     const itemId = city.productionQueue[index];
-    const cost = getProductionCostForItem(itemId, { city, bonusEffect, era: state.era });
+    const cost = getProductionCostForItem(itemId, { city, bonusEffect, era: state.era, completedTechs: civ.techState.completed });
     remaining += index === 0 ? Math.max(0, cost - city.productionProgress) : cost;
     if (itemId === 'caravan') {
       foundCaravan = true;
@@ -88,7 +88,7 @@ function queueCostBeforeCaravan(state: GameState, cityId: string): number | null
   }
 
   if (!foundCaravan) {
-    remaining += getProductionCostForItem('caravan', { city, bonusEffect, era: state.era });
+    remaining += getProductionCostForItem('caravan', { city, bonusEffect, era: state.era, completedTechs: civ.techState.completed });
   }
   return remaining;
 }

@@ -162,7 +162,7 @@ const ERA_6_TECHS: Tech[] = [
   // CIVICS (2)
   { id: 'separation-of-powers', name: 'Separation of Powers', track: 'civics', cost: 185,
     prerequisites: ['constitutional-law'],
-    unlocks: ['+1 gold per era-appropriate building empire-wide'], era: 6 },
+    unlocks: ['+1 gold per culture building empire-wide'], era: 6 },
   { id: 'parliamentary-reform', name: 'Parliamentary Reform', track: 'civics', cost: 180,
     prerequisites: ['civic-humanism', 'constitutional-law'],
     unlocks: ['+5% production empire-wide'], era: 6 },
@@ -170,7 +170,7 @@ const ERA_6_TECHS: Tech[] = [
   // EXPLORATION (2)
   { id: 'land-survey', name: 'Land Survey', track: 'exploration', cost: 185,
     prerequisites: ['colonial-charter', 'renaissance-architecture'],
-    unlocks: ['+1 tile yield in settled frontier cities'], era: 6 },
+    unlocks: ['+1 food in all cities empire-wide'], era: 6 },
   { id: 'colonial-administration', name: 'Colonial Administration', track: 'exploration', cost: 180,
     prerequisites: ['colonial-charter', 'mercantilism'],
     unlocks: ['Colonial Administration national project available'], unlocksBuildings: ['colonial_administration'], era: 6 },
@@ -234,7 +234,7 @@ const ERA_6_TECHS: Tech[] = [
   // COMMUNICATION (2)
   { id: 'newspaper-press', name: 'Newspaper Press', track: 'communication', cost: 185,
     prerequisites: ['printing-press', 'postal-service'],
-    unlocks: ['+2 science empire-wide; reduces unhappiness from war'], era: 6 },
+    unlocks: ['+2 science empire-wide'], era: 6 },
   { id: 'courier-network', name: 'Courier Network', track: 'communication', cost: 180,
     prerequisites: ['postal-service'],
     unlocks: ['+1 gold per road connection between your cities'], era: 6 },
@@ -283,7 +283,7 @@ const ERA_7_TECHS: Tech[] = [
     unlocks: ['+2 science empire-wide; Peoples University national project available'], unlocksBuildings: ['peoples_university'], era: 7 },
   { id: 'applied-chemistry', name: 'Applied Chemistry', track: 'science', cost: 210,
     prerequisites: ['natural-history', 'precision-casting'],
-    unlocks: ['+1 science per metallurgy or construction building empire-wide'], era: 7 },
+    unlocks: ['+1 science per production building empire-wide'], era: 7 },
 
   // CIVICS (2)
   { id: 'nationalism', name: 'Nationalism', track: 'civics', cost: 195,
@@ -291,7 +291,7 @@ const ERA_7_TECHS: Tech[] = [
     unlocks: ['Census Office unlocked'], unlocksBuildings: ['census_office'], era: 7 },
   { id: 'social-reform', name: 'Social Reform', track: 'civics', cost: 205,
     prerequisites: ['parliamentary-reform', 'enlightenment'],
-    unlocks: ['+1 happiness in all cities with a market or guildhall'], era: 7 },
+    unlocks: ['+1 gold in cities with a market or guildhall'], era: 7 },
 
   // EXPLORATION (2)
   { id: 'colonial-railways', name: 'Colonial Railways', track: 'exploration', cost: 200,
@@ -307,7 +307,7 @@ const ERA_7_TECHS: Tech[] = [
     unlocks: ['Farms yield +1 production in addition to food; granaries add +1 additional food'], era: 7 },
   { id: 'agricultural-machinery', name: 'Agricultural Machinery', track: 'agriculture', cost: 205,
     prerequisites: ['improved-agriculture', 'tobacco-trade'],
-    unlocks: ['+2 food per farm improvement; removes food production caps from early buildings'], era: 7 },
+    unlocks: ['+2 food per farm improvement'], era: 7 },
 
   // MEDICINE (2)
   { id: 'field-hospitals', name: 'Field Hospitals', track: 'medicine', cost: 195,
@@ -320,7 +320,7 @@ const ERA_7_TECHS: Tech[] = [
   // PHILOSOPHY (2)
   { id: 'utilitarianism', name: 'Utilitarianism', track: 'philosophy', cost: 200,
     prerequisites: ['enlightenment', 'social-contract'],
-    unlocks: ['+1 happiness per 3 city population empire-wide; civic policies more effective'], era: 7 },
+    unlocks: ['+1 gold per 3 population empire-wide'], era: 7 },
   { id: 'positivism', name: 'Positivism', track: 'philosophy', cost: 210,
     prerequisites: ['enlightenment', 'natural-history'],
     unlocks: ['+2 science empire-wide; universities generate +1 additional science'], era: 7 },
@@ -328,10 +328,10 @@ const ERA_7_TECHS: Tech[] = [
   // ARTS (2)
   { id: 'romanticism', name: 'Romanticism', track: 'arts', cost: 195,
     prerequisites: ['baroque-music', 'portrait-art'],
-    unlocks: ['+2 culture empire-wide; culture buildings each generate +1 gold'], era: 7 },
+    unlocks: ['Culture buildings generate +1 gold and +1 science'], era: 7 },
   { id: 'industrial-realism', name: 'Industrial Realism', track: 'arts', cost: 205,
     prerequisites: ['baroque-music', 'newspaper-press'],
-    unlocks: ['+1 gold per specialist slot in cities; culture buildings add +1 production'], era: 7 },
+    unlocks: ['Culture buildings generate +1 production'], era: 7 },
 
   // MARITIME (2)
   { id: 'ironclad-warships', name: 'Ironclad Warships', track: 'maritime', cost: 210,
@@ -355,7 +355,7 @@ const ERA_7_TECHS: Tech[] = [
     unlocks: ['+2 production in cities with 3 or more buildings'], era: 7 },
   { id: 'iron-bridges', name: 'Iron Bridges', track: 'construction', cost: 210,
     prerequisites: ['aqueduct-expansion', 'steel-plate-armor'],
-    unlocks: ['River crossing no longer costs extra movement; +1 gold per river city'], era: 7 },
+    unlocks: ['+1 gold per river city'], era: 7 },
 
   // COMMUNICATION (2)
   { id: 'popular-press', name: 'Popular Press', track: 'communication', cost: 195,
@@ -376,7 +376,7 @@ const ERA_7_TECHS: Tech[] = [
   // SPIRITUALITY (2)
   { id: 'secularism', name: 'Secularism', track: 'spirituality', cost: 195,
     prerequisites: ['ecumenical-council', 'enlightenment'],
-    unlocks: ['+2 science in cities without a temple; government buildings yield +1 science'], era: 7 },
+    unlocks: ['+2 science in cities without a temple'], era: 7 },
   { id: 'social-gospel', name: 'Social Gospel', track: 'spirituality', cost: 205,
     prerequisites: ['missionary-zeal', 'social-contract'],
     unlocks: ['+1 food and +1 gold in cities with a temple; unit healing in cities improved'], era: 7 },

@@ -183,7 +183,7 @@ export function getRecommendedIdleCityChoice(
       reservedNationalProjects,
       civId,
     ) : []).map(building => {
-      const cost = getProductionCostForItem(building.id, { city, bonusEffect, era: state.era });
+      const cost = getProductionCostForItem(building.id, { city, bonusEffect, era: state.era, completedTechs });
       return {
         itemId: building.id,
         label: building.name,
@@ -194,7 +194,7 @@ export function getRecommendedIdleCityChoice(
     }),
     ...getTrainableUnitsForCiv(completedTechs, civ.civType)
       .map(unit => {
-        const cost = getProductionCostForItem(unit.type, { city, bonusEffect, era: state.era });
+        const cost = getProductionCostForItem(unit.type, { city, bonusEffect, era: state.era, completedTechs });
         return {
           itemId: unit.type,
           label: unit.name,

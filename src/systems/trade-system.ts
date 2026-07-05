@@ -5,6 +5,8 @@ import { hexDistance, wrappedHexDistance } from '@/systems/hex-utils';
 import { isAtWar, getRelationship } from '@/systems/diplomacy-system';
 import { isMinorCivAtWar } from './minor-civ-diplomacy';
 import { RESOURCE_DEFINITIONS } from './resource-definitions';
+import { isCityCoastal } from './city-system';
+import { getTradeRouteTechGold } from './tech-yield-system';
 export { RESOURCE_DEFINITIONS } from './resource-definitions';
 export type { ResourceDefinition, ResourceEffect } from './resource-definitions';
 
@@ -133,12 +135,22 @@ export function processFashionCycle(
 
 // --- S5: per-route effective gold/turn ---
 
-export function getEffectiveGoldPerTurn(route: TradeRoute): number {
-  return Math.max(1, Math.round(route.goldPerTrip / route.turnsPerTrip));
+export function getEffectiveGoldPerTurn(route: TradeRoute, techGoldBonus: number = 0): number {
+  return Math.max(1, Math.round(route.goldPerTrip / route.turnsPerTrip) + techGoldBonus);
 }
 
-export function processTradeRouteIncome(routes: TradeRoute[]): number {
-  return routes.reduce((total, r) => total + getEffectiveGoldPerTurn(r), 0);
+/** Tech-driven per-route gold (guilds, colonial-trade, steam-navigation). */
+export function getRouteTechGoldBonus(state: GameState, route: TradeRoute): number {
+  const fromCity = state.cities[route.fromCityId];
+  const toCity = state.cities[route.toCityId];
+  if (!fromCity) return 0;
+  const completedTechs = state.civilizations[fromCity.owner]?.techState.completed ?? [];
+  const bothEndpointsCoastal = Boolean(toCity) && isCityCoastal(fromCity, state.map) && isCityCoastal(toCity!, state.map);
+  return getTradeRouteTechGold(route, completedTechs, { bothEndpointsCoastal });
+}
+
+export function processTradeRouteIncome(routes: TradeRoute[], state?: GameState): number {
+  return routes.reduce((total, r) => total + getEffectiveGoldPerTurn(r, state ? getRouteTechGoldBonus(state, r) : 0), 0);
 }
 
 // --- S5: route capacity ---
@@ -147,11 +159,13 @@ export function getRouteCapacity(state: GameState, cityId: string): number {
   const city = state.cities[cityId];
   if (!city) return 1;
   const b = city.buildings;
+  const completedTechs = state.civilizations[city.owner]?.techState.completed ?? [];
   const total = 1
     + (b.includes('caravanserai')  ? 1 : 0)
     + (b.includes('marketplace')   ? 1 : 0)
     + (b.includes('bank')          ? 1 : 0)
-    + (b.includes('stock_exchange') ? 1 : 0);
+    + (b.includes('stock_exchange') ? 1 : 0)
+    + (completedTechs.includes('mercantilism') ? 1 : 0);
   return Math.min(total, 5);
 }
 

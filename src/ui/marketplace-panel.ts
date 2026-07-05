@@ -1,5 +1,5 @@
 import type { GameState, ResourceType } from '@/core/types';
-import { RESOURCE_DEFINITIONS, getEffectiveGoldPerTurn, getRouteCapacity } from '@/systems/trade-system';
+import { RESOURCE_DEFINITIONS, getEffectiveGoldPerTurn, getRouteCapacity, getRouteTechGoldBonus } from '@/systems/trade-system';
 import { getCivAvailableResources, canBuyResourceAccess } from '@/systems/resource-acquisition-system';
 import { isAtWar } from '@/systems/diplomacy-system';
 import { resolveCivDefinition } from '@/systems/civ-registry';
@@ -236,7 +236,7 @@ function buildRouteListSection(state: GameState, currentPlayer: string, onSelect
       const toCity = state.cities[route.toCityId];
       const committedUnit = Object.values(state.units).find(u => u.committedToRouteId === route.id);
       const tripsLeft = committedUnit?.tripsRemaining ?? '?';
-      const gold = getEffectiveGoldPerTurn(route);
+      const gold = getEffectiveGoldPerTurn(route, getRouteTechGoldBonus(state, route));
 
       const row = document.createElement('div');
       row.style.cssText = 'font-size:12px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.08);display:flex;justify-content:space-between;min-height:44px;align-items:center;';
