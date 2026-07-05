@@ -34,7 +34,10 @@ describe('land-unit water recovery wiring', () => {
 
     expect(selectFlow).toContain('waterRecovery: highlightResult.waterRecovery');
     expect(tapFlow).toContain('handleSelectedUnitMovementBlocker(');
-    expect(tapFlow).toContain('reselectUnit: selectUnit');
+    expect(tapFlow).toContain('selectedUnitWaterRecovery');
+    expect(tapFlow).not.toContain('getLandUnitWaterRecovery(');
+    expect(tapFlow).toContain('reselectUnit: unitId => selectUnit(unitId, { suppressSelectionSfx: true })');
+    expect(tapFlow).toContain('playError: SFX.error');
   });
 });
 

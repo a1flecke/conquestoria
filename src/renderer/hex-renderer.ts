@@ -404,6 +404,7 @@ export function drawHexHighlight(
   cy: number,
   size: number,
   color: string,
+  outlineColor?: string,
 ): void {
   ctx.beginPath();
   for (let i = 0; i < 6; i++) {
@@ -416,6 +417,12 @@ export function drawHexHighlight(
   ctx.closePath();
   ctx.fillStyle = color;
   ctx.fill();
+  if (outlineColor) {
+    ctx.strokeStyle = outlineColor;
+    ctx.lineWidth = 3;
+    ctx.lineJoin = 'round';
+    ctx.stroke();
+  }
 }
 
 export function drawMinorCivTerritory(

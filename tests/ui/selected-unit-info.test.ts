@@ -10,6 +10,8 @@ class MockElement {
   tagName: string;
   children: MockElement[] = [];
   style = { cssText: '', display: '', opacity: '', cursor: '' };
+  dataset: Record<string, string> = {};
+  attributes: Record<string, string> = {};
   textContent = '';
   type = '';
   disabled = false;
@@ -32,6 +34,14 @@ class MockElement {
   addEventListener(event: string, listener: (...args: unknown[]) => void): void {
     this.listeners[event] ??= [];
     this.listeners[event].push(listener);
+  }
+
+  setAttribute(name: string, value: string): void {
+    this.attributes[name] = value;
+  }
+
+  getAttribute(name: string): string | null {
+    return this.attributes[name] ?? null;
   }
 
   replaceChildren(...newChildren: MockElement[]): void {
@@ -84,6 +94,16 @@ function findButtons(node: unknown): MockElement[] {
   return result;
 }
 
+function findWaterRecoveryGuidance(node: unknown): MockElement | undefined {
+  const el = node as MockElement;
+  if (el.dataset?.waterRecoveryKind) return el;
+  for (const child of el.children ?? []) {
+    const found = findWaterRecoveryGuidance(child);
+    if (found) return found;
+  }
+  return undefined;
+}
+
 describe('land-unit water recovery guidance', () => {
   beforeEach(installMockDocument);
   afterEach(restoreMockDocument);
@@ -117,6 +137,12 @@ describe('land-unit water recovery guidance', () => {
     expect(collectAllText(container).join(' ')).toContain(
       'This land unit is on water. Move to an amber land tile to return ashore.',
     );
+    const guidance = findWaterRecoveryGuidance(container);
+    expect(guidance?.dataset.waterRecoveryKind).toBe('recoverable');
+    expect(guidance?.getAttribute('role')).toBe('status');
+    expect(guidance?.getAttribute('aria-live')).toBe('polite');
+    expect(guidance?.style.cssText).toContain('font-size:12px');
+    expect(guidance?.style.cssText).toContain('border:1px solid');
   });
 
   it('renders blocked guidance and omits guidance for none', () => {
