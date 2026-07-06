@@ -511,6 +511,14 @@ describe('wonder-panel', () => {
     state.cities['city-rival'].owner = 'player';
     state.cities['city-rival'].buildings = ['granary', 'market', 'library'];
     state.civilizations.player.cities = ['city-river', 'city-rival'];
+    // MR11's era-1/2 wonders otherwise outrank Grand Canal (era 4) in the recommended
+    // list; mark them completed-elsewhere so this test keeps exercising Grand Canal's
+    // full (non-compact) quest-step rendering, same as before MR11.
+    state.completedLegendaryWonders = {
+      'standing-stones': { ownerId: 'rival', cityId: 'city-rival', turnCompleted: 5 },
+      'great-pyramid': { ownerId: 'rival', cityId: 'city-rival', turnCompleted: 10 },
+      'tidemother-colossus': { ownerId: 'rival', cityId: 'city-rival', turnCompleted: 15 },
+    };
 
     const seededState = initializeLegendaryWonderProjectsForCity(state, 'player', 'city-river');
     const panel = createWonderPanel(container, seededState, 'city-river', {

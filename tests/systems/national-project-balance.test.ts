@@ -139,3 +139,26 @@ describe('era 11 national project coverage', () => {
     expect(np?.civYieldBonus).toEqual({ production: 6 });
   });
 });
+
+describe('era 12 national project coverage (MR11)', () => {
+  const era12NPs = nationalProjects.filter(np => np.nationalProject?.homeEra === 12);
+
+  it('has exactly 3 era 12 national projects', () => {
+    expect(era12NPs).toHaveLength(3);
+  });
+
+  it('planetary_data_grid has single science civYieldBonus', () => {
+    const np = era12NPs.find(np => np.id === 'planetary_data_grid');
+    expect(np?.civYieldBonus).toEqual({ science: 6 });
+  });
+
+  it('global_logistics_network has single gold civYieldBonus', () => {
+    const np = era12NPs.find(np => np.id === 'global_logistics_network');
+    expect(np?.civYieldBonus).toEqual({ gold: 6 });
+  });
+
+  it('orbital_fabrication_program has single production civYieldBonus', () => {
+    const np = era12NPs.find(np => np.id === 'orbital_fabrication_program');
+    expect(np?.civYieldBonus).toEqual({ production: 6 });
+  });
+});

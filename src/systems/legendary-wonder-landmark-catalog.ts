@@ -10,6 +10,10 @@ import type { LegendaryWonderLandmarkMetadata } from '@/systems/legendary-wonder
  * - Run tests/systems/legendary-wonder-landmark-catalog.test.ts before merge.
  */
 const LEGENDARY_WONDER_LANDMARK_METADATA: Record<string, LegendaryWonderLandmarkMetadata> = {
+  // Era 1-2 wonders (Dawn Age)
+  'standing-stones': landmark('standing-stones', 'bastion', 'wide', 'prophecy', '#3a3830', '#c8b888', '#f0e8c8', 0.96, 'dedicationGlow', 'glint', 'outline', 'standing-stones-bespoke'),
+  'great-pyramid': landmark('great-pyramid', 'spire', 'tall', 'sun', '#5e4a26', '#e0c068', '#fff0a0', 1.1, 'dedicationGlow', 'glint', 'scaffold', 'great-pyramid-bespoke'),
+  'tidemother-colossus': landmark('tidemother-colossus', 'gateway', 'tall', 'tide', '#123448', '#5ec0d8', '#c8f0ff', 1.05, 'civicAura', 'pulse', 'foundation', 'tidemother-colossus-bespoke'),
   'oracle-of-delphi': landmark('oracle-of-delphi', 'oracle', 'tall', 'prophecy', '#2f2943', '#d8c47a', '#fff0b8', 1.02, 'dedicationGlow', 'glint', 'outline', 'oracle-of-delphi-bespoke'),
   'grand-canal': landmark('grand-canal', 'waterworks', 'wide', 'canal', '#173c52', '#74d0ff', '#c8f3ff', 1.05, 'civicAura', 'pulse', 'foundation', 'grand-canal-bespoke'),
   'sun-spire': landmark('sun-spire', 'spire', 'tall', 'sun', '#46311f', '#f2c45d', '#fff1a6', 1.08, 'dedicationGlow', 'glint', 'scaffold', 'sun-spire-bespoke'),

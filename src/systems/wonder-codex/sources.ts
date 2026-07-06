@@ -100,6 +100,20 @@ export const WONDER_CODEX_FACT_SOURCES = [
     notes: 'Used for storm and weather-safety context.',
   },
   {
+    id: 'unesco-stonehenge',
+    title: 'Stonehenge, Avebury and Associated Sites',
+    publisher: 'UNESCO World Heritage Centre',
+    sourceUrl: 'https://whc.unesco.org/en/list/373/',
+    notes: 'Used for Standing Stones historical context.',
+  },
+  {
+    id: 'unesco-giza',
+    title: 'Memphis and its Necropolis – the Pyramid Fields from Giza to Dahshur',
+    publisher: 'UNESCO World Heritage Centre',
+    sourceUrl: 'https://whc.unesco.org/en/list/86/',
+    notes: 'Used for Great Pyramid historical context.',
+  },
+  {
     id: 'unesco-delphi',
     title: 'Archaeological Site of Delphi',
     publisher: 'UNESCO World Heritage Centre',

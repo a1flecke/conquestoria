@@ -62,6 +62,32 @@ describe('era <= 9 wonders do not reference relocated tech stubs', () => {
   }
 });
 
+describe('era 1-2 legendary wonder coverage (MR11)', () => {
+  const era1and2 = ALL_WONDER_DEFINITIONS.filter(w => w.era === 1 || w.era === 2);
+
+  it('has exactly 3 era 1-2 legendary wonders', () => {
+    expect(era1and2).toHaveLength(3);
+  });
+
+  it('standing-stones civYieldBonus is absent — reward is host-city only, total stacked bonus <= 2', () => {
+    const w = era1and2.find(w => w.id === 'standing-stones');
+    expect(w?.reward.civYieldBonus).toBeUndefined();
+    expect(w?.reward.cityYieldBonus).toEqual({ science: 1, food: 1 });
+  });
+
+  it('great-pyramid civYieldBonus matches definition and stays within ceiling', () => {
+    const w = era1and2.find(w => w.id === 'great-pyramid');
+    expect(w?.reward.civYieldBonus).toEqual({ production: 1 });
+    expect(w?.reward.cityYieldBonus).toEqual({ production: 2 });
+  });
+
+  it('tidemother-colossus civYieldBonus matches definition and stays within ceiling', () => {
+    const w = era1and2.find(w => w.id === 'tidemother-colossus');
+    expect(w?.reward.civYieldBonus).toEqual({ gold: 1 });
+    expect(w?.reward.cityYieldBonus).toEqual({ gold: 2 });
+  });
+});
+
 describe('era 7 legendary wonder coverage', () => {
   const era7 = ALL_WONDER_DEFINITIONS.filter(w => w.era === 7);
 

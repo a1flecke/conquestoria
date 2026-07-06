@@ -9,6 +9,63 @@ export interface LateEraWonderTechRequirement {
 const LATE_ERA_WONDER_IDS = ['storm-signal-spire', 'manhattan-project', 'internet'] as const;
 
 const LEGENDARY_WONDER_DEFINITIONS_BY_ID: Record<string, LegendaryWonderDefinition> = {
+  // Era 1-2 wonders (Dawn Age) — MR11: the opening-era wonder race was missing entirely.
+  // One historical anchor (standing-stones) + two fantasy (great-pyramid keeps a mythic
+  // framing pre-history, tidemother-colossus is pure fantasy) per the audit's "myth
+  // hardens into history" register for early eras.
+  'standing-stones': {
+    id: 'standing-stones',
+    name: 'The Standing Stones',
+    era: 1,
+    productionCost: 55,
+    requiredTechs: ['animism', 'mud-brick'],
+    requiredResources: ['stone'],
+    cityRequirement: 'any',
+    questSteps: [
+      { id: 'first-light', type: 'map-discoveries', targetCount: 1, discoveryTypes: ['natural-wonder', 'tribal-village'], description: 'Discover a natural wonder or tribal village.' },
+      { id: 'raise-the-circle', type: 'buildings-in-multiple-cities', targetCount: 1, cityScope: 'host-city', minimumBuildingsPerCity: 2, description: 'Develop this city with at least 2 completed buildings.' },
+    ],
+    reward: {
+      summary: '+1 science and +1 food in the host city each turn.',
+      cityYieldBonus: { science: 1, food: 1 },
+    },
+  },
+  'great-pyramid': {
+    id: 'great-pyramid',
+    name: 'Great Pyramid',
+    era: 2,
+    productionCost: 85,
+    requiredTechs: ['masonry', 'burial-rites'],
+    requiredResources: ['stone'],
+    cityRequirement: 'any',
+    questSteps: [
+      { id: 'quarry-the-ages', type: 'buildings-in-multiple-cities', targetCount: 2, cityScope: 'empire', minimumBuildingsPerCity: 2, description: 'Develop 2 cities with at least 2 buildings each.' },
+      { id: 'tame-the-frontier', type: 'defeat_stronghold', scope: 'near-city', radius: 5, description: 'Destroy a barbarian stronghold near the host city.' },
+    ],
+    reward: {
+      summary: '+2 production in the host city and +1 production empire-wide each turn.',
+      cityYieldBonus: { production: 2 },
+      civYieldBonus: { production: 1 },
+    },
+  },
+  'tidemother-colossus': {
+    id: 'tidemother-colossus',
+    name: 'Tidemother Colossus',
+    era: 2,
+    productionCost: 90,
+    requiredTechs: ['fishing', 'sacred-sites'],
+    requiredResources: [],
+    cityRequirement: 'coastal',
+    questSteps: [
+      { id: 'first-wake', type: 'trade_route', description: 'Establish a trade route.' },
+      { id: 'watch-the-horizon', type: 'map-discoveries', targetCount: 2, discoveryTypes: ['natural-wonder', 'tribal-village'], description: 'Discover 2 remarkable sites.' },
+    ],
+    reward: {
+      summary: '+2 gold in the host city and +1 gold empire-wide each turn.',
+      cityYieldBonus: { gold: 2 },
+      civYieldBonus: { gold: 1 },
+    },
+  },
   'oracle-of-delphi': {
     id: 'oracle-of-delphi',
     name: 'Oracle of Delphi',

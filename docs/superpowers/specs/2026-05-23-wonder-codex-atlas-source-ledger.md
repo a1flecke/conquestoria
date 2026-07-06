@@ -30,6 +30,8 @@ These sources are approved starting points. Implementation may add more sources,
 | `commons-credit-line` | Image attribution guidance | https://commons.wikimedia.org/wiki/Commons:Credit_line/en | Use when creating attribution text for public domain and Creative Commons media. |
 | `nasa-media-guidelines` | NASA factual/image use policy | https://www.nasa.gov/nasa-brand-center/images-and-media/ | NASA media is generally usable for educational or informational purposes when not implying endorsement; acknowledge NASA as source and avoid logo/endorsement misuse. |
 | `unesco-delphi` | Oracle of Delphi factual source | https://whc.unesco.org/en/list/393/ | Official UNESCO World Heritage source for Delphi as the sanctuary where Apollo's oracle spoke and a religious center of the ancient Greek world. |
+| `unesco-stonehenge` | Standing Stones factual source | https://whc.unesco.org/en/list/373/ | Official UNESCO World Heritage source for Stonehenge, Avebury and Associated Sites. |
+| `unesco-giza` | Great Pyramid factual source | https://whc.unesco.org/en/list/86/ | Official UNESCO World Heritage source for Memphis and its Necropolis – the Pyramid Fields from Giza to Dahshur. |
 | `nps-grand-canyon` | Grand Canyon factual source | https://www.nps.gov/grca/learn/ | Official National Park Service education pages for Grand Canyon facts. |
 | `nps-manhattan-project` | Manhattan Project factual source | https://www.nps.gov/mapr/learn/manhattan-project.htm | Official National Park Service source for the Manhattan Project and its historical significance. |
 | `internet-society-history` | Internet factual source | https://www.internetsociety.org/internet/history-internet/brief-history-internet/ | Internet Society history source for origins and development of the Internet. |
@@ -159,5 +161,8 @@ During implementation, add a row for every codex entry using this shape:
 | `wright-flyer` | `loc-about` | `image-foundry` | `/images/wonders/codex/foundry.jpg` | CC BY-SA 3.0 | Nlynch / CC BY-SA 3.0 |
 | `united-nations` | `loc-about` | `image-archive` | `/images/wonders/codex/archive.jpg` | public domain | Carol M. Highsmith / public domain |
 | `apollo-program` | `loc-about` | `image-archive` | `/images/wonders/codex/archive.jpg` | public domain | Carol M. Highsmith / public domain |
+| `standing-stones` | `unesco-stonehenge` | `image-olympia-stadium` | `/images/wonders/codex/olympia-stadium.jpg` | CC BY 2.0 | dronepicr / CC BY 2.0 |
+| `great-pyramid` | `unesco-giza` | `image-desert` | `/images/wonders/codex/desert.jpg` | public domain | NASA / public domain |
+| `tidemother-colossus` | `noaa-maritime-heritage` | `image-drydock` | `/images/wonders/codex/drydock.jpeg` | public domain | Asahel Curtis / public domain |
 
 The final implementation PR must include one completed row per codex entry. Contract tests must fail if a final codex entry references missing fact source IDs, missing image source IDs, missing local image paths, or placeholder attribution text.
