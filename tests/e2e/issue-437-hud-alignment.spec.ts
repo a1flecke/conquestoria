@@ -12,7 +12,7 @@ async function installFixture(page: Page): Promise<void> {
     const fixture = JSON.parse(fixtureText);
     const civ = fixture.civilizations[fixture.currentPlayer];
     civ.gold = 1012;
-    civ.techState.currentResearch = 'herbalist-guilds';
+    civ.techState.currentResearch = 'natural-philosophy';
     fixture.marketplace.purchasedResources = [{
       civId: fixture.currentPlayer,
       resource: 'silk',

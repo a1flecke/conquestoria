@@ -333,7 +333,7 @@ async function installFixture(page: Page): Promise<void> {
     const fixture = JSON.parse(fixtureText);
     const civ = fixture.civilizations[fixture.currentPlayer];
     civ.gold = 1012;
-    civ.techState.currentResearch = 'herbalist-guilds';
+    civ.techState.currentResearch = 'natural-philosophy';
     fixture.marketplace.purchasedResources = [{
       civId: fixture.currentPlayer,
       resource: 'silk',
@@ -508,6 +508,16 @@ git commit -m "fix(hud): align yield labels across web and macOS"
 
 - [ ] **Step 1: Add failing linked-worktree package-routing regressions**
 
+Inside the existing fake main-wrapper heredoc, immediately before
+`exec mise exec -- "$@"`, add:
+
+```bash
+[ "$*" != "yarn bin tauri" ] || {
+  printf '%s\n' '/fake/tauri.js'
+  exit 0
+}
+```
+
 In `tests/hooks/run-with-mise-worktree.test.sh`, add these checks after the
 existing linked-worktree web build assertion:
 
@@ -519,7 +529,7 @@ rm -f "$mise_log"
     MISE_LOG="$mise_log" \
     ./scripts/run-with-mise.sh yarn tauri:build:mac-app
 )
-grep -Eq "^$linked\\|exec -- node .* build --config .* --bundles app$" "$mise_log" || {
+grep -Eq "^$linked\\|exec -- node /fake/tauri\\.js build --config .* --bundles app$" "$mise_log" || {
   echo "worktree macOS app build ran outside the active worktree"
   exit 1
 }
