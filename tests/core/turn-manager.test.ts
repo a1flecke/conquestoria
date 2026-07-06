@@ -693,7 +693,7 @@ describe('processTurn', () => {
     state.civilizations.player.cities.push(city.id);
 
     city.productionQueue = ['settler'];
-    city.productionProgress = 15;
+    city.productionProgress = 23; // settler cost is 24 (MR13/#481 Part E retune) — 1 short so this turn's production completes it
 
     const before = new Set(Object.keys(state.units));
     const newState = processTurn(state, bus);

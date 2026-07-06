@@ -6,7 +6,7 @@ const ERA_8_TECHS: Tech[] = [
     prerequisites: ['rifled-infantry', 'mass-mobilization'],
     unlocks: ['Machine gunners provide concentrated suppressive fire; heavy artillery replaces classical cannon'],
     unlocksUnits: ['machine_gunner', 'artillery'], era: 8 },
-  { id: 'general-mobilization', name: 'General Mobilization', track: 'military', cost: 235,
+  { id: 'general-mobilization', name: 'General Mobilization', track: 'military', cost: 90,
     prerequisites: ['mass-mobilization'],
     unlocks: ['All cities train military units 15% faster'],
     unlocksBuildings: ['imperial_general_staff'], era: 8 },
@@ -15,7 +15,7 @@ const ERA_8_TECHS: Tech[] = [
   { id: 'finance-capitalism', name: 'Finance Capitalism', track: 'economy', cost: 245,
     prerequisites: ['mass-production', 'steam-power'],
     unlocks: ['Trade route gold +25% empire-wide'], era: 8 },
-  { id: 'industrial-monopoly', name: 'Industrial Monopoly', track: 'economy', cost: 240,
+  { id: 'industrial-monopoly', name: 'Industrial Monopoly', track: 'economy', cost: 150,
     prerequisites: ['mass-production'],
     unlocks: ['+2 gold per city with a market building'],
     unlocksBuildings: ['stock_exchange_tower'], era: 8 },
@@ -29,13 +29,13 @@ const ERA_8_TECHS: Tech[] = [
     prerequisites: ['germ-theory', 'applied-chemistry'],
     unlocks: ['Germ culture techniques advance urban sanitation; +1 food per city with a bacteriology lab'],
     unlocksBuildings: ['bacteriology_lab'], era: 8 },
-  { id: 'engineering-exhibition', name: 'Engineering Exhibition', track: 'science', cost: 235,
+  { id: 'engineering-exhibition', name: 'Engineering Exhibition', track: 'science', cost: 165,
     prerequisites: ['industrialization', 'urban-planning'],
     unlocks: ['International industrial exhibitions showcase national achievements; +1 science empire-wide'],
     unlocksBuildings: ['exhibition_hall', 'world_fair'], era: 8 },
 
   // CIVICS (2)
-  { id: 'labor-rights', name: 'Labor Rights', track: 'civics', cost: 235,
+  { id: 'labor-rights', name: 'Labor Rights', track: 'civics', cost: 165,
     prerequisites: ['social-reform', 'nationalism'],
     unlocks: ['Workers\' rights improve provisioning; +1 food per city with a marketplace'],
     unlocksBuildings: ['labor_hall'], era: 8 },
@@ -53,7 +53,7 @@ const ERA_8_TECHS: Tech[] = [
     unlocks: ['Systematic mapping of imperial territory; scouts reveal terrain faster; +1 vision range scouts'], era: 8 },
 
   // AGRICULTURE (2)
-  { id: 'refrigeration', name: 'Refrigeration', track: 'agriculture', cost: 235,
+  { id: 'refrigeration', name: 'Refrigeration', track: 'agriculture', cost: 145,
     prerequisites: ['agricultural-machinery'],
     unlocks: ['+2 food all cities; refrigerated storage keeps harvests from going to waste'], era: 8 },
   { id: 'scientific-breeding', name: 'Scientific Breeding', track: 'agriculture', cost: 240,
@@ -73,15 +73,15 @@ const ERA_8_TECHS: Tech[] = [
   { id: 'dialectical-materialism', name: 'Dialectical Materialism', track: 'philosophy', cost: 240,
     prerequisites: ['positivism', 'utilitarianism'],
     unlocks: ['+2 science in cities with a library; empirical framework advances research'], era: 8 },
-  { id: 'pragmatism', name: 'Pragmatism', track: 'philosophy', cost: 235,
+  { id: 'pragmatism', name: 'Pragmatism', track: 'philosophy', cost: 145,
     prerequisites: ['positivism'],
     unlocks: ['+5% all city yields; practical philosophy optimizes civic and economic output'], era: 8 },
 
   // ARTS (2)
-  { id: 'impressionism', name: 'Impressionism', track: 'arts', cost: 235,
+  { id: 'impressionism', name: 'Impressionism', track: 'arts', cost: 150,
     prerequisites: ['industrial-realism', 'romanticism'],
     unlocks: ['+1 gold per culture building empire-wide; culture buildings grant +1 science each'], era: 8 },
-  { id: 'grand-opera', name: 'Grand Opera', track: 'arts', cost: 240,
+  { id: 'grand-opera', name: 'Grand Opera', track: 'arts', cost: 165,
     prerequisites: ['industrial-realism'],
     unlocks: ['+2 gold empire-wide; grand opera spreads cultural prestige across borders'],
     unlocksBuildings: ['opera_house'], era: 8 },
@@ -91,7 +91,7 @@ const ERA_8_TECHS: Tech[] = [
     prerequisites: ['ironclad-warships', 'steam-navigation'],
     unlocks: ['Naval units +5 strength; armored warships dominate coastal waters'],
     unlocksUnits: ['pre_dreadnought'], era: 8 },
-  { id: 'torpedo-warfare', name: 'Torpedo Warfare', track: 'maritime', cost: 245,
+  { id: 'torpedo-warfare', name: 'Torpedo Warfare', track: 'maritime', cost: 90,
     prerequisites: ['steam-navigation'],
     unlocks: ['Naval ranged units +8 strength; coastal cities gain +5 defense bonus against naval assault'], era: 8 },
 
@@ -118,7 +118,7 @@ const ERA_8_TECHS: Tech[] = [
     prerequisites: ['electric-telegraph', 'popular-press'],
     unlocks: ['Voice communication over wire; diplomatic exchanges faster; intelligence networks gain wider reach'],
     unlocksBuildings: ['telephone_exchange'], era: 8 },
-  { id: 'shorthand-press', name: 'Shorthand Press', track: 'communication', cost: 235,
+  { id: 'shorthand-press', name: 'Shorthand Press', track: 'communication', cost: 145,
     prerequisites: ['popular-press'],
     unlocks: ['+1 science and +1 gold per city; high-speed printing saturates markets with information'], era: 8 },
 
@@ -126,15 +126,15 @@ const ERA_8_TECHS: Tech[] = [
   { id: 'political-intelligence', name: 'Political Intelligence', track: 'espionage', cost: 240,
     prerequisites: ['covert-operations', 'secret-police'],
     unlocks: ['+3 spy slots empire-wide; political intelligence networks improve spy mission success rates by 10%'], era: 8 },
-  { id: 'disinformation-bureau', name: 'Disinformation Bureau', track: 'espionage', cost: 235,
+  { id: 'disinformation-bureau', name: 'Disinformation Bureau', track: 'espionage', cost: 145,
     prerequisites: ['secret-police'],
     unlocks: ['Enemy spy missions in your cities have -25% success rate; state disinformation weakens foreign loyalty'], era: 8 },
 
   // SPIRITUALITY (2)
-  { id: 'modernist-theology', name: 'Modernist Theology', track: 'spirituality', cost: 235,
+  { id: 'modernist-theology', name: 'Modernist Theology', track: 'spirituality', cost: 165,
     prerequisites: ['secularism', 'social-gospel'],
     unlocks: ['+2 science in cities with a temple or monastery; faith and reason reconciled'], era: 8 },
-  { id: 'social-justice', name: 'Social Justice', track: 'spirituality', cost: 240,
+  { id: 'social-justice', name: 'Social Justice', track: 'spirituality', cost: 150,
     prerequisites: ['social-gospel'],
     unlocks: ['+1 food and +1 gold per city with any religion building; social gospel drives communal welfare'], era: 8 },
 ];

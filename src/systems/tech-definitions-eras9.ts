@@ -17,7 +17,7 @@ const ERA_9_TECHS: Tech[] = [
     unlocksBuildings: ['anti_air_battery', 'air_force_command'], era: 9 },
 
   // ECONOMY (2)
-  { id: 'petroleum-industry', name: 'Petroleum Industry', track: 'economy', cost: 265,
+  { id: 'petroleum-industry', name: 'Petroleum Industry', track: 'economy', cost: 190,
     prerequisites: ['industrial-monopoly', 'structural-engineering'],
     unlocks: ['Crude oil extraction and refining; fuel powers the modern economy'],
     unlocksBuildings: ['oil_refinery'], era: 9 },
@@ -37,7 +37,7 @@ const ERA_9_TECHS: Tech[] = [
     unlocksBuildings: ['airfield'], era: 9 },
 
   // CIVICS (2)
-  { id: 'universal-suffrage', name: 'Universal Suffrage', track: 'civics', cost: 265,
+  { id: 'universal-suffrage', name: 'Universal Suffrage', track: 'civics', cost: 190,
     prerequisites: ['labor-rights', 'public-records'],
     unlocks: ['+1 food all cities; democratic legitimacy accelerates civic development'], era: 9 },
   { id: 'welfare-state', name: 'Welfare State', track: 'civics', cost: 270,
@@ -46,18 +46,18 @@ const ERA_9_TECHS: Tech[] = [
     unlocksBuildings: ['national_insurance', 'national_census'], era: 9 },
 
   // EXPLORATION (2)
-  { id: 'motorized-transport', name: 'Motorized Transport', track: 'exploration', cost: 265,
+  { id: 'motorized-transport', name: 'Motorized Transport', track: 'exploration', cost: 190,
     prerequisites: ['transcontinental-rail', 'petroleum-industry'],
     unlocks: ['Automobiles and trucks reshape logistics; supply chains reach further than ever'], era: 9 },
-  { id: 'aerial-survey', name: 'Aerial Survey', track: 'exploration', cost: 260,
+  { id: 'aerial-survey', name: 'Aerial Survey', track: 'exploration', cost: 175,
     prerequisites: ['imperial-survey', 'aviation'],
     unlocks: ['+1 vision range for air units'], era: 9 },
 
   // AGRICULTURE (2)
-  { id: 'chemical-fertilizers', name: 'Chemical Fertilizers', track: 'agriculture', cost: 265,
+  { id: 'chemical-fertilizers', name: 'Chemical Fertilizers', track: 'agriculture', cost: 190,
     prerequisites: ['scientific-breeding', 'refrigeration'],
     unlocks: ['+2 food per farm improvement; synthetic nitrogen transforms crop yields'], era: 9 },
-  { id: 'large-scale-irrigation', name: 'Large-Scale Irrigation', track: 'agriculture', cost: 260,
+  { id: 'large-scale-irrigation', name: 'Large-Scale Irrigation', track: 'agriculture', cost: 190,
     prerequisites: ['sanitation-networks', 'refrigeration'],
     unlocks: ['+1 food all cities; engineered irrigation networks feed growing populations'], era: 9 },
 
@@ -65,12 +65,12 @@ const ERA_9_TECHS: Tech[] = [
   { id: 'blood-transfusion', name: 'Blood Transfusion', track: 'medicine', cost: 270,
     prerequisites: ['antiseptic-surgery', 'public-health-service'],
     unlocks: ['Units heal +4 HP per turn in friendly cities; battlefield survival rates soar'], era: 9 },
-  { id: 'modern-psychiatry', name: 'Modern Psychiatry', track: 'medicine', cost: 265,
+  { id: 'modern-psychiatry', name: 'Modern Psychiatry', track: 'medicine', cost: 190,
     prerequisites: ['public-health-service', 'pragmatism'],
     unlocks: ['+1 food all cities with a sanatorium; mental health services reduce social unrest'], era: 9 },
 
   // PHILOSOPHY (2)
-  { id: 'pragmatic-empiricism', name: 'Pragmatic Empiricism', track: 'philosophy', cost: 265,
+  { id: 'pragmatic-empiricism', name: 'Pragmatic Empiricism', track: 'philosophy', cost: 170,
     prerequisites: ['pragmatism', 'dialectical-materialism'],
     unlocks: ['+2 science cities with a library; evidence-based thinking transforms scholarship'], era: 9 },
   { id: 'existentialism', name: 'Existentialism', track: 'philosophy', cost: 270,
@@ -78,11 +78,11 @@ const ERA_9_TECHS: Tech[] = [
     unlocks: ['+1 gold per culture building empire-wide; modern philosophy drives creative expression'], era: 9 },
 
   // ARTS (2)
-  { id: 'cinema', name: 'Cinema', track: 'arts', cost: 265,
+  { id: 'cinema', name: 'Cinema', track: 'arts', cost: 190,
     prerequisites: ['impressionism', 'grand-opera'],
     unlocks: ['Moving pictures captivate mass audiences; cultural reach extends across borders'],
     unlocksBuildings: ['film_studio'], era: 9 },
-  { id: 'jazz-age', name: 'Jazz Age', track: 'arts', cost: 260,
+  { id: 'jazz-age', name: 'Jazz Age', track: 'arts', cost: 190,
     prerequisites: ['impressionism', 'telephony'],
     unlocks: ['+2 gold per city with an opera house; jazz culture electrifies urban life'], era: 9 },
 
@@ -96,7 +96,7 @@ const ERA_9_TECHS: Tech[] = [
     unlocks: ['+2 gold per trade route empire-wide; coordinated convoy escorts protect commerce'], era: 9 },
 
   // METALLURGY (2)
-  { id: 'aluminium-smelting', name: 'Aluminium Smelting', track: 'metallurgy', cost: 265,
+  { id: 'aluminium-smelting', name: 'Aluminium Smelting', track: 'metallurgy', cost: 190,
     prerequisites: ['bessemer-steel', 'structural-engineering'],
     unlocks: ['+1 production all cities; lightweight aluminium enables aviation and modern machinery'], era: 9 },
   { id: 'tungsten-alloys', name: 'Tungsten Alloys', track: 'metallurgy', cost: 270,
@@ -113,11 +113,11 @@ const ERA_9_TECHS: Tech[] = [
     unlocks: ['+2 production in cities with 6 or more buildings; vertical construction transforms urban density'], era: 9 },
 
   // COMMUNICATION (2)
-  { id: 'radio-broadcast', name: 'Radio Broadcast', track: 'communication', cost: 265,
+  { id: 'radio-broadcast', name: 'Radio Broadcast', track: 'communication', cost: 190,
     prerequisites: ['telephony', 'shorthand-press'],
     unlocks: ['Mass radio reaches every household; empire-wide information flow accelerates'],
     unlocksBuildings: ['radio_station'], era: 9 },
-  { id: 'wireless-telegraph', name: 'Wireless Telegraph', track: 'communication', cost: 260,
+  { id: 'wireless-telegraph', name: 'Wireless Telegraph', track: 'communication', cost: 190,
     prerequisites: ['shorthand-press', 'telephony'],
     unlocks: ['+2 gold empire-wide; wireless signals coordinate commerce and intelligence without cables'], era: 9 },
   // MR10: re-homed from a stub — mass-media is no longer a legendary-wonder gate.
@@ -126,7 +126,7 @@ const ERA_9_TECHS: Tech[] = [
     unlocks: ['Global broadcasts coordinate late-era cultural life'], era: 9, countsForEraAdvancement: false },
 
   // ESPIONAGE (2)
-  { id: 'counterintelligence', name: 'Counterintelligence', track: 'espionage', cost: 265,
+  { id: 'counterintelligence', name: 'Counterintelligence', track: 'espionage', cost: 190,
     prerequisites: ['political-intelligence', 'disinformation-bureau'],
     unlocks: ['Enemy spy missions in your cities suffer -30% success rate; double-agent networks protect secrets'], era: 9 },
   { id: 'propaganda-campaigns', name: 'Propaganda Campaigns', track: 'espionage', cost: 270,
@@ -135,10 +135,10 @@ const ERA_9_TECHS: Tech[] = [
     unlocksBuildings: ['state_broadcasting'], era: 9 },
 
   // SPIRITUALITY (2)
-  { id: 'religious-modernism', name: 'Religious Modernism', track: 'spirituality', cost: 260,
+  { id: 'religious-modernism', name: 'Religious Modernism', track: 'spirituality', cost: 170,
     prerequisites: ['modernist-theology', 'social-justice'],
     unlocks: ['+1 science in cities with any religion building; faith adapts to the modern world'], era: 9 },
-  { id: 'secular-humanism', name: 'Secular Humanism', track: 'spirituality', cost: 265,
+  { id: 'secular-humanism', name: 'Secular Humanism', track: 'spirituality', cost: 190,
     prerequisites: ['social-justice', 'pragmatism'],
     unlocks: ['+1 food all cities; humanist ethics grounds social policy in human welfare'], era: 9 },
 ];

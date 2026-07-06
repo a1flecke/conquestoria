@@ -858,7 +858,7 @@ describe('processCity', () => {
 
 describe('getSettlerProductionCost', () => {
   it('uses cheaper early-game Settler costs for eras 1 and 2', () => {
-    expect(getSettlerProductionCost(1)).toBe(16);
+    expect(getSettlerProductionCost(1)).toBe(24);
     expect(getSettlerProductionCost(2)).toBe(24);
     expect(getSettlerProductionCost(3)).toBe(40);
   });
