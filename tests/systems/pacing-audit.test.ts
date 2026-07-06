@@ -99,3 +99,15 @@ describe('tech pacing audit', () => {
     expect(slowOutliers).toEqual([]);
   });
 });
+
+describe('full-catalog pacing outlier gate (Part D, fixes F4)', () => {
+  // buildPacingAudit() is deterministic (no RNG) — a single call suffices; sampling would
+  // only be needed if per-play RNG affected estimatedTurns, which it does not.
+  it('has no pacing outliers across the full tech/building/unit catalog', () => {
+    const outliers = buildPacingAudit()
+      .filter(row => row.outlier)
+      .map(row => `${row.contentType}:${row.id} era ${row.era} — ${row.estimatedTurns}/${row.target.min}-${row.target.max} turns (${row.outlierReason})`);
+
+    expect(outliers).toEqual([]);
+  });
+});
