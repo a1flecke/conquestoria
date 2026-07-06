@@ -58,7 +58,19 @@ describe('research pacing model', () => {
     expect(getResearchOutputProfileForEra(7)).toEqual({ name: 'era-7-established', outputPerTurn: 19 });
     expect(getResearchOutputProfileForEra(8)).toEqual({ name: 'era-8-established', outputPerTurn: 22 });
     expect(getResearchOutputProfileForEra(9)).toEqual({ name: 'era-9-established', outputPerTurn: 25 });
-    expect(getResearchOutputProfileForEra(99)).toEqual({ name: 'era-9-established', outputPerTurn: 25 });
+    expect(getResearchOutputProfileForEra(99)).toEqual({ name: 'era-12-established', outputPerTurn: 34 });
+  });
+
+  it('extends the research baseline through era 12 instead of clamping at era 9 (F2 regression)', () => {
+    const era9 = getResearchOutputProfileForEra(9);
+    const era10 = getResearchOutputProfileForEra(10);
+    const era11 = getResearchOutputProfileForEra(11);
+    const era12 = getResearchOutputProfileForEra(12);
+
+    expect(era10.outputPerTurn).toBeGreaterThan(era9.outputPerTurn);
+    expect(era11.outputPerTurn).toBeGreaterThan(era10.outputPerTurn);
+    expect(era12.outputPerTurn).toBeGreaterThan(era11.outputPerTurn);
+    expect(new Set([era9.name, era10.name, era11.name, era12.name]).size).toBe(4);
   });
 
   it('classifies starter prerequisites structurally from era, prerequisites, and pacing band', () => {
