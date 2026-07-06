@@ -384,7 +384,9 @@ describe('era advancement', () => {
   it('does not advance era via scaffolding techs marked countsForEraAdvancement: false', () => {
     const state = createNewGame(undefined, 'era-five-scaffold', 'small');
     state.era = 4;
-    // global-logistics and nuclear-theory are era-5 techs with countsForEraAdvancement: false
+    // global-logistics (era 8) and nuclear-theory (era 10) both have
+    // countsForEraAdvancement: false regardless of era — MR10 re-homed them from
+    // mis-pointed era-5 stubs, but the exclusion flag travels with them.
     state.civilizations.player.techState.completed = ['global-logistics', 'nuclear-theory'];
     const newEra = checkEraAdvancement(state);
     // Should stay at era 4 — scaffold techs excluded from era advancement
@@ -394,8 +396,9 @@ describe('era advancement', () => {
   it('advances era to 5 when a real era-5 advancement tech is completed', () => {
     const state = createNewGame(undefined, 'era-five-advance', 'small');
     state.era = 4;
-    // digital-surveillance is an era-5 tech without countsForEraAdvancement: false
-    state.civilizations.player.techState.completed = ['digital-surveillance'];
+    // black-powder is a real era-5 tech without countsForEraAdvancement: false
+    // (MR10 moved digital-surveillance, the previous example here, to era 10)
+    state.civilizations.player.techState.completed = ['black-powder'];
     const newEra = checkEraAdvancement(state);
     expect(newEra).toBe(5);
   });

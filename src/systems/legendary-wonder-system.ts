@@ -1,4 +1,4 @@
-import type { City, GameState, LegendaryWonderProject, ResourceYield } from '@/core/types';
+import type { City, Civilization, GameState, LegendaryWonderProject, ResourceYield } from '@/core/types';
 import { EventBus } from '@/core/event-bus';
 import { getLegendaryWonderDefinition, getLegendaryWonderDefinitions } from '@/systems/legendary-wonder-definitions';
 import { getTechById } from '@/systems/tech-system';
@@ -153,12 +153,45 @@ function getNormalizedLegendaryWonderProject(
   return syncedProject;
 }
 
+function getRawResearchCount(civ: Civilization, track?: string): number {
+  if (track) {
+    return civ.techState.completed.filter(techId => getTechById(techId)?.track === track).length;
+  }
+  return civ.techState.completed.length;
+}
+
+type ResearchCountStep = NonNullable<ReturnType<typeof getLegendaryWonderDefinition>>['questSteps'][number];
+
+// Single source of truth for research_count progress: baseline-adjusted count vs target.
+// Used by both step evaluation (completion) and quest-step description text (display) so
+// the two can never drift out of sync.
+export function getResearchCountProgress(
+  project: LegendaryWonderProject,
+  step: ResearchCountStep,
+  civ: Civilization,
+): { current: number; target: number } {
+  const baseline = project.questBaselines?.[step.id] ?? 0;
+  const raw = getRawResearchCount(civ, step.track);
+  return {
+    current: Math.max(0, raw - baseline),
+    target: step.targetCount ?? 1,
+  };
+}
+
 function createLegendaryWonderProject(
   state: GameState,
   civId: string,
   cityId: string,
   definition: NonNullable<ReturnType<typeof getLegendaryWonderDefinition>>,
 ): LegendaryWonderProject {
+  const civ = state.civilizations[civId];
+  const questBaselines: Record<string, number> = {};
+  for (const step of definition.questSteps) {
+    if (step.type === 'research_count' && civ) {
+      questBaselines[step.id] = getRawResearchCount(civ, step.track);
+    }
+  }
+
   return getNormalizedLegendaryWonderProject(state, {
     wonderId: definition.id,
     ownerId: civId,
@@ -166,6 +199,7 @@ function createLegendaryWonderProject(
     phase: 'questing',
     investedProduction: 0,
     transferableProduction: 0,
+    questBaselines,
     questSteps: definition.questSteps.map(step => ({
       id: step.id,
       description: step.description ?? getDefaultQuestStepDescription(step),
@@ -207,8 +241,10 @@ function evaluateLegendaryWonderStep(state: GameState, project: LegendaryWonderP
     case 'connect-two-cities':
     case 'establish-two-trade-links':
       return ownedTradeRoutes.length >= 2;
-    case 'complete-four-communication-techs':
-      return civ.techState.completed.filter(techId => getTechById(techId)?.track === 'communication').length >= 4;
+    case 'complete-four-communication-techs': {
+      const progress = getResearchCountProgress(project, step, civ);
+      return progress.current >= progress.target;
+    }
   }
 
   switch (step.type) {
@@ -218,13 +254,8 @@ function evaluateLegendaryWonderStep(state: GameState, project: LegendaryWonderP
     case 'trade-routes-established':
       return matchingTradeRoutes.length >= (step.targetCount ?? 1);
     case 'research_count': {
-      if (step.track) {
-        const trackCount = civ.techState.completed.filter(techId => {
-          return getTechById(techId)?.track === step.track;
-        }).length;
-        return trackCount >= (step.targetCount ?? 1);
-      }
-      return civ.techState.completed.length >= (step.targetCount ?? 1);
+      const progress = getResearchCountProgress(project, step, civ);
+      return progress.current >= progress.target;
     }
     case 'defeat_stronghold': {
       const matchingStrongholds = (state.legendaryWonderHistory?.destroyedStrongholds ?? [])
@@ -254,16 +285,37 @@ function evaluateLegendaryWonderStep(state: GameState, project: LegendaryWonderP
   }
 }
 
+function describeLegendaryWonderStep(
+  state: GameState,
+  project: LegendaryWonderProject,
+  definitionStep: ResearchCountStep | undefined,
+  fallback: string,
+): string {
+  const baseDescription = definitionStep?.description ?? fallback;
+  if (!definitionStep || definitionStep.type !== 'research_count') {
+    return baseDescription;
+  }
+  const civ = state.civilizations[project.ownerId];
+  if (!civ) return baseDescription;
+  const progress = getResearchCountProgress(project, definitionStep, civ);
+  return `${baseDescription} (${Math.min(progress.current, progress.target)}/${progress.target})`;
+}
+
 function syncLegendaryWonderQuestSteps(state: GameState, project: LegendaryWonderProject): LegendaryWonderProject {
   const definition = getLegendaryWonderDefinition(project.wonderId);
   return {
     ...project,
-    questSteps: project.questSteps.map(step => ({
-      ...step,
-      description: definition?.questSteps.find(candidate => candidate.id === step.id)?.description
-        ?? step.description,
-      completed: step.completed || evaluateLegendaryWonderStep(state, project, step.id),
-    })),
+    questSteps: project.questSteps.map(step => {
+      const completed = step.completed || evaluateLegendaryWonderStep(state, project, step.id);
+      const definitionStep = definition?.questSteps.find(candidate => candidate.id === step.id);
+      return {
+        ...step,
+        description: completed
+          ? (definitionStep?.description ?? step.description)
+          : describeLegendaryWonderStep(state, project, definitionStep, step.description),
+        completed,
+      };
+    }),
   };
 }
 

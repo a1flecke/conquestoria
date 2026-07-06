@@ -53,6 +53,29 @@ describe('city worked tile eligibility', () => {
     expect(workable.map(entry => entry.coord)).not.toContainEqual(ocean.coord);
   });
 
+  // MR10: eternal_storm (an ocean-terrain natural wonder) could never be worked at all
+  // under the blanket ocean exclusion — its +3 science was unearnable. A tile bearing a
+  // natural wonder must be workable regardless of terrain.
+  it('treats an ocean tile bearing a natural wonder as workable (eternal_storm fix)', () => {
+    const state = createNewGame(undefined, 'city-work-ocean-wonder');
+    const city = addCity(state, 'player', { q: 15, r: 15 });
+    const ocean = Object.values(state.map.tiles).find(tile => tile.terrain === 'ocean')!;
+    state.map.tiles[hexKey(ocean.coord)] = {
+      ...state.map.tiles[hexKey(ocean.coord)],
+      owner: 'player',
+      wonder: 'eternal_storm',
+    };
+    state.cities[city.id] = { ...city, ownedTiles: [...city.ownedTiles, ocean.coord] };
+
+    const workable = getWorkableTilesForCity(state, city.id);
+    const wonderTile = workable.find(entry =>
+      entry.coord.q === ocean.coord.q && entry.coord.r === ocean.coord.r,
+    );
+
+    expect(wonderTile).toBeDefined();
+    expect(wonderTile?.yield.science).toBeGreaterThanOrEqual(3);
+  });
+
   it('marks tiles claimed by another city as unavailable', () => {
     const state = createNewGame(undefined, 'city-work-claims');
     const first = addCity(state, 'player', { q: 10, r: 10 });

@@ -4,6 +4,9 @@ import {
   getEligibleLegendaryWonders,
   getLegendaryWonderCityYieldBonus,
   getLegendaryWonderCivYieldBonus,
+  getLegendaryWonderProjectDefinition,
+  getReachableLegendaryWonderProjects,
+  getResearchCountProgress,
   unlockLegendaryWonderProject,
   loseLegendaryWonderRace,
   startLegendaryWonderBuild,
@@ -201,7 +204,7 @@ describe('legendary-wonder-system', () => {
 
   it('returns a wonder as eligible only when every tech, resource, and city requirement is satisfied', () => {
     const state = makeLegendaryWonderFixture({
-      completedTechs: ['philosophy', 'pilgrimages'],
+      completedTechs: ['philosophy', 'sacred-sites'],
       resources: ['stone'],
     });
 
@@ -222,7 +225,7 @@ describe('legendary-wonder-system', () => {
     expect(eligible).not.toContain('grand-canal');
   });
 
-  it('keeps manhattan project locked until nuclear-theory is researched', () => {
+  it('keeps manhattan project locked until nuclear-weapons and nuclear-physics are researched', () => {
     const state = makeLegendaryWonderFixture({
       completedTechs: [],
       resources: ['iron'],
@@ -231,13 +234,17 @@ describe('legendary-wonder-system', () => {
     let eligible = getEligibleLegendaryWonders(state, 'player', 'city-river');
     expect(eligible).not.toContain('manhattan-project');
 
-    state.civilizations.player.techState.completed.push('nuclear-theory');
+    state.civilizations.player.techState.completed.push('nuclear-weapons');
+    eligible = getEligibleLegendaryWonders(state, 'player', 'city-river');
+    expect(eligible).not.toContain('manhattan-project');
+
+    state.civilizations.player.techState.completed.push('nuclear-physics');
     eligible = getEligibleLegendaryWonders(state, 'player', 'city-river');
 
     expect(eligible).toContain('manhattan-project');
   });
 
-  it('keeps internet locked until both mass-media and global-logistics are researched', () => {
+  it('keeps internet locked until both arpanet and satellite-television are researched', () => {
     const state = makeLegendaryWonderFixture({
       completedTechs: [],
       resources: [],
@@ -246,14 +253,75 @@ describe('legendary-wonder-system', () => {
     let eligible = getEligibleLegendaryWonders(state, 'player', 'city-river');
     expect(eligible).not.toContain('internet');
 
-    state.civilizations.player.techState.completed.push('mass-media');
+    state.civilizations.player.techState.completed.push('arpanet');
     eligible = getEligibleLegendaryWonders(state, 'player', 'city-river');
     expect(eligible).not.toContain('internet');
 
-    state.civilizations.player.techState.completed.push('global-logistics');
+    state.civilizations.player.techState.completed.push('satellite-television');
     eligible = getEligibleLegendaryWonders(state, 'player', 'city-river');
 
     expect(eligible).toContain('internet');
+  });
+
+  it('oracle-of-delphi is buildable by an era-3 civ (philosophy + sacred-sites, both era <= 3)', () => {
+    const state = makeLegendaryWonderFixture({
+      completedTechs: ['philosophy', 'sacred-sites'],
+      resources: ['stone'],
+    });
+    state.era = 3;
+
+    const eligible = getEligibleLegendaryWonders(state, 'player', 'city-river');
+
+    expect(eligible).toContain('oracle-of-delphi');
+  });
+
+  it('keeps storm-signal-spire locked until both radio-broadcast and wireless-telegraph are researched', () => {
+    const state = makeLegendaryWonderFixture({
+      completedTechs: [],
+      resources: [],
+    });
+    // storm-signal-spire also requires a coastal city.
+    state.cities['city-river'].ownedTiles.push({ q: 2, r: 1 });
+    state.map.tiles['2,1'] = {
+      ...state.map.tiles['2,2'],
+      coord: { q: 2, r: 1 },
+      terrain: 'coast',
+      owner: 'player',
+    };
+
+    let eligible = getEligibleLegendaryWonders(state, 'player', 'city-river');
+    expect(eligible).not.toContain('storm-signal-spire');
+
+    state.civilizations.player.techState.completed.push('radio-broadcast');
+    eligible = getEligibleLegendaryWonders(state, 'player', 'city-river');
+    expect(eligible).not.toContain('storm-signal-spire');
+
+    state.civilizations.player.techState.completed.push('wireless-telegraph');
+    eligible = getEligibleLegendaryWonders(state, 'player', 'city-river');
+
+    expect(eligible).toContain('storm-signal-spire');
+  });
+
+  it('does not cancel an in-flight (building phase) project when its requiredTechs are re-gated', () => {
+    // Regression: MR10 changed requiredTechs for several wonders. Eligibility re-checks
+    // must only gate STARTING a new project, never a project already past questing.
+    const state = makeLegendaryWonderFixture({ completedTechs: [], resources: [] });
+    state.legendaryWonderProjects!['oracle-of-delphi'] = {
+      ...state.legendaryWonderProjects!['oracle-of-delphi'],
+      phase: 'building',
+      investedProduction: 40,
+    };
+
+    const reachable = getReachableLegendaryWonderProjects(state, 'player', 'city-river');
+    const stillPresent = Object.values(state.legendaryWonderProjects ?? {}).find(
+      p => p.wonderId === 'oracle-of-delphi',
+    );
+
+    // getReachableLegendaryWonderProjects only surfaces questing/ready_to_build projects by
+    // design, but the underlying project record itself must survive untouched.
+    expect(reachable.some(p => p.wonderId === 'oracle-of-delphi')).toBe(false);
+    expect(stillPresent?.phase).toBe('building');
+    expect(stillPresent?.investedProduction).toBe(40);
   });
 
   it('unlocks construction only after every quest step is complete', () => {
@@ -279,7 +347,7 @@ describe('legendary-wonder-system', () => {
 
   it('emits the completion turn in legendary completion events', () => {
     const state = makeLegendaryWonderFixture({
-      completedTechs: ['philosophy', 'pilgrimages', 'city-planning', 'printing'],
+      completedTechs: ['philosophy', 'sacred-sites', 'city-planning', 'printing'],
       resources: ['stone'],
       oracleStepsCompleted: 2,
     });
@@ -431,7 +499,7 @@ describe('legendary-wonder-system', () => {
 
   it('does not start a stale ready project when current resources no longer satisfy eligibility', () => {
     const state = makeLegendaryWonderFixture({
-      completedTechs: ['philosophy', 'pilgrimages'],
+      completedTechs: ['philosophy', 'sacred-sites'],
       resources: [],
       oracleStepsCompleted: 2,
     });
@@ -1292,5 +1360,82 @@ describe('legendary-wonder-system', () => {
     expect(avalonGain).toBeGreaterThan(baselineGain);
     expect(avalonGain).toBe(75);
     expect(avalonGain).toBeCloseTo(baselineGain * 1.25, 0);
+  });
+});
+
+// MR10 Task 3 — research_count baselines. codex-eternal's 'science-techs' step
+// (track: 'science', targetCount: 4) is used throughout as a concrete, real fixture.
+describe('legendary-wonder-system — research_count baselines', () => {
+  const PRE_QUESTING_SCIENCE = [
+    'fire', 'writing', 'wheel', 'mathematics', 'engineering',
+    'philosophy', 'astronomy', 'medicine', 'scientific-method', 'optics',
+  ];
+  const POST_QUESTING_SCIENCE = ['natural-history', 'hydraulics', 'industrialization', 'applied-chemistry'];
+
+  function seedCodexEternal(completedTechs: string[]) {
+    const state = makeLegendaryWonderFixture({ completedTechs, resources: [] });
+    const seeded = initializeLegendaryWonderProjectsForCity(state, 'player', 'city-river');
+    const key = Object.keys(seeded.legendaryWonderProjects ?? {}).find(k => k.startsWith('codex-eternal:'))!;
+    return { state: seeded, key };
+  }
+
+  it('snapshots a baseline of 10 when the project starts questing with 10 pre-existing science techs', () => {
+    const { state, key } = seedCodexEternal(PRE_QUESTING_SCIENCE);
+    expect(state.legendaryWonderProjects![key].questBaselines?.['science-techs']).toBe(10);
+  });
+
+  it('does not let the 10 pre-existing science techs count toward the step (negative)', () => {
+    const { state, key } = seedCodexEternal(PRE_QUESTING_SCIENCE);
+    // Only 3 new techs since baseline — short of targetCount 4.
+    state.civilizations.player.techState.completed.push(...POST_QUESTING_SCIENCE.slice(0, 3));
+
+    const result = tickLegendaryWonderProjects(state, new EventBus());
+    const project = result.legendaryWonderProjects![key];
+
+    expect(project.questSteps.find(step => step.id === 'science-techs')?.completed).toBe(false);
+  });
+
+  it('completes the step once 4 more science techs are researched since questing began', () => {
+    const { state, key } = seedCodexEternal(PRE_QUESTING_SCIENCE);
+    state.civilizations.player.techState.completed.push(...POST_QUESTING_SCIENCE);
+
+    const result = tickLegendaryWonderProjects(state, new EventBus());
+    const project = result.legendaryWonderProjects![key];
+
+    expect(project.questSteps.find(step => step.id === 'science-techs')?.completed).toBe(true);
+  });
+
+  it('getResearchCountProgress reports current/target consistent with completion', () => {
+    const { state, key } = seedCodexEternal(PRE_QUESTING_SCIENCE);
+    state.civilizations.player.techState.completed.push(...POST_QUESTING_SCIENCE.slice(0, 3));
+    const project = state.legendaryWonderProjects![key];
+    const definition = getLegendaryWonderProjectDefinition(state, 'codex-eternal');
+    const step = definition!.questSteps.find(candidate => candidate.id === 'science-techs')!;
+
+    const progress = getResearchCountProgress(project, step, state.civilizations.player);
+
+    expect(progress).toEqual({ current: 3, target: 4 });
+  });
+
+  it('legacy project without questBaselines completes using lifetime counts (grandfather)', () => {
+    // Simulate a pre-MR10 save: no questBaselines field at all.
+    const state = makeLegendaryWonderFixture({
+      completedTechs: [...PRE_QUESTING_SCIENCE, ...POST_QUESTING_SCIENCE.slice(0, 3)],
+      resources: [],
+    });
+    const seeded = initializeLegendaryWonderProjectsForCity(state, 'player', 'city-river');
+    const key = Object.keys(seeded.legendaryWonderProjects ?? {}).find(k => k.startsWith('codex-eternal:'))!;
+    // Strip the baseline to emulate a legacy save loaded before MR10.
+    seeded.legendaryWonderProjects![key] = {
+      ...seeded.legendaryWonderProjects![key],
+      questBaselines: undefined,
+    };
+
+    const result = tickLegendaryWonderProjects(seeded, new EventBus());
+    const project = result.legendaryWonderProjects![key];
+
+    // 13 lifetime science techs >= targetCount 4 — completes immediately, matching
+    // pre-MR10 behavior for a project that was already in flight.
+    expect(project.questSteps.find(step => step.id === 'science-techs')?.completed).toBe(true);
   });
 });

@@ -35,7 +35,9 @@ describe('city maturity definitions', () => {
   });
 
   it('allows explicit era-five city maturity metadata to unlock metropolis', () => {
-    expect(resolveCityMaturity(12, ['early-empire', 'engineering', 'medicine', 'global-logistics'])).toBe('metropolis');
+    // MR10: global-logistics moved to era 8 (no longer an era-5 maturity source).
+    // renaissance-architecture (era 5, countsForCityMaturity) took over its role.
+    expect(resolveCityMaturity(12, ['early-empire', 'engineering', 'medicine', 'renaissance-architecture'])).toBe('metropolis');
   });
 
   it('applies maturity from population plus qualifying techs', () => {

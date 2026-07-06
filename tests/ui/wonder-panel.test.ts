@@ -307,7 +307,7 @@ describe('wonder-panel', () => {
 
     const rendered = collectText(panel);
     expect(rendered).toContain('Missing');
-    expect(rendered).toContain('Pilgrimages');
+    expect(rendered).toContain('Sacred Sites');
     expect(rendered).toContain('Reward');
   });
 
@@ -323,16 +323,16 @@ describe('wonder-panel', () => {
 
     const rendered = collectText(panel);
     expect(rendered).toContain('Manhattan Project');
-    expect(rendered).toContain('Missing: Nuclear Theory');
+    expect(rendered).toContain('Missing: Nuclear Weapons, Nuclear Physics');
     expect(rendered).toContain('Internet');
-    expect(rendered).toContain('Missing: Mass Media, Global Logistics');
+    expect(rendered).toContain('Missing: ARPANET, Satellite Television');
   });
 
   it('does not overwhelm the player with an undifferentiated list of wonders', () => {
     const { container, state } = makeWonderPanelFixture();
     state.civilizations.player.techState.completed = [
       'philosophy',
-      'pilgrimages',
+      'sacred-sites',
       'city-planning',
       'printing',
       'diplomats',

@@ -40,8 +40,11 @@ function sameCoord(left: HexCoord, right: HexCoord): boolean {
   return left.q === right.q && left.r === right.r;
 }
 
-function isWorkableTerrain(terrain: string): boolean {
-  return terrain !== 'ocean';
+// Ocean tiles are normally unworkable, but a tile bearing a natural wonder (e.g.
+// eternal_storm) must be workable regardless of terrain — otherwise its yield can
+// never be earned even once territory claims it.
+function isWorkableTerrain(terrain: string, hasWonder: boolean): boolean {
+  return terrain !== 'ocean' || hasWonder;
 }
 
 function isWaterTerrain(terrain: string): boolean {
@@ -70,7 +73,7 @@ export function getWorkableTilesForCity(state: GameState, cityId: string): Worka
     if (sameCoord(coord, city.position)) continue;
 
     const tile = state.map.tiles[key];
-    if (!tile || tile.owner !== city.owner || !isWorkableTerrain(tile.terrain)) continue;
+    if (!tile || tile.owner !== city.owner || !isWorkableTerrain(tile.terrain, tile.wonder != null)) continue;
 
     const claim = claims[key];
     const claimedByOtherCity = Boolean(claim && claim.cityId !== city.id && isClaimStillValid(state, key, claim));

@@ -49,11 +49,11 @@ describe('legendary-wonder-definitions', () => {
 
     expect(requirements.find(entry => entry.wonderId === 'manhattan-project')).toEqual({
       wonderId: 'manhattan-project',
-      requiredTechs: ['nuclear-theory'],
+      requiredTechs: ['nuclear-weapons', 'nuclear-physics'],
     });
     expect(requirements.find(entry => entry.wonderId === 'internet')).toEqual({
       wonderId: 'internet',
-      requiredTechs: ['mass-media', 'global-logistics'],
+      requiredTechs: ['arpanet', 'satellite-television'],
     });
   });
 

@@ -65,7 +65,7 @@ describe('council-panel', () => {
     const { state, container } = makeCouncilFixture();
     state.civilizations.player.techState.completed = [
       'philosophy',
-      'pilgrimages',
+      'sacred-sites',
       'city-planning',
       'printing',
       'banking',
@@ -122,7 +122,7 @@ describe('council-panel', () => {
       }
     }
     const city = cityId ? state.cities[cityId] : undefined;
-    state.civilizations.player.techState.completed = ['philosophy', 'pilgrimages'];
+    state.civilizations.player.techState.completed = ['philosophy', 'sacred-sites'];
     if (city) {
       for (const coord of city.ownedTiles) {
         const key = `${coord.q},${coord.r}`;

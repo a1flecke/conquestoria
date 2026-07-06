@@ -47,15 +47,13 @@ describe('tech definitions', () => {
         expect(trackEra.get(key), `${key} should have ${expected} techs`).toBe(expected);
       }
     }
-    // Era 5: each track has 2 new techs; stubs add 1 extra to economy/science/communication/maritime
-    // and 1 extra to espionage (digital-surveillance stub only — cyber-warfare moved to era 12)
-    expect(trackEra.get('espionage-5'), 'espionage-5 should have 3 techs (1 stub + 2 new)').toBe(3);
-    expect(trackEra.get('economy-5'), 'economy-5 should have 3 techs (1 stub + 2 new)').toBe(3);
-    expect(trackEra.get('science-5'), 'science-5 should have 3 techs (1 stub + 2 new)').toBe(3);
-    expect(trackEra.get('communication-5'), 'communication-5 should have 3 techs (1 stub + 2 new)').toBe(3);
+    // Era 5: each track has 2 new techs; maritime keeps its +1 from the amphibious-warfare
+    // stub (deliberately still era 5). MR10 re-homed the other 4 stubs (global-logistics,
+    // nuclear-theory, mass-media, digital-surveillance) to the eras their names actually
+    // belong to — so economy/science/communication/espionage are back down to 2 each.
     expect(trackEra.get('maritime-5'), 'maritime-5 should have 3 techs (1 stub + 2 new)').toBe(3);
-    // All other tracks have exactly 2 era-5 techs each
-    for (const track of ['military', 'civics', 'exploration', 'agriculture', 'medicine', 'philosophy', 'arts', 'metallurgy', 'construction', 'spirituality']) {
+    // All other tracks (including the 4 that lost their re-homed stubs) have exactly 2 era-5 techs each
+    for (const track of ['military', 'civics', 'exploration', 'agriculture', 'medicine', 'philosophy', 'arts', 'metallurgy', 'construction', 'spirituality', 'economy', 'science', 'communication', 'espionage']) {
       expect(trackEra.get(`${track}-5`), `${track}-5 should have 2 techs`).toBe(2);
     }
   });
@@ -130,19 +128,26 @@ describe('tech definitions', () => {
     expect(TECH_TREE.find(t => t.id === 'nuclear-theory')).toBeDefined();
   });
 
-  it('era-5 advancement includes digital-surveillance stub and all 30 new era-5 techs', () => {
+  it('era-5 advancement is exactly the 30 new era-5 techs (MR10 re-homed digital-surveillance out)', () => {
     const ids = getEraAdvancementTechs(5).map(tech => tech.id);
-    // Only digital-surveillance remains as era-5 espionage stub
-    expect(ids).toContain('digital-surveillance');
+    // MR10: digital-surveillance moved to era 10 — no longer an era-5 advancement tech.
+    expect(ids).not.toContain('digital-surveillance');
     // cyber-warfare is now era 12 — must NOT appear in era-5 advancement
     expect(ids).not.toContain('cyber-warfare');
-    // 4 stubs have countsForEraAdvancement: false and should be absent
+    // The other 3 re-homed stubs (now at eras 8/9/10) plus amphibious-warfare (still era 5)
+    // all have countsForEraAdvancement: false and should be absent regardless of era.
     expect(ids).not.toContain('global-logistics');
     expect(ids).not.toContain('nuclear-theory');
     expect(ids).not.toContain('mass-media');
     expect(ids).not.toContain('amphibious-warfare');
-    // 31 techs: 30 new era-5 techs + 1 espionage stub (digital-surveillance)
-    expect(ids.length).toBe(31);
+    // 30 techs: the 30 new era-5 techs, no stubs qualify anymore.
+    expect(ids.length).toBe(30);
+  });
+
+  it('era-10 advancement gains digital-surveillance (re-homed, no countsForEraAdvancement override) but not nuclear-theory (still false)', () => {
+    const ids = getEraAdvancementTechs(10).map(tech => tech.id);
+    expect(ids).toContain('digital-surveillance');
+    expect(ids).not.toContain('nuclear-theory');
   });
 
   it('resolves civilization era through contiguous 60-percent thresholds', () => {
@@ -157,6 +162,20 @@ describe('tech definitions', () => {
       ...era2.slice(0, era2Needed).map(tech => tech.id),
       ...era3Only,
     ])).toBe(3);
+  });
+
+  it('save-compat: a legacy save with digital-surveillance among its completed techs does not lose era-5 progress', () => {
+    // Pre-MR10, digital-surveillance counted toward era-5 advancement. It's simply
+    // absent from the era-5 list now (moved to era 10) rather than miscounted — a
+    // legacy save that already had enough OTHER era-5 techs to cross the threshold
+    // must not regress below era 5 just because digital-surveillance is present.
+    const eraChain = [2, 3, 4, 5].flatMap(era => {
+      const ids = getEraAdvancementTechs(era).map(tech => tech.id);
+      return ids.slice(0, Math.ceil(ids.length * 0.6));
+    });
+    const legacyCompleted = [...eraChain, 'digital-surveillance'];
+
+    expect(resolveCivilizationEra(legacyCompleted)).toBeGreaterThanOrEqual(5);
   });
 
   it('stays below an era threshold and ignores non-advancement technologies', () => {

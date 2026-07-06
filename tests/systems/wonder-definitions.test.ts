@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { WONDER_DEFINITIONS, getWonderDefinition } from '@/systems/wonder-definitions';
 import { LEGENDARY_WONDER_DEFINITIONS } from '@/systems/legendary-wonder-definitions';
+import { BUILDINGS } from '@/systems/city-system';
+import { TECH_TREE } from '@/systems/tech-definitions';
 
 const ALL_WONDER_DEFINITIONS = LEGENDARY_WONDER_DEFINITIONS;
 
@@ -150,4 +152,23 @@ describe('wonder yield ceilings', () => {
       }
     });
   }
+});
+
+// MR10: manhattan_project (national project) and internet (tech) were renamed to
+// disambiguate from the legendary wonders of the same original name.
+describe('MR10 — name collision regression lock', () => {
+  it('BUILDINGS.manhattan_project display name differs from the legendary wonder name', () => {
+    const legendary = LEGENDARY_WONDER_DEFINITIONS.find(w => w.id === 'manhattan-project')!;
+    expect(BUILDINGS.manhattan_project.name).not.toBe(legendary.name);
+    expect(legendary.name).toBe('Manhattan Project');
+    expect(BUILDINGS.manhattan_project.name).toBe('Atomic Weapons Program');
+  });
+
+  it('the internet tech display name differs from the legendary wonder name', () => {
+    const legendary = LEGENDARY_WONDER_DEFINITIONS.find(w => w.id === 'internet')!;
+    const tech = TECH_TREE.find(t => t.id === 'internet')!;
+    expect(tech.name).not.toBe(legendary.name);
+    expect(legendary.name).toBe('Internet');
+    expect(tech.name).toBe('Internet Protocols');
+  });
 });

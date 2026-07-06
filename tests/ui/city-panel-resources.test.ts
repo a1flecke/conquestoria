@@ -22,7 +22,7 @@ const noopCallbacks = {
  * Silk requires 'irrigation' tech + 'plantation' improvement.
  */
 function makeStateWithSilk(): GameState {
-  const state = makeLegendaryWonderFixture({ completedTechs: ['irrigation', 'philosophy', 'pilgrimages'] });
+  const state = makeLegendaryWonderFixture({ completedTechs: ['irrigation', 'philosophy', 'sacred-sites'] });
   // city-river city owns tiles at (2,2) and (2,3). Add silk at (2,3).
   state.map.tiles['2,3'] = {
     coord: { q: 2, r: 3 },
@@ -43,7 +43,7 @@ function makeStateWithSilk(): GameState {
  * Gems requires 'mining-tech' tech + 'mine' improvement.
  */
 function makeStateWithGems(): GameState {
-  const state = makeLegendaryWonderFixture({ completedTechs: ['mining-tech', 'philosophy', 'pilgrimages'] });
+  const state = makeLegendaryWonderFixture({ completedTechs: ['mining-tech', 'philosophy', 'sacred-sites'] });
   state.map.tiles['2,3'] = {
     coord: { q: 2, r: 3 },
     terrain: 'hills',
@@ -63,7 +63,7 @@ function makeStateWithGems(): GameState {
  * Gold requires 'currency' tech + 'mine' improvement.
  */
 function makeStateWithGoldResource(): GameState {
-  const state = makeLegendaryWonderFixture({ completedTechs: ['currency', 'philosophy', 'pilgrimages'] });
+  const state = makeLegendaryWonderFixture({ completedTechs: ['currency', 'philosophy', 'sacred-sites'] });
   state.map.tiles['2,3'] = {
     coord: { q: 2, r: 3 },
     terrain: 'hills',
@@ -82,7 +82,7 @@ function makeStateWithGoldResource(): GameState {
  * Returns a state with no resources on player tiles.
  */
 function makeStateNoResources(): GameState {
-  return makeLegendaryWonderFixture({ completedTechs: ['philosophy', 'pilgrimages'] });
+  return makeLegendaryWonderFixture({ completedTechs: ['philosophy', 'sacred-sites'] });
 }
 
 describe('city panel resource bonus section', () => {

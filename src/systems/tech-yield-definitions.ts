@@ -179,6 +179,9 @@ export const TECH_YIELD_MODIFIERS: TechYieldModifier[] = [
   { techId: 'interfaith-council', label: '+1 science in cities with a religion building', effect: { kind: 'cityFlatConditional', requiresAnyBuilding: ['temple', 'monastery'], yields: { science: 1 } } },
   // highway-network has no road-tile dependency ("+2 gold empire-wide" as written) — grouped here with the other road-family effects.
   { techId: 'highway-network', label: '+2 gold empire-wide', effect: { kind: 'empireFlat', yields: { gold: 2 } } },
+  // MR10: nuclear-theory is no longer a legendary-wonder gate — give it a real effect
+  // instead of sitting inert as pure flavor text.
+  { techId: 'nuclear-theory', label: '+2 science empire-wide', effect: { kind: 'cityFlat', yields: { science: 2 } } },
 
   // --- Era 11 ---
   { techId: 'stagflation-response', label: '+3 gold all cities', effect: { kind: 'cityFlat', yields: { gold: 3 } } },

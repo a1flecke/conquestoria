@@ -14,7 +14,9 @@ const LEGENDARY_WONDER_DEFINITIONS_BY_ID: Record<string, LegendaryWonderDefiniti
     name: 'Oracle of Delphi',
     era: 3,
     productionCost: 120,
-    requiredTechs: ['philosophy', 'pilgrimages'],
+    // MR10: pilgrimages is era 4 — an era-3 wonder must not require an era-4 tech.
+    // sacred-sites (era 2) keeps the spiritual theme without the era gap.
+    requiredTechs: ['philosophy', 'sacred-sites'],
     requiredResources: ['stone'],
     cityRequirement: 'any',
     questSteps: [
@@ -70,7 +72,7 @@ const LEGENDARY_WONDER_DEFINITIONS_BY_ID: Record<string, LegendaryWonderDefiniti
     requiredResources: [],
     cityRequirement: 'any',
     questSteps: [
-      { id: 'complete-four-communication-techs', type: 'research_count', track: 'communication', targetCount: 4, description: 'Complete 4 communication technologies.' },
+      { id: 'complete-four-communication-techs', type: 'research_count', track: 'communication', targetCount: 4, description: 'Complete 4 more communication technologies.' },
       { id: 'establish-two-trade-links', type: 'trade-routes-established', targetCount: 2, description: 'Maintain 2 active trade routes.' },
     ],
     reward: {
@@ -220,7 +222,10 @@ const LEGENDARY_WONDER_DEFINITIONS_BY_ID: Record<string, LegendaryWonderDefiniti
     name: 'Storm-Signal Spire',
     era: 9,
     productionCost: 220,
-    requiredTechs: ['mass-media', 'digital-surveillance'],
+    // MR10: mass-media/digital-surveillance moved to eras 9/10 — neither is available at
+    // the start of era 9 (digital-surveillance can't complete until era 10). Both new gates
+    // are era 9, matching the wonder's own era.
+    requiredTechs: ['radio-broadcast', 'wireless-telegraph'],
     requiredResources: [],
     cityRequirement: 'coastal',
     questSteps: [
@@ -237,11 +242,13 @@ const LEGENDARY_WONDER_DEFINITIONS_BY_ID: Record<string, LegendaryWonderDefiniti
     name: 'Manhattan Project',
     era: 11,
     productionCost: 240,
-    requiredTechs: ['nuclear-theory'],
+    // MR10: nuclear-theory dropped as a wonder gate (era 5, mis-pointed). Nuclear
+    // Weapons/Nuclear Physics are era 10 — one era of lead race time before era 11.
+    requiredTechs: ['nuclear-weapons', 'nuclear-physics'],
     requiredResources: ['iron'],
     cityRequirement: 'any',
     questSteps: [
-      { id: 'complete-six-advanced-techs', type: 'research_count', targetCount: 6, description: 'Complete 6 advanced technologies.' },
+      { id: 'complete-six-advanced-techs', type: 'research_count', targetCount: 6, description: 'Complete 6 more technologies.' },
       { id: 'raise-three-research-centers', type: 'buildings-in-multiple-cities', targetCount: 3, cityScope: 'empire', minimumBuildingsPerCity: 3, description: 'Develop 3 research-capable cities.' },
     ],
     reward: {
@@ -255,7 +262,9 @@ const LEGENDARY_WONDER_DEFINITIONS_BY_ID: Record<string, LegendaryWonderDefiniti
     name: 'Internet',
     era: 12,
     productionCost: 250,
-    requiredTechs: ['mass-media', 'global-logistics'],
+    // MR10: mass-media/global-logistics dropped as wonder gates (era 5, mis-pointed).
+    // ARPANET/Satellite Television are era 11 — the race opens late in era 11.
+    requiredTechs: ['arpanet', 'satellite-television'],
     requiredResources: [],
     cityRequirement: 'any',
     questSteps: [
@@ -283,7 +292,7 @@ const LEGENDARY_WONDER_DEFINITIONS_BY_ID: Record<string, LegendaryWonderDefiniti
         type: 'research_count',
         track: 'arts',
         targetCount: 4,
-        description: 'Complete 4 arts or spirituality technologies.',
+        description: 'Complete 4 more arts technologies.',
       },
       {
         id: 'city-depth',
@@ -313,7 +322,7 @@ const LEGENDARY_WONDER_DEFINITIONS_BY_ID: Record<string, LegendaryWonderDefiniti
         type: 'research_count',
         track: 'science',
         targetCount: 4,
-        description: 'Complete 4 science technologies.',
+        description: 'Complete 4 more science technologies.',
       },
       {
         id: 'libraries',
@@ -321,7 +330,7 @@ const LEGENDARY_WONDER_DEFINITIONS_BY_ID: Record<string, LegendaryWonderDefiniti
         targetCount: 3,
         cityScope: 'empire',
         minimumBuildingsPerCity: 2,
-        description: 'Build at least 2 buildings (including a library) in 3 separate cities.',
+        description: 'Build at least 2 buildings in 3 separate cities.',
       },
     ],
     reward: {
@@ -372,7 +381,7 @@ const LEGENDARY_WONDER_DEFINITIONS_BY_ID: Record<string, LegendaryWonderDefiniti
         type: 'research_count',
         track: 'economy',
         targetCount: 4,
-        description: 'Complete 4 economy technologies.',
+        description: 'Complete 4 more economy technologies.',
       },
       {
         id: 'grand-cities',
@@ -402,7 +411,7 @@ const LEGENDARY_WONDER_DEFINITIONS_BY_ID: Record<string, LegendaryWonderDefiniti
         type: 'research_count',
         track: 'military',
         targetCount: 4,
-        description: 'Complete 4 military technologies.',
+        description: 'Complete 4 more military technologies.',
       },
       {
         id: 'strongholds',
@@ -437,7 +446,7 @@ const LEGENDARY_WONDER_DEFINITIONS_BY_ID: Record<string, LegendaryWonderDefiniti
         type: 'research_count',
         track: 'maritime',
         targetCount: 3,
-        description: 'Complete 3 maritime technologies.',
+        description: 'Complete 3 more maritime technologies.',
       },
     ],
     reward: {
@@ -461,7 +470,7 @@ const LEGENDARY_WONDER_DEFINITIONS_BY_ID: Record<string, LegendaryWonderDefiniti
         type: 'research_count',
         track: 'science',
         targetCount: 4,
-        description: 'Complete 4 science technologies.',
+        description: 'Complete 4 more science technologies.',
       },
       {
         id: 'factories-built',
@@ -491,7 +500,7 @@ const LEGENDARY_WONDER_DEFINITIONS_BY_ID: Record<string, LegendaryWonderDefiniti
         type: 'research_count',
         track: 'maritime',
         targetCount: 4,
-        description: 'Complete 4 maritime technologies.',
+        description: 'Complete 4 more maritime technologies.',
       },
       {
         id: 'trade-routes-ocean',
@@ -520,7 +529,7 @@ const LEGENDARY_WONDER_DEFINITIONS_BY_ID: Record<string, LegendaryWonderDefiniti
         type: 'research_count',
         track: 'civics',
         targetCount: 4,
-        description: 'Complete 4 civics technologies.',
+        description: 'Complete 4 more civics technologies.',
       },
       {
         id: 'large-empire',
@@ -550,7 +559,7 @@ const LEGENDARY_WONDER_DEFINITIONS_BY_ID: Record<string, LegendaryWonderDefiniti
         type: 'research_count',
         track: 'metallurgy',
         targetCount: 4,
-        description: 'Complete 4 metallurgy technologies.',
+        description: 'Complete 4 more metallurgy technologies.',
       },
       {
         id: 'modern-city',
@@ -580,7 +589,7 @@ const LEGENDARY_WONDER_DEFINITIONS_BY_ID: Record<string, LegendaryWonderDefiniti
         type: 'research_count',
         track: 'construction',
         targetCount: 4,
-        description: 'Complete 4 construction technologies.',
+        description: 'Complete 4 more construction technologies.',
       },
       {
         id: 'trade-network',
@@ -608,7 +617,7 @@ const LEGENDARY_WONDER_DEFINITIONS_BY_ID: Record<string, LegendaryWonderDefiniti
         type: 'research_count',
         track: 'exploration',
         targetCount: 4,
-        description: 'Complete 4 exploration technologies.',
+        description: 'Complete 4 more exploration technologies.',
       },
       {
         id: 'sprawling-empire',
@@ -645,7 +654,7 @@ const LEGENDARY_WONDER_DEFINITIONS_BY_ID: Record<string, LegendaryWonderDefiniti
         type: 'research_count',
         track: 'maritime',
         targetCount: 3,
-        description: 'Complete 3 maritime technologies.',
+        description: 'Complete 3 more maritime technologies.',
       },
     ],
     reward: {
@@ -676,7 +685,7 @@ const LEGENDARY_WONDER_DEFINITIONS_BY_ID: Record<string, LegendaryWonderDefiniti
         type: 'research_count',
         track: 'science',
         targetCount: 3,
-        description: 'Complete 3 era-9 science technologies.',
+        description: 'Complete 3 more science technologies.',
       },
     ],
     reward: {
@@ -707,7 +716,7 @@ const LEGENDARY_WONDER_DEFINITIONS_BY_ID: Record<string, LegendaryWonderDefiniti
         type: 'research_count',
         track: 'construction',
         targetCount: 3,
-        description: 'Complete 3 construction technologies.',
+        description: 'Complete 3 more construction technologies.',
       },
     ],
     reward: {
@@ -729,7 +738,7 @@ const LEGENDARY_WONDER_DEFINITIONS_BY_ID: Record<string, LegendaryWonderDefiniti
         type: 'research_count',
         track: 'civics',
         targetCount: 2,
-        description: 'Complete 2 era-10 civics technologies.',
+        description: 'Complete 2 more civics technologies.',
       },
       {
         id: 'diplomatic-cities',
@@ -768,7 +777,7 @@ const LEGENDARY_WONDER_DEFINITIONS_BY_ID: Record<string, LegendaryWonderDefiniti
         type: 'research_count',
         track: 'science',
         targetCount: 3,
-        description: 'Complete 3 science technologies.',
+        description: 'Complete 3 more science technologies.',
       },
     ],
     reward: {
@@ -791,7 +800,7 @@ const LEGENDARY_WONDER_DEFINITIONS_BY_ID: Record<string, LegendaryWonderDefiniti
         type: 'research_count',
         track: 'science',
         targetCount: 3,
-        description: 'Complete 3 era-11 science technologies to achieve orbital capability.',
+        description: 'Complete 3 more science technologies to achieve orbital capability.',
       },
       {
         id: 'lunar-landing',

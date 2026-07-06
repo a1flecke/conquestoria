@@ -12,7 +12,7 @@ import { makeLegendaryWonderFixture } from './helpers/legendary-wonder-fixture';
 describe('legendary-wonder-presentation', () => {
   it('classifies selected-city wonder entries and exposes safe start labels', () => {
     const state = makeLegendaryWonderFixture({
-      completedTechs: ['philosophy', 'pilgrimages', 'city-planning', 'printing'],
+      completedTechs: ['philosophy', 'sacred-sites', 'city-planning', 'printing'],
       resources: ['stone'],
       oracleStepsCompleted: 2,
     });
@@ -56,7 +56,7 @@ describe('legendary-wonder-presentation', () => {
 
   it('keeps stale ready projects build-blocked when requirements are no longer met', () => {
     const state = makeLegendaryWonderFixture({
-      completedTechs: ['philosophy', 'pilgrimages'],
+      completedTechs: ['philosophy', 'sacred-sites'],
       resources: [],
       oracleStepsCompleted: 2,
     });
@@ -76,7 +76,7 @@ describe('legendary-wonder-presentation', () => {
 
   it('does not present seeded project shells as questing before requirements are reachable', () => {
     const state = makeLegendaryWonderFixture({
-      completedTechs: ['philosophy', 'pilgrimages'],
+      completedTechs: ['philosophy', 'sacred-sites'],
       resources: ['stone'],
     });
     state.era = 4;
@@ -100,7 +100,7 @@ describe('legendary-wonder-presentation', () => {
 
   it('keeps globally completed wonders blocked rather than available soon', () => {
     const completedState = makeLegendaryWonderFixture({
-      completedTechs: ['philosophy', 'pilgrimages'],
+      completedTechs: ['philosophy', 'sacred-sites'],
       resources: ['stone'],
     });
     completedState.completedLegendaryWonders = {
@@ -118,7 +118,7 @@ describe('legendary-wonder-presentation', () => {
 
   it('keeps same-owner active wonders blocked in other cities', () => {
     const activeState = makeLegendaryWonderFixture({
-      completedTechs: ['philosophy', 'pilgrimages'],
+      completedTechs: ['philosophy', 'sacred-sites'],
       resources: ['stone'],
     });
     activeState.cities['city-second'] = {
@@ -196,7 +196,7 @@ describe('legendary-wonder-presentation', () => {
 
   it('derives legendary construction milestones, ETA, and queue continuity without mutating state', () => {
     const state = makeLegendaryWonderFixture({
-      completedTechs: ['philosophy', 'pilgrimages'],
+      completedTechs: ['philosophy', 'sacred-sites'],
       resources: ['stone'],
     });
     state.legendaryWonderProjects!['oracle-of-delphi'].phase = 'building';

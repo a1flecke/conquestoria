@@ -66,12 +66,12 @@ describe('expanded tech tree', () => {
     }
   });
 
-  it('unlocks the new late-era nodes only after their era-4 prerequisites are complete', () => {
+  it('unlocks mass-media only after its era-9 prerequisite is complete (MR10 re-homed it from an era-5 stub)', () => {
     const state = createTechState();
 
     expect(getAvailableTechs(state).find(t => t.id === 'mass-media')).toBeUndefined();
 
-    state.completed.push('printing', 'diplomats');
+    state.completed.push('radio-broadcast');
     const available = getAvailableTechs(state);
 
     expect(available.find(t => t.id === 'mass-media')).toBeDefined();

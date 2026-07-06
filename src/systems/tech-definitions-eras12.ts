@@ -102,7 +102,7 @@ const ERA_12_TECHS: Tech[] = [
     era: 12 },
 
   // COMMUNICATION (2)
-  { id: 'internet', name: 'Internet', track: 'communication', cost: 395,
+  { id: 'internet', name: 'Internet Protocols', track: 'communication', cost: 395,
     prerequisites: ['arpanet', 'satellite-television'],
     unlocks: ['Unlocks the Cyber Defense Center building for protection against digital warfare'],
     unlocksBuildings: ['cyber_defense_center'], era: 12 },

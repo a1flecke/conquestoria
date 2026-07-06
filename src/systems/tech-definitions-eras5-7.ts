@@ -1,12 +1,11 @@
 import type { Tech } from '@/core/types';
 
-// Relocated stubs — same values as original to preserve existing tests.
-// Era fields and prerequisites will be updated when real late-era content lands.
+// Relocated stub — same values as original to preserve existing tests.
+// MR10 re-homed global-logistics/nuclear-theory/mass-media/digital-surveillance to the
+// eras their names actually belong to (see tech-definitions-eras8/9/10.ts) now that
+// nothing depends on them as legendary-wonder gates. amphibious-warfare stays era 5 —
+// troop_transport timing there is deliberate.
 const RELOCATED_STUBS: Tech[] = [
-  { id: 'global-logistics', name: 'Global Logistics', track: 'economy', cost: 155, prerequisites: ['trade-routes', 'banking'], unlocks: ['Late-era supply chains and wonder distribution requirements'], era: 5, countsForEraAdvancement: false, countsForCityMaturity: true },
-  { id: 'nuclear-theory', name: 'Nuclear Theory', track: 'science', cost: 165, prerequisites: ['astronomy', 'medicine'], unlocks: ['Late-era atomic research and wonder prerequisites'], era: 5, countsForEraAdvancement: false },
-  { id: 'mass-media', name: 'Mass Media', track: 'communication', cost: 150, prerequisites: ['printing', 'diplomats'], unlocks: ['Global broadcasts and late-era cultural coordination'], era: 5, countsForEraAdvancement: false, countsForCityMaturity: true },
-  { id: 'digital-surveillance', name: 'Digital Surveillance', track: 'espionage', cost: 175, prerequisites: ['cryptography', 'counter-intelligence'], unlocks: ['Satellite Surveillance', 'Misinformation Campaign'], era: 5 },
   { id: 'amphibious-warfare', name: 'Amphibious Warfare', track: 'maritime', cost: 175, prerequisites: ['caravels', 'naval-warfare'], unlocks: [], unlocksUnits: ['troop_transport'], era: 5, countsForEraAdvancement: false },
 ];
 
@@ -102,9 +101,11 @@ const ERA_5_TECHS: Tech[] = [
     unlocks: ['Cannon production cost reduced by 15%'], era: 5 },
 
   // CONSTRUCTION (2)
+  // MR10: countsForCityMaturity replaces global-logistics/mass-media's role in reaching
+  // metropolis at era 5, now that those two stubs moved to eras 8/9.
   { id: 'renaissance-architecture', name: 'Renaissance Architecture', track: 'construction', cost: 145,
     prerequisites: ['engineering', 'arches'],
-    unlocks: ['+2 production in cities containing a wonder'], era: 5 },
+    unlocks: ['+2 production in cities containing a wonder'], era: 5, countsForCityMaturity: true },
   { id: 'vaulted-ceilings', name: 'Vaulted Ceilings', track: 'construction', cost: 150,
     prerequisites: ['arches'],
     unlocks: ['All building costs reduced by 10%'], era: 5 },

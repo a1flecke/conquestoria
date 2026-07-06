@@ -25,6 +25,12 @@ const ERA_10_TECHS: Tech[] = [
     prerequisites: ['quantum-theory', 'tungsten-alloys'],
     unlocks: ['+3 science in cities with a research institute; atomic science reaches critical mass'],
     unlocksBuildings: ['atomic_laboratory'], era: 10 },
+  // MR10: re-homed from a stub — nuclear-theory is no longer a legendary-wonder gate.
+  // Give it a real effect instead of sitting inert as pure flavor text (see cityFlat
+  // row in tech-yield-definitions.ts).
+  { id: 'nuclear-theory', name: 'Nuclear Theory', track: 'science', cost: 290,
+    prerequisites: ['quantum-theory'],
+    unlocks: ['+2 science empire-wide'], era: 10, countsForEraAdvancement: false },
   { id: 'radar-systems', name: 'Radar Systems', track: 'science', cost: 285,
     prerequisites: ['radio-broadcast', 'aviation'],
     unlocks: ['+2 science empire-wide; radar coverage accelerates navigation and early-warning networks'],
@@ -125,6 +131,10 @@ const ERA_10_TECHS: Tech[] = [
   { id: 'cold-war-networks', name: 'Cold War Networks', track: 'espionage', cost: 285,
     prerequisites: ['propaganda-campaigns', 'counterintelligence'],
     unlocks: ['+2 gold empire-wide; shadow networks of assets, couriers, and double agents span the globe'], era: 10 },
+  // MR10: re-homed from a stub — digital-surveillance is no longer a legendary-wonder gate.
+  { id: 'digital-surveillance', name: 'Digital Surveillance', track: 'espionage', cost: 285,
+    prerequisites: ['counterintelligence', 'signals-intelligence'],
+    unlocks: ['Satellite Surveillance', 'Misinformation Campaign'], era: 10 },
 
   // SPIRITUALITY (2)
   { id: 'liberation-theology', name: 'Liberation Theology', track: 'spirituality', cost: 285,

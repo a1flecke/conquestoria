@@ -10,8 +10,10 @@ import type { GameState } from '@/core/types';
 const era10Techs = TECH_TREE.filter(t => t.era === 10);
 
 describe('era 10 tech tree', () => {
-  it('has exactly 30 era 10 techs', () => {
-    expect(era10Techs).toHaveLength(30);
+  // MR10 re-homed nuclear-theory (science) and digital-surveillance (espionage) from
+  // mis-pointed era-5 stubs to era 10, where their names actually belong.
+  it('has exactly 32 era 10 techs', () => {
+    expect(era10Techs).toHaveLength(32);
   });
 
   it('all era 10 techs have era === 10', () => {
@@ -27,14 +29,16 @@ describe('era 10 tech tree', () => {
     }
   });
 
-  it('all 15 tracks have exactly 2 techs', () => {
+  // science and espionage have 3 each (2 native + 1 re-homed stub); every other track has 2.
+  it('all 15 tracks have 2 techs, except science and espionage which have 3 (re-homed stubs)', () => {
     const tracks = new Map<string, number>();
     for (const t of era10Techs) {
       tracks.set(t.track, (tracks.get(t.track) ?? 0) + 1);
     }
     expect(tracks.size, 'expected 15 distinct tracks').toBe(15);
     for (const [track, count] of tracks) {
-      expect(count, `track ${track} should have 2 techs`).toBe(2);
+      const expected = track === 'science' || track === 'espionage' ? 3 : 2;
+      expect(count, `track ${track} should have ${expected} techs`).toBe(expected);
     }
   });
 

@@ -1168,7 +1168,7 @@ function makeLegendaryWonderOpportunityFixture(): GameState {
         cities: ['city-ai-1', 'city-ai-2', 'city-ai-3'],
         units: [],
         techState: {
-          completed: ['philosophy', 'pilgrimages', 'city-planning', 'printing', 'banking', 'agricultural-science', 'astronomy', 'navigation'],
+          completed: ['philosophy', 'sacred-sites', 'city-planning', 'printing', 'banking', 'agricultural-science', 'astronomy', 'navigation'],
           currentResearch: null,
           researchProgress: 0,
           researchQueue: [],

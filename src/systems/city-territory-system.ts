@@ -76,7 +76,9 @@ export function cityDistance(a: HexCoord, b: HexCoord, map: GameMap): number {
 }
 
 function canClaimTile(tile: GameState['map']['tiles'][string] | undefined): boolean {
-  return Boolean(tile && tile.terrain !== 'ocean');
+  // Ocean is normally unclaimable, but a tile bearing a natural wonder (e.g. eternal_storm)
+  // must be claimable regardless of terrain — otherwise its yield can never be earned.
+  return Boolean(tile && (tile.terrain !== 'ocean' || tile.wonder != null));
 }
 
 const CULTURE_BUILDING_IDS = new Set(

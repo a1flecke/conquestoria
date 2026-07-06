@@ -105,6 +105,11 @@ export interface LegendaryWonderProject {
   investedProduction: number;
   transferableProduction: number;
   questSteps: LegendaryWonderStep[];
+  // research_count step baselines, snapshotted when the project enters 'questing'.
+  // Keyed by quest-step id. Optional — legacy saves (pre-MR10) default to undefined,
+  // which evaluateLegendaryWonderStep treats as baseline 0 (grandfathered: lifetime
+  // counts still complete the step, matching pre-MR10 behavior for in-flight projects).
+  questBaselines?: Record<string, number>;
 }
 
 export interface LegendaryWonderReward {
