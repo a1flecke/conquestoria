@@ -7,11 +7,13 @@ import {
   calculateWorkedTileYield,
   calculateProjectedCityYields,
   getWorkableTilesForCity,
+  isWorkableTerrain,
   normalizeCityWorkAfterTerritoryChange,
   normalizeWorkedTilesForCity,
   setCityWorkedTile,
 } from '@/systems/city-work-system';
 import { hexKey } from '@/systems/hex-utils';
+import { WONDER_DEFINITIONS } from '@/systems/wonder-definitions';
 
 const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
 
@@ -74,6 +76,21 @@ describe('city worked tile eligibility', () => {
 
     expect(wonderTile).toBeDefined();
     expect(wonderTile?.yield.science).toBeGreaterThanOrEqual(3);
+  });
+
+  // MR10 guardrail: every natural wonder's terrain must be workable once claimed, not
+  // just the one (eternal_storm) that happened to get caught. Only terrain the wonder
+  // sits on needs checking here — every WONDER_DEFINITIONS.validTerrain is real terrain
+  // a wonder can actually spawn on.
+  it('every natural wonder terrain is workable when a wonder occupies the tile', () => {
+    for (const wonder of WONDER_DEFINITIONS) {
+      for (const terrain of wonder.validTerrain) {
+        expect(
+          isWorkableTerrain(terrain, true),
+          `${wonder.id} on ${terrain} must be workable once claimed`,
+        ).toBe(true);
+      }
+    }
   });
 
   it('marks tiles claimed by another city as unavailable', () => {

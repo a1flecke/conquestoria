@@ -43,7 +43,7 @@ function sameCoord(left: HexCoord, right: HexCoord): boolean {
 // Ocean tiles are normally unworkable, but a tile bearing a natural wonder (e.g.
 // eternal_storm) must be workable regardless of terrain — otherwise its yield can
 // never be earned even once territory claims it.
-function isWorkableTerrain(terrain: string, hasWonder: boolean): boolean {
+export function isWorkableTerrain(terrain: string, hasWonder: boolean): boolean {
   return terrain !== 'ocean' || hasWonder;
 }
 

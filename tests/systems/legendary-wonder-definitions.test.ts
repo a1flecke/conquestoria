@@ -5,6 +5,7 @@ import {
   getLegendaryWonderDefinitions,
 } from '@/systems/legendary-wonder-definitions';
 import { RESOURCE_DEFINITIONS } from '@/systems/trade-system';
+import { TECH_TREE } from '@/systems/tech-definitions';
 
 describe('legendary-wonder-definitions', () => {
   it('matches the full approved M4 legendary wonder roster exactly', () => {
@@ -142,6 +143,23 @@ describe('legendary-wonder-definitions', () => {
     for (const definition of getLegendaryWonderDefinitions()) {
       for (const resourceId of definition.requiredResources) {
         expect(validIds.has(resourceId), `${definition.id} requires unknown resource id "${resourceId}"`).toBe(true);
+      }
+    }
+  });
+
+  // MR10 guardrail: oracle-of-delphi (era 3) required pilgrimages (era 4) — literally
+  // unbuildable in its own display era. Availability is tech-gated only (no era check
+  // anywhere else), so this must hold for every wonder, present and future.
+  it('no wonder requires a tech from a later era than the wonder itself', () => {
+    const techEraById = new Map(TECH_TREE.map(tech => [tech.id, tech.era]));
+    for (const definition of getLegendaryWonderDefinitions()) {
+      for (const techId of definition.requiredTechs) {
+        const techEra = techEraById.get(techId);
+        expect(techEra, `${definition.id} requires unknown tech id "${techId}"`).toBeDefined();
+        expect(
+          techEra!,
+          `${definition.id} (era ${definition.era}) requires "${techId}" (era ${techEra}) — a wonder can't be built before its own gate exists`,
+        ).toBeLessThanOrEqual(definition.era);
       }
     }
   });
