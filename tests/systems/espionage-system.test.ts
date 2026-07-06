@@ -13,6 +13,7 @@ import {
   embedSpy,
   recallSpy,
   getSpySuccessChance,
+  getEspionageModifierBreakdown,
   getMissionDuration,
   getAvailableMissions,
   startMission,
@@ -27,6 +28,7 @@ import {
   } from '@/systems/espionage-system';
 import { createDiplomacyState } from '@/systems/diplomacy-system';
 import { createNewGame } from '@/core/game-state';
+import { foundCity } from '@/systems/city-system';
 
 // MR1: legacy fixture helper for tests that need a spy in state without going through city production
 function makeTestSpy(id: string, owner: string, overrides: Partial<Spy> = {}): Spy {
@@ -274,6 +276,123 @@ describe('espionage-system', () => {
       const scout = getSpySuccessChance(0, 0, 'scout_area');
       const intel = getSpySuccessChance(0, 0, 'gather_intel');
       expect(scout).toBeGreaterThan(intel);
+    });
+
+    it('applies a modifierDelta and clamps the final chance to [0.05, 0.95]', () => {
+      const boosted = getSpySuccessChance(0, 0, 'assassinate_advisor', undefined, 0.9);
+      expect(boosted).toBe(0.95);
+      const crushed = getSpySuccessChance(0, 0, 'assassinate_advisor', undefined, -0.9);
+      expect(crushed).toBe(0.05);
+    });
+  });
+
+  describe('getEspionageModifierBreakdown', () => {
+    function makeModifierFixture() {
+      let state = createNewGame(undefined, 'espionage-modifier-fixture', 'small');
+      const targetCivId = Object.keys(state.civilizations).find(id => id !== 'player')!;
+      const targetStartPos = state.units[state.civilizations[targetCivId].units[0]].position;
+      const targetCity = foundCity(targetCivId, targetStartPos, state.map, state.idCounters);
+      state = {
+        ...state,
+        cities: { ...state.cities, [targetCity.id]: targetCity },
+        civilizations: {
+          ...state.civilizations,
+          [targetCivId]: {
+            ...state.civilizations[targetCivId],
+            cities: [...state.civilizations[targetCivId].cities, targetCity.id],
+          },
+        },
+      };
+      return { state, targetCivId, targetCityId: targetCity.id };
+    }
+
+    it('offense: acting civ with diplomatic-networks gets +20% only against the target capital', () => {
+      const { state, targetCivId, targetCityId } = makeModifierFixture();
+      const withTech = {
+        ...state,
+        civilizations: {
+          ...state.civilizations,
+          player: {
+            ...state.civilizations.player,
+            techState: { ...state.civilizations.player.techState, completed: ['diplomatic-networks'] },
+          },
+        },
+      };
+      const atCapital = getEspionageModifierBreakdown(withTech, 'player', targetCivId, targetCityId);
+      expect(atCapital.missionSuccessDelta).toBeCloseTo(0.20);
+
+      const nonCapitalCity = { ...state.cities[targetCityId], id: 'non-capital-city' };
+      const withExtraCity: GameState = {
+        ...withTech,
+        cities: { ...withTech.cities, 'non-capital-city': nonCapitalCity },
+      };
+      const elsewhere = getEspionageModifierBreakdown(withExtraCity, 'player', targetCivId, 'non-capital-city');
+      expect(elsewhere.missionSuccessDelta).toBe(0);
+    });
+
+    it('defense: target civ with counter-espionage reduces the acting civ\'s success chance', () => {
+      const { state, targetCivId, targetCityId } = makeModifierFixture();
+      const withDefense = {
+        ...state,
+        civilizations: {
+          ...state.civilizations,
+          [targetCivId]: {
+            ...state.civilizations[targetCivId],
+            techState: { ...state.civilizations[targetCivId].techState, completed: ['counter-espionage'] },
+          },
+        },
+      };
+      const breakdown = getEspionageModifierBreakdown(withDefense, 'player', targetCivId, targetCityId);
+      expect(breakdown.missionSuccessDelta).toBeCloseTo(-0.25);
+    });
+
+    it('a tech only affects its own side: acting civ having counter-espionage does not help its own offense', () => {
+      const { state, targetCivId, targetCityId } = makeModifierFixture();
+      const actingHasDefenseTech = {
+        ...state,
+        civilizations: {
+          ...state.civilizations,
+          player: {
+            ...state.civilizations.player,
+            techState: { ...state.civilizations.player.techState, completed: ['counter-espionage'] },
+          },
+        },
+      };
+      const breakdown = getEspionageModifierBreakdown(actingHasDefenseTech, 'player', targetCivId, targetCityId);
+      expect(breakdown.missionSuccessDelta).toBe(0);
+    });
+
+    it('secret-police on the target contributes both a defense and a detection delta', () => {
+      const { state, targetCivId, targetCityId } = makeModifierFixture();
+      const withSecretPolice = {
+        ...state,
+        civilizations: {
+          ...state.civilizations,
+          [targetCivId]: {
+            ...state.civilizations[targetCivId],
+            techState: { ...state.civilizations[targetCivId].techState, completed: ['secret-police'] },
+          },
+        },
+      };
+      const breakdown = getEspionageModifierBreakdown(withSecretPolice, 'player', targetCivId, targetCityId);
+      expect(breakdown.missionSuccessDelta).toBeCloseTo(-0.30);
+      expect(breakdown.detectionDelta).toBeCloseTo(0.10);
+    });
+
+    it('cyber_defense_center building on the target city applies a defense delta', () => {
+      const { state, targetCivId, targetCityId } = makeModifierFixture();
+      const withCdc = {
+        ...state,
+        cities: {
+          ...state.cities,
+          [targetCityId]: {
+            ...state.cities[targetCityId],
+            buildings: [...state.cities[targetCityId].buildings, 'cyber_defense_center'],
+          },
+        },
+      };
+      const breakdown = getEspionageModifierBreakdown(withCdc, 'player', targetCivId, targetCityId);
+      expect(breakdown.missionSuccessDelta).toBeCloseTo(-0.15);
     });
   });
 });

@@ -14,6 +14,7 @@ import { SESSION_SHOWN_TIPS } from '@/ui/advisor-system';
 import { hexDistance, wrappedHexDistance } from '@/systems/hex-utils';
 import { createGameButton } from './ui-kit';
 import {
+  getActiveNationalProjectsForCiv,
   getNationalProjectMultiplier,
   getReservedNationalProjectKeys,
 } from '@/systems/national-project-system';
@@ -182,11 +183,13 @@ export function createCityPanel(
 
   const currentCiv = state.civilizations[state.currentPlayer];
   const civDef = resolveCivDefinition(state, currentCiv.civType);
+  const activeNationalProjects = getActiveNationalProjectsForCiv(state, city.owner);
   const getDisplayedCost = (itemId: string): number => getProductionCostForItem(itemId, {
     city,
     bonusEffect: civDef?.bonusEffect,
     era: state.era,
     completedTechs: currentCiv.techState.completed,
+    activeNationalProjects,
   });
   const builtNPKeys = getReservedNationalProjectKeys(state, city.owner);
   const availableBuildings = getAvailableBuildings(

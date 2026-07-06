@@ -13,6 +13,13 @@ import { modifyRelationship } from './diplomacy-system';
 import { createUnit } from './unit-system';
 import { resolveCivDefinition } from './civ-registry';
 import { applySatelliteSurveillance } from './fog-of-war';
+import { getCapitalCityId } from './capital-system';
+import { getActiveNationalProjectsForCiv } from './national-project-system';
+import {
+  ESPIONAGE_MODIFIERS,
+  ESPIONAGE_SUCCESS_CHANCE_MAX,
+  ESPIONAGE_SUCCESS_CHANCE_MIN,
+} from './espionage-modifier-definitions';
 
 const SPY_NAMES = [
   'Shadow', 'Whisper', 'Ghost', 'Cipher', 'Raven',
@@ -82,6 +89,7 @@ export function getSpySuccessChance(
   counterIntel: number,
   missionType: SpyMissionType,
   promotion?: SpyPromotion,
+  modifierDelta: number = 0,
 ): number {
   const base = MISSION_BASE_SUCCESS[missionType as keyof typeof MISSION_BASE_SUCCESS] ?? 0.5;
   const expBonus = spyExperience * 0.003;     // +0.3% per XP point, max +30%
@@ -96,7 +104,73 @@ export function getSpySuccessChance(
     promotionBonus = 0.05;
   }
 
-  return Math.max(0.05, Math.min(0.98, base + expBonus + promotionBonus - ciPenalty));
+  return Math.max(
+    ESPIONAGE_SUCCESS_CHANCE_MIN,
+    Math.min(ESPIONAGE_SUCCESS_CHANCE_MAX, base + expBonus + promotionBonus - ciPenalty + modifierDelta),
+  );
+}
+
+export interface EspionageModifierBreakdownPart {
+  label: string;
+  delta: number;
+}
+
+export interface EspionageModifierBreakdown {
+  missionSuccessDelta: number;
+  detectionDelta: number;
+  parts: EspionageModifierBreakdownPart[];
+}
+
+// Offense rows apply when the acting civ owns the source; defense rows apply when the
+// target civ owns the source. National-project rows fade-scale like other NP effects
+// (see getActiveNationalProjectsForCiv / getNationalProjectMultiplier).
+export function getEspionageModifierBreakdown(
+  state: GameState,
+  actingCivId: string,
+  targetCivId: string,
+  targetCityId: string,
+): EspionageModifierBreakdown {
+  const actingTechs = state.civilizations[actingCivId]?.techState.completed ?? [];
+  const targetTechs = state.civilizations[targetCivId]?.techState.completed ?? [];
+  const targetCity = state.cities[targetCityId];
+  const targetIsCapital = getCapitalCityId(state, targetCivId) === targetCityId;
+  const activeActingNationalProjects = getActiveNationalProjectsForCiv(state, actingCivId);
+
+  let missionSuccessDelta = 0;
+  let detectionDelta = 0;
+  const parts: EspionageModifierBreakdownPart[] = [];
+
+  for (const row of ESPIONAGE_MODIFIERS) {
+    if (row.condition === 'targetIsCapital' && !targetIsCapital) continue;
+
+    let active = false;
+    let scaledDelta = row.delta;
+
+    if (row.side === 'offense') {
+      if (row.source.kind === 'tech') {
+        active = actingTechs.includes(row.source.id);
+      } else if (row.source.kind === 'nationalProject') {
+        const project = activeActingNationalProjects.find(p => p.id === row.source.id);
+        if (project) {
+          active = true;
+          scaledDelta = row.delta * project.fadeMultiplier;
+        }
+      }
+    } else {
+      if (row.source.kind === 'tech') {
+        active = targetTechs.includes(row.source.id);
+      } else if (row.source.kind === 'building') {
+        active = targetCity?.buildings.includes(row.source.id) ?? false;
+      }
+    }
+
+    if (!active) continue;
+    if (row.effect === 'missionSuccess') missionSuccessDelta += scaledDelta;
+    else detectionDelta += scaledDelta;
+    parts.push({ label: row.label, delta: scaledDelta });
+  }
+
+  return { missionSuccessDelta, detectionDelta, parts };
 }
 
 export function getMissionDuration(missionType: SpyMissionType): number {
@@ -412,6 +486,7 @@ export function processSpyTurn(
   state: EspionageCivState,
   seed: string,
   xpMultiplier: number = 1,
+  modifierContext?: { gameState: GameState; civId: string },
 ): { state: EspionageCivState; events: SpyTurnEvent[] } {
   const rng = createRng(seed);
   let newState = { ...state, spies: { ...state.spies } };
@@ -442,7 +517,18 @@ export function processSpyTurn(
       if (mission.turnsRemaining <= 0) {
         // Resolve mission
         const counterIntel = newState.counterIntelligence[mission.targetCityId] ?? 0;
-        const successChance = getSpySuccessChance(updated.experience, counterIntel, mission.type, updated.promotion);
+        const modifierBreakdown = modifierContext && updated.targetCivId
+          ? getEspionageModifierBreakdown(
+            modifierContext.gameState,
+            modifierContext.civId,
+            updated.targetCivId,
+            mission.targetCityId,
+          )
+          : null;
+        const successChance = getSpySuccessChance(
+          updated.experience, counterIntel, mission.type, updated.promotion,
+          modifierBreakdown?.missionSuccessDelta ?? 0,
+        );
         const roll = rng();
 
         if (roll < successChance) {
@@ -462,9 +548,11 @@ export function processSpyTurn(
             events.push({ type: 'spy_promoted', spyId, promotion: afterPromo.promotion });
           }
         } else {
-          // Failure — determine expulsion vs capture
+          // Failure — determine expulsion vs capture; detection modifiers (e.g. Secret Police)
+          // raise the capture threshold above the 0.3 baseline.
+          const captureThreshold = Math.min(0.95, 0.3 + (modifierBreakdown?.detectionDelta ?? 0));
           const captureRoll = rng();
-          if (captureRoll < 0.3) {
+          if (captureRoll < captureThreshold) {
             // Captured
             updated.status = 'captured';
             updated.currentMission = null;
@@ -1107,7 +1195,7 @@ export function processEspionageTurn(state: GameState, bus: EventBus): GameState
     const civEspBefore: EspionageCivState = state.espionage![civId];
     const civBonus = resolveCivDefinition(state, state.civilizations[civId]?.civType ?? '')?.bonusEffect;
     const xpMultiplier = civBonus?.type === 'espionage_growth' ? 1 + civBonus.experienceBonus : 1;
-    const spyTurnResult = processSpyTurn(civEspBefore, `${turnSeed}-${civId}`, xpMultiplier);
+    const spyTurnResult = processSpyTurn(civEspBefore, `${turnSeed}-${civId}`, xpMultiplier, { gameState: state, civId });
     let updatedEsp = spyTurnResult.state;
     const events = spyTurnResult.events;
     state.espionage![civId] = updatedEsp;

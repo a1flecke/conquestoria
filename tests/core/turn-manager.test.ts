@@ -640,6 +640,91 @@ describe('processTurn', () => {
     expect(newState.civilizations.player.units.length).toBe(unitCountBefore + 1);
   });
 
+  it('grants +10 experience to a land combat unit trained in a city with Barracks', () => {
+    const state = createNewGame(undefined, 'barracks-xp-test', 'small');
+    const bus = new EventBus();
+
+    const startPos = state.units[state.civilizations.player.units[0]].position;
+    const city = foundCity('player', startPos, state.map, mkC());
+    city.buildings = [...city.buildings, 'barracks'];
+    state.cities[city.id] = city;
+    state.civilizations.player.cities.push(city.id);
+
+    city.productionQueue = ['warrior'];
+    city.productionProgress = 24;
+
+    const before = new Set(Object.keys(state.units));
+    const newState = processTurn(state, bus);
+    const newUnitId = Object.keys(newState.units).find(id => !before.has(id));
+
+    expect(newUnitId).toBeDefined();
+    expect(newState.units[newUnitId!].experience).toBe(10);
+  });
+
+  it('does not grant Barracks XP when the training city has no Barracks', () => {
+    const state = createNewGame(undefined, 'no-barracks-xp-test', 'small');
+    const bus = new EventBus();
+
+    const startPos = state.units[state.civilizations.player.units[0]].position;
+    const city = foundCity('player', startPos, state.map, mkC());
+    state.cities[city.id] = city;
+    state.civilizations.player.cities.push(city.id);
+
+    city.productionQueue = ['warrior'];
+    city.productionProgress = 24;
+
+    const before = new Set(Object.keys(state.units));
+    const newState = processTurn(state, bus);
+    const newUnitId = Object.keys(newState.units).find(id => !before.has(id));
+
+    expect(newUnitId).toBeDefined();
+    expect(newState.units[newUnitId!].experience).toBe(0);
+  });
+
+  it('does not grant Barracks XP to a settler (civilian) trained in a Barracks city', () => {
+    const state = createNewGame(undefined, 'barracks-xp-settler-test', 'small');
+    const bus = new EventBus();
+
+    const startPos = state.units[state.civilizations.player.units[0]].position;
+    const city = foundCity('player', startPos, state.map, mkC());
+    city.buildings = [...city.buildings, 'barracks'];
+    city.population = 3;
+    state.cities[city.id] = city;
+    state.civilizations.player.cities.push(city.id);
+
+    city.productionQueue = ['settler'];
+    city.productionProgress = 15;
+
+    const before = new Set(Object.keys(state.units));
+    const newState = processTurn(state, bus);
+    const newUnitId = Object.keys(newState.units).find(id => !before.has(id));
+
+    expect(newUnitId).toBeDefined();
+    expect(newState.units[newUnitId!].experience).toBe(0);
+  });
+
+  it('does not grant Barracks XP to a spy unit trained in a Barracks city', () => {
+    const state = createNewGame(undefined, 'barracks-xp-spy-test', 'small');
+    const bus = new EventBus();
+
+    const startPos = state.units[state.civilizations.player.units[0]].position;
+    const city = foundCity('player', startPos, state.map, mkC());
+    city.buildings = [...city.buildings, 'barracks'];
+    state.cities[city.id] = city;
+    state.civilizations.player.cities.push(city.id);
+    state.civilizations.player.techState.completed.push('espionage-scouting');
+
+    city.productionQueue = ['spy_scout'];
+    city.productionProgress = 29;
+
+    const before = new Set(Object.keys(state.units));
+    const newState = processTurn(state, bus);
+    const newUnitId = Object.keys(newState.units).find(id => !before.has(id));
+
+    expect(newUnitId).toBeDefined();
+    expect(newState.units[newUnitId!].experience).toBe(0);
+  });
+
   it('checks era advancement after processing', () => {
     const state = createNewGame(undefined, 'turn-era', 'small');
     const bus = new EventBus();

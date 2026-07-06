@@ -8,7 +8,7 @@ const ERA_10_TECHS: Tech[] = [
     unlocksUnits: ['jet_fighter'], era: 10 },
   { id: 'nuclear-weapons', name: 'Nuclear Weapons', track: 'military', cost: 295,
     prerequisites: ['quantum-theory', 'petroleum-industry'],
-    unlocks: ['Atomic deterrence reshapes grand strategy; long-range strategic bombers give city siege operations a decisive edge'],
+    unlocks: ['Atomic deterrence reshapes grand strategy'],
     unlocksUnits: ['bomber'], unlocksBuildings: ['nuclear_arsenal', 'manhattan_project'], era: 10 },
 
   // ECONOMY (2)

@@ -469,7 +469,7 @@ function chooseLegendaryWonderFallback(
   }
 
   if (atWar) {
-    const militaryChoice = ['barracks', 'stable'].find(buildingId =>
+    const militaryChoice = ['barracks', 'stable', 'armory', 'war-academy'].find(buildingId =>
       !city.buildings.includes(buildingId) && (availableBuildings.includes(buildingId) || buildingId === 'barracks'),
     );
     if (militaryChoice) {

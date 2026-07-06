@@ -5,7 +5,7 @@ import { getAvailableTechs, TECH_TREE } from '@/systems/tech-system';
 import { resolveBuildingPacingBand, resolveUnitPacingBand } from '@/systems/pacing-model';
 import { resolveCivDefinition } from '@/systems/civ-registry';
 import { getQueueableResearchIds } from '@/systems/tech-progression';
-import { getReservedNationalProjectKeys } from '@/systems/national-project-system';
+import { getActiveNationalProjectsForCiv, getReservedNationalProjectKeys } from '@/systems/national-project-system';
 
 const MAX_CITY_QUEUE_ITEMS = 4;
 const MAX_RESEARCH_QUEUE_ITEMS = 3;
@@ -171,6 +171,7 @@ export function getRecommendedIdleCityChoice(
 
   const completedTechs = civ.techState.completed ?? [];
   const reservedNationalProjects = getReservedNationalProjectKeys(state, civId);
+  const activeNationalProjects = getActiveNationalProjectsForCiv(state, civId);
   const bonusEffect = resolveCivDefinition(state, civ.civType)?.bonusEffect;
   const productionPerTurn = Math.max(1, calculateProjectedCityYields(state, cityId, bonusEffect).production);
   const candidates = [
@@ -183,7 +184,7 @@ export function getRecommendedIdleCityChoice(
       reservedNationalProjects,
       civId,
     ) : []).map(building => {
-      const cost = getProductionCostForItem(building.id, { city, bonusEffect, era: state.era, completedTechs });
+      const cost = getProductionCostForItem(building.id, { city, bonusEffect, era: state.era, completedTechs, activeNationalProjects });
       return {
         itemId: building.id,
         label: building.name,
@@ -194,7 +195,7 @@ export function getRecommendedIdleCityChoice(
     }),
     ...getTrainableUnitsForCiv(completedTechs, civ.civType)
       .map(unit => {
-        const cost = getProductionCostForItem(unit.type, { city, bonusEffect, era: state.era, completedTechs });
+        const cost = getProductionCostForItem(unit.type, { city, bonusEffect, era: state.era, completedTechs, activeNationalProjects });
         return {
           itemId: unit.type,
           label: unit.name,

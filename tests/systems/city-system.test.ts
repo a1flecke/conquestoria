@@ -1456,6 +1456,97 @@ describe('S4b — building production discounts', () => {
     const withGranary = getProductionCostForItem('warrior', { city: { buildings: ['granary'] } });
     expect(withGranary).toBe(base);
   });
+
+  it('stable: reduces cavalry (horseman) cost by 15%', () => {
+    const base = getProductionCostForItem('horseman', { city: noBuildings });
+    const discounted = getProductionCostForItem('horseman', { city: { buildings: ['stable'] } });
+    expect(discounted).toBe(Math.ceil(base * 0.85));
+  });
+
+  it('stable + cavalry-academy: non-stacking — min(0.85, 0.85) not 0.7225', () => {
+    const base = getProductionCostForItem('horseman', { city: noBuildings });
+    const both = getProductionCostForItem('horseman', { city: { buildings: ['stable', 'cavalry-academy'] } });
+    expect(both).toBe(Math.ceil(base * 0.85));
+    expect(both).toBeGreaterThan(Math.ceil(base * 0.7225));
+  });
+
+  it('steel_foundry: reduces iron-requiring unit (swordsman) cost by 10%', () => {
+    const base = getProductionCostForItem('swordsman', { city: noBuildings });
+    const discounted = getProductionCostForItem('swordsman', { city: { buildings: ['steel_foundry'] } });
+    expect(discounted).toBe(Math.ceil(base * 0.90));
+  });
+
+  it('steel_foundry: does not discount units without an iron requirement (warrior)', () => {
+    const base = getProductionCostForItem('warrior', { city: noBuildings });
+    const withFoundry = getProductionCostForItem('warrior', { city: { buildings: ['steel_foundry'] } });
+    expect(withFoundry).toBe(base);
+  });
+});
+
+describe('MR12 — national-project production discounts', () => {
+  const noBuildings = { buildings: [] };
+
+  it('tribal_muster_ground: era-1/2 melee (warrior) trains 10% cheaper empire-wide', () => {
+    const base = getProductionCostForItem('warrior', { city: noBuildings });
+    const discounted = getProductionCostForItem('warrior', {
+      city: noBuildings,
+      activeNationalProjects: [{ id: 'tribal_muster_ground', fadeMultiplier: 1 }],
+    });
+    expect(discounted).toBe(Math.ceil(base * 0.90));
+  });
+
+  it('tribal_muster_ground: does not discount non era-1/2-melee units (catapult)', () => {
+    const base = getProductionCostForItem('catapult', { city: noBuildings });
+    const withNP = getProductionCostForItem('catapult', {
+      city: noBuildings,
+      activeNationalProjects: [{ id: 'tribal_muster_ground', fadeMultiplier: 1 }],
+    });
+    expect(withNP).toBe(base);
+  });
+
+  it('military_academy: gunpowder-class (musketeer) trains 10% cheaper empire-wide', () => {
+    const base = getProductionCostForItem('musketeer', { city: noBuildings });
+    const discounted = getProductionCostForItem('musketeer', {
+      city: noBuildings,
+      activeNationalProjects: [{ id: 'military_academy', fadeMultiplier: 1 }],
+    });
+    expect(discounted).toBe(Math.ceil(base * 0.90));
+  });
+
+  it('artillery_corps_hq: siege-class (catapult) trains 10% cheaper empire-wide', () => {
+    const base = getProductionCostForItem('catapult', { city: noBuildings });
+    const discounted = getProductionCostForItem('catapult', {
+      city: noBuildings,
+      activeNationalProjects: [{ id: 'artillery_corps_hq', fadeMultiplier: 1 }],
+    });
+    expect(discounted).toBe(Math.ceil(base * 0.90));
+  });
+
+  it('national-project discount fades with fadeMultiplier (0.5 -> half the discount)', () => {
+    const base = getProductionCostForItem('warrior', { city: noBuildings });
+    const fading = getProductionCostForItem('warrior', {
+      city: noBuildings,
+      activeNationalProjects: [{ id: 'tribal_muster_ground', fadeMultiplier: 0.5 }],
+    });
+    expect(fading).toBe(Math.ceil(base * 0.95));
+  });
+
+  it('national-project discounts multiply with building discounts (not Math.min)', () => {
+    const base = getProductionCostForItem('musketeer', { city: noBuildings });
+    const stacked = getProductionCostForItem('musketeer', {
+      city: noBuildings,
+      activeNationalProjects: [{ id: 'military_academy', fadeMultiplier: 1 }],
+    });
+    const withArmory = getProductionCostForItem('musketeer', { city: { buildings: ['armory'] } });
+    const stackedWithArmory = getProductionCostForItem('musketeer', {
+      city: { buildings: ['armory'] },
+      activeNationalProjects: [{ id: 'military_academy', fadeMultiplier: 1 }],
+    });
+    expect(stacked).toBe(Math.ceil(base * 0.90));
+    // armory (0.85) * military_academy (0.90) = 0.765, multiplicative not min(0.85, 0.90)
+    expect(stackedWithArmory).toBe(Math.ceil(base * 0.85 * 0.90));
+    expect(stackedWithArmory).toBeLessThan(withArmory);
+  });
 });
 
 describe('processCity — resource dequeue', () => {

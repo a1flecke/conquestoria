@@ -18,6 +18,10 @@ export function weightTechChoice(personality: PersonalityTraits, tech: Tech): nu
   return weight;
 }
 
+// barracks: +10 XP for land combat units trained here (see turn-manager.ts unit-creation hook);
+// walls: real city defense since MR3; stable: real cavalry cost discount since MR12 Task 2.
+// This is a flat list, not era-tiered, so late-era items (star_fort, anti_air_battery) are
+// covered by the generic AI building-candidate path in ai-production.ts instead of here.
 const MILITARY_ITEMS = ['warrior', 'scout', 'barracks', 'walls', 'stable', 'forge'];
 const ECONOMY_ITEMS = ['marketplace', 'harbor', 'lumbermill', 'quarry-building'];
 const SETTLER_ITEMS = ['settler'];

@@ -20,7 +20,7 @@ import { getCivAvailableResources } from '@/systems/resource-acquisition-system'
 import { resolveCivDefinition } from '@/systems/civ-registry';
 import { createUnit } from '@/systems/unit-system';
 import { enqueueCityProduction } from '@/systems/planning-system';
-import { getReservedNationalProjectKeys } from '@/systems/national-project-system';
+import { getActiveNationalProjectsForCiv, getReservedNationalProjectKeys } from '@/systems/national-project-system';
 import type { AIForceDemand } from './ai-unit-assignment';
 import { getAIStrategicRoles } from './ai-unit-roles';
 import { weightProductionRoles } from './ai-personality';
@@ -233,6 +233,7 @@ function generateWithResidual(
     calculateProjectedCityYields(state, cityId, civDefinition?.bonusEffect).production,
   );
   const builtNationalProjectKeys = getReservedNationalProjectKeys(state, civId);
+  const activeNationalProjects = getActiveNationalProjectsForCiv(state, civId);
   const cargoDemand = demands.some(entry =>
     entry.missing > 0 && COMBAT_CARGO_ROLES.has(entry.role));
   const needsCaptureCapacity = demands.some(entry =>
@@ -287,6 +288,7 @@ function generateWithResidual(
       bonusEffect: civDefinition?.bonusEffect,
       era: state.era,
       completedTechs: civ.techState.completed,
+      activeNationalProjects,
     });
     const productionTurns = Math.max(1, Math.ceil(cost / productionPerTurn));
     const roleDemandScore = fulfilled.missing * 40 + fulfilled.priority / 5;
@@ -342,6 +344,7 @@ function generateWithResidual(
       bonusEffect: civDefinition?.bonusEffect,
       era: state.era,
       completedTechs: civ.techState.completed,
+      activeNationalProjects,
     });
     const productionTurns = Math.max(1, Math.ceil(cost / productionPerTurn));
     const personalityScore = weightProductionRoles(personality, []);
