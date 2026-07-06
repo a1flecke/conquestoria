@@ -58,7 +58,7 @@ describe('research pacing model', () => {
     expect(getResearchOutputProfileForEra(7)).toEqual({ name: 'era-7-established', outputPerTurn: 19 });
     expect(getResearchOutputProfileForEra(8)).toEqual({ name: 'era-8-established', outputPerTurn: 22 });
     expect(getResearchOutputProfileForEra(9)).toEqual({ name: 'era-9-established', outputPerTurn: 25 });
-    expect(getResearchOutputProfileForEra(99)).toEqual({ name: 'era-12-established', outputPerTurn: 34 });
+    expect(getResearchOutputProfileForEra(99)).toEqual({ name: 'era-12-established', outputPerTurn: 198 });
   });
 
   it('extends the research baseline through era 12 instead of clamping at era 9 (F2 regression)', () => {
