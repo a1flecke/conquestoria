@@ -73,11 +73,13 @@ const RESEARCH_OUTPUT_BY_ERA: Record<number, ResearchOutputProfile> = {
   7: { name: 'era-7-established', outputPerTurn: 19 },
   8: { name: 'era-8-established', outputPerTurn: 22 },
   9: { name: 'era-9-established', outputPerTurn: 25 },
-  // era 10-12: extended in MR13 (#481, fixes F2) — values re-derived and pinned against
-  // tests/systems/pacing-reference-economy.test.ts, see that file's comment for methodology.
-  10: { name: 'era-10-established', outputPerTurn: 28 },
-  11: { name: 'era-11-established', outputPerTurn: 31 },
-  12: { name: 'era-12-established', outputPerTurn: 34 },
+  // era 10-12: extended in MR13 (#481, fixes F2/F3) — values derived from a real run of the
+  // yield pipeline (tech percents + empire-flat tech yields) against a documented reference
+  // economy, not guessed. See tests/systems/pacing-reference-economy.test.ts for the fixture
+  // and derivation methodology, and that file's exact-value pin for the regression gate.
+  10: { name: 'era-10-established', outputPerTurn: 135 },
+  11: { name: 'era-11-established', outputPerTurn: 170 },
+  12: { name: 'era-12-established', outputPerTurn: 198 },
 };
 
 export const OPENING_SCIENCE_INVESTED_PROFILE: ResearchOutputProfile = {
