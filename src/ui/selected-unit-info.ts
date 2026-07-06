@@ -22,7 +22,7 @@ import { getRoadBlockerReason, formatRoadBlockerReason } from '@/systems/road-sy
 import { hexKey } from '@/systems/hex-utils';
 import { canFoundCityAt, formatCityFoundingBlockerMessage, getCityFoundingBlockers } from '@/systems/city-territory-system';
 import { resolveFromCity } from '@/systems/trade-system';
-import { canEstablishOutpost } from '@/systems/resource-acquisition-system';
+import { canEstablishOutpost, getCivAvailableResources } from '@/systems/resource-acquisition-system';
 import { getTransportCargo, getTransportCapacity, getTransportCargoUsed } from '@/systems/transport-system';
 import { calculateCivUnitMaintenance } from '@/systems/economy-system';
 import { RESOURCE_DEFINITIONS } from '@/systems/resource-definitions';
@@ -627,7 +627,8 @@ export function renderSelectedUnitInfo(
     if (homeCity) {
       const completedTechs = state.civilizations[unit.owner]?.techState?.completed ?? [];
       const civGold = state.civilizations[unit.owner]?.gold ?? 0;
-      const upgrade = canUpgradeUnit(unit, homeCity.id, state.cities, completedTechs, civGold);
+      const availableResources = getCivAvailableResources(state, unit.owner);
+      const upgrade = canUpgradeUnit(unit, homeCity.id, state.cities, completedTechs, civGold, availableResources);
       if (upgrade.canUpgrade && upgrade.targetType) {
         const targetName = UNIT_DEFINITIONS[upgrade.targetType].name;
         const btn = makeButton(

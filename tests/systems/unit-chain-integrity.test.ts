@@ -45,9 +45,11 @@ const TECH_ERA_BY_ID = new Map(TECH_TREE.map(tech => [tech.id, tech.era]));
 // strength >= source strength" rule would false-fail their replacement chains.
 const RECON_DETECTION_TYPES = new Set<UnitType>(['scout_hound', 'shadow_warden', 'war_hound']);
 
-// musketeer -> rifleman is a temporary strength-inversion exemption (musketeer 50 str vs
-// rifleman 38 str) tracked for MR9's strength re-curve. MR9 must empty this list.
-const TEMPORARY_STRENGTH_EXEMPTIONS = new Set<string>(['musketeer->rifleman']);
+// MR9's strength re-curve (musketeer 34 < rifleman 46) emptied the exemption this list
+// held for MR8. Keep the list — and this regression — so a future strength change that
+// reintroduces an inversion must add an explicit, reviewed exemption rather than silently
+// failing this suite.
+const TEMPORARY_STRENGTH_EXEMPTIONS = new Set<string>([]);
 
 function isRealCombatUnit(type: UnitType): boolean {
   const def = UNIT_DEFINITIONS[type];
@@ -124,6 +126,56 @@ describe('naval roster — regression locks', () => {
   it('steamship has an upgrade target (troop_transport) — no dead-end civilian line', () => {
     const steamship = TRAINABLE_UNITS.find(u => u.type === 'steamship');
     expect(steamship?.upgradesTo).toBe('troop_transport');
+  });
+});
+
+describe('MR9 — land/air strength re-curve regression locks', () => {
+  it('musketeer < rifleman < machine_gunner < infantry < tank (strictly ascending)', () => {
+    const line: UnitType[] = ['musketeer', 'rifleman', 'machine_gunner', 'infantry', 'tank'];
+    for (let i = 1; i < line.length; i++) {
+      expect(UNIT_DEFINITIONS[line[i]].strength, `${line[i]} vs ${line[i - 1]}`)
+        .toBeGreaterThan(UNIT_DEFINITIONS[line[i - 1]].strength);
+    }
+  });
+
+  it('walks the full land line warrior -> spearman -> pikeman -> rifleman -> machine_gunner -> infantry', () => {
+    const chain: UnitType[] = ['warrior', 'spearman', 'pikeman', 'rifleman', 'machine_gunner'];
+    const expectedNext: UnitType[] = ['spearman', 'pikeman', 'rifleman', 'machine_gunner', 'infantry'];
+    chain.forEach((type, i) => {
+      const entry = TRAINABLE_UNITS.find(u => u.type === type);
+      expect(entry?.upgradesTo, type).toBe(expectedNext[i]);
+    });
+  });
+
+  it('cannon upgrades into artillery (not machine_gunner)', () => {
+    const cannon = TRAINABLE_UNITS.find(u => u.type === 'cannon');
+    expect(cannon?.upgradesTo).toBe('artillery');
+  });
+
+  it('archer upgrades into crossbowman', () => {
+    const archer = TRAINABLE_UNITS.find(u => u.type === 'archer');
+    expect(archer?.upgradesTo).toBe('crossbowman');
+  });
+
+  it('bomber upgrades into stealth_bomber', () => {
+    const bomber = TRAINABLE_UNITS.find(u => u.type === 'bomber');
+    expect(bomber?.upgradesTo).toBe('stealth_bomber');
+    expect(bomber?.obsoletedByTech).toBe('stealth-technology');
+  });
+
+  it('jet_fighter is terminal (no obsoletedByTech/upgradesTo) — stealth-technology alone does not zero out trainable air units', () => {
+    const jetFighter = TRAINABLE_UNITS.find(u => u.type === 'jet_fighter');
+    expect(jetFighter?.obsoletedByTech).toBeUndefined();
+    expect(jetFighter?.upgradesTo).toBeUndefined();
+  });
+
+  it('artillery and infantry are terminal', () => {
+    const artillery = TRAINABLE_UNITS.find(u => u.type === 'artillery');
+    const infantry = TRAINABLE_UNITS.find(u => u.type === 'infantry');
+    expect(artillery?.obsoletedByTech).toBeUndefined();
+    expect(artillery?.upgradesTo).toBeUndefined();
+    expect(infantry?.obsoletedByTech).toBeUndefined();
+    expect(infantry?.upgradesTo).toBeUndefined();
   });
 });
 

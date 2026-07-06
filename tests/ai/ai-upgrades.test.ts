@@ -163,23 +163,23 @@ describe('AI modernization', () => {
       .toEqual({});
   });
 
-  it('does not upgrade jet_fighter to stealth_bomber in a city without stealth_airbase', () => {
+  it('does not upgrade bomber to stealth_bomber in a city without stealth_airbase', () => {
     const state = setup();
     const city = addCity(state, 'safe-city', { q: 0, r: 0 });
-    state.civilizations[AI].techState.completed.push('jet-aviation', 'stealth-technology');
-    addObsolete(state, 'flyer', city.position, { type: 'jet_fighter' as UnitType });
+    state.civilizations[AI].techState.completed.push('nuclear-weapons', 'stealth-technology');
+    addObsolete(state, 'flyer', city.position, { type: 'bomber' as UnitType });
 
     const result = processAIUpgrades(state, AI, prepared(state), new EventBus());
 
     expect(result.upgradedUnitIds).toEqual([]);
-    expect(result.state.units.flyer.type).toBe('jet_fighter');
+    expect(result.state.units.flyer.type).toBe('bomber');
   });
 
-  it('does not route a jet_fighter toward a safe city that lacks stealth_airbase', () => {
+  it('does not route a bomber toward a safe city that lacks stealth_airbase', () => {
     const state = setup();
     addCity(state, 'no-airbase-city', { q: 2, r: 0 });
-    state.civilizations[AI].techState.completed.push('jet-aviation', 'stealth-technology');
-    addObsolete(state, 'flyer', { q: 0, r: 0 }, { type: 'jet_fighter' as UnitType });
+    state.civilizations[AI].techState.completed.push('nuclear-weapons', 'stealth-technology');
+    addObsolete(state, 'flyer', { q: 0, r: 0 }, { type: 'bomber' as UnitType });
 
     const result = processAIUpgrades(state, AI, prepared(state), new EventBus());
 
@@ -187,12 +187,12 @@ describe('AI modernization', () => {
     expect(result.routedUnitIds).toEqual([]);
   });
 
-  it('routes a jet_fighter toward a safe city that has stealth_airbase', () => {
+  it('routes a bomber toward a safe city that has stealth_airbase', () => {
     const state = setup();
     const city = addCity(state, 'airbase-city', { q: 2, r: 0 });
     city.buildings = [...city.buildings, 'stealth_airbase'];
-    state.civilizations[AI].techState.completed.push('jet-aviation', 'stealth-technology');
-    addObsolete(state, 'flyer', { q: 0, r: 0 }, { type: 'jet_fighter' as UnitType });
+    state.civilizations[AI].techState.completed.push('nuclear-weapons', 'stealth-technology');
+    addObsolete(state, 'flyer', { q: 0, r: 0 }, { type: 'bomber' as UnitType });
 
     const result = processAIUpgrades(state, AI, prepared(state), new EventBus());
 
@@ -200,17 +200,29 @@ describe('AI modernization', () => {
       .toBe('airbase-city');
   });
 
-  it('upgrades jet_fighter to stealth_bomber once the city has stealth_airbase', () => {
+  it('upgrades bomber to stealth_bomber once the city has stealth_airbase', () => {
     const state = setup();
     const city = addCity(state, 'safe-city', { q: 0, r: 0 });
     city.buildings = [...city.buildings, 'stealth_airbase'];
-    state.civilizations[AI].techState.completed.push('jet-aviation', 'stealth-technology');
-    addObsolete(state, 'flyer', city.position, { type: 'jet_fighter' as UnitType });
+    state.civilizations[AI].techState.completed.push('nuclear-weapons', 'stealth-technology');
+    addObsolete(state, 'flyer', city.position, { type: 'bomber' as UnitType });
 
     const result = processAIUpgrades(state, AI, prepared(state), new EventBus());
 
     expect(result.upgradedUnitIds).toEqual(['flyer']);
     expect(result.state.units.flyer.type).toBe('stealth_bomber');
+  });
+
+  it('does not gold-upgrade an archer into a crossbowman when the civ has no Copper', () => {
+    const state = setup();
+    const city = addCity(state, 'safe-city', { q: 0, r: 0 });
+    state.civilizations[AI].techState.completed.push('archery', 'tactics');
+    addObsolete(state, 'archer-1', city.position, { type: 'archer' as UnitType });
+
+    const result = processAIUpgrades(state, AI, prepared(state), new EventBus());
+
+    expect(result.upgradedUnitIds).toEqual([]);
+    expect(result.state.units['archer-1'].type).toBe('archer');
   });
 
   it('clears a route after arrival and successful upgrade', () => {

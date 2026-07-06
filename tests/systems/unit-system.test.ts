@@ -579,7 +579,7 @@ describe('new unit types', () => {
   it('musketeer has correct stats', () => {
     const unit = createUnit('musketeer', 'player', { q: 0, r: 0 }, mkC());
     expect(unit.type).toBe('musketeer');
-    expect(UNIT_DEFINITIONS.musketeer.strength).toBe(50);
+    expect(UNIT_DEFINITIONS.musketeer.strength).toBe(34);
     expect(UNIT_DEFINITIONS.musketeer.productionCost).toBe(90);
   });
 });

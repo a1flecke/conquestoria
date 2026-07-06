@@ -1035,7 +1035,7 @@ export function createCityPanel(
   if (callbacks.onUpgradeUnit) {
     const civGold = state.civilizations[city.owner]?.gold ?? 0;
     const upgradeEntries = Object.values(state.units)
-      .map(u => ({ u, upgrade: canUpgradeUnit(u, city.id, state.cities, completedTechs, civGold) }))
+      .map(u => ({ u, upgrade: canUpgradeUnit(u, city.id, state.cities, completedTechs, civGold, playerResources) }))
       .filter(({ u, upgrade }) =>
         u.owner === city.owner &&
         u.position.q === city.position.q &&

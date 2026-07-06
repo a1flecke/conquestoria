@@ -1147,7 +1147,7 @@ function openCityPanelForCity(city: import('@/core/types').City): void {
              c.position.r === unit.position.r,
       );
       if (!homeCity) return;
-      const upgrade = canUpgradeUnit(unit, homeCity.id, gameState.cities, completedTechs);
+      const upgrade = canUpgradeUnit(unit, homeCity.id, gameState.cities, completedTechs, undefined, getCivAvailableResources(gameState, unit.owner));
       if (!upgrade.canUpgrade || !upgrade.targetType) return;
       if (civ.gold < upgrade.cost) {
         showNotification('Not enough gold to upgrade!', 'warning');
@@ -1927,7 +1927,7 @@ function selectUnit(
         if (!unit || unit.owner !== gameState.currentPlayer) return;
         const civ = gameState.civilizations[gameState.currentPlayer];
         const completedTechs = civ?.techState?.completed ?? [];
-        const upgrade = canUpgradeUnit(unit, cityId, gameState.cities, completedTechs);
+        const upgrade = canUpgradeUnit(unit, cityId, gameState.cities, completedTechs, undefined, getCivAvailableResources(gameState, unit.owner));
         if (!upgrade.canUpgrade || !upgrade.targetType) return;
         if (civ.gold < upgrade.cost) {
           showNotification('Not enough gold to upgrade!', 'warning');

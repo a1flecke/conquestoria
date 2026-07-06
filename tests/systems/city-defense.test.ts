@@ -243,4 +243,34 @@ describe('city defense balance guardrail', () => {
     }
     expect(attackerWins / trials).toBeGreaterThanOrEqual(0.6);
   });
+
+  // MR9 city-assault viability regression: an era-8 combined-arms stack (artillery bombard
+  // + machine_gunner ranged, alternating attacks against the same defender's cumulative HP)
+  // must still be able to take a walled era-8 city — mass-firepower-era offense outpacing
+  // fortification-era-6 defense is the whole point of the era-8 power spike.
+  it('an era-8 artillery + machine_gunner stack takes a walled era-8 city within 6 combined attacks on average', () => {
+    const trials = 200;
+    let totalExchanges = 0;
+    const attackers: Array<'artillery' | 'machine_gunner'> = ['artillery', 'machine_gunner'];
+    for (let trial = 0; trial < trials; trial++) {
+      let defenderHealth = 100;
+      let exchanges = 0;
+      while (defenderHealth > 0 && exchanges < 20) {
+        const attackerType = attackers[exchanges % attackers.length];
+        const attacker = createUnit(attackerType, 'p1', { q: 5, r: 5 }, mkC());
+        const defender = { ...createUnit('rifleman', 'p2', { q: 6, r: 5 }, mkC()), health: defenderHealth };
+        const result = resolveCombat(
+          attacker,
+          defender,
+          map,
+          trial * 7919 + exchanges * 31,
+          { defenderCity: baseCityDefenseInput({ cityBuildings: ['walls'] }) },
+        );
+        defenderHealth = Math.max(0, defenderHealth - result.defenderDamage);
+        exchanges++;
+      }
+      totalExchanges += exchanges;
+    }
+    expect(totalExchanges / trials).toBeLessThanOrEqual(6);
+  });
 });

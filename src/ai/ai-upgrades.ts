@@ -7,6 +7,7 @@ import type {
   City,
   GameState,
   MajorCivPlanPortfolio,
+  ResourceType,
   Unit,
 } from '@/core/types';
 import { getCityAppeaseCost } from '@/systems/faction-system';
@@ -15,6 +16,7 @@ import {
   TRAINABLE_UNITS,
   getCatalogProductionCost,
 } from '@/systems/city-system';
+import { getCivAvailableResources } from '@/systems/resource-acquisition-system';
 import { findPath, UNIT_DEFINITIONS } from '@/systems/unit-system';
 import { executeUnitMove } from '@/systems/unit-movement-system';
 import {
@@ -88,8 +90,9 @@ function urgentDefenseAssignment(
 function eligibleForModernization(
   unit: Unit,
   completedTechs: readonly string[],
+  availableResources: Set<ResourceType>,
 ): boolean {
-  if (!getCanonicalUpgradeTarget(unit, completedTechs)) return false;
+  if (!getCanonicalUpgradeTarget(unit, completedTechs, undefined, availableResources)) return false;
   const roles = getAIStrategicRoles(unit.type);
   if (roles.includes('espionage')) return true;
   return !roles.some(role => NEVER_ROUTE_ROLES.has(role))
@@ -178,6 +181,7 @@ export function processAIUpgrades(
   );
   const upgradedUnitIds: string[] = [];
   const routedUnitIds: string[] = [];
+  const availableResources = getCivAvailableResources(working, civId);
   const reserve = treasuryReserve(working, civId);
   const challenge = resolveOpponentChallenge(working);
   const profile = OPPONENT_CHALLENGE_PROFILES[challenge];
@@ -194,7 +198,7 @@ export function processAIUpgrades(
       !unit
       || unit.owner !== civId
       || !city
-      || !eligibleForModernization(unit, civ.techState.completed)
+      || !eligibleForModernization(unit, civ.techState.completed, availableResources)
       || !safeCity(working, civId, city, prepared)
       || urgentDefenseAssignment(prepared, unitId)
     ) {
@@ -224,7 +228,7 @@ export function processAIUpgrades(
     .filter((unit): unit is Unit =>
       Boolean(unit)
       && unit.owner === civId
-      && eligibleForModernization(unit, civ.techState.completed))
+      && eligibleForModernization(unit, civ.techState.completed, availableResources))
     .sort((left, right) => {
       const leftCity = cityAtUnit(working, civId, left);
       const rightCity = cityAtUnit(working, civId, right);
@@ -241,6 +245,8 @@ export function processAIUpgrades(
     const targetType = getCanonicalUpgradeTarget(
       current,
       working.civilizations[civId].techState.completed,
+      undefined,
+      availableResources,
     );
     if (!targetType) continue;
     const city = cityAtUnit(working, civId, current);
@@ -274,7 +280,7 @@ export function processAIUpgrades(
     const destinations = Object.values(working.cities)
       .filter(cityCandidate =>
         safeCity(working, civId, cityCandidate, prepared)
-        && getCanonicalUpgradeTarget(current, civ.techState.completed, cityCandidate.buildings))
+        && getCanonicalUpgradeTarget(current, civ.techState.completed, cityCandidate.buildings, availableResources))
       .flatMap(cityCandidate => {
         const path = routePath(
           working,
