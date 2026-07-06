@@ -12,6 +12,8 @@ import {
   getTargetTurnWindow,
   isFirstRealUnlockTech,
   isStarterPrerequisiteTech,
+  resolveEraRelativeCostBand,
+  resolveTechPacingBand,
 } from '@/systems/pacing-model';
 
 function tech(id: string) {
@@ -140,5 +142,30 @@ describe('research pacing model', () => {
     expect(estimateTurnsToComplete({ cost: archery, outputPerTurn: 1 })).toBeLessThanOrEqual(12);
     expect(estimateTurnsToComplete({ cost: bronze, outputPerTurn: 1 })).toBeGreaterThanOrEqual(9);
     expect(estimateTurnsToComplete({ cost: bronze, outputPerTurn: 1 })).toBeLessThanOrEqual(11);
+  });
+});
+
+describe('era-relative pacing bands (F1 regression)', () => {
+  it('does not collapse every era-5+ tech into marquee', () => {
+    const eraGte5 = TECH_TREE.filter(t => t.era >= 5);
+    const bands = new Set(eraGte5.map(t => resolveTechPacingBand(t)));
+    expect(bands.size).toBeGreaterThan(1);
+  });
+
+  it('lands a cheap flat-bonus tech and a unit-unlock tech in the same era in different bands', () => {
+    const cheapFlat = tech('colonial-trade');
+    const unitUnlock = tech('black-powder');
+    expect(cheapFlat.era).toBe(unitUnlock.era);
+    expect(resolveTechPacingBand(cheapFlat)).not.toBe(resolveTechPacingBand(unitUnlock));
+  });
+
+  it("resolveEraRelativeCostBand computes cost percentile within the tech's own era, not absolute thresholds", () => {
+    // Every era-12 tech has 2 prerequisites (endgame techs all converge), so the cheapest one
+    // still floors at 'specialist' rather than 'marquee' — that floor comes from prerequisite
+    // count, not from being forced upward purely by era-12's larger absolute costs, which is
+    // exactly what this test guards: it must not resolve to 'marquee' or 'power-spike'.
+    const era12Techs = TECH_TREE.filter(t => t.era === 12);
+    const cheapestEra12 = era12Techs.reduce((min, t) => (t.cost < min.cost ? t : min));
+    expect(['marquee', 'power-spike']).not.toContain(resolveEraRelativeCostBand(cheapestEra12, TECH_TREE));
   });
 });

@@ -1,5 +1,5 @@
 import type { Building, PacingBand, PacingContentType, PacingMetadata, Tech } from '@/core/types';
-import type { TRAINABLE_UNITS } from '@/systems/city-system';
+import { BUILDINGS, type TRAINABLE_UNITS } from '@/systems/city-system';
 import { TECH_TREE } from '@/systems/tech-definitions';
 
 const BAND_WINDOWS: Record<PacingBand, { early: [number, number]; late: [number, number] }> = {
@@ -262,34 +262,85 @@ export function resolveUnitPacingBand(unit: TrainableUnit): PacingBand {
   return 'core';
 }
 
+let chainedBuildingIdsCache: Set<string> | null = null;
+
+function buildingChainsFrom(buildingId: string): boolean {
+  if (!chainedBuildingIdsCache) {
+    chainedBuildingIdsCache = new Set(
+      Object.values(BUILDINGS)
+        .filter(building => (building.requiresBuildings?.length ?? 0) > 0)
+        .flatMap(building => building.requiresBuildings ?? []),
+    );
+  }
+  return chainedBuildingIdsCache.has(buildingId);
+}
+
+/**
+ * Cost percentile of `tech` within all techs of its own era. Used so a "cheap" tech in a
+ * late era (where absolute costs are much higher than early eras) still resolves to a low
+ * band, instead of every era-5+ tech being forced upward by absolute-cost thresholds tuned
+ * for eras 1-4. Fixes F1 (#481): previously every era>=5 tech short-circuited to 'marquee'.
+ */
+export function resolveEraRelativeCostBand(tech: Tech, techs: Tech[] = TECH_TREE): PacingBand {
+  const eraPeers = techs.filter(candidate => candidate.era === tech.era);
+  const sortedCosts = eraPeers.map(candidate => candidate.cost).sort((a, b) => a - b);
+  const rank = sortedCosts.filter(cost => cost <= tech.cost).length;
+  const percentile = eraPeers.length > 0 ? rank / eraPeers.length : 1;
+  const prereqCount = tech.prerequisites.length;
+
+  const unlocksUnit = (tech.unlocksUnits?.length ?? 0) > 0;
+  const unlocksChainedBuilding = (tech.unlocksBuildings ?? []).some(buildingId => buildingChainsFrom(buildingId));
+
+  if (tech.countsForEraAdvancement === false || unlocksUnit) {
+    return 'marquee';
+  }
+  if (prereqCount >= 2 && percentile >= 0.85) {
+    return 'marquee';
+  }
+  if (unlocksChainedBuilding || (prereqCount >= 2 && percentile >= 0.6)) {
+    return 'power-spike';
+  }
+  if (prereqCount >= 2 || percentile >= 0.6) {
+    return 'specialist';
+  }
+  if (percentile >= 0.35) {
+    return 'infrastructure';
+  }
+  if (percentile >= 0.15) {
+    return 'core';
+  }
+  return 'starter';
+}
+
 export function resolveTechPacingBand(tech: Tech): PacingBand {
   if (tech.pacing) {
     return tech.pacing.band;
-  }
-
-  if (tech.era >= 5 || tech.countsForEraAdvancement === false) {
-    return 'marquee';
   }
 
   if (tech.era === 1 && tech.prerequisites.length === 0 && tech.cost <= 25) {
     return 'starter';
   }
 
-  if (tech.prerequisites.length >= 2 && tech.cost >= 90) {
-    return 'power-spike';
+  if (tech.era <= 4) {
+    // Preserve the existing, already-tuned era 1-4 heuristic exactly as-is.
+    if (tech.prerequisites.length >= 2 && tech.cost >= 90) {
+      return 'power-spike';
+    }
+
+    if (tech.prerequisites.length >= 2 || tech.cost >= 80) {
+      return 'specialist';
+    }
+
+    if (tech.era >= 4 && tech.cost >= 70) {
+      return 'power-spike';
+    }
+
+    if (tech.cost >= 55) {
+      return 'infrastructure';
+    }
+
+    return 'core';
   }
 
-  if (tech.prerequisites.length >= 2 || tech.cost >= 80) {
-    return 'specialist';
-  }
-
-  if (tech.era >= 4 && tech.cost >= 70) {
-    return 'power-spike';
-  }
-
-  if (tech.cost >= 55) {
-    return 'infrastructure';
-  }
-
-  return 'core';
+  return resolveEraRelativeCostBand(tech, TECH_TREE);
 }
