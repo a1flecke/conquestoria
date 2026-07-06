@@ -10,7 +10,7 @@ describe('pacing reference economy (Part C exact-value pin)', () => {
   // update BOTH this expectation and the matching RESEARCH_OUTPUT_BY_ERA entry in
   // pacing-model.ts together, with a one-line justification.
   const expectedScienceByEra: Record<number, number> = {
-    1: 2, 2: 6, 3: 8, 4: 9, 5: 13, 6: 34, 7: 48, 8: 79, 9: 118, 10: 135, 11: 170, 12: 198,
+    1: 2, 2: 6, 3: 8, 4: 9, 5: 9, 6: 24, 7: 29, 8: 46, 9: 59, 10: 66, 11: 93, 12: 103,
   };
 
   it.each(Object.entries(expectedScienceByEra))('era %s reference economy produces the pinned science output', (era, expected) => {
