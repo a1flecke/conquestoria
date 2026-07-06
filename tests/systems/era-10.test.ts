@@ -22,10 +22,11 @@ describe('era 10 tech tree', () => {
     }
   });
 
-  it('all era 10 techs have cost in 280–300 range', () => {
+  // Range widened by MR13/#481 Part E: see the matching comment in tests/systems/era-12.test.ts.
+  it('all era 10 techs have cost in 280–930 range', () => {
     for (const t of era10Techs) {
       expect(t.cost, `${t.id} cost out of range`).toBeGreaterThanOrEqual(280);
-      expect(t.cost, `${t.id} cost out of range`).toBeLessThanOrEqual(300);
+      expect(t.cost, `${t.id} cost out of range`).toBeLessThanOrEqual(930);
     }
   });
 

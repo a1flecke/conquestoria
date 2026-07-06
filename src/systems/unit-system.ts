@@ -166,7 +166,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
   spy_hacker: {
     type: 'spy_hacker', name: 'Cyber Operative', movementPoints: 2,
     visionRange: 2, strength: 5, canFoundCity: false,
-    canBuildImprovements: false, productionCost: 110,
+    canBuildImprovements: false, productionCost: 234,
   },
   scout_hound: {
     type: 'scout_hound', name: 'Scout Hound', movementPoints: 3,
@@ -195,7 +195,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
   spearman: {
     type: 'spearman', name: 'Spearman', movementPoints: 2,
     visionRange: 2, strength: 20, canFoundCity: false,
-    canBuildImprovements: false, productionCost: 32,
+    canBuildImprovements: false, productionCost: 54,
   },
   horseman: {
     type: 'horseman', name: 'Horseman', movementPoints: 3,
@@ -315,7 +315,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
   observation_balloon: {
     type: 'observation_balloon', name: 'Observation Balloon',
     movementPoints: 1, visionRange: 4, strength: 6,
-    canFoundCity: false, canBuildImprovements: false, productionCost: 90,
+    canFoundCity: false, canBuildImprovements: false, productionCost: 144,
     domain: 'air',
   },
   biplane: {
@@ -429,7 +429,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
   cyber_unit: {
     type: 'cyber_unit', name: 'Cyber Unit', movementPoints: 3,
     visionRange: 2, strength: 0, canFoundCity: false,
-    canBuildImprovements: false, productionCost: 120,
+    canBuildImprovements: false, productionCost: 338,
     domain: 'land',
     // strength 0: capturable economic saboteur, not a combatant — no attackProfile
   },

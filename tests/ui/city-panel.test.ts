@@ -505,7 +505,7 @@ describe('city-panel navigation', () => {
     expect(rendered).toContain('Herbalist');
     expect(rendered).toContain('4 turns');
     expect(rendered).toContain('Settler');
-    expect(rendered).toContain('Cost: 16 · 4 turns');
+    expect(rendered).toContain('Cost: 24 · 6 turns');
   });
 
   it('shows higher Settler cost and ETA after the era advances', () => {

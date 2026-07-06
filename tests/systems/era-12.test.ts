@@ -22,10 +22,14 @@ describe('era 12 tech tree', () => {
     }
   });
 
-  it('all era 12 techs cost in 380–420 range', () => {
+  // Range widened by MR13/#481 Part E: era 10-12 research output baselines were re-grounded
+  // against a real reference-economy fixture (tests/systems/pacing-reference-economy.test.ts),
+  // which came out substantially higher than the old guessed constants — era 12 tech costs
+  // were retuned upward to match so turns-to-research stays in the same target window.
+  it('all era 12 techs cost in 690–1450 range', () => {
     for (const t of era12Techs) {
-      expect(t.cost, `${t.id} cost out of range`).toBeGreaterThanOrEqual(380);
-      expect(t.cost, `${t.id} cost out of range`).toBeLessThanOrEqual(420);
+      expect(t.cost, `${t.id} cost out of range`).toBeGreaterThanOrEqual(690);
+      expect(t.cost, `${t.id} cost out of range`).toBeLessThanOrEqual(1450);
     }
   });
 
@@ -70,11 +74,11 @@ describe('era 12 tech tree', () => {
 });
 
 describe('era 12 units — spec stats', () => {
-  it('cyber_unit has strength 0, movementPoints 3, productionCost 120', () => {
+  it('cyber_unit has strength 0, movementPoints 3, productionCost 338', () => {
     const def = UNIT_DEFINITIONS['cyber_unit'];
     expect(def.strength).toBe(0);
     expect(def.movementPoints).toBe(3);
-    expect(def.productionCost).toBe(120);
+    expect(def.productionCost).toBe(338);
     expect(def.domain ?? 'land').toBe('land');
   });
 
@@ -91,7 +95,7 @@ describe('era 12 units — spec stats', () => {
     expect(entry).toBeDefined();
     expect(entry!.techRequired).toBe('cyber-warfare');
     expect(entry!.trainedFromBuilding).toBeUndefined();
-    expect(entry!.cost).toBe(120);
+    expect(entry!.cost).toBe(338);
   });
 
   it('stealth_bomber TRAINABLE_UNITS cost updated to 360', () => {
@@ -533,7 +537,7 @@ describe('gene therapy charge on research completion (Task 1)', () => {
         ...base.civilizations,
         p1: {
           ...base.civilizations.p1,
-          techState: { ...base.civilizations.p1.techState, currentResearch: 'gene-therapy', researchProgress: 390 },
+          techState: { ...base.civilizations.p1.techState, currentResearch: 'gene-therapy', researchProgress: 925 },
         },
       },
     } as unknown as GameState;
@@ -560,7 +564,7 @@ describe('gene therapy charge on research completion (Task 1)', () => {
         p2: {
           ...base.civilizations.p2,
           units: [...base.civilizations.p2.units, 'warriorAI'],
-          techState: { ...base.civilizations.p2.techState, currentResearch: 'gene-therapy', researchProgress: 390 },
+          techState: { ...base.civilizations.p2.techState, currentResearch: 'gene-therapy', researchProgress: 925 },
         },
       },
     } as unknown as GameState;

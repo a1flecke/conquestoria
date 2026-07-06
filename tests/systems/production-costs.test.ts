@@ -16,7 +16,7 @@ describe('production cost catalog', () => {
   });
 
   it('scales Settler cost upward by era as cities get more complex', () => {
-    expect(getSettlerProductionCost(1)).toBe(16);
+    expect(getSettlerProductionCost(1)).toBe(24);
     expect(getSettlerProductionCost(2)).toBe(24);
     expect(getSettlerProductionCost(3)).toBe(40);
     expect(getSettlerProductionCost(4)).toBe(48);
@@ -32,11 +32,11 @@ describe('production cost catalog', () => {
   });
 
   it('treats invalid Settler era input as Era 1 instead of returning undefined', () => {
-    expect(getSettlerProductionCost(Number.NaN)).toBe(16);
+    expect(getSettlerProductionCost(Number.NaN)).toBe(24);
   });
 
   it('uses the current era for Settler catalog cost and raw cost for other units', () => {
-    expect(getCatalogProductionCost('settler', 1)).toBe(16);
+    expect(getCatalogProductionCost('settler', 1)).toBe(24);
     expect(getCatalogProductionCost('settler', 4)).toBe(48);
     expect(getCatalogProductionCost('worker', 4)).toBe(12);
   });
