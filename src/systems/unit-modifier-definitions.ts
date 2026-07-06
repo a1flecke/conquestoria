@@ -28,7 +28,9 @@ export const UNIT_CLASS_BY_TYPE: Record<UnitType, UnitClass[]> = {
   cannon: ['siege', 'gunpowder'],
   grenadier: ['gunpowder'],
   rifleman: ['gunpowder'],
+  frigate: ['naval', 'ranged'],
   ironclad: ['naval', 'gunpowder'],
+  destroyer: ['naval', 'ranged'],
   machine_gunner: ['gunpowder'],
   pre_dreadnought: ['naval', 'gunpowder'],
   observation_balloon: ['air', 'recon'],
@@ -169,6 +171,8 @@ export interface ClassCounter {
   requiresDefenderInFriendlyCity?: boolean;
   // Commerce raiders only counter naval civilians (transports), not land civilians.
   requiresDefenderDomain?: 'land' | 'naval' | 'air';
+  // Destroyer's sub-hunter identity narrows the broad 'naval' defenderClass down to submarines only.
+  defenderTypes?: UnitType[];
 }
 
 export const CLASS_COUNTERS: ClassCounter[] = [
@@ -176,4 +180,5 @@ export const CLASS_COUNTERS: ClassCounter[] = [
   { attackerTypes: ['grenadier'], defenderClass: 'melee', multiplier: 1.25, label: 'Anti-fortification', requiresDefenderInFriendlyCity: true },
   { attackerTypes: ['attack_helicopter'], defenderClass: 'armor', multiplier: 1.5, label: 'Anti-armor' },
   { attackerTypes: ['submarine', 'missile_submarine'], defenderClass: 'civilian', multiplier: 1.5, label: 'Commerce raider', requiresDefenderDomain: 'naval' },
+  { attackerTypes: ['destroyer'], defenderClass: 'naval', defenderTypes: ['submarine', 'missile_submarine'], multiplier: 1.25, label: 'Anti-submarine' },
 ];

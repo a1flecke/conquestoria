@@ -313,6 +313,7 @@ export type UnitType =
   | 'swordsman' | 'pikeman' | 'musketeer' | 'galley' | 'trireme'
   | 'axeman' | 'spearman' | 'horseman' | 'cavalry' | 'knight'
   | 'crossbowman' | 'catapult' | 'ballista' | 'cannon' | 'grenadier' | 'rifleman' | 'ironclad'
+  | 'frigate' | 'destroyer'
   | 'machine_gunner' | 'pre_dreadnought'
   | 'observation_balloon' | 'biplane' | 'jet_fighter'
   | 'tank' | 'submarine' | 'carrier'

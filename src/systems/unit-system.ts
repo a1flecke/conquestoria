@@ -256,6 +256,13 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     domain: 'land',
     attackProfile: { kind: 'ranged', range: 1, targets: ['unit', 'city'] },
   },
+  frigate: {
+    type: 'frigate', name: 'Frigate', movementPoints: 4,
+    visionRange: 2, strength: 38, canFoundCity: false,
+    canBuildImprovements: false, productionCost: 140,
+    domain: 'naval',
+    attackProfile: { kind: 'ranged', range: 2, targets: ['unit', 'city'] },
+  },
   ironclad: {
     type: 'ironclad', name: 'Ironclad', movementPoints: 2,
     visionRange: 2, strength: 42, canFoundCity: false,
@@ -313,10 +320,17 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
   },
   carrier: {
     type: 'carrier', name: 'Carrier',
-    movementPoints: 4, visionRange: 3, strength: 30,
+    movementPoints: 4, visionRange: 3, strength: 45,
     canFoundCity: false, canBuildImprovements: false, productionCost: 220,
     domain: 'naval',
     attackProfile: { kind: 'ranged', range: 1, targets: ['unit', 'city'] },
+  },
+  destroyer: {
+    type: 'destroyer', name: 'Destroyer',
+    movementPoints: 5, visionRange: 3, strength: 55,
+    canFoundCity: false, canBuildImprovements: false, productionCost: 210,
+    domain: 'naval',
+    attackProfile: { kind: 'ranged', range: 2, targets: ['unit', 'city'] },
   },
   // Era 11 units
   attack_helicopter: {
@@ -328,7 +342,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
   },
   missile_submarine: {
     type: 'missile_submarine', name: 'Missile Submarine',
-    movementPoints: 5, visionRange: 3, strength: 45,
+    movementPoints: 5, visionRange: 3, strength: 56,
     canFoundCity: false, canBuildImprovements: false, productionCost: 250,
     domain: 'naval',
     attackProfile: { kind: 'ranged', range: 3, targets: ['unit', 'city'] },
@@ -553,6 +567,7 @@ export const UNIT_DESCRIPTIONS: Record<UnitType, string> = {
   cannon:      'Gunpowder siege weapon. High bombard damage against cities and fortifications at range 2. Slow movement.',
   grenadier:   'Grenade-throwing infantry. Bombard range 1, strong vs fortifications and city walls. Good vs entrenched defenders.',
   rifleman:        'Rifled-musket infantry. Accurate ranged unit. Replaces musketeer-class; excels at holding defensive positions.',
+  frigate:         'Fast broadside warship. Ranged attack (range 2) vs units and cities. Requires Frigate Construction and a coastal city. Replaces the trireme; upgrades into the ironclad.',
   ironclad:        'Armored steam warship. Strongest naval unit of the industrial era. High strength, replaces frigate in fleet roles.',
   machine_gunner:  'Tripod-mounted machine gun crew. Suppressive fire from entrenched positions. High ranged strength; replaces the rifle-era fire support role.',
   pre_dreadnought: 'Armored steam battleship. Long-range guns (range 2), powerful vs coastal cities and fleets. Replaces the ironclad era of naval warfare.',
@@ -561,7 +576,8 @@ export const UNIT_DESCRIPTIONS: Record<UnitType, string> = {
   observation_balloon: 'Tethered hydrogen balloon used for aerial reconnaissance. Cannot attack. Provides unmatched long-range vision over enemy territory. Extremely fragile.',
   biplane:    'WWI-era fabric-and-wood fighter aircraft. Fast air unit that can attack land and naval targets from altitude. Vulnerable to dedicated anti-air batteries. Obsoleted by monoplane fighters.',
   jet_fighter: 'WWII-era swept-wing jet fighter. Faster and stronger than the biplane; dominates air-to-air and ground-attack roles. Faction roundel on fuselage; afterburner glow marks its passage.',
-  carrier:     'Fleet aircraft carrier. Projects air power across oceans from a mobile flight deck. Requires a coastal city to build. High vision range; moderate naval strength.',
+  carrier:     'Fleet carrier. Heavily armed mobile naval platform; aircraft basing operations arrive in a future update. Requires a coastal city to build. High vision range; strong naval strength.',
+  destroyer:   'Fast surface escort. Ranged attack (range 2) vs units and cities; +25% strength attacking submarines and missile submarines. Requires Carrier Warfare and a coastal city. Current top-tier surface escort — no later replacement yet.',
   attack_helicopter: 'Cold War attack helicopter. Combines close air support with anti-armour missiles; faster than jet fighters but more vulnerable to ground fire. Ranged air unit.',
   missile_submarine: 'Nuclear-powered ballistic missile submarine. Long-range submarine-launched missiles threaten any city from the deep. Requires a coastal city to build. Longest range of any unit.',
   // S5 — trade unit
