@@ -430,6 +430,12 @@ export const BUILDING_SPRITE_CATALOG: Record<string, BuildingSpriteComponent> = 
   smart_grid:                     SmartGridSprite,
   stealth_airbase:                StealthAirbaseSprite,
   telemedicine_hub:               TelemedicineHubSprite,
+  // era 12 national projects — reuse thematically-close existing sprites as
+  // placeholders (same pattern as unit reuse elsewhere); bespoke art is a
+  // generate-sprite-prompt follow-up.
+  planetary_data_grid:            DataCenterSprite,
+  global_logistics_network:       FintechHubSprite,
+  orbital_fabrication_program:    SmartGridSprite,
 };
 
 export const PIRATE_HEADQUARTERS_SPRITE_CATALOG: Record<PirateHeadquartersSpriteId, LandmarkSpriteComponent> = {

@@ -122,7 +122,7 @@ describe('legendary-wonder-system', () => {
 
     const result = initializeLegendaryWonderProjectsForCity(state, 'player', 'city-river');
 
-    expect(Object.values(result.legendaryWonderProjects ?? {}).filter(project => project.cityId === 'city-river')).toHaveLength(33);
+    expect(Object.values(result.legendaryWonderProjects ?? {}).filter(project => project.cityId === 'city-river')).toHaveLength(36);
   });
 
   it('allows multiple civilizations to pursue the same legendary wonder in different cities', () => {
@@ -273,6 +273,106 @@ describe('legendary-wonder-system', () => {
     const eligible = getEligibleLegendaryWonders(state, 'player', 'city-river');
 
     expect(eligible).toContain('oracle-of-delphi');
+  });
+
+  it('standing-stones is buildable by an era-1 civ with animism + mud-brick + stone (MR11)', () => {
+    const state = makeLegendaryWonderFixture({
+      completedTechs: ['animism', 'mud-brick'],
+      resources: ['stone'],
+    });
+    state.era = 1;
+
+    const eligible = getEligibleLegendaryWonders(state, 'player', 'city-river');
+
+    expect(eligible).toContain('standing-stones');
+  });
+
+  it('does not make standing-stones eligible without stone even with both techs (MR11)', () => {
+    const state = makeLegendaryWonderFixture({
+      completedTechs: ['animism', 'mud-brick'],
+      resources: [],
+    });
+    state.era = 1;
+
+    const eligible = getEligibleLegendaryWonders(state, 'player', 'city-river');
+
+    expect(eligible).not.toContain('standing-stones');
+  });
+
+  it('great-pyramid is buildable by an era-2 civ with masonry + burial-rites + stone (MR11)', () => {
+    const state = makeLegendaryWonderFixture({
+      completedTechs: ['masonry', 'burial-rites'],
+      resources: ['stone'],
+    });
+    state.era = 2;
+
+    const eligible = getEligibleLegendaryWonders(state, 'player', 'city-river');
+
+    expect(eligible).toContain('great-pyramid');
+  });
+
+  it('does not make great-pyramid eligible without stone even with both techs (MR11)', () => {
+    const state = makeLegendaryWonderFixture({
+      completedTechs: ['masonry', 'burial-rites'],
+      resources: [],
+    });
+    state.era = 2;
+
+    const eligible = getEligibleLegendaryWonders(state, 'player', 'city-river');
+
+    expect(eligible).not.toContain('great-pyramid');
+  });
+
+  it('tidemother-colossus is buildable by an era-2 civ with fishing + sacred-sites in a coastal city (MR11)', () => {
+    const state = makeLegendaryWonderFixture({
+      completedTechs: ['fishing', 'sacred-sites'],
+      resources: [],
+    });
+    state.era = 2;
+    state.map.tiles['2,3'] = { ...state.map.tiles['2,3'], terrain: 'coast' };
+
+    const eligible = getEligibleLegendaryWonders(state, 'player', 'city-river');
+
+    expect(eligible).toContain('tidemother-colossus');
+  });
+
+  it('does not make tidemother-colossus eligible for a non-coastal city even with both techs (MR11)', () => {
+    const state = makeLegendaryWonderFixture({
+      completedTechs: ['fishing', 'sacred-sites'],
+      resources: [],
+    });
+    state.era = 2;
+
+    const eligible = getEligibleLegendaryWonders(state, 'player', 'city-river');
+
+    expect(eligible).not.toContain('tidemother-colossus');
+  });
+
+  it('completes standing-stones "raise the circle" using only shrine + workshop, both era-1-available (MR11)', () => {
+    const state = makeLegendaryWonderFixture({
+      completedTechs: ['animism', 'mud-brick'],
+      resources: ['stone'],
+    });
+    state.era = 1;
+    state.cities['city-river'].buildings = ['shrine', 'workshop'];
+    state.legendaryWonderProjects = state.legendaryWonderProjects ?? {};
+    state.legendaryWonderProjects['standing-stones'] = {
+      wonderId: 'standing-stones',
+      ownerId: 'player',
+      cityId: 'city-river',
+      phase: 'questing',
+      investedProduction: 0,
+      transferableProduction: 0,
+      questSteps: [
+        { id: 'first-light', description: 'Discover a natural wonder or tribal village.', completed: true },
+        { id: 'raise-the-circle', description: 'Develop this city with at least 2 completed buildings.', completed: false },
+      ],
+    };
+
+    const result = tickLegendaryWonderProjects(state, new EventBus());
+    const standingStones = result.legendaryWonderProjects?.['standing-stones'];
+
+    expect(standingStones?.questSteps.find(step => step.id === 'raise-the-circle')?.completed).toBe(true);
   });
 
   it('keeps storm-signal-spire locked until both radio-broadcast and wireless-telegraph are researched', () => {

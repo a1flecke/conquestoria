@@ -1038,6 +1038,38 @@ export const BUILDINGS: Record<string, Building> = {
     description: 'Remote medical care. With Telemedicine tech, friendly units within 3 hexes of this city heal +1 extra HP per turn.',
     techRequired: 'telemedicine',
   },
+
+  /* === ERA 12 NATIONAL PROJECTS === */
+  // MR11: era-12 civs previously had zero national projects to start (era-11 NPs fade
+  // by era 13). All three: single yield type, civYieldBonus total 6 <= 9 (era 7+ ceiling),
+  // no cityYieldBonus, uniquePerEmpire, homeEra 12.
+  planetary_data_grid: {
+    id: 'planetary_data_grid', name: 'Planetary Data Grid', category: 'science',
+    yields: { food: 0, production: 0, gold: 0, science: 6 }, productionCost: 320,
+    description: 'Unified global research network. +6 science empire-wide.',
+    techRequired: 'network-governance',
+    pacing: { band: 'marquee', role: 'national-project', impact: 1.6, scope: 'empire', snowball: 1.5, urgency: 1.2, situationality: 1.3, unlockBreadth: 1 },
+    uniquePerEmpire: true, nationalProject: { homeEra: 12 },
+    civYieldBonus: { science: 6 },
+  },
+  global_logistics_network: {
+    id: 'global_logistics_network', name: 'Global Logistics Network', category: 'economy',
+    yields: { food: 0, production: 0, gold: 6, science: 0 }, productionCost: 320,
+    description: 'Automated worldwide freight coordination. +6 gold empire-wide.',
+    techRequired: 'globalization',
+    pacing: { band: 'marquee', role: 'national-project', impact: 1.6, scope: 'empire', snowball: 1.5, urgency: 1.2, situationality: 1.3, unlockBreadth: 1 },
+    uniquePerEmpire: true, nationalProject: { homeEra: 12 },
+    civYieldBonus: { gold: 6 },
+  },
+  orbital_fabrication_program: {
+    id: 'orbital_fabrication_program', name: 'Orbital Fabrication Program', category: 'production',
+    yields: { food: 0, production: 6, gold: 0, science: 0 }, productionCost: 320,
+    description: 'Zero-gravity manufacturing initiative. +6 production empire-wide.',
+    techRequired: 'private-spaceflight',
+    pacing: { band: 'marquee', role: 'national-project', impact: 1.6, scope: 'empire', snowball: 1.5, urgency: 1.2, situationality: 1.3, unlockBreadth: 1 },
+    uniquePerEmpire: true, nationalProject: { homeEra: 12 },
+    civYieldBonus: { production: 6 },
+  },
 };
 
 export const TRAINABLE_UNITS: Array<TrainableUnitEntry & { pacing?: Building['pacing'] }> = [
@@ -1452,6 +1484,10 @@ export const PRODUCTION_ICONS: Record<string, string> = {
   smart_grid: '⚡',
   stealth_airbase: '✈️',
   telemedicine_hub: '🏥',
+  // Era 12 national projects
+  planetary_data_grid: '🌐',
+  global_logistics_network: '📦',
+  orbital_fabrication_program: '🛰️',
   // Era 12 units
   cyber_unit: '🖥️',
   stealth_bomber: '🛩️',

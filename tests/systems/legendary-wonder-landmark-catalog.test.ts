@@ -52,6 +52,9 @@ describe('legendary wonder landmark catalog', () => {
   });
 
   it('authors supported bespoke asset keys for every current legendary wonder', () => {
+    expect(getLegendaryWonderLandmarkMetadata('standing-stones').assetKey).toBe('standing-stones-bespoke');
+    expect(getLegendaryWonderLandmarkMetadata('great-pyramid').assetKey).toBe('great-pyramid-bespoke');
+    expect(getLegendaryWonderLandmarkMetadata('tidemother-colossus').assetKey).toBe('tidemother-colossus-bespoke');
     expect(getLegendaryWonderLandmarkMetadata('oracle-of-delphi').assetKey).toBe('oracle-of-delphi-bespoke');
     expect(getLegendaryWonderLandmarkMetadata('grand-canal').assetKey).toBe('grand-canal-bespoke');
     expect(getLegendaryWonderLandmarkMetadata('sun-spire').assetKey).toBe('sun-spire-bespoke');
@@ -81,6 +84,9 @@ describe('legendary wonder landmark catalog', () => {
       .map(entry => [entry.wonderId, entry.assetKey] as const);
 
     expect(keyed).toEqual([
+      ['standing-stones', 'standing-stones-bespoke'],
+      ['great-pyramid', 'great-pyramid-bespoke'],
+      ['tidemother-colossus', 'tidemother-colossus-bespoke'],
       ['oracle-of-delphi', 'oracle-of-delphi-bespoke'],
       ['grand-canal', 'grand-canal-bespoke'],
       ['sun-spire', 'sun-spire-bespoke'],

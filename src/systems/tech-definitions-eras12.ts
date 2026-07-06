@@ -15,7 +15,7 @@ const ERA_12_TECHS: Tech[] = [
   { id: 'globalization', name: 'Globalization', track: 'economy', cost: 380,
     prerequisites: ['petrodollar-system', 'stagflation-response'],
     unlocks: ['+1 gold per distinct peacetime trade route partner civilization'],
-    era: 12 },
+    unlocksBuildings: ['global_logistics_network'], era: 12 },
   { id: 'digital-economy', name: 'Digital Economy', track: 'economy', cost: 385,
     prerequisites: ['petrodollar-system', 'container-shipping'],
     unlocks: ['Cities with a fintech hub gain +1 gold per active trade route (sent or received)'],
@@ -39,7 +39,7 @@ const ERA_12_TECHS: Tech[] = [
   { id: 'network-governance', name: 'Network Governance', track: 'civics', cost: 385,
     prerequisites: ['civil-rights-legislation', 'arpanet'],
     unlocks: ['Your lowest-science city gains +2 science per turn from empire-wide data sharing'],
-    era: 12 },
+    unlocksBuildings: ['planetary_data_grid'], era: 12 },
 
   // EXPLORATION (2)
   { id: 'gps-navigation', name: 'GPS Navigation', track: 'exploration', cost: 385,
@@ -49,7 +49,7 @@ const ERA_12_TECHS: Tech[] = [
   { id: 'private-spaceflight', name: 'Private Spaceflight', track: 'exploration', cost: 400,
     prerequisites: ['space-exploration', 'offshore-platforms'],
     unlocks: ['Cities with a space_center generate +3 gold per turn; all newly trained air units gain +1 permanent movement'],
-    era: 12 },
+    unlocksBuildings: ['orbital_fabrication_program'], era: 12 },
 
   // AGRICULTURE (2)
   { id: 'precision-agriculture', name: 'Precision Agriculture', track: 'agriculture', cost: 380,

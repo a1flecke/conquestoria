@@ -4,6 +4,13 @@
  */
 export function getApprovedM4LegendaryWonderRoster(): ReadonlyArray<{ id: string; name: string }> {
   return [
+    // Era 1-2 wonders (Dawn Age) — MR11: fills the previously-empty opening-era wonder race.
+    { id: 'standing-stones', name: 'The Standing Stones' },
+    { id: 'great-pyramid', name: 'Great Pyramid' },
+    { id: 'tidemother-colossus', name: 'Tidemother Colossus' },
+    // Era 3-4 wonders. NOTE: era 4 alone carries 11 wonders (an audit-flagged glut —
+    // see the content-audit doc for the redistribution option). Not rebalanced in
+    // MR11 — re-costing 11 wonders' worth of eligibility windows is out of scope here.
     { id: 'oracle-of-delphi', name: 'Oracle of Delphi' },
     { id: 'grand-canal', name: 'Grand Canal' },
     { id: 'sun-spire', name: 'Sun Spire' },

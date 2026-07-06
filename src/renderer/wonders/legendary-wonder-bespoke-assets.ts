@@ -1,6 +1,9 @@
 import type { LegendaryWonderLandmarkMetadata } from '@/systems/legendary-wonder-landmark-types';
 
 export const SUPPORTED_BESPOKE_LEGENDARY_LANDMARK_ASSET_KEYS = [
+  'standing-stones-bespoke',
+  'great-pyramid-bespoke',
+  'tidemother-colossus-bespoke',
   'oracle-of-delphi-bespoke',
   'grand-canal-bespoke',
   'sun-spire-bespoke',
@@ -54,6 +57,9 @@ export interface LegendaryWonderBespokeAsset {
 }
 
 const BESPOKE_ASSETS: Record<LegendaryWonderBespokeAssetKey, LegendaryWonderBespokeAsset> = {
+  'standing-stones-bespoke': { key: 'standing-stones-bespoke', draw: drawStandingStones },
+  'great-pyramid-bespoke': { key: 'great-pyramid-bespoke', draw: drawGreatPyramid },
+  'tidemother-colossus-bespoke': { key: 'tidemother-colossus-bespoke', draw: drawTidemotherColossus },
   'oracle-of-delphi-bespoke': { key: 'oracle-of-delphi-bespoke', draw: drawOracleOfDelphi },
   'grand-canal-bespoke': { key: 'grand-canal-bespoke', draw: drawGrandCanal },
   'sun-spire-bespoke': { key: 'sun-spire-bespoke', draw: drawSunSpire },
@@ -96,6 +102,104 @@ export function resolveLegendaryWonderBespokeAsset(assetKey: string | undefined)
 
 function markBespoke(ctx: CanvasRenderingContext2D, key: LegendaryWonderBespokeAssetKey): void {
   (ctx as unknown as { operations?: string[] }).operations?.push(`bespoke:${key}`);
+}
+
+function drawStandingStones(options: LegendaryWonderBespokeDrawOptions): void {
+  const { ctx, cx, cy, radius, metadata } = options;
+  markBespoke(ctx, 'standing-stones-bespoke');
+  ctx.fillStyle = metadata.palette.accent;
+  ctx.strokeStyle = metadata.palette.glow;
+  ctx.lineWidth = Math.max(1, radius * 0.06);
+
+  const pillarWidth = radius * 0.16;
+  const pillarHeight = radius * 0.72;
+  for (let index = 0; index < 5; index += 1) {
+    const angle = Math.PI + (Math.PI * index) / 4;
+    const px = cx + Math.cos(angle) * radius * 0.52;
+    const py = cy + Math.sin(angle) * radius * 0.3;
+    ctx.beginPath();
+    ctx.rect(px - pillarWidth / 2, py - pillarHeight, pillarWidth, pillarHeight);
+    ctx.fill();
+    ctx.stroke();
+  }
+
+  ctx.beginPath();
+  ctx.moveTo(cx - radius * 0.16, cy - pillarHeight);
+  ctx.lineTo(cx + radius * 0.16, cy - pillarHeight);
+  ctx.strokeStyle = metadata.palette.base;
+  ctx.lineWidth = Math.max(1, radius * 0.1);
+  ctx.stroke();
+}
+
+function drawGreatPyramid(options: LegendaryWonderBespokeDrawOptions): void {
+  const { ctx, cx, cy, radius, metadata } = options;
+  markBespoke(ctx, 'great-pyramid-bespoke');
+  ctx.fillStyle = metadata.palette.accent;
+  ctx.strokeStyle = metadata.palette.glow;
+  ctx.lineWidth = Math.max(1, radius * 0.07);
+
+  ctx.beginPath();
+  ctx.moveTo(cx, cy - radius * 0.68);
+  ctx.lineTo(cx + radius * 0.58, cy + radius * 0.5);
+  ctx.lineTo(cx - radius * 0.58, cy + radius * 0.5);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.moveTo(cx, cy - radius * 0.68);
+  ctx.lineTo(cx, cy + radius * 0.5);
+  ctx.strokeStyle = metadata.palette.base;
+  ctx.lineWidth = Math.max(1, radius * 0.04);
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.rect(cx - radius * 0.06, cy + radius * 0.28, radius * 0.12, radius * 0.22);
+  ctx.fillStyle = metadata.palette.base;
+  ctx.fill();
+}
+
+function drawTidemotherColossus(options: LegendaryWonderBespokeDrawOptions): void {
+  const { ctx, cx, cy, radius, metadata } = options;
+  markBespoke(ctx, 'tidemother-colossus-bespoke');
+  ctx.fillStyle = metadata.palette.accent;
+  ctx.strokeStyle = metadata.palette.glow;
+  ctx.lineWidth = Math.max(1, radius * 0.07);
+
+  // Straddling legs, like a colossus standing over a harbor gateway.
+  ctx.beginPath();
+  ctx.moveTo(cx - radius * 0.44, cy + radius * 0.62);
+  ctx.lineTo(cx - radius * 0.16, cy - radius * 0.1);
+  ctx.lineTo(cx + radius * 0.16, cy - radius * 0.1);
+  ctx.lineTo(cx + radius * 0.44, cy + radius * 0.62);
+  ctx.lineTo(cx + radius * 0.24, cy + radius * 0.62);
+  ctx.lineTo(cx, cy + radius * 0.14);
+  ctx.lineTo(cx - radius * 0.24, cy + radius * 0.62);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  // Torso and raised arm.
+  ctx.beginPath();
+  ctx.arc(cx, cy - radius * 0.4, radius * 0.22, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.moveTo(cx + radius * 0.14, cy - radius * 0.5);
+  ctx.lineTo(cx + radius * 0.4, cy - radius * 0.78);
+  ctx.strokeStyle = metadata.palette.base;
+  ctx.lineWidth = Math.max(1, radius * 0.06);
+  ctx.stroke();
+
+  // Waves at the base.
+  ctx.beginPath();
+  ctx.moveTo(cx - radius * 0.6, cy + radius * 0.62);
+  ctx.quadraticCurveTo(cx - radius * 0.3, cy + radius * 0.72, cx, cy + radius * 0.62);
+  ctx.quadraticCurveTo(cx + radius * 0.3, cy + radius * 0.52, cx + radius * 0.6, cy + radius * 0.62);
+  ctx.strokeStyle = metadata.palette.base;
+  ctx.lineWidth = Math.max(1, radius * 0.05);
+  ctx.stroke();
 }
 
 function drawOracleOfDelphi(options: LegendaryWonderBespokeDrawOptions): void {
