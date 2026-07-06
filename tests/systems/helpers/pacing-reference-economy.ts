@@ -19,15 +19,28 @@ import { getEmpireTechPercents, applyEmpireTechPercents, getEmpireFlatTechYields
  * wonders, luxury resources, and multi-city empire effects. These are per-city/per-route/
  * per-wonder bonuses that a single-city reference fixture cannot represent without inventing
  * numbers; the pin is a conservative single-city floor, not a ceiling.
+ *
+ * Building-set bound: a single city cannot literally build every building ever unlocked across
+ * 11 prior eras (production time is finite; one production queue can only complete so much).
+ * To keep the fixture from overstating output, only buildings gated by a tech from one of the
+ * 4 eras immediately preceding era N are counted as "still being actively built" — buildings
+ * from older eras are assumed already-built prerequisites baked into the city's existing yield
+ * but not re-counted individually here, since requiresBuildings chains already force their
+ * direct prerequisites into the eligible set regardless of era.
  */
 
 const REFERENCE_MAP_SIZE = 8;
+const BUILDING_ERA_WINDOW = 4;
 
 function completedTechsForEra(era: number): string[] {
   return TECH_TREE.filter(tech => tech.era < era).map(tech => tech.id);
 }
 
-function eligibleBuildingIds(completedTechs: string[]): string[] {
+function techEra(techId: string): number {
+  return TECH_TREE.find(tech => tech.id === techId)?.era ?? 1;
+}
+
+function eligibleBuildingIds(completedTechs: string[], era: number): string[] {
   const techSet = new Set(completedTechs);
   const built = new Set<string>();
   let added = true;
@@ -36,7 +49,15 @@ function eligibleBuildingIds(completedTechs: string[]): string[] {
     added = false;
     for (const building of Object.values(BUILDINGS)) {
       if (built.has(building.id) || building.nationalProject || building.coastalRequired) continue;
-      if (building.techRequired && !techSet.has(building.techRequired)) continue;
+      if (building.techRequired) {
+        if (!techSet.has(building.techRequired)) continue;
+        // Bound: only recently-gated buildings count toward active production, unless a
+        // still-eligible newer building's requiresBuildings chain forces an older one in.
+        const isRecent = techEra(building.techRequired) > era - BUILDING_ERA_WINDOW;
+        const isForcedPrereq = Object.values(BUILDINGS).some(other =>
+          (other.requiresBuildings ?? []).includes(building.id));
+        if (!isRecent && !isForcedPrereq) continue;
+      }
       const prereqsMet = (building.requiresBuildings ?? []).every(id => built.has(id));
       if (!prereqsMet) continue;
       built.add(building.id);
@@ -72,7 +93,7 @@ function makeReferenceMap(): GameMap {
 
 export function buildReferenceEconomyCity(era: number): { city: City; map: GameMap; completedTechs: string[] } {
   const completedTechs = completedTechsForEra(era);
-  const buildings = eligibleBuildingIds(completedTechs);
+  const buildings = eligibleBuildingIds(completedTechs, era);
   const position: HexCoord = { q: 4, r: 4 };
   // Population grows with available infrastructure, capped to the reference map's radius.
   const population = Math.min(12, 2 + Math.floor(buildings.length / 4));
