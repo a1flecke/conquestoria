@@ -67,6 +67,15 @@ Movement bonuses are the most easily broken stat — small integers stack to pro
 - UI must show `(fading)` label when multiplier is 0.5.
 - Build UI must label national-project yield numbers as empire-wide so they cannot be mistaken for host-city yields.
 
+## National Project Production Discounts
+
+MR12 added a second class of national-project effect distinct from `civYieldBonus`: empire-wide *production cost discounts* (e.g. Tribal Muster Ground: era-1/2 melee units train 10% cheaper). These are cost multipliers, not yields, so the yield ceilings above do not apply to them — but they have their own rules:
+
+- Defined in `NP_PRODUCTION_DISCOUNTS` in `src/systems/city-system.ts`, a data table (`{ nationalProjectId, appliesTo, discount }`) consumed generically by `getNationalProjectDiscountMultiplier`. **Add a new discount by appending a row — never add another `if (project.id === '...')` branch to that function.** The whole point of the table is that a new discount NP requires zero changes to the resolver.
+- `appliesTo` is either a `UnitClass` (checked via `UNIT_CLASS_BY_TYPE`, e.g. `'gunpowder'`, `'siege'`) or an explicit `UnitType[]` for discounts that don't map to one class (e.g. `ERA_1_2_MELEE_UNIT_TYPES`). Prefer the class form — it stays correct if new units are added to that class later; only use an explicit list when the discount's boundary is genuinely not a `UnitClass` (era-scoped melee is the only current example).
+- Discounts are fade-scaled by the project's `fadeMultiplier` (same 1.0 / 0.5 / 0.0 curve as yields) and are **multiplicative** with building discounts and tech discounts — not `Math.min`'d like same-class building discounts are. See `tests/systems/city-system.test.ts` "MR12 — national-project production discounts" for the exact-value regression.
+- `getProductionCostForItem` only computes this when callers pass `activeNationalProjects: ActiveNationalProjectRef[]` (from `getActiveNationalProjectsForCiv`). As of MR12 this is threaded through: `economy-system.ts` (rush-buy), `planning-system.ts` (idle-city recommendation), `quest-objective-system.ts` (caravan-queue-cost estimate), `ai-production.ts` (AI candidate scoring), and `city-panel.ts` (displayed cost). **Any new call site of `getProductionCostForItem` that can see a real city/civ must also pass `activeNationalProjects`, or a discount NP will silently not apply there** — there is no compiler or test error for a caller that simply omits the option, since it defaults to `[]`. When adding a new caller, check this list and add it, and prefer verifying the new caller's discounted cost in a test rather than assuming the default-`[]` path is fine.
+
 ## Special Building Rules
 
 Special buildings (those with `requiresBuildings` chain prereqs or `coastalRequired`) may have **two yield types** — the condition is the balancing constraint. No ceiling applies beyond common sense (compare to similar-era wonders for reference).
@@ -80,4 +89,5 @@ When adding a new wonder, national project, or special building in any future er
 - [ ] National project: AI/player availability uses the shared reserved-project set; UI labels its yields as empire-wide
 - [ ] Wonder/project: definition-driven AI eligibility and global/self-competition tests cover the new entry without ID-specific AI branches
 - [ ] Any movement bonus: update the stacking inventory table above; confirm total ≤ +2 empire-wide for affected unit class
+- [ ] National project production discount (new class, see above): append a row to `NP_PRODUCTION_DISCOUNTS`, don't branch; confirm every `getProductionCostForItem` caller in the list above still passes `activeNationalProjects`
 - [ ] Run `yarn test` — `national-project-balance.test.ts` and `wonder-definitions.test.ts` will fail if ceilings are exceeded
