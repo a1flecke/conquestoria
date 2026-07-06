@@ -14,6 +14,11 @@ export default defineConfig(({ mode }) => {
 
   return {
     base: isTauri ? './' : '/conquestoria/',
+    define: {
+      'import.meta.env.VITE_CONQUESTORIA_DISTRIBUTION': JSON.stringify(
+        isTauri ? 'tauri' : 'web',
+      ),
+    },
     plugins,
     resolve: {
       alias: {
