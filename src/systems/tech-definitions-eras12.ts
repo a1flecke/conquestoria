@@ -118,7 +118,7 @@ const ERA_12_TECHS: Tech[] = [
     unlocksBuildings: ['signals_hub'], era: 12 },
   { id: 'mass-surveillance', name: 'Mass Surveillance', track: 'espionage', cost: 390,
     prerequisites: ['black-ops-programs', 'arpanet'],
-    unlocks: ['Reveal all unit positions of civilizations you are at war with; your CDCs create a 2-hex protection bubble (70% block chance per turn)'],
+    unlocks: ['Reveal all unit positions of civilizations you are at war with'],
     era: 12 },
 
   // PHILOSOPHY (2)

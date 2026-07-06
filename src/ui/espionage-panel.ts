@@ -1,6 +1,6 @@
 // src/ui/espionage-panel.ts
 import type { AdvisorType, GameState, Spy, SpyMissionType, SpyPromotion, InterrogationIntel } from '../core/types';
-import { getAvailableMissions, getSpySuccessChance, missionRequiresPlacedSpy } from '../systems/espionage-system';
+import { getAvailableMissions, getEspionageModifierBreakdown, getSpySuccessChance, missionRequiresPlacedSpy } from '../systems/espionage-system';
 import { getProductionLabel } from '../systems/economy-system';
 
 export interface MissionCatalogEntry {
@@ -39,6 +39,7 @@ export interface EspionagePanelData {
   threatBoard: Array<{ cityId: string; foreignCivId: string; confidence: 'detected' }>;
   recentDetections: Array<{ position: { q: number; r: number }; turn: number; wasDisguised: boolean }>;
   missionSuccessChances?: Partial<Record<SpyMissionType, number>>;
+  missionSuccessBreakdown?: Partial<Record<SpyMissionType, string>>;
   currentTurn: number;
 }
 
@@ -193,6 +194,7 @@ function appendMissionStage(
   parent: HTMLElement,
   group: MissionStageGroup,
   successChances?: Partial<Record<SpyMissionType, number>>,
+  successBreakdown?: Partial<Record<SpyMissionType, string>>,
 ): void {
   const section = createEl('section');
   section.dataset.stage = String(group.stage);
@@ -222,6 +224,8 @@ function appendMissionStage(
         const pct = Math.round((successChances[mission.id] as number) * 100);
         const pctTag = createEl('span', `${pct}%`);
         pctTag.style.cssText = 'color:#7cff8a;font-size:10px;font-weight:700;';
+        const breakdown = successBreakdown?.[mission.id];
+        if (breakdown) pctTag.title = `Modifiers: ${breakdown}`;
         item.appendChild(pctTag);
       }
       list.appendChild(item);
@@ -505,7 +509,7 @@ export function createEspionagePanel(
   const missionBlock = createEl('section');
   missionBlock.dataset.section = 'missions';
   appendSectionHeader(missionBlock, 'Mission Tiers', 'Available operations grouped by stage.');
-  for (const group of data.missionStages) appendMissionStage(missionBlock, group, data.missionSuccessChances);
+  for (const group of data.missionStages) appendMissionStage(missionBlock, group, data.missionSuccessChances, data.missionSuccessBreakdown);
   panel.appendChild(missionBlock);
 
   const spiesBlock = createEl('section');
@@ -610,14 +614,29 @@ export function getEspionagePanelData(state: GameState): EspionagePanelData {
     s => (s.status === 'stationed' || s.status === 'on_mission') && s.infiltrationCityId && s.targetCivId,
   );
   let missionSuccessChances: Partial<Record<SpyMissionType, number>> | undefined;
+  let missionSuccessBreakdown: Partial<Record<SpyMissionType, string>> | undefined;
   if (stationedSpy) {
     const enemyCIMap = state.espionage?.[stationedSpy.targetCivId!]?.counterIntelligence ?? {};
     const ci = enemyCIMap[stationedSpy.infiltrationCityId!] ?? 0;
+    const modifiers = getEspionageModifierBreakdown(
+      state,
+      state.currentPlayer,
+      stationedSpy.targetCivId!,
+      stationedSpy.infiltrationCityId!,
+    );
+    const breakdownText = modifiers.parts.length > 0
+      ? modifiers.parts.map(part => `${part.label} ${part.delta >= 0 ? '+' : ''}${Math.round(part.delta * 100)}%`).join(', ')
+      : undefined;
     const chances: Partial<Record<SpyMissionType, number>> = {};
+    const breakdowns: Partial<Record<SpyMissionType, string>> = {};
     for (const mission of availableMissions as SpyMissionType[]) {
-      chances[mission] = getSpySuccessChance(stationedSpy.experience, ci, mission, stationedSpy.promotion);
+      chances[mission] = getSpySuccessChance(
+        stationedSpy.experience, ci, mission, stationedSpy.promotion, modifiers.missionSuccessDelta,
+      );
+      if (breakdownText) breakdowns[mission] = breakdownText;
     }
     missionSuccessChances = chances;
+    if (Object.keys(breakdowns).length > 0) missionSuccessBreakdown = breakdowns;
   }
 
   return {
@@ -633,6 +652,7 @@ export function getEspionagePanelData(state: GameState): EspionagePanelData {
     recentDetections: civEsp.recentDetections ?? [],
     currentTurn: state.turn,
     ...(missionSuccessChances !== undefined ? { missionSuccessChances } : {}),
+    ...(missionSuccessBreakdown !== undefined ? { missionSuccessBreakdown } : {}),
   };
 }
 

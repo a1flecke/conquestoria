@@ -12,7 +12,7 @@ import { BUILDINGS, completeCityProductionItem, getProductionCostForItem, isBuil
 import { calculateProjectedCityYields } from './city-work-system';
 import { createSpyFromUnit, isSpyUnitType } from './espionage-system';
 import { getLegendaryWonderCityYieldBonus, getLegendaryWonderCivYieldBonus } from './legendary-wonder-system';
-import { getNationalProjectCivYieldBonus } from './national-project-system';
+import { getActiveNationalProjectsForCiv, getNationalProjectCivYieldBonus } from './national-project-system';
 import { processTradeRouteIncome } from './trade-system';
 import { getClaimedTrophyGoldPerTurn } from './beast-system';
 import { createUnit, UNIT_DEFINITIONS } from './unit-system';
@@ -716,7 +716,13 @@ export function getRushBuyQuote(state: GameState, civId: string, cityId: string)
   }
 
   const civDef = resolveCivDefinition(state, civ.civType ?? '');
-  const cost = getProductionCostForItem(itemId, { city, bonusEffect: civDef?.bonusEffect, era: state.era, completedTechs: civ.techState.completed });
+  const cost = getProductionCostForItem(itemId, {
+    city,
+    bonusEffect: civDef?.bonusEffect,
+    era: state.era,
+    completedTechs: civ.techState.completed,
+    activeNationalProjects: getActiveNationalProjectsForCiv(state, civId),
+  });
   if (cost <= 0) {
     return { available: false, itemId, cost: 0, reason: 'invalid-active-item', message: 'This production item cannot be bought.', status: ownerStatus };
   }

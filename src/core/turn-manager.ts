@@ -42,6 +42,7 @@ import {
 import type { HexCoord } from './types';
 import { updateVisibility, revealMinorCivCities, applySharedVision, applySatelliteSurveillance, applyMassSurveillanceReveal } from '@/systems/fog-of-war';
 import { getActiveNationalProjectsForCiv } from '@/systems/national-project-system';
+import { UNIT_CLASS_BY_TYPE } from '@/systems/unit-modifier-definitions';
 import { getHealingBonus, getVisionBonus, isWithinRangeOfTelemedicineHub } from '@/systems/unit-modifier-system';
 import { syncCivilizationContactsFromVisibility } from '@/systems/discovery-system';
 import { refreshLastSeenPresentationsForCiv } from '@/systems/last-seen-presentation';
@@ -308,6 +309,12 @@ export function processTurn(
         }
         if (civ.techState.completed.includes('gene-therapy')) {
           newUnit.geneTherapyReady = newState.cities[cityId]?.buildings.includes('gene_therapy_clinic') ?? false;
+        }
+        const isLandCombatUnit = (unitDef?.domain ?? 'land') === 'land'
+          && !isSpyUnitType(result.completedUnit)
+          && !(UNIT_CLASS_BY_TYPE[result.completedUnit] ?? []).includes('civilian');
+        if (isLandCombatUnit && city.buildings.includes('barracks')) {
+          newUnit.experience += 10;
         }
         newState.units[newUnit.id] = newUnit;
         newState.civilizations[civId].units.push(newUnit.id);

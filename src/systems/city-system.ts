@@ -4,6 +4,7 @@ import { hexKey, hexesInRange, hexNeighbors, wrapHexCoord } from './hex-utils';
 import { drawNextCityName, DEFAULT_CITY_NAMES } from './city-name-system';
 import { INITIAL_CITY_FOCUS, INITIAL_CITY_MATURITY } from './city-maturity-system';
 import { TECH_COST_DISCOUNTS, getFoundingBonusFood } from './tech-yield-definitions';
+import { UNIT_CLASS_BY_TYPE } from './unit-modifier-definitions';
 import {
   getLegendaryWonderDisplayName,
   getLegendaryWonderProductionCost,
@@ -62,9 +63,9 @@ export const BUILDINGS: Record<string, Building> = {
   dock: { id: 'dock', name: 'Dock', category: 'economy', yields: { food: 2, production: 0, gold: 1, science: 0 }, productionCost: 20, description: 'Harbor for fishing boats. Boosts coastal city food and trade.', techRequired: 'fishing', coastalRequired: true, pacing: { band: 'core', role: 'coastal-food', impact: 1, scope: 'city', snowball: 1.05, urgency: 1, situationality: 1.2, unlockBreadth: 1 } },
 
   // Military
-  barracks: { id: 'barracks', name: 'Barracks', category: 'military', yields: { food: 0, production: 0, gold: 0, science: 0 }, productionCost: 10, description: 'A training ground. Required by future military doctrines.', techRequired: null, pacing: { band: 'starter', role: 'military-enabler', impact: 1, scope: 'city', snowball: 1, urgency: 1.15, situationality: 1, unlockBreadth: 1.05 } },
+  barracks: { id: 'barracks', name: 'Barracks', category: 'military', yields: { food: 0, production: 0, gold: 0, science: 0 }, productionCost: 10, description: 'Training ground. New land units start with +10 experience.', techRequired: null, pacing: { band: 'starter', role: 'military-enabler', impact: 1, scope: 'city', snowball: 1, urgency: 1.15, situationality: 1, unlockBreadth: 1.05 } },
   walls: { id: 'walls', name: 'Walls', category: 'military', yields: { food: 0, production: 0, gold: 0, science: 0 }, productionCost: 60, description: 'Defends the city', techRequired: 'fortification' },
-  stable: { id: 'stable', name: 'Stable', category: 'military', yields: { food: 0, production: 0, gold: 0, science: 0 }, productionCost: 55, description: 'Trains mounted units', techRequired: 'horseback-riding', obsoletedByTech: 'tank-warfare' },
+  stable: { id: 'stable', name: 'Stable', category: 'military', yields: { food: 0, production: 0, gold: 0, science: 0 }, productionCost: 55, description: 'Trains mounted units. Cavalry-class units train 15% cheaper in this city.', techRequired: 'horseback-riding', obsoletedByTech: 'tank-warfare' },
 
   // Culture
   temple: { id: 'temple', name: 'Temple', category: 'culture', yields: { food: 0, production: 0, gold: 0, science: 1 }, productionCost: 45, description: 'Spiritual center', techRequired: 'philosophy' },
@@ -226,7 +227,7 @@ export const BUILDINGS: Record<string, Building> = {
   tribal_muster_ground: {
     id: 'tribal_muster_ground', name: 'Tribal Muster Ground', category: 'military',
     yields: { food: 0, production: 1, gold: 0, science: 0 }, productionCost: 45,
-    description: 'Central mustering ground. +1 production empire-wide. Early unit training costs reduced.',
+    description: 'Central mustering ground. +1 production empire-wide. Era 1–2 melee units train 10% cheaper empire-wide.',
     techRequired: 'stone-weapons',
     pacing: { band: 'marquee', role: 'national-project', impact: 1.5, scope: 'empire', snowball: 1.3, urgency: 1.1, situationality: 1, unlockBreadth: 1 },
     uniquePerEmpire: true, nationalProject: { homeEra: 1 },
@@ -342,7 +343,7 @@ export const BUILDINGS: Record<string, Building> = {
   artillery_corps_hq: {
     id: 'artillery_corps_hq', name: 'Artillery Corps HQ', category: 'military',
     yields: { food: 0, production: 2, gold: 0, science: 0 }, productionCost: 175,
-    description: 'Central cannon command. +2 production empire-wide. Cannon units train with bonus strength.',
+    description: 'Central cannon command. +2 production empire-wide. Siege-class units train 10% cheaper empire-wide.',
     techRequired: 'black-powder',
     pacing: { band: 'marquee', role: 'national-project', impact: 1.5, scope: 'empire', snowball: 1.3, urgency: 1.1, situationality: 1, unlockBreadth: 1 },
     uniquePerEmpire: true, nationalProject: { homeEra: 5 },
@@ -362,7 +363,7 @@ export const BUILDINGS: Record<string, Building> = {
   military_academy: {
     id: 'military_academy', name: 'Military Academy', category: 'military',
     yields: { food: 0, production: 3, gold: 0, science: 0 }, productionCost: 185,
-    description: 'Central officer training command. +3 production empire-wide. Gunpowder units train faster.',
+    description: 'Central officer training command. +3 production empire-wide. Gunpowder-class units train 10% cheaper empire-wide.',
     techRequired: 'rifle-tactics',
     pacing: { band: 'marquee', role: 'national-project', impact: 1.5, scope: 'empire', snowball: 1.3, urgency: 1.1, situationality: 1, unlockBreadth: 1 },
     uniquePerEmpire: true, nationalProject: { homeEra: 6 },
@@ -561,7 +562,7 @@ export const BUILDINGS: Record<string, Building> = {
   steel_foundry: {
     id: 'steel_foundry', name: 'Steel Foundry', category: 'production',
     yields: { food: 0, production: 3, gold: 0, science: 0 }, productionCost: 175,
-    description: 'Iron smelting via Bessemer process. +3 production, reduces iron unit costs.',
+    description: 'Iron smelting via Bessemer process. +3 production. Iron-requiring units train 10% cheaper in this city.',
     techRequired: 'bessemer-steel',
   },
   telephone_exchange: {
@@ -635,7 +636,7 @@ export const BUILDINGS: Record<string, Building> = {
   airfield: {
     id: 'airfield', name: 'Airfield', category: 'military',
     yields: { food: 0, production: 2, gold: 0, science: 0 }, productionCost: 175,
-    description: 'Aviation base. +2 production per turn; enables air support in this city.',
+    description: 'Aviation base. +2 production per turn.',
     techRequired: 'aviation',
   },
   film_studio: {
@@ -718,7 +719,7 @@ export const BUILDINGS: Record<string, Building> = {
   nuclear_arsenal: {
     id: 'nuclear_arsenal', name: 'Nuclear Arsenal', category: 'military',
     yields: { food: 0, production: 3, gold: 0, science: 0 }, productionCost: 195,
-    description: 'Atomic weapon stockpile. +3 production per turn. City siege operations gain a decisive edge.',
+    description: 'Atomic weapon stockpile. +3 production per turn.',
     techRequired: 'nuclear-weapons',
     pacing: { band: 'power-spike', role: 'late-military-production', impact: 1.4, scope: 'city', snowball: 1.3, urgency: 1.1, situationality: 1.1, unlockBreadth: 1 },
   },
@@ -836,7 +837,7 @@ export const BUILDINGS: Record<string, Building> = {
   missile_silo: {
     id: 'missile_silo', name: 'Missile Silo', category: 'military',
     yields: { food: 0, production: 4, gold: 0, science: 0 }, productionCost: 215,
-    description: 'Hardened underground silo housing intercontinental ballistic missiles. +4 production per turn. Acts as strategic deterrent.',
+    description: 'Hardened underground silo housing intercontinental ballistic missiles. +4 production per turn.',
     techRequired: 'icbm-development',
     pacing: { band: 'power-spike', role: 'strategic-deterrent', impact: 1.5, scope: 'city', snowball: 1.4, urgency: 1.2, situationality: 1.2, unlockBreadth: 1 },
   },
@@ -943,7 +944,7 @@ export const BUILDINGS: Record<string, Building> = {
     id: 'automated_port', name: 'Automated Port', category: 'economy',
     yields: { food: 0, production: 0, gold: 2, science: 0 },
     productionCost: 200,
-    description: 'Autonomous logistics eliminates maintenance costs for all trade routes. Coastal cities only.',
+    description: 'Autonomous logistics yields +1 gold per active trade route empire-wide. Coastal cities only.',
     techRequired: 'autonomous-shipping',
     coastalRequired: true,
   },
@@ -968,7 +969,7 @@ export const BUILDINGS: Record<string, Building> = {
     id: 'cyber_defense_center', name: 'Cyber Defense Center', category: 'espionage',
     yields: { food: 0, production: 0, gold: 0, science: 2 },
     productionCost: 200,
-    description: 'Probabilistically blocks cyber unit gold drain (65%), spy Market Manipulation (60%), and mass-surveillance exposure (70%). Block chances +10% with a co-located Signals Hub.',
+    description: 'Blocks adjacent cyber-unit gold drains (65%, +10% with Signals Hub). Reduces enemy spy mission success in this city.',
     techRequired: 'internet',
   },
 
@@ -1173,12 +1174,19 @@ export const SETTLER_COST_BY_ERA: Record<number, number> = {
   3: 40,
   4: 48,
   5: 56,
+  6: 64,
+  7: 72,
+  8: 80,
+  9: 88,
+  10: 96,
+  11: 104,
+  12: 112,
 };
 
 function clampProductionEra(era: number | undefined): number {
   const numericEra = typeof era === 'number' && Number.isFinite(era) ? era : 1;
   const normalized = Math.max(1, Math.floor(numericEra));
-  return Math.min(5, normalized);
+  return Math.min(12, normalized);
 }
 
 export function getSettlerProductionCost(era: number = 1): number {
@@ -1204,6 +1212,14 @@ export const MELEE_RANGED_UNIT_TYPES: string[] = [
 export const CAVALRY_UNIT_TYPES: string[] = ['horseman', 'cavalry', 'knight'];
 export const SIEGE_UNIT_TYPES: string[] = ['catapult', 'ballista', 'cannon'];
 
+// era-1/2 melee units eligible for the Tribal Muster Ground national-project discount.
+export const ERA_1_2_MELEE_UNIT_TYPES: string[] = ['warrior', 'axeman', 'spearman', 'swordsman'];
+
+function requiresResource(itemId: string, resource: ResourceType): boolean {
+  const unit = TRAINABLE_UNITS.find(candidate => candidate.type === itemId);
+  return unit?.resourceRequired?.includes(resource) ?? false;
+}
+
 function getBuildingDiscountMultiplier(itemId: string, cityBuildings: string[]): number {
   let best = 1;
   if (MELEE_RANGED_UNIT_TYPES.includes(itemId)) {
@@ -1212,6 +1228,7 @@ function getBuildingDiscountMultiplier(itemId: string, cityBuildings: string[]):
   }
   if (CAVALRY_UNIT_TYPES.includes(itemId)) {
     if (cityBuildings.includes('cavalry-academy')) best = Math.min(best, 0.85);
+    if (cityBuildings.includes('stable'))          best = Math.min(best, 0.85);
   }
   if (SIEGE_UNIT_TYPES.includes(itemId)) {
     if (cityBuildings.includes('siege-workshop')) best = Math.min(best, 0.80);
@@ -1219,6 +1236,10 @@ function getBuildingDiscountMultiplier(itemId: string, cityBuildings: string[]):
   // Masonry Works: Walls building 20% cheaper
   if (itemId === 'walls') {
     if (cityBuildings.includes('masonry-works')) best = Math.min(best, 0.80);
+  }
+  // Steel Foundry: iron-requiring units 10% cheaper in this city
+  if (requiresResource(itemId, 'iron')) {
+    if (cityBuildings.includes('steel_foundry')) best = Math.min(best, 0.90);
   }
   return best;
 }
@@ -1237,6 +1258,38 @@ function getTechCostDiscountMultiplier(itemId: string, isUnit: boolean, complete
   return multiplier;
 }
 
+export interface ActiveNationalProjectRef {
+  id: string;
+  fadeMultiplier: number;
+}
+
+// National-project production discounts — empire-wide, fade-scaled with the project's
+// yield multiplier. See .claude/rules/game-balance.md for the national-project ceiling policy;
+// these are cost discounts, not yields, so they are outside that yield ceiling.
+function getNationalProjectDiscountMultiplier(
+  itemId: string,
+  isUnit: boolean,
+  activeNationalProjects: ActiveNationalProjectRef[],
+): number {
+  if (!isUnit || activeNationalProjects.length === 0) return 1;
+  const classes = UNIT_CLASS_BY_TYPE[itemId as UnitType] ?? [];
+  let multiplier = 1;
+  for (const project of activeNationalProjects) {
+    let discount = 0;
+    if (project.id === 'tribal_muster_ground' && ERA_1_2_MELEE_UNIT_TYPES.includes(itemId)) {
+      discount = 0.10;
+    } else if (project.id === 'military_academy' && classes.includes('gunpowder')) {
+      discount = 0.10;
+    } else if (project.id === 'artillery_corps_hq' && classes.includes('siege')) {
+      discount = 0.10;
+    }
+    if (discount > 0) {
+      multiplier *= 1 - discount * project.fadeMultiplier;
+    }
+  }
+  return multiplier;
+}
+
 export function getProductionCostForItem(
   itemId: string,
   options: {
@@ -1244,6 +1297,7 @@ export function getProductionCostForItem(
     bonusEffect?: CivBonusEffect;
     era?: number;
     completedTechs?: string[];
+    activeNationalProjects?: ActiveNationalProjectRef[];
   } = {},
 ): number {
   const baseCost = getCatalogProductionCost(itemId, options.era);
@@ -1262,7 +1316,12 @@ export function getProductionCostForItem(
   }
   const buildingDiscountMultiplier = discounts.length > 0 ? Math.min(...discounts) : 1;
   const techDiscountMultiplier = getTechCostDiscountMultiplier(itemId, unit != null, options.completedTechs ?? []);
-  const discountMultiplier = buildingDiscountMultiplier * techDiscountMultiplier;
+  const npDiscountMultiplier = getNationalProjectDiscountMultiplier(
+    itemId,
+    unit != null,
+    options.activeNationalProjects ?? [],
+  );
+  const discountMultiplier = buildingDiscountMultiplier * techDiscountMultiplier * npDiscountMultiplier;
   const effective = baseCost * civMultiplier * discountMultiplier;
   return discountMultiplier < 1 ? Math.ceil(effective) : Math.round(effective);
 }
