@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Align every HUD yield label on one visual baseline and make web, Tauri development, and packaged Tauri builds select the correct distribution capabilities.
+**Goal:** Align every HUD yield label on one visual baseline, make every distribution select the correct capabilities, and ensure wrapped macOS package commands build the active linked worktree.
 
-**Architecture:** Keep the HUD fix in the shared live `updateHUD()` path by centering the yield row's children while preserving the gold button's touch target and truncation. Keep platform selection inside `src/platform/` and inject its existing client enum from Vite's single `isTauri` build decision, rather than adding runtime global checks or macOS-only UI branches.
+**Architecture:** Keep the HUD fix in the shared live `updateHUD()` path by centering the yield row's children while preserving the gold button's touch target and truncation. Keep platform selection inside `src/platform/` and inject its existing client enum from Vite's single `isTauri` build decision. Route linked-worktree Tauri commands by resolving the installed CLI from the main checkout but executing it, its frontend wrapper, Cargo, and artifact checks in the active worktree.
 
 **Tech Stack:** TypeScript, Vite 8, Vitest 4, Playwright 1.59, Tauri 2, Yarn 4 through the repository mise wrapper.
 
@@ -28,6 +28,13 @@
   - Load a deterministic saved game at the Tauri main-window viewport.
   - Measure actual text rectangles and assert a baseline spread of at most one pixel.
   - Verify nowrap, the 44-pixel gold target, and repeated treasury drawer toggling.
+- Modify `scripts/run-with-mise.sh`
+  - Route Tauri development, build, macOS bundle, and artifact-check commands to
+    the active linked worktree without duplicating the Yarn install.
+  - Override nested Tauri frontend commands with the worktree-aware wrapper.
+- Modify `tests/hooks/run-with-mise-worktree.test.sh`
+  - Prove macOS packaging and artifact checking execute against the linked
+    worktree.
 - No changes to `src-tauri/`, save schemas, service-worker cache logic, gameplay state, or renderer code.
 
 ## Player Truth Table
@@ -39,6 +46,7 @@
 | Treasury drawer is open | Click the same gold control again | Treasury drawer closes; the HUD remains aligned |
 | Web build starts | Application initialization | PWA service worker follows the existing web path |
 | Tauri development or packaged app starts | Application initialization | Web service worker is skipped and native capability selectors follow the Tauri path |
+| Wrapped macOS build starts in a linked worktree | Build silently packages the main checkout | Frontend, Cargo, bundle, and artifact check use the linked worktree |
 
 ## Misleading UI Risks
 
@@ -47,6 +55,9 @@
 - Do not use a macOS media query or Tauri-only HUD style; the shared flex row is defective on every distribution.
 - Do not treat successful `build:tauri` output alone as proof of distribution identity; inspect the emitted bundle and test the injected literal.
 - Do not change displayed economy values, research labels, or stability semantics while repairing layout.
+- Do not accept a macOS bundle merely because Tauri exits successfully; its
+  frontend hash, Cargo source path, and artifact path must belong to the active
+  worktree.
 
 ## Interaction Replay Checklist
 
@@ -489,7 +500,157 @@ git commit -m "fix(hud): align yield labels across web and macOS"
 
 ---
 
-### Task 3: Verify both releases and review the complete implementation
+### Task 3: Route wrapped Tauri packaging through the active worktree
+
+**Files:**
+- Modify: `tests/hooks/run-with-mise-worktree.test.sh`
+- Modify: `scripts/run-with-mise.sh`
+
+- [ ] **Step 1: Add failing linked-worktree package-routing regressions**
+
+In `tests/hooks/run-with-mise-worktree.test.sh`, add these checks after the
+existing linked-worktree web build assertion:
+
+```bash
+rm -f "$mise_log"
+(
+  cd "$linked"
+  PATH="$fake_bin:$PATH" \
+    MISE_LOG="$mise_log" \
+    ./scripts/run-with-mise.sh yarn tauri:build:mac-app
+)
+grep -Eq "^$linked\\|exec -- node .* build --config .* --bundles app$" "$mise_log" || {
+  echo "worktree macOS app build ran outside the active worktree"
+  exit 1
+}
+grep -Fq './scripts/run-with-mise.sh yarn build:tauri' "$mise_log" || {
+  echo "worktree macOS app build did not override the frontend command"
+  exit 1
+}
+
+rm -f "$mise_log"
+(
+  cd "$linked"
+  PATH="$fake_bin:$PATH" \
+    MISE_LOG="$mise_log" \
+    ./scripts/run-with-mise.sh yarn tauri:check:mac-artifacts
+)
+grep -Fq "$linked|exec -- node $linked/scripts/check-tauri-macos-artifacts.mjs" "$mise_log" || {
+  echo "worktree macOS artifact check ran outside the active worktree"
+  exit 1
+}
+```
+
+- [ ] **Step 2: Run the wrapper smoke test and verify the red failure**
+
+Run:
+
+```bash
+bash tests/hooks/run-with-mise-worktree.test.sh
+```
+
+Expected: FAIL with
+`worktree macOS app build ran outside the active worktree`. The catch-all Yarn
+route currently delegates the package script to the main checkout.
+
+- [ ] **Step 3: Add explicit worktree-aware Tauri routes**
+
+In the linked-worktree case statement in `scripts/run-with-mise.sh`, add these
+routes immediately before the existing `yarn,node)` route:
+
+```bash
+    yarn,tauri:check:mac-artifacts)
+      shift 2
+      cd "$CURRENT_ROOT"
+      NODE_OPTIONS="--require $MAIN_ROOT/.pnp.cjs --experimental-loader file://$MAIN_ROOT/.pnp.loader.mjs ${NODE_OPTIONS:-}" \
+        exec mise exec -- node "$CURRENT_ROOT/scripts/check-tauri-macos-artifacts.mjs" "$@"
+      ;;
+    yarn,tauri:dev|yarn,tauri:build|yarn,tauri:build:mac|yarn,tauri:build:mac-app)
+      tauri_script="$2"
+      shift 2
+      tauri_cli="$(cd "$MAIN_ROOT" && run_without_local_git_env "$MAIN_RUN" yarn bin tauri)"
+      worktree_build_config='{"build":{"beforeBuildCommand":{"cwd":"../","script":"./scripts/run-with-mise.sh yarn build:tauri","wait":true}}}'
+      worktree_dev_config='{"build":{"beforeDevCommand":{"cwd":"../","script":"./scripts/run-with-mise.sh yarn dev --host 127.0.0.1","wait":false}}}'
+      cd "$CURRENT_ROOT"
+      case "$tauri_script" in
+        tauri:dev)
+          set -- dev --config "$worktree_dev_config" "$@"
+          ;;
+        tauri:build)
+          set -- build --config "$worktree_build_config" "$@"
+          ;;
+        tauri:build:mac)
+          set -- build --config "$worktree_build_config" --bundles app,dmg "$@"
+          ;;
+        tauri:build:mac-app)
+          set -- build --config "$worktree_build_config" --bundles app "$@"
+          ;;
+      esac
+      NODE_OPTIONS="--require $MAIN_ROOT/.pnp.cjs --experimental-loader file://$MAIN_ROOT/.pnp.loader.mjs ${NODE_OPTIONS:-}" \
+        exec mise exec -- node "$tauri_cli" "$@"
+      ;;
+```
+
+Also document `yarn tauri:*` in the wrapper's command-routing comment. The main
+checkout remains the dependency source; the Tauri CLI, nested frontend command,
+Cargo source tree, bundle output, and artifact checker use `CURRENT_ROOT`.
+
+- [ ] **Step 4: Run the wrapper regression and full hook suite**
+
+Run:
+
+```bash
+bash tests/hooks/run-with-mise-worktree.test.sh
+./scripts/run-with-mise.sh yarn test:hooks
+```
+
+Expected: the focused wrapper regression and every hook smoke test PASS.
+
+- [ ] **Step 5: Build and inspect the macOS app through the corrected wrapper**
+
+Run:
+
+```bash
+./scripts/run-with-mise.sh yarn tauri:build:mac-app
+```
+
+Expected evidence:
+
+- Tauri reports `./scripts/run-with-mise.sh yarn build:tauri` as the nested
+  `beforeBuildCommand`.
+- The frontend output matches the active worktree Tauri bundle.
+- Cargo reports the active worktree's `src-tauri` path.
+- The final `.app` path is under the active worktree.
+
+Then run:
+
+```bash
+./scripts/run-with-mise.sh yarn tauri:check:mac-artifacts
+```
+
+Expected: the checker reports the `.app` inside the active worktree and exits 0.
+
+- [ ] **Step 6: Review and commit Task 3**
+
+Run:
+
+```bash
+git diff --check
+git diff -- scripts/run-with-mise.sh tests/hooks/run-with-mise-worktree.test.sh
+```
+
+Confirm ordinary Yarn commands still route to the main installed project, web
+and Tauri frontend build routes are unchanged, and only Tauri package/runtime
+commands plus the artifact checker use the new path. Then commit:
+
+```bash
+git add scripts/run-with-mise.sh tests/hooks/run-with-mise-worktree.test.sh
+git commit -m "fix(tooling): package Tauri apps from active worktrees"
+```
+
+---
+
+### Task 4: Verify both releases and review the complete implementation
 
 **Files:**
 - Verify all branch changes against `origin/main`

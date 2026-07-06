@@ -4,7 +4,9 @@
 
 Fix the still-visible HUD alignment defect reported in issue 437 and correct the
 Tauri frontend build's distribution identity so macOS uses the intended desktop
-capabilities instead of falling back to web behavior.
+capabilities instead of falling back to web behavior. Ensure repository-wrapped
+macOS package commands build the active linked worktree rather than silently
+packaging the main checkout.
 
 The change must preserve one shared HUD and gameplay frontend for GitHub
 Pages/PWA and macOS/Tauri. It must not introduce macOS-only layout rules or fork
@@ -50,6 +52,24 @@ This build defect is separate from the HUD's 14-pixel offset. It does, however,
 show why the previous service-worker cache fix could not establish that the
 macOS HUD problem was solved.
 
+### Linked-worktree Tauri package commands run from the main checkout
+
+`scripts/run-with-mise.sh` has explicit active-worktree routing for web and Tauri
+frontend builds, but its catch-all Yarn branch sends `tauri:build:mac-app`,
+`tauri:build:mac`, `tauri:build`, `tauri:dev`, and
+`tauri:check:mac-artifacts` to the main checkout.
+
+The incorrect macOS verification transformed 444 frontend modules, emitted a
+different bundle hash, and compiled Cargo from the main checkout. The direct
+active-worktree Tauri frontend build transformed 448 modules. The earlier
+packaged-app result therefore did not contain or verify this branch.
+
+Running the package script directly from the linked checkout is also incorrect:
+Yarn rejects that project path because the PnP install state belongs to the main
+checkout. Correct routing must resolve the installed Tauri CLI from the main
+checkout, execute that CLI with the active worktree as its current directory,
+and override Tauri's nested frontend command to call the worktree-aware wrapper.
+
 ## Architecture
 
 ### Shared HUD layout
@@ -91,6 +111,20 @@ This preserves the current safe fallback: if code is evaluated outside the Vite
 configuration without an injected identity, distribution resolution defaults
 to `web`.
 
+### Worktree-aware Tauri command routing
+
+`scripts/run-with-mise.sh` will keep dependency resolution in the installed main
+checkout while moving execution into the active linked worktree:
+
+- resolve the installed Tauri CLI path through the main checkout
+- execute that CLI with the active worktree as `cwd`
+- overlay `beforeBuildCommand` and `beforeDevCommand` so nested frontend commands
+  use the worktree-aware wrapper
+- execute the macOS artifact checker directly from the active worktree
+
+The repository's checked-in Tauri configuration remains distribution-neutral
+and CI-friendly; only linked-worktree routing receives the wrapper overlay.
+
 ## Data Flow
 
 ### HUD
@@ -112,6 +146,15 @@ to `web`.
 5. The Tauri bundle deliberately skips the web service worker and enables native
    integrations; the web bundle retains PWA behavior.
 
+### macOS package build
+
+1. A linked worktree invokes the repository wrapper.
+2. The wrapper resolves the installed Tauri CLI from the main checkout.
+3. The CLI runs with the linked worktree as `cwd`.
+4. Tauri invokes the linked worktree wrapper for its frontend build.
+5. Cargo compiles the linked worktree's `src-tauri`.
+6. The `.app` and artifact checker paths resolve inside the linked worktree.
+
 ## Player Truth Table
 
 | Context | Before | After |
@@ -121,6 +164,7 @@ to `web`.
 | Narrow web viewport with a long economy label | Gold and science can shrink and truncate without wrapping | Existing truncation behavior remains unchanged |
 | GitHub Pages/PWA | Web distribution registers the service worker | Behavior remains unchanged |
 | Tauri development or packaged macOS app | Client can resolve as web and skip native integrations | Client resolves as Tauri, skips the web service worker, and selects native capabilities |
+| macOS package build launched from a linked worktree | Wrapper silently packages the main checkout | Wrapper packages and checks the active linked worktree |
 
 ## Error Handling and Safeguards
 
@@ -179,6 +223,17 @@ Retain and run platform tests proving:
 Add save-file adapter selection coverage proving that a Tauri distribution
 chooses the Tauri adapter and a web distribution chooses the browser adapter.
 
+### Worktree wrapper regression
+
+Extend `tests/hooks/run-with-mise-worktree.test.sh` to prove:
+
+- macOS app packaging executes the installed Tauri CLI from the linked
+  worktree's current directory
+- the nested frontend command uses the linked worktree wrapper
+- the artifact checker executes the linked worktree's script
+
+Run the full hook smoke suite after changing the wrapper.
+
 ### Build verification
 
 Run:
@@ -235,6 +290,8 @@ Injecting that value directly keeps the client contract narrow.
 - Web builds resolve as web and continue registering the PWA service worker.
 - Tauri development and packaged builds resolve as Tauri, skip the web service
   worker, and select native capability paths.
+- Wrapped Tauri package and artifact commands operate on the active linked
+  worktree.
 - Web and Tauri asset bases remain correct.
 - Targeted tests, full tests, web build, Tauri build, macOS app build, and artifact
   checks pass.

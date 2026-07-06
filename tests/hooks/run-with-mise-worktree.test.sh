@@ -124,6 +124,34 @@ grep -Fq "$linked|exec -- node $linked/scripts/version-sw-cache.mjs" "$mise_log"
   exit 1
 }
 
+rm -f "$mise_log"
+(
+  cd "$linked"
+  PATH="$fake_bin:$PATH" \
+    MISE_LOG="$mise_log" \
+    ./scripts/run-with-mise.sh yarn tauri:build:mac-app
+)
+grep -Eq "^$linked\\|exec -- node .* build --config .* --bundles app$" "$mise_log" || {
+  echo "worktree macOS app build ran outside the active worktree"
+  exit 1
+}
+grep -Fq './scripts/run-with-mise.sh yarn build:tauri' "$mise_log" || {
+  echo "worktree macOS app build did not override the frontend command"
+  exit 1
+}
+
+rm -f "$mise_log"
+(
+  cd "$linked"
+  PATH="$fake_bin:$PATH" \
+    MISE_LOG="$mise_log" \
+    ./scripts/run-with-mise.sh yarn tauri:check:mac-artifacts
+)
+grep -Fq "$linked|exec -- node $linked/scripts/check-tauri-macos-artifacts.mjs" "$mise_log" || {
+  echo "worktree macOS artifact check ran outside the active worktree"
+  exit 1
+}
+
 verify_marker="$tmpdir/linked-verifier-ran"
 cat > "$linked/scripts/verify-before-push.sh" <<EOF
 #!/bin/sh
