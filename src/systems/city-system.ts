@@ -4,7 +4,7 @@ import { hexKey, hexesInRange, hexNeighbors, wrapHexCoord } from './hex-utils';
 import { drawNextCityName, DEFAULT_CITY_NAMES } from './city-name-system';
 import { INITIAL_CITY_FOCUS, INITIAL_CITY_MATURITY } from './city-maturity-system';
 import { TECH_COST_DISCOUNTS, getFoundingBonusFood } from './tech-yield-definitions';
-import { UNIT_CLASS_BY_TYPE } from './unit-modifier-definitions';
+import { UNIT_CLASS_BY_TYPE, type UnitClass } from './unit-modifier-definitions';
 import {
   getLegendaryWonderDisplayName,
   getLegendaryWonderProductionCost,
@@ -1213,7 +1213,7 @@ export const CAVALRY_UNIT_TYPES: string[] = ['horseman', 'cavalry', 'knight'];
 export const SIEGE_UNIT_TYPES: string[] = ['catapult', 'ballista', 'cannon'];
 
 // era-1/2 melee units eligible for the Tribal Muster Ground national-project discount.
-export const ERA_1_2_MELEE_UNIT_TYPES: string[] = ['warrior', 'axeman', 'spearman', 'swordsman'];
+export const ERA_1_2_MELEE_UNIT_TYPES: UnitType[] = ['warrior', 'axeman', 'spearman', 'swordsman'];
 
 function requiresResource(itemId: string, resource: ResourceType): boolean {
   const unit = TRAINABLE_UNITS.find(candidate => candidate.type === itemId);
@@ -1263,9 +1263,26 @@ export interface ActiveNationalProjectRef {
   fadeMultiplier: number;
 }
 
+interface NationalProjectProductionDiscount {
+  nationalProjectId: string;
+  // A UnitClass checks UNIT_CLASS_BY_TYPE membership (generic); an explicit UnitType[]
+  // is for discounts that don't map to a single UnitClass (e.g. "era-1/2 melee").
+  appliesTo: UnitClass | UnitType[];
+  discount: number; // e.g. 0.10 for 10% cheaper
+}
+
 // National-project production discounts — empire-wide, fade-scaled with the project's
 // yield multiplier. See .claude/rules/game-balance.md for the national-project ceiling policy;
 // these are cost discounts, not yields, so they are outside that yield ceiling.
+// Adding a new discount is purely additive: append a row here — do not add another
+// `if (project.id === '...')` branch (see .claude/rules/game-balance.md National Project
+// Production Discounts section for why this table exists instead of per-id branching).
+const NP_PRODUCTION_DISCOUNTS: NationalProjectProductionDiscount[] = [
+  { nationalProjectId: 'tribal_muster_ground', appliesTo: ERA_1_2_MELEE_UNIT_TYPES, discount: 0.10 },
+  { nationalProjectId: 'military_academy', appliesTo: 'gunpowder', discount: 0.10 },
+  { nationalProjectId: 'artillery_corps_hq', appliesTo: 'siege', discount: 0.10 },
+];
+
 function getNationalProjectDiscountMultiplier(
   itemId: string,
   isUnit: boolean,
@@ -1275,17 +1292,12 @@ function getNationalProjectDiscountMultiplier(
   const classes = UNIT_CLASS_BY_TYPE[itemId as UnitType] ?? [];
   let multiplier = 1;
   for (const project of activeNationalProjects) {
-    let discount = 0;
-    if (project.id === 'tribal_muster_ground' && ERA_1_2_MELEE_UNIT_TYPES.includes(itemId)) {
-      discount = 0.10;
-    } else if (project.id === 'military_academy' && classes.includes('gunpowder')) {
-      discount = 0.10;
-    } else if (project.id === 'artillery_corps_hq' && classes.includes('siege')) {
-      discount = 0.10;
-    }
-    if (discount > 0) {
-      multiplier *= 1 - discount * project.fadeMultiplier;
-    }
+    const row = NP_PRODUCTION_DISCOUNTS.find(r => r.nationalProjectId === project.id);
+    if (!row) continue;
+    const applies = Array.isArray(row.appliesTo)
+      ? (row.appliesTo as string[]).includes(itemId)
+      : classes.includes(row.appliesTo);
+    if (applies) multiplier *= 1 - row.discount * project.fadeMultiplier;
   }
   return multiplier;
 }
