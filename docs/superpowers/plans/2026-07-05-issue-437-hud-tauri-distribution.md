@@ -361,6 +361,7 @@ test('Tauri-sized HUD keeps every yield on one visual baseline', async ({ page }
 
   const yieldsRow = page.locator('[data-role="hud-yields"]');
   await expect(yieldsRow).toBeVisible();
+  await expect(yieldsRow).toContainText('☺ 1 (stability)');
   const textTops = await readTextTops(page);
   expect(textTops).toHaveLength(5);
   expect(Math.max(...textTops) - Math.min(...textTops)).toBeLessThanOrEqual(1);
@@ -430,8 +431,18 @@ Change the yield row setup in `src/main.ts` to:
     'display:flex;align-items:center;gap:10px;flex-wrap:nowrap;overflow:hidden;min-width:0;';
 ```
 
-Do not alter any child text, gold callback, minimum height, nowrap, overflow, or
-flex-shrink styles.
+Also add `font-family:inherit` to the existing `goldBtn.style.cssText` string,
+between `border:none` and `font-size:inherit`:
+
+```typescript
+  goldBtn.style.cssText =
+    'background:transparent;color:inherit;border:none;font-family:inherit;font-size:inherit;padding:0;cursor:pointer;min-height:44px;display:inline-flex;align-items:center;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex-shrink:1;';
+```
+
+The parent rule removes the 15.5-pixel row offset. Inheriting the font family
+removes the remaining default form-control font mismatch and keeps the measured
+spread within 1 pixel. Do not alter any child text, gold callback, minimum
+height, nowrap, overflow, or flex-shrink styles.
 
 - [ ] **Step 6: Run the browser regression and verify it passes**
 
