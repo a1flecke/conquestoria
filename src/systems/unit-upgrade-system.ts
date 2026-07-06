@@ -1,5 +1,6 @@
-import type { Unit, UnitType, City, GameState } from '@/core/types';
+import type { Unit, UnitType, City, GameState, ResourceType } from '@/core/types';
 import { TRAINABLE_UNITS, getCatalogProductionCost } from './city-system';
+import { getCivAvailableResources } from './resource-acquisition-system';
 
 export function getUpgradeCost(targetType: UnitType): number {
   const cost = getCatalogProductionCost(targetType, 1);
@@ -12,15 +13,16 @@ export function canUpgradeUnit(
   cities: Record<string, City>,
   completedTechs: string[],
   civGold?: number,
+  availableResources?: Set<ResourceType>,
 ): { canUpgrade: boolean; targetType: UnitType | null; cost: number; reason?: 'missing-building' } {
   const city = cities[cityId];
   if (!city || city.owner !== unit.owner) return { canUpgrade: false, targetType: null, cost: 0 };
   if (unit.position.q !== city.position.q || unit.position.r !== city.position.r) {
     return { canUpgrade: false, targetType: null, cost: 0 };
   }
-  const targetType = getCanonicalUpgradeTarget(unit, completedTechs, city.buildings);
+  const targetType = getCanonicalUpgradeTarget(unit, completedTechs, city.buildings, availableResources);
   if (!targetType) {
-    const targetInPrinciple = getCanonicalUpgradeTarget(unit, completedTechs);
+    const targetInPrinciple = getCanonicalUpgradeTarget(unit, completedTechs, undefined, availableResources);
     if (targetInPrinciple) {
       return { canUpgrade: false, targetType: null, cost: getUpgradeCost(targetInPrinciple), reason: 'missing-building' };
     }
@@ -35,6 +37,7 @@ export function getCanonicalUpgradeTarget(
   unit: Unit,
   completedTechs: readonly string[],
   cityBuildings?: readonly string[],
+  availableResources?: Set<ResourceType>,
 ): UnitType | null {
   const currentEntry = TRAINABLE_UNITS.find(candidate => candidate.type === unit.type);
   if (
@@ -57,6 +60,13 @@ export function getCanonicalUpgradeTarget(
     return null;
   }
   if (target.trainedFromBuilding && cityBuildings && !cityBuildings.includes(target.trainedFromBuilding)) {
+    return null;
+  }
+  if (
+    target.resourceRequired?.length
+    && availableResources
+    && !target.resourceRequired.every(resource => availableResources.has(resource))
+  ) {
     return null;
   }
   return target.type;
@@ -100,7 +110,12 @@ export function applyUnitUpgradeToState(
   if (!city) {
     return { state, upgraded: false, reason: 'not-in-friendly-city' };
   }
-  const canonicalTarget = getCanonicalUpgradeTarget(unit, civ.techState.completed, city.buildings);
+  const canonicalTarget = getCanonicalUpgradeTarget(
+    unit,
+    civ.techState.completed,
+    city.buildings,
+    getCivAvailableResources(state, unit.owner),
+  );
   if (!canonicalTarget) {
     return { state, upgraded: false, reason: 'tech-unavailable' };
   }

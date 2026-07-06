@@ -1041,14 +1041,15 @@ export const BUILDINGS: Record<string, Building> = {
 };
 
 export const TRAINABLE_UNITS: Array<TrainableUnitEntry & { pacing?: Building['pacing'] }> = [
-  { type: 'warrior', name: 'Warrior', cost: 8, obsoletedByTech: 'rifled-infantry', pacing: { band: 'starter', role: 'early-military', impact: 1, scope: 'military', snowball: 1, urgency: 1.2, situationality: 1, unlockBreadth: 1 } },
-  { type: 'archer', name: 'Archer', cost: 35, techRequired: 'archery', obsoletedByTech: 'tactics', pacing: { band: 'power-spike', role: 'ranged-breakpoint', impact: 1.15, scope: 'military', snowball: 1, urgency: 1.05, situationality: 1, unlockBreadth: 1 } },
+  // warrior's role as cheap fallback ends once real militaries exist (era 2, Bronze Working).
+  { type: 'warrior', name: 'Warrior', cost: 8, obsoletedByTech: 'bronze-working', upgradesTo: 'spearman', pacing: { band: 'starter', role: 'early-military', impact: 1, scope: 'military', snowball: 1, urgency: 1.2, situationality: 1, unlockBreadth: 1 } },
+  { type: 'archer', name: 'Archer', cost: 35, techRequired: 'archery', obsoletedByTech: 'tactics', upgradesTo: 'crossbowman', pacing: { band: 'power-spike', role: 'ranged-breakpoint', impact: 1.15, scope: 'military', snowball: 1, urgency: 1.05, situationality: 1, unlockBreadth: 1 } },
   { type: 'scout', name: 'Scout', cost: 6, pacing: { band: 'starter', role: 'early-exploration', impact: 1, scope: 'military', snowball: 1, urgency: 1.1, situationality: 1, unlockBreadth: 1 } },
   { type: 'worker', name: 'Worker', cost: 12 },
   { type: 'settler', name: 'Settler', cost: 24, pacing: { band: 'power-spike', role: 'expansion', impact: 1.25, scope: 'empire', snowball: 1.3, urgency: 1.05, situationality: 1, unlockBreadth: 1.2 } },
   { type: 'swordsman',    name: 'Swordsman',    cost: 50,  techRequired: 'bronze-working',   resourceRequired: ['iron'],   obsoletedByTech: 'rifled-infantry', upgradesTo: 'rifleman',        pacing: { band: 'power-spike', role: 'melee-breakpoint',       impact: 1.2,  scope: 'military', snowball: 1,   urgency: 1,    situationality: 1,    unlockBreadth: 1 } },
   { type: 'pikeman',      name: 'Pikeman',      cost: 70,  techRequired: 'fortification',    obsoletedByTech: 'rifled-infantry', upgradesTo: 'rifleman',                                        pacing: { band: 'power-spike', role: 'anti-cavalry-breakpoint', impact: 1.15, scope: 'military', snowball: 1,   urgency: 1,    situationality: 1.05, unlockBreadth: 1 } },
-  { type: 'musketeer',    name: 'Musketeer',    cost: 90,  techRequired: 'tactics',   obsoletedByTech: 'rifled-infantry', upgradesTo: 'rifleman' },
+  { type: 'musketeer',    name: 'Musketeer',    cost: 90,  techRequired: 'black-powder',   obsoletedByTech: 'rifled-infantry', upgradesTo: 'rifleman' },
   // galley's fighting line now upgrades into trireme (not the civilian carrack line).
   { type: 'galley',          name: 'Galley',          cost: 40,  techRequired: 'galleys',            coastalRequired: true, obsoletedByTech: 'triremes', upgradesTo: 'trireme' },
   { type: 'transport',       name: 'Transport',       cost: 45,  techRequired: 'galleys',            coastalRequired: true, obsoletedByTech: 'navigation', upgradesTo: 'carrack' },
@@ -1069,17 +1070,23 @@ export const TRAINABLE_UNITS: Array<TrainableUnitEntry & { pacing?: Building['pa
   { type: 'crossbowman',  name: 'Crossbowman',  cost: 75,  techRequired: 'tactics',          resourceRequired: ['copper'],  obsoletedByTech: 'rifled-infantry', upgradesTo: 'rifleman',        pacing: { band: 'power-spike', role: 'precision-ranged',      impact: 1.15, scope: 'military', snowball: 1,   urgency: 1,    situationality: 1.05, unlockBreadth: 1 } },
   { type: 'catapult',     name: 'Catapult',     cost: 110, techRequired: 'siege-warfare',    resourceRequired: ['stone'],   obsoletedByTech: 'black-powder', upgradesTo: 'cannon',                      pacing: { band: 'power-spike', role: 'siege-bombardment',    impact: 1.2,  scope: 'military', snowball: 1.1, urgency: 1,    situationality: 1.2,  unlockBreadth: 1 } },
   { type: 'ballista',     name: 'Ballista',     cost: 100, techRequired: 'siege-warfare',    resourceRequired: ['iron'],    obsoletedByTech: 'black-powder', upgradesTo: 'cannon',                      pacing: { band: 'power-spike', role: 'anti-unit-siege',      impact: 1.15, scope: 'military', snowball: 1,   urgency: 1,    situationality: 1.15, unlockBreadth: 1 } },
-  { type: 'cannon',       name: 'Cannon',       cost: 120, techRequired: 'black-powder',                                      obsoletedByTech: 'mass-firepower', upgradesTo: 'machine_gunner',    pacing: { band: 'power-spike', role: 'gunpowder-siege',      impact: 1.3,  scope: 'military', snowball: 1.2, urgency: 1.1,  situationality: 1.2,  unlockBreadth: 1 } },
+  { type: 'cannon',       name: 'Cannon',       cost: 120, techRequired: 'black-powder',                                      obsoletedByTech: 'mass-firepower', upgradesTo: 'artillery',    pacing: { band: 'power-spike', role: 'gunpowder-siege',      impact: 1.3,  scope: 'military', snowball: 1.2, urgency: 1.1,  situationality: 1.2,  unlockBreadth: 1 } },
   { type: 'grenadier',    name: 'Grenadier',    cost: 130, techRequired: 'grenade-warfare',  obsoletedByTech: 'mass-firepower', upgradesTo: 'machine_gunner',                                                    pacing: { band: 'power-spike', role: 'anti-fortification',   impact: 1.2,  scope: 'military', snowball: 1.1, urgency: 1,    situationality: 1.3,  unlockBreadth: 1 } },
   { type: 'rifleman',     name: 'Rifleman',     cost: 145, techRequired: 'rifled-infantry',  obsoletedByTech: 'mass-firepower', upgradesTo: 'machine_gunner',                                                     pacing: { band: 'power-spike', role: 'ranged-infantry',      impact: 1.3,  scope: 'military', snowball: 1.2, urgency: 1.1,  situationality: 1.2,  unlockBreadth: 1 } },
+  { type: 'artillery',    name: 'Artillery',    cost: 190, techRequired: 'mass-firepower',   pacing: { band: 'power-spike', role: 'siege-apex',           impact: 1.4,  scope: 'military', snowball: 1.2, urgency: 1.1,  situationality: 1.3,  unlockBreadth: 1 } },
   { type: 'ironclad',     name: 'Ironclad',     cost: 160, techRequired: 'ironclad-warships', coastalRequired: true,         obsoletedByTech: 'naval-armor', upgradesTo: 'pre_dreadnought',       pacing: { band: 'power-spike', role: 'naval-superiority',    impact: 1.4,  scope: 'military', snowball: 1.3, urgency: 1.2,  situationality: 1.4,  unlockBreadth: 1 } },
-  { type: 'machine_gunner', name: 'Machine Gunner', cost: 145, techRequired: 'mass-firepower',   obsoletedByTech: 'armored-tactics',                               pacing: { band: 'power-spike', role: 'ranged-suppression',  impact: 1.35, scope: 'military', snowball: 1.2, urgency: 1.1, situationality: 1.2, unlockBreadth: 1 } },
+  { type: 'machine_gunner', name: 'Machine Gunner', cost: 145, techRequired: 'mass-firepower',   obsoletedByTech: 'armored-tactics', upgradesTo: 'infantry',                             pacing: { band: 'power-spike', role: 'ranged-suppression',  impact: 1.35, scope: 'military', snowball: 1.2, urgency: 1.1, situationality: 1.2, unlockBreadth: 1 } },
+  { type: 'infantry',       name: 'Infantry',       cost: 195, techRequired: 'armored-tactics', pacing: { band: 'power-spike', role: 'modern-line-infantry', impact: 1.4,  scope: 'military', snowball: 1.3, urgency: 1.1,  situationality: 1.2,  unlockBreadth: 1 } },
   { type: 'pre_dreadnought', name: 'Pre-Dreadnought', cost: 175, techRequired: 'naval-armor', coastalRequired: true, obsoletedByTech: 'submarine-warfare', upgradesTo: 'submarine', pacing: { band: 'power-spike', role: 'naval-apex',           impact: 1.5,  scope: 'military', snowball: 1.4, urgency: 1.2, situationality: 1.4, unlockBreadth: 1 } },
   { type: 'tank',      name: 'Tank',      cost: 185, techRequired: 'tank-warfare',                                                                                  pacing: { band: 'power-spike', role: 'armored-assault',     impact: 1.5,  scope: 'military', snowball: 1.4, urgency: 1.2, situationality: 1.3, unlockBreadth: 1 } },
   { type: 'submarine', name: 'Submarine', cost: 180, techRequired: 'submarine-warfare', coastalRequired: true,                                                      pacing: { band: 'power-spike', role: 'naval-stealth',        impact: 1.5,  scope: 'military', snowball: 1.4, urgency: 1.2, situationality: 1.5, unlockBreadth: 1 } },
   { type: 'observation_balloon', name: 'Observation Balloon', cost: 90,  techRequired: 'balloon-corps',   pacing: { band: 'power-spike', role: 'air-recon',  impact: 1.2, scope: 'military', snowball: 1.0, urgency: 1.0, situationality: 1.4, unlockBreadth: 1 } },
   { type: 'biplane',             name: 'Biplane',             cost: 200, techRequired: 'air-superiority', obsoletedByTech: 'jet-aviation', upgradesTo: 'jet_fighter', pacing: { band: 'power-spike', role: 'air-strike', impact: 1.5, scope: 'military', snowball: 1.4, urgency: 1.2, situationality: 1.3, unlockBreadth: 1 } },
-  { type: 'jet_fighter',         name: 'Jet Fighter',         cost: 300, techRequired: 'jet-aviation',    obsoletedByTech: 'stealth-technology', upgradesTo: 'stealth_bomber', pacing: { band: 'marquee',      role: 'air-apex',   impact: 1.6, scope: 'military', snowball: 1.5, urgency: 1.2, situationality: 1.3, unlockBreadth: 1 } },
+  // jet_fighter is the terminal air-superiority fighter; the bomber (below) is the strike line,
+  // not a fighter upgrade — researching stealth tech without a Stealth Airbase must not zero out
+  // trainable air units.
+  { type: 'jet_fighter',         name: 'Jet Fighter',         cost: 300, techRequired: 'jet-aviation',    pacing: { band: 'marquee',      role: 'air-apex',   impact: 1.6, scope: 'military', snowball: 1.5, urgency: 1.2, situationality: 1.3, unlockBreadth: 1 } },
+  { type: 'bomber',              name: 'Bomber',              cost: 280, techRequired: 'nuclear-weapons', obsoletedByTech: 'stealth-technology', upgradesTo: 'stealth_bomber', pacing: { band: 'marquee', role: 'strategic-bombing', impact: 1.6, scope: 'military', snowball: 1.4, urgency: 1.2, situationality: 1.4, unlockBreadth: 1 } },
   { type: 'carrier',             name: 'Carrier',             cost: 220, techRequired: 'carrier-warfare', coastalRequired: true, pacing: { band: 'power-spike', role: 'naval-projection', impact: 1.5, scope: 'military', snowball: 1.4, urgency: 1.1, situationality: 1.4, unlockBreadth: 1 } },
   { type: 'destroyer',           name: 'Destroyer',           cost: 210, techRequired: 'carrier-warfare', coastalRequired: true, pacing: { band: 'power-spike', role: 'naval-escort-apex', impact: 1.55, scope: 'military', snowball: 1.45, urgency: 1.2, situationality: 1.5, unlockBreadth: 1 } },
   // Era 11 units
@@ -1109,12 +1116,15 @@ export const TRAINABLE_UNITS: Array<TrainableUnitEntry & { pacing?: Building['pa
  * either obsoletedByTech or an entry here will fail that test.
  */
 export const TERMINAL_COMBAT_UNITS: Partial<Record<UnitType, string>> = {
-  tank: 'current top-tier armor, no later replacement in the roster yet',
+  tank: 'current top-tier armor, no later replacement in the roster yet — stays apex over modern infantry',
   submarine: 'current top-tier submarine, no later replacement in the roster yet',
   stealth_bomber: 'current air-combat apex (era 12), no later replacement in the roster yet',
   cyber_unit: 'era 12 economic-sabotage unit, unique role (city-only ranged target), no later replacement in the roster yet',
   carrier: 'current top-tier naval projection, no later replacement in the roster yet',
   destroyer: 'modern surface escort, no later replacement yet',
+  artillery: 'current siege apex; rocket artillery is future content',
+  infantry: 'modern line infantry, no later replacement in the roster yet',
+  jet_fighter: 'air-superiority apex; stealth bomber is the bomber line, not a fighter upgrade',
   attack_helicopter: 'era 11, newest air-assault unit, no later replacement yet',
   missile_submarine: 'era 11, newest naval-deterrent unit, no later replacement yet',
   scout: 'recon unit, strength is a self-defense stat not its primary role, no replacement chain',
@@ -1285,6 +1295,7 @@ export const PRODUCTION_ICONS: Record<string, string> = {
   catapult:    '🪨',
   ballista:    '🔩',
   cannon:      '💣',
+  artillery:   '💥',
   grenadier:   '🧨',
   rifleman:    '🎯',
   frigate:     '⛵',
@@ -1367,6 +1378,7 @@ export const PRODUCTION_ICONS: Record<string, string> = {
   // era 8 units
   machine_gunner:  '🔫',
   pre_dreadnought: '🚢',
+  infantry:   '🪖',
   // era 9 buildings
   oil_refinery:         '🛢️',
   assembly_line:        '🏭',
@@ -1389,6 +1401,7 @@ export const PRODUCTION_ICONS: Record<string, string> = {
   observation_balloon: '🎈',
   biplane:    '✈️',
   jet_fighter: '🛩️',
+  bomber:     '💣',
   carrier:    '🛳️',
   destroyer:  '🚤',
   // era 10 regular buildings

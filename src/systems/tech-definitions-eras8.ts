@@ -4,8 +4,8 @@ const ERA_8_TECHS: Tech[] = [
   // MILITARY (2)
   { id: 'mass-firepower', name: 'Mass Firepower', track: 'military', cost: 240,
     prerequisites: ['rifled-infantry', 'mass-mobilization'],
-    unlocks: ['Machine gunners provide concentrated suppressive fire'],
-    unlocksUnits: ['machine_gunner'], era: 8 },
+    unlocks: ['Machine gunners provide concentrated suppressive fire; heavy artillery replaces classical cannon'],
+    unlocksUnits: ['machine_gunner', 'artillery'], era: 8 },
   { id: 'general-mobilization', name: 'General Mobilization', track: 'military', cost: 235,
     prerequisites: ['mass-mobilization'],
     unlocks: ['All cities train military units 15% faster'],

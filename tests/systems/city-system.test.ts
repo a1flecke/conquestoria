@@ -394,6 +394,45 @@ describe('#443 — building obsolescence matches the retired unit line', () => {
   });
 });
 
+describe('MR9 — land/air roster gating', () => {
+  it('musketeer is NOT trainable with tactics alone (moved to Black Powder)', () => {
+    expect(getTrainableUnitsForCiv(['tactics']).some(u => u.type === 'musketeer')).toBe(false);
+  });
+
+  it('musketeer is trainable once black-powder completes', () => {
+    expect(getTrainableUnitsForCiv(['black-powder']).some(u => u.type === 'musketeer')).toBe(true);
+  });
+
+  it('queued musketeer dequeues on load for a tactics-only civ (save-compat)', () => {
+    const map = generateMap(10, 10, 'musketeer-save-compat');
+    const landTile = Object.values(map.tiles).find(t => t.terrain === 'grassland' || t.terrain === 'plains')!;
+    const city = {
+      ...foundCity('p1', landTile.coord, map, mkC()),
+      productionQueue: ['musketeer'],
+      productionProgress: 0,
+    };
+    const result = processCity(city, map, 2, 3, undefined, ['tactics']);
+    expect(result.city.productionQueue).not.toContain('musketeer');
+    expect(result.droppedProductionItem).toBe('musketeer');
+  });
+
+  it('bomber requires only tech, no building — trainable in any city once nuclear-weapons completes', () => {
+    expect(getTrainableUnitsForCiv(['nuclear-weapons']).some(u => u.type === 'bomber')).toBe(true);
+    const bomber = TRAINABLE_UNITS.find(u => u.type === 'bomber');
+    expect(bomber?.trainedFromBuilding).toBeUndefined();
+    expect(bomber?.coastalRequired).toBeUndefined();
+  });
+
+  it('jet_fighter stays trainable after stealth-technology is researched (regression on the MR9 fix)', () => {
+    expect(getTrainableUnitsForCiv(['jet-aviation', 'stealth-technology']).some(u => u.type === 'jet_fighter')).toBe(true);
+  });
+
+  it('artillery is trainable once mass-firepower completes; infantry once armored-tactics completes', () => {
+    expect(getTrainableUnitsForCiv(['mass-firepower']).some(u => u.type === 'artillery')).toBe(true);
+    expect(getTrainableUnitsForCiv(['armored-tactics']).some(u => u.type === 'infantry')).toBe(true);
+  });
+});
+
 describe('#443 — excluded buildings never obsolete (negative regression)', () => {
   it('armory, war-academy, safehouse remain available even with every tech in the game completed', () => {
     const map = generateMap(30, 30, 'city-test');
@@ -1234,7 +1273,8 @@ describe('#429 — expanded obsolescence coverage', () => {
     obsoleteTech: string;
     resources?: ResourceType[];
   }> = [
-    { type: 'warrior', obsoleteTech: 'rifled-infantry' },
+    // MR9: warrior's cheap-fallback role ends once real militaries exist (era 2, Bronze Working).
+    { type: 'warrior', obsoleteTech: 'bronze-working' },
     { type: 'archer', unlockTech: 'archery', obsoleteTech: 'tactics' },
     { type: 'swordsman', unlockTech: 'bronze-working', obsoleteTech: 'rifled-infantry', resources: ['iron'] },
     { type: 'pikeman', unlockTech: 'fortification', obsoleteTech: 'rifled-infantry' },
@@ -1245,12 +1285,10 @@ describe('#429 — expanded obsolescence coverage', () => {
     { type: 'grenadier', unlockTech: 'grenade-warfare', obsoleteTech: 'mass-firepower' },
     { type: 'rifleman', unlockTech: 'rifled-infantry', obsoleteTech: 'mass-firepower' },
     { type: 'biplane', unlockTech: 'air-superiority', obsoleteTech: 'jet-aviation' },
-    // jet_fighter was correctly terminal when #429 shipped, but era-12 work landed
-    // stealth_bomber afterward — same targets (unit/city), same domain (air), same
-    // range, strictly higher strength/cost/movement/vision, requiring a much later
-    // tech. Caught by rebasing this PR onto main during a full review pass and
-    // re-chained here rather than left stale in TERMINAL_COMBAT_UNITS.
-    { type: 'jet_fighter', unlockTech: 'jet-aviation', obsoleteTech: 'stealth-technology' },
+    // MR9: jet_fighter reverted to terminal (air-superiority apex) — the bomber, not the
+    // fighter, is the era-10-to-12 strike line. This also fixes "researched stealth tech
+    // but no airbase yet -> zero trainable air units".
+    { type: 'bomber', unlockTech: 'nuclear-weapons', obsoleteTech: 'stealth-technology' },
   ];
 
   for (const c of CASES) {
@@ -1464,18 +1502,18 @@ describe('processCity — resource dequeue', () => {
     expect(result.city.productionQueue).not.toContain('swordsman');
   });
 
-  it('#429 regression: dequeues a queued warrior once rifled-infantry completes', () => {
+  it('#429 regression (MR9: bronze-working): dequeues a queued warrior once bronze-working completes', () => {
     // productionProgress + productionYield (0 + 3 = 3) stays well under warrior's
     // production cost (8), so removal from the queue can only be the obsoletedByTech
     // dequeue path, not the unit completing production this turn.
     const map = mkMap2();
     const city: City = { ...mkBaseCity2(map), productionQueue: ['warrior'], productionProgress: 0 };
-    const result = processCity(city, map, 2, 3, undefined, ['rifled-infantry'], undefined, 1, new Set<ResourceType>());
+    const result = processCity(city, map, 2, 3, undefined, ['bronze-working'], undefined, 1, new Set<ResourceType>());
     expect(result.city.productionQueue).not.toContain('warrior');
     expect(result.city.productionProgress).toBe(0);
   });
 
-  it('#429 regression: keeps a queued warrior when rifled-infantry has not been researched', () => {
+  it('#429 regression: keeps a queued warrior when bronze-working has not been researched', () => {
     const map = mkMap2();
     const city: City = { ...mkBaseCity2(map), productionQueue: ['warrior'], productionProgress: 0 };
     const result = processCity(city, map, 2, 3, undefined, [], undefined, 1, new Set<ResourceType>());
@@ -1484,9 +1522,9 @@ describe('processCity — resource dequeue', () => {
 });
 
 describe('#429 regression: AI training selection respects new obsolescence data', () => {
-  it('warrior drops out of the AI-visible trainable pool once rifled-infantry completes (same getTrainableUnitsForCiv call basic-ai.ts:948 uses)', () => {
+  it('warrior drops out of the AI-visible trainable pool once bronze-working completes (same getTrainableUnitsForCiv call basic-ai.ts:948 uses)', () => {
     const before = getTrainableUnitsForCiv([], 'rome', new Set<ResourceType>());
-    const after = getTrainableUnitsForCiv(['rifled-infantry'], 'rome', new Set<ResourceType>());
+    const after = getTrainableUnitsForCiv(['bronze-working'], 'rome', new Set<ResourceType>());
     expect(before.some(u => u.type === 'warrior')).toBe(true);
     expect(after.some(u => u.type === 'warrior')).toBe(false);
   });

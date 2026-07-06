@@ -7,7 +7,7 @@ import {
 } from '@/systems/unit-upgrade-system';
 import { EventBus } from '@/core/event-bus';
 import { processTurn } from '@/core/turn-manager';
-import type { GameState, Spy, Unit } from '@/core/types';
+import type { GameState, ResourceType, Spy, Unit } from '@/core/types';
 import { createNewGame } from '@/core/game-state';
 import { TRAINABLE_UNITS, foundCity } from '@/systems/city-system';
 import { TECH_TREE } from '@/systems/tech-definitions';
@@ -73,7 +73,7 @@ describe('explicit upgrade chains', () => {
 
   it('does not infer cross-role upgrades merely because a tech ID matches', () => {
     const steamship = makeUnit('steamship');
-    const machineGunner = makeUnit('machine_gunner');
+    const tank = makeUnit('tank');
     const city = { id: 'c1', owner: 'player', position: { q: 0, r: 0 } } as any;
 
     expect(canUpgradeUnit(
@@ -82,12 +82,39 @@ describe('explicit upgrade chains', () => {
       { [city.id]: city },
       ['caravels', 'ironclad-warships'],
     ).targetType).toBeNull();
+    // Terminal unit (no obsoletedByTech/upgradesTo) — researching a later tech must not
+    // conjure an upgrade target out of thin air.
     expect(canUpgradeUnit(
-      machineGunner,
+      tank,
       city.id,
       { [city.id]: city },
-      ['mass-firepower', 'armored-tactics'],
+      ['tank-warfare', 'armored-tactics'],
     ).targetType).toBeNull();
+  });
+
+  it('archer -> crossbowman upgrade is blocked without Copper (negative), allowed with Copper', () => {
+    const archer = makeUnit('archer');
+    const city = { id: 'c1', owner: 'player', position: { q: 0, r: 0 } } as any;
+
+    const withoutCopper = canUpgradeUnit(
+      archer,
+      city.id,
+      { [city.id]: city },
+      ['tactics'],
+      undefined,
+      new Set<ResourceType>(),
+    );
+    expect(withoutCopper.targetType).toBeNull();
+
+    const withCopper = canUpgradeUnit(
+      archer,
+      city.id,
+      { [city.id]: city },
+      ['tactics'],
+      undefined,
+      new Set<ResourceType>(['copper']),
+    );
+    expect(withCopper.targetType).toBe('crossbowman');
   });
 
   it('keeps every explicit upgrade target catalog-backed and tech-aligned', () => {
@@ -114,10 +141,10 @@ describe('explicit upgrade chains', () => {
 });
 
 describe('trainedFromBuilding upgrade gate (Stealth Airbase)', () => {
-  const completedTechs = ['jet-aviation', 'stealth-technology'];
+  const completedTechs = ['nuclear-weapons', 'stealth-technology'];
 
-  it('blocks jet_fighter -> stealth_bomber upgrade in a city without stealth_airbase, with reason missing-building', () => {
-    const unit = makeUnit('jet_fighter');
+  it('blocks bomber -> stealth_bomber upgrade in a city without stealth_airbase, with reason missing-building', () => {
+    const unit = makeUnit('bomber');
     const city = { id: 'c1', owner: 'player', position: { q: 0, r: 0 }, buildings: [] } as any;
     const result = canUpgradeUnit(unit, 'c1', { c1: city }, completedTechs);
     expect(result.canUpgrade).toBe(false);
@@ -125,8 +152,8 @@ describe('trainedFromBuilding upgrade gate (Stealth Airbase)', () => {
     expect(result.reason).toBe('missing-building');
   });
 
-  it('allows jet_fighter -> stealth_bomber upgrade in a city with stealth_airbase and deducts gold', () => {
-    const unit = makeUnit('jet_fighter');
+  it('allows bomber -> stealth_bomber upgrade in a city with stealth_airbase and deducts gold', () => {
+    const unit = makeUnit('bomber');
     const city = { id: 'c1', owner: 'player', position: { q: 0, r: 0 }, buildings: ['stealth_airbase'] } as any;
     const result = canUpgradeUnit(unit, 'c1', { c1: city }, completedTechs, 1000);
     expect(result.canUpgrade).toBe(true);
@@ -149,7 +176,7 @@ describe('trainedFromBuilding upgrade gate (Stealth Airbase)', () => {
     state.cities[city.id] = city;
     civ.cities = [city.id];
     source.id = 'upgrade-unit';
-    source.type = 'jet_fighter';
+    source.type = 'bomber';
     state.units = { [source.id]: source };
     civ.units = [source.id];
     civ.techState.completed = completedTechs;
@@ -169,7 +196,7 @@ describe('trainedFromBuilding upgrade gate (Stealth Airbase)', () => {
     state.cities[city.id] = city;
     civ.cities = [city.id];
     source.id = 'upgrade-unit';
-    source.type = 'jet_fighter';
+    source.type = 'bomber';
     state.units = { [source.id]: source };
     civ.units = [source.id];
     civ.techState.completed = completedTechs;

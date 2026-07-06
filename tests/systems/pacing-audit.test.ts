@@ -15,7 +15,7 @@ describe('pacing-audit', () => {
     const rows = buildPacingAudit();
     expect(rows.find(row => row.id === 'walls')?.era).toBe(3);
     expect(rows.find(row => row.id === 'observatory')?.era).toBe(4);
-    expect(rows.find(row => row.id === 'musketeer')?.era).toBe(4);
+    expect(rows.find(row => row.id === 'musketeer')?.era).toBe(5);
   });
 
   it('reports recommended cost and outlier signals', () => {

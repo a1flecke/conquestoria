@@ -9,7 +9,7 @@ export const TECH_TREE_ERAS_1_4: Tech[] = [
   { id: 'fortification', name: 'Fortification', track: 'military', cost: 60, prerequisites: ['bronze-working'], unlocks: [], unlocksUnits: ['pikeman'], unlocksBuildings: ['walls'], era: 3 },
   { id: 'iron-forging', name: 'Iron Forging', track: 'military', cost: 80, prerequisites: ['bronze-working', 'mining-tech'], unlocks: [], unlocksUnits: ['knight'], unlocksBuildings: ['iron-foundry', 'war-academy', 'iron_legion'], era: 3 },
   { id: 'siege-warfare', name: 'Siege Warfare', track: 'military', cost: 90, prerequisites: ['iron-forging', 'engineering'], unlocks: [], unlocksUnits: ['catapult', 'ballista'], unlocksBuildings: ['siege-workshop'], era: 4 },
-  { id: 'tactics', name: 'Tactics', track: 'military', cost: 100, prerequisites: ['iron-forging'], unlocks: ['Units get +10% combat bonus'], unlocksUnits: ['musketeer', 'crossbowman'], unlocksBuildings: ['praetorian_legion'], era: 4 },
+  { id: 'tactics', name: 'Tactics', track: 'military', cost: 100, prerequisites: ['iron-forging'], unlocks: ['Units get +10% combat bonus'], unlocksUnits: ['crossbowman'], unlocksBuildings: ['praetorian_legion'], era: 4 },
 
   // === ECONOMY TRACK (9 techs, with Slice 3 late-era scaffolding) ===
   { id: 'gathering', name: 'Gathering', track: 'economy', cost: 4, prerequisites: [], unlocks: ['Foundational economy knowledge', 'Reveal Stone resource'], unlocksBuildings: ['communal_stores'], era: 1, pacing: { band: 'starter', role: 'foundational-economy', impact: 1, scope: 'empire', snowball: 1.1, urgency: 1.05, situationality: 1, unlockBreadth: 1.05 } },
