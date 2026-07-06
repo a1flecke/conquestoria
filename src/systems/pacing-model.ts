@@ -56,7 +56,10 @@ export interface ResearchOutputProfile {
     | 'era-6-established'
     | 'era-7-established'
     | 'era-8-established'
-    | 'era-9-established';
+    | 'era-9-established'
+    | 'era-10-established'
+    | 'era-11-established'
+    | 'era-12-established';
   outputPerTurn: number;
 }
 
@@ -70,6 +73,11 @@ const RESEARCH_OUTPUT_BY_ERA: Record<number, ResearchOutputProfile> = {
   7: { name: 'era-7-established', outputPerTurn: 19 },
   8: { name: 'era-8-established', outputPerTurn: 22 },
   9: { name: 'era-9-established', outputPerTurn: 25 },
+  // era 10-12: extended in MR13 (#481, fixes F2) — values re-derived and pinned against
+  // tests/systems/pacing-reference-economy.test.ts, see that file's comment for methodology.
+  10: { name: 'era-10-established', outputPerTurn: 28 },
+  11: { name: 'era-11-established', outputPerTurn: 31 },
+  12: { name: 'era-12-established', outputPerTurn: 34 },
 };
 
 export const OPENING_SCIENCE_INVESTED_PROFILE: ResearchOutputProfile = {
@@ -89,7 +97,7 @@ function clamp(value: number, min: number, max: number): number {
 function normalizeEra(era: number): number {
   const numericEra = Number.isFinite(era) ? era : 1;
   const normalized = Math.max(1, Math.floor(numericEra));
-  return Math.min(9, normalized);
+  return Math.min(12, normalized);
 }
 
 function findTech(techId: string, techs: Tech[]): Tech | undefined {
