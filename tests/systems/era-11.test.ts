@@ -80,8 +80,10 @@ describe('era 11 missile_submarine unit', () => {
     expect(UNIT_DEFINITIONS.missile_submarine.domain).toBe('naval');
   });
 
-  it('missile_submarine has strength 45', () => {
-    expect(UNIT_DEFINITIONS.missile_submarine.strength).toBe(45);
+  // MR8: 45 was strictly worse than the era-9 submarine (52) — bumped to 56 so the
+  // era-11 unit is actually an upgrade over its era-9 predecessor.
+  it('missile_submarine has strength 56', () => {
+    expect(UNIT_DEFINITIONS.missile_submarine.strength).toBe(56);
   });
 
   it('missile_submarine has movementPoints 5', () => {

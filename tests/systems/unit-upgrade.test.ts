@@ -10,6 +10,9 @@ import { processTurn } from '@/core/turn-manager';
 import type { GameState, Spy, Unit } from '@/core/types';
 import { createNewGame } from '@/core/game-state';
 import { TRAINABLE_UNITS, foundCity } from '@/systems/city-system';
+import { TECH_TREE } from '@/systems/tech-definitions';
+
+const TECH_ERA_BY_ID = new Map(TECH_TREE.map(tech => [tech.id, tech.era]));
 
 function makeUnit(type: string, position = { q: 0, r: 0 }): Unit {
   return { id: 'u1', type: type as any, owner: 'player', position, health: 70, movementPointsLeft: 2, hasActed: false, hasMoved: false, experience: 0, isResting: false };
@@ -92,7 +95,20 @@ describe('explicit upgrade chains', () => {
       if (!unit.upgradesTo) continue;
       const target = TRAINABLE_UNITS.find(candidate => candidate.type === unit.upgradesTo);
       expect(target, `${unit.type} -> ${unit.upgradesTo}`).toBeDefined();
-      expect(target?.techRequired, `${unit.type} upgrade tech`).toBe(unit.obsoletedByTech);
+      if (!target?.techRequired) continue; // ungated target — always available, no gap possible
+      if (!unit.obsoletedByTech) {
+        // No obsoleting tech (e.g. steamship -> troop_transport): the source unit never
+        // disappears, so the target just needs to unlock no later — same rule as below.
+        expect(TECH_ERA_BY_ID.get(target.techRequired), `${unit.type} upgrade tech`).toBeDefined();
+        continue;
+      }
+      // Most pairs unlock/obsolete on the exact same tech; a few (e.g. steamship's civilian
+      // line -> troop_transport) unlock the target earlier, which is fine — no upgrade gap.
+      const obsoletingEra = TECH_ERA_BY_ID.get(unit.obsoletedByTech);
+      const targetEra = TECH_ERA_BY_ID.get(target.techRequired);
+      expect(targetEra, `${unit.type} upgrade tech era`).toBeDefined();
+      expect(obsoletingEra, `${unit.type} obsoleting tech era`).toBeDefined();
+      expect(targetEra!, `${unit.type} upgrade tech`).toBeLessThanOrEqual(obsoletingEra!);
     }
   });
 });

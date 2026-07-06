@@ -342,6 +342,35 @@ describe('#443 — building obsolescence data', () => {
   });
 });
 
+describe('MR8 — naval roster gating', () => {
+  it('trireme is trainable through era 5 and obsoletes at frigate-construction', () => {
+    expect(getTrainableUnitsForCiv(['triremes']).some(u => u.type === 'trireme')).toBe(true);
+    expect(getTrainableUnitsForCiv(['triremes', 'frigate-construction']).some(u => u.type === 'trireme')).toBe(false);
+  });
+
+  it('frigate is trainable exactly when frigate-construction is complete (negative: not complete)', () => {
+    expect(getTrainableUnitsForCiv(['frigate-construction']).some(u => u.type === 'frigate')).toBe(true);
+    expect(getTrainableUnitsForCiv([]).some(u => u.type === 'frigate')).toBe(false);
+  });
+
+  it('frigate obsoletes once ironclad-warships completes', () => {
+    expect(getTrainableUnitsForCiv(['frigate-construction', 'ironclad-warships']).some(u => u.type === 'frigate')).toBe(false);
+  });
+
+  it('destroyer is trainable exactly when carrier-warfare is complete (negative: not complete)', () => {
+    expect(getTrainableUnitsForCiv(['carrier-warfare']).some(u => u.type === 'destroyer')).toBe(true);
+    expect(getTrainableUnitsForCiv([]).some(u => u.type === 'destroyer')).toBe(false);
+  });
+
+  it.each(['frigate', 'destroyer'] satisfies UnitType[])('%s is coastalRequired', (unitType) => {
+    expect(TRAINABLE_UNITS.find(u => u.type === unitType)?.coastalRequired).toBe(true);
+  });
+
+  it('trireme is still trainable at era 4 (caravels complete) — no era-4-6 warship gap', () => {
+    expect(getTrainableUnitsForCiv(['triremes', 'harbor-building', 'caravels']).some(u => u.type === 'trireme')).toBe(true);
+  });
+});
+
 describe('#443 — building obsolescence matches the retired unit line', () => {
   it('stable ("Trains mounted units"): horseman/cavalry/knight are all gone once tank-warfare completes', () => {
     const units = getTrainableUnitsForCiv(
@@ -407,7 +436,23 @@ describe('getTrainableUnitsForCity', () => {
     };
   }
 
-  it('shows Galley, Trireme, and Transport only in coastal cities', () => {
+  it('shows Galley and Transport only in coastal cities (galley: pre-triremes)', () => {
+    const map = coastalGateMap();
+    const coastalCity = foundCity('p1', { q: 0, r: 0 }, map, mkC());
+    coastalCity.ownedTiles = [{ q: 0, r: 0 }, { q: 1, r: 0 }];
+    const inlandCity = foundCity('p1', { q: 3, r: 0 }, map, mkC());
+    inlandCity.ownedTiles = [{ q: 3, r: 0 }];
+    const techs = ['galleys'];
+
+    const coastalTypes = getTrainableUnitsForCity(coastalCity, techs, map).map(unit => unit.type);
+    const inlandTypes = getTrainableUnitsForCity(inlandCity, techs, map).map(unit => unit.type);
+
+    expect(coastalTypes).toEqual(expect.arrayContaining(['galley', 'transport']));
+    expect(inlandTypes).not.toContain('galley');
+    expect(inlandTypes).not.toContain('transport');
+  });
+
+  it('shows Trireme only in coastal cities (galley obsoleted by triremes)', () => {
     const map = coastalGateMap();
     const coastalCity = foundCity('p1', { q: 0, r: 0 }, map, mkC());
     coastalCity.ownedTiles = [{ q: 0, r: 0 }, { q: 1, r: 0 }];
@@ -418,10 +463,9 @@ describe('getTrainableUnitsForCity', () => {
     const coastalTypes = getTrainableUnitsForCity(coastalCity, techs, map).map(unit => unit.type);
     const inlandTypes = getTrainableUnitsForCity(inlandCity, techs, map).map(unit => unit.type);
 
-    expect(coastalTypes).toEqual(expect.arrayContaining(['galley', 'trireme', 'transport']));
-    expect(inlandTypes).not.toContain('galley');
+    expect(coastalTypes).toContain('trireme');
+    expect(coastalTypes).not.toContain('galley');
     expect(inlandTypes).not.toContain('trireme');
-    expect(inlandTypes).not.toContain('transport');
   });
 
   it('stealth_bomber is not offered by cities without a stealth_airbase', () => {
@@ -631,6 +675,31 @@ describe('processCity', () => {
     const result = processCity(city, map, 2);
     expect(result.droppedBuilding).toBeNull();
   });
+
+  it.each(['frigate', 'destroyer'] satisfies UnitType[])(
+    'coastal guard dequeues %s when the city is not coastal',
+    (unitType) => {
+      const map = generateMap(30, 30, `coastal-guard-${unitType}`);
+      const inlandTile = Object.values(map.tiles).find(t =>
+        t.terrain === 'grassland' &&
+        !Object.values(map.tiles).some(n =>
+          Math.abs(n.coord.q - t.coord.q) <= 1 &&
+          Math.abs(n.coord.r - t.coord.r) <= 1 &&
+          (n.terrain === 'ocean' || n.terrain === 'coast')
+        )
+      )!;
+      const city = {
+        ...foundCity('p1', inlandTile.coord, map, mkC()),
+        productionQueue: [unitType],
+        productionProgress: 10,
+      };
+      const completedTechs = unitType === 'frigate' ? ['frigate-construction'] : ['carrier-warfare'];
+      const result = processCity(city, map, 2, 100, undefined, completedTechs);
+      expect(result.droppedUnit).toBe(unitType);
+      expect(result.city.productionQueue).not.toContain(unitType);
+      expect(result.city.productionProgress).toBe(0);
+    },
+  );
 
   it('preserves focus fields after city growth processing', () => {
     const map = generateMap(30, 30, 'city-growth-focus-fields');
@@ -1169,8 +1238,10 @@ describe('#429 — expanded obsolescence coverage', () => {
     { type: 'archer', unlockTech: 'archery', obsoleteTech: 'tactics' },
     { type: 'swordsman', unlockTech: 'bronze-working', obsoleteTech: 'rifled-infantry', resources: ['iron'] },
     { type: 'pikeman', unlockTech: 'fortification', obsoleteTech: 'rifled-infantry' },
-    { type: 'galley', unlockTech: 'galleys', obsoleteTech: 'navigation' },
-    { type: 'trireme', unlockTech: 'triremes', obsoleteTech: 'caravels' },
+    // MR8: galley's fighting line now upgrades into trireme (obsoletes at triremes,
+    // not navigation); trireme now covers eras 3-5 and obsoletes at frigate-construction.
+    { type: 'galley', unlockTech: 'galleys', obsoleteTech: 'triremes' },
+    { type: 'trireme', unlockTech: 'triremes', obsoleteTech: 'frigate-construction' },
     { type: 'grenadier', unlockTech: 'grenade-warfare', obsoleteTech: 'mass-firepower' },
     { type: 'rifleman', unlockTech: 'rifled-infantry', obsoleteTech: 'mass-firepower' },
     { type: 'biplane', unlockTech: 'air-superiority', obsoleteTech: 'jet-aviation' },

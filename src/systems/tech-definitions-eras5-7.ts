@@ -213,7 +213,7 @@ const ERA_6_TECHS: Tech[] = [
     unlocks: ['Naval units gain +1 movement'], era: 6 },
   { id: 'frigate-construction', name: 'Frigate Construction', track: 'maritime', cost: 180,
     prerequisites: ['naval-gunnery'],
-    unlocks: ['Frigate unlocked — fast armed escort'], era: 6 },
+    unlocks: ['Frigate unlocked — fast armed escort'], unlocksUnits: ['frigate'], era: 6 },
 
   // METALLURGY (2)
   { id: 'precision-casting', name: 'Precision Casting', track: 'metallurgy', cost: 185,

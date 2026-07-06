@@ -80,8 +80,10 @@ describe('era 10 carrier unit', () => {
     expect(UNIT_DEFINITIONS.carrier.domain).toBe('naval');
   });
 
-  it('carrier has strength 30', () => {
-    expect(UNIT_DEFINITIONS.carrier.strength).toBe(30);
+  // MR8: carrier re-spec'd honestly (30 -> 45) — no air-basing capability yet, so it
+  // needed to justify its cost as a mobile combat platform rather than a hollow escort.
+  it('carrier has strength 45', () => {
+    expect(UNIT_DEFINITIONS.carrier.strength).toBe(45);
   });
 
   it('carrier has movementPoints 4', () => {

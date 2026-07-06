@@ -61,6 +61,7 @@ export function getClassCounterMultiplier(
   for (const counter of CLASS_COUNTERS) {
     if (counter.requiresDefenderInFriendlyCity && !defenderInFriendlyCity) continue;
     if (counter.requiresDefenderDomain && counter.requiresDefenderDomain !== defenderDomain) continue;
+    if (counter.defenderTypes && !counter.defenderTypes.includes(defenderType)) continue;
     if (!defenderClasses.includes(counter.defenderClass)) continue;
     if (counter.attackerTypes) {
       if (!counter.attackerTypes.includes(attackerType)) continue;

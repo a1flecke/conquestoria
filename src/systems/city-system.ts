@@ -1049,13 +1049,16 @@ export const TRAINABLE_UNITS: Array<TrainableUnitEntry & { pacing?: Building['pa
   { type: 'swordsman',    name: 'Swordsman',    cost: 50,  techRequired: 'bronze-working',   resourceRequired: ['iron'],   obsoletedByTech: 'rifled-infantry', upgradesTo: 'rifleman',        pacing: { band: 'power-spike', role: 'melee-breakpoint',       impact: 1.2,  scope: 'military', snowball: 1,   urgency: 1,    situationality: 1,    unlockBreadth: 1 } },
   { type: 'pikeman',      name: 'Pikeman',      cost: 70,  techRequired: 'fortification',    obsoletedByTech: 'rifled-infantry', upgradesTo: 'rifleman',                                        pacing: { band: 'power-spike', role: 'anti-cavalry-breakpoint', impact: 1.15, scope: 'military', snowball: 1,   urgency: 1,    situationality: 1.05, unlockBreadth: 1 } },
   { type: 'musketeer',    name: 'Musketeer',    cost: 90,  techRequired: 'tactics',   obsoletedByTech: 'rifled-infantry', upgradesTo: 'rifleman' },
-  { type: 'galley',          name: 'Galley',          cost: 40,  techRequired: 'galleys',            coastalRequired: true, obsoletedByTech: 'navigation', upgradesTo: 'carrack' },
+  // galley's fighting line now upgrades into trireme (not the civilian carrack line).
+  { type: 'galley',          name: 'Galley',          cost: 40,  techRequired: 'galleys',            coastalRequired: true, obsoletedByTech: 'triremes', upgradesTo: 'trireme' },
   { type: 'transport',       name: 'Transport',       cost: 45,  techRequired: 'galleys',            coastalRequired: true, obsoletedByTech: 'navigation', upgradesTo: 'carrack' },
   { type: 'carrack',         name: 'Carrack',         cost: 48,  techRequired: 'navigation',         coastalRequired: true, obsoletedByTech: 'triremes', upgradesTo: 'galleon' },
   { type: 'galleon',         name: 'Galleon',         cost: 80,  techRequired: 'triremes',           coastalRequired: true, obsoletedByTech: 'caravels', upgradesTo: 'steamship' },
-  { type: 'steamship',       name: 'Steamship',       cost: 100, techRequired: 'caravels',           coastalRequired: true, obsoletedByTech: 'ironclad-warships' },
+  { type: 'steamship',       name: 'Steamship',       cost: 100, techRequired: 'caravels',           coastalRequired: true, obsoletedByTech: 'ironclad-warships', upgradesTo: 'troop_transport' },
   { type: 'troop_transport', name: 'Troop Transport', cost: 120, techRequired: 'amphibious-warfare', coastalRequired: true },
-  { type: 'trireme',         name: 'Trireme',         cost: 70,  techRequired: 'triremes',           coastalRequired: true, obsoletedByTech: 'caravels', upgradesTo: 'steamship', pacing: { band: 'power-spike', role: 'naval-breakpoint', impact: 1.15, scope: 'military', snowball: 1, urgency: 1, situationality: 1.1, unlockBreadth: 1 } },
+  // trireme now covers eras 3-5 and upgrades into the frigate (fighting line), not the civilian steamship.
+  { type: 'trireme',         name: 'Trireme',         cost: 70,  techRequired: 'triremes',           coastalRequired: true, obsoletedByTech: 'frigate-construction', upgradesTo: 'frigate', pacing: { band: 'power-spike', role: 'naval-breakpoint', impact: 1.15, scope: 'military', snowball: 1, urgency: 1, situationality: 1.1, unlockBreadth: 1 } },
+  { type: 'frigate',         name: 'Frigate',         cost: 140, techRequired: 'frigate-construction', coastalRequired: true, obsoletedByTech: 'ironclad-warships', upgradesTo: 'ironclad', pacing: { band: 'power-spike', role: 'naval-escort-breakpoint', impact: 1.3, scope: 'military', snowball: 1.2, urgency: 1.1, situationality: 1.3, unlockBreadth: 1 } },
   // S4b — melee
   { type: 'axeman',       name: 'Axeman',       cost: 22,  techRequired: 'stone-weapons',    resourceRequired: ['copper'],         obsoletedByTech: 'fortification', upgradesTo: 'pikeman', pacing: { band: 'power-spike', role: 'early-copper-melee',    impact: 1.1,  scope: 'military', snowball: 1,   urgency: 1.05, situationality: 1.1,  unlockBreadth: 1 } },
   { type: 'spearman',     name: 'Spearman',     cost: 32,  techRequired: 'bronze-working',                                        obsoletedByTech: 'fortification', upgradesTo: 'pikeman', pacing: { band: 'power-spike', role: 'ungated-era2-melee',    impact: 1.05, scope: 'military', snowball: 1,   urgency: 1,    situationality: 1,    unlockBreadth: 1 } },
@@ -1078,6 +1081,7 @@ export const TRAINABLE_UNITS: Array<TrainableUnitEntry & { pacing?: Building['pa
   { type: 'biplane',             name: 'Biplane',             cost: 200, techRequired: 'air-superiority', obsoletedByTech: 'jet-aviation', upgradesTo: 'jet_fighter', pacing: { band: 'power-spike', role: 'air-strike', impact: 1.5, scope: 'military', snowball: 1.4, urgency: 1.2, situationality: 1.3, unlockBreadth: 1 } },
   { type: 'jet_fighter',         name: 'Jet Fighter',         cost: 300, techRequired: 'jet-aviation',    obsoletedByTech: 'stealth-technology', upgradesTo: 'stealth_bomber', pacing: { band: 'marquee',      role: 'air-apex',   impact: 1.6, scope: 'military', snowball: 1.5, urgency: 1.2, situationality: 1.3, unlockBreadth: 1 } },
   { type: 'carrier',             name: 'Carrier',             cost: 220, techRequired: 'carrier-warfare', coastalRequired: true, pacing: { band: 'power-spike', role: 'naval-projection', impact: 1.5, scope: 'military', snowball: 1.4, urgency: 1.1, situationality: 1.4, unlockBreadth: 1 } },
+  { type: 'destroyer',           name: 'Destroyer',           cost: 210, techRequired: 'carrier-warfare', coastalRequired: true, pacing: { band: 'power-spike', role: 'naval-escort-apex', impact: 1.55, scope: 'military', snowball: 1.45, urgency: 1.2, situationality: 1.5, unlockBreadth: 1 } },
   // Era 11 units
   { type: 'attack_helicopter', name: 'Attack Helicopter', cost: 230, techRequired: 'helicopter-warfare', pacing: { band: 'marquee', role: 'air-assault', impact: 1.55, scope: 'military', snowball: 1.4, urgency: 1.2, situationality: 1.3, unlockBreadth: 1 } },
   { type: 'missile_submarine', name: 'Missile Submarine', cost: 250, techRequired: 'nuclear-submarines', coastalRequired: true, pacing: { band: 'marquee', role: 'naval-deterrent', impact: 1.6, scope: 'military', snowball: 1.5, urgency: 1.2, situationality: 1.5, unlockBreadth: 1 } },
@@ -1110,6 +1114,7 @@ export const TERMINAL_COMBAT_UNITS: Partial<Record<UnitType, string>> = {
   stealth_bomber: 'current air-combat apex (era 12), no later replacement in the roster yet',
   cyber_unit: 'era 12 economic-sabotage unit, unique role (city-only ranged target), no later replacement in the roster yet',
   carrier: 'current top-tier naval projection, no later replacement in the roster yet',
+  destroyer: 'modern surface escort, no later replacement yet',
   attack_helicopter: 'era 11, newest air-assault unit, no later replacement yet',
   missile_submarine: 'era 11, newest naval-deterrent unit, no later replacement yet',
   scout: 'recon unit, strength is a self-defense stat not its primary role, no replacement chain',
@@ -1282,6 +1287,7 @@ export const PRODUCTION_ICONS: Record<string, string> = {
   cannon:      '💣',
   grenadier:   '🧨',
   rifleman:    '🎯',
+  frigate:     '⛵',
   ironclad:    '⚓',
   // S4b — new building icons
   'bronze-workshop': '🔧',
@@ -1384,6 +1390,7 @@ export const PRODUCTION_ICONS: Record<string, string> = {
   biplane:    '✈️',
   jet_fighter: '🛩️',
   carrier:    '🛳️',
+  destroyer:  '🚤',
   // era 10 regular buildings
   nuclear_arsenal: '☢️',
   central_bank: '🏦',

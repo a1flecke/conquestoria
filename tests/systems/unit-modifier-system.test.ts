@@ -214,6 +214,15 @@ describe('getClassCounterMultiplier — class counters', () => {
     expect(landCivilian).toBeUndefined();
   });
 
+  it('destroyer vs submarine/missile_submarine (sub-hunter): ×1.25 (negative: pre_dreadnought)', () => {
+    const vsSubmarine = getClassCounterMultiplier('destroyer', 'submarine', false);
+    const vsMissileSubmarine = getClassCounterMultiplier('destroyer', 'missile_submarine', false);
+    const vsPreDreadnought = getClassCounterMultiplier('destroyer', 'pre_dreadnought', false);
+    expect(vsSubmarine?.multiplier).toBe(1.25);
+    expect(vsMissileSubmarine?.multiplier).toBe(1.25);
+    expect(vsPreDreadnought).toBeUndefined();
+  });
+
   it('counters only apply on the attacker side of getCombatModifier (negative: defender role)', () => {
     const asAttacker = getCombatModifier('pikeman', 'attacker', baseCombatCtx({ opponentType: 'knight' }));
     const asDefender = getCombatModifier('knight', 'defender', baseCombatCtx({ opponentType: 'pikeman' }));
