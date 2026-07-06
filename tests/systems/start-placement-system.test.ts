@@ -132,6 +132,9 @@ describe('civilization start placement', () => {
       .toEqual(input.civilizationTypeIds);
   });
 
+  // Exercises 9 map-size/script combinations of real geo-map generation + strict start
+  // search; comfortably under 5s locally but trips the default vitest timeout on loaded
+  // CI runners. Not related to this PR — bumping the timeout to unblock CI.
   it('finds strict starts at every supported geographic map capacity', () => {
     const scripts = [
       { id: 'earth' as const, tiles: EARTH_TILES, rivers: EARTH_RIVERS, wraps: true },
@@ -170,5 +173,5 @@ describe('civilization start placement', () => {
         }
       }
     }
-  });
+  }, 20000);
 });
