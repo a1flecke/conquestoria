@@ -57,10 +57,12 @@ macOS HUD problem was solved.
 `src/main.ts` remains responsible for populating the live HUD. The yield row
 will align its children at the center on the cross axis.
 
-The fix belongs on the parent row because it expresses the shared relationship
-between all yield items. The gold button keeps its 44-pixel minimum touch target,
-drawer callback, nowrap behavior, and ellipsis overflow handling. No individual
-margin, transform, relative-position, or line-height compensation will be added.
+The primary fix belongs on the parent row because it expresses the shared
+relationship between all yield items. The gold button also inherits the HUD font
+family so its text uses the same metrics as the neighboring spans. It keeps its
+44-pixel minimum touch target, drawer callback, nowrap behavior, and ellipsis
+overflow handling. No individual margin, transform, relative-position, or
+line-height compensation will be added.
 
 The row will expose a stable data attribute for rendered-layout regression
 coverage. This attribute is a test/inspection contract only and does not affect
