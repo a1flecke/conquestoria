@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { WONDER_DEFINITIONS, getWonderDefinition } from '@/systems/wonder-definitions';
 import { LEGENDARY_WONDER_DEFINITIONS } from '@/systems/legendary-wonder-definitions';
-import { BUILDINGS } from '@/systems/city-system';
+import { BUILDINGS, TRAINABLE_UNITS } from '@/systems/city-system';
 import { TECH_TREE } from '@/systems/tech-definitions';
 
 const ALL_WONDER_DEFINITIONS = LEGENDARY_WONDER_DEFINITIONS;
@@ -170,5 +170,29 @@ describe('MR10 — name collision regression lock', () => {
     expect(tech.name).not.toBe(legendary.name);
     expect(legendary.name).toBe('Internet');
     expect(tech.name).toBe('Internet Protocols');
+  });
+
+  // MR10 guardrail: a legendary wonder and a national project shared the exact display
+  // name "Manhattan Project" (players could not tell them apart in notifications, the
+  // codex, or the build queue). Scoped to wonder names specifically — a tech sharing a
+  // name with the building it unlocks (e.g. "Blast Furnace" tech -> blast_furnace
+  // building) is a deliberate, harmless convention elsewhere in this codebase and must
+  // stay allowed; only a wonder's name colliding with anything else is the real bug class.
+  it('no legendary or natural wonder shares its display name with a building, tech, or trainable unit', () => {
+    const wonderNames = new Map<string, string>([
+      ...LEGENDARY_WONDER_DEFINITIONS.map(w => [w.name, w.id] as const),
+      ...WONDER_DEFINITIONS.map(w => [w.name, w.id] as const),
+    ]);
+    const otherNamed: Array<{ source: string; id: string; name: string }> = [
+      ...Object.values(BUILDINGS).map(b => ({ source: 'building', id: b.id, name: b.name })),
+      ...TECH_TREE.map(t => ({ source: 'tech', id: t.id, name: t.name })),
+      ...TRAINABLE_UNITS.map(u => ({ source: 'unit', id: u.type, name: u.name })),
+    ];
+
+    const collisions = otherNamed
+      .filter(entry => wonderNames.has(entry.name))
+      .map(entry => ({ ...entry, wonderId: wonderNames.get(entry.name) }));
+
+    expect(collisions, `wonder name collisions found: ${JSON.stringify(collisions)}`).toEqual([]);
   });
 });

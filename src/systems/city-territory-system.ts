@@ -75,7 +75,7 @@ export function cityDistance(a: HexCoord, b: HexCoord, map: GameMap): number {
   return map.wrapsHorizontally ? wrappedHexDistance(a, b, map.width) : hexDistance(a, b);
 }
 
-function canClaimTile(tile: GameState['map']['tiles'][string] | undefined): boolean {
+export function canClaimTile(tile: GameState['map']['tiles'][string] | undefined): boolean {
   // Ocean is normally unclaimable, but a tile bearing a natural wonder (e.g. eternal_storm)
   // must be claimable regardless of terrain — otherwise its yield can never be earned.
   return Boolean(tile && (tile.terrain !== 'ocean' || tile.wonder != null));

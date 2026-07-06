@@ -6,6 +6,7 @@ import { hexKey } from '@/systems/hex-utils';
 import {
   buildCityWorkClaimIndex,
   buildTerritoryTileFlippedEvents,
+  canClaimTile,
   canonicalizeCityCoord,
   cityDistance,
   cleanupTerritoryFrontiers,
@@ -19,6 +20,7 @@ import {
   TERRITORY_PRESSURE_BALANCE,
   type TerritoryResolution,
 } from '@/systems/city-territory-system';
+import { WONDER_DEFINITIONS } from '@/systems/wonder-definitions';
 
 const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
 
@@ -157,6 +159,27 @@ describe('city founding territory rules', () => {
     expect(ownedKeys).toContain('11,10'); // ocean tile WITH a wonder — claimable
     expect(ownedKeys).not.toContain('12,10'); // plain ocean tile — still excluded
     expect(result.state.map.tiles['11,10']?.owner).toBe('player');
+  });
+
+  // MR10 guardrail: every natural wonder's terrain must be claimable once a wonder
+  // occupies it, not just the one (eternal_storm) that happened to get caught.
+  it('every natural wonder terrain is claimable when a wonder occupies the tile', () => {
+    for (const wonder of WONDER_DEFINITIONS) {
+      for (const terrain of wonder.validTerrain) {
+        const tile = {
+          coord: { q: 0, r: 0 },
+          terrain,
+          elevation: 'lowland' as const,
+          resource: null,
+          improvement: 'none' as const,
+          owner: null,
+          improvementTurnsLeft: 0,
+          hasRiver: false,
+          wonder: wonder.id,
+        };
+        expect(canClaimTile(tile), `${wonder.id} on ${terrain} must be claimable once occupied`).toBe(true);
+      }
+    }
   });
 
   it('does not steal valid foreign-held tiles during MR1 founding recalculation', () => {
