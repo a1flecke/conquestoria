@@ -47,6 +47,10 @@ set -eu
   echo "linked-worktree GIT_DIR leaked into main wrapper" >&2
   exit 41
 }
+[ "$*" != "yarn bin tauri" ] || {
+  printf '%s\n' '/fake/tauri.js'
+  exit 0
+}
 exec mise exec -- "$@"
 EOF
 chmod +x "$main/scripts/run-with-mise.sh"
@@ -131,7 +135,7 @@ rm -f "$mise_log"
     MISE_LOG="$mise_log" \
     ./scripts/run-with-mise.sh yarn tauri:build:mac-app
 )
-grep -Eq "^$linked\\|exec -- node .* build --config .* --bundles app$" "$mise_log" || {
+grep -Eq "^$linked\\|exec -- node /fake/tauri\\.js build --config .* --bundles app$" "$mise_log" || {
   echo "worktree macOS app build ran outside the active worktree"
   exit 1
 }

@@ -21,8 +21,8 @@ set -eu
 #   yarn vite …        → yarn vite $CURRENT_ROOT …           (positional root)
 #   yarn node …        → execute from $CURRENT_ROOT so relative scripts and outputs
 #                        stay in the active worktree while Yarn resolves from the parent
-#   yarn tauri:*        → execute the package script from $CURRENT_ROOT so Tauri
-#                        packages the active worktree instead of the main checkout
+#   yarn tauri:*        → resolve the installed CLI from $MAIN_ROOT, then execute
+#                        it from $CURRENT_ROOT so Tauri packages the active worktree
 #   yarn install       → always execute from $MAIN_ROOT, including first install
 #   yarn setup:hooks   → execute the installer for the active worktree
 #   yarn verify:push   → execute the canonical verifier for the active worktree
