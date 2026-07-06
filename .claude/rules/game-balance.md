@@ -91,3 +91,19 @@ When adding a new wonder, national project, or special building in any future er
 - [ ] Any movement bonus: update the stacking inventory table above; confirm total ≤ +2 empire-wide for affected unit class
 - [ ] National project production discount (new class, see above): append a row to `NP_PRODUCTION_DISCOUNTS`, don't branch; confirm every `getProductionCostForItem` caller in the list above still passes `activeNationalProjects`
 - [ ] Run `yarn test` — `national-project-balance.test.ts` and `wonder-definitions.test.ts` will fail if ceilings are exceeded
+
+## Pacing Regression Prevention
+
+- Any MR that adds or activates a new economy-affecting bonus (tech yield, building
+  yield, wonder yield, national-project yield) MUST re-run
+  `tests/systems/pacing-audit.test.ts`'s full-catalog outlier gate before merging.
+- If the change shifts a reference-economy era snapshot's output (see
+  `tests/systems/pacing-reference-economy.test.ts`), the PR must include the updated
+  snapshot numbers and a one-line justification, not just a passing test — this is the
+  seam future MRs go through instead of silently drifting pacing the way MR4–6 did
+  (see issue #481 for the incident this rule prevents).
+- The reference-economy fixture bounds a single city's building set to buildings gated
+  within the last 4 eras (`BUILDING_ERA_WINDOW` in `tests/systems/helpers/pacing-reference-economy.ts`)
+  to avoid unbounded output growth from accumulating every building ever unlocked. If a
+  future MR needs to change this window, re-run the full outlier gate and expect era 10-12
+  tech costs to shift again — that cascade is expected, not a sign something broke.
