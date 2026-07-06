@@ -21,6 +21,8 @@ set -eu
 #   yarn vite …        → yarn vite $CURRENT_ROOT …           (positional root)
 #   yarn node …        → execute from $CURRENT_ROOT so relative scripts and outputs
 #                        stay in the active worktree while Yarn resolves from the parent
+#   yarn tauri:*        → execute the package script from $CURRENT_ROOT so Tauri
+#                        packages the active worktree instead of the main checkout
 #   yarn install       → always execute from $MAIN_ROOT, including first install
 #   yarn setup:hooks   → execute the installer for the active worktree
 #   yarn verify:push   → execute the canonical verifier for the active worktree
@@ -140,6 +142,36 @@ if [ -n "$MAIN_ROOT" ] && [ "$CURRENT_ROOT" != "$MAIN_ROOT" ]; then
           exit
           ;;
       esac
+      ;;
+    yarn,tauri:check:mac-artifacts)
+      shift 2
+      cd "$CURRENT_ROOT"
+      NODE_OPTIONS="--require $MAIN_ROOT/.pnp.cjs --experimental-loader file://$MAIN_ROOT/.pnp.loader.mjs ${NODE_OPTIONS:-}" \
+        exec mise exec -- node "$CURRENT_ROOT/scripts/check-tauri-macos-artifacts.mjs" "$@"
+      ;;
+    yarn,tauri:dev|yarn,tauri:build|yarn,tauri:build:mac|yarn,tauri:build:mac-app)
+      tauri_script="$2"
+      shift 2
+      tauri_cli="$(cd "$MAIN_ROOT" && run_without_local_git_env "$MAIN_RUN" yarn bin tauri)"
+      worktree_build_config='{"build":{"beforeBuildCommand":{"cwd":"../","script":"./scripts/run-with-mise.sh yarn build:tauri","wait":true}}}'
+      worktree_dev_config='{"build":{"beforeDevCommand":{"cwd":"../","script":"./scripts/run-with-mise.sh yarn dev --host 127.0.0.1","wait":false}}}'
+      cd "$CURRENT_ROOT"
+      case "$tauri_script" in
+        tauri:dev)
+          set -- dev --config "$worktree_dev_config" "$@"
+          ;;
+        tauri:build)
+          set -- build --config "$worktree_build_config" "$@"
+          ;;
+        tauri:build:mac)
+          set -- build --config "$worktree_build_config" --bundles app,dmg "$@"
+          ;;
+        tauri:build:mac-app)
+          set -- build --config "$worktree_build_config" --bundles app "$@"
+          ;;
+      esac
+      NODE_OPTIONS="--require $MAIN_ROOT/.pnp.cjs --experimental-loader file://$MAIN_ROOT/.pnp.loader.mjs ${NODE_OPTIONS:-}" \
+        exec mise exec -- node "$tauri_cli" "$@"
       ;;
     yarn,node)
       shift 2
