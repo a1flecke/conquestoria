@@ -136,6 +136,29 @@ describe('city founding territory rules', () => {
     }
   });
 
+  // MR10: eternal_storm (an ocean-terrain natural wonder) could never be claimed at all
+  // under the blanket ocean exclusion — its +3 science was unearnable. A tile bearing a
+  // natural wonder must be claimable regardless of terrain.
+  it('claims an ocean tile bearing a natural wonder despite the normal ocean exclusion', () => {
+    const state = createNewGame(undefined, 'territory-ocean-wonder');
+    state.cities = {};
+    state.civilizations.player.cities = [];
+    const city = foundCity('player', { q: 10, r: 10 }, state.map, mkC());
+    city.id = 'city-player';
+    state.cities[city.id] = { ...city, ownedTiles: [] };
+    state.civilizations.player.cities = [city.id];
+    state.map.tiles['10,10'] = { ...state.map.tiles['10,10'], terrain: 'grassland', owner: null };
+    state.map.tiles['12,10'] = { ...state.map.tiles['12,10'], terrain: 'ocean', owner: null, wonder: null };
+    state.map.tiles['11,10'] = { ...state.map.tiles['11,10'], terrain: 'ocean', owner: null, wonder: 'eternal_storm' };
+
+    const result = recalculateTerritory(state, { reason: 'founding', preserveForeignHolders: true });
+    const ownedKeys = result.state.cities[city.id].ownedTiles.map(hexKey);
+
+    expect(ownedKeys).toContain('11,10'); // ocean tile WITH a wonder — claimable
+    expect(ownedKeys).not.toContain('12,10'); // plain ocean tile — still excluded
+    expect(result.state.map.tiles['11,10']?.owner).toBe('player');
+  });
+
   it('does not steal valid foreign-held tiles during MR1 founding recalculation', () => {
     const state = createNewGame(undefined, 'territory-foreign-holder');
     state.cities = {};

@@ -19,6 +19,10 @@ const ERA_8_TECHS: Tech[] = [
     prerequisites: ['mass-production'],
     unlocks: ['+2 gold per city with a market building'],
     unlocksBuildings: ['stock_exchange_tower'], era: 8 },
+  // MR10: re-homed from a stub — global-logistics is no longer a legendary-wonder gate.
+  { id: 'global-logistics', name: 'Global Logistics', track: 'economy', cost: 240,
+    prerequisites: ['finance-capitalism'],
+    unlocks: ['Late-era supply chains streamline distribution'], era: 8, countsForEraAdvancement: false },
 
   // SCIENCE (2)
   { id: 'germ-biology', name: 'Germ Biology', track: 'science', cost: 240,

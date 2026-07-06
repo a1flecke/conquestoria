@@ -256,7 +256,7 @@ describe('slice 4 council wonder guidance', () => {
       }
     }
     const city = cityId ? state.cities[cityId] : undefined;
-    state.civilizations.player.techState.completed = ['philosophy', 'pilgrimages'];
+    state.civilizations.player.techState.completed = ['philosophy', 'sacred-sites'];
     if (city) {
       for (const coord of city.ownedTiles) {
         const key = `${coord.q},${coord.r}`;

@@ -116,7 +116,7 @@ export function makeWonderPanelFixture(): { container: HTMLElement; city: City; 
     (globalThis as typeof globalThis & { document?: Document }).document = new MockDocument() as unknown as Document;
   }
 
-  const state = makeLegendaryWonderFixture({ completedTechs: ['philosophy', 'pilgrimages'], resources: ['stone'] });
+  const state = makeLegendaryWonderFixture({ completedTechs: ['philosophy', 'sacred-sites'], resources: ['stone'] });
   const city = state.cities['city-river'];
 
   const container = typeof document !== 'undefined' && typeof document.createElement === 'function'

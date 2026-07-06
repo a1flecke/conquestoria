@@ -795,7 +795,7 @@ export const BUILDINGS: Record<string, Building> = {
 
   /* === ERA 10 NATIONAL PROJECTS === */
   manhattan_project: {
-    id: 'manhattan_project', name: 'Manhattan Project', category: 'military',
+    id: 'manhattan_project', name: 'Atomic Weapons Program', category: 'military',
     // Single key: production 6 ≤ 9 (era 7+ ceiling) ✓
     yields: { food: 0, production: 6, gold: 0, science: 0 }, productionCost: 310,
     description: 'Total war weapons programme. +6 production empire-wide.',

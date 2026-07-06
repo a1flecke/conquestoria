@@ -120,6 +120,10 @@ const ERA_9_TECHS: Tech[] = [
   { id: 'wireless-telegraph', name: 'Wireless Telegraph', track: 'communication', cost: 260,
     prerequisites: ['shorthand-press', 'telephony'],
     unlocks: ['+2 gold empire-wide; wireless signals coordinate commerce and intelligence without cables'], era: 9 },
+  // MR10: re-homed from a stub — mass-media is no longer a legendary-wonder gate.
+  { id: 'mass-media', name: 'Mass Media', track: 'communication', cost: 265,
+    prerequisites: ['radio-broadcast'],
+    unlocks: ['Global broadcasts coordinate late-era cultural life'], era: 9, countsForEraAdvancement: false },
 
   // ESPIONAGE (2)
   { id: 'counterintelligence', name: 'Counterintelligence', track: 'espionage', cost: 265,

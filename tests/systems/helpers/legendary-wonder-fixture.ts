@@ -40,7 +40,7 @@ function makeCity(id: string, owner: string, position: HexCoord, overrides: Part
 }
 
 export function makeLegendaryWonderFixture({
-  completedTechs = ['philosophy', 'pilgrimages'],
+  completedTechs = ['philosophy', 'sacred-sites'],
   resources = [] as string[],
   oracleStepsCompleted = 0,
   hasRiver = true,
@@ -126,7 +126,7 @@ export function makeLegendaryWonderFixture({
         cities: [rivalCityId],
         units: [],
         techState: {
-          completed: ['city-planning', 'printing', 'philosophy', 'pilgrimages'],
+          completed: ['city-planning', 'printing', 'philosophy', 'sacred-sites'],
           currentResearch: null,
           researchProgress: 0,
           researchQueue: [],

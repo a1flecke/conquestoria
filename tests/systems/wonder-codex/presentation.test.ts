@@ -614,7 +614,7 @@ describe('legendary wonder catalog gating', () => {
 describe('legendary page view-model fields', () => {
   it('canStartBuild is true when project is ready_to_build and city requirements are met', () => {
     const state = makeLegendaryWonderFixture({
-      completedTechs: ['philosophy', 'pilgrimages'],
+      completedTechs: ['philosophy', 'sacred-sites'],
       resources: ['stone'],
       hasRiver: true,
     });

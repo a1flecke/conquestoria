@@ -42,7 +42,7 @@ describe('council system', () => {
       }
     }
     const city = cityId ? state.cities[cityId] : undefined;
-    state.civilizations.player.techState.completed = ['philosophy', 'pilgrimages'];
+    state.civilizations.player.techState.completed = ['philosophy', 'sacred-sites'];
     if (city) {
       for (const coord of city.ownedTiles) {
         const key = `${coord.q},${coord.r}`;
@@ -71,7 +71,7 @@ describe('council system', () => {
       }
     }
     const city = cityId ? state.cities[cityId] : undefined;
-    state.civilizations.player.techState.completed = ['philosophy', 'pilgrimages'];
+    state.civilizations.player.techState.completed = ['philosophy', 'sacred-sites'];
     if (city) {
       for (const coord of city.ownedTiles) {
         const key = `${coord.q},${coord.r}`;
@@ -103,7 +103,7 @@ describe('council system', () => {
     if (!baseCity) {
       throw new Error('expected a player city for council wonder dedupe');
     }
-    state.civilizations.player.techState.completed = ['philosophy', 'pilgrimages', 'city-planning', 'printing'];
+    state.civilizations.player.techState.completed = ['philosophy', 'sacred-sites', 'city-planning', 'printing'];
     state.cities['city-b'] = {
       ...baseCity,
       id: 'city-b',
