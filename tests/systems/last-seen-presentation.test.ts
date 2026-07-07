@@ -62,6 +62,29 @@ describe('last-seen-presentation', () => {
     expect(JSON.parse(JSON.stringify(snapshot))).toEqual(snapshot);
   });
 
+  it('bakes hasRail true at capture time for a road tile owned by a civ with railway-expansion', () => {
+    const state = createNewGame(undefined, 'last-seen-rail-upgraded', 'small');
+    const tile = state.map.tiles['0,0'];
+    tile.owner = 'player';
+    tile.hasRoad = true;
+    state.civilizations['player'].techState.completed.push('railway-expansion');
+
+    const snapshot = createLastSeenTilePresentation(state, 'player', tile);
+
+    expect(snapshot.hasRail).toBe(true);
+  });
+
+  it('bakes hasRail false at capture time for a road tile without railway-expansion (negative)', () => {
+    const state = createNewGame(undefined, 'last-seen-rail-not-upgraded', 'small');
+    const tile = state.map.tiles['0,0'];
+    tile.owner = 'player';
+    tile.hasRoad = true;
+
+    const snapshot = createLastSeenTilePresentation(state, 'player', tile);
+
+    expect(snapshot.hasRail).toBe(false);
+  });
+
   it('updates only currently visible tiles for the viewer', () => {
     const state = createNewGame(undefined, 'last-seen-refresh', 'small');
     state.civilizations.player.visibility.tiles = { '0,0': 'visible', '1,0': 'fog' };

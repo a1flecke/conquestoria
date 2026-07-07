@@ -449,7 +449,10 @@ export class RenderLoop {
 
     // Draw roads (overlay, drawn under units — see drawUnits below)
     const cityTileKeys = new Set(Object.values(this.state.cities).map(city => hexKey(city.position)));
-    drawRoads(this.ctx, this.state.map, this.camera, cityTileKeys, viewerVisibility);
+    const completedTechsByCiv = Object.fromEntries(
+      Object.entries(this.state.civilizations).map(([id, civ]) => [id, civ.techState?.completed ?? []]),
+    );
+    drawRoads(this.ctx, this.state.map, this.camera, cityTileKeys, viewerVisibility, completedTechsByCiv);
 
     // Draw minor civ territory
     if (this.state.minorCivs) {

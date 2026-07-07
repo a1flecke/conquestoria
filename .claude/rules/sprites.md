@@ -39,6 +39,24 @@ See `docs/sprite-design-system.md` for the full asset inventory, placeholder lis
 2. SVG format: `viewBox="0 0 48 48"`, no palette, no animation, `stroke-linecap="round"` throughout.
 3. Replace the emoji entry in `IMPROVEMENT_ICONS` in `hex-renderer.ts` with an image-draw call using the new SVG (follow the `resource_outpost` pattern once it's implemented).
 
+## Extension Recipe — Rail Segment (edge sprite, not a tile marker)
+
+The rail segment (`src/renderer/improvements/rail-segment-marker.ts`) is the one visual asset in
+this codebase that doesn't cleanly fit Unit/Building, Terrain Tile, or Improvement Marker. It is
+closest to an Improvement Marker but differs in three ways — document any future edge-sprite the
+same way:
+
+1. **`viewBox 0 0 48 48`, no palette, no animation** — same as a standard Improvement Marker.
+2. **Drawn per road *segment*, not per tile.** `hex-renderer.ts`'s `drawRailSegment` rotates and
+   stretches the image along the line between two hex centers (`ctx.translate` to the segment
+   midpoint, `ctx.rotate` by `Math.atan2(dy, dx)`, then `ctx.drawImage` sized to the segment
+   length) — it is never drawn centered on a single hex the way `resource_outpost` is.
+3. **Both-endpoints-required gate.** The sprite only renders when *both* tiles bounding the edge
+   resolve `hasRail: true` (see `resolveTileHasRail` in `road-network.ts`); a segment with only
+   one qualifying endpoint falls back to the plain road line — there is no half-rail asset. Any
+   future edge sprite with a similar gated-pair condition should follow this same fallback
+   pattern rather than rendering a degraded/partial variant.
+
 ---
 
 ## Hard Rules

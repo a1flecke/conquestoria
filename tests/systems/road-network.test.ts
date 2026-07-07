@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { City, GameState, HexTile } from '@/core/types';
 import { createDiplomacyState } from '@/systems/diplomacy-system';
-import { getCitiesConnectedToCapital, getOwnedRoadTileCount, getRoadBuildTarget } from '@/systems/road-network';
+import { getCitiesConnectedToCapital, getOwnedRoadTileCount, getRoadBuildTarget, resolveTileHasRail } from '@/systems/road-network';
 
 function tile(overrides: Partial<HexTile>): HexTile {
   return {
@@ -217,5 +217,27 @@ describe('getRoadBuildTarget', () => {
       },
     });
     expect(getRoadBuildTarget(s, 'player')).toBeNull();
+  });
+});
+
+describe('resolveTileHasRail', () => {
+  it('is true only with a road, an owner, and railway-expansion completed', () => {
+    expect(resolveTileHasRail(true, 'player', ['railway-expansion'])).toBe(true);
+  });
+
+  it('is false without a road (negative)', () => {
+    expect(resolveTileHasRail(false, 'player', ['railway-expansion'])).toBe(false);
+  });
+
+  it('is false without an owner (negative)', () => {
+    expect(resolveTileHasRail(true, null, ['railway-expansion'])).toBe(false);
+  });
+
+  it('is false when the owner has not completed railway-expansion (negative)', () => {
+    expect(resolveTileHasRail(true, 'player', ['road-building'])).toBe(false);
+  });
+
+  it('is false when completed techs is undefined (negative)', () => {
+    expect(resolveTileHasRail(true, 'player', undefined)).toBe(false);
   });
 });
