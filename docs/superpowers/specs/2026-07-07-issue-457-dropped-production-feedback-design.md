@@ -81,23 +81,39 @@ what and why, instead of (or in addition to) whatever it does today:
    `resourceRequired` check already returns `false` to drop the item but currently pushes nothing
    — add the push: `{ itemId: item, itemKind: 'building', reason: 'resource-lost' }`.
 2. **Tech/resource filter, unit branch**: currently one check (`!trainableTypes.has(unit.type)`)
-   collapses two causes into one undistinguished drop. **Correction from an earlier draft of this
-   design:** `techRequired` and `civTypeRequired` are both static for the life of a game — once a
-   unit is validly queued, neither can later become false, since `completedTechs` never shrinks
-   anywhere in this codebase (confirmed by grep) and civType never changes. So a previously-valid
-   queued unit can only stop being trainable for two reasons, matching `getTrainableUnitsForCiv`'s
-   (`src/systems/city-system.ts:1586`) own gating exactly: `unit.obsoletedByTech` now included in
-   `completedTechs` (→ `'obsoleted'`, same reason name as the building case — a newer tech
-   superseded it), or a `resourceRequired` entry no longer in `availableResources` (→
-   `'resource-lost'`). No dual-failure/priority-order case exists to resolve.
+   collapses two causes into one undistinguished drop. `techRequired` and `civTypeRequired` are
+   both static for the life of a game — once a unit is validly queued, neither can later become
+   false, since `completedTechs` never shrinks anywhere in this codebase (confirmed by grep) and
+   civType never changes. So a previously-valid queued unit can only stop being trainable for two
+   *dynamic* reasons, matching `getTrainableUnitsForCiv`'s (`src/systems/city-system.ts:1586`) own
+   gating exactly: `unit.obsoletedByTech` now included in `completedTechs` (→ `'obsoleted'`, same
+   reason name as the building case), or a `resourceRequired` entry no longer in
+   `availableResources` (→ `'resource-lost'`).
+   **These two conditions are independent and can both be true in the same turn** (e.g. a civ
+   completes the obsoleting tech the same turn a resource tile is pillaged) — a tie is possible and
+   needs a deterministic rule, not "no case to resolve." Check `obsoleted` first, `resource-lost`
+   second, matching the order the building branch above already uses (`isBuildingObsolete` checked
+   before `resourceRequired`) — same precedence for both item kinds.
 3. **NP build-window filter** (~line 1858–1871): currently only compares `newQueue.length` before
-   and after. Instead, diff `newQueue` against `filteredNP` (e.g. items present in the former but
-   not the latter, since national projects are `uniquePerEmpire` and won't repeat in a queue) and
-   push `{ itemId, itemKind: 'building', reason: 'build-window-expired' }` for each removed item.
+   and after. Push `{ itemId, itemKind: 'building', reason: 'build-window-expired' }` **inline,
+   inside the `.filter()` predicate itself**, at the point an item is rejected — matching the
+   pattern used in steps 1/2/4, not a post-hoc diff of `newQueue` against `filteredNP`. A diff-based
+   approach would be architecturally inconsistent with the rest of this section for no benefit, and
+   is fragile if a queue ever holds a duplicate id (nothing in the data model strictly prevents a
+   legacy/buggy queue from containing the same national-project id twice, even though
+   `uniquePerEmpire` prevents it empire-wide going forward) — a Set-based diff would undercount in
+   that case, whereas an inline push during the filter predicate handles duplicates correctly by
+   construction.
 4. **Coastal-guard section** (~line 1876–1892): building branch → push
    `{ itemId: droppedBuilding, itemKind: 'building', reason: 'coastal-access-lost' }`. Unit branch
    has two sub-cases already distinguished by an `if`/`else if` — keep that distinction and push
    `'coastal-access-lost'` or `'training-building-missing'` accordingly instead of collapsing them.
+   **Implementation caveat:** the existing code does `newQueue.shift()` for the building check,
+   *then* re-reads `newQueue[0]` for the unit check — meaning both a building **and** a unit can
+   legitimately drop in the same call (the unit check now sees the item that was previously second
+   in the queue). Preserve this exact shift-then-recheck order; do not hoist both lookups before
+   either shift, or the unit check would evaluate against the wrong queue head and the two-drops-
+   in-one-call case would silently stop working.
 
 All pushes go into one local `const droppedProductionItems: DroppedProductionItem[] = []` array,
 returned as-is (no more `??=` — every drop in the turn is recorded, not just the first).
@@ -137,14 +153,33 @@ Message copy, one per reason (all rendered as `'warning'` notifications):
 - In `turn-manager.ts`'s per-city turn-processing loop (where `cityId`/`city`/`result` are already
   in scope, ~line 218 onward), replace the existing `result.droppedBuilding`/`result.droppedUnit`
   handling with: `for (const item of result.droppedProductionItems) { bus.emit('city:production-item-dropped', { cityId, itemId: item.itemId, itemKind: item.itemKind, reason: item.reason }); }`.
-- New listener in `main.ts` (replacing the old `city:building-dropped` listener):
+- **Router placement:** rather than adding another one-off inline `bus.on(...)` handler directly in
+  `main.ts` (matching where the old `city:building-dropped` listener lived), add a
+  `routeDroppedProductionItem(state, event, sink)` function to `src/ui/notification-routing.ts`,
+  matching the existing pattern already used there for `routeLegendaryWonder`/`routeWarDeclared`/
+  `routeFirstContact` (all take `(state, event, sink: NotificationSink)` and are called from a
+  one-line `bus.on` in `main.ts`). `main.ts` is already very large; this keeps new routing logic out
+  of it rather than growing it further, and is consistent with how comparable civ-scoped
+  notifications are already wired elsewhere in this codebase.
   ```ts
-  bus.on('city:production-item-dropped', ({ cityId, itemId, itemKind, reason }) => {
-    const city = gameState.cities[cityId];
+  // src/ui/notification-routing.ts
+  export function routeDroppedProductionItem(
+    state: GameState,
+    event: { cityId: string; itemId: string; itemKind: 'building' | 'unit'; reason: ProductionDropReason },
+    sink: NotificationSink,
+  ): void {
+    const city = state.cities[event.cityId];
     if (!city) return;
-    const message = describeDroppedProductionItem({ itemId, itemKind, reason }, city.name);
-    appendToCivLog(city.owner, message, 'warning');
-  });
+    const message = describeDroppedProductionItem(
+      { itemId: event.itemId, itemKind: event.itemKind, reason: event.reason },
+      city.name,
+    );
+    sink(city.owner, message, 'warning');
+  }
+  ```
+  ```ts
+  // src/main.ts — replaces the old city:building-dropped listener
+  bus.on('city:production-item-dropped', event => routeDroppedProductionItem(gameState, event, appendToCivLog));
   ```
   This reuses `appendToCivLog`, which is already civ-aware (keys the persistent log by `civId`,
   and only surfaces a toast when `civId === gameState.currentPlayer`) — the same hot-seat-safe path
@@ -168,17 +203,30 @@ Message copy, one per reason (all rendered as `'warning'` notifications):
     available → not dropped).
   - NP build-window-expiry drop (previously untracked) — positive and a negative (still within
     window → not dropped).
-  - Unit `obsoleted` vs `resource-lost` disambiguation — independent positive case for each, plus
-    a negative (unit still trainable → no drop).
+  - Unit `obsoleted` vs `resource-lost` disambiguation — independent positive case for each, a
+    negative (unit still trainable → no drop), and the tie case (both conditions true in the same
+    turn → `'obsoleted'` wins, per the priority rule above).
   - Multiple drops in one turn from the same city produce multiple array entries (regression for
-    the old `??=` first-only limitation).
+    the old `??=` first-only limitation) — specifically including the coastal-guard section
+    dropping **both a building and a unit in the same `processCity` call** (the shift-then-recheck
+    sequencing described above), not just drops spread across different filter passes.
+  - Zero-drop case: nothing filtered out of the queue → `droppedProductionItems` is `[]`.
+  - `legendary:`-prefixed queue items are never captured as a dropped item by any of the three
+    filters — currently true only as a side effect of `BUILDINGS`/`TRAINABLE_UNITS` lookup misses
+    on that id shape, not by explicit design, so this is worth locking in given this MR touches
+    every branch that could regress it.
 - New test suite for `describeDroppedProductionItem` covering all five reasons, exercising both
   `itemKind` values where the reason applies to both (`obsoleted`, `resource-lost`,
-  `coastal-access-lost`).
+  `coastal-access-lost`), plus an explicit assertion that the `training-building-missing` message
+  does **not** contain "coast" — the direct regression test for the exact mislabeling bug named in
+  the Goals section (today's `droppedUnit` coastal-message is shown even when the real cause is a
+  missing `trainedFromBuilding`).
 - `tests/core/turn-manager.test.ts` (or nearest equivalent covering turn-manager event emission):
   new test proving `city:production-item-dropped` fires once per entry in
   `result.droppedProductionItems`, with the correct `cityId`/`itemId`/`itemKind`/`reason` payload.
-- Update/add a `main.ts`-level or integration-level test proving the new listener calls
-  `appendToCivLog` with the owning city's civ id (not `gameState.currentPlayer`) — this is the
-  concrete regression test for "AI civs' drops still log correctly in hot seat," and the direct
-  regression test that the original silent-drop bug can't recur.
+- New test for `routeDroppedProductionItem` (`src/ui/notification-routing.ts`) proving it calls the
+  supplied `sink` with the owning city's civ id (not `state.currentPlayer`) — this is the concrete
+  regression test for "AI civs' drops still log correctly in hot seat," and the direct regression
+  test that the original silent-drop bug can't recur. Also assert it no-ops (does not call `sink`)
+  when `event.cityId` no longer resolves to a city, matching the existing `city:building-dropped`
+  listener's guard.
