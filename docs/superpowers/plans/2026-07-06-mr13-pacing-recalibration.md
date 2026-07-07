@@ -704,3 +704,35 @@ gh issue comment 472 --repo a1flecke/conquestoria --body "MR13 (pacing recalibra
 - Spec coverage: Part A → Task 1. Part B (F2 extend, F3 ground) → Tasks 2-3. Part C (exact-value pin as regression gate) → Task 3. Part D (full-catalog CI gate) → Task 4. Part E (fix outliers) → Task 5. Part F (rule doc) → Task 6.
 - The plan defers exact numeric fixture output and outlier-fix values to "run and read the real output" steps (Task 3 Step 3, Task 5) rather than guessing them up front — this is intentional per the spec's own F3 finding ("there is no way to know today whether a competent era-8 empire produces X or Y"); hand-guessing those numbers in the plan would repeat the exact mistake this MR fixes.
 - `resolveEraRelativeCostBand`'s `require()` vs `import` choice is left as a build-time check (Task 1 Step 3) rather than assumed, per `.claude/rules/spec-fidelity.md`'s "verify current code state before implementing" guidance.
+
+---
+
+## Post-merge addendum: dual-profile fixture + follow-up issue
+
+MR13 shipped and PR review (post-merge, same PR #492 thread) surfaced that the reference-economy
+fixture's single-city model needed a real design decision, not a silent default:
+
+- The fixture originally bounded a single city's building set to the last 4 eras
+  (`BUILDING_ERA_WINDOW`) to avoid unbounded output growth. Reviewer feedback: a completionist
+  player who builds every available building in every city is a real, common playstyle — not a
+  corner case — and the bounded model undershoots real output for that playstyle, which would
+  let it blow through late-game tech faster than the target pacing window.
+- Resolved by adding a second `'maximal'` profile (every eligible building regardless of era)
+  alongside `'bounded'`, and re-tuning `RESEARCH_OUTPUT_BY_ERA` for era 10-12 to target
+  `'maximal'` — see `tests/systems/helpers/pacing-reference-economy.ts` and
+  `.claude/rules/game-balance.md`'s Pacing Regression Prevention section for the full reasoning.
+  Also added an era-over-era output growth-ratio guardrail (capped at 3x) so a future bug in
+  building-eligibility logic fails loudly here instead of only surfacing once it cascades into
+  hundreds of downstream tech-cost changes (which is what happened during this review).
+
+**Follow-up filed:** [#493 — Pacing: multi-city aggregate + production-time-bounded reference
+economy](https://github.com/a1flecke/conquestoria/issues/493). Both profiles above still model a
+*single* city; #493 tracks two bigger improvements intentionally scoped out of MR13:
+1. A multi-city aggregate fixture (average output across several cities of mixed maturity,
+   closer to what a real empire actually looks like than either single-city extreme).
+2. Production-time-bounded building accumulation (a city can only have built as many buildings
+   as its cumulative production output over N turns allows, replacing the era-count window
+   approximation with something grounded in actual production capacity).
+
+Not started as part of this plan — tracked separately so it gets its own scoped implementation
+plan when picked up.
