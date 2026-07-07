@@ -43,6 +43,11 @@ import { canUnitAttackTarget } from './attack-targeting';
 import { applyCombatOutcomeToState } from './combat-reward-system';
 import { buildCombatPresentation } from './viewer-event-presentation';
 import { removeRouteForUnit } from './trade-system';
+import {
+  applyRegionalGrievanceForMinorCivConquest,
+  processMinorCivCoalitionsTurn,
+  processMinorCivRegionalGrievanceTurn,
+} from './minor-civ-coalition-system';
 
 const PLACEMENT_COUNTS: Record<string, [number, number]> = {
   small: [2, 4],
@@ -216,8 +221,11 @@ export function processMinorCivTurn(
     nextState = applyAllyBonuses(nextState, mc, def);
     mc = nextState.minorCivs[mcId];
     nextState = processGarrison(nextState, mc);
+    nextState = processMinorCivRegionalGrievanceTurn(nextState, mcId);
     emitRelationshipThresholds(nextState, nextState.minorCivs[mcId], bus);
   }
+
+  nextState = processMinorCivCoalitionsTurn(nextState);
 
   return nextState;
 }
@@ -686,14 +694,11 @@ export function conquestMinorCiv(
   }
   mc.units = [];
 
-  for (const [otherId, otherMc] of Object.entries(nextState.minorCivs)) {
-    if (otherId === mcId || otherMc.isDestroyed) continue;
-    const otherDef = MINOR_CIV_DEFINITIONS.find(d => d.id === otherMc.definitionId);
-    const penalty = otherDef?.archetype === 'militaristic' ? -10 : -20;
-    otherMc.diplomacy = modifyRelationship(otherMc.diplomacy, conquerorId, penalty);
-  }
-
-  return { state: nextState, transitions, conquered: true };
+  return {
+    state: applyRegionalGrievanceForMinorCivConquest(nextState, mcId, conquerorId),
+    transitions,
+    conquered: true,
+  };
 }
 
 // === Guerrilla & Scuffles ===

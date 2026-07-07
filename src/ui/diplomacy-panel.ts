@@ -19,6 +19,7 @@ import {
 import { getMinorCivRelationshipStatus } from '@/systems/quest-chain-system';
 import { isMinorCivAtWar } from '@/systems/minor-civ-diplomacy';
 import { hasAccessibleLuxury } from '@/systems/quest-objective-system';
+import { minorCivReparationsCost } from '@/systems/minor-civ-actions';
 import { createGameButton } from '@/ui/ui-kit';
 
 export interface DiplomacyPanelCallbacks {
@@ -27,6 +28,7 @@ export interface DiplomacyPanelCallbacks {
   onRejectPeaceRequest?: (requestId: string) => void;
   onGiftGold?: (mcId: string) => void;
   onSponsorFestival?: (mcId: string) => void;
+  onMinorCivReparations?: (mcId: string) => void;
   onMinorCivWarPeace?: (mcId: string, currentlyAtWar: boolean) => void;
   onClose: () => void;
 }
@@ -59,6 +61,9 @@ interface MinorCivRowData {
   giftLabel: string;
   festivalLabel: string | null;
   festivalDisabledReason: string | null;
+  regionalGrievanceText: string | null;
+  reparationsLabel: string | null;
+  reparationsDisabledReason: string | null;
   atWar: boolean;
 }
 
@@ -180,6 +185,17 @@ export function createDiplomacyPanel(
       : !hasAccessibleLuxury(state, state.currentPlayer) ? 'Requires access to any luxury resource.'
       : playerCiv.gold < festivalTarget.amount ? `Requires ${festivalTarget.amount} gold.`
       : null;
+    const grievance = mc.regionalGrievanceByCiv?.[state.currentPlayer];
+    const reparationsCost = minorCivReparationsCost(state);
+    const grievanceStatusLabel = grievance?.status
+      .split('-')
+      .map(part => part[0].toUpperCase() + part.slice(1))
+      .join(' ');
+    const canOfferReparations = Boolean(grievance && grievance.pressure >= 20);
+    const reparationsDisabledReason = !canOfferReparations ? null
+      : atWar ? 'Unavailable while at war.'
+      : playerCiv.gold < reparationsCost ? `Requires ${reparationsCost} gold.`
+      : null;
 
     minorCivRows.push({
       mcId,
@@ -195,6 +211,11 @@ export function createDiplomacyPanel(
         ? `Sponsor ${questPresentation?.stepTitle ?? 'Festival'} (${festivalTarget.amount} Gold)`
         : null,
       festivalDisabledReason,
+      regionalGrievanceText: grievance && grievanceStatusLabel
+        ? `Regional grievance: ${grievanceStatusLabel} (${Math.round(grievance.pressure)})`
+        : null,
+      reparationsLabel: canOfferReparations ? `Pay Reparations (${reparationsCost} Gold)` : null,
+      reparationsDisabledReason,
       atWar,
     });
   });
@@ -261,8 +282,14 @@ export function createDiplomacyPanel(
       if (row.questDescription !== null) {
         minorCivsHtml += `<div style="font-size:11px;opacity:0.7;margin-top:4px;">Quest: <span data-text="mc-quest-${row.mcIdx}"></span></div>`;
       }
+      if (row.regionalGrievanceText !== null) {
+        minorCivsHtml += `<div style="font-size:11px;color:#e8c170;margin-top:4px;" data-text="mc-grievance-${row.mcIdx}"></div>`;
+      }
       if (row.festivalDisabledReason) {
         minorCivsHtml += `<div style="font-size:10px;color:#e8c170;margin-top:5px;" data-text="mc-festival-reason-${row.mcIdx}"></div>`;
+      }
+      if (row.reparationsDisabledReason) {
+        minorCivsHtml += `<div style="font-size:10px;color:#e8c170;margin-top:5px;" data-text="mc-reparations-reason-${row.mcIdx}"></div>`;
       }
       minorCivsHtml += `<div data-role="mc-actions-${row.mcIdx}" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;"></div>`;
       minorCivsHtml += `</div>`;
@@ -308,7 +335,11 @@ export function createDiplomacyPanel(
     if (row.questDescription !== null) {
       setText(`mc-quest-${row.mcIdx}`, row.questDescription);
     }
+    if (row.regionalGrievanceText !== null) {
+      setText(`mc-grievance-${row.mcIdx}`, row.regionalGrievanceText);
+    }
     if (row.festivalDisabledReason) setText(`mc-festival-reason-${row.mcIdx}`, row.festivalDisabledReason);
+    if (row.reparationsDisabledReason) setText(`mc-reparations-reason-${row.mcIdx}`, row.reparationsDisabledReason);
     const actions = panel.querySelector<HTMLElement>(`[data-role="mc-actions-${row.mcIdx}"]`);
     if (actions) {
       const gift = createGameButton(row.giftLabel, 'secondary', { disabled: row.atWar });
@@ -321,6 +352,13 @@ export function createDiplomacyPanel(
         festival.dataset.mcId = row.mcId;
         festival.dataset.action = 'sponsor-festival';
         actions.appendChild(festival);
+      }
+      if (row.reparationsLabel) {
+        const reparations = createGameButton(row.reparationsLabel, 'secondary', { disabled: Boolean(row.reparationsDisabledReason) });
+        reparations.className = 'mc-reparations';
+        reparations.dataset.mcId = row.mcId;
+        reparations.dataset.action = 'pay-reparations';
+        actions.appendChild(reparations);
       }
       const war = createGameButton(row.atWar ? 'Make Peace' : 'Declare War', row.atWar ? 'secondary' : 'danger');
       war.className = 'mc-war';
@@ -383,6 +421,14 @@ export function createDiplomacyPanel(
     btn.addEventListener('click', () => {
       const mcId = (btn as HTMLElement).dataset.mcId!;
       callbacks.onSponsorFestival?.(mcId);
+      panel.remove();
+    });
+  });
+
+  panel.querySelectorAll('.mc-reparations').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const mcId = (btn as HTMLElement).dataset.mcId!;
+      callbacks.onMinorCivReparations?.(mcId);
       panel.remove();
     });
   });

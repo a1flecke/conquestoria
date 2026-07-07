@@ -480,17 +480,316 @@ describe('conquest mechanics', () => {
     expect(result.state.civilizations.player.cities).toContain(mc.cityId);
   });
 
-  it('applies conquest penalty to other minor civs', () => {
-    const state = createNewGame(undefined, 'mc-penalty', 'medium');
+  it('records local regional grievance instead of penalizing every minor civ', () => {
+    const state = createNewGame(undefined, 'mc-regional-grievance', 'medium');
+    state.era = 2;
     const mcIds = Object.keys(state.minorCivs);
-    if (mcIds.length < 2) return;
+    const conquered = state.minorCivs[mcIds[0]];
+    const nearby = state.minorCivs[mcIds[1]];
+    const distant = state.minorCivs[mcIds[2]];
+    state.cities[nearby.cityId].position = { ...state.cities[conquered.cityId].position, q: state.cities[conquered.cityId].position.q + 11 };
+    state.cities[distant.cityId].position = { ...state.cities[conquered.cityId].position, q: state.cities[conquered.cityId].position.q + 20 };
 
-    const result = conquestMinorCiv(state, mcIds[0], 'player');
+    const result = conquestMinorCiv(state, conquered.id, 'player');
 
-    for (let i = 1; i < mcIds.length; i++) {
-      const mc = result.state.minorCivs[mcIds[i]];
-      expect(mc.diplomacy.relationships.player).toBeLessThan(0);
+    expect(result.state.minorCivs[nearby.id].regionalGrievanceByCiv?.player).toMatchObject({
+      targetCivId: 'player',
+      pressure: expect.any(Number),
+      status: expect.stringMatching(/wary|mobilizing|coalition-talks/),
+    });
+    expect(result.state.minorCivs[nearby.id].diplomacy.relationships.player).toBeLessThan(0);
+    expect(result.state.minorCivs[distant.id].regionalGrievanceByCiv?.player).toBeUndefined();
+    expect(result.state.minorCivs[distant.id].diplomacy.relationships.player).toBe(0);
+  });
+
+  it('keeps Era 1 city-states wary without creating a formal coalition', () => {
+    const state = createNewGame(undefined, 'mc-era-one-grievance', 'medium');
+    state.era = 1;
+    const mcIds = Object.keys(state.minorCivs);
+    const conquered = state.minorCivs[mcIds[0]];
+    const nearby = state.minorCivs[mcIds[1]];
+    state.cities[nearby.cityId].position = { ...state.cities[conquered.cityId].position, q: state.cities[conquered.cityId].position.q + 11 };
+
+    const result = conquestMinorCiv(state, conquered.id, 'player');
+
+    expect(result.state.minorCivs[nearby.id].regionalGrievanceByCiv?.player?.status).toBe('wary');
+    expect(result.state.minorCivCoalitions).toEqual({});
+  });
+
+  it('records regional grievance for AI conquest through the shared helper', () => {
+    const state = createNewGame(undefined, 'mc-ai-regional-grievance', 'medium');
+    state.era = 2;
+    const aiId = Object.keys(state.civilizations).find(civId => civId.startsWith('ai-'))!;
+    const mcIds = Object.keys(state.minorCivs);
+    const conquered = state.minorCivs[mcIds[0]];
+    const nearby = state.minorCivs[mcIds[1]];
+    state.cities[nearby.cityId].position = { ...state.cities[conquered.cityId].position, q: state.cities[conquered.cityId].position.q + 11 };
+
+    const result = conquestMinorCiv(state, conquered.id, aiId);
+
+    expect(result.state.minorCivs[nearby.id].regionalGrievanceByCiv?.[aiId]?.pressure).toBeGreaterThan(0);
+    expect(result.state.minorCivs[nearby.id].diplomacy.relationships[aiId]).toBeLessThan(0);
+  });
+});
+
+describe('regional grievance mobilization', () => {
+  it('turns mobilization progress into a trained defender over time', () => {
+    const state = createNewGame(undefined, 'mc-mobilize-defender', 'small');
+    state.era = 2;
+    const mcId = Object.keys(state.minorCivs)[0]!;
+    const mc = state.minorCivs[mcId];
+    mc.regionalGrievanceByCiv = {
+      player: {
+        targetCivId: 'player',
+        pressure: 55,
+        status: 'mobilizing',
+        lastUpdatedTurn: state.turn,
+        causes: [],
+        mobilizationProgress: 16,
+      } as any,
+    };
+    const beforeUnits = mc.units.length;
+
+    const result = processMinorCivTurn(state, bus);
+    const current = result.minorCivs[mcId];
+    const newUnitId = current.units.find(unitId => !mc.units.includes(unitId));
+
+    expect(current.units).toHaveLength(beforeUnits + 1);
+    expect(newUnitId).toBeDefined();
+    expect(result.units[newUnitId!].type).toBe('swordsman');
+    expect(result.units[newUnitId!].position).not.toEqual(state.cities[mc.cityId].position);
+    expect(current.regionalGrievanceByCiv?.player.mobilizationProgress).toBe(0);
+  });
+
+  it('uses difficulty to pace mobilization progress', () => {
+    const explorer = createNewGame({
+      civType: 'rome',
+      mapSize: 'small',
+      opponentCount: 1,
+      gameTitle: 'Explorer Mobilization',
+      opponentChallenge: 'explorer',
+      seed: 'mc-mobilize-explorer',
+    });
+    const veteran = createNewGame({
+      civType: 'rome',
+      mapSize: 'small',
+      opponentCount: 1,
+      gameTitle: 'Veteran Mobilization',
+      opponentChallenge: 'veteran',
+      seed: 'mc-mobilize-veteran',
+    });
+    for (const state of [explorer, veteran]) {
+      state.era = 2;
+      const mc = Object.values(state.minorCivs)[0];
+      mc.regionalGrievanceByCiv = {
+        player: {
+          targetCivId: 'player',
+          pressure: 55,
+          status: 'mobilizing',
+          lastUpdatedTurn: state.turn,
+          causes: [],
+          mobilizationProgress: 0,
+        } as any,
+      };
     }
+
+    const explorerResult = processMinorCivTurn(explorer, bus);
+    const veteranResult = processMinorCivTurn(veteran, bus);
+    const explorerMinor = Object.values(explorerResult.minorCivs)[0];
+    const veteranMinor = Object.values(veteranResult.minorCivs)[0];
+
+    expect(explorerMinor.regionalGrievanceByCiv?.player.mobilizationProgress).toBe(6);
+    expect(veteranMinor.regionalGrievanceByCiv?.player.mobilizationProgress).toBe(10);
+  });
+
+  it('conscripts a weaker defender by spending population under severe pressure', () => {
+    const state = createNewGame(undefined, 'mc-conscript-defender', 'small');
+    state.era = 4;
+    const mcId = Object.keys(state.minorCivs)[0]!;
+    const mc = state.minorCivs[mcId];
+    const city = state.cities[mc.cityId];
+    city.population = 3;
+    mc.regionalGrievanceByCiv = {
+      player: {
+        targetCivId: 'player',
+        pressure: 85,
+        status: 'coalition-talks',
+        lastUpdatedTurn: state.turn,
+        causes: [],
+        mobilizationProgress: 0,
+      } as any,
+    };
+
+    const result = processMinorCivTurn(state, bus);
+    const current = result.minorCivs[mcId];
+    const newUnitId = current.units.find(unitId => !mc.units.includes(unitId));
+
+    expect(result.cities[mc.cityId].population).toBe(2);
+    expect(newUnitId).toBeDefined();
+    expect(result.units[newUnitId!]).toMatchObject({ type: 'musketeer', health: 65 });
+    expect(result.units[newUnitId!].position).not.toEqual(state.cities[mc.cityId].position);
+    expect(current.regionalGrievanceByCiv?.player.conscriptCooldownUntilTurn).toBeGreaterThan(state.turn);
+    expect(current.regionalGrievanceByCiv?.player.recoveryStrainedUntilTurn).toBeGreaterThan(state.turn);
+  });
+
+  it('does not conscript from city-states below the population floor', () => {
+    const state = createNewGame(undefined, 'mc-conscript-pop-floor', 'small');
+    state.era = 3;
+    const mcId = Object.keys(state.minorCivs)[0]!;
+    const mc = state.minorCivs[mcId];
+    state.cities[mc.cityId].population = 2;
+    mc.regionalGrievanceByCiv = {
+      player: {
+        targetCivId: 'player',
+        pressure: 85,
+        status: 'coalition-talks',
+        lastUpdatedTurn: state.turn,
+        causes: [],
+        mobilizationProgress: 0,
+      } as any,
+    };
+
+    const result = processMinorCivTurn(state, bus);
+
+    expect(result.cities[mc.cityId].population).toBe(2);
+    expect(result.minorCivs[mcId].units).toHaveLength(mc.units.length);
+    expect(result.minorCivs[mcId].regionalGrievanceByCiv?.player.conscriptCooldownUntilTurn).toBeUndefined();
+  });
+
+  it('lets regional pressure heal over time after the decay block expires', () => {
+    const state = createNewGame(undefined, 'mc-pressure-decay', 'small');
+    state.era = 2;
+    state.turn = 20;
+    const mcId = Object.keys(state.minorCivs)[0]!;
+    state.minorCivs[mcId].regionalGrievanceByCiv = {
+      player: {
+        targetCivId: 'player',
+        pressure: 44,
+        status: 'mobilizing',
+        lastUpdatedTurn: 18,
+        decayBlockedUntilTurn: 19,
+        causes: [],
+        mobilizationProgress: 0,
+      } as any,
+    };
+
+    const result = processMinorCivTurn(state, bus);
+
+    expect(result.minorCivs[mcId].regionalGrievanceByCiv?.player.pressure).toBe(42);
+    expect(result.minorCivs[mcId].regionalGrievanceByCiv?.player.status).toBe('wary');
+  });
+
+  it('does not decay pressure during the post-aggression lockout', () => {
+    const state = createNewGame(undefined, 'mc-pressure-lockout', 'small');
+    state.era = 2;
+    state.turn = 20;
+    const mcId = Object.keys(state.minorCivs)[0]!;
+    state.minorCivs[mcId].regionalGrievanceByCiv = {
+      player: {
+        targetCivId: 'player',
+        pressure: 44,
+        status: 'mobilizing',
+        lastUpdatedTurn: 18,
+        decayBlockedUntilTurn: 22,
+        causes: [],
+        mobilizationProgress: 0,
+      } as any,
+    };
+
+    const result = processMinorCivTurn(state, bus);
+
+    expect(result.minorCivs[mcId].regionalGrievanceByCiv?.player.pressure).toBe(44);
+    expect(result.minorCivs[mcId].regionalGrievanceByCiv?.player.status).toBe('wary');
+  });
+
+  it('starts coalition talks without declaring war immediately', () => {
+    const state = createNewGame(undefined, 'mc-coalition-talks', 'medium');
+    state.era = 2;
+    const [a, b] = Object.keys(state.minorCivs);
+    for (const id of [a, b]) {
+      state.cities[state.minorCivs[id].cityId].population = 3;
+      state.minorCivs[id].regionalGrievanceByCiv = {
+        player: {
+          targetCivId: 'player',
+          pressure: 75,
+          status: 'coalition-talks',
+          lastUpdatedTurn: state.turn,
+          decayBlockedUntilTurn: state.turn + 5,
+          causes: [],
+        } as any,
+      };
+    }
+
+    const result = processMinorCivTurn(state, bus);
+    const coalition = Object.values(result.minorCivCoalitions ?? {})[0];
+
+    expect(coalition).toMatchObject({ targetCivId: 'player', memberIds: [a, b], status: 'forming' });
+    expect(result.civilizations.player.diplomacy.atWarWith).not.toContain(a);
+    expect(result.civilizations.player.diplomacy.atWarWith).not.toContain(b);
+  });
+
+  it('declares coalition war after the talks countdown through both diplomacy records', () => {
+    const state = createNewGame(undefined, 'mc-coalition-war', 'medium');
+    state.era = 2;
+    state.turn = 10;
+    const [a, b] = Object.keys(state.minorCivs);
+    for (const id of [a, b]) {
+      state.cities[state.minorCivs[id].cityId].population = 3;
+      state.minorCivs[id].regionalGrievanceByCiv = {
+        player: {
+          targetCivId: 'player',
+          pressure: 75,
+          status: 'coalition-talks',
+          lastUpdatedTurn: state.turn - 4,
+          decayBlockedUntilTurn: state.turn + 1,
+          causes: [],
+        } as any,
+      };
+    }
+    state.minorCivCoalitions = {
+      'coalition-player-6': {
+        id: 'coalition-player-6',
+        targetCivId: 'player',
+        memberIds: [a, b],
+        status: 'forming',
+        createdTurn: 6,
+        updatedTurn: 6,
+        cooldownUntilTurn: 10,
+      },
+    };
+
+    const result = processMinorCivTurn(state, bus);
+
+    expect(result.minorCivCoalitions?.['coalition-player-6'].status).toBe('active');
+    expect(result.civilizations.player.diplomacy.atWarWith).toEqual(expect.arrayContaining([a, b]));
+    expect(result.minorCivs[a].diplomacy.atWarWith).toContain('player');
+    expect(result.minorCivs[b].diplomacy.atWarWith).toContain('player');
+  });
+
+  it('requires regional maturity before coalition talks can start', () => {
+    const state = createNewGame(undefined, 'mc-coalition-immature', 'medium');
+    state.era = 2;
+    const [a, b] = Object.keys(state.minorCivs);
+    for (const id of [a, b]) {
+      state.cities[state.minorCivs[id].cityId].population = 2;
+      for (const unitId of state.minorCivs[id].units) delete state.units[unitId];
+      state.minorCivs[id].units = [];
+      state.minorCivs[id].garrisonCooldown = 5;
+      state.minorCivs[id].regionalGrievanceByCiv = {
+        player: {
+          targetCivId: 'player',
+          pressure: 75,
+          status: 'coalition-talks',
+          lastUpdatedTurn: state.turn,
+          decayBlockedUntilTurn: state.turn + 5,
+          causes: [],
+        } as any,
+      };
+    }
+
+    const result = processMinorCivTurn(state, bus);
+
+    expect(result.minorCivCoalitions).toEqual({});
   });
 });
 
