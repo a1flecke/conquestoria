@@ -549,13 +549,13 @@ Suggested implementation order:
 9. Add solo and hot-seat save/load tests and migration normalization.
 10. Add balance tests across Era 1, Era 2+, Explorer, Standard, and Veteran.
 
-## Open Implementation Decisions
+## Resolved Implementation Decisions
 
 These are intentionally left as implementation-plan decisions, not design ambiguities:
 
 - Whether emergency militia is a new unit type or an existing unit with typed modifier metadata.
 - Exact numeric pressure thresholds.
-- Exact distance radius for local grievance.
+- Local grievance radius is `14` hexes. City-state placement keeps minor civs at least `10` hexes apart, so a smaller radius would often make the regional system invisible.
 - Exact cooldown lengths per difficulty.
 - Exact UI layout for compact mobile presentation.
 

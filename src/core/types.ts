@@ -988,6 +988,10 @@ export interface MinorCivRegionalGrievance {
   lastConquestTurn?: number;
   decayBlockedUntilTurn?: number;
   cooldownUntilTurn?: number;
+  mobilizationProgress?: number;
+  lastMobilizedTurn?: number;
+  conscriptCooldownUntilTurn?: number;
+  recoveryStrainedUntilTurn?: number;
   causes: MinorCivRegionalGrievanceCause[];
 }
 

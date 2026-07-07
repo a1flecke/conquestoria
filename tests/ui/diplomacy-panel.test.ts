@@ -286,6 +286,45 @@ describe('diplomacy-panel breakaway rows', () => {
     expect(festival?.disabled).toBe(true);
   });
 
+  it('renders regional grievance posture and reparations action for the current viewer', () => {
+    const { container, state } = makeDiplomacyFixture({ currentPlayer: 'player' });
+    state.era = 2;
+    state.minorCivs['mc-sparta'] = {
+      id: 'mc-sparta', definitionId: 'sparta', cityId: 'mc-city', units: [],
+      diplomacy: state.civilizations.player.diplomacy,
+      activeQuests: {},
+      chainStatusByCiv: {}, questCooldownUntilByCiv: {}, lastNotifiedStatusByCiv: {},
+      regionalGrievanceByCiv: {
+        player: {
+          targetCivId: 'player',
+          pressure: 55,
+          status: 'mobilizing',
+          lastUpdatedTurn: state.turn,
+          causes: [],
+        },
+      },
+      isDestroyed: false, garrisonCooldown: 0, lastEraUpgrade: 1,
+    };
+    state.cities['mc-city'] = {
+      ...state.cities['city-border'], id: 'mc-city', owner: 'mc-sparta',
+      position: { q: 6, r: 0 }, ownedTiles: [{ q: 6, r: 0 }],
+    };
+    state.civilizations.player.visibility.tiles['6,0'] = 'fog';
+    let repaired: string | null = null;
+
+    const panel = createDiplomacyPanel(container, state, {
+      onAction: () => {},
+      onMinorCivReparations: mcId => { repaired = mcId; },
+      onClose: () => {},
+    });
+    const button = panel.querySelector<HTMLButtonElement>('[data-action="pay-reparations"]');
+
+    expect(panel.textContent).toContain('Regional grievance: Mobilizing (55)');
+    expect(button?.textContent).toBe('Pay Reparations (60 Gold)');
+    button?.click();
+    expect(repaired).toBe('mc-sparta');
+  });
+
   it('does not render another hot-seat player assignment', () => {
     const { container, state } = makeDiplomacyFixture({ currentPlayer: 'player-2' });
     state.minorCivs['mc-sparta'] = {

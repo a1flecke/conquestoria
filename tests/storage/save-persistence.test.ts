@@ -313,7 +313,7 @@ describe('save persistence (#38)', () => {
 
     const loaded = normalizeLoadedStateForTest(state);
 
-    expect(loaded.minorCivs[minorCiv.id].regionalGrievanceByCiv['player-1']).toEqual(grievance);
+    expect(loaded.minorCivs[minorCiv.id].regionalGrievanceByCiv?.['player-1']).toEqual(grievance);
     expect(loaded.minorCivCoalitions).toEqual({});
     expect(loaded.minorCivRegionalCooldowns).toEqual({});
     expect(loaded.pendingEvents?.['player-1']?.[0]).toMatchObject({

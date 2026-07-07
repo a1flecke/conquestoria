@@ -23,7 +23,7 @@
 
 ## Concrete Tuning For This Implementation
 
-- Local grievance radius: `8` hexes, using wrapped distance when `state.map.wrapsHorizontally`.
+- Local grievance radius: `14` hexes, using wrapped distance. City-state placement keeps minor civs at least `10` hexes apart, so `14` is the minimum practical regional radius that can reliably catch nearby peers without becoming global.
 - Pressure thresholds:
   - `wary`: `20`
   - `mobilizing`: `45`
@@ -240,7 +240,7 @@ import type {
   MinorCivRegionalGrievance,
 } from '@/core/types';
 
-export const MINOR_CIV_GRIEVANCE_RADIUS = 8;
+export const MINOR_CIV_GRIEVANCE_RADIUS = 14;
 export const MINOR_CIV_REPARATIONS_BASE_COST = 40;
 
 const VALID_POSTURES = new Set<MinorCivCoalitionPosture>([

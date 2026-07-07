@@ -4,6 +4,11 @@ import { hasAccessibleLuxury } from './quest-objective-system';
 import { applyQuestGameplayAction, type ChainTransition } from './quest-chain-system';
 import { isMinorCivAtWar } from './minor-civ-diplomacy';
 
+const REPARATIONS_BASE_COST = 40;
+const REPARATIONS_ERA_COST = 10;
+const REPARATIONS_PRESSURE_REDUCTION = 20;
+const REPARATIONS_RELATIONSHIP_REPAIR = 8;
+
 export interface MinorCivActionResult {
   state: GameState;
   ok: boolean;
@@ -67,6 +72,55 @@ export function performMinorCivFestival(
     type: 'sponsor_festival', actorCivId: majorCivId, minorCivId, turn: state.turn,
   });
   return { ...result, ok: true };
+}
+
+function grievanceStatusForPressure(pressure: number, era: number) {
+  if (era <= 1) return 'wary';
+  if (pressure >= 70) return 'coalition-talks';
+  if (pressure >= 45) return 'mobilizing';
+  return 'wary';
+}
+
+export function minorCivReparationsCost(state: GameState): number {
+  return REPARATIONS_BASE_COST + Math.max(1, Math.floor(state.era || 1)) * REPARATIONS_ERA_COST;
+}
+
+export function performMinorCivReparations(
+  state: GameState,
+  majorCivId: string,
+  minorCivId: string,
+): MinorCivActionResult {
+  const invalid = validatePair(state, majorCivId, minorCivId);
+  if (invalid) return { state, ok: false, reason: invalid, transitions: [] };
+  const grievance = state.minorCivs[minorCivId].regionalGrievanceByCiv?.[majorCivId];
+  if (!grievance || grievance.pressure < 20) {
+    return { state, ok: false, reason: 'No active regional grievance.', transitions: [] };
+  }
+  const cost = minorCivReparationsCost(state);
+  if (state.civilizations[majorCivId].gold < cost) {
+    return { state, ok: false, reason: `Requires ${cost} gold.`, transitions: [] };
+  }
+
+  const nextState = structuredClone(state);
+  nextState.civilizations[majorCivId].gold -= cost;
+  const nextMinor = nextState.minorCivs[minorCivId];
+  const nextPressure = Math.max(0, grievance.pressure - REPARATIONS_PRESSURE_REDUCTION);
+  nextMinor.diplomacy = modifyRelationship(nextMinor.diplomacy, majorCivId, REPARATIONS_RELATIONSHIP_REPAIR);
+  nextMinor.regionalGrievanceByCiv ??= {};
+  const reparationsCause = {
+    type: 'reparations' as const,
+    turn: nextState.turn,
+    actorCivId: majorCivId,
+    pressure: -REPARATIONS_PRESSURE_REDUCTION,
+  };
+  nextMinor.regionalGrievanceByCiv[majorCivId] = {
+    ...grievance,
+    pressure: nextPressure,
+    status: grievanceStatusForPressure(nextPressure, nextState.era),
+    lastUpdatedTurn: nextState.turn,
+    causes: [...grievance.causes, reparationsCause].slice(-8),
+  };
+  return { state: nextState, ok: true, transitions: [] };
 }
 
 export function setMinorCivWarState(

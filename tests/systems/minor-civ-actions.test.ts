@@ -4,6 +4,7 @@ import { getCivAvailableResources } from '@/systems/resource-acquisition-system'
 import {
   performMinorCivFestival,
   performMinorCivGift,
+  performMinorCivReparations,
   setMinorCivWarState,
 } from '@/systems/minor-civ-actions';
 
@@ -134,5 +135,50 @@ describe('minor-civ actions', () => {
 
     expect(result.ok).toBe(false);
     expect(result.state.civilizations.player.gold).toBe(200);
+  });
+
+  it('pays reparations to reduce regional grievance and heal relationship', () => {
+    const { state, minorCivId, minorCiv } = actionState('minor-action-reparations');
+    state.era = 2;
+    minorCiv.diplomacy.relationships.player = -20;
+    minorCiv.regionalGrievanceByCiv = {
+      player: {
+        targetCivId: 'player',
+        pressure: 50,
+        status: 'mobilizing',
+        lastUpdatedTurn: state.turn,
+        causes: [],
+      },
+    };
+
+    const result = performMinorCivReparations(state, 'player', minorCivId);
+
+    expect(result.ok).toBe(true);
+    expect(result.state.civilizations.player.gold).toBe(140);
+    expect(result.state.minorCivs[minorCivId].regionalGrievanceByCiv?.player.pressure).toBe(30);
+    expect(result.state.minorCivs[minorCivId].regionalGrievanceByCiv?.player.status).toBe('wary');
+    expect(result.state.minorCivs[minorCivId].regionalGrievanceByCiv?.player.causes.at(-1)).toMatchObject({
+      type: 'reparations',
+      actorCivId: 'player',
+      pressure: -20,
+    });
+    expect(result.state.minorCivs[minorCivId].diplomacy.relationships.player).toBe(-12);
+  });
+
+  it('rejects reparations while at war or without an active grievance', () => {
+    const atWar = actionState('minor-action-reparations-war');
+    atWar.minorCiv.regionalGrievanceByCiv = {
+      player: { targetCivId: 'player', pressure: 50, status: 'mobilizing', lastUpdatedTurn: atWar.state.turn, causes: [] },
+    };
+    atWar.minorCiv.diplomacy.atWarWith.push('player');
+
+    const warResult = performMinorCivReparations(atWar.state, 'player', atWar.minorCivId);
+    const noGrievance = actionState('minor-action-reparations-none');
+    const noGrievanceResult = performMinorCivReparations(noGrievance.state, 'player', noGrievance.minorCivId);
+
+    expect(warResult.ok).toBe(false);
+    expect(warResult.state.civilizations.player.gold).toBe(200);
+    expect(noGrievanceResult.ok).toBe(false);
+    expect(noGrievanceResult.state.civilizations.player.gold).toBe(200);
   });
 });

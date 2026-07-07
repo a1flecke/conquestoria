@@ -237,7 +237,7 @@ import { createLegendaryWonderCompletionQueue } from '@/ui/legendary-wonder-comp
 import { removeRouteForUnit, createMarketplaceState, getEffectiveGoldPerTurn, getRouteTechGoldBonus } from '@/systems/trade-system';
 import { establishQuestAwareRoute } from '@/systems/quest-aware-trade-system';
 import { emitMinorCivQuestTransitions } from '@/systems/quest-chain-system';
-import { performMinorCivFestival, performMinorCivGift, setMinorCivWarState } from '@/systems/minor-civ-actions';
+import { performMinorCivFestival, performMinorCivGift, performMinorCivReparations, setMinorCivWarState } from '@/systems/minor-civ-actions';
 import { MINOR_CIV_DEFINITIONS } from '@/systems/minor-civ-definitions';
 import { openEstablishRoutePanel } from '@/ui/establish-route-panel';
 import { RoundPresentationGate } from '@/presentation/round-presentation-gate';
@@ -971,6 +971,19 @@ function handleSponsorFestival(mcId: string): void {
   openDiplomacyPanel();
 }
 
+function handleMinorCivReparations(mcId: string): void {
+  const result = performMinorCivReparations(gameState, gameState.currentPlayer, mcId);
+  if (!result.ok) {
+    showNotification(result.reason ?? 'Reparations unavailable.', 'warning');
+    return;
+  }
+  gameState = result.state;
+  showNotification('Reparations paid.', 'success');
+  renderLoop.setGameState(gameState);
+  updateHUD();
+  openDiplomacyPanel();
+}
+
 function handleMinorCivWarPeace(mcId: string, currentlyAtWar: boolean): void {
   const result = setMinorCivWarState(gameState, gameState.currentPlayer, mcId, !currentlyAtWar);
   if (!result.ok) return;
@@ -991,6 +1004,7 @@ function openDiplomacyPanel(): void {
     onRejectPeaceRequest: handleRejectPeaceRequest,
     onGiftGold: handleGiftGold,
     onSponsorFestival: handleSponsorFestival,
+    onMinorCivReparations: handleMinorCivReparations,
     onMinorCivWarPeace: handleMinorCivWarPeace,
     onClose: () => {},
   });
