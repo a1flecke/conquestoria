@@ -83,3 +83,55 @@ describe('tile-presentation', () => {
     });
   });
 });
+
+describe('tile-presentation hasRail', () => {
+  const railMap = {
+    width: 4,
+    height: 3,
+    wrapsHorizontally: false,
+    rivers: [],
+    tiles: { '0,0': { ...liveTile, hasRoad: true, owner: 'ai-1' } },
+  } as unknown as GameMap;
+
+  it('live tile resolves hasRail true when the owner has completed railway-expansion', () => {
+    const visibility: VisibilityMap = { tiles: { '0,0': 'visible' } };
+    const result = resolveTilePresentationForViewer(railMap, visibility, { q: 0, r: 0 }, {
+      'ai-1': ['railway-expansion'],
+    });
+    expect(result.hasRail).toBe(true);
+  });
+
+  it('live tile resolves hasRail false when the owner lacks railway-expansion (negative)', () => {
+    const visibility: VisibilityMap = { tiles: { '0,0': 'visible' } };
+    const result = resolveTilePresentationForViewer(railMap, visibility, { q: 0, r: 0 }, {
+      'ai-1': ['road-building'],
+    });
+    expect(result.hasRail).toBe(false);
+  });
+
+  it('last-seen tile reads the frozen hasRail snapshot rather than re-deriving from live tech state (negative)', () => {
+    const visibility: VisibilityMap = {
+      tiles: { '0,0': 'fog' },
+      lastSeen: {
+        '0,0': {
+          coord: { q: 0, r: 0 },
+          terrain: 'plains',
+          elevation: 'lowland',
+          resource: null,
+          improvement: 'none',
+          improvementTurnsLeft: 0,
+          owner: 'ai-1',
+          hasRiver: false,
+          wonder: null,
+          hasRoad: true,
+          hasRail: false,
+        },
+      },
+    };
+    // Rival has since completed railway-expansion, but the viewer hasn't re-observed the tile.
+    const result = resolveTilePresentationForViewer(railMap, visibility, { q: 0, r: 0 }, {
+      'ai-1': ['railway-expansion'],
+    });
+    expect(result.hasRail).toBe(false);
+  });
+});

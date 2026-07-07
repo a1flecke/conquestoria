@@ -1112,3 +1112,60 @@ Before finalising each sprite, verify:
 - [ ] Wolf silhouette reads as "wolf" at 32 px; basilisk reads as "big lizard" at 32 px
 - [ ] Wolf and basilisk are visually distinct from the boar — different shape language, different palette, different animations
 </style_checklist>
+
+---
+
+## 2026-07-06 addendum — Rail Segment (MR14, issue #483)
+
+### Developer instructions (do not copy into Claude)
+
+This is a **non-standard Improvement Marker** — a single reusable edge sprite drawn rotated along
+a road segment (see `.claude/rules/sprites.md` → "Extension Recipe — Rail Segment") rather than
+centered on a hex. For this MR the SVG was hand-authored directly in
+`src/renderer/improvements/rail-segment-marker.ts` following the checklist below rather than
+round-tripped through Claude Design, since the change needed to ship in the same session. Use
+this prompt if a future pass wants a higher-fidelity replacement asset.
+
+### Prompt (copy everything below this line)
+
+<role>
+You are a senior SVG sprite artist specializing in hand-crafted game graphics. You write clean, geometric SVG — no photorealism, no gradient meshes, no blur filters.
+</role>
+
+<context>
+**Project**: Conquestoria — HTML5 Canvas + DOM strategy game, medieval/ancient theme (Eras 1–4), mobile-first. This asset represents a rail-upgraded road (unlocked by the "Railway Expansion" tech, era 7+).
+</context>
+
+<reference_files>
+1. Hex renderer (road/rail draw calls): https://raw.githubusercontent.com/a1flecke/conquestoria/main/src/renderer/hex-renderer.ts
+2. Existing improvement marker for style reference: https://raw.githubusercontent.com/a1flecke/conquestoria/main/src/renderer/improvements/resource-outpost-marker.ts
+</reference_files>
+
+<sprites>
+## IMPROVEMENT — RailSegmentSvg (edge sprite, not a tile-centered marker)
+
+**Create file**: `src/renderer/improvements/rail-segment-marker.ts`
+**Replaces**: the plain `#8a6a3a` road line drawn by `drawRoads`/`drawWrapGhostRoads` in `hex-renderer.ts`, but only on segments where both endpoint tiles are rail-upgraded.
+
+### Concept
+A short straight length of railway track: two steel rails running the full width of the tile with wooden ties (sleepers) crossing perpendicular beneath them. Drawn along the X axis of the viewBox (length axis) so the renderer can rotate it to match any hex-to-hex edge direction.
+
+### Key requirements
+- viewBox="0 0 48 48", no palette prop, no animation, no JSX
+- Rails run horizontally (length axis), ties run vertical/perpendicular — the renderer stretches this along the edge and rotates it, so the "length" direction must be the sprite's horizontal axis
+- Wood ties: `#5e3f24`, evenly spaced, 5 ties across the 48-unit width
+- Steel rails: `#8a929b` with a thin `#e8edf2` highlight line at ~50% opacity for a metallic sheen
+- `stroke-linecap="round"` and `stroke-linejoin="round"` throughout
+- Tone: industrial, functional, distinct at a glance from the plain brown road line
+</sprites>
+
+<output_format>
+Output a single `export function getRailSegmentSvg(): string` returning the SVG string, matching the shape of `resource-outpost-marker.ts`'s exported constant/loader pair.
+</output_format>
+
+<style_checklist>
+- [ ] viewBox="0 0 48 48"
+- [ ] No palette prop, no animation, no JSX
+- [ ] Rails run along the horizontal (length) axis; ties perpendicular
+- [ ] Reads clearly as "railway track" at 24–32px when stretched along a hex edge
+</style_checklist>

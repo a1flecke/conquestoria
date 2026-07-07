@@ -10,6 +10,7 @@ import type {
 import { getVisibility, isForestConcealedUnit, updateVisibility } from '@/systems/fog-of-war';
 import { getActiveNationalProjectsForCiv } from '@/systems/national-project-system';
 import { getVisionBonus } from '@/systems/unit-modifier-system';
+import { resolveTileHasRail } from '@/systems/road-network';
 import { hexKey, parseHexKey, wrapHexCoord } from '@/systems/hex-utils';
 import { canInspectUnitForViewer } from './viewer-intel';
 import { getVisibleUnitsForPlayer } from './espionage-stealth';
@@ -85,6 +86,11 @@ function createTilePresentation(
 ): LastSeenTilePresentation {
   const tileKey = hexKey(tile.coord);
   const city = Object.values(state.cities).find(candidate => hexKey(candidate.position) === tileKey);
+  const hasRail = resolveTileHasRail(
+    Boolean(tile.hasRoad),
+    tile.owner,
+    tile.owner ? state.civilizations[tile.owner]?.techState.completed : undefined,
+  );
   return {
     coord: { ...tile.coord },
     terrain: tile.terrain,
@@ -96,6 +102,7 @@ function createTilePresentation(
     hasRiver: tile.hasRiver,
     wonder: tile.wonder,
     hasRoad: tile.hasRoad,
+    hasRail,
     city: city
       ? { id: city.id, name: city.name, owner: city.owner, population: city.population }
       : undefined,

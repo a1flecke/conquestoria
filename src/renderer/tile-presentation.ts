@@ -1,12 +1,14 @@
 import type { GameMap, HexCoord, HexTile, LastSeenTilePresentation, VisibilityMap } from '@/core/types';
 import { getVisibility } from '@/systems/fog-of-war';
 import { hexKey, wrapHexCoord } from '@/systems/hex-utils';
+import { resolveTileHasRail } from '@/systems/road-network';
 
 export type TilePresentationKind = 'live' | 'last-seen' | 'unknown-fog' | 'unexplored';
 
 export interface TilePresentation {
   kind: TilePresentationKind;
   tile: HexTile;
+  hasRail: boolean;
 }
 
 function unknownTile(coord: HexCoord): HexTile {
@@ -42,16 +44,24 @@ export function resolveTilePresentationForViewer(
   map: GameMap,
   visibility: VisibilityMap | undefined,
   renderCoord: HexCoord,
+  completedTechsByCiv: Record<string, string[]> = {},
 ): TilePresentation {
   const coord = map.wrapsHorizontally ? wrapHexCoord(renderCoord, map.width) : renderCoord;
   const key = hexKey(coord);
   const liveTile = map.tiles[key] ?? unknownTile(coord);
   const state = visibility ? getVisibility(visibility, coord) : 'visible';
 
-  if (state === 'visible') return { kind: 'live', tile: liveTile };
-  if (state === 'unexplored') return { kind: 'unexplored', tile: unknownTile(coord) };
+  if (state === 'visible') {
+    const hasRail = resolveTileHasRail(
+      Boolean(liveTile.hasRoad),
+      liveTile.owner,
+      liveTile.owner ? completedTechsByCiv[liveTile.owner] : undefined,
+    );
+    return { kind: 'live', tile: liveTile, hasRail };
+  }
+  if (state === 'unexplored') return { kind: 'unexplored', tile: unknownTile(coord), hasRail: false };
 
   const snapshot = visibility?.lastSeen?.[key];
-  if (snapshot) return { kind: 'last-seen', tile: lastSeenToTile(snapshot) };
-  return { kind: 'unknown-fog', tile: unknownTile(coord) };
+  if (snapshot) return { kind: 'last-seen', tile: lastSeenToTile(snapshot), hasRail: snapshot.hasRail ?? false };
+  return { kind: 'unknown-fog', tile: unknownTile(coord), hasRail: false };
 }

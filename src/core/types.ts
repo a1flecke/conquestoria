@@ -305,6 +305,7 @@ export interface LastSeenTilePresentation {
   hasRiver: boolean;
   wonder: string | null;
   hasRoad?: boolean;
+  hasRail?: boolean;
   city?: LastSeenCityPresentation;
   observedTurn?: number;
   source?: 'observed' | 'legacy-reconstructed';

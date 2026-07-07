@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { Camera } from '@/renderer/camera';
 import {
   drawHexHighlight,
@@ -8,10 +8,15 @@ import {
 } from '@/renderer/hex-renderer';
 import type { GameMap, VisibilityMap } from '@/core/types';
 
+vi.mock('@/renderer/improvements/rail-segment-loader', () => ({
+  getRailSegmentImage: () => ({} as HTMLImageElement),
+}));
+
 class MockCanvasContext {
   strokeCalls: string[] = [];
   textCalls: string[] = [];
   fillTextCalls: Array<{ text: string; x: number; y: number }> = [];
+  drawImageCalls = 0;
   fillStyle = '';
   strokeStyle = '';
   lineWidth = 0;
@@ -24,6 +29,8 @@ class MockCanvasContext {
 
   save(): void {}
   restore(): void {}
+  translate(): void {}
+  rotate(): void {}
   beginPath(): void {}
   moveTo(): void {}
   lineTo(): void {}
@@ -32,6 +39,9 @@ class MockCanvasContext {
   ellipse(): void {}
   closePath(): void {}
   fill(): void {}
+  drawImage(): void {
+    this.drawImageCalls += 1;
+  }
   fillText(text: string, x: number = 0, y: number = 0): void {
     this.textCalls.push(text);
     this.fillTextCalls.push({ text, x, y });
@@ -501,5 +511,71 @@ describe('drawRoads', () => {
     const ctx = new MockCanvasContext() as unknown as CanvasRenderingContext2D;
     drawRoads(ctx, map, makeCamera(), new Set());
     expect((ctx as unknown as MockCanvasContext).strokeCalls.length).toBe(0);
+  });
+});
+
+describe('drawRoads rail visual', () => {
+  function makeRailMap(secondTileOwner: string | null, secondTileHasRoad: boolean): GameMap {
+    return {
+      width: 2,
+      height: 1,
+      wrapsHorizontally: false,
+      rivers: [],
+      tiles: {
+        '0,0': { coord: { q: 0, r: 0 }, terrain: 'grassland', elevation: 'lowland', resource: null, improvement: 'none', owner: 'player', improvementTurnsLeft: 0, hasRiver: false, wonder: null, hasRoad: true },
+        '1,0': { coord: { q: 1, r: 0 }, terrain: 'grassland', elevation: 'lowland', resource: null, improvement: 'none', owner: secondTileOwner, improvementTurnsLeft: 0, hasRiver: false, wonder: null, hasRoad: secondTileHasRoad },
+      },
+    } as unknown as GameMap;
+  }
+
+  it('draws rail art (drawImage) when both segment endpoints are rail', async () => {
+    const { drawRoads } = await import('@/renderer/hex-renderer');
+    const ctx = new MockCanvasContext() as unknown as CanvasRenderingContext2D;
+    drawRoads(ctx, makeRailMap('player', true), makeCamera(), new Set(), undefined, {
+      player: ['railway-expansion'],
+    });
+    const mockCtx = ctx as unknown as MockCanvasContext;
+    expect(mockCtx.drawImageCalls).toBeGreaterThan(0);
+    expect(mockCtx.strokeCalls.length).toBe(0);
+  });
+
+  it('falls back to the plain road line when only one endpoint qualifies (mixed-tech boundary, negative)', async () => {
+    const { drawRoads } = await import('@/renderer/hex-renderer');
+    const ctx = new MockCanvasContext() as unknown as CanvasRenderingContext2D;
+    // '1,0' has no road at all, so it can never be rail regardless of tech.
+    drawRoads(ctx, makeRailMap('player', false), makeCamera(), new Set(['1,0']), undefined, {
+      player: ['railway-expansion'],
+    });
+    const mockCtx = ctx as unknown as MockCanvasContext;
+    expect(mockCtx.drawImageCalls).toBe(0);
+    expect(mockCtx.strokeCalls.length).toBeGreaterThan(0);
+  });
+
+  it('falls back to the plain road line when neither tile has a road at all (negative)', async () => {
+    const { drawRoads } = await import('@/renderer/hex-renderer');
+    const map = makeMap();
+    const ctx = new MockCanvasContext() as unknown as CanvasRenderingContext2D;
+    drawRoads(ctx, map, makeCamera(), new Set(['0,0', '1,0']), undefined, { player: ['railway-expansion'] });
+    const mockCtx = ctx as unknown as MockCanvasContext;
+    expect(mockCtx.drawImageCalls).toBe(0);
+  });
+
+  it('renders rail art identically on the wrap-ghost pass on a wrapping map', async () => {
+    const { drawRoads } = await import('@/renderer/hex-renderer');
+    const wrapMap: GameMap = {
+      width: 2,
+      height: 1,
+      wrapsHorizontally: true,
+      rivers: [],
+      tiles: {
+        '0,0': { coord: { q: 0, r: 0 }, terrain: 'grassland', elevation: 'lowland', resource: null, improvement: 'none', owner: 'player', improvementTurnsLeft: 0, hasRiver: false, wonder: null, hasRoad: true },
+        '1,0': { coord: { q: 1, r: 0 }, terrain: 'grassland', elevation: 'lowland', resource: null, improvement: 'none', owner: 'player', improvementTurnsLeft: 0, hasRiver: false, wonder: null, hasRoad: true },
+      },
+    } as unknown as GameMap;
+    const ctx = new MockCanvasContext() as unknown as CanvasRenderingContext2D;
+    drawRoads(ctx, wrapMap, makeCamera(), new Set(), undefined, { player: ['railway-expansion'] });
+    const mockCtx = ctx as unknown as MockCanvasContext;
+    expect(mockCtx.drawImageCalls).toBeGreaterThan(0);
+    expect(mockCtx.strokeCalls.length).toBe(0);
   });
 });

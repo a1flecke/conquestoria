@@ -8,6 +8,7 @@ import { drawNaturalWonderLandmark } from './wonders/natural-wonder-renderer';
 import { RESOURCE_ICONS, RESOURCE_TECH } from '@/systems/trade-system';
 import { LOD_SPRITE_ZOOM_THRESHOLD } from '@/renderer/sprites/sprite-system';
 import { getOutpostMarkerImage } from './improvements/resource-outpost-marker';
+import { getRailSegmentImage } from './improvements/rail-segment-loader';
 import { getTerrainTileImage } from './terrain/terrain-tile-loader';
 import { drawImprovementTreatment } from './improvements/improvement-treatment';
 
@@ -220,7 +221,8 @@ function canRenderRiverEndpoint(map: GameMap, visibility: VisibilityMap | undefi
   return presentation.kind === 'live' || presentation.kind === 'last-seen';
 }
 
-// --- Roads (drawn as programmatic lines, like rivers — no sprite art yet) ---
+// --- Roads (programmatic line, like rivers) and rail (directional sprite once
+// both segment endpoints qualify — see `resolveTileHasRail` in road-network.ts) ---
 
 function roadConnects(
   map: GameMap,
@@ -231,6 +233,15 @@ function roadConnects(
   const presentation = resolveTilePresentationForViewer(map, visibility, coord);
   if (presentation.kind !== 'live' && presentation.kind !== 'last-seen') return false;
   return Boolean(presentation.tile.hasRoad) || cityTileKeys.has(hexKey(coord));
+}
+
+function endpointHasRail(
+  map: GameMap,
+  visibility: VisibilityMap | undefined,
+  completedTechsByCiv: Record<string, string[]>,
+  coord: HexCoord,
+): boolean {
+  return resolveTilePresentationForViewer(map, visibility, coord, completedTechsByCiv).hasRail;
 }
 
 function drawRoadSegment(
@@ -247,6 +258,37 @@ function drawRoadSegment(
   ctx.moveTo(fromScreen.x, fromScreen.y);
   ctx.lineTo(toScreen.x, toScreen.y);
   ctx.stroke();
+}
+
+function drawRailSegment(
+  ctx: CanvasRenderingContext2D,
+  camera: Camera,
+  from: HexCoord,
+  to: HexCoord,
+): boolean {
+  const railImg = getRailSegmentImage();
+  if (!railImg) return false;
+
+  const fromPixel = hexToPixel(from, camera.hexSize);
+  const toPixel = hexToPixel(to, camera.hexSize);
+  const fromScreen = camera.worldToScreen(fromPixel.x, fromPixel.y);
+  const toScreen = camera.worldToScreen(toPixel.x, toPixel.y);
+  const dx = toScreen.x - fromScreen.x;
+  const dy = toScreen.y - fromScreen.y;
+  const length = Math.sqrt(dx * dx + dy * dy);
+  if (length === 0) return false;
+
+  const midX = (fromScreen.x + toScreen.x) / 2;
+  const midY = (fromScreen.y + toScreen.y) / 2;
+  const angle = Math.atan2(dy, dx);
+  const width = 8 * camera.zoom;
+
+  ctx.save();
+  ctx.translate(midX, midY);
+  ctx.rotate(angle);
+  ctx.drawImage(railImg, -length / 2, -width / 2, length, width);
+  ctx.restore();
+  return true;
 }
 
 function forEachRoadSegment(
@@ -271,12 +313,28 @@ function forEachRoadSegment(
   }
 }
 
+function drawRoadOrRailSegment(
+  ctx: CanvasRenderingContext2D,
+  map: GameMap,
+  camera: Camera,
+  visibility: VisibilityMap | undefined,
+  completedTechsByCiv: Record<string, string[]>,
+  from: HexCoord,
+  to: HexCoord,
+): void {
+  const isRail = endpointHasRail(map, visibility, completedTechsByCiv, from)
+    && endpointHasRail(map, visibility, completedTechsByCiv, to);
+  if (isRail && drawRailSegment(ctx, camera, from, to)) return;
+  drawRoadSegment(ctx, camera, from, to);
+}
+
 export function drawRoads(
   ctx: CanvasRenderingContext2D,
   map: GameMap,
   camera: Camera,
   cityTileKeys: ReadonlySet<string>,
   viewerVisibility?: VisibilityMap,
+  completedTechsByCiv: Record<string, string[]> = {},
 ): void {
   ctx.strokeStyle = '#8a6a3a';
   ctx.lineWidth = 3 * camera.zoom;
@@ -284,12 +342,12 @@ export function drawRoads(
 
   forEachRoadSegment(map, viewerVisibility, cityTileKeys, (from, to) => {
     if (camera.isHexVisible(from) || camera.isHexVisible(to)) {
-      drawRoadSegment(ctx, camera, from, to);
+      drawRoadOrRailSegment(ctx, map, camera, viewerVisibility, completedTechsByCiv, from, to);
     }
   });
 
   if (map.wrapsHorizontally) {
-    drawWrapGhostRoads(ctx, map, camera, cityTileKeys, viewerVisibility);
+    drawWrapGhostRoads(ctx, map, camera, cityTileKeys, viewerVisibility, completedTechsByCiv);
   }
 }
 
@@ -299,13 +357,14 @@ export function drawWrapGhostRoads(
   camera: Camera,
   cityTileKeys: ReadonlySet<string>,
   viewerVisibility?: VisibilityMap,
+  completedTechsByCiv: Record<string, string[]> = {},
 ): void {
   forEachRoadSegment(map, viewerVisibility, cityTileKeys, (from, to) => {
     for (const offset of getHorizontalWrapOffsetsForRiver(from, to, map.width)) {
       const ghostFrom: HexCoord = { q: from.q + offset, r: from.r };
       const ghostTo: HexCoord = { q: to.q + offset, r: to.r };
       if (!camera.isHexVisible(ghostFrom) && !camera.isHexVisible(ghostTo)) continue;
-      drawRoadSegment(ctx, camera, ghostFrom, ghostTo);
+      drawRoadOrRailSegment(ctx, map, camera, viewerVisibility, completedTechsByCiv, ghostFrom, ghostTo);
     }
   });
 }

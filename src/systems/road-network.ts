@@ -49,6 +49,22 @@ export function getCitiesConnectedToCapital(state: GameState, civId: string): Se
   return connected;
 }
 
+/**
+ * Whether a road tile should render with rail visuals: it must have a road,
+ * be owned, and that owner must have completed Railway Expansion. Purely
+ * presentational — no gameplay effect. Used identically by live-tile
+ * resolution (`tile-presentation.ts`) and last-seen snapshot capture
+ * (`last-seen-presentation.ts`) so fog/last-seen tiles freeze rail status at
+ * observation time instead of re-deriving the rival's current tech state.
+ */
+export function resolveTileHasRail(
+  hasRoad: boolean,
+  owner: string | null,
+  ownerCompletedTechs: string[] | undefined,
+): boolean {
+  return hasRoad && owner != null && (ownerCompletedTechs ?? []).includes('railway-expansion');
+}
+
 export function getOwnedRoadTileCount(state: GameState, civId: string): number {
   let count = 0;
   for (const tile of Object.values(state.map.tiles)) {

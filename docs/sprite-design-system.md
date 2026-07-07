@@ -146,7 +146,16 @@ Canvas-drawn emoji icons. Target: replace with proper SVG marker images.
 
 Roads are **not** an improvement marker — they're a tile overlay (`HexTile.hasRoad`) drawn as
 programmatic canvas lines between hex centers in `src/renderer/hex-renderer.ts` → `drawRoads`,
-the same technique used for rivers (`drawRivers`). No sprite art exists or is planned yet.
+the same technique used for rivers (`drawRivers`). Plain (non-rail) segments still use this
+line-draw technique.
+
+### Rail Segment — `src/renderer/improvements/rail-segment-marker.ts`
+✅ SVG marker (steel rails + wooden ties, `src/renderer/improvements/rail-segment-loader.ts` for the
+cached `HTMLImageElement`). Drawn by `drawRoads`/`drawWrapGhostRoads` in place of the plain road
+line on any segment where **both** endpoint tiles resolve `hasRail: true` (owner has completed
+`railway-expansion` — see `resolveTileHasRail` in `src/systems/road-network.ts`). This is a
+non-standard extension of the Improvement Marker contract — see the "Rail Segment" recipe in
+`.claude/rules/sprites.md` for the differences (per-edge rotation, both-endpoints-required).
 
 ### Legendary Wonders — `src/systems/legendary-wonder-definitions.ts`
 No map sprites yet. Production queue falls back to `'🏗️'`. Codex images exist in `public/images/wonders/codex/*.jpg` (lore art only, not map sprites).
