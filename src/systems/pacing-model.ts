@@ -75,11 +75,14 @@ const RESEARCH_OUTPUT_BY_ERA: Record<number, ResearchOutputProfile> = {
   9: { name: 'era-9-established', outputPerTurn: 25 },
   // era 10-12: extended in MR13 (#481, fixes F2/F3) — values derived from a real run of the
   // yield pipeline (tech percents + empire-flat tech yields) against a documented reference
-  // economy, not guessed. See tests/systems/pacing-reference-economy.test.ts for the fixture
-  // and derivation methodology, and that file's exact-value pin for the regression gate.
-  10: { name: 'era-10-established', outputPerTurn: 66 },
-  11: { name: 'era-11-established', outputPerTurn: 93 },
-  12: { name: 'era-12-established', outputPerTurn: 103 },
+  // economy, not guessed. Targets the 'maximal' profile (a completionist city that builds
+  // every available building) rather than the lower 'bounded' profile, so a completionist
+  // empire doesn't blow through late-game tech far faster than the target window. See
+  // tests/systems/pacing-reference-economy.test.ts for the fixture, both profiles' pins, and
+  // the regression/growth-ratio guardrails.
+  10: { name: 'era-10-established', outputPerTurn: 135 },
+  11: { name: 'era-11-established', outputPerTurn: 170 },
+  12: { name: 'era-12-established', outputPerTurn: 198 },
 };
 
 export const OPENING_SCIENCE_INVESTED_PROFILE: ResearchOutputProfile = {

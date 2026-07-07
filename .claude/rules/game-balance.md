@@ -102,8 +102,19 @@ When adding a new wonder, national project, or special building in any future er
   snapshot numbers and a one-line justification, not just a passing test — this is the
   seam future MRs go through instead of silently drifting pacing the way MR4–6 did
   (see issue #481 for the incident this rule prevents).
-- The reference-economy fixture bounds a single city's building set to buildings gated
-  within the last 4 eras (`BUILDING_ERA_WINDOW` in `tests/systems/helpers/pacing-reference-economy.ts`)
-  to avoid unbounded output growth from accumulating every building ever unlocked. If a
-  future MR needs to change this window, re-run the full outlier gate and expect era 10-12
-  tech costs to shift again — that cascade is expected, not a sign something broke.
+- The reference-economy fixture (`tests/systems/helpers/pacing-reference-economy.ts`) computes
+  two profiles per era: `'bounded'` (only buildings gated within the last `BUILDING_ERA_WINDOW`
+  eras count as active production) and `'maximal'` (every eligible building regardless of era —
+  a completionist player who builds everything, a real playstyle, not a corner case).
+  `RESEARCH_OUTPUT_BY_ERA` targets **`'maximal'`**, not `'bounded'`: tuning against the lower
+  bounded output would let a completionist empire blow through late-game tech far faster than
+  the target window, which is exactly the "feels automatic" failure the pacing design doc warns
+  against. Both profiles are pinned by `tests/systems/pacing-reference-economy.test.ts` so this
+  tradeoff stays visible in one place — do not quietly change which profile `RESEARCH_OUTPUT_BY_ERA`
+  targets without updating that file's comments and re-running the full outlier gate (era 10-12
+  tech costs will shift; that cascade is expected, not a sign something broke).
+- That same test file also gates the era-over-era output growth ratio (currently capped at 3x)
+  for both profiles. This is a guardrail against a repeat of the MR13 review finding: a bug in
+  building-eligibility logic can silently produce runaway output that only becomes visible once
+  it cascades into hundreds of tech-cost changes. If you touch `eligibleBuildingIds` or either
+  profile's derivation, this test should be the first thing you check.
