@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { createNewGame } from '@/core/game-state';
+import { createHotSeatGame, createNewGame } from '@/core/game-state';
 import { EventBus } from '@/core/event-bus';
 import { processTurn } from '@/core/turn-manager';
 import { resolveCivDefinition } from '@/systems/civ-registry';
@@ -245,6 +245,83 @@ describe('save persistence (#38)', () => {
     expect(normalized.chainStatusByCiv).toEqual({});
     expect(normalized.questCooldownUntilByCiv).toEqual({});
     expect(normalized.lastNotifiedStatusByCiv.player).toBe('friendly');
+  });
+
+  it('normalizes legacy minor-civ coalition fields for solo saves', () => {
+    const state = createNewGame(undefined, 'legacy-minor-coalition-solo', 'small');
+    const minorCiv = Object.values(state.minorCivs)[0];
+    delete (minorCiv as any).regionalGrievanceByCiv;
+    delete (state as any).minorCivCoalitions;
+    delete (state as any).minorCivRegionalCooldowns;
+
+    const loaded = normalizeLoadedStateForTest(state);
+
+    expect(loaded.minorCivs[minorCiv.id].regionalGrievanceByCiv).toEqual({});
+    expect(loaded.minorCivCoalitions).toEqual({});
+    expect(loaded.minorCivRegionalCooldowns).toEqual({});
+  });
+
+  it('drops malformed coalition records while preserving hot-seat pending events', () => {
+    const state = createHotSeatGame({
+      playerCount: 2,
+      mapSize: 'small',
+      players: [
+        { name: 'Alice', slotId: 'player-1', civType: 'egypt', isHuman: true },
+        { name: 'Bob', slotId: 'player-2', civType: 'rome', isHuman: true },
+      ],
+    }, 'legacy-minor-coalition-hotseat');
+    const minorCiv = Object.values(state.minorCivs)[0];
+    const grievance = {
+      targetCivId: 'player-1',
+      pressure: 55,
+      status: 'mobilizing',
+      lastUpdatedTurn: state.turn,
+      lastConquestTurn: state.turn - 1,
+      decayBlockedUntilTurn: state.turn + 4,
+      cooldownUntilTurn: state.turn + 12,
+      causes: [{
+        type: 'minor-civ-conquest',
+        turn: state.turn - 1,
+        minorCivId: minorCiv.id,
+        distance: 4,
+        pressure: 35,
+      }],
+    };
+    (minorCiv as any).regionalGrievanceByCiv = { 'player-1': grievance };
+    (state as any).minorCivCoalitions = {
+      invalid: {
+        id: 'invalid',
+        targetCivId: 'player-1',
+        memberIds: ['missing-minor-civ'],
+        status: 'active',
+        createdTurn: state.turn,
+        updatedTurn: state.turn,
+        cooldownUntilTurn: state.turn + 18,
+      },
+    };
+    (state as any).minorCivRegionalCooldowns = {
+      invalid: { targetCivId: 'player-1', memberIds: ['missing-minor-civ'], cooldownUntil: state.turn + 12 },
+    };
+    state.pendingEvents = {
+      'player-1': [{
+        type: 'minor-civ:coalition-status',
+        minorCivId: minorCiv.id,
+        targetCivId: 'player-1',
+        status: 'mobilizing',
+      } as any],
+    };
+
+    const loaded = normalizeLoadedStateForTest(state);
+
+    expect(loaded.minorCivs[minorCiv.id].regionalGrievanceByCiv['player-1']).toEqual(grievance);
+    expect(loaded.minorCivCoalitions).toEqual({});
+    expect(loaded.minorCivRegionalCooldowns).toEqual({});
+    expect(loaded.pendingEvents?.['player-1']?.[0]).toMatchObject({
+      type: 'minor-civ:coalition-status',
+      minorCivId: minorCiv.id,
+      targetCivId: 'player-1',
+      status: 'mobilizing',
+    });
   });
 
   it('removes malformed chain metadata without changing treasury or relationship', () => {

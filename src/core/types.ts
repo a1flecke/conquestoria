@@ -963,6 +963,52 @@ export type MinorCivChainStatus =
 
 export type MinorCivRelationshipStatus = 'at-war' | 'hostile' | 'neutral' | 'friendly' | 'allied';
 
+export type MinorCivRegionalGrievanceStatus = 'wary' | 'mobilizing' | 'coalition-talks' | 'cooling';
+
+export type MinorCivRegionalGrievanceCause =
+  | {
+      type: 'minor-civ-conquest';
+      turn: number;
+      minorCivId: string;
+      distance: number;
+      pressure: number;
+    }
+  | {
+      type: 'reparations';
+      turn: number;
+      actorCivId: string;
+      pressure: number;
+    };
+
+export interface MinorCivRegionalGrievance {
+  targetCivId: string;
+  pressure: number;
+  status: MinorCivRegionalGrievanceStatus;
+  lastUpdatedTurn: number;
+  lastConquestTurn?: number;
+  decayBlockedUntilTurn?: number;
+  cooldownUntilTurn?: number;
+  causes: MinorCivRegionalGrievanceCause[];
+}
+
+export type MinorCivCoalitionStatus = 'forming' | 'active' | 'cooling';
+
+export interface MinorCivCoalitionRecord {
+  id: string;
+  targetCivId: string;
+  memberIds: string[];
+  status: MinorCivCoalitionStatus;
+  createdTurn: number;
+  updatedTurn: number;
+  cooldownUntilTurn: number;
+}
+
+export interface MinorCivRegionalCooldown {
+  targetCivId: string;
+  memberIds: string[];
+  cooldownUntil: number;
+}
+
 export type QuestAction =
   | { type: 'gift_gold'; actorCivId: string; minorCivId: string; amount: number; turn: number }
   | { type: 'sponsor_festival'; actorCivId: string; minorCivId: string; turn: number }
@@ -980,6 +1026,7 @@ export interface MinorCivState {
   chainStatusByCiv: Record<string, MinorCivChainStatus>;
   questCooldownUntilByCiv: Record<string, number>;
   lastNotifiedStatusByCiv: Record<string, MinorCivRelationshipStatus>;
+  regionalGrievanceByCiv?: Record<string, MinorCivRegionalGrievance>;
   isDestroyed: boolean;
   garrisonCooldown: number;
   lastEraUpgrade: number;
@@ -1367,6 +1414,8 @@ export interface GameState {
   cities: Record<string, City>;
   barbarianCamps: Record<string, BarbarianCamp>;
   minorCivs: Record<string, MinorCivState>;
+  minorCivCoalitions?: Record<string, MinorCivCoalitionRecord>;
+  minorCivRegionalCooldowns?: Record<string, MinorCivRegionalCooldown>;
   tutorial: TutorialState;
   currentPlayer: string;     // civ ID whose turn it is
   gameOver: boolean;
@@ -1587,6 +1636,8 @@ export interface GameEvents {
   'minor-civ:era-upgrade': { minorCivId: string; newEra: number };
   'minor-civ:relationship-threshold': { minorCivId: string; majorCivId: string; newStatus: MinorCivRelationshipStatus; state?: GameState };
   'minor-civ:quest-expired': { minorCivId: string; majorCivId: string; quest: Quest; state?: GameState };
+  'minor-civ:coalition-status': { minorCivId: string; targetCivId: string; status: MinorCivRegionalGrievanceStatus; state?: GameState };
+  'minor-civ:coalition-war': { coalitionId: string; targetCivId: string; memberIds: string[]; state?: GameState };
   'espionage:spy-recruited': { civId: string; spy: Spy };
   'espionage:spy-assigned': { civId: string; spyId: string; targetCivId: string; targetCityId: string };
   'espionage:spy-arrived': { civId: string; spyId: string; targetCityId: string };
