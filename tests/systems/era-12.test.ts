@@ -26,10 +26,10 @@ describe('era 12 tech tree', () => {
   // against a real reference-economy fixture (tests/systems/pacing-reference-economy.test.ts),
   // which came out substantially higher than the old guessed constants — era 12 tech costs
   // were retuned upward to match so turns-to-research stays in the same target window.
-  it('all era 12 techs cost in 690–1450 range', () => {
+  it('all era 12 techs cost in 1300–2800 range', () => {
     for (const t of era12Techs) {
-      expect(t.cost, `${t.id} cost out of range`).toBeGreaterThanOrEqual(690);
-      expect(t.cost, `${t.id} cost out of range`).toBeLessThanOrEqual(1450);
+      expect(t.cost, `${t.id} cost out of range`).toBeGreaterThanOrEqual(1300);
+      expect(t.cost, `${t.id} cost out of range`).toBeLessThanOrEqual(2800);
     }
   });
 
@@ -537,7 +537,7 @@ describe('gene therapy charge on research completion (Task 1)', () => {
         ...base.civilizations,
         p1: {
           ...base.civilizations.p1,
-          techState: { ...base.civilizations.p1.techState, currentResearch: 'gene-therapy', researchProgress: 925 },
+          techState: { ...base.civilizations.p1.techState, currentResearch: 'gene-therapy', researchProgress: 1780 },
         },
       },
     } as unknown as GameState;
@@ -564,7 +564,7 @@ describe('gene therapy charge on research completion (Task 1)', () => {
         p2: {
           ...base.civilizations.p2,
           units: [...base.civilizations.p2.units, 'warriorAI'],
-          techState: { ...base.civilizations.p2.techState, currentResearch: 'gene-therapy', researchProgress: 925 },
+          techState: { ...base.civilizations.p2.techState, currentResearch: 'gene-therapy', researchProgress: 1780 },
         },
       },
     } as unknown as GameState;

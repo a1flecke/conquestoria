@@ -9,28 +9,35 @@ import { getEmpireTechPercents, applyEmpireTechPercents, getEmpireFlatTechYields
  * requirement): a "competent" empire at era N is modeled as having completed every tech from
  * every era strictly before N, and none of era N's own techs yet — this matches what
  * RESEARCH_OUTPUT_BY_ERA conceptually represents: the output a civ has *on arrival* at era N,
- * before that era's own techs compound further. Buildings present are every non-national-project,
- * non-coastal-required building whose techRequired is in that completed-tech set (and whose
- * requiresBuildings chain is satisfied), which is a direct, non-guessed consequence of the tech
- * list rather than a hand-picked "realistic" building set — this replaces F3's hand-picked
- * constants with a derivation from the actual game-content graph.
+ * before that era's own techs compound further. Buildings present are a direct, non-guessed
+ * consequence of the tech list (every non-national-project, non-coastal-required building
+ * whose techRequired is completed and whose requiresBuildings chain is satisfied) rather than a
+ * hand-picked "realistic" building set — this replaces F3's hand-picked constants with a
+ * derivation from the actual game-content graph.
  *
  * Deliberately excluded from the pin (documented, not an oversight): trade routes, legendary
  * wonders, luxury resources, and multi-city empire effects. These are per-city/per-route/
  * per-wonder bonuses that a single-city reference fixture cannot represent without inventing
- * numbers; the pin is a conservative single-city floor, not a ceiling.
+ * numbers.
  *
- * Building-set bound: a single city cannot literally build every building ever unlocked across
- * 11 prior eras (production time is finite; one production queue can only complete so much).
- * To keep the fixture from overstating output, only buildings gated by a tech from one of the
- * 4 eras immediately preceding era N are counted as "still being actively built" — buildings
- * from older eras are assumed already-built prerequisites baked into the city's existing yield
- * but not re-counted individually here, since requiresBuildings chains already force their
- * direct prerequisites into the eligible set regardless of era.
+ * Two profiles, not one (added post-MR13 review): a single city's building count depends
+ * entirely on how thoroughly a player builds. Neither extreme is "wrong":
+ * - 'bounded': only buildings gated within the last BUILDING_ERA_WINDOW eras count as active
+ *   production — models an empire that keeps building new things but doesn't dwell on maxing
+ *   out every old city.
+ * - 'maximal': every eligible building regardless of era counts — models a completionist player
+ *   who builds everything available in every city (a real, common playstyle, not a corner case).
+ * `RESEARCH_OUTPUT_BY_ERA` targets 'maximal' (see pacing-model.ts comment) per the project's
+ * pacing design intent ("never automatic") — tuning against the lower ('bounded') output would
+ * let a completionist empire blow through late-game tech far faster than the target window,
+ * which is the failure mode the design doc calls out explicitly. Both profiles are pinned by
+ * tests/systems/pacing-reference-economy.test.ts so this tradeoff stays visible in one place.
  */
 
 const REFERENCE_MAP_SIZE = 8;
 const BUILDING_ERA_WINDOW = 4;
+
+export type ReferenceEconomyProfile = 'bounded' | 'maximal';
 
 function completedTechsForEra(era: number): string[] {
   return TECH_TREE.filter(tech => tech.era < era).map(tech => tech.id);
@@ -40,7 +47,7 @@ function techEra(techId: string): number {
   return TECH_TREE.find(tech => tech.id === techId)?.era ?? 1;
 }
 
-function eligibleBuildingIds(completedTechs: string[], era: number): string[] {
+function eligibleBuildingIds(completedTechs: string[], era: number, profile: ReferenceEconomyProfile): string[] {
   const techSet = new Set(completedTechs);
   const built = new Set<string>();
   let added = true;
@@ -51,12 +58,14 @@ function eligibleBuildingIds(completedTechs: string[], era: number): string[] {
       if (built.has(building.id) || building.nationalProject || building.coastalRequired) continue;
       if (building.techRequired) {
         if (!techSet.has(building.techRequired)) continue;
-        // Bound: only recently-gated buildings count toward active production, unless a
-        // still-eligible newer building's requiresBuildings chain forces an older one in.
-        const isRecent = techEra(building.techRequired) > era - BUILDING_ERA_WINDOW;
-        const isForcedPrereq = Object.values(BUILDINGS).some(other =>
-          (other.requiresBuildings ?? []).includes(building.id));
-        if (!isRecent && !isForcedPrereq) continue;
+        if (profile === 'bounded') {
+          // Bound: only recently-gated buildings count toward active production, unless a
+          // still-eligible newer building's requiresBuildings chain forces an older one in.
+          const isRecent = techEra(building.techRequired) > era - BUILDING_ERA_WINDOW;
+          const isForcedPrereq = Object.values(BUILDINGS).some(other =>
+            (other.requiresBuildings ?? []).includes(building.id));
+          if (!isRecent && !isForcedPrereq) continue;
+        }
       }
       const prereqsMet = (building.requiresBuildings ?? []).every(id => built.has(id));
       if (!prereqsMet) continue;
@@ -91,9 +100,12 @@ function makeReferenceMap(): GameMap {
   return { width: REFERENCE_MAP_SIZE, height: REFERENCE_MAP_SIZE, tiles, wrapsHorizontally: false, rivers: [] };
 }
 
-export function buildReferenceEconomyCity(era: number): { city: City; map: GameMap; completedTechs: string[] } {
+export function buildReferenceEconomyCity(
+  era: number,
+  profile: ReferenceEconomyProfile = 'maximal',
+): { city: City; map: GameMap; completedTechs: string[] } {
   const completedTechs = completedTechsForEra(era);
-  const buildings = eligibleBuildingIds(completedTechs, era);
+  const buildings = eligibleBuildingIds(completedTechs, era, profile);
   const position: HexCoord = { q: 4, r: 4 };
   // Population grows with available infrastructure, capped to the reference map's radius.
   const population = Math.min(12, 2 + Math.floor(buildings.length / 4));
@@ -128,8 +140,11 @@ export function buildReferenceEconomyCity(era: number): { city: City; map: GameM
   return { city, map: makeReferenceMap(), completedTechs };
 }
 
-export function getReferenceEconomyOutput(era: number): Pick<ResourceYield, 'science' | 'production'> {
-  const { city, map, completedTechs } = buildReferenceEconomyCity(era);
+export function getReferenceEconomyOutput(
+  era: number,
+  profile: ReferenceEconomyProfile = 'maximal',
+): Pick<ResourceYield, 'science' | 'production'> {
+  const { city, map, completedTechs } = buildReferenceEconomyCity(era, profile);
   const baseYields = calculateCityYields(city, map, undefined, completedTechs, {});
   const percents = getEmpireTechPercents(completedTechs);
   const withPercents = applyEmpireTechPercents(baseYields, percents);
