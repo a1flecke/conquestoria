@@ -8,9 +8,11 @@ import {
   getMinorCivCompletedTechBand,
   getMinorCivUnitCap,
   normalizeMinorCivEconomyState,
+  processMinorCivEconomyTurn,
 } from '@/systems/minor-civ-economy-system';
 import { getCivAvailableResources } from '@/systems/resource-acquisition-system';
-import { hexKey } from '@/systems/hex-utils';
+import { getWrappedHexNeighbors, hexKey, hexNeighbors } from '@/systems/hex-utils';
+import { createUnit } from '@/systems/unit-system';
 
 describe('minor-civ economy normalization', () => {
   it('does not change city queue, production progress, units, or regional grievance', () => {
@@ -150,5 +152,130 @@ describe('minor-civ economy helpers', () => {
     };
 
     expect(evaluateMinorCivEconomyPosture(state, minorCiv.id)).toBe('settled');
+  });
+});
+
+describe('minor-civ hidden production', () => {
+  it('processes real city production and completes a minor-civ building', () => {
+    const state = createNewGame(undefined, 'minor-economy-building', 'small');
+    const minorCiv = Object.values(state.minorCivs)[0];
+    const city = state.cities[minorCiv.cityId];
+    const legalBuilding = getMinorCivBuildCandidates(state, minorCiv.id).buildings[0]!.id;
+    city.productionQueue = [legalBuilding];
+    city.productionProgress = 999;
+    minorCiv.economy = { policy: 'defense', posture: 'fortifying', lastProcessedTurn: 0 };
+
+    const result = processMinorCivEconomyTurn(state, minorCiv.id);
+
+    expect(result.state.cities[city.id].buildings).toContain(legalBuilding);
+    expect(result.state.minorCivs[minorCiv.id].economy?.recentProductionSummary).toMatchObject({
+      itemId: legalBuilding,
+      itemClass: 'building',
+      completedTurn: state.turn,
+    });
+  });
+
+  it('completes a minor-civ unit into state.units and mc.units with no same-turn action', () => {
+    const state = createNewGame(undefined, 'minor-economy-unit', 'small');
+    const minorCiv = Object.values(state.minorCivs)[0];
+    const city = state.cities[minorCiv.cityId];
+    city.productionQueue = ['warrior'];
+    city.productionProgress = 999;
+    minorCiv.economy = { policy: 'defense', posture: 'mobilizing', lastProcessedTurn: 0 };
+    const beforeUnitIds = new Set(Object.keys(state.units));
+
+    const result = processMinorCivEconomyTurn(state, minorCiv.id);
+    const newUnit = Object.values(result.state.units).find(unit => !beforeUnitIds.has(unit.id))!;
+
+    expect(newUnit.owner).toBe(minorCiv.id);
+    expect(result.state.minorCivs[minorCiv.id].units).toContain(newUnit.id);
+    expect(newUnit.movementPointsLeft).toBe(0);
+    expect(newUnit.hasMoved).toBe(true);
+    expect(newUnit.hasActed).toBe(true);
+  });
+
+  it('stores pending unit spawn when city and adjacent tiles are occupied', () => {
+    const state = createNewGame(undefined, 'minor-economy-pending-spawn', 'small');
+    const minorCiv = Object.values(state.minorCivs)[0];
+    const city = state.cities[minorCiv.cityId];
+    city.productionQueue = ['warrior'];
+    city.productionProgress = 999;
+    minorCiv.economy = { policy: 'defense', posture: 'mobilizing', lastProcessedTurn: 0 };
+    const adjacent = state.map.wrapsHorizontally
+      ? getWrappedHexNeighbors(city.position, state.map.width)
+      : hexNeighbors(city.position);
+    const occupied = [city.position, ...adjacent];
+    occupied.forEach((coord, index) => {
+      const blocker = createUnit('warrior', 'player', coord, state.idCounters);
+      blocker.id = `spawn-blocker-${index}`;
+      state.units[blocker.id] = blocker;
+    });
+
+    const result = processMinorCivEconomyTurn(state, minorCiv.id);
+
+    expect(result.state.minorCivs[minorCiv.id].economy?.pendingUnitSpawn).toMatchObject({
+      unitType: 'warrior',
+      completedTurn: state.turn,
+      attempts: 1,
+    });
+    expect(Object.values(result.state.units).filter(unit => unit.owner === minorCiv.id && unit.type === 'warrior')).toHaveLength(1);
+  });
+
+  it('retries pending spawns before adding more production progress and clears after creation', () => {
+    const state = createNewGame(undefined, 'minor-economy-pending-retry', 'small');
+    const minorCiv = Object.values(state.minorCivs)[0];
+    const city = state.cities[minorCiv.cityId];
+    city.productionQueue = ['walls'];
+    city.productionProgress = 0;
+    minorCiv.economy = {
+      policy: 'defense',
+      posture: 'mobilizing',
+      lastProcessedTurn: 0,
+      pendingUnitSpawn: { unitType: 'warrior', completedTurn: state.turn - 1, attempts: 1 },
+    };
+    const beforeProgress = city.productionProgress;
+    const beforeUnitIds = new Set(Object.keys(state.units));
+
+    const result = processMinorCivEconomyTurn(state, minorCiv.id);
+    const newUnit = Object.values(result.state.units).find(unit => !beforeUnitIds.has(unit.id))!;
+
+    expect(newUnit.owner).toBe(minorCiv.id);
+    expect(result.state.minorCivs[minorCiv.id].economy?.pendingUnitSpawn).toBeUndefined();
+    expect(result.state.cities[city.id].productionProgress).toBe(beforeProgress);
+  });
+
+  it('does not process destroyed or captured city-states', () => {
+    const state = createNewGame(undefined, 'minor-economy-captured-skip', 'small');
+    const minorCiv = Object.values(state.minorCivs)[0];
+    const city = state.cities[minorCiv.cityId];
+    const legalBuilding = getMinorCivBuildCandidates(state, minorCiv.id).buildings[0]!.id;
+    city.owner = 'player';
+    city.productionQueue = [legalBuilding];
+    city.productionProgress = 999;
+
+    const result = processMinorCivEconomyTurn(state, minorCiv.id);
+
+    expect(result.state.cities[city.id].buildings).not.toContain(legalBuilding);
+  });
+
+  it('does not replace an active legal hidden queue item just because the decision interval elapsed', () => {
+    const state = createNewGame(undefined, 'minor-economy-preserve-queue', 'small');
+    const minorCiv = Object.values(state.minorCivs)[0];
+    const city = state.cities[minorCiv.cityId];
+    const legalBuilding = getMinorCivBuildCandidates(state, minorCiv.id).buildings[0]!.id;
+    city.productionQueue = [legalBuilding];
+    city.productionProgress = 1;
+    minorCiv.economy = {
+      policy: 'balanced',
+      posture: 'settled',
+      lastProcessedTurn: 0,
+      lastQueueDecisionTurn: 0,
+    };
+    state.turn = 20;
+
+    const result = processMinorCivEconomyTurn(state, minorCiv.id);
+
+    expect(result.state.cities[city.id].productionQueue[0]).toBe(legalBuilding);
+    expect(result.state.cities[city.id].productionProgress).toBeGreaterThan(1);
   });
 });
