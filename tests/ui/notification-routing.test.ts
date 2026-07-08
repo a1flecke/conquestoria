@@ -7,6 +7,7 @@ import {
   routeBarbarianSpawned,
   routeCombatRewardEarned,
   routeCombatResolved,
+  routeDroppedProductionItem,
   routeEconomyTreasuryStrain,
   queueFirstContactPendingEvents,
   routeLegendaryWonder,
@@ -217,6 +218,33 @@ describe('notification routing', () => {
       expect.objectContaining({ civId: 'p1', message: expect.stringMatching(/encountered Bob/i), type: 'info' }),
       expect.objectContaining({ civId: 'p2', message: expect.stringMatching(/encountered Alice/i), type: 'info' }),
     ]);
+  });
+
+  it('routes a dropped production item to the owning city civ, not the active player', () => {
+    const state = makeState(); // currentPlayer: 'p3'; city c1 is owned by p1, named Thebes
+    const { sink, calls } = makeSink();
+
+    routeDroppedProductionItem(state, {
+      cityId: 'c1', itemId: 'harbor', itemKind: 'building', reason: 'coastal-access-lost',
+    }, sink);
+
+    expect(calls).toEqual([{
+      civId: 'p1',
+      message: "Harbor removed from Thebes's build queue — the city is no longer coastal.",
+      type: 'warning',
+      target: undefined,
+    }]);
+  });
+
+  it('does not call the sink when the cityId no longer resolves to a city (negative)', () => {
+    const state = makeState();
+    const { sink, calls } = makeSink();
+
+    routeDroppedProductionItem(state, {
+      cityId: 'does-not-exist', itemId: 'harbor', itemKind: 'building', reason: 'coastal-access-lost',
+    }, sink);
+
+    expect(calls).toEqual([]);
   });
 
   it('first-contact queues hot-seat notable events for both players', () => {
