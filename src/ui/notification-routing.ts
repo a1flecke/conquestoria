@@ -1,10 +1,11 @@
-import type { CombatResult, CombatRewardNotification, GameEvents, GameState } from '@/core/types';
+import type { CombatResult, CombatRewardNotification, GameEvents, GameState, ProductionDropReason } from '@/core/types';
 import { collectEvent } from '@/core/hotseat-events';
 import { hexKey } from '@/systems/hex-utils';
 import { getImprovementDisplayName } from '@/systems/improvement-system';
 import { UNIT_DEFINITIONS } from '@/systems/unit-system';
 import { REVOLT_UNREST_TURNS, BREAKAWAY_REVOLT_TURNS, getCityAppeaseCost } from '@/systems/faction-system';
 import { getLegendaryWonderNotification } from '@/ui/legendary-wonder-notifications';
+import { describeDroppedProductionItem } from '@/systems/city-system';
 import type { NotificationEntry } from '@/core/notification-log';
 import { presentStrategicWarning } from '@/ui/strategic-warning-presentation';
 
@@ -228,6 +229,20 @@ export function routeFirstContact(
   const bName = state.civilizations[civB]?.name ?? civB;
   sink(civA, `You have encountered ${bName}.`, 'info');
   sink(civB, `You have encountered ${aName}.`, 'info');
+}
+
+export function routeDroppedProductionItem(
+  state: GameState,
+  event: { cityId: string; itemId: string; itemKind: 'building' | 'unit'; reason: ProductionDropReason },
+  sink: NotificationSink,
+): void {
+  const city = state.cities[event.cityId];
+  if (!city) return;
+  const message = describeDroppedProductionItem(
+    { itemId: event.itemId, itemKind: event.itemKind, reason: event.reason },
+    city.name,
+  );
+  sink(city.owner, message, 'warning');
 }
 
 export function queueFirstContactPendingEvents(
