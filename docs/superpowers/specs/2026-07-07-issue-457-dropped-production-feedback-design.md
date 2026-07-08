@@ -56,6 +56,8 @@ Replace the three existing single-value fields (`droppedBuilding`, `droppedUnit`
 export type ProductionDropReason =
   | 'obsoleted'                  // building or unit: obsoletedByTech / isBuildingObsolete fired
   | 'resource-lost'              // building or unit: required resource no longer available
+  | 'no-longer-available'        // unit only: neither obsoleted nor resource-lost explains it —
+                                  // see the save-compat note below
   | 'build-window-expired'       // national-project building: outside homeEra/homeEra+1
   | 'coastal-access-lost'        // building or unit: city lost coastal access
   | 'training-building-missing'; // unit: trainedFromBuilding no longer present
@@ -94,6 +96,15 @@ what and why, instead of (or in addition to) whatever it does today:
    needs a deterministic rule, not "no case to resolve." Check `obsoleted` first, `resource-lost`
    second, matching the order the building branch above already uses (`isBuildingObsolete` checked
    before `resourceRequired`) — same precedence for both item kinds.
+   **Save-compat gap found during plan review:** an existing regression,
+   `tests/systems/city-system.test.ts` → "queued musketeer dequeues on load for a tactics-only civ
+   (save-compat)", queues a unit whose `techRequired` (not `obsoletedByTech`, not
+   `resourceRequired`) is unmet — a real scenario when a save's queue holds an item that predates a
+   tech-tree rebalance, not just a same-session impossibility. `techRequired` truly can't newly fail
+   *within* one continuous session (per the reasoning above), but a loaded save can already be in
+   that state. If neither `obsoletedByTech` nor `resourceRequired` explains the drop, use the third
+   reason `'no-longer-available'` rather than defaulting to `'resource-lost'` — defaulting there
+   would be an inaccurate claim (the musketeer case has no resource requirement at all to lose).
 3. **NP build-window filter** (~line 1858–1871): currently only compares `newQueue.length` before
    and after. Push `{ itemId, itemKind: 'building', reason: 'build-window-expired' }` **inline,
    inside the `.filter()` predicate itself**, at the point an item is rejected — matching the
@@ -137,6 +148,7 @@ Message copy, one per reason (all rendered as `'warning'` notifications):
 |---|---|
 | `obsoleted` | `"{name} removed from {city}'s build queue — it's obsolete now that a newer technology is available."` |
 | `resource-lost` | `"{name} removed from {city}'s build queue — you no longer control the required resource."` |
+| `no-longer-available` | `"{name} removed from {city}'s build queue — it's no longer available to train."` |
 | `build-window-expired` | `"{name} removed from {city}'s build queue — its national-project build window has closed."` |
 | `coastal-access-lost` | `"{name} removed from {city}'s build queue — the city is no longer coastal."` |
 | `training-building-missing` | `"{name} removed from {city}'s build queue — {city} no longer has the building required to train it."` |
@@ -215,7 +227,7 @@ Message copy, one per reason (all rendered as `'warning'` notifications):
     filters — currently true only as a side effect of `BUILDINGS`/`TRAINABLE_UNITS` lookup misses
     on that id shape, not by explicit design, so this is worth locking in given this MR touches
     every branch that could regress it.
-- New test suite for `describeDroppedProductionItem` covering all five reasons, exercising both
+- New test suite for `describeDroppedProductionItem` covering all six reasons, exercising both
   `itemKind` values where the reason applies to both (`obsoleted`, `resource-lost`,
   `coastal-access-lost`), plus an explicit assertion that the `training-building-missing` message
   does **not** contain "coast" — the direct regression test for the exact mislabeling bug named in
