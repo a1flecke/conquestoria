@@ -203,6 +203,7 @@ import {
   formatEconomyTreasuryStrainMessage,
   routeBarbarianSpawned,
   routeCombatRewardEarned,
+  routeDroppedProductionItem,
   routeEconomyTreasuryStrain,
   routeEraAdvanced,
   routeFactionTransition,
@@ -3661,16 +3662,7 @@ bus.on('city:national-project-expired', ({ civId, cityId, buildingId }) => {
   SFX.nationalProjectExpired();
 });
 
-bus.on('city:building-dropped', ({ cityId, buildingId }) => {
-  const city = gameState.cities[cityId];
-  if (!city) return;
-  const buildingName = BUILDINGS[buildingId]?.name ?? buildingId;
-  appendToCivLog(
-    city.owner,
-    `${city.name}: ${buildingName} removed — city is no longer coastal.`,
-    'warning',
-  );
-});
+bus.on('city:production-item-dropped', event => routeDroppedProductionItem(gameState, event, appendToCivLog));
 
 bus.on('city:cyber-drained', ({ cityName, drainerOwner, goldLost, blocked, victimCivId }) => {
   const drainerName = gameState.civilizations[drainerOwner]?.name ?? drainerOwner;
