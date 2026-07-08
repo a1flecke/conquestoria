@@ -8,6 +8,7 @@ import { MINOR_CIV_DEFINITIONS } from '@/systems/minor-civ-definitions';
 import { getQuestChain, getQuestChainForArchetype } from '@/systems/quest-chain-definitions';
 import { isMinorCivAtWar } from '@/systems/minor-civ-diplomacy';
 import { normalizeMinorCivCoalitionState } from '@/systems/minor-civ-coalition-system';
+import { normalizeMinorCivEconomyState } from '@/systems/minor-civ-economy-system';
 import { scanIdCounters } from '@/core/id-counters';
 import {
   createEmptyPirateState,
@@ -764,9 +765,9 @@ export function migrateLegacyCoastalData(state: GameState): GameState {
 }
 
 export function normalizeLoadedState(state: GameState): NormalizedGameState {
-  const normalizedCityState = migrateLegacyPirateFleets(normalizeMinorCivCoalitionState(normalizeMinorCivQuestState(
+  const normalizedCityState = migrateLegacyPirateFleets(normalizeMinorCivEconomyState(normalizeMinorCivCoalitionState(normalizeMinorCivQuestState(
     migrateLegacyCoastalData(normalizeThreatPressureDefaults(normalizeLandmassKeys(normalizeLegacyCitySimState(migrateStripCityGrid(migrateLegacyPlanningState(migrateLegacyNamingState(ensureGameIdentity(state)))))))),
-  )));
+  ))));
   normalizedCityState.pirates = normalizePirateState(normalizedCityState);
   normalizedCityState.notificationLog = normalizeNotificationLog(normalizedCityState.notificationLog);
   normalizedCityState.idCounters = normalizeIdCounters(normalizedCityState);

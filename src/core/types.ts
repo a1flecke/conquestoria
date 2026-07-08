@@ -1029,6 +1029,29 @@ export interface MinorCivRegionalCooldown {
   cooldownUntil: number;
 }
 
+export type MinorCivPosture = 'settled' | 'fortifying' | 'mobilizing' | 'recovering';
+
+export type MinorCivPolicy = 'balanced' | 'defense' | 'economy' | 'knowledge' | 'recovery';
+
+export interface MinorCivEconomyState {
+  policy: MinorCivPolicy;
+  posture: MinorCivPosture;
+  lastProcessedTurn: number;
+  lastPostureChangeTurn?: number;
+  localRecoveryUntilTurn?: number;
+  lastQueueDecisionTurn?: number;
+  pendingUnitSpawn?: {
+    unitType: UnitType;
+    completedTurn: number;
+    attempts: number;
+  };
+  recentProductionSummary?: {
+    itemId: string;
+    itemClass: 'building' | 'unit' | 'idle';
+    completedTurn: number;
+  };
+}
+
 export type QuestAction =
   | { type: 'gift_gold'; actorCivId: string; minorCivId: string; amount: number; turn: number }
   | { type: 'sponsor_festival'; actorCivId: string; minorCivId: string; turn: number }
@@ -1047,6 +1070,7 @@ export interface MinorCivState {
   questCooldownUntilByCiv: Record<string, number>;
   lastNotifiedStatusByCiv: Record<string, MinorCivRelationshipStatus>;
   regionalGrievanceByCiv?: Record<string, MinorCivRegionalGrievance>;
+  economy?: MinorCivEconomyState;
   isDestroyed: boolean;
   garrisonCooldown: number;
   lastEraUpgrade: number;
@@ -1658,6 +1682,13 @@ export interface GameEvents {
   'minor-civ:quest-expired': { minorCivId: string; majorCivId: string; quest: Quest; state?: GameState };
   'minor-civ:coalition-status': { minorCivId: string; targetCivId: string; status: MinorCivRegionalGrievanceStatus; state?: GameState };
   'minor-civ:coalition-war': { coalitionId: string; targetCivId: string; memberIds: string[]; state?: GameState };
+  'minor-civ:production-completed': {
+    minorCivId: string;
+    cityId: string;
+    itemId: string;
+    itemClass: 'building' | 'unit';
+    state?: GameState;
+  };
   'espionage:spy-recruited': { civId: string; spy: Spy };
   'espionage:spy-assigned': { civId: string; spyId: string; targetCivId: string; targetCityId: string };
   'espionage:spy-arrived': { civId: string; spyId: string; targetCityId: string };
