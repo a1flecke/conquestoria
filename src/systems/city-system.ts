@@ -1577,6 +1577,24 @@ export function getProductionDisplayName(itemId: string): string {
   return unit?.name ?? itemId;
 }
 
+export function describeDroppedProductionItem(item: DroppedProductionItem, cityName: string): string {
+  const name = getProductionDisplayName(item.itemId);
+  switch (item.reason) {
+    case 'obsoleted':
+      return `${name} removed from ${cityName}'s build queue — it's obsolete now that a newer technology is available.`;
+    case 'resource-lost':
+      return `${name} removed from ${cityName}'s build queue — you no longer control the required resource.`;
+    case 'no-longer-available':
+      return `${name} removed from ${cityName}'s build queue — it's no longer available to train.`;
+    case 'build-window-expired':
+      return `${name} removed from ${cityName}'s build queue — its national-project build window has closed.`;
+    case 'coastal-access-lost':
+      return `${name} removed from ${cityName}'s build queue — the city is no longer coastal.`;
+    case 'training-building-missing':
+      return `${name} removed from ${cityName}'s build queue — ${cityName} no longer has the building required to train it.`;
+  }
+}
+
 export function getProductionIconForItem(itemId: string): string {
   return getLegendaryWonderQueueItemMetadata(itemId)?.icon
     ?? PRODUCTION_ICONS[itemId]

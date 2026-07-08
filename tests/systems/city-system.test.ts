@@ -16,6 +16,7 @@ import {
   getProductionDisplayName,
   getProductionIconForItem,
   getSettlerProductionCost,
+  describeDroppedProductionItem,
 } from '@/systems/city-system';
 import type { City, GameMap, HexCoord, ResourceType, UnitType } from '@/core/types';
 import { UNIT_DEFINITIONS, UNIT_DESCRIPTIONS } from '@/systems/unit-system';
@@ -24,6 +25,54 @@ import { hexKey } from '@/systems/hex-utils';
 import { TECH_TREE } from '@/systems/tech-definitions';
 
 const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
+
+describe('describeDroppedProductionItem', () => {
+  it('describes an obsoleted building drop', () => {
+    expect(describeDroppedProductionItem({ itemId: 'stable', itemKind: 'building', reason: 'obsoleted' }, 'Rome'))
+      .toBe("Stable removed from Rome's build queue — it's obsolete now that a newer technology is available.");
+  });
+
+  it('describes an obsoleted unit drop', () => {
+    expect(describeDroppedProductionItem({ itemId: 'swordsman', itemKind: 'unit', reason: 'obsoleted' }, 'Rome'))
+      .toBe("Swordsman removed from Rome's build queue — it's obsolete now that a newer technology is available.");
+  });
+
+  it('describes a resource-lost building drop', () => {
+    expect(describeDroppedProductionItem({ itemId: 'bronze-workshop', itemKind: 'building', reason: 'resource-lost' }, 'Athens'))
+      .toBe("Bronze Workshop removed from Athens's build queue — you no longer control the required resource.");
+  });
+
+  it('describes a resource-lost unit drop', () => {
+    expect(describeDroppedProductionItem({ itemId: 'swordsman', itemKind: 'unit', reason: 'resource-lost' }, 'Athens'))
+      .toBe("Swordsman removed from Athens's build queue — you no longer control the required resource.");
+  });
+
+  it('describes a no-longer-available unit drop (save-compat residual case)', () => {
+    expect(describeDroppedProductionItem({ itemId: 'musketeer', itemKind: 'unit', reason: 'no-longer-available' }, 'Byzantium'))
+      .toBe("Musketeer removed from Byzantium's build queue — it's no longer available to train.");
+  });
+
+  it('describes a build-window-expired drop', () => {
+    expect(describeDroppedProductionItem({ itemId: 'sacred_grove', itemKind: 'building', reason: 'build-window-expired' }, 'Thebes'))
+      .toBe("Sacred Grove removed from Thebes's build queue — its national-project build window has closed.");
+  });
+
+  it('describes a coastal-access-lost building drop', () => {
+    expect(describeDroppedProductionItem({ itemId: 'harbor', itemKind: 'building', reason: 'coastal-access-lost' }, 'Sparta'))
+      .toBe("Harbor removed from Sparta's build queue — the city is no longer coastal.");
+  });
+
+  it('describes a coastal-access-lost unit drop', () => {
+    expect(describeDroppedProductionItem({ itemId: 'transport', itemKind: 'unit', reason: 'coastal-access-lost' }, 'Sparta'))
+      .toBe("Transport removed from Sparta's build queue — the city is no longer coastal.");
+  });
+
+  it('describes a training-building-missing drop, and the message does not mention coastal access', () => {
+    const message = describeDroppedProductionItem({ itemId: 'stealth_bomber', itemKind: 'unit', reason: 'training-building-missing' }, 'Corinth');
+    expect(message).toBe("Stealth Bomber removed from Corinth's build queue — Corinth no longer has the building required to train it.");
+    expect(message.toLowerCase()).not.toContain('coast');
+  });
+});
 
 describe('foundCity', () => {
   it('creates a city at the given position', () => {
