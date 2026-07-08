@@ -243,6 +243,55 @@ describe('processTurn', () => {
     expect(result.cities.athens.productionProgress).toBe(Math.floor(baseProduction * 0.5));
   });
 
+  it('emits city:production-item-dropped once per dropped item, including a coastal double-drop in one call', () => {
+    const state = createNewGame(undefined, 'turn-dropped-item', 'small');
+    const bus = new EventBus();
+    const listener = vi.fn();
+    bus.on('city:production-item-dropped', listener);
+
+    const inlandTile = Object.values(state.map.tiles).find(t =>
+      t.terrain === 'grassland' &&
+      !Object.values(state.map.tiles).some(n =>
+        Math.abs(n.coord.q - t.coord.q) <= 1 &&
+        Math.abs(n.coord.r - t.coord.r) <= 1 &&
+        (n.terrain === 'ocean' || n.terrain === 'coast')
+      )
+    )!;
+    const city = foundCity('player', inlandTile.coord, state.map, mkC());
+    city.id = 'inland-city';
+    city.productionQueue = ['harbor', 'transport'];
+    city.productionProgress = 0;
+    state.cities = { [city.id]: city };
+    state.civilizations.player.cities = [city.id];
+    state.civilizations.player.techState.completed.push('harbor-tech', 'galleys');
+
+    processTurn(state, bus);
+
+    expect(listener).toHaveBeenCalledTimes(2);
+    expect(listener).toHaveBeenNthCalledWith(1, {
+      cityId: 'inland-city', itemId: 'harbor', itemKind: 'building', reason: 'coastal-access-lost',
+    });
+    expect(listener).toHaveBeenNthCalledWith(2, {
+      cityId: 'inland-city', itemId: 'transport', itemKind: 'unit', reason: 'coastal-access-lost',
+    });
+  });
+
+  it('does not emit city:production-item-dropped when nothing drops (negative)', () => {
+    const state = createNewGame(undefined, 'turn-no-drop', 'small');
+    const bus = new EventBus();
+    const listener = vi.fn();
+    bus.on('city:production-item-dropped', listener);
+    const city = foundCity('player', { q: 2, r: 2 }, state.map, mkC());
+    city.id = 'capital';
+    city.productionQueue = [];
+    state.cities = { capital: city };
+    state.civilizations.player.cities = ['capital'];
+
+    processTurn(state, bus);
+
+    expect(listener).not.toHaveBeenCalled();
+  });
+
   it('processes minor civ turn phase', () => {
     const state = createNewGame(undefined, 'turn-mc', 'small');
     const bus = new EventBus();

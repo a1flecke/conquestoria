@@ -281,13 +281,12 @@ export function processTurn(
           });
         }
       }
-      if (result.droppedBuilding) {
-        bus.emit('city:building-dropped', { cityId, buildingId: result.droppedBuilding });
-      }
-      if (result.droppedUnit) {
-        bus.emit('notification:show', {
-          message: `${city.name} needs a coast to build ${result.droppedUnit}.`,
-          type: 'warning',
+      for (const item of result.droppedProductionItems) {
+        bus.emit('city:production-item-dropped', {
+          cityId,
+          itemId: item.itemId,
+          itemKind: item.itemKind,
+          reason: item.reason,
         });
       }
       if (result.completedUnit) {
