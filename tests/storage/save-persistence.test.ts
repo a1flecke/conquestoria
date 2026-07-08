@@ -324,6 +324,52 @@ describe('save persistence (#38)', () => {
     });
   });
 
+  it('normalizes missing hidden minor-civ economy state after coalition state', () => {
+    const state = createNewGame(undefined, 'minor-economy-legacy', 'small');
+    const minorCiv = Object.values(state.minorCivs)[0];
+    delete (minorCiv as any).economy;
+    minorCiv.regionalGrievanceByCiv = {
+      player: {
+        targetCivId: 'player',
+        pressure: 55,
+        status: 'mobilizing',
+        lastUpdatedTurn: state.turn,
+        causes: [],
+        mobilizationProgress: 12,
+      },
+    };
+
+    const loaded = normalizeLoadedStateForTest(state);
+
+    expect(loaded.minorCivs[minorCiv.id].economy).toMatchObject({
+      policy: 'balanced',
+      posture: 'settled',
+      lastProcessedTurn: Math.max(0, state.turn - 1),
+    });
+    expect(loaded.minorCivs[minorCiv.id].regionalGrievanceByCiv?.player).toMatchObject({
+      pressure: 55,
+      status: 'mobilizing',
+      mobilizationProgress: 12,
+    });
+  });
+
+  it('drops malformed pending minor-civ economy spawns without creating units on load', () => {
+    const state = createNewGame(undefined, 'minor-economy-bad-pending', 'small');
+    const minorCiv = Object.values(state.minorCivs)[0];
+    const unitCountBefore = Object.keys(state.units).length;
+    (minorCiv as any).economy = {
+      policy: 'balanced',
+      posture: 'settled',
+      lastProcessedTurn: state.turn,
+      pendingUnitSpawn: { unitType: 'settler', completedTurn: 'bad', attempts: -1 },
+    };
+
+    const loaded = normalizeLoadedStateForTest(state);
+
+    expect(loaded.minorCivs[minorCiv.id].economy?.pendingUnitSpawn).toBeUndefined();
+    expect(Object.keys(loaded.units)).toHaveLength(unitCountBefore);
+  });
+
   it('removes malformed chain metadata without changing treasury or relationship', () => {
     const state = createNewGame(undefined, 'invalid-minor-chain-save', 'small');
     const minorCiv = Object.values(state.minorCivs)[0];
