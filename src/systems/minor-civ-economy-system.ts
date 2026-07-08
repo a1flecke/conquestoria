@@ -10,12 +10,21 @@ import type {
   TrainableUnitEntry,
   UnitType,
 } from '@/core/types';
+import type { EventBus } from '@/core/event-bus';
 import { resolveOpponentChallenge } from '@/core/opponent-challenge';
-import { getAvailableBuildings, getTrainableUnitsForCity, TRAINABLE_UNITS } from '@/systems/city-system';
-import { hexDistance, hexKey, wrappedHexDistance } from '@/systems/hex-utils';
+import {
+  getAvailableBuildings,
+  getTrainableUnitsForCity,
+  processCity,
+  TRAINABLE_UNITS,
+} from '@/systems/city-system';
+import { assignCityFocus, normalizeWorkedTilesForCity } from '@/systems/city-work-system';
+import { getWrappedHexNeighbors, hexDistance, hexKey, hexNeighbors, wrappedHexDistance } from '@/systems/hex-utils';
 import { MINOR_CIV_DEFINITIONS } from '@/systems/minor-civ-definitions';
 import { RESOURCE_DEFINITIONS } from '@/systems/resource-definitions';
+import { calculateCityYields } from '@/systems/resource-system';
 import { TECH_TREE } from '@/systems/tech-definitions';
+import { createUnit, UNIT_DEFINITIONS } from '@/systems/unit-system';
 
 export const MINOR_CIV_ECONOMY_TUNING = {
   explorer: {
@@ -85,6 +94,16 @@ function distance(state: GameState, left: HexCoord, right: HexCoord): number {
   return state.map.wrapsHorizontally
     ? wrappedHexDistance(left, right, state.map.width)
     : hexDistance(left, right);
+}
+
+export interface MinorCivEconomyTurnResult {
+  state: GameState;
+  completed?: {
+    minorCivId: string;
+    cityId: string;
+    itemId: string;
+    itemClass: 'building' | 'unit';
+  };
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -410,4 +429,231 @@ export function chooseMinorCivQueueItem(state: GameState, minorCivId: string): s
 
   scored.sort((left, right) => right.score - left.score || left.id.localeCompare(right.id));
   return scored[0]?.id ?? null;
+}
+
+function isLegalSpawnTerrain(state: GameState, coord: HexCoord, unitType: UnitType): boolean {
+  const tile = state.map.tiles[hexKey(coord)];
+  if (!tile) {
+    return false;
+  }
+
+  const domain = UNIT_DEFINITIONS[unitType]?.domain ?? 'land';
+  if (domain === 'naval') {
+    return tile.terrain === 'ocean' || tile.terrain === 'coast';
+  }
+  return tile.terrain !== 'ocean' && tile.terrain !== 'coast' && tile.terrain !== 'mountain';
+}
+
+function legalSpawnPositions(state: GameState, minorCivId: string, unitType: UnitType): HexCoord[] {
+  const minorCiv = state.minorCivs[minorCivId];
+  const city = minorCiv ? state.cities[minorCiv.cityId] : undefined;
+  if (!city) {
+    return [];
+  }
+
+  const occupied = new Set(
+    Object.values(state.units)
+      .filter(unit => !unit.transportId)
+      .map(unit => hexKey(unit.position)),
+  );
+  const adjacent = state.map.wrapsHorizontally
+    ? getWrappedHexNeighbors(city.position, state.map.width)
+    : hexNeighbors(city.position);
+
+  return [city.position, ...adjacent]
+    .filter(coord => isLegalSpawnTerrain(state, coord, unitType) && !occupied.has(hexKey(coord)))
+    .sort((left, right) => left.q - right.q || left.r - right.r);
+}
+
+function createMinorCivUnit(
+  state: GameState,
+  minorCivId: string,
+  unitType: UnitType,
+): { state: GameState; created: boolean } {
+  const minorCiv = state.minorCivs[minorCivId];
+  const position = legalSpawnPositions(state, minorCivId, unitType)[0];
+  if (!minorCiv || !position) {
+    return { state, created: false };
+  }
+
+  const unit = createUnit(unitType, minorCivId, position, state.idCounters);
+  unit.movementPointsLeft = 0;
+  unit.hasMoved = true;
+  unit.hasActed = true;
+
+  return {
+    state: {
+      ...state,
+      units: { ...state.units, [unit.id]: unit },
+      minorCivs: {
+        ...state.minorCivs,
+        [minorCivId]: {
+          ...minorCiv,
+          units: [...minorCiv.units.filter(unitId => Boolean(state.units[unitId])), unit.id],
+        },
+      },
+    },
+    created: true,
+  };
+}
+
+function updateMinorEconomy(
+  state: GameState,
+  minorCivId: string,
+  patch: Partial<MinorCivEconomyState>,
+): GameState {
+  const minorCiv = state.minorCivs[minorCivId];
+  if (!minorCiv) {
+    return state;
+  }
+
+  const economy = { ...(minorCiv.economy ?? createDefaultMinorCivEconomyState(state)), ...patch };
+  return {
+    ...state,
+    minorCivs: {
+      ...state.minorCivs,
+      [minorCivId]: { ...minorCiv, economy },
+    },
+  };
+}
+
+function isMinorCivQueueHeadLegal(state: GameState, minorCivId: string, itemId: string | undefined): boolean {
+  if (!itemId) {
+    return false;
+  }
+
+  const candidates = getMinorCivBuildCandidates(state, minorCivId);
+  return candidates.buildings.some(building => building.id === itemId)
+    || candidates.units.some(unit => unit.type === itemId);
+}
+
+export function processMinorCivEconomyTurn(
+  state: GameState,
+  minorCivId: string,
+  bus?: EventBus,
+): MinorCivEconomyTurnResult {
+  let nextState = normalizeMinorCivEconomyState(state);
+  const minorCiv = nextState.minorCivs[minorCivId];
+  const city = minorCiv ? nextState.cities[minorCiv.cityId] : undefined;
+  if (!minorCiv || minorCiv.isDestroyed || !city || city.owner !== minorCiv.id) {
+    return { state: nextState };
+  }
+
+  const tuning = MINOR_CIV_ECONOMY_TUNING[resolveOpponentChallenge(nextState)];
+  const economy = minorCiv.economy ?? createDefaultMinorCivEconomyState(nextState);
+  const pending = economy.pendingUnitSpawn;
+  if (pending) {
+    const spawned = createMinorCivUnit(nextState, minorCivId, pending.unitType);
+    if (spawned.created) {
+      const completed = {
+        minorCivId,
+        cityId: city.id,
+        itemId: pending.unitType,
+        itemClass: 'unit' as const,
+      };
+      nextState = updateMinorEconomy(spawned.state, minorCivId, {
+        pendingUnitSpawn: undefined,
+        recentProductionSummary: {
+          itemId: completed.itemId,
+          itemClass: completed.itemClass,
+          completedTurn: nextState.turn,
+        },
+      });
+      bus?.emit('minor-civ:production-completed', { ...completed, state: nextState });
+      return { state: nextState, completed };
+    }
+
+    const attempts = pending.attempts + 1;
+    nextState = updateMinorEconomy(nextState, minorCivId, {
+      pendingUnitSpawn: attempts > tuning.pendingSpawnMaxAttempts ? undefined : { ...pending, attempts },
+    });
+    return { state: nextState };
+  }
+
+  const posture = evaluateMinorCivEconomyPosture(nextState, minorCivId);
+  const policy: MinorCivPolicy = posture === 'mobilizing' || posture === 'fortifying'
+    ? 'defense'
+    : posture === 'recovering'
+      ? 'recovery'
+      : 'balanced';
+  const work = city.workedTiles.length > city.population
+    ? normalizeWorkedTilesForCity(nextState, city.id)
+    : assignCityFocus(nextState, city.id, posture === 'recovering' ? 'food' : posture === 'mobilizing' ? 'production' : 'balanced');
+  nextState = work.state;
+
+  const currentCity = nextState.cities[city.id];
+  let queue = currentCity.productionQueue;
+  let madeQueueDecision = false;
+  const queueHeadLegal = isMinorCivQueueHeadLegal(nextState, minorCivId, queue[0]);
+  const emptyQueueDecisionReady = queue.length === 0
+    && (economy.lastQueueDecisionTurn ?? -999) + tuning.queueDecisionInterval <= nextState.turn;
+  const invalidQueueHead = queue.length > 0 && !queueHeadLegal;
+  if (emptyQueueDecisionReady || invalidQueueHead) {
+    const chosen = chooseMinorCivQueueItem(nextState, minorCivId);
+    queue = chosen ? [chosen] : [];
+    madeQueueDecision = true;
+    nextState = {
+      ...nextState,
+      cities: {
+        ...nextState.cities,
+        [city.id]: { ...currentCity, productionQueue: queue },
+      },
+    };
+  }
+
+  const completedTechs = getMinorCivCompletedTechBand(nextState, minorCivId);
+  const availableResources = getMinorCivAvailableResources(nextState, minorCivId);
+  const cityForYields = nextState.cities[city.id];
+  const yields = calculateCityYields(cityForYields, nextState.map, undefined, completedTechs, {});
+  const productionYield = Math.max(0, Math.floor(yields.production * tuning.productionMultiplier));
+  const processed = processCity(
+    cityForYields,
+    nextState.map,
+    yields.food,
+    productionYield,
+    undefined,
+    completedTechs,
+    undefined,
+    nextState.era,
+    availableResources,
+  );
+  nextState = {
+    ...nextState,
+    cities: { ...nextState.cities, [city.id]: processed.city },
+  };
+
+  let completed: MinorCivEconomyTurnResult['completed'];
+  if (processed.completedUnit) {
+    const spawned = createMinorCivUnit(nextState, minorCivId, processed.completedUnit);
+    if (spawned.created) {
+      nextState = spawned.state;
+      completed = { minorCivId, cityId: city.id, itemId: processed.completedUnit, itemClass: 'unit' };
+    } else {
+      nextState = updateMinorEconomy(nextState, minorCivId, {
+        pendingUnitSpawn: { unitType: processed.completedUnit, completedTurn: nextState.turn, attempts: 1 },
+      });
+    }
+  } else if (processed.completedBuilding) {
+    completed = { minorCivId, cityId: city.id, itemId: processed.completedBuilding, itemClass: 'building' };
+  }
+
+  nextState = updateMinorEconomy(nextState, minorCivId, {
+    posture,
+    policy,
+    lastProcessedTurn: nextState.turn,
+    lastPostureChangeTurn: posture !== economy.posture ? nextState.turn : economy.lastPostureChangeTurn,
+    lastQueueDecisionTurn: madeQueueDecision ? nextState.turn : economy.lastQueueDecisionTurn,
+    recentProductionSummary: completed
+      ? {
+          itemId: completed.itemId,
+          itemClass: completed.itemClass,
+          completedTurn: nextState.turn,
+        }
+      : economy.recentProductionSummary,
+  });
+
+  if (completed) {
+    bus?.emit('minor-civ:production-completed', { ...completed, state: nextState });
+  }
+  return { state: nextState, completed };
 }
