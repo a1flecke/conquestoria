@@ -20,6 +20,7 @@ import {
 } from '@/systems/city-system';
 import { assignCityFocus, normalizeWorkedTilesForCity } from '@/systems/city-work-system';
 import { getWrappedHexNeighbors, hexDistance, hexKey, hexNeighbors, wrappedHexDistance } from '@/systems/hex-utils';
+import { getMinorCivMobilizationBudget } from '@/systems/minor-civ-coalition-system';
 import { MINOR_CIV_DEFINITIONS } from '@/systems/minor-civ-definitions';
 import { RESOURCE_DEFINITIONS } from '@/systems/resource-definitions';
 import { calculateCityYields } from '@/systems/resource-system';
@@ -413,17 +414,19 @@ export function chooseMinorCivQueueItem(state: GameState, minorCivId: string): s
 
   const definition = getMinorCivDefinition(minorCivId, state);
   const posture = minorCiv.economy?.posture ?? evaluateMinorCivEconomyPosture(state, minorCivId);
-  const cap = getMinorCivUnitCap(state, minorCivId, posture);
+  const budget = getMinorCivMobilizationBudget(state, minorCivId);
+  const effectivePosture = budget.wantsDefender ? 'mobilizing' : posture;
+  const cap = getMinorCivUnitCap(state, minorCivId, effectivePosture);
   const currentUnits = minorCiv.units.filter(unitId => Boolean(state.units[unitId])).length;
   const candidates = getMinorCivBuildCandidates(state, minorCivId);
   const scored = [
     ...candidates.buildings.map(building => ({
       id: building.id,
-      score: scoreBuilding(building, definition?.archetype, posture),
+      score: scoreBuilding(building, definition?.archetype, effectivePosture),
     })),
     ...candidates.units.map(unit => ({
       id: unit.type,
-      score: scoreUnit(unit, definition?.archetype, posture, currentUnits, cap),
+      score: scoreUnit(unit, definition?.archetype, effectivePosture, currentUnits, cap),
     })),
   ].filter(candidate => candidate.score >= 0);
 
@@ -570,7 +573,10 @@ export function processMinorCivEconomyTurn(
     return { state: nextState };
   }
 
-  const posture = evaluateMinorCivEconomyPosture(nextState, minorCivId);
+  const budget = getMinorCivMobilizationBudget(nextState, minorCivId);
+  const posture = (budget.recoveryStrainedUntilTurn ?? 0) > nextState.turn
+    ? 'recovering'
+    : evaluateMinorCivEconomyPosture(nextState, minorCivId);
   const policy: MinorCivPolicy = posture === 'mobilizing' || posture === 'fortifying'
     ? 'defense'
     : posture === 'recovering'

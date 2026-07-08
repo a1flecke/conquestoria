@@ -55,6 +55,20 @@ const COALITION_STATUSES = new Set<MinorCivCoalitionStatus>([
   'cooling',
 ]);
 
+export interface MinorCivRegionalGrievanceTurnOptions {
+  allowDefenderSpawns?: boolean;
+}
+
+export interface MinorCivMobilizationBudget {
+  targetCivId: string | null;
+  pressure: number;
+  status: MinorCivRegionalGrievanceStatus | null;
+  wantsDefender: boolean;
+  allowsConscription: boolean;
+  recoveryStrainedUntilTurn?: number;
+  conscriptCooldownUntilTurn?: number;
+}
+
 function getMinorCivArchetype(minorCiv: MinorCivState) {
   return MINOR_CIV_DEFINITIONS.find(definition => definition.id === minorCiv.definitionId)?.archetype;
 }
@@ -113,6 +127,37 @@ function findRegionalDefenderSpawnPosition(state: GameState, minorCiv: MinorCivS
 function isDirectWarGrievance(state: GameState, minorCiv: MinorCivState, targetCivId: string): boolean {
   return minorCiv.diplomacy.atWarWith.includes(targetCivId)
     || Boolean(state.civilizations[targetCivId]?.diplomacy.atWarWith.includes(minorCiv.id));
+}
+
+export function getMinorCivMobilizationBudget(state: GameState, minorCivId: string): MinorCivMobilizationBudget {
+  const minorCiv = state.minorCivs[minorCivId];
+  if (!minorCiv) {
+    return {
+      targetCivId: null,
+      pressure: 0,
+      status: null,
+      wantsDefender: false,
+      allowsConscription: false,
+    };
+  }
+
+  const grievances = Object.values(minorCiv.regionalGrievanceByCiv ?? {})
+    .sort((left, right) => right.pressure - left.pressure || left.targetCivId.localeCompare(right.targetCivId));
+  const top = grievances[0];
+  const directWarTarget = minorCiv.diplomacy.atWarWith.find(targetId => state.civilizations[targetId]);
+
+  return {
+    targetCivId: top?.targetCivId ?? directWarTarget ?? null,
+    pressure: top?.pressure ?? 0,
+    status: top?.status ?? null,
+    wantsDefender: Boolean(top && (top.status === 'mobilizing' || top.status === 'coalition-talks')),
+    allowsConscription: Boolean(top && (
+      top.pressure >= CONSCRIPTION_PRESSURE
+      || isDirectWarGrievance(state, minorCiv, top.targetCivId)
+    )),
+    recoveryStrainedUntilTurn: top?.recoveryStrainedUntilTurn,
+    conscriptCooldownUntilTurn: top?.conscriptCooldownUntilTurn,
+  };
 }
 
 function spawnRegionalDefender(
@@ -231,10 +276,12 @@ export function applyRegionalGrievanceForMinorCivConquest(
 export function processMinorCivRegionalGrievanceTurn(
   state: GameState,
   minorCivId: string,
+  options: MinorCivRegionalGrievanceTurnOptions = {},
 ): GameState {
   const minorCiv = state.minorCivs[minorCivId];
   if (!minorCiv || minorCiv.isDestroyed) return state;
 
+  const allowDefenderSpawns = options.allowDefenderSpawns ?? true;
   let nextState = state;
   const grievanceByCiv = { ...(minorCiv.regionalGrievanceByCiv ?? {}) };
   for (const [targetCivId, grievance] of Object.entries(minorCiv.regionalGrievanceByCiv ?? {})) {
@@ -272,6 +319,7 @@ export function processMinorCivRegionalGrievanceTurn(
       && city.population >= 3
       && conscriptionReady
       && severeThreat
+      && allowDefenderSpawns
     ) {
       const spawned = spawnRegionalDefender(nextState, currentMinor, 65);
       if (spawned) {
@@ -296,7 +344,9 @@ export function processMinorCivRegionalGrievanceTurn(
     ) {
       const nextProgress = (nextGrievance.mobilizationProgress ?? 0) + mobilizationProgressPerTurn(nextState);
       if (nextProgress >= TRAINED_DEFENDER_PROGRESS) {
-        const spawned = spawnRegionalDefender(nextState, nextState.minorCivs[minorCivId], 100);
+        const spawned = allowDefenderSpawns
+          ? spawnRegionalDefender(nextState, nextState.minorCivs[minorCivId], 100)
+          : null;
         if (spawned) {
           nextState = spawned.state;
           nextGrievance = {

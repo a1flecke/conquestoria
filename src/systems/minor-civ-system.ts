@@ -28,6 +28,7 @@ import { foundCity } from './city-system';
 import { collectUsedCityNames } from './city-name-system';
 import { generateQuest } from './quest-system';
 import { isMinorCivAtWar, isMinorCivHostileToOwner } from './minor-civ-diplomacy';
+import { processMinorCivEconomyTurn } from './minor-civ-economy-system';
 import { resolveCombat } from './combat-system';
 import { hasDiscoveredMinorCiv } from './discovery-system';
 import { canAttackByProfileOnMap } from './attack-targeting';
@@ -209,6 +210,10 @@ export function processMinorCivTurn(
       const unit = nextState.units[unitId];
       if (unit) nextState.units[unitId] = resetUnitTurn(unit);
     }
+    nextState = processMinorCivRegionalGrievanceTurn(nextState, mcId, { allowDefenderSpawns: false });
+    const economyResult = processMinorCivEconomyTurn(nextState, mcId, bus);
+    nextState = economyResult.state;
+    mc = nextState.minorCivs[mcId];
     const planned = planPurposefulMinorCivTurn(nextState, mcId);
     if (planned.plan) {
       nextState.opponentAI!.minorCivs[mcId] = planned.plan;
@@ -221,7 +226,6 @@ export function processMinorCivTurn(
     nextState = applyAllyBonuses(nextState, mc, def);
     mc = nextState.minorCivs[mcId];
     nextState = processGarrison(nextState, mc);
-    nextState = processMinorCivRegionalGrievanceTurn(nextState, mcId);
     emitRelationshipThresholds(nextState, nextState.minorCivs[mcId], bus);
   }
 
@@ -627,6 +631,16 @@ function emitRelationshipThresholds(state: GameState, mc: MinorCivState, bus: Ev
 function processGarrison(state: GameState, mc: MinorCivState): GameState {
   const aliveUnits = mc.units.filter(uid => state.units[uid]);
   mc.units = aliveUnits;
+
+  if (mc.economy && state.cities[mc.cityId]?.owner === mc.id) {
+    return {
+      ...state,
+      minorCivs: {
+        ...state.minorCivs,
+        [mc.id]: { ...mc, units: aliveUnits },
+      },
+    };
+  }
 
   if (aliveUnits.length === 0) {
     if (mc.garrisonCooldown > 0) {
