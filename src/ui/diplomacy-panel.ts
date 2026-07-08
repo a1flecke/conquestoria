@@ -10,7 +10,10 @@ import { resolveCivDefinition } from '@/systems/civ-registry';
 import { MINOR_CIV_DEFINITIONS } from '@/systems/minor-civ-definitions';
 import { hasDiscoveredMinorCiv } from '@/systems/discovery-system';
 import { shouldListMajorCivForViewer } from '@/systems/viewer-intel';
-import { getMinorCivPresentationForPlayer } from '@/systems/minor-civ-presentation';
+import {
+  getMinorCivEconomyPresentationForPlayer,
+  getMinorCivPresentationForPlayer,
+} from '@/systems/minor-civ-presentation';
 import {
   formatQuestReward,
   getMinorCivChainPresentationForPlayer,
@@ -62,6 +65,7 @@ interface MinorCivRowData {
   festivalLabel: string | null;
   festivalDisabledReason: string | null;
   regionalGrievanceText: string | null;
+  economyHintText: string | null;
   reparationsLabel: string | null;
   reparationsDisabledReason: string | null;
   atWar: boolean;
@@ -191,6 +195,13 @@ export function createDiplomacyPanel(
       .split('-')
       .map(part => part[0].toUpperCase() + part.slice(1))
       .join(' ');
+    const economyPresentation = getMinorCivEconomyPresentationForPlayer(state, state.currentPlayer, mcId);
+    const postureSuffix = economyPresentation.postureLabel && economyPresentation.postureLabel !== grievanceStatusLabel
+      ? ` · ${economyPresentation.postureLabel}`
+      : '';
+    const regionalGrievanceText = grievance && grievanceStatusLabel
+      ? `Regional grievance: ${grievanceStatusLabel}${postureSuffix}`
+      : economyPresentation.postureLabel ? `City-state posture: ${economyPresentation.postureLabel}` : null;
     const canOfferReparations = Boolean(grievance && grievance.pressure >= 20);
     const reparationsDisabledReason = !canOfferReparations ? null
       : atWar ? 'Unavailable while at war.'
@@ -211,9 +222,8 @@ export function createDiplomacyPanel(
         ? `Sponsor ${questPresentation?.stepTitle ?? 'Festival'} (${festivalTarget.amount} Gold)`
         : null,
       festivalDisabledReason,
-      regionalGrievanceText: grievance && grievanceStatusLabel
-        ? `Regional grievance: ${grievanceStatusLabel} (${Math.round(grievance.pressure)})`
-        : null,
+      regionalGrievanceText,
+      economyHintText: economyPresentation.hint,
       reparationsLabel: canOfferReparations ? `Pay Reparations (${reparationsCost} Gold)` : null,
       reparationsDisabledReason,
       atWar,
@@ -285,6 +295,9 @@ export function createDiplomacyPanel(
       if (row.regionalGrievanceText !== null) {
         minorCivsHtml += `<div style="font-size:11px;color:#e8c170;margin-top:4px;" data-text="mc-grievance-${row.mcIdx}"></div>`;
       }
+      if (row.economyHintText !== null) {
+        minorCivsHtml += `<div style="font-size:11px;opacity:0.65;margin-top:4px;" data-text="mc-economy-hint-${row.mcIdx}"></div>`;
+      }
       if (row.festivalDisabledReason) {
         minorCivsHtml += `<div style="font-size:10px;color:#e8c170;margin-top:5px;" data-text="mc-festival-reason-${row.mcIdx}"></div>`;
       }
@@ -337,6 +350,9 @@ export function createDiplomacyPanel(
     }
     if (row.regionalGrievanceText !== null) {
       setText(`mc-grievance-${row.mcIdx}`, row.regionalGrievanceText);
+    }
+    if (row.economyHintText !== null) {
+      setText(`mc-economy-hint-${row.mcIdx}`, row.economyHintText);
     }
     if (row.festivalDisabledReason) setText(`mc-festival-reason-${row.mcIdx}`, row.festivalDisabledReason);
     if (row.reparationsDisabledReason) setText(`mc-reparations-reason-${row.mcIdx}`, row.reparationsDisabledReason);
@@ -427,9 +443,12 @@ export function createDiplomacyPanel(
 
   panel.querySelectorAll('.mc-reparations').forEach(btn => {
     btn.addEventListener('click', () => {
-      const mcId = (btn as HTMLElement).dataset.mcId!;
-      callbacks.onMinorCivReparations?.(mcId);
+      const button = btn as HTMLButtonElement;
+      if (button.disabled) return;
+      button.disabled = true;
+      const mcId = button.dataset.mcId!;
       panel.remove();
+      callbacks.onMinorCivReparations?.(mcId);
     });
   });
 

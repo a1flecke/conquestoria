@@ -319,10 +319,87 @@ describe('diplomacy-panel breakaway rows', () => {
     });
     const button = panel.querySelector<HTMLButtonElement>('[data-action="pay-reparations"]');
 
-    expect(panel.textContent).toContain('Regional grievance: Mobilizing (55)');
+    expect(panel.textContent).toContain('Regional grievance: Mobilizing');
+    expect(panel.textContent).not.toContain('(55)');
     expect(button?.textContent).toBe('Pay Reparations (60 Gold)');
     button?.click();
     expect(repaired).toBe('mc-sparta');
+  });
+
+  it('renders broad economy posture without hiding city-state actions', () => {
+    const { container, state } = makeDiplomacyFixture({ currentPlayer: 'player' });
+    state.minorCivs['mc-sparta'] = {
+      id: 'mc-sparta', definitionId: 'sparta', cityId: 'mc-city', units: [],
+      diplomacy: state.civilizations.player.diplomacy,
+      activeQuests: {},
+      chainStatusByCiv: {}, questCooldownUntilByCiv: {}, lastNotifiedStatusByCiv: {},
+      regionalGrievanceByCiv: {
+        player: { targetCivId: 'player', pressure: 55, status: 'mobilizing', lastUpdatedTurn: state.turn, causes: [] },
+      },
+      economy: {
+        policy: 'defense',
+        posture: 'mobilizing',
+        lastProcessedTurn: state.turn,
+        recentProductionSummary: { itemId: 'warrior', itemClass: 'unit', completedTurn: state.turn },
+      },
+      isDestroyed: false, garrisonCooldown: 0, lastEraUpgrade: 1,
+    };
+    state.cities['mc-city'] = {
+      ...state.cities['city-border'], id: 'mc-city', owner: 'mc-sparta',
+      position: { q: 6, r: 0 }, ownedTiles: [{ q: 6, r: 0 }],
+    };
+    state.civilizations.player.visibility.tiles['6,0'] = 'fog';
+
+    const panel = createDiplomacyPanel(container, state, { onAction: () => {}, onClose: () => {} });
+
+    expect(panel.textContent).toContain('Regional grievance: Mobilizing');
+    expect(panel.textContent).toContain('training defenders');
+    expect(panel.textContent).not.toContain('warrior');
+    expect(panel.querySelector('.mc-gift')).not.toBeNull();
+    expect(panel.querySelector('.mc-war')).not.toBeNull();
+  });
+
+  it('rerenders reparations cooling into economy posture without double charging from stale DOM', () => {
+    const { container, state } = makeDiplomacyFixture({ currentPlayer: 'player' });
+    state.civilizations.player.gold = 200;
+    state.minorCivs['mc-sparta'] = {
+      id: 'mc-sparta', definitionId: 'sparta', cityId: 'mc-city', units: [],
+      diplomacy: state.civilizations.player.diplomacy,
+      activeQuests: {},
+      chainStatusByCiv: {}, questCooldownUntilByCiv: {}, lastNotifiedStatusByCiv: {},
+      regionalGrievanceByCiv: {
+        player: { targetCivId: 'player', pressure: 25, status: 'wary', lastUpdatedTurn: state.turn, causes: [] },
+      },
+      economy: { policy: 'defense', posture: 'fortifying', lastProcessedTurn: state.turn },
+      isDestroyed: false, garrisonCooldown: 0, lastEraUpgrade: 1,
+    };
+    state.cities['mc-city'] = {
+      ...state.cities['city-border'], id: 'mc-city', owner: 'mc-sparta',
+      position: { q: 6, r: 0 }, ownedTiles: [{ q: 6, r: 0 }],
+    };
+    state.civilizations.player.visibility.tiles['6,0'] = 'fog';
+    let currentState = state;
+    const render = (): HTMLElement => createDiplomacyPanel(container, currentState, {
+      onAction: () => {},
+      onMinorCivReparations: mcId => {
+        currentState.minorCivs[mcId].regionalGrievanceByCiv!.player.pressure = 5;
+        currentState.minorCivs[mcId].regionalGrievanceByCiv!.player.status = 'wary';
+        currentState.minorCivs[mcId].economy = { ...currentState.minorCivs[mcId].economy!, posture: 'settled' };
+        currentState.civilizations.player.gold -= 60;
+        render();
+      },
+      onClose: () => {},
+    });
+
+    const panel = render();
+    const button = panel.querySelector<HTMLButtonElement>('[data-action="pay-reparations"]')!;
+    button.click();
+    button.click();
+    const rerendered = container.querySelector('#diplomacy-panel') as HTMLElement;
+
+    expect(currentState.civilizations.player.gold).toBe(140);
+    expect(rerendered.textContent).not.toContain('Pay Reparations');
+    expect(rerendered.textContent).not.toContain('(25)');
   });
 
   it('does not render another hot-seat player assignment', () => {
