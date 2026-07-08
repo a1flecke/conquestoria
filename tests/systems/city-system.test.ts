@@ -413,7 +413,7 @@ describe('MR9 — land/air roster gating', () => {
     };
     const result = processCity(city, map, 2, 3, undefined, ['tactics']);
     expect(result.city.productionQueue).not.toContain('musketeer');
-    expect(result.droppedProductionItem).toBe('musketeer');
+    expect(result.droppedProductionItems).toEqual([{ itemId: 'musketeer', itemKind: 'unit', reason: 'no-longer-available' }]);
   });
 
   it('bomber requires only tech, no building — trainable in any city once nuclear-weapons completes', () => {
@@ -550,7 +550,7 @@ describe('processCity', () => {
     expect(result.city.productionProgress).toBe(5);
   });
 
-  it('processCity silently dequeues a not-yet-built stable once tank-warfare completes, and reports droppedProductionItem', () => {
+  it('processCity silently dequeues a not-yet-built stable once tank-warfare completes, and reports droppedProductionItems', () => {
     const map = generateMap(30, 30, 'obsolete-building-drop-test');
     const landTile = Object.values(map.tiles).find(t => t.terrain === 'grassland' || t.terrain === 'plains')!;
     const city = {
@@ -562,7 +562,7 @@ describe('processCity', () => {
 
     const result = processCity(city, map, 2, 100, undefined, ['horseback-riding', 'tank-warfare']);
 
-    expect(result.droppedProductionItem).toBe('stable');
+    expect(result.droppedProductionItems).toEqual([{ itemId: 'stable', itemKind: 'building', reason: 'obsoleted' }]);
     expect(result.city.productionQueue).not.toContain('stable');
     expect(result.completedBuilding).toBeNull();
     expect(result.city.productionProgress).toBe(0);
@@ -580,7 +580,7 @@ describe('processCity', () => {
 
     const result = processCity(city, map, 2, 1, undefined, ['horseback-riding']);
 
-    expect(result.droppedProductionItem).toBeNull();
+    expect(result.droppedProductionItems).toEqual([]);
     expect(result.city.productionQueue).toContain('stable');
   });
 
@@ -599,7 +599,7 @@ describe('processCity', () => {
     expect(result.city.buildings).toContain('cavalry-academy');
   });
 
-  it('processCity dequeues harbor when city is not coastal and returns droppedBuilding', () => {
+  it('processCity dequeues harbor when city is not coastal and reports it in droppedProductionItems', () => {
     const map = generateMap(30, 30, 'coastal-test');
     const inlandTile = Object.values(map.tiles).find(t =>
       t.terrain === 'grassland' &&
@@ -612,7 +612,7 @@ describe('processCity', () => {
     let city = foundCity('p1', inlandTile.coord, map, mkC());
     city = { ...city, productionQueue: ['harbor'], productionProgress: 0 };
     const result = processCity(city, map, 2, 5, undefined, ['harbor-tech']);
-    expect(result.droppedBuilding).toBe('harbor');
+    expect(result.droppedProductionItems).toEqual([{ itemId: 'harbor', itemKind: 'building', reason: 'coastal-access-lost' }]);
     expect(result.city.productionQueue).not.toContain('harbor');
     expect(result.city.productionProgress).toBe(0); // production not wasted
     expect(result.city.buildings).not.toContain('harbor');
@@ -632,8 +632,7 @@ describe('processCity', () => {
 
     const result = processCity(city, map, 2, 100, undefined, ['galleys']);
 
-    expect(result.droppedUnit).toBe('transport');
-    expect(result.droppedProductionItem).toBe('transport');
+    expect(result.droppedProductionItems).toEqual([{ itemId: 'transport', itemKind: 'unit', reason: 'coastal-access-lost' }]);
     expect(result.city.productionQueue).not.toContain('transport');
     expect(result.completedUnit).toBeNull();
     expect(result.city.productionProgress).toBe(0);
@@ -651,8 +650,7 @@ describe('processCity', () => {
 
     const result = processCity(city, map, 2, 100, undefined, ['stealth-technology']);
 
-    expect(result.droppedUnit).toBe('stealth_bomber');
-    expect(result.droppedProductionItem).toBe('stealth_bomber');
+    expect(result.droppedProductionItems).toEqual([{ itemId: 'stealth_bomber', itemKind: 'unit', reason: 'training-building-missing' }]);
     expect(result.city.productionQueue).not.toContain('stealth_bomber');
     expect(result.completedUnit).toBeNull();
     expect(result.city.productionProgress).toBe(0);
@@ -670,7 +668,7 @@ describe('processCity', () => {
 
     const result = processCity(city, map, 2, 1, undefined, ['stealth-technology']);
 
-    expect(result.droppedUnit).toBeNull();
+    expect(result.droppedProductionItems).toEqual([]);
     expect(result.city.productionQueue).toContain('stealth_bomber');
   });
 
@@ -680,8 +678,7 @@ describe('processCity', () => {
 
     const result = processCity(city, map, 2, 100, undefined, ['bronze-working'], undefined, 1, new Set());
 
-    expect(result.droppedProductionItem).toBe('swordsman');
-    expect(result.droppedUnit).toBeNull();
+    expect(result.droppedProductionItems).toEqual([{ itemId: 'swordsman', itemKind: 'unit', reason: 'resource-lost' }]);
     expect(result.city.productionQueue).not.toContain('swordsman');
     expect(result.completedUnit).toBeNull();
   });
@@ -703,16 +700,16 @@ describe('processCity', () => {
     };
     const result = processCity(city, map, 2, 0, undefined, ['harbor-tech']);
     expect(result.completedBuilding).toBe('harbor');
-    expect(result.droppedBuilding).toBeNull();
+    expect(result.droppedProductionItems).toEqual([]);
     expect(result.city.buildings).toContain('harbor');
   });
 
-  it('processCity returns droppedBuilding: null when no coastal guard triggers', () => {
+  it('processCity returns an empty droppedProductionItems when no coastal guard triggers', () => {
     const map = generateMap(30, 30, 'city-test');
     const landTile = Object.values(map.tiles).find(t => t.terrain === 'grassland')!;
     const city = foundCity('p1', landTile.coord, map, mkC());
     const result = processCity(city, map, 2);
-    expect(result.droppedBuilding).toBeNull();
+    expect(result.droppedProductionItems).toEqual([]);
   });
 
   it.each(['frigate', 'destroyer'] satisfies UnitType[])(
@@ -734,7 +731,7 @@ describe('processCity', () => {
       };
       const completedTechs = unitType === 'frigate' ? ['frigate-construction'] : ['carrier-warfare'];
       const result = processCity(city, map, 2, 100, undefined, completedTechs);
-      expect(result.droppedUnit).toBe(unitType);
+      expect(result.droppedProductionItems).toEqual([{ itemId: unitType, itemKind: 'unit', reason: 'coastal-access-lost' }]);
       expect(result.city.productionQueue).not.toContain(unitType);
       expect(result.city.productionProgress).toBe(0);
     },
@@ -856,6 +853,130 @@ describe('processCity', () => {
   });
 });
 
+describe('processCity — droppedProductionItems (issue #457)', () => {
+  it('drops a building whose required resource is no longer available (previously untracked)', () => {
+    const map = generateMap(30, 30, 'building-resource-drop-test');
+    const landTile = Object.values(map.tiles).find(t => t.terrain === 'grassland' || t.terrain === 'plains')!;
+    const city = {
+      ...foundCity('p1', landTile.coord, map, mkC()),
+      productionQueue: ['bronze-workshop'],
+      productionProgress: 10,
+    };
+
+    const result = processCity(city, map, 2, 100, undefined, ['stone-weapons'], undefined, 1, new Set());
+
+    expect(result.droppedProductionItems).toEqual([{ itemId: 'bronze-workshop', itemKind: 'building', reason: 'resource-lost' }]);
+    expect(result.city.productionQueue).not.toContain('bronze-workshop');
+  });
+
+  it('does NOT drop a building whose required resource is still available (negative)', () => {
+    const map = generateMap(30, 30, 'building-resource-keep-test');
+    const landTile = Object.values(map.tiles).find(t => t.terrain === 'grassland' || t.terrain === 'plains')!;
+    const city = {
+      ...foundCity('p1', landTile.coord, map, mkC()),
+      productionQueue: ['bronze-workshop'],
+      productionProgress: 0,
+    };
+
+    const result = processCity(city, map, 2, 1, undefined, ['stone-weapons'], undefined, 1, new Set(['copper']));
+
+    expect(result.droppedProductionItems).toEqual([]);
+    expect(result.city.productionQueue).toContain('bronze-workshop');
+  });
+
+  it('drops a national-project building outside its build window (previously untracked)', () => {
+    const map = generateMap(30, 30, 'np-window-drop-test');
+    const landTile = Object.values(map.tiles).find(t => t.terrain === 'grassland' || t.terrain === 'plains')!;
+    const city = {
+      ...foundCity('p1', landTile.coord, map, mkC()),
+      productionQueue: ['sacred_grove'],
+      productionProgress: 10,
+    };
+
+    // sacred_grove has nationalProject.homeEra: 1, so era 3 is outside homeEra..homeEra+1.
+    const result = processCity(city, map, 2, 100, undefined, ['animism'], undefined, 3);
+
+    expect(result.droppedProductionItems).toEqual([{ itemId: 'sacred_grove', itemKind: 'building', reason: 'build-window-expired' }]);
+    expect(result.city.productionQueue).not.toContain('sacred_grove');
+  });
+
+  it('does NOT drop a national-project building still within its build window (negative)', () => {
+    const map = generateMap(30, 30, 'np-window-keep-test');
+    const landTile = Object.values(map.tiles).find(t => t.terrain === 'grassland' || t.terrain === 'plains')!;
+    const city = {
+      ...foundCity('p1', landTile.coord, map, mkC()),
+      productionQueue: ['sacred_grove'],
+      productionProgress: 0,
+    };
+
+    const result = processCity(city, map, 2, 1, undefined, ['animism'], undefined, 2);
+
+    expect(result.droppedProductionItems).toEqual([]);
+    expect(result.city.productionQueue).toContain('sacred_grove');
+  });
+
+  it('disambiguates unit obsoleted vs resource-lost, and prefers obsoleted on a tie', () => {
+    const map = generateMap(30, 30, 'unit-reason-disambiguation-test');
+    const landTile = Object.values(map.tiles).find(t => t.terrain === 'grassland' || t.terrain === 'plains')!;
+
+    // resource-lost only: bronze-working completed (queueable), rifled-infantry NOT completed, no iron.
+    const resourceLostCity = { ...foundCity('p1', landTile.coord, map, mkC()), productionQueue: ['swordsman'], productionProgress: 10 };
+    const resourceLostResult = processCity(resourceLostCity, map, 2, 100, undefined, ['bronze-working'], undefined, 1, new Set());
+    expect(resourceLostResult.droppedProductionItems).toEqual([{ itemId: 'swordsman', itemKind: 'unit', reason: 'resource-lost' }]);
+
+    // obsoleted only: iron available, but rifled-infantry completed.
+    const obsoletedCity = { ...foundCity('p1', landTile.coord, map, mkC()), productionQueue: ['swordsman'], productionProgress: 10 };
+    const obsoletedResult = processCity(obsoletedCity, map, 2, 100, undefined, ['bronze-working', 'rifled-infantry'], undefined, 1, new Set(['iron']));
+    expect(obsoletedResult.droppedProductionItems).toEqual([{ itemId: 'swordsman', itemKind: 'unit', reason: 'obsoleted' }]);
+
+    // tie: both rifled-infantry completed AND iron unavailable — 'obsoleted' must win.
+    const tieCity = { ...foundCity('p1', landTile.coord, map, mkC()), productionQueue: ['swordsman'], productionProgress: 10 };
+    const tieResult = processCity(tieCity, map, 2, 100, undefined, ['bronze-working', 'rifled-infantry'], undefined, 1, new Set());
+    expect(tieResult.droppedProductionItems).toEqual([{ itemId: 'swordsman', itemKind: 'unit', reason: 'obsoleted' }]);
+  });
+
+  it('records multiple drops in one turn: a building and a unit both dropped in the same coastal-guard pass', () => {
+    const map = generateMap(30, 30, 'coastal-double-drop-test');
+    const inlandTile = Object.values(map.tiles).find(t =>
+      t.terrain === 'grassland' &&
+      !Object.values(map.tiles).some(n =>
+        Math.abs(n.coord.q - t.coord.q) <= 1 &&
+        Math.abs(n.coord.r - t.coord.r) <= 1 &&
+        (n.terrain === 'ocean' || n.terrain === 'coast')
+      )
+    )!;
+    const city = {
+      ...foundCity('p1', inlandTile.coord, map, mkC()),
+      productionQueue: ['harbor', 'transport'],
+      productionProgress: 0,
+    };
+
+    const result = processCity(city, map, 2, 100, undefined, ['harbor-tech', 'galleys']);
+
+    expect(result.droppedProductionItems).toEqual([
+      { itemId: 'harbor', itemKind: 'building', reason: 'coastal-access-lost' },
+      { itemId: 'transport', itemKind: 'unit', reason: 'coastal-access-lost' },
+    ]);
+    expect(result.city.productionQueue).toEqual([]);
+  });
+
+  it('never reports a legendary-wonder queue item as dropped by any filter (negative)', () => {
+    const map = generateMap(30, 30, 'legendary-item-exclusion-test');
+    const landTile = Object.values(map.tiles).find(t => t.terrain === 'grassland' || t.terrain === 'plains')!;
+    const city = {
+      ...foundCity('p1', landTile.coord, map, mkC()),
+      productionQueue: ['legendary:oracle-of-delphi'],
+      productionProgress: 10,
+    };
+
+    // era 5, no completed techs, no resources, no buildings — every filter gets a chance to (wrongly) drop it.
+    const result = processCity(city, map, 2, 100, undefined, [], undefined, 5, new Set());
+
+    expect(result.droppedProductionItems).toEqual([]);
+    expect(result.city.productionQueue).toContain('legendary:oracle-of-delphi');
+  });
+});
+
 describe('getSettlerProductionCost', () => {
   it('uses cheaper early-game Settler costs for eras 1 and 2', () => {
     expect(getSettlerProductionCost(1)).toBe(24);
@@ -967,7 +1088,7 @@ describe('MR6: 3d-printing production overflow', () => {
 
     const result = processCity(city, map, 2, 0, undefined, ['3d-printing']);
 
-    expect(result.droppedBuilding).toBe('dock');
+    expect(result.droppedProductionItems).toEqual([{ itemId: 'dock', itemKind: 'building', reason: 'coastal-access-lost' }]);
     expect(result.city.productionQueue).toEqual(['library']);
     expect(result.city.productionProgress).toBe(0);
   });

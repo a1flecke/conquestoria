@@ -1,4 +1,4 @@
-import type { City, Building, HexCoord, GameMap, UnitType, CivBonusEffect, TrainableUnitEntry, IdCounters, ResourceType } from '@/core/types';
+import type { City, Building, HexCoord, GameMap, UnitType, CivBonusEffect, TrainableUnitEntry, IdCounters, ResourceType, DroppedProductionItem, ProductionDropReason } from '@/core/types';
 import { isSpyUnitType } from './espionage-system';
 import { hexKey, hexesInRange, hexNeighbors, wrapHexCoord } from './hex-utils';
 import { drawNextCityName, DEFAULT_CITY_NAMES } from './city-name-system';
@@ -1715,12 +1715,8 @@ export interface CityProcessResult {
   completedUnit: UnitType | null;
   idleGoldBonus: number;
   idleScienceBonus: number;
-  /** The building id that was silently dequeued because the city is no longer coastal, or null. */
-  droppedBuilding: string | null;
-  /** The coastal-required unit type that was dequeued because the city is no longer coastal, or null. */
-  droppedUnit: UnitType | null;
-  /** Any production item dequeued because it is no longer available. */
-  droppedProductionItem: string | null;
+  /** Every unit/building silently dequeued this turn, with why. Empty when nothing dropped. */
+  droppedProductionItems: DroppedProductionItem[];
 }
 
 export interface CityProductionCompletionResult {
@@ -1819,9 +1815,7 @@ export function processCity(
   let newProgress = city.productionProgress;
   const newQueue = [...city.productionQueue];
   const newBuildings = [...city.buildings];
-  let droppedBuilding: string | null = null;
-  let droppedUnit: UnitType | null = null;
-  let droppedProductionItem: string | null = null;
+  const droppedProductionItems: DroppedProductionItem[] = [];
 
   // Drop queued items that are no longer available (tech lost, resource lost)
   if ((completedTechs.length > 0 || availableResources) && newQueue.length > 0) {
@@ -1833,17 +1827,39 @@ export function processCity(
       if (BUILDING_IDS.has(item)) {
         const building = BUILDINGS[item];
         if (isBuildingObsolete(building, completedTechs)) {
-          droppedProductionItem ??= item;
+          droppedProductionItems.push({ itemId: item, itemKind: 'building', reason: 'obsoleted' });
           return false;
         }
         if (building?.resourceRequired?.length && availableResources !== undefined) {
-          if (!building.resourceRequired.every(r => availableResources!.has(r))) return false;
+          if (!building.resourceRequired.every(r => availableResources!.has(r))) {
+            droppedProductionItems.push({ itemId: item, itemKind: 'building', reason: 'resource-lost' });
+            return false;
+          }
         }
         return true;
       }
       const unit = TRAINABLE_UNITS.find(candidate => candidate.type === item);
       if (unit && !trainableTypes.has(unit.type)) {
-        droppedProductionItem ??= unit.type;
+        // Within one continuous session, a validly-queued unit's techRequired/civTypeRequired
+        // can never later become false (completedTechs never shrinks; civType never changes) —
+        // the only two dynamic reasons it can stop being trainable are obsoletedByTech firing or
+        // a resource becoming unavailable. Check obsoleted first to match the building branch's
+        // precedence above; both conditions can be true in the same turn (e.g. a tech completes
+        // the same turn a resource is lost), so this order is the deterministic tie-breaker, not
+        // a guess. A loaded save, however, can already hold a queue item that predates a
+        // tech-tree rebalance — its techRequired can be unmet with neither of the two dynamic
+        // reasons applying (see the musketeer save-compat test above) — so a third, honest
+        // fallback reason covers that residual case instead of misreporting it as resource-lost.
+        const obsoleted = unit.obsoletedByTech != null && completedTechs.includes(unit.obsoletedByTech);
+        const resourceLost = (unit.resourceRequired?.length ?? 0) > 0
+          && availableResources !== undefined
+          && !unit.resourceRequired!.every(r => availableResources.has(r));
+        const reason: ProductionDropReason = obsoleted
+          ? 'obsoleted'
+          : resourceLost
+            ? 'resource-lost'
+            : 'no-longer-available';
+        droppedProductionItems.push({ itemId: unit.type, itemKind: 'unit', reason });
         return false;
       }
       return trainableTypes.has(item as UnitType);
@@ -1861,7 +1877,11 @@ export function processCity(
     const filteredNP = newQueue.filter((item: string) => {
       const bldg = BUILDINGS[item];
       if (!bldg?.nationalProject) return true;
-      return era >= bldg.nationalProject.homeEra && era <= bldg.nationalProject.homeEra + 1;
+      const inWindow = era >= bldg.nationalProject.homeEra && era <= bldg.nationalProject.homeEra + 1;
+      if (!inWindow) {
+        droppedProductionItems.push({ itemId: item, itemKind: 'building', reason: 'build-window-expired' });
+      }
+      return inWindow;
     });
     if (filteredNP.length !== beforeNP) {
       newQueue.length = 0;
@@ -1876,18 +1896,18 @@ export function processCity(
   if (newQueue.length > 0) {
     const headBuilding = BUILDINGS[newQueue[0]];
     if (headBuilding?.coastalRequired && !isCityCoastal(city, map)) {
-      droppedBuilding = newQueue.shift()!;
-      droppedProductionItem = droppedBuilding;
+      const dropped = newQueue.shift()!;
+      droppedProductionItems.push({ itemId: dropped, itemKind: 'building', reason: 'coastal-access-lost' });
       newProgress = 0;
     }
     const headUnit = TRAINABLE_UNITS.find(unit => unit.type === newQueue[0]);
     if (headUnit?.coastalRequired && !isCityCoastal(city, map)) {
-      droppedUnit = newQueue.shift() as UnitType;
-      droppedProductionItem = droppedUnit;
+      const dropped = newQueue.shift() as UnitType;
+      droppedProductionItems.push({ itemId: dropped, itemKind: 'unit', reason: 'coastal-access-lost' });
       newProgress = 0;
     } else if (headUnit?.trainedFromBuilding && !(city.buildings ?? []).includes(headUnit.trainedFromBuilding)) {
-      droppedUnit = newQueue.shift() as UnitType;
-      droppedProductionItem = droppedUnit;
+      const dropped = newQueue.shift() as UnitType;
+      droppedProductionItems.push({ itemId: dropped, itemKind: 'unit', reason: 'training-building-missing' });
       newProgress = 0;
     }
   }
@@ -1941,9 +1961,7 @@ export function processCity(
     completedUnit,
     idleGoldBonus,
     idleScienceBonus,
-    droppedBuilding,
-    droppedUnit,
-    droppedProductionItem,
+    droppedProductionItems,
   };
 }
 
