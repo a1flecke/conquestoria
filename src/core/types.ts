@@ -459,6 +459,21 @@ export interface City {
 export type TreasuryStrainLevel = 'none' | 'low' | 'high' | 'critical';
 export type EconomyStrainLevel = TreasuryStrainLevel;
 
+export type ProductionDropReason =
+  | 'obsoleted'                  // building or unit: obsoletedByTech / isBuildingObsolete fired
+  | 'resource-lost'              // building or unit: required resource no longer available
+  | 'no-longer-available'        // unit only: neither obsoleted nor resource-lost explains it
+                                  // (e.g. a save-compat queue item whose techRequired is unmet)
+  | 'build-window-expired'       // national-project building: outside homeEra/homeEra+1
+  | 'coastal-access-lost'        // building or unit: city lost coastal access
+  | 'training-building-missing'; // unit: trainedFromBuilding no longer present
+
+export interface DroppedProductionItem {
+  itemId: string;                 // building id (key into BUILDINGS) or UnitType
+  itemKind: 'building' | 'unit';
+  reason: ProductionDropReason;
+}
+
 export interface EconomyMaintenanceBreakdown {
   buildingUpkeep: number;
   unitUpkeep: number;
@@ -1545,7 +1560,7 @@ export interface GameEvents {
   'diplomacy:league-dissolved': { leagueId: string; reason: string };
   'diplomacy:league-triggered': { leagueId: string; attackerId: string; defenderId: string };
   'city:building-complete': { cityId: string; buildingId: string };
-  'city:building-dropped': { cityId: string; buildingId: string };
+  'city:production-item-dropped': { cityId: string; itemId: string; itemKind: 'building' | 'unit'; reason: ProductionDropReason };
   'city:national-project-built': { civId: string; cityId: string; buildingId: string; eraBuilt: number };
   'city:national-project-expired': { civId: string; cityId: string; buildingId: string };
   'city:national-project-dequeued': { civId: string; cityId: string; buildingId: string };
