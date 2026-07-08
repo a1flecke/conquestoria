@@ -6,6 +6,7 @@ import { EventBus } from '@/core/event-bus';
 import { TECH_TREE, getEraAdvancementTechs } from '@/systems/tech-definitions';
 import { MINOR_CIV_DEFINITIONS } from '@/systems/minor-civ-definitions';
 import { createUnit, UNIT_DEFINITIONS } from '@/systems/unit-system';
+import { processMinorCivRegionalGrievanceTurn } from '@/systems/minor-civ-coalition-system';
 
 const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
 
@@ -97,6 +98,68 @@ describe('minor civ placement', () => {
 });
 
 describe('minor civ turn processing', () => {
+  it('runs hidden economy before minor-civ planning so completed units cannot act same turn', () => {
+    const state = createNewGame(undefined, 'minor-economy-turn-order', 'small');
+    const mcId = Object.keys(state.minorCivs)[0]!;
+    const mc = state.minorCivs[mcId];
+    const city = state.cities[mc.cityId];
+    city.productionQueue = ['warrior'];
+    city.productionProgress = 999;
+    mc.economy = { policy: 'defense', posture: 'mobilizing', lastProcessedTurn: 0 };
+    const beforeIds = new Set(Object.keys(state.units));
+
+    const result = processMinorCivTurn(state, new EventBus());
+    const created = Object.values(result.units).find(unit => !beforeIds.has(unit.id))!;
+
+    expect(created.owner).toBe(mcId);
+    expect(created.hasActed).toBe(true);
+    expect(result.opponentAI?.minorCivs[mcId]?.assignedUnitIds).toContain(created.id);
+  });
+
+  it('does not spawn both economy defender and regional grievance defender in one minor-civ turn', () => {
+    const state = createNewGame(undefined, 'minor-economy-no-double-spawn', 'small');
+    state.era = 2;
+    const mcId = Object.keys(state.minorCivs)[0]!;
+    const mc = state.minorCivs[mcId];
+    const city = state.cities[mc.cityId];
+    city.population = 4;
+    city.productionQueue = ['warrior'];
+    city.productionProgress = 999;
+    mc.regionalGrievanceByCiv = {
+      player: {
+        targetCivId: 'player',
+        pressure: 90,
+        status: 'coalition-talks',
+        lastUpdatedTurn: state.turn,
+        mobilizationProgress: 24,
+        causes: [],
+      },
+    };
+    const beforeMinorUnits = mc.units.filter(unitId => state.units[unitId]).length;
+
+    const result = processMinorCivTurn(state, new EventBus());
+    const afterMinorUnits = result.minorCivs[mcId].units.filter(unitId => result.units[unitId]).length;
+
+    expect(afterMinorUnits - beforeMinorUnits).toBe(1);
+  });
+
+  it('production-backed defenders stay within local force projection', () => {
+    const state = createNewGame(undefined, 'minor-economy-local-defense', 'small');
+    const mcId = Object.keys(state.minorCivs)[0]!;
+    const mc = state.minorCivs[mcId];
+    const city = state.cities[mc.cityId];
+    const distant = createUnit('warrior', 'barbarian', { q: city.position.q + 9, r: city.position.r }, state.idCounters);
+    distant.id = 'distant-raider';
+    state.units[distant.id] = distant;
+    city.productionQueue = ['warrior'];
+    city.productionProgress = 999;
+    mc.economy = { policy: 'defense', posture: 'mobilizing', lastProcessedTurn: 0 };
+
+    const result = processMinorCivTurn(state, new EventBus());
+
+    expect(JSON.stringify(result.opponentAI?.minorCivs[mcId])).not.toContain('distant-raider');
+  });
+
   it('purposefully intercepts always-hostile units inside its territory', () => {
     const state = createNewGame(undefined, 'mc-purposeful-defense', 'small');
     const mcId = Object.keys(state.minorCivs)[0]!;
@@ -200,7 +263,7 @@ describe('minor civ turn processing', () => {
     expect(peacetime.attackOrders).toEqual([]);
   });
 
-  it('replaces lost garrison after cooldown', () => {
+  it('does not free-replace a lost garrison once the hidden economy manages the city-state', () => {
     const state = createNewGame(undefined, 'mc-garrison', 'small');
     const mcId = Object.keys(state.minorCivs)[0];
     if (!mcId) return;
@@ -213,11 +276,12 @@ describe('minor civ turn processing', () => {
     mc.garrisonCooldown = 1;
 
     const result = processMinorCivTurn(state, bus);
-    expect(result.minorCivs[mcId].garrisonCooldown).toBe(0);
+    expect(result.minorCivs[mcId].garrisonCooldown).toBe(1);
+    expect(result.minorCivs[mcId].units).toHaveLength(0);
 
-    // Next turn should spawn replacement
     const result2 = processMinorCivTurn(result, bus);
-    expect(result2.minorCivs[mcId].units.length).toBeGreaterThanOrEqual(1);
+    expect(result2.minorCivs[mcId].units).toHaveLength(0);
+    expect(result2.minorCivs[mcId].economy).toBeDefined();
   });
 
   it('skips garrison respawn when city hex is occupied by another unit', () => {
@@ -245,7 +309,7 @@ describe('minor civ turn processing', () => {
     expect(result.minorCivs[mcId].units.length).toBe(0);
   });
 
-  it('respawns garrison when city hex is free after cooldown', () => {
+  it('does not free-respawn a garrison on an economy-managed city-state even when city hex is free', () => {
     const state = createNewGame(undefined, 'mc-garrison-free', 'small');
     const mcId = Object.keys(state.minorCivs)[0];
     if (!mcId) return;
@@ -260,8 +324,8 @@ describe('minor civ turn processing', () => {
 
     const result = processMinorCivTurn(state, bus);
 
-    // Garrison should be respawned — hex is free
-    expect(result.minorCivs[mcId].units.length).toBeGreaterThanOrEqual(1);
+    expect(result.minorCivs[mcId].units).toHaveLength(0);
+    expect(result.minorCivs[mcId].economy).toBeDefined();
   });
 
   it('applies ally bonus to allied major civ', () => {
@@ -550,7 +614,7 @@ describe('regional grievance mobilization', () => {
     };
     const beforeUnits = mc.units.length;
 
-    const result = processMinorCivTurn(state, bus);
+    const result = processMinorCivRegionalGrievanceTurn(state, mcId);
     const current = result.minorCivs[mcId];
     const newUnitId = current.units.find(unitId => !mc.units.includes(unitId));
 
@@ -609,6 +673,13 @@ describe('regional grievance mobilization', () => {
     const mc = state.minorCivs[mcId];
     const city = state.cities[mc.cityId];
     city.population = 3;
+    const garrison = state.units[mc.units[0]];
+    const fallbackPosition = Object.values(state.map.tiles)
+      .map(tile => tile.coord)
+      .find(coord =>
+        hexDistance(coord, city.position) > 2
+        && !['ocean', 'coast', 'mountain'].includes(state.map.tiles[hexKey(coord)].terrain))!;
+    garrison.position = fallbackPosition;
     mc.regionalGrievanceByCiv = {
       player: {
         targetCivId: 'player',
@@ -620,14 +691,14 @@ describe('regional grievance mobilization', () => {
       } as any,
     };
 
-    const result = processMinorCivTurn(state, bus);
+    const result = processMinorCivRegionalGrievanceTurn(state, mcId);
     const current = result.minorCivs[mcId];
     const newUnitId = current.units.find(unitId => !mc.units.includes(unitId));
 
     expect(result.cities[mc.cityId].population).toBe(2);
     expect(newUnitId).toBeDefined();
     expect(result.units[newUnitId!]).toMatchObject({ type: 'musketeer', health: 65 });
-    expect(result.units[newUnitId!].position).not.toEqual(state.cities[mc.cityId].position);
+    expect(result.units[newUnitId!].position).toEqual(state.cities[mc.cityId].position);
     expect(current.regionalGrievanceByCiv?.player.conscriptCooldownUntilTurn).toBeGreaterThan(state.turn);
     expect(current.regionalGrievanceByCiv?.player.recoveryStrainedUntilTurn).toBeGreaterThan(state.turn);
   });
