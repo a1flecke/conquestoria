@@ -131,6 +131,26 @@ export function registerMinorCivNotificationListeners(
     appendToCivLog(data.majorCivId, notification.message, notification.type);
   });
 
+  bus.on('minor-civ:production-completed', data => {
+    const state = data.state ?? getState();
+    for (const civId of Object.keys(state.civilizations)) {
+      const notification = getMinorCivNotification(state, civId, {
+        type: 'minor-civ:production-completed',
+        minorCivId: data.minorCivId,
+        cityId: data.cityId,
+        itemId: data.itemId,
+        itemClass: data.itemClass,
+      });
+      if (!notification) continue;
+      queueHotSeatEvent(state, civId, {
+        type: 'minor-civ:production-completed',
+        message: notification.message,
+        turn: state.turn,
+      });
+      appendToCivLog(civId, notification.message, notification.type);
+    }
+  });
+
   bus.on('minor-civ:guerrilla', data => {
     const state = getState();
     const notification = getMinorCivNotification(state, data.targetCivId, {

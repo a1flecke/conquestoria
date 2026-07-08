@@ -105,4 +105,39 @@ describe('minor-civ notification listeners', () => {
     expect(stale.pendingEvents?.['player-1']).toBeUndefined();
     expect(next.pendingEvents?.['player-1']).toHaveLength(1);
   });
+
+  it('routes city-state economy production to eligible hot-seat viewers only', () => {
+    const state = createHotSeatGame({
+      playerCount: 2,
+      mapSize: 'small',
+      players: [
+        { name: 'A', slotId: 'player-1', civType: 'egypt', isHuman: true },
+        { name: 'B', slotId: 'player-2', civType: 'rome', isHuman: true },
+      ],
+    }, 'minor-economy-hotseat-notify');
+    state.pendingEvents = {};
+    const minorCivId = getFirstMinorCivId(state);
+    const minorCiv = state.minorCivs[minorCivId];
+    const city = state.cities[minorCiv.cityId];
+    state.civilizations['player-1'].visibility.tiles[hexKey(city.position)] = 'fog';
+    const bus = new EventBus();
+    const log: string[] = [];
+
+    registerMinorCivNotificationListeners(bus, () => state, {
+      appendToCivLog: (civId, message) => { log.push(`${civId}:${message}`); },
+    });
+
+    bus.emit('minor-civ:production-completed', {
+      minorCivId: minorCiv.id,
+      cityId: city.id,
+      itemId: 'warrior',
+      itemClass: 'unit',
+      state,
+    });
+
+    expect(state.pendingEvents?.['player-1']).toHaveLength(1);
+    expect(state.pendingEvents?.['player-2']).toBeUndefined();
+    expect(log.some(entry => entry.startsWith('player-1:'))).toBe(true);
+    expect(log.some(entry => entry.startsWith('player-2:'))).toBe(false);
+  });
 });

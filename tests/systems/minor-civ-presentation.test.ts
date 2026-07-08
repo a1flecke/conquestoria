@@ -3,6 +3,7 @@ import { createHotSeatGame, createNewGame } from '@/core/game-state';
 import { hexKey } from '@/systems/hex-utils';
 import {
   formatMinorCivEventMessageForPlayer,
+  getMinorCivEconomyPresentationForPlayer,
   getMinorCivPresentationForPlayer,
 } from '@/systems/minor-civ-presentation';
 
@@ -78,5 +79,69 @@ describe('minor-civ-presentation', () => {
 
     expect(discoveredMsg).not.toBe('City-state guerrilla fighters attack!');
     expect(hiddenMsg).toBe('City-state guerrilla fighters attack!');
+  });
+
+  it('masks hidden city-state economy presentation from undiscovered viewers', () => {
+    const state = createNewGame(undefined, 'minor-economy-presentation-hidden', 'small');
+    const minorCiv = Object.values(state.minorCivs)[0]!;
+    minorCiv.economy = {
+      policy: 'defense',
+      posture: 'mobilizing',
+      lastProcessedTurn: state.turn,
+      recentProductionSummary: { itemId: 'warrior', itemClass: 'unit', completedTurn: state.turn },
+    };
+
+    const presentation = getMinorCivEconomyPresentationForPlayer(state, 'player', minorCiv.id);
+
+    expect(presentation.known).toBe(false);
+    expect(presentation.postureLabel).toBeNull();
+    expect(presentation.hint).toBeNull();
+  });
+
+  it('shows only broad city-state economy posture to discovered viewers', () => {
+    const state = createNewGame(undefined, 'minor-economy-presentation-known', 'small');
+    const minorCiv = Object.values(state.minorCivs)[0]!;
+    const city = state.cities[minorCiv.cityId];
+    state.civilizations.player.visibility.tiles[hexKey(city.position)] = 'fog';
+    minorCiv.economy = {
+      policy: 'defense',
+      posture: 'mobilizing',
+      lastProcessedTurn: state.turn,
+      recentProductionSummary: { itemId: 'warrior', itemClass: 'unit', completedTurn: state.turn },
+    };
+
+    const presentation = getMinorCivEconomyPresentationForPlayer(state, 'player', minorCiv.id);
+
+    expect(presentation).toMatchObject({
+      known: true,
+      postureLabel: 'Mobilizing',
+      hint: 'training defenders',
+    });
+    expect(JSON.stringify(presentation)).not.toContain('warrior');
+  });
+
+  it('recomputes effective posture from cooled grievance state for immediate UI refresh', () => {
+    const state = createNewGame(undefined, 'minor-economy-presentation-cooled', 'small');
+    const minorCiv = Object.values(state.minorCivs)[0]!;
+    const city = state.cities[minorCiv.cityId];
+    state.civilizations.player.visibility.tiles[hexKey(city.position)] = 'fog';
+    minorCiv.regionalGrievanceByCiv = {
+      player: {
+        targetCivId: 'player',
+        pressure: 5,
+        status: 'wary',
+        lastUpdatedTurn: state.turn,
+        causes: [],
+      },
+    };
+    minorCiv.economy = {
+      policy: 'defense',
+      posture: 'mobilizing',
+      lastProcessedTurn: state.turn,
+    };
+
+    const presentation = getMinorCivEconomyPresentationForPlayer(state, 'player', minorCiv.id);
+
+    expect(presentation.postureLabel).toBe('Quiet');
   });
 });

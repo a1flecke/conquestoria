@@ -20,6 +20,7 @@ export type MinorCivNotificationEvent =
   | { type: 'minor-civ:alliance-broken'; majorCivId: string; minorCivId: string }
   | { type: 'minor-civ:relationship-threshold'; majorCivId: string; minorCivId: string; newStatus: string }
   | { type: 'minor-civ:guerrilla'; targetCivId: string; minorCivId: string }
+  | { type: 'minor-civ:production-completed'; minorCivId: string; cityId: string; itemId: string; itemClass: 'building' | 'unit' }
   | { type: 'minor-civ:quest-expired'; majorCivId: string; minorCivId: string };
 
 function getTargetedMinorCivPresentation(
@@ -64,6 +65,21 @@ export function getMinorCivNotification(
     return {
       message: formatMinorCivEventMessageForPlayer(state, viewerCivId, event.minorCivId, 'guerrilla'),
       type: 'warning',
+      turn: state.turn,
+    };
+  }
+
+  if (event.type === 'minor-civ:production-completed') {
+    const presentation = getTargetedMinorCivPresentation(state, viewerCivId, event.minorCivId);
+    if (!presentation) {
+      return null;
+    }
+
+    return {
+      message: event.itemClass === 'unit'
+        ? `${presentation.name} is strengthening its defenses.`
+        : `${presentation.name} is growing more prosperous.`,
+      type: event.itemClass === 'unit' ? 'warning' : 'info',
       turn: state.turn,
     };
   }

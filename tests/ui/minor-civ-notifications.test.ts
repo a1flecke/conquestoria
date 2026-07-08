@@ -278,4 +278,30 @@ describe('minor-civ-notifications', () => {
     expect(ownerNotification?.message).toMatch(/expired/i);
     expect(otherNotification).toBeNull();
   });
+
+  it('creates viewer-safe production notifications only for discovered city-states', () => {
+    const state = createNewGame(undefined, 'minor-economy-notification', 'small');
+    const minorCivId = getFirstMinorCivId(state);
+    const minorCiv = state.minorCivs[minorCivId];
+    const hidden = getMinorCivNotification(state, 'player', {
+      type: 'minor-civ:production-completed',
+      minorCivId: minorCiv.id,
+      cityId: minorCiv.cityId,
+      itemId: 'warrior',
+      itemClass: 'unit',
+    });
+    expect(hidden).toBeNull();
+
+    discoverMinorCiv(state, 'player', minorCiv.id);
+    const known = getMinorCivNotification(state, 'player', {
+      type: 'minor-civ:production-completed',
+      minorCivId: minorCiv.id,
+      cityId: minorCiv.cityId,
+      itemId: 'warrior',
+      itemClass: 'unit',
+    });
+
+    expect(known?.message).toContain('is strengthening its defenses');
+    expect(known?.message).not.toContain('warrior');
+  });
 });
