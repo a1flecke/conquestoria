@@ -8,6 +8,7 @@ import { getLegendaryWonderNotification } from '@/ui/legendary-wonder-notificati
 import { describeDroppedProductionItem } from '@/systems/city-system';
 import type { NotificationEntry } from '@/core/notification-log';
 import { presentStrategicWarning } from '@/ui/strategic-warning-presentation';
+import { getCrisisFlavor, getCrisisDisplayName } from '@/systems/crisis-flavor-definitions';
 
 export type NotificationSink = (
   civId: string,
@@ -388,4 +389,59 @@ export function routeEraAdvanced(
       'info',
     );
   }
+}
+
+export function routeCrisisStarted(
+  state: GameState,
+  event: GameEvents['crisis:started'],
+  sink: NotificationSink,
+): void {
+  const flavor = getCrisisFlavor(event.flavorId);
+  if (!flavor) return;
+  const cityId = event.cityIds[0];
+  const city = cityId ? state.cities[cityId] : undefined;
+  const name = getCrisisDisplayName(flavor, state.era);
+  const message = flavor.advisorLine
+    .replace('{name}', name)
+    .replace('{city}', city?.name ?? 'a city');
+  sink(event.civId, message, 'warning', cityId && city ? {
+    kind: 'map',
+    coord: { ...city.position },
+    label: name,
+  } : undefined);
+}
+
+export function routeCrisisSpread(
+  state: GameState,
+  event: GameEvents['crisis:spread'],
+  sink: NotificationSink,
+): void {
+  const crisis = state.activeCrises?.[event.crisisId];
+  if (!crisis) return;
+  const flavor = getCrisisFlavor(crisis.flavorId);
+  if (!flavor) return;
+  const toCity = state.cities[event.toCityId];
+  const name = getCrisisDisplayName(flavor, state.era);
+  sink(
+    crisis.targetCivId,
+    `${name} has spread to ${toCity?.name ?? 'another city'}!`,
+    'warning',
+    toCity ? { kind: 'map', coord: { ...toCity.position }, label: name } : undefined,
+  );
+}
+
+export function routeCrisisResolved(
+  state: GameState,
+  event: GameEvents['crisis:resolved'],
+  sink: NotificationSink,
+): void {
+  const outcomeMessage: Record<typeof event.outcome, string> = {
+    contained: 'has been contained.',
+    expired: 'has run its course.',
+    hunted: 'has been slain.',
+    recovered: 'recovery is complete.',
+    abandoned: 'no longer threatens your empire.',
+  };
+  const type: NotificationEntry['type'] = event.outcome === 'abandoned' ? 'info' : 'success';
+  sink(event.civId, `A crisis ${outcomeMessage[event.outcome]}`, type);
 }

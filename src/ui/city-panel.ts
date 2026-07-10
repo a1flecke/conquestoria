@@ -26,6 +26,9 @@ import { getLegendaryLandmarkPreviewViewForCity } from '@/systems/legendary-wond
 import { canUpgradeUnit, getUpgradeCost } from '@/systems/unit-upgrade-system';
 import { UNIT_DEFINITIONS } from '@/systems/unit-system';
 import { getUnrestYieldMultiplier, getCityAppeaseCost, isCityProductionLocked } from '@/systems/faction-system';
+import { getCrisisFlavor, getCrisisDisplayName } from '@/systems/crisis-flavor-definitions';
+import { getCrisisYieldMultiplier } from '@/systems/crisis-system';
+import { resolveChallengeForCiv } from '@/core/opponent-challenge';
 import { getOccupiedCityMood, getOccupiedCityYieldMultiplier } from '@/systems/city-occupation-system';
 import { calculateProjectedCityYields } from '@/systems/city-work-system';
 import { getCityTechYields } from '@/systems/tech-yield-system';
@@ -57,6 +60,8 @@ export interface CityPanelCallbacks {
   onSetIdleProduction?: (cityId: string, mode: 'gold' | 'science' | null) => void;
   onRushBuyActiveProduction?: (cityId: string) => GameState | void;
   onAppeaseFaction?: (cityId: string) => GameState | void;
+  onQuarantineCrisis?: (crisisId: string, cityId: string) => GameState | void;
+  onRemedyCrisis?: (crisisId: string, cityId: string) => GameState | void;
   onFindResources?: (
     highlights: HexCoord[],
     toasts: Array<{ message: string; type: 'info' | 'warning' }>,
@@ -113,7 +118,8 @@ export function createCityPanel(
   panel.style.cssText = 'position:absolute;top:0;left:0;right:0;bottom:0;background:rgba(15,15,25,0.95);z-index:30;overflow-y:auto;padding:16px;padding-bottom:80px;';
 
   const baseYields = calculateProjectedCityYields(state, city.id);
-  const yieldMultiplier = Math.min(getUnrestYieldMultiplier(city), getOccupiedCityYieldMultiplier(city));
+  const yieldMultiplier = Math.min(getUnrestYieldMultiplier(city), getOccupiedCityYieldMultiplier(city))
+    * getCrisisYieldMultiplier(state, city.id);
   const techYieldParts = getCityTechYields(
     city,
     state.map,
@@ -230,6 +236,45 @@ export function createCityPanel(
       </div>
       <button type="button" data-appease="${city.id}" ${appeaseDisabled ? 'disabled' : ''} title="${appeaseLabel}" style="min-height:44px;padding:7px 12px;border-radius:6px;font-size:12px;font-weight:bold;cursor:${appeaseDisabled ? 'default' : 'pointer'};background:${appeaseDisabled ? 'rgba(255,255,255,0.08)' : '#d4aa2c'};color:${appeaseDisabled ? 'rgba(255,255,255,0.4)' : '#1a1a1a'};border:none;">${appeaseLabel}</button>
     </div>` : '';
+  const cityCrises = Object.values(state.activeCrises ?? {})
+    .filter(c => c.archetype === 'outbreak' && c.cityIds.includes(city.id));
+  const crisisChips = cityCrises.map(crisis => {
+    const flavor = getCrisisFlavor(crisis.flavorId);
+    if (!flavor) return null;
+    const civ = state.civilizations[crisis.targetCivId];
+    const severity = flavor.severityByChallenge[resolveChallengeForCiv(state, crisis.targetCivId)];
+    const isQuarantined = crisis.quarantinedCityIds?.includes(city.id) ?? false;
+    const remedyCompletionTurn = crisis.remedyCompletionByCity?.[city.id];
+    const remedyPending = remedyCompletionTurn !== undefined;
+    const remedyCost = getCityAppeaseCost(city);
+    const canAffordRemedy = (civ?.gold ?? 0) >= remedyCost;
+    const yieldPenaltyPct = Math.round(severity.yieldPenalty * 100);
+    const quarantinedPenaltyPct = Math.round(Math.min(1, 2 * severity.yieldPenalty) * 100);
+
+    const quarantineDisabled = isQuarantined || !callbacks.onQuarantineCrisis;
+    const quarantineLabel = isQuarantined ? 'Quarantined' : 'Quarantine (free)';
+    const remedyDisabled = remedyPending || !canAffordRemedy || !callbacks.onRemedyCrisis;
+    const remedyLabel = remedyPending
+      ? 'Remedy underway'
+      : !canAffordRemedy
+        ? `Not enough gold (needs ${remedyCost})`
+        : `Remedy (${remedyCost} gold)`;
+
+    return {
+      crisis, flavor, isQuarantined, remedyPending, remedyCompletionTurn,
+      yieldPenaltyPct, quarantinedPenaltyPct,
+      quarantineDisabled, quarantineLabel, remedyDisabled, remedyLabel,
+    };
+  }).filter((c): c is NonNullable<typeof c> => c !== null);
+  const crisisSectionHtml = crisisChips.map((chip, idx) => `
+    <div style="background:rgba(217,80,80,0.12);border:1px solid rgba(217,80,80,0.35);border-radius:8px;padding:10px 12px;margin-bottom:16px;font-size:12px;">
+      <div style="font-weight:bold;color:#e88;margin-bottom:4px;" data-text="crisis-stage-${idx}"></div>
+      <div style="margin-bottom:8px;opacity:0.85;" data-text="crisis-advisor-${idx}"></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button type="button" data-quarantine-crisis="${chip.crisis.id}:${city.id}" ${chip.quarantineDisabled ? 'disabled' : ''} title="${chip.quarantineLabel}" style="min-height:44px;padding:7px 12px;border-radius:6px;font-size:12px;font-weight:bold;cursor:${chip.quarantineDisabled ? 'default' : 'pointer'};background:${chip.quarantineDisabled ? 'rgba(255,255,255,0.08)' : '#4a90d9'};color:${chip.quarantineDisabled ? 'rgba(255,255,255,0.4)' : '#fff'};border:none;">${chip.quarantineLabel}</button>
+        <button type="button" data-remedy-crisis="${chip.crisis.id}:${city.id}" ${chip.remedyDisabled ? 'disabled' : ''} title="${chip.remedyLabel}" style="min-height:44px;padding:7px 12px;border-radius:6px;font-size:12px;font-weight:bold;cursor:${chip.remedyDisabled ? 'default' : 'pointer'};background:${chip.remedyDisabled ? 'rgba(255,255,255,0.08)' : '#d4aa2c'};color:${chip.remedyDisabled ? 'rgba(255,255,255,0.4)' : '#1a1a1a'};border:none;">${chip.remedyLabel}</button>
+      </div>
+    </div>`).join('');
   const getFutureBuildingUpkeep = (buildingId: string): number => {
     const projected = calculateCityBuildingMaintenance(state, {
       ...city,
@@ -572,6 +617,7 @@ export function createCityPanel(
       ${economyStatus.strainLevel !== 'none' ? '<span style="color:#d9a25c;" data-text="economy-strain"></span>' : ''}
     </div>
     ${unrestSectionHtml}
+    ${crisisSectionHtml}
 
     <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
       <div id="tab-list" style="padding:6px 16px;background:rgba(255,255,255,0.15);border-radius:6px;cursor:pointer;font-size:12px;font-weight:bold;">Queue</div>
@@ -617,6 +663,20 @@ export function createCityPanel(
   setText('yield-prod', String(yields.production));
   setText('yield-gold', String(yields.gold));
   setText('yield-science', String(yields.science));
+
+  crisisChips.forEach((chip, idx) => {
+    const displayName = getCrisisDisplayName(chip.flavor, state.era);
+    const stageText = chip.remedyPending
+      ? `Remedy underway — cured in ${Math.max(0, chip.remedyCompletionTurn! - state.turn)} turn${Math.max(0, chip.remedyCompletionTurn! - state.turn) === 1 ? '' : 's'}`
+      : chip.isQuarantined
+        ? `Quarantined — spread stopped, −${chip.quarantinedPenaltyPct}% yields`
+        : `⚠️ ${displayName} — −${chip.yieldPenaltyPct}% yields`;
+    setText(`crisis-stage-${idx}`, stageText);
+    const advisorLine = chip.flavor.advisorLine
+      .replace('{name}', displayName)
+      .replace('{city}', city.name);
+    setText(`crisis-advisor-${idx}`, advisorLine);
+  });
 
   // Tech-yield breakdown rows via textContent (XSS-safe)
   techYieldParts.forEach((part, idx) => {
@@ -955,6 +1015,24 @@ export function createCityPanel(
     btn.addEventListener('click', () => {
       if (btn.disabled) return;
       const nextState = callbacks.onAppeaseFaction?.(city.id);
+      rerenderPanel(nextState);
+    });
+  });
+
+  panel.querySelectorAll<HTMLButtonElement>('[data-quarantine-crisis]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (btn.disabled) return;
+      const [crisisId, cityId] = btn.dataset.quarantineCrisis!.split(':');
+      const nextState = callbacks.onQuarantineCrisis?.(crisisId, cityId);
+      rerenderPanel(nextState);
+    });
+  });
+
+  panel.querySelectorAll<HTMLButtonElement>('[data-remedy-crisis]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (btn.disabled) return;
+      const [crisisId, cityId] = btn.dataset.remedyCrisis!.split(':');
+      const nextState = callbacks.onRemedyCrisis?.(crisisId, cityId);
       rerenderPanel(nextState);
     });
   });
