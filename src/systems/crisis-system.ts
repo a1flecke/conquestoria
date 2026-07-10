@@ -1,11 +1,16 @@
-import type { ActiveCrisis, City, CrisisOutcome, GameState } from '@/core/types';
+import type { ActiveCrisis, BeastLair, City, CrisisOutcome, GameState, HexCoord } from '@/core/types';
 import type { EventBus } from '@/core/event-bus';
 import { getChallengeProfileForCiv, resolveChallengeForCiv } from '@/core/opponent-challenge';
-import { computeThreatScore, deriveActiveIndependentThreatIds } from './threat-pressure-system';
-import { CRISIS_FLAVORS, getCrisisFlavor } from './crisis-flavor-definitions';
+import { computeThreatScore, deriveActiveIndependentThreatIds, createPirateFleetNear, pickBanditName } from './threat-pressure-system';
+import { CRISIS_FLAVORS, getCrisisFlavor, type CrisisFlavor } from './crisis-flavor-definitions';
 import { seededLcg, weightedPick } from './seeded-lcg';
 import { hexKey, hexDistance, hexesInRange } from './hex-utils';
 import { getCityAppeaseCost } from './faction-system';
+import { spawnBarbarianCamp } from './barbarian-system';
+import { BEAST_DEFINITIONS } from './beast-definitions';
+import { BEAST_OWNER, isTerrainPassableForBeast } from './beast-system';
+import { createUnit } from './unit-system';
+import { buildUnitOccupancy, getUnitIdsAtCoord } from './unit-occupancy';
 
 export const CRISIS_PRESSURE_FLOOR = 2.0;
 export const EXTERNAL_THREAT_RECENCY_TURNS = 5;
@@ -335,6 +340,203 @@ function tickCatastropheCrisis(
   return { crisis: null, state: nextState };
 }
 
+// ── Hunt resolver ────────────────────────────────────────────────────────────
+
+const HUNT_ESCALATION_TURNS = 5;
+
+// 3-5 tiles from the target city, never inside the target civ's own territory,
+// on terrain the foe can actually occupy, and never stacking on another unit —
+// same spawn-occupancy contract as every other entity-spawn path in the game.
+function findHuntSpawnHex(
+  state: GameState,
+  targetCity: City,
+  owner: string,
+  isPassable: (terrain: string) => boolean,
+  rng: () => number,
+): HexCoord | null {
+  const occupancy = buildUnitOccupancy(state.units);
+  const candidates = hexesInRange(targetCity.position, 5)
+    .filter(coord => hexDistance(coord, targetCity.position) >= 3)
+    .filter(coord => {
+      const tile = state.map.tiles[hexKey(coord)];
+      if (!tile) return false;
+      if (tile.owner === owner) return false;
+      if (!isPassable(tile.terrain)) return false;
+      return getUnitIdsAtCoord(occupancy, coord).length === 0;
+    });
+  if (candidates.length === 0) return null;
+  return candidates[Math.floor(rng() * candidates.length)];
+}
+
+function spawnBeastHunt(
+  state: GameState,
+  crisis: ActiveCrisis,
+  targetCity: City,
+  rng: () => number,
+): { crisis: ActiveCrisis | null; state: GameState } {
+  const eligible = Object.values(BEAST_DEFINITIONS).filter(d => d.awakenEra <= state.era);
+  if (eligible.length === 0) return { crisis: null, state };
+  const def = eligible[Math.floor(rng() * eligible.length)];
+
+  const spawnHex = findHuntSpawnHex(
+    state, targetCity, crisis.targetCivId,
+    terrain => isTerrainPassableForBeast(def.unitType, terrain), rng,
+  );
+  if (!spawnHex) return { crisis: null, state };
+
+  const beastUnit = createUnit(def.unitType, BEAST_OWNER, spawnHex, state.idCounters);
+  const lairId = `hunt-lair-${crisis.id}`;
+  const lair: BeastLair = {
+    id: lairId, beastId: def.id, position: { ...spawnHex }, status: 'awake',
+    strength: 0, awakenedTurn: state.turn, unitIds: [beastUnit.id],
+  };
+  const existingBeasts = state.beasts ?? { mode: 'wild' as const, lairs: {}, sightingsByCiv: {} };
+
+  const nextState: GameState = {
+    ...state,
+    units: { ...state.units, [beastUnit.id]: beastUnit },
+    beasts: { ...existingBeasts, lairs: { ...existingBeasts.lairs, [lairId]: lair } },
+  };
+  return {
+    crisis: { ...crisis, stage: 'menacing', huntEntityId: beastUnit.id, foeName: def.name },
+    state: nextState,
+  };
+}
+
+function spawnBarbarianHunt(
+  state: GameState,
+  crisis: ActiveCrisis,
+  rng: () => number,
+): { crisis: ActiveCrisis | null; state: GameState } {
+  const civ = state.civilizations[crisis.targetCivId];
+  const cityPositions = Object.values(state.cities).map(c => c.position);
+  const existingCamps = Object.values(state.barbarianCamps);
+  const seed = Math.floor(rng() * 2147483647);
+  const camp = spawnBarbarianCamp(state.map, cityPositions, existingCamps, seed, state.idCounters);
+  if (!camp) return { crisis: null, state };
+
+  const foeName = pickBanditName(civ?.civType ?? 'generic', seed + 1);
+  const namedCamp = { ...camp, banditLordName: foeName };
+  const nextState: GameState = {
+    ...state,
+    barbarianCamps: { ...state.barbarianCamps, [namedCamp.id]: namedCamp },
+  };
+  return {
+    crisis: { ...crisis, stage: 'menacing', huntEntityId: namedCamp.id, foeName },
+    state: nextState,
+  };
+}
+
+function spawnPirateHunt(
+  state: GameState,
+  crisis: ActiveCrisis,
+  targetCity: City,
+  rng: () => number,
+): { crisis: ActiveCrisis | null; state: GameState } {
+  const civ = state.civilizations[crisis.targetCivId];
+  const landmassId = state.map.tiles[hexKey(targetCity.position)]?.regionKey;
+  if (!landmassId) return { crisis: null, state };
+  const seed = Math.floor(rng() * 2147483647);
+  const { state: nextState, fleetId } = createPirateFleetNear(state, crisis.targetCivId, landmassId, targetCity, seed);
+  if (!fleetId) return { crisis: null, state };
+
+  const foeName = pickBanditName(civ?.civType ?? 'generic', seed + 1);
+  return {
+    crisis: { ...crisis, stage: 'menacing', huntEntityId: fleetId, foeName },
+    state: nextState,
+  };
+}
+
+function huntEntityExists(state: GameState, crisis: ActiveCrisis, flavor: CrisisFlavor): boolean {
+  const entityId = crisis.huntEntityId;
+  if (!entityId) return false;
+  switch (flavor.hunt?.spawnKind) {
+    case 'beast': return !!state.units[entityId];
+    case 'barbarian-camp': return !!state.barbarianCamps[entityId];
+    case 'pirate': {
+      // huntEntityId stores the fleetId, but nothing in the pirate system currently
+      // prunes state.pirateFleets when the fleet's ship dies in combat — checking the
+      // fleet record would make this hunt un-resolvable forever. The underlying unit
+      // IS reliably removed from state.units by every combat path (shared
+      // applyCombatOutcomeToState), so key existence off that instead.
+      const fleet = state.pirateFleets?.[entityId];
+      return !!fleet && !!state.units[fleet.unitId];
+    }
+    default: return false;
+  }
+}
+
+function tickHuntCrisis(
+  state: GameState,
+  crisis: ActiveCrisis,
+  bus: EventBus,
+): { crisis: ActiveCrisis | null; state: GameState } {
+  const flavor = getCrisisFlavor(crisis.flavorId);
+  if (!flavor?.hunt) return { crisis: null, state };
+
+  let working: ActiveCrisis = { ...crisis, turnsInStage: crisis.turnsInStage + 1 };
+  let nextState = state;
+
+  if (working.stage === 'active') {
+    const targetCity = state.cities[working.cityIds[0]];
+    if (!targetCity) {
+      bus.emit('crisis:resolved', { crisisId: working.id, flavorId: working.flavorId, civId: working.targetCivId, outcome: 'abandoned' });
+      return { crisis: null, state: nextState };
+    }
+    const rng = seededLcg(state.turn * 65599 + hashString(working.id));
+    const spawned = flavor.hunt.spawnKind === 'beast'
+      ? spawnBeastHunt(nextState, working, targetCity, rng)
+      : flavor.hunt.spawnKind === 'barbarian-camp'
+        ? spawnBarbarianHunt(nextState, working, rng)
+        : spawnPirateHunt(nextState, working, targetCity, rng);
+    nextState = spawned.state;
+    if (!spawned.crisis) {
+      // No legal spawn hex / no candidate — nothing for this hunt to menace with.
+      bus.emit('crisis:resolved', { crisisId: working.id, flavorId: working.flavorId, civId: working.targetCivId, outcome: 'abandoned' });
+      return { crisis: null, state: nextState };
+    }
+    bus.emit('crisis:escalated', {
+      crisisId: spawned.crisis.id, stage: 'menacing',
+      civId: spawned.crisis.targetCivId, foeName: spawned.crisis.foeName,
+    });
+    return { crisis: spawned.crisis, state: nextState };
+  }
+
+  if (huntEntityExists(nextState, working, flavor)) {
+    const challenge = resolveChallengeForCiv(nextState, working.targetCivId);
+    if (challenge === 'veteran' && working.stage === 'menacing' && working.turnsInStage >= HUNT_ESCALATION_TURNS) {
+      working = { ...working, stage: 'assaulting' };
+      bus.emit('crisis:escalated', {
+        crisisId: working.id, stage: 'assaulting',
+        civId: working.targetCivId, foeName: working.foeName,
+      });
+    }
+    return { crisis: working, state: nextState };
+  }
+
+  // The foe is gone — resolve 'hunted' regardless of who claimed the kill. The
+  // beast-slayer's feast (feastUntilTurn on the killer civ) is applied by whichever
+  // combat/camp-destruction path recorded lastHuntKillerCivId on this crisis; if none
+  // did (e.g. the entity was removed by some other path), fall back to the target civ
+  // per the plan's "fall back to the target civ if unattributed" rule.
+  const killerCivId = working.lastHuntKillerCivId ?? working.targetCivId;
+  const killerCiv = nextState.civilizations[killerCivId];
+  if (killerCiv) {
+    nextState = {
+      ...nextState,
+      civilizations: {
+        ...nextState.civilizations,
+        [killerCivId]: { ...killerCiv, feastUntilTurn: nextState.turn + 5 },
+      },
+    };
+  }
+  bus.emit('crisis:resolved', {
+    crisisId: working.id, flavorId: working.flavorId, civId: working.targetCivId, outcome: 'hunted',
+    foeName: working.foeName, killerCivId,
+  });
+  return { crisis: null, state: nextState };
+}
+
 // Archetype-specific tick dispatch. MR3 (hunt) and beyond add a case here —
 // keep this the single dispatch point rather than branching inline elsewhere.
 function tickCrisisByArchetype(
@@ -347,9 +549,12 @@ function tickCrisisByArchetype(
       return tickOutbreakCrisis(state, crisis, bus);
     case 'catastrophe':
       return tickCatastropheCrisis(state, crisis, bus);
+    case 'hunt':
+      return tickHuntCrisis(state, crisis, bus);
     default:
-      // Not yet implemented (e.g. 'hunt', MR3) — leave untouched rather than
-      // silently dropping or mutating a crisis type this resolver doesn't know.
+      // Not yet implemented (MR4's uprising lives in faction-system.ts, not here) —
+      // leave untouched rather than silently dropping or mutating a crisis type this
+      // resolver doesn't know.
       return { crisis, state };
   }
 }

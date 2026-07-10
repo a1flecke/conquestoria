@@ -389,7 +389,7 @@ const BANDIT_LORD_NAMES: Record<string, string[]> = {
   isengard: ['Saruman', 'Grima Wormtongue', 'Uglúk', 'Grishnákh', 'Mauhúr'],
 };
 
-function pickBanditName(civType: string, seed: number): string {
+export function pickBanditName(civType: string, seed: number): string {
   const pool = BANDIT_LORD_NAMES[civType] ?? BANDIT_LORD_NAMES['generic'];
   const rng = seededLcg(seed);
   return pool[Math.floor(rng() * pool.length)];
@@ -517,6 +517,78 @@ function pirateUnitType(era: number): 'galley' | 'trireme' {
   return era >= 3 ? 'trireme' : 'galley';
 }
 
+function findPirateSpawnTile(state: GameState, landmassId: string): HexCoord | null {
+  const cityPositions = Object.values(state.cities).map(c => c.position);
+  const candidates = Object.values(state.map.tiles).filter(tile => {
+    if (tile.terrain !== 'ocean') return false;
+    // Must be adjacent to a land tile on the target landmass
+    const nearLandmass = hexNeighbors(tile.coord).some(nb => {
+      const t = state.map.tiles[hexKey(nb)];
+      return t?.regionKey === landmassId;
+    });
+    if (!nearLandmass) return false;
+    // Must be ≥ 5 tiles from any city
+    for (const pos of cityPositions) {
+      if (hexDistance(tile.coord, pos) < 5) return false;
+    }
+    return true;
+  });
+  return candidates.length > 0 ? candidates[0].coord : null;
+}
+
+// Core fleet-creation shared by the organic (threshold-gated) spawn below and any
+// forced spawn (e.g. a Hunt crisis's corsair-armada flavor) — no threshold/cooldown
+// checks here; callers are responsible for those. `targetCity` is whichever coastal
+// city the caller has already chosen as the fleet's raid target.
+export function createPirateFleetNear(
+  state: GameState,
+  civId: string,
+  landmassId: string,
+  targetCity: City,
+  seed: number,
+): { state: GameState; fleetId: string | null } {
+  const cityPositions = Object.values(state.cities).map(c => c.position);
+  const rng = seededLcg(seed);
+
+  const spawnCandidates = Object.values(state.map.tiles).filter(tile => {
+    if (tile.terrain !== 'ocean') return false;
+    const nearLandmass = hexNeighbors(tile.coord).some(nb => {
+      const t = state.map.tiles[hexKey(nb)];
+      return t?.regionKey === landmassId;
+    });
+    if (!nearLandmass) return false;
+    for (const pos of cityPositions) {
+      if (hexDistance(tile.coord, pos) < 5) return false;
+    }
+    return true;
+  });
+
+  if (spawnCandidates.length === 0) return { state, fleetId: null };
+
+  const spawnTile = spawnCandidates[Math.floor(rng() * spawnCandidates.length)];
+
+  const unitType = pirateUnitType(state.era);
+  const pirateUnit = createUnit(unitType, PIRATE_OWNER, spawnTile.coord, state.idCounters);
+  const fleetId = `fleet-${pirateUnit.id}`;
+  const fleet: PirateFleet = {
+    id: fleetId,
+    unitId: pirateUnit.id,
+    targetCivId: civId,
+    targetCityId: targetCity.id,
+    landmassId,
+    era: state.era,
+    plunderCooldown: 0,
+  };
+
+  const updatedState: GameState = {
+    ...state,
+    units: { ...state.units, [pirateUnit.id]: pirateUnit },
+    pirateFleets: { ...(state.pirateFleets ?? {}), [fleetId]: fleet },
+  };
+
+  return { state: updatedState, fleetId };
+}
+
 export function processPirateSpawn(
   state: GameState,
   civId: string,
@@ -554,58 +626,24 @@ export function processPirateSpawn(
   });
   if (coastalCities.length === 0) return state;
 
-  // Find spawn tile: ocean tile adjacent to landmass coastline, ≥ 5 tiles from any city
-  const cityPositions = Object.values(state.cities).map(c => c.position);
-  const spawnSeed = state.turn * 73937 + civId.charCodeAt(0) * 13 + landmassId.charCodeAt(0) * 5;
-  const rng = seededLcg(spawnSeed);
+  // Find spawn tile: ocean tile adjacent to landmass coastline, ≥ 5 tiles from any city.
+  // Target-city selection depends on it (nearest coastal city to the spawn point), so
+  // probe with a lightweight lookup before delegating fleet creation to the shared helper.
+  const spawnTile = findPirateSpawnTile(state, landmassId);
+  if (!spawnTile) return state;
 
-  const spawnCandidates = Object.values(state.map.tiles).filter(tile => {
-    if (tile.terrain !== 'ocean') return false;
-    // Must be adjacent to a land tile on the target landmass
-    const nearLandmass = hexNeighbors(tile.coord).some(nb => {
-      const t = state.map.tiles[hexKey(nb)];
-      return t?.regionKey === landmassId;
-    });
-    if (!nearLandmass) return false;
-    // Must be ≥ 5 tiles from any city
-    for (const pos of cityPositions) {
-      if (hexDistance(tile.coord, pos) < 5) return false;
-    }
-    return true;
-  });
-
-  if (spawnCandidates.length === 0) return state;
-
-  const spawnTile = spawnCandidates[Math.floor(rng() * spawnCandidates.length)];
-
-  // Pick nearest coastal city as target
   const targetCity = coastalCities.reduce((nearest, city) => {
-    const d1 = hexDistance(city.position, spawnTile.coord);
-    const d2 = hexDistance(nearest.position, spawnTile.coord);
+    const d1 = hexDistance(city.position, spawnTile);
+    const d2 = hexDistance(nearest.position, spawnTile);
     return d1 < d2 ? city : nearest;
   });
 
-  const unitType = pirateUnitType(state.era);
-  const pirateUnit = createUnit(unitType, PIRATE_OWNER, spawnTile.coord, state.idCounters);
-  const fleetId = `fleet-${pirateUnit.id}`;
-  const fleet: PirateFleet = {
-    id: fleetId,
-    unitId: pirateUnit.id,
-    targetCivId: civId,
-    targetCityId: targetCity.id,
-    landmassId,
-    era: state.era,
-    plunderCooldown: 0,
-  };
-
-  const updatedState: GameState = {
-    ...state,
-    units: { ...state.units, [pirateUnit.id]: pirateUnit },
-    pirateFleets: { ...(state.pirateFleets ?? {}), [fleetId]: fleet },
-  };
+  const spawnSeed = state.turn * 73937 + civId.charCodeAt(0) * 13 + landmassId.charCodeAt(0) * 5;
+  const { state: updatedState, fleetId } = createPirateFleetNear(state, civId, landmassId, targetCity, spawnSeed);
+  if (!fleetId) return state;
 
   bus.emit('threat:pirate-fleet-spawned', {
-    fleetId, civId, landmassId, position: spawnTile.coord,
+    fleetId, civId, landmassId, position: spawnTile,
   });
 
   return updatedState;

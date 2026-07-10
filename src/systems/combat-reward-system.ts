@@ -3,6 +3,7 @@ import { cleanupDeadSpyUnit } from '@/systems/espionage-system';
 import { UNIT_DEFINITIONS } from '@/systems/unit-system';
 import { applyQuestGameplayAction, type ChainTransition } from '@/systems/quest-chain-system';
 import { canReceiveCivilizationCombatRewards, isPirateOwner } from '@/core/owner-kind';
+import { recordHuntKillerIfApplicable } from '@/systems/hunt-crisis-linkage';
 import {
   breakPirateTributeOnAttack,
   destroyPirateFaction,
@@ -428,6 +429,13 @@ export function applyCombatOutcomeToState(
     });
     nextState = destruction.state;
     pirateEvents.push(...destruction.events);
+  }
+
+  if (defenderActuallyDefeated) {
+    nextState = recordHuntKillerIfApplicable(nextState, defenderBefore.id, defenderBefore.owner, attackerBefore.owner);
+  }
+  if (attackerActuallyDefeated) {
+    nextState = recordHuntKillerIfApplicable(nextState, attackerBefore.id, attackerBefore.owner, defenderBefore.owner);
   }
 
   return {

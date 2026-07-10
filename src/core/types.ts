@@ -854,6 +854,7 @@ export interface Civilization {
   pendingChallenge?: OpponentChallenge; // applied at the start of this civ's next turn
   recentCrisisHistory?: string[]; // last 4 crisis flavor ids, for anti-repeat weighting
   lastCrisisOnsetTurn?: number;
+  feastUntilTurn?: number; // beast-slayer's feast (hunt crisis): +2 happiness while active
 }
 
 export interface BreakawayMetadata {
@@ -1737,9 +1738,16 @@ export interface GameEvents {
   // Crisis events & revolutionary movements (#381, #354)
   'crisis:started':   { crisisId: string; flavorId: string; civId: string; cityIds: string[] };
   'crisis:spread':    { crisisId: string; fromCityId: string; toCityId: string };
-  'crisis:escalated': { crisisId: string; stage: CrisisStage };
+  // civId/foeName are populated for Hunt transitions (spawn -> menacing, menacing ->
+  // assaulting) — carried directly rather than re-read from state because both are set
+  // for the first time in the same tick this event fires, and the listener may run
+  // against a state snapshot from before this tick's processing (see
+  // .claude/rules/end-to-end-wiring.md "Transition Events must be transition-owned").
+  'crisis:escalated': { crisisId: string; stage: CrisisStage; civId?: string; foeName?: string };
   'crisis:response':  { crisisId: string; civId: string; action: string };
-  'crisis:resolved':  { crisisId: string; flavorId: string; civId: string; outcome: CrisisOutcome };
+  // foeName/killerCivId populated for Hunt's 'hunted' outcome, for the same
+  // same-tick-freshness reason as crisis:escalated above.
+  'crisis:resolved':  { crisisId: string; flavorId: string; civId: string; outcome: CrisisOutcome; foeName?: string; killerCivId?: string };
 }
 
 // --- Crisis Events & Revolutionary Movements ---

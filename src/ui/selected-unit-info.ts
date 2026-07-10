@@ -142,6 +142,20 @@ function chooseWorkerBlockerReason(
   return fallback;
 }
 
+// A Hunt crisis's foe is a real, named world entity ("any civilization may fight it") —
+// surface its name whenever the player selects the actual beast/ship unit. Camps have no
+// equivalent selectable-unit tap target (consistent with barbarian camps generally having
+// no inspection panel today), so bandit-uprising hunts aren't covered here.
+function findHuntFoeNameForUnit(state: GameState, unitId: string): string | undefined {
+  for (const crisis of Object.values(state.activeCrises ?? {})) {
+    if (crisis.archetype !== 'hunt' || !crisis.huntEntityId || !crisis.foeName) continue;
+    if (crisis.huntEntityId === unitId) return crisis.foeName;
+    const fleet = state.pirateFleets?.[crisis.huntEntityId];
+    if (fleet?.unitId === unitId) return crisis.foeName;
+  }
+  return undefined;
+}
+
 export function renderSelectedUnitInfo(
   container: HTMLElement,
   state: GameState,
@@ -198,6 +212,14 @@ export function renderSelectedUnitInfo(
 
   wrapper.appendChild(topRow);
   wrapper.appendChild(descDiv);
+
+  const huntFoeName = findHuntFoeNameForUnit(state, unitId);
+  if (huntFoeName) {
+    const huntLine = document.createElement('div');
+    huntLine.style.cssText = 'margin-top:6px;padding:6px 8px;border-radius:6px;background:rgba(122,31,43,0.25);border:1px solid rgba(122,31,43,0.5);font-size:11px;font-weight:700;color:#e88;';
+    huntLine.textContent = `⚔ ${huntFoeName} — slay it to end the threat. Any civilization may claim the hunt.`;
+    wrapper.appendChild(huntLine);
+  }
 
   const waterRecovery = presentation.waterRecovery;
   const waterRecoveryMessage = waterRecovery
