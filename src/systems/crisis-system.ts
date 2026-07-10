@@ -4,7 +4,7 @@ import { getChallengeProfileForCiv, resolveChallengeForCiv } from '@/core/oppone
 import { computeThreatScore, deriveActiveIndependentThreatIds } from './threat-pressure-system';
 import { CRISIS_FLAVORS, getCrisisFlavor } from './crisis-flavor-definitions';
 import { seededLcg, weightedPick } from './seeded-lcg';
-import { hexKey, hexDistance } from './hex-utils';
+import { hexKey, hexDistance, hexesInRange } from './hex-utils';
 import { getCityAppeaseCost } from './faction-system';
 
 export const CRISIS_PRESSURE_FLOOR = 2.0;
@@ -205,14 +205,108 @@ function tickOutbreakCrisis(
   return { crisis: working, state: nextState };
 }
 
+const CATASTROPHE_RECOVERY_WINDOW_TURNS = 5;
+
+function applyCatastropheShock(
+  state: GameState,
+  crisis: ActiveCrisis,
+  bus: EventBus,
+): { crisis: ActiveCrisis; state: GameState } {
+  const flavor = getCrisisFlavor(crisis.flavorId);
+  const params = flavor?.catastrophe;
+  const targetCity = state.cities[crisis.cityIds[0]];
+  if (!flavor || !params || !targetCity) return { crisis, state };
+
+  const owner = crisis.targetCivId;
+  const epicenterCandidates = hexesInRange(targetCity.position, params.blastRadius)
+    .filter(coord => state.map.tiles[hexKey(coord)]?.owner === owner);
+  if (epicenterCandidates.length === 0) return { crisis: { ...crisis, stage: 'recovery' }, state };
+
+  const rng = seededLcg(state.turn * 65599 + hashString(crisis.id));
+  const epicenter = epicenterCandidates[Math.floor(rng() * epicenterCandidates.length)];
+  const epicenterKey = hexKey(epicenter);
+
+  const devastationTurns = params.devastationTurnsByChallenge[resolveChallengeForCiv(state, owner)];
+  const devastatedUntilTurn = state.turn + devastationTurns;
+  const affectedKeys = hexesInRange(epicenter, params.blastRadius)
+    .map(hexKey)
+    .filter(key => state.map.tiles[key]?.owner === owner);
+
+  const isVeteran = resolveChallengeForCiv(state, owner) === 'veteran';
+  const destroysImprovement = params.destroysEpicenterImprovement && isVeteran && state.era >= 3;
+
+  const tiles = { ...state.map.tiles };
+  for (const key of affectedKeys) {
+    const tile = tiles[key];
+    tiles[key] = {
+      ...tile,
+      devastatedUntilTurn,
+      ...(destroysImprovement && key === epicenterKey ? { improvement: 'none' as const } : {}),
+    };
+  }
+
+  const nextState: GameState = { ...state, map: { ...state.map, tiles } };
+  const updated: ActiveCrisis = { ...crisis, stage: 'recovery', tileKeys: affectedKeys };
+  bus.emit('crisis:escalated', { crisisId: crisis.id, stage: 'recovery' });
+  return { crisis: updated, state: nextState };
+}
+
+function tickCatastropheCrisis(
+  state: GameState,
+  crisis: ActiveCrisis,
+  bus: EventBus,
+): { crisis: ActiveCrisis | null; state: GameState } {
+  const flavor = getCrisisFlavor(crisis.flavorId);
+  if (!flavor?.catastrophe) return { crisis: null, state };
+
+  let working: ActiveCrisis = { ...crisis, turnsInStage: crisis.turnsInStage + 1 };
+  let nextState = state;
+
+  if (working.stage === 'active') {
+    const shocked = applyCatastropheShock(nextState, working, bus);
+    working = shocked.crisis;
+    nextState = shocked.state;
+    return { crisis: working, state: nextState };
+  }
+
+  const tiles = working.tileKeys.map(key => nextState.map.tiles[key]).filter((t): t is NonNullable<typeof t> => !!t);
+  const stillDevastated = tiles.some(t => t.devastatedUntilTurn !== undefined && t.devastatedUntilTurn > nextState.turn);
+  if (stillDevastated) return { crisis: working, state: nextState };
+
+  // Every tile has cleared, either by active restoration (devastatedUntilTurn cleared to
+  // undefined before its natural expiry) or by the timer simply passing. Only the former,
+  // completed within the recovery window, earns the resilience bonus.
+  const allActivelyRestored = tiles.every(t => t.devastatedUntilTurn === undefined);
+  const withinWindow = nextState.turn <= working.startedTurn + CATASTROPHE_RECOVERY_WINDOW_TURNS;
+  const challenge = resolveChallengeForCiv(nextState, working.targetCivId);
+
+  if (allActivelyRestored && withinWindow) {
+    const cities = { ...nextState.cities };
+    for (const cityId of working.cityIds) {
+      const city = cities[cityId];
+      if (city) cities[cityId] = { ...city, resilienceBonusUntilTurn: nextState.turn + CATASTROPHE_RECOVERY_WINDOW_TURNS };
+    }
+    nextState = { ...nextState, cities };
+    bus.emit('crisis:resolved', { crisisId: working.id, flavorId: working.flavorId, civId: working.targetCivId, outcome: 'recovered' });
+    return { crisis: null, state: nextState };
+  }
+
+  const outcome = challenge === 'explorer' ? 'recovered' : 'expired';
+  bus.emit('crisis:resolved', { crisisId: working.id, flavorId: working.flavorId, civId: working.targetCivId, outcome });
+  return { crisis: null, state: nextState };
+}
+
 export function processCrisisTurn(state: GameState, bus: EventBus): GameState {
   let nextState = state;
   const crisisIds = Object.keys(state.activeCrises ?? {}).sort();
   for (const crisisId of crisisIds) {
     const crisis = nextState.activeCrises?.[crisisId];
     if (!crisis) continue;
-    if (crisis.archetype !== 'outbreak') continue;
-    const { crisis: updated, state: tickedState } = tickOutbreakCrisis(nextState, crisis, bus);
+    const { crisis: updated, state: tickedState } = crisis.archetype === 'outbreak'
+      ? tickOutbreakCrisis(nextState, crisis, bus)
+      : crisis.archetype === 'catastrophe'
+        ? tickCatastropheCrisis(nextState, crisis, bus)
+        : { crisis, state: nextState };
     if (updated) {
       nextState = { ...tickedState, activeCrises: { ...(tickedState.activeCrises ?? {}), [crisisId]: updated } };
     } else {
