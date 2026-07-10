@@ -138,6 +138,19 @@ describe('minor-civ economy helpers', () => {
     expect(chooseMinorCivQueueItem(state, minorCiv.id)).toEqual(chooseMinorCivQueueItem(state, minorCiv.id));
   });
 
+  it('uses live mobilizing posture over stale settled economy when choosing defenders', () => {
+    const state = createNewGame(undefined, 'minor-economy-live-war-choice', 'small');
+    const minorCiv = Object.values(state.minorCivs)[0];
+    minorCiv.economy = { policy: 'balanced', posture: 'settled', lastProcessedTurn: state.turn - 1 };
+    minorCiv.diplomacy.atWarWith = ['player'];
+    state.civilizations.player.diplomacy.atWarWith = [minorCiv.id];
+
+    const chosen = chooseMinorCivQueueItem(state, minorCiv.id);
+    const candidates = getMinorCivBuildCandidates(state, minorCiv.id);
+
+    expect(candidates.units.map(unit => unit.type)).toContain(chosen);
+  });
+
   it('treats low cooled wary pressure as settled when no local threat exists', () => {
     const state = createNewGame(undefined, 'minor-economy-cooled-wary', 'small');
     const minorCiv = Object.values(state.minorCivs)[0];
