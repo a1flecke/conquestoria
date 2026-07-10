@@ -10,10 +10,7 @@ import type {
 } from '@/core/types';
 import type { EventBus } from '@/core/event-bus';
 import { createEmptyOpponentAIState } from '@/core/opponent-ai-state';
-import {
-  OPPONENT_CHALLENGE_PROFILES,
-  resolveOpponentChallenge,
-} from '@/core/opponent-challenge';
+import { getChallengeProfileForCiv } from '@/core/opponent-challenge';
 import { BEAST_DEFINITIONS } from './beast-definitions';
 import { hexKey, hexNeighbors, hexDistance, wrappedHexDistance } from './hex-utils';
 import { createUnit } from './unit-system';
@@ -204,7 +201,7 @@ export function canStartIndependentThreat(
   humanId: string,
   threatId: string,
 ): IndependentThreatDecision {
-  const profile = OPPONENT_CHALLENGE_PROFILES[resolveOpponentChallenge(state)];
+  const profile = getChallengeProfileForCiv(state, humanId);
   const ledger = state.opponentAI?.pressureByHuman[humanId] ?? emptyPressureLedger();
   const activeCount = ledger.activeIndependentThreatIds.length;
   const base = { activeCount, cap: profile.maxIndependentCrisesPerHuman };
@@ -256,7 +253,6 @@ export function processIndependentThreatPressureForHumans(
   bus: EventBus,
 ): GameState {
   const initialOpponentAI = structuredClone(state.opponentAI ?? createEmptyOpponentAIState());
-  const profile = OPPONENT_CHALLENGE_PROFILES[resolveOpponentChallenge(state)];
   const humanIds = Object.values(state.civilizations)
     .filter(civ => civ.isHuman && !civ.isEliminated)
     .map(civ => civ.id)
@@ -267,6 +263,7 @@ export function processIndependentThreatPressureForHumans(
   ]));
   const pressureByHuman: Record<string, HumanPressureLedger> = {};
   for (const humanId of humanIds) {
+    const profile = getChallengeProfileForCiv(state, humanId);
     const previous = initialOpponentAI.pressureByHuman[humanId] ?? emptyPressureLedger();
     const activeIndependentThreatIds = deriveActiveIndependentThreatIds(state, humanId);
     const resolved = previous.activeIndependentThreatIds
