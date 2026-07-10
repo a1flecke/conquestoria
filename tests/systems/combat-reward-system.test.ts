@@ -281,6 +281,33 @@ describe('applyCombatOutcomeToState', () => {
     expect(applied.state.activeCrises!['crisis-1'].lastHuntKillerCivId).toBe('player');
   });
 
+  it('does not attribute a hunt kill to a non-major-civ killer (e.g. a barbarian), leaving lastHuntKillerCivId unset so the target-civ fallback still applies at resolution', () => {
+    const state = makeRewardState();
+    state.units.attacker.owner = 'barbarian';
+    state.units.defender.owner = 'beasts';
+    state.activeCrises = {
+      'crisis-1': {
+        id: 'crisis-1', flavorId: 'beast-awakening', archetype: 'hunt', targetCivId: 'ai-1',
+        cityIds: [], tileKeys: [], startedTurn: 1, stage: 'menacing', turnsInStage: 1,
+        huntEntityId: 'defender', foeName: 'Test Beast',
+      },
+    };
+    const result: CombatResult = {
+      attackerId: 'attacker',
+      defenderId: 'defender',
+      attackerDamage: 5,
+      defenderDamage: 5,
+      attackerSurvived: true,
+      defenderSurvived: false,
+      attackerPosition: { q: 0, r: 0 },
+      defenderPosition: { q: 1, r: 0 },
+    };
+
+    const applied = applyCombatOutcomeToState(state, result, 64);
+    expect(applied.defenderDefeated).toBe(true);
+    expect(applied.state.activeCrises!['crisis-1'].lastHuntKillerCivId).toBeUndefined();
+  });
+
   it('does not record hunt-killer attribution for an ordinary (non-hunt) unit kill', () => {
     const state = makeRewardState();
     state.activeCrises = {

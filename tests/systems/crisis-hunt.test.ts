@@ -177,6 +177,27 @@ describe('hunt crisis — spawn orchestration (MR3)', () => {
     }
   });
 
+  it('beast-awakening: never spawns inside a rival civ\'s territory (would otherwise let the rival kill it before the target player gets a turn)', () => {
+    const { state, crisisId } = makeHuntFixture({ flavorId: 'beast-awakening' });
+    // Claim every tile in the entire 3-5 spawn ring for a rival civ — with the old
+    // "only exclude the target's own territory" rule this would all still be legal
+    // (it's not the target's land), but a hunt should never spawn on ANY claimed land.
+    const rivalClaimed: GameState['map']['tiles'] = { ...state.map.tiles };
+    for (const coord of hexesInRange(CITY_POS, 5)) {
+      const dist = hexDistance(coord, CITY_POS);
+      if (dist < 3 || dist > 5) continue;
+      const key = hexKey(coord);
+      const tile = rivalClaimed[key];
+      if (tile && tile.terrain !== 'ocean') {
+        rivalClaimed[key] = { ...tile, owner: 'rival' };
+      }
+    }
+    const rivalState: GameState = { ...state, map: { ...state.map, tiles: rivalClaimed } };
+    const next = processCrisisTurn(rivalState, new EventBus());
+    // No unowned land left in the ring -> abandoned, not spawned onto rival territory.
+    expect(next.activeCrises?.[crisisId]).toBeUndefined();
+  });
+
   it('is deterministic for a fixed seed: same turn/state produces the same spawn position and beast', () => {
     const { state } = makeHuntFixture({ flavorId: 'beast-awakening' });
     const a = processCrisisTurn(state, new EventBus());
@@ -229,6 +250,23 @@ describe('hunt crisis — resolution, feast, escalation (MR3)', () => {
     const next = processCrisisTurn(state, new EventBus());
     expect(next.activeCrises?.[crisisId]).toBeUndefined();
     expect(next.civilizations.killer.feastUntilTurn).toBe(state.turn + 5);
+  });
+
+  it('removes the ephemeral beast lair once the hunt resolves, so map trophy markers do not accumulate forever across many hunts', () => {
+    const { state, crisisId } = makeHuntFixture({ flavorId: 'beast-awakening' });
+    const spawned = processCrisisTurn(state, new EventBus());
+    const crisis = spawned.activeCrises![crisisId];
+    const lairId = `hunt-lair-${crisisId}`;
+    expect(spawned.beasts!.lairs[lairId]).toBeDefined();
+
+    // Simulate the beast being slain: remove its unit (as recordBeastSlain's caller
+    // would after combat), leaving the lair's bookkeeping otherwise untouched.
+    const { [crisis.huntEntityId!]: _removedUnit, ...remainingUnits } = spawned.units;
+    const slainState: GameState = { ...spawned, units: remainingUnits };
+    const resolved = processCrisisTurn(slainState, new EventBus());
+
+    expect(resolved.activeCrises?.[crisisId]).toBeUndefined();
+    expect(resolved.beasts!.lairs[lairId]).toBeUndefined();
   });
 
   it('falls back to the target civ for the feast when no killer was ever attributed', () => {

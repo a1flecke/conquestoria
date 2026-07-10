@@ -436,4 +436,26 @@ describe('AudioSystem integration', () => {
 
     expect(ctx.transcript.some(e => e.op === 'stop')).toBe(true);
   });
+
+  it('a Hunt crisis resolving "hunted" (MR3) gets the same triumphant resolution stinger as contained/recovered outcomes', () => {
+    system.start(makeState(), busHelper.bus);
+    const handleCrisisResolved = vi.spyOn((system as any).director, 'handleCrisisResolved');
+
+    busHelper.emit('crisis:resolved', {
+      crisisId: 'crisis-1', flavorId: 'beast-awakening', civId: 'rome', outcome: 'hunted',
+    });
+
+    expect(handleCrisisResolved).toHaveBeenCalled();
+  });
+
+  it('crisis:resolved "abandoned" does not play the triumphant resolution stinger', () => {
+    system.start(makeState(), busHelper.bus);
+    const handleCrisisResolved = vi.spyOn((system as any).director, 'handleCrisisResolved');
+
+    busHelper.emit('crisis:resolved', {
+      crisisId: 'crisis-1', flavorId: 'beast-awakening', civId: 'rome', outcome: 'abandoned',
+    });
+
+    expect(handleCrisisResolved).not.toHaveBeenCalled();
+  });
 });

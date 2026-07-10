@@ -360,7 +360,9 @@ export class AudioSystem {
         this.director.setCrisisActiveForCurrentPlayer(
           currentState ? this.hasActiveCrisisFor(this.currentPlayerId, currentState) : false,
         );
-        if (p.outcome === 'contained' || p.outcome === 'recovered') {
+        // 'hunted' (MR3) is just as much a triumphant resolution as containing an
+        // outbreak or recovering from a catastrophe — the player slew the foe.
+        if (p.outcome === 'contained' || p.outcome === 'recovered' || p.outcome === 'hunted') {
           this.director.handleCrisisResolved();
         }
       }),

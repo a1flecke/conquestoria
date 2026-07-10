@@ -344,13 +344,15 @@ function tickCatastropheCrisis(
 
 const HUNT_ESCALATION_TURNS = 5;
 
-// 3-5 tiles from the target city, never inside the target civ's own territory,
-// on terrain the foe can actually occupy, and never stacking on another unit —
-// same spawn-occupancy contract as every other entity-spawn path in the game.
+// 3-5 tiles from the target city, in unclaimed wilderness (not just "not the target's
+// own territory" — a rival civ's nearby garrison could otherwise kill the foe before the
+// target player gets a turn, handing them the reward and defeating the "go fight it"
+// loop for the player the hunt was actually scheduled for), on terrain the foe can
+// actually occupy, and never stacking on another unit — same spawn-occupancy contract
+// as every other entity-spawn path in the game.
 function findHuntSpawnHex(
   state: GameState,
   targetCity: City,
-  owner: string,
   isPassable: (terrain: string) => boolean,
   rng: () => number,
 ): HexCoord | null {
@@ -360,7 +362,7 @@ function findHuntSpawnHex(
     .filter(coord => {
       const tile = state.map.tiles[hexKey(coord)];
       if (!tile) return false;
-      if (tile.owner === owner) return false;
+      if (tile.owner !== null) return false;
       if (!isPassable(tile.terrain)) return false;
       return getUnitIdsAtCoord(occupancy, coord).length === 0;
     });
@@ -379,7 +381,7 @@ function spawnBeastHunt(
   const def = eligible[Math.floor(rng() * eligible.length)];
 
   const spawnHex = findHuntSpawnHex(
-    state, targetCity, crisis.targetCivId,
+    state, targetCity,
     terrain => isTerrainPassableForBeast(def.unitType, terrain), rng,
   );
   if (!spawnHex) return { crisis: null, state };
@@ -529,6 +531,17 @@ function tickHuntCrisis(
         [killerCivId]: { ...killerCiv, feastUntilTurn: nextState.turn + 5 },
       },
     };
+  }
+  if (flavor.hunt.spawnKind === 'beast' && nextState.beasts) {
+    // The ephemeral hunt lair (registered only so recordBeastSlain's hoard-gold path
+    // fires normally) has no map-generation meaning once the hunt is over — unlike an
+    // organic lair, its position is an arbitrary frontier spawn point, not a discovered
+    // landmark. Leaving it in state.beasts.lairs forever would both bloat the save and
+    // permanently clutter the map with a 🏆 marker (render-loop.ts draws one for every
+    // 'slain'/'claimed' lair) at that arbitrary spot — and since hunts can recur every
+    // 5-12 turns per human for the rest of the game, that accumulation is unbounded.
+    const { [`hunt-lair-${working.id}`]: _removedLair, ...lairs } = nextState.beasts.lairs;
+    nextState = { ...nextState, beasts: { ...nextState.beasts, lairs } };
   }
   bus.emit('crisis:resolved', {
     crisisId: working.id, flavorId: working.flavorId, civId: working.targetCivId, outcome: 'hunted',
