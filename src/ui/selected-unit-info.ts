@@ -333,7 +333,7 @@ export function renderSelectedUnitInfo(
       const unitTileKey = hexKey(unit.position);
       const isCityTile = Object.values(state.cities).some(city => hexKey(city.position) === unitTileKey);
       const knownResource = tile ? getKnownTileResourceForWorkerAction(tile, completedTechs) : null;
-      const workerEligibilityOptions = { isCityTile, knownResource };
+      const workerEligibilityOptions = { isCityTile, knownResource, currentTurn: state.turn };
       const workerActions = getAvailableWorkerActions(tile, completedTechs, unit.owner, workerEligibilityOptions);
       if (knownResource) {
         const rd = RESOURCE_DEFINITIONS.find(r => r.id === knownResource);
@@ -356,11 +356,13 @@ export function renderSelectedUnitInfo(
                 ? '#3f7f8f'
                 : action === 'drain_swamp'
                   ? '#4a7c59'
-                  : '#64748b';
+                  : action === 'restore_land'
+                    ? '#b45309'
+                    : '#64748b';
         let label = action === 'drain_swamp'
           ? 'Drain Swamp (→ Grassland, +1 🌾)'
           : getWorkerActionLabel(action);
-        if (knownResource && action !== 'drain_swamp') {
+        if (knownResource && action !== 'drain_swamp' && action !== 'restore_land') {
           const rd = RESOURCE_DEFINITIONS.find(r => r.id === knownResource && r.requiredImprovement === action);
           if (rd) {
             const yieldLabel = formatImprovementYieldLabel(action);

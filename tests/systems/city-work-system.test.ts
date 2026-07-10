@@ -183,6 +183,32 @@ describe('city focus assignment', () => {
     expect(yields.production).toBeGreaterThanOrEqual(2);
   });
 
+  it('zeroes yield from a devastated tile (terrain and improvement) until devastatedUntilTurn passes', () => {
+    const state = createNewGame(undefined, 'city-work-devastated-yield');
+    addCity(state, 'player', { q: 15, r: 15 });
+    state.turn = 40;
+    state.map.tiles['1,1'] = {
+      coord: { q: 1, r: 1 },
+      terrain: 'forest',
+      elevation: 'lowland',
+      resource: null,
+      improvement: 'lumber_camp',
+      owner: 'player',
+      improvementTurnsLeft: 0,
+      hasRiver: false,
+      wonder: null,
+      devastatedUntilTurn: 45,
+    };
+
+    const devastatedYield = calculateWorkedTileYield(state, { q: 1, r: 1 });
+    expect(devastatedYield).toEqual({ food: 0, production: 0, gold: 0, science: 0 });
+
+    // Once the devastation window passes, yield returns to normal.
+    state.turn = 45;
+    const clearedYield = calculateWorkedTileYield(state, { q: 1, r: 1 });
+    expect(clearedYield.production).toBeGreaterThanOrEqual(3);
+  });
+
   it('assigns food focus to the highest-food unclaimed tiles up to population', () => {
     const state = createNewGame(undefined, 'city-work-food-focus');
     const city = addCity(state, 'player', { q: 15, r: 15 });

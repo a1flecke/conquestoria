@@ -35,6 +35,8 @@ export interface WorkerActionEligibilityOptions {
   isCityTile?: boolean;
   allowReplacement?: boolean;
   knownResource?: ResourceType | null;
+  /** Needed only for `restore_land` eligibility (devastatedUntilTurn > currentTurn). */
+  currentTurn?: number;
 }
 
 export type WorkerActionBlockerReason =
@@ -45,6 +47,7 @@ export type WorkerActionBlockerReason =
   | 'requires-river'
   | 'requires-tech'
   | 'missing-resource'
+  | 'not-devastated'
   | 'none';
 
 export const IMPROVEMENT_DEFINITIONS: Record<BuildableImprovementType, ImprovementDefinition> = {
@@ -217,8 +220,20 @@ export function canDrainSwamp(
   return tile.terrain === 'swamp' && tile.improvement === 'none';
 }
 
-/** Improvement/drain_swamp actions only — road building is a separate overlay handled by road-system.ts. */
-export type ImprovementWorkerActionType = BuildableImprovementType | 'drain_swamp';
+export function canRestoreLand(
+  tile: HexTile,
+  ownerId?: string,
+  options: WorkerActionEligibilityOptions = {},
+): boolean {
+  if (options.isCityTile) return false;
+  if (ownerId && tile.owner !== ownerId) return false;
+  if (tile.devastatedUntilTurn === undefined) return false;
+  if (options.currentTurn === undefined) return true;
+  return tile.devastatedUntilTurn > options.currentTurn;
+}
+
+/** Improvement/drain_swamp/restore_land actions only — road building is a separate overlay handled by road-system.ts. */
+export type ImprovementWorkerActionType = BuildableImprovementType | 'drain_swamp' | 'restore_land';
 
 export function getAvailableWorkerActions(
   tile: HexTile | undefined,
@@ -232,6 +247,7 @@ export function getAvailableWorkerActions(
     if (canBuildImprovement(tile, type, completedTechs, ownerId, options)) actions.push(type);
   }
   if (canDrainSwamp(tile, ownerId, options)) actions.push('drain_swamp');
+  if (canRestoreLand(tile, ownerId, options)) actions.push('restore_land');
   return actions;
 }
 
@@ -245,6 +261,11 @@ export function getWorkerActionBlockerReason(
   if (!tile) return 'invalid-terrain';
   if (ownerId && tile.owner !== ownerId) return 'outside-territory';
   if (options.isCityTile) return 'city-center';
+
+  if (action === 'restore_land') {
+    return canRestoreLand(tile, ownerId, options) ? 'none' : 'not-devastated';
+  }
+
   // resource_outpost is established only by Expeditions — Workers can never overwrite it
   if (tile.improvement === 'resource_outpost') return 'already-improved';
   if (tile.improvement !== 'none' && (!options.allowReplacement || tile.improvement === action)) return 'already-improved';
@@ -274,6 +295,7 @@ export function formatWorkerActionBlockerReason(reason: WorkerActionBlockerReaso
     case 'requires-river': return 'Requires river';
     case 'requires-tech': return 'Requires technology';
     case 'missing-resource': return 'No matching resource on this tile';
+    case 'not-devastated': return 'This tile is not devastated';
     case 'none': return '';
   }
 }
@@ -302,6 +324,7 @@ export function formatImprovementYieldLabel(type: ImprovementType): string {
 
 export function getWorkerActionLabel(action: ImprovementWorkerActionType): string {
   if (action === 'drain_swamp') return 'Drain Swamp (20% worker risk)';
+  if (action === 'restore_land') return 'Restore Land';
   const yieldLabel = formatImprovementYieldLabel(action);
   return `Build ${getImprovementDisplayName(action)}${yieldLabel ? ` ${yieldLabel}` : ''}`;
 }

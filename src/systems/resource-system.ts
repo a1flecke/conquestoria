@@ -13,6 +13,7 @@ export function calculateCityYields(
   bonusEffect?: CivBonusEffect,
   completedTechs: string[] = [],
   techYieldContext: CityTechYieldContext = {},
+  currentTurn?: number,
 ): ResourceYield {
   const yields: ResourceYield = { food: 0, production: 0, gold: 0, science: 0 };
 
@@ -32,7 +33,7 @@ export function calculateCityYields(
     const tile = map.tiles[hexKey(coord)];
     if (!tile) continue;
 
-    const tileYield = getTileYield(tile, map, coord, { completedTechs });
+    const tileYield = getTileYield(tile, map, coord, { completedTechs, currentTurn });
     yields.food += tileYield.food;
     yields.production += tileYield.production;
     yields.gold += tileYield.gold;

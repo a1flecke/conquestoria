@@ -33,7 +33,7 @@ export function calculateWorkedTileYield(state: GameState, coord: HexCoord): Res
     ? (state.civilizations[tile.owner]?.techState.completed ?? [])
     : [];
 
-  return getTileYield(tile, state.map, canonical, { completedTechs });
+  return getTileYield(tile, state.map, canonical, { completedTechs, currentTurn: state.turn });
 }
 
 function sameCoord(left: HexCoord, right: HexCoord): boolean {
@@ -208,7 +208,15 @@ export function calculateProjectedCityYields(
     : assignCityFocus(state, cityId, city.focus);
   const projectedCity = workResult.state.cities[cityId] ?? city;
   const completedTechs = workResult.state.civilizations?.[projectedCity.owner]?.techState.completed ?? [];
-  const yields = calculateCityYields(projectedCity, workResult.state.map, bonusEffect, completedTechs);
+  const baseYields = calculateCityYields(projectedCity, workResult.state.map, bonusEffect, completedTechs, {}, state.turn);
+  // Catastrophe-crisis recovery reward — must match turn-manager.ts's own +1/+1 so the
+  // displayed projection never diverges from what processTurn actually applies.
+  const resilienceBonus = (city.resilienceBonusUntilTurn ?? 0) > state.turn ? 1 : 0;
+  const yields = {
+    ...baseYields,
+    food: baseYields.food + resilienceBonus,
+    production: baseYields.production + resilienceBonus,
+  };
 
   if (city.productionQueue.length === 0 && city.idleProduction) {
     if (city.idleProduction === 'gold') {

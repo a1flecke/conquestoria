@@ -1,12 +1,14 @@
 import {
   canBuildImprovement,
   canDrainSwamp,
+  canRestoreLand,
   formatImprovementYieldLabel,
   formatWorkerActionBlockerReason,
   getAvailableWorkerActions,
   getImprovementDisplayName,
   getImprovementYieldBonus,
   getWorkerActionBlockerReason,
+  getWorkerActionLabel,
   getWorkerBlockerHints,
 } from '@/systems/improvement-system';
 import type { HexTile } from '@/core/types';
@@ -537,5 +539,44 @@ describe('resource_outpost immutability — workers cannot overwrite it', () => 
 
   it('getImprovementYieldBonus returns all-zero yield', () => {
     expect(getImprovementYieldBonus('resource_outpost')).toEqual({ food: 0, production: 0, gold: 0, science: 0 });
+  });
+});
+
+describe('restore_land worker action (catastrophe crisis, MR2)', () => {
+  const baseTile: HexTile = {
+    coord: { q: 0, r: 0 }, terrain: 'hills', elevation: 'lowland',
+    resource: null, improvement: 'mine', owner: 'p1',
+    improvementTurnsLeft: 0, hasRiver: false, wonder: null,
+  };
+
+  it('is available only on a devastated tile owned by the worker\'s civ', () => {
+    expect(canRestoreLand({ ...baseTile, devastatedUntilTurn: 50 }, 'p1', { currentTurn: 40 })).toBe(true);
+    expect(canRestoreLand(baseTile, 'p1', { currentTurn: 40 })).toBe(false); // not devastated
+    // Tile is owned by 'p1'; querying eligibility for a different civ ('enemy') must fail.
+    expect(canRestoreLand({ ...baseTile, devastatedUntilTurn: 50 }, 'enemy', { currentTurn: 40 })).toBe(false);
+  });
+
+  it('is unavailable once devastation has already naturally expired', () => {
+    expect(canRestoreLand({ ...baseTile, devastatedUntilTurn: 40 }, 'p1', { currentTurn: 40 })).toBe(false);
+    expect(canRestoreLand({ ...baseTile, devastatedUntilTurn: 39 }, 'p1', { currentTurn: 40 })).toBe(false);
+  });
+
+  it('is unavailable on a city-center tile even if devastated', () => {
+    expect(canRestoreLand({ ...baseTile, devastatedUntilTurn: 50 }, 'p1', { isCityTile: true, currentTurn: 40 })).toBe(false);
+  });
+
+  it('getAvailableWorkerActions includes restore_land only when devastated', () => {
+    expect(getAvailableWorkerActions({ ...baseTile, devastatedUntilTurn: 50 }, [], 'p1', { currentTurn: 40 })).toContain('restore_land');
+    expect(getAvailableWorkerActions(baseTile, [], 'p1', { currentTurn: 40 })).not.toContain('restore_land');
+  });
+
+  it('getWorkerActionBlockerReason reports not-devastated with a matching message', () => {
+    expect(getWorkerActionBlockerReason(baseTile, 'restore_land', [], 'p1', { currentTurn: 40 })).toBe('not-devastated');
+    expect(formatWorkerActionBlockerReason('not-devastated')).toBe('This tile is not devastated');
+    expect(getWorkerActionBlockerReason({ ...baseTile, devastatedUntilTurn: 50 }, 'restore_land', [], 'p1', { currentTurn: 40 })).toBe('none');
+  });
+
+  it('getWorkerActionLabel returns "Restore Land"', () => {
+    expect(getWorkerActionLabel('restore_land')).toBe('Restore Land');
   });
 });

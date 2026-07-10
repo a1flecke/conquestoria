@@ -6,6 +6,7 @@ import { EventBus } from '@/core/event-bus';
 import { normalizeLoadedStateForTest } from '@/storage/save-manager';
 import { resolveMajorCityCapture } from '@/systems/city-capture-system';
 import { tagLandmassRegions } from '@/systems/landmass-tagger';
+import { calculateProjectedCityYields } from '@/systems/city-work-system';
 import type { ActiveCrisis, GameState, HexCoord } from '@/core/types';
 
 function findLandCoord(state: GameState): HexCoord {
@@ -107,5 +108,26 @@ describe('turn-manager crisis wiring', () => {
     const bus = new EventBus();
     const result = resolveMajorCityCapture(state, cityId, otherCivId, 'occupy', state.turn, bus);
     expect(result.state.activeCrises?.['crisis-1']).toBeUndefined();
+  });
+
+  it('applies the +1 food +1 production resilience bonus to a city with resilienceBonusUntilTurn active, both in the real turn-manager path and in the city-panel projected-yields display', () => {
+    const { state, cityId } = stateWithActiveCrisis();
+    delete (state as GameState).activeCrises; // isolate the resilience bonus from the outbreak's own yield multiplier
+    const withBonus: GameState = {
+      ...state,
+      cities: { ...state.cities, [cityId]: { ...state.cities[cityId], resilienceBonusUntilTurn: state.turn + 1 } },
+    };
+
+    const boostedProjection = calculateProjectedCityYields(withBonus, cityId);
+    const baseProjection = calculateProjectedCityYields(state, cityId);
+    expect(boostedProjection.food).toBe(baseProjection.food + 1);
+    expect(boostedProjection.production).toBe(baseProjection.production + 1);
+
+    // Already-expired bonus (resilienceBonusUntilTurn === state.turn, not > state.turn) has no effect.
+    const expiredBonus: GameState = {
+      ...state,
+      cities: { ...state.cities, [cityId]: { ...state.cities[cityId], resilienceBonusUntilTurn: state.turn } },
+    };
+    expect(calculateProjectedCityYields(expiredBonus, cityId)).toEqual(baseProjection);
   });
 });
