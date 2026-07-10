@@ -9,7 +9,7 @@ import '@/assets/roc-animations.css';
 import '@/assets/dragon-animations.css';
 import { EventBus } from '@/core/event-bus';
 import { createNewGame, createHotSeatGame, createDefaultSettings } from '@/core/game-state';
-import { resolveOpponentChallenge, setPendingOpponentChallenge } from '@/core/opponent-challenge';
+import { resolveOpponentChallenge, setPendingOpponentChallenge, resolveChallengeForCiv, setPendingChallengeForCiv } from '@/core/opponent-challenge';
 import { processTurn } from '@/core/turn-manager';
 import { processNonHumanMajorRound } from '@/ai/ai-round-scheduler';
 import { RenderLoop } from '@/renderer/render-loop';
@@ -417,6 +417,11 @@ function createUI(): void {
         pendingOpponentChallenge: gameState.pendingOpponentChallenge,
         onOpponentChallengeChange: (challenge) => {
           gameState = setPendingOpponentChallenge(gameState, challenge);
+        },
+        personalChallenge: resolveChallengeForCiv(gameState, gameState.currentPlayer),
+        pendingPersonalChallenge: gameState.civilizations[gameState.currentPlayer]?.pendingChallenge,
+        onPersonalChallengeChange: (challenge) => {
+          gameState = setPendingChallengeForCiv(gameState, gameState.currentPlayer, challenge);
         },
         // Spec 3: per-channel audio settings
         audioSettings: {

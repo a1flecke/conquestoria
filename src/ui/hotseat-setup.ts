@@ -487,12 +487,7 @@ export function showHotSeatSetup(
         onSelect: (civId: string) => {
           players[playerIdx].civType = civId;
           chosenCivs.push(civId);
-
-          if (playerIdx + 1 < players.length) {
-            showCivPickStage(playerIdx + 1);
-          } else {
-            showFinalReview();
-          }
+          showPersonalChallengeStage(playerIdx);
         },
         onCreateCustomCiv: () => {
           openCustomCivEditor();
@@ -504,6 +499,45 @@ export function showHotSeatSetup(
         primaryActionText: playerIdx + 1 < players.length ? 'Next Player' : 'Start Game',
       });
     });
+  }
+
+  function showPersonalChallengeStage(playerIdx: number) {
+    panel.innerHTML = '';
+
+    const title = document.createElement('h1');
+    title.textContent = 'Your Personal Difficulty';
+    title.style.cssText = 'font-size:22px;color:#e8c170;margin:24px 0 8px;text-align:center;';
+    panel.appendChild(title);
+
+    const subtitle = document.createElement('p');
+    subtitle.textContent = `${players[playerIdx].name}, this only affects crises and unrest for your own empire — it's private to you.`;
+    subtitle.style.cssText = 'font-size:13px;opacity:0.72;margin:0 0 20px;text-align:center;max-width:420px;';
+    panel.appendChild(subtitle);
+
+    const selector = createOpponentChallengeSelector({
+      selected: players[playerIdx].challenge ?? 'standard',
+      mode: 'new-game',
+      onSelect: challenge => {
+        players[playerIdx].challenge = challenge;
+      },
+    });
+    selector.style.maxWidth = '840px';
+    panel.appendChild(selector);
+
+    const nav = document.createElement('div');
+    nav.style.cssText = 'margin-top:20px;display:flex;gap:12px;';
+    const nextButton = createGameButton(playerIdx + 1 < players.length ? 'Next Player' : 'Start Game', 'primary');
+    nextButton.id = 'hs-personal-challenge-next';
+    nextButton.addEventListener('click', () => {
+      players[playerIdx].challenge ??= 'standard';
+      if (playerIdx + 1 < players.length) {
+        showCivPickStage(playerIdx + 1);
+      } else {
+        showFinalReview();
+      }
+    });
+    nav.appendChild(nextButton);
+    panel.appendChild(nav);
   }
 
   function buildFinalConfig(): {

@@ -1137,6 +1137,7 @@ export interface HotSeatPlayer {
   slotId: string;     // e.g. 'player-1', 'player-2', 'ai-1'
   civType: string;    // e.g. 'egypt', 'rome' — maps to CivDefinition.id
   isHuman: boolean;
+  challenge?: OpponentChallenge; // human players only; per-player crisis/unrest difficulty
 }
 
 export interface HotSeatConfig {

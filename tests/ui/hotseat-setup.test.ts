@@ -45,6 +45,8 @@ function advanceThroughMapType(): void {
 function chooseCiv(civId: string): void {
   click(`.civ-card[data-civ-id="${civId}"]`);
   click('#civ-start');
+  const personalChallengeNext = document.querySelector<HTMLElement>('#hs-personal-challenge-next');
+  if (personalChallengeNext) personalChallengeNext.click();
   const reviewStart = document.querySelector<HTMLElement>('#hs-review-start');
   if (reviewStart) reviewStart.click();
 }
@@ -114,6 +116,7 @@ describe('hotseat-setup', () => {
     click('#hs-civ-ready');
     click('.civ-card[data-civ-id="germany"]');
     click('#civ-start');
+    click('#hs-personal-challenge-next');
 
     expect(document.querySelector('[data-role="hotseat-final-review"]')?.textContent)
       .toContain('AI opponents (2)');
@@ -147,6 +150,7 @@ describe('hotseat-setup', () => {
     click('#hs-civ-ready');
     click('.civ-card[data-civ-id="germany"]');
     click('#civ-start');
+    click('#hs-personal-challenge-next');
 
     expect(document.querySelector('[data-role="historical-crowding-warning"]')).not.toBeNull();
     click('#hs-review-start');
@@ -251,6 +255,7 @@ describe('hotseat-setup', () => {
     expect(civCard).toBeTruthy();
     civCard?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     click('#civ-start');
+    click('#hs-personal-challenge-next');
     click('#hs-civ-ready');
 
     const secondPlayerCiv = Array.from(document.querySelectorAll('.civ-card'))
@@ -258,6 +263,7 @@ describe('hotseat-setup', () => {
     expect(secondPlayerCiv).toBeTruthy();
     secondPlayerCiv?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     click('#civ-start');
+    click('#hs-personal-challenge-next');
     click('#hs-review-start');
 
     expect(onComplete).toHaveBeenCalledTimes(1);
@@ -297,6 +303,7 @@ describe('hotseat-setup', () => {
     expect(firstPlayerCiv).toBeTruthy();
     firstPlayerCiv?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     click('#civ-start');
+    click('#hs-personal-challenge-next');
 
     click('#hs-civ-ready');
     const secondPlayerCiv = Array.from(document.querySelectorAll('.civ-card'))
@@ -304,6 +311,7 @@ describe('hotseat-setup', () => {
     expect(secondPlayerCiv).toBeTruthy();
     secondPlayerCiv?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     click('#civ-start');
+    click('#hs-personal-challenge-next');
     click('#hs-review-start');
 
     expect(onComplete).toHaveBeenCalledTimes(1);
@@ -345,6 +353,7 @@ describe('hotseat-setup', () => {
     expect(civCard).toBeTruthy();
     civCard?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     click('#civ-start');
+    click('#hs-personal-challenge-next');
 
     expect(document.querySelector('#hs-civ-ready')).toBeTruthy();
     expect(onComplete).not.toHaveBeenCalled();

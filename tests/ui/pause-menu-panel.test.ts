@@ -21,6 +21,9 @@ function makeCallbacks(overrides: Partial<Parameters<typeof showPauseMenu>[1]> =
     opponentChallenge: 'standard',
     pendingOpponentChallenge: undefined,
     onOpponentChallengeChange: vi.fn(),
+    personalChallenge: 'standard',
+    pendingPersonalChallenge: undefined,
+    onPersonalChallengeChange: vi.fn(),
     audioSettings: { ...DEFAULT_TEST_AUDIO },
     onAudioSettingChange: vi.fn(),
     ...overrides,
@@ -77,6 +80,38 @@ describe('pause-menu-panel', () => {
       .toContain('Explorer will apply next round');
     expect(document.activeElement)
       .toBe(document.querySelector('[data-challenge="explorer"]'));
+  });
+
+  it('shows the personal difficulty selector scoped to the current player only', () => {
+    const panel = showPauseMenu(document.body, makeCallbacks({ personalChallenge: 'standard' }));
+    const section = panel.querySelector('[data-personal-challenge-settings]');
+    expect(section).not.toBeNull();
+    expect(section?.textContent).toContain('Standard active');
+    expect(section?.textContent).toContain('Your Personal Difficulty');
+  });
+
+  it('rerenders pending personal challenge immediately as "applies next turn", separate from opponent challenge', () => {
+    const onPersonalChallengeChange = vi.fn();
+    showPauseMenu(
+      document.body,
+      makeCallbacks({
+        personalChallenge: 'standard',
+        onPersonalChallengeChange,
+      }),
+    );
+
+    const personalSection = document.querySelector('[data-personal-challenge-settings]')!;
+    personalSection.querySelector<HTMLButtonElement>('[data-challenge="veteran"]')!.click();
+
+    expect(onPersonalChallengeChange).toHaveBeenCalledWith('veteran');
+    const updatedPersonalSection = document.querySelector('[data-personal-challenge-settings]')!;
+    expect(updatedPersonalSection.textContent).toContain('Standard active');
+    expect(updatedPersonalSection.textContent).toContain('Veteran (applies next turn)');
+    // Opponent (AI) challenge section must be unaffected by the personal change
+    const opponentSection = document.querySelector('[data-opponent-challenge-settings]')!;
+    expect(opponentSection.textContent).toContain('Standard active');
+    expect(opponentSection.textContent).not.toContain('Veteran active');
+    expect(opponentSection.textContent).not.toContain('applies next turn');
   });
 
   it('renders with correct turn number and civ name in header', () => {

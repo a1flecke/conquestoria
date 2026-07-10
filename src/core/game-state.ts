@@ -262,6 +262,9 @@ export function createNewGame(
     knownCivilizations: [],
     score: 0,
     diplomacy: createDiplomacyState(allCivIds, 'player', playerStartBonus),
+    // Solo has one human: the single challenge picker writes the same value to
+    // both the civ (crisis/unrest knobs) and state.opponentChallenge (AI behavior).
+    ...(config.opponentChallenge ? { challenge: config.opponentChallenge } : {}),
   };
 
   const civilizations: Record<string, Civilization> = {
@@ -467,6 +470,7 @@ export function createHotSeatGame(
       knownCivilizations: [],
       score: 0,
       diplomacy: createDiplomacyState(allSlotIds, player.slotId, startBonus),
+      ...(player.isHuman && player.challenge ? { challenge: player.challenge } : {}),
     };
 
     const settler = createUnit('settler', player.slotId, startPositions[i], idCounters, civDef?.bonusEffect);
