@@ -2314,7 +2314,7 @@ function finalizePendingCityCaptureChoice(
   const previousOwner = cityBeforeResolution?.owner ?? '';
   const cityName = cityBeforeResolution?.name ?? pending.cityId;
   const beforeCapture = gameState;
-  const result = finalizePlayerCityAssaultChoice(gameState, pending, disposition, gameState.turn);
+  const result = finalizePlayerCityAssaultChoice(gameState, pending, disposition, gameState.turn, bus);
 
   pendingCityCaptureChoice = null;
   document.getElementById('city-capture-panel')?.remove();

@@ -33,8 +33,17 @@ export function resolveHotSeatPostSimulation(
     };
   }
   const nextHumanId = getNextActiveHumanPlayerId(state, previousHumanId);
-  return {
-    state: nextHumanId ? { ...state, currentPlayer: nextHumanId } : state,
-    nextHumanId,
-  };
+  if (!nextHumanId) return { state, nextHumanId };
+  let nextState: GameState = { ...state, currentPlayer: nextHumanId };
+  const civ = nextState.civilizations[nextHumanId];
+  if (civ?.pendingChallenge !== undefined) {
+    nextState = {
+      ...nextState,
+      civilizations: {
+        ...nextState.civilizations,
+        [nextHumanId]: { ...civ, challenge: civ.pendingChallenge, pendingChallenge: undefined },
+      },
+    };
+  }
+  return { state: nextState, nextHumanId };
 }

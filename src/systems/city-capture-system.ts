@@ -23,6 +23,7 @@ import { buildUnitOccupancy, getUnitIdsAtCoord } from '@/systems/unit-occupancy'
 import { UNIT_DEFINITIONS } from '@/systems/unit-system';
 import { buildMovePresentationByViewer } from '@/systems/viewer-event-presentation';
 import { eliminateCivilization } from '@/systems/civilization-elimination-system';
+import { handleCityLeftCiv } from '@/systems/crisis-system';
 
 export type MajorCityCaptureDisposition = 'occupy' | 'raze';
 
@@ -314,10 +315,14 @@ function buildCaptureResult(
   goldAwarded: number,
   capturedCityId?: string,
   elimination?: MajorCityCaptureResult['elimination'],
+  bus?: EventBus,
 ): MajorCityCaptureResult {
-  const postWorkState = capturedCityId
+  let postWorkState = capturedCityId
     ? normalizeCityWorkAfterTerritoryChange(territoryResult.state, capturedCityId).state
     : territoryResult.state;
+  if (capturedCityId && bus) {
+    postWorkState = handleCityLeftCiv(postWorkState, capturedCityId, bus);
+  }
   return {
     state: postWorkState,
     outcome,
@@ -345,6 +350,7 @@ export function resolveMajorCityCapture(
   newOwnerId: string,
   disposition: MajorCityCaptureDisposition,
   turn: number,
+  bus?: EventBus,
 ): MajorCityCaptureResult {
   const city = state.cities[cityId];
   if (!city) {
@@ -374,7 +380,7 @@ export function resolveMajorCityCapture(
       reason: 'capture',
       preserveCurrentHolderOnTie: true,
     });
-    return buildCaptureResult(nextState, territoryResult, 'occupied', 0, cityId);
+    return buildCaptureResult(nextState, territoryResult, 'occupied', 0, cityId, undefined, bus);
   }
 
   if (forcedDisposition === 'occupy') {
@@ -441,6 +447,7 @@ export function resolveMajorCityCapture(
         removedUnitIds: elimination.removedUnitIds,
         removedSpyIds: elimination.removedSpyIds,
       } : undefined,
+      bus,
     );
   }
 
@@ -490,6 +497,7 @@ export function resolveMajorCityCapture(
       removedUnitIds: elimination.removedUnitIds,
       removedSpyIds: elimination.removedSpyIds,
     } : undefined,
+    bus,
   );
 }
 

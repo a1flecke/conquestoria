@@ -162,6 +162,7 @@ function occupyMajorCity(
     civId,
     'occupy',
     assault.state.turn,
+    bus,
   );
   emitMajorCityCaptureEvents(
     state,

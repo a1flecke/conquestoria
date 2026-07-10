@@ -81,6 +81,7 @@ import { normalizeOpponentAIState } from '@/core/opponent-ai-state';
 import { processFactionTurn, getUnrestYieldMultiplier, isCityProductionLocked } from '@/systems/faction-system';
 import { getOccupiedCityYieldMultiplier, tickOccupiedCities } from '@/systems/city-occupation-system';
 import { processBreakawayTurn } from '@/systems/breakaway-system';
+import { processCrisisTurn, processCrisisSchedulerForHumans, getCrisisYieldMultiplier } from '@/systems/crisis-system';
 import {
   applyTerritoryFrontierProgressWithEvents,
   buildTerritoryTileFlippedEvents,
@@ -130,6 +131,7 @@ export function processTurn(
   // Resolve unrest and revolts before city yields so instability impacts the current turn.
   newState = processFactionTurn(newState, bus);
   newState = processBreakawayTurn(newState, bus);
+  newState = processCrisisTurn(newState, bus);
   newState = tickOccupiedCities(newState);
   const grossGoldByCiv: Record<string, number> = {};
   const previousEconomyStatusByCiv = newState.economyStatusByCiv ?? {};
@@ -198,7 +200,8 @@ export function processTurn(
         .filter(route => route.fromCityId === cityId || route.toCityId === cityId).length;
       const baseYields = calculateCityYields(city, newState.map, civDef?.bonusEffect, civ.techState.completed, { activeRouteCount });
       const wonderCityBonuses = getLegendaryWonderCityYieldBonus(newState, civId, cityId);
-      const unrestMultiplier = Math.min(getUnrestYieldMultiplier(city), getOccupiedCityYieldMultiplier(city));
+      const unrestMultiplier = Math.min(getUnrestYieldMultiplier(city), getOccupiedCityYieldMultiplier(city))
+        * getCrisisYieldMultiplier(newState, cityId);
       const empireFlatFoodForCity = cityId === empireFlatTargetCityId ? empireFlatTechYields.food : 0;
       const empireFlatProductionForCity = cityId === empireFlatTargetCityId ? empireFlatTechYields.production : 0;
       const networkGovernanceScienceForCity = cityId === lowestScienceCityId ? networkGovernanceBonus : 0;
@@ -958,6 +961,7 @@ export function processTurn(
 
   // --- Threat pressure (spawn phase: land resurgence + pirate spawn) ---
   newState = processIndependentThreatPressureForHumans(newState, bus);
+  newState = processCrisisSchedulerForHumans(newState, bus);
 
   // --- Process espionage ---
   newState = processEspionageTurn(newState, bus);
