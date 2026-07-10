@@ -17,6 +17,7 @@ class MockCanvasContext {
   textCalls: string[] = [];
   fillTextCalls: Array<{ text: string; x: number; y: number }> = [];
   drawImageCalls = 0;
+  fillCalls: string[] = [];
   fillStyle = '';
   strokeStyle = '';
   lineWidth = 0;
@@ -38,7 +39,9 @@ class MockCanvasContext {
   arc(): void {}
   ellipse(): void {}
   closePath(): void {}
-  fill(): void {}
+  fill(): void {
+    this.fillCalls.push(this.fillStyle);
+  }
   drawImage(): void {
     this.drawImageCalls += 1;
   }
@@ -577,5 +580,65 @@ describe('drawRoads rail visual', () => {
     const mockCtx = ctx as unknown as MockCanvasContext;
     expect(mockCtx.drawImageCalls).toBeGreaterThan(0);
     expect(mockCtx.strokeCalls.length).toBe(0);
+  });
+});
+
+describe('devastated tile tint (MR2 catastrophe crises)', () => {
+  function makeDevastationMap(devastatedUntilTurn: number | undefined): GameMap {
+    return {
+      width: 2,
+      height: 1,
+      wrapsHorizontally: false,
+      rivers: [],
+      tiles: {
+        '0,0': {
+          coord: { q: 0, r: 0 }, terrain: 'grassland', elevation: 'lowland',
+          resource: null, improvement: 'none', owner: 'player',
+          improvementTurnsLeft: 0, hasRiver: false, wonder: null,
+          devastatedUntilTurn,
+        },
+      },
+    } as unknown as GameMap;
+  }
+
+  it('draws the devastation tint on a live, currently-devastated tile', () => {
+    const ctx = new MockCanvasContext() as unknown as CanvasRenderingContext2D;
+    const visibility: VisibilityMap = { tiles: { '0,0': 'visible' } };
+    drawHexMap(ctx, makeDevastationMap(50), makeCamera(), undefined, undefined, 'player', visibility, new Set(), new Set(), 40);
+    const mockCtx = ctx as unknown as MockCanvasContext;
+    expect(mockCtx.fillCalls).toContain('rgba(40,30,20,0.45)');
+  });
+
+  it('does not tint a tile whose devastation has already passed', () => {
+    const ctx = new MockCanvasContext() as unknown as CanvasRenderingContext2D;
+    const visibility: VisibilityMap = { tiles: { '0,0': 'visible' } };
+    drawHexMap(ctx, makeDevastationMap(40), makeCamera(), undefined, undefined, 'player', visibility, new Set(), new Set(), 40);
+    const mockCtx = ctx as unknown as MockCanvasContext;
+    expect(mockCtx.fillCalls).not.toContain('rgba(40,30,20,0.45)');
+  });
+
+  it('does not tint a non-devastated tile', () => {
+    const ctx = new MockCanvasContext() as unknown as CanvasRenderingContext2D;
+    const visibility: VisibilityMap = { tiles: { '0,0': 'visible' } };
+    drawHexMap(ctx, makeDevastationMap(undefined), makeCamera(), undefined, undefined, 'player', visibility, new Set(), new Set(), 40);
+    const mockCtx = ctx as unknown as MockCanvasContext;
+    expect(mockCtx.fillCalls).not.toContain('rgba(40,30,20,0.45)');
+  });
+
+  it('never reveals a devastated tile through fog (last-seen presentation has no devastation field)', () => {
+    const ctx = new MockCanvasContext() as unknown as CanvasRenderingContext2D;
+    const visibility: VisibilityMap = {
+      tiles: { '0,0': 'fog' },
+      lastSeen: {
+        '0,0': {
+          coord: { q: 0, r: 0 }, terrain: 'grassland', elevation: 'lowland',
+          resource: null, improvement: 'none', owner: 'player', improvementTurnsLeft: 0,
+          hasRiver: false, wonder: null,
+        } as any,
+      },
+    };
+    drawHexMap(ctx, makeDevastationMap(50), makeCamera(), undefined, undefined, 'player', visibility, new Set(), new Set(), 40);
+    const mockCtx = ctx as unknown as MockCanvasContext;
+    expect(mockCtx.fillCalls).not.toContain('rgba(40,30,20,0.45)');
   });
 });
