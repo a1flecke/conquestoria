@@ -109,14 +109,25 @@ export function getOutbreakSeverityMultiplier(
     : 1 - severity.yieldPenalty;
 }
 
+// Catastrophe's per-challenge severity.yieldPenalty is the whole-city disruption
+// penalty during the recovery stage (on top of, not instead of, devastated tiles
+// individually yielding zero) — e.g. displaced population, disrupted trade routes.
+export function getCatastropheRecoveryMultiplier(severity: { yieldPenalty: number }): number {
+  return 1 - severity.yieldPenalty;
+}
+
 export function getCrisisYieldMultiplier(state: GameState, cityId: string): number {
   let multiplier = 1;
   for (const crisis of Object.values(state.activeCrises ?? {})) {
-    if (crisis.archetype !== 'outbreak' || !crisis.cityIds.includes(cityId)) continue;
+    if (!crisis.cityIds.includes(cityId)) continue;
     const flavor = getCrisisFlavor(crisis.flavorId);
     if (!flavor) continue;
     const severity = flavor.severityByChallenge[resolveChallengeForCiv(state, crisis.targetCivId)];
-    multiplier *= getOutbreakSeverityMultiplier(severity, crisis.quarantinedCityIds?.includes(cityId) ?? false);
+    if (crisis.archetype === 'outbreak') {
+      multiplier *= getOutbreakSeverityMultiplier(severity, crisis.quarantinedCityIds?.includes(cityId) ?? false);
+    } else if (crisis.archetype === 'catastrophe' && crisis.stage === 'recovery') {
+      multiplier *= getCatastropheRecoveryMultiplier(severity);
+    }
   }
   return multiplier;
 }
@@ -241,7 +252,23 @@ function applyCatastropheShock(
   const devastatedUntilTurn = state.turn + devastationTurns;
   const affectedKeys = hexesInRange(epicenter, params.blastRadius)
     .map(hexKey)
-    .filter(key => state.map.tiles[key]?.owner === owner);
+    .filter(key => {
+      const t = state.map.tiles[key];
+      if (!t || t.owner !== owner) return false;
+      // A tile's devastatedUntilTurn is a single value, not a per-crisis list — if two
+      // overlapping catastrophes both claimed it, the second shock would silently
+      // overwrite the first crisis's timer and corrupt its own resolution bookkeeping
+      // (it would keep waiting on a devastatedUntilTurn it no longer owns). Never
+      // re-claim a tile another still-active catastrophe already devastated.
+      if (t.devastatedUntilTurn !== undefined && t.devastatedUntilTurn > state.turn) return false;
+      return true;
+    });
+  if (affectedKeys.length === 0) {
+    // Every candidate tile in blast radius is already claimed by another active
+    // catastrophe — nothing new for this crisis to do.
+    bus.emit('crisis:resolved', { crisisId: crisis.id, flavorId: crisis.flavorId, civId: crisis.targetCivId, outcome: 'abandoned' });
+    return { crisis: null, state };
+  }
 
   const isVeteran = resolveChallengeForCiv(state, owner) === 'veteran';
   const destroysImprovement = params.destroysEpicenterImprovement && isVeteran && state.era >= 3;
@@ -308,17 +335,32 @@ function tickCatastropheCrisis(
   return { crisis: null, state: nextState };
 }
 
+// Archetype-specific tick dispatch. MR3 (hunt) and beyond add a case here —
+// keep this the single dispatch point rather than branching inline elsewhere.
+function tickCrisisByArchetype(
+  state: GameState,
+  crisis: ActiveCrisis,
+  bus: EventBus,
+): { crisis: ActiveCrisis | null; state: GameState } {
+  switch (crisis.archetype) {
+    case 'outbreak':
+      return tickOutbreakCrisis(state, crisis, bus);
+    case 'catastrophe':
+      return tickCatastropheCrisis(state, crisis, bus);
+    default:
+      // Not yet implemented (e.g. 'hunt', MR3) — leave untouched rather than
+      // silently dropping or mutating a crisis type this resolver doesn't know.
+      return { crisis, state };
+  }
+}
+
 export function processCrisisTurn(state: GameState, bus: EventBus): GameState {
   let nextState = state;
   const crisisIds = Object.keys(state.activeCrises ?? {}).sort();
   for (const crisisId of crisisIds) {
     const crisis = nextState.activeCrises?.[crisisId];
     if (!crisis) continue;
-    const { crisis: updated, state: tickedState } = crisis.archetype === 'outbreak'
-      ? tickOutbreakCrisis(nextState, crisis, bus)
-      : crisis.archetype === 'catastrophe'
-        ? tickCatastropheCrisis(nextState, crisis, bus)
-        : { crisis, state: nextState };
+    const { crisis: updated, state: tickedState } = tickCrisisByArchetype(nextState, crisis, bus);
     if (updated) {
       nextState = { ...tickedState, activeCrises: { ...(tickedState.activeCrises ?? {}), [crisisId]: updated } };
     } else {

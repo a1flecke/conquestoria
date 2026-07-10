@@ -388,7 +388,7 @@ export function renderSelectedUnitInfo(
         const eligibilityOpts = workerEligibilityOptions;
         if (tile && tile.improvement !== 'none' && callbacks.onReplaceImprovement) {
           const replaceable = getAvailableWorkerActions(tile, completedTechs, unit.owner, { ...workerEligibilityOptions, allowReplacement: true })
-            .filter((a): a is BuildableImprovementType => a !== 'drain_swamp');
+            .filter((a): a is BuildableImprovementType => a !== 'drain_swamp' && a !== 'restore_land');
           for (const action of replaceable) {
             const yieldStr = formatImprovementYieldLabel(action);
             const label = `Replace ${getImprovementDisplayName(tile.improvement)} with ${getImprovementDisplayName(action)}${yieldStr ? ` ${yieldStr}` : ''}`;

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { EventBus } from '@/core/event-bus';
-import { processCrisisTurn } from '@/systems/crisis-system';
+import { processCrisisTurn, getCrisisYieldMultiplier } from '@/systems/crisis-system';
 import { createDiplomacyState } from '@/systems/diplomacy-system';
 import { hexesInRange, hexKey } from '@/systems/hex-utils';
 import type { ActiveCrisis, City, GameState, HexCoord, HexTile, OpponentChallenge } from '@/core/types';
@@ -118,6 +118,16 @@ describe('catastrophe shock', () => {
     }
   });
 
+  it('applies a whole-city recovery yield penalty during the recovery stage (not just zeroing devastated tiles)', () => {
+    const { state, cityId } = { ...makeCatastropheFixture(), cityId: 'c1' };
+    // Before the shock (stage 'active'), no recovery penalty applies yet.
+    expect(getCrisisYieldMultiplier(state, cityId)).toBe(1);
+    const next = processCrisisTurn(state, new EventBus());
+    expect(next.activeCrises!['crisis-1'].stage).toBe('recovery');
+    // standard challenge catastrophe yieldPenalty is 0.20 -> multiplier 0.80
+    expect(getCrisisYieldMultiplier(next, cityId)).toBeCloseTo(0.8);
+  });
+
   it('never devastates a tile owned by another civ or unowned land', () => {
     const { state, crisisId } = makeCatastropheFixture();
     const next = processCrisisTurn(state, new EventBus());
@@ -210,5 +220,33 @@ describe('catastrophe shock', () => {
     expect(next.activeCrises?.[crisisId]).toBeUndefined();
     expect(events).toEqual([{ crisisId, flavorId: 'earthquake', civId: 'p1', outcome: 'abandoned' }]);
     expect(next.cities.c1.resilienceBonusUntilTurn).toBeUndefined();
+  });
+
+  it('never re-claims a tile another still-active catastrophe already devastated, and abandons if that leaves nothing new to devastate', () => {
+    // Force a single-candidate epicenter (the city tile) so the two crises are
+    // guaranteed to contend for the exact same tile.
+    const { state, crisisId } = makeCatastropheFixture({ onlyOwnCityTile: true, turn: 40 });
+    const preExistingDevastation = 90; // far beyond this crisis's own would-be timer
+    const contestedState: GameState = {
+      ...state,
+      map: {
+        ...state.map,
+        tiles: {
+          ...state.map.tiles,
+          [hexKey(CITY_POS)]: { ...state.map.tiles[hexKey(CITY_POS)], devastatedUntilTurn: preExistingDevastation },
+        },
+      },
+    };
+    const bus = new EventBus();
+    const events: unknown[] = [];
+    bus.on('crisis:resolved', e => events.push(e));
+    const next = processCrisisTurn(contestedState, bus);
+
+    // The new crisis found nothing new to devastate and abandons immediately...
+    expect(next.activeCrises?.[crisisId]).toBeUndefined();
+    expect(events).toEqual([{ crisisId, flavorId: 'earthquake', civId: 'p1', outcome: 'abandoned' }]);
+    // ...and critically, the pre-existing crisis's devastation timer is untouched
+    // (not overwritten with this crisis's own, shorter/longer devastationTurns).
+    expect(next.map.tiles[hexKey(CITY_POS)].devastatedUntilTurn).toBe(preExistingDevastation);
   });
 });
