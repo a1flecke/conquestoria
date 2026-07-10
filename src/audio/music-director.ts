@@ -57,6 +57,7 @@ export class MusicDirector {
   private inUnrest = false;
   private nearDefeat = false;
   private beastTerritory = false;
+  private crisisActiveForCurrentPlayer = false;
   private unrestCityCount = 0;
   private currentCivId = '';
   private currentEra = 1;
@@ -80,7 +81,7 @@ export class MusicDirector {
   public resolveSnapshot(): SnapshotId {
     if (this.nearDefeat)      return 'brink-of-defeat';
     if (this.atWar)           return 'at-war';
-    if (this.inUnrest)        return 'unrest';
+    if (this.inUnrest || this.crisisActiveForCurrentPlayer) return 'unrest';
     if (this.beastTerritory)  return 'beast-territory';
     return 'peace';
   }
@@ -195,6 +196,23 @@ export class MusicDirector {
     this.applySnapshot(CROSSFADE_MS);
   }
 
+  /** Keyed to the current player only — never reveals another player's hidden crisis. */
+  setCrisisActiveForCurrentPlayer(active: boolean): void {
+    this.crisisActiveForCurrentPlayer = active;
+    this.applySnapshot(CROSSFADE_MS);
+  }
+
+  // Placeholder stingers (war-declared / peace-signed) until bespoke crisis-onset
+  // and crisis-resolved stingers exist. Deliberately do NOT touch atWar/inUnrest —
+  // crisis music state is governed only by setCrisisActiveForCurrentPlayer.
+  handleCrisisStarted(): void {
+    this.currentStingerPromise = this.playStingerWithDuck(STINGER.warDeclared.file);
+  }
+
+  handleCrisisResolved(): void {
+    this.currentStingerPromise = this.playStingerWithDuck(STINGER.peaceSigned.file);
+  }
+
   handleNearDefeat(p: CivNearDefeatPayload): void {
     if (p.civId !== this.currentCivId) return;
     this.nearDefeat = true;
@@ -216,6 +234,7 @@ export class MusicDirector {
     this.inUnrest = p.unrestCityCount > 0;
     this.nearDefeat = p.nearDefeat;
     this.beastTerritory = p.inBeastTerritory;
+    this.crisisActiveForCurrentPlayer = false; // main.ts recomputes and re-sets per the new currentPlayer
     this.applySnapshot(CROSSFADE_MS);
   }
 
