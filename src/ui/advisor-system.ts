@@ -200,6 +200,15 @@ const ADVISOR_MESSAGES: AdvisorMessage[] = [
   },
 
   {
+    id: 'chancellor_crisis_active',
+    advisor: 'chancellor',
+    icon: '🎩',
+    message: 'One of our cities has an active crisis. Open its city panel for a Quarantine or Remedy response.',
+    trigger: (state) => Object.values(state.activeCrises ?? {}).some(
+      c => c.targetCivId === state.currentPlayer,
+    ),
+  },
+  {
     id: 'chancellor_vassalage_available',
     advisor: 'chancellor',
     icon: '🎩',

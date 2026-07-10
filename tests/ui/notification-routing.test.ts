@@ -18,6 +18,9 @@ import {
   routeWarDeclared,
   queueStrategicWarningPendingEvent,
   routeStrategicWarning,
+  routeCrisisStarted,
+  routeCrisisSpread,
+  routeCrisisResolved,
   type NotificationSink,
 } from '@/ui/notification-routing';
 
@@ -575,5 +578,50 @@ describe('bus listener routing contract', () => {
     expect(() =>
       routeFactionTransition(state, { type: 'faction:unrest-started', cityId: 'c1', owner: 'p1' }, sink)
     ).not.toThrow();
+  });
+});
+
+describe('crisis notification routing', () => {
+  it('routes crisis:started only to the target civ with the era display name and advisor line', () => {
+    const state = makeState({
+      era: 2,
+      cities: { c1: { id: 'c1', name: 'Thebes', owner: 'p1', population: 5, position: { q: 0, r: 0 } } } as any,
+    });
+    const { sink, calls } = makeSink();
+    routeCrisisStarted(state, { crisisId: 'crisis-1', flavorId: 'plague', civId: 'p1', cityIds: ['c1'] }, sink);
+    expect(calls).toHaveLength(1);
+    expect(calls[0]!.civId).toBe('p1');
+    expect(calls[0]!.message).toContain('The Sweating Sickness');
+    expect(calls[0]!.message).toContain('Thebes');
+    expect(calls[0]!.message).toContain('Quarantine the city');
+  });
+
+  it('routes crisis:spread only to the target civ', () => {
+    const state = makeState({
+      cities: {
+        c1: { id: 'c1', name: 'Thebes', owner: 'p1', population: 5, position: { q: 0, r: 0 } },
+        c2: { id: 'c2', name: 'Memphis', owner: 'p1', population: 3, position: { q: 5, r: 0 } },
+      } as any,
+      activeCrises: {
+        'crisis-1': {
+          id: 'crisis-1', flavorId: 'plague', archetype: 'outbreak', targetCivId: 'p1',
+          cityIds: ['c1', 'c2'], tileKeys: [], startedTurn: 1, stage: 'active', turnsInStage: 1,
+        },
+      },
+    } as any);
+    const { sink, calls } = makeSink();
+    routeCrisisSpread(state, { crisisId: 'crisis-1', fromCityId: 'c1', toCityId: 'c2' }, sink);
+    expect(calls).toHaveLength(1);
+    expect(calls[0]!.civId).toBe('p1');
+    expect(calls[0]!.message).toContain('Memphis');
+  });
+
+  it('routes crisis:resolved with an outcome-appropriate message', () => {
+    const state = makeState();
+    const { sink, calls } = makeSink();
+    routeCrisisResolved(state, { crisisId: 'crisis-1', civId: 'p1', outcome: 'contained' }, sink);
+    expect(calls).toHaveLength(1);
+    expect(calls[0]!.civId).toBe('p1');
+    expect(calls[0]!.type).toBe('success');
   });
 });

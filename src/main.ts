@@ -216,6 +216,9 @@ import {
   routeWarDeclared,
   queueStrategicWarningPendingEvent,
   routeStrategicWarning,
+  routeCrisisStarted,
+  routeCrisisSpread,
+  routeCrisisResolved,
   type NotificationSink,
 } from '@/ui/notification-routing';
 import { registerConquestoriaServiceWorker } from '@/platform/service-worker';
@@ -230,6 +233,7 @@ import { showLegacyOpponentChallengePrompt } from '@/ui/legacy-opponent-challeng
 import { updateAndRefreshVisibility, reconstructLastSeenFromMap } from '@/systems/last-seen-presentation';
 import { calculateCivEconomy, formatGoldHudText, rushBuyActiveProduction } from '@/systems/economy-system';
 import { appeaseFaction } from '@/systems/faction-system';
+import { applyQuarantine, applyRemedy } from '@/systems/crisis-system';
 import { createTreasuryDrawer, type TreasuryDrawer } from '@/ui/treasury-drawer';
 import { getCivHappinessFromResources, getCivAvailableResources, canEstablishOutpost, performEstablishOutpost, canBuyResourceAccess, performBuyResourceAccess } from '@/systems/resource-acquisition-system';
 import { fireResourceDiscoveredTip } from '@/ui/advisor-system';
@@ -1202,6 +1206,30 @@ function openCityPanelForCity(city: import('@/core/types').City): void {
       const targetCity = gameState.cities[cityId];
       if (!targetCity) return gameState;
       const result = appeaseFaction(gameState, cityId, gameState.currentPlayer);
+      if (!result.success) {
+        showNotification(result.message, 'warning');
+        return gameState;
+      }
+      gameState = result.state;
+      renderLoop.setGameState(gameState);
+      updateHUD();
+      showNotification(result.message, 'success');
+      return gameState;
+    },
+    onQuarantineCrisis: (crisisId, cityId) => {
+      const result = applyQuarantine(gameState, crisisId, cityId);
+      if (!result.success) {
+        showNotification(result.message, 'warning');
+        return gameState;
+      }
+      gameState = result.state;
+      renderLoop.setGameState(gameState);
+      updateHUD();
+      showNotification(result.message, 'success');
+      return gameState;
+    },
+    onRemedyCrisis: (crisisId, cityId) => {
+      const result = applyRemedy(gameState, crisisId, cityId);
       if (!result.success) {
         showNotification(result.message, 'warning');
         return gameState;
@@ -3940,6 +3968,18 @@ bus.on('faction:breakaway-established', event => {
 
 bus.on('faction:critical-status', event => {
   routeFactionTransition(gameState, { type: 'faction:critical-status', ...event }, appendFactionNotice);
+});
+
+bus.on('crisis:started', event => {
+  routeCrisisStarted(gameState, event, appendToCivLog);
+});
+
+bus.on('crisis:spread', event => {
+  routeCrisisSpread(gameState, event, appendToCivLog);
+});
+
+bus.on('crisis:resolved', event => {
+  routeCrisisResolved(gameState, event, appendToCivLog);
 });
 
 bus.on('economy:treasury-strain', event => {
