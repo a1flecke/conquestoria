@@ -370,6 +370,21 @@ describe('save persistence (#38)', () => {
     expect(Object.keys(loaded.units)).toHaveLength(unitCountBefore);
   });
 
+  it('drops valid-looking pending minor-civ economy spawns for unsafe unit types', () => {
+    const state = createNewGame(undefined, 'minor-economy-unsafe-pending', 'small');
+    const minorCiv = Object.values(state.minorCivs)[0];
+    (minorCiv as any).economy = {
+      policy: 'balanced',
+      posture: 'settled',
+      lastProcessedTurn: state.turn,
+      pendingUnitSpawn: { unitType: 'settler', completedTurn: state.turn, attempts: 1 },
+    };
+
+    const loaded = normalizeLoadedStateForTest(state);
+
+    expect(loaded.minorCivs[minorCiv.id].economy?.pendingUnitSpawn).toBeUndefined();
+  });
+
   it('removes malformed chain metadata without changing treasury or relationship', () => {
     const state = createNewGame(undefined, 'invalid-minor-chain-save', 'small');
     const minorCiv = Object.values(state.minorCivs)[0];

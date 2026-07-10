@@ -66,8 +66,6 @@ const MINOR_CIV_POSTURES = new Set<MinorCivPosture>([
   'recovering',
 ]);
 
-const SAFE_UNIT_TYPES = new Set<UnitType>(TRAINABLE_UNITS.map(unit => unit.type));
-
 const UNSAFE_UNIT_TYPES = new Set<UnitType>([
   'settler',
   'worker',
@@ -81,6 +79,12 @@ const UNSAFE_UNIT_TYPES = new Set<UnitType>([
   'transport',
   'troop_transport',
 ]);
+
+const SAFE_MINOR_CIV_UNIT_TYPES = new Set<UnitType>(
+  TRAINABLE_UNITS
+    .map(unit => unit.type)
+    .filter(unitType => !UNSAFE_UNIT_TYPES.has(unitType)),
+);
 
 const UNSAFE_BUILDING_IDS = new Set<string>();
 
@@ -123,7 +127,7 @@ function normalizePendingSpawn(
     return undefined;
   }
 
-  if (!SAFE_UNIT_TYPES.has(value.unitType as UnitType)) {
+  if (!SAFE_MINOR_CIV_UNIT_TYPES.has(value.unitType as UnitType)) {
     return undefined;
   }
 
@@ -413,7 +417,7 @@ export function chooseMinorCivQueueItem(state: GameState, minorCivId: string): s
   }
 
   const definition = getMinorCivDefinition(minorCivId, state);
-  const posture = minorCiv.economy?.posture ?? evaluateMinorCivEconomyPosture(state, minorCivId);
+  const posture = evaluateMinorCivEconomyPosture(state, minorCivId);
   const budget = getMinorCivMobilizationBudget(state, minorCivId);
   const effectivePosture = budget.wantsDefender ? 'mobilizing' : posture;
   const cap = getMinorCivUnitCap(state, minorCivId, effectivePosture);
