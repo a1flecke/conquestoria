@@ -53,7 +53,7 @@
   listen for their kill events to resolve. No combat reimplementation; spawn
   occupancy rules apply as-is. Launch uses existing sprites.
 - **Variety is enforced:** seeded-RNG flavor selection is weighted against each
-  player's `recentCrisisHistory` ring (last ~4 flavor ids), so archetypes and
+  player's `recentCrisisHistory` ring (last 4 flavor ids), so archetypes and
   flavors rotate.
 - **Era-flavored naming:** each flavor carries `displayNamesByEra` (era 2 plague =
   "The Sweating Sickness", era 6 = "Cholera Outbreak") so the same row reads as
@@ -73,7 +73,7 @@ Per-player knobs (new fields on `OpponentChallengeProfile` in
 | Knob | Explorer | Standard | Veteran |
 |---|---|---|---|
 | Max simultaneous crises (incl. uprisings) | 1 | 2 | 3 |
-| Min turns between crisis onsets | ~12 | ~8 | ~5 |
+| Min turns between crisis onsets | 12 | 8 | 5 |
 | Grace period (no crises; era AND turn floor must both pass) | eras 1–2, min 30 turns | era 1, min 20 turns | era 1, min 10 turns |
 | Severity multiplier | 0.5× (auto-recovers) | 1.0× | 1.3× (some unpreventable loss era 3+) |
 
@@ -104,7 +104,7 @@ Per-player knobs (new fields on `OpponentChallengeProfile` in
     after 2 turns.
   - **Passive resistance** from era-appropriate buildings (aqueduct-type vs
     plague, granary-type vs blight) — rewards infrastructure planning.
-- Explorer: outbreaks burn out on their own after ~5 turns even if ignored.
+- Explorer: outbreaks burn out on their own after 5 turns even if ignored.
   Veteran: ignored outbreaks spread until contained.
 
 ### Catastrophe — "Recover from it"
@@ -112,7 +112,7 @@ Per-player knobs (new fields on `OpponentChallengeProfile` in
   improvements in the area are **damaged** (worker-repairable in 1 turn, like the
   pillage-repair loop). Veteran era 3+: the epicenter tile's improvement is
   destroyed outright.
-- Recovery window (~5 turns): repairing every improvement and issuing rebuild
+- Recovery window (5 turns): repairing every improvement and issuing rebuild
   orders before it closes earns a small temporary resilience bonus (+happiness or
   +production for a few turns) — cleanup is a rewarded task, not just a loss.
 - Strict geography: eruptions require a `volcanic` tile nearby; floods require
@@ -123,7 +123,8 @@ Per-player knobs (new fields on `OpponentChallengeProfile` in
 - A named foe spawns at a legal hex near (never inside) the player's borders,
   via existing spawn machinery + occupancy rules.
 - It menaces — pillages improvements, blockades a coastal city — but does not
-  attack cities directly on explorer/standard.
+  attack cities directly on explorer/standard. On veteran it may assault the
+  nearest city if left alive for 5+ turns.
 - Kill payout: existing combat-reward path plus a crisis bounty (gold +
   temporary empire-wide happiness: "the beast-slayer's feast").
 - Flavor table varies the foe by era and terrain (era 1 dire wolves; era 5
@@ -150,7 +151,7 @@ project rules; it's also what makes a 7-year-old feel challenged, not confused.
 ```ts
 // Civilization (humans only)
 challenge?: OpponentChallenge;
-recentCrisisHistory?: string[];        // last ~4 flavor ids
+recentCrisisHistory?: string[];        // last 4 flavor ids
 
 // GameState
 activeCrises?: Record<string, ActiveCrisis>;
