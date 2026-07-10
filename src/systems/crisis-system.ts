@@ -211,16 +211,27 @@ function applyCatastropheShock(
   state: GameState,
   crisis: ActiveCrisis,
   bus: EventBus,
-): { crisis: ActiveCrisis; state: GameState } {
+): { crisis: ActiveCrisis | null; state: GameState } {
   const flavor = getCrisisFlavor(crisis.flavorId);
   const params = flavor?.catastrophe;
   const targetCity = state.cities[crisis.cityIds[0]];
-  if (!flavor || !params || !targetCity) return { crisis, state };
+  if (!flavor || !params || !targetCity) {
+    bus.emit('crisis:resolved', { crisisId: crisis.id, flavorId: crisis.flavorId, civId: crisis.targetCivId, outcome: 'abandoned' });
+    return { crisis: null, state };
+  }
 
   const owner = crisis.targetCivId;
   const epicenterCandidates = hexesInRange(targetCity.position, params.blastRadius)
     .filter(coord => state.map.tiles[hexKey(coord)]?.owner === owner);
-  if (epicenterCandidates.length === 0) return { crisis: { ...crisis, stage: 'recovery' }, state };
+  if (epicenterCandidates.length === 0) {
+    // No owned tile to strike (shouldn't happen — the target city's own tile is always
+    // owned by its civ — but never silently transition to 'recovery' with empty
+    // tileKeys: the next tick's "every tile cleared" check is vacuously true on an
+    // empty array and would wrongly resolve 'recovered' with a bonus for a crisis
+    // that never actually devastated anything.
+    bus.emit('crisis:resolved', { crisisId: crisis.id, flavorId: crisis.flavorId, civId: crisis.targetCivId, outcome: 'abandoned' });
+    return { crisis: null, state };
+  }
 
   const rng = seededLcg(state.turn * 65599 + hashString(crisis.id));
   const epicenter = epicenterCandidates[Math.floor(rng() * epicenterCandidates.length)];
@@ -264,8 +275,9 @@ function tickCatastropheCrisis(
 
   if (working.stage === 'active') {
     const shocked = applyCatastropheShock(nextState, working, bus);
-    working = shocked.crisis;
     nextState = shocked.state;
+    if (!shocked.crisis) return { crisis: null, state: nextState };
+    working = shocked.crisis;
     return { crisis: working, state: nextState };
   }
 
