@@ -17,6 +17,7 @@ import {
 import { BEAST_DEFINITIONS } from './beast-definitions';
 import { hexKey, hexNeighbors, hexDistance, wrappedHexDistance } from './hex-utils';
 import { createUnit } from './unit-system';
+import { seededLcg } from './seeded-lcg';
 
 export const PIRATE_OWNER = 'pirate';
 
@@ -372,15 +373,6 @@ export function computeThreatScore(state: GameState, civId: string, landmassId: 
   return state.era * (1.0 + share + idleFactor);
 }
 
-// ── Seeded LCG — no Math.random() per project rules ─────────────────────────
-function lcg(seed: number): () => number {
-  let s = seed | 0;
-  return () => {
-    s = Math.imul(1664525, s) + 1013904223;
-    return (s >>> 0) / 0xffffffff;
-  };
-}
-
 // ── Bandit lord name pool ────────────────────────────────────────────────────
 const BANDIT_LORD_NAMES: Record<string, string[]> = {
   generic: ['The Iron Fist', 'Greymantle', 'The Scarred One', 'Black Hand', 'The Reaver'],
@@ -402,7 +394,7 @@ const BANDIT_LORD_NAMES: Record<string, string[]> = {
 
 function pickBanditName(civType: string, seed: number): string {
   const pool = BANDIT_LORD_NAMES[civType] ?? BANDIT_LORD_NAMES['generic'];
-  const rng = lcg(seed);
+  const rng = seededLcg(seed);
   return pool[Math.floor(rng() * pool.length)];
 }
 
@@ -449,7 +441,7 @@ export function processLandResurgence(
   const allCamps = Object.values(state.barbarianCamps);
   const cityPositions = Object.values(state.cities).map(c => c.position);
   const spawnSeed = state.turn * 99991 + landmassId.charCodeAt(0) * 7 + civId.charCodeAt(0) * 3;
-  const rng = lcg(spawnSeed);
+  const rng = seededLcg(spawnSeed);
 
   const candidates = landmassTiles.filter(tile => {
     if (NON_VIABLE_TERRAIN.has(tile.terrain)) return false;
@@ -568,7 +560,7 @@ export function processPirateSpawn(
   // Find spawn tile: ocean tile adjacent to landmass coastline, ≥ 5 tiles from any city
   const cityPositions = Object.values(state.cities).map(c => c.position);
   const spawnSeed = state.turn * 73937 + civId.charCodeAt(0) * 13 + landmassId.charCodeAt(0) * 5;
-  const rng = lcg(spawnSeed);
+  const rng = seededLcg(spawnSeed);
 
   const spawnCandidates = Object.values(state.map.tiles).filter(tile => {
     if (tile.terrain !== 'ocean') return false;
