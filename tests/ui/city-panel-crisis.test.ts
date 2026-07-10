@@ -165,6 +165,7 @@ describe('city-panel catastrophe chip (MR2)', () => {
     });
 
     expect(panel.textContent).toContain('Recovering — restore devastated tiles');
+    expect(panel.textContent).toContain('−20% city yields'); // standard challenge yieldPenalty 0.20
     expect(panel.querySelector('[data-quarantine-crisis]')).toBeNull();
     expect(panel.querySelector('[data-remedy-crisis]')).toBeNull();
   });
@@ -181,5 +182,39 @@ describe('city-panel catastrophe chip (MR2)', () => {
     expect(panel.textContent).toContain('The Ground Trembles'); // era-2 display name
     expect(panel.textContent).toContain('Send workers to restore the land');
     expect(panel.textContent).not.toContain('Recovering');
+  });
+
+  it('shows the post-catastrophe rebuilding yield bonus even after the crisis itself has been removed from state', () => {
+    // The resilience reward is transient and outlives the ActiveCrisis record (crisis
+    // resolves to 'recovered' and is deleted from activeCrises; resilienceBonusUntilTurn
+    // on the city is what actually carries the bonus forward) — no crisis chip renders
+    // here, so this must be an independent, non-crisis-gated section.
+    const { container, city, state } = makeWonderPanelFixture();
+    const withBonus = { ...city, resilienceBonusUntilTurn: state.turn + 3 };
+    const stateWithCity = { ...state, cities: { ...state.cities, [city.id]: withBonus } };
+
+    const panel = createCityPanel(container, withBonus, stateWithCity, {
+      onBuild: () => {},
+      onOpenWonderPanel: () => {},
+      onClose: () => {},
+    });
+
+    expect(panel.textContent).toContain('Rebuilding');
+    expect(panel.textContent).toContain('+1 🌾 +1 ⚒️ for 3 more turns');
+    expect(panel.querySelector('[data-quarantine-crisis]')).toBeNull();
+  });
+
+  it('does not show the rebuilding bonus once resilienceBonusUntilTurn has passed', () => {
+    const { container, city, state } = makeWonderPanelFixture();
+    const expired = { ...city, resilienceBonusUntilTurn: state.turn - 1 };
+    const stateWithCity = { ...state, cities: { ...state.cities, [city.id]: expired } };
+
+    const panel = createCityPanel(container, expired, stateWithCity, {
+      onBuild: () => {},
+      onOpenWonderPanel: () => {},
+      onClose: () => {},
+    });
+
+    expect(panel.textContent).not.toContain('Rebuilding');
   });
 });

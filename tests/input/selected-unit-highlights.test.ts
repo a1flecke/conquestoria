@@ -248,6 +248,34 @@ describe('selected-unit-highlights', () => {
     expect(result.highlights).toContainEqual({ coord: { q: 1, r: -1 }, type: 'worker-foreign-blocked' });
   });
 
+  it('shows worker-buildable (restore_land) on a currently-devastated tile, and stops once devastation naturally expires (MR2 catastrophe)', () => {
+    const state = createNewGame(undefined, 'restore-land-highlight', 'small');
+    state.currentPlayer = 'player';
+    state.turn = 40;
+    state.units = {
+      worker: { ...createUnit('worker', 'player', { q: 0, r: 0 }, mkC()), id: 'worker', movementPointsLeft: 2 },
+    };
+    state.civilizations.player.units = ['worker'];
+    state.civilizations.player.visibility.tiles = { '0,0': 'visible', '1,0': 'visible' };
+    // snow has no valid worker improvement (see the "owned-blocked" test above), so any
+    // worker-buildable highlight here is caused specifically by restore_land eligibility.
+    state.map.tiles['1,0'] = {
+      coord: { q: 1, r: 0 }, terrain: 'snow', elevation: 'lowland', resource: null,
+      owner: 'player', improvement: 'none', improvementTurnsLeft: 0, hasRiver: false, wonder: null,
+      devastatedUntilTurn: 45, // still devastated at turn 40
+    };
+
+    const stillDevastated = buildSelectedUnitHighlights(state, 'worker');
+    expect(stillDevastated.highlights).toContainEqual({ coord: { q: 1, r: 0 }, type: 'worker-buildable' });
+
+    // Devastation has passed (state.turn now equals the old devastatedUntilTurn) — the
+    // stale field lingers on the tile (nothing clears it automatically), so eligibility
+    // must be gated on currentTurn, not just "field is present".
+    state.turn = 45;
+    const expired = buildSelectedUnitHighlights(state, 'worker');
+    expect(expired.highlights).not.toContainEqual({ coord: { q: 1, r: 0 }, type: 'worker-buildable' });
+  });
+
   it('neutral (non-war) AI unit hex does not appear as a move highlight (#250)', () => {
     const state = createNewGame(undefined, 'neutral-stack-highlight', 'small');
     state.currentPlayer = 'player';

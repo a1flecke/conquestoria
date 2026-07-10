@@ -19,7 +19,7 @@ export interface SelectedUnitHighlightResult {
   waterRecovery: LandUnitWaterRecovery;
 }
 
-const WORKER_ACTIONS: WorkerActionType[] = ['farm', 'mine', 'lumber_camp', 'watermill', 'drain_swamp'];
+const WORKER_ACTIONS: WorkerActionType[] = ['farm', 'mine', 'lumber_camp', 'watermill', 'drain_swamp', 'restore_land'];
 
 function isCityTile(state: GameState, coord: HexCoord): boolean {
   const key = hexKey(coord);
@@ -34,7 +34,7 @@ function isPlausibleWorkerActionTile(
   const tile = state.map.tiles[hexKey(coord)];
   if (!tile) return false;
   const knownResource = getKnownTileResourceForWorkerAction(tile, completedTechs);
-  return getAvailableWorkerActions(tile, completedTechs, undefined, { isCityTile: isCityTile(state, coord), knownResource })
+  return getAvailableWorkerActions(tile, completedTechs, undefined, { isCityTile: isCityTile(state, coord), knownResource, currentTurn: state.turn })
     .some(action => WORKER_ACTIONS.includes(action));
 }
 
@@ -61,7 +61,7 @@ function buildWorkerGuidanceHighlights(
     if (visibility && getVisibility(visibility, coord) === 'unexplored') continue;
 
     const knownResource = getKnownTileResourceForWorkerAction(tile, completedTechs);
-    const options = { isCityTile: isCityTile(state, coord), knownResource };
+    const options = { isCityTile: isCityTile(state, coord), knownResource, currentTurn: state.turn };
     const availableActions = getAvailableWorkerActions(tile, completedTechs, unit.owner, options);
     if (availableActions.length > 0) {
       highlights.push({ coord, type: 'worker-buildable' });

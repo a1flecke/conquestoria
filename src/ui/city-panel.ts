@@ -27,7 +27,7 @@ import { canUpgradeUnit, getUpgradeCost } from '@/systems/unit-upgrade-system';
 import { UNIT_DEFINITIONS } from '@/systems/unit-system';
 import { getUnrestYieldMultiplier, getCityAppeaseCost, isCityProductionLocked } from '@/systems/faction-system';
 import { getCrisisFlavor, getCrisisDisplayName } from '@/systems/crisis-flavor-definitions';
-import { getCrisisYieldMultiplier, getOutbreakSeverityMultiplier } from '@/systems/crisis-system';
+import { getCrisisYieldMultiplier, getOutbreakSeverityMultiplier, getCatastropheRecoveryMultiplier } from '@/systems/crisis-system';
 import { resolveChallengeForCiv } from '@/core/opponent-challenge';
 import { getOccupiedCityMood, getOccupiedCityYieldMultiplier } from '@/systems/city-occupation-system';
 import { calculateProjectedCityYields } from '@/systems/city-work-system';
@@ -236,6 +236,15 @@ export function createCityPanel(
       </div>
       <button type="button" data-appease="${city.id}" ${appeaseDisabled ? 'disabled' : ''} title="${appeaseLabel}" style="min-height:44px;padding:7px 12px;border-radius:6px;font-size:12px;font-weight:bold;cursor:${appeaseDisabled ? 'default' : 'pointer'};background:${appeaseDisabled ? 'rgba(255,255,255,0.08)' : '#d4aa2c'};color:${appeaseDisabled ? 'rgba(255,255,255,0.4)' : '#1a1a1a'};border:none;">${appeaseLabel}</button>
     </div>` : '';
+  // Post-catastrophe reward: transient, and the crisis itself may already be gone from
+  // activeCrises by the time this is active — must render on its own, not piggyback on
+  // the catastrophe crisis chip (see .claude/rules/end-to-end-wiring.md "never compute
+  // without rendering").
+  const resilienceTurnsLeft = (city.resilienceBonusUntilTurn ?? 0) - state.turn;
+  const resilienceSectionHtml = resilienceTurnsLeft > 0 ? `
+    <div style="background:rgba(107,155,75,0.12);border:1px solid rgba(107,155,75,0.35);border-radius:8px;padding:10px 12px;margin-bottom:16px;font-size:12px;">
+      <div style="font-weight:bold;color:#9bd97b;">🌱 Rebuilding — +1 🌾 +1 ⚒️ for ${resilienceTurnsLeft} more turn${resilienceTurnsLeft === 1 ? '' : 's'}</div>
+    </div>` : '';
   const cityCrises = Object.values(state.activeCrises ?? {})
     .filter(c => c.archetype === 'outbreak' && c.cityIds.includes(city.id));
   const crisisChips = cityCrises.map(crisis => {
@@ -272,7 +281,10 @@ export function createCityPanel(
     .filter(c => c.archetype === 'catastrophe' && c.cityIds.includes(city.id));
   const catastropheChips = catastropheCrises.map(crisis => {
     const flavor = getCrisisFlavor(crisis.flavorId);
-    return flavor ? { crisis, flavor } : null;
+    if (!flavor) return null;
+    const severity = flavor.severityByChallenge[resolveChallengeForCiv(state, crisis.targetCivId)];
+    const recoveryPenaltyPct = Math.round((1 - getCatastropheRecoveryMultiplier(severity)) * 100);
+    return { crisis, flavor, recoveryPenaltyPct };
   }).filter((c): c is NonNullable<typeof c> => c !== null);
   const catastropheSectionHtml = catastropheChips.map((chip, idx) => `
     <div style="background:rgba(217,80,80,0.12);border:1px solid rgba(217,80,80,0.35);border-radius:8px;padding:10px 12px;margin-bottom:16px;font-size:12px;">
@@ -632,6 +644,7 @@ export function createCityPanel(
     ${unrestSectionHtml}
     ${crisisSectionHtml}
     ${catastropheSectionHtml}
+    ${resilienceSectionHtml}
 
     <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
       <div id="tab-list" style="padding:6px 16px;background:rgba(255,255,255,0.15);border-radius:6px;cursor:pointer;font-size:12px;font-weight:bold;">Queue</div>
@@ -697,7 +710,7 @@ export function createCityPanel(
     // 'active' should be effectively unobservable (the shock applies the same turn the
     // scheduler starts it), but shown honestly rather than assuming it never renders.
     const stageText = chip.crisis.stage === 'recovery'
-      ? 'Recovering — restore devastated tiles'
+      ? `Recovering — restore devastated tiles, −${chip.recoveryPenaltyPct}% city yields`
       : `⚠️ ${displayName} strikes!`;
     setText(`catastrophe-stage-${idx}`, stageText);
     const advisorLine = chip.flavor.advisorLine

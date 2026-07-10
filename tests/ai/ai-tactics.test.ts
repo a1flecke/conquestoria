@@ -665,3 +665,45 @@ describe('AI road-building', () => {
     expect(action.kind === 'worker-action' ? action.action : null).not.toBe('build_road');
   });
 });
+
+describe('AI worker restore_land (MR2 catastrophe)', () => {
+  it('does not propose restore_land once devastation has naturally expired (stale field must be turn-gated)', () => {
+    const state = makeState('veteran');
+    const capital = addCity(state, 'capital', AI, { q: 0, r: 0 });
+    for (const key of Object.keys(state.map.tiles)) {
+      state.map.tiles[key].owner = AI;
+      state.map.tiles[key].terrain = 'snow'; // no valid improvement on snow (see other tests)
+    }
+    state.turn = 45;
+    state.map.tiles[hexKey({ q: 1, r: 0 })].devastatedUntilTurn = 45; // expired at the current turn
+    const worker = addUnit(state, 'restore-worker', 'worker', AI, { q: 1, r: 0 });
+    const plan = makePlan(
+      { kind: 'region', id: 'infra', anchor: capital.position },
+      [worker.id],
+      { objective: 'expand', requiredRoles: {} },
+    );
+
+    const actions = rankUnitTacticalActions(context(state, plan), worker.id);
+    expect(actions.some(a => a.action.kind === 'worker-action' && a.action.action === 'restore_land')).toBe(false);
+  });
+
+  it('does propose restore_land while a tile is still actively devastated', () => {
+    const state = makeState('veteran');
+    const capital = addCity(state, 'capital', AI, { q: 0, r: 0 });
+    for (const key of Object.keys(state.map.tiles)) {
+      state.map.tiles[key].owner = AI;
+      state.map.tiles[key].terrain = 'snow';
+    }
+    state.turn = 40;
+    state.map.tiles[hexKey({ q: 1, r: 0 })].devastatedUntilTurn = 45; // still active at turn 40
+    const worker = addUnit(state, 'restore-worker', 'worker', AI, { q: 1, r: 0 });
+    const plan = makePlan(
+      { kind: 'region', id: 'infra', anchor: capital.position },
+      [worker.id],
+      { objective: 'expand', requiredRoles: {} },
+    );
+
+    const actions = rankUnitTacticalActions(context(state, plan), worker.id);
+    expect(actions.some(a => a.action.kind === 'worker-action' && a.action.action === 'restore_land')).toBe(true);
+  });
+});

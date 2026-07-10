@@ -494,6 +494,7 @@ function rankCivilianAndTransportActions(
         knownResource: tile
           ? getKnownTileResourceForWorkerAction(tile, completedTechs)
           : null,
+        currentTurn: context.state.turn,
       },
     );
     return actions.map((action, index) => ranked({
