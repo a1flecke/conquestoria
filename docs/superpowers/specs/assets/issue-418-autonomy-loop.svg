@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="360" viewBox="0 0 1200 360" role="img" aria-labelledby="title desc">
+  <title id="title">Era 13 autonomy gameplay loop</title>
+  <desc id="desc">Five connected stages: Plan, Link, Commit, Spectacle, and Recover. A voluntary Surge branches from Commit to a stronger payoff followed by known strain.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#88a7c7"/></marker>
+    <filter id="shadow"><feDropShadow dx="0" dy="4" stdDeviation="6" flood-opacity=".28"/></filter>
+  </defs>
+  <rect width="1200" height="360" rx="24" fill="#0b1220"/>
+  <text x="60" y="58" fill="#f5f7fb" font-family="system-ui,sans-serif" font-size="26" font-weight="600">Autonomy should feel like a plan coming alive</text>
+  <text x="60" y="88" fill="#aebed0" font-family="system-ui,sans-serif" font-size="17">Persistent intent keeps the decisions; automation removes the repetitive clicks.</text>
+  <g stroke="#88a7c7" stroke-width="3" fill="none" marker-end="url(#arrow)">
+    <path d="M240 190 H294"/><path d="M456 190 H510"/><path d="M672 190 H726"/><path d="M888 190 H942"/>
+    <path d="M1022 254 C1022 322 162 322 162 254"/>
+  </g>
+  <g font-family="system-ui,sans-serif" text-anchor="middle" filter="url(#shadow)">
+    <g><rect x="78" y="130" width="162" height="124" rx="18" fill="#17304b" stroke="#5db7de" stroke-width="2"/><text x="159" y="175" fill="#78d6ff" font-size="20" font-weight="600">1 · PLAN</text><text x="159" y="207" fill="#f5f7fb" font-size="16">Choose posture</text><text x="159" y="231" fill="#c6d3e0" font-size="15">and intent</text></g>
+    <g><rect x="294" y="130" width="162" height="124" rx="18" fill="#1d3042" stroke="#7bb7df" stroke-width="2"/><text x="375" y="175" fill="#8ed0ff" font-size="20" font-weight="600">2 · LINK</text><text x="375" y="207" fill="#f5f7fb" font-size="16">Select units, city,</text><text x="375" y="231" fill="#c6d3e0" font-size="15">or formation</text></g>
+    <g><rect x="510" y="130" width="162" height="124" rx="18" fill="#29304b" stroke="#a897ff" stroke-width="2"/><text x="591" y="175" fill="#b7aaff" font-size="20" font-weight="600">3 · COMMIT</text><text x="591" y="207" fill="#f5f7fb" font-size="16">Preview Load,</text><text x="591" y="231" fill="#c6d3e0" font-size="15">counter, timing</text></g>
+    <g><rect x="726" y="130" width="162" height="124" rx="18" fill="#3a2d31" stroke="#f1a45b" stroke-width="2"/><text x="807" y="175" fill="#ffc078" font-size="20" font-weight="600">4 · SPECTACLE</text><text x="807" y="207" fill="#f5f7fb" font-size="16">Watch the network</text><text x="807" y="231" fill="#c6d3e0" font-size="15">deliver the payoff</text></g>
+    <g><rect x="942" y="130" width="162" height="124" rx="18" fill="#1d3b38" stroke="#65d0b0" stroke-width="2"/><text x="1023" y="175" fill="#82e6c8" font-size="20" font-weight="600">5 · RECOVER</text><text x="1023" y="207" fill="#f5f7fb" font-size="16">Adapt, counter,</text><text x="1023" y="231" fill="#c6d3e0" font-size="15">or change plan</text></g>
+  </g>
+  <path d="M590 130 V128" stroke="#f1a45b" stroke-width="3"/>
+  <rect x="468" y="98" width="244" height="30" rx="15" fill="#5b321f" stroke="#f1a45b"/>
+  <text x="590" y="119" text-anchor="middle" fill="#ffd19f" font-family="system-ui,sans-serif" font-size="14" font-weight="600">Optional SURGE · power now, known strain later</text>
+</svg>

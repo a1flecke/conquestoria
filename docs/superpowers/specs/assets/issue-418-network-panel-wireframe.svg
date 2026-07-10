@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="650" viewBox="0 0 1200 650" role="img" aria-labelledby="title desc">
+  <title id="title">Mobile-first network interface wireframe</title>
+  <desc id="desc">A phone HUD chip opens a three-tab panel for Plans, Capacity, and Security. The Plans tab explains plain-language state before exact arithmetic.</desc>
+  <rect width="1200" height="650" rx="24" fill="#0b1220"/>
+  <text x="55" y="56" fill="#f5f7fb" font-family="system-ui,sans-serif" font-size="26" font-weight="600">One glance for beginners · full arithmetic for optimizers</text>
+  <g font-family="system-ui,sans-serif">
+    <rect x="70" y="105" width="360" height="500" rx="38" fill="#111c2c" stroke="#536b84" stroke-width="3"/>
+    <rect x="95" y="135" width="310" height="56" rx="16" fill="#1b3944" stroke="#65d0b0"/>
+    <circle cx="128" cy="163" r="11" fill="#65d0b0"/>
+    <text x="152" y="158" fill="#f5f7fb" font-size="16" font-weight="600">Network: Stable · 8/12</text>
+    <text x="152" y="178" fill="#b8d7cf" font-size="13">Room for one more plan</text>
+    <rect x="95" y="215" width="310" height="330" rx="18" fill="#162336"/>
+    <text x="120" y="252" fill="#f5f7fb" font-size="20" font-weight="600">Map and city HUD</text>
+    <path d="M130 395 C190 320 260 455 370 335" fill="none" stroke="#78d6ff" stroke-width="4" stroke-dasharray="9 7"/>
+    <circle cx="130" cy="395" r="18" fill="#244d68"/><circle cx="370" cy="335" r="25" fill="#3d4c61"/>
+    <text x="250" y="500" text-anchor="middle" fill="#9db0c3" font-size="14">Links appear only when relevant</text>
+    <rect x="500" y="105" width="625" height="500" rx="24" fill="#111c2c" stroke="#536b84" stroke-width="3"/>
+    <text x="540" y="153" fill="#f5f7fb" font-size="23" font-weight="600">Autonomy Network</text>
+    <rect x="540" y="178" width="170" height="44" rx="12" fill="#234a62"/><text x="625" y="206" text-anchor="middle" fill="#e7f7ff" font-size="15" font-weight="600">PLANS</text>
+    <rect x="724" y="178" width="170" height="44" rx="12" fill="#18283b"/><text x="809" y="206" text-anchor="middle" fill="#bdcadd" font-size="15">CAPACITY</text>
+    <rect x="908" y="178" width="170" height="44" rx="12" fill="#18283b"/><text x="993" y="206" text-anchor="middle" fill="#bdcadd" font-size="15">SECURITY</text>
+    <rect x="540" y="248" width="538" height="94" rx="16" fill="#17352f" stroke="#65d0b0"/>
+    <text x="570" y="279" fill="#82e6c8" font-size="15" font-weight="600">RALLY · River City</text>
+    <text x="570" y="305" fill="#f5f7fb" font-size="15">Removes one civic-pressure point each round.</text>
+    <text x="570" y="328" fill="#b8d7cf" font-size="13">Load 1 · Active now · Counter: none needed</text>
+    <rect x="540" y="360" width="538" height="94" rx="16" fill="#332a3d" stroke="#a897ff"/>
+    <text x="570" y="391" fill="#c4baff" font-size="15" font-weight="600">SWARM STRIKE · Northern ridge</text>
+    <text x="570" y="417" fill="#f5f7fb" font-size="15">Three linked drones gain +4 on the declared target.</text>
+    <text x="570" y="440" fill="#d0c8df" font-size="13">Load 4 · Ready · Electronic Warfare may suppress</text>
+    <rect x="540" y="485" width="255" height="55" rx="15" fill="#37536d"/><text x="668" y="519" text-anchor="middle" fill="#f5f7fb" font-size="16" font-weight="600">ASSIGN INTENT</text>
+    <rect x="823" y="485" width="255" height="55" rx="15" fill="#50321f" stroke="#f1a45b"/><text x="951" y="509" text-anchor="middle" fill="#ffe4c5" font-size="16" font-weight="600">SURGE SELECTED PLAN</text><text x="951" y="529" text-anchor="middle" fill="#eecaa3" font-size="12">2 rounds strain</text>
+    <text x="540" y="576" fill="#9db0c3" font-size="14">Details ▸ exact sources, consumers, formulas, and timing</text>
+  </g>
+</svg>

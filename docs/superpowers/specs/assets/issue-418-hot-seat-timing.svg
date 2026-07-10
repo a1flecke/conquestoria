@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="440" viewBox="0 0 1200 440" role="img" aria-labelledby="title desc">
+  <title id="title">Hostile network plan timing for hot seat</title>
+  <desc id="desc">Attacker assigns a hostile plan, the game hands off privately, the victim receives a warning and a full response turn, then the plan resolves at the victim turn end if still valid.</desc>
+  <defs><marker id="a" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0 0L0 6L9 3z" fill="#8aa5bf"/></marker></defs>
+  <rect width="1200" height="440" rx="24" fill="#0b1220"/>
+  <text x="60" y="56" fill="#f5f7fb" font-family="system-ui,sans-serif" font-size="26" font-weight="600">A hostile plan always leaves room to respond</text>
+  <g font-family="system-ui,sans-serif">
+    <text x="65" y="150" fill="#78d6ff" font-size="17" font-weight="600">ATTACKER TURN</text>
+    <text x="65" y="260" fill="#b7aaff" font-size="17" font-weight="600">PRIVATE HANDOFF</text>
+    <text x="65" y="370" fill="#82e6c8" font-size="17" font-weight="600">VICTIM TURN</text>
+  </g>
+  <g stroke="#506b84" stroke-width="2"><line x1="220" y1="144" x2="1120" y2="144"/><line x1="220" y1="254" x2="1120" y2="254"/><line x1="220" y1="364" x2="1120" y2="364"/></g>
+  <g font-family="system-ui,sans-serif" text-anchor="middle">
+    <g><circle cx="320" cy="144" r="16" fill="#173f59"/><rect x="250" y="78" width="140" height="45" rx="12" fill="#17304b"/><text x="320" y="106" fill="#e5f5ff" font-size="15">Assign intent</text></g>
+    <g><circle cx="520" cy="254" r="16" fill="#392e58"/><rect x="438" y="278" width="164" height="45" rx="12" fill="#292442"/><text x="520" y="306" fill="#eee9ff" font-size="15">Panels and links clear</text></g>
+    <g><circle cx="720" cy="364" r="16" fill="#205147"/><rect x="626" y="278" width="188" height="45" rx="12" fill="#173a35"/><text x="720" y="306" fill="#e5fff7" font-size="15">Effect + counter shown</text></g>
+    <g><circle cx="910" cy="364" r="16" fill="#356558"/><rect x="832" y="278" width="156" height="45" rx="12" fill="#1c443c"/><text x="910" y="306" fill="#e5fff7" font-size="15">Full response turn</text></g>
+    <g><circle cx="1080" cy="364" r="16" fill="#9a6535"/><rect x="1002" y="278" width="156" height="45" rx="12" fill="#513522"/><text x="1080" y="306" fill="#fff0dc" font-size="15">Resolve if valid</text></g>
+  </g>
+  <g stroke="#8aa5bf" stroke-width="3" fill="none" marker-end="url(#a)"><path d="M336 144 C420 144 420 254 502 254"/><path d="M536 254 C610 254 610 364 702 364"/><path d="M736 364 H892"/><path d="M926 364 H1062"/></g>
+  <rect x="250" y="182" width="200" height="42" rx="21" fill="#442c28" stroke="#d58d70"/>
+  <text x="350" y="208" text-anchor="middle" fill="#ffd8c9" font-family="system-ui,sans-serif" font-size="14">Source identity stays intel-gated</text>
+</svg>
