@@ -29,6 +29,7 @@ import { getPirateStageDefinition, PIRATE_NOTORIETY, PIRATE_PRESSURE } from '@/s
 import { UNIT_DEFINITIONS } from '@/systems/unit-system';
 import { isOpponentChallenge } from '@/core/opponent-challenge';
 import { createEmptyOpponentAIState, normalizeOpponentAIState } from '@/core/opponent-ai-state';
+import { getCrisisFlavor } from '@/systems/crisis-flavor-definitions';
 
 const SAVE_PREFIX = 'save:';
 const META_PREFIX = 'meta:';
@@ -787,6 +788,17 @@ export function normalizeLoadedState(state: GameState): NormalizedGameState {
   }
   if (!isOpponentChallenge(normalizedCityState.pendingOpponentChallenge)) {
     delete normalizedCityState.pendingOpponentChallenge;
+  }
+  if (normalizedCityState.activeCrises) {
+    const sanitizedCrises: typeof normalizedCityState.activeCrises = {};
+    for (const [id, crisis] of Object.entries(normalizedCityState.activeCrises)) {
+      if (getCrisisFlavor(crisis.flavorId)) {
+        sanitizedCrises[id] = crisis;
+      } else {
+        console.warn('[save] dropping crisis with unknown flavor', crisis.flavorId);
+      }
+    }
+    normalizedCityState.activeCrises = sanitizedCrises;
   }
   if (!normalizedCityState.map?.tiles) {
     normalizedCityState.pendingDiplomacyRequests ??= [];

@@ -45,6 +45,7 @@ export function finalizePlayerCityAssaultChoice(
   pending: PendingCityCaptureChoice,
   disposition: MajorCityCaptureDisposition,
   turn: number,
+  bus?: EventBus,
 ): MajorCityCaptureResult {
-  return resolveMajorCityCapture(state, pending.cityId, state.currentPlayer, disposition, turn);
+  return resolveMajorCityCapture(state, pending.cityId, state.currentPlayer, disposition, turn, bus);
 }
