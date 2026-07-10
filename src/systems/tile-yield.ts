@@ -31,6 +31,8 @@ function addYield(total: ResourceYield, bonus: Partial<ResourceYield>): void {
 
 export interface TileYieldOptions {
   completedTechs?: string[];
+  /** When provided, a tile with `devastatedUntilTurn > currentTurn` (catastrophe crisis) yields zero. */
+  currentTurn?: number;
 }
 
 /**
@@ -46,6 +48,10 @@ export function getTileYield(
   opts: TileYieldOptions = {},
 ): ResourceYield {
   const total: ResourceYield = { food: 0, production: 0, gold: 0, science: 0 };
+  if (tile.devastatedUntilTurn !== undefined && opts.currentTurn !== undefined
+      && tile.devastatedUntilTurn > opts.currentTurn) {
+    return total; // catastrophe crisis: devastated tile yields zero from everything
+  }
   const completedTechs = opts.completedTechs ?? [];
 
   addYield(total, TERRAIN_YIELDS[tile.terrain] ?? total);

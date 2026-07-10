@@ -64,7 +64,7 @@ export type WorkerActionResult =
     };
 
 function isBuildableImprovement(action: WorkerActionType): action is BuildableImprovementType {
-  return action !== 'drain_swamp' && action !== 'build_road';
+  return action !== 'drain_swamp' && action !== 'build_road' && action !== 'restore_land';
 }
 
 export function getWorkerChargesRemaining(unit: Unit): number {
@@ -186,6 +186,7 @@ export function applyWorkerAction(
     isCityTile,
     allowReplacement: options.allowReplacement,
     knownResource: getKnownTileResourceForWorkerAction(tile, completedTechs),
+    currentTurn: state.turn,
   };
   const blockerReason = getWorkerActionBlockerReason(tile, action, completedTechs, unit.owner, eligibilityOptions);
   if (blockerReason !== 'none') {
@@ -202,6 +203,7 @@ export function applyWorkerAction(
   let nextTerrain: TerrainType = tile.terrain;
   let nextImprovement = tile.improvement;
   let nextImprovementTurnsLeft = tile.improvementTurnsLeft;
+  let nextDevastatedUntilTurn = tile.devastatedUntilTurn;
   let workerLost = false;
   let forestProductionBonus = 0;
   let boostedCityId: string | null = null;
@@ -222,6 +224,10 @@ export function applyWorkerAction(
         boostedCityId = boostedCity.id;
       }
     }
+  } else if (action === 'restore_land') {
+    // 1-turn task: clears the catastrophe devastation immediately. Unlike drain_swamp,
+    // this never touches terrain/improvement and carries no worker-loss risk.
+    nextDevastatedUntilTurn = undefined;
   } else {
     nextTerrain = 'grassland';
     nextImprovement = 'none';
@@ -236,6 +242,7 @@ export function applyWorkerAction(
     improvement: nextImprovement,
     improvementTurnsLeft: nextImprovementTurnsLeft,
     improvementOwner: isBuildableImprovement(action) ? unit.owner : undefined,
+    devastatedUntilTurn: nextDevastatedUntilTurn,
   };
 
   const nextCities = { ...state.cities };

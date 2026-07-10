@@ -356,6 +356,36 @@ describe('worker action system', () => {
     expect(result.workerLost).toBe(true);
   });
 
+  it('restore_land clears devastation instantly without touching terrain/improvement, no worker-loss risk', () => {
+    const start = state();
+    start.map.tiles['0,0'] = tile({ terrain: 'hills', improvement: 'mine', devastatedUntilTurn: 50 });
+
+    const result = applyWorkerAction(start, 'worker-1', 'restore_land');
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.map.tiles['0,0']).toMatchObject({ terrain: 'hills', improvement: 'mine', devastatedUntilTurn: undefined });
+    expect(result.state.units['worker-1']?.chargesRemaining).toBe(1);
+    expect(result.workerLost).toBe(false);
+  });
+
+  it('rejects restore_land on a non-devastated tile', () => {
+    const start = state();
+    start.map.tiles['0,0'] = tile({ terrain: 'hills' });
+
+    const result = applyWorkerAction(start, 'worker-1', 'restore_land');
+
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.reason).toBe('invalid-action');
+  });
+
+  it('getAvailableWorkerActions surfaces restore_land only on a devastated tile', () => {
+    const devastated = tile({ terrain: 'hills', devastatedUntilTurn: 50 });
+    expect(getAvailableWorkerActions(devastated, [], 'player', { currentTurn: 40 })).toContain('restore_land');
+    expect(getAvailableWorkerActions(tile({ terrain: 'hills' }), [], 'player', { currentTurn: 40 })).not.toContain('restore_land');
+  });
+
   it('removes a worker after spending its final charge', () => {
     const start = state();
     start.units['worker-1'] = worker({ chargesRemaining: 1 });

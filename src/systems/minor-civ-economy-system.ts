@@ -614,7 +614,7 @@ export function processMinorCivEconomyTurn(
   const completedTechs = getMinorCivCompletedTechBand(nextState, minorCivId);
   const availableResources = getMinorCivAvailableResources(nextState, minorCivId);
   const cityForYields = nextState.cities[city.id];
-  const yields = calculateCityYields(cityForYields, nextState.map, undefined, completedTechs, {});
+  const yields = calculateCityYields(cityForYields, nextState.map, undefined, completedTechs, {}, nextState.turn);
   const productionYield = Math.max(0, Math.floor(yields.production * tuning.productionMultiplier));
   const processed = processCity(
     cityForYields,
