@@ -211,6 +211,10 @@ export class AudioSystem {
     this.currentCivType = this.civTypeById[this.currentPlayerId] ?? this.currentPlayerId;
   }
 
+  private hasActiveCrisisFor(civId: string, state: GameState): boolean {
+    return Object.values(state.activeCrises ?? {}).some(c => c.targetCivId === civId);
+  }
+
   private applySettings(state: GameState): void {
     const settings = state.settings;
     this.mixer.setMusicEnabled(settings.musicEnabled);
@@ -256,6 +260,7 @@ export class AudioSystem {
       nearDefeat: civ?.nearDefeat ?? false,
       inBeastTerritory: false,
     });
+    this.director.setCrisisActiveForCurrentPlayer(this.hasActiveCrisisFor(this.currentPlayerId, state));
     void this.preloadForEra(state.era, this.currentCivType);
   }
 
@@ -331,6 +336,9 @@ export class AudioSystem {
           nearDefeat: p.nearDefeat,
           inBeastTerritory: p.inBeastTerritory,
         });
+        this.director.setCrisisActiveForCurrentPlayer(
+          currentState ? this.hasActiveCrisisFor(this.currentPlayerId, currentState) : false,
+        );
         // Hidden round processing may have advanced the era. Rewire all loop buses
         // from the authoritative handoff snapshot without replaying the era stinger.
         void this.preloadForEra(era, this.currentCivType);
@@ -338,6 +346,23 @@ export class AudioSystem {
         this.voiceDirector.stop();
         this.voiceDirector.setVoicePack(this.currentCivType);
         void this.preloadVoicePack(this.currentCivType);
+      }),
+
+      bus.on('crisis:started', p => {
+        if (p.civId !== this.currentPlayerId) return;
+        this.director.setCrisisActiveForCurrentPlayer(true);
+        this.director.handleCrisisStarted();
+      }),
+
+      bus.on('crisis:resolved', p => {
+        if (p.civId !== this.currentPlayerId) return;
+        const currentState = this.stateProvider?.();
+        this.director.setCrisisActiveForCurrentPlayer(
+          currentState ? this.hasActiveCrisisFor(this.currentPlayerId, currentState) : false,
+        );
+        if (p.outcome === 'contained' || p.outcome === 'recovered') {
+          this.director.handleCrisisResolved();
+        }
       }),
 
       bus.on('game:over', p => {
