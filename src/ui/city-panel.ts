@@ -266,6 +266,19 @@ export function createCityPanel(
       quarantineDisabled, quarantineLabel, remedyDisabled, remedyLabel,
     };
   }).filter((c): c is NonNullable<typeof c> => c !== null);
+  // Catastrophes respond via worker restore_land, not city-panel buttons — the chip is
+  // status-only. Distinct data-text namespace so it never collides with outbreak chips.
+  const catastropheCrises = Object.values(state.activeCrises ?? {})
+    .filter(c => c.archetype === 'catastrophe' && c.cityIds.includes(city.id));
+  const catastropheChips = catastropheCrises.map(crisis => {
+    const flavor = getCrisisFlavor(crisis.flavorId);
+    return flavor ? { crisis, flavor } : null;
+  }).filter((c): c is NonNullable<typeof c> => c !== null);
+  const catastropheSectionHtml = catastropheChips.map((chip, idx) => `
+    <div style="background:rgba(217,80,80,0.12);border:1px solid rgba(217,80,80,0.35);border-radius:8px;padding:10px 12px;margin-bottom:16px;font-size:12px;">
+      <div style="font-weight:bold;color:#e88;margin-bottom:4px;" data-text="catastrophe-stage-${idx}"></div>
+      <div style="opacity:0.85;" data-text="catastrophe-advisor-${idx}"></div>
+    </div>`).join('');
   const crisisSectionHtml = crisisChips.map((chip, idx) => `
     <div style="background:rgba(217,80,80,0.12);border:1px solid rgba(217,80,80,0.35);border-radius:8px;padding:10px 12px;margin-bottom:16px;font-size:12px;">
       <div style="font-weight:bold;color:#e88;margin-bottom:4px;" data-text="crisis-stage-${idx}"></div>
@@ -618,6 +631,7 @@ export function createCityPanel(
     </div>
     ${unrestSectionHtml}
     ${crisisSectionHtml}
+    ${catastropheSectionHtml}
 
     <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
       <div id="tab-list" style="padding:6px 16px;background:rgba(255,255,255,0.15);border-radius:6px;cursor:pointer;font-size:12px;font-weight:bold;">Queue</div>
@@ -676,6 +690,20 @@ export function createCityPanel(
       .replace('{name}', displayName)
       .replace('{city}', city.name);
     setText(`crisis-advisor-${idx}`, advisorLine);
+  });
+
+  catastropheChips.forEach((chip, idx) => {
+    const displayName = getCrisisDisplayName(chip.flavor, state.era);
+    // 'active' should be effectively unobservable (the shock applies the same turn the
+    // scheduler starts it), but shown honestly rather than assuming it never renders.
+    const stageText = chip.crisis.stage === 'recovery'
+      ? 'Recovering — restore devastated tiles'
+      : `⚠️ ${displayName} strikes!`;
+    setText(`catastrophe-stage-${idx}`, stageText);
+    const advisorLine = chip.flavor.advisorLine
+      .replace('{name}', displayName)
+      .replace('{city}', city.name);
+    setText(`catastrophe-advisor-${idx}`, advisorLine);
   });
 
   // Tech-yield breakdown rows via textContent (XSS-safe)

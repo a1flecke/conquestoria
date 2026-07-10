@@ -442,6 +442,7 @@ export class RenderLoop {
       viewerVisibility,
       viewerTechs,
       terrainLabelSuppressedCoords,
+      this.state.turn,
     );
 
     // Draw rivers

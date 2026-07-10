@@ -596,6 +596,18 @@ describe('crisis notification routing', () => {
     expect(calls[0]!.message).toContain('Quarantine the city');
   });
 
+  it('routes crisis:started for a catastrophe flavor too (routing is flavor-generic, no outbreak-only assumption)', () => {
+    const state = makeState({
+      era: 2,
+      cities: { c1: { id: 'c1', name: 'Thebes', owner: 'p1', population: 5, position: { q: 0, r: 0 } } } as any,
+    });
+    const { sink, calls } = makeSink();
+    routeCrisisStarted(state, { crisisId: 'crisis-1', flavorId: 'earthquake', civId: 'p1', cityIds: ['c1'] }, sink);
+    expect(calls).toHaveLength(1);
+    expect(calls[0]!.message).toContain('The Ground Trembles');
+    expect(calls[0]!.message).toContain('Send workers to restore the land');
+  });
+
   it('routes crisis:spread only to the target civ', () => {
     const state = makeState({
       cities: {

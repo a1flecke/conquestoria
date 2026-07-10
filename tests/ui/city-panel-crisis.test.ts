@@ -142,3 +142,44 @@ describe('city-panel crisis chip', () => {
     expect(panel.querySelector('[data-remedy-crisis]')).toBeNull();
   });
 });
+
+describe('city-panel catastrophe chip (MR2)', () => {
+  function withEarthquake(overrides: Partial<ActiveCrisis> = {}) {
+    const { container, city, state } = makeWonderPanelFixture();
+    const crisis: ActiveCrisis = {
+      id: 'crisis-1', flavorId: 'earthquake', archetype: 'catastrophe', targetCivId: city.owner,
+      cityIds: [city.id], tileKeys: ['0,0'], startedTurn: state.turn - 1, stage: 'recovery', turnsInStage: 1,
+      ...overrides,
+    };
+    const withCrisis = { ...state, activeCrises: { [crisis.id]: crisis } };
+    return { container, city, state: withCrisis, crisis };
+  }
+
+  it('shows a status-only "Recovering" chip in the recovery stage, with no quarantine/remedy buttons', () => {
+    const { container, city, state } = withEarthquake();
+
+    const panel = createCityPanel(container, city, state, {
+      onBuild: () => {},
+      onOpenWonderPanel: () => {},
+      onClose: () => {},
+    });
+
+    expect(panel.textContent).toContain('Recovering — restore devastated tiles');
+    expect(panel.querySelector('[data-quarantine-crisis]')).toBeNull();
+    expect(panel.querySelector('[data-remedy-crisis]')).toBeNull();
+  });
+
+  it('shows the era display name and onset advisor line while still in the active (pre-shock) stage', () => {
+    const { container, city, state } = withEarthquake({ stage: 'active', tileKeys: [] });
+
+    const panel = createCityPanel(container, city, state, {
+      onBuild: () => {},
+      onOpenWonderPanel: () => {},
+      onClose: () => {},
+    });
+
+    expect(panel.textContent).toContain('The Ground Trembles'); // era-2 display name
+    expect(panel.textContent).toContain('Send workers to restore the land');
+    expect(panel.textContent).not.toContain('Recovering');
+  });
+});

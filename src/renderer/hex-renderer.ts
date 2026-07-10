@@ -86,8 +86,9 @@ function drawTileAtScreen(
   viewerTechs: ReadonlySet<string> = new Set(),
   lairGlyph?: string,
   suppressTerrainLabel: boolean = false,
+  currentTurn?: number,
 ): void {
-  drawHex(ctx, screen.x, screen.y, scaledSize, tile, isVillage, currentPlayer, viewerVisibility, presentationKind, nowMs, reducedMotion, lowZoom, viewerTechs, lairGlyph);
+  drawHex(ctx, screen.x, screen.y, scaledSize, tile, isVillage, currentPlayer, viewerVisibility, presentationKind, nowMs, reducedMotion, lowZoom, viewerTechs, lairGlyph, currentTurn);
   if (shouldShowTerrainLabel(zoom) && !suppressTerrainLabel) {
     const label = getTerrainLabel(tile.terrain);
     ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
@@ -108,6 +109,7 @@ export function drawHexMap(
   viewerVisibility?: VisibilityMap,
   viewerTechs: ReadonlySet<string> = new Set(),
   terrainLabelSuppressedCoords: ReadonlySet<string> = new Set(),
+  currentTurn?: number,
 ): void {
   const size = camera.hexSize;
   const nowMs = typeof performance !== 'undefined' ? performance.now() : 0;
@@ -147,6 +149,7 @@ export function drawHexMap(
         viewerTechs,
         presentation.kind === 'live' ? rawLairGlyph : undefined,
         terrainLabelSuppressedCoords.has(tileKey),
+        currentTurn,
       );
     }
   }
@@ -412,6 +415,7 @@ function drawHex(
   lowZoom: boolean = false,
   viewerTechs: ReadonlySet<string> = new Set(),
   lairGlyph?: string,
+  currentTurn?: number,
 ): void {
   ctx.beginPath();
   for (let i = 0; i < 6; i++) {
@@ -437,6 +441,14 @@ function drawHex(
     ctx.clip();
     ctx.drawImage(terrainImg, cx - size, cy - size * 0.866, size * 2, size * 1.732);
     ctx.restore();
+  }
+
+  // Catastrophe crisis: devastated tile tint. `tile` is already fog-resolved by
+  // resolveTilePresentationForViewer (only 'live' presentation carries the real
+  // devastatedUntilTurn field), so no extra visibility check is needed here.
+  if (tile.devastatedUntilTurn !== undefined && currentTurn !== undefined && tile.devastatedUntilTurn > currentTurn) {
+    ctx.fillStyle = 'rgba(40,30,20,0.45)';
+    ctx.fill();
   }
 
   // Border
