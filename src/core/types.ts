@@ -250,6 +250,7 @@ export interface HexTile {
   hasRoad?: boolean;               // optional: legacy saves default falsy, no migration needed
   roadTurnsLeft?: number;          // turns remaining to complete an in-progress road
   roadOwner?: string;              // civ that started the in-progress road
+  devastatedUntilTurn?: number;    // catastrophe crisis: tile yields zero until this turn
 }
 
 export interface GameMap {
@@ -452,6 +453,8 @@ export interface City {
   appeasedOnTurn?: number;     // turn appeaseFaction last succeeded on this city; blocks a second appease the same turn
   idleProduction?: 'gold' | 'science' | null; // conversion mode when queue is empty
   hp?: number;               // city hit points for pirate siege (default 100)
+  concessionImmunityUntilTurn?: number; // uprising concession: no new unrest until this turn
+  resilienceBonusUntilTurn?: number;    // catastrophe recovery: +1 food +1 production until this turn
 }
 
 // --- Economy ---
@@ -1500,6 +1503,7 @@ export interface GameState {
   territoryFrontiers?: Record<string, TerritoryFrontierState>;
   mapScript?: MapScript;  // undefined on old saves → treat as 'procedural'
   startPlacementMode?: StartPlacementMode;
+  activeCrises?: Record<string, ActiveCrisis>;
 }
 
 export interface GameSettings {
@@ -1729,4 +1733,33 @@ export interface GameEvents {
   'civ:near-defeat':                { civId: string };
   'civ:recovered-from-near-defeat': { civId: string };
   'civ:eliminated':                 { civId: string; eliminatedBy: string };
+  // Crisis events & revolutionary movements (#381, #354)
+  'crisis:started':   { crisisId: string; flavorId: string; civId: string; cityIds: string[] };
+  'crisis:spread':    { crisisId: string; fromCityId: string; toCityId: string };
+  'crisis:escalated': { crisisId: string; stage: CrisisStage };
+  'crisis:response':  { crisisId: string; civId: string; action: string };
+  'crisis:resolved':  { crisisId: string; civId: string; outcome: CrisisOutcome };
+}
+
+// --- Crisis Events & Revolutionary Movements ---
+
+export type CrisisArchetype = 'outbreak' | 'catastrophe' | 'hunt';
+export type CrisisStage = 'active' | 'contained' | 'recovery' | 'menacing' | 'assaulting';
+export type CrisisOutcome = 'contained' | 'expired' | 'hunted' | 'recovered' | 'abandoned';
+
+export interface ActiveCrisis {
+  id: string;
+  flavorId: string;
+  archetype: CrisisArchetype;
+  targetCivId: string;
+  cityIds: string[];
+  tileKeys: string[];
+  startedTurn: number;
+  stage: CrisisStage;
+  turnsInStage: number;
+  quarantinedCityIds?: string[];
+  remedyCompletionByCity?: Record<string, number>; // cityId -> turn remedy completes
+  huntEntityId?: string;
+  foeName?: string;
+  lastHuntKillerCivId?: string;
 }
