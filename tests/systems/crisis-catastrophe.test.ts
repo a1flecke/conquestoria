@@ -193,4 +193,22 @@ describe('catastrophe shock', () => {
     expect(events).toEqual([{ crisisId, flavorId: 'earthquake', civId: 'p1', outcome: 'recovered' }]);
     expect(s.cities.c1.resilienceBonusUntilTurn).toBeUndefined();
   });
+
+  it('abandons the crisis instead of silently "recovering with a bonus" when no owned tile exists for an epicenter', () => {
+    // Pathological state: not even the target city's own tile is owned by its civ within
+    // blast radius (shouldn't happen via normal territory rules, but must not produce a
+    // phantom "recovered + bonus" outcome if it somehow does).
+    const { state, crisisId } = makeCatastropheFixture({ onlyOwnCityTile: true });
+    const orphanedState: GameState = {
+      ...state,
+      map: { ...state.map, tiles: { ...state.map.tiles, [hexKey(CITY_POS)]: { ...state.map.tiles[hexKey(CITY_POS)], owner: null } } },
+    };
+    const bus = new EventBus();
+    const events: unknown[] = [];
+    bus.on('crisis:resolved', e => events.push(e));
+    const next = processCrisisTurn(orphanedState, bus);
+    expect(next.activeCrises?.[crisisId]).toBeUndefined();
+    expect(events).toEqual([{ crisisId, flavorId: 'earthquake', civId: 'p1', outcome: 'abandoned' }]);
+    expect(next.cities.c1.resilienceBonusUntilTurn).toBeUndefined();
+  });
 });
