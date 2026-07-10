@@ -616,12 +616,22 @@ describe('crisis notification routing', () => {
     expect(calls[0]!.message).toContain('Memphis');
   });
 
-  it('routes crisis:resolved with an outcome-appropriate message', () => {
-    const state = makeState();
+  it('routes crisis:resolved with an outcome-appropriate message naming the resolved crisis', () => {
+    const state = makeState({ era: 2 });
     const { sink, calls } = makeSink();
-    routeCrisisResolved(state, { crisisId: 'crisis-1', civId: 'p1', outcome: 'contained' }, sink);
+    routeCrisisResolved(state, { crisisId: 'crisis-1', flavorId: 'plague', civId: 'p1', outcome: 'contained' }, sink);
     expect(calls).toHaveLength(1);
     expect(calls[0]!.civId).toBe('p1');
     expect(calls[0]!.type).toBe('success');
+    expect(calls[0]!.message).toContain('The Sweating Sickness');
+  });
+
+  it('falls back to a generic message for an unknown flavorId instead of throwing', () => {
+    const state = makeState();
+    const { sink, calls } = makeSink();
+    routeCrisisResolved(state, { crisisId: 'crisis-1', flavorId: 'removed-flavor', civId: 'p1', outcome: 'abandoned' }, sink);
+    expect(calls).toHaveLength(1);
+    expect(calls[0]!.message).toContain('A crisis');
+    expect(calls[0]!.type).toBe('info');
   });
 });

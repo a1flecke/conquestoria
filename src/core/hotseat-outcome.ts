@@ -3,6 +3,7 @@ import {
   getActiveHumanPlayers,
   getNextActiveHumanPlayerId,
 } from '@/core/turn-cycling';
+import { applyPendingChallengeForCiv } from '@/core/opponent-challenge';
 
 export interface HotSeatPostSimulationResult {
   state: GameState;
@@ -34,16 +35,9 @@ export function resolveHotSeatPostSimulation(
   }
   const nextHumanId = getNextActiveHumanPlayerId(state, previousHumanId);
   if (!nextHumanId) return { state, nextHumanId };
-  let nextState: GameState = { ...state, currentPlayer: nextHumanId };
-  const civ = nextState.civilizations[nextHumanId];
-  if (civ?.pendingChallenge !== undefined) {
-    nextState = {
-      ...nextState,
-      civilizations: {
-        ...nextState.civilizations,
-        [nextHumanId]: { ...civ, challenge: civ.pendingChallenge, pendingChallenge: undefined },
-      },
-    };
-  }
+  const nextState = applyPendingChallengeForCiv(
+    { ...state, currentPlayer: nextHumanId },
+    nextHumanId,
+  );
   return { state: nextState, nextHumanId };
 }

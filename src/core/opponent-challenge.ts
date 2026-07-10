@@ -123,6 +123,25 @@ export function setPendingChallengeForCiv(
     : { ...state, civilizations: { ...state.civilizations, [civId]: { ...civ, pendingChallenge: challenge } } };
 }
 
+// Applies civId's own pendingChallenge (if any) — call whenever currentPlayer
+// switches to civId, since "applies at the start of your next turn" means
+// exactly that transition, not just the once-per-round hotseat cycle boundary.
+export function applyPendingChallengeForCiv(state: GameState, civId: string): GameState {
+  const civ = state.civilizations[civId];
+  if (!civ || civ.pendingChallenge === undefined) return state;
+  if (!isOpponentChallenge(civ.pendingChallenge)) {
+    const { pendingChallenge: _removed, ...withoutPending } = civ;
+    return { ...state, civilizations: { ...state.civilizations, [civId]: withoutPending } };
+  }
+  return {
+    ...state,
+    civilizations: {
+      ...state.civilizations,
+      [civId]: { ...civ, challenge: civ.pendingChallenge, pendingChallenge: undefined },
+    },
+  };
+}
+
 export function applyPendingOpponentChallenge(state: GameState): GameState {
   if (state.pendingOpponentChallenge === undefined) return state;
   if (!isOpponentChallenge(state.pendingOpponentChallenge)) {

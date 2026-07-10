@@ -2,12 +2,14 @@ import { describe, expect, it } from 'vitest';
 import { createNewGame } from '@/core/game-state';
 import type { GameState } from '@/core/types';
 import {
+  applyPendingChallengeForCiv,
   applyPendingOpponentChallenge,
   getChallengeProfileForCiv,
   isOpponentChallenge,
   OPPONENT_CHALLENGE_PROFILES,
   resolveChallengeForCiv,
   resolveOpponentChallenge,
+  setPendingChallengeForCiv,
   setPendingOpponentChallenge,
 } from '@/core/opponent-challenge';
 
@@ -121,5 +123,35 @@ describe('crisis profile knobs', () => {
 
   it('getChallengeProfileForCiv resolves the per-civ profile', () => {
     expect(getChallengeProfileForCiv(stateWith('veteran', 'explorer'), 'c1').crisisCooldownTurns).toBe(5);
+  });
+});
+
+describe('per-civ pending challenge', () => {
+  it('setPendingChallengeForCiv stages a change without touching other civs', () => {
+    const state = stateWith('standard', undefined);
+    const staged = setPendingChallengeForCiv(state, 'c1', 'veteran');
+    expect(staged.civilizations.c1.challenge).toBe('standard');
+    expect(staged.civilizations.c1.pendingChallenge).toBe('veteran');
+  });
+
+  it('setPendingChallengeForCiv cancels a pending change that matches the active value', () => {
+    const state = stateWith('standard', undefined);
+    (state.civilizations.c1 as { pendingChallenge?: string }).pendingChallenge = 'veteran';
+    const cancelled = setPendingChallengeForCiv(state, 'c1', 'standard');
+    expect(cancelled.civilizations.c1.pendingChallenge).toBeUndefined();
+  });
+
+  it("applyPendingChallengeForCiv applies civId's own pending value once", () => {
+    const state = stateWith('standard', undefined);
+    (state.civilizations.c1 as { pendingChallenge?: string }).pendingChallenge = 'veteran';
+    const applied = applyPendingChallengeForCiv(state, 'c1');
+    expect(applied.civilizations.c1.challenge).toBe('veteran');
+    expect(applied.civilizations.c1.pendingChallenge).toBeUndefined();
+    expect(applyPendingChallengeForCiv(applied, 'c1')).toBe(applied);
+  });
+
+  it('applyPendingChallengeForCiv is a no-op for a civ with no pending value', () => {
+    const state = stateWith('standard', undefined);
+    expect(applyPendingChallengeForCiv(state, 'c1')).toBe(state);
   });
 });

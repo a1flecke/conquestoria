@@ -97,6 +97,18 @@ function maybeStartCrisis(state: GameState, civId: string, bus: EventBus): GameS
 
 // ── Outbreak resolver ────────────────────────────────────────────────────────
 
+// Single source of truth for the per-crisis yield multiplier — shared with
+// city-panel.ts's display so the shown percentage always matches the applied
+// effect, including the 0.25 floor on quarantined cities.
+export function getOutbreakSeverityMultiplier(
+  severity: { yieldPenalty: number },
+  quarantined: boolean,
+): number {
+  return quarantined
+    ? Math.max(0.25, 1 - 2 * severity.yieldPenalty)
+    : 1 - severity.yieldPenalty;
+}
+
 export function getCrisisYieldMultiplier(state: GameState, cityId: string): number {
   let multiplier = 1;
   for (const crisis of Object.values(state.activeCrises ?? {})) {
@@ -104,11 +116,7 @@ export function getCrisisYieldMultiplier(state: GameState, cityId: string): numb
     const flavor = getCrisisFlavor(crisis.flavorId);
     if (!flavor) continue;
     const severity = flavor.severityByChallenge[resolveChallengeForCiv(state, crisis.targetCivId)];
-    if (crisis.quarantinedCityIds?.includes(cityId)) {
-      multiplier *= Math.max(0.25, 1 - 2 * severity.yieldPenalty);
-    } else {
-      multiplier *= 1 - severity.yieldPenalty;
-    }
+    multiplier *= getOutbreakSeverityMultiplier(severity, crisis.quarantinedCityIds?.includes(cityId) ?? false);
   }
   return multiplier;
 }
@@ -148,13 +156,17 @@ function tickOutbreakCrisis(
   }
 
   if (working.cityIds.length === 0) {
-    bus.emit('crisis:resolved', { crisisId: working.id, civId: working.targetCivId, outcome: 'contained' });
+    bus.emit('crisis:resolved', {
+      crisisId: working.id, flavorId: working.flavorId, civId: working.targetCivId, outcome: 'contained',
+    });
     return { crisis: null, state: nextState };
   }
 
   // Explorer auto-expiry
   if (severity.autoExpireTurns !== null && working.turnsInStage >= severity.autoExpireTurns) {
-    bus.emit('crisis:resolved', { crisisId: working.id, civId: working.targetCivId, outcome: 'expired' });
+    bus.emit('crisis:resolved', {
+      crisisId: working.id, flavorId: working.flavorId, civId: working.targetCivId, outcome: 'expired',
+    });
     return { crisis: null, state: nextState };
   }
 
@@ -270,7 +282,7 @@ export function resolveCrisis(
   const crisis = state.activeCrises?.[crisisId];
   if (!crisis) return state;
   const { [crisisId]: _removed, ...rest } = state.activeCrises ?? {};
-  bus.emit('crisis:resolved', { crisisId, civId: crisis.targetCivId, outcome });
+  bus.emit('crisis:resolved', { crisisId, flavorId: crisis.flavorId, civId: crisis.targetCivId, outcome });
   return { ...state, activeCrises: rest };
 }
 

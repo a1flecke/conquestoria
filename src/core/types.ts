@@ -1739,7 +1739,7 @@ export interface GameEvents {
   'crisis:spread':    { crisisId: string; fromCityId: string; toCityId: string };
   'crisis:escalated': { crisisId: string; stage: CrisisStage };
   'crisis:response':  { crisisId: string; civId: string; action: string };
-  'crisis:resolved':  { crisisId: string; civId: string; outcome: CrisisOutcome };
+  'crisis:resolved':  { crisisId: string; flavorId: string; civId: string; outcome: CrisisOutcome };
 }
 
 // --- Crisis Events & Revolutionary Movements ---

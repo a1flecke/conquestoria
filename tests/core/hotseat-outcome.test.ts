@@ -53,4 +53,18 @@ describe('post-simulation hot-seat outcome', () => {
     expect(result.state.winner).toBe('ai-1');
     expect(result.state.gameOverReason).toBe('domination');
   });
+
+  it("applies the incoming human's own pendingChallenge, leaving the outgoing human untouched", () => {
+    const game = state();
+    game.civilizations['player-2'].pendingChallenge = 'veteran';
+    game.civilizations['player-2'].challenge = 'standard';
+    game.civilizations['player-1'].challenge = 'explorer';
+
+    const result = resolveHotSeatPostSimulation(game, 'player-1');
+
+    expect(result.nextHumanId).toBe('player-2');
+    expect(result.state.civilizations['player-2'].challenge).toBe('veteran');
+    expect(result.state.civilizations['player-2'].pendingChallenge).toBeUndefined();
+    expect(result.state.civilizations['player-1'].challenge).toBe('explorer');
+  });
 });
