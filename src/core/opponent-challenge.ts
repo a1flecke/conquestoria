@@ -106,6 +106,23 @@ export function setPendingOpponentChallenge(
     : { ...state, pendingOpponentChallenge: challenge };
 }
 
+export function setPendingChallengeForCiv(
+  state: GameState,
+  civId: string,
+  challenge: OpponentChallenge,
+): GameState {
+  const civ = state.civilizations[civId];
+  if (!civ) return state;
+  if (challenge === resolveChallengeForCiv(state, civId)) {
+    if (civ.pendingChallenge === undefined) return state;
+    const { pendingChallenge: _removed, ...withoutPending } = civ;
+    return { ...state, civilizations: { ...state.civilizations, [civId]: withoutPending } };
+  }
+  return civ.pendingChallenge === challenge
+    ? state
+    : { ...state, civilizations: { ...state.civilizations, [civId]: { ...civ, pendingChallenge: challenge } } };
+}
+
 export function applyPendingOpponentChallenge(state: GameState): GameState {
   if (state.pendingOpponentChallenge === undefined) return state;
   if (!isOpponentChallenge(state.pendingOpponentChallenge)) {

@@ -32,11 +32,18 @@ export interface PauseMenuCallbacks {
   opponentChallenge: OpponentChallenge;
   pendingOpponentChallenge?: OpponentChallenge;
   onOpponentChallengeChange: (challenge: OpponentChallenge) => void;
+  // Per-player challenge for the human whose turn it currently is — governs
+  // crisis/unrest knobs for their own empire only, never AI behavior.
+  personalChallenge: OpponentChallenge;
+  pendingPersonalChallenge?: OpponentChallenge;
+  onPersonalChallengeChange: (challenge: OpponentChallenge) => void;
 }
 
 interface PauseMenuViewState {
   announcement?: string;
   focusChallenge?: OpponentChallenge;
+  personalAnnouncement?: string;
+  focusPersonalChallenge?: OpponentChallenge;
 }
 
 function buildHeader(turn: number, civName: string): HTMLElement {
@@ -220,9 +227,69 @@ function buildOpponentChallengeSettings(
   return section;
 }
 
+function buildPersonalChallengeSettings(
+  callbacks: PauseMenuCallbacks,
+  announcement: string,
+  onSelect: (challenge: OpponentChallenge) => void,
+): HTMLElement {
+  const section = document.createElement('section');
+  section.dataset.personalChallengeSettings = '';
+  section.style.cssText = [
+    'border-top:1px solid rgba(255,255,255,0.1)',
+    'padding-top:12px',
+    'margin-top:12px',
+  ].join(';');
+
+  const heading = document.createElement('p');
+  heading.textContent = 'Your Personal Difficulty';
+  heading.style.cssText = [
+    'margin:0 0 8px',
+    'font-size:11px',
+    'text-transform:uppercase',
+    'letter-spacing:0.08em',
+    'opacity:0.65',
+  ].join(';');
+  section.appendChild(heading);
+
+  const help = document.createElement('p');
+  help.textContent = 'Your personal difficulty — affects crises and unrest for your empire only. Applies at the start of your next turn.';
+  help.style.cssText = 'margin:0 0 8px;font-size:11px;opacity:0.7;line-height:1.4;';
+  section.appendChild(help);
+
+  const active = document.createElement('p');
+  active.dataset.personalChallengeActive = callbacks.personalChallenge;
+  active.textContent = `${OPPONENT_CHALLENGE_COPY[callbacks.personalChallenge].label} active`;
+  active.style.cssText = 'margin:0 0 4px;font-size:13px;font-weight:700;color:#e8c170;';
+  section.appendChild(active);
+
+  if (callbacks.pendingPersonalChallenge) {
+    const pending = document.createElement('p');
+    pending.dataset.personalChallengePending = callbacks.pendingPersonalChallenge;
+    pending.textContent = `${OPPONENT_CHALLENGE_COPY[callbacks.pendingPersonalChallenge].label} (applies next turn)`;
+    pending.style.cssText = 'margin:0 0 10px;font-size:12px;color:rgba(244,241,232,0.78);';
+    section.appendChild(pending);
+  }
+
+  section.appendChild(createOpponentChallengeSelector({
+    selected: callbacks.pendingPersonalChallenge ?? callbacks.personalChallenge,
+    mode: 'settings',
+    onSelect,
+  }));
+
+  const status = document.createElement('p');
+  status.setAttribute('role', 'status');
+  status.setAttribute('aria-live', 'polite');
+  status.textContent = announcement;
+  status.style.cssText = 'min-height:1.3em;margin:8px 0 0;font-size:12px;color:#d9c58b;';
+  section.appendChild(status);
+  return section;
+}
+
 interface PauseMenuMainViewOptions {
   announcement: string;
   onOpponentChallengeSelect: (challenge: OpponentChallenge) => void;
+  personalAnnouncement: string;
+  onPersonalChallengeSelect: (challenge: OpponentChallenge) => void;
 }
 
 function buildMainView(
@@ -277,6 +344,12 @@ function buildMainView(
     callbacks,
     options.announcement,
     options.onOpponentChallengeSelect,
+  ));
+
+  body.appendChild(buildPersonalChallengeSettings(
+    callbacks,
+    options.personalAnnouncement,
+    options.onPersonalChallengeSelect,
   ));
 
   // Spec 3: per-channel audio settings at bottom of pause menu
@@ -380,7 +453,26 @@ function renderPauseMenu(
           announcement: pendingOpponentChallenge
             ? `${OPPONENT_CHALLENGE_COPY[challenge].label} will apply next round`
             : `${OPPONENT_CHALLENGE_COPY[challenge].label} remains active`,
+          personalAnnouncement: viewState.personalAnnouncement ?? '',
           focusChallenge: challenge,
+        },
+      );
+    },
+    personalAnnouncement: viewState.personalAnnouncement ?? '',
+    onPersonalChallengeSelect: challenge => {
+      callbacks.onPersonalChallengeChange(challenge);
+      const pendingPersonalChallenge = challenge === callbacks.personalChallenge
+        ? undefined
+        : challenge;
+      renderPauseMenu(
+        container,
+        { ...callbacks, pendingPersonalChallenge },
+        {
+          announcement: viewState.announcement ?? '',
+          personalAnnouncement: pendingPersonalChallenge
+            ? `${OPPONENT_CHALLENGE_COPY[challenge].label} applies next turn`
+            : `${OPPONENT_CHALLENGE_COPY[challenge].label} remains active`,
+          focusPersonalChallenge: challenge,
         },
       );
     },
@@ -388,7 +480,12 @@ function renderPauseMenu(
 
   if (viewState.focusChallenge) {
     overlay.querySelector<HTMLButtonElement>(
-      `[data-challenge="${viewState.focusChallenge}"]`,
+      `[data-opponent-challenge-settings] [data-challenge="${viewState.focusChallenge}"]`,
+    )?.focus();
+  }
+  if (viewState.focusPersonalChallenge) {
+    overlay.querySelector<HTMLButtonElement>(
+      `[data-personal-challenge-settings] [data-challenge="${viewState.focusPersonalChallenge}"]`,
     )?.focus();
   }
 
