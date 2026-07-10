@@ -1,10 +1,11 @@
-import type { ActiveCrisis, City, GameState } from '@/core/types';
+import type { ActiveCrisis, City, CrisisOutcome, GameState } from '@/core/types';
 import type { EventBus } from '@/core/event-bus';
-import { getChallengeProfileForCiv } from '@/core/opponent-challenge';
+import { getChallengeProfileForCiv, resolveChallengeForCiv } from '@/core/opponent-challenge';
 import { computeThreatScore, deriveActiveIndependentThreatIds } from './threat-pressure-system';
-import { CRISIS_FLAVORS } from './crisis-flavor-definitions';
+import { CRISIS_FLAVORS, getCrisisFlavor } from './crisis-flavor-definitions';
 import { seededLcg, weightedPick } from './seeded-lcg';
 import { hexKey, hexDistance } from './hex-utils';
+import { getCityAppeaseCost } from './faction-system';
 
 export const CRISIS_PRESSURE_FLOOR = 2.0;
 export const EXTERNAL_THREAT_RECENCY_TURNS = 5;
@@ -91,5 +92,203 @@ function maybeStartCrisis(state: GameState, civId: string, bus: EventBus): GameS
     },
   };
   bus.emit('crisis:started', { crisisId, flavorId: flavor.id, civId, cityIds: [target.id] });
+  return nextState;
+}
+
+// ── Outbreak resolver ────────────────────────────────────────────────────────
+
+export function getCrisisYieldMultiplier(state: GameState, cityId: string): number {
+  let multiplier = 1;
+  for (const crisis of Object.values(state.activeCrises ?? {})) {
+    if (crisis.archetype !== 'outbreak' || !crisis.cityIds.includes(cityId)) continue;
+    const flavor = getCrisisFlavor(crisis.flavorId);
+    if (!flavor) continue;
+    const severity = flavor.severityByChallenge[resolveChallengeForCiv(state, crisis.targetCivId)];
+    if (crisis.quarantinedCityIds?.includes(cityId)) {
+      multiplier *= Math.max(0.25, 1 - 2 * severity.yieldPenalty);
+    } else {
+      multiplier *= 1 - severity.yieldPenalty;
+    }
+  }
+  return multiplier;
+}
+
+function hashString(s: string): number {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0;
+  return h;
+}
+
+function tickOutbreakCrisis(
+  state: GameState,
+  crisis: ActiveCrisis,
+  bus: EventBus,
+): { crisis: ActiveCrisis | null; state: GameState } {
+  const flavor = getCrisisFlavor(crisis.flavorId);
+  if (!flavor) return { crisis: null, state };
+
+  let working: ActiveCrisis = { ...crisis, turnsInStage: crisis.turnsInStage + 1 };
+  let nextState = state;
+  const severity = flavor.severityByChallenge[resolveChallengeForCiv(state, crisis.targetCivId)];
+
+  // Remedy completion
+  if (working.remedyCompletionByCity) {
+    const remaining: Record<string, number> = {};
+    let cityIds = working.cityIds;
+    let quarantinedCityIds = working.quarantinedCityIds;
+    for (const [cityId, completionTurn] of Object.entries(working.remedyCompletionByCity)) {
+      if (state.turn >= completionTurn) {
+        cityIds = cityIds.filter(id => id !== cityId);
+        quarantinedCityIds = quarantinedCityIds?.filter(id => id !== cityId);
+      } else {
+        remaining[cityId] = completionTurn;
+      }
+    }
+    working = { ...working, cityIds, quarantinedCityIds, remedyCompletionByCity: remaining };
+  }
+
+  if (working.cityIds.length === 0) {
+    bus.emit('crisis:resolved', { crisisId: working.id, civId: working.targetCivId, outcome: 'contained' });
+    return { crisis: null, state: nextState };
+  }
+
+  // Explorer auto-expiry
+  if (severity.autoExpireTurns !== null && working.turnsInStage >= severity.autoExpireTurns) {
+    bus.emit('crisis:resolved', { crisisId: working.id, civId: working.targetCivId, outcome: 'expired' });
+    return { crisis: null, state: nextState };
+  }
+
+  // Veteran pop loss
+  if (severity.popLossEveryNTurnsIgnored !== null &&
+      working.turnsInStage % severity.popLossEveryNTurnsIgnored === 0) {
+    const cities = { ...nextState.cities };
+    for (const cityId of working.cityIds) {
+      if (working.quarantinedCityIds?.includes(cityId)) continue;
+      if (working.remedyCompletionByCity?.[cityId] !== undefined) continue;
+      const city = cities[cityId];
+      if (!city) continue;
+      cities[cityId] = { ...city, population: Math.max(1, city.population - 1) };
+    }
+    nextState = { ...nextState, cities };
+  }
+
+  // Spread
+  const owner = working.targetCivId;
+  for (const cityId of [...working.cityIds]) {
+    if (working.quarantinedCityIds?.includes(cityId)) continue;
+    const city = nextState.cities[cityId];
+    if (!city) continue;
+    const rng = seededLcg(nextState.turn * 104729 + hashString(working.id + cityId));
+    const boost = flavor.spreadBoostPredicate?.(nextState, city) ? 0.15 : 0;
+    if (rng() >= 0.20 + boost) continue;
+    const candidates = Object.values(nextState.cities)
+      .filter(c => c.owner === owner && !working.cityIds.includes(c.id));
+    if (candidates.length === 0) continue;
+    const target = candidates.reduce((closest, c) =>
+      hexDistance(c.position, city.position) < hexDistance(closest.position, city.position) ? c : closest);
+    working = { ...working, cityIds: [...working.cityIds, target.id] };
+    bus.emit('crisis:spread', { crisisId: working.id, fromCityId: cityId, toCityId: target.id });
+  }
+
+  return { crisis: working, state: nextState };
+}
+
+export function processCrisisTurn(state: GameState, bus: EventBus): GameState {
+  let nextState = state;
+  const crisisIds = Object.keys(state.activeCrises ?? {}).sort();
+  for (const crisisId of crisisIds) {
+    const crisis = nextState.activeCrises?.[crisisId];
+    if (!crisis) continue;
+    if (crisis.archetype !== 'outbreak') continue;
+    const { crisis: updated, state: tickedState } = tickOutbreakCrisis(nextState, crisis, bus);
+    if (updated) {
+      nextState = { ...tickedState, activeCrises: { ...(tickedState.activeCrises ?? {}), [crisisId]: updated } };
+    } else {
+      const { [crisisId]: _removed, ...rest } = tickedState.activeCrises ?? {};
+      nextState = { ...tickedState, activeCrises: rest };
+    }
+  }
+  return nextState;
+}
+
+export function applyQuarantine(
+  state: GameState,
+  crisisId: string,
+  cityId: string,
+): { success: boolean; state: GameState; message: string } {
+  const crisis = state.activeCrises?.[crisisId];
+  if (!crisis) return { success: false, state, message: 'No such crisis.' };
+  if (crisis.quarantinedCityIds?.includes(cityId)) {
+    return { success: false, state, message: 'Already quarantined.' };
+  }
+  const updated: ActiveCrisis = {
+    ...crisis,
+    quarantinedCityIds: [...(crisis.quarantinedCityIds ?? []), cityId],
+  };
+  return {
+    success: true,
+    message: 'Quarantined — spread stopped.',
+    state: { ...state, activeCrises: { ...(state.activeCrises ?? {}), [crisisId]: updated } },
+  };
+}
+
+export function applyRemedy(
+  state: GameState,
+  crisisId: string,
+  cityId: string,
+): { success: boolean; state: GameState; message: string } {
+  const crisis = state.activeCrises?.[crisisId];
+  if (!crisis) return { success: false, state, message: 'No such crisis.' };
+  const city = state.cities[cityId];
+  if (!city) return { success: false, state, message: 'No such city.' };
+  const civ = state.civilizations[crisis.targetCivId];
+  const cost = getCityAppeaseCost(city);
+  if (!civ || civ.gold < cost) {
+    return { success: false, state, message: `Not enough gold — funding a remedy costs ${cost}.` };
+  }
+  const updated: ActiveCrisis = {
+    ...crisis,
+    remedyCompletionByCity: { ...(crisis.remedyCompletionByCity ?? {}), [cityId]: state.turn + 2 },
+  };
+  return {
+    success: true,
+    message: `Remedy underway — cured in 2 turns for ${cost} gold.`,
+    state: {
+      ...state,
+      civilizations: { ...state.civilizations, [crisis.targetCivId]: { ...civ, gold: civ.gold - cost } },
+      activeCrises: { ...(state.activeCrises ?? {}), [crisisId]: updated },
+    },
+  };
+}
+
+export function resolveCrisis(
+  state: GameState,
+  crisisId: string,
+  outcome: CrisisOutcome,
+  bus: EventBus,
+): GameState {
+  const crisis = state.activeCrises?.[crisisId];
+  if (!crisis) return state;
+  const { [crisisId]: _removed, ...rest } = state.activeCrises ?? {};
+  bus.emit('crisis:resolved', { crisisId, civId: crisis.targetCivId, outcome });
+  return { ...state, activeCrises: rest };
+}
+
+export function handleCityLeftCiv(state: GameState, cityId: string, bus: EventBus): GameState {
+  let nextState = state;
+  for (const [crisisId, crisis] of Object.entries(state.activeCrises ?? {})) {
+    if (!crisis.cityIds.includes(cityId)) continue;
+    const cityIds = crisis.cityIds.filter(id => id !== cityId);
+    if (cityIds.length === 0) {
+      nextState = resolveCrisis(nextState, crisisId, 'abandoned', bus);
+    } else {
+      const updated: ActiveCrisis = {
+        ...crisis,
+        cityIds,
+        quarantinedCityIds: crisis.quarantinedCityIds?.filter(id => id !== cityId),
+      };
+      nextState = { ...nextState, activeCrises: { ...(nextState.activeCrises ?? {}), [crisisId]: updated } };
+    }
+  }
   return nextState;
 }
