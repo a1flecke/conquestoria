@@ -140,17 +140,23 @@ Per-player knobs (new fields on `OpponentChallengeProfile` in
   Veteran: ignored outbreaks spread until contained.
 
 ### Catastrophe — "Recover from it"
-- One shock turn: affected tiles get `devastatedUntilTurn` (yields suppressed);
-  improvements in the area are **damaged** (worker-repairable in 1 turn, like the
-  pillage-repair loop). Veteran era 3+: the epicenter tile's improvement is
-  destroyed outright.
+- One shock turn: affected tiles get `devastatedUntilTurn` (they yield **zero**
+  — base terrain and improvement alike — until restored or expired; natural
+  expiry: explorer 4 / standard 8 / veteran 10 turns). Veteran era 3+: the
+  epicenter tile's improvement is destroyed outright (rebuild via the normal
+  worker flow). There is no partial "damaged improvement" state — the codebase
+  has no pillage/repair mechanic; devastation-suppression plus a restore action
+  is the whole model.
+- **Restore Land**: a new 1-turn worker action, available on a devastated tile
+  you own, that clears the devastation immediately.
 - **Blast area is clipped to the target player's own territory.** A catastrophe
   scaled by one player's challenge never damages another player's tiles,
   improvements, or units — shared-world fairness outranks blast realism.
-- Recovery window (5 turns): repairing every improvement and issuing rebuild
-  orders before it closes earns a resilience bonus: **+1 food and +1 production
-  in each affected city for 5 turns** (exact values subject to the pacing-audit
-  gate).
+- Recovery window (5 turns): restoring **every** devastated tile before it
+  closes earns a resilience bonus: **+1 food and +1 production in each affected
+  city for 5 turns** (exact values subject to the pacing-audit gate). On
+  explorer, natural expiry also counts as `recovered` (the kid gets the win)
+  but without the resilience bonus unless they actually restored.
 - Strict geography: eruptions require a `volcanic` tile nearby; floods require
   river/coast cities; wildfires require forest clusters; harsh winters require
   tundra/snow. The map advertises your risks.
@@ -158,14 +164,16 @@ Per-player knobs (new fields on `OpponentChallengeProfile` in
 ### Hunt — "Fight it"
 - A named foe spawns at a legal hex near (never inside) the target player's
   borders, via existing spawn machinery + occupancy rules.
-- It menaces — pillages improvements, blockades a coastal city — but does not
-  attack cities directly on explorer/standard. On veteran it may assault the
-  nearest city if left alive for 5+ turns.
-- The foe is a real world entity: any civ may fight it. **The crisis bounty
-  (gold + temporary empire-wide happiness: "the beast-slayer's feast") goes to
-  whichever civ lands the kill**; the crisis resolves for the target player when
-  the foe dies, regardless of who killed it. (Hotseat fun: the 12-year-old can
-  slay dad's beast and collect.)
+- It menaces exactly as its kind already does — beasts prowl their territory
+  and attack units, barbarians raid, pirates harass coasts — no new foe AI is
+  written. It does not attack cities on explorer/standard. On veteran it
+  escalates to assaulting the nearest city if left alive for 5+ turns.
+- The foe is a real world entity: any civ may fight it. **Gold rewards ride the
+  existing kill payouts** (beast hoards, camp destruction gold, fleet rewards —
+  no second payout is added). The crisis adds the **beast-slayer's feast**: the
+  killing civ gets +2 happiness for 5 turns. The crisis resolves for the target
+  player when the foe dies, regardless of who killed it. (Hotseat fun: the
+  12-year-old can slay dad's beast and collect the feast.)
 - If the target civ is eliminated while the hunt is active, the crisis resolves
   `abandoned` and the foe persists as an ordinary barbarian/beast/pirate world
   entity.
@@ -198,9 +206,12 @@ Per-player knobs (new fields on `OpponentChallengeProfile` in
 ## Data Model (all additions optional — old saves load unchanged)
 
 ```ts
-// Civilization (humans only)
-challenge?: OpponentChallenge;
+// Civilization (challenge/pending on humans only)
+challenge?: OpponentChallenge;         // personal internal-pressure difficulty
+pendingChallenge?: OpponentChallenge;  // applied at this civ's next turn start
 recentCrisisHistory?: string[];        // last 4 flavor ids
+lastCrisisOnsetTurn?: number;          // scheduler cooldown tracking
+feastUntilTurn?: number;               // beast-slayer's feast (+2 happiness while active)
 
 // GameState
 activeCrises?: Record<string, ActiveCrisis>;
@@ -218,8 +229,10 @@ interface ActiveCrisis {
   // outbreak: active → contained; catastrophe: active(shock) → recovery;
   // hunt: menacing → assaulting (veteran only)
   turnsInStage: number;
-  responseTaken?: string;   // response-action id, for UI + tests
-  huntEntityId?: string;    // hunt only: unit/camp id of the spawned foe
+  quarantinedCityIds?: string[];                    // outbreak per-city quarantine
+  remedyCompletionByCity?: Record<string, number>;  // cityId → turn remedy completes
+  huntEntityId?: string;    // hunt only: unit/camp/fleet id of the spawned foe
+  foeName?: string;         // hunt only: named foe for banners/notifications
 }
 
 // Tile
@@ -227,7 +240,11 @@ devastatedUntilTurn?: number;
 
 // City (uprisings otherwise reuse unrestLevel/unrestTurns)
 concessionImmunityUntilTurn?: number;
+resilienceBonusUntilTurn?: number;     // catastrophe recovery reward (+1 food/+1 production)
 ```
+
+Plus one new worker action: `'restore_land'` in the worker-action union
+(1-turn task on an owned devastated tile).
 
 `CRISIS_FLAVORS` is code, not state; saves reference flavor ids only, so balance
 renumbering never breaks a save. If a save references a removed flavor id, the
@@ -327,6 +344,7 @@ launch:
 | `src/ui/city-panel.ts` | Status chips, response actions, concession button |
 | `src/ui/notification-routing.ts`, `src/ui/advisor-system.ts` | Crisis routing + advisor lines |
 | `src/audio/music-director.ts`, `src/audio/sfx-director.ts` | Snapshot hold + onset/resolution stingers |
+| `src/systems/improvement-system.ts`, `src/systems/city-work-system.ts` | `restore_land` worker action; devastated-tile zero yields; resilience bonus |
 | `src/renderer/*` | Devastated tint, crisis city icon (fog-aware) |
 
 ## Delivery Plan (incremental MRs, each playable alone)
