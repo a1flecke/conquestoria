@@ -23,6 +23,7 @@ import {
 import { selectDefenderForAttack } from './combat-system';
 import { applyQuestGameplayAction, type ChainTransition } from './quest-chain-system';
 import { UNIT_DEFINITIONS } from './unit-system';
+import { recordHuntCampKillerIfApplicable } from './hunt-crisis-linkage';
 
 // Seeded LCG — avoids Math.random() per project rules
 function lcg(seed: number): () => number {
@@ -103,7 +104,8 @@ export function applyCampDestruction(
   const progress = applyQuestGameplayAction(nextState, {
     type: 'camp_destroyed', actorCivId: civId, campId, position: camp.position, turn,
   });
-  return { state: progress.state, reward, questTransitions: progress.transitions };
+  const withHuntAttribution = recordHuntCampKillerIfApplicable(progress.state, campId, civId);
+  return { state: withHuntAttribution, reward, questTransitions: progress.transitions };
 }
 
 export function applyCampDestructionAtTarget(

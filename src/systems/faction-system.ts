@@ -199,8 +199,10 @@ export function processFactionTurn(state: GameState, bus: EventBus): GameState {
 
   // Pre-compute happiness per civ to avoid O(cities²) tile scans inside the city loop
   const civHappiness: Record<string, number> = {};
-  for (const civId of Object.keys(nextState.civilizations)) {
-    civHappiness[civId] = getCivHappinessFromResources(nextState, civId);
+  for (const [civId, civ] of Object.entries(nextState.civilizations)) {
+    // Beast-slayer's feast (Hunt crisis, MR3): +2 happiness while feastUntilTurn is active.
+    const feasting = (civ.feastUntilTurn ?? 0) > nextState.turn;
+    civHappiness[civId] = getCivHappinessFromResources(nextState, civId) + (feasting ? 2 : 0);
   }
 
   for (const cityId of Object.keys(nextState.cities)) {

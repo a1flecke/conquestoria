@@ -13,6 +13,14 @@ export interface CatastropheParams {
   destroysEpicenterImprovement: boolean; // only meaningful on veteran era >= 3; resolver enforces
 }
 
+export interface HuntParams {
+  spawnKind: 'beast' | 'barbarian-camp' | 'pirate';
+  // Deviation from the original plan's `namePoolKey`: the spawner picks the named-foe
+  // pool by the target civ's own civType (matches BANDIT_LORD_NAMES's existing
+  // civType-keyed shape) rather than a fixed pool key — more thematic, and civType is
+  // already known at spawn time, so a separate key would be redundant.
+}
+
 export interface CrisisFlavor {
   id: string;
   archetype: CrisisArchetype;
@@ -24,6 +32,7 @@ export interface CrisisFlavor {
   advisorLine: string;                         // '{name} has reached {city}! <what to do>'
   responseActions: Array<'quarantine' | 'remedy'>;
   catastrophe?: CatastropheParams;             // only present when archetype === 'catastrophe'
+  hunt?: HuntParams;                            // only present when archetype === 'hunt'
 }
 
 function tilesWithinRadius(state: GameState, center: HexCoord, radius: number): HexTile[] {
@@ -60,6 +69,22 @@ function hasRiverOrCoastalFlood(state: GameState, city: City): boolean {
   if (cityTile?.hasRiver) return true;
   return nearTerrain(state, city, ['coast'], 1);
 }
+
+function isCoastalCity(state: GameState, city: City): boolean {
+  const cityTile = state.map.tiles[hexKey(city.position)];
+  if (cityTile?.terrain === 'coast') return true;
+  return nearTerrain(state, city, ['ocean', 'coast'], 1);
+}
+
+// No severity-driven yield penalty, pop loss, or auto-expiry for Hunt flavors — the
+// archetype resolves via combat (the foe dying), not attrition or a timer. Shared
+// across all three hunt flavors since none of them vary this by challenge level;
+// challenge instead governs veteran-only escalation (see tickHuntCrisis).
+const NO_ATTRITION_SEVERITY: Record<OpponentChallenge, CrisisSeverity> = {
+  explorer: { yieldPenalty: 0, popLossEveryNTurnsIgnored: null, autoExpireTurns: null },
+  standard: { yieldPenalty: 0, popLossEveryNTurnsIgnored: null, autoExpireTurns: null },
+  veteran: { yieldPenalty: 0, popLossEveryNTurnsIgnored: null, autoExpireTurns: null },
+};
 
 export const CRISIS_FLAVORS: CrisisFlavor[] = [
   {
@@ -172,6 +197,43 @@ export const CRISIS_FLAVORS: CrisisFlavor[] = [
       devastationTurnsByChallenge: { explorer: 4, standard: 8, veteran: 10 },
       destroysEpicenterImprovement: true,
     },
+  },
+  {
+    id: 'beast-awakening',
+    archetype: 'hunt',
+    eraBand: [2, 6],
+    geographyPredicate: (state, city) =>
+      // Matches turn-manager.ts's own beast-processing gate: `state.beasts` must exist
+      // AND not be 'off' — undefined means beasts were never initialized (e.g. a legacy
+      // save mid-migration), not "on by default".
+      !!state.beasts && state.beasts.mode !== 'off' && nearTerrain(state, city, ['forest', 'mountain', 'jungle'], 4),
+    severityByChallenge: NO_ATTRITION_SEVERITY,
+    displayNamesByEra: { 2: 'Beast Awakening' },
+    advisorLine: '{name} has awoken near {city}! Slay it to end the threat — any civilization may claim the hunt.',
+    responseActions: [],
+    hunt: { spawnKind: 'beast' },
+  },
+  {
+    id: 'bandit-uprising',
+    archetype: 'hunt',
+    eraBand: [2, 8],
+    geographyPredicate: () => true,
+    severityByChallenge: NO_ATTRITION_SEVERITY,
+    displayNamesByEra: { 2: 'Bandit Uprising' },
+    advisorLine: '{name} has raised a bandit camp near {city}! Slay it to end the threat — any civilization may claim the hunt.',
+    responseActions: [],
+    hunt: { spawnKind: 'barbarian-camp' },
+  },
+  {
+    id: 'corsair-armada',
+    archetype: 'hunt',
+    eraBand: [4, 12],
+    geographyPredicate: (state, city) => isCoastalCity(state, city),
+    severityByChallenge: NO_ATTRITION_SEVERITY,
+    displayNamesByEra: { 4: 'Corsair Armada' },
+    advisorLine: '{name} raids the waters near {city}! Slay it to end the threat — any civilization may claim the hunt.',
+    responseActions: [],
+    hunt: { spawnKind: 'pirate' },
   },
 ];
 

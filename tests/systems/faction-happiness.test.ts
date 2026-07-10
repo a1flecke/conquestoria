@@ -126,4 +126,25 @@ describe('processFactionTurn with happiness', () => {
     const bus = new EventBus();
     expect(() => processFactionTurn(state, bus)).not.toThrow();
   });
+
+  it('beast-slayer\'s feast (MR3 hunt crisis): +2 happiness -> -4 pressure is enough to prevent unrest at a borderline threshold', () => {
+    // Engineered so base pressure (distance 20 capped + war 24 capped = 44) sits just
+    // above UNREST_TRIGGER_PRESSURE (40) — the feast's -4 pressure should be the
+    // difference between unrest starting and not.
+    const base = makeMinimalState({ cityCount: 1, cityPosition: { q: 20, r: 0 }, atWarCount: 3, era: 2 });
+    const bus = new EventBus();
+
+    const withoutFeast = processFactionTurn(base, bus);
+    expect(withoutFeast.cities['city-1'].unrestLevel).toBe(1);
+
+    const withFeast: GameState = {
+      ...base,
+      civilizations: {
+        ...base.civilizations,
+        player: { ...base.civilizations.player, feastUntilTurn: base.turn + 5 },
+      },
+    };
+    const result = processFactionTurn(withFeast, bus);
+    expect(result.cities['city-1'].unrestLevel).toBe(0);
+  });
 });

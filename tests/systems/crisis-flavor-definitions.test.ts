@@ -20,10 +20,15 @@ describe('CRISIS_FLAVORS table invariants', () => {
           expect(s.yieldPenalty).toBeLessThanOrEqual(0.5); // balance ceiling
         }
       });
-      it('explorer severity always auto-expires and never costs population', () => {
-        expect(flavor.severityByChallenge.explorer.autoExpireTurns).not.toBeNull();
-        expect(flavor.severityByChallenge.explorer.popLossEveryNTurnsIgnored).toBeNull();
-      });
+      if (flavor.archetype !== 'hunt') {
+        // Hunt flavors resolve via combat (the foe dying), never a turn-count timer or
+        // population attrition, on any challenge level — this invariant is specific to
+        // the attrition/shock archetypes (outbreak, catastrophe).
+        it('explorer severity always auto-expires and never costs population', () => {
+          expect(flavor.severityByChallenge.explorer.autoExpireTurns).not.toBeNull();
+          expect(flavor.severityByChallenge.explorer.popLossEveryNTurnsIgnored).toBeNull();
+        });
+      }
       it('resolves a display name for every era in its band', () => {
         for (let era = flavor.eraBand[0]; era <= flavor.eraBand[1]; era++) {
           expect(getCrisisDisplayName(flavor, era)).toBeTruthy();

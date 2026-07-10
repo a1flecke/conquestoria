@@ -259,6 +259,78 @@ function makeWorkerState(tileOverrides: Record<string, unknown>, unitOverrides: 
   } as unknown as GameState;
 }
 
+describe('renderSelectedUnitInfo — hunt crisis foe label (MR3)', () => {
+  beforeEach(installMockDocument);
+  afterEach(restoreMockDocument);
+
+  it('shows the named foe when the selected unit is a hunt crisis\'s spawned beast', () => {
+    const state = createNewGame(undefined, 'hunt-foe-label-beast', 'small');
+    const beast = {
+      ...createUnit('beast_boar', 'beasts', { q: 3, r: 0 }, {
+        nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1,
+      }),
+      id: 'beast-1',
+    };
+    state.units = { 'beast-1': beast };
+    state.activeCrises = {
+      'crisis-1': {
+        id: 'crisis-1', flavorId: 'beast-awakening', archetype: 'hunt', targetCivId: 'player',
+        cityIds: [], tileKeys: [], startedTurn: 1, stage: 'menacing', turnsInStage: 1,
+        huntEntityId: 'beast-1', foeName: 'Giant Boar',
+      },
+    };
+    const container = new MockElement('div');
+
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'beast-1', {});
+
+    const text = collectAllText(container).join(' ');
+    expect(text).toContain('Giant Boar');
+    expect(text).toContain('Any civilization may claim the hunt');
+  });
+
+  it('shows no hunt foe label for a beast unrelated to any active hunt', () => {
+    const state = createNewGame(undefined, 'hunt-foe-label-none', 'small');
+    const beast = {
+      ...createUnit('beast_boar', 'beasts', { q: 3, r: 0 }, {
+        nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1,
+      }),
+      id: 'beast-1',
+    };
+    state.units = { 'beast-1': beast };
+    const container = new MockElement('div');
+
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'beast-1', {});
+
+    expect(collectAllText(container).join(' ')).not.toContain('claim the hunt');
+  });
+
+  it('shows the named foe when the selected unit is a hunt crisis\'s spawned pirate ship', () => {
+    const state = createNewGame(undefined, 'hunt-foe-label-pirate', 'small');
+    const ship = {
+      ...createUnit('galley', 'pirate', { q: 3, r: 0 }, {
+        nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1,
+      }),
+      id: 'ship-1',
+    };
+    state.units = { 'ship-1': ship };
+    state.pirateFleets = {
+      'fleet-1': { id: 'fleet-1', unitId: 'ship-1', targetCivId: 'player', targetCityId: 'c1', landmassId: 'l1', era: 1, plunderCooldown: 0 },
+    };
+    state.activeCrises = {
+      'crisis-1': {
+        id: 'crisis-1', flavorId: 'corsair-armada', archetype: 'hunt', targetCivId: 'player',
+        cityIds: [], tileKeys: [], startedTurn: 1, stage: 'menacing', turnsInStage: 1,
+        huntEntityId: 'fleet-1', foeName: 'The Reaver',
+      },
+    };
+    const container = new MockElement('div');
+
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'ship-1', {});
+
+    expect(collectAllText(container).join(' ')).toContain('The Reaver');
+  });
+});
+
 describe('renderSelectedUnitInfo — spy disguise buttons', () => {
   beforeEach(installMockDocument);
   afterEach(restoreMockDocument);

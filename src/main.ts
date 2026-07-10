@@ -218,6 +218,7 @@ import {
   routeStrategicWarning,
   routeCrisisStarted,
   routeCrisisSpread,
+  routeCrisisEscalated,
   routeCrisisResolved,
   type NotificationSink,
 } from '@/ui/notification-routing';
@@ -3979,6 +3980,10 @@ bus.on('crisis:started', event => {
 
 bus.on('crisis:spread', event => {
   routeCrisisSpread(gameState, event, appendToCivLog);
+});
+
+bus.on('crisis:escalated', event => {
+  routeCrisisEscalated(gameState, event, appendToCivLog);
 });
 
 bus.on('crisis:resolved', event => {

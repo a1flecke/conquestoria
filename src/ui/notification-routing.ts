@@ -398,6 +398,11 @@ export function routeCrisisStarted(
 ): void {
   const flavor = getCrisisFlavor(event.flavorId);
   if (!flavor) return;
+  // Hunt's onset notification fires later, at spawn time (routeCrisisEscalated, stage
+  // 'menacing') — the foe doesn't have a name yet when the crisis record is first
+  // scheduled, so announcing here would either use a generic category name or duplicate
+  // the real announcement a moment later.
+  if (flavor.archetype === 'hunt') return;
   const cityId = event.cityIds[0];
   const city = cityId ? state.cities[cityId] : undefined;
   const name = getCrisisDisplayName(flavor, state.era);
@@ -409,6 +414,37 @@ export function routeCrisisStarted(
     coord: { ...city.position },
     label: name,
   } : undefined);
+}
+
+export function routeCrisisEscalated(
+  state: GameState,
+  event: GameEvents['crisis:escalated'],
+  sink: NotificationSink,
+): void {
+  // civId/foeName come from the event, not re-read from state: this fires mid-turn,
+  // in the same tick the foe first gets a name, and the caller's state snapshot may
+  // predate that (see the GameEvents['crisis:escalated'] doc comment in core/types.ts).
+  if (!event.civId || !event.foeName) return;
+  const crisis = state.activeCrises?.[event.crisisId];
+  const flavor = crisis ? getCrisisFlavor(crisis.flavorId) : undefined;
+  // cityIds is set once at crisis creation and never changes afterward, so it's safe
+  // to read from a possibly-stale snapshot even though foeName/civId are not.
+  const city = crisis ? state.cities[crisis.cityIds[0]] : undefined;
+  const target = city ? { kind: 'map' as const, coord: { ...city.position }, label: event.foeName } : undefined;
+
+  if (event.stage === 'menacing' && flavor) {
+    const message = flavor.advisorLine
+      .replace('{name}', event.foeName)
+      .replace('{city}', city?.name ?? 'a city');
+    sink(event.civId, message, 'warning', target);
+  } else if (event.stage === 'assaulting') {
+    sink(
+      event.civId,
+      `${event.foeName} now assaults ${city?.name ?? 'your city'}! Slay it before it breaches the walls.`,
+      'warning',
+      target,
+    );
+  }
 }
 
 export function routeCrisisSpread(
@@ -435,6 +471,19 @@ export function routeCrisisResolved(
   event: GameEvents['crisis:resolved'],
   sink: NotificationSink,
 ): void {
+  // Hunt's 'hunted' outcome gets its own two-sided messaging (killer civ + target civ,
+  // using the foe's real name) rather than the generic per-outcome line below — both
+  // foeName and killerCivId are carried on the event itself for the same
+  // same-tick-freshness reason as crisis:escalated (see core/types.ts).
+  if (event.outcome === 'hunted' && event.foeName) {
+    const killerCivId = event.killerCivId ?? event.civId;
+    sink(killerCivId, `The beast-slayer's feast begins! (+2 happiness, 5 turns)`, 'success');
+    if (killerCivId !== event.civId) {
+      sink(event.civId, `${event.foeName} has been slain by ${state.civilizations[killerCivId]?.name ?? 'another civilization'}.`, 'success');
+    }
+    return;
+  }
+
   const outcomeMessage: Record<typeof event.outcome, string> = {
     contained: 'has been contained.',
     expired: 'has run its course.',

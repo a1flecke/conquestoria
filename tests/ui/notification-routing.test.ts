@@ -20,6 +20,7 @@ import {
   routeStrategicWarning,
   routeCrisisStarted,
   routeCrisisSpread,
+  routeCrisisEscalated,
   routeCrisisResolved,
   type NotificationSink,
 } from '@/ui/notification-routing';
@@ -645,5 +646,87 @@ describe('crisis notification routing', () => {
     expect(calls).toHaveLength(1);
     expect(calls[0]!.message).toContain('A crisis');
     expect(calls[0]!.type).toBe('info');
+  });
+
+  it('does not route crisis:started for a hunt flavor — the onset announcement waits for the foe to have a name', () => {
+    const state = makeState({
+      era: 2,
+      cities: { c1: { id: 'c1', name: 'Thebes', owner: 'p1', population: 5, position: { q: 0, r: 0 } } } as any,
+    });
+    const { sink, calls } = makeSink();
+    routeCrisisStarted(state, { crisisId: 'crisis-1', flavorId: 'beast-awakening', civId: 'p1', cityIds: ['c1'] }, sink);
+    expect(calls).toHaveLength(0);
+  });
+
+  it('routes crisis:escalated (stage menacing) as the hunt onset announcement, using the real foe name', () => {
+    const state = makeState({
+      era: 2,
+      cities: { c1: { id: 'c1', name: 'Thebes', owner: 'p1', population: 5, position: { q: 0, r: 0 } } } as any,
+      activeCrises: {
+        'crisis-1': {
+          id: 'crisis-1', flavorId: 'beast-awakening', archetype: 'hunt', targetCivId: 'p1',
+          cityIds: ['c1'], tileKeys: [], startedTurn: 1, stage: 'menacing', turnsInStage: 0,
+          huntEntityId: 'unit-1', foeName: 'Giant Boar',
+        },
+      },
+    } as any);
+    const { sink, calls } = makeSink();
+    routeCrisisEscalated(state, { crisisId: 'crisis-1', stage: 'menacing', civId: 'p1', foeName: 'Giant Boar' }, sink);
+    expect(calls).toHaveLength(1);
+    expect(calls[0]!.civId).toBe('p1');
+    expect(calls[0]!.message).toContain('Giant Boar');
+    expect(calls[0]!.message).toContain('Thebes');
+  });
+
+  it('routes crisis:escalated (stage assaulting) as the veteran escalation warning', () => {
+    const state = makeState({
+      cities: { c1: { id: 'c1', name: 'Thebes', owner: 'p1', population: 5, position: { q: 0, r: 0 } } } as any,
+      activeCrises: {
+        'crisis-1': {
+          id: 'crisis-1', flavorId: 'beast-awakening', archetype: 'hunt', targetCivId: 'p1',
+          cityIds: ['c1'], tileKeys: [], startedTurn: 1, stage: 'assaulting', turnsInStage: 5,
+          huntEntityId: 'unit-1', foeName: 'Giant Boar',
+        },
+      },
+    } as any);
+    const { sink, calls } = makeSink();
+    routeCrisisEscalated(state, { crisisId: 'crisis-1', stage: 'assaulting', civId: 'p1', foeName: 'Giant Boar' }, sink);
+    expect(calls).toHaveLength(1);
+    expect(calls[0]!.message).toContain('Giant Boar');
+    expect(calls[0]!.message).toContain('assaults');
+  });
+
+  it('routes crisis:resolved (hunted) with two-sided messaging: feast to the killer, notice to the target civ', () => {
+    const state = makeState({
+      civilizations: {
+        p1: { id: 'p1', name: 'Rome' },
+        p2: { id: 'p2', name: 'Egypt' },
+      } as any,
+    });
+    const { sink, calls } = makeSink();
+    routeCrisisResolved(
+      state,
+      { crisisId: 'crisis-1', flavorId: 'beast-awakening', civId: 'p1', outcome: 'hunted', foeName: 'Giant Boar', killerCivId: 'p2' },
+      sink,
+    );
+    expect(calls).toHaveLength(2);
+    expect(calls[0]!.civId).toBe('p2');
+    expect(calls[0]!.message).toContain('feast');
+    expect(calls[1]!.civId).toBe('p1');
+    expect(calls[1]!.message).toContain('Giant Boar');
+    expect(calls[1]!.message).toContain('Egypt');
+  });
+
+  it('routes crisis:resolved (hunted) with a single message when the target civ claimed its own hunt', () => {
+    const state = makeState();
+    const { sink, calls } = makeSink();
+    routeCrisisResolved(
+      state,
+      { crisisId: 'crisis-1', flavorId: 'beast-awakening', civId: 'p1', outcome: 'hunted', foeName: 'Giant Boar', killerCivId: 'p1' },
+      sink,
+    );
+    expect(calls).toHaveLength(1);
+    expect(calls[0]!.civId).toBe('p1');
+    expect(calls[0]!.message).toContain('feast');
   });
 });

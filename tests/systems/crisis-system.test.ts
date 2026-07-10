@@ -4,14 +4,19 @@ import { processCrisisSchedulerForHumans, countActiveCrisesForCiv, countUnrestGr
 import { makeCrisisFixture } from './helpers/crisis-fixture';
 
 describe('crisis scheduler', () => {
-  it('fires a plague for an idle human past grace', () => {
+  it('fires a crisis for an idle human past grace', () => {
     const { state } = makeCrisisFixture({ era: 3, turn: 40, challenge: 'standard' });
     const next = processCrisisSchedulerForHumans(state, new EventBus());
     const crises = Object.values(next.activeCrises ?? {});
     expect(crises).toHaveLength(1);
-    expect(crises[0].flavorId).toBe('plague');
+    // This fixture's city (population 5, no forest/mountain/coast/jungle terrain) is
+    // geography-eligible for both 'plague' (population >= 4) and 'bandit-uprising'
+    // (any land city, MR3) — both start with equal anti-repeat weight, and this seed's
+    // weighted pick lands on bandit-uprising. The point of this test is the grace/cooldown
+    // gate and history bookkeeping, not which specific flavor wins the pick.
+    expect(crises[0].flavorId).toBe('bandit-uprising');
     expect(next.civilizations.p1.lastCrisisOnsetTurn).toBe(40);
-    expect(next.civilizations.p1.recentCrisisHistory).toEqual(['plague']);
+    expect(next.civilizations.p1.recentCrisisHistory).toEqual(['bandit-uprising']);
   });
 
   it('respects era grace: no crisis in era 1 for anyone, era 2 for explorer', () => {

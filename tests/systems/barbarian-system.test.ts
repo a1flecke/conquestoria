@@ -78,6 +78,24 @@ describe('destroyCamp', () => {
     expect(result.reward).toBeGreaterThan(0);
   });
 
+  it('records the killer civ on a Hunt crisis (MR3) when its bandit camp is destroyed', () => {
+    const state = createNewGame('egypt', 'hunt-camp-attribution', 'small');
+    state.barbarianCamps['camp-1'] = {
+      id: 'camp-1', position: { q: 4, r: 4 }, strength: 5, spawnCooldown: 0, banditLordName: 'Test Lord',
+    };
+    state.activeCrises = {
+      'crisis-1': {
+        id: 'crisis-1', flavorId: 'bandit-uprising', archetype: 'hunt', targetCivId: 'ai-1',
+        cityIds: [], tileKeys: [], startedTurn: 1, stage: 'menacing', turnsInStage: 1,
+        huntEntityId: 'camp-1', foeName: 'Test Lord',
+      },
+    };
+
+    const result = applyCampDestruction(state, 'player', 'camp-1', state.turn);
+
+    expect(result.state.activeCrises!['crisis-1'].lastHuntKillerCivId).toBe('player');
+  });
+
   it('completes the matching camp quest at the destruction source', () => {
     const state = createNewGame('egypt', 'camp-quest-source', 'small');
     const minorCivId = Object.keys(state.minorCivs)[0];
