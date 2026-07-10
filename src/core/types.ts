@@ -844,6 +844,13 @@ export interface Civilization {
   nearDefeat?: boolean;   // true when cities.length <= 1; used by audio system
   isEliminated?: boolean; // true once all cities are captured; hides civ from diplomacy
   lastCombatTurnByLandmass?: Record<string, number>; // landmassId → turn of last combat
+  // Per-player challenge (humans only): governs internal-pressure knobs (crisis
+  // frequency/severity, unrest contagion) ONLY — AI behavior stays on the
+  // game-wide `opponentChallenge`. Falls back to game-wide when unset.
+  challenge?: OpponentChallenge;
+  pendingChallenge?: OpponentChallenge; // applied at the start of this civ's next turn
+  recentCrisisHistory?: string[]; // last 4 crisis flavor ids, for anti-repeat weighting
+  lastCrisisOnsetTurn?: number;
 }
 
 export interface BreakawayMetadata {

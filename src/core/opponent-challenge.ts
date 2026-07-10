@@ -10,6 +10,10 @@ export interface OpponentChallengeProfile {
   maxIndependentCrisesPerHuman: number;
   recoveryRounds: number;
   planReconsiderRounds: number;
+  crisisCooldownTurns: number;
+  crisisGraceMaxEra: number;
+  crisisGraceMinTurns: number;
+  crisisSeverityMultiplier: number;
 }
 
 export const OPPONENT_CHALLENGE_PROFILES: Record<OpponentChallenge, OpponentChallengeProfile> = {
@@ -23,6 +27,10 @@ export const OPPONENT_CHALLENGE_PROFILES: Record<OpponentChallenge, OpponentChal
     maxIndependentCrisesPerHuman: 1,
     recoveryRounds: 3,
     planReconsiderRounds: 3,
+    crisisCooldownTurns: 12,
+    crisisGraceMaxEra: 2,
+    crisisGraceMinTurns: 30,
+    crisisSeverityMultiplier: 0.5,
   },
   standard: {
     mobilizationRounds: 1,
@@ -34,6 +42,10 @@ export const OPPONENT_CHALLENGE_PROFILES: Record<OpponentChallenge, OpponentChal
     maxIndependentCrisesPerHuman: 2,
     recoveryRounds: 2,
     planReconsiderRounds: 2,
+    crisisCooldownTurns: 8,
+    crisisGraceMaxEra: 1,
+    crisisGraceMinTurns: 20,
+    crisisSeverityMultiplier: 1.0,
   },
   veteran: {
     mobilizationRounds: 0,
@@ -45,6 +57,10 @@ export const OPPONENT_CHALLENGE_PROFILES: Record<OpponentChallenge, OpponentChal
     maxIndependentCrisesPerHuman: 3,
     recoveryRounds: 1,
     planReconsiderRounds: 1,
+    crisisCooldownTurns: 5,
+    crisisGraceMaxEra: 1,
+    crisisGraceMinTurns: 10,
+    crisisSeverityMultiplier: 1.3,
   },
 };
 
@@ -56,6 +72,24 @@ export function resolveOpponentChallenge(
   state: Pick<GameState, 'opponentChallenge'>,
 ): OpponentChallenge {
   return isOpponentChallenge(state.opponentChallenge) ? state.opponentChallenge : 'standard';
+}
+
+// Per-civ challenge governs internal-pressure knobs (crises, unrest contagion)
+// ONLY — AI opponent behavior always stays on the game-wide `opponentChallenge`.
+export function resolveChallengeForCiv(
+  state: Pick<GameState, 'opponentChallenge' | 'civilizations'>,
+  civId: string,
+): OpponentChallenge {
+  const civ = state.civilizations[civId];
+  if (civ?.isHuman && isOpponentChallenge(civ.challenge)) return civ.challenge;
+  return resolveOpponentChallenge(state);
+}
+
+export function getChallengeProfileForCiv(
+  state: Pick<GameState, 'opponentChallenge' | 'civilizations'>,
+  civId: string,
+): OpponentChallengeProfile {
+  return OPPONENT_CHALLENGE_PROFILES[resolveChallengeForCiv(state, civId)];
 }
 
 export function setPendingOpponentChallenge(

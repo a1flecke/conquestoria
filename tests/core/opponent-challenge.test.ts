@@ -1,12 +1,22 @@
 import { describe, expect, it } from 'vitest';
 import { createNewGame } from '@/core/game-state';
+import type { GameState } from '@/core/types';
 import {
   applyPendingOpponentChallenge,
+  getChallengeProfileForCiv,
   isOpponentChallenge,
   OPPONENT_CHALLENGE_PROFILES,
+  resolveChallengeForCiv,
   resolveOpponentChallenge,
   setPendingOpponentChallenge,
 } from '@/core/opponent-challenge';
+
+function stateWith(civChallenge: string | undefined, gameChallenge: string | undefined): GameState {
+  return {
+    opponentChallenge: gameChallenge,
+    civilizations: { c1: { id: 'c1', isHuman: true, challenge: civChallenge } },
+  } as unknown as GameState;
+}
 
 describe('opponent challenge', () => {
   it('recognizes only supported campaign challenge values', () => {
@@ -83,5 +93,33 @@ describe('opponent challenge', () => {
       expect(profile).not.toHaveProperty('researchBonus');
       expect(profile).not.toHaveProperty('visionBonus');
     }
+  });
+});
+
+describe('per-civ challenge resolution', () => {
+  it('prefers civ.challenge over game-wide', () => {
+    expect(resolveChallengeForCiv(stateWith('explorer', 'veteran'), 'c1')).toBe('explorer');
+  });
+  it('falls back to game-wide, then standard', () => {
+    expect(resolveChallengeForCiv(stateWith(undefined, 'veteran'), 'c1')).toBe('veteran');
+    expect(resolveChallengeForCiv(stateWith(undefined, undefined), 'c1')).toBe('standard');
+  });
+  it('ignores invalid values', () => {
+    expect(resolveChallengeForCiv(stateWith('bogus', undefined), 'c1')).toBe('standard');
+  });
+});
+
+describe('crisis profile knobs', () => {
+  it('carries spec values', () => {
+    expect(OPPONENT_CHALLENGE_PROFILES.explorer).toMatchObject({
+      crisisCooldownTurns: 12, crisisGraceMaxEra: 2, crisisGraceMinTurns: 30, crisisSeverityMultiplier: 0.5 });
+    expect(OPPONENT_CHALLENGE_PROFILES.standard).toMatchObject({
+      crisisCooldownTurns: 8, crisisGraceMaxEra: 1, crisisGraceMinTurns: 20, crisisSeverityMultiplier: 1.0 });
+    expect(OPPONENT_CHALLENGE_PROFILES.veteran).toMatchObject({
+      crisisCooldownTurns: 5, crisisGraceMaxEra: 1, crisisGraceMinTurns: 10, crisisSeverityMultiplier: 1.3 });
+  });
+
+  it('getChallengeProfileForCiv resolves the per-civ profile', () => {
+    expect(getChallengeProfileForCiv(stateWith('veteran', 'explorer'), 'c1').crisisCooldownTurns).toBe(5);
   });
 });
