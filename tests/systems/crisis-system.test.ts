@@ -1,0 +1,72 @@
+import { describe, it, expect } from 'vitest';
+import { EventBus } from '@/core/event-bus';
+import { processCrisisSchedulerForHumans, countActiveCrisesForCiv, countUnrestGroups } from '@/systems/crisis-system';
+import { makeCrisisFixture } from './helpers/crisis-fixture';
+
+describe('crisis scheduler', () => {
+  it('fires a plague for an idle human past grace', () => {
+    const { state } = makeCrisisFixture({ era: 3, turn: 40, challenge: 'standard' });
+    const next = processCrisisSchedulerForHumans(state, new EventBus());
+    const crises = Object.values(next.activeCrises ?? {});
+    expect(crises).toHaveLength(1);
+    expect(crises[0].flavorId).toBe('plague');
+    expect(next.civilizations.p1.lastCrisisOnsetTurn).toBe(40);
+    expect(next.civilizations.p1.recentCrisisHistory).toEqual(['plague']);
+  });
+
+  it('respects era grace: no crisis in era 1 for anyone, era 2 for explorer', () => {
+    for (const [challenge, era] of [['veteran', 1], ['explorer', 2]] as const) {
+      const { state } = makeCrisisFixture({ era, turn: 99, challenge });
+      expect(Object.keys(processCrisisSchedulerForHumans(state, new EventBus()).activeCrises ?? {})).toHaveLength(0);
+    }
+  });
+
+  it('respects turn grace floors (30/20/10)', () => {
+    for (const [challenge, turn] of [['explorer', 29], ['standard', 19], ['veteran', 9]] as const) {
+      const { state } = makeCrisisFixture({ era: 5, turn, challenge });
+      expect(Object.keys(processCrisisSchedulerForHumans(state, new EventBus()).activeCrises ?? {})).toHaveLength(0);
+    }
+  });
+
+  it('respects cooldown', () => {
+    const { state } = makeCrisisFixture({ era: 3, turn: 40, challenge: 'standard', lastCrisisOnsetTurn: 35 });
+    expect(Object.keys(processCrisisSchedulerForHumans(state, new EventBus()).activeCrises ?? {})).toHaveLength(0);
+  });
+
+  it('is blocked at cap, counting unrest groups', () => {
+    // standard cap = 2: one active crisis + one unrest group = at cap
+    const { state } = makeCrisisFixture({
+      era: 3, turn: 40, challenge: 'standard',
+      existingCrisisCount: 1, unrestCityCount: 1,
+    });
+    expect(countUnrestGroups(state, 'p1')).toBe(1);
+    expect(countActiveCrisesForCiv(state, 'p1')).toBe(2);
+    const next = processCrisisSchedulerForHumans(state, new EventBus());
+    expect(Object.keys(next.activeCrises ?? {})).toHaveLength(1); // unchanged
+  });
+
+  it('adjacent unrest cities count as ONE group', () => {
+    const { state } = makeCrisisFixture({ unrestCityCount: 2, adjacentUnrestCities: true });
+    expect(countUnrestGroups(state, 'p1')).toBe(1);
+  });
+
+  it('is deterministic: same state → same crisis id and target', () => {
+    const { state } = makeCrisisFixture({ era: 3, turn: 40 });
+    const a = processCrisisSchedulerForHumans(state, new EventBus());
+    const b = processCrisisSchedulerForHumans(state, new EventBus());
+    expect(a.activeCrises).toEqual(b.activeCrises);
+  });
+
+  it('skips players with an active external threat', () => {
+    const { state } = makeCrisisFixture({ era: 3, turn: 40, activeExternalThreat: true });
+    expect(Object.keys(processCrisisSchedulerForHumans(state, new EventBus()).activeCrises ?? {})).toHaveLength(0);
+  });
+
+  it('emits crisis:started with what-to-do copy routed later', () => {
+    const bus = new EventBus();
+    const events: unknown[] = [];
+    bus.on('crisis:started', e => events.push(e));
+    processCrisisSchedulerForHumans(makeCrisisFixture({ era: 3, turn: 40 }).state, bus);
+    expect(events).toHaveLength(1);
+  });
+});
