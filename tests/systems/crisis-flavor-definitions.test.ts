@@ -32,6 +32,18 @@ describe('CRISIS_FLAVORS table invariants', () => {
       it('advisor line says what to do (mentions an action or unit)', () => {
         expect(flavor.advisorLine.length).toBeGreaterThan(20);
       });
+      it('carries catastrophe params if and only if the archetype is catastrophe', () => {
+        if (flavor.archetype === 'catastrophe') {
+          expect(flavor.catastrophe).toBeDefined();
+          expect(flavor.catastrophe!.blastRadius).toBeGreaterThan(0);
+          for (const level of ['explorer', 'standard', 'veteran'] as const) {
+            expect(flavor.catastrophe!.devastationTurnsByChallenge[level]).toBeGreaterThan(0);
+          }
+          expect(flavor.responseActions).toEqual([]);
+        } else {
+          expect(flavor.catastrophe).toBeUndefined();
+        }
+      });
     });
   }
 });
