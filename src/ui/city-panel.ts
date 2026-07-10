@@ -27,7 +27,7 @@ import { canUpgradeUnit, getUpgradeCost } from '@/systems/unit-upgrade-system';
 import { UNIT_DEFINITIONS } from '@/systems/unit-system';
 import { getUnrestYieldMultiplier, getCityAppeaseCost, isCityProductionLocked } from '@/systems/faction-system';
 import { getCrisisFlavor, getCrisisDisplayName } from '@/systems/crisis-flavor-definitions';
-import { getCrisisYieldMultiplier } from '@/systems/crisis-system';
+import { getCrisisYieldMultiplier, getOutbreakSeverityMultiplier } from '@/systems/crisis-system';
 import { resolveChallengeForCiv } from '@/core/opponent-challenge';
 import { getOccupiedCityMood, getOccupiedCityYieldMultiplier } from '@/systems/city-occupation-system';
 import { calculateProjectedCityYields } from '@/systems/city-work-system';
@@ -249,7 +249,7 @@ export function createCityPanel(
     const remedyCost = getCityAppeaseCost(city);
     const canAffordRemedy = (civ?.gold ?? 0) >= remedyCost;
     const yieldPenaltyPct = Math.round(severity.yieldPenalty * 100);
-    const quarantinedPenaltyPct = Math.round(Math.min(1, 2 * severity.yieldPenalty) * 100);
+    const quarantinedPenaltyPct = Math.round((1 - getOutbreakSeverityMultiplier(severity, true)) * 100);
 
     const quarantineDisabled = isQuarantined || !callbacks.onQuarantineCrisis;
     const quarantineLabel = isQuarantined ? 'Quarantined' : 'Quarantine (free)';

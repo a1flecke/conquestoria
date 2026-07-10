@@ -496,7 +496,10 @@ export function showHotSeatSetup(
         disabledCivs: chosenCivs,
         headerText: `${players[playerIdx].name}, choose your civilization`,
         civDefinitions,
-        primaryActionText: playerIdx + 1 < players.length ? 'Next Player' : 'Start Game',
+        // Every player now passes through the personal-difficulty screen next,
+        // so this button never actually starts the game — label it "Next" so it
+        // doesn't over-promise, even for the last player.
+        primaryActionText: 'Next',
       });
     });
   }

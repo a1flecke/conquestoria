@@ -6,6 +6,7 @@ import {
   applyQuarantine,
   applyRemedy,
   getCrisisYieldMultiplier,
+  getOutbreakSeverityMultiplier,
   resolveCrisis,
   handleCityLeftCiv,
 } from '@/systems/crisis-system';
@@ -39,6 +40,15 @@ describe('outbreak resolver', () => {
 
     const { state: quarantined } = withCrisis({ quarantinedCityIds: ['c1'] });
     expect(getCrisisYieldMultiplier(quarantined, 'c1')).toBeCloseTo(0.5); // 1 - 2*0.25
+  });
+
+  it('floors the quarantined multiplier at 0.25 for high-severity flavors, matching the shared helper city-panel.ts also uses', () => {
+    // A hypothetical future flavor with yieldPenalty > 0.375 would otherwise let
+    // 1 - 2*penalty go below the intended floor; both the resolver and the
+    // city-panel display must agree on the same floored value.
+    const highSeverity = { yieldPenalty: 0.45 };
+    expect(getOutbreakSeverityMultiplier(highSeverity, true)).toBe(0.25);
+    expect(getOutbreakSeverityMultiplier(highSeverity, false)).toBeCloseTo(0.55);
   });
 
   it('composes multiplicatively across multiple crises on the same city', () => {
@@ -86,7 +96,7 @@ describe('outbreak resolver', () => {
     bus.on('crisis:resolved', e => events.push(e));
     const next = processCrisisTurn(withCrisisState, bus);
     expect(next.activeCrises?.['crisis-1']).toBeUndefined();
-    expect(events).toEqual([{ crisisId: 'crisis-1', civId: 'p1', outcome: 'expired' }]);
+    expect(events).toEqual([{ crisisId: 'crisis-1', flavorId: 'plague', civId: 'p1', outcome: 'expired' }]);
   });
 
   it('veteran pop loss every N ignored turns when not quarantined/remedied', () => {
@@ -138,6 +148,6 @@ describe('outbreak resolver', () => {
     bus.on('crisis:resolved', e => events.push(e));
     const next = resolveCrisis(state, 'crisis-1', 'contained', bus);
     expect(next.activeCrises?.['crisis-1']).toBeUndefined();
-    expect(events).toEqual([{ crisisId: 'crisis-1', civId: 'p1', outcome: 'contained' }]);
+    expect(events).toEqual([{ crisisId: 'crisis-1', flavorId: 'plague', civId: 'p1', outcome: 'contained' }]);
   });
 });

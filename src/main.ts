@@ -9,7 +9,7 @@ import '@/assets/roc-animations.css';
 import '@/assets/dragon-animations.css';
 import { EventBus } from '@/core/event-bus';
 import { createNewGame, createHotSeatGame, createDefaultSettings } from '@/core/game-state';
-import { resolveOpponentChallenge, setPendingOpponentChallenge, resolveChallengeForCiv, setPendingChallengeForCiv } from '@/core/opponent-challenge';
+import { resolveOpponentChallenge, setPendingOpponentChallenge, resolveChallengeForCiv, setPendingChallengeForCiv, applyPendingChallengeForCiv } from '@/core/opponent-challenge';
 import { processTurn } from '@/core/turn-manager';
 import { processNonHumanMajorRound } from '@/ai/ai-round-scheduler';
 import { RenderLoop } from '@/renderer/render-loop';
@@ -3325,7 +3325,10 @@ async function beginHotSeatHandoff(
       handleVictoryIfNeeded();
       return;
     }
-    gameState = { ...preSimulationState, currentPlayer: resolvedNextSlotId };
+    gameState = applyPendingChallengeForCiv(
+      { ...preSimulationState, currentPlayer: resolvedNextSlotId },
+      resolvedNextSlotId,
+    );
     void persistIntermediateHandoff();
     return;
   }

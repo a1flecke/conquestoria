@@ -552,7 +552,7 @@ describe('hotseat-setup', () => {
     ]);
   });
 
-  it('shows Next Player as the civ-pick CTA for non-final human players', () => {
+  it('shows Next as the civ-pick CTA for every human player — it never starts the game directly, since the personal-difficulty screen always follows', () => {
     showHotSeatSetup(document.body, {
       onComplete: () => {},
       onCancel: () => {},
@@ -566,10 +566,18 @@ describe('hotseat-setup', () => {
     click('#hs-names-next');
 
     expect(document.body.textContent).toContain('Alice, choose your civilization');
-    expect(primaryCivActionLabel()).toBe('Next Player');
+    expect(primaryCivActionLabel()).toBe('Next');
+
+    click('.civ-card[data-civ-id="egypt"]');
+    click('#civ-start');
+    click('#hs-personal-challenge-next');
+    click('#hs-civ-ready');
+
+    expect(document.body.textContent).toContain('Bob, choose your civilization');
+    expect(primaryCivActionLabel()).toBe('Next');
   });
 
-  it('shows Start Game as the civ-pick CTA for the final human player', () => {
+  it('shows Start Game as the CTA on the final player\'s personal-difficulty screen', () => {
     showHotSeatSetup(document.body, {
       onComplete: () => {},
       onCancel: () => {},
@@ -584,9 +592,12 @@ describe('hotseat-setup', () => {
 
     chooseCiv('egypt');
     click('#hs-civ-ready');
+    click('.civ-card[data-civ-id="rome"]');
+    click('#civ-start');
 
-    expect(document.body.textContent).toContain('Bob, choose your civilization');
-    expect(primaryCivActionLabel()).toBe('Start Game');
+    expect(document.body.textContent).toContain('Your Personal Difficulty');
+    const startButton = document.querySelector('#hs-personal-challenge-next');
+    expect(startButton?.textContent).toBe('Start Game');
   });
 
   describe('map type stage', () => {

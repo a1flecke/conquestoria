@@ -443,5 +443,9 @@ export function routeCrisisResolved(
     abandoned: 'no longer threatens your empire.',
   };
   const type: NotificationEntry['type'] = event.outcome === 'abandoned' ? 'info' : 'success';
-  sink(event.civId, `A crisis ${outcomeMessage[event.outcome]}`, type);
+  const flavor = getCrisisFlavor(event.flavorId);
+  // Naming the resolved crisis matters once a player can have 2-3 concurrent crises
+  // (veteran cap) — a bare "A crisis..." message would be ambiguous about which one.
+  const name = flavor ? getCrisisDisplayName(flavor, state.era) : 'A crisis';
+  sink(event.civId, `${name} ${outcomeMessage[event.outcome]}`, type);
 }
