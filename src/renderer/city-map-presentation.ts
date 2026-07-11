@@ -2,6 +2,7 @@ import type { BuildingCategory, City, CityMaturity, GameState } from '@/core/typ
 import { getCapitalCityId } from '@/systems/capital-system';
 import { CITY_MATURITY_DEFINITIONS } from '@/systems/city-maturity-system';
 import { BUILDINGS } from '@/systems/city-system';
+import { isCityHpRegenerating } from '@/systems/city-siege-system';
 import type { LegendaryWonderMapEntry } from '@/systems/legendary-wonder-map-presentation';
 import { resolveCivilizationEra } from '@/systems/tech-definitions';
 import { civTypeToFaction } from '@/renderer/civilization-visual-family';
@@ -26,6 +27,10 @@ export interface CityMapPresentation {
   primaryWonder?: LegendaryWonderMapEntry;
   completedWonderOverflowCount: number;
   visibilityMode: 'live' | 'last-seen';
+  // True when the city is below max HP and not currently regenerating (a hostile unit
+  // is adjacent) — mirrors the city panel's "Under siege (no regen)" label (#522) via
+  // the same isCityHpRegenerating helper so the map badge and panel can never drift.
+  underSiege: boolean;
 }
 
 export interface CityWonderSelection {
@@ -85,6 +90,7 @@ export function buildLiveCityMapPresentation(
   const owner = state.civilizations[city.owner];
   const wonder = selectPrimaryCityWonder(landmarkEntries);
   const isMinorCiv = city.owner.startsWith('mc-');
+  const cityHp = city.hp ?? 100;
   return {
     architectureEra: resolveCivilizationEra(owner?.techState.completed ?? []),
     populationTier: resolvePopulationTier(city.population),
@@ -95,6 +101,7 @@ export function buildLiveCityMapPresentation(
     primaryWonder: wonder.primary,
     completedWonderOverflowCount: wonder.completedOverflowCount,
     visibilityMode: 'live',
+    underSiege: cityHp < 100 && !isCityHpRegenerating(state, city),
   };
 }
 
@@ -109,5 +116,8 @@ export function buildStaleCityMapPresentation(population: number): CityMapPresen
     primaryWonder: undefined,
     completedWonderOverflowCount: 0,
     visibilityMode: 'last-seen',
+    // Last-seen (fogged) presentation has no live HP data; a badge here would be
+    // stale/misleading, so it's always false.
+    underSiege: false,
   };
 }

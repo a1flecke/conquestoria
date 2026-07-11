@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { City, GameState } from '@/core/types';
 import { createNewGame } from '@/core/game-state';
 import { foundCity } from '@/systems/city-system';
+import { createUnit } from '@/systems/unit-system';
 import type { LegendaryWonderMapEntry } from '@/systems/legendary-wonder-map-presentation';
 import { getEraAdvancementTechs } from '@/systems/tech-definitions';
 import {
@@ -126,6 +127,32 @@ describe('city map presentation', () => {
     expect(presentation.isCapital).toBe(true);
     expect(presentation.isBreakawayCapital).toBe(true);
     expect(presentation.visibilityMode).toBe('live');
+  });
+
+  it('flags underSiege false for a full-HP city (#522)', () => {
+    const state = createNewGame(undefined, 'city-map-siege-full-hp', 'small');
+    const city = makeCity(state);
+    city.hp = 100;
+
+    expect(buildLiveCityMapPresentation(state, city, []).underSiege).toBe(false);
+  });
+
+  it('flags underSiege false for a damaged city that is regenerating (no hostile nearby) (#522)', () => {
+    const state = createNewGame(undefined, 'city-map-siege-regen', 'small');
+    const city = makeCity(state);
+    city.hp = 50;
+
+    expect(buildLiveCityMapPresentation(state, city, []).underSiege).toBe(false);
+  });
+
+  it('flags underSiege true for a damaged city with a hostile unit adjacent (#522)', () => {
+    const state = createNewGame(undefined, 'city-map-siege-active', 'small');
+    const city = makeCity(state);
+    city.hp = 50;
+    const raider = createUnit('warrior', 'barbarian', city.position, state.idCounters);
+    state.units[raider.id] = raider;
+
+    expect(buildLiveCityMapPresentation(state, city, []).underSiege).toBe(true);
   });
 
   it('derives architecture era independently from population tier', () => {
