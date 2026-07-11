@@ -163,6 +163,7 @@ export function createCityPanel(
       case 'gold': return '+1 gold/turn';
       case 'production': return '+1 production/turn';
       case 'food': return '+1 food/turn';
+      case 'science': return '+1 science/turn';
       default: return '';
     }
   }

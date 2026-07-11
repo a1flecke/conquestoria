@@ -1,9 +1,9 @@
 import type { Unit, UnitType, City, GameState, ResourceType } from '@/core/types';
-import { TRAINABLE_UNITS, getCatalogProductionCost } from './city-system';
+import { TRAINABLE_UNITS, getProductionCostForItem } from './city-system';
 import { getCivAvailableResources } from './resource-acquisition-system';
 
-export function getUpgradeCost(targetType: UnitType): number {
-  const cost = getCatalogProductionCost(targetType, 1);
+export function getUpgradeCost(targetType: UnitType, availableResources?: ReadonlySet<ResourceType>): number {
+  const cost = getProductionCostForItem(targetType, { availableResources });
   return cost > 0 ? Math.ceil(cost * 0.5) : 0;
 }
 
@@ -24,11 +24,11 @@ export function canUpgradeUnit(
   if (!targetType) {
     const targetInPrinciple = getCanonicalUpgradeTarget(unit, completedTechs, undefined, availableResources);
     if (targetInPrinciple) {
-      return { canUpgrade: false, targetType: null, cost: getUpgradeCost(targetInPrinciple), reason: 'missing-building' };
+      return { canUpgrade: false, targetType: null, cost: getUpgradeCost(targetInPrinciple, availableResources), reason: 'missing-building' };
     }
     return { canUpgrade: false, targetType: null, cost: 0 };
   }
-  const cost = getUpgradeCost(targetType);
+  const cost = getUpgradeCost(targetType, availableResources);
   if (civGold !== undefined && civGold < cost) return { canUpgrade: false, targetType: null, cost };
   return { canUpgrade: true, targetType, cost };
 }
@@ -122,7 +122,7 @@ export function applyUnitUpgradeToState(
   if (canonicalTarget !== targetType) {
     return { state, upgraded: false, reason: 'invalid-target' };
   }
-  const cost = getUpgradeCost(targetType);
+  const cost = getUpgradeCost(targetType, getCivAvailableResources(state, unit.owner));
   if (civ.gold < cost) {
     return { state, upgraded: false, reason: 'insufficient-gold' };
   }

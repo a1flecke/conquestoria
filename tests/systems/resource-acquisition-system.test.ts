@@ -869,6 +869,10 @@ describe('canBuyResourceAccess', () => {
   it('returns false when buyer already owns the resource', () => {
     expect(canBuyResourceAccess(makeBuyState({ buyerAlreadyOwns: true }), 'buyer', 'seller', 'iron')).toBe(false);
   });
+
+  it('returns false when the buyer cannot afford the current access price', () => {
+    expect(canBuyResourceAccess(makeBuyState({ buyerGold: 23 }), 'buyer', 'seller', 'iron')).toBe(false);
+  });
 });
 
 describe('performBuyResourceAccess', () => {
@@ -879,14 +883,29 @@ describe('performBuyResourceAccess', () => {
 
     return {
       turn: 5,
-      map: { width: 10, height: 10, tiles: {}, wrapsHorizontally: false, rivers: [] },
-      cities: {},
       civilizations: {
         buyer: {
           id: 'buyer', cities: [], units: [], gold: 100,
-          techState: { completed: [], currentResearch: null, researchQueue: [], researchProgress: 0, trackPriorities: {} },
-          diplomacy: { relationships: {}, treaties: [], events: [], atWarWith: [], treacheryScore: 0, vassalage: { overlord: null, vassals: [], protectionScore: 100, protectionTimers: [], peakCities: 0, peakMilitary: 0 } },
+          techState: { completed: ['bronze-working'], currentResearch: null, researchQueue: [], researchProgress: 0, trackPriorities: {} },
+          diplomacy: { relationships: { seller: 10 }, treaties: [], events: [], atWarWith: [], treacheryScore: 0, vassalage: { overlord: null, vassals: [], protectionScore: 100, protectionTimers: [], peakCities: 0, peakMilitary: 0 } },
         } as unknown as never,
+        seller: {
+          id: 'seller', cities: ['seller-city'], units: [], gold: 0,
+          techState: { completed: ['bronze-working'], currentResearch: null, researchQueue: [], researchProgress: 0, trackPriorities: {} },
+          diplomacy: { relationships: { buyer: 10 }, treaties: [], events: [], atWarWith: [], treacheryScore: 0, vassalage: { overlord: null, vassals: [], protectionScore: 100, protectionTimers: [], peakCities: 0, peakMilitary: 0 } },
+        } as unknown as never,
+      },
+      cities: {
+        'seller-city': {
+          id: 'seller-city', owner: 'seller', position: { q: 5, r: 5 }, ownedTiles: [{ q: 5, r: 5 }],
+          population: 1, food: 0, production: 0, gold: 0, buildings: [], productionQueue: [], workedTiles: [], specialistSlots: [], garrisonUnitId: null, hp: 100, maxHp: 100,
+        } as unknown as never,
+      },
+      map: {
+        width: 10, height: 10, wrapsHorizontally: false, rivers: [],
+        tiles: {
+          '5,5': { coord: { q: 5, r: 5 }, terrain: 'hills', elevation: 'lowland', resource: 'iron', improvement: 'none', improvementTurnsLeft: 0, hasRiver: false, wonder: null, owner: 'seller' },
+        },
       },
       marketplace: { prices, priceHistory, fashionable: null, fashionTurnsLeft: 0, tradeRoutes: [], purchasedResources: [] },
     } as unknown as GameState;

@@ -3,18 +3,10 @@ import { generateBalancedMap } from '@/systems/balanced-map-generator';
 import { hexKey } from '@/systems/hex-utils';
 
 describe('generateBalancedMap', () => {
-  it('places late strategic resources through the shared late pass', () => {
+  it('leaves late strategic resources until game setup knows every protected tile', () => {
     const { map } = generateBalancedMap(30, 30, 'balanced-late-resources', 3);
-    const resources = new Set(Object.values(map.tiles).map(tile => tile.resource));
-    for (const resource of ['coal', 'oil', 'aluminum', 'uranium', 'rare-earth-elements', 'battery-minerals']) {
-      expect(resources).toContain(resource);
-    }
-  });
-
-  it('guarantees at least one Uranium deposit per major civilization when terrain permits', () => {
-    const { map } = generateBalancedMap(30, 30, 'balanced-uranium-guarantee', 3);
-    const uraniumCount = Object.values(map.tiles).filter(tile => tile.resource === 'uranium').length;
-    expect(uraniumCount).toBeGreaterThanOrEqual(3);
+    const lateResources = new Set(['coal', 'oil', 'aluminum', 'uranium', 'rare-earth-elements', 'battery-minerals']);
+    expect(Object.values(map.tiles).some(tile => lateResources.has(tile.resource ?? ''))).toBe(false);
   });
 
   it('returns startPositions.length === civCount', () => {

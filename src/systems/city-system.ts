@@ -1843,7 +1843,10 @@ export function processCity(
   // Drop queued items that are no longer available (tech lost, resource lost)
   if ((completedTechs.length > 0 || availableResources) && newQueue.length > 0) {
     const trainable = getTrainableUnitsForCiv(completedTechs, civType, availableResources);
-    const trainableTypes = new Set(trainable.map(u => u.type));
+    const trainableTypes = new Set([
+      ...trainable.map(u => u.type),
+      ...[...legacyResourceGrace].filter(item => TRAINABLE_UNITS.some(unit => unit.type === item)),
+    ]);
     const BUILDING_IDS = new Set(Object.keys(BUILDINGS));
     const filtered = newQueue.filter(item => {
       if (item.startsWith('legendary:')) return true;

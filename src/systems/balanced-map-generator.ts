@@ -8,7 +8,6 @@ import {
 } from './map-generator';
 import { hexKey, hexDistance } from './hex-utils';
 import { generateRivers, applyRiversToMap } from './river-system';
-import { placeLateResources } from './late-resource-placement';
 
 // S2a: extended with all 10 luxury resources so the hotspot/equalization passes
 // treat new luxuries the same as the original 6.
@@ -136,7 +135,6 @@ export function generateBalancedMap(
   // Standard resource placement (skips tiles with existing resources)
   const resourceRng = createRng(seed + '-resources');
   placeResources(tiles, resourceRng);
-  placeLateResources(tiles, createRng(seed + '-late-resources'), startPositions, civCount);
 
   // Post-placement zone equalization: bring under-served zones up to 75% of mean density
   const postCounts = new Array(civCount).fill(0);

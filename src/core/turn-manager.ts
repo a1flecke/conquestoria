@@ -212,7 +212,7 @@ export function processTurn(
         food:       Math.floor((baseYields.food       + (wonderCityBonuses.food       ?? 0) + resourceYieldBonus.food       + (npCivBonuses.food       ?? 0) + empireFlatFoodForCity + resilienceBonus) * unrestMultiplier),
         production: Math.floor((baseYields.production + (wonderCityBonuses.production ?? 0) + resourceYieldBonus.production + (npCivBonuses.production ?? 0) + empireFlatProductionForCity + resilienceBonus) * unrestMultiplier * (1 + (empireTechPercents.production ?? 0) / 100)),
         gold:       Math.floor((baseYields.gold       + (wonderCityBonuses.gold       ?? 0) + resourceYieldBonus.gold)       * unrestMultiplier * (1 + (empireTechPercents.gold ?? 0) / 100)),
-        science:    Math.floor((baseYields.science    + (wonderCityBonuses.science    ?? 0) + networkGovernanceScienceForCity) * unrestMultiplier * (1 + (empireTechPercents.science ?? 0) / 100)),
+        science:    Math.floor((baseYields.science    + (wonderCityBonuses.science    ?? 0) + resourceYieldBonus.science + networkGovernanceScienceForCity) * unrestMultiplier * (1 + (empireTechPercents.science ?? 0) / 100)),
       };
       totalScience += yields.science;
       totalGold += yields.gold;

@@ -54,16 +54,17 @@ export function getCivAvailableResources(
 
   const completedTechs = new Set(civ.techState.completed);
   const resourceDefMap = new Map(RESOURCE_DEFINITIONS.map(d => [d.id, d]));
+  const mapTiles = state.map?.tiles ?? {};
 
-  for (const cityId of civ.cities) {
+  for (const cityId of civ.cities ?? []) {
     const city = state.cities[cityId];
     if (!city) continue;
 
     const cityKey = hexKey(city.position);
 
-    for (const coord of city.ownedTiles) {
+    for (const coord of city.ownedTiles ?? []) {
       const key = hexKey(coord);
-      const tile = state.map.tiles[key];
+      const tile = mapTiles[key];
       if (!tile?.resource) continue;
 
       const def = resourceDefMap.get(tile.resource as ResourceType);
@@ -90,7 +91,7 @@ export function getCivAvailableResources(
 
   // Pass 2 — resource outpost tiles owned by this civ (outside city territory)
   // Linear scan over all tiles: 60×40 = 2,400 tiles maximum.
-  for (const tile of Object.values(state.map.tiles)) {
+  for (const tile of Object.values(mapTiles)) {
     if (
       tile.improvement !== 'resource_outpost' ||
       tile.improvementTurnsLeft !== 0 ||
@@ -271,6 +272,8 @@ export function canBuyResourceAccess(
 ): boolean {
   const buyer = state.civilizations[buyerCivId];
   if (!buyer) return false;
+  const definition = RESOURCE_DEFINITIONS.find(def => def.id === resource);
+  if (!definition || !buyer.techState.completed.includes(definition.tech)) return false;
 
   // Must have met the seller (key present in relationships map)
   if (!(sellerCivId in buyer.diplomacy.relationships)) return false;
@@ -290,7 +293,14 @@ export function canBuyResourceAccess(
   const buyerResources = getCivAvailableResources(state, buyerCivId);
   if (buyerResources.has(resource)) return false;
 
+  if (buyer.gold < getResourceAccessCost(state, resource)) return false;
+
   return true;
+}
+
+export function getResourceAccessCost(state: GameState, resource: ResourceType): number {
+  const definition = RESOURCE_DEFINITIONS.find(def => def.id === resource);
+  return (state.marketplace?.prices[resource] ?? definition?.basePrice ?? 5) * 3;
 }
 
 /**
@@ -301,13 +311,11 @@ export function canBuyResourceAccess(
 export function performBuyResourceAccess(
   state: GameState,
   buyerCivId: string,
-  _sellerCivId: string,   // reserved: future diplomatic impact on relationship score
+  sellerCivId: string,
   resource: ResourceType,
 ): GameState {
-  if (!state.marketplace) return state;
-
-  const def = RESOURCE_DEFINITIONS.find(d => d.id === resource);
-  const cost = (state.marketplace.prices[resource] ?? def?.basePrice ?? 5) * 3;
+  if (!state.marketplace || !canBuyResourceAccess(state, buyerCivId, sellerCivId, resource)) return state;
+  const cost = getResourceAccessCost(state, resource);
 
   const buyer = state.civilizations[buyerCivId];
   if (!buyer) return state;

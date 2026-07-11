@@ -76,12 +76,13 @@ function queueCostBeforeCaravan(state: GameState, cityId: string): number | null
   if (!city || !civ) return null;
   const bonusEffect = resolveCivDefinition(state, civ.civType)?.bonusEffect;
   const activeNationalProjects = getActiveNationalProjectsForCiv(state, city.owner);
+  const availableResources = getCivAvailableResources(state, city.owner);
   let remaining = 0;
   let foundCaravan = false;
 
   for (let index = 0; index < city.productionQueue.length; index++) {
     const itemId = city.productionQueue[index];
-    const cost = getProductionCostForItem(itemId, { city, bonusEffect, era: state.era, completedTechs: civ.techState.completed, activeNationalProjects });
+    const cost = getProductionCostForItem(itemId, { city, bonusEffect, era: state.era, completedTechs: civ.techState.completed, activeNationalProjects, availableResources });
     remaining += index === 0 ? Math.max(0, cost - city.productionProgress) : cost;
     if (itemId === 'caravan') {
       foundCaravan = true;
@@ -90,7 +91,7 @@ function queueCostBeforeCaravan(state: GameState, cityId: string): number | null
   }
 
   if (!foundCaravan) {
-    remaining += getProductionCostForItem('caravan', { city, bonusEffect, era: state.era, completedTechs: civ.techState.completed, activeNationalProjects });
+    remaining += getProductionCostForItem('caravan', { city, bonusEffect, era: state.era, completedTechs: civ.techState.completed, activeNationalProjects, availableResources });
   }
   return remaining;
 }
