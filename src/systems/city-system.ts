@@ -5,6 +5,7 @@ import { drawNextCityName, DEFAULT_CITY_NAMES } from './city-name-system';
 import { INITIAL_CITY_FOCUS, INITIAL_CITY_MATURITY } from './city-maturity-system';
 import { TECH_COST_DISCOUNTS, getFoundingBonusFood } from './tech-yield-definitions';
 import { UNIT_CLASS_BY_TYPE, type UnitClass } from './unit-modifier-definitions';
+import { getResourceAdvantageMultiplier } from './resource-advantages';
 import {
   getLegendaryWonderDisplayName,
   getLegendaryWonderProductionCost,
@@ -619,7 +620,7 @@ export const BUILDINGS: Record<string, Building> = {
     id: 'oil_refinery', name: 'Oil Refinery', category: 'production',
     yields: { food: 0, production: 3, gold: 0, science: 0 }, productionCost: 185,
     description: 'Petroleum extraction and refining. +3 production per turn.',
-    techRequired: 'petroleum-industry',
+    techRequired: 'petroleum-industry', resourceRequired: ['oil'],
   },
   assembly_line: {
     id: 'assembly_line', name: 'Assembly Line', category: 'production',
@@ -720,7 +721,7 @@ export const BUILDINGS: Record<string, Building> = {
     id: 'nuclear_arsenal', name: 'Nuclear Arsenal', category: 'military',
     yields: { food: 0, production: 3, gold: 0, science: 0 }, productionCost: 195,
     description: 'Atomic weapon stockpile. +3 production per turn.',
-    techRequired: 'nuclear-weapons',
+    techRequired: 'nuclear-weapons', resourceRequired: ['uranium'],
     pacing: { band: 'power-spike', role: 'late-military-production', impact: 1.4, scope: 'city', snowball: 1.3, urgency: 1.1, situationality: 1.1, unlockBreadth: 1 },
   },
   central_bank: {
@@ -776,7 +777,7 @@ export const BUILDINGS: Record<string, Building> = {
     id: 'nuclear_power_plant', name: 'Nuclear Power Plant', category: 'production',
     yields: { food: 0, production: 5, gold: 0, science: 0 }, productionCost: 200,
     description: 'Atomic reactor generating electricity without fuel costs. +5 production per turn.',
-    techRequired: 'nuclear-power',
+    techRequired: 'nuclear-power', resourceRequired: ['uranium'],
     pacing: { band: 'marquee', role: 'late-power-production', impact: 1.6, scope: 'city', snowball: 1.5, urgency: 1.2, situationality: 1.0, unlockBreadth: 1 },
   },
   television_station: {
@@ -800,7 +801,7 @@ export const BUILDINGS: Record<string, Building> = {
     // Single key: production 6 ≤ 9 (era 7+ ceiling) ✓
     yields: { food: 0, production: 6, gold: 0, science: 0 }, productionCost: 310,
     description: 'Total war weapons programme. +6 production empire-wide.',
-    techRequired: 'nuclear-weapons',
+    techRequired: 'nuclear-weapons', resourceRequired: ['uranium'],
     pacing: { band: 'marquee', role: 'national-project', impact: 1.6, scope: 'empire', snowball: 1.5, urgency: 1.2, situationality: 1.3, unlockBreadth: 1 },
     uniquePerEmpire: true, nationalProject: { homeEra: 10 },
     civYieldBonus: { production: 6 },
@@ -1124,7 +1125,7 @@ export const TRAINABLE_UNITS: Array<TrainableUnitEntry & { pacing?: Building['pa
   { type: 'destroyer',           name: 'Destroyer',           cost: 210, techRequired: 'carrier-warfare', coastalRequired: true, pacing: { band: 'power-spike', role: 'naval-escort-apex', impact: 1.55, scope: 'military', snowball: 1.45, urgency: 1.2, situationality: 1.5, unlockBreadth: 1 } },
   // Era 11 units
   { type: 'attack_helicopter', name: 'Attack Helicopter', cost: 230, techRequired: 'helicopter-warfare', pacing: { band: 'marquee', role: 'air-assault', impact: 1.55, scope: 'military', snowball: 1.4, urgency: 1.2, situationality: 1.3, unlockBreadth: 1 } },
-  { type: 'missile_submarine', name: 'Missile Submarine', cost: 250, techRequired: 'nuclear-submarines', coastalRequired: true, pacing: { band: 'marquee', role: 'naval-deterrent', impact: 1.6, scope: 'military', snowball: 1.5, urgency: 1.2, situationality: 1.5, unlockBreadth: 1 } },
+  { type: 'missile_submarine', name: 'Missile Submarine', cost: 250, techRequired: 'nuclear-submarines', coastalRequired: true, resourceRequired: ['uranium'], pacing: { band: 'marquee', role: 'naval-deterrent', impact: 1.6, scope: 'military', snowball: 1.5, urgency: 1.2, situationality: 1.5, unlockBreadth: 1 } },
   // Era 12 units
   { type: 'cyber_unit', name: 'Cyber Unit', cost: 338, techRequired: 'cyber-warfare', pacing: { band: 'marquee', role: 'cyber-saboteur', impact: 1.4, scope: 'military', snowball: 1.2, urgency: 1.1, situationality: 1.4, unlockBreadth: 1 } },
   { type: 'stealth_bomber', name: 'Stealth Bomber', cost: 360, techRequired: 'stealth-technology', trainedFromBuilding: 'stealth_airbase', pacing: { band: 'marquee', role: 'stealth-strike', impact: 1.7, scope: 'military', snowball: 1.5, urgency: 1.3, situationality: 1.5, unlockBreadth: 1 } },
@@ -1311,6 +1312,7 @@ export function getProductionCostForItem(
     era?: number;
     completedTechs?: string[];
     activeNationalProjects?: ActiveNationalProjectRef[];
+    availableResources?: ReadonlySet<ResourceType>;
   } = {},
 ): number {
   const baseCost = getCatalogProductionCost(itemId, options.era);
@@ -1334,7 +1336,8 @@ export function getProductionCostForItem(
     unit != null,
     options.activeNationalProjects ?? [],
   );
-  const discountMultiplier = buildingDiscountMultiplier * techDiscountMultiplier * npDiscountMultiplier;
+  const resourceAdvantageMultiplier = getResourceAdvantageMultiplier(itemId, options.availableResources ?? new Set());
+  const discountMultiplier = buildingDiscountMultiplier * techDiscountMultiplier * npDiscountMultiplier * resourceAdvantageMultiplier;
   const effective = baseCost * civMultiplier * discountMultiplier;
   return discountMultiplier < 1 ? Math.ceil(effective) : Math.round(effective);
 }
@@ -1936,7 +1939,13 @@ export function processCity(
     const currentItem = newQueue[0];
 
     const unitDef = TRAINABLE_UNITS.find(u => u.type === currentItem);
-    const currentItemCost = getProductionCostForItem(currentItem, { city, bonusEffect, era });
+    const currentItemCost = getProductionCostForItem(currentItem, {
+      city,
+      bonusEffect,
+      era,
+      completedTechs,
+      availableResources,
+    });
     if ((BUILDINGS[currentItem] || unitDef) && newProgress >= currentItemCost) {
       const completion = completeCityProductionItem(
         { ...city, productionQueue: newQueue, productionProgress: newProgress, buildings: newBuildings },

@@ -7,8 +7,22 @@ import {
   getSettlerProductionCost,
 } from '@/systems/city-system';
 import { UNIT_DEFINITIONS } from '@/systems/unit-system';
+import { getResourceAdvantageMultiplier } from '@/systems/resource-advantages';
 
 describe('production cost catalog', () => {
+  it('keeps the five intrinsic Oil/Uranium inputs hard-gated', () => {
+    expect(BUILDINGS.oil_refinery.resourceRequired).toEqual(['oil']);
+    expect(BUILDINGS.nuclear_power_plant.resourceRequired).toEqual(['uranium']);
+    expect(BUILDINGS.nuclear_arsenal.resourceRequired).toEqual(['uranium']);
+    expect(BUILDINGS.manhattan_project.resourceRequired).toEqual(['uranium']);
+    expect(TRAINABLE_UNITS.find(unit => unit.type === 'missile_submarine')?.resourceRequired).toEqual(['uranium']);
+  });
+
+  it('applies generic resource advantages multiplicatively with a 25% cap', () => {
+    expect(getResourceAdvantageMultiplier('tank', new Set(['oil']))).toBe(0.85);
+    expect(getResourceAdvantageMultiplier('combat_drone', new Set(['aluminum', 'rare-earth-elements', 'battery-minerals']))).toBe(0.75);
+    expect(getProductionCostForItem('tank', { availableResources: new Set(['oil']) })).toBe(Math.ceil(185 * 0.85));
+  });
   it('keeps Herbalist in the Era 1 starter window for a new capital', () => {
     expect(BUILDINGS.herbalist.productionCost).toBe(16);
     expect(BUILDINGS.herbalist.pacing?.band).toBe('starter');

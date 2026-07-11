@@ -17,7 +17,7 @@ import { processTradeRouteIncome } from './trade-system';
 import { getClaimedTrophyGoldPerTurn } from './beast-system';
 import { createUnit, UNIT_DEFINITIONS } from './unit-system';
 import { resolveCivDefinition } from './civ-registry';
-import { getCivHappinessFromResources } from './resource-acquisition-system';
+import { getCivAvailableResources, getCivHappinessFromResources } from './resource-acquisition-system';
 import {
   getEmpireTechPercents,
   getCivLuxuryTechGold,
@@ -722,6 +722,7 @@ export function getRushBuyQuote(state: GameState, civId: string, cityId: string)
     era: state.era,
     completedTechs: civ.techState.completed,
     activeNationalProjects: getActiveNationalProjectsForCiv(state, civId),
+    availableResources: getCivAvailableResources(state, civId),
   });
   if (cost <= 0) {
     return { available: false, itemId, cost: 0, reason: 'invalid-active-item', message: 'This production item cannot be bought.', status: ownerStatus };
