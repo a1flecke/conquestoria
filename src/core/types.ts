@@ -1557,7 +1557,8 @@ export interface GameEvents {
     maritimeStage: PirateMaritimeStage;
   };
   'pirate:audio-cue': {
-    cue: 'sighting' | 'raid' | 'blockade' | 'tribute' | 'contract-accepted' | 'contract-exposed';
+    cue: 'sighting' | 'raid' | 'blockade' | 'tribute' | 'contract-accepted' | 'contract-exposed'
+      | 'siege' | 'city-razed';
     factionId: string;
     viewerIds: string[];
   };

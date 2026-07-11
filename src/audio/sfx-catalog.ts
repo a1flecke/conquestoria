@@ -44,6 +44,8 @@ export const PIRATE_STRATEGIC_SFX = {
   tribute: real('stinger-pirate-tribute', 'audio/stinger/pirates/tribute.ogg', 1.20, 'stinger'),
   'contract-accepted': real('stinger-pirate-contract-accepted', 'audio/stinger/pirates/contract-accepted.ogg', 1.20, 'stinger'),
   'contract-exposed': real('stinger-pirate-contract-exposed', 'audio/stinger/pirates/contract-exposed.ogg', 1.20, 'stinger'),
+  siege: real('stinger-pirate-siege', 'audio/stinger/pirates/siege.ogg', 1.20, 'stinger'),
+  'city-razed': real('stinger-pirate-city-razed', 'audio/stinger/pirates/city-razed.ogg', 1.20, 'stinger'),
 } as const;
 
 // Unit SFX — keyed by UnitType, then by SfxClass. Non-combat units have death only.
