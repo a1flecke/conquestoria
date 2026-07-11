@@ -14,7 +14,7 @@ export class UnsupportedSaveSchemaVersionError extends Error {
 function stableLegacyGameId(state: GameState): string {
   const tileFingerprint = Object.entries(state.map?.tiles ?? {})
     .sort(([left], [right]) => left.localeCompare(right))
-    .map(([tileId, tile]) => [tileId, tile.q, tile.r, tile.terrain, tile.resource ?? ''].join(':'))
+    .map(([tileId, tile]) => [tileId, tile.coord.q, tile.coord.r, tile.terrain, tile.resource ?? ''].join(':'))
     .join('|');
   const source = `${state.currentPlayer}|${state.turn}|${tileFingerprint}`;
   let hash = 2166136261;
@@ -44,8 +44,8 @@ function remapTechIds(techIds: readonly string[], excluded: ReadonlySet<string> 
 function remapPersistedTechReferences(state: GameState): GameState {
   const civilizations = Object.fromEntries(Object.entries(state.civilizations).map(([civId, civilization]) => {
     if (!civilization.techState) return [civId, civilization];
-    const completed = remapTechIds(civilization.techState.completed);
-    const currentResearch = civilization.techState.currentResearch
+    const completed = remapTechIds(Array.isArray(civilization.techState.completed) ? civilization.techState.completed : []);
+    const currentResearch = typeof civilization.techState.currentResearch === 'string'
       ? remapPersistedTechId(civilization.techState.currentResearch)
       : null;
     const currentIsCompleted = currentResearch !== null && completed.includes(currentResearch);
@@ -56,8 +56,8 @@ function remapPersistedTechReferences(state: GameState): GameState {
         ...civilization.techState,
         completed,
         currentResearch: currentIsCompleted ? null : currentResearch,
-        researchQueue: remapTechIds(civilization.techState.researchQueue, excluded),
-        researchProgress: currentIsCompleted ? 0 : civilization.techState.researchProgress,
+        researchQueue: remapTechIds(Array.isArray(civilization.techState.researchQueue) ? civilization.techState.researchQueue : [], excluded),
+        researchProgress: currentIsCompleted ? 0 : (civilization.techState.researchProgress ?? 0),
       },
     }];
   }));
