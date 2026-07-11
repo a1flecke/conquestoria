@@ -32,18 +32,19 @@ describe('pirate definitions', () => {
       wealthyCityGainCap: 2,
       wealthyGrossGold: 8,
     });
-    expect(PIRATE_NOTORIETY).toEqual({ raiding: 2, blockading: 5, survivalInterval: 8 });
+    expect(PIRATE_NOTORIETY).toEqual({ raiding: 2, blockading: 5, besieging: 9, survivalInterval: 8 });
     expect(PIRATE_FACTION_CAP_BY_MAP_SIZE).toEqual({ small: 3, medium: 4, large: 5 });
     expect(PIRATE_MAX_FLOTILLA_FACTIONS).toBe(2);
     expect(PIRATE_FLEET_SIZE_BY_BEHAVIOR).toEqual({
       patrolling: { min: 1, max: 2 },
       raiding: { min: 2, max: 3 },
       blockading: { min: 3, max: 4 },
+      besieging: { min: 3, max: 4 },
     });
-    expect(PIRATE_TRIBUTE_BASE).toEqual({ patrolling: 15, raiding: 30, blockading: 50 });
+    expect(PIRATE_TRIBUTE_BASE).toEqual({ patrolling: 15, raiding: 30, blockading: 50, besieging: 60 });
     expect(PIRATE_STAGE_SURCHARGE).toEqual([0, 0, 5, 10, 15, 20]);
     expect(PIRATE_PLUNDER_CAP).toEqual([0, 5, 8, 12, 16, 20]);
-    expect(PIRATE_BOUNTY_BASE).toEqual({ patrolling: 10, raiding: 25, blockading: 45 });
+    expect(PIRATE_BOUNTY_BASE).toEqual({ patrolling: 10, raiding: 25, blockading: 45, besieging: 55 });
   });
 
   it('defines five stages and six dedicated hulls without unlocking them for cities', () => {

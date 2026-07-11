@@ -140,8 +140,18 @@ export const PIRATE_PRESSURE = {
 export const PIRATE_NOTORIETY = {
   raiding: 2,
   blockading: 5,
+  besieging: 9,
   survivalInterval: 8,
 } as const;
+
+// Siege capability floor: stage 3 == the `triremes` tech (see getPirateMaritimeStage in
+// pirate-ecology.ts). Below this stage, a besieging-eligible faction stays at blockading.
+export const PIRATE_SIEGE_MIN_STAGE = 3;
+// Naval siege HP damage per round, indexed by maritimeStage (0..5). 0 below the floor.
+export const PIRATE_SIEGE_DAMAGE = [0, 0, 0, 8, 12, 16] as const;
+// Consecutive rounds a city must be blockaded (including the current round) before a
+// besieging faction can start damaging its HP. The telegraphed warning window (#522).
+export const PIRATE_SIEGE_BLOCKADE_TURNS = 3;
 
 export const PIRATE_FACTION_CAP_BY_MAP_SIZE = {
   small: 3,
@@ -155,12 +165,13 @@ export const PIRATE_FLEET_SIZE_BY_BEHAVIOR = {
   patrolling: { min: 1, max: 2 },
   raiding: { min: 2, max: 3 },
   blockading: { min: 3, max: 4 },
+  besieging: { min: 3, max: 4 },
 } as const satisfies Record<PirateBehavior, { min: number; max: number }>;
 
-export const PIRATE_TRIBUTE_BASE = { patrolling: 15, raiding: 30, blockading: 50 } as const;
+export const PIRATE_TRIBUTE_BASE = { patrolling: 15, raiding: 30, blockading: 50, besieging: 60 } as const;
 export const PIRATE_STAGE_SURCHARGE = [0, 0, 5, 10, 15, 20] as const;
 export const PIRATE_PLUNDER_CAP = [0, 5, 8, 12, 16, 20] as const;
-export const PIRATE_BOUNTY_BASE = { patrolling: 10, raiding: 25, blockading: 45 } as const;
+export const PIRATE_BOUNTY_BASE = { patrolling: 10, raiding: 25, blockading: 45, besieging: 55 } as const;
 
 export const PIRATE_ACTION_RULES = {
   tributeDurationRounds: 15,
@@ -173,7 +184,9 @@ export const PIRATE_ACTION_RULES = {
     baseDamage: 15,
     strengthDivisor: 5,
     maximumDamage: 35,
-    counterfireByBehavior: { patrolling: 0, raiding: 8, blockading: 14 },
+    // besieging escalates past blockading: assaulting a besieging faction's enclave is
+    // the most dangerous option, discouraging players from ignoring an active siege.
+    counterfireByBehavior: { patrolling: 0, raiding: 8, blockading: 14, besieging: 18 },
   },
 } as const;
 

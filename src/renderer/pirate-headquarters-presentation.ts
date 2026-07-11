@@ -47,7 +47,9 @@ export function getPirateHeadquartersSpriteId(
 }
 
 function tierForBehavior(behavior: string | undefined): PirateBehaviorTierNumber {
-  if (behavior === 'blockading') return 3;
+  // besieging is the apex tier (#522) but PirateBehaviorTierNumber only has 3 slots —
+  // it shares tier 3 with blockading (both render as the most aggressive posture).
+  if (behavior === 'besieging' || behavior === 'blockading') return 3;
   if (behavior === 'raiding') return 2;
   return 1;
 }
@@ -64,7 +66,9 @@ function behaviorModeForPresentation(
   relocationDirection: string | undefined,
 ): PirateSpriteMode {
   if (relocationDirection) return 'relocating';
-  if (behavior === 'blockading') return 'blockade';
+  // besieging reuses the 'blockade' sprite mode — no new sprite art in this MR (#522);
+  // ships clustered around the target reads correctly for both.
+  if (behavior === 'besieging' || behavior === 'blockading') return 'blockade';
   if (behavior === 'raiding') return 'raid';
   return 'patrol';
 }

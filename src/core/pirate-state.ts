@@ -3,7 +3,7 @@ import type { HexCoord } from './types';
 export const PIRATE_STATE_VERSION = 1;
 
 export type PirateFactionId = `pirate-${number}`;
-export type PirateBehavior = 'patrolling' | 'raiding' | 'blockading';
+export type PirateBehavior = 'patrolling' | 'raiding' | 'blockading' | 'besieging';
 export type PirateMaritimeStage = 1 | 2 | 3 | 4 | 5;
 export type PirateIntelLevel = 'rumor' | 'sighted' | 'tracked';
 export const PIRATE_RELOCATION_DIRECTIONS = [

@@ -613,7 +613,9 @@ export function derivePirateRaids(
 export function derivePirateBlockades(state: GameState): PirateBlockade[] {
   const blockades: PirateBlockade[] = [];
   for (const faction of Object.values(state.pirates?.factions ?? {}).sort((a, b) => a.id.localeCompare(b.id))) {
-    if (faction.behavior !== 'blockading' || faction.maritimeStage < 2) continue;
+    // A besieging faction keeps producing the blockade its siege depends on (#522):
+    // siege is derived FROM active blockades, so besieging must remain blockade-eligible.
+    if ((faction.behavior !== 'blockading' && faction.behavior !== 'besieging') || faction.maritimeStage < 2) continue;
     const ships = faction.shipIds.map(id => state.units[id]).filter((unit): unit is Unit => Boolean(unit));
     for (const candidate of Object.values(state.cities).sort((a, b) => a.id.localeCompare(b.id))) {
       if (!isEligibleVictim(state, faction.id, candidate.owner) || !isCoastalCity(state, candidate.id)) continue;
