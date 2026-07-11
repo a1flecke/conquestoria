@@ -9,14 +9,16 @@ describe('crisis scheduler', () => {
     const next = processCrisisSchedulerForHumans(state, new EventBus());
     const crises = Object.values(next.activeCrises ?? {});
     expect(crises).toHaveLength(1);
-    // This fixture's city (population 5, no forest/mountain/coast/jungle terrain) is
-    // geography-eligible for both 'plague' (population >= 4) and 'bandit-uprising'
-    // (any land city, MR3) — both start with equal anti-repeat weight, and this seed's
-    // weighted pick lands on bandit-uprising. The point of this test is the grace/cooldown
-    // gate and history bookkeeping, not which specific flavor wins the pick.
-    expect(crises[0].flavorId).toBe('bandit-uprising');
+    // This fixture's city (population 5, grassland, no forest/mountain/coast/jungle
+    // terrain) is geography-eligible for 'plague' (population >= 4), 'bandit-uprising'
+    // (any land city, MR3), and 'crop-blight' (grassland city, MR5) — all start with
+    // equal anti-repeat weight, and this seed's weighted pick lands on crop-blight
+    // (was bandit-uprising before MR5 added a new equally-weighted grassland-eligible
+    // candidate). The point of this test is the grace/cooldown gate and history
+    // bookkeeping, not which specific flavor wins the pick.
+    expect(crises[0].flavorId).toBe('crop-blight');
     expect(next.civilizations.p1.lastCrisisOnsetTurn).toBe(40);
-    expect(next.civilizations.p1.recentCrisisHistory).toEqual(['bandit-uprising']);
+    expect(next.civilizations.p1.recentCrisisHistory).toEqual(['crop-blight']);
   });
 
   it('respects era grace: no crisis in era 1 for anyone, era 2 for explorer', () => {
