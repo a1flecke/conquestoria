@@ -139,6 +139,17 @@ export const IMPROVEMENT_DEFINITIONS: Record<BuildableImprovementType, Improveme
     preservesTerrain: true,
     resourceMode: 'generic-or-resource',
   },
+  oil_well: {
+    type: 'oil_well',
+    name: 'Oil Well',
+    buildTurns: 5,
+    validTerrains: ['plains', 'desert'],
+    requiresRiver: false,
+    requiredTech: 'petroleum-industry',
+    yieldBonus: { food: 0, production: 0, gold: 0, science: 0 },
+    preservesTerrain: true,
+    resourceMode: 'resource-only',
+  },
 };
 
 export const IMPROVEMENT_BUILD_TURNS: Record<ImprovementType, number> = {
@@ -150,6 +161,7 @@ export const IMPROVEMENT_BUILD_TURNS: Record<ImprovementType, number> = {
   pasture: IMPROVEMENT_DEFINITIONS.pasture.buildTurns,
   camp: IMPROVEMENT_DEFINITIONS.camp.buildTurns,
   quarry: IMPROVEMENT_DEFINITIONS.quarry.buildTurns,
+  oil_well: IMPROVEMENT_DEFINITIONS.oil_well.buildTurns,
   resource_outpost: 0,  // set by Expedition unit, not by Worker
   none: 0,
 };

@@ -96,10 +96,41 @@ function makeMinimalState(overrides: Partial<{
 
 describe('trade-system', () => {
   describe('RESOURCE_DEFINITIONS', () => {
-    it('defines 16 resources (10 luxury + 6 strategic)', () => {
-      expect(RESOURCE_DEFINITIONS).toHaveLength(16);
+    it('defines 22 resources (10 luxury + 12 strategic)', () => {
+      expect(RESOURCE_DEFINITIONS).toHaveLength(22);
       expect(RESOURCE_DEFINITIONS.filter(r => r.type === 'luxury')).toHaveLength(10);
-      expect(RESOURCE_DEFINITIONS.filter(r => r.type === 'strategic')).toHaveLength(6);
+      expect(RESOURCE_DEFINITIONS.filter(r => r.type === 'strategic')).toHaveLength(12);
+    });
+
+    it('defines the industrial-to-future resources with stable, distinct material metadata', () => {
+      const expected = {
+        coal: { price: 7, tech: 'steam-power', terrain: ['hills'], improvement: 'mine', effect: { type: 'production', amount: 1 } },
+        oil: { price: 12, tech: 'petroleum-industry', terrain: ['plains', 'desert'], improvement: 'oil_well', effect: { type: 'production', amount: 1 } },
+        aluminum: { price: 10, tech: 'aluminium-smelting', terrain: ['hills', 'desert'], improvement: 'mine', effect: null },
+        uranium: { price: 16, tech: 'nuclear-physics', terrain: ['hills', 'tundra', 'desert'], improvement: 'mine', effect: { type: 'science', amount: 1 } },
+        'rare-earth-elements': { price: 14, tech: 'nanomaterials', terrain: ['hills', 'desert'], improvement: 'mine', effect: { type: 'science', amount: 1 } },
+        'battery-minerals': { price: 13, tech: 'smart-cities', terrain: ['hills', 'desert', 'plains'], improvement: 'mine', effect: { type: 'production', amount: 1 } },
+      } as const;
+
+      for (const [id, expectedDefinition] of Object.entries(expected)) {
+        const definition = RESOURCE_DEFINITIONS.find(resource => resource.id === id);
+        expect(definition, `missing resource ${id}`).toBeDefined();
+        expect(definition?.basePrice).toBe(expectedDefinition.price);
+        expect(definition?.tech).toBe(expectedDefinition.tech);
+        expect([...(Array.isArray(definition?.terrain) ? definition.terrain : [definition?.terrain])].sort())
+          .toEqual([...expectedDefinition.terrain].sort());
+        expect(definition?.requiredImprovement).toBe(expectedDefinition.improvement);
+        expect(definition?.effect).toEqual(expectedDefinition.effect);
+        expect((definition as { materialFamily?: string } | undefined)?.materialFamily).toBeTruthy();
+        expect((definition as { codex?: { summary?: string } } | undefined)?.codex?.summary).toBeTruthy();
+
+        const revealTech = TECH_TREE.find(tech => tech.id === expectedDefinition.tech);
+        expect(revealTech?.unlocks).toContain(`Reveal ${definition?.name} resource`);
+      }
+
+      const rareEarth = RESOURCE_DEFINITIONS.find(resource => resource.id === 'rare-earth-elements') as { materialFamily?: string } | undefined;
+      const battery = RESOURCE_DEFINITIONS.find(resource => resource.id === 'battery-minerals') as { materialFamily?: string } | undefined;
+      expect(rareEarth?.materialFamily).not.toBe(battery?.materialFamily);
     });
 
     it('each resource has a positive base price', () => {
@@ -172,7 +203,7 @@ describe('trade-system', () => {
     });
 
     it('requiredImprovement values are valid BuildableImprovementTypes', () => {
-      const valid = new Set(['farm', 'mine', 'lumber_camp', 'watermill', 'plantation', 'pasture', 'camp', 'quarry']);
+      const valid = new Set(['farm', 'mine', 'lumber_camp', 'watermill', 'plantation', 'pasture', 'camp', 'quarry', 'oil_well']);
       for (const r of RESOURCE_DEFINITIONS) {
         const imp = (r as unknown as Record<string, unknown>).requiredImprovement as string | undefined;
         expect(valid.has(imp ?? ''), `${r.id}.requiredImprovement "${imp}" is not a valid BuildableImprovementType`).toBe(true);

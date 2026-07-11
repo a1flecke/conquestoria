@@ -229,7 +229,7 @@ export interface TribalVillage {
 export type VisibilityState = 'unexplored' | 'fog' | 'visible';
 
 export type ImprovementType = 'farm' | 'mine' | 'lumber_camp' | 'watermill'
-  | 'plantation' | 'pasture' | 'camp' | 'quarry' | 'resource_outpost' | 'none';
+  | 'plantation' | 'pasture' | 'camp' | 'quarry' | 'oil_well' | 'resource_outpost' | 'none';
 // resource_outpost is excluded: only Expeditions can establish outposts, not Workers
 export type BuildableImprovementType = Exclude<ImprovementType, 'none' | 'resource_outpost'>;
 export type WorkerActionType = BuildableImprovementType | 'drain_swamp' | 'build_road' | 'restore_land';
@@ -1290,7 +1290,8 @@ export interface OpponentAIState {
 
 export type LuxuryResource = 'silk' | 'wine' | 'spices' | 'gems' | 'ivory' | 'incense'
   | 'gold' | 'silver' | 'furs' | 'sheep';
-export type StrategicResource = 'copper' | 'iron' | 'horses' | 'stone' | 'cattle' | 'salt';
+export type StrategicResource = 'copper' | 'iron' | 'horses' | 'stone' | 'cattle' | 'salt'
+  | 'coal' | 'oil' | 'aluminum' | 'uranium' | 'rare-earth-elements' | 'battery-minerals';
 export type ResourceType = LuxuryResource | StrategicResource;
 
 export interface TradeRoute {

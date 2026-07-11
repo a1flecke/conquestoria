@@ -273,7 +273,7 @@ const ERA_7_TECHS: Tech[] = [
   // ECONOMY (2)
   { id: 'steam-power', name: 'Steam Power', track: 'economy', cost: 200,
     prerequisites: ['joint-stock-companies', 'precision-casting'],
-    unlocks: ['Factory unlocked — steam-driven industrial production building'], unlocksBuildings: ['factory'], era: 7 },
+    unlocks: ['Factory unlocked — steam-driven industrial production building', 'Reveal Coal resource'], unlocksBuildings: ['factory'], era: 7 },
   { id: 'mass-production', name: 'Mass Production', track: 'economy', cost: 210,
     prerequisites: ['mercantilism', 'aqueduct-expansion'],
     unlocks: ['+10% production empire-wide; unit training costs reduced 5%'], era: 7 },

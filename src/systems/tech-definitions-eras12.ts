@@ -84,7 +84,7 @@ const ERA_12_TECHS: Tech[] = [
   // METALLURGY (2)
   { id: 'nanomaterials', name: 'Nanomaterials', track: 'metallurgy', cost: 1780,
     prerequisites: ['carbon-fiber', 'precision-engineering'],
-    unlocks: ['All units gain +3 strength'],
+    unlocks: ['All units gain +3 strength', 'Reveal Rare Earth Elements resource'],
     era: 12 },
   { id: '3d-printing', name: '3D Printing', track: 'metallurgy', cost: 1925,
     prerequisites: ['precision-engineering', 'megastructures'],
@@ -94,7 +94,7 @@ const ERA_12_TECHS: Tech[] = [
   // CONSTRUCTION (2)
   { id: 'smart-cities', name: 'Smart Cities', track: 'construction', cost: 2780,
     prerequisites: ['megastructures', 'offshore-platforms'],
-    unlocks: ['Cities with both a factory and a semiconductor fab generate +2 production and +1 science per turn from smart-grid integration'],
+    unlocks: ['Cities with both a factory and a semiconductor fab generate +2 production and +1 science per turn from smart-grid integration', 'Reveal Battery Minerals resource'],
     unlocksBuildings: ['smart_grid'], era: 12 },
   { id: 'green-architecture', name: 'Green Architecture', track: 'construction', cost: 1330,
     prerequisites: ['offshore-platforms', 'green-revolution-crops'],
