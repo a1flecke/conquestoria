@@ -17,7 +17,7 @@ export const PIRATE_AUDIO_FILES = [
   'audio/sfx/pirates/enclave-ambience.ogg',
   'audio/sfx/pirates/enclave-defense.ogg',
   'audio/sfx/pirates/enclave-collapse.ogg',
-  ...['sighting', 'raid', 'blockade', 'tribute', 'contract-accepted', 'contract-exposed']
+  ...['sighting', 'raid', 'blockade', 'tribute', 'contract-accepted', 'contract-exposed', 'siege', 'city-razed']
     .map(cue => `audio/stinger/pirates/${cue}.ogg`),
 ] as const;
 

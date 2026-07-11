@@ -102,19 +102,19 @@ describe('sfx-catalog completeness', () => {
       'ambience', 'collapse', 'defense',
     ]);
     expect(Object.keys(PIRATE_STRATEGIC_SFX).sort()).toEqual([
-      'blockade', 'contract-accepted', 'contract-exposed', 'raid', 'sighting', 'tribute',
+      'blockade', 'city-razed', 'contract-accepted', 'contract-exposed', 'raid', 'siege', 'sighting', 'tribute',
     ]);
   });
 
-  it('allSfxEntries returns exactly 130 entries', () => {
+  it('allSfxEntries returns exactly 132 entries', () => {
     // 18 foot-melee (6×3) + 8 foot-ranged (2×4) + 9 mounted (3×3) + 6 naval combat (2×3)
     // + 6 siege (2×3) + 9 special-combat (3×3) + 6 non-combat (6×1) + 5 spy-death (5×1) + 3 move-step = 70
     // + 4 new transport death (carrack, galleon, steamship, troop_transport) + 2 transport load/unload = 76
     // + 16 beast SFX (8 beasts × 2: attack-swing + death) = 92
-    // + 33 pirate movement/combat/headquarters/strategic entries = 125
-    // + 1 air locomotion move-step = 126
-    // + 4 era-12 unit SFX (cyber_unit: death; stealth_bomber: ranged-loose, ranged-impact, death) = 130
-    expect(allSfxEntries()).toHaveLength(130);
+    // + 35 pirate movement/combat/headquarters/strategic entries (#522 adds siege + city-razed) = 127
+    // + 1 air locomotion move-step = 128
+    // + 4 era-12 unit SFX (cyber_unit: death; stealth_bomber: ranged-loose, ranged-impact, death) = 132
+    expect(allSfxEntries()).toHaveLength(132);
   });
 
   it('no two entries share the same ID', () => {

@@ -69,8 +69,8 @@ render "$SFX_DIR/enclave-ambience.ogg" 8.00 44 brown 2001 audio/sfx/naval-move-s
 render "$SFX_DIR/enclave-defense.ogg" 0.80 240 white 2002 audio/sfx/ballista-siege-fire.ogg 0.38
 render "$SFX_DIR/enclave-collapse.ogg" 1.40 52 brown 2003 audio/sfx/galleon-death.ogg 0.40
 
-strategic=(sighting raid blockade tribute contract-accepted contract-exposed)
-strategic_frequencies=(330 196 110 440 523 147)
+strategic=(sighting raid blockade tribute contract-accepted contract-exposed siege city-razed)
+strategic_frequencies=(330 196 110 440 523 147 88 55)
 strategic_sources=(
   audio/sfx/transport-load.ogg
   audio/sfx/catapult-siege-fire.ogg
@@ -78,6 +78,8 @@ strategic_sources=(
   audio/sfx/transport-unload.ogg
   audio/sfx/galley-attack-impact.ogg
   audio/sfx/ballista-siege-impact.ogg
+  audio/sfx/ballista-siege-fire.ogg
+  audio/sfx/galleon-death.ogg
 )
 for i in "${!strategic[@]}"; do
   render "$STINGER_DIR/${strategic[$i]}.ogg" 1.20 "${strategic_frequencies[$i]}" pink "$((3000 + i))" "${strategic_sources[$i]}" 0.30
@@ -92,4 +94,4 @@ for file in "$SFX_DIR"/*.ogg "$STINGER_DIR"/*.ogg; do
   fi
 done
 
-printf 'Generated 33 pirate audio files.\n'
+printf 'Generated 35 pirate audio files.\n'

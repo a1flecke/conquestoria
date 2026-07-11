@@ -60,6 +60,6 @@ describe('pirate SFX generator', () => {
     for (const outputPath of Object.keys(first)) {
       expect(readFileSync(join(PROJECT_ROOT, outputPath)).subarray(0, 4).toString('ascii')).toBe('OggS');
     }
-    expect(Object.keys(first)).toHaveLength(33);
+    expect(Object.keys(first)).toHaveLength(35);
   }, 20_000);
 });

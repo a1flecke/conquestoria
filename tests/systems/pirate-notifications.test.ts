@@ -68,4 +68,40 @@ describe('pirate notifications', () => {
     expect(next.notificationLog!.player).toHaveLength(1);
     expect(next.notificationLog!['ai-1']).toBeUndefined();
   });
+
+  it('drafts a plain-language siege warning linked to the city, distinct from a routine sighting (#522)', () => {
+    const state = fixture();
+    const next = applyPirateNotifications(state, [
+      { type: 'siege', factionId: 'pirate-1', viewerId: 'player', cityId: 'port' },
+    ]);
+
+    expect(next.notificationLog!.player).toHaveLength(1);
+    const entry = next.notificationLog!.player[0]!;
+    expect(entry.message).toMatch(/besieg/i);
+    expect(entry.type).toBe('warning');
+    expect(entry.review).toEqual({ kind: 'pirate-faction', factionId: 'pirate-1' });
+  });
+
+  it('drafts a city-razed notice distinct from a faction-destroyed notice (#522)', () => {
+    const state = fixture();
+    const next = applyPirateNotifications(state, [
+      { type: 'city-razed', factionId: 'pirate-1', viewerId: 'player', cityId: 'port' },
+    ]);
+
+    expect(next.notificationLog!.player).toHaveLength(1);
+    const entry = next.notificationLog!.player[0]!;
+    expect(entry.message).toMatch(/razed/i);
+    expect(entry.message).not.toMatch(/faction/i);
+    expect(entry.type).toBe('warning');
+  });
+
+  it('keeps siege and city-razed individually visible (not grouped as routine)', () => {
+    const state = fixture();
+    const next = applyPirateNotifications(state, [
+      { type: 'siege', factionId: 'pirate-1', viewerId: 'player', cityId: 'port' },
+      { type: 'city-razed', factionId: 'pirate-1', viewerId: 'player', cityId: 'port' },
+    ]);
+
+    expect(next.notificationLog!.player).toHaveLength(2);
+  });
 });

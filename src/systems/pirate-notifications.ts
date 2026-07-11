@@ -3,7 +3,8 @@ import type { GameState } from '@/core/types';
 
 export type PirateNotificationEvent = {
   type: 'sighting' | 'raid' | 'relocated' | 'behavior-changed'
-    | 'demand' | 'blockade' | 'contract-exposed' | 'destroyed';
+    | 'demand' | 'blockade' | 'contract-exposed' | 'destroyed'
+    | 'siege' | 'city-razed';
   factionId: string;
   viewerId: string;
   amount?: number;
@@ -76,6 +77,18 @@ function individualDraft(event: PirateNotificationEvent): {
       return { message: 'Pirates are blockading a coastal city.', type: 'warning', review: activeReview, ...(event.cityId ? { linkedCityId: event.cityId } : {}) };
     case 'contract-exposed':
       return { message: 'A pirate contract employer has been exposed.', type: 'warning', review: activeReview };
+    case 'siege':
+      return {
+        message: 'Pirates are besieging a coastal city! Station a unit there or sink their ships.',
+        type: 'warning', review: activeReview,
+        ...(event.cityId ? { linkedCityId: event.cityId } : {}),
+      };
+    case 'city-razed':
+      return {
+        message: 'A coastal city has been razed by pirates!',
+        type: 'warning', review: activeReview,
+        ...(event.cityId ? { linkedCityId: event.cityId } : {}),
+      };
     case 'destroyed':
       return {
         message: 'A pirate faction has been destroyed.', type: 'success',

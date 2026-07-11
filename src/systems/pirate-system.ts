@@ -854,6 +854,10 @@ export function processPiratesForCompletedRound(
         notificationEvents.push({ type: 'raid', factionId: event.factionId, viewerId, amount: event.amount });
       } else if (event.type === 'blockade') {
         notificationEvents.push({ type: 'blockade', factionId: event.factionId, viewerId, cityId: event.cityId });
+      } else if (event.type === 'siege') {
+        notificationEvents.push({ type: 'siege', factionId: event.factionId, viewerId, cityId: event.cityId });
+      } else if (event.type === 'city-razed') {
+        notificationEvents.push({ type: 'city-razed', factionId: event.factionId, viewerId, cityId: event.cityId });
       } else if (event.type === 'relocated' || event.type === 'behavior-changed') {
         notificationEvents.push({ type: event.type, factionId: event.factionId, viewerId });
       }
@@ -861,7 +865,8 @@ export function processPiratesForCompletedRound(
   }
   nextState = applyPirateNotifications(nextState, notificationEvents);
   for (const event of notificationEvents) {
-    if (event.type === 'sighting' || event.type === 'raid' || event.type === 'blockade' || event.type === 'contract-exposed') {
+    if (event.type === 'sighting' || event.type === 'raid' || event.type === 'blockade' || event.type === 'contract-exposed'
+        || event.type === 'siege' || event.type === 'city-razed') {
       bus.emit('pirate:audio-cue', {
         cue: event.type,
         factionId: event.factionId,
