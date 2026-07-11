@@ -400,6 +400,21 @@ describe('guaranteeStartResources', () => {
     }
   });
 
+  it('does not use late resources to satisfy a start strategic-resource guarantee', () => {
+    const map = makeSmallMap();
+    for (const tile of Object.values(map.tiles)) tile.resource = null;
+    const start = { q: 5, r: 5 };
+    guaranteeStartResources(map, [start], createRng('early-start-resource-only'));
+    const nearby = getWrappedHexesInRange(start, 5, map.width)
+      .map(coord => map.tiles[hexKey(coord)]?.resource);
+    expect(nearby).not.toContain('coal');
+    expect(nearby).not.toContain('oil');
+    expect(nearby).not.toContain('aluminum');
+    expect(nearby).not.toContain('uranium');
+    expect(nearby).not.toContain('rare-earth-elements');
+    expect(nearby).not.toContain('battery-minerals');
+  });
+
   it('does not overwrite existing resources', () => {
     const map = makeSmallMap();
     for (const tile of Object.values(map.tiles)) tile.resource = null;
