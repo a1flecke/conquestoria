@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { City, GameMap, GameState } from '@/core/types';
 import { hexKey } from '@/systems/hex-utils';
 import { migrateLegacyCoastalData } from '@/storage/save-manager';
+import { CURRENT_SAVE_SCHEMA_VERSION } from '@/storage/save-migrations';
 
 const dbState = new Map<string, unknown>();
 
@@ -65,7 +66,7 @@ describe('save-manager setup and outcome migration', () => {
 
     const normalized = normalizeLoadedStateForTest(legacy);
 
-    expect(normalized.saveSchemaVersion).toBe(1);
+    expect(normalized.saveSchemaVersion).toBe(CURRENT_SAVE_SCHEMA_VERSION);
     expect(normalized.gameId).toMatch(/^legacy-/);
   });
 

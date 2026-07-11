@@ -3,6 +3,14 @@ import { generateBalancedMap } from '@/systems/balanced-map-generator';
 import { hexKey } from '@/systems/hex-utils';
 
 describe('generateBalancedMap', () => {
+  it('places late strategic resources through the shared late pass', () => {
+    const { map } = generateBalancedMap(30, 30, 'balanced-late-resources', 3);
+    const resources = new Set(Object.values(map.tiles).map(tile => tile.resource));
+    for (const resource of ['coal', 'oil', 'aluminum', 'uranium', 'rare-earth-elements', 'battery-minerals']) {
+      expect(resources).toContain(resource);
+    }
+  });
+
   it('returns startPositions.length === civCount', () => {
     const { startPositions } = generateBalancedMap(30, 30, 'bal-test-1', 3);
     expect(startPositions).toHaveLength(3);

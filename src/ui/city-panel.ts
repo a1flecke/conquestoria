@@ -433,7 +433,7 @@ export function createCityPanel(
     })),
   ];
 
-  const IMPROVEMENT_LABELS: Record<string, string> = { mine: 'Mine', pasture: 'Pasture', quarry: 'Quarry', plantation: 'Plantation', camp: 'Camp' };
+  const IMPROVEMENT_LABELS: Record<string, string> = { mine: 'Mine', pasture: 'Pasture', quarry: 'Quarry', plantation: 'Plantation', camp: 'Camp', oil_well: 'Oil Well' };
 
   function buildLockedItemReason(resourceId: ResourceType, techs: string[]): string {
     const def = RESOURCE_DEFINITIONS.find(d => d.id === resourceId);

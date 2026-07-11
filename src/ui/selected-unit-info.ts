@@ -123,6 +123,7 @@ function nextTierLabel(currentLabel: string): string | null {
 const WORKER_ACTIONS: ImprovementWorkerActionType[] = [
   'farm', 'mine', 'lumber_camp', 'watermill',
   'plantation', 'pasture', 'camp', 'quarry',
+  'oil_well',
   'drain_swamp',
 ];
 

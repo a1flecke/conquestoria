@@ -3,6 +3,7 @@ import { getLandTerrain, placeResources, createRng, createNoise } from './map-ge
 import { hexKey } from './hex-utils';
 import { generateRivers, applyRiversToMap } from './river-system';
 import { tagLandmassRegions } from './landmass-tagger';
+import { placeLateResources } from './late-resource-placement';
 
 const ISLAND_RESOURCES = ['gems', 'ivory', 'spices'] as const;
 
@@ -165,6 +166,7 @@ export function generateContinentMap(
   }
   const resourceRng = createRng(seed + '-resources');
   placeResources(continentTiles, resourceRng);
+  placeLateResources(continentTiles, createRng(seed + '-late-resources'));
 
   // Island bonus resources
   for (const key of islandHexes) {

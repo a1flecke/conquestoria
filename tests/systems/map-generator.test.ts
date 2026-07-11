@@ -187,6 +187,30 @@ describe('placeResources', () => {
     placeResources(tiles, createRng('resource-rng'));
     expect(grassTile.resource).toBe('horses');
   });
+
+  it('keeps late strategic resources out of the early terrain-probability pass', () => {
+    const tiles = generateBaseTerrain(1, 1, 'early-resource-catalog');
+    const tile = Object.values(tiles)[0];
+    tile.terrain = 'hills';
+
+    const rolls = [0, 0.999];
+    placeResources(tiles, () => rolls.shift() ?? 0);
+
+    expect(['coal', 'oil', 'aluminum', 'uranium', 'rare-earth-elements', 'battery-minerals'])
+      .not.toContain(tile.resource);
+  });
+});
+
+describe('late resource placement', () => {
+  it('adds every late strategic resource deterministically after early placement', () => {
+    const first = generateMap(30, 30, 'late-resource-pass');
+    const second = generateMap(30, 30, 'late-resource-pass');
+    const expected = ['coal', 'oil', 'aluminum', 'uranium', 'rare-earth-elements', 'battery-minerals'];
+    const placed = new Set(Object.values(first.tiles).map(tile => tile.resource));
+
+    expect(first).toEqual(second);
+    for (const resource of expected) expect(placed).toContain(resource);
+  });
 });
 
 describe('findStartPositions', () => {
@@ -318,7 +342,7 @@ describe('S2a resource catalog coverage in placeResources', () => {
     expect(tiles['0,0'].resource).not.toBeNull();
   });
 
-  it('every resource in RESOURCE_DEFINITIONS appears on its declared terrain after placeResources', () => {
+  it('every early resource appears on its declared terrain after placeResources', () => {
     // Build a tile set with 30 tiles of each relevant terrain
     const terrainSet: TerrainType[] = ['grassland', 'plains', 'jungle', 'hills', 'forest', 'desert', 'mountain', 'tundra'];
     const tiles: Record<string, HexTile> = {};
@@ -330,7 +354,7 @@ describe('S2a resource catalog coverage in placeResources', () => {
       }
     }
 
-    for (const def of RESOURCE_DEFINITIONS) {
+    for (const def of RESOURCE_DEFINITIONS.filter(def => !['coal', 'oil', 'aluminum', 'uranium', 'rare-earth-elements', 'battery-minerals'].includes(def.id))) {
       const declaredTerrains = Array.isArray(def.terrain) ? def.terrain : [def.terrain];
       const validTerrains = declaredTerrains.filter(t => terrainSet.includes(t as TerrainType));
       if (validTerrains.length === 0) continue;
