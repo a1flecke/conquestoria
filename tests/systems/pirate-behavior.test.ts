@@ -3,6 +3,7 @@ import type { City, GameMap, GameState, HexCoord, Unit, UnitType } from '@/core/
 import { createNewGame } from '@/core/game-state';
 import { createEmptyPirateState, type PirateFactionState } from '@/core/pirate-state';
 import {
+  applyBlockadeStreaks,
   applyPlannedRelocation,
   choosePirateIntent,
   derivePirateBlockades,
@@ -322,6 +323,83 @@ describe('pirate raids and blockades', () => {
     state.pirates!.factions['pirate-1'].contract = null;
     state.pirates!.factions['pirate-1'].behavior = 'raiding';
     expect(derivePirateBlockades(state)).toEqual([]);
+  });
+
+  it('a besieging faction keeps producing the blockade its siege depends on', () => {
+    const state = stateWithMap(oceanGrid());
+    city(state, 'port', 'player', { q: 5, r: 5 });
+    state.map.tiles['5,5'] = { ...state.map.tiles['5,5'], terrain: 'plains' };
+    addUnit(state, unit('adjacent', 'pirate_frigate', 'pirate-1', { q: 5, r: 4 }));
+    addUnit(state, unit('nearby', 'pirate_frigate', 'pirate-1', { q: 7, r: 4 }));
+    state.pirates!.factions['pirate-1'] = faction('pirate-1', 'besieging', {
+      kind: 'coastal-enclave', position: { q: 1, r: 1 }, integrity: 100, maxIntegrity: 100,
+    }, ['adjacent', 'nearby']);
+
+    expect(derivePirateBlockades(state)).toEqual([{ factionId: 'pirate-1', cityId: 'port', victimCivId: 'player' }]);
+  });
+});
+
+describe('applyBlockadeStreaks (#522)', () => {
+  it('increments a faction\'s blockade streak for each currently-blockaded city', () => {
+    const state = stateWithMap(oceanGrid());
+    state.pirates!.factions['pirate-1'] = faction('pirate-1', 'besieging', {
+      kind: 'coastal-enclave', position: { q: 1, r: 1 }, integrity: 100, maxIntegrity: 100,
+    }, []);
+
+    const once = applyBlockadeStreaks(state, [{ factionId: 'pirate-1', cityId: 'city-a', victimCivId: 'player' }]);
+    expect(once.pirates!.factions['pirate-1']!.blockadeStreakByCity?.['city-a']).toBe(1);
+
+    const twice = applyBlockadeStreaks(once, [{ factionId: 'pirate-1', cityId: 'city-a', victimCivId: 'player' }]);
+    expect(twice.pirates!.factions['pirate-1']!.blockadeStreakByCity?.['city-a']).toBe(2);
+  });
+
+  it('resets the streak for a city that is no longer in the active blockade set', () => {
+    const state = stateWithMap(oceanGrid());
+    state.pirates!.factions['pirate-1'] = faction('pirate-1', 'besieging', {
+      kind: 'coastal-enclave', position: { q: 1, r: 1 }, integrity: 100, maxIntegrity: 100,
+    }, []);
+
+    const once = applyBlockadeStreaks(state, [{ factionId: 'pirate-1', cityId: 'city-a', victimCivId: 'player' }]);
+    const broken = applyBlockadeStreaks(once, []);
+
+    expect(broken.pirates!.factions['pirate-1']!.blockadeStreakByCity?.['city-a']).toBeUndefined();
+  });
+
+  it('tracks streaks independently per city for the same faction', () => {
+    const state = stateWithMap(oceanGrid());
+    state.pirates!.factions['pirate-1'] = faction('pirate-1', 'besieging', {
+      kind: 'coastal-enclave', position: { q: 1, r: 1 }, integrity: 100, maxIntegrity: 100,
+    }, []);
+
+    const round1 = applyBlockadeStreaks(state, [
+      { factionId: 'pirate-1', cityId: 'city-a', victimCivId: 'player' },
+    ]);
+    const round2 = applyBlockadeStreaks(round1, [
+      { factionId: 'pirate-1', cityId: 'city-a', victimCivId: 'player' },
+      { factionId: 'pirate-1', cityId: 'city-b', victimCivId: 'ai-1' },
+    ]);
+
+    expect(round2.pirates!.factions['pirate-1']!.blockadeStreakByCity).toEqual({ 'city-a': 2, 'city-b': 1 });
+  });
+
+  it('tolerates a faction with no blockadeStreakByCity field (old-save compatibility)', () => {
+    const state = stateWithMap(oceanGrid());
+    const legacyFaction = faction('pirate-1', 'besieging', {
+      kind: 'coastal-enclave', position: { q: 1, r: 1 }, integrity: 100, maxIntegrity: 100,
+    }, []);
+    delete (legacyFaction as { blockadeStreakByCity?: unknown }).blockadeStreakByCity;
+    state.pirates!.factions['pirate-1'] = legacyFaction;
+
+    const result = applyBlockadeStreaks(state, [{ factionId: 'pirate-1', cityId: 'city-a', victimCivId: 'player' }]);
+
+    expect(result.pirates!.factions['pirate-1']!.blockadeStreakByCity).toEqual({ 'city-a': 1 });
+  });
+
+  it('is a no-op when there is no pirate state', () => {
+    const state = stateWithMap(oceanGrid());
+    state.pirates = undefined;
+
+    expect(applyBlockadeStreaks(state, [])).toBe(state);
   });
 });
 

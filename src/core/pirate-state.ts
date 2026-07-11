@@ -102,6 +102,12 @@ export interface PirateFactionState {
   contract: PirateContractState | null;
   intent: PirateIntentState | null;
   transitionGuards: PirateTransitionGuards;
+  // Per-city consecutive-blockade round counter; drives the siege on-ramp (#522).
+  // Rebuilt each round from the active blockade set — a city that drops out resets to 0.
+  // Optional (not required) so old saves and the many pre-#522 test fixtures that
+  // construct a PirateFactionState literal without this field keep compiling/loading;
+  // every read site treats a missing map as {} (see applyBlockadeStreaks, derivePirateSieges).
+  blockadeStreakByCity?: Record<string, number>;
 }
 
 export interface PirateIntelRegion {

@@ -1,6 +1,7 @@
 import type { CombatResult, GameState, HexCoord, Unit, UnitType } from '@/core/types';
 import type {
   PirateFactionId,
+  PirateFactionState,
   PirateIntentState,
   PirateRelocationPlan,
 } from '@/core/pirate-state';
@@ -625,6 +626,32 @@ export function derivePirateBlockades(state: GameState): PirateBlockade[] {
     }
   }
   return blockades;
+}
+
+// Rebuild every faction's per-city blockade streak from the current round's blockade
+// set (#522). A (faction, city) pair present this round increments; any pair absent
+// resets to 0 (dropped) by simply not appearing in the rebuilt map. This single rebuild
+// handles every reset cause in one place: ship leaves, city becomes garrisoned, faction
+// de-escalates below blockading, or victim becomes ineligible — derivePirateBlockades
+// already excludes all of those, so whatever it returns this round is authoritative.
+export function applyBlockadeStreaks(state: GameState, blockades: PirateBlockade[]): GameState {
+  if (!state.pirates) return state;
+  const citiesByFaction = new Map<string, Set<string>>();
+  for (const blockade of blockades) {
+    if (!citiesByFaction.has(blockade.factionId)) citiesByFaction.set(blockade.factionId, new Set());
+    citiesByFaction.get(blockade.factionId)!.add(blockade.cityId);
+  }
+  const factions: Record<string, PirateFactionState> = {};
+  for (const [id, faction] of Object.entries(state.pirates.factions)) {
+    const blockadedCities = citiesByFaction.get(id) ?? new Set<string>();
+    const previousStreak = faction.blockadeStreakByCity ?? {}; // tolerate old saves missing the field
+    const nextStreak: Record<string, number> = {};
+    for (const cityId of blockadedCities) {
+      nextStreak[cityId] = (previousStreak[cityId] ?? 0) + 1;
+    }
+    factions[id] = { ...faction, blockadeStreakByCity: nextStreak };
+  }
+  return { ...state, pirates: { ...state.pirates, factions } };
 }
 
 export function getRelocationDirectionForViewer(
