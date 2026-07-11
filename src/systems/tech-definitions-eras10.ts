@@ -23,7 +23,7 @@ const ERA_10_TECHS: Tech[] = [
   // SCIENCE (2)
   { id: 'nuclear-physics', name: 'Nuclear Physics', track: 'science', cost: 1895,
     prerequisites: ['quantum-theory', 'tungsten-alloys'],
-    unlocks: ['+3 science in cities with a research institute; atomic science reaches critical mass'],
+    unlocks: ['+3 science in cities with a research institute; atomic science reaches critical mass', 'Reveal Uranium resource'],
     unlocksBuildings: ['atomic_laboratory'], era: 10 },
   // MR10: re-homed from a stub — nuclear-theory is no longer a legendary-wonder gate.
   // Give it a real effect instead of sitting inert as pure flavor text (see cityFlat

@@ -143,6 +143,15 @@ describe('RESOURCE_DEFINITIONS catalog', () => {
       expect(def.effect, `${def.id} is missing effect field`).not.toBeUndefined();
     }
   });
+
+  it('adds science from improved Uranium and Rare Earth deposits', () => {
+    const state = makeMultiResourceState([
+      { resource: 'uranium', improvement: 'mine', tech: 'nuclear-physics', terrain: 'hills' },
+      { resource: 'rare-earth-elements', improvement: 'mine', tech: 'nanomaterials', terrain: 'desert' },
+    ]);
+
+    expect(getCivResourceYieldBonus(state, 'player').science).toBe(2);
+  });
 });
 
 // ── getCivHappinessFromResources ──────────────────────────────────────────────

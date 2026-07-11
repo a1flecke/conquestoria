@@ -144,6 +144,7 @@ export function getCivResourceYieldBonus(
       case 'gold':       bonus.gold       += def.effect.amount; break;
       case 'production': bonus.production += def.effect.amount; break;
       case 'food':       bonus.food       += def.effect.amount; break;
+      case 'science':    bonus.science    += def.effect.amount; break;
     }
   }
 

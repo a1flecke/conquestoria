@@ -19,7 +19,7 @@ const ERA_9_TECHS: Tech[] = [
   // ECONOMY (2)
   { id: 'petroleum-industry', name: 'Petroleum Industry', track: 'economy', cost: 190,
     prerequisites: ['industrial-monopoly', 'structural-engineering'],
-    unlocks: ['Crude oil extraction and refining; fuel powers the modern economy'],
+    unlocks: ['Crude oil extraction and refining; fuel powers the modern economy', 'Reveal Oil resource'],
     unlocksBuildings: ['oil_refinery'], era: 9 },
   { id: 'fordist-manufacturing', name: 'Fordist Manufacturing', track: 'economy', cost: 270,
     prerequisites: ['industrial-monopoly', 'bessemer-steel'],
@@ -98,7 +98,7 @@ const ERA_9_TECHS: Tech[] = [
   // METALLURGY (2)
   { id: 'aluminium-smelting', name: 'Aluminium Smelting', track: 'metallurgy', cost: 190,
     prerequisites: ['bessemer-steel', 'structural-engineering'],
-    unlocks: ['+1 production all cities; lightweight aluminium enables aviation and modern machinery'], era: 9 },
+    unlocks: ['+1 production all cities; lightweight aluminium enables aviation and modern machinery', 'Reveal Aluminum resource'], era: 9 },
   { id: 'tungsten-alloys', name: 'Tungsten Alloys', track: 'metallurgy', cost: 270,
     prerequisites: ['bessemer-steel', 'reinforced-concrete'],
     unlocks: ['+2 strength all military units; heat-resistant tungsten forges harder weapons and armor'], era: 9 },
