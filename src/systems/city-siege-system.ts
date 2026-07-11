@@ -12,6 +12,10 @@ export interface CitySiegeInput {
   rawDamage: number;
   attackerDomain: 'land' | 'naval' | 'air';
   hasGarrison: boolean;
+  // A siege never eliminates a civilization — the last city sacks, never destroys (#522).
+  // A civ is only ever ended by another civ's conquest. Optional/defaults false so
+  // existing direct-construction call sites keep their current destroy behavior.
+  isOwnersLastCity?: boolean;
   era: number;
   challenge: OpponentChallenge;
 }
@@ -54,7 +58,7 @@ export function resolveCitySiegeDamage(input: CitySiegeInput): CitySiegeResult {
   }
 
   const destructionEra = OPPONENT_CHALLENGE_PROFILES[input.challenge].citySiegeDestructionEra;
-  if (input.era > destructionEra) {
+  if (input.era > destructionEra && !input.isOwnersLastCity) {
     return { hpLost: currentHp, newHp: 0, outcome: 'destroyed', goldLost: 0 };
   }
 

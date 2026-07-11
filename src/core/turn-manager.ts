@@ -795,6 +795,7 @@ export function processTurn(
       rawDamage: order.damage,
       attackerDomain: 'land',
       hasGarrison: getCityGarrisonUnit(newState.units, city) !== undefined,
+      isOwnersLastCity: ownerCiv.cities.length <= 1,
       era: newState.era,
       challenge: resolveChallengeForCiv(newState, city.owner),
     });
