@@ -263,7 +263,9 @@ export function guaranteeStartResources(
     RESOURCE_DEFINITIONS.filter(def => def.type === 'luxury').map(def => def.id),
   );
   const strategicIds = new Set<ResourceType>(
-    RESOURCE_DEFINITIONS.filter(def => def.type === 'strategic').map(def => def.id),
+    RESOURCE_DEFINITIONS
+      .filter(def => def.type === 'strategic' && !LATE_STRATEGIC_RESOURCE_IDS.has(def.id))
+      .map(def => def.id),
   );
 
   for (const start of startPositions) {
