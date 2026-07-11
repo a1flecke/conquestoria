@@ -2,6 +2,7 @@ import type { GameState } from '@/core/types';
 import { createRng } from '@/systems/map-generator';
 import { placeLateResources } from '@/systems/late-resource-placement';
 import { createMarketplaceState } from '@/systems/trade-system';
+import { BUILDINGS, TRAINABLE_UNITS } from '@/systems/city-system';
 
 export const CURRENT_SAVE_SCHEMA_VERSION = 2;
 
@@ -119,7 +120,18 @@ function migrateLateResources(state: GameState): GameState {
     }
     : defaults;
 
-  return { ...state, gameId, map: { ...state.map, tiles }, marketplace };
+  const cities = Object.fromEntries(Object.entries(state.cities ?? {}).map(([cityId, city]) => {
+    const grandfathered = city.productionQueue.filter(item => {
+      const building = BUILDINGS[item];
+      const unit = TRAINABLE_UNITS.find(candidate => candidate.type === item);
+      return (building?.resourceRequired?.length ?? unit?.resourceRequired?.length ?? 0) > 0;
+    });
+    return [cityId, grandfathered.length > 0
+      ? { ...city, legacyResourceGrace: [...new Set([...(city.legacyResourceGrace ?? []), ...grandfathered])] }
+      : city];
+  }));
+
+  return { ...state, gameId, map: { ...state.map, tiles }, marketplace, cities };
 }
 
 export const SAVE_MIGRATIONS: Readonly<Record<number, SaveMigration>> = {
