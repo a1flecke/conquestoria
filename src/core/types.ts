@@ -438,6 +438,8 @@ export interface City {
   buildings: string[];       // building IDs
   productionQueue: string[]; // what's being built (building or unit ID)
   productionProgress: number;
+  /** One-time save-migration exemption for pre-resource-gate queued items. */
+  legacyResourceGrace?: string[];
   ownedTiles: HexCoord[];    // city territory/control, not active citizen assignment
   workedTiles: HexCoord[];
   focus: CityFocus;

@@ -114,4 +114,14 @@ describe('save migrations', () => {
     }
     expect(loadedAgain).toEqual(migrated);
   });
+
+  it('grandfathers a schema-v1 hard-resource queue once', () => {
+    const legacySave = createNewGame('rome', 'legacy-resource-queue', 'small');
+    legacySave.saveSchemaVersion = 1;
+    const city = Object.values(legacySave.cities)[0]!;
+    city.productionQueue = ['oil_refinery'];
+
+    const migrated = migrateSaveToCurrent(legacySave);
+    expect(migrated.cities[city.id].legacyResourceGrace).toEqual(['oil_refinery']);
+  });
 });

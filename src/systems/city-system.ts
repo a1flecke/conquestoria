@@ -1837,6 +1837,7 @@ export function processCity(
   let newProgress = city.productionProgress;
   const newQueue = [...city.productionQueue];
   const newBuildings = [...city.buildings];
+  const legacyResourceGrace = new Set(city.legacyResourceGrace ?? []);
   const droppedProductionItems: DroppedProductionItem[] = [];
 
   // Drop queued items that are no longer available (tech lost, resource lost)
@@ -1852,7 +1853,7 @@ export function processCity(
           droppedProductionItems.push({ itemId: item, itemKind: 'building', reason: 'obsoleted' });
           return false;
         }
-        if (building?.resourceRequired?.length && availableResources !== undefined) {
+        if (building?.resourceRequired?.length && availableResources !== undefined && !legacyResourceGrace.has(item)) {
           if (!building.resourceRequired.every(r => availableResources!.has(r))) {
             droppedProductionItems.push({ itemId: item, itemKind: 'building', reason: 'resource-lost' });
             return false;
@@ -1873,7 +1874,8 @@ export function processCity(
         // reasons applying (see the musketeer save-compat test above) — so a third, honest
         // fallback reason covers that residual case instead of misreporting it as resource-lost.
         const obsoleted = unit.obsoletedByTech != null && completedTechs.includes(unit.obsoletedByTech);
-        const resourceLost = (unit.resourceRequired?.length ?? 0) > 0
+        const resourceLost = !legacyResourceGrace.has(unit.type)
+          && (unit.resourceRequired?.length ?? 0) > 0
           && availableResources !== undefined
           && !unit.resourceRequired!.every(r => availableResources.has(r));
         const reason: ProductionDropReason = obsoleted
@@ -1957,6 +1959,7 @@ export function processCity(
       newBuildings.length = 0;
       newBuildings.push(...completion.city.buildings);
       newProgress = completion.city.productionProgress;
+      legacyResourceGrace.delete(currentItem);
       completedBuilding = completion.completedBuilding;
       completedUnit = completion.completedUnit;
     }
@@ -1980,6 +1983,7 @@ export function processCity(
     productionProgress: newProgress,
     productionQueue: newQueue,
     buildings: newBuildings,
+    ...(legacyResourceGrace.size > 0 ? { legacyResourceGrace: [...legacyResourceGrace] } : { legacyResourceGrace: undefined }),
   };
 
   return {
