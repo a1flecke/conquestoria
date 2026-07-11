@@ -62,6 +62,24 @@ rule (not tech/national-project-sourced), so it's surfaced as a new
 `CombatStrengthBreakdown` part alongside terrain/river, not through the modifier-parts
 list. Add one line: `"Siege defends poorly (−50%)"` when applicable.
 
+## Deviation from #522 as written: the pirate half is stale
+
+The issue's code map cites `threat-pressure-system.ts:770-783` (`processPirateFleets`,
+`state.pirateFleets`, `threat:pirate-*` events) as the live pirate-siege path. It is
+not — `tests/systems/pirate-end-to-end.test.ts`'s "pirate feature completion gate"
+explicitly asserts `main.ts` never wires a `bus.on('threat:pirate-'` listener and
+`turn-manager.ts` never calls `processPirateFleets(`, confirming this fleet/siege
+model was deliberately retired in favor of the newer faction-based system
+(`pirate-system.ts` / `pirate-actions.ts`: headquarters, tribute, contracts,
+notoriety). That live system has **no city-HP-damage mechanic at all** — a pirate
+"raid" against a city today only affects contract/exposure bookkeeping, never
+`city.hp`. So there is no live pirate city-siege bug to fix; #522's pirate half
+describes code that no longer runs. This MR implements the garrison/mitigation/
+sack-vs-destroy/regen fix for the barbarian path only, since that's the only live
+city-siege-HP source. Whether pirates should gain an equivalent HP-damage mechanic
+under the new faction system is a separate design question, not a bug fix — flagged
+as a follow-up rather than decided here.
+
 ## 2. City siege overhaul (#522)
 
 ### Garrison blocking (full block)
@@ -102,14 +120,12 @@ export interface CitySiegeResult {
   on an undefended city — "destroy only if ungarrisoned" from the issue is
   automatically satisfied by the block rule, no extra check needed.
 
-### Barbarian/pirate targeting: attack the garrison first
+### Barbarian targeting: attack the garrison first
 
-`processBarbarians`' city-attack branch (`src/systems/barbarian-system.ts:497-500`) and
-the pirate siege loop (`src/systems/threat-pressure-system.ts:768-781`) both need to
-check for a garrison before queuing a city-damage order. If a garrison unit is present,
-redirect to a normal unit-attack order against it (both systems already have unit-vs-unit
-combat paths — barbarians via `attackOrders`, pirates need one added, since currently
-pirates never fight garrisons at all). If the city is undefended, proceed with the
+`processPurposefulBarbarians`' city-attack branch
+(`src/systems/barbarian-system.ts:498-501`) needs to check for a garrison before
+queuing a city-damage order. If a garrison unit is present, redirect to a normal
+unit-attack order against it instead. If the city is undefended, proceed with the
 siege-damage order as before, now routed through `resolveCitySiegeDamage`.
 
 ### Zero-HP outcome: difficulty- and era-gated
@@ -135,36 +151,29 @@ mechanic gated by a per-difficulty era threshold). New field on
   and the owner's `civilizations[id].cities`), unchanged from current
   `turn-manager.ts` logic, just routed through the shared helper's `outcome:
   'destroyed'` branch instead of being duplicated per-source.
-- Barbarians and pirates share this outcome logic — today pirates never destroy a
-  city at all (asymmetric with barbarians); this makes both sources consistent.
-
-Both call sites keep emitting their existing source-specific events
-(`barbarian:city-attacked`/`barbarian:city-destroyed`, and a new
-`threat:pirate-siege`-adjacent `pirate:city-destroyed`) so existing listeners don't
-need renaming, but both now emit them based on the shared helper's `outcome` instead
-of duplicated inline logic. Add one new shared event, `city:sacked { cityId, source:
-'barbarian' | 'pirate', goldLost }`, fired instead of the destroy event when the
-era/difficulty threshold isn't met.
+- `city:sacked { cityId, source: 'barbarian' | 'pirate', goldLost }` is a new shared
+  event, with `source` typed to include `'pirate'` for forward-compat even though only
+  `'barbarian'` is ever emitted today (see deviation note above). Fired instead of
+  `barbarian:city-destroyed` when the era/difficulty threshold isn't met; the existing
+  `barbarian:city-attacked`/`barbarian:city-destroyed` events are kept as-is, now
+  driven by the shared helper's `outcome` instead of duplicated inline logic.
 
 ### HP regeneration
 
 New per-turn step in `turn-manager.ts` (alongside existing per-city turn processing):
 +5 HP/turn (same rate as `HEAL_PASSIVE` for units, for consistency) when no hostile
-unit is within 1 hex of the city (hostile = `owner === 'barbarian'`, a pirate-fleet
-unit, or a unit whose owner is at war with the city's owner). Capped at 100.
+unit is within 1 hex of the city (hostile = barbarian, or a unit whose owner is at war
+with the city's owner, via `isAlwaysHostilePair`/`isAtWar`). Capped at 100.
 
 ### UI surfacing
 
-- `city-panel.ts`'s HP display (`city.hp ?? 100`) gets a small
-  `regenerating (+5/turn)` / `under siege — no regen` suffix depending on hostile
-  adjacency, consistent with the "HUD shows per-turn rates, not just totals" rule.
-- `main.ts` notification wiring: add a `threat:pirate-siege` listener mirroring the
-  existing `barbarian:city-attacked` one (today pirates deal HP damage completely
-  silently to the notification log — issue #522 explicitly calls this out). Add
-  listeners for the new `city:sacked` and `pirate:city-destroyed` events, phrased
-  distinctly from straight damage ("X was sacked — city survives at 1 HP!" vs "X was
-  destroyed!") so a losing-a-city moment is never confused with a scarier-but-recoverable
-  one.
+- `city-panel.ts`'s HP display (`city.hp ?? 100`) gets a `Recovering — X/100 HP
+  (+5/turn)` / `Under siege — X/100 HP (no regen)` label depending on hostile
+  adjacency (`isCityHpRegenerating`), consistent with the "HUD shows per-turn rates,
+  not just totals" rule.
+- `main.ts` notification wiring: add a `city:sacked` listener phrased distinctly from
+  straight damage ("X was sacked — survives at 1 HP" vs "X was destroyed") so a
+  losing-a-city moment is never confused with a scarier-but-recoverable one.
 
 ## Save compatibility
 
@@ -181,11 +190,8 @@ there either.
   (control).
 - New `city-siege-system.test.ts`: garrison fully blocks damage; walls/Star Fort
   mitigate via the multiplier; sack vs destroy branches by era/challenge; gold
-  plunder amount; HP floors at 1 on sack, removed from state on destroy.
-- `barbarian-system.test.ts` / `threat-pressure-system.test.ts`: garrisoned city is
-  attacked as a unit target, not a city-damage target; undefended city still takes
-  siege damage.
-- `turn-manager.test.ts`: HP regen applies with no hostile adjacent, does not apply
-  with a hostile unit adjacent, caps at 100.
-- Notification/event regression: `city:sacked`, `pirate:city-destroyed`,
-  `threat:pirate-siege` log listener parity with the barbarian path.
+  plunder amount; HP floors at 1 on sack, removed from state on destroy; HP
+  regeneration and its hostile-adjacency gate; `isCityHpRegenerating`.
+- `barbarian-system.test.ts`: garrisoned city is attacked as a unit target, not a
+  city-damage target; undefended city still takes siege damage (regression).
+- `city-panel.test.ts`: recovering vs under-siege HP status label.

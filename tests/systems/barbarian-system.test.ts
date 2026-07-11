@@ -283,6 +283,45 @@ describe('processPurposefulBarbarians', () => {
       toCoord: { q: 6, r: 5 },
     });
   });
+
+  it('attacks an undefended city normally when adjacent (garrison regression)', () => {
+    const state = purposefulState();
+    // Camp stays at (5,5); raider starts far enough from it that a garrison at the
+    // city (far from the camp) can't be mistaken for a camp-defense threat.
+    const raider = createUnit('warrior', 'barbarian', { q: 11, r: 5 }, state.idCounters);
+    raider.id = 'raider';
+    state.units = { raider };
+    state.cities.town = {
+      id: 'town', owner: 'player', position: { q: 12, r: 5 }, hp: 30,
+    } as never;
+    state.civilizations.player.cities = ['town'];
+
+    const result = processPurposefulBarbarians(state);
+
+    expect(result.cityAttackOrders).toHaveLength(1);
+    expect(result.cityAttackOrders[0]).toMatchObject({ attackerUnitId: 'raider', cityId: 'town' });
+    expect(result.attackOrders).toHaveLength(0);
+  });
+
+  it('attacks the garrison unit instead of damaging the city when one is present (#522)', () => {
+    const state = purposefulState();
+    const raider = createUnit('warrior', 'barbarian', { q: 11, r: 5 }, state.idCounters);
+    raider.id = 'raider';
+    const garrison = createUnit('warrior', 'player', { q: 12, r: 5 }, state.idCounters);
+    garrison.id = 'garrison';
+    state.units = { raider, garrison };
+    state.cities.town = {
+      id: 'town', owner: 'player', position: { q: 12, r: 5 }, hp: 30,
+    } as never;
+    state.civilizations.player.cities = ['town'];
+    state.civilizations.player.units = ['garrison'];
+
+    const result = processPurposefulBarbarians(state);
+
+    expect(result.cityAttackOrders).toHaveLength(0);
+    expect(result.attackOrders).toHaveLength(1);
+    expect(result.attackOrders[0]).toMatchObject({ attackerUnitId: 'raider', defenderUnitId: 'garrison' });
+  });
 });
 
 describe('barbarian camp evolution', () => {

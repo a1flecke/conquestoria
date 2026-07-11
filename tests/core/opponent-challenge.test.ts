@@ -126,6 +126,18 @@ describe('crisis profile knobs', () => {
   });
 });
 
+describe('city siege destruction era knob (#522)', () => {
+  it('carries spec values: easier difficulties tolerate destruction until a later era', () => {
+    expect(OPPONENT_CHALLENGE_PROFILES.explorer.citySiegeDestructionEra).toBe(3);
+    expect(OPPONENT_CHALLENGE_PROFILES.standard.citySiegeDestructionEra).toBe(2);
+    expect(OPPONENT_CHALLENGE_PROFILES.veteran.citySiegeDestructionEra).toBe(1);
+  });
+
+  it('getChallengeProfileForCiv resolves the per-civ destruction era threshold', () => {
+    expect(getChallengeProfileForCiv(stateWith('explorer', 'veteran'), 'c1').citySiegeDestructionEra).toBe(3);
+  });
+});
+
 describe('per-civ pending challenge', () => {
   it('setPendingChallengeForCiv stages a change without touching other civs', () => {
     const state = stateWith('standard', undefined);

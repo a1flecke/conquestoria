@@ -2037,3 +2037,49 @@ describe('city-panel tech-yield breakdown', () => {
     expect(panel.textContent).not.toContain('From technology');
   });
 });
+
+describe('city-panel HP status (#522)', () => {
+  it('shows a recovering label with the regen rate when damaged and no hostile unit is nearby', () => {
+    const { container, city, state } = makeWonderPanelFixture();
+    state.cities[city.id] = { ...city, hp: 60 };
+
+    const panel = createCityPanel(container, state.cities[city.id]!, state, {
+      onBuild: () => {},
+      onOpenWonderPanel: () => {},
+      onClose: () => {},
+    });
+
+    expect(panel.textContent).toContain('Recovering — 60/100 HP (+5/turn)');
+    expect(panel.textContent).not.toContain('Under siege');
+  });
+
+  it('shows an under-siege label with no regen when a hostile unit is adjacent', () => {
+    const { container, city, state } = makeWonderPanelFixture();
+    state.cities[city.id] = { ...city, hp: 60 };
+    const raider = createUnit('warrior', 'barbarian', city.position, state.idCounters);
+    state.units[raider.id] = raider;
+
+    const panel = createCityPanel(container, state.cities[city.id]!, state, {
+      onBuild: () => {},
+      onOpenWonderPanel: () => {},
+      onClose: () => {},
+    });
+
+    expect(panel.textContent).toContain('Under siege — 60/100 HP (no regen)');
+    expect(panel.textContent).not.toContain('Recovering');
+  });
+
+  it('omits the HP status line entirely at full HP (negative test)', () => {
+    const { container, city, state } = makeWonderPanelFixture();
+    state.cities[city.id] = { ...city, hp: 100 };
+
+    const panel = createCityPanel(container, state.cities[city.id]!, state, {
+      onBuild: () => {},
+      onOpenWonderPanel: () => {},
+      onClose: () => {},
+    });
+
+    expect(panel.textContent).not.toContain('Recovering');
+    expect(panel.textContent).not.toContain('Under siege');
+  });
+});

@@ -76,7 +76,8 @@ import { chargeUnitsOnGeneTherapyResearch, applyGeneTherapyRecharge } from '@/sy
 import { processCyberDrain } from '@/systems/cyber-warfare-system';
 import { processEspionageTurn, isSpyUnitType, createSpyFromUnit, processInterrogation, applyBuildingCI } from '@/systems/espionage-system';
 import { processDetection } from '@/systems/detection-system';
-import { applyPendingOpponentChallenge } from '@/core/opponent-challenge';
+import { applyPendingOpponentChallenge, resolveChallengeForCiv } from '@/core/opponent-challenge';
+import { applyCityHpRegeneration, applyCitySiegeOutcome, getCityGarrisonUnit, resolveCitySiegeDamage } from '@/systems/city-siege-system';
 import { normalizeOpponentAIState } from '@/core/opponent-ai-state';
 import { processFactionTurn, getUnrestYieldMultiplier, isCityProductionLocked } from '@/systems/faction-system';
 import { getOccupiedCityYieldMultiplier, tickOccupiedCities } from '@/systems/city-occupation-system';
@@ -777,18 +778,30 @@ export function processTurn(
     }
   }
 
-  // Barbarian city attacks
+  // Barbarian city attacks — routed through the shared siege helper (#522): a
+  // garrisoned city fully blocks damage, walls/techs mitigate it, and the 0-HP
+  // outcome is sack-vs-destroy gated by era + the owner's resolved difficulty.
   for (const order of barbResult.cityAttackOrders) {
     const city = newState.cities[order.cityId];
     if (!city) continue;
     const currentHp = city.hp ?? 100;
     if (currentHp <= 0) continue; // already at zero (shouldn't persist, but guard against legacy saves)
-    const newHp = Math.max(0, currentHp - order.damage);
-    newState = {
-      ...newState,
-      cities: { ...newState.cities, [order.cityId]: { ...city, hp: newHp } },
-    };
-    bus.emit('barbarian:city-attacked', { attackerUnitId: order.attackerUnitId, cityId: order.cityId, hpLost: currentHp - newHp });
+    const ownerCiv = newState.civilizations[city.owner];
+    if (!ownerCiv) continue;
+
+    const result = resolveCitySiegeDamage({
+      city,
+      ownerCiv,
+      rawDamage: order.damage,
+      attackerDomain: 'land',
+      hasGarrison: getCityGarrisonUnit(newState.units, city) !== undefined,
+      era: newState.era,
+      challenge: resolveChallengeForCiv(newState, city.owner),
+    });
+    newState = applyCitySiegeOutcome(newState, order.cityId, result);
+    if (result.outcome === 'blocked') continue;
+
+    bus.emit('barbarian:city-attacked', { attackerUnitId: order.attackerUnitId, cityId: order.cityId, hpLost: result.hpLost });
     if (newState.opponentAI) {
       const campId = newState.opponentAI.barbarianHomeCampByUnitId[order.attackerUnitId];
       const plan = campId ? newState.opponentAI.barbarianCamps[campId] : undefined;
@@ -801,23 +814,17 @@ export function processTurn(
       }
     }
 
-    if (newHp === 0) {
-      const ownerId = city.owner;
-      const { [order.cityId]: _removed, ...remainingCities } = newState.cities;
-      newState = { ...newState, cities: remainingCities };
-      const ownerCiv = newState.civilizations[ownerId];
-      if (ownerCiv) {
-        newState = {
-          ...newState,
-          civilizations: {
-            ...newState.civilizations,
-            [ownerId]: { ...ownerCiv, cities: ownerCiv.cities.filter((cId: string) => cId !== order.cityId) },
-          },
-        };
-      }
-      bus.emit('barbarian:city-destroyed', { attackerUnitId: order.attackerUnitId, cityId: order.cityId, ownerId });
+    if (result.outcome === 'sacked') {
+      bus.emit('city:sacked', { cityId: order.cityId, source: 'barbarian', goldLost: result.goldLost });
+    } else if (result.outcome === 'destroyed') {
+      bus.emit('barbarian:city-destroyed', { attackerUnitId: order.attackerUnitId, cityId: order.cityId, ownerId: city.owner });
     }
   }
+
+  // City HP regeneration (#522) — +5/turn for any city below max HP with no hostile
+  // unit adjacent, so damage from a raid that didn't destroy the city doesn't linger
+  // forever.
+  newState = applyCityHpRegeneration(newState);
 
   // --- Minor civ turn phase ---
   newState = processMinorCivTurn(newState, bus);

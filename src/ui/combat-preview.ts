@@ -21,5 +21,8 @@ export function formatCombatPreviewDetails(
   for (const part of preview.cityDefense?.parts ?? []) {
     details.push(part.label);
   }
+  if (preview.defenderDefendsPoorly) {
+    details.push('Siege defends poorly (−50%)');
+  }
   return details.join(' | ');
 }
