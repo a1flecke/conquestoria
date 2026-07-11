@@ -816,7 +816,7 @@ export function fireResourceDiscoveredTip(
   if (hasTech) {
     const impMap: Record<string, string> = {
       mine: 'Mine', pasture: 'Pasture', camp: 'Camp',
-      plantation: 'Plantation', quarry: 'Quarry',
+      plantation: 'Plantation', quarry: 'Quarry', oil_well: 'Oil Well',
     };
     const reqImp = resourceDef?.requiredImprovement;
     const impName = reqImp ? (impMap[reqImp] ?? reqImp) : 'improvement';

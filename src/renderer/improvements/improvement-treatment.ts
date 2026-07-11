@@ -16,6 +16,7 @@ const TREATMENT_FAMILIES: Record<string, ImprovementTreatmentFamily> = {
   plantation: 'orchard-rows',
   pasture: 'fence-lines',
   camp: 'small-camp',
+  oil_well: 'worked-rock',
 };
 
 export function getImprovementTreatmentFamily(improvement: string): ImprovementTreatmentFamily | null {
@@ -92,6 +93,16 @@ export function drawImprovementTreatment(
         ctx.fillStyle = `rgba(${174 + step * 15},${166 + step * 15},${150 + step * 16},0.78)`;
         ctx.fill();
       }
+      break;
+    case 'oil_well':
+      ctx.fillStyle = 'rgba(35,38,42,0.92)';
+      ctx.fillRect(cx - size * 0.05, cy - size * 0.32, size * 0.1, size * 0.54);
+      ctx.strokeStyle = 'rgba(205,185,110,0.9)';
+      ctx.lineWidth = Math.max(1, size * 0.035);
+      ctx.beginPath();
+      ctx.moveTo(cx - size * 0.22, cy - size * 0.12);
+      ctx.lineTo(cx + size * 0.22, cy - size * 0.12);
+      ctx.stroke();
       break;
     case 'lumber_camp':
       ctx.strokeStyle = 'rgba(91,57,31,0.9)';

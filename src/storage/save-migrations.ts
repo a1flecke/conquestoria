@@ -1,6 +1,9 @@
 import type { GameState } from '@/core/types';
+import { createRng } from '@/systems/map-generator';
+import { placeLateResources } from '@/systems/late-resource-placement';
+import { createMarketplaceState } from '@/systems/trade-system';
 
-export const CURRENT_SAVE_SCHEMA_VERSION = 1;
+export const CURRENT_SAVE_SCHEMA_VERSION = 2;
 
 export type SaveMigration = (state: GameState) => GameState;
 
@@ -97,8 +100,27 @@ function migrateToEra13Foundation(state: GameState): GameState {
   return remapPersistedTechReferences(withStableIdentity);
 }
 
+function migrateLateResources(state: GameState): GameState {
+  const gameId = state.gameId ?? stableLegacyGameId(state);
+  const tiles = Object.fromEntries(Object.entries(state.map?.tiles ?? {}).map(([key, tile]) => [key, { ...tile }]));
+  placeLateResources(tiles, createRng(`${gameId}-late-resources`));
+
+  const defaults = createMarketplaceState();
+  const marketplace = state.marketplace
+    ? {
+      ...state.marketplace,
+      prices: { ...defaults.prices, ...state.marketplace.prices },
+      priceHistory: { ...defaults.priceHistory, ...state.marketplace.priceHistory },
+      purchasedResources: state.marketplace.purchasedResources ?? [],
+    }
+    : defaults;
+
+  return { ...state, gameId, map: { ...state.map, tiles }, marketplace };
+}
+
 export const SAVE_MIGRATIONS: Readonly<Record<number, SaveMigration>> = {
   1: migrateToEra13Foundation,
+  2: migrateLateResources,
 };
 
 function readSchemaVersion(raw: Record<string, unknown>): number {

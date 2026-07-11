@@ -3,6 +3,14 @@ import { generateContinentMap } from '@/systems/continent-map-generator';
 import { hexKey } from '@/systems/hex-utils';
 
 describe('generateContinentMap', () => {
+  it('places late strategic resources through the shared late pass', () => {
+    const { map } = generateContinentMap(30, 30, 'continent-late-resources');
+    const resources = new Set(Object.values(map.tiles).map(tile => tile.resource));
+    for (const resource of ['coal', 'oil', 'aluminum', 'uranium', 'rare-earth-elements', 'battery-minerals']) {
+      expect(resources).toContain(resource);
+    }
+  });
+
   it('sets wrapsHorizontally to true', () => {
     const { map } = generateContinentMap(30, 30, 'cont-1');
     expect(map.wrapsHorizontally).toBe(true);

@@ -8,6 +8,7 @@ import {
 } from './hex-utils';
 import { generateRivers, applyRiversToMap } from './river-system';
 import { RESOURCE_DEFINITIONS } from './trade-system';
+import { placeLateResources } from './late-resource-placement';
 import { LEGENDARY_WONDER_DEFINITIONS } from './legendary-wonder-definitions';
 // Geo data imports — populated by `yarn generate-maps`. Placeholder empty exports are safe.
 import { EARTH_START_POSITIONS } from './earth-map-data';
@@ -197,6 +198,7 @@ export function generateMap(width: number, height: number, seed: string): GameMa
   const tiles = generateBaseTerrain(width, height, seed);
   const resourceRng = createRng(seed + '-resources');
   placeResources(tiles, resourceRng);
+  placeLateResources(tiles, createRng(seed + '-late-resources'));
   const mapResult: GameMap = { width, height, tiles, wrapsHorizontally: true, rivers: [] };
   const rivers = generateRivers(mapResult, seed);
   applyRiversToMap(mapResult, rivers);
@@ -211,11 +213,21 @@ const TERRAIN_PROBABILITIES: Record<string, number> = {
 };
 const DEFAULT_RESOURCE_PROBABILITY = 0.20;
 
+export const LATE_STRATEGIC_RESOURCE_IDS = new Set<ResourceType>([
+  'coal',
+  'oil',
+  'aluminum',
+  'uranium',
+  'rare-earth-elements',
+  'battery-minerals',
+]);
+
 // Derived at module load from RESOURCE_DEFINITIONS — eliminates dual-maintenance.
 // terrain field is string | string[]; we expand multi-terrain entries here.
 function buildTerrainResourceMap(): Record<string, ResourceType[]> {
   const map: Record<string, ResourceType[]> = {};
   for (const def of RESOURCE_DEFINITIONS) {
+    if (LATE_STRATEGIC_RESOURCE_IDS.has(def.id)) continue;
     const terrains = Array.isArray(def.terrain) ? def.terrain : [def.terrain];
     for (const t of terrains) {
       (map[t] ??= []).push(def.id);

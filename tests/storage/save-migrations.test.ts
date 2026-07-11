@@ -88,4 +88,30 @@ describe('save migrations', () => {
 
     expect(() => migrateSaveToCurrent(legacySave)).not.toThrow();
   });
+
+  it('migrates schema-v1 maps and marketplace prices deterministically for late resources', () => {
+    const legacySave = createNewGame('rome', 'late-resource-migration', 'small');
+    legacySave.saveSchemaVersion = 1;
+    for (const tile of Object.values(legacySave.map.tiles)) {
+      if (['coal', 'oil', 'aluminum', 'uranium', 'rare-earth-elements', 'battery-minerals'].includes(tile.resource ?? '')) {
+        tile.resource = null;
+      }
+    }
+    for (const resource of ['coal', 'oil', 'aluminum', 'uranium', 'rare-earth-elements', 'battery-minerals']) {
+      delete legacySave.marketplace!.prices[resource];
+      delete legacySave.marketplace!.priceHistory[resource];
+    }
+
+    const migrated = migrateSaveToCurrent(legacySave);
+    const loadedAgain = migrateSaveToCurrent(migrated);
+    const resources = new Set(Object.values(migrated.map.tiles).map(tile => tile.resource));
+
+    expect(migrated.saveSchemaVersion).toBe(2);
+    for (const resource of ['coal', 'oil', 'aluminum', 'uranium', 'rare-earth-elements', 'battery-minerals']) {
+      expect(resources).toContain(resource);
+      expect(migrated.marketplace!.prices[resource]).toBeGreaterThan(0);
+      expect(migrated.marketplace!.priceHistory[resource]).toEqual([migrated.marketplace!.prices[resource]]);
+    }
+    expect(loadedAgain).toEqual(migrated);
+  });
 });
