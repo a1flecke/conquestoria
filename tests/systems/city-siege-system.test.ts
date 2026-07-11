@@ -22,6 +22,10 @@ function makeCityAndCiv(overrides: Partial<City> = {}, civOverrides: Partial<Civ
   return { city, ownerCiv };
 }
 
+function withTechs(ownerCiv: Civilization, completed: string[]): Civilization {
+  return { ...ownerCiv, techState: { ...ownerCiv.techState, completed } };
+}
+
 describe('resolveCitySiegeDamage (#522)', () => {
   it('fully blocks damage when the city has a garrison', () => {
     const { city, ownerCiv } = makeCityAndCiv({ hp: 40 });
@@ -57,6 +61,59 @@ describe('resolveCitySiegeDamage (#522)', () => {
     // walls -> x1.25 multiplier -> 10 / 1.25 = 8 mitigated damage
     expect(result.hpLost).toBe(8);
     expect(result.newHp).toBe(42);
+  });
+
+  it('applies flat defense bonuses (Star Fort) on top of the walls multiplier to reduce siege damage', () => {
+    const { city: wallsOnly, ownerCiv: civA } = makeCityAndCiv({ hp: 50, buildings: ['walls'] });
+    const { city: fortified, ownerCiv: civB } = makeCityAndCiv({ hp: 50, buildings: ['walls', 'star_fort'] });
+
+    const baseResult = resolveCitySiegeDamage({
+      city: wallsOnly, ownerCiv: civA, rawDamage: 30, attackerDomain: 'land', hasGarrison: false, era: 1, challenge: 'standard',
+    });
+    const fortifiedResult = resolveCitySiegeDamage({
+      city: fortified, ownerCiv: civB, rawDamage: 30, attackerDomain: 'land', hasGarrison: false, era: 1, challenge: 'standard',
+    });
+
+    // walls -> 30 / 1.25 = 24; star_fort flat +5 -> 24 - 5 = 19
+    expect(fortifiedResult.hpLost).toBe(19);
+    expect(fortifiedResult.hpLost).toBeLessThan(baseResult.hpLost);
+  });
+
+  it('applies Torpedo Warfare\'s flat bonus only against a naval attacker, not a land attacker', () => {
+    const { city: navalCity, ownerCiv: navalCivBase } = makeCityAndCiv({ hp: 50, buildings: ['walls'] });
+    const { city: navalCityNoTech, ownerCiv: navalCivNoTech } = makeCityAndCiv({ hp: 50, buildings: ['walls'] });
+    const { city: landCity, ownerCiv: landCivBase } = makeCityAndCiv({ hp: 50, buildings: ['walls'] });
+    const { city: landCityNoTech, ownerCiv: landCivNoTech } = makeCityAndCiv({ hp: 50, buildings: ['walls'] });
+    const navalCiv = withTechs(navalCivBase, ['torpedo-warfare']);
+    const landCiv = withTechs(landCivBase, ['torpedo-warfare']);
+
+    const naval = resolveCitySiegeDamage({
+      city: navalCity, ownerCiv: navalCiv, rawDamage: 30, attackerDomain: 'naval', hasGarrison: false, era: 1, challenge: 'standard',
+    });
+    const navalNoTech = resolveCitySiegeDamage({
+      city: navalCityNoTech, ownerCiv: navalCivNoTech, rawDamage: 30, attackerDomain: 'naval', hasGarrison: false, era: 1, challenge: 'standard',
+    });
+    const land = resolveCitySiegeDamage({
+      city: landCity, ownerCiv: landCiv, rawDamage: 30, attackerDomain: 'land', hasGarrison: false, era: 1, challenge: 'standard',
+    });
+    const landNoTech = resolveCitySiegeDamage({
+      city: landCityNoTech, ownerCiv: landCivNoTech, rawDamage: 30, attackerDomain: 'land', hasGarrison: false, era: 1, challenge: 'standard',
+    });
+
+    expect(naval.hpLost).toBeLessThan(navalNoTech.hpLost);
+    expect(land.hpLost).toBe(landNoTech.hpLost);
+  });
+
+  it('floors mitigated damage at 0 rather than going negative when flat bonuses exceed the raw damage', () => {
+    const { city, ownerCiv: ownerCivBase } = makeCityAndCiv({ hp: 50, buildings: ['walls', 'star_fort'] });
+    const ownerCiv = withTechs(ownerCivBase, ['fortification-engineering']);
+
+    const result = resolveCitySiegeDamage({
+      city, ownerCiv, rawDamage: 5, attackerDomain: 'land', hasGarrison: false, era: 1, challenge: 'standard',
+    });
+
+    expect(result.hpLost).toBe(0);
+    expect(result.outcome).toBe('damaged');
   });
 
   it('sacks (survives at 1 HP, loses gold) instead of destroying below the difficulty era threshold', () => {
