@@ -407,11 +407,11 @@ describe('createMarketplacePanel', () => {
     expect(text).toContain('research');
   });
 
-  it('footer count is correct: 14 hidden when viewer has only mining-tech (unlocks 2 of 16)', () => {
+  it('footer count is correct: 20 hidden when viewer has only mining-tech (unlocks 2 of 22)', () => {
     const state = buildState({ currentPlayer: 'p1', civTechs: ['mining-tech'] });
     createMarketplacePanel(container, state, { onClose: vi.fn() });
     const text = document.getElementById('marketplace-panel')?.textContent ?? '';
-    expect(text).toContain('14 more resources');
+    expect(text).toContain('20 more resources');
   });
 
   it('resource type badge shows capitalized label (Luxury / Strategic, not luxury / strategic)', () => {
@@ -590,8 +590,8 @@ describe('createMarketplacePanel', () => {
       const state = buildStateWithKnownCiv();
       createMarketplacePanel(container, state, { onClose: vi.fn() });
       const section = container.querySelector('[data-section="known-civs"]') as HTMLElement;
-      // iron basePrice=8, cost=24
-      expect(section.textContent).toContain('24');
+      // Current marketplace price is 5, so temporary access costs 15.
+      expect(section.textContent).toContain('15');
       expect(section.textContent).toContain('10 turns');
     });
 

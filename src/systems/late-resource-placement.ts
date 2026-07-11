@@ -33,6 +33,7 @@ export function placeLateResources(
   tiles: Record<string, HexTile>,
   rng: () => number,
   protectedCoords: readonly HexCoord[] = [],
+  minimumUraniumDeposits = 1,
 ): void {
   const protectedTileKeys = new Set(protectedCoords.map(hexKey));
   const orderedTiles = Object.entries(tiles).sort(([left], [right]) => left.localeCompare(right));
@@ -43,7 +44,9 @@ export function placeLateResources(
     const candidates = orderedTiles
       .map(([, tile]) => tile)
       .filter(tile => isEligible(tile, terrains, protectedTileKeys));
-    const target = Math.max(1, Math.round(candidates.length * density));
+    const target = definition.id === 'uranium'
+      ? Math.max(minimumUraniumDeposits, Math.round(candidates.length * density))
+      : Math.max(1, Math.round(candidates.length * density));
     for (const tile of chooseCandidates(candidates, target, rng)) {
       tile.resource = definition.id as ResourceType;
     }

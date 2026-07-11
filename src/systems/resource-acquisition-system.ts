@@ -294,7 +294,7 @@ export function canBuyResourceAccess(
 }
 
 /**
- * Deducts 3× basePrice gold from the buyer and adds a 10-turn purchasedResources entry.
+ * Deducts 3× the current marketplace price from the buyer and adds a 10-turn purchasedResources entry.
  * Precondition: canBuyResourceAccess(state, buyerCivId, sellerCivId, resource) === true.
  * Returns a new GameState (immutable spread-copy). Returns state unchanged if marketplace absent.
  */
@@ -307,7 +307,7 @@ export function performBuyResourceAccess(
   if (!state.marketplace) return state;
 
   const def = RESOURCE_DEFINITIONS.find(d => d.id === resource);
-  const cost = (def?.basePrice ?? 5) * 3;
+  const cost = (state.marketplace.prices[resource] ?? def?.basePrice ?? 5) * 3;
 
   const buyer = state.civilizations[buyerCivId];
   if (!buyer) return state;
