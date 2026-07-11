@@ -231,6 +231,7 @@ export const TECH_YIELD_MODIFIERS: TechYieldModifier[] = [
   { techId: 'smart-cities', label: '+2 production and +1 science with a factory and semiconductor fab', effect: { kind: 'cityFlatConditional', requiresAllBuildings: ['factory', 'semiconductor_fab'], yields: { production: 2, science: 1 } } },
   // genomics: resolved directly in resource-system.ts calculateCityYields (needs the city's own pre-empire-percent science total).
   { techId: 'genomics', label: '+1 food per 3 science generated per turn (pre-bonus)', effect: { kind: 'foodFromScience', perScience: 3 } },
+  { techId: 'quantum-computing', label: '+2 science in cities with a Data Center', effect: { kind: 'perBuildingId', buildingIds: ['data_center'], yields: { science: 2 } } },
   // gps-navigation: movement/terrain-cost effect — deferred to MR7 (movement systems live in unit-system, not the yield engine).
 ];
 

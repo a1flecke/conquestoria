@@ -95,13 +95,13 @@ export function getTechById(id: string): Tech | undefined {
 }
 
 /**
- * The single source of truth for a tech's research cost. quantum-computing (era 12) discounts
+ * The single source of truth for a tech's research cost. Cloud Computing discounts
  * unresearched science-track techs by 15% — every reader of `tech.cost` for research-progress
  * purposes MUST go through this function instead (turn-manager, tech-progression, tech-panel,
  * pacing ETA estimates) so the discount is never silently bypassed.
  */
 export function getEffectiveTechCost(tech: Tech, completedTechs: string[]): number {
-  if (tech.track === 'science' && completedTechs.includes('quantum-computing')) {
+  if (tech.track === 'science' && completedTechs.includes('cloud-computing')) {
     return Math.ceil(tech.cost * 0.85);
   }
   return tech.cost;

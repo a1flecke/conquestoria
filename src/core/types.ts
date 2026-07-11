@@ -536,6 +536,7 @@ export interface Tech {
   unlocksUnits?: UnitType[];      // trainable unit types gated by this tech
   unlocksBuildings?: string[];    // building IDs (keys of BUILDINGS) gated by this tech
   era: number;               // 1-3 for milestone 1
+  historicalStatus?: 'historical' | 'emerging' | 'speculative';
   countsForEraAdvancement?: boolean;
   countsForCityMaturity?: boolean;
   pacing?: PacingMetadata;

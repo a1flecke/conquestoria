@@ -2,18 +2,18 @@ import { describe, expect, it } from 'vitest';
 import { getEffectiveTechCost, getTechById, createTechState, processResearch } from '@/systems/tech-system';
 import { buildTechProgressionView } from '@/systems/tech-progression';
 
-describe('getEffectiveTechCost — quantum-computing science-track discount', () => {
+describe('getEffectiveTechCost — cloud-computing science-track discount', () => {
   it('discounts an unresearched science-track tech by 15% (ceil)', () => {
     const genomics = getTechById('genomics')!;
     expect(genomics.track).toBe('science');
     expect(genomics.cost).toBe(2780);
-    expect(getEffectiveTechCost(genomics, ['quantum-computing'])).toBe(Math.ceil(2780 * 0.85));
+    expect(getEffectiveTechCost(genomics, ['cloud-computing'])).toBe(Math.ceil(2780 * 0.85));
   });
 
   it('leaves a non-science-track tech unchanged', () => {
     const cyberWarfare = getTechById('cyber-warfare')!;
     expect(cyberWarfare.track).not.toBe('science');
-    expect(getEffectiveTechCost(cyberWarfare, ['quantum-computing'])).toBe(cyberWarfare.cost);
+    expect(getEffectiveTechCost(cyberWarfare, ['cloud-computing'])).toBe(cyberWarfare.cost);
   });
 
   it('leaves science-track techs unchanged without quantum-computing', () => {
@@ -27,7 +27,7 @@ describe('processResearch honors the effective (discounted) cost', () => {
     const genomics = getTechById('genomics')!;
     const discountedCost = Math.ceil(genomics.cost * 0.85);
     let state = createTechState();
-    state = { ...state, completed: ['quantum-computing'], currentResearch: 'genomics', researchProgress: 0 };
+    state = { ...state, completed: ['cloud-computing'], currentResearch: 'genomics', researchProgress: 0 };
 
     const belowDiscount = processResearch(state, discountedCost - 1);
     expect(belowDiscount.completedTech).toBeNull();
@@ -38,12 +38,12 @@ describe('processResearch honors the effective (discounted) cost', () => {
 });
 
 describe('tech-panel ETA estimates use the effective cost', () => {
-  it('buildTechProgressionView reports fewer turns-to-research for a science tech once quantum-computing is completed', () => {
+  it('buildTechProgressionView reports fewer turns-to-research for a science tech once Cloud Computing is completed', () => {
     const baseState = { ...createTechState(), currentResearch: 'genomics' };
-    const withQC = { ...baseState, completed: ['quantum-computing'] };
+    const withCloud = { ...baseState, completed: ['cloud-computing'] };
 
     const viewWithout = buildTechProgressionView(baseState, { zoom: 'all', sciencePerTurn: 10 });
-    const viewWith = buildTechProgressionView(withQC, { zoom: 'all', sciencePerTurn: 10 });
+    const viewWith = buildTechProgressionView(withCloud, { zoom: 'all', sciencePerTurn: 10 });
 
     const nodeWithout = viewWithout.nodes.find(n => n.tech.id === 'genomics');
     const nodeWith = viewWith.nodes.find(n => n.tech.id === 'genomics');

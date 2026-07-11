@@ -8,8 +8,8 @@ import {
 } from '@/systems/pacing-model';
 
 describe('tech definitions', () => {
-  it('has exactly 368 techs after removing cyber-warfare stub and adding era-12', () => {
-    expect(TECH_TREE.length).toBe(368);
+  it('has exactly 369 techs after adding the Era 13 Quantum Computing boundary node', () => {
+    expect(TECH_TREE.length).toBe(369);
   });
 
   it('keeps 15 tracks while expanding to era 12 (2 new techs per track per era)', () => {
@@ -26,8 +26,10 @@ describe('tech definitions', () => {
       // Other 8 tracks had 8 era1-4 + 16 = 24.
       const expected = track === 'military'
         ? 26
-        : ['economy', 'science', 'communication', 'maritime', 'exploration', 'espionage'].includes(track)
+        : ['economy', 'communication', 'maritime', 'exploration', 'espionage'].includes(track)
           ? 25
+          : track === 'science'
+            ? 26
           : 24;
       expect(count, `track ${track} should have ${expected} techs`).toBe(expected);
     }
@@ -193,6 +195,24 @@ describe('tech definitions', () => {
   it('has no orphan late-era nodes', () => {
     const lateEra = TECH_TREE.filter(t => t.era >= 5);
     expect(lateEra.every(t => t.prerequisites.length > 0)).toBe(true);
+  });
+
+  it('keeps Era 12 Cloud Computing distinct from emerging Era 13 Quantum Computing', () => {
+    const cloud = TECH_TREE.find(tech => tech.id === 'cloud-computing');
+    const quantum = TECH_TREE.find(tech => tech.id === 'quantum-computing');
+
+    expect(cloud).toMatchObject({
+      name: 'Cloud Computing',
+      era: 12,
+      prerequisites: ['integrated-circuits', 'arpanet'],
+      unlocksBuildings: ['data_center'],
+    });
+    expect(quantum).toMatchObject({
+      name: 'Quantum Computing',
+      era: 13,
+      prerequisites: ['cloud-computing', 'nanomaterials'],
+      historicalStatus: 'emerging',
+    });
   });
 });
 
