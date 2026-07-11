@@ -413,6 +413,7 @@ export function spawnPirateFaction(
     contract: null,
     intent: null,
     transitionGuards: { emittedEventKeys: [] },
+    blockadeStreakByCity: {},
   };
   const pirates = state.pirates ?? createEmptyPirateState();
   const covertOwnerId = plan.habitat === 'coastal-enclave'
