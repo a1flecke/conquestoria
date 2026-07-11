@@ -176,6 +176,14 @@ describe('getCityTechYields — per-kind coverage', () => {
     expect(getCityTechYields(noLibrary, map, ['scientific-method']).total.science).toBe(0);
   });
 
+  it('Quantum Computing adds science only to cities with a Data Center', () => {
+    const dataCenterCity = makeCity({ buildings: ['data_center'] });
+    const otherCity = makeCity({ buildings: ['library'] });
+
+    expect(getCityTechYields(dataCenterCity, map, ['quantum-computing']).total.science).toBe(2);
+    expect(getCityTechYields(otherCity, map, ['quantum-computing']).total.science).toBe(0);
+  });
+
   it('perImprovement: counts only worked, completed tiles', () => {
     const centerCoord = Object.values(map.tiles).find(t => t.terrain === 'grassland' && !t.hasRiver)!.coord;
     const city = { ...foundCity('player', centerCoord, map, mkC()), population: 2 };

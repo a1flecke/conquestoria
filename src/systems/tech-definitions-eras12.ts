@@ -26,8 +26,8 @@ const ERA_12_TECHS: Tech[] = [
     prerequisites: ['molecular-biology', 'green-revolution-crops'],
     unlocks: ['Cities produce +1 food for every 3 science they generate per turn'],
     unlocksBuildings: ['biotech_lab'], era: 12 },
-  { id: 'quantum-computing', name: 'Quantum Computing', track: 'science', cost: 2780,
-    prerequisites: ['integrated-circuits', 'molecular-biology'],
+  { id: 'cloud-computing', name: 'Cloud Computing', track: 'science', cost: 2780,
+    prerequisites: ['integrated-circuits', 'arpanet'],
     unlocks: ['All unresearched science-track techs cost 15% less science to research'],
     unlocksBuildings: ['data_center'], era: 12 },
 

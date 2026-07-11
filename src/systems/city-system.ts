@@ -978,7 +978,7 @@ export const BUILDINGS: Record<string, Building> = {
     yields: { food: 0, production: 0, gold: 0, science: 3 },
     productionCost: 200,
     description: 'High-performance computing cluster. Requires a Semiconductor Fab.',
-    techRequired: 'quantum-computing',
+    techRequired: 'cloud-computing',
     requiresBuildings: ['semiconductor_fab'],
   },
 
