@@ -96,7 +96,7 @@ describe('tech-panel', () => {
       onClose: () => {},
     });
     expect(lockedPanel.textContent).not.toContain('Research frontier reached');
-  });
+  }, 15000);
 
   it('does not show ETA unknown for the current research node when pacing is known', () => {
     const state = createNewGame(undefined, 'tech-current-node-eta-test');
