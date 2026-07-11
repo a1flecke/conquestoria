@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 import type { PacingMetadata } from '@/core/types';
 import { TECH_TREE } from '@/systems/tech-definitions';
 import {
+  ERA_PACING_PROFILES,
   estimateTurnsToComplete,
+  getFrontierPacingProfile,
   getMetadataComplexityMultiplier,
   getProductionOutputProfileForEra,
   getRecommendedTechCost,
@@ -14,6 +16,7 @@ import {
   isStarterPrerequisiteTech,
   resolveEraRelativeCostBand,
   resolveTechPacingBand,
+  requireEraPacingProfile,
 } from '@/systems/pacing-model';
 
 function tech(id: string) {
@@ -44,7 +47,15 @@ describe('pacing-model', () => {
     expect(getProductionOutputProfileForEra(10)).toBe(22);
     expect(getProductionOutputProfileForEra(11)).toBe(24);
     expect(getProductionOutputProfileForEra(12)).toBe(26);
-    expect(getProductionOutputProfileForEra(99)).toBe(26);
+    expect(getProductionOutputProfileForEra(13)).toBe(28);
+    expect(getProductionOutputProfileForEra(99)).toBe(28);
+  });
+
+  it('uses explicit authored-era profiles and a separate final frontier profile', () => {
+    expect(ERA_PACING_PROFILES.get(13)).toMatchObject({ era: 13, productionPerTurn: 28 });
+    expect(requireEraPacingProfile(13)).toBe(ERA_PACING_PROFILES.get(13));
+    expect(() => requireEraPacingProfile(16)).toThrow('Missing authored pacing profile for era 16');
+    expect(getFrontierPacingProfile(25)).toBe(ERA_PACING_PROFILES.get(13));
   });
 });
 
@@ -58,7 +69,8 @@ describe('research pacing model', () => {
     expect(getResearchOutputProfileForEra(7)).toEqual({ name: 'era-7-established', outputPerTurn: 19 });
     expect(getResearchOutputProfileForEra(8)).toEqual({ name: 'era-8-established', outputPerTurn: 22 });
     expect(getResearchOutputProfileForEra(9)).toEqual({ name: 'era-9-established', outputPerTurn: 25 });
-    expect(getResearchOutputProfileForEra(99)).toEqual({ name: 'era-12-established', outputPerTurn: 198 });
+    expect(getResearchOutputProfileForEra(13)).toEqual({ name: 'era-13-established', outputPerTurn: 236 });
+    expect(getResearchOutputProfileForEra(99)).toEqual({ name: 'era-13-established', outputPerTurn: 236 });
   });
 
   it('extends the research baseline through era 12 instead of clamping at era 9 (F2 regression)', () => {

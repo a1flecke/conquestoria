@@ -13,10 +13,9 @@ describe('national project structural invariants', () => {
     }
   });
 
-  it('every national project homeEra is in range 1–12', () => {
+  it('every national project has a positive authored home era', () => {
     for (const np of nationalProjects) {
       expect(np.nationalProject!.homeEra, `${np.id} homeEra out of range`).toBeGreaterThanOrEqual(1);
-      expect(np.nationalProject!.homeEra, `${np.id} homeEra out of range`).toBeLessThanOrEqual(12);
     }
   });
 

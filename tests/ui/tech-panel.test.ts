@@ -74,6 +74,30 @@ describe('tech-panel', () => {
     expect(panel.textContent).toContain('Turns remaining');
   });
 
+  it('shows the research frontier only after every authored technology is completed', () => {
+    const state = createNewGame(undefined, 'tech-frontier-test');
+    state.civilizations.player.techState.completed = TECH_TREE.map(tech => tech.id);
+
+    const frontierPanel = createTechPanel(document.body, state, {
+      onQueueResearch: () => {},
+      onMoveQueuedResearch: () => {},
+      onRemoveQueuedResearch: () => {},
+      onClose: () => {},
+    });
+
+    expect(frontierPanel.textContent).toContain('Research frontier reached — your campaign continues');
+
+    frontierPanel.remove();
+    state.civilizations.player.techState.completed = [];
+    const lockedPanel = createTechPanel(document.body, state, {
+      onQueueResearch: () => {},
+      onMoveQueuedResearch: () => {},
+      onRemoveQueuedResearch: () => {},
+      onClose: () => {},
+    });
+    expect(lockedPanel.textContent).not.toContain('Research frontier reached');
+  });
+
   it('does not show ETA unknown for the current research node when pacing is known', () => {
     const state = createNewGame(undefined, 'tech-current-node-eta-test');
     state.civilizations.player.techState.currentResearch = 'stone-weapons';

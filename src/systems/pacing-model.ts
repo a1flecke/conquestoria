@@ -1,6 +1,14 @@
 import type { Building, PacingBand, PacingContentType, PacingMetadata, Tech } from '@/core/types';
 import { BUILDINGS, type TRAINABLE_UNITS } from '@/systems/city-system';
 import { TECH_TREE } from '@/systems/tech-definitions';
+import {
+  ERA_PACING_PROFILES,
+  getFrontierPacingProfile,
+  requireEraPacingProfile,
+  type EraPacingProfile,
+} from '@/systems/era-pacing-profiles';
+
+export { ERA_PACING_PROFILES, getFrontierPacingProfile, requireEraPacingProfile, type EraPacingProfile };
 
 const BAND_WINDOWS: Record<PacingBand, { early: [number, number]; late: [number, number] }> = {
   starter: { early: [2, 4], late: [2, 5] },
@@ -11,25 +19,8 @@ const BAND_WINDOWS: Record<PacingBand, { early: [number, number]; late: [number,
   marquee: { early: [10, 12], late: [10, 16] },
 };
 
-const PRODUCTION_OUTPUT_BY_ERA: Record<number, number> = {
-  1: 4,
-  2: 6,
-  3: 8,
-  4: 10,
-  5: 12,
-  6: 14,
-  7: 16,
-  8: 18,
-  9: 20,
-  10: 22,
-  11: 24,
-  12: 26,
-};
-
 export function getProductionOutputProfileForEra(era: number): number {
-  const numericEra = Number.isFinite(era) ? era : 1;
-  const normalized = Math.max(1, Math.floor(numericEra));
-  return PRODUCTION_OUTPUT_BY_ERA[Math.min(12, normalized)];
+  return getFrontierPacingProfile(era).productionPerTurn;
 }
 
 export function getTargetTurnWindow(input: { era: number; band: PacingBand; contentType: PacingContentType }): { min: number; max: number } {
@@ -46,44 +37,15 @@ export function estimateTurnsToComplete(input: { cost: number; outputPerTurn: nu
 }
 
 export interface ResearchOutputProfile {
-  name:
-    | 'opening-baseline'
-    | 'opening-science-invested'
-    | 'era-2-established'
-    | 'era-3-established'
-    | 'era-4-established'
-    | 'era-5-established'
-    | 'era-6-established'
-    | 'era-7-established'
-    | 'era-8-established'
-    | 'era-9-established'
-    | 'era-10-established'
-    | 'era-11-established'
-    | 'era-12-established';
+  name: string;
   outputPerTurn: number;
 }
 
-const RESEARCH_OUTPUT_BY_ERA: Record<number, ResearchOutputProfile> = {
-  1: { name: 'opening-baseline', outputPerTurn: 1 },
-  2: { name: 'era-2-established', outputPerTurn: 4 },
-  3: { name: 'era-3-established', outputPerTurn: 7 },
-  4: { name: 'era-4-established', outputPerTurn: 10 },
-  5: { name: 'era-5-established', outputPerTurn: 13 },
-  6: { name: 'era-6-established', outputPerTurn: 16 },
-  7: { name: 'era-7-established', outputPerTurn: 19 },
-  8: { name: 'era-8-established', outputPerTurn: 22 },
-  9: { name: 'era-9-established', outputPerTurn: 25 },
-  // era 10-12: extended in MR13 (#481, fixes F2/F3) — values derived from a real run of the
-  // yield pipeline (tech percents + empire-flat tech yields) against a documented reference
-  // economy, not guessed. Targets the 'maximal' profile (a completionist city that builds
-  // every available building) rather than the lower 'bounded' profile, so a completionist
-  // empire doesn't blow through late-game tech far faster than the target window. See
-  // tests/systems/pacing-reference-economy.test.ts for the fixture, both profiles' pins, and
-  // the regression/growth-ratio guardrails.
-  10: { name: 'era-10-established', outputPerTurn: 135 },
-  11: { name: 'era-11-established', outputPerTurn: 170 },
-  12: { name: 'era-12-established', outputPerTurn: 198 },
-};
+function researchOutputProfile(profile: EraPacingProfile): ResearchOutputProfile {
+  return profile.era === 1
+    ? { name: 'opening-baseline', outputPerTurn: profile.completionistSciencePerTurn }
+    : { name: `era-${profile.era}-established`, outputPerTurn: profile.completionistSciencePerTurn };
+}
 
 export const OPENING_SCIENCE_INVESTED_PROFILE: ResearchOutputProfile = {
   name: 'opening-science-invested',
@@ -99,18 +61,12 @@ function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
 }
 
-function normalizeEra(era: number): number {
-  const numericEra = Number.isFinite(era) ? era : 1;
-  const normalized = Math.max(1, Math.floor(numericEra));
-  return Math.min(12, normalized);
-}
-
 function findTech(techId: string, techs: Tech[]): Tech | undefined {
   return techs.find(candidate => candidate.id === techId);
 }
 
 export function getResearchOutputProfileForEra(era: number): ResearchOutputProfile {
-  return RESEARCH_OUTPUT_BY_ERA[normalizeEra(era)];
+  return researchOutputProfile(getFrontierPacingProfile(era));
 }
 
 export function isStarterPrerequisiteTech(tech: Tech): boolean {
@@ -127,14 +83,18 @@ export function isFirstRealUnlockTech(tech: Tech, techs: Tech[] = TECH_TREE): bo
 
 export function getResearchOutputProfileForTech(tech: Tech, techs: Tech[] = TECH_TREE): ResearchOutputProfile {
   if (isStarterPrerequisiteTech(tech) || isFirstRealUnlockTech(tech, techs)) {
-    return RESEARCH_OUTPUT_BY_ERA[1];
+    return researchOutputProfile(requireEraPacingProfile(1));
   }
 
   if (tech.era <= 1) {
-    return RESEARCH_OUTPUT_BY_ERA[2];
+    return researchOutputProfile(requireEraPacingProfile(2));
   }
 
-  return getResearchOutputProfileForEra(tech.era);
+  return researchOutputProfile(requireEraPacingProfile(tech.era));
+}
+
+export function validateAuthoredEraPacing(techs: readonly Tech[] = TECH_TREE): void {
+  for (const tech of techs) requireEraPacingProfile(tech.era);
 }
 
 export function getRecommendedTechTurnWindow(tech: Tech, techs: Tech[] = TECH_TREE): { min: number; max: number } {
