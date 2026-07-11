@@ -1649,8 +1649,10 @@ export interface GameEvents {
   'threat:pirate-fleet-destroyed': { fleetId: string; civId: string; landmassId: string };
   'barbarian:city-attacked': { attackerUnitId: string; cityId: string; hpLost: number };
   'barbarian:city-destroyed': { attackerUnitId: string; cityId: string; ownerId: string };
-  // 'pirate' source is future-proofed for when the pirate-faction system (pirate-system.ts)
-  // gains a city-HP-damage mechanic; only 'barbarian' is emitted today (turn-manager.ts).
+  // Pirate-faction naval siege (#522) mirror of the barbarian city-siege events above,
+  // emitted from pirate-system.ts's completed-round processing (not the dead
+  // threat-pressure-system.ts fleet path 'threat:pirate-siege' above).
+  'pirate:city-destroyed': { cityId: string; ownerId: string; factionId: string };
   'city:sacked': { cityId: string; source: 'barbarian' | 'pirate'; goldLost: number };
   'tutorial:step': { step: TutorialStep; message: string; advisor: 'builder' | 'explorer' | 'scholar' };
   'notification:show': { message: string; type: 'info' | 'warning' | 'success' };
