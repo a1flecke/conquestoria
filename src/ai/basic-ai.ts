@@ -94,6 +94,7 @@ import { isAIHostileOwner } from './ai-hostility';
 import { hasAICombatRole } from './ai-unit-roles';
 import { applyAIProduction } from './ai-production';
 import { applyAIResearch } from './ai-research';
+import { processAIResourceMarketplace } from './ai-resource-marketplace';
 
 function addAlwaysHostileOwners(
   state: GameState,
@@ -651,6 +652,7 @@ function processAITurnInternal(
     preparedForTurn,
     bus,
   ).state;
+  newState = processAIResourceMarketplace(newState, civId);
   civ = newState.civilizations[civId];
   const administrativePerception = preparedForTurn.perception;
 
