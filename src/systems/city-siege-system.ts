@@ -43,7 +43,10 @@ export function resolveCitySiegeDamage(input: CitySiegeInput): CitySiegeResult {
     defenderCompletedTechs: input.ownerCiv.techState.completed ?? [],
     attackerDomain: input.attackerDomain,
   });
-  const mitigatedDamage = Math.round(input.rawDamage / breakdown.multiplier);
+  const mitigatedDamage = Math.max(
+    0,
+    Math.round(input.rawDamage / breakdown.multiplier) - breakdown.flatBonus,
+  );
   const newHp = Math.max(0, currentHp - mitigatedDamage);
 
   if (newHp > 0) {
