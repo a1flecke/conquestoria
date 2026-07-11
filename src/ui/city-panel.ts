@@ -10,6 +10,7 @@ import {
 } from '@/systems/city-system';
 import { getCivAvailableResources } from '@/systems/resource-acquisition-system';
 import { RESOURCE_DEFINITIONS } from '@/systems/trade-system';
+import { getResourceAdvantagesForItem, getResourceAdvantageMultiplier } from '@/systems/resource-advantages';
 import { SESSION_SHOWN_TIPS } from '@/ui/advisor-system';
 import { hexDistance, wrappedHexDistance } from '@/systems/hex-utils';
 import { createGameButton } from './ui-kit';
@@ -203,7 +204,21 @@ export function createCityPanel(
     era: state.era,
     completedTechs: currentCiv.techState.completed,
     activeNationalProjects,
+    availableResources: playerResources,
   });
+  const resourceRequirementLine = (itemId: string, required: readonly ResourceType[] = []): string => {
+    const requiredNames = required.map(id => RESOURCE_DEFINITIONS.find(def => def.id === id)?.name ?? id);
+    const advantages = getResourceAdvantagesForItem(itemId);
+    const fasterNames = advantages.map(advantage => RESOURCE_DEFINITIONS.find(def => def.id === advantage.resource)?.name ?? advantage.resource);
+    const multiplier = getResourceAdvantageMultiplier(itemId, playerResources);
+    const parts: string[] = [];
+    if (requiredNames.length) parts.push(`Required: ${requiredNames.join(', ')}`);
+    if (fasterNames.length) {
+      const saved = Math.round((1 - multiplier) * 100);
+      parts.push(`Faster with: ${fasterNames.join(', ')}${saved > 0 ? ` (${saved}% discount)` : ''}`);
+    }
+    return parts.length ? `<div style="font-size:10px;opacity:0.72;">${parts.join(' · ')}</div>` : '';
+  };
   const builtNPKeys = getReservedNationalProjectKeys(state, city.owner);
   const availableBuildings = getAvailableBuildings(
     city,
@@ -405,6 +420,7 @@ export function createCityPanel(
     buildItemPlaceholders += `<div class="build-item" data-item-id="${b.id}" style="background:rgba(255,255,255,0.1);${npBorder}border-radius:8px;padding:10px;margin-bottom:6px;cursor:pointer;">
       <div style="font-weight:bold;font-size:13px;">${getProductionIconForItem(b.id)} <span data-text="build-name-${idx}"></span></div>
       <div style="font-size:11px;opacity:0.7;">${yieldStr}${turns} turns${upkeepStr}${deadline}</div>
+      ${resourceRequirementLine(b.id, b.resourceRequired)}
       <div style="font-size:10px;opacity:0.5;" data-text="build-desc-${idx}"></div>
     </div>`;
   }
@@ -483,6 +499,7 @@ export function createCityPanel(
     unitPlaceholders += `<div class="build-item" data-item-id="${u.type}" style="background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);border-radius:8px;padding:10px;margin-bottom:6px;cursor:pointer;">
       <div style="font-weight:bold;font-size:13px;">${getProductionIconForItem(u.type)} <span data-text="unit-name-${idx}"></span></div>
       <div style="font-size:11px;opacity:0.7;">Cost: ${cost} · ${turns} turns</div>
+      ${resourceRequirementLine(u.type, u.resourceRequired)}
     </div>`;
   }
 

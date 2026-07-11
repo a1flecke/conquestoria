@@ -86,6 +86,16 @@ function makeStateNoResources(): GameState {
 }
 
 describe('city panel resource bonus section', () => {
+  it('labels optional resource discounts as Faster with rather than Required', () => {
+    const state = makeLegendaryWonderFixture({ completedTechs: ['steam-power', 'philosophy', 'sacred-sites'] });
+    const city = state.cities['city-river'];
+    const container = document.getElementById('panel-root')!;
+    createCityPanel(container, city, state, noopCallbacks);
+
+    expect(container.textContent).toContain('Faster with: Coal');
+    expect(container.textContent).not.toContain('Required: Coal');
+  });
+
   it('test 21: silk owned → "Empire bonuses" header and "Silk" text with "+1 happiness"', () => {
     const state = makeStateWithSilk();
     const city = state.cities['city-river'];

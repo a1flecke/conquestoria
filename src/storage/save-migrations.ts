@@ -103,7 +103,11 @@ function migrateToEra13Foundation(state: GameState): GameState {
 function migrateLateResources(state: GameState): GameState {
   const gameId = state.gameId ?? stableLegacyGameId(state);
   const tiles = Object.fromEntries(Object.entries(state.map?.tiles ?? {}).map(([key, tile]) => [key, { ...tile }]));
-  placeLateResources(tiles, createRng(`${gameId}-late-resources`));
+  placeLateResources(
+    tiles,
+    createRng(`${gameId}-late-resources`),
+    Object.values(state.cities ?? {}).map(city => city.position),
+  );
 
   const defaults = createMarketplaceState();
   const marketplace = state.marketplace
