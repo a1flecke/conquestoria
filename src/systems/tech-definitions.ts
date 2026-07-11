@@ -7,6 +7,7 @@ import { TECH_TREE_ERAS_10 } from './tech-definitions-eras10';
 import { TECH_TREE_ERAS_11 } from './tech-definitions-eras11';
 import { TECH_TREE_ERAS_12 } from './tech-definitions-eras12';
 import { TECH_TREE_ERAS_13 } from './tech-definitions-eras13';
+import { requireEraPacingProfile } from './era-pacing-profiles';
 
 export { TECH_TREE_ERAS_1_4 } from './tech-definitions-eras1-4';
 export { TECH_TREE_ERAS_5_7 } from './tech-definitions-eras5-7';
@@ -27,6 +28,8 @@ export const TECH_TREE: Tech[] = [
   ...TECH_TREE_ERAS_12,
   ...TECH_TREE_ERAS_13,
 ];
+
+for (const tech of TECH_TREE) requireEraPacingProfile(tech.era);
 
 export function getEraAdvancementTechs(era: number): Tech[] {
   return TECH_TREE.filter(tech => tech.era === era && tech.countsForEraAdvancement !== false);

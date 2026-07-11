@@ -28,7 +28,8 @@ describe('production cost catalog', () => {
     expect(getSettlerProductionCost(10)).toBe(96);
     expect(getSettlerProductionCost(11)).toBe(104);
     expect(getSettlerProductionCost(12)).toBe(112);
-    expect(getSettlerProductionCost(99)).toBe(112);
+    expect(getSettlerProductionCost(13)).toBe(120);
+    expect(getSettlerProductionCost(99)).toBe(120);
   });
 
   it('treats invalid Settler era input as Era 1 instead of returning undefined', () => {

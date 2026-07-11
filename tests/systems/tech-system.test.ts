@@ -20,7 +20,7 @@ describe('TECH_TREE', () => {
     }
   });
 
-  it('keeps the legacy shape after removing cyber-warfare stub and adding era-5 through era-12 nodes', () => {
+  it('keeps the established catalog shape while adding the Era 13 Quantum Computing node', () => {
     const allTracks = [...new Set(TECH_TREE.map(t => t.track))];
     for (const track of allTracks) {
       const techs = TECH_TREE.filter(t => t.track === track);
@@ -30,8 +30,10 @@ describe('TECH_TREE', () => {
       // Other tracks had 8 era1-4 + 16 (era5-12) = 24.
       const expectedCount = track === 'military'
         ? 26
-        : ['economy', 'science', 'communication', 'maritime', 'exploration', 'espionage'].includes(track)
+        : ['economy', 'communication', 'maritime', 'exploration', 'espionage'].includes(track)
           ? 25
+          : track === 'science'
+            ? 26
           : 24;
       expect(techs.length, `track ${track} should have ${expectedCount} techs`).toBe(expectedCount);
     }
@@ -39,8 +41,8 @@ describe('TECH_TREE', () => {
 });
 
 describe('expanded tech tree', () => {
-  it('has 368 techs total after removing cyber-warfare stub and adding era-12 (29 net new techs)', () => {
-    expect(TECH_TREE.length).toBe(368);
+  it('has 369 techs total after adding the Era 13 boundary node', () => {
+    expect(TECH_TREE.length).toBe(369);
   });
 
   it('supports cross-track prerequisites', () => {
@@ -58,10 +60,10 @@ describe('expanded tech tree', () => {
     }
   });
 
-  it('techs span eras 1-12', () => {
+  it('techs span eras 1-13', () => {
     const eras = new Set(TECH_TREE.map(t => t.era));
-    expect(eras.size).toBe(12);
-    for (let era = 1; era <= 12; era++) {
+    expect(eras.size).toBe(13);
+    for (let era = 1; era <= 13; era++) {
       expect(eras).toContain(era);
     }
   });

@@ -1181,16 +1181,17 @@ export const SETTLER_COST_BY_ERA: Record<number, number> = {
   10: 96,
   11: 104,
   12: 112,
+  13: 120,
 };
 
-function clampProductionEra(era: number | undefined): number {
+function normalizeProductionEra(era: number | undefined): number {
   const numericEra = typeof era === 'number' && Number.isFinite(era) ? era : 1;
-  const normalized = Math.max(1, Math.floor(numericEra));
-  return Math.min(12, normalized);
+  return Math.max(1, Math.floor(numericEra));
 }
 
 export function getSettlerProductionCost(era: number = 1): number {
-  return SETTLER_COST_BY_ERA[clampProductionEra(era)];
+  const normalized = normalizeProductionEra(era);
+  return SETTLER_COST_BY_ERA[normalized] ?? SETTLER_COST_BY_ERA[Math.max(...Object.keys(SETTLER_COST_BY_ERA).map(Number))];
 }
 
 export function getCatalogProductionCost(itemId: string, era: number = 1): number {

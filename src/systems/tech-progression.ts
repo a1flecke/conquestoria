@@ -133,6 +133,12 @@ export function getQueueableResearchIds(state: TechState, techs: Tech[] = TECH_T
   return queueable;
 }
 
+export function hasReachedResearchFrontier(state: TechState, techs: readonly Tech[] = TECH_TREE): boolean {
+  return state.currentResearch === null
+    && state.researchQueue.length === 0
+    && techs.every(tech => state.completed.includes(tech.id));
+}
+
 export function canMoveQueuedResearch(state: TechState, fromIndex: number, toIndex: number): boolean {
   return isQueueOrderValid(state, moveQueuedId(state.researchQueue, fromIndex, toIndex));
 }

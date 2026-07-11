@@ -5,6 +5,7 @@ import { estimateTurnsToComplete } from '@/systems/pacing-model';
 import {
   buildTechProgressionView,
   canMoveQueuedResearch,
+  hasReachedResearchFrontier,
   type TechProgressionNode,
   type TechTreeZoom,
 } from '@/systems/tech-progression';
@@ -424,6 +425,14 @@ export function createTechPanel(
   const summary = buildCurrentResearchSummary(currentTech, currentProgress, turnsRemaining);
   if (summary) {
     panel.appendChild(summary);
+  }
+
+  if (hasReachedResearchFrontier(civ.techState)) {
+    const frontier = document.createElement('div');
+    frontier.dataset.role = 'research-frontier';
+    frontier.textContent = 'Research frontier reached — your campaign continues';
+    frontier.style.cssText = 'background:rgba(94,180,128,0.16);border:1px solid rgba(120,220,155,0.55);border-radius:8px;padding:10px 12px;margin-bottom:16px;color:#d9f6df;font-size:13px;';
+    panel.appendChild(frontier);
   }
 
   const queueBtnStyle = 'padding:4px 8px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);border-radius:4px;color:white;cursor:pointer;font-size:13px;';
