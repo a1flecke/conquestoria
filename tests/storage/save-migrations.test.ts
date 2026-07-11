@@ -81,4 +81,11 @@ describe('save migrations', () => {
       civilizations: { player: { civType: 'rome' } },
     });
   });
+
+  it('tolerates incomplete legacy technology state before later normalization', () => {
+    const legacySave = createNewGame('rome', 'partial-tech-state', 'small');
+    delete (legacySave.civilizations.player.techState as Partial<typeof legacySave.civilizations.player.techState>).researchQueue;
+
+    expect(() => migrateSaveToCurrent(legacySave)).not.toThrow();
+  });
 });
