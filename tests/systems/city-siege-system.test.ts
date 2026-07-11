@@ -140,6 +140,37 @@ describe('resolveCitySiegeDamage (#522)', () => {
     expect(result.goldLost).toBe(0);
   });
 
+  it('sacks (never destroys) a civ\'s last remaining city even past the destruction era', () => {
+    const { city, ownerCiv } = makeCityAndCiv({ hp: 5, buildings: [] }, { gold: 200 });
+
+    const result = resolveCitySiegeDamage({
+      city, ownerCiv, rawDamage: 100, attackerDomain: 'land', hasGarrison: false, isOwnersLastCity: true, era: 12, challenge: 'veteran',
+    });
+
+    expect(result.outcome).toBe('sacked');
+    expect(result.newHp).toBe(1);
+  });
+
+  it('still destroys a non-last city past the destruction era (regression: the last-city guard is scoped)', () => {
+    const { city, ownerCiv } = makeCityAndCiv({ hp: 5, buildings: [] });
+
+    const result = resolveCitySiegeDamage({
+      city, ownerCiv, rawDamage: 100, attackerDomain: 'land', hasGarrison: false, isOwnersLastCity: false, era: 12, challenge: 'veteran',
+    });
+
+    expect(result.outcome).toBe('destroyed');
+  });
+
+  it('defaults isOwnersLastCity to false when omitted, preserving existing destroy behavior', () => {
+    const { city, ownerCiv } = makeCityAndCiv({ hp: 5, buildings: [] });
+
+    const result = resolveCitySiegeDamage({
+      city, ownerCiv, rawDamage: 10, attackerDomain: 'land', hasGarrison: false, era: 3, challenge: 'standard',
+    });
+
+    expect(result.outcome).toBe('destroyed');
+  });
+
   it('uses a harsher destruction threshold on veteran than explorer (negative test: same era, different outcome)', () => {
     const { city: cityA, ownerCiv: civA } = makeCityAndCiv({ hp: 5, buildings: [] });
     const { city: cityB, ownerCiv: civB } = makeCityAndCiv({ hp: 5, buildings: [] });
