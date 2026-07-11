@@ -466,6 +466,32 @@ describe('pirate naval siege (#522)', () => {
     expect(result.state.cities.port!.hp).toBe(50);
   });
 
+  it('balance: no siege stage one-shots a full-HP undefended city (a prepared player always gets multiple rounds)', () => {
+    for (const stage of [3, 4, 5] as const) {
+      const state = siegeReadyState(100);
+      state.pirates!.factions['pirate-1']!.maritimeStage = stage;
+
+      const result = processPiratesForCompletedRound(state, new EventBus());
+
+      expect(result.state.cities.port!.hp).toBeGreaterThan(0);
+    }
+  });
+
+  it('balance: a garrisoned city takes zero cumulative damage across repeated besieging rounds at every stage', () => {
+    for (const stage of [3, 4, 5] as const) {
+      let state = siegeReadyState(100);
+      state.pirates!.factions['pirate-1']!.maritimeStage = stage;
+      addUnit(state, 'garrison', 'warrior', 'player', { q: 5, r: 5 });
+
+      for (let round = 0; round < 5; round++) {
+        const result = processPiratesForCompletedRound({ ...state, turn: state.turn + round }, new EventBus());
+        state = result.state;
+      }
+
+      expect(state.cities.port!.hp).toBe(100);
+    }
+  });
+
   it('sacks (never destroys) a civ\'s last remaining city even past the destruction era', () => {
     const state = siegeReadyState(2);
     state.era = 12;
@@ -513,5 +539,42 @@ describe('pirate naval siege (#522)', () => {
     const result = processPiratesForCompletedRound(state, new EventBus());
 
     expect(result.state.cities.port!.hp).toBe(50);
+  });
+
+  it('hot-seat: the blockade streak and siege damage advance once per completed round, not once per human civ turn', () => {
+    // processPiratesForCompletedRound is the exact entrypoint hot-seat's
+    // runCompletedRound/processTurn call exactly once per completed round -- never once
+    // per human player-turn within that round (mirrors the #549 HP-regen contract). Both
+    // 'player' and 'ai-1' are marked human here to model a hot-seat game; a bug that
+    // scoped this per-human-turn instead of per-round would double the streak/damage.
+    const state = siegeReadyState(100);
+    state.civilizations.player.isHuman = true;
+    state.civilizations['ai-1']!.isHuman = true;
+
+    const result = processPiratesForCompletedRound(state, new EventBus());
+
+    expect(result.state.pirates!.factions['pirate-1']!.blockadeStreakByCity?.port).toBe(PIRATE_SIEGE_BLOCKADE_TURNS);
+    expect(result.events.filter(event => event.type === 'siege')).toHaveLength(1);
+  });
+
+  it('actor parity: a non-player (AI) civ\'s coastal city can be besieged and sacked by the same path', () => {
+    const state = fixture();
+    addCity(state);
+    state.cities.port = { ...state.cities.port!, owner: 'ai-1', hp: 2 };
+    state.civilizations.player.cities = [];
+    state.civilizations['ai-1']!.cities = ['port'];
+    addUnit(state, 'ship-a', 'pirate_frigate', 'pirate-1', { q: 5, r: 3 });
+    addUnit(state, 'ship-b', 'pirate_corsair', 'pirate-1', { q: 4, r: 3 });
+    state.pirates!.factions['pirate-1'] = besiegingFaction(PIRATE_SIEGE_BLOCKADE_TURNS - 1);
+    state.era = 12;
+    state.opponentChallenge = 'veteran';
+
+    const result = processPiratesForCompletedRound(state, new EventBus());
+
+    // 'ai-1' has only this one city, so the last-city guard forces a sack, never a
+    // destroy -- pirates can pressure and plunder an AI civ but never eliminate it.
+    expect(result.state.cities.port).toBeDefined();
+    expect(result.state.cities.port!.hp).toBe(1);
+    expect(result.economyModifiers).toBeDefined();
   });
 });

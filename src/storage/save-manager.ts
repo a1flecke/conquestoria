@@ -344,13 +344,22 @@ export function normalizePirateState(state: GameState): PirateState {
       if (!/^pirate-\d+$/.test(factionId) || !isRecord(rawFaction)) continue;
       const headquarters = normalizePirateHeadquarters(rawFaction.headquarters);
       if (!headquarters || typeof rawFaction.name !== 'string') continue;
-      if (rawFaction.behavior !== 'patrolling' && rawFaction.behavior !== 'raiding' && rawFaction.behavior !== 'blockading') continue;
+      if (rawFaction.behavior !== 'patrolling' && rawFaction.behavior !== 'raiding'
+        && rawFaction.behavior !== 'blockading' && rawFaction.behavior !== 'besieging') continue;
       if (![1, 2, 3, 4, 5].includes(Number(rawFaction.maritimeStage))) continue;
       const transitionGuards = isRecord(rawFaction.transitionGuards) ? rawFaction.transitionGuards : {};
       const reminderRounds: Record<string, number> = {};
       if (isRecord(transitionGuards.lastDemandReminderRoundByCiv)) {
         for (const [civId, round] of Object.entries(transitionGuards.lastDemandReminderRoundByCiv)) {
           if (state.civilizations[civId] && Number.isFinite(round)) reminderRounds[civId] = Math.max(0, Number(round));
+        }
+      }
+      // Blockade streak (#522) -- validated per-city so a save/reload doesn't silently
+      // reset an in-progress siege's warning-window progress back to 0.
+      const blockadeStreakByCity: Record<string, number> = {};
+      if (isRecord(rawFaction.blockadeStreakByCity)) {
+        for (const [cityId, streak] of Object.entries(rawFaction.blockadeStreakByCity)) {
+          if (state.cities[cityId] && Number.isFinite(streak)) blockadeStreakByCity[cityId] = Math.max(0, Number(streak));
         }
       }
       const faction: PirateFactionState = {
@@ -383,6 +392,7 @@ export function normalizePirateState(state: GameState): PirateState {
             ? { lastFlagshipAttackedRound: Math.max(0, Number(transitionGuards.lastFlagshipAttackedRound)) }
             : {}),
         },
+        ...(Object.keys(blockadeStreakByCity).length > 0 ? { blockadeStreakByCity } : {}),
       };
       if (isRecord(rawFaction.tributeByCiv)) {
         for (const [civId, tribute] of Object.entries(rawFaction.tributeByCiv)) {

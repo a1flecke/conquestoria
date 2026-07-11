@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
+import { EventBus } from '@/core/event-bus';
 import { createNewGame } from '@/core/game-state';
 import { createEmptyPirateState, PIRATE_STATE_VERSION } from '@/core/pirate-state';
 import { normalizeLoadedStateForTest } from '@/storage/save-manager';
+import { processPiratesForCompletedRound } from '@/systems/pirate-system';
 
 describe('pirate state', () => {
   it('initializes complete versioned pirate and notification state for new games', () => {
@@ -106,6 +108,128 @@ describe('pirate state', () => {
     expect(faction.transitionGuards.lastFlagshipAttackedRound).toBe(18);
     expect(normalized.pirates.activationWarningDeliveredByCiv).toEqual({ player: true });
     expect(normalized.pirates.intelByCiv.player).toEqual({});
+  });
+
+  it('loads a pre-#522 save whose factions have no blockadeStreakByCity field without crashing (save-compat)', () => {
+    const state = createNewGame(undefined, 'pirate-state-pre-522', 'small') as any;
+    state.pirates = {
+      version: 0,
+      factions: {
+        'pirate-9': {
+          id: 'pirate-9',
+          name: 'The Old Guard',
+          spawnedRound: 1,
+          behavior: 'blockading',
+          maritimeStage: 3,
+          notoriety: 5,
+          shipIds: [],
+          headquarters: { kind: 'coastal-enclave', position: { q: 2, r: 2 }, integrity: 100, maxIntegrity: 100 },
+          tributeByCiv: {},
+          demandByCiv: {},
+          contract: null,
+          intent: null,
+          transitionGuards: { emittedEventKeys: [] },
+          // blockadeStreakByCity intentionally omitted -- this is the shape every
+          // pre-#522 save has.
+        },
+      },
+      history: [],
+      pressure: { value: 0, suppression: [] },
+      intelByCiv: {},
+      nextSpawnCheckTurn: 10,
+      activatedTurn: 1,
+      activationWarningDeliveredByCiv: {},
+    };
+
+    const normalized = normalizeLoadedStateForTest(state);
+    const faction = normalized.pirates.factions['pirate-9'];
+
+    // No faction is stuck in an invalid behavior -- 'blockading' remains a valid value.
+    expect(faction.behavior).toBe('blockading');
+    expect(faction.blockadeStreakByCity).toBeUndefined();
+
+    // The faction can be processed through a full round without throwing, and starts
+    // accruing a fresh streak from 0 rather than crashing on the missing field.
+    const result = processPiratesForCompletedRound(normalized, new EventBus());
+    expect(() => result).not.toThrow();
+    expect(result.state.pirates!.factions['pirate-9']!.blockadeStreakByCity).toBeDefined();
+  });
+
+  it('preserves a besieging faction across save normalization (#522)', () => {
+    const state = createNewGame(undefined, 'pirate-state-besieging', 'small') as any;
+    state.pirates = {
+      version: 1,
+      factions: {
+        'pirate-3': {
+          id: 'pirate-3',
+          name: 'The Iron Reef',
+          spawnedRound: 1,
+          behavior: 'besieging',
+          maritimeStage: 4,
+          notoriety: 12,
+          shipIds: [],
+          headquarters: { kind: 'coastal-enclave', position: { q: 3, r: 3 }, integrity: 100, maxIntegrity: 100 },
+          tributeByCiv: {},
+          demandByCiv: {},
+          contract: null,
+          intent: null,
+          transitionGuards: { emittedEventKeys: [] },
+          blockadeStreakByCity: { 'some-city': 3 },
+        },
+      },
+      history: [],
+      pressure: { value: 0, suppression: [] },
+      intelByCiv: {},
+      nextSpawnCheckTurn: 10,
+      activatedTurn: 1,
+      activationWarningDeliveredByCiv: {},
+    };
+
+    const normalized = normalizeLoadedStateForTest(state);
+
+    expect(normalized.pirates.factions['pirate-3']).toBeDefined();
+    expect(normalized.pirates.factions['pirate-3']!.behavior).toBe('besieging');
+  });
+
+  it('persists an in-progress blockade streak for a real city across save normalization (#522)', () => {
+    const state = createNewGame(undefined, 'pirate-state-streak-persist', 'small') as any;
+    const realCityId = Object.keys(state.cities)[0];
+    state.pirates = {
+      version: 1,
+      factions: {
+        'pirate-4': {
+          id: 'pirate-4',
+          name: 'The Iron Reef',
+          spawnedRound: 1,
+          behavior: 'besieging',
+          maritimeStage: 4,
+          notoriety: 12,
+          shipIds: [],
+          headquarters: { kind: 'coastal-enclave', position: { q: 3, r: 3 }, integrity: 100, maxIntegrity: 100 },
+          tributeByCiv: {},
+          demandByCiv: {},
+          contract: null,
+          intent: null,
+          transitionGuards: { emittedEventKeys: [] },
+          blockadeStreakByCity: { [realCityId]: 2, 'demolished-city': 5 },
+        },
+      },
+      history: [],
+      pressure: { value: 0, suppression: [] },
+      intelByCiv: {},
+      nextSpawnCheckTurn: 10,
+      activatedTurn: 1,
+      activationWarningDeliveredByCiv: {},
+    };
+
+    const normalized = normalizeLoadedStateForTest(state);
+    const faction = normalized.pirates.factions['pirate-4']!;
+
+    // The streak for a city that still exists survives the round-trip...
+    expect(faction.blockadeStreakByCity?.[realCityId]).toBe(2);
+    // ...but a dangling reference to a city that no longer exists is dropped, matching
+    // the same dangling-reference safety pattern lastDemandReminderRoundByCiv already uses.
+    expect(faction.blockadeStreakByCity?.['demolished-city']).toBeUndefined();
   });
 
   it('drops malformed regional suppression coordinates from loaded saves', () => {
