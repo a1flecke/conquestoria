@@ -5,6 +5,7 @@ import { createEmptyPirateState, type PirateFactionState } from '@/core/pirate-s
 import type { City, CombatResult, GameState, HexCoord, Unit, UnitType } from '@/core/types';
 import { processPiratesForCompletedRound, PIRATE_ROUND_TRACE } from '@/systems/pirate-system';
 import { createEmptyOpponentAIState } from '@/core/opponent-ai-state';
+import { PIRATE_NOTORIETY } from '@/systems/pirate-definitions';
 
 function fixture(): GameState {
   const state = createNewGame(undefined, 'pirate-round', 'small');
@@ -279,6 +280,38 @@ describe('completed-round pirate coordinator', () => {
 
     expect(processPiratesForCompletedRound(state, new EventBus()).state.pirates!.factions[current.id].behavior)
       .toBe('raiding');
+  });
+
+  it('promotes a faction to besieging when notoriety >= threshold and stage >= the siege floor', () => {
+    const state = fixture();
+    state.pirates!.nextSpawnCheckTurn = 99;
+    addUnit(state, 'frigate', 'pirate_frigate', 'pirate-1', { q: 6, r: 6 });
+    const current = faction({
+      kind: 'coastal-enclave', position: { q: 5, r: 5 }, integrity: 100, maxIntegrity: 100,
+    }, ['frigate']);
+    current.maritimeStage = 3;
+    current.notoriety = PIRATE_NOTORIETY.besieging;
+    current.behavior = 'blockading';
+    state.pirates!.factions[current.id] = current;
+
+    expect(processPiratesForCompletedRound(state, new EventBus()).state.pirates!.factions[current.id].behavior)
+      .toBe('besieging');
+  });
+
+  it('does NOT promote to besieging below the siege stage floor, even at high notoriety', () => {
+    const state = fixture();
+    state.pirates!.nextSpawnCheckTurn = 99;
+    addUnit(state, 'corsair', 'pirate_corsair', 'pirate-1', { q: 6, r: 6 });
+    const current = faction({
+      kind: 'coastal-enclave', position: { q: 5, r: 5 }, integrity: 100, maxIntegrity: 100,
+    }, ['corsair']);
+    current.maritimeStage = 2;
+    current.notoriety = PIRATE_NOTORIETY.besieging + 5;
+    current.behavior = 'blockading';
+    state.pirates!.factions[current.id] = current;
+
+    expect(processPiratesForCompletedRound(state, new EventBus()).state.pirates!.factions[current.id].behavior)
+      .not.toBe('besieging');
   });
 
   it('activates a legacy campaign past Galleys and warns each viewer once without consuming a spawn check', () => {

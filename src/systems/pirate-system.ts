@@ -24,6 +24,7 @@ import {
   PIRATE_FLEET_SIZE_BY_BEHAVIOR,
   PIRATE_HULL_DEFINITIONS,
   PIRATE_NOTORIETY,
+  PIRATE_SIEGE_MIN_STAGE,
 } from './pirate-definitions';
 import { getPirateMaritimeStage, processPirateEcology } from './pirate-ecology';
 import {
@@ -571,7 +572,9 @@ function advanceBehavior(state: GameState, raidFactionIds: Set<string>): {
     const survival = state.turn > faction.spawnedRound
       && (state.turn - faction.spawnedRound) % PIRATE_NOTORIETY.survivalInterval === 0 ? 1 : 0;
     const notoriety = faction.notoriety + survival + (raidFactionIds.has(faction.id) ? 1 : 0);
-    const behavior = notoriety >= PIRATE_NOTORIETY.blockading && faction.maritimeStage >= 2
+    const behavior = notoriety >= PIRATE_NOTORIETY.besieging && faction.maritimeStage >= PIRATE_SIEGE_MIN_STAGE
+      ? 'besieging' as const
+      : notoriety >= PIRATE_NOTORIETY.blockading && faction.maritimeStage >= 2
       ? 'blockading' as const
       : notoriety >= PIRATE_NOTORIETY.raiding ? 'raiding' as const : 'patrolling' as const;
     factions[faction.id] = { ...faction, notoriety, behavior };

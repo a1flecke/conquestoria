@@ -49,7 +49,8 @@ export function derivePirateSpriteMode(
     faction.headquarters.kind === 'deep-sea-flotilla'
     && faction.headquarters.relocation.planned
   ) return 'relocating';
-  if (faction.behavior === 'blockading') return 'blockade';
+  // besieging reuses the 'blockade' sprite mode — no new sprite art in this MR (#522).
+  if (faction.behavior === 'besieging' || faction.behavior === 'blockading') return 'blockade';
   if (faction.behavior === 'raiding') return 'raid';
   return 'patrol';
 }
