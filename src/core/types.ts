@@ -1723,6 +1723,8 @@ export interface GameEvents {
   'faction:breakaway-established': { civId: string; originOwnerId: string };
   'faction:breakaway-reabsorbed': { civId: string; ownerId: string; cityId: string };
   'faction:critical-status': { cityId: string; owner: string; status: 'unrest' | 'revolt' | 'breakaway'; breakawayId?: string };
+  'faction:contagion-spread': { fromCityId: string; toCityId: string; owner: string };
+  'faction:concession-made': { cityId: string; owner: string; concessionType: 'charter' };
   'espionage:spy-promoted': { civId: string; spyId: string; promotion: SpyPromotion };
   'espionage:advisor-assassinated': { targetCivId: string; advisorType: AdvisorType; disabledUntilTurn: number };
   'espionage:documents-forged': { civA: string; civB: string; relationshipPenalty: number };

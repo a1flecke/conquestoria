@@ -3,7 +3,7 @@ import { collectEvent } from '@/core/hotseat-events';
 import { hexKey } from '@/systems/hex-utils';
 import { getImprovementDisplayName } from '@/systems/improvement-system';
 import { UNIT_DEFINITIONS } from '@/systems/unit-system';
-import { REVOLT_UNREST_TURNS, BREAKAWAY_REVOLT_TURNS, getCityAppeaseCost } from '@/systems/faction-system';
+import { REVOLT_UNREST_TURNS, BREAKAWAY_REVOLT_TURNS, CONCESSION_IMMUNITY_TURNS, getCityAppeaseCost } from '@/systems/faction-system';
 import { getLegendaryWonderNotification } from '@/ui/legendary-wonder-notifications';
 import { describeDroppedProductionItem } from '@/systems/city-system';
 import type { NotificationEntry } from '@/core/notification-log';
@@ -23,7 +23,8 @@ type FactionTransitionEvent =
   | { type: 'faction:unrest-resolved'; cityId: string; owner: string }
   | { type: 'faction:breakaway-started'; cityId: string; oldOwner: string; breakawayId: string }
   | { type: 'faction:breakaway-established'; civId: string; originOwnerId: string }
-  | { type: 'faction:critical-status'; cityId: string; owner: string; status: 'unrest' | 'revolt' | 'breakaway'; breakawayId?: string };
+  | { type: 'faction:critical-status'; cityId: string; owner: string; status: 'unrest' | 'revolt' | 'breakaway'; breakawayId?: string }
+  | { type: 'faction:concession-made'; cityId: string; owner: string; concessionType: 'charter' };
 
 type TerritoryTileFlippedRoutingEvent =
   GameEvents['territory:tile-flipped'] & { type: 'territory:tile-flipped' };
@@ -140,6 +141,16 @@ export function routeFactionTransition(
       event.owner,
       `${city?.name ?? 'A city'} is still in secession${turnsLeft > 0 ? ` (${turnsLeft} turns before establishment)` : ''}.`,
       'warning',
+    );
+    return;
+  }
+
+  if (event.type === 'faction:concession-made') {
+    const city = state.cities[event.cityId];
+    sink(
+      event.owner,
+      `${city?.name ?? 'A city'} has been granted a charter — immune to unrest for ${CONCESSION_IMMUNITY_TURNS} turns.`,
+      'success',
     );
     return;
   }

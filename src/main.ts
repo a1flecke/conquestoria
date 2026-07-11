@@ -233,7 +233,7 @@ import { beginCampaignEntry } from '@/ui/campaign-entry-flow';
 import { showLegacyOpponentChallengePrompt } from '@/ui/legacy-opponent-challenge-prompt';
 import { updateAndRefreshVisibility, reconstructLastSeenFromMap } from '@/systems/last-seen-presentation';
 import { calculateCivEconomy, formatGoldHudText, rushBuyActiveProduction } from '@/systems/economy-system';
-import { appeaseFaction } from '@/systems/faction-system';
+import { appeaseFaction, concedeToMovement } from '@/systems/faction-system';
 import { applyQuarantine, applyRemedy } from '@/systems/crisis-system';
 import { createTreasuryDrawer, type TreasuryDrawer } from '@/ui/treasury-drawer';
 import { getCivHappinessFromResources, getCivAvailableResources, canEstablishOutpost, performEstablishOutpost, canBuyResourceAccess, performBuyResourceAccess } from '@/systems/resource-acquisition-system';
@@ -1212,6 +1212,26 @@ function openCityPanelForCity(city: import('@/core/types').City): void {
         return gameState;
       }
       gameState = result.state;
+      renderLoop.setGameState(gameState);
+      updateHUD();
+      showNotification(result.message, 'success');
+      return gameState;
+    },
+    onConcedeToMovement: (cityId) => {
+      const targetCity = gameState.cities[cityId];
+      if (!targetCity) return gameState;
+      const result = concedeToMovement(gameState, cityId, gameState.currentPlayer);
+      if (!result.success) {
+        showNotification(result.message, 'warning');
+        return gameState;
+      }
+      gameState = result.state;
+      // concedeToMovement clears unrestLevel immediately, bypassing the normal
+      // processFactionTurn scan that would emit faction:unrest-resolved — without this,
+      // the music director's unrestCityCount (incremented on faction:unrest-started)
+      // never decrements for this city, leaving the unrest music layer stuck on.
+      bus.emit('faction:unrest-resolved', { cityId, owner: gameState.currentPlayer });
+      bus.emit('faction:concession-made', { cityId, owner: gameState.currentPlayer, concessionType: 'charter' });
       renderLoop.setGameState(gameState);
       updateHUD();
       showNotification(result.message, 'success');
@@ -3960,6 +3980,10 @@ bus.on('faction:revolt-started', event => {
 
 bus.on('faction:unrest-resolved', event => {
   routeFactionTransition(gameState, { type: 'faction:unrest-resolved', ...event }, appendFactionNotice);
+});
+
+bus.on('faction:concession-made', event => {
+  routeFactionTransition(gameState, { type: 'faction:concession-made', ...event }, appendFactionNotice);
 });
 
 bus.on('faction:breakaway-started', event => {
