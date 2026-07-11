@@ -2,17 +2,21 @@ import type { EventBus } from '@/core/event-bus';
 import type { CombatResult, GameState, HexCoord, Unit, UnitType } from '@/core/types';
 import type { PirateFactionState } from '@/core/pirate-state';
 import { isMajorCivOwner } from '@/core/owner-kind';
+import { resolveChallengeForCiv } from '@/core/opponent-challenge';
 import { canUnitAttackTarget } from './attack-targeting';
 import { applyCombatOutcomeToState } from './combat-reward-system';
 import { resolveCombat } from './combat-system';
+import { applyCitySiegeOutcome, getCityGarrisonUnit, resolveCitySiegeDamage } from './city-siege-system';
 import type { PirateEconomyModifiers } from './economy-system';
 import { getWrappedHexNeighbors, hexDistance, hexKey, hexNeighbors, wrappedHexDistance } from './hex-utils';
 import {
+  applyBlockadeStreaks,
   applyPlannedRelocation,
   choosePirateIntent,
   choosePersistentPirateIntent,
   derivePirateBlockades,
   derivePirateRaids,
+  derivePirateSieges,
   getPirateFleetLeader,
   planFlotillaRelocation,
   type PirateRoundFacts,
@@ -70,7 +74,8 @@ export const PIRATE_ROUND_TRACE = [
 export type PirateRoundStep = (typeof PIRATE_ROUND_TRACE)[number];
 
 export interface PirateTransitionEvent {
-  type: 'activated' | 'raid' | 'blockade' | 'behavior-changed' | 'relocated' | PirateActionEvent['type'];
+  type: 'activated' | 'raid' | 'blockade' | 'behavior-changed' | 'relocated'
+    | 'siege' | 'city-razed' | PirateActionEvent['type'];
   factionId: string;
   civId?: string;
   cityId?: string;
@@ -773,6 +778,46 @@ export function processPiratesForCompletedRound(
   for (const blockade of blockades) {
     economyModifiers.blockadedCityIds.push(blockade.cityId);
     events.push({ type: 'blockade', factionId: blockade.factionId, civId: blockade.victimCivId, cityId: blockade.cityId });
+  }
+
+  // Update per-city blockade streaks from this round's blockades (the siege on-ramp),
+  // then resolve any siege that has reached the threshold (#522). Streaks are applied
+  // BEFORE deriving sieges so the current round counts toward the threshold, and siege
+  // eligibility is re-derived from the CURRENT round's blockade set (not a cached one)
+  // so a broken blockade can never carry a stale siege forward.
+  nextState = applyBlockadeStreaks(nextState, blockades);
+  for (const siege of derivePirateSieges(nextState, blockades)) {
+    const city = nextState.cities[siege.cityId];
+    if (!city) continue;
+    const ownerCiv = nextState.civilizations[city.owner];
+    if (!ownerCiv) continue;
+    const beforeHp = city.hp ?? 100;
+
+    const result = resolveCitySiegeDamage({
+      city,
+      ownerCiv,
+      rawDamage: siege.rawDamage,
+      attackerDomain: 'naval',
+      hasGarrison: getCityGarrisonUnit(nextState.units, city) !== undefined,
+      isOwnersLastCity: ownerCiv.cities.length <= 1,
+      era: nextState.era,
+      challenge: resolveChallengeForCiv(nextState, city.owner),
+    });
+    nextState = applyCitySiegeOutcome(nextState, siege.cityId, result);
+
+    // One-time "under siege" alert ONLY on the transition from full HP into damage —
+    // the notification de-dup key is per-turn, so pushing this every damaging round
+    // would re-alert every round instead of once per siege episode.
+    if (result.outcome === 'damaged' && beforeHp >= 100) {
+      events.push({ type: 'siege', factionId: siege.factionId, civId: siege.victimCivId, cityId: siege.cityId });
+    }
+    if (result.outcome === 'sacked') {
+      bus.emit('city:sacked', { cityId: siege.cityId, source: 'pirate', goldLost: result.goldLost });
+    } else if (result.outcome === 'destroyed') {
+      bus.emit('pirate:city-destroyed', { cityId: siege.cityId, ownerId: city.owner, factionId: siege.factionId });
+      events.push({ type: 'city-razed', factionId: siege.factionId, civId: city.owner, cityId: siege.cityId });
+    }
+    // outcome === 'blocked' -> garrison stopped it; no HP change, no alert (silent, by design).
   }
   const advanced = advanceBehavior(nextState, new Set(raids.map(raid => raid.factionId)));
   nextState = advanced.state;

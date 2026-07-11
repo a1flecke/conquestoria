@@ -20,7 +20,12 @@ import {
   wrappedHexDistance,
 } from './hex-utils';
 import { createRng } from './map-generator';
-import { PIRATE_PLUNDER_CAP } from './pirate-definitions';
+import {
+  PIRATE_PLUNDER_CAP,
+  PIRATE_SIEGE_BLOCKADE_TURNS,
+  PIRATE_SIEGE_DAMAGE,
+  PIRATE_SIEGE_MIN_STAGE,
+} from './pirate-definitions';
 import { findPath, getMovementStepCost, moveUnit, UNIT_DEFINITIONS } from './unit-system';
 
 export type PirateIntent = PirateIntentState;
@@ -56,6 +61,13 @@ export interface PirateBlockade {
   factionId: PirateFactionId;
   cityId: string;
   victimCivId: string;
+}
+
+export interface PirateSiege {
+  factionId: PirateFactionId;
+  cityId: string;
+  victimCivId: string;
+  rawDamage: number;
 }
 
 export interface PirateMovementFact {
@@ -652,6 +664,30 @@ export function applyBlockadeStreaks(state: GameState, blockades: PirateBlockade
     factions[id] = { ...faction, blockadeStreakByCity: nextStreak };
   }
   return { ...state, pirates: { ...state.pirates, factions } };
+}
+
+// A siege is an ACTIVE blockade (from derivePirateBlockades, this same round) that has
+// reached the streak threshold under a besieging, high-stage faction (#522). Tying siege
+// eligibility to the current round's blockade set — not just the streak counter — makes
+// the blockade-first warning window structural: no active blockade this round means no
+// siege this round, even if a stale streak value were somehow present.
+export function derivePirateSieges(state: GameState, blockades: PirateBlockade[]): PirateSiege[] {
+  const sieges: PirateSiege[] = [];
+  for (const blockade of blockades) {
+    const faction = state.pirates?.factions[blockade.factionId];
+    if (!faction) continue;
+    if (faction.behavior !== 'besieging') continue;
+    if (faction.maritimeStage < PIRATE_SIEGE_MIN_STAGE) continue;
+    const streak = (faction.blockadeStreakByCity ?? {})[blockade.cityId] ?? 0;
+    if (streak < PIRATE_SIEGE_BLOCKADE_TURNS) continue;
+    sieges.push({
+      factionId: faction.id,
+      cityId: blockade.cityId,
+      victimCivId: blockade.victimCivId,
+      rawDamage: PIRATE_SIEGE_DAMAGE[faction.maritimeStage] ?? 0,
+    });
+  }
+  return sieges;
 }
 
 export function getRelocationDirectionForViewer(

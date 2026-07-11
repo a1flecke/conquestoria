@@ -5,7 +5,7 @@ import { createEmptyPirateState, type PirateFactionState } from '@/core/pirate-s
 import type { City, CombatResult, GameState, HexCoord, Unit, UnitType } from '@/core/types';
 import { processPiratesForCompletedRound, PIRATE_ROUND_TRACE } from '@/systems/pirate-system';
 import { createEmptyOpponentAIState } from '@/core/opponent-ai-state';
-import { PIRATE_NOTORIETY } from '@/systems/pirate-definitions';
+import { PIRATE_NOTORIETY, PIRATE_SIEGE_BLOCKADE_TURNS } from '@/systems/pirate-definitions';
 
 function fixture(): GameState {
   const state = createNewGame(undefined, 'pirate-round', 'small');
@@ -414,5 +414,104 @@ describe('completed-round pirate coordinator', () => {
     expect(first.state.pirates!.factions[current.id].contract).toBeNull();
     expect(first.economyModifiers.plunderByCiv.player).toBe(12);
     expect(replay.events.filter(event => event.type === 'activated')).toHaveLength(0);
+  });
+});
+
+describe('pirate naval siege (#522)', () => {
+  function besiegingFaction(streakBeforeThisRound: number): PirateFactionState {
+    const f = faction({
+      kind: 'coastal-enclave', position: { q: 1, r: 1 }, integrity: 100, maxIntegrity: 100,
+    }, ['ship-a', 'ship-b']);
+    f.behavior = 'besieging';
+    f.maritimeStage = 3;
+    f.notoriety = PIRATE_NOTORIETY.besieging;
+    f.blockadeStreakByCity = { port: streakBeforeThisRound };
+    return f;
+  }
+
+  function siegeReadyState(cityHp: number): GameState {
+    const state = fixture();
+    addCity(state);
+    state.cities.port = { ...state.cities.port!, hp: cityHp };
+    addUnit(state, 'ship-a', 'pirate_frigate', 'pirate-1', { q: 5, r: 3 });
+    addUnit(state, 'ship-b', 'pirate_corsair', 'pirate-1', { q: 4, r: 3 });
+    state.pirates!.factions['pirate-1'] = besiegingFaction(PIRATE_SIEGE_BLOCKADE_TURNS - 1);
+    return state;
+  }
+
+  it('fully blocks siege damage when the city has a garrison', () => {
+    const state = siegeReadyState(50);
+    addUnit(state, 'garrison', 'warrior', 'player', { q: 5, r: 5 });
+
+    const result = processPiratesForCompletedRound(state, new EventBus());
+
+    expect(result.state.cities.port!.hp).toBe(50);
+  });
+
+  it('damages an undefended city once the blockade streak reaches the threshold', () => {
+    const state = siegeReadyState(50);
+
+    const result = processPiratesForCompletedRound(state, new EventBus());
+
+    expect(result.state.cities.port!.hp).toBeLessThan(50);
+    expect(result.state.pirates!.factions['pirate-1']!.blockadeStreakByCity?.port).toBe(PIRATE_SIEGE_BLOCKADE_TURNS);
+  });
+
+  it('does not damage a city before the blockade streak reaches the threshold', () => {
+    const state = siegeReadyState(50);
+    state.pirates!.factions['pirate-1']!.blockadeStreakByCity = { port: PIRATE_SIEGE_BLOCKADE_TURNS - 2 };
+
+    const result = processPiratesForCompletedRound(state, new EventBus());
+
+    expect(result.state.cities.port!.hp).toBe(50);
+  });
+
+  it('sacks (never destroys) a civ\'s last remaining city even past the destruction era', () => {
+    const state = siegeReadyState(2);
+    state.era = 12;
+    state.opponentChallenge = 'veteran';
+
+    const result = processPiratesForCompletedRound(state, new EventBus());
+
+    expect(result.state.cities.port).toBeDefined();
+    expect(result.state.cities.port!.hp).toBe(1);
+    expect(result.events.some(event => event.type === 'city-razed')).toBe(false);
+  });
+
+  it('destroys a non-last city past the destruction era and emits pirate:city-destroyed', () => {
+    const state = siegeReadyState(2);
+    state.era = 12;
+    state.opponentChallenge = 'veteran';
+    state.cities.second = { ...state.cities.port!, id: 'second', hp: 100, position: { q: 8, r: 8 } };
+    state.civilizations.player.cities = ['port', 'second'];
+
+    const bus = new EventBus();
+    const destroyedEvents: Array<{ cityId: string; ownerId: string; factionId: string }> = [];
+    bus.on('pirate:city-destroyed', event => destroyedEvents.push(event));
+
+    const result = processPiratesForCompletedRound(state, bus);
+
+    expect(result.state.cities.port).toBeUndefined();
+    expect(destroyedEvents).toEqual([{ cityId: 'port', ownerId: 'player', factionId: 'pirate-1' }]);
+    expect(result.events.some(event => event.type === 'city-razed' && event.cityId === 'port')).toBe(true);
+  });
+
+  it('emits exactly one "siege" alert on the transition into falling HP, not every damaging round', () => {
+    const state = siegeReadyState(100);
+
+    const first = processPiratesForCompletedRound(state, new EventBus());
+    expect(first.events.filter(event => event.type === 'siege')).toHaveLength(1);
+
+    const second = processPiratesForCompletedRound({ ...first.state, turn: state.turn + 1 }, new EventBus());
+    expect(second.events.filter(event => event.type === 'siege')).toHaveLength(0);
+  });
+
+  it('does not besiege a city that is only blockaded, not besieging-tier', () => {
+    const state = siegeReadyState(50);
+    state.pirates!.factions['pirate-1']!.behavior = 'blockading';
+
+    const result = processPiratesForCompletedRound(state, new EventBus());
+
+    expect(result.state.cities.port!.hp).toBe(50);
   });
 });

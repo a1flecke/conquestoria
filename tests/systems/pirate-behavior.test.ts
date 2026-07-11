@@ -8,6 +8,7 @@ import {
   choosePirateIntent,
   derivePirateBlockades,
   derivePirateRaids,
+  derivePirateSieges,
   getRelocationDirectionForViewer,
   choosePersistentPirateIntent,
   getPirateFleetLeader,
@@ -15,6 +16,7 @@ import {
   isTransportEscorted,
   planFlotillaRelocation,
 } from '@/systems/pirate-behavior';
+import { PIRATE_SIEGE_BLOCKADE_TURNS, PIRATE_SIEGE_DAMAGE, PIRATE_SIEGE_MIN_STAGE } from '@/systems/pirate-definitions';
 
 function mapWith(entries: Array<[number, number, GameMap['tiles'][string]['terrain']]>, width = 20): GameMap {
   return {
@@ -400,6 +402,69 @@ describe('applyBlockadeStreaks (#522)', () => {
     state.pirates = undefined;
 
     expect(applyBlockadeStreaks(state, [])).toBe(state);
+  });
+});
+
+describe('derivePirateSieges (#522)', () => {
+  function blockadeReadyFaction(
+    behavior: PirateFactionState['behavior'],
+    stage: PirateFactionState['maritimeStage'],
+    streak: number,
+  ): PirateFactionState {
+    const f = faction('pirate-1', behavior, {
+      kind: 'coastal-enclave', position: { q: 1, r: 1 }, integrity: 100, maxIntegrity: 100,
+    }, [], stage);
+    f.blockadeStreakByCity = { port: streak };
+    return f;
+  }
+
+  const activeBlockade = [{ factionId: 'pirate-1' as const, cityId: 'port', victimCivId: 'player' }];
+
+  it('produces a siege for a besieging faction on a city blockaded >= the threshold', () => {
+    const state = stateWithMap(oceanGrid());
+    state.pirates!.factions['pirate-1'] = blockadeReadyFaction('besieging', PIRATE_SIEGE_MIN_STAGE, PIRATE_SIEGE_BLOCKADE_TURNS);
+
+    const sieges = derivePirateSieges(state, activeBlockade);
+
+    expect(sieges).toHaveLength(1);
+    expect(sieges[0]).toMatchObject({ factionId: 'pirate-1', cityId: 'port', victimCivId: 'player' });
+    expect(sieges[0].rawDamage).toBe(PIRATE_SIEGE_DAMAGE[PIRATE_SIEGE_MIN_STAGE]);
+  });
+
+  it('produces no siege below the streak threshold (blockade-first warning window)', () => {
+    const state = stateWithMap(oceanGrid());
+    state.pirates!.factions['pirate-1'] = blockadeReadyFaction('besieging', PIRATE_SIEGE_MIN_STAGE, PIRATE_SIEGE_BLOCKADE_TURNS - 1);
+
+    expect(derivePirateSieges(state, activeBlockade)).toHaveLength(0);
+  });
+
+  it('produces no siege for a merely blockading (not besieging) faction', () => {
+    const state = stateWithMap(oceanGrid());
+    state.pirates!.factions['pirate-1'] = blockadeReadyFaction('blockading', PIRATE_SIEGE_MIN_STAGE, PIRATE_SIEGE_BLOCKADE_TURNS);
+
+    expect(derivePirateSieges(state, activeBlockade)).toHaveLength(0);
+  });
+
+  it('produces no siege below the siege stage floor', () => {
+    const state = stateWithMap(oceanGrid());
+    state.pirates!.factions['pirate-1'] = blockadeReadyFaction(
+      'besieging', (PIRATE_SIEGE_MIN_STAGE - 1) as PirateFactionState['maritimeStage'], PIRATE_SIEGE_BLOCKADE_TURNS,
+    );
+
+    expect(derivePirateSieges(state, activeBlockade)).toHaveLength(0);
+  });
+
+  it('produces no siege for a city that is not in this round\'s active blockade set', () => {
+    const state = stateWithMap(oceanGrid());
+    state.pirates!.factions['pirate-1'] = blockadeReadyFaction('besieging', PIRATE_SIEGE_MIN_STAGE, PIRATE_SIEGE_BLOCKADE_TURNS);
+
+    expect(derivePirateSieges(state, [])).toHaveLength(0);
+  });
+
+  it('produces no siege for an unknown faction id', () => {
+    const state = stateWithMap(oceanGrid());
+
+    expect(derivePirateSieges(state, activeBlockade)).toHaveLength(0);
   });
 });
 
