@@ -37,6 +37,9 @@ const LUXURY_IDS = new Set<ResourceType>(
 const STRATEGIC_IDS = new Set<ResourceType>(
   RESOURCE_DEFINITIONS.filter(def => def.type === 'strategic').map(def => def.id),
 );
+const LATE_STRATEGIC_IDS = new Set<ResourceType>([
+  'coal', 'oil', 'aluminum', 'uranium', 'rare-earth-elements', 'battery-minerals',
+]);
 
 function getStartingSettlerByOwner(state: GameState, owner: string): HexCoord {
   const settler = Object.values(state.units).find(unit => unit.owner === owner && unit.type === 'settler');
@@ -91,6 +94,31 @@ describe('createNewGame', () => {
     expect(state.map.height).toBe(30);
     expect(Object.keys(state.map.tiles).length).toBe(900);
   });
+
+  it.each(['procedural', 'balanced', 'single-continent'] as const)(
+    'places late resources only after protected %s-map setup',
+    mapScript => {
+      const state = createNewGame({
+        civType: 'rome',
+        seed: `late-resource-finalization-${mapScript}`,
+        mapSize: 'small',
+        opponentCount: 2,
+        gameTitle: 'Late Resource Finalization',
+        mapScript,
+      });
+      const starts = new Set(getMajorSettlerStarts(state).map(hexKey));
+
+      const placed = new Set<ResourceType>();
+      for (const tile of Object.values(state.map.tiles)) {
+        if (tile.resource && LATE_STRATEGIC_IDS.has(tile.resource as ResourceType)) {
+          placed.add(tile.resource as ResourceType);
+          expect(starts.has(hexKey(tile.coord))).toBe(false);
+          expect(tile.wonder).toBeNull();
+        }
+      }
+      expect(placed).toEqual(LATE_STRATEGIC_IDS);
+    },
+  );
 
   it('places barbarian camps', () => {
     const state = createNewGame(undefined, 'test-seed');

@@ -8,7 +8,6 @@ import {
 } from './hex-utils';
 import { generateRivers, applyRiversToMap } from './river-system';
 import { RESOURCE_DEFINITIONS } from './trade-system';
-import { placeLateResources } from './late-resource-placement';
 import { LEGENDARY_WONDER_DEFINITIONS } from './legendary-wonder-definitions';
 // Geo data imports — populated by `yarn generate-maps`. Placeholder empty exports are safe.
 import { EARTH_START_POSITIONS } from './earth-map-data';
@@ -198,7 +197,6 @@ export function generateMap(width: number, height: number, seed: string): GameMa
   const tiles = generateBaseTerrain(width, height, seed);
   const resourceRng = createRng(seed + '-resources');
   placeResources(tiles, resourceRng);
-  placeLateResources(tiles, createRng(seed + '-late-resources'));
   const mapResult: GameMap = { width, height, tiles, wrapsHorizontally: true, rivers: [] };
   const rivers = generateRivers(mapResult, seed);
   applyRiversToMap(mapResult, rivers);

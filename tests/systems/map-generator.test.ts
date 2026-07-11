@@ -202,14 +202,11 @@ describe('placeResources', () => {
 });
 
 describe('late resource placement', () => {
-  it('adds every late strategic resource deterministically after early placement', () => {
-    const first = generateMap(30, 30, 'late-resource-pass');
-    const second = generateMap(30, 30, 'late-resource-pass');
-    const expected = ['coal', 'oil', 'aluminum', 'uranium', 'rare-earth-elements', 'battery-minerals'];
-    const placed = new Set(Object.values(first.tiles).map(tile => tile.resource));
+  it('leaves late strategic placement until game setup knows starts and wonders', () => {
+    const map = generateMap(30, 30, 'late-resource-pass');
+    const lateResources = new Set(['coal', 'oil', 'aluminum', 'uranium', 'rare-earth-elements', 'battery-minerals']);
 
-    expect(first).toEqual(second);
-    for (const resource of expected) expect(placed).toContain(resource);
+    expect(Object.values(map.tiles).some(tile => lateResources.has(tile.resource ?? ''))).toBe(false);
   });
 });
 

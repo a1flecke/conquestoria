@@ -26,6 +26,7 @@ import { refreshLastSeenPresentationsForCiv } from '@/systems/last-seen-presenta
 import { createEmptyOpponentAIState } from './opponent-ai-state';
 import { placeCivilizationStarts } from '@/systems/start-placement-system';
 import { selectAIRoster } from '@/systems/ai-roster-selection';
+import { placeLateResources } from '@/systems/late-resource-placement';
 
 function hashSeed(s: string): number {
   let h = 0;
@@ -241,6 +242,7 @@ export function createNewGame(
   // Place wonders and villages
   guaranteeStartResources(map, startPositions, createRng(gameSeed + '-resource-guarantee'));
   placeWonders(map, startPositions, actualSize, gameSeed);
+  placeLateResources(map.tiles, createRng(gameSeed + '-late-resources'), startPositions, civTypeIds.length);
   const tribalVillages = placeVillages(map, startPositions, actualSize, gameSeed);
   const beastsMode = settings.beastsMode ?? 'wild';
   const beastLairs = beastsMode === 'off'
@@ -433,6 +435,7 @@ export function createHotSeatGame(
   // Place wonders and villages
   guaranteeStartResources(map, startPositions, createRng(gameSeed + '-resource-guarantee'));
   placeWonders(map, startPositions, config.mapSize, gameSeed);
+  placeLateResources(map.tiles, createRng(gameSeed + '-late-resources'), startPositions, civTypeIds.length);
   const tribalVillages = placeVillages(map, startPositions, config.mapSize, gameSeed);
   const hotSeatSettings = createDefaultSettings(config.mapSize);
   const beastsModeHotSeat = hotSeatSettings.beastsMode ?? 'wild';

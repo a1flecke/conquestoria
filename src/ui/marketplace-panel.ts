@@ -1,6 +1,6 @@
 import type { GameState, ResourceType } from '@/core/types';
 import { RESOURCE_DEFINITIONS, getEffectiveGoldPerTurn, getRouteCapacity, getRouteTechGoldBonus } from '@/systems/trade-system';
-import { getCivAvailableResources, canBuyResourceAccess } from '@/systems/resource-acquisition-system';
+import { getCivAvailableResources, canBuyResourceAccess, getResourceAccessCost } from '@/systems/resource-acquisition-system';
 import { isAtWar } from '@/systems/diplomacy-system';
 import { resolveCivDefinition } from '@/systems/civ-registry';
 import { createGameButton } from './ui-kit';
@@ -300,9 +300,11 @@ function buildKnownCivResourceSection(
   // Rows where player already owns the resource show "Already have this" instead of buy button.
   type Row = { sellerCivId: string; resource: ResourceType };
   const rows: Row[] = [];
+  const viewerTechs = new Set(civ.techState.completed);
   for (const sellerCivId of knownCivIds) {
     const sellerResources = getCivAvailableResources(state, sellerCivId);
     for (const def of RESOURCE_DEFINITIONS) {
+      if (!viewerTechs.has(def.tech)) continue;
       const resource = def.id as ResourceType;
       if (!sellerResources.has(resource)) continue;
       rows.push({ sellerCivId, resource });
@@ -326,7 +328,7 @@ function buildKnownCivResourceSection(
     const sellerColor = sellerCivDef?.color ?? '#888888';
     const score = playerDip.relationships[sellerCivId] ?? -100;
     const atWar = isAtWar(playerDip, sellerCivId);
-    const cost = (state.marketplace?.prices[resource] ?? def.basePrice) * 3;
+    const cost = getResourceAccessCost(state, resource);
 
     const row = document.createElement('div');
     row.style.cssText =

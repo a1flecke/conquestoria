@@ -128,6 +128,7 @@ export function getIdleCityIds(state: GameState, civId: string): string[] {
 
   const completedTechs = civ.techState.completed ?? [];
   const reservedNationalProjects = getReservedNationalProjectKeys(state, civId);
+  const availableResources = getCivAvailableResources(state, civId);
   return Object.values(state.cities)
     .filter(city => city.owner === civId)
     .filter(city => city.productionQueue.length === 0)
@@ -137,12 +138,12 @@ export function getIdleCityIds(state: GameState, civId: string): string[] {
         city,
         completedTechs,
         state.map,
-        undefined,
+        availableResources,
         state.era,
         reservedNationalProjects,
         civId,
       ).length > 0;
-      const buildableUnits = getTrainableUnitsForCiv(completedTechs, civ.civType).length > 0;
+      const buildableUnits = getTrainableUnitsForCiv(completedTechs, civ.civType, availableResources).length > 0;
       return buildableBuildings || buildableUnits;
     })
     .map(city => city.id);
@@ -181,7 +182,7 @@ export function getRecommendedIdleCityChoice(
       city,
       completedTechs,
       state.map,
-      undefined,
+      availableResources,
       state.era,
       reservedNationalProjects,
       civId,
@@ -195,7 +196,7 @@ export function getRecommendedIdleCityChoice(
         priority: resolveBuildingPacingBand(building) === 'starter' ? 0 : 1,
       };
     }),
-    ...getTrainableUnitsForCiv(completedTechs, civ.civType)
+    ...getTrainableUnitsForCiv(completedTechs, civ.civType, availableResources)
       .map(unit => {
         const cost = getProductionCostForItem(unit.type, { city, bonusEffect, era: state.era, completedTechs, activeNationalProjects, availableResources });
         return {
