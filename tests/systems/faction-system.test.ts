@@ -5,10 +5,14 @@ import { createDiplomacyState } from '@/systems/diplomacy-system';
 import {
   REVOLT_UNREST_TURNS,
   BREAKAWAY_REVOLT_TURNS,
+  CONCESSION_IMMUNITY_TURNS,
   appeaseFaction,
   canGarrisonCity,
   computeUnrestPressure,
+  concedeToMovement,
   getCityAppeaseCost,
+  getConcessionCost,
+  getContagionSpread,
   getUnrestYieldMultiplier,
   isCityProductionLocked,
   processFactionTurn,
@@ -609,5 +613,237 @@ describe('faction-system constant exports and era-gating', () => {
     const result = processFactionTurn(state, bus);
     // With pressure > 40 and no garrison, city stays in unrest (not cleared by clearEraOneUnrest)
     expect(result.cities['city-1']?.unrestLevel).not.toBe(0);
+  });
+});
+
+describe('faction-system — MR4 uprising contagion + concession', () => {
+  // city-1 sits at {q:0,r:0}; adds a same-owner neighbor at {q:2,r:0} (hex distance 2,
+  // within CONTAGION_GROUP_RANGE=3) already in revolt, so city-1 is the contagion receiver.
+  function withRevoltingNeighbor(state: GameState, overrides: Partial<City> = {}): GameState {
+    const neighbor: City = {
+      id: 'city-2',
+      name: 'city-2',
+      owner: 'player',
+      position: { q: 2, r: 0 },
+      population: 4,
+      food: 0,
+      foodNeeded: 20,
+      buildings: [],
+      productionQueue: [],
+      productionProgress: 0,
+      ownedTiles: [],
+      workedTiles: [],
+      focus: 'balanced',
+      maturity: 'outpost',
+      unrestLevel: 2,
+      unrestTurns: 5,
+      spyUnrestBonus: 0,
+      ...overrides,
+    };
+    return {
+      ...state,
+      cities: { ...state.cities, [neighbor.id]: neighbor },
+      civilizations: {
+        ...state.civilizations,
+        player: { ...state.civilizations['player'], cities: [...state.civilizations['player'].cities, neighbor.id] },
+      },
+    };
+  }
+
+  describe('getContagionSpread / computeUnrestPressure contagion term', () => {
+    it('adds pressure from a same-owner revolting neighbor within range', () => {
+      const state = withRevoltingNeighbor(makeState({ era: 2 }));
+      const spread = getContagionSpread('city-1', state);
+      expect(spread.pressure).toBeGreaterThan(0);
+      expect(spread.nearestCityId).toBe('city-2');
+      // standard challenge: 8 * 1.0 multiplier = 8
+      expect(spread.pressure).toBe(8);
+    });
+
+    it('is skipped entirely when the receiving city is garrisoned', () => {
+      const state = withRevoltingNeighbor(
+        makeState({ era: 2, unitPositions: [{ q: 0, r: 0 }] }),
+      );
+      const spread = getContagionSpread('city-1', state);
+      expect(spread.pressure).toBe(0);
+      expect(spread.nearestCityId).toBeNull();
+    });
+
+    it('is skipped entirely during concession immunity', () => {
+      let state = withRevoltingNeighbor(makeState({ era: 2 }));
+      state = {
+        ...state,
+        cities: {
+          ...state.cities,
+          'city-1': { ...state.cities['city-1'], concessionImmunityUntilTurn: state.turn + 5 },
+        },
+      };
+      const spread = getContagionSpread('city-1', state);
+      expect(spread.pressure).toBe(0);
+      expect(spread.nearestCityId).toBeNull();
+    });
+
+    it('halves the term for an explorer-challenge owner', () => {
+      let state = withRevoltingNeighbor(makeState({ era: 2 }));
+      state = {
+        ...state,
+        civilizations: {
+          ...state.civilizations,
+          player: { ...state.civilizations['player'], challenge: 'explorer' },
+        },
+      };
+      const spread = getContagionSpread('city-1', state);
+      // explorer multiplier 0.5: 8 * 0.5 = 4
+      expect(spread.pressure).toBe(4);
+    });
+
+    it('resolves AI-owned cities to the game-wide challenge, not a per-civ setting', () => {
+      let state = withRevoltingNeighbor(makeState({ era: 2 }), { owner: 'ai-1' });
+      state = {
+        ...state,
+        cities: {
+          ...state.cities,
+          'city-1': { ...state.cities['city-1'], owner: 'ai-1' },
+        },
+        opponentChallenge: 'veteran',
+      };
+      const spread = getContagionSpread('city-1', state);
+      // ai-1 is not human, so it must resolve to state.opponentChallenge ('veteran': 1.3x)
+      // rather than any per-civ `challenge` field, even if one were set on it.
+      expect(spread.pressure).toBeCloseTo(8 * 1.3, 5);
+    });
+
+    it('contributes to computeUnrestPressure total', () => {
+      const withNeighbor = withRevoltingNeighbor(makeState({ era: 2 }));
+      const withoutNeighbor = makeState({ era: 2 });
+      expect(computeUnrestPressure('city-1', withNeighbor)).toBe(
+        computeUnrestPressure('city-1', withoutNeighbor) + 8,
+      );
+    });
+
+    it('emits faction:contagion-spread exactly once on crossing into unrest, not every turn', () => {
+      const bus = new EventBus();
+      const events: Array<{ fromCityId: string; toCityId: string }> = [];
+      bus.on('faction:contagion-spread', payload => events.push(payload));
+
+      // conquestTurn:0 + spyUnrestBonus:20 alone already crosses the trigger threshold
+      // (same recipe as the "starts unrest" test above: 25 + 20 = 45 > 40); contagion
+      // (+8) rides along on the same crossing rather than being required to cause it.
+      const state = withRevoltingNeighbor(
+        makeState({ era: 2, conquestTurn: 0, spyUnrestBonus: 20 }),
+      );
+      const afterFirstTurn = processFactionTurn(state, bus);
+      expect(afterFirstTurn.cities['city-1'].unrestLevel).toBe(1);
+      expect(events).toEqual([{ fromCityId: 'city-2', toCityId: 'city-1', owner: 'player' }]);
+
+      // Second turn: city-1 is already at unrestLevel 1 (not crossing from 0), so no
+      // second contagion-spread event should fire even though the neighbor still radiates.
+      const afterSecondTurn = processFactionTurn(afterFirstTurn, bus);
+      expect(afterSecondTurn.cities['city-1'].unrestLevel).not.toBe(0);
+      expect(events).toEqual([{ fromCityId: 'city-2', toCityId: 'city-1', owner: 'player' }]);
+    });
+
+    it('blocks new unrest from starting entirely while a city is under concession immunity', () => {
+      const bus = new EventBus();
+      let state = makeState({ era: 2, conquestTurn: 0, spyUnrestBonus: 20 });
+      state = {
+        ...state,
+        cities: {
+          ...state.cities,
+          'city-1': { ...state.cities['city-1'], concessionImmunityUntilTurn: state.turn + 5 },
+        },
+      };
+      const result = processFactionTurn(state, bus);
+      expect(result.cities['city-1'].unrestLevel).toBe(0);
+    });
+  });
+
+  describe('getConcessionCost / concedeToMovement', () => {
+    it('costs 2x the appeasement cost by default', () => {
+      const state = makeState({ unrestLevel: 2 });
+      const city = state.cities['city-1'];
+      expect(getConcessionCost(state, city)).toBe(getCityAppeaseCost(city) * 2);
+    });
+
+    it('halves to 1x when the owner has completed a current-era civics tech', () => {
+      let state = makeState({ era: 3, unrestLevel: 2 });
+      state = {
+        ...state,
+        civilizations: {
+          ...state.civilizations,
+          player: {
+            ...state.civilizations['player'],
+            techState: { ...state.civilizations['player'].techState, completed: ['civil-service'] },
+          },
+        },
+      };
+      const city = state.cities['city-1'];
+      expect(getConcessionCost(state, city)).toBe(getCityAppeaseCost(city));
+    });
+
+    it('does not discount for a civics tech from a different era', () => {
+      let state = makeState({ era: 2, unrestLevel: 2 });
+      state = {
+        ...state,
+        civilizations: {
+          ...state.civilizations,
+          // civil-service is era 3, but the civ is currently era 2
+          player: {
+            ...state.civilizations['player'],
+            techState: { ...state.civilizations['player'].techState, completed: ['civil-service'] },
+          },
+        },
+      };
+      const city = state.cities['city-1'];
+      expect(getConcessionCost(state, city)).toBe(getCityAppeaseCost(city) * 2);
+    });
+
+    it('fully clears unrest and sets immunity on success', () => {
+      let state = makeState({ unrestLevel: 2, unrestTurns: 8, spyUnrestBonus: 12 });
+      // Concession costs 2x appeasement (120 for a pop-4 city) — the default 100 gold isn't enough.
+      state = { ...state, civilizations: { ...state.civilizations, player: { ...state.civilizations['player'], gold: 1000 } } };
+      const result = concedeToMovement(state, 'city-1', 'player');
+      expect(result.success).toBe(true);
+      const city = result.state.cities['city-1'];
+      expect(city.unrestLevel).toBe(0);
+      expect(city.unrestTurns).toBe(0);
+      expect(city.spyUnrestBonus).toBe(0);
+      expect(city.concessionImmunityUntilTurn).toBe(state.turn + CONCESSION_IMMUNITY_TURNS);
+    });
+
+    it('fails with no unrest to concede', () => {
+      const state = makeState({ unrestLevel: 0 });
+      const result = concedeToMovement(state, 'city-1', 'player');
+      expect(result.success).toBe(false);
+    });
+
+    it('fails when the civ cannot afford the cost', () => {
+      let state = makeState({ unrestLevel: 2 });
+      state = {
+        ...state,
+        civilizations: { ...state.civilizations, player: { ...state.civilizations['player'], gold: 0 } },
+      };
+      const result = concedeToMovement(state, 'city-1', 'player');
+      expect(result.success).toBe(false);
+    });
+
+    it('prevents new unrest from starting again while immunity is active (integration)', () => {
+      const bus = new EventBus();
+      let state = makeState({ unrestLevel: 2, unrestTurns: 8, cityCount: 21, atWarCount: 3 });
+      state = { ...state, civilizations: { ...state.civilizations, player: { ...state.civilizations['player'], gold: 1000 } } };
+      const conceded = concedeToMovement(state, 'city-1', 'player');
+      expect(conceded.success).toBe(true);
+      const result = processFactionTurn(conceded.state, bus);
+      expect(result.cities['city-1'].unrestLevel).toBe(0);
+    });
+
+    it('leaves appeasement available and unchanged (still suppresses, not permanent)', () => {
+      const state = makeState({ unrestLevel: 2, unrestTurns: 5 });
+      const result = appeaseFaction(state, 'city-1', 'player');
+      expect(result.success).toBe(true);
+      // Appease only downgrades revolt to unrest — it does not fully clear it or set immunity.
+      expect(result.state.cities['city-1'].unrestLevel).toBe(1);
+      expect(result.state.cities['city-1'].concessionImmunityUntilTurn).toBeUndefined();
+    });
   });
 });

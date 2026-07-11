@@ -8,6 +8,8 @@ import { createBreakawayFromCity } from './breakaway-system';
 import { getEconomyStatusForCiv } from './economy-system';
 import { getCivHappinessFromResources } from './resource-acquisition-system';
 import { getCapitalCity } from './capital-system';
+import { getChallengeProfileForCiv } from '../core/opponent-challenge';
+import { TECH_TREE } from './tech-definitions';
 
 // --- Thresholds ---
 const UNREST_TRIGGER_PRESSURE = 40;
@@ -15,12 +17,20 @@ export const REVOLT_UNREST_TURNS = 5;        // turns at unrest before revolt es
 export const BREAKAWAY_REVOLT_TURNS = 10;    // turns at revolt before breakaway
 const CONQUEST_UNREST_DURATION = 15;         // turns until conquestTurn is cleared
 const GOLD_APPEASE_COST_PER_POP = 15;
+export const CONCESSION_IMMUNITY_TURNS = 15; // uprising: turns of no-new-unrest after conceding
 
 // Pressure caps per category
 const MAX_PRESSURE_EMPIRE = 30;
 const MAX_PRESSURE_DISTANCE = 20;
 const MAX_PRESSURE_WAR = 24;
 const MAX_PRESSURE_ECONOMY = 20;
+
+// Uprising contagion (MR4, issue #354): a same-owner city in open revolt radiates
+// unrest pressure to nearby cities. Garrisoning or concession immunity blocks the
+// *receiving* city from being affected entirely (see getContagionSpread).
+export const CONTAGION_GROUP_RANGE = 3;
+const CONTAGION_PRESSURE_PER_NEIGHBOR = 8;
+const MAX_PRESSURE_CONTAGION = 16;
 
 // --- Pressure computation ---
 
@@ -68,6 +78,8 @@ export function computeUnrestPressure(cityId: string, state: GameState, ownerHap
   // Happiness from luxury resources reduces unrest pressure (2 pressure per happiness point)
   pressure -= ownerHappiness * 2;
 
+  pressure += getContagionSpread(cityId, state).pressure;
+
   return Math.min(100, Math.max(0, pressure));
 }
 
@@ -81,8 +93,93 @@ export function canGarrisonCity(cityId: string, state: GameState): boolean {
   );
 }
 
+// Uprising contagion (MR4): a same-owner city at unrestLevel 2 (revolt) within
+// CONTAGION_GROUP_RANGE hexes radiates pressure to this city, scaled by the
+// *owner's* per-civ challenge profile (resolveChallengeForCiv already resolves AI
+// owners to the game-wide challenge). Skipped entirely — not just reduced — when
+// this city is garrisoned or under concession immunity, matching the spec's
+// "immune to incoming spread" contract.
+export function getContagionSpread(
+  cityId: string,
+  state: GameState,
+): { pressure: number; nearestCityId: string | null } {
+  const city = state.cities[cityId];
+  if (!city) return { pressure: 0, nearestCityId: null };
+  if (canGarrisonCity(cityId, state)) return { pressure: 0, nearestCityId: null };
+  if ((city.concessionImmunityUntilTurn ?? 0) > state.turn) return { pressure: 0, nearestCityId: null };
+
+  const profile = getChallengeProfileForCiv(state, city.owner);
+  let total = 0;
+  let nearestCityId: string | null = null;
+  let nearestDistance = Infinity;
+  for (const [otherId, other] of Object.entries(state.cities)) {
+    if (otherId === cityId || other.owner !== city.owner || other.unrestLevel !== 2) continue;
+    const distance = hexDistance(city.position, other.position);
+    if (distance > CONTAGION_GROUP_RANGE) continue;
+    total += CONTAGION_PRESSURE_PER_NEIGHBOR * profile.crisisSeverityMultiplier;
+    if (distance < nearestDistance) {
+      nearestDistance = distance;
+      nearestCityId = otherId;
+    }
+  }
+  return { pressure: Math.min(MAX_PRESSURE_CONTAGION, total), nearestCityId };
+}
+
 export function getCityAppeaseCost(city: City): number {
   return city.population * GOLD_APPEASE_COST_PER_POP;
+}
+
+// Ideological concession (MR4, issue #354): a permanent resolution alongside gold
+// appeasement. 2x the appeasement cost, halved to 1x if the owner has researched
+// any civics-track tech of the *current* era (rewards civics investment without
+// requiring a specific tech id, so future civics techs qualify automatically).
+export function getConcessionCost(state: GameState, city: City): number {
+  const base = getCityAppeaseCost(city);
+  return hasCurrentEraCivicsTech(state, city.owner) ? base : base * 2;
+}
+
+function hasCurrentEraCivicsTech(state: GameState, civId: string): boolean {
+  const civ = state.civilizations[civId];
+  if (!civ) return false;
+  const completed = new Set(civ.techState.completed);
+  return TECH_TREE.some(tech => tech.track === 'civics' && tech.era === state.era && completed.has(tech.id));
+}
+
+export function concedeToMovement(
+  state: GameState,
+  cityId: string,
+  civId: string,
+): { success: boolean; state: GameState; message: string } {
+  const city = state.cities[cityId];
+  if (!city || city.unrestLevel === 0) {
+    return { success: false, state, message: 'This city has no unrest to concede to.' };
+  }
+  const cost = getConcessionCost(state, city);
+  const civ = state.civilizations[civId];
+  if (!civ || civ.gold < cost) {
+    return { success: false, state, message: `Not enough gold — conceding to ${city.name} costs ${cost}.` };
+  }
+  return {
+    success: true,
+    message: `${city.name} granted a charter for ${cost} gold — immune to unrest for ${CONCESSION_IMMUNITY_TURNS} turns.`,
+    state: {
+      ...state,
+      civilizations: {
+        ...state.civilizations,
+        [civId]: { ...civ, gold: civ.gold - cost },
+      },
+      cities: {
+        ...state.cities,
+        [cityId]: {
+          ...city,
+          unrestLevel: 0,
+          unrestTurns: 0,
+          spyUnrestBonus: 0,
+          concessionImmunityUntilTurn: state.turn + CONCESSION_IMMUNITY_TURNS,
+        },
+      },
+    },
+  };
 }
 
 export function appeaseFaction(
@@ -232,13 +329,22 @@ export function processFactionTurn(state: GameState, bus: EventBus): GameState {
     let updated = { ...currentCity };
 
     if (updated.unrestLevel === 0) {
-      if (pressure > UNREST_TRIGGER_PRESSURE) {
+      const immune = (updated.concessionImmunityUntilTurn ?? 0) > nextState.turn;
+      if (pressure > UNREST_TRIGGER_PRESSURE && !immune) {
         updated = { ...updated, unrestLevel: 1, unrestTurns: 0 };
         nextState = {
           ...nextState,
           cities: { ...nextState.cities, [cityId]: updated },
         };
         bus.emit('faction:unrest-started', { cityId, owner: city.owner });
+        const contagion = getContagionSpread(cityId, nextState);
+        if (contagion.pressure > 0 && contagion.nearestCityId) {
+          bus.emit('faction:contagion-spread', {
+            fromCityId: contagion.nearestCityId,
+            toCityId: cityId,
+            owner: city.owner,
+          });
+        }
       }
     } else if (updated.unrestLevel === 1) {
       const garrisoned = canGarrisonCity(cityId, nextState);

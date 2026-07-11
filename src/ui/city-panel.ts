@@ -25,7 +25,13 @@ import {
 import { getLegendaryLandmarkPreviewViewForCity } from '@/systems/legendary-wonder-landmark-presentation';
 import { canUpgradeUnit, getUpgradeCost } from '@/systems/unit-upgrade-system';
 import { UNIT_DEFINITIONS } from '@/systems/unit-system';
-import { getUnrestYieldMultiplier, getCityAppeaseCost, isCityProductionLocked } from '@/systems/faction-system';
+import {
+  getUnrestYieldMultiplier,
+  getCityAppeaseCost,
+  isCityProductionLocked,
+  getContagionSpread,
+  getConcessionCost,
+} from '@/systems/faction-system';
 import { getCrisisFlavor, getCrisisDisplayName } from '@/systems/crisis-flavor-definitions';
 import { getCrisisYieldMultiplier, getOutbreakSeverityMultiplier, getCatastropheRecoveryMultiplier } from '@/systems/crisis-system';
 import { resolveChallengeForCiv } from '@/core/opponent-challenge';
@@ -60,6 +66,7 @@ export interface CityPanelCallbacks {
   onSetIdleProduction?: (cityId: string, mode: 'gold' | 'science' | null) => void;
   onRushBuyActiveProduction?: (cityId: string) => GameState | void;
   onAppeaseFaction?: (cityId: string) => GameState | void;
+  onConcedeToMovement?: (cityId: string) => GameState | void;
   onQuarantineCrisis?: (crisisId: string, cityId: string) => GameState | void;
   onRemedyCrisis?: (crisisId: string, cityId: string) => GameState | void;
   onFindResources?: (
@@ -223,18 +230,41 @@ export function createCityPanel(
   const civGoldForAppease = state.civilizations[city.owner]?.gold ?? 0;
   const appeasedThisTurn = city.appeasedOnTurn === state.turn;
   const canAffordAppease = civGoldForAppease >= appeaseCost;
-  const appeaseDisabled = !canAffordAppease || appeasedThisTurn || !callbacks.onAppeaseFaction;
+  const concessionImmuneTurnsLeft = (city.concessionImmunityUntilTurn ?? 0) - state.turn;
+  const isConcessionImmune = concessionImmuneTurnsLeft > 0;
+  const appeaseDisabled = !canAffordAppease || appeasedThisTurn || isConcessionImmune || !callbacks.onAppeaseFaction;
   const appeaseLabel = appeasedThisTurn
     ? 'Already appeased this turn'
     : !canAffordAppease
       ? `Not enough gold (needs ${appeaseCost})`
       : `Appease (${appeaseCost} gold)`;
+  const concessionCost = getConcessionCost(state, city);
+  const canAffordConcession = civGoldForAppease >= concessionCost;
+  const concedeDisabled = !canAffordConcession || isConcessionImmune || !callbacks.onConcedeToMovement;
+  const concedeLabel = !canAffordConcession
+    ? `Not enough gold (needs ${concessionCost})`
+    : `Concede (${concessionCost} gold)`;
+  // Uprising contagion (MR4): only shown when the term is actually > 0 for THIS city —
+  // garrisoning or concession immunity zero out getContagionSpread entirely, so this
+  // stays honest rather than a blanket "any revolting civ city" check.
+  const contagionSpread = getContagionSpread(city.id, state);
+  const contagionSourceCity = contagionSpread.nearestCityId ? state.cities[contagionSpread.nearestCityId] : null;
+  const showSpreadWarning = contagionSpread.pressure > 0 && contagionSourceCity !== null;
+  const spreadWarningHtml = showSpreadWarning ? `
+    <div style="background:rgba(217,80,80,0.10);border:1px solid rgba(217,80,80,0.3);border-radius:8px;padding:8px 12px;margin-bottom:16px;font-size:12px;color:#e88;" data-text="contagion-spread-warning"></div>` : '';
+  const immunitySectionHtml = isConcessionImmune ? `
+    <div style="background:rgba(74,144,217,0.12);border:1px solid rgba(74,144,217,0.35);border-radius:8px;padding:10px 12px;margin-bottom:16px;font-size:12px;">
+      <div style="font-weight:bold;color:#7fb3e8;">🕊️ Immune to unrest for ${concessionImmuneTurnsLeft} more turn${concessionImmuneTurnsLeft === 1 ? '' : 's'}</div>
+    </div>` : '';
   const unrestSectionHtml = city.unrestLevel > 0 ? `
     <div style="background:rgba(217,80,80,0.12);border:1px solid rgba(217,80,80,0.35);border-radius:8px;padding:10px 12px;margin-bottom:16px;font-size:12px;">
       <div style="font-weight:bold;color:#e88;margin-bottom:4px;">
         ${city.unrestLevel === 2 ? '⚠️ Revolt' : '⚠️ Unrest'} — yields reduced${isCityProductionLocked(city) ? ', production locked' : ''}
       </div>
-      <button type="button" data-appease="${city.id}" ${appeaseDisabled ? 'disabled' : ''} title="${appeaseLabel}" style="min-height:44px;padding:7px 12px;border-radius:6px;font-size:12px;font-weight:bold;cursor:${appeaseDisabled ? 'default' : 'pointer'};background:${appeaseDisabled ? 'rgba(255,255,255,0.08)' : '#d4aa2c'};color:${appeaseDisabled ? 'rgba(255,255,255,0.4)' : '#1a1a1a'};border:none;">${appeaseLabel}</button>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button type="button" data-appease="${city.id}" ${appeaseDisabled ? 'disabled' : ''} title="${appeaseLabel}" style="min-height:44px;padding:7px 12px;border-radius:6px;font-size:12px;font-weight:bold;cursor:${appeaseDisabled ? 'default' : 'pointer'};background:${appeaseDisabled ? 'rgba(255,255,255,0.08)' : '#d4aa2c'};color:${appeaseDisabled ? 'rgba(255,255,255,0.4)' : '#1a1a1a'};border:none;">${appeaseLabel}</button>
+        <button type="button" data-concede="${city.id}" ${concedeDisabled ? 'disabled' : ''} title="${concedeLabel}" style="min-height:44px;padding:7px 12px;border-radius:6px;font-size:12px;font-weight:bold;cursor:${concedeDisabled ? 'default' : 'pointer'};background:${concedeDisabled ? 'rgba(255,255,255,0.08)' : '#4a90d9'};color:${concedeDisabled ? 'rgba(255,255,255,0.4)' : '#fff'};border:none;">${concedeLabel}</button>
+      </div>
     </div>` : '';
   // Post-catastrophe reward: transient, and the crisis itself may already be gone from
   // activeCrises by the time this is active — must render on its own, not piggyback on
@@ -641,6 +671,8 @@ export function createCityPanel(
       <span>Net treasury: ${economyStatus.netGoldPerTurn >= 0 ? '+' : ''}${economyStatus.netGoldPerTurn}/turn</span>
       ${economyStatus.strainLevel !== 'none' ? '<span style="color:#d9a25c;" data-text="economy-strain"></span>' : ''}
     </div>
+    ${immunitySectionHtml}
+    ${spreadWarningHtml}
     ${unrestSectionHtml}
     ${crisisSectionHtml}
     ${catastropheSectionHtml}
@@ -690,6 +722,13 @@ export function createCityPanel(
   setText('yield-prod', String(yields.production));
   setText('yield-gold', String(yields.gold));
   setText('yield-science', String(yields.science));
+
+  if (showSpreadWarning && contagionSourceCity) {
+    setText(
+      'contagion-spread-warning',
+      `Unrest is spreading from ${contagionSourceCity.name} (+${Math.round(contagionSpread.pressure)} pressure/turn) — garrison a unit to block it.`,
+    );
+  }
 
   crisisChips.forEach((chip, idx) => {
     const displayName = getCrisisDisplayName(chip.flavor, state.era);
@@ -1056,6 +1095,14 @@ export function createCityPanel(
     btn.addEventListener('click', () => {
       if (btn.disabled) return;
       const nextState = callbacks.onAppeaseFaction?.(city.id);
+      rerenderPanel(nextState);
+    });
+  });
+
+  panel.querySelectorAll<HTMLButtonElement>('[data-concede]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (btn.disabled) return;
+      const nextState = callbacks.onConcedeToMovement?.(city.id);
       rerenderPanel(nextState);
     });
   });
