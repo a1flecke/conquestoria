@@ -41,6 +41,13 @@ export function createMarketplacePanel(
   const strategicOwned = knownDefs
     .filter(d => d.type === 'strategic' && ownedResources.has(d.id as ResourceType))
     .map(d => d.name);
+  const temporaryAccess = (marketplace.purchasedResources ?? [])
+    .filter(entry => entry.civId === state.currentPlayer && entry.expiresOnTurn > state.turn)
+    .map(entry => ({
+      name: knownDefs.find(def => def.id === entry.resource)?.name,
+      turns: entry.expiresOnTurn - state.turn,
+    }))
+    .filter((entry): entry is { name: string; turns: number } => entry.name !== undefined);
 
   const yourResourcesHtml = `
     <div style="background:rgba(255,255,255,0.04);border-radius:8px;padding:10px 12px;margin-bottom:12px;">
@@ -130,6 +137,7 @@ export function createMarketplacePanel(
         case 'gold':        effectText = '$ +1 gold/turn'; break;
         case 'production':  effectText = '⚙ +1 production/turn'; break;
         case 'food':        effectText = '🌾 +1 food/turn'; break;
+        case 'science':     effectText = '🔬 +1 science/turn'; break;
         default:            effectText = '';
       }
     }
@@ -152,6 +160,12 @@ export function createMarketplacePanel(
       strLine.textContent = `Strategic (${strategicOwned.length}): ${strategicOwned.length > 0 ? strategicOwned.join(', ') : '—'}`;
       bodyEl.appendChild(luxLine);
       bodyEl.appendChild(strLine);
+      if (temporaryAccess.length > 0) {
+        const temporaryLine = document.createElement('div');
+        temporaryLine.style.cssText = 'font-size:12px;color:#e8c170;margin-top:4px;';
+        temporaryLine.textContent = `Temporary access: ${temporaryAccess.map(entry => `${entry.name} (${entry.turns} turns left)`).join(', ')}`;
+        bodyEl.appendChild(temporaryLine);
+      }
     }
   }
 
@@ -312,7 +326,7 @@ function buildKnownCivResourceSection(
     const sellerColor = sellerCivDef?.color ?? '#888888';
     const score = playerDip.relationships[sellerCivId] ?? -100;
     const atWar = isAtWar(playerDip, sellerCivId);
-    const cost = def.basePrice * 3;
+    const cost = (state.marketplace?.prices[resource] ?? def.basePrice) * 3;
 
     const row = document.createElement('div');
     row.style.cssText =

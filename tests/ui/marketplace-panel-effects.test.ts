@@ -72,4 +72,14 @@ describe('marketplace panel effect badges', () => {
     createMarketplacePanel(container, state, { onClose: () => {} });
     expect(container.textContent).toContain('+1 food/turn');
   });
+
+  it('Uranium row contains a science badge when Nuclear Physics is known', () => {
+    const container = document.getElementById('mp-root')!;
+    const state = makeMarketState();
+    (state.civilizations.player.techState.completed as string[]).push('nuclear-physics');
+    state.marketplace!.prices.uranium = 16;
+    state.marketplace!.priceHistory.uranium = [16];
+    createMarketplacePanel(container, state, { onClose: () => {} });
+    expect(container.textContent).toContain('+1 science/turn');
+  });
 });

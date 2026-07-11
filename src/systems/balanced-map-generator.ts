@@ -136,7 +136,7 @@ export function generateBalancedMap(
   // Standard resource placement (skips tiles with existing resources)
   const resourceRng = createRng(seed + '-resources');
   placeResources(tiles, resourceRng);
-  placeLateResources(tiles, createRng(seed + '-late-resources'), startPositions);
+  placeLateResources(tiles, createRng(seed + '-late-resources'), startPositions, civCount);
 
   // Post-placement zone equalization: bring under-served zones up to 75% of mean density
   const postCounts = new Array(civCount).fill(0);

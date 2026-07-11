@@ -11,6 +11,12 @@ describe('generateBalancedMap', () => {
     }
   });
 
+  it('guarantees at least one Uranium deposit per major civilization when terrain permits', () => {
+    const { map } = generateBalancedMap(30, 30, 'balanced-uranium-guarantee', 3);
+    const uraniumCount = Object.values(map.tiles).filter(tile => tile.resource === 'uranium').length;
+    expect(uraniumCount).toBeGreaterThanOrEqual(3);
+  });
+
   it('returns startPositions.length === civCount', () => {
     const { startPositions } = generateBalancedMap(30, 30, 'bal-test-1', 3);
     expect(startPositions).toHaveLength(3);
