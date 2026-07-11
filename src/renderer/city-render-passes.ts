@@ -383,13 +383,17 @@ export function drawCityStatusBadgePass(ctx: CanvasRenderingContext2D, item: Cit
   markPass(ctx, 'status');
   if (!item.projection.isLive || !item.city) return;
 
+  // '⚔️' matches the city panel's own "Under siege" label icon (#522) for consistency
+  // between the map badge and the panel status line.
   const statusText = item.breakaway
     ? item.breakaway.status === 'secession' ? '⛓' : '👑'
-    : item.city.occupation
-      ? getOccupiedCityMood(item.city) === 2 ? '☹' : '⚡'
-      : item.city.unrestLevel > 0
-        ? item.city.unrestLevel === 2 ? '🔥' : '⚡'
-        : null;
+    : item.presentation.underSiege
+      ? '⚔️'
+      : item.city.occupation
+        ? getOccupiedCityMood(item.city) === 2 ? '☹' : '⚡'
+        : item.city.unrestLevel > 0
+          ? item.city.unrestLevel === 2 ? '🔥' : '⚡'
+          : null;
   if (!statusText) return;
 
   ctx.textAlign = 'center';

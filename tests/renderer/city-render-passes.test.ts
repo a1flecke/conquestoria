@@ -73,6 +73,7 @@ function makeItem(overrides: Partial<CityRenderItem> = {}): CityRenderItem {
       primaryWonder: undefined,
       completedWonderOverflowCount: 0,
       visibilityMode: 'live' as const,
+      underSiege: false,
     },
     screen: { x: 100, y: 100 },
     size: 80,
@@ -207,6 +208,51 @@ describe('city icon and badge text bounds', () => {
       expect(call.maxWidth).toBeUndefined();
       expect(call.measuredWidth).toBeLessThanOrEqual(item.size * 0.28);
     }
+  });
+
+  it('draws the under-siege status badge, taking priority over unrest (#522)', () => {
+    const ctx = new MockCtx() as unknown as CanvasRenderingContext2D;
+    const city = {
+      id: 'city-1', owner: 'player', productionQueue: [] as string[], idleProduction: null, unrestLevel: 2,
+    } as CityRenderItem['city'];
+    const item = makeItem({
+      city,
+      presentation: { ...makeItem().presentation, underSiege: true },
+    });
+
+    drawCityStatusBadgePass(ctx, item);
+
+    expect((ctx as unknown as MockCtx).fillTextCalls).toHaveLength(1);
+    expect((ctx as unknown as MockCtx).fillTextCalls[0]!.text).toBe('⚔️');
+  });
+
+  it('does not draw the under-siege badge when the city is not under siege', () => {
+    const ctx = new MockCtx() as unknown as CanvasRenderingContext2D;
+    const city = {
+      id: 'city-1', owner: 'player', productionQueue: [] as string[], idleProduction: null, unrestLevel: 0,
+    } as CityRenderItem['city'];
+    const item = makeItem({ city, presentation: { ...makeItem().presentation, underSiege: false } });
+
+    drawCityStatusBadgePass(ctx, item);
+
+    expect((ctx as unknown as MockCtx).fillTextCalls).toHaveLength(0);
+  });
+
+  it('lets breakaway status take priority over an active siege', () => {
+    const ctx = new MockCtx() as unknown as CanvasRenderingContext2D;
+    const city = {
+      id: 'city-1', owner: 'player', productionQueue: [] as string[], idleProduction: null, unrestLevel: 0,
+    } as CityRenderItem['city'];
+    const item = makeItem({
+      city,
+      presentation: { ...makeItem().presentation, underSiege: true },
+      breakaway: { status: 'secession' },
+    });
+
+    drawCityStatusBadgePass(ctx, item);
+
+    expect((ctx as unknown as MockCtx).fillTextCalls).toHaveLength(1);
+    expect((ctx as unknown as MockCtx).fillTextCalls[0]!.text).toBe('⛓');
   });
 
   it('fits the legendary-wonder overflow count without Canvas horizontal compression', () => {
