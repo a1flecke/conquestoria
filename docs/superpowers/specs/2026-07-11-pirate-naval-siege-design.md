@@ -94,6 +94,7 @@ const result = resolveCitySiegeDamage({
   rawDamage: PIRATE_SIEGE_DAMAGE[faction.maritimeStage],
   attackerDomain: 'naval',
   hasGarrison: getCityGarrisonUnit(state.units, city) !== undefined,
+  isOwnersLastCity: ownerCiv.cities.length <= 1,   // see §3a fix B
   era: state.era,
   challenge: resolveChallengeForCiv(state, city.owner),
 });
@@ -104,14 +105,49 @@ state = applyCitySiegeOutcome(state, cityId, result);
   **identical** to the barbarian rule rather than inventing a naval-only defense, so the
   player has exactly one city-defense rule to learn ("keep a defender home").
 - **Walls / Star Fort / defensive techs mitigate** via
-  `getCityDefenseBreakdown(attackerDomain: 'naval')` — already domain-aware.
-- **0 HP → sack** (plunder 15% gold, survive at 1 HP) when `era <= citySiegeDestructionEra`,
-  else **destroy** — the same per-difficulty knob barbarians use, no new gating.
+  `getCityDefenseBreakdown(attackerDomain: 'naval')` — domain-aware, and after fix A
+  (§3a) its flat bonuses (Star Fort, Fortification Engineering, and the naval-specific
+  **Torpedo Warfare**) actually reduce siege damage instead of being silently dropped.
+- **0 HP → sack** (plunder 15% gold, survive at 1 HP) when `era <= citySiegeDestructionEra`
+  **or the city is the owner's last** (fix B); else **destroy** — the same per-difficulty
+  knob barbarians use, no new gating.
 - Raw damage scales by maritime stage: new
   `PIRATE_SIEGE_DAMAGE = [0, 0, 0, 8, 12, 16]` (indexed by stage 0–5; `0` below the stage
-  floor so an under-stage `besieging` faction deals nothing). Exact values tuned via
-  balance-sampling tests — early exchanges should feel like a multi-turn siege a prepared
-  player survives, not a one-shot.
+  floor so an under-stage `besieging` faction deals nothing). Stage 3 (the floor) maps to
+  the `triremes` tech via `getPirateMaritimeStage`; stage is the **global** max across all
+  civs, so pirate siege capability scales to the world's naval advancement, not just the
+  victim's. Exact values tuned via balance-sampling tests — early exchanges should feel
+  like a multi-turn siege a prepared player survives, not a one-shot.
+
+## 3a. Required fixes to the shared `city-siege-system.ts` helpers (inherited #549 bugs)
+
+The review of the #549 helpers this design reuses found two latent bugs. Per
+`.claude/rules/end-to-end-wiring.md` ("do not freeze an inherited bug in place"), both
+are fixed **in the shared helper in this MR**, which also corrects the already-shipped
+barbarian path. Each gets its own regression proving the barbarian path is fixed too.
+
+- **Fix A — flat defense bonuses are dropped.** `resolveCitySiegeDamage` currently
+  computes `Math.round(rawDamage / breakdown.multiplier)` and **ignores
+  `breakdown.flatBonus`** ([city-siege-system.ts:46](../../../src/systems/city-siege-system.ts)).
+  So Star Fort (+5), Fortification Engineering (+5), and the naval-only **Torpedo Warfare
+  (+5)** provide zero siege mitigation today. Fix: subtract the flat bonus after the
+  multiplier, e.g. `Math.max(0, Math.round(rawDamage / multiplier) - flatBonus)` (floor at
+  0 so a heavily-fortified city takes no damage rather than negative). Add a positive test
+  asserting each flat-bonus source reduces `hpLost`, including Torpedo Warfare on the
+  `attackerDomain: 'naval'` path specifically.
+- **Fix B — siege destruction leaves a zombie civilization / can silently eliminate a
+  civ.** The `destroyed` branch empties `ownerCiv.cities` but never calls
+  `eliminateCivilization`, so a raider razing a civ's last city leaves it at 0 cities,
+  `isEliminated: false`, units and diplomacy intact. Rather than wire the elimination
+  cascade into a raider path, **a siege never destroys a civ's last remaining city** — add
+  `isOwnersLastCity: boolean` to `CitySiegeInput`; when true, the 0-HP outcome is forced to
+  `sacked` regardless of era/difficulty. Design rationale: a civilization is only ever
+  ended by another civilization's conquest, never by barbarians or pirates — squarely
+  aligned with #522's anti-permanent-loss thesis for a family audience. Both the barbarian
+  caller (`turn-manager.ts`) and the new pirate caller pass `isOwnersLastCity`. Add a
+  regression for each caller: last city at 0 HP → `sacked`, not `destroyed`, and the civ is
+  not eliminated. **Check and update any existing #549 test that asserts a last-city can be
+  destroyed** — that assertion is now intentionally reversed (note the deviation in the PR).
 
 ## 4. Counterplay (all already-taught levers, no new player verbs)
 
@@ -125,34 +161,55 @@ state = applyCitySiegeOutcome(state, cityId, result);
 
 ## 5. Visibility (issue point 4 — loud + on-map)
 
-- **Loud one-time alert** the turn HP first falls on a city: a "City under naval siege!"
-  notification through the existing pirate notification/intel pipeline
-  (`applyPirateNotifications`). Distinct from the quieter raid/blockade sightings.
+- **Loud one-time alert** the turn HP first falls on a city: a new `siege` notification
+  type ("Pirates are besieging {city}! Station a unit there or sink their ships.") through
+  the existing pirate notification/intel pipeline (`applyPirateNotifications` +
+  `PIRATE_NOTIFICATION_TYPES` in `pirate-notifications.ts`). Distinct from the quieter
+  raid/blockade sightings, and phrased plainly for the youngest players.
 - **`city:sacked`** fires with `source: 'pirate'` — the event is already parametrized by
-  source (barbarians pass `'barbarian'`), so this is a value, not a new event.
-- **Pirate city-destruction notification** mirroring `barbarian:city-destroyed`
-  (`pirate:city-destroyed` or a shared `city:destroyed` with source) so a razed city is
-  never silent.
+  source (barbarians pass `'barbarian'`; `main.ts:3875` already renders the `'pirate'`
+  copy path), so this is a value, not a new event.
+- **A razed city needs a new notification type — `city-razed`.** Note the existing pirate
+  `destroyed` notification type is **already taken** (it means "a pirate faction was
+  destroyed", `pirate-notifications.ts:79`); do not reuse it. Add `city-razed` alongside a
+  `pirate:city-destroyed` bus event mirroring `barbarian:city-destroyed`, wired in
+  `main.ts` to append a civ-log entry, so a razed city is never silent.
 - **Map indicator** for under-siege / falling-HP state — the city panel already shows the
   "Under siege (no regen)" vs "Recovering (+5/turn)" label from #549; the remaining gap is
   an **on-map badge** so the player sees it without opening the panel. This is the one
   genuinely new UI surface.
 
-## 6. Guards & parity
+## 5a. SFX
+
+- Add a `siege` audio cue (tense, distinct from the `raid`/`blockade` sting) and a
+  `city-razed` cue (a heavier, one-time destruction sting) to `PIRATE_AUDIO_CUES` in
+  `src/audio/pirate-audio-sources.ts`, and emit them via the existing `pirate:audio-cue`
+  bus event (`pirate-system.ts:817`) on the same transitions as the notifications. Follow
+  the placeholder-OGG convention already used for the other pirate cues if final assets
+  aren't ready — a wired placeholder, not a missing cue.
+
+## 6. Guards, difficulty & parity
 
 - **AI civ cities are eligible victims** too (same `isEligibleVictim` as raid/blockade),
-  so pirates can besiege and raze AI cities as well — required for parity and for the
-  threat to feel real in the world, not player-only.
-- **Last-city guard:** whether pirates can destroy a civ's *final* city (eliminating the
-  civ) must **mirror whatever the barbarian path already does** — verify
-  `city-siege-system.ts` / `turn-manager.ts`'s barbarian destroy branch first. If
-  barbarians can't eliminate a civ by razing its last city, pirates must not either
-  (downgrade to sack); if they can, match for parity. Do **not** invent a new rule here —
-  the two siege sources must agree. (Implementation detail to verify against real code,
-  per spec-fidelity: specs can be stale.)
-- **Diplomacy cascade:** if a pirate razing an AI city's last city can eliminate the civ,
-  confirm the elimination path scrubs `relationships` / `atWarWith` / treaties the same
-  way the barbarian path does (game-systems "Diplomacy Lifecycle" rule).
+  so pirates can besiege and **sack** AI cities — required for parity and for the threat to
+  feel real in the world, not player-only.
+- **Last-city guard (resolved — see §3a fix B):** a siege **never destroys any civ's last
+  remaining city**, human or AI; it sacks instead. So pirates (and, after this fix,
+  barbarians) can pressure and plunder but can **never eliminate a civilization** — only
+  another civ's conquest can. This bounds the balance impact on AI civs (recoverable sack,
+  never a wipe) and removes the elimination-cascade / zombie-civ risk entirely. Because no
+  siege path eliminates a civ, no new diplomacy-scrub wiring is needed here.
+- **Difficulty levers (documented, not new knobs):** the outcome is bounded on every
+  difficulty by two existing mechanisms — the per-challenge `citySiegeDestructionEra`
+  (explorer era 4+, standard era 3+, veteran era 2+) gates whether a *non-last* city can be
+  destroyed at all, and the last-city guard guarantees a civ always survives. `N = 3` and
+  `PIRATE_SIEGE_MIN_STAGE = 3` stay fixed across difficulties for simplicity; per-difficulty
+  tuning of the warning window is a possible future refinement, not part of this MR.
+- **AI defensive response (scoped out, bounded):** the opponent AI is not taught to
+  garrison or relieve a besieged city in this MR. This is acceptable because the last-city
+  guard caps the worst case at a recoverable sack. A lightweight "treat a blockaded/besieged
+  owned city as a garrison priority" AI behavior is a reasonable **follow-up issue**, noted
+  so it isn't mistaken for an oversight.
 
 ## 7. Testing (TDD)
 
@@ -162,21 +219,35 @@ state = applyCitySiegeOutcome(state, cityId, result);
 - **Escalation gate:** siege fires only when `behavior === 'besieging'` AND
   `maritimeStage >= PIRATE_SIEGE_MIN_STAGE` AND streak `>= N` — negative test for each
   factor missing (A-without-B / B-without-A, per spec-fidelity conjunction rule).
-- **Siege damage (naval domain):** garrison fully blocks; walls/Star Fort mitigate;
+- **Siege damage (naval domain):** garrison fully blocks; walls mitigate;
   sack-vs-destroy by era × difficulty (reuse the barbarian test matrix with
   `attackerDomain: 'naval'`).
+- **Fix A regression (flat bonuses mitigate):** Star Fort, Fortification Engineering, and
+  **Torpedo Warfare** each reduce `hpLost`; assert Torpedo Warfare reduces it on the
+  `attackerDomain: 'naval'` path and is inert on the `'land'` path. Add the same assertion
+  through the **barbarian** caller so the shipped path is proven fixed, not just the helper.
+- **Fix B regression (last-city safety), both callers:** a civ's last city at 0 HP resolves
+  to `sacked` (not `destroyed`) and the civ is **not** eliminated — one test via the pirate
+  caller, one via the barbarian caller. Locate and reverse any existing #549 test asserting
+  a last city can be destroyed.
 - **Regen resumes** the round the besieging fleet leaves / is sunk.
-- **Visibility:** one-time siege alert fires exactly once on the falling-HP transition and
+- **Hot-seat once-per-round:** in a multi-human game, siege damage and the streak increment
+  fire exactly once per completed round (they live in `processPiratesForCompletedRound`),
+  not once per player-turn — mirror the #549 regen once-per-round regression.
+- **Visibility:** one-time `siege` alert fires exactly once on the falling-HP transition and
   does not recur from steady-state scans (end-to-end-wiring "transition-owned" rule);
-  `city:sacked` carries `source: 'pirate'`; destruction notification fires; on-map badge
-  renders for an under-siege city (assert the DOM/render output, per spec-fidelity UI
-  contract rule).
+  `city:sacked` carries `source: 'pirate'`; the new `city-razed` notification + a
+  `pirate:city-destroyed` bus event fire on destruction and do **not** collide with the
+  existing faction-`destroyed` type; on-map badge renders for an under-siege city (assert
+  the DOM/render output, per spec-fidelity UI contract rule).
+- **SFX:** `pirate:audio-cue` emits `siege` and `city-razed` on the matching transitions,
+  and both cue ids exist in `PIRATE_AUDIO_CUES`.
 - **Balance sampling:** across stages 3–5 and representative eras, a prepared (walled +
   garrisoned) city is effectively safe, and an undefended coastal city falls over a
   multi-turn window, not instantly.
 - **Save-compat:** an old pirate save loads with `blockadeStreakByCity = {}` and no
   faction stuck in an invalid behavior.
-- **Actor parity:** a non-player civ's city can be besieged/sacked/destroyed by the same
+- **Actor parity:** a non-player civ's city can be besieged/sacked by the same
   path (end-to-end-wiring "shared state mutations must be actor-complete").
 
 ## Out of scope
@@ -187,3 +258,6 @@ state = applyCitySiegeOutcome(state, cityId, result);
   pirates share; a full combat-entity refactor is a separate arc, not required to close
   #522.
 - Reviving or repurposing `threat-pressure-system.ts`'s dead pirate-fleet code.
+- Teaching the opponent AI to defensively garrison or relieve a besieged city — a
+  reasonable follow-up (see §6), bounded out of scope by the last-city guard.
+- Per-difficulty tuning of `N` / `PIRATE_SIEGE_MIN_STAGE` — fixed this MR (see §6).
