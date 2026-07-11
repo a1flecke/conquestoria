@@ -35,6 +35,7 @@ import {
 import { getCrisisFlavor, getCrisisDisplayName } from '@/systems/crisis-flavor-definitions';
 import { getCrisisYieldMultiplier, getOutbreakSeverityMultiplier, getCatastropheRecoveryMultiplier } from '@/systems/crisis-system';
 import { resolveChallengeForCiv } from '@/core/opponent-challenge';
+import { isCityHpRegenerating } from '@/systems/city-siege-system';
 import { getOccupiedCityMood, getOccupiedCityYieldMultiplier } from '@/systems/city-occupation-system';
 import { calculateProjectedCityYields } from '@/systems/city-work-system';
 import { getCityTechYields } from '@/systems/tech-yield-system';
@@ -627,13 +628,17 @@ export function createCityPanel(
     : '';
 
   const cityHp = city.hp ?? 100;
-  const cityUnderSiege = cityHp < 100;
+  const cityDamaged = cityHp < 100;
+  const cityRegenerating = cityDamaged && isCityHpRegenerating(state, city);
   const siegeHpPct = Math.max(0, cityHp);
-  const siegeBarHtml = cityUnderSiege
+  const hpStatusLabel = cityRegenerating
+    ? `🩹 Recovering — ${cityHp}/100 HP (+5/turn)`
+    : `⚔️ Under siege — ${cityHp}/100 HP (no regen)`;
+  const siegeBarHtml = cityDamaged
     ? `<div style="margin-top:6px;">
-        <div style="font-size:12px;color:#f87171;font-weight:bold;">⚔️ Under siege — ${cityHp}/100 HP</div>
+        <div style="font-size:12px;color:${cityRegenerating ? '#4ade80' : '#f87171'};font-weight:bold;">${hpStatusLabel}</div>
         <div style="background:rgba(0,0,0,0.4);border-radius:4px;height:6px;margin-top:4px;width:120px;">
-          <div style="background:#ef4444;border-radius:4px;height:6px;width:${siegeHpPct}%;transition:width 0.3s;"></div>
+          <div style="background:${cityRegenerating ? '#4ade80' : '#ef4444'};border-radius:4px;height:6px;width:${siegeHpPct}%;transition:width 0.3s;"></div>
         </div>
       </div>`
     : '';

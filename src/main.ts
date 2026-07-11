@@ -3867,6 +3867,23 @@ bus.on('barbarian:city-destroyed', ({ cityId, ownerId }) => {
   appendToCivLog(ownerId, `${cityName} was destroyed by barbarian raiders!`, 'warning');
 });
 
+// A sacked city survives the raid at 1 HP — phrased distinctly from outright
+// destruction so a recoverable loss is never mistaken for a permanent one. Barbarians
+// are the only live source today (see turn-manager.ts); 'pirate' is future-proofed
+// in the event type but the current pirate-faction system (pirate-system.ts) has no
+// city-HP-damage mechanic to route through it.
+bus.on('city:sacked', ({ cityId, source, goldLost }) => {
+  const city = gameState.cities[cityId];
+  if (!city) return;
+  if (!gameState.civilizations[city.owner]?.isHuman) return;
+  const raiders = source === 'barbarian' ? 'Barbarian raiders' : 'Pirates';
+  appendToCivLog(
+    city.owner,
+    `${raiders} have sacked ${city.name}! The city survives at 1 HP, but ${goldLost} gold was looted.`,
+    'warning',
+  );
+});
+
 bus.on('beast:awakened', ({ beastId, position }) => {
   const def = BEAST_DEFINITIONS[beastId];
   for (const [civId, civ] of Object.entries(gameState.civilizations)) {

@@ -125,6 +125,7 @@ export interface CombatStrengthBreakdown {
   cityDefense?: CityDefenseBreakdown;
   attackerModifierParts?: ModifierPart[];
   defenderModifierParts?: ModifierPart[];
+  defenderDefendsPoorly?: boolean;
 }
 
 export function calculateCombatStrengths(
@@ -145,6 +146,16 @@ export function calculateCombatStrengths(
   let defenderStrength = defenderDefinition.strength
     * (defender.health / 100)
     * (1 + getVeterancyCombatModifier(defender));
+
+  // Bombard-kind units (catapult, cannon, artillery, grenadier, bomber, stealth_bomber)
+  // defend poorly — classic "siege is terrible on defense" convention. Keyed off
+  // attackProfile.kind rather than the 'siege' UnitClass because that class includes
+  // ballista (kind 'ranged', more agile — no penalty) and excludes bomber/stealth_bomber
+  // (which do need it, per the #537 counter-intercept fix).
+  if (defenderDefinition.attackProfile?.kind === 'bombard') {
+    defenderStrength *= 0.5;
+  }
+
   const defenderTile = map.tiles[hexKey(defender.position)];
   const terrainDefenseBonus = defenderTile ? getTerrainDefenseBonus(defenderTile.terrain) : 0;
 
@@ -200,6 +211,7 @@ export function calculateCombatStrengths(
     cityDefense,
     attackerModifierParts: context?.attackerModifiers?.parts,
     defenderModifierParts: context?.defenderModifiers?.parts,
+    defenderDefendsPoorly: defenderDefinition.attackProfile?.kind === 'bombard',
   };
 }
 

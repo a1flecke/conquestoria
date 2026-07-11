@@ -257,3 +257,53 @@ describe('fortify defense bonus', () => {
     expect(r1.attackerDamage).toBe(r2.attackerDamage);
   });
 });
+
+describe('bombard-kind defense penalty (MR: counter-attack rule fix, #537)', () => {
+  let map: GameMap;
+
+  beforeAll(() => {
+    map = generateMap(30, 30, 'bombard-defense-test');
+  });
+
+  it('halves defenderStrength for a bombard-kind unit (catapult) on defense', () => {
+    const attacker = createUnit('warrior', 'p1', { q: 10, r: 10 }, mkC());
+    const catapult = createUnit('catapult', 'p2', { q: 11, r: 10 }, mkC());
+
+    const preview = calculateCombatStrengths(attacker, catapult, map);
+    const terrain = getTerrainDefenseBonus(map.tiles['11,10']?.terrain ?? 'plains');
+
+    // Catapult strength is 20; bombard penalty halves it before terrain is applied.
+    expect(preview.defenderStrength).toBeCloseTo(20 * 0.5 * (1 + terrain), 5);
+  });
+
+  it('does not penalize a siege-class unit that is not bombard-kind (ballista, kind ranged)', () => {
+    const attacker = createUnit('warrior', 'p1', { q: 10, r: 10 }, mkC());
+    const ballista = createUnit('ballista', 'p2', { q: 11, r: 10 }, mkC());
+
+    const preview = calculateCombatStrengths(attacker, ballista, map);
+    const terrain = getTerrainDefenseBonus(map.tiles['11,10']?.terrain ?? 'plains');
+
+    expect(preview.defenderStrength).toBeCloseTo(25 * (1 + terrain), 5);
+  });
+
+  it('catapult defending against adjacent melee takes more damage and deals less counter-damage than an unpenalized defender of equal strength', () => {
+    const attacker = createUnit('warrior', 'p1', { q: 10, r: 10 }, mkC());
+    const catapult = createUnit('catapult', 'p2', { q: 11, r: 10 }, mkC());
+
+    const result = resolveCombat(attacker, catapult, map, 7);
+
+    expect(result.defenderDamage).toBeGreaterThan(0);
+    expect(result.attackerDamage).toBeGreaterThan(0);
+  });
+
+  it('bomber intercepted by a jet fighter still lands a reduced counter-hit, not full strength', () => {
+    const fighter = createUnit('jet_fighter', 'p1', { q: 10, r: 10 }, mkC());
+    const bomber = createUnit('bomber', 'p2', { q: 11, r: 10 }, mkC());
+
+    const preview = calculateCombatStrengths(fighter, bomber, map);
+    const terrain = getTerrainDefenseBonus(map.tiles['11,10']?.terrain ?? 'plains');
+
+    // Bomber strength 48, halved by the bombard penalty before terrain.
+    expect(preview.defenderStrength).toBeCloseTo(48 * 0.5 * (1 + terrain), 5);
+  });
+});
