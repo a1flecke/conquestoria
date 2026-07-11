@@ -58,6 +58,17 @@ function makeLocalStorageMock() {
 }
 
 describe('save-manager setup and outcome migration', () => {
+  it('runs the ordered save schema migration before legacy normalization', () => {
+    const legacy = createNewGame(undefined, 'schema-load-boundary', 'small');
+    delete legacy.saveSchemaVersion;
+    delete legacy.gameId;
+
+    const normalized = normalizeLoadedStateForTest(legacy);
+
+    expect(normalized.saveSchemaVersion).toBe(1);
+    expect(normalized.gameId).toMatch(/^legacy-/);
+  });
+
   it('labels legacy geographic games historical without moving units or cities', () => {
     const legacy = createNewGame(undefined, 'legacy-geographic-placement', 'small');
     legacy.mapScript = 'earth';
