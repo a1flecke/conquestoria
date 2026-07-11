@@ -1459,6 +1459,8 @@ export interface IdCounters {
 export interface GameState {
   turn: number;
   era: number;
+  /** Incremented only by ordered, deterministic save migrations. */
+  saveSchemaVersion?: number;
   gameId?: string;
   gameTitle?: string;
   opponentChallenge?: OpponentChallenge;

@@ -10,6 +10,7 @@ import { isMinorCivAtWar } from '@/systems/minor-civ-diplomacy';
 import { normalizeMinorCivCoalitionState } from '@/systems/minor-civ-coalition-system';
 import { normalizeMinorCivEconomyState } from '@/systems/minor-civ-economy-system';
 import { scanIdCounters } from '@/core/id-counters';
+import { migrateSaveToCurrent } from '@/storage/save-migrations';
 import {
   createEmptyPirateState,
   PIRATE_RELOCATION_DIRECTIONS,
@@ -48,9 +49,6 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function ensureGameIdentity(state: GameState): GameState {
-  if (!state.gameId) {
-    state.gameId = `game-${Date.now()}`;
-  }
   if (!state.gameTitle) {
     const civType = state.hotSeat ? 'Hot Seat' : (state.civilizations[state.currentPlayer]?.civType ?? 'Unknown');
     state.gameTitle = `Recovered ${civType} Campaign`;
@@ -766,8 +764,9 @@ export function migrateLegacyCoastalData(state: GameState): GameState {
 }
 
 export function normalizeLoadedState(state: GameState): NormalizedGameState {
+  const migrated = migrateSaveToCurrent(state);
   const normalizedCityState = migrateLegacyPirateFleets(normalizeMinorCivEconomyState(normalizeMinorCivCoalitionState(normalizeMinorCivQuestState(
-    migrateLegacyCoastalData(normalizeThreatPressureDefaults(normalizeLandmassKeys(normalizeLegacyCitySimState(migrateStripCityGrid(migrateLegacyPlanningState(migrateLegacyNamingState(ensureGameIdentity(state)))))))),
+    migrateLegacyCoastalData(normalizeThreatPressureDefaults(normalizeLandmassKeys(normalizeLegacyCitySimState(migrateStripCityGrid(migrateLegacyPlanningState(migrateLegacyNamingState(ensureGameIdentity(migrated)))))))),
   ))));
   normalizedCityState.pirates = normalizePirateState(normalizedCityState);
   normalizedCityState.notificationLog = normalizeNotificationLog(normalizedCityState.notificationLog);
