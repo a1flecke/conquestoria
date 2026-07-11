@@ -182,7 +182,14 @@ function derivePirateWarnings(
   for (const factionId of Object.keys(afterIntel).sort()) {
     const intel = afterIntel[factionId];
     const previous = beforeIntel[factionId];
-    const kind = intel.knownBehavior === 'blockading'
+    // besieging (#522) reuses the 'blockade' warning kind rather than a new one -- a
+    // siege requires an active blockade, and the existing "review known pirate waters"
+    // message stays accurate. Escalating blockading -> besieging still fires (the
+    // knownBehavior values differ, so the duplicate-suppression check below doesn't
+    // swallow it), giving the player a second heads-up as the threat worsens; the
+    // dedicated 'siege' pirate notification (pirate-notifications.ts) remains the
+    // primary, precise alert once HP damage actually starts.
+    const kind = intel.knownBehavior === 'blockading' || intel.knownBehavior === 'besieging'
       ? 'blockade'
       : intel.knownBehavior === 'raiding' ? 'raid' : null;
     if (!kind || previous?.knownBehavior === intel.knownBehavior) continue;

@@ -99,6 +99,24 @@ describe('AI pirate response', () => {
     expect(hexDistance(knownResult.units[knownShip.id].position, { q: 6, r: 1 })).toBeLessThan(6);
   });
 
+  it('dispatches a warship toward an observed besieging faction\'s ship, same as a blockading one (#522)', () => {
+    const state = fixture();
+    const faction = addFaction(state, { behavior: 'besieging', maritimeStage: 3, notoriety: 9 });
+    const pirateShip = addUnit(state, 'pirate-a', 'pirate_frigate', faction.id, { q: 3, r: 0 });
+    faction.shipIds = [pirateShip.id];
+    const warship = addUnit(state, 'ai-warship', 'trireme', 'ai-1', { q: 0, r: 0 });
+    state.civilizations['ai-1'].visibility.tiles[hexKey(pirateShip.position)] = 'visible';
+    // No lastKnownHeadquarters -> the higher-priority headquarters-assault goal doesn't
+    // apply, isolating the blockading/besieging-ship targeting tier this fix touches.
+    revealFaction(state, { knownBehavior: 'besieging', observedUnitIds: [pirateShip.id] });
+
+    const result = applyPirateAiResponse(state, 'ai-1', new EventBus());
+
+    expect(hexDistance(result.units[warship.id].position, pirateShip.position)).toBeLessThan(
+      hexDistance(warship.position, pirateShip.position),
+    );
+  });
+
   it('pays affordable tribute for an active blockade but refuses debt', () => {
     const state = fixture();
     const faction = addFaction(state);

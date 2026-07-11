@@ -212,6 +212,51 @@ describe('strategic warning transition derivation', () => {
     expect(warning.actorName).not.toContain('Secret');
   });
 
+  it('fires a blockade-kind warning when known intel escalates blockading -> besieging (#522)', () => {
+    const { before, after } = fixture();
+    before.pirates = createEmptyPirateState();
+    after.pirates = createEmptyPirateState();
+    after.pirates.factions['pirate-1'] = {
+      id: 'pirate-1',
+      name: 'The Iron Reef',
+      spawnedRound: 1,
+      behavior: 'besieging',
+      maritimeStage: 3,
+      notoriety: 9,
+      shipIds: [],
+      headquarters: {
+        kind: 'coastal-enclave',
+        position: { q: 4, r: 4 },
+        integrity: 100,
+        maxIntegrity: 100,
+      },
+      tributeByCiv: {},
+      demandByCiv: {},
+      contract: null,
+      intent: null,
+      transitionGuards: { emittedEventKeys: [] },
+    };
+    before.pirates.intelByCiv.player = {
+      'pirate-1': {
+        factionId: 'pirate-1',
+        level: 'sighted',
+        discoveredRound: 1,
+        lastUpdatedRound: 1,
+        knownBehavior: 'blockading',
+      },
+    };
+    after.pirates.intelByCiv.player = structuredClone(before.pirates.intelByCiv.player);
+    after.pirates.intelByCiv.player['pirate-1'].knownBehavior = 'besieging';
+
+    const [warning] = deriveStrategicWarningTransitions(before, after, 'player');
+
+    // Escalating past blockading still warns (reusing the existing 'blockade' kind and
+    // its accurate "review known pirate waters" message) rather than going silent --
+    // the dedicated 'siege' pirate notification is the precise alert once HP damage
+    // actually starts.
+    expect(warning).toMatchObject({ actorId: 'pirate-1', kind: 'blockade', evidence: 'earned-intel' });
+  });
+
   it('requires locally scouted raiders before exposing a barbarian resource warning', () => {
     const { before, after } = fixture();
     const resourceCoord = after.cities[after.civilizations.player.cities[0]!].position;
