@@ -243,7 +243,9 @@ export function choosePirateIntent(state: GameState, factionId: string): PirateI
   const targetCity = nearestByPosition(state, from, eligibleCities);
   if (targetCity) {
     return {
-      kind: faction.behavior === 'blockading' ? 'blockade' : 'raid',
+      // besieging shares blockading's 'blockade' intent kind (#522) -- both hold
+      // position at the target city rather than treating it as a raid.
+      kind: faction.behavior === 'blockading' || faction.behavior === 'besieging' ? 'blockade' : 'raid',
       targetCivId: targetCity.owner,
       targetCityId: targetCity.id,
       plannedRound: state.turn,
@@ -256,7 +258,7 @@ export function choosePirateIntent(state: GameState, factionId: string): PirateI
     return { kind: 'raid', targetCivId: hostileNaval.owner, targetUnitId: hostileNaval.id, plannedRound: state.turn };
   }
 
-  if (faction.behavior === 'blockading') {
+  if (faction.behavior === 'blockading' || faction.behavior === 'besieging') {
     const escortedTransport = nearestByPosition(state, from,
       victimUnits.filter(unit => transports.includes(unit) && escortedTransportIds.has(unit.id)));
     if (escortedTransport) {

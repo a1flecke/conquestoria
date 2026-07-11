@@ -332,7 +332,9 @@ function choosePirateGoal(
 
   const blockadeShip = factionPresentations
     .filter(faction => !shouldAiAvoidPirateFaction(state, civId, faction.factionId))
-    .filter(faction => faction.behavior === 'blockading')
+    // besieging (#522) is included here -- without it, an AI civ's counter-pirate
+    // warships would never be directed at the single most dangerous pirate threat.
+    .filter(faction => faction.behavior === 'blockading' || faction.behavior === 'besieging')
     .flatMap(faction => faction.observedUnitIds)
     .map(unitId => state.units[unitId])
     .filter((unit): unit is Unit => Boolean(unit))

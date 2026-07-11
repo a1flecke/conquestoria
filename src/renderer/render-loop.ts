@@ -535,14 +535,16 @@ export class RenderLoop {
       const nowMs = performance.now();
       const unitEntities = unitPresentations.map(presentation => {
         const faction = this.state!.pirates?.factions[presentation.leadUnit.owner];
-        const persistentMode = faction?.behavior === 'blockading'
+        // besieging shares blockading's sprite mode/tier (#522) -- the apex threat must
+        // never render as indistinguishable from a harmless patrol.
+        const persistentMode = faction?.behavior === 'besieging' || faction?.behavior === 'blockading'
           ? 'blockade' as const
           : faction?.behavior === 'raiding' ? 'raid' as const : 'patrol' as const;
         const visual = faction
           ? this.pirateSpriteState.resolve(presentation.leadUnitId, {
               mode: persistentMode,
               damage: presentation.damage as 0 | 1 | 2 | 3,
-              tier: faction.behavior === 'blockading' ? 3 : faction.behavior === 'raiding' ? 2 : 1,
+              tier: faction.behavior === 'besieging' || faction.behavior === 'blockading' ? 3 : faction.behavior === 'raiding' ? 2 : 1,
               stage: faction.maritimeStage,
             }, nowMs)
           : null;

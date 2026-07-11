@@ -242,6 +242,7 @@ function normalizePirateIntel(value: unknown, state: GameState, factions: Pirate
       const knownBehavior = rawIntel.knownBehavior === 'patrolling'
         || rawIntel.knownBehavior === 'raiding'
         || rawIntel.knownBehavior === 'blockading'
+        || rawIntel.knownBehavior === 'besieging'
         ? rawIntel.knownBehavior
         : undefined;
       const knownMaritimeStage = [1, 2, 3, 4, 5].includes(Number(rawIntel.knownMaritimeStage))
