@@ -14,6 +14,10 @@ export interface OpponentChallengeProfile {
   crisisGraceMaxEra: number;
   crisisGraceMinTurns: number;
   crisisSeverityMultiplier: number;
+  // Barbarian/pirate city sieges only permanently destroy an undefended city once
+  // state.era exceeds this value for the city owner's resolved challenge; below it,
+  // a city that hits 0 HP is sacked (survives at 1 HP) instead. See #522.
+  citySiegeDestructionEra: number;
 }
 
 export const OPPONENT_CHALLENGE_PROFILES: Record<OpponentChallenge, OpponentChallengeProfile> = {
@@ -31,6 +35,7 @@ export const OPPONENT_CHALLENGE_PROFILES: Record<OpponentChallenge, OpponentChal
     crisisGraceMaxEra: 2,
     crisisGraceMinTurns: 30,
     crisisSeverityMultiplier: 0.5,
+    citySiegeDestructionEra: 3,
   },
   standard: {
     mobilizationRounds: 1,
@@ -46,6 +51,7 @@ export const OPPONENT_CHALLENGE_PROFILES: Record<OpponentChallenge, OpponentChal
     crisisGraceMaxEra: 1,
     crisisGraceMinTurns: 20,
     crisisSeverityMultiplier: 1.0,
+    citySiegeDestructionEra: 2,
   },
   veteran: {
     mobilizationRounds: 0,
@@ -61,6 +67,7 @@ export const OPPONENT_CHALLENGE_PROFILES: Record<OpponentChallenge, OpponentChal
     crisisGraceMaxEra: 1,
     crisisGraceMinTurns: 10,
     crisisSeverityMultiplier: 1.3,
+    citySiegeDestructionEra: 1,
   },
 };
 

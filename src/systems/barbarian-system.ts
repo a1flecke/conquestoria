@@ -21,6 +21,7 @@ import {
   wrappedHexDistance,
 } from './hex-utils';
 import { selectDefenderForAttack } from './combat-system';
+import { getCityGarrisonUnit } from './city-siege-system';
 import { applyQuestGameplayAction, type ChainTransition } from './quest-chain-system';
 import { UNIT_DEFINITIONS } from './unit-system';
 import { recordHuntCampKillerIfApplicable } from './hunt-crisis-linkage';
@@ -496,7 +497,15 @@ export function processPurposefulBarbarians(state: GameState): PurposefulBarbari
         }
       }
       if (!withdrawing && plan.target.kind === 'city' && barbarianDistance(state, unit.position, destination) <= 1) {
-        cityAttackOrders.push({ attackerUnitId: unit.id, cityId: plan.target.id, damage: 10 });
+        const city = state.cities[plan.target.id];
+        const garrison = city ? getCityGarrisonUnit(state.units, city) : undefined;
+        if (garrison) {
+          if (canAttackByProfileOnMap(unit, garrison, state.map)) {
+            attackOrders.push({ attackerUnitId: unit.id, defenderUnitId: garrison.id });
+          }
+        } else {
+          cityAttackOrders.push({ attackerUnitId: unit.id, cityId: plan.target.id, damage: 10 });
+        }
         continue;
       }
       const step = chooseStepToward(state, unit, destination);

@@ -55,4 +55,28 @@ describe('formatCombatPreviewDetails', () => {
     expect(details).not.toContain('Star Fort');
     expect(details).not.toContain('Professional Army');
   });
+
+  it('shows the bombard defense penalty when the defender is a bombard-kind unit', () => {
+    const details = formatCombatPreviewDetails('Rival', 100, {
+      attackerStrength: 10,
+      defenderStrength: 10,
+      terrainDefenseBonus: 0,
+      riverAttackPenalty: 0,
+      defenderDefendsPoorly: true,
+    });
+
+    expect(details).toContain('Siege defends poorly (−50%)');
+  });
+
+  it('omits the bombard defense penalty line for a normal defender (negative test)', () => {
+    const details = formatCombatPreviewDetails('Rival', 100, {
+      attackerStrength: 10,
+      defenderStrength: 10,
+      terrainDefenseBonus: 0,
+      riverAttackPenalty: 0,
+      defenderDefendsPoorly: false,
+    });
+
+    expect(details).not.toContain('defends poorly');
+  });
 });
