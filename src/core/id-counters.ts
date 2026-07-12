@@ -15,7 +15,10 @@ type ScanableState = {
     history?: Array<{ factionId?: string }>;
   };
   notificationLog?: Record<string, Array<{ id?: string }>>;
-  autonomyByCiv?: Record<string, { plans?: Record<string, unknown> }>;
+  autonomyByCiv?: Record<string, {
+    plans?: Record<string, unknown>;
+    detections?: Record<string, unknown>;
+  }>;
 };
 
 /**
