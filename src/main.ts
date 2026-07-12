@@ -222,6 +222,7 @@ import {
   routePeaceRequested,
   routeTerritoryTileFlipped,
   routeWarDeclared,
+  routeTreatyProposed,
   routeStrategicWarning,
   routeCrisisStarted,
   routeCrisisSpread,
@@ -946,6 +947,22 @@ function handleRejectPeaceRequest(requestId: string): void {
   showNotification('Peace request rejected.', 'info');
 }
 
+function handleAcceptTreatyProposal(requestId: string): void {
+  gameState = acceptDiplomaticRequest(gameState, gameState.currentPlayer, requestId, bus);
+  renderLoop.setGameState(gameState);
+  updateHUD();
+  openDiplomacyPanel();
+  showNotification('Treaty signed.', 'success');
+}
+
+function handleDeclineTreatyProposal(requestId: string): void {
+  gameState = rejectDiplomaticRequest(gameState, gameState.currentPlayer, requestId);
+  renderLoop.setGameState(gameState);
+  updateHUD();
+  openDiplomacyPanel();
+  showNotification('Proposal declined.', 'info');
+}
+
 function executeMinorCivConquest(unitId: string, target: HexCoord, minorCivId: string, cityId: string): void {
   const cityName = gameState.cities[cityId]?.name ?? 'City-State';
   const movement = executeAnimatedUnitMove(unitId, () => executeUnitMove(gameState, unitId, target, {
@@ -1026,6 +1043,8 @@ function openDiplomacyPanel(): void {
     onAction: handleDiplomaticAction,
     onAcceptPeaceRequest: handleAcceptPeaceRequest,
     onRejectPeaceRequest: handleRejectPeaceRequest,
+    onAcceptTreatyProposal: handleAcceptTreatyProposal,
+    onDeclineTreatyProposal: handleDeclineTreatyProposal,
     onGiftGold: handleGiftGold,
     onSponsorFestival: handleSponsorFestival,
     onMinorCivReparations: handleMinorCivReparations,
@@ -4003,6 +4022,10 @@ bus.on('wonder:legendary-race-revealed', ({ observerId, civId, cityId, wonderId 
 
 bus.on('diplomacy:war-declared', ({ attackerId, defenderId }) => {
   routeWarDeclared(gameState, attackerId, defenderId, appendToCivLog);
+});
+
+bus.on('diplomacy:treaty-proposed', event => {
+  routeTreatyProposed(gameState, event, appendToCivLog);
 });
 
 bus.on('civilization:first-contact', ({ civA, civB }) => {
