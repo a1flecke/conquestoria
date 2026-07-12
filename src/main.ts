@@ -264,6 +264,7 @@ import { createCompletedRoundHandoffTransaction } from '@/core/completed-round-h
 import { processImprovementTurns } from '@/systems/improvement-turn-system';
 import { handleCombatResolvedEvent } from '@/ui/combat-resolved-presentation';
 import { applyStrategicWarningTransitions } from '@/systems/strategic-warning-system';
+import { createCityOverviewPanel } from '@/ui/city-overview-panel';
 
 // --- App State ---
 let gameState: GameState;
@@ -1139,6 +1140,31 @@ function openWonderPanelForCityId(selectedCityId: string): void {
   openWonderPanel();
 }
 
+function openCityOverviewPanel(): void {
+  drawer?.close();
+  const existing = document.getElementById('city-overview-panel');
+  if (existing) existing.remove();
+  createCityOverviewPanel(uiLayer, gameState, {
+    onOpenCity: (cityId) => {
+      const overview = document.getElementById('city-overview-panel');
+      overview?.remove();
+      const city = gameState.cities[cityId];
+      if (city) openCityPanelForCity(city);
+    },
+    onAppeaseFaction: (cityId) => {
+      handleAppeaseFaction(cityId);
+      openCityOverviewPanel(); // re-render with updated unrest/gold state
+    },
+    onConcedeToMovement: (cityId) => {
+      handleConcedeToMovement(cityId);
+      openCityOverviewPanel(); // re-render with updated unrest/gold state
+    },
+    onClose: () => {
+      document.getElementById('city-overview-panel')?.remove();
+    },
+  });
+}
+
 function handleAppeaseFaction(cityId: string): typeof gameState {
   const targetCity = gameState.cities[cityId];
   if (!targetCity) return gameState;
@@ -1469,16 +1495,7 @@ function togglePanel(panel: string): void {
       onClose: () => {},
     });
   } else if (panel === 'city') {
-    const playerCities = currentCiv().cities;
-    if (playerCities.length === 0) {
-      showNotification('No cities founded yet!', 'info');
-      return;
-    }
-    if (currentCityIndex >= playerCities.length) currentCityIndex = 0;
-    const cityId = playerCities[currentCityIndex];
-    const city = gameState.cities[cityId];
-    if (!city) return;
-    openCityPanelForCity(city);
+    openCityOverviewPanel();
   } else if (panel === 'espionage') {
     const chooseForeignCityTarget = (): { civId: string; cityId: string; position: HexCoord } | null => {
       const choices = Object.values(gameState.cities)
