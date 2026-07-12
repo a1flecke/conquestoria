@@ -536,6 +536,26 @@ describe('diplomacy-panel treaty proposals + war attribution (#554)', () => {
     expect(onAccept).toHaveBeenCalledWith(expect.stringContaining('treaty'));
   });
 
+  it('does not offer the generic treaty action while an identical proposal is already pending (#554)', () => {
+    const { container, state } = makeDiplomacyFixture({ currentPlayer: 'player', includeThirdCiv: true });
+    state.civilizations.player.knownCivilizations = ['outsider'];
+    state.civilizations.player.diplomacy.relationships.outsider = 60;
+    state.civilizations.outsider.diplomacy.relationships.player = 60;
+    const next = enqueueTreatyProposal(state, 'outsider', 'player', 'non_aggression_pact', 10);
+
+    const panel = createDiplomacyPanel(container, next, {
+      onAction: () => {},
+      onClose: () => {},
+    });
+
+    // The proposal's own accept/decline buttons are present, but the generic
+    // "non aggression pact" action button for THIS civ (outsider) must not
+    // also be offered (a different row, e.g. the breakaway civ, may still
+    // legitimately offer its own non_aggression_pact action).
+    expect(panel.querySelector('[data-action="accept-treaty-proposal"]')).toBeTruthy();
+    expect(panel.querySelector('[data-civ-id="outsider"][data-action="non_aggression_pact"]')).toBeNull();
+  });
+
   it('shows war status with start turn and reason for a civ at war with the viewer', () => {
     const { container, state } = makeDiplomacyFixture({ currentPlayer: 'player', includeThirdCiv: true });
     state.civilizations.player.diplomacy.atWarWith = ['outsider'];

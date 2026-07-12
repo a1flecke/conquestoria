@@ -163,6 +163,21 @@ export function createDiplomacyPanel(
         : '⚔ At war';
     }
 
+    // #554: don't offer the generic treaty action again while a proposal for
+    // that exact type already sits pending between the viewer and this civ
+    // (either direction) -- mirrors the existing request_peace suppression
+    // just below. Without this, the player could instant-sign their own copy
+    // via onAction while an unrelated incoming proposal of the same type is
+    // still awaiting a decision, leaving a stale, already-fulfilled proposal
+    // row behind.
+    const pendingTreatyTypes = new Set(
+      (state.pendingDiplomacyRequests ?? [])
+        .filter(request => request.type === 'treaty'
+          && ((request.fromCivId === state.currentPlayer && request.toCivId === civId)
+            || (request.fromCivId === civId && request.toCivId === state.currentPlayer)))
+        .map(request => request.treatyType),
+    );
+
     civRows.push({
       civId,
       civIdx,
@@ -176,6 +191,7 @@ export function createDiplomacyPanel(
       treaties,
       actions: rowActions
         .filter(action => !(action === 'request_peace' && peaceRequestState !== 'none'))
+        .filter(action => !pendingTreatyTypes.has(action as TreatyType))
         .map(action => ({ action, isHostile: action === 'declare_war' })),
       peaceRequestState,
       peaceRequestId: pendingPeaceRequest?.id ?? null,
