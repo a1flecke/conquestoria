@@ -389,7 +389,7 @@ describe('faction-system', () => {
       cityCount: 21,
       cityPosition: cityPos,
       unrestLevel: 1,
-      unrestTurns: 4,
+      unrestTurns: REVOLT_UNREST_TURNS - 1,
       spyUnrestBonus: 7,
       atWarCount: 1,
     });
@@ -589,8 +589,8 @@ describe('appeaseFaction', () => {
 });
 
 describe('faction-system constant exports and era-gating', () => {
-  it('REVOLT_UNREST_TURNS is exported and equals 5', () => {
-    expect(REVOLT_UNREST_TURNS).toBe(5);
+  it('REVOLT_UNREST_TURNS is exported and equals 10', () => {
+    expect(REVOLT_UNREST_TURNS).toBe(10);
   });
 
   it('BREAKAWAY_REVOLT_TURNS is exported and equals 10', () => {
