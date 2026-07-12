@@ -39,6 +39,19 @@ export function clearEventsForPlayer(
   };
 }
 
+// MR2 (#551): pendingEvents is hot-seat-only -- solo saves from before the
+// delivery contract may carry stale queued events (from the previously
+// unconditional first-contact/strategic-warning queueing) that would never
+// drain, since solo always toasts immediately instead of deferring. Mutates
+// state in place, matching migrateLegacySave's existing convention.
+export function clearStaleSoloPendingEvents(state: GameState): void {
+  if (state.hotSeat) return;
+  if (!state.pendingEvents) return;
+  if (Object.values(state.pendingEvents).some(list => list.length > 0)) {
+    state.pendingEvents = {};
+  }
+}
+
 export interface TurnSummary {
   turn: number;
   era: number;
