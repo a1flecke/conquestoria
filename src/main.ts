@@ -137,7 +137,7 @@ import {
   showTurnHandoff,
 } from '@/ui/turn-handoff';
 import { showHotSeatSetup } from '@/ui/hotseat-setup';
-import { collectCouncilInterrupt } from '@/core/hotseat-events';
+import { collectCouncilInterrupt, clearStaleSoloPendingEvents } from '@/core/hotseat-events';
 import { refreshKnownCivilizations, syncCivilizationContactsFromVisibility } from '@/systems/discovery-system';
 import { getMinorCivPresentationForPlayer } from '@/systems/minor-civ-presentation';
 import { getMinorCivNotification } from '@/ui/minor-civ-notifications';
@@ -4555,6 +4555,7 @@ function migrateLegacySave(): void {
   if (!gameState.pendingEvents) {
     gameState.pendingEvents = {};
   }
+  clearStaleSoloPendingEvents(gameState);
   // Add wonder/village state if missing
   if (!gameState.tribalVillages) (gameState as any).tribalVillages = {};
   if (!gameState.discoveredWonders) (gameState as any).discoveredWonders = {};

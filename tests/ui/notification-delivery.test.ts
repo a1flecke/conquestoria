@@ -1,32 +1,5 @@
-import { describe, it, expect, vi } from 'vitest';
-import { createNotificationDelivery } from '@/ui/notification-delivery';
-import type { GameState } from '@/core/types';
-
-function makeState(overrides: Partial<GameState> = {}): GameState {
-  return {
-    turn: 6,
-    currentPlayer: 'p1',
-    idCounters: {},
-    civilizations: {
-      p1: { isHuman: true } as any,
-      p2: { isHuman: true } as any,
-      ai1: { isHuman: false } as any,
-    },
-    notificationLog: {},
-    pendingEvents: {},
-    ...overrides,
-  } as unknown as GameState;
-}
-
-function make(state: GameState, suppressed = false) {
-  const toast = vi.fn();
-  const delivery = createNotificationDelivery({
-    getState: () => state,
-    toast,
-    isSuppressed: () => suppressed,
-  });
-  return { delivery, toast };
-}
+import { describe, it, expect } from 'vitest';
+import { makeState, make } from './helpers/notification-state';
 
 describe('notification delivery contract', () => {
   it('toasts and logs for the active unsuppressed viewer', () => {
