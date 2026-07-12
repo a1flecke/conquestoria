@@ -92,6 +92,35 @@ export function resolveCityAssault(
   return { attackerWins: rng() < adjustedRatio };
 }
 
+// Counter-fire damage to a hostile unit attacking a walled, ungarrisoned city (#522) --
+// applies uniformly to player, barbarian, and pirate attackers (three call sites: this
+// helper, city-capture-system.ts, turn-manager.ts, pirate-system.ts). Deliberately
+// scales INVERSELY with attacker strength, mirroring resolveCombat's own
+// baseDamage * (1 - adjustedRatio) counter-damage formula -- a much stronger attacker
+// already takes proportionally less retaliation there; a flat fraction of intrinsic
+// strength would have ignored that convention (caught in design review).
+export function getCityCounterFireDamage(
+  city: City,
+  ownerCiv: Civilization,
+  attackerDomain: 'land' | 'naval' | 'air',
+  attackerStrength: number,
+  hasGarrison: boolean,
+  seed: number,
+): number {
+  if (hasGarrison) return 0;
+  if (!(city.buildings ?? []).includes('walls')) return 0;
+
+  const intrinsicStrength = getCityIntrinsicStrength(city, ownerCiv, attackerDomain);
+  const totalStrength = attackerStrength + intrinsicStrength;
+  if (totalStrength === 0) return 0;
+  const atkRatio = attackerStrength / totalStrength;
+  const rng = createSeededRng(seed);
+  const randomFactor = 0.8 + rng() * 0.4;
+  const adjustedRatio = Math.min(0.95, Math.max(0.05, atkRatio * randomFactor));
+  const baseDamage = 30 + rng() * 20; // same range as resolveCombat's baseDamage (era 3+ band)
+  return Math.round(baseDamage * (1 - adjustedRatio));
+}
+
 export interface CitySiegeInput {
   city: City;
   ownerCiv: Civilization;

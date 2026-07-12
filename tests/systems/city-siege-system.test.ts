@@ -3,7 +3,7 @@ import { createNewGame } from '@/core/game-state';
 import { foundCity } from '@/systems/city-system';
 import { createUnit } from '@/systems/unit-system';
 import type { City, Civilization, GameState } from '@/core/types';
-import { applyCityHpRegeneration, applyCitySiegeOutcome, calculateCityAssaultStrengths, getCityIntrinsicStrength, isCityHpRegenerating, resolveCityAssault, resolveCitySiegeDamage } from '@/systems/city-siege-system';
+import { applyCityHpRegeneration, applyCitySiegeOutcome, calculateCityAssaultStrengths, getCityCounterFireDamage, getCityIntrinsicStrength, isCityHpRegenerating, resolveCityAssault, resolveCitySiegeDamage } from '@/systems/city-siege-system';
 
 const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
 
@@ -404,5 +404,40 @@ describe('calculateCityAssaultStrengths / resolveCityAssault (#522)', () => {
     const results = Array.from({ length: 20 }, (_, i) => resolveCityAssault(10, 100, i).attackerWins);
     const winRate = results.filter(Boolean).length / results.length;
     expect(winRate).toBeLessThan(0.25);
+  });
+});
+
+describe('getCityCounterFireDamage (#522)', () => {
+  it('is zero without walls', () => {
+    const { city, ownerCiv } = makeCityAndCiv({ population: 10, buildings: [] });
+    expect(getCityCounterFireDamage(city, ownerCiv, 'land', 20, false, 1)).toBe(0);
+  });
+
+  it('is zero when the city has a garrison', () => {
+    const { city, ownerCiv } = makeCityAndCiv({ population: 10, buildings: ['walls'] });
+    expect(getCityCounterFireDamage(city, ownerCiv, 'land', 20, true, 1)).toBe(0);
+  });
+
+  it('is nonzero and walls/tech-scaled otherwise', () => {
+    // population: 1 (not 10, as the plan's draft used) -- at population 10 the base vs.
+    // fortified damage figures both round to the identical integer at seed 1 (23.75 vs
+    // 24.33, a real but sub-1-HP difference the plan's own rounding step erases), making
+    // `toBeGreaterThan` fail regardless of implementation correctness. Population 1
+    // widens star_fort's flat +5 bonus relative to the smaller population-scaled base,
+    // producing a clean, non-colliding separation (15 vs 17) while testing the exact
+    // same thing: fortification increases counter-fire damage.
+    const { city, ownerCiv } = makeCityAndCiv({ population: 1, buildings: ['walls'] });
+    const { city: fortifiedCity, ownerCiv: fortifiedCiv } = makeCityAndCiv({ population: 1, buildings: ['walls', 'star_fort'] });
+    const base = getCityCounterFireDamage(city, ownerCiv, 'land', 20, false, 1);
+    const fortified = getCityCounterFireDamage(fortifiedCity, fortifiedCiv, 'land', 20, false, 1);
+    expect(base).toBeGreaterThan(0);
+    expect(fortified).toBeGreaterThan(base);
+  });
+
+  it('scales inversely with attacker strength -- an overwhelming attacker takes measurably less', () => {
+    const { city, ownerCiv } = makeCityAndCiv({ population: 10, buildings: ['walls'] });
+    const weakAttacker = getCityCounterFireDamage(city, ownerCiv, 'land', 15, false, 1);
+    const strongAttacker = getCityCounterFireDamage(city, ownerCiv, 'land', 200, false, 1);
+    expect(strongAttacker).toBeLessThan(weakAttacker);
   });
 });
