@@ -1,5 +1,4 @@
 import type { CombatResult, CombatRewardNotification, GameEvents, GameState, ProductionDropReason } from '@/core/types';
-import { collectEvent } from '@/core/hotseat-events';
 import { hexKey } from '@/systems/hex-utils';
 import { getImprovementDisplayName } from '@/systems/improvement-system';
 import { UNIT_DEFINITIONS } from '@/systems/unit-system';
@@ -257,18 +256,6 @@ export function routeDroppedProductionItem(
   sink(city.owner, message, 'warning');
 }
 
-export function queueFirstContactPendingEvents(
-  state: GameState,
-  civA: string,
-  civB: string,
-): void {
-  state.pendingEvents ??= {};
-  const aName = state.civilizations[civA]?.name ?? civA;
-  const bName = state.civilizations[civB]?.name ?? civB;
-  collectEvent(state.pendingEvents, civA, { type: 'first-contact', message: `Encountered ${bName}.`, turn: state.turn });
-  collectEvent(state.pendingEvents, civB, { type: 'first-contact', message: `Encountered ${aName}.`, turn: state.turn });
-}
-
 export function routeStrategicWarning(
   event: GameEvents['ai:strategic-warning'],
   sink: NotificationSink,
@@ -280,20 +267,6 @@ export function routeStrategicWarning(
     presentation.type,
     presentation.target,
   );
-}
-
-export function queueStrategicWarningPendingEvent(
-  state: GameState,
-  event: GameEvents['ai:strategic-warning'],
-): void {
-  state.pendingEvents ??= {};
-  const presentation = presentStrategicWarning(event);
-  collectEvent(state.pendingEvents, event.viewerId, {
-    type: 'ai:strategic-warning',
-    message: presentation.message,
-    turn: state.turn,
-    ...(presentation.target ? { target: presentation.target } : {}),
-  });
 }
 
 // Routes to the defender's owner regardless of who is currently acting.
@@ -385,20 +358,23 @@ export function routeBarbarianSpawned(
   }
 }
 
+// Era advancement is a world event, not attributable to whoever currentPlayer
+// happens to be at emit time (#551) -- deliver to every human civ via the
+// delivery contract, which handles hot-seat queueing and solo toasting itself.
 export function routeEraAdvanced(
   era: number,
-  civId: string,
-  civName: string,
-  toastSink: (message: string, type: NotificationEntry['type']) => void,
-  factionSink: NotificationSink,
+  humanCivIds: string[],
+  sink: NotificationSink,
 ): void {
-  toastSink(`${civName} has entered Era ${era}!`, 'success');
-  if (era === 2) {
-    factionSink(
-      civId,
-      `Era 2 begins — cities can now experience unrest. High pressure (overcrowding, distance from capital, unhappiness) will trigger it. Garrison units, spend gold to appease, or build happiness improvements to keep order.`,
-      'info',
-    );
+  for (const civId of humanCivIds) {
+    sink(civId, `The world has entered Era ${era}!`, 'success');
+    if (era === 2) {
+      sink(
+        civId,
+        `Era 2 begins — cities can now experience unrest. High pressure (overcrowding, distance from capital, unhappiness) will trigger it. Garrison units, spend gold to appease, or build happiness improvements to keep order.`,
+        'info',
+      );
+    }
   }
 }
 

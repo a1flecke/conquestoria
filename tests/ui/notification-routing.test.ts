@@ -9,14 +9,12 @@ import {
   routeCombatResolved,
   routeDroppedProductionItem,
   routeEconomyTreasuryStrain,
-  queueFirstContactPendingEvents,
   routeLegendaryWonder,
   routeFactionTransition,
   routeFirstContact,
   routePeaceMade,
   routePeaceRequested,
   routeWarDeclared,
-  queueStrategicWarningPendingEvent,
   routeStrategicWarning,
   routeCrisisStarted,
   routeCrisisSpread,
@@ -77,31 +75,6 @@ describe('notification routing', () => {
       type: 'warning',
       target,
     }]);
-  });
-
-  it('persists the same safe strategic warning row for a hot-seat handoff', () => {
-    const state = makeState({ pendingEvents: {} } as Partial<GameState>);
-    const target = { kind: 'map' as const, coord: { q: 4, r: 2 }, label: 'Ravenna' };
-
-    queueStrategicWarningPendingEvent(state, {
-      viewerId: 'p2',
-      actorId: 'rome',
-      actorName: 'Roman',
-      warningKey: 'p2:rome:mobilizing:4,2',
-      kind: 'mobilizing',
-      evidence: 'visible',
-      targetLabel: 'Ravenna',
-      target,
-      playAudio: true,
-    });
-
-    expect(state.pendingEvents?.p2).toEqual([{
-      type: 'ai:strategic-warning',
-      message: 'A Roman force is gathering against Ravenna. Reinforce the city, disrupt the rally, or seek peace.',
-      turn: state.turn,
-      target,
-    }]);
-    expect(state.pendingEvents?.p1).toBeUndefined();
   });
 
   it('war-declared writes to both attacker and defender logs', () => {
@@ -249,19 +222,6 @@ describe('notification routing', () => {
     }, sink);
 
     expect(calls).toEqual([]);
-  });
-
-  it('first-contact queues hot-seat notable events for both players', () => {
-    const state = makeState({ pendingEvents: {} } as Partial<GameState>);
-
-    queueFirstContactPendingEvents(state, 'p1', 'p2');
-
-    expect(state.pendingEvents?.p1).toEqual([
-      expect.objectContaining({ type: 'first-contact', message: expect.stringMatching(/Encountered Bob/i), turn: state.turn }),
-    ]);
-    expect(state.pendingEvents?.p2).toEqual([
-      expect.objectContaining({ type: 'first-contact', message: expect.stringMatching(/Encountered Alice/i), turn: state.turn }),
-    ]);
   });
 
   it('combat-resolved writes to the defender owner log even when current player is a third civ', () => {

@@ -137,7 +137,7 @@ import {
   showTurnHandoff,
 } from '@/ui/turn-handoff';
 import { showHotSeatSetup } from '@/ui/hotseat-setup';
-import { collectCouncilInterrupt, collectEvent } from '@/core/hotseat-events';
+import { collectCouncilInterrupt } from '@/core/hotseat-events';
 import { refreshKnownCivilizations, syncCivilizationContactsFromVisibility } from '@/systems/discovery-system';
 import { getMinorCivPresentationForPlayer } from '@/systems/minor-civ-presentation';
 import { getMinorCivNotification } from '@/ui/minor-civ-notifications';
@@ -210,21 +210,18 @@ import {
   type NotificationEntry,
 } from '@/core/notification-log';
 import {
-  formatEconomyTreasuryStrainMessage,
   routeBarbarianSpawned,
   routeCombatRewardEarned,
   routeDroppedProductionItem,
   routeEconomyTreasuryStrain,
   routeEraAdvanced,
   routeFactionTransition,
-  queueFirstContactPendingEvents,
   routeFirstContact,
   routeLegendaryWonder,
   routePeaceMade,
   routePeaceRequested,
   routeTerritoryTileFlipped,
   routeWarDeclared,
-  queueStrategicWarningPendingEvent,
   routeStrategicWarning,
   routeCrisisStarted,
   routeCrisisSpread,
@@ -4009,22 +4006,26 @@ bus.on('diplomacy:war-declared', ({ attackerId, defenderId }) => {
 });
 
 bus.on('civilization:first-contact', ({ civA, civB }) => {
+  // #551: routeFirstContact's sink is the delivery contract, which already
+  // queues to pendingEvents for a non-active hot-seat recipient -- the old
+  // unconditional queueFirstContactPendingEvents call was a second, always-on
+  // queue that leaked stale growth into solo saves (which never drain it).
   routeFirstContact(gameState, civA, civB, appendToCivLog);
-  queueFirstContactPendingEvents(gameState, civA, civB);
 });
 
 bus.on('diplomacy:peace-requested', ({ fromCivId, toCivId }) => {
+  // #551: routePeaceRequested already delivers to toCivId via appendToCivLog
+  // (the delivery contract) -- the old extra showNotification here duplicated
+  // the message AND leaked it to whoever currentPlayer was at emit time
+  // instead of the actual recipient.
   routePeaceRequested(gameState, fromCivId, toCivId, appendToCivLog);
-  if (toCivId === gameState.currentPlayer) {
-    const fromName = gameState.civilizations[fromCivId]?.name ?? 'Unknown';
-    showNotification(`${fromName} requests peace.`, 'info');
-  }
 });
 
 bus.on('diplomacy:peace-made', ({ civA, civB }) => {
   routePeaceMade(gameState, civA, civB, appendToCivLog);
 });
 
+// viewer-scoped by design: advisors run for the active player only (#551).
 bus.on('advisor:message', ({ advisor, message, icon }) => {
   showNotification(`${icon} ${message}`, 'info');
 });
@@ -4169,10 +4170,12 @@ bus.on('beast:slain', ({ beastId, lairId, slayerCivId, goldAwarded }) => {
         rewardLines,
         onContinue: () => { if (!isApex) maybeShowPendingHoardChoice(); },
       });
-    } else {
-      const toast = isChoiceTier ? `🏆 ${def.name} slain! Choose your reward.` : `🏆 ${def.name} slain! +${goldAwarded} gold`;
-      showNotification(toast, 'success');
     }
+    // #551: the tier<3 case's toast used to be a separate showNotification
+    // call here, duplicating the delivery-contract message the appendToCivLog
+    // loop above already sent to slayerCivId. Removed; the loop's message
+    // ("Hoard claimed: +N gold" / "Choose your reward.") is the single
+    // delivery for this event now.
   }
 });
 
@@ -4204,23 +4207,25 @@ bus.on('beast:sighted', ({ beastId, civId }) => {
 registerMinorCivNotificationListeners(bus, () => gameState, { appendToCivLog });
 
 bus.on('ai:strategic-warning', event => {
+  // #551: appendToCivLog (the delivery contract) already queues to
+  // pendingEvents for a non-active hot-seat recipient -- the old
+  // queueStrategicWarningPendingEvent call was a second, always-on queue.
   routeStrategicWarning(event, appendToCivLog);
-  if (gameState.hotSeat) {
-    queueStrategicWarningPendingEvent(gameState, event);
-  }
 });
 
 function appendFactionNotice(civId: string, message: string, type: NotificationEntry['type']): void {
+  // #551: appendToCivLog (the delivery contract) already queues to
+  // pendingEvents for a non-active hot-seat recipient -- the old manual
+  // collectEvent call here was a second, always-on queue that duplicated the
+  // entry in that player's next turn-handoff summary.
   appendToCivLog(civId, message, type);
-  if (gameState.pendingEvents) {
-    collectEvent(gameState.pendingEvents, civId, { type: 'faction:critical', message, turn: gameState.turn });
-  }
 }
 
 bus.on('era:advanced', ({ era }) => {
-  const civId = gameState.currentPlayer;
-  const civName = gameState.civilizations[civId]?.name ?? 'Your civilization';
-  routeEraAdvanced(era, civId, civName, showNotification, appendFactionNotice);
+  const humanCivIds = Object.entries(gameState.civilizations)
+    .filter(([, civ]) => civ.isHuman)
+    .map(([civId]) => civId);
+  routeEraAdvanced(era, humanCivIds, appendToCivLog);
 });
 
 bus.on('faction:unrest-started', event => {
@@ -4268,10 +4273,10 @@ bus.on('crisis:resolved', event => {
 });
 
 bus.on('economy:treasury-strain', event => {
+  // #551: routeEconomyTreasuryStrain already delivers to event.civId via the
+  // delivery contract; the old extra showNotification duplicated the message
+  // and leaked it to whoever currentPlayer was at emit time.
   routeEconomyTreasuryStrain(gameState, event, appendToCivLog);
-  if (event.civId === gameState.currentPlayer) {
-    showNotification(formatEconomyTreasuryStrainMessage(gameState, event), 'warning');
-  }
 });
 
 bus.on('espionage:spy-detected-traveling', ({ detectingCivId, spyOwner, wasDisguised, position }) => {
@@ -4324,11 +4329,15 @@ bus.on('unit:obsolete', ({ civId, unitType }) => {
 });
 
 bus.on('unit:journey-blocked', ({ unitId, position }) => {
+  // #551: recipient is the unit's actual owner, not whoever currentPlayer
+  // happens to be at emit time -- the old showNotification call leaked this
+  // to the wrong hot-seat player. Skip entirely if the unit is gone rather
+  // than falling back to currentPlayer.
   const unit = gameState.units[unitId];
-  const type = unit ? UNIT_DEFINITIONS[unit.type]?.name ?? unit.type : 'Unit';
+  if (!unit) return;
+  const type = UNIT_DEFINITIONS[unit.type]?.name ?? unit.type;
   const msg = `Your ${type} was blocked and stopped at (${position.q}, ${position.r}).`;
-  showNotification(msg, 'warning');
-  appendToCivLog(unit?.owner ?? gameState.currentPlayer, msg, 'warning');
+  appendToCivLog(unit.owner, msg, 'warning');
 });
 
 bus.on('espionage:spy-expired', ({ civId, spyName, unitType }) => {
@@ -4361,6 +4370,10 @@ bus.on('trade:route-ended', ({ fromCityId, toCityId, reason }) => {
     'trips-exhausted': 'caravan retired after completing its service',
   };
   appendToCivLog(ownerCity.owner, `Trade route to ${toCity?.name ?? toCityId} ended: ${reasonText[reason] ?? reason}`, 'warning');
+  // Also tell the other end of the route, if it's a different human civ (#551).
+  if (toCity && toCity.owner !== ownerCity.owner && gameState.civilizations[toCity.owner]?.isHuman) {
+    appendToCivLog(toCity.owner, `Trade route from ${ownerCity.name} ended: ${reasonText[reason] ?? reason}`, 'warning');
+  }
 });
 
 // --- Initialization ---
