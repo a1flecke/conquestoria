@@ -6,7 +6,7 @@ import { resolveChallengeForCiv } from '@/core/opponent-challenge';
 import { canUnitAttackTarget } from './attack-targeting';
 import { applyCombatOutcomeToState } from './combat-reward-system';
 import { resolveCombat } from './combat-system';
-import { applyCitySiegeOutcome, getCityGarrisonUnit, resolveCitySiegeDamage } from './city-siege-system';
+import { applyCitySiegeOutcome, getCityCounterFireDamage, getCityGarrisonUnit, resolveCitySiegeDamage } from './city-siege-system';
 import type { PirateEconomyModifiers } from './economy-system';
 import { getWrappedHexNeighbors, hexDistance, hexKey, hexNeighbors, wrappedHexDistance } from './hex-utils';
 import {
@@ -818,6 +818,51 @@ export function processPiratesForCompletedRound(
       events.push({ type: 'city-razed', factionId: siege.factionId, civId: city.owner, cityId: siege.cityId });
     }
     // outcome === 'blocked' -> garrison stopped it; no HP change, no alert (silent, by design).
+
+    // Counter-fire (#522): a walled, ungarrisoned city fights back at one ship from the
+    // besieging faction -- the nearest to the city, tie-broken by unit id for
+    // determinism. A well-defended city can now sink a besieging ship over time.
+    if (result.outcome !== 'blocked') {
+      const faction = nextState.pirates?.factions[siege.factionId];
+      const distanceFn = nextState.map.wrapsHorizontally
+        ? (a: HexCoord, b: HexCoord) => wrappedHexDistance(a, b, nextState.map.width)
+        : hexDistance;
+      const targetShip = (faction?.shipIds ?? [])
+        .map(id => nextState.units[id])
+        .filter((unit): unit is Unit => Boolean(unit))
+        .sort((a, b) => distanceFn(a.position, city.position) - distanceFn(b.position, city.position)
+          || a.id.localeCompare(b.id))[0];
+      if (targetShip) {
+        const attackerStrength = UNIT_DEFINITIONS[targetShip.type].strength * (targetShip.health / 100);
+        const counterFireSeed = (nextState.turn * 104729) ^ targetShip.id.charCodeAt(0) ^ 0x5a5a;
+        const counterFireDamage = getCityCounterFireDamage(
+          city, ownerCiv, 'naval', attackerStrength, false, counterFireSeed,
+        );
+        if (counterFireDamage > 0) {
+          const healthAfter = targetShip.health - counterFireDamage;
+          const attackerDied = healthAfter <= 0;
+          if (attackerDied) {
+            const units = { ...nextState.units };
+            delete units[targetShip.id];
+            nextState = { ...nextState, units };
+            // faction.shipIds self-prunes dead references on the next round's
+            // normalizeRoundState pass -- no further cleanup needed here.
+          } else {
+            nextState = {
+              ...nextState,
+              units: { ...nextState.units, [targetShip.id]: { ...targetShip, health: healthAfter } },
+            };
+          }
+          bus.emit('city:counter-fire', {
+            cityId: city.id,
+            attackerUnitId: targetShip.id,
+            source: 'pirate',
+            damage: counterFireDamage,
+            attackerDied,
+          });
+        }
+      }
+    }
   }
   const advanced = advanceBehavior(nextState, new Set(raids.map(raid => raid.factionId)));
   nextState = advanced.state;

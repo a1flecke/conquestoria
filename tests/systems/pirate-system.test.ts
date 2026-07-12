@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { EventBus } from '@/core/event-bus';
 import { createNewGame } from '@/core/game-state';
 import { createEmptyPirateState, type PirateFactionState } from '@/core/pirate-state';
@@ -576,5 +576,38 @@ describe('pirate naval siege (#522)', () => {
     expect(result.state.cities.port).toBeDefined();
     expect(result.state.cities.port!.hp).toBe(1);
     expect(result.economyModifiers).toBeDefined();
+  });
+
+  it('applies counter-fire to a besieging ship attacking a walled, ungarrisoned city (#522)', () => {
+    const state = siegeReadyState(100);
+    state.cities.port = { ...state.cities.port!, buildings: ['walls'], population: 20 };
+
+    const shipBefore = state.units['ship-a']!.health;
+    const result = processPiratesForCompletedRound(state, new EventBus());
+
+    const shipAfter = result.state.units['ship-a']?.health ?? 0;
+    expect(shipAfter).toBeLessThan(shipBefore);
+  });
+
+  it('does not counter-fire when the besieged city has no walls', () => {
+    const state = siegeReadyState(100);
+    state.cities.port = { ...state.cities.port!, buildings: [], population: 20 };
+
+    const shipBefore = state.units['ship-a']!.health;
+    const result = processPiratesForCompletedRound(state, new EventBus());
+
+    expect(result.state.units['ship-a']?.health ?? 0).toBe(shipBefore);
+  });
+
+  it('emits city:counter-fire so the player gets feedback that their walls fought back (#522)', () => {
+    const state = siegeReadyState(100);
+    state.cities.port = { ...state.cities.port!, buildings: ['walls'], population: 20 };
+
+    const bus = new EventBus();
+    const onCounterFire = vi.fn();
+    bus.on('city:counter-fire', onCounterFire);
+    processPiratesForCompletedRound(state, bus);
+
+    expect(onCounterFire).toHaveBeenCalledWith(expect.objectContaining({ cityId: 'port', source: 'pirate' }));
   });
 });
