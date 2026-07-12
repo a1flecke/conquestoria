@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import type { NotificationEntry } from '@/core/notification-log';
 import { routeEraAdvanced, type NotificationSink } from '@/ui/notification-routing';
 
 const PROJECT_ROOT = resolve(__dirname, '..');
@@ -192,38 +191,39 @@ function makeSink() {
   return { sink, calls };
 }
 
-function makeToastSink() {
-  const calls: Array<{ message: string; type: NotificationEntry['type'] }> = [];
-  const sink = (message: string, type: NotificationEntry['type']) => calls.push({ message, type });
-  return { sink, calls };
-}
-
 describe('era:advanced notification', () => {
-  it('era 2 calls toastSink with Era 2 and factionSink once with Era 2 and unrest', () => {
-    const { sink: toastSink, calls: toastCalls } = makeToastSink();
-    const { sink: factionSink, calls: factionCalls } = makeSink();
+  it('era 2 delivers to every human civ, with an extra unrest-primer line per civ', () => {
+    const { sink, calls } = makeSink();
 
-    routeEraAdvanced(2, 'p1', 'Alice', toastSink, factionSink);
+    routeEraAdvanced(2, ['p1', 'p2'], sink);
 
-    expect(toastCalls).toHaveLength(1);
-    expect(toastCalls[0]!.message).toContain('Era 2');
-    expect(toastCalls[0]!.type).toBe('success');
-
-    expect(factionCalls).toHaveLength(1);
-    expect(factionCalls[0]!.civId).toBe('p1');
-    expect(factionCalls[0]!.message).toContain('Era 2');
-    expect(factionCalls[0]!.message).toContain('unrest');
-    expect(factionCalls[0]!.type).toBe('info');
+    // Each human civ gets both the era announcement and the era-2 unrest primer.
+    const p1Calls = calls.filter(c => c.civId === 'p1');
+    const p2Calls = calls.filter(c => c.civId === 'p2');
+    expect(p1Calls).toHaveLength(2);
+    expect(p2Calls).toHaveLength(2);
+    expect(p1Calls[0]!.message).toContain('Era 2');
+    expect(p1Calls[0]!.type).toBe('success');
+    expect(p1Calls[1]!.message).toContain('Era 2');
+    expect(p1Calls[1]!.message).toContain('unrest');
+    expect(p1Calls[1]!.type).toBe('info');
   });
 
-  it('era 3 calls toastSink with Era 3 but does NOT call factionSink', () => {
-    const { sink: toastSink, calls: toastCalls } = makeToastSink();
-    const { sink: factionSink, calls: factionCalls } = makeSink();
+  it('era 3 delivers only the announcement line to each human civ, no unrest primer', () => {
+    const { sink, calls } = makeSink();
 
-    routeEraAdvanced(3, 'p1', 'Alice', toastSink, factionSink);
+    routeEraAdvanced(3, ['p1'], sink);
 
-    expect(toastCalls).toHaveLength(1);
-    expect(toastCalls[0]!.message).toContain('Era 3');
-    expect(factionCalls).toHaveLength(0);
+    expect(calls).toHaveLength(1);
+    expect(calls[0]!.civId).toBe('p1');
+    expect(calls[0]!.message).toContain('Era 3');
+  });
+
+  it('delivers to no one when there are no human civs', () => {
+    const { sink, calls } = makeSink();
+
+    routeEraAdvanced(2, [], sink);
+
+    expect(calls).toHaveLength(0);
   });
 });
