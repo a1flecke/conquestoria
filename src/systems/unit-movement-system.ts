@@ -4,6 +4,7 @@ import { getVisibility, updateVisibility } from '@/systems/fog-of-war';
 import { getActiveNationalProjectsForCiv } from '@/systems/national-project-system';
 import { getVisionBonus } from '@/systems/unit-modifier-system';
 import { syncCivilizationContactsFromVisibility } from '@/systems/discovery-system';
+import { cancelInvalidNetworkPlans } from '@/systems/network-plan-system';
 import { hexKey, wrappedHexDistance, hexDistance } from '@/systems/hex-utils';
 import {
   moveUnit,
@@ -133,6 +134,8 @@ export function executeUnitMove(
     const synced = syncTransportCargoPositions(state, unitId);
     state.units = synced.units;
   }
+  const networkCleanup = cancelInvalidNetworkPlans(state);
+  state.autonomyByCiv = networkCleanup.state.autonomyByCiv;
   options.bus?.emit('unit:move', {
     unitId,
     from,
