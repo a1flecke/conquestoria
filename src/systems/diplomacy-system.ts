@@ -487,6 +487,80 @@ export function getPendingPeaceRequestForPair(
   return (state.pendingDiplomacyRequests ?? []).find(request => isPeaceRequestPair(request, civA, civB));
 }
 
+function buildPendingTreatyProposalId(
+  fromCivId: string,
+  toCivId: string,
+  treatyType: TreatyType,
+  turn: number,
+): string {
+  return `treaty:${fromCivId}:${toCivId}:${treatyType}:${turn}`;
+}
+
+function isSameTreatyProposal(
+  request: PendingDiplomaticRequest,
+  fromCivId: string,
+  toCivId: string,
+  treatyType: TreatyType,
+): boolean {
+  return request.type === 'treaty'
+    && request.fromCivId === fromCivId
+    && request.toCivId === toCivId
+    && request.treatyType === treatyType;
+}
+
+export function getPendingTreatyProposalsFor(
+  state: GameState,
+  civId: string,
+): PendingDiplomaticRequest[] {
+  return (state.pendingDiplomacyRequests ?? []).filter(
+    request => request.type === 'treaty' && request.toCivId === civId,
+  );
+}
+
+// Enqueues a treaty offer for the recipient to accept/decline (#554) -- unlike
+// signTreaty, this never touches either side's diplomacy.treaties until the
+// recipient acts. Deduped on the same fromCivId+toCivId+treatyType triple.
+export function enqueueTreatyProposal(
+  state: GameState,
+  fromCivId: string,
+  toCivId: string,
+  treatyType: TreatyType,
+  turnsRemaining: number,
+  bus?: EventBus,
+): GameState {
+  const requests = state.pendingDiplomacyRequests ?? [];
+  if (requests.some(request => isSameTreatyProposal(request, fromCivId, toCivId, treatyType))) {
+    return state;
+  }
+
+  bus?.emit('diplomacy:treaty-proposed', { fromCiv: fromCivId, toCiv: toCivId, treaty: treatyType });
+  return {
+    ...state,
+    pendingDiplomacyRequests: [
+      ...requests,
+      {
+        id: buildPendingTreatyProposalId(fromCivId, toCivId, treatyType, state.turn),
+        type: 'treaty',
+        treatyType,
+        turnsRemaining,
+        fromCivId,
+        toCivId,
+        turnIssued: state.turn,
+      },
+    ],
+  };
+}
+
+// 10-turn TTL on any pending peace request or treaty proposal (#554) -- a
+// proposal the recipient never opens the diplomacy panel to act on should not
+// rot forever. Call once per turn from the world turn processor.
+export function pruneExpiredDiplomaticRequests(state: GameState): GameState {
+  const requests = state.pendingDiplomacyRequests ?? [];
+  const kept = requests.filter(request => state.turn - request.turnIssued < 10);
+  if (kept.length === requests.length) return state;
+  return { ...state, pendingDiplomacyRequests: kept };
+}
+
 export function enqueuePeaceRequest(
   state: GameState,
   fromCivId: string,
@@ -524,7 +598,7 @@ export function acceptDiplomaticRequest(
   bus: EventBus,
 ): GameState {
   const request = (state.pendingDiplomacyRequests ?? []).find(candidate => candidate.id === requestId);
-  if (!request || request.type !== 'peace' || request.toCivId !== actingCivId) {
+  if (!request || request.toCivId !== actingCivId) {
     return state;
   }
 
@@ -535,6 +609,27 @@ export function acceptDiplomaticRequest(
       ...state,
       pendingDiplomacyRequests: (state.pendingDiplomacyRequests ?? []).filter(candidate => candidate.id !== requestId),
     };
+  }
+
+  if (request.type === 'treaty') {
+    const turns = request.turnsRemaining ?? -1;
+    const next = {
+      ...state,
+      pendingDiplomacyRequests: (state.pendingDiplomacyRequests ?? []).filter(candidate => candidate.id !== requestId),
+      civilizations: {
+        ...state.civilizations,
+        [request.fromCivId]: {
+          ...actor,
+          diplomacy: signTreaty(actor.diplomacy, request.fromCivId, request.toCivId, request.treatyType!, turns, state.turn),
+        },
+        [request.toCivId]: {
+          ...target,
+          diplomacy: signTreaty(target.diplomacy, request.toCivId, request.fromCivId, request.treatyType!, turns, state.turn),
+        },
+      },
+    };
+    bus.emit('diplomacy:treaty-accepted', { civA: request.fromCivId, civB: request.toCivId, treaty: request.treatyType! });
+    return next;
   }
 
   bus.emit('diplomacy:peace-made', { civA: request.fromCivId, civB: request.toCivId });
