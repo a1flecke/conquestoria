@@ -66,6 +66,15 @@ export function createCityOverviewPanel(
     header.appendChild(closeBtn);
     panel.appendChild(header);
 
+    const cities = sortedCities();
+    if (cities.length === 0) {
+      const empty = document.createElement('div');
+      empty.textContent = 'No cities founded yet!';
+      empty.style.cssText = 'opacity:0.7;font-size:13px;';
+      panel.appendChild(empty);
+      return;
+    }
+
     const sortRow = document.createElement('div');
     sortRow.style.cssText = 'display:flex;gap:8px;margin-bottom:12px;';
     (['unrest', 'name', 'population'] as SortKey[]).forEach(key => {
@@ -75,15 +84,6 @@ export function createCityOverviewPanel(
       sortRow.appendChild(btn);
     });
     panel.appendChild(sortRow);
-
-    const cities = sortedCities();
-    if (cities.length === 0) {
-      const empty = document.createElement('div');
-      empty.textContent = 'No cities founded yet!';
-      empty.style.cssText = 'opacity:0.7;font-size:13px;';
-      panel.appendChild(empty);
-      return;
-    }
 
     for (const city of cities) {
       panel.appendChild(renderCityRow(city));
