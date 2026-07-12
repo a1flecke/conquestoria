@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createNewGame } from '@/core/game-state';
+import type { City, Unit } from '@/core/types';
 import {
   CURRENT_SAVE_SCHEMA_VERSION,
   migrateSaveToCurrent,
@@ -142,5 +143,41 @@ describe('save migrations', () => {
     ));
     expect(migrated.idCounters.nextNetworkPlanId).toBe(1);
     expect(loadedAgain).toEqual(migrated);
+  });
+
+  it('migrates activated legacy Cyber Units in stable order with one Exploit per city', () => {
+    const legacySave = createNewGame('rome', 'autonomy-activated-migration', 'small');
+    legacySave.saveSchemaVersion = 2;
+    const city: City = {
+      id: 'city-ai', name: 'Target', owner: 'ai-1', position: { q: 0, r: 0 }, population: 1,
+      food: 0, foodNeeded: 10, buildings: [], productionQueue: [], productionProgress: 0,
+      ownedTiles: [], workedTiles: [], focus: 'balanced', maturity: 'village', unrestLevel: 0,
+      unrestTurns: 0, spyUnrestBonus: 0, idleProduction: null,
+    };
+    const cyber = (id: string): Unit => ({
+      id, type: 'cyber_unit', owner: 'player', position: { q: 1, r: 0 }, movementPointsLeft: 3,
+      health: 100, experience: 0, hasMoved: false, hasActed: false, isResting: false,
+    });
+    legacySave.cities = { [city.id]: city };
+    legacySave.units = { 'unit-9': cyber('unit-9'), 'unit-2': cyber('unit-2') };
+    legacySave.civilizations.player = {
+      ...legacySave.civilizations.player,
+      units: ['unit-9', 'unit-2'],
+      techState: { ...legacySave.civilizations.player.techState, completed: ['quantum-computing'] },
+      diplomacy: { ...legacySave.civilizations.player.diplomacy, atWarWith: ['ai-1'] },
+    };
+    legacySave.civilizations['ai-1'] = {
+      ...legacySave.civilizations['ai-1'],
+      cities: [city.id],
+      diplomacy: { ...legacySave.civilizations['ai-1'].diplomacy, atWarWith: ['player'] },
+    };
+    delete legacySave.autonomyByCiv;
+
+    const migrated = migrateSaveToCurrent(legacySave);
+
+    expect(migrated.autonomyByCiv!.player.plans).toEqual({
+      'network-plan-1': expect.objectContaining({ sourceUnitId: 'unit-2', definitionId: 'exploit', target: { kind: 'city', cityId: 'city-ai' } }),
+    });
+    expect(migrated.idCounters.nextNetworkPlanId).toBe(2);
   });
 });
