@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   getCivAvailableResources,
+  getActiveResourceSourceCount,
   isResourceTileDeniedByHostileOccupation,
   canEstablishOutpost,
   performEstablishOutpost,
@@ -380,6 +381,77 @@ describe('getCivAvailableResources', () => {
     expect(result.has('silk')).toBe(true);
     expect(result.has('horses')).toBe(true);
     expect(result.size).toBe(2);
+  });
+});
+
+describe('getActiveResourceSourceCount', () => {
+  function makeIronSourceState(): GameState {
+    const state = makeState({
+      tileResource: 'iron',
+      tileImprovement: 'mine',
+      completed: ['bronze-working'],
+    });
+    const cityBPosition = { q: 6, r: 3 };
+    const cityBIronPosition = { q: 7, r: 3 };
+    const outpostPosition = { q: 10, r: 3 };
+    state.cities['city-a'] = {
+      ...state.cities['city-1'],
+      id: 'city-a',
+      name: 'Rome',
+    } as never;
+    state.cities['city-b'] = {
+      ...state.cities['city-1'],
+      id: 'city-b',
+      name: 'Thebes',
+      position: cityBPosition,
+      ownedTiles: [cityBPosition, cityBIronPosition],
+    } as never;
+    delete state.cities['city-1'];
+    state.civilizations.player.cities = ['city-a', 'city-b'];
+    state.map.tiles['6,3'] = {
+      ...state.map.tiles['3,3'], coord: cityBPosition,
+    } as never;
+    state.map.tiles['7,3'] = {
+      ...state.map.tiles['4,3'], coord: cityBIronPosition,
+    } as never;
+    state.map.tiles['10,3'] = {
+      ...state.map.tiles['4,3'],
+      coord: outpostPosition,
+      improvement: 'resource_outpost',
+      owner: 'player',
+    } as never;
+    return state;
+  }
+
+  it('counts active physical sources by empire or host city without marketplace access', () => {
+    const state = makeIronSourceState();
+
+    expect(getActiveResourceSourceCount(state, 'player', 'iron', {
+      scope: 'host-city', cityId: 'city-a',
+    })).toBe(1);
+    expect(getActiveResourceSourceCount(state, 'player', 'iron', {
+      scope: 'host-city', cityId: 'city-b',
+    })).toBe(1);
+    expect(getActiveResourceSourceCount(state, 'player', 'iron', { scope: 'empire' })).toBe(3);
+
+    const withMarketplaceIron = makeState({ completed: ['bronze-working'] });
+    withMarketplaceIron.marketplace = {
+      purchasedResources: [{ civId: 'player', resource: 'iron', expiresOnTurn: 10 }],
+    } as never;
+    expect(getActiveResourceSourceCount(
+      withMarketplaceIron, 'player', 'iron', { scope: 'empire' },
+    )).toBe(0);
+  });
+
+  it('excludes a physically improved source under hostile occupation', () => {
+    const state = makeIronSourceState();
+    state.units = {
+      raider: {
+        id: 'raider', type: 'warrior', owner: 'barbarian', position: { q: 4, r: 3 },
+      } as never,
+    };
+
+    expect(getActiveResourceSourceCount(state, 'player', 'iron', { scope: 'empire' })).toBe(2);
   });
 });
 

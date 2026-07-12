@@ -65,6 +65,43 @@ export interface LegendaryWonderStep {
   completed: boolean;
 }
 
+export type LegendaryWonderResourceScope = 'empire' | 'host-city';
+
+export interface LegendaryWonderResourceCountQuestStep {
+  id: string;
+  type: 'resource-count';
+  resource: ResourceType;
+  target: number;
+  scope: LegendaryWonderResourceScope;
+  description?: string;
+}
+
+export interface LegendaryWonderStandardQuestStep {
+  id: string;
+  type:
+    | 'discover_wonder'
+    | 'trade_route'
+    | 'research_count'
+    | 'defeat_stronghold'
+    | 'buildings-in-multiple-cities'
+    | 'trade-routes-established'
+    | 'map-discoveries';
+  description?: string;
+  targetCount?: number;
+  track?: TechTrack;
+  scope?: 'near-city' | 'any';
+  radius?: number;
+  routeRequirement?: 'any' | 'coastal' | 'overseas' | 'long-range';
+  minimumRouteDistance?: number;
+  cityScope?: 'host-city' | 'empire';
+  minimumBuildingsPerCity?: number;
+  discoveryTypes?: Array<'natural-wonder' | 'tribal-village'>;
+}
+
+export type LegendaryWonderQuestStepDefinition =
+  | LegendaryWonderStandardQuestStep
+  | LegendaryWonderResourceCountQuestStep;
+
 export interface LegendaryWonderDefinition {
   id: string;
   name: string;
@@ -73,27 +110,7 @@ export interface LegendaryWonderDefinition {
   requiredTechs: string[];
   requiredResources: string[];
   cityRequirement: 'river' | 'coastal' | 'any';
-  questSteps: Array<{
-    id: string;
-    type:
-      | 'discover_wonder'
-      | 'trade_route'
-      | 'research_count'
-      | 'defeat_stronghold'
-      | 'buildings-in-multiple-cities'
-      | 'trade-routes-established'
-      | 'map-discoveries';
-    description?: string;
-    targetCount?: number;
-    track?: TechTrack;
-    scope?: 'near-city' | 'any';
-    radius?: number;
-    routeRequirement?: 'any' | 'coastal' | 'overseas' | 'long-range';
-    minimumRouteDistance?: number;
-    cityScope?: 'host-city' | 'empire';
-    minimumBuildingsPerCity?: number;
-    discoveryTypes?: Array<'natural-wonder' | 'tribal-village'>;
-  }>;
+  questSteps: LegendaryWonderQuestStepDefinition[];
   reward: LegendaryWonderReward;
 }
 
