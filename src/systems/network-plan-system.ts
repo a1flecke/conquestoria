@@ -58,6 +58,11 @@ export interface NetworkTurnEndResult {
   events: NetworkEffectEvent[];
 }
 
+export interface NetworkPlanCleanupResult {
+  state: GameState;
+  cancelled: Array<{ planId: string; reason: Exclude<NetworkPlanValidation, { ok: true }>['reason'] }>;
+}
+
 export function isAutonomyActivated(state: GameState, civId: string): boolean {
   const completed = state.civilizations[civId]?.techState?.completed ?? [];
   return completed.some(techId => TECH_TREE.find(tech => tech.id === techId)?.era === 13);
@@ -221,6 +226,28 @@ export function holdNetworkPlan(
     .find(candidate => candidate.sourceUnitId === sourceUnitId);
   if (!plan) return { state, validation: { ok: true }, plan: null };
   return { state: stateWithoutPlan(state, ownerCivId, plan.id), validation: { ok: true }, plan: null };
+}
+
+export function cancelInvalidNetworkPlans(state: GameState): NetworkPlanCleanupResult {
+  let nextState = state;
+  const cancelled: NetworkPlanCleanupResult['cancelled'] = [];
+  const candidates = Object.entries(state.autonomyByCiv ?? {})
+    .flatMap(([ownerCivId, autonomy]) => Object.values(autonomy.plans)
+      .map(plan => ({ ownerCivId, plan })))
+    .sort((left, right) => left.plan.id.localeCompare(right.plan.id));
+  for (const { ownerCivId, plan } of candidates) {
+    const withoutPlan = stateWithoutPlan(nextState, ownerCivId, plan.id);
+    const validation = validateNetworkPlanAssignment(withoutPlan, {
+      ownerCivId,
+      sourceUnitId: plan.sourceUnitId,
+      definitionId: plan.definitionId,
+      target: plan.target,
+    });
+    if (validation.ok) continue;
+    nextState = withoutPlan;
+    cancelled.push({ planId: plan.id, reason: validation.reason });
+  }
+  return { state: nextState, cancelled };
 }
 
 export function beginNetworkPlansForVictimTurn(
