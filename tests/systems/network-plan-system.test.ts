@@ -5,6 +5,7 @@ import {
   assignNetworkPlan,
   holdNetworkPlan,
   isAutonomyActivated,
+  cancelInvalidNetworkPlans,
   retargetNetworkPlan,
   validateNetworkPlanAssignment,
 } from '@/systems/network-plan-system';
@@ -152,5 +153,20 @@ describe('network plan lifecycle', () => {
     expect(held.plan).toBeNull();
     expect(held.state.autonomyByCiv!.player.plans).toEqual({});
     expect(held.state.idCounters.nextNetworkPlanId).toBe(2);
+  });
+
+  it('cancels an Exploit immediately when its source leaves range', () => {
+    const assigned = assignNetworkPlan(makeState(), {
+      ownerCivId: 'player',
+      sourceUnitId: 'unit-cyber',
+      definitionId: 'exploit',
+      target: { kind: 'city', cityId: 'city-ai' },
+    });
+    assigned.state.units['unit-cyber'] = { ...assigned.state.units['unit-cyber'], position: { q: 5, r: 0 } };
+
+    const cleaned = cancelInvalidNetworkPlans(assigned.state);
+
+    expect(cleaned.state.autonomyByCiv!.player.plans).toEqual({});
+    expect(cleaned.cancelled).toEqual([{ planId: 'network-plan-1', reason: 'target-out-of-range' }]);
   });
 });
