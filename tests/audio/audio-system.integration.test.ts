@@ -40,6 +40,24 @@ function makeEventBus() {
   return { bus: bus as unknown as EventBus, listeners, emit: bus.emit };
 }
 
+function makeMockDocument() {
+  const listeners = new Map<string, Set<() => void>>();
+  return {
+    addEventListener: vi.fn((event: string, listener: () => void) => {
+      const handlers = listeners.get(event) ?? new Set<() => void>();
+      handlers.add(listener);
+      listeners.set(event, handlers);
+    }),
+    removeEventListener: vi.fn((event: string, listener: () => void) => {
+      listeners.get(event)?.delete(listener);
+    }),
+    dispatch(event: string): void {
+      for (const listener of listeners.get(event) ?? []) listener();
+    },
+    listenerCount: (event: string) => listeners.get(event)?.size ?? 0,
+  };
+}
+
 describe('AudioSystem integration', () => {
   let ctx: MockAudioContext;
   let system: AudioSystem;
@@ -415,6 +433,48 @@ describe('AudioSystem integration', () => {
     expect(registered).toContain('pointerdown');
 
     vi.unstubAllGlobals();
+  });
+
+  it('keeps the solo-load gesture recovery armed after resume rejects, then disarms after a later successful gesture', async () => {
+    const doc = makeMockDocument();
+    vi.stubGlobal('document', doc);
+    ctx.resume.mockRejectedValueOnce(new Error('not activated'));
+
+    system.start(makeState({ era: 3 }), busHelper.bus);
+    await flushPromises();
+    expect(ctx.state).toBe('suspended');
+    expect(doc.listenerCount('pointerdown')).toBe(1);
+
+    doc.dispatch('pointerdown');
+    await flushPromises();
+    expect(ctx.state).toBe('running');
+    expect(doc.listenerCount('pointerdown')).toBe(0);
+  });
+
+  it('does not duplicate recovery hooks when hot-seat audio rebinds after a failed resume', async () => {
+    const doc = makeMockDocument();
+    vi.stubGlobal('document', doc);
+    ctx.resume.mockRejectedValueOnce(new Error('not activated'));
+
+    system.start(makeState({ era: 2, currentPlayer: 'rome' }), busHelper.bus);
+    await flushPromises();
+    system.start(makeState({ era: 2, currentPlayer: 'egypt' }), busHelper.bus);
+
+    expect(doc.listenerCount('pointerdown')).toBe(1);
+    expect(doc.listenerCount('visibilitychange')).toBe(1);
+  });
+
+  it('removes audio recovery hooks when disposed after a failed resume', async () => {
+    const doc = makeMockDocument();
+    vi.stubGlobal('document', doc);
+    ctx.resume.mockRejectedValueOnce(new Error('not activated'));
+
+    system.start(makeState(), busHelper.bus);
+    await flushPromises();
+    system.dispose();
+
+    expect(doc.listenerCount('pointerdown')).toBe(0);
+    expect(doc.listenerCount('visibilitychange')).toBe(0);
   });
 
   it('plays natural wonder discovery through the public audio system method', async () => {
