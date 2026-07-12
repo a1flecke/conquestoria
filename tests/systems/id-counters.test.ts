@@ -204,6 +204,7 @@ describe('emptyIdCounters', () => {
       nextRouteId: 1,
       nextPirateFactionId: 1,
       nextNotificationId: 1,
+      nextNetworkPlanId: 1,
     });
   });
 
