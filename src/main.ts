@@ -3980,6 +3980,20 @@ bus.on('barbarian:city-destroyed', ({ cityId, ownerId }) => {
   appendToCivLog(ownerId, `${cityName} was destroyed by barbarian raiders!`, 'warning');
 });
 
+// A walled, ungarrisoned city fighting back against a besieger (#522) -- covers BOTH
+// the barbarian (turn-manager.ts) and pirate (pirate-system.ts) counter-fire call
+// sites, since both emit this same shared event with their respective 'source' value.
+bus.on('city:counter-fire', ({ cityId, source, damage, attackerDied }) => {
+  const city = gameState.cities[cityId];
+  if (!city) return;
+  if (!gameState.civilizations[city.owner]?.isHuman) return;
+  const raiderLabel = source === 'barbarian' ? 'raider' : 'ship';
+  const message = attackerDied
+    ? `${city.name}'s defenses destroyed a ${source === 'barbarian' ? 'barbarian raider' : 'pirate ship'}!`
+    : `${city.name}'s walls fought back, damaging a ${raiderLabel} (−${damage} HP)!`;
+  appendToCivLog(city.owner, message, attackerDied ? 'success' : 'info');
+});
+
 // Pirate-faction naval siege (#522) mirror of the barbarian handler above.
 bus.on('pirate:city-destroyed', ({ cityId, ownerId }) => {
   if (!gameState.civilizations[ownerId]?.isHuman) return;

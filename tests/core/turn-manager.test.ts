@@ -1083,6 +1083,120 @@ describe('processTurn', () => {
     expect(remaining.some(e => e.resource === 'silk')).toBe(false); // expired → removed
     expect(remaining.some(e => e.resource === 'wine')).toBe(true);  // active → kept
   });
+
+  // Adapted from the working `processPurposefulBarbarians` fixture in
+  // tests/systems/barbarian-system.test.ts ("attacks an undefended city normally when
+  // adjacent (garrison regression)"): processTurn always routes barbarians through
+  // processPurposefulBarbarians (not the lower-level processBarbarians the plan's draft
+  // assumed), which only produces a cityAttackOrders entry once a camp's plan commits to
+  // a `target: { kind: 'city' }` -- that requires flattened map terrain (the default
+  // 'small' map's random terrain can block distance-sensing/movement) and the raider
+  // ADJACENT to, not co-located with, the city.
+  function flattenMapToPlains(state: GameState): void {
+    for (const tile of Object.values(state.map.tiles)) {
+      tile.terrain = 'plains';
+      tile.elevation = 'lowland';
+      tile.resource = null;
+      tile.improvement = 'none';
+      tile.improvementTurnsLeft = 0;
+    }
+  }
+
+  it('applies counter-fire to a barbarian raider attacking a walled, ungarrisoned city (#522)', () => {
+    const state = createNewGame(undefined, 'barbarian-counterfire', 'small');
+    flattenMapToPlains(state);
+    state.turn = 30;
+    state.era = 3;
+    state.barbarianCamps = {
+      'camp-a': { id: 'camp-a', position: { q: 5, r: 5 }, strength: 6, spawnCooldown: 4 },
+    };
+    const raider = createUnit('warrior', 'barbarian', { q: 11, r: 5 }, state.idCounters);
+    raider.id = 'raider';
+    state.units = { raider };
+    state.cities = {
+      town: {
+        // hp: 50 (not 100) -- processPurposefulBarbarians only assigns a barbarian
+        // camp's raid plan to a city when city.hp <= max(40, campStrength*10); at
+        // campStrength 6 that ceiling is 60, so a full-health city is silently never
+        // targeted (a bug in the plan's own draft fixture, found while implementing).
+        id: 'town', owner: 'player', position: { q: 12, r: 5 }, hp: 50,
+        buildings: ['walls'], population: 20, ownedTiles: [], productionQueue: [],
+      } as never,
+    };
+    state.civilizations.player.cities = ['town'];
+    state.civilizations.player.units = [];
+    state.opponentAI = undefined;
+
+    const before = raider.health;
+    const result = processTurn(state, new EventBus());
+
+    expect(result.units.raider?.health ?? 0).toBeLessThan(before);
+  });
+
+  it('emits city:counter-fire so the player gets feedback that their walls fought back (#522)', () => {
+    const state = createNewGame(undefined, 'barbarian-counterfire-event', 'small');
+    flattenMapToPlains(state);
+    state.turn = 30;
+    state.era = 3;
+    state.barbarianCamps = {
+      'camp-a': { id: 'camp-a', position: { q: 5, r: 5 }, strength: 6, spawnCooldown: 4 },
+    };
+    const raider = createUnit('warrior', 'barbarian', { q: 11, r: 5 }, state.idCounters);
+    raider.id = 'raider';
+    state.units = { raider };
+    state.cities = {
+      town: {
+        id: 'town', owner: 'player', position: { q: 12, r: 5 }, hp: 50,
+        buildings: ['walls'], population: 20, ownedTiles: [], productionQueue: [],
+      } as never,
+    };
+    state.civilizations.player.cities = ['town'];
+    state.civilizations.player.units = [];
+    state.opponentAI = undefined;
+
+    const bus = new EventBus();
+    const onCounterFire = vi.fn();
+    bus.on('city:counter-fire', onCounterFire);
+    processTurn(state, bus);
+
+    expect(onCounterFire).toHaveBeenCalledWith(expect.objectContaining({ cityId: 'town', source: 'barbarian' }));
+  });
+
+  it('does not counter-fire when the barbarian city order is blocked by a garrison', () => {
+    const state = createNewGame(undefined, 'barbarian-counterfire-blocked', 'small');
+    flattenMapToPlains(state);
+    state.turn = 30;
+    state.era = 3;
+    state.barbarianCamps = {
+      'camp-a': { id: 'camp-a', position: { q: 5, r: 5 }, strength: 6, spawnCooldown: 4 },
+    };
+    const raider = createUnit('warrior', 'barbarian', { q: 11, r: 5 }, state.idCounters);
+    raider.id = 'raider';
+    const garrison = createUnit('warrior', 'player', { q: 12, r: 5 }, state.idCounters);
+    garrison.id = 'garrison';
+    state.units = { raider, garrison };
+    state.cities = {
+      town: {
+        id: 'town', owner: 'player', position: { q: 12, r: 5 }, hp: 50,
+        buildings: ['walls'], population: 20, ownedTiles: [], productionQueue: [],
+      } as never,
+    };
+    state.civilizations.player.cities = ['town'];
+    state.civilizations.player.units = ['garrison'];
+    state.opponentAI = undefined;
+
+    // Health alone can't isolate city counter-fire here: a garrisoned city routes the
+    // barbarian into normal unit-vs-unit combat against the garrison (attackOrders, not
+    // cityAttackOrders), and the garrison's own counter-damage legitimately changes the
+    // raider's health too. Assert the counter-fire EVENT specifically instead -- the
+    // thing this test is actually about (getCityCounterFireDamage's hasGarrison gate).
+    const bus = new EventBus();
+    const onCounterFire = vi.fn();
+    bus.on('city:counter-fire', onCounterFire);
+    processTurn(state, bus);
+
+    expect(onCounterFire).not.toHaveBeenCalled();
+  });
 });
 
 describe('opponent round finalization', () => {
