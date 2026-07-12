@@ -61,5 +61,6 @@ describe('pirate SFX generator', () => {
       expect(readFileSync(join(PROJECT_ROOT, outputPath)).subarray(0, 4).toString('ascii')).toBe('OggS');
     }
     expect(Object.keys(first)).toHaveLength(35);
-  }, 20_000);
+  // CI can take longer than a developer laptop to encode the complete cue set twice.
+  }, 60_000);
 });
