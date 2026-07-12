@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   applyAIProduction,
+  economyValue,
   generateAIProductionCandidates,
 } from '@/ai/ai-production';
 import type {
@@ -430,5 +431,26 @@ describe('AI strategic production', () => {
       .map(candidate => ({ ...candidate, score: 10 }))
       .sort((left, right) => right.score - left.score || left.itemId.localeCompare(right.itemId));
     expect(equal.map(candidate => candidate.itemId)).toEqual(['settler', 'warrior']);
+  });
+});
+
+describe('happiness building AI scoring (#552)', () => {
+  it('economyValue scores a temple higher than an otherwise-identical zero-happiness building', () => {
+    // temple: yields { science: 1 }, happiness: 1 → economyValue = 1*1.25 + 1*1.5 = 2.75
+    // shrine: yields { science: 1 }, no happiness → economyValue = 1*1.25 = 1.25
+    // Testing economyValue directly (rather than full candidate .score) isolates
+    // the happiness term: candidate-level score also factors in productionCost
+    // (via productionTurns), and temple/shrine costs differ substantially (45 vs
+    // 8), which would dominate the comparison and mask the happiness delta.
+    expect(economyValue('temple')).toBeGreaterThan(economyValue('shrine'));
+    expect(economyValue('temple') - economyValue('shrine')).toBe(1.5);
+  });
+
+  it('a temple appears as a production candidate once philosophy is researched', () => {
+    const state = setupState(['philosophy']);
+    const candidates = generateAIProductionCandidates(state, 'ai-1', 'city-a', [], aggressive);
+    const temple = candidates.find(c => c.itemId === 'temple');
+    expect(temple).toBeDefined();
+    expect(temple!.economyScore).toBe(economyValue('temple'));
   });
 });

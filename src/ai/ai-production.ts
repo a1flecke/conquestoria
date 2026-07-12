@@ -178,16 +178,24 @@ function projectedBuildingMaintenanceImpact(
   );
 }
 
-function economyValue(buildingId: string): number {
+export function economyValue(buildingId: string): number {
   const building = BUILDINGS[buildingId];
   const yields = building?.nationalProject
     ? building.civYieldBonus ?? building.yields
     : building?.yields;
-  if (!yields) return 0;
-  return (yields.food ?? 0)
-    + (yields.production ?? 0) * 1.25
-    + (yields.gold ?? 0) * 1.5
-    + (yields.science ?? 0) * 1.25;
+  const yieldScore = yields
+    ? (yields.food ?? 0)
+      + (yields.production ?? 0) * 1.25
+      + (yields.gold ?? 0) * 1.5
+      + (yields.science ?? 0) * 1.25
+    : 0;
+  // Happiness (#552): weighted flat, same scalar as +1 gold — there is no
+  // per-city "need" signal already threaded through this scoring function to
+  // condition on (e.g. current unrest pressure), so a flat weight is the
+  // simplest change that makes the AI value the same buildings players do,
+  // without inventing a new signal path. Revisit if a future MR adds one.
+  const happinessScore = (building?.happiness ?? 0) * 1.5;
+  return yieldScore + happinessScore;
 }
 
 function reserveAllows(
