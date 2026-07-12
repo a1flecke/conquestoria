@@ -102,17 +102,26 @@ unit-combat side effects a city doesn't have. Instead, two new functions in
 - `resolveCityAssault(attacker: Unit, intrinsicStrength: number, seed: number): { attackerWins: boolean }`
   — the win/lose determination only, reusing the same strength-ratio/seeded-RNG math
   `resolveCombat` already uses for odds. **Deliberately does not compute damage** — see
-  below, damage is unified with barbarian/pirate counter-fire via §3's single formula
-  rather than a second, combat-ratio-derived number. No veterancy, no rewards, no unit
-  death bookkeeping — a city isn't a kill.
+  §3, damage is unified with barbarian/pirate counter-fire via one shared,
+  strength-ratio-aware formula. No veterancy, no rewards, no unit death bookkeeping — a
+  city isn't a kill.
 
-**Integration** (`city-capture-system.ts`, `beginMajorCityAssault`): when the city is
-undefended, call `resolveCityAssault` before proceeding. **Regardless of outcome**, the
-attacker takes `getCityCounterFireDamage(city, ownerCiv, 'land')` damage (§3) if the
-city has walls — storming a walled city costs the attacker something even on a
-successful capture, not just on failure. This is what makes "one shared helper, three
-call sites" literally true: the damage number is identical in formula to the
-barbarian/pirate case, only the win/lose gate on top of it differs.
+**Integration** (`city-capture-system.ts`, `beginMajorCityAssault`): applies **only**
+when the assault has no preceding combat — i.e., the city was already undefended before
+this action, not the "defeated the garrison in a real fight, now advancing into the
+vacated tile" path. That second path already resolved a complete, walls-boosted combat
+exchange against the garrison unit (via the existing `calculateCombatStrengths` +
+`getCityDefenseBreakdown` machinery) in the same turn; running a *second*,
+independent intrinsic-strength check immediately afterward would double-punish the
+attacker for the same city in the same action. Concretely: only the branch that today
+has no `precedingCombat` and no occupying unit gets this new resolution step; the
+`precedingCombat`-driven advance is untouched, byte-for-byte.
+
+For that undefended-from-the-start case, call `resolveCityAssault` before proceeding.
+**Regardless of outcome**, the attacker takes counter-fire damage (§3) if the city has
+walls — storming a walled city costs the attacker something even on a successful
+capture, not just on failure, mirroring how a winning unit in normal combat still takes
+proportional counter-damage from a defender capable of striking back.
 - **Attacker wins** → proceeds exactly as today (unchanged raze/occupy-disposition
   flow), after applying counter-fire damage to the attacker.
 - **Attacker loses** → new failure reason `'repelled-by-city-defense'`. The attacker
@@ -123,28 +132,52 @@ barbarian/pirate case, only the win/lose gate on top of it differs.
 
 ## 3. Ranged counter-fire
 
-New `getCityCounterFireDamage(city: City, ownerCiv: Civilization, attackerDomain: 'land' | 'naval' | 'air'): number`
+New `getCityCounterFireDamage(city: City, ownerCiv: Civilization, attackerDomain: 'land' | 'naval' | 'air', attackerStrength: number, seed: number): number`
 in `city-siege-system.ts`. Returns `0` if the city has no `walls` building (the issue's
 literal "once walls exist" gate — stricter than intrinsic strength's always-on
-population baseline). Otherwise returns a modest fraction of intrinsic strength —
-proposed `Math.round(getCityIntrinsicStrength(...) * 0.2)` — a deterrent, not a primary
-damage source. Applies **only when the city has no garrison**; a garrisoned city's
-existing combat retaliation is untouched (decision 3 above).
+population baseline) or if the city has a garrison (decision 3).
+
+**Damage must scale with the strength ratio, not be a flat fraction of intrinsic
+strength** — this was the design's original flaw, caught in review: `resolveCombat`'s
+own counter-damage to an attacker is `baseDamage * (1 - adjustedRatio)`, so a much
+stronger attacker already takes proportionally *less* retaliation there. A flat
+"20% of intrinsic strength" counter-fire would ignore that convention entirely, making
+an overwhelming attacker sting exactly as much as a marginal one — inconsistent with
+how every other counter-attack in this game already feels. Fixed formula: compute
+`adjustedRatio` from `attackerStrength` vs. `intrinsicStrength` using the same
+seeded-RNG ±20% randomness `resolveCombat` uses, then
+`counterFireDamage = Math.round(baseDamage * (1 - adjustedRatio))`, reusing
+`resolveCombat`'s existing `baseDamage` era-scaling curve so the numbers stay in the
+same range as real unit combat.
 
 **Three call sites, one shared helper:**
 - **Player capture** (`city-capture-system.ts`): applied unconditionally (win or lose)
   to the attacker alongside the separate `resolveCityAssault` win/lose check — see §2.
+  `attackerStrength` here is the same value `calculateCityAssaultStrengths` already
+  computed for the preview, so the preview's shown odds and the actual damage taken are
+  never inconsistent with each other.
 - **Barbarian siege** (`turn-manager.ts`, the barbarian city-attack loop): after
   `resolveCitySiegeDamage` for an order where `!hasGarrison`, call
-  `getCityCounterFireDamage` and apply it to `order.attackerUnitId`'s unit, reusing
-  whatever death-cleanup pattern `applyCombatOutcomeToState` already uses for a unit
-  reaching 0 HP — not reinventing unit-removal logic.
+  `getCityCounterFireDamage` (with the attacking barbarian unit's
+  `UNIT_DEFINITIONS[...].strength`) and apply it to `order.attackerUnitId`'s unit. If
+  this reduces the unit's health to 0, simply remove it from `state.units` and the
+  owner's unit roster — **verified safe with no further cleanup**:
+  `barbarianHomeCampByUnitId` (`barbarian-system.ts:288-292`) already self-prunes any
+  entry whose unit no longer exists on every processing pass, so a counter-fire kill
+  needs no special-cased bookkeeping beyond the standard unit removal.
 - **Pirate siege** (`pirate-system.ts`, the siege-application loop): same pattern,
   applied to one ship from the besieging faction (nearest-to-city among
   `faction.shipIds`, tie-broken by id for determinism) after `resolveCitySiegeDamage`.
-  A well-defended city can now sink a besieging ship over multiple rounds — a new,
-  symmetrical consequence; today barbarian/pirate sieges deal one-way damage with zero
-  risk to the attacker.
+  **Also verified safe**: `pirate-system.ts:114`'s `shipIds: faction.shipIds.filter(unitId => Boolean(state.units[unitId]))`
+  already prunes dead ship references every round — a counter-fire kill is just a
+  normal unit removal. A well-defended city can now sink a besieging ship over multiple
+  rounds — a new, symmetrical consequence; today barbarian/pirate sieges deal one-way
+  damage with zero risk to the attacker.
+
+**SFX:** no new cue. The existing player-capture call site already plays `SFX.combat()`
+(`main.ts:804`) for a city-related attack, matching how normal unit combat uses one
+generic sound for both win and loss outcomes — extending the same call to cover the new
+preview-confirmed assault (§4) is consistent with that convention, not a gap.
 
 ## 4. UI
 
@@ -163,6 +196,16 @@ notification conventions) and the attacking unit's updated HP is reflected immed
 in its selected-unit panel. On win: the existing raze/occupy disposition panel opens,
 unchanged.
 
+**Defender-side visibility (gap found in review).** The preview panel above only helps
+the *attacker*. Today there is no UI surface at all showing a city's own defense rating
+to its owner — a defensive/builder-playstyle player who never initiates an attack has
+no way to check "is my capital actually protected?" before deciding whether to build
+Walls or station a garrison. `city-panel.ts` already has a status-label area (lines
+653–654, the "🩹 Recovering" / "⚔️ Under siege" HP text added in #549) that is the
+natural home for this. Add an intrinsic-strength readout there (e.g., "🛡️ Defense: 47"
+or a qualitative band) for every owned city, not just ones under active attack — a
+static informational line, not conditional on siege state.
+
 ## 5. Scope guard
 
 - **Major-civ cities only.** Minor-civ (city-state) conquest (`conquestMinorCiv`) is a
@@ -175,7 +218,27 @@ unchanged.
   purely from population/buildings/techs, which already vary by how well a given
   civ (human or AI, on any difficulty) has developed — consistent with how
   `citySiegeDestructionEra` is the only existing difficulty lever for city survival,
-  left untouched here.
+  left untouched here. Verified this is consistent with the rest of `OpponentChallenge`:
+  it never scales raw combat math anywhere today (only AI behavior parameters and
+  `citySiegeDestructionEra`), so a new knob here would be the inconsistent choice, not
+  the missing one.
+- **AI capture scoring must change (real gap found in review, not just a "works as-is"
+  extension).** `ai-tactics.ts`'s `rankCapture` currently scores *any* reachable
+  undefended-city capture with a flat priority of `600` — zero win-probability
+  awareness, because today capture is unconditionally guaranteed. Left as-is, the AI
+  would blindly send units to die against a strongly walled, high-population city with
+  no way to distinguish that from a free capture — a real behavioral regression, not a
+  neutral no-op. `rankCapture` must weight its score by the same win-probability
+  `calculateCityAssaultStrengths` computes for the player preview, so the AI
+  deprioritizes (not necessarily refuses) a bad assault the way a reasonable player
+  would after seeing low odds in the preview panel.
+- **Barbarian/pirate target selection is intentionally left as-is.** Their attack-order
+  generation (`barbarian-system.ts`, `pirate-behavior.ts`) does not evaluate
+  counter-fire risk before choosing a target. This is an accepted, lower-severity
+  choice: barbarians and pirates are aggression-first "dumb" AI by design, and taking
+  some losses to a walled city's counter-fire is consistent with the risk profile they
+  already have attacking a garrison. Not required for this MR; a future refinement
+  could teach them to prefer weaker targets, same as any other AI-improvement pass.
 
 ## 6. Testing (TDD)
 
@@ -194,14 +257,23 @@ unchanged.
   assault (win → existing disposition flow fires unchanged, attacker still takes
   counter-fire damage; lose → `'repelled-by-city-defense'`, city still owned by
   defender, attacker takes the same counter-fire damage and is action-consumed, no
-  disposition panel). A regression asserting the counter-fire damage amount is
-  identical whether the attacker wins or loses (proves the "unconditional" claim in §2
-  isn't just documentation). Garrisoned-city path is a byte-for-byte regression (this
-  spec must not change its behavior at all).
+  disposition panel). A regression asserting the counter-fire damage amount, for a
+  *fixed* attacker/city strength pair, is identical whether the attacker wins or loses
+  (proves "unconditional" isn't just documentation). **A dedicated regression for the
+  double-punishment fix**: construct a `precedingCombat`-driven advance into a
+  now-vacated city and assert `resolveCityAssault`/counter-fire is never invoked for
+  that path — only the garrison combat's own damage applies, nothing additional. Garrisoned-city
+  path (the `'city-defended'` failure branch) is a byte-for-byte regression otherwise
+  (this spec must not change its behavior at all).
 - **`getCityCounterFireDamage`:** zero without walls; zero with a garrison present;
-  nonzero and walls/tech-scaled otherwise; a lethal counter-fire regression per attacker
-  path (barbarian raider dies from counter-fire and is removed from `state.units` +
-  owner roster; pirate ship dies and is removed from `faction.shipIds` + `state.units`).
+  nonzero and walls/tech-scaled otherwise; **scales inversely with attacker strength**
+  — a much-stronger attacker takes measurably less counter-fire than a marginal one
+  against the identical city (the review fix — this is the regression that would catch
+  a regression back to the flat-fraction formula); a lethal counter-fire regression per
+  attacker path (barbarian raider dies from counter-fire and is removed from
+  `state.units` + owner roster, verified `barbarianHomeCampByUnitId` has no stale entry
+  after the next processing pass; pirate ship dies and is removed from
+  `faction.shipIds` + `state.units`, verified via the existing self-pruning filter).
 - **Balance sampling:** across eras 1–12, an unwalled, low-population ungarrisoned city
   (an early outpost, the most common early-game capture target) must reliably favor an
   era-appropriate attacker — strongly, not a coin-flip — since today that capture is
@@ -216,10 +288,19 @@ unchanged.
 - **Hot-seat / actor parity:** one regression proving the human-player capture path and
   one proving the AI-major-civ capture path (`ai-major-turn.ts`) both route through the
   same `resolveCityAssault`, with identical win/loss semantics.
+- **AI capture scoring (`ai-tactics.ts` `rankCapture`):** a regression proving a
+  low-odds assault (heavily walled, high-population, teched city) scores lower than a
+  high-odds one for the same unit — the flat-`600` regression this fix replaces. Assert
+  the AI still *attempts* a low-odds capture when it's the only available action (never
+  refuses outright, only deprioritizes) so a cornered AI doesn't do nothing.
 - **UI click-through:** the new preview panel renders odds text and Attack/Cancel
   buttons for an `'assault-city'` tap intent; clicking Attack (not just tapping the
   city) is what triggers `beginPlayerCityAssault`; Cancel deselects without consuming
   the unit's action.
+- **Defender-side city-panel display:** the new defense-rating line renders for every
+  owned city (not just ones under siege), and updates when a relevant building/tech
+  changes (walls built, Star Fort completed) — a stale reading would defeat the purpose
+  of adding it.
 
 ## Out of scope
 
