@@ -1,10 +1,13 @@
-import type { City, Civilization, GameState, HexCoord, Unit } from '@/core/types';
+import type { City, Civilization, GameMap, GameState, HexCoord, Unit } from '@/core/types';
 import type { OpponentChallenge } from '@/core/types';
 import { OPPONENT_CHALLENGE_PROFILES } from '@/core/opponent-challenge';
 import { getCityDefenseBreakdown } from '@/systems/combat-system';
+import { getVeterancyCombatModifier } from '@/systems/combat-reward-system';
 import { hexDistance, hexKey, wrappedHexDistance } from '@/systems/hex-utils';
 import { isAlwaysHostilePair } from '@/core/owner-kind';
 import { isAtWar } from '@/systems/diplomacy-system';
+import { getRiverDefensePenalty, isRiverBetween } from '@/systems/river-system';
+import { UNIT_DEFINITIONS } from '@/systems/unit-system';
 
 export const CITY_BASE_STRENGTH = 5;
 export const CITY_STRENGTH_PER_POPULATION = 3;
@@ -27,6 +30,66 @@ export function getCityIntrinsicStrength(
     attackerDomain,
   });
   return base * breakdown.multiplier + breakdown.flatBonus;
+}
+
+export interface CityAssaultStrengthBreakdown {
+  attackerStrength: number;
+  intrinsicStrength: number;
+  winProbability: number;
+}
+
+// Mirrors calculateCombatStrengths' attacker-side formula exactly (combat-system.ts) --
+// health-scaled, veterancy-modified, river-penalized -- so the odds shown to the player
+// (and used by resolveCityAssault below) are computed the same way real combat odds are.
+export function calculateCityAssaultStrengths(
+  attacker: Unit,
+  city: City,
+  ownerCiv: Civilization,
+  map: GameMap,
+): CityAssaultStrengthBreakdown {
+  const attackerDefinition = UNIT_DEFINITIONS[attacker.type];
+  const riverAttackPenalty = getRiverDefensePenalty(
+    isRiverBetween(map, attacker.position, city.position),
+  );
+  const attackerStrength = attackerDefinition.strength
+    * (attacker.health / 100)
+    * (1 + getVeterancyCombatModifier(attacker))
+    * (1 + riverAttackPenalty);
+  const intrinsicStrength = getCityIntrinsicStrength(city, ownerCiv, 'land');
+  const winProbability = attackerStrength / (attackerStrength + intrinsicStrength);
+  return { attackerStrength, intrinsicStrength, winProbability };
+}
+
+function createSeededRng(seed: number): () => number {
+  // Same LCG resolveCombat uses (combat-system.ts), but as a proper CHAINED stream --
+  // each call advances rngState and returns the new value, exactly like resolveCombat's
+  // own rng() closure. A single-shot `seededRatio(seed)` / `seededRatio(seed + 1)` pair
+  // (an earlier draft of this function) is NOT equivalent: evaluating the LCG once at
+  // seed and once at seed+1 differs by the constant `48271` (mod 2147483647) every
+  // time, so the two "independent" draws are actually correlated by a fixed offset.
+  // Chaining through one closure avoids that entirely.
+  let rngState = seed;
+  return () => {
+    rngState = (rngState * 48271) % 2147483647;
+    return rngState / 2147483647;
+  };
+}
+
+// Win/lose only -- deliberately does not compute damage. Damage is
+// getCityCounterFireDamage's responsibility (unconditional on win/lose, applied by the
+// caller) so the same formula serves the player, barbarian, and pirate paths uniformly.
+export function resolveCityAssault(
+  attackerStrength: number,
+  intrinsicStrength: number,
+  seed: number,
+): { attackerWins: boolean } {
+  const totalStrength = attackerStrength + intrinsicStrength;
+  if (totalStrength === 0) return { attackerWins: true };
+  const atkRatio = attackerStrength / totalStrength;
+  const rng = createSeededRng(seed);
+  const randomFactor = 0.8 + rng() * 0.4;
+  const adjustedRatio = Math.min(0.95, Math.max(0.05, atkRatio * randomFactor));
+  return { attackerWins: rng() < adjustedRatio };
 }
 
 export interface CitySiegeInput {
