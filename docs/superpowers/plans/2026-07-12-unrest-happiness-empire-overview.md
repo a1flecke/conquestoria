@@ -1433,7 +1433,7 @@ Create `src/ui/city-overview-panel.ts`:
 
 ```ts
 import type { GameState, City } from '@/core/types';
-import { getCityAppeaseCost, getConcessionCost, computeUnrestPressure } from '@/systems/faction-system';
+import { getCityAppeaseCost, getConcessionCost, computeUnrestPressure, CONCESSION_IMMUNITY_TURNS } from '@/systems/faction-system';
 import { getCivHappinessFromResources } from '@/systems/resource-acquisition-system';
 import { calculateProjectedCityYields } from '@/systems/city-system';
 import { createGameButton } from '@/ui/ui-kit';
@@ -1554,22 +1554,52 @@ export function createCityOverviewPanel(
 
     if (city.unrestLevel > 0) {
       const actions = document.createElement('div');
-      actions.style.cssText = 'display:flex;gap:8px;margin-top:8px;';
+      actions.style.cssText = 'display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;';
+
+      // Mirror city-panel.ts's exact affordability/eligibility checks (lines
+      // ~246-263) so a row button is never clickable when the single city
+      // panel would have disabled the same action — a player must never see
+      // a live-looking button that silently no-ops via a toast (#552 UX gate).
+      const civGold = state.civilizations[city.owner]?.gold ?? 0;
+      const isConcessionImmune = (city.concessionImmunityUntilTurn ?? 0) > state.turn;
 
       const appeaseCost = getCityAppeaseCost(city);
-      const appeaseBtn = createGameButton(`Appease (${appeaseCost}g)`, 'secondary');
-      appeaseBtn.addEventListener('click', (event) => {
-        event.stopPropagation();
-        callbacks.onAppeaseFaction(city.id);
-      });
+      const appeasedThisTurn = city.appeasedOnTurn === state.turn;
+      const canAffordAppease = civGold >= appeaseCost;
+      const appeaseDisabled = !canAffordAppease || appeasedThisTurn || isConcessionImmune;
+      const appeaseLabel = appeasedThisTurn
+        ? 'Already appeased this turn'
+        : !canAffordAppease
+          ? `Not enough gold (needs ${appeaseCost})`
+          : `Appease (${appeaseCost}g)`;
+      const appeaseBtn = createGameButton(appeaseLabel, 'secondary', { disabled: appeaseDisabled });
+      appeaseBtn.title = `Appease: pay ${appeaseCost} gold to calm this city right now. Cheap and repeatable, but new pressure can build again next turn.`;
+      if (!appeaseDisabled) {
+        appeaseBtn.addEventListener('click', (event) => {
+          event.stopPropagation();
+          callbacks.onAppeaseFaction(city.id);
+        });
+      } else {
+        appeaseBtn.addEventListener('click', (event) => event.stopPropagation());
+      }
       actions.appendChild(appeaseBtn);
 
       const concessionCost = getConcessionCost(state, city);
-      const concedeBtn = createGameButton(`Concede (${concessionCost}g)`, 'secondary');
-      concedeBtn.addEventListener('click', (event) => {
-        event.stopPropagation();
-        callbacks.onConcedeToMovement(city.id);
-      });
+      const canAffordConcession = civGold >= concessionCost;
+      const concedeDisabled = !canAffordConcession || isConcessionImmune;
+      const concedeLabel = !canAffordConcession
+        ? `Not enough gold (needs ${concessionCost})`
+        : `Concede (${concessionCost}g)`;
+      const concedeBtn = createGameButton(concedeLabel, 'secondary', { disabled: concedeDisabled });
+      concedeBtn.title = `Concede: pay ${concessionCost} gold for a charter — clears unrest immediately and grants immunity to new unrest for ${CONCESSION_IMMUNITY_TURNS} turns. Costs more than Appease, but lasts.`;
+      if (!concedeDisabled) {
+        concedeBtn.addEventListener('click', (event) => {
+          event.stopPropagation();
+          callbacks.onConcedeToMovement(city.id);
+        });
+      } else {
+        concedeBtn.addEventListener('click', (event) => event.stopPropagation());
+      }
       actions.appendChild(concedeBtn);
 
       row.appendChild(actions);
@@ -1721,16 +1751,34 @@ describe('city overview panel (#552)', () => {
     expect(rows[0].getAttribute('data-city-row')).toBe('city-2');
   });
 
-  it('clicking Appease on a row calls onAppeaseFaction with the row\'s city id, not onOpenCity', () => {
-    const state = makeFixtureState({ cities: [{ id: 'city-1', owner: 'player', name: 'Alpha', unrestLevel: 1 }] });
+  it('clicking Appease on an affordable row calls onAppeaseFaction with the row\'s city id, not onOpenCity', () => {
+    const state = makeFixtureState({
+      cities: [{ id: 'city-1', owner: 'player', name: 'Alpha', unrestLevel: 1, population: 4 }],
+      civGold: 1000, // affordable: getCityAppeaseCost = population(4) * 15 = 60
+    });
     const container = document.createElement('div');
     const onOpenCity = vi.fn();
     const onAppeaseFaction = vi.fn();
     createCityOverviewPanel(container, state, { onOpenCity, onAppeaseFaction, onConcedeToMovement: vi.fn(), onClose: vi.fn() });
-    const appeaseBtn = container.querySelector('button') as HTMLButtonElement; // adjust selector to the actual rendered button if multiple buttons exist — prefer a text-content match, e.g. Array.from(container.querySelectorAll('button')).find(b => b.textContent?.startsWith('Appease'))
+    const appeaseBtn = Array.from(container.querySelectorAll('button')).find(b => b.textContent?.startsWith('Appease')) as HTMLButtonElement;
+    expect(appeaseBtn.disabled).toBe(false);
     appeaseBtn.click();
     expect(onAppeaseFaction).toHaveBeenCalledWith('city-1');
     expect(onOpenCity).not.toHaveBeenCalled();
+  });
+
+  it('disables the Appease row button (and does not call the callback on click) when unaffordable', () => {
+    const state = makeFixtureState({
+      cities: [{ id: 'city-1', owner: 'player', name: 'Alpha', unrestLevel: 1, population: 4 }],
+      civGold: 5, // cost is 60, well short
+    });
+    const container = document.createElement('div');
+    const onAppeaseFaction = vi.fn();
+    createCityOverviewPanel(container, state, { onOpenCity: vi.fn(), onAppeaseFaction, onConcedeToMovement: vi.fn(), onClose: vi.fn() });
+    const appeaseBtn = Array.from(container.querySelectorAll('button')).find(b => b.textContent?.includes('Not enough gold')) as HTMLButtonElement;
+    expect(appeaseBtn.disabled).toBe(true);
+    appeaseBtn.click();
+    expect(onAppeaseFaction).not.toHaveBeenCalled();
   });
 
   it('clicking the row body (not an action button) calls onOpenCity', () => {
@@ -1870,9 +1918,16 @@ git commit -m "feat(ui): empire city overview panel with unrest-first sort (#552
   source consumed by both `city-panel.ts` and `icon-legend.ts`.
   `handleAppeaseFaction`/`handleConcedeToMovement` (Task 8) are the single
   gameplay-mutation entry points consumed by both the single city panel and
-  the new overview panel — Task 9's parity test (Step 3, the
-  "Appease...not onOpenCity" and hot-seat-isolation tests) is designed to
-  catch any future divergence between the two panels' wiring.
+  the new overview panel — parity is achieved by construction (one function,
+  two callers), not by a runtime cross-panel comparison test. `main.ts` has
+  no direct unit tests in this repo's existing convention (Task 8 Step 2
+  confirms this), so the honest verification boundary is: Task 8's
+  build+test-green extraction (proves no behavior change vs. the pre-existing
+  inline callbacks) plus Task 9's own tests (prove the overview panel calls
+  the callback it's given, with correct disabled/affordability state mirroring
+  city-panel.ts's checks). A reviewer wiring `onAppeaseFaction` to something
+  other than `handleAppeaseFaction` in Task 9 Step 2 would not be caught by
+  an automated test — flag this explicitly in code review of that step.
 - **Extensibility:** A future happiness building just needs `happiness: N`
   and a matching description phrase — it's picked up by pressure math, the
   breakdown row, the AI scorer, and the honesty test automatically (Task 2's
@@ -1897,10 +1952,13 @@ git commit -m "feat(ui): empire city overview panel with unrest-first sort (#552
 - **Testing:** Every task pairs a positive test with the mechanic it claims
   (pressure deltas, breakdown-sum invariant including the new contagion row,
   catalog-wide description⇔field consistency, resource-label unit tests,
-  render tests for both panels, an AI-scoring comparison test, and — the one
-  most specific to this plan's architecture — a same-result-either-panel
-  parity check for Appease/Concede so the shared-handler extraction in Task 8
-  is provably load-bearing, not just refactoring for its own sake).
+  render tests for both panels including disabled/affordability states, and
+  an AI-scoring comparison test). The one gap acknowledged rather than papered
+  over: Task 8's handler extraction is verified by green build+test (no
+  behavior change) and Task 9's tests verify the overview panel's own
+  wiring, but there is no automated test asserting the two panels call the
+  *literal same function* — that's a one-line code-review check, not a
+  runtime-testable property in this codebase's current `main.ts` conventions.
 - **Solo regressions:** Full `faction-system`, `city-panel`, `icon-legend`,
   `resource-definitions`, and `ai-production` suites re-run after every task;
   Task 1's constant-derived test fix prevents a repeat of hardcoded-turn-count
