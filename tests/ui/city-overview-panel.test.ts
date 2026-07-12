@@ -76,6 +76,7 @@ describe('city overview panel (#552)', () => {
     const callbacks = { onOpenCity: vi.fn(), onAppeaseFaction: vi.fn(), onConcedeToMovement: vi.fn(), onClose: vi.fn() };
     createCityOverviewPanel(container, state, callbacks);
     expect(container.textContent).toContain('No cities founded yet!');
+    expect(container.textContent).not.toContain('Sort:');
   });
 
   it('lists every owned city and none owned by another civ', () => {
@@ -134,6 +135,57 @@ describe('city overview panel (#552)', () => {
     expect(appeaseBtn.disabled).toBe(true);
     appeaseBtn.click();
     expect(onAppeaseFaction).not.toHaveBeenCalled();
+  });
+
+  it('clicking Concede on an affordable row calls onConcedeToMovement with the row\'s city id, not onOpenCity', () => {
+    const state = makeFixtureState({
+      cities: [{ id: 'city-1', owner: 'player', name: 'Alpha', unrestLevel: 1, population: 4 }],
+      civGold: 1000, // affordable: getConcessionCost = population(4) * 15 * 2 = 120 (no era civics tech in this fixture)
+    });
+    const container = document.createElement('div');
+    const onOpenCity = vi.fn();
+    const onConcedeToMovement = vi.fn();
+    createCityOverviewPanel(container, state, { onOpenCity, onAppeaseFaction: vi.fn(), onConcedeToMovement, onClose: vi.fn() });
+    const concedeBtn = Array.from(container.querySelectorAll('button')).find(b => b.textContent?.startsWith('Concede')) as HTMLButtonElement;
+    expect(concedeBtn.disabled).toBe(false);
+    concedeBtn.click();
+    expect(onConcedeToMovement).toHaveBeenCalledWith('city-1');
+    expect(onOpenCity).not.toHaveBeenCalled();
+  });
+
+  it('disables the Concede row button (and does not call the callback on click) when unaffordable', () => {
+    const state = makeFixtureState({
+      cities: [{ id: 'city-1', owner: 'player', name: 'Alpha', unrestLevel: 1, population: 4 }],
+      civGold: 5, // cost is 120, well short
+    });
+    const container = document.createElement('div');
+    const onConcedeToMovement = vi.fn();
+    createCityOverviewPanel(container, state, { onOpenCity: vi.fn(), onAppeaseFaction: vi.fn(), onConcedeToMovement, onClose: vi.fn() });
+    const concedeBtn = Array.from(container.querySelectorAll('button')).find(b => b.textContent?.includes('Not enough gold') && b.title.includes('Concede')) as HTMLButtonElement;
+    expect(concedeBtn.disabled).toBe(true);
+    concedeBtn.click();
+    expect(onConcedeToMovement).not.toHaveBeenCalled();
+  });
+
+  it('disables both action buttons and shows no unrest actions once concession-immune', () => {
+    const state = makeFixtureState({
+      cities: [{
+        id: 'city-1', owner: 'player', name: 'Alpha', unrestLevel: 1, population: 4,
+        concessionImmunityUntilTurn: 9999,
+      }],
+      civGold: 1000,
+    });
+    const container = document.createElement('div');
+    const onAppeaseFaction = vi.fn();
+    const onConcedeToMovement = vi.fn();
+    createCityOverviewPanel(container, state, { onOpenCity: vi.fn(), onAppeaseFaction, onConcedeToMovement, onClose: vi.fn() });
+    const buttons = Array.from(container.querySelectorAll('button')).filter(b => b.textContent?.startsWith('Appease') || b.textContent?.startsWith('Concede'));
+    for (const btn of buttons) {
+      expect(btn.disabled).toBe(true);
+      btn.click();
+    }
+    expect(onAppeaseFaction).not.toHaveBeenCalled();
+    expect(onConcedeToMovement).not.toHaveBeenCalled();
   });
 
   it('clicking the row body (not an action button) calls onOpenCity', () => {
