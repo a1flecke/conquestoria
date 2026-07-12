@@ -1,4 +1,11 @@
-import type { GameState, HexCoord, ResourceType, ResourceYield, PurchasedResourceEntry } from '@/core/types';
+import type {
+  GameState,
+  HexCoord,
+  LegendaryWonderResourceScope,
+  PurchasedResourceEntry,
+  ResourceType,
+  ResourceYield,
+} from '@/core/types';
 import { isAlwaysHostilePair } from '@/core/owner-kind';
 import { hexKey } from './hex-utils';
 import { RESOURCE_DEFINITIONS } from './resource-definitions';
@@ -121,6 +128,62 @@ export function getCivAvailableResources(
   }
 
   return result;
+}
+
+/**
+ * Counts completed, physically worked resource sources. Unlike civilization
+ * resource access, city-center deposits and marketplace purchases do not count.
+ */
+export function getActiveResourceSourceCount(
+  state: GameState,
+  civId: string,
+  resource: ResourceType,
+  scope: { scope: LegendaryWonderResourceScope; cityId?: string },
+): number {
+  const civ = state.civilizations[civId];
+  if (!civ) return 0;
+
+  const definition = RESOURCE_DEFINITIONS.find(candidate => candidate.id === resource);
+  if (!definition || !civ.techState.completed.includes(definition.tech)) return 0;
+
+  const cityIds = scope.scope === 'host-city'
+    ? scope.cityId ? [scope.cityId] : []
+    : civ.cities;
+  let count = 0;
+
+  for (const cityId of cityIds) {
+    const city = state.cities[cityId];
+    if (!city || city.owner !== civId) continue;
+    const cityKey = hexKey(city.position);
+
+    for (const coord of city.ownedTiles) {
+      const key = hexKey(coord);
+      const tile = state.map.tiles[key];
+      if (
+        key === cityKey
+        || tile?.resource !== resource
+        || tile.improvement !== definition.requiredImprovement
+        || tile.improvementTurnsLeft !== 0
+        || isResourceTileDeniedByHostileOccupation(state, civId, coord)
+      ) continue;
+      count++;
+    }
+  }
+
+  if (scope.scope === 'host-city') return count;
+
+  for (const tile of Object.values(state.map.tiles)) {
+    if (
+      tile.resource !== resource
+      || tile.owner !== civId
+      || tile.improvement !== 'resource_outpost'
+      || tile.improvementTurnsLeft !== 0
+      || isResourceTileDeniedByHostileOccupation(state, civId, tile.coord)
+    ) continue;
+    count++;
+  }
+
+  return count;
 }
 
 /**
