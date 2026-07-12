@@ -36,7 +36,7 @@ import {
 import { getCrisisFlavor, getCrisisDisplayName } from '@/systems/crisis-flavor-definitions';
 import { getCrisisYieldMultiplier, getOutbreakSeverityMultiplier, getCatastropheRecoveryMultiplier } from '@/systems/crisis-system';
 import { resolveChallengeForCiv } from '@/core/opponent-challenge';
-import { isCityHpRegenerating } from '@/systems/city-siege-system';
+import { getCityIntrinsicStrength, isCityHpRegenerating } from '@/systems/city-siege-system';
 import { getOccupiedCityMood, getOccupiedCityYieldMultiplier } from '@/systems/city-occupation-system';
 import { calculateProjectedCityYields } from '@/systems/city-work-system';
 import { getCityTechYields } from '@/systems/tech-yield-system';
@@ -661,6 +661,15 @@ export function createCityPanel(
       </div>`
     : '';
 
+  const ownerCivForDefense = state.civilizations[city.owner];
+  const defenseRating = ownerCivForDefense
+    ? Math.round(getCityIntrinsicStrength(city, ownerCivForDefense, 'land'))
+    : 0;
+  const defenseRatingHtml = `
+    <div style="font-size:11px;opacity:0.7;margin-top:4px;">
+      🛡️ Defense: ${defenseRating}
+    </div>`;
+
   const html = `
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
       <div>
@@ -669,6 +678,7 @@ export function createCityPanel(
         ${city.occupation ? '<div style="font-size:12px;color:#e8c170;" data-text="occupied-status"></div>' : ''}
         ${occupiedMoodText ? '<div style="font-size:12px;color:#d9a25c;" data-text="occupied-mood"></div>' : ''}
         ${siegeBarHtml}
+        ${defenseRatingHtml}
       </div>
       <div style="display:flex;align-items:center;gap:8px;">
         ${navHtml}
