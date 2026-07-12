@@ -25,6 +25,11 @@ import { buildMovePresentationByViewer } from '@/systems/viewer-event-presentati
 import { eliminateCivilization } from '@/systems/civilization-elimination-system';
 import { handleCityLeftCiv } from '@/systems/crisis-system';
 import { cancelInvalidNetworkPlans } from '@/systems/network-plan-system';
+import {
+  calculateCityAssaultStrengths,
+  getCityCounterFireDamage,
+  resolveCityAssault,
+} from '@/systems/city-siege-system';
 
 export type MajorCityCaptureDisposition = 'occupy' | 'raze';
 
@@ -104,7 +109,8 @@ export type MajorCityAssaultFailureReason =
   | 'not-adjacent'
   | 'city-defended'
   | 'illegal-movement'
-  | 'invalid-post-combat-advance';
+  | 'invalid-post-combat-advance'
+  | 'repelled-by-city-defense';
 
 export type BeginMajorCityAssaultResult =
   | {
@@ -228,6 +234,77 @@ export function beginMajorCityAssault(
     if (attacker.hasActed || attacker.movementPointsLeft <= 0) {
       return assaultFailure(state, 'illegal-movement');
     }
+
+    // Intrinsic-strength combat exchange (#522) -- ONLY for a city that was already
+    // undefended before this action (no precedingCombat). A city defeated via a real
+    // combat exchange against a garrison unit (the `if (options.precedingCombat)`
+    // branch above) already resolved a complete, walls-boosted fight; running this
+    // check again here would double-punish the same turn's action for the same city.
+    const ownerCiv = state.civilizations[city.owner];
+    if (ownerCiv) {
+      // Two DISTINCT seeds -- getCityCounterFireDamage (damage magnitude) and
+      // resolveCityAssault (win/lose) are conceptually independent rolls. Passing them
+      // the same raw seed would make each function's first internal rng() draw
+      // IDENTICAL, entangling "how much counter-fire damage I take" with "do I win" on
+      // every single assault (caught in review). XOR against a fixed constant to
+      // decorrelate -- same convention Tasks 5/6 use for barbarian/pirate counter-fire
+      // seeds (`... ^ 0x5a5a`).
+      //
+      // Fold the FULL id strings (not just their first character) into the seed, the
+      // same convention combat-reward-system.ts's seededRoll already uses -- the plan's
+      // original `attackerId.charCodeAt(0) + cityId.charCodeAt(0)` collided for this
+      // codebase's own default test fixture ids ('attacker' + 'athens', both starting
+      // with 'a'), producing a seed whose second RNG draw permanently exceeds
+      // resolveCityAssault's 0.95 clamp ceiling -- an attacker of ANY strength always
+      // lost against that exact seed, regardless of the real strength comparison.
+      // Full-string folding avoids this class of collision generically instead of
+      // patching one cursed id pair.
+      let baseSeed = Math.abs(state.turn * 7919);
+      for (const char of `${attackerId}:${cityId}`) {
+        baseSeed = (baseSeed * 48271 + char.charCodeAt(0)) % 2147483647;
+      }
+      const counterFireSeed = baseSeed;
+      const assaultSeed = baseSeed ^ 0x5a5a;
+      const strengths = calculateCityAssaultStrengths(attacker, city, ownerCiv, state.map);
+      const counterFireDamage = getCityCounterFireDamage(
+        city,
+        ownerCiv,
+        'land',
+        strengths.attackerStrength,
+        false, // this branch is only reached when the city has no garrison (see the
+               // 'city-defended' check above, which already returned for any occupied tile)
+        counterFireSeed,
+      );
+      if (counterFireDamage > 0) {
+        const healthAfter = attacker.health - counterFireDamage;
+        if (healthAfter <= 0) {
+          const civilizations = { ...nextState.civilizations };
+          civilizations[attacker.owner] = {
+            ...civilizations[attacker.owner],
+            units: civilizations[attacker.owner].units.filter(id => id !== attackerId),
+          };
+          const units = { ...nextState.units };
+          delete units[attackerId];
+          nextState = { ...nextState, units, civilizations };
+          return assaultFailure(nextState, 'repelled-by-city-defense');
+        }
+        nextState.units[attackerId] = {
+          ...nextState.units[attackerId],
+          health: healthAfter,
+        };
+      }
+      const assaultResult = resolveCityAssault(strengths.attackerStrength, strengths.intrinsicStrength, assaultSeed);
+      if (!assaultResult.attackerWins) {
+        nextState.units[attackerId] = {
+          ...nextState.units[attackerId],
+          hasMoved: true,
+          hasActed: true,
+          movementPointsLeft: 0,
+        };
+        return assaultFailure(nextState, 'repelled-by-city-defense');
+      }
+    }
+
     const movement = executeUnitMove(
       nextState,
       attackerId,

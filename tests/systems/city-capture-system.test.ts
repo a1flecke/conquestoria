@@ -65,8 +65,14 @@ describe('city-capture-system', () => {
   }
 
   function makeMajorAssaultState(): GameState {
+    // population 1 (not 4): with the new intrinsic-strength mechanic (#522), a
+    // swordsman (strength 25) needs a comfortable margin over intrinsic strength
+    // (5 + population*3) so this fixture's existing unconditional-success assertions
+    // stay reliable regardless of the ±20% RNG factor. Tests that specifically exercise
+    // low-odds outcomes construct their own city stats instead of using this shared
+    // fixture -- see the new describe block below.
     const state = makeExposedCityCaptureState({
-      population: 4,
+      population: 1,
       buildings: [],
     });
     const attacker = createUnit(
@@ -542,5 +548,106 @@ describe('city-capture-system', () => {
     const result = resolveMajorCityCapture(state, 'athens', 'player', 'occupy', state.turn);
 
     expect(result.state.civilizations['ai-1'].isEliminated).toBeFalsy();
+  });
+
+  describe('city-capture-system intrinsic defense (#522)', () => {
+    function makeUndefendedWalledCityState({
+      population,
+      buildings,
+      attackerType = 'warrior',
+    }: {
+      population: number;
+      buildings: string[];
+      attackerType?: 'warrior' | 'swordsman' | 'tank';
+    }): GameState {
+      const state = makeExposedCityCaptureState({ population, buildings });
+      const attacker = createUnit(attackerType, 'player', { q: 0, r: 0 }, state.idCounters);
+      attacker.id = 'attacker';
+      attacker.movementPointsLeft = 2;
+      state.units = { [attacker.id]: attacker };
+      state.civilizations.player.units = [attacker.id];
+      state.civilizations['ai-1'].units = [];
+      state.civilizations.player.diplomacy.atWarWith = ['ai-1'];
+      state.civilizations['ai-1'].diplomacy.atWarWith = ['player'];
+      state.map.tiles['0,0'].terrain = 'grassland';
+      state.map.tiles['1,0'].terrain = 'grassland';
+      return state;
+    }
+
+    it('captures a weakly-defended (low population, unwalled) city reliably, like today', () => {
+      const state = makeUndefendedWalledCityState({ population: 1, buildings: [], attackerType: 'tank' });
+
+      const result = beginMajorCityAssault(state, 'attacker', 'athens', { actor: 'player', civId: 'player' });
+
+      expect(result.ok).toBe(true);
+    });
+
+    it('repels a hopelessly outmatched attacker against a strongly walled, populous city', () => {
+      const state = makeUndefendedWalledCityState({ population: 30, buildings: ['walls', 'star_fort'] });
+
+      const result = beginMajorCityAssault(state, 'attacker', 'athens', { actor: 'player', civId: 'player' });
+
+      expect(result).toMatchObject({ ok: false, reason: 'repelled-by-city-defense' });
+    });
+
+    it('on repel, the attacker stays in place, takes counter-fire damage, and the action is consumed', () => {
+      const state = makeUndefendedWalledCityState({ population: 30, buildings: ['walls', 'star_fort'] });
+      const before = state.units.attacker!.health;
+
+      const result = beginMajorCityAssault(state, 'attacker', 'athens', { actor: 'player', civId: 'player' });
+
+      expect(result.ok).toBe(false);
+      expect(result.state.units.attacker!.position).toEqual({ q: 0, r: 0 });
+      expect(result.state.units.attacker!.health).toBeLessThan(before);
+      expect(result.state.units.attacker!.hasActed).toBe(true);
+      expect(result.state.units.attacker!.movementPointsLeft).toBe(0);
+      expect(result.state.cities.athens).toBeDefined(); // still owned by defender
+    });
+
+    it('on a successful assault against walls, the attacker still takes counter-fire damage', () => {
+      const state = makeUndefendedWalledCityState({ population: 1, buildings: ['walls'], attackerType: 'tank' });
+      const before = state.units.attacker!.health;
+
+      const result = beginMajorCityAssault(state, 'attacker', 'athens', { actor: 'player', civId: 'player' });
+
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      expect(result.state.units.attacker!.health).toBeLessThan(before);
+    });
+
+    it('takes no counter-fire against an unwalled city even on repel (population alone can still repel)', () => {
+      const state = makeUndefendedWalledCityState({ population: 30, buildings: [] }); // no walls, still very high intrinsic strength
+      const before = state.units.attacker!.health;
+
+      const result = beginMajorCityAssault(state, 'attacker', 'athens', { actor: 'player', civId: 'player' });
+
+      // Regardless of win/lose, no walls means zero counter-fire.
+      expect(result.state.units.attacker!.health).toBe(before);
+    });
+
+    it('never double-punishes the post-garrison-defeat advance (the double-punishment fix)', () => {
+      // Reuses the existing "defeated the final defender, then advances" fixture pattern.
+      const state = makeMajorAssaultState();
+      const defender = createUnit('warrior', 'ai-1', { q: 1, r: 0 }, state.idCounters);
+      defender.id = 'city-defender';
+      defender.health = 1;
+      state.units[defender.id] = defender;
+      state.civilizations['ai-1'].units.push(defender.id);
+      // Make the city extremely strong so, if the double-punishment bug existed, this
+      // attacker would be repelled by the SECOND (buggy) intrinsic-strength check.
+      state.cities.athens = { ...state.cities.athens, population: 50, buildings: ['walls', 'star_fort'] };
+      const combat = resolveCombat(state.units.attacker!, defender, state.map, 42, undefined, state.era);
+      const afterCombat = applyCombatOutcomeToState(state, combat, 42).state;
+
+      const result = beginMajorCityAssault(afterCombat, 'attacker', 'athens', {
+        actor: 'ai',
+        civId: 'player',
+        precedingCombat: combat,
+      });
+
+      expect(result.ok).toBe(true); // proves no second intrinsic-strength check fired
+      if (!result.ok) return;
+      expect(result.state.units.attacker!.position).toEqual({ q: 1, r: 0 });
+    });
   });
 });
