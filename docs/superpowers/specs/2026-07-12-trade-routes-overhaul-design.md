@@ -58,6 +58,65 @@ Investigation shows this is not purely a UX bug:
   view; the city panel becomes the primary discoverable one.
 - No new resource/diplomacy mechanics tied to trade routes.
 
+## Design Review — Cross-Dimension Pass (2026-07-12)
+
+Reviewed against balance/fun, new-mechanics soundness, player ages 7-43, play styles,
+difficulty modes, AI usage, UI/UX, architecture/extensibility, data, SFX, save
+compatibility, and solo/hot-seat regressions. Findings and the fixes folded into the
+sections below:
+
+- **SFX (gap, fixed in §3):** `sfx-catalog.ts` keys death sounds and a movement-class
+  (`caravan: 'humanoid'`) per unit type. The original draft never mentioned this catalog —
+  all 7 new units would have shipped silent. Added as a required wiring step.
+- **Naming leaks a caravan-only assumption (gap, fixed in §2):** `getCaravanTripBonus` in
+  `trade-system.ts` is already generic in behavior (checks buildings/wonder ownership, not
+  `unit.type`) but its name implies caravan-only, inviting a future caravan-specific bug.
+  Renamed to `getTradeUnitTripBonus` as part of this change.
+- **Trip-bonus stacking had no ceiling documented (gap, fixed in §2):** four naval tiers ×
+  +1 trip each, plus Caravanserai (+2) at both ends, plus Silk Road (+3), could stack to
+  +11 trips over base 8 with no written ceiling — the same class of unbounded-stacking risk
+  `game-balance.md` calls out for movement bonuses. Added an explicit inventory table and
+  a per-unit cap.
+- **Content-description honesty (gap, fixed in §3):** `UNIT_DESCRIPTIONS` for the 7 new
+  units must follow `.claude/rules/content-description-honesty.md` — no invented mechanics
+  (e.g. don't claim a specific gold% a unit doesn't actually grant). Added as an explicit
+  checklist item since this class of bug (MR12) is exactly the failure mode here.
+- **Ages 7-43 / self-explanatory UI (gap, fixed in §5):** the original Trade Routes panel
+  description didn't specify plain-language help text. A 7-year-old and a 43-year-old both
+  need "why does this button matter" spelled out per CLAUDE.md's "all UI elements must be
+  self-explanatory" rule, not just a route list. Added explicit copy requirement.
+- **Hot seat currentPlayer scoping (gap, fixed in §5):** the Trade Routes section must
+  reuse the city panel's existing `state.currentPlayer`-scoped city context rather than
+  recomputing ownership, and needs an explicit two-human regression (Player A's outgoing
+  route must not render as Player B's route when B takes their turn). Added to Testing.
+- **Difficulty modes (checked, no gap):** this game's "difficulty" is per-player
+  `OpponentChallenge` (crisis/unrest pressure), not an AI economic multiplier — there is no
+  AI-gold-bonus system for trade routes to interact with. No special per-difficulty logic
+  needed; noted explicitly so this isn't silently unaddressed.
+- **AI candidate generation (checked, no gap):** `ai-production.ts` already builds
+  candidates generically from `TRAINABLE_UNITS` filtered by role
+  (`entry => roles.includes(entry.role)`), so new trade-role unit types flow into AI
+  production scoring automatically once catalog entries + `ai-unit-roles.ts` roles exist —
+  confirmed by reading `ai-production.ts`, no `caravan`-specific branch exists there (the
+  only caravan-specific branch is the idle-unit route-establishment logic in `basic-ai.ts`,
+  already covered by §4).
+- **Save compatibility (checked, fixed by explicit note in §3):** new unit types are purely
+  additive `TRAINABLE_UNITS`/`UNIT_DEFINITIONS` catalog entries — no `GameState` shape
+  changes, no `SAVE_MIGRATIONS` entry needed. An old save's existing `caravan` units keep
+  working unchanged and become upgrade-eligible the moment the owning civ completes the
+  relevant tech, identical to how any other pre-existing unit picks up a newly-added
+  `upgradesTo` target. Added as an explicit non-migration confirmation plus a regression
+  test loading a pre-change save fixture.
+- **Architecture — `TradeRoute` doesn't record which unit/domain established it (considered,
+  rejected):** would let UI show a per-route "via Container Ship" icon, but nothing in the
+  goals needs it and it's not free (new field threaded through save schema). Explicitly
+  rejected as scope creep (YAGNI) rather than left ambiguous.
+- **Fun/balance — upgrade cadence (checked, no gap):** land line spans eras 4→6→10 (a
+  6-era gap between tiers 2 and 3), which is intentionally sparser than the sea/air lines
+  (2-era gaps) because `highway-network` is the first land-logistics tech after
+  `mercantilism` in the existing tech tree — not an oversight, a tech-tree constraint noted
+  explicitly so a future reader doesn't "fix" it into an invented intermediate tech.
+
 ## Design
 
 ### 1. Domain-generic route pathfinding (the core fix)
@@ -112,16 +171,42 @@ unit's movement, Air Freighter ≈ contemporary air unit's movement).
 
 **Trip-count bonus on upgrade, not new gold formulas.** Each tier upgrade grants a modest
 `tripsRemaining` bonus consistent with the existing scale (Caravanserai: +2 trips, Silk
-Road wonder: +3 trips) — e.g. +1 trip per tier above tier 1. This keeps upgrading
-meaningful without touching the gold-per-trip formula, which stays owned entirely by
-`calculateTradeRouteGold`/tech modifiers as today.
+Road wonder: +3 trips) — +1 trip per tier above tier 1, **capped at +3 total from tier
+bonuses regardless of line length** (so the 4-tier Naval line caps at +3, not +3 from its
+own tiers stacked further with the 3-tier lines' +2). This keeps upgrading meaningful
+without touching the gold-per-trip formula, which stays owned entirely by
+`calculateTradeRouteGold`/tech modifiers as today. `getCaravanTripBonus` is renamed to
+`getTradeUnitTripBonus` as part of this change — its logic was already generic (keys off
+city buildings and Silk Road ownership, not `unit.type`), only the name implied
+caravan-only, which invites a future accidental caravan-specific regression.
+
+**Trip bonus source inventory** (mirrors the format `game-balance.md` uses for movement
+bonuses, so future trip-bonus sources stay legible):
+
+| Source | Scope | Amount | Notes |
+|---|---|---|---|
+| Base | per route | 8 trips | existing, unchanged |
+| Caravanserai (from-city) | per route | +2 trips | existing, unchanged |
+| Caravanserai (to-city) | per route | +2 trips | existing, unchanged |
+| Silk Road wonder | per route (owner) | +3 trips | existing, unchanged |
+| Trade unit tier bonus | per route | +1/tier, capped +3 | new — this change |
+
+Maximum realistic stack: 8 + 2 + 2 + 3 + 3 = 18 trips on a single route between two
+Caravanserai cities owned by the Silk Road holder, using a top-tier trade unit. This is a
+real economy input (more trips = more total gold over the unit's life), so the implementer
+should sanity-check it against `tests/systems/pacing-audit.test.ts`'s outlier gate per
+`game-balance.md`'s "Pacing Regression Prevention" rule before merging MR1.
 
 ### 3. Standard end-to-end unit wiring (per `end-to-end-wiring.md`)
 
 For each of the 7 new unit types:
 
 1. `UNIT_DEFINITIONS` + `UNIT_DESCRIPTIONS` entries in `src/systems/unit-system.ts`,
-   with correct `domain` (`'land'` / `'naval'` / `'air'`).
+   with correct `domain` (`'land'` / `'naval'` / `'air'`). `UNIT_DESCRIPTIONS` text must
+   pass `.claude/rules/content-description-honesty.md`'s checklist — describe only real,
+   implemented effects (e.g. "upgrades from Naval Trader," "trade unit — establish a route
+   to generate gold each turn"), never an invented bonus number. Grep
+   `tests/systems/description-honesty.test.ts`'s denylist before finalizing text.
 2. Unit-renderer icon in `src/renderer/unit-renderer.ts`.
 3. `TRAINABLE_UNITS` entry in `src/systems/city-system.ts` with `techRequired`,
    `obsoletedByTech`, `upgradesTo` forming the chains above. `coastalRequired: true` for
@@ -129,12 +214,24 @@ For each of the 7 new unit types:
 4. `PRODUCTION_ICONS` entry (icon-coverage test enforces this).
 5. Tech `unlocksUnits` array entries in the corresponding
    `tech-definitions-erasN.ts` file for each anchor tech.
-6. Sprites: flagged as a follow-up step using the `generate-sprite-prompt` skill
+6. **SFX catalog** (`src/audio/sfx-catalog.ts`) — every unit type needs a death-sound entry
+   and a movement-class entry (`caravan: 'humanoid'` is the existing pattern; naval/air
+   trade units should use the same movement class as their domain's existing combat units,
+   e.g. Naval Trader ≈ `galley`'s class, Air Freighter ≈ `biplane`'s class). Missing this
+   was the review's most concrete gap — all 7 new units would otherwise ship silent.
+7. Sprites: flagged as a follow-up step using the `generate-sprite-prompt` skill
    (`.claude/rules/sprites.md`) — not improvised here.
 
 No production-completion side-effect wiring or death-cleanup is needed (trade units don't
 have matching system-state records the way spies/settlers do) beyond what
 `establishRoute`/`removeRouteForUnit` already do generically via `committedToRouteId`.
+
+**Save compatibility:** all of the above are additive catalog entries — no `GameState`
+shape change, no new field on `Unit`/`TradeRoute`, no `SAVE_MIGRATIONS` entry required. A
+save from before this change loads unchanged; its existing `caravan` units become
+upgrade-eligible the instant the owning civ completes the relevant new tech, exactly like
+any other unit picking up a newly-added `upgradesTo` target. Add a regression test that
+loads a pre-change save fixture and confirms it still loads and its caravans function.
 
 ### 4. Generalize trade-unit role instead of `type === 'caravan'` branches
 
@@ -164,6 +261,18 @@ civ has completed `trade-routes` (mirrors the existing gate in
 - If the city has spare capacity and the player owns no idle trade unit: an inline prompt
   naming the currently-trainable trade unit and its cost (derived from `TRAINABLE_UNITS`
   + tech state, not hardcoded to "Caravan").
+- One line of plain-language help text at the top of the section, always visible (not a
+  tooltip-only hover), e.g. "Trade routes earn gold every turn. Train a trade unit, then
+  use Establish Route to start one." — this is the concrete fix for issue #1's "unclear
+  how to start," aimed to read clearly for both a 7-year-old and an adult player per
+  CLAUDE.md's "all UI elements must be self-explanatory" rule.
+
+**Hot seat:** this section must render from the city panel's existing
+`state.currentPlayer`-scoped city list — it must not independently recompute "which cities
+belong to me," to avoid the classic hardcoded-`'player'` bug class this codebase's hot-seat
+rules call out. A route where `fromCityId` belongs to Player A and `toCityId` belongs to
+Player B must render as an outgoing route only in Player A's city panel and must not be
+mistaken for Player B's own route when hot-seat turns switch.
 
 This targets complaints #1 and #2 by putting both "can I start one" and "do I have one"
 in the panel players already check per-city.
@@ -184,6 +293,24 @@ in the panel players already check per-city.
   instead of hardcoded to `caravan`.
 - City panel: render test asserting the Trade Routes section shows active routes for the
   city and the correct trainable-trade-unit prompt when idle capacity exists.
+- Pacing: re-run `tests/systems/pacing-audit.test.ts`'s outlier gate and
+  `tests/systems/pacing-reference-economy.test.ts` after the trip-bonus change lands
+  (MR1), per `game-balance.md`'s "Pacing Regression Prevention" rule — trip count is an
+  economy-affecting input even though it isn't a `civYieldBonus`.
+- Save compatibility: load a pre-change save fixture (or a synthetic `GameState` built to
+  the pre-change shape) and confirm it loads without migration and its `caravan` units
+  remain functional and become upgrade-eligible once the relevant tech completes.
+
+**Regression matrix (solo vs. hot seat):**
+
+| Scenario | Solo | Hot seat |
+|---|---|---|
+| Establish domestic land route | existing coverage | existing coverage |
+| Establish domestic **naval** route (new) | new test | new test — Player A's naval route must not appear as Player B's |
+| Establish foreign route to AI civ | existing coverage | n/a |
+| Establish foreign route to **other human civ** (new surface via naval fix) | n/a | new test — diplomacy/war/embargo scrub (`scrubStaleForeignRoutes`, `scrubEmbargoedRoutes`) still fires correctly between two human-owned civs |
+| City panel Trade Routes section | new test | new test — section scoped to `state.currentPlayer` only |
+| AI idle trade-unit route establishment | existing coverage, extended to new unit types | n/a (AI-only behavior) |
 
 ## Suggested MR decomposition
 
