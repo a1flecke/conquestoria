@@ -10,6 +10,7 @@ import { getCivHappinessFromResources } from './resource-acquisition-system';
 import { getCapitalCity } from './capital-system';
 import { getChallengeProfileForCiv } from '../core/opponent-challenge';
 import { TECH_TREE } from './tech-definitions';
+import { BUILDINGS } from './city-system';
 
 // --- Thresholds ---
 const UNREST_TRIGGER_PRESSURE = 40;
@@ -75,8 +76,9 @@ export function computeUnrestPressure(cityId: string, state: GameState, ownerHap
     }
   }
 
-  // Happiness from luxury resources reduces unrest pressure (2 pressure per happiness point)
-  pressure -= ownerHappiness * 2;
+  // Happiness from luxury resources (empire-wide) plus this city's own happiness
+  // buildings (per-city) reduces unrest pressure, 2 pressure per happiness point (#552).
+  pressure -= (ownerHappiness + getCityHappinessFromBuildings(city)) * 2;
 
   pressure += getContagionSpread(cityId, state).pressure;
 
@@ -123,6 +125,18 @@ export function getContagionSpread(
     }
   }
   return { pressure: Math.min(MAX_PRESSURE_CONTAGION, total), nearestCityId };
+}
+
+// Building happiness (#552): the "build happiness improvements" advice in
+// notification-routing.ts is only true because of this — see the four
+// buildings with a `happiness` field in city-system.ts. Per-city, unlike
+// luxury-resource happiness which is empire-wide.
+export function getCityHappinessFromBuildings(city: City): number {
+  let total = 0;
+  for (const id of city.buildings) {
+    total += BUILDINGS[id]?.happiness ?? 0;
+  }
+  return total;
 }
 
 export function getCityAppeaseCost(city: City): number {

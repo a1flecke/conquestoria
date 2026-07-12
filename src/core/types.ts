@@ -420,6 +420,7 @@ export interface Building {
   nationalProject?: NationalProject;  // present when this building is a national project
   civYieldBonus?: Partial<ResourceYield>;  // empire-wide yield bonus while active
   obsoletedByTech?: string;  // once this tech completes, building is hidden from queue, silently dequeued, upkeep-free
+  happiness?: number;  // per-city unrest-pressure reduction while built (#552); NOT for nationalProject buildings — those must be empire-wide, see game-balance.md
 }
 
 export interface OccupiedCityState {

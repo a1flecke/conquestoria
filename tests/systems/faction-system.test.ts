@@ -13,10 +13,12 @@ import {
   getCityAppeaseCost,
   getConcessionCost,
   getContagionSpread,
+  getCityHappinessFromBuildings,
   getUnrestYieldMultiplier,
   isCityProductionLocked,
   processFactionTurn,
 } from '@/systems/faction-system';
+import { BUILDINGS } from '@/systems/city-system';
 
 function makeCity(id: string, owner: string, position: HexCoord, overrides: Partial<City> = {}): City {
   return {
@@ -207,6 +209,17 @@ function makeState({
 
 function hexKey(coord: HexCoord): string {
   return `${coord.q},${coord.r}`;
+}
+
+function addBuilding(state: GameState, cityId: string, buildingId: string): GameState {
+  const city = state.cities[cityId];
+  return {
+    ...state,
+    cities: {
+      ...state.cities,
+      [cityId]: { ...city, buildings: [...city.buildings, buildingId] },
+    },
+  };
 }
 
 describe('faction-system', () => {
@@ -845,5 +858,53 @@ describe('faction-system — MR4 uprising contagion + concession', () => {
       expect(result.state.cities['city-1'].unrestLevel).toBe(1);
       expect(result.state.cities['city-1'].concessionImmunityUntilTurn).toBeUndefined();
     });
+  });
+});
+
+describe('building happiness (#552)', () => {
+  it('a temple reduces its own city\'s pressure by 2', () => {
+    const state = makeState({ cityCount: 6 }); // cityCount 6 gives nonzero overextension pressure so the -2 delta is observable above the 0-floor clamp
+    const base = computeUnrestPressure('city-1', state, 0);
+    const withTemple = computeUnrestPressure('city-1', addBuilding(state, 'city-1', 'temple'), 0);
+    expect(base - withTemple).toBe(2);
+  });
+
+  it('building happiness is per-city, not empire-wide', () => {
+    const state = makeState({ cityCount: 6 });
+    const next = addBuilding(state, 'city-1', 'temple');
+    expect(computeUnrestPressure('city-2', next, 0)).toBe(computeUnrestPressure('city-2', state, 0));
+  });
+
+  it('every building that claims happiness in its description has a happiness value, and vice versa', () => {
+    for (const b of Object.values(BUILDINGS)) {
+      const claims = /happiness/i.test(b.description);
+      const has = (b.happiness ?? 0) > 0;
+      expect(claims, `${b.id}: description claims happiness=${claims}, field has happiness=${has}`).toBe(has);
+    }
+  });
+
+  it('all four designated culture buildings grant +1 happiness', () => {
+    for (const id of ['temple', 'amphitheater', 'monastery', 'concert_hall']) {
+      expect(BUILDINGS[id].happiness).toBe(1);
+    }
+  });
+
+  it('sacred_grove (a national project) does not have a per-city happiness field', () => {
+    expect(BUILDINGS['sacred_grove'].happiness).toBeUndefined();
+  });
+
+  it('getCityHappinessFromBuildings sums multiple happiness buildings', () => {
+    const state = makeState({ cityCount: 1 });
+    let next = addBuilding(state, 'city-1', 'temple');
+    next = addBuilding(next, 'city-1', 'amphitheater');
+    expect(getCityHappinessFromBuildings(next.cities['city-1'])).toBe(2);
+  });
+
+  it('a pre-MR-4 saved city with temple in buildings gets happiness on load with no migration', () => {
+    // load-shaped test: buildings array is id-based, so an old save with
+    // 'temple' already in city.buildings picks up the new effect automatically.
+    const state = makeState({ cityCount: 6 });
+    const legacyCity = addBuilding(state, 'city-1', 'temple').cities['city-1'];
+    expect(getCityHappinessFromBuildings(legacyCity)).toBe(1);
   });
 });
