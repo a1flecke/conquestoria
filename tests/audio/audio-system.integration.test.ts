@@ -187,6 +187,9 @@ describe('AudioSystem integration', () => {
   ) => {
     const state = makeState({ turn: 9, ...(overrides as Partial<GameState>) });
     ctx.state = contextState;
+    if (contextState === 'suspended') {
+      ctx.resume.mockRejectedValueOnce(new Error('not activated'));
+    }
     system.start(state, busHelper.bus, () => state, () => !presentationAllowed);
     await flushPromises();
     ctx.clearTranscript();

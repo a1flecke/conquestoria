@@ -84,6 +84,7 @@ export class AudioSystem {
     this.pirateAudioDirector.start(bus);
     routeSfxComponents(this.mixer, this.loader, () => this.isPresentationSuppressed());
     this.armIosResume();
+    this.resumeAndDisarmGestureOnSuccess();
 
     void this.preloadForEra(state.era, this.currentCivType);
     void this.preloadSfx();
@@ -512,28 +513,41 @@ export class AudioSystem {
     );
   }
 
-  private async tryResume(): Promise<void> {
-    if (this.ctx.state === 'suspended') {
+  private async tryResume(): Promise<boolean> {
+    if (this.ctx.state === 'running') return true;
+    if (this.ctx.state !== 'suspended') return false;
+    try {
       await this.ctx.resume();
+    } catch {
+      return false;
     }
+    return (this.ctx.state as AudioContextState) === 'running';
+  }
+
+  private resumeAndDisarmGestureOnSuccess(): void {
+    void this.tryResume().then(resumed => {
+      if (resumed) this.disarmGestureResume();
+    });
+  }
+
+  private disarmGestureResume(): void {
+    if (!this.gestureResumeHandler || typeof document === 'undefined') return;
+    document.removeEventListener('pointerdown', this.gestureResumeHandler);
+    this.gestureResumeHandler = null;
   }
 
   private armIosResume(): void {
     if (typeof document === 'undefined') return;
 
     // Existing visibilitychange handler covers iOS background/foreground resume.
-    const visHandler = () => void this.tryResume();
+    const visHandler = () => this.resumeAndDisarmGestureOnSuccess();
     this.iosResumeListeners.push(visHandler);
     document.addEventListener('visibilitychange', visHandler);
 
     // Gesture resume: AudioContext created before the first user interaction is
-    // suspended by the browser. A single pointerdown unlocks it; remove the
-    // listener immediately after so it does not fire on every tap.
-    this.gestureResumeHandler = () => {
-      void this.tryResume();
-      document.removeEventListener('pointerdown', this.gestureResumeHandler!);
-      this.gestureResumeHandler = null;
-    };
+    // suspended by the browser. Keep retrying on pointerdown until an awaited
+    // resume attempt confirms that the context is running.
+    this.gestureResumeHandler = () => this.resumeAndDisarmGestureOnSuccess();
     document.addEventListener('pointerdown', this.gestureResumeHandler);
   }
 
@@ -543,10 +557,7 @@ export class AudioSystem {
       document.removeEventListener('visibilitychange', handler);
     }
     this.iosResumeListeners = [];
-    if (this.gestureResumeHandler) {
-      document.removeEventListener('pointerdown', this.gestureResumeHandler);
-      this.gestureResumeHandler = null;
-    }
+    this.disarmGestureResume();
   }
 
   private preloadSfx(): Promise<void> {
