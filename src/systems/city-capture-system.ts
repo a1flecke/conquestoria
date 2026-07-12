@@ -24,6 +24,7 @@ import { UNIT_DEFINITIONS } from '@/systems/unit-system';
 import { buildMovePresentationByViewer } from '@/systems/viewer-event-presentation';
 import { eliminateCivilization } from '@/systems/civilization-elimination-system';
 import { handleCityLeftCiv } from '@/systems/crisis-system';
+import { cancelInvalidNetworkPlans } from '@/systems/network-plan-system';
 
 export type MajorCityCaptureDisposition = 'occupy' | 'raze';
 
@@ -323,6 +324,7 @@ function buildCaptureResult(
   if (capturedCityId && bus) {
     postWorkState = handleCityLeftCiv(postWorkState, capturedCityId, bus);
   }
+  postWorkState = cancelInvalidNetworkPlans(postWorkState).state;
   return {
     state: postWorkState,
     outcome,
@@ -554,8 +556,8 @@ export function transferCapturedCityOwnership(
     },
   };
   const eliminatedState = eliminateCivilization(nextState, previousOwnerId, newOwnerId).state;
-  return recalculateTerritory(eliminatedState, {
+  return cancelInvalidNetworkPlans(recalculateTerritory(eliminatedState, {
     reason: 'capture',
     preserveCurrentHolderOnTie: true,
-  }).state;
+  }).state).state;
 }

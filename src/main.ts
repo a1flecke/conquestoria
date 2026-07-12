@@ -92,6 +92,7 @@ import {
 import { createPirateHeadquartersAssaultPanel } from '@/ui/pirate-headquarters-assault-panel';
 import { formatNotificationTargetFocusMessage } from '@/ui/notification-targets';
 import { renderSelectedUnitInfo } from '@/ui/selected-unit-info';
+import { createNetworkIntentPanel } from '@/ui/network-intent-panel';
 import { renderUnitStackPanel } from '@/ui/unit-stack-panel';
 import { createUnitTurnFlow } from '@/ui/unit-turn-flow';
 import { createUiInteractionState } from '@/ui/ui-interaction-state';
@@ -117,6 +118,14 @@ import { visitVillage } from '@/systems/village-system';
 import { getWonderDefinition } from '@/systems/wonder-definitions';
 import { buildWonderDiscoveryRevealItem } from '@/systems/wonder-discovery-reveal';
 import { getAvailableTechs, getEffectiveTechCost } from '@/systems/tech-system';
+import {
+  assignNetworkPlan,
+  beginNetworkPlansForVictimTurn,
+  holdNetworkPlan,
+  isAutonomyActivated,
+  retargetNetworkPlan,
+} from '@/systems/network-plan-system';
+import { getNetworkWarningForViewer } from '@/systems/network-viewer-intel';
 import {
   getNextActiveHumanPlayerId,
   isActiveHumanRoundComplete,
@@ -1704,6 +1713,59 @@ function openUnitStackPicker(coord: HexCoord, unitIds: string[]): void {
   }, { selectedUnitId });
 }
 
+function openNetworkIntentPanel(sourceUnitId: string): void {
+  const source = gameState.units[sourceUnitId];
+  const ownerCivId = gameState.currentPlayer;
+  if (!source || source.owner !== ownerCivId || source.type !== 'cyber_unit' || !isAutonomyActivated(gameState, ownerCivId)) {
+    showNotification('This Cyber Unit cannot set a network intent right now.', 'warning');
+    return;
+  }
+
+  let panel: HTMLElement | undefined;
+  const close = () => panel?.remove();
+  panel = createNetworkIntentPanel(gameState, ownerCivId, sourceUnitId, {
+    onAssign: (definitionId, cityId) => {
+      const current = Object.values(gameState.autonomyByCiv?.[ownerCivId]?.plans ?? {})
+        .find(plan => plan.sourceUnitId === sourceUnitId);
+      const stateForAssignment = current && current.definitionId !== definitionId
+        ? holdNetworkPlan(gameState, ownerCivId, sourceUnitId).state
+        : gameState;
+      const result = current && current.definitionId === definitionId
+        ? retargetNetworkPlan(gameState, ownerCivId, current.id, { kind: 'city', cityId })
+        : assignNetworkPlan(stateForAssignment, {
+          ownerCivId,
+          sourceUnitId,
+          definitionId,
+          target: { kind: 'city', cityId },
+        });
+      if (!result.validation.ok) {
+        showNotification('That network intent is no longer available. Choose another target.', 'warning');
+        close();
+        openNetworkIntentPanel(sourceUnitId);
+        return;
+      }
+      gameState = result.state;
+      renderLoop.setGameState(gameState);
+      updateHUD();
+      close();
+      selectUnit(sourceUnitId);
+      const cityName = gameState.cities[cityId]?.name ?? 'the city';
+      showNotification(`${definitionId === 'harden' ? 'Harden' : 'Exploit'} assigned to ${cityName}.`, 'success');
+    },
+    onHold: () => {
+      const result = holdNetworkPlan(gameState, ownerCivId, sourceUnitId);
+      gameState = result.state;
+      renderLoop.setGameState(gameState);
+      updateHUD();
+      close();
+      selectUnit(sourceUnitId);
+      showNotification('Cyber Unit is holding.', 'info');
+    },
+    onClose: close,
+  });
+  uiLayer.appendChild(panel);
+}
+
 function selectUnit(
   unitId: string,
   opts?: {
@@ -1748,6 +1810,7 @@ function selectUnit(
   if (panel) {
     renderSelectedUnitInfo(panel, gameState, unitId, {
       onClose: () => deselectUnit(),
+      onOpenNetworkIntent: uid => openNetworkIntentPanel(uid),
       onFoundCity: () => foundCityAction(),
       onWorkerAction: action => performWorkerAction(action),
       onRest: () => restAction(),
@@ -3254,6 +3317,25 @@ function emitCurrentPlayerAudioSnapshot(civId: string): void {
   });
 }
 
+/** Opens due Exploit warnings only after the human viewer's identity has been confirmed. */
+function beginNetworkPlansForCurrentViewer(): void {
+  const viewerId = gameState.currentPlayer;
+  if (!gameState.civilizations[viewerId]?.isHuman) return;
+  const result = beginNetworkPlansForVictimTurn(gameState, viewerId);
+  gameState = result.state;
+  for (const warning of result.warnings) {
+    const plan = Object.values(gameState.autonomyByCiv ?? {})
+      .map(autonomy => autonomy.plans[warning.planId])
+      .find(Boolean);
+    if (plan?.target.kind !== 'city') continue;
+    bus.emit('network:exploit-warning', {
+      planId: warning.planId,
+      victimCivId: viewerId,
+      cityId: plan.target.cityId,
+    });
+  }
+}
+
 function releaseHandoffToViewer(nextSlotId: string): void {
   centerOnCurrentPlayer();
   renderLoop.setGameState(gameState);
@@ -3299,6 +3381,7 @@ async function beginHotSeatHandoff(
           summary,
         );
         gameState = acknowledgement.state;
+        beginNetworkPlansForCurrentViewer();
         let acknowledgementFailed = false;
         try {
           await autoSave(gameState);
@@ -3454,6 +3537,7 @@ async function endTurn(options: { allowUnmovedUnits?: boolean } = {}): Promise<v
       const result = runCurrentCompletedRound(gameState);
       if (!result.ok) throw result.error;
       gameState = result.state;
+      beginNetworkPlansForCurrentViewer();
       const soloMoves = captureAIMoves(() => {
         result.events.commitTo(bus);
       });
@@ -3731,6 +3815,35 @@ bus.on('city:cyber-drained', ({ cityName, drainerOwner, goldLost, blocked, victi
   }
   appendToCivLog(victimCivId, `Cyber attack: ${cityName} lost ${goldLost} gold (${drainerName} cyber unit).`, 'warning');
   appendToCivLog(drainerOwner, `Cyber unit stole ${goldLost} gold from ${victimName}'s ${cityName}.`, 'success');
+});
+
+bus.on('network:exploit-warning', ({ planId, victimCivId, cityId }) => {
+  const warning = getNetworkWarningForViewer(gameState, victimCivId, planId);
+  const city = gameState.cities[cityId];
+  if (!warning || !city) return;
+  const disclosure = warning.source?.unitId
+    ? ' The source has been identified.'
+    : warning.source?.position
+      ? ' The source position has been detected.'
+      : '';
+  appendToCivLog(
+    victimCivId,
+    `Network exploit warning: ${city.name} will be targeted at the end of this turn. A Cyber Defense Center or Harden reduces the effect.${disclosure}`,
+    'warning',
+    { kind: 'map', coord: city.position, label: city.name },
+  );
+});
+
+bus.on('network:exploit-resolved', ({ cityId, ownerCivId, goldTransferred, delayed }) => {
+  const city = gameState.cities[cityId];
+  if (!city) return;
+  if (delayed) {
+    appendToCivLog(city.owner, `${city.name}'s Cyber Defense Center delayed a network exploit.`, 'success');
+    appendToCivLog(ownerCivId, `Your network exploit against ${city.name} was delayed by its Cyber Defense Center.`, 'warning');
+    return;
+  }
+  appendToCivLog(city.owner, `Network exploit: ${city.name} lost ${goldTransferred} gold.`, 'warning');
+  appendToCivLog(ownerCivId, `Network exploit transferred ${goldTransferred} gold from ${city.name}.`, 'success');
 });
 
 bus.on('village:visited', ({ civId, outcome, message }) => {

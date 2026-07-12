@@ -40,7 +40,6 @@ export function processCyberDrain(
   const creditsByOwner: Record<string, number> = {};
   if (!civ) return { remainingGold: incomeSoFar, creditsByOwner, events };
   if (isAutonomyActivated(state, civId)) return { remainingGold: incomeSoFar, creditsByOwner, events };
-
   let remainingGold = incomeSoFar;
 
   for (const cityId of [...civ.cities].sort()) {
@@ -51,6 +50,7 @@ export function processCyberDrain(
       .filter(u =>
         u.type === 'cyber_unit'
         && u.owner !== civId
+        && !isAutonomyActivated(state, u.owner)
         && isAtWar(civ.diplomacy, u.owner)
         && hexDistance(u.position, city.position) === 1)
       .sort((a, b) => a.id.localeCompare(b.id));

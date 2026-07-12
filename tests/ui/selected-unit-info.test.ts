@@ -1525,3 +1525,36 @@ describe('renderSelectedUnitInfo — pirate enclave assault', () => {
     expect(opened).toBe(true);
   });
 });
+
+describe('renderSelectedUnitInfo — Cyber Unit intent launcher', () => {
+  beforeEach(installMockDocument);
+  afterEach(restoreMockDocument);
+
+  it('shows the intent launcher only to an activated owning player and invokes it with the current unit', () => {
+    const state = createNewGame(undefined, 'cyber-intent-launcher', 'small');
+    state.currentPlayer = 'player';
+    state.units = {
+      cyber: {
+        ...createUnit('cyber_unit', 'player', { q: 1, r: 1 }, {
+          nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1,
+        }),
+        id: 'cyber',
+      },
+    };
+    state.civilizations.player.units = ['cyber'];
+    state.civilizations.player.techState.completed = ['quantum-computing'];
+    const onOpenNetworkIntent = vi.fn();
+    const container = new MockElement('div');
+
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'cyber', { onOpenNetworkIntent });
+
+    const launcher = findButtons(container).find(button => button.textContent === 'Set Network Intent');
+    expect(launcher).toBeDefined();
+    launcher?.click();
+    expect(onOpenNetworkIntent).toHaveBeenCalledWith('cyber');
+
+    state.civilizations.player.techState.completed = [];
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'cyber', { onOpenNetworkIntent });
+    expect(collectAllText(container)).not.toContain('Set Network Intent');
+  });
+});

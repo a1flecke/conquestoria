@@ -9,6 +9,7 @@ import type {
   PendingDiplomaticRequest,
   TradeRoute,
 } from '@/core/types';
+import { cancelInvalidNetworkPlans } from '@/systems/network-plan-system';
 import type { EventBus } from '@/core/event-bus';
 import {
   REABSORB_GOLD_COST,
@@ -534,7 +535,7 @@ export function acceptDiplomaticRequest(
   }
 
   bus.emit('diplomacy:peace-made', { civA: request.fromCivId, civB: request.toCivId });
-  return {
+  return cancelInvalidNetworkPlans({
     ...state,
     pendingDiplomacyRequests: (state.pendingDiplomacyRequests ?? []).filter(
       candidate => !isPeaceRequestPair(candidate, request.fromCivId, request.toCivId),
@@ -550,7 +551,7 @@ export function acceptDiplomaticRequest(
         diplomacy: makePeace(target.diplomacy, request.fromCivId, state.turn),
       },
     },
-  };
+  }).state;
 }
 
 export function rejectDiplomaticRequest(
