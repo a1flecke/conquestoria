@@ -27,6 +27,18 @@ function generatedHashes(root: string): Record<string, string> {
   ));
 }
 
+function createGeneratorSandbox(): string {
+  const root = mkdtempSync(join(tmpdir(), 'conquestoria-pirate-sfx-'));
+  const script = join(root, 'scripts/generate-pirate-sfx.sh');
+  cpSync(join(PROJECT_ROOT, 'scripts/generate-pirate-sfx.sh'), script, { recursive: true });
+  for (const sourcePath of PIRATE_AUDIO_SOURCES.flatMap(source => source.sourceAssetFiles ?? [])) {
+    const localPath = join(root, 'public', sourcePath);
+    mkdirSync(dirname(localPath), { recursive: true });
+    cpSync(join(PROJECT_ROOT, 'public', sourcePath), localPath);
+  }
+  return root;
+}
+
 describe('pirate SFX generator', () => {
   it('records open-license provenance for every generated pirate cue', () => {
     const coveredFiles = new Set(PIRATE_AUDIO_SOURCES.flatMap(source => source.localFiles));
@@ -41,26 +53,30 @@ describe('pirate SFX generator', () => {
     expect(PIRATE_AUDIO_SOURCES.every(source => source.derivativeNotes.length > 0)).toBe(true);
   });
 
-  it('reproduces byte-identical audio on one runner and keeps checked-in outputs complete', () => {
-    const root = mkdtempSync(join(tmpdir(), 'conquestoria-pirate-sfx-'));
+  it('regenerates the checked-in pirate audio byte-for-byte', () => {
+    const root = createGeneratorSandbox();
     const script = join(root, 'scripts/generate-pirate-sfx.sh');
-    cpSync(join(PROJECT_ROOT, 'scripts/generate-pirate-sfx.sh'), script, { recursive: true });
-    for (const sourcePath of PIRATE_AUDIO_SOURCES.flatMap(source => source.sourceAssetFiles ?? [])) {
-      const localPath = join(root, 'public', sourcePath);
-      mkdirSync(dirname(localPath), { recursive: true });
-      cpSync(join(PROJECT_ROOT, 'public', sourcePath), localPath);
-    }
-
-    execFileSync('bash', [script], { stdio: 'pipe' });
-    const first = generatedHashes(root);
     execFileSync('bash', [script], { stdio: 'pipe' });
 
-    expect(generatedHashes(root)).toEqual(first);
-    expect(Object.keys(first)).toEqual(Object.keys(generatedHashes(PROJECT_ROOT)));
-    for (const outputPath of Object.keys(first)) {
+    const generated = generatedHashes(root);
+    expect(generated).toEqual(generatedHashes(PROJECT_ROOT));
+    expect(Object.keys(generated).sort()).toEqual(PIRATE_AUDIO_FILES.map(file => `public/${file}`).sort());
+    for (const outputPath of Object.keys(generated)) {
       expect(readFileSync(join(PROJECT_ROOT, outputPath)).subarray(0, 4).toString('ascii')).toBe('OggS');
     }
-    expect(Object.keys(first)).toHaveLength(35);
-  // CI can take longer than a developer laptop to encode the complete cue set twice.
-  }, 60_000);
+  }, 45_000);
+
+  it.skipIf(process.env.RUN_PIRATE_SFX_DETERMINISM !== '1')(
+    'reproduces byte-identical audio across two generations on one runner',
+    () => {
+      const root = createGeneratorSandbox();
+      const script = join(root, 'scripts/generate-pirate-sfx.sh');
+      execFileSync('bash', [script], { stdio: 'pipe' });
+      const first = generatedHashes(root);
+      execFileSync('bash', [script], { stdio: 'pipe' });
+
+      expect(generatedHashes(root)).toEqual(first);
+    },
+    90_000,
+  );
 });
