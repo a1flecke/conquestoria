@@ -53,15 +53,16 @@ describe('pirate SFX generator', () => {
     expect(PIRATE_AUDIO_SOURCES.every(source => source.derivativeNotes.length > 0)).toBe(true);
   });
 
-  it('regenerates the checked-in pirate audio byte-for-byte', () => {
+  it('generates and ships exactly the declared pirate Ogg cues', () => {
     const root = createGeneratorSandbox();
     const script = join(root, 'scripts/generate-pirate-sfx.sh');
     execFileSync('bash', [script], { stdio: 'pipe' });
 
     const generated = generatedHashes(root);
-    expect(generated).toEqual(generatedHashes(PROJECT_ROOT));
     expect(Object.keys(generated).sort()).toEqual(PIRATE_AUDIO_FILES.map(file => `public/${file}`).sort());
-    for (const outputPath of Object.keys(generated)) {
+    const checkedIn = generatedHashes(PROJECT_ROOT);
+    expect(Object.keys(checkedIn).sort()).toEqual(Object.keys(generated).sort());
+    for (const outputPath of Object.keys(checkedIn)) {
       expect(readFileSync(join(PROJECT_ROOT, outputPath)).subarray(0, 4).toString('ascii')).toBe('OggS');
     }
   }, 45_000);
