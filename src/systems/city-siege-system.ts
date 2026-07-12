@@ -6,6 +6,29 @@ import { hexDistance, hexKey, wrappedHexDistance } from '@/systems/hex-utils';
 import { isAlwaysHostilePair } from '@/core/owner-kind';
 import { isAtWar } from '@/systems/diplomacy-system';
 
+export const CITY_BASE_STRENGTH = 5;
+export const CITY_STRENGTH_PER_POPULATION = 3;
+
+// A city's intrinsic combat strength — used both for a player's single-exchange assault
+// (#522, city-capture-system.ts) and for naval/land counter-fire (below). Population
+// always contributes a baseline (an unwalled city is not defenseless, just weak); walls
+// and defensive techs multiply on top via the SAME getCityDefenseBreakdown a garrisoned
+// defender already uses, so a city's own defense and its garrison's defense never
+// diverge in formula.
+export function getCityIntrinsicStrength(
+  city: City,
+  ownerCiv: Civilization,
+  attackerDomain: 'land' | 'naval' | 'air',
+): number {
+  const base = CITY_BASE_STRENGTH + city.population * CITY_STRENGTH_PER_POPULATION;
+  const breakdown = getCityDefenseBreakdown({
+    cityBuildings: city.buildings ?? [],
+    defenderCompletedTechs: ownerCiv.techState.completed ?? [],
+    attackerDomain,
+  });
+  return base * breakdown.multiplier + breakdown.flatBonus;
+}
+
 export interface CitySiegeInput {
   city: City;
   ownerCiv: Civilization;
