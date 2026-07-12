@@ -3,7 +3,7 @@ import { createNewGame } from '@/core/game-state';
 import { foundCity } from '@/systems/city-system';
 import { createUnit } from '@/systems/unit-system';
 import type { City, Civilization, GameState } from '@/core/types';
-import { applyCityHpRegeneration, applyCitySiegeOutcome, isCityHpRegenerating, resolveCitySiegeDamage } from '@/systems/city-siege-system';
+import { applyCityHpRegeneration, applyCitySiegeOutcome, getCityIntrinsicStrength, isCityHpRegenerating, resolveCitySiegeDamage } from '@/systems/city-siege-system';
 
 const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
 
@@ -308,5 +308,50 @@ describe('isCityHpRegenerating (#522)', () => {
     state.cities[cityId] = { ...state.cities[cityId]!, hp: 100 };
 
     expect(isCityHpRegenerating(state, state.cities[cityId]!)).toBe(false);
+  });
+});
+
+describe('getCityIntrinsicStrength (#522)', () => {
+  it('scales with population even without walls', () => {
+    const { city, ownerCiv } = makeCityAndCiv({ population: 1, buildings: [] });
+    const low = getCityIntrinsicStrength(city, ownerCiv, 'land');
+    const { city: cityB, ownerCiv: ownerCivB } = makeCityAndCiv({ population: 10, buildings: [] });
+    const high = getCityIntrinsicStrength(cityB, ownerCivB, 'land');
+
+    expect(low).toBe(5 + 1 * 3); // 8
+    expect(high).toBe(5 + 10 * 3); // 35
+    expect(high).toBeGreaterThan(low);
+  });
+
+  it('applies the walls multiplier on top of the population base, matching getCityDefenseBreakdown', () => {
+    const { city, ownerCiv } = makeCityAndCiv({ population: 4, buildings: ['walls'] });
+    // base = 5 + 4*3 = 17; walls -> x1.25 -> 21.25 -> rounds per implementation
+    expect(getCityIntrinsicStrength(city, ownerCiv, 'land')).toBeCloseTo(17 * 1.25, 5);
+  });
+
+  it('applies Star Fort and Fortification Engineering flat bonuses, same as a garrisoned defender', () => {
+    const { city, ownerCiv } = makeCityAndCiv({ population: 4, buildings: ['walls', 'star_fort'] });
+    const withEngineering = withTechs(ownerCiv, ['fortification-engineering']);
+    const strength = getCityIntrinsicStrength(
+      { ...city, buildings: ['walls', 'star_fort'] },
+      withEngineering,
+      'land',
+    );
+    // base = 17; walls -> 21.25; +star_fort(5) +fortification-engineering(5) = 31.25
+    expect(strength).toBeCloseTo(17 * 1.25 + 5 + 5, 5);
+  });
+
+  it('applies Torpedo Warfare only against a naval attacker, matching getCityDefenseBreakdown', () => {
+    const { city, ownerCiv } = makeCityAndCiv({ population: 4, buildings: ['walls'] });
+    const withTorpedo = withTechs(ownerCiv, ['torpedo-warfare']);
+    const naval = getCityIntrinsicStrength(city, withTorpedo, 'naval');
+    const land = getCityIntrinsicStrength(city, withTorpedo, 'land');
+    expect(naval).toBeCloseTo(17 * 1.25 + 5, 5);
+    expect(land).toBeCloseTo(17 * 1.25, 5);
+  });
+
+  it('handles zero population without throwing (a just-founded or fully-unrested city)', () => {
+    const { city, ownerCiv } = makeCityAndCiv({ population: 0, buildings: [] });
+    expect(getCityIntrinsicStrength(city, ownerCiv, 'land')).toBe(5);
   });
 });
