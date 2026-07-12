@@ -27,6 +27,10 @@ export interface NetworkPlan {
   createdTurn: number;
   nextResolutionTurn: number;
   warnedTurn: number | null;
+  effectState?: {
+    cdcDelayApplied?: boolean;
+    hardenCharges?: number;
+  };
 }
 
 export interface NetworkViewerDetection {

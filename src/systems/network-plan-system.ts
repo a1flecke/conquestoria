@@ -122,6 +122,7 @@ export function assignNetworkPlan(
     createdTurn: state.turn,
     nextResolutionTurn: request.definitionId === 'harden' ? state.turn : state.turn + 1,
     warnedTurn: null,
+    ...(request.definitionId === 'harden' ? { effectState: { hardenCharges: 1 } } : {}),
   };
   const currentAutonomy = state.autonomyByCiv?.[request.ownerCivId] ?? createEmptyAutonomyCivState();
   return {
