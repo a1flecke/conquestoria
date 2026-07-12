@@ -845,8 +845,12 @@ export function processPiratesForCompletedRound(
             const units = { ...nextState.units };
             delete units[targetShip.id];
             nextState = { ...nextState, units };
-            // faction.shipIds self-prunes dead references on the next round's
-            // normalizeRoundState pass -- no further cleanup needed here.
+            // faction.shipIds is left with this now-dead id, same as any other
+            // pirate-combat kill in this file (normalizeRoundState only prunes shipIds
+            // in the deep-sea-flotilla flagship-replacement branch, not generally) --
+            // every consumer of faction.shipIds already guards with
+            // Boolean(state.units[id]) or an equivalent existence check, so a stale id
+            // here is safe, not a new pattern this counter-fire path introduces.
           } else {
             nextState = {
               ...nextState,
