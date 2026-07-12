@@ -64,6 +64,7 @@ import {
   checkLeagueDissolution,
   triggerLeagueDefense,
   getLeagueForCiv,
+  pruneExpiredDiplomaticRequests,
 } from '@/systems/diplomacy-system';
 import { processTradeRouteIncome, processFashionCycle, updatePrices, removeRouteForUnit, scrubStaleForeignRoutes, scrubEmbargoedRoutes } from '@/systems/trade-system';
 import { advanceRouteRunners } from '@/systems/unit-movement-system';
@@ -690,6 +691,11 @@ export function processTurn(
     newState.civilizations[civId].satelliteSurveillanceTargets =
       Object.keys(updatedTargets).length > 0 ? updatedTargets : undefined;
   }
+
+  // #554: expire stale peace requests / treaty proposals once per turn (not
+  // once per civ) -- a proposal the recipient never opens the diplomacy panel
+  // to act on should not persist forever.
+  newState = pruneExpiredDiplomaticRequests(newState);
 
   for (const city of Object.values(newState.cities)) {
     if ((city.productionDisabledTurns ?? 0) > 0) {

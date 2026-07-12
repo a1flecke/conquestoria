@@ -697,7 +697,9 @@ export interface DefensiveLeague {
 
 export interface PendingDiplomaticRequest {
   id: string;
-  type: 'peace';
+  type: 'peace' | 'treaty';
+  treatyType?: TreatyType;        // set when type === 'treaty'
+  turnsRemaining?: number;         // treaty duration to sign with (mirrors AI decision: 10 for NAP, -1 otherwise)
   fromCivId: string;
   toCivId: string;
   turnIssued: number;

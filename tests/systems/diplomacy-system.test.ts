@@ -17,6 +17,8 @@ import {
   getAvailableActions,
   isAtWar,
   rejectDiplomaticRequest,
+  enqueueTreatyProposal,
+  pruneExpiredDiplomaticRequests,
 } from '@/systems/diplomacy-system';
 import { EventBus } from '@/core/event-bus';
 import { createNewGame } from '@/core/game-state';
@@ -414,6 +416,81 @@ describe('diplomacy-system', () => {
 
       expect(() => applyDiplomaticAction(state, 'outsider', breakawayId, 'reabsorb_breakaway', bus))
         .toThrow(/origin owner/i);
+    });
+  });
+
+  describe('treaty proposals (#554)', () => {
+    function makeTreatyState(): GameState {
+      const state = createNewGame(undefined, 'treaty-proposal-test', 'small');
+      state.civilizations.player.diplomacy.relationships['ai-1'] = 40;
+      state.civilizations['ai-1'].diplomacy.relationships.player = 40;
+      state.pendingDiplomacyRequests = [];
+      return state;
+    }
+
+    it('enqueues a proposal without touching either civ\'s treaties', () => {
+      const state = makeTreatyState();
+      const bus = new EventBus();
+      const next = enqueueTreatyProposal(state, 'ai-1', 'player', 'non_aggression_pact', 10, bus);
+      expect(next.pendingDiplomacyRequests).toHaveLength(1);
+      expect(next.pendingDiplomacyRequests![0]).toMatchObject({
+        type: 'treaty', treatyType: 'non_aggression_pact', fromCivId: 'ai-1', toCivId: 'player', turnsRemaining: 10,
+      });
+      expect(next.civilizations.player.diplomacy.treaties).toHaveLength(0);
+      expect(next.civilizations['ai-1'].diplomacy.treaties).toHaveLength(0);
+    });
+
+    it('dedupes: same pair+type proposal is not enqueued twice', () => {
+      const state = makeTreatyState();
+      let next = enqueueTreatyProposal(state, 'ai-1', 'player', 'open_borders', -1);
+      next = enqueueTreatyProposal(next, 'ai-1', 'player', 'open_borders', -1);
+      expect(next.pendingDiplomacyRequests).toHaveLength(1);
+    });
+
+    it('accept signs both sides and clears the request', () => {
+      const state = makeTreatyState();
+      const bus = new EventBus();
+      let next = enqueueTreatyProposal(state, 'ai-1', 'player', 'trade_agreement', -1, bus);
+      const requestId = next.pendingDiplomacyRequests![0].id;
+      next = acceptDiplomaticRequest(next, 'player', requestId, bus);
+      expect(next.civilizations.player.diplomacy.treaties.some(t => t.type === 'trade_agreement')).toBe(true);
+      expect(next.civilizations['ai-1'].diplomacy.treaties.some(t => t.type === 'trade_agreement')).toBe(true);
+      expect(next.pendingDiplomacyRequests).toHaveLength(0);
+    });
+
+    it('only the recipient can accept', () => {
+      const state = makeTreatyState();
+      const bus = new EventBus();
+      let next = enqueueTreatyProposal(state, 'ai-1', 'player', 'alliance', -1);
+      const requestId = next.pendingDiplomacyRequests![0].id;
+      const after = acceptDiplomaticRequest(next, 'ai-1', requestId, bus); // proposer cannot self-accept
+      expect(after.civilizations.player.diplomacy.treaties).toHaveLength(0);
+    });
+
+    it('reject clears the request with no relationship penalty', () => {
+      const state = makeTreatyState();
+      let next = enqueueTreatyProposal(state, 'ai-1', 'player', 'alliance', -1);
+      const before = next.civilizations.player.diplomacy.relationships['ai-1'] ?? 0;
+      const requestId = next.pendingDiplomacyRequests![0].id;
+      next = rejectDiplomaticRequest(next, 'player', requestId);
+      expect(next.pendingDiplomacyRequests).toHaveLength(0);
+      expect(next.civilizations.player.diplomacy.relationships['ai-1'] ?? 0).toBe(before);
+    });
+
+    it('proposals expire after 10 turns (pruned by the turn processor)', () => {
+      const state = makeTreatyState();
+      let next = enqueueTreatyProposal(state, 'ai-1', 'player', 'open_borders', -1);
+      next = { ...next, turn: next.turn + 11 };
+      next = pruneExpiredDiplomaticRequests(next);
+      expect(next.pendingDiplomacyRequests).toHaveLength(0);
+    });
+
+    it('does not prune a peace request or treaty proposal before its 10-turn TTL', () => {
+      const state = makeTreatyState();
+      let next = enqueueTreatyProposal(state, 'ai-1', 'player', 'open_borders', -1);
+      next = { ...next, turn: next.turn + 9 };
+      next = pruneExpiredDiplomaticRequests(next);
+      expect(next.pendingDiplomacyRequests).toHaveLength(1);
     });
   });
 });
