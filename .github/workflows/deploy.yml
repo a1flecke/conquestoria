@@ -113,11 +113,6 @@ jobs:
       - name: Install dependencies
         run: yarn install --immutable
 
-      - name: Install audio test tooling
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y ffmpeg
-
       - name: Run tests
         run: yarn verify:push
 
@@ -171,9 +166,9 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y ffmpeg
 
-      - name: Verify deterministic pirate audio
+      - name: Verify pirate audio generation and determinism
         if: steps.pirate-audio-changes.outputs.pirate_audio_changed == 'true'
-        run: RUN_PIRATE_SFX_DETERMINISM=1 yarn vitest run tests/audio/pirate-sfx-generator.test.ts -t "reproduces byte-identical audio across two generations on one runner"
+        run: RUN_PIRATE_SFX_DETERMINISM=1 yarn vitest run tests/audio/pirate-sfx-generator.test.ts
 
       - name: Report skipped deterministic audio check
         if: steps.pirate-audio-changes.outputs.pirate_audio_changed != 'true'
