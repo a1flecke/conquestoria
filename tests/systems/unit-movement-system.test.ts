@@ -138,6 +138,44 @@ describe('unit-movement-system', () => {
     expect(moves).toHaveLength(1);
   });
 
+  it('cancels a Cyber Exploit when live movement breaks its range', () => {
+    const cyber = createUnit('cyber_unit', 'player', { q: 1, r: 0 }, mkC());
+    cyber.id = 'unit-cyber';
+    const state = movementState(cyber, [tile({ q: 0, r: 0 }), tile({ q: 1, r: 0 }), tile({ q: 2, r: 0 })], {
+      completedTechs: ['quantum-computing'],
+    });
+    const target = foundCity('ai-1', { q: 0, r: 0 }, state.map, state.idCounters);
+    target.id = 'city-ai';
+    state.cities[target.id] = target;
+    state.civilizations['ai-1'] = {
+      ...state.civilizations.player,
+      id: 'ai-1',
+      name: 'ai-1',
+      isHuman: false,
+      cities: [target.id],
+      units: [],
+      diplomacy: createDiplomacyState(['player', 'ai-1'], 'ai-1'),
+    };
+    state.civilizations.player.diplomacy = createDiplomacyState(['player', 'ai-1'], 'player');
+    state.civilizations.player.diplomacy.atWarWith = ['ai-1'];
+    state.civilizations['ai-1'].diplomacy.atWarWith = ['player'];
+    state.autonomyByCiv = {
+      player: {
+        plans: {
+          'network-plan-1': {
+            id: 'network-plan-1', ownerCivId: 'player', definitionId: 'exploit', sourceUnitId: cyber.id,
+            target: { kind: 'city', cityId: target.id }, status: 'preparing', createdTurn: 1, nextResolutionTurn: 2, warnedTurn: null,
+          },
+        },
+        detections: {},
+      },
+      'ai-1': { plans: {}, detections: {} },
+    };
+
+    expect(executeUnitMove(state, cyber.id, { q: 2, r: 0 }, { actor: 'player', civId: 'player' })).toMatchObject({ ok: true });
+    expect(state.autonomyByCiv.player.plans).toEqual({});
+  });
+
   it('does not let world actors bypass occupancy', () => {
     const mover = createUnit('warrior', 'barbarian', { q: 0, r: 0 }, mkC());
     mover.id = 'world-mover';
