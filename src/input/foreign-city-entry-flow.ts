@@ -1,6 +1,6 @@
 import type { EventBus } from '@/core/event-bus';
 import type { GameState } from '@/core/types';
-import { beginPlayerCityAssaultChoice, type PendingCityCaptureChoice } from '@/input/city-assault-flow';
+import { beginPlayerCityAssaultChoice, type PlayerCityAssaultChoiceResult } from '@/input/city-assault-flow';
 import { declareWar, resolveOpponentKind } from '@/systems/diplomacy-system';
 
 export function beginConfirmedForeignCityEntry(
@@ -8,7 +8,7 @@ export function beginConfirmedForeignCityEntry(
   attackerId: string,
   cityId: string,
   bus?: EventBus,
-): { state: GameState; pending: PendingCityCaptureChoice } {
+): PlayerCityAssaultChoiceResult {
   const city = state.cities[cityId];
   if (!city) {
     throw new Error(`Cannot enter missing city ${cityId}`);

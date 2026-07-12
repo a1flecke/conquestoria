@@ -46,6 +46,8 @@ describe('foreign-city-entry-flow', () => {
 
     const result = beginConfirmedForeignCityEntry(state, 'unit-1', 'athens', bus);
 
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
     expect(result.state.civilizations.player.diplomacy.atWarWith).toContain('ai-1');
     expect(result.state.civilizations['ai-1'].diplomacy.atWarWith).toContain('player');
     expect(result.state.units['unit-1'].position).toEqual({ q: 1, r: 0 });

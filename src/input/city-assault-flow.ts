@@ -3,12 +3,17 @@ import type { CombatResult, GameState } from '@/core/types';
 import {
   beginMajorCityAssault,
   resolveMajorCityCapture,
+  type MajorCityAssaultFailureReason,
   type MajorCityCaptureDisposition,
   type MajorCityCaptureResult,
   type PendingMajorCityCapture,
 } from '@/systems/city-capture-system';
 
 export type PendingCityCaptureChoice = PendingMajorCityCapture;
+
+export type PlayerCityAssaultChoiceResult =
+  | { ok: true; state: GameState; pending: PendingCityCaptureChoice }
+  | { ok: false; state: GameState; reason: MajorCityAssaultFailureReason };
 
 export function shouldPromptForPlayerCityCapture(
   city: { population: number },
@@ -22,8 +27,8 @@ export function beginPlayerCityAssaultChoice(
   cityId: string,
   bus?: EventBus,
   precedingCombat?: CombatResult,
-): { state: GameState; pending: PendingCityCaptureChoice } {
-  const result = beginMajorCityAssault(
+): PlayerCityAssaultChoiceResult {
+  return beginMajorCityAssault(
     state,
     attackerId,
     cityId,
@@ -34,10 +39,6 @@ export function beginPlayerCityAssaultChoice(
       precedingCombat,
     },
   );
-  if (!result.ok) {
-    throw new Error(`Cannot begin city assault: ${result.reason}`);
-  }
-  return result;
 }
 
 export function finalizePlayerCityAssaultChoice(
