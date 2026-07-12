@@ -232,6 +232,7 @@ import {
   routeCrisisResolved,
   type NotificationSink,
 } from '@/ui/notification-routing';
+import { createNotificationDelivery } from '@/ui/notification-delivery';
 import { registerConquestoriaServiceWorker } from '@/platform/service-worker';
 import { initializeDesktopMenu } from '@/platform/desktop-menu';
 import { beginConfirmedForeignCityEntry } from '@/input/foreign-city-entry-flow';
@@ -661,15 +662,19 @@ function showNotification(
   }
 }
 
-// Appends to a specific civ's log. If that civ is the active player, also
-// surfaces a toast. Used by routers that fan out global/bilateral events.
-const appendToCivLog: NotificationSink = (civId, message, type, target) => {
-  if (!gameState) return;
-  appendNotification(gameState, civId, { message, type, turn: gameState.turn, target });
-  if (civId === gameState.currentPlayer) {
-    enqueueToast(message, type, target);
-  }
-};
+// The single delivery contract for game-consequence notifications (#551):
+// logs to the recipient civ always, toasts only when that civ is the active
+// unsuppressed viewer, and queues to pendingEvents (hot seat only) otherwise
+// -- the turn-handoff summary drains that queue. All existing router call
+// sites keep using this name unchanged; it now enforces the contract instead
+// of the old emit-time currentPlayer attribution that leaked across hot-seat
+// players and never drained in solo.
+const notificationDelivery = createNotificationDelivery({
+  getState: () => gameState,
+  toast: enqueueToast,
+  isSuppressed: () => roundPresentationGate.isSuppressed(),
+});
+const appendToCivLog: NotificationSink = notificationDelivery.deliver;
 
 function focusNotificationTarget(target: NotificationEntry['target']): void {
   if (!target) return;
@@ -3563,7 +3568,16 @@ async function beginHotSeatHandoff(
   };
 
   const simulate = async (): Promise<void> => {
-    const outcome = await transaction.runCompletedRoundSimulation();
+    // withHappenedTurn only needs to cover the synchronous commitTo() inside
+    // runCompletedRoundSimulation (completed-round-handoff.ts) -- it runs
+    // before that function's first await, so wrapping the whole (async) call
+    // still stamps every event committed this round with the pre-round turn
+    // (#551). If that commit ever moves after an await, thread the turn
+    // through the transaction options instead.
+    const outcome = await notificationDelivery.withHappenedTurn(
+      preSimulationState.turn,
+      () => transaction.runCompletedRoundSimulation(),
+    );
     if (outcome.status === 'simulation-failed') {
       controller.setError(
         'The round could not be completed. Your turn is unchanged and was not autosaved.',
@@ -3620,12 +3634,15 @@ async function endTurn(options: { allowUnmovedUnits?: boolean } = {}): Promise<v
       );
     } else {
       // --- Solo Mode ---
+      const roundTurn = gameState.turn;
       const result = runCurrentCompletedRound(gameState);
       if (!result.ok) throw result.error;
       gameState = result.state;
       beginNetworkPlansForCurrentViewer();
       const soloMoves = captureAIMoves(() => {
-        result.events.commitTo(bus);
+        notificationDelivery.withHappenedTurn(roundTurn, () => {
+          result.events.commitTo(bus);
+        });
       });
 
       if (handleVictoryIfNeeded()) return;
