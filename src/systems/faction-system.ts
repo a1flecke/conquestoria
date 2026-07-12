@@ -13,7 +13,7 @@ import { TECH_TREE } from './tech-definitions';
 
 // --- Thresholds ---
 const UNREST_TRIGGER_PRESSURE = 40;
-export const REVOLT_UNREST_TURNS = 5;        // turns at unrest before revolt escalates
+export const REVOLT_UNREST_TURNS = 10;       // turns at unrest before revolt escalates (#552)
 export const BREAKAWAY_REVOLT_TURNS = 10;    // turns at revolt before breakaway
 const CONQUEST_UNREST_DURATION = 15;         // turns until conquestTurn is cleared
 const GOLD_APPEASE_COST_PER_POP = 15;
