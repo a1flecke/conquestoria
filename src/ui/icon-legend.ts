@@ -1,4 +1,5 @@
 import { RESOURCE_DEFINITIONS } from '@/systems/trade-system';
+import { getResourceEffectLabel } from '@/systems/resource-definitions';
 
 const LEGEND_ITEMS = [
   { icon: '🏛️', label: 'City' },
@@ -63,20 +64,35 @@ export function createIconLegendOverlay(viewerTechs: ReadonlySet<string> = new S
 
       for (const r of group) {
         const row = document.createElement('div');
-        row.style.cssText = 'display:flex;align-items:center;gap:8px;color:#d7dce6;font-size:12px;padding:3px 0;';
+        row.style.cssText = 'display:flex;flex-direction:column;gap:1px;color:#d7dce6;font-size:12px;padding:3px 0;';
 
+        const nameLine = document.createElement('div');
+        nameLine.style.cssText = 'display:flex;align-items:center;gap:8px;';
         const iconSpan = document.createElement('span');
         iconSpan.textContent = r.icon;
         iconSpan.style.cssText = 'display:inline-flex;width:20px;justify-content:center;';
-        row.appendChild(iconSpan);
-
+        nameLine.appendChild(iconSpan);
         const labelSpan = document.createElement('span');
         labelSpan.textContent = r.name;
-        row.appendChild(labelSpan);
+        nameLine.appendChild(labelSpan);
+        row.appendChild(nameLine);
+
+        const effectText = getResourceEffectLabel(r.effect);
+        if (effectText) {
+          const effectSpan = document.createElement('span');
+          effectSpan.textContent = effectText;
+          effectSpan.style.cssText = 'padding-left:28px;opacity:0.65;font-size:10px;';
+          row.appendChild(effectSpan);
+        }
 
         overlay.appendChild(row);
       }
     }
+
+    const moreNote = document.createElement('div');
+    moreNote.textContent = 'More resources are revealed by future technologies.';
+    moreNote.style.cssText = 'font-size:10px;color:rgba(244,241,232,0.45);margin-top:6px;font-style:italic;';
+    overlay.appendChild(moreNote);
   }
 
   return overlay;

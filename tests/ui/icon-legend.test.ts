@@ -57,4 +57,24 @@ describe('createIconLegendOverlay', () => {
     expect((overlay as unknown as MockElement).textContent).not.toContain('🐎');
     expect((overlay as unknown as MockElement).textContent).not.toContain('Horses');
   });
+
+  it('lists effect text for each tech-revealed resource', () => {
+    const viewerTechs = new Set(['irrigation']); // reveals silk, a happiness resource
+    const overlay = createIconLegendOverlay(viewerTechs);
+    const text = (overlay as unknown as MockElement).textContent;
+    expect(text).toContain('Silk');
+    expect(text).toContain('+1 happiness');
+  });
+
+  it('shows the future-resources note when at least one resource is listed', () => {
+    const viewerTechs = new Set(['irrigation']);
+    const overlay = createIconLegendOverlay(viewerTechs);
+    expect((overlay as unknown as MockElement).textContent).toContain('More resources are revealed by future technologies.');
+  });
+
+  it('does not list a resource whose tech is not yet researched', () => {
+    const viewerTechs = new Set(['irrigation']); // silk only, not the aluminium-smelting chain
+    const overlay = createIconLegendOverlay(viewerTechs);
+    expect((overlay as unknown as MockElement).textContent).not.toContain('Aluminum');
+  });
 });

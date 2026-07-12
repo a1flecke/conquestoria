@@ -10,6 +10,7 @@ import {
 } from '@/systems/city-system';
 import { getCivAvailableResources, getCivHappinessFromResources } from '@/systems/resource-acquisition-system';
 import { RESOURCE_DEFINITIONS } from '@/systems/trade-system';
+import { getResourceEffectLabel } from '@/systems/resource-definitions';
 import { getResourceAdvantagesForItem, getResourceAdvantageMultiplier } from '@/systems/resource-advantages';
 import { SESSION_SHOWN_TIPS } from '@/ui/advisor-system';
 import { hexDistance, wrappedHexDistance } from '@/systems/hex-utils';
@@ -166,16 +167,6 @@ export function createCityPanel(
   function resourceDisplayName(defId: string, defName: string): string {
     // The "gold" resource name collides with the currency name in context like "+1 gold/turn"
     return defId === 'gold' ? 'Gold deposits' : defName;
-  }
-
-  function yieldLabel(effectType: string): string {
-    switch (effectType) {
-      case 'gold': return '+1 gold/turn';
-      case 'production': return '+1 production/turn';
-      case 'food': return '+1 food/turn';
-      case 'science': return '+1 science/turn';
-      default: return '';
-    }
   }
 
   let resourceBonusSectionHtml = '';
@@ -839,11 +830,11 @@ export function createCityPanel(
   // Populate resource bonus rows via textContent (XSS-safe)
   for (const def of happinessResources) {
     const el = panel.querySelector(`[data-res-happiness="${def.id}"]`);
-    if (el) el.textContent = `${def.icon} ${resourceDisplayName(def.id, def.name)} → +1 happiness`;
+    if (el) el.textContent = `${def.icon} ${resourceDisplayName(def.id, def.name)} → ${getResourceEffectLabel(def.effect)}`;
   }
   for (const def of yieldResources) {
     const el = panel.querySelector(`[data-res-yield="${def.id}"]`);
-    if (el) el.textContent = `${def.icon} ${resourceDisplayName(def.id, def.name)} → ${yieldLabel(def.effect!.type)}`;
+    if (el) el.textContent = `${def.icon} ${resourceDisplayName(def.id, def.name)} → ${getResourceEffectLabel(def.effect)}`;
   }
 
   if (city.productionQueue.length > 0) {
