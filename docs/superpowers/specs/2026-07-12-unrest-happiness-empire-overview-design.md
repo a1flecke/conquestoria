@@ -136,10 +136,13 @@ is unchanged and still used by every caller that already has a specific city.
   shared helper — a single test on the helper covers both call sites; a
   render test on each confirms the text actually appears in `textContent`.
 - Empire overview panel: render tests for 0/1/many owned cities, default
-  sort-unrest-first, and — critically — a test asserting the panel's inline
-  Appease/Concede button click produces the *identical* resulting `GameState`
-  as the same action taken from the single city panel (proves the two panels
-  share one code path, not two implementations of the same mutation).
+  sort-unrest-first, and disabled/affordability-state parity with the single
+  city panel's existing Appease/Concede checks (unaffordable, already-appeased-this-turn,
+  concession-immune). Both panels call the identical `handleAppeaseFaction`/
+  `handleConcedeToMovement` functions in `main.ts` by construction (one
+  function, two callers) rather than by a runtime cross-panel comparison test
+  — `main.ts` has no direct unit tests in this repo's convention, so that
+  specific guarantee is a code-review check on the wiring, not an automated one.
 - Hot-seat regression: two-civ fixture, assert civ A's cities never appear in
   the overview panel when civ B is `state.currentPlayer`.
 - `pacing-reference-economy.test.ts` snapshots must NOT move (happiness isn't
