@@ -48,7 +48,7 @@ function makePlayerAssaultState({ population }: { population: number }): GameSta
 
 describe('city-assault-flow', () => {
   it('begins a pending player choice by moving onto a size-2 city and finalizes occupy in place', () => {
-    const state = makePlayerAssaultState({ population: 4 });
+    const state = makePlayerAssaultState({ population: 1 });
     const bus = new EventBus();
     const moved = vi.fn();
     bus.on('unit:move', moved);
@@ -62,7 +62,7 @@ describe('city-assault-flow', () => {
     const result = finalizePlayerCityAssaultChoice(begun.state, begun.pending, 'occupy', begun.state.turn);
 
     expect(moved).toHaveBeenCalledOnce();
-    expect(begun.pending.occupiedPopulation).toBe(2);
+    expect(begun.pending.occupiedPopulation).toBe(1); // was toBe(2) with population: 4
     expect(begun.state.units['unit-1'].position).toEqual({ q: 1, r: 0 });
     expect(begun.state.units['unit-1'].movementPointsLeft).toBe(0);
     expect(result.state.units['unit-1'].position).toEqual({ q: 1, r: 0 });
@@ -71,7 +71,7 @@ describe('city-assault-flow', () => {
   });
 
   it('rejects a city assault when war has not been declared', () => {
-    const state = makePlayerAssaultState({ population: 4 });
+    const state = makePlayerAssaultState({ population: 1 });
     state.civilizations.player.diplomacy.atWarWith = [];
     state.civilizations['ai-1'].diplomacy.atWarWith = [];
 
@@ -84,7 +84,7 @@ describe('city-assault-flow', () => {
   });
 
   it('begins a pending player choice by moving onto a size-2 city and finalizes raze in place', () => {
-    const state = makePlayerAssaultState({ population: 4 });
+    const state = makePlayerAssaultState({ population: 1 });
 
     const begun = beginPlayerCityAssaultChoice(state, 'unit-1', 'athens');
     const result = finalizePlayerCityAssaultChoice(begun.state, begun.pending, 'raze', begun.state.turn);
@@ -111,7 +111,7 @@ describe('city-assault-flow', () => {
   });
 
   it('preserves territory flip events when finalizing an occupied city', () => {
-    const state = makePlayerAssaultState({ population: 4 });
+    const state = makePlayerAssaultState({ population: 1 });
     const farmCoord = { q: 1, r: 0 };
     state.map.tiles[hexKey(farmCoord)] = {
       ...state.map.tiles[hexKey(farmCoord)],

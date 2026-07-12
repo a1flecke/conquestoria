@@ -26,7 +26,7 @@ function makeForeignCityEntryState(): GameState {
     name: 'Athens',
     owner: 'ai-1',
     position: { q: 1, r: 0 },
-    population: 4,
+    population: 1,
     ownedTiles: [{ q: 1, r: 0 }],
   };
   state.civilizations['ai-1'].cities = ['athens'];
