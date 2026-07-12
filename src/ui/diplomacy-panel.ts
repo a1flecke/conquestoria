@@ -5,7 +5,9 @@ import {
   isAtWar,
   getAvailableActions,
   getPendingPeaceRequestForPair,
+  getPendingTreatyProposalsFor,
 } from '@/systems/diplomacy-system';
+import { TREATY_LABELS, describeWarReason } from '@/ui/notification-routing';
 import { resolveCivDefinition } from '@/systems/civ-registry';
 import { MINOR_CIV_DEFINITIONS } from '@/systems/minor-civ-definitions';
 import { hasDiscoveredMinorCiv } from '@/systems/discovery-system';
@@ -29,6 +31,8 @@ export interface DiplomacyPanelCallbacks {
   onAction: (targetCivId: string, action: DiplomaticAction) => void;
   onAcceptPeaceRequest?: (requestId: string) => void;
   onRejectPeaceRequest?: (requestId: string) => void;
+  onAcceptTreatyProposal?: (requestId: string) => void;
+  onDeclineTreatyProposal?: (requestId: string) => void;
   onGiftGold?: (mcId: string) => void;
   onSponsorFestival?: (mcId: string) => void;
   onMinorCivReparations?: (mcId: string) => void;
@@ -50,6 +54,9 @@ interface CivRowData {
   actions: Array<{ action: DiplomaticAction; isHostile: boolean }>;
   peaceRequestState: 'none' | 'incoming' | 'outgoing';
   peaceRequestId: string | null;
+  incomingTreatyProposals: Array<{ id: string; label: string }>;
+  atWar: boolean;
+  warSinceText: string | null;
 }
 
 interface MinorCivRowData {
@@ -136,6 +143,25 @@ export function createDiplomacyPanel(
       .filter(t => t.civB === civId || t.civA === civId)
       .map(t => ({ label: t.type.replace(/_/g, ' '), turns: t.turnsRemaining }));
 
+    // #554: incoming treaty proposals FROM this civ TO the viewer only --
+    // never surface the viewer's own outgoing proposals or third-party ones.
+    const incomingTreatyProposals = getPendingTreatyProposalsFor(state, state.currentPlayer)
+      .filter(request => request.fromCivId === civId)
+      .map(request => ({ id: request.id, label: TREATY_LABELS[request.treatyType!] }));
+
+    // #554: "at war since turn N -- reason" derived from the same
+    // war_declared event + relationship-based reason the notification uses
+    // (describeWarReason), so the two surfaces never disagree.
+    let warSinceText: string | null = null;
+    if (atWar) {
+      const warEvent = [...playerDiplomacy.events]
+        .filter(e => e.type === 'war_declared' && e.otherCiv === civId)
+        .sort((a, b) => b.turn - a.turn)[0];
+      warSinceText = warEvent
+        ? `⚔ At war since turn ${warEvent.turn} — ${describeWarReason(relationship)}`
+        : '⚔ At war';
+    }
+
     civRows.push({
       civId,
       civIdx,
@@ -152,6 +178,9 @@ export function createDiplomacyPanel(
         .map(action => ({ action, isHostile: action === 'declare_war' })),
       peaceRequestState,
       peaceRequestId: pendingPeaceRequest?.id ?? null,
+      incomingTreatyProposals,
+      atWar,
+      warSinceText,
     });
     civIdx++;
   }
@@ -245,6 +274,20 @@ export function createDiplomacyPanel(
       treatiesHtml += '</div>';
     }
 
+    let treatyProposalsHtml = '';
+    row.incomingTreatyProposals.forEach((proposal, pIdx) => {
+      treatyProposalsHtml += `
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;background:rgba(232,193,112,0.12);border-radius:6px;padding:6px 8px;">
+          <span style="font-size:11px;flex:1;">Proposes: <strong data-text="treaty-proposal-label-${row.civIdx}-${pIdx}"></strong></span>
+          <button class="diplo-accept-treaty" data-request-id="${proposal.id}" data-action="accept-treaty-proposal" style="padding:5px 10px;background:rgba(74,155,74,0.3);border:1px solid #4a9b4a;border-radius:6px;color:white;cursor:pointer;font-size:11px;">Accept</button>
+          <button class="diplo-decline-treaty" data-request-id="${proposal.id}" data-action="decline-treaty-proposal" style="padding:5px 10px;background:rgba(217,148,74,0.25);border:1px solid #d9944a;border-radius:6px;color:white;cursor:pointer;font-size:11px;">Decline</button>
+        </div>`;
+    });
+
+    const warSinceHtml = row.warSinceText
+      ? `<div style="font-size:11px;color:#d94a4a;margin-bottom:8px;" data-text="war-since-${row.civIdx}"></div>`
+      : '';
+
     let actionsHtml = '<div style="display:flex;flex-wrap:wrap;gap:6px;">';
     if (row.peaceRequestState === 'incoming' && row.peaceRequestId) {
       actionsHtml += `<button class="diplo-accept-peace" data-request-id="${row.peaceRequestId}" data-action="accept-peace-request" style="padding:6px 12px;background:rgba(74,155,74,0.3);border:1px solid #4a9b4a;border-radius:6px;color:white;cursor:pointer;font-size:11px;">Accept Peace</button>`;
@@ -266,6 +309,8 @@ export function createDiplomacyPanel(
           <div>
             <div style="font-weight:bold;font-size:14px;" data-text="civ-name-${row.civIdx}"></div>
             <div style="font-size:11px;opacity:0.6;"><span data-text="civ-bonus-${row.civIdx}"></span> · <span data-text="civ-status-${row.civIdx}"></span></div>
+            ${warSinceHtml}
+            ${treatyProposalsHtml}
           </div>
         </div>
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
@@ -340,6 +385,12 @@ export function createDiplomacyPanel(
     row.actions.forEach((a, aIdx) => {
       setText(`action-label-${row.civIdx}-${aIdx}`, a.action.replace(/_/g, ' '));
     });
+    if (row.warSinceText) {
+      setText(`war-since-${row.civIdx}`, row.warSinceText);
+    }
+    row.incomingTreatyProposals.forEach((proposal, pIdx) => {
+      setText(`treaty-proposal-label-${row.civIdx}-${pIdx}`, proposal.label);
+    });
   }
 
   for (const row of minorCivRows) {
@@ -413,6 +464,22 @@ export function createDiplomacyPanel(
       const requestId = (btn as HTMLElement).dataset.requestId!;
       panel.remove();
       callbacks.onRejectPeaceRequest?.(requestId);
+    });
+  });
+
+  panel.querySelectorAll('.diplo-accept-treaty').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const requestId = (btn as HTMLElement).dataset.requestId!;
+      panel.remove();
+      callbacks.onAcceptTreatyProposal?.(requestId);
+    });
+  });
+
+  panel.querySelectorAll('.diplo-decline-treaty').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const requestId = (btn as HTMLElement).dataset.requestId!;
+      panel.remove();
+      callbacks.onDeclineTreatyProposal?.(requestId);
     });
   });
 

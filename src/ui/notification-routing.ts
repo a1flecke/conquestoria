@@ -1,4 +1,4 @@
-import type { CombatResult, CombatRewardNotification, GameEvents, GameState, ProductionDropReason } from '@/core/types';
+import type { CombatResult, CombatRewardNotification, GameEvents, GameState, ProductionDropReason, TreatyType } from '@/core/types';
 import { hexKey } from '@/systems/hex-utils';
 import { getImprovementDisplayName } from '@/systems/improvement-system';
 import { UNIT_DEFINITIONS } from '@/systems/unit-system';
@@ -188,6 +188,36 @@ export function formatEconomyTreasuryStrainMessage(
 }
 
 // Writes to both parties' logs from their own perspective.
+// Shared between the war-declared notification and the diplomacy panel's
+// "at war since" row (#554) -- one source of truth for the relationship-based
+// reason string, so the two surfaces never drift.
+export function describeWarReason(relationship: number): string {
+  if (relationship <= -50) return 'deep hostility';
+  if (relationship <= -20) return 'deteriorating relations';
+  if (relationship < 0) return 'territorial disputes';
+  return 'rising tensions';
+}
+
+// Shared between the treaty-proposed notification and the diplomacy panel's
+// proposal buttons (#554) -- one source of truth for display names.
+export const TREATY_LABELS: Record<TreatyType, string> = {
+  non_aggression_pact: 'Non-Aggression Pact',
+  trade_agreement: 'Trade Agreement',
+  open_borders: 'Open Borders',
+  alliance: 'Alliance',
+  vassalage: 'Vassalage',
+};
+
+export function routeTreatyProposed(
+  state: GameState,
+  event: GameEvents['diplomacy:treaty-proposed'],
+  sink: NotificationSink,
+): void {
+  const fromName = state.civilizations[event.fromCiv]?.name ?? 'Unknown';
+  const label = TREATY_LABELS[event.treaty];
+  sink(event.toCiv, `${fromName} proposes a ${label}. Review it in the Diplomacy panel.`, 'info');
+}
+
 export function routeWarDeclared(
   state: GameState,
   attackerId: string,
@@ -197,10 +227,7 @@ export function routeWarDeclared(
   const attackerName = state.civilizations[attackerId]?.name ?? 'Unknown';
   const defenderName = state.civilizations[defenderId]?.name ?? 'Unknown';
   const rel = state.civilizations[defenderId]?.diplomacy?.relationships[attackerId] ?? 0;
-  let reason = 'rising tensions';
-  if (rel <= -50) reason = 'deep hostility';
-  else if (rel <= -20) reason = 'deteriorating relations';
-  else if (rel < 0) reason = 'territorial disputes';
+  const reason = describeWarReason(rel);
   sink(defenderId, `${attackerName} has declared war! (Reason: ${reason})`, 'warning');
   sink(attackerId, `War has been declared on ${defenderName}!`, 'warning');
 }

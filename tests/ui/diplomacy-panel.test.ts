@@ -1,10 +1,11 @@
 // @vitest-environment jsdom
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { createDiplomacyPanel } from '@/ui/diplomacy-panel';
 import {
   acceptDiplomaticRequest,
   enqueuePeaceRequest,
+  enqueueTreatyProposal,
   rejectDiplomaticRequest,
 } from '@/systems/diplomacy-system';
 import { EventBus } from '@/core/event-bus';
@@ -507,5 +508,78 @@ describe('diplomacy-panel breakaway rows', () => {
     expect(panel.textContent).not.toContain('Reject Peace');
     expect(panel.textContent).not.toContain('Peace Requested');
     expect(panel.textContent).toContain('declare war');
+  });
+});
+
+describe('diplomacy-panel treaty proposals + war attribution (#554)', () => {
+  it('renders an incoming treaty proposal with accept/decline and fires callbacks', () => {
+    const { container, state } = makeDiplomacyFixture({ currentPlayer: 'player', includeThirdCiv: true });
+    // A real proposal implies the civs have already made contact -- panel
+    // visibility (shouldListMajorCivForViewer) requires contact memory, which
+    // a bare pending proposal alone doesn't establish.
+    state.civilizations.player.knownCivilizations = ['outsider'];
+    const next = enqueueTreatyProposal(state, 'outsider', 'player', 'non_aggression_pact', 10);
+    const onAccept = vi.fn();
+    const onDecline = vi.fn();
+
+    const panel = createDiplomacyPanel(container, next, {
+      onAction: () => {},
+      onAcceptTreatyProposal: onAccept,
+      onDeclineTreatyProposal: onDecline,
+      onClose: () => {},
+    });
+
+    const accept = panel.querySelector('[data-action="accept-treaty-proposal"]') as HTMLButtonElement;
+    expect(accept).toBeTruthy();
+    expect(panel.textContent).toContain('Non-Aggression Pact');
+    accept.click();
+    expect(onAccept).toHaveBeenCalledWith(expect.stringContaining('treaty'));
+  });
+
+  it('shows war status with start turn and reason for a civ at war with the viewer', () => {
+    const { container, state } = makeDiplomacyFixture({ currentPlayer: 'player', includeThirdCiv: true });
+    state.civilizations.player.diplomacy.atWarWith = ['outsider'];
+    state.civilizations.outsider.diplomacy.atWarWith = ['player'];
+    state.civilizations.player.diplomacy.relationships.outsider = -60;
+    state.civilizations.player.diplomacy.events = [
+      { type: 'war_declared', turn: 4, otherCiv: 'outsider', weight: 1 },
+    ];
+
+    const panel = createDiplomacyPanel(container, state, {
+      onAction: () => {},
+      onClose: () => {},
+    });
+
+    expect(panel.textContent).toContain('At war since turn 4');
+    expect(panel.textContent).toContain('deep hostility');
+  });
+
+  it('renders a bare "At war" row when no war_declared event exists (legacy save)', () => {
+    const { container, state } = makeDiplomacyFixture({ currentPlayer: 'player', includeThirdCiv: true });
+    state.civilizations.player.diplomacy.atWarWith = ['outsider'];
+    state.civilizations.outsider.diplomacy.atWarWith = ['player'];
+    state.civilizations.player.diplomacy.events = [];
+
+    const panel = createDiplomacyPanel(container, state, {
+      onAction: () => {},
+      onClose: () => {},
+    });
+
+    expect(panel.textContent).toContain('At War');
+    expect(panel.textContent).not.toContain('At war since turn');
+  });
+
+  it('never shows proposal buttons to the proposer or third parties', () => {
+    const { container, state } = makeDiplomacyFixture({ currentPlayer: 'player', includeThirdCiv: true });
+    state.civilizations.player.knownCivilizations = ['outsider'];
+    // Proposal FROM player TO outsider -- player is the proposer, not the recipient.
+    const next = enqueueTreatyProposal(state, 'player', 'outsider', 'trade_agreement', -1);
+
+    const panel = createDiplomacyPanel(container, next, {
+      onAction: () => {},
+      onClose: () => {},
+    });
+
+    expect(panel.querySelector('[data-action="accept-treaty-proposal"]')).toBeNull();
   });
 });
