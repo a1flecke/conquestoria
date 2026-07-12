@@ -107,6 +107,7 @@ import { canInspectUnitForViewer } from '@/systems/viewer-intel';
 import {
   acceptDiplomaticRequest,
   applyDiplomaticAction,
+  breakTreaty,
   declareWar,
   makePeace,
   modifyRelationship,
@@ -203,7 +204,7 @@ import {
 } from '@/systems/transport-system';
 import { getPendingUnload, getUnloadRange, setPendingUnload, clearPendingUnload } from '@/ui/transport-ui-state';
 import { getCapitalCity } from '@/systems/capital-system';
-import type { CombatResult, GameState, HexCoord, ImprovementType, Unit, UnitType, DiplomaticAction, CivBonusEffect, WorkerActionType } from '@/core/types';
+import type { CombatResult, GameState, HexCoord, ImprovementType, Unit, UnitType, DiplomaticAction, CivBonusEffect, WorkerActionType, TreatyType } from '@/core/types';
 import {
   appendNotification,
   getNotificationsForPlayer,
@@ -223,6 +224,7 @@ import {
   routeTerritoryTileFlipped,
   routeWarDeclared,
   routeTreatyProposed,
+  TREATY_LABELS,
   routeStrategicWarning,
   routeCrisisStarted,
   routeCrisisSpread,
@@ -963,6 +965,25 @@ function handleDeclineTreatyProposal(requestId: string): void {
   showNotification('Proposal declined.', 'info');
 }
 
+function handleBreakTreaty(civId: string, treatyType: TreatyType): void {
+  const actorId = gameState.currentPlayer;
+  const actor = gameState.civilizations[actorId];
+  const target = gameState.civilizations[civId];
+  if (!actor || !target) return;
+  gameState = {
+    ...gameState,
+    civilizations: {
+      ...gameState.civilizations,
+      [actorId]: { ...actor, diplomacy: breakTreaty(actor.diplomacy, civId, treatyType, gameState.turn) },
+      [civId]: { ...target, diplomacy: breakTreaty(target.diplomacy, actorId, treatyType, gameState.turn) },
+    },
+  };
+  renderLoop.setGameState(gameState);
+  updateHUD();
+  openDiplomacyPanel();
+  showNotification(`${TREATY_LABELS[treatyType]} broken with ${target.name}.`, 'warning');
+}
+
 function executeMinorCivConquest(unitId: string, target: HexCoord, minorCivId: string, cityId: string): void {
   const cityName = gameState.cities[cityId]?.name ?? 'City-State';
   const movement = executeAnimatedUnitMove(unitId, () => executeUnitMove(gameState, unitId, target, {
@@ -1045,6 +1066,7 @@ function openDiplomacyPanel(): void {
     onRejectPeaceRequest: handleRejectPeaceRequest,
     onAcceptTreatyProposal: handleAcceptTreatyProposal,
     onDeclineTreatyProposal: handleDeclineTreatyProposal,
+    onBreakTreaty: handleBreakTreaty,
     onGiftGold: handleGiftGold,
     onSponsorFestival: handleSponsorFestival,
     onMinorCivReparations: handleMinorCivReparations,

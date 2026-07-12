@@ -1,4 +1,4 @@
-import type { GameState, DiplomaticAction } from '@/core/types';
+import type { GameState, DiplomaticAction, TreatyType } from '@/core/types';
 import {
   canReabsorbBreakaway,
   getRelationship,
@@ -33,6 +33,7 @@ export interface DiplomacyPanelCallbacks {
   onRejectPeaceRequest?: (requestId: string) => void;
   onAcceptTreatyProposal?: (requestId: string) => void;
   onDeclineTreatyProposal?: (requestId: string) => void;
+  onBreakTreaty?: (civId: string, treatyType: TreatyType) => void;
   onGiftGold?: (mcId: string) => void;
   onSponsorFestival?: (mcId: string) => void;
   onMinorCivReparations?: (mcId: string) => void;
@@ -50,7 +51,7 @@ interface CivRowData {
   barWidth: number;
   barColor: string;
   statusText: string;
-  treaties: Array<{ label: string; turns: number }>;
+  treaties: Array<{ label: string; turns: number; type: TreatyType }>;
   actions: Array<{ action: DiplomaticAction; isHostile: boolean }>;
   peaceRequestState: 'none' | 'incoming' | 'outgoing';
   peaceRequestId: string | null;
@@ -141,7 +142,7 @@ export function createDiplomacyPanel(
 
     const treaties = playerDiplomacy.treaties
       .filter(t => t.civB === civId || t.civA === civId)
-      .map(t => ({ label: t.type.replace(/_/g, ' '), turns: t.turnsRemaining }));
+      .map(t => ({ label: t.type.replace(/_/g, ' '), turns: t.turnsRemaining, type: t.type }));
 
     // #554: incoming treaty proposals FROM this civ TO the viewer only --
     // never surface the viewer's own outgoing proposals or third-party ones.
@@ -264,12 +265,16 @@ export function createDiplomacyPanel(
   for (const row of civRows) {
     let treatiesHtml = '';
     if (row.treaties.length > 0) {
-      treatiesHtml = '<div style="margin-bottom:8px;">';
+      treatiesHtml = '<div style="margin-bottom:8px;display:flex;flex-wrap:wrap;gap:4px;">';
       row.treaties.forEach((t, tIdx) => {
         const turnsPlaceholder = t.turns > 0
           ? ` (<span data-text="treaty-turns-${row.civIdx}-${tIdx}"></span> turns)`
           : '';
-        treatiesHtml += `<span style="display:inline-block;background:rgba(232,193,112,0.2);border-radius:4px;padding:2px 8px;font-size:10px;margin-right:4px;"><span data-text="treaty-label-${row.civIdx}-${tIdx}"></span>${turnsPlaceholder}</span>`;
+        treatiesHtml += `
+          <span style="display:inline-flex;align-items:center;gap:4px;background:rgba(232,193,112,0.2);border-radius:4px;padding:2px 4px 2px 8px;font-size:10px;">
+            <span><span data-text="treaty-label-${row.civIdx}-${tIdx}"></span>${turnsPlaceholder}</span>
+            <button class="diplo-break-treaty" data-civ-id="${row.civId}" data-treaty-type="${t.type}" style="padding:2px 6px;background:rgba(217,74,74,0.25);border:1px solid #d94a4a;border-radius:4px;color:white;cursor:pointer;font-size:9px;">Break</button>
+          </span>`;
       });
       treatiesHtml += '</div>';
     }
@@ -480,6 +485,30 @@ export function createDiplomacyPanel(
       const requestId = (btn as HTMLElement).dataset.requestId!;
       panel.remove();
       callbacks.onDeclineTreatyProposal?.(requestId);
+    });
+  });
+
+  // Two-click in-panel confirm (no window.confirm on mobile, #554): the first
+  // click arms the button; a second click within 3s actually breaks it.
+  panel.querySelectorAll('.diplo-break-treaty').forEach(btn => {
+    const button = btn as HTMLButtonElement;
+    let armed = false;
+    let disarmTimer: ReturnType<typeof setTimeout> | null = null;
+    button.addEventListener('click', () => {
+      if (!armed) {
+        armed = true;
+        button.textContent = 'Confirm?';
+        disarmTimer = setTimeout(() => {
+          armed = false;
+          button.textContent = 'Break';
+        }, 3000);
+        return;
+      }
+      if (disarmTimer) clearTimeout(disarmTimer);
+      const civId = button.dataset.civId!;
+      const treatyType = button.dataset.treatyType! as TreatyType;
+      panel.remove();
+      callbacks.onBreakTreaty?.(civId, treatyType);
     });
   });
 

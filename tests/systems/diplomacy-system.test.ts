@@ -492,5 +492,17 @@ describe('diplomacy-system', () => {
       next = pruneExpiredDiplomaticRequests(next);
       expect(next.pendingDiplomacyRequests).toHaveLength(1);
     });
+
+    it('tolerates a legacy-shaped peace request (no treatyType/turnsRemaining) when pruning', () => {
+      const state = makeTreatyState();
+      // Shaped like a pre-#554 save: only the original peace-request fields.
+      state.pendingDiplomacyRequests = [
+        { id: 'peace:ai-1:player:1', type: 'peace', fromCivId: 'ai-1', toCivId: 'player', turnIssued: state.turn },
+      ];
+      const next = pruneExpiredDiplomaticRequests({ ...state, turn: state.turn + 5 });
+      expect(next.pendingDiplomacyRequests).toHaveLength(1);
+      const pruned = pruneExpiredDiplomaticRequests({ ...state, turn: state.turn + 11 });
+      expect(pruned.pendingDiplomacyRequests).toHaveLength(0);
+    });
   });
 });
