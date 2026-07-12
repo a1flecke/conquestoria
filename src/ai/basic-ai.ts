@@ -29,6 +29,7 @@ import { evaluateDiplomacy, evaluateMinorCivDiplomacy, evaluateVassalage, evalua
 import {
   declareWar,
   enqueuePeaceRequest,
+  enqueueTreatyProposal,
   signTreaty,
   modifyRelationship,
   offerVassalage,
@@ -917,19 +918,28 @@ function processAITurnInternal(
         case 'non_aggression_pact':
         case 'trade_agreement':
         case 'open_borders':
-        case 'alliance':
+        case 'alliance': {
+          const duration = decision.action === 'non_aggression_pact' ? 10 : -1;
+          // #554: humans must consent -- enqueue a proposal instead of signing.
+          if (newState.civilizations[decision.targetCiv]?.isHuman) {
+            newState = enqueueTreatyProposal(
+              newState, civId, decision.targetCiv, decision.action, duration, bus,
+            );
+            break;
+          }
+          // AI<->AI: sign both sides immediately (existing behavior).
           newState.civilizations[civId].diplomacy = signTreaty(
-            currentDiplomacy, civId, decision.targetCiv, decision.action,
-            decision.action === 'non_aggression_pact' ? 10 : -1, newState.turn,
+            currentDiplomacy, civId, decision.targetCiv, decision.action, duration, newState.turn,
           );
           if (newState.civilizations[decision.targetCiv]?.diplomacy) {
             newState.civilizations[decision.targetCiv].diplomacy = signTreaty(
               newState.civilizations[decision.targetCiv].diplomacy, decision.targetCiv, civId, decision.action,
-              decision.action === 'non_aggression_pact' ? 10 : -1, newState.turn,
+              duration, newState.turn,
             );
           }
           bus.emit('diplomacy:treaty-accepted', { civA: civId, civB: decision.targetCiv, treaty: decision.action });
           break;
+        }
       }
     }
 
