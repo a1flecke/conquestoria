@@ -3,8 +3,9 @@ import { createRng } from '@/systems/map-generator';
 import { placeLateResources } from '@/systems/late-resource-placement';
 import { createMarketplaceState } from '@/systems/trade-system';
 import { BUILDINGS, TRAINABLE_UNITS } from '@/systems/city-system';
+import { createEmptyAutonomyCivState } from '@/core/autonomy-state';
 
-export const CURRENT_SAVE_SCHEMA_VERSION = 2;
+export const CURRENT_SAVE_SCHEMA_VERSION = 3;
 
 export type SaveMigration = (state: GameState) => GameState;
 
@@ -134,9 +135,23 @@ function migrateLateResources(state: GameState): GameState {
   return { ...state, gameId, map: { ...state.map, tiles }, marketplace, cities };
 }
 
+function migrateAutonomyNetwork(state: GameState): GameState {
+  const autonomyByCiv = Object.fromEntries(Object.keys(state.civilizations ?? {}).map(civId => [
+    civId,
+    state.autonomyByCiv?.[civId] ?? createEmptyAutonomyCivState(),
+  ]));
+  return {
+    ...state,
+    autonomyByCiv,
+    networkCivicPressureByCity: state.networkCivicPressureByCity ?? {},
+    idCounters: { ...state.idCounters, nextNetworkPlanId: state.idCounters?.nextNetworkPlanId ?? 1 },
+  };
+}
+
 export const SAVE_MIGRATIONS: Readonly<Record<number, SaveMigration>> = {
   1: migrateToEra13Foundation,
   2: migrateLateResources,
+  3: migrateAutonomyNetwork,
 };
 
 function readSchemaVersion(raw: Record<string, unknown>): number {

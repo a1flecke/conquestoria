@@ -106,7 +106,7 @@ describe('save migrations', () => {
     const loadedAgain = migrateSaveToCurrent(migrated);
     const resources = new Set(Object.values(migrated.map.tiles).map(tile => tile.resource));
 
-    expect(migrated.saveSchemaVersion).toBe(2);
+    expect(migrated.saveSchemaVersion).toBe(CURRENT_SAVE_SCHEMA_VERSION);
     for (const resource of ['coal', 'oil', 'aluminum', 'uranium', 'rare-earth-elements', 'battery-minerals']) {
       expect(resources).toContain(resource);
       expect(migrated.marketplace!.prices[resource]).toBeGreaterThan(0);
@@ -123,5 +123,24 @@ describe('save migrations', () => {
 
     const migrated = migrateSaveToCurrent(legacySave);
     expect(migrated.cities[city.id].legacyResourceGrace).toEqual(['oil_refinery']);
+  });
+
+  it('migrates a schema-v2 pre-Autonomy save to empty network state once', () => {
+    const legacySave = createNewGame('rome', 'autonomy-pre-activation', 'small');
+    legacySave.saveSchemaVersion = 2;
+    delete legacySave.autonomyByCiv;
+    delete legacySave.networkCivicPressureByCity;
+    delete legacySave.idCounters.nextNetworkPlanId;
+
+    const migrated = migrateSaveToCurrent(legacySave);
+    const loadedAgain = migrateSaveToCurrent(migrated);
+
+    expect(migrated.saveSchemaVersion).toBe(3);
+    expect(migrated.networkCivicPressureByCity).toEqual({});
+    expect(migrated.autonomyByCiv).toEqual(Object.fromEntries(
+      Object.keys(migrated.civilizations).map(civId => [civId, { plans: {}, detections: {} }]),
+    ));
+    expect(migrated.idCounters.nextNetworkPlanId).toBe(1);
+    expect(loadedAgain).toEqual(migrated);
   });
 });
