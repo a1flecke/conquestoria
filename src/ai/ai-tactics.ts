@@ -21,6 +21,7 @@ import {
 } from '@/systems/combat-system';
 import { buildCombatContextForDefender } from '@/systems/combat-context';
 import { resolveMajorCityCapture } from '@/systems/city-capture-system';
+import { calculateCityAssaultStrengths } from '@/systems/city-siege-system';
 import { collectUsedCityNames } from '@/systems/city-name-system';
 import { foundCity } from '@/systems/city-system';
 import { canFoundCityAt } from '@/systems/city-territory-system';
@@ -408,9 +409,19 @@ function rankCapture(
   }
   const reachable = movementRange(context.state, context.actorId, unit)
     .some(coord => hexKey(coord) === hexKey(city.position));
-  return reachable
-    ? [ranked({ kind: 'capture-city', unitId: unit.id, cityId: city.id }, 600)]
-    : [];
+  if (!reachable) return [];
+
+  // Score by win probability (#522) -- previously a flat 600 regardless of the city's
+  // walls/population, because capture was unconditionally guaranteed. Left unweighted,
+  // the AI would blindly send units to die against a heavily-defended city with no way
+  // to tell that apart from a free capture. Never fully excludes the action (a 0% odds
+  // city still appears as a low-scoring candidate) so a cornered AI with no better
+  // option still attempts it.
+  const ownerCiv = context.state.civilizations[city.owner];
+  const winProbability = ownerCiv
+    ? calculateCityAssaultStrengths(unit, city, ownerCiv, context.state.map).winProbability
+    : 1;
+  return [ranked({ kind: 'capture-city', unitId: unit.id, cityId: city.id }, Math.round(winProbability * 600))];
 }
 
 function rankCivilianAndTransportActions(
