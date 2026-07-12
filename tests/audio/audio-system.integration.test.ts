@@ -454,6 +454,22 @@ describe('AudioSystem integration', () => {
     expect(doc.listenerCount('pointerdown')).toBe(0);
   });
 
+  it('keeps gesture recovery armed when resume resolves without entering the running state', async () => {
+    const doc = makeMockDocument();
+    vi.stubGlobal('document', doc);
+    ctx.resume.mockImplementationOnce(() => Promise.resolve());
+
+    system.start(makeState({ era: 3 }), busHelper.bus);
+    await flushPromises();
+    expect(ctx.state).toBe('suspended');
+    expect(doc.listenerCount('pointerdown')).toBe(1);
+
+    doc.dispatch('pointerdown');
+    await flushPromises();
+    expect(ctx.state).toBe('running');
+    expect(doc.listenerCount('pointerdown')).toBe(0);
+  });
+
   it('does not duplicate recovery hooks when hot-seat audio rebinds after a failed resume', async () => {
     const doc = makeMockDocument();
     vi.stubGlobal('document', doc);
