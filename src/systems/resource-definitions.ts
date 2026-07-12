@@ -5,6 +5,24 @@ export interface ResourceEffect {
   amount: number;
 }
 
+// Shared by city-panel.ts (owned-resource bonus rows) and icon-legend.ts
+// (tech-revealed resource reference) so effect text can never drift between
+// the two surfaces (#552).
+export function getResourceEffectLabel(effect: ResourceEffect | null): string {
+  if (!effect) return '';
+  switch (effect.type) {
+    case 'happiness': return `+${effect.amount} happiness (reduces unrest in all your cities)`;
+    case 'gold': return `+${effect.amount} gold/turn on the worked tile`;
+    case 'production': return `+${effect.amount} production/turn on the worked tile`;
+    case 'food': return `+${effect.amount} food/turn on the worked tile`;
+    case 'science': return `+${effect.amount} science/turn on the worked tile`;
+    default: {
+      const exhaustive: never = effect.type;
+      return exhaustive;
+    }
+  }
+}
+
 export type ResourceMaterialFamily =
   | 'industrial'
   | 'petroleum'
