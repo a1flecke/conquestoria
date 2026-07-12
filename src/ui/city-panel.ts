@@ -8,7 +8,7 @@ import {
   getProductionDisplayName,
   getProductionIconForItem,
 } from '@/systems/city-system';
-import { getCivAvailableResources } from '@/systems/resource-acquisition-system';
+import { getCivAvailableResources, getCivHappinessFromResources } from '@/systems/resource-acquisition-system';
 import { RESOURCE_DEFINITIONS } from '@/systems/trade-system';
 import { getResourceAdvantagesForItem, getResourceAdvantageMultiplier } from '@/systems/resource-advantages';
 import { SESSION_SHOWN_TIPS } from '@/ui/advisor-system';
@@ -32,6 +32,7 @@ import {
   isCityProductionLocked,
   getContagionSpread,
   getConcessionCost,
+  getUnrestPressureBreakdown,
 } from '@/systems/faction-system';
 import { getCrisisFlavor, getCrisisDisplayName } from '@/systems/crisis-flavor-definitions';
 import { getCrisisYieldMultiplier, getOutbreakSeverityMultiplier, getCatastropheRecoveryMultiplier } from '@/systems/crisis-system';
@@ -113,6 +114,14 @@ function getRushBuyReasonText(reason: RushBuyDisabledReason | null): string | nu
     default:
       return null;
   }
+}
+
+function civHappinessForBreakdown(state: GameState, civId: string): number {
+  // Mirrors processFactionTurn's per-civ happiness precompute (faction-system.ts)
+  // so the panel's breakdown matches what turn processing actually used.
+  const civ = state.civilizations[civId];
+  const feasting = (civ?.feastUntilTurn ?? 0) > state.turn;
+  return getCivHappinessFromResources(state, civId) + (feasting ? 2 : 0);
 }
 
 export function createCityPanel(
@@ -273,15 +282,23 @@ export function createCityPanel(
     <div style="background:rgba(74,144,217,0.12);border:1px solid rgba(74,144,217,0.35);border-radius:8px;padding:10px 12px;margin-bottom:16px;font-size:12px;">
       <div style="font-weight:bold;color:#7fb3e8;">🕊️ Immune to unrest for ${concessionImmuneTurnsLeft} more turn${concessionImmuneTurnsLeft === 1 ? '' : 's'}</div>
     </div>` : '';
+  const pressureBreakdownRows = city.unrestLevel > 0
+    ? getUnrestPressureBreakdown(city.id, state, civHappinessForBreakdown(state, city.owner))
+    : [];
+  const pressureRowsHtml = pressureBreakdownRows
+    .map((row, idx) => `<div style="font-size:11px;opacity:0.85;" data-pressure-row="${idx}"></div>`)
+    .join('');
   const unrestSectionHtml = city.unrestLevel > 0 ? `
     <div style="background:rgba(217,80,80,0.12);border:1px solid rgba(217,80,80,0.35);border-radius:8px;padding:10px 12px;margin-bottom:16px;font-size:12px;">
       <div style="font-weight:bold;color:#e88;margin-bottom:4px;">
         ${city.unrestLevel === 2 ? '⚠️ Revolt' : '⚠️ Unrest'} — yields reduced${isCityProductionLocked(city) ? ', production locked' : ''}
       </div>
+      <div style="margin-bottom:8px;">${pressureRowsHtml}</div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;">
         <button type="button" data-appease="${city.id}" ${appeaseDisabled ? 'disabled' : ''} title="${appeaseLabel}" style="min-height:44px;padding:7px 12px;border-radius:6px;font-size:12px;font-weight:bold;cursor:${appeaseDisabled ? 'default' : 'pointer'};background:${appeaseDisabled ? 'rgba(255,255,255,0.08)' : '#d4aa2c'};color:${appeaseDisabled ? 'rgba(255,255,255,0.4)' : '#1a1a1a'};border:none;">${appeaseLabel}</button>
         <button type="button" data-concede="${city.id}" ${concedeDisabled ? 'disabled' : ''} title="${concedeLabel}" style="min-height:44px;padding:7px 12px;border-radius:6px;font-size:12px;font-weight:bold;cursor:${concedeDisabled ? 'default' : 'pointer'};background:${concedeDisabled ? 'rgba(255,255,255,0.08)' : '#4a90d9'};color:${concedeDisabled ? 'rgba(255,255,255,0.4)' : '#fff'};border:none;">${concedeLabel}</button>
       </div>
+      <div style="opacity:0.7;margin-top:6px;" data-text="concede-appease-help"></div>
     </div>` : '';
   // Post-catastrophe reward: transient, and the crisis itself may already be gone from
   // activeCrises by the time this is active — must render on its own, not piggyback on
@@ -801,6 +818,12 @@ export function createCityPanel(
     if (part.yields.gold) pieces.push(`+${part.yields.gold} 💰`);
     if (part.yields.science) pieces.push(`+${part.yields.science} 🔬`);
     el.textContent = `${part.label}: ${pieces.join(' ')}`;
+  });
+
+  // Populate unrest pressure breakdown rows via textContent (XSS-safe) (#552)
+  pressureBreakdownRows.forEach((row, idx) => {
+    const el = panel.querySelector(`[data-pressure-row="${idx}"]`);
+    if (el) el.textContent = `${row.label}: ${row.amount > 0 ? '+' : ''}${Math.round(row.amount)}`;
   });
 
   // Populate resource bonus rows via textContent (XSS-safe)
