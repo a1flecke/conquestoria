@@ -14,6 +14,7 @@ import {
   getConcessionCost,
   getContagionSpread,
   getCityHappinessFromBuildings,
+  getUnrestPressureBreakdown,
   getUnrestYieldMultiplier,
   isCityProductionLocked,
   processFactionTurn,
@@ -906,5 +907,52 @@ describe('building happiness (#552)', () => {
     const state = makeState({ cityCount: 6 });
     const legacyCity = addBuilding(state, 'city-1', 'temple').cities['city-1'];
     expect(getCityHappinessFromBuildings(legacyCity)).toBe(1);
+  });
+});
+
+describe('unrest pressure breakdown (#552)', () => {
+  it('breakdown rows sum to the pressure total (pre-clamp) for varied cities', () => {
+    const state = makeState({ cityCount: 6, atWarCount: 2, unrestLevel: 0 });
+    for (const cityId of Object.keys(state.cities)) {
+      const rows = getUnrestPressureBreakdown(cityId, state, 0);
+      const sum = rows.reduce((total, row) => total + row.amount, 0);
+      expect(Math.min(100, Math.max(0, sum))).toBe(computeUnrestPressure(cityId, state, 0));
+    }
+  });
+
+  it('includes an Uprising contagion row when a same-owner city nearby is in revolt', () => {
+    // city-1 sits at {q:0,r:0}; add a same-owner neighbor at {q:2,r:0} (hex
+    // distance 2, within CONTAGION_GROUP_RANGE=3) already in revolt, matching
+    // the withRevoltingNeighbor idiom used elsewhere in this file.
+    const state = makeState({ era: 2 });
+    const neighbor: City = {
+      ...state.cities['city-1'],
+      id: 'city-2',
+      name: 'city-2',
+      position: { q: 2, r: 0 },
+      unrestLevel: 2,
+      unrestTurns: 5,
+    };
+    const revolting: GameState = {
+      ...state,
+      cities: { ...state.cities, [neighbor.id]: neighbor },
+      civilizations: {
+        ...state.civilizations,
+        player: { ...state.civilizations['player'], cities: [...state.civilizations['player'].cities, neighbor.id] },
+      },
+    };
+    const rows = getUnrestPressureBreakdown('city-1', revolting, 0);
+    const contagionRow = rows.find(r => r.label === 'Uprising contagion');
+    expect(contagionRow).toBeDefined();
+    expect(contagionRow!.amount).toBeGreaterThan(0);
+  });
+
+  it('includes a Happiness buildings row with a negative amount when the city has one', () => {
+    const state = makeState({ cityCount: 6 });
+    const withTemple = addBuilding(state, 'city-1', 'temple');
+    const rows = getUnrestPressureBreakdown('city-1', withTemple, 0);
+    const row = rows.find(r => r.label === 'Happiness buildings');
+    expect(row).toBeDefined();
+    expect(row!.amount).toBe(-2);
   });
 });

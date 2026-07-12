@@ -2113,3 +2113,35 @@ describe('city-panel HP status (#522)', () => {
     expect(walledText).not.toBe(unwalledText);
   });
 });
+
+describe('unrest pressure breakdown (#552)', () => {
+  it('shows a War weariness row for a city in unrest with an active war', () => {
+    const { container, city, state } = makeWonderPanelFixture();
+    city.unrestLevel = 1;
+    state.civilizations[state.currentPlayer].diplomacy.atWarWith = ['enemy'];
+
+    const panel = createCityPanel(container, city, state, {
+      onBuild: () => {},
+      onOpenWonderPanel: () => {},
+      onClose: () => {},
+    });
+
+    expect(collectText(panel)).toContain('War weariness');
+  });
+
+  it('shows a Happiness buildings row when the city has a temple', () => {
+    const { container, city, state } = makeWonderPanelFixture();
+    city.unrestLevel = 1;
+    city.buildings = ['temple'];
+
+    const panel = createCityPanel(container, city, state, {
+      onBuild: () => {},
+      onOpenWonderPanel: () => {},
+      onClose: () => {},
+    });
+
+    const text = collectText(panel);
+    expect(text).toContain('Happiness buildings');
+    expect(text).toContain('-2');
+  });
+});

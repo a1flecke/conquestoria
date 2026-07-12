@@ -35,54 +35,78 @@ const MAX_PRESSURE_CONTAGION = 16;
 
 // --- Pressure computation ---
 
-export function computeUnrestPressure(cityId: string, state: GameState, ownerHappiness = 0): number {
+export interface UnrestPressureRow {
+  label: string;
+  amount: number;
+}
+
+// Single source of truth for unrest pressure (#552): both computeUnrestPressure
+// (consumed by AI/turn processing) and the city panel breakdown UI build from
+// this row list, so they can never drift apart.
+export function getUnrestPressureBreakdown(
+  cityId: string,
+  state: GameState,
+  ownerHappiness = 0,
+): UnrestPressureRow[] {
   const city = state.cities[cityId];
-  if (!city) return 0;
+  if (!city) return [];
   const owner = city.owner;
   const civ = state.civilizations[owner];
-  if (!civ) return 0;
+  if (!civ) return [];
 
-  let pressure = 0;
+  const rows: UnrestPressureRow[] = [];
 
   // Empire overextension: each city over 5 adds 3 pressure
   const cityCount = civ.cities.length;
-  pressure += Math.min(MAX_PRESSURE_EMPIRE, Math.max(0, (cityCount - 5) * 3));
+  const overextension = Math.min(MAX_PRESSURE_EMPIRE, Math.max(0, (cityCount - 5) * 3));
+  if (overextension > 0) rows.push({ label: 'Empire overextension', amount: overextension });
 
   const capital = getCapitalCity(state, owner);
   if (capital && capital.id !== cityId) {
     const dist = hexDistance(city.position, capital.position);
-    pressure += Math.min(MAX_PRESSURE_DISTANCE, Math.max(0, (dist - 5) * 2));
+    const distancePressure = Math.min(MAX_PRESSURE_DISTANCE, Math.max(0, (dist - 5) * 2));
+    if (distancePressure > 0) rows.push({ label: 'Distance from capital', amount: distancePressure });
   }
 
   // Recent conquest
   if (city.conquestTurn !== undefined) {
     const turnsSince = state.turn - city.conquestTurn;
     if (turnsSince < CONQUEST_UNREST_DURATION) {
-      pressure += 25;
+      rows.push({ label: 'Recent conquest', amount: 25 });
     }
   }
 
   // War weariness
   const atWarCount = civ.diplomacy.atWarWith?.length ?? 0;
-  pressure += Math.min(MAX_PRESSURE_WAR, atWarCount * 8);
+  const warPressure = Math.min(MAX_PRESSURE_WAR, atWarCount * 8);
+  if (warPressure > 0) rows.push({ label: 'War weariness', amount: warPressure });
 
   // Spy unrest bonus
-  pressure += city.spyUnrestBonus;
+  if (city.spyUnrestBonus > 0) rows.push({ label: 'Enemy espionage', amount: city.spyUnrestBonus });
 
   if (state.era >= 3) {
     const economy = getEconomyStatusForCiv(state, owner);
     if (economy.strainLevel === 'critical') {
-      pressure += Math.min(MAX_PRESSURE_ECONOMY, 12 + economy.unpaidMaintenance * 2);
+      const economyPressure = Math.min(MAX_PRESSURE_ECONOMY, 12 + economy.unpaidMaintenance * 2);
+      rows.push({ label: 'Economic strain', amount: economyPressure });
     }
   }
 
-  // Happiness from luxury resources (empire-wide) plus this city's own happiness
-  // buildings (per-city) reduces unrest pressure, 2 pressure per happiness point (#552).
-  pressure -= (ownerHappiness + getCityHappinessFromBuildings(city)) * 2;
+  if (ownerHappiness > 0) rows.push({ label: 'Luxury resources', amount: -ownerHappiness * 2 });
 
-  pressure += getContagionSpread(cityId, state).pressure;
+  const buildingHappiness = getCityHappinessFromBuildings(city);
+  if (buildingHappiness > 0) rows.push({ label: 'Happiness buildings', amount: -buildingHappiness * 2 });
 
-  return Math.min(100, Math.max(0, pressure));
+  const contagion = getContagionSpread(cityId, state).pressure;
+  if (contagion > 0) rows.push({ label: 'Uprising contagion', amount: contagion });
+
+  return rows;
+}
+
+export function computeUnrestPressure(cityId: string, state: GameState, ownerHappiness = 0): number {
+  const rows = getUnrestPressureBreakdown(cityId, state, ownerHappiness);
+  const sum = rows.reduce((total, row) => total + row.amount, 0);
+  return Math.min(100, Math.max(0, sum));
 }
 
 // --- Resolution helpers ---
