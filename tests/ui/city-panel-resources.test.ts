@@ -146,6 +146,10 @@ describe('city panel resource bonus section', () => {
     const text = container.textContent ?? '';
     expect(text).not.toContain('Empire bonuses');
     expect(text).not.toContain('City bonuses');
-    expect(text).not.toContain('+1 happiness');
+    // Not asserting the absence of '+1 happiness' globally: since #552, culture
+    // buildings like Temple (buildable here — 'philosophy' is completed) show
+    // "+1 happiness" in their own build-queue description, which is unrelated
+    // to the resource-bonus section this test targets. The header-absence
+    // checks above already fully confirm the Resources section is gone.
   });
 });

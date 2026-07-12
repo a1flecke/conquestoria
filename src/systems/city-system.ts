@@ -69,9 +69,9 @@ export const BUILDINGS: Record<string, Building> = {
   stable: { id: 'stable', name: 'Stable', category: 'military', yields: { food: 0, production: 0, gold: 0, science: 0 }, productionCost: 55, description: 'Trains mounted units. Cavalry-class units train 15% cheaper in this city.', techRequired: 'horseback-riding', obsoletedByTech: 'tank-warfare' },
 
   // Culture
-  temple: { id: 'temple', name: 'Temple', category: 'culture', yields: { food: 0, production: 0, gold: 0, science: 1 }, productionCost: 45, description: 'Spiritual center', techRequired: 'philosophy' },
+  temple: { id: 'temple', name: 'Temple', category: 'culture', yields: { food: 0, production: 0, gold: 0, science: 1 }, productionCost: 45, description: 'Spiritual center. +1 happiness in this city (reduces unrest pressure).', techRequired: 'philosophy', happiness: 1 },
   monument: { id: 'monument', name: 'Monument', category: 'culture', yields: { food: 0, production: 0, gold: 1, science: 0 }, productionCost: 30, description: 'Commemorates your civilization', techRequired: 'code-of-laws', pacing: { band: 'infrastructure', role: 'early-culture', impact: 1.05, scope: 'city', snowball: 1.1, urgency: 1, situationality: 1, unlockBreadth: 1 } },
-  amphitheater: { id: 'amphitheater', name: 'Amphitheater', category: 'culture', yields: { food: 0, production: 0, gold: 2, science: 1 }, productionCost: 85, description: 'Entertainment and culture', techRequired: 'drama-poetry' },
+  amphitheater: { id: 'amphitheater', name: 'Amphitheater', category: 'culture', yields: { food: 0, production: 0, gold: 2, science: 1 }, productionCost: 85, description: 'Entertainment and culture. +1 happiness in this city (reduces unrest pressure).', techRequired: 'drama-poetry', happiness: 1 },
   shrine: { id: 'shrine', name: 'Shrine', category: 'culture', yields: { food: 0, production: 0, gold: 0, science: 1 }, productionCost: 8, description: 'Place of worship', techRequired: null, pacing: { band: 'starter', role: 'early-science', impact: 1, scope: 'city', snowball: 1.1, urgency: 1.1, situationality: 1, unlockBreadth: 1 } },
   forum: { id: 'forum', name: 'Forum', category: 'culture', yields: { food: 0, production: 0, gold: 2, science: 0 }, productionCost: 70, description: 'Public gathering place', techRequired: 'civil-service', pacing: { band: 'infrastructure', role: 'civic-economy', impact: 1.1, scope: 'city', snowball: 1.1, urgency: 1, situationality: 1, unlockBreadth: 1 } },
 
@@ -424,8 +424,9 @@ export const BUILDINGS: Record<string, Building> = {
   monastery: {
     id: 'monastery', name: 'Monastery', category: 'culture',
     yields: { food: 0, production: 0, gold: 1, science: 1 }, productionCost: 110,
-    description: 'Monastic community of scholars. +1 science, +1 gold.',
+    description: 'Monastic community of scholars. +1 science, +1 gold, +1 happiness in this city (reduces unrest pressure).',
     techRequired: 'monastic-orders',
+    happiness: 1,
   },
 
   // ERA 5 SPECIAL BUILDINGS
@@ -458,8 +459,9 @@ export const BUILDINGS: Record<string, Building> = {
   concert_hall: {
     id: 'concert_hall', name: 'Concert Hall', category: 'culture',
     yields: { food: 0, production: 0, gold: 3, science: 0 }, productionCost: 115,
-    description: 'Grand music hall draws wealthy patrons. +3 gold. Cultural prestige.',
+    description: 'Grand music hall draws wealthy patrons. +3 gold, +1 happiness in this city (reduces unrest pressure).',
     techRequired: 'baroque-music',
+    happiness: 1,
   },
   star_fort: {
     id: 'star_fort', name: 'Star Fort', category: 'military',
