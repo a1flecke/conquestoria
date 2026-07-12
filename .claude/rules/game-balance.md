@@ -55,6 +55,28 @@ Movement bonuses are the most easily broken stat — small integers stack to pro
 
 **Why Road Corps and National Railway don't grant movement:** early drafts gave both +1 road movement, which stacked to +2 on roads for an era 3–8 overlap window. Both were revised to non-movement effects to respect this policy.
 
+## Happiness Inventory
+
+Happiness reduces unrest pressure at 2 pressure per point
+(`computeUnrestPressure` / `getUnrestPressureBreakdown` in
+`faction-system.ts`). Unlike yields, happiness has no MR12-style ceiling rule
+of its own yet — this table exists so future additions stay legible and
+proportionate to what's already here.
+
+| Source | Scope | Amount | Era active |
+|---|---|---|---|
+| Temple building | city | +1 | era 3+ (`philosophy`) |
+| Amphitheater building | city | +1 | era 4+ (`drama-poetry`) |
+| Monastery building | city | +1 | era 5+ (`monastic-orders`) |
+| Concert Hall building | city | +1 | era 6+ (`baroque-music`) |
+| Luxury resources (each type owned) | empire | +1 each | varies by resource |
+| Beast-slayer's feast (Hunt crisis reward) | empire | +2 | temporary, 5 turns |
+
+**Rule:** any new happiness source (building, wonder, tech, resource) must add
+a row here and stay at +1 per single source unless a documented gameplay
+reason requires more (matching the spirit of the wonder/national-project yield
+ceilings above, applied to happiness).
+
 ## National Project Lifecycle Contract
 
 - **Build window:** available during `homeEra` and `homeEra + 1` only. Hidden from production queue when `currentEra > homeEra + 1`.
