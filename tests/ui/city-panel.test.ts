@@ -2145,3 +2145,34 @@ describe('unrest pressure breakdown (#552)', () => {
     expect(text).toContain('-2');
   });
 });
+
+describe('concede vs appease copy (#552)', () => {
+  it('gives Appease and Concede distinct explanatory tooltips', () => {
+    const { container, city, state } = makeWonderPanelFixture();
+    city.unrestLevel = 1;
+
+    const panel = createCityPanel(container, city, state, {
+      onBuild: () => {},
+      onOpenWonderPanel: () => {},
+      onClose: () => {},
+    });
+
+    const appeaseBtn = panel.querySelector('[data-appease]') as HTMLButtonElement;
+    const concedeBtn = panel.querySelector('[data-concede]') as HTMLButtonElement;
+    expect(appeaseBtn.title).toContain('repeatable');
+    expect(concedeBtn.title).toContain('immune');
+  });
+
+  it('shows a static help line summarizing the trade-off', () => {
+    const { container, city, state } = makeWonderPanelFixture();
+    city.unrestLevel = 1;
+
+    const panel = createCityPanel(container, city, state, {
+      onBuild: () => {},
+      onOpenWonderPanel: () => {},
+      onClose: () => {},
+    });
+
+    expect(collectText(panel)).toContain('Concede costs more but grants long immunity');
+  });
+});

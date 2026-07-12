@@ -33,6 +33,7 @@ import {
   getContagionSpread,
   getConcessionCost,
   getUnrestPressureBreakdown,
+  CONCESSION_IMMUNITY_TURNS,
 } from '@/systems/faction-system';
 import { getCrisisFlavor, getCrisisDisplayName } from '@/systems/crisis-flavor-definitions';
 import { getCrisisYieldMultiplier, getOutbreakSeverityMultiplier, getCatastropheRecoveryMultiplier } from '@/systems/crisis-system';
@@ -270,6 +271,8 @@ export function createCityPanel(
   const concedeLabel = !canAffordConcession
     ? `Not enough gold (needs ${concessionCost})`
     : `Concede (${concessionCost} gold)`;
+  const appeaseTooltip = `Appease: pay ${appeaseCost} gold to calm this city right now. Cheap and repeatable, but new pressure can build again next turn.`;
+  const concedeTooltip = `Concede: pay ${concessionCost} gold for a charter — clears unrest immediately and makes this city immune to new unrest (including spread from other cities) for ${CONCESSION_IMMUNITY_TURNS} turns. Costs more than Appease, but lasts.`;
   // Uprising contagion (MR4): only shown when the term is actually > 0 for THIS city —
   // garrisoning or concession immunity zero out getContagionSpread entirely, so this
   // stays honest rather than a blanket "any revolting civ city" check.
@@ -295,8 +298,8 @@ export function createCityPanel(
       </div>
       <div style="margin-bottom:8px;">${pressureRowsHtml}</div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;">
-        <button type="button" data-appease="${city.id}" ${appeaseDisabled ? 'disabled' : ''} title="${appeaseLabel}" style="min-height:44px;padding:7px 12px;border-radius:6px;font-size:12px;font-weight:bold;cursor:${appeaseDisabled ? 'default' : 'pointer'};background:${appeaseDisabled ? 'rgba(255,255,255,0.08)' : '#d4aa2c'};color:${appeaseDisabled ? 'rgba(255,255,255,0.4)' : '#1a1a1a'};border:none;">${appeaseLabel}</button>
-        <button type="button" data-concede="${city.id}" ${concedeDisabled ? 'disabled' : ''} title="${concedeLabel}" style="min-height:44px;padding:7px 12px;border-radius:6px;font-size:12px;font-weight:bold;cursor:${concedeDisabled ? 'default' : 'pointer'};background:${concedeDisabled ? 'rgba(255,255,255,0.08)' : '#4a90d9'};color:${concedeDisabled ? 'rgba(255,255,255,0.4)' : '#fff'};border:none;">${concedeLabel}</button>
+        <button type="button" data-appease="${city.id}" ${appeaseDisabled ? 'disabled' : ''} title="${appeaseTooltip}" style="min-height:44px;padding:7px 12px;border-radius:6px;font-size:12px;font-weight:bold;cursor:${appeaseDisabled ? 'default' : 'pointer'};background:${appeaseDisabled ? 'rgba(255,255,255,0.08)' : '#d4aa2c'};color:${appeaseDisabled ? 'rgba(255,255,255,0.4)' : '#1a1a1a'};border:none;">${appeaseLabel}</button>
+        <button type="button" data-concede="${city.id}" ${concedeDisabled ? 'disabled' : ''} title="${concedeTooltip}" style="min-height:44px;padding:7px 12px;border-radius:6px;font-size:12px;font-weight:bold;cursor:${concedeDisabled ? 'default' : 'pointer'};background:${concedeDisabled ? 'rgba(255,255,255,0.08)' : '#4a90d9'};color:${concedeDisabled ? 'rgba(255,255,255,0.4)' : '#fff'};border:none;">${concedeLabel}</button>
       </div>
       <div style="opacity:0.7;margin-top:6px;" data-text="concede-appease-help"></div>
     </div>` : '';
@@ -777,6 +780,13 @@ export function createCityPanel(
     setText(
       'contagion-spread-warning',
       `Unrest is spreading from ${contagionSourceCity.name} (+${Math.round(contagionSpread.pressure)} pressure/turn) — garrison a unit to block it.`,
+    );
+  }
+
+  if (city.unrestLevel > 0) {
+    setText(
+      'concede-appease-help',
+      'Appease is cheap and repeatable but unrest can return. Concede costs more but grants long immunity to new unrest.',
     );
   }
 
