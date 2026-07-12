@@ -121,6 +121,64 @@ jobs:
       - name: Run tests
         run: yarn verify:push
 
+  pirate-audio-reproducibility:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Check for pirate audio generator inputs
+        id: pirate-audio-changes
+        shell: bash
+        run: |
+          changed_files="$(git diff --name-only "${{ github.event.pull_request.base.sha }}" "${{ github.sha }}")"
+          pirate_audio_changed=false
+
+          while IFS= read -r file; do
+            case "$file" in
+              scripts/generate-pirate-sfx.sh|src/audio/pirate-audio-sources.ts|tests/audio/pirate-sfx-generator.test.ts|public/audio/sfx/pirates/*|public/audio/stinger/pirates/*|public/audio/sfx/naval-move-step.ogg|public/audio/sfx/galley-attack-swing.ogg|public/audio/sfx/galley-attack-impact.ogg|public/audio/sfx/trireme-attack-swing.ogg|public/audio/sfx/trireme-attack-impact.ogg|public/audio/sfx/catapult-siege-fire.ogg|public/audio/sfx/catapult-siege-impact.ogg|public/audio/sfx/ballista-siege-fire.ogg|public/audio/sfx/ballista-siege-impact.ogg|public/audio/sfx/carrack-death.ogg|public/audio/sfx/galleon-death.ogg|public/audio/sfx/steamship-death.ogg|public/audio/sfx/transport-death.ogg|public/audio/sfx/transport-load.ogg|public/audio/sfx/transport-unload.ogg|package.json|yarn.lock|.yarnrc.yml|.yarn/*|.github/workflows/deploy.yml)
+                pirate_audio_changed=true
+                break
+                ;;
+            esac
+          done <<< "$changed_files"
+
+          echo "pirate_audio_changed=$pirate_audio_changed" >> "$GITHUB_OUTPUT"
+
+      - name: Enable Corepack
+        if: steps.pirate-audio-changes.outputs.pirate_audio_changed == 'true'
+        run: corepack enable
+
+      - name: Setup Node
+        if: steps.pirate-audio-changes.outputs.pirate_audio_changed == 'true'
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '24.13.1'
+          cache: yarn
+          cache-dependency-path: yarn.lock
+
+      - name: Install dependencies
+        if: steps.pirate-audio-changes.outputs.pirate_audio_changed == 'true'
+        run: yarn install --immutable
+
+      - name: Install audio test tooling
+        if: steps.pirate-audio-changes.outputs.pirate_audio_changed == 'true'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+
+      - name: Verify deterministic pirate audio
+        if: steps.pirate-audio-changes.outputs.pirate_audio_changed == 'true'
+        run: RUN_PIRATE_SFX_DETERMINISM=1 yarn vitest run tests/audio/pirate-sfx-generator.test.ts -t "reproduces byte-identical audio across two generations on one runner"
+
+      - name: Report skipped deterministic audio check
+        if: steps.pirate-audio-changes.outputs.pirate_audio_changed != 'true'
+        run: echo "No pirate audio generator inputs changed; deterministic generation check skipped."
+
   web-smoke:
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request'
