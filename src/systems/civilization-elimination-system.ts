@@ -3,6 +3,7 @@ import type {
   GameState,
   MajorCivPlanPortfolio,
 } from '@/core/types';
+import { cancelInvalidNetworkPlans } from '@/systems/network-plan-system';
 
 export type CivilizationEliminationResult =
   | { state: GameState; eliminated: false }
@@ -162,7 +163,7 @@ export function eliminateCivilization(
   }
 
   return {
-    state: next,
+    state: cancelInvalidNetworkPlans(next).state,
     eliminated: true,
     civId,
     eliminatedBy,

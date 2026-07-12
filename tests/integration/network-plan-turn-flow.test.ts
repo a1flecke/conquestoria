@@ -1,5 +1,7 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { createNewGame } from '@/core/game-state';
+import { EventBus } from '@/core/event-bus';
+import { processTurn } from '@/core/turn-manager';
 import type { City, Unit } from '@/core/types';
 import {
   assignNetworkPlan,
@@ -40,7 +42,6 @@ function makePreparedExploit() {
 describe('network plan turn flow', () => {
   it('warns at victim-turn start and resolves only after that full response turn', () => {
     const prepared = makePreparedExploit();
-    prepared.turn = 2;
 
     const warned = beginNetworkPlansForVictimTurn(prepared, 'ai-1');
     const resolved = resolveNetworkPlansForVictimTurnEnd(
@@ -50,7 +51,7 @@ describe('network plan turn flow', () => {
     );
 
     expect(warned.warnings).toEqual([{ planId: 'network-plan-1', victimCivId: 'ai-1' }]);
-    expect(warned.state.autonomyByCiv!.player.plans['network-plan-1'].warnedTurn).toBe(2);
+    expect(warned.state.autonomyByCiv!.player.plans['network-plan-1'].warnedTurn).toBe(1);
     expect(resolved.creditsByOwner).toEqual({ player: 2 });
   });
 
@@ -62,5 +63,23 @@ describe('network plan turn flow', () => {
 
     expect(resolved.creditsByOwner).toEqual({});
     expect(resolved.events).toEqual([]);
+  });
+
+  it('routes activated victims through intent warning and resolution instead of the legacy passive drain', () => {
+    const prepared = makePreparedExploit();
+    prepared.turn = 2;
+    const bus = new EventBus();
+    const warned = vi.fn();
+    const resolved = vi.fn();
+    const passiveDrain = vi.fn();
+    bus.on('network:exploit-warning', warned);
+    bus.on('network:exploit-resolved', resolved);
+    bus.on('city:cyber-drained', passiveDrain);
+
+    processTurn(prepared, bus);
+
+    expect(warned).toHaveBeenCalledWith(expect.objectContaining({ cityId: 'city-ai', victimCivId: 'ai-1' }));
+    expect(resolved).toHaveBeenCalledWith(expect.objectContaining({ cityId: 'city-ai', ownerCivId: 'player' }));
+    expect(passiveDrain).not.toHaveBeenCalled();
   });
 });

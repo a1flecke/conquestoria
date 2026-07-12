@@ -30,6 +30,7 @@ import {
   getLandUnitWaterRecoveryPanelMessage,
   type LandUnitWaterRecovery,
 } from '@/systems/unit-water-recovery';
+import { isAutonomyActivated } from '@/systems/network-plan-system';
 
 export interface TransportLoadOption {
   transportId: string;
@@ -91,6 +92,8 @@ export interface SelectedUnitInfoCallbacks {
   pendingUnloadUnitName?: string;
   getPirateAssaultAction?: (unitId: string) => { factionId: string; label: string } | null;
   onOpenPirateAssault?: (factionId: string, unitId: string) => void;
+  /** Opens the persistent-network intent surface for an activated Cyber Unit. */
+  onOpenNetworkIntent?: (unitId: string) => void;
 }
 
 export interface SelectedUnitInfoPresentation {
@@ -641,6 +644,19 @@ export function renderSelectedUnitInfo(
     if (ownCityHere && spyRecord?.status === 'idle' && !unit.hasActed) {
       actionsDiv.appendChild(makeButton('Embed (counter-espionage)', '#374151', () => callbacks.onEmbed!(unitId)));
     }
+  }
+
+  if (
+    unit.type === 'cyber_unit'
+    && unit.owner === state.currentPlayer
+    && isAutonomyActivated(state, unit.owner)
+    && callbacks.onOpenNetworkIntent
+  ) {
+    actionsDiv.appendChild(makeButton(
+      'Set Network Intent',
+      '#2563eb',
+      () => callbacks.onOpenNetworkIntent!(unitId),
+    ));
   }
 
   if (callbacks.onUpgradeUnit && !unit.hasActed) {

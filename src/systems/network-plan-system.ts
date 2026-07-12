@@ -140,7 +140,9 @@ export function assignNetworkPlan(
     target: structuredClone(request.target),
     status: request.definitionId === 'harden' ? 'active' : 'preparing',
     createdTurn: state.turn,
-    nextResolutionTurn: request.definitionId === 'harden' ? state.turn : state.turn + 1,
+    // A victim's next player turn can occur later in this hot-seat round, before the
+    // global round counter advances.  The warning gate, not a round offset, owns timing.
+    nextResolutionTurn: state.turn,
     warnedTurn: null,
     ...(request.definitionId === 'harden' ? { effectState: { hardenCharges: 1 } } : {}),
   };
@@ -198,7 +200,7 @@ export function retargetNetworkPlan(
     ...existing,
     target: structuredClone(target),
     status: existing.definitionId === 'harden' ? 'active' : 'preparing',
-    nextResolutionTurn: existing.definitionId === 'harden' ? state.turn : state.turn + 1,
+    nextResolutionTurn: state.turn,
     warnedTurn: null,
   };
   return {
@@ -254,22 +256,22 @@ export function beginNetworkPlansForVictimTurn(
   state: GameState,
   victimCivId: string,
 ): NetworkTurnStartResult {
-  let nextState = state;
+  let nextState = cancelInvalidNetworkPlans(state).state;
   const warnings: NetworkTurnStartResult['warnings'] = [];
-  const candidates = Object.entries(state.autonomyByCiv ?? {})
+  const candidates = Object.entries(nextState.autonomyByCiv ?? {})
     .flatMap(([ownerCivId, autonomy]) => Object.values(autonomy.plans)
       .map(plan => ({ ownerCivId, plan })))
     .filter(({ plan }) => plan.definitionId === 'exploit'
       && plan.status === 'preparing'
       && plan.warnedTurn === null
-      && plan.nextResolutionTurn <= state.turn
+      && plan.nextResolutionTurn <= nextState.turn
       && plan.target.kind === 'city'
-      && state.cities[plan.target.cityId]?.owner === victimCivId)
+      && nextState.cities[plan.target.cityId]?.owner === victimCivId)
     .sort((left, right) => left.plan.id.localeCompare(right.plan.id));
 
   for (const { ownerCivId, plan } of candidates) {
     const autonomy = nextState.autonomyByCiv![ownerCivId];
-    const warnedPlan: NetworkPlan = { ...plan, status: 'active', warnedTurn: state.turn };
+    const warnedPlan: NetworkPlan = { ...plan, status: 'active', warnedTurn: nextState.turn };
     nextState = {
       ...nextState,
       autonomyByCiv: {
@@ -290,14 +292,14 @@ export function resolveNetworkPlansForVictimTurnEnd(
   victimCivId: string,
   baseGoldByCityId: Record<string, number>,
 ): NetworkTurnEndResult {
-  let nextState = state;
+  let nextState = cancelInvalidNetworkPlans(state).state;
   const creditsByOwner: Record<string, number> = {};
   const events: NetworkEffectEvent[] = [];
-  const planIds = Object.values(state.autonomyByCiv ?? {})
+  const planIds = Object.values(nextState.autonomyByCiv ?? {})
     .flatMap(autonomy => Object.values(autonomy.plans))
     .filter(plan => plan.definitionId === 'exploit'
       && plan.status === 'active'
-      && plan.warnedTurn === state.turn
+      && plan.warnedTurn === nextState.turn
       && plan.target.kind === 'city'
       && nextState.cities[plan.target.cityId]?.owner === victimCivId)
     .map(plan => plan.id)
@@ -311,7 +313,26 @@ export function resolveNetworkPlansForVictimTurnEnd(
     const resolution = resolveNetworkPlanAtTargetEnd(nextState, planId, {
       baseCityGold: baseGoldByCityId[plan.target.cityId] ?? 0,
     });
-    nextState = resolution.state;
+    const ownerAutonomy = resolution.state.autonomyByCiv?.[plan.ownerCivId];
+    const resolvedPlan = ownerAutonomy?.plans[planId];
+    nextState = resolvedPlan ? {
+      ...resolution.state,
+      autonomyByCiv: {
+        ...resolution.state.autonomyByCiv,
+        [plan.ownerCivId]: {
+          ...ownerAutonomy,
+          plans: {
+            ...ownerAutonomy!.plans,
+            [planId]: {
+              ...resolvedPlan,
+              status: 'preparing',
+              warnedTurn: null,
+              nextResolutionTurn: nextState.turn + 1,
+            },
+          },
+        },
+      },
+    } : resolution.state;
     for (const [ownerCivId, credits] of Object.entries(resolution.creditsByOwner)) {
       creditsByOwner[ownerCivId] = (creditsByOwner[ownerCivId] ?? 0) + credits;
     }

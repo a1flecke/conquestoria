@@ -6,7 +6,8 @@ import {
 } from '@/core/opponent-ai-state';
 import type { GameState } from '@/core/types';
 import { hexKey } from '@/systems/hex-utils';
-import { refreshMajorCivIntel } from './ai-perception';
+import { buildMajorCivPerception, refreshMajorCivIntel } from './ai-perception';
+import { assignNetworkIntentsForAI } from './ai-network-intents';
 import type {
   ExecutePreparedMajorCivPlan,
   PrepareMajorCivPlan,
@@ -236,6 +237,14 @@ export function processNonHumanMajorRound(
   const preparedByCiv = new Map(preparedPlans.map(prepared => [prepared.civId, prepared]));
   const traces = preparedPlans.flatMap(prepared => prepared.traces);
   working = writePreparedPortfolios(refreshed, preparedPlans);
+  for (const civId of stableActorIds) {
+    const perception = buildMajorCivPerception(working, civId);
+    working = assignNetworkIntentsForAI(working, civId, {
+      knownCityIds: new Set(perception.knownCities
+        .filter(city => city.position !== null)
+        .map(city => city.id)),
+    });
+  }
 
   const executePrepared = options.executePrepared ?? processPreparedAITurn;
   for (const civId of actorIds) {

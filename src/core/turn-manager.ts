@@ -74,6 +74,11 @@ import { resolveCivDefinition } from '@/systems/civ-registry';
 import { applyProductionBonus } from '@/systems/city-system';
 import { chargeUnitsOnGeneTherapyResearch, applyGeneTherapyRecharge } from '@/systems/gene-therapy-system';
 import { processCyberDrain } from '@/systems/cyber-warfare-system';
+import {
+  beginNetworkPlansForVictimTurn,
+  isAutonomyActivated,
+  resolveNetworkPlansForVictimTurnEnd,
+} from '@/systems/network-plan-system';
 import { processEspionageTurn, isSpyUnitType, createSpyFromUnit, processInterrogation, applyBuildingCI } from '@/systems/espionage-system';
 import { processDetection } from '@/systems/detection-system';
 import { applyPendingOpponentChallenge, resolveChallengeForCiv } from '@/core/opponent-challenge';
@@ -149,6 +154,22 @@ export function processTurn(
 
   // --- Process each civilization ---
   for (const [civId, civ] of Object.entries(newState.civilizations)) {
+    if (!civ.isHuman) {
+      const warningResult = beginNetworkPlansForVictimTurn(newState, civId);
+      newState = warningResult.state;
+      for (const warning of warningResult.warnings) {
+        const plan = Object.values(newState.autonomyByCiv ?? {})
+          .map(autonomy => autonomy.plans[warning.planId])
+          .find(Boolean);
+        if (plan?.target.kind === 'city') {
+          bus.emit('network:exploit-warning', {
+            planId: warning.planId,
+            victimCivId: civId,
+            cityId: plan.target.cityId,
+          });
+        }
+      }
+    }
     const currentCivState = newState.civilizations[civId];
     const civDef = resolveCivDefinition(newState, civ.civType ?? '');
     // Snapshot before production creates new units this turn — geneTherapyReady recharge
@@ -157,6 +178,7 @@ export function processTurn(
     // Process cities: food, growth, production
     let totalScience = 0;
     let totalGold = 0;
+    const baseGoldByCityId: Record<string, number> = {};
 
     const resourceYieldBonus = getCivResourceYieldBonus(newState, civId);
     const npCivBonuses = getNationalProjectCivYieldBonus(newState, civId);
@@ -216,6 +238,7 @@ export function processTurn(
       };
       totalScience += yields.science;
       totalGold += yields.gold;
+      baseGoldByCityId[cityId] = yields.gold;
       const effectiveProduction = isCityProductionLocked(city) ? 0 : yields.production;
       const availableResources = getCivAvailableResources(newState, civId);
       const npKeysForCiv = new Set(
@@ -340,13 +363,36 @@ export function processTurn(
 
     // Cyber drain: enemy cyber_units adjacent to this civ's cities steal 2 gold/turn each
     // (blocked by Cyber Defense Center / Signals Hub); stolen gold is credited to the attacker.
-    const cyberDrainResult = processCyberDrain(newState, civId, totalGold);
-    totalGold = cyberDrainResult.remainingGold;
-    for (const [ownerCivId, amount] of Object.entries(cyberDrainResult.creditsByOwner)) {
+    if (!isAutonomyActivated(newState, civId)) {
+      const cyberDrainResult = processCyberDrain(newState, civId, totalGold);
+      totalGold = cyberDrainResult.remainingGold;
+      for (const [ownerCivId, amount] of Object.entries(cyberDrainResult.creditsByOwner)) {
+        grossGoldByCiv[ownerCivId] = (grossGoldByCiv[ownerCivId] ?? 0) + amount;
+      }
+      for (const event of cyberDrainResult.events) {
+        bus.emit('city:cyber-drained', { ...event, victimCivId: civId });
+      }
+    }
+    const networkResult = resolveNetworkPlansForVictimTurnEnd(newState, civId, baseGoldByCityId);
+    newState = networkResult.state;
+    const transferred = Object.values(networkResult.creditsByOwner)
+      .reduce((sum, amount) => sum + amount, 0);
+    totalGold = Math.max(0, totalGold - transferred);
+    for (const [ownerCivId, amount] of Object.entries(networkResult.creditsByOwner)) {
       grossGoldByCiv[ownerCivId] = (grossGoldByCiv[ownerCivId] ?? 0) + amount;
     }
-    for (const event of cyberDrainResult.events) {
-      bus.emit('city:cyber-drained', { ...event, victimCivId: civId });
+    for (const event of networkResult.events) {
+      const plan = Object.values(newState.autonomyByCiv ?? {})
+        .map(autonomy => autonomy.plans[event.planId])
+        .find(Boolean);
+      if (!plan) continue;
+      bus.emit('network:exploit-resolved', {
+        planId: event.planId,
+        cityId: event.cityId,
+        ownerCivId: plan.ownerCivId,
+        goldTransferred: event.goldTransferred,
+        delayed: event.kind === 'exploit-delayed',
+      });
     }
 
     // Process research
