@@ -29,7 +29,7 @@ import { evaluateDiplomacy, evaluateMinorCivDiplomacy, evaluateVassalage, evalua
 import {
   declareWar,
   enqueuePeaceRequest,
-  proposeTreaty,
+  signTreaty,
   modifyRelationship,
   offerVassalage,
   joinEmbargo,
@@ -918,12 +918,12 @@ function processAITurnInternal(
         case 'trade_agreement':
         case 'open_borders':
         case 'alliance':
-          newState.civilizations[civId].diplomacy = proposeTreaty(
+          newState.civilizations[civId].diplomacy = signTreaty(
             currentDiplomacy, civId, decision.targetCiv, decision.action,
             decision.action === 'non_aggression_pact' ? 10 : -1, newState.turn,
           );
           if (newState.civilizations[decision.targetCiv]?.diplomacy) {
-            newState.civilizations[decision.targetCiv].diplomacy = proposeTreaty(
+            newState.civilizations[decision.targetCiv].diplomacy = signTreaty(
               newState.civilizations[decision.targetCiv].diplomacy, decision.targetCiv, civId, decision.action,
               decision.action === 'non_aggression_pact' ? 10 : -1, newState.turn,
             );
