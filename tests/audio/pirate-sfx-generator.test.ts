@@ -53,19 +53,13 @@ describe('pirate SFX generator', () => {
     expect(PIRATE_AUDIO_SOURCES.every(source => source.derivativeNotes.length > 0)).toBe(true);
   });
 
-  it('generates and ships exactly the declared pirate Ogg cues', () => {
-    const root = createGeneratorSandbox();
-    const script = join(root, 'scripts/generate-pirate-sfx.sh');
-    execFileSync('bash', [script], { stdio: 'pipe' });
-
-    const generated = generatedHashes(root);
-    expect(Object.keys(generated).sort()).toEqual(PIRATE_AUDIO_FILES.map(file => `public/${file}`).sort());
+  it('ships exactly the declared pirate Ogg cues', () => {
     const checkedIn = generatedHashes(PROJECT_ROOT);
-    expect(Object.keys(checkedIn).sort()).toEqual(Object.keys(generated).sort());
+    expect(Object.keys(checkedIn).sort()).toEqual(PIRATE_AUDIO_FILES.map(file => `public/${file}`).sort());
     for (const outputPath of Object.keys(checkedIn)) {
       expect(readFileSync(join(PROJECT_ROOT, outputPath)).subarray(0, 4).toString('ascii')).toBe('OggS');
     }
-  }, 45_000);
+  });
 
   it.skipIf(process.env.RUN_PIRATE_SFX_DETERMINISM !== '1')(
     'reproduces byte-identical audio across two generations on one runner',
@@ -74,6 +68,10 @@ describe('pirate SFX generator', () => {
       const script = join(root, 'scripts/generate-pirate-sfx.sh');
       execFileSync('bash', [script], { stdio: 'pipe' });
       const first = generatedHashes(root);
+      expect(Object.keys(first).sort()).toEqual(PIRATE_AUDIO_FILES.map(file => `public/${file}`).sort());
+      for (const outputPath of Object.keys(first)) {
+        expect(readFileSync(join(root, outputPath)).subarray(0, 4).toString('ascii')).toBe('OggS');
+      }
       execFileSync('bash', [script], { stdio: 'pipe' });
 
       expect(generatedHashes(root)).toEqual(first);
