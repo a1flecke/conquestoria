@@ -82,7 +82,7 @@ import {
 import { processEspionageTurn, isSpyUnitType, createSpyFromUnit, processInterrogation, applyBuildingCI } from '@/systems/espionage-system';
 import { processDetection } from '@/systems/detection-system';
 import { applyPendingOpponentChallenge, resolveChallengeForCiv } from '@/core/opponent-challenge';
-import { applyCityHpRegeneration, applyCitySiegeOutcome, getCityGarrisonUnit, resolveCitySiegeDamage } from '@/systems/city-siege-system';
+import { applyCityHpRegeneration, applyCitySiegeOutcome, getCityCounterFireDamage, getCityGarrisonUnit, resolveCitySiegeDamage } from '@/systems/city-siege-system';
 import { normalizeOpponentAIState } from '@/core/opponent-ai-state';
 import { processFactionTurn, getUnrestYieldMultiplier, isCityProductionLocked } from '@/systems/faction-system';
 import { getOccupiedCityYieldMultiplier, tickOccupiedCities } from '@/systems/city-occupation-system';
@@ -847,6 +847,48 @@ export function processTurn(
     });
     newState = applyCitySiegeOutcome(newState, order.cityId, result);
     if (result.outcome === 'blocked') continue;
+
+    // Counter-fire (#522): a walled, ungarrisoned city fights back against the raider
+    // that's damaging it. Reuses barbSeed the same way real barbarian combat above does.
+    const attackerUnit = newState.units[order.attackerUnitId];
+    if (attackerUnit) {
+      const attackerStrength = UNIT_DEFINITIONS[attackerUnit.type].strength * (attackerUnit.health / 100);
+      const counterFireSeed = barbSeed ^ order.attackerUnitId.charCodeAt(0) ^ 0x5a5a;
+      const counterFireDamage = getCityCounterFireDamage(
+        city, ownerCiv, 'land', attackerStrength, false, counterFireSeed,
+      );
+      if (counterFireDamage > 0) {
+        const healthAfter = attackerUnit.health - counterFireDamage;
+        const attackerDied = healthAfter <= 0;
+        if (attackerDied) {
+          const units = { ...newState.units };
+          delete units[order.attackerUnitId];
+          const civilizations = { ...newState.civilizations };
+          const raiderOwner = civilizations[attackerUnit.owner];
+          if (raiderOwner) {
+            civilizations[attackerUnit.owner] = {
+              ...raiderOwner,
+              units: raiderOwner.units.filter(id => id !== order.attackerUnitId),
+            };
+          }
+          newState = { ...newState, units, civilizations };
+          // barbarianHomeCampByUnitId self-prunes stale entries for dead units on the
+          // next processing pass (barbarian-system.ts) -- no further cleanup needed here.
+        } else {
+          newState = {
+            ...newState,
+            units: { ...newState.units, [order.attackerUnitId]: { ...attackerUnit, health: healthAfter } },
+          };
+        }
+        bus.emit('city:counter-fire', {
+          cityId: order.cityId,
+          attackerUnitId: order.attackerUnitId,
+          source: 'barbarian',
+          damage: counterFireDamage,
+          attackerDied,
+        });
+      }
+    }
 
     bus.emit('barbarian:city-attacked', { attackerUnitId: order.attackerUnitId, cityId: order.cityId, hpLost: result.hpLost });
     if (newState.opponentAI) {

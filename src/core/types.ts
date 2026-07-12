@@ -1660,6 +1660,7 @@ export interface GameEvents {
   // threat-pressure-system.ts fleet path 'threat:pirate-siege' above).
   'pirate:city-destroyed': { cityId: string; ownerId: string; factionId: string };
   'city:sacked': { cityId: string; source: 'barbarian' | 'pirate'; goldLost: number };
+  'city:counter-fire': { cityId: string; attackerUnitId: string; source: 'barbarian' | 'pirate'; damage: number; attackerDied: boolean };
   'tutorial:step': { step: TutorialStep; message: string; advisor: 'builder' | 'explorer' | 'scholar' };
   'notification:show': { message: string; type: 'info' | 'warning' | 'success' };
   'game:saved': { turn: number };
