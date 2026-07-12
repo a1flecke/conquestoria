@@ -9,8 +9,17 @@ import { isAtWar } from '@/systems/diplomacy-system';
 import { getRiverDefensePenalty, isRiverBetween } from '@/systems/river-system';
 import { UNIT_DEFINITIONS } from '@/systems/unit-system';
 
-export const CITY_BASE_STRENGTH = 5;
-export const CITY_STRENGTH_PER_POPULATION = 3;
+// Retuned from the design doc's original 5/3 (#522 pre-merge review): a population-1
+// unwalled outpost at 5+1*3=8 put a warrior (strength 10, the cheapest and most common
+// early-capture unit) at only a ~55-57% win rate against the "trivially weak" reference
+// case the design explicitly called out -- a near coin-flip for the single most common
+// early-expansion action, not the "reliably favors an era-appropriate attacker" the
+// spec required. 2/2 keeps a population-1 outpost's warrior win rate around ~70%
+// (strongly favorable, matching intent) while a fully walled/teched/high-population
+// city still meaningfully contests even a late-game tank (~48% win rate) via the
+// multiplier chain, not the linear base.
+export const CITY_BASE_STRENGTH = 2;
+export const CITY_STRENGTH_PER_POPULATION = 2;
 
 // A city's intrinsic combat strength — used both for a player's single-exchange assault
 // (#522, city-capture-system.ts) and for naval/land counter-fire (below). Population

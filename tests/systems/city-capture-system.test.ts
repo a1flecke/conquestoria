@@ -67,10 +67,11 @@ describe('city-capture-system', () => {
   function makeMajorAssaultState(): GameState {
     // population 1 (not 4): with the new intrinsic-strength mechanic (#522), a
     // swordsman (strength 25) needs a comfortable margin over intrinsic strength
-    // (5 + population*3) so this fixture's existing unconditional-success assertions
-    // stay reliable regardless of the ±20% RNG factor. Tests that specifically exercise
-    // low-odds outcomes construct their own city stats instead of using this shared
-    // fixture -- see the new describe block below.
+    // (CITY_BASE_STRENGTH + population*CITY_STRENGTH_PER_POPULATION, city-siege-system.ts)
+    // so this fixture's existing unconditional-success assertions stay reliable
+    // regardless of the ±20% RNG factor. Tests that specifically exercise low-odds
+    // outcomes construct their own city stats instead of using this shared fixture --
+    // see the new describe block below.
     const state = makeExposedCityCaptureState({
       population: 1,
       buildings: [],

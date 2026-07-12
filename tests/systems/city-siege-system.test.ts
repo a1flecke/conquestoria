@@ -318,15 +318,15 @@ describe('getCityIntrinsicStrength (#522)', () => {
     const { city: cityB, ownerCiv: ownerCivB } = makeCityAndCiv({ population: 10, buildings: [] });
     const high = getCityIntrinsicStrength(cityB, ownerCivB, 'land');
 
-    expect(low).toBe(5 + 1 * 3); // 8
-    expect(high).toBe(5 + 10 * 3); // 35
+    expect(low).toBe(2 + 1 * 2); // 4
+    expect(high).toBe(2 + 10 * 2); // 22
     expect(high).toBeGreaterThan(low);
   });
 
   it('applies the walls multiplier on top of the population base, matching getCityDefenseBreakdown', () => {
     const { city, ownerCiv } = makeCityAndCiv({ population: 4, buildings: ['walls'] });
-    // base = 5 + 4*3 = 17; walls -> x1.25 -> 21.25 -> rounds per implementation
-    expect(getCityIntrinsicStrength(city, ownerCiv, 'land')).toBeCloseTo(17 * 1.25, 5);
+    // base = 2 + 4*2 = 10; walls -> x1.25 -> 12.5 -> rounds per implementation
+    expect(getCityIntrinsicStrength(city, ownerCiv, 'land')).toBeCloseTo(10 * 1.25, 5);
   });
 
   it('applies Star Fort and Fortification Engineering flat bonuses, same as a garrisoned defender', () => {
@@ -337,8 +337,8 @@ describe('getCityIntrinsicStrength (#522)', () => {
       withEngineering,
       'land',
     );
-    // base = 17; walls -> 21.25; +star_fort(5) +fortification-engineering(5) = 31.25
-    expect(strength).toBeCloseTo(17 * 1.25 + 5 + 5, 5);
+    // base = 10; walls -> 12.5; +star_fort(5) +fortification-engineering(5) = 22.5
+    expect(strength).toBeCloseTo(10 * 1.25 + 5 + 5, 5);
   });
 
   it('applies Torpedo Warfare only against a naval attacker, matching getCityDefenseBreakdown', () => {
@@ -346,13 +346,13 @@ describe('getCityIntrinsicStrength (#522)', () => {
     const withTorpedo = withTechs(ownerCiv, ['torpedo-warfare']);
     const naval = getCityIntrinsicStrength(city, withTorpedo, 'naval');
     const land = getCityIntrinsicStrength(city, withTorpedo, 'land');
-    expect(naval).toBeCloseTo(17 * 1.25 + 5, 5);
-    expect(land).toBeCloseTo(17 * 1.25, 5);
+    expect(naval).toBeCloseTo(10 * 1.25 + 5, 5);
+    expect(land).toBeCloseTo(10 * 1.25, 5);
   });
 
   it('handles zero population without throwing (a just-founded or fully-unrested city)', () => {
     const { city, ownerCiv } = makeCityAndCiv({ population: 0, buildings: [] });
-    expect(getCityIntrinsicStrength(city, ownerCiv, 'land')).toBe(5);
+    expect(getCityIntrinsicStrength(city, ownerCiv, 'land')).toBe(2);
   });
 });
 
@@ -367,7 +367,7 @@ describe('calculateCityAssaultStrengths / resolveCityAssault (#522)', () => {
 
     // swordsman strength 25, full health, no veterancy, no river between (2,2)-(3,2) here
     expect(breakdown.attackerStrength).toBeCloseTo(25, 5);
-    expect(breakdown.intrinsicStrength).toBe(8); // 5 + 1*3, no walls
+    expect(breakdown.intrinsicStrength).toBe(4); // 2 + 1*2, no walls
     expect(breakdown.winProbability).toBeGreaterThan(0.5);
   });
 
@@ -459,11 +459,20 @@ describe('city assault balance sampling (#522)', () => {
     // early expansion into a frequent failure. NOTE: >0.9 (the plan's original bound)
     // is unreachable here -- the RNG model's asymptotic ceiling (~92%, only approached
     // with a near-infinitely strong attacker per the randomFactor/clamp math) means no
-    // realistic era-1 unit can hit >90% against even the weakest possible city. 0.65 is
-    // the bound that actually reflects "not a frequent failure" for a real early unit
-    // (swordsman, strength 25) against a population-1 unwalled outpost (intrinsic 8).
+    // realistic era-1 unit can hit >90% against even the weakest possible city.
+    //
+    // Uses 'warrior' (strength 10, cost 8) -- the cheapest and most common unit
+    // available for early-expansion capture, not a stronger/pricier alternative -- since
+    // that's the actual "era-appropriate attacker" a player reaches for against a
+    // population-1 outpost. This caught a real balance bug pre-merge: with the design
+    // doc's original CITY_BASE_STRENGTH=5/CITY_STRENGTH_PER_POPULATION=3, a warrior's
+    // win rate against this exact scenario was only ~55-57% -- a near coin-flip for the
+    // single most common early-game action, not "reliably favors" as the spec required.
+    // Retuned to 2/2 (see city-siege-system.ts) to fix this; 0.6 leaves margin below the
+    // ~0.66-0.74 range observed across seed offsets while still proving it's well above
+    // a 50/50 coin-flip.
     const { city, ownerCiv } = makeCityAndCiv({ population: 1, buildings: [] });
-    const attacker = createUnit('swordsman', 'ai-1', { q: 3, r: 2 }, { nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
+    const attacker = createUnit('warrior', 'ai-1', { q: 3, r: 2 }, { nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
     const strengths = calculateCityAssaultStrengths(attacker, city, ownerCiv, {
       width: 10, height: 10, wrapsHorizontally: false, rivers: [], tiles: {},
     });
@@ -471,7 +480,7 @@ describe('city assault balance sampling (#522)', () => {
       strengths.attackerStrength, strengths.intrinsicStrength, sampleSeed(i),
     ).attackerWins);
     const winRate = wins.filter(Boolean).length / wins.length;
-    expect(winRate).toBeGreaterThan(0.65);
+    expect(winRate).toBeGreaterThan(0.6);
   });
 
   it('a walled, high-population, fully-teched city meaningfully raises attacker losses without being unbeatable', () => {
