@@ -1139,6 +1139,38 @@ function openWonderPanelForCityId(selectedCityId: string): void {
   openWonderPanel();
 }
 
+function handleAppeaseFaction(cityId: string): typeof gameState {
+  const targetCity = gameState.cities[cityId];
+  if (!targetCity) return gameState;
+  const result = appeaseFaction(gameState, cityId, gameState.currentPlayer);
+  if (!result.success) {
+    showNotification(result.message, 'warning');
+    return gameState;
+  }
+  gameState = result.state;
+  renderLoop.setGameState(gameState);
+  updateHUD();
+  showNotification(result.message, 'success');
+  return gameState;
+}
+
+function handleConcedeToMovement(cityId: string): typeof gameState {
+  const targetCity = gameState.cities[cityId];
+  if (!targetCity) return gameState;
+  const result = concedeToMovement(gameState, cityId, gameState.currentPlayer);
+  if (!result.success) {
+    showNotification(result.message, 'warning');
+    return gameState;
+  }
+  gameState = result.state;
+  bus.emit('faction:unrest-resolved', { cityId, owner: gameState.currentPlayer });
+  bus.emit('faction:concession-made', { cityId, owner: gameState.currentPlayer, concessionType: 'charter' });
+  renderLoop.setGameState(gameState);
+  updateHUD();
+  showNotification(result.message, 'success');
+  return gameState;
+}
+
 function openCityPanelForCity(city: import('@/core/types').City): void {
   drawer?.close();
   if (city.owner !== gameState.currentPlayer) return;
@@ -1256,40 +1288,8 @@ function openCityPanelForCity(city: import('@/core/types').City): void {
       showNotification(`${targetCity.name}: rush bought ${result.label} for ${result.cost} gold.`, 'success');
       return gameState;
     },
-    onAppeaseFaction: (cityId) => {
-      const targetCity = gameState.cities[cityId];
-      if (!targetCity) return gameState;
-      const result = appeaseFaction(gameState, cityId, gameState.currentPlayer);
-      if (!result.success) {
-        showNotification(result.message, 'warning');
-        return gameState;
-      }
-      gameState = result.state;
-      renderLoop.setGameState(gameState);
-      updateHUD();
-      showNotification(result.message, 'success');
-      return gameState;
-    },
-    onConcedeToMovement: (cityId) => {
-      const targetCity = gameState.cities[cityId];
-      if (!targetCity) return gameState;
-      const result = concedeToMovement(gameState, cityId, gameState.currentPlayer);
-      if (!result.success) {
-        showNotification(result.message, 'warning');
-        return gameState;
-      }
-      gameState = result.state;
-      // concedeToMovement clears unrestLevel immediately, bypassing the normal
-      // processFactionTurn scan that would emit faction:unrest-resolved — without this,
-      // the music director's unrestCityCount (incremented on faction:unrest-started)
-      // never decrements for this city, leaving the unrest music layer stuck on.
-      bus.emit('faction:unrest-resolved', { cityId, owner: gameState.currentPlayer });
-      bus.emit('faction:concession-made', { cityId, owner: gameState.currentPlayer, concessionType: 'charter' });
-      renderLoop.setGameState(gameState);
-      updateHUD();
-      showNotification(result.message, 'success');
-      return gameState;
-    },
+    onAppeaseFaction: (cityId) => handleAppeaseFaction(cityId),
+    onConcedeToMovement: (cityId) => handleConcedeToMovement(cityId),
     onQuarantineCrisis: (crisisId, cityId) => {
       const result = applyQuarantine(gameState, crisisId, cityId);
       if (!result.success) {
