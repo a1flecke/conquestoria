@@ -38,6 +38,7 @@ import { createWorkerReplacementConfirmPanel, createWorkerTaskWarningPanel } fro
 import { createWonderPanel } from '@/ui/wonder-panel';
 import { createWonderAtlasPanel } from '@/ui/wonder-atlas-panel';
 import { calculateCombatStrengths, resolveCombat, selectDefenderForAttack } from '@/systems/combat-system';
+import { calculateCityAssaultStrengths } from '@/systems/city-siege-system';
 import { buildCombatContextForDefender } from '@/systems/combat-context';
 import { canUnitAttackTarget } from '@/systems/attack-targeting';
 import { buildSelectedUnitHighlights } from '@/input/selected-unit-highlights';
@@ -3046,12 +3047,74 @@ function handleHexTap(rawCoord: HexCoord): void {
     } else {
       const tapIntent = resolveSelectedUnitTapIntent(gameState, selectedUnitId, coord, movementRange);
       if (tapIntent.kind === 'assault-city') {
-        const assaultStatus = beginPlayerCityAssault(selectedUnitId, tapIntent.cityId);
-        SFX.tap();
-        renderLoop.setGameState(gameState);
-        updateHUD();
-        if (assaultStatus === 'resolved') {
-          setTimeout(() => selectNextUnit(), 400);
+        const attackerUnit = gameState.units[selectedUnitId];
+        const targetCity = gameState.cities[tapIntent.cityId];
+        const ownerCiv = targetCity ? gameState.civilizations[targetCity.owner] : undefined;
+        if (!attackerUnit || !targetCity || !ownerCiv) return;
+
+        const strengths = calculateCityAssaultStrengths(attackerUnit, targetCity, ownerCiv, gameState.map);
+        const atkStr = Math.round(strengths.attackerStrength);
+        const cityStr = Math.round(strengths.intrinsicStrength);
+        const odds = strengths.winProbability > 0.55 ? 'Favorable' : strengths.winProbability > 0.45 ? 'Even' : 'Risky';
+        const oddsColor = strengths.winProbability > 0.55 ? '#6b9b4b' : strengths.winProbability > 0.45 ? '#e8c170' : '#d94a4a';
+
+        const panel = document.getElementById('info-panel');
+        if (panel) {
+          panel.style.display = 'block';
+          const previewDiv = document.createElement('div');
+          previewDiv.style.cssText = 'background:rgba(100,0,0,0.9);border-radius:12px;padding:12px 16px;';
+
+          const title = document.createElement('div');
+          title.style.cssText = 'font-size:13px;color:#e8c170;margin-bottom:6px;';
+          title.textContent = 'Assault Preview';
+          previewDiv.appendChild(title);
+
+          const stats = document.createElement('div');
+          stats.style.cssText = 'display:flex;justify-content:space-between;font-size:12px;margin-bottom:8px;';
+          const atkSpan = document.createElement('span');
+          atkSpan.textContent = `${UNIT_DEFINITIONS[attackerUnit.type].name} (${atkStr})`;
+          const oddsSpan = document.createElement('span');
+          oddsSpan.style.cssText = `color:${oddsColor};font-weight:bold;`;
+          oddsSpan.textContent = odds;
+          const defSpan = document.createElement('span');
+          defSpan.textContent = `${targetCity.name} defenses (${cityStr})`;
+          stats.appendChild(atkSpan);
+          stats.appendChild(oddsSpan);
+          stats.appendChild(defSpan);
+          previewDiv.appendChild(stats);
+
+          const info = document.createElement('div');
+          info.style.cssText = 'font-size:10px;opacity:0.6;margin-bottom:8px;';
+          info.textContent = 'A walled city fights back if it has no garrison.';
+          previewDiv.appendChild(info);
+
+          const btnRow = document.createElement('div');
+          btnRow.style.cssText = 'display:flex;gap:8px;';
+          const attackBtn = document.createElement('button');
+          attackBtn.id = 'btn-assault-confirm';
+          attackBtn.textContent = 'Attack';
+          attackBtn.style.cssText = 'flex:1;padding:8px;border-radius:8px;background:#d94a4a;border:none;color:white;font-weight:bold;cursor:pointer;';
+          const cancelBtn = document.createElement('button');
+          cancelBtn.id = 'btn-cancel-assault';
+          cancelBtn.textContent = 'Cancel';
+          cancelBtn.style.cssText = 'flex:1;padding:8px;border-radius:8px;background:rgba(255,255,255,0.15);border:none;color:white;cursor:pointer;';
+          btnRow.appendChild(attackBtn);
+          btnRow.appendChild(cancelBtn);
+          previewDiv.appendChild(btnRow);
+
+          panel.innerHTML = '';
+          panel.appendChild(previewDiv);
+
+          cancelBtn.addEventListener('click', deselectUnit);
+          attackBtn.addEventListener('click', () => {
+            const assaultStatus = beginPlayerCityAssault(selectedUnitId!, tapIntent.cityId);
+            SFX.combat();
+            renderLoop.setGameState(gameState);
+            updateHUD();
+            if (assaultStatus === 'resolved') {
+              setTimeout(() => selectNextUnit(), 400);
+            }
+          });
         }
         return;
       }
