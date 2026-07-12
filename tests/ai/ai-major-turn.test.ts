@@ -475,6 +475,46 @@ describe('processMajorCivStrategicTurn', () => {
       .toEqual(['attack', 'capture-city']);
   });
 
+  it('keeps the repel state (damage, action-consumption) when the AI\'s undefended-city assault is repelled (#522)', () => {
+    // Regression for a pre-merge review bug: occupyMajorCity's failure branch used to
+    // `return { state, captured: false }` -- the ORIGINAL pre-assault state, not
+    // assault.state -- silently discarding counter-fire damage and hasActed/
+    // movementPointsLeft consumption on a repel. That made a repelled AI assault a
+    // free, fully-reversible no-op: the attacker kept full health and could be
+    // re-selected to retry the same doomed assault. A hopelessly outmatched attacker
+    // (warrior, strength 10) against a maximally defended city (population 40, walls +
+    // star_fort) makes the repel effectively certain regardless of RNG seed.
+    const state = makeState();
+    addUnit(state, 'captor', 'warrior', AI, { q: 0, r: 0 });
+    const target = addCity(state, 'target-city', HUMAN, { q: 1, r: 0 });
+    target.population = 40;
+    target.buildings = ['walls', 'star_fort'];
+    const plan = makePlan(
+      { kind: 'city', id: target.id, lastKnownPosition: target.position },
+      ['captor'],
+      { requiredRoles: { capture: 1 } },
+    );
+
+    const result = processMajorCivStrategicTurn(
+      state,
+      prepared(state, plan),
+      new EventBus(),
+    );
+
+    expect(result.state.cities[target.id].owner).toBe(HUMAN); // repelled, not captured
+    const captorAfter = result.state.units.captor;
+    if (captorAfter) {
+      // Survived the counter-fire: must be marked as having acted, not silently reverted.
+      expect(captorAfter.health).toBeLessThan(100);
+      expect(captorAfter.hasActed).toBe(true);
+      expect(captorAfter.movementPointsLeft).toBe(0);
+    } else {
+      // Counter-fire killed it -- must actually be gone, not resurrected by a stale
+      // pre-assault state, and pruned from the owner's roster.
+      expect(result.state.civilizations[AI].units).not.toContain('captor');
+    }
+  });
+
   it('executes worker improvements through the canonical worker system', () => {
     const state = makeState();
     addCity(state, 'home', AI, { q: 1, r: 2 });

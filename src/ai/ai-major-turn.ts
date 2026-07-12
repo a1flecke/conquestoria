@@ -155,7 +155,17 @@ function occupyMajorCity(
       precedingCombat,
     },
   );
-  if (!assault.ok) return { state, captured: false };
+  // Return assault.state, NOT the original state, even on failure (#522 pre-merge
+  // review fix): a repelled assault still mutates state via counter-fire (attacker
+  // damaged or killed) and consumes the attacker's action (hasActed/movementPointsLeft).
+  // Discarding that back to the pre-assault state would silently "undo" a repel for the
+  // AI actor -- the attacker keeps full health, isn't marked as acted, and could be
+  // re-selected to retry the same doomed assault for free in the same turn. Before this
+  // mechanic, beginMajorCityAssault's only failure reachable from this call site
+  // ('invalid-post-combat-advance') never mutated state, so this bug was latent and
+  // harmless; 'repelled-by-city-defense' is the first failure mode that actually needs
+  // its state kept.
+  if (!assault.ok) return { state: assault.state, captured: false };
   const capture = resolveMajorCityCapture(
     assault.state,
     cityId,
@@ -350,9 +360,17 @@ function executeAction(
         civId,
         bus,
       );
+      // succeeded means "the action was legally attempted and changed state" --
+      // matching the 'attack' case above (attack.state !== state), NOT "the assault
+      // won." A losing attack still consumes the unit's turn and is recorded as a real
+      // action; a repelled city assault (#522 pre-merge review fix) must behave the
+      // same way, or the caller's `if (!executed.succeeded) continue;` (below, in
+      // processMajorCivStrategicTurn) discards the repel's state entirely -- silently
+      // undoing counter-fire damage/death and the attacker's consumed action, on top of
+      // never recording the attempt in `appliedActions`/traces.
       return {
         state: capture.state,
-        succeeded: capture.captured,
+        succeeded: capture.state !== state,
         followUps: [],
       };
     }
