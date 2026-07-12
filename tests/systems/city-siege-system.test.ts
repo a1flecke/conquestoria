@@ -3,7 +3,7 @@ import { createNewGame } from '@/core/game-state';
 import { foundCity } from '@/systems/city-system';
 import { createUnit } from '@/systems/unit-system';
 import type { City, Civilization, GameState } from '@/core/types';
-import { applyCityHpRegeneration, applyCitySiegeOutcome, getCityIntrinsicStrength, isCityHpRegenerating, resolveCitySiegeDamage } from '@/systems/city-siege-system';
+import { applyCityHpRegeneration, applyCitySiegeOutcome, calculateCityAssaultStrengths, getCityIntrinsicStrength, isCityHpRegenerating, resolveCityAssault, resolveCitySiegeDamage } from '@/systems/city-siege-system';
 
 const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
 
@@ -353,5 +353,56 @@ describe('getCityIntrinsicStrength (#522)', () => {
   it('handles zero population without throwing (a just-founded or fully-unrested city)', () => {
     const { city, ownerCiv } = makeCityAndCiv({ population: 0, buildings: [] });
     expect(getCityIntrinsicStrength(city, ownerCiv, 'land')).toBe(5);
+  });
+});
+
+describe('calculateCityAssaultStrengths / resolveCityAssault (#522)', () => {
+  it('computes attacker strength the same way calculateCombatStrengths does (health, veterancy, river)', () => {
+    const { state, cityId } = makeGameStateWithCity();
+    const city = { ...state.cities[cityId]!, population: 1, buildings: [] };
+    const ownerCiv = state.civilizations.player;
+    const attacker = createUnit('swordsman', 'ai-1', { q: 3, r: 2 }, state.idCounters);
+
+    const breakdown = calculateCityAssaultStrengths(attacker, city, ownerCiv, state.map);
+
+    // swordsman strength 25, full health, no veterancy, no river between (2,2)-(3,2) here
+    expect(breakdown.attackerStrength).toBeCloseTo(25, 5);
+    expect(breakdown.intrinsicStrength).toBe(8); // 5 + 1*3, no walls
+    expect(breakdown.winProbability).toBeGreaterThan(0.5);
+  });
+
+  it('gives a weak attacker a low but nonzero win probability against a strong city', () => {
+    const { state, cityId } = makeGameStateWithCity();
+    const city = { ...state.cities[cityId]!, population: 30, buildings: ['walls', 'star_fort'] };
+    const ownerCiv = withTechs(state.civilizations.player, ['fortification-engineering']);
+    const attacker = createUnit('warrior', 'ai-1', { q: 3, r: 2 }, state.idCounters);
+
+    const breakdown = calculateCityAssaultStrengths(attacker, city, ownerCiv, state.map);
+
+    expect(breakdown.winProbability).toBeLessThan(0.5);
+    expect(breakdown.winProbability).toBeGreaterThan(0);
+  });
+
+  it('resolveCityAssault is deterministic for a fixed seed', () => {
+    const first = resolveCityAssault(50, 10, 12345);
+    const second = resolveCityAssault(50, 10, 12345);
+    expect(first).toEqual(second);
+  });
+
+  it('an overwhelming attacker wins reliably across seeds', () => {
+    // Rate-based, not `.every(...)`: the ±20% randomFactor is clamped to
+    // [0.05, 0.95] before the RNG draw, so even a 10:1 strength ratio caps out at a
+    // 95% per-trial win chance -- `.every()` across 20 seeds would fail ~1 run in 3
+    // by construction, regardless of implementation correctness. Mirrors the rate-based
+    // philosophy Task 11's balance-sampling tests already use for the same reason.
+    const results = Array.from({ length: 20 }, (_, i) => resolveCityAssault(100, 10, i).attackerWins);
+    const winRate = results.filter(Boolean).length / results.length;
+    expect(winRate).toBeGreaterThan(0.75);
+  });
+
+  it('an overwhelmed attacker loses reliably across seeds', () => {
+    const results = Array.from({ length: 20 }, (_, i) => resolveCityAssault(10, 100, i).attackerWins);
+    const winRate = results.filter(Boolean).length / results.length;
+    expect(winRate).toBeLessThan(0.25);
   });
 });
