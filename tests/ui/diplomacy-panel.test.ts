@@ -582,4 +582,47 @@ describe('diplomacy-panel treaty proposals + war attribution (#554)', () => {
 
     expect(panel.querySelector('[data-action="accept-treaty-proposal"]')).toBeNull();
   });
+
+  it('breaking an existing treaty requires two clicks (arm then confirm) -- no silent destructive UI', () => {
+    const { container, state } = makeDiplomacyFixture({ currentPlayer: 'player', includeThirdCiv: true });
+    state.civilizations.player.knownCivilizations = ['outsider'];
+    state.civilizations.player.diplomacy.treaties = [
+      { type: 'non_aggression_pact', civA: 'player', civB: 'outsider', turnsRemaining: -1 },
+    ];
+    const onBreakTreaty = vi.fn();
+
+    const panel = createDiplomacyPanel(container, state, {
+      onAction: () => {},
+      onBreakTreaty,
+      onClose: () => {},
+    });
+
+    const breakBtn = panel.querySelector('.diplo-break-treaty') as HTMLButtonElement;
+    expect(breakBtn).toBeTruthy();
+
+    breakBtn.click();
+    expect(onBreakTreaty).not.toHaveBeenCalled();
+    expect(breakBtn.textContent).toBe('Confirm?');
+
+    breakBtn.click();
+    expect(onBreakTreaty).toHaveBeenCalledWith('outsider', 'non_aggression_pact');
+  });
+
+  it('renders a legacy-shaped save (peace-only pending request, no treatyType) without throwing', () => {
+    const { container, state } = makeDiplomacyFixture({ currentPlayer: 'player', includeThirdCiv: true });
+    state.civilizations.player.knownCivilizations = ['outsider'];
+    state.civilizations.player.diplomacy.atWarWith = ['outsider'];
+    state.civilizations.outsider.diplomacy.atWarWith = ['player'];
+    // Shaped like a pre-#554 save: peace request with none of the new optional fields.
+    state.pendingDiplomacyRequests = [
+      { id: 'peace:outsider:player:1', type: 'peace', fromCivId: 'outsider', toCivId: 'player', turnIssued: 1 } as any,
+    ];
+    // Also a legacy war with no war_declared event recorded yet.
+    state.civilizations.player.diplomacy.events = [];
+
+    expect(() => createDiplomacyPanel(container, state, {
+      onAction: () => {},
+      onClose: () => {},
+    })).not.toThrow();
+  });
 });
