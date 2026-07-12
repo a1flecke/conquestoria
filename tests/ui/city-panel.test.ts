@@ -2082,4 +2082,34 @@ describe('city-panel HP status (#522)', () => {
     expect(panel.textContent).not.toContain('Recovering');
     expect(panel.textContent).not.toContain('Under siege');
   });
+
+  it('shows a static defense-rating line for every owned city, not just damaged ones (#522)', () => {
+    const { container, city, state } = makeWonderPanelFixture();
+    state.cities[city.id] = { ...city, hp: 100, population: 10, buildings: ['walls'] };
+
+    const panel = createCityPanel(container, state.cities[city.id]!, state, {
+      onBuild: () => {},
+      onOpenWonderPanel: () => {},
+      onClose: () => {},
+    });
+
+    expect(panel.textContent).toMatch(/Defense/i);
+  });
+
+  it('defense rating changes when walls are built', () => {
+    const { container, city, state } = makeWonderPanelFixture();
+    state.cities[city.id] = { ...city, hp: 100, population: 10, buildings: [] };
+    const unwalledPanel = createCityPanel(container, state.cities[city.id]!, state, {
+      onBuild: () => {}, onOpenWonderPanel: () => {}, onClose: () => {},
+    });
+    const unwalledText = unwalledPanel.textContent ?? '';
+
+    state.cities[city.id] = { ...state.cities[city.id]!, buildings: ['walls'] };
+    const walledPanel = createCityPanel(container, state.cities[city.id]!, state, {
+      onBuild: () => {}, onOpenWonderPanel: () => {}, onClose: () => {},
+    });
+    const walledText = walledPanel.textContent ?? '';
+
+    expect(walledText).not.toBe(unwalledText);
+  });
 });
