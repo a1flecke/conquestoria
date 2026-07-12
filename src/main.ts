@@ -2482,6 +2482,18 @@ function beginPlayerCityAssault(
   );
   gameState = begun.state;
 
+  if (!begun.ok) {
+    showNotification(
+      begun.reason === 'repelled-by-city-defense'
+        ? "Your attack was repelled by the city's defenses!"
+        : 'The attack could not proceed.',
+      'warning',
+    );
+    renderLoop.setGameState(gameState);
+    updateHUD();
+    return 'resolved';
+  }
+
   pendingCityCaptureChoice = begun.pending;
   if (!shouldPromptForPlayerCityCapture(city)) {
     finalizePendingCityCaptureChoice('raze', attackerBonus);
@@ -3054,6 +3066,17 @@ function handleHexTap(rawCoord: HexCoord): void {
           onConfirm: () => {
             const begun = beginConfirmedForeignCityEntry(gameState, selectedId, tapIntent.cityId, bus);
             gameState = begun.state;
+            if (!begun.ok) {
+              showNotification(
+                begun.reason === 'repelled-by-city-defense'
+                  ? "Your attack was repelled by the city's defenses!"
+                  : 'The attack could not proceed.',
+                'warning',
+              );
+              renderLoop.setGameState(gameState);
+              updateHUD();
+              return;
+            }
             pendingCityCaptureChoice = begun.pending;
             const captureCity = gameState.cities[tapIntent.cityId];
             if (captureCity) {

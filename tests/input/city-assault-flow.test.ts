@@ -59,6 +59,8 @@ describe('city-assault-flow', () => {
       'athens',
       bus,
     );
+    expect(begun.ok).toBe(true);
+    if (!begun.ok) return;
     const result = finalizePlayerCityAssaultChoice(begun.state, begun.pending, 'occupy', begun.state.turn);
 
     expect(moved).toHaveBeenCalledOnce();
@@ -75,18 +77,22 @@ describe('city-assault-flow', () => {
     state.civilizations.player.diplomacy.atWarWith = [];
     state.civilizations['ai-1'].diplomacy.atWarWith = [];
 
-    expect(() => beginPlayerCityAssaultChoice(
+    const result = beginPlayerCityAssaultChoice(
       state,
       'unit-1',
       'athens',
       new EventBus(),
-    )).toThrow('Cannot begin city assault: not-at-war');
+    );
+
+    expect(result).toMatchObject({ ok: false, reason: 'not-at-war' });
   });
 
   it('begins a pending player choice by moving onto a size-2 city and finalizes raze in place', () => {
     const state = makePlayerAssaultState({ population: 1 });
 
     const begun = beginPlayerCityAssaultChoice(state, 'unit-1', 'athens');
+    expect(begun.ok).toBe(true);
+    if (!begun.ok) return;
     const result = finalizePlayerCityAssaultChoice(begun.state, begun.pending, 'raze', begun.state.turn);
 
     expect(result.state.units['unit-1'].position).toEqual({ q: 1, r: 0 });
@@ -100,6 +106,8 @@ describe('city-assault-flow', () => {
     expect(shouldPromptForPlayerCityCapture(state.cities.athens)).toBe(true);
 
     const begun = beginPlayerCityAssaultChoice(state, 'unit-1', 'athens');
+    expect(begun.ok).toBe(true);
+    if (!begun.ok) return;
     const result = finalizePlayerCityAssaultChoice(begun.state, begun.pending, 'occupy', begun.state.turn);
 
     expect(begun.pending.occupiedPopulation).toBe(1);
@@ -122,6 +130,8 @@ describe('city-assault-flow', () => {
     };
 
     const begun = beginPlayerCityAssaultChoice(state, 'unit-1', 'athens');
+    expect(begun.ok).toBe(true);
+    if (!begun.ok) return;
     const result = finalizePlayerCityAssaultChoice(begun.state, begun.pending, 'occupy', begun.state.turn);
 
     expect(result.territoryEvents).toEqual(expect.arrayContaining([
