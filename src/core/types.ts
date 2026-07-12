@@ -1456,6 +1456,7 @@ export interface IdCounters {
   nextRouteId?: number;  // defaults to 1 on old saves (optional for back-compat)
   nextPirateFactionId?: number;
   nextNotificationId?: number;
+  nextNetworkPlanId?: number;
 }
 
 // --- Game State (the whole thing) ---
@@ -1470,6 +1471,8 @@ export interface GameState {
   opponentChallenge?: OpponentChallenge;
   pendingOpponentChallenge?: OpponentChallenge;
   opponentAI?: OpponentAIState;
+  autonomyByCiv?: Record<string, import('./autonomy-state').AutonomyCivState>;
+  networkCivicPressureByCity?: Record<string, number>;
   civilizations: Record<string, Civilization>;
   map: GameMap;
   units: Record<string, Unit>;

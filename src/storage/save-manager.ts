@@ -527,6 +527,7 @@ export function normalizeIdCounters(state: GameState): GameState['idCounters'] {
     nextRouteId: Math.max(positive(current.nextRouteId) ?? 1, scanned.nextRouteId ?? 1),
     nextPirateFactionId: Math.max(positive(current.nextPirateFactionId) ?? 1, scanned.nextPirateFactionId ?? 1),
     nextNotificationId: Math.max(positive(current.nextNotificationId) ?? 1, scanned.nextNotificationId ?? 1),
+    nextNetworkPlanId: Math.max(positive(current.nextNetworkPlanId) ?? 1, scanned.nextNetworkPlanId ?? 1),
   };
 }
 
