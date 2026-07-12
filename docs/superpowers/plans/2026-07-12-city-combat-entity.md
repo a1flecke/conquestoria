@@ -22,12 +22,13 @@
 
 **Modify:**
 - `src/systems/city-siege-system.ts` — add `getCityIntrinsicStrength`, `calculateCityAssaultStrengths`, `resolveCityAssault`, `getCityCounterFireDamage` + their constants. This file already owns the barbarian/pirate siege model; the new functions extend it rather than starting a second file.
+- `src/core/types.ts` — new `'city:counter-fire'` event on `EventMap` (Task 5), same `source: 'barbarian' | 'pirate'` shape as the existing `'city:sacked'` entry it sits next to.
 - `src/systems/city-capture-system.ts` — new `'repelled-by-city-defense'` failure reason; integrate the new resolution into `beginMajorCityAssault`'s no-preceding-combat branch only.
-- `src/core/turn-manager.ts` — barbarian counter-fire, applied after `resolveCitySiegeDamage` in the existing city-attack loop.
-- `src/systems/pirate-system.ts` — pirate counter-fire, applied after `resolveCitySiegeDamage` in the existing siege loop.
+- `src/core/turn-manager.ts` — barbarian counter-fire, applied after `resolveCitySiegeDamage` in the existing city-attack loop; emits `'city:counter-fire'`.
+- `src/systems/pirate-system.ts` — pirate counter-fire, applied after `resolveCitySiegeDamage` in the existing siege loop; emits the same `'city:counter-fire'` event.
 - `src/input/city-assault-flow.ts` — `beginPlayerCityAssaultChoice`'s return type becomes a discriminated union instead of throwing on failure (found while tracing Task 10's UI change — a losing assault is now a real, expected outcome).
 - `src/input/foreign-city-entry-flow.ts` — `beginConfirmedForeignCityEntry` propagates the same union (it currently forwards `city-assault-flow.ts`'s result under a fixed, always-success return type).
-- `src/main.ts` — two existing call sites updated to handle the new union (Task 9), plus a new preview panel for the `'assault-city'` tap intent (Task 10), mirroring the existing unit-attack preview panel's exact DOM/style pattern.
+- `src/main.ts` — two existing call sites updated to handle the new union (Task 9), plus a new preview panel for the `'assault-city'` tap intent (Task 10), mirroring the existing unit-attack preview panel's exact DOM/style pattern; plus a new `'city:counter-fire'` civ-log listener (Task 5) shared by both the barbarian and pirate paths.
 - `src/ui/city-panel.ts` — defender-side defense-rating line, always shown for an owned city.
 - `src/ai/ai-tactics.ts` — `rankCapture`'s scoring now weights by win probability instead of a flat `600`.
 
@@ -256,12 +257,19 @@ export function calculateCityAssaultStrengths(
   return { attackerStrength, intrinsicStrength, winProbability };
 }
 
-function seededRatio(seed: number): number {
-  // Same LCG resolveCombat uses (combat-system.ts) for consistency across all
-  // seeded-RNG call sites in this codebase.
+function createSeededRng(seed: number): () => number {
+  // Same LCG resolveCombat uses (combat-system.ts), but as a proper CHAINED stream --
+  // each call advances rngState and returns the new value, exactly like resolveCombat's
+  // own rng() closure. A single-shot `seededRatio(seed)` / `seededRatio(seed + 1)` pair
+  // (an earlier draft of this function) is NOT equivalent: evaluating the LCG once at
+  // seed and once at seed+1 differs by the constant `48271` (mod 2147483647) every
+  // time, so the two "independent" draws are actually correlated by a fixed offset.
+  // Chaining through one closure avoids that entirely.
   let rngState = seed;
-  rngState = (rngState * 48271) % 2147483647;
-  return rngState / 2147483647;
+  return () => {
+    rngState = (rngState * 48271) % 2147483647;
+    return rngState / 2147483647;
+  };
 }
 
 // Win/lose only -- deliberately does not compute damage. Damage is
@@ -275,13 +283,14 @@ export function resolveCityAssault(
   const totalStrength = attackerStrength + intrinsicStrength;
   if (totalStrength === 0) return { attackerWins: true };
   const atkRatio = attackerStrength / totalStrength;
-  const randomFactor = 0.8 + seededRatio(seed) * 0.4;
+  const rng = createSeededRng(seed);
+  const randomFactor = 0.8 + rng() * 0.4;
   const adjustedRatio = Math.min(0.95, Math.max(0.05, atkRatio * randomFactor));
-  return { attackerWins: seededRatio(seed + 1) < adjustedRatio };
+  return { attackerWins: rng() < adjustedRatio };
 }
 ```
 
-> **Why two `seededRatio` calls with different seeds (`seed`, `seed + 1`):** the first draws the ±20% randomness factor (mirrors `resolveCombat`'s `randomFactor`); the second is the actual win/lose coin-flip against the adjusted ratio. Reusing the same seed for both would correlate them in a way `resolveCombat` doesn't.
+> **Why two chained `rng()` calls from one `createSeededRng(seed)`:** the first draws the ±20% randomness factor (mirrors `resolveCombat`'s `randomFactor`); the second is the actual win/lose coin-flip against the adjusted ratio. Because `rng` is a stateful closure, the second draw genuinely depends on the first having run -- true independence, not the fixed-offset artifact a single-shot `seededRatio(seed)`/`seededRatio(seed + 1)` pair would produce.
 
 - [ ] **Step 4: Run test to verify it passes**
 
@@ -373,14 +382,15 @@ export function getCityCounterFireDamage(
   const totalStrength = attackerStrength + intrinsicStrength;
   if (totalStrength === 0) return 0;
   const atkRatio = attackerStrength / totalStrength;
-  const randomFactor = 0.8 + seededRatio(seed) * 0.4;
+  const rng = createSeededRng(seed);
+  const randomFactor = 0.8 + rng() * 0.4;
   const adjustedRatio = Math.min(0.95, Math.max(0.05, atkRatio * randomFactor));
-  const baseDamage = 30 + seededRatio(seed + 1) * 20; // same range as resolveCombat's baseDamage (era 3+ band)
+  const baseDamage = 30 + rng() * 20; // same range as resolveCombat's baseDamage (era 3+ band)
   return Math.round(baseDamage * (1 - adjustedRatio));
 }
 ```
 
-> `seededRatio` is the private helper added in Task 2 — no new export needed, both functions live in the same module.
+> `createSeededRng` is the private helper added in Task 2 — no new export needed, both functions live in the same module. Each call to `getCityCounterFireDamage` creates its own fresh closure from its own `seed` argument, so it never shares RNG state with a `resolveCityAssault` call elsewhere -- **callers that invoke both functions for the same event must still pass each a distinct `seed` value** (see Task 4, which does this explicitly), since two calls seeded identically would still draw identical `randomFactor` values from each closure's first `rng()` call.
 
 - [ ] **Step 4: Run test to verify it passes**
 
@@ -594,7 +604,16 @@ Replace the no-preceding-combat `else` branch (currently ~lines 228-250):
     // check again here would double-punish the same turn's action for the same city.
     const ownerCiv = state.civilizations[city.owner];
     if (ownerCiv) {
-      const seed = state.turn * 7919 + attackerId.charCodeAt(0) + cityId.charCodeAt(0);
+      // Two DISTINCT seeds -- getCityCounterFireDamage (damage magnitude) and
+      // resolveCityAssault (win/lose) are conceptually independent rolls. Passing them
+      // the same raw seed would make each function's first internal rng() draw
+      // IDENTICAL, entangling "how much counter-fire damage I take" with "do I win" on
+      // every single assault (caught in review). XOR against a fixed constant to
+      // decorrelate -- same convention Tasks 5/6 use for barbarian/pirate counter-fire
+      // seeds (`... ^ 0x5a5a`).
+      const baseSeed = state.turn * 7919 + attackerId.charCodeAt(0) + cityId.charCodeAt(0);
+      const counterFireSeed = baseSeed;
+      const assaultSeed = baseSeed ^ 0x5a5a;
       const strengths = calculateCityAssaultStrengths(attacker, city, ownerCiv, state.map);
       const counterFireDamage = getCityCounterFireDamage(
         city,
@@ -603,7 +622,7 @@ Replace the no-preceding-combat `else` branch (currently ~lines 228-250):
         strengths.attackerStrength,
         false, // this branch is only reached when the city has no garrison (see the
                // 'city-defended' check above, which already returned for any occupied tile)
-        seed,
+        counterFireSeed,
       );
       if (counterFireDamage > 0) {
         const healthAfter = attacker.health - counterFireDamage;
@@ -623,7 +642,7 @@ Replace the no-preceding-combat `else` branch (currently ~lines 228-250):
           health: healthAfter,
         };
       }
-      const assaultResult = resolveCityAssault(strengths.attackerStrength, strengths.intrinsicStrength, seed);
+      const assaultResult = resolveCityAssault(strengths.attackerStrength, strengths.intrinsicStrength, assaultSeed);
       if (!assaultResult.attackerWins) {
         nextState.units[attackerId] = {
           ...nextState.units[attackerId],
@@ -734,6 +753,34 @@ it('applies counter-fire to a barbarian raider attacking a walled, ungarrisoned 
   expect(result.units.raider?.health ?? 0).toBeLessThan(before);
 });
 
+it('emits city:counter-fire so the player gets feedback that their walls fought back (#522)', () => {
+  const state = createNewGame(undefined, 'barbarian-counterfire-event', 'small');
+  state.turn = 30;
+  state.era = 3;
+  state.barbarianCamps = {
+    'camp-a': { id: 'camp-a', position: { q: 5, r: 5 }, strength: 6, spawnCooldown: 4 },
+  };
+  const raider = createUnit('warrior', 'barbarian', { q: 12, r: 5 }, state.idCounters);
+  raider.id = 'raider';
+  state.units = { raider };
+  state.cities = {
+    town: {
+      id: 'town', owner: 'player', position: { q: 12, r: 5 }, hp: 100,
+      buildings: ['walls'], population: 20,
+    } as never,
+  };
+  state.civilizations.player.cities = ['town'];
+  state.civilizations.player.units = [];
+  state.opponentAI = undefined;
+
+  const bus = new EventBus();
+  const onCounterFire = vi.fn();
+  bus.on('city:counter-fire', onCounterFire);
+  processTurn(state, bus);
+
+  expect(onCounterFire).toHaveBeenCalledWith(expect.objectContaining({ cityId: 'town', source: 'barbarian' }));
+});
+
 it('does not counter-fire when the barbarian city order is blocked by a garrison', () => {
   const state = createNewGame(undefined, 'barbarian-counterfire-blocked', 'small');
   state.turn = 30;
@@ -770,7 +817,17 @@ it('does not counter-fire when the barbarian city order is blocked by a garrison
 Run: `bash scripts/run-with-mise.sh yarn test turn-manager`
 Expected: FAIL — raider takes no damage today.
 
-- [ ] **Step 3: Implement**
+- [ ] **Step 3: Add the shared `city:counter-fire` event type**
+
+**Found during review**: every other siege-related state change in this codebase gets player-facing feedback -- `barbarian:city-attacked` and `city:sacked` both append to the civ log (`main.ts`'s existing `bus.on('barbarian:city-attacked', ...)` handler). Counter-fire damaging or killing the attacking raider/ship is exactly the same class of event (a siege-driven state change the human player should see) and had no event at all in the original draft of this task -- a player whose walls destroy a barbarian raider would get zero feedback. Add the event now so both Task 5 (barbarian) and Task 6 (pirate) can emit it.
+
+In `src/core/types.ts`, add to the `EventMap` interface, next to the existing `'city:sacked'` entry (~line 1657) since it follows the identical `source: 'barbarian' | 'pirate'` convention:
+
+```ts
+  'city:counter-fire': { cityId: string; attackerUnitId: string; source: 'barbarian' | 'pirate'; damage: number; attackerDied: boolean };
+```
+
+- [ ] **Step 4: Implement**
 
 In `src/core/turn-manager.ts`, update the import:
 
@@ -797,7 +854,8 @@ In the barbarian city-attack loop (~line 784), after the `if (result.outcome ===
       );
       if (counterFireDamage > 0) {
         const healthAfter = attackerUnit.health - counterFireDamage;
-        if (healthAfter <= 0) {
+        const attackerDied = healthAfter <= 0;
+        if (attackerDied) {
           const units = { ...newState.units };
           delete units[order.attackerUnitId];
           const civilizations = { ...newState.civilizations };
@@ -817,6 +875,13 @@ In the barbarian city-attack loop (~line 784), after the `if (result.outcome ===
             units: { ...newState.units, [order.attackerUnitId]: { ...attackerUnit, health: healthAfter } },
           };
         }
+        bus.emit('city:counter-fire', {
+          cityId: order.cityId,
+          attackerUnitId: order.attackerUnitId,
+          source: 'barbarian',
+          damage: counterFireDamage,
+          attackerDied,
+        });
       }
     }
 
@@ -827,15 +892,34 @@ In the barbarian city-attack loop (~line 784), after the `if (result.outcome ===
 
 > Barbarian `Civilization` roster note: barbarians are not tracked in `state.civilizations` (they use the special `'barbarian'` owner constant, not a real civ) — check `civilizations[attackerUnit.owner]` for `undefined` before spreading, as shown above (`if (raiderOwner)`), since a raider's "owner" may not have a `civilizations` entry at all.
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [ ] **Step 5: Wire the civ-log listener in `main.ts`**
+
+In `src/main.ts`, add immediately after the existing `bus.on('barbarian:city-destroyed', ...)` handler (~line 3868, right before the `// Pirate-faction naval siege (#522) mirror` comment) — this single handler covers BOTH Task 5 (barbarian) and Task 6 (pirate), since both emit the same `city:counter-fire` event:
+
+```ts
+bus.on('city:counter-fire', ({ cityId, source, damage, attackerDied }) => {
+  const city = gameState.cities[cityId];
+  if (!city) return;
+  if (!gameState.civilizations[city.owner]?.isHuman) return;
+  const raiderLabel = source === 'barbarian' ? 'raider' : 'ship';
+  const message = attackerDied
+    ? `${city.name}'s defenses destroyed a ${source === 'barbarian' ? 'barbarian raider' : 'pirate ship'}!`
+    : `${city.name}'s walls fought back, damaging a ${raiderLabel} (−${damage} HP)!`;
+  appendToCivLog(city.owner, message, attackerDied ? 'success' : 'info');
+});
+```
+
+> `appendToCivLog`'s third argument accepts `'success'` (see the existing `'raid:resolved'`-family handler at ~line 3741 for a same-file precedent) alongside `'warning'` — a destroyed raider is good news for the defending player, so it gets `'success'`, while a mere damage tick without a kill gets the more neutral `'info'`.
+
+- [ ] **Step 6: Run tests to verify they pass**
 
 Run: `bash scripts/run-with-mise.sh yarn test turn-manager`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 7: Commit**
 
 ```bash
-git add src/core/turn-manager.ts tests/core/turn-manager.test.ts
+git add src/core/types.ts src/core/turn-manager.ts src/main.ts tests/core/turn-manager.test.ts
 git commit -m "feat(city-combat): barbarian counter-fire from walled ungarrisoned cities (#522)"
 ```
 
@@ -874,6 +958,18 @@ it('does not counter-fire when the besieged city has no walls', () => {
   const result = processPiratesForCompletedRound(state, new EventBus());
 
   expect(result.state.units['ship-a']?.health ?? 0).toBe(shipBefore);
+});
+
+it('emits city:counter-fire so the player gets feedback that their walls fought back (#522)', () => {
+  const state = siegeReadyState(100);
+  state.cities.port = { ...state.cities.port!, buildings: ['walls'], population: 20 };
+
+  const bus = new EventBus();
+  const onCounterFire = vi.fn();
+  bus.on('city:counter-fire', onCounterFire);
+  processPiratesForCompletedRound(state, bus);
+
+  expect(onCounterFire).toHaveBeenCalledWith(expect.objectContaining({ cityId: 'port', source: 'pirate' }));
 });
 ```
 
@@ -920,7 +1016,8 @@ In the siege-application loop (~line 789), after the outcome-branch `if/else` bl
         );
         if (counterFireDamage > 0) {
           const healthAfter = targetShip.health - counterFireDamage;
-          if (healthAfter <= 0) {
+          const attackerDied = healthAfter <= 0;
+          if (attackerDied) {
             const units = { ...nextState.units };
             delete units[targetShip.id];
             nextState = { ...nextState, units };
@@ -932,6 +1029,13 @@ In the siege-application loop (~line 789), after the outcome-branch `if/else` bl
               units: { ...nextState.units, [targetShip.id]: { ...targetShip, health: healthAfter } },
             };
           }
+          bus.emit('city:counter-fire', {
+            cityId: city.id,
+            attackerUnitId: targetShip.id,
+            source: 'pirate',
+            damage: counterFireDamage,
+            attackerDied,
+          });
         }
       }
     }
@@ -939,6 +1043,8 @@ In the siege-application loop (~line 789), after the outcome-branch `if/else` bl
 ```
 
 > `HexCoord`/`Unit` types should already be covered by this file's existing `import type { CombatResult, GameState, HexCoord, Unit, UnitType } from '@/core/types';` — verify, don't duplicate.
+
+> `city:counter-fire` is the shared event type added in Task 5 Step 3 (`src/core/types.ts`) and consumed by the single `main.ts` listener added in Task 5 Step 5 — no new listener needed here, that handler already branches on `source: 'barbarian' | 'pirate'`.
 
 - [ ] **Step 4: Run tests to verify they pass**
 
@@ -1631,7 +1737,7 @@ git commit -m "feat(ui): odds preview panel for city assault (#522)"
 
 ---
 
-### Task 11: Cross-cutting regressions — balance sampling, hot-seat, actor parity
+### Task 11: Cross-cutting regressions — balance sampling, actor parity, hot-seat verification
 
 **Files:**
 - Test: `tests/systems/city-siege-system.test.ts` (extend), `tests/systems/city-capture-system.test.ts` (extend)
@@ -1684,7 +1790,7 @@ If either bound fails, adjust `CITY_BASE_STRENGTH`/`CITY_STRENGTH_PER_POPULATION
 Run: `bash scripts/run-with-mise.sh yarn test city-siege-system`
 Expected: PASS. If a bound fails, adjust the constants in `city-siege-system.ts` (Task 1) and re-run — do not weaken the test bounds to fit bad constants.
 
-- [ ] **Step 3: Hot-seat / actor-parity test**
+- [ ] **Step 3: Actor-parity test**
 
 In `tests/systems/city-capture-system.test.ts`, add:
 
@@ -1703,6 +1809,8 @@ it('the AI-actor capture path uses the identical resolution as the player path (
 ```
 
 > This function is defined inside the `describe('city-capture-system intrinsic defense (#522)', ...)` block from Task 4 — add this test there, not at file scope.
+>
+> **This is actor-parity coverage (`'player'` vs `'ai'` tag), not genuine multi-human hot-seat coverage** — an earlier draft of this task conflated the two under one heading. A real hot-seat check (two different human-controlled civ ids in the same game, one of them not literally `'player'`) is deliberately **not** added as a new test here: verified directly against every function this plan touches (Tasks 1-8 operate only on `city.owner`/`attacker.owner`/domain strings and never reference `civId` or `currentPlayer` at all; Task 9's `beginPlayerCityAssaultChoice` and `finalizePlayerCityAssaultChoice` route through the pre-existing `civId: state.currentPlayer` / `resolveMajorCityCapture(state, pending.cityId, state.currentPlayer, ...)` lines completely unchanged — Task 9 only wraps their return value in a union, it does not touch how `civId` is derived). Since nothing in this plan introduces new `civId`/`currentPlayer` logic, hot-seat correctness is inherited from the pre-existing (and already-tested) capture-flow plumbing, not something this plan could regress. If a future change to this feature ever DOES add new `civId`-branching logic, that change is what needs the dedicated hot-seat test, not this one.
 
 - [ ] **Step 4: Run and verify**
 
@@ -1733,7 +1841,7 @@ git commit -m "test(city-combat): balance sampling + actor-parity regressions (#
 - §3 `getCityCounterFireDamage` (ratio-scaled) + three call sites → Tasks 3, 4, 5, 6 ✓
 - §3 SFX (no new cue, reuse `SFX.combat()`) → Task 10 (reused at the existing call site) ✓
 - §4 UI preview panel + defender-side visibility → Tasks 10, 8 ✓
-- §5 Scope guard: major-civ only (no code needed, `beginMajorCityAssault`'s existing `not-major-city` gate untouched), hot-seat/actor parity → Task 11 ✓, AI scoring fix → Task 7 ✓, difficulty (no new knob, no code) ✓
+- §5 Scope guard: major-civ only (no code needed, `beginMajorCityAssault`'s existing `not-major-city` gate untouched), actor parity → Task 11 ✓, AI scoring fix → Task 7 ✓, difficulty (no new knob, no code) ✓
 - §6 All testing bullets → Tasks 1, 2, 3, 4, 5, 6, 7, 8, 11 ✓
 
 **Placeholder scan:** No TBD/TODO. The one deliberately-flagged "adapt to this file's existing fixture" note in Task 5 Step 1 names exactly what to look for (an existing `processTurn` + barbarian test) rather than leaving the shape undefined.
@@ -1741,6 +1849,14 @@ git commit -m "test(city-combat): balance sampling + actor-parity regressions (#
 **Type consistency:** `getCityIntrinsicStrength(city, ownerCiv, attackerDomain)` (Task 1) is the base every other function calls through — `calculateCityAssaultStrengths` (Task 2), `getCityCounterFireDamage` (Task 3), the city-panel display (Task 8), and the AI scorer (Task 7) all call it with the same three-argument shape. `resolveCityAssault(attackerStrength, intrinsicStrength, seed)` (Task 2) and `getCityCounterFireDamage(..., attackerStrength, hasGarrison, seed)` (Task 3) both consume the `attackerStrength` number `calculateCityAssaultStrengths` produces — no call site recomputes it differently. `'repelled-by-city-defense'` (Task 4) is the one new failure reason, referenced identically through `PlayerCityAssaultChoiceResult` (Task 9) and Task 10's UI handling.
 
 **Found during self-review, fixed by restructuring:** the original single "Task 9: UI preview panel" assumed `beginPlayerCityAssault`'s existing `throw new Error` on failure could stay as-is. Tracing the actual call chain surfaced three existing consumers of `beginPlayerCityAssaultChoice` (`city-assault-flow.ts` itself, `foreign-city-entry-flow.ts`, and two separate call sites in `main.ts`) that all assume unconditional success today, plus two existing test files (`city-assault-flow.test.ts`, `foreign-city-entry-flow.test.ts`) with the same flaky-fixture risk already found in Task 4, one of which explicitly asserts the old throwing behavior via `.toThrow(...)`. This was too large and too separable a concern to fold into the UI task silently — split into a dedicated Task 9 (type propagation + fixture/test fixes, no new UI) that Task 10 (the actual preview panel) now depends on and builds on top of.
+
+**Found during a second, dimension-by-dimension review pass (balance, fun, ages 7-43, playstyles, difficulty, AI, UI, UX, architecture, extensibility, data/saves, testing, regressions, solo, hot-seat, implementation) — three real issues fixed in place:**
+
+1. **RNG correlation bug (implementation/determinism).** Tasks 2 and 3's original `seededRatio(seed)` / `seededRatio(seed + 1)` pattern was a stateless single-shot LCG evaluation, not a chained stream — the two "independent" draws it produced (the ±20% random factor and the win/lose or damage-magnitude roll) differed only by the constant `48271` (mod `2147483647`) regardless of `seed`, so they were never truly independent, despite the code's own comment claiming to mirror `resolveCombat`'s real `rng()` closure. Worse, Task 4's integration code passed the exact same raw `seed` to both `getCityCounterFireDamage` and `resolveCityAssault`, so their *first* draws were identical every time — silently correlating "how much counter-fire damage I take" with "do I win the assault" on every single attack, compressing the mechanic's intended variance. Fixed: `seededRatio` replaced with `createSeededRng(seed): () => number`, a proper chained closure matching `resolveCombat`'s actual pattern (Tasks 2 and 3); Task 4 now derives two decorrelated seeds (`baseSeed`, `baseSeed ^ 0x5a5a`) for its two independent rolls.
+2. **Missing player feedback for counter-fire (UX / "every user action needs visible feedback").** The original Tasks 5 and 6 damaged or killed the attacking barbarian raider / pirate ship with zero notification — every other siege-related state change in this codebase (`barbarian:city-attacked`, `city:sacked`, `pirate:city-destroyed`) already appends to the civ log, but counter-fire, a brand-new consequence the player can't otherwise observe, had no event at all. Fixed: added a shared `'city:counter-fire'` event (`core/types.ts`, Task 5 Step 3) emitted by both the barbarian and pirate paths, with one `main.ts` listener logging "walls fought back" (`'info'`) or "destroyed a raider/ship" (`'success'`) to the civ log — mirrors the existing `'city:sacked'` shape exactly.
+3. **"Hot-seat" test mislabeled (test-coverage honesty).** Task 11's original Step 3 was titled a "hot-seat / actor-parity test" but only checked `actor: 'player'` vs `actor: 'ai'` tag equivalence against the same `civId: 'player'` — a materially weaker guarantee than genuine multi-human hot-seat correctness (CLAUDE.md's "never hardcode `'player'`, always use `state.currentPlayer`" rule). Rather than bolt on a speculative dynamic hot-seat test against fixture internals not fully visible in this plan (risking incorrect plan code), verified directly against every function this plan adds or touches: Tasks 1-8 never reference `civId`/`currentPlayer` at all (they operate on `city.owner`/`attacker.owner`), and Task 9 preserves the pre-existing `civId: state.currentPlayer` / `resolveMajorCityCapture(..., state.currentPlayer, ...)` lines completely unchanged. Renamed the task/step to "actor parity" (accurate) and added a note explaining hot-seat correctness is inherited, not newly at risk, from this plan.
+
+**Save compatibility (explicit, since no prior section covered it):** this plan adds zero new fields to `City`, `Unit`, `Civilization`, or `GameState` — every new function (`getCityIntrinsicStrength`, `calculateCityAssaultStrengths`, `resolveCityAssault`, `getCityCounterFireDamage`) is a pure calculation over fields that already exist on any save (`population`, `buildings`, `techState.completed`). The one new persisted-adjacent surface, `MajorCityAssaultFailureReason`'s `'repelled-by-city-defense'` member, is a return-value union, never serialized into `GameState`. **No save migration is required** — a save from before this plan loads and plays identically except for the new combat behavior itself.
 
 ## Execution Handoff
 
