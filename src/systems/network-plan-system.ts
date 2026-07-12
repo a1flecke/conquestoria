@@ -9,6 +9,10 @@ import { isAtWar } from '@/systems/diplomacy-system';
 import { hexDistance } from '@/systems/hex-utils';
 import { TECH_TREE } from '@/systems/tech-definitions';
 import { getNetworkPlanDefinition } from './network-plan-definitions';
+import {
+  resolveNetworkPlanAtTargetEnd,
+  type NetworkEffectEvent,
+} from './network-effect-resolver';
 
 export interface NetworkPlanRequest {
   ownerCivId: string;
@@ -41,6 +45,17 @@ export interface NetworkPlanMutationResult {
   state: GameState;
   validation: NetworkPlanValidation;
   plan: NetworkPlan | null;
+}
+
+export interface NetworkTurnStartResult {
+  state: GameState;
+  warnings: Array<{ planId: string; victimCivId: string }>;
+}
+
+export interface NetworkTurnEndResult {
+  state: GameState;
+  creditsByOwner: Record<string, number>;
+  events: NetworkEffectEvent[];
 }
 
 export function isAutonomyActivated(state: GameState, civId: string): boolean {
@@ -206,4 +221,74 @@ export function holdNetworkPlan(
     .find(candidate => candidate.sourceUnitId === sourceUnitId);
   if (!plan) return { state, validation: { ok: true }, plan: null };
   return { state: stateWithoutPlan(state, ownerCivId, plan.id), validation: { ok: true }, plan: null };
+}
+
+export function beginNetworkPlansForVictimTurn(
+  state: GameState,
+  victimCivId: string,
+): NetworkTurnStartResult {
+  let nextState = state;
+  const warnings: NetworkTurnStartResult['warnings'] = [];
+  const candidates = Object.entries(state.autonomyByCiv ?? {})
+    .flatMap(([ownerCivId, autonomy]) => Object.values(autonomy.plans)
+      .map(plan => ({ ownerCivId, plan })))
+    .filter(({ plan }) => plan.definitionId === 'exploit'
+      && plan.status === 'preparing'
+      && plan.warnedTurn === null
+      && plan.nextResolutionTurn <= state.turn
+      && plan.target.kind === 'city'
+      && state.cities[plan.target.cityId]?.owner === victimCivId)
+    .sort((left, right) => left.plan.id.localeCompare(right.plan.id));
+
+  for (const { ownerCivId, plan } of candidates) {
+    const autonomy = nextState.autonomyByCiv![ownerCivId];
+    const warnedPlan: NetworkPlan = { ...plan, status: 'active', warnedTurn: state.turn };
+    nextState = {
+      ...nextState,
+      autonomyByCiv: {
+        ...nextState.autonomyByCiv,
+        [ownerCivId]: {
+          ...autonomy,
+          plans: { ...autonomy.plans, [plan.id]: warnedPlan },
+        },
+      },
+    };
+    warnings.push({ planId: plan.id, victimCivId });
+  }
+  return { state: nextState, warnings };
+}
+
+export function resolveNetworkPlansForVictimTurnEnd(
+  state: GameState,
+  victimCivId: string,
+  baseGoldByCityId: Record<string, number>,
+): NetworkTurnEndResult {
+  let nextState = state;
+  const creditsByOwner: Record<string, number> = {};
+  const events: NetworkEffectEvent[] = [];
+  const planIds = Object.values(state.autonomyByCiv ?? {})
+    .flatMap(autonomy => Object.values(autonomy.plans))
+    .filter(plan => plan.definitionId === 'exploit'
+      && plan.status === 'active'
+      && plan.warnedTurn === state.turn
+      && plan.target.kind === 'city'
+      && nextState.cities[plan.target.cityId]?.owner === victimCivId)
+    .map(plan => plan.id)
+    .sort();
+
+  for (const planId of planIds) {
+    const plan = Object.values(nextState.autonomyByCiv ?? {})
+      .map(autonomy => autonomy.plans[planId])
+      .find(Boolean);
+    if (!plan || plan.target.kind !== 'city') continue;
+    const resolution = resolveNetworkPlanAtTargetEnd(nextState, planId, {
+      baseCityGold: baseGoldByCityId[plan.target.cityId] ?? 0,
+    });
+    nextState = resolution.state;
+    for (const [ownerCivId, credits] of Object.entries(resolution.creditsByOwner)) {
+      creditsByOwner[ownerCivId] = (creditsByOwner[ownerCivId] ?? 0) + credits;
+    }
+    events.push(...resolution.events);
+  }
+  return { state: nextState, creditsByOwner, events };
 }
