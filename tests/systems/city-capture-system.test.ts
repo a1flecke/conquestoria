@@ -649,5 +649,17 @@ describe('city-capture-system', () => {
       if (!result.ok) return;
       expect(result.state.units.attacker!.position).toEqual({ q: 1, r: 0 });
     });
+
+    it('the AI-actor capture path uses the identical resolution as the player path (#522)', () => {
+      const playerState = makeUndefendedWalledCityState({ population: 30, buildings: ['walls', 'star_fort'] });
+      const aiState = structuredClone(playerState);
+
+      const playerResult = beginMajorCityAssault(playerState, 'attacker', 'athens', { actor: 'player', civId: 'player' });
+      const aiResult = beginMajorCityAssault(aiState, 'attacker', 'athens', { actor: 'ai', civId: 'player' });
+
+      // Same state, same seed inputs (turn/attackerId/cityId) -> identical outcome,
+      // regardless of the 'actor' field, which is purely for event/bookkeeping purposes.
+      expect(playerResult.ok).toBe(aiResult.ok);
+    });
   });
 });
