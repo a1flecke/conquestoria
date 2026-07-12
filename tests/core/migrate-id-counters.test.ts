@@ -12,6 +12,7 @@ describe('emptyIdCounters', () => {
       nextRouteId: 1,
       nextPirateFactionId: 1,
       nextNotificationId: 1,
+      nextNetworkPlanId: 1,
     });
   });
 
@@ -113,6 +114,22 @@ describe('scanIdCounters', () => {
 
     expect(counters.nextPirateFactionId).toBe(8);
     expect(counters.nextNotificationId).toBe(13);
+  });
+
+  it('scans persistent network plan IDs', () => {
+    const counters = scanIdCounters({
+      autonomyByCiv: {
+        player: {
+          plans: {
+            'network-plan-3': {} as never,
+            'network-plan-11': {} as never,
+          },
+          detections: {},
+        },
+      },
+    });
+
+    expect(counters.nextNetworkPlanId).toBe(12);
   });
 
   it('migrateLegacySave pattern: injects idCounters into a save that lacks it', () => {

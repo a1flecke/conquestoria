@@ -15,6 +15,7 @@ type ScanableState = {
     history?: Array<{ factionId?: string }>;
   };
   notificationLog?: Record<string, Array<{ id?: string }>>;
+  autonomyByCiv?: Record<string, { plans?: Record<string, unknown> }>;
 };
 
 /**
@@ -29,6 +30,7 @@ export function emptyIdCounters(): IdCounters {
     nextRouteId: 1,
     nextPirateFactionId: 1,
     nextNotificationId: 1,
+    nextNetworkPlanId: 1,
   };
 }
 
@@ -41,7 +43,7 @@ export function emptyIdCounters(): IdCounters {
  */
 export function scanIdCounters(state: ScanableState): IdCounters {
   let maxUnit = 0, maxCity = 0, maxCamp = 0, maxQuest = 0;
-  let maxRoute = 0, maxPirateFaction = 0, maxNotification = 0;
+  let maxRoute = 0, maxPirateFaction = 0, maxNotification = 0, maxNetworkPlan = 0;
 
   for (const id of Object.keys(state.units ?? {})) {
     const n = /^unit-(\d+)$/.exec(id);
@@ -79,6 +81,12 @@ export function scanIdCounters(state: ScanableState): IdCounters {
       if (match) maxNotification = Math.max(maxNotification, +match[1]);
     }
   }
+  for (const autonomy of Object.values(state.autonomyByCiv ?? {})) {
+    for (const id of Object.keys(autonomy.plans ?? {})) {
+      const match = /^network-plan-(\d+)$/.exec(id);
+      if (match) maxNetworkPlan = Math.max(maxNetworkPlan, +match[1]);
+    }
+  }
 
   return {
     nextUnitId:  maxUnit  + 1,
@@ -88,5 +96,6 @@ export function scanIdCounters(state: ScanableState): IdCounters {
     nextRouteId: maxRoute + 1,
     nextPirateFactionId: maxPirateFaction + 1,
     nextNotificationId: maxNotification + 1,
+    nextNetworkPlanId: maxNetworkPlan + 1,
   };
 }

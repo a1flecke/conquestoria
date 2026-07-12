@@ -12,6 +12,7 @@ import { createVisibilityMap, updateVisibility } from '@/systems/fog-of-war';
 import { syncCivilizationContactsFromVisibility } from '@/systems/discovery-system';
 import { spawnBarbarianCamp } from '@/systems/barbarian-system';
 import { emptyIdCounters } from '@/core/id-counters';
+import { createEmptyAutonomyCivState } from '@/core/autonomy-state';
 import { createEmptyPirateState } from '@/core/pirate-state';
 import { createNotificationLog } from '@/core/notification-log';
 import { getPlayableCivDefinitions, resolveCivDefinition } from '@/systems/civ-registry';
@@ -337,6 +338,8 @@ export function createNewGame(
     opponentChallenge: config.opponentChallenge ?? 'standard',
     opponentAI: createEmptyOpponentAIState(),
     civilizations,
+    autonomyByCiv: Object.fromEntries(Object.keys(civilizations).map(civId => [civId, createEmptyAutonomyCivState()])),
+    networkCivicPressureByCity: {},
     map,
     units,
     cities: {},
@@ -501,6 +504,8 @@ export function createHotSeatGame(
     opponentChallenge,
     opponentAI: createEmptyOpponentAIState(),
     civilizations,
+    autonomyByCiv: Object.fromEntries(Object.keys(civilizations).map(civId => [civId, createEmptyAutonomyCivState()])),
+    networkCivicPressureByCity: {},
     map,
     units,
     cities: {},
