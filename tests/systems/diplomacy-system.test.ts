@@ -9,7 +9,7 @@ import {
   modifyRelationship,
   declareWar,
   makePeace,
-  proposeTreaty,
+  signTreaty,
   breakTreaty,
   processRelationshipDrift,
   recordMilitaryAttack,
@@ -145,9 +145,9 @@ describe('diplomacy-system', () => {
   });
 
   describe('treaties', () => {
-    it('proposeTreaty adds a treaty', () => {
+    it('signTreaty adds a treaty', () => {
       let state = createDiplomacyState(civIds, 'player');
-      state = proposeTreaty(state, 'player', 'ai-egypt', 'non_aggression_pact', 10, 15);
+      state = signTreaty(state, 'player', 'ai-egypt', 'non_aggression_pact', 10, 15);
       expect(state.treaties).toHaveLength(1);
       expect(state.treaties[0].type).toBe('non_aggression_pact');
       expect(state.treaties[0].turnsRemaining).toBe(10);
@@ -157,13 +157,13 @@ describe('diplomacy-system', () => {
     it('trade_agreement adds gold per turn', () => {
       let state = createDiplomacyState(civIds, 'player');
       state = modifyRelationship(state, 'ai-egypt', 10);
-      state = proposeTreaty(state, 'player', 'ai-egypt', 'trade_agreement', -1, 20);
+      state = signTreaty(state, 'player', 'ai-egypt', 'trade_agreement', -1, 20);
       expect(state.treaties[0].goldPerTurn).toBe(2);
     });
 
     it('breakTreaty removes treaty and penalizes -30', () => {
       let state = createDiplomacyState(civIds, 'player');
-      state = proposeTreaty(state, 'player', 'ai-egypt', 'non_aggression_pact', 10, 15);
+      state = signTreaty(state, 'player', 'ai-egypt', 'non_aggression_pact', 10, 15);
       state = breakTreaty(state, 'ai-egypt', 'non_aggression_pact', 20);
       expect(state.treaties).toHaveLength(0);
       expect(getRelationship(state, 'ai-egypt')).toBe(-25); // +5 from propose, -30 from break

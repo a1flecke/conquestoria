@@ -168,7 +168,10 @@ export function makePeace(
   return newState;
 }
 
-export function proposeTreaty(
+// Signs the treaty into THIS side's diplomacy state immediately — no consent
+// step. Callers targeting a human must go through enqueueTreatyProposal
+// instead (#554). Both sides must be signed for a complete treaty.
+export function signTreaty(
   state: DiplomacyState,
   selfId: string,
   otherCivId: string,
@@ -398,7 +401,7 @@ export function applyDiplomaticAction(
         (actorTreatyBonus?.type === 'allied_kingdoms' ? actorTreatyBonus.treatyRelationshipBonus : 0) +
         (targetTreatyBonus?.type === 'allied_kingdoms' ? targetTreatyBonus.treatyRelationshipBonus : 0);
       bus.emit('diplomacy:treaty-accepted', { civA: actorId, civB: targetCivId, treaty: action });
-      const actorTreatyState = proposeTreaty(
+      const actorTreatyState = signTreaty(
         actor.diplomacy,
         actorId,
         targetCivId,
@@ -406,7 +409,7 @@ export function applyDiplomaticAction(
         action === 'non_aggression_pact' ? 10 : -1,
         state.turn,
       );
-      const targetTreatyState = proposeTreaty(
+      const targetTreatyState = signTreaty(
         target.diplomacy,
         targetCivId,
         actorId,
