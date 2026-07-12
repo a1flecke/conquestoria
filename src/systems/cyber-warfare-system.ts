@@ -1,6 +1,7 @@
 import type { GameState } from '@/core/types';
 import { hexDistance } from './hex-utils';
 import { isAtWar } from './diplomacy-system';
+import { isAutonomyActivated } from './network-plan-system';
 
 export interface CyberDrainEvent {
   cityId: string;
@@ -38,6 +39,7 @@ export function processCyberDrain(
   const events: CyberDrainEvent[] = [];
   const creditsByOwner: Record<string, number> = {};
   if (!civ) return { remainingGold: incomeSoFar, creditsByOwner, events };
+  if (isAutonomyActivated(state, civId)) return { remainingGold: incomeSoFar, creditsByOwner, events };
 
   let remainingGold = incomeSoFar;
 

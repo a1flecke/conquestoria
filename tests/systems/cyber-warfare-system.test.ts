@@ -108,6 +108,16 @@ describe('processCyberDrain', () => {
     expect(result.events).toEqual([]);
   });
 
+  it('does not apply the Era 12 passive drain after the victim activates Autonomy', () => {
+    const state = makeState({
+      cities: [makeCity({ id: 'city-p1', owner: 'p1', position: { q: 1, r: 0 } })],
+      units: [makeCyberUnit({ id: 'cu1', owner: 'p2', position: { q: 2, r: 0 } })],
+    });
+    state.civilizations.p1.techState = { completed: ['quantum-computing'] } as any;
+
+    expect(processCyberDrain(state, 'p1', 10)).toEqual({ remainingGold: 10, creditsByOwner: {}, events: [] });
+  });
+
   it('drains 4 total gold when two adjacent enemy cyber units threaten the same city', () => {
     const state = makeState({
       turn: 1,
