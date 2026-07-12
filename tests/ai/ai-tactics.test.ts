@@ -494,6 +494,43 @@ describe('AI tactical action ranking', () => {
       .toEqual({ kind: 'capture-city', unitId: 'captor', cityId: city.id });
   });
 
+  it('scores a low-odds capture lower than a high-odds one for the same unit (#522)', () => {
+    const weakState = makeState('veteran');
+    addUnit(weakState, 'captor', 'warrior', AI, { q: 0, r: 0 });
+    const weakCity = addCity(weakState, 'weak-target', HUMAN, { q: 1, r: 0 });
+    weakCity.population = 1;
+    weakCity.buildings = [];
+    const weakPlan = makePlan({ kind: 'city', id: weakCity.id, lastKnownPosition: weakCity.position }, ['captor']);
+    const weakScore = rankUnitTacticalActions(context(weakState, weakPlan), 'captor')
+      .find(candidate => candidate.action.kind === 'capture-city')?.score;
+
+    const strongState = makeState('veteran');
+    addUnit(strongState, 'captor', 'warrior', AI, { q: 0, r: 0 });
+    const strongCity = addCity(strongState, 'strong-target', HUMAN, { q: 1, r: 0 });
+    strongCity.population = 40;
+    strongCity.buildings = ['walls', 'star_fort'];
+    const strongPlan = makePlan({ kind: 'city', id: strongCity.id, lastKnownPosition: strongCity.position }, ['captor']);
+    const strongScore = rankUnitTacticalActions(context(strongState, strongPlan), 'captor')
+      .find(candidate => candidate.action.kind === 'capture-city')?.score;
+
+    expect(weakScore).toBeDefined();
+    expect(strongScore).toBeDefined();
+    expect(strongScore!).toBeLessThan(weakScore!);
+  });
+
+  it('still offers a low-odds capture as a candidate, never refuses outright (#522)', () => {
+    const state = makeState('veteran');
+    addUnit(state, 'captor', 'warrior', AI, { q: 0, r: 0 });
+    const city = addCity(state, 'strong-target', HUMAN, { q: 1, r: 0 });
+    city.population = 50;
+    city.buildings = ['walls', 'star_fort'];
+    const plan = makePlan({ kind: 'city', id: city.id, lastKnownPosition: city.position }, ['captor']);
+
+    const candidates = rankUnitTacticalActions(context(state, plan), 'captor');
+
+    expect(candidates.some(candidate => candidate.action.kind === 'capture-city')).toBe(true);
+  });
+
   it('does not capture a city remotely with a ranged unit', () => {
     const state = makeState('veteran');
     addUnit(state, 'archer', 'archer', AI, { q: 0, r: 0 }, {
