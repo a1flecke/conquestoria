@@ -35,6 +35,10 @@ paths:
 - Notifications must queue — never overwrite one notification with another
 - Maintain a persistent notification log (last 50 entries) accessible via a log button
 - Log entries must include the turn number for context
+- Game-consequence notifications MUST go through `notification-delivery`'s
+  `deliver(civId, …)` with an explicit recipient — never `showNotification`,
+  which is reserved for immediate feedback to the acting player's own input.
+  Emit-time `currentPlayer` attribution is the #551 leak bug class.
 
 ## Tech Panel
 - Must list ALL tech tracks from the `TechTrack` type union — never hardcode a subset
