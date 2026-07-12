@@ -59,7 +59,7 @@ export interface NetworkTurnEndResult {
 }
 
 export function isAutonomyActivated(state: GameState, civId: string): boolean {
-  const completed = state.civilizations[civId]?.techState.completed ?? [];
+  const completed = state.civilizations[civId]?.techState?.completed ?? [];
   return completed.some(techId => TECH_TREE.find(tech => tech.id === techId)?.era === 13);
 }
 

@@ -4,6 +4,8 @@ import { placeLateResources } from '@/systems/late-resource-placement';
 import { createMarketplaceState } from '@/systems/trade-system';
 import { BUILDINGS, TRAINABLE_UNITS } from '@/systems/city-system';
 import { createEmptyAutonomyCivState } from '@/core/autonomy-state';
+import { hexDistance } from '@/systems/hex-utils';
+import { assignNetworkPlan, isAutonomyActivated } from '@/systems/network-plan-system';
 
 export const CURRENT_SAVE_SCHEMA_VERSION = 3;
 
@@ -140,12 +142,38 @@ function migrateAutonomyNetwork(state: GameState): GameState {
     civId,
     state.autonomyByCiv?.[civId] ?? createEmptyAutonomyCivState(),
   ]));
-  return {
+  let working: GameState = {
     ...state,
     autonomyByCiv,
     networkCivicPressureByCity: state.networkCivicPressureByCity ?? {},
     idCounters: { ...state.idCounters, nextNetworkPlanId: state.idCounters?.nextNetworkPlanId ?? 1 },
   };
+  for (const civId of Object.keys(working.civilizations).sort()) {
+    if (!isAutonomyActivated(working, civId)) continue;
+    const sourceIds = Object.values(working.units)
+      .filter(unit => unit.owner === civId && unit.type === 'cyber_unit')
+      .map(unit => unit.id)
+      .sort();
+    for (const sourceUnitId of sourceIds) {
+      const source = working.units[sourceUnitId];
+      const owner = working.civilizations[civId];
+      const target = Object.values(working.cities)
+        .filter(city => city.owner !== civId
+          && working.civilizations[city.owner]
+          && owner.diplomacy.atWarWith.includes(city.owner)
+          && hexDistance(source.position, city.position) <= 1)
+        .sort((left, right) => left.id.localeCompare(right.id))[0];
+      if (!target) continue;
+      const assigned = assignNetworkPlan(working, {
+        ownerCivId: civId,
+        sourceUnitId,
+        definitionId: 'exploit',
+        target: { kind: 'city', cityId: target.id },
+      });
+      working = assigned.state;
+    }
+  }
+  return working;
 }
 
 export const SAVE_MIGRATIONS: Readonly<Record<number, SaveMigration>> = {
