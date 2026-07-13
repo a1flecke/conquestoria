@@ -44,6 +44,20 @@ describe('legendary-wonder-system', () => {
     });
   });
 
+  it('does not emit player-facing availability notices for AI civilizations', () => {
+    const state = makeLegendaryWonderFixture({ oracleStepsCompleted: 2, resources: ['stone'] });
+    state.legendaryWonderAvailability = {
+      'rival:oracle-of-delphi': { status: 'buildable' },
+    };
+    const bus = new EventBus();
+    const recipients: string[] = [];
+    bus.on('wonder:legendary-availability', event => recipients.push(event.recipientCivId));
+
+    reconcileLegendaryWonderAvailability(state, bus);
+
+    expect(recipients).not.toContain('rival');
+  });
+
   it('scraps invalid construction with a half-production gold refund and preserves the queue tail', () => {
     const state = makeLegendaryWonderFixture({ oracleStepsCompleted: 2, resources: ['stone'] });
     state.legendaryWonderProjects!['oracle-of-delphi'].phase = 'building';

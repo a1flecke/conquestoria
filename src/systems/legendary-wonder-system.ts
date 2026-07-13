@@ -600,7 +600,7 @@ export function reconcileLegendaryWonderAvailability(state: GameState, bus: Even
       const key = getLegendaryWonderAvailabilityKey(civ.id, definition.id);
       const previous = previousAvailability[key]?.status;
       availability[key] = { status };
-      if (previous !== status && (previous !== undefined || status === 'buildable')) {
+      if (civ.isHuman && previous !== status && (previous !== undefined || status === 'buildable')) {
         const cityActions = status === 'buildable'
           ? civ.cities
             .filter(cityId => getLegendaryWonderEligibility(nextState, civ.id, cityId, definition).buildable)
@@ -914,12 +914,14 @@ export function startLegendaryWonderBuild(
       [availabilityKey]: { status: 'building' as const },
     },
   };
-  bus?.emit('wonder:legendary-availability', {
-    recipientCivId: civId,
-    wonderId,
-    status: 'building',
-    cityActions: [],
-  });
+  if (civilization?.isHuman) {
+    bus?.emit('wonder:legendary-availability', {
+      recipientCivId: civId,
+      wonderId,
+      status: 'building',
+      cityActions: [],
+    });
+  }
   return nextState;
 }
 
