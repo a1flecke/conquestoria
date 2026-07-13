@@ -177,7 +177,11 @@ describe('era-relative pacing bands (F1 regression)', () => {
   });
 
   it('lands a cheap flat-bonus tech and a unit-unlock tech in the same era in different bands', () => {
-    const cheapFlat = tech('colonial-trade');
+    // Trade Routes Overhaul (#553) gave colonial-trade an unlocksUnits entry (Naval
+    // Trader), so it moved to 'marquee' itself and no longer fits as the flat-bonus
+    // example here — civic-humanism (era 5, plain +5% gold, no unlocksUnits/
+    // unlocksBuildings) replaces it as the fixture.
+    const cheapFlat = tech('civic-humanism');
     const unitUnlock = tech('black-powder');
     expect(cheapFlat.era).toBe(unitUnlock.era);
     expect(resolveTechPacingBand(cheapFlat)).not.toBe(resolveTechPacingBand(unitUnlock));

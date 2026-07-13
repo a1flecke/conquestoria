@@ -6,6 +6,8 @@ import {
   migrateSaveToCurrent,
   UnsupportedSaveSchemaVersionError,
 } from '@/storage/save-migrations';
+import { UNIT_DEFINITIONS } from '@/systems/unit-system';
+import { getTradeUnitTripBonus, canEstablishRoute } from '@/systems/trade-system';
 
 describe('save migrations', () => {
   it('migrates an unversioned save to a stable current schema exactly once', () => {
@@ -18,6 +20,30 @@ describe('save migrations', () => {
     expect(migrated.saveSchemaVersion).toBe(CURRENT_SAVE_SCHEMA_VERSION);
     expect(migrated.gameId).toMatch(/^legacy-/);
     expect(loadedAgain).toEqual(migrated);
+  });
+
+  it('#553 MR1/4 — Trade Routes Overhaul is purely additive: a pre-existing caravan and its committed route survive migration and stay functional (no SAVE_MIGRATIONS entry needed)', () => {
+    const legacySave = createNewGame('rome', 'pre-naval-trader-save', 'small');
+    const cityId = Object.keys(legacySave.cities)[0]!;
+    const city = legacySave.cities[cityId]!;
+    const caravan: Unit = {
+      id: 'legacy-caravan-1', type: 'caravan', owner: 'player',
+      position: { ...city.position }, health: 100, movementPointsLeft: 3,
+      hasActed: false, hasMoved: false, skippedTurn: false, isResting: false,
+    } as Unit;
+    legacySave.units = { ...legacySave.units, [caravan.id]: caravan };
+    legacySave.civilizations.player.units = [...legacySave.civilizations.player.units, caravan.id];
+
+    const migrated = migrateSaveToCurrent(legacySave);
+    const migratedCaravan = migrated.units[caravan.id];
+
+    expect(migratedCaravan).toBeDefined();
+    expect(migratedCaravan!.type).toBe('caravan');
+    // Old caravans keep working unchanged — UNIT_DEFINITIONS still resolves them and
+    // trade-system functions accept them without needing a unit-type migration.
+    expect(UNIT_DEFINITIONS['caravan']).toBeDefined();
+    expect(() => getTradeUnitTripBonus(migrated, cityId, cityId, 'player', migratedCaravan!.type)).not.toThrow();
+    expect(() => canEstablishRoute(migrated, migratedCaravan!, cityId)).not.toThrow();
   });
 
   it('rejects a newer save schema without mutating the save', () => {

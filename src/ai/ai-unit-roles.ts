@@ -5,6 +5,13 @@ const ROLE_OVERRIDES: Partial<Record<UnitType, readonly AIStrategicRole[]>> = {
   scout: ['recon'],
   observation_balloon: ['recon'],
   caravan: ['trade'],
+  // Trade Routes Overhaul (#553 MR1/4) — Naval Trader line. Without this override these
+  // fall through to the naval-domain branch below and get misclassified as
+  // ['naval-combat', 'escort'] despite strength 0 and no cargoCapacity.
+  naval_trader: ['trade'],
+  steamship_trader: ['trade'],
+  cargo_freighter: ['trade'],
+  container_ship: ['trade'],
   expedition: ['resource-expedition', 'recon'],
   settler: ['settlement'],
   worker: ['worker'],
@@ -60,4 +67,8 @@ export function getAIStrategicRoles(type: UnitType): readonly AIStrategicRole[] 
 
 export function hasAICombatRole(type: UnitType): boolean {
   return getAIStrategicRoles(type).some(role => COMBAT_ROLES.has(role));
+}
+
+export function hasAITradeRole(type: UnitType): boolean {
+  return getAIStrategicRoles(type).includes('trade');
 }

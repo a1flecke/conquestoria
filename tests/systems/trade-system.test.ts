@@ -13,7 +13,7 @@ import {
   processTradeRouteIncome,
   getEffectiveGoldPerTurn,
   getRouteCapacity,
-  getCaravanTripBonus,
+  getTradeUnitTripBonus,
   canEstablishRoute,
   establishRoute,
   removeRouteForUnit,
@@ -409,13 +409,13 @@ describe('trade-system', () => {
       expect(getRouteCapacity(state, 'city1')).toBe(2);
     });
 
-    it("getCaravanTripBonus: +2 from caravanserai at FROM; +2 from caravanserai at TO; Silk Road always 0", () => {
+    it("getTradeUnitTripBonus: +2 from caravanserai at FROM; +2 from caravanserai at TO; Silk Road always 0", () => {
       const state = makeMinimalState();
-      expect(getCaravanTripBonus(state, 'city1', 'city2', 'player')).toBe(0); // no buildings
+      expect(getTradeUnitTripBonus(state, 'city1', 'city2', 'player')).toBe(0); // no buildings
       state.cities['city1'].buildings = ['caravanserai'];
-      expect(getCaravanTripBonus(state, 'city1', 'city2', 'player')).toBe(2);
+      expect(getTradeUnitTripBonus(state, 'city1', 'city2', 'player')).toBe(2);
       state.cities['city2'].buildings = ['caravanserai'];
-      expect(getCaravanTripBonus(state, 'city1', 'city2', 'player')).toBe(4);
+      expect(getTradeUnitTripBonus(state, 'city1', 'city2', 'player')).toBe(4);
     });
 
     it("canEstablishRoute domestic: ok when capacity available", () => {
@@ -585,6 +585,116 @@ describe('trade-system', () => {
       bus.on('trade:route-ended', (e) => events.push(e.reason));
       newState = removeRouteForUnit(newState, 'caravan1', bus, 'unit-died');
       expect(events).toEqual(['unit-died']);
+    });
+  });
+
+  describe('Trade Routes Overhaul (#553 MR1/4) — domain-generic pathfinding', () => {
+    // city1 (0,0) and city2 (2,0) are ordinary land-terrain cities (unchanged grassland,
+    // matching how real coastal cities work — see findPathToCity's docstring). The entire
+    // q=1 column is ocean (5x5 test map, r=0..4) so there is genuinely no land bridge —
+    // not just a single blocked hex a land unit could route around. This isolates "does
+    // the trade unit's own movement domain get used" from any other pathing variable.
+    function makeNavalState(unitType: 'caravan' | 'naval_trader' = 'naval_trader'): GameState {
+      const state = makeMinimalState();
+      for (let r = 0; r < 5; r++) {
+        state.map.tiles[`1,${r}`] = { coord: { q: 1, r }, terrain: 'ocean', elevation: 'lowland', improvement: 'none', improvementTurnsLeft: 0, owner: null, resource: null, hasRiver: false, wonder: null };
+      }
+      state.units['caravan1'] = { ...state.units['caravan1'], type: unitType };
+      return state;
+    }
+
+    it('naval-domain trade unit can establish a route across water when a valid sea path exists', () => {
+      const state = makeNavalState('naval_trader');
+      const result = canEstablishRoute(state, state.units['caravan1'], 'city2');
+      expect(result.ok).toBe(true);
+    });
+
+    it('land-domain caravan still fails with the water-crossing reason when no land path exists', () => {
+      const state = makeNavalState('caravan');
+      const result = canEstablishRoute(state, state.units['caravan1'], 'city2');
+      expect(result.ok).toBe(false);
+      expect(result.reason).toBe('Requires a Naval Trader to cross water');
+    });
+
+    it('resolveFromCity uses the naval trade unit\'s own domain, not hardcoded land', () => {
+      const state = makeNavalState('naval_trader');
+      const city = resolveFromCity(state, state.units['caravan1']);
+      expect(city?.id).toBe('city1');
+    });
+
+    it('establishRoute succeeds end-to-end for a naval trade unit across water', () => {
+      const state = makeNavalState('naval_trader');
+      const bus = new EventBus();
+      const newState = establishRoute(state, 'caravan1', 'city2', bus, 0);
+      expect(newState.units['caravan1'].committedToRouteId).toBeTruthy();
+      expect(newState.marketplace!.tradeRoutes).toHaveLength(1);
+    });
+
+    it('getTradeUnitTripBonus: naval tier bonuses match TRADE_UNIT_TIER_BONUS and cap at +3', () => {
+      const state = makeMinimalState();
+      expect(getTradeUnitTripBonus(state, 'city1', 'city2', 'player', 'naval_trader')).toBe(0);
+      expect(getTradeUnitTripBonus(state, 'city1', 'city2', 'player', 'steamship_trader')).toBe(1);
+      expect(getTradeUnitTripBonus(state, 'city1', 'city2', 'player', 'cargo_freighter')).toBe(2);
+      expect(getTradeUnitTripBonus(state, 'city1', 'city2', 'player', 'container_ship')).toBe(3);
+    });
+
+    it('getTradeUnitTripBonus: caravan (no tier bonus) matches pre-rename getCaravanTripBonus values', () => {
+      const state = makeMinimalState();
+      expect(getTradeUnitTripBonus(state, 'city1', 'city2', 'player', 'caravan')).toBe(0);
+      state.cities['city1'].buildings = ['caravanserai'];
+      expect(getTradeUnitTripBonus(state, 'city1', 'city2', 'player', 'caravan')).toBe(2);
+    });
+
+    it('getTradeUnitTripBonus: tier bonus stacks with caravanserai/Silk Road but total still respects the +3 tier cap', () => {
+      const state = makeMinimalState();
+      state.cities['city1'].buildings = ['caravanserai'];
+      state.cities['city2'].buildings = ['caravanserai'];
+      // +2 (from) + +2 (to) + +3 (container_ship tier, already capped at 3) = 7
+      expect(getTradeUnitTripBonus(state, 'city1', 'city2', 'player', 'container_ship')).toBe(7);
+    });
+
+    it.each([
+      ['naval_trader', 'steamship_trader', 'colonial-trade'],
+      ['steamship_trader', 'cargo_freighter', 'steam-navigation'],
+      ['cargo_freighter', 'container_ship', 'convoy-system'],
+    ] as const)('%s upgrades into %s once %s completes', (fromType, toType, _techId) => {
+      const entries = TRAINABLE_UNITS as any[];
+      const fromEntry = entries.find((e: any) => e.type === fromType);
+      const toEntry = entries.find((e: any) => e.type === toType);
+      expect(fromEntry).toBeDefined();
+      expect(toEntry).toBeDefined();
+      expect(fromEntry.upgradesTo).toBe(toType);
+      expect(fromEntry.obsoletedByTech).toBe(toEntry.techRequired);
+    });
+
+    it('container_ship is the top tier — no further obsoletedByTech/upgradesTo', () => {
+      const entries = TRAINABLE_UNITS as any[];
+      const entry = entries.find((e: any) => e.type === 'container_ship');
+      expect(entry).toBeDefined();
+      expect(entry.obsoletedByTech).toBeUndefined();
+      expect(entry.upgradesTo).toBeUndefined();
+    });
+
+    it.each(['naval_trader', 'steamship_trader', 'cargo_freighter', 'container_ship'] as const)(
+      '%s: end-to-end catalog wiring (UNIT_DEFINITIONS, UNIT_DESCRIPTIONS, PRODUCTION_ICONS, TRAINABLE_UNITS coastalRequired)',
+      (type) => {
+        expect(UNIT_DEFINITIONS[type]).toBeDefined();
+        expect(UNIT_DEFINITIONS[type].domain).toBe('naval');
+        expect(UNIT_DEFINITIONS[type].strength).toBe(0);
+        expect(UNIT_DESCRIPTIONS[type]).toBeTruthy();
+        expect((PRODUCTION_ICONS as Record<string, string>)[type]).toBeTruthy();
+        const entry = (TRAINABLE_UNITS as any[]).find((e: any) => e.type === type);
+        expect(entry).toBeDefined();
+        expect(entry.coastalRequired).toBe(true);
+      },
+    );
+
+    it('each naval trade tech unlocksUnits its tier', () => {
+      const byId = (id: string) => TECH_TREE.find(t => t.id === id);
+      expect(byId('colonial-trade')?.unlocksUnits).toContain('naval_trader');
+      expect(byId('steam-navigation')?.unlocksUnits).toContain('steamship_trader');
+      expect(byId('convoy-system')?.unlocksUnits).toContain('cargo_freighter');
+      expect(byId('container-shipping')?.unlocksUnits).toContain('container_ship');
     });
   });
 
@@ -1030,6 +1140,27 @@ describe('trade-system', () => {
       });
       const result = advanceRouteRunners(state);
       expect(result.units['caravan1']!.position.q).toBeGreaterThan(0);
+    });
+
+    it('Trade Routes Overhaul (#553 MR1/4): naval route runner crosses water toward toCityId (not stuck on land-only pathing)', () => {
+      let state = makeS6bState({ caravanPos: { q: 0, r: 0 } });
+      // Cut a water column between city1 (q=0) and city2 (q=2), same shape as the
+      // domain-generic pathfinding describe block above.
+      const tiles = { ...state.map.tiles };
+      for (let r = 0; r < 5; r++) {
+        tiles[`1,${r}`] = { coord: { q: 1, r }, terrain: 'ocean', rivers: [], improvement: null, owner: null, resource: null, wonder: null } as any;
+      }
+      state = {
+        ...state,
+        map: { ...state.map, tiles },
+        units: { ...state.units, caravan1: { ...state.units['caravan1'], type: 'naval_trader' } },
+      } as any;
+
+      const result = advanceRouteRunners(state);
+      const runner = result.units['caravan1']!;
+      // A hardcoded-'land' runner would find no path across the water column and never
+      // move (position stays q=0); the domain-aware fix must step it toward city2.
+      expect(runner.position.q).toBeGreaterThan(0);
     });
   });
 });

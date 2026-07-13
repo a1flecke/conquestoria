@@ -114,7 +114,8 @@ describe('sfx-catalog completeness', () => {
     // + 35 pirate movement/combat/headquarters/strategic entries (#522 adds siege + city-razed) = 127
     // + 1 air locomotion move-step = 128
     // + 4 era-12 unit SFX (cyber_unit: death; stealth_bomber: ranged-loose, ranged-impact, death) = 132
-    expect(allSfxEntries()).toHaveLength(132);
+    // + 4 Naval Trader line death sounds (#553 MR1/4) = 136
+    expect(allSfxEntries()).toHaveLength(136);
   });
 
   it('no two entries share the same ID', () => {

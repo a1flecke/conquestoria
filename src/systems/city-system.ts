@@ -1141,6 +1141,12 @@ export const TRAINABLE_UNITS: Array<TrainableUnitEntry & { pacing?: Building['pa
   { type: 'war_hound', name: 'War Hound', cost: 32, techRequired: 'lookouts', civTypeRequired: 'rome', replacesUnit: 'scout_hound', pacing: { band: 'power-spike', role: 'unique-spy-detection-combat', impact: 1.1, scope: 'military', snowball: 1, urgency: 1.05, situationality: 1.1, unlockBreadth: 1 } },
   // S5 — trade unit
   { type: 'caravan', name: 'Caravan', cost: 60, techRequired: 'trade-routes' },
+  // Trade Routes Overhaul (#553 MR1/4) — Naval Trader line, fixes naval trade routes
+  // (previously impossible: canEstablishRoute hardcoded 'land' pathfinding).
+  { type: 'naval_trader',     name: 'Naval Trader',     cost: 75,  techRequired: 'colonial-trade',     coastalRequired: true, obsoletedByTech: 'steam-navigation',    upgradesTo: 'steamship_trader' },
+  { type: 'steamship_trader', name: 'Steamship Trader', cost: 120, techRequired: 'steam-navigation',   coastalRequired: true, obsoletedByTech: 'convoy-system',       upgradesTo: 'cargo_freighter' },
+  { type: 'cargo_freighter',  name: 'Cargo Freighter',  cost: 170, techRequired: 'convoy-system',      coastalRequired: true, obsoletedByTech: 'container-shipping',  upgradesTo: 'container_ship' },
+  { type: 'container_ship',   name: 'Container Ship',   cost: 260, techRequired: 'container-shipping', coastalRequired: true },
   // Resource Accessibility MR 2b — exploration unit
   { type: 'expedition', name: 'Expedition', cost: 18, techRequired: 'foraging' },
 ];
@@ -1421,6 +1427,11 @@ export const PRODUCTION_ICONS: Record<string, string> = {
   // S5 — trade unit + buildings
   caravan:         '🐪',
   caravanserai:    '🏕️',
+  // Trade Routes Overhaul (#553 MR1/4) — Naval Trader line
+  naval_trader:     '⛴️',
+  steamship_trader: '🛥️',
+  cargo_freighter:  '📦',
+  container_ship:   '🗃️',
   // Resource Accessibility MR 2b
   expedition:      '🧭',
   bank:            '🏦',

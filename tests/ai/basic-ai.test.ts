@@ -2051,6 +2051,81 @@ describe('Expedition AI parity', () => {
   });
 });
 
+describe('#553 MR1/4 — idle trade-unit AI parity (caravan and Naval Trader)', () => {
+  // Two AI-owned cities. 'water' mode cuts a q=1 ocean column between them (no land
+  // bridge) so only a naval-domain trade unit can path between them; 'land' mode leaves
+  // the map as plain grassland.
+  function makeIdleTradeUnitAiState(opts: {
+    unitType: 'caravan' | 'naval_trader';
+    crossing: 'land' | 'water';
+  }): GameState {
+    const tiles: Record<string, GameState['map']['tiles'][string]> = {};
+    for (let q = 0; q < 5; q++) {
+      for (let r = 0; r < 5; r++) {
+        tiles[hexKey({ q, r })] = {
+          coord: { q, r }, terrain: 'grassland' as const,
+          elevation: 'lowland' as const, resource: null, improvement: 'none' as const,
+          owner: null, improvementTurnsLeft: 0, hasRiver: false, wonder: null,
+        };
+      }
+    }
+    if (opts.crossing === 'water') {
+      for (let r = 0; r < 5; r++) {
+        tiles[hexKey({ q: 1, r })] = { ...tiles[hexKey({ q: 1, r })]!, terrain: 'ocean' as const };
+      }
+    }
+
+    const counters = { nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 };
+    const map = { width: 5, height: 5, tiles, wrapsHorizontally: false, rivers: [] };
+    const city1 = foundCity('ai-1', { q: 0, r: 0 }, map, counters);
+    const city2 = foundCity('ai-1', { q: 2, r: 0 }, map, counters);
+
+    const tradeUnitId = 'ai-trade-1';
+
+    return {
+      turn: 5, era: 5, currentPlayer: 'ai-1', gameOver: false, winner: null,
+      map,
+      units: {
+        [tradeUnitId]: {
+          id: tradeUnitId, type: opts.unitType, owner: 'ai-1',
+          position: { ...city1.position }, movementPointsLeft: 3, health: 100, experience: 0,
+          hasMoved: false, hasActed: false, isResting: false,
+        } as never,
+      },
+      cities: { [city1.id]: city1, [city2.id]: city2 },
+      civilizations: {
+        'ai-1': {
+          id: 'ai-1', name: 'Test AI', color: '#ff0000',
+          isHuman: false, civType: 'generic',
+          cities: [city1.id, city2.id],
+          units: [tradeUnitId],
+          techState: { completed: ['trade-routes', 'colonial-trade'], current: null, progress: 0 },
+          gold: 50,
+          visibility: { tiles: {} },
+          score: 0,
+          diplomacy: { relationships: {}, atWarWith: [], treatyRequestsSent: [], treatyRequestsReceived: [], vassalage: { overlord: null, vassals: [], protectionScore: 100, protectionTimers: [], peakCities: 1, peakMilitary: 0 } },
+        },
+      },
+      barbarianCamps: {}, tribalVillages: {}, minorCivs: {},
+      marketplace: { prices: {}, priceHistory: {}, fashionable: null, fashionTurnsLeft: 0, tradeRoutes: [] },
+      espionage: {},
+      legendaryWonderProjects: {},
+    } as unknown as GameState;
+  }
+
+  it.each([
+    ['caravan', 'land'],
+    ['naval_trader', 'water'],
+  ] as const)('idle %s gets a route proposed by basic-ai.ts (%s crossing)', (unitType, crossing) => {
+    const state = makeIdleTradeUnitAiState({ unitType, crossing });
+    const bus = new EventBus();
+    const newState = processAITurn(state, 'ai-1', bus);
+    const tradeUnit = newState.units['ai-trade-1'];
+    expect(tradeUnit?.committedToRouteId, `${unitType} should have a route committed`).toBeTruthy();
+    expect(newState.marketplace!.tradeRoutes).toHaveLength(1);
+  });
+});
+
 describe('AI transport load/unload', () => {
   const baseDiplomacy = (atWarWith: string[] = []) => ({
     relationships: {} as Record<string, number>,
