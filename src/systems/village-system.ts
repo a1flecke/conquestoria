@@ -1,5 +1,5 @@
 import type { GameMap, HexCoord, GameState, TechState, Unit, TribalVillage, VillageOutcomeType } from '@/core/types';
-import { hexKey, hexDistance, hexNeighbors } from './hex-utils';
+import { hexKey, mapDistance, mapNeighbors } from './hex-utils';
 import { createUnit } from './unit-system';
 import { TECH_TREE, applyResearchBonus, getEffectiveTechCost } from './tech-system';
 import { createRng } from './map-generator';
@@ -38,10 +38,10 @@ export function placeVillages(
     if (placedPositions.length >= targetCount) break;
 
     // Distance from starts
-    if (!startPositions.every(sp => hexDistance(coord, sp) >= 4)) continue;
+    if (!startPositions.every(sp => mapDistance(map, coord, sp) >= 4)) continue;
 
     // Distance from other villages
-    if (!placedPositions.every(vp => hexDistance(coord, vp) >= 3)) continue;
+    if (!placedPositions.every(vp => mapDistance(map, coord, vp) >= 3)) continue;
 
     const id = `village-${placedPositions.length}`;
     villages[id] = { id, position: coord };
@@ -110,7 +110,7 @@ export function visitVillage(
       for (const cityId of citiesOwned) {
         const city = state.cities[cityId];
         if (city) {
-          const d = hexDistance(village.position, city.position);
+          const d = mapDistance(state.map, village.position, city.position);
           if (d < nearestDist) {
             nearestDist = d;
             nearestCity = city;
@@ -187,7 +187,7 @@ export function visitVillage(
       break;
     }
     case 'ambush': {
-      const neighbors = hexNeighbors(village.position);
+      const neighbors = mapNeighbors(state.map, village.position);
       const passable = neighbors.filter(n => {
         const t = state.map.tiles[hexKey(n)];
         return t && !IMPASSABLE_TERRAIN.has(t.terrain);

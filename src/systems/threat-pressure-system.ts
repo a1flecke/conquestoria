@@ -12,7 +12,7 @@ import type { EventBus } from '@/core/event-bus';
 import { createEmptyOpponentAIState } from '@/core/opponent-ai-state';
 import { getChallengeProfileForCiv } from '@/core/opponent-challenge';
 import { BEAST_DEFINITIONS } from './beast-definitions';
-import { hexKey, hexNeighbors, hexDistance, wrappedHexDistance } from './hex-utils';
+import { hexKey, mapDistance, mapNeighbors } from './hex-utils';
 import { createUnit } from './unit-system';
 import { seededLcg } from './seeded-lcg';
 
@@ -49,9 +49,7 @@ function emptyPressureLedger(): HumanPressureLedger {
 }
 
 function threatDistance(state: GameState, a: HexCoord, b: HexCoord): number {
-  return state.map.wrapsHorizontally
-    ? wrappedHexDistance(a, b, state.map.width)
-    : hexDistance(a, b);
+  return mapDistance(state.map, a, b);
 }
 
 function humanAssetPositions(state: GameState, humanId: string): HexCoord[] {
@@ -335,7 +333,7 @@ export function nearestLandmassId(position: HexCoord, map: GameMap): string | nu
   for (let depth = 0; depth < 10 && frontier.length > 0; depth++) {
     const nextFrontier: HexCoord[] = [];
     for (const coord of frontier) {
-      for (const nb of hexNeighbors(coord)) {
+      for (const nb of mapNeighbors(map, coord)) {
         const key = hexKey(nb);
         if (visited.has(key)) continue;
         visited.add(key);
@@ -445,10 +443,10 @@ export function processLandResurgence(
     if (state.barbarianCamps[hexKey(tile.coord)]) return false;
     // Must be far from cities and existing camps
     for (const pos of cityPositions) {
-      if (hexDistance(tile.coord, pos) < 4) return false;
+      if (mapDistance(state.map, tile.coord, pos) < 4) return false;
     }
     for (const camp of allCamps) {
-      if (hexDistance(tile.coord, camp.position) < 3) return false;
+      if (mapDistance(state.map, tile.coord, camp.position) < 3) return false;
     }
     return true;
   });
@@ -522,14 +520,14 @@ function findPirateSpawnTile(state: GameState, landmassId: string): HexCoord | n
   const candidates = Object.values(state.map.tiles).filter(tile => {
     if (tile.terrain !== 'ocean') return false;
     // Must be adjacent to a land tile on the target landmass
-    const nearLandmass = hexNeighbors(tile.coord).some(nb => {
+    const nearLandmass = mapNeighbors(state.map, tile.coord).some(nb => {
       const t = state.map.tiles[hexKey(nb)];
       return t?.regionKey === landmassId;
     });
     if (!nearLandmass) return false;
     // Must be ≥ 5 tiles from any city
     for (const pos of cityPositions) {
-      if (hexDistance(tile.coord, pos) < 5) return false;
+      if (mapDistance(state.map, tile.coord, pos) < 5) return false;
     }
     return true;
   });
@@ -552,13 +550,13 @@ export function createPirateFleetNear(
 
   const spawnCandidates = Object.values(state.map.tiles).filter(tile => {
     if (tile.terrain !== 'ocean') return false;
-    const nearLandmass = hexNeighbors(tile.coord).some(nb => {
+    const nearLandmass = mapNeighbors(state.map, tile.coord).some(nb => {
       const t = state.map.tiles[hexKey(nb)];
       return t?.regionKey === landmassId;
     });
     if (!nearLandmass) return false;
     for (const pos of cityPositions) {
-      if (hexDistance(tile.coord, pos) < 5) return false;
+      if (mapDistance(state.map, tile.coord, pos) < 5) return false;
     }
     return true;
   });
@@ -617,7 +615,7 @@ export function processPirateSpawn(
     if (!city) return [];
     const tile = state.map.tiles[hexKey(city.position)];
     const isCoastal = tile?.terrain === 'coast'
-      || hexNeighbors(city.position).some(nb => {
+      || mapNeighbors(state.map, city.position).some(nb => {
         const t = state.map.tiles[hexKey(nb)];
         return t?.terrain === 'ocean' || t?.terrain === 'coast';
       });
@@ -633,8 +631,8 @@ export function processPirateSpawn(
   if (!spawnTile) return state;
 
   const targetCity = coastalCities.reduce((nearest, city) => {
-    const d1 = hexDistance(city.position, spawnTile);
-    const d2 = hexDistance(nearest.position, spawnTile);
+    const d1 = mapDistance(state.map, city.position, spawnTile);
+    const d2 = mapDistance(state.map, nearest.position, spawnTile);
     return d1 < d2 ? city : nearest;
   });
 
@@ -662,7 +660,7 @@ function movePirateTowardCity(
   const unit = state.units[unitId];
   const city = state.cities[targetCityId];
   if (!unit || !city) return state;
-  if (hexDistance(unit.position, city.position) <= ADJACENT_HEX_DIST) return state;
+  if (mapDistance(state.map, unit.position, city.position) <= ADJACENT_HEX_DIST) return state;
 
   // BFS to find next step on ocean/coast path
   const start = hexKey(unit.position);
@@ -673,7 +671,7 @@ function movePirateTowardCity(
     const { key, path } = queue.shift()!;
     const [q, r] = key.split(',').map(Number);
     const coord = { q, r };
-    for (const nb of hexNeighbors(coord)) {
+    for (const nb of mapNeighbors(state.map, coord)) {
       const nbKey = hexKey(nb);
       if (visited.has(nbKey)) continue;
       visited.add(nbKey);
@@ -681,7 +679,7 @@ function movePirateTowardCity(
       if (!tile) continue;
       const newPath = [...path, nb];
       if (tile.terrain === 'ocean' || tile.terrain === 'coast') {
-        if (hexKey(nb) === hexKey(city.position) || hexDistance(nb, city.position) <= ADJACENT_HEX_DIST) {
+        if (hexKey(nb) === hexKey(city.position) || mapDistance(state.map, nb, city.position) <= ADJACENT_HEX_DIST) {
           // First step is our move
           const nextPos = newPath[0] ?? nb;
           return {
@@ -731,8 +729,8 @@ export function processPirateFleets(state: GameState, bus: EventBus): GameState 
       const civCities = (civ?.cities ?? []).map(id => nextState.cities[id]).filter((c): c is City => !!c);
       const newTarget: City | undefined = civCities.reduce<City | undefined>((nearest, city) => {
         if (!nearest) return city;
-        const d1 = hexDistance(city.position, unit.position);
-        const d2 = hexDistance(nearest.position, unit.position);
+        const d1 = mapDistance(nextState.map, city.position, unit.position);
+        const d2 = mapDistance(nextState.map, nearest.position, unit.position);
         return d1 < d2 ? city : nearest;
       }, undefined);
       if (!newTarget) continue;
@@ -745,7 +743,7 @@ export function processPirateFleets(state: GameState, bus: EventBus): GameState 
     const updatedUnit = nextState.units[fleet.unitId];
     if (!updatedUnit) continue;
 
-    const isAdjacent = hexDistance(updatedUnit.position, targetCity.position) <= ADJACENT_HEX_DIST;
+    const isAdjacent = mapDistance(nextState.map, updatedUnit.position, targetCity.position) <= ADJACENT_HEX_DIST;
 
     // Plunder: once adjacent, steal gold on cooldown
     if (isAdjacent && updatedFleet.plunderCooldown === 0) {

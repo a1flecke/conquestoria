@@ -1,5 +1,6 @@
 import type {
   AIStrategicPlan,
+  GameMap,
   GameState,
   MinorCivArchetype,
   MinorCivState,
@@ -17,11 +18,9 @@ import { TECH_TREE } from './tech-definitions';
 import { createDiplomacyState, modifyRelationship } from './diplomacy-system';
 import { applyResearchBonus } from './tech-system';
 import {
-  getWrappedHexNeighbors,
-  hexDistance,
   hexKey,
-  hexNeighbors,
-  wrappedHexDistance,
+  mapDistance,
+  mapNeighbors,
 } from './hex-utils';
 import { createUnit, resetUnitTurn, UNIT_DEFINITIONS } from './unit-system';
 import { foundCity } from './city-system';
@@ -107,11 +106,11 @@ export function placeMinorCivs(
 
   for (const def of selected) {
     const pos = findValidPosition(
+      state.map,
       candidates,
       startPositions,
       cityPositions,
       placedPositions,
-      state.map.width,
     );
     if (!pos) continue;
 
@@ -161,16 +160,16 @@ export function placeMinorCivs(
 }
 
 function findValidPosition(
+  map: GameMap,
   candidates: HexCoord[],
   startPositions: HexCoord[],
   cityPositions: HexCoord[],
   placedPositions: HexCoord[],
-  mapWidth: number,
 ): HexCoord | null {
   for (const pos of candidates) {
-    if (startPositions.some(s => wrappedHexDistance(pos, s, mapWidth) < 8)) continue;
-    if (cityPositions.some(c => wrappedHexDistance(pos, c, mapWidth) < 6)) continue;
-    if (placedPositions.some(p => wrappedHexDistance(pos, p, mapWidth) < 10)) continue;
+    if (startPositions.some(s => mapDistance(map, pos, s) < 8)) continue;
+    if (cityPositions.some(c => mapDistance(map, pos, c) < 6)) continue;
+    if (placedPositions.some(p => mapDistance(map, pos, p) < 10)) continue;
     return pos;
   }
   return null;
@@ -245,9 +244,7 @@ const MINOR_OPERATIONAL_RADIUS = 6;
 const MINOR_RESOURCE_RADIUS = 4;
 
 function minorDistance(state: GameState, a: HexCoord, b: HexCoord): number {
-  return state.map.wrapsHorizontally
-    ? wrappedHexDistance(a, b, state.map.width)
-    : hexDistance(a, b);
+  return mapDistance(state.map, a, b);
 }
 
 function makeMinorPlan(
@@ -292,9 +289,7 @@ function chooseMinorStep(
   const occupied = new Set(Object.values(state.units)
     .filter(candidate => candidate.id !== unit.id && !candidate.transportId)
     .map(candidate => hexKey(candidate.position)));
-  const candidates = state.map.wrapsHorizontally
-    ? getWrappedHexNeighbors(unit.position, state.map.width)
-    : hexNeighbors(unit.position);
+  const candidates = mapNeighbors(state.map, unit.position);
   return candidates
     .filter(coord => {
       const terrain = state.map.tiles[hexKey(coord)]?.terrain;
@@ -600,11 +595,11 @@ function processMovement(state: GameState, mc: MinorCivState): void {
     const unit = state.units[uid];
     if (!unit) continue;
 
-    const dist = hexDistance(unit.position, city.position);
+    const dist = mapDistance(state.map, unit.position, city.position);
     if (dist > 3) {
-      const neighbors = hexNeighbors(unit.position);
+      const neighbors = mapNeighbors(state.map, unit.position);
       const closer = neighbors
-        .filter(n => hexDistance(n, city.position) < dist)
+        .filter(n => mapDistance(state.map, n, city.position) < dist)
         .filter(n => {
           const tile = state.map.tiles[hexKey(n)];
           return tile && tile.terrain !== 'ocean' && tile.terrain !== 'mountain';
@@ -771,7 +766,7 @@ export function processScuffles(state: GameState, bus: EventBus): void {
       const otherCity = state.cities[other.cityId];
       if (!otherCity) continue;
 
-      if (hexDistance(mcCity.position, otherCity.position) <= 8) {
+      if (mapDistance(state.map, mcCity.position, otherCity.position) <= 8) {
         const attackerUnit = mc.units.map(uid => state.units[uid]).find(u => u);
         const defenderUnit = other.units.map(uid => state.units[uid]).find(u => u);
         if (attackerUnit && defenderUnit && canAttackByProfileOnMap(attackerUnit, defenderUnit, state.map)) {
@@ -824,8 +819,8 @@ export function checkCampEvolution(
 
   for (const camp of Object.values(state.barbarianCamps)) {
     if (camp.strength < 8) continue;
-    if (allCityPositions.some(c => hexDistance(camp.position, c) < 6)) continue;
-    if (startPositions.some(s => hexDistance(camp.position, s) < 6)) continue;
+    if (allCityPositions.some(c => mapDistance(state.map, camp.position, c) < 6)) continue;
+    if (startPositions.some(s => mapDistance(state.map, camp.position, s) < 6)) continue;
 
     const def = unusedDefs[0];
     const majorCivIds = Object.keys(state.civilizations);
@@ -842,7 +837,7 @@ export function checkCampEvolution(
 
     const transferIds: string[] = [];
     for (const [uid, unit] of Object.entries(state.units)) {
-      if (unit.owner === 'barbarian' && hexDistance(unit.position, camp.position) <= 3) {
+      if (unit.owner === 'barbarian' && mapDistance(state.map, unit.position, camp.position) <= 3) {
         transferIds.push(uid);
       }
     }

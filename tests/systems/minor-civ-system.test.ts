@@ -947,6 +947,59 @@ describe('scuffles between minor civs', () => {
     expect(state.units['sparta-warrior'].health).toBe(100);
     expect(state.units['carthage-warrior'].health).toBe(100);
   });
+
+  it('resolves scuffle combat between cities that are only far apart by raw distance, adjacent across the wrap seam (issue #520)', () => {
+    const state = createNewGame(undefined, 'mc-scuffle-wrap', 'small');
+    state.map.wrapsHorizontally = true;
+    const width = state.map.width;
+    state.turn = 13; // yields roll 6 (< 10) for mc-sparta, matching the existing roll-gated test above
+    state.minorCivs = {
+      'mc-sparta': {
+        id: 'mc-sparta',
+        definitionId: 'sparta',
+        cityId: 'city-sparta',
+        units: ['sparta-warrior'],
+        diplomacy: {} as any,
+        activeQuests: {},
+        chainStatusByCiv: {},
+        questCooldownUntilByCiv: {},
+        lastNotifiedStatusByCiv: {},
+        isDestroyed: false,
+        garrisonCooldown: 0,
+        lastEraUpgrade: 1,
+      },
+      'mc-carthage': {
+        id: 'mc-carthage',
+        definitionId: 'carthage',
+        cityId: 'city-carthage',
+        units: ['carthage-warrior'],
+        diplomacy: {} as any,
+        activeQuests: {},
+        chainStatusByCiv: {},
+        questCooldownUntilByCiv: {},
+        lastNotifiedStatusByCiv: {},
+        isDestroyed: false,
+        garrisonCooldown: 0,
+        lastEraUpgrade: 1,
+      },
+    };
+    state.cities = {
+      'city-sparta': { id: 'city-sparta', name: 'Sparta', owner: 'mc-sparta', position: { q: 0, r: 0 }, population: 3, buildings: [], productionQueue: [], productionProgress: 0, food: 0, foodNeeded: 10, ownedTiles: [], workedTiles: [], focus: 'balanced', maturity: 'outpost', unrestLevel: 0, unrestTurns: 0, spyUnrestBonus: 0 },
+      'city-carthage': { id: 'city-carthage', name: 'Carthage', owner: 'mc-carthage', position: { q: width - 1, r: 0 }, population: 3, buildings: [], productionQueue: [], productionProgress: 0, food: 0, foodNeeded: 10, ownedTiles: [], workedTiles: [], focus: 'balanced', maturity: 'outpost', unrestLevel: 0, unrestTurns: 0, spyUnrestBonus: 0 },
+    };
+    const attacker = createUnit('warrior', 'mc-sparta', { q: 0, r: 0 }, mkC());
+    attacker.id = 'sparta-warrior';
+    const defender = createUnit('warrior', 'mc-carthage', { q: width - 1, r: 0 }, mkC());
+    defender.id = 'carthage-warrior';
+    state.units = { [attacker.id]: attacker, [defender.id]: defender };
+    const scuffles: unknown[] = [];
+    const localBus = new EventBus();
+    localBus.on('minor-civ:scuffle', payload => scuffles.push(payload));
+
+    processScuffles(state, localBus);
+
+    expect(scuffles).toHaveLength(1);
+  });
 });
 
 describe('diplomatic agency', () => {

@@ -714,6 +714,33 @@ describe('processPirateFleets', () => {
     processPirateFleets(state, bus);
     expect(events.filter(e => e === 'threat:pirate-siege').length).toBe(1);
   });
+
+  it('retargets to the wrap-nearer city rather than the raw-nearer one across the seam (issue #520)', () => {
+    const state = makeTestState({ turn: 10, era: 2 });
+    state.map.wrapsHorizontally = true;
+    const width = state.map.width;
+    state.cities = {
+      'city-raw-near': { id: 'city-raw-near', owner: 'p1', position: { q: 5, r: 0 } } as any,
+      'city-wrap-near': { id: 'city-wrap-near', owner: 'p1', position: { q: width - 1, r: 0 } } as any,
+    };
+    state.civilizations.p1.cities = ['city-raw-near', 'city-wrap-near'];
+    state.units['u-pirate'] = {
+      id: 'u-pirate', type: 'galley', owner: PIRATE_OWNER,
+      position: { q: 0, r: 0 }, health: 100, movementPointsLeft: 2,
+      hasMoved: false, experience: 0, isFortified: false,
+    } as any;
+    state.pirateFleets = {
+      'fleet-1': {
+        id: 'fleet-1', unitId: 'u-pirate', targetCivId: 'p1',
+        targetCityId: 'stale-city', landmassId: 'continent-0', era: 2, plunderCooldown: 0,
+      },
+    };
+    const bus = { emit: () => {} } as any;
+
+    const updated = processPirateFleets(state, bus);
+
+    expect(updated.pirateFleets!['fleet-1'].targetCityId).toBe('city-wrap-near');
+  });
 });
 
 describe('pirate hot-seat behavior', () => {
