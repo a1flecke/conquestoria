@@ -1,4 +1,4 @@
-import type { HexCoord } from '@/core/types';
+import type { GameMap, HexCoord } from '@/core/types';
 
 // --- Key conversion ---
 
@@ -144,6 +144,20 @@ export function wrappedHexDistance(a: HexCoord, b: HexCoord, mapWidth: number): 
     hexDistance(a, { q: b.q - mapWidth, r: b.r }),
     hexDistance(a, { q: b.q + mapWidth, r: b.r }),
   );
+}
+
+// --- Map-aware helpers (branch on map.wrapsHorizontally so callers never have to) ---
+
+export function mapDistance(map: GameMap, a: HexCoord, b: HexCoord): number {
+  return map.wrapsHorizontally ? wrappedHexDistance(a, b, map.width) : hexDistance(a, b);
+}
+
+export function mapNeighbors(map: GameMap, coord: HexCoord): HexCoord[] {
+  return map.wrapsHorizontally ? getWrappedHexNeighbors(coord, map.width) : hexNeighbors(coord);
+}
+
+export function mapHexesInRange(map: GameMap, center: HexCoord, range: number): HexCoord[] {
+  return map.wrapsHorizontally ? getWrappedHexesInRange(center, range, map.width) : hexesInRange(center, range);
 }
 
 // --- Line of sight ---

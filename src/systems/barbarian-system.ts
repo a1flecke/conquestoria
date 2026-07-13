@@ -18,6 +18,8 @@ import {
   hexKey,
   hexDistance,
   hexNeighbors,
+  mapDistance,
+  mapNeighbors,
   wrappedHexDistance,
 } from './hex-utils';
 import { selectDefenderForAttack } from './combat-system';
@@ -52,12 +54,12 @@ export function spawnBarbarianCamp(
 
     // Must be far from cities
     for (const cityPos of cityPositions) {
-      if (hexDistance(tile.coord, cityPos) < 6) return false;
+      if (mapDistance(map, tile.coord, cityPos) < 6) return false;
     }
 
     // Must be far from other camps
     for (const camp of existingCamps) {
-      if (hexDistance(tile.coord, camp.position) < 4) return false;
+      if (mapDistance(map, tile.coord, camp.position) < 4) return false;
     }
 
     return true;
@@ -584,9 +586,7 @@ export function processBarbarians(
     let nearestTarget: Unit | null = null;
     let nearestDist = BARBARIAN_CHASE_RANGE + 1;
     for (const playerUnit of playerUnits) {
-      const dist = map.wrapsHorizontally
-        ? wrappedHexDistance(barbUnit.position, playerUnit.position, map.width)
-        : hexDistance(barbUnit.position, playerUnit.position);
+      const dist = mapDistance(map, barbUnit.position, playerUnit.position);
       if (dist < nearestDist) {
         nearestDist = dist;
         nearestTarget = playerUnit;
@@ -598,9 +598,7 @@ export function processBarbarians(
         let nearestCity: (typeof playerCities)[0] | null = null;
         let nearestCityDist = BARBARIAN_CHASE_RANGE + 1;
         for (const city of playerCities) {
-          const dist = map.wrapsHorizontally
-            ? wrappedHexDistance(barbUnit.position, city.position, map.width)
-            : hexDistance(barbUnit.position, city.position);
+          const dist = mapDistance(map, barbUnit.position, city.position);
           if (dist < nearestCityDist) {
             nearestCityDist = dist;
             nearestCity = city;
@@ -610,7 +608,7 @@ export function processBarbarians(
           if (nearestCityDist <= 1) {
             cityAttackOrders.push({ attackerUnitId: barbUnit.id, cityId: nearestCity.id, damage: 10 });
           } else {
-            const neighbors = hexNeighbors(barbUnit.position);
+            const neighbors = mapNeighbors(map, barbUnit.position);
             const passable = neighbors.filter(coord => {
               const t = map.tiles[hexKey(coord)];
               if (!t) return false;
@@ -619,9 +617,9 @@ export function processBarbarians(
             });
             if (passable.length > 0) {
               let best = passable[0]!;
-              let bestD = hexDistance(passable[0]!, nearestCity.position);
+              let bestD = mapDistance(map, passable[0]!, nearestCity.position);
               for (const coord of passable) {
-                const d = hexDistance(coord, nearestCity.position);
+                const d = mapDistance(map, coord, nearestCity.position);
                 if (d < bestD) { bestD = d; best = coord; }
               }
               moveOrders.push({ unitId: barbUnit.id, toCoord: best });
@@ -643,7 +641,7 @@ export function processBarbarians(
     }
 
     // Otherwise, move one step toward the target
-    const neighbors = hexNeighbors(barbUnit.position);
+    const neighbors = mapNeighbors(map, barbUnit.position);
     // Filter to passable, unoccupied tiles
     const passable = neighbors.filter(coord => {
       const tile = map.tiles[hexKey(coord)];
@@ -659,9 +657,9 @@ export function processBarbarians(
 
     // Pick the neighbor closest to the target
     let bestCoord = passable[0];
-    let bestDist = hexDistance(passable[0], nearestTarget.position);
+    let bestDist = mapDistance(map, passable[0], nearestTarget.position);
     for (const coord of passable) {
-      const d = hexDistance(coord, nearestTarget.position);
+      const d = mapDistance(map, coord, nearestTarget.position);
       if (d < bestDist) {
         bestDist = d;
         bestCoord = coord;

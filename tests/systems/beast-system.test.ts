@@ -38,6 +38,18 @@ describe('placeBeastLairs', () => {
     expect(Object.keys(lairs).length).toBeLessThanOrEqual(LAIR_COUNTS.small);
   });
 
+  it('rejects the only habitat tile when it is adjacent across the wrap seam to a start (issue #520)', () => {
+    const wrapMap = generateMap(30, 12, 'beast-wrap-placement');
+    wrapMap.wrapsHorizontally = true;
+    for (const tile of Object.values(wrapMap.tiles)) tile.terrain = 'ocean';
+    wrapMap.tiles['29,5'].terrain = 'forest';
+    const startPositions = [{ q: 0, r: 5 }];
+
+    const lairs = placeBeastLairs(wrapMap, startPositions, 'small', 'beast-wrap-seed');
+
+    expect(Object.values(lairs).some(l => hexKey(l.position) === '29,5')).toBe(false);
+  });
+
   it('exports the beasts owner constant', () => {
     expect(BEAST_OWNER).toBe('beasts');
   });
@@ -116,6 +128,19 @@ describe('processBeasts', () => {
     for (const order of result.moveOrders) {
       expect(hexDistance(order.toCoord, lair.position)).toBeLessThanOrEqual(3);
     }
+  });
+
+  it('attacks an intruder that is adjacent only across the horizontal wrap seam (issue #520)', () => {
+    const wrapMap = generateMap(10, 6, 'beast-wrap-attack');
+    wrapMap.wrapsHorizontally = true;
+    for (const tile of Object.values(wrapMap.tiles)) tile.terrain = 'plains';
+    const lair = makeLair({ position: { q: 0, r: 2 }, status: 'awake', unitIds: ['beast-1'] });
+    const beast = makeUnit({ id: 'beast-1', type: 'beast_boar', owner: 'beasts', position: { q: 0, r: 2 } });
+    const intruder = makeUnit({ id: 'u1', position: { q: 9, r: 2 } });
+
+    const result = processBeasts([lair], wrapMap, [intruder], [beast], 1, 'wild', 7);
+
+    expect(result.attackOrders).toEqual([{ attackerUnitId: 'beast-1', defenderUnitId: 'u1' }]);
   });
 });
 

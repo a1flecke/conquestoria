@@ -57,6 +57,16 @@ describe('crisis scheduler', () => {
     expect(countUnrestGroups(state, 'p1')).toBe(1);
   });
 
+  it('merges unrest cities that are only far apart by raw distance, adjacent across the wrap seam (issue #520)', () => {
+    const { state } = makeCrisisFixture({ unrestCityCount: 2, adjacentUnrestCities: false });
+    state.map.wrapsHorizontally = true;
+    const width = state.map.width;
+    state.cities.c2.position = { q: 0, r: 0 };
+    state.cities.c3.position = { q: width - 1, r: 0 };
+
+    expect(countUnrestGroups(state, 'p1')).toBe(1);
+  });
+
   it('is deterministic: same state → same crisis id and target', () => {
     const { state } = makeCrisisFixture({ era: 3, turn: 40 });
     const a = processCrisisSchedulerForHumans(state, new EventBus());

@@ -41,6 +41,18 @@ describe('placeVillages', () => {
     expect(Object.keys(villages).length).toBeGreaterThan(0);
   });
 
+  it('rejects the only candidate tile when it is adjacent across the wrap seam to a start (issue #520)', () => {
+    const map = generateMap(30, 12, 'village-wrap-placement');
+    map.wrapsHorizontally = true;
+    for (const tile of Object.values(map.tiles)) tile.terrain = 'ocean';
+    map.tiles['29,5'].terrain = 'grassland';
+    const startPositions = [{ q: 0, r: 5 }];
+
+    const villages = placeVillages(map, startPositions, 'small', 'village-wrap-seed');
+
+    expect(Object.values(villages).some(v => hexKey(v.position) === '29,5')).toBe(false);
+  });
+
   it('enforces distance from start positions (min 4)', () => {
     const map = makeMap('medium');
     const starts = findStartPositions(map, ['civ-0', 'civ-1', 'civ-2'], 'procedural', 'medium');

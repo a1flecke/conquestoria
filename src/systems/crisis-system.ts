@@ -4,7 +4,7 @@ import { getChallengeProfileForCiv, resolveChallengeForCiv } from '@/core/oppone
 import { computeThreatScore, deriveActiveIndependentThreatIds, createPirateFleetNear, pickBanditName } from './threat-pressure-system';
 import { CRISIS_FLAVORS, getCrisisFlavor, type CrisisFlavor } from './crisis-flavor-definitions';
 import { seededLcg, weightedPick } from './seeded-lcg';
-import { hexKey, hexDistance, hexesInRange } from './hex-utils';
+import { hexKey, mapDistance, mapHexesInRange } from './hex-utils';
 import { getCityAppeaseCost } from './faction-system';
 import { spawnBarbarianCamp } from './barbarian-system';
 import { BEAST_DEFINITIONS } from './beast-definitions';
@@ -23,7 +23,7 @@ export function countUnrestGroups(state: GameState, civId: string): number {
   const groups: City[][] = [];
   for (const city of cities) {
     const near = groups.filter(g =>
-      g.some(m => hexDistance(m.position, city.position) <= CONTAGION_GROUP_RANGE));
+      g.some(m => mapDistance(state.map, m.position, city.position) <= CONTAGION_GROUP_RANGE));
     if (near.length === 0) { groups.push([city]); continue; }
     const merged = near.flat();
     merged.push(city);
@@ -213,7 +213,7 @@ function tickOutbreakCrisis(
       .filter(c => c.owner === owner && !working.cityIds.includes(c.id));
     if (candidates.length === 0) continue;
     const target = candidates.reduce((closest, c) =>
-      hexDistance(c.position, city.position) < hexDistance(closest.position, city.position) ? c : closest);
+      mapDistance(nextState.map, c.position, city.position) < mapDistance(nextState.map, closest.position, city.position) ? c : closest);
     working = { ...working, cityIds: [...working.cityIds, target.id] };
     bus.emit('crisis:spread', { crisisId: working.id, fromCityId: cityId, toCityId: target.id });
   }
@@ -237,7 +237,7 @@ function applyCatastropheShock(
   }
 
   const owner = crisis.targetCivId;
-  const epicenterCandidates = hexesInRange(targetCity.position, params.blastRadius)
+  const epicenterCandidates = mapHexesInRange(state.map, targetCity.position, params.blastRadius)
     .filter(coord => state.map.tiles[hexKey(coord)]?.owner === owner);
   if (epicenterCandidates.length === 0) {
     // No owned tile to strike (shouldn't happen — the target city's own tile is always
@@ -255,7 +255,7 @@ function applyCatastropheShock(
 
   const devastationTurns = params.devastationTurnsByChallenge[resolveChallengeForCiv(state, owner)];
   const devastatedUntilTurn = state.turn + devastationTurns;
-  const affectedKeys = hexesInRange(epicenter, params.blastRadius)
+  const affectedKeys = mapHexesInRange(state.map, epicenter, params.blastRadius)
     .map(hexKey)
     .filter(key => {
       const t = state.map.tiles[key];
@@ -357,8 +357,8 @@ function findHuntSpawnHex(
   rng: () => number,
 ): HexCoord | null {
   const occupancy = buildUnitOccupancy(state.units);
-  const candidates = hexesInRange(targetCity.position, 5)
-    .filter(coord => hexDistance(coord, targetCity.position) >= 3)
+  const candidates = mapHexesInRange(state.map, targetCity.position, 5)
+    .filter(coord => mapDistance(state.map, coord, targetCity.position) >= 3)
     .filter(coord => {
       const tile = state.map.tiles[hexKey(coord)];
       if (!tile) return false;

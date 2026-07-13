@@ -11,7 +11,15 @@ import {
   hexToPixel,
   wrappedHexDistance,
   wrapHexCoord,
+  mapDistance,
+  mapNeighbors,
+  mapHexesInRange,
 } from '@/systems/hex-utils';
+import type { GameMap } from '@/core/types';
+
+function makeMap(width: number, wrapsHorizontally: boolean): GameMap {
+  return { width, height: 10, tiles: {}, wrapsHorizontally, rivers: [] };
+}
 
 describe('hexKey / parseHexKey', () => {
   it('converts coord to string key and back', () => {
@@ -144,5 +152,43 @@ describe('wrapped hex helpers', () => {
     expect(new Set(keys).size).toBe(keys.length);
     expect(keys.every(key => Number(key.split(',')[0]) >= 0)).toBe(true);
     expect(keys.every(key => Number(key.split(',')[0]) < 5)).toBe(true);
+  });
+});
+
+describe('map-aware helpers', () => {
+  it('mapDistance uses raw distance on a non-wrapping map', () => {
+    const map = makeMap(30, false);
+    expect(mapDistance(map, { q: 0, r: 5 }, { q: 29, r: 5 })).toBe(29);
+  });
+
+  it('mapDistance uses wrapped distance on a wrapping map', () => {
+    const map = makeMap(30, true);
+    expect(mapDistance(map, { q: 0, r: 5 }, { q: 29, r: 5 })).toBe(1);
+  });
+
+  it('mapNeighbors returns raw neighbors on a non-wrapping map', () => {
+    const map = makeMap(30, false);
+    const neighbors = mapNeighbors(map, { q: 0, r: 0 });
+    expect(neighbors).toContainEqual({ q: -1, r: 0 });
+  });
+
+  it('mapNeighbors wraps neighbors across the seam on a wrapping map', () => {
+    const map = makeMap(5, true);
+    const neighbors = mapNeighbors(map, { q: 0, r: 0 });
+    expect(neighbors).toContainEqual({ q: 4, r: 0 });
+    expect(neighbors.every(n => n.q >= 0 && n.q < 5)).toBe(true);
+  });
+
+  it('mapHexesInRange does not wrap on a non-wrapping map', () => {
+    const map = makeMap(30, false);
+    const range = mapHexesInRange(map, { q: 0, r: 0 }, 1);
+    expect(range).toContainEqual({ q: -1, r: 0 });
+  });
+
+  it('mapHexesInRange wraps across the seam on a wrapping map', () => {
+    const map = makeMap(5, true);
+    const range = mapHexesInRange(map, { q: 0, r: 1 }, 1);
+    expect(range).toContainEqual({ q: 4, r: 1 });
+    expect(range.every(c => c.q >= 0 && c.q < 5)).toBe(true);
   });
 });

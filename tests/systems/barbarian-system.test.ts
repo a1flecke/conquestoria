@@ -42,6 +42,20 @@ describe('spawnBarbarianCamp', () => {
       expect(dist).toBeGreaterThan(5);
     }
   });
+
+  it('rejects a candidate that is only far by raw distance but adjacent across the wrap seam (issue #520)', () => {
+    const wrapMap = generateMap(30, 12, 'barb-wrap-placement');
+    wrapMap.wrapsHorizontally = true;
+    for (const tile of Object.values(wrapMap.tiles)) {
+      tile.terrain = 'ocean';
+    }
+    wrapMap.tiles['29,5'].terrain = 'grassland';
+    const cityPos = { q: 0, r: 5 };
+
+    const camp = spawnBarbarianCamp(wrapMap, [cityPos], [], 12345, mkC());
+
+    expect(camp).toBeNull();
+  });
 });
 
 describe('destroyCamp', () => {
@@ -371,6 +385,25 @@ describe('barbarian camp evolution', () => {
     };
 
     const result = checkCampEvolution(state, 10);
+    expect(result).toBeNull();
+  });
+
+  it('does not evolve a camp that is only far from a city by raw distance, adjacent across the wrap seam (issue #520)', () => {
+    const state = createNewGame(undefined, 'evolve-wrap', 'small');
+    state.map.wrapsHorizontally = true;
+    const width = state.map.width;
+    state.units = {};
+    state.cities = { 'city-wrap': { id: 'city-wrap', position: { q: 0, r: 5 } } as never };
+    state.barbarianCamps = {};
+    state.barbarianCamps['camp-wrap'] = {
+      id: 'camp-wrap',
+      position: { q: width - 1, r: 5 },
+      strength: 10,
+      spawnCooldown: 0,
+    };
+
+    const result = checkCampEvolution(state, 10);
+
     expect(result).toBeNull();
   });
 

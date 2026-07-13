@@ -1,7 +1,7 @@
 import type { BeastHoardChoice, BeastId, BeastLair, BeastsMode, GameMap, GameState, HexCoord, Unit, UnitType } from '@/core/types';
 import { applyResearchBonus } from '@/systems/tech-system';
 import { BEAST_DEFINITIONS, getBeastDefinitionByUnitType, type BeastDefinition } from '@/systems/beast-definitions';
-import { hexKey, hexDistance, hexNeighbors } from '@/systems/hex-utils';
+import { hexKey, mapDistance, mapNeighbors } from '@/systems/hex-utils';
 import { createRng } from '@/systems/map-generator';
 import { UNIT_DEFINITIONS } from '@/systems/unit-system';
 import { VETERANCY_TIERS } from '@/systems/combat-reward-system';
@@ -36,8 +36,8 @@ export function placeBeastLairs(
     const candidates = Object.values(map.tiles).filter(tile =>
       def.habitatTerrains.includes(tile.terrain)
       && tile.wonder === null
-      && startPositions.every(s => hexDistance(tile.coord, s) >= MIN_DISTANCE_FROM_START)
-      && placed.every(p => hexDistance(tile.coord, p) >= MIN_DISTANCE_BETWEEN_LAIRS),
+      && startPositions.every(s => mapDistance(map, tile.coord, s) >= MIN_DISTANCE_FROM_START)
+      && placed.every(p => mapDistance(map, tile.coord, p) >= MIN_DISTANCE_BETWEEN_LAIRS),
     );
     if (candidates.length === 0) continue;   // no valid habitat — skip this beast, never force-place
     const tile = candidates[Math.floor(rng() * candidates.length)];
@@ -149,7 +149,7 @@ export function processBeasts(
       // Spawn packSize beasts on lair tile then free passable neighbors
       const spawnTiles: HexCoord[] = [];
       if (!occupied.has(hexKey(lair.position))) spawnTiles.push(lair.position);
-      for (const n of hexNeighbors(lair.position)) {
+      for (const n of mapNeighbors(map, lair.position)) {
         if (spawnTiles.length >= def.packSize) break;
         const tile = map.tiles[hexKey(n)];
         if (tile && isTerrainPassableForBeast(def.unitType, tile.terrain) && !occupied.has(hexKey(n))) spawnTiles.push(n);
@@ -185,29 +185,29 @@ export function processBeasts(
     if (!lair) continue;
     const def = BEAST_DEFINITIONS[lair.beastId];
 
-    const inLeash = (c: HexCoord) => hexDistance(c, lair.position) <= def.leashRadius;
+    const inLeash = (c: HexCoord) => mapDistance(map, c, lair.position) <= def.leashRadius;
     const targets = intruderUnits
       .filter(u => inLeash(u.position))
-      .sort((a, b) => hexDistance(a.position, beast.position) - hexDistance(b.position, beast.position));
+      .sort((a, b) => mapDistance(map, a.position, beast.position) - mapDistance(map, b.position, beast.position));
     const target = targets[0];
 
     const attackRange = UNIT_DEFINITIONS[beast.type].attackProfile?.kind === 'ranged'
       ? UNIT_DEFINITIONS[beast.type].attackProfile!.range
       : 1;
-    if (target && hexDistance(target.position, beast.position) <= attackRange) {
+    if (target && mapDistance(map, target.position, beast.position) <= attackRange) {
       attackOrders.push({ attackerUnitId: beast.id, defenderUnitId: target.id });
       continue;
     }
 
     const goal = target ? target.position : lair.position;
     if (hexKey(goal) === hexKey(beast.position)) continue;
-    const step = hexNeighbors(beast.position)
+    const step = mapNeighbors(map, beast.position)
       .filter(n => {
         const tile = map.tiles[hexKey(n)];
         return tile && isTerrainPassableForBeast(def.unitType, tile.terrain) && !occupied.has(hexKey(n)) && inLeash(n);
       })
-      .sort((a, b) => hexDistance(a, goal) - hexDistance(b, goal))[0];
-    if (step && hexDistance(step, goal) < hexDistance(beast.position, goal)) {
+      .sort((a, b) => mapDistance(map, a, goal) - mapDistance(map, b, goal))[0];
+    if (step && mapDistance(map, step, goal) < mapDistance(map, beast.position, goal)) {
       occupied.delete(hexKey(beast.position));
       occupied.set(hexKey(step), beast.id);
       moveOrders.push({ unitId: beast.id, toCoord: step });
@@ -238,7 +238,7 @@ export function isBeastConcealedFrom(
   if (!def?.concealedInHabitat) return false;
   const tile = map.tiles[hexKey(beast.position)];
   if (!tile || !def.habitatTerrains.includes(tile.terrain)) return false;
-  return !viewerUnits.some(v => hexDistance(v.position, beast.position) === 1);
+  return !viewerUnits.some(v => mapDistance(map, v.position, beast.position) === 1);
 }
 
 export function getBeastHoardGold(def: BeastDefinition, era: number): number {
@@ -452,7 +452,7 @@ export function isCivUnitInBeastTerritory(state: GameState, civId: string): bool
   for (const unit of Object.values(state.units)) {
     if (unit.owner !== civId) continue;
     for (const lair of awakeLairs) {
-      if (hexDistance(unit.position, lair.position) <= BEAST_DEFINITIONS[lair.beastId].leashRadius) return true;
+      if (mapDistance(state.map, unit.position, lair.position) <= BEAST_DEFINITIONS[lair.beastId].leashRadius) return true;
     }
   }
   return false;
