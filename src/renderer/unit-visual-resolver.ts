@@ -75,6 +75,10 @@ const FALLBACK_ICONS: Record<UnitType, string> = {
   steamship_trader: '🛥️',
   cargo_freighter: '📦',
   container_ship: '🗃️',
+  // Trade Routes Overhaul (#553 MR3/4) — Air trade line
+  air_freighter: '🛫',
+  jet_freighter: '🛬',
+  global_air_cargo: '🌐',
   // Resource Accessibility MR 2b
   expedition: '🧭',
   beast_boar: '🐗',

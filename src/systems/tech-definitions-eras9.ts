@@ -13,7 +13,7 @@ const ERA_9_TECHS: Tech[] = [
   { id: 'air-superiority', name: 'Air Superiority', track: 'military', cost: 275,
     prerequisites: ['aviation', 'general-mobilization'],
     unlocks: ['Biplane fighters can attack land and naval units; anti-aircraft batteries protect ground forces'],
-    unlocksUnits: ['biplane'],
+    unlocksUnits: ['biplane', 'air_freighter'],
     unlocksBuildings: ['anti_air_battery', 'air_force_command'], era: 9 },
 
   // ECONOMY (2)

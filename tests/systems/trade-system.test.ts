@@ -772,6 +772,93 @@ describe('trade-system', () => {
     );
   });
 
+  describe('Trade Routes Overhaul (#553 MR3/4) — air trade line', () => {
+    // Reuses the exact q=1 ocean-column map shape from the MR1 naval describe block
+    // above: no land bridge exists between city1 (0,0) and city2 (2,0). This is the
+    // regression-proving test Findings §1 called for — air routing needed zero
+    // pathfinding changes (findPathToCity/canEstablishRoute already delegate to
+    // getMovementCostForUnit's `domain === 'air' ⇒ cost 1` branch for every terrain),
+    // but that claim is worth verifying empirically rather than assuming.
+    function makeAirState(unitType: 'caravan' | 'air_freighter' = 'air_freighter'): GameState {
+      const state = makeMinimalState();
+      for (let r = 0; r < 5; r++) {
+        state.map.tiles[`1,${r}`] = { coord: { q: 1, r }, terrain: 'ocean', elevation: 'lowland', improvement: 'none', improvementTurnsLeft: 0, owner: null, resource: null, hasRiver: false, wonder: null };
+      }
+      state.units['caravan1'] = { ...state.units['caravan1'], type: unitType };
+      return state;
+    }
+
+    it('air-domain trade unit can establish a route across terrain a land unit could not cross (no land bridge)', () => {
+      const state = makeAirState('air_freighter');
+      const result = canEstablishRoute(state, state.units['caravan1'], 'city2');
+      expect(result.ok).toBe(true);
+    });
+
+    it('establishRoute succeeds end-to-end for an air trade unit across terrain', () => {
+      const state = makeAirState('air_freighter');
+      const bus = new EventBus();
+      const newState = establishRoute(state, 'caravan1', 'city2', bus, 0);
+      expect(newState.units['caravan1'].committedToRouteId).toBeTruthy();
+      expect(newState.marketplace!.tradeRoutes).toHaveLength(1);
+    });
+
+    it('getTradeUnitTripBonus: air tier bonuses match TRADE_UNIT_TIER_BONUS and cap at +3', () => {
+      const state = makeMinimalState();
+      expect(getTradeUnitTripBonus(state, 'city1', 'city2', 'player', 'air_freighter')).toBe(0);
+      expect(getTradeUnitTripBonus(state, 'city1', 'city2', 'player', 'jet_freighter')).toBe(1);
+      expect(getTradeUnitTripBonus(state, 'city1', 'city2', 'player', 'global_air_cargo')).toBe(2);
+    });
+
+    it.each([
+      ['air_freighter', 'jet_freighter', 'jet-aviation'],
+      ['jet_freighter', 'global_air_cargo', 'digital-economy'],
+    ] as const)('%s upgrades into %s once %s completes', (fromType, toType, _techId) => {
+      const entries = TRAINABLE_UNITS as any[];
+      const fromEntry = entries.find((e: any) => e.type === fromType);
+      const toEntry = entries.find((e: any) => e.type === toType);
+      expect(fromEntry).toBeDefined();
+      expect(toEntry).toBeDefined();
+      expect(fromEntry.upgradesTo).toBe(toType);
+      expect(fromEntry.obsoletedByTech).toBe(toEntry.techRequired);
+    });
+
+    it('global_air_cargo is the top tier — no further obsoletedByTech/upgradesTo', () => {
+      const entries = TRAINABLE_UNITS as any[];
+      const entry = entries.find((e: any) => e.type === 'global_air_cargo');
+      expect(entry).toBeDefined();
+      expect(entry.obsoletedByTech).toBeUndefined();
+      expect(entry.upgradesTo).toBeUndefined();
+    });
+
+    it.each(['air_freighter', 'jet_freighter', 'global_air_cargo'] as const)(
+      '%s: end-to-end catalog wiring (UNIT_DEFINITIONS, UNIT_DESCRIPTIONS, PRODUCTION_ICONS, TRAINABLE_UNITS domain)',
+      (type) => {
+        expect(UNIT_DEFINITIONS[type]).toBeDefined();
+        expect(UNIT_DEFINITIONS[type].domain).toBe('air');
+        expect(UNIT_DEFINITIONS[type].strength).toBe(0);
+        expect(UNIT_DESCRIPTIONS[type]).toBeTruthy();
+        expect((PRODUCTION_ICONS as Record<string, string>)[type]).toBeTruthy();
+        const entry = (TRAINABLE_UNITS as any[]).find((e: any) => e.type === type);
+        expect(entry).toBeDefined();
+        expect(entry.coastalRequired).toBeUndefined();
+      },
+    );
+
+    it('each air trade tech unlocksUnits its tier', () => {
+      const byId = (id: string) => TECH_TREE.find(t => t.id === id);
+      expect(byId('air-superiority')?.unlocksUnits).toContain('air_freighter');
+      expect(byId('jet-aviation')?.unlocksUnits).toContain('jet_freighter');
+      expect(byId('digital-economy')?.unlocksUnits).toContain('global_air_cargo');
+    });
+
+    it.each(['air_freighter', 'jet_freighter', 'global_air_cargo'] as const)(
+      '%s has an AI trade role',
+      (type) => {
+        expect(hasAITradeRole(type)).toBe(true);
+      },
+    );
+  });
+
   describe('S6a — route lifecycle', () => {
     it('removeRouteById: removes route, clears caravan, emits event with given reason', () => {
       const state = makeMinimalState();

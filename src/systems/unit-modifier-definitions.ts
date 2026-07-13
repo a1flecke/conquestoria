@@ -67,6 +67,12 @@ export const UNIT_CLASS_BY_TYPE: Record<UnitType, UnitClass[]> = {
   steamship_trader: ['naval', 'civilian'],
   cargo_freighter: ['naval', 'civilian'],
   container_ship: ['naval', 'civilian'],
+  // Trade Routes Overhaul (#553 MR3/4) — Air trade line. Civilian only (not 'air'
+  // combat-style) — these units don't fight, matching the naval trade line's
+  // civilian-first treatment.
+  air_freighter: ['civilian'],
+  jet_freighter: ['civilian'],
+  global_air_cargo: ['civilian'],
   pirate_galley: ['naval', 'melee'],
   pirate_corsair: ['naval', 'melee'],
   pirate_frigate: ['naval', 'ranged'],

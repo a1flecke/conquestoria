@@ -68,6 +68,28 @@ describe('save migrations', () => {
     expect(() => canEstablishRoute(migrated, migratedWagon!, cityId)).not.toThrow();
   });
 
+  it('#553 MR3/4 — air trade line is purely additive: a pre-existing air_freighter survives migration and stays functional (no SAVE_MIGRATIONS entry needed)', () => {
+    const legacySave = createNewGame('rome', 'pre-air-freighter-save', 'small');
+    const cityId = Object.keys(legacySave.cities)[0]!;
+    const city = legacySave.cities[cityId]!;
+    const freighter: Unit = {
+      id: 'legacy-air-freighter-1', type: 'air_freighter', owner: 'player',
+      position: { ...city.position }, health: 100, movementPointsLeft: 4,
+      hasActed: false, hasMoved: false, skippedTurn: false, isResting: false,
+    } as Unit;
+    legacySave.units = { ...legacySave.units, [freighter.id]: freighter };
+    legacySave.civilizations.player.units = [...legacySave.civilizations.player.units, freighter.id];
+
+    const migrated = migrateSaveToCurrent(legacySave);
+    const migratedFreighter = migrated.units[freighter.id];
+
+    expect(migratedFreighter).toBeDefined();
+    expect(migratedFreighter!.type).toBe('air_freighter');
+    expect(UNIT_DEFINITIONS['air_freighter']).toBeDefined();
+    expect(() => getTradeUnitTripBonus(migrated, cityId, cityId, 'player', migratedFreighter!.type)).not.toThrow();
+    expect(() => canEstablishRoute(migrated, migratedFreighter!, cityId)).not.toThrow();
+  });
+
   it('rejects a newer save schema without mutating the save', () => {
     const futureSave = createNewGame('rome', 'future-schema-save', 'small');
     futureSave.saveSchemaVersion = CURRENT_SAVE_SCHEMA_VERSION + 1;

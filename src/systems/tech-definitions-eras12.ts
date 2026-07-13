@@ -19,7 +19,7 @@ const ERA_12_TECHS: Tech[] = [
   { id: 'digital-economy', name: 'Digital Economy', track: 'economy', cost: 1925,
     prerequisites: ['petrodollar-system', 'container-shipping'],
     unlocks: ['Cities with a fintech hub gain +1 gold per active trade route (sent or received)'],
-    unlocksBuildings: ['fintech_hub'], era: 12 },
+    unlocksBuildings: ['fintech_hub'], unlocksUnits: ['global_air_cargo'], era: 12 },
 
   // SCIENCE (2)
   { id: 'genomics', name: 'Genomics', track: 'science', cost: 2780,
