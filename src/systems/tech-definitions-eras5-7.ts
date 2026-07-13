@@ -153,9 +153,15 @@ const ERA_6_TECHS: Tech[] = [
   { id: 'joint-stock-companies', name: 'Joint-Stock Companies', track: 'economy', cost: 185,
     prerequisites: ['guilds', 'colonial-trade'],
     unlocks: ['Stock Exchange unlocked'], unlocksBuildings: ['stock_exchange'], era: 6 },
-  { id: 'mercantilism', name: 'Mercantilism', track: 'economy', cost: 120,
+  // Trade Routes Overhaul (#553 MR2/4) — cost bumped 120 → 225. unlocksUnits forces this
+  // tech into the 'marquee' pacing band (see resolveEraRelativeCostBand in
+  // pacing-model.ts), which raises its target research window to 10-16 turns; at cost
+  // 120 it resolved in 8 turns, tripping the pacing-audit outlier gate. 225 is the
+  // audit's recommendedCost. See game-balance.md's Pacing Regression Prevention rule.
+  { id: 'mercantilism', name: 'Mercantilism', track: 'economy', cost: 225,
     prerequisites: ['colonial-trade', 'banking'],
-    unlocks: ['Trade route capacity +1; +5% gold empire-wide'], era: 6 },
+    unlocks: ['Trade route capacity +1; +5% gold empire-wide'],
+    unlocksUnits: ['merchant_wagon'], era: 6 },
 
   // SCIENCE (2)
   { id: 'natural-history', name: 'Natural History', track: 'science', cost: 185,

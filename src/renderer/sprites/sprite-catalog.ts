@@ -142,6 +142,8 @@ const UNIT_MOTION_STYLES: Record<UnitType, UnitMotionStyle> = {
   attack_helicopter: 'air',
   missile_submarine: 'naval',
   caravan: 'humanoid',
+  merchant_wagon: 'humanoid',
+  freight_convoy: 'humanoid',
   // Trade Routes Overhaul (#553 MR1/4) — Naval Trader line, matches other naval hulls
   naval_trader: 'naval',
   steamship_trader: 'naval',
@@ -259,6 +261,10 @@ export const UNIT_SPRITE_CATALOG: Record<UnitType, UnitSpriteComponent> = {
   attack_helicopter: withMotion('attack_helicopter', AttackHelicopterSprite),
   missile_submarine: withMotion('missile_submarine', MissileSubmarineSprite),
   caravan:           withMotion('caravan', CaravanSprite),
+  // Trade Routes Overhaul (#553 MR2/4) — Land trade line successors to Caravan.
+  // Placeholder: reuses CaravanSprite (closest silhouette) until bespoke sprites ship.
+  merchant_wagon:    withMotion('merchant_wagon', CaravanSprite),
+  freight_convoy:    withMotion('freight_convoy', CaravanSprite),
   // Trade Routes Overhaul (#553 MR1/4) — Naval Trader line, bespoke sprites
   naval_trader:      withMotion('naval_trader', NavalTraderSprite),
   steamship_trader:  withMotion('steamship_trader', SteamshipTraderSprite),

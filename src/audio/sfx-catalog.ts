@@ -190,6 +190,9 @@ export const UNIT_SFX: Partial<Record<UnitType, Partial<Record<SfxClass, TrackEn
   settler:    { death: real('sfx-settler-death',    'audio/sfx/settler-death.ogg',    0.118, 'death') },
   worker:     { death: real('sfx-worker-death',     'audio/sfx/worker-death.ogg',     0.183, 'death') },
   caravan:    { death: real('sfx-caravan-death',    'audio/sfx/caravan-death.ogg',    0.135, 'death') },
+  // Trade Routes Overhaul (#553 MR2/4) — Land trade line successors to Caravan
+  merchant_wagon: { death: real('sfx-merchant_wagon-death', 'audio/sfx/merchant_wagon-death.ogg', 0.200, 'death') },
+  freight_convoy: { death: real('sfx-freight_convoy-death', 'audio/sfx/freight_convoy-death.ogg', 0.260, 'death') },
   scout:      { death: real('sfx-scout-death',      'audio/sfx/scout-death.ogg',      0.140, 'death') },
   expedition: { death: real('sfx-expedition-death', 'audio/sfx/expedition-death.ogg', 0.147, 'death') },
   transport:       { death: real('sfx-transport-death',       'audio/sfx/transport-death.ogg',       0.266, 'death') },
@@ -317,6 +320,9 @@ const LOCOMOTION_CLASS: Record<UnitType, LocomotionClass> = {
   attack_helicopter: 'air',
   missile_submarine: 'naval',
   caravan:        'humanoid',
+  // Trade Routes Overhaul (#553 MR2/4) — Land trade line successors to Caravan
+  merchant_wagon: 'humanoid',
+  freight_convoy: 'humanoid',
   // Trade Routes Overhaul (#553 MR1/4) — Naval Trader line, matches galley's class
   naval_trader:     'naval',
   steamship_trader: 'naval',

@@ -349,7 +349,7 @@ export type UnitType =
   | 'attack_helicopter' | 'missile_submarine'
   | 'spy_scout' | 'spy_informant' | 'spy_agent' | 'spy_operative' | 'spy_hacker'
   | 'scout_hound' | 'shadow_warden' | 'war_hound'
-  | 'caravan'
+  | 'caravan' | 'merchant_wagon' | 'freight_convoy'
   | 'naval_trader' | 'steamship_trader' | 'cargo_freighter' | 'container_ship'
   | 'expedition'
   | 'transport'

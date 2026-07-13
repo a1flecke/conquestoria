@@ -106,7 +106,7 @@ describe('sfx-catalog completeness', () => {
     ]);
   });
 
-  it('allSfxEntries returns exactly 132 entries', () => {
+  it('allSfxEntries returns exactly 138 entries', () => {
     // 18 foot-melee (6×3) + 8 foot-ranged (2×4) + 9 mounted (3×3) + 6 naval combat (2×3)
     // + 6 siege (2×3) + 9 special-combat (3×3) + 6 non-combat (6×1) + 5 spy-death (5×1) + 3 move-step = 70
     // + 4 new transport death (carrack, galleon, steamship, troop_transport) + 2 transport load/unload = 76
@@ -115,7 +115,8 @@ describe('sfx-catalog completeness', () => {
     // + 1 air locomotion move-step = 128
     // + 4 era-12 unit SFX (cyber_unit: death; stealth_bomber: ranged-loose, ranged-impact, death) = 132
     // + 4 Naval Trader line death sounds (#553 MR1/4) = 136
-    expect(allSfxEntries()).toHaveLength(136);
+    // + 2 land trade line death sounds — Merchant Wagon, Freight Convoy (#553 MR2/4) = 138
+    expect(allSfxEntries()).toHaveLength(138);
   });
 
   it('no two entries share the same ID', () => {

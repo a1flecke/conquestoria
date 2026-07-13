@@ -29,6 +29,7 @@ import type { GameState } from '@/core/types';
 import { EventBus } from '@/core/event-bus';
 import { advanceRouteRunners } from '@/systems/unit-movement-system';
 import { establishQuestAwareRoute } from '@/systems/quest-aware-trade-system';
+import { hasAITradeRole } from '@/ai/ai-unit-roles';
 
 // Shared fixture — used by S5 and S6a describe blocks
 function makeTile(q: number, r: number) {
@@ -696,6 +697,79 @@ describe('trade-system', () => {
       expect(byId('convoy-system')?.unlocksUnits).toContain('cargo_freighter');
       expect(byId('container-shipping')?.unlocksUnits).toContain('container_ship');
     });
+  });
+
+  describe('Trade Routes Overhaul (#553 MR2/4) — land trade line extension', () => {
+    it('getTradeUnitTripBonus: land tier bonuses match TRADE_UNIT_TIER_BONUS and cap at +3', () => {
+      const state = makeMinimalState();
+      expect(getTradeUnitTripBonus(state, 'city1', 'city2', 'player', 'caravan')).toBe(0);
+      expect(getTradeUnitTripBonus(state, 'city1', 'city2', 'player', 'merchant_wagon')).toBe(1);
+      expect(getTradeUnitTripBonus(state, 'city1', 'city2', 'player', 'freight_convoy')).toBe(2);
+    });
+
+    it('getTradeUnitTripBonus: land tier bonus stacks with caravanserai but total still respects the +3 tier cap', () => {
+      const state = makeMinimalState();
+      state.cities['city1'].buildings = ['caravanserai'];
+      state.cities['city2'].buildings = ['caravanserai'];
+      // +2 (from) + +2 (to) + +2 (freight_convoy tier) = 6
+      expect(getTradeUnitTripBonus(state, 'city1', 'city2', 'player', 'freight_convoy')).toBe(6);
+    });
+
+    it.each([
+      ['caravan', 'merchant_wagon', 'mercantilism'],
+      ['merchant_wagon', 'freight_convoy', 'highway-network'],
+    ] as const)('%s upgrades into %s once %s completes', (fromType, toType, _techId) => {
+      const entries = TRAINABLE_UNITS as any[];
+      const fromEntry = entries.find((e: any) => e.type === fromType);
+      const toEntry = entries.find((e: any) => e.type === toType);
+      expect(fromEntry).toBeDefined();
+      expect(toEntry).toBeDefined();
+      expect(fromEntry.upgradesTo).toBe(toType);
+      expect(fromEntry.obsoletedByTech).toBe(toEntry.techRequired);
+    });
+
+    it('freight_convoy is the top tier — no further obsoletedByTech/upgradesTo', () => {
+      const entries = TRAINABLE_UNITS as any[];
+      const entry = entries.find((e: any) => e.type === 'freight_convoy');
+      expect(entry).toBeDefined();
+      expect(entry.obsoletedByTech).toBeUndefined();
+      expect(entry.upgradesTo).toBeUndefined();
+    });
+
+    it('caravan still functions correctly pre-upgrade (gains an upgrade path, not a regression)', () => {
+      const state = makeMinimalState();
+      const bus = new EventBus();
+      const newState = establishRoute(state, 'caravan1', 'city2', bus, 0);
+      expect(newState.units['caravan1'].committedToRouteId).toBeTruthy();
+      expect(newState.marketplace!.tradeRoutes).toHaveLength(1);
+    });
+
+    it.each(['merchant_wagon', 'freight_convoy'] as const)(
+      '%s: end-to-end catalog wiring (UNIT_DEFINITIONS, UNIT_DESCRIPTIONS, PRODUCTION_ICONS, TRAINABLE_UNITS)',
+      (type) => {
+        expect(UNIT_DEFINITIONS[type]).toBeDefined();
+        expect(UNIT_DEFINITIONS[type].domain).toBe('land');
+        expect(UNIT_DEFINITIONS[type].strength).toBe(0);
+        expect(UNIT_DESCRIPTIONS[type]).toBeTruthy();
+        expect((PRODUCTION_ICONS as Record<string, string>)[type]).toBeTruthy();
+        const entry = (TRAINABLE_UNITS as any[]).find((e: any) => e.type === type);
+        expect(entry).toBeDefined();
+        expect(entry.coastalRequired).toBeUndefined();
+      },
+    );
+
+    it('each land trade tech unlocksUnits its tier', () => {
+      const byId = (id: string) => TECH_TREE.find(t => t.id === id);
+      expect(byId('mercantilism')?.unlocksUnits).toContain('merchant_wagon');
+      expect(byId('highway-network')?.unlocksUnits).toContain('freight_convoy');
+    });
+
+    it.each(['merchant_wagon', 'freight_convoy'] as const)(
+      '%s has an AI trade role and is treated as a land trade unit',
+      (type) => {
+        expect(hasAITradeRole(type)).toBe(true);
+      },
+    );
   });
 
   describe('S6a — route lifecycle', () => {

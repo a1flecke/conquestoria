@@ -112,7 +112,8 @@ const ERA_10_TECHS: Tech[] = [
     unlocksBuildings: ['nuclear_power_plant'], era: 10 },
   { id: 'highway-network', name: 'Highway Network', track: 'construction', cost: 1310,
     prerequisites: ['motorized-transport', 'steel-skyscrapers'],
-    unlocks: ['+2 gold empire-wide; interstate highway networks slash transit costs and connect distant cities'], era: 10 },
+    unlocks: ['+2 gold empire-wide; interstate highway networks slash transit costs and connect distant cities'],
+    unlocksUnits: ['freight_convoy'], era: 10 },
 
   // COMMUNICATION (2)
   { id: 'television', name: 'Television', track: 'communication', cost: 1310,

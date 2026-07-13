@@ -53,6 +53,9 @@ export const UNIT_CLASS_BY_TYPE: Record<UnitType, UnitClass[]> = {
   shadow_warden: ['recon'],
   war_hound: ['recon', 'melee'],
   caravan: ['civilian'],
+  // Trade Routes Overhaul (#553 MR2/4) — Land trade line successors to Caravan.
+  merchant_wagon: ['civilian'],
+  freight_convoy: ['civilian'],
   expedition: ['civilian'],
   transport: ['naval', 'civilian'],
   carrack: ['naval', 'civilian'],
