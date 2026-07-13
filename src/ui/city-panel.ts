@@ -9,12 +9,14 @@ import {
   getProductionIconForItem,
 } from '@/systems/city-system';
 import { getCivAvailableResources, getCivHappinessFromResources } from '@/systems/resource-acquisition-system';
-import { RESOURCE_DEFINITIONS } from '@/systems/trade-system';
+import { RESOURCE_DEFINITIONS, getRouteCapacity } from '@/systems/trade-system';
 import { getResourceEffectLabel } from '@/systems/resource-definitions';
 import { getResourceAdvantagesForItem, getResourceAdvantageMultiplier } from '@/systems/resource-advantages';
 import { SESSION_SHOWN_TIPS } from '@/ui/advisor-system';
 import { hexDistance, wrappedHexDistance } from '@/systems/hex-utils';
 import { createGameButton } from './ui-kit';
+import { hasAITradeRole } from '@/ai/ai-unit-roles';
+import { buildCityRouteRows, getOutgoingRoutesForCity } from './trade-route-presentation';
 import {
   getActiveNationalProjectsForCiv,
   getNationalProjectMultiplier,
@@ -68,6 +70,11 @@ export interface CityPanelCallbacks {
   onPrevCity?: () => void;
   onNextCity?: () => void;
   onUpgradeUnit?: (unitId: string) => void;
+  /** Selects a unit (e.g. clicking a committed trade route row). */
+  onSelectUnit?: (unitId: string) => void;
+  /** Opens the destination-city picker for an idle trade unit — same path as
+   *  selected-unit-info.ts's Establish Route button. */
+  onEstablishRoute?: (caravanId: string) => void;
   onSetIdleProduction?: (cityId: string, mode: 'gold' | 'science' | null) => void;
   onRushBuyActiveProduction?: (cityId: string) => GameState | void;
   onAppeaseFaction?: (cityId: string) => GameState | void;
@@ -441,6 +448,27 @@ export function createCityPanel(
   const completedTechs = currentCiv.techState.completed;
   const availableUnits = getTrainableUnitsForCity(city, completedTechs, state.map, currentCiv.civType, playerResources);
 
+  // Trade Routes Overhaul (#553 MR4/4) — City panel Trade Routes section. Gated behind
+  // the same 'trade-routes' tech marketplace-panel.ts already uses. Scoped to this
+  // city's own outgoing routes only (fromCityId === city.id) — never derives ownership
+  // from a second computation, per ui-panels.md's Cities[0] Is Never The Answer rule.
+  const showTradeRoutes = completedTechs.includes('trade-routes');
+  const tradeRouteCapacity = showTradeRoutes ? getRouteCapacity(state, city.id) : 0;
+  const outgoingTradeRoutes = showTradeRoutes ? getOutgoingRoutesForCity(state, city.id) : [];
+  const tradeRouteRemainingCapacity = Math.max(0, tradeRouteCapacity - outgoingTradeRoutes.length);
+  // Idle trade unit check is empire-wide (matches basic-ai.ts/ROLE_OVERRIDES' generic
+  // hasAITradeRole check), not city-scoped — a trade unit built anywhere can establish a
+  // route from any city with capacity.
+  const idleTradeUnits = showTradeRoutes
+    ? Object.values(state.units).filter(u => u.owner === city.owner && hasAITradeRole(u.type) && !u.committedToRouteId)
+    : [];
+  // Derived from getTrainableUnitsForCity (the same city-aware eligibility helper used
+  // for the Build tab above) filtered to trade-role units — naturally offers Naval
+  // Trader for coastal cities and stays generic as new trade lines are added.
+  const eligibleTradeUnitTypes = showTradeRoutes
+    ? availableUnits.filter(u => hasAITradeRole(u.type))
+    : [];
+
   // Locked items: tech met + resource NOT met (tech-missing items stay hidden entirely)
   const allTechUnlockedUnits = getTrainableUnitsForCity(city, completedTechs, state.map, currentCiv.civType, undefined);
   const lockedUnits = allTechUnlockedUnits.filter(u => !availableUnits.some(a => a.type === u.type));
@@ -715,6 +743,7 @@ export function createCityPanel(
       <span>Net treasury: ${economyStatus.netGoldPerTurn >= 0 ? '+' : ''}${economyStatus.netGoldPerTurn}/turn</span>
       ${economyStatus.strainLevel !== 'none' ? '<span style="color:#d9a25c;" data-text="economy-strain"></span>' : ''}
     </div>
+    ${showTradeRoutes ? '<div data-section="trade-routes" style="background:rgba(255,255,255,0.06);border-radius:8px;padding:10px 12px;margin-bottom:16px;"></div>' : ''}
     ${immunitySectionHtml}
     ${spreadWarningHtml}
     ${unrestSectionHtml}
@@ -918,6 +947,66 @@ export function createCityPanel(
   });
 
   container.appendChild(panel);
+
+  // Trade Routes Overhaul (#553 MR4/4) — populate the Trade Routes section placeholder.
+  // Built with real DOM nodes (textContent-safe) rather than an HTML string, sharing
+  // buildCityRouteRows with marketplace-panel.ts so the route rows never drift.
+  if (showTradeRoutes) {
+    const tradeSection = panel.querySelector<HTMLElement>('[data-section="trade-routes"]');
+    if (tradeSection) {
+      const heading = document.createElement('div');
+      heading.textContent = 'Trade Routes';
+      heading.style.cssText = 'font-size:13px;font-weight:bold;color:#e8c170;margin-bottom:6px;';
+      tradeSection.appendChild(heading);
+
+      const helpText = document.createElement('div');
+      helpText.textContent = 'Trade routes earn gold every turn. Train a trade unit, then use Establish Route to start one.';
+      helpText.style.cssText = 'font-size:11px;opacity:0.7;margin-bottom:8px;';
+      tradeSection.appendChild(helpText);
+
+      const routeRows = buildCityRouteRows(state, city.id, callbacks.onSelectUnit);
+      if (routeRows) {
+        tradeSection.appendChild(routeRows);
+      } else {
+        const empty = document.createElement('div');
+        empty.textContent = 'No active routes from this city.';
+        empty.style.cssText = 'font-size:12px;opacity:0.5;padding:4px 0;';
+        tradeSection.appendChild(empty);
+      }
+
+      const capacityLine = document.createElement('div');
+      capacityLine.textContent = `Route capacity: ${outgoingTradeRoutes.length}/${tradeRouteCapacity}`;
+      capacityLine.style.cssText = 'font-size:11px;opacity:0.7;margin-top:6px;';
+      tradeSection.appendChild(capacityLine);
+
+      if (tradeRouteRemainingCapacity > 0) {
+        if (idleTradeUnits.length > 0) {
+          for (const unit of idleTradeUnits) {
+            const row = document.createElement('div');
+            row.style.cssText = 'display:flex;justify-content:space-between;align-items:center;margin-top:6px;gap:8px;';
+            const label = document.createElement('span');
+            label.style.cssText = 'font-size:12px;';
+            label.textContent = `${UNIT_DEFINITIONS[unit.type]?.name ?? unit.type} ready to establish a route`;
+            row.appendChild(label);
+            if (callbacks.onEstablishRoute) {
+              const btn = createGameButton('Establish Route', 'primary');
+              btn.style.fontSize = '11px';
+              btn.style.padding = '4px 10px';
+              btn.addEventListener('click', () => callbacks.onEstablishRoute!(unit.id));
+              row.appendChild(btn);
+            }
+            tradeSection.appendChild(row);
+          }
+        } else if (eligibleTradeUnitTypes.length > 0) {
+          const prompt = document.createElement('div');
+          const names = eligibleTradeUnitTypes.map(u => u.name).join(', ');
+          prompt.textContent = `Train ${names} to start a new route.`;
+          prompt.style.cssText = 'font-size:11px;color:#d9a25c;margin-top:6px;';
+          tradeSection.appendChild(prompt);
+        }
+      }
+    }
+  }
 
   // Declare ref early so rerenderPanel (below) can cancel the timer via closure.
   const frustrationRef: { timer: ReturnType<typeof setTimeout> | null } = { timer: null };

@@ -629,4 +629,50 @@ describe('createMarketplacePanel', () => {
       expect(buyBtn.disabled).toBe(true);
     });
   });
+
+  // Trade Routes Overhaul (#553 MR4/4) — extraction regression: buildPlayerRouteListSection
+  // was extracted from an inline function into trade-route-presentation.ts so the City
+  // panel could reuse it. This proves the Marketplace panel still renders identically
+  // through the shared helper, not a frozen inline copy.
+  describe('route list (shared with city-panel via trade-route-presentation.ts)', () => {
+    function buildStateWithRoute(): GameState {
+      const state = buildState({
+        currentPlayer: 'p1',
+        civTechs: ['trade-routes'],
+        cities: {
+          city1: { id: 'city1', name: 'Rome', owner: 'p1', position: { q: 0, r: 0 }, ownedTiles: [], workedTiles: [], buildings: [] },
+          city2: { id: 'city2', name: 'Ostia', owner: 'p1', position: { q: 2, r: 0 }, ownedTiles: [], workedTiles: [], buildings: [] },
+        },
+      });
+      state.marketplace!.tradeRoutes = [
+        { id: 'route-1', fromCityId: 'city1', toCityId: 'city2', goldPerTrip: 10, turnsPerTrip: 1 },
+      ];
+      (state as unknown as { units: Record<string, unknown> }).units = {
+        caravan1: { id: 'caravan1', type: 'caravan', owner: 'p1', committedToRouteId: 'route-1', tripsRemaining: 5 },
+      };
+      (state.civilizations.p1 as unknown as { diplomacy: { relationships: Record<string, unknown> } }).diplomacy = { relationships: {} };
+      return state;
+    }
+
+    it('shows the "Active Trade Routes" heading and the route row for city1 → city2', () => {
+      const state = buildStateWithRoute();
+      createMarketplacePanel(container, state, { onClose: vi.fn() });
+      const panel = document.getElementById('marketplace-panel');
+      expect(panel?.textContent).toContain('Active Trade Routes');
+      expect(panel?.textContent).toContain('Rome → Ostia');
+      expect(panel?.textContent).toContain('5 trips');
+    });
+
+    it('clicking a route row with a committed unit calls onSelectUnit with the unit id', () => {
+      const state = buildStateWithRoute();
+      const onSelectUnit = vi.fn();
+      createMarketplacePanel(container, state, { onClose: vi.fn(), onSelectUnit });
+      const panel = document.getElementById('marketplace-panel')!;
+      const label = Array.from(panel.querySelectorAll('span')).find(el => el.textContent === 'Rome → Ostia');
+      expect(label).toBeTruthy();
+      const row = label!.parentElement!;
+      row.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      expect(onSelectUnit).toHaveBeenCalledWith('caravan1');
+    });
+  });
 });
