@@ -9,7 +9,7 @@ import {
   getProductionIconForItem,
 } from '@/systems/city-system';
 import { getCivAvailableResources, getCivHappinessFromResources } from '@/systems/resource-acquisition-system';
-import { RESOURCE_DEFINITIONS, getRouteCapacity } from '@/systems/trade-system';
+import { RESOURCE_DEFINITIONS, getRouteCapacity, resolveFromCity } from '@/systems/trade-system';
 import { getResourceEffectLabel } from '@/systems/resource-definitions';
 import { getResourceAdvantagesForItem, getResourceAdvantageMultiplier } from '@/systems/resource-advantages';
 import { SESSION_SHOWN_TIPS } from '@/ui/advisor-system';
@@ -456,11 +456,16 @@ export function createCityPanel(
   const tradeRouteCapacity = showTradeRoutes ? getRouteCapacity(state, city.id) : 0;
   const outgoingTradeRoutes = showTradeRoutes ? getOutgoingRoutesForCity(state, city.id) : [];
   const tradeRouteRemainingCapacity = Math.max(0, tradeRouteCapacity - outgoingTradeRoutes.length);
-  // Idle trade unit check is empire-wide (matches basic-ai.ts/ROLE_OVERRIDES' generic
-  // hasAITradeRole check), not city-scoped — a trade unit built anywhere can establish a
-  // route from any city with capacity.
+  // Idle trade unit check is scoped to units that would actually resolve to THIS city
+  // via resolveFromCity (nearest city with capacity) — not just any owned idle trade
+  // unit anywhere. Without this, an "Establish Route" button shown in city A's panel
+  // could silently consume city B's capacity slot instead (whichever city
+  // resolveFromCity picks as nearest to that unit), which is confusing: the panel's
+  // capacity/action affordances must stay locally coherent to the city actually open.
   const idleTradeUnits = showTradeRoutes
-    ? Object.values(state.units).filter(u => u.owner === city.owner && hasAITradeRole(u.type) && !u.committedToRouteId)
+    ? Object.values(state.units).filter(u =>
+        u.owner === city.owner && hasAITradeRole(u.type) && !u.committedToRouteId
+        && resolveFromCity(state, u)?.id === city.id)
     : [];
   // Derived from getTrainableUnitsForCity (the same city-aware eligibility helper used
   // for the Build tab above) filtered to trade-role units — naturally offers Naval

@@ -146,6 +146,36 @@ describe('city-panel Trade Routes section', () => {
     expect(onEstablishRoute).toHaveBeenCalledWith('caravan1');
   });
 
+  it('does not offer an "Establish Route" button for an idle trade unit that resolves to a different (nearer) city — the panel must stay locally coherent, not empire-wide', () => {
+    const { container, city, state } = makeWonderPanelFixture();
+    state.civilizations.player.techState.completed.push('trade-routes');
+    state.marketplace = { prices: {}, priceHistory: {}, fashionable: null, fashionTurnsLeft: 0, tradeRoutes: [] };
+    // Second player-owned city, far from city-river, with its own capacity.
+    state.cities['city-far'] = {
+      ...structuredClone(city),
+      id: 'city-far',
+      name: 'Farhaven',
+      position: { q: 5, r: 5 },
+      buildings: [],
+    };
+    state.civilizations.player.cities.push('city-far');
+    // Idle unit sits exactly on city-far's tile — resolveFromCity resolves it to
+    // city-far (path length 1), not city-river (no connected path through the
+    // fixture's sparse tile map).
+    state.units['caravan1'] = {
+      id: 'caravan1', type: 'caravan', owner: 'player', position: { q: 5, r: 5 },
+      health: 100, movementPointsLeft: 3,
+    } as never;
+
+    const panel = createCityPanel(container, city, state, baseCallbacks());
+
+    const section = panel.querySelector('[data-section="trade-routes"]')!;
+    expect(section.textContent).not.toContain('ready to establish a route');
+    expect(Array.from(section.querySelectorAll('button')).find(b => b.textContent === 'Establish Route')).toBeUndefined();
+    // Falls back to the "train a new unit" prompt since no idle unit resolves here.
+    expect(section.textContent).toContain('Train Caravan to start a new route.');
+  });
+
   it('#553 MR4/4 hot-seat regression — a route another civ receives (toCityId) does not show as that civ\'s own outgoing route', () => {
     const { container, city, state } = makeWonderPanelFixture();
     // Player A's city (city-river) sends a route to rival's city (city-rival).
