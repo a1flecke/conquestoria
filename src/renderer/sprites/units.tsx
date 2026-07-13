@@ -534,6 +534,197 @@ export function TroopTransportSprite({ palette, svgOnly = false }: UnitSpritePro
   );
 }
 
+/* === TRADE ROUTES OVERHAUL (#553 MR1/4) — NAVAL TRADER LINE (Eras 5-11) === */
+/* Civilian trade hulls — no gunports, no combat rigging. Visible cargo (barrels,
+   crates, containers) distinguishes them at a glance from the naval combat line above. */
+
+export function NavalTraderSprite({ palette, svgOnly = false }: UnitSpriteProps): string {
+  return (
+    <SpriteFrame svgOnly={svgOnly} hexTint={P.ground.water}>
+      <g data-kind="naval">
+        <Shadow cx={64} cy={97} rx={42} ry={7} />
+        {/* HULL — modest wooden merchantman */}
+        <path d="M16,84 Q64,76 112,84 Q106,102 64,105 Q22,102 16,84 Z" fill={P.wood.dark} stroke={P.ink.line} strokeWidth="1.2" />
+        <path d="M22,80 Q64,74 106,80 L100,90 Q64,95 28,90 Z" fill={P.wood.mid} stroke={P.ink.line} strokeWidth="1" />
+        <path d="M28,77 Q64,72 100,77 L96,82 L32,82 Z" fill={P.wood.light} />
+        <path d="M20,88 Q64,94 108,88" fill="none" stroke={P.wood.dark} strokeWidth="1.1" opacity="0.7" />
+        <line x1="30" y1="76" x2="98" y2="76" stroke={P.wood.dark} strokeWidth="1" opacity="0.5" />
+        {/* small aft cabin (stern, right) — no gun ports */}
+        <path d="M88,64 L108,64 L106,80 L90,80 Z" fill={P.wood.dark} stroke={P.ink.line} strokeWidth="1" />
+        <path d="M88,64 L108,64 L108,67 L88,67 Z" fill={P.wood.mid} />
+        <rect x="94" y="70" width="6" height="8" fill={P.ink.soft} stroke={P.ink.line} strokeWidth="0.5" />
+        {/* MAST + yard */}
+        <line x1="58" y1="80" x2="58" y2="20" stroke={P.wood.dark} strokeWidth="2.4" />
+        <line x1="36" y1="28" x2="80" y2="28" stroke={P.wood.dark} strokeWidth="1.8" strokeLinecap="round" />
+        {/* single large SQUARE SAIL */}
+        <path className="cq-sail" d="M37,29 Q58,33 81,29 L78,68 Q58,72 40,68 Z" fill={P.cloth.linen} stroke={P.ink.line} strokeWidth="1" />
+        <path d="M35,45 Q58,49 83,45 L81,58 Q58,62 37,58 Z" fill={palette.mid} opacity="0.9" />
+        <circle cx="58.5" cy="51" r="5" fill={palette.trim} stroke={palette.dark} strokeWidth="0.6" />
+        <Banner x={58} y={20} palette={palette} scale={0.6} />
+        {/* cargo barrels on aft deck — reads "trade ship" at a glance */}
+        <g transform="translate(78 90)">
+          <rect x="-5" y="-8" width="10" height="14" rx="3" fill={P.wood.light} stroke={P.ink.line} strokeWidth="0.8" />
+          <ellipse cx="0" cy="-8" rx="5" ry="2" fill={P.wood.mid} stroke={P.ink.line} strokeWidth="0.6" />
+          <line x1="-5" y1="-3" x2="5" y2="-3" stroke={P.ink.line} strokeWidth="0.5" opacity="0.5" />
+          <line x1="-5" y1="1" x2="5" y2="1" stroke={P.ink.line} strokeWidth="0.5" opacity="0.5" />
+        </g>
+        <g transform="translate(70 93) scale(0.82)">
+          <rect x="-5" y="-8" width="10" height="14" rx="3" fill={P.wood.light} stroke={P.ink.line} strokeWidth="0.8" />
+          <ellipse cx="0" cy="-8" rx="5" ry="2" fill={P.wood.mid} stroke={P.ink.line} strokeWidth="0.6" />
+          <line x1="-5" y1="-3" x2="5" y2="-3" stroke={P.ink.line} strokeWidth="0.5" opacity="0.5" />
+        </g>
+        {/* crates near bow */}
+        <g transform="translate(38 92)">
+          <rect x="-6" y="-8" width="12" height="9" fill={P.cloth.dye} stroke={P.ink.line} strokeWidth="0.7" />
+          <path d="M-6,-8 L0,-4 L6,-8 M-6,1 L0,-3 L6,1" stroke={P.ink.line} strokeWidth="0.4" opacity="0.6" />
+        </g>
+        {/* bow figurehead — carved mermaid, torso fused against the stem */}
+        <g transform="translate(20 76) rotate(8)">
+          <path d="M-2.6,-13.6 Q-8,-11 -8,-5 Q-7.6,-2 -5.6,-0.4" fill="none" stroke={P.wood.dark} strokeWidth="1.3" strokeLinecap="round" opacity="0.9" />
+          <path d="M-2.6,-13.4 C-4.4,-10.6 -4.6,-6.6 -3,-2.6 C-2,0 0.4,1 2,-0.8 C3,-2.4 3,-6.6 1.8,-10 C1.2,-12 -0.6,-14.4 -2.6,-13.4 Z" fill={P.wood.light} stroke={P.ink.line} strokeWidth="0.7" />
+          <path d="M-2.2,-9 Q-4.2,-6 -3,-1.6" fill="none" stroke={P.wood.mid} strokeWidth="0.8" strokeLinecap="round" />
+          <path d="M2,-0.8 C4.4,1 8,1.6 10.6,4.6 C7.6,3.6 5.4,4 4,6 C6.4,6.4 8.6,8.6 10,12 C5.6,10 2.4,7 0,4 C-1.6,2 -1,0.4 2,-0.8 Z" fill={P.metal.gold} stroke={P.ink.line} strokeWidth="0.7" />
+          <path d="M2.4,1.6 Q4.6,3.4 4.4,6" fill="none" stroke={P.skin.deep} strokeWidth="0.5" opacity="0.7" />
+          <circle cx="-1.4" cy="-16" r="3" fill={P.skin.warm} stroke={P.ink.line} strokeWidth="0.6" />
+          <path d="M-4,-18 Q-1.4,-21.4 1.4,-18.4 Q0.4,-16.6 -1.4,-16.4 Q-3,-16.6 -4,-18 Z" fill={P.wood.dark} />
+          <circle cx="-2" cy="-16.2" r="0.45" fill={P.ink.line} />
+        </g>
+      </g>
+    </SpriteFrame>
+  );
+}
+
+export function SteamshipTraderSprite({ palette, svgOnly = false }: UnitSpriteProps): string {
+  return (
+    <SpriteFrame svgOnly={svgOnly} hexTint={P.ground.water}>
+      <g data-kind="naval">
+        <Shadow cx={64} cy={99} rx={44} ry={7} />
+        {/* HULL — iron/steel, flat-topped, no gunports */}
+        <path d="M22,82 L114,82 Q118,97 108,102 L28,102 Q10,100 10,90 Q10,84 22,82 Z" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="1.2" />
+        <path d="M26,82 L108,82 L104,88 L22,88 Q17,86 18,83 Q21,82 26,82 Z" fill={P.metal.steel} />
+        <rect x="24" y="83" width="88" height="2.4" fill={P.metal.shine} opacity="0.55" />
+        <circle cx="30" cy="93" r="2" fill={P.metal.steel} stroke={P.ink.line} strokeWidth="0.5" />
+        <circle cx="46" cy="94" r="2" fill={P.metal.steel} stroke={P.ink.line} strokeWidth="0.5" />
+        <circle cx="62" cy="94.5" r="2" fill={P.metal.steel} stroke={P.ink.line} strokeWidth="0.5" />
+        <circle cx="78" cy="94" r="2" fill={P.metal.steel} stroke={P.ink.line} strokeWidth="0.5" />
+        <circle cx="94" cy="93" r="2" fill={P.metal.steel} stroke={P.ink.line} strokeWidth="0.5" />
+        {/* cargo hatches, clear of the funnel base */}
+        <rect x="27" y="74" width="16" height="8" rx="1" fill={P.wood.mid} stroke={P.ink.line} strokeWidth="0.7" />
+        <rect x="70" y="74" width="16" height="8" rx="1" fill={P.wood.mid} stroke={P.ink.line} strokeWidth="0.7" />
+        <path d="M27,74 L43,74 M70,74 L86,74" stroke={P.ink.line} strokeWidth="0.4" opacity="0.5" />
+        {/* FUNNEL — base flush with the deck, centered on the beam */}
+        <rect x="52" y="42" width="12" height="41" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="1" />
+        <rect x="51" y="42" width="14" height="3" fill={P.metal.bronze} />
+        <rect x="53.5" y="52" width="9" height="1.8" fill={P.ink.soft} opacity="0.6" />
+        <g transform="translate(58 40)">
+          <ellipse className="cq-smoke" cx="0" cy="0" rx="5" ry="4" fill={P.stone.light} opacity="0.6" />
+          <ellipse className="cq-smoke cq-smoke--b" cx="2.5" cy="-2" rx="6" ry="5" fill={P.stone.mid} opacity="0.4" />
+          <ellipse className="cq-smoke cq-smoke--c" cx="-2" cy="-1" rx="4" ry="3.4" fill={P.stone.light} opacity="0.5" />
+        </g>
+        {/* small aft mast + faction banner — no separate signal flag (avoids a redundant
+            second pennant at the same anchor point) */}
+        <line x1="88" y1="82" x2="88" y2="48" stroke={P.wood.dark} strokeWidth="2" />
+        <Banner x={88} y={48} palette={palette} scale={0.6} />
+        {/* riveted bow plate, flush with the hull curve (no jutting point) */}
+        <path d="M11,86 Q10,97 20,102" fill="none" stroke={P.ink.line} strokeWidth="1" opacity="0.55" />
+        <circle cx="13" cy="90" r="1.4" fill={P.metal.steel} stroke={P.ink.line} strokeWidth="0.4" />
+        <circle cx="14.6" cy="96" r="1.4" fill={P.metal.steel} stroke={P.ink.line} strokeWidth="0.4" />
+      </g>
+    </SpriteFrame>
+  );
+}
+
+export function CargoFreighterSprite({ palette, svgOnly = false }: UnitSpriteProps): string {
+  return (
+    <SpriteFrame svgOnly={svgOnly} hexTint={P.ground.water}>
+      <g data-kind="naval">
+        <Shadow cx={64} cy={100} rx={48} ry={7} />
+        {/* HULL — long, boxy steel */}
+        <path d="M20,80 L118,80 Q122,96 110,102 L26,102 Q8,99 8,88 Q8,82 20,80 Z" fill={P.metal.steel} stroke={P.ink.line} strokeWidth="1.2" />
+        <path d="M24,80 L112,80 L108,86 L20,86 Q16,84 17,81 Q19,80 24,80 Z" fill={P.metal.iron} />
+        <rect x="22" y="81" width="90" height="2.4" fill={P.metal.shine} opacity="0.5" />
+        <rect x="20" y="90" width="98" height="3" fill={P.metal.iron} opacity="0.6" />
+        <circle cx="30" cy="96" r="1.8" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.4" />
+        <circle cx="46" cy="97" r="1.8" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.4" />
+        <circle cx="64" cy="97.5" r="1.8" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.4" />
+        <circle cx="82" cy="97" r="1.8" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.4" />
+        <circle cx="98" cy="96" r="1.8" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.4" />
+        {/* cargo crates, mixed tones */}
+        <rect x="26" y="70" width="14" height="10" rx="1" fill={P.wood.mid} stroke={P.ink.line} strokeWidth="0.7" />
+        <rect x="41" y="72" width="12" height="8" rx="1" fill={P.cloth.dye} stroke={P.ink.line} strokeWidth="0.7" />
+        <rect x="92" y="71" width="14" height="9" rx="1" fill={P.wood.mid} stroke={P.ink.line} strokeWidth="0.7" />
+        <rect x="26" y="60" width="12" height="9" rx="1" fill={P.cloth.dye} stroke={P.ink.line} strokeWidth="0.7" />
+        {/* cargo derricks — swing with the sail-billow animation class */}
+        <g transform="translate(60 80)">
+          <line x1="0" y1="0" x2="0" y2="-34" stroke={P.metal.iron} strokeWidth="2.2" />
+          <path className="cq-sail" d="M0,-32 L20,-10" fill="none" stroke={P.metal.iron} strokeWidth="2" />
+          <line x1="0" y1="-34" x2="-6" y2="-28" stroke={P.metal.iron} strokeWidth="1.4" />
+        </g>
+        <g transform="translate(78 80)">
+          <line x1="0" y1="0" x2="0" y2="-30" stroke={P.metal.iron} strokeWidth="2.2" />
+          <path className="cq-sail" d="M0,-28 L-18,-8" fill="none" stroke={P.metal.iron} strokeWidth="2" />
+          <line x1="0" y1="-30" x2="6" y2="-25" stroke={P.metal.iron} strokeWidth="1.4" />
+        </g>
+        {/* FUNNEL */}
+        <rect x="98" y="46" width="13" height="34" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="1" />
+        <rect x="97" y="46" width="15" height="3" fill={P.metal.bronze} />
+        <g transform="translate(104.5 44)">
+          <ellipse className="cq-smoke" cx="0" cy="0" rx="5" ry="4" fill={P.stone.light} opacity="0.6" />
+          <ellipse className="cq-smoke cq-smoke--b" cx="2.5" cy="-2" rx="6" ry="5" fill={P.stone.mid} opacity="0.4" />
+          <ellipse className="cq-smoke cq-smoke--c" cx="-2" cy="-1" rx="4" ry="3.4" fill={P.stone.light} opacity="0.5" />
+        </g>
+        {/* signal mast + faction banner */}
+        <line x1="30" y1="80" x2="30" y2="52" stroke={P.wood.dark} strokeWidth="2" />
+        <Banner x={30} y={52} palette={palette} scale={0.65} />
+        {/* riveted bow plate, flush with hull curve */}
+        <path d="M9,86 Q8,96 20,102" fill="none" stroke={P.ink.line} strokeWidth="1" opacity="0.5" />
+        <circle cx="11" cy="89" r="1.4" fill={P.metal.steel} stroke={P.ink.line} strokeWidth="0.4" />
+        <circle cx="12.6" cy="96" r="1.4" fill={P.metal.steel} stroke={P.ink.line} strokeWidth="0.4" />
+      </g>
+    </SpriteFrame>
+  );
+}
+
+export function ContainerShipSprite({ palette, svgOnly = false }: UnitSpriteProps): string {
+  return (
+    <SpriteFrame svgOnly={svgOnly} hexTint={P.ground.water}>
+      <g data-kind="naval">
+        <Shadow cx={64} cy={103} rx={52} ry={7} />
+        {/* HULL — long, low, wide; cleanest silhouette of the four tiers */}
+        <path d="M12,88 L120,88 Q124,99 114,104 L20,104 Q4,101 6,93 Q7,89 12,88 Z" fill={P.metal.steel} stroke={P.ink.line} strokeWidth="1.2" />
+        <rect x="14" y="89" width="98" height="2" fill={P.metal.shine} opacity="0.5" />
+        <rect x="10" y="97" width="106" height="3" fill={P.metal.iron} opacity="0.6" />
+        {/* bottom row of containers — mostly neutral tones, one faction-colored */}
+        <rect x="14" y="76" width="14" height="11" fill={P.stone.mid} stroke={P.ink.line} strokeWidth="0.8" />
+        <rect x="29" y="76" width="14" height="11" fill={P.metal.gold} stroke={P.ink.line} strokeWidth="0.8" />
+        <rect x="44" y="76" width="14" height="11" fill={palette.mid} stroke={palette.dark} strokeWidth="0.8" />
+        <rect x="59" y="76" width="14" height="11" fill={P.stone.light} stroke={P.ink.line} strokeWidth="0.8" />
+        <rect x="74" y="76" width="14" height="11" fill={P.hud.mil} stroke={P.ink.line} strokeWidth="0.8" />
+        <rect x="89" y="76" width="8" height="11" fill={P.stone.mid} stroke={P.ink.line} strokeWidth="0.8" />
+        {/* top row, offset for stacking depth */}
+        <rect x="20" y="64" width="14" height="11" fill={P.metal.gold} stroke={P.ink.line} strokeWidth="0.8" />
+        <rect x="35" y="64" width="14" height="11" fill={palette.trim} stroke={palette.dark} strokeWidth="0.8" />
+        <rect x="50" y="64" width="14" height="11" fill={P.stone.mid} stroke={P.ink.line} strokeWidth="0.8" />
+        <rect x="65" y="64" width="14" height="11" fill={P.stone.light} stroke={P.ink.line} strokeWidth="0.8" />
+        <path d="M14,81.5 L97,81.5 M20,69.5 L79,69.5" stroke={P.ink.line} strokeWidth="0.35" opacity="0.35" />
+        {/* forward bridge / superstructure */}
+        <path d="M98,50 L116,50 L116,88 L98,88 Z" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="1" />
+        <path d="M98,50 L116,50 L116,53 L98,53 Z" fill={P.metal.steel} />
+        <rect x="101" y="58" width="4" height="4" fill={P.metal.shine} stroke={P.ink.line} strokeWidth="0.4" />
+        <rect x="108" y="58" width="4" height="4" fill={P.metal.shine} stroke={P.ink.line} strokeWidth="0.4" />
+        <rect x="101" y="66" width="4" height="4" fill={P.metal.shine} stroke={P.ink.line} strokeWidth="0.4" />
+        <rect x="108" y="66" width="4" height="4" fill={P.metal.shine} stroke={P.ink.line} strokeWidth="0.4" />
+        {/* faction banner atop bridge */}
+        <Banner x={107} y={50} palette={palette} scale={0.6} />
+        {/* riveted bow, flush, no jutting point */}
+        <path d="M7,90 Q6,99 20,104" fill="none" stroke={P.ink.line} strokeWidth="1" opacity="0.5" />
+        <circle cx="9" cy="93" r="1.4" fill={P.metal.steel} stroke={P.ink.line} strokeWidth="0.4" />
+        <circle cx="10.6" cy="99" r="1.4" fill={P.metal.steel} stroke={P.ink.line} strokeWidth="0.4" />
+      </g>
+    </SpriteFrame>
+  );
+}
+
 /* === SPY FAMILY (shared base) === */
 
 function spyBase({ palette, hat, gadget, cloak = '#2a2a32', svgOnly = false }: {
