@@ -224,7 +224,7 @@ export function resolveFromCity(state: GameState, caravanUnit: Unit): City | nul
 const TRADE_UNIT_TIER_BONUS: Partial<Record<UnitType, number>> = {
   naval_trader: 0, steamship_trader: 1, cargo_freighter: 2, container_ship: 3,
   merchant_wagon: 1, freight_convoy: 2,
-  // (air_* tier bonuses added in MR3)
+  jet_freighter: 1, global_air_cargo: 2,
 };
 
 export function getTradeUnitTripBonus(

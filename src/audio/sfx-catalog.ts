@@ -205,6 +205,10 @@ export const UNIT_SFX: Partial<Record<UnitType, Partial<Record<SfxClass, TrackEn
   steamship_trader: { death: real('sfx-steamship_trader-death', 'audio/sfx/steamship_trader-death.ogg', 0.900, 'death') },
   cargo_freighter:  { death: real('sfx-cargo_freighter-death',  'audio/sfx/cargo_freighter-death.ogg',  0.950, 'death') },
   container_ship:   { death: real('sfx-container_ship-death',   'audio/sfx/container_ship-death.ogg',   1.000, 'death') },
+  // Trade Routes Overhaul (#553 MR3/4) — Air trade line
+  air_freighter:    { death: real('sfx-air_freighter-death',    'audio/sfx/air_freighter-death.ogg',    0.500, 'death') },
+  jet_freighter:    { death: real('sfx-jet_freighter-death',    'audio/sfx/jet_freighter-death.ogg',    0.550, 'death') },
+  global_air_cargo: { death: real('sfx-global_air_cargo-death', 'audio/sfx/global_air_cargo-death.ogg', 0.600, 'death') },
 
   // === Spy Types (death only — spies are dispatched, never attack directly) ===
   spy_scout:     { death: real('sfx-spy_scout-death',     'audio/sfx/spy_scout-death.ogg',     0.600, 'death') },
@@ -328,6 +332,10 @@ const LOCOMOTION_CLASS: Record<UnitType, LocomotionClass> = {
   steamship_trader: 'naval',
   cargo_freighter:  'naval',
   container_ship:   'naval',
+  // Trade Routes Overhaul (#553 MR3/4) — Air trade line, matches biplane's class
+  air_freighter:    'air',
+  jet_freighter:    'air',
+  global_air_cargo: 'air',
   expedition:    'humanoid',
   beast_boar:    'animal',
   beast_wolf:    'animal',

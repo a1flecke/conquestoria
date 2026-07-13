@@ -1150,6 +1150,14 @@ export const TRAINABLE_UNITS: Array<TrainableUnitEntry & { pacing?: Building['pa
   { type: 'steamship_trader', name: 'Steamship Trader', cost: 120, techRequired: 'steam-navigation',   coastalRequired: true, obsoletedByTech: 'convoy-system',       upgradesTo: 'cargo_freighter' },
   { type: 'cargo_freighter',  name: 'Cargo Freighter',  cost: 170, techRequired: 'convoy-system',      coastalRequired: true, obsoletedByTech: 'container-shipping',  upgradesTo: 'container_ship' },
   { type: 'container_ship',   name: 'Container Ship',   cost: 260, techRequired: 'container-shipping', coastalRequired: true },
+  // Trade Routes Overhaul (#553 MR3/4) — Air trade line. No coastalRequired (air units
+  // aren't terrain-gated).
+  { type: 'air_freighter',    name: 'Air Freighter',    cost: 150, techRequired: 'air-superiority', obsoletedByTech: 'jet-aviation',    upgradesTo: 'jet_freighter' },
+  { type: 'jet_freighter',    name: 'Jet Freighter',    cost: 230, techRequired: 'jet-aviation',    obsoletedByTech: 'digital-economy', upgradesTo: 'global_air_cargo' },
+  // cost 320 → 234: pacing-audit's recommendedCost — at 320 it took 13 production turns
+  // vs the era-12 unit target window of 7-11 (see game-balance.md's Pacing Regression
+  // Prevention rule).
+  { type: 'global_air_cargo', name: 'Global Air Cargo', cost: 234, techRequired: 'digital-economy' },
   // Resource Accessibility MR 2b — exploration unit
   { type: 'expedition', name: 'Expedition', cost: 18, techRequired: 'foraging' },
 ];
@@ -1438,6 +1446,10 @@ export const PRODUCTION_ICONS: Record<string, string> = {
   steamship_trader: '🛥️',
   cargo_freighter:  '📦',
   container_ship:   '🗃️',
+  // Trade Routes Overhaul (#553 MR3/4) — Air trade line
+  air_freighter:    '🛫',
+  jet_freighter:    '🛬',
+  global_air_cargo: '🌐',
   // Resource Accessibility MR 2b
   expedition:      '🧭',
   bank:            '🏦',

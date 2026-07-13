@@ -415,6 +415,28 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     canBuildImprovements: false, productionCost: 260,
     domain: 'naval',
   },
+  // Trade Routes Overhaul (#553 MR3/4) — Air trade line. Air units in this codebase
+  // ignore terrain cost (getMovementCostForUnit's domain === 'air' branch always
+  // returns 1), so movementPoints scales with era like biplane (4) / jet_fighter (6)
+  // rather than staying flat like the land/naval trade lines.
+  air_freighter: {
+    type: 'air_freighter', name: 'Air Freighter', movementPoints: 4,
+    visionRange: 2, strength: 0, canFoundCity: false,
+    canBuildImprovements: false, productionCost: 150,
+    domain: 'air',
+  },
+  jet_freighter: {
+    type: 'jet_freighter', name: 'Jet Freighter', movementPoints: 5,
+    visionRange: 2, strength: 0, canFoundCity: false,
+    canBuildImprovements: false, productionCost: 230,
+    domain: 'air',
+  },
+  global_air_cargo: {
+    type: 'global_air_cargo', name: 'Global Air Cargo', movementPoints: 6,
+    visionRange: 2, strength: 0, canFoundCity: false,
+    canBuildImprovements: false, productionCost: 234,
+    domain: 'air',
+  },
   // Resource Accessibility MR 2b — exploration unit
   expedition: {
     type: 'expedition', name: 'Expedition', movementPoints: 3,
@@ -667,6 +689,15 @@ export const UNIT_DESCRIPTIONS: Record<UnitType, string> = {
   container_ship:   'Naval trade unit. Establish a trade route across water to generate gold '
                    + 'each turn. Cannot attack. Upgrades from the Cargo Freighter — current top '
                    + 'tier of the naval trade line. Requires a coastal city.',
+  air_freighter:    'Air trade unit. Establish a trade route to generate gold each turn, '
+                   + 'ignoring terrain along the way. Cannot attack. Upgrades into the Jet '
+                   + 'Freighter once Jet Aviation is researched.',
+  jet_freighter:    'Air trade unit. Establish a trade route to generate gold each turn, '
+                   + 'ignoring terrain along the way. Cannot attack. Upgrades from the Air '
+                   + 'Freighter; upgrades into Global Air Cargo once Digital Economy is researched.',
+  global_air_cargo: 'Air trade unit. Establish a trade route to generate gold each turn, '
+                   + 'ignoring terrain along the way. Cannot attack. Upgrades from the Jet '
+                   + 'Freighter — current top tier of the air trade line.',
   // Resource Accessibility MR 2b
   expedition:  'Civilian explorer. Crosses hills and mountains at full speed. '
              + 'When standing on a resource tile (outside city territory), use '

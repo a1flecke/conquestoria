@@ -92,4 +92,11 @@ describe('AI strategic unit roles', () => {
       expect(hasAITradeRole(type), type).toBe(true);
     }
   });
+
+  it('#553 MR3/4 — classifies the air trade line (Air Freighter, Jet Freighter, Global Air Cargo) as trade, not recon (strength-0 air units without the override would otherwise fall into recon)', () => {
+    for (const type of ['air_freighter', 'jet_freighter', 'global_air_cargo'] satisfies UnitType[]) {
+      expect(getAIStrategicRoles(type), type).toEqual(['trade']);
+      expect(hasAITradeRole(type), type).toBe(true);
+    }
+  });
 });

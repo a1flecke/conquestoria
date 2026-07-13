@@ -351,6 +351,7 @@ export type UnitType =
   | 'scout_hound' | 'shadow_warden' | 'war_hound'
   | 'caravan' | 'merchant_wagon' | 'freight_convoy'
   | 'naval_trader' | 'steamship_trader' | 'cargo_freighter' | 'container_ship'
+  | 'air_freighter' | 'jet_freighter' | 'global_air_cargo'
   | 'expedition'
   | 'transport'
   | 'carrack' | 'galleon' | 'steamship' | 'troop_transport'

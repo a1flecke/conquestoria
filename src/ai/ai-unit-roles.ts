@@ -15,6 +15,12 @@ const ROLE_OVERRIDES: Partial<Record<UnitType, readonly AIStrategicRole[]>> = {
   // Trade Routes Overhaul (#553 MR2/4) — Land trade line successors to Caravan.
   merchant_wagon: ['trade'],
   freight_convoy: ['trade'],
+  // Trade Routes Overhaul (#553 MR3/4) — Air trade line. Without this override these
+  // fall through to the air-domain branch and get misclassified as ['recon'] (no
+  // attackProfile), same rationale as the Naval Trader line above.
+  air_freighter: ['trade'],
+  jet_freighter: ['trade'],
+  global_air_cargo: ['trade'],
   expedition: ['resource-expedition', 'recon'],
   settler: ['settlement'],
   worker: ['worker'],

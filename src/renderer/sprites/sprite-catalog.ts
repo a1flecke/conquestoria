@@ -149,6 +149,10 @@ const UNIT_MOTION_STYLES: Record<UnitType, UnitMotionStyle> = {
   steamship_trader: 'naval',
   cargo_freighter: 'naval',
   container_ship: 'naval',
+  // Trade Routes Overhaul (#553 MR3/4) — Air trade line
+  air_freighter: 'air',
+  jet_freighter: 'air',
+  global_air_cargo: 'air',
   expedition: 'humanoid',
   beast_boar: 'animal',
   beast_wolf: 'animal',
@@ -270,6 +274,12 @@ export const UNIT_SPRITE_CATALOG: Record<UnitType, UnitSpriteComponent> = {
   steamship_trader:  withMotion('steamship_trader', SteamshipTraderSprite),
   cargo_freighter:   withMotion('cargo_freighter', CargoFreighterSprite),
   container_ship:    withMotion('container_ship', ContainerShipSprite),
+  // Trade Routes Overhaul (#553 MR3/4) — Air trade line.
+  // Placeholder: reuses BiplaneSprite/JetFighterSprite (closest silhouette by tier)
+  // until bespoke sprites ship.
+  air_freighter:     withMotion('air_freighter', BiplaneSprite),
+  jet_freighter:     withMotion('jet_freighter', JetFighterSprite),
+  global_air_cargo:  withMotion('global_air_cargo', JetFighterSprite),
   expedition:     withMotion('expedition', ExpeditionSprite),
   beast_boar:         withMotion('beast_boar', GiantBoarSprite),
   beast_wolf:         withMotion('beast_wolf', DireWolfSprite),
