@@ -85,4 +85,11 @@ describe('AI strategic unit roles', () => {
     expect(hasAITradeRole('settler')).toBe(false);
     expect(hasAITradeRole('galley')).toBe(false);
   });
+
+  it('#553 MR2/4 — classifies the land trade line (Merchant Wagon, Freight Convoy) as trade, matching Caravan', () => {
+    for (const type of ['merchant_wagon', 'freight_convoy'] satisfies UnitType[]) {
+      expect(getAIStrategicRoles(type), type).toEqual(['trade']);
+      expect(hasAITradeRole(type), type).toBe(true);
+    }
+  });
 });

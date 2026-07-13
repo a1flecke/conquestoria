@@ -375,6 +375,19 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     canBuildImprovements: false, productionCost: 60,
     domain: 'land',
   },
+  // Trade Routes Overhaul (#553 MR2/4) — Land trade line successors to Caravan.
+  merchant_wagon: {
+    type: 'merchant_wagon', name: 'Merchant Wagon', movementPoints: 3,
+    visionRange: 2, strength: 0, canFoundCity: false,
+    canBuildImprovements: false, productionCost: 90,
+    domain: 'land',
+  },
+  freight_convoy: {
+    type: 'freight_convoy', name: 'Freight Convoy', movementPoints: 3,
+    visionRange: 2, strength: 0, canFoundCity: false,
+    canBuildImprovements: false, productionCost: 220,
+    domain: 'land',
+  },
   // Trade Routes Overhaul (#553 MR1/4) — Naval Trader line. movementPoints 3 matches
   // the existing civilian-ship convention (transport/carrack/galleon/steamship/
   // troop_transport are all flat 3), not the escalating combat-naval line.
@@ -634,7 +647,14 @@ export const UNIT_DESCRIPTIONS: Record<UnitType, string> = {
   // S5 — trade unit
   caravan:     'Trade unit. Establish a trade route to generate gold each turn. '
              + 'Once committed, cannot move or act until the route ends (8 round trips base). '
-             + 'Cannot attack. Raidable by enemy units in transit.',
+             + 'Cannot attack. Raidable by enemy units in transit. Upgrades into the '
+             + 'Merchant Wagon once Mercantilism is researched.',
+  merchant_wagon:  'Land trade unit. Establish a trade route to generate gold each turn. '
+                 + 'Cannot attack. Upgrades from the Caravan; upgrades into the Freight '
+                 + 'Convoy once Highway Network is researched.',
+  freight_convoy:  'Land trade unit. Establish a trade route to generate gold each turn. '
+                 + 'Cannot attack. Upgrades from the Merchant Wagon — current top tier of '
+                 + 'the land trade line.',
   naval_trader:     'Naval trade unit. Establish a trade route across water to generate gold '
                    + 'each turn. Cannot attack. Upgrades into the Steamship Trader once Steam '
                    + 'Navigation is researched. Requires a coastal city to build.',

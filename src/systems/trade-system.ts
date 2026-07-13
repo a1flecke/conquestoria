@@ -223,7 +223,8 @@ export function resolveFromCity(state: GameState, caravanUnit: Unit): City | nul
 // game-balance.md's "Trip bonus source inventory" table for the full stacking analysis.
 const TRADE_UNIT_TIER_BONUS: Partial<Record<UnitType, number>> = {
   naval_trader: 0, steamship_trader: 1, cargo_freighter: 2, container_ship: 3,
-  // (merchant_wagon/freight_convoy/air_* tier bonuses added in MR2/MR3)
+  merchant_wagon: 1, freight_convoy: 2,
+  // (air_* tier bonuses added in MR3)
 };
 
 export function getTradeUnitTripBonus(

@@ -1140,7 +1140,10 @@ export const TRAINABLE_UNITS: Array<TrainableUnitEntry & { pacing?: Building['pa
   { type: 'shadow_warden', name: 'Shadow Warden', cost: 36, techRequired: 'lookouts', civTypeRequired: 'persia', replacesUnit: 'scout_hound', pacing: { band: 'power-spike', role: 'unique-spy-detection', impact: 1.2, scope: 'military', snowball: 1, urgency: 1.05, situationality: 1.15, unlockBreadth: 1 } },
   { type: 'war_hound', name: 'War Hound', cost: 32, techRequired: 'lookouts', civTypeRequired: 'rome', replacesUnit: 'scout_hound', pacing: { band: 'power-spike', role: 'unique-spy-detection-combat', impact: 1.1, scope: 'military', snowball: 1, urgency: 1.05, situationality: 1.1, unlockBreadth: 1 } },
   // S5 — trade unit
-  { type: 'caravan', name: 'Caravan', cost: 60, techRequired: 'trade-routes' },
+  // Trade Routes Overhaul (#553 MR2/4) — Caravan now upgrades into the land trade line.
+  { type: 'caravan', name: 'Caravan', cost: 60, techRequired: 'trade-routes', obsoletedByTech: 'mercantilism', upgradesTo: 'merchant_wagon' },
+  { type: 'merchant_wagon', name: 'Merchant Wagon', cost: 90, techRequired: 'mercantilism', obsoletedByTech: 'highway-network', upgradesTo: 'freight_convoy' },
+  { type: 'freight_convoy', name: 'Freight Convoy', cost: 220, techRequired: 'highway-network' },
   // Trade Routes Overhaul (#553 MR1/4) — Naval Trader line, fixes naval trade routes
   // (previously impossible: canEstablishRoute hardcoded 'land' pathfinding).
   { type: 'naval_trader',     name: 'Naval Trader',     cost: 75,  techRequired: 'colonial-trade',     coastalRequired: true, obsoletedByTech: 'steam-navigation',    upgradesTo: 'steamship_trader' },
@@ -1427,6 +1430,9 @@ export const PRODUCTION_ICONS: Record<string, string> = {
   // S5 — trade unit + buildings
   caravan:         '🐪',
   caravanserai:    '🏕️',
+  // Trade Routes Overhaul (#553 MR2/4) — Land trade line successors to Caravan
+  merchant_wagon:  '🛻',
+  freight_convoy:  '🚛',
   // Trade Routes Overhaul (#553 MR1/4) — Naval Trader line
   naval_trader:     '⛴️',
   steamship_trader: '🛥️',

@@ -65,6 +65,9 @@ const FALLBACK_ICONS: Record<UnitType, string> = {
   war_hound: '🐺',
   // S5 — trade unit
   caravan: '🐪',
+  // Trade Routes Overhaul (#553 MR2/4) — Land trade line successors to Caravan
+  merchant_wagon: '🛻',
+  freight_convoy: '🚛',
   // Trade Routes Overhaul (#553 MR1/4) — Naval Trader line, distinguished from the
   // combat-naval glyphs above (galley/carrack/frigate all reuse ⛵; trireme/galleon/
   // steamship/pre_dreadnought all reuse 🚢).

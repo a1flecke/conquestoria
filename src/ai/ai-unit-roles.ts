@@ -12,6 +12,9 @@ const ROLE_OVERRIDES: Partial<Record<UnitType, readonly AIStrategicRole[]>> = {
   steamship_trader: ['trade'],
   cargo_freighter: ['trade'],
   container_ship: ['trade'],
+  // Trade Routes Overhaul (#553 MR2/4) — Land trade line successors to Caravan.
+  merchant_wagon: ['trade'],
+  freight_convoy: ['trade'],
   expedition: ['resource-expedition', 'recon'],
   settler: ['settlement'],
   worker: ['worker'],

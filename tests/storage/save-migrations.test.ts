@@ -46,6 +46,28 @@ describe('save migrations', () => {
     expect(() => canEstablishRoute(migrated, migratedCaravan!, cityId)).not.toThrow();
   });
 
+  it('#553 MR2/4 — land trade line extension is purely additive: a pre-existing merchant_wagon survives migration and stays functional (no SAVE_MIGRATIONS entry needed)', () => {
+    const legacySave = createNewGame('rome', 'pre-merchant-wagon-save', 'small');
+    const cityId = Object.keys(legacySave.cities)[0]!;
+    const city = legacySave.cities[cityId]!;
+    const wagon: Unit = {
+      id: 'legacy-merchant-wagon-1', type: 'merchant_wagon', owner: 'player',
+      position: { ...city.position }, health: 100, movementPointsLeft: 3,
+      hasActed: false, hasMoved: false, skippedTurn: false, isResting: false,
+    } as Unit;
+    legacySave.units = { ...legacySave.units, [wagon.id]: wagon };
+    legacySave.civilizations.player.units = [...legacySave.civilizations.player.units, wagon.id];
+
+    const migrated = migrateSaveToCurrent(legacySave);
+    const migratedWagon = migrated.units[wagon.id];
+
+    expect(migratedWagon).toBeDefined();
+    expect(migratedWagon!.type).toBe('merchant_wagon');
+    expect(UNIT_DEFINITIONS['merchant_wagon']).toBeDefined();
+    expect(() => getTradeUnitTripBonus(migrated, cityId, cityId, 'player', migratedWagon!.type)).not.toThrow();
+    expect(() => canEstablishRoute(migrated, migratedWagon!, cityId)).not.toThrow();
+  });
+
   it('rejects a newer save schema without mutating the save', () => {
     const futureSave = createNewGame('rome', 'future-schema-save', 'small');
     futureSave.saveSchemaVersion = CURRENT_SAVE_SCHEMA_VERSION + 1;

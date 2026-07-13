@@ -2051,12 +2051,12 @@ describe('Expedition AI parity', () => {
   });
 });
 
-describe('#553 MR1/4 — idle trade-unit AI parity (caravan and Naval Trader)', () => {
+describe('#553 MR1-2/4 — idle trade-unit AI parity (caravan, Naval Trader, land trade line)', () => {
   // Two AI-owned cities. 'water' mode cuts a q=1 ocean column between them (no land
   // bridge) so only a naval-domain trade unit can path between them; 'land' mode leaves
   // the map as plain grassland.
   function makeIdleTradeUnitAiState(opts: {
-    unitType: 'caravan' | 'naval_trader';
+    unitType: 'caravan' | 'naval_trader' | 'merchant_wagon' | 'freight_convoy';
     crossing: 'land' | 'water';
   }): GameState {
     const tiles: Record<string, GameState['map']['tiles'][string]> = {};
@@ -2116,6 +2116,8 @@ describe('#553 MR1/4 — idle trade-unit AI parity (caravan and Naval Trader)', 
   it.each([
     ['caravan', 'land'],
     ['naval_trader', 'water'],
+    ['merchant_wagon', 'land'],
+    ['freight_convoy', 'land'],
   ] as const)('idle %s gets a route proposed by basic-ai.ts (%s crossing)', (unitType, crossing) => {
     const state = makeIdleTradeUnitAiState({ unitType, crossing });
     const bus = new EventBus();
