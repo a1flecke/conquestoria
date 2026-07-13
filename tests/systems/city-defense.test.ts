@@ -152,7 +152,7 @@ describe('calculateCombatStrengths with defenderCity', () => {
   });
 });
 
-describe('buildCombatContextForDefender parity (human vs AI paths)', () => {
+describe('buildCombatContextForDefender parity (human vs world-actor paths)', () => {
   function makeState(): GameState {
     const cityMap: GameMap = {
       width: 4,
@@ -190,20 +190,34 @@ describe('buildCombatContextForDefender parity (human vs AI paths)', () => {
     } as unknown as GameState;
   }
 
-  it('produces an identical CityDefenseBreakdown regardless of call site', () => {
+  it('gives a walled garrison the same defense against human and world attacks', () => {
     const state = makeState();
-    const attacker = Object.values(state.units).find(u => u.owner === 'p1')!;
+    const humanAttacker = Object.values(state.units).find(u => u.owner === 'p1')!;
     const defender = Object.values(state.units).find(u => u.owner === 'p2')!;
+    const worldAttacker = createUnit(
+      'warrior',
+      'barbarian',
+      { q: 1, r: 0 },
+      { ...mkC(), nextUnitId: 100 },
+    );
+    state.units[worldAttacker.id] = worldAttacker;
 
-    const contextA = buildCombatContextForDefender(state, attacker, defender);
-    const contextB = buildCombatContextForDefender(state, attacker, defender);
+    const humanContext = buildCombatContextForDefender(state, humanAttacker, defender);
+    const worldContext = buildCombatContextForDefender(state, worldAttacker, defender);
+    const humanStrengths = calculateCombatStrengths(humanAttacker, defender, state.map, humanContext);
+    const worldStrengths = calculateCombatStrengths(worldAttacker, defender, state.map, worldContext);
+    const uncontextualizedWorldStrengths = calculateCombatStrengths(worldAttacker, defender, state.map);
 
-    expect(contextA.defenderCity).toEqual(contextB.defenderCity);
-    expect(contextA.defenderCity?.cityBuildings).toEqual(['walls', 'star_fort']);
-    expect(contextA.defenderCity?.defenderCompletedTechs).toEqual([
+    expect(worldContext.defenderCity).toEqual(humanContext.defenderCity);
+    expect(worldContext.defenderCity?.cityBuildings).toEqual(['walls', 'star_fort']);
+    expect(worldContext.defenderCity?.defenderCompletedTechs).toEqual([
       'fortification-engineering',
       'professional-army',
     ]);
+    expect(worldStrengths.defenderStrength).toBeCloseTo(humanStrengths.defenderStrength);
+    expect(worldStrengths.defenderStrength).toBeGreaterThan(
+      uncontextualizedWorldStrengths.defenderStrength,
+    );
   });
 });
 
