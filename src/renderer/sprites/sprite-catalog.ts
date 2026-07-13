@@ -15,6 +15,7 @@ import {
   AttackHelicopterSprite, MissileSubmarineSprite,
   CaravanSprite, ExpeditionSprite,
   CarrackSprite, GalleonSprite, SteamshipSprite, TroopTransportSprite,
+  NavalTraderSprite, SteamshipTraderSprite, CargoFreighterSprite, ContainerShipSprite,
 } from './units';
 import {
   GranarySprite, HerbalistSprite, AqueductSprite,
@@ -258,14 +259,11 @@ export const UNIT_SPRITE_CATALOG: Record<UnitType, UnitSpriteComponent> = {
   attack_helicopter: withMotion('attack_helicopter', AttackHelicopterSprite),
   missile_submarine: withMotion('missile_submarine', MissileSubmarineSprite),
   caravan:           withMotion('caravan', CaravanSprite),
-  // Trade Routes Overhaul (#553 MR1/4) — Naval Trader line reuses existing civilian-hull
-  // sprites as placeholders, same pattern as frigate/destroyer/artillery above; bespoke
-  // sprites are a generate-sprite-prompt follow-up (prompt already generated, see
-  // scratchpad/naval-trader-sprite-prompt.md).
-  naval_trader:      withMotion('naval_trader', CarrackSprite),
-  steamship_trader:  withMotion('steamship_trader', SteamshipSprite),
-  cargo_freighter:   withMotion('cargo_freighter', GalleonSprite),
-  container_ship:    withMotion('container_ship', TroopTransportSprite),
+  // Trade Routes Overhaul (#553 MR1/4) — Naval Trader line, bespoke sprites
+  naval_trader:      withMotion('naval_trader', NavalTraderSprite),
+  steamship_trader:  withMotion('steamship_trader', SteamshipTraderSprite),
+  cargo_freighter:   withMotion('cargo_freighter', CargoFreighterSprite),
+  container_ship:    withMotion('container_ship', ContainerShipSprite),
   expedition:     withMotion('expedition', ExpeditionSprite),
   beast_boar:         withMotion('beast_boar', GiantBoarSprite),
   beast_wolf:         withMotion('beast_wolf', DireWolfSprite),
