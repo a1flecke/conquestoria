@@ -1154,10 +1154,14 @@ export const TRAINABLE_UNITS: Array<TrainableUnitEntry & { pacing?: Building['pa
   // aren't terrain-gated).
   { type: 'air_freighter',    name: 'Air Freighter',    cost: 150, techRequired: 'air-superiority', obsoletedByTech: 'jet-aviation',    upgradesTo: 'jet_freighter' },
   { type: 'jet_freighter',    name: 'Jet Freighter',    cost: 230, techRequired: 'jet-aviation',    obsoletedByTech: 'digital-economy', upgradesTo: 'global_air_cargo' },
-  // cost 320 → 234: pacing-audit's recommendedCost — at 320 it took 13 production turns
-  // vs the era-12 unit target window of 7-11 (see game-balance.md's Pacing Regression
-  // Prevention rule).
-  { type: 'global_air_cargo', name: 'Global Air Cargo', cost: 234, techRequired: 'digital-economy' },
+  // cost 320 → 286: at 320 it took 13 production turns vs the era-12 unit target window
+  // of 7-11 (pacing-audit.test.ts), tripping the outlier gate. 286 lands at the window's
+  // upper bound (11 turns) rather than the audit's raw recommendedCost (234) — 234 would
+  // have priced Global Air Cargo only 4 gold above Jet Freighter (230), an almost
+  // nonexistent tier gap that undercuts the top-tier unit's "biggest investment" feel
+  // (compare the land/naval trade lines' much larger tier-to-tier cost jumps). See
+  // game-balance.md's Pacing Regression Prevention rule.
+  { type: 'global_air_cargo', name: 'Global Air Cargo', cost: 286, techRequired: 'digital-economy' },
   // Resource Accessibility MR 2b — exploration unit
   { type: 'expedition', name: 'Expedition', cost: 18, techRequired: 'foraging' },
 ];

@@ -434,7 +434,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
   global_air_cargo: {
     type: 'global_air_cargo', name: 'Global Air Cargo', movementPoints: 6,
     visionRange: 2, strength: 0, canFoundCity: false,
-    canBuildImprovements: false, productionCost: 234,
+    canBuildImprovements: false, productionCost: 286,
     domain: 'air',
   },
   // Resource Accessibility MR 2b — exploration unit
