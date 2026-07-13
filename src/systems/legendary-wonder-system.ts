@@ -532,7 +532,7 @@ export function scrapLegendaryWonderConstruction(
   };
 }
 
-export function reconcileLegendaryWonderAvailability(state: GameState, _bus: EventBus): GameState {
+export function reconcileLegendaryWonderAvailability(state: GameState, bus: EventBus): GameState {
   let nextState = state;
   for (const [projectId, rawProject] of Object.entries(state.legendaryWonderProjects ?? {})) {
     if (rawProject.phase !== 'building') continue;
@@ -548,14 +548,35 @@ export function reconcileLegendaryWonderAvailability(state: GameState, _bus: Eve
       continue;
     }
     if (completedBy && completedBy.ownerId !== project.ownerId) {
+      bus.emit('wonder:legendary-lost', {
+        civId: project.ownerId,
+        cityId: project.cityId,
+        wonderId: project.wonderId,
+        goldRefund: Math.floor(getEffectiveLegendaryWonderInvestment(nextState, project) / 2),
+        transferableProduction: 0,
+      });
       nextState = scrapLegendaryWonderConstruction(nextState, projectId, 'rival-completed');
       continue;
     }
     const eligibility = getLegendaryWonderEligibility(nextState, project.ownerId, project.cityId, definition);
     if (eligibility.blockers.some(blocker => blocker.kind === 'resource')) {
+      bus.emit('wonder:legendary-lost', {
+        civId: project.ownerId,
+        cityId: project.cityId,
+        wonderId: project.wonderId,
+        goldRefund: Math.floor(getEffectiveLegendaryWonderInvestment(nextState, project) / 2),
+        transferableProduction: 0,
+      });
       nextState = scrapLegendaryWonderConstruction(nextState, projectId, 'required-resource-lost');
     } else if (definition.questSteps.some(step => step.type === 'resource-count')
       && project.questSteps.some(step => !step.completed)) {
+      bus.emit('wonder:legendary-lost', {
+        civId: project.ownerId,
+        cityId: project.cityId,
+        wonderId: project.wonderId,
+        goldRefund: Math.floor(getEffectiveLegendaryWonderInvestment(nextState, project) / 2),
+        transferableProduction: 0,
+      });
       nextState = scrapLegendaryWonderConstruction(nextState, projectId, 'resource-count-quest-lost');
     }
   }
@@ -590,7 +611,7 @@ export function reconcileLegendaryWonderAvailability(state: GameState, _bus: Eve
               label: `Build in ${nextState.cities[cityId]?.name ?? 'city'}`,
             }))
           : [];
-        _bus.emit('wonder:legendary-availability', {
+        bus.emit('wonder:legendary-availability', {
           recipientCivId: civ.id,
           wonderId: definition.id,
           status,
@@ -863,7 +884,7 @@ export function startLegendaryWonderBuild(
     });
   }
 
-  return {
+  const startedState: GameState = {
     ...seededState,
     pendingEvents,
     legendaryWonderIntel,
@@ -885,6 +906,21 @@ export function startLegendaryWonderBuild(
       },
     },
   };
+  const availabilityKey = getLegendaryWonderAvailabilityKey(civId, wonderId);
+  const nextState = {
+    ...startedState,
+    legendaryWonderAvailability: {
+      ...startedState.legendaryWonderAvailability,
+      [availabilityKey]: { status: 'building' as const },
+    },
+  };
+  bus?.emit('wonder:legendary-availability', {
+    recipientCivId: civId,
+    wonderId,
+    status: 'building',
+    cityActions: [],
+  });
+  return nextState;
 }
 
 export function getLegendaryWonderProjectDefinition(state: GameState, wonderId: string) {

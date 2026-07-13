@@ -12,6 +12,7 @@ import {
   loseLegendaryWonderRace,
   startLegendaryWonderBuild,
   scrapLegendaryWonderConstruction,
+  reconcileLegendaryWonderAvailability,
   tickLegendaryWonderProjects,
 } from '@/systems/legendary-wonder-system';
 import { EventBus } from '@/core/event-bus';
@@ -25,6 +26,24 @@ import { makeLegendaryWonderFixture } from './helpers/legendary-wonder-fixture';
 import { getLegendaryWonderDefinition } from '@/systems/legendary-wonder-definitions';
 
 describe('legendary-wonder-system', () => {
+  it('notifies the owner when resource loss scraps active wonder construction', () => {
+    const state = makeLegendaryWonderFixture({ oracleStepsCompleted: 2, resources: ['stone'] });
+    const bus = new EventBus();
+    const lostEvents: Array<{ civId: string; cityId: string; wonderId: string; goldRefund: number; transferableProduction: number }> = [];
+    bus.on('wonder:legendary-lost', event => lostEvents.push(event));
+    state.legendaryWonderProjects!['oracle-of-delphi'].phase = 'building';
+    state.cities['city-river'].productionQueue = ['legendary:oracle-of-delphi', 'granary'];
+    state.cities['city-river'].productionProgress = 9;
+    state.map.tiles['2,3']!.resource = null;
+
+    const result = reconcileLegendaryWonderAvailability(state, bus);
+
+    expect(result.cities['city-river'].productionQueue).toEqual(['granary']);
+    expect(lostEvents).toContainEqual({
+      civId: 'player', cityId: 'city-river', wonderId: 'oracle-of-delphi', goldRefund: 4, transferableProduction: 0,
+    });
+  });
+
   it('scraps invalid construction with a half-production gold refund and preserves the queue tail', () => {
     const state = makeLegendaryWonderFixture({ oracleStepsCompleted: 2, resources: ['stone'] });
     state.legendaryWonderProjects!['oracle-of-delphi'].phase = 'building';
