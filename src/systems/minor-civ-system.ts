@@ -30,6 +30,7 @@ import { generateQuest } from './quest-system';
 import { isMinorCivAtWar, isMinorCivHostileToOwner } from './minor-civ-diplomacy';
 import { processMinorCivEconomyTurn } from './minor-civ-economy-system';
 import { resolveCombat } from './combat-system';
+import { buildCombatContextForDefender } from './combat-context';
 import { hasDiscoveredMinorCiv } from './discovery-system';
 import { canAttackByProfileOnMap } from './attack-targeting';
 import {
@@ -476,7 +477,14 @@ function executePurposefulMinorCivOrders(
     const legality = canUnitAttackTarget(nextState, attacker, defender.position, { requireVisibility: false });
     if (!legality.ok || legality.targetType !== 'unit' || legality.targetUnitId !== defender.id) continue;
     const seed = Math.max(1, nextState.turn * 16807 + attacker.id.length * 97 + defender.id.length);
-    const result = resolveCombat(attacker, defender, nextState.map, seed, undefined, nextState.era);
+    const result = resolveCombat(
+      attacker,
+      defender,
+      nextState.map,
+      seed,
+      buildCombatContextForDefender(nextState, attacker, defender),
+      nextState.era,
+    );
     const presentation = buildCombatPresentation(nextState, result, attacker, defender);
     const attackerRouteId = attacker.committedToRouteId;
     const defenderRouteId = defender.committedToRouteId;
@@ -768,7 +776,14 @@ export function processScuffles(state: GameState, bus: EventBus): void {
         const defenderUnit = other.units.map(uid => state.units[uid]).find(u => u);
         if (attackerUnit && defenderUnit && canAttackByProfileOnMap(attackerUnit, defenderUnit, state.map)) {
           const seed = state.turn * 16807 + attackerUnit.id.charCodeAt(0);
-          const result = resolveCombat(attackerUnit, defenderUnit, state.map, seed, undefined, state.era);
+          const result = resolveCombat(
+            attackerUnit,
+            defenderUnit,
+            state.map,
+            seed,
+            buildCombatContextForDefender(state, attackerUnit, defenderUnit),
+            state.era,
+          );
           attackerUnit.health = Math.max(1, attackerUnit.health - result.attackerDamage);
           defenderUnit.health = Math.max(1, defenderUnit.health - result.defenderDamage);
           bus.emit('minor-civ:scuffle', {

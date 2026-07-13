@@ -17,6 +17,7 @@ import {
 } from '@/systems/beast-system';
 import { BEAST_DEFINITIONS } from '@/systems/beast-definitions';
 import { resolveCombat } from '@/systems/combat-system';
+import { buildCombatContextForDefender } from '@/systems/combat-context';
 import { canUnitAttackTarget } from '@/systems/attack-targeting';
 import { applyCombatOutcomeToState } from '@/systems/combat-reward-system';
 import {
@@ -813,7 +814,14 @@ export function processTurn(
     const attackerRouteId = attacker.committedToRouteId;
     const defenderRouteId = defender.committedToRouteId;
     const defenderPosBarbarian = { ...defender.position };
-    const result = resolveCombat(attacker, defender, newState.map, combatSeed, undefined, newState.era);
+    const result = resolveCombat(
+      attacker,
+      defender,
+      newState.map,
+      combatSeed,
+      buildCombatContextForDefender(newState, attacker, defender),
+      newState.era,
+    );
     const combatPresentation = buildCombatPresentation(newState, result, attacker, defender);
     const applied = applyCombatOutcomeToState(newState, result, combatSeed);
     newState = applied.state;
@@ -1045,7 +1053,14 @@ export function processTurn(
       if (!attacker || !defender) continue;
       const combatSeed = beastSeed ^ order.attackerUnitId.charCodeAt(0);
       const defenderPosBeast = { ...defender.position };
-      const result = resolveCombat(attacker, defender, newState.map, combatSeed, undefined, newState.era);
+      const result = resolveCombat(
+        attacker,
+        defender,
+        newState.map,
+        combatSeed,
+        buildCombatContextForDefender(newState, attacker, defender),
+        newState.era,
+      );
       const combatPresentation = buildCombatPresentation(newState, result, attacker, defender);
       const applied = applyCombatOutcomeToState(newState, result, combatSeed);
       newState = applied.state;
