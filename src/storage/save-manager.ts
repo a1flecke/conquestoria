@@ -475,7 +475,7 @@ function normalizeNotificationTarget(value: unknown): NotificationEntry['target'
   return { kind: 'map', coord: { ...(value.coord as { q: number; r: number }) }, label: value.label };
 }
 
-export function normalizeNotificationLog(value: unknown): NotificationLog {
+export function normalizeNotificationLog(value: unknown, state?: Pick<GameState, 'cities'>): NotificationLog {
   if (!isRecord(value)) return {};
   const allEntries = Object.values(value).flatMap(entries => Array.isArray(entries) ? entries : []);
   let nextId = allEntries.reduce((max, entry) => {
@@ -499,6 +499,17 @@ export function normalizeNotificationLog(value: unknown): NotificationLog {
           || (rawEntry.review.kind === 'pirate-history' && typeof rawEntry.review.historyId === 'string'))
         ? structuredClone(rawEntry.review) as NotificationEntry['review']
         : undefined;
+      const cityActions = Array.isArray(rawEntry.cityActions)
+        ? rawEntry.cityActions.slice(0, 2).flatMap(action =>
+          isRecord(action)
+          && typeof action.cityId === 'string'
+          && typeof action.wonderId === 'string'
+          && typeof action.label === 'string'
+          && (!state || state.cities[action.cityId]?.owner === civId)
+            ? [{ cityId: action.cityId, wonderId: action.wonderId, label: action.label }]
+            : [],
+        )
+        : [];
       entries.push({
         id,
         message: rawEntry.message,
@@ -507,12 +518,26 @@ export function normalizeNotificationLog(value: unknown): NotificationLog {
         read: rawEntry.read === true,
         ...(normalizeNotificationTarget(rawEntry.target) ? { target: normalizeNotificationTarget(rawEntry.target) } : {}),
         ...(typeof rawEntry.linkedCityId === 'string' ? { linkedCityId: rawEntry.linkedCityId } : {}),
+        ...(cityActions.length > 0 ? { cityActions } : {}),
         ...(review ? { review } : {}),
       });
     }
     log[civId] = entries;
   }
   return log;
+}
+
+function normalizeLegendaryWonderAvailability(value: unknown): GameState['legendaryWonderAvailability'] {
+  if (!isRecord(value)) return undefined;
+  const validStatuses = new Set([
+    'questing', 'blocked', 'buildable', 'building', 'scrapped', 'lost_race', 'completed',
+  ]);
+  const normalized: NonNullable<GameState['legendaryWonderAvailability']> = {};
+  for (const [key, record] of Object.entries(value)) {
+    if (!/^[^:]+:[^:]+$/.test(key) || !isRecord(record) || typeof record.status !== 'string' || !validStatuses.has(record.status)) continue;
+    normalized[key] = { status: record.status as NonNullable<GameState['legendaryWonderAvailability']>[string]['status'] };
+  }
+  return normalized;
 }
 
 export function normalizeIdCounters(state: GameState): GameState['idCounters'] {
@@ -781,7 +806,8 @@ export function normalizeLoadedState(state: GameState): NormalizedGameState {
     migrateLegacyCoastalData(normalizeThreatPressureDefaults(normalizeLandmassKeys(normalizeLegacyCitySimState(migrateStripCityGrid(migrateLegacyPlanningState(migrateLegacyNamingState(ensureGameIdentity(migrated)))))))),
   ))));
   normalizedCityState.pirates = normalizePirateState(normalizedCityState);
-  normalizedCityState.notificationLog = normalizeNotificationLog(normalizedCityState.notificationLog);
+  normalizedCityState.notificationLog = normalizeNotificationLog(normalizedCityState.notificationLog, normalizedCityState);
+  normalizedCityState.legendaryWonderAvailability = normalizeLegendaryWonderAvailability(normalizedCityState.legendaryWonderAvailability);
   normalizedCityState.idCounters = normalizeIdCounters(normalizedCityState);
   const usesGeographicMap = normalizedCityState.mapScript === 'earth'
     || normalizedCityState.mapScript === 'old-world'

@@ -2,6 +2,7 @@ import type { GameState, LegendaryWonderProject } from '@/core/types';
 import { getLegendaryWonderDefinition, getLegendaryWonderDefinitions } from '@/systems/legendary-wonder-definitions';
 import {
   getEligibleLegendaryWonders,
+  getLegendaryWonderEligibility,
   initializeLegendaryWonderProjectsForCity,
 } from '@/systems/legendary-wonder-system';
 import { getTechById } from '@/systems/tech-system';
@@ -88,39 +89,6 @@ export function titleCaseId(value: string): string {
     .join(' ');
 }
 
-function getOwnedResources(state: GameState, cityId: string): Set<string> {
-  const city = state.cities[cityId];
-  if (!city) {
-    return new Set();
-  }
-
-  return new Set(
-    city.ownedTiles
-      .map(coord => state.map.tiles[`${coord.q},${coord.r}`]?.resource)
-      .filter((resource): resource is string => resource !== null),
-  );
-}
-
-function hasCityRequirement(state: GameState, cityId: string, requirement: 'river' | 'coastal' | 'any'): boolean {
-  const city = state.cities[cityId];
-  if (!city) {
-    return false;
-  }
-
-  if (requirement === 'river') {
-    return city.ownedTiles.some(coord => state.map.tiles[`${coord.q},${coord.r}`]?.hasRiver);
-  }
-
-  if (requirement === 'coastal') {
-    return city.ownedTiles.some(coord => {
-      const tile = state.map.tiles[`${coord.q},${coord.r}`];
-      return tile?.terrain === 'coast' || tile?.terrain === 'ocean';
-    });
-  }
-
-  return true;
-}
-
 function isWonderAlreadyCompleted(state: GameState, wonderId: string): boolean {
   return Boolean(state.completedLegendaryWonders?.[wonderId]);
 }
@@ -141,33 +109,19 @@ function hasSameOwnerActiveBuild(
 
 function getMissingRequirements(state: GameState, civId: string, cityId: string, wonderId: string): string[] {
   const definition = getLegendaryWonderDefinition(wonderId);
-  const civ = state.civilizations[civId];
-  if (!definition || !civ || !state.cities[cityId]) {
+  if (!definition || !state.civilizations[civId] || !state.cities[cityId]) {
     return ['Requirements unavailable'];
   }
-
-  const ownedResources = getOwnedResources(state, cityId);
-  const missing = [
-    ...definition.requiredTechs
-      .filter(techId => !civ.techState.completed.includes(techId))
-      .map(techId => getTechById(techId)?.name ?? titleCaseId(techId)),
-    ...definition.requiredResources
-      .filter(resource => !ownedResources.has(resource))
-      .map(titleCaseId),
-  ];
-
-  if (!hasCityRequirement(state, cityId, definition.cityRequirement)) {
-    missing.push(definition.cityRequirement === 'river' ? 'River city' : 'Coastal city');
-  }
-
-  if (isWonderAlreadyCompleted(state, wonderId)) {
-    missing.push('Already completed elsewhere');
-  }
-
-  if (hasSameOwnerActiveBuild(state, civId, cityId, wonderId)) {
-    missing.push('Already under construction in another city');
-  }
-
+  const missing = getLegendaryWonderEligibility(state, civId, cityId, definition).blockers.flatMap(blocker => {
+    switch (blocker.kind) {
+      case 'required-tech': return [getTechById(blocker.techId)?.name ?? titleCaseId(blocker.techId)];
+      case 'resource': return [titleCaseId(blocker.resource)];
+      case 'city-requirement': return [blocker.requirement === 'river' ? 'River city' : 'Coastal city'];
+      case 'lost-race': return ['Already completed elsewhere'];
+      case 'quest-incomplete': return [];
+    }
+  });
+  if (hasSameOwnerActiveBuild(state, civId, cityId, wonderId)) missing.push('Already under construction in another city');
   return missing;
 }
 

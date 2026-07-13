@@ -107,12 +107,12 @@ function getLastCompletedTechId(state: TechState): string | null {
   return state.completed.length > 0 ? state.completed[state.completed.length - 1] : null;
 }
 
-function collectPrerequisitePath(techId: string, path: Set<string>): void {
-  const tech = TECH_TREE.find(candidate => candidate.id === techId);
+function collectPrerequisitePath(techId: string, path: Set<string>, techs: readonly Tech[]): void {
+  const tech = techs.find(candidate => candidate.id === techId);
   if (!tech || path.has(tech.id)) return;
 
   for (const prereq of tech.prerequisites) {
-    path.add(prereq);
+    collectPrerequisitePath(prereq, path, techs);
   }
   path.add(tech.id);
 }
@@ -145,11 +145,12 @@ export function canMoveQueuedResearch(state: TechState, fromIndex: number, toInd
 
 export function buildTechProgressionView(
   state: TechState,
-  options: { sciencePerTurn?: number; zoom?: TechTreeZoom; initialFocusTechId?: string; selectedTechId?: string | null } = {},
+  options: { sciencePerTurn?: number; zoom?: TechTreeZoom; initialFocusTechId?: string; selectedTechId?: string | null; techs?: readonly Tech[] } = {},
 ): TechProgressionView {
+  const techs = options.techs ?? TECH_TREE;
   const completed = new Set(state.completed);
   const planned = buildPlannedCompletionSet(state);
-  const queueableIds = getQueueableResearchIds(state);
+  const queueableIds = getQueueableResearchIds(state, [...techs]);
   const zoom = options.zoom ?? 'focus';
   const focusTechId = options.initialFocusTechId
     ?? state.currentResearch
@@ -165,20 +166,20 @@ export function buildTechProgressionView(
     ...planned,
     ...queueableIds,
   ]);
-  const focusTech = focusTechId ? TECH_TREE.find(tech => tech.id === focusTechId) : undefined;
+  const focusTech = focusTechId ? techs.find(tech => tech.id === focusTechId) : undefined;
   const selectedTechId = options.selectedTechId ?? focusTechId;
   const selectedPathIds = new Set<string>();
   if (selectedTechId) {
-    collectPrerequisitePath(selectedTechId, selectedPathIds);
+    collectPrerequisitePath(selectedTechId, selectedPathIds, techs);
   }
 
   const currentPlayerEra = Math.max(
     1,
-    ...state.completed.map(id => TECH_TREE.find(t => t.id === id)?.era ?? 1),
-    state.currentResearch ? (TECH_TREE.find(t => t.id === state.currentResearch)?.era ?? 1) : 1,
+    ...state.completed.map(id => techs.find(t => t.id === id)?.era ?? 1),
+    state.currentResearch ? (techs.find(t => t.id === state.currentResearch)?.era ?? 1) : 1,
   );
 
-  for (const tech of TECH_TREE) {
+  for (const tech of techs) {
     const satisfiedPrerequisiteIds = tech.prerequisites.filter(prereq => planned.has(prereq));
     const missingPrerequisiteIds = tech.prerequisites.filter(prereq => !planned.has(prereq));
     const everyPrereqPlanned = missingPrerequisiteIds.length === 0;
@@ -254,7 +255,7 @@ export function buildTechProgressionView(
   }
 
   const edges: TechProgressionEdge[] = [];
-  for (const tech of TECH_TREE) {
+  for (const tech of techs) {
     for (const prereq of tech.prerequisites) {
       const prereqNode = nodesById.get(prereq);
       const targetNode = nodesById.get(tech.id);
@@ -278,7 +279,7 @@ export function buildTechProgressionView(
   }
 
   return {
-    tracks: getDerivedTechTracks(),
+    tracks: getDerivedTechTracks([...techs]),
     nodes,
     nodesById,
     edges,

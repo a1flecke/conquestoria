@@ -122,12 +122,13 @@ describe('council-panel', () => {
       }
     }
     const city = cityId ? state.cities[cityId] : undefined;
-    state.civilizations.player.techState.completed = ['philosophy', 'sacred-sites'];
+    state.civilizations.player.techState.completed = ['gathering', 'philosophy', 'sacred-sites'];
     if (city) {
       for (const coord of city.ownedTiles) {
         const key = `${coord.q},${coord.r}`;
         if (state.map.tiles[key]) {
           state.map.tiles[key].resource = 'stone';
+          state.map.tiles[key].improvement = 'quarry';
         }
       }
     }

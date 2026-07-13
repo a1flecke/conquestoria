@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   initializeLegendaryWonderProjectsForCity,
   getEligibleLegendaryWonders,
+  getLegendaryWonderEligibility,
   getLegendaryWonderCityYieldBonus,
   getLegendaryWonderCivYieldBonus,
   getLegendaryWonderProjectDefinition,
@@ -10,6 +11,7 @@ import {
   unlockLegendaryWonderProject,
   loseLegendaryWonderRace,
   startLegendaryWonderBuild,
+  scrapLegendaryWonderConstruction,
   tickLegendaryWonderProjects,
 } from '@/systems/legendary-wonder-system';
 import { EventBus } from '@/core/event-bus';
@@ -20,8 +22,48 @@ import {
   sanitizeLegendaryWonderIntel,
 } from '@/systems/legendary-wonder-intel';
 import { makeLegendaryWonderFixture } from './helpers/legendary-wonder-fixture';
+import { getLegendaryWonderDefinition } from '@/systems/legendary-wonder-definitions';
 
 describe('legendary-wonder-system', () => {
+  it('scraps invalid construction with a half-production gold refund and preserves the queue tail', () => {
+    const state = makeLegendaryWonderFixture({ oracleStepsCompleted: 2, resources: ['stone'] });
+    state.legendaryWonderProjects!['oracle-of-delphi'].phase = 'building';
+    state.cities['city-river'].productionQueue = ['legendary:oracle-of-delphi', 'granary'];
+    state.cities['city-river'].productionProgress = 9;
+
+    const result = scrapLegendaryWonderConstruction(state, 'oracle-of-delphi', 'required-resource-lost');
+
+    expect(result.civilizations.player.gold).toBe(state.civilizations.player.gold + 4);
+    expect(result.cities['city-river'].productionQueue).toEqual(['granary']);
+    expect(result.cities['city-river'].productionProgress).toBe(0);
+    expect(result.legendaryWonderProjects!['oracle-of-delphi']).toMatchObject({
+      phase: 'ready_to_build', investedProduction: 0, transferableProduction: 0,
+    });
+  });
+
+  it('separates civilization resource access from host-city geography in detailed eligibility', () => {
+    const state = makeLegendaryWonderFixture({ completedTechs: ['fishing', 'sacred-sites', 'bronze-working'] });
+    const definition = {
+      ...getLegendaryWonderDefinition('tidemother-colossus')!,
+      requiredResources: ['iron'],
+      questSteps: [],
+    };
+    state.marketplace = {
+      purchasedResources: [{ civId: 'player', resource: 'iron', expiresOnTurn: state.turn + 1 }],
+    } as never;
+
+    const inland = getLegendaryWonderEligibility(state, 'player', 'city-river', definition);
+    expect(inland.buildable).toBe(false);
+    expect(inland.blockers).toContainEqual({ kind: 'city-requirement', requirement: 'coastal' });
+    expect(inland.blockers).not.toContainEqual(expect.objectContaining({ kind: 'resource', resource: 'iron' }));
+
+    state.cities['city-river'].ownedTiles.push({ q: 2, r: 1 });
+    state.map.tiles['2,1'] = {
+      ...state.map.tiles['2,2'], coord: { q: 2, r: 1 }, terrain: 'coast',
+    };
+    expect(getLegendaryWonderEligibility(state, 'player', 'city-river', definition).buildable).toBe(true);
+  });
+
   it('preserves started rival wonder intel after the live project is no longer building', () => {
     const state = makeLegendaryWonderFixture();
     state.legendaryWonderIntel = {
@@ -826,10 +868,10 @@ describe('legendary-wonder-system', () => {
 
     expect(result.legendaryWonderProjects!['grand-canal'].phase).toBe('completed');
     expect(result.legendaryWonderProjects!['grand-canal-rival'].phase).toBe('lost_race');
-    expect(result.legendaryWonderProjects!['grand-canal-rival'].transferableProduction).toBe(22);
+    expect(result.legendaryWonderProjects!['grand-canal-rival'].transferableProduction).toBe(0);
     expect(result.cities['city-rival'].productionQueue).toEqual([]);
     expect(result.cities['city-rival'].productionProgress).toBe(0);
-    expect(result.civilizations.rival.gold).toBe(222);
+    expect(result.civilizations.rival.gold).toBe(245);
   });
 
   it('applies the winning wonder reward when construction completes', () => {
@@ -1190,17 +1232,17 @@ describe('legendary-wonder-system', () => {
 
     expect(rivalProject).toMatchObject({
       phase: 'lost_race',
-      investedProduction: 80,
-      transferableProduction: 20,
+      investedProduction: 0,
+      transferableProduction: 0,
     });
-    expect(result.civilizations.rival.gold).toBe(220);
+    expect(result.civilizations.rival.gold).toBe(240);
     expect(lostEvents).toEqual([
       {
         civId: 'rival',
         cityId: 'city-rival',
         wonderId: 'oracle-of-delphi',
-        goldRefund: 20,
-        transferableProduction: 20,
+        goldRefund: 40,
+        transferableProduction: 0,
       },
     ]);
   });

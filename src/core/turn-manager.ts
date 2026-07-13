@@ -98,6 +98,7 @@ import {
   getLegendaryWonderCityYieldBonus,
   getLegendaryWonderCivYieldBonus,
   initializeLegendaryWonderProjectsForAllCities,
+  reconcileLegendaryWonderAvailability,
   tickLegendaryWonderProjects,
 } from '@/systems/legendary-wonder-system';
 import { applyEconomyTurn, emitEconomyStrainIfNeeded } from '@/systems/economy-system';
@@ -152,6 +153,8 @@ export function processTurn(
       ),
     };
   }
+
+  newState = reconcileLegendaryWonderAvailability(newState, bus);
 
   // --- Process each civilization ---
   for (const [civId, civ] of Object.entries(newState.civilizations)) {

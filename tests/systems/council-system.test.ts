@@ -42,12 +42,13 @@ describe('council system', () => {
       }
     }
     const city = cityId ? state.cities[cityId] : undefined;
-    state.civilizations.player.techState.completed = ['philosophy', 'sacred-sites'];
+    state.civilizations.player.techState.completed = ['gathering', 'philosophy', 'sacred-sites'];
     if (city) {
       for (const coord of city.ownedTiles) {
         const key = `${coord.q},${coord.r}`;
         if (state.map.tiles[key]) {
           state.map.tiles[key].resource = 'stone';
+          state.map.tiles[key].improvement = 'quarry';
         }
       }
     }
@@ -71,12 +72,13 @@ describe('council system', () => {
       }
     }
     const city = cityId ? state.cities[cityId] : undefined;
-    state.civilizations.player.techState.completed = ['philosophy', 'sacred-sites'];
+    state.civilizations.player.techState.completed = ['gathering', 'philosophy', 'sacred-sites'];
     if (city) {
       for (const coord of city.ownedTiles) {
         const key = `${coord.q},${coord.r}`;
         if (state.map.tiles[key]) {
           state.map.tiles[key].resource = 'stone';
+          state.map.tiles[key].improvement = 'quarry';
         }
       }
     }
@@ -103,7 +105,7 @@ describe('council system', () => {
     if (!baseCity) {
       throw new Error('expected a player city for council wonder dedupe');
     }
-    state.civilizations.player.techState.completed = ['philosophy', 'sacred-sites', 'city-planning', 'printing'];
+    state.civilizations.player.techState.completed = ['gathering', 'philosophy', 'sacred-sites', 'city-planning', 'printing'];
     state.cities['city-b'] = {
       ...baseCity,
       id: 'city-b',
@@ -124,6 +126,7 @@ describe('council system', () => {
       coord: { q: 6, r: 7 },
       owner: 'player',
       resource: 'stone',
+      improvement: 'quarry',
       hasRiver: true,
     };
     state.civilizations.player.cities.push('city-b');
