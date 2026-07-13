@@ -6,6 +6,7 @@ import { resolveChallengeForCiv } from '@/core/opponent-challenge';
 import { canUnitAttackTarget } from './attack-targeting';
 import { applyCombatOutcomeToState } from './combat-reward-system';
 import { resolveCombat } from './combat-system';
+import { buildCombatContextForDefender } from './combat-context';
 import { applyCitySiegeOutcome, getCityCounterFireDamage, getCityGarrisonUnit, resolveCitySiegeDamage } from './city-siege-system';
 import type { PirateEconomyModifiers } from './economy-system';
 import { getWrappedHexNeighbors, hexDistance, hexKey, hexNeighbors, wrappedHexDistance } from './hex-utils';
@@ -196,7 +197,14 @@ function attackTarget(
     return { state, result: null, presentation: null, transportKill: null, events: [] };
   }
   const seed = Math.max(1, state.turn * 7919 + attacker.id.length * 97 + defender.id.length);
-  const result = resolveCombat(attacker, defender, state.map, seed, undefined, state.era);
+  const result = resolveCombat(
+    attacker,
+    defender,
+    state.map,
+    seed,
+    buildCombatContextForDefender(state, attacker, defender),
+    state.era,
+  );
   const applied = applyCombatOutcomeToState(state, result, seed);
   let appliedState = applied.state;
   if (bus && applied.attackerDefeated && attacker.committedToRouteId) {

@@ -16,6 +16,7 @@ import {
   unloadUnitFromTransport,
 } from '@/systems/transport-system';
 import { resolveCombat } from '@/systems/combat-system';
+import { buildCombatContextForDefender } from '@/systems/combat-context';
 import { applyCombatOutcomeToState } from '@/systems/combat-reward-system';
 import { buildUnitOccupancy } from '@/systems/unit-occupancy';
 import { getAvailableTechs, startResearch } from '@/systems/tech-system';
@@ -391,7 +392,14 @@ export function applyPirateAiResponse(state: GameState, civId: string, bus: Even
       .sort((left, right) => left.id.localeCompare(right.id))[0];
     if (adjacentPirate) {
       const seed = Math.max(1, nextState.turn * 16807 + warship.id.length * 97 + adjacentPirate.id.length);
-      const combat = resolveCombat(warship, adjacentPirate, nextState.map, seed, undefined, nextState.era);
+      const combat = resolveCombat(
+        warship,
+        adjacentPirate,
+        nextState.map,
+        seed,
+        buildCombatContextForDefender(nextState, warship, adjacentPirate),
+        nextState.era,
+      );
       const combatPresentation = buildCombatPresentation(nextState, combat, warship, adjacentPirate);
       const applied = applyCombatOutcomeToState(nextState, combat, seed);
       nextState = applied.state;

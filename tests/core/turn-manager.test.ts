@@ -15,6 +15,8 @@ import { makeBreakawayFixture } from '../systems/helpers/breakaway-fixture';
 import { makeAutoExploreFixture } from '../systems/helpers/auto-explore-fixture';
 import { makeLegendaryWonderFixture } from '../systems/helpers/legendary-wonder-fixture';
 import { createUnit } from '@/systems/unit-system';
+import { resolveCombat } from '@/systems/combat-system';
+import { buildCombatContextForDefender } from '@/systems/combat-context';
 import { createTechState } from '@/systems/tech-system';
 import { processIndependentThreatPressureForHumans } from '@/systems/threat-pressure-system';
 
@@ -1196,6 +1198,51 @@ describe('processTurn', () => {
     processTurn(state, bus);
 
     expect(onCounterFire).not.toHaveBeenCalled();
+  });
+
+  it('applies the same city-defense context to a barbarian attack as the player attack path (#519)', () => {
+    const state = createNewGame(undefined, 'barbarian-combat-context', 'small');
+    flattenMapToPlains(state);
+    state.turn = 30;
+    state.era = 3;
+    state.barbarianCamps = {
+      'camp-a': { id: 'camp-a', position: { q: 5, r: 5 }, strength: 6, spawnCooldown: 4 },
+    };
+    const raider = createUnit('warrior', 'barbarian', { q: 11, r: 5 }, state.idCounters);
+    raider.id = 'raider';
+    const garrison = createUnit('warrior', 'player', { q: 12, r: 5 }, state.idCounters);
+    garrison.id = 'garrison';
+    state.units = { raider, garrison };
+    state.cities = {
+      town: {
+        id: 'town', owner: 'player', position: { q: 12, r: 5 }, hp: 50,
+        buildings: ['walls', 'star_fort'], population: 20, ownedTiles: [], productionQueue: [],
+      } as never,
+    };
+    state.civilizations.player.cities = ['town'];
+    state.civilizations.player.units = ['garrison'];
+    state.civilizations.player.techState.completed = ['fortification-engineering'];
+    state.opponentAI = undefined;
+
+    const combatSeed = (state.turn * 31337 + 1) ^ raider.id.charCodeAt(0);
+    const expectedWithContext = resolveCombat(
+      raider,
+      garrison,
+      state.map,
+      combatSeed,
+      buildCombatContextForDefender(state, raider, garrison),
+      state.era,
+    );
+    const expectedWithoutContext = resolveCombat(raider, garrison, state.map, combatSeed, undefined, state.era);
+    expect(expectedWithContext).not.toEqual(expectedWithoutContext);
+
+    const bus = new EventBus();
+    const combatResults: ReturnType<typeof resolveCombat>[] = [];
+    bus.on('combat:resolved', event => combatResults.push(event.result));
+
+    processTurn(state, bus);
+
+    expect(combatResults).toContainEqual(expectedWithContext);
   });
 });
 
