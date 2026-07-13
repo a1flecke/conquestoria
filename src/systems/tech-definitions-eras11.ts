@@ -87,10 +87,14 @@ const ERA_11_TECHS: Tech[] = [
     prerequisites: ['carrier-warfare', 'nuclear-power'],
     unlocks: ['Nuclear reactors allow indefinite underwater range; submarine-launched ballistic missiles extend strategic deterrence beneath the seas'],
     unlocksUnits: ['missile_submarine'], era: 11 },
-  { id: 'container-shipping', name: 'Container Shipping', track: 'maritime', cost: 705,
+  // Trade Routes Overhaul (#553): cost raised 705 -> 2385 for the same unlocksUnits/
+  // 'marquee'-band pacing reason as colonial-trade/steam-navigation (see
+  // tech-definitions-eras5-7.ts) — at 705 this resolved in 5 turns against era 11's
+  // 10-16 turn marquee window; 2385 lands at the midpoint.
+  { id: 'container-shipping', name: 'Container Shipping', track: 'maritime', cost: 2385,
     prerequisites: ['amphibious-assault', 'highway-network'],
     unlocks: ['Standardised steel containers slash global freight costs; intermodal networks connect factory floors to markets worldwide'],
-    unlocksBuildings: ['container_port'], era: 11 },
+    unlocksBuildings: ['container_port'], unlocksUnits: ['container_ship'], era: 11 },
 
   // METALLURGY (2)
   { id: 'carbon-fiber', name: 'Carbon Fibre', track: 'metallurgy', cost: 1190,

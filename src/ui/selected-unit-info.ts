@@ -22,6 +22,7 @@ import { getRoadBlockerReason, formatRoadBlockerReason } from '@/systems/road-sy
 import { hexKey } from '@/systems/hex-utils';
 import { canFoundCityAt, formatCityFoundingBlockerMessage, getCityFoundingBlockers } from '@/systems/city-territory-system';
 import { resolveFromCity } from '@/systems/trade-system';
+import { hasAITradeRole } from '@/ai/ai-unit-roles';
 import { canEstablishOutpost, getCivAvailableResources } from '@/systems/resource-acquisition-system';
 import { getTransportCargo, getTransportCapacity, getTransportCargoUsed } from '@/systems/transport-system';
 import { calculateCivUnitMaintenance } from '@/systems/economy-system';
@@ -436,8 +437,8 @@ export function renderSelectedUnitInfo(
     }
   }
 
-  // Caravan-specific actions
-  if (unit.type === 'caravan' && unit.owner === state.currentPlayer) {
+  // Trade-unit actions (caravan + Trade Routes Overhaul (#553 MR1/4) Naval Trader line)
+  if (hasAITradeRole(unit.type) && unit.owner === state.currentPlayer) {
     if (unit.committedToRouteId) {
       const statusEl = document.createElement('div');
       statusEl.style.cssText = 'font-size:12px;opacity:0.7;padding:8px 0;';

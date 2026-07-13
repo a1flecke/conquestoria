@@ -3,6 +3,7 @@ import {
   getMovementRange,
   moveUnit,
   findPath,
+  findPathToCity,
   resetUnitTurn,
   UNIT_DEFINITIONS,
   getUnmovedUnits,
@@ -607,5 +608,56 @@ describe('Expedition terrain movement (terrainCostOverrides)', () => {
     const def = UNIT_DEFINITIONS['warrior'];
     const cost = getMovementCostForUnit('hills', 'land', def.terrainCostOverrides);
     expect(cost).toBe(2);
+  });
+});
+
+describe('findPathToCity (#553 MR1/4 — Trade Routes Overhaul)', () => {
+  // Real cities are never founded on ocean/coast terrain (see map-generator.ts's
+  // start-terrain filter) — they sit on land tiles merely adjacent to water. Plain
+  // findPath(..., 'naval') can never reach a city's own land tile; findPathToCity must
+  // dock at an adjacent ocean/coast neighbor and treat the city as one final step.
+  function makeCoastalMap(): GameMap {
+    const map = createWrappedGrasslandMap(5, 5);
+    map.wrapsHorizontally = false;
+    for (let r = 0; r < 5; r++) {
+      map.tiles[hexKey({ q: 1, r })] = { ...map.tiles[hexKey({ q: 1, r })]!, terrain: 'ocean' };
+    }
+    return map;
+  }
+
+  it('land domain behaves exactly like findPath (delegates when direct path exists)', () => {
+    const map = createWrappedGrasslandMap(5, 5);
+    const via = findPathToCity({ q: 0, r: 0 }, { q: 2, r: 0 }, map, 'land');
+    const direct = findPath({ q: 0, r: 0 }, { q: 2, r: 0 }, map, 'land');
+    expect(via).toEqual(direct);
+  });
+
+  it('naval domain returns null when the destination city is not coastal (no adjacent water)', () => {
+    const map = createWrappedGrasslandMap(5, 5); // no ocean anywhere
+    const path = findPathToCity({ q: 0, r: 0 }, { q: 2, r: 0 }, map, 'naval');
+    expect(path).toBeNull();
+  });
+
+  it('naval domain reaches a coastal city by docking at its nearest ocean/coast neighbor', () => {
+    const map = makeCoastalMap();
+    const path = findPathToCity({ q: 0, r: 0 }, { q: 2, r: 0 }, map, 'naval');
+    expect(path).not.toBeNull();
+    // Final step must be the city's own tile, even though that tile is grassland.
+    expect(path![path!.length - 1]).toEqual({ q: 2, r: 0 });
+  });
+
+  it('naval domain still works when the destination city tile is itself coast/ocean (direct path short-circuit)', () => {
+    const map = makeCoastalMap();
+    map.tiles[hexKey({ q: 2, r: 0 })] = { ...map.tiles[hexKey({ q: 2, r: 0 })]!, terrain: 'coast' };
+    const path = findPathToCity({ q: 0, r: 0 }, { q: 2, r: 0 }, map, 'naval');
+    expect(path).not.toBeNull();
+    expect(path![path!.length - 1]).toEqual({ q: 2, r: 0 });
+  });
+
+  it('air domain behaves exactly like findPath (delegates unconditionally)', () => {
+    const map = createWrappedGrasslandMap(5, 5);
+    const via = findPathToCity({ q: 0, r: 0 }, { q: 4, r: 4 }, map, 'air');
+    const direct = findPath({ q: 0, r: 0 }, { q: 4, r: 4 }, map, 'air');
+    expect(via).toEqual(direct);
   });
 });

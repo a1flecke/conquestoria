@@ -1,6 +1,6 @@
-import type { MarketplaceState, TradeRoute, GameState, Unit, City } from '@/core/types';
+import type { MarketplaceState, TradeRoute, GameState, Unit, City, UnitType } from '@/core/types';
 import { EventBus } from '@/core/event-bus';
-import { findPath } from '@/systems/unit-system';
+import { findPathToCity, UNIT_DEFINITIONS } from '@/systems/unit-system';
 import { hexDistance, wrappedHexDistance } from '@/systems/hex-utils';
 import { isAtWar, getRelationship } from '@/systems/diplomacy-system';
 import { isMinorCivAtWar } from './minor-civ-diplomacy';
@@ -194,12 +194,13 @@ function getRouteDiplomacy(state: GameState, ownerCivId: string, foreignCivId: s
 export function resolveFromCity(state: GameState, caravanUnit: Unit): City | null {
   const ownedCities = Object.values(state.cities)
     .filter(c => c.owner === caravanUnit.owner);
+  const domain = UNIT_DEFINITIONS[caravanUnit.type]?.domain ?? 'land';
 
   const candidates: Array<{ city: City; pathLen: number; remaining: number }> = [];
   for (const city of ownedCities) {
     const remaining = getRouteCapacity(state, city.id) - routesFromCity(state, city.id);
     if (remaining <= 0) continue;
-    const path = findPath(caravanUnit.position, city.position, state.map, 'land');
+    const path = findPathToCity(caravanUnit.position, city.position, state.map, domain);
     if (!path) continue;
     candidates.push({ city, pathLen: path.length, remaining });
   }
@@ -217,21 +218,32 @@ export function resolveFromCity(state: GameState, caravanUnit: Unit): City | nul
 
 // --- S5: trip bonus ---
 
-export function getCaravanTripBonus(
+// Trade Routes Overhaul (#553 MR1/4): per-unit-tier trip bonus, shared by all trade
+// lines (land/naval/air). Capped at +3 total regardless of line length — see
+// game-balance.md's "Trip bonus source inventory" table for the full stacking analysis.
+const TRADE_UNIT_TIER_BONUS: Partial<Record<UnitType, number>> = {
+  naval_trader: 0, steamship_trader: 1, cargo_freighter: 2, container_ship: 3,
+  // (merchant_wagon/freight_convoy/air_* tier bonuses added in MR2/MR3)
+};
+
+export function getTradeUnitTripBonus(
   state: GameState,
   fromCityId: string,
   toCityId: string,
   caravanOwner: string,
+  caravanType?: UnitType,
 ): number {
   const fromCity = state.cities[fromCityId];
   const toCity   = state.cities[toCityId];
   // Silk Road wonder doesn't exist yet — always 0 until added
   const hasSilkRoad =
     state.completedLegendaryWonders?.['silk-road']?.ownerId === caravanOwner;
+  const tierBonus = caravanType ? (TRADE_UNIT_TIER_BONUS[caravanType] ?? 0) : 0;
   return (
     (fromCity?.buildings.includes('caravanserai') ? 2 : 0) +
     (toCity?.buildings.includes('caravanserai')   ? 2 : 0) +
-    (hasSilkRoad ? 3 : 0)
+    (hasSilkRoad ? 3 : 0) +
+    Math.min(3, tierBonus)
   );
 }
 
@@ -254,9 +266,17 @@ export function canEstablishRoute(
   if (!fromCity) return { ok: false, reason: 'No city with available route capacity' };
   // 4. Self-route blocked
   if (toCity.id === fromCity.id) return { ok: false, reason: 'Cannot route a city to itself' };
-  // 5. Land path must exist FROM→TO
-  const path = findPath(fromCity.position, toCity.position, state.map, 'land');
-  if (!path) return { ok: false, reason: 'Requires a Naval Trader to cross water' };
+  // 5. A path must exist FROM→TO in the trade unit's own movement domain
+  const domain = UNIT_DEFINITIONS[caravanUnit.type]?.domain ?? 'land';
+  const path = findPathToCity(fromCity.position, toCity.position, state.map, domain);
+  if (!path) {
+    return {
+      ok: false,
+      reason: domain === 'land'
+        ? 'Requires a Naval Trader to cross water'
+        : 'No route exists between these cities',
+    };
+  }
   // 6. Foreign city checks
   if (toCity.owner !== caravanUnit.owner) {
     const ownerCiv = state.civilizations[caravanUnit.owner];
@@ -315,7 +335,7 @@ export function establishRoute(
   // resourceDiversity passed by caller (avoids circular import with resource-acquisition-system)
   const goldPerTrip = calculateTradeRouteGold(hexDist, resourceDiversity) * turnsPerTrip;
 
-  const tripBonus = getCaravanTripBonus(newState, fromCity.id, toCityId, caravanUnit.owner);
+  const tripBonus = getTradeUnitTripBonus(newState, fromCity.id, toCityId, caravanUnit.owner, caravanUnit.type);
   const tripsRemaining = 8 + tripBonus;
 
   const foreignCivId = toCity.owner !== caravanUnit.owner ? toCity.owner : undefined;

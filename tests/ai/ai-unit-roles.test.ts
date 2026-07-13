@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getAIStrategicRoles } from '@/ai/ai-unit-roles';
+import { getAIStrategicRoles, hasAITradeRole } from '@/ai/ai-unit-roles';
 import type { UnitType } from '@/core/types';
 import { TRAINABLE_UNITS } from '@/systems/city-system';
 import { isSpyUnitType } from '@/systems/espionage-system';
@@ -69,5 +69,20 @@ describe('AI strategic unit roles', () => {
       'mobile',
       'capture',
     ]);
+  });
+
+  it('#553 MR1/4 — classifies the Naval Trader line as trade, not naval-combat (strength-0 naval units without the override would otherwise fall into naval-combat)', () => {
+    for (const type of ['naval_trader', 'steamship_trader', 'cargo_freighter', 'container_ship'] satisfies UnitType[]) {
+      expect(getAIStrategicRoles(type), type).toEqual(['trade']);
+      expect(hasAITradeRole(type), type).toBe(true);
+    }
+  });
+
+  it('hasAITradeRole: true for caravan and the naval trade line, false for combat/civilian units', () => {
+    expect(hasAITradeRole('caravan')).toBe(true);
+    expect(hasAITradeRole('naval_trader')).toBe(true);
+    expect(hasAITradeRole('warrior')).toBe(false);
+    expect(hasAITradeRole('settler')).toBe(false);
+    expect(hasAITradeRole('galley')).toBe(false);
   });
 });

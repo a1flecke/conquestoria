@@ -375,6 +375,33 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     canBuildImprovements: false, productionCost: 60,
     domain: 'land',
   },
+  // Trade Routes Overhaul (#553 MR1/4) — Naval Trader line. movementPoints 3 matches
+  // the existing civilian-ship convention (transport/carrack/galleon/steamship/
+  // troop_transport are all flat 3), not the escalating combat-naval line.
+  naval_trader: {
+    type: 'naval_trader', name: 'Naval Trader', movementPoints: 3,
+    visionRange: 2, strength: 0, canFoundCity: false,
+    canBuildImprovements: false, productionCost: 75,
+    domain: 'naval',
+  },
+  steamship_trader: {
+    type: 'steamship_trader', name: 'Steamship Trader', movementPoints: 3,
+    visionRange: 2, strength: 0, canFoundCity: false,
+    canBuildImprovements: false, productionCost: 120,
+    domain: 'naval',
+  },
+  cargo_freighter: {
+    type: 'cargo_freighter', name: 'Cargo Freighter', movementPoints: 3,
+    visionRange: 2, strength: 0, canFoundCity: false,
+    canBuildImprovements: false, productionCost: 170,
+    domain: 'naval',
+  },
+  container_ship: {
+    type: 'container_ship', name: 'Container Ship', movementPoints: 3,
+    visionRange: 2, strength: 0, canFoundCity: false,
+    canBuildImprovements: false, productionCost: 260,
+    domain: 'naval',
+  },
   // Resource Accessibility MR 2b — exploration unit
   expedition: {
     type: 'expedition', name: 'Expedition', movementPoints: 3,
@@ -608,6 +635,18 @@ export const UNIT_DESCRIPTIONS: Record<UnitType, string> = {
   caravan:     'Trade unit. Establish a trade route to generate gold each turn. '
              + 'Once committed, cannot move or act until the route ends (8 round trips base). '
              + 'Cannot attack. Raidable by enemy units in transit.',
+  naval_trader:     'Naval trade unit. Establish a trade route across water to generate gold '
+                   + 'each turn. Cannot attack. Upgrades into the Steamship Trader once Steam '
+                   + 'Navigation is researched. Requires a coastal city to build.',
+  steamship_trader: 'Naval trade unit. Establish a trade route across water to generate gold '
+                   + 'each turn. Cannot attack. Upgrades from the Naval Trader; upgrades into '
+                   + 'the Cargo Freighter once Convoy System is researched. Requires a coastal city.',
+  cargo_freighter:  'Naval trade unit. Establish a trade route across water to generate gold '
+                   + 'each turn. Cannot attack. Upgrades from the Steamship Trader; upgrades into '
+                   + 'the Container Ship once Container Shipping is researched. Requires a coastal city.',
+  container_ship:   'Naval trade unit. Establish a trade route across water to generate gold '
+                   + 'each turn. Cannot attack. Upgrades from the Cargo Freighter — current top '
+                   + 'tier of the naval trade line. Requires a coastal city.',
   // Resource Accessibility MR 2b
   expedition:  'Civilian explorer. Crosses hills and mountains at full speed. '
              + 'When standing on a resource tile (outside city territory), use '
@@ -1000,4 +1039,37 @@ export function findPath(
   }
 
   return null;
+}
+
+/**
+ * Trade Routes Overhaul (#553 MR1/4). Cities are never founded on ocean/coast terrain
+ * (see map-generator.ts's start-terrain filter) — they sit on land tiles that are merely
+ * *adjacent* to water, matching `isCityCoastal`'s neighbor check in city-system.ts. Plain
+ * `findPath(..., 'naval')` requires the destination tile itself to be ocean/coast, so it
+ * can never reach a real coastal city's own tile. This wraps `findPath` so naval-domain
+ * callers path to the nearest ocean/coast neighbor of the city (docking) and then treat
+ * the city tile as one final step, while land/air callers behave exactly like `findPath`.
+ */
+export function findPathToCity(
+  from: HexCoord,
+  cityPosition: HexCoord,
+  map: GameMap,
+  domain: 'land' | 'naval' | 'air' = 'land',
+): HexCoord[] | null {
+  const direct = findPath(from, cityPosition, map, domain);
+  if (direct) return direct;
+  if (domain !== 'naval') return null;
+
+  const neighbors = map.wrapsHorizontally
+    ? getWrappedHexNeighbors(cityPosition, map.width)
+    : hexNeighbors(cityPosition);
+
+  let best: HexCoord[] | null = null;
+  for (const neighbor of neighbors) {
+    const tile = map.tiles[hexKey(neighbor)];
+    if (!tile || (tile.terrain !== 'ocean' && tile.terrain !== 'coast')) continue;
+    const path = findPath(from, neighbor, map, 'naval');
+    if (path && (!best || path.length < best.length)) best = path;
+  }
+  return best ? [...best, cityPosition] : null;
 }

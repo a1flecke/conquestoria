@@ -93,7 +93,7 @@ const ERA_9_TECHS: Tech[] = [
     unlocksUnits: ['submarine'], era: 9 },
   { id: 'convoy-system', name: 'Convoy System', track: 'maritime', cost: 270,
     prerequisites: ['torpedo-warfare', 'transcontinental-rail'],
-    unlocks: ['+2 gold per trade route empire-wide; coordinated convoy escorts protect commerce'], era: 9 },
+    unlocks: ['+2 gold per trade route empire-wide; coordinated convoy escorts protect commerce'], unlocksUnits: ['cargo_freighter'], era: 9 },
 
   // METALLURGY (2)
   { id: 'aluminium-smelting', name: 'Aluminium Smelting', track: 'metallurgy', cost: 190,

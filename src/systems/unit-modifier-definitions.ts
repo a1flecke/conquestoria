@@ -59,6 +59,11 @@ export const UNIT_CLASS_BY_TYPE: Record<UnitType, UnitClass[]> = {
   galleon: ['naval', 'civilian'],
   steamship: ['naval', 'civilian'],
   troop_transport: ['naval', 'civilian'],
+  // Trade Routes Overhaul (#553 MR1/4) — Naval Trader line
+  naval_trader: ['naval', 'civilian'],
+  steamship_trader: ['naval', 'civilian'],
+  cargo_freighter: ['naval', 'civilian'],
+  container_ship: ['naval', 'civilian'],
   pirate_galley: ['naval', 'melee'],
   pirate_corsair: ['naval', 'melee'],
   pirate_frigate: ['naval', 'ranged'],

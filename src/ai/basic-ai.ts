@@ -92,7 +92,7 @@ import {
   type PreparedMajorCivPlan,
 } from './ai-prepared-turn';
 import { isAIHostileOwner } from './ai-hostility';
-import { hasAICombatRole } from './ai-unit-roles';
+import { hasAICombatRole, hasAITradeRole } from './ai-unit-roles';
 import { applyAIProduction } from './ai-production';
 import { applyAIResearch } from './ai-research';
 import { processAIResourceMarketplace } from './ai-resource-marketplace';
@@ -683,10 +683,11 @@ function processAITurnInternal(
   }
   civ = newState.civilizations[civId];
 
-  // --- Handle caravan route establishment ---
+  // --- Handle trade-unit route establishment (all trade-role types: caravan +
+  // Trade Routes Overhaul (#553 MR1/4) Naval Trader line) ---
   const idleCaravans = (civ.units ?? [])
     .map(id => newState.units[id])
-    .filter((u): u is Unit => !!u && u.type === 'caravan' && !u.committedToRouteId);
+    .filter((u): u is Unit => !!u && hasAITradeRole(u.type) && !u.committedToRouteId);
 
   for (const caravan of idleCaravans) {
     // Try domestic cities first (own city), then foreign

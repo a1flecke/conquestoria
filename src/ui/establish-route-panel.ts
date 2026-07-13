@@ -2,11 +2,12 @@ import type { City, GameState } from '@/core/types';
 import {
   resolveFromCity,
   canEstablishRoute,
-  getCaravanTripBonus,
+  getTradeUnitTripBonus,
   calculateTradeRouteGold,
 } from '@/systems/trade-system';
 import { hexDistance, wrappedHexDistance } from '@/systems/hex-utils';
 import { createGameButton } from '@/ui/ui-kit';
+import { UNIT_DEFINITIONS } from '@/systems/unit-system';
 
 export function openEstablishRoutePanel(
   container: HTMLElement,
@@ -31,7 +32,8 @@ export function openEstablishRoutePanel(
   header.style.cssText = 'display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;';
   const title = document.createElement('h3');
   title.style.cssText = 'font-size:15px;color:#e8c170;margin:0;';
-  title.textContent = `Trade Routes from ${fromCity.name} (Caravan)`;
+  const unitDisplayName = UNIT_DEFINITIONS[unit.type]?.name ?? unit.type;
+  title.textContent = `Trade Routes from ${fromCity.name} (${unitDisplayName})`;
   const closeBtn = createGameButton('✕', 'ghost');
   closeBtn.addEventListener('click', () => panel.remove());
   header.appendChild(title);
@@ -53,7 +55,7 @@ export function openEstablishRoutePanel(
       ? wrappedHexDistance(fromCity!.position, city.position, state.map.width)
       : hexDistance(fromCity!.position, city.position);
     const effectiveGold = Math.max(1, Math.round(calculateTradeRouteGold(hexDist, 0)));
-    const tripBonus = check.ok ? getCaravanTripBonus(state, fromCity!.id, city.id, unit!.owner) : 0;
+    const tripBonus = check.ok ? getTradeUnitTripBonus(state, fromCity!.id, city.id, unit!.owner, unit!.type) : 0;
     const trips = 8 + tripBonus;
 
     const row = document.createElement('div');

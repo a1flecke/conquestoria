@@ -23,9 +23,14 @@ const ERA_5_TECHS: Tech[] = [
   { id: 'guilds', name: 'Guilds', track: 'economy', cost: 125,
     prerequisites: ['banking', 'currency'],
     unlocks: ['+1 gold per active trade route'], unlocksBuildings: ['guildhall'], era: 5 },
-  { id: 'colonial-trade', name: 'Colonial Trade', track: 'economy', cost: 100,
+  // Trade Routes Overhaul (#553): cost raised 100 -> 185 because adding unlocksUnits
+  // forces this tech's pacing band to 'marquee' (resolveEraRelativeCostBand in
+  // pacing-model.ts), which raises its target research window to 10-16 turns; at cost
+  // 100 it resolved in 8 turns, tripping the pacing-audit outlier gate. 185 lands at the
+  // window midpoint. See game-balance.md's Pacing Regression Prevention rule.
+  { id: 'colonial-trade', name: 'Colonial Trade', track: 'economy', cost: 185,
     prerequisites: ['trade-routes', 'banking'],
-    unlocks: ['Trade routes to foreign civs yield +2 gold'], era: 5 },
+    unlocks: ['Trade routes to foreign civs yield +2 gold'], unlocksUnits: ['naval_trader'], era: 5 },
 
   // SCIENCE (2)
   { id: 'scientific-method', name: 'Scientific Method', track: 'science', cost: 155,
@@ -338,9 +343,17 @@ const ERA_7_TECHS: Tech[] = [
   { id: 'ironclad-warships', name: 'Ironclad Warships', track: 'maritime', cost: 210,
     prerequisites: ['frigate-construction', 'steel-plate-armor'],
     unlocks: ['Ironclad replaces frigate — armored steam-powered warship'], unlocksUnits: ['ironclad'], era: 7 },
-  { id: 'steam-navigation', name: 'Steam Navigation', track: 'maritime', cost: 145,
+  // Trade Routes Overhaul (#553): "Naval trade routes yield +2 gold" is a pre-existing
+  // unlock string with no matching TECH_YIELD_MODIFIERS entry — flagged in the design
+  // spec's root-cause analysis and explicitly left alone per the spec's Non-goals
+  // ("no changes to the trade income formula"). MR1 only makes naval trade routes
+  // establishable; the gold-formula honesty gap is a separate, out-of-scope issue.
+  // Cost also raised 145 -> 265 for the same unlocksUnits/'marquee'-band pacing reason
+  // as colonial-trade above (8 turns -> pacing-audit outlier; 265 lands at the 10-16
+  // turn window midpoint for era 7).
+  { id: 'steam-navigation', name: 'Steam Navigation', track: 'maritime', cost: 265,
     prerequisites: ['trade-winds', 'joint-stock-companies'],
-    unlocks: ['Naval trade routes yield +2 gold; coastal cities gain +1 production from harbours'], era: 7 },
+    unlocks: ['Naval trade routes yield +2 gold; coastal cities gain +1 production from harbours'], unlocksUnits: ['steamship_trader'], era: 7 },
 
   // METALLURGY (2)
   { id: 'steel-production', name: 'Steel Production', track: 'metallurgy', cost: 130,
