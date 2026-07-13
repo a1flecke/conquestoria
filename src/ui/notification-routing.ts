@@ -5,7 +5,7 @@ import { UNIT_DEFINITIONS } from '@/systems/unit-system';
 import { REVOLT_UNREST_TURNS, BREAKAWAY_REVOLT_TURNS, CONCESSION_IMMUNITY_TURNS, getCityAppeaseCost } from '@/systems/faction-system';
 import { getLegendaryWonderNotification } from '@/ui/legendary-wonder-notifications';
 import { describeDroppedProductionItem } from '@/systems/city-system';
-import type { NotificationEntry } from '@/core/notification-log';
+import type { NotificationCityAction, NotificationEntry } from '@/core/notification-log';
 import { presentStrategicWarning } from '@/ui/strategic-warning-presentation';
 import { getCrisisFlavor, getCrisisDisplayName } from '@/systems/crisis-flavor-definitions';
 
@@ -14,6 +14,7 @@ export type NotificationSink = (
   message: string,
   type: NotificationEntry['type'],
   target?: NotificationEntry['target'],
+  cityActions?: NotificationCityAction[],
 ) => void;
 
 type FactionTransitionEvent =
@@ -335,7 +336,8 @@ type LegendaryWonderRoutingEvent =
   | { type: 'wonder:legendary-ready'; civId: string; cityId: string; wonderId: string }
   | { type: 'wonder:legendary-completed'; civId: string; cityId: string; wonderId: string; turnCompleted: number }
   | { type: 'wonder:legendary-lost'; civId: string; cityId: string; wonderId: string; goldRefund: number; transferableProduction: number }
-  | { type: 'wonder:legendary-race-revealed'; observerId: string; civId: string; cityId: string; wonderId: string };
+  | { type: 'wonder:legendary-race-revealed'; observerId: string; civId: string; cityId: string; wonderId: string }
+  | { type: 'wonder:legendary-availability'; recipientCivId: string; wonderId: string; status: GameEvents['wonder:legendary-availability']['status']; cityActions: GameEvents['wonder:legendary-availability']['cityActions'] };
 
 // Routes legendary-wonder events. `legendary-completed` fans out across all civs
 // (class-2 global event; the helper redacts the builder's name for civs that have
@@ -346,6 +348,14 @@ export function routeLegendaryWonder(
   event: LegendaryWonderRoutingEvent,
   sink: NotificationSink,
 ): void {
+  if (event.type === 'wonder:legendary-availability') {
+    const wonderName = getLegendaryWonderNotificationName(event.wonderId);
+    const message = event.status === 'buildable'
+      ? `${wonderName} is ready to build.`
+      : `${wonderName} is now ${event.status.replace(/_/g, ' ')}.`;
+    sink(event.recipientCivId, message, event.status === 'buildable' ? 'info' : 'warning', undefined, event.cityActions);
+    return;
+  }
   if (event.type === 'wonder:legendary-completed') {
     for (const civId of Object.keys(state.civilizations)) {
       const notification = getLegendaryWonderNotification(state, civId, event);
@@ -356,6 +366,10 @@ export function routeLegendaryWonder(
   const target = event.type === 'wonder:legendary-race-revealed' ? event.observerId : event.civId;
   const notification = getLegendaryWonderNotification(state, target, event);
   if (notification) sink(target, notification.message, notification.type);
+}
+
+function getLegendaryWonderNotificationName(wonderId: string): string {
+  return wonderId.split('-').map(word => word[0].toUpperCase() + word.slice(1)).join(' ');
 }
 
 // Routes a barbarian spawn to every civ whose visibility covers the spawn tile

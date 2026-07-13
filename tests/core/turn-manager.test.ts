@@ -831,7 +831,7 @@ describe('processTurn', () => {
   });
 
   it('completes a legendary wonder and clears the city queue once enough production is invested', () => {
-    const state = makeLegendaryWonderFixture({ oracleStepsCompleted: 2 });
+    const state = makeLegendaryWonderFixture({ oracleStepsCompleted: 2, resources: ['stone'] });
     const bus = new EventBus();
     const oracle = getLegendaryWonderDefinition('oracle-of-delphi');
 
@@ -847,7 +847,7 @@ describe('processTurn', () => {
   });
 
   it('emits a legendary-completed event when a wonder finishes during turn processing', () => {
-    const state = makeLegendaryWonderFixture({ oracleStepsCompleted: 2 });
+    const state = makeLegendaryWonderFixture({ oracleStepsCompleted: 2, resources: ['stone'] });
     const bus = new EventBus();
     const completedEvents: Array<{ civId: string; cityId: string; wonderId: string; turnCompleted: number }> = [];
     const oracle = getLegendaryWonderDefinition('oracle-of-delphi');
@@ -865,7 +865,7 @@ describe('processTurn', () => {
   });
 
   it('persists completed legendary wonder ownership through turn processing', () => {
-    const state = makeLegendaryWonderFixture({ oracleStepsCompleted: 2 });
+    const state = makeLegendaryWonderFixture({ oracleStepsCompleted: 2, resources: ['stone'] });
     const bus = new EventBus();
     const oracle = getLegendaryWonderDefinition('oracle-of-delphi');
 

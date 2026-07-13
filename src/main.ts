@@ -164,8 +164,10 @@ import { buildCombatPresentation } from '@/systems/viewer-event-presentation';
 import { handleFriendlyUnitStackTap } from '@/input/unit-stack-selection';
 import {
   initializeLegendaryWonderProjectsForCity,
+  getLegendaryWonderEligibility,
   startLegendaryWonderBuild,
 } from '@/systems/legendary-wonder-system';
+import { getLegendaryWonderDefinition } from '@/systems/legendary-wonder-definitions';
 import {
   embedSpy,
   unembedSpy,
@@ -208,6 +210,7 @@ import type { CombatResult, GameState, HexCoord, ImprovementType, Unit, UnitType
 import {
   appendNotification,
   getNotificationsForPlayer,
+  type NotificationCityAction,
   type NotificationEntry,
 } from '@/core/notification-log';
 import {
@@ -896,6 +899,17 @@ function toggleNotificationLog(): void {
       panel.remove();
       const city = gameState?.cities[cityId];
       if (city) openCityPanelForCity(city);
+    },
+    onOpenWonderCity: action => {
+      const city = gameState?.cities[action.cityId];
+      const definition = getLegendaryWonderDefinition(action.wonderId);
+      if (!city || !definition || city.owner !== gameState.currentPlayer
+        || !getLegendaryWonderEligibility(gameState, gameState.currentPlayer, city.id, definition).buildable) {
+        showNotification('That wonder is no longer available in this city.', 'warning');
+        return;
+      }
+      panel.remove();
+      openWonderPanelForCityId(city.id);
     },
     onMarkRead: notificationId => {
       gameState = markNotificationRead(gameState, gameState.currentPlayer, notificationId);
@@ -4031,6 +4045,10 @@ bus.on('wonder:discovered', event => {
 
 bus.on('wonder:legendary-ready', ({ civId, cityId, wonderId }) => {
   routeLegendaryWonder(gameState, { type: 'wonder:legendary-ready', civId, cityId, wonderId }, appendToCivLog);
+});
+
+bus.on('wonder:legendary-availability', event => {
+  routeLegendaryWonder(gameState, { type: 'wonder:legendary-availability', ...event }, appendToCivLog);
 });
 
 bus.on('wonder:legendary-completed', ({ civId, cityId, wonderId, turnCompleted }) => {

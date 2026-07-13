@@ -1,4 +1,4 @@
-import type { NotificationLog } from './notification-log';
+import type { NotificationCityAction, NotificationLog } from './notification-log';
 import type { PirateFactionId, PirateHeadquarters, PirateMaritimeStage, PirateState } from './pirate-state';
 
 // --- Hex Coordinates ---
@@ -76,27 +76,25 @@ export interface LegendaryWonderResourceCountQuestStep {
   description?: string;
 }
 
-export interface LegendaryWonderStandardQuestStep {
+interface LegendaryWonderQuestStepBase {
   id: string;
-  type:
-    | 'discover_wonder'
-    | 'trade_route'
-    | 'research_count'
-    | 'defeat_stronghold'
-    | 'buildings-in-multiple-cities'
-    | 'trade-routes-established'
-    | 'map-discoveries';
   description?: string;
-  targetCount?: number;
-  track?: TechTrack;
-  scope?: 'near-city' | 'any';
-  radius?: number;
-  routeRequirement?: 'any' | 'coastal' | 'overseas' | 'long-range';
-  minimumRouteDistance?: number;
-  cityScope?: 'host-city' | 'empire';
-  minimumBuildingsPerCity?: number;
-  discoveryTypes?: Array<'natural-wonder' | 'tribal-village'>;
 }
+
+export type LegendaryWonderStandardQuestStep =
+  | (LegendaryWonderQuestStepBase & { type: 'discover_wonder'; targetCount?: number })
+  | (LegendaryWonderQuestStepBase & {
+    type: 'trade_route' | 'trade-routes-established';
+    targetCount?: number;
+    routeRequirement?: 'any' | 'coastal' | 'overseas' | 'long-range';
+    minimumRouteDistance?: number;
+  })
+  | (LegendaryWonderQuestStepBase & { type: 'research_count'; targetCount?: number; track?: TechTrack })
+  | (LegendaryWonderQuestStepBase & { type: 'defeat_stronghold'; targetCount?: number; scope?: 'near-city' | 'any'; radius?: number })
+  | (LegendaryWonderQuestStepBase & {
+    type: 'buildings-in-multiple-cities'; targetCount?: number; cityScope?: 'host-city' | 'empire'; minimumBuildingsPerCity?: number;
+  })
+  | (LegendaryWonderQuestStepBase & { type: 'map-discoveries'; targetCount?: number; discoveryTypes?: Array<'natural-wonder' | 'tribal-village'> });
 
 export type LegendaryWonderQuestStepDefinition =
   | LegendaryWonderStandardQuestStep
@@ -127,6 +125,13 @@ export interface LegendaryWonderProject {
   // which evaluateLegendaryWonderStep treats as baseline 0 (grandfathered: lifetime
   // counts still complete the step, matching pre-MR10 behavior for in-flight projects).
   questBaselines?: Record<string, number>;
+}
+
+export type LegendaryWonderAvailabilityStatus =
+  | 'questing' | 'blocked' | 'buildable' | 'building' | 'scrapped' | 'lost_race' | 'completed';
+
+export interface LegendaryWonderAvailabilityRecord {
+  status: LegendaryWonderAvailabilityStatus;
 }
 
 export interface LegendaryWonderReward {
@@ -1521,6 +1526,7 @@ export interface GameState {
   discoveredWonders: Record<string, string>;       // wonderId -> first discoverer civId
   wonderDiscoverers: Record<string, string[]>;     // wonderId -> all discoverer civIds
   legendaryWonderProjects?: Record<string, LegendaryWonderProject>;
+  legendaryWonderAvailability?: Record<string, LegendaryWonderAvailabilityRecord>;
   completedLegendaryWonders?: Record<string, CompletedLegendaryWonder>;
   builtNationalProjects?: Record<string, BuiltNationalProjectRecord>; // key: `${civId}:${buildingId}`
   legendaryWonderHistory?: LegendaryWonderHistory;
@@ -1710,6 +1716,12 @@ export interface GameEvents {
   'wonder:discovered': { civId: string; wonderId: string; position: HexCoord; isFirstDiscoverer: boolean };
   'wonder:eruption': { wonderId: string; position: HexCoord; tilesAffected: HexCoord[] };
   'wonder:legendary-ready': { civId: string; cityId: string; wonderId: string };
+  'wonder:legendary-availability': {
+    recipientCivId: string;
+    wonderId: string;
+    status: LegendaryWonderAvailabilityStatus;
+    cityActions: NotificationCityAction[];
+  };
   'wonder:legendary-completed': { civId: string; cityId: string; wonderId: string; turnCompleted: number };
   'wonder:legendary-lost': { civId: string; cityId: string; wonderId: string; goldRefund: number; transferableProduction: number };
   'wonder:legendary-race-revealed': { observerId: string; civId: string; cityId: string; wonderId: string };

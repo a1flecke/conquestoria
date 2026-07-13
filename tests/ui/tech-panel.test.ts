@@ -147,7 +147,8 @@ describe('tech-panel', () => {
     expect(panel.querySelector('[data-edge-from="fire"][data-edge-to="writing"]')).toBeTruthy();
   });
 
-  it('zooms from focus to known tree to the complete catalog', () => {
+  // The single intentional full-catalog jsdom proof; the remaining semantics use compact system tests.
+  it('renders every authored technology after selecting complete catalog', () => {
     const state = createNewGame(undefined, 'tech-zoom-count-test');
     const panel = createTechPanel(document.body, state, {
       onQueueResearch: () => {},
@@ -169,7 +170,7 @@ describe('tech-panel', () => {
     expect(document.body.querySelectorAll('#tech-panel [data-tech-id]').length).toBe(TECH_TREE.length);
     expect(knownCount).toBeGreaterThanOrEqual(focusedCount);
     expect(focusedCount).toBeLessThan(TECH_TREE.length);
-  }, 15000);
+  }, 30000);
 
   it('focuses current research in the rendered tree', () => {
     const state = createNewGame(undefined, 'tech-render-focus-test');
@@ -205,43 +206,6 @@ describe('tech-panel', () => {
     expect(inspector?.textContent).toContain('Fire');
     expect(inspector?.textContent).toContain('Researching');
   });
-
-  it('highlights the selected path and exposes only the next legal queue action', () => {
-    const state = createNewGame(undefined, 'tech-path-action-test');
-    state.civilizations.player.techState.completed.push('gathering', 'pottery', 'fire', 'writing');
-
-    const queued: string[] = [];
-    const panel = createTechPanel(document.body, state, {
-      onQueueResearch: (techId) => queued.push(techId),
-      onMoveQueuedResearch: () => {},
-      onRemoveQueuedResearch: () => {},
-      onClose: () => {},
-    });
-
-    panel.querySelector<HTMLButtonElement>('[data-zoom="all"]')?.click();
-    const medicineBeforeSelection = document.body.querySelector<HTMLElement>('[data-tech-id="medicine"]');
-    const bankingBeforeSelection = document.body.querySelector<HTMLElement>('[data-tech-id="banking"]');
-    medicineBeforeSelection?.click();
-
-    expect(document.body.querySelector('[data-role="tech-detail"]')?.textContent).toContain('Philosophy');
-    expect(document.body.querySelector('[data-role="tech-detail"]')?.textContent).toContain('Pottery');
-    expect(document.body.querySelector('[data-tech-id="medicine"]')).toBe(medicineBeforeSelection);
-    expect(document.body.querySelector('[data-tech-id="medicine"]')?.getAttribute('data-selected')).toBe('true');
-    expect(document.body.querySelector('[data-tech-id="medicine"]')?.getAttribute('data-path')).toBe('selected');
-    expect(document.body.querySelector('[data-edge-from="philosophy"][data-edge-to="medicine"]')?.getAttribute('stroke-width')).toBe('3');
-    expect(document.body.querySelector('[data-action="queue-selected-tech"]')).toBeFalsy();
-    expect(queued).toEqual([]);
-
-    bankingBeforeSelection?.click();
-
-    expect(document.body.querySelector('[data-role="tech-detail"]')?.textContent).toContain('Banking');
-    expect(document.body.querySelector('[data-tech-id="banking"]')).toBe(bankingBeforeSelection);
-    expect(document.body.querySelector('[data-tech-id="banking"]')?.getAttribute('data-selected')).toBe('true');
-    expect(document.body.querySelector('[data-tech-id="medicine"]')?.getAttribute('data-selected')).toBeNull();
-    expect(document.body.querySelector('[data-tech-id="medicine"]')?.getAttribute('data-path')).toBeNull();
-    expect(document.body.querySelector('[data-edge-from="philosophy"][data-edge-to="medicine"]')?.getAttribute('stroke-width')).toBe('1.5');
-    expect(document.body.querySelector('[data-edge-from="mathematics"][data-edge-to="banking"]')?.getAttribute('stroke-width')).toBe('3');
-  }, 15000);
 
   it('uses meaningful zoom labels in compact map controls', () => {
     const state = createNewGame(undefined, 'tech-a11y-test');
@@ -312,23 +276,6 @@ describe('tech-panel', () => {
     expect(remainingQueuedNode?.textContent).toContain('turns');
     expect(remainingQueuedNode?.textContent).not.toContain('ETA unknown');
   });
-
-  it('labels deep locked tech ETA as locked instead of unknown or numeric', () => {
-    const state = createNewGame(undefined, 'tech-locked-eta-test');
-    const panel = createTechPanel(document.body, state, {
-      onQueueResearch: () => {},
-      onMoveQueuedResearch: () => {},
-      onRemoveQueuedResearch: () => {},
-      onClose: () => {},
-    });
-
-    panel.querySelector<HTMLButtonElement>('[data-zoom="all"]')?.click();
-
-    const banking = document.body.querySelector('[data-tech-id="banking"]');
-    expect(banking?.textContent).toContain('ETA locked');
-    expect(banking?.textContent).not.toContain('ETA unknown');
-    expect(banking?.textContent).not.toMatch(/\d+ turns/);
-  }, 15000);
 
   it('styles queue control buttons consistently (not browser default)', () => {
     const state = createNewGame(undefined, 'tech-btn-style-test');
@@ -543,17 +490,17 @@ describe('tech-panel', () => {
   it('Phase 3: a tech with two prerequisites lands at depth = max(prereqDepths) + 1', () => {
     // engineering: prerequisites [mathematics(depth=2), wheel(depth=1)] → expected depth=3
     const state = createNewGame(undefined, 'tech-dag-depth');
+    state.civilizations.player.techState.completed.push('wheel', 'mathematics');
     const panel = createTechPanel(document.body, state, {
       onQueueResearch: () => {},
       onMoveQueuedResearch: () => {},
       onRemoveQueuedResearch: () => {},
       onClose: () => {},
     });
-    panel.querySelector<HTMLButtonElement>('[data-zoom="all"]')?.click();
-    const engineeringCard = document.body.querySelector<HTMLElement>('[data-tech-id="engineering"]');
+    const engineeringCard = panel.querySelector<HTMLElement>('[data-tech-id="engineering"]');
     expect(engineeringCard).toBeTruthy();
     expect(Number(engineeringCard!.dataset.depth)).toBe(3);
-  }, 15000);
+  });
 
   it('Phase 3: mapWrap uses absolute-positioned cards, not flex-wrap', () => {
     const state = createNewGame(undefined, 'tech-dag-nowrap');

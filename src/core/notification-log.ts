@@ -6,6 +6,12 @@ export interface NotificationMapTarget {
   label: string;
 }
 
+export interface NotificationCityAction {
+  cityId: string;
+  wonderId: string;
+  label: string;
+}
+
 export type PirateNotificationReview =
   | { kind: 'pirate-faction'; factionId: string }
   | { kind: 'pirate-history'; historyId: string };
@@ -18,6 +24,7 @@ export interface NotificationEntry {
   read: boolean;
   target?: NotificationMapTarget;
   linkedCityId?: string;
+  cityActions?: NotificationCityAction[];
   review?: PirateNotificationReview;
 }
 

@@ -156,7 +156,20 @@ function appendRaceSummary(parent: HTMLElement, entry: LegendaryWonderPresentati
 
 function appendRequirementsOrNextStep(parent: HTMLElement, entry: LegendaryWonderPresentationEntry): void {
   if (entry.missingRequirements.length > 0) {
-    appendText(parent, 'p', `Missing: ${entry.missingRequirements.join(', ')}.`, 'margin:8px 0;line-height:1.4;');
+    appendText(parent, 'p', `Missing: ${entry.missingRequirements.join(', ')}.`, 'margin:8px 0 0;line-height:1.4;');
+    for (const requirement of entry.missingRequirements) {
+      const guidance = requirement === 'Coastal city'
+        ? 'Use a coastal city.'
+        : requirement === 'River city'
+          ? 'Use a river city.'
+          : `Secure ${requirement}.`;
+      const kind = requirement === 'Coastal city' || requirement === 'River city' ? 'city-requirement' : 'resource';
+      const item = document.createElement('p');
+      item.dataset.wonderGuidance = kind;
+      item.style.cssText = 'margin:8px 0;line-height:1.4;';
+      item.textContent = guidance;
+      parent.appendChild(item);
+    }
     return;
   }
   const pending = entry.questSteps.find(step => !step.completed);

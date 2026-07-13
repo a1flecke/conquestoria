@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import type { Tech } from '@/core/types';
 import { createTechState, TECH_TREE } from '@/systems/tech-system';
 import {
   buildTechProgressionView,
@@ -116,8 +117,23 @@ describe('tech progression view model', () => {
 
     const view = buildTechProgressionView(techState, { selectedTechId: 'medicine' });
 
-    expect(view.selectedPathIds).toEqual(new Set(['pottery', 'philosophy', 'medicine']));
+    expect(view.selectedPathIds).toEqual(new Set(['gathering', 'pottery', 'fire', 'writing', 'philosophy', 'medicine']));
     expect(view.selectedPathIds.has('astronomy')).toBe(false);
+  });
+
+  it('derives selected paths and queueability from an injected compact catalog', () => {
+    const techs: Tech[] = [
+      { id: 'pottery', name: 'Pottery', track: 'science', cost: 10, prerequisites: [], unlocks: [], era: 1 },
+      { id: 'philosophy', name: 'Philosophy', track: 'science', cost: 20, prerequisites: ['pottery'], unlocks: [], era: 2 },
+      { id: 'medicine', name: 'Medicine', track: 'science', cost: 30, prerequisites: ['philosophy'], unlocks: [], era: 3 },
+    ];
+    const state = { ...createTechState(), completed: ['pottery'] };
+
+    const view = buildTechProgressionView(state, { techs, selectedTechId: 'medicine' });
+
+    expect(view.nodesById.get('medicine')?.state).toBe('locked');
+    expect(view.queueableIds.has('medicine')).toBe(false);
+    expect(view.selectedPathIds).toEqual(new Set(['pottery', 'philosophy', 'medicine']));
   });
 
   // --- Phase 2: era cap ---

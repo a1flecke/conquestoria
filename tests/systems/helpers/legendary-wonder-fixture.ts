@@ -1,5 +1,6 @@
 import type { City, GameState, HexCoord } from '@/core/types';
 import { createDiplomacyState } from '@/systems/diplomacy-system';
+import { RESOURCE_DEFINITIONS } from '@/systems/resource-definitions';
 
 function makeTile(coord: HexCoord, owner: string | null, overrides: Partial<GameState['map']['tiles'][string]> = {}) {
   return {
@@ -67,6 +68,11 @@ export function makeLegendaryWonderFixture({
       { q: 5, r: 6 },
     ],
   });
+  const suppliedResource = resources[0];
+  const suppliedResourceDefinition = RESOURCE_DEFINITIONS.find(resource => resource.id === suppliedResource);
+  const effectiveCompletedTechs = suppliedResourceDefinition
+    ? [...new Set([...completedTechs, suppliedResourceDefinition.tech])]
+    : completedTechs;
 
   const projectSteps = [
     { id: 'discover-natural-wonder', description: 'Discover a natural wonder', completed: oracleStepsCompleted >= 1 },
@@ -84,7 +90,11 @@ export function makeLegendaryWonderFixture({
       height: 8,
       tiles: {
         '2,2': makeTile({ q: 2, r: 2 }, playerId, { hasRiver }),
-        '2,3': makeTile({ q: 2, r: 3 }, playerId, { resource: resources[0] ?? null, hasRiver }),
+        '2,3': makeTile({ q: 2, r: 3 }, playerId, {
+          resource: suppliedResource ?? null,
+          improvement: suppliedResourceDefinition?.requiredImprovement ?? 'none',
+          hasRiver,
+        }),
         '5,5': makeTile({ q: 5, r: 5 }, 'rival', { hasRiver: true }),
         '5,6': makeTile({ q: 5, r: 6 }, 'rival', { resource: 'stone', hasRiver: true }),
       },
@@ -106,7 +116,7 @@ export function makeLegendaryWonderFixture({
         cities: [cityId],
         units: [],
         techState: {
-          completed: completedTechs,
+          completed: effectiveCompletedTechs,
           currentResearch: null,
           researchProgress: 0,
           researchQueue: [],

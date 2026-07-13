@@ -431,7 +431,9 @@ describe('city-panel navigation', () => {
 
     const rendered = (panel as unknown as { innerHTML?: string; textContent?: string }).innerHTML ?? panel.textContent ?? '';
     expect(rendered).toContain('data-text="yield-food">2');
-    expect(rendered).toContain('data-text="yield-prod">2');
+    // The focused tile is the fixture's improved stone quarry: 1 base production
+    // plus 2 from the worked tile.
+    expect(rendered).toContain('data-text="yield-prod">3');
     expect(rendered).toContain('data-text="yield-gold">2');
   });
 

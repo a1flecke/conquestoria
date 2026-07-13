@@ -1,10 +1,11 @@
-import type { NotificationEntry, NotificationMapTarget, PirateNotificationReview } from '@/core/notification-log';
+import type { NotificationCityAction, NotificationEntry, NotificationMapTarget, PirateNotificationReview } from '@/core/notification-log';
 import { createGameButton } from '@/ui/ui-kit';
 
 interface NotificationLogPanelOptions {
   onClose: () => void;
   onFocusTarget: (target: NotificationMapTarget) => void;
   onOpenCity?: (cityId: string) => void;
+  onOpenWonderCity?: (action: NotificationCityAction) => void;
   onReviewPirate?: (review: PirateNotificationReview) => void;
   onMarkRead?: (notificationId: string) => void;
 }
@@ -79,6 +80,16 @@ function createNotificationRow(
   turnSpan.textContent = `T${entry.turn}`;
   row.appendChild(turnSpan);
   row.appendChild(document.createTextNode(entry.message));
+  for (const action of entry.cityActions ?? []) {
+    const actionButton = createGameButton(action.label, 'secondary');
+    actionButton.dataset.wonderCityAction = action.cityId;
+    actionButton.style.marginTop = '6px';
+    actionButton.addEventListener('click', event => {
+      event.stopPropagation();
+      options.onOpenWonderCity?.(action);
+    });
+    row.appendChild(actionButton);
+  }
   if (entry.review) {
     const reviewButton = createGameButton('Review', 'secondary');
     reviewButton.dataset.reviewPirate = entry.review.kind;

@@ -1082,8 +1082,8 @@ function makeLegendaryWonderOpportunityFixture(): GameState {
       width: 10,
       height: 8,
       tiles: {
-        '0,0': { coord: { q: 0, r: 0 }, terrain: 'plains', elevation: 'lowland', resource: 'stone', improvement: 'none', owner: 'ai-1', improvementTurnsLeft: 0, hasRiver: true, wonder: null },
-        '1,0': { coord: { q: 1, r: 0 }, terrain: 'plains', elevation: 'lowland', resource: null, improvement: 'none', owner: 'ai-1', improvementTurnsLeft: 0, hasRiver: true, wonder: null },
+        '0,0': { coord: { q: 0, r: 0 }, terrain: 'plains', elevation: 'lowland', resource: null, improvement: 'none', owner: 'ai-1', improvementTurnsLeft: 0, hasRiver: true, wonder: null },
+        '1,0': { coord: { q: 1, r: 0 }, terrain: 'plains', elevation: 'lowland', resource: 'stone', improvement: 'quarry', owner: 'ai-1', improvementTurnsLeft: 0, hasRiver: true, wonder: null },
         '2,0': { coord: { q: 2, r: 0 }, terrain: 'coast', elevation: 'lowland', resource: null, improvement: 'none', owner: 'ai-1', improvementTurnsLeft: 0, hasRiver: false, wonder: null },
         '5,0': { coord: { q: 5, r: 0 }, terrain: 'plains', elevation: 'lowland', resource: null, improvement: 'none', owner: 'ai-1', improvementTurnsLeft: 0, hasRiver: true, wonder: null },
         '6,0': { coord: { q: 6, r: 0 }, terrain: 'plains', elevation: 'lowland', resource: null, improvement: 'none', owner: 'ai-1', improvementTurnsLeft: 0, hasRiver: true, wonder: null },
@@ -1168,7 +1168,7 @@ function makeLegendaryWonderOpportunityFixture(): GameState {
         cities: ['city-ai-1', 'city-ai-2', 'city-ai-3'],
         units: [],
         techState: {
-          completed: ['philosophy', 'sacred-sites', 'city-planning', 'printing', 'banking', 'agricultural-science', 'astronomy', 'navigation'],
+          completed: ['gathering', 'philosophy', 'sacred-sites', 'city-planning', 'printing', 'banking', 'agricultural-science', 'astronomy', 'navigation'],
           currentResearch: null,
           researchProgress: 0,
           researchQueue: [],

@@ -1,5 +1,5 @@
 import type { GameState } from '@/core/types';
-import { appendNotification, type NotificationEntry } from '@/core/notification-log';
+import { appendNotification, type NotificationCityAction, type NotificationEntry } from '@/core/notification-log';
 import { collectEvent } from '@/core/hotseat-events';
 import type { NotificationSink } from '@/ui/notification-routing';
 
@@ -22,10 +22,10 @@ export interface NotificationDelivery {
 export function createNotificationDelivery(deps: NotificationDeliveryDeps): NotificationDelivery {
   let happenedTurn: number | null = null;
 
-  const deliver: NotificationSink = (civId, message, type, target) => {
+  const deliver: NotificationSink = (civId, message, type, target, cityActions) => {
     const state = deps.getState();
     const turn = happenedTurn ?? state.turn;
-    appendNotification(state, civId, { message, type, turn, target });
+    appendNotification(state, civId, { message, type, turn, target, cityActions });
 
     const civ = state.civilizations[civId];
     if (!civ?.isHuman) return;
