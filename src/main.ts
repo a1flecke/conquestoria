@@ -1271,6 +1271,8 @@ function openCityPanelForCity(city: import('@/core/types').City): void {
     },
     onClose: () => {},
     onTip: (message) => { showNotification(message, 'info'); },
+    onSelectUnit: (unitId) => selectUnit(unitId),
+    onEstablishRoute: handleEstablishRoute,
     onPrevCity: () => {
       const cities = currentCiv().cities;
       if (cities.length <= 1) return;
@@ -1841,6 +1843,23 @@ function openNetworkIntentPanel(sourceUnitId: string): void {
   uiLayer.appendChild(panel);
 }
 
+// Trade Routes Overhaul (#553 MR4/4) — extracted so the City panel's Trade Routes
+// section and selected-unit-info's Establish Route button trigger the exact same code
+// path (per ui-panels.md's Extracted UI Flows rule), not two copies that could drift.
+function handleEstablishRoute(caravanId: string): void {
+  openEstablishRoutePanel(uiLayer, gameState, caravanId, (toCityId) => {
+    const resourceDiversity = getCivAvailableResources(gameState, gameState.currentPlayer).size;
+    const routeResult = establishQuestAwareRoute(gameState, caravanId, toCityId, resourceDiversity);
+    gameState = routeResult.state;
+    emitMinorCivQuestTransitions(bus, routeResult.questTransitions, gameState);
+    bus.emit('trade:route-created', { route: routeResult.route });
+    renderLoop.setGameState(gameState);
+    updateHUD();
+    selectUnit(caravanId);
+    showNotification('Trade route established!', 'success');
+  });
+}
+
 function selectUnit(
   unitId: string,
   opts?: {
@@ -2156,19 +2175,7 @@ function selectUnit(
         updateHUD();
         showNotification('Expedition planted a flag! Outpost completes in 2 turns.', 'success');
       },
-      onEstablishRoute: (caravanId) => {
-        openEstablishRoutePanel(uiLayer, gameState, caravanId, (toCityId) => {
-          const resourceDiversity = getCivAvailableResources(gameState, gameState.currentPlayer).size;
-          const routeResult = establishQuestAwareRoute(gameState, caravanId, toCityId, resourceDiversity);
-          gameState = routeResult.state;
-          emitMinorCivQuestTransitions(bus, routeResult.questTransitions, gameState);
-          bus.emit('trade:route-created', { route: routeResult.route });
-          renderLoop.setGameState(gameState);
-          updateHUD();
-          selectUnit(caravanId);
-          showNotification('Trade route established!', 'success');
-        });
-      },
+      onEstablishRoute: handleEstablishRoute,
       onReplaceImprovement: (action) => {
         if (!selectedUnitId) return;
         const unit = gameState.units[selectedUnitId];

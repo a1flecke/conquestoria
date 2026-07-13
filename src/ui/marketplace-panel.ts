@@ -1,9 +1,10 @@
 import type { GameState, ResourceType } from '@/core/types';
-import { RESOURCE_DEFINITIONS, getEffectiveGoldPerTurn, getRouteCapacity, getRouteTechGoldBonus } from '@/systems/trade-system';
+import { RESOURCE_DEFINITIONS } from '@/systems/trade-system';
 import { getCivAvailableResources, canBuyResourceAccess, getResourceAccessCost } from '@/systems/resource-acquisition-system';
 import { isAtWar } from '@/systems/diplomacy-system';
 import { resolveCivDefinition } from '@/systems/civ-registry';
 import { createGameButton } from './ui-kit';
+import { buildPlayerRouteListSection } from './trade-route-presentation';
 
 interface MarketplaceCallbacks {
   onClose: () => void;
@@ -177,7 +178,7 @@ export function createMarketplacePanel(
   // Build route list via DOM (XSS-safe, uses new TradeRoute shape)
   const routesSection = panel.querySelector('#mp-routes-section');
   if (routesSection) {
-    routesSection.appendChild(buildRouteListSection(state, state.currentPlayer, callbacks.onSelectUnit));
+    routesSection.appendChild(buildPlayerRouteListSection(state, state.currentPlayer, callbacks.onSelectUnit));
   }
 
   // Known Civs section (Diplomatic Marketplace — S9, trade-routes tech gated)
@@ -204,75 +205,6 @@ function renderSparkline(history: number[]): string {
     const idx = Math.floor(((v - min) / range) * (bars.length - 1));
     return bars[idx];
   }).join('');
-}
-
-function buildRouteListSection(state: GameState, currentPlayer: string, onSelectUnit?: (unitId: string) => void): HTMLElement {
-  const wrapper = document.createElement('div');
-
-  const heading = document.createElement('div');
-  heading.textContent = 'Active Trade Routes';
-  heading.style.cssText = 'font-size:14px;color:#e8c170;margin-bottom:8px;';
-  wrapper.appendChild(heading);
-
-  const playerRoutes = (state.marketplace?.tradeRoutes ?? []).filter(r => {
-    const city = state.cities[r.fromCityId];
-    return city?.owner === currentPlayer;
-  });
-
-  if (playerRoutes.length === 0) {
-    const empty = document.createElement('div');
-    empty.textContent = 'No active routes. Train a Caravan to establish one.';
-    empty.style.cssText = 'font-size:12px;opacity:0.5;text-align:center;padding:16px 0;';
-    wrapper.appendChild(empty);
-    return wrapper;
-  }
-
-  // Group by fromCityId
-  const groups = new Map<string, typeof playerRoutes>();
-  for (const route of playerRoutes) {
-    const arr = groups.get(route.fromCityId) ?? [];
-    arr.push(route);
-    groups.set(route.fromCityId, arr);
-  }
-
-  for (const [cityId, routes] of groups) {
-    const city = state.cities[cityId];
-    if (!city) continue;
-    const total = getRouteCapacity(state, cityId);
-    const used  = routes.length;
-
-    const cityHeader = document.createElement('div');
-    cityHeader.style.cssText = 'font-size:13px;color:#e8c170;margin:10px 0 4px;';
-    cityHeader.appendChild(document.createTextNode(`${city.name}  (${used}/${total} slots)`));
-    wrapper.appendChild(cityHeader);
-
-    for (const route of routes) {
-      const toCity = state.cities[route.toCityId];
-      const committedUnit = Object.values(state.units).find(u => u.committedToRouteId === route.id);
-      const tripsLeft = committedUnit?.tripsRemaining ?? '?';
-      const gold = getEffectiveGoldPerTurn(route, getRouteTechGoldBonus(state, route));
-
-      const row = document.createElement('div');
-      row.style.cssText = 'font-size:12px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.08);display:flex;justify-content:space-between;min-height:44px;align-items:center;';
-      if (committedUnit && onSelectUnit) {
-        row.style.cursor = 'pointer';
-        row.addEventListener('click', () => onSelectUnit(committedUnit.id));
-      }
-
-      const routeLabel = document.createElement('span');
-      routeLabel.appendChild(document.createTextNode(`${city.name} → ${toCity?.name ?? route.toCityId}`));
-      row.appendChild(routeLabel);
-
-      const routeDetail = document.createElement('span');
-      routeDetail.style.cssText = 'font-size:11px;color:#6b9b4b;';
-      routeDetail.appendChild(document.createTextNode(`+${gold.toFixed(1)} gold/turn · ${tripsLeft} trips`));
-      row.appendChild(routeDetail);
-
-      wrapper.appendChild(row);
-    }
-  }
-
-  return wrapper;
 }
 
 /**
