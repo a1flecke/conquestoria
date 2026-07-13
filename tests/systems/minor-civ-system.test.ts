@@ -41,6 +41,28 @@ describe('minor civ placement', () => {
     }
   });
 
+  it('does not reject a far-edge candidate on a non-wrapping map (issue #520 regression: findValidPosition previously called wrappedHexDistance unconditionally)', () => {
+    const state = createNewGame(undefined, 'mc-nonwrap-edge', 'small');
+    state.map.wrapsHorizontally = false;
+    const width = state.map.width;
+    state.units = { settler: createUnit('settler', 'player', { q: 0, r: 5 }, state.idCounters) };
+    state.cities = {};
+    state.civilizations.player.cities = [];
+    for (const tile of Object.values(state.map.tiles)) {
+      tile.terrain = 'ocean';
+      tile.wonder = null;
+    }
+    state.map.tiles[`${width - 1},5`].terrain = 'plains';
+
+    const result = placeMinorCivs(state, 'small', 'mc-nonwrap-edge-seed');
+
+    // The only passable candidate is at q=width-1, r=5 — raw distance from the
+    // start at q=0 is width-1 (far), but the pre-fix code treated it as
+    // wrapped-distance 1 (adjacent) regardless of wrapsHorizontally, rejecting
+    // it and leaving 0 minor civs placed on a map that doesn't actually wrap.
+    expect(Object.keys(result.minorCivs).length).toBeGreaterThan(0);
+  });
+
   it('respects distance between minor civs', () => {
     const state = createNewGame(undefined, 'mc-inter-test', 'medium');
     const result = placeMinorCivs(state, 'medium', 'mc-inter-test');

@@ -14,13 +14,9 @@ import { createEmptyOpponentAIState } from '@/core/opponent-ai-state';
 import { OPPONENT_CHALLENGE_PROFILES, resolveOpponentChallenge } from '@/core/opponent-challenge';
 import { canAttackByProfileOnMap } from './attack-targeting';
 import {
-  getWrappedHexNeighbors,
   hexKey,
-  hexDistance,
-  hexNeighbors,
   mapDistance,
   mapNeighbors,
-  wrappedHexDistance,
 } from './hex-utils';
 import { selectDefenderForAttack } from './combat-system';
 import { getCityGarrisonUnit } from './city-siege-system';
@@ -183,9 +179,7 @@ const BARBARIAN_SENSE_RADIUS = 7;
 const BARBARIAN_DEFENSE_RADIUS = 4;
 
 function barbarianDistance(state: GameState, a: HexCoord, b: HexCoord): number {
-  return state.map.wrapsHorizontally
-    ? wrappedHexDistance(a, b, state.map.width)
-    : hexDistance(a, b);
+  return mapDistance(state.map, a, b);
 }
 
 function isPassableBarbarianTile(state: GameState, coord: HexCoord): boolean {
@@ -251,9 +245,7 @@ function chooseStepToward(
   const occupied = new Set(Object.values(state.units)
     .filter(candidate => candidate.id !== unit.id && !candidate.transportId)
     .map(candidate => hexKey(candidate.position)));
-  const neighboringCoords = state.map.wrapsHorizontally
-    ? getWrappedHexNeighbors(unit.position, state.map.width)
-    : hexNeighbors(unit.position);
+  const neighboringCoords = mapNeighbors(state.map, unit.position);
   return neighboringCoords
     .filter(coord => isPassableBarbarianTile(state, coord) && !occupied.has(hexKey(coord)))
     .filter(coord => barbarianDistance(state, coord, target) < barbarianDistance(state, unit.position, target))
@@ -325,11 +317,7 @@ export function processPurposefulBarbarians(state: GameState): PurposefulBarbari
       const occupied = new Set(Object.values(state.units)
         .filter(unit => !unit.transportId)
         .map(unit => hexKey(unit.position)));
-      const spawnPosition = [spawn.position, ...(
-        state.map.wrapsHorizontally
-          ? getWrappedHexNeighbors(spawn.position, state.map.width)
-          : hexNeighbors(spawn.position)
-      )]
+      const spawnPosition = [spawn.position, ...mapNeighbors(state.map, spawn.position)]
         .filter(coord => isPassableBarbarianTile(state, coord) && !occupied.has(hexKey(coord)))
         .sort((a, b) =>
           barbarianDistance(state, a, camp.position) - barbarianDistance(state, b, camp.position)
