@@ -725,6 +725,7 @@ export function processTurn(
   newState = frontierResult.state;
 
   newState = tickLegendaryWonderProjects(newState, bus);
+  newState = reconcileLegendaryWonderAvailability(newState, bus);
 
   // --- Process marketplace ---
   if (newState.marketplace) {
