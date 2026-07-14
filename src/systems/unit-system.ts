@@ -663,7 +663,7 @@ export const UNIT_DESCRIPTIONS: Record<UnitType, string> = {
   observation_balloon: 'Tethered hydrogen balloon used for aerial reconnaissance. Cannot attack. Provides unmatched long-range vision over enemy territory. Extremely fragile.',
   biplane:    'WWI-era fabric-and-wood fighter aircraft. Fast air unit that can attack land and naval targets from altitude. Vulnerable to dedicated anti-air batteries. Obsoleted by monoplane fighters.',
   jet_fighter: 'WWII-era swept-wing jet fighter. Faster and stronger than the biplane; dominates air-to-air and ground-attack roles, with a bonus vs bombers. Faction roundel on fuselage; afterburner glow marks its passage. Air-superiority apex — the bomber is the strike line instead of a fighter upgrade.',
-  bomber: 'Long-range strategic bomber. Bombard range 3 vs cities and units — the era\'s dedicated city-buster. Requires no special building, unlike its stealth successor. Upgrades into the stealth bomber.',
+  bomber: 'Long-range strategic bomber. Bombard range 3 vs cities and units — the era\'s dedicated city-buster. Its defensive gunners can return weak fire when intercepted. Requires no special building, unlike its stealth successor. Upgrades into the stealth bomber.',
   carrier:     'Fleet carrier. Heavily armed mobile naval platform; aircraft basing operations arrive in a future update. Requires a coastal city to build. High vision range; strong naval strength.',
   destroyer:   'Fast surface escort. Ranged attack (range 2) vs units and cities; +25% strength attacking submarines and missile submarines. Requires Carrier Warfare and a coastal city. Current top-tier surface escort — no later replacement yet.',
   attack_helicopter: 'Cold War attack helicopter. Combines close air support with anti-armour missiles; faster than jet fighters but more vulnerable to ground fire. Ranged air unit.',
@@ -715,7 +715,7 @@ export const UNIT_DESCRIPTIONS: Record<UnitType, string> = {
   beast_hydra: 'The Swamp Hydra regrows flesh as fast as you can cut it — 10 health every turn. Strike hard and finish it in one assault.',
   beast_dragon: 'The Ancient Dragon, terror of the volcanic peaks. Its fire breath strikes from 2 hexes away. Slaying it is the deed of a lifetime — the hoard contains everything.',
   cyber_unit: 'A non-combat economic saboteur. Drains −2 gold per turn from adjacent enemy cities lacking a Cyber Defense Center. Strength 0: capturable by any enemy unit that enters its hex (transferred to that civ, not destroyed). Gene Therapy does not apply.',
-  stealth_bomber: 'A long-range strategic bomber invisible to standard radar. Cannot be targeted by ranged attacks unless an enemy Signals Hub is within 2 hexes of the bomber. Must be trained at a Stealth Airbase. Range 3, strength 52.',
+  stealth_bomber: 'A long-range strategic bomber invisible to standard radar. Cannot be targeted by ranged attacks unless an enemy Signals Hub is within 2 hexes of the bomber; when intercepted, stealth reduces the damage it takes instead of returning fire. Must be trained at a Stealth Airbase. Range 3, strength 52.',
 };
 
 export function getUnmovedUnits(

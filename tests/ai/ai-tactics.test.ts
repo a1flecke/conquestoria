@@ -174,6 +174,35 @@ describe('AI tactical action ranking', () => {
       .toBeGreaterThan(actions.findIndex(action => action.unitId === 'archer'));
   });
 
+  it('scores a revealed stealth bomber from its resolved evasion exchange, not raw counter-strength', () => {
+    const state = makeState('veteran');
+    const fighter = addUnit(state, 'fighter', 'jet_fighter', AI, { q: 0, r: 0 });
+    const bomber = addUnit(state, 'bomber', 'stealth_bomber', HUMAN, { q: 1, r: 0 });
+    const signalsHub = addCity(state, 'signals-hub', AI, { q: 0, r: 1 });
+    signalsHub.buildings = ['signals_hub'];
+    const plan = makePlan(
+      { kind: 'unit', id: bomber.id, lastKnownPosition: bomber.position },
+      [fighter.id],
+      { objective: 'repel' },
+    );
+
+    const candidate = rankUnitTacticalActions(context(state, plan), fighter.id)
+      .find(entry => entry.action.kind === 'attack' && entry.action.targetUnitId === bomber.id);
+    const preview = combatSystem.resolveCombat(
+      fighter,
+      bomber,
+      state.map,
+      combatSystem.deterministicCombatSeed(state.gameId, state.turn, fighter.id, bomber.id),
+      undefined,
+      state.era,
+    );
+    const expectedDamageRatio = Math.min(2, preview.defenderDamage / bomber.health);
+    const deathRisk = Math.min(2, preview.attackerDamage / fighter.health);
+
+    expect(preview.exchange?.kind).toBe('evasion');
+    expect(candidate?.score).toBeCloseTo(500 + 30 + expectedDamageRatio * 25 - deathRisk * 40, 5);
+  });
+
   it('does not opportunistically attack beasts when beast contests are disabled', () => {
     const state = makeState('veteran');
     addUnit(state, 'captor', 'swordsman', AI, { q: 0, r: 0 });

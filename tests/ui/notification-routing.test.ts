@@ -265,6 +265,43 @@ describe('notification routing', () => {
     expect(calls[0]!.message).toMatch(/destroyed by Barbarians/);
   });
 
+  it('routes interception details to both combatants, never the active third hot-seat player', () => {
+    const state = makeState({
+      currentPlayer: 'p3',
+      units: {},
+    } as Partial<GameState>);
+    const result: CombatResult = {
+      attackerId: 'destroyed-attacker', defenderId: 'destroyed-defender',
+      attackerDamage: 8, defenderDamage: 22,
+      attackerSurvived: true, defenderSurvived: true,
+      attackerPosition: { q: 0, r: 0 }, defenderPosition: { q: 1, r: 0 },
+      exchange: {
+        kind: 'turret-fire',
+        label: 'Bomber gunners fire back weakly: 25% return fire',
+      },
+    };
+    const { sink, calls } = makeSink();
+
+    routeCombatResolved(state, result, sink, {
+      attackerOwnerId: 'p1', attackerType: 'jet_fighter',
+      defenderOwnerId: 'p2', defenderType: 'bomber',
+    });
+
+    expect(calls).toEqual([
+      {
+        civId: 'p2',
+        message: 'Bomber was attacked by Alice (22 damage taken). Bomber gunners fire back weakly: 25% return fire.',
+        type: 'warning', target: undefined,
+      },
+      {
+        civId: 'p1',
+        message: 'Jet Fighter attack: Bomber gunners fire back weakly: 25% return fire.',
+        type: 'info', target: undefined,
+      },
+    ]);
+    expect(calls.some(call => call.civId === 'p3')).toBe(false);
+  });
+
   it('routes combat reward messages to the rewarded civ only', () => {
     const state = makeState();
     const { sink, calls } = makeSink();
