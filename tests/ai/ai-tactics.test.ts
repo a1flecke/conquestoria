@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   chooseTacticalSequence,
   chooseUnitTacticalAction,
@@ -18,6 +18,7 @@ import type {
 import { foundCity } from '@/systems/city-system';
 import { hexDistance, hexKey } from '@/systems/hex-utils';
 import { createUnit, UNIT_DEFINITIONS } from '@/systems/unit-system';
+import * as combatSystem from '@/systems/combat-system';
 
 const AI = 'ai-1';
 const HUMAN = 'player';
@@ -121,6 +122,40 @@ function context(
 }
 
 describe('AI tactical action ranking', () => {
+  it('uses the canonical pair seed for attack previews and simulations', () => {
+    const state = makeState('veteran');
+    const attacker = addUnit(state, 'attacker', 'warrior', AI, { q: 0, r: 0 });
+    const defender = addUnit(state, 'defender', 'warrior', HUMAN, { q: 1, r: 0 });
+    const plan = makePlan(
+      { kind: 'unit', id: defender.id, lastKnownPosition: defender.position },
+      [attacker.id],
+      { objective: 'repel' },
+    );
+    const expectedSeed = combatSystem.deterministicCombatSeed(
+      state.gameId,
+      state.turn,
+      attacker.id,
+      defender.id,
+    );
+    const resolveCombatSpy = vi.spyOn(combatSystem, 'resolveCombat');
+
+    try {
+      const actions = chooseTacticalSequence(context(state, plan));
+      const matchingSeeds = resolveCombatSpy.mock.calls.filter(
+        ([seenAttacker, seenDefender, , seed]) => seenAttacker.id === attacker.id
+          && seenDefender.id === defender.id
+          && seed === expectedSeed,
+      );
+
+      expect(actions).toContainEqual({
+        kind: 'attack', unitId: attacker.id, targetUnitId: defender.id,
+      });
+      expect(matchingSeeds.length).toBeGreaterThanOrEqual(2);
+    } finally {
+      resolveCombatSpy.mockRestore();
+    }
+  });
+
   it('uses safe ranged fire before committing a capture unit', () => {
     const state = makeState('veteran');
     addUnit(state, 'archer', 'archer', AI, { q: 0, r: 0 });

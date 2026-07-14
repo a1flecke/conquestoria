@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { City, GameMap, GameState } from '@/core/types';
 import { hexKey } from '@/systems/hex-utils';
+import { deterministicCombatSeed } from '@/systems/combat-system';
 import { migrateLegacyCoastalData } from '@/storage/save-manager';
 import { CURRENT_SAVE_SCHEMA_VERSION } from '@/storage/save-migrations';
 
@@ -68,6 +69,11 @@ describe('save-manager setup and outcome migration', () => {
 
     expect(normalized.saveSchemaVersion).toBe(CURRENT_SAVE_SCHEMA_VERSION);
     expect(normalized.gameId).toMatch(/^legacy-/);
+
+    const first = deterministicCombatSeed(normalized.gameId, normalized.turn, 'unit-1', 'unit-2');
+    const reloaded = normalizeLoadedStateForTest(structuredClone(legacy));
+
+    expect(deterministicCombatSeed(reloaded.gameId, reloaded.turn, 'unit-1', 'unit-2')).toBe(first);
   });
 
   it('labels legacy geographic games historical without moving units or cities', () => {

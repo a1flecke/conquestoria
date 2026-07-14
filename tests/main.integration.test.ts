@@ -31,6 +31,20 @@ describe('campaign entry wiring', () => {
   });
 });
 
+describe('player combat wiring', () => {
+  it('derives each player combat seed from the game, turn, and unit pair', () => {
+    const main = readFileSync(resolve(PROJECT_ROOT, 'src/main.ts'), 'utf8');
+    const executeAttack = main.slice(
+      main.indexOf('function executeAttack('),
+      main.indexOf("bus.on('combat:resolved'"),
+    );
+
+    expect(executeAttack).toContain(
+      'deterministicCombatSeed(gameState.gameId, gameState.turn, attacker.id, defender.id)',
+    );
+  });
+});
+
 describe('land-unit water recovery wiring', () => {
   it('routes the live selected-unit panel and blocked-tap path through recovery helpers', () => {
     const main = readFileSync(resolve(PROJECT_ROOT, 'src/main.ts'), 'utf8');
