@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { EventBus } from '@/core/event-bus';
-import { processCrisisSchedulerForHumans, countActiveCrisesForCiv, countUnrestGroups, getCrisisYieldMultiplier } from '@/systems/crisis-system';
+import { processCrisisScheduler, countActiveCrisesForCiv, countUnrestGroups, getCrisisYieldMultiplier } from '@/systems/crisis-system';
 import { getCrisisFlavor } from '@/systems/crisis-flavor-definitions';
 import { makeCrisisFixture } from './helpers/crisis-fixture';
 import type { GameState } from '@/core/types';
@@ -8,7 +8,7 @@ import type { GameState } from '@/core/types';
 describe('crisis scheduler', () => {
   it('fires a crisis for an idle human past grace', () => {
     const { state } = makeCrisisFixture({ era: 3, turn: 40, challenge: 'standard' });
-    const next = processCrisisSchedulerForHumans(state, new EventBus());
+    const next = processCrisisScheduler(state, new EventBus());
     const crises = Object.values(next.activeCrises ?? {});
     expect(crises).toHaveLength(1);
     // This fixture's city (population 5, grassland, no forest/mountain/coast/jungle
@@ -26,20 +26,20 @@ describe('crisis scheduler', () => {
   it('respects era grace: no crisis in era 1 for anyone, era 2 for explorer', () => {
     for (const [challenge, era] of [['veteran', 1], ['explorer', 2]] as const) {
       const { state } = makeCrisisFixture({ era, turn: 99, challenge });
-      expect(Object.keys(processCrisisSchedulerForHumans(state, new EventBus()).activeCrises ?? {})).toHaveLength(0);
+      expect(Object.keys(processCrisisScheduler(state, new EventBus()).activeCrises ?? {})).toHaveLength(0);
     }
   });
 
   it('respects turn grace floors (30/20/10)', () => {
     for (const [challenge, turn] of [['explorer', 29], ['standard', 19], ['veteran', 9]] as const) {
       const { state } = makeCrisisFixture({ era: 5, turn, challenge });
-      expect(Object.keys(processCrisisSchedulerForHumans(state, new EventBus()).activeCrises ?? {})).toHaveLength(0);
+      expect(Object.keys(processCrisisScheduler(state, new EventBus()).activeCrises ?? {})).toHaveLength(0);
     }
   });
 
   it('respects cooldown', () => {
     const { state } = makeCrisisFixture({ era: 3, turn: 40, challenge: 'standard', lastCrisisOnsetTurn: 35 });
-    expect(Object.keys(processCrisisSchedulerForHumans(state, new EventBus()).activeCrises ?? {})).toHaveLength(0);
+    expect(Object.keys(processCrisisScheduler(state, new EventBus()).activeCrises ?? {})).toHaveLength(0);
   });
 
   it('is blocked at cap, counting unrest groups', () => {
@@ -50,7 +50,7 @@ describe('crisis scheduler', () => {
     });
     expect(countUnrestGroups(state, 'p1')).toBe(1);
     expect(countActiveCrisesForCiv(state, 'p1')).toBe(2);
-    const next = processCrisisSchedulerForHumans(state, new EventBus());
+    const next = processCrisisScheduler(state, new EventBus());
     expect(Object.keys(next.activeCrises ?? {})).toHaveLength(1); // unchanged
   });
 
@@ -71,21 +71,21 @@ describe('crisis scheduler', () => {
 
   it('is deterministic: same state → same crisis id and target', () => {
     const { state } = makeCrisisFixture({ era: 3, turn: 40 });
-    const a = processCrisisSchedulerForHumans(state, new EventBus());
-    const b = processCrisisSchedulerForHumans(state, new EventBus());
+    const a = processCrisisScheduler(state, new EventBus());
+    const b = processCrisisScheduler(state, new EventBus());
     expect(a.activeCrises).toEqual(b.activeCrises);
   });
 
   it('skips players with an active external threat', () => {
     const { state } = makeCrisisFixture({ era: 3, turn: 40, activeExternalThreat: true });
-    expect(Object.keys(processCrisisSchedulerForHumans(state, new EventBus()).activeCrises ?? {})).toHaveLength(0);
+    expect(Object.keys(processCrisisScheduler(state, new EventBus()).activeCrises ?? {})).toHaveLength(0);
   });
 
   it('emits crisis:started with what-to-do copy routed later', () => {
     const bus = new EventBus();
     const events: unknown[] = [];
     bus.on('crisis:started', e => events.push(e));
-    processCrisisSchedulerForHumans(makeCrisisFixture({ era: 3, turn: 40 }).state, bus);
+    processCrisisScheduler(makeCrisisFixture({ era: 3, turn: 40 }).state, bus);
     expect(events).toHaveLength(1);
   });
 });
