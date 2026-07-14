@@ -3,6 +3,7 @@ import type { CombatResult, GameState, HexCoord, Unit, UnitType } from '@/core/t
 import type { PirateFactionState } from '@/core/pirate-state';
 import { isMajorCivOwner } from '@/core/owner-kind';
 import { resolveChallengeForCiv } from '@/core/opponent-challenge';
+import { isPiratePressureEligible } from './world-pressure-eligibility';
 import { canUnitAttackTarget } from './attack-targeting';
 import { applyCombatOutcomeToState } from './combat-reward-system';
 import { deterministicCombatSeed, resolveCombat } from './combat-system';
@@ -429,7 +430,7 @@ function processPurposefulMovementAndCombat(
     if (!faction) continue;
     let intent = choosePersistentPirateIntent(nextState, factionId);
     const targetCivId = intent?.targetCivId;
-    if (targetCivId && nextState.civilizations[targetCivId]?.isHuman) {
+    if (targetCivId && isPiratePressureEligible(nextState, targetCivId)) {
       const leader = getPirateFleetLeader(nextState, factionId);
       const targetPosition = intent?.targetCityId
         ? nextState.cities[intent.targetCityId]?.position
