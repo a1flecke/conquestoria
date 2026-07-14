@@ -53,6 +53,14 @@ function addCity(state: GameState): City {
   return city;
 }
 
+function addCityForCiv(state: GameState, civId: string): City {
+  const city = addCity(state);
+  city.owner = civId;
+  state.civilizations.player.cities = [];
+  state.civilizations[civId].cities = [city.id];
+  return city;
+}
+
 function faction(headquarters: PirateFactionState['headquarters'], shipIds: string[]): PirateFactionState {
   return {
     id: 'pirate-1', name: 'The Red Wake', spawnedRound: 1, behavior: 'blockading',
@@ -609,5 +617,42 @@ describe('pirate naval siege (#522)', () => {
     processPiratesForCompletedRound(state, bus);
 
     expect(onCounterFire).toHaveBeenCalledWith(expect.objectContaining({ cityId: 'port', source: 'pirate' }));
+  });
+});
+
+describe('AI pirate pressure eligibility (#528 MR2 Task 2.2)', () => {
+  function aiTargetState(): GameState {
+    const state = fixture();
+    addCityForCiv(state, 'ai-1');
+    addUnit(state, 'leader', 'pirate_frigate', 'pirate-1', { q: 5, r: 1 });
+    state.pirates!.factions['pirate-1'] = faction({
+      kind: 'coastal-enclave',
+      position: { q: 1, r: 1 },
+      integrity: 100,
+      maxIntegrity: 100,
+    }, ['leader']);
+    state.opponentAI = createEmptyOpponentAIState();
+    return state;
+  }
+
+  it('reserves independent-threat pressure against an AI civ when aiPressure is "pirates"', () => {
+    const state = aiTargetState();
+    state.settings = { ...state.settings, aiPressure: 'pirates' };
+
+    const result = processPiratesForCompletedRound(state, new EventBus());
+
+    expect(result.state.pirates!.factions['pirate-1'].intent).toMatchObject({ targetCivId: 'ai-1' });
+    expect(result.state.opponentAI!.pressureByCiv['ai-1']?.activeIndependentThreatIds)
+      .toEqual(['pirate:pirate-1']);
+  });
+
+  it('does not reserve pressure against an AI civ when aiPressure is off (default, parity with today)', () => {
+    const state = aiTargetState();
+
+    const result = processPiratesForCompletedRound(state, new EventBus());
+
+    expect(result.state.pirates!.factions['pirate-1'].intent).toMatchObject({ targetCivId: 'ai-1' });
+    expect(result.state.opponentAI!.pressureByCiv['ai-1']?.activeIndependentThreatIds ?? [])
+      .toEqual([]);
   });
 });
