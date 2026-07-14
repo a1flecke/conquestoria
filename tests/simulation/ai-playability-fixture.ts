@@ -81,7 +81,10 @@ function plansForState(state: GameState): Map<string, AIStrategicPlan> {
   return plans;
 }
 
-function initializeScenario(options: AISimulationOptions): GameState {
+// Exported for tests/systems/world-pressure-fairness.test.ts (#529 MR3 Task 3.3),
+// which needs a real founded-city, multi-round-capable scenario but wants its own
+// lightweight round loop rather than the full `simulate()` invariant suite below.
+export function initializeScenario(options: AISimulationOptions): GameState {
   if (options.personalitySet.length < options.aiCount) {
     throw new Error(`${options.seed}: personalitySet must cover every AI`);
   }
