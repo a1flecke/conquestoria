@@ -156,6 +156,17 @@ describe('city siege destruction era knob (#522)', () => {
   });
 });
 
+describe('AI competence knobs (#528 MR2)', () => {
+  it('carries spec values', () => {
+    expect(OPPONENT_CHALLENGE_PROFILES.explorer).toMatchObject({
+      crisisResponseDelayTurns: 4, crisisRemedyGoldMultiplier: 3.0, crisisDispatchWeight: 0.5 });
+    expect(OPPONENT_CHALLENGE_PROFILES.standard).toMatchObject({
+      crisisResponseDelayTurns: 2, crisisRemedyGoldMultiplier: 2.0, crisisDispatchWeight: 1.0 });
+    expect(OPPONENT_CHALLENGE_PROFILES.veteran).toMatchObject({
+      crisisResponseDelayTurns: 0, crisisRemedyGoldMultiplier: 1.2, crisisDispatchWeight: 1.5 });
+  });
+});
+
 describe('per-civ pending challenge', () => {
   it('setPendingChallengeForCiv stages a change without touching other civs', () => {
     const state = stateWith('standard', undefined);

@@ -18,6 +18,12 @@ export interface OpponentChallengeProfile {
   // state.era exceeds this value for the city owner's resolved challenge; below it,
   // a city that hits 0 HP is sacked (survives at 1 HP) instead. See #522.
   citySiegeDestructionEra: number;
+  // AI competence knobs (#526/#528): how well an AI civ responds to world pressure
+  // (crises, pirate fleets) once it is pressure-eligible. Lower delay / higher gold
+  // multiplier / higher dispatch weight = tougher, more responsive AI.
+  crisisResponseDelayTurns: number;   // crisis age before the AI acts
+  crisisRemedyGoldMultiplier: number; // treasury needed as multiple of remedy cost
+  crisisDispatchWeight: number;       // multiplier on dispatch objective score
 }
 
 export const OPPONENT_CHALLENGE_PROFILES: Record<OpponentChallenge, OpponentChallengeProfile> = {
@@ -36,6 +42,9 @@ export const OPPONENT_CHALLENGE_PROFILES: Record<OpponentChallenge, OpponentChal
     crisisGraceMinTurns: 30,
     crisisSeverityMultiplier: 0.5,
     citySiegeDestructionEra: 3,
+    crisisResponseDelayTurns: 4,
+    crisisRemedyGoldMultiplier: 3.0,
+    crisisDispatchWeight: 0.5,
   },
   standard: {
     mobilizationRounds: 1,
@@ -52,6 +61,9 @@ export const OPPONENT_CHALLENGE_PROFILES: Record<OpponentChallenge, OpponentChal
     crisisGraceMinTurns: 20,
     crisisSeverityMultiplier: 1.0,
     citySiegeDestructionEra: 2,
+    crisisResponseDelayTurns: 2,
+    crisisRemedyGoldMultiplier: 2.0,
+    crisisDispatchWeight: 1.0,
   },
   veteran: {
     mobilizationRounds: 0,
@@ -68,6 +80,9 @@ export const OPPONENT_CHALLENGE_PROFILES: Record<OpponentChallenge, OpponentChal
     crisisGraceMinTurns: 10,
     crisisSeverityMultiplier: 1.3,
     citySiegeDestructionEra: 1,
+    crisisResponseDelayTurns: 0,
+    crisisRemedyGoldMultiplier: 1.2,
+    crisisDispatchWeight: 1.5,
   },
 };
 
