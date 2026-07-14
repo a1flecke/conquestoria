@@ -79,4 +79,21 @@ describe('formatCombatPreviewDetails', () => {
 
     expect(details).not.toContain('defends poorly');
   });
+
+  it('explains reduced bomber turret fire before an interception', () => {
+    const details = formatCombatPreviewDetails('Rival', 100, {
+      attackerStrength: 50,
+      defenderStrength: 24,
+      terrainDefenseBonus: 0,
+      riverAttackPenalty: 0,
+      exchange: {
+        kind: 'turret-fire',
+        defenderCounterDamageMultiplier: 0.25,
+        defenderIncomingDamageMultiplier: 1,
+        label: 'Bomber gunners fire back weakly: 25% return fire',
+      },
+    });
+
+    expect(details).toContain('Bomber gunners fire back weakly: 25% return fire');
+  });
 });
