@@ -1,9 +1,11 @@
 import {
   calculateCombatStrengths,
+  deterministicCombatSeed,
   getTerrainDefenseBonus,
   resolveCombat,
   selectDefenderForAttack,
 } from '@/systems/combat-system';
+import { createNewGame } from '@/core/game-state';
 import type { GameMap } from '@/core/types';
 import { createUnit } from '@/systems/unit-system';
 import { generateMap } from '@/systems/map-generator';
@@ -44,6 +46,32 @@ function makeRiverCombatMap(
     },
   };
 }
+
+describe('deterministicCombatSeed', () => {
+  it('is reproducible, distinguishes same-turn combat pairs, and supports legacy games', () => {
+    const first = deterministicCombatSeed('campaign-a', 42, 'unit-1', 'unit-2');
+
+    expect(deterministicCombatSeed('campaign-a', 42, 'unit-1', 'unit-2')).toBe(first);
+    expect(deterministicCombatSeed('campaign-a', 42, 'unit-7', 'unit-9')).not.toBe(first);
+    expect(deterministicCombatSeed(undefined, 42, 'unit-1', 'unit-2'))
+      .toBe(deterministicCombatSeed('legacy', 42, 'unit-1', 'unit-2'));
+  });
+
+  it('does not depend on the active hot-seat player or difficulty', () => {
+    const state = createNewGame({
+      gameTitle: 'Seed hot-seat',
+      mapSize: 'small',
+      opponentCount: 1,
+      seed: 'seed-hot-seat',
+    });
+    const seed = deterministicCombatSeed(state.gameId, state.turn, 'unit-1', 'unit-2');
+
+    state.currentPlayer = 'ai-1';
+    state.opponentChallenge = 'expert';
+
+    expect(deterministicCombatSeed(state.gameId, state.turn, 'unit-1', 'unit-2')).toBe(seed);
+  });
+});
 
 describe('resolveCombat', () => {
   let map: GameMap;
