@@ -16,7 +16,7 @@
 - `src/systems/unit-system.ts` — `bomber` and `stealth_bomber` doctrine declarations.
 - `src/systems/combat-system.ts` — shared poor-defense predicate, exchange-policy helper, deterministic damage application.
 - `src/ui/combat-preview.ts` — kid-legible preview labels from the shared exchange result.
-- `src/ui/notification-routing.ts` — defender notification-log wording from the transient exchange label.
+- `src/ui/notification-routing.ts` — attacker and defender notification-log wording from the transient exchange label.
 - `src/audio/sfx-director.ts` — one delayed defensive-fire sound only for a nonzero turret-fire response.
 - `src/ai/ai-tactics.ts` — rank attacks using seeded projected damage, including air-defense effects.
 - `tests/systems/combat-system.test.ts` — catalog, resolver, parity, and balance coverage.
@@ -31,8 +31,8 @@
 
 | Before | Action | Immediate visible result |
 | --- | --- | --- |
-| Fighter targets visible conventional bomber | Tap the bomber | Preview says `Bomber gunners fire back weakly: 25% return fire`; resolving the attack plays one secondary defensive shot if it deals damage. |
-| Fighter targets visible stealth bomber | Tap the bomber | Preview says `Stealth makes it harder to hit: −35% interceptor damage`; resolving the attack plays no defensive-shot sound. |
+| Fighter targets visible conventional bomber | Tap the bomber | Preview says `Bomber gunners fire back weakly: 25% return fire`; resolving the attack plays one secondary defensive shot if it deals damage and writes the explanation to both involved players’ own logs. |
+| Fighter targets visible stealth bomber | Tap the bomber | Preview says `Stealth makes it harder to hit: −35% interceptor damage`; resolving the attack plays no defensive-shot sound and writes the explanation to both involved players’ own logs. |
 | Bomber targets fighter | Tap the fighter | No special air-defense label; the fighter’s ordinary retaliation remains visible through normal combat outcome. |
 | A hot-seat player cannot see an enemy bomber | Tap its fogged hex | No legal target, preview, policy label, notification, or sound leaks to that viewer. |
 
@@ -40,7 +40,7 @@
 
 - `25% return fire` must describe only a fighter intercepting an air-bombard unit with `turret-fire`; it must not appear for ground siege, bomber-initiated attacks, or ordinary ranged duels.
 - `−35% interceptor damage` must mean damage dealt to the stealth bomber, not a hidden fighter-strength penalty; the label must be emitted from the same exchange object that applies the multiplier.
-- The defender notification is recipient-scoped through `routeCombatResolved`; do not use `currentPlayer` when appending it.
+- Both special-exchange notifications are recipient-scoped through `routeCombatResolved`; do not use `currentPlayer` when appending either entry, and never notify an uninvolved viewer.
 
 ## Interaction Replay Checklist
 
@@ -282,11 +282,12 @@ git commit -m "fix(combat): model bomber interception defenses"
 - Modify: `src/ui/notification-routing.ts:306-332`
 - Test: `tests/ui/combat-preview.test.ts`
 - Test: `tests/ui/combat-resolved-presentation.test.ts`
+- Test: `tests/ui/notification-routing.test.ts`
 - Test: `tests/main.integration.test.ts`
 
 - [ ] **Step 1: Write failing preview and post-combat presentation tests**
 
-Add formatter tests with `exchange` to assert the exact approved text, then negative tests for `kind: 'none'`. Extend `makeEvent()` in `combat-resolved-presentation.test.ts` with a turret-fire exchange and assert the defender notification contains the same label. Add a live integration test that selects a fighter, taps a visible bomber, and asserts the rendered `#info-panel` contains `Bomber gunners fire back weakly: 25% return fire`.
+Add formatter tests with `exchange` to assert the exact approved text, then negative tests for `kind: 'none'`. Extend `makeEvent()` in `combat-resolved-presentation.test.ts` with a turret-fire exchange and assert both the attacker and defender receive their own recipient-scoped message containing the same label, while a third hot-seat civilization receives no notification. Add a live integration test that selects a fighter, taps a visible bomber, and asserts the rendered `#info-panel` contains `Bomber gunners fire back weakly: 25% return fire`.
 
 Add a fogged hot-seat test that changes `state.currentPlayer` to a civilization whose visibility does not include the bomber tile, taps the tile, and asserts no `Combat Preview` or exchange label appears.
 
@@ -295,7 +296,7 @@ Add a fogged hot-seat test that changes `state.currentPlayer` to a civilization 
 Run:
 
 ```sh
-bash scripts/run-with-mise.sh yarn test --run tests/ui/combat-preview.test.ts tests/ui/combat-resolved-presentation.test.ts tests/main.integration.test.ts
+bash scripts/run-with-mise.sh yarn test --run tests/ui/combat-preview.test.ts tests/ui/combat-resolved-presentation.test.ts tests/ui/notification-routing.test.ts tests/main.integration.test.ts
 ```
 
 Expected: FAIL because the label is not currently rendered or routed.
@@ -310,16 +311,26 @@ if (preview.exchange?.label) details.push(preview.exchange.label);
 
 Keep `main.ts` on its existing live `calculateCombatStrengths` → `formatCombatPreviewDetails` path; do not create a duplicate preview formatter or add a button.
 
-In `routeCombatResolved`, append `result.exchange?.label` to the defender’s existing message:
+In `routeCombatResolved`, append `result.exchange?.label` to the defender’s existing message and, only when an exchange exists, add an attacker-owner log entry. Expand the `facts` pick to include `attackerOwnerId` and `attackerType` so both entries remain correct if a combatant was removed from state:
 
 ```ts
 const exchangeNote = result.exchange?.label ? ` ${result.exchange.label}.` : '';
 const msg = result.defenderSurvived
   ? `${defenderType} was attacked by ${attackerLabel} (${result.defenderDamage} damage taken).${exchangeNote}`
   : `${defenderType} was destroyed by ${attackerLabel}!${exchangeNote}`;
+sink(defenderOwner, msg, 'warning');
+
+const attackerOwner = facts?.attackerOwnerId ?? attacker?.owner;
+const attackerTypeId = facts?.attackerType ?? attacker?.type;
+if (result.exchange?.label && attackerOwner && attackerTypeId) {
+  const attackerType = UNIT_DEFINITIONS[attackerTypeId]?.name ?? attackerTypeId;
+  sink(attackerOwner, `${attackerType} attack: ${result.exchange.label}.`, 'info');
+}
 ```
 
-Preserve the existing `sink(defenderOwner, ...)` recipient; never derive the recipient from `state.currentPlayer`.
+Preserve the existing `sink(defenderOwner, ...)` recipient and use only the
+attacking owner for the new entry; never derive either recipient from
+`state.currentPlayer`.
 
 - [ ] **Step 4: Run the focused tests to verify they pass**
 
@@ -334,7 +345,7 @@ Expected: PASS; visible, legal targets show the correct doctrine, ordinary comba
 - [ ] **Step 5: Commit presentation wiring**
 
 ```sh
-git add src/ui/combat-preview.ts src/ui/notification-routing.ts tests/ui/combat-preview.test.ts tests/ui/combat-resolved-presentation.test.ts tests/main.integration.test.ts
+git add src/ui/combat-preview.ts src/ui/notification-routing.ts tests/ui/combat-preview.test.ts tests/ui/combat-resolved-presentation.test.ts tests/ui/notification-routing.test.ts tests/main.integration.test.ts
 git commit -m "feat(ui): explain bomber interception defenses"
 ```
 
@@ -397,7 +408,7 @@ git commit -m "feat(audio): play bomber defensive fire once"
 
 - [ ] **Step 1: Write a failing AI target-choice regression**
 
-Build one tactical context containing an AI `jet_fighter` and two otherwise comparable visible targets: a conventional bomber and a stealth bomber. Use the same fixed game ID/turn/IDs as the ranking seed. Assert the ranking score is derived from projected `attackerDamage` and `defenderDamage`, and that changing a target doctrine changes its score in the same direction as `resolveCombat`.
+Build one tactical context containing an AI `jet_fighter` and two otherwise comparable visible targets: a conventional bomber and a stealth bomber. Give the attacking AI a hostile `signals_hub` city within two hexes of the stealth bomber, because `canUnitAttackTarget` deliberately blocks range-2 fighter targeting of a stealth bomber without that existing detection building. Use the same fixed game ID/turn/IDs as the ranking seed. Assert the ranking score is derived from projected `attackerDamage` and `defenderDamage`, and that changing a target doctrine changes its score in the same direction as `resolveCombat`.
 
 Also assert a human and AI fighter given equivalent attacker/defender units, map, context, and seed receive equal `resolveCombat` results; only the owning caller differs.
 
@@ -439,15 +450,15 @@ git add src/ai/ai-tactics.ts tests/ai/ai-tactics.test.ts
 git commit -m "fix(ai): score bomber interception outcomes"
 ```
 
-### Task 6: Prove no-save-migration compatibility and run the complete regression set
+### Task 6: Prove current-save compatibility and run the complete regression set
 
 **Files:**
 - Modify: `tests/storage/save-migrations.test.ts`
 - Modify: `docs/superpowers/specs/2026-07-14-issue-537-air-interception-defense-design.md` only if implementation revealed a verified design deviation.
 
-- [ ] **Step 1: Write the legacy-save regression**
+- [ ] **Step 1: Write the current-save compatibility regression**
 
-Create a current-schema save fixture containing existing `bomber` and `stealth_bomber` units. Save its schema version, call `migrateSaveToCurrent`, then resolve a jet-fighter interception against each loaded unit. Assert:
+Create a current-schema save fixture containing existing `bomber` and `stealth_bomber` units. Save its schema version, call `migrateSaveToCurrent`, then resolve a jet-fighter interception against each loaded unit. Do not call this fixture legacy: an actual legacy fixture must correctly advance through unrelated existing migrations, while this test proves #537 itself adds no schema migration. Assert:
 
 ```ts
 expect(migrated.saveSchemaVersion).toBe(versionBefore);
@@ -473,7 +484,7 @@ Run:
 
 ```sh
 scripts/check-src-rule-violations.sh src/core/types.ts src/systems/combat-system.ts src/systems/unit-system.ts src/ui/combat-preview.ts src/ui/notification-routing.ts src/main.ts src/ai/ai-tactics.ts src/audio/sfx-director.ts
-bash scripts/run-with-mise.sh yarn test --run tests/systems/combat-system.test.ts tests/ui/combat-preview.test.ts tests/ui/combat-resolved-presentation.test.ts tests/main.integration.test.ts tests/ai/ai-tactics.test.ts tests/audio/sfx-director.test.ts tests/storage/save-migrations.test.ts
+bash scripts/run-with-mise.sh yarn test --run tests/systems/combat-system.test.ts tests/ui/combat-preview.test.ts tests/ui/combat-resolved-presentation.test.ts tests/ui/notification-routing.test.ts tests/main.integration.test.ts tests/ai/ai-tactics.test.ts tests/audio/sfx-director.test.ts tests/storage/save-migrations.test.ts
 bash scripts/run-with-mise.sh yarn build
 ```
 

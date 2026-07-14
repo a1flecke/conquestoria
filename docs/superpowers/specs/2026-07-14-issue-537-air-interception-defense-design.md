@@ -155,8 +155,10 @@ No air-defense wording appears for ordinary ground combat, city combat, a
 bomber attacking a fighter, or an air fight with no applicable policy. The
 preview must never imply full retaliation when the resolver applies a reduced
 or zero counterattack. The live resolved-combat presentation and notification
-log must reuse the same label so a player who acts quickly can still understand
-why the exchange differed.
+log must reuse the same label. For a special exchange, route one concise
+recipient-scoped log entry to the attacking owner as well as the existing
+defender report, so a player who acts quickly can still understand why the
+exchange differed without exposing it to another hot-seat player.
 
 The preview is visible only after normal target legality and viewer-visibility
 checks succeed. In hot seat, changing `currentPlayer` must not reveal an
@@ -224,15 +226,16 @@ preview or learn the label.
 
 Resolved-combat presentation tests must prove turret fire uses exactly one
 existing secondary-hit SFX when it deals damage, while evasion produces no
-defensive-fire SFX. A notification-log regression must prove the post-combat
-message uses the same policy explanation as the preview.
+defensive-fire SFX. Notification-log regressions must prove both involved human
+owners receive the same policy explanation from their own perspective, and no
+uninvolved hot-seat viewer receives it.
 
 AI coverage must exercise an air intercept evaluation rather than only calling
 the resolver from an AI turn. It must prove an AI fighter accounts for turret
 fire and evasion before selecting its target. Add one human-path and one
 non-human-path parity case with identical state and seed.
 
-Save coverage must load a legacy-schema fixture containing existing `bomber`
+Save coverage must load a current-schema fixture containing existing `bomber`
 and `stealth_bomber` units, resolve both interceptions, and assert that the
 schema version does not change solely because this catalog behavior changed.
 
@@ -241,8 +244,8 @@ schema version does not change solely because this catalog behavior changed.
 After implementation, run:
 
 ```sh
-scripts/check-src-rule-violations.sh src/core/types.ts src/systems/combat-system.ts src/systems/unit-system.ts src/ui/combat-preview.ts src/main.ts src/ai/ai-tactics.ts src/audio/sfx-director.ts
-bash scripts/run-with-mise.sh yarn test --run tests/systems/combat-system.test.ts tests/ui/combat-preview.test.ts tests/main.integration.test.ts tests/ai/ai-tactics.test.ts tests/audio/sfx-director.test.ts tests/storage/save-migrations.test.ts
+scripts/check-src-rule-violations.sh src/core/types.ts src/systems/combat-system.ts src/systems/unit-system.ts src/ui/combat-preview.ts src/ui/notification-routing.ts src/main.ts src/ai/ai-tactics.ts src/audio/sfx-director.ts
+bash scripts/run-with-mise.sh yarn test --run tests/systems/combat-system.test.ts tests/ui/combat-preview.test.ts tests/ui/combat-resolved-presentation.test.ts tests/ui/notification-routing.test.ts tests/main.integration.test.ts tests/ai/ai-tactics.test.ts tests/audio/sfx-director.test.ts tests/storage/save-migrations.test.ts
 bash scripts/run-with-mise.sh yarn build
 ```
 
