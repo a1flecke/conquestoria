@@ -112,3 +112,33 @@ describe('AI crisis severity uses standard, not opponentChallenge (#526 MR1)', (
     expect(getCrisisYieldMultiplier(state, 'ai-city')).toBeCloseTo(std);
   });
 });
+
+describe('AI crisis scheduling + world cap (#529 MR3 Task 3.1)', () => {
+  it('starts a crisis for an AI civ once aiPressure is full and preconditions are met', () => {
+    const { state } = makeCrisisFixture({ era: 3, turn: 40, includeAiCiv: true, aiPressure: 'full' });
+    const next = processCrisisScheduler(state, new EventBus());
+    const aiCrises = Object.values(next.activeCrises ?? {}).filter(c => c.targetCivId === 'ai-1');
+    expect(aiCrises).toHaveLength(1);
+  });
+
+  it('blocks a new AI crisis at the world cap even when the specific AI civ has zero of its own', () => {
+    // AI_CRISIS_WORLD_CAP.small === 2 — seed exactly the cap on OTHER ai-owned crises
+    // so ai-1 itself (0 own crises, well under any per-civ cap) is still blocked,
+    // proving the cap is global rather than per-civ.
+    const { state } = makeCrisisFixture({
+      era: 3, turn: 40, includeAiCiv: true, aiPressure: 'full', aiWorldCrisisCount: 2,
+    });
+    const next = processCrisisScheduler(state, new EventBus());
+    const ai1Crises = Object.values(next.activeCrises ?? {}).filter(c => c.targetCivId === 'ai-1');
+    const humanCrises = Object.values(next.activeCrises ?? {}).filter(c => c.targetCivId === 'p1');
+    expect(ai1Crises).toHaveLength(0); // blocked by the world cap, not its own (empty) history
+    expect(humanCrises).toHaveLength(1); // human is capped per-human, not by the AI world cap
+  });
+
+  it('never starts an AI crisis while aiPressure is only "pirates"', () => {
+    const { state } = makeCrisisFixture({ era: 3, turn: 40, includeAiCiv: true, aiPressure: 'pirates' });
+    const next = processCrisisScheduler(state, new EventBus());
+    const aiCrises = Object.values(next.activeCrises ?? {}).filter(c => c.targetCivId === 'ai-1');
+    expect(aiCrises).toHaveLength(0);
+  });
+});
