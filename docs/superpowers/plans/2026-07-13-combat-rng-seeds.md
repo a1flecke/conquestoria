@@ -76,11 +76,17 @@ describe('deterministicCombatSeed', () => {
   });
 
   it('does not depend on the active hot-seat player or difficulty', () => {
-    const state = createNewGame({ mapSize: 'small', opponentCount: 1, seed: 'seed-hot-seat' });
+    const state = createNewGame({
+      civType: 'egypt',
+      gameTitle: 'Seed hot-seat',
+      mapSize: 'small',
+      opponentCount: 1,
+      seed: 'seed-hot-seat',
+    });
     const seed = deterministicCombatSeed(state.gameId, state.turn, 'unit-1', 'unit-2');
 
     state.currentPlayer = 'ai-1';
-    state.opponentChallenge = 'expert';
+    state.opponentChallenge = 'veteran';
 
     expect(deterministicCombatSeed(state.gameId, state.turn, 'unit-1', 'unit-2')).toBe(seed);
   });
