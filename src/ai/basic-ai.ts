@@ -15,7 +15,7 @@ import {
   getUnloadDestinations,
   unloadUnitFromTransport,
 } from '@/systems/transport-system';
-import { resolveCombat } from '@/systems/combat-system';
+import { deterministicCombatSeed, resolveCombat } from '@/systems/combat-system';
 import { buildCombatContextForDefender } from '@/systems/combat-context';
 import { applyCombatOutcomeToState } from '@/systems/combat-reward-system';
 import { buildUnitOccupancy } from '@/systems/unit-occupancy';
@@ -391,7 +391,7 @@ export function applyPirateAiResponse(state: GameState, civId: string, bus: Even
       .filter(unit => isFavorablePirateFight(warship, unit))
       .sort((left, right) => left.id.localeCompare(right.id))[0];
     if (adjacentPirate) {
-      const seed = Math.max(1, nextState.turn * 16807 + warship.id.length * 97 + adjacentPirate.id.length);
+      const seed = deterministicCombatSeed(nextState.gameId, nextState.turn, warship.id, adjacentPirate.id);
       const combat = resolveCombat(
         warship,
         adjacentPirate,

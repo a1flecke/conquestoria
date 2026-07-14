@@ -13,7 +13,7 @@ import type {
 import { canUnitAttackTarget } from '@/systems/attack-targeting';
 import { applyCampDestructionAtTarget } from '@/systems/barbarian-system';
 import { applyCombatOutcomeToState } from '@/systems/combat-reward-system';
-import { resolveCombat } from '@/systems/combat-system';
+import { deterministicCombatSeed, resolveCombat } from '@/systems/combat-system';
 import { buildCombatContextForDefender } from '@/systems/combat-context';
 import {
   beginMajorCityAssault,
@@ -82,25 +82,6 @@ function targetPosition(plan: AIStrategicPlan) {
   return plan.target.kind === 'resource'
     ? plan.target.position
     : plan.target.anchor;
-}
-
-function deterministicCombatSeed(
-  state: GameState,
-  attackerId: string,
-  defenderId: string,
-): number {
-  const source = [
-    state.gameId ?? 'legacy',
-    state.turn,
-    attackerId,
-    defenderId,
-  ].join(':');
-  let hash = 2166136261;
-  for (let index = 0; index < source.length; index++) {
-    hash ^= source.charCodeAt(index);
-    hash = Math.imul(hash, 16777619);
-  }
-  return Math.max(1, hash >>> 0);
 }
 
 function actionMatches(
@@ -211,7 +192,7 @@ function executeAttack(
     return { state, followUps: [] };
   }
 
-  const seed = deterministicCombatSeed(next, attacker.id, defender.id);
+  const seed = deterministicCombatSeed(next.gameId, next.turn, attacker.id, defender.id);
   const combat = resolveCombat(
     attacker,
     defender,

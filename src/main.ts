@@ -37,7 +37,7 @@ import { createForeignCityEntryPanel } from '@/ui/foreign-city-entry-panel';
 import { createWorkerReplacementConfirmPanel, createWorkerTaskWarningPanel } from '@/ui/worker-task-warning-panel';
 import { createWonderPanel } from '@/ui/wonder-panel';
 import { createWonderAtlasPanel } from '@/ui/wonder-atlas-panel';
-import { calculateCombatStrengths, resolveCombat, selectDefenderForAttack } from '@/systems/combat-system';
+import { calculateCombatStrengths, deterministicCombatSeed, resolveCombat, selectDefenderForAttack } from '@/systems/combat-system';
 import { calculateCityAssaultStrengths } from '@/systems/city-siege-system';
 import { buildCombatContextForDefender } from '@/systems/combat-context';
 import { canUnitAttackTarget } from '@/systems/attack-targeting';
@@ -2611,7 +2611,7 @@ function executeAttack(attackerId: string, targetKey: string): void {
 
   ensurePlayerWarState(defender.owner);
 
-  const seed = gameState.turn * 16807 + attacker.id.charCodeAt(0) + defender.id.charCodeAt(0);
+  const seed = deterministicCombatSeed(gameState.gameId, gameState.turn, attacker.id, defender.id);
   const attackerBonus = currentCivDef()?.bonusEffect;
   // Capture defender position before combat (defender may be removed from state after)
   const defenderPosition = { ...defender.position };

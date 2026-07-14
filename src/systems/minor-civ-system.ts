@@ -28,7 +28,7 @@ import { collectUsedCityNames } from './city-name-system';
 import { generateQuest } from './quest-system';
 import { isMinorCivAtWar, isMinorCivHostileToOwner } from './minor-civ-diplomacy';
 import { processMinorCivEconomyTurn } from './minor-civ-economy-system';
-import { resolveCombat } from './combat-system';
+import { deterministicCombatSeed, resolveCombat } from './combat-system';
 import { buildCombatContextForDefender } from './combat-context';
 import { hasDiscoveredMinorCiv } from './discovery-system';
 import { canAttackByProfileOnMap } from './attack-targeting';
@@ -471,7 +471,7 @@ function executePurposefulMinorCivOrders(
     if (!attacker || !defender || attacker.hasActed) continue;
     const legality = canUnitAttackTarget(nextState, attacker, defender.position, { requireVisibility: false });
     if (!legality.ok || legality.targetType !== 'unit' || legality.targetUnitId !== defender.id) continue;
-    const seed = Math.max(1, nextState.turn * 16807 + attacker.id.length * 97 + defender.id.length);
+    const seed = deterministicCombatSeed(nextState.gameId, nextState.turn, attacker.id, defender.id);
     const result = resolveCombat(
       attacker,
       defender,
@@ -770,7 +770,7 @@ export function processScuffles(state: GameState, bus: EventBus): void {
         const attackerUnit = mc.units.map(uid => state.units[uid]).find(u => u);
         const defenderUnit = other.units.map(uid => state.units[uid]).find(u => u);
         if (attackerUnit && defenderUnit && canAttackByProfileOnMap(attackerUnit, defenderUnit, state.map)) {
-          const seed = state.turn * 16807 + attackerUnit.id.charCodeAt(0);
+          const seed = deterministicCombatSeed(state.gameId, state.turn, attackerUnit.id, defenderUnit.id);
           const result = resolveCombat(
             attackerUnit,
             defenderUnit,
