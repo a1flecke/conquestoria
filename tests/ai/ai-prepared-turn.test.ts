@@ -342,6 +342,104 @@ describe('prepared major-civilization planning', () => {
     });
   });
 
+  it('pirate dispatch competes on score, not automatic priority: a strong nearby at-war capture beats it at explorer difficulty (#528 MR2)', () => {
+    const state = createNewGame(undefined, 'prepared-pirate-dispatch-compete-lose', 'small');
+    state.opponentChallenge = 'explorer'; // crisisDispatchWeight 0.5 -> pirate score 50
+    state.settings = { ...state.settings, aiPressure: 'pirates' };
+    const civ = state.civilizations['ai-1'];
+    const anchor = civ.units.map(id => state.units[id]).find(Boolean)!.position;
+
+    // Strong, nearby, at-war capture opportunity: strategicValue 75 + distantReasonBonus 35,
+    // minimal distance/loss/supply penalty at travelTurns 1 -- scores well over 50.
+    const cityTile = Object.values(state.map.tiles)
+      .filter(tile =>
+        hexDistance(anchor, tile.coord) === 1
+        && findPath(anchor, tile.coord, state.map, 'land') !== null)
+      .sort((left, right) => hexKey(left.coord).localeCompare(hexKey(right.coord)))[0];
+    const city = foundCity('player', cityTile.coord, state.map, state.idCounters);
+    state.cities[city.id] = city;
+    state.civilizations.player.cities.push(city.id);
+    civ.knownCivilizations = ['player'];
+    civ.diplomacy.atWarWith = ['player'];
+    civ.visibility.tiles[hexKey(anchor)] = 'visible';
+    civ.visibility.tiles[hexKey(city.position)] = 'visible';
+
+    // Visible pirate fleet also targeting this civ.
+    const shipPosition = { q: anchor.q + 2, r: anchor.r };
+    state.units['pirate-ship'] = {
+      id: 'pirate-ship', type: 'pirate_frigate', owner: 'pirate-1', position: shipPosition,
+      movementPointsLeft: 4, health: 100, experience: 0,
+      hasMoved: false, hasActed: false, isResting: false,
+    };
+    civ.visibility.tiles[hexKey(shipPosition)] = 'visible';
+    state.pirates = {
+      ...state.pirates!,
+      factions: {
+        'pirate-1': {
+          id: 'pirate-1', name: 'The Red Wake', spawnedRound: 1, behavior: 'blockading',
+          maritimeStage: 3, notoriety: 5, shipIds: ['pirate-ship'],
+          headquarters: { kind: 'coastal-enclave', position: shipPosition, integrity: 100, maxIntegrity: 100 },
+          tributeByCiv: {}, demandByCiv: {}, contract: null,
+          intent: { kind: 'blockade', targetCivId: 'ai-1', targetCityId: civ.cities[0], plannedRound: state.turn },
+          transitionGuards: { emittedEventKeys: [] },
+        },
+      },
+    };
+
+    const prepared = prepareMajorCivStrategicPlan(state, 'ai-1');
+
+    expect(prepared.portfolio.primaryPlan).toMatchObject({
+      objective: 'capture',
+      target: { kind: 'city', id: city.id },
+    });
+  });
+
+  it('pirate dispatch competes on score, not automatic priority: it beats a weak distant peaceful-neighbor resource opportunity at veteran difficulty (#528 MR2)', () => {
+    const state = createNewGame(undefined, 'prepared-pirate-dispatch-compete-win', 'small');
+    state.opponentChallenge = 'veteran'; // crisisDispatchWeight 1.5 -> pirate score 150
+    state.settings = { ...state.settings, aiPressure: 'pirates' };
+    const civ = state.civilizations['ai-1'];
+    const anchor = civ.units.map(id => state.units[id]).find(Boolean)!.position;
+
+    // Weak, distant resource opportunity: strategicValue capped at 55, no distant-reason
+    // bonus, and a real distance penalty -- scores well under 150.
+    const resourceTile = Object.values(state.map.tiles)
+      .filter(tile => hexDistance(anchor, tile.coord) === 5)
+      .sort((left, right) => hexKey(left.coord).localeCompare(hexKey(right.coord)))[0];
+    resourceTile.resource = 'iron';
+    resourceTile.owner = null;
+    civ.visibility.tiles[hexKey(resourceTile.coord)] = 'visible';
+    civ.visibility.tiles[hexKey(anchor)] = 'visible';
+
+    const shipPosition = { q: anchor.q + 2, r: anchor.r };
+    state.units['pirate-ship'] = {
+      id: 'pirate-ship', type: 'pirate_frigate', owner: 'pirate-1', position: shipPosition,
+      movementPointsLeft: 4, health: 100, experience: 0,
+      hasMoved: false, hasActed: false, isResting: false,
+    };
+    civ.visibility.tiles[hexKey(shipPosition)] = 'visible';
+    state.pirates = {
+      ...state.pirates!,
+      factions: {
+        'pirate-1': {
+          id: 'pirate-1', name: 'The Red Wake', spawnedRound: 1, behavior: 'blockading',
+          maritimeStage: 3, notoriety: 5, shipIds: ['pirate-ship'],
+          headquarters: { kind: 'coastal-enclave', position: shipPosition, integrity: 100, maxIntegrity: 100 },
+          tributeByCiv: {}, demandByCiv: {}, contract: null,
+          intent: { kind: 'blockade', targetCivId: 'ai-1', targetCityId: civ.cities[0], plannedRound: state.turn },
+          transitionGuards: { emittedEventKeys: [] },
+        },
+      },
+    };
+
+    const prepared = prepareMajorCivStrategicPlan(state, 'ai-1');
+
+    expect(prepared.portfolio.primaryPlan).toMatchObject({
+      objective: 'repel',
+      target: { kind: 'unit', id: 'pirate-ship' },
+    });
+  });
+
   it('does not draft a repel plan against pirates when aiPressure is explicitly off', () => {
     const state = createNewGame(undefined, 'prepared-pirate-dispatch-off', 'small');
     state.settings = { ...state.settings, aiPressure: 'off' };
