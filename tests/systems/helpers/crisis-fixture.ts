@@ -192,7 +192,7 @@ export function makeCrisisFixture({
     activeCrises: Object.keys(activeCrises).length > 0 ? activeCrises : undefined,
     opponentAI: activeExternalThreat ? {
       ...createEmptyOpponentAIState(),
-      pressureByHuman: {
+      pressureByCiv: {
         [civId]: {
           activeIndependentThreatIds: ['barbarian:camp-x'],
           recoveryUntilTurn: 0,

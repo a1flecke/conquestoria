@@ -40,7 +40,7 @@ export function acknowledgeTurnHandoffSummary(
   const opponentAI = structuredClone(
     state.opponentAI ?? createEmptyOpponentAIState(),
   );
-  const ledger = opponentAI.pressureByHuman[viewerId] ?? {
+  const ledger = opponentAI.pressureByCiv[viewerId] ?? {
     activeIndependentThreatIds: [],
     recoveryUntilTurn: 0,
     lastResolvedThreatTurn: null,
@@ -50,7 +50,7 @@ export function acknowledgeTurnHandoffSummary(
   const playStrategicWarningAudio = hasStrategicWarning
     && ledger.lastStrategicAudioTurn !== summary.turn;
   if (hasStrategicWarning) {
-    opponentAI.pressureByHuman[viewerId] = {
+    opponentAI.pressureByCiv[viewerId] = {
       ...ledger,
       lastStrategicAudioTurn: summary.turn,
     };

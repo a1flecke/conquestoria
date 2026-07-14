@@ -6,7 +6,7 @@ import type {
   GameState,
   GameMap,
   HexCoord,
-  HumanPressureLedger,
+  CivPressureLedger,
 } from '@/core/types';
 import type { EventBus } from '@/core/event-bus';
 import { createEmptyOpponentAIState } from '@/core/opponent-ai-state';
@@ -38,7 +38,7 @@ export interface IndependentThreatSpawnPolicy {
   canStart(state: GameState, candidate: IndependentThreatSpawnCandidate): boolean;
 }
 
-function emptyPressureLedger(): HumanPressureLedger {
+function emptyPressureLedger(): CivPressureLedger {
   return {
     activeIndependentThreatIds: [],
     recoveryUntilTurn: 0,
@@ -186,7 +186,7 @@ export function deriveActiveIndependentThreatIds(
     }
   }
   for (
-    const threatId of state.opponentAI?.pressureByHuman[humanId]
+    const threatId of state.opponentAI?.pressureByCiv[humanId]
       ?.activeIndependentThreatIds ?? []
   ) {
     if (isIndependentThreatLive(state, threatId)) active.add(threatId);
@@ -200,7 +200,7 @@ export function canStartIndependentThreat(
   threatId: string,
 ): IndependentThreatDecision {
   const profile = getChallengeProfileForCiv(state, humanId);
-  const ledger = state.opponentAI?.pressureByHuman[humanId] ?? emptyPressureLedger();
+  const ledger = state.opponentAI?.pressureByCiv[humanId] ?? emptyPressureLedger();
   const activeCount = ledger.activeIndependentThreatIds.length;
   const base = { activeCount, cap: profile.maxIndependentCrisesPerHuman };
   if (ledger.activeIndependentThreatIds.includes(threatId)) {
@@ -224,15 +224,15 @@ export function reserveIndependentThreatForHumans(
   humanIds: string[],
 ): GameState {
   if (!state.opponentAI) return state;
-  const pressureByHuman = { ...state.opponentAI.pressureByHuman };
+  const pressureByCiv = { ...state.opponentAI.pressureByCiv };
   let changed = false;
   for (const humanId of [...new Set(humanIds)].sort()) {
     const civ = state.civilizations[humanId];
     if (!civ?.isHuman || civ.isEliminated) continue;
-    const ledger = pressureByHuman[humanId] ?? emptyPressureLedger();
+    const ledger = pressureByCiv[humanId] ?? emptyPressureLedger();
     if (ledger.activeIndependentThreatIds.includes(threatId)) continue;
     changed = true;
-    pressureByHuman[humanId] = {
+    pressureByCiv[humanId] = {
       ...ledger,
       activeIndependentThreatIds: [
         ...ledger.activeIndependentThreatIds,
@@ -242,7 +242,7 @@ export function reserveIndependentThreatForHumans(
   }
   return changed ? {
     ...state,
-    opponentAI: { ...state.opponentAI, pressureByHuman },
+    opponentAI: { ...state.opponentAI, pressureByCiv },
   } : state;
 }
 
@@ -255,18 +255,18 @@ export function processIndependentThreatPressureForHumans(
     .filter(civ => civ.isHuman && !civ.isEliminated)
     .map(civ => civ.id)
     .sort();
-  initialOpponentAI.pressureByHuman = Object.fromEntries(humanIds.map(humanId => [
+  initialOpponentAI.pressureByCiv = Object.fromEntries(humanIds.map(humanId => [
     humanId,
-    initialOpponentAI.pressureByHuman[humanId] ?? emptyPressureLedger(),
+    initialOpponentAI.pressureByCiv[humanId] ?? emptyPressureLedger(),
   ]));
-  const pressureByHuman: Record<string, HumanPressureLedger> = {};
+  const pressureByCiv: Record<string, CivPressureLedger> = {};
   for (const humanId of humanIds) {
     const profile = getChallengeProfileForCiv(state, humanId);
-    const previous = initialOpponentAI.pressureByHuman[humanId] ?? emptyPressureLedger();
+    const previous = initialOpponentAI.pressureByCiv[humanId] ?? emptyPressureLedger();
     const activeIndependentThreatIds = deriveActiveIndependentThreatIds(state, humanId);
     const resolved = previous.activeIndependentThreatIds
       .filter(threatId => !activeIndependentThreatIds.includes(threatId));
-    pressureByHuman[humanId] = {
+    pressureByCiv[humanId] = {
       ...previous,
       activeIndependentThreatIds,
       ...(resolved.length > 0 ? {
@@ -275,7 +275,7 @@ export function processIndependentThreatPressureForHumans(
       } : {}),
     };
   }
-  initialOpponentAI.pressureByHuman = pressureByHuman;
+  initialOpponentAI.pressureByCiv = pressureByCiv;
   let nextState: GameState = { ...state, opponentAI: initialOpponentAI };
   const spawnPolicy: IndependentThreatSpawnPolicy = {
     canStart: (candidateState, candidate) =>

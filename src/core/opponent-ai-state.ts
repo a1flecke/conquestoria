@@ -1,6 +1,7 @@
 import type {
   AIStrategicPlan,
   AITarget,
+  CivPressureLedger,
   GameState,
   MajorCivPlanPortfolio,
   OpponentAIState,
@@ -227,7 +228,7 @@ export function createEmptyOpponentAIState(): OpponentAIState {
     barbarianCamps: {},
     barbarianHomeCampByUnitId: {},
     minorCivs: {},
-    pressureByHuman: {},
+    pressureByCiv: {},
     lastPlannedRound: null,
     lastProcessedRound: null,
     lastFinalizedRound: null,
@@ -301,8 +302,10 @@ export function normalizeOpponentAIState(state: GameState): GameState {
     .map(civ => civ.id)
     .sort();
   for (const humanId of livingHumanIds) {
-    const ledger = source.pressureByHuman?.[humanId];
-    opponentAI.pressureByHuman[humanId] = {
+    const ledger = source.pressureByCiv?.[humanId]
+      // Legacy save migration: pre-#526 saves used the `pressureByHuman` key name.
+      ?? (source as unknown as { pressureByHuman?: Record<string, CivPressureLedger> }).pressureByHuman?.[humanId];
+    opponentAI.pressureByCiv[humanId] = {
       activeIndependentThreatIds: Array.isArray(ledger?.activeIndependentThreatIds)
         ? [...new Set(ledger.activeIndependentThreatIds
             .filter(id => isIndependentThreatId(id)))]

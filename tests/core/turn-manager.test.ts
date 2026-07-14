@@ -120,7 +120,7 @@ describe('processTurn', () => {
     const result = processTurn(structuredClone(state), new EventBus());
 
     expect(Object.values(result.barbarianCamps).some(camp => camp.resurgent)).toBe(true);
-    expect(result.opponentAI!.pressureByHuman['ai-1'].activeIndependentThreatIds)
+    expect(result.opponentAI!.pressureByCiv['ai-1'].activeIndependentThreatIds)
       .toEqual(expect.arrayContaining([expect.stringMatching(/^barbarian:camp-/)]));
   });
 

@@ -72,7 +72,7 @@ describe('completed-round pirate coordinator', () => {
       strength: 5,
       spawnCooldown: 2,
     };
-    state.opponentAI.pressureByHuman.player = {
+    state.opponentAI.pressureByCiv.player = {
       activeIndependentThreatIds: ['barbarian:existing-pressure'],
       recoveryUntilTurn: 0,
       lastResolvedThreatTurn: null,
