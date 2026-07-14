@@ -16,7 +16,7 @@ import {
   applyHoardChoice, getClaimedTrophyGoldPerTurn,
 } from '@/systems/beast-system';
 import { BEAST_DEFINITIONS } from '@/systems/beast-definitions';
-import { resolveCombat } from '@/systems/combat-system';
+import { deterministicCombatSeed, resolveCombat } from '@/systems/combat-system';
 import { buildCombatContextForDefender } from '@/systems/combat-context';
 import { canUnitAttackTarget } from '@/systems/attack-targeting';
 import { applyCombatOutcomeToState } from '@/systems/combat-reward-system';
@@ -809,7 +809,7 @@ export function processTurn(
     if (!attacker || !defender) continue;
     const legality = canUnitAttackTarget(newState, attacker, defender.position, { requireVisibility: false });
     if (!legality.ok || legality.targetType !== 'unit' || legality.targetUnitId !== defender.id) continue;
-    const combatSeed = barbSeed ^ attack.attackerUnitId.charCodeAt(0);
+    const combatSeed = deterministicCombatSeed(newState.gameId, newState.turn, attacker.id, defender.id);
     // Capture route IDs before combat (units may be removed from state after)
     const attackerRouteId = attacker.committedToRouteId;
     const defenderRouteId = defender.committedToRouteId;
@@ -1051,7 +1051,7 @@ export function processTurn(
       const attacker = newState.units[order.attackerUnitId];
       const defender = newState.units[order.defenderUnitId];
       if (!attacker || !defender) continue;
-      const combatSeed = beastSeed ^ order.attackerUnitId.charCodeAt(0);
+      const combatSeed = deterministicCombatSeed(newState.gameId, newState.turn, attacker.id, defender.id);
       const defenderPosBeast = { ...defender.position };
       const result = resolveCombat(
         attacker,

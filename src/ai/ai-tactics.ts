@@ -17,6 +17,7 @@ import {
 import { applyCombatOutcomeToState } from '@/systems/combat-reward-system';
 import {
   calculateCombatStrengths,
+  deterministicCombatSeed,
   resolveCombat,
 } from '@/systems/combat-system';
 import { buildCombatContextForDefender } from '@/systems/combat-context';
@@ -332,7 +333,7 @@ function rankAttacks(
       unit,
       defender,
       context.state.map,
-      combatSeed(context, action),
+      combatSeed(context.state, unit.id, defender.id),
       buildCombatContextForDefender(context.state, unit, defender),
       context.state.era,
     );
@@ -641,15 +642,12 @@ export function chooseUnitTacticalAction(
   return chooseRankedAction(context, unitId).action;
 }
 
-function combatSeed(context: AITacticalContext, action: AITacticalAction): number {
-  const rng = createRng([
-    context.state.gameId ?? 'legacy',
-    context.state.turn,
-    context.actorId,
-    context.plan.id,
-    actionId(action),
-  ].join(':'));
-  return Math.max(1, Math.floor(rng() * 2_147_483_646));
+function combatSeed(
+  state: GameState,
+  attackerId: string,
+  defenderId: string,
+): number {
+  return deterministicCombatSeed(state.gameId, state.turn, attackerId, defenderId);
 }
 
 function applyPredictedAction(
@@ -664,7 +662,7 @@ function applyPredictedAction(
     case 'attack': {
       const defender = next.units[action.targetUnitId];
       if (!defender) return next;
-      const seed = combatSeed({ ...context, state: next }, action);
+      const seed = combatSeed(next, unit.id, defender.id);
       const result = resolveCombat(
         unit,
         defender,

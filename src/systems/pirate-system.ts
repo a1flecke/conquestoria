@@ -5,7 +5,7 @@ import { isMajorCivOwner } from '@/core/owner-kind';
 import { resolveChallengeForCiv } from '@/core/opponent-challenge';
 import { canUnitAttackTarget } from './attack-targeting';
 import { applyCombatOutcomeToState } from './combat-reward-system';
-import { resolveCombat } from './combat-system';
+import { deterministicCombatSeed, resolveCombat } from './combat-system';
 import { buildCombatContextForDefender } from './combat-context';
 import { applyCitySiegeOutcome, getCityCounterFireDamage, getCityGarrisonUnit, resolveCitySiegeDamage } from './city-siege-system';
 import type { PirateEconomyModifiers } from './economy-system';
@@ -196,7 +196,7 @@ function attackTarget(
   if (!canUnitAttackTarget(state, attacker, defender.position, { requireVisibility: false }).ok) {
     return { state, result: null, presentation: null, transportKill: null, events: [] };
   }
-  const seed = Math.max(1, state.turn * 7919 + attacker.id.length * 97 + defender.id.length);
+  const seed = deterministicCombatSeed(state.gameId, state.turn, attacker.id, defender.id);
   const result = resolveCombat(
     attacker,
     defender,
