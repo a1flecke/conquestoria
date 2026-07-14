@@ -92,6 +92,19 @@ export function resolveChallengeForCiv(
   return resolveOpponentChallenge(state);
 }
 
+// Severity for world pressure (crises, pirate fleets). Humans: personal challenge.
+// AI: ALWAYS 'standard' — never resolveChallengeForCiv, whose game-wide
+// opponentChallenge would invert difficulty (veteran would make AI suffer MORE,
+// making the game easier). Spec: docs/superpowers/specs/2026-07-11-world-pressure-symmetry-design.md
+export function resolvePressureSeverityForCiv(
+  state: Pick<GameState, 'opponentChallenge' | 'civilizations'>,
+  civId: string,
+): OpponentChallenge {
+  const civ = state.civilizations[civId];
+  if (civ?.isHuman) return resolveChallengeForCiv(state, civId);
+  return 'standard';
+}
+
 export function getChallengeProfileForCiv(
   state: Pick<GameState, 'opponentChallenge' | 'civilizations'>,
   civId: string,
