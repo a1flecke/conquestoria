@@ -24,5 +24,8 @@ export function formatCombatPreviewDetails(
   if (preview.defenderDefendsPoorly) {
     details.push('Siege defends poorly (−50%)');
   }
+  if (preview.exchange?.label) {
+    details.push(preview.exchange.label);
+  }
   return details.join(' | ');
 }
