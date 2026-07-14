@@ -371,9 +371,10 @@ describe('canUnitAttackBeast', () => {
     expect(canUnitAttackBeast(makeUnit({ type: 'warrior' }), serpent).reason).toContain('ships and ranged');
   });
 
-  it('naval and ranged units can attack a navalOnly beast', () => {
+  it('naval, ranged, and bombard units can attack a navalOnly beast', () => {
     expect(canUnitAttackBeast(makeUnit({ type: 'galley' }), serpent).allowed).toBe(true);
     expect(canUnitAttackBeast(makeUnit({ type: 'archer' }), serpent).allowed).toBe(true);
+    expect(canUnitAttackBeast(makeUnit({ type: 'stealth_bomber' }), serpent).allowed).toBe(true);
   });
 
   it('everything can attack normal beasts', () => {

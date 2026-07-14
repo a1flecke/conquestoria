@@ -112,7 +112,9 @@ export function canUnitAttackBeast(attacker: Unit, target: Unit): BeastAttackEli
   if (!def?.navalOnly || target.owner !== BEAST_OWNER) return { allowed: true };
   const attackerDef = UNIT_DEFINITIONS[attacker.type];
   const isNaval = attackerDef?.domain === 'naval';
-  const isRanged = attackerDef?.attackProfile?.kind === 'ranged';
+  const isRanged = attackerDef?.attackProfile?.kind === 'ranged'
+    || attackerDef?.attackProfile?.kind === 'siege'
+    || attackerDef?.attackProfile?.kind === 'bombard';
   if (isNaval || isRanged) return { allowed: true };
   return { allowed: false, reason: `Only ships and ranged units can fight the ${def.name}.` };
 }

@@ -1,4 +1,11 @@
-import type { Unit, CombatResult, GameMap, CivBonusEffect } from '@/core/types';
+import type {
+  Unit,
+  CombatExchangeKind,
+  CombatResult,
+  GameMap,
+  CivBonusEffect,
+  UnitAttackProfile,
+} from '@/core/types';
 import { hexDistance, hexKey } from './hex-utils';
 import { UNIT_DEFINITIONS } from './unit-system';
 import { getWonderCombatBonus } from './wonder-system';
@@ -126,6 +133,51 @@ export interface CombatStrengthBreakdown {
   attackerModifierParts?: ModifierPart[];
   defenderModifierParts?: ModifierPart[];
   defenderDefendsPoorly?: boolean;
+  exchange: CombatExchangeModifiers;
+}
+
+export interface CombatExchangeModifiers {
+  kind: CombatExchangeKind;
+  defenderCounterDamageMultiplier: number;
+  defenderIncomingDamageMultiplier: number;
+  label?: string;
+}
+
+export function defendsPoorly(profile: UnitAttackProfile | undefined): boolean {
+  return profile?.kind === 'siege' || profile?.kind === 'bombard';
+}
+
+export function getCombatExchangeModifiers(attacker: Unit, defender: Unit): CombatExchangeModifiers {
+  const attackerDefinition = UNIT_DEFINITIONS[attacker.type];
+  const defenderDefinition = UNIT_DEFINITIONS[defender.type];
+  const neutral: CombatExchangeModifiers = {
+    kind: 'none',
+    defenderCounterDamageMultiplier: 1,
+    defenderIncomingDamageMultiplier: 1,
+  };
+  if (
+    attackerDefinition.domain !== 'air'
+    || attackerDefinition.attackProfile?.kind !== 'ranged'
+    || defenderDefinition.domain !== 'air'
+    || defenderDefinition.attackProfile?.kind !== 'bombard'
+  ) return neutral;
+
+  const doctrine = defenderDefinition.airInterceptionDefense;
+  if (!doctrine) return neutral;
+  if (doctrine.kind === 'turret-fire') {
+    return {
+      kind: 'turret-fire',
+      defenderCounterDamageMultiplier: doctrine.counterDamageMultiplier,
+      defenderIncomingDamageMultiplier: 1,
+      label: `Bomber gunners fire back weakly: ${Math.round(doctrine.counterDamageMultiplier * 100)}% return fire`,
+    };
+  }
+  return {
+    kind: 'evasion',
+    defenderCounterDamageMultiplier: 0,
+    defenderIncomingDamageMultiplier: doctrine.incomingDamageMultiplier,
+    label: `Stealth makes it harder to hit: −${Math.round((1 - doctrine.incomingDamageMultiplier) * 100)}% interceptor damage`,
+  };
 }
 
 export function calculateCombatStrengths(
@@ -152,7 +204,7 @@ export function calculateCombatStrengths(
   // attackProfile.kind rather than the 'siege' UnitClass because that class includes
   // ballista (kind 'ranged', more agile — no penalty) and excludes bomber/stealth_bomber
   // (which do need it, per the #537 counter-intercept fix).
-  if (defenderDefinition.attackProfile?.kind === 'bombard') {
+  if (defendsPoorly(defenderDefinition.attackProfile)) {
     defenderStrength *= 0.5;
   }
 
@@ -211,7 +263,8 @@ export function calculateCombatStrengths(
     cityDefense,
     attackerModifierParts: context?.attackerModifiers?.parts,
     defenderModifierParts: context?.defenderModifiers?.parts,
-    defenderDefendsPoorly: defenderDefinition.attackProfile?.kind === 'bombard',
+    defenderDefendsPoorly: defendsPoorly(defenderDefinition.attackProfile),
+    exchange: getCombatExchangeModifiers(attacker, defender),
   };
 }
 
@@ -302,10 +355,13 @@ export function resolveCombat(
     siegeMultiplier = context.attackerBonus.damageMultiplier;
   }
 
-  const defenderDamage = Math.round(baseDamage * adjustedRatio * siegeMultiplier);
+  const exchange = strengths.exchange;
+  const defenderDamage = Math.round(
+    baseDamage * adjustedRatio * siegeMultiplier * exchange.defenderIncomingDamageMultiplier,
+  );
   const distance = hexDistance(attacker.position, defender.position);
   const attackerDamage = canCounterAttackAtDistance(defender, distance)
-    ? Math.round(baseDamage * (1 - adjustedRatio))
+    ? Math.round(baseDamage * (1 - adjustedRatio) * exchange.defenderCounterDamageMultiplier)
     : 0;
 
   const attackerHealthAfter = attacker.health - attackerDamage;
@@ -320,5 +376,6 @@ export function resolveCombat(
     defenderSurvived: defenderHealthAfter > 0,
     attackerPosition: attacker.position,
     defenderPosition: defender.position,
+    ...(exchange.kind === 'none' ? {} : { exchange: { kind: exchange.kind, label: exchange.label! } }),
   };
 }
