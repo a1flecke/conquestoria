@@ -367,6 +367,10 @@ export interface UnitAttackProfile {
   targets: Array<'unit' | 'city'>;
 }
 
+export type AirInterceptionDefense =
+  | { kind: 'turret-fire'; counterDamageMultiplier: number }
+  | { kind: 'evasion'; incomingDamageMultiplier: number };
+
 export interface UnitDefinition {
   type: UnitType;
   name: string;
@@ -379,6 +383,7 @@ export interface UnitDefinition {
   domain?: 'land' | 'naval' | 'air';
   spyDetectionChance?: number; // 0–1, probability per adjacent spy unit per turn
   attackProfile?: UnitAttackProfile;
+  airInterceptionDefense?: AirInterceptionDefense;
   terrainCostOverrides?: Partial<Record<string, number>>;
   cargoCapacity?: number;
   cargoSize?: number;
@@ -1128,6 +1133,14 @@ export interface CombatResult {
   defenderSurvived: boolean;
   attackerPosition: HexCoord;
   defenderPosition: HexCoord;
+  exchange?: CombatExchangeSummary;
+}
+
+export type CombatExchangeKind = 'none' | 'turret-fire' | 'evasion';
+
+export interface CombatExchangeSummary {
+  kind: Exclude<CombatExchangeKind, 'none'>;
+  label: string;
 }
 
 export interface CombatRewardNotification {

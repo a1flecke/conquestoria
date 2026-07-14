@@ -7,7 +7,7 @@ import {
 } from '@/systems/combat-system';
 import { createNewGame } from '@/core/game-state';
 import type { GameMap } from '@/core/types';
-import { createUnit } from '@/systems/unit-system';
+import { createUnit, UNIT_DEFINITIONS } from '@/systems/unit-system';
 import { generateMap } from '@/systems/map-generator';
 
 const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
@@ -334,5 +334,66 @@ describe('bombard-kind defense penalty (MR: counter-attack rule fix, #537)', () 
 
     // Bomber strength 48, halved by the bombard penalty before terrain.
     expect(preview.defenderStrength).toBeCloseTo(48 * 0.5 * (1 + terrain), 5);
+  });
+});
+
+describe('combat doctrine catalog (#537)', () => {
+  it('declares one bounded interception doctrine for every air bombard unit', () => {
+    const airBombardDefinitions = Object.values(UNIT_DEFINITIONS)
+      .filter(definition => definition.domain === 'air' && definition.attackProfile?.kind === 'bombard');
+
+    expect(airBombardDefinitions.length).toBeGreaterThan(0);
+    for (const definition of airBombardDefinitions) {
+      const doctrine = definition.airInterceptionDefense;
+      expect(doctrine, definition.type).toBeDefined();
+      const multiplier = doctrine?.kind === 'turret-fire'
+        ? doctrine.counterDamageMultiplier
+        : doctrine?.incomingDamageMultiplier;
+      expect(multiplier, definition.type).toBeGreaterThan(0);
+      expect(multiplier, definition.type).toBeLessThanOrEqual(1);
+    }
+  });
+
+  it('classifies both strategic bombers as air bombard units', () => {
+    expect(UNIT_DEFINITIONS.bomber.attackProfile?.kind).toBe('bombard');
+    expect(UNIT_DEFINITIONS.stealth_bomber.attackProfile?.kind).toBe('bombard');
+  });
+
+  it('keeps agile ranged ballista outside the poor-defense siege and bombard profiles', () => {
+    expect(UNIT_DEFINITIONS.ballista.attackProfile?.kind).toBe('ranged');
+  });
+});
+
+describe('air interception defenses (#537)', () => {
+  let map: GameMap;
+
+  beforeAll(() => {
+    map = generateMap(30, 30, 'air-interception-defense-test');
+  });
+
+  it('records reduced but nonzero turret fire when a fighter intercepts a bomber', () => {
+    const fighter = createUnit('jet_fighter', 'p1', { q: 10, r: 10 }, mkC());
+    const bomber = createUnit('bomber', 'p2', { q: 11, r: 10 }, mkC());
+
+    const result = resolveCombat(fighter, bomber, map, 77);
+
+    expect(result.exchange).toEqual({
+      kind: 'turret-fire',
+      label: 'Bomber gunners fire back weakly: 25% return fire',
+    });
+    expect(result.attackerDamage).toBeGreaterThan(0);
+  });
+
+  it('records evasion and no return fire when a fighter intercepts a stealth bomber', () => {
+    const fighter = createUnit('jet_fighter', 'p1', { q: 10, r: 10 }, mkC());
+    const stealthBomber = createUnit('stealth_bomber', 'p2', { q: 11, r: 10 }, mkC());
+
+    const result = resolveCombat(fighter, stealthBomber, map, 77);
+
+    expect(result.exchange).toEqual({
+      kind: 'evasion',
+      label: 'Stealth makes it harder to hit: −35% interceptor damage',
+    });
+    expect(result.attackerDamage).toBe(0);
   });
 });

@@ -338,6 +338,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     canFoundCity: false, canBuildImprovements: false, productionCost: 280,
     domain: 'air',
     attackProfile: { kind: 'bombard', range: 3, targets: ['city', 'unit'] },
+    airInterceptionDefense: { kind: 'turret-fire', counterDamageMultiplier: 0.25 },
   },
   carrier: {
     type: 'carrier', name: 'Carrier',
@@ -500,7 +501,8 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     visionRange: 3, strength: 52, canFoundCity: false,
     canBuildImprovements: false, productionCost: 360,
     domain: 'air',
-    attackProfile: { kind: 'ranged', range: 3, targets: ['unit', 'city'] },
+    attackProfile: { kind: 'bombard', range: 3, targets: ['unit', 'city'] },
+    airInterceptionDefense: { kind: 'evasion', incomingDamageMultiplier: 0.65 },
   },
 };
 
