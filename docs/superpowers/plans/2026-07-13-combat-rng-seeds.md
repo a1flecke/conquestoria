@@ -27,7 +27,32 @@
 | `tests/systems/combat-system.test.ts` | Proves helper determinism, pair distinction, legacy fallback, and hot-seat invariance. |
 | `tests/core/turn-manager.test.ts` | Updates the barbarian combat expectation to the canonical seed. |
 | `tests/ai/ai-major-turn.test.ts` and `tests/ai/ai-tactics.test.ts` | Prove AI prediction and execution share the canonical seed. |
+| `tests/main.integration.test.ts` | Proves the live player combat path derives the canonical seed. |
 | `tests/storage/save-manager.test.ts` | Proves normalized legacy saves retain a stable combat seed. |
+
+### Task 0: Synchronize the implementation base
+
+**Files:**
+- Verify: the current `codex/issue-521` worktree and `origin/main`
+
+- [ ] **Step 1: Fetch and rebase before touching source**
+
+```bash
+git fetch origin main
+git rebase origin/main
+```
+
+Expected: the branch is rebased onto the latest `origin/main` with no conflicts. If Git reports a conflict, inspect only the conflicting combat, test, or plan file; resolve it deliberately, run `git diff --check`, and continue with `git -c core.editor=true rebase --continue`. Do not start source edits until the rebase completes.
+
+- [ ] **Step 2: Confirm the clean synchronized baseline**
+
+```bash
+git status --short --branch
+git log -1 --oneline origin/main
+git merge-base --is-ancestor origin/main HEAD
+```
+
+Expected: no uncommitted files, the displayed `origin/main` commit is an ancestor of `HEAD`, and the final command exits `0`.
 
 ### Task 1: Establish the canonical seed contract
 
@@ -212,6 +237,7 @@ git commit -m "fix(combat): share seeds across combat paths"
 - Modify: `tests/core/turn-manager.test.ts`
 - Modify: `tests/ai/ai-major-turn.test.ts`
 - Modify: `tests/ai/ai-tactics.test.ts`
+- Modify: `tests/main.integration.test.ts`
 - Modify: `tests/storage/save-manager.test.ts`
 
 - [ ] **Step 1: Update the existing barbarian expectation**
@@ -230,7 +256,27 @@ const combatSeed = deterministicCombatSeed(state.gameId, state.turn, raider.id, 
 
 Keep the existing assertion that the event result equals the context-aware expected result. It proves the non-human turn path uses the canonical seed and preserves combat-context behavior.
 
-- [ ] **Step 2: Add AI execution and tactical-selection parity regressions**
+- [ ] **Step 2: Add a live player-path wiring regression**
+
+In `tests/main.integration.test.ts`, add this test in a `describe('player combat wiring', ...)` block:
+
+```ts
+it('derives each player combat seed from the game, turn, and unit pair', () => {
+  const main = readFileSync(resolve(PROJECT_ROOT, 'src/main.ts'), 'utf8');
+  const executeAttack = main.slice(
+    main.indexOf('function executeAttack('),
+    main.indexOf("bus.on('combat:resolved'"),
+  );
+
+  expect(executeAttack).toContain(
+    'deterministicCombatSeed(gameState.gameId, gameState.turn, attacker.id, defender.id)',
+  );
+});
+```
+
+This complements the turn-manager regression: it proves the human entry point and a non-human entry point both use the shared seed contract.
+
+- [ ] **Step 3: Add AI execution and tactical-simulation parity regressions**
 
 Export no new AI production API. In `tests/ai/ai-major-turn.test.ts`, add imports for `resolveCombat` and `deterministicCombatSeed` from `@/systems/combat-system` and `buildCombatContextForDefender` from `@/systems/combat-context`. Then use the existing `makeState`, `addUnit`, `makePlan`, and `prepared` helpers to place an adjacent AI warrior and human warrior. Calculate the expected result before processing:
 
@@ -245,9 +291,39 @@ const expected = resolveCombat(
 );
 ```
 
-After `processMajorCivStrategicTurn`, assert the defender's resulting health is `Math.max(0, defender.health - expected.defenderDamage)`. In `tests/ai/ai-tactics.test.ts`, use the analogous adjacent-unit fixture and assert `chooseTacticalSequence` includes the same `{ kind: 'attack', unitId: attacker.id, targetUnitId: defender.id }` action. Together with the direct helper tests and the Task 2 call-site inspection, this proves the AI evaluates an attack that execution resolves with the shared pair seed without exposing a tactical-only seed API.
+After `processMajorCivStrategicTurn`, assert the defender's resulting health is `Math.max(0, defender.health - expected.defenderDamage)`.
 
-- [ ] **Step 3: Add the normalized legacy-save regression**
+In `tests/ai/ai-tactics.test.ts`, change the Vitest import to include `vi` and add `import * as combatSystem from '@/systems/combat-system';`. Use the analogous adjacent-unit fixture, then spy on the actual resolver while selecting tactics:
+
+```ts
+const expectedSeed = combatSystem.deterministicCombatSeed(
+  state.gameId,
+  state.turn,
+  attacker.id,
+  defender.id,
+);
+const resolveCombatSpy = vi.spyOn(combatSystem, 'resolveCombat');
+
+try {
+  const actions = chooseTacticalSequence(context(state, plan));
+  const matchingSeeds = resolveCombatSpy.mock.calls.filter(
+    ([seenAttacker, seenDefender, , seed]) => seenAttacker.id === attacker.id
+      && seenDefender.id === defender.id
+      && seed === expectedSeed,
+  );
+
+  expect(actions).toContainEqual({
+    kind: 'attack', unitId: attacker.id, targetUnitId: defender.id,
+  });
+  expect(matchingSeeds.length).toBeGreaterThanOrEqual(2);
+} finally {
+  resolveCombatSpy.mockRestore();
+}
+```
+
+The two observed calls are the tactical preview and predicted-action simulation. This directly proves both use the canonical pair seed; the major-turn test separately proves execution uses it.
+
+- [ ] **Step 4: Add the normalized legacy-save regression**
 
 In `tests/storage/save-manager.test.ts`, import `deterministicCombatSeed`. Extend the existing `runs the ordered save schema migration before legacy normalization` test after its `gameId` assertion:
 
@@ -260,20 +336,20 @@ expect(deterministicCombatSeed(reloaded.gameId, reloaded.turn, 'unit-1', 'unit-2
 
 This covers the real save-load path without adding a migration solely for combat seeds.
 
-- [ ] **Step 4: Run all focused regressions**
+- [ ] **Step 5: Run all focused regressions**
 
 Run:
 
 ```bash
-bash scripts/run-with-mise.sh yarn test --run tests/systems/combat-system.test.ts tests/core/turn-manager.test.ts tests/ai/ai-major-turn.test.ts tests/ai/ai-tactics.test.ts tests/ai/basic-ai-pirates.test.ts tests/systems/minor-civ-system.test.ts tests/systems/pirate-system.test.ts tests/storage/save-manager.test.ts
+bash scripts/run-with-mise.sh yarn test --run tests/systems/combat-system.test.ts tests/core/turn-manager.test.ts tests/ai/ai-major-turn.test.ts tests/ai/ai-tactics.test.ts tests/ai/basic-ai-pirates.test.ts tests/systems/minor-civ-system.test.ts tests/systems/pirate-system.test.ts tests/main.integration.test.ts tests/storage/save-manager.test.ts
 ```
 
 Expected: PASS.
 
-- [ ] **Step 5: Commit the regressions**
+- [ ] **Step 6: Commit the regressions**
 
 ```bash
-git add tests/systems/combat-system.test.ts tests/core/turn-manager.test.ts tests/ai/ai-major-turn.test.ts tests/ai/ai-tactics.test.ts tests/storage/save-manager.test.ts
+git add tests/systems/combat-system.test.ts tests/core/turn-manager.test.ts tests/ai/ai-major-turn.test.ts tests/ai/ai-tactics.test.ts tests/systems/minor-civ-system.test.ts tests/systems/pirate-system.test.ts tests/main.integration.test.ts tests/storage/save-manager.test.ts
 git commit -m "test(combat): cover seed parity and save compatibility"
 ```
 
@@ -310,9 +386,6 @@ git diff --check
 
 Expected: only the documented deterministic-seed changes and no whitespace errors.
 
-- [ ] **Step 4: Commit the plan document**
+- [ ] **Step 4: Confirm plan status**
 
-```bash
-git add docs/superpowers/plans/2026-07-13-combat-rng-seeds.md
-git commit -m "docs: plan combat rng seed fix"
-```
+This plan is already committed. Do not create an empty documentation commit. If implementation required revising this plan, include that amended file in the final intentional implementation commit instead.
