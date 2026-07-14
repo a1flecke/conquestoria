@@ -308,4 +308,66 @@ describe('prepared major-civilization planning', () => {
     expect(prepared.assignments.assignmentsByPlanId[prepared.portfolio.primaryPlan!.id])
       .not.toContain(warrior.id);
   });
+
+  it('drafts a repel plan against a pirate fleet sieging the civ when aiPressure is "pirates" (#528 MR2)', () => {
+    const state = createNewGame(undefined, 'prepared-pirate-dispatch', 'small');
+    state.settings = { ...state.settings, aiPressure: 'pirates' };
+    const civ = state.civilizations['ai-1'];
+    const anchor = civ.units.map(id => state.units[id]).find(Boolean)!.position;
+    const shipPosition = { q: anchor.q + 2, r: anchor.r };
+    state.units['pirate-ship'] = {
+      id: 'pirate-ship', type: 'pirate_frigate', owner: 'pirate-1', position: shipPosition,
+      movementPointsLeft: 4, health: 100, experience: 0,
+      hasMoved: false, hasActed: false, isResting: false,
+    };
+    state.pirates = {
+      ...state.pirates!,
+      factions: {
+        'pirate-1': {
+          id: 'pirate-1', name: 'The Red Wake', spawnedRound: 1, behavior: 'blockading',
+          maritimeStage: 3, notoriety: 5, shipIds: ['pirate-ship'],
+          headquarters: { kind: 'coastal-enclave', position: shipPosition, integrity: 100, maxIntegrity: 100 },
+          tributeByCiv: {}, demandByCiv: {}, contract: null,
+          intent: { kind: 'blockade', targetCivId: 'ai-1', targetCityId: civ.cities[0], plannedRound: state.turn },
+          transitionGuards: { emittedEventKeys: [] },
+        },
+      },
+    };
+
+    const prepared = prepareMajorCivStrategicPlan(state, 'ai-1');
+
+    expect(prepared.portfolio.primaryPlan).toMatchObject({
+      objective: 'repel',
+      target: { kind: 'unit', id: 'pirate-ship' },
+    });
+  });
+
+  it('does not draft a repel plan against pirates when aiPressure is off (default, parity with today)', () => {
+    const state = createNewGame(undefined, 'prepared-pirate-dispatch-off', 'small');
+    const civ = state.civilizations['ai-1'];
+    const anchor = civ.units.map(id => state.units[id]).find(Boolean)!.position;
+    const shipPosition = { q: anchor.q + 2, r: anchor.r };
+    state.units['pirate-ship'] = {
+      id: 'pirate-ship', type: 'pirate_frigate', owner: 'pirate-1', position: shipPosition,
+      movementPointsLeft: 4, health: 100, experience: 0,
+      hasMoved: false, hasActed: false, isResting: false,
+    };
+    state.pirates = {
+      ...state.pirates!,
+      factions: {
+        'pirate-1': {
+          id: 'pirate-1', name: 'The Red Wake', spawnedRound: 1, behavior: 'blockading',
+          maritimeStage: 3, notoriety: 5, shipIds: ['pirate-ship'],
+          headquarters: { kind: 'coastal-enclave', position: shipPosition, integrity: 100, maxIntegrity: 100 },
+          tributeByCiv: {}, demandByCiv: {}, contract: null,
+          intent: { kind: 'blockade', targetCivId: 'ai-1', targetCityId: civ.cities[0], plannedRound: state.turn },
+          transitionGuards: { emittedEventKeys: [] },
+        },
+      },
+    };
+
+    const prepared = prepareMajorCivStrategicPlan(state, 'ai-1');
+
+    expect(prepared.portfolio.primaryPlan).toBeNull();
+  });
 });

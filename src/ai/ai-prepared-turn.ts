@@ -43,6 +43,8 @@ import {
   OPPONENT_CHALLENGE_PROFILES,
   resolveOpponentChallenge,
 } from '@/core/opponent-challenge';
+import { getCrisisDispatchCandidates } from './ai-crisis-response';
+import { isPiratePressureEligible } from '@/systems/world-pressure-eligibility';
 
 export interface PreparedMajorCivPlan {
   civId: string;
@@ -303,6 +305,31 @@ function planCandidates(
   });
 }
 
+// Converts CrisisDispatchCandidate (pirate fleets, later hunt foes) into the
+// same AIPlanCandidate shape objectiveCandidates() produces, so they compete
+// for primaryPlan through the existing selectPrimaryPlan scoring in
+// ai-plan-portfolio.ts rather than a parallel decision path.
+function crisisDispatchPlanCandidates(state: GameState, civId: string): AIPlanCandidate[] {
+  if (!isPiratePressureEligible(state, civId)) return [];
+  return getCrisisDispatchCandidates(state, civId).flatMap(candidate => {
+    const unit = state.units[candidate.targetUnitId];
+    if (!unit) return [];
+    return [{
+      objective: 'repel',
+      target: { kind: 'unit', id: candidate.targetUnitId, lastKnownPosition: { ...unit.position } },
+      theaterId: `local:${unit.position.q},${unit.position.r}`,
+      score: candidate.score,
+      reasonCodes: ['urgent-defense'],
+      requiredRoles: { 'naval-combat': 1 },
+      commitment: 0.25,
+      targetValid: true,
+      reasonValid: true,
+      expectedLossRatio: 0,
+      progress: false,
+    }];
+  });
+}
+
 function cityThreats(
   state: Readonly<GameState>,
   civId: string,
@@ -384,7 +411,7 @@ export function prepareMajorCivStrategicPlan(
     turn: state.turn,
     actorEliminated: civ.isEliminated === true,
     portfolio: previous,
-    candidates: planCandidates(candidates, choice),
+    candidates: [...planCandidates(candidates, choice), ...crisisDispatchPlanCandidates(state, civId)],
     cityThreats: threats,
     modernization: {
       bestTrainableStrength,
