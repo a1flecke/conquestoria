@@ -24,4 +24,18 @@ describe('world-pressure eligibility', () => {
   it('full flag: both include AI', () => {
     expect(getCrisisEligibleCivIds(base('full'))).toEqual(['ai-1', 'h1']);
   });
+
+  it('excludes eliminated civs directly, not just via getCrisisEligibleCivIds', () => {
+    const state = {
+      settings: { aiPressure: 'full' },
+      civilizations: {
+        h1: { id: 'h1', isHuman: true, isEliminated: true, cities: [] },
+        'ai-1': { id: 'ai-1', isHuman: false, isEliminated: true, cities: [] },
+      },
+    } as any;
+    expect(isCrisisPressureEligible(state, 'h1')).toBe(false);
+    expect(isCrisisPressureEligible(state, 'ai-1')).toBe(false);
+    expect(isPiratePressureEligible(state, 'h1')).toBe(false);
+    expect(isPiratePressureEligible(state, 'ai-1')).toBe(false);
+  });
 });
