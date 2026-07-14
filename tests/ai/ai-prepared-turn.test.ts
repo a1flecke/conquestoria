@@ -342,8 +342,9 @@ describe('prepared major-civilization planning', () => {
     });
   });
 
-  it('does not draft a repel plan against pirates when aiPressure is off (default, parity with today)', () => {
+  it('does not draft a repel plan against pirates when aiPressure is explicitly off', () => {
     const state = createNewGame(undefined, 'prepared-pirate-dispatch-off', 'small');
+    state.settings = { ...state.settings, aiPressure: 'off' };
     const civ = state.civilizations['ai-1'];
     const anchor = civ.units.map(id => state.units[id]).find(Boolean)!.position;
     const shipPosition = { q: anchor.q + 2, r: anchor.r };
