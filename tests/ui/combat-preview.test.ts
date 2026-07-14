@@ -65,7 +65,7 @@ describe('formatCombatPreviewDetails', () => {
       defenderDefendsPoorly: true,
     });
 
-    expect(details).toContain('Siege defends poorly (−50%)');
+    expect(details).toContain('Bombard units defend poorly (−50%)');
   });
 
   it('omits the bombard defense penalty line for a normal defender (negative test)', () => {

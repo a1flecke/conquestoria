@@ -22,6 +22,21 @@ describe('save migrations', () => {
     expect(loadedAgain).toEqual(migrated);
   });
 
+  it('#537 interception doctrine is definition data, so existing bomber saves need no schema migration', () => {
+    const savedGame = createNewGame('rome', 'bomber-save-compatibility', 'small');
+    const loaded = migrateSaveToCurrent(structuredClone(savedGame));
+    const loadedAgain = migrateSaveToCurrent(structuredClone(loaded));
+
+    expect(loaded.saveSchemaVersion).toBe(CURRENT_SAVE_SCHEMA_VERSION);
+    expect(loadedAgain).toEqual(loaded);
+    expect(UNIT_DEFINITIONS.bomber.airInterceptionDefense).toEqual({
+      kind: 'turret-fire', counterDamageMultiplier: 0.25,
+    });
+    expect(UNIT_DEFINITIONS.stealth_bomber.airInterceptionDefense).toEqual({
+      kind: 'evasion', incomingDamageMultiplier: 0.65,
+    });
+  });
+
   it('#553 MR1/4 — Trade Routes Overhaul is purely additive: a pre-existing caravan and its committed route survive migration and stay functional (no SAVE_MIGRATIONS entry needed)', () => {
     const legacySave = createNewGame('rome', 'pre-naval-trader-save', 'small');
     const cityId = Object.keys(legacySave.cities)[0]!;

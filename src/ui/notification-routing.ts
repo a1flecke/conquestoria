@@ -297,31 +297,38 @@ export function routeStrategicWarning(
   );
 }
 
-// Routes to the defender's owner regardless of who is currently acting.
+// Routes to the combatants' owners regardless of who is currently acting.
 export function routeCombatResolved(
   state: GameState,
   result: CombatResult,
   sink: NotificationSink,
   facts?: Pick<
     GameEvents['combat:resolved'],
-    'attackerOwnerId' | 'defenderOwnerId' | 'defenderType'
+    'attackerOwnerId' | 'attackerType' | 'defenderOwnerId' | 'defenderType'
   >,
 ): void {
   const defender = state.units[result.defenderId];
   const attacker = state.units[result.attackerId];
   const defenderOwner = facts?.defenderOwnerId ?? defender?.owner;
   if (!defenderOwner) return;
-  const attackerOwner = facts?.attackerOwnerId ?? attacker?.owner ?? 'Unknown';
+  const attackerOwner = facts?.attackerOwnerId ?? attacker?.owner;
   const attackerLabel = attackerOwner === 'barbarian'
     ? 'Barbarians'
-    : (state.civilizations[attackerOwner]?.name ?? attackerOwner);
+    : (state.civilizations[attackerOwner ?? '']?.name ?? attackerOwner ?? 'Unknown');
   const defenderTypeId = facts?.defenderType ?? defender?.type;
   if (!defenderTypeId) return;
   const defenderType = UNIT_DEFINITIONS[defenderTypeId]?.name ?? defenderTypeId;
+  const exchangeSuffix = result.exchange ? `. ${result.exchange.label}.` : '';
   const msg = result.defenderSurvived
     ? `${defenderType} was attacked by ${attackerLabel} (${result.defenderDamage} damage taken)`
     : `${defenderType} was destroyed by ${attackerLabel}!`;
-  sink(defenderOwner, msg, 'warning');
+  sink(defenderOwner, `${msg}${exchangeSuffix}`, 'warning');
+
+  if (!result.exchange || !attackerOwner || attackerOwner === 'barbarian') return;
+  const attackerTypeId = facts?.attackerType ?? attacker?.type;
+  if (!attackerTypeId) return;
+  const attackerType = UNIT_DEFINITIONS[attackerTypeId]?.name ?? attackerTypeId;
+  sink(attackerOwner, `${attackerType} attack: ${result.exchange.label}.`, 'info');
 }
 
 export function routeCombatRewardEarned(

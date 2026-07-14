@@ -308,20 +308,8 @@ function rankAttacks(
     if (!isAIHostileOwner(context.state, context.actorId, defender.owner)) {
       continue;
     }
-    const strengths = calculateCombatStrengths(
-      unit,
-      defender,
-      context.state.map,
-      buildCombatContextForDefender(context.state, unit, defender),
-    );
-    const expectedDamageRatio = Math.min(
-      2,
-      strengths.attackerStrength / Math.max(1, strengths.defenderStrength),
-    );
-    const deathRisk = Math.min(
-      2,
-      strengths.defenderStrength / Math.max(1, strengths.attackerStrength),
-    );
+    const combatContext = buildCombatContextForDefender(context.state, unit, defender);
+    const strengths = calculateCombatStrengths(unit, defender, context.state.map, combatContext);
     const defenderProfile = getUnitAttackProfile(defender.type);
     const safeRanged = target.result.range > defenderProfile.range;
     const action: AITacticalAction = {
@@ -334,9 +322,11 @@ function rankAttacks(
       defender,
       context.state.map,
       combatSeed(context.state, unit.id, defender.id),
-      buildCombatContextForDefender(context.state, unit, defender),
+      combatContext,
       context.state.era,
     );
+    const expectedDamageRatio = Math.min(2, preview.defenderDamage / Math.max(1, defender.health));
+    const deathRisk = Math.min(2, preview.attackerDamage / Math.max(1, unit.health));
     const likelyFinish = !preview.defenderSurvived;
     const focusFireBonus = likelyFinish ? 90 : Math.max(0, 100 - defender.health) * 0.4;
     const planProgress = context.plan.target.kind === 'unit'
