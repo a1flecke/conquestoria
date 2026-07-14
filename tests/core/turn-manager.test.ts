@@ -18,7 +18,7 @@ import { createUnit } from '@/systems/unit-system';
 import { deterministicCombatSeed, resolveCombat } from '@/systems/combat-system';
 import { buildCombatContextForDefender } from '@/systems/combat-context';
 import { createTechState } from '@/systems/tech-system';
-import { processIndependentThreatPressureForHumans } from '@/systems/threat-pressure-system';
+import { processIndependentThreatPressure } from '@/systems/threat-pressure-system';
 
 const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
 
@@ -112,7 +112,7 @@ describe('processTurn', () => {
         regionKeys.map(regionKey => [regionKey, civ.id === 'ai-1' ? 0 : state.turn]),
       );
     }
-    expect(Object.values(processIndependentThreatPressureForHumans(
+    expect(Object.values(processIndependentThreatPressure(
       structuredClone(state),
       new EventBus(),
     ).barbarianCamps).some(camp => camp.resurgent)).toBe(true);

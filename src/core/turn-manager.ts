@@ -22,7 +22,7 @@ import { canUnitAttackTarget } from '@/systems/attack-targeting';
 import { applyCombatOutcomeToState } from '@/systems/combat-reward-system';
 import {
   PIRATE_OWNER,
-  processIndependentThreatPressureForHumans,
+  processIndependentThreatPressure,
   recordCombatForCiv,
 } from '@/systems/threat-pressure-system';
 import { emitMinorCivQuestTransitions } from '@/systems/quest-chain-system';
@@ -89,7 +89,7 @@ import { normalizeOpponentAIState } from '@/core/opponent-ai-state';
 import { processFactionTurn, getUnrestYieldMultiplier, isCityProductionLocked } from '@/systems/faction-system';
 import { getOccupiedCityYieldMultiplier, tickOccupiedCities } from '@/systems/city-occupation-system';
 import { processBreakawayTurn } from '@/systems/breakaway-system';
-import { processCrisisTurn, processCrisisSchedulerForHumans, getCrisisYieldMultiplier } from '@/systems/crisis-system';
+import { processCrisisTurn, processCrisisScheduler, getCrisisYieldMultiplier } from '@/systems/crisis-system';
 import {
   applyTerritoryFrontierProgressWithEvents,
   buildTerritoryTileFlippedEvents,
@@ -1083,8 +1083,8 @@ export function processTurn(
   }
 
   // --- Threat pressure (spawn phase: land resurgence + pirate spawn) ---
-  newState = processIndependentThreatPressureForHumans(newState, bus);
-  newState = processCrisisSchedulerForHumans(newState, bus);
+  newState = processIndependentThreatPressure(newState, bus);
+  newState = processCrisisScheduler(newState, bus);
 
   // --- Process espionage ---
   newState = processEspionageTurn(newState, bus);

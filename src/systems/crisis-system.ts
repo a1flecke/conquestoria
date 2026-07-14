@@ -2,6 +2,7 @@ import type { ActiveCrisis, BeastLair, City, CrisisOutcome, GameState, HexCoord 
 import type { EventBus } from '@/core/event-bus';
 import { getChallengeProfileForCiv, resolvePressureSeverityForCiv } from '@/core/opponent-challenge';
 import { computeThreatScore, deriveActiveIndependentThreatIds, createPirateFleetNear, pickBanditName } from './threat-pressure-system';
+import { getCrisisEligibleCivIds } from './world-pressure-eligibility';
 import { CRISIS_FLAVORS, getCrisisFlavor, type CrisisFlavor } from './crisis-flavor-definitions';
 import { seededLcg, weightedPick } from './seeded-lcg';
 import { hexKey, mapDistance, mapHexesInRange } from './hex-utils';
@@ -38,11 +39,9 @@ export function countActiveCrisesForCiv(state: GameState, civId: string): number
   return scheduled + countUnrestGroups(state, civId);
 }
 
-export function processCrisisSchedulerForHumans(state: GameState, bus: EventBus): GameState {
+export function processCrisisScheduler(state: GameState, bus: EventBus): GameState {
   let next = state;
-  const humanIds = Object.values(state.civilizations)
-    .filter(c => c.isHuman && !c.isEliminated).map(c => c.id).sort();
-  for (const civId of humanIds) next = maybeStartCrisis(next, civId, bus);
+  for (const civId of getCrisisEligibleCivIds(state)) next = maybeStartCrisis(next, civId, bus);
   return next;
 }
 

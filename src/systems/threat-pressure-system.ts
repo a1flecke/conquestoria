@@ -15,6 +15,7 @@ import { BEAST_DEFINITIONS } from './beast-definitions';
 import { hexKey, mapDistance, mapNeighbors } from './hex-utils';
 import { createUnit } from './unit-system';
 import { seededLcg } from './seeded-lcg';
+import { isPiratePressureEligible } from './world-pressure-eligibility';
 
 export const PIRATE_OWNER = 'pirate';
 
@@ -76,7 +77,7 @@ export function deriveHumansMateriallyAffectedByPosition(
   radius: number,
 ): string[] {
   return Object.values(state.civilizations)
-    .filter(civ => civ.isHuman && !civ.isEliminated)
+    .filter(civ => !civ.isEliminated && isPiratePressureEligible(state, civ.id))
     .filter(civ =>
       humanAssetPositions(state, civ.id)
         .some(asset => threatDistance(state, position, asset) <= radius))
@@ -167,8 +168,8 @@ export function deriveActiveIndependentThreatIds(
   state: GameState,
   humanId: string,
 ): string[] {
-  const human = state.civilizations[humanId];
-  if (!human?.isHuman || human.isEliminated) return [];
+  const civ = state.civilizations[humanId];
+  if (!civ || civ.isEliminated || !isPiratePressureEligible(state, humanId)) return [];
   const active = new Set<string>();
   for (const campId of Object.keys(state.barbarianCamps).sort()) {
     if (barbarianMateriallyAffectsHuman(state, campId, humanId)) {
@@ -228,7 +229,7 @@ export function reserveIndependentThreatForHumans(
   let changed = false;
   for (const humanId of [...new Set(humanIds)].sort()) {
     const civ = state.civilizations[humanId];
-    if (!civ?.isHuman || civ.isEliminated) continue;
+    if (!civ || civ.isEliminated || !isPiratePressureEligible(state, humanId)) continue;
     const ledger = pressureByCiv[humanId] ?? emptyPressureLedger();
     if (ledger.activeIndependentThreatIds.includes(threatId)) continue;
     changed = true;
@@ -246,13 +247,13 @@ export function reserveIndependentThreatForHumans(
   } : state;
 }
 
-export function processIndependentThreatPressureForHumans(
+export function processIndependentThreatPressure(
   state: GameState,
   bus: EventBus,
 ): GameState {
   const initialOpponentAI = structuredClone(state.opponentAI ?? createEmptyOpponentAIState());
   const humanIds = Object.values(state.civilizations)
-    .filter(civ => civ.isHuman && !civ.isEliminated)
+    .filter(civ => !civ.isEliminated && isPiratePressureEligible(state, civ.id))
     .map(civ => civ.id)
     .sort();
   initialOpponentAI.pressureByCiv = Object.fromEntries(humanIds.map(humanId => [
@@ -350,7 +351,7 @@ export function nearestLandmassId(position: HexCoord, map: GameMap): string | nu
 
 export function computeThreatScore(state: GameState, civId: string, landmassId: string): number {
   const civ = state.civilizations[civId];
-  if (!civ || !civ.isHuman) return 0;
+  if (!civ || !isPiratePressureEligible(state, civId)) return 0;
 
   // Only evaluate landmasses where civ has at least one city
   const hasCityOnLandmass = civ.cities.some(cityId => {
@@ -798,7 +799,7 @@ export function processThreatPressure(
   options: { includeLegacyPirates?: boolean } = {},
 ): GameState {
   const civ = state.civilizations[civId];
-  if (!civ || !civ.isHuman) return state;
+  if (!civ || !isPiratePressureEligible(state, civId)) return state;
 
   // Collect unique landmass IDs where civ has cities
   const landmassIds = new Set<string>();
