@@ -3,12 +3,12 @@ import { resolveWorldPressureFlags } from '@/systems/world-pressure-flags';
 import type { GameSettings } from '@/core/types';
 
 describe('resolveWorldPressureFlags', () => {
-  it('defaults aiPressure to "pirates" (#528 MR2 rollout) and the rest off for legacy saves (undefined settings fields)', () => {
+  it('defaults aiPressure to "full" (#529 MR3 rollout) and the rest off for legacy saves (undefined settings fields)', () => {
     expect(resolveWorldPressureFlags({} as GameSettings)).toEqual({
-      aiPressure: 'pirates', aiPressureVisibility: false, aiCrisisInteractions: 'off',
+      aiPressure: 'full', aiPressureVisibility: false, aiCrisisInteractions: 'off',
     });
     expect(resolveWorldPressureFlags(undefined)).toEqual({
-      aiPressure: 'pirates', aiPressureVisibility: false, aiCrisisInteractions: 'off',
+      aiPressure: 'full', aiPressureVisibility: false, aiCrisisInteractions: 'off',
     });
   });
   it('defaults aiPressure to "off" only when explicitly set that way', () => {
