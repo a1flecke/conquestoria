@@ -15,6 +15,8 @@ import type {
 import { foundCity } from '@/systems/city-system';
 import { hexKey } from '@/systems/hex-utils';
 import { createUnit } from '@/systems/unit-system';
+import { buildCombatContextForDefender } from '@/systems/combat-context';
+import { deterministicCombatSeed, resolveCombat } from '@/systems/combat-system';
 
 const AI = 'ai-1';
 const HUMAN = 'player';
@@ -135,6 +137,30 @@ function prepared(
 }
 
 describe('processMajorCivStrategicTurn', () => {
+  it('uses the canonical pair seed when resolving a major-AI attack', () => {
+    const state = makeState();
+    const attacker = addUnit(state, 'attacker', 'warrior', AI, { q: 0, r: 0 });
+    const defender = addUnit(state, 'defender', 'warrior', HUMAN, { q: 1, r: 0 });
+    const plan = makePlan(
+      { kind: 'unit', id: defender.id, lastKnownPosition: defender.position },
+      [attacker.id],
+      { objective: 'raid', phase: 'advancing', requiredRoles: { frontline: 1 } },
+    );
+    const expected = resolveCombat(
+      attacker,
+      defender,
+      state.map,
+      deterministicCombatSeed(state.gameId, state.turn, attacker.id, defender.id),
+      buildCombatContextForDefender(state, attacker, defender),
+      state.era,
+    );
+
+    const result = processMajorCivStrategicTurn(state, prepared(state, plan), new EventBus());
+
+    expect(result.state.units[defender.id]?.health)
+      .toBe(Math.max(0, defender.health - expected.defenderDamage));
+  });
+
   it('modernizes before tactics so an upgraded unit cannot act twice', () => {
     const state = makeState();
     const home = addCity(state, 'home-city', AI, { q: 0, r: 0 });

@@ -15,7 +15,7 @@ import { makeBreakawayFixture } from '../systems/helpers/breakaway-fixture';
 import { makeAutoExploreFixture } from '../systems/helpers/auto-explore-fixture';
 import { makeLegendaryWonderFixture } from '../systems/helpers/legendary-wonder-fixture';
 import { createUnit } from '@/systems/unit-system';
-import { resolveCombat } from '@/systems/combat-system';
+import { deterministicCombatSeed, resolveCombat } from '@/systems/combat-system';
 import { buildCombatContextForDefender } from '@/systems/combat-context';
 import { createTechState } from '@/systems/tech-system';
 import { processIndependentThreatPressureForHumans } from '@/systems/threat-pressure-system';
@@ -1224,7 +1224,7 @@ describe('processTurn', () => {
     state.civilizations.player.techState.completed = ['fortification-engineering'];
     state.opponentAI = undefined;
 
-    const combatSeed = (state.turn * 31337 + 1) ^ raider.id.charCodeAt(0);
+    const combatSeed = deterministicCombatSeed(state.gameId, state.turn, raider.id, garrison.id);
     const expectedWithContext = resolveCombat(
       raider,
       garrison,
