@@ -1558,6 +1558,11 @@ export interface GameSettings {
   tutorialEnabled: boolean;
   beastsMode?: BeastsMode;    // default 'wild' for new games; undefined on legacy saves
   aiContestsBeasts?: boolean; // default false: AI ignores beasts, players keep the glory
+  // World-pressure symmetry flags (#526). Optional: legacy saves resolve via
+  // resolveWorldPressureFlags defaults — never read these fields directly.
+  aiPressure?: 'off' | 'pirates' | 'full';
+  aiPressureVisibility?: boolean;
+  aiCrisisInteractions?: 'off' | 'benign' | 'full';
   advisorsEnabled: Record<AdvisorType, boolean>;
   councilTalkLevel: CouncilTalkLevel;
   customCivilizations?: CustomCivDefinition[];
