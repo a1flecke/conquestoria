@@ -635,7 +635,7 @@ describe('AI pirate pressure eligibility (#528 MR2 Task 2.2)', () => {
     return state;
   }
 
-  it('reserves independent-threat pressure against an AI civ when aiPressure is "pirates"', () => {
+  it('reserves independent-threat pressure against an AI civ when aiPressure is "pirates" (default since #528 MR2)', () => {
     const state = aiTargetState();
     state.settings = { ...state.settings, aiPressure: 'pirates' };
 
@@ -646,8 +646,9 @@ describe('AI pirate pressure eligibility (#528 MR2 Task 2.2)', () => {
       .toEqual(['pirate:pirate-1']);
   });
 
-  it('does not reserve pressure against an AI civ when aiPressure is off (default, parity with today)', () => {
+  it('does not reserve pressure against an AI civ when aiPressure is explicitly off', () => {
     const state = aiTargetState();
+    state.settings = { ...state.settings, aiPressure: 'off' };
 
     const result = processPiratesForCompletedRound(state, new EventBus());
 

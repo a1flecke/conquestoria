@@ -9,11 +9,13 @@ export interface WorldPressureFlags {
   aiCrisisInteractions: AiCrisisInteractionsFlag;
 }
 
-// Stage defaults: flipped by the final MR of each stage (MR 2/3 → aiPressure,
-// MR 5 → visibility, MR 6/7 → interactions). Until then, dark.
+// Stage defaults: flipped by the final MR of each stage. aiPressure flipped to
+// 'pirates' in #528 (MR2) -- this is the rollout mechanism: existing saves have
+// no aiPressure field, so they pick up the new default on load. MR 5 flips
+// visibility, MR 6/7 flip interactions. Until then, those two stay dark.
 export function resolveWorldPressureFlags(settings: GameSettings | undefined): WorldPressureFlags {
   return {
-    aiPressure: settings?.aiPressure ?? 'off',
+    aiPressure: settings?.aiPressure ?? 'pirates',
     aiPressureVisibility: settings?.aiPressureVisibility ?? false,
     aiCrisisInteractions: settings?.aiCrisisInteractions ?? 'off',
   };

@@ -13,13 +13,15 @@ describe('world-pressure eligibility', () => {
       'ai-1': { id: 'ai-1', isHuman: false, isEliminated: false, cities: ['c2'] },
     },
   } as any);
-  it('flags off: humans only (parity with today)', () => {
-    expect(getCrisisEligibleCivIds(base())).toEqual(['h1']);
-    expect(isPiratePressureEligible(base(), 'ai-1')).toBe(false);
+  it('flags explicitly off: humans only', () => {
+    expect(getCrisisEligibleCivIds(base('off'))).toEqual(['h1']);
+    expect(isPiratePressureEligible(base('off'), 'ai-1')).toBe(false);
   });
-  it('pirates flag: pirate pressure includes AI, crisis does not', () => {
+  it('pirates flag (default since #528 MR2): pirate pressure includes AI, crisis does not', () => {
     expect(isPiratePressureEligible(base('pirates'), 'ai-1')).toBe(true);
     expect(isCrisisPressureEligible(base('pirates'), 'ai-1')).toBe(false);
+    // Unset settings now resolve to 'pirates', not 'off' -- same result as explicit.
+    expect(isPiratePressureEligible(base(), 'ai-1')).toBe(true);
   });
   it('full flag: both include AI', () => {
     expect(getCrisisEligibleCivIds(base('full'))).toEqual(['ai-1', 'h1']);

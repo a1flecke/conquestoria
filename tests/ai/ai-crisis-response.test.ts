@@ -17,7 +17,12 @@ function faction(overrides: Record<string, unknown> = {}) {
 function baseState(challenge: string): GameState {
   return {
     opponentChallenge: challenge,
-    civilizations: { 'ai-1': { id: 'ai-1', isHuman: false, isEliminated: false } },
+    civilizations: {
+      'ai-1': {
+        id: 'ai-1', isHuman: false, isEliminated: false,
+        visibility: { tiles: { '2,1': 'visible' } },
+      },
+    },
     units: { 'ship-1': { id: 'ship-1', type: 'pirate_frigate', owner: 'pirate-1', position: { q: 2, r: 1 } } },
     pirates: { factions: { 'pirate-1': faction() } },
   } as unknown as GameState;
@@ -55,6 +60,13 @@ describe('getCrisisDispatchCandidates', () => {
   it('produces zero candidates when the fleet targets a different civ', () => {
     const state = baseState('standard');
     (state.pirates!.factions['pirate-1'] as { intent: { targetCivId: string } }).intent.targetCivId = 'ai-2';
+    expect(getCrisisDispatchCandidates(state, 'ai-1')).toEqual([]);
+  });
+
+  it('produces zero candidates when the civ cannot currently see the fleet leader (no unearned exact targets)', () => {
+    const state = baseState('standard');
+    (state.civilizations['ai-1'] as { visibility: { tiles: Record<string, string> } })
+      .visibility.tiles = {};
     expect(getCrisisDispatchCandidates(state, 'ai-1')).toEqual([]);
   });
 });

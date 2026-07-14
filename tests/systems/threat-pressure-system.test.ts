@@ -202,9 +202,10 @@ describe('processLandResurgence', () => {
 });
 
 describe('processThreatPressure — hot-seat isolation', () => {
-  it('only evaluates human players — AI civ never gets resurgence', () => {
+  it('excludes AI civs from resurgence when aiPressure is off', () => {
     const state = makeTestState({ era: 3, turn: 30 });
     state.civilizations['p1'].isHuman = false;
+    state.settings = { ...state.settings, aiPressure: 'off' };
     state.civilizations['p1'].lastCombatTurnByLandmass = { 'continent-0': 10 };
     const events: any[] = [];
     const bus = { emit: (e: string, p: any) => events.push({ e, ...p }) } as any;
@@ -803,10 +804,18 @@ describe('computeThreatScore', () => {
     expect(score).toBeGreaterThan(5);
   });
 
-  it('returns 0 for AI civ', () => {
+  it('returns 0 for AI civ when aiPressure is off', () => {
     const state = makeTestState();
     state.civilizations['p1'].isHuman = false;
+    state.settings = { ...state.settings, aiPressure: 'off' };
     expect(computeThreatScore(state, 'p1', 'continent-0')).toBe(0);
+  });
+
+  it('is nonzero for AI civ when aiPressure is "pirates" (default since #528 MR2)', () => {
+    const state = makeTestState({ era: 2, turn: 20 });
+    state.civilizations['p1'].isHuman = false;
+    state.civilizations['p1'].lastCombatTurnByLandmass = { 'continent-0': 10 };
+    expect(computeThreatScore(state, 'p1', 'continent-0')).toBeGreaterThan(0);
   });
 
   it('returns 0 when civ has no city on landmass', () => {
