@@ -53,6 +53,9 @@ export function makeCrisisFixture({
   unrestCityCount = 0,
   adjacentUnrestCities = false,
   activeExternalThreat = false,
+  includeAiCiv = false,
+  aiWorldCrisisCount = 0,
+  aiPressure,
 }: {
   turn?: number;
   era?: number;
@@ -63,6 +66,12 @@ export function makeCrisisFixture({
   unrestCityCount?: number;
   adjacentUnrestCities?: boolean;
   activeExternalThreat?: boolean;
+  // MR3 (#529): a non-human civ with its own city, for AI-scheduling tests.
+  includeAiCiv?: boolean;
+  // Seeds this many ActiveCrisis entries targeting the AI civ, to test the
+  // AI_CRISIS_WORLD_CAP gate independent of any per-civ cooldown/grace state.
+  aiWorldCrisisCount?: number;
+  aiPressure?: 'off' | 'pirates' | 'full';
 } = {}): { state: GameState; civId: string } {
   const civId = 'p1';
 
@@ -94,6 +103,13 @@ export function makeCrisisFixture({
     tiles[hexKey(cities.c3.position)] = makeTile(cities.c3.position, civId);
   }
 
+  const aiCivId = 'ai-1';
+  const aiCapitalPos: HexCoord = { q: 10, r: 10 };
+  if (includeAiCiv) {
+    cities['ai-c1'] = makeCity('ai-c1', aiCivId, aiCapitalPos, { population: 5 });
+    tiles[hexKey(aiCapitalPos)] = makeTile(aiCapitalPos, aiCivId);
+  }
+
   const activeCrises: Record<string, ActiveCrisis> = {};
   for (let i = 0; i < existingCrisisCount; i++) {
     const id = `existing-crisis-${i}`;
@@ -103,6 +119,25 @@ export function makeCrisisFixture({
       archetype: 'outbreak',
       targetCivId: civId,
       cityIds: ['c1'],
+      tileKeys: [],
+      startedTurn: turn - 1,
+      stage: 'active',
+      turnsInStage: 1,
+    };
+  }
+  // Targets a synthetic civ id distinct from `aiCivId` and never added to
+  // `civilizations` — proves the world cap counts ALL non-human-owned crises
+  // globally, not this fixture's own per-civ crisis count for `ai-1`.
+  // `countActiveAiCrises` only reads `civilizations[targetCivId]?.isHuman`,
+  // which is falsy for an absent civ, so this still counts as AI-owned.
+  for (let i = 0; i < aiWorldCrisisCount; i++) {
+    const id = `ai-world-crisis-${i}`;
+    activeCrises[id] = {
+      id,
+      flavorId: 'plague',
+      archetype: 'outbreak',
+      targetCivId: `other-ai-civ-${i}`,
+      cityIds: [],
       tileKeys: [],
       startedTurn: turn - 1,
       stage: 'active',
@@ -169,6 +204,22 @@ export function makeCrisisFixture({
           challenge,
         },
       } : {}),
+      ...(includeAiCiv ? {
+        [aiCivId]: {
+          id: aiCivId,
+          name: 'AI Civ',
+          color: '#7c3aed',
+          isHuman: false,
+          civType: 'rome',
+          cities: ['ai-c1'],
+          units: [],
+          techState: { completed: [], currentResearch: null, researchProgress: 0, researchQueue: [], trackPriorities: {} as any },
+          gold: 500,
+          visibility: { tiles: {} },
+          score: 0,
+          diplomacy: createDiplomacyState([civId, aiCivId], aiCivId),
+        },
+      } : {}),
     },
     barbarianCamps,
     minorCivs: {},
@@ -182,6 +233,7 @@ export function makeCrisisFixture({
       tutorialEnabled: false,
       advisorsEnabled: {} as any,
       councilTalkLevel: 'normal',
+      ...(aiPressure !== undefined ? { aiPressure } : {}),
     },
     tribalVillages: {},
     discoveredWonders: {},

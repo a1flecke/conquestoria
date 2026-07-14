@@ -1,6 +1,6 @@
 import type { ActiveCrisis, BeastLair, City, CrisisOutcome, GameState, HexCoord } from '@/core/types';
 import type { EventBus } from '@/core/event-bus';
-import { getChallengeProfileForCiv, resolvePressureSeverityForCiv } from '@/core/opponent-challenge';
+import { getChallengeProfileForCiv, resolvePressureSeverityForCiv, OPPONENT_CHALLENGE_PROFILES } from '@/core/opponent-challenge';
 import { computeThreatScore, deriveActiveIndependentThreatIds, createPirateFleetNear, pickBanditName } from './threat-pressure-system';
 import { getCrisisEligibleCivIds } from './world-pressure-eligibility';
 import { CRISIS_FLAVORS, getCrisisFlavor, type CrisisFlavor } from './crisis-flavor-definitions';
@@ -39,6 +39,17 @@ export function countActiveCrisesForCiv(state: GameState, civId: string): number
   return scheduled + countUnrestGroups(state, civId);
 }
 
+// AI civs are capped globally rather than per-civ (spec §Architecture seam 2,
+// #529 MR3 Task 3.1) — a single AI civ hoarding crises isn't the risk; the
+// world feeling saturated with simultaneous AI crises is.
+export const AI_CRISIS_WORLD_CAP = { small: 2, medium: 3, large: 4 } as const;
+
+function countActiveAiCrises(state: GameState): number {
+  return Object.values(state.activeCrises ?? {})
+    .filter(c => !state.civilizations[c.targetCivId]?.isHuman)
+    .length;
+}
+
 export function processCrisisScheduler(state: GameState, bus: EventBus): GameState {
   let next = state;
   for (const civId of getCrisisEligibleCivIds(state)) next = maybeStartCrisis(next, civId, bus);
@@ -48,12 +59,19 @@ export function processCrisisScheduler(state: GameState, bus: EventBus): GameSta
 function maybeStartCrisis(state: GameState, civId: string, bus: EventBus): GameState {
   const civ = state.civilizations[civId];
   if (!civ || civ.cities.length === 0) return state;
-  const profile = getChallengeProfileForCiv(state, civId);
+  // AI civs always resolve the 'standard' profile's scheduling knobs — never the
+  // game-wide opponentChallenge, whose 'veteran' setting would otherwise make AI
+  // suffer MORE and invert difficulty (same principle as resolvePressureSeverityForCiv).
+  const profile = civ.isHuman ? getChallengeProfileForCiv(state, civId) : OPPONENT_CHALLENGE_PROFILES.standard;
   if (state.era <= profile.crisisGraceMaxEra) return state;
   if (state.turn < profile.crisisGraceMinTurns) return state;
   if (civ.lastCrisisOnsetTurn !== undefined &&
       state.turn - civ.lastCrisisOnsetTurn < profile.crisisCooldownTurns) return state;
-  if (countActiveCrisesForCiv(state, civId) >= profile.maxIndependentCrisesPerHuman) return state;
+  if (civ.isHuman) {
+    if (countActiveCrisesForCiv(state, civId) >= profile.maxIndependentCrisesPerHuman) return state;
+  } else {
+    if (countActiveAiCrises(state) >= AI_CRISIS_WORLD_CAP[state.settings.mapSize]) return state;
+  }
   if (deriveActiveIndependentThreatIds(state, civId).length > 0) return state;
   const ledger = state.opponentAI?.pressureByCiv?.[civId];
   if (ledger?.lastResolvedThreatTurn !== undefined && ledger.lastResolvedThreatTurn !== null &&
