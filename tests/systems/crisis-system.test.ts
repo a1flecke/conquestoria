@@ -1,7 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import { EventBus } from '@/core/event-bus';
-import { processCrisisSchedulerForHumans, countActiveCrisesForCiv, countUnrestGroups } from '@/systems/crisis-system';
+import { processCrisisSchedulerForHumans, countActiveCrisesForCiv, countUnrestGroups, getCrisisYieldMultiplier } from '@/systems/crisis-system';
+import { getCrisisFlavor } from '@/systems/crisis-flavor-definitions';
 import { makeCrisisFixture } from './helpers/crisis-fixture';
+import type { GameState } from '@/core/types';
 
 describe('crisis scheduler', () => {
   it('fires a crisis for an idle human past grace', () => {
@@ -85,5 +87,28 @@ describe('crisis scheduler', () => {
     bus.on('crisis:started', e => events.push(e));
     processCrisisSchedulerForHumans(makeCrisisFixture({ era: 3, turn: 40 }).state, bus);
     expect(events).toHaveLength(1);
+  });
+});
+
+describe('AI crisis severity uses standard, not opponentChallenge (#526 MR1)', () => {
+  it('resolves AI crisis severity as standard even when opponentChallenge is veteran', () => {
+    const flavor = getCrisisFlavor('plague')!;
+    const std = 1 - flavor.severityByChallenge.standard.yieldPenalty;
+    const vet = 1 - flavor.severityByChallenge.veteran.yieldPenalty;
+    expect(std).not.toBe(vet); // guard: the test is meaningful
+    // Minimal literal state — getCrisisYieldMultiplier only reads activeCrises,
+    // cities (for membership), civilizations, opponentChallenge.
+    const state = {
+      opponentChallenge: 'veteran',
+      civilizations: { 'ai-1': { id: 'ai-1', isHuman: false } },
+      cities: { 'ai-city': { id: 'ai-city' } },
+      activeCrises: {
+        'crisis-1': {
+          id: 'crisis-1', flavorId: 'plague', archetype: 'outbreak', targetCivId: 'ai-1',
+          cityIds: ['ai-city'], tileKeys: [], startedTurn: 1, stage: 'active', turnsInStage: 1,
+        },
+      },
+    } as unknown as GameState;
+    expect(getCrisisYieldMultiplier(state, 'ai-city')).toBeCloseTo(std);
   });
 });

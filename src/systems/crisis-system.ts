@@ -1,6 +1,6 @@
 import type { ActiveCrisis, BeastLair, City, CrisisOutcome, GameState, HexCoord } from '@/core/types';
 import type { EventBus } from '@/core/event-bus';
-import { getChallengeProfileForCiv, resolveChallengeForCiv } from '@/core/opponent-challenge';
+import { getChallengeProfileForCiv, resolvePressureSeverityForCiv } from '@/core/opponent-challenge';
 import { computeThreatScore, deriveActiveIndependentThreatIds, createPirateFleetNear, pickBanditName } from './threat-pressure-system';
 import { CRISIS_FLAVORS, getCrisisFlavor, type CrisisFlavor } from './crisis-flavor-definitions';
 import { seededLcg, weightedPick } from './seeded-lcg';
@@ -127,7 +127,7 @@ export function getCrisisYieldMultiplier(state: GameState, cityId: string): numb
     if (!crisis.cityIds.includes(cityId)) continue;
     const flavor = getCrisisFlavor(crisis.flavorId);
     if (!flavor) continue;
-    const severity = flavor.severityByChallenge[resolveChallengeForCiv(state, crisis.targetCivId)];
+    const severity = flavor.severityByChallenge[resolvePressureSeverityForCiv(state, crisis.targetCivId)];
     if (crisis.archetype === 'outbreak') {
       multiplier *= getOutbreakSeverityMultiplier(severity, crisis.quarantinedCityIds?.includes(cityId) ?? false);
     } else if (crisis.archetype === 'catastrophe' && crisis.stage === 'recovery') {
@@ -153,7 +153,7 @@ function tickOutbreakCrisis(
 
   let working: ActiveCrisis = { ...crisis, turnsInStage: crisis.turnsInStage + 1 };
   let nextState = state;
-  const severity = flavor.severityByChallenge[resolveChallengeForCiv(state, crisis.targetCivId)];
+  const severity = flavor.severityByChallenge[resolvePressureSeverityForCiv(state, crisis.targetCivId)];
 
   // Remedy completion
   if (working.remedyCompletionByCity) {
@@ -253,7 +253,7 @@ function applyCatastropheShock(
   const epicenter = epicenterCandidates[Math.floor(rng() * epicenterCandidates.length)];
   const epicenterKey = hexKey(epicenter);
 
-  const devastationTurns = params.devastationTurnsByChallenge[resolveChallengeForCiv(state, owner)];
+  const devastationTurns = params.devastationTurnsByChallenge[resolvePressureSeverityForCiv(state, owner)];
   const devastatedUntilTurn = state.turn + devastationTurns;
   const affectedKeys = mapHexesInRange(state.map, epicenter, params.blastRadius)
     .map(hexKey)
@@ -275,7 +275,7 @@ function applyCatastropheShock(
     return { crisis: null, state };
   }
 
-  const isVeteran = resolveChallengeForCiv(state, owner) === 'veteran';
+  const isVeteran = resolvePressureSeverityForCiv(state, owner) === 'veteran';
   const destroysImprovement = params.destroysEpicenterImprovement && isVeteran && state.era >= 3;
 
   const tiles = { ...state.map.tiles };
@@ -322,7 +322,7 @@ function tickCatastropheCrisis(
   // completed within the recovery window, earns the resilience bonus.
   const allActivelyRestored = tiles.every(t => t.devastatedUntilTurn === undefined);
   const withinWindow = nextState.turn <= working.startedTurn + CATASTROPHE_RECOVERY_WINDOW_TURNS;
-  const challenge = resolveChallengeForCiv(nextState, working.targetCivId);
+  const challenge = resolvePressureSeverityForCiv(nextState, working.targetCivId);
 
   if (allActivelyRestored && withinWindow) {
     const cities = { ...nextState.cities };
@@ -505,7 +505,7 @@ function tickHuntCrisis(
   }
 
   if (huntEntityExists(nextState, working, flavor)) {
-    const challenge = resolveChallengeForCiv(nextState, working.targetCivId);
+    const challenge = resolvePressureSeverityForCiv(nextState, working.targetCivId);
     if (challenge === 'veteran' && working.stage === 'menacing' && working.turnsInStage >= HUNT_ESCALATION_TURNS) {
       working = { ...working, stage: 'assaulting' };
       bus.emit('crisis:escalated', {

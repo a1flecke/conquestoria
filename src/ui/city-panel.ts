@@ -40,7 +40,7 @@ import {
 } from '@/systems/faction-system';
 import { getCrisisFlavor, getCrisisDisplayName } from '@/systems/crisis-flavor-definitions';
 import { getCrisisYieldMultiplier, getOutbreakSeverityMultiplier, getCatastropheRecoveryMultiplier } from '@/systems/crisis-system';
-import { resolveChallengeForCiv } from '@/core/opponent-challenge';
+import { resolvePressureSeverityForCiv } from '@/core/opponent-challenge';
 import { getCityIntrinsicStrength, isCityHpRegenerating } from '@/systems/city-siege-system';
 import { getOccupiedCityMood, getOccupiedCityYieldMultiplier } from '@/systems/city-occupation-system';
 import { calculateProjectedCityYields } from '@/systems/city-work-system';
@@ -316,7 +316,7 @@ export function createCityPanel(
     const flavor = getCrisisFlavor(crisis.flavorId);
     if (!flavor) return null;
     const civ = state.civilizations[crisis.targetCivId];
-    const severity = flavor.severityByChallenge[resolveChallengeForCiv(state, crisis.targetCivId)];
+    const severity = flavor.severityByChallenge[resolvePressureSeverityForCiv(state, crisis.targetCivId)];
     const isQuarantined = crisis.quarantinedCityIds?.includes(city.id) ?? false;
     const remedyCompletionTurn = crisis.remedyCompletionByCity?.[city.id];
     const remedyPending = remedyCompletionTurn !== undefined;
@@ -347,7 +347,7 @@ export function createCityPanel(
   const catastropheChips = catastropheCrises.map(crisis => {
     const flavor = getCrisisFlavor(crisis.flavorId);
     if (!flavor) return null;
-    const severity = flavor.severityByChallenge[resolveChallengeForCiv(state, crisis.targetCivId)];
+    const severity = flavor.severityByChallenge[resolvePressureSeverityForCiv(state, crisis.targetCivId)];
     const recoveryPenaltyPct = Math.round((1 - getCatastropheRecoveryMultiplier(severity)) * 100);
     return { crisis, flavor, recoveryPenaltyPct };
   }).filter((c): c is NonNullable<typeof c> => c !== null);
