@@ -9,6 +9,7 @@ import {
   OPPONENT_CHALLENGE_PROFILES,
   resolveChallengeForCiv,
   resolveOpponentChallenge,
+  resolvePressureSeverityForCiv,
   setPendingChallengeForCiv,
   setPendingOpponentChallenge,
 } from '@/core/opponent-challenge';
@@ -108,6 +109,23 @@ describe('per-civ challenge resolution', () => {
   });
   it('ignores invalid values', () => {
     expect(resolveChallengeForCiv(stateWith('bogus', undefined), 'c1')).toBe('standard');
+  });
+});
+
+describe('resolvePressureSeverityForCiv', () => {
+  it('returns the personal challenge for humans', () => {
+    const state = { opponentChallenge: 'veteran', civilizations: {
+      h1: { isHuman: true, challenge: 'explorer' },
+    } } as any;
+    expect(resolvePressureSeverityForCiv(state, 'h1')).toBe('explorer');
+  });
+  it('returns standard for AI even at veteran opponentChallenge (inversion trap)', () => {
+    const state = { opponentChallenge: 'veteran', civilizations: {
+      'ai-1': { isHuman: false },
+    } } as any;
+    expect(resolvePressureSeverityForCiv(state, 'ai-1')).toBe('standard');
+    // Contrast: resolveChallengeForCiv would return 'veteran' here — that is
+    // the inversion trap this function exists to avoid. See spec §severity.
   });
 });
 
