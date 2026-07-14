@@ -56,7 +56,7 @@ function maybeStartCrisis(state: GameState, civId: string, bus: EventBus): GameS
       state.turn - civ.lastCrisisOnsetTurn < profile.crisisCooldownTurns) return state;
   if (countActiveCrisesForCiv(state, civId) >= profile.maxIndependentCrisesPerHuman) return state;
   if (deriveActiveIndependentThreatIds(state, civId).length > 0) return state;
-  const ledger = state.opponentAI?.pressureByHuman?.[civId];
+  const ledger = state.opponentAI?.pressureByCiv?.[civId];
   if (ledger?.lastResolvedThreatTurn !== undefined && ledger.lastResolvedThreatTurn !== null &&
       state.turn - ledger.lastResolvedThreatTurn < EXTERNAL_THREAT_RECENCY_TURNS) return state;
 

@@ -3,7 +3,7 @@ import type {
   GameEvents,
   GameState,
   HexCoord,
-  HumanPressureLedger,
+  CivPressureLedger,
   ResourceType,
 } from '@/core/types';
 import type { EventBus } from '@/core/event-bus';
@@ -18,7 +18,7 @@ import {
 
 type StrategicWarning = GameEvents['ai:strategic-warning'];
 
-function emptyLedger(): HumanPressureLedger {
+function emptyLedger(): CivPressureLedger {
   return {
     activeIndependentThreatIds: [],
     recoveryUntilTurn: 0,
@@ -321,8 +321,8 @@ function deriveRecoveryWarning(
   after: GameState,
   viewerId: string,
 ): StrategicWarning[] {
-  const previous = before.opponentAI?.pressureByHuman[viewerId];
-  const current = after.opponentAI?.pressureByHuman[viewerId];
+  const previous = before.opponentAI?.pressureByCiv[viewerId];
+  const current = after.opponentAI?.pressureByCiv[viewerId];
   if (
     !previous
     || !current
@@ -346,7 +346,7 @@ export function deriveStrategicWarningTransitions(
 ): StrategicWarning[] {
   const viewer = finalState.civilizations[viewerId];
   if (!viewer?.isHuman || viewer.isEliminated) return [];
-  const ledger = finalState.opponentAI?.pressureByHuman[viewerId] ?? emptyLedger();
+  const ledger = finalState.opponentAI?.pressureByCiv[viewerId] ?? emptyLedger();
   const warnings = [
     ...deriveMajorWarnings(beforeRound as GameState, finalState, viewerId),
     ...derivePirateWarnings(beforeRound as GameState, finalState, viewerId),
@@ -386,8 +386,8 @@ export function applyStrategicWarningTransitions(
       viewerId,
     );
     if (viewerWarnings.length === 0) continue;
-    const ledger = opponentAI.pressureByHuman[viewerId] ?? emptyLedger();
-    opponentAI.pressureByHuman[viewerId] = {
+    const ledger = opponentAI.pressureByCiv[viewerId] ?? emptyLedger();
+    opponentAI.pressureByCiv[viewerId] = {
       ...ledger,
       lastWarningTurnByKey: {
         ...ledger.lastWarningTurnByKey,

@@ -308,9 +308,9 @@ describe('independent threat pressure governor', () => {
 
     const result = processIndependentThreatPressureForHumans(state, new EventBus());
 
-    expect(Object.keys(result.opponentAI!.pressureByHuman))
+    expect(Object.keys(result.opponentAI!.pressureByCiv))
       .toEqual(['player-1', 'player-3']);
-    expect(state.opponentAI!.pressureByHuman).toEqual({});
+    expect(state.opponentAI!.pressureByCiv).toEqual({});
   });
 
   it.each([
@@ -319,7 +319,7 @@ describe('independent threat pressure governor', () => {
     ['veteran', 3],
   ] as const)('%s caps new independent threats at %i per human', (challenge, cap) => {
     const state = makePressureState(challenge);
-    state.opponentAI!.pressureByHuman['player-1'] = {
+    state.opponentAI!.pressureByCiv['player-1'] = {
       activeIndependentThreatIds: Array.from({ length: cap }, (_, index) => `barbarian:camp-${index}`),
       recoveryUntilTurn: 0,
       lastResolvedThreatTurn: null,
@@ -354,9 +354,9 @@ describe('independent threat pressure governor', () => {
 
     const result = processIndependentThreatPressureForHumans(state, new EventBus());
 
-    expect(result.opponentAI!.pressureByHuman['player-1'].activeIndependentThreatIds)
+    expect(result.opponentAI!.pressureByCiv['player-1'].activeIndependentThreatIds)
       .toEqual(['pirate:pirate-7']);
-    expect(result.opponentAI!.pressureByHuman['player-2'].activeIndependentThreatIds)
+    expect(result.opponentAI!.pressureByCiv['player-2'].activeIndependentThreatIds)
       .toEqual(['pirate:pirate-7']);
     expect(canStartIndependentThreat(result, 'player-3', 'barbarian:new'))
       .toMatchObject({ allowed: true, activeCount: 0 });
@@ -384,15 +384,15 @@ describe('independent threat pressure governor', () => {
     };
 
     const allowed = processIndependentThreatPressureForHumans(makeEligible(), new EventBus());
-    const [sharedId] = allowed.opponentAI!.pressureByHuman['player-1']
+    const [sharedId] = allowed.opponentAI!.pressureByCiv['player-1']
       .activeIndependentThreatIds;
     expect(sharedId).toMatch(/^barbarian:camp-/);
-    expect(allowed.opponentAI!.pressureByHuman['player-2'].activeIndependentThreatIds)
+    expect(allowed.opponentAI!.pressureByCiv['player-2'].activeIndependentThreatIds)
       .toContain(sharedId);
 
     const blocked = makeEligible();
     addPirateThreat(blocked, 'pirate-1', 'player-2');
-    blocked.opponentAI!.pressureByHuman['player-2'] = {
+    blocked.opponentAI!.pressureByCiv['player-2'] = {
       activeIndependentThreatIds: ['pirate:pirate-1'],
       recoveryUntilTurn: 0,
       lastResolvedThreatTurn: null,
@@ -416,7 +416,7 @@ describe('independent threat pressure governor', () => {
     addPirateThreat(state, 'pirate-1', 'player-1');
     addPirateThreat(state, 'pirate-2', 'player-1');
     state.opponentAI!.migrationGraceRoundsRemaining = 1;
-    state.opponentAI!.pressureByHuman['player-1'] = {
+    state.opponentAI!.pressureByCiv['player-1'] = {
       activeIndependentThreatIds: ['pirate:pirate-1', 'pirate:pirate-2'],
       recoveryUntilTurn: state.turn + 3,
       lastResolvedThreatTurn: state.turn - 1,
@@ -435,7 +435,7 @@ describe('independent threat pressure governor', () => {
 
     const result = processIndependentThreatPressureForHumans(state, new EventBus());
     expect(result.pirates!.factions['pirate-1']).toEqual(state.pirates!.factions['pirate-1']);
-    expect(result.opponentAI!.pressureByHuman['player-1'].activeIndependentThreatIds)
+    expect(result.opponentAI!.pressureByCiv['player-1'].activeIndependentThreatIds)
       .toEqual(['pirate:pirate-1', 'pirate:pirate-2']);
   });
 
@@ -446,7 +446,7 @@ describe('independent threat pressure governor', () => {
   ] as const)('%s begins %i rounds of recovery only after explicit destruction', (challenge, rounds) => {
     const state = makePressureState(challenge);
     addPirateThreat(state, 'pirate-1', 'player-1');
-    state.opponentAI!.pressureByHuman['player-1'] = {
+    state.opponentAI!.pressureByCiv['player-1'] = {
       activeIndependentThreatIds: ['pirate:pirate-1'],
       recoveryUntilTurn: 0,
       lastResolvedThreatTurn: null,
@@ -456,13 +456,13 @@ describe('independent threat pressure governor', () => {
     state.pirates!.factions['pirate-1'].intent = null;
 
     const retargeted = processIndependentThreatPressureForHumans(state, new EventBus());
-    expect(retargeted.opponentAI!.pressureByHuman['player-1'].activeIndependentThreatIds)
+    expect(retargeted.opponentAI!.pressureByCiv['player-1'].activeIndependentThreatIds)
       .toEqual(['pirate:pirate-1']);
-    expect(retargeted.opponentAI!.pressureByHuman['player-1'].recoveryUntilTurn).toBe(0);
+    expect(retargeted.opponentAI!.pressureByCiv['player-1'].recoveryUntilTurn).toBe(0);
 
     delete state.pirates!.factions['pirate-1'];
     const resolved = processIndependentThreatPressureForHumans(state, new EventBus());
-    expect(resolved.opponentAI!.pressureByHuman['player-1']).toEqual({
+    expect(resolved.opponentAI!.pressureByCiv['player-1']).toEqual({
       activeIndependentThreatIds: [],
       recoveryUntilTurn: state.turn + rounds,
       lastResolvedThreatTurn: state.turn,
@@ -471,8 +471,8 @@ describe('independent threat pressure governor', () => {
     });
 
     const repeated = processIndependentThreatPressureForHumans(resolved, new EventBus());
-    expect(repeated.opponentAI!.pressureByHuman['player-1']).toEqual(
-      resolved.opponentAI!.pressureByHuman['player-1'],
+    expect(repeated.opponentAI!.pressureByCiv['player-1']).toEqual(
+      resolved.opponentAI!.pressureByCiv['player-1'],
     );
   });
 
@@ -498,7 +498,7 @@ describe('independent threat pressure governor', () => {
       },
       sightingsByCiv: {},
     };
-    state.opponentAI!.pressureByHuman['player-1'] = {
+    state.opponentAI!.pressureByCiv['player-1'] = {
       activeIndependentThreatIds: ['barbarian:camp-1', 'beast:lair-giant_boar'],
       recoveryUntilTurn: 0,
       lastResolvedThreatTurn: null,
@@ -506,14 +506,14 @@ describe('independent threat pressure governor', () => {
       lastStrategicAudioTurn: null,
     };
     const stillActive = processIndependentThreatPressureForHumans(state, new EventBus());
-    expect(stillActive.opponentAI!.pressureByHuman['player-1'].activeIndependentThreatIds)
+    expect(stillActive.opponentAI!.pressureByCiv['player-1'].activeIndependentThreatIds)
       .toEqual(['barbarian:camp-1', 'beast:lair-giant_boar']);
 
     delete state.barbarianCamps['camp-1'];
     state.beasts.lairs['lair-giant_boar'].status = 'slain';
     const resolved = processIndependentThreatPressureForHumans(state, new EventBus());
 
-    expect(resolved.opponentAI!.pressureByHuman['player-1']).toMatchObject({
+    expect(resolved.opponentAI!.pressureByCiv['player-1']).toMatchObject({
       activeIndependentThreatIds: [],
       lastResolvedThreatTurn: state.turn,
       recoveryUntilTurn: state.turn + 2,
@@ -540,7 +540,7 @@ describe('independent threat pressure governor', () => {
         regionKey: 'continent-0',
       },
     ]));
-    state.opponentAI!.pressureByHuman['player-1'] = {
+    state.opponentAI!.pressureByCiv['player-1'] = {
       activeIndependentThreatIds: ['barbarian:destroyed'],
       recoveryUntilTurn: 0,
       lastResolvedThreatTurn: null,
@@ -551,7 +551,7 @@ describe('independent threat pressure governor', () => {
     const result = processIndependentThreatPressureForHumans(state, new EventBus());
 
     expect(result.barbarianCamps).toEqual({});
-    expect(result.opponentAI!.pressureByHuman['player-1']).toMatchObject({
+    expect(result.opponentAI!.pressureByCiv['player-1']).toMatchObject({
       activeIndependentThreatIds: [],
       recoveryUntilTurn: state.turn + 2,
       lastResolvedThreatTurn: state.turn,

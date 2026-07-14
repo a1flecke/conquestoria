@@ -1294,7 +1294,7 @@ export interface MajorCivPlanPortfolio {
   lastExecutedTurn: number;
 }
 
-export interface HumanPressureLedger {
+export interface CivPressureLedger {
   activeIndependentThreatIds: string[];
   recoveryUntilTurn: number;
   lastResolvedThreatTurn: number | null;
@@ -1309,7 +1309,7 @@ export interface OpponentAIState {
   barbarianCamps: Record<string, AIStrategicPlan>;
   barbarianHomeCampByUnitId: Record<string, string>;
   minorCivs: Record<string, AIStrategicPlan>;
-  pressureByHuman: Record<string, HumanPressureLedger>;
+  pressureByCiv: Record<string, CivPressureLedger>;
   lastPlannedRound: number | null;
   lastProcessedRound: number | null;
   lastFinalizedRound: number | null;

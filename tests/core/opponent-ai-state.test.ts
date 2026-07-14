@@ -65,7 +65,7 @@ describe('opponent AI state normalization', () => {
       barbarianCamps: {},
       barbarianHomeCampByUnitId: {},
       minorCivs: {},
-      pressureByHuman: {},
+      pressureByCiv: {},
       lastPlannedRound: null,
       lastProcessedRound: null,
       lastFinalizedRound: null,
@@ -269,7 +269,7 @@ describe('opponent AI state normalization', () => {
       strength: 5,
       spawnCooldown: 1,
     };
-    state.opponentAI!.pressureByHuman = {
+    state.opponentAI!.pressureByCiv = {
       player: {
         activeIndependentThreatIds: [
           'barbarian:missing',
@@ -296,8 +296,8 @@ describe('opponent AI state normalization', () => {
 
     const normalized = normalizeOpponentAIState(state);
 
-    expect(Object.keys(normalized.opponentAI!.pressureByHuman)).toEqual(['player', 'player-2']);
-    expect(normalized.opponentAI!.pressureByHuman.player).toEqual({
+    expect(Object.keys(normalized.opponentAI!.pressureByCiv)).toEqual(['player', 'player-2']);
+    expect(normalized.opponentAI!.pressureByCiv.player).toEqual({
       activeIndependentThreatIds: [
         'barbarian:live',
         'barbarian:missing',
@@ -309,8 +309,30 @@ describe('opponent AI state normalization', () => {
       lastWarningTurnByKey: { valid: 3 },
       lastStrategicAudioTurn: null,
     });
-    expect(normalized.opponentAI!.pressureByHuman['player-2'].activeIndependentThreatIds)
+    expect(normalized.opponentAI!.pressureByCiv['player-2'].activeIndependentThreatIds)
       .toEqual([]);
     expect(state).toEqual(snapshot);
+  });
+
+  it('migrates legacy pressureByHuman key on normalize', () => {
+    // Deviation from the plan's literal fixture (civilizations: {}): the
+    // ledger loop is gated on living-human civ ids (unchanged in this MR —
+    // that gating is Task 1.5's eligibility-helper job, not this task's key
+    // rename), so a ledger entry for an id with no matching civ can never
+    // surface regardless of the legacy-key fallback. Use a real living human
+    // so the test actually exercises the `pressureByCiv ?? pressureByHuman`
+    // fallback under the gating that exists today. Also uses a valid
+    // `barbarian:`-prefixed threat id (the plan's literal 't1' fails
+    // isIndependentThreatId's format check and would be filtered regardless
+    // of the key migration).
+    const opponentAI = { ...createEmptyOpponentAIState() } as any;
+    delete opponentAI.pressureByCiv;
+    opponentAI.pressureByHuman = { h1: { activeIndependentThreatIds: ['barbarian:t1'], recoveryUntilTurn: 5, lastResolvedThreatTurn: 3, lastWarningTurnByKey: {}, lastStrategicAudioTurn: null } };
+    const state = {
+      opponentAI,
+      civilizations: { h1: { id: 'h1', isHuman: true, isEliminated: false } },
+    } as unknown as GameState;
+    const normalized = normalizeOpponentAIState(state);
+    expect(normalized.opponentAI!.pressureByCiv.h1.activeIndependentThreatIds).toEqual(['barbarian:t1']);
   });
 });

@@ -507,7 +507,7 @@ function simulate(
       }
     }
     for (const humanId of humanIds) {
-      const ledger = state.opponentAI?.pressureByHuman[humanId];
+      const ledger = state.opponentAI?.pressureByCiv[humanId];
       if (!ledger) throw new Error(`${options.seed}: missing pressure ledger for ${humanId}`);
       const activeCount = ledger.activeIndependentThreatIds.length;
       metrics.maxIndependentThreatsByHuman[humanId] = Math.max(
@@ -520,12 +520,12 @@ function simulate(
       }
     }
     for (const threatId of new Set(humanIds.flatMap(
-      humanId => state.opponentAI!.pressureByHuman[humanId]!.activeIndependentThreatIds,
+      humanId => state.opponentAI!.pressureByCiv[humanId]!.activeIndependentThreatIds,
     ))) {
       const materiallyAffected = humanIds.filter(humanId =>
-        state.opponentAI!.pressureByHuman[humanId]!.activeIndependentThreatIds.includes(threatId));
+        state.opponentAI!.pressureByCiv[humanId]!.activeIndependentThreatIds.includes(threatId));
       if (materiallyAffected.length > 1 && materiallyAffected.some(humanId =>
-        !state.opponentAI!.pressureByHuman[humanId]!.activeIndependentThreatIds.includes(threatId))) {
+        !state.opponentAI!.pressureByCiv[humanId]!.activeIndependentThreatIds.includes(threatId))) {
         throw new Error(`${options.seed}: shared threat ${threatId} has inconsistent ledgers`);
       }
     }

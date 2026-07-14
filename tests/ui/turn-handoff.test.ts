@@ -49,7 +49,7 @@ describe('turn handoff', () => {
   it('acknowledges multiple warning rows with one post-handoff cue and does not replay after reload', () => {
     const { state } = makeFixture();
     state.opponentAI = createEmptyOpponentAIState();
-    state.opponentAI.pressureByHuman['player-2'] = {
+    state.opponentAI.pressureByCiv['player-2'] = {
       activeIndependentThreatIds: [],
       recoveryUntilTurn: 0,
       lastResolvedThreatTurn: null,
@@ -73,7 +73,7 @@ describe('turn handoff', () => {
 
     expect(first.playStrategicWarningAudio).toBe(true);
     expect(first.state.pendingEvents?.['player-2']).toEqual([]);
-    expect(first.state.opponentAI!.pressureByHuman['player-2'].lastStrategicAudioTurn)
+    expect(first.state.opponentAI!.pressureByCiv['player-2'].lastStrategicAudioTurn)
       .toBe(summary.turn);
     expect(reloadedSummary.events).toEqual([]);
     expect(replay.playStrategicWarningAudio).toBe(false);

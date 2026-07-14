@@ -46,7 +46,7 @@ function fixture(): { before: GameState; after: GameState; aiId: string; aiUnitI
     seed: 'strategic-warning',
   });
   before.opponentAI = createEmptyOpponentAIState();
-  before.opponentAI.pressureByHuman.player = {
+  before.opponentAI.pressureByCiv.player = {
     activeIndependentThreatIds: [],
     recoveryUntilTurn: 0,
     lastResolvedThreatTurn: null,
@@ -394,9 +394,9 @@ describe('strategic warning transition derivation', () => {
 
   it('emits recovery only from an explicit pressure-ledger resolution', () => {
     const { before, after } = fixture();
-    before.opponentAI!.pressureByHuman.player.activeIndependentThreatIds = ['barbarian:camp-1'];
-    after.opponentAI!.pressureByHuman.player = {
-      ...after.opponentAI!.pressureByHuman.player,
+    before.opponentAI!.pressureByCiv.player.activeIndependentThreatIds = ['barbarian:camp-1'];
+    after.opponentAI!.pressureByCiv.player = {
+      ...after.opponentAI!.pressureByCiv.player,
       activeIndependentThreatIds: [],
       lastResolvedThreatTurn: after.turn,
       recoveryUntilTurn: after.turn + 2,
@@ -423,7 +423,7 @@ describe('strategic warning transition derivation', () => {
 
     expect(warnings).toHaveLength(1);
     expect(warnings.filter((warning: any) => warning.playAudio)).toHaveLength(1);
-    expect(Object.keys(applied.opponentAI!.pressureByHuman.player.lastWarningTurnByKey))
+    expect(Object.keys(applied.opponentAI!.pressureByCiv.player.lastWarningTurnByKey))
       .toHaveLength(1);
     expect(after).toEqual(snapshot);
     expect(deriveStrategicWarningTransitions(before, applied, 'player')).toEqual([]);
