@@ -223,6 +223,21 @@ function canCounterAttackAtDistance(defender: Unit, distance: number): boolean {
   return profile.range >= distance;
 }
 
+export function deterministicCombatSeed(
+  gameId: string | undefined,
+  turn: number,
+  attackerId: string,
+  defenderId: string,
+): number {
+  const source = [gameId ?? 'legacy', turn, attackerId, defenderId].join(':');
+  let hash = 2166136261;
+  for (let index = 0; index < source.length; index++) {
+    hash ^= source.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return Math.max(1, hash >>> 0);
+}
+
 export function resolveCombat(
   attacker: Unit,
   defender: Unit,
