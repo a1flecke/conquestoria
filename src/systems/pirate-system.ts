@@ -49,7 +49,7 @@ import {
   createUnit,
   findPath,
   getMovementStepCost,
-  moveUnit,
+  moveUnitWithZoneOfControl,
   resetUnitTurn,
   UNIT_DEFINITIONS,
 } from './unit-system';
@@ -175,7 +175,7 @@ function moveOneStepToward(state: GameState, unit: Unit, target: HexCoord): { st
   const next = candidates[0];
   if (!next || distance(state, next.coord, target) >= distance(state, unit.position, target)) return { state, path: [] };
   return {
-    state: { ...state, units: { ...state.units, [unit.id]: moveUnit(unit, next.coord, next.cost) } },
+    state: { ...state, units: { ...state.units, [unit.id]: moveUnitWithZoneOfControl(state, unit, next.coord, next.cost).unit } },
     path: [next.coord],
   };
 }

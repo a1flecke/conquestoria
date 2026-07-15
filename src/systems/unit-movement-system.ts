@@ -7,7 +7,7 @@ import { syncCivilizationContactsFromVisibility } from '@/systems/discovery-syst
 import { cancelInvalidNetworkPlans } from '@/systems/network-plan-system';
 import { hexKey, wrappedHexDistance, hexDistance } from '@/systems/hex-utils';
 import {
-  moveUnit,
+  moveUnitWithZoneOfControl,
   getMovementCostForUnitInContext,
   getMovementStepCost,
   findPath,
@@ -55,6 +55,7 @@ export type ExecuteUnitMoveResult =
         message: string;
         position: HexCoord;
       };
+      stopReason?: 'zone-of-control';
     }
   | {
       ok: false;
@@ -126,10 +127,26 @@ export function executeUnitMove(
   const unit = state.units[unitId]!;
   const from = { ...unit.position };
   const movePath = validation.path;
-  const presentationByViewer = buildMovePresentationByViewer(state, unit, movePath);
+  let moved = unit;
+  let stopReason: 'zone-of-control' | undefined;
+  const executedPath = [from];
+  for (const step of movePath.slice(1)) {
+    const cost = getMovementStepCost(moved, state.map, moved.position, step, {
+      completedTechs: getOwnerCompletedTechs(state, unit.owner),
+    });
+    const movement = moveUnitWithZoneOfControl(state, moved, step, cost);
+    moved = movement.unit;
+    executedPath.push(step);
+    if (movement.stopped) {
+      stopReason = 'zone-of-control';
+      break;
+    }
+  }
+  const actualTo = moved.position;
+  const presentationByViewer = buildMovePresentationByViewer(state, unit, executedPath);
   state.units = {
     ...state.units,
-    [unitId]: moveUnit(unit, validation.to, validation.cost),
+    [unitId]: moved,
   };
   if (unit.type === 'transport') {
     const synced = syncTransportCargoPositions(state, unitId);
@@ -140,8 +157,8 @@ export function executeUnitMove(
   options.bus?.emit('unit:move', {
     unitId,
     from,
-    to: validation.to,
-    path: movePath,
+    to: actualTo,
+    path: executedPath,
     presentationByViewer,
   });
 
@@ -149,15 +166,16 @@ export function executeUnitMove(
     return {
       ok: true,
       from,
-      to: validation.to,
-      path: movePath,
+      to: actualTo,
+      path: executedPath,
       revealedTiles: [],
       discoveredWonders: [],
+      stopReason,
     };
   }
 
   let villageOutcome: Extract<ExecuteUnitMoveResult, { ok: true }>['villageOutcome'];
-  const villageAtDestination = Object.values(state.tribalVillages).find(village => hexKey(village.position) === hexKey(validation.to));
+  const villageAtDestination = Object.values(state.tribalVillages).find(village => hexKey(village.position) === hexKey(actualTo));
   if (villageAtDestination) {
     let rngState = state.turn * 16807 + unit.id.charCodeAt(0);
     const villageRng = () => {
@@ -220,11 +238,12 @@ export function executeUnitMove(
   return {
     ok: true,
     from,
-    to: validation.to,
-    path: movePath,
+    to: actualTo,
+    path: executedPath,
     revealedTiles,
     discoveredWonders,
     villageOutcome,
+    stopReason,
   };
 }
 

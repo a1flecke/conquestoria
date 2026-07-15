@@ -1,6 +1,7 @@
 import {
   createUnit,
   getMovementRange,
+  getMovementRangeDetails,
   moveUnit,
   findPath,
   findPathToCity,
@@ -11,13 +12,38 @@ import {
   getMovementBlockerReason,
   getMovementCostForUnit,
 } from '@/systems/unit-system';
-import type { GameMap } from '@/core/types';
+import type { GameMap, GameState } from '@/core/types';
 import { generateMap } from '@/systems/map-generator';
 import { hexKey } from '@/systems/hex-utils';
 import { TRAINABLE_UNITS } from '@/systems/city-system';
 import { PIRATE_HULL_TYPES } from '@/systems/pirate-definitions';
+import { createNewGame } from '@/core/game-state';
 
 const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
+
+function zocRangeState(): GameState {
+  const state = createNewGame(undefined, 'zoc-range', 'small');
+  const mover = { ...createUnit('warrior', 'player', { q: 0, r: 0 }, mkC()), id: 'mover', movementPointsLeft: 2 };
+  const enemy = { ...createUnit('warrior', 'ai-1', { q: 2, r: -1 }, mkC()), id: 'enemy' };
+  state.units = { mover, enemy };
+  state.civilizations.player.units = ['mover'];
+  state.civilizations.player.diplomacy.atWarWith = ['ai-1'];
+  for (const key of ['0,0', '1,0', '2,0', '2,-1']) {
+    state.map.tiles[key] = { ...state.map.tiles[key]!, terrain: 'plains' };
+  }
+  return state;
+}
+
+describe('getMovementRangeDetails zone of control', () => {
+  it('keeps the legal entry but does not extend movement beyond it', () => {
+    const state = zocRangeState();
+    const range = getMovementRangeDetails(state, 'mover');
+
+    expect(range.reachable.map(hexKey)).toContain('1,0');
+    expect(range.zocLimited.map(hexKey)).toContain('1,0');
+    expect(range.reachable.map(hexKey)).not.toContain('2,0');
+  });
+});
 
 function createWrappedGrasslandMap(width: number, height: number): GameMap {
   const tiles: GameMap['tiles'] = {};

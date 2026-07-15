@@ -122,6 +122,10 @@ export interface CombatContext {
   // so combat-system.ts stays a pure function of its inputs.
   attackerModifiers?: UnitModifierBreakdown;
   defenderModifiers?: UnitModifierBreakdown;
+  attackerPositioningMultiplier?: number;
+  defenderPositioningMultiplier?: number;
+  attackerPositioningPart?: ModifierPart;
+  defenderPositioningPart?: ModifierPart;
 }
 
 export interface CombatStrengthBreakdown {
@@ -199,6 +203,9 @@ export function calculateCombatStrengths(
     * (defender.health / 100)
     * (1 + getVeterancyCombatModifier(defender));
 
+  attackerStrength *= context?.attackerPositioningMultiplier ?? 1;
+  defenderStrength *= context?.defenderPositioningMultiplier ?? 1;
+
   // Bombard-kind units (catapult, cannon, artillery, grenadier, bomber, stealth_bomber)
   // defend poorly — classic "siege is terrible on defense" convention. Keyed off
   // attackProfile.kind rather than the 'siege' UnitClass because that class includes
@@ -261,8 +268,8 @@ export function calculateCombatStrengths(
     terrainDefenseBonus,
     riverAttackPenalty,
     cityDefense,
-    attackerModifierParts: context?.attackerModifiers?.parts,
-    defenderModifierParts: context?.defenderModifiers?.parts,
+    attackerModifierParts: [...(context?.attackerModifiers?.parts ?? []), ...(context?.attackerPositioningPart ? [context.attackerPositioningPart] : [])],
+    defenderModifierParts: [...(context?.defenderModifiers?.parts ?? []), ...(context?.defenderPositioningPart ? [context.defenderPositioningPart] : [])],
     defenderDefendsPoorly: defendsPoorly(defenderDefinition.attackProfile),
     exchange: getCombatExchangeModifiers(attacker, defender),
   };

@@ -50,7 +50,7 @@ import {
 } from '@/systems/transport-system';
 import {
   findPath,
-  getMovementRange,
+  getMovementRangeDetails,
   UNIT_DEFINITIONS,
 } from '@/systems/unit-system';
 import {
@@ -188,14 +188,7 @@ function visibleThreatCount(
 
 function movementRange(state: GameState, actorId: string, unit: Unit): HexCoord[] {
   const occupancy = buildUnitOccupancy(state.units);
-  return getMovementRange(
-    unit,
-    state.map,
-    occupancy.unitIdsByHex,
-    occupancy.ownersByUnitId,
-    hostileOwners(state, actorId),
-    { completedTechs: state.civilizations[actorId]?.techState.completed ?? [] },
-  ).filter(destination =>
+  return getMovementRangeDetails(state, unit.id).reachable.filter(destination =>
     getUnitIdsAtCoord(occupancy, destination)
       .filter(unitId => unitId !== unit.id)
       .length === 0);
@@ -531,6 +524,30 @@ function rankCivilianAndTransportActions(
     }, 550));
 }
 
+function scorePostMovePositioning(
+  context: AITacticalContext,
+  unit: Unit,
+  destination: HexCoord,
+): number {
+  const projectedUnit = { ...unit, position: destination };
+  const projectedState: GameState = {
+    ...context.state,
+    units: { ...context.state.units, [unit.id]: projectedUnit },
+  };
+  return getAttackTargets(projectedState, projectedUnit, {
+    viewerId: context.actorId,
+    requireVisibility: true,
+  }).reduce((bonus, target) => {
+    if (target.result.targetType !== 'unit') return bonus;
+    const defender = projectedState.units[target.result.targetUnitId];
+    if (!defender || !isAIHostileOwner(projectedState, context.actorId, defender.owner)) {
+      return bonus;
+    }
+    const combatContext = buildCombatContextForDefender(projectedState, projectedUnit, defender);
+    return bonus + Math.round(((combatContext.attackerPositioningMultiplier ?? 1) - 1) * 100);
+  }, 0);
+}
+
 function rankMoves(
   context: AITacticalContext,
   unit: Unit,
@@ -561,11 +578,12 @@ function rankMoves(
             distance(context.state, candidate.position, destination)
             / Math.max(1, UNIT_DEFINITIONS[candidate.type].movementPoints),
           ))) - 1);
+    const positioningBonus = scorePostMovePositioning(context, unit, destination);
     return ranked({
       kind: 'move',
       unitId: unit.id,
       destination,
-    }, 300 + planProgress * 30 - cohesionBreakTurns * 15);
+    }, 300 + planProgress * 30 - cohesionBreakTurns * 15 + positioningBonus);
   });
 }
 

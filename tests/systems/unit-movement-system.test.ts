@@ -99,6 +99,33 @@ function movementState(
 }
 
 describe('unit-movement-system', () => {
+  it('ends movement after a legal zone-of-control entry', () => {
+    const mover = { ...createUnit('warrior', 'player', { q: 0, r: 0 }, mkC()), id: 'mover', movementPointsLeft: 2 };
+    const enemy = { ...createUnit('warrior', 'ai-1', { q: 2, r: -1 }, mkC()), id: 'enemy' };
+    const state = movementState(mover, [tile({ q: 0, r: 0 }), tile({ q: 1, r: 0 }), tile({ q: 2, r: -1 })], { extraUnits: [enemy] });
+    state.civilizations.player.diplomacy.atWarWith = ['ai-1'];
+
+    expect(executeUnitMove(state, mover.id, { q: 1, r: 0 }, { actor: 'player', civId: 'player' })).toMatchObject({
+      ok: true,
+      stopReason: 'zone-of-control',
+    });
+    expect(state.units[mover.id].movementPointsLeft).toBe(0);
+  });
+
+  it('stops a multi-step move at the first zone-of-control entry', () => {
+    const mover = { ...createUnit('warrior', 'player', { q: 0, r: 0 }, mkC()), id: 'mover', movementPointsLeft: 2 };
+    const enemy = { ...createUnit('warrior', 'ai-1', { q: 2, r: -1 }, mkC()), id: 'enemy' };
+    const state = movementState(mover, [
+      tile({ q: 0, r: 0 }), tile({ q: 1, r: 0 }), tile({ q: 2, r: 0 }), tile({ q: 2, r: -1 }),
+    ], { extraUnits: [enemy] });
+    state.civilizations.player.diplomacy.atWarWith = ['ai-1'];
+
+    const result = executeUnitMove(state, mover.id, { q: 2, r: 0 }, { actor: 'player', civId: 'player' });
+
+    expect(result).toMatchObject({ ok: true, to: { q: 1, r: 0 }, stopReason: 'zone-of-control' });
+    expect(state.units[mover.id].position).toEqual({ q: 1, r: 0 });
+  });
+
   it('moves world actors without civilization discovery consequences', () => {
     const mover = createUnit('warrior', 'barbarian', { q: 0, r: 0 }, mkC());
     mover.id = 'world-mover';

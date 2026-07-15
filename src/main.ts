@@ -2218,7 +2218,10 @@ function selectUnit(
           },
         });
       },
-    }, { waterRecovery: highlightResult.waterRecovery });
+    }, {
+      waterRecovery: highlightResult.waterRecovery,
+      hasZoneOfControlWarning: highlightResult.zocLimitedRange.length > 0,
+    });
   }
 
   if (!opts?.suppressSelectionSfx) SFX.select();
@@ -2278,6 +2281,9 @@ function executeAnimatedUnitMove(unitId: string, move: () => ExecuteUnitMoveResu
       showNotification(moveResult.message, 'warning');
       SFX.error();
       return moveResult;
+    }
+    if (moveResult.stopReason === 'zone-of-control') {
+      showNotification('Stopped — enemy nearby', 'info');
     }
     // Clear journey automation when the player manually moves a unit.
     if (movingUnit?.automation?.mode === 'journey') {

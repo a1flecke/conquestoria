@@ -6,6 +6,7 @@ import { isCityCoastal } from './city-system';
 import { UNIT_DEFINITIONS } from './unit-system';
 import { getActiveNationalProjectsForCiv } from './national-project-system';
 import { getCombatModifier } from './unit-modifier-system';
+import { getCombatAdjacentOccupiedTileCount } from './zone-of-control-system';
 
 // Shared by the human attack flow (main.ts), every AI attack path
 // (ai-major-turn.ts, ai-tactics.ts), and the combat preview so the
@@ -28,6 +29,8 @@ export function buildCombatContextForDefender(
   const defenderCompletedTechs = state.civilizations[defender.owner]?.techState.completed ?? [];
   const defenderInFriendlyCity = !!defenderCity && defenderCity.owner === defender.owner;
   const attackerInFriendlyCity = !!attackerCity && attackerCity.owner === attacker.owner;
+  const flankingTiles = getCombatAdjacentOccupiedTileCount(state, attacker.owner, defender, attacker.id);
+  const supportTiles = getCombatAdjacentOccupiedTileCount(state, defender.owner, defender, defender.id);
 
   return {
     attackerBonus: resolveCivDefinition(
@@ -64,5 +67,9 @@ export function buildCombatContextForDefender(
       inFriendlyCity: defenderInFriendlyCity,
       opponentType: attacker.type,
     }),
+    attackerPositioningMultiplier: 1 + flankingTiles * 0.1,
+    defenderPositioningMultiplier: 1 + supportTiles * 0.1,
+    attackerPositioningPart: flankingTiles > 0 ? { label: `Flanked +${flankingTiles * 10}%`, kind: 'mult' } : undefined,
+    defenderPositioningPart: supportTiles > 0 ? { label: `Supported +${supportTiles * 10}%`, kind: 'mult' } : undefined,
   };
 }
