@@ -1,12 +1,11 @@
 import type { GameMap, GameState, HexCoord, Unit, UnitAttackProfile, UnitType } from '@/core/types';
-import { isAtWar } from '@/systems/diplomacy-system';
 import { getVisibility } from '@/systems/fog-of-war';
 import { hexDistance, hexKey, hexesInRange, getWrappedHexesInRange, wrappedHexDistance } from '@/systems/hex-utils';
 import { selectDefenderForAttack } from '@/systems/combat-system';
 import { UNIT_DEFINITIONS } from '@/systems/unit-system';
 import { isBeastConcealedFrom, canUnitAttackBeast } from '@/systems/beast-system';
-import { isAlwaysHostilePair, isPirateOwner } from '@/core/owner-kind';
-import { isMinorCivHostileToOwner } from './minor-civ-diplomacy';
+import { isPirateOwner } from '@/core/owner-kind';
+import { isHostileOwnerTo } from './owner-hostility';
 
 export type AttackTargetFailure =
   | 'missing-attacker'
@@ -53,16 +52,7 @@ function isVisibleToViewer(state: GameState, viewerId: string | undefined, coord
 }
 
 function canAttackOwner(state: GameState, attackerOwner: string, targetOwner: string): boolean {
-  if (targetOwner === attackerOwner) return false;
-  if (isAlwaysHostilePair(attackerOwner, targetOwner)) return true;
-  if (attackerOwner.startsWith('mc-')) {
-    return isMinorCivHostileToOwner(state, attackerOwner, targetOwner);
-  }
-  if (targetOwner.startsWith('mc-')) {
-    return state.civilizations[attackerOwner]?.diplomacy.atWarWith.includes(targetOwner) ?? false;
-  }
-  const diplomacy = state.civilizations[attackerOwner]?.diplomacy;
-  return diplomacy ? isAtWar(diplomacy, targetOwner) : false;
+  return isHostileOwnerTo(state, attackerOwner, targetOwner);
 }
 
 function unitAt(state: GameState, attacker: Unit, coord: HexCoord): [string, Unit] | null {

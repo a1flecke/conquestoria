@@ -1,6 +1,6 @@
-import { classifyOwner, isAlwaysHostilePair } from '@/core/owner-kind';
+import { classifyOwner } from '@/core/owner-kind';
 import type { GameState } from '@/core/types';
-import { isMinorCivAtWar } from '@/systems/minor-civ-diplomacy';
+import { isHostileOwnerTo } from '@/systems/owner-hostility';
 
 export function isAIHostileOwner(
   state: Readonly<GameState>,
@@ -23,10 +23,5 @@ export function isAIHostileOwner(
     }
     return true;
   }
-  if (ownerKind === 'minor') {
-    return isMinorCivAtWar(state, actorId, ownerId);
-  }
-  if (isAlwaysHostilePair(actorId, ownerId)) return true;
-  return state.civilizations[actorId]?.diplomacy.atWarWith
-    .includes(ownerId) ?? false;
+  return isHostileOwnerTo(state, actorId, ownerId);
 }
