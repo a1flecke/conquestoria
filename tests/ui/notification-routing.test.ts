@@ -23,11 +23,20 @@ import {
   routeWorldPressureCrisisStarted,
   routeWorldPressureCrisisResolved,
   routeCrisisFoeHuntedByAlly,
+  routeCrisisAidSent,
   type NotificationSink,
 } from '@/ui/notification-routing';
 
 vi.mock('@/systems/discovery-system', () => ({
   hasMetCivilization: (_s: unknown, viewer: string, target: string) => viewer === 'p2' && target === 'p1',
+}));
+
+// getWitnessCivIds's real mutual-contact semantics are covered by
+// crisis-interaction-system.test.ts; here we only need control over which ids come back,
+// independent of the narrow discovery-system mock above (built for a different, older test).
+vi.mock('@/systems/crisis-interaction-system', () => ({
+  getWitnessCivIds: (_state: unknown, actorId: string, targetId: string) =>
+    actorId === 'rome' && targetId === 'carthage' ? ['egypt'] : [],
 }));
 
 vi.mock('@/systems/legendary-wonder-definitions', () => ({
@@ -863,5 +872,34 @@ describe('crisis:foe-hunted-by-ally routing (#526 MR6 Task 6.2)', () => {
       sink,
     );
     expect(calls[0]!.message).toContain('their foe');
+  });
+});
+
+describe('crisis:aid-sent routing (#526 MR6 Task 6.3)', () => {
+  function aidState(): GameState {
+    return makeState({
+      civilizations: {
+        rome: { id: 'rome', name: 'Rome', cities: [], units: [], diplomacy: { relationships: {} }, visibility: { tiles: {} }, knownCivilizations: ['carthage', 'egypt'] },
+        carthage: { id: 'carthage', name: 'Carthage', cities: [], units: [], diplomacy: { relationships: {} }, visibility: { tiles: {} }, knownCivilizations: ['rome', 'egypt'] },
+        egypt: { id: 'egypt', name: 'Egypt', cities: [], units: [], diplomacy: { relationships: {} }, visibility: { tiles: {} }, knownCivilizations: ['rome', 'carthage'] }, // met both
+        nubia: { id: 'nubia', name: 'Nubia', cities: [], units: [], diplomacy: { relationships: {} }, visibility: { tiles: {} }, knownCivilizations: [] }, // met neither
+      } as any,
+    });
+  }
+
+  it('notifies the aided target civ and every witness who has met both civs', () => {
+    const { sink, calls } = makeSink();
+    routeCrisisAidSent(aidState(), { crisisId: 'crisis-1', actorCivId: 'rome', targetCivId: 'carthage', goldCost: 45 }, sink);
+    const civIds = calls.map(c => c.civId);
+    expect(civIds).toContain('carthage');
+    expect(civIds).toContain('egypt');
+    expect(civIds).not.toContain('nubia');
+    expect(calls[0]!.message).toBe('Rome sent aid to Carthage!');
+  });
+
+  it('does not notify the actor directly (the panel already gives immediate feedback)', () => {
+    const { sink, calls } = makeSink();
+    routeCrisisAidSent(aidState(), { crisisId: 'crisis-1', actorCivId: 'rome', targetCivId: 'carthage', goldCost: 45 }, sink);
+    expect(calls.some(c => c.civId === 'rome')).toBe(false);
   });
 });

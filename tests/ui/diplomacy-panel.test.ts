@@ -727,3 +727,113 @@ describe('diplomacy-panel world-pressure crisis status line (#526 MR5 Task 5.3)'
     expect(second.textContent).not.toContain('Suffering:');
   });
 });
+
+describe('diplomacy-panel Send Aid button (#526 MR6 Task 6.3)', () => {
+  function addOutsiderCrisis(
+    state: ReturnType<typeof makeDiplomacyFixture>['state'],
+    archetype: 'outbreak' | 'catastrophe' = 'outbreak',
+  ): void {
+    state.cities['outsider-city'] = {
+      ...state.cities['city-border'],
+      id: 'outsider-city',
+      owner: 'outsider',
+      position: { q: 7, r: 7 },
+      ownedTiles: [{ q: 7, r: 7 }],
+      population: 5,
+    };
+    state.civilizations.outsider.cities = ['outsider-city'];
+    state.activeCrises = {
+      'crisis-1': {
+        id: 'crisis-1', flavorId: archetype === 'outbreak' ? 'plague' : 'earthquake', archetype,
+        targetCivId: 'outsider',
+        cityIds: ['outsider-city'], tileKeys: [], startedTurn: state.turn - 3,
+        stage: archetype === 'outbreak' ? 'active' : 'recovery', turnsInStage: 3,
+      },
+    };
+  }
+
+  function readyState(archetype: 'outbreak' | 'catastrophe' = 'outbreak') {
+    const { container, state } = makeDiplomacyFixture({ currentPlayer: 'player', includeThirdCiv: true });
+    state.settings.aiPressureVisibility = true;
+    state.settings.aiCrisisInteractions = 'benign';
+    state.civilizations.player.knownCivilizations = ['outsider'];
+    state.civilizations.player.techState.completed = ['medicine', 'trade-routes'];
+    addOutsiderCrisis(state, archetype);
+    return { container, state };
+  }
+
+  it('renders an enabled Send Aid button showing the gold cost, plus an effect/memory help line', () => {
+    const { container, state } = readyState();
+    const panel = createDiplomacyPanel(container, state, { onAction: () => {}, onClose: () => {}, onSendAid: () => {} });
+
+    const button = panel.querySelector<HTMLButtonElement>('[data-crisis-id="crisis-1"]');
+    expect(button).toBeTruthy();
+    expect(button!.disabled).toBe(false);
+    expect(button!.textContent).toContain('75');
+    expect(panel.textContent).toContain('will remember this');
+  });
+
+  it('clicking Send Aid invokes the callback with the crisis id, and the panel re-renders', () => {
+    const { container, state } = readyState();
+    let currentState = state;
+    const onSendAid = vi.fn((crisisId: string) => {
+      currentState = { ...currentState, activeCrises: {} }; // simulate main.ts applying aid + re-deriving state
+      render();
+    });
+    const render = (): HTMLElement => createDiplomacyPanel(container, currentState, { onAction: () => {}, onClose: () => {}, onSendAid });
+
+    const panel = render();
+    const button = panel.querySelector<HTMLButtonElement>('[data-crisis-id="crisis-1"]')!;
+    button.click();
+
+    expect(onSendAid).toHaveBeenCalledWith('crisis-1');
+    const rerendered = container.querySelector('#diplomacy-panel') as HTMLElement;
+    expect(rerendered.textContent).not.toContain('Send Aid');
+  });
+
+  it('disables the button and shows the reason as help text when the actor lacks the required tech', () => {
+    const { container, state } = readyState();
+    state.civilizations.player.techState.completed = [];
+    const panel = createDiplomacyPanel(container, state, { onAction: () => {}, onClose: () => {}, onSendAid: () => {} });
+
+    const button = panel.querySelector<HTMLButtonElement>('[data-crisis-id="crisis-1"]');
+    expect(button!.disabled).toBe(true);
+    expect(button!.title.length).toBeGreaterThan(0);
+  });
+
+  it('disables the button when the actor cannot afford the cost', () => {
+    const { container, state } = readyState();
+    state.civilizations.player.gold = 0;
+    const panel = createDiplomacyPanel(container, state, { onAction: () => {}, onClose: () => {}, onSendAid: () => {} });
+
+    const button = panel.querySelector<HTMLButtonElement>('[data-crisis-id="crisis-1"]');
+    expect(button!.disabled).toBe(true);
+    expect(button!.title).toContain('75');
+  });
+
+  it('keeps the Send Aid button visible but disabled once the actor has already aided this crisis', () => {
+    const { container, state } = readyState();
+    state.activeCrises!['crisis-1']!.aidedByCivIds = ['player'];
+    const panel = createDiplomacyPanel(container, state, { onAction: () => {}, onClose: () => {}, onSendAid: () => {} });
+
+    const button = panel.querySelector<HTMLButtonElement>('[data-crisis-id="crisis-1"]');
+    expect(button!.disabled).toBe(true);
+  });
+
+  it('does not render a Send Aid button for a hunt-archetype crisis (not a send-aid hook)', () => {
+    const { container, state } = readyState();
+    state.activeCrises!['crisis-1'] = { ...state.activeCrises!['crisis-1']!, archetype: 'hunt', flavorId: 'beast-awakening' };
+    const panel = createDiplomacyPanel(container, state, { onAction: () => {}, onClose: () => {}, onSendAid: () => {} });
+
+    expect(panel.querySelector('[data-crisis-id="crisis-1"]')).toBeNull();
+  });
+
+  it('works for a catastrophe crisis, requiring trade-routes instead of medicine', () => {
+    const { container, state } = readyState('catastrophe');
+    state.civilizations.player.techState.completed = ['medicine']; // missing trade-routes
+    const panel = createDiplomacyPanel(container, state, { onAction: () => {}, onClose: () => {}, onSendAid: () => {} });
+
+    const button = panel.querySelector<HTMLButtonElement>('[data-crisis-id="crisis-1"]');
+    expect(button!.disabled).toBe(true);
+  });
+});

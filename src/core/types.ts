@@ -1823,6 +1823,8 @@ export interface GameEvents {
   // Fires only when a hunt's killer differs from the crisis's own target civ (#526 MR6
   // hunt-their-foe interaction) -- a self-kill never emits this.
   'crisis:foe-hunted-by-ally': { crisisId: string; killerCivId: string; targetCivId: string; foeName?: string };
+  // #526 MR6 send_aid interaction.
+  'crisis:aid-sent': { crisisId: string; actorCivId: string; targetCivId: string; goldCost: number };
 }
 
 // --- Crisis Events & Revolutionary Movements ---
@@ -1846,4 +1848,5 @@ export interface ActiveCrisis {
   huntEntityId?: string;
   foeName?: string;
   lastHuntKillerCivId?: string;
+  aidedByCivIds?: string[]; // #526 MR6 send_aid: enforces once-per-crisis-per-actor
 }

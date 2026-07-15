@@ -27,6 +27,7 @@ import { hasAccessibleLuxury } from '@/systems/quest-objective-system';
 import { minorCivReparationsCost } from '@/systems/minor-civ-actions';
 import { createGameButton } from '@/ui/ui-kit';
 import { getWorldPressurePresentationForViewer } from '@/systems/world-pressure-presentation';
+import { canSendAid, type SendAidFailureReason } from '@/systems/crisis-interaction-system';
 
 export interface DiplomacyPanelCallbacks {
   onAction: (targetCivId: string, action: DiplomaticAction) => void;
@@ -39,7 +40,22 @@ export interface DiplomacyPanelCallbacks {
   onSponsorFestival?: (mcId: string) => void;
   onMinorCivReparations?: (mcId: string) => void;
   onMinorCivWarPeace?: (mcId: string, currentlyAtWar: boolean) => void;
+  onSendAid?: (crisisId: string) => void;
   onClose: () => void;
+}
+
+// Reasons canSendAid can disable the button for -- all player-facing, per spec's "cost,
+// effect, and risk inline at the point of choice" UI requirement.
+function describeSendAidDisabledReason(reason: SendAidFailureReason, goldCost: number | null): string {
+  switch (reason) {
+    case 'no-tech': return 'Requires the technology that unlocks this aid.';
+    case 'not-enough-gold': return goldCost !== null ? `Requires ${goldCost} gold.` : 'Not enough gold.';
+    case 'already-aided': return 'You already sent aid for this crisis.';
+    case 'flag-off': return 'Crisis interactions are not available yet.';
+    case 'unknown-civ':
+    case 'no-crisis':
+      return 'Unavailable.';
+  }
 }
 
 interface CivRowData {
@@ -60,6 +76,11 @@ interface CivRowData {
   atWar: boolean;
   warSinceText: string | null;
   worldPressureStatusText: string | null;
+  sendAidCrisisId: string | null;
+  sendAidLabel: string | null;
+  sendAidHelpText: string | null;
+  sendAidDisabled: boolean;
+  sendAidDisabledReason: string | null;
 }
 
 interface MinorCivRowData {
@@ -183,6 +204,28 @@ export function createDiplomacyPanel(
         .map(request => request.treatyType),
     );
 
+    // Send Aid (#526 MR6 Task 6.3) -- the crisis status line's anchor button. Only
+    // outbreak/catastrophe archetypes are send-aid hooks (hunt uses hunt-their-foe
+    // instead), so a hunt-archetype crisis never gets a button at all rather than a
+    // permanently-disabled one with a misleading "requires tech" message.
+    const worldPressureLine = worldPressurePresentation.statusLinesByCivId[civId];
+    let sendAidCrisisId: string | null = null;
+    let sendAidLabel: string | null = null;
+    let sendAidHelpText: string | null = null;
+    let sendAidDisabled = false;
+    let sendAidDisabledReason: string | null = null;
+    if (worldPressureLine && worldPressureLine.archetype !== 'hunt') {
+      sendAidCrisisId = worldPressureLine.crisisId;
+      const check = canSendAid(state, state.currentPlayer, worldPressureLine.crisisId);
+      const goldCost = check.ok ? check.goldCost : check.goldCost ?? null;
+      sendAidLabel = goldCost !== null ? `Send Aid (${goldCost} Gold)` : 'Send Aid';
+      sendAidHelpText = worldPressureLine.archetype === 'outbreak'
+        ? `Pay ${goldCost ?? '?'} gold — ${civ.name}'s outbreak is cured in 2 turns. ${civ.name} and onlookers will remember this.`
+        : `Pay ${goldCost ?? '?'} gold — ${civ.name} receives it as relief. ${civ.name} and onlookers will remember this.`;
+      sendAidDisabled = !check.ok;
+      sendAidDisabledReason = check.ok ? null : describeSendAidDisabledReason(check.reason, goldCost);
+    }
+
     civRows.push({
       civId,
       civIdx,
@@ -203,7 +246,12 @@ export function createDiplomacyPanel(
       incomingTreatyProposals,
       atWar,
       warSinceText,
-      worldPressureStatusText: worldPressurePresentation.statusLinesByCivId[civId]?.text ?? null,
+      worldPressureStatusText: worldPressureLine?.text ?? null,
+      sendAidCrisisId,
+      sendAidLabel,
+      sendAidHelpText,
+      sendAidDisabled,
+      sendAidDisabledReason,
     });
     civIdx++;
   }
@@ -319,6 +367,13 @@ export function createDiplomacyPanel(
       ? `<div style="font-size:11px;color:#e88;margin-bottom:8px;" data-text="world-pressure-${row.civIdx}"></div>`
       : '';
 
+    const sendAidHtml = row.sendAidCrisisId
+      ? `<div style="margin-bottom:8px;">
+          <div style="font-size:10px;opacity:0.75;margin-bottom:4px;" data-text="send-aid-help-${row.civIdx}"></div>
+          <div data-role="send-aid-${row.civIdx}"></div>
+        </div>`
+      : '';
+
     let actionsHtml = '<div style="display:flex;flex-wrap:wrap;gap:6px;">';
     if (row.peaceRequestState === 'incoming' && row.peaceRequestId) {
       actionsHtml += `<button class="diplo-accept-peace" data-request-id="${row.peaceRequestId}" data-action="accept-peace-request" style="padding:6px 12px;background:rgba(74,155,74,0.3);border:1px solid #4a9b4a;border-radius:6px;color:white;cursor:pointer;font-size:11px;">Accept Peace</button>`;
@@ -351,6 +406,7 @@ export function createDiplomacyPanel(
             <div style="background:${row.barColor};border-radius:4px;height:8px;width:${row.barWidth}%;"></div>
           </div>
         </div>
+        ${sendAidHtml}
         ${treatiesHtml}
         ${actionsHtml}
       </div>
@@ -422,6 +478,17 @@ export function createDiplomacyPanel(
     }
     if (row.worldPressureStatusText) {
       setText(`world-pressure-${row.civIdx}`, row.worldPressureStatusText);
+    }
+    if (row.sendAidCrisisId) {
+      setText(`send-aid-help-${row.civIdx}`, row.sendAidHelpText ?? '');
+      const slot = panel.querySelector<HTMLElement>(`[data-role="send-aid-${row.civIdx}"]`);
+      if (slot) {
+        const button = createGameButton(row.sendAidLabel ?? 'Send Aid', 'secondary', { disabled: row.sendAidDisabled });
+        button.className = 'diplo-send-aid';
+        button.dataset.crisisId = row.sendAidCrisisId;
+        if (row.sendAidDisabledReason) button.title = row.sendAidDisabledReason;
+        slot.appendChild(button);
+      }
     }
     row.incomingTreatyProposals.forEach((proposal, pIdx) => {
       setText(`treaty-proposal-label-${row.civIdx}-${pIdx}`, proposal.label);
@@ -539,6 +606,14 @@ export function createDiplomacyPanel(
       const treatyType = button.dataset.treatyType! as TreatyType;
       panel.remove();
       callbacks.onBreakTreaty?.(civId, treatyType);
+    });
+  });
+
+  panel.querySelectorAll('.diplo-send-aid').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const crisisId = (btn as HTMLElement).dataset.crisisId!;
+      callbacks.onSendAid?.(crisisId);
+      panel.remove();
     });
   });
 

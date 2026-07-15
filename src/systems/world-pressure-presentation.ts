@@ -11,6 +11,8 @@ export interface WorldPressureCityBadge {
 
 export interface WorldPressureStatusLine {
   civId: string;
+  crisisId: string;
+  archetype: CrisisArchetype;
   text: string; // e.g. "Suffering: Red Tide outbreak — 3 cities, 4 turns"
 }
 
@@ -51,6 +53,8 @@ export function getWorldPressurePresentationForViewer(
     const turns = crisis.turnsInStage;
     statusLinesByCivId[targetCivId] = {
       civId: targetCivId,
+      crisisId: crisis.id,
+      archetype: crisis.archetype,
       text: `Suffering: ${displayName} — ${cityCount} ${cityCount === 1 ? 'city' : 'cities'}, ${turns} ${turns === 1 ? 'turn' : 'turns'}`,
     };
 
