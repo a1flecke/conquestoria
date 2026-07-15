@@ -20,6 +20,8 @@ import {
   routeCrisisSpread,
   routeCrisisEscalated,
   routeCrisisResolved,
+  routeWorldPressureCrisisStarted,
+  routeWorldPressureCrisisResolved,
   type NotificationSink,
 } from '@/ui/notification-routing';
 
@@ -725,5 +727,102 @@ describe('crisis notification routing', () => {
     expect(calls).toHaveLength(1);
     expect(calls[0]!.civId).toBe('p1');
     expect(calls[0]!.message).toContain('feast');
+  });
+});
+
+describe('world-pressure crisis notifications (#526 MR5 Task 5.2)', () => {
+  function worldPressureState(overrides: Partial<GameState> = {}): GameState {
+    return makeState({
+      era: 2,
+      settings: { aiPressureVisibility: true } as GameState['settings'],
+      civilizations: {
+        p1: { id: 'p1', name: 'Rome', isHuman: false, knownCivilizations: [] },
+        p2: { id: 'p2', name: 'Egypt', isHuman: true, knownCivilizations: ['p1'] },
+        p3: { id: 'p3', name: 'Nubia', isHuman: true, knownCivilizations: [] }, // has not met p1
+      } as any,
+      cities: {
+        c1: { id: 'c1', name: 'Thebes', owner: 'p1', population: 5, position: { q: 0, r: 0 } },
+      } as any,
+      ...overrides,
+    });
+  }
+
+  it('crisis:started fans out to viewers who know the AI target civ', () => {
+    const state = worldPressureState();
+    const { sink, calls } = makeSink();
+    routeWorldPressureCrisisStarted(state, { crisisId: 'crisis-1', flavorId: 'plague', civId: 'p1', cityIds: ['c1'] }, sink);
+    expect(calls).toHaveLength(1);
+    expect(calls[0]!.civId).toBe('p2');
+    expect(calls[0]!.message).toContain('The Sweating Sickness');
+    expect(calls[0]!.message).toContain('Thebes');
+  });
+
+  it('crisis:started does not notify a viewer who has not met the AI target civ', () => {
+    const state = worldPressureState();
+    const { sink, calls } = makeSink();
+    routeWorldPressureCrisisStarted(state, { crisisId: 'crisis-1', flavorId: 'plague', civId: 'p1', cityIds: ['c1'] }, sink);
+    expect(calls.some(c => c.civId === 'p3')).toBe(false);
+  });
+
+  it('crisis:started does not fan out for a human-targeted crisis (existing per-owner routing covers it)', () => {
+    const state = worldPressureState();
+    state.civilizations.p1.isHuman = true;
+    state.civilizations.p2.knownCivilizations = ['p1'];
+    const { sink, calls } = makeSink();
+    routeWorldPressureCrisisStarted(state, { crisisId: 'crisis-1', flavorId: 'plague', civId: 'p1', cityIds: ['c1'] }, sink);
+    expect(calls).toHaveLength(0);
+  });
+
+  it('crisis:started produces nothing when aiPressureVisibility is off', () => {
+    const state = worldPressureState({ settings: { aiPressureVisibility: false } as GameState['settings'] });
+    const { sink, calls } = makeSink();
+    routeWorldPressureCrisisStarted(state, { crisisId: 'crisis-1', flavorId: 'plague', civId: 'p1', cityIds: ['c1'] }, sink);
+    expect(calls).toHaveLength(0);
+  });
+
+  it('crisis:resolved fans out to viewers who know the AI target civ, naming the civ and outcome', () => {
+    const state = worldPressureState();
+    const { sink, calls } = makeSink();
+    routeWorldPressureCrisisResolved(state, { crisisId: 'crisis-1', flavorId: 'plague', civId: 'p1', outcome: 'contained' }, sink);
+    expect(calls).toHaveLength(1);
+    expect(calls[0]!.civId).toBe('p2');
+    expect(calls[0]!.message).toContain('Rome');
+    expect(calls[0]!.message).toContain('contained');
+    expect(calls[0]!.type).toBe('success');
+  });
+
+  it('crisis:resolved does not notify an unmet viewer, and produces nothing off-flag', () => {
+    const state = worldPressureState();
+    const { sink, calls } = makeSink();
+    routeWorldPressureCrisisResolved(state, { crisisId: 'crisis-1', flavorId: 'plague', civId: 'p1', outcome: 'contained' }, sink);
+    expect(calls.some(c => c.civId === 'p3')).toBe(false);
+
+    const offState = worldPressureState({ settings: { aiPressureVisibility: false } as GameState['settings'] });
+    const off = makeSink();
+    routeWorldPressureCrisisResolved(offState, { crisisId: 'crisis-1', flavorId: 'plague', civId: 'p1', outcome: 'contained' }, off.sink);
+    expect(off.calls).toHaveLength(0);
+  });
+
+  it('anti-spam: crisis:spread never reaches a third-party viewer, only the target civ itself (its own per-owner log)', () => {
+    const state = worldPressureState({
+      cities: {
+        c1: { id: 'c1', name: 'Thebes', owner: 'p1', population: 5, position: { q: 0, r: 0 } },
+        c2: { id: 'c2', name: 'Memphis', owner: 'p1', population: 3, position: { q: 5, r: 0 } },
+      } as any,
+      activeCrises: {
+        'crisis-1': {
+          id: 'crisis-1', flavorId: 'plague', archetype: 'outbreak', targetCivId: 'p1',
+          cityIds: ['c1', 'c2'], tileKeys: [], startedTurn: 1, stage: 'active', turnsInStage: 1,
+        },
+      },
+    } as any);
+    const { sink, calls } = makeSink();
+    // routeCrisisSpread is the only router wired to crisis:spread in main.ts — there is no
+    // world-pressure equivalent, so a spread tick can never reach viewer p2, even though p2
+    // knows p1 and would receive a started/resolved notification for the same crisis.
+    routeCrisisSpread(state, { crisisId: 'crisis-1', fromCityId: 'c1', toCityId: 'c2' }, sink);
+    expect(calls).toHaveLength(1);
+    expect(calls[0]!.civId).toBe('p1');
+    expect(calls.some(c => c.civId === 'p2')).toBe(false);
   });
 });

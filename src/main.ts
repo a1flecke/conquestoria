@@ -233,6 +233,8 @@ import {
   routeCrisisSpread,
   routeCrisisEscalated,
   routeCrisisResolved,
+  routeWorldPressureCrisisStarted,
+  routeWorldPressureCrisisResolved,
   type NotificationSink,
 } from '@/ui/notification-routing';
 import { createNotificationDelivery } from '@/ui/notification-delivery';
@@ -4351,6 +4353,7 @@ bus.on('faction:critical-status', event => {
 
 bus.on('crisis:started', event => {
   routeCrisisStarted(gameState, event, appendToCivLog);
+  routeWorldPressureCrisisStarted(gameState, event, appendToCivLog);
 });
 
 bus.on('crisis:spread', event => {
@@ -4363,6 +4366,7 @@ bus.on('crisis:escalated', event => {
 
 bus.on('crisis:resolved', event => {
   routeCrisisResolved(gameState, event, appendToCivLog);
+  routeWorldPressureCrisisResolved(gameState, event, appendToCivLog);
 });
 
 bus.on('economy:treasury-strain', event => {
