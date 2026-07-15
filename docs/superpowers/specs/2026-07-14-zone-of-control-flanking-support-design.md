@@ -33,7 +33,9 @@ Horizontal map wrapping must be honored when detecting adjacency.
 
 ### Movement presentation and feedback
 
-Movement-range calculation must distinguish ordinary reachable tiles from ZOC-limited reachable tiles. The renderer presents the latter in **amber** with a warning treatment (icon or equivalent), while ordinary reachable tiles retain the existing movement presentation. Amber means: “Reachable, but movement ends here.” It must not look like an impassable or attack-only tile.
+Movement-range calculation must distinguish ordinary reachable tiles from ZOC-limited reachable tiles. The renderer presents the latter in **amber** with a distinct warning icon or pattern, while ordinary reachable tiles retain the existing movement presentation. Amber means: “Reachable, but movement ends here.” It must not look like an impassable or attack-only tile.
+
+Before the move, the selected-unit movement surface supplies the same non-color explanation in its legend, tooltip, or tap-accessible equivalent: `Enemy nearby — entering ends movement`. The player can therefore understand the warning without relying on color or discovering the rule after committing. The renderer test must assert this explanatory text as well as the distinct tile treatment.
 
 When a unit enters a ZOC-limited tile, the live player movement path uses `MovementBlockerReason`-style feedback with the new `zone-of-control` code and the text:
 
@@ -52,15 +54,17 @@ Each bonus counts **occupied adjacent tiles**, not units. A stack of two or more
 
 The canonical combat-strength calculation returns labeled modifier parts so the existing combat preview shows the exact result, for example `Flanked +20%` and `Supported +10%`. Combat resolution and every prediction path use those same values.
 
+The bonus remains uncapped: a defender can receive up to six eligible adjacent-tile increments (+60%). A melee attacker occupies one neighboring tile and can therefore receive up to five additional flanking increments (+50%); a ranged attacker outside the adjacent ring can receive up to six (+60%). This is intentional so a completed envelopment is meaningful, but it is a balance acceptance gate rather than an assumption. Seeded early-era sampling must include open, two-tile, and maximum-envelopment scenarios and keep same-tier fights within the two-to-four-exchange target; if a maximum-envelopment scenario fails that target, the implementation must stop for a balance decision rather than silently introduce a cap.
+
 ## Architecture
 
 Introduce focused, stateless helper(s) in the unit/combat systems rather than duplicating caller-specific checks.
 
 1. A ZOC helper determines whether a unit qualifies as a source/recipient and whether a destination is in a hostile same-domain ZOC, using map-aware neighbor traversal and the game’s existing owner hostility semantics.
-2. The movement-range and path/step validation path exposes the terminal-ZOC outcome. `executeUnitMove` applies it by setting the moved unit’s remaining movement to zero. Player movement, AI movement, and world movement all route through canonical movement helpers.
+2. The movement-range and path/step validation path exposes the terminal-ZOC outcome. A shared lower-level move-finalization helper applies it by setting the moved unit’s remaining movement to zero. `executeUnitMove` uses that helper, and every retained direct `moveUnit` caller (including basic AI and pirate/world behavior) must use it too; alternatively, migrate the caller to `executeUnitMove`. No gameplay caller may bypass ZOC.
 3. The movement-rendering path receives the ZOC-limited subset of legal destinations and renders it amber. The existing player feedback path maps the result to `zone-of-control` and its message.
 4. A combat-adjacency helper counts eligible friendly occupied neighboring tiles for attacker and defender. `calculateCombatStrengths` applies the percentages and exposes modifier parts. `formatCombatPreviewDetails` renders those parts without reimplementing the rule.
-5. `ai-tactics.ts` continues to evaluate combat via the canonical combat context/strength preview, with tactical ranking explicitly favoring available flanks and avoiding choices that abandon beneficial adjacent support when relevant. World actor movement stays on the canonical ZOC-aware path.
+5. `ai-tactics.ts` continues to evaluate combat via the canonical combat context/strength preview. Its candidate ranking explicitly evaluates the post-move positional effect: when two otherwise comparable legal moves differ in the attacker’s next-turn flanking/support value, prefer the position with the greater canonical value; do not reproduce the combat formula in AI code. Apply the same shared movement finalization to world-actor behavior.
 
 The implementation must not add saved fields, turn-persistent control maps, schema migrations, or sound effects. A precomputed control map is intentionally out of scope: it creates invalidation work without a current consumer beyond ZOC.
 
@@ -72,7 +76,7 @@ The plan must verify current signatures before editing. The audited starting poi
 - `src/systems/unit-movement-system.ts`: `executeUnitMove` and `validateUnitMove` as the live shared mutation path.
 - `src/main.ts` and the renderer/highlight path: selected-unit movement range, amber ZOC subset, and user-visible notification wiring.
 - `src/systems/combat-system.ts`, `src/systems/combat-context.ts`, and `src/ui/combat-preview.ts`: canonical strength computation, modifier parts, and preview text.
-- `src/ai/ai-tactics.ts`, `src/systems/barbarian-system.ts`, `src/systems/pirate-system.ts`, and beast movement behavior: major-AI and world-actor parity.
+- `src/ai/ai-tactics.ts`, `src/ai/basic-ai.ts`, `src/systems/barbarian-system.ts`, `src/systems/pirate-system.ts`, and `src/systems/pirate-behavior.ts`: major-AI and world-actor parity, including all retained direct movement callers.
 
 ## Error Handling and Edge Cases
 
@@ -91,12 +95,13 @@ Add focused regression coverage before production changes, including:
 2. Recon and civilian units do not exert or receive ZOC; a starting unit can leave ZOC normally.
 3. Hostile barbarian, beast, pirate, and rebel movement both respects and exerts the same rule, with at least one non-player execution-path parity test.
 4. Wrapped-map adjacency matches ordinary adjacency behavior.
-5. The movement range exposes legal ZOC-limited tiles separately from ordinary reachable tiles; the live renderer uses amber for them and does not mark unreachable tiles.
+5. The movement range exposes legal ZOC-limited tiles separately from ordinary reachable tiles; the live renderer uses amber plus a non-color warning icon/pattern for them, exposes `Enemy nearby — entering ends movement` before selection, and does not mark unreachable tiles.
 6. The live player move consumes the remaining movement and visibly reports `Stopped — enemy nearby`.
 7. Flanking and support apply one +10% increment per adjacent eligible friendly-occupied tile; the attacker/defender’s own tile, civilians, recon, air units, and additional units in a stack do not add an increment.
 8. Combat preview labels show the calculated flanking and support bonuses, and combat resolution uses the same values.
-9. AI tactical scoring recognizes a flanking improvement through the canonical strength preview rather than an independent combat formula.
-10. Seeded early-era same-tier combat sampling remains within the existing two-to-four-exchange pacing target after the new bonuses are included.
+9. Major-AI tactical scoring deterministically prefers a legal position with better next-turn flanking/support value over an otherwise comparable alternative, using the canonical calculation rather than an independent formula.
+10. Each retained direct movement path and at least one world-actor behavior apply the same ZOC finalization as player movement.
+11. Seeded early-era same-tier combat sampling remains within the existing two-to-four-exchange pacing target for open, two-tile, and maximum-envelopment scenarios after the new bonuses are included: five-tile melee flanking, six-tile ranged flanking, and six-tile defender support. A failed maximum-envelopment check requires an explicit balance decision; it must not silently add a cap.
 
 Run the mirrored unit, movement, combat, AI tactics, and UI/renderer tests; the source-rule checker for changed `src/` files; and a TypeScript build. The implementation plan must enumerate exact test files after verifying current locations.
 
