@@ -646,3 +646,84 @@ describe('diplomacy-panel treaty proposals + war attribution (#554)', () => {
     })).not.toThrow();
   });
 });
+
+describe('diplomacy-panel world-pressure crisis status line (#526 MR5 Task 5.3)', () => {
+  function addOutsiderCrisis(state: ReturnType<typeof makeDiplomacyFixture>['state']): void {
+    state.cities['outsider-city'] = {
+      ...state.cities['city-border'],
+      id: 'outsider-city',
+      owner: 'outsider',
+      position: { q: 7, r: 7 },
+      ownedTiles: [{ q: 7, r: 7 }],
+    };
+    state.civilizations.outsider.cities = ['outsider-city'];
+    state.activeCrises = {
+      'crisis-1': {
+        id: 'crisis-1', flavorId: 'plague', archetype: 'outbreak', targetCivId: 'outsider',
+        cityIds: ['outsider-city'], tileKeys: [], startedTurn: state.turn - 3, stage: 'active', turnsInStage: 3,
+      },
+    };
+  }
+
+  it('shows a status line for a known civ suffering an active crisis', () => {
+    const { container, state } = makeDiplomacyFixture({ currentPlayer: 'player', includeThirdCiv: true });
+    state.settings.aiPressureVisibility = true;
+    state.civilizations.player.knownCivilizations = ['outsider'];
+    addOutsiderCrisis(state);
+
+    const panel = createDiplomacyPanel(container, state, { onAction: () => {}, onClose: () => {} });
+
+    expect(panel.textContent).toContain('Suffering:');
+    expect(panel.textContent).toContain('3 turns');
+  });
+
+  it('does not show a status line when the viewer has not met the crisis-struck civ', () => {
+    const { container, state } = makeDiplomacyFixture({ currentPlayer: 'player', includeThirdCiv: true });
+    state.settings.aiPressureVisibility = true;
+    // player has NOT met outsider -- shouldListMajorCivForViewer will also hide the row
+    // entirely without contact, so this doubles as a "row absent" negative too.
+    addOutsiderCrisis(state);
+
+    const panel = createDiplomacyPanel(container, state, { onAction: () => {}, onClose: () => {} });
+
+    expect(panel.textContent).not.toContain('Suffering:');
+  });
+
+  it('does not show a status line for a known civ with no active crisis', () => {
+    const { container, state } = makeDiplomacyFixture({ currentPlayer: 'player', includeThirdCiv: true });
+    state.settings.aiPressureVisibility = true;
+    state.civilizations.player.knownCivilizations = ['outsider'];
+
+    const panel = createDiplomacyPanel(container, state, { onAction: () => {}, onClose: () => {} });
+
+    expect(panel.textContent).not.toContain('Suffering:');
+  });
+
+  it('does not show a status line when aiPressureVisibility is off', () => {
+    const { container, state } = makeDiplomacyFixture({ currentPlayer: 'player', includeThirdCiv: true });
+    state.settings.aiPressureVisibility = false;
+    state.civilizations.player.knownCivilizations = ['outsider'];
+    addOutsiderCrisis(state);
+
+    const panel = createDiplomacyPanel(container, state, { onAction: () => {}, onClose: () => {} });
+
+    expect(panel.textContent).not.toContain('Suffering:');
+  });
+
+  it('re-renders the status line after the crisis resolves (panel-rerender rule)', () => {
+    const { container, state } = makeDiplomacyFixture({ currentPlayer: 'player', includeThirdCiv: true });
+    state.settings.aiPressureVisibility = true;
+    state.civilizations.player.knownCivilizations = ['outsider'];
+    addOutsiderCrisis(state);
+
+    let currentState = state;
+    const render = (): HTMLElement => createDiplomacyPanel(container, currentState, { onAction: () => {}, onClose: () => {} });
+
+    const first = render();
+    expect(first.textContent).toContain('Suffering:');
+
+    currentState = { ...currentState, activeCrises: {} };
+    const second = render();
+    expect(second.textContent).not.toContain('Suffering:');
+  });
+});

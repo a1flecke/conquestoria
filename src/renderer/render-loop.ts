@@ -33,6 +33,10 @@ import {
 } from './pirate-headquarters-presentation';
 import { PirateSpriteStateController } from './pirate-sprite-state';
 import type { CombatResult } from '@/core/types';
+import {
+  getWorldPressurePresentationForViewer,
+  type WorldPressurePresentation,
+} from '@/systems/world-pressure-presentation';
 
 export { CIVTYPE_TO_FACTION, civTypeToFaction };
 
@@ -198,6 +202,9 @@ export class RenderLoop {
   camera: Camera;
   animations: AnimationSystem;
   private state: GameState | null = null;
+  // Computed once per setGameState (not per animation frame) -- see
+  // getWorldPressurePresentationForViewer's own doc comment for the cost this avoids.
+  private worldPressurePresentation: WorldPressurePresentation = { cityBadges: [], statusLinesByCivId: {} };
   private running = false;
   private animFrameId = 0;
   private highlights: HexHighlight[] = [];
@@ -374,6 +381,7 @@ export class RenderLoop {
 
   setGameState(state: GameState): void {
     this.state = state;
+    this.worldPressurePresentation = getWorldPressurePresentationForViewer(state, state.currentPlayer);
   }
 
   start(): void {
@@ -543,6 +551,7 @@ export class RenderLoop {
     drawCities(this.ctx, this.state, this.camera, viewerId, {
       reducedMotion: prefersReducedMotion(),
       nowMs: performance.now(),
+      worldPressurePresentation: this.worldPressurePresentation,
     });
 
     // Draw trade route lines (after cities, before units)

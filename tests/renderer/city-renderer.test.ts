@@ -6,6 +6,7 @@ import { foundCity } from '@/systems/city-system';
 import { hexKey, hexToPixel } from '@/systems/hex-utils';
 import { getLegendaryWonderMapEntries } from '@/systems/legendary-wonder-map-presentation';
 import { makeBreakawayFixture } from '../systems/helpers/breakaway-fixture';
+import { getWorldPressurePresentationForViewer } from '@/systems/world-pressure-presentation';
 
 const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
 
@@ -741,6 +742,53 @@ describe('drawCities — bottom-right build badge', () => {
     const texts = (ctx as unknown as MockCanvasContext).fillTextCalls.map(c => c.text);
     expect(texts).not.toContain('🏗️');
     expect(texts).not.toContain('⚔️');
+  });
+
+  it('draws the world-pressure crisis badge on a known AI civ city when the caller supplies the presentation (#526 MR5)', () => {
+    const state = createNewGame(undefined, 'world-pressure-badge');
+    state.settings = { ...state.settings, aiPressureVisibility: true };
+    const aiSettler = Object.values(state.units).find(u => u.owner === 'ai-1' && u.type === 'settler')!;
+    const aiCity = foundCity('ai-1', aiSettler.position, state.map, state.idCounters);
+    state.cities[aiCity.id] = aiCity;
+    state.civilizations['ai-1'].cities.push(aiCity.id);
+    state.civilizations.player.visibility.tiles[hexKey(aiCity.position)] = 'visible';
+    state.civilizations.player.knownCivilizations = ['ai-1'];
+    state.activeCrises = {
+      'crisis-1': {
+        id: 'crisis-1', flavorId: 'plague', archetype: 'outbreak', targetCivId: 'ai-1',
+        cityIds: [aiCity.id], tileKeys: [], startedTurn: 1, stage: 'active', turnsInStage: 1,
+      },
+    };
+
+    const presentation = getWorldPressurePresentationForViewer(state, 'player');
+    const ctx = new MockCanvasContext() as unknown as CanvasRenderingContext2D;
+    drawCities(ctx, state, makeCamera(), 'player', { worldPressurePresentation: presentation });
+
+    const texts = (ctx as unknown as MockCanvasContext).fillTextCalls.map(c => c.text);
+    expect(texts).toContain('⚠️');
+  });
+
+  it('does NOT draw the world-pressure crisis badge when the caller omits a presentation (compute-once contract, not per-frame recompute)', () => {
+    const state = createNewGame(undefined, 'world-pressure-badge-omitted');
+    state.settings = { ...state.settings, aiPressureVisibility: true };
+    const aiSettler = Object.values(state.units).find(u => u.owner === 'ai-1' && u.type === 'settler')!;
+    const aiCity = foundCity('ai-1', aiSettler.position, state.map, state.idCounters);
+    state.cities[aiCity.id] = aiCity;
+    state.civilizations['ai-1'].cities.push(aiCity.id);
+    state.civilizations.player.visibility.tiles[hexKey(aiCity.position)] = 'visible';
+    state.civilizations.player.knownCivilizations = ['ai-1'];
+    state.activeCrises = {
+      'crisis-1': {
+        id: 'crisis-1', flavorId: 'plague', archetype: 'outbreak', targetCivId: 'ai-1',
+        cityIds: [aiCity.id], tileKeys: [], startedTurn: 1, stage: 'active', turnsInStage: 1,
+      },
+    };
+
+    const ctx = new MockCanvasContext() as unknown as CanvasRenderingContext2D;
+    drawCities(ctx, state, makeCamera(), 'player');
+
+    const texts = (ctx as unknown as MockCanvasContext).fillTextCalls.map(c => c.text);
+    expect(texts).not.toContain('⚠️');
   });
 });
 
