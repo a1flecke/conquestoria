@@ -28,6 +28,7 @@ import { minorCivReparationsCost } from '@/systems/minor-civ-actions';
 import { createGameButton } from '@/ui/ui-kit';
 import { getWorldPressurePresentationForViewer } from '@/systems/world-pressure-presentation';
 import { canSendAid, type SendAidFailureReason } from '@/systems/crisis-interaction-system';
+import { TECH_TREE } from '@/systems/tech-definitions';
 
 export interface DiplomacyPanelCallbacks {
   onAction: (targetCivId: string, action: DiplomaticAction) => void;
@@ -46,9 +47,16 @@ export interface DiplomacyPanelCallbacks {
 
 // Reasons canSendAid can disable the button for -- all player-facing, per spec's "cost,
 // effect, and risk inline at the point of choice" UI requirement.
-function describeSendAidDisabledReason(reason: SendAidFailureReason, goldCost: number | null): string {
+function describeSendAidDisabledReason(
+  reason: SendAidFailureReason,
+  goldCost: number | null,
+  techId: string | null,
+): string {
   switch (reason) {
-    case 'no-tech': return 'Requires the technology that unlocks this aid.';
+    case 'no-tech': {
+      const techName = techId ? TECH_TREE.find(t => t.id === techId)?.name ?? techId : 'the required technology';
+      return `Requires ${techName}.`;
+    }
     case 'not-enough-gold': return goldCost !== null ? `Requires ${goldCost} gold.` : 'Not enough gold.';
     case 'already-aided': return 'You already sent aid for this crisis.';
     case 'flag-off': return 'Crisis interactions are not available yet.';
@@ -217,13 +225,17 @@ export function createDiplomacyPanel(
     if (worldPressureLine && worldPressureLine.archetype !== 'hunt') {
       sendAidCrisisId = worldPressureLine.crisisId;
       const check = canSendAid(state, state.currentPlayer, worldPressureLine.crisisId);
-      const goldCost = check.ok ? check.goldCost : check.goldCost ?? null;
+      const goldCost = check.goldCost ?? null;
       sendAidLabel = goldCost !== null ? `Send Aid (${goldCost} Gold)` : 'Send Aid';
-      sendAidHelpText = worldPressureLine.archetype === 'outbreak'
-        ? `Pay ${goldCost ?? '?'} gold — ${civ.name}'s outbreak is cured in 2 turns. ${civ.name} and onlookers will remember this.`
-        : `Pay ${goldCost ?? '?'} gold — ${civ.name} receives it as relief. ${civ.name} and onlookers will remember this.`;
       sendAidDisabled = !check.ok;
-      sendAidDisabledReason = check.ok ? null : describeSendAidDisabledReason(check.reason, goldCost);
+      if (!check.ok && check.reason === 'already-aided') {
+        sendAidHelpText = `You already sent aid to help ${civ.name} with this crisis.`;
+      } else {
+        sendAidHelpText = worldPressureLine.archetype === 'outbreak'
+          ? `Pay ${goldCost ?? '?'} gold — ${civ.name}'s outbreak is cured in 2 turns. ${civ.name} and onlookers will remember this.`
+          : `Pay ${goldCost ?? '?'} gold — ${civ.name} receives it as relief. ${civ.name} and onlookers will remember this.`;
+      }
+      sendAidDisabledReason = check.ok ? null : describeSendAidDisabledReason(check.reason, goldCost, check.techId ?? null);
     }
 
     civRows.push({

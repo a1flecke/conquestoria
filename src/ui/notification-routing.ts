@@ -536,9 +536,13 @@ export function routeCrisisResolved(
   sink(event.civId, `${name} ${outcomeMessage[event.outcome]}`, type);
 }
 
-// Hunt-their-foe (#526 MR6 Task 6.2): "Rome slew the beast menacing Carthage!" to every
-// viewer who knows either civ (killer or target) -- deliberately broader than the
-// witness-reputation set in crisis-interaction-system.ts, which requires knowing BOTH.
+// Hunt-their-foe (#526 MR6 Task 6.2): "Rome slew the beast menacing Carthage!" to
+// third-party viewers who know either civ (killer or target) -- deliberately broader
+// than the witness-reputation set in crisis-interaction-system.ts, which requires
+// knowing BOTH. Never sinks to the killer or target themselves: routeCrisisResolved's
+// existing 'hunted' branch already tells them directly ("The beast-slayer's feast
+// begins!" / "{foe} has been slain by {killer}") from the same crisis:resolved event
+// that fires in the same tick -- sinking here too would double-notify both parties.
 export function routeCrisisFoeHuntedByAlly(
   state: GameState,
   event: GameEvents['crisis:foe-hunted-by-ally'],
@@ -550,10 +554,7 @@ export function routeCrisisFoeHuntedByAlly(
   const message = `${killerName} slew ${foeName} menacing ${targetName}!`;
 
   for (const [civId, civ] of Object.entries(state.civilizations)) {
-    if (civId === event.killerCivId || civId === event.targetCivId) {
-      sink(civId, message, 'success');
-      continue;
-    }
+    if (civId === event.killerCivId || civId === event.targetCivId) continue;
     const known = civ.knownCivilizations ?? [];
     if (known.includes(event.killerCivId) || known.includes(event.targetCivId)) {
       sink(civId, message, 'success');
