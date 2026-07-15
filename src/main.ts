@@ -236,6 +236,7 @@ import {
   routeWorldPressureCrisisStarted,
   routeWorldPressureCrisisResolved,
   routeCrisisFoeHuntedByAlly,
+  routeCrisisAidSent,
   type NotificationSink,
 } from '@/ui/notification-routing';
 import { createNotificationDelivery } from '@/ui/notification-delivery';
@@ -262,6 +263,7 @@ import { removeRouteForUnit, createMarketplaceState, getEffectiveGoldPerTurn, ge
 import { establishQuestAwareRoute } from '@/systems/quest-aware-trade-system';
 import { emitMinorCivQuestTransitions } from '@/systems/quest-chain-system';
 import { performMinorCivFestival, performMinorCivGift, performMinorCivReparations, setMinorCivWarState } from '@/systems/minor-civ-actions';
+import { canSendAid, applySendAid } from '@/systems/crisis-interaction-system';
 import { MINOR_CIV_DEFINITIONS } from '@/systems/minor-civ-definitions';
 import { openEstablishRoutePanel } from '@/ui/establish-route-panel';
 import { RoundPresentationGate } from '@/presentation/round-presentation-gate';
@@ -1064,6 +1066,19 @@ function handleMinorCivReparations(mcId: string): void {
   openDiplomacyPanel();
 }
 
+function handleSendAid(crisisId: string): void {
+  const check = canSendAid(gameState, gameState.currentPlayer, crisisId);
+  if (!check.ok) {
+    showNotification('Send Aid unavailable.', 'warning');
+    return;
+  }
+  gameState = applySendAid(gameState, gameState.currentPlayer, crisisId, bus);
+  showNotification('Aid sent.', 'success');
+  renderLoop.setGameState(gameState);
+  updateHUD();
+  openDiplomacyPanel();
+}
+
 function handleMinorCivWarPeace(mcId: string, currentlyAtWar: boolean): void {
   const result = setMinorCivWarState(gameState, gameState.currentPlayer, mcId, !currentlyAtWar);
   if (!result.ok) return;
@@ -1089,6 +1104,7 @@ function openDiplomacyPanel(): void {
     onSponsorFestival: handleSponsorFestival,
     onMinorCivReparations: handleMinorCivReparations,
     onMinorCivWarPeace: handleMinorCivWarPeace,
+    onSendAid: handleSendAid,
     onClose: () => {},
   });
 }
@@ -4372,6 +4388,10 @@ bus.on('crisis:resolved', event => {
 
 bus.on('crisis:foe-hunted-by-ally', event => {
   routeCrisisFoeHuntedByAlly(gameState, event, appendToCivLog);
+});
+
+bus.on('crisis:aid-sent', event => {
+  routeCrisisAidSent(gameState, event, appendToCivLog);
 });
 
 bus.on('economy:treasury-strain', event => {

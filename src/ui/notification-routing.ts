@@ -9,6 +9,7 @@ import type { NotificationCityAction, NotificationEntry } from '@/core/notificat
 import { presentStrategicWarning } from '@/ui/strategic-warning-presentation';
 import { getCrisisFlavor, getCrisisDisplayName } from '@/systems/crisis-flavor-definitions';
 import { resolveWorldPressureFlags } from '@/systems/world-pressure-flags';
+import { getWitnessCivIds } from '@/systems/crisis-interaction-system';
 
 export type NotificationSink = (
   civId: string,
@@ -557,6 +558,25 @@ export function routeCrisisFoeHuntedByAlly(
     if (known.includes(event.killerCivId) || known.includes(event.targetCivId)) {
       sink(civId, message, 'success');
     }
+  }
+}
+
+// Send aid (#526 MR6 Task 6.3): notifies the aided target civ directly, plus every
+// witness (met BOTH actor and target -- same set applyInteractionReputation rewarded),
+// per spec §Interactions: "Human witnesses receive a notification... when overt acts
+// occur (aid sent...)". The actor gets immediate feedback from the panel itself.
+export function routeCrisisAidSent(
+  state: GameState,
+  event: GameEvents['crisis:aid-sent'],
+  sink: NotificationSink,
+): void {
+  const actorName = state.civilizations[event.actorCivId]?.name ?? 'A civilization';
+  const targetName = state.civilizations[event.targetCivId]?.name ?? 'a civilization';
+  const message = `${actorName} sent aid to ${targetName}!`;
+
+  sink(event.targetCivId, message, 'success');
+  for (const witnessId of getWitnessCivIds(state, event.actorCivId, event.targetCivId)) {
+    sink(witnessId, message, 'success');
   }
 }
 

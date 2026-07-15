@@ -1,11 +1,16 @@
 import { describe, it, expect } from 'vitest';
-import type { GameState } from '@/core/types';
+import type { ActiveCrisis, City, GameState } from '@/core/types';
+import { EventBus } from '@/core/event-bus';
 import { createDiplomacyState } from '@/systems/diplomacy-system';
+import { getCityAppeaseCost } from '@/systems/faction-system';
 import {
   CRISIS_INTERACTION_DEFINITIONS,
   getCrisisInteractionDefinition,
+  resolveInteractionTechRequired,
   getWitnessCivIds,
   applyInteractionReputation,
+  canSendAid,
+  applySendAid,
 } from '@/systems/crisis-interaction-system';
 
 // actor=civA, target=civB, witness=civC (met both), non-witness=civD (met only actor).
@@ -32,9 +37,19 @@ describe('CRISIS_INTERACTION_DEFINITIONS', () => {
     expect(ids).toEqual(['hunt_their_foe', 'send_aid']);
   });
 
-  it('hunt_their_foe requires no tech; send_aid requires medicine', () => {
+  it('hunt_their_foe requires no tech', () => {
     expect(getCrisisInteractionDefinition('hunt_their_foe')?.techRequired).toBeNull();
-    expect(getCrisisInteractionDefinition('send_aid')?.techRequired).toBe('medicine');
+  });
+
+  it('send_aid requires medicine for outbreak and trade-routes for catastrophe (per-archetype map)', () => {
+    const def = getCrisisInteractionDefinition('send_aid')!;
+    expect(resolveInteractionTechRequired(def, 'outbreak')).toBe('medicine');
+    expect(resolveInteractionTechRequired(def, 'catastrophe')).toBe('trade-routes');
+  });
+
+  it('send_aid resolves to undefined (never satisfiable) for a hunt archetype -- not a send-aid hook', () => {
+    const def = getCrisisInteractionDefinition('send_aid')!;
+    expect(resolveInteractionTechRequired(def, 'hunt')).toBeUndefined();
   });
 });
 
@@ -91,5 +106,159 @@ describe('applyInteractionReputation', () => {
     const next = applyInteractionReputation(state, 'civA', 'civB', def);
     expect(next.civilizations.civA.diplomacy.relationships.civB).toBe(100);
     expect(next.civilizations.civB.diplomacy.relationships.civA).toBe(100);
+  });
+});
+
+// actor=civA (the aid-giver), target=civB (the crisis-struck civ), witness=civC.
+function sendAidState({
+  archetype = 'outbreak' as ActiveCrisis['archetype'],
+  actorGold = 200,
+  actorTechs = ['medicine', 'trade-routes'],
+  actorAlreadyAided = false,
+  interactions = 'benign' as 'off' | 'benign' | 'full',
+}: {
+  archetype?: ActiveCrisis['archetype'];
+  actorGold?: number;
+  actorTechs?: string[];
+  actorAlreadyAided?: boolean;
+  interactions?: 'off' | 'benign' | 'full';
+} = {}): { state: GameState; crisisId: string; cityId: string; goldCost: number } {
+  const ids = ['civA', 'civB', 'civC'];
+  const cityId = 'target-city';
+  const city: City = {
+    id: cityId, name: 'Carthage', owner: 'civB', position: { q: 0, r: 0 },
+    population: 9, food: 0, foodNeeded: 20, buildings: [], productionQueue: [],
+    productionProgress: 0, ownedTiles: [{ q: 0, r: 0 }], workedTiles: [],
+    focus: 'balanced', maturity: 'outpost', unrestLevel: 0, unrestTurns: 0, spyUnrestBonus: 0,
+  };
+  const crisisId = 'crisis-1';
+  const crisis: ActiveCrisis = {
+    id: crisisId, flavorId: archetype === 'outbreak' ? 'plague' : 'earthquake', archetype,
+    targetCivId: 'civB', cityIds: [cityId], tileKeys: [], startedTurn: 5, stage: archetype === 'outbreak' ? 'active' : 'recovery',
+    turnsInStage: 2,
+    ...(actorAlreadyAided ? { aidedByCivIds: ['civA'] } : {}),
+  };
+
+  const state: GameState = {
+    turn: 10,
+    cities: { [cityId]: city },
+    units: {},
+    map: { width: 1, height: 1, wrapsHorizontally: false, rivers: [], tiles: {} },
+    settings: { aiCrisisInteractions: interactions } as GameState['settings'],
+    civilizations: {
+      civA: {
+        id: 'civA', name: 'Rome', isHuman: true, cities: [], units: [], visibility: { tiles: {} },
+        gold: actorGold,
+        techState: { completed: actorTechs, currentResearch: null, researchProgress: 0, researchQueue: [], trackPriorities: {} as any },
+        diplomacy: createDiplomacyState(ids, 'civA'), knownCivilizations: ['civB', 'civC'],
+      },
+      civB: {
+        id: 'civB', name: 'Carthage', isHuman: false, cities: [cityId], units: [], visibility: { tiles: {} },
+        gold: 50,
+        techState: { completed: [], currentResearch: null, researchProgress: 0, researchQueue: [], trackPriorities: {} as any },
+        diplomacy: createDiplomacyState(ids, 'civB'), knownCivilizations: ['civA', 'civC'],
+      },
+      civC: {
+        id: 'civC', name: 'Egypt', isHuman: false, cities: [], units: [], visibility: { tiles: {} },
+        gold: 0,
+        techState: { completed: [], currentResearch: null, researchProgress: 0, researchQueue: [], trackPriorities: {} as any },
+        diplomacy: createDiplomacyState(ids, 'civC'), knownCivilizations: ['civA', 'civB'],
+      },
+    },
+    activeCrises: { [crisisId]: crisis },
+  } as unknown as GameState;
+
+  return { state, crisisId, cityId, goldCost: getCityAppeaseCost(city) };
+}
+
+describe('canSendAid', () => {
+  it('returns ok:true with the correct gold cost for a valid outbreak aid attempt', () => {
+    const { state, crisisId, goldCost } = sendAidState({ archetype: 'outbreak' });
+    expect(canSendAid(state, 'civA', crisisId)).toEqual({ ok: true, goldCost });
+  });
+
+  it('rejects with flag-off when aiCrisisInteractions is off', () => {
+    const { state, crisisId } = sendAidState({ interactions: 'off' });
+    expect(canSendAid(state, 'civA', crisisId)).toEqual({ ok: false, reason: 'flag-off' });
+  });
+
+  it('rejects with unknown-civ for a nonexistent actor', () => {
+    const { state, crisisId } = sendAidState();
+    expect(canSendAid(state, 'no-such-civ', crisisId)).toEqual({ ok: false, reason: 'unknown-civ' });
+  });
+
+  it('rejects with no-crisis for a nonexistent crisis id', () => {
+    const { state } = sendAidState();
+    expect(canSendAid(state, 'civA', 'no-such-crisis')).toEqual({ ok: false, reason: 'no-crisis' });
+  });
+
+  it('rejects with already-aided once the actor has already aided this crisis', () => {
+    const { state, crisisId } = sendAidState({ actorAlreadyAided: true });
+    expect(canSendAid(state, 'civA', crisisId)).toEqual({ ok: false, reason: 'already-aided' });
+  });
+
+  it('rejects with no-tech when the actor lacks medicine for an outbreak', () => {
+    const { state, crisisId } = sendAidState({ archetype: 'outbreak', actorTechs: [] });
+    expect(canSendAid(state, 'civA', crisisId)).toEqual({ ok: false, reason: 'no-tech' });
+  });
+
+  it('rejects with no-tech when the actor lacks trade-routes for a catastrophe', () => {
+    const { state, crisisId } = sendAidState({ archetype: 'catastrophe', actorTechs: [] });
+    expect(canSendAid(state, 'civA', crisisId)).toEqual({ ok: false, reason: 'no-tech' });
+  });
+
+  it('rejects with not-enough-gold when the actor cannot afford the cost, still reporting the cost', () => {
+    const { state, crisisId, goldCost } = sendAidState({ actorGold: 0 });
+    expect(canSendAid(state, 'civA', crisisId)).toEqual({ ok: false, reason: 'not-enough-gold', goldCost });
+  });
+});
+
+describe('applySendAid', () => {
+  it('outbreak: deducts gold from the actor only, schedules the remedy, marks aidedByCivIds, and applies bilateral reputation once', () => {
+    const { state, crisisId, cityId, goldCost } = sendAidState({ archetype: 'outbreak' });
+    const bus = new EventBus();
+    const events: unknown[] = [];
+    bus.on('crisis:aid-sent', event => events.push(event));
+
+    const next = applySendAid(state, 'civA', crisisId, bus);
+
+    expect(next.civilizations.civA.gold).toBe(200 - goldCost);
+    expect(next.civilizations.civB.gold).toBe(50); // target's own gold is untouched
+    expect(next.activeCrises![crisisId].remedyCompletionByCity).toEqual({ [cityId]: state.turn + 2 });
+    expect(next.activeCrises![crisisId].aidedByCivIds).toEqual(['civA']);
+    expect(next.civilizations.civA.diplomacy.relationships.civB).toBe(15);
+    expect(next.civilizations.civB.diplomacy.relationships.civA).toBe(15);
+    expect(events).toHaveLength(1);
+    expect(events[0]).toEqual({ crisisId, actorCivId: 'civA', targetCivId: 'civB', goldCost });
+  });
+
+  it('catastrophe: deducts gold from the actor and credits it to the target civ as relief', () => {
+    const { state, crisisId, goldCost } = sendAidState({ archetype: 'catastrophe' });
+    const next = applySendAid(state, 'civA', crisisId, new EventBus());
+
+    expect(next.civilizations.civA.gold).toBe(200 - goldCost);
+    expect(next.civilizations.civB.gold).toBe(50 + goldCost);
+    expect(next.activeCrises![crisisId].aidedByCivIds).toEqual(['civA']);
+  });
+
+  it('grants +4 reputation to a witness who has met both the actor and the target', () => {
+    const { state, crisisId } = sendAidState();
+    const next = applySendAid(state, 'civA', crisisId, new EventBus());
+    expect(next.civilizations.civA.diplomacy.relationships.civC).toBe(4);
+    expect(next.civilizations.civC.diplomacy.relationships.civA).toBe(4);
+  });
+
+  it('is a no-op when canSendAid would reject (e.g. already aided) -- never double-deducts gold', () => {
+    const { state, crisisId } = sendAidState({ actorAlreadyAided: true });
+    const next = applySendAid(state, 'civA', crisisId, new EventBus());
+    expect(next).toBe(state);
+  });
+
+  it('human-target: human A aids human B\'s crisis -- both relationships move (hot-seat requirement)', () => {
+    const { state, crisisId } = sendAidState();
+    state.civilizations.civB.isHuman = true;
+    const next = applySendAid(state, 'civA', crisisId, new EventBus());
+    expect(next.civilizations.civA.diplomacy.relationships.civB).toBe(15);
+    expect(next.civilizations.civB.diplomacy.relationships.civA).toBe(15);
   });
 });
