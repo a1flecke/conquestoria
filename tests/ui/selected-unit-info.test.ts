@@ -104,6 +104,16 @@ function findWaterRecoveryGuidance(node: unknown): MockElement | undefined {
   return undefined;
 }
 
+function findZoneOfControlWarning(node: unknown): MockElement | undefined {
+  const el = node as MockElement;
+  if (el.dataset?.zoneOfControlWarning) return el;
+  for (const child of el.children ?? []) {
+    const found = findZoneOfControlWarning(child);
+    if (found) return found;
+  }
+  return undefined;
+}
+
 describe('land-unit water recovery guidance', () => {
   beforeEach(installMockDocument);
   afterEach(restoreMockDocument);
@@ -179,6 +189,32 @@ describe('land-unit water recovery guidance', () => {
     );
     expect(collectAllText(normal).join(' ')).not.toContain('return ashore');
     expect(collectAllText(normal).join(' ')).not.toContain('stranded on water');
+  });
+
+  it('renders the zone-of-control warning only when the selected player has a terminal move', () => {
+    const state = createNewGame(undefined, 'zoc-panel-warning', 'small');
+    const unit = {
+      ...createUnit('warrior', 'player', { q: 1, r: 1 }, {
+        nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1,
+      }),
+      id: 'warrior',
+    };
+    state.currentPlayer = 'player';
+    state.units = { warrior: unit };
+    state.civilizations.player.units = ['warrior'];
+    const warning = new MockElement('div');
+    const normal = new MockElement('div');
+
+    renderSelectedUnitInfo(warning as unknown as HTMLElement, state, 'warrior', {}, {
+      hasZoneOfControlWarning: true,
+    });
+    renderSelectedUnitInfo(normal as unknown as HTMLElement, state, 'warrior', {}, {
+      hasZoneOfControlWarning: false,
+    });
+
+    expect(collectAllText(warning).join(' ')).toContain('Enemy nearby — entering ends movement.');
+    expect(findZoneOfControlWarning(warning)?.getAttribute('role')).toBe('status');
+    expect(findZoneOfControlWarning(normal)).toBeUndefined();
   });
 });
 

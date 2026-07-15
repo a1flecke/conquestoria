@@ -99,6 +99,7 @@ export interface SelectedUnitInfoCallbacks {
 
 export interface SelectedUnitInfoPresentation {
   waterRecovery?: LandUnitWaterRecovery;
+  hasZoneOfControlWarning?: boolean;
 }
 
 function makeButton(label: string, color: string, onClick?: () => void): HTMLButtonElement {
@@ -238,6 +239,15 @@ export function renderSelectedUnitInfo(
     recoveryLine.style.cssText = 'margin-top:8px;padding:8px;border:1px solid rgba(245,184,73,0.45);border-radius:8px;background:rgba(245,184,73,0.16);color:#f5b849;font-size:12px;font-weight:600;line-height:1.4;';
     recoveryLine.textContent = waterRecoveryMessage;
     wrapper.appendChild(recoveryLine);
+  }
+  if (presentation.hasZoneOfControlWarning) {
+    const zocLine = document.createElement('div');
+    zocLine.dataset.zoneOfControlWarning = 'true';
+    zocLine.setAttribute('role', 'status');
+    zocLine.setAttribute('aria-live', 'polite');
+    zocLine.style.cssText = 'margin-top:8px;padding:8px;border:1px solid rgba(245,184,73,0.7);border-radius:8px;background:rgba(245,184,73,0.12);color:#f5b849;font-size:12px;font-weight:600;line-height:1.4;';
+    zocLine.textContent = '⚠ Enemy nearby — entering ends movement.';
+    wrapper.appendChild(zocLine);
   }
 
   const tier = getVeterancyTier(unit);

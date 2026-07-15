@@ -36,6 +36,28 @@ import type { CombatResult } from '@/core/types';
 
 export { CIVTYPE_TO_FACTION, civTypeToFaction };
 
+/** A shape cue so ZOC destinations remain distinct without relying on amber alone. */
+export function drawZoneOfControlChevrons(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  size: number,
+): void {
+  ctx.save();
+  ctx.strokeStyle = '#fff0a8';
+  ctx.lineWidth = Math.max(1.5, size * 0.045);
+  ctx.lineCap = 'round';
+  for (const offset of [-0.18, 0, 0.18]) {
+    const chevronY = y + offset * size;
+    ctx.beginPath();
+    ctx.moveTo(x - size * 0.16, chevronY - size * 0.07);
+    ctx.lineTo(x, chevronY + size * 0.07);
+    ctx.lineTo(x + size * 0.16, chevronY - size * 0.07);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
 export function buildUnitEntities(
   state: GameState,
   viewerId: string,
@@ -146,12 +168,13 @@ export function positionMovingPirateHeadquarters(
 
 export interface HexHighlight {
   coord: HexCoord;
-  type: 'move' | 'attack' | 'water-recovery' | 'worker-buildable' | 'worker-owned-blocked' | 'worker-foreign-blocked';
+  type: 'move' | 'attack' | 'zoc-limited' | 'water-recovery' | 'worker-buildable' | 'worker-owned-blocked' | 'worker-foreign-blocked';
 }
 
 const HEX_HIGHLIGHT_COLORS: Record<HexHighlight['type'], string> = {
   move: 'rgba(74, 144, 217, 0.35)',
   attack: 'rgba(217, 74, 74, 0.45)',
+  'zoc-limited': 'rgba(245, 184, 73, 0.55)',
   'water-recovery': 'rgba(245, 184, 73, 0.55)',
   'worker-buildable': 'rgba(80, 200, 120, 0.45)',
   'worker-owned-blocked': 'rgba(232, 193, 112, 0.40)',
@@ -159,6 +182,7 @@ const HEX_HIGHLIGHT_COLORS: Record<HexHighlight['type'], string> = {
 };
 
 const HEX_HIGHLIGHT_OUTLINES: Partial<Record<HexHighlight['type'], string>> = {
+  'zoc-limited': '#fff0a8',
   'water-recovery': '#fff0a8',
 };
 
@@ -491,6 +515,9 @@ export class RenderLoop {
         const color = HEX_HIGHLIGHT_COLORS[highlight.type];
         const outline = HEX_HIGHLIGHT_OUTLINES[highlight.type];
         drawHexHighlight(this.ctx, screen.x, screen.y, scaledSize, color, outline);
+        if (highlight.type === 'zoc-limited') {
+          drawZoneOfControlChevrons(this.ctx, screen.x, screen.y, scaledSize);
+        }
       }
     }
 

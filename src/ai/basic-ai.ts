@@ -4,7 +4,7 @@ import { hexKey, wrappedHexDistance, hexDistance } from '@/systems/hex-utils';
 import { getDetectionUnitTypeForCiv } from '@/systems/city-system';
 import { foundCityInState } from '@/systems/city-founding-system';
 import { canFoundCityAt } from '@/systems/city-territory-system';
-import { getMovementRange, moveUnit, findPath, createUnit, UNIT_DEFINITIONS } from '@/systems/unit-system';
+import { getMovementRangeDetails, moveUnitWithZoneOfControl, findPath, createUnit, UNIT_DEFINITIONS } from '@/systems/unit-system';
 import { executeUnitMove } from '@/systems/unit-movement-system';
 import {
   canLoadUnitOntoTransport,
@@ -265,17 +265,7 @@ function isCombatWarship(unit: Unit): boolean {
 }
 
 function moveWarshipToward(state: GameState, civId: string, unit: Unit, target: HexCoord): GameState {
-  const occupancy = buildUnitOccupancy(state.units);
-  const hostileOwners = new Set<string>(['barbarian']);
-  addAlwaysHostileOwners(state, civId, hostileOwners, false);
-  const range = getMovementRange(
-    unit,
-    state.map,
-    occupancy.unitIdsByHex,
-    occupancy.ownersByUnitId,
-    hostileOwners,
-    { completedTechs: state.civilizations[civId]?.techState.completed ?? [] },
-  );
+  const range = getMovementRangeDetails(state, unit.id).reachable;
   const best = range
     .map(coord => ({ coord, distance: pirateDistance(state, coord, target) }))
     .filter(candidate => candidate.distance < pirateDistance(state, unit.position, target))
@@ -286,7 +276,7 @@ function moveWarshipToward(state: GameState, civId: string, unit: Unit, target: 
     ...state,
     units: {
       ...state.units,
-      [unit.id]: moveUnit(unit, best.coord, unit.movementPointsLeft),
+      [unit.id]: moveUnitWithZoneOfControl(state, unit, best.coord, unit.movementPointsLeft).unit,
     },
   };
 }

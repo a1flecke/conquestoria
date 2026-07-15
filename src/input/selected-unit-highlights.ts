@@ -5,7 +5,7 @@ import { getVisibility } from '@/systems/fog-of-war';
 import { hexDistance, hexKey, wrappedHexDistance } from '@/systems/hex-utils';
 import { getAvailableWorkerActions, getKnownTileResourceForWorkerAction } from '@/systems/improvement-system';
 import { buildUnitOccupancy } from '@/systems/unit-occupancy';
-import { getMovementRange } from '@/systems/unit-system';
+import { getMovementRangeDetails } from '@/systems/unit-system';
 import {
   getLandUnitWaterRecovery,
   NO_LAND_UNIT_WATER_RECOVERY,
@@ -14,6 +14,7 @@ import {
 
 export interface SelectedUnitHighlightResult {
   movementRange: HexCoord[];
+  zocLimitedRange: HexCoord[];
   attackTargets: AttackTarget[];
   highlights: HexHighlight[];
   waterRecovery: LandUnitWaterRecovery;
@@ -100,6 +101,7 @@ export function buildSelectedUnitHighlights(state: GameState, unitId: string): S
   if (!unit || unit.owner !== state.currentPlayer) {
     return {
       movementRange: [],
+      zocLimitedRange: [],
       attackTargets: [],
       highlights: [],
       waterRecovery: NO_LAND_UNIT_WATER_RECOVERY,
@@ -108,23 +110,18 @@ export function buildSelectedUnitHighlights(state: GameState, unitId: string): S
   if (unit.committedToRouteId) {
     return {
       movementRange: [],
+      zocLimitedRange: [],
       attackTargets: [],
       highlights: [],
       waterRecovery: NO_LAND_UNIT_WATER_RECOVERY,
     };
   }
 
-  const occupancy = buildUnitOccupancy(state.units);
-  const hostileOwners = buildHostileOwners(state, state.currentPlayer);
-  const completedTechs = state.civilizations[unit.owner]?.techState.completed ?? [];
-  const movementRange = getMovementRange(
-    unit,
-    state.map,
-    occupancy.unitIdsByHex,
-    occupancy.ownersByUnitId,
-    hostileOwners,
-    { completedTechs },
-  ).filter(coord => isPreviewableMoveDestination(state, unit.position, coord));
+  const detailedRange = getMovementRangeDetails(state, unitId);
+  const movementRange = detailedRange.reachable
+    .filter(coord => isPreviewableMoveDestination(state, unit.position, coord));
+  const zocLimitedRange = detailedRange.zocLimited
+    .filter(coord => isPreviewableMoveDestination(state, unit.position, coord));
   const attackTargets = getAttackTargets(state, unit, { viewerId: state.currentPlayer })
     .filter(target => target.result.targetType === 'unit');
   const attackKeys = new Set(attackTargets.map(target => hexKey(target.coord)));
@@ -138,11 +135,14 @@ export function buildSelectedUnitHighlights(state: GameState, unitId: string): S
   const recoveryKeys = new Set(
     waterRecovery.destinations.map(coord => hexKey(coord)),
   );
+  const zocKeys = new Set(zocLimitedRange.map(hexKey));
 
   const moveHighlights = nonCombatMovementRange.map(coord => ({
     coord,
     type: recoveryKeys.has(hexKey(coord))
       ? 'water-recovery' as const
+      : zocKeys.has(hexKey(coord))
+        ? 'zoc-limited' as const
       : 'move' as const,
   }));
 
@@ -152,6 +152,7 @@ export function buildSelectedUnitHighlights(state: GameState, unitId: string): S
 
   return {
     movementRange,
+    zocLimitedRange,
     attackTargets,
     highlights: [...moveHighlights, ...attackHighlights, ...workerHighlights],
     waterRecovery,

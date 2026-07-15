@@ -26,7 +26,7 @@ import {
   PIRATE_SIEGE_DAMAGE,
   PIRATE_SIEGE_MIN_STAGE,
 } from './pirate-definitions';
-import { findPath, getMovementStepCost, moveUnit, UNIT_DEFINITIONS } from './unit-system';
+import { findPath, getMovementStepCost, moveUnitWithZoneOfControl, UNIT_DEFINITIONS } from './unit-system';
 
 export type PirateIntent = PirateIntentState;
 
@@ -556,7 +556,9 @@ export function applyPlannedRelocation(state: GameState, factionId: string): Pir
       ) {
         return cancel('placement-failed');
       }
-      moved = moveUnit(moved, next, cost);
+      const movement = moveUnitWithZoneOfControl(state, moved, next, cost);
+      if (movement.stopped && step < plan.path.length - 1) return cancel('placement-failed');
+      moved = movement.unit;
       path.push(next);
     }
     const finalKey = hexKey(moved.position);

@@ -1,4 +1,6 @@
-import type { UnitDefinition, UnitType, Unit, HexCoord, GameMap, CivBonusEffect, VisibilityState, IdCounters } from '@/core/types';
+import type { UnitDefinition, UnitType, Unit, HexCoord, GameMap, GameState, CivBonusEffect, VisibilityState, IdCounters } from '@/core/types';
+import { getZoneOfControlAt } from './zone-of-control-system';
+import { isHostileOwnerTo } from './owner-hostility';
 import {
   hexKey,
   hexNeighbors,
@@ -547,6 +549,14 @@ export function moveUnit(unit: Unit, to: HexCoord, cost: number): Unit {
   };
 }
 
+export function moveUnitWithZoneOfControl(
+  state: Readonly<GameState>, unit: Unit, to: HexCoord, cost: number,
+): { unit: Unit; stopped: boolean } {
+  const moved = moveUnit(unit, to, cost);
+  const stopped = getZoneOfControlAt(state, moved, to).limited;
+  return { unit: stopped ? { ...moved, movementPointsLeft: 0 } : moved, stopped };
+}
+
 export function resetUnitTurn(unit: Unit): Unit {
   const { skippedTurn: _skippedTurn, ...rest } = unit;
   const base: Unit = {
@@ -1009,6 +1019,80 @@ export function getMovementRange(
   }
 
   return reachable;
+}
+
+export interface MovementRangeDetails {
+  reachable: HexCoord[];
+  zocLimited: HexCoord[];
+}
+
+export function getMovementRangeDetails(
+  state: Readonly<GameState>,
+  unitId: string,
+): MovementRangeDetails {
+  const unit = state.units[unitId];
+  if (!unit) return { reachable: [], zocLimited: [] };
+  const unitPositions: Record<string, string | string[]> = {};
+  const unitOwners: Record<string, string> = {};
+  for (const candidate of Object.values(state.units)) {
+    const key = hexKey(candidate.position);
+    const existing = unitPositions[key];
+    unitPositions[key] = existing ? [...(Array.isArray(existing) ? existing : [existing]), candidate.id] : candidate.id;
+    unitOwners[candidate.id] = candidate.owner;
+  }
+  const hostileOwners = new Set(Object.values(state.units)
+    .filter(candidate => isHostileOwnerTo(state, unit.owner, candidate.owner))
+    .map(candidate => candidate.owner));
+  const reachable: HexCoord[] = [];
+  const zocLimited: HexCoord[] = [];
+  const visited = new Map<string, number>();
+  const queue: Array<{ coord: HexCoord; remaining: number }> = [];
+  const startKey = hexKey(unit.position);
+  visited.set(startKey, unit.movementPointsLeft);
+  queue.push({ coord: unit.position, remaining: unit.movementPointsLeft });
+
+  while (queue.length > 0) {
+    const current = queue.shift()!;
+    const neighbors = state.map.wrapsHorizontally
+      ? getWrappedHexNeighbors(current.coord, state.map.width)
+      : hexNeighbors(current.coord);
+    for (const neighbor of neighbors) {
+      const key = hexKey(neighbor);
+      const tile = state.map.tiles[key];
+      if (!tile || !isPassableForUnitInContext(unit, tile.terrain, {
+        completedTechs: state.civilizations[unit.owner]?.techState.completed ?? [],
+      })) continue;
+      const cost = getMovementStepCost(unit, state.map, current.coord, neighbor, {
+        completedTechs: state.civilizations[unit.owner]?.techState.completed ?? [],
+      });
+      const remaining = current.remaining - cost;
+      const fromStart = hexKey(current.coord) === startKey;
+      const forcedMarch = fromStart && current.remaining >= 1 && remaining < 0;
+      if (remaining < 0 && !forcedMarch) continue;
+      const effectiveRemaining = forcedMarch ? 0 : remaining;
+      const occupants = normalizeOccupants(unitPositions[key]).filter(id => id !== unit.id);
+      const neutralOccupant = occupants.some(id => {
+        const owner = unitOwners[id];
+        return Boolean(owner) && owner !== unit.owner && !hostileOwners.has(owner);
+      });
+      if (neutralOccupant) continue;
+      const hostileOccupant = occupants.some(id => {
+        const owner = unitOwners[id];
+        return Boolean(owner) && owner !== unit.owner && hostileOwners.has(owner);
+      });
+      const zoc = !hostileOccupant && getZoneOfControlAt(state, unit, neighbor).limited;
+      const terminal = hostileOccupant || zoc;
+      const previous = visited.get(key) ?? -1;
+      if (effectiveRemaining <= previous) continue;
+      visited.set(key, effectiveRemaining);
+      reachable.push(neighbor);
+      if (zoc) zocLimited.push(neighbor);
+      if (!terminal && effectiveRemaining > 0) {
+        queue.push({ coord: neighbor, remaining: effectiveRemaining });
+      }
+    }
+  }
+  return { reachable, zocLimited };
 }
 
 export function findPath(

@@ -8,6 +8,25 @@ import { createUnit } from '@/systems/unit-system';
 const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
 
 describe('selected-unit-highlights', () => {
+  it('marks visible ZOC terminal destinations with a non-attack movement highlight', () => {
+    const state = createNewGame(undefined, 'zoc-highlight', 'small');
+    state.currentPlayer = 'player';
+    state.units = {
+      mover: { ...createUnit('warrior', 'player', { q: 4, r: 5 }, mkC()), id: 'mover', movementPointsLeft: 2 },
+      enemy: { ...createUnit('warrior', 'ai-1', { q: 6, r: 4 }, mkC()), id: 'enemy' },
+    };
+    state.civilizations.player.units = ['mover'];
+    state.civilizations.player.diplomacy.atWarWith = ['ai-1'];
+    state.civilizations.player.visibility.tiles = {
+      '4,5': 'visible', '5,5': 'visible', '6,4': 'visible',
+    };
+
+    const result = buildSelectedUnitHighlights(state, 'mover');
+
+    expect(result.zocLimitedRange).toContainEqual({ q: 5, r: 5 });
+    expect(result.highlights).toContainEqual({ coord: { q: 5, r: 5 }, type: 'zoc-limited' });
+  });
+
   it('marks legal non-combat land exits as water-recovery without changing movement truth', () => {
     const state = createNewGame(undefined, 'water-recovery-highlight', 'small');
     state.currentPlayer = 'player';
