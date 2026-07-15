@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import type { ActiveCrisis, GameState } from '@/core/types';
+import type { ActiveCrisis, City, GameState, HexCoord, HexTile, Unit } from '@/core/types';
 import { getCrisisDispatchCandidates, getCrisisResponseActions, applyCrisisResponses } from '@/ai/ai-crisis-response';
+import { EventBus } from '@/core/event-bus';
+import { createNewGame } from '@/core/game-state';
+import { createUnit } from '@/systems/unit-system';
+import { hexKey } from '@/systems/hex-utils';
+import { processTurn } from '@/core/turn-manager';
+import { processNonHumanMajorRound } from '@/ai/ai-round-scheduler';
+import { runCompletedRound } from '@/core/completed-round-orchestrator';
+import { processImprovementTurns } from '@/systems/improvement-turn-system';
 
 function faction(overrides: Record<string, unknown> = {}) {
   return {
@@ -148,6 +156,223 @@ describe('getCrisisResponseActions', () => {
     const a = getCrisisResponseActions(structuredClone(state), 'ai-1');
     const b = getCrisisResponseActions(structuredClone(state), 'ai-1');
     expect(a).toEqual(b);
+  });
+});
+
+// #526 MR4 — AI catastrophe restoration: pair idle workers with the nearest
+// canRestoreLand-eligible tile in a catastrophe crisis's tileKeys, gated by
+// crisisResponseDelayTurns like the other response actions.
+function plainTile(coord: HexCoord, owner: string | null): HexTile {
+  return {
+    coord, terrain: 'grassland', elevation: 'lowland', resource: null,
+    improvement: 'none', owner, improvementTurnsLeft: 0, hasRiver: false, wonder: null,
+  };
+}
+
+function devastatedTile(coord: HexCoord, owner: string, devastatedUntilTurn = 100): HexTile {
+  return { ...plainTile(coord, owner), devastatedUntilTurn };
+}
+
+function workerUnit(id: string, owner: string, position: HexCoord, overrides: Partial<Unit> = {}): Unit {
+  return {
+    id, type: 'worker', owner, position, movementPointsLeft: 2, health: 100, experience: 0,
+    hasMoved: false, hasActed: false, chargesRemaining: 2, isResting: false,
+    ...overrides,
+  } as Unit;
+}
+
+function catastropheCrisis(overrides: Partial<ActiveCrisis> = {}): ActiveCrisis {
+  return {
+    id: 'crisis-2', flavorId: 'earthquake', archetype: 'catastrophe', targetCivId: 'ai-1',
+    cityIds: ['c1'], tileKeys: ['2,0'], startedTurn: 0, stage: 'recovery', turnsInStage: 1,
+    ...overrides,
+  };
+}
+
+const CITY_POS: HexCoord = { q: 0, r: 0 };
+const WORKER_POS: HexCoord = { q: 1, r: 0 };
+const DEVASTATED_POS: HexCoord = { q: 2, r: 0 };
+
+function restoreState(overrides: Record<string, unknown> = {}): GameState {
+  return {
+    turn: 0,
+    opponentChallenge: 'veteran',
+    civilizations: {
+      'ai-1': { id: 'ai-1', isHuman: false, isEliminated: false, gold: 1000, techState: { completed: [] } },
+    },
+    cities: { c1: { id: 'c1', population: 5, owner: 'ai-1', position: CITY_POS } },
+    map: {
+      width: 10, height: 10, wrapsHorizontally: false, rivers: [],
+      tiles: {
+        '0,0': plainTile(CITY_POS, 'ai-1'),
+        '1,0': plainTile(WORKER_POS, 'ai-1'),
+        '2,0': devastatedTile(DEVASTATED_POS, 'ai-1'),
+      },
+    },
+    units: { 'worker-1': workerUnit('worker-1', 'ai-1', WORKER_POS) },
+    activeCrises: { 'crisis-2': catastropheCrisis() },
+    ...overrides,
+  } as unknown as GameState;
+}
+
+describe('getCrisisResponseActions — restore (catastrophe)', () => {
+  it('assigns an idle worker to the nearest devastated tile immediately for veteran (age 0)', () => {
+    const actions = getCrisisResponseActions(restoreState({ turn: 0, opponentChallenge: 'veteran' }), 'ai-1');
+    expect(actions).toContainEqual({ kind: 'restore', crisisId: 'crisis-2', tileKey: '2,0', workerUnitId: 'worker-1' });
+  });
+
+  it('withholds restore tasking until crisis age reaches crisisResponseDelayTurns (explorer: age 4)', () => {
+    const notYet = getCrisisResponseActions(restoreState({ turn: 3, opponentChallenge: 'explorer' }), 'ai-1');
+    expect(notYet.some(a => a.kind === 'restore')).toBe(false);
+    const now = getCrisisResponseActions(restoreState({ turn: 4, opponentChallenge: 'explorer' }), 'ai-1');
+    expect(now).toContainEqual({ kind: 'restore', crisisId: 'crisis-2', tileKey: '2,0', workerUnitId: 'worker-1' });
+  });
+
+  it('never re-tasks a worker already committed to a workerTask', () => {
+    const state = restoreState({
+      units: {
+        'worker-1': workerUnit('worker-1', 'ai-1', WORKER_POS, {
+          workerTask: { action: 'farm', coord: WORKER_POS },
+        }),
+      },
+    });
+    expect(getCrisisResponseActions(state, 'ai-1').some(a => a.kind === 'restore')).toBe(false);
+  });
+
+  it('never re-tasks a worker already committed to a trade route', () => {
+    const state = restoreState({
+      units: { 'worker-1': workerUnit('worker-1', 'ai-1', WORKER_POS, { committedToRouteId: 'route-1' }) },
+    });
+    expect(getCrisisResponseActions(state, 'ai-1').some(a => a.kind === 'restore')).toBe(false);
+  });
+
+  it('does not assign a tile that is not actually devastated', () => {
+    const state = restoreState({
+      map: {
+        width: 10, height: 10, wrapsHorizontally: false, rivers: [],
+        tiles: {
+          '0,0': plainTile(CITY_POS, 'ai-1'),
+          '1,0': plainTile(WORKER_POS, 'ai-1'),
+          '2,0': plainTile(DEVASTATED_POS, 'ai-1'),
+        },
+      },
+    });
+    expect(getCrisisResponseActions(state, 'ai-1').some(a => a.kind === 'restore')).toBe(false);
+  });
+
+  it('never generates a restore action for a human civ', () => {
+    const state = restoreState({
+      civilizations: { p1: { id: 'p1', isHuman: true, isEliminated: false, gold: 1000, techState: { completed: [] } } },
+      cities: { c1: { id: 'c1', population: 5, owner: 'p1', position: CITY_POS } },
+      map: {
+        width: 10, height: 10, wrapsHorizontally: false, rivers: [],
+        tiles: {
+          '0,0': plainTile(CITY_POS, 'p1'),
+          '1,0': plainTile(WORKER_POS, 'p1'),
+          '2,0': devastatedTile(DEVASTATED_POS, 'p1'),
+        },
+      },
+      units: { 'worker-1': workerUnit('worker-1', 'p1', WORKER_POS) },
+      activeCrises: { 'crisis-2': catastropheCrisis({ targetCivId: 'p1' }) },
+    });
+    expect(getCrisisResponseActions(state, 'p1')).toEqual([]);
+  });
+});
+
+// #526 MR4 — end-to-end payoff: run real turns (crisis tick + full AI tactical
+// round) and confirm the delay knob actually decides the resilience-bonus
+// outcome, not just that a 'restore' action gets proposed in isolation.
+function makeE2ECity(id: string, owner: string, position: HexCoord): City {
+  return {
+    id, name: id, owner, position, population: 5, food: 0, foodNeeded: 20,
+    buildings: [], productionQueue: [], productionProgress: 0,
+    ownedTiles: [position], workedTiles: [], focus: 'balanced', maturity: 'outpost',
+    unrestLevel: 0, unrestTurns: 0, spyUnrestBonus: 0,
+  };
+}
+
+// A straight 4-tile line from the worker's start to the devastated tile. This
+// distance (rather than the isolated tests' "adjacent") is deliberately wide:
+// it keeps veteran (delay 0) finishing well inside the fixed 5-turn recovery
+// window and explorer (delay 4) finishing well outside it regardless of the
+// exact per-round movement rate the tactical layer happens to grant, so the
+// assertion isn't a coin-flip on an off-by-one in round accounting.
+//
+// The devastated tile sits at distance 3 from the city (not further) because
+// city-territory-system.ts's per-turn recalculateTerritory() re-derives tile
+// ownership from each city's claim radius every round (getBaseTerritoryRadius
+// -> 3 for population >= 4) — a manually-forced `owner` on a tile outside
+// that radius gets silently reset to null on the very first round, which
+// fails canRestoreLand's ownership check. The worker itself doesn't need to
+// stand on owned land, so it starts outside the radius to keep the distance.
+function buildRestorationScenario(challenge: 'veteran' | 'explorer'): { state: GameState; cityId: string; civId: string } {
+  const civId = 'ai-1';
+  const base = createNewGame(undefined, `restore-e2e-${challenge}`, 'small');
+
+  const cityPos: HexCoord = { q: 0, r: 0 };
+  const workerPos: HexCoord = { q: -1, r: 0 };
+  const devastatedPos: HexCoord = { q: 3, r: 0 };
+  const city = makeE2ECity('ai-capital', civId, cityPos);
+
+  const tiles: Record<string, HexTile> = { ...base.map.tiles };
+  for (let q = -1; q <= 3; q++) {
+    const coord: HexCoord = { q, r: 0 };
+    tiles[hexKey(coord)] = {
+      coord, terrain: 'grassland', elevation: 'lowland', resource: null,
+      improvement: 'none', owner: null, improvementTurnsLeft: 0, hasRiver: false, wonder: null,
+      ...(q === 3 ? { devastatedUntilTurn: base.turn + 8 } : {}),
+    };
+  }
+
+  const worker = createUnit('worker', civId, workerPos, base.idCounters);
+
+  const crisis: ActiveCrisis = {
+    id: 'crisis-e2e', flavorId: 'earthquake', archetype: 'catastrophe', targetCivId: civId,
+    cityIds: [city.id], tileKeys: [hexKey(devastatedPos)], startedTurn: base.turn, stage: 'recovery', turnsInStage: 1,
+  };
+
+  const state: GameState = {
+    ...base,
+    opponentChallenge: challenge,
+    cities: { [city.id]: city },
+    units: { [worker.id]: worker },
+    map: { ...base.map, tiles },
+    civilizations: {
+      ...base.civilizations,
+      [civId]: { ...base.civilizations[civId], cities: [city.id], units: [worker.id] },
+    },
+    activeCrises: { [crisis.id]: crisis },
+  };
+  return { state, cityId: city.id, civId };
+}
+
+function runRestorationRounds(state: GameState, rounds: number): GameState {
+  const bus = new EventBus();
+  let current = state;
+  for (let round = 0; round < rounds; round++) {
+    const completed = runCompletedRound(current, bus, {
+      improvements: (s, eb) => processImprovementTurns(s, eb),
+      majors: (s, eb) => processNonHumanMajorRound(s, eb).state,
+      world: (s, eb) => processTurn(s, eb),
+    });
+    if (!completed.ok) throw new Error(`round ${round + 1} failed`, { cause: completed.error });
+    current = completed.state;
+    completed.events.commitTo(bus);
+  }
+  return current;
+}
+
+describe('AI catastrophe restoration — end to end (#526 MR4)', () => {
+  it('veteran (delay 0) restores the tile in time and earns the resilience bonus', () => {
+    const { state, cityId } = buildRestorationScenario('veteran');
+    const final = runRestorationRounds(state, 12);
+    expect(final.cities[cityId]?.resilienceBonusUntilTurn).toBeDefined();
+  });
+
+  it('explorer (delay 4) misses the recovery window and never earns the bonus', () => {
+    const { state, cityId } = buildRestorationScenario('explorer');
+    const final = runRestorationRounds(state, 20);
+    expect(final.cities[cityId]?.resilienceBonusUntilTurn).toBeUndefined();
   });
 });
 

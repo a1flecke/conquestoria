@@ -1,9 +1,13 @@
-import type { ActiveCrisis, City, GameState } from '@/core/types';
+import type { ActiveCrisis, City, GameState, Unit } from '@/core/types';
 import { getChallengeProfileForCiv, resolveChallengeForCiv } from '@/core/opponent-challenge';
 import { getPirateFleetLeader } from '@/systems/pirate-behavior';
 import { isVisible } from '@/systems/fog-of-war';
 import { applyQuarantine, applyRemedy } from '@/systems/crisis-system';
 import { getCityAppeaseCost } from '@/systems/faction-system';
+import { canRestoreLand } from '@/systems/improvement-system';
+import { getWorkerChargesRemaining } from '@/systems/worker-action-system';
+import { findPath } from '@/systems/unit-system';
+import { hexKey } from '@/systems/hex-utils';
 
 export interface CrisisDispatchCandidate {
   kind: 'pirate-fleet' | 'hunt-foe';
@@ -47,7 +51,71 @@ export function getCrisisDispatchCandidates(state: GameState, civId: string): Cr
 
 export type CrisisResponseAction =
   | { kind: 'quarantine'; crisisId: string; cityId: string }
-  | { kind: 'fund-remedy'; crisisId: string; cityId: string };
+  | { kind: 'fund-remedy'; crisisId: string; cityId: string }
+  | { kind: 'restore'; crisisId: string; tileKey: string; workerUnitId: string };
+
+// ── Catastrophe restoration tasking (#526 MR4) ──────────────────────────────
+// Pairs idle owned workers with the nearest canRestoreLand-eligible tile in a
+// catastrophe crisis's tileKeys, once age >= crisisResponseDelayTurns. This is
+// a pure targeting decision — the actual movement + restore_land execution
+// happens in the AI tactical worker-assignment layer (ai-tactics.ts), which
+// consults this same function so both stay in lockstep turn to turn.
+export function getCrisisRestoreAssignments(
+  state: GameState,
+  civId: string,
+): Extract<CrisisResponseAction, { kind: 'restore' }>[] {
+  const civ = state.civilizations[civId];
+  if (!civ || civ.isHuman) return [];
+  const profile = getChallengeProfileForCiv(state, civId);
+
+  const crises = Object.values(state.activeCrises ?? {})
+    .filter((c): c is ActiveCrisis =>
+      c.targetCivId === civId && c.archetype === 'catastrophe' && c.stage === 'recovery')
+    .sort((a, b) => a.id.localeCompare(b.id));
+  if (crises.length === 0) return [];
+
+  const cityCenterKeys = new Set(Object.values(state.cities).map(city => hexKey(city.position)));
+
+  const tileCandidates: { crisisId: string; tileKey: string; coord: Unit['position'] }[] = [];
+  for (const crisis of crises) {
+    const age = state.turn - crisis.startedTurn;
+    if (age < profile.crisisResponseDelayTurns) continue;
+    for (const tileKey of crisis.tileKeys) {
+      const tile = state.map.tiles[tileKey];
+      if (!tile) continue;
+      if (!canRestoreLand(tile, civId, { isCityTile: cityCenterKeys.has(tileKey), currentTurn: state.turn })) continue;
+      tileCandidates.push({ crisisId: crisis.id, tileKey, coord: tile.coord });
+    }
+  }
+  if (tileCandidates.length === 0) return [];
+  tileCandidates.sort((a, b) => a.tileKey.localeCompare(b.tileKey));
+
+  const idleWorkers = Object.values(state.units)
+    .filter((unit): unit is Unit =>
+      unit.owner === civId && unit.type === 'worker' && !unit.hasActed
+      && getWorkerChargesRemaining(unit) > 0 && !unit.workerTask && !unit.committedToRouteId)
+    .sort((a, b) => a.id.localeCompare(b.id));
+
+  const assignedWorkerIds = new Set<string>();
+  const results: Extract<CrisisResponseAction, { kind: 'restore' }>[] = [];
+  for (const candidate of tileCandidates) {
+    let best: { worker: Unit; length: number } | null = null;
+    for (const worker of idleWorkers) {
+      if (assignedWorkerIds.has(worker.id)) continue;
+      const path = findPath(worker.position, candidate.coord, state.map, 'land');
+      const length = path ? path.length : Infinity;
+      if (!Number.isFinite(length)) continue;
+      if (!best || length < best.length || (length === best.length && worker.id < best.worker.id)) {
+        best = { worker, length };
+      }
+    }
+    if (best) {
+      assignedWorkerIds.add(best.worker.id);
+      results.push({ kind: 'restore', crisisId: candidate.crisisId, tileKey: candidate.tileKey, workerUnitId: best.worker.id });
+    }
+  }
+  return results;
+}
 
 export function getCrisisResponseActions(state: GameState, civId: string): CrisisResponseAction[] {
   const civ = state.civilizations[civId];
@@ -95,6 +163,8 @@ export function getCrisisResponseActions(state: GameState, civId: string): Crisi
     }
   }
 
+  actions.push(...getCrisisRestoreAssignments(state, civId));
+
   return actions;
 }
 
@@ -102,9 +172,10 @@ export function applyCrisisResponses(state: GameState): GameState {
   let next = state;
   for (const civId of Object.keys(next.civilizations).sort()) {
     for (const action of getCrisisResponseActions(next, civId)) {
-      next = action.kind === 'quarantine'
-        ? applyQuarantine(next, action.crisisId, action.cityId).state
-        : applyRemedy(next, action.crisisId, action.cityId).state;
+      // 'restore' requires unit movement to reach the tile — it's executed via
+      // the AI tactical worker-assignment layer (ai-tactics.ts), not here.
+      if (action.kind === 'quarantine') next = applyQuarantine(next, action.crisisId, action.cityId).state;
+      else if (action.kind === 'fund-remedy') next = applyRemedy(next, action.crisisId, action.cityId).state;
     }
   }
   return next;
