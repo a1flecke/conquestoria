@@ -343,11 +343,12 @@ describe('hunt crisis — ally reward (#526 MR6 Task 6.2)', () => {
     expect(next.civilizations.killer.diplomacy.relationships.p1).toBe(15);
   });
 
-  it('produces no reputation change or event while aiCrisisInteractions is off (default -- dark until Task 6.4 flips it)', () => {
+  it('produces no reputation change or event when aiCrisisInteractions is explicitly off', () => {
     const { state } = makeHuntFixture({
       flavorId: 'beast-awakening', stage: 'menacing', turnsInStage: 1,
       huntEntityId: 'unit-99', foeName: 'Test Beast', lastHuntKillerCivId: 'killer',
     });
+    state.settings.aiCrisisInteractions = 'off';
     const bus = new EventBus();
     const events: unknown[] = [];
     bus.on('crisis:foe-hunted-by-ally', event => events.push(event));
@@ -356,6 +357,15 @@ describe('hunt crisis — ally reward (#526 MR6 Task 6.2)', () => {
 
     expect(next.civilizations.p1.diplomacy.relationships.killer ?? 0).toBe(0);
     expect(events).toHaveLength(0);
+  });
+
+  it('applies the reputation reward by default now that aiCrisisInteractions defaults to "benign" (#526 MR6 Task 6.4 rollout)', () => {
+    const { state } = makeHuntFixture({
+      flavorId: 'beast-awakening', stage: 'menacing', turnsInStage: 1,
+      huntEntityId: 'unit-99', foeName: 'Test Beast', lastHuntKillerCivId: 'killer',
+    });
+    const next = processCrisisTurn(state, new EventBus());
+    expect(next.civilizations.p1.diplomacy.relationships.killer).toBe(15);
   });
 });
 

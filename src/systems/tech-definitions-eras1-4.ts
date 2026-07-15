@@ -18,7 +18,7 @@ export const TECH_TREE_ERAS_1_4: Tech[] = [
   { id: 'irrigation', name: 'Irrigation', track: 'economy', cost: 25, prerequisites: ['pottery'], unlocks: ['River farms yield +1 production', 'Reveal Silk resource'], era: 2 },
   { id: 'currency', name: 'Currency', track: 'economy', cost: 60, prerequisites: ['pottery'], unlocks: ['Reveal Incense resource', 'Reveal Gold resource'], unlocksBuildings: ['marketplace'], era: 3 },
   { id: 'mining-tech', name: 'Advanced Mining', track: 'economy', cost: 65, prerequisites: ['animal-husbandry'], unlocks: ['Mines yield +1 production', 'Reveal Gems resource', 'Reveal Silver resource'], era: 3 },
-  { id: 'trade-routes', name: 'Trade Routes', track: 'economy', cost: 75, prerequisites: ['currency'], unlocks: ['Enable trade routes between cities'], unlocksUnits: ['caravan'], era: 4 },
+  { id: 'trade-routes', name: 'Trade Routes', track: 'economy', cost: 75, prerequisites: ['currency'], unlocks: ['Enable trade routes between cities', 'Send relief gold to a disaster-struck civilization you have met'], unlocksUnits: ['caravan'], era: 4 },
   { id: 'banking', name: 'Banking', track: 'economy', cost: 95, prerequisites: ['trade-routes', 'mathematics'], unlocks: ['+20% gold in all cities'], unlocksBuildings: ['bank', 'royal_mint'], era: 4 },
 
   // === SCIENCE TRACK (9 techs, with Slice 3 late-era scaffolding) ===
@@ -29,7 +29,7 @@ export const TECH_TREE_ERAS_1_4: Tech[] = [
   { id: 'engineering', name: 'Engineering', track: 'science', cost: 55, prerequisites: ['mathematics', 'wheel'], unlocks: [], unlocksBuildings: ['aqueduct', 'forge'], era: 3 },
   { id: 'philosophy', name: 'Philosophy', track: 'science', cost: 70, prerequisites: ['writing'], unlocks: [], unlocksBuildings: ['temple', 'philosophers_circle'], era: 3 },
   { id: 'astronomy', name: 'Astronomy', track: 'science', cost: 75, prerequisites: ['mathematics'], unlocks: [], unlocksBuildings: ['observatory'], era: 4 },
-  { id: 'medicine', name: 'Medicine', track: 'science', cost: 75, prerequisites: ['philosophy', 'pottery'], unlocks: ['City population grows faster'], era: 4 },
+  { id: 'medicine', name: 'Medicine', track: 'science', cost: 75, prerequisites: ['philosophy', 'pottery'], unlocks: ['City population grows faster', 'Send medical aid to a plague-struck civilization you have met'], era: 4 },
 
   // === CIVICS TRACK (8 techs, existing) ===
   { id: 'tribal-council', name: 'Tribal Council', track: 'civics', cost: 4, prerequisites: [], unlocks: ['Basic governance'], era: 1, pacing: { band: 'starter', role: 'foundational-civics', impact: 1, scope: 'empire', snowball: 1, urgency: 1, situationality: 1, unlockBreadth: 1.05 } },
