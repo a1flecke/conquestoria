@@ -235,6 +235,7 @@ import {
   routeCrisisResolved,
   routeWorldPressureCrisisStarted,
   routeWorldPressureCrisisResolved,
+  routeCrisisFoeHuntedByAlly,
   type NotificationSink,
 } from '@/ui/notification-routing';
 import { createNotificationDelivery } from '@/ui/notification-delivery';
@@ -4367,6 +4368,10 @@ bus.on('crisis:escalated', event => {
 bus.on('crisis:resolved', event => {
   routeCrisisResolved(gameState, event, appendToCivLog);
   routeWorldPressureCrisisResolved(gameState, event, appendToCivLog);
+});
+
+bus.on('crisis:foe-hunted-by-ally', event => {
+  routeCrisisFoeHuntedByAlly(gameState, event, appendToCivLog);
 });
 
 bus.on('economy:treasury-strain', event => {

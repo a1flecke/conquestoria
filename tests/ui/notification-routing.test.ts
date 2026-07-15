@@ -22,6 +22,7 @@ import {
   routeCrisisResolved,
   routeWorldPressureCrisisStarted,
   routeWorldPressureCrisisResolved,
+  routeCrisisFoeHuntedByAlly,
   type NotificationSink,
 } from '@/ui/notification-routing';
 
@@ -824,5 +825,43 @@ describe('world-pressure crisis notifications (#526 MR5 Task 5.2)', () => {
     expect(calls).toHaveLength(1);
     expect(calls[0]!.civId).toBe('p1');
     expect(calls.some(c => c.civId === 'p2')).toBe(false);
+  });
+});
+
+describe('crisis:foe-hunted-by-ally routing (#526 MR6 Task 6.2)', () => {
+  function huntState(): GameState {
+    return makeState({
+      civilizations: {
+        rome: { id: 'rome', name: 'Rome', knownCivilizations: [] },
+        carthage: { id: 'carthage', name: 'Carthage', knownCivilizations: [] },
+        egypt: { id: 'egypt', name: 'Egypt', knownCivilizations: ['rome'] }, // knows only the killer
+        nubia: { id: 'nubia', name: 'Nubia', knownCivilizations: [] }, // knows neither
+      } as any,
+    });
+  }
+
+  it('notifies the killer and target directly, and a viewer who knows either civ', () => {
+    const { sink, calls } = makeSink();
+    routeCrisisFoeHuntedByAlly(
+      huntState(),
+      { crisisId: 'crisis-1', killerCivId: 'rome', targetCivId: 'carthage', foeName: 'Giant Boar' },
+      sink,
+    );
+    const civIds = calls.map(c => c.civId);
+    expect(civIds).toContain('rome');
+    expect(civIds).toContain('carthage');
+    expect(civIds).toContain('egypt');
+    expect(civIds).not.toContain('nubia');
+    expect(calls[0]!.message).toBe('Rome slew Giant Boar menacing Carthage!');
+  });
+
+  it('falls back to a generic foe phrase when foeName is absent instead of throwing', () => {
+    const { sink, calls } = makeSink();
+    routeCrisisFoeHuntedByAlly(
+      huntState(),
+      { crisisId: 'crisis-1', killerCivId: 'rome', targetCivId: 'carthage' },
+      sink,
+    );
+    expect(calls[0]!.message).toContain('their foe');
   });
 });
