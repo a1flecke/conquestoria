@@ -13,4 +13,13 @@ describe('isHostileOwnerTo', () => {
     state.civilizations.player.diplomacy.atWarWith = ['ai-1'];
     expect(isHostileOwnerTo(state, 'player', 'ai-1')).toBe(true);
   });
+
+  it('honors minor-civilization hostility regardless of which side is evaluating it', () => {
+    const state = createNewGame(undefined, 'owner-hostility-minor', 'small');
+    const minorCivId = Object.keys(state.minorCivs)[0]!;
+    state.minorCivs[minorCivId].diplomacy.atWarWith = ['player'];
+
+    expect(isHostileOwnerTo(state, 'player', minorCivId)).toBe(true);
+    expect(isHostileOwnerTo(state, minorCivId, 'player')).toBe(true);
+  });
 });
