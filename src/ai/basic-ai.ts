@@ -97,6 +97,8 @@ import { hasAICombatRole, hasAITradeRole } from './ai-unit-roles';
 import { applyAIProduction } from './ai-production';
 import { applyAIResearch } from './ai-research';
 import { processAIResourceMarketplace } from './ai-resource-marketplace';
+import { getCrisisRestoreAssignments } from './ai-crisis-response';
+import { applyWorkerAction } from '@/systems/worker-action-system';
 
 function addAlwaysHostileOwners(
   state: GameState,
@@ -594,6 +596,33 @@ function processAITurnInternal(
       civ = newState.civilizations[civId];
     }
   }
+
+  // Catastrophe restoration (#526 MR4) is likewise administrative rather than
+  // plan-driven — no AIStrategicPlan ever declares a 'worker' required role
+  // (frontline/ranged/capture/resource-expedition/naval-combat only), so a
+  // worker is never pulled into assignedUnitIds and never reaches
+  // processMajorCivStrategicTurn's tactical dispatch. Idle workers assigned by
+  // getCrisisRestoreAssignments move toward their tile (via the canonical
+  // executeUnitMove helper) and, once there, restore it via applyWorkerAction
+  // — the same mutation the human restore_land UI flow calls.
+  for (const assignment of getCrisisRestoreAssignments(newState, civId)) {
+    const worker = newState.units[assignment.workerUnitId];
+    if (!worker || worker.hasActed) continue;
+    const tile = newState.map.tiles[assignment.tileKey];
+    if (!tile) continue;
+    if (hexKey(worker.position) === assignment.tileKey) {
+      const result = applyWorkerAction(newState, worker.id, 'restore_land');
+      if (result.ok) newState = result.state;
+    } else if (worker.movementPointsLeft > 0) {
+      const path = findPath(worker.position, tile.coord, newState.map, 'land');
+      if (path && path.length > 1) {
+        const next = structuredClone(newState);
+        const movement = executeUnitMove(next, worker.id, path[1]!, { actor: 'ai', civId, bus });
+        if (movement.ok) newState = next;
+      }
+    }
+  }
+  civ = newState.civilizations[civId];
 
   // Cargo handling is administrative rather than a competing strategic
   // chase path, so retain the canonical all-cargo load/unload behavior.
