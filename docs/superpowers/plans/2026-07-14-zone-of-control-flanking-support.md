@@ -51,6 +51,18 @@
 4. Deselect and select recon/air/civilian and a unit with no nearby hostile; confirm no false ZOC surface.
 5. In hot seat, switch current player and select that player’s unit; confirm the same viewer-scoped highlights and no hardcoded `player` owner.
 
+## Direct Movement Caller Inventory
+
+| Caller | ZOC treatment | Verification |
+|---|---|---|
+| `executeUnitMove` | Calls `finalizeUnitMove`; applies to player, major-AI, minor-civ, and world moves. | Player and world cases in `unit-movement-system.test.ts`. |
+| `ai-tactics.ts` | Uses `getMovementRangeDetails(...).reachable`; execution remains through the major-AI executor. | Terminal candidate coverage in `ai-tactics.test.ts`. |
+| `basic-ai.ts` naval pursuit | Calls `finalizeUnitMove`. | `basic-ai-pirates.test.ts`. |
+| `pirate-system.ts` and `pirate-behavior.ts` combat vessels | Call `finalizeUnitMove`; formation relocation halts/cancels atomically on terminal entry. | Pirate system and behavior tests. |
+| `advanceRouteRunners` and loaded/civilian route movement | Explicitly exempt: civilians do not receive or exert ZOC. | Existing route-runner test remains unchanged; add a negative exemption assertion if its movement helper is touched. |
+
+The implementation must rerun `rg -n "moveUnit\\(" src/ai src/systems` after Task 2 and add any newly discovered ZOC-eligible caller to this table and to a parity regression before completion.
+
 ## Task 1: Centralize hostility and pure ZOC/combat-positioning rules
 
 **Files:**
@@ -146,18 +158,20 @@ git commit -m "feat(combat): add shared zone of control rules"
 - Modify: `src/systems/unit-system.ts`
 - Modify: `src/systems/unit-movement-system.ts`
 - Modify: `src/ai/basic-ai.ts`
+- Modify: `src/ai/ai-tactics.ts`
 - Modify: `src/systems/pirate-system.ts`
 - Modify: `src/systems/pirate-behavior.ts`
 - Test: `tests/systems/unit-system.test.ts`
 - Test: `tests/systems/unit-movement-system.test.ts`
 - Test: `tests/ai/basic-ai-pirates.test.ts`
+- Test: `tests/ai/ai-tactics.test.ts`
 - Test: `tests/systems/pirate-system.test.ts`
 - Test: `tests/systems/pirate-behavior.test.ts`
 
 - [ ] **Step 1: Write failing detailed-range tests.**
 
 ```ts
-const range = getMovementRangeDetails(state, mover, { completedTechs: [] });
+const range = getMovementRangeDetails(state, mover.id);
 expect(range.reachable.map(hexKey)).toContain('1,0');
 expect(range.zocLimited.map(hexKey)).toContain('1,0');
 expect(range.reachable.map(hexKey)).not.toContain('2,0'); // cannot continue past entry
@@ -184,7 +198,7 @@ export function getMovementRange(
 ): HexCoord[];
 ```
 
-`getMovementRangeDetails` builds occupancy from `state.units`, derives hostile owners with `isHostileOwnerTo(state, unit.owner, candidate.owner)`, and follows the current BFS exactly. When it enters a legal ZOC tile, add that coordinate to both arrays but never enqueue it. `getMovementRange` retains its current signature and existing non-state utility behavior; update every gameplay caller that needs ZOC to call the detailed state API. Preserve current hostile-occupant, road, river, terrain, technology, and forced-march logic.
+`getMovementRangeDetails` always has the exact signature `(state: Readonly<GameState>, unitId: string)`. It builds occupancy from `state.units`, derives hostile owners with `isHostileOwnerTo(state, unit.owner, candidate.owner)`, and follows the current BFS exactly. When it enters a legal ZOC tile, add that coordinate to both arrays but never enqueue it. `getMovementRange` retains its current signature and existing non-state utility behavior; update every gameplay caller that needs ZOC to call the detailed state API. Preserve current hostile-occupant, road, river, terrain, technology, and forced-march logic.
 
 - [ ] **Step 3: Write failing canonical-execution tests.**
 
@@ -216,20 +230,22 @@ Extend the successful `ExecuteUnitMoveResult` with `stopReason?: 'zone-of-contro
 
 For every direct `moveUnit` call found by `rg -n "moveUnit\\(" src/ai src/systems`, either migrate it to `executeUnitMove` or replace it with `finalizeUnitMove` using the state before the move. In particular, update `moveWarshipToward`, pirate pursuit, pirate one-step movement, and pirate formation relocation. In formation relocation, stop a vessel after its first ZOC-limited step and reject/cancel the atomic formation plan if that would make formation placement inconsistent; never move through ZOC in a later loop iteration.
 
+Replace `ai-tactics.ts`’s local `movementRange()` implementation with `getMovementRangeDetails(state, unit.id).reachable`, then retain its current occupancy filter. This ensures a major-AI candidate cannot route past a terminal ZOC tile before Task 5 scores it.
+
 - [ ] **Step 6: Prove direct-path parity.**
 
 Add one test each for the basic-AI naval pursuit path, pirate-system move, and pirate-behavior movement path. Each places a hostile same-domain unit beside the entered tile and asserts `movementPointsLeft === 0` and no subsequent step. Keep existing pirate formation atomicity assertions.
 
 - [ ] **Step 7: Run movement and world-path tests.**
 
-Run: `./scripts/run-with-mise.sh yarn test --run tests/systems/unit-system.test.ts tests/systems/unit-movement-system.test.ts tests/ai/basic-ai-pirates.test.ts tests/systems/pirate-system.test.ts tests/systems/pirate-behavior.test.ts`
+Run: `./scripts/run-with-mise.sh yarn test --run tests/systems/unit-system.test.ts tests/systems/unit-movement-system.test.ts tests/ai/basic-ai-pirates.test.ts tests/ai/ai-tactics.test.ts tests/systems/pirate-system.test.ts tests/systems/pirate-behavior.test.ts`
 
 Expected: PASS.
 
 - [ ] **Step 8: Commit canonical movement parity.**
 
 ```bash
-git add src/systems/unit-system.ts src/systems/unit-movement-system.ts src/ai/basic-ai.ts src/systems/pirate-system.ts src/systems/pirate-behavior.ts tests/systems/unit-system.test.ts tests/systems/unit-movement-system.test.ts tests/ai/basic-ai-pirates.test.ts tests/systems/pirate-system.test.ts tests/systems/pirate-behavior.test.ts
+git add src/systems/unit-system.ts src/systems/unit-movement-system.ts src/ai/basic-ai.ts src/ai/ai-tactics.ts src/systems/pirate-system.ts src/systems/pirate-behavior.ts tests/systems/unit-system.test.ts tests/systems/unit-movement-system.test.ts tests/ai/basic-ai-pirates.test.ts tests/ai/ai-tactics.test.ts tests/systems/pirate-system.test.ts tests/systems/pirate-behavior.test.ts
 git commit -m "feat(movement): apply zone of control to all movers"
 ```
 
@@ -311,7 +327,7 @@ Add a hot-seat fixture with `currentPlayer = 'ai-1'`, a no-ZOC legend negative t
 
 - [ ] **Step 2: Extend highlight presentation.**
 
-Add `zocLimitedRange: HexCoord[]` and `hasZoneOfControlWarning: boolean` to `SelectedUnitHighlightResult`. Create `type: 'zoc-limited'` in `HexHighlight`, render it amber with a high-contrast outline distinct from `water-recovery`, and preserve attack precedence.
+Add `zocLimitedRange: HexCoord[]` and `hasZoneOfControlWarning: boolean` to `SelectedUnitHighlightResult`. Create `type: 'zoc-limited'` in `HexHighlight`, render it amber with a high-contrast outline distinct from `water-recovery`, and preserve attack precedence. Extend `HexHighlight` with `pattern?: 'zoc'`; for `pattern === 'zoc'`, `RenderLoop.render()` draws three short inward chevrons after `drawHexHighlight`. The renderer test asserts those three `moveTo`/`lineTo` strokes in addition to amber fill and outline, so the non-color cue is not merely a color variant.
 
 - [ ] **Step 3: Render the pre-move explanation.**
 
@@ -338,6 +354,7 @@ git commit -m "feat(ui): show zone of control movement warnings"
 
 **Files:**
 - Modify: `src/ai/ai-tactics.ts`
+- Modify: `src/ai/ai-hostility.ts`
 - Test: `tests/ai/ai-tactics.test.ts`
 
 - [ ] **Step 1: Write a failing deterministic candidate-ranking test.**
@@ -373,13 +390,25 @@ Use the canonical context output, not duplicate adjacency math. Add this score a
 
 Assert that a candidate adjacent only to a civilian/recon/air unit receives no positional score and that a ZOC-limited move does not gain value from imaginary follow-on movement.
 
-- [ ] **Step 4: Run tactical tests.**
+- [ ] **Step 4: Prove all challenge profiles retain the same rules.**
+
+```ts
+for (const challenge of Object.keys(OPPONENT_CHALLENGE_PROFILES) as OpponentChallenge[]) {
+  const state = makeState(challenge);
+  expect(getMovementRangeDetails(state, mover.id).zocLimited).toContainEqual(zocEntry);
+  expect(scorePostMovePositioning(context(state, plan), mover, flankDestination)).toBe(expectedScore);
+}
+```
+
+The assertion intentionally does not call `chooseUnitTacticalAction`: challenge profiles may vary the seeded near-best choice, but they must not change ZOC legality, exhaustion, or canonical positional value.
+
+- [ ] **Step 5: Run tactical tests.**
 
 Run: `./scripts/run-with-mise.sh yarn test --run tests/ai/ai-tactics.test.ts`
 
 Expected: PASS.
 
-- [ ] **Step 5: Commit AI parity.**
+- [ ] **Step 6: Commit AI parity.**
 
 ```bash
 git add src/ai/ai-tactics.ts tests/ai/ai-tactics.test.ts
