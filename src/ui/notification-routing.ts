@@ -8,6 +8,7 @@ import { describeDroppedProductionItem } from '@/systems/city-system';
 import type { NotificationCityAction, NotificationEntry } from '@/core/notification-log';
 import { presentStrategicWarning } from '@/ui/strategic-warning-presentation';
 import { getCrisisFlavor, getCrisisDisplayName } from '@/systems/crisis-flavor-definitions';
+import { resolveWorldPressureFlags } from '@/systems/world-pressure-flags';
 
 export type NotificationSink = (
   civId: string,
@@ -532,4 +533,62 @@ export function routeCrisisResolved(
   // (veteran cap) — a bare "A crisis..." message would be ambiguous about which one.
   const name = flavor ? getCrisisDisplayName(flavor, state.era) : 'A crisis';
   sink(event.civId, `${name} ${outcomeMessage[event.outcome]}`, type);
+}
+
+// Fans out to viewers who know the AI target civ (met-civ gate, spec §Visibility).
+// AI-targeted crises only -- a human's own crisis already notifies its owner via
+// routeCrisisStarted above. Fires on crisis:started only, never per spread/siege tick:
+// that discipline is structural (crisis:spread events have no corresponding
+// world-pressure router at all, so third-party viewers never see spread notifications).
+export function routeWorldPressureCrisisStarted(
+  state: GameState,
+  event: GameEvents['crisis:started'],
+  sink: NotificationSink,
+): void {
+  if (!resolveWorldPressureFlags(state.settings).aiPressureVisibility) return;
+  const targetCiv = state.civilizations[event.civId];
+  if (!targetCiv || targetCiv.isHuman) return;
+  const flavor = getCrisisFlavor(event.flavorId);
+  if (!flavor) return;
+
+  const cityId = event.cityIds[0];
+  const city = cityId ? state.cities[cityId] : undefined;
+  const name = getCrisisDisplayName(flavor, state.era);
+  const message = `${name} reported in ${city?.name ?? targetCiv.name}.`;
+  const target = city ? { kind: 'map' as const, coord: { ...city.position }, label: name } : undefined;
+
+  for (const [viewerId, viewer] of Object.entries(state.civilizations)) {
+    if (viewerId === event.civId) continue;
+    if (!(viewer.knownCivilizations ?? []).includes(event.civId)) continue;
+    sink(viewerId, message, 'info', target);
+  }
+}
+
+const WORLD_PRESSURE_OUTCOME_VERB: Record<GameEvents['crisis:resolved']['outcome'], string> = {
+  contained: 'has contained',
+  expired: 'has weathered',
+  hunted: 'has fended off',
+  recovered: 'has recovered from',
+  abandoned: 'no longer faces',
+};
+
+// Fans out crisis:resolved the same way routeWorldPressureCrisisStarted does. See that
+// function's doc comment for the met-civ gate and anti-spam rationale.
+export function routeWorldPressureCrisisResolved(
+  state: GameState,
+  event: GameEvents['crisis:resolved'],
+  sink: NotificationSink,
+): void {
+  if (!resolveWorldPressureFlags(state.settings).aiPressureVisibility) return;
+  const targetCiv = state.civilizations[event.civId];
+  if (!targetCiv || targetCiv.isHuman) return;
+  const flavor = getCrisisFlavor(event.flavorId);
+  const name = flavor ? getCrisisDisplayName(flavor, state.era) : 'its crisis';
+  const message = `${targetCiv.name} ${WORLD_PRESSURE_OUTCOME_VERB[event.outcome]} ${name}.`;
+
+  for (const [viewerId, viewer] of Object.entries(state.civilizations)) {
+    if (viewerId === event.civId) continue;
+    if (!(viewer.knownCivilizations ?? []).includes(event.civId)) continue;
+    sink(viewerId, message, 'success');
+  }
 }
