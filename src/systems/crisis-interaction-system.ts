@@ -102,11 +102,17 @@ function getSendAidCity(state: GameState, crisis: ActiveCrisis): City | undefine
 export type SendAidFailureReason =
   | 'no-tech' | 'already-aided' | 'not-enough-gold' | 'unknown-civ' | 'flag-off' | 'no-crisis';
 
+// goldCost and the missing techId ride along on every failure branch where they're
+// computable (i.e. once a real crisis+city exists), not just the branches that
+// specifically test them -- the diplomacy panel shows both in the disabled-button
+// tooltip regardless of which gate actually failed, so "Send Aid (75 Gold)" never
+// degrades to a bare "?" once the player has already located the right crisis.
 export function canSendAid(
   state: GameState,
   actorCivId: string,
   crisisId: string,
-): { ok: true; goldCost: number } | { ok: false; reason: SendAidFailureReason; goldCost?: number } {
+): { ok: true; goldCost: number }
+  | { ok: false; reason: SendAidFailureReason; goldCost?: number; techId?: string } {
   if (resolveWorldPressureFlags(state.settings).aiCrisisInteractions === 'off') {
     return { ok: false, reason: 'flag-off' };
   }
@@ -115,17 +121,21 @@ export function canSendAid(
 
   const crisis = state.activeCrises?.[crisisId];
   if (!crisis) return { ok: false, reason: 'no-crisis' };
-  if (crisis.aidedByCivIds?.includes(actorCivId)) return { ok: false, reason: 'already-aided' };
+
+  const city = getSendAidCity(state, crisis);
+  const goldCost = city ? getCityAppeaseCost(city) : undefined;
+
+  if (crisis.aidedByCivIds?.includes(actorCivId)) {
+    return { ok: false, reason: 'already-aided', goldCost };
+  }
 
   const def = getCrisisInteractionDefinition('send_aid')!;
   const techRequired = resolveInteractionTechRequired(def, crisis.archetype);
   if (techRequired === undefined || (techRequired !== null && !actor.techState.completed.includes(techRequired))) {
-    return { ok: false, reason: 'no-tech' };
+    return { ok: false, reason: 'no-tech', goldCost, techId: techRequired ?? undefined };
   }
 
-  const city = getSendAidCity(state, crisis);
-  if (!city) return { ok: false, reason: 'no-crisis' };
-  const goldCost = getCityAppeaseCost(city);
+  if (!city || goldCost === undefined) return { ok: false, reason: 'no-crisis' };
   if (actor.gold < goldCost) return { ok: false, reason: 'not-enough-gold', goldCost };
 
   return { ok: true, goldCost };

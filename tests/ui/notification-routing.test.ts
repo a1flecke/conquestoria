@@ -849,7 +849,7 @@ describe('crisis:foe-hunted-by-ally routing (#526 MR6 Task 6.2)', () => {
     });
   }
 
-  it('notifies the killer and target directly, and a viewer who knows either civ', () => {
+  it('notifies a third-party viewer who knows either civ, but never the killer or target directly (routeCrisisResolved already covers them, same tick -- double-notify regression guard)', () => {
     const { sink, calls } = makeSink();
     routeCrisisFoeHuntedByAlly(
       huntState(),
@@ -857,9 +857,9 @@ describe('crisis:foe-hunted-by-ally routing (#526 MR6 Task 6.2)', () => {
       sink,
     );
     const civIds = calls.map(c => c.civId);
-    expect(civIds).toContain('rome');
-    expect(civIds).toContain('carthage');
-    expect(civIds).toContain('egypt');
+    expect(civIds).toEqual(['egypt']);
+    expect(civIds).not.toContain('rome');
+    expect(civIds).not.toContain('carthage');
     expect(civIds).not.toContain('nubia');
     expect(calls[0]!.message).toBe('Rome slew Giant Boar menacing Carthage!');
   });

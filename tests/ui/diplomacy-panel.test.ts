@@ -791,14 +791,32 @@ describe('diplomacy-panel Send Aid button (#526 MR6 Task 6.3)', () => {
     expect(rerendered.textContent).not.toContain('Send Aid');
   });
 
-  it('disables the button and shows the reason as help text when the actor lacks the required tech', () => {
+  it('disables the button and names the specific missing tech in the help text (not a vague "requires tech")', () => {
     const { container, state } = readyState();
     state.civilizations.player.techState.completed = [];
     const panel = createDiplomacyPanel(container, state, { onAction: () => {}, onClose: () => {}, onSendAid: () => {} });
 
     const button = panel.querySelector<HTMLButtonElement>('[data-crisis-id="crisis-1"]');
     expect(button!.disabled).toBe(true);
-    expect(button!.title.length).toBeGreaterThan(0);
+    expect(button!.title).toBe('Requires Medicine.');
+  });
+
+  it('still shows the gold cost in the button label when disabled for a reason other than affordability', () => {
+    const { container, state } = readyState();
+    state.civilizations.player.techState.completed = [];
+    const panel = createDiplomacyPanel(container, state, { onAction: () => {}, onClose: () => {}, onSendAid: () => {} });
+
+    const button = panel.querySelector<HTMLButtonElement>('[data-crisis-id="crisis-1"]');
+    expect(button!.textContent).toContain('75');
+  });
+
+  it('shows a distinct "already sent aid" help line instead of the pay-gold line once already aided', () => {
+    const { container, state } = readyState();
+    state.activeCrises!['crisis-1']!.aidedByCivIds = ['player'];
+    const panel = createDiplomacyPanel(container, state, { onAction: () => {}, onClose: () => {}, onSendAid: () => {} });
+
+    expect(panel.textContent).toContain('already sent aid');
+    expect(panel.textContent).not.toContain('Pay 75 gold');
   });
 
   it('disables the button when the actor cannot afford the cost', () => {

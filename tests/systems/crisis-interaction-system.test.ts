@@ -192,19 +192,19 @@ describe('canSendAid', () => {
     expect(canSendAid(state, 'civA', 'no-such-crisis')).toEqual({ ok: false, reason: 'no-crisis' });
   });
 
-  it('rejects with already-aided once the actor has already aided this crisis', () => {
-    const { state, crisisId } = sendAidState({ actorAlreadyAided: true });
-    expect(canSendAid(state, 'civA', crisisId)).toEqual({ ok: false, reason: 'already-aided' });
+  it('rejects with already-aided once the actor has already aided this crisis, still reporting the cost', () => {
+    const { state, crisisId, goldCost } = sendAidState({ actorAlreadyAided: true });
+    expect(canSendAid(state, 'civA', crisisId)).toEqual({ ok: false, reason: 'already-aided', goldCost });
   });
 
-  it('rejects with no-tech when the actor lacks medicine for an outbreak', () => {
-    const { state, crisisId } = sendAidState({ archetype: 'outbreak', actorTechs: [] });
-    expect(canSendAid(state, 'civA', crisisId)).toEqual({ ok: false, reason: 'no-tech' });
+  it('rejects with no-tech when the actor lacks medicine for an outbreak, naming the missing tech and cost', () => {
+    const { state, crisisId, goldCost } = sendAidState({ archetype: 'outbreak', actorTechs: [] });
+    expect(canSendAid(state, 'civA', crisisId)).toEqual({ ok: false, reason: 'no-tech', goldCost, techId: 'medicine' });
   });
 
-  it('rejects with no-tech when the actor lacks trade-routes for a catastrophe', () => {
-    const { state, crisisId } = sendAidState({ archetype: 'catastrophe', actorTechs: [] });
-    expect(canSendAid(state, 'civA', crisisId)).toEqual({ ok: false, reason: 'no-tech' });
+  it('rejects with no-tech when the actor lacks trade-routes for a catastrophe, naming the missing tech and cost', () => {
+    const { state, crisisId, goldCost } = sendAidState({ archetype: 'catastrophe', actorTechs: [] });
+    expect(canSendAid(state, 'civA', crisisId)).toEqual({ ok: false, reason: 'no-tech', goldCost, techId: 'trade-routes' });
   });
 
   it('rejects with not-enough-gold when the actor cannot afford the cost, still reporting the cost', () => {
