@@ -2,6 +2,7 @@ import type { GameState, HexCoord } from '@/core/types';
 import { hexToPixel } from '@/systems/hex-utils';
 import { getVisibility } from '@/systems/fog-of-war';
 import { MINOR_CIV_DEFINITIONS } from '@/systems/minor-civ-definitions';
+import type { WorldPressurePresentation } from '@/systems/world-pressure-presentation';
 import { Camera } from './camera';
 import { getHorizontalWrapRenderCoords } from './wrap-rendering';
 import { LOD_SPRITE_ZOOM_THRESHOLD } from './sprites/sprite-system';
@@ -35,6 +36,10 @@ interface CityRenderInfo {
 interface CityRenderOptions {
   reducedMotion?: boolean;
   nowMs?: number;
+  // Precomputed by the caller (render-loop caches this in setGameState, not per frame --
+  // see getWorldPressurePresentationForViewer). Falling back to an empty presentation
+  // when omitted keeps direct drawCities() callers (tests, tooling) working unchanged.
+  worldPressurePresentation?: WorldPressurePresentation;
 }
 
 const OWNER_COLORS: Record<string, string> = {
@@ -81,6 +86,10 @@ function createCityRenderItems(
 ): CityRenderItem[] {
   const reducedMotion = typeof options === 'boolean' ? options : options.reducedMotion ?? false;
   const nowMs = typeof options === 'boolean' ? state.turn * 1000 : options.nowMs ?? state.turn * 1000;
+  const worldPressurePresentation = typeof options === 'boolean' ? undefined : options.worldPressurePresentation;
+  const worldPressureBadgesByCityId = new Map(
+    (worldPressurePresentation?.cityBadges ?? []).map(badge => [badge.cityId, badge.archetype]),
+  );
   const vis = state.civilizations[playerCivId]?.visibility;
   if (!vis) return [];
 
@@ -149,6 +158,7 @@ function createCityRenderItems(
         lowZoom: camera.zoom < LOD_SPRITE_ZOOM_THRESHOLD,
         reducedMotion,
         nowMs,
+        worldPressureCrisis: city ? worldPressureBadgesByCityId.get(city.id) : undefined,
       });
     }
   }

@@ -26,6 +26,7 @@ import { isMinorCivAtWar } from '@/systems/minor-civ-diplomacy';
 import { hasAccessibleLuxury } from '@/systems/quest-objective-system';
 import { minorCivReparationsCost } from '@/systems/minor-civ-actions';
 import { createGameButton } from '@/ui/ui-kit';
+import { getWorldPressurePresentationForViewer } from '@/systems/world-pressure-presentation';
 
 export interface DiplomacyPanelCallbacks {
   onAction: (targetCivId: string, action: DiplomaticAction) => void;
@@ -58,6 +59,7 @@ interface CivRowData {
   incomingTreatyProposals: Array<{ id: string; label: string }>;
   atWar: boolean;
   warSinceText: string | null;
+  worldPressureStatusText: string | null;
 }
 
 interface MinorCivRowData {
@@ -90,6 +92,9 @@ export function createDiplomacyPanel(
 
   const playerCiv = state.civilizations[state.currentPlayer];
   const playerDiplomacy = playerCiv.diplomacy;
+  // Anchor surface for the later interaction buttons (spec §Visibility) -- viewer-safe,
+  // single read path, never state.activeCrises directly.
+  const worldPressurePresentation = getWorldPressurePresentationForViewer(state, state.currentPlayer);
 
   // Pre-compute all data to avoid iterating twice
   const civRows: CivRowData[] = [];
@@ -198,6 +203,7 @@ export function createDiplomacyPanel(
       incomingTreatyProposals,
       atWar,
       warSinceText,
+      worldPressureStatusText: worldPressurePresentation.statusLinesByCivId[civId]?.text ?? null,
     });
     civIdx++;
   }
@@ -309,6 +315,10 @@ export function createDiplomacyPanel(
       ? `<div style="font-size:11px;color:#d94a4a;margin-bottom:8px;" data-text="war-since-${row.civIdx}"></div>`
       : '';
 
+    const worldPressureHtml = row.worldPressureStatusText
+      ? `<div style="font-size:11px;color:#e88;margin-bottom:8px;" data-text="world-pressure-${row.civIdx}"></div>`
+      : '';
+
     let actionsHtml = '<div style="display:flex;flex-wrap:wrap;gap:6px;">';
     if (row.peaceRequestState === 'incoming' && row.peaceRequestId) {
       actionsHtml += `<button class="diplo-accept-peace" data-request-id="${row.peaceRequestId}" data-action="accept-peace-request" style="padding:6px 12px;background:rgba(74,155,74,0.3);border:1px solid #4a9b4a;border-radius:6px;color:white;cursor:pointer;font-size:11px;">Accept Peace</button>`;
@@ -331,6 +341,7 @@ export function createDiplomacyPanel(
             <div style="font-weight:bold;font-size:14px;" data-text="civ-name-${row.civIdx}"></div>
             <div style="font-size:11px;opacity:0.6;"><span data-text="civ-bonus-${row.civIdx}"></span> · <span data-text="civ-status-${row.civIdx}"></span></div>
             ${warSinceHtml}
+            ${worldPressureHtml}
             ${treatyProposalsHtml}
           </div>
         </div>
@@ -408,6 +419,9 @@ export function createDiplomacyPanel(
     });
     if (row.warSinceText) {
       setText(`war-since-${row.civIdx}`, row.warSinceText);
+    }
+    if (row.worldPressureStatusText) {
+      setText(`world-pressure-${row.civIdx}`, row.worldPressureStatusText);
     }
     row.incomingTreatyProposals.forEach((proposal, pIdx) => {
       setText(`treaty-proposal-label-${row.civIdx}-${pIdx}`, proposal.label);

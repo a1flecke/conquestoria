@@ -7,6 +7,7 @@ import {
   drawCityLandmarkPass,
   drawCityProductionBadgePass,
   drawCityStatusBadgePass,
+  drawCityWorldPressureBadgePass,
   fitCityBannerLabel,
   type CityRenderItem,
 } from '@/renderer/city-render-passes';
@@ -234,6 +235,44 @@ describe('city icon and badge text bounds', () => {
     const item = makeItem({ city, presentation: { ...makeItem().presentation, underSiege: false } });
 
     drawCityStatusBadgePass(ctx, item);
+
+    expect((ctx as unknown as MockCtx).fillTextCalls).toHaveLength(0);
+  });
+
+  it('draws a world-pressure crisis badge (intel style) when the item carries one', () => {
+    const ctx = new MockCtx() as unknown as CanvasRenderingContext2D;
+    const city = {
+      id: 'city-1', owner: 'ai-1', productionQueue: [] as string[], idleProduction: null, unrestLevel: 0,
+    } as CityRenderItem['city'];
+    const item = makeItem({ city, worldPressureCrisis: 'outbreak' });
+
+    drawCityWorldPressureBadgePass(ctx, item);
+
+    expect((ctx as unknown as MockCtx).fillTextCalls).toHaveLength(1);
+    expect((ctx as unknown as MockCtx).fillTextCalls[0]!.text).toBe('⚠️');
+  });
+
+  it('draws nothing when the item carries no world-pressure crisis', () => {
+    const ctx = new MockCtx() as unknown as CanvasRenderingContext2D;
+    const city = {
+      id: 'city-1', owner: 'ai-1', productionQueue: [] as string[], idleProduction: null, unrestLevel: 0,
+    } as CityRenderItem['city'];
+    const item = makeItem({ city });
+
+    drawCityWorldPressureBadgePass(ctx, item);
+
+    expect((ctx as unknown as MockCtx).fillTextCalls).toHaveLength(0);
+  });
+
+  it('skips the world-pressure badge for landmark-only (non-live) render items', () => {
+    const ctx = new MockCtx() as unknown as CanvasRenderingContext2D;
+    const item = makeItem({
+      projection: { ...makeItem().projection, renderMode: 'landmark-only', isLive: false },
+      city: undefined,
+      worldPressureCrisis: 'catastrophe',
+    });
+
+    drawCityWorldPressureBadgePass(ctx, item);
 
     expect((ctx as unknown as MockCtx).fillTextCalls).toHaveLength(0);
   });

@@ -1,4 +1,4 @@
-import type { City, HexCoord } from '@/core/types';
+import type { City, CrisisArchetype, HexCoord } from '@/core/types';
 import { getOccupiedCityMood } from '@/systems/city-occupation-system';
 import { PRODUCTION_ICONS, PRODUCTION_ICON_FALLBACK } from '@/systems/city-system';
 import type { LegendaryWonderMapEntry } from '@/systems/legendary-wonder-map-presentation';
@@ -37,6 +37,9 @@ export interface CityRenderItem {
   lowZoom: boolean;
   reducedMotion: boolean;
   nowMs: number;
+  // Viewer-safe world-pressure intel (#526 MR5) -- set only when this city appears in
+  // getWorldPressurePresentationForViewer(...).cityBadges for the current viewer.
+  worldPressureCrisis?: CrisisArchetype;
 }
 
 export type CityRenderPassName =
@@ -47,7 +50,8 @@ export type CityRenderPassName =
   | 'status'
   | 'production'
   | 'idle'
-  | 'intel';
+  | 'intel'
+  | 'world-pressure';
 
 export type CityRenderPass = {
   name: CityRenderPassName;
@@ -488,6 +492,26 @@ export function drawCityIntelBadgePass(ctx: CanvasRenderingContext2D, item: City
   }
 }
 
+// Reuses drawCityIntelBadgePass's dark-circle "intel" style, at top-center so it never
+// collides with the corner status/production/idle/spy badges. One glyph for every
+// archetype (matches city-panel's existing '⚠️' crisis convention) -- this is player
+// intel about a rival's crisis, not the rival's own detailed diagnosis.
+export function drawCityWorldPressureBadgePass(ctx: CanvasRenderingContext2D, item: CityRenderItem): void {
+  if (item.projection.renderMode === 'landmark-only') return;
+  markPass(ctx, 'world-pressure');
+  if (!item.projection.isLive || !item.city || !item.worldPressureCrisis) return;
+
+  const x = item.screen.x;
+  const y = item.screen.y - item.size * 0.58;
+  ctx.beginPath();
+  ctx.arc(x, y, item.size * 0.14, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(20,24,30,0.86)';
+  ctx.fill();
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  drawFittedText(ctx, '⚠️', x, y, item.size * 0.28, item.size * 0.2);
+}
+
 export const CITY_RENDER_PASSES: CityRenderPass[] = [
   { name: 'base', draw: drawCityBasePass },
   { name: 'icon', draw: drawCityIconPass },
@@ -497,6 +521,7 @@ export const CITY_RENDER_PASSES: CityRenderPass[] = [
   { name: 'production', draw: drawCityProductionBadgePass },
   { name: 'idle', draw: drawCityIdleBadgePass },
   { name: 'intel', draw: drawCityIntelBadgePass },
+  { name: 'world-pressure', draw: drawCityWorldPressureBadgePass },
 ];
 
 export function drawCityRenderItem(ctx: CanvasRenderingContext2D, item: CityRenderItem): void {
