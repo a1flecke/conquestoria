@@ -1820,6 +1820,9 @@ export interface GameEvents {
   // foeName/killerCivId populated for Hunt's 'hunted' outcome, for the same
   // same-tick-freshness reason as crisis:escalated above.
   'crisis:resolved':  { crisisId: string; flavorId: string; civId: string; outcome: CrisisOutcome; foeName?: string; killerCivId?: string };
+  // Fires only when a hunt's killer differs from the crisis's own target civ (#526 MR6
+  // hunt-their-foe interaction) -- a self-kill never emits this.
+  'crisis:foe-hunted-by-ally': { crisisId: string; killerCivId: string; targetCivId: string; foeName?: string };
 }
 
 // --- Crisis Events & Revolutionary Movements ---

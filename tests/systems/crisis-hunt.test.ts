@@ -269,6 +269,97 @@ describe('hunt crisis — resolution, feast, escalation (MR3)', () => {
     expect(resolved.beasts!.lairs[lairId]).toBeUndefined();
   });
 
+});
+
+describe('hunt crisis — ally reward (#526 MR6 Task 6.2)', () => {
+  it('third-civ kill: moves both relationship sides by +15 and emits crisis:foe-hunted-by-ally once', () => {
+    const { state, crisisId } = makeHuntFixture({
+      flavorId: 'beast-awakening', stage: 'menacing', turnsInStage: 1,
+      huntEntityId: 'unit-99', foeName: 'Test Beast', lastHuntKillerCivId: 'killer',
+    });
+    state.settings.aiCrisisInteractions = 'benign';
+    const bus = new EventBus();
+    const events: unknown[] = [];
+    bus.on('crisis:foe-hunted-by-ally', event => events.push(event));
+
+    const next = processCrisisTurn(state, bus);
+
+    expect(next.civilizations.p1.diplomacy.relationships.killer).toBe(15);
+    expect(next.civilizations.killer.diplomacy.relationships.p1).toBe(15);
+    expect(events).toHaveLength(1);
+    expect(events[0]).toEqual({ crisisId, killerCivId: 'killer', targetCivId: 'p1', foeName: 'Test Beast' });
+  });
+
+  it('grants +4 to a witness civ that has met both the killer and the target', () => {
+    const { state, crisisId } = makeHuntFixture({
+      flavorId: 'beast-awakening', stage: 'menacing', turnsInStage: 1,
+      huntEntityId: 'unit-99', foeName: 'Test Beast', lastHuntKillerCivId: 'killer',
+    });
+    state.settings.aiCrisisInteractions = 'benign';
+    state.civilizations.witness = {
+      id: 'witness', name: 'Witness', color: '#888888', isHuman: false, civType: 'generic',
+      cities: [], units: [],
+      techState: { completed: [], currentResearch: null, researchProgress: 0, researchQueue: [], trackPriorities: {} as any },
+      gold: 0, visibility: { tiles: {} }, score: 0,
+      diplomacy: createDiplomacyState(['p1', 'killer', 'witness'], 'witness'),
+      knownCivilizations: ['p1', 'killer'],
+    } as GameState['civilizations'][string];
+    void crisisId;
+
+    const next = processCrisisTurn(state, new EventBus());
+
+    expect(next.civilizations.killer.diplomacy.relationships.witness).toBe(4);
+    expect(next.civilizations.witness.diplomacy.relationships.killer).toBe(4);
+  });
+
+  it('self-kill (target civ kills its own foe): no reputation change, no event', () => {
+    const { state, crisisId } = makeHuntFixture({
+      flavorId: 'beast-awakening', stage: 'menacing', turnsInStage: 1,
+      huntEntityId: 'unit-99', foeName: 'Test Beast', lastHuntKillerCivId: 'p1',
+    });
+    state.settings.aiCrisisInteractions = 'benign';
+    const bus = new EventBus();
+    const events: unknown[] = [];
+    bus.on('crisis:foe-hunted-by-ally', event => events.push(event));
+    void crisisId;
+
+    const next = processCrisisTurn(state, bus);
+
+    expect(next.civilizations.p1.diplomacy.relationships.killer ?? 0).toBe(0);
+    expect(events).toHaveLength(0);
+  });
+
+  it('AI killer of an AI target: same deltas apply (no humanity special-casing)', () => {
+    const { state } = makeHuntFixture({
+      flavorId: 'beast-awakening', stage: 'menacing', turnsInStage: 1,
+      huntEntityId: 'unit-99', foeName: 'Test Beast', lastHuntKillerCivId: 'killer',
+    });
+    state.civilizations.p1.isHuman = false;
+    state.settings.aiCrisisInteractions = 'benign';
+
+    const next = processCrisisTurn(state, new EventBus());
+
+    expect(next.civilizations.p1.diplomacy.relationships.killer).toBe(15);
+    expect(next.civilizations.killer.diplomacy.relationships.p1).toBe(15);
+  });
+
+  it('produces no reputation change or event while aiCrisisInteractions is off (default -- dark until Task 6.4 flips it)', () => {
+    const { state } = makeHuntFixture({
+      flavorId: 'beast-awakening', stage: 'menacing', turnsInStage: 1,
+      huntEntityId: 'unit-99', foeName: 'Test Beast', lastHuntKillerCivId: 'killer',
+    });
+    const bus = new EventBus();
+    const events: unknown[] = [];
+    bus.on('crisis:foe-hunted-by-ally', event => events.push(event));
+
+    const next = processCrisisTurn(state, bus);
+
+    expect(next.civilizations.p1.diplomacy.relationships.killer ?? 0).toBe(0);
+    expect(events).toHaveLength(0);
+  });
+});
+
+describe('hunt crisis — resolution, feast, escalation (MR3, continued)', () => {
   it('falls back to the target civ for the feast when no killer was ever attributed', () => {
     const { state, crisisId } = makeHuntFixture({
       flavorId: 'beast-awakening', stage: 'menacing', turnsInStage: 1,

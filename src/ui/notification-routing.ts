@@ -535,6 +535,31 @@ export function routeCrisisResolved(
   sink(event.civId, `${name} ${outcomeMessage[event.outcome]}`, type);
 }
 
+// Hunt-their-foe (#526 MR6 Task 6.2): "Rome slew the beast menacing Carthage!" to every
+// viewer who knows either civ (killer or target) -- deliberately broader than the
+// witness-reputation set in crisis-interaction-system.ts, which requires knowing BOTH.
+export function routeCrisisFoeHuntedByAlly(
+  state: GameState,
+  event: GameEvents['crisis:foe-hunted-by-ally'],
+  sink: NotificationSink,
+): void {
+  const killerName = state.civilizations[event.killerCivId]?.name ?? 'A civilization';
+  const targetName = state.civilizations[event.targetCivId]?.name ?? 'a civilization';
+  const foeName = event.foeName ?? 'their foe';
+  const message = `${killerName} slew ${foeName} menacing ${targetName}!`;
+
+  for (const [civId, civ] of Object.entries(state.civilizations)) {
+    if (civId === event.killerCivId || civId === event.targetCivId) {
+      sink(civId, message, 'success');
+      continue;
+    }
+    const known = civ.knownCivilizations ?? [];
+    if (known.includes(event.killerCivId) || known.includes(event.targetCivId)) {
+      sink(civId, message, 'success');
+    }
+  }
+}
+
 // Fans out to viewers who know the AI target civ (met-civ gate, spec §Visibility).
 // AI-targeted crises only -- a human's own crisis already notifies its owner via
 // routeCrisisStarted above. Fires on crisis:started only, never per spread/siege tick:

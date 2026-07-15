@@ -12,6 +12,8 @@ import { BEAST_DEFINITIONS } from './beast-definitions';
 import { BEAST_OWNER, isTerrainPassableForBeast } from './beast-system';
 import { createUnit } from './unit-system';
 import { buildUnitOccupancy, getUnitIdsAtCoord } from './unit-occupancy';
+import { resolveWorldPressureFlags } from './world-pressure-flags';
+import { applyInteractionReputation, getCrisisInteractionDefinition } from './crisis-interaction-system';
 
 export const CRISIS_PRESSURE_FLOOR = 2.0;
 export const EXTERNAL_THREAT_RECENCY_TURNS = 5;
@@ -548,6 +550,21 @@ function tickHuntCrisis(
         [killerCivId]: { ...killerCiv, feastUntilTurn: nextState.turn + 5 },
       },
     };
+  }
+  // Hunt-their-foe (#526 MR6): killerCivId is only ever recorded as a real major-civ id
+  // (hunt-crisis-linkage.ts's isMajorCivOwner check), so "differs from the target" alone
+  // identifies a genuine third-civ kill -- no separate humanity/major-civ check needed.
+  // Dark until aiCrisisInteractions leaves 'off' (MR6's own rollout flag).
+  if (
+    killerCivId !== working.targetCivId
+    && resolveWorldPressureFlags(nextState.settings).aiCrisisInteractions !== 'off'
+  ) {
+    nextState = applyInteractionReputation(
+      nextState, killerCivId, working.targetCivId, getCrisisInteractionDefinition('hunt_their_foe')!,
+    );
+    bus.emit('crisis:foe-hunted-by-ally', {
+      crisisId: working.id, killerCivId, targetCivId: working.targetCivId, foeName: working.foeName,
+    });
   }
   if (flavor.hunt.spawnKind === 'beast' && nextState.beasts) {
     // The ephemeral hunt lair (registered only so recordBeastSlain's hoard-gold path
