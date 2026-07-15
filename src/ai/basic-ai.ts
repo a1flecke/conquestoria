@@ -98,7 +98,10 @@ import { applyAIProduction } from './ai-production';
 import { applyAIResearch } from './ai-research';
 import { processAIResourceMarketplace } from './ai-resource-marketplace';
 import { getCrisisRestoreAssignments } from './ai-crisis-response';
-import { applyWorkerAction } from '@/systems/worker-action-system';
+import { applyWorkerAction, getWorkerChargesRemaining } from '@/systems/worker-action-system';
+import { getAvailableWorkerActions, getKnownTileResourceForWorkerAction } from '@/systems/improvement-system';
+import { chooseRoadBuilderUnit } from '@/systems/road-network';
+import { canBuildRoad } from '@/systems/road-system';
 
 function addAlwaysHostileOwners(
   state: GameState,
@@ -595,7 +598,9 @@ function processAITurnInternal(
   // getCrisisRestoreAssignments move toward their tile (via the canonical
   // executeUnitMove helper) and, once there, restore it via applyWorkerAction
   // — the same mutation the human restore_land UI flow calls.
-  for (const assignment of getCrisisRestoreAssignments(newState, civId)) {
+  const crisisRestoreAssignments = getCrisisRestoreAssignments(newState, civId);
+  const crisisRestoreWorkerIds = new Set(crisisRestoreAssignments.map(assignment => assignment.workerUnitId));
+  for (const assignment of crisisRestoreAssignments) {
     const worker = newState.units[assignment.workerUnitId];
     if (!worker || worker.hasActed) continue;
     const tile = newState.map.tiles[assignment.tileKey];
@@ -610,6 +615,65 @@ function processAITurnInternal(
         const movement = executeUnitMove(next, worker.id, path[1]!, { actor: 'ai', civId, bus });
         if (movement.ok) newState = next;
       }
+    }
+  }
+  civ = newState.civilizations[civId];
+
+  // Worker road-building + general improvement tasking is administrative for the same
+  // reason as catastrophe restoration above: no AIStrategicPlan declares a 'worker'
+  // required role (only frontline/ranged/capture/resource-expedition/naval-combat do,
+  // per every requiredRoles literal in ai-plan-portfolio.ts/ai-prepared-turn.ts), and
+  // 'worker' has no COMPATIBLE_ROLES fallback in ai-unit-assignment.ts either — so
+  // rankCivilianAndTransportActions's road-building branch in ai-tactics.ts
+  // (chooseRoadBuilderUnit + the getAvailableWorkerActions fallback right after it) was
+  // dead code: workers never entered assignedUnitIds and never reached
+  // processMajorCivStrategicTurn's tactical dispatch. This loop applies the same
+  // decision logic administratively, mirroring the restoration loop above. Workers
+  // already claimed by the restoration loop above are excluded -- a worker still
+  // mid-walk toward a devastated tile (hasActed stays false while it moves) must not
+  // also be handed a road/improvement action and burn a charge it needs on arrival.
+  const roadBuilder = chooseRoadBuilderUnit(newState, civId);
+  const idleWorkers = civ.units
+    .map(id => newState.units[id])
+    .filter((unit): unit is Unit =>
+      Boolean(unit)
+      && unit.type === 'worker'
+      && !unit.hasActed
+      && getWorkerChargesRemaining(unit) > 0
+      && !crisisRestoreWorkerIds.has(unit.id));
+  for (const worker of idleWorkers) {
+    const current = newState.units[worker.id];
+    if (!current || current.hasActed) continue;
+    const tile = newState.map.tiles[hexKey(current.position)];
+    const completedTechs = newState.civilizations[civId]?.techState.completed ?? [];
+    const isCityTile = Object.values(newState.cities).some(city => hexKey(city.position) === hexKey(current.position));
+
+    let handled = false;
+    if (roadBuilder && roadBuilder.workerId === current.id) {
+      if (hexKey(current.position) === hexKey(roadBuilder.targetCoord)) {
+        if (canBuildRoad(tile, completedTechs, civId, isCityTile)) {
+          const result = applyWorkerAction(newState, current.id, 'build_road');
+          if (result.ok) { newState = result.state; handled = true; }
+        }
+      } else if (current.movementPointsLeft > 0) {
+        const path = findPath(current.position, roadBuilder.targetCoord, newState.map, 'land', { unit: current, completedTechs });
+        if (path && path.length > 1) {
+          const next = structuredClone(newState);
+          const movement = executeUnitMove(next, current.id, path[1]!, { actor: 'ai', civId, bus });
+          if (movement.ok) { newState = next; handled = true; }
+        }
+      }
+    }
+    if (handled) continue;
+
+    const actions = getAvailableWorkerActions(tile, completedTechs, civId, {
+      isCityTile,
+      knownResource: tile ? getKnownTileResourceForWorkerAction(tile, completedTechs) : null,
+      currentTurn: newState.turn,
+    });
+    if (actions.length > 0) {
+      const result = applyWorkerAction(newState, current.id, actions[0]!);
+      if (result.ok) newState = result.state;
     }
   }
   civ = newState.civilizations[civId];
