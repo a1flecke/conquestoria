@@ -344,7 +344,7 @@ export type UnitType =
   | 'crossbowman' | 'catapult' | 'ballista' | 'cannon' | 'grenadier' | 'rifleman' | 'ironclad'
   | 'frigate' | 'destroyer' | 'artillery' | 'infantry'
   | 'machine_gunner' | 'pre_dreadnought'
-  | 'observation_balloon' | 'biplane' | 'jet_fighter' | 'bomber'
+  | 'observation_balloon' | 'biplane' | 'jet_fighter' | 'bomber' | 'recon_aircraft'
   | 'tank' | 'submarine' | 'carrier'
   | 'attack_helicopter' | 'missile_submarine'
   | 'spy_scout' | 'spy_informant' | 'spy_agent' | 'spy_operative' | 'spy_hacker'
@@ -371,6 +371,18 @@ export type AirInterceptionDefense =
   | { kind: 'turret-fire'; counterDamageMultiplier: number }
   | { kind: 'evasion'; incomingDamageMultiplier: number };
 
+export type AirBaseKind = 'airfield' | 'helicopter_base' | 'stealth_airbase' | 'carrier';
+export type AirMission = 'strike' | 'intercept' | 'rebase' | 'recon';
+export type AirBaseRef = { kind: 'city'; cityId: string } | { kind: 'carrier'; unitId: string };
+
+export interface AirOperationDefinition {
+  baseKinds: AirBaseKind[];
+  operationalRange: number;
+  ferryRange: number;
+  missions: AirMission[];
+  carrierEligible: boolean;
+}
+
 export interface UnitDefinition {
   type: UnitType;
   name: string;
@@ -384,6 +396,7 @@ export interface UnitDefinition {
   spyDetectionChance?: number; // 0–1, probability per adjacent spy unit per turn
   attackProfile?: UnitAttackProfile;
   airInterceptionDefense?: AirInterceptionDefense;
+  airOperation?: AirOperationDefinition;
   terrainCostOverrides?: Partial<Record<string, number>>;
   cargoCapacity?: number;
   cargoSize?: number;
@@ -420,6 +433,8 @@ export interface Unit {
   routeDirection?: 'outbound' | 'inbound';  // S6b uses; S5 leaves undefined
   cargoUnitIds?: string[];      // unit ids loaded into this carrier
   transportId?: string;         // set when this unit is loaded as cargo
+  airBase?: AirBaseRef;
+  airMission?: 'intercept';
 }
 
 // --- Cities ---

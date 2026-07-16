@@ -326,6 +326,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     canFoundCity: false, canBuildImprovements: false, productionCost: 200,
     domain: 'air',
     attackProfile: { kind: 'ranged', range: 2, targets: ['unit', 'city'] },
+    airOperation: { baseKinds: ['airfield', 'carrier'], operationalRange: 3, ferryRange: 6, missions: ['strike', 'intercept', 'rebase'], carrierEligible: true },
   },
   jet_fighter: {
     type: 'jet_fighter', name: 'Jet Fighter',
@@ -333,6 +334,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     canFoundCity: false, canBuildImprovements: false, productionCost: 300,
     domain: 'air',
     attackProfile: { kind: 'ranged', range: 2, targets: ['unit', 'city'] },
+    airOperation: { baseKinds: ['airfield', 'carrier'], operationalRange: 5, ferryRange: 10, missions: ['strike', 'intercept', 'rebase'], carrierEligible: true },
   },
   bomber: {
     type: 'bomber', name: 'Bomber',
@@ -341,6 +343,13 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     domain: 'air',
     attackProfile: { kind: 'bombard', range: 3, targets: ['city', 'unit'] },
     airInterceptionDefense: { kind: 'turret-fire', counterDamageMultiplier: 0.25 },
+    airOperation: { baseKinds: ['airfield'], operationalRange: 6, ferryRange: 12, missions: ['strike', 'rebase'], carrierEligible: false },
+  },
+  recon_aircraft: {
+    type: 'recon_aircraft', name: 'Recon Aircraft', movementPoints: 5,
+    visionRange: 3, strength: 0, canFoundCity: false,
+    canBuildImprovements: false, productionCost: 290, domain: 'air',
+    airOperation: { baseKinds: ['airfield'], operationalRange: 5, ferryRange: 10, missions: ['recon', 'rebase'], carrierEligible: false },
   },
   carrier: {
     type: 'carrier', name: 'Carrier',
@@ -363,6 +372,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     canFoundCity: false, canBuildImprovements: false, productionCost: 230,
     domain: 'air',
     attackProfile: { kind: 'ranged', range: 2, targets: ['unit', 'city'] },
+    airOperation: { baseKinds: ['helicopter_base'], operationalRange: 4, ferryRange: 8, missions: ['strike', 'rebase'], carrierEligible: false },
   },
   missile_submarine: {
     type: 'missile_submarine', name: 'Missile Submarine',
@@ -505,6 +515,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     domain: 'air',
     attackProfile: { kind: 'bombard', range: 3, targets: ['unit', 'city'] },
     airInterceptionDefense: { kind: 'evasion', incomingDamageMultiplier: 0.65 },
+    airOperation: { baseKinds: ['stealth_airbase'], operationalRange: 7, ferryRange: 14, missions: ['strike', 'rebase'], carrierEligible: false },
   },
 };
 
@@ -672,9 +683,10 @@ export const UNIT_DESCRIPTIONS: Record<UnitType, string> = {
   submarine:  'Undersea warship. Long-range torpedoes (range 2), high naval strength, stealth approach. Replaces pre-dreadnought surface-fleet dominance.',
   observation_balloon: 'Tethered hydrogen balloon used for aerial reconnaissance. Cannot attack. Provides unmatched long-range vision over enemy territory. Extremely fragile.',
   biplane:    'WWI-era fabric-and-wood fighter aircraft. Fast air unit that can attack land and naval targets from altitude. Vulnerable to dedicated anti-air batteries. Obsoleted by monoplane fighters.',
+  recon_aircraft: 'Modern unarmed reconnaissance aircraft. Launches temporary area surveys from an Airfield; it cannot strike or move as an ordinary map unit.',
   jet_fighter: 'WWII-era swept-wing jet fighter. Faster and stronger than the biplane; dominates air-to-air and ground-attack roles, with a bonus vs bombers. Faction roundel on fuselage; afterburner glow marks its passage. Air-superiority apex — the bomber is the strike line instead of a fighter upgrade.',
   bomber: 'Long-range strategic bomber. Bombard range 3 vs cities and units — the era\'s dedicated city-buster. Its defensive gunners can return weak fire when intercepted. Requires no special building, unlike its stealth successor. Upgrades into the stealth bomber.',
-  carrier:     'Fleet carrier. Heavily armed mobile naval platform; aircraft basing operations arrive in a future update. Requires a coastal city to build. High vision range; strong naval strength.',
+  carrier:     'Fleet carrier. Mobile base for up to two Biplanes or Jet Fighters. Requires a coastal city to build. High vision range; strong naval strength.',
   destroyer:   'Fast surface escort. Ranged attack (range 2) vs units and cities; +25% strength attacking submarines and missile submarines. Requires Carrier Warfare and a coastal city. Current top-tier surface escort — no later replacement yet.',
   attack_helicopter: 'Cold War attack helicopter. Combines close air support with anti-armour missiles; faster than jet fighters but more vulnerable to ground fire. Ranged air unit.',
   missile_submarine: 'Nuclear-powered ballistic missile submarine. Long-range submarine-launched missiles threaten any city from the deep. Requires a coastal city to build. Longest range of any unit.',
