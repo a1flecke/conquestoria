@@ -5,7 +5,7 @@ const ERA_10_TECHS: Tech[] = [
   { id: 'jet-aviation', name: 'Jet Aviation', track: 'military', cost: 1895,
     prerequisites: ['air-superiority', 'aluminium-smelting'],
     unlocks: ['Swept-wing jet fighters replace biplanes; air power reaches new altitudes and speeds'],
-    unlocksUnits: ['jet_fighter', 'jet_freighter'], era: 10 },
+    unlocksUnits: ['jet_fighter', 'recon_aircraft', 'jet_freighter'], era: 10 },
   { id: 'nuclear-weapons', name: 'Nuclear Weapons', track: 'military', cost: 1895,
     prerequisites: ['quantum-theory', 'petroleum-industry'],
     unlocks: ['Atomic deterrence reshapes grand strategy'],

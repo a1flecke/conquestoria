@@ -639,7 +639,7 @@ export const BUILDINGS: Record<string, Building> = {
   airfield: {
     id: 'airfield', name: 'Airfield', category: 'military',
     yields: { food: 0, production: 2, gold: 0, science: 0 }, productionCost: 175,
-    description: 'Aviation base. +2 production per turn.',
+    description: 'Aviation base. Hosts 3 Biplanes, Jet Fighters, Bombers, or Recon Aircraft (4 after Air Force Command). +2 production per turn.',
     techRequired: 'aviation',
   },
   film_studio: {
@@ -833,7 +833,7 @@ export const BUILDINGS: Record<string, Building> = {
   helicopter_base: {
     id: 'helicopter_base', name: 'Helicopter Base', category: 'military',
     yields: { food: 0, production: 3, gold: 0, science: 0 }, productionCost: 210,
-    description: 'Dedicated operations base for attack helicopter wings. +3 production per turn.',
+    description: 'Dedicated operations base for up to 2 Attack Helicopters. +3 production per turn.',
     techRequired: 'helicopter-warfare',
     pacing: { band: 'power-spike', role: 'air-military-production', impact: 1.4, scope: 'city', snowball: 1.3, urgency: 1.1, situationality: 1.2, unlockBreadth: 1 },
   },
@@ -1031,7 +1031,7 @@ export const BUILDINGS: Record<string, Building> = {
     id: 'stealth_airbase', name: 'Stealth Airbase', category: 'military',
     yields: { food: 0, production: 2, gold: 0, science: 0 },
     productionCost: 220,
-    description: 'The only facility capable of training Stealth Bombers. Requires Stealth Technology research.',
+    description: 'The only facility capable of training and basing up to 2 Stealth Bombers. Requires Stealth Technology research.',
     techRequired: 'stealth-technology',
   },
 
@@ -1122,6 +1122,7 @@ export const TRAINABLE_UNITS: Array<TrainableUnitEntry & { pacing?: Building['pa
   // not a fighter upgrade — researching stealth tech without a Stealth Airbase must not zero out
   // trainable air units.
   { type: 'jet_fighter',         name: 'Jet Fighter',         cost: 300, techRequired: 'jet-aviation',    pacing: { band: 'marquee',      role: 'air-apex',   impact: 1.6, scope: 'military', snowball: 1.5, urgency: 1.2, situationality: 1.3, unlockBreadth: 1 } },
+  { type: 'recon_aircraft',      name: 'Recon Aircraft',      cost: 290, techRequired: 'jet-aviation',    pacing: { band: 'power-spike',  role: 'air-recon',  impact: 1.35, scope: 'military', snowball: 1.1, urgency: 1.1, situationality: 1.4, unlockBreadth: 1 } },
   { type: 'bomber',              name: 'Bomber',              cost: 280, techRequired: 'nuclear-weapons', obsoletedByTech: 'stealth-technology', upgradesTo: 'stealth_bomber', pacing: { band: 'marquee', role: 'strategic-bombing', impact: 1.6, scope: 'military', snowball: 1.4, urgency: 1.2, situationality: 1.4, unlockBreadth: 1 } },
   { type: 'carrier',             name: 'Carrier',             cost: 220, techRequired: 'carrier-warfare', coastalRequired: true, pacing: { band: 'power-spike', role: 'naval-projection', impact: 1.5, scope: 'military', snowball: 1.4, urgency: 1.1, situationality: 1.4, unlockBreadth: 1 } },
   { type: 'destroyer',           name: 'Destroyer',           cost: 210, techRequired: 'carrier-warfare', coastalRequired: true, pacing: { band: 'power-spike', role: 'naval-escort-apex', impact: 1.55, scope: 'military', snowball: 1.45, urgency: 1.2, situationality: 1.5, unlockBreadth: 1 } },
@@ -1542,6 +1543,7 @@ export const PRODUCTION_ICONS: Record<string, string> = {
   submarine:  '🌊',
   observation_balloon: '🎈',
   biplane:    '✈️',
+  recon_aircraft: '🔭',
   jet_fighter: '🛩️',
   bomber:     '💣',
   carrier:    '🛳️',
