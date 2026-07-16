@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { UNIT_DEFINITIONS } from '@/systems/unit-system';
 import { TRAINABLE_UNITS } from '@/systems/city-system';
-import { getAirBaseCapacity, getAirBaseRoster, getLegalRebaseDestinations, isBasedAirUnit, rebaseAircraft } from '@/systems/air-operations-system';
+import { getAirBaseCapacity, getAirBaseRoster, getLegalRebaseDestinations, isBasedAirUnit, rebaseAircraft, syncCarrierBasedAircraft } from '@/systems/air-operations-system';
 import type { GameState, Unit } from '@/core/types';
 
 describe('air-operation definitions', () => {
@@ -67,5 +67,17 @@ describe('air bases', () => {
       ok: true,
       state: { units: { 'air-1': { airBase: { kind: 'city', cityId: 'city-2' }, hasActed: true } } },
     });
+  });
+
+  it('synchronizes each based aircraft with a moved carrier', () => {
+    const carrierState = {
+      ...state,
+      units: {
+        carrier: { ...biplane, id: 'carrier', type: 'carrier', position: { q: 6, r: 2 }, airBase: undefined },
+        'air-1': { ...biplane, airBase: { kind: 'carrier', unitId: 'carrier' } },
+      },
+    } as unknown as GameState;
+
+    expect(syncCarrierBasedAircraft(carrierState, 'carrier').units['air-1']?.position).toEqual({ q: 6, r: 2 });
   });
 });
