@@ -51,6 +51,7 @@ import {
   isSpyUnitType,
   getSpyCaptureRelationshipPenalty,
 } from '@/systems/espionage-system';
+import { applyOpportunisticWarPenaltyIfCrisisStruck } from '@/systems/crisis-interaction-system';
 import { createRng } from '@/systems/map-generator';
 import { appeaseFaction } from '@/systems/faction-system';
 import {
@@ -1003,6 +1004,11 @@ function processAITurnInternal(
             );
           }
           bus.emit('diplomacy:war-declared', { attackerId: civId, defenderId: decision.targetCiv, opponentKind: resolveOpponentKind(decision.targetCiv) });
+          // #526 MR7 Task 7.1: AI-declarer parity -- an AI that happens to declare war
+          // on a crisis-struck civ eats the same opportunistic-war reputation penalty a
+          // human would (accepted design note; teaching AI war-scoring to avoid this
+          // timing is out of scope for this arc).
+          newState = applyOpportunisticWarPenaltyIfCrisisStruck(newState, civId, decision.targetCiv, bus);
           break;
         case 'request_peace':
           newState = enqueuePeaceRequest(newState, civId, decision.targetCiv, bus);
@@ -1497,7 +1503,11 @@ export function chooseAiMission(
 ): SpyMissionType | null {
   const civ = state.civilizations[aiCivId];
   if (!civ) return null;
-  const available = getAvailableMissions(civ.techState.completed);
+  // sabotage_relief is human-initiated only in this arc (spec §Interactions: "Aid,
+  // exploit, and sabotage are human-initiated only... AI-initiated versions are a
+  // future extension") -- excluded here rather than relying on it never sorting first.
+  const available: SpyMissionType[] = getAvailableMissions(civ.techState.completed)
+    .filter(mission => mission !== 'sabotage_relief');
   if (available.length === 0) return null;
 
   const personality = getPersonality(state, civ.civType ?? 'generic');

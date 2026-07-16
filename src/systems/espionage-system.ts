@@ -20,6 +20,8 @@ import {
   ESPIONAGE_SUCCESS_CHANCE_MAX,
   ESPIONAGE_SUCCESS_CHANCE_MIN,
 } from './espionage-modifier-definitions';
+import { resolveWorldPressureFlags } from './world-pressure-flags';
+import { hasMetCivilization } from './discovery-system';
 
 const SPY_NAMES = [
   'Shadow', 'Whisper', 'Ghost', 'Cipher', 'Raven',
@@ -48,6 +50,7 @@ const MISSION_BASE_SUCCESS = {
   misinformation_campaign: 0.55,
   election_interference: 0.40,
   satellite_surveillance: 0.70,
+  sabotage_relief: 0.60, // #526 MR7: reuses sabotage_production's detection parameters
 } as Record<SpyMissionType, number>;
 
 const MISSION_DURATIONS = {
@@ -67,6 +70,7 @@ const MISSION_DURATIONS = {
   misinformation_campaign: 3,
   election_interference: 5,
   satellite_surveillance: 1,
+  sabotage_relief: 4, // #526 MR7: reuses sabotage_production's duration
 } as Record<SpyMissionType, number>;
 
 // --- State creation ---
@@ -346,6 +350,10 @@ const STAGE_4_TECHS = ['cryptography', 'counter-intelligence']; // either unlock
 const STAGE_5_TECHS = ['cold-war-networks'];       // era 10 — Cold War propaganda/subversion
 const STAGE_6_TECHS = ['satellite-surveillance'];   // era 11 — spy satellites
 const STAGE_7_TECHS = ['cyber-intelligence'];        // era 12 — cyber operative attacks
+// #526 MR7: covert-operations (era 7) gates sabotage_relief -- its own bucket rather
+// than folded into STAGE_4_TECHS, since covert-operations isn't one of that stage's
+// gating techs (cryptography/counter-intelligence) and gates only this one mission.
+const SABOTAGE_RELIEF_TECHS = ['covert-operations'];
 
 const STAGE_1_MISSIONS: SpyMissionType[] = ['scout_area', 'monitor_troops'];
 const STAGE_2_MISSIONS: SpyMissionType[] = ['gather_intel', 'identify_resources', 'monitor_diplomacy'];
@@ -354,6 +362,7 @@ const STAGE_4_MISSIONS: SpyMissionType[] = ['assassinate_advisor', 'forge_docume
 const STAGE_5_MISSIONS: SpyMissionType[] = ['misinformation_campaign', 'election_interference'];
 const STAGE_6_MISSIONS: SpyMissionType[] = ['satellite_surveillance'];
 const STAGE_7_MISSIONS: SpyMissionType[] = ['cyber_attack'];
+const SABOTAGE_RELIEF_MISSIONS: SpyMissionType[] = ['sabotage_relief'];
 
 export function getAvailableMissions(completedTechs: string[]): SpyMissionType[] {
   const missions: SpyMissionType[] = [];
@@ -364,6 +373,7 @@ export function getAvailableMissions(completedTechs: string[]): SpyMissionType[]
   if (STAGE_5_TECHS.some(t => completedTechs.includes(t))) missions.push(...STAGE_5_MISSIONS);
   if (STAGE_6_TECHS.some(t => completedTechs.includes(t))) missions.push(...STAGE_6_MISSIONS);
   if (STAGE_7_TECHS.some(t => completedTechs.includes(t))) missions.push(...STAGE_7_MISSIONS);
+  if (SABOTAGE_RELIEF_TECHS.some(t => completedTechs.includes(t))) missions.push(...SABOTAGE_RELIEF_MISSIONS);
   return missions;
 }
 
@@ -435,7 +445,7 @@ const PROMOTION_XP_THRESHOLD = 60;
 
 // Mission categories for auto-promotion
 const INFILTRATOR_MISSIONS = new Set<SpyMissionType>([
-  'steal_tech', 'sabotage_production', 'assassinate_advisor', 'arms_smuggling',
+  'steal_tech', 'sabotage_production', 'assassinate_advisor', 'arms_smuggling', 'sabotage_relief',
 ]);
 const HANDLER_MISSIONS = new Set<SpyMissionType>([
   'incite_unrest', 'forge_documents', 'fund_rebels', 'monitor_diplomacy',
@@ -459,6 +469,7 @@ const XP_PER_MISSION = {
   misinformation_campaign: 14,
   election_interference: 16,
   satellite_surveillance: 8,
+  sabotage_relief: 12, // #526 MR7: matches sabotage_production's xp
 } as Record<SpyMissionType, number>;
 
 const EXPULSION_COOLDOWN = 5;
@@ -618,6 +629,9 @@ export interface MissionResult {
   researchPenaltyTurns?: number;
   researchPenaltyMultiplier?: number;
   grantTerritoryVision?: boolean;
+  // sabotage_relief (#526 MR7): the outbreak crisis to pause, if the target civ has one
+  // eligible (active, no existing sabotage already in place).
+  sabotageCrisisId?: string;
 }
 
 const SCOUT_VISION_RADIUS = 3;
@@ -721,6 +735,23 @@ export function resolveMissionResult(
       const lostTurns = 3 + Math.floor(rng() * 3); // 3-5 turns
       const lostProgress = lostTurns * 5; // ~5 production/turn
       return { productionLost: lostProgress };
+    }
+
+    // sabotage_relief (#526 MR7): only eligible against an active OUTBREAK crisis with
+    // no sabotage already in place ("one active sabotage per crisis, across all
+    // actors") -- catastrophe crises have no remedy timer to pause. Flag-gated the same
+    // way canSendAid gates send_aid: 'off'/'benign' keep this hook dark.
+    // Crisis lookup is inlined (not imported from crisis-interaction-system.ts) -- that
+    // module imports faction-system.ts, which imports city-system.ts, which imports
+    // isSpyUnitType FROM this file; importing crisis-interaction-system.ts here would
+    // close that loop into a genuine ESM circular-import (verified: it breaks
+    // city-territory-system.ts's top-level `Object.values(BUILDINGS)`).
+    case 'sabotage_relief': {
+      if (resolveWorldPressureFlags(gameState.settings).aiCrisisInteractions !== 'full') return {};
+      const crisis = Object.values(gameState.activeCrises ?? {})
+        .find(c => c.targetCivId === targetCivId && c.archetype === 'outbreak');
+      if (!crisis || crisis.sabotage) return {};
+      return { sabotageCrisisId: crisis.id };
     }
 
     case 'incite_unrest': {
@@ -1283,6 +1314,48 @@ export function processEspionageTurn(state: GameState, bus: EventBus): GameState
                   cities: { ...state.cities, [spyTarget.targetCityId]: { ...tc, productionProgress } },
                   ...(updatedProjects ? { legendaryWonderProjects: updatedProjects } : {}),
                 };
+              }
+            }
+          }
+
+          // sabotage_relief (#526 MR7): places the sabotage on the target civ's outbreak
+          // crisis, then rolls ONE detection check reusing the same 0.3 baseline capture
+          // threshold every mission's fail-path detection uses (no new stealth
+          // subsystem, per spec §Interactions). Discovery applies reputation
+          // immediately and emits the discovery event; undiscovered stays silent
+          // ("Undiscovered: no penalty").
+          if (evt.missionType === 'sabotage_relief' && result.sabotageCrisisId) {
+            const originalSpy = civEspBefore.spies[evt.spyId];
+            const crisisId = result.sabotageCrisisId as string;
+            const crisis = state.activeCrises?.[crisisId];
+            const targetCivId = originalSpy?.targetCivId;
+            if (crisis && !crisis.sabotage && targetCivId) {
+              const untilTurn = state.turn + 4;
+              const detectRng = createRng(`sab-relief-detect-${evt.spyId}-${crisisId}-${state.turn}`);
+              const discovered = detectRng() < 0.3;
+              state = {
+                ...state,
+                activeCrises: {
+                  ...state.activeCrises,
+                  [crisisId]: { ...crisis, sabotage: { byCivId: civId, untilTurn, discovered } },
+                },
+              };
+              if (discovered) {
+                // Bilateral actor<->target (-25) and actor<->witness (-8) deltas --
+                // mirrors crisis-interaction-system.ts's sabotage_relief row (-25/-8)
+                // and applyInteractionReputation's witness rule (met BOTH parties),
+                // inlined rather than imported to avoid the circular-import noted above.
+                if (state.civilizations[civId] && state.civilizations[targetCivId]) {
+                  state.civilizations[civId].diplomacy = modifyRelationship(state.civilizations[civId].diplomacy, targetCivId, -25);
+                  state.civilizations[targetCivId].diplomacy = modifyRelationship(state.civilizations[targetCivId].diplomacy, civId, -25);
+                }
+                for (const witnessId of Object.keys(state.civilizations)) {
+                  if (witnessId === civId || witnessId === targetCivId) continue;
+                  if (!hasMetCivilization(state, witnessId, civId) || !hasMetCivilization(state, witnessId, targetCivId)) continue;
+                  state.civilizations[civId].diplomacy = modifyRelationship(state.civilizations[civId].diplomacy, witnessId, -8);
+                  state.civilizations[witnessId].diplomacy = modifyRelationship(state.civilizations[witnessId].diplomacy, civId, -8);
+                }
+                bus.emit('espionage:sabotage-relief-discovered', { crisisId, actorCivId: civId, targetCivId });
               }
             }
           }

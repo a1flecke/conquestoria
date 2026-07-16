@@ -1,7 +1,8 @@
-import type { GameState, HexCoord, CrisisArchetype } from '@/core/types';
+import type { ActiveCrisis, GameState, HexCoord, CrisisArchetype } from '@/core/types';
 import { getVisibility } from './fog-of-war';
 import { getCrisisFlavor, getCrisisDisplayName } from './crisis-flavor-definitions';
 import { resolveWorldPressureFlags } from './world-pressure-flags';
+import { resolvePressureSeverityForCiv } from '@/core/opponent-challenge';
 
 export interface WorldPressureCityBadge {
   cityId: string;
@@ -14,6 +15,11 @@ export interface WorldPressureStatusLine {
   crisisId: string;
   archetype: CrisisArchetype;
   text: string; // e.g. "Suffering: Red Tide outbreak — 3 cities, 4 turns"
+  // #526 MR7 exploit_weakness: severity + infected-city-name intel, present only when
+  // the viewer has completed diplomatic-networks (spec §Interactions "Full crisis
+  // intel on known civs"). Base text above is always visible once aiPressureVisibility
+  // is on -- this is the additional gated detail.
+  detail?: string;
 }
 
 export interface WorldPressurePresentation {
@@ -22,6 +28,22 @@ export interface WorldPressurePresentation {
 }
 
 const EMPTY_PRESENTATION: WorldPressurePresentation = { cityBadges: [], statusLinesByCivId: {} };
+
+const SEVERITY_LABEL: Record<'explorer' | 'standard' | 'veteran', string> = {
+  explorer: 'Mild', standard: 'Standard', veteran: 'Severe',
+};
+
+// #526 MR7 exploit_weakness: severity tier (as experienced by the target civ) + the
+// actual infected/devastated city names -- both are new information beyond the always-
+// visible base status line, which only shows a bare city COUNT.
+function buildExploitWeaknessDetail(state: GameState, crisis: ActiveCrisis): string {
+  const severity = SEVERITY_LABEL[resolvePressureSeverityForCiv(state, crisis.targetCivId)];
+  const cityNames = crisis.cityIds
+    .map(id => state.cities[id]?.name)
+    .filter((name): name is string => Boolean(name));
+  const cityList = cityNames.length > 0 ? cityNames.join(', ') : 'unknown cities';
+  return `${severity}-level crisis. Affected cities: ${cityList}.`;
+}
 
 // Single viewer-safe read path for all AI-pressure UI (spec §Visibility). Every
 // panel/renderer surface must go through this — never read state.activeCrises directly.
@@ -56,6 +78,9 @@ export function getWorldPressurePresentationForViewer(
       crisisId: crisis.id,
       archetype: crisis.archetype,
       text: `Suffering: ${displayName} — ${cityCount} ${cityCount === 1 ? 'city' : 'cities'}, ${turns} ${turns === 1 ? 'turn' : 'turns'}`,
+      ...(viewer.techState?.completed.includes('diplomatic-networks')
+        ? { detail: buildExploitWeaknessDetail(state, crisis) }
+        : {}),
     };
 
     if (!viewer.visibility) continue;

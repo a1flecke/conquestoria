@@ -84,6 +84,38 @@ describe('outbreak resolver', () => {
     expect(next.activeCrises?.['crisis-1']).toBeUndefined();
   });
 
+  // #526 MR7 Task 7.2: sabotage_relief pauses remedy completions.
+  it('an unexpired sabotage pauses remedy completion even though the completion turn has passed', () => {
+    const { state } = withCrisis({
+      remedyCompletionByCity: { c1: 41 },
+      sabotage: { byCivId: 'saboteur', untilTurn: 45, discovered: false },
+    });
+    const next = processCrisisTurn({ ...state, turn: 41 }, new EventBus());
+    expect(next.activeCrises?.['crisis-1']).toBeDefined();
+    expect(next.activeCrises!['crisis-1'].remedyCompletionByCity).toEqual({ c1: 41 });
+    expect(next.activeCrises!['crisis-1'].sabotage?.untilTurn).toBe(45);
+  });
+
+  it('sabotage clears once its window passes, and remedy resumes normally on the next tick', () => {
+    const { state } = withCrisis({
+      remedyCompletionByCity: { c1: 41 },
+      sabotage: { byCivId: 'saboteur', untilTurn: 41, discovered: false },
+    });
+    const next = processCrisisTurn({ ...state, turn: 41 }, new EventBus());
+    expect(next.activeCrises?.['crisis-1']).toBeUndefined(); // remedy completed -> crisis resolved
+  });
+
+  it('spread still proceeds while remedy is paused by sabotage', () => {
+    let { state } = withCrisis({
+      sabotage: { byCivId: 'saboteur', untilTurn: 100, discovered: false },
+    });
+    let s: GameState = state;
+    for (let i = 0; i < 30; i++) {
+      s = processCrisisTurn({ ...s, turn: s.turn + 1 }, new EventBus());
+    }
+    expect(s.activeCrises!['crisis-1'].cityIds.length).toBeGreaterThan(1);
+  });
+
   it('explorer auto-expiry resolves the crisis as expired', () => {
     const { state } = makeCrisisFixture({ era: 3, turn: 40, challenge: 'explorer' });
     const crisis: ActiveCrisis = {

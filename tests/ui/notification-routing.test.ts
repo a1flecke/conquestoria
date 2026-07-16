@@ -24,6 +24,8 @@ import {
   routeWorldPressureCrisisResolved,
   routeCrisisFoeHuntedByAlly,
   routeCrisisAidSent,
+  routeOpportunisticWar,
+  routeSabotageReliefDiscovered,
   type NotificationSink,
 } from '@/ui/notification-routing';
 
@@ -901,5 +903,55 @@ describe('crisis:aid-sent routing (#526 MR6 Task 6.3)', () => {
     const { sink, calls } = makeSink();
     routeCrisisAidSent(aidState(), { crisisId: 'crisis-1', actorCivId: 'rome', targetCivId: 'carthage', goldCost: 45 }, sink);
     expect(calls.some(c => c.civId === 'rome')).toBe(false);
+  });
+});
+
+describe('diplomacy:opportunistic-war routing (#526 MR7 Task 7.1)', () => {
+  function warState(): GameState {
+    return makeState({
+      civilizations: {
+        rome: { id: 'rome', name: 'Rome', cities: [], units: [], diplomacy: { relationships: {} }, visibility: { tiles: {} }, knownCivilizations: ['carthage', 'egypt'] },
+        carthage: { id: 'carthage', name: 'Carthage', cities: [], units: [], diplomacy: { relationships: {} }, visibility: { tiles: {} }, knownCivilizations: ['rome', 'egypt'] },
+        egypt: { id: 'egypt', name: 'Egypt', cities: [], units: [], diplomacy: { relationships: {} }, visibility: { tiles: {} }, knownCivilizations: ['rome', 'carthage'] }, // met both
+        nubia: { id: 'nubia', name: 'Nubia', cities: [], units: [], diplomacy: { relationships: {} }, visibility: { tiles: {} }, knownCivilizations: [] }, // met neither
+      } as any,
+    });
+  }
+
+  it('notifies only witnesses who have met both the declarer and the target', () => {
+    const { sink, calls } = makeSink();
+    routeOpportunisticWar(warState(), { actorId: 'rome', targetCivId: 'carthage', crisisId: 'crisis-1' }, sink);
+    const civIds = calls.map(c => c.civId);
+    expect(civIds).toEqual(['egypt']);
+    expect(calls[0]!.message).toBe('Rome declared war on Carthage while they were struggling with a crisis!');
+  });
+
+  it('does not notify the target directly (routeWarDeclared already covers the war itself)', () => {
+    const { sink, calls } = makeSink();
+    routeOpportunisticWar(warState(), { actorId: 'rome', targetCivId: 'carthage', crisisId: 'crisis-1' }, sink);
+    expect(calls.some(c => c.civId === 'carthage')).toBe(false);
+  });
+});
+
+describe('espionage:sabotage-relief-discovered routing (#526 MR7 Task 7.2)', () => {
+  function sabotageState(): GameState {
+    return makeState({
+      civilizations: {
+        rome: { id: 'rome', name: 'Rome', cities: [], units: [], diplomacy: { relationships: {} }, visibility: { tiles: {} }, knownCivilizations: ['carthage', 'egypt'] },
+        carthage: { id: 'carthage', name: 'Carthage', cities: [], units: [], diplomacy: { relationships: {} }, visibility: { tiles: {} }, knownCivilizations: ['rome', 'egypt'] },
+        egypt: { id: 'egypt', name: 'Egypt', cities: [], units: [], diplomacy: { relationships: {} }, visibility: { tiles: {} }, knownCivilizations: ['rome', 'carthage'] }, // met both
+        nubia: { id: 'nubia', name: 'Nubia', cities: [], units: [], diplomacy: { relationships: {} }, visibility: { tiles: {} }, knownCivilizations: [] }, // met neither
+      } as any,
+    });
+  }
+
+  it('notifies the sabotaged target directly and every witness, with the spec\'s exact family-tone string', () => {
+    const { sink, calls } = makeSink();
+    routeSabotageReliefDiscovered(sabotageState(), { crisisId: 'crisis-1', actorCivId: 'rome', targetCivId: 'carthage' }, sink);
+    const civIds = calls.map(c => c.civId);
+    expect(civIds).toContain('carthage');
+    expect(civIds).toContain('egypt');
+    expect(civIds).not.toContain('nubia');
+    expect(calls.every(c => c.message === "Rome's spies were caught sabotaging Carthage's relief!")).toBe(true);
   });
 });

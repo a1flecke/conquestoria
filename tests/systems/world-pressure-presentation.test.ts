@@ -91,4 +91,26 @@ describe('getWorldPressurePresentationForViewer', () => {
     expect(result.statusLinesByCivId['viewer']).toBeUndefined();
     expect(result.cityBadges).toEqual([]);
   });
+
+  // #526 MR7 Task 7.1: exploit_weakness intel detail.
+  it('omits detail when the viewer lacks diplomatic-networks (no techState at all)', () => {
+    const state = baseCrisisState();
+    const result = getWorldPressurePresentationForViewer(state, 'viewer');
+    expect(result.statusLinesByCivId['ai-1'].detail).toBeUndefined();
+  });
+
+  it('omits detail when the viewer has techState but not diplomatic-networks (negative)', () => {
+    const state = baseCrisisState();
+    state.civilizations.viewer.techState = { completed: ['bronze-working'], currentResearch: null, researchProgress: 0, researchQueue: [], trackPriorities: {} } as unknown as GameState['civilizations'][string]['techState'];
+    const result = getWorldPressurePresentationForViewer(state, 'viewer');
+    expect(result.statusLinesByCivId['ai-1'].detail).toBeUndefined();
+  });
+
+  it('includes severity + infected city names when the viewer has diplomatic-networks', () => {
+    const state = baseCrisisState();
+    state.civilizations.viewer.techState = { completed: ['diplomatic-networks'], currentResearch: null, researchProgress: 0, researchQueue: [], trackPriorities: {} } as unknown as GameState['civilizations'][string]['techState'];
+    state.cities['ai-city'].name = 'Alexandria';
+    const result = getWorldPressurePresentationForViewer(state, 'viewer');
+    expect(result.statusLinesByCivId['ai-1'].detail).toContain('Alexandria');
+  });
 });

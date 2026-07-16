@@ -581,6 +581,43 @@ export function routeCrisisAidSent(
   }
 }
 
+// Exploit weakness (#526 MR7 Task 7.1): the target already learns of the war itself via
+// routeWarDeclared (bound to diplomacy:war-declared, which fires alongside this event) --
+// this router adds the "opportunistic" framing specifically for witnesses (met BOTH actor
+// and target), matching the reputation set applyOpportunisticWarPenaltyIfCrisisStruck used.
+export function routeOpportunisticWar(
+  state: GameState,
+  event: GameEvents['diplomacy:opportunistic-war'],
+  sink: NotificationSink,
+): void {
+  const actorName = state.civilizations[event.actorId]?.name ?? 'A civilization';
+  const targetName = state.civilizations[event.targetCivId]?.name ?? 'a civilization';
+  const message = `${actorName} declared war on ${targetName} while they were struggling with a crisis!`;
+
+  for (const witnessId of getWitnessCivIds(state, event.actorId, event.targetCivId)) {
+    sink(witnessId, message, 'warning');
+  }
+}
+
+// Sabotage relief (#526 MR7 Task 7.2): fires only when the covert sabotage is discovered
+// -- notifies the target directly plus every witness, per spec §Interactions ("Human
+// witnesses receive a notification when a covert act... is discovered"). Family-tone
+// string matches the spec's own example verbatim.
+export function routeSabotageReliefDiscovered(
+  state: GameState,
+  event: GameEvents['espionage:sabotage-relief-discovered'],
+  sink: NotificationSink,
+): void {
+  const actorName = state.civilizations[event.actorCivId]?.name ?? 'A civilization';
+  const targetName = state.civilizations[event.targetCivId]?.name ?? 'a civilization';
+  const message = `${actorName}'s spies were caught sabotaging ${targetName}'s relief!`;
+
+  sink(event.targetCivId, message, 'warning');
+  for (const witnessId of getWitnessCivIds(state, event.actorCivId, event.targetCivId)) {
+    sink(witnessId, message, 'warning');
+  }
+}
+
 // Fans out to viewers who know the AI target civ (met-civ gate, spec §Visibility).
 // AI-targeted crises only -- a human's own crisis already notifies its owner via
 // routeCrisisStarted above. Fires on crisis:started only, never per spread/siege tick:

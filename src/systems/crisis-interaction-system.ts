@@ -19,11 +19,20 @@ export interface CrisisInteractionDefinition {
 
 // One row per hook (spec §Interactions) -- the resolver consumes rows generically, so a
 // future hook is a row, not a branch (same pattern as NP_PRODUCTION_DISCOUNTS in
-// city-system.ts, per .claude/rules/game-balance.md). MR6 ships the first two rows;
+// city-system.ts, per .claude/rules/game-balance.md). MR6 shipped the first two rows;
 // MR7 appends exploit_weakness and sabotage_relief.
 export const CRISIS_INTERACTION_DEFINITIONS: CrisisInteractionDefinition[] = [
   { id: 'hunt_their_foe', techRequired: null, kind: 'overt', targetReputationDelta: 15, witnessReputationDelta: 4, oncePerCrisisPerActor: true },
   { id: 'send_aid', techRequired: { outbreak: 'medicine', catastrophe: 'trade-routes' }, kind: 'overt', targetReputationDelta: 15, witnessReputationDelta: 4, oncePerCrisisPerActor: true },
+  // exploit_weakness's reputation penalty applies to ANY war declared on a crisis-struck
+  // civ regardless of the declarer's tech (see applyOpportunisticWarPenaltyIfCrisisStruck
+  // below) -- techRequired here gates only the bonus intel detail in
+  // world-pressure-presentation.ts, not the reputation consequence itself.
+  { id: 'exploit_weakness', techRequired: 'diplomatic-networks', kind: 'overt', targetReputationDelta: -15, witnessReputationDelta: -8, oncePerCrisisPerActor: false },
+  // sabotage_relief has no per-actor once-only limit -- uniqueness is "one active
+  // sabotage per crisis, across all actors" and is enforced by checking
+  // ActiveCrisis.sabotage directly (espionage-system.ts), not this generic flag.
+  { id: 'sabotage_relief', techRequired: 'covert-operations', kind: 'covert', targetReputationDelta: -25, witnessReputationDelta: -8, oncePerCrisisPerActor: false },
 ];
 
 export function getCrisisInteractionDefinition(
@@ -42,6 +51,18 @@ export function resolveInteractionTechRequired(
   if (def.techRequired === null || typeof def.techRequired === 'string') return def.techRequired;
   if (!archetype) return undefined;
   return def.techRequired[archetype];
+}
+
+// Local (not imported from crisis-system.ts) to avoid a two-file import cycle --
+// crisis-system.ts already imports applyInteractionReputation/getCrisisInteractionDefinition
+// FROM this module, so this module must not import anything back from crisis-system.ts.
+export function getActiveCrisisForCiv(
+  state: GameState,
+  civId: string,
+  archetype?: CrisisArchetype,
+): ActiveCrisis | undefined {
+  return Object.values(state.activeCrises ?? {})
+    .find(crisis => crisis.targetCivId === civId && (!archetype || crisis.archetype === archetype));
 }
 
 // Witnesses: civs that have met BOTH actor and target, excluding actor/target themselves
@@ -86,6 +107,29 @@ export function applyInteractionReputation(
   for (const witnessId of witnessIds) {
     next = applyBilateralRelationshipDelta(next, actorId, witnessId, def.witnessReputationDelta);
   }
+  return next;
+}
+
+// Exploit weakness (#526 MR7 Task 7.1): declaring war on a civ with ANY active crisis is
+// marked opportunistic, regardless of the declarer's own tech level -- diplomatic-networks
+// only gates the bonus intel detail (world-pressure-presentation.ts), not this consequence.
+// Actor-complete: called from every real war-declaration path (main.ts's diplomacy-panel
+// handler and ensurePlayerWarState, basic-ai.ts's AI decision loop) rather than being
+// threaded through declareWar itself, which would create a diplomacy-system.ts <->
+// crisis-interaction-system.ts import cycle (diplomacy-system.ts is already imported BY
+// this module for modifyRelationship).
+export function applyOpportunisticWarPenaltyIfCrisisStruck(
+  state: GameState,
+  actorId: string,
+  targetCivId: string,
+  bus: EventBus,
+): GameState {
+  if (resolveWorldPressureFlags(state.settings).aiCrisisInteractions !== 'full') return state;
+  const crisis = getActiveCrisisForCiv(state, targetCivId);
+  if (!crisis) return state;
+
+  const next = applyInteractionReputation(state, actorId, targetCivId, getCrisisInteractionDefinition('exploit_weakness')!);
+  bus.emit('diplomacy:opportunistic-war', { actorId, targetCivId, crisisId: crisis.id });
   return next;
 }
 
