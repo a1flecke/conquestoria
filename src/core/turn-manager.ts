@@ -3,6 +3,7 @@ import { EventBus } from './event-bus';
 import { checkDominationVictory } from '@/systems/victory-system';
 import { resetUnitTurn, createUnit, healUnit, findPath, UNIT_DEFINITIONS } from '@/systems/unit-system';
 import { processCity, TRAINABLE_UNITS, BUILDINGS } from '@/systems/city-system';
+import { baseNewAirUnit, canCompleteAirUnitProduction } from '@/systems/air-operations-system';
 import { getCivAvailableResources } from '@/systems/resource-acquisition-system';
 import { applyCityMaturity } from '@/systems/city-maturity-system';
 import { assignCityFocus, normalizeWorkedTilesForCity } from '@/systems/city-work-system';
@@ -267,6 +268,10 @@ export function processTurn(
         newState.era,
         availableResources,
         npKeysForCiv,
+        type => {
+          if (!UNIT_DEFINITIONS[type].airOperation) return null;
+          return canCompleteAirUnitProduction(newState, cityId, type).ok ? null : 'air-base-unavailable';
+        },
       );
       totalGold += result.idleGoldBonus;
       totalScience += result.idleScienceBonus;
@@ -356,7 +361,15 @@ export function processTurn(
         if (isLandCombatUnit && city.buildings.includes('barracks')) {
           newUnit.experience += 10;
         }
-        newState.units[newUnit.id] = newUnit;
+        if (unitDef?.airOperation) {
+          const based = baseNewAirUnit(newState, cityId, newUnit);
+          if (!based.ok) {
+            throw new Error(`Air production for ${newUnit.type} completed without a legal base: ${based.reason}`);
+          }
+          newState = based.state;
+        } else {
+          newState.units[newUnit.id] = newUnit;
+        }
         newState.civilizations[civId].units.push(newUnit.id);
 
         if (isSpyUnitType(result.completedUnit) && newState.espionage?.[civId]) {

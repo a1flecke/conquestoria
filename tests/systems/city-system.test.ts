@@ -465,10 +465,10 @@ describe('MR9 — land/air roster gating', () => {
     expect(result.droppedProductionItems).toEqual([{ itemId: 'musketeer', itemKind: 'unit', reason: 'no-longer-available' }]);
   });
 
-  it('bomber requires only tech, no building — trainable in any city once nuclear-weapons completes', () => {
+  it('bomber requires Nuclear Weapons and an Airfield', () => {
     expect(getTrainableUnitsForCiv(['nuclear-weapons']).some(u => u.type === 'bomber')).toBe(true);
     const bomber = TRAINABLE_UNITS.find(u => u.type === 'bomber');
-    expect(bomber?.trainedFromBuilding).toBeUndefined();
+    expect(bomber?.trainedFromBuilding).toBe('airfield');
     expect(bomber?.coastalRequired).toBeUndefined();
   });
 
@@ -701,6 +701,35 @@ describe('processCity', () => {
 
     expect(result.droppedProductionItems).toEqual([{ itemId: 'stealth_bomber', itemKind: 'unit', reason: 'training-building-missing' }]);
     expect(result.city.productionQueue).not.toContain('stealth_bomber');
+    expect(result.completedUnit).toBeNull();
+    expect(result.city.productionProgress).toBe(0);
+  });
+
+  it('processCity drops biplane from queue head when city lacks an Airfield', () => {
+    const map = generateMap(30, 30, 'airfield-gate-drop-test');
+    const landTile = Object.values(map.tiles).find(t => t.terrain === 'grassland' || t.terrain === 'plains')!;
+    const city = {
+      ...foundCity('p1', landTile.coord, map, mkC()),
+      buildings: [], productionQueue: ['biplane'], productionProgress: 50,
+    };
+
+    const result = processCity(city, map, 2, 100, undefined, ['air-superiority']);
+
+    expect(result.droppedProductionItems).toEqual([{ itemId: 'biplane', itemKind: 'unit', reason: 'training-building-missing' }]);
+    expect(result.completedUnit).toBeNull();
+  });
+
+  it('processCity drops queued aircraft before spending production when its air base is full', () => {
+    const map = generateMap(30, 30, 'air-base-full-drop-test');
+    const landTile = Object.values(map.tiles).find(t => t.terrain === 'grassland' || t.terrain === 'plains')!;
+    const city = {
+      ...foundCity('p1', landTile.coord, map, mkC()),
+      buildings: ['airfield'], productionQueue: ['biplane'], productionProgress: 50,
+    };
+
+    const result = processCity(city, map, 2, 100, undefined, ['air-superiority'], undefined, 1, undefined, undefined, () => 'air-base-unavailable');
+
+    expect(result.droppedProductionItems).toEqual([{ itemId: 'biplane', itemKind: 'unit', reason: 'air-base-unavailable' }]);
     expect(result.completedUnit).toBeNull();
     expect(result.city.productionProgress).toBe(0);
   });

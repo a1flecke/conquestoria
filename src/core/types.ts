@@ -516,7 +516,8 @@ export type ProductionDropReason =
                                   // (e.g. a save-compat queue item whose techRequired is unmet)
   | 'build-window-expired'       // national-project building: outside homeEra/homeEra+1
   | 'coastal-access-lost'        // building or unit: city lost coastal access
-  | 'training-building-missing'; // unit: trainedFromBuilding no longer present
+  | 'training-building-missing'  // unit: trainedFromBuilding no longer present
+  | 'air-base-unavailable';      // unit: compatible base is missing or full
 
 export interface DroppedProductionItem {
   itemId: string;                 // building id (key into BUILDINGS) or UnitType
