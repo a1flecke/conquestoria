@@ -190,6 +190,46 @@ describe('AI espionage decisions', () => {
       expect(mission).not.toBe('sabotage_relief');
     });
   });
+
+  // #526 MR7 review fix: infiltrated (embedded) spies pick their next mission via a
+  // separate random-pick path in processAITurn (the "3) Stationed-inside spies issue
+  // missions" block) that bypasses chooseAiMission entirely -- it needs its own
+  // sabotage_relief exclusion, which this regression caught missing on first pass.
+  describe('infiltrated-spy mission selection', () => {
+    it('never issues sabotage_relief to an embedded spy, across many turn seeds', () => {
+      const startedMissionTypes: string[] = [];
+      for (let turn = 1; turn <= 60; turn++) {
+        const state = makeAiTestState();
+        state.turn = turn;
+        state.civilizations['ai-egypt'].techState.completed = [
+          'espionage-scouting', 'espionage-informants', 'spy-networks', 'covert-operations',
+        ];
+        let aiEsp = { ...createEspionageCivState(), maxSpies: 1 };
+        ({ state: aiEsp } = createSpyFromUnit(aiEsp, 'spy-embed', 'ai-egypt', 'spy_agent', `seed-${turn}`));
+        aiEsp = {
+          ...aiEsp,
+          spies: {
+            'spy-embed': {
+              ...aiEsp.spies['spy-embed'],
+              status: 'stationed',
+              infiltrationCityId: 'city-player-1',
+              targetCivId: 'player',
+              targetCityId: 'city-player-1',
+              currentMission: null,
+            },
+          },
+        };
+        state.espionage = { ...state.espionage, 'ai-egypt': aiEsp };
+
+        const bus = new EventBus();
+        bus.on('espionage:mission-started', event => startedMissionTypes.push(event.missionType));
+        processAITurn(state, 'ai-egypt', bus);
+      }
+
+      expect(startedMissionTypes.length).toBeGreaterThan(0); // sanity: the path actually fired
+      expect(startedMissionTypes).not.toContain('sabotage_relief');
+    });
+  });
 });
 
 describe('AI capture verdict', () => {

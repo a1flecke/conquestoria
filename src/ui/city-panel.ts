@@ -320,6 +320,17 @@ export function createCityPanel(
     const isQuarantined = crisis.quarantinedCityIds?.includes(city.id) ?? false;
     const remedyCompletionTurn = crisis.remedyCompletionByCity?.[city.id];
     const remedyPending = remedyCompletionTurn !== undefined;
+    // #526 MR7 sabotage_relief: while an unexpired sabotage holds this crisis, the
+    // scheduler (crisis-system.ts) freezes remedyCompletionByCity rather than clearing
+    // it -- the affected player still deserves an honest status line instead of a
+    // "cured in 0 turns" countdown that never resolves. Undiscovered sabotage names no
+    // one (matching "undiscovered: no penalty/notification" -- the saboteur stays
+    // anonymous); once discovered, the target already knows via the reputation hit and
+    // witnessed notification, so naming them here is consistent, not a new leak.
+    const sabotaged = crisis.sabotage !== undefined && crisis.sabotage.untilTurn > state.turn;
+    const sabotageDiscoveredBy = sabotaged && crisis.sabotage!.discovered
+      ? state.civilizations[crisis.sabotage!.byCivId]?.name ?? null
+      : null;
     const remedyCost = getCityAppeaseCost(city);
     const canAffordRemedy = (civ?.gold ?? 0) >= remedyCost;
     const yieldPenaltyPct = Math.round(severity.yieldPenalty * 100);
@@ -335,7 +346,7 @@ export function createCityPanel(
         : `Remedy (${remedyCost} gold)`;
 
     return {
-      crisis, flavor, isQuarantined, remedyPending, remedyCompletionTurn,
+      crisis, flavor, isQuarantined, remedyPending, remedyCompletionTurn, sabotaged, sabotageDiscoveredBy,
       yieldPenaltyPct, quarantinedPenaltyPct,
       quarantineDisabled, quarantineLabel, remedyDisabled, remedyLabel,
     };
@@ -817,7 +828,11 @@ export function createCityPanel(
 
   crisisChips.forEach((chip, idx) => {
     const displayName = getCrisisDisplayName(chip.flavor, state.era);
-    const stageText = chip.remedyPending
+    const stageText = chip.sabotaged
+      ? chip.sabotageDiscoveredBy
+        ? `Remedy underway — ${chip.sabotageDiscoveredBy}'s spies were caught disrupting relief!`
+        : 'Remedy underway — relief efforts have been mysteriously disrupted'
+      : chip.remedyPending
       ? `Remedy underway — cured in ${Math.max(0, chip.remedyCompletionTurn! - state.turn)} turn${Math.max(0, chip.remedyCompletionTurn! - state.turn) === 1 ? '' : 's'}`
       : chip.isQuarantined
         ? `Quarantined — spread stopped, −${chip.quarantinedPenaltyPct}% yields`

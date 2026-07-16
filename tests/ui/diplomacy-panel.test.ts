@@ -726,6 +726,33 @@ describe('diplomacy-panel world-pressure crisis status line (#526 MR5 Task 5.3)'
     const second = render();
     expect(second.textContent).not.toContain('Suffering:');
   });
+
+  // #526 MR7 Task 7.1: exploit_weakness intel detail line.
+  it('shows the intel detail line when the viewer has diplomatic-networks', () => {
+    const { container, state } = makeDiplomacyFixture({ currentPlayer: 'player', includeThirdCiv: true });
+    state.settings.aiPressureVisibility = true;
+    state.civilizations.player.knownCivilizations = ['outsider'];
+    state.civilizations.player.techState.completed = ['diplomatic-networks'];
+    addOutsiderCrisis(state);
+    state.cities['outsider-city'].name = 'Alexandria';
+
+    const panel = createDiplomacyPanel(container, state, { onAction: () => {}, onClose: () => {} });
+
+    expect(panel.textContent).toContain('Alexandria');
+  });
+
+  it('omits the intel detail line when the viewer lacks diplomatic-networks (negative)', () => {
+    const { container, state } = makeDiplomacyFixture({ currentPlayer: 'player', includeThirdCiv: true });
+    state.settings.aiPressureVisibility = true;
+    state.civilizations.player.knownCivilizations = ['outsider'];
+    state.civilizations.player.techState.completed = [];
+    addOutsiderCrisis(state);
+    state.cities['outsider-city'].name = 'Alexandria';
+
+    const panel = createDiplomacyPanel(container, state, { onAction: () => {}, onClose: () => {} });
+
+    expect(panel.textContent).not.toContain('Alexandria');
+  });
 });
 
 describe('diplomacy-panel Send Aid button (#526 MR6 Task 6.3)', () => {

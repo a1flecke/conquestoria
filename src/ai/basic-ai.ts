@@ -1227,7 +1227,11 @@ function processAITurnInternal(
     const civEspForMission = newState.espionage?.[civId];
     if (civEspForMission) {
       const completedTechs = newState.civilizations[civId].techState.completed ?? [];
-      const infiltrationMissions = getAvailableMissions(completedTechs).filter(m => m !== 'scout_area');
+      // #526 MR7 review fix: this random-pick infiltration-mission path bypasses
+      // chooseAiMission entirely, so its own sabotage_relief exclusion (human-initiated
+      // only, per spec §Interactions) never applied here -- excluded separately.
+      const infiltrationMissions = getAvailableMissions(completedTechs)
+        .filter(m => m !== 'scout_area' && m !== 'sabotage_relief');
       if (infiltrationMissions.length > 0) {
         for (const spy of Object.values(civEspForMission.spies)) {
           if (spy.status !== 'stationed' || !spy.infiltrationCityId || spy.currentMission) continue;

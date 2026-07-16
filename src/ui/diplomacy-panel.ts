@@ -84,6 +84,9 @@ interface CivRowData {
   atWar: boolean;
   warSinceText: string | null;
   worldPressureStatusText: string | null;
+  // #526 MR7 Task 7.1: exploit_weakness intel (severity + infected cities), gated on
+  // the viewer's own diplomatic-networks -- see world-pressure-presentation.ts.
+  worldPressureDetailText: string | null;
   sendAidCrisisId: string | null;
   sendAidLabel: string | null;
   sendAidHelpText: string | null;
@@ -259,6 +262,7 @@ export function createDiplomacyPanel(
       atWar,
       warSinceText,
       worldPressureStatusText: worldPressureLine?.text ?? null,
+      worldPressureDetailText: worldPressureLine?.detail ?? null,
       sendAidCrisisId,
       sendAidLabel,
       sendAidHelpText,
@@ -379,6 +383,12 @@ export function createDiplomacyPanel(
       ? `<div style="font-size:11px;color:#e88;margin-bottom:8px;" data-text="world-pressure-${row.civIdx}"></div>`
       : '';
 
+    // #526 MR7 Task 7.1: exploit_weakness intel detail line, immediately below the base
+    // status line -- only present at all when the viewer has diplomatic-networks.
+    const worldPressureDetailHtml = row.worldPressureDetailText
+      ? `<div style="font-size:10px;opacity:0.75;margin-bottom:8px;" data-text="world-pressure-detail-${row.civIdx}"></div>`
+      : '';
+
     const sendAidHtml = row.sendAidCrisisId
       ? `<div style="margin-bottom:8px;">
           <div style="font-size:10px;opacity:0.75;margin-bottom:4px;" data-text="send-aid-help-${row.civIdx}"></div>
@@ -409,6 +419,7 @@ export function createDiplomacyPanel(
             <div style="font-size:11px;opacity:0.6;"><span data-text="civ-bonus-${row.civIdx}"></span> · <span data-text="civ-status-${row.civIdx}"></span></div>
             ${warSinceHtml}
             ${worldPressureHtml}
+            ${worldPressureDetailHtml}
             ${treatyProposalsHtml}
           </div>
         </div>
@@ -490,6 +501,9 @@ export function createDiplomacyPanel(
     }
     if (row.worldPressureStatusText) {
       setText(`world-pressure-${row.civIdx}`, row.worldPressureStatusText);
+    }
+    if (row.worldPressureDetailText) {
+      setText(`world-pressure-detail-${row.civIdx}`, row.worldPressureDetailText);
     }
     if (row.sendAidCrisisId) {
       setText(`send-aid-help-${row.civIdx}`, row.sendAidHelpText ?? '');
