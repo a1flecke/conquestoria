@@ -21,7 +21,11 @@ import {
   ESPIONAGE_SUCCESS_CHANCE_MIN,
 } from './espionage-modifier-definitions';
 import { resolveWorldPressureFlags } from './world-pressure-flags';
-import { hasMetCivilization } from './discovery-system';
+import {
+  getActiveCrisisForCiv,
+  getCrisisInteractionDefinition,
+  applyInteractionReputation,
+} from './crisis-interaction-definitions'; // leaf module -- see its header comment for why not crisis-interaction-system.ts
 
 const SPY_NAMES = [
   'Shadow', 'Whisper', 'Ghost', 'Cipher', 'Raven',
@@ -741,15 +745,9 @@ export function resolveMissionResult(
     // no sabotage already in place ("one active sabotage per crisis, across all
     // actors") -- catastrophe crises have no remedy timer to pause. Flag-gated the same
     // way canSendAid gates send_aid: 'off'/'benign' keep this hook dark.
-    // Crisis lookup is inlined (not imported from crisis-interaction-system.ts) -- that
-    // module imports faction-system.ts, which imports city-system.ts, which imports
-    // isSpyUnitType FROM this file; importing crisis-interaction-system.ts here would
-    // close that loop into a genuine ESM circular-import (verified: it breaks
-    // city-territory-system.ts's top-level `Object.values(BUILDINGS)`).
     case 'sabotage_relief': {
       if (resolveWorldPressureFlags(gameState.settings).aiCrisisInteractions !== 'full') return {};
-      const crisis = Object.values(gameState.activeCrises ?? {})
-        .find(c => c.targetCivId === targetCivId && c.archetype === 'outbreak');
+      const crisis = getActiveCrisisForCiv(gameState, targetCivId, 'outbreak');
       if (!crisis || crisis.sabotage) return {};
       return { sabotageCrisisId: crisis.id };
     }
@@ -1341,20 +1339,9 @@ export function processEspionageTurn(state: GameState, bus: EventBus): GameState
                 },
               };
               if (discovered) {
-                // Bilateral actor<->target (-25) and actor<->witness (-8) deltas --
-                // mirrors crisis-interaction-system.ts's sabotage_relief row (-25/-8)
-                // and applyInteractionReputation's witness rule (met BOTH parties),
-                // inlined rather than imported to avoid the circular-import noted above.
-                if (state.civilizations[civId] && state.civilizations[targetCivId]) {
-                  state.civilizations[civId].diplomacy = modifyRelationship(state.civilizations[civId].diplomacy, targetCivId, -25);
-                  state.civilizations[targetCivId].diplomacy = modifyRelationship(state.civilizations[targetCivId].diplomacy, civId, -25);
-                }
-                for (const witnessId of Object.keys(state.civilizations)) {
-                  if (witnessId === civId || witnessId === targetCivId) continue;
-                  if (!hasMetCivilization(state, witnessId, civId) || !hasMetCivilization(state, witnessId, targetCivId)) continue;
-                  state.civilizations[civId].diplomacy = modifyRelationship(state.civilizations[civId].diplomacy, witnessId, -8);
-                  state.civilizations[witnessId].diplomacy = modifyRelationship(state.civilizations[witnessId].diplomacy, civId, -8);
-                }
+                state = applyInteractionReputation(
+                  state, civId, targetCivId, getCrisisInteractionDefinition('sabotage_relief')!,
+                );
                 bus.emit('espionage:sabotage-relief-discovered', { crisisId, actorCivId: civId, targetCivId });
               }
             }

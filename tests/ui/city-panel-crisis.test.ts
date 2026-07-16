@@ -141,6 +141,67 @@ describe('city-panel crisis chip', () => {
     expect(panel.querySelector('[data-quarantine-crisis]')).toBeNull();
     expect(panel.querySelector('[data-remedy-crisis]')).toBeNull();
   });
+
+  // #526 MR7 Task 7.2 review fix: a scheduled remedy frozen by an active sabotage must
+  // not show a stale/wrong "cured in 0 turns" countdown -- the target still deserves an
+  // honest status line even though the saboteur stays anonymous while undiscovered.
+  // Fixture state.turn is 40 (tests/systems/helpers/legendary-wonder-fixture.ts).
+  it('shows an anonymous "disrupted" status instead of a stale countdown while an undiscovered sabotage is active', () => {
+    const { container, city, state } = withPlagueCrisis({
+      remedyCompletionByCity: { 'city-river': 40 }, // already at/past its natural completion turn
+      sabotage: { byCivId: 'saboteur', untilTurn: 44, discovered: false }, // still active (turn 40 < 44)
+    });
+    state.civilizations[city.owner].gold = 1000;
+
+    const panel = createCityPanel(container, city, state, {
+      onBuild: () => {},
+      onOpenWonderPanel: () => {},
+      onClose: () => {},
+      onQuarantineCrisis: vi.fn(() => state),
+      onRemedyCrisis: vi.fn(() => state),
+    });
+
+    expect(panel.textContent).toContain('mysteriously disrupted');
+    expect(panel.textContent).not.toContain('cured in 0 turns');
+  });
+
+  it('names the saboteur once the sabotage has been discovered', () => {
+    const { container, city, state } = withPlagueCrisis({
+      remedyCompletionByCity: { 'city-river': 40 },
+      sabotage: { byCivId: 'saboteur', untilTurn: 100, discovered: true },
+    });
+    state.civilizations[city.owner].gold = 1000;
+    state.civilizations.saboteur = { ...state.civilizations[city.owner], id: 'saboteur', name: 'Carthage' };
+
+    const panel = createCityPanel(container, city, state, {
+      onBuild: () => {},
+      onOpenWonderPanel: () => {},
+      onClose: () => {},
+      onQuarantineCrisis: vi.fn(() => state),
+      onRemedyCrisis: vi.fn(() => state),
+    });
+
+    expect(panel.textContent).toContain("Carthage's spies were caught disrupting relief!");
+  });
+
+  it('shows the normal countdown once the sabotage window has passed (resumed)', () => {
+    const { container, city, state } = withPlagueCrisis({
+      remedyCompletionByCity: { 'city-river': 42 }, // 2 turns from now
+      sabotage: { byCivId: 'saboteur', untilTurn: 39, discovered: false }, // already expired (turn 40 >= 39)
+    });
+    state.civilizations[city.owner].gold = 1000;
+
+    const panel = createCityPanel(container, city, state, {
+      onBuild: () => {},
+      onOpenWonderPanel: () => {},
+      onClose: () => {},
+      onQuarantineCrisis: vi.fn(() => state),
+      onRemedyCrisis: vi.fn(() => state),
+    });
+
+    expect(panel.textContent).toContain('cured in 2 turns');
+    expect(panel.textContent).not.toContain('mysteriously disrupted');
+  });
 });
 
 describe('city-panel catastrophe chip (MR2)', () => {
