@@ -96,6 +96,17 @@ describe('unit occupancy', () => {
     expect(getUnitIdsAtCoord(occupancy, { q: 2, r: 0 })).toEqual(['enemy']);
   });
 
+  it('does not count based aircraft as occupying their host coordinate', () => {
+    const occupancy = buildUnitOccupancy({
+      air: unit('air', 'player', 1, 0, {
+        type: 'biplane', airBase: { kind: 'city', cityId: 'city-1' },
+      }),
+      ground: unit('ground', 'player', 1, 0),
+    });
+
+    expect(getUnitIdsAtCoord(occupancy, { q: 1, r: 0 })).toEqual(['ground']);
+  });
+
   it('sorts stack picker rows by ready state, current unit, name, then id', () => {
     const units = [
       unit('worker-2', 'player', 0, 0, { type: 'worker', movementPointsLeft: 0 }),

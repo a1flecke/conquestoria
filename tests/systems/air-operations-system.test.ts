@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { UNIT_DEFINITIONS } from '@/systems/unit-system';
 import { TRAINABLE_UNITS } from '@/systems/city-system';
+import { getAirBaseCapacity, getAirBaseRoster, isBasedAirUnit } from '@/systems/air-operations-system';
+import type { GameState, Unit } from '@/core/types';
 
 describe('air-operation definitions', () => {
   it('gives every based aircraft its approved base, range, and mission contract', () => {
@@ -28,5 +30,25 @@ describe('air-operation definitions', () => {
     expect(TRAINABLE_UNITS.find(unit => unit.type === ('recon_aircraft' as any))).toMatchObject({
       techRequired: 'jet-aviation',
     });
+  });
+});
+
+describe('air bases', () => {
+  const biplane: Unit = {
+    id: 'air-1', type: 'biplane', owner: 'player', position: { q: 2, r: 2 },
+    movementPointsLeft: 4, health: 100, experience: 0, hasMoved: false, hasActed: false,
+    isResting: false, airBase: { kind: 'city', cityId: 'city-1' },
+  };
+  const state = {
+    units: { 'air-1': biplane },
+    cities: { 'city-1': { id: 'city-1', owner: 'player', position: { q: 2, r: 2 }, buildings: ['airfield'] } },
+    builtNationalProjects: {},
+  } as unknown as GameState;
+
+  it('derives the city roster and Airfield capacity from state', () => {
+    expect(isBasedAirUnit(biplane)).toBe(true);
+    expect(getAirBaseRoster(state, { kind: 'city', cityId: 'city-1' }).map(unit => unit.id)).toEqual(['air-1']);
+    expect(getAirBaseCapacity(state, { kind: 'city', cityId: 'city-1' })).toBe(3);
+    expect(getAirBaseCapacity({ ...state, builtNationalProjects: { 'player:air_force_command': { civId: 'player', buildingId: 'air_force_command' } } }, { kind: 'city', cityId: 'city-1' })).toBe(4);
   });
 });

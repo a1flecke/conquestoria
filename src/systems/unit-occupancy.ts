@@ -1,6 +1,7 @@
 import type { HexCoord, Unit } from '@/core/types';
 import { hexKey } from '@/systems/hex-utils';
 import { UNIT_DEFINITIONS } from '@/systems/unit-system';
+import { isBasedAirUnit } from '@/systems/air-operations-system';
 
 export interface UnitOccupancyIndex {
   unitIdsByHex: Record<string, string[]>;
@@ -20,7 +21,7 @@ export function buildUnitOccupancy(units: Record<string, Unit>): UnitOccupancyIn
   const ownersByUnitId: Record<string, string> = {};
 
   for (const [unitId, unit] of Object.entries(units)) {
-    if (unit.transportId) continue;
+    if (unit.transportId || isBasedAirUnit(unit)) continue;
     const key = hexKey(unit.position);
     unitIdsByHex[key] ??= [];
     unitIdsByHex[key].push(unitId);
