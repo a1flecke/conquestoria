@@ -1,10 +1,14 @@
-import type { AirBaseRef, GameState, Unit } from '@/core/types';
+import type { AirBaseRef, GameState, Unit, UnitType } from '@/core/types';
 import { hexDistance, wrappedHexDistance } from './hex-utils';
 import { UNIT_DEFINITIONS } from './unit-system';
 
 export type AirOperationResult =
   | { ok: true; state: GameState }
   | { ok: false; state: GameState; reason: string };
+
+export type AirBaseCheck =
+  | { ok: true; base: Extract<AirBaseRef, { kind: 'city' }> }
+  | { ok: false; reason: 'not-based-aircraft' | 'base-missing' | 'incompatible-base' | 'base-full' };
 
 export function isBasedAirUnit(unit: Unit): boolean {
   return unit.airBase !== undefined;
@@ -32,6 +36,27 @@ export function getAirBaseCapacity(state: GameState, base: AirBaseRef): number {
   if (city.buildings.includes('helicopter_base')) return 2;
   if (city.buildings.includes('stealth_airbase')) return 2;
   return 0;
+}
+
+export function canCompleteAirUnitProduction(state: GameState, cityId: string, type: UnitType): AirBaseCheck {
+  const definition = UNIT_DEFINITIONS[type].airOperation;
+  if (!definition) return { ok: false, reason: 'not-based-aircraft' };
+  const city = state.cities[cityId];
+  if (!city) return { ok: false, reason: 'base-missing' };
+  const base: Extract<AirBaseRef, { kind: 'city' }> = { kind: 'city', cityId };
+  if (!isCompatibleBase(state, { type } as Unit, base)) return { ok: false, reason: 'incompatible-base' };
+  if (getAirBaseRoster(state, base).length >= getAirBaseCapacity(state, base)) return { ok: false, reason: 'base-full' };
+  return { ok: true, base };
+}
+
+export function baseNewAirUnit(state: GameState, cityId: string, unit: Unit): AirOperationResult {
+  const check = canCompleteAirUnitProduction(state, cityId, unit.type);
+  if (!check.ok) return { ok: false, state, reason: check.reason };
+  const city = state.cities[cityId]!;
+  return {
+    ok: true,
+    state: { ...state, units: { ...state.units, [unit.id]: { ...unit, airBase: check.base, position: { ...city.position } } } },
+  };
 }
 
 function getAirBaseOwner(state: GameState, base: AirBaseRef): string | undefined {

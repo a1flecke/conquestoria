@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { UNIT_DEFINITIONS } from '@/systems/unit-system';
 import { TRAINABLE_UNITS } from '@/systems/city-system';
-import { getAirBaseCapacity, getAirBaseRoster, getLegalRebaseDestinations, isBasedAirUnit, rebaseAircraft, syncCarrierBasedAircraft } from '@/systems/air-operations-system';
+import { baseNewAirUnit, canCompleteAirUnitProduction, getAirBaseCapacity, getAirBaseRoster, getLegalRebaseDestinations, isBasedAirUnit, rebaseAircraft, syncCarrierBasedAircraft } from '@/systems/air-operations-system';
 import type { GameState, Unit } from '@/core/types';
 
 describe('air-operation definitions', () => {
@@ -50,6 +50,18 @@ describe('air bases', () => {
     expect(getAirBaseRoster(state, { kind: 'city', cityId: 'city-1' }).map(unit => unit.id)).toEqual(['air-1']);
     expect(getAirBaseCapacity(state, { kind: 'city', cityId: 'city-1' })).toBe(3);
     expect(getAirBaseCapacity({ ...state, builtNationalProjects: { 'player:air_force_command': { civId: 'player', buildingId: 'air_force_command' } } }, { kind: 'city', cityId: 'city-1' })).toBe(4);
+  });
+
+  it('lands a newly trained aircraft in the producing city only when its compatible base has capacity', () => {
+    const newAircraft = { ...biplane, id: 'air-2', airBase: undefined };
+
+    expect(canCompleteAirUnitProduction(state, 'city-1', 'biplane')).toEqual({ ok: true, base: { kind: 'city', cityId: 'city-1' } });
+    expect(baseNewAirUnit(state, 'city-1', newAircraft)).toMatchObject({
+      ok: true,
+      state: { units: { 'air-2': { airBase: { kind: 'city', cityId: 'city-1' }, position: { q: 2, r: 2 } } } },
+    });
+    const full = { ...state, units: { ...state.units, second: { ...biplane, id: 'second' }, third: { ...biplane, id: 'third' } } };
+    expect(canCompleteAirUnitProduction(full, 'city-1', 'biplane')).toEqual({ ok: false, reason: 'base-full' });
   });
 
   it('rebases a based aircraft to a compatible friendly base within ferry range', () => {

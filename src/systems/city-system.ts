@@ -1117,17 +1117,17 @@ export const TRAINABLE_UNITS: Array<TrainableUnitEntry & { pacing?: Building['pa
   { type: 'tank',      name: 'Tank',      cost: 185, techRequired: 'tank-warfare',                                                                                  pacing: { band: 'power-spike', role: 'armored-assault',     impact: 1.5,  scope: 'military', snowball: 1.4, urgency: 1.2, situationality: 1.3, unlockBreadth: 1 } },
   { type: 'submarine', name: 'Submarine', cost: 180, techRequired: 'submarine-warfare', coastalRequired: true,                                                      pacing: { band: 'power-spike', role: 'naval-stealth',        impact: 1.5,  scope: 'military', snowball: 1.4, urgency: 1.2, situationality: 1.5, unlockBreadth: 1 } },
   { type: 'observation_balloon', name: 'Observation Balloon', cost: 144,  techRequired: 'balloon-corps',   pacing: { band: 'power-spike', role: 'air-recon',  impact: 1.2, scope: 'military', snowball: 1.0, urgency: 1.0, situationality: 1.4, unlockBreadth: 1 } },
-  { type: 'biplane',             name: 'Biplane',             cost: 200, techRequired: 'air-superiority', obsoletedByTech: 'jet-aviation', upgradesTo: 'jet_fighter', pacing: { band: 'power-spike', role: 'air-strike', impact: 1.5, scope: 'military', snowball: 1.4, urgency: 1.2, situationality: 1.3, unlockBreadth: 1 } },
+  { type: 'biplane',             name: 'Biplane',             cost: 200, techRequired: 'air-superiority', trainedFromBuilding: 'airfield', obsoletedByTech: 'jet-aviation', upgradesTo: 'jet_fighter', pacing: { band: 'power-spike', role: 'air-strike', impact: 1.5, scope: 'military', snowball: 1.4, urgency: 1.2, situationality: 1.3, unlockBreadth: 1 } },
   // jet_fighter is the terminal air-superiority fighter; the bomber (below) is the strike line,
   // not a fighter upgrade — researching stealth tech without a Stealth Airbase must not zero out
   // trainable air units.
-  { type: 'jet_fighter',         name: 'Jet Fighter',         cost: 300, techRequired: 'jet-aviation',    pacing: { band: 'marquee',      role: 'air-apex',   impact: 1.6, scope: 'military', snowball: 1.5, urgency: 1.2, situationality: 1.3, unlockBreadth: 1 } },
-  { type: 'recon_aircraft',      name: 'Recon Aircraft',      cost: 290, techRequired: 'jet-aviation',    pacing: { band: 'power-spike',  role: 'air-recon',  impact: 1.35, scope: 'military', snowball: 1.1, urgency: 1.1, situationality: 1.4, unlockBreadth: 1 } },
-  { type: 'bomber',              name: 'Bomber',              cost: 280, techRequired: 'nuclear-weapons', obsoletedByTech: 'stealth-technology', upgradesTo: 'stealth_bomber', pacing: { band: 'marquee', role: 'strategic-bombing', impact: 1.6, scope: 'military', snowball: 1.4, urgency: 1.2, situationality: 1.4, unlockBreadth: 1 } },
+  { type: 'jet_fighter',         name: 'Jet Fighter',         cost: 300, techRequired: 'jet-aviation',    trainedFromBuilding: 'airfield', pacing: { band: 'marquee',      role: 'air-apex',   impact: 1.6, scope: 'military', snowball: 1.5, urgency: 1.2, situationality: 1.3, unlockBreadth: 1 } },
+  { type: 'recon_aircraft',      name: 'Recon Aircraft',      cost: 290, techRequired: 'jet-aviation',    trainedFromBuilding: 'airfield', pacing: { band: 'power-spike',  role: 'air-recon',  impact: 1.35, scope: 'military', snowball: 1.1, urgency: 1.1, situationality: 1.4, unlockBreadth: 1 } },
+  { type: 'bomber',              name: 'Bomber',              cost: 280, techRequired: 'nuclear-weapons', trainedFromBuilding: 'airfield', obsoletedByTech: 'stealth-technology', upgradesTo: 'stealth_bomber', pacing: { band: 'marquee', role: 'strategic-bombing', impact: 1.6, scope: 'military', snowball: 1.4, urgency: 1.2, situationality: 1.4, unlockBreadth: 1 } },
   { type: 'carrier',             name: 'Carrier',             cost: 220, techRequired: 'carrier-warfare', coastalRequired: true, pacing: { band: 'power-spike', role: 'naval-projection', impact: 1.5, scope: 'military', snowball: 1.4, urgency: 1.1, situationality: 1.4, unlockBreadth: 1 } },
   { type: 'destroyer',           name: 'Destroyer',           cost: 210, techRequired: 'carrier-warfare', coastalRequired: true, pacing: { band: 'power-spike', role: 'naval-escort-apex', impact: 1.55, scope: 'military', snowball: 1.45, urgency: 1.2, situationality: 1.5, unlockBreadth: 1 } },
   // Era 11 units
-  { type: 'attack_helicopter', name: 'Attack Helicopter', cost: 230, techRequired: 'helicopter-warfare', pacing: { band: 'marquee', role: 'air-assault', impact: 1.55, scope: 'military', snowball: 1.4, urgency: 1.2, situationality: 1.3, unlockBreadth: 1 } },
+  { type: 'attack_helicopter', name: 'Attack Helicopter', cost: 230, techRequired: 'helicopter-warfare', trainedFromBuilding: 'helicopter_base', pacing: { band: 'marquee', role: 'air-assault', impact: 1.55, scope: 'military', snowball: 1.4, urgency: 1.2, situationality: 1.3, unlockBreadth: 1 } },
   { type: 'missile_submarine', name: 'Missile Submarine', cost: 250, techRequired: 'nuclear-submarines', coastalRequired: true, resourceRequired: ['uranium'], pacing: { band: 'marquee', role: 'naval-deterrent', impact: 1.6, scope: 'military', snowball: 1.5, urgency: 1.2, situationality: 1.5, unlockBreadth: 1 } },
   // Era 12 units
   { type: 'cyber_unit', name: 'Cyber Unit', cost: 338, techRequired: 'cyber-warfare', pacing: { band: 'marquee', role: 'cyber-saboteur', impact: 1.4, scope: 'military', snowball: 1.2, urgency: 1.1, situationality: 1.4, unlockBreadth: 1 } },
@@ -1852,6 +1852,7 @@ export function processCity(
   era: number = 1,
   availableResources?: Set<ResourceType>,
   builtNationalProjectKeys?: Set<string>,
+  unitCompletionBlocker?: (type: UnitType) => ProductionDropReason | null,
 ): CityProcessResult {
   let grew = false;
   let completedBuilding: string | null = null;
@@ -1973,6 +1974,13 @@ export function processCity(
       const dropped = newQueue.shift() as UnitType;
       droppedProductionItems.push({ itemId: dropped, itemKind: 'unit', reason: 'training-building-missing' });
       newProgress = 0;
+    } else if (headUnit) {
+      const blocker = unitCompletionBlocker?.(headUnit.type);
+      if (blocker) {
+        const dropped = newQueue.shift() as UnitType;
+        droppedProductionItems.push({ itemId: dropped, itemKind: 'unit', reason: blocker });
+        newProgress = 0;
+      }
     }
   }
 
