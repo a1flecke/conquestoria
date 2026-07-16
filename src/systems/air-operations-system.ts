@@ -92,3 +92,17 @@ export function rebaseAircraft(state: GameState, unitId: string, destination: Ai
     state: { ...state, units: { ...state.units, [unitId]: { ...unit, airBase: destination, position: { ...position }, movementPointsLeft: 0, hasMoved: true, hasActed: true, airMission: undefined } } },
   };
 }
+
+export function syncCarrierBasedAircraft(state: GameState, carrierId: string): GameState {
+  const carrier = state.units[carrierId];
+  if (!carrier || carrier.type !== 'carrier') return state;
+  let changed = false;
+  const units = { ...state.units };
+  for (const unit of Object.values(units)) {
+    if (unit.airBase?.kind !== 'carrier' || unit.airBase.unitId !== carrierId) continue;
+    if (unit.position.q === carrier.position.q && unit.position.r === carrier.position.r) continue;
+    units[unit.id] = { ...unit, position: { ...carrier.position } };
+    changed = true;
+  }
+  return changed ? { ...state, units } : state;
+}

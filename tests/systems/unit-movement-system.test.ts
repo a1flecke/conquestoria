@@ -492,6 +492,21 @@ describe('unit-movement-system', () => {
     expect(state.units.cargo.position).toEqual({ q: 1, r: 0 });
   });
 
+  it('syncs based aircraft positions after a Carrier move', () => {
+    const carrier = createUnit('carrier', 'player', { q: 0, r: 0 }, mkC());
+    carrier.id = 'carrier';
+    const aircraft = createUnit('biplane', 'player', { q: 0, r: 0 }, mkC());
+    aircraft.id = 'aircraft';
+    aircraft.airBase = { kind: 'carrier', unitId: 'carrier' };
+    const state = movementState(carrier, [
+      tile({ q: 0, r: 0 }, 'coast'),
+      tile({ q: 1, r: 0 }, 'coast'),
+    ], { completedTechs: ['galleys'], extraUnits: [aircraft] });
+
+    expect(executeUnitMove(state, 'carrier', { q: 1, r: 0 }, { actor: 'player', civId: 'player' })).toMatchObject({ ok: true });
+    expect(state.units.aircraft.position).toEqual({ q: 1, r: 0 });
+  });
+
   it('applies village rewards and removes the village when automation enters it', () => {
     const { state, unitId, villageId } = makeAutoExploreFixture({ villageNorth: true, safeFogNorth: true });
 

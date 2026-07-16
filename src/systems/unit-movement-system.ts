@@ -22,6 +22,7 @@ import { isAtWar } from '@/systems/diplomacy-system';
 import { removeRouteForUnit } from '@/systems/trade-system';
 import { buildUnitOccupancy, getUnitIdsAtCoord } from '@/systems/unit-occupancy';
 import { syncTransportCargoPositions } from '@/systems/transport-system';
+import { syncCarrierBasedAircraft } from '@/systems/air-operations-system';
 import { buildMovePresentationByViewer } from '@/systems/viewer-event-presentation';
 
 export type ExecuteUnitMoveOptions =
@@ -150,6 +151,10 @@ export function executeUnitMove(
   };
   if (unit.type === 'transport') {
     const synced = syncTransportCargoPositions(state, unitId);
+    state.units = synced.units;
+  }
+  if (unit.type === 'carrier') {
+    const synced = syncCarrierBasedAircraft(state, unitId);
     state.units = synced.units;
   }
   const networkCleanup = cancelInvalidNetworkPlans(state);
