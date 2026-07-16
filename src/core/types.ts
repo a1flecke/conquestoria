@@ -770,7 +770,9 @@ export type SpyMissionType =
   | 'cyber_attack'
   | 'misinformation_campaign'
   | 'election_interference'
-  | 'satellite_surveillance';
+  | 'satellite_surveillance'
+  // covert-operations tech (#526 MR7): human-initiated only, see chooseAiMission
+  | 'sabotage_relief';     // pause a rival's outbreak remedy for 4 turns; witnessed on discovery
 
 export interface SpyMission {
   type: SpyMissionType;
@@ -1713,6 +1715,10 @@ export interface GameEvents {
   'game:loaded': { turn: number };
   'game:over': { winnerId: string };
   'diplomacy:war-declared': { attackerId: string; defenderId: string; opponentKind: 'major' | 'minor' | 'barbarian' };
+  // #526 MR7 Task 7.1: fired alongside diplomacy:war-declared whenever the declared-upon
+  // civ has an active crisis -- applyOpportunisticWarPenaltyIfCrisisStruck already applied
+  // the reputation deltas by the time this fires.
+  'diplomacy:opportunistic-war': { actorId: string; targetCivId: string; crisisId: string };
   'diplomacy:peace-requested': { fromCivId: string; toCivId: string };
   'diplomacy:peace-made': { civA: string; civB: string };
   'era:advanced': { era: number };
@@ -1825,6 +1831,10 @@ export interface GameEvents {
   'crisis:foe-hunted-by-ally': { crisisId: string; killerCivId: string; targetCivId: string; foeName?: string };
   // #526 MR6 send_aid interaction.
   'crisis:aid-sent': { crisisId: string; actorCivId: string; targetCivId: string; goldCost: number };
+  // #526 MR7 sabotage_relief: fired only when the covert sabotage is discovered (the
+  // detection roll at mission-success time) -- an undiscovered sabotage fires nothing,
+  // per spec §Interactions "Undiscovered: no penalty."
+  'espionage:sabotage-relief-discovered': { crisisId: string; actorCivId: string; targetCivId: string };
 }
 
 // --- Crisis Events & Revolutionary Movements ---
@@ -1849,4 +1859,6 @@ export interface ActiveCrisis {
   foeName?: string;
   lastHuntKillerCivId?: string;
   aidedByCivIds?: string[]; // #526 MR6 send_aid: enforces once-per-crisis-per-actor
+  // #526 MR7 sabotage_relief: one active sabotage per crisis, across all actors.
+  sabotage?: { byCivId: string; untilTurn: number; discovered: boolean };
 }

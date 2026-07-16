@@ -174,6 +174,21 @@ describe('AI espionage decisions', () => {
       const mission = chooseAiMission(state, 'ai-egypt');
       expect(mission).toBeNull();
     });
+
+    // #526 MR7: sabotage_relief is human-initiated only in this arc.
+    it('never chooses sabotage_relief, even when it is the only mission covert-operations unlocks', () => {
+      const state = makeAiTestState();
+      state.civilizations['ai-egypt'].techState.completed = ['covert-operations'];
+      const mission = chooseAiMission(state, 'ai-egypt');
+      expect(mission).toBeNull();
+    });
+
+    it('never chooses sabotage_relief even when it would otherwise sort first among available missions', () => {
+      const state = makeAiTestState();
+      state.civilizations['ai-egypt'].techState.completed = ['covert-operations', 'espionage-scouting'];
+      const mission = chooseAiMission(state, 'ai-egypt');
+      expect(mission).not.toBe('sabotage_relief');
+    });
   });
 });
 

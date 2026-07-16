@@ -86,6 +86,7 @@ const MISSION_LABELS: Record<SpyMissionType, string> = {
   misinformation_campaign: 'Misinformation Campaign',
   election_interference: 'Election Interference',
   satellite_surveillance: 'Satellite Surveillance',
+  sabotage_relief: 'Sabotage Relief',
 };
 
 const MISSION_STAGE: Record<SpyMissionType, 1 | 2 | 3 | 4 | 5> = {
@@ -106,6 +107,7 @@ const MISSION_STAGE: Record<SpyMissionType, 1 | 2 | 3 | 4 | 5> = {
   misinformation_campaign: 5,
   election_interference: 5,
   satellite_surveillance: 5,
+  sabotage_relief: 5, // covert-operations is era 7, same UI bucket as the other era 5-7 missions
 };
 
 function toMissionCatalog(missions: SpyMissionType[]): MissionCatalogEntry[] {

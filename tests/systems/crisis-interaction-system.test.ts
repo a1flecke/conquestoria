@@ -9,6 +9,8 @@ import {
   resolveInteractionTechRequired,
   getWitnessCivIds,
   applyInteractionReputation,
+  applyOpportunisticWarPenaltyIfCrisisStruck,
+  getActiveCrisisForCiv,
   canSendAid,
   applySendAid,
 } from '@/systems/crisis-interaction-system';
@@ -32,9 +34,24 @@ function threeCivState(overrides: Partial<GameState> = {}): GameState {
 }
 
 describe('CRISIS_INTERACTION_DEFINITIONS', () => {
-  it('ships hunt_their_foe and send_aid as the MR6 rows', () => {
+  it('ships hunt_their_foe, send_aid, exploit_weakness, and sabotage_relief rows', () => {
     const ids = CRISIS_INTERACTION_DEFINITIONS.map(def => def.id);
-    expect(ids).toEqual(['hunt_their_foe', 'send_aid']);
+    expect(ids).toEqual(['hunt_their_foe', 'send_aid', 'exploit_weakness', 'sabotage_relief']);
+  });
+
+  it('exploit_weakness deltas are -15 target / -8 witness (MR7)', () => {
+    const def = getCrisisInteractionDefinition('exploit_weakness')!;
+    expect(def.targetReputationDelta).toBe(-15);
+    expect(def.witnessReputationDelta).toBe(-8);
+    expect(def.techRequired).toBe('diplomatic-networks');
+  });
+
+  it('sabotage_relief deltas are -25 target / -8 witness (MR7)', () => {
+    const def = getCrisisInteractionDefinition('sabotage_relief')!;
+    expect(def.targetReputationDelta).toBe(-25);
+    expect(def.witnessReputationDelta).toBe(-8);
+    expect(def.techRequired).toBe('covert-operations');
+    expect(def.kind).toBe('covert');
   });
 
   it('hunt_their_foe requires no tech', () => {
@@ -260,5 +277,86 @@ describe('applySendAid', () => {
     const next = applySendAid(state, 'civA', crisisId, new EventBus());
     expect(next.civilizations.civA.diplomacy.relationships.civB).toBe(15);
     expect(next.civilizations.civB.diplomacy.relationships.civA).toBe(15);
+  });
+});
+
+// actor=civA (the war declarer), target=civB (crisis-struck), witness=civC.
+function opportunisticWarState({
+  hasCrisis = true,
+  interactions = 'full' as 'off' | 'benign' | 'full',
+}: { hasCrisis?: boolean; interactions?: 'off' | 'benign' | 'full' } = {}): { state: GameState; crisisId: string } {
+  const base = threeCivState({
+    settings: { aiCrisisInteractions: interactions } as GameState['settings'],
+  });
+  const crisisId = 'crisis-exploit';
+  const crisis: ActiveCrisis = {
+    id: crisisId, flavorId: 'plague', archetype: 'outbreak', targetCivId: 'civB',
+    cityIds: ['some-city'], tileKeys: [], startedTurn: 5, stage: 'active', turnsInStage: 2,
+  };
+  return {
+    state: { ...base, activeCrises: hasCrisis ? { [crisisId]: crisis } : {} },
+    crisisId,
+  };
+}
+
+describe('getActiveCrisisForCiv', () => {
+  it('finds the active crisis targeting the given civ', () => {
+    const { state, crisisId } = opportunisticWarState();
+    expect(getActiveCrisisForCiv(state, 'civB')?.id).toBe(crisisId);
+  });
+
+  it('returns undefined for a civ with no active crisis (negative)', () => {
+    const { state } = opportunisticWarState({ hasCrisis: false });
+    expect(getActiveCrisisForCiv(state, 'civB')).toBeUndefined();
+  });
+
+  it('filters by archetype when provided', () => {
+    const { state } = opportunisticWarState();
+    expect(getActiveCrisisForCiv(state, 'civB', 'outbreak')).toBeDefined();
+    expect(getActiveCrisisForCiv(state, 'civB', 'catastrophe')).toBeUndefined();
+  });
+});
+
+describe('applyOpportunisticWarPenaltyIfCrisisStruck', () => {
+  it('applies exploit_weakness deltas and emits diplomacy:opportunistic-war when the target has an active crisis', () => {
+    const { state, crisisId } = opportunisticWarState();
+    const bus = new EventBus();
+    const events: unknown[] = [];
+    bus.on('diplomacy:opportunistic-war', event => events.push(event));
+
+    const next = applyOpportunisticWarPenaltyIfCrisisStruck(state, 'civA', 'civB', bus);
+
+    expect(next.civilizations.civA.diplomacy.relationships.civB).toBe(-15);
+    expect(next.civilizations.civB.diplomacy.relationships.civA).toBe(-15);
+    expect(next.civilizations.civA.diplomacy.relationships.civC).toBe(-8);
+    expect(next.civilizations.civC.diplomacy.relationships.civA).toBe(-8);
+    expect(events).toEqual([{ actorId: 'civA', targetCivId: 'civB', crisisId }]);
+  });
+
+  it('is a no-op when the target has no active crisis (war on a healthy civ)', () => {
+    const { state } = opportunisticWarState({ hasCrisis: false });
+    const next = applyOpportunisticWarPenaltyIfCrisisStruck(state, 'civA', 'civB', new EventBus());
+    expect(next).toBe(state);
+  });
+
+  it('is a no-op when aiCrisisInteractions is not "full" (benign stage keeps this hook dark)', () => {
+    const { state } = opportunisticWarState({ interactions: 'benign' });
+    const next = applyOpportunisticWarPenaltyIfCrisisStruck(state, 'civA', 'civB', new EventBus());
+    expect(next).toBe(state);
+  });
+
+  it('applies regardless of the declarer\'s own tech (reputation is not gated by diplomatic-networks)', () => {
+    const { state } = opportunisticWarState();
+    // civA has no techState/completed list at all in this fixture -- still applies.
+    const next = applyOpportunisticWarPenaltyIfCrisisStruck(state, 'civA', 'civB', new EventBus());
+    expect(next.civilizations.civA.diplomacy.relationships.civB).toBe(-15);
+  });
+
+  it('AI-declarer parity: an AI actor (isHuman: false) eats the same penalty a human would -- no humanity special-casing', () => {
+    const { state } = opportunisticWarState();
+    state.civilizations.civA.isHuman = false;
+    const next = applyOpportunisticWarPenaltyIfCrisisStruck(state, 'civA', 'civB', new EventBus());
+    expect(next.civilizations.civA.diplomacy.relationships.civB).toBe(-15);
+    expect(next.civilizations.civB.diplomacy.relationships.civA).toBe(-15);
   });
 });

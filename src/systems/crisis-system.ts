@@ -174,8 +174,15 @@ function tickOutbreakCrisis(
   let nextState = state;
   const severity = flavor.severityByChallenge[resolvePressureSeverityForCiv(state, crisis.targetCivId)];
 
+  // #526 MR7 sabotage_relief: an unexpired sabotage pauses remedy completions entirely
+  // (spread below is unaffected); clear it once its window passes so remedy resumes.
+  if (working.sabotage && working.sabotage.untilTurn <= state.turn) {
+    working = { ...working, sabotage: undefined };
+  }
+  const remedyPaused = working.sabotage !== undefined && working.sabotage.untilTurn > state.turn;
+
   // Remedy completion
-  if (working.remedyCompletionByCity) {
+  if (working.remedyCompletionByCity && !remedyPaused) {
     const remaining: Record<string, number> = {};
     let cityIds = working.cityIds;
     let quarantinedCityIds = working.quarantinedCityIds;

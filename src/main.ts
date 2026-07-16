@@ -237,6 +237,8 @@ import {
   routeWorldPressureCrisisResolved,
   routeCrisisFoeHuntedByAlly,
   routeCrisisAidSent,
+  routeOpportunisticWar,
+  routeSabotageReliefDiscovered,
   type NotificationSink,
 } from '@/ui/notification-routing';
 import { createNotificationDelivery } from '@/ui/notification-delivery';
@@ -263,7 +265,7 @@ import { removeRouteForUnit, createMarketplaceState, getEffectiveGoldPerTurn, ge
 import { establishQuestAwareRoute } from '@/systems/quest-aware-trade-system';
 import { emitMinorCivQuestTransitions } from '@/systems/quest-chain-system';
 import { performMinorCivFestival, performMinorCivGift, performMinorCivReparations, setMinorCivWarState } from '@/systems/minor-civ-actions';
-import { canSendAid, applySendAid } from '@/systems/crisis-interaction-system';
+import { canSendAid, applySendAid, applyOpportunisticWarPenaltyIfCrisisStruck } from '@/systems/crisis-interaction-system';
 import { MINOR_CIV_DEFINITIONS } from '@/systems/minor-civ-definitions';
 import { openEstablishRoutePanel } from '@/ui/establish-route-panel';
 import { RoundPresentationGate } from '@/presentation/round-presentation-gate';
@@ -943,6 +945,9 @@ function toggleNotificationLog(): void {
 function handleDiplomaticAction(targetCivId: string, action: DiplomaticAction): void {
   const cp = gameState.currentPlayer;
   gameState = applyDiplomaticAction(gameState, cp, targetCivId, action, bus);
+  if (action === 'declare_war') {
+    gameState = applyOpportunisticWarPenaltyIfCrisisStruck(gameState, cp, targetCivId, bus);
+  }
   renderLoop.setGameState(gameState);
   updateHUD();
   openDiplomacyPanel();
@@ -2525,6 +2530,7 @@ function ensurePlayerWarState(targetCivId: string): void {
   currentCiv().diplomacy = declareWar(currentCiv().diplomacy, targetCivId, gameState.turn);
   targetCiv.diplomacy = declareWar(targetCiv.diplomacy, cp, gameState.turn);
   bus.emit('diplomacy:war-declared', { attackerId: cp, defenderId: targetCivId, opponentKind: resolveOpponentKind(targetCivId) });
+  gameState = applyOpportunisticWarPenaltyIfCrisisStruck(gameState, cp, targetCivId, bus);
 }
 
 function finalizePendingCityCaptureChoice(
@@ -4392,6 +4398,14 @@ bus.on('crisis:foe-hunted-by-ally', event => {
 
 bus.on('crisis:aid-sent', event => {
   routeCrisisAidSent(gameState, event, appendToCivLog);
+});
+
+bus.on('diplomacy:opportunistic-war', event => {
+  routeOpportunisticWar(gameState, event, appendToCivLog);
+});
+
+bus.on('espionage:sabotage-relief-discovered', event => {
+  routeSabotageReliefDiscovered(gameState, event, appendToCivLog);
 });
 
 bus.on('economy:treasury-strain', event => {

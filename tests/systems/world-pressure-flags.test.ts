@@ -3,12 +3,12 @@ import { resolveWorldPressureFlags } from '@/systems/world-pressure-flags';
 import type { GameSettings } from '@/core/types';
 
 describe('resolveWorldPressureFlags', () => {
-  it('defaults aiPressure to "full" (#529 MR3), aiPressureVisibility to true (#531 MR5), and aiCrisisInteractions to "benign" (#532 MR6), for legacy saves (undefined settings fields)', () => {
+  it('defaults aiPressure to "full" (#529 MR3), aiPressureVisibility to true (#531 MR5), and aiCrisisInteractions to "full" (#533 MR7), for legacy saves (undefined settings fields)', () => {
     expect(resolveWorldPressureFlags({} as GameSettings)).toEqual({
-      aiPressure: 'full', aiPressureVisibility: true, aiCrisisInteractions: 'benign',
+      aiPressure: 'full', aiPressureVisibility: true, aiCrisisInteractions: 'full',
     });
     expect(resolveWorldPressureFlags(undefined)).toEqual({
-      aiPressure: 'full', aiPressureVisibility: true, aiCrisisInteractions: 'benign',
+      aiPressure: 'full', aiPressureVisibility: true, aiCrisisInteractions: 'full',
     });
   });
   it('defaults aiPressureVisibility to false only when explicitly set that way', () => {

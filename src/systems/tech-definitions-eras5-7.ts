@@ -129,7 +129,7 @@ const ERA_5_TECHS: Tech[] = [
     unlocks: ['+1 spy slot empire-wide'], era: 5 },
   { id: 'diplomatic-networks', name: 'Diplomatic Networks', track: 'espionage', cost: 100,
     prerequisites: ['counter-intelligence'],
-    unlocks: ['Spy missions in foreign capitals have +20% success rate'], era: 5 },
+    unlocks: ['Spy missions in foreign capitals have +20% success rate', 'Reveal detailed crisis intelligence on civilizations you have met'], era: 5 },
 
   // SPIRITUALITY (2)
   { id: 'reformation', name: 'Reformation', track: 'spirituality', cost: 100,
@@ -388,7 +388,7 @@ const ERA_7_TECHS: Tech[] = [
   // ESPIONAGE (2)
   { id: 'covert-operations', name: 'Covert Operations', track: 'espionage', cost: 145,
     prerequisites: ['counter-espionage', 'propaganda'],
-    unlocks: ['+2 spy slots empire-wide; covert missions have +15% success rate'], era: 7 },
+    unlocks: ['+2 spy slots empire-wide; covert missions have +15% success rate', "Spy mission: sabotage a rival's crisis relief"], era: 7 },
   { id: 'secret-police', name: 'Secret Police', track: 'espionage', cost: 210,
     prerequisites: ['counter-espionage', 'separation-of-powers'],
     unlocks: ['Enemy spy missions in your cities have -30% success rate; spy detection bonus'], era: 7 },
