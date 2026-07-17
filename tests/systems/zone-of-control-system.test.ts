@@ -80,4 +80,21 @@ describe('zone of control', () => {
     expect(positioned.attackerStrength).toBeCloseTo(baseline.attackerStrength * 1.2);
     expect(positioned.defenderStrength).toBeCloseTo(baseline.defenderStrength * 1.1);
   });
+
+  it('adds one landing penalty and one shore-bombardment bonus for an amphibious assault', () => {
+    const state = createNewGame(undefined, 'amphibious-support', 'small');
+    const defender = { ...createUnit('warrior', 'ai-1', { q: 5, r: 5 }, mkC()), id: 'defender' };
+    const attacker = { ...createUnit('warrior', 'player', { q: 4, r: 5 }, mkC()), id: 'attacker' };
+    const shipA = { ...createUnit('frigate', 'player', { q: 5, r: 4 }, mkC()), id: 'frigate-a' };
+    const shipB = { ...createUnit('frigate', 'player', { q: 6, r: 5 }, mkC()), id: 'frigate-b' };
+    state.units = { defender, attacker, 'frigate-a': shipA, 'frigate-b': shipB };
+
+    const context = buildCombatContextForDefender(state, attacker, defender, { amphibiousAssault: true });
+
+    expect(context.attackerAmphibiousMultiplier).toBeCloseTo(0.55);
+    expect(context.attackerAmphibiousParts).toEqual([
+      { label: 'Landing -50%', kind: 'mult' },
+      { label: 'Shore bombardment +10%', kind: 'mult' },
+    ]);
+  });
 });
