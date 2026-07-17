@@ -236,7 +236,10 @@ export function getConnectedCityTechGold(completedTechs: string[], connectedCity
   if (completedTechs.includes('courier-network')) perCity += 1;
   if (completedTechs.includes('colonial-railways')) perCity += 2;
   if (completedTechs.includes('transcontinental-rail') && completedTechs.includes('railway-expansion')) perCity += 2;
-  return perCity * connectedCityCount;
+  // electric-telegraph: +1 per connected city, capped at +8 (own term; other techs uncapped per MR7 spec).
+  const telegraphGold = completedTechs.includes('electric-telegraph')
+    ? Math.min(8, connectedCityCount) : 0;
+  return perCity * connectedCityCount + telegraphGold;
 }
 
 /** Flat gold per distinct owned luxury resource (e.g. distillation). */
