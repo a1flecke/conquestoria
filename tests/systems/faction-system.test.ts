@@ -507,6 +507,45 @@ describe('faction-system', () => {
     expect(result.cities['city-1'].conquestTurn).toBeUndefined();
   });
 
+  describe('#524 MR2 — constitutional-law reduces recent-conquest unrest', () => {
+    it('halves the Recent conquest pressure row when the owner has constitutional-law', () => {
+      const state = makeState({ conquestTurn: 0 });
+      const stateWithTech: GameState = {
+        ...state,
+        civilizations: {
+          ...state.civilizations,
+          player: {
+            ...state.civilizations['player'],
+            techState: { ...state.civilizations['player'].techState, completed: ['constitutional-law'] },
+          },
+        },
+      };
+
+      const withoutTech = getUnrestPressureBreakdown('city-1', state).find(r => r.label === 'Recent conquest');
+      const withTech = getUnrestPressureBreakdown('city-1', stateWithTech).find(r => r.label === 'Recent conquest');
+
+      expect(withoutTech?.amount).toBe(25);
+      expect(withTech?.amount).toBe(13);
+    });
+
+    it('does not reduce Recent conquest pressure for a different civ\'s tech', () => {
+      const state = makeState({ conquestTurn: 0 });
+      const stateWithOtherCivTech: GameState = {
+        ...state,
+        civilizations: {
+          ...state.civilizations,
+          'ai-1': {
+            ...state.civilizations['ai-1'],
+            techState: { ...state.civilizations['ai-1'].techState, completed: ['constitutional-law'] },
+          },
+        },
+      };
+
+      const rows = getUnrestPressureBreakdown('city-1', stateWithOtherCivTech);
+      expect(rows.find(r => r.label === 'Recent conquest')?.amount).toBe(25);
+    });
+  });
+
   it('reports helper values for appease cost and production penalties', () => {
     const stable = makeCity('stable', 'player', { q: 0, r: 0 });
     const unrest = { ...stable, unrestLevel: 1 as const };
