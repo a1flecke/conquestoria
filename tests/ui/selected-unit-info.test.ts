@@ -1007,6 +1007,21 @@ describe('renderSelectedUnitInfo - based aircraft', () => {
     button!.click();
     expect(onMission).toHaveBeenCalledWith('bomber', 'strike');
   });
+
+  it('replaces mission actions with a visible cancel action while a mission is pending', () => {
+    const state = createNewGame(undefined, 'aircraft-cancel-panel', 'small');
+    const bomber = { ...createUnit('bomber', 'player', { q: 3, r: 3 }, { nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 }), id: 'bomber', airBase: { kind: 'city' as const, cityId: 'origin' } };
+    state.units = { bomber };
+    const container = new MockElement('div');
+    const onCancel = vi.fn();
+
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'bomber', { onStartAirMission: vi.fn(), onCancelAirMission: onCancel }, { airMissionPending: 'strike' });
+
+    expect(findButtons(container).map(button => button.textContent)).toContain('Cancel Air Strike');
+    expect(findButtons(container).map(button => button.textContent)).not.toContain('Air Strike');
+    findButtons(container).find(button => button.textContent === 'Cancel Air Strike')!.click();
+    expect(onCancel).toHaveBeenCalledWith('bomber');
+  });
 });
 
 describe('renderSelectedUnitInfo - found city button', () => {
