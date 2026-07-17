@@ -946,6 +946,36 @@ describe('renderSelectedUnitInfo - veterancy', () => {
   });
 });
 
+describe('renderSelectedUnitInfo - based aircraft', () => {
+  beforeEach(installMockDocument);
+  afterEach(restoreMockDocument);
+
+  it('shows the current base and lets an eligible fighter enter intercept stance', () => {
+    const state = createNewGame(undefined, 'aircraft-panel', 'small');
+    const city = {
+      id: 'airfield', name: 'Avalon', owner: 'player', position: { q: 3, r: 3 }, population: 2,
+      food: 0, foodNeeded: 10, buildings: ['airfield'], productionQueue: [], productionProgress: 0,
+      ownedTiles: [], workedTiles: [], focus: 'balanced' as const, maturity: 'village' as const,
+      unrestLevel: 0 as const, unrestTurns: 0, spyUnrestBonus: 0, idleProduction: null,
+    };
+    const fighter = { ...createUnit('biplane', 'player', city.position, { nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 }), id: 'fighter', airBase: { kind: 'city' as const, cityId: city.id } };
+    state.units = { fighter };
+    state.cities = { [city.id]: city };
+    state.civilizations.player.units = ['fighter'];
+    state.civilizations.player.cities = [city.id];
+    const container = new MockElement('div');
+    const onIntercept = vi.fn();
+
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'fighter', { onStartIntercept: onIntercept });
+
+    expect(collectAllText(container).join(' ')).toContain('Base: Avalon Airfield · Slots: 1/3 · Range: 3/6');
+    const button = findButtons(container).find(candidate => candidate.textContent === 'Intercept');
+    expect(button).toBeDefined();
+    button!.click();
+    expect(onIntercept).toHaveBeenCalledWith('fighter');
+  });
+});
+
 describe('renderSelectedUnitInfo - found city button', () => {
   beforeEach(installMockDocument);
   afterEach(restoreMockDocument);
