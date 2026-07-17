@@ -80,6 +80,22 @@ export const SFX = {
   },
   notification: () => playTone(700, 0.1, 0.1, 'triangle'),
   error: () => playTone(200, 0.2, 0.15, 'square'),
+  airRebase: () => {
+    playTone(420, 0.08, 0.12, 'triangle');
+    setTimeout(() => playTone(620, 0.12, 0.12, 'triangle'), 70);
+  },
+  airScramble: () => {
+    playTone(280, 0.08, 0.14, 'sawtooth');
+    setTimeout(() => playTone(460, 0.14, 0.14, 'sawtooth'), 60);
+  },
+  airRecon: () => {
+    playTone(740, 0.08, 0.1, 'sine');
+    setTimeout(() => playTone(960, 0.14, 0.1, 'sine'), 90);
+  },
+  airBaseLoss: () => {
+    playTone(320, 0.12, 0.15, 'square');
+    setTimeout(() => playTone(180, 0.18, 0.13, 'square'), 100);
+  },
   nationalProjectBuilt: () => {
     playTone(523, 0.12, 0.2);
     setTimeout(() => playTone(659, 0.12, 0.2), 120);
