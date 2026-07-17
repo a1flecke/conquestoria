@@ -64,6 +64,36 @@ describe('save migrations', () => {
     });
   });
 
+  it('does not overfill a base while repairing multiple legacy aircraft', () => {
+    const legacySave = createNewGame('rome', 'legacy-air-capacity', 'small');
+    legacySave.saveSchemaVersion = CURRENT_SAVE_SCHEMA_VERSION - 1;
+    const cityId = 'legacy-airfield';
+    legacySave.cities = {
+      ...legacySave.cities,
+      [cityId]: {
+        id: cityId, name: 'Legacy Airfield', owner: 'player', position: { q: 3, r: 3 }, population: 2,
+        food: 0, foodNeeded: 10, buildings: ['airfield'], productionQueue: [], productionProgress: 0,
+        ownedTiles: [], workedTiles: [], focus: 'balanced', maturity: 'village', unrestLevel: 0,
+        unrestTurns: 0, spyUnrestBonus: 0, idleProduction: null,
+      },
+    };
+    legacySave.civilizations.player.cities = [cityId];
+    for (const id of ['air-1', 'air-2', 'air-3', 'air-4']) {
+      legacySave.units[id] = {
+        id, type: 'biplane', owner: 'player', position: { q: 4, r: 3 }, movementPointsLeft: 4,
+        health: 100, experience: 0, hasMoved: false, hasActed: false, isResting: false,
+      };
+      legacySave.civilizations.player.units.push(id);
+    }
+
+    const migrated = migrateSaveToCurrent(legacySave);
+
+    expect(Object.values(migrated.units).filter(unit => unit.airBase?.kind === 'city' && unit.airBase.cityId === cityId)
+      .map(unit => unit.id)).toEqual(['air-1', 'air-2', 'air-3']);
+    expect(migrated.units['air-4']).toBeUndefined();
+    expect(migrated.civilizations.player.units).not.toContain('air-4');
+  });
+
   it('#553 MR1/4 — Trade Routes Overhaul is purely additive: a pre-existing caravan and its committed route survive migration and stay functional (no SAVE_MIGRATIONS entry needed)', () => {
     const legacySave = createNewGame('rome', 'pre-naval-trader-save', 'small');
     const cityId = Object.keys(legacySave.cities)[0]!;
