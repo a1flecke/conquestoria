@@ -974,6 +974,24 @@ describe('renderSelectedUnitInfo - based aircraft', () => {
     button!.click();
     expect(onIntercept).toHaveBeenCalledWith('fighter');
   });
+
+  it('renders each legal rebase destination as a direct action', () => {
+    const state = createNewGame(undefined, 'aircraft-rebase-panel', 'small');
+    const fighter = { ...createUnit('biplane', 'player', { q: 3, r: 3 }, { nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 }), id: 'fighter', airBase: { kind: 'city' as const, cityId: 'origin' } };
+    state.units = { fighter };
+    const container = new MockElement('div');
+    const onRebase = vi.fn();
+
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'fighter', {
+      getAirRebaseDestinations: () => [{ base: { kind: 'city', cityId: 'reserve' }, label: 'Reserve (0/3)' }],
+      onRebaseAircraft: onRebase,
+    });
+
+    const button = findButtons(container).find(candidate => candidate.textContent === 'Rebase: Reserve (0/3)');
+    expect(button).toBeDefined();
+    button!.click();
+    expect(onRebase).toHaveBeenCalledWith('fighter', { kind: 'city', cityId: 'reserve' });
+  });
 });
 
 describe('renderSelectedUnitInfo - found city button', () => {

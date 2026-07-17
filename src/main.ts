@@ -41,7 +41,7 @@ import { calculateCombatStrengths, deterministicCombatSeed, resolveCombat, selec
 import { calculateCityAssaultStrengths } from '@/systems/city-siege-system';
 import { buildCombatContextForDefender } from '@/systems/combat-context';
 import { canUnitAttackTarget } from '@/systems/attack-targeting';
-import { startIntercept } from '@/systems/air-operations-system';
+import { getAirBaseCapacity, getAirBaseRoster, getLegalRebaseDestinations, rebaseAircraft, startIntercept } from '@/systems/air-operations-system';
 import { buildSelectedUnitHighlights } from '@/input/selected-unit-highlights';
 import { handleSelectedUnitMovementBlocker } from '@/input/selected-unit-movement-feedback';
 import {
@@ -1933,6 +1933,24 @@ function selectUnit(
         const result = startIntercept(gameState, uid);
         if (!result.ok) {
           showNotification('That fighter cannot enter intercept stance now.', 'warning');
+          return;
+        }
+        gameState = result.state;
+        renderLoop.setGameState(gameState);
+        updateHUD();
+        selectUnit(uid);
+      },
+      getAirRebaseDestinations: uid => getLegalRebaseDestinations(gameState, uid).map(base => {
+        const position = base.kind === 'city' ? gameState.cities[base.cityId]?.position : gameState.units[base.unitId]?.position;
+        const name = base.kind === 'city'
+          ? gameState.cities[base.cityId]?.name ?? base.cityId
+          : UNIT_DEFINITIONS[gameState.units[base.unitId]?.type ?? 'carrier'].name;
+        return { base, label: `${name} (${getAirBaseRoster(gameState, base).length}/${getAirBaseCapacity(gameState, base)})${position ? '' : ''}` };
+      }),
+      onRebaseAircraft: (uid, base) => {
+        const result = rebaseAircraft(gameState, uid, base);
+        if (!result.ok) {
+          showNotification('That base is no longer reachable.', 'warning');
           return;
         }
         gameState = result.state;
