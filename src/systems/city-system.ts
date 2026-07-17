@@ -20,6 +20,7 @@ export interface FoundCityOptions {
   usedNames?: Set<string>;
   civName?: string;
   completedTechs?: string[];
+  foundingProductionBonus?: number;
 }
 
 export const BUILDINGS: Record<string, Building> = {
@@ -1715,7 +1716,7 @@ export function foundCity(owner: string, position: HexCoord, map: GameMap, count
     foodNeeded: 15,
     buildings: [],
     productionQueue: [],
-    productionProgress: 0,
+    productionProgress: options.foundingProductionBonus ?? 0,
     ownedTiles,
     workedTiles: [],
     focus: INITIAL_CITY_FOCUS,

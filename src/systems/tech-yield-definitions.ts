@@ -22,6 +22,7 @@ export type YieldKind =
   | { kind: 'perLuxuryResource'; gold: number }
   | { kind: 'perOwnedNaturalWonder'; science: number }
   | { kind: 'foundingBonus'; food: number }
+  | { kind: 'foundingProductionBonus'; production: number; foreignLandmassOnly: boolean }
   /** Flat bonus applied once to the civ's totals — not per city (see MR6 "empire-wide" rule). */
   | { kind: 'empireFlat'; yields: Partial<ResourceYield> }
   /** Applied per worked tile whose terrain matches, resolved in tile-yield.ts. */
@@ -49,6 +50,7 @@ export interface TechYieldModifier {
 export const TECH_YIELD_MODIFIERS: TechYieldModifier[] = [
   // --- Era 5 ---
   { techId: 'guilds', label: '+1 gold per active trade route', effect: { kind: 'perTradeRoute', gold: 1 } },
+  { techId: 'colonial-charter', label: 'Cities founded on foreign landmasses start with +5 production', effect: { kind: 'foundingProductionBonus', production: 5, foreignLandmassOnly: true } },
   { techId: 'colonial-trade', label: 'Trade routes to foreign civs yield +2 gold', effect: { kind: 'perTradeRoute', gold: 2, foreignOnly: true } },
   { techId: 'scientific-method', label: '+1 science per library empire-wide', effect: { kind: 'perBuildingId', buildingIds: ['library'], yields: { science: 1 } } },
   { techId: 'printing-press', label: '+1 science per library empire-wide', effect: { kind: 'perBuildingId', buildingIds: ['library'], yields: { science: 1 } } },
@@ -261,6 +263,21 @@ export function getFoundingBonusFood(completedTechs: string[]): number {
     if (modifier.effect.kind !== 'foundingBonus') continue;
     if (!techSet.has(modifier.techId)) continue;
     bonus += modifier.effect.food;
+  }
+
+  return bonus;
+}
+
+/** Production bonus applied once at city-founding time (not a per-turn yield). */
+export function getFoundingBonusProduction(completedTechs: string[], isForeignLandmass: boolean): number {
+  const techSet = new Set(completedTechs);
+  let bonus = 0;
+
+  for (const modifier of TECH_YIELD_MODIFIERS) {
+    if (modifier.effect.kind !== 'foundingProductionBonus') continue;
+    if (!techSet.has(modifier.techId)) continue;
+    if (modifier.effect.foreignLandmassOnly && !isForeignLandmass) continue;
+    bonus += modifier.effect.production;
   }
 
   return bonus;
