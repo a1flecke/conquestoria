@@ -712,7 +712,7 @@ export const BUILDINGS: Record<string, Building> = {
     id: 'air_force_command', name: 'Air Force Command', category: 'military',
     // Two keys: production 3 ≤ 3, science 2 ≤ 3; total 5 ≤ 9 (era 9 ceiling) ✓
     yields: { food: 0, production: 3, gold: 0, science: 2 }, productionCost: 280,
-    description: 'Centralised aviation command. +3 production and +2 science empire-wide. Your air units gain +4 strength in combat.',
+    description: 'Centralised aviation command. +3 production and +2 science empire-wide. Your air units gain +4 strength when attacking.',
     techRequired: 'air-superiority',
     pacing: { band: 'marquee', role: 'national-project', impact: 1.5, scope: 'empire', snowball: 1.4, urgency: 1.2, situationality: 1.3, unlockBreadth: 1 },
     uniquePerEmpire: true, nationalProject: { homeEra: 9 },
