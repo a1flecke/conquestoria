@@ -71,6 +71,19 @@ describe('fog-of-war', () => {
     expect(revealed.length).toBeGreaterThan(0);
   });
 
+  it('does not grant passive map vision to an aircraft assigned to an air base', () => {
+    const basedAircraft: Unit = {
+      id: 'based-aircraft', type: 'biplane', owner: 'p1',
+      position: { q: 15, r: 15 }, movementPointsLeft: 4,
+      health: 100, experience: 0, hasMoved: false, hasActed: false, isResting: false,
+      airBase: { kind: 'city', cityId: 'airfield' },
+    };
+
+    updateVisibility(vis, [basedAircraft], map);
+
+    expect(isVisible(vis, basedAircraft.position)).toBe(false);
+  });
+
   it('scout has larger vision than warrior', () => {
     const scout: Unit = {
       id: 'u1', type: 'scout', owner: 'p1',

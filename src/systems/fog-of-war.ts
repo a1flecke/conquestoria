@@ -73,6 +73,7 @@ export function updateVisibility(
 
   // Reveal around each unit
   for (const unit of units) {
+    if (unit.airBase) continue;
     const def = UNIT_DEFINITIONS[unit.type];
     const visionRange = def.visionRange;
 
