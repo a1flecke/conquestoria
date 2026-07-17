@@ -4,7 +4,9 @@ import { createDiplomacyState } from '@/systems/diplomacy-system';
 import { hexKey } from '@/systems/hex-utils';
 import {
   canLoadUnitOntoTransport,
+  detachCargoForEmbarkedAssault,
   getTransportCargoUsed,
+  getEmbarkedAssaultTarget,
   getUnloadDestinations,
   loadUnitOntoTransport,
   unloadUnitFromTransport,
@@ -146,6 +148,61 @@ function state(overrides: Partial<GameState> = {}): GameState {
 }
 
 describe('transport system', () => {
+  it('allows cargo to attack a visible adjacent coastal defender from its transport', () => {
+    const start = state();
+    const transport = start.units['transport-1']!;
+    const cargo = {
+      ...start.units['warrior-1']!,
+      position: { ...transport.position },
+      transportId: transport.id,
+    };
+    const defender = unit({ id: 'enemy-1', owner: 'ai-1', position: { q: 1, r: -1 } });
+    start.units = {
+      ...start.units,
+      [transport.id]: { ...transport, cargoUnitIds: [cargo.id] },
+      [cargo.id]: cargo,
+      [defender.id]: defender,
+    };
+    start.civilizations['ai-1'] = {
+      ...start.civilizations.player,
+      id: 'ai-1',
+      name: 'AI',
+      isHuman: false,
+      units: [defender.id],
+      diplomacy: createDiplomacyState(['player', 'ai-1'], 'ai-1'),
+    };
+    start.civilizations.player.diplomacy.atWarWith = ['ai-1'];
+    start.civilizations['ai-1'].diplomacy.atWarWith = ['player'];
+    start.civilizations.player.visibility.tiles = { '1,-1': 'visible' };
+
+    expect(getEmbarkedAssaultTarget(start, cargo.id, defender.position, { viewerId: 'player' }))
+      .toMatchObject({ ok: true, targetType: 'unit', targetUnitId: defender.id, transportId: transport.id });
+  });
+
+  it('detaches embarked cargo without spending its action before combat resolves', () => {
+    const start = state();
+    const transport = start.units['transport-1']!;
+    const cargo = {
+      ...start.units['warrior-1']!,
+      position: { ...transport.position },
+      transportId: transport.id,
+    };
+    start.units = {
+      ...start.units,
+      [transport.id]: { ...transport, cargoUnitIds: [cargo.id] },
+      [cargo.id]: cargo,
+    };
+
+    const result = detachCargoForEmbarkedAssault(start, cargo.id);
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.units[transport.id]!.cargoUnitIds).toEqual([]);
+    expect(result.attacker.transportId).toBeUndefined();
+    expect(result.attacker.position).toEqual(transport.position);
+    expect(result.attacker.hasActed).toBe(false);
+  });
+
   it('loads a friendly land unit without consuming the transport turn', () => {
     const start = state();
 
