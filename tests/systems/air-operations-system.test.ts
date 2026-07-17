@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { UNIT_DEFINITIONS } from '@/systems/unit-system';
 import { TRAINABLE_UNITS } from '@/systems/city-system';
-import { baseNewAirUnit, canCompleteAirUnitProduction, getAirBaseCapacity, getAirBaseRoster, getLegalRebaseDestinations, isBasedAirUnit, rebaseAircraft, selectInterceptor, startIntercept, syncCarrierBasedAircraft } from '@/systems/air-operations-system';
+import { baseNewAirUnit, canCompleteAirUnitProduction, getAirBaseCapacity, getAirBaseRoster, getLegalAirMissionTargets, getLegalRebaseDestinations, isBasedAirUnit, rebaseAircraft, resolveAirBaseLoss, resolveReconMission, selectInterceptor, startIntercept, syncCarrierBasedAircraft } from '@/systems/air-operations-system';
 import type { GameState, Unit } from '@/core/types';
 
 describe('air-operation definitions', () => {
@@ -113,5 +113,46 @@ describe('air bases', () => {
       state: { units: { fighterA: { airMission: 'intercept', hasActed: true } } },
     });
     expect(selectInterceptor(missionState, missionState.units.incoming!, { q: 4, r: 2 })?.id).toBe('fighter-b');
+  });
+
+  it('reveals a recon center only for its owner until the next turn', () => {
+    const recon = { ...biplane, id: 'recon', type: 'recon_aircraft' as const };
+    const reconState = {
+      ...state,
+      turn: 8,
+      map: { width: 10, height: 10, wrapsHorizontally: false },
+      units: { recon },
+      civilizations: { player: { visibility: { tiles: {} } } },
+    } as unknown as GameState;
+
+    expect(getLegalAirMissionTargets(reconState, 'recon', 'recon')).toContainEqual({ q: 4, r: 2 });
+    expect(resolveReconMission(reconState, 'recon', { q: 4, r: 2 })).toMatchObject({
+      ok: true,
+      state: {
+        units: { recon: { hasActed: true } },
+        reconReveals: [{ ownerCivId: 'player', center: { q: 4, r: 2 }, range: 3, expiresAtTurn: 8 }],
+      },
+    });
+  });
+
+  it('resolves a destroyed carrier by removing its sorted based-aircraft roster', () => {
+    const carrierLossState = {
+      ...state,
+      units: {
+        carrier: { ...biplane, id: 'carrier', type: 'carrier', airBase: undefined },
+        zulu: { ...biplane, id: 'zulu', airBase: { kind: 'carrier', unitId: 'carrier' } },
+        alpha: { ...biplane, id: 'alpha', airBase: { kind: 'carrier', unitId: 'carrier' } },
+      },
+      civilizations: { player: { units: ['carrier', 'zulu', 'alpha'] } },
+    } as unknown as GameState;
+
+    const result = resolveAirBaseLoss(carrierLossState, { kind: 'carrier', unitId: 'carrier' }, { kind: 'carrier-destroyed' });
+
+    expect(result.outcomes).toEqual([
+      { aircraftId: 'alpha', outcome: 'destroyed' },
+      { aircraftId: 'zulu', outcome: 'destroyed' },
+    ]);
+    expect(result.state.units.alpha).toBeUndefined();
+    expect(result.state.civilizations.player!.units).toEqual(['carrier']);
   });
 });

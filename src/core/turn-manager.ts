@@ -42,7 +42,7 @@ import {
   getCivRoutePartnerTechGold,
 } from '@/systems/tech-yield-system';
 import type { HexCoord } from './types';
-import { updateVisibility, revealMinorCivCities, applySharedVision, applySatelliteSurveillance, applyMassSurveillanceReveal } from '@/systems/fog-of-war';
+import { applyReconReveals, updateVisibility, revealMinorCivCities, applySharedVision, applySatelliteSurveillance, applyMassSurveillanceReveal } from '@/systems/fog-of-war';
 import { getActiveNationalProjectsForCiv } from '@/systems/national-project-system';
 import { UNIT_CLASS_BY_TYPE } from '@/systems/unit-modifier-definitions';
 import { getHealingBonus, getVisionBonus, isWithinRangeOfTelemedicineHub } from '@/systems/unit-modifier-system';
@@ -650,6 +650,7 @@ export function processTurn(
         cityPositions,
         unit => getVisionBonus(unit.type, visionCompletedTechs, visionActiveNPs),
       );
+      applyReconReveals(newState, civId);
     }
     for (const contact of syncCivilizationContactsFromVisibility(newState, civId)) {
       bus.emit('civilization:first-contact', contact);

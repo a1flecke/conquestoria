@@ -180,6 +180,20 @@ export function applySharedVision(
   }
 }
 
+/** Applies owner-scoped, one-turn reconnaissance without recording permanent intel. */
+export function applyReconReveals(state: GameState, viewerCivId: string): void {
+  const visibility = state.civilizations[viewerCivId]?.visibility;
+  if (!visibility) return;
+  for (const reveal of state.reconReveals ?? []) {
+    if (reveal.ownerCivId !== viewerCivId || reveal.expiresAtTurn !== state.turn) continue;
+    for (const coord of getVisibilityRange(reveal.center, reveal.range, state.map)) {
+      const canonical = canonicalVisibilityCoord(coord, state.map);
+      const key = hexKey(canonical);
+      if (state.map.tiles[key]) visibility.tiles[key] = 'visible';
+    }
+  }
+}
+
 export function applySatelliteSurveillance(
   state: GameState,
   viewerCivId: string,

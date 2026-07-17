@@ -204,6 +204,23 @@ function makeRewardState(): GameState {
 }
 
 describe('applyCombatOutcomeToState', () => {
+  it('destroys aircraft based on a carrier that combat removes', () => {
+    const state = makeRewardState();
+    state.units.attacker = { ...state.units.attacker, type: 'warrior', owner: 'player' };
+    const carrier = { ...state.units.defender, id: 'carrier', type: 'carrier' as const, owner: 'ai-1' };
+    state.units = { attacker: state.units.attacker, carrier, based: { ...carrier, id: 'based', type: 'biplane', airBase: { kind: 'carrier', unitId: 'carrier' } } };
+    state.civilizations['ai-1'].units = ['carrier', 'based'];
+    const result: CombatResult = {
+      attackerId: 'attacker', defenderId: 'carrier', attackerDamage: 0, defenderDamage: 100,
+      attackerSurvived: true, defenderSurvived: false, attackerPosition: { q: 0, r: 0 }, defenderPosition: { q: 1, r: 0 },
+    };
+
+    const applied = applyCombatOutcomeToState(state, result, 64);
+
+    expect(applied.state.units.based).toBeUndefined();
+    expect(applied.state.civilizations['ai-1'].units).not.toContain('based');
+  });
+
   it.each([
     ['player', 'ai-1'],
     ['ai-1', 'player'],
