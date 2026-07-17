@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { UNIT_DEFINITIONS } from '@/systems/unit-system';
 import { TRAINABLE_UNITS } from '@/systems/city-system';
-import { baseNewAirUnit, canCompleteAirUnitProduction, getAirBaseCapacity, getAirBaseRoster, getLegalAirMissionTargets, getLegalRebaseDestinations, isBasedAirUnit, rebaseAircraft, resolveAirBaseLoss, resolveAirStrike, resolveReconMission, selectInterceptor, startIntercept, syncCarrierBasedAircraft } from '@/systems/air-operations-system';
+import { baseNewAirUnit, canCompleteAirUnitProduction, getAirBaseCapacity, getAirBaseRoster, getInterceptCoverage, getLegalAirMissionTargets, getLegalRebaseDestinations, isBasedAirUnit, rebaseAircraft, resolveAirBaseLoss, resolveAirStrike, resolveReconMission, selectInterceptor, startIntercept, syncCarrierBasedAircraft } from '@/systems/air-operations-system';
 import type { GameState, Unit } from '@/core/types';
 
 describe('air-operation definitions', () => {
@@ -113,6 +113,18 @@ describe('air bases', () => {
       state: { units: { fighterA: { airMission: 'intercept', hasActed: true } } },
     });
     expect(selectInterceptor(missionState, missionState.units.incoming!, { q: 4, r: 2 })?.id).toBe('fighter-b');
+  });
+
+  it('derives intercept coverage from the same operational range used by interception', () => {
+    const missionState = {
+      ...state,
+      map: { width: 10, height: 10, wrapsHorizontally: false },
+      units: { fighter: { ...biplane, id: 'fighter', type: 'jet_fighter' } },
+    } as unknown as GameState;
+
+    expect(getInterceptCoverage(missionState, 'fighter')).toContainEqual({ q: 7, r: 2 });
+    expect(getInterceptCoverage({ ...missionState, units: { fighter: { ...missionState.units.fighter, hasActed: true, airMission: 'intercept' } } }, 'fighter')).toContainEqual({ q: 7, r: 2 });
+    expect(getInterceptCoverage({ ...missionState, units: { fighter: { ...missionState.units.fighter, hasActed: true } } }, 'fighter')).toEqual([]);
   });
 
   it('reveals a recon center only for its owner until the next turn', () => {

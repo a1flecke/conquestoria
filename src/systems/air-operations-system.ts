@@ -152,6 +152,15 @@ export function startIntercept(state: GameState, unitId: string): AirOperationRe
   };
 }
 
+export function getInterceptCoverage(state: GameState, unitId: string): HexCoord[] {
+  const unit = state.units[unitId];
+  const definition = unit && UNIT_DEFINITIONS[unit.type].airOperation;
+  if (!unit || !unit.airBase || (unit.hasActed && unit.airMission !== 'intercept') || !definition?.missions.includes('intercept')) return [];
+  return state.map.wrapsHorizontally
+    ? getWrappedHexesInRange(unit.position, definition.operationalRange, state.map.width)
+    : hexesInRange(unit.position, definition.operationalRange);
+}
+
 export function selectInterceptor(state: GameState, incoming: Unit, target: { q: number; r: number }): Unit | undefined {
   return Object.values(state.units)
     .filter(unit => {
