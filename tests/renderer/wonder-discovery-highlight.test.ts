@@ -59,7 +59,11 @@ describe('wonder discovery highlight', () => {
     expect(add).toHaveBeenCalledWith(
       'wonder-discovery-pulse',
       900,
-      expect.objectContaining({ accent: expect.any(String), glow: expect.any(String) }),
+      expect.objectContaining({
+        coord: { q: 2, r: 0 },
+        accent: expect.any(String),
+        glow: expect.any(String),
+      }),
     );
   });
 
@@ -74,7 +78,7 @@ describe('wonder discovery highlight', () => {
     expect(add).toHaveBeenCalledWith(
       'wonder-discovery-static-highlight',
       900,
-      expect.objectContaining({ accent: expect.any(String) }),
+      expect.objectContaining({ coord: { q: 2, r: 0 }, accent: expect.any(String) }),
     );
     expect((loop as unknown as { highlights: unknown[] }).highlights).toEqual([{ coord: { q: 1, r: 0 }, type: 'move' }]);
   });

@@ -1,7 +1,7 @@
 import type { GameMap, HexCoord, HexTile, TerrainType, VisibilityMap } from '@/core/types';
 import { hexToPixel, hexesInRange, HEX_CORNERS_POINTY, hexNeighbors, getWrappedHexNeighbors, hexKey } from '@/systems/hex-utils';
 import { Camera } from './camera';
-import { getHorizontalWrapRenderCoords } from './wrap-rendering';
+import { getHorizontalWrapRenderCoords, nearestWrappedCoord } from './wrap-rendering';
 import { shouldRenderOwnedTileBorder, shouldRenderOwnedTileBorderForPresentation } from './render-visibility';
 import { resolveTilePresentationForViewer, type TilePresentationKind } from './tile-presentation';
 import { drawNaturalWonderLandmark } from './wonders/natural-wonder-renderer';
@@ -328,8 +328,13 @@ function drawRoadOrRailSegment(
 ): void {
   const isRail = endpointHasRail(map, visibility, completedTechsByCiv, from)
     && endpointHasRail(map, visibility, completedTechsByCiv, to);
-  if (isRail && drawRailSegment(ctx, camera, from, to)) return;
-  drawRoadSegment(ctx, camera, from, to);
+  // Seam-crossing pairs arrive with canonical coords (getWrappedHexNeighbors
+  // canonicalizes); draw to the nearest wrap copy of `to` so the segment is a
+  // short step, not a line spanning the whole map. Eligibility lookups above
+  // stay canonical-safe either way (tile presentation re-wraps internally).
+  const renderTo = map.wrapsHorizontally ? nearestWrappedCoord(from, to, map.width) : to;
+  if (isRail && drawRailSegment(ctx, camera, from, renderTo)) return;
+  drawRoadSegment(ctx, camera, from, renderTo);
 }
 
 export function drawRoads(

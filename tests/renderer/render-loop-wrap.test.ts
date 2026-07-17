@@ -48,18 +48,68 @@ import {
 import type { PirateHeadquartersMapEntity } from '@/renderer/pirate-headquarters-presentation';
 import type { GameState, Unit } from '@/core/types';
 
-function createCanvas(): HTMLCanvasElement {
+interface LineRecordingCtx {
+  moveTo: ReturnType<typeof vi.fn>;
+  lineTo: ReturnType<typeof vi.fn>;
+}
+
+function createCanvasWithCtx(): { canvas: HTMLCanvasElement; ctx: LineRecordingCtx } {
   const ctx = {
     clearRect: vi.fn(),
     fillRect: vi.fn(),
     fillStyle: '',
+    strokeStyle: '',
+    lineWidth: 0,
+    globalAlpha: 1,
     scale: vi.fn(),
-  } as unknown as CanvasRenderingContext2D;
+    save: vi.fn(),
+    restore: vi.fn(),
+    setLineDash: vi.fn(),
+    beginPath: vi.fn(),
+    moveTo: vi.fn(),
+    lineTo: vi.fn(),
+    stroke: vi.fn(),
+    arc: vi.fn(),
+    fill: vi.fn(),
+  };
 
-  return {
-    getContext: () => ctx,
+  const canvas = {
+    getContext: () => ctx as unknown as CanvasRenderingContext2D,
     getBoundingClientRect: () => ({ width: 320, height: 240 }),
   } as unknown as HTMLCanvasElement;
+
+  return { canvas, ctx };
+}
+
+function createCanvas(): HTMLCanvasElement {
+  return createCanvasWithCtx().canvas;
+}
+
+/**
+ * Reconstruct drawn line segments from moveTo/lineTo mock calls using their
+ * global invocation order: each lineTo continues from the previous point.
+ */
+function orderedLineSegments(ctx: LineRecordingCtx): Array<{ fromX: number; toX: number }> {
+  const events = [
+    ...ctx.moveTo.mock.calls.map((call, index) => ({
+      kind: 'moveTo' as const,
+      x: call[0] as number,
+      order: ctx.moveTo.mock.invocationCallOrder[index]!,
+    })),
+    ...ctx.lineTo.mock.calls.map((call, index) => ({
+      kind: 'lineTo' as const,
+      x: call[0] as number,
+      order: ctx.lineTo.mock.invocationCallOrder[index]!,
+    })),
+  ].sort((a, b) => a.order - b.order);
+
+  const segments: Array<{ fromX: number; toX: number }> = [];
+  for (let i = 1; i < events.length; i++) {
+    if (events[i]!.kind === 'lineTo') {
+      segments.push({ fromX: events[i - 1]!.x, toX: events[i]!.x });
+    }
+  }
+  return segments;
 }
 
 describe('render-loop wrap parity', () => {
@@ -234,6 +284,90 @@ describe('render-loop wrap parity', () => {
       expect.anything(),
       state.map,
     );
+  });
+
+  it('draws a seam-crossing journey path as a short wrapped step, not a full-map line', () => {
+    const { canvas, ctx } = createCanvasWithCtx();
+    const loop = new RenderLoop(canvas);
+    const state = {
+      turn: 1,
+      currentPlayer: 'player',
+      map: { width: 5, height: 3, wrapsHorizontally: true, tiles: {}, rivers: [] },
+      tribalVillages: {}, minorCivs: {}, cities: {}, units: {},
+      civilizations: { player: { color: '#4a90d9', visibility: { tiles: {} } } },
+    } as unknown as GameState;
+
+    loop.setGameState(state);
+    loop.setJourneyPath([{ q: 4, r: 1 }, { q: 0, r: 1 }]);
+    loop.camera.centerOn({ q: 4.5, r: 1 });
+
+    (loop as unknown as { render: () => void }).render();
+
+    const segments = orderedLineSegments(ctx);
+    expect(segments.length).toBeGreaterThan(0);
+    const hexStep = Math.sqrt(3) * loop.camera.hexSize;
+    for (const segment of segments) {
+      expect(Math.abs(segment.toX - segment.fromX)).toBeLessThan(hexStep * 2);
+    }
+  });
+
+  it('draws the journey path at the visible ghost copy when the camera views the seam', () => {
+    const { canvas, ctx } = createCanvasWithCtx();
+    const loop = new RenderLoop(canvas);
+    const state = {
+      turn: 1,
+      currentPlayer: 'player',
+      map: { width: 5, height: 3, wrapsHorizontally: true, tiles: {}, rivers: [] },
+      tribalVillages: {}, minorCivs: {}, cities: {}, units: {},
+      civilizations: { player: { color: '#4a90d9', visibility: { tiles: {} } } },
+    } as unknown as GameState;
+
+    loop.setGameState(state);
+    loop.setJourneyPath([{ q: 0, r: 1 }, { q: 1, r: 1 }]);
+    loop.camera.centerOn({ q: 5, r: 1 });
+
+    (loop as unknown as { render: () => void }).render();
+
+    const points = [
+      ...ctx.moveTo.mock.calls.map(call => call[0] as number),
+      ...ctx.lineTo.mock.calls.map(call => call[0] as number),
+    ];
+    expect(points.some(x => x >= 0 && x <= 320)).toBe(true);
+  });
+
+  it('draws a seam-crossing trade route as a short wrapped line, not a full-map line', () => {
+    const { canvas, ctx } = createCanvasWithCtx();
+    const loop = new RenderLoop(canvas);
+    const state = {
+      turn: 1,
+      currentPlayer: 'player',
+      map: { width: 5, height: 3, wrapsHorizontally: true, tiles: {}, rivers: [] },
+      tribalVillages: {}, minorCivs: {},
+      cities: {
+        c1: { id: 'c1', owner: 'player', position: { q: 4, r: 1 } },
+        c2: { id: 'c2', owner: 'player', position: { q: 0, r: 1 } },
+      },
+      units: {},
+      marketplace: { tradeRoutes: [{ fromCityId: 'c1', toCityId: 'c2' }] },
+      civilizations: {
+        player: {
+          color: '#4a90d9',
+          visibility: { tiles: { '4,1': 'visible', '0,1': 'visible' } },
+        },
+      },
+    } as unknown as GameState;
+
+    loop.setGameState(state);
+    loop.camera.centerOn({ q: 4.5, r: 1 });
+
+    (loop as unknown as { render: () => void }).render();
+
+    const segments = orderedLineSegments(ctx);
+    expect(segments.length).toBeGreaterThan(0);
+    const hexStep = Math.sqrt(3) * loop.camera.hexSize;
+    for (const segment of segments) {
+      expect(Math.abs(segment.toX - segment.fromX)).toBeLessThan(hexStep * 2);
+    }
   });
 
   it('runs movement completion callbacks after the unit leaves the moving set', () => {

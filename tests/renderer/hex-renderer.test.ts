@@ -491,6 +491,38 @@ describe('drawRoads', () => {
     expect((ctx as unknown as MockCanvasContext).strokeCalls.length).toBeGreaterThan(0);
   });
 
+  it('draws a seam-crossing road pair as short stubs on both sides, never a full-map line', async () => {
+    const { drawRoads } = await import('@/renderer/hex-renderer');
+    const map: GameMap = {
+      width: 6,
+      height: 1,
+      wrapsHorizontally: true,
+      rivers: [],
+      tiles: {
+        '0,0': { coord: { q: 0, r: 0 }, terrain: 'grassland', elevation: 'lowland', resource: null, improvement: 'none', owner: 'player', improvementTurnsLeft: 0, hasRiver: false, wonder: null, hasRoad: true },
+        '5,0': { coord: { q: 5, r: 0 }, terrain: 'grassland', elevation: 'lowland', resource: null, improvement: 'none', owner: 'player', improvementTurnsLeft: 0, hasRiver: false, wonder: null, hasRoad: true },
+      },
+    } as unknown as GameMap;
+    const segments: Array<{ fromX: number; toX: number }> = [];
+    let penX = 0;
+    const ctx = new MockCanvasContext() as unknown as CanvasRenderingContext2D;
+    (ctx as unknown as { moveTo: (x: number) => void }).moveTo = (x: number) => { penX = x; };
+    (ctx as unknown as { lineTo: (x: number) => void }).lineTo = (x: number) => {
+      segments.push({ fromX: penX, toX: x });
+      penX = x;
+    };
+
+    const camera = makeCamera();
+    drawRoads(ctx, map, camera, new Set());
+
+    // Both sides of the seam get a stub (base pass + ghost pass).
+    expect(segments.length).toBeGreaterThanOrEqual(2);
+    const hexStep = Math.sqrt(3) * camera.hexSize;
+    for (const segment of segments) {
+      expect(Math.abs(segment.toX - segment.fromX)).toBeLessThanOrEqual(hexStep * 1.5);
+    }
+  });
+
   it('draws a road segment into a city tile even without hasRoad on the city hex', async () => {
     const { drawRoads } = await import('@/renderer/hex-renderer');
     const map: GameMap = {

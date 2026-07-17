@@ -1,17 +1,45 @@
+import type { HexCoord } from '@/core/types';
+import { hexToPixel } from '@/systems/hex-utils';
+import type { Camera } from './camera';
+import { getHorizontalWrapRenderCoords } from './wrap-rendering';
+
+export type EffectAnimationType =
+  | 'combat-flash'
+  | 'wonder-discovery-pulse'
+  | 'wonder-discovery-static-highlight'
+  | 'disembark-flash';
+
+export interface EffectAnimationData {
+  /** Hex the effect marks. Screen position is derived from the camera every frame. */
+  coord: HexCoord;
+  accent?: string;
+  glow?: string;
+}
+
 export interface Animation {
   id: string;
-  type: string;
+  type: EffectAnimationType;
   startTime: number;
   duration: number;
-  data: any;
+  data: EffectAnimationData;
   onComplete?: () => void;
+}
+
+export interface AnimationMapContext {
+  width: number;
+  wrapsHorizontally: boolean;
 }
 
 export class AnimationSystem {
   private animations: Animation[] = [];
   private nextId = 1;
 
-  add(type: string, duration: number, data: any, onComplete?: () => void): string {
+  add(
+    type: EffectAnimationType,
+    duration: number,
+    data: EffectAnimationData,
+    onComplete?: () => void,
+  ): string {
     const id = `anim-${this.nextId++}`;
     this.animations.push({
       id,
@@ -24,14 +52,23 @@ export class AnimationSystem {
     return id;
   }
 
-  update(ctx: CanvasRenderingContext2D, now: number): void {
+  update(ctx: CanvasRenderingContext2D, camera: Camera, map: AnimationMapContext, now: number): void {
     const completed: Animation[] = [];
 
     for (const anim of this.animations) {
       const elapsed = now - anim.startTime;
       const progress = Math.min(1, elapsed / anim.duration);
 
-      this.renderAnimation(ctx, anim, progress);
+      const renderCoords = map.wrapsHorizontally
+        ? getHorizontalWrapRenderCoords(anim.data.coord, map.width, camera)
+        : [anim.data.coord];
+      for (const renderCoord of renderCoords) {
+        if (!camera.isHexVisible(renderCoord)) continue;
+        const pixel = hexToPixel(renderCoord, camera.hexSize);
+        const screen = camera.worldToScreen(pixel.x, pixel.y);
+        const size = camera.hexSize * camera.zoom;
+        this.renderAnimation(ctx, anim, progress, screen.x, screen.y, size);
+      }
 
       if (progress >= 1) {
         completed.push(anim);
@@ -45,23 +82,16 @@ export class AnimationSystem {
     }
   }
 
-  hasAnimations(): boolean {
-    return this.animations.length > 0;
-  }
-
-  private renderAnimation(ctx: CanvasRenderingContext2D, anim: Animation, progress: number): void {
+  private renderAnimation(
+    ctx: CanvasRenderingContext2D,
+    anim: Animation,
+    progress: number,
+    x: number,
+    y: number,
+    size: number,
+  ): void {
     switch (anim.type) {
-      case 'hex-reveal': {
-        const { x, y, size } = anim.data;
-        const alpha = 1 - progress;
-        ctx.fillStyle = `rgba(15, 15, 25, ${alpha * 0.95})`;
-        ctx.beginPath();
-        ctx.arc(x, y, size * (1 + progress * 0.3), 0, Math.PI * 2);
-        ctx.fill();
-        break;
-      }
       case 'combat-flash': {
-        const { x, y, size } = anim.data;
         const alpha = 1 - progress;
         ctx.fillStyle = `rgba(255, 100, 50, ${alpha * 0.6})`;
         ctx.beginPath();
@@ -70,17 +100,17 @@ export class AnimationSystem {
         break;
       }
       case 'wonder-discovery-pulse': {
-        const { x, y, size, accent, glow } = anim.data;
+        const { accent, glow } = anim.data;
         const alpha = 1 - progress;
         ctx.save();
-        ctx.strokeStyle = glow;
+        ctx.strokeStyle = glow ?? '#fff';
         ctx.globalAlpha = Math.max(0.15, alpha);
         ctx.lineWidth = Math.max(2, size * 0.06);
         ctx.beginPath();
         ctx.arc(x, y, size * (0.48 + progress * 0.72), 0, Math.PI * 2);
         ctx.stroke();
         ctx.globalAlpha = Math.max(0.10, alpha * 0.35);
-        ctx.fillStyle = accent;
+        ctx.fillStyle = accent ?? '#fff';
         ctx.beginPath();
         ctx.arc(x, y, size * (0.32 + progress * 0.18), 0, Math.PI * 2);
         ctx.fill();
@@ -88,9 +118,9 @@ export class AnimationSystem {
         break;
       }
       case 'wonder-discovery-static-highlight': {
-        const { x, y, size, accent } = anim.data;
+        const { accent } = anim.data;
         ctx.save();
-        ctx.strokeStyle = accent;
+        ctx.strokeStyle = accent ?? '#fff';
         ctx.globalAlpha = 0.85;
         ctx.lineWidth = Math.max(2, size * 0.05);
         ctx.beginPath();
@@ -101,7 +131,6 @@ export class AnimationSystem {
       }
       case 'disembark-flash': {
         // Expanding teal ring — signals a unit has disembarked at this hex.
-        const { x, y, size } = anim.data;
         const alpha = 1 - progress;
         ctx.save();
         ctx.strokeStyle = `rgba(74, 200, 217, ${alpha * 0.7})`;
