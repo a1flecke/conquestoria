@@ -100,6 +100,7 @@ export interface SelectedUnitInfoCallbacks {
   onStartIntercept?: (unitId: string) => void;
   getAirRebaseDestinations?: (unitId: string) => Array<{ base: AirBaseRef; label: string }>;
   onRebaseAircraft?: (unitId: string, base: AirBaseRef) => void;
+  onStartAirMission?: (unitId: string, mission: 'strike' | 'recon') => void;
 }
 
 export interface SelectedUnitInfoPresentation {
@@ -586,6 +587,15 @@ export function renderSelectedUnitInfo(
   if (def.airOperation?.missions.includes('rebase') && unit.airBase && !unit.hasActed && callbacks.getAirRebaseDestinations && callbacks.onRebaseAircraft) {
     for (const destination of callbacks.getAirRebaseDestinations(unitId)) {
       actionsDiv.appendChild(makeButton(`Rebase: ${destination.label}`, '#0f766e', () => callbacks.onRebaseAircraft!(unitId, destination.base)));
+    }
+  }
+
+  if (unit.airBase && !unit.hasActed && callbacks.onStartAirMission) {
+    if (def.airOperation?.missions.includes('strike')) {
+      actionsDiv.appendChild(makeButton('Air Strike', '#b45309', () => callbacks.onStartAirMission!(unitId, 'strike')));
+    }
+    if (def.airOperation?.missions.includes('recon')) {
+      actionsDiv.appendChild(makeButton('Recon', '#2563eb', () => callbacks.onStartAirMission!(unitId, 'recon')));
     }
   }
 

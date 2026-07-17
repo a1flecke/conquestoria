@@ -992,6 +992,21 @@ describe('renderSelectedUnitInfo - based aircraft', () => {
     button!.click();
     expect(onRebase).toHaveBeenCalledWith('fighter', { kind: 'city', cityId: 'reserve' });
   });
+
+  it('renders the catalog mission action and reports its requested mission', () => {
+    const state = createNewGame(undefined, 'aircraft-strike-panel', 'small');
+    const bomber = { ...createUnit('bomber', 'player', { q: 3, r: 3 }, { nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 }), id: 'bomber', airBase: { kind: 'city' as const, cityId: 'origin' } };
+    state.units = { bomber };
+    const container = new MockElement('div');
+    const onMission = vi.fn();
+
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'bomber', { onStartAirMission: onMission });
+
+    const button = findButtons(container).find(candidate => candidate.textContent === 'Air Strike');
+    expect(button).toBeDefined();
+    button!.click();
+    expect(onMission).toHaveBeenCalledWith('bomber', 'strike');
+  });
 });
 
 describe('renderSelectedUnitInfo - found city button', () => {

@@ -41,7 +41,7 @@ import { calculateCombatStrengths, deterministicCombatSeed, resolveCombat, selec
 import { calculateCityAssaultStrengths } from '@/systems/city-siege-system';
 import { buildCombatContextForDefender } from '@/systems/combat-context';
 import { canUnitAttackTarget } from '@/systems/attack-targeting';
-import { getAirBaseCapacity, getAirBaseRoster, getLegalRebaseDestinations, rebaseAircraft, startIntercept } from '@/systems/air-operations-system';
+import { getAirBaseCapacity, getAirBaseRoster, getLegalRebaseDestinations, rebaseAircraft, resolveAirStrike, resolveReconMission, startIntercept } from '@/systems/air-operations-system';
 import { buildSelectedUnitHighlights } from '@/input/selected-unit-highlights';
 import { handleSelectedUnitMovementBlocker } from '@/input/selected-unit-movement-feedback';
 import {
@@ -296,6 +296,7 @@ let persistedSettings: GameState['settings'] | undefined;
 let pacingDebugOpen = false;
 let pendingCityCaptureChoice: PendingCityCaptureChoice | null = null;
 let pendingJourneyUnitId: string | null = null;
+let pendingAirMission: { unitId: string; mission: 'strike' | 'recon' } | null = null;
 let deferWonderDiscoveryRevealUntilMoveSettles = false;
 
 /** Clears pendingUnload state and resets the mis-tap notification guard. */
@@ -1958,6 +1959,10 @@ function selectUnit(
         updateHUD();
         selectUnit(uid);
       },
+      onStartAirMission: (uid, mission) => {
+        pendingAirMission = { unitId: uid, mission };
+        showNotification(mission === 'strike' ? 'Tap a hostile unit within operational range.' : 'Tap a recon center within operational range.', 'info');
+      },
       onOpenNetworkIntent: uid => openNetworkIntentPanel(uid),
       onFoundCity: () => foundCityAction(),
       onWorkerAction: action => performWorkerAction(action),
@@ -2848,6 +2853,24 @@ function handleHexTap(rawCoord: HexCoord): void {
     return;
   }
   const key = hexKey(coord);
+
+  if (pendingAirMission) {
+    const pending = pendingAirMission;
+    const result = pending.mission === 'strike'
+      ? resolveAirStrike(gameState, pending.unitId, coord)
+      : resolveReconMission(gameState, pending.unitId, coord);
+    if (!result.ok) {
+      showNotification('That air mission target is no longer legal.', 'warning');
+      return;
+    }
+    pendingAirMission = null;
+    gameState = result.state;
+    renderLoop.setGameState(gameState);
+    refreshCurrentPlayerVisibility();
+    updateHUD();
+    selectUnit(pending.unitId);
+    return;
+  }
 
   if (!selectedUnitId) {
     const pirateSelection = resolvePirateHeadquartersSelection(gameState, gameState.currentPlayer, coord);
