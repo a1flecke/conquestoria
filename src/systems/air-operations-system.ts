@@ -1,5 +1,5 @@
-import type { AirBaseRef, GameState, Unit, UnitType } from '@/core/types';
-import { hexDistance, wrappedHexDistance } from './hex-utils';
+import type { AirBaseRef, AirMission, GameState, HexCoord, Unit, UnitType } from '@/core/types';
+import { hexDistance, hexesInRange, getWrappedHexesInRange, wrappedHexDistance } from './hex-utils';
 import { UNIT_DEFINITIONS } from './unit-system';
 
 export type AirOperationResult =
@@ -9,6 +9,11 @@ export type AirOperationResult =
 export type AirBaseCheck =
   | { ok: true; base: Extract<AirBaseRef, { kind: 'city' }> }
   | { ok: false; reason: 'not-based-aircraft' | 'base-missing' | 'incompatible-base' | 'base-full' };
+
+export interface AirBaseLossResult {
+  state: GameState;
+  outcomes: Array<{ aircraftId: string; outcome: 'destroyed' | 'evacuated' | 'captured' }>;
+}
 
 export function isBasedAirUnit(unit: Unit): boolean {
   return unit.airBase !== undefined;
@@ -157,6 +162,58 @@ export function selectInterceptor(state: GameState, incoming: Unit, target: { q:
       const rightDamage = UNIT_DEFINITIONS[right.type].strength * right.health / 100;
       return rightDamage - leftDamage || right.health - left.health || left.id.localeCompare(right.id);
     })[0];
+}
+
+export function getLegalAirMissionTargets(state: GameState, unitId: string, mission: Extract<AirMission, 'recon'>): HexCoord[] {
+  const unit = state.units[unitId];
+  const definition = unit && UNIT_DEFINITIONS[unit.type].airOperation;
+  if (!unit || !definition?.missions.includes(mission) || !unit.airBase || unit.hasActed) return [];
+  return state.map.wrapsHorizontally
+    ? getWrappedHexesInRange(unit.position, definition.operationalRange, state.map.width)
+    : hexesInRange(unit.position, definition.operationalRange);
+}
+
+export function resolveReconMission(state: GameState, unitId: string, center: HexCoord): AirOperationResult {
+  const unit = state.units[unitId];
+  if (!unit || !getLegalAirMissionTargets(state, unitId, 'recon')
+    .some(target => target.q === center.q && target.r === center.r)) {
+    return { ok: false, state, reason: 'invalid-recon-target' };
+  }
+  return {
+    ok: true,
+    state: {
+      ...state,
+      units: {
+        ...state.units,
+        [unitId]: { ...unit, movementPointsLeft: 0, hasMoved: true, hasActed: true },
+      },
+      reconReveals: [
+        ...(state.reconReveals ?? []).filter(reveal => reveal.expiresAtTurn >= state.turn),
+        { ownerCivId: unit.owner, center: { ...center }, range: 3, expiresAtTurn: state.turn },
+      ],
+    },
+  };
+}
+
+export function resolveAirBaseLoss(
+  state: GameState,
+  base: AirBaseRef,
+  cause: { kind: 'captured'; victorId: string } | { kind: 'facility-removed' } | { kind: 'carrier-destroyed' },
+): AirBaseLossResult {
+  const roster = getAirBaseRoster(state, base);
+  if (cause.kind !== 'carrier-destroyed') {
+    return { state, outcomes: roster.map(unit => ({ aircraftId: unit.id, outcome: 'destroyed' as const })) };
+  }
+  const removedIds = new Set(roster.map(unit => unit.id));
+  const units = Object.fromEntries(Object.entries(state.units).filter(([unitId]) => !removedIds.has(unitId)));
+  const civilizations = Object.fromEntries(Object.entries(state.civilizations).map(([civId, civilization]) => [
+    civId,
+    { ...civilization, units: civilization.units.filter(unitId => !removedIds.has(unitId)) },
+  ]));
+  return {
+    state: { ...state, units, civilizations },
+    outcomes: roster.map(unit => ({ aircraftId: unit.id, outcome: 'destroyed' })),
+  };
 }
 
 export function syncCarrierBasedAircraft(state: GameState, carrierId: string): GameState {

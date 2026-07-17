@@ -37,6 +37,33 @@ describe('save migrations', () => {
     });
   });
 
+  it('lands legacy combat aircraft at the nearest compatible friendly base and removes stranded craft', () => {
+    const legacySave = createNewGame('rome', 'legacy-based-aircraft', 'small');
+    legacySave.saveSchemaVersion = CURRENT_SAVE_SCHEMA_VERSION - 1;
+    const playerCityId = 'legacy-airfield';
+    const playerCity: City = {
+      id: playerCityId, name: 'Legacy Airfield', owner: 'player', position: { q: 3, r: 3 }, population: 2,
+      food: 0, foodNeeded: 10, buildings: ['airfield'], productionQueue: [], productionProgress: 0,
+      ownedTiles: [], workedTiles: [], focus: 'balanced', maturity: 'village', unrestLevel: 0,
+      unrestTurns: 0, spyUnrestBonus: 0, idleProduction: null,
+    };
+    legacySave.cities = { ...legacySave.cities, [playerCityId]: playerCity };
+    legacySave.civilizations.player.cities = [playerCityId];
+    const aircraft: Unit = {
+      id: 'legacy-biplane', type: 'biplane', owner: 'player', position: { q: playerCity.position.q + 2, r: playerCity.position.r },
+      movementPointsLeft: 4, health: 100, experience: 0, hasMoved: false, hasActed: false, isResting: false,
+    };
+    legacySave.units = { ...legacySave.units, [aircraft.id]: aircraft };
+    legacySave.civilizations.player.units = [...legacySave.civilizations.player.units, aircraft.id];
+
+    const migrated = migrateSaveToCurrent(legacySave);
+
+    expect(migrated.units[aircraft.id]).toMatchObject({
+      airBase: { kind: 'city', cityId: playerCityId },
+      position: playerCity.position,
+    });
+  });
+
   it('#553 MR1/4 — Trade Routes Overhaul is purely additive: a pre-existing caravan and its committed route survive migration and stay functional (no SAVE_MIGRATIONS entry needed)', () => {
     const legacySave = createNewGame('rome', 'pre-naval-trader-save', 'small');
     const cityId = Object.keys(legacySave.cities)[0]!;
@@ -221,7 +248,7 @@ describe('save migrations', () => {
     const migrated = migrateSaveToCurrent(legacySave);
     const loadedAgain = migrateSaveToCurrent(migrated);
 
-    expect(migrated.saveSchemaVersion).toBe(3);
+    expect(migrated.saveSchemaVersion).toBe(CURRENT_SAVE_SCHEMA_VERSION);
     expect(migrated.networkCivicPressureByCity).toEqual({});
     expect(migrated.autonomyByCiv).toEqual(Object.fromEntries(
       Object.keys(migrated.civilizations).map(civId => [civId, { plans: {}, detections: {} }]),

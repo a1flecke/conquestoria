@@ -10,6 +10,7 @@ import {
   type PirateActionEvent,
 } from '@/systems/pirate-actions';
 import { recordMilitaryAttack } from './diplomacy-system';
+import { resolveAirBaseLoss } from './air-operations-system';
 
 export type VeterancyTierId = 'recruit' | 'seasoned' | 'veteran' | 'elite';
 
@@ -436,6 +437,13 @@ export function applyCombatOutcomeToState(
   }
   if (attackerActuallyDefeated) {
     nextState = recordHuntKillerIfApplicable(nextState, attackerBefore.id, attackerBefore.owner, defenderBefore.owner);
+  }
+
+  if (attackerActuallyDefeated && attackerBefore.type === 'carrier') {
+    nextState = resolveAirBaseLoss(nextState, { kind: 'carrier', unitId: attackerBefore.id }, { kind: 'carrier-destroyed' }).state;
+  }
+  if (defenderActuallyDefeated && defenderBefore.type === 'carrier') {
+    nextState = resolveAirBaseLoss(nextState, { kind: 'carrier', unitId: defenderBefore.id }, { kind: 'carrier-destroyed' }).state;
   }
 
   return {

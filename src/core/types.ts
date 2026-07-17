@@ -1575,6 +1575,14 @@ export interface GameState {
   mapScript?: MapScript;  // undefined on old saves → treat as 'procedural'
   startPlacementMode?: StartPlacementMode;
   activeCrises?: Record<string, ActiveCrisis>;
+  reconReveals?: ReconReveal[];
+}
+
+export interface ReconReveal {
+  ownerCivId: string;
+  center: HexCoord;
+  range: number;
+  expiresAtTurn: number;
 }
 
 export interface GameSettings {

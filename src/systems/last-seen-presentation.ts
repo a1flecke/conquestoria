@@ -7,7 +7,7 @@ import type {
   LastSeenUnitPresentation,
   Unit,
 } from '@/core/types';
-import { getVisibility, isForestConcealedUnit, updateVisibility } from '@/systems/fog-of-war';
+import { applyReconReveals, getVisibility, isForestConcealedUnit, updateVisibility } from '@/systems/fog-of-war';
 import { getActiveNationalProjectsForCiv } from '@/systems/national-project-system';
 import { getVisionBonus } from '@/systems/unit-modifier-system';
 import { resolveTileHasRail } from '@/systems/road-network';
@@ -180,4 +180,5 @@ export function updateAndRefreshVisibility(state: GameState, civId: string): voi
   updateVisibility(civ.visibility, units, state.map, cityPositions,
     unit => getVisionBonus(unit.type, civ.techState.completed, activeNPs));
   refreshLastSeenPresentationsForCiv(state, civId);
+  applyReconReveals(state, civId);
 }

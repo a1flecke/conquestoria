@@ -1,4 +1,4 @@
-import { createVisibilityMap, updateVisibility, isVisible, isFog, isUnexplored, getTerrainVisionBonus, revealMinorCivCities, applySharedVision, applySatelliteSurveillance, applyMassSurveillanceReveal, isForestConcealedUnit, getVisibility } from '@/systems/fog-of-war';
+import { applyReconReveals, createVisibilityMap, updateVisibility, isVisible, isFog, isUnexplored, getTerrainVisionBonus, revealMinorCivCities, applySharedVision, applySatelliteSurveillance, applyMassSurveillanceReveal, isForestConcealedUnit, getVisibility } from '@/systems/fog-of-war';
 import type { VisibilityMap, GameMap, Unit, GameState, HexCoord } from '@/core/types';
 import { generateMap } from '@/systems/map-generator';
 import { hexKey } from '@/systems/hex-utils';
@@ -109,6 +109,27 @@ describe('fog-of-war', () => {
     // Old position should be fog (seen before but no longer visible)
     expect(isFog(vis, { q: 15, r: 15 })).toBe(true);
     expect(isVisible(vis, { q: 15, r: 15 })).toBe(false);
+  });
+});
+
+describe('temporary recon visibility', () => {
+  it('overlays only the recon owner during the issuing turn without changing last seen', () => {
+    const state = {
+      turn: 8,
+      map: createWrappedGrasslandMap(8, 6),
+      civilizations: {
+        player: { visibility: createVisibilityMap() },
+        opponent: { visibility: createVisibilityMap() },
+      },
+      reconReveals: [{ ownerCivId: 'player', center: { q: 0, r: 2 }, range: 2, expiresAtTurn: 8 }],
+    } as unknown as GameState;
+
+    applyReconReveals(state, 'player');
+    applyReconReveals(state, 'opponent');
+
+    expect(getVisibility(state.civilizations.player!.visibility, { q: 7, r: 2 })).toBe('visible');
+    expect(getVisibility(state.civilizations.opponent!.visibility, { q: 7, r: 2 })).toBe('unexplored');
+    expect(state.civilizations.player!.visibility.lastSeen).toEqual({});
   });
 });
 
