@@ -397,3 +397,26 @@ describe('air interception defenses (#537)', () => {
     expect(result.attackerDamage).toBe(0);
   });
 });
+
+describe('amphibious combat context', () => {
+  it('applies and surfaces the landing penalty with bounded shore support', () => {
+    const map = generateMap(30, 30, 'amphibious-context');
+    const attacker = createUnit('warrior', 'p1', { q: 10, r: 10 }, mkC());
+    const defender = createUnit('warrior', 'p2', { q: 11, r: 10 }, mkC());
+
+    const normal = calculateCombatStrengths(attacker, defender, map);
+    const landing = calculateCombatStrengths(attacker, defender, map, {
+      attackerAmphibiousMultiplier: 0.55,
+      attackerAmphibiousParts: [
+        { label: 'Landing -50%', kind: 'mult' },
+        { label: 'Shore bombardment +10%', kind: 'mult' },
+      ],
+    });
+
+    expect(landing.attackerStrength).toBeCloseTo(normal.attackerStrength * 0.55);
+    expect(landing.attackerModifierParts).toEqual(expect.arrayContaining([
+      { label: 'Landing -50%', kind: 'mult' },
+      { label: 'Shore bombardment +10%', kind: 'mult' },
+    ]));
+  });
+});

@@ -126,6 +126,8 @@ export interface CombatContext {
   defenderPositioningMultiplier?: number;
   attackerPositioningPart?: ModifierPart;
   defenderPositioningPart?: ModifierPart;
+  attackerAmphibiousMultiplier?: number;
+  attackerAmphibiousParts?: ModifierPart[];
 }
 
 export interface CombatStrengthBreakdown {
@@ -204,6 +206,7 @@ export function calculateCombatStrengths(
     * (1 + getVeterancyCombatModifier(defender));
 
   attackerStrength *= context?.attackerPositioningMultiplier ?? 1;
+  attackerStrength *= context?.attackerAmphibiousMultiplier ?? 1;
   defenderStrength *= context?.defenderPositioningMultiplier ?? 1;
 
   // Bombard-kind units (catapult, cannon, artillery, grenadier, bomber, stealth_bomber)
@@ -268,7 +271,7 @@ export function calculateCombatStrengths(
     terrainDefenseBonus,
     riverAttackPenalty,
     cityDefense,
-    attackerModifierParts: [...(context?.attackerModifiers?.parts ?? []), ...(context?.attackerPositioningPart ? [context.attackerPositioningPart] : [])],
+    attackerModifierParts: [...(context?.attackerModifiers?.parts ?? []), ...(context?.attackerPositioningPart ? [context.attackerPositioningPart] : []), ...(context?.attackerAmphibiousParts ?? [])],
     defenderModifierParts: [...(context?.defenderModifiers?.parts ?? []), ...(context?.defenderPositioningPart ? [context.defenderPositioningPart] : [])],
     defenderDefendsPoorly: defendsPoorly(defenderDefinition.attackProfile),
     exchange: getCombatExchangeModifiers(attacker, defender),

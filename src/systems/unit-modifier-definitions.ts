@@ -28,6 +28,7 @@ export const UNIT_CLASS_BY_TYPE: Record<UnitType, UnitClass[]> = {
   cannon: ['siege', 'gunpowder'],
   artillery: ['siege', 'gunpowder'],
   grenadier: ['gunpowder'],
+  marine: ['gunpowder'],
   rifleman: ['gunpowder'],
   frigate: ['naval', 'ranged'],
   ironclad: ['naval', 'gunpowder'],

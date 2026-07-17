@@ -341,7 +341,7 @@ export type UnitType =
   | 'settler' | 'worker' | 'scout' | 'warrior' | 'archer'
   | 'swordsman' | 'pikeman' | 'musketeer' | 'galley' | 'trireme'
   | 'axeman' | 'spearman' | 'horseman' | 'cavalry' | 'knight'
-  | 'crossbowman' | 'catapult' | 'ballista' | 'cannon' | 'grenadier' | 'rifleman' | 'ironclad'
+  | 'crossbowman' | 'catapult' | 'ballista' | 'cannon' | 'grenadier' | 'marine' | 'rifleman' | 'ironclad'
   | 'frigate' | 'destroyer' | 'artillery' | 'infantry'
   | 'machine_gunner' | 'pre_dreadnought'
   | 'observation_balloon' | 'biplane' | 'jet_fighter' | 'bomber' | 'recon_aircraft'
