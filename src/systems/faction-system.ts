@@ -68,11 +68,12 @@ export function getUnrestPressureBreakdown(
     if (distancePressure > 0) rows.push({ label: 'Distance from capital', amount: distancePressure });
   }
 
-  // Recent conquest
+  // Recent conquest — constitutional-law (#524 MR2) halves this row's amount.
   if (city.conquestTurn !== undefined) {
     const turnsSince = state.turn - city.conquestTurn;
     if (turnsSince < CONQUEST_UNREST_DURATION) {
-      rows.push({ label: 'Recent conquest', amount: 25 });
+      const hasConstitutionalLaw = civ.techState.completed.includes('constitutional-law');
+      rows.push({ label: 'Recent conquest', amount: hasConstitutionalLaw ? 13 : 25 });
     }
   }
 
