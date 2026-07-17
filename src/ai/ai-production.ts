@@ -18,7 +18,8 @@ import {
 } from '@/systems/economy-system';
 import { getCivAvailableResources } from '@/systems/resource-acquisition-system';
 import { resolveCivDefinition } from '@/systems/civ-registry';
-import { createUnit } from '@/systems/unit-system';
+import { createUnit, UNIT_DEFINITIONS } from '@/systems/unit-system';
+import { canCompleteAirUnitProduction } from '@/systems/air-operations-system';
 import { enqueueCityProduction } from '@/systems/planning-system';
 import { getActiveNationalProjectsForCiv, getReservedNationalProjectKeys } from '@/systems/national-project-system';
 import type { AIForceDemand } from './ai-unit-assignment';
@@ -262,6 +263,8 @@ function generateWithResidual(
     civ.civType,
     resources,
   )) {
+    if (UNIT_DEFINITIONS[unit.type].airOperation
+      && !canCompleteAirUnitProduction(state, cityId, unit.type).ok) continue;
     const roles = getAIStrategicRoles(unit.type);
     const fulfilled = matchingDemand(roles, demands);
     if (!fulfilled) continue;
