@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { UNIT_DEFINITIONS } from '@/systems/unit-system';
 import { TRAINABLE_UNITS } from '@/systems/city-system';
-import { baseNewAirUnit, canCompleteAirUnitProduction, getAirBaseCapacity, getAirBaseRoster, getLegalRebaseDestinations, isBasedAirUnit, rebaseAircraft, syncCarrierBasedAircraft } from '@/systems/air-operations-system';
+import { baseNewAirUnit, canCompleteAirUnitProduction, getAirBaseCapacity, getAirBaseRoster, getLegalRebaseDestinations, isBasedAirUnit, rebaseAircraft, selectInterceptor, startIntercept, syncCarrierBasedAircraft } from '@/systems/air-operations-system';
 import type { GameState, Unit } from '@/core/types';
 
 describe('air-operation definitions', () => {
@@ -49,7 +49,7 @@ describe('air bases', () => {
     expect(isBasedAirUnit(biplane)).toBe(true);
     expect(getAirBaseRoster(state, { kind: 'city', cityId: 'city-1' }).map(unit => unit.id)).toEqual(['air-1']);
     expect(getAirBaseCapacity(state, { kind: 'city', cityId: 'city-1' })).toBe(3);
-    expect(getAirBaseCapacity({ ...state, builtNationalProjects: { 'player:air_force_command': { civId: 'player', buildingId: 'air_force_command' } } }, { kind: 'city', cityId: 'city-1' })).toBe(4);
+    expect(getAirBaseCapacity({ ...state, builtNationalProjects: { 'player:air_force_command': { civId: 'player', cityId: 'city-1', eraBuilt: 9 } } }, { kind: 'city', cityId: 'city-1' })).toBe(4);
   });
 
   it('lands a newly trained aircraft in the producing city only when its compatible base has capacity', () => {
@@ -91,5 +91,27 @@ describe('air bases', () => {
     } as unknown as GameState;
 
     expect(syncCarrierBasedAircraft(carrierState, 'carrier').units['air-1']?.position).toEqual({ q: 6, r: 2 });
+  });
+
+  it('spends a fighter to intercept and selects the strongest eligible defender deterministically', () => {
+    const missionState = {
+      ...state,
+      map: { width: 10, height: 10, wrapsHorizontally: false },
+      units: {
+        fighterA: { ...biplane, id: 'fighter-a', type: 'jet_fighter', health: 80, airMission: 'intercept' },
+        fighterB: { ...biplane, id: 'fighter-b', type: 'jet_fighter', health: 100, airMission: 'intercept' },
+        incoming: { ...biplane, id: 'incoming', owner: 'enemy', position: { q: 4, r: 2 }, airBase: { kind: 'city', cityId: 'enemy-city' } },
+      },
+      cities: {
+        ...state.cities,
+        'enemy-city': { id: 'enemy-city', owner: 'enemy', position: { q: 4, r: 2 }, buildings: ['airfield'] },
+      },
+    } as unknown as GameState;
+
+    expect(startIntercept({ ...missionState, units: { ...missionState.units, fighterA: { ...missionState.units.fighterA, airMission: undefined } } }, 'fighterA')).toMatchObject({
+      ok: true,
+      state: { units: { fighterA: { airMission: 'intercept', hasActed: true } } },
+    });
+    expect(selectInterceptor(missionState, missionState.units.incoming!, { q: 4, r: 2 })?.id).toBe('fighter-b');
   });
 });

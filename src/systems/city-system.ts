@@ -1633,6 +1633,8 @@ export function describeDroppedProductionItem(item: DroppedProductionItem, cityN
       return `${name} removed from ${cityName}'s build queue — the city is no longer coastal.`;
     case 'training-building-missing':
       return `${name} removed from ${cityName}'s build queue — ${cityName} no longer has the building required to train it.`;
+    case 'air-base-unavailable':
+      return `${name} removed from ${cityName}'s build queue — it needs a compatible air base with an available slot.`;
   }
 }
 

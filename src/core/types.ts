@@ -435,6 +435,7 @@ export interface Unit {
   transportId?: string;         // set when this unit is loaded as cargo
   airBase?: AirBaseRef;
   airMission?: 'intercept';
+  interceptedTurn?: number;
 }
 
 // --- Cities ---

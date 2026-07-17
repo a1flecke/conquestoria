@@ -569,7 +569,7 @@ export function moveUnitWithZoneOfControl(
 }
 
 export function resetUnitTurn(unit: Unit): Unit {
-  const { skippedTurn: _skippedTurn, ...rest } = unit;
+  const { skippedTurn: _skippedTurn, interceptedTurn: _interceptedTurn, ...rest } = unit;
   const base: Unit = {
     ...rest,
     movementPointsLeft: UNIT_DEFINITIONS[unit.type].movementPoints + (unit.movementBonus ?? 0),

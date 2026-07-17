@@ -16,16 +16,20 @@ export function isBasedAirUnit(unit: Unit): boolean {
 
 export function getAirBaseRoster(state: GameState, base: AirBaseRef): Unit[] {
   return Object.values(state.units)
-    .filter(unit => unit.airBase?.kind === base.kind
-      && (base.kind === 'city'
-        ? unit.airBase.cityId === base.cityId
-        : unit.airBase.unitId === base.unitId))
+    .filter(unit => unit.airBase !== undefined && isSameAirBase(unit.airBase, base))
     .sort((left, right) => left.id.localeCompare(right.id));
 }
 
 function hasAirForceCommand(state: GameState, civId: string): boolean {
-  return Object.values(state.builtNationalProjects ?? {})
-    .some(project => project.civId === civId && project.buildingId === 'air_force_command');
+  return Object.entries(state.builtNationalProjects ?? {})
+    .some(([key, project]) => project.civId === civId && key === `${civId}:air_force_command`);
+}
+
+function isSameAirBase(left: AirBaseRef, right: AirBaseRef): boolean {
+  return left.kind === right.kind
+    && (left.kind === 'city' && right.kind === 'city'
+      ? left.cityId === right.cityId
+      : left.kind === 'carrier' && right.kind === 'carrier' && left.unitId === right.unitId);
 }
 
 export function getAirBaseCapacity(state: GameState, base: AirBaseRef): number {
@@ -93,7 +97,7 @@ export function getLegalRebaseDestinations(state: GameState, unitId: string): Ai
     ...Object.values(state.units).filter(candidate => candidate.type === 'carrier').map(candidate => ({ kind: 'carrier' as const, unitId: candidate.id })),
   ];
   return candidates.filter(base => {
-    if (base.kind === unit.airBase?.kind && (base.kind === 'city' ? base.cityId === unit.airBase.cityId : base.unitId === unit.airBase.unitId)) return false;
+    if (unit.airBase && isSameAirBase(base, unit.airBase)) return false;
     const position = getAirBasePosition(state, base);
     return getAirBaseOwner(state, base) === unit.owner
       && isCompatibleBase(state, unit, base)
@@ -108,7 +112,7 @@ export function rebaseAircraft(state: GameState, unitId: string, destination: Ai
   if (!unit) return { ok: false, state, reason: 'missing-unit' };
   if (!unit.airBase || !UNIT_DEFINITIONS[unit.type].airOperation) return { ok: false, state, reason: 'not-based-aircraft' };
   if (unit.hasActed) return { ok: false, state, reason: 'already-acted' };
-  if (!getLegalRebaseDestinations(state, unitId).some(base => JSON.stringify(base) === JSON.stringify(destination))) {
+  if (!getLegalRebaseDestinations(state, unitId).some(base => isSameAirBase(base, destination))) {
     return { ok: false, state, reason: 'invalid-destination' };
   }
   const position = getAirBasePosition(state, destination)!;
@@ -116,6 +120,43 @@ export function rebaseAircraft(state: GameState, unitId: string, destination: Ai
     ok: true,
     state: { ...state, units: { ...state.units, [unitId]: { ...unit, airBase: destination, position: { ...position }, movementPointsLeft: 0, hasMoved: true, hasActed: true, airMission: undefined } } },
   };
+}
+
+export function startIntercept(state: GameState, unitId: string): AirOperationResult {
+  const unit = state.units[unitId];
+  const definition = unit && UNIT_DEFINITIONS[unit.type].airOperation;
+  if (!unit || !definition?.missions.includes('intercept') || !unit.airBase) {
+    return { ok: false, state, reason: 'ineligible-interceptor' };
+  }
+  if (unit.hasActed) return { ok: false, state, reason: 'already-acted' };
+  return {
+    ok: true,
+    state: {
+      ...state,
+      units: {
+        ...state.units,
+        [unitId]: { ...unit, airMission: 'intercept', movementPointsLeft: 0, hasMoved: true, hasActed: true },
+      },
+    },
+  };
+}
+
+export function selectInterceptor(state: GameState, incoming: Unit, target: { q: number; r: number }): Unit | undefined {
+  return Object.values(state.units)
+    .filter(unit => {
+      const definition = UNIT_DEFINITIONS[unit.type].airOperation;
+      return unit.owner !== incoming.owner
+        && unit.airMission === 'intercept'
+        && unit.airBase !== undefined
+        && (unit.interceptedTurn === undefined || unit.interceptedTurn !== state.turn)
+        && definition?.missions.includes('intercept') === true
+        && airDistance(state, unit.position, target) <= definition.operationalRange;
+    })
+    .sort((left, right) => {
+      const leftDamage = UNIT_DEFINITIONS[left.type].strength * left.health / 100;
+      const rightDamage = UNIT_DEFINITIONS[right.type].strength * right.health / 100;
+      return rightDamage - leftDamage || right.health - left.health || left.id.localeCompare(right.id);
+    })[0];
 }
 
 export function syncCarrierBasedAircraft(state: GameState, carrierId: string): GameState {

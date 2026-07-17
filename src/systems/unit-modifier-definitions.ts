@@ -37,6 +37,7 @@ export const UNIT_CLASS_BY_TYPE: Record<UnitType, UnitClass[]> = {
   pre_dreadnought: ['naval', 'gunpowder'],
   observation_balloon: ['air', 'recon'],
   biplane: ['air'],
+  recon_aircraft: ['air', 'recon'],
   jet_fighter: ['air'],
   bomber: ['air'],
   tank: ['armor'],

@@ -52,6 +52,17 @@ describe('attack-targeting', () => {
     });
   });
 
+  it('does not expose an aircraft that is based at an airfield as a map target', () => {
+    const attacker = unit('attacker', 'archer', 'player', { q: 0, r: 0 });
+    const basedAircraft = { ...unit('based-aircraft', 'biplane', 'ai-1', { q: 2, r: 0 }), airBase: { kind: 'city' as const, cityId: 'enemy-airfield' } };
+    const state = stateWithUnits({ attacker, 'based-aircraft': basedAircraft }, { '2,0': 'visible' });
+
+    expect(canUnitAttackTarget(state, attacker, { q: 2, r: 0 }, { viewerId: 'player' })).toEqual({
+      ok: false,
+      reason: 'no-target',
+    });
+  });
+
   it('rejects ranged attacks against fogged targets through the player path', () => {
     const attacker = unit('attacker', 'archer', 'player', { q: 0, r: 0 });
     const defender = unit('defender', 'warrior', 'ai-1', { q: 2, r: 0 });
