@@ -213,6 +213,14 @@ describe('getUnmovedUnits', () => {
       [loadedWarrior.id]: loadedWarrior,
     }, 'player').map(unit => unit.id)).toEqual(['idle-warrior']);
   });
+
+  it('excludes aircraft that are assigned to an air base from units needing orders', () => {
+    const basedBiplane = createUnit('biplane', 'player', { q: 0, r: 0 }, mkC());
+    basedBiplane.id = 'based-biplane';
+    basedBiplane.airBase = { kind: 'city', cityId: 'airfield' };
+
+    expect(getUnmovedUnits({ [basedBiplane.id]: basedBiplane }, 'player')).toEqual([]);
+  });
 });
 
 describe('getMovementRange', () => {

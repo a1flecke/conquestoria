@@ -749,6 +749,7 @@ export function getUnmovedUnits(
 
 export function isUnitAwaitingOrders(unit: Unit): boolean {
   return !unit.transportId
+    && !unit.airBase
     && !unit.hasMoved
     && !unit.hasActed
     && !unit.skippedTurn
