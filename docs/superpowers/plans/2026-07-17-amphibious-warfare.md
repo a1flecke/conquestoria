@@ -132,11 +132,13 @@ Add marine to UnitType, definitions, trainables, tech unlocks, class and AI
 catalogs, description, sprite, and SFX. Use this modifier row:
 
 ~~~ts
-{ source: 'unit', unitTypes: ['marine'], effect: 'combatStrength', when: 'attacking',
+{ source: { kind: 'unit', id: 'marine' }, unitTypes: ['marine'], effect: 'combatStrength', when: 'attacking',
   condition: 'amphibiousAssault', mode: 'multiplier', value: 2, label: 'Marine landing training' }
 ~~~
 
-Reuse the established gunpowder infantry sprite and SFX asset identifiers.
+Extend `ModifierSource` and `sourceIsActive` with the typed `{ kind: 'unit'; id: UnitType }`
+source, which is active only when its id equals the evaluated unit type. Reuse the
+established gunpowder infantry sprite and SFX asset identifiers.
 
 - [ ] **Step 4: Prove GREEN and commit.**
 
