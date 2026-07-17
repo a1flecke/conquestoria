@@ -237,7 +237,7 @@ export const TECH_YIELD_MODIFIERS: TechYieldModifier[] = [
 
 export interface TechCostDiscount {
   techId: string;
-  appliesTo: 'buildings' | 'units' | UnitType[];
+  appliesTo: 'buildings' | 'units' | 'military-units' | UnitType[];
   multiplier: number;
 }
 
@@ -246,6 +246,10 @@ export const TECH_COST_DISCOUNTS: TechCostDiscount[] = [
   { techId: 'cannon-casting', appliesTo: ['cannon'], multiplier: 0.85 },
   { techId: 'mass-production', appliesTo: 'units', multiplier: 0.95 },
   { techId: 'manifest-destiny', appliesTo: ['settler'], multiplier: 0.80 },
+  // Stacks multiplicatively with mass-production ('units', 0.95): military units pay
+  // ×0.8075 from era 8. Verified imperial_general_staff carries no unit discount in
+  // getBuildingDiscountMultiplier — update this comment if that changes.
+  { techId: 'general-mobilization', appliesTo: 'military-units', multiplier: 0.85 },
 ];
 
 /** Food bonus applied once at city-founding time (not a per-turn yield). */

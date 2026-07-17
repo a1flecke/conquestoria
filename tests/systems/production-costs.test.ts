@@ -103,4 +103,24 @@ describe('production cost catalog', () => {
     expect(getProductionCostForItem('settler', { era: 3, completedTechs: ['manifest-destiny'] })).toBe(Math.ceil(baseline * 0.8));
     expect(getProductionCostForItem('worker', { era: 3, completedTechs: ['manifest-destiny'] })).toBe(getProductionCostForItem('worker', { era: 3 }));
   });
+
+  it('applies general-mobilization -15% to a military unit (musketeer)', () => {
+    const baseline = getProductionCostForItem('musketeer', { era: 8 });
+    expect(getProductionCostForItem('musketeer', { era: 8, completedTechs: ['general-mobilization'] })).toBe(Math.ceil(baseline * 0.85));
+  });
+
+  it('does not apply general-mobilization to civilian or spy units', () => {
+    expect(getProductionCostForItem('settler', { era: 8, completedTechs: ['general-mobilization'] })).toBe(getProductionCostForItem('settler', { era: 8 }));
+    expect(getProductionCostForItem('worker', { era: 8, completedTechs: ['general-mobilization'] })).toBe(getProductionCostForItem('worker', { era: 8 }));
+    expect(getProductionCostForItem('spy_scout', { era: 8, completedTechs: ['general-mobilization'] })).toBe(getProductionCostForItem('spy_scout', { era: 8 }));
+  });
+
+  it('stacks general-mobilization multiplicatively with mass-production', () => {
+    const baseline = getProductionCostForItem('musketeer', { era: 8 });
+    const stacked = getProductionCostForItem('musketeer', {
+      era: 8,
+      completedTechs: ['general-mobilization', 'mass-production'],
+    });
+    expect(stacked).toBe(Math.ceil(baseline * 0.85 * 0.95));
+  });
 });

@@ -4,7 +4,7 @@ import { hexKey, hexesInRange, hexNeighbors, wrapHexCoord } from './hex-utils';
 import { drawNextCityName, DEFAULT_CITY_NAMES } from './city-name-system';
 import { INITIAL_CITY_FOCUS, INITIAL_CITY_MATURITY } from './city-maturity-system';
 import { TECH_COST_DISCOUNTS, getFoundingBonusFood } from './tech-yield-definitions';
-import { UNIT_CLASS_BY_TYPE, type UnitClass } from './unit-modifier-definitions';
+import { UNIT_CLASS_BY_TYPE, isMilitaryUnitType, type UnitClass } from './unit-modifier-definitions';
 import { getResourceAdvantageMultiplier } from './resource-advantages';
 import {
   getLegendaryWonderDisplayName,
@@ -1278,7 +1278,9 @@ function getTechCostDiscountMultiplier(itemId: string, isUnit: boolean, complete
       ? !isUnit
       : discount.appliesTo === 'units'
         ? isUnit
-        : (discount.appliesTo as string[]).includes(itemId);
+        : discount.appliesTo === 'military-units'
+          ? isUnit && isMilitaryUnitType(itemId)
+          : (discount.appliesTo as string[]).includes(itemId);
     if (applies) multiplier *= discount.multiplier;
   }
   return multiplier;
