@@ -201,19 +201,49 @@ export function resolveAirBaseLoss(
   cause: { kind: 'captured'; victorId: string } | { kind: 'facility-removed' } | { kind: 'carrier-destroyed' },
 ): AirBaseLossResult {
   const roster = getAirBaseRoster(state, base);
-  if (cause.kind !== 'carrier-destroyed') {
-    return { state, outcomes: roster.map(unit => ({ aircraftId: unit.id, outcome: 'destroyed' as const })) };
+  if (cause.kind === 'facility-removed') {
+    let nextState = state;
+    const outcomes: AirBaseLossResult['outcomes'] = [];
+    for (const unit of roster) {
+      const destination = getLegalRebaseDestinations(nextState, unit.id)[0];
+      if (destination) {
+        const position = getAirBasePosition(nextState, destination)!;
+        nextState = {
+          ...nextState,
+          units: {
+            ...nextState.units,
+            [unit.id]: { ...nextState.units[unit.id]!, airBase: destination, position: { ...position } },
+          },
+        };
+        outcomes.push({ aircraftId: unit.id, outcome: 'evacuated' });
+      } else {
+        const removed = removeAirUnits(nextState, new Set([unit.id]));
+        nextState = removed;
+        outcomes.push({ aircraftId: unit.id, outcome: 'destroyed' });
+      }
+    }
+    return { state: nextState, outcomes };
+  }
+  if (cause.kind === 'captured') {
+    // Capture handling is owned by city-capture-system, after the city owner changes.
+    // Until then the facility remains a valid base and must not be mutated here.
+    return { state, outcomes: roster.map(unit => ({ aircraftId: unit.id, outcome: 'captured' as const })) };
   }
   const removedIds = new Set(roster.map(unit => unit.id));
+  const removed = removeAirUnits(state, removedIds);
+  return {
+    state: removed,
+    outcomes: roster.map(unit => ({ aircraftId: unit.id, outcome: 'destroyed' })),
+  };
+}
+
+function removeAirUnits(state: GameState, removedIds: ReadonlySet<string>): GameState {
   const units = Object.fromEntries(Object.entries(state.units).filter(([unitId]) => !removedIds.has(unitId)));
   const civilizations = Object.fromEntries(Object.entries(state.civilizations).map(([civId, civilization]) => [
     civId,
     { ...civilization, units: civilization.units.filter(unitId => !removedIds.has(unitId)) },
   ]));
-  return {
-    state: { ...state, units, civilizations },
-    outcomes: roster.map(unit => ({ aircraftId: unit.id, outcome: 'destroyed' })),
-  };
+  return { ...state, units, civilizations };
 }
 
 export function syncCarrierBasedAircraft(state: GameState, carrierId: string): GameState {
