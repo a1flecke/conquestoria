@@ -207,8 +207,9 @@ function legacyAirBaseCapacity(state: GameState, base: AirBaseRef): number {
 }
 
 function isSameLegacyAirBase(left: AirBaseRef | undefined, right: AirBaseRef): boolean {
-  return left?.kind === right.kind
-    && (left.kind === 'city' ? left.cityId === right.cityId : left.unitId === right.unitId);
+  if (!left) return false;
+  if (left.kind === 'city') return right.kind === 'city' && left.cityId === right.cityId;
+  return right.kind === 'carrier' && left.unitId === right.unitId;
 }
 
 function migrateLegacyBasedAircraft(state: GameState): GameState {
