@@ -4,6 +4,13 @@ import type { AudioMixer } from '@/audio/audio-mixer';
 import { routeSfxComponents, SFX } from '@/audio/sfx';
 
 describe('legacy SFX presentation routing', () => {
+  it('exposes dedicated cues for air operations', () => {
+    expect(SFX.airRebase).toBeTypeOf('function');
+    expect(SFX.airScramble).toBeTypeOf('function');
+    expect(SFX.airRecon).toBeTypeOf('function');
+    expect(SFX.airBaseLoss).toBeTypeOf('function');
+  });
+
   it('blocks OGG-backed cues before load and rechecks suppression after decode', async () => {
     let suppressed = true;
     let resolveBuffer!: (buffer: AudioBuffer) => void;

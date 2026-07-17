@@ -1939,6 +1939,7 @@ function selectUnit(
         gameState = result.state;
         renderLoop.setGameState(gameState);
         updateHUD();
+        SFX.airScramble();
         selectUnit(uid);
         renderLoop.setHighlights(getInterceptCoverage(gameState, uid).map(coord => ({ coord, type: 'air-intercept' as const })));
       },
@@ -1958,6 +1959,7 @@ function selectUnit(
         gameState = result.state;
         renderLoop.setGameState(gameState);
         updateHUD();
+        SFX.airRebase();
         selectUnit(uid);
       },
       onStartAirMission: (uid, mission) => {
@@ -2876,6 +2878,8 @@ function handleHexTap(rawCoord: HexCoord): void {
     renderLoop.setGameState(gameState);
     refreshCurrentPlayerVisibility();
     updateHUD();
+    if (pending.mission === 'recon') SFX.airRecon();
+    else SFX.combat();
     selectUnit(pending.unitId);
     return;
   }
