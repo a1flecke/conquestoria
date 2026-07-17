@@ -41,7 +41,7 @@ import { calculateCombatStrengths, deterministicCombatSeed, resolveCombat, selec
 import { calculateCityAssaultStrengths } from '@/systems/city-siege-system';
 import { buildCombatContextForDefender } from '@/systems/combat-context';
 import { canUnitAttackTarget } from '@/systems/attack-targeting';
-import { getAirBaseCapacity, getAirBaseRoster, getLegalRebaseDestinations, rebaseAircraft, resolveAirStrike, resolveReconMission, startIntercept } from '@/systems/air-operations-system';
+import { getAirBaseCapacity, getAirBaseRoster, getLegalAirMissionTargets, getLegalRebaseDestinations, rebaseAircraft, resolveAirStrike, resolveReconMission, startIntercept } from '@/systems/air-operations-system';
 import { buildSelectedUnitHighlights } from '@/input/selected-unit-highlights';
 import { handleSelectedUnitMovementBlocker } from '@/input/selected-unit-movement-feedback';
 import {
@@ -1961,6 +1961,13 @@ function selectUnit(
       },
       onStartAirMission: (uid, mission) => {
         pendingAirMission = { unitId: uid, mission };
+        const targets = getLegalAirMissionTargets(gameState, uid, mission);
+        movementRange = [];
+        attackRange = [];
+        renderLoop.setHighlights(targets.map(coord => ({
+          coord,
+          type: mission === 'strike' ? 'air-strike' as const : 'air-recon' as const,
+        })));
         showNotification(mission === 'strike' ? 'Tap a hostile unit within operational range.' : 'Tap a recon center within operational range.', 'info');
       },
       onOpenNetworkIntent: uid => openNetworkIntentPanel(uid),

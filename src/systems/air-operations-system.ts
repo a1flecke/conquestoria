@@ -170,10 +170,17 @@ export function selectInterceptor(state: GameState, incoming: Unit, target: { q:
     })[0];
 }
 
-export function getLegalAirMissionTargets(state: GameState, unitId: string, mission: Extract<AirMission, 'recon'>): HexCoord[] {
+export function getLegalAirMissionTargets(state: GameState, unitId: string, mission: Extract<AirMission, 'recon' | 'strike'>): HexCoord[] {
   const unit = state.units[unitId];
   const definition = unit && UNIT_DEFINITIONS[unit.type].airOperation;
   if (!unit || !definition?.missions.includes(mission) || !unit.airBase || unit.hasActed) return [];
+  if (mission === 'strike') {
+    return Object.values(state.units)
+      .filter(candidate => !candidate.airBase
+        && candidate.owner !== unit.owner
+        && airDistance(state, unit.position, candidate.position) <= definition.operationalRange)
+      .map(candidate => ({ ...candidate.position }));
+  }
   return state.map.wrapsHorizontally
     ? getWrappedHexesInRange(unit.position, definition.operationalRange, state.map.width)
     : hexesInRange(unit.position, definition.operationalRange);

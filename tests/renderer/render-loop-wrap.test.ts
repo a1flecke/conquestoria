@@ -97,6 +97,37 @@ describe('render-loop wrap parity', () => {
     );
   });
 
+  it('draws air-mission highlights with distinct strike and recon colors', () => {
+    rendererMocks.drawHexHighlight.mockReset();
+    const loop = new RenderLoop(createCanvas());
+    const state = {
+      turn: 1,
+      currentPlayer: 'player',
+      map: { width: 5, height: 3, wrapsHorizontally: false, tiles: {}, rivers: [] },
+      tribalVillages: {},
+      minorCivs: {},
+      cities: {},
+      units: {},
+      civilizations: { player: { color: '#4a90d9', visibility: { tiles: {} } } },
+    } as unknown as GameState;
+
+    loop.setGameState(state);
+    loop.setHighlights([
+      { coord: { q: 0, r: 0 }, type: 'air-strike' },
+      { coord: { q: 1, r: 0 }, type: 'air-recon' },
+    ]);
+    loop.camera.isHexVisible = () => true;
+
+    (loop as unknown as { render: () => void }).render();
+
+    expect(rendererMocks.drawHexHighlight).toHaveBeenCalledWith(
+      expect.anything(), expect.any(Number), expect.any(Number), expect.any(Number), '#f97316', undefined,
+    );
+    expect(rendererMocks.drawHexHighlight).toHaveBeenCalledWith(
+      expect.anything(), expect.any(Number), expect.any(Number), expect.any(Number), '#38bdf8', undefined,
+    );
+  });
+
   it('mirrors movement highlights through the horizontal seam', () => {
     rendererMocks.drawHexHighlight.mockReset();
     const loop = new RenderLoop(createCanvas());
