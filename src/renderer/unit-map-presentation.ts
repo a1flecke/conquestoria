@@ -116,6 +116,7 @@ export function buildUnitMapPresentations(
   const visible = Object.values(getVisibleUnitsForPlayer(state.units, state, viewerId)).filter(unit =>
     !movingUnitIds.has(unit.id)
     && !unit.transportId
+    && !unit.airBase
     && getVisibility(viewerVisibility, unit.position) === 'visible'
     && !isForestConcealedUnit(state, viewerId, unit),
   );

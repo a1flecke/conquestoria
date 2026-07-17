@@ -50,6 +50,12 @@ function state(units: Unit[]): GameState {
 }
 
 describe('unit map presentation', () => {
+  it('does not render aircraft assigned to an air base on the map', () => {
+    const based = unit('based', { type: 'biplane', airBase: { kind: 'city', cityId: 'airfield' } });
+
+    expect(buildUnitMapPresentations(state([based]), 'player', { tiles: { '1,1': 'visible' } }, new Set(), null)).toEqual([]);
+  });
+
   it('uses one invariant half-hex layout for every renderer', () => {
     expect(getUnitLayoutMetrics(40)).toMatchObject({
       displaySize: 36,
