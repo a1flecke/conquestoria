@@ -5,10 +5,13 @@ import { foundCity } from '@/systems/city-system';
 import {
   buildTerritoryTileFlippedEvents,
   canFoundCityAt,
+  canonicalizeCityCoord,
   recalculateTerritory,
 } from '@/systems/city-territory-system';
 import { resolveCivDefinition } from '@/systems/civ-registry';
+import { hexKey } from '@/systems/hex-utils';
 import { initializeLegendaryWonderProjectsForCity } from '@/systems/legendary-wonder-system';
+import { getFoundingBonusProduction } from '@/systems/tech-yield-definitions';
 
 export interface FoundCityInStateResult {
   state: GameState;
@@ -36,6 +39,13 @@ export function foundCityInState(
   let nextState = structuredClone(state);
   const nextCivilization = nextState.civilizations[settler.owner];
   const definition = resolveCivDefinition(nextState, nextCivilization.civType);
+  const existingOwnedCityIds = nextCivilization.cities.filter(cityId =>
+    nextState.cities[cityId]?.owner === settler.owner);
+  const targetRegion = nextState.map.tiles[hexKey(canonicalizeCityCoord(settler.position, nextState.map))]?.regionKey;
+  const isForeignLandmass = targetRegion != null && !existingOwnedCityIds.some(cityId => {
+    const c = nextState.cities[cityId];
+    return c != null && nextState.map.tiles[hexKey(canonicalizeCityCoord(c.position, nextState.map))]?.regionKey === targetRegion;
+  });
   const city = foundCity(
     settler.owner,
     settler.position,
@@ -47,10 +57,9 @@ export function foundCityInState(
       civName: definition?.name ?? nextCivilization.name,
       usedNames: collectUsedCityNames(nextState),
       completedTechs: nextCivilization.techState.completed,
+      foundingProductionBonus: getFoundingBonusProduction(nextCivilization.techState.completed, isForeignLandmass),
     },
   );
-  const existingOwnedCityIds = nextCivilization.cities.filter(cityId =>
-    nextState.cities[cityId]?.owner === settler.owner);
   const recoveredFromNearDefeat = nextCivilization.nearDefeat === true
     && existingOwnedCityIds.length >= 1;
   const { [settlerId]: _removed, ...remainingUnits } = nextState.units;

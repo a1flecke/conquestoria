@@ -55,7 +55,7 @@ const ERA_5_TECHS: Tech[] = [
     unlocksBuildings: ['explorers_guild'], era: 5 },
   { id: 'colonial-charter', name: 'Colonial Charter', track: 'exploration', cost: 125,
     prerequisites: ['exploration-tech', 'military-logistics'],
-    unlocks: ['Settlers founding cities on foreign landmasses receive +5 production bonus'], era: 5 },
+    unlocks: ['Cities founded on foreign landmasses start with +5 production'], era: 5 },
 
   // AGRICULTURE (2)
   { id: 'plantation-farming', name: 'Plantation Farming', track: 'agriculture', cost: 100,

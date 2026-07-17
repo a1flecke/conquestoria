@@ -64,9 +64,10 @@ export interface TechYieldPart {
 
 /**
  * Per-city tech modifiers only. `empirePercent`, `perTradeRoute`,
- * `perLuxuryResource`, and `foundingBonus` are resolved by their own
- * dedicated helpers below — each is listed explicitly (as a no-op) here so
- * the switch stays exhaustive and a future unhandled kind fails the build.
+ * `perLuxuryResource`, `foundingBonus`, and `foundingProductionBonus` are
+ * resolved by their own dedicated helpers below — each is listed explicitly
+ * (as a no-op) here so the switch stays exhaustive and a future unhandled
+ * kind fails the build.
  */
 export interface CityTechYieldContext {
   /** Active trade routes (sent or received) touching this city — powers `perCityRoute`. */
@@ -138,6 +139,7 @@ export function getCityTechYields(
       case 'perTradeRoute':
       case 'perLuxuryResource':
       case 'foundingBonus':
+      case 'foundingProductionBonus':
       case 'empireFlat':
       case 'terrainYield':
       case 'perCompletedLegendaryWonder':

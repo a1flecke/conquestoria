@@ -4,7 +4,7 @@ import { createNewGame } from '@/core/game-state';
 import type { GameState, HexCoord } from '@/core/types';
 import { foundCityInState } from '@/systems/city-founding-system';
 import { foundCity } from '@/systems/city-system';
-import { cityDistance } from '@/systems/city-territory-system';
+import { canFoundCityAt, cityDistance } from '@/systems/city-territory-system';
 import { hexKey } from '@/systems/hex-utils';
 
 function getSettlerId(state: GameState, civId: string): string {
@@ -25,6 +25,16 @@ function findDistantLand(
     && candidate.terrain !== 'mountain'
     && cityDistance(candidate.coord, from, state.map) >= minimumDistance);
   if (!tile) throw new Error('missing distant land tile');
+  return tile.coord;
+}
+
+function findFoundableLand(state: GameState): HexCoord {
+  const tile = Object.values(state.map.tiles).find(candidate =>
+    candidate.terrain !== 'ocean'
+    && candidate.terrain !== 'coast'
+    && candidate.terrain !== 'mountain'
+    && canFoundCityAt(state, candidate.coord));
+  if (!tile) throw new Error('missing foundable land tile');
   return tile.coord;
 }
 
@@ -135,5 +145,72 @@ describe('foundCityInState', () => {
     expect(() => foundCityInState(state, settlerId, new EventBus()))
       .toThrow('Settler has already acted');
     expect(state).toEqual(before);
+  });
+});
+
+describe('foundCityInState — colonial-charter founding production bonus', () => {
+  function setUpTwoLandmassCiv(seed: string) {
+    const state = createNewGame(undefined, seed, 'small');
+    const civId = 'player';
+    const settlerId = getSettlerId(state, civId);
+    const settlerPosition = state.units[settlerId].position;
+    state.map.tiles[hexKey(settlerPosition)].regionKey = 'continent-new';
+
+    const existingPosition = findDistantLand(state, settlerPosition);
+    const existing = foundCity(civId, existingPosition, state.map, state.idCounters);
+    state.map.tiles[hexKey(existing.position)].regionKey = 'continent-home';
+    state.cities[existing.id] = existing;
+    state.civilizations[civId].cities = [existing.id];
+
+    return { state, civId, settlerId };
+  }
+
+  it('grants +5 production founding on a foreign landmass with colonial-charter', () => {
+    const { state, settlerId } = setUpTwoLandmassCiv('founding-colonial-foreign');
+    state.civilizations.player.techState.completed.push('colonial-charter');
+
+    const result = foundCityInState(state, settlerId, new EventBus());
+
+    expect(result.state.cities[result.cityId].productionProgress).toBe(5);
+  });
+
+  it('does not grant the bonus founding on the home landmass', () => {
+    const { state, settlerId } = setUpTwoLandmassCiv('founding-colonial-home');
+    state.civilizations.player.techState.completed.push('colonial-charter');
+    const settlerPosition = state.units[settlerId].position;
+    state.map.tiles[hexKey(settlerPosition)].regionKey = 'continent-home';
+
+    const result = foundCityInState(state, settlerId, new EventBus());
+
+    expect(result.state.cities[result.cityId].productionProgress).toBe(0);
+  });
+
+  it('does not grant the bonus without colonial-charter researched', () => {
+    const { state, settlerId } = setUpTwoLandmassCiv('founding-colonial-no-tech');
+
+    const result = foundCityInState(state, settlerId, new EventBus());
+
+    expect(result.state.cities[result.cityId].productionProgress).toBe(0);
+  });
+
+  it('does not grant the bonus for a second city on an already-owned foreign landmass', () => {
+    const { state, civId, settlerId } = setUpTwoLandmassCiv('founding-colonial-second');
+    state.civilizations.player.techState.completed.push('colonial-charter');
+    const settlerPosition = state.units[settlerId].position;
+
+    const firstResult = foundCityInState(state, settlerId, new EventBus());
+    expect(firstResult.state.cities[firstResult.cityId].productionProgress).toBe(5);
+
+    const secondPosition = findFoundableLand(firstResult.state);
+    firstResult.state.units['second-settler'] = {
+      id: 'second-settler', type: 'settler', owner: civId,
+      position: secondPosition, movementPointsLeft: 2,
+      health: 100, experience: 0, hasMoved: false, hasActed: false, isResting: false,
+    };
+    firstResult.state.civilizations[civId].units.push('second-settler');
+    firstResult.state.map.tiles[hexKey(secondPosition)].regionKey = 'continent-new';
+
+    const secondResult = foundCityInState(firstResult.state, 'second-settler', new EventBus());
+    expect(secondResult.state.cities[secondResult.cityId].productionProgress).toBe(0);
   });
 });
