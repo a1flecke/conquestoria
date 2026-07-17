@@ -511,4 +511,17 @@ describe('MR7: getConnectedCityTechGold (courier-network / colonial-railways / t
       1,
     )).toBe(5);
   });
+
+  it('electric-telegraph grants +1 gold per connected city, capped at +8', () => {
+    expect(getConnectedCityTechGold(['electric-telegraph'], 5)).toBe(5);
+    expect(getConnectedCityTechGold(['electric-telegraph'], 12)).toBe(8);
+  });
+
+  it('electric-telegraph stacks additively with courier-network, still capped only on its own term', () => {
+    expect(getConnectedCityTechGold(['electric-telegraph', 'courier-network'], 12)).toBe(1 * 12 + 8);
+  });
+
+  it('electric-telegraph contributes nothing without the tech', () => {
+    expect(getConnectedCityTechGold(['courier-network'], 12)).toBe(12);
+  });
 });

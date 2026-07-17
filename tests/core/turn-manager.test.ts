@@ -979,6 +979,73 @@ describe('processTurn', () => {
     );
   });
 
+  describe('electric-telegraph allied shared vision (#524 MR1)', () => {
+    function setUpAlliedCivs() {
+      const state = createNewGame(undefined, 'electric-telegraph-vision', 'small');
+      state.map = { ...createWrappedGrasslandMap(20, 20), wrapsHorizontally: false };
+      state.units = {};
+      state.cities = {};
+      state.minorCivs = {};
+
+      for (const civ of Object.values(state.civilizations)) {
+        civ.units = [];
+        civ.cities = [];
+        civ.visibility = createVisibilityMap();
+      }
+
+      const counters = mkC();
+      const allyCity = foundCity('ai-1', { q: 0, r: 0 }, state.map, counters);
+      state.cities[allyCity.id] = allyCity;
+      state.civilizations['ai-1'].cities = [allyCity.id];
+
+      const playerCity = foundCity('player', { q: 15, r: 15 }, state.map, counters);
+      state.cities[playerCity.id] = playerCity;
+      state.civilizations.player.cities = [playerCity.id];
+
+      state.civilizations.player.diplomacy.treaties.push({
+        type: 'alliance', civA: 'player', civB: 'ai-1', turnsRemaining: -1,
+      });
+
+      return state;
+    }
+
+    it('reveals the ally city when the tech holder has both electric-telegraph and an alliance', () => {
+      const state = setUpAlliedCivs();
+      state.civilizations.player.techState.completed.push('electric-telegraph');
+
+      const result = processTurn(state, new EventBus());
+
+      expect(getVisibility(result.civilizations.player.visibility, { q: 0, r: 0 })).toBe('visible');
+    });
+
+    it('does not reveal the ally city without electric-telegraph researched', () => {
+      const state = setUpAlliedCivs();
+
+      const result = processTurn(state, new EventBus());
+
+      expect(getVisibility(result.civilizations.player.visibility, { q: 0, r: 0 })).not.toBe('visible');
+    });
+
+    it('does not reveal an allied civ with the tech but no alliance', () => {
+      const state = setUpAlliedCivs();
+      state.civilizations.player.techState.completed.push('electric-telegraph');
+      state.civilizations.player.diplomacy.treaties = [];
+
+      const result = processTurn(state, new EventBus());
+
+      expect(getVisibility(result.civilizations.player.visibility, { q: 0, r: 0 })).not.toBe('visible');
+    });
+
+    it('does not leak vision back to the ally, who has no electric-telegraph of their own', () => {
+      const state = setUpAlliedCivs();
+      state.civilizations.player.techState.completed.push('electric-telegraph');
+
+      const result = processTurn(state, new EventBus());
+
+      expect(getVisibility(result.civilizations['ai-1'].visibility, { q: 15, r: 15 })).not.toBe('visible');
+    });
+  });
+
   it('processTurn can still resolve a saved custom civ definition after JSON round-trip', () => {
     const state = createNewGame({
       civType: 'custom-sunfolk',

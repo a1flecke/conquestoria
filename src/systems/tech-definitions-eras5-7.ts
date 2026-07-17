@@ -383,7 +383,7 @@ const ERA_7_TECHS: Tech[] = [
     unlocks: ['Print Shop unlocked — mass literacy and news distribution building'], unlocksBuildings: ['print_shop'], era: 7 },
   { id: 'electric-telegraph', name: 'Electric Telegraph', track: 'communication', cost: 210,
     prerequisites: ['courier-network', 'newspaper-press'],
-    unlocks: ['+1 gold per road connection in trade network; diplomatic vision range increased'], era: 7 },
+    unlocks: ['+1 gold per city connected to your capital by road (max +8); allied civilizations share vision around their cities'], era: 7 },
 
   // ESPIONAGE (2)
   { id: 'covert-operations', name: 'Covert Operations', track: 'espionage', cost: 145,

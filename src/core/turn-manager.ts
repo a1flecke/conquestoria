@@ -687,6 +687,21 @@ export function processTurn(
         applySharedVision(newState.civilizations[civId].visibility, mcPositions, newState.map);
       }
     }
+
+    // #524 MR1: electric-telegraph — allied major civs share vision around their cities.
+    // One-directional per tech holder: your telegraph, your intel; the ally needs their own
+    // tech to see yours.
+    if (newState.civilizations[civId].techState.completed.includes('electric-telegraph')) {
+      const allies = newState.civilizations[civId].diplomacy.treaties
+        .filter(t => t.type === 'alliance')
+        .map(t => (t.civA === civId ? t.civB : t.civA));
+      for (const allyId of allies) {
+        const allyCityPositions = (newState.civilizations[allyId]?.cities ?? [])
+          .map(cid => newState.cities[cid]?.position)
+          .filter(Boolean) as HexCoord[];
+        applySharedVision(newState.civilizations[civId].visibility, allyCityPositions, newState.map);
+      }
+    }
     refreshLastSeenPresentationsForCiv(newState, civId);
 
     // Clear expired advisor disable timers after all start-of-turn effects are processed.
