@@ -155,4 +155,20 @@ describe('air bases', () => {
     expect(result.state.units.alpha).toBeUndefined();
     expect(result.state.civilizations.player!.units).toEqual(['carrier']);
   });
+
+  it('evacuates facility-loss aircraft to a compatible friendly base within ferry range', () => {
+    const lossState = {
+      ...state,
+      map: { width: 10, height: 10, wrapsHorizontally: false },
+      cities: {
+        ...state.cities,
+        reserve: { id: 'reserve', owner: 'player', position: { q: 4, r: 2 }, buildings: ['airfield'] },
+      },
+    } as unknown as GameState;
+
+    const result = resolveAirBaseLoss(lossState, { kind: 'city', cityId: 'city-1' }, { kind: 'facility-removed' });
+
+    expect(result.outcomes).toEqual([{ aircraftId: 'air-1', outcome: 'evacuated' }]);
+    expect(result.state.units['air-1']).toMatchObject({ airBase: { kind: 'city', cityId: 'reserve' }, position: { q: 4, r: 2 } });
+  });
 });
