@@ -33,6 +33,7 @@ import {
 } from '@/systems/unit-water-recovery';
 import { isAutonomyActivated } from '@/systems/network-plan-system';
 import { getAirBaseCapacity, getAirBaseRoster } from '@/systems/air-operations-system';
+import type { AirBaseRef } from '@/core/types';
 
 export interface TransportLoadOption {
   transportId: string;
@@ -97,6 +98,8 @@ export interface SelectedUnitInfoCallbacks {
   /** Opens the persistent-network intent surface for an activated Cyber Unit. */
   onOpenNetworkIntent?: (unitId: string) => void;
   onStartIntercept?: (unitId: string) => void;
+  getAirRebaseDestinations?: (unitId: string) => Array<{ base: AirBaseRef; label: string }>;
+  onRebaseAircraft?: (unitId: string, base: AirBaseRef) => void;
 }
 
 export interface SelectedUnitInfoPresentation {
@@ -578,6 +581,12 @@ export function renderSelectedUnitInfo(
 
   if (def.airOperation?.missions.includes('intercept') && unit.airBase && !unit.hasActed && callbacks.onStartIntercept) {
     actionsDiv.appendChild(makeButton('Intercept', '#2563eb', () => callbacks.onStartIntercept!(unitId)));
+  }
+
+  if (def.airOperation?.missions.includes('rebase') && unit.airBase && !unit.hasActed && callbacks.getAirRebaseDestinations && callbacks.onRebaseAircraft) {
+    for (const destination of callbacks.getAirRebaseDestinations(unitId)) {
+      actionsDiv.appendChild(makeButton(`Rebase: ${destination.label}`, '#0f766e', () => callbacks.onRebaseAircraft!(unitId, destination.base)));
+    }
   }
 
   const pirateAssault = callbacks.getPirateAssaultAction?.(unitId);
