@@ -348,7 +348,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
   recon_aircraft: {
     type: 'recon_aircraft', name: 'Recon Aircraft', movementPoints: 5,
     visionRange: 3, strength: 0, canFoundCity: false,
-    canBuildImprovements: false, productionCost: 290, domain: 'air',
+    canBuildImprovements: false, productionCost: 230, domain: 'air',
     airOperation: { baseKinds: ['airfield'], operationalRange: 5, ferryRange: 10, missions: ['recon', 'rebase'], carrierEligible: false },
   },
   carrier: {
