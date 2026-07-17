@@ -34,6 +34,8 @@ function cityFlatConditionalMatches(
   city: City,
   map: GameMap,
   effect: Extract<YieldKind, { kind: 'cityFlatConditional' }>,
+  context: CityTechYieldContext,
+  hasNaturalWonder: boolean,
 ): boolean {
   if (effect.requiresAnyBuilding && !effect.requiresAnyBuilding.some(id => city.buildings.includes(id))) {
     return false;
@@ -53,6 +55,7 @@ function cityFlatConditionalMatches(
   }
   if (effect.requiresCoastal && !isCityCoastal(city, map)) return false;
   if (effect.minBuildings != null && city.buildings.length < effect.minBuildings) return false;
+  if (effect.requiresWonder && !hasNaturalWonder && !context.hostsCompletedLegendaryWonder) return false;
   return true;
 }
 
@@ -72,6 +75,8 @@ export interface TechYieldPart {
 export interface CityTechYieldContext {
   /** Active trade routes (sent or received) touching this city — powers `perCityRoute`. */
   activeRouteCount?: number;
+  /** This city hosts a completed legendary wonder — powers `cityFlatConditional.requiresWonder`. */
+  hostsCompletedLegendaryWonder?: boolean;
 }
 
 export function getCityTechYields(
@@ -99,7 +104,7 @@ export function getCityTechYields(
         addYield(contribution, effect.yields);
         break;
       case 'cityFlatConditional':
-        if (cityFlatConditionalMatches(city, map, effect)) {
+        if (cityFlatConditionalMatches(city, map, effect, context, naturalWonderCount > 0)) {
           addYield(contribution, effect.yields);
         }
         break;

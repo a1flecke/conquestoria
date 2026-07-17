@@ -209,7 +209,9 @@ export function calculateProjectedCityYields(
     : assignCityFocus(state, cityId, city.focus);
   const projectedCity = workResult.state.cities[cityId] ?? city;
   const completedTechs = workResult.state.civilizations?.[projectedCity.owner]?.techState.completed ?? [];
-  const baseYields = calculateCityYields(projectedCity, workResult.state.map, bonusEffect, completedTechs, {}, state.turn);
+  const hostsCompletedLegendaryWonder = Object.values(workResult.state.completedLegendaryWonders ?? {})
+    .some(w => w.cityId === cityId);
+  const baseYields = calculateCityYields(projectedCity, workResult.state.map, bonusEffect, completedTechs, { hostsCompletedLegendaryWonder }, state.turn);
   // City-work helpers also support lightweight presentation fixtures that omit
   // civilization records; those have no resource access to aggregate.
   const resourceBonus = workResult.state.civilizations

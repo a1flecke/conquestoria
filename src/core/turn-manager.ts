@@ -234,7 +234,9 @@ export function processTurn(
 
       const activeRouteCount = (newState.marketplace?.tradeRoutes ?? [])
         .filter(route => route.fromCityId === cityId || route.toCityId === cityId).length;
-      const baseYields = calculateCityYields(city, newState.map, civDef?.bonusEffect, civ.techState.completed, { activeRouteCount }, newState.turn);
+      const hostsCompletedLegendaryWonder = Object.values(newState.completedLegendaryWonders ?? {})
+        .some(w => w.cityId === cityId);
+      const baseYields = calculateCityYields(city, newState.map, civDef?.bonusEffect, civ.techState.completed, { activeRouteCount, hostsCompletedLegendaryWonder }, newState.turn);
       const wonderCityBonuses = getLegendaryWonderCityYieldBonus(newState, civId, cityId);
       const unrestMultiplier = Math.min(getUnrestYieldMultiplier(city), getOccupiedCityYieldMultiplier(city))
         * getCrisisYieldMultiplier(newState, cityId);
