@@ -49,6 +49,11 @@ describe('UNIT_CLASS_BY_TYPE completeness', () => {
     expect(UNIT_CLASS_BY_TYPE.marine).toContain('gunpowder');
   });
 
+  it('applies Marine landing training only during an amphibious attack', () => {
+    expect(getCombatModifier('marine', 'attacker', baseCombatCtx({ amphibiousAssault: true })).mult).toBe(2);
+    expect(getCombatModifier('marine', 'attacker', baseCombatCtx()).mult).toBe(1);
+  });
+
   it('every UnitType in UNIT_DEFINITIONS has a non-empty class list', () => {
     for (const type of Object.keys(UNIT_DEFINITIONS) as UnitType[]) {
       expect(UNIT_CLASS_BY_TYPE[type]).toBeDefined();

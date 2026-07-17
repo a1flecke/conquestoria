@@ -24,6 +24,7 @@ export interface CombatModifierContext {
   fullHP: boolean;
   inFriendlyCity: boolean;
   targetIsCoastalCity?: boolean;
+  amphibiousAssault?: boolean;
   opponentType: UnitType;
   opponentInFriendlyCity?: boolean;
 }
@@ -39,13 +40,15 @@ function formatPart(label: string, mode: ModifierMode, value: number): string {
 }
 
 function sourceIsActive(
-  source: { kind: 'tech'; id: string } | { kind: 'nationalProject'; id: string },
+  source: { kind: 'tech'; id: string } | { kind: 'nationalProject'; id: string } | { kind: 'unit'; id: UnitType },
   completedTechs: readonly string[],
   activeNationalProjects: ActiveNationalProject[],
+  unitType?: UnitType,
 ): number | undefined {
   if (source.kind === 'tech') {
     return completedTechs.includes(source.id) ? 1 : undefined;
   }
+  if (source.kind === 'unit') return source.id === unitType ? 1 : undefined;
   const np = activeNationalProjects.find(p => p.id === source.id);
   if (!np || np.fadeMultiplier <= 0) return undefined;
   return np.fadeMultiplier;
@@ -91,7 +94,7 @@ export function getCombatModifier(
   for (const modifier of UNIT_MODIFIERS) {
     if (modifier.effect !== 'combatStrength') continue;
 
-    const scale = sourceIsActive(modifier.source, ctx.completedTechs, ctx.activeNationalProjects);
+    const scale = sourceIsActive(modifier.source, ctx.completedTechs, ctx.activeNationalProjects, unitType);
     if (scale === undefined) continue;
 
     if (modifier.unitTypes) {
@@ -109,6 +112,7 @@ export function getCombatModifier(
     if (modifier.condition === 'fullHP' && !ctx.fullHP) continue;
     if (modifier.condition === 'inFriendlyCity' && !ctx.inFriendlyCity) continue;
     if (modifier.condition === 'vsCoastalCity' && !ctx.targetIsCoastalCity) continue;
+    if (modifier.condition === 'amphibiousAssault' && !ctx.amphibiousAssault) continue;
 
     if (modifier.mode === 'multiplier') {
       mult *= modifier.value;
