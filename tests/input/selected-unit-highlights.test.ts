@@ -8,6 +8,31 @@ import { createUnit } from '@/systems/unit-system';
 const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
 
 describe('selected-unit-highlights', () => {
+  it('highlights visible coastal targets for a selected unit aboard a transport', () => {
+    const state = createNewGame(undefined, 'embarked-highlight', 'small');
+    state.currentPlayer = 'player';
+    state.map.tiles['1,1'] = { ...state.map.tiles['1,1'], terrain: 'coast' };
+    state.map.tiles['2,1'] = { ...state.map.tiles['2,1'], terrain: 'plains' };
+    state.units = {
+      transport: {
+        ...createUnit('troop_transport', 'player', { q: 1, r: 1 }, mkC()),
+        id: 'transport', cargoUnitIds: ['cargo'],
+      },
+      cargo: {
+        ...createUnit('warrior', 'player', { q: 1, r: 1 }, mkC()),
+        id: 'cargo', transportId: 'transport', movementPointsLeft: 2,
+      },
+      enemy: { ...createUnit('warrior', 'ai-1', { q: 2, r: 1 }, mkC()), id: 'enemy' },
+    };
+    state.civilizations.player.units = ['transport', 'cargo'];
+    state.civilizations.player.diplomacy.atWarWith = ['ai-1'];
+    state.civilizations.player.visibility.tiles = { '1,1': 'visible', '2,1': 'visible' };
+
+    expect(buildSelectedUnitHighlights(state, 'cargo').highlights).toContainEqual({
+      coord: { q: 2, r: 1 }, type: 'attack',
+    });
+  });
+
   it('marks visible ZOC terminal destinations with a non-attack movement highlight', () => {
     const state = createNewGame(undefined, 'zoc-highlight', 'small');
     state.currentPlayer = 'player';

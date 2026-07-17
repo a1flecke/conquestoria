@@ -155,10 +155,10 @@ describe('shared city assault wiring', () => {
     const main = readFileSync(resolve(PROJECT_ROOT, 'src/main.ts'), 'utf8');
 
     expect(main).toMatch(
-      /beginPlayerCityAssaultChoice\(\s*gameState,\s*attackerId,\s*cityId,\s*bus,\s*precedingCombat,\s*\)/,
+      /beginPlayerCityAssaultChoice\(\s*gameState,\s*attackerId,\s*cityId,\s*bus,\s*precedingCombat,\s*attackerMultiplier,\s*\)/,
     );
     expect(main).toMatch(
-      /beginPlayerCityAssault\(\s*attackerId,\s*cityAtTarget\.id,\s*attackerBonus,\s*result,\s*\)/,
+      /beginPlayerCityAssault\(\s*attackerId,\s*cityAtTarget\.id,\s*attackerBonus,\s*result,\s*amphibiousAssault,\s*\)/,
     );
   });
 

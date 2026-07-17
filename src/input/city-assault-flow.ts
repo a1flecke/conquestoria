@@ -27,6 +27,7 @@ export function beginPlayerCityAssaultChoice(
   cityId: string,
   bus?: EventBus,
   precedingCombat?: CombatResult,
+  attackerMultiplier?: number,
 ): PlayerCityAssaultChoiceResult {
   return beginMajorCityAssault(
     state,
@@ -37,6 +38,7 @@ export function beginPlayerCityAssaultChoice(
       civId: state.currentPlayer,
       bus,
       precedingCombat,
+      attackerMultiplier,
     },
   );
 }
