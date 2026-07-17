@@ -41,6 +41,7 @@ import { calculateCombatStrengths, deterministicCombatSeed, resolveCombat, selec
 import { calculateCityAssaultStrengths } from '@/systems/city-siege-system';
 import { buildCombatContextForDefender } from '@/systems/combat-context';
 import { canUnitAttackTarget } from '@/systems/attack-targeting';
+import { startIntercept } from '@/systems/air-operations-system';
 import { buildSelectedUnitHighlights } from '@/input/selected-unit-highlights';
 import { handleSelectedUnitMovementBlocker } from '@/input/selected-unit-movement-feedback';
 import {
@@ -1928,6 +1929,17 @@ function selectUnit(
   if (panel) {
     renderSelectedUnitInfo(panel, gameState, unitId, {
       onClose: () => deselectUnit(),
+      onStartIntercept: uid => {
+        const result = startIntercept(gameState, uid);
+        if (!result.ok) {
+          showNotification('That fighter cannot enter intercept stance now.', 'warning');
+          return;
+        }
+        gameState = result.state;
+        renderLoop.setGameState(gameState);
+        updateHUD();
+        selectUnit(uid);
+      },
       onOpenNetworkIntent: uid => openNetworkIntentPanel(uid),
       onFoundCity: () => foundCityAction(),
       onWorkerAction: action => performWorkerAction(action),

@@ -32,6 +32,7 @@ import {
   type LandUnitWaterRecovery,
 } from '@/systems/unit-water-recovery';
 import { isAutonomyActivated } from '@/systems/network-plan-system';
+import { getAirBaseCapacity, getAirBaseRoster } from '@/systems/air-operations-system';
 
 export interface TransportLoadOption {
   transportId: string;
@@ -95,6 +96,7 @@ export interface SelectedUnitInfoCallbacks {
   onOpenPirateAssault?: (factionId: string, unitId: string) => void;
   /** Opens the persistent-network intent surface for an activated Cyber Unit. */
   onOpenNetworkIntent?: (unitId: string) => void;
+  onStartIntercept?: (unitId: string) => void;
 }
 
 export interface SelectedUnitInfoPresentation {
@@ -218,6 +220,16 @@ export function renderSelectedUnitInfo(
 
   wrapper.appendChild(topRow);
   wrapper.appendChild(descDiv);
+
+  if (unit.airBase && def.airOperation) {
+    const baseName = unit.airBase.kind === 'city'
+      ? `${state.cities[unit.airBase.cityId]?.name ?? 'Unknown'} Airfield`
+      : `${UNIT_DEFINITIONS[state.units[unit.airBase.unitId]?.type ?? 'carrier'].name}`;
+    const baseLine = document.createElement('div');
+    baseLine.style.cssText = 'font-size:11px;opacity:0.8;margin-top:5px;';
+    baseLine.textContent = `Base: ${baseName} · Slots: ${getAirBaseRoster(state, unit.airBase).length}/${getAirBaseCapacity(state, unit.airBase)} · Range: ${def.airOperation.operationalRange}/${def.airOperation.ferryRange}`;
+    wrapper.appendChild(baseLine);
+  }
 
   const huntFoeName = findHuntFoeNameForUnit(state, unitId);
   if (huntFoeName) {
@@ -562,6 +574,10 @@ export function renderSelectedUnitInfo(
 
   if (canHeal(unit) && !unit.hasMoved && !unit.hasActed && unit.movementPointsLeft > 0 && callbacks.onRest) {
     actionsDiv.appendChild(makeButton('Rest (+15 HP)', '#4a90d9', callbacks.onRest));
+  }
+
+  if (def.airOperation?.missions.includes('intercept') && unit.airBase && !unit.hasActed && callbacks.onStartIntercept) {
+    actionsDiv.appendChild(makeButton('Intercept', '#2563eb', () => callbacks.onStartIntercept!(unitId)));
   }
 
   const pirateAssault = callbacks.getPirateAssaultAction?.(unitId);
