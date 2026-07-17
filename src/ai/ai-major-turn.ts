@@ -11,7 +11,7 @@ import type {
   Unit,
 } from '@/core/types';
 import { canUnitAttackTarget } from '@/systems/attack-targeting';
-import { resolveAirStrike } from '@/systems/air-operations-system';
+import { rebaseAircraft, resolveAirStrike, resolveReconMission, startIntercept } from '@/systems/air-operations-system';
 import { applyCampDestructionAtTarget } from '@/systems/barbarian-system';
 import { applyCombatOutcomeToState } from '@/systems/combat-reward-system';
 import { deterministicCombatSeed, resolveCombat } from '@/systems/combat-system';
@@ -321,6 +321,18 @@ function executeAction(
   followUps: AITacticalAction[];
 } {
   switch (action.kind) {
+    case 'air-recon': {
+      const result = resolveReconMission(state, action.unitId, action.target);
+      return { state: result.ok ? result.state : state, succeeded: result.ok, followUps: [] };
+    }
+    case 'air-intercept': {
+      const result = startIntercept(state, action.unitId);
+      return { state: result.ok ? result.state : state, succeeded: result.ok, followUps: [] };
+    }
+    case 'air-rebase': {
+      const result = rebaseAircraft(state, action.unitId, action.base);
+      return { state: result.ok ? result.state : state, succeeded: result.ok, followUps: [] };
+    }
     case 'air-strike': {
       const result = resolveAirStrike(state, action.unitId, action.target);
       return { state: result.ok ? result.state : state, succeeded: result.ok, followUps: [] };
