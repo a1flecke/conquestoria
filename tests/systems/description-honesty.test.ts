@@ -18,6 +18,10 @@ const DENYLIST_PATTERNS: RegExp[] = [
   /gunpowder units train faster/i,
   /units train with bonus strength/i,
   /early unit training costs reduced/i,
+  // #524 MR2: air_force_command's +4 strength modifier only applies when the air
+  // unit is attacking (unit-modifier-definitions.ts: when: 'attacking') — the old
+  // "in combat" wording implied it also applied on defense, which it never has.
+  /air units gain \+4 strength in combat/i,
 ];
 
 function collectStrings(): Array<{ source: string; text: string }> {
