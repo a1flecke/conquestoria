@@ -65,11 +65,14 @@ import { chooseRoadBuilderUnit } from '@/systems/road-network';
 import { canBuildRoad } from '@/systems/road-system';
 import { getAIStrategicRoles, hasAICombatRole } from './ai-unit-roles';
 import { isAIHostileOwner } from './ai-hostility';
-import { resolveAirStrike } from '@/systems/air-operations-system';
+import { getLegalRebaseDestinations, resolveAirStrike, resolveReconMission, rebaseAircraft, startIntercept } from '@/systems/air-operations-system';
 
 export type AITacticalAction =
   | { kind: 'attack'; unitId: string; targetUnitId: string }
   | { kind: 'air-strike'; unitId: string; target: HexCoord }
+  | { kind: 'air-recon'; unitId: string; target: HexCoord }
+  | { kind: 'air-intercept'; unitId: string }
+  | { kind: 'air-rebase'; unitId: string; base: import('@/core/types').AirBaseRef }
   | { kind: 'capture-city'; unitId: string; cityId: string }
   | { kind: 'move'; unitId: string; destination: HexCoord }
   | { kind: 'withdraw'; unitId: string; destination: HexCoord }
@@ -125,6 +128,12 @@ function actionId(action: AITacticalAction): string {
       return `attack:${action.unitId}:${action.targetUnitId}`;
     case 'air-strike':
       return `air-strike:${action.unitId}:${hexKey(action.target)}`;
+    case 'air-recon':
+      return `air-recon:${action.unitId}:${hexKey(action.target)}`;
+    case 'air-intercept':
+      return `air-intercept:${action.unitId}`;
+    case 'air-rebase':
+      return `air-rebase:${action.unitId}:${action.base.kind === 'city' ? action.base.cityId : action.base.unitId}`;
     case 'capture-city':
       return `capture-city:${action.unitId}:${action.cityId}`;
     case 'move':
@@ -373,6 +382,33 @@ function rankAirStrikes(
     .filter(target => distance(context.state, unit.position, target.position) <= operation.operationalRange)
     .sort((left, right) => UNIT_DEFINITIONS[right.type].productionCost - UNIT_DEFINITIONS[left.type].productionCost || left.id.localeCompare(right.id))
     .map(target => ranked({ kind: 'air-strike', unitId: unit.id, target: { ...target.position } }, 650 + UNIT_DEFINITIONS[target.type].productionCost / 10));
+}
+
+function rankAirSupport(
+  context: AITacticalContext,
+  unit: Unit,
+): RankedAITacticalAction[] {
+  const operation = UNIT_DEFINITIONS[unit.type].airOperation;
+  if (!operation || !unit.airBase || unit.hasActed) return [];
+  const actions: RankedAITacticalAction[] = [];
+  if (operation.missions.includes('recon')) {
+    const target = targetPosition(context.plan);
+    if (distance(context.state, unit.position, target) <= operation.operationalRange) {
+      actions.push(ranked({ kind: 'air-recon', unitId: unit.id, target }, 420));
+    }
+  }
+  if (operation.missions.includes('intercept')) {
+    const threatened = Object.values(context.state.units).some(candidate =>
+      candidate.owner !== context.actorId
+      && isAIHostileOwner(context.state, context.actorId, candidate.owner)
+      && distance(context.state, candidate.position, unit.position) <= operation.operationalRange);
+    if (threatened) actions.push(ranked({ kind: 'air-intercept', unitId: unit.id }, 460));
+  }
+  const destination = getLegalRebaseDestinations(context.state, unit.id)[0];
+  if (destination && context.plan.objective === 'defend') {
+    actions.push(ranked({ kind: 'air-rebase', unitId: unit.id, base: destination }, 300));
+  }
+  return actions;
 }
 
 function rankCapture(
@@ -625,6 +661,7 @@ export function rankUnitTacticalActions(
   const candidates = [
     ...rankCivilianAndTransportActions(context, unit),
     ...rankAirStrikes(context, unit),
+    ...rankAirSupport(context, unit),
     ...rankAttacks(context, unit),
     ...rankCapture(context, unit),
     ...rankMoves(context, unit),
@@ -686,6 +723,18 @@ function applyPredictedAction(
   const unit = next.units[action.unitId];
   if (!unit) return next;
   switch (action.kind) {
+    case 'air-recon': {
+      const result = resolveReconMission(next, action.unitId, action.target);
+      return result.ok ? result.state : next;
+    }
+    case 'air-intercept': {
+      const result = startIntercept(next, action.unitId);
+      return result.ok ? result.state : next;
+    }
+    case 'air-rebase': {
+      const result = rebaseAircraft(next, action.unitId, action.base);
+      return result.ok ? result.state : next;
+    }
     case 'air-strike': {
       const result = resolveAirStrike(next, action.unitId, action.target);
       return result.ok ? result.state : next;
