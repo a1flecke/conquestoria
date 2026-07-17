@@ -208,4 +208,21 @@ describe('air bases', () => {
     expect(result.state.units.striker?.hasActed).toBe(true);
     expect(result.state.units.interceptor?.interceptedTurn).toBe(9);
   });
+
+  it('lists only actual hostile, map-present aircraft strike targets for the mission UI', () => {
+    const missionState = {
+      ...state,
+      map: { width: 10, height: 10, wrapsHorizontally: false, tiles: {
+        '2,2': {}, '5,2': {}, '6,2': {}, '9,2': {},
+      } },
+      units: {
+        striker: { ...biplane, id: 'striker', type: 'bomber' },
+        valid: { ...biplane, id: 'valid', type: 'warrior', owner: 'enemy', position: { q: 5, r: 2 }, airBase: undefined },
+        based: { ...biplane, id: 'based', owner: 'enemy', position: { q: 6, r: 2 }, airBase: { kind: 'city', cityId: 'enemy-city' } },
+        distant: { ...biplane, id: 'distant', type: 'warrior', owner: 'enemy', position: { q: 9, r: 2 }, airBase: undefined },
+      },
+    } as unknown as GameState;
+
+    expect(getLegalAirMissionTargets(missionState, 'striker', 'strike')).toEqual([{ q: 5, r: 2 }]);
+  });
 });
