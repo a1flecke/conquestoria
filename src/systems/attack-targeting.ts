@@ -5,6 +5,7 @@ import { selectDefenderForAttack } from '@/systems/combat-system';
 import { UNIT_DEFINITIONS } from '@/systems/unit-system';
 import { isBeastConcealedFrom, canUnitAttackBeast } from '@/systems/beast-system';
 import { isPirateOwner } from '@/core/owner-kind';
+import { isBasedAirUnit } from './air-operations-system';
 import { isHostileOwnerTo } from './owner-hostility';
 
 export type AttackTargetFailure =
@@ -58,7 +59,7 @@ function canAttackOwner(state: GameState, attackerOwner: string, targetOwner: st
 function unitAt(state: GameState, attacker: Unit, coord: HexCoord): [string, Unit] | null {
   const targetKey = hexKey(coord);
   const defenders = Object.values(state.units).filter(unit =>
-    unit.id !== attacker.id && hexKey(unit.position) === targetKey,
+    unit.id !== attacker.id && !isBasedAirUnit(unit) && hexKey(unit.position) === targetKey,
   );
   const defender = selectDefenderForAttack(defenders, state.map);
   return defender ? [defender.id, defender] : null;
