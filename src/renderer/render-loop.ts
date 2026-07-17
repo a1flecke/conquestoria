@@ -172,7 +172,7 @@ export function positionMovingPirateHeadquarters(
 
 export interface HexHighlight {
   coord: HexCoord;
-  type: 'move' | 'attack' | 'air-strike' | 'air-recon' | 'zoc-limited' | 'water-recovery' | 'worker-buildable' | 'worker-owned-blocked' | 'worker-foreign-blocked';
+  type: 'move' | 'attack' | 'air-strike' | 'air-recon' | 'air-intercept' | 'zoc-limited' | 'water-recovery' | 'worker-buildable' | 'worker-owned-blocked' | 'worker-foreign-blocked';
 }
 
 const HEX_HIGHLIGHT_COLORS: Record<HexHighlight['type'], string> = {
@@ -180,6 +180,7 @@ const HEX_HIGHLIGHT_COLORS: Record<HexHighlight['type'], string> = {
   attack: 'rgba(217, 74, 74, 0.45)',
   'air-strike': '#f97316',
   'air-recon': '#38bdf8',
+  'air-intercept': '#eab308',
   'zoc-limited': 'rgba(245, 184, 73, 0.55)',
   'water-recovery': 'rgba(245, 184, 73, 0.55)',
   'worker-buildable': 'rgba(80, 200, 120, 0.45)',

@@ -41,7 +41,7 @@ import { calculateCombatStrengths, deterministicCombatSeed, resolveCombat, selec
 import { calculateCityAssaultStrengths } from '@/systems/city-siege-system';
 import { buildCombatContextForDefender } from '@/systems/combat-context';
 import { canUnitAttackTarget } from '@/systems/attack-targeting';
-import { getAirBaseCapacity, getAirBaseRoster, getLegalAirMissionTargets, getLegalRebaseDestinations, rebaseAircraft, resolveAirStrike, resolveReconMission, startIntercept } from '@/systems/air-operations-system';
+import { getAirBaseCapacity, getAirBaseRoster, getInterceptCoverage, getLegalAirMissionTargets, getLegalRebaseDestinations, rebaseAircraft, resolveAirStrike, resolveReconMission, startIntercept } from '@/systems/air-operations-system';
 import { buildSelectedUnitHighlights } from '@/input/selected-unit-highlights';
 import { handleSelectedUnitMovementBlocker } from '@/input/selected-unit-movement-feedback';
 import {
@@ -1940,6 +1940,7 @@ function selectUnit(
         renderLoop.setGameState(gameState);
         updateHUD();
         selectUnit(uid);
+        renderLoop.setHighlights(getInterceptCoverage(gameState, uid).map(coord => ({ coord, type: 'air-intercept' as const })));
       },
       getAirRebaseDestinations: uid => getLegalRebaseDestinations(gameState, uid).map(base => {
         const position = base.kind === 'city' ? gameState.cities[base.cityId]?.position : gameState.units[base.unitId]?.position;
