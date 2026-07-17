@@ -231,8 +231,10 @@ describe('air bases', () => {
         striker: { ...biplane, id: 'striker', type: 'bomber' },
         valid: { ...biplane, id: 'valid', type: 'warrior', owner: 'enemy', position: { q: 5, r: 2 }, airBase: undefined },
         based: { ...biplane, id: 'based', owner: 'enemy', position: { q: 6, r: 2 }, airBase: { kind: 'city', cityId: 'enemy-city' } },
+        fogged: { ...biplane, id: 'fogged', type: 'warrior', owner: 'enemy', position: { q: 4, r: 2 }, airBase: undefined },
         distant: { ...biplane, id: 'distant', type: 'warrior', owner: 'enemy', position: { q: 9, r: 2 }, airBase: undefined },
       },
+      civilizations: { player: { visibility: { tiles: { '5,2': 'visible' } } } },
     } as unknown as GameState;
 
     expect(getLegalAirMissionTargets(missionState, 'striker', 'strike')).toEqual([{ q: 5, r: 2 }]);

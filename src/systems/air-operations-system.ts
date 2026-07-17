@@ -3,6 +3,7 @@ import { hexDistance, hexesInRange, getWrappedHexesInRange, wrappedHexDistance }
 import { UNIT_DEFINITIONS } from './unit-system';
 import { deterministicCombatSeed, resolveCombat } from './combat-system';
 import { buildCombatContextForDefender } from './combat-context';
+import { getVisibility } from './fog-of-war';
 
 export type AirOperationResult =
   | { ok: true; state: GameState }
@@ -184,9 +185,11 @@ export function getLegalAirMissionTargets(state: GameState, unitId: string, miss
   const definition = unit && UNIT_DEFINITIONS[unit.type].airOperation;
   if (!unit || !definition?.missions.includes(mission) || !unit.airBase || unit.hasActed) return [];
   if (mission === 'strike') {
+    const visibility = state.civilizations[unit.owner]?.visibility;
     return Object.values(state.units)
       .filter(candidate => !candidate.airBase
         && candidate.owner !== unit.owner
+        && (!visibility || getVisibility(visibility, candidate.position) === 'visible')
         && airDistance(state, unit.position, candidate.position) <= definition.operationalRange)
       .map(candidate => ({ ...candidate.position }));
   }
@@ -242,6 +245,9 @@ export function resolveAirStrike(state: GameState, unitId: string, target: HexCo
     return { ok: false, state, reason: 'ineligible-strike' };
   }
   if (airDistance(state, striker.position, target) > definition.operationalRange) return { ok: false, state, reason: 'out-of-range' };
+  if (!getLegalAirMissionTargets(state, unitId, 'strike').some(candidate => candidate.q === target.q && candidate.r === target.r)) {
+    return { ok: false, state, reason: 'invalid-strike-target' };
+  }
   const targetUnit = Object.values(state.units).find(unit => !unit.airBase && unit.owner !== striker.owner && unit.position.q === target.q && unit.position.r === target.r);
   if (!targetUnit) return { ok: false, state, reason: 'missing-target' };
   let nextState = state;
