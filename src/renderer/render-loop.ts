@@ -7,7 +7,7 @@ import { drawUnitPresentations } from './unit-renderer';
 import { drawCities } from './city-renderer';
 import { AnimationSystem } from './animation-system';
 import { hexToPixel, hexKey } from '@/systems/hex-utils';
-import { getHorizontalWrapRenderCoords } from './wrap-rendering';
+import { getHorizontalWrapRenderCoords, nearestWrappedCoord } from './wrap-rendering';
 import { getVisibility } from '@/systems/fog-of-war';
 import { createMovementAnimation, getMovementAnimationPosition, getMovingUnitIds, type UnitMovementAnimation } from './unit-movement-animation';
 import { resolveUnitVisual } from './unit-visual-resolver';
@@ -297,16 +297,11 @@ export class RenderLoop {
     options: { reducedMotion: boolean },
   ): void {
     this.camera.centerOn(coord);
-    const pixel = hexToPixel(coord, this.camera.hexSize);
-    const screen = this.camera.worldToScreen(pixel.x, pixel.y);
-    const size = this.camera.hexSize * this.camera.zoom;
     this.animations.add(
       options.reducedMotion ? 'wonder-discovery-static-highlight' : 'wonder-discovery-pulse',
       900,
       {
-        x: screen.x,
-        y: screen.y,
-        size,
+        coord,
         accent: visual.palette.accent,
         glow: visual.palette.glow,
       },
@@ -350,10 +345,7 @@ export class RenderLoop {
    */
   animateUnitAppear(position: HexCoord): void {
     if (prefersReducedMotion()) return;
-    const pixel = hexToPixel(position, this.camera.hexSize);
-    const screen = this.camera.worldToScreen(pixel.x, pixel.y);
-    const size = this.camera.hexSize * this.camera.zoom;
-    this.animations.add('disembark-flash', 500, { x: screen.x, y: screen.y, size });
+    this.animations.add('disembark-flash', 500, { coord: position });
   }
 
   hasMovingUnit(unitId: string): boolean {
@@ -532,21 +524,32 @@ export class RenderLoop {
       }
     }
 
-    // Draw journey path overlay
+    // Draw journey path overlay. Seam-crossing steps are unwrapped into a
+    // pixel-continuous polyline, then drawn once per visible wrap copy.
     if (this.journeyPath && this.journeyPath.length >= 2) {
+      const renderPath: HexCoord[] = [this.journeyPath[0]!];
+      for (let i = 1; i < this.journeyPath.length; i++) {
+        renderPath.push(
+          this.state.map.wrapsHorizontally
+            ? nearestWrappedCoord(renderPath[i - 1]!, this.journeyPath[i]!, this.state.map.width)
+            : this.journeyPath[i]!,
+        );
+      }
       this.ctx.save();
       this.ctx.strokeStyle = 'rgba(255, 200, 50, 0.8)';
       this.ctx.lineWidth = 3;
       this.ctx.setLineDash([6, 4]);
-      this.ctx.beginPath();
-      let started = false;
-      for (const coord of this.journeyPath) {
-        const pixel = hexToPixel(coord, this.camera.hexSize);
-        const screen = this.camera.worldToScreen(pixel.x, pixel.y);
-        if (!started) { this.ctx.moveTo(screen.x, screen.y); started = true; }
-        else { this.ctx.lineTo(screen.x, screen.y); }
+      for (const offset of this.visibleWrapOffsets(renderPath)) {
+        this.ctx.beginPath();
+        let started = false;
+        for (const coord of renderPath) {
+          const pixel = hexToPixel({ q: coord.q + offset, r: coord.r }, this.camera.hexSize);
+          const screen = this.camera.worldToScreen(pixel.x, pixel.y);
+          if (!started) { this.ctx.moveTo(screen.x, screen.y); started = true; }
+          else { this.ctx.lineTo(screen.x, screen.y); }
+        }
+        this.ctx.stroke();
       }
-      this.ctx.stroke();
       this.ctx.restore();
     }
 
@@ -720,8 +723,8 @@ export class RenderLoop {
       this.state.map,
     );
 
-    // Draw animations
-    this.animations.update(this.ctx, performance.now());
+    // Draw animations (world-anchored: screen position derives from the camera each frame)
+    this.animations.update(this.ctx, this.camera, this.state.map, performance.now());
 
   }
 
@@ -805,18 +808,44 @@ export class RenderLoop {
       const toVis   = playerCiv.visibility ? getVisibility(playerCiv.visibility, toCity.position) : 'unexplored';
       if (fromVis === 'unexplored' || toVis === 'unexplored') continue;
 
-      const fromPx = hexToPixel(fromCity.position, this.camera.hexSize);
-      const toPx   = hexToPixel(toCity.position, this.camera.hexSize);
-      const fromScreen = this.camera.worldToScreen(fromPx.x, fromPx.y);
-      const toScreen   = this.camera.worldToScreen(toPx.x, toPx.y);
+      // Route lines crossing the wrap seam draw to the nearest ghost copy of
+      // the destination, once per visible wrap copy of the pair.
+      const toPosition = this.state.map.wrapsHorizontally
+        ? nearestWrappedCoord(fromCity.position, toCity.position, this.state.map.width)
+        : toCity.position;
+      for (const offset of this.visibleWrapOffsets([fromCity.position, toPosition])) {
+        const fromPx = hexToPixel({ q: fromCity.position.q + offset, r: fromCity.position.r }, this.camera.hexSize);
+        const toPx   = hexToPixel({ q: toPosition.q + offset, r: toPosition.r }, this.camera.hexSize);
+        const fromScreen = this.camera.worldToScreen(fromPx.x, fromPx.y);
+        const toScreen   = this.camera.worldToScreen(toPx.x, toPx.y);
 
-      this.ctx.beginPath();
-      this.ctx.moveTo(fromScreen.x, fromScreen.y);
-      this.ctx.lineTo(toScreen.x, toScreen.y);
-      this.ctx.stroke();
+        this.ctx.beginPath();
+        this.ctx.moveTo(fromScreen.x, fromScreen.y);
+        this.ctx.lineTo(toScreen.x, toScreen.y);
+        this.ctx.stroke();
+      }
     }
 
     this.ctx.restore();
+  }
+
+  /**
+   * Wrap offsets (multiples of map width, applied to q) under which at least
+   * one of `coords` lands on screen. Always [0] for non-wrapping maps, so
+   * callers can share one code path.
+   */
+  private visibleWrapOffsets(coords: readonly HexCoord[]): number[] {
+    if (!this.state?.map.wrapsHorizontally || coords.length === 0) return [0];
+    const width = this.state.map.width;
+    const offsets = new Set<number>();
+    for (const endpoint of [coords[0]!, coords[coords.length - 1]!]) {
+      for (const copy of getHorizontalWrapRenderCoords(endpoint, width, this.camera)) {
+        offsets.add(copy.q - endpoint.q);
+      }
+    }
+    return Array.from(offsets).filter(offset =>
+      coords.some(coord => this.camera.isHexVisible({ q: coord.q + offset, r: coord.r })),
+    );
   }
 
 }

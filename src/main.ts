@@ -2798,13 +2798,10 @@ function executeAttack(attackerId: string, targetKey: string): void {
   }
 
   // `attacker` was captured before applyCombatOutcomeToState — safe even if attacker was destroyed
-  const worldPixel = hexToPixel(attacker.position, renderLoop.camera.hexSize);
-  const screen = renderLoop.camera.worldToScreen(worldPixel.x, worldPixel.y);
-  const size = renderLoop.camera.hexSize * renderLoop.camera.zoom;
   SFX.combat();
   renderLoop.setGameState(gameState);
   updateHUD();
-  renderLoop.animations.add('combat-flash', 400, { x: screen.x, y: screen.y, size }, () => selectNextUnit());
+  renderLoop.animations.add('combat-flash', 400, { coord: attacker.position }, () => selectNextUnit());
 }
 
 function restAction(): void {

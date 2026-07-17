@@ -1,5 +1,6 @@
 import type { GameMap, HexCoord, Unit } from '@/core/types';
 import type { UnitMotionState } from '@/renderer/unit-visual-resolver';
+import { nearestWrappedCoord } from '@/renderer/wrap-rendering';
 
 export const MOVEMENT_MS_PER_HEX = 220;
 export const MOVEMENT_MAX_MS = 800;
@@ -28,11 +29,7 @@ export function getMovementDurationMs(stepCount: number): number {
 
 function wrappedRenderStep(from: HexCoord, to: HexCoord, map: GameMap): HexCoord {
   if (!map.wrapsHorizontally) return to;
-  const directDelta = to.q - from.q;
-  const westDelta = to.q - map.width - from.q;
-  const eastDelta = to.q + map.width - from.q;
-  const bestDelta = [directDelta, westDelta, eastDelta].sort((a, b) => Math.abs(a) - Math.abs(b))[0]!;
-  return { q: from.q + bestDelta, r: to.r };
+  return nearestWrappedCoord(from, to, map.width);
 }
 
 export function createMovementAnimation(unit: Unit, path: HexCoord[], map: GameMap): UnitMovementAnimation {
