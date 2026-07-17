@@ -92,6 +92,13 @@ export const UNIT_CLASS_BY_TYPE: Record<UnitType, UnitClass[]> = {
   stealth_bomber: ['air'],
 };
 
+/** Military = trainable unit whose classes include neither 'civilian' nor 'spy'. */
+export function isMilitaryUnitType(unitType: string): boolean {
+  const classes = UNIT_CLASS_BY_TYPE[unitType as UnitType];
+  if (!classes || classes.length === 0) return false;
+  return !classes.includes('civilian') && !classes.includes('spy');
+}
+
 export type ModifierEffect = 'combatStrength' | 'healing' | 'vision';
 export type ModifierMode = 'flat' | 'multiplier';
 export type ModifierWhen = 'attacking' | 'defending' | 'always';
