@@ -195,6 +195,22 @@ function legacyAirBasePosition(state: GameState, base: AirBaseRef) {
   return base.kind === 'city' ? state.cities[base.cityId]?.position : state.units[base.unitId]?.position;
 }
 
+function legacyAirBaseCapacity(state: GameState, base: AirBaseRef): number {
+  if (base.kind === 'carrier') return state.units[base.unitId]?.type === 'carrier' ? 2 : 0;
+  const city = state.cities[base.cityId];
+  if (!city) return 0;
+  if (city.buildings.includes('airfield')) {
+    return Object.entries(state.builtNationalProjects ?? {}).some(([key, project]) => project.civId === city.owner && key === `${city.owner}:air_force_command`) ? 4 : 3;
+  }
+  if (city.buildings.includes('helicopter_base') || city.buildings.includes('stealth_airbase')) return 2;
+  return 0;
+}
+
+function isSameLegacyAirBase(left: AirBaseRef | undefined, right: AirBaseRef): boolean {
+  return left?.kind === right.kind
+    && (left.kind === 'city' ? left.cityId === right.cityId : left.unitId === right.unitId);
+}
+
 function migrateLegacyBasedAircraft(state: GameState): GameState {
   const units = { ...state.units };
   const removedIds = new Set<string>();
@@ -205,6 +221,7 @@ function migrateLegacyBasedAircraft(state: GameState): GameState {
     const candidates = legacyAirBaseCandidates({ ...state, units }, unit)
       .map(base => ({ base, position: legacyAirBasePosition({ ...state, units }, base) }))
       .filter((entry): entry is { base: AirBaseRef; position: NonNullable<typeof entry.position> } => entry.position !== undefined)
+      .filter(({ base }) => Object.values(units).filter(candidate => isSameLegacyAirBase(candidate.airBase, base)).length < legacyAirBaseCapacity({ ...state, units }, base))
       .sort((left, right) => {
         const distance = (entry: typeof left) => state.map.wrapsHorizontally
           ? wrappedHexDistance(unit.position, entry.position, state.map.width)
