@@ -225,9 +225,43 @@ export function resolveAirBaseLoss(
     return { state: nextState, outcomes };
   }
   if (cause.kind === 'captured') {
-    // Capture handling is owned by city-capture-system, after the city owner changes.
-    // Until then the facility remains a valid base and must not be mutated here.
-    return { state, outcomes: roster.map(unit => ({ aircraftId: unit.id, outcome: 'captured' as const })) };
+    let nextState = state;
+    const outcomes: AirBaseLossResult['outcomes'] = [];
+    for (const unit of roster) {
+      const roll = stableAirLossRoll(state, base, unit.id);
+      const destination = getLegalRebaseDestinations(nextState, unit.id)[0];
+      const resolution = roll === 0 && destination
+        ? 'evacuated'
+        : roll === 0
+          ? (stableAirLossRoll(state, base, `${unit.id}:reroll`) % 2 === 0 ? 'destroyed' : 'captured')
+          : roll === 1 ? 'destroyed' : 'captured';
+      if (resolution === 'evacuated') {
+        const position = getAirBasePosition(nextState, destination!)!;
+        nextState = {
+          ...nextState,
+          units: { ...nextState.units, [unit.id]: { ...nextState.units[unit.id]!, airBase: destination!, position: { ...position } } },
+        };
+      } else if (resolution === 'destroyed') {
+        nextState = removeAirUnits(nextState, new Set([unit.id]));
+      } else {
+        const current = nextState.units[unit.id]!;
+        const previousOwner = current.owner;
+        nextState = {
+          ...nextState,
+          units: { ...nextState.units, [unit.id]: { ...current, owner: cause.victorId } },
+          civilizations: Object.fromEntries(Object.entries(nextState.civilizations).map(([civId, civilization]) => [
+            civId,
+            civId === previousOwner
+              ? { ...civilization, units: civilization.units.filter(id => id !== unit.id) }
+              : civId === cause.victorId
+                ? { ...civilization, units: civilization.units.includes(unit.id) ? civilization.units : [...civilization.units, unit.id] }
+                : civilization,
+          ])),
+        };
+      }
+      outcomes.push({ aircraftId: unit.id, outcome: resolution });
+    }
+    return { state: nextState, outcomes };
   }
   const removedIds = new Set(roster.map(unit => unit.id));
   const removed = removeAirUnits(state, removedIds);
@@ -235,6 +269,16 @@ export function resolveAirBaseLoss(
     state: removed,
     outcomes: roster.map(unit => ({ aircraftId: unit.id, outcome: 'destroyed' })),
   };
+}
+
+function stableAirLossRoll(state: GameState, base: AirBaseRef, aircraftId: string): number {
+  const baseId = base.kind === 'city' ? base.cityId : base.unitId;
+  let hash = 2166136261;
+  for (const character of `${state.gameId ?? 'legacy'}:${state.turn}:${baseId}:${aircraftId}`) {
+    hash ^= character.charCodeAt(0);
+    hash = Math.imul(hash, 16777619);
+  }
+  return (hash >>> 0) % 3;
 }
 
 function removeAirUnits(state: GameState, removedIds: ReadonlySet<string>): GameState {

@@ -21,6 +21,7 @@ import { hexDistance, hexKey, wrappedHexDistance } from '@/systems/hex-utils';
 import { executeUnitMove } from '@/systems/unit-movement-system';
 import { buildUnitOccupancy, getUnitIdsAtCoord } from '@/systems/unit-occupancy';
 import { UNIT_DEFINITIONS } from '@/systems/unit-system';
+import { resolveAirBaseLoss } from '@/systems/air-operations-system';
 import { buildMovePresentationByViewer } from '@/systems/viewer-event-presentation';
 import { eliminateCivilization } from '@/systems/civilization-elimination-system';
 import { handleCityLeftCiv } from '@/systems/crisis-system';
@@ -507,7 +508,12 @@ export function resolveMajorCityCapture(
         newOwnerId,
       ),
     };
-    const elimination = eliminateCivilization(nextState, previousOwnerId, newOwnerId);
+    const afterAircraft = resolveAirBaseLoss(
+      nextState,
+      { kind: 'city', cityId },
+      { kind: 'captured', victorId: newOwnerId },
+    ).state;
+    const elimination = eliminateCivilization(afterAircraft, previousOwnerId, newOwnerId);
     const stateAfterElimination = elimination.state;
     const territoryResult = recalculateTerritory(stateAfterElimination, {
       reason: 'capture',
