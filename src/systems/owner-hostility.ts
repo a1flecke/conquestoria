@@ -15,6 +15,6 @@ export function isHostileOwnerTo(
   if (otherOwnerId.startsWith('mc-')) {
     return isMinorCivHostileToOwner(state, otherOwnerId, actorId);
   }
-  return state.civilizations[actorId]?.diplomacy.atWarWith
+  return state.civilizations[actorId]?.diplomacy?.atWarWith
     .includes(otherOwnerId) ?? false;
 }

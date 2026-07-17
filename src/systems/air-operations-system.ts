@@ -4,6 +4,8 @@ import { UNIT_DEFINITIONS } from './unit-system';
 import { deterministicCombatSeed, resolveCombat } from './combat-system';
 import { buildCombatContextForDefender } from './combat-context';
 import { getVisibility } from './fog-of-war';
+import { isHostileOwnerTo } from './owner-hostility';
+import { applyCombatOutcomeToState } from './combat-reward-system';
 
 export type AirOperationResult =
   | { ok: true; state: GameState }
@@ -166,7 +168,7 @@ export function selectInterceptor(state: GameState, incoming: Unit, target: { q:
   return Object.values(state.units)
     .filter(unit => {
       const definition = UNIT_DEFINITIONS[unit.type].airOperation;
-      return unit.owner !== incoming.owner
+      return isHostileOwnerTo(state, unit.owner, incoming.owner)
         && unit.airMission === 'intercept'
         && unit.airBase !== undefined
         && (unit.interceptedTurn === undefined || unit.interceptedTurn !== state.turn)
@@ -188,7 +190,7 @@ export function getLegalAirMissionTargets(state: GameState, unitId: string, miss
     const visibility = state.civilizations[unit.owner]?.visibility;
     return Object.values(state.units)
       .filter(candidate => !candidate.airBase
-        && candidate.owner !== unit.owner
+        && isHostileOwnerTo(state, unit.owner, candidate.owner)
         && (!visibility || getVisibility(visibility, candidate.position) === 'visible')
         && airDistance(state, unit.position, candidate.position) <= definition.operationalRange)
       .map(candidate => ({ ...candidate.position }));
@@ -220,22 +222,8 @@ export function resolveReconMission(state: GameState, unitId: string, center: He
   };
 }
 
-function applyAirCombatResult(state: GameState, result: CombatResult): GameState {
-  const units = { ...state.units };
-  const apply = (id: string, damage: number, survived: boolean) => {
-    const unit = units[id];
-    if (!unit) return;
-    if (!survived) {
-      delete units[id];
-      return;
-    }
-    units[id] = { ...unit, health: Math.max(1, unit.health - damage) };
-  };
-  apply(result.attackerId, result.attackerDamage, result.attackerSurvived);
-  apply(result.defenderId, result.defenderDamage, result.defenderSurvived);
-  const removed = new Set(Object.keys(state.units).filter(id => !units[id]));
-  const civilizations = removed.size === 0 ? state.civilizations : Object.fromEntries(Object.entries(state.civilizations).map(([id, civ]) => [id, { ...civ, units: civ.units.filter(unitId => !removed.has(unitId)) }]));
-  return { ...state, units, civilizations };
+function applyAirCombatResult(state: GameState, result: CombatResult, seed: number): GameState {
+  return applyCombatOutcomeToState(state, result, seed).state;
 }
 
 export function resolveAirStrike(state: GameState, unitId: string, target: HexCoord): AirStrikeResult {
@@ -255,7 +243,7 @@ export function resolveAirStrike(state: GameState, unitId: string, target: HexCo
   let interception: { interceptorId: string; result: CombatResult } | undefined;
   if (interceptor) {
     const result = resolveCombat(interceptor, striker, state.map, deterministicCombatSeed(state.gameId, state.turn, interceptor.id, striker.id), buildCombatContextForDefender(state, interceptor, striker), state.era);
-    nextState = applyAirCombatResult(nextState, result);
+    nextState = applyAirCombatResult(nextState, result, deterministicCombatSeed(state.gameId, state.turn, interceptor.id, striker.id));
     if (nextState.units[interceptor.id]) nextState = { ...nextState, units: { ...nextState.units, [interceptor.id]: { ...nextState.units[interceptor.id]!, interceptedTurn: state.turn } } };
     interception = { interceptorId: interceptor.id, result };
     if (!nextState.units[striker.id]) return { ok: true, state: nextState, interception };
@@ -264,7 +252,7 @@ export function resolveAirStrike(state: GameState, unitId: string, target: HexCo
   const currentTarget = nextState.units[targetUnit.id];
   if (!currentTarget) return { ok: true, state: { ...nextState, units: { ...nextState.units, [unitId]: { ...currentStriker, movementPointsLeft: 0, hasMoved: true, hasActed: true } } }, interception };
   const targetResult = resolveCombat(currentStriker, currentTarget, nextState.map, deterministicCombatSeed(nextState.gameId, nextState.turn, currentStriker.id, currentTarget.id), buildCombatContextForDefender(nextState, currentStriker, currentTarget), nextState.era);
-  nextState = applyAirCombatResult(nextState, targetResult);
+  nextState = applyAirCombatResult(nextState, targetResult, deterministicCombatSeed(nextState.gameId, nextState.turn, currentStriker.id, currentTarget.id));
   if (nextState.units[unitId]) nextState = { ...nextState, units: { ...nextState.units, [unitId]: { ...nextState.units[unitId]!, movementPointsLeft: 0, hasMoved: true, hasActed: true } } };
   return { ok: true, state: nextState, interception, targetResult };
 }

@@ -10,7 +10,6 @@ import {
   type PirateActionEvent,
 } from '@/systems/pirate-actions';
 import { recordMilitaryAttack } from './diplomacy-system';
-import { resolveAirBaseLoss } from './air-operations-system';
 
 export type VeterancyTierId = 'recruit' | 'seasoned' | 'veteran' | 'elite';
 
@@ -440,10 +439,10 @@ export function applyCombatOutcomeToState(
   }
 
   if (attackerActuallyDefeated && attackerBefore.type === 'carrier') {
-    nextState = resolveAirBaseLoss(nextState, { kind: 'carrier', unitId: attackerBefore.id }, { kind: 'carrier-destroyed' }).state;
+    nextState = destroyCarrierBasedAircraft(nextState, attackerBefore.id);
   }
   if (defenderActuallyDefeated && defenderBefore.type === 'carrier') {
-    nextState = resolveAirBaseLoss(nextState, { kind: 'carrier', unitId: defenderBefore.id }, { kind: 'carrier-destroyed' }).state;
+    nextState = destroyCarrierBasedAircraft(nextState, defenderBefore.id);
   }
 
   return {
@@ -453,5 +452,20 @@ export function applyCombatOutcomeToState(
     defenderDefeated: defenderActuallyDefeated,
     questTransitions,
     pirateEvents,
+  };
+}
+
+function destroyCarrierBasedAircraft(state: GameState, carrierId: string): GameState {
+  const aircraftIds = new Set(Object.values(state.units)
+    .filter(unit => unit.airBase?.kind === 'carrier' && unit.airBase.unitId === carrierId)
+    .map(unit => unit.id));
+  if (aircraftIds.size === 0) return state;
+  return {
+    ...state,
+    units: Object.fromEntries(Object.entries(state.units).filter(([unitId]) => !aircraftIds.has(unitId))),
+    civilizations: Object.fromEntries(Object.entries(state.civilizations).map(([civId, civilization]) => [
+      civId,
+      { ...civilization, units: civilization.units.filter(unitId => !aircraftIds.has(unitId)) },
+    ])),
   };
 }

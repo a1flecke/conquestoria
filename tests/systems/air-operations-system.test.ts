@@ -106,6 +106,10 @@ describe('air bases', () => {
         ...state.cities,
         'enemy-city': { id: 'enemy-city', owner: 'enemy', position: { q: 4, r: 2 }, buildings: ['airfield'] },
       },
+      civilizations: {
+        player: { diplomacy: { atWarWith: ['enemy'] } },
+        enemy: { diplomacy: { atWarWith: ['player'] } },
+      },
     } as unknown as GameState;
 
     expect(startIntercept({ ...missionState, units: { ...missionState.units, fighterA: { ...missionState.units.fighterA, airMission: undefined } } }, 'fighterA')).toMatchObject({
@@ -210,7 +214,10 @@ describe('air bases', () => {
         target: { ...biplane, id: 'target', type: 'warrior', owner: 'enemy', position: { q: 5, r: 2 }, airBase: undefined },
       },
       cities: { ...state.cities, 'enemy-city': { id: 'enemy-city', owner: 'enemy', position: { q: 4, r: 2 }, buildings: ['airfield'] } },
-      civilizations: { player: { units: ['striker'], techState: { completed: [] } }, enemy: { units: ['interceptor', 'target'], techState: { completed: [] } } },
+      civilizations: {
+        player: { units: ['striker'], techState: { completed: [] }, diplomacy: { atWarWith: ['enemy'], events: [] } },
+        enemy: { units: ['interceptor', 'target'], techState: { completed: [] }, diplomacy: { atWarWith: ['player'], events: [] } },
+      },
     } as unknown as GameState;
 
     const result = resolveAirStrike(missionState, 'striker', { q: 5, r: 2 });
@@ -234,9 +241,30 @@ describe('air bases', () => {
         fogged: { ...biplane, id: 'fogged', type: 'warrior', owner: 'enemy', position: { q: 4, r: 2 }, airBase: undefined },
         distant: { ...biplane, id: 'distant', type: 'warrior', owner: 'enemy', position: { q: 9, r: 2 }, airBase: undefined },
       },
-      civilizations: { player: { visibility: { tiles: { '5,2': 'visible' } } } },
+      civilizations: { player: { visibility: { tiles: { '5,2': 'visible' } }, diplomacy: { atWarWith: ['enemy'] } } },
     } as unknown as GameState;
 
     expect(getLegalAirMissionTargets(missionState, 'striker', 'strike')).toEqual([{ q: 5, r: 2 }]);
+  });
+
+  it('does not expose neutral aircraft or use neutral interceptors', () => {
+    const missionState = {
+      ...state,
+      map: { width: 10, height: 10, wrapsHorizontally: false, tiles: {} },
+      units: {
+        striker: { ...biplane, id: 'striker', type: 'bomber' },
+        neutral: { ...biplane, id: 'neutral', type: 'warrior', owner: 'neutral', position: { q: 4, r: 2 }, airBase: undefined },
+        enemy: { ...biplane, id: 'enemy', type: 'warrior', owner: 'enemy', position: { q: 5, r: 2 }, airBase: undefined },
+        neutralInterceptor: { ...biplane, id: 'neutral-interceptor', type: 'jet_fighter', owner: 'neutral', position: { q: 4, r: 2 }, airMission: 'intercept' },
+      },
+      civilizations: {
+        player: { visibility: { tiles: { '4,2': 'visible', '5,2': 'visible' } }, diplomacy: { atWarWith: ['enemy'] } },
+        enemy: { visibility: { tiles: {} }, diplomacy: { atWarWith: ['player'] } },
+        neutral: { visibility: { tiles: {} }, diplomacy: { atWarWith: [] } },
+      },
+    } as unknown as GameState;
+
+    expect(getLegalAirMissionTargets(missionState, 'striker', 'strike')).toEqual([{ q: 5, r: 2 }]);
+    expect(selectInterceptor(missionState, missionState.units.striker, { q: 5, r: 2 })).toBeUndefined();
   });
 });
