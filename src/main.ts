@@ -39,7 +39,7 @@ import { createWonderPanel } from '@/ui/wonder-panel';
 import { createWonderAtlasPanel } from '@/ui/wonder-atlas-panel';
 import { calculateCombatStrengths, deterministicCombatSeed, resolveCombat, selectDefenderForAttack } from '@/systems/combat-system';
 import { calculateCityAssaultStrengths } from '@/systems/city-siege-system';
-import { buildCombatContextForDefender } from '@/systems/combat-context';
+import { buildCombatContextForDefender, getAmphibiousAssaultMultiplier } from '@/systems/combat-context';
 import { canUnitAttackTarget } from '@/systems/attack-targeting';
 import { getAirBaseCapacity, getAirBaseRoster, getInterceptCoverage, getLegalAirMissionTargets, getLegalRebaseDestinations, rebaseAircraft, resolveAirStrike, resolveReconMission, startIntercept } from '@/systems/air-operations-system';
 import { buildSelectedUnitHighlights } from '@/input/selected-unit-highlights';
@@ -202,6 +202,8 @@ import {
   getTransportCargoUsed,
   getUnitCargoSize,
   getUnloadDestinations,
+  getEmbarkedAssaultTarget,
+  detachCargoForEmbarkedAssault,
   loadUnitOntoTransport,
   unloadUnitFromTransport,
 } from '@/systems/transport-system';
@@ -2633,6 +2635,7 @@ function beginPlayerCityAssault(
   cityId: string,
   attackerBonus?: CivBonusEffect,
   precedingCombat?: CombatResult,
+  embarkedAssault = false,
 ): 'pending' | 'resolved' {
   const city = gameState.cities[cityId];
   if (!city) return 'resolved';
@@ -2640,12 +2643,25 @@ function beginPlayerCityAssault(
   if (!attacker || !canUnitOccupyCity(attacker)) return 'resolved';
 
   ensurePlayerWarState(city.owner);
+  let attackerMultiplier: number | undefined;
+  if (embarkedAssault) {
+    const legality = getEmbarkedAssaultTarget(gameState, attackerId, city.position, { viewerId: gameState.currentPlayer });
+    if (!legality.ok || legality.targetType !== 'city') {
+      showNotification('That coastal assault is no longer possible.', 'warning');
+      return 'resolved';
+    }
+    attackerMultiplier = getAmphibiousAssaultMultiplier(gameState, attacker, city.position);
+    const detached = detachCargoForEmbarkedAssault(gameState, attackerId);
+    if (!detached.ok) return 'resolved';
+    gameState = detached.state;
+  }
   const begun = beginPlayerCityAssaultChoice(
     gameState,
     attackerId,
     cityId,
     bus,
     precedingCombat,
+    attackerMultiplier,
   );
   gameState = begun.state;
 
@@ -2678,13 +2694,16 @@ function beginPlayerCityAssault(
 }
 
 function executeAttack(attackerId: string, targetKey: string): void {
-  const attacker = gameState.units[attackerId];
+  const initialAttacker = gameState.units[attackerId];
   const targetCoord = parseHexKey(targetKey);
-  const legality = canUnitAttackTarget(gameState, attacker, targetCoord, { viewerId: gameState.currentPlayer });
+  const amphibiousAssault = Boolean(initialAttacker?.transportId);
+  const legality = amphibiousAssault
+    ? getEmbarkedAssaultTarget(gameState, attackerId, targetCoord, { viewerId: gameState.currentPlayer })
+    : canUnitAttackTarget(gameState, initialAttacker, targetCoord, { viewerId: gameState.currentPlayer });
   // hasActed guard: enforce "no action remaining" at the execution layer, not just
   // the highlight layer (getAttackTargets). Prevents double-action if executeAttack
   // is ever called outside the normal tap → highlight → confirm flow.
-  if (!attacker || attacker.hasActed || !legality.ok || legality.targetType !== 'unit') {
+  if (!initialAttacker || initialAttacker.hasActed || !legality.ok || legality.targetType !== 'unit') {
     showNotification('That target is no longer attackable.', 'warning');
     if (selectedUnitId) selectUnit(selectedUnitId);
     return;
@@ -2693,6 +2712,17 @@ function executeAttack(attackerId: string, targetKey: string): void {
   const defenderId = legality.targetUnitId;
   const defender = gameState.units[defenderId];
   if (!defender) return;
+
+  let attacker = initialAttacker;
+  if (amphibiousAssault) {
+    const detached = detachCargoForEmbarkedAssault(gameState, attackerId);
+    if (!detached.ok) {
+      showNotification('That coastal assault is no longer possible.', 'warning');
+      return;
+    }
+    gameState = detached.state;
+    attacker = detached.attacker;
+  }
 
   ensurePlayerWarState(defender.owner);
 
@@ -2708,7 +2738,7 @@ function executeAttack(attackerId: string, targetKey: string): void {
     gameState.units[defenderId] ?? defender,
     gameState.map,
     seed,
-    buildCombatContextForDefender(gameState, attacker, defender),
+    buildCombatContextForDefender(gameState, attacker, defender, { amphibiousAssault }),
     gameState.era,
   );
   bus.emit('combat:resolved', {
@@ -2784,6 +2814,7 @@ function executeAttack(attackerId: string, targetKey: string): void {
             cityAtTarget.id,
             attackerBonus,
             result,
+            amphibiousAssault,
           );
           SFX.combat();
           renderLoop.setGameState(gameState);
@@ -3110,7 +3141,11 @@ function handleHexTap(rawCoord: HexCoord): void {
     const defenderEntry = selectDefenderEntryAtKey(key);
     if (selectedUnitCanAttackTappedHex && defenderEntry) {
       const defender = defenderEntry[1];
-      const navalGate = canUnitAttackBeast(unit, defender);
+      const amphibiousAssault = Boolean(unit.transportId);
+      const previewAttacker = amphibiousAssault
+        ? { ...unit, position: { ...gameState.units[unit.transportId!].position }, transportId: undefined }
+        : unit;
+      const navalGate = canUnitAttackBeast(previewAttacker, defender);
       if (!navalGate.allowed) {
         showNotification(navalGate.reason ?? 'Cannot attack that target.', 'warning');
         selectUnit(selectedUnitId);
@@ -3119,10 +3154,10 @@ function handleHexTap(rawCoord: HexCoord): void {
       const atkDef = UNIT_DEFINITIONS[unit.type];
       const defDef = UNIT_DEFINITIONS[defender.type];
       const strengthPreview = calculateCombatStrengths(
-        unit,
+        previewAttacker,
         defender,
         gameState.map,
-        buildCombatContextForDefender(gameState, unit, defender),
+        buildCombatContextForDefender(gameState, previewAttacker, defender, { amphibiousAssault }),
       );
       const atkStr = Math.round(strengthPreview.attackerStrength);
       const defStr = Math.round(strengthPreview.defenderStrength);
@@ -3220,7 +3255,9 @@ function handleHexTap(rawCoord: HexCoord): void {
         cancelBtn.addEventListener('click', deselectUnit);
         attackBtn.addEventListener('click', () => {
           const attacker = selectedUnitId ? gameState.units[selectedUnitId] : undefined;
-          const legality = canUnitAttackTarget(gameState, attacker, coord, { viewerId: gameState.currentPlayer });
+          const legality = attacker?.transportId
+            ? getEmbarkedAssaultTarget(gameState, attacker.id, coord, { viewerId: gameState.currentPlayer })
+            : canUnitAttackTarget(gameState, attacker, coord, { viewerId: gameState.currentPlayer });
           if (!legality.ok || legality.targetType !== 'unit') {
             showNotification('That target is no longer attackable.', 'warning');
             if (selectedUnitId) selectUnit(selectedUnitId);
@@ -3238,7 +3275,13 @@ function handleHexTap(rawCoord: HexCoord): void {
         const ownerCiv = targetCity ? gameState.civilizations[targetCity.owner] : undefined;
         if (!attackerUnit || !targetCity || !ownerCiv) return;
 
-        const strengths = calculateCityAssaultStrengths(attackerUnit, targetCity, ownerCiv, gameState.map);
+        const attackerMultiplier = tapIntent.embarkedAssault
+          ? getAmphibiousAssaultMultiplier(gameState, attackerUnit, targetCity.position)
+          : undefined;
+        const effectiveAttacker = tapIntent.embarkedAssault && attackerUnit.transportId
+          ? { ...attackerUnit, position: { ...gameState.units[attackerUnit.transportId].position }, transportId: undefined }
+          : attackerUnit;
+        const strengths = calculateCityAssaultStrengths(effectiveAttacker, targetCity, ownerCiv, gameState.map, { attackerMultiplier });
         const atkStr = Math.round(strengths.attackerStrength);
         const cityStr = Math.round(strengths.intrinsicStrength);
         const odds = strengths.winProbability > 0.55 ? 'Favorable' : strengths.winProbability > 0.45 ? 'Even' : 'Risky';
@@ -3271,7 +3314,9 @@ function handleHexTap(rawCoord: HexCoord): void {
 
           const info = document.createElement('div');
           info.style.cssText = 'font-size:10px;opacity:0.6;margin-bottom:8px;';
-          info.textContent = 'A walled city fights back if it has no garrison.';
+          info.textContent = tapIntent.embarkedAssault
+            ? 'Landing -50%. Marine training and adjacent shore bombardment are included.'
+            : 'A walled city fights back if it has no garrison.';
           previewDiv.appendChild(info);
 
           const btnRow = document.createElement('div');
@@ -3293,7 +3338,7 @@ function handleHexTap(rawCoord: HexCoord): void {
 
           cancelBtn.addEventListener('click', deselectUnit);
           attackBtn.addEventListener('click', () => {
-            const assaultStatus = beginPlayerCityAssault(selectedUnitId!, tapIntent.cityId);
+            const assaultStatus = beginPlayerCityAssault(selectedUnitId!, tapIntent.cityId, undefined, undefined, tapIntent.embarkedAssault);
             SFX.combat();
             renderLoop.setGameState(gameState);
             updateHUD();

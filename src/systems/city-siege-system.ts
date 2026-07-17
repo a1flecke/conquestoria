@@ -47,6 +47,11 @@ export interface CityAssaultStrengthBreakdown {
   winProbability: number;
 }
 
+export interface CityAssaultOptions {
+  /** Applied after normal health, veterancy, and river calculations. */
+  attackerMultiplier?: number;
+}
+
 // Mirrors calculateCombatStrengths' attacker-side formula exactly (combat-system.ts) --
 // health-scaled, veterancy-modified, river-penalized -- so the odds shown to the player
 // (and used by resolveCityAssault below) are computed the same way real combat odds are.
@@ -55,6 +60,7 @@ export function calculateCityAssaultStrengths(
   city: City,
   ownerCiv: Civilization,
   map: GameMap,
+  options: CityAssaultOptions = {},
 ): CityAssaultStrengthBreakdown {
   const attackerDefinition = UNIT_DEFINITIONS[attacker.type];
   const riverAttackPenalty = getRiverDefensePenalty(
@@ -63,7 +69,8 @@ export function calculateCityAssaultStrengths(
   const attackerStrength = attackerDefinition.strength
     * (attacker.health / 100)
     * (1 + getVeterancyCombatModifier(attacker))
-    * (1 + riverAttackPenalty);
+    * (1 + riverAttackPenalty)
+    * (options.attackerMultiplier ?? 1);
   const intrinsicStrength = getCityIntrinsicStrength(city, ownerCiv, 'land');
   const winProbability = attackerStrength / (attackerStrength + intrinsicStrength);
   return { attackerStrength, intrinsicStrength, winProbability };

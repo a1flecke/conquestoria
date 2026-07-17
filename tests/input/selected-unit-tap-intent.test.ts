@@ -61,6 +61,30 @@ describe('selected-unit-tap-intent', () => {
     expect(intent).toEqual({ kind: 'assault-city', cityId: 'enemyCity' });
   });
 
+  it('returns an embarked assault intent for cargo attacking an adjacent coastal city', () => {
+    const state = makeTapAssaultFixture();
+    state.civilizations.player.diplomacy.atWarWith = ['ai-1'];
+    state.civilizations['ai-1'].diplomacy.atWarWith = ['player'];
+    state.map.tiles['0,0'] = { ...state.map.tiles['0,0'], terrain: 'coast' };
+    state.map.tiles['1,0'] = { ...state.map.tiles['1,0'], terrain: 'plains' };
+    state.units.transport = {
+      ...createUnit('troop_transport', 'player', { q: 0, r: 0 }, mkC()),
+      id: 'transport',
+      cargoUnitIds: ['unit-1'],
+    };
+    state.units['unit-1'] = {
+      ...state.units['unit-1'],
+      position: { q: 0, r: 0 },
+      transportId: 'transport',
+      movementPointsLeft: 2,
+      hasActed: false,
+    };
+
+    expect(resolveSelectedUnitTapIntent(state, 'unit-1', { q: 1, r: 0 })).toEqual({
+      kind: 'assault-city', cityId: 'enemyCity', embarkedAssault: true,
+    });
+  });
+
   it('returns move for an allied major city', () => {
     const state = makeTapAssaultFixture();
     state.civilizations.player.diplomacy.treaties.push({ type: 'alliance', civA: 'player', civB: 'ai-1', turnsRemaining: 10 });

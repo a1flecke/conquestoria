@@ -461,6 +461,30 @@ describe('AI tactical action ranking', () => {
         || candidate.action.kind === 'withdraw')).toBe(false);
   });
 
+  it('lets cargo choose a legal amphibious attack instead of unloading first', () => {
+    const state = makeState('veteran');
+    state.map.tiles['1,1'].terrain = 'coast';
+    state.map.tiles['2,1'].terrain = 'plains';
+    const transport = addUnit(state, 'transport', 'troop_transport', AI, { q: 1, r: 1 }, {
+      cargoUnitIds: ['cargo'],
+    });
+    addUnit(state, 'cargo', 'marine', AI, transport.position, {
+      transportId: transport.id,
+      movementPointsLeft: 2,
+      hasActed: false,
+    });
+    addUnit(state, 'target', 'warrior', HUMAN, { q: 2, r: 1 });
+    const plan = makePlan(
+      { kind: 'unit', id: 'target', lastKnownPosition: { q: 2, r: 1 } },
+      ['cargo'],
+      { objective: 'repel' },
+    );
+
+    expect(rankUnitTacticalActions(context(state, plan), 'cargo').some(candidate =>
+      candidate.action.kind === 'embarked-attack'
+      && candidate.action.targetUnitId === 'target')).toBe(true);
+  });
+
   it('does not move into a peaceful foreign city outside capture legality', () => {
     const state = makeState('veteran');
     state.civilizations[AI].diplomacy.atWarWith = [];

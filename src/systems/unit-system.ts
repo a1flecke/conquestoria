@@ -261,7 +261,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
   marine: {
     type: 'marine', name: 'Marine', movementPoints: 2,
     visionRange: 2, strength: 36, canFoundCity: false,
-    canBuildImprovements: false, productionCost: 135,
+    canBuildImprovements: false, productionCost: 125,
     domain: 'land',
     attackProfile: { kind: 'melee', range: 1, targets: ['unit', 'city'] },
   },

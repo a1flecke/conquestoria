@@ -127,6 +127,25 @@ export function getEmbarkedAssaultTarget(
   return target.ok ? { ...target, transportId: transport.id } : target;
 }
 
+/**
+ * Return every legal adjacent coastal target for cargo attacking directly from its
+ * transport. Keeping enumeration beside validation prevents UI and AI callers from
+ * accidentally applying different shoreline rules.
+ */
+export function getEmbarkedAssaultTargets(
+  state: GameState,
+  cargoUnitId: string,
+  options: AttackTargetOptions = {},
+): Array<{ coord: HexCoord; result: EmbarkedAssaultTarget }> {
+  const cargo = state.units[cargoUnitId];
+  const transport = cargo?.transportId ? state.units[cargo.transportId] : undefined;
+  if (!cargo || !transport) return [];
+
+  return transportNeighbors(state, transport.position)
+    .map(coord => ({ coord: normalizeDestination(state, coord), result: getEmbarkedAssaultTarget(state, cargoUnitId, coord, options) }))
+    .filter((target): target is { coord: HexCoord; result: EmbarkedAssaultTarget } => target.result.ok);
+}
+
 export type EmbarkedAssaultDetachResult =
   | { ok: true; state: GameState; attacker: Unit; transportId: string }
   | { ok: false; state: GameState };
