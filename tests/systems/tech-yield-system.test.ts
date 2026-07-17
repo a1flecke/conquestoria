@@ -213,6 +213,28 @@ describe('getCityTechYields — per-kind coverage', () => {
     forceTile(map, wonderTile, 'mountain', { wonder: null });
     expect(getCityTechYields(city, map, ['natural-history']).total.science).toBe(0);
   });
+
+  it('cityFlatConditional (requiresWonder): applies for a city hosting a completed legendary wonder', () => {
+    const city = makeCity();
+    expect(getCityTechYields(city, map, ['renaissance-architecture'], { hostsCompletedLegendaryWonder: true }).total.production).toBe(2);
+  });
+
+  it('cityFlatConditional (requiresWonder): applies for a city with a natural wonder tile', () => {
+    const centerCoord = Object.values(map.tiles).find(t => t.terrain === 'grassland' && !t.hasRiver)!.coord;
+    const city = { ...foundCity('player', centerCoord, map, mkC()), population: 1 };
+    const wonderTile = city.ownedTiles.find(c => hexKey(c) !== hexKey(city.position))!;
+    forceTile(map, wonderTile, 'mountain', { wonder: 'test-natural-wonder' });
+    expect(getCityTechYields(city, map, ['renaissance-architecture']).total.production).toBe(2);
+
+    forceTile(map, wonderTile, 'mountain', { wonder: null });
+    expect(getCityTechYields(city, map, ['renaissance-architecture']).total.production).toBe(0);
+  });
+
+  it('cityFlatConditional (requiresWonder): does not apply for a city with neither wonder kind', () => {
+    const city = makeCity();
+    expect(getCityTechYields(city, map, ['renaissance-architecture']).total.production).toBe(0);
+    expect(getCityTechYields(city, map, ['renaissance-architecture'], { hostsCompletedLegendaryWonder: false }).total.production).toBe(0);
+  });
 });
 
 describe('getEmpireTechPercents / applyEmpireTechPercents', () => {

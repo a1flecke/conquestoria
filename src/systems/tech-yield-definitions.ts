@@ -12,6 +12,7 @@ export type YieldKind =
       requiresCoastal?: boolean;
       minBuildings?: number;
       requiresMissingBuilding?: string[];
+      requiresWonder?: true;
     }
   | { kind: 'perBuildingCategory'; category: BuildingCategory; yields: Partial<ResourceYield> }
   | { kind: 'perBuildingId'; buildingIds: string[]; yields: Partial<ResourceYield> }
@@ -51,6 +52,7 @@ export const TECH_YIELD_MODIFIERS: TechYieldModifier[] = [
   // --- Era 5 ---
   { techId: 'guilds', label: '+1 gold per active trade route', effect: { kind: 'perTradeRoute', gold: 1 } },
   { techId: 'colonial-charter', label: 'Cities founded on foreign landmasses start with +5 production', effect: { kind: 'foundingProductionBonus', production: 5, foreignLandmassOnly: true } },
+  { techId: 'renaissance-architecture', label: '+2 production in cities containing a wonder', effect: { kind: 'cityFlatConditional', requiresWonder: true, yields: { production: 2 } } },
   { techId: 'colonial-trade', label: 'Trade routes to foreign civs yield +2 gold', effect: { kind: 'perTradeRoute', gold: 2, foreignOnly: true } },
   { techId: 'scientific-method', label: '+1 science per library empire-wide', effect: { kind: 'perBuildingId', buildingIds: ['library'], yields: { science: 1 } } },
   { techId: 'printing-press', label: '+1 science per library empire-wide', effect: { kind: 'perBuildingId', buildingIds: ['library'], yields: { science: 1 } } },

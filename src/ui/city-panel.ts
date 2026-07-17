@@ -151,6 +151,10 @@ export function createCityPanel(
     city,
     state.map,
     state.civilizations[city.owner]?.techState.completed ?? [],
+    {
+      hostsCompletedLegendaryWonder: Object.values(state.completedLegendaryWonders ?? {})
+        .some(w => w.cityId === city.id),
+    },
   ).parts;
   const yields = {
     food: Math.floor(baseYields.food * yieldMultiplier),
