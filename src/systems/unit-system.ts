@@ -258,6 +258,13 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     domain: 'land',
     attackProfile: { kind: 'bombard', range: 1, targets: ['unit', 'city'] },
   },
+  marine: {
+    type: 'marine', name: 'Marine', movementPoints: 2,
+    visionRange: 2, strength: 36, canFoundCity: false,
+    canBuildImprovements: false, productionCost: 135,
+    domain: 'land',
+    attackProfile: { kind: 'melee', range: 1, targets: ['unit', 'city'] },
+  },
   rifleman: {
     type: 'rifleman', name: 'Rifleman', movementPoints: 2,
     visionRange: 2, strength: 46, canFoundCity: false,
@@ -672,6 +679,7 @@ export const UNIT_DESCRIPTIONS: Record<UnitType, string> = {
   ballista:    'Long-range bolt-thrower effective against massed units. Requires Iron.',
   cannon:      'Gunpowder siege weapon. High bombard damage against cities and fortifications at range 2. Slow movement. Upgrades into the artillery.',
   grenadier:   'Grenade-throwing infantry. Bombard range 1, strong vs fortifications and city walls. Good vs entrenched defenders.',
+  marine:      'Coastal assault infantry. Ignores the landing penalty when attacking directly from a transport.',
   rifleman:        'Rifled-musket infantry. Accurate ranged unit, now the era\'s real line-infantry breakpoint — beats the musketeer it replaces. Excels at holding defensive positions.',
   artillery: 'Long-range siege gun. Bombard range 2 vs units and cities. Current siege apex — rocket artillery is future content.',
   frigate:         'Fast broadside warship. Ranged attack (range 2) vs units and cities. Requires Frigate Construction and a coastal city. Replaces the trireme; upgrades into the ironclad.',

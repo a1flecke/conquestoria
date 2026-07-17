@@ -6,7 +6,7 @@ import type { Tech } from '@/core/types';
 // nothing depends on them as legendary-wonder gates. amphibious-warfare stays era 5 —
 // troop_transport timing there is deliberate.
 const RELOCATED_STUBS: Tech[] = [
-  { id: 'amphibious-warfare', name: 'Amphibious Warfare', track: 'maritime', cost: 175, prerequisites: ['caravels', 'naval-warfare'], unlocks: [], unlocksUnits: ['troop_transport'], era: 5, countsForEraAdvancement: false },
+  { id: 'amphibious-warfare', name: 'Amphibious Warfare', track: 'maritime', cost: 175, prerequisites: ['caravels', 'naval-warfare'], unlocks: [], unlocksUnits: ['troop_transport', 'marine'], era: 5, countsForEraAdvancement: false },
 ];
 
 const ERA_5_TECHS: Tech[] = [

@@ -40,6 +40,15 @@ function baseHealCtx(overrides: Partial<HealingModifierContext> = {}): HealingMo
 }
 
 describe('UNIT_CLASS_BY_TYPE completeness', () => {
+  it('defines Marine as a gunpowder amphibious specialist', () => {
+    expect(UNIT_DEFINITIONS.marine).toMatchObject({
+      name: 'Marine',
+      strength: 36,
+      domain: 'land',
+    });
+    expect(UNIT_CLASS_BY_TYPE.marine).toContain('gunpowder');
+  });
+
   it('every UnitType in UNIT_DEFINITIONS has a non-empty class list', () => {
     for (const type of Object.keys(UNIT_DEFINITIONS) as UnitType[]) {
       expect(UNIT_CLASS_BY_TYPE[type]).toBeDefined();
