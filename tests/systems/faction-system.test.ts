@@ -544,6 +544,30 @@ describe('faction-system', () => {
       const rows = getUnrestPressureBreakdown('city-1', stateWithOtherCivTech);
       expect(rows.find(r => r.label === 'Recent conquest')?.amount).toBe(25);
     });
+
+    it('changes the actual unrest-escalation outcome at the trigger boundary', () => {
+      // Recent conquest (25) + war weariness (2 wars * 8 = 16) = 41 > UNREST_TRIGGER_PRESSURE (40):
+      // crosses the trigger without the tech. With constitutional-law, Recent conquest
+      // halves to 13, so 13 + 16 = 29 stays under the trigger — proving the row-value
+      // change actually flips processFactionTurn's real escalation decision, not just
+      // the isolated breakdown number.
+      const stateWithoutTech = makeState({ conquestTurn: 0, atWarCount: 2 });
+      const resultWithoutTech = processFactionTurn(stateWithoutTech, bus);
+      expect(resultWithoutTech.cities['city-1'].unrestLevel).toBe(1);
+
+      const stateWithTech: GameState = {
+        ...stateWithoutTech,
+        civilizations: {
+          ...stateWithoutTech.civilizations,
+          player: {
+            ...stateWithoutTech.civilizations['player'],
+            techState: { ...stateWithoutTech.civilizations['player'].techState, completed: ['constitutional-law'] },
+          },
+        },
+      };
+      const resultWithTech = processFactionTurn(stateWithTech, bus);
+      expect(resultWithTech.cities['city-1'].unrestLevel).toBe(0);
+    });
   });
 
   it('reports helper values for appease cost and production penalties', () => {
