@@ -171,4 +171,19 @@ describe('air bases', () => {
     expect(result.outcomes).toEqual([{ aircraftId: 'air-1', outcome: 'evacuated' }]);
     expect(result.state.units['air-1']).toMatchObject({ airBase: { kind: 'city', cityId: 'reserve' }, position: { q: 4, r: 2 } });
   });
+
+  it('uses a deterministic one-third capture transition for based aircraft', () => {
+    const captureState = {
+      ...state,
+      gameId: 'capture-test', turn: 11,
+      civilizations: { player: { units: ['air-1'] }, enemy: { units: [] } },
+    } as unknown as GameState;
+
+    const first = resolveAirBaseLoss(captureState, { kind: 'city', cityId: 'city-1' }, { kind: 'captured', victorId: 'enemy' });
+    const second = resolveAirBaseLoss(captureState, { kind: 'city', cityId: 'city-1' }, { kind: 'captured', victorId: 'enemy' });
+
+    expect(first).toEqual(second);
+    expect(first.outcomes).toHaveLength(1);
+    expect(['evacuated', 'destroyed', 'captured']).toContain(first.outcomes[0]!.outcome);
+  });
 });
