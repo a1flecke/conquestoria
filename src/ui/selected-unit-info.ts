@@ -101,11 +101,13 @@ export interface SelectedUnitInfoCallbacks {
   getAirRebaseDestinations?: (unitId: string) => Array<{ base: AirBaseRef; label: string }>;
   onRebaseAircraft?: (unitId: string, base: AirBaseRef) => void;
   onStartAirMission?: (unitId: string, mission: 'strike' | 'recon') => void;
+  onCancelAirMission?: (unitId: string) => void;
 }
 
 export interface SelectedUnitInfoPresentation {
   waterRecovery?: LandUnitWaterRecovery;
   hasZoneOfControlWarning?: boolean;
+  airMissionPending?: 'strike' | 'recon';
 }
 
 function makeButton(label: string, color: string, onClick?: () => void): HTMLButtonElement {
@@ -590,7 +592,9 @@ export function renderSelectedUnitInfo(
     }
   }
 
-  if (unit.airBase && !unit.hasActed && callbacks.onStartAirMission) {
+  if (presentation.airMissionPending && callbacks.onCancelAirMission) {
+    actionsDiv.appendChild(makeButton(`Cancel ${presentation.airMissionPending === 'strike' ? 'Air Strike' : 'Recon'}`, '#6b7280', () => callbacks.onCancelAirMission!(unitId)));
+  } else if (unit.airBase && !unit.hasActed && callbacks.onStartAirMission) {
     if (def.airOperation?.missions.includes('strike')) {
       actionsDiv.appendChild(makeButton('Air Strike', '#b45309', () => callbacks.onStartAirMission!(unitId, 'strike')));
     }

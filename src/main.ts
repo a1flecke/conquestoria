@@ -1967,11 +1967,18 @@ function selectUnit(
         const targets = getLegalAirMissionTargets(gameState, uid, mission);
         movementRange = [];
         attackRange = [];
+        selectUnit(uid);
         renderLoop.setHighlights(targets.map(coord => ({
           coord,
           type: mission === 'strike' ? 'air-strike' as const : 'air-recon' as const,
         })));
-        showNotification(mission === 'strike' ? 'Tap a hostile unit within operational range.' : 'Tap a recon center within operational range.', 'info');
+        showNotification(mission === 'strike' ? 'Tap a hostile target within operational range, or cancel.' : 'Tap a recon center within operational range, or cancel.', 'info');
+      },
+      onCancelAirMission: uid => {
+        if (pendingAirMission?.unitId !== uid) return;
+        pendingAirMission = null;
+        selectUnit(uid);
+        showNotification('Air mission cancelled.', 'info');
       },
       onOpenNetworkIntent: uid => openNetworkIntentPanel(uid),
       onFoundCity: () => foundCityAction(),
@@ -2290,6 +2297,7 @@ function selectUnit(
     }, {
       waterRecovery: highlightResult.waterRecovery,
       hasZoneOfControlWarning: highlightResult.zocLimitedRange.length > 0,
+      airMissionPending: pendingAirMission?.unitId === unitId ? pendingAirMission.mission : undefined,
     });
   }
 
@@ -2298,6 +2306,7 @@ function selectUnit(
 
 function deselectUnit(): void {
   selectedUnitId = null;
+  pendingAirMission = null;
   selectedUnitWaterRecovery = NO_LAND_UNIT_WATER_RECOVERY;
   renderLoop.setSelectedUnitId(null);
   movementRange = [];

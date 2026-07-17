@@ -170,6 +170,10 @@ describe('air bases', () => {
     ]);
     expect(result.state.units.alpha).toBeUndefined();
     expect(result.state.civilizations.player!.units).toEqual(['carrier']);
+    expect(result.state.notificationLog?.player.map(entry => entry.message)).toEqual([
+      'Biplane was destroyed when its air base was lost.',
+      'Biplane was destroyed when its air base was lost.',
+    ]);
   });
 
   it('evacuates facility-loss aircraft to a compatible friendly base within ferry range', () => {
@@ -226,6 +230,33 @@ describe('air bases', () => {
     expect(result).toMatchObject({ interception: { interceptorId: 'interceptor' } });
     expect(result.state.units.striker?.hasActed).toBe(true);
     expect(result.state.units.interceptor?.interceptedTurn).toBe(9);
+  });
+
+  it('offers visible hostile cities as strike targets and applies city siege damage', () => {
+    const missionState = {
+      ...state,
+      gameId: 'air-city-strike-test', turn: 9,
+      map: { width: 10, height: 10, wrapsHorizontally: false, tiles: {} },
+      units: {
+        striker: { ...biplane, id: 'striker', type: 'bomber', position: { q: 2, r: 2 } },
+      },
+      cities: {
+        ...state.cities,
+        'enemy-city': { id: 'enemy-city', name: 'Enemy City', owner: 'enemy', position: { q: 5, r: 2 }, hp: 100, buildings: [] },
+      },
+      civilizations: {
+        player: { units: ['striker'], cities: ['city-1'], techState: { completed: [] }, visibility: { tiles: { '5,2': 'visible' } }, diplomacy: { atWarWith: ['enemy'], events: [] } },
+        enemy: { units: [], cities: ['enemy-city'], techState: { completed: [] }, diplomacy: { atWarWith: ['player'], events: [] } },
+      },
+    } as unknown as GameState;
+
+    expect(getLegalAirMissionTargets(missionState, 'striker', 'strike')).toContainEqual({ q: 5, r: 2 });
+    expect(resolveAirStrike(missionState, 'striker', { q: 5, r: 2 })).toMatchObject({
+      ok: true,
+      cityResult: { cityId: 'enemy-city', result: { outcome: 'damaged' } },
+      state: { cities: { 'enemy-city': { hp: expect.any(Number) } }, units: { striker: { hasActed: true } } },
+    });
+    expect(resolveAirStrike(missionState, 'striker', { q: 5, r: 2 }).state.cities['enemy-city']!.hp).toBeLessThan(100);
   });
 
   it('lists only actual hostile, map-present aircraft strike targets for the mission UI', () => {

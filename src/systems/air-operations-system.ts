@@ -6,13 +6,16 @@ import { buildCombatContextForDefender } from './combat-context';
 import { getVisibility } from './fog-of-war';
 import { isHostileOwnerTo } from './owner-hostility';
 import { applyCombatOutcomeToState } from './combat-reward-system';
+import { applyCitySiegeOutcome, getCityGarrisonUnit, resolveCitySiegeDamage, type CitySiegeResult } from './city-siege-system';
+import { resolveChallengeForCiv } from '@/core/opponent-challenge';
+import { appendNotification } from '@/core/notification-log';
 
 export type AirOperationResult =
   | { ok: true; state: GameState }
   | { ok: false; state: GameState; reason: string };
 
 export type AirStrikeResult =
-  | { ok: true; state: GameState; interception?: { interceptorId: string; result: CombatResult }; targetResult?: CombatResult }
+  | { ok: true; state: GameState; interception?: { interceptorId: string; result: CombatResult }; targetResult?: CombatResult; cityResult?: { cityId: string; result: CitySiegeResult } }
   | { ok: false; state: GameState; reason: string };
 
 export type AirBaseCheck =
@@ -193,7 +196,12 @@ export function getLegalAirMissionTargets(state: GameState, unitId: string, miss
         && isHostileOwnerTo(state, unit.owner, candidate.owner)
         && (!visibility || getVisibility(visibility, candidate.position) === 'visible')
         && airDistance(state, unit.position, candidate.position) <= definition.operationalRange)
-      .map(candidate => ({ ...candidate.position }));
+      .map(candidate => ({ ...candidate.position }))
+      .concat(Object.values(state.cities)
+        .filter(city => isHostileOwnerTo(state, unit.owner, city.owner)
+          && (!visibility || getVisibility(visibility, city.position) === 'visible')
+          && airDistance(state, unit.position, city.position) <= definition.operationalRange)
+        .map(city => ({ ...city.position })));
   }
   return state.map.wrapsHorizontally
     ? getWrappedHexesInRange(unit.position, definition.operationalRange, state.map.width)
@@ -236,8 +244,9 @@ export function resolveAirStrike(state: GameState, unitId: string, target: HexCo
   if (!getLegalAirMissionTargets(state, unitId, 'strike').some(candidate => candidate.q === target.q && candidate.r === target.r)) {
     return { ok: false, state, reason: 'invalid-strike-target' };
   }
-  const targetUnit = Object.values(state.units).find(unit => !unit.airBase && unit.owner !== striker.owner && unit.position.q === target.q && unit.position.r === target.r);
-  if (!targetUnit) return { ok: false, state, reason: 'missing-target' };
+  const targetCity = Object.values(state.cities).find(city => city.position.q === target.q && city.position.r === target.r);
+  const targetUnit = targetCity ? undefined : Object.values(state.units).find(unit => !unit.airBase && unit.owner !== striker.owner && unit.position.q === target.q && unit.position.r === target.r);
+  if (!targetUnit && !targetCity) return { ok: false, state, reason: 'missing-target' };
   let nextState = state;
   const interceptor = selectInterceptor(state, striker, target);
   let interception: { interceptorId: string; result: CombatResult } | undefined;
@@ -249,7 +258,25 @@ export function resolveAirStrike(state: GameState, unitId: string, target: HexCo
     if (!nextState.units[striker.id]) return { ok: true, state: nextState, interception };
   }
   const currentStriker = nextState.units[striker.id]!;
-  const currentTarget = nextState.units[targetUnit.id];
+  if (targetCity) {
+    const currentCity = nextState.cities[targetCity.id];
+    const ownerCiv = currentCity && nextState.civilizations[currentCity.owner];
+    if (!currentCity || !ownerCiv) return { ok: false, state, reason: 'missing-target' };
+    const cityResult = resolveCitySiegeDamage({
+      city: currentCity,
+      ownerCiv,
+      rawDamage: Math.max(1, Math.round(UNIT_DEFINITIONS[currentStriker.type].strength * currentStriker.health / 100)),
+      attackerDomain: 'air',
+      hasGarrison: getCityGarrisonUnit(nextState.units, currentCity) !== undefined,
+      isOwnersLastCity: ownerCiv.cities.length <= 1,
+      era: nextState.era,
+      challenge: resolveChallengeForCiv(nextState, currentCity.owner),
+    });
+    nextState = applyCitySiegeOutcome(nextState, currentCity.id, cityResult);
+    if (nextState.units[unitId]) nextState = { ...nextState, units: { ...nextState.units, [unitId]: { ...nextState.units[unitId]!, movementPointsLeft: 0, hasMoved: true, hasActed: true } } };
+    return { ok: true, state: nextState, interception, cityResult: { cityId: currentCity.id, result: cityResult } };
+  }
+  const currentTarget = targetUnit && nextState.units[targetUnit.id];
   if (!currentTarget) return { ok: true, state: { ...nextState, units: { ...nextState.units, [unitId]: { ...currentStriker, movementPointsLeft: 0, hasMoved: true, hasActed: true } } }, interception };
   const targetResult = resolveCombat(currentStriker, currentTarget, nextState.map, deterministicCombatSeed(nextState.gameId, nextState.turn, currentStriker.id, currentTarget.id), buildCombatContextForDefender(nextState, currentStriker, currentTarget), nextState.era);
   nextState = applyAirCombatResult(nextState, targetResult, deterministicCombatSeed(nextState.gameId, nextState.turn, currentStriker.id, currentTarget.id));
@@ -284,7 +311,7 @@ export function resolveAirBaseLoss(
         outcomes.push({ aircraftId: unit.id, outcome: 'destroyed' });
       }
     }
-    return { state: nextState, outcomes };
+    return { state: appendAirBaseLossNotifications(nextState, roster, outcomes), outcomes };
   }
   if (cause.kind === 'captured') {
     let nextState = state;
@@ -323,14 +350,44 @@ export function resolveAirBaseLoss(
       }
       outcomes.push({ aircraftId: unit.id, outcome: resolution });
     }
-    return { state: nextState, outcomes };
+    return { state: appendAirBaseLossNotifications(nextState, roster, outcomes), outcomes };
   }
   const removedIds = new Set(roster.map(unit => unit.id));
   const removed = removeAirUnits(state, removedIds);
   return {
-    state: removed,
+    state: appendAirBaseLossNotifications(removed, roster, roster.map(unit => ({ aircraftId: unit.id, outcome: 'destroyed' as const }))),
     outcomes: roster.map(unit => ({ aircraftId: unit.id, outcome: 'destroyed' })),
   };
+}
+
+function appendAirBaseLossNotifications(
+  state: GameState,
+  roster: Unit[],
+  outcomes: AirBaseLossResult['outcomes'],
+): GameState {
+  if (outcomes.length === 0) return state;
+  const nextState: GameState = {
+    ...state,
+    idCounters: { ...state.idCounters },
+    notificationLog: Object.fromEntries(Object.entries(state.notificationLog ?? {}).map(([civId, entries]) => [civId, [...entries]])),
+  };
+  for (const outcome of outcomes) {
+    const aircraft = roster.find(unit => unit.id === outcome.aircraftId);
+    if (!aircraft) continue;
+    const name = UNIT_DEFINITIONS[aircraft.type].name;
+    const message = outcome.outcome === 'evacuated'
+      ? `${name} evacuated after its air base was lost.`
+      : outcome.outcome === 'captured'
+        ? `${name} was captured when its air base fell.`
+        : `${name} was destroyed when its air base was lost.`;
+    appendNotification(nextState, aircraft.owner, {
+      message,
+      type: 'warning',
+      turn: state.turn,
+      target: { kind: 'map', coord: { ...aircraft.position }, label: name },
+    });
+  }
+  return nextState;
 }
 
 function stableAirLossRoll(state: GameState, base: AirBaseRef, aircraftId: string): number {
