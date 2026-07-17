@@ -65,9 +65,11 @@ import { chooseRoadBuilderUnit } from '@/systems/road-network';
 import { canBuildRoad } from '@/systems/road-system';
 import { getAIStrategicRoles, hasAICombatRole } from './ai-unit-roles';
 import { isAIHostileOwner } from './ai-hostility';
+import { resolveAirStrike } from '@/systems/air-operations-system';
 
 export type AITacticalAction =
   | { kind: 'attack'; unitId: string; targetUnitId: string }
+  | { kind: 'air-strike'; unitId: string; target: HexCoord }
   | { kind: 'capture-city'; unitId: string; cityId: string }
   | { kind: 'move'; unitId: string; destination: HexCoord }
   | { kind: 'withdraw'; unitId: string; destination: HexCoord }
@@ -121,6 +123,8 @@ function actionId(action: AITacticalAction): string {
   switch (action.kind) {
     case 'attack':
       return `attack:${action.unitId}:${action.targetUnitId}`;
+    case 'air-strike':
+      return `air-strike:${action.unitId}:${hexKey(action.target)}`;
     case 'capture-city':
       return `capture-city:${action.unitId}:${action.cityId}`;
     case 'move':
@@ -355,6 +359,20 @@ function rankAttacks(
     attacks.push(ranked(action, score, lethalCityDefense));
   }
   return attacks;
+}
+
+function rankAirStrikes(
+  context: AITacticalContext,
+  unit: Unit,
+): RankedAITacticalAction[] {
+  const operation = UNIT_DEFINITIONS[unit.type].airOperation;
+  if (context.allowOffensiveActions === false || !operation?.missions.includes('strike') || !unit.airBase || unit.hasActed) return [];
+  return Object.values(context.state.units)
+    .filter(target => !target.airBase && target.owner !== context.actorId && isAIHostileOwner(context.state, context.actorId, target.owner))
+    .filter(target => getVisibility(context.state.civilizations[context.actorId].visibility, target.position) === 'visible')
+    .filter(target => distance(context.state, unit.position, target.position) <= operation.operationalRange)
+    .sort((left, right) => UNIT_DEFINITIONS[right.type].productionCost - UNIT_DEFINITIONS[left.type].productionCost || left.id.localeCompare(right.id))
+    .map(target => ranked({ kind: 'air-strike', unitId: unit.id, target: { ...target.position } }, 650 + UNIT_DEFINITIONS[target.type].productionCost / 10));
 }
 
 function rankCapture(
@@ -606,6 +624,7 @@ export function rankUnitTacticalActions(
 
   const candidates = [
     ...rankCivilianAndTransportActions(context, unit),
+    ...rankAirStrikes(context, unit),
     ...rankAttacks(context, unit),
     ...rankCapture(context, unit),
     ...rankMoves(context, unit),
@@ -667,6 +686,10 @@ function applyPredictedAction(
   const unit = next.units[action.unitId];
   if (!unit) return next;
   switch (action.kind) {
+    case 'air-strike': {
+      const result = resolveAirStrike(next, action.unitId, action.target);
+      return result.ok ? result.state : next;
+    }
     case 'attack': {
       const defender = next.units[action.targetUnitId];
       if (!defender) return next;

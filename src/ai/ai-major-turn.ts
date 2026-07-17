@@ -11,6 +11,7 @@ import type {
   Unit,
 } from '@/core/types';
 import { canUnitAttackTarget } from '@/systems/attack-targeting';
+import { resolveAirStrike } from '@/systems/air-operations-system';
 import { applyCampDestructionAtTarget } from '@/systems/barbarian-system';
 import { applyCombatOutcomeToState } from '@/systems/combat-reward-system';
 import { deterministicCombatSeed, resolveCombat } from '@/systems/combat-system';
@@ -320,6 +321,10 @@ function executeAction(
   followUps: AITacticalAction[];
 } {
   switch (action.kind) {
+    case 'air-strike': {
+      const result = resolveAirStrike(state, action.unitId, action.target);
+      return { state: result.ok ? result.state : state, succeeded: result.ok, followUps: [] };
+    }
     case 'attack': {
       const attack = executeAttack(state, action, civId, bus);
       return {
