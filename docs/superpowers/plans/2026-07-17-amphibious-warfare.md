@@ -255,3 +255,90 @@ git commit -m "test(combat): cover amphibious warfare compatibility"
 
 - Tasks 1 through 4 cover every approved requirement: legality and integrity; combat and content data; player, AI, hot-seat, event and SFX behavior; then save compatibility and full regression checks.
 - No requirements are deferred. amphibiousAssault, getEmbarkedAssaultTarget, and detachCargoForEmbarkedAssault use the same names throughout.
+
+## Implementation Review Corrections (required for Sonnet 4.5)
+
+### Caller and state-transition contract
+
+Before editing, read these full call paths: `src/input/selected-unit-highlights.ts`,
+`src/main.ts` (`selectUnit`, `executeAttack`, and `beginPlayerCityAssault`),
+`src/systems/city-capture-system.ts` (`beginMajorCityAssault` and
+`beginPlayerCityAssaultChoice`), and `src/ai/ai-tactics.ts`. Do not create a
+second attack resolver or copy combat formulas into any caller.
+
+An embarked **unit** assault must follow this precise order:
+
+1. Validate the cargo/transport/target without mutation.
+2. Detach cargo in a new immutable state, placing its effective attacker at the
+   transport origin and removing both cargo references.
+3. Build `buildCombatContextForDefender(..., { amphibiousAssault: true })`,
+   resolve combat once, emit one `combat:resolved` event using the pre-outcome
+   viewer presentation, and apply the existing combat outcome once.
+4. Refresh selection, renderer, HUD, notifications, rewards, and quest updates
+   through their current paths. If validation fails, leave every cargo reference
+   and selection untouched.
+
+An embarked **city** assault must detach through the same transport helper, then
+pass an explicit `amphibiousAssault` option through `beginPlayerCityAssault`,
+`beginPlayerCityAssaultChoice`, and `beginMajorCityAssault` to
+`calculateCityAssaultStrengths`. It must retain the existing city-capture and
+counter-fire lifecycle; do not emit a synthetic `combat:resolved` event for a
+city siege that does not normally emit one.
+
+### Correct file and test scope
+
+Update Task 3's file list to include:
+
+- `src/systems/city-capture-system.ts`
+- `tests/systems/city-capture-system.test.ts`
+- `tests/integration/hot-seat-unit-persistence.test.ts`
+
+Modify `buildSelectedUnitHighlights` to obtain cargo targets from the canonical
+embarked helper. `main.ts` must consume those returned target details for both
+unit and city preview/confirmation; it must not recompute a different target
+list. A cargo city target needs a dedicated assault-target branch because city
+attacks currently originate from movement/tap intent, while the cargo's stored
+position is water.
+
+### Balance, game feel, and difficulty gates
+
+- Preserve the fixed 0.5 landing multiplier for every difficulty and player.
+  Do not add hidden combat bonuses or randomness beyond the existing seeded
+  resolution.
+- A support fleet is preparation, not a stack exploit: assert zero support from
+  transports/melee/distant/embarked ships and exactly one 1.1 multiplier from
+  any number of eligible adjacent ships.
+- Preserve both play styles: an ordinary land unit can still unload and wait;
+  direct assault trades safety for tempo; a Marine pays a production premium for
+  its specialized tempo advantage.
+- Run tactical ranking/execution assertions on explorer, standard, and veteran.
+  The assertion is legal deterministic behavior, not that every difficulty must
+  choose the same priority score.
+
+### UX, privacy, sound, and data gates
+
+- Use `createGameButton()` for any newly introduced control and `textContent`
+  for every dynamic label; do not add `innerHTML` for this feature.
+- Keep the target, preview, notification, and SFX audience derived from
+  `state.currentPlayer` and `buildCombatPresentation`. Test a human-vs-human
+  handoff with a target visible only to the outgoing player.
+- Register Marine explicitly in the sprite and SFX catalogs, reusing established
+  infantry assets. Verify the generic event drives sound only for its allowed
+  viewer; do not add a global landing sound.
+- Marine and the amphibious context are definition/runtime data, not persisted
+  state. Keep the save schema unchanged; assert an existing embarked-cargo save
+  loads twice identically and retains valid cargo links.
+
+### Drift-check and completion gates
+
+Before every slice commit, compare the canonical player and AI calculation:
+
+```bash
+rg -n "getEmbarkedAssaultTarget|detachCargoForEmbarkedAssault|amphibiousAssault" src tests
+git diff --check
+```
+
+The search must show one eligibility helper, one detach helper, and shared
+combat-context construction at every player/AI caller. Before reporting done,
+inspect both `git diff origin/main...HEAD` and `git diff`; run the source-rule
+check, targeted tests, full test suite, and production build.
