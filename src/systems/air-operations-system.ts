@@ -1,9 +1,15 @@
-import type { AirBaseRef, AirMission, GameState, HexCoord, Unit, UnitType } from '@/core/types';
+import type { AirBaseRef, AirMission, CombatResult, GameState, HexCoord, Unit, UnitType } from '@/core/types';
 import { hexDistance, hexesInRange, getWrappedHexesInRange, wrappedHexDistance } from './hex-utils';
 import { UNIT_DEFINITIONS } from './unit-system';
+import { deterministicCombatSeed, resolveCombat } from './combat-system';
+import { buildCombatContextForDefender } from './combat-context';
 
 export type AirOperationResult =
   | { ok: true; state: GameState }
+  | { ok: false; state: GameState; reason: string };
+
+export type AirStrikeResult =
+  | { ok: true; state: GameState; interception?: { interceptorId: string; result: CombatResult }; targetResult?: CombatResult }
   | { ok: false; state: GameState; reason: string };
 
 export type AirBaseCheck =
@@ -193,6 +199,52 @@ export function resolveReconMission(state: GameState, unitId: string, center: He
       ],
     },
   };
+}
+
+function applyAirCombatResult(state: GameState, result: CombatResult): GameState {
+  const units = { ...state.units };
+  const apply = (id: string, damage: number, survived: boolean) => {
+    const unit = units[id];
+    if (!unit) return;
+    if (!survived) {
+      delete units[id];
+      return;
+    }
+    units[id] = { ...unit, health: Math.max(1, unit.health - damage) };
+  };
+  apply(result.attackerId, result.attackerDamage, result.attackerSurvived);
+  apply(result.defenderId, result.defenderDamage, result.defenderSurvived);
+  const removed = new Set(Object.keys(state.units).filter(id => !units[id]));
+  const civilizations = removed.size === 0 ? state.civilizations : Object.fromEntries(Object.entries(state.civilizations).map(([id, civ]) => [id, { ...civ, units: civ.units.filter(unitId => !removed.has(unitId)) }]));
+  return { ...state, units, civilizations };
+}
+
+export function resolveAirStrike(state: GameState, unitId: string, target: HexCoord): AirStrikeResult {
+  const striker = state.units[unitId];
+  const definition = striker && UNIT_DEFINITIONS[striker.type].airOperation;
+  if (!striker || !definition?.missions.includes('strike') || !striker.airBase || striker.hasActed) {
+    return { ok: false, state, reason: 'ineligible-strike' };
+  }
+  if (airDistance(state, striker.position, target) > definition.operationalRange) return { ok: false, state, reason: 'out-of-range' };
+  const targetUnit = Object.values(state.units).find(unit => !unit.airBase && unit.owner !== striker.owner && unit.position.q === target.q && unit.position.r === target.r);
+  if (!targetUnit) return { ok: false, state, reason: 'missing-target' };
+  let nextState = state;
+  const interceptor = selectInterceptor(state, striker, target);
+  let interception: { interceptorId: string; result: CombatResult } | undefined;
+  if (interceptor) {
+    const result = resolveCombat(interceptor, striker, state.map, deterministicCombatSeed(state.gameId, state.turn, interceptor.id, striker.id), buildCombatContextForDefender(state, interceptor, striker), state.era);
+    nextState = applyAirCombatResult(nextState, result);
+    if (nextState.units[interceptor.id]) nextState = { ...nextState, units: { ...nextState.units, [interceptor.id]: { ...nextState.units[interceptor.id]!, interceptedTurn: state.turn } } };
+    interception = { interceptorId: interceptor.id, result };
+    if (!nextState.units[striker.id]) return { ok: true, state: nextState, interception };
+  }
+  const currentStriker = nextState.units[striker.id]!;
+  const currentTarget = nextState.units[targetUnit.id];
+  if (!currentTarget) return { ok: true, state: { ...nextState, units: { ...nextState.units, [unitId]: { ...currentStriker, movementPointsLeft: 0, hasMoved: true, hasActed: true } } }, interception };
+  const targetResult = resolveCombat(currentStriker, currentTarget, nextState.map, deterministicCombatSeed(nextState.gameId, nextState.turn, currentStriker.id, currentTarget.id), buildCombatContextForDefender(nextState, currentStriker, currentTarget), nextState.era);
+  nextState = applyAirCombatResult(nextState, targetResult);
+  if (nextState.units[unitId]) nextState = { ...nextState, units: { ...nextState.units, [unitId]: { ...nextState.units[unitId]!, movementPointsLeft: 0, hasMoved: true, hasActed: true } } };
+  return { ok: true, state: nextState, interception, targetResult };
 }
 
 export function resolveAirBaseLoss(

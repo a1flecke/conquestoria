@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { UNIT_DEFINITIONS } from '@/systems/unit-system';
 import { TRAINABLE_UNITS } from '@/systems/city-system';
-import { baseNewAirUnit, canCompleteAirUnitProduction, getAirBaseCapacity, getAirBaseRoster, getLegalAirMissionTargets, getLegalRebaseDestinations, isBasedAirUnit, rebaseAircraft, resolveAirBaseLoss, resolveReconMission, selectInterceptor, startIntercept, syncCarrierBasedAircraft } from '@/systems/air-operations-system';
+import { baseNewAirUnit, canCompleteAirUnitProduction, getAirBaseCapacity, getAirBaseRoster, getLegalAirMissionTargets, getLegalRebaseDestinations, isBasedAirUnit, rebaseAircraft, resolveAirBaseLoss, resolveAirStrike, resolveReconMission, selectInterceptor, startIntercept, syncCarrierBasedAircraft } from '@/systems/air-operations-system';
 import type { GameState, Unit } from '@/core/types';
 
 describe('air-operation definitions', () => {
@@ -67,7 +67,7 @@ describe('air bases', () => {
   it('rebases a based aircraft to a compatible friendly base within ferry range', () => {
     const rebaseState = {
       ...state,
-      map: { width: 10, height: 10, wrapsHorizontally: false },
+      map: { width: 10, height: 10, wrapsHorizontally: false, tiles: {} },
       cities: {
         ...state.cities,
         'city-2': { id: 'city-2', owner: 'player', position: { q: 4, r: 2 }, buildings: ['airfield'] },
@@ -185,5 +185,27 @@ describe('air bases', () => {
     expect(first).toEqual(second);
     expect(first.outcomes).toHaveLength(1);
     expect(['evacuated', 'destroyed', 'captured']).toContain(first.outcomes[0]!.outcome);
+  });
+
+  it('resolves one interceptor exchange before a single air strike target exchange', () => {
+    const missionState = {
+      ...state,
+      gameId: 'air-strike-test', turn: 9,
+      map: { width: 10, height: 10, wrapsHorizontally: false, tiles: {} },
+      units: {
+        striker: { ...biplane, id: 'striker', type: 'bomber', position: { q: 2, r: 2 } },
+        interceptor: { ...biplane, id: 'interceptor', type: 'jet_fighter', owner: 'enemy', position: { q: 4, r: 2 }, airBase: { kind: 'city', cityId: 'enemy-city' }, airMission: 'intercept' },
+        target: { ...biplane, id: 'target', type: 'warrior', owner: 'enemy', position: { q: 5, r: 2 }, airBase: undefined },
+      },
+      cities: { ...state.cities, 'enemy-city': { id: 'enemy-city', owner: 'enemy', position: { q: 4, r: 2 }, buildings: ['airfield'] } },
+      civilizations: { player: { units: ['striker'], techState: { completed: [] } }, enemy: { units: ['interceptor', 'target'], techState: { completed: [] } } },
+    } as unknown as GameState;
+
+    const result = resolveAirStrike(missionState, 'striker', { q: 5, r: 2 });
+
+    expect(result.ok).toBe(true);
+    expect(result).toMatchObject({ interception: { interceptorId: 'interceptor' } });
+    expect(result.state.units.striker?.hasActed).toBe(true);
+    expect(result.state.units.interceptor?.interceptedTurn).toBe(9);
   });
 });
