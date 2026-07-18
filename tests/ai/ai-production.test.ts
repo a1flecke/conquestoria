@@ -475,7 +475,10 @@ describe('#591 MR4 — milestone national project AI scoring', () => {
     // identical city/production conditions -- proving the milestone floor actually
     // closed the gap, not just made the number less negative in isolation.
     const state = setupState(['philosophy', 'iron-forging']);
-    state.era = 3; // sacred_council homeEra: 3 -- below-window check still applies to milestone NPs
+    state.era = 3;
+    state.civilizations['ai-1'].techState.completed = TECH_TREE
+      .filter(tech => tech.era <= 3 && tech.countsForEraAdvancement !== false)
+      .map(tech => tech.id);
     state.cities['city-a']!.buildings = ['temple'];
     const candidates = generateAIProductionCandidates(state, 'ai-1', 'city-a', [], aggressive);
     const sacredCouncil = candidates.find(c => c.itemId === 'sacred_council');
