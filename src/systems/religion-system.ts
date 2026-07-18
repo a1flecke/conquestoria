@@ -4,7 +4,7 @@ import { seededLcg } from './seeded-lcg';
 import {
   NAME_CANDIDATES, NEUTRAL_NAME_CANDIDATES, CONVERSION_THRESHOLD,
   OWN_CITY_ACCRUAL, FOREIGN_ADJACENT_ACCRUAL, FOREIGN_ADJACENT_CAP,
-  TRADE_ROUTE_ACCRUAL, FERVOR_MULTIPLIER,
+  TRADE_ROUTE_ACCRUAL, FERVOR_MULTIPLIER, TITHES_CAP,
 } from './religion-definitions';
 import { getCapitalCityId } from './capital-system';
 import { mapDistance } from './hex-utils';
@@ -52,6 +52,18 @@ export function chooseBoon(state: GameState, religionId: string, boon: ReligionB
   const religion = state.religions?.[religionId];
   if (!religion) return state;
   return { ...state, religions: { ...state.religions, [religionId]: { ...religion, boon } } };
+}
+
+// #591 MR4: Tithes boon — +1 gold per FOREIGN city following the owner's own faith,
+// capped at TITHES_CAP. Own-civ follower cities never count (foreign-only, per boon
+// wording).
+export function getReligionTithesGold(state: GameState, civId: string): number {
+  const religion = Object.values(state.religions ?? {}).find(r => r.ownerCivId === civId && r.boon === 'tithes');
+  if (!religion) return 0;
+  const foreignFollowerCount = Object.entries(state.cityFaith ?? {})
+    .filter(([cityId, faith]) => faith.religionId === religion.id && state.cities[cityId]?.owner !== civId)
+    .length;
+  return Math.min(TITHES_CAP, foreignFollowerCount);
 }
 
 export interface ReligionPressureSource {

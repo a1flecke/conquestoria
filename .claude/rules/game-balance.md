@@ -71,6 +71,7 @@ proportionate to what's already here.
 | Concert Hall building | city | +1 | era 6+ (`baroque-music`) |
 | Luxury resources (each type owned) | empire | +1 each | varies by resource |
 | Beast-slayer's feast (Hunt crisis reward) | empire | +2 | temporary, 5 turns |
+| Religious serenity (Serenity boon) | city (own-faith followers only) | +1 | era 3+ (Sacred Council + serenity boon chosen) |
 
 **Rule:** any new happiness source (building, wonder, tech, resource) must add
 a row here and stay at +1 per single source unless a documented gameplay
