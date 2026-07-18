@@ -4,6 +4,17 @@ import { createNewGame } from '@/core/game-state';
 import { EventBus } from '@/core/event-bus';
 import { BEAST_OWNER, getClaimedTrophyGoldPerTurn } from '@/systems/beast-system';
 import { BEAST_DEFINITIONS } from '@/systems/beast-definitions';
+import { foundCity } from '@/systems/city-system';
+import { getEraAdvancementTechs } from '@/systems/tech-definitions';
+
+function completedTechsForEra(era: number): string[] {
+  return Array.from({ length: Math.max(0, era - 1) }, (_, index) => index + 2)
+    .flatMap(candidate => {
+      const techs = getEraAdvancementTechs(candidate);
+      const required = Math.ceil(techs.length * (candidate <= 3 ? 0.5 : candidate <= 8 ? 0.6 : 0.55));
+      return techs.slice(0, required).map(tech => tech.id);
+    });
+}
 
 describe('turn-manager beast wiring', () => {
   it('eventually spawns a beast unit from an awakened lair and emits beast:awakened', () => {
@@ -21,6 +32,11 @@ describe('turn-manager beast wiring', () => {
     const bus = new EventBus();
     let awakened = 0;
     bus.on('beast:awakened', () => { awakened++; });
+    const localLair = Object.values(state.beasts.lairs)[0]!;
+    const city = foundCity('player', localLair.position, state.map, state.idCounters);
+    state.cities[city.id] = city;
+    state.civilizations.player.cities = [city.id];
+    state.civilizations.player.techState.completed = completedTechsForEra(minEra);
     let s = { ...state, era: minEra };
     for (let i = 0; i < 60 && awakened === 0; i++) s = processTurn(s, bus);
     expect(awakened).toBeGreaterThan(0);

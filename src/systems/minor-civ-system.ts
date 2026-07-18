@@ -856,7 +856,7 @@ export function checkCampEvolution(
       regionalGrievanceByCiv: {},
       isDestroyed: false,
       garrisonCooldown: 0,
-      lastEraUpgrade: state.era,
+      lastEraUpgrade: resolveNeutralPressureEra(state, camp.position) ?? 1,
     };
 
     return {

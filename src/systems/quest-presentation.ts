@@ -5,6 +5,7 @@ import { formatCityReference } from '@/systems/player-facing-labels';
 import { getQuestChain, getQuestStepVariant } from './quest-chain-definitions';
 import { MINOR_CIV_DEFINITIONS } from './minor-civ-definitions';
 import { describeQuestObjectiveForPlayer } from './quest-objective-system';
+import { resolveCivilizationEra } from './tech-definitions';
 
 export interface MinorCivQuestPresentation {
   chainName?: string;
@@ -103,7 +104,7 @@ export function getMinorCivQuestPresentationForPlayer(
   if (!minorCiv || !quest) return null;
   const chain = quest.chainId ? getQuestChain(quest.chainId) : null;
   const variant = chain && quest.stepIndex !== undefined
-    ? getQuestStepVariant(chain, quest.stepIndex, state.era)
+    ? getQuestStepVariant(chain, quest.stepIndex, resolveCivilizationEra(state.civilizations[viewerCivId]?.techState.completed ?? []))
     : null;
   const targetAmount = quest.target.type === 'defeat_units' ? quest.target.count : 1;
   const progressLabel = targetAmount > 1 ? `${Math.min(quest.progress, targetAmount)} / ${targetAmount}` : undefined;

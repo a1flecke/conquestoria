@@ -454,7 +454,7 @@ function chooseLegendaryWonderFallback(
     civilization.techState.completed,
     state.map,
     civResources,
-    state.era,
+    resolveCivilizationEra(civilization.techState.completed),
     builtNPKeys,
     civId,
   ).map(building => building.id);

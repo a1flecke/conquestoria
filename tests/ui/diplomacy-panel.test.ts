@@ -289,7 +289,9 @@ describe('diplomacy-panel breakaway rows', () => {
 
   it('renders regional grievance posture and reparations action for the current viewer', () => {
     const { container, state } = makeDiplomacyFixture({ currentPlayer: 'player' });
-    state.era = 2;
+    // The displayed cost is viewer-specific: World Age must not make a
+    // slower hot-seat player pay a higher reparations amount.
+    state.era = 12;
     state.minorCivs['mc-sparta'] = {
       id: 'mc-sparta', definitionId: 'sparta', cityId: 'mc-city', units: [],
       diplomacy: state.civilizations.player.diplomacy,
@@ -322,7 +324,7 @@ describe('diplomacy-panel breakaway rows', () => {
 
     expect(panel.textContent).toContain('Regional grievance: Mobilizing');
     expect(panel.textContent).not.toContain('(55)');
-    expect(button?.textContent).toBe('Pay Reparations (60 Gold)');
+    expect(button?.textContent).toBe('Pay Reparations (50 Gold)');
     button?.click();
     expect(repaired).toBe('mc-sparta');
   });

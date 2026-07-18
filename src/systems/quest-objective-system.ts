@@ -184,7 +184,7 @@ function getIssuerContext(context: QuestGenerationContext) {
   const minorCiv = state.minorCivs[minorCivId];
   const issuerCity = minorCiv ? state.cities[minorCiv.cityId] : undefined;
   if (!minorCiv || !issuerCity || minorCiv.isDestroyed || !state.civilizations?.[majorCivId]) return null;
-  return { minorCiv, issuerCity, duration: context.duration ?? 20, tuning: ERA_QUEST_TUNING[questEra(state.era)] };
+  return { minorCiv, issuerCity, duration: context.duration ?? 20, tuning: ERA_QUEST_TUNING[questEra(resolveCivilizationEra(state.civilizations[majorCivId]?.techState?.completed ?? []))] };
 }
 
 function applyProgress(

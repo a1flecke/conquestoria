@@ -5,6 +5,7 @@ import { hexKey, mapDistance, mapNeighbors } from '@/systems/hex-utils';
 import { createRng } from '@/systems/map-generator';
 import { UNIT_DEFINITIONS } from '@/systems/unit-system';
 import { VETERANCY_TIERS } from '@/systems/combat-reward-system';
+import { resolveCivilizationEra } from '@/systems/tech-definitions';
 
 export const BEAST_OWNER = 'beasts';
 
@@ -124,7 +125,7 @@ export function processBeasts(
   map: GameMap,
   intruderUnits: Unit[],
   beastUnits: Unit[],
-  era: number,
+  era: number | ((lair: BeastLair) => number),
   mode: BeastsMode,
   seed: number,
 ): BeastProcessResult {
@@ -146,7 +147,8 @@ export function processBeasts(
 
   for (const lair of lairs) {
     const def = BEAST_DEFINITIONS[lair.beastId];
-    if (lair.status === 'dormant' && era >= def.awakenEra && rng() < AWAKEN_CHANCE_PER_TURN) {
+    const lairEra = typeof era === 'function' ? era(lair) : era;
+    if (lair.status === 'dormant' && lairEra >= def.awakenEra && rng() < AWAKEN_CHANCE_PER_TURN) {
       awakenings.push({ lairId: lair.id, beastId: lair.beastId, position: lair.position });
       // Spawn packSize beasts on lair tile then free passable neighbors
       const spawnTiles: HexCoord[] = [];
@@ -283,8 +285,9 @@ export function recordBeastSlain(
   const def = BEAST_DEFINITIONS[lair.beastId];
   const isApex = def.tier >= 4;
   const isChoiceTier = def.tier >= 2 && !isApex;
-  const gold = isChoiceTier || isApex ? 0 : getBeastHoardGold(def, state.era);
   const slayerCiv = state.civilizations[victor.owner];
+  const slayerEra = resolveCivilizationEra(slayerCiv?.techState.completed ?? []);
+  const gold = isChoiceTier || isApex ? 0 : getBeastHoardGold(def, slayerEra);
   const updatedLair: BeastLair = {
     ...lair, unitIds: [], status: 'slain', slainBy: victor.owner, slainTurn: state.turn,
   };
@@ -314,7 +317,7 @@ export function recordBeastSlain(
 
   let apexGold = 0;
   if (isApex && slayerCiv) {
-    const baseGold = getBeastHoardGold(def, state.era);
+    const baseGold = getBeastHoardGold(def, slayerEra);
     apexGold = baseGold * 2;
     const apexLore = Math.round(baseGold * 1.5);
     // Gold
@@ -373,10 +376,11 @@ export interface HoardChoicePreview {
   beastName: string;
 }
 
-export function getHoardChoicePreview(state: GameState, lairId: string): HoardChoicePreview {
+export function getHoardChoicePreview(state: GameState, lairId: string, civId?: string): HoardChoicePreview {
   const lair = state.beasts!.lairs[lairId];
   const def = BEAST_DEFINITIONS[lair.beastId];
-  const baseGold = getBeastHoardGold(def, state.era);
+  const recipientId = civId ?? lair.slainBy ?? state.currentPlayer;
+  const baseGold = getBeastHoardGold(def, resolveCivilizationEra(state.civilizations[recipientId]?.techState.completed ?? []));
   return {
     gold: baseGold * 2,
     lore: Math.round(baseGold * 1.5),
@@ -416,7 +420,7 @@ export function applyHoardChoice(
   const pending = beasts?.pendingHoardChoices?.find(p => p.lairId === lairId && p.civId === civId);
   if (!beasts || !pending) return state;
 
-  const preview = getHoardChoicePreview(state, lairId);
+  const preview = getHoardChoicePreview(state, lairId, civId);
   const lair = beasts.lairs[lairId];
   const civ = state.civilizations[civId];
   if (!civ) return state;

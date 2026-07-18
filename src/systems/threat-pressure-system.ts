@@ -752,7 +752,8 @@ export function processPirateFleets(state: GameState, bus: EventBus): GameState 
     if (isAdjacent && updatedFleet.plunderCooldown === 0) {
       const targetCiv = nextState.civilizations[fleet.targetCivId];
       if (targetCiv) {
-        const goldStolen = Math.floor((1 + (nextState.era - 1) * 0.5) * 5);
+        const targetEra = resolveCivilizationEra(targetCiv.techState.completed);
+        const goldStolen = Math.floor((1 + (targetEra - 1) * 0.5) * 5);
         nextState = {
           ...nextState,
           civilizations: {

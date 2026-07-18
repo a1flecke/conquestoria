@@ -20,6 +20,16 @@ import {
   processFactionTurn,
 } from '@/systems/faction-system';
 import { BUILDINGS } from '@/systems/city-system';
+import { getEraAdvancementTechs } from '@/systems/tech-definitions';
+
+function completedTechsForEra(era: number): string[] {
+  return Array.from({ length: Math.max(0, era - 1) }, (_, index) => index + 2)
+    .flatMap(candidate => {
+      const techs = getEraAdvancementTechs(candidate);
+      const required = Math.ceil(techs.length * (candidate <= 3 ? 0.5 : candidate <= 8 ? 0.6 : 0.55));
+      return techs.slice(0, required).map(tech => tech.id);
+    });
+}
 
 function makeCity(id: string, owner: string, position: HexCoord, overrides: Partial<City> = {}): City {
   return {
@@ -151,7 +161,7 @@ function makeState({
         cities: Object.keys(cities),
         units: Object.keys(units),
         techState: {
-          completed: [],
+          completed: completedTechsForEra(era),
           currentResearch: null,
           researchProgress: 0,
           researchQueue: [],
@@ -837,7 +847,7 @@ describe('faction-system — MR4 uprising contagion + concession', () => {
 
   describe('getConcessionCost / concedeToMovement', () => {
     it('costs 2x the appeasement cost by default', () => {
-      const state = makeState({ unrestLevel: 2 });
+      const state = makeState({ era: 1, unrestLevel: 2 });
       const city = state.cities['city-1'];
       expect(getConcessionCost(state, city)).toBe(getCityAppeaseCost(city) * 2);
     });
@@ -850,7 +860,7 @@ describe('faction-system — MR4 uprising contagion + concession', () => {
           ...state.civilizations,
           player: {
             ...state.civilizations['player'],
-            techState: { ...state.civilizations['player'].techState, completed: ['civil-service'] },
+            techState: { ...state.civilizations['player'].techState, completed: [...completedTechsForEra(3), 'civil-service'] },
           },
         },
       };

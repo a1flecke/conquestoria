@@ -6,6 +6,16 @@ import {
   computeUnrestPressure,
   processFactionTurn,
 } from '@/systems/faction-system';
+import { getEraAdvancementTechs } from '@/systems/tech-definitions';
+
+function completedTechsForEra(era: number): string[] {
+  return Array.from({ length: Math.max(0, era - 1) }, (_, index) => index + 2)
+    .flatMap(candidate => {
+      const techs = getEraAdvancementTechs(candidate);
+      const required = Math.ceil(techs.length * (candidate <= 3 ? 0.5 : candidate <= 8 ? 0.6 : 0.55));
+      return techs.slice(0, required).map(tech => tech.id);
+    });
+}
 
 function makeCity(id: string, owner: string, position: HexCoord, overrides: Partial<City> = {}): City {
   return {
@@ -73,7 +83,7 @@ function makeMinimalState({
       [civId]: {
         id: civId, civType: 'rome', name: 'Rome',
         cities: cityIds, units: [], gold: 50,
-        techState: { completed: silkOwned ? ['irrigation'] : [], currentResearch: null, researchQueue: [], researchProgress: 0, trackPriorities: {} },
+        techState: { completed: [...completedTechsForEra(era), ...(silkOwned ? ['irrigation'] : [])], currentResearch: null, researchQueue: [], researchProgress: 0, trackPriorities: {} },
         diplomacy: { ...dipState, atWarWith },
         visibility: { tiles: {} },
       },

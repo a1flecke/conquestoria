@@ -74,7 +74,7 @@ import { processWonderEffects } from '@/systems/wonder-system';
 import { createRng } from '@/systems/map-generator';
 import { processMinorCivTurn, checkEraAdvancement, processMinorCivEraUpgrade, checkCampEvolution } from '@/systems/minor-civ-system';
 import { resolveCivilizationEra } from '@/systems/tech-definitions';
-import { resolveCombatEra } from '@/systems/era-resolution';
+import { resolveCombatEra, resolveNeutralPressureEra } from '@/systems/era-resolution';
 import { resolveCivDefinition } from '@/systems/civ-registry';
 import { applyProductionBonus } from '@/systems/city-system';
 import { chargeUnitsOnGeneTherapyResearch, applyGeneTherapyRecharge } from '@/systems/gene-therapy-system';
@@ -1045,7 +1045,7 @@ export function processTurn(
       newState.map,
       intruders,
       beastUnits,
-      newState.era,
+      lair => resolveNeutralPressureEra(newState, lair.position) ?? 1,
       newState.beasts!.mode,
       beastSeed,
     );
@@ -1422,10 +1422,10 @@ export function processTurn(
     const era = resolveCivilizationEra(civ.techState.completed);
     if (era > (previousEraByCiv[civId] ?? era)) bus.emit('civilization:era-advanced', { civId, previousEra: previousEraByCiv[civId]!, era });
   }
-  if (newEra > state.era) {
-    for (const mc of Object.values(newState.minorCivs)) {
-      processMinorCivEraUpgrade(newState, mc);
-    }
+  // Local minor-civ pressure is derived from nearby/target civilizations, so it
+  // must be checked every round rather than only when aggregate World Age moves.
+  for (const mc of Object.values(newState.minorCivs)) {
+    processMinorCivEraUpgrade(newState, mc);
   }
 
   if (newState.beasts) {
