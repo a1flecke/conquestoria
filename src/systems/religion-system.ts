@@ -151,7 +151,11 @@ export function processReligionTurn(state: GameState, bus: EventBus): GameState 
 
     const pressure = getStrongestPressure(state, cityId);
     if (!pressure) continue;
-    if (faith?.religionId === pressure.religionId) continue; // already follows the strongest religion
+    // Skip only a SETTLED follower of the strongest religion (no conversionProgress —
+    // it already fully converted). A city mid-conversion toward this same religion has
+    // religionId set to the pending target from its first accrual turn (see below) but
+    // must NOT be skipped here, or it would freeze at turn-1's point total forever.
+    if (faith?.religionId === pressure.religionId && !faith?.conversionProgress) continue;
 
     const existingProgress = faith?.conversionProgress;
     const carriedPoints = existingProgress?.toReligionId === pressure.religionId ? existingProgress.points : 0;

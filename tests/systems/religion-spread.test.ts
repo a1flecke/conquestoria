@@ -156,6 +156,28 @@ describe('#591 MR4 — processReligionTurn', () => {
     expect(next.cityFaith![templeCity]).toEqual(before);
   });
 
+  it('accrual does not freeze after the first turn (regression: religionId gets set on turn 1 even before conversion completes)', () => {
+    const { state, civId, templeCity } = makeReligionFixture();
+    const founded = foundReligion(state, civId, templeCity, new EventBus());
+    const withNeighbor = addCity(founded, 'own-neighbor', civId, { q: 6, r: 0 });
+    let working = withNeighbor;
+    for (let i = 0; i < 3; i++) {
+      working = processReligionTurn(working, new EventBus());
+    }
+    // 3 turns * 15/turn = 45, not frozen at 15 after turn 1.
+    expect(working.cityFaith!['own-neighbor'].conversionProgress).toEqual({ toReligionId: `religion-${civId}`, points: 45 });
+  });
+
+  it('does not re-touch a city that already fully converted (settled follower, no conversionProgress)', () => {
+    const { state, civId, templeCity } = makeReligionFixture();
+    const founded = foundReligion(state, civId, templeCity, new EventBus());
+    let working = addCity(founded, 'own-neighbor', civId, { q: 6, r: 0 });
+    working = { ...working, cityFaith: { ...working.cityFaith, 'own-neighbor': { religionId: `religion-${civId}` } } };
+    const before = working.cityFaith!['own-neighbor'];
+    const next = processReligionTurn(working, new EventBus());
+    expect(next.cityFaith!['own-neighbor']).toEqual(before);
+  });
+
   it('is deterministic: identical result on cloned state', () => {
     const { state, civId, templeCity } = makeReligionFixture();
     const founded = foundReligion(state, civId, templeCity, new EventBus());
