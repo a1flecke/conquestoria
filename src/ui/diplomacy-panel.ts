@@ -216,8 +216,8 @@ export function createDiplomacyPanel(
     );
 
     // Send Aid (#526 MR6 Task 6.3) -- the crisis status line's anchor button. Only
-    // outbreak/catastrophe archetypes are send-aid hooks (hunt uses hunt-their-foe
-    // instead), so a hunt-archetype crisis never gets a button at all rather than a
+    // outbreak/catastrophe/famine (#590 MR3) archetypes are send-aid hooks (hunt uses
+    // hunt-their-foe instead), so a hunt-archetype crisis never gets a button at all rather than a
     // permanently-disabled one with a misleading "requires tech" message.
     const worldPressureLine = worldPressurePresentation.statusLinesByCivId[civId];
     let sendAidCrisisId: string | null = null;
@@ -234,9 +234,13 @@ export function createDiplomacyPanel(
       if (!check.ok && check.reason === 'already-aided') {
         sendAidHelpText = `You already sent aid to help ${civ.name} with this crisis.`;
       } else {
-        sendAidHelpText = worldPressureLine.archetype === 'outbreak'
-          ? `Pay ${goldCost ?? '?'} gold — ${civ.name}'s outbreak is cured in 2 turns. ${civ.name} and onlookers will remember this.`
-          : `Pay ${goldCost ?? '?'} gold — ${civ.name} receives it as relief. ${civ.name} and onlookers will remember this.`;
+        // Outbreak and famine (#590 MR3) both resolve via the same remedyCompletionByCity
+        // timer (see applySendAid) -- only catastrophe credits the target civ raw relief
+        // gold. Never fall through to the catastrophe wording for famine; it would tell
+        // the player the target "receives it as relief" when no gold is actually credited.
+        sendAidHelpText = worldPressureLine.archetype === 'catastrophe'
+          ? `Pay ${goldCost ?? '?'} gold — ${civ.name} receives it as relief. ${civ.name} and onlookers will remember this.`
+          : `Pay ${goldCost ?? '?'} gold — ${civ.name}'s crisis is cured in 2 turns. ${civ.name} and onlookers will remember this.`;
       }
       sendAidDisabledReason = check.ok ? null : describeSendAidDisabledReason(check.reason, goldCost, check.techId ?? null);
     }

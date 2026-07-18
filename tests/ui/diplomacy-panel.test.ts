@@ -758,7 +758,7 @@ describe('diplomacy-panel world-pressure crisis status line (#526 MR5 Task 5.3)'
 describe('diplomacy-panel Send Aid button (#526 MR6 Task 6.3)', () => {
   function addOutsiderCrisis(
     state: ReturnType<typeof makeDiplomacyFixture>['state'],
-    archetype: 'outbreak' | 'catastrophe' = 'outbreak',
+    archetype: 'outbreak' | 'catastrophe' | 'famine' = 'outbreak',
   ): void {
     state.cities['outsider-city'] = {
       ...state.cities['city-border'],
@@ -769,17 +769,18 @@ describe('diplomacy-panel Send Aid button (#526 MR6 Task 6.3)', () => {
       population: 5,
     };
     state.civilizations.outsider.cities = ['outsider-city'];
+    const flavorIdByArchetype = { outbreak: 'plague', catastrophe: 'earthquake', famine: 'crop-blight' } as const;
     state.activeCrises = {
       'crisis-1': {
-        id: 'crisis-1', flavorId: archetype === 'outbreak' ? 'plague' : 'earthquake', archetype,
+        id: 'crisis-1', flavorId: flavorIdByArchetype[archetype], archetype,
         targetCivId: 'outsider',
         cityIds: ['outsider-city'], tileKeys: [], startedTurn: state.turn - 3,
-        stage: archetype === 'outbreak' ? 'active' : 'recovery', turnsInStage: 3,
+        stage: archetype === 'catastrophe' ? 'recovery' : 'active', turnsInStage: 3,
       },
     };
   }
 
-  function readyState(archetype: 'outbreak' | 'catastrophe' = 'outbreak') {
+  function readyState(archetype: 'outbreak' | 'catastrophe' | 'famine' = 'outbreak') {
     const { container, state } = makeDiplomacyFixture({ currentPlayer: 'player', includeThirdCiv: true });
     state.settings.aiPressureVisibility = true;
     state.settings.aiCrisisInteractions = 'benign';
@@ -880,5 +881,23 @@ describe('diplomacy-panel Send Aid button (#526 MR6 Task 6.3)', () => {
 
     const button = panel.querySelector<HTMLButtonElement>('[data-crisis-id="crisis-1"]');
     expect(button!.disabled).toBe(true);
+  });
+
+  it('#590 MR3: famine gets the "cured in 2 turns" wording, never the catastrophe "receives it as relief" wording', () => {
+    const { container, state } = readyState('famine');
+    const panel = createDiplomacyPanel(container, state, { onAction: () => {}, onClose: () => {}, onSendAid: () => {} });
+
+    expect(panel.textContent).toContain('cured in 2 turns');
+    expect(panel.textContent).not.toContain('receives it as relief');
+  });
+
+  it('#590 MR3: famine requires medicine, same as outbreak', () => {
+    const { container, state } = readyState('famine');
+    state.civilizations.player.techState.completed = ['trade-routes']; // missing medicine
+    const panel = createDiplomacyPanel(container, state, { onAction: () => {}, onClose: () => {}, onSendAid: () => {} });
+
+    const button = panel.querySelector<HTMLButtonElement>('[data-crisis-id="crisis-1"]');
+    expect(button!.disabled).toBe(true);
+    expect(button!.title).toBe('Requires Medicine.');
   });
 });
