@@ -1,7 +1,8 @@
 import type { GameState, Unit, HexCoord, PersonalityTraits, SpyMissionType, City, UnitType } from '@/core/types';
 import { EventBus } from '@/core/event-bus';
-import { hexKey, wrappedHexDistance, hexDistance } from '@/systems/hex-utils';
-import { getDetectionUnitTypeForCiv } from '@/systems/city-system';
+import { hexKey, wrappedHexDistance, hexDistance, mapDistance } from '@/systems/hex-utils';
+import { getDetectionUnitTypeForCiv, cityFollowsOwnFaith } from '@/systems/city-system';
+import { preach, canPreachTarget } from '@/systems/religion-system';
 import { foundCityInState } from '@/systems/city-founding-system';
 import { canFoundCityAt } from '@/systems/city-territory-system';
 import { getMovementRangeDetails, moveUnitWithZoneOfControl, findPath, createUnit, UNIT_DEFINITIONS } from '@/systems/unit-system';
@@ -687,6 +688,46 @@ function processAITurnInternal(
     }
   }
   civ = newState.civilizations[civId];
+
+  // #592 MR5: missionary dispatch is administrative, same rationale as worker dispatch
+  // above — 'missionary' has no AIStrategicPlan required role and no COMPATIBLE_ROLES
+  // fallback in ai-unit-assignment.ts, so it never reaches processMajorCivStrategicTurn's
+  // tactical dispatch. Idle missionaries move toward the highest-priority eligible target
+  // (own cities not yet following the civ's own faith first, then friendly minor-civ
+  // cities) and preach once in range — mirroring the worker move-then-act pattern above.
+  if (Object.values(newState.religions ?? {}).some(r => r.ownerCivId === civId)) {
+    const idleMissionaries = civ.units
+      .map(id => newState.units[id])
+      .filter((unit): unit is Unit =>
+        Boolean(unit)
+        && unit.type === 'missionary'
+        && !unit.hasActed
+        && (unit.chargesRemaining ?? 0) > 0
+        && (unit.missionaryCooldownUntilTurn ?? 0) <= newState.turn);
+
+    for (const missionary of idleMissionaries) {
+      const current = newState.units[missionary.id];
+      if (!current || current.hasActed) continue;
+
+      const targetCityId = chooseMissionaryDispatchTarget(newState, civId, current);
+      if (!targetCityId) continue;
+      const targetCity = newState.cities[targetCityId];
+      if (!targetCity) continue;
+
+      if (mapDistance(newState.map, current.position, targetCity.position) <= 1) {
+        const result = preach(newState, current.id, targetCityId, bus);
+        if (result.ok) newState = result.state;
+      } else if (current.movementPointsLeft > 0) {
+        const path = findPath(current.position, targetCity.position, newState.map, 'land');
+        if (path && path.length > 1) {
+          const next = structuredClone(newState);
+          const movement = executeUnitMove(next, current.id, path[1]!, { actor: 'ai', civId, bus });
+          if (movement.ok) newState = next;
+        }
+      }
+    }
+    civ = newState.civilizations[civId];
+  }
 
   // Cargo handling is administrative rather than a competing strategic
   // chase path, so retain the canonical all-cargo load/unload behavior.
@@ -1428,6 +1469,31 @@ function processAITurnInternal(
   }
 
   return newState;
+}
+
+// #592 MR5: own unconverted cities first, then friendly minor-civ cities — deterministic
+// (id-sorted) so repeated runs from the same state produce the same dispatch order.
+// "Friendly" mirrors this file's existing hostile-owner convention: not in atWarWith.
+function chooseMissionaryDispatchTarget(state: GameState, civId: string, unit: Unit): string | null {
+  const civ = state.civilizations[civId];
+  if (!civ) return null;
+
+  const ownUnconverted = civ.cities
+    .map(id => state.cities[id])
+    .filter((city): city is City => !!city && !cityFollowsOwnFaith(state, city))
+    .filter(city => canPreachTarget(state, unit, city.id))
+    .map(city => city.id)
+    .sort();
+  if (ownUnconverted.length > 0) return ownUnconverted[0];
+
+  const friendlyMinorCityIds = Object.values(state.minorCivs ?? {})
+    .filter(mc => !mc.isDestroyed && !(civ.diplomacy.atWarWith ?? []).includes(mc.id))
+    .map(mc => mc.cityId)
+    .filter(cityId => canPreachTarget(state, unit, cityId))
+    .sort();
+  if (friendlyMinorCityIds.length > 0) return friendlyMinorCityIds[0];
+
+  return null;
 }
 
 export function processAITurn(

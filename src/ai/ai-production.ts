@@ -350,6 +350,59 @@ function generateWithResidual(
     });
   }
 
+  // #592 MR5: missionary production scoring. Bypasses the demand-gated military loop
+  // above — spreading faith isn't a combat force-composition role, so there's no
+  // AIForceDemand entry for it to match against. Only scored when the unit is actually
+  // trainable (religion founded + city follows own faith + Temple), mirroring the real
+  // trainability gate rather than a duplicated check.
+  const civReligion = Object.values(state.religions ?? {}).find(r => r.ownerCivId === civId);
+  if (civReligion) {
+    const missionaryTrainable = getTrainableUnitsForCity(
+      city,
+      civ.techState.completed,
+      state.map,
+      civ.civType,
+      resources,
+      cityFollowsOwnFaith(state, city),
+    ).some(candidate => candidate.type === 'missionary');
+    if (missionaryTrainable) {
+      const maintenanceImpact = projectedUnitMaintenanceImpact(state, civId, cityId, 'missionary');
+      if (reserveAllows(state, civId, maintenanceImpact, false, 1)) {
+        const cost = getProductionCostForItem('missionary', {
+          city,
+          bonusEffect: civDefinition?.bonusEffect,
+          era: state.era,
+          completedTechs: civ.techState.completed,
+          activeNationalProjects,
+          availableResources: resources,
+        });
+        const productionTurns = Math.max(1, Math.ceil(cost / productionPerTurn));
+        const personalityScore = weightProductionRoles(personality, ['missionary']);
+        // Fervor-boon civs weight missionaries higher — their faith already spreads/
+        // converts faster, so each additional missionary compounds more value.
+        const fervorWeight = civReligion.boon === 'fervor' ? 2 : 1;
+        const score = 6 * fervorWeight
+          + personalityScore
+          - productionTurns * 1.5
+          - maintenanceImpact * 3;
+        candidates.push({
+          itemId: 'missionary',
+          kind: 'unit',
+          roles: ['missionary'],
+          productionTurns,
+          maintenanceImpact,
+          roleDemandScore: 0,
+          economyScore: 0,
+          personalityScore,
+          emergencyDefenseScore: 0,
+          citySpecializationScore: 0,
+          maintenanceRisk: maintenanceImpact,
+          score,
+        });
+      }
+    }
+  }
+
   for (const building of getAvailableBuildings(
     city,
     civ.techState.completed,

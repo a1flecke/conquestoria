@@ -12,7 +12,7 @@ import {
 import { createNewGame } from '@/core/game-state';
 import { EventBus } from '@/core/event-bus';
 import { createEmptyMajorCivPlanPortfolio } from '@/core/opponent-ai-state';
-import type { GameEvents, GameState } from '@/core/types';
+import type { City, GameEvents, GameState, HexCoord } from '@/core/types';
 import { BUILDINGS, foundCity } from '@/systems/city-system';
 import { appeaseFaction, getCityAppeaseCost } from '@/systems/faction-system';
 import { createEspionageCivState, createSpyFromUnit } from '@/systems/espionage-system';
@@ -2663,5 +2663,52 @@ describe('#591 MR4 — AI boon choice', () => {
     const { state, religionId } = withPendingReligion('591-ai-boon-peace');
     const next = processAITurn(state, 'ai-1', new EventBus());
     expect(next.religions![religionId].boon).toBe('tithes');
+  });
+});
+
+describe('#592 MR5 — AI missionary dispatch', () => {
+  function withMissionaryAndUnconvertedCity(seed: string): { state: GameState; unconvertedCityId: string; missionaryId: string } {
+    let state = createNewGame(undefined, seed, 'small');
+    state = processAITurn(state, 'ai-1', new EventBus());
+    const holyCityId = state.civilizations['ai-1'].cities[0];
+    if (!holyCityId) throw new Error('ai-1 has no city after its first turn');
+    const religionId = 'religion-ai-1';
+    state.religions = { [religionId]: { id: religionId, name: 'Order of Test', ownerCivId: 'ai-1', foundedTurn: 1 } };
+    state.cityFaith = { [holyCityId]: { religionId, isHolyCity: true } };
+
+    const holyCityPos = state.cities[holyCityId]!.position;
+    const unconvertedPos: HexCoord = { q: holyCityPos.q + 3, r: holyCityPos.r };
+    const unconvertedCity: City = {
+      id: 'ai-second-city', name: 'ai-second-city', owner: 'ai-1', position: unconvertedPos,
+      population: 4, food: 0, foodNeeded: 20, buildings: [], productionQueue: [], productionProgress: 0,
+      ownedTiles: [unconvertedPos], workedTiles: [], focus: 'balanced', maturity: 'outpost',
+      unrestLevel: 0, unrestTurns: 0, spyUnrestBonus: 0,
+    };
+    state.cities[unconvertedCity.id] = unconvertedCity;
+    state.civilizations['ai-1'].cities.push(unconvertedCity.id);
+    state.civilizations['ai-1'].visibility.tiles[hexKey(unconvertedPos)] = 'visible';
+    // no cityFaith entry for unconvertedCity -- it does not yet follow ai-1's own faith
+
+    const missionary = createUnit('missionary', 'ai-1', unconvertedPos, state.idCounters);
+    missionary.chargesRemaining = 2;
+    state.units[missionary.id] = missionary;
+    state.civilizations['ai-1'].units.push(missionary.id);
+
+    return { state, unconvertedCityId: unconvertedCity.id, missionaryId: missionary.id };
+  }
+
+  it('an idle AI missionary preaches its own unconverted city (own cities dispatched before minor civs)', () => {
+    const { state, unconvertedCityId, missionaryId } = withMissionaryAndUnconvertedCity('592-ai-missionary-own-city');
+    const before = state.units[missionaryId]!.chargesRemaining;
+    const next = processAITurn(state, 'ai-1', new EventBus());
+    expect(next.units[missionaryId]?.chargesRemaining).toBeLessThan(before!);
+    expect(next.cityFaith?.[unconvertedCityId]?.conversionProgress?.['religion-ai-1']).toBeGreaterThan(0);
+  });
+
+  it('is deterministic given the same seed/state (repeated runs produce identical cityFaith)', () => {
+    const { state } = withMissionaryAndUnconvertedCity('592-ai-missionary-determinism');
+    const runA = processAITurn(structuredClone(state), 'ai-1', new EventBus());
+    const runB = processAITurn(structuredClone(state), 'ai-1', new EventBus());
+    expect(runA.cityFaith).toEqual(runB.cityFaith);
   });
 });

@@ -82,6 +82,9 @@ export function weightProductionRoles(
   if (roles.includes('espionage')) {
     score += personality.diplomacyFocus * 4;
   }
+  if (roles.includes('missionary')) {
+    score += personality.diplomacyFocus * 6;
+  }
   return score;
 }
 

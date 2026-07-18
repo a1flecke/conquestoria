@@ -488,3 +488,35 @@ describe('#591 MR4 — milestone national project AI scoring', () => {
     expect(Math.abs(sacredCouncil!.score - ironLegion!.score)).toBeLessThan(5);
   });
 });
+
+describe('#592 MR5 — missionary production scoring', () => {
+  function withFoundedReligion(state: GameState, cityId: string, boon?: 'serenity' | 'tithes' | 'fervor'): GameState {
+    const religionId = 'religion-ai-1';
+    state.religions = { [religionId]: { id: religionId, name: 'Test Faith', ownerCivId: 'ai-1', foundedTurn: 1, boon } };
+    state.cityFaith = { [cityId]: { religionId } };
+    state.cities[cityId]!.buildings = [...state.cities[cityId]!.buildings, 'temple'];
+    return state;
+  }
+
+  it('missionary is NOT a candidate without a founded religion + own-faith Temple city', () => {
+    const state = setupState(['philosophy']);
+    const candidates = generateAIProductionCandidates(state, 'ai-1', 'city-a', [], aggressive);
+    expect(candidates.find(c => c.itemId === 'missionary')).toBeUndefined();
+  });
+
+  it('missionary IS a candidate once religion + own faith + Temple all hold', () => {
+    const state = withFoundedReligion(setupState(['philosophy']), 'city-a');
+    const candidates = generateAIProductionCandidates(state, 'ai-1', 'city-a', [], aggressive);
+    expect(candidates.find(c => c.itemId === 'missionary')).toBeDefined();
+  });
+
+  it('scores missionary higher for a civ with the Fervor boon than one without, all else equal', () => {
+    const stateFervor = withFoundedReligion(setupState(['philosophy']), 'city-a', 'fervor');
+    const stateNoBoon = withFoundedReligion(setupState(['philosophy']), 'city-a');
+    const fervorScore = generateAIProductionCandidates(stateFervor, 'ai-1', 'city-a', [], aggressive)
+      .find(c => c.itemId === 'missionary')?.score ?? -Infinity;
+    const baseScore = generateAIProductionCandidates(stateNoBoon, 'ai-1', 'city-a', [], aggressive)
+      .find(c => c.itemId === 'missionary')?.score ?? -Infinity;
+    expect(fervorScore).toBeGreaterThan(baseScore);
+  });
+});
