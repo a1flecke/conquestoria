@@ -91,6 +91,7 @@ import { processFactionTurn, getUnrestYieldMultiplier, isCityProductionLocked } 
 import { getOccupiedCityYieldMultiplier, tickOccupiedCities } from '@/systems/city-occupation-system';
 import { processBreakawayTurn } from '@/systems/breakaway-system';
 import { processCrisisTurn, processCrisisScheduler, getCrisisYieldMultiplier } from '@/systems/crisis-system';
+import { processReligionTurn } from '@/systems/religion-system';
 import { applyCrisisResponses } from '@/ai/ai-crisis-response';
 import { resolveWorldPressureFlags } from '@/systems/world-pressure-flags';
 import {
@@ -144,6 +145,7 @@ export function processTurn(
   newState = processFactionTurn(newState, bus);
   newState = processBreakawayTurn(newState, bus);
   newState = processCrisisTurn(newState, bus);
+  newState = processReligionTurn(newState, bus);
   // AI civ turns run later via the AI round scheduler, so responses recorded
   // here (quarantine/fund-remedy) shape the same round's plans (#529 MR3 Task 3.2).
   if (resolveWorldPressureFlags(newState.settings).aiPressure === 'full') {

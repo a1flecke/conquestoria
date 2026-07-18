@@ -1523,4 +1523,37 @@ describe('journey automation', () => {
     expect(blockedEvents[0].unitId).toBe(unitId);
     expect(result.units[unitId]!.automation).toBeUndefined();
   });
+
+  it('#591 MR4: processTurn advances religion spread (processReligionTurn is wired in)', () => {
+    const state = createNewGame(undefined, 'religion-turn-wiring', 'small');
+    const civId = 'player';
+    const capitalPos = { q: 0, r: 0 };
+    const neighborPos = { q: 1, r: 0 };
+    state.map = {
+      width: 20, height: 20, wrapsHorizontally: false, rivers: [],
+      tiles: Object.fromEntries([capitalPos, neighborPos].map(pos => [
+        hexKey(pos),
+        {
+          coord: pos, terrain: 'grassland', elevation: 'lowland', resource: null,
+          improvement: 'none', owner: civId, improvementTurnsLeft: 0, hasRiver: false,
+          wonder: null, regionKey: 'continent-0',
+        },
+      ])),
+    };
+    const capital = foundCity(civId, capitalPos, state.map, state.idCounters);
+    const neighbor = foundCity(civId, neighborPos, state.map, state.idCounters);
+    capital.workedTiles = []; capital.productionQueue = [];
+    neighbor.workedTiles = []; neighbor.productionQueue = [];
+    state.cities = { [capital.id]: capital, [neighbor.id]: neighbor };
+    state.civilizations[civId].cities = [capital.id, neighbor.id];
+    state.units = {};
+    state.barbarianCamps = {};
+
+    const religionId = `religion-${civId}`;
+    state.religions = { [religionId]: { id: religionId, name: 'Order of Test', ownerCivId: civId, foundedTurn: 1 } };
+    state.cityFaith = { [capital.id]: { religionId, isHolyCity: true } };
+
+    const next = processTurn(state, new EventBus());
+    expect(next.cityFaith?.[neighbor.id]?.conversionProgress?.toReligionId).toBe(religionId);
+  });
 });
