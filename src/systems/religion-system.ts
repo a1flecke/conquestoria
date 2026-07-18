@@ -1,4 +1,4 @@
-import type { City, CityFaith, GameState, Religion, ReligionBoon } from '@/core/types';
+import type { City, CityFaith, GameState, HexCoord, Religion, ReligionBoon } from '@/core/types';
 import type { EventBus } from '@/core/event-bus';
 import { seededLcg } from './seeded-lcg';
 import {
@@ -254,7 +254,7 @@ function processOccupationAccrual(state: GameState, bus: EventBus): GameState {
   return changed ? { ...state, cityFaith } : state;
 }
 
-export type PreachFailureReason = 'not-missionary' | 'no-charges' | 'on-cooldown' | 'holy-city' | 'at-war' | 'undiscovered' | 'no-religion';
+export type PreachFailureReason = 'not-missionary' | 'no-charges' | 'on-cooldown' | 'holy-city' | 'at-war' | 'undiscovered' | 'no-religion' | 'out-of-range';
 
 export type PreachResult =
   | { ok: true; state: GameState; converted: boolean; unitConsumed: boolean }
@@ -266,9 +266,10 @@ export type PreachResult =
 // never drift from the actual gate. Does not check charges/cooldown on the unit itself,
 // since callers that already know charges > 0 (e.g. the UI charge check) call this only
 // for the target-city-side conditions; preach() re-checks unit-side conditions itself.
-export function canPreachTarget(state: GameState, unit: { owner: string }, cityId: string): boolean {
+export function canPreachTarget(state: GameState, unit: { owner: string; position: HexCoord }, cityId: string): boolean {
   const city = state.cities[cityId];
   if (!city) return false;
+  if (mapDistance(state.map, unit.position, city.position) > 1) return false;
   const faith = state.cityFaith?.[cityId];
   if (faith?.isHolyCity) return false;
 
@@ -295,6 +296,7 @@ export function preach(state: GameState, unitId: string, cityId: string, bus: Ev
   }
   if ((unit.chargesRemaining ?? 0) <= 0) return { ok: false, state, reason: 'no-charges' };
   if ((unit.missionaryCooldownUntilTurn ?? 0) > state.turn) return { ok: false, state, reason: 'on-cooldown' };
+  if (mapDistance(state.map, unit.position, city.position) > 1) return { ok: false, state, reason: 'out-of-range' };
 
   const faith = state.cityFaith?.[cityId];
   if (faith?.isHolyCity) return { ok: false, state, reason: 'holy-city' };
