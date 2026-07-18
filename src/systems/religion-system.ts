@@ -1,4 +1,4 @@
-import type { GameState, Religion, ReligionBoon } from '@/core/types';
+import type { City, GameState, Religion, ReligionBoon } from '@/core/types';
 import type { EventBus } from '@/core/event-bus';
 import { seededLcg } from './seeded-lcg';
 import {
@@ -64,6 +64,20 @@ export function getReligionTithesGold(state: GameState, civId: string): number {
     .filter(([cityId, faith]) => faith.religionId === religion.id && state.cities[cityId]?.owner !== civId)
     .length;
   return Math.min(TITHES_CAP, foreignFollowerCount);
+}
+
+// #591 MR4: deterministic AI boon choice — unhappy empire wants Serenity, an at-war
+// empire wants Fervor (faster conversion pressure on captured/contested cities), else
+// Tithes for the passive gold. Chosen immediately (no AI ever leaves its own religion
+// pending).
+export function chooseAiBoon(state: GameState, civId: string): ReligionBoon {
+  const civ = state.civilizations[civId];
+  const atWar = (civ?.diplomacy.atWarWith?.length ?? 0) > 0;
+  const cities = (civ?.cities ?? []).map(id => state.cities[id]).filter((c): c is City => !!c);
+  const avgUnrest = cities.length ? cities.reduce((sum, c) => sum + c.unrestLevel, 0) / cities.length : 0;
+  if (avgUnrest >= 1) return 'serenity';
+  if (atWar) return 'fervor';
+  return 'tithes';
 }
 
 export interface ReligionPressureSource {

@@ -2626,3 +2626,42 @@ describe('#436 — AI appease uses the shared helper', () => {
     expect(afterAiTurn.civilizations['ai-1'].gold).toBe(0);
   });
 });
+
+describe('#591 MR4 — AI boon choice', () => {
+  function withPendingReligion(seed: string): { state: GameState; aiCityId: string; religionId: string } {
+    let state = createNewGame(undefined, seed, 'small');
+    state = processAITurn(state, 'ai-1', new EventBus());
+    const aiCityId = state.civilizations['ai-1'].cities[0];
+    if (!aiCityId) throw new Error('ai-1 has no city after its first turn');
+    const religionId = 'religion-ai-1';
+    state.religions = { [religionId]: { id: religionId, name: 'Order of Test', ownerCivId: 'ai-1', foundedTurn: 1 } };
+    state.cityFaith = { [aiCityId]: { religionId, isHolyCity: true } };
+    return { state, aiCityId, religionId };
+  }
+
+  it('AI never leaves its own religion pending -- chooses a boon within one turn', () => {
+    const { state, religionId } = withPendingReligion('591-ai-boon-choose');
+    const next = processAITurn(state, 'ai-1', new EventBus());
+    expect(next.religions![religionId].boon).toBeDefined();
+  });
+
+  it('picks serenity when the AI has unhappy cities', () => {
+    const { state, aiCityId, religionId } = withPendingReligion('591-ai-boon-unhappy');
+    state.cities[aiCityId] = { ...state.cities[aiCityId], unrestLevel: 2 };
+    const next = processAITurn(state, 'ai-1', new EventBus());
+    expect(next.religions![religionId].boon).toBe('serenity');
+  });
+
+  it('picks fervor when at war and not unhappy', () => {
+    const { state, religionId } = withPendingReligion('591-ai-boon-war');
+    state.civilizations['ai-1'].diplomacy.atWarWith = ['player'];
+    const next = processAITurn(state, 'ai-1', new EventBus());
+    expect(next.religions![religionId].boon).toBe('fervor');
+  });
+
+  it('picks tithes when neither unhappy nor at war', () => {
+    const { state, religionId } = withPendingReligion('591-ai-boon-peace');
+    const next = processAITurn(state, 'ai-1', new EventBus());
+    expect(next.religions![religionId].boon).toBe('tithes');
+  });
+});

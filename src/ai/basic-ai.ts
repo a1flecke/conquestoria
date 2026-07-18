@@ -103,6 +103,7 @@ import { applyWorkerAction, getWorkerChargesRemaining } from '@/systems/worker-a
 import { getAvailableWorkerActions, getKnownTileResourceForWorkerAction } from '@/systems/improvement-system';
 import { chooseRoadBuilderUnit } from '@/systems/road-network';
 import { canBuildRoad } from '@/systems/road-system';
+import { chooseAiBoon, chooseBoon } from '@/systems/religion-system';
 
 function addAlwaysHostileOwners(
   state: GameState,
@@ -589,6 +590,13 @@ function processAITurnInternal(
       newState = foundCityInState(newState, settler.id, bus).state;
       civ = newState.civilizations[civId];
     }
+  }
+
+  // Boon choice (#591 MR4) is administrative, not plan-driven -- an AI civ with a
+  // founded-but-boonless religion decides immediately, every turn it hasn't yet.
+  const ownReligion = Object.values(newState.religions ?? {}).find(r => r.ownerCivId === civId);
+  if (ownReligion && ownReligion.boon === undefined) {
+    newState = chooseBoon(newState, ownReligion.id, chooseAiBoon(newState, civId));
   }
 
   // Catastrophe restoration (#526 MR4) is likewise administrative rather than
