@@ -161,3 +161,15 @@ describe('era 12 national project coverage (MR11)', () => {
     expect(np?.civYieldBonus).toEqual({ production: 6 });
   });
 });
+
+describe('#591 MR4 — milestone national projects', () => {
+  it('every milestone NP has no civYieldBonus/cityYieldBonus and is uniquePerEmpire', () => {
+    const milestoneNPs = nationalProjects.filter(np => np.nationalProject?.milestone);
+    expect(milestoneNPs.length).toBeGreaterThan(0); // guard: sacred_council should exist by the time this runs
+    for (const np of milestoneNPs) {
+      expect(np.civYieldBonus, `${np.id} must not have civYieldBonus`).toBeUndefined();
+      expect((np as any).cityYieldBonus, `${np.id} must not have cityYieldBonus`).toBeUndefined();
+      expect(np.uniquePerEmpire, `${np.id} missing uniquePerEmpire`).toBe(true);
+    }
+  });
+});

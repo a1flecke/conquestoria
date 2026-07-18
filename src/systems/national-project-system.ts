@@ -113,8 +113,9 @@ export function expireNationalProjects(
 ): { state: GameState; expired: ExpiredNationalProject[] } {
   const toExpire: ExpiredNationalProject[] = [];
   for (const [key, record] of Object.entries(state.builtNationalProjects ?? {})) {
+    const buildingId = key.split(':').slice(1).join(':');
+    if (BUILDINGS[buildingId]?.nationalProject?.milestone) continue; // permanent — see #591 MR4
     if (newEra - record.eraBuilt >= 3) {
-      const buildingId = key.split(':').slice(1).join(':');
       toExpire.push({ civId: record.civId, cityId: record.cityId, buildingId });
     }
   }

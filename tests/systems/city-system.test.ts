@@ -368,6 +368,23 @@ describe('getAvailableBuildings', () => {
     const available = getAvailableBuildings(city, ['siege-warfare', 'black-powder'], map);
     expect(available.find(b => b.id === 'siege-workshop')).toBeUndefined();
   });
+
+  it('#591 MR4: sacred_council (milestone) stays available far beyond homeEra + 1, unlike a normal NP', () => {
+    const map = generateMap(30, 30, 'city-test');
+    const landTile = Object.values(map.tiles).find(t => t.terrain === 'grassland')!;
+    const city = { ...foundCity('p1', landTile.coord, map, mkC()), buildings: ['temple'] };
+    // era 10 is far past sacred_council's homeEra(3) + 1 = 4 -- a normal NP would drop out.
+    const available = getAvailableBuildings(city, ['philosophy'], map, undefined, 10);
+    expect(available.find(b => b.id === 'sacred_council')).toBeDefined();
+  });
+
+  it('#591 MR4: sacred_council requires a temple even though it also requires philosophy tech', () => {
+    const map = generateMap(30, 30, 'city-test');
+    const landTile = Object.values(map.tiles).find(t => t.terrain === 'grassland')!;
+    const city = foundCity('p1', landTile.coord, map, mkC()); // no temple built
+    const available = getAvailableBuildings(city, ['philosophy'], map, undefined, 3);
+    expect(available.find(b => b.id === 'sacred_council')).toBeUndefined();
+  });
 });
 
 describe('#443 — building obsolescence data', () => {
@@ -991,6 +1008,24 @@ describe('processCity — droppedProductionItems (issue #457)', () => {
 
     expect(result.droppedProductionItems).toEqual([]);
     expect(result.city.productionQueue).toContain('sacred_grove');
+  });
+
+  it('#591 MR4: never drops a milestone national project (sacred_council) regardless of how far past homeEra+1 the era is', () => {
+    const map = generateMap(30, 30, 'np-milestone-keep-test');
+    const landTile = Object.values(map.tiles).find(t => t.terrain === 'grassland' || t.terrain === 'plains')!;
+    const city = {
+      ...foundCity('p1', landTile.coord, map, mkC()),
+      buildings: ['temple'],
+      productionQueue: ['sacred_council'],
+      productionProgress: 0,
+    };
+
+    // sacred_council has nationalProject.homeEra: 3, milestone: true -- a normal NP
+    // would be dropped at era 10 (far past homeEra + 1 = 4), a milestone NP must not be.
+    const result = processCity(city, map, 2, 1, undefined, ['philosophy'], undefined, 10);
+
+    expect(result.droppedProductionItems).toEqual([]);
+    expect(result.city.productionQueue).toContain('sacred_council');
   });
 
   it('disambiguates unit obsoleted vs resource-lost, and prefers obsoleted on a tie', () => {

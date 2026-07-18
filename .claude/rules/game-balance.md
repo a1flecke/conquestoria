@@ -89,6 +89,18 @@ ceilings above, applied to happiness).
 - UI must show `(fading)` label when multiplier is 0.5.
 - Build UI must label national-project yield numbers as empire-wide so they cannot be mistaken for host-city yields.
 
+## Milestone National Projects (#591 MR4)
+
+`NationalProject.milestone?: true` marks a one-time permanent-trigger project (e.g. Sacred Council):
+- Buildable from `homeEra` onward — **no upper build-window bound** (`getAvailableBuildings` and the
+  belt-and-suspenders dequeue guard in `processCity` both skip the `homeEra + 1` upper check for
+  milestone NPs).
+- **Never expires** — `expireNationalProjects` skips milestone NPs unconditionally, regardless of
+  era delta. The building stays in `city.buildings` and `builtNationalProjects` forever.
+- **No `civYieldBonus`/`cityYieldBonus`** — its effect is a one-time state-mutating side effect
+  (e.g. founding a religion), not an ongoing yield. Enforced by `national-project-balance.test.ts`.
+- Still `uniquePerEmpire: true` — one per civ, same as every other national project.
+
 ## National Project Production Discounts
 
 MR12 added a second class of national-project effect distinct from `civYieldBonus`: empire-wide *production cost discounts* (e.g. Tribal Muster Ground: era-1/2 melee units train 10% cheaper). These are cost multipliers, not yields, so the yield ceilings above do not apply to them — but they have their own rules:

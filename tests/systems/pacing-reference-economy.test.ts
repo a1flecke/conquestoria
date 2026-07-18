@@ -9,8 +9,16 @@ describe('pacing reference economy (Part C exact-value pin)', () => {
   // test fails, that is Part C working as designed (see .claude/rules/game-balance.md's Pacing
   // Regression Prevention section): update BOTH this expectation and the matching
   // RESEARCH_OUTPUT_BY_ERA entry in pacing-model.ts together, with a one-line justification.
+  // #591 MR4: eras 7-13 shifted upward. Sacred Council (a milestone national project) is
+  // the first building to list `temple` in requiresBuildings, which forces `temple` past
+  // the bounded profile's "recently-gated" window (isForcedPrereq in
+  // eligibleBuildingIds) at every later era -- temple's own +1 science now counts as
+  // active production indefinitely, same as any other prereq chain. This is intentional:
+  // a milestone project is buildable forever, so its prerequisite building staying
+  // "relevant infrastructure" indefinitely in the reference economy is the correct model,
+  // not a leak.
   const expectedBoundedByEra: Record<number, number> = {
-    1: 2, 2: 6, 3: 8, 4: 9, 5: 9, 6: 24, 7: 29, 8: 46, 9: 59, 10: 66, 11: 93, 12: 103, 13: 102,
+    1: 2, 2: 6, 3: 8, 4: 9, 5: 9, 6: 24, 7: 35, 8: 50, 9: 68, 10: 75, 11: 103, 12: 113, 13: 113,
   };
   const expectedMaximalByEra: Record<number, number> = {
     1: 2, 2: 6, 3: 8, 4: 9, 5: 13, 6: 34, 7: 48, 8: 79, 9: 118, 10: 135, 11: 170, 12: 198, 13: 236,
