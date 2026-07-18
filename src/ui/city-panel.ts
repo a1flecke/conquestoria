@@ -39,7 +39,7 @@ import {
   CONCESSION_IMMUNITY_TURNS,
 } from '@/systems/faction-system';
 import { getCrisisFlavor, getCrisisDisplayName } from '@/systems/crisis-flavor-definitions';
-import { getCrisisYieldMultiplier, getOutbreakSeverityMultiplier, getCatastropheRecoveryMultiplier } from '@/systems/crisis-system';
+import { getCrisisYieldMultiplier, getOutbreakSeverityMultiplier, getCatastropheRecoveryMultiplier, FAMINE_CONTAINMENT_SURPLUS_TURNS } from '@/systems/crisis-system';
 import { resolvePressureSeverityForCiv } from '@/core/opponent-challenge';
 import { getCityIntrinsicStrength, isCityHpRegenerating } from '@/systems/city-siege-system';
 import { getOccupiedCityMood, getOccupiedCityYieldMultiplier } from '@/systems/city-occupation-system';
@@ -145,8 +145,14 @@ export function createCityPanel(
   panel.style.cssText = 'position:absolute;top:0;left:0;right:0;bottom:0;background:rgba(15,15,25,0.95);z-index:30;overflow-y:auto;padding:16px;padding-bottom:80px;';
 
   const baseYields = calculateProjectedCityYields(state, city.id);
-  const yieldMultiplier = Math.min(getUnrestYieldMultiplier(city), getOccupiedCityYieldMultiplier(city))
-    * getCrisisYieldMultiplier(state, city.id);
+  const baseYieldMultiplier = Math.min(getUnrestYieldMultiplier(city), getOccupiedCityYieldMultiplier(city));
+  const crisisMultiplier = getCrisisYieldMultiplier(state, city.id);
+  const yieldMultiplier = {
+    food: baseYieldMultiplier * crisisMultiplier.food,
+    production: baseYieldMultiplier * crisisMultiplier.production,
+    gold: baseYieldMultiplier * crisisMultiplier.gold,
+    science: baseYieldMultiplier * crisisMultiplier.science,
+  };
   const techYieldParts = getCityTechYields(
     city,
     state.map,
@@ -157,10 +163,10 @@ export function createCityPanel(
     },
   ).parts;
   const yields = {
-    food: Math.floor(baseYields.food * yieldMultiplier),
-    production: Math.floor(baseYields.production * yieldMultiplier),
-    gold: Math.floor(baseYields.gold * yieldMultiplier),
-    science: Math.floor(baseYields.science * yieldMultiplier),
+    food: Math.floor(baseYields.food * yieldMultiplier.food),
+    production: Math.floor(baseYields.production * yieldMultiplier.production),
+    gold: Math.floor(baseYields.gold * yieldMultiplier.gold),
+    science: Math.floor(baseYields.science * yieldMultiplier.science),
   };
   const occupiedMood = getOccupiedCityMood(city);
   const occupiedStatus = city.occupation ? `Occupied: ${city.occupation.turnsRemaining} turns to integrate` : '';
@@ -370,6 +376,50 @@ export function createCityPanel(
     <div style="background:rgba(217,80,80,0.12);border:1px solid rgba(217,80,80,0.35);border-radius:8px;padding:10px 12px;margin-bottom:16px;font-size:12px;">
       <div style="font-weight:bold;color:#e88;margin-bottom:4px;" data-text="catastrophe-stage-${idx}"></div>
       <div style="opacity:0.85;" data-text="catastrophe-advisor-${idx}"></div>
+    </div>`).join('');
+  // Famine (#590 MR3): food-specific wording ("−X% food", never generic "yields"),
+  // plus a legible auto-contain progress line (end-to-end-wiring: computed streak
+  // progress must render, not just be tracked in state).
+  const famineCrises = Object.values(state.activeCrises ?? {})
+    .filter(c => c.archetype === 'famine' && c.cityIds.includes(city.id));
+  const famineChips = famineCrises.map(crisis => {
+    const flavor = getCrisisFlavor(crisis.flavorId);
+    if (!flavor) return null;
+    const severity = flavor.severityByChallenge[resolvePressureSeverityForCiv(state, crisis.targetCivId)];
+    const civForCrisis = state.civilizations[crisis.targetCivId];
+    const isQuarantined = crisis.quarantinedCityIds?.includes(city.id) ?? false;
+    const remedyCompletionTurn = crisis.remedyCompletionByCity?.[city.id];
+    const remedyPending = remedyCompletionTurn !== undefined;
+    const remedyCost = getCityAppeaseCost(city);
+    const canAffordRemedy = (civForCrisis?.gold ?? 0) >= remedyCost;
+    const foodPenaltyPct = Math.round(severity.yieldPenalty * 100);
+    const surplusStreak = crisis.famineSurplusStreakByCity?.[city.id] ?? 0;
+    const turnsToAutoContain = Math.max(0, FAMINE_CONTAINMENT_SURPLUS_TURNS - surplusStreak);
+
+    const quarantineDisabled = isQuarantined || !callbacks.onQuarantineCrisis;
+    const quarantineLabel = isQuarantined ? 'Quarantined' : 'Quarantine (free)';
+    const remedyDisabled = remedyPending || !canAffordRemedy || !callbacks.onRemedyCrisis;
+    const remedyLabel = remedyPending
+      ? 'Grain shipment underway'
+      : !canAffordRemedy
+        ? `Not enough gold (needs ${remedyCost})`
+        : `Import Grain (${remedyCost} gold)`;
+
+    return {
+      crisis, flavor, isQuarantined, remedyPending, remedyCompletionTurn, foodPenaltyPct,
+      surplusStreak, turnsToAutoContain,
+      quarantineDisabled, quarantineLabel, remedyDisabled, remedyLabel,
+    };
+  }).filter((c): c is NonNullable<typeof c> => c !== null);
+  const famineSectionHtml = famineChips.map((chip, idx) => `
+    <div style="background:rgba(217,150,80,0.12);border:1px solid rgba(217,150,80,0.35);border-radius:8px;padding:10px 12px;margin-bottom:16px;font-size:12px;">
+      <div style="font-weight:bold;color:#e8a85a;margin-bottom:4px;" data-text="famine-stage-${idx}"></div>
+      <div style="margin-bottom:4px;opacity:0.85;" data-text="famine-advisor-${idx}"></div>
+      <div style="margin-bottom:8px;opacity:0.7;" data-text="famine-progress-${idx}"></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button type="button" data-quarantine-crisis="${chip.crisis.id}:${city.id}" ${chip.quarantineDisabled ? 'disabled' : ''} title="${chip.quarantineLabel}" style="min-height:44px;padding:7px 12px;border-radius:6px;font-size:12px;font-weight:bold;cursor:${chip.quarantineDisabled ? 'default' : 'pointer'};background:${chip.quarantineDisabled ? 'rgba(255,255,255,0.08)' : '#4a90d9'};color:${chip.quarantineDisabled ? 'rgba(255,255,255,0.4)' : '#fff'};border:none;">${chip.quarantineLabel}</button>
+        <button type="button" data-remedy-crisis="${chip.crisis.id}:${city.id}" ${chip.remedyDisabled ? 'disabled' : ''} title="${chip.remedyLabel}" style="min-height:44px;padding:7px 12px;border-radius:6px;font-size:12px;font-weight:bold;cursor:${chip.remedyDisabled ? 'default' : 'pointer'};background:${chip.remedyDisabled ? 'rgba(255,255,255,0.08)' : '#d4aa2c'};color:${chip.remedyDisabled ? 'rgba(255,255,255,0.4)' : '#1a1a1a'};border:none;">${chip.remedyLabel}</button>
+      </div>
     </div>`).join('');
   const crisisSectionHtml = crisisChips.map((chip, idx) => `
     <div style="background:rgba(217,80,80,0.12);border:1px solid rgba(217,80,80,0.35);border-radius:8px;padding:10px 12px;margin-bottom:16px;font-size:12px;">
@@ -768,6 +818,7 @@ export function createCityPanel(
     ${spreadWarningHtml}
     ${unrestSectionHtml}
     ${crisisSectionHtml}
+    ${famineSectionHtml}
     ${catastropheSectionHtml}
     ${resilienceSectionHtml}
 
@@ -846,6 +897,24 @@ export function createCityPanel(
       .replace('{name}', displayName)
       .replace('{city}', city.name);
     setText(`crisis-advisor-${idx}`, advisorLine);
+  });
+
+  famineChips.forEach((chip, idx) => {
+    const displayName = getCrisisDisplayName(chip.flavor, state.era);
+    const stageText = chip.remedyPending
+      ? `Grain shipment underway — arrives in ${Math.max(0, chip.remedyCompletionTurn! - state.turn)} turn${Math.max(0, chip.remedyCompletionTurn! - state.turn) === 1 ? '' : 's'}`
+      : chip.isQuarantined
+        ? `Quarantined — spread stopped, −${chip.foodPenaltyPct}% food`
+        : `⚠️ ${displayName} — −${chip.foodPenaltyPct}% food`;
+    setText(`famine-stage-${idx}`, stageText);
+    const advisorLine = chip.flavor.advisorLine
+      .replace('{name}', displayName)
+      .replace('{city}', city.name);
+    setText(`famine-advisor-${idx}`, advisorLine);
+    const progressText = chip.surplusStreak > 0
+      ? `Food surplus is recovering — ${chip.turnsToAutoContain} more turn${chip.turnsToAutoContain === 1 ? '' : 's'} of surplus ends the famine here`
+      : 'Build farms or a granary to run a food surplus and end the famine naturally';
+    setText(`famine-progress-${idx}`, progressText);
   });
 
   catastropheChips.forEach((chip, idx) => {

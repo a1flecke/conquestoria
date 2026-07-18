@@ -246,7 +246,7 @@ export const CRISIS_FLAVORS: CrisisFlavor[] = [
   },
   {
     id: 'crop-blight',
-    archetype: 'outbreak',
+    archetype: 'famine', // #590 MR3: re-homed from outbreak — famine, not disease
     // Grace-period floor is era 2 for standard/veteran, era 3 for explorer (see
     // opponent-challenge.ts crisisGraceMaxEra) — an era-1 band start would never
     // actually be reachable, so this starts at era 2 like the other outbreaks/
@@ -261,12 +261,12 @@ export const CRISIS_FLAVORS: CrisisFlavor[] = [
       veteran:  { yieldPenalty: 0.35, popLossEveryNTurnsIgnored: 3,    autoExpireTurns: null },
     },
     displayNamesByEra: { 2: 'The Withering', 4: 'The Blackened Rows', 6: 'The Potato Blight', 9: 'The Rust Fungus' },
-    advisorLine: '{name} has struck the fields near {city}! Quarantine the city to stop the spread, or fund a remedy effort to cure it.',
+    advisorLine: '{name} has struck the fields near {city}! Quarantine the city to stop the spread, or import grain to speed recovery.',
     responseActions: ['quarantine', 'remedy'],
   },
   {
     id: 'locust-swarm',
-    archetype: 'outbreak',
+    archetype: 'famine', // #590 MR3: re-homed from outbreak — famine, not disease
     eraBand: [2, 8],
     geographyPredicate: (state, city) => nearTerrain(state, city, ['plains', 'grassland'], 2),
     spreadBoostPredicate: (state, city) => nearTerrain(state, city, ['plains', 'grassland'], 2),
@@ -276,7 +276,41 @@ export const CRISIS_FLAVORS: CrisisFlavor[] = [
       veteran:  { yieldPenalty: 0.35, popLossEveryNTurnsIgnored: 3,    autoExpireTurns: null },
     },
     displayNamesByEra: { 2: 'The Devouring Cloud', 5: 'The Locust Storm' },
-    advisorLine: '{name} descends on the farmland near {city}! Quarantine the city to stop the spread, or fund a remedy effort to cure it.',
+    advisorLine: '{name} descends on the farmland near {city}! Quarantine the city to stop the spread, or import grain to speed recovery.',
+    responseActions: ['quarantine', 'remedy'],
+  },
+  {
+    id: 'failed-harvest',
+    archetype: 'famine',
+    // Mild, era-agnostic: any city can have a bad growing season, no terrain gate.
+    // Grace-period floor is era 2 (see crop-blight's comment above) — same convention.
+    eraBand: [2, 12],
+    geographyPredicate: () => true,
+    severityByChallenge: {
+      explorer: { yieldPenalty: 0.10, popLossEveryNTurnsIgnored: null, autoExpireTurns: 5 },
+      standard: { yieldPenalty: 0.15, popLossEveryNTurnsIgnored: null, autoExpireTurns: null },
+      veteran:  { yieldPenalty: 0.20, popLossEveryNTurnsIgnored: 4,    autoExpireTurns: null },
+    },
+    displayNamesByEra: { 2: 'A Thin Harvest', 5: 'The Lean Season', 8: 'The Failed Crop' },
+    advisorLine: '{name} has left the granaries near {city} half-empty! Quarantine the city to stop the spread, or import grain to speed recovery.',
+    responseActions: ['quarantine', 'remedy'],
+  },
+  {
+    id: 'great-famine',
+    archetype: 'famine',
+    // Severe, later-era escalation of the same farmland geography crop-blight uses —
+    // deliberately not a new geography concept, just a worse version for later eras.
+    eraBand: [6, 12],
+    geographyPredicate: (state, city) =>
+      countFarmsInTerritory(state, city) >= 2 || isPlainsOrGrasslandCity(state, city),
+    spreadBoostPredicate: (state, city) => nearTerrain(state, city, ['plains'], 2),
+    severityByChallenge: {
+      explorer: { yieldPenalty: 0.20, popLossEveryNTurnsIgnored: null, autoExpireTurns: 5 },
+      standard: { yieldPenalty: 0.30, popLossEveryNTurnsIgnored: null, autoExpireTurns: null },
+      veteran:  { yieldPenalty: 0.40, popLossEveryNTurnsIgnored: 2,    autoExpireTurns: null },
+    },
+    displayNamesByEra: { 6: 'The Great Famine', 9: 'The Starving Time' },
+    advisorLine: '{name} devastates the countryside near {city}! Quarantine the city to stop the spread, or import grain to speed recovery.',
     responseActions: ['quarantine', 'remedy'],
   },
   {

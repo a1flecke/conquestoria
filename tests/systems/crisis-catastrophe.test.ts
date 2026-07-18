@@ -121,11 +121,12 @@ describe('catastrophe shock', () => {
   it('applies a whole-city recovery yield penalty during the recovery stage (not just zeroing devastated tiles)', () => {
     const { state, cityId } = { ...makeCatastropheFixture(), cityId: 'c1' };
     // Before the shock (stage 'active'), no recovery penalty applies yet.
-    expect(getCrisisYieldMultiplier(state, cityId)).toBe(1);
+    expect(getCrisisYieldMultiplier(state, cityId).food).toBe(1);
     const next = processCrisisTurn(state, new EventBus());
     expect(next.activeCrises!['crisis-1'].stage).toBe('recovery');
-    // standard challenge catastrophe yieldPenalty is 0.20 -> multiplier 0.80
-    expect(getCrisisYieldMultiplier(next, cityId)).toBeCloseTo(0.8);
+    // standard challenge catastrophe yieldPenalty is 0.20 -> multiplier 0.80, all 4 yields
+    expect(getCrisisYieldMultiplier(next, cityId).food).toBeCloseTo(0.8);
+    expect(getCrisisYieldMultiplier(next, cityId).production).toBeCloseTo(0.8);
   });
 
   it('never devastates a tile owned by another civ or unowned land', () => {

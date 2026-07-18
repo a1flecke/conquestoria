@@ -157,6 +157,17 @@ describe('getCrisisResponseActions', () => {
     const b = getCrisisResponseActions(structuredClone(state), 'ai-1');
     expect(a).toEqual(b);
   });
+
+  it('#590 MR3: quarantines and funds remedy for an AI civ\'s own famine crisis, same as outbreak', () => {
+    const state = responseState({
+      turn: 0, opponentChallenge: 'veteran',
+      civilizations: { 'ai-1': { id: 'ai-1', isHuman: false, isEliminated: false, gold: 1000 } },
+      activeCrises: { 'crisis-1': outbreakCrisis({ archetype: 'famine', flavorId: 'crop-blight' }) },
+    });
+    const actions = getCrisisResponseActions(state, 'ai-1');
+    expect(actions).toContainEqual({ kind: 'quarantine', crisisId: 'crisis-1', cityId: 'c1' });
+    expect(actions).toContainEqual({ kind: 'fund-remedy', crisisId: 'crisis-1', cityId: 'c1' });
+  });
 });
 
 // #526 MR4 — AI catastrophe restoration: pair idle workers with the nearest

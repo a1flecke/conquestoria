@@ -279,3 +279,105 @@ describe('city-panel catastrophe chip (MR2)', () => {
     expect(panel.textContent).not.toContain('Rebuilding');
   });
 });
+
+function withFamineCrisis(overrides: Partial<ActiveCrisis> = {}) {
+  const { container, city, state } = makeWonderPanelFixture();
+  const crisis: ActiveCrisis = {
+    id: 'crisis-1', flavorId: 'crop-blight', archetype: 'famine', targetCivId: city.owner,
+    cityIds: [city.id], tileKeys: [], startedTurn: state.turn - 1, stage: 'active', turnsInStage: 1,
+    ...overrides,
+  };
+  const withCrisis = { ...state, activeCrises: { [crisis.id]: crisis } };
+  return { container, city, state: withCrisis, crisis };
+}
+
+describe('#590 MR3 — famine crisis chip', () => {
+  it('renders a food-specific penalty line (never generic "yields") and an Import Grain button', () => {
+    const { container, city, state } = withFamineCrisis();
+    state.civilizations[city.owner].gold = 1000;
+
+    const panel = createCityPanel(container, city, state, {
+      onBuild: () => {},
+      onOpenWonderPanel: () => {},
+      onClose: () => {},
+      onQuarantineCrisis: vi.fn(() => state),
+      onRemedyCrisis: vi.fn(() => state),
+    });
+
+    expect(panel.textContent).toContain('The Blackened Rows'); // era 4 crop-blight name
+    expect(panel.textContent).toContain('−25% food');
+    expect(panel.textContent).not.toContain('−25% yields');
+    const remedyBtn = panel.querySelector<HTMLButtonElement>('[data-remedy-crisis]');
+    expect(remedyBtn?.textContent).toContain('Import Grain');
+    expect(panel.querySelector('[data-quarantine-crisis]')).toBeTruthy();
+  });
+
+  it('tapping quarantine rerenders with food-specific quarantined wording', () => {
+    const { container, city, state } = withFamineCrisis();
+    state.civilizations[city.owner].gold = 1000;
+    const onQuarantineCrisis = vi.fn((crisisId: string, cityId: string) =>
+      applyQuarantine(state, crisisId, cityId).state);
+
+    const panel = createCityPanel(container, city, state, {
+      onBuild: () => {},
+      onOpenWonderPanel: () => {},
+      onClose: () => {},
+      onQuarantineCrisis,
+      onRemedyCrisis: vi.fn(() => state),
+    });
+
+    clickElement(panel.querySelector('[data-quarantine-crisis]'));
+    const rerendered = container.querySelector('[id="city-panel"]')!;
+    expect(rerendered.textContent).toContain('Quarantined — spread stopped');
+    expect(rerendered.textContent).toContain('% food');
+  });
+
+  it('shows auto-contain progress once the city has accrued a positive food-surplus streak', () => {
+    const { container, city, state } = withFamineCrisis();
+    state.activeCrises['crisis-1'].famineSurplusStreakByCity = { [city.id]: 2 };
+    state.civilizations[city.owner].gold = 1000;
+
+    const panel = createCityPanel(container, city, state, {
+      onBuild: () => {},
+      onOpenWonderPanel: () => {},
+      onClose: () => {},
+      onQuarantineCrisis: vi.fn(() => state),
+      onRemedyCrisis: vi.fn(() => state),
+    });
+
+    // FAMINE_CONTAINMENT_SURPLUS_TURNS (3) - streak (2) = 1 more turn needed.
+    expect(panel.textContent).toContain('1 more turn');
+    expect(panel.textContent).toContain('recovering');
+  });
+
+  it('shows a build-farms hint when no surplus streak has accrued yet', () => {
+    const { container, city, state } = withFamineCrisis();
+    state.civilizations[city.owner].gold = 1000;
+
+    const panel = createCityPanel(container, city, state, {
+      onBuild: () => {},
+      onOpenWonderPanel: () => {},
+      onClose: () => {},
+      onQuarantineCrisis: vi.fn(() => state),
+      onRemedyCrisis: vi.fn(() => state),
+    });
+
+    expect(panel.textContent).toContain('Build farms or a granary');
+  });
+
+  it('grain shipment underway wording once remedy is funded', () => {
+    const { container, city, state } = withFamineCrisis();
+    state.activeCrises['crisis-1'].remedyCompletionByCity = { [city.id]: state.turn + 2 };
+    state.civilizations[city.owner].gold = 1000;
+
+    const panel = createCityPanel(container, city, state, {
+      onBuild: () => {},
+      onOpenWonderPanel: () => {},
+      onClose: () => {},
+      onQuarantineCrisis: vi.fn(() => state),
+      onRemedyCrisis: vi.fn(() => state),
+    });
+
+    expect(panel.textContent).toContain('Grain shipment underway');
+  });
+});

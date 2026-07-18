@@ -149,9 +149,12 @@ function sendAidState({
     focus: 'balanced', maturity: 'outpost', unrestLevel: 0, unrestTurns: 0, spyUnrestBonus: 0,
   };
   const crisisId = 'crisis-1';
+  const flavorIdByArchetype: Record<ActiveCrisis['archetype'], string> = {
+    outbreak: 'plague', catastrophe: 'earthquake', famine: 'crop-blight', hunt: 'bandit-uprising',
+  };
   const crisis: ActiveCrisis = {
-    id: crisisId, flavorId: archetype === 'outbreak' ? 'plague' : 'earthquake', archetype,
-    targetCivId: 'civB', cityIds: [cityId], tileKeys: [], startedTurn: 5, stage: archetype === 'outbreak' ? 'active' : 'recovery',
+    id: crisisId, flavorId: flavorIdByArchetype[archetype], archetype,
+    targetCivId: 'civB', cityIds: [cityId], tileKeys: [], startedTurn: 5, stage: archetype === 'catastrophe' ? 'recovery' : 'active',
     turnsInStage: 2,
     ...(actorAlreadyAided ? { aidedByCivIds: ['civA'] } : {}),
   };
@@ -224,6 +227,15 @@ describe('canSendAid', () => {
     expect(canSendAid(state, 'civA', crisisId)).toEqual({ ok: false, reason: 'no-tech', goldCost, techId: 'trade-routes' });
   });
 
+  it('#590 MR3: gates famine on medicine, same as outbreak', () => {
+    const withoutTech = sendAidState({ archetype: 'famine', actorTechs: [] });
+    expect(canSendAid(withoutTech.state, 'civA', withoutTech.crisisId))
+      .toEqual({ ok: false, reason: 'no-tech', goldCost: withoutTech.goldCost, techId: 'medicine' });
+
+    const withTech = sendAidState({ archetype: 'famine', actorTechs: ['medicine'] });
+    expect(canSendAid(withTech.state, 'civA', withTech.crisisId)).toEqual({ ok: true, goldCost: withTech.goldCost });
+  });
+
   it('rejects with not-enough-gold when the actor cannot afford the cost, still reporting the cost', () => {
     const { state, crisisId, goldCost } = sendAidState({ actorGold: 0 });
     expect(canSendAid(state, 'civA', crisisId)).toEqual({ ok: false, reason: 'not-enough-gold', goldCost });
@@ -255,6 +267,16 @@ describe('applySendAid', () => {
 
     expect(next.civilizations.civA.gold).toBe(200 - goldCost);
     expect(next.civilizations.civB.gold).toBe(50 + goldCost);
+    expect(next.activeCrises![crisisId].aidedByCivIds).toEqual(['civA']);
+  });
+
+  it('#590 MR3: famine writes remedyCompletionByCity like outbreak (not a target gold credit like catastrophe)', () => {
+    const { state, crisisId, cityId, goldCost } = sendAidState({ archetype: 'famine' });
+    const next = applySendAid(state, 'civA', crisisId, new EventBus());
+
+    expect(next.civilizations.civA.gold).toBe(200 - goldCost);
+    expect(next.civilizations.civB.gold).toBe(50); // unlike catastrophe, target's own gold is untouched
+    expect(next.activeCrises![crisisId].remedyCompletionByCity).toEqual({ [cityId]: state.turn + 2 });
     expect(next.activeCrises![crisisId].aidedByCivIds).toEqual(['civA']);
   });
 
