@@ -10,7 +10,7 @@ import type {
   ResourceType,
 } from '@/core/types';
 import { createNewGame } from '@/core/game-state';
-import { TECH_TREE } from '@/systems/tech-definitions';
+import { TECH_TREE, resolveCivilizationEra } from '@/systems/tech-definitions';
 import {
   BUILDINGS,
   TRAINABLE_UNITS,
@@ -352,7 +352,7 @@ describe('AI strategic production', () => {
       state.civilizations['ai-1'].techState.completed,
       state.map,
       new Set(RESOURCE_DEFINITIONS.map(definition => definition.id as ResourceType)),
-      state.era,
+      resolveCivilizationEra(state.civilizations['ai-1'].techState.completed),
       new Set(),
       'ai-1',
     );

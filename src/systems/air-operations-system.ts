@@ -8,6 +8,7 @@ import { isHostileOwnerTo } from './owner-hostility';
 import { applyCombatOutcomeToState } from './combat-reward-system';
 import { applyCitySiegeOutcome, getCityGarrisonUnit, resolveCitySiegeDamage, type CitySiegeResult } from './city-siege-system';
 import { resolveChallengeForCiv } from '@/core/opponent-challenge';
+import { resolveCombatEra } from './era-resolution';
 import { appendNotification } from '@/core/notification-log';
 
 export type AirOperationResult =
@@ -251,7 +252,7 @@ export function resolveAirStrike(state: GameState, unitId: string, target: HexCo
   const interceptor = selectInterceptor(state, striker, target);
   let interception: { interceptorId: string; result: CombatResult } | undefined;
   if (interceptor) {
-    const result = resolveCombat(interceptor, striker, state.map, deterministicCombatSeed(state.gameId, state.turn, interceptor.id, striker.id), buildCombatContextForDefender(state, interceptor, striker), state.era);
+    const result = resolveCombat(interceptor, striker, state.map, deterministicCombatSeed(state.gameId, state.turn, interceptor.id, striker.id), buildCombatContextForDefender(state, interceptor, striker), resolveCombatEra(state, interceptor, striker));
     nextState = applyAirCombatResult(nextState, result, deterministicCombatSeed(state.gameId, state.turn, interceptor.id, striker.id));
     if (nextState.units[interceptor.id]) nextState = { ...nextState, units: { ...nextState.units, [interceptor.id]: { ...nextState.units[interceptor.id]!, interceptedTurn: state.turn } } };
     interception = { interceptorId: interceptor.id, result };
@@ -278,7 +279,7 @@ export function resolveAirStrike(state: GameState, unitId: string, target: HexCo
   }
   const currentTarget = targetUnit && nextState.units[targetUnit.id];
   if (!currentTarget) return { ok: true, state: { ...nextState, units: { ...nextState.units, [unitId]: { ...currentStriker, movementPointsLeft: 0, hasMoved: true, hasActed: true } } }, interception };
-  const targetResult = resolveCombat(currentStriker, currentTarget, nextState.map, deterministicCombatSeed(nextState.gameId, nextState.turn, currentStriker.id, currentTarget.id), buildCombatContextForDefender(nextState, currentStriker, currentTarget), nextState.era);
+  const targetResult = resolveCombat(currentStriker, currentTarget, nextState.map, deterministicCombatSeed(nextState.gameId, nextState.turn, currentStriker.id, currentTarget.id), buildCombatContextForDefender(nextState, currentStriker, currentTarget), resolveCombatEra(nextState, currentStriker, currentTarget));
   nextState = applyAirCombatResult(nextState, targetResult, deterministicCombatSeed(nextState.gameId, nextState.turn, currentStriker.id, currentTarget.id));
   if (nextState.units[unitId]) nextState = { ...nextState, units: { ...nextState.units, [unitId]: { ...nextState.units[unitId]!, movementPointsLeft: 0, hasMoved: true, hasActed: true } } };
   return { ok: true, state: nextState, interception, targetResult };

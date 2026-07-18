@@ -3,6 +3,7 @@ import { createNewGame } from '@/core/game-state';
 import { BUILDINGS, foundCity, TRAINABLE_UNITS } from '@/systems/city-system';
 import { generateMap } from '@/systems/map-generator';
 import { createTechState } from '@/systems/tech-system';
+import { TECH_TREE } from '@/systems/tech-definitions';
 import {
   enqueueCityProduction,
   enqueueResearch,
@@ -159,6 +160,9 @@ describe('planning-system city queues', () => {
     const state = createNewGame(undefined, 'idle-settler-era-seed', 'small');
     const playerId = state.currentPlayer;
     state.era = 4;
+    state.civilizations[playerId].techState.completed = TECH_TREE
+      .filter(tech => tech.era <= 4 && tech.countsForEraAdvancement !== false)
+      .map(tech => tech.id);
     const settlerId = state.civilizations[playerId].units.find(unitId => state.units[unitId]?.type === 'settler');
     expect(settlerId).toBeDefined();
 

@@ -68,6 +68,7 @@ import { canBuildRoad } from '@/systems/road-system';
 import { getAIStrategicRoles, hasAICombatRole } from './ai-unit-roles';
 import { isAIHostileOwner } from './ai-hostility';
 import { getLegalRebaseDestinations, resolveAirStrike, resolveReconMission, rebaseAircraft, startIntercept } from '@/systems/air-operations-system';
+import { resolveCombatEra } from '@/systems/era-resolution';
 
 export type AITacticalAction =
   | { kind: 'attack'; unitId: string; targetUnitId: string }
@@ -334,7 +335,7 @@ function rankAttacks(
       context.state.map,
       combatSeed(context.state, unit.id, defender.id),
       combatContext,
-      context.state.era,
+      resolveCombatEra(context.state, unit, defender),
     );
     const expectedDamageRatio = Math.min(2, preview.defenderDamage / Math.max(1, defender.health));
     const deathRisk = Math.min(2, preview.attackerDamage / Math.max(1, unit.health));
@@ -699,7 +700,7 @@ function rankEmbarkedAttacks(
         context.state.map,
         combatSeed(context.state, attacker.id, defender.id),
         combatContext,
-        context.state.era,
+        resolveCombatEra(context.state, attacker, defender),
       );
       return [ranked(
         { kind: 'embarked-attack', unitId: unit.id, targetUnitId: defender.id },
@@ -784,7 +785,7 @@ function applyPredictedAction(
         next.map,
         seed,
         buildCombatContextForDefender(next, unit, defender),
-        next.era,
+        resolveCombatEra(next, unit, defender),
       );
       return applyCombatOutcomeToState(next, result, seed).state;
     }
@@ -799,7 +800,7 @@ function applyPredictedAction(
         detached.state.map,
         seed,
         buildCombatContextForDefender(detached.state, detached.attacker, defender, { amphibiousAssault: true }),
-        detached.state.era,
+        resolveCombatEra(detached.state, detached.attacker, defender),
       );
       return applyCombatOutcomeToState(detached.state, result, seed).state;
     }

@@ -2,6 +2,7 @@ import type { EventBus } from '@/core/event-bus';
 import type { CombatResult, GameState, HexCoord, Unit, UnitType } from '@/core/types';
 import type { PirateFactionState } from '@/core/pirate-state';
 import { isMajorCivOwner } from '@/core/owner-kind';
+import { resolveCombatEra } from './era-resolution';
 import { resolveChallengeForCiv } from '@/core/opponent-challenge';
 import { isPiratePressureEligible } from './world-pressure-eligibility';
 import { canUnitAttackTarget } from './attack-targeting';
@@ -204,7 +205,7 @@ function attackTarget(
     state.map,
     seed,
     buildCombatContextForDefender(state, attacker, defender),
-    state.era,
+    resolveCombatEra(state, attacker, defender),
   );
   const applied = applyCombatOutcomeToState(state, result, seed);
   let appliedState = applied.state;

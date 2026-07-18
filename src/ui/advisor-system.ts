@@ -11,6 +11,7 @@ import { getCivAvailableResources } from '@/systems/resource-acquisition-system'
 import { RESOURCE_DEFINITIONS } from '@/systems/trade-system';
 import { getPirateWatersPresentation } from '@/systems/pirate-presentation';
 import { getPirateTributeQuote } from '@/systems/pirate-actions';
+import { resolveCivilizationEra } from '@/systems/tech-definitions';
 
 /**
  * Session-scoped tip suppression. Cleared on page load (module re-init).
@@ -217,7 +218,7 @@ const ADVISOR_MESSAGES: AdvisorMessage[] = [
       const playerDip = state.civilizations[state.currentPlayer]?.diplomacy;
       if (!playerDip) return false;
       if ((state.civilizations[state.currentPlayer]?.cities.length ?? 0) === 0) return false;
-      if (state.era < 2) return false;
+      if (resolveCivilizationEra(state.civilizations[state.currentPlayer]?.techState.completed ?? []) < 2) return false;
       return Object.entries(state.civilizations).some(([civId, civ]) => {
         if (civId === state.currentPlayer) return false;
         const rel = playerDip.relationships[civId] ?? 0;
@@ -233,7 +234,7 @@ const ADVISOR_MESSAGES: AdvisorMessage[] = [
     trigger: (state) => {
       const playerDip = state.civilizations[state.currentPlayer]?.diplomacy;
       if (!playerDip) return false;
-      if (state.era < 2) return false;
+      if (resolveCivilizationEra(state.civilizations[state.currentPlayer]?.techState.completed ?? []) < 2) return false;
       const peakCities = playerDip.vassalage?.peakCities ?? 0;
       if (peakCities < 2) return false;
       const currentCities = state.civilizations[state.currentPlayer]?.cities.length ?? 0;

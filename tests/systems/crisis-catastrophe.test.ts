@@ -4,6 +4,7 @@ import { processCrisisTurn, getCrisisYieldMultiplier } from '@/systems/crisis-sy
 import { createDiplomacyState } from '@/systems/diplomacy-system';
 import { hexesInRange, hexKey } from '@/systems/hex-utils';
 import type { ActiveCrisis, City, GameState, HexCoord, HexTile, OpponentChallenge } from '@/core/types';
+import { TECH_TREE } from '@/systems/tech-definitions';
 
 const CITY_POS: HexCoord = { q: 0, r: 0 };
 const ENEMY_TILE_POS: HexCoord = { q: 1, r: 0 };
@@ -100,6 +101,9 @@ function makeCatastropheFixture({
     idCounters: { nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 },
     activeCrises: { [crisisId]: crisis },
   } as GameState;
+  state.civilizations.p1.techState.completed = TECH_TREE
+    .filter(tech => tech.era <= era && tech.countsForEraAdvancement !== false)
+    .map(tech => tech.id);
 
   return { state, crisisId };
 }
