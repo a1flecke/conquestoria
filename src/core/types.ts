@@ -446,6 +446,10 @@ export type CityMaturity = 'outpost' | 'village' | 'town' | 'city' | 'metropolis
 
 export interface NationalProject {
   homeEra: number;
+  // #591 MR4: one-time permanent-trigger project (e.g. Sacred Council). Buildable from
+  // homeEra onward with NO upper build-window bound, and NEVER expires. See
+  // .claude/rules/game-balance.md "Milestone National Projects".
+  milestone?: true;
 }
 
 export interface Building {
@@ -1576,6 +1580,31 @@ export interface GameState {
   startPlacementMode?: StartPlacementMode;
   activeCrises?: Record<string, ActiveCrisis>;
   reconReveals?: ReconReveal[];
+  // #591 MR4: religion core. Optional -- absent on legacy saves and the many minimal
+  // literal-GameState test fixtures across this codebase (same convention as
+  // activeCrises/pirates/espionage). Defaulted to {} in createNewGame for new games and
+  // in migrateSaveToCurrent for old saves; every other reader must use `?? {}`.
+  religions?: Record<string, Religion>;
+  cityFaith?: Record<string, CityFaith>;
+}
+
+// --- Religion (#591 MR4) ---
+
+export type ReligionBoon = 'serenity' | 'tithes' | 'fervor';
+
+export interface Religion {
+  id: string;            // 'religion-<ownerCivId>'
+  name: string;          // invented, renameable
+  ownerCivId: string;
+  boon?: ReligionBoon;    // absent = choice pending; re-prompt owner each turn; NO boon effects until chosen
+  foundedTurn: number;
+}
+
+export interface CityFaith {
+  religionId: string;
+  isHolyCity?: true;      // founding city — permanently immune to conversion, under ANY owner
+  conversionProgress?: { toReligionId: string; points: number };  // converts at CONVERSION_THRESHOLD
+  // loyaltyProgress added by MR6 (#593)
 }
 
 export interface ReconReveal {
@@ -1840,6 +1869,8 @@ export interface GameEvents {
   'civ:eliminated':                 { civId: string; eliminatedBy: string };
   // Crisis events & revolutionary movements (#381, #354)
   'crisis:started':   { crisisId: string; flavorId: string; civId: string; cityIds: string[] };
+  'religion:founded': { religionId: string; civId: string; cityId: string; name: string };
+  'religion:city-converted': { cityId: string; toReligionId: string; fromReligionId?: string };
   'crisis:spread':    { crisisId: string; fromCityId: string; toCityId: string };
   // civId/foeName are populated for Hunt transitions (spawn -> menacing, menacing ->
   // assaulting) — carried directly rather than re-read from state because both are set

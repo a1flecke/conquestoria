@@ -263,6 +263,18 @@ function normalizeCrisisArchetypes(state: GameState): GameState {
   return { ...state, activeCrises };
 }
 
+// #591 MR4: religions/cityFaith are non-optional on GameState but predate this MR, so
+// any save from before it is missing both fields entirely. Defaulted unconditionally
+// (not a versioned migration -- additive, no schema bump) alongside the crisis
+// normalization above.
+function withReligionDefaults(state: GameState): GameState {
+  return {
+    ...state,
+    religions: state.religions ?? {},
+    cityFaith: state.cityFaith ?? {},
+  };
+}
+
 export const SAVE_MIGRATIONS: Readonly<Record<number, SaveMigration>> = {
   1: migrateToEra13Foundation,
   2: migrateLateResources,
@@ -298,5 +310,5 @@ export function migrateSaveToCurrent(raw: unknown): GameState {
     state = { ...migration(state), saveSchemaVersion: version };
   }
   const migrated = state.gameId ? state : migrateToEra13Foundation(state);
-  return normalizeCrisisArchetypes(migrated);
+  return withReligionDefaults(normalizeCrisisArchetypes(migrated));
 }
