@@ -1,4 +1,4 @@
-import type { BuildableImprovementType, GameState, DisguiseType, HexCoord, WorkerActionType } from '@/core/types';
+import type { BuildableImprovementType, GameState, DisguiseType, HexCoord, Unit, WorkerActionType } from '@/core/types';
 import { UNIT_DEFINITIONS, UNIT_DESCRIPTIONS, canHeal } from '@/systems/unit-system';
 import { getExperienceToNextTier, getVeterancyCombatModifier, getVeterancyTier } from '@/systems/combat-reward-system';
 import { isSpyUnitType } from '@/systems/espionage-system';
@@ -32,6 +32,7 @@ import {
   type LandUnitWaterRecovery,
 } from '@/systems/unit-water-recovery';
 import { isAutonomyActivated } from '@/systems/network-plan-system';
+import { canPreachTarget } from '@/systems/religion-system';
 import { getAirBaseCapacity, getAirBaseRoster } from '@/systems/air-operations-system';
 import type { AirBaseRef } from '@/core/types';
 
@@ -63,6 +64,7 @@ export interface SelectedUnitInfoCallbacks {
   onClose?: () => void;
   onFoundCity?: () => void;
   onWorkerAction?: (action: WorkerActionType) => void;
+  onPreach?: (unitId: string, cityId: string) => void;
   onRest?: () => void;
   onSkipTurn?: (unitId: string) => void;
   onDeleteUnit?: (unitId: string) => void;
@@ -124,6 +126,16 @@ function makeButton(label: string, color: string, onClick?: () => void): HTMLBut
 /** True for all 5 naval transport unit types. */
 function isNavalTransport(unitType: string): boolean {
   return ['transport', 'carrack', 'galleon', 'steamship', 'troop_transport'].includes(unitType);
+}
+
+/** First city on/adjacent to `unit` that canPreachTarget() accepts, or null. Deterministic
+ * (sorted city id order) so the offered target never varies between renders. */
+function findEligiblePreachTargetCityId(state: GameState, unit: Unit): string | null {
+  const candidateIds = Object.keys(state.cities).sort();
+  for (const cityId of candidateIds) {
+    if (canPreachTarget(state, unit, cityId)) return cityId;
+  }
+  return null;
 }
 
 function nextTierLabel(currentLabel: string): string | null {
@@ -373,6 +385,33 @@ export function renderSelectedUnitInfo(
       btn.style.cursor = 'not-allowed';
       btn.title = blockerTitle;
       actionsDiv.appendChild(btn);
+    }
+  }
+
+  if (unit.type === 'missionary') {
+    const charges = unit.chargesRemaining ?? 0;
+    const chargeDiv = document.createElement('div');
+    chargeDiv.style.cssText = 'font-size:10px;opacity:0.75;margin-top:6px;';
+    chargeDiv.textContent = `Missionary Charges: ${charges}`;
+    wrapper.appendChild(chargeDiv);
+
+    const onCooldown = (unit.missionaryCooldownUntilTurn ?? 0) > state.turn;
+    const eligibleCityId = charges > 0 && !onCooldown ? findEligiblePreachTargetCityId(state, unit) : null;
+    if (callbacks.onPreach) {
+      if (eligibleCityId) {
+        const btn = makeButton('Preach', '#b39ddb', () => callbacks.onPreach!(unit.id, eligibleCityId));
+        btn.title = 'Push this city toward your faith. Uses one charge — the missionary is used up after its last charge.';
+        actionsDiv.appendChild(btn);
+      } else if (charges > 0) {
+        const btn = makeButton('Preach', '#b39ddb');
+        btn.disabled = true;
+        btn.style.opacity = '0.5';
+        btn.style.cursor = 'not-allowed';
+        btn.title = onCooldown
+          ? 'This missionary is resting after its last preach — try again in a few turns.'
+          : 'No eligible city nearby — move next to a discovered city that is not a holy city and not held by a civ you are at war with.';
+        actionsDiv.appendChild(btn);
+      }
     }
   }
 

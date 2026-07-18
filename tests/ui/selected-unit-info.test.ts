@@ -295,6 +295,103 @@ function makeWorkerState(tileOverrides: Record<string, unknown>, unitOverrides: 
   } as unknown as GameState;
 }
 
+function makeMissionaryState(overrides: {
+  chargesRemaining?: number;
+  missionaryCooldownUntilTurn?: number;
+  cityDiscovered?: boolean;
+} = {}): GameState {
+  const targetPos: HexCoord = { q: 1, r: 0 };
+  return {
+    turn: 10,
+    era: 3,
+    currentPlayer: 'player',
+    gameOver: false,
+    winner: null,
+    map: { width: 10, height: 10, tiles: {}, wrapsHorizontally: false, rivers: [] },
+    units: {
+      'missionary-1': {
+        id: 'missionary-1', type: 'missionary', owner: 'player',
+        position: { q: 0, r: 0 }, movementPointsLeft: 2, health: 100,
+        experience: 0, hasMoved: false, hasActed: false, isResting: false,
+        chargesRemaining: overrides.chargesRemaining ?? 2,
+        missionaryCooldownUntilTurn: overrides.missionaryCooldownUntilTurn,
+      },
+    },
+    cities: {
+      'target-city': {
+        id: 'target-city', name: 'Target City', owner: 'other', position: targetPos,
+        population: 4, food: 0, foodNeeded: 20, buildings: [], productionQueue: [],
+        productionProgress: 0, ownedTiles: [targetPos], workedTiles: [], focus: 'balanced',
+        maturity: 'outpost', unrestLevel: 0, unrestTurns: 0, spyUnrestBonus: 0,
+      },
+    },
+    civilizations: {
+      player: {
+        color: '#fff',
+        techState: { completed: [] },
+        diplomacy: { atWarWith: [] },
+        visibility: { tiles: overrides.cityDiscovered !== false ? { [hexKey(targetPos)]: 'visible' } : {} },
+      },
+    },
+    religions: { 'religion-player': { id: 'religion-player', name: 'Test Faith', ownerCivId: 'player', foundedTurn: 1 } },
+    cityFaith: {},
+  } as unknown as GameState;
+}
+
+describe('renderSelectedUnitInfo — missionary Preach button (#592)', () => {
+  beforeEach(installMockDocument);
+  afterEach(restoreMockDocument);
+
+  it('shows a Preach button with help text for a missionary adjacent to an eligible city, and calls onPreach on click', () => {
+    const state = makeMissionaryState();
+    const onPreach = vi.fn();
+    const container = new MockElement('div');
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'missionary-1', { onPreach });
+
+    const button = findButtons(container).find(b => b.textContent === 'Preach');
+    expect(button).toBeDefined();
+    expect(button!.title).toBeTruthy();
+    button!.click();
+    expect(onPreach).toHaveBeenCalledWith('missionary-1', 'target-city');
+  });
+
+  it('does not show an enabled Preach button when the missionary has 0 charges', () => {
+    const state = makeMissionaryState({ chargesRemaining: 0 });
+    const container = new MockElement('div');
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'missionary-1', { onPreach: vi.fn() });
+
+    const button = findButtons(container).find(b => b.textContent === 'Preach');
+    expect(button).toBeUndefined();
+  });
+
+  it('shows a disabled Preach button on cooldown', () => {
+    const state = makeMissionaryState({ missionaryCooldownUntilTurn: 999 });
+    const container = new MockElement('div');
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'missionary-1', { onPreach: vi.fn() });
+
+    const button = findButtons(container).find(b => b.textContent === 'Preach');
+    expect(button).toBeDefined();
+    expect(button!.disabled).toBe(true);
+  });
+
+  it('shows a disabled Preach button when no eligible city is nearby (undiscovered)', () => {
+    const state = makeMissionaryState({ cityDiscovered: false });
+    const container = new MockElement('div');
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'missionary-1', { onPreach: vi.fn() });
+
+    const button = findButtons(container).find(b => b.textContent === 'Preach');
+    expect(button).toBeDefined();
+    expect(button!.disabled).toBe(true);
+  });
+
+  it('shows the missionary charge count', () => {
+    const state = makeMissionaryState({ chargesRemaining: 1 });
+    const container = new MockElement('div');
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'missionary-1', { onPreach: vi.fn() });
+    expect(collectAllText(container)).toContain('Missionary Charges: 1');
+  });
+});
+
 describe('renderSelectedUnitInfo — hunt crisis foe label (MR3)', () => {
   beforeEach(installMockDocument);
   afterEach(restoreMockDocument);
