@@ -608,6 +608,17 @@ describe('crisis notification routing', () => {
     expect(calls[0]!.message).toContain('Quarantine the city');
   });
 
+  it('uses the affected civilization personal era rather than World Age for crisis naming', () => {
+    const state = makeState({ era: 4 });
+    state.civilizations.p1.techState = { completed: [], currentResearch: null, researchProgress: 0, researchQueue: [], trackPriorities: {} } as any;
+    const { sink, calls } = makeSink();
+
+    routeCrisisStarted(state, { crisisId: 'crisis-1', flavorId: 'plague', civId: 'p1', cityIds: ['c1'] }, sink);
+
+    expect(calls[0]?.message).toContain('The Sweating Sickness');
+    expect(calls[0]?.message).not.toContain('The Great Pestilence');
+  });
+
   it('routes crisis:started for a catastrophe flavor too (routing is flavor-generic, no outbreak-only assumption)', () => {
     const state = makeState({
       era: 2,
