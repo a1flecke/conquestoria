@@ -594,6 +594,44 @@ describe('getTrainableUnitsForCity', () => {
   });
 });
 
+describe('missionary trainability (#592)', () => {
+  function makeCity(buildings: string[]): City {
+    return {
+      id: 'c1', buildings, ownedTiles: [], grid: [[null]],
+      food: 0, foodNeeded: 10, population: 1,
+      productionQueue: [], productionProgress: 0,
+      focus: 'balanced', maturity: 'city',
+      unrestLevel: 0, unrestTurns: 0, spyUnrestBonus: 0,
+      position: { q: 0, r: 0 }, owner: 'p1',
+    } as any;
+  }
+  const map = { tiles: {}, width: 10, height: 10, wrap: false } as any;
+
+  it('is NOT trainable without a founded religion (followsOwnFaith omitted, defaults false)', () => {
+    const city = makeCity(['temple']);
+    const trainable = getTrainableUnitsForCity(city, [], map).map(u => u.type);
+    expect(trainable).not.toContain('missionary');
+  });
+
+  it('is NOT trainable without a Temple, even with own faith true', () => {
+    const city = makeCity([]);
+    const trainable = getTrainableUnitsForCity(city, [], map, undefined, undefined, true).map(u => u.type);
+    expect(trainable).not.toContain('missionary');
+  });
+
+  it('is NOT trainable when the city follows a foreign faith (followsOwnFaith explicitly false)', () => {
+    const city = makeCity(['temple']);
+    const trainable = getTrainableUnitsForCity(city, [], map, undefined, undefined, false).map(u => u.type);
+    expect(trainable).not.toContain('missionary');
+  });
+
+  it('IS trainable when religion founded + own faith + Temple all hold', () => {
+    const city = makeCity(['temple']);
+    const trainable = getTrainableUnitsForCity(city, [], map, undefined, undefined, true).map(u => u.type);
+    expect(trainable).toContain('missionary');
+  });
+});
+
 describe('processCity', () => {
   it('adds food per turn and grows population', () => {
     const map = generateMap(30, 30, 'city-test');

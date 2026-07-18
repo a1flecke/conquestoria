@@ -1558,7 +1558,7 @@ describe('journey automation', () => {
     state.cityFaith = { [capital.id]: { religionId, isHolyCity: true } };
 
     const next = processTurn(state, new EventBus());
-    expect(next.cityFaith?.[neighbor.id]?.conversionProgress?.toReligionId).toBe(religionId);
+    expect(next.cityFaith?.[neighbor.id]?.conversionProgress?.[religionId]).toBeGreaterThan(0);
   });
 
   it('#591 MR4: completing Sacred Council founds a religion at the building city', () => {

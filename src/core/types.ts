@@ -338,7 +338,7 @@ export interface LastSeenTilePresentation {
 // --- Units ---
 
 export type UnitType =
-  | 'settler' | 'worker' | 'scout' | 'warrior' | 'archer'
+  | 'settler' | 'worker' | 'scout' | 'warrior' | 'archer' | 'missionary'
   | 'swordsman' | 'pikeman' | 'musketeer' | 'galley' | 'trireme'
   | 'axeman' | 'spearman' | 'horseman' | 'cavalry' | 'knight'
   | 'crossbowman' | 'catapult' | 'ballista' | 'cannon' | 'grenadier' | 'marine' | 'rifleman' | 'ironclad'
@@ -419,6 +419,7 @@ export interface Unit {
   hasMoved: boolean;
   hasActed: boolean;         // used action this turn (build, found, etc.)
   chargesRemaining?: number; // workers default to 2; omitted on legacy saves
+  missionaryCooldownUntilTurn?: number; // set after preach(); missionary can't preach again until state.turn >= this
   workerTask?: WorkerTask;    // active multi-turn improvement the worker is assigned to
   isResting: boolean;        // player explicitly chose to rest/heal this turn
   skippedTurn?: boolean;     // player chose to hold this unit out of unit cycling this turn
@@ -1255,7 +1256,8 @@ export type AIStrategicRole =
   | 'worker'
   | 'resource-expedition'
   | 'trade'
-  | 'espionage';
+  | 'espionage'
+  | 'missionary';
 
 export type AIStrategicObjective =
   | 'defend'
@@ -1603,7 +1605,20 @@ export interface Religion {
 export interface CityFaith {
   religionId: string;
   isHolyCity?: true;      // founding city — permanently immune to conversion, under ANY owner
-  conversionProgress?: { toReligionId: string; points: number };  // converts at CONVERSION_THRESHOLD
+  // Per-religion progress ledger (MR5, #592): keyed by candidate religionId, NOT a single
+  // slot. This lets ambient passive pressure toward religion A accumulate independently of
+  // missionary-driven preach progress toward religion B in the same city — previously a
+  // single {toReligionId, points} slot meant a preach investment could be silently wiped
+  // out the moment ambient pressure pointed elsewhere. Conversion fires for whichever
+  // religionId's bucket first reaches CONVERSION_THRESHOLD.
+  conversionProgress?: Record<string, number>;
+  // MR5 anti-flip-flop guard: once set, no religionId OTHER than conversionCooldownExemptCivId's
+  // faith may convert this city until state.turn >= conversionCooldownUntilTurn. The exempt
+  // civ (the city's owner at the moment of the LAST conversion) can always re-convert its own
+  // city immediately — this preserves "preach a flipped city back" as an owner privilege while
+  // still stopping rival faiths from ping-ponging a border city turn after turn.
+  conversionCooldownUntilTurn?: number;
+  conversionCooldownExemptCivId?: string;
   // loyaltyProgress added by MR6 (#593)
 }
 
@@ -1872,6 +1887,7 @@ export interface GameEvents {
   'crisis:started':   { crisisId: string; flavorId: string; civId: string; cityIds: string[] };
   'religion:founded': { religionId: string; civId: string; cityId: string; name: string };
   'religion:city-converted': { cityId: string; toReligionId: string; fromReligionId?: string };
+  'religion:preached': { cityId: string; unitId: string; civId: string; points: number; unitConsumed: boolean };
   'crisis:spread':    { crisisId: string; fromCityId: string; toCityId: string };
   // civId/foeName are populated for Hunt transitions (spawn -> menacing, menacing ->
   // assaulting) — carried directly rather than re-read from state because both are set

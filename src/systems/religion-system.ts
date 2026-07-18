@@ -1,13 +1,16 @@
-import type { City, GameState, Religion, ReligionBoon } from '@/core/types';
+import type { City, CityFaith, GameState, Religion, ReligionBoon } from '@/core/types';
 import type { EventBus } from '@/core/event-bus';
 import { seededLcg } from './seeded-lcg';
 import {
   NAME_CANDIDATES, NEUTRAL_NAME_CANDIDATES, CONVERSION_THRESHOLD,
   OWN_CITY_ACCRUAL, FOREIGN_ADJACENT_ACCRUAL, FOREIGN_ADJACENT_CAP,
-  TRADE_ROUTE_ACCRUAL, FERVOR_MULTIPLIER, TITHES_CAP,
+  TRADE_ROUTE_ACCRUAL, FERVOR_MULTIPLIER, TITHES_CAP, OCCUPATION_ACCRUAL,
+  CITY_CONVERSION_COOLDOWN_TURNS, PREACH_POINTS, PREACH_OCCUPIED_DOUBLE,
+  MISSIONARY_ACTION_COOLDOWN_TURNS,
 } from './religion-definitions';
 import { getCapitalCityId } from './capital-system';
 import { mapDistance } from './hex-utils';
+import { hasDiscoveredCity } from './discovery-system';
 
 function pickReligionName(civType: string, seed: number): string {
   const pool = NAME_CANDIDATES[civType] ?? NEUTRAL_NAME_CANDIDATES;
@@ -134,12 +137,37 @@ export function getStrongestPressure(state: GameState, cityId: string): Religion
   return { religionId: sorted[0][0], accrual: sorted[0][1] };
 }
 
-// Passive faith spread + conversion (#591 MR4). Holy cities never accrue. A city tracks
-// progress toward exactly one target religion at a time (the current strongest); if the
-// strongest religion changes to a DIFFERENT one, progress resets for the new target —
-// "weaker records stall but are not erased" describes OTHER cities' independent
-// progress, not a multi-target ledger inside a single city (the CityFaith type only
-// ever holds one conversionProgress record).
+// #592 MR5: reads one religion's bucket from the per-religion progress ledger (see
+// CityFaith.conversionProgress doc comment in types.ts).
+export function getCityConversionPoints(faith: CityFaith | undefined, religionId: string): number {
+  return faith?.conversionProgress?.[religionId] ?? 0;
+}
+
+// Adds `delta` points to religionId's own bucket in cityFaith.conversionProgress,
+// independent of any other religion's bucket. Returns the updated CityFaith and whether
+// this delta pushed that bucket to/over CONVERSION_THRESHOLD (caller decides whether/how
+// to apply the actual flip — this helper never mutates religionId itself).
+export function applyCityConversionPoints(
+  faith: CityFaith | undefined,
+  religionId: string,
+  delta: number,
+): { cityFaith: CityFaith; converted: boolean } {
+  const currentPoints = getCityConversionPoints(faith, religionId);
+  const nextPoints = currentPoints + delta;
+  const converted = nextPoints >= CONVERSION_THRESHOLD;
+  const nextProgress = { ...(faith?.conversionProgress ?? {}), [religionId]: nextPoints };
+  return {
+    cityFaith: { ...(faith ?? { religionId }), conversionProgress: nextProgress },
+    converted,
+  };
+}
+
+// Passive faith spread + conversion (#591 MR4, restructured #592 MR5 for independent
+// per-religion progress buckets — see CityFaith.conversionProgress doc comment in
+// types.ts). Holy cities never accrue. Cities under an active conversionCooldownUntilTurn
+// only accrue toward conversionCooldownExemptCivId's religion (or their current religion,
+// if that religion belongs to the exempt civ) — rival religions' passive pressure is
+// paused, not reset, during the cooldown window.
 export function processReligionTurn(state: GameState, bus: EventBus): GameState {
   const cityFaithMap = state.cityFaith ?? {};
   let cityFaith = { ...cityFaithMap };
@@ -151,33 +179,184 @@ export function processReligionTurn(state: GameState, bus: EventBus): GameState 
 
     const pressure = getStrongestPressure(state, cityId);
     if (!pressure) continue;
-    // Skip only a SETTLED follower of the strongest religion (no conversionProgress —
+    // Skip only a SETTLED follower of the strongest religion (no progress toward it —
     // it already fully converted). A city mid-conversion toward this same religion has
     // religionId set to the pending target from its first accrual turn (see below) but
     // must NOT be skipped here, or it would freeze at turn-1's point total forever.
-    if (faith?.religionId === pressure.religionId && !faith?.conversionProgress) continue;
+    if (faith?.religionId === pressure.religionId && !getCityConversionPoints(faith, pressure.religionId)) continue;
 
-    const existingProgress = faith?.conversionProgress;
-    const carriedPoints = existingProgress?.toReligionId === pressure.religionId ? existingProgress.points : 0;
-    const nextPoints = carriedPoints + pressure.accrual;
+    const cooldownActive = (faith?.conversionCooldownUntilTurn ?? 0) > state.turn;
+    const exemptCivId = faith?.conversionCooldownExemptCivId;
+    const pressureReligion = state.religions?.[pressure.religionId];
+    const pressureIsExempt = !!exemptCivId && pressureReligion?.ownerCivId === exemptCivId;
+    if (cooldownActive && !pressureIsExempt) continue; // rival religion's passive pressure is paused during cooldown
 
-    if (nextPoints >= CONVERSION_THRESHOLD) {
+    const { cityFaith: updatedFaith, converted } = applyCityConversionPoints(faith, pressure.religionId, pressure.accrual);
+
+    if (converted) {
       const fromReligionId = faith?.religionId;
-      cityFaith = { ...cityFaith, [cityId]: { religionId: pressure.religionId } };
+      const cityOwner = state.cities[cityId]?.owner;
+      cityFaith = {
+        ...cityFaith,
+        [cityId]: {
+          religionId: pressure.religionId,
+          conversionCooldownUntilTurn: state.turn + CITY_CONVERSION_COOLDOWN_TURNS,
+          conversionCooldownExemptCivId: cityOwner,
+        },
+      };
       changed = true;
       bus.emit('religion:city-converted', { cityId, toReligionId: pressure.religionId, fromReligionId });
     } else {
       cityFaith = {
         ...cityFaith,
-        [cityId]: {
-          ...(faith ?? {}),
-          religionId: faith?.religionId ?? pressure.religionId,
-          conversionProgress: { toReligionId: pressure.religionId, points: nextPoints },
-        },
+        [cityId]: { ...updatedFaith, religionId: faith?.religionId ?? pressure.religionId },
       };
       changed = true;
     }
   }
 
+  return processOccupationAccrual(changed ? { ...state, cityFaith } : state, bus);
+}
+
+// #592 MR5: cities under occupation accrue toward the OCCUPYING civ's faith every turn,
+// independent of geography/trade pressure — this is what makes missionary-zeal's doubled
+// preach on occupied cities land on top of a baseline that's already moving. Stops the
+// moment occupation ends (city.occupation cleared elsewhere when turnsRemaining hits 0).
+function processOccupationAccrual(state: GameState, bus: EventBus): GameState {
+  let cityFaith = { ...(state.cityFaith ?? {}) };
+  let changed = false;
+
+  for (const [cityId, city] of Object.entries(state.cities)) {
+    if (!city.occupation) continue;
+    const occupierReligion = Object.values(state.religions ?? {}).find(r => r.ownerCivId === city.owner);
+    if (!occupierReligion) continue;
+    const faith = cityFaith[cityId];
+    if (faith?.isHolyCity) continue;
+
+    const { cityFaith: updatedFaith, converted } = applyCityConversionPoints(faith, occupierReligion.id, OCCUPATION_ACCRUAL);
+    if (converted) {
+      const fromReligionId = faith?.religionId;
+      cityFaith = {
+        ...cityFaith,
+        [cityId]: {
+          religionId: occupierReligion.id,
+          conversionCooldownUntilTurn: state.turn + CITY_CONVERSION_COOLDOWN_TURNS,
+          conversionCooldownExemptCivId: city.owner,
+        },
+      };
+      bus.emit('religion:city-converted', { cityId, toReligionId: occupierReligion.id, fromReligionId });
+    } else {
+      cityFaith = { ...cityFaith, [cityId]: { ...updatedFaith, religionId: faith?.religionId ?? occupierReligion.id } };
+    }
+    changed = true;
+  }
+
   return changed ? { ...state, cityFaith } : state;
+}
+
+export type PreachFailureReason = 'not-missionary' | 'no-charges' | 'on-cooldown' | 'holy-city' | 'at-war' | 'undiscovered' | 'no-religion';
+
+export type PreachResult =
+  | { ok: true; state: GameState; converted: boolean; unitConsumed: boolean }
+  | { ok: false; state: GameState; reason: PreachFailureReason };
+
+// Returns whether `unit` (assumed to be a missionary belonging to a civ with a founded
+// religion) could currently preach `cityId` — the same refusal conditions preach() itself
+// checks, exposed read-only so UI eligibility (which city to show a Preach button for) can
+// never drift from the actual gate. Does not check charges/cooldown on the unit itself,
+// since callers that already know charges > 0 (e.g. the UI charge check) call this only
+// for the target-city-side conditions; preach() re-checks unit-side conditions itself.
+export function canPreachTarget(state: GameState, unit: { owner: string }, cityId: string): boolean {
+  const city = state.cities[cityId];
+  if (!city) return false;
+  const faith = state.cityFaith?.[cityId];
+  if (faith?.isHolyCity) return false;
+
+  const owner = state.civilizations[unit.owner];
+  if (!owner) return false;
+  if ((owner.diplomacy.atWarWith ?? []).includes(city.owner)) return false;
+  if (!hasDiscoveredCity(state, unit.owner, cityId)) return false;
+
+  return Object.values(state.religions ?? {}).some(r => r.ownerCivId === unit.owner);
+}
+
+// #592 MR5: active conversion via missionary preach. Grants PREACH_POINTS toward the
+// owner's own religion (doubled to PREACH_OCCUPIED_DOUBLE if the owner has completed
+// missionary-zeal AND the target city is currently under that owner's occupation),
+// consumes one charge, and puts the missionary on a personal cooldown — or consumes the
+// unit outright if that was its last charge. A successful conversion also starts the
+// city's anti-flip-flop cooldown (see CityFaith.conversionCooldownUntilTurn), exempting
+// the city's own owner so a future re-preach back to their own faith is never blocked.
+export function preach(state: GameState, unitId: string, cityId: string, bus: EventBus): PreachResult {
+  const unit = state.units[unitId];
+  const city = state.cities[cityId];
+  if (!unit || unit.type !== 'missionary' || !city) {
+    return { ok: false, state, reason: 'not-missionary' };
+  }
+  if ((unit.chargesRemaining ?? 0) <= 0) return { ok: false, state, reason: 'no-charges' };
+  if ((unit.missionaryCooldownUntilTurn ?? 0) > state.turn) return { ok: false, state, reason: 'on-cooldown' };
+
+  const faith = state.cityFaith?.[cityId];
+  if (faith?.isHolyCity) return { ok: false, state, reason: 'holy-city' };
+
+  const owner = state.civilizations[unit.owner];
+  if (!owner) return { ok: false, state, reason: 'not-missionary' };
+
+  if ((owner.diplomacy.atWarWith ?? []).includes(city.owner)) return { ok: false, state, reason: 'at-war' };
+  if (!hasDiscoveredCity(state, unit.owner, cityId)) return { ok: false, state, reason: 'undiscovered' };
+
+  const religion = Object.values(state.religions ?? {}).find(r => r.ownerCivId === unit.owner);
+  if (!religion) return { ok: false, state, reason: 'no-religion' };
+
+  const hasZeal = owner.techState.completed.includes('missionary-zeal');
+  const isDoubled = hasZeal && !!city.occupation;
+  const pointsGranted = isDoubled ? PREACH_OCCUPIED_DOUBLE : PREACH_POINTS;
+
+  const { cityFaith: updatedFaith, converted } = applyCityConversionPoints(faith, religion.id, pointsGranted);
+
+  let cityFaith = { ...(state.cityFaith ?? {}) };
+  if (converted) {
+    cityFaith = {
+      ...cityFaith,
+      [cityId]: {
+        religionId: religion.id,
+        conversionCooldownUntilTurn: state.turn + CITY_CONVERSION_COOLDOWN_TURNS,
+        conversionCooldownExemptCivId: city.owner,
+      },
+    };
+    bus.emit('religion:city-converted', { cityId, toReligionId: religion.id, fromReligionId: faith?.religionId });
+  } else {
+    cityFaith = { ...cityFaith, [cityId]: { ...updatedFaith, religionId: faith?.religionId ?? religion.id } };
+  }
+
+  const chargesRemaining = (unit.chargesRemaining ?? 0) - 1;
+  const unitConsumed = chargesRemaining <= 0;
+
+  let units = state.units;
+  if (unitConsumed) {
+    const { [unitId]: _removed, ...rest } = state.units;
+    units = rest;
+  } else {
+    units = {
+      ...state.units,
+      [unitId]: { ...unit, chargesRemaining, missionaryCooldownUntilTurn: state.turn + MISSIONARY_ACTION_COOLDOWN_TURNS },
+    };
+  }
+
+  let civilizations = state.civilizations;
+  if (unitConsumed) {
+    civilizations = {
+      ...state.civilizations,
+      [unit.owner]: { ...owner, units: owner.units.filter(id => id !== unitId) },
+    };
+  }
+
+  bus.emit('religion:preached', { cityId, unitId, civId: unit.owner, points: pointsGranted, unitConsumed });
+
+  return {
+    ok: true,
+    state: { ...state, cityFaith, units, civilizations },
+    converted,
+    unitConsumed,
+  };
 }

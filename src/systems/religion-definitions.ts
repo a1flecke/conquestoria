@@ -11,6 +11,21 @@ export const OCCUPATION_ACCRUAL = 5;
 export const FERVOR_MULTIPLIER = 1.25;
 export const TITHES_CAP = 10;
 
+// #592 MR5: missionary unit + active preach conversion.
+export const MISSIONARY_COST = 16;
+export const MISSIONARY_BASE_CHARGES = 2;
+export const MISSIONARY_ZEAL_CHARGES = 3;
+export const PREACH_POINTS = 50;
+export const PREACH_OCCUPIED_DOUBLE = 100;
+// A missionary that just preached needs to "rest" before preaching again — reflects the
+// action itself plus recovery, same framing as a worker's multi-turn improvement build.
+export const MISSIONARY_ACTION_COOLDOWN_TURNS = 3;
+// Anti-flip-flop guard: once a city converts, it can't flip to a DIFFERENT rival religion
+// again for this many turns. The city's own owner (at the moment of conversion) is always
+// exempt, so preaching a just-flipped city back to its owner's faith is never blocked by
+// this cooldown — see CityFaith.conversionCooldownExemptCivId.
+export const CITY_CONVERSION_COOLDOWN_TURNS = 7;
+
 // Invented, culture-flavored faith names — NEVER real-world religions (project
 // convention, matches wonder/quest content rules). 2 candidates per civ id; seeded
 // pick + player rename at founding.

@@ -24,6 +24,7 @@ const ROLE_OVERRIDES: Partial<Record<UnitType, readonly AIStrategicRole[]>> = {
   expedition: ['resource-expedition', 'recon'],
   settler: ['settlement'],
   worker: ['worker'],
+  missionary: ['missionary'],
   spy_scout: ['espionage', 'recon'],
   spy_informant: ['espionage'],
   spy_agent: ['espionage'],

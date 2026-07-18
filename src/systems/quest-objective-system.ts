@@ -3,7 +3,7 @@ import { calculateCivEconomy } from './economy-system';
 import { getCivAvailableResources } from './resource-acquisition-system';
 import { RESOURCE_DEFINITIONS } from './resource-definitions';
 import { calculateProjectedCityYields } from './city-work-system';
-import { getProductionCostForItem, getTrainableUnitsForCity } from './city-system';
+import { getProductionCostForItem, getTrainableUnitsForCity, cityFollowsOwnFaith } from './city-system';
 import { getActiveNationalProjectsForCiv } from './national-project-system';
 import { resolveCivDefinition } from './civ-registry';
 import { resolveCivilizationEra } from './tech-definitions';
@@ -109,6 +109,7 @@ export function estimateCaravanReadyTurns(state: GameState, majorCivId: string, 
     state.map,
     civ.civType,
     availableResources,
+    cityFollowsOwnFaith(state, city),
   ).some(unit => unit.type === 'caravan');
   const queued = city.productionQueue.includes('caravan');
   if (!trainable && !queued) return Number.POSITIVE_INFINITY;

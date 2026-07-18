@@ -291,7 +291,8 @@ export function getMinorCivBuildCandidates(
   const pressureEra = resolveNeutralPressureEra(state, city.position) ?? 1;
   const buildings = getAvailableBuildings(city, completedTechs, state.map, resources, pressureEra)
     .filter(building => !building.nationalProject && !building.uniquePerEmpire && !UNSAFE_BUILDING_IDS.has(building.id));
-  const units = getTrainableUnitsForCity(city, completedTechs, state.map, undefined, resources)
+  // minor civs never found a religion — missionary never trainable here
+  const units = getTrainableUnitsForCity(city, completedTechs, state.map, undefined, resources, false)
     .filter(unit => !UNSAFE_UNIT_TYPES.has(unit.type));
 
   return { buildings, units };

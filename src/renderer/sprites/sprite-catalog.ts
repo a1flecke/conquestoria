@@ -86,6 +86,7 @@ type UnitMotionStyle = 'humanoid' | 'animal' | 'naval' | 'air';
 const UNIT_MOTION_STYLES: Record<UnitType, UnitMotionStyle> = {
   settler: 'humanoid',
   worker: 'humanoid',
+  missionary: 'humanoid',
   scout: 'humanoid',
   scout_hound: 'animal',
   war_hound: 'animal',
@@ -207,6 +208,8 @@ function withMotion(type: UnitType, render: UnitSpriteComponent): UnitSpriteComp
 export const UNIT_SPRITE_CATALOG: Record<UnitType, UnitSpriteComponent> = {
   settler:        withMotion('settler', SettlerSprite),
   worker:         withMotion('worker', WorkerSprite),
+  // Placeholder art (#592 MR5) — reuses WorkerSprite until bespoke missionary art ships in MR7 (#594).
+  missionary:     withMotion('missionary', WorkerSprite),
   scout:          withMotion('scout', ScoutSprite),
   scout_hound:    withMotion('scout_hound', ScoutHoundSprite),
   war_hound:      withMotion('war_hound', WarHoundSprite),

@@ -42,6 +42,11 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     visionRange: 2, strength: 0, canFoundCity: false,
     canBuildImprovements: true, productionCost: 12,
   },
+  missionary: {
+    type: 'missionary', name: 'Missionary', movementPoints: 2,
+    visionRange: 2, strength: 0, canFoundCity: false,
+    canBuildImprovements: false, productionCost: 16,
+  },
   scout: {
     type: 'scout', name: 'Scout', movementPoints: 3,
     visionRange: 3, strength: 5, canFoundCity: false,
@@ -641,6 +646,7 @@ export function restUnit(unit: Unit): Unit {
 export const UNIT_DESCRIPTIONS: Record<UnitType, string> = {
   settler: 'Civilian unit that can found new cities',
   worker: 'Civilian unit that builds tile improvements. Workers have 2 action charges by default and are used up after spending the last charge.',
+  missionary: 'Civilian unit that spreads your faith. Preach in a city to push it toward your religion — preaching a city your own faith already lost brings it back fastest. Missionaries start with 2 charges (3 once Missionary Zeal is researched) and are used up after the last charge.',
   scout: 'Fast exploration unit with extended vision',
   warrior: 'Basic melee fighter — your first line of defense. Cheap fallback that fades out once real militaries exist; upgrades into the spearman.',
   archer: 'Ranged unit that attacks from a distance. Upgrades into the crossbowman once Tactics is researched and Copper is available.',

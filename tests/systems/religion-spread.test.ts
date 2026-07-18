@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { EventBus } from '@/core/event-bus';
 import type { City, GameState, HexCoord, HexTile } from '@/core/types';
 import { foundReligion, getStrongestPressure, processReligionTurn } from '@/systems/religion-system';
-import { CONVERSION_THRESHOLD } from '@/systems/religion-definitions';
+import { CONVERSION_THRESHOLD, CITY_CONVERSION_COOLDOWN_TURNS } from '@/systems/religion-definitions';
 import { makeReligionFixture } from './helpers/religion-fixture';
 import { hexKey } from '@/systems/hex-utils';
 
@@ -100,10 +100,10 @@ describe('#591 MR4 — processReligionTurn', () => {
     const founded = foundReligion(state, civId, templeCity, new EventBus());
     const withNeighbor = addCity(founded, 'own-neighbor', civId, { q: 6, r: 0 });
     const next = processReligionTurn(withNeighbor, new EventBus());
-    expect(next.cityFaith!['own-neighbor'].conversionProgress).toEqual({ toReligionId: `religion-${civId}`, points: 15 });
+    expect(next.cityFaith!['own-neighbor'].conversionProgress).toEqual({ [`religion-${civId}`]: 15 });
   });
 
-  it('converts a city at >= threshold points, fires religion:city-converted, clears progress', () => {
+  it('converts a city at >= threshold points, fires religion:city-converted, starts anti-flip-flop cooldown', () => {
     const { state, civId, templeCity } = makeReligionFixture();
     const founded = foundReligion(state, civId, templeCity, new EventBus());
     let working = addCity(founded, 'own-neighbor', civId, {
@@ -111,37 +111,47 @@ describe('#591 MR4 — processReligionTurn', () => {
     }, {});
     working = {
       ...working,
-      cityFaith: { ...working.cityFaith, 'own-neighbor': { conversionProgress: { toReligionId: `religion-${civId}`, points: CONVERSION_THRESHOLD - 10 } } as any },
+      cityFaith: { ...working.cityFaith, 'own-neighbor': { religionId: `religion-${civId}`, conversionProgress: { [`religion-${civId}`]: CONVERSION_THRESHOLD - 10 } } },
     };
     const bus = new EventBus();
     const events: unknown[] = [];
     bus.on('religion:city-converted', e => events.push(e));
     const next = processReligionTurn(working, bus);
-    expect(next.cityFaith!['own-neighbor']).toEqual({ religionId: `religion-${civId}` });
+    expect(next.cityFaith!['own-neighbor']).toEqual({
+      religionId: `religion-${civId}`,
+      conversionCooldownUntilTurn: working.turn + CITY_CONVERSION_COOLDOWN_TURNS,
+      conversionCooldownExemptCivId: civId,
+    });
     expect(events).toHaveLength(1);
   });
 
-  it('resets points when the strongest target religion changes to a different one', () => {
+  it('#592 MR5: an ambient-target switch does NOT reset an existing religion bucket — buckets are independent per religion', () => {
     const { state, civId, templeCity, otherCivId, otherCity } = makeReligionFixture();
     let working = foundReligion(state, civId, templeCity, new EventBus());
     working = foundReligion(working, otherCivId, otherCity, new EventBus());
     working = addCity(working, 'contested', 'p3', { q: 6, r: 0 }); // adjacent to templeCity only initially
     working = {
       ...working,
-      cityFaith: { ...working.cityFaith, contested: { religionId: `religion-${civId}`, conversionProgress: { toReligionId: `religion-${civId}`, points: 50 } } as any },
+      cityFaith: { ...working.cityFaith, contested: { religionId: `religion-${civId}`, conversionProgress: { [`religion-${civId}`]: 50 } } },
     };
     // Now make it ALSO adjacent to two of otherCiv's follower cities so the other
-    // religion's accrual (7*2=14) exceeds civId's own single-source accrual isn't
-    // possible here since 'contested' isn't civId's own city -- rebuild as a foreign
-    // city relative to both religions, with otherCivId's religion now stronger.
+    // religion's accrual (7*2=14) exceeds civId's own single-source accrual (7) — 'contested'
+    // is a foreign city relative to both religions, with otherCivId's religion now stronger.
     working = addCity(working, 'other-f1', otherCivId, { q: 5, r: 1 });
     working = { ...working, cityFaith: { ...working.cityFaith, 'other-f1': { religionId: `religion-${otherCivId}` } } };
     working = addCity(working, 'other-f2', otherCivId, { q: 7, r: -1 });
     working = { ...working, cityFaith: { ...working.cityFaith, 'other-f2': { religionId: `religion-${otherCivId}` } } };
     // contested is owned by 'p3' (foreign to both) -- adjacent to templeCity (civId, 1
-    // source, 7) and to other-f1/other-f2 (otherCivId, 2 sources, 14). otherCivId wins.
+    // source, 7) and to other-f1/other-f2 (otherCivId, 2 sources, 14). otherCivId wins the
+    // "strongest pressure" comparison, so its bucket accrues this turn — but civId's
+    // previously-banked 50 points must survive untouched (this is the #592 fix: a
+    // deliberate investment toward one religion is never wiped by ambient pressure
+    // pointing elsewhere in the same turn).
     const next = processReligionTurn(working, new EventBus());
-    expect(next.cityFaith!.contested.conversionProgress).toEqual({ toReligionId: `religion-${otherCivId}`, points: 14 });
+    expect(next.cityFaith!.contested.conversionProgress).toEqual({
+      [`religion-${civId}`]: 50,
+      [`religion-${otherCivId}`]: 14,
+    });
   });
 
   it('never accrues progress in a holy city, even under maximum pressure', () => {
@@ -165,7 +175,7 @@ describe('#591 MR4 — processReligionTurn', () => {
       working = processReligionTurn(working, new EventBus());
     }
     // 3 turns * 15/turn = 45, not frozen at 15 after turn 1.
-    expect(working.cityFaith!['own-neighbor'].conversionProgress).toEqual({ toReligionId: `religion-${civId}`, points: 45 });
+    expect(working.cityFaith!['own-neighbor'].conversionProgress).toEqual({ [`religion-${civId}`]: 45 });
   });
 
   it('does not re-touch a city that already fully converted (settled follower, no conversionProgress)', () => {
