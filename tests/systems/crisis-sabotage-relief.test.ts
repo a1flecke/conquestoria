@@ -80,6 +80,18 @@ describe('resolveMissionResult sabotage_relief eligibility', () => {
     expect(result.sabotageCrisisId).toBeUndefined();
   });
 
+  it('#590 MR3: is a no-op when the crisis is famine -- an explicit branch-audit decision, not an oversight (negative)', () => {
+    // Famine reuses outbreak's remedy timer shape (remedyCompletionByCity), so it is
+    // NOT structurally ineligible the way catastrophe is above -- this exclusion is a
+    // deliberate scope decision (not in #590's locked interfaces), not an accident of
+    // the mission's "has a remedy timer" check. If a future MR intentionally extends
+    // sabotage_relief to famine, this test should be updated, not deleted silently.
+    const state = makeCrisisGameState();
+    state.activeCrises!['crisis-1'] = { ...state.activeCrises!['crisis-1'], archetype: 'famine', flavorId: 'crop-blight' };
+    const result = resolveMissionResult('sabotage_relief', 'rival', 'city-rival-1', state, 'player', 'spy-1');
+    expect(result.sabotageCrisisId).toBeUndefined();
+  });
+
   it('is a no-op when the crisis already has an active sabotage -- one active sabotage per crisis, across all actors (negative)', () => {
     const state = makeCrisisGameState();
     state.activeCrises!['crisis-1'] = {

@@ -26,8 +26,9 @@ export {
 } from './crisis-interaction-definitions';
 
 // The city a send-aid payment is priced/applied against: the most populous city among
-// the crisis's own cityIds (works for both outbreak, where cityIds are the infected
-// cities, and catastrophe, where cityIds is the single devastated-tile owner's city).
+// the crisis's own cityIds (works for outbreak and famine (#590 MR3), where cityIds are
+// the afflicted cities, and catastrophe, where cityIds is the single devastated-tile
+// owner's city).
 function getSendAidCity(state: GameState, crisis: ActiveCrisis): City | undefined {
   return crisis.cityIds
     .map(id => state.cities[id])
