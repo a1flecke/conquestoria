@@ -206,6 +206,16 @@ function makeSink() {
 }
 
 describe('era:advanced notification', () => {
+  it('plays one notification cue for the active human seat when that civilization reaches a personal era', () => {
+    const main = readFileSync(resolve(PROJECT_ROOT, 'src/main.ts'), 'utf8');
+    const handler = main.slice(
+      main.indexOf("bus.on('civilization:era-advanced'"),
+      main.indexOf("bus.on('faction:unrest-started'"),
+    );
+
+    expect(handler).toContain('if (civId === gameState.currentPlayer) SFX.notification();');
+  });
+
   it('era 2 delivers to every human civ, with an extra unrest-primer line per civ', () => {
     const { sink, calls } = makeSink();
 

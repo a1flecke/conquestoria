@@ -16,6 +16,7 @@ import { applyCampDestructionAtTarget } from '@/systems/barbarian-system';
 import { applyCombatOutcomeToState } from '@/systems/combat-reward-system';
 import { deterministicCombatSeed, resolveCombat } from '@/systems/combat-system';
 import { buildCombatContextForDefender } from '@/systems/combat-context';
+import { resolveCombatEra } from '@/systems/era-resolution';
 import {
   beginMajorCityAssault,
   canUnitOccupyCity,
@@ -203,7 +204,7 @@ function executeAttack(
     next.map,
     seed,
     buildCombatContextForDefender(next, attacker, defender, { amphibiousAssault }),
-    next.era,
+    resolveCombatEra(next, attacker, defender),
   );
   const presentation = buildCombatPresentation(next, combat, attacker, defender);
   const applied = applyCombatOutcomeToState(next, combat, seed);

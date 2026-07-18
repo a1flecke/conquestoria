@@ -15,6 +15,7 @@ import { OPPONENT_CHALLENGE_PROFILES, resolveOpponentChallenge } from '@/core/op
 import { isAlwaysHostilePair } from '@/core/owner-kind';
 import { MINOR_CIV_DEFINITIONS } from './minor-civ-definitions';
 import { resolveWorldAge } from './tech-definitions';
+import { resolveCombatEra } from './era-resolution';
 import { createDiplomacyState, modifyRelationship } from './diplomacy-system';
 import { applyResearchBonus } from './tech-system';
 import {
@@ -478,7 +479,7 @@ function executePurposefulMinorCivOrders(
       nextState.map,
       seed,
       buildCombatContextForDefender(nextState, attacker, defender),
-      nextState.era,
+      resolveCombatEra(nextState, attacker, defender),
     );
     const presentation = buildCombatPresentation(nextState, result, attacker, defender);
     const attackerRouteId = attacker.committedToRouteId;
@@ -777,7 +778,7 @@ export function processScuffles(state: GameState, bus: EventBus): void {
             state.map,
             seed,
             buildCombatContextForDefender(state, attackerUnit, defenderUnit),
-            state.era,
+            resolveCombatEra(state, attackerUnit, defenderUnit),
           );
           attackerUnit.health = Math.max(1, attackerUnit.health - result.attackerDamage);
           defenderUnit.health = Math.max(1, defenderUnit.health - result.defenderDamage);
