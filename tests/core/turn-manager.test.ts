@@ -776,14 +776,17 @@ describe('processTurn', () => {
     expect(newState.units[newUnitId!].experience).toBe(0);
   });
 
-  it('checks era advancement after processing', () => {
+  it('advances World Age after a strict majority reaches the next personal era', () => {
     const state = createNewGame(undefined, 'turn-era', 'small');
     const bus = new EventBus();
     state.era = 1;
 
-    const era2Techs = TECH_TREE.filter(t => t.era === 2);
-    const needed = Math.ceil(era2Techs.length * 0.6);
-    state.civilizations.player.techState.completed = era2Techs.slice(0, needed).map(t => t.id);
+    const era2Techs = TECH_TREE.filter(t => t.era === 2 && t.countsForEraAdvancement !== false);
+    const needed = Math.ceil(era2Techs.length * 0.5);
+    const active = Object.values(state.civilizations).filter(civ => !civ.isEliminated).sort((a, b) => a.id.localeCompare(b.id));
+    for (const civ of active.slice(0, Math.floor(active.length / 2) + 1)) {
+      civ.techState.completed = era2Techs.slice(0, needed).map(t => t.id);
+    }
 
     const result = processTurn(state, bus);
     expect(result.era).toBe(2);

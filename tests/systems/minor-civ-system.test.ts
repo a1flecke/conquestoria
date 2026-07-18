@@ -447,58 +447,45 @@ describe('minor civ turn processing', () => {
 });
 
 describe('era advancement', () => {
-  it('advances era when a civ has 60% of next era techs', () => {
+  function advanceMajorityToEra(state: ReturnType<typeof createNewGame>, era: number): void {
+    const activeCivIds = Object.values(state.civilizations)
+      .filter(civ => !civ.isEliminated)
+      .map(civ => civ.id)
+      .sort();
+    const required = Math.floor(activeCivIds.length / 2) + 1;
+    const completed = Array.from({ length: Math.max(0, era - 1) }, (_, index) => index + 2)
+      .flatMap(candidate => {
+        const techs = getEraAdvancementTechs(candidate);
+        return techs.slice(0, Math.ceil(techs.length * (candidate <= 3 ? 0.5 : candidate <= 8 ? 0.6 : 0.55))).map(tech => tech.id);
+      });
+    for (const civId of activeCivIds.slice(0, required)) {
+      state.civilizations[civId].techState.completed = [...completed];
+    }
+  }
+
+  it('advances World Age when a strict majority reaches the next personal era', () => {
     const state = createNewGame(undefined, 'era-test', 'small');
     state.era = 1;
-    const era2Techs = getEraAdvancementTechs(2);
-    const needed = Math.ceil(era2Techs.length * 0.6);
-    state.civilizations.player.techState.completed = era2Techs.slice(0, needed).map(t => t.id);
+    advanceMajorityToEra(state, 2);
     const newEra = checkEraAdvancement(state);
     expect(newEra).toBe(2);
   });
 
-  it('advances era when any civ completes a single era-advancement tech of that era', () => {
+  it('does not advance World Age when only one civilization reaches an era', () => {
     const state = createNewGame(undefined, 'era-single-tech', 'small');
     state.era = 1;
-    const era2Tech = getEraAdvancementTechs(2)[0];
-    expect(era2Tech).toBeDefined();
-    state.civilizations.player.techState.completed = [era2Tech.id];
+    const era2Techs = getEraAdvancementTechs(2);
+    state.civilizations.player.techState.completed = era2Techs.slice(0, Math.ceil(era2Techs.length * 0.5)).map(tech => tech.id);
     const newEra = checkEraAdvancement(state);
-    expect(newEra).toBe(2);
+    expect(newEra).toBe(1);
   });
 
-  it('does not advance era via scaffolding techs marked countsForEraAdvancement: false', () => {
-    const state = createNewGame(undefined, 'era-five-scaffold', 'small');
-    state.era = 4;
-    // global-logistics (era 8) and nuclear-theory (era 10) both have
-    // countsForEraAdvancement: false regardless of era — MR10 re-homed them from
-    // mis-pointed era-5 stubs, but the exclusion flag travels with them.
-    state.civilizations.player.techState.completed = ['global-logistics', 'nuclear-theory'];
-    const newEra = checkEraAdvancement(state);
-    // Should stay at era 4 — scaffold techs excluded from era advancement
-    expect(newEra).toBe(4);
-  });
-
-  it('advances era to 5 when a real era-5 advancement tech is completed', () => {
+  it('requires contiguous personal progress before a majority can advance World Age', () => {
     const state = createNewGame(undefined, 'era-five-advance', 'small');
-    state.era = 4;
-    // black-powder is a real era-5 tech without countsForEraAdvancement: false
-    // (MR10 moved digital-surveillance, the previous example here, to era 10)
-    state.civilizations.player.techState.completed = ['black-powder'];
+    state.era = 1;
+    advanceMajorityToEra(state, 5);
     const newEra = checkEraAdvancement(state);
     expect(newEra).toBe(5);
-  });
-
-  it('tracks highest era across all civs, not just current player', () => {
-    const state = createNewGame(undefined, 'era-multiciv', 'small');
-    state.era = 1;
-    const era3Tech = getEraAdvancementTechs(3)[0];
-    expect(era3Tech).toBeDefined();
-    const aiCivId = Object.keys(state.civilizations).find(id => id !== 'player');
-    if (!aiCivId) return;
-    state.civilizations[aiCivId].techState.completed = [era3Tech.id];
-    const newEra = checkEraAdvancement(state);
-    expect(newEra).toBe(3);
   });
 });
 

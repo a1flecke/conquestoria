@@ -73,6 +73,7 @@ import { advanceRouteRunners } from '@/systems/unit-movement-system';
 import { processWonderEffects } from '@/systems/wonder-system';
 import { createRng } from '@/systems/map-generator';
 import { processMinorCivTurn, checkEraAdvancement, processMinorCivEraUpgrade, checkCampEvolution } from '@/systems/minor-civ-system';
+import { resolveCivilizationEra } from '@/systems/tech-definitions';
 import { resolveCivDefinition } from '@/systems/civ-registry';
 import { applyProductionBonus } from '@/systems/city-system';
 import { chargeUnitsOnGeneTherapyResearch, applyGeneTherapyRecharge } from '@/systems/gene-therapy-system';
@@ -136,6 +137,7 @@ export function processTurn(
   state: GameState,
   bus: EventBus,
 ): GameState {
+  const previousEraByCiv = Object.fromEntries(Object.entries(state.civilizations).map(([civId, civ]) => [civId, resolveCivilizationEra(civ.techState.completed)]));
   let newState = initializeLegendaryWonderProjectsForAllCities(structuredClone(state));
   newState = normalizeOpponentAIState(newState);
 
@@ -1380,20 +1382,19 @@ export function processTurn(
   const newEra = checkEraAdvancement(newState);
   if (newEra > newState.era) {
     newState.era = newEra;
+    bus.emit('era:advanced', { era: newEra });
+  }
 
-    const { state: afterExpiry, expired } = expireNationalProjects(newState, newEra);
-    newState = afterExpiry;
-    for (const item of expired) {
-      bus.emit('city:national-project-expired', item);
-    }
-
-    // Dequeue NPs now outside their build window (homeEra to homeEra+1)
-    for (const cityId of Object.keys(newState.cities)) {
+  const { state: afterExpiry, expired } = expireNationalProjects(newState);
+  newState = afterExpiry;
+  for (const item of expired) bus.emit('city:national-project-expired', item);
+  for (const cityId of Object.keys(newState.cities)) {
       const city = newState.cities[cityId];
       if (!city) continue;
       const staleNPs = city.productionQueue.filter((item: string) => {
         const bldg = BUILDINGS[item];
-        return bldg?.nationalProject && newState.era > bldg.nationalProject.homeEra + 1;
+        const owner = newState.civilizations[city.owner];
+        return bldg?.nationalProject && owner && resolveCivilizationEra(owner.techState.completed) > bldg.nationalProject.homeEra + 1;
       });
       if (staleNPs.length === 0) continue;
       newState = {
@@ -1404,7 +1405,8 @@ export function processTurn(
             ...city,
             productionQueue: city.productionQueue.filter((item: string) => {
               const bldg = BUILDINGS[item];
-              return !(bldg?.nationalProject && newState.era > bldg.nationalProject.homeEra + 1);
+              const owner = newState.civilizations[city.owner];
+              return !(bldg?.nationalProject && owner && resolveCivilizationEra(owner.techState.completed) > bldg.nationalProject.homeEra + 1);
             }),
           },
         },
@@ -1414,7 +1416,11 @@ export function processTurn(
       }
     }
 
-    bus.emit('era:advanced', { era: newEra });
+  for (const [civId, civ] of Object.entries(newState.civilizations)) {
+    const era = resolveCivilizationEra(civ.techState.completed);
+    if (era > (previousEraByCiv[civId] ?? era)) bus.emit('civilization:era-advanced', { civId, previousEra: previousEraByCiv[civId]!, era });
+  }
+  if (newEra > state.era) {
     for (const mc of Object.values(newState.minorCivs)) {
       processMinorCivEraUpgrade(newState, mc);
     }
