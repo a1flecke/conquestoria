@@ -901,3 +901,41 @@ describe('diplomacy-panel Send Aid button (#526 MR6 Task 6.3)', () => {
     expect(button!.title).toBe('Requires Medicine.');
   });
 });
+
+describe('#591 MR4 — diplomacy panel religion summary', () => {
+  it('shows the viewer\'s own religion name, boon, and follower counts', () => {
+    const { container, state } = makeDiplomacyFixture({ currentPlayer: 'player' });
+    state.religions = { 'religion-player': { id: 'religion-player', name: 'Order of Test', ownerCivId: 'player', boon: 'tithes', foundedTurn: 1 } };
+    state.cityFaith = {
+      'city-border': { religionId: 'religion-player', isHolyCity: true },
+      'outsider-city-placeholder': { religionId: 'religion-player' },
+    };
+    const panel = createDiplomacyPanel(container, state, { onAction: () => {}, onClose: () => {}, onSendAid: () => {} });
+
+    expect(panel.textContent).toContain('Order of Test');
+    expect(panel.textContent).toContain('Tithes');
+  });
+
+  it('shows a pending-choice note when the boon is not yet chosen', () => {
+    const { container, state } = makeDiplomacyFixture({ currentPlayer: 'player' });
+    state.religions = { 'religion-player': { id: 'religion-player', name: 'Order of Test', ownerCivId: 'player', foundedTurn: 1 } };
+    const panel = createDiplomacyPanel(container, state, { onAction: () => {}, onClose: () => {}, onSendAid: () => {} });
+
+    expect(panel.textContent).toContain('Choosing a boon');
+  });
+
+  it('renders no religion summary when the viewer has not founded a religion', () => {
+    const { container, state } = makeDiplomacyFixture({ currentPlayer: 'player' });
+    const panel = createDiplomacyPanel(container, state, { onAction: () => {}, onClose: () => {}, onSendAid: () => {} });
+
+    expect(panel.querySelector('[data-text="religion-name"]')).toBeNull();
+  });
+
+  it('never shows a rival civ\'s religion as the viewer\'s own', () => {
+    const { container, state } = makeDiplomacyFixture({ currentPlayer: 'player', includeThirdCiv: true });
+    state.religions = { 'religion-outsider': { id: 'religion-outsider', name: 'Rival Faith', ownerCivId: 'outsider', boon: 'fervor', foundedTurn: 1 } };
+    const panel = createDiplomacyPanel(container, state, { onAction: () => {}, onClose: () => {}, onSendAid: () => {} });
+
+    expect(panel.textContent).not.toContain('Rival Faith');
+  });
+});

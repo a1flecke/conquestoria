@@ -99,6 +99,8 @@ import { renderUnitStackPanel } from '@/ui/unit-stack-panel';
 import { createUnitTurnFlow } from '@/ui/unit-turn-flow';
 import { createUiInteractionState } from '@/ui/ui-interaction-state';
 import { closePlanningPanels, createRequiredChoicePanel } from '@/ui/required-choice-panel';
+import { createReligionBoonModal } from '@/ui/religion-boon-modal';
+import { chooseBoon } from '@/systems/religion-system';
 import { showCampaignSetup } from '@/ui/campaign-setup';
 import { showGameModeSelect } from '@/ui/game-mode-select';
 import { createPacingDebugPanel } from '@/ui/pacing-debug-panel';
@@ -1394,6 +1396,37 @@ function openCityPanelForCity(city: import('@/core/types').City): void {
 function closeRequiredChoicePanel(): void {
   document.getElementById('required-choice-panel')?.remove();
   setBlockingOverlay(null);
+}
+
+// #591 MR4: a founded-but-boonless religion has NO effects until the owner chooses —
+// re-prompted every time the owner attempts to end their turn, same blocking pattern as
+// showRequiredChoicesIfNeeded (the only other "must decide before proceeding" surface
+// in this file), so a human owner can never leave their own religion pending forever.
+function showReligionBoonIfNeeded(): boolean {
+  const civId = gameState.currentPlayer;
+  const civ = gameState.civilizations[civId];
+  if (!civ?.isHuman) return false;
+  const ownReligion = Object.values(gameState.religions ?? {}).find(r => r.ownerCivId === civId);
+  if (!ownReligion || ownReligion.boon !== undefined) {
+    document.getElementById('religion-boon-modal')?.remove();
+    return false;
+  }
+  if (document.getElementById('religion-boon-modal')) return true;
+
+  closePlanningPanels(document);
+  setBlockingOverlay('religion-boon');
+  createReligionBoonModal(uiLayer, {
+    religionName: ownReligion.name,
+    onChooseBoon: (boon) => {
+      gameState = chooseBoon(gameState, ownReligion.id, boon);
+      document.getElementById('religion-boon-modal')?.remove();
+      setBlockingOverlay(null);
+      showNotification(`${ownReligion.name} now grants ${boon}.`, 'success');
+      renderLoop.setGameState(gameState);
+      updateHUD();
+    },
+  });
+  return true;
 }
 
 function refreshRequiredChoicesAfterAction(): void {
@@ -3836,6 +3869,11 @@ async function beginHotSeatHandoff(
 async function endTurn(options: { allowUnmovedUnits?: boolean } = {}): Promise<void> {
   if (gameState.gameOver) return;
   try {
+    if (showReligionBoonIfNeeded()) {
+      showNotification('Choose a boon for your religion before ending the turn.', 'info');
+      return;
+    }
+
     if (showRequiredChoicesIfNeeded()) {
       showNotification('Choose production and research before ending the turn.', 'info');
       return;
