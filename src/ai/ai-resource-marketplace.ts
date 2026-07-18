@@ -9,6 +9,7 @@ import {
 import { calculateProjectedCityYields } from '@/systems/city-work-system';
 import { resolveCivDefinition } from '@/systems/civ-registry';
 import { getReservedNationalProjectKeys } from '@/systems/national-project-system';
+import { resolveCivilizationEra } from '@/systems/tech-definitions';
 import {
   canBuyResourceAccess,
   getCivAvailableResources,
@@ -37,7 +38,7 @@ function getResourcePurchaseCandidates(state: GameState, civId: string, cityId: 
       civ.techState.completed,
       state.map,
       undefined,
-      state.era,
+      resolveCivilizationEra(civ.techState.completed),
       reservedNationalProjects,
       civId,
     ).map(building => building.id),

@@ -174,6 +174,15 @@ describe('recordBeastSlain', () => {
     expect(state.beasts!.lairs['lair-giant_boar'].status).toBe('awake');
   });
 
+  it('uses the slayer personal era for hoard rewards, not a distant World Age', () => {
+    const { state, beast, victor } = stateWithSlainBoar();
+    state.era = 12;
+
+    const { slain } = recordBeastSlain(state, beast, victor);
+
+    expect(slain!.goldAwarded).toBe(getBeastHoardGold(BEAST_DEFINITIONS.giant_boar, 1));
+  });
+
   it('returns no slain payload for non-beast defenders', () => {
     const { state, victor } = stateWithSlainBoar();
     const barb = makeUnit({ id: 'barb-1', owner: 'barbarian' });

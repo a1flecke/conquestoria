@@ -3,6 +3,7 @@ import type { CombatResult, GameState, HexCoord, Unit, UnitType } from '@/core/t
 import type { PirateFactionState } from '@/core/pirate-state';
 import { isMajorCivOwner } from '@/core/owner-kind';
 import { resolveCombatEra } from './era-resolution';
+import { resolveCivilizationEra } from './tech-definitions';
 import { resolveChallengeForCiv } from '@/core/opponent-challenge';
 import { isPiratePressureEligible } from './world-pressure-eligibility';
 import { canUnitAttackTarget } from './attack-targeting';
@@ -810,7 +811,7 @@ export function processPiratesForCompletedRound(
       attackerDomain: 'naval',
       hasGarrison: getCityGarrisonUnit(nextState.units, city) !== undefined,
       isOwnersLastCity: ownerCiv.cities.length <= 1,
-      era: nextState.era,
+      era: resolveCivilizationEra(ownerCiv.techState.completed),
       challenge: resolveChallengeForCiv(nextState, city.owner),
     });
     nextState = applyCitySiegeOutcome(nextState, siege.cityId, result);

@@ -9,7 +9,7 @@ import { getEconomyStatusForCiv } from './economy-system';
 import { getCivHappinessFromResources } from './resource-acquisition-system';
 import { getCapitalCity } from './capital-system';
 import { getChallengeProfileForCiv } from '../core/opponent-challenge';
-import { TECH_TREE } from './tech-definitions';
+import { TECH_TREE, resolveCivilizationEra } from './tech-definitions';
 import { BUILDINGS } from './city-system';
 
 // --- Thresholds ---
@@ -85,7 +85,7 @@ export function getUnrestPressureBreakdown(
   // Spy unrest bonus
   if (city.spyUnrestBonus > 0) rows.push({ label: 'Enemy espionage', amount: city.spyUnrestBonus });
 
-  if (state.era >= 3) {
+  if (resolveCivilizationEra(civ.techState.completed) >= 3) {
     const economy = getEconomyStatusForCiv(state, owner);
     if (economy.strainLevel === 'critical') {
       const economyPressure = Math.min(MAX_PRESSURE_ECONOMY, 12 + economy.unpaidMaintenance * 2);
@@ -190,7 +190,8 @@ function hasCurrentEraCivicsTech(state: GameState, civId: string): boolean {
   const civ = state.civilizations[civId];
   if (!civ) return false;
   const completed = new Set(civ.techState.completed);
-  return TECH_TREE.some(tech => tech.track === 'civics' && tech.era === state.era && completed.has(tech.id));
+  const civEra = resolveCivilizationEra(civ.techState.completed);
+  return TECH_TREE.some(tech => tech.track === 'civics' && tech.era === civEra && completed.has(tech.id));
 }
 
 export function concedeToMovement(
@@ -315,31 +316,19 @@ function spawnRebelUnits(city: City, state: GameState, seed: string): GameState[
 
 // --- Main faction tick ---
 
-function clearEraOneUnrest(state: GameState): GameState {
-  let mutated = false;
-  const cities = { ...state.cities };
-
-  for (const [cityId, city] of Object.entries(state.cities)) {
-    if (city.unrestLevel === 0 && city.unrestTurns === 0 && city.spyUnrestBonus === 0) {
-      continue;
-    }
-    cities[cityId] = {
-      ...city,
-      unrestLevel: 0,
-      unrestTurns: 0,
-      spyUnrestBonus: 0,
-    };
-    mutated = true;
-  }
-
-  return mutated ? { ...state, cities } : state;
+function clearEraOneUnrestForCity(state: GameState, cityId: string): GameState {
+  const city = state.cities[cityId];
+  if (!city || (city.unrestLevel === 0 && city.unrestTurns === 0 && city.spyUnrestBonus === 0)) return state;
+  return {
+    ...state,
+    cities: {
+      ...state.cities,
+      [cityId]: { ...city, unrestLevel: 0, unrestTurns: 0, spyUnrestBonus: 0 },
+    },
+  };
 }
 
 export function processFactionTurn(state: GameState, bus: EventBus): GameState {
-  if (state.era <= 1) {
-    return clearEraOneUnrest(state);
-  }
-
   let nextState = state;
 
   // Pre-compute happiness per civ to avoid O(cities²) tile scans inside the city loop
@@ -353,6 +342,10 @@ export function processFactionTurn(state: GameState, bus: EventBus): GameState {
   for (const cityId of Object.keys(nextState.cities)) {
     const city = nextState.cities[cityId];
     if (!city) continue;
+    if (resolveCivilizationEra(nextState.civilizations[city.owner]?.techState.completed ?? []) <= 1) {
+      nextState = clearEraOneUnrestForCity(nextState, cityId);
+      continue;
+    }
 
     // Clear expired conquestTurn
     if (city.conquestTurn !== undefined &&

@@ -3,6 +3,7 @@ import { declareWar, makePeace, modifyRelationship } from './diplomacy-system';
 import { hasAccessibleLuxury } from './quest-objective-system';
 import { applyQuestGameplayAction, type ChainTransition } from './quest-chain-system';
 import { isMinorCivAtWar } from './minor-civ-diplomacy';
+import { resolveCivilizationEra } from './tech-definitions';
 
 const REPARATIONS_BASE_COST = 40;
 const REPARATIONS_ERA_COST = 10;
@@ -81,8 +82,8 @@ function grievanceStatusForPressure(pressure: number, era: number) {
   return 'wary';
 }
 
-export function minorCivReparationsCost(state: GameState): number {
-  return REPARATIONS_BASE_COST + Math.max(1, Math.floor(state.era || 1)) * REPARATIONS_ERA_COST;
+export function minorCivReparationsCost(state: GameState, civId: string): number {
+  return REPARATIONS_BASE_COST + resolveCivilizationEra(state.civilizations[civId]?.techState.completed ?? []) * REPARATIONS_ERA_COST;
 }
 
 export function performMinorCivReparations(
@@ -96,7 +97,7 @@ export function performMinorCivReparations(
   if (!grievance || grievance.pressure < 20) {
     return { state, ok: false, reason: 'No active regional grievance.', transitions: [] };
   }
-  const cost = minorCivReparationsCost(state);
+  const cost = minorCivReparationsCost(state, majorCivId);
   if (state.civilizations[majorCivId].gold < cost) {
     return { state, ok: false, reason: `Requires ${cost} gold.`, transitions: [] };
   }
@@ -116,7 +117,7 @@ export function performMinorCivReparations(
   nextMinor.regionalGrievanceByCiv[majorCivId] = {
     ...grievance,
     pressure: nextPressure,
-    status: grievanceStatusForPressure(nextPressure, nextState.era),
+    status: grievanceStatusForPressure(nextPressure, resolveCivilizationEra(nextState.civilizations[majorCivId].techState.completed)),
     lastUpdatedTurn: nextState.turn,
     causes: [...grievance.causes, reparationsCause].slice(-8),
   };

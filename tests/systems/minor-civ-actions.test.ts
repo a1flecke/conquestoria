@@ -139,7 +139,9 @@ describe('minor-civ actions', () => {
 
   it('pays reparations to reduce regional grievance and heal relationship', () => {
     const { state, minorCivId, minorCiv } = actionState('minor-action-reparations');
-    state.era = 2;
+    // World Age may be far ahead, but reparations and grievance escalation are
+    // paid by and applied to this civilization's own research tier.
+    state.era = 12;
     minorCiv.diplomacy.relationships.player = -20;
     minorCiv.regionalGrievanceByCiv = {
       player: {
@@ -154,7 +156,7 @@ describe('minor-civ actions', () => {
     const result = performMinorCivReparations(state, 'player', minorCivId);
 
     expect(result.ok).toBe(true);
-    expect(result.state.civilizations.player.gold).toBe(140);
+    expect(result.state.civilizations.player.gold).toBe(150);
     expect(result.state.minorCivs[minorCivId].regionalGrievanceByCiv?.player.pressure).toBe(30);
     expect(result.state.minorCivs[minorCivId].regionalGrievanceByCiv?.player.status).toBe('wary');
     expect(result.state.minorCivs[minorCivId].regionalGrievanceByCiv?.player.causes.at(-1)).toMatchObject({

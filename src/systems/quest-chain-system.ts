@@ -18,6 +18,7 @@ import {
   getQuestStepVariant,
   type QuestChainDefinition,
 } from './quest-chain-definitions';
+import { resolveCivilizationEra } from './tech-definitions';
 import {
   createQuestTarget,
   applyQuestObjectiveAction,
@@ -80,7 +81,7 @@ function issueChainStep(
   const nextState = structuredClone(state);
   const minorCiv = nextState.minorCivs[minorCivId];
   const step = chain.steps[stepIndex];
-  const variant = getQuestStepVariant(chain, stepIndex, nextState.era);
+  const variant = getQuestStepVariant(chain, stepIndex, resolveCivilizationEra(nextState.civilizations[majorCivId].techState.completed));
   for (const option of [variant.preferred, ...variant.fallbacks]) {
     const target = createQuestTarget(
       { state: nextState, minorCivId, majorCivId, currentTurn, duration: step.duration },
@@ -256,7 +257,7 @@ export function reconcileMinorCivQuestTurn(
     if (!isQuestTargetFeasible(state, majorCivId, minorCivId, quest, remainingTurns)) {
       const chain = getQuestChain(quest.chainId);
       if (!chain) return { state, transitions: [] };
-      const variant = getQuestStepVariant(chain, quest.stepIndex, state.era);
+      const variant = getQuestStepVariant(chain, quest.stepIndex, resolveCivilizationEra(state.civilizations[majorCivId].techState.completed));
       for (const option of [variant.preferred, ...variant.fallbacks]) {
         const target = createQuestTarget(
           { state, minorCivId, majorCivId, currentTurn, duration: Math.max(1, remainingTurns) },

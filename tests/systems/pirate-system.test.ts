@@ -6,6 +6,16 @@ import type { City, CombatResult, GameState, HexCoord, Unit, UnitType } from '@/
 import { processPiratesForCompletedRound, PIRATE_ROUND_TRACE } from '@/systems/pirate-system';
 import { createEmptyOpponentAIState } from '@/core/opponent-ai-state';
 import { PIRATE_NOTORIETY, PIRATE_SIEGE_BLOCKADE_TURNS } from '@/systems/pirate-definitions';
+import { getEraAdvancementTechs } from '@/systems/tech-definitions';
+
+function completedTechsForEra(era: number): string[] {
+  return Array.from({ length: Math.max(0, era - 1) }, (_, index) => index + 2)
+    .flatMap(candidate => {
+      const techs = getEraAdvancementTechs(candidate);
+      const required = Math.ceil(techs.length * (candidate <= 3 ? 0.5 : candidate <= 8 ? 0.6 : 0.55));
+      return techs.slice(0, required).map(tech => tech.id);
+    });
+}
 
 function fixture(): GameState {
   const state = createNewGame(undefined, 'pirate-round', 'small');
@@ -503,6 +513,7 @@ describe('pirate naval siege (#522)', () => {
   it('sacks (never destroys) a civ\'s last remaining city even past the destruction era', () => {
     const state = siegeReadyState(2);
     state.era = 12;
+    state.civilizations.player.techState.completed = completedTechsForEra(12);
     state.opponentChallenge = 'veteran';
 
     const result = processPiratesForCompletedRound(state, new EventBus());
@@ -515,6 +526,7 @@ describe('pirate naval siege (#522)', () => {
   it('destroys a non-last city past the destruction era and emits pirate:city-destroyed', () => {
     const state = siegeReadyState(2);
     state.era = 12;
+    state.civilizations.player.techState.completed = completedTechsForEra(12);
     state.opponentChallenge = 'veteran';
     state.cities.second = { ...state.cities.port!, id: 'second', hp: 100, position: { q: 8, r: 8 } };
     state.civilizations.player.cities = ['port', 'second'];

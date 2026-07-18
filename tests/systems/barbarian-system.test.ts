@@ -376,6 +376,26 @@ describe('barbarian camp evolution', () => {
     }
   });
 
+  it('starts an evolved minor civilization at the local pressure tier rather than distant World Age', () => {
+    const state = createNewGame(undefined, 'evolve-local-era', 'medium');
+    state.era = 12;
+    state.units = {};
+    state.cities = {};
+    state.civilizations.player.cities = [];
+    state.barbarianCamps = {
+      'camp-evolve': {
+        id: 'camp-evolve',
+        position: { q: 25, r: 25 },
+        strength: 8,
+        spawnCooldown: 0,
+      },
+    };
+
+    const result = checkCampEvolution(state, 50);
+
+    expect(result?.newMinorCiv.lastEraUpgrade).toBe(1);
+  });
+
   it('does not evolve camp below strength 8', () => {
     const state = createNewGame(undefined, 'no-evolve', 'medium');
     // Clear all existing camps so only the weak one is checked

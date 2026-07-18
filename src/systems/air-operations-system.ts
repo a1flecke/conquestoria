@@ -9,6 +9,7 @@ import { applyCombatOutcomeToState } from './combat-reward-system';
 import { applyCitySiegeOutcome, getCityGarrisonUnit, resolveCitySiegeDamage, type CitySiegeResult } from './city-siege-system';
 import { resolveChallengeForCiv } from '@/core/opponent-challenge';
 import { resolveCombatEra } from './era-resolution';
+import { resolveCivilizationEra } from './tech-definitions';
 import { appendNotification } from '@/core/notification-log';
 
 export type AirOperationResult =
@@ -270,7 +271,7 @@ export function resolveAirStrike(state: GameState, unitId: string, target: HexCo
       attackerDomain: 'air',
       hasGarrison: getCityGarrisonUnit(nextState.units, currentCity) !== undefined,
       isOwnersLastCity: ownerCiv.cities.length <= 1,
-      era: nextState.era,
+      era: resolveCivilizationEra(ownerCiv.techState.completed),
       challenge: resolveChallengeForCiv(nextState, currentCity.owner),
     });
     nextState = applyCitySiegeOutcome(nextState, currentCity.id, cityResult);

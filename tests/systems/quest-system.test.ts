@@ -12,8 +12,18 @@ import {
 import { getQuestOriginLabel, isQuestVisibleToPlayer } from '@/systems/quest-presentation';
 import type { Quest } from '@/core/types';
 import { hexKey } from '@/systems/hex-utils';
+import { getEraAdvancementTechs } from '@/systems/tech-definitions';
 
 const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
+
+function completedTechsForEra(era: number): string[] {
+  return Array.from({ length: Math.max(0, era - 1) }, (_, index) => index + 2)
+    .flatMap(candidate => {
+      const techs = getEraAdvancementTechs(candidate);
+      const required = Math.ceil(techs.length * (candidate <= 3 ? 0.5 : candidate <= 8 ? 0.6 : 0.55));
+      return techs.slice(0, required).map(tech => tech.id);
+    });
+}
 
 function questState(seed: string) {
   const state = createNewGame(undefined, seed, 'small');
@@ -51,6 +61,7 @@ describe('quest system', () => {
     it('scales gift_gold amount by era', () => {
       const { state, minorCivId } = questState('normal-gift-era-quest');
       state.era = 3;
+      state.civilizations.player.techState.completed = completedTechsForEra(3);
       const quest = generateQuest('mercantile', minorCivId, 'player', 5, state, () => 0.1, mkC());
       expect(quest).toBeDefined();
       expect((quest!.target as any).amount).toBe(75);

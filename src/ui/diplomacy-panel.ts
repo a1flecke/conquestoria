@@ -334,7 +334,7 @@ export function createDiplomacyPanel(
       : playerCiv.gold < festivalTarget.amount ? `Requires ${festivalTarget.amount} gold.`
       : null;
     const grievance = mc.regionalGrievanceByCiv?.[state.currentPlayer];
-    const reparationsCost = minorCivReparationsCost(state);
+    const reparationsCost = minorCivReparationsCost(state, state.currentPlayer);
     const grievanceStatusLabel = grievance?.status
       .split('-')
       .map(part => part[0].toUpperCase() + part.slice(1))
