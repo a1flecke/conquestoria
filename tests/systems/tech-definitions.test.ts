@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { TECH_TREE, getEraAdvancementTechs, resolveCivilizationEra } from '@/systems/tech-definitions';
+import { TECH_TREE, getEraAdvancementFraction, getEraAdvancementTechs, resolveCivilizationEra, resolveWorldAge } from '@/systems/tech-definitions';
 import {
   estimateTurnsToComplete,
   getResearchOutputProfileForTech,
@@ -166,6 +166,26 @@ describe('tech definitions', () => {
     ])).toBe(3);
   });
 
+  it('uses authored graduated thresholds for personal era advancement', () => {
+    expect(getEraAdvancementFraction(2)).toBe(0.5);
+    expect(getEraAdvancementFraction(4)).toBe(0.6);
+    expect(getEraAdvancementFraction(9)).toBe(0.55);
+    expect(getEraAdvancementFraction(13)).toBe(1);
+  });
+
+  it('advances World Age only when a strict majority reaches an era', () => {
+    const era2 = getEraAdvancementTechs(2);
+    const completed = era2.slice(0, Math.ceil(era2.length * 0.5)).map(tech => tech.id);
+    const civilizations = {
+      player: { isEliminated: false, techState: { completed } },
+      'ai-1': { isEliminated: false, techState: { completed } },
+      'ai-2': { isEliminated: false, techState: { completed: [] } },
+      retired: { isEliminated: true, techState: { completed: [] } },
+    } as any;
+
+    expect(resolveWorldAge(civilizations)).toBe(2);
+  });
+
   it('save-compat: a legacy save with digital-surveillance among its completed techs does not lose era-5 progress', () => {
     // Pre-MR10, digital-surveillance counted toward era-5 advancement. It's simply
     // absent from the era-5 list now (moved to era 10) rather than miscounted — a
@@ -182,7 +202,7 @@ describe('tech definitions', () => {
 
   it('stays below an era threshold and ignores non-advancement technologies', () => {
     const era2 = getEraAdvancementTechs(2);
-    const belowThreshold = Math.ceil(era2.length * 0.6) - 1;
+    const belowThreshold = Math.ceil(era2.length * getEraAdvancementFraction(2)) - 1;
 
     expect(resolveCivilizationEra([
       ...era2.slice(0, belowThreshold).map(tech => tech.id),
