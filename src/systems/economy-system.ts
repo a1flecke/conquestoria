@@ -18,6 +18,7 @@ import { getClaimedTrophyGoldPerTurn } from './beast-system';
 import { getReligionTithesGold } from './religion-system';
 import { createUnit, UNIT_DEFINITIONS } from './unit-system';
 import { resolveCivDefinition } from './civ-registry';
+import { resolveCivilizationEra } from './tech-definitions';
 import { getCivAvailableResources, getCivHappinessFromResources } from './resource-acquisition-system';
 import {
   getEmpireTechPercents,
@@ -721,7 +722,7 @@ export function getRushBuyQuote(state: GameState, civId: string, cityId: string)
   const cost = getProductionCostForItem(itemId, {
     city,
     bonusEffect: civDef?.bonusEffect,
-    era: state.era,
+    era: resolveCivilizationEra(civ.techState.completed),
     completedTechs: civ.techState.completed,
     activeNationalProjects: getActiveNationalProjectsForCiv(state, civId),
     availableResources: getCivAvailableResources(state, civId),

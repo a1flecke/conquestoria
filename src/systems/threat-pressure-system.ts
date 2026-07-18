@@ -16,6 +16,7 @@ import { hexKey, mapDistance, mapNeighbors } from './hex-utils';
 import { createUnit } from './unit-system';
 import { seededLcg } from './seeded-lcg';
 import { isPiratePressureEligible } from './world-pressure-eligibility';
+import { resolveCivilizationEra } from './tech-definitions';
 
 export const PIRATE_OWNER = 'pirate';
 
@@ -366,7 +367,7 @@ export function computeThreatScore(state: GameState, civId: string, landmassId: 
   const idleTurns = state.turn - (civ.lastCombatTurnByLandmass?.[landmassId] ?? state.turn);
   const idleFactor = Math.min(idleTurns / 10, 1.5);
 
-  return state.era * (1.0 + share + idleFactor);
+  return resolveCivilizationEra(civ.techState.completed) * (1.0 + share + idleFactor);
 }
 
 // ── Bandit lord name pool ────────────────────────────────────────────────────
@@ -456,8 +457,8 @@ export function processLandResurgence(
 
   const chosen = candidates[Math.floor(rng() * candidates.length)];
   const isBanditLord = score >= BANDIT_LORD_THRESHOLD;
-  const strength = resurgenceCampStrength(state.era, rng);
   const civ = state.civilizations[civId];
+  const strength = resurgenceCampStrength(resolveCivilizationEra(civ?.techState.completed ?? []), rng);
 
   const campId = `camp-${state.idCounters.nextCampId}`;
   const affectedHumanIds = [...new Set([
@@ -566,7 +567,8 @@ export function createPirateFleetNear(
 
   const spawnTile = spawnCandidates[Math.floor(rng() * spawnCandidates.length)];
 
-  const unitType = pirateUnitType(state.era);
+  const targetEra = resolveCivilizationEra(state.civilizations[civId]?.techState.completed ?? []);
+  const unitType = pirateUnitType(targetEra);
   const pirateUnit = createUnit(unitType, PIRATE_OWNER, spawnTile.coord, state.idCounters);
   const fleetId = `fleet-${pirateUnit.id}`;
   const fleet: PirateFleet = {
@@ -575,7 +577,7 @@ export function createPirateFleetNear(
     targetCivId: civId,
     targetCityId: targetCity.id,
     landmassId,
-    era: state.era,
+    era: targetEra,
     plunderCooldown: 0,
   };
 

@@ -7,6 +7,7 @@ import { resolveCivDefinition } from '@/systems/civ-registry';
 import { getQueueableResearchIds } from '@/systems/tech-progression';
 import { getActiveNationalProjectsForCiv, getReservedNationalProjectKeys } from '@/systems/national-project-system';
 import { getCivAvailableResources } from '@/systems/resource-acquisition-system';
+import { resolveCivilizationEra } from '@/systems/tech-definitions';
 
 const MAX_CITY_QUEUE_ITEMS = 4;
 const MAX_RESEARCH_QUEUE_ITEMS = 3;
@@ -127,6 +128,7 @@ export function getIdleCityIds(state: GameState, civId: string): string[] {
   }
 
   const completedTechs = civ.techState.completed ?? [];
+  const civEra = resolveCivilizationEra(completedTechs);
   const reservedNationalProjects = getReservedNationalProjectKeys(state, civId);
   const availableResources = getCivAvailableResources(state, civId);
   return Object.values(state.cities)
@@ -139,7 +141,7 @@ export function getIdleCityIds(state: GameState, civId: string): string[] {
         completedTechs,
         state.map,
         availableResources,
-        state.era,
+        civEra,
         reservedNationalProjects,
         civId,
       ).length > 0;
@@ -172,6 +174,7 @@ export function getRecommendedIdleCityChoice(
   }
 
   const completedTechs = civ.techState.completed ?? [];
+  const civEra = resolveCivilizationEra(completedTechs);
   const reservedNationalProjects = getReservedNationalProjectKeys(state, civId);
   const activeNationalProjects = getActiveNationalProjectsForCiv(state, civId);
   const availableResources = getCivAvailableResources(state, civId);
@@ -183,11 +186,11 @@ export function getRecommendedIdleCityChoice(
       completedTechs,
       state.map,
       availableResources,
-      state.era,
+      civEra,
       reservedNationalProjects,
       civId,
     ) : []).map(building => {
-      const cost = getProductionCostForItem(building.id, { city, bonusEffect, era: state.era, completedTechs, activeNationalProjects, availableResources });
+      const cost = getProductionCostForItem(building.id, { city, bonusEffect, era: civEra, completedTechs, activeNationalProjects, availableResources });
       return {
         itemId: building.id,
         label: building.name,
@@ -198,7 +201,7 @@ export function getRecommendedIdleCityChoice(
     }),
     ...getTrainableUnitsForCiv(completedTechs, civ.civType, availableResources)
       .map(unit => {
-        const cost = getProductionCostForItem(unit.type, { city, bonusEffect, era: state.era, completedTechs, activeNationalProjects, availableResources });
+        const cost = getProductionCostForItem(unit.type, { city, bonusEffect, era: civEra, completedTechs, activeNationalProjects, availableResources });
         return {
           itemId: unit.type,
           label: unit.name,

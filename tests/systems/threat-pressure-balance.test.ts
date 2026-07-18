@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { computeThreatScore } from '@/systems/threat-pressure-system';
 import type { GameState, HexTile, Civilization } from '@/core/types';
 import { OPPONENT_CHALLENGE_PROFILES } from '@/core/opponent-challenge';
+import { TECH_TREE } from '@/systems/tech-definitions';
 
 function makeScenario(era: number, idleTurns: number, dominanceRatio: number): GameState {
   const tiles: Record<string, HexTile> = {};
@@ -22,6 +23,9 @@ function makeScenario(era: number, idleTurns: number, dominanceRatio: number): G
     diplomacy: { relationships: {}, treaties: [], events: [], atWarWith: [], treacheryScore: 0, vassalage: { overlord: null, vassals: [], protectionScore: 0, protectionTimers: [], peakCities: 1, peakMilitary: 0 } },
     lastCombatTurnByLandmass: { 'continent-0': lastCombatTurn },
   };
+  p1.techState.completed = TECH_TREE
+    .filter(tech => tech.era <= era && tech.countsForEraAdvancement !== false)
+    .map(tech => tech.id);
   return {
     turn: 100, era,
     civilizations: { p1 },

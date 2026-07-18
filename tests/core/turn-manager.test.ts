@@ -19,6 +19,7 @@ import { deterministicCombatSeed, resolveCombat } from '@/systems/combat-system'
 import { buildCombatContextForDefender } from '@/systems/combat-context';
 import { createTechState } from '@/systems/tech-system';
 import { processIndependentThreatPressure } from '@/systems/threat-pressure-system';
+import { resolveCombatEra } from '@/systems/era-resolution';
 
 const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
 
@@ -1301,9 +1302,9 @@ describe('processTurn', () => {
       state.map,
       combatSeed,
       buildCombatContextForDefender(state, raider, garrison),
-      state.era,
+      resolveCombatEra(state, raider, garrison),
     );
-    const expectedWithoutContext = resolveCombat(raider, garrison, state.map, combatSeed, undefined, state.era);
+    const expectedWithoutContext = resolveCombat(raider, garrison, state.map, combatSeed, undefined, resolveCombatEra(state, raider, garrison));
     expect(expectedWithContext).not.toEqual(expectedWithoutContext);
 
     const bus = new EventBus();

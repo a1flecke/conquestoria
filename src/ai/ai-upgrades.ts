@@ -17,6 +17,7 @@ import {
   getCatalogProductionCost,
 } from '@/systems/city-system';
 import { getCivAvailableResources } from '@/systems/resource-acquisition-system';
+import { resolveCivilizationEra } from '@/systems/tech-definitions';
 import { findPath, UNIT_DEFINITIONS } from '@/systems/unit-system';
 import { executeUnitMove } from '@/systems/unit-movement-system';
 import {
@@ -106,7 +107,7 @@ function treasuryReserve(state: GameState, civId: string): number {
   const cheapestEmergencyFrontlineCost = Math.min(
     ...TRAINABLE_UNITS
       .filter(unit => getAIStrategicRoles(unit.type).includes('frontline'))
-      .map(unit => getCatalogProductionCost(unit.type, state.era)),
+      .map(unit => getCatalogProductionCost(unit.type, resolveCivilizationEra(state.civilizations[civId]?.techState.completed ?? []))),
   );
   const cityAppeasementReserve = Math.max(
     0,

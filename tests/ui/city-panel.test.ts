@@ -5,6 +5,7 @@ import { SESSION_SHOWN_TIPS } from '@/ui/advisor-system';
 import { createUnit } from '@/systems/unit-system';
 import { assignCityFocus, setCityWorkedTile } from '@/systems/city-work-system';
 import { hexKey } from '@/systems/hex-utils';
+import { TECH_TREE } from '@/systems/tech-definitions';
 import { collectText, makeWonderPanelFixture } from './helpers/wonder-panel-fixture';
 import type { City, HexCoord, ResourceType } from '@/core/types';
 
@@ -518,6 +519,9 @@ describe('city-panel navigation', () => {
     city.workedTiles = [];
     city.ownedTiles = [city.position];
     state.era = 3;
+    state.civilizations[state.currentPlayer].techState.completed = TECH_TREE
+      .filter(tech => tech.era <= 3 && tech.countsForEraAdvancement !== false)
+      .map(tech => tech.id);
 
     const panel = createCityPanel(container, city, state, {
       onBuild: () => {},

@@ -6,6 +6,7 @@ import { calculateProjectedCityYields } from './city-work-system';
 import { getProductionCostForItem, getTrainableUnitsForCity } from './city-system';
 import { getActiveNationalProjectsForCiv } from './national-project-system';
 import { resolveCivDefinition } from './civ-registry';
+import { resolveCivilizationEra } from './tech-definitions';
 import { hasDiscoveredCity, hasDiscoveredMinorCiv } from './discovery-system';
 import { getVisibility } from './fog-of-war';
 import { hexDistance } from './hex-utils';
@@ -82,7 +83,7 @@ function queueCostBeforeCaravan(state: GameState, cityId: string): number | null
 
   for (let index = 0; index < city.productionQueue.length; index++) {
     const itemId = city.productionQueue[index];
-    const cost = getProductionCostForItem(itemId, { city, bonusEffect, era: state.era, completedTechs: civ.techState.completed, activeNationalProjects, availableResources });
+    const cost = getProductionCostForItem(itemId, { city, bonusEffect, era: resolveCivilizationEra(civ.techState.completed), completedTechs: civ.techState.completed, activeNationalProjects, availableResources });
     remaining += index === 0 ? Math.max(0, cost - city.productionProgress) : cost;
     if (itemId === 'caravan') {
       foundCaravan = true;
@@ -91,7 +92,7 @@ function queueCostBeforeCaravan(state: GameState, cityId: string): number | null
   }
 
   if (!foundCaravan) {
-    remaining += getProductionCostForItem('caravan', { city, bonusEffect, era: state.era, completedTechs: civ.techState.completed, activeNationalProjects, availableResources });
+    remaining += getProductionCostForItem('caravan', { city, bonusEffect, era: resolveCivilizationEra(civ.techState.completed), completedTechs: civ.techState.completed, activeNationalProjects, availableResources });
   }
   return remaining;
 }

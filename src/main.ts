@@ -52,6 +52,7 @@ import { applyCombatOutcomeToState } from '@/systems/combat-reward-system';
 import { recordCombatForCiv } from '@/systems/threat-pressure-system';
 import { applyWorkerAction } from '@/systems/worker-action-system';
 import { resolveCivilizationEra } from '@/systems/tech-definitions';
+import { resolveCombatEra } from '@/systems/era-resolution';
 import { isVisible, getVisibility, isForestConcealedUnit } from '@/systems/fog-of-war';
 import { applyCampDestructionAtTarget } from '@/systems/barbarian-system';
 import { recordBeastSlain, isBeastConcealedFrom, applyHoardChoice, getHoardChoicePreview, canUnitAttackBeast, getBeastTrophyGoldPerTurn, isCivUnitInBeastTerritory } from '@/systems/beast-system';
@@ -2775,7 +2776,7 @@ function executeAttack(attackerId: string, targetKey: string): void {
     gameState.map,
     seed,
     buildCombatContextForDefender(gameState, attacker, defender, { amphibiousAssault }),
-    gameState.era,
+    resolveCombatEra(gameState, attacker, defender),
   );
   bus.emit('combat:resolved', {
     result,
@@ -4501,6 +4502,12 @@ bus.on('era:advanced', ({ era }) => {
     .filter(([, civ]) => civ.isHuman)
     .map(([civId]) => civId);
   routeEraAdvanced(era, humanCivIds, appendToCivLog);
+});
+
+bus.on('civilization:era-advanced', ({ civId, era }) => {
+  const civ = gameState.civilizations[civId];
+  if (!civ?.isHuman) return;
+  appendToCivLog(civId, `${civ.name} has entered Era ${era}. Your technology now sets your civilization's era.`, 'success');
 });
 
 bus.on('faction:unrest-started', event => {

@@ -25,6 +25,7 @@ import { getActiveNationalProjectsForCiv, getReservedNationalProjectKeys } from 
 import type { AIForceDemand } from './ai-unit-assignment';
 import { getAIStrategicRoles } from './ai-unit-roles';
 import { weightProductionRoles } from './ai-personality';
+import { resolveCivilizationEra } from '@/systems/tech-definitions';
 
 export interface AIProductionCandidate {
   itemId: string;
@@ -247,6 +248,7 @@ function generateWithResidual(
   const city = state.cities[cityId];
   if (!civ || !city || city.owner !== civId) return [];
   const resources = getCivAvailableResources(state, civId);
+  const civEra = resolveCivilizationEra(civ.techState.completed);
   const civDefinition = resolveCivDefinition(state, civ.civType ?? '');
   const productionPerTurn = Math.max(
     1,
@@ -308,7 +310,7 @@ function generateWithResidual(
     const cost = getProductionCostForItem(unit.type, {
       city,
       bonusEffect: civDefinition?.bonusEffect,
-      era: state.era,
+      era: civEra,
       completedTechs: civ.techState.completed,
       activeNationalProjects,
       availableResources: resources,
@@ -350,7 +352,7 @@ function generateWithResidual(
     civ.techState.completed,
     state.map,
     resources,
-    state.era,
+    civEra,
     builtNationalProjectKeys,
     civId,
   )) {
@@ -365,7 +367,7 @@ function generateWithResidual(
     const cost = getProductionCostForItem(building.id, {
       city,
       bonusEffect: civDefinition?.bonusEffect,
-      era: state.era,
+      era: civEra,
       completedTechs: civ.techState.completed,
       activeNationalProjects,
       availableResources: resources,

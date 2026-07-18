@@ -7,6 +7,8 @@ import { normalizeLoadedStateForTest } from '@/storage/save-manager';
 import { resolveMajorCityCapture } from '@/systems/city-capture-system';
 import { tagLandmassRegions } from '@/systems/landmass-tagger';
 import { calculateProjectedCityYields } from '@/systems/city-work-system';
+import { TECH_TREE } from '@/systems/tech-definitions';
+import { hexKey } from '@/systems/hex-utils';
 import type { ActiveCrisis, GameState, HexCoord } from '@/core/types';
 
 function findLandCoord(state: GameState): HexCoord {
@@ -53,7 +55,16 @@ describe('turn-manager crisis wiring', () => {
     state.civilizations[civId].units = [];
     state.units = {};
     state.map.tiles = tagLandmassRegions(state.map);
-    let s: GameState = { ...state, era: 3, turn: 40 };
+    const landmassId = state.map.tiles[hexKey(city.position)]?.regionKey;
+    if (!landmassId) throw new Error('Test city needs a landmass');
+    // This test isolates crisis scheduling; resurgence spawning is covered in the
+    // threat-pressure suite and intentionally blocks a concurrent crisis.
+    state.resurgentCampCooldownByCivLandmass = { [`${civId}:${landmassId}`]: 100 };
+    const era3Techs = TECH_TREE
+      .filter(tech => tech.era <= 3 && tech.countsForEraAdvancement !== false)
+      .map(tech => tech.id);
+    for (const civ of Object.values(state.civilizations)) civ.techState.completed = [...era3Techs];
+    let s: GameState = { ...state, era: 3, turn: 40, opponentChallenge: 'veteran' };
     let fired = false;
     for (let i = 0; i < 20 && !fired; i++) {
       s = processTurn(s, new EventBus());

@@ -4,6 +4,7 @@ import { createCityPanel } from '@/ui/city-panel';
 import { applyQuarantine, applyRemedy } from '@/systems/crisis-system';
 import { makeWonderPanelFixture } from './helpers/wonder-panel-fixture';
 import type { ActiveCrisis } from '@/core/types';
+import { TECH_TREE } from '@/systems/tech-definitions';
 
 function clickElement(element: Element | null | undefined): void {
   expect(element).toBeTruthy();
@@ -18,6 +19,9 @@ function withPlagueCrisis(overrides: Partial<ActiveCrisis> = {}) {
     ...overrides,
   };
   const withCrisis = { ...state, activeCrises: { [crisis.id]: crisis } };
+  withCrisis.civilizations[city.owner].techState.completed = TECH_TREE
+    .filter(tech => tech.era <= withCrisis.era && tech.countsForEraAdvancement !== false)
+    .map(tech => tech.id);
   return { container, city, state: withCrisis, crisis };
 }
 

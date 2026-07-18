@@ -19,6 +19,7 @@ import {
 import type { GameMap, GameState, HexTile, Civilization } from '@/core/types';
 import { createEmptyOpponentAIState } from '@/core/opponent-ai-state';
 import { EventBus } from '@/core/event-bus';
+import { TECH_TREE } from '@/systems/tech-definitions';
 
 function makeTestState(overrides: Partial<GameState> = {}): GameState {
   const tiles: Record<string, HexTile> = {};
@@ -44,6 +45,10 @@ function makeTestState(overrides: Partial<GameState> = {}): GameState {
     diplomacy: { relationships: {}, treaties: [], events: [], atWarWith: [], treacheryScore: 0, vassalage: { overlord: null, vassals: [], protectionScore: 0, protectionTimers: [], peakCities: 1, peakMilitary: 0 } },
     lastCombatTurnByLandmass: {},
   };
+  const intendedEra = overrides.era ?? 2;
+  p1.techState.completed = TECH_TREE
+    .filter(tech => tech.era <= intendedEra && tech.countsForEraAdvancement !== false)
+    .map(tech => tech.id);
 
   return {
     turn: 10, era: 2,
@@ -822,6 +827,14 @@ describe('computeThreatScore', () => {
     const state = makeTestState();
     state.civilizations['p1'].cities = [];
     expect(computeThreatScore(state, 'p1', 'continent-0')).toBe(0);
+  });
+
+  it('uses the target civilization personal era rather than World Age', () => {
+    const state = makeTestState({ era: 4, turn: 20 });
+    state.civilizations.p1.techState.completed = [];
+    state.civilizations.p1.lastCombatTurnByLandmass = { 'continent-0': 10 };
+
+    expect(computeThreatScore(state, 'p1', 'continent-0')).toBeLessThan(4);
   });
 });
 

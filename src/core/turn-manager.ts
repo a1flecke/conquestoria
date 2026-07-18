@@ -74,6 +74,7 @@ import { processWonderEffects } from '@/systems/wonder-system';
 import { createRng } from '@/systems/map-generator';
 import { processMinorCivTurn, checkEraAdvancement, processMinorCivEraUpgrade, checkCampEvolution } from '@/systems/minor-civ-system';
 import { resolveCivilizationEra } from '@/systems/tech-definitions';
+import { resolveCombatEra } from '@/systems/era-resolution';
 import { resolveCivDefinition } from '@/systems/civ-registry';
 import { applyProductionBonus } from '@/systems/city-system';
 import { chargeUnitsOnGeneTherapyResearch, applyGeneTherapyRecharge } from '@/systems/gene-therapy-system';
@@ -228,6 +229,7 @@ export function processTurn(
     for (const cityId of civ.cities) {
       let city = newState.cities[cityId];
       if (!city) continue;
+      const civEra = resolveCivilizationEra(civ.techState.completed);
 
       const preYieldWorkResult = city.focus === 'custom'
         ? normalizeWorkedTilesForCity(newState, cityId)
@@ -277,7 +279,7 @@ export function processTurn(
         civDef?.bonusEffect,
         civ.techState.completed,
         civ.civType,
-        newState.era,
+        civEra,
         availableResources,
         npKeysForCiv,
         type => {
@@ -328,14 +330,14 @@ export function processTurn(
             ...newState,
             builtNationalProjects: {
               ...(newState.builtNationalProjects ?? {}),
-              [npKey]: { civId, cityId, eraBuilt: newState.era },
+              [npKey]: { civId, cityId, eraBuilt: civEra },
             },
           };
           bus.emit('city:national-project-built', {
             civId,
             cityId,
             buildingId: result.completedBuilding,
-            eraBuilt: newState.era,
+            eraBuilt: civEra,
           });
           if (result.completedBuilding === 'sacred_council') {
             newState = foundReligion(newState, civId, cityId, bus);
@@ -871,7 +873,7 @@ export function processTurn(
       newState.map,
       combatSeed,
       buildCombatContextForDefender(newState, attacker, defender),
-      newState.era,
+      resolveCombatEra(newState, attacker, defender),
     );
     const combatPresentation = buildCombatPresentation(newState, result, attacker, defender);
     const applied = applyCombatOutcomeToState(newState, result, combatSeed);
@@ -911,7 +913,7 @@ export function processTurn(
       attackerDomain: 'land',
       hasGarrison: getCityGarrisonUnit(newState.units, city) !== undefined,
       isOwnersLastCity: ownerCiv.cities.length <= 1,
-      era: newState.era,
+      era: resolveCivilizationEra(ownerCiv.techState.completed),
       challenge: resolveChallengeForCiv(newState, city.owner),
     });
     newState = applyCitySiegeOutcome(newState, order.cityId, result);
@@ -1110,7 +1112,7 @@ export function processTurn(
         newState.map,
         combatSeed,
         buildCombatContextForDefender(newState, attacker, defender),
-        newState.era,
+        resolveCombatEra(newState, attacker, defender),
       );
       const combatPresentation = buildCombatPresentation(newState, result, attacker, defender);
       const applied = applyCombatOutcomeToState(newState, result, combatSeed);

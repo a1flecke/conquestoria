@@ -48,6 +48,7 @@ import { getOccupiedCityMood, getOccupiedCityYieldMultiplier } from '@/systems/c
 import { calculateProjectedCityYields } from '@/systems/city-work-system';
 import { getCityTechYields } from '@/systems/tech-yield-system';
 import { resolveCivDefinition } from '@/systems/civ-registry';
+import { resolveCivilizationEra } from '@/systems/tech-definitions';
 import { createCityWorkSection } from './city-grid';
 import { createCityDistrictsTab } from './city-districts';
 import {
@@ -175,7 +176,8 @@ export function createCityPanel(
   const occupiedMoodText = occupiedMood === 2 ? 'Very Unhappy' : occupiedMood === 1 ? 'Unhappy' : '';
 
   // Resource bonus sections: happiness (empire-wide) and yield (per-city)
-  const playerResources = getCivAvailableResources(state, state.currentPlayer);
+  const currentCiv = state.civilizations[city.owner];
+  const playerResources = getCivAvailableResources(state, city.owner);
   const happinessResources = RESOURCE_DEFINITIONS.filter(
     d => d.effect?.type === 'happiness' && playerResources.has(d.id as never),
   );
@@ -217,13 +219,13 @@ export function createCityPanel(
     `;
   }
 
-  const currentCiv = state.civilizations[state.currentPlayer];
   const civDef = resolveCivDefinition(state, currentCiv.civType);
+  const currentCivEra = resolveCivilizationEra(currentCiv.techState.completed);
   const activeNationalProjects = getActiveNationalProjectsForCiv(state, city.owner);
   const getDisplayedCost = (itemId: string): number => getProductionCostForItem(itemId, {
     city,
     bonusEffect: civDef?.bonusEffect,
-    era: state.era,
+    era: currentCivEra,
     completedTechs: currentCiv.techState.completed,
     activeNationalProjects,
     availableResources: playerResources,
@@ -247,7 +249,7 @@ export function createCityPanel(
     currentCiv.techState.completed,
     state.map,
     playerResources,
-    state.era,
+    currentCivEra,
     builtNPKeys,
     city.owner,
   );
@@ -476,7 +478,7 @@ export function createCityPanel(
       if (b.nationalProject && b.uniquePerEmpire) {
         const record = state.builtNationalProjects?.[`${city.owner}:${bid}`];
         if (record) {
-          const multiplier = getNationalProjectMultiplier(state.era, record.eraBuilt);
+          const multiplier = getNationalProjectMultiplier(currentCivEra, record.eraBuilt);
           if (multiplier === 0.5) {
             fadingBadge = ' <span style="color:#f0c040;font-size:10px;" title="This institution is losing relevance and will expire next era.">⏳ (fading)</span>';
           }
@@ -909,7 +911,7 @@ export function createCityPanel(
   }
 
   crisisChips.forEach((chip, idx) => {
-    const displayName = getCrisisDisplayName(chip.flavor, state.era);
+    const displayName = getCrisisDisplayName(chip.flavor, currentCivEra);
     const stageText = chip.sabotaged
       ? chip.sabotageDiscoveredBy
         ? `Remedy underway — ${chip.sabotageDiscoveredBy}'s spies were caught disrupting relief!`
@@ -954,7 +956,7 @@ export function createCityPanel(
   }
 
   catastropheChips.forEach((chip, idx) => {
-    const displayName = getCrisisDisplayName(chip.flavor, state.era);
+    const displayName = getCrisisDisplayName(chip.flavor, currentCivEra);
     // 'active' should be effectively unobservable (the shock applies the same turn the
     // scheduler starts it), but shown honestly rather than assuming it never renders.
     const stageText = chip.crisis.stage === 'recovery'

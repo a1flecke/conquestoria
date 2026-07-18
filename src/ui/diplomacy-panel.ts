@@ -28,7 +28,7 @@ import { minorCivReparationsCost } from '@/systems/minor-civ-actions';
 import { createGameButton } from '@/ui/ui-kit';
 import { getWorldPressurePresentationForViewer } from '@/systems/world-pressure-presentation';
 import { canSendAid, type SendAidFailureReason } from '@/systems/crisis-interaction-system';
-import { TECH_TREE } from '@/systems/tech-definitions';
+import { TECH_TREE, resolveCivilizationEra } from '@/systems/tech-definitions';
 
 export interface DiplomacyPanelCallbacks {
   onAction: (targetCivId: string, action: DiplomaticAction) => void;
@@ -169,7 +169,7 @@ export function createDiplomacyPanel(
       : pendingPeaceRequest.fromCivId === state.currentPlayer ? 'outgoing'
       : 'none';
     const actions = getAvailableActions(
-      playerDiplomacy, civId, playerCiv.techState.completed, state.era,
+      playerDiplomacy, civId, playerCiv.techState.completed, resolveCivilizationEra(playerCiv.techState.completed),
     );
 
     let barColor = '#888';
