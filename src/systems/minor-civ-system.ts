@@ -14,7 +14,7 @@ import { createEmptyOpponentAIState } from '@/core/opponent-ai-state';
 import { OPPONENT_CHALLENGE_PROFILES, resolveOpponentChallenge } from '@/core/opponent-challenge';
 import { isAlwaysHostilePair } from '@/core/owner-kind';
 import { MINOR_CIV_DEFINITIONS } from './minor-civ-definitions';
-import { TECH_TREE } from './tech-definitions';
+import { TECH_TREE, resolveWorldAge } from './tech-definitions';
 import { createDiplomacyState, modifyRelationship } from './diplomacy-system';
 import { applyResearchBonus } from './tech-system';
 import {
@@ -895,14 +895,7 @@ const ERA_ADVANCEMENT_TECH_ERA = new Map<string, number>(
 );
 
 export function checkEraAdvancement(state: GameState): number {
-  let maxEra = state.era ?? 1;
-  for (const civ of Object.values(state.civilizations)) {
-    for (const techId of civ.techState.completed) {
-      const era = ERA_ADVANCEMENT_TECH_ERA.get(techId);
-      if (era !== undefined && era > maxEra) maxEra = era;
-    }
-  }
-  return maxEra;
+  return resolveWorldAge(state.civilizations);
 }
 
 export function processMinorCivEraUpgrade(state: GameState, mc: MinorCivState): void {

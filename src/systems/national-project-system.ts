@@ -116,13 +116,15 @@ export interface ExpiredNationalProject {
 
 export function expireNationalProjects(
   state: GameState,
-  newEra: number,
+  fallbackEra = state.era,
 ): { state: GameState; expired: ExpiredNationalProject[] } {
   const toExpire: ExpiredNationalProject[] = [];
   for (const [key, record] of Object.entries(state.builtNationalProjects ?? {})) {
     const buildingId = key.split(':').slice(1).join(':');
     if (BUILDINGS[buildingId]?.nationalProject?.milestone) continue; // permanent — see #591 MR4
-    if (newEra - record.eraBuilt >= 3) {
+    const civ = state.civilizations[record.civId];
+    const currentEra = civ ? resolveCivilizationEra(civ.techState.completed) : fallbackEra;
+    if (currentEra - record.eraBuilt >= 3) {
       toExpire.push({ civId: record.civId, cityId: record.cityId, buildingId });
     }
   }

@@ -1776,6 +1776,7 @@ export interface GameEvents {
   'diplomacy:peace-requested': { fromCivId: string; toCivId: string };
   'diplomacy:peace-made': { civA: string; civB: string };
   'era:advanced': { era: number };
+  'civilization:era-advanced': { civId: string; previousEra: number; era: number };
   'currentPlayer:changed-after-handoff': {
     civId: string;
     civType: string;
