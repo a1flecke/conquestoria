@@ -77,6 +77,20 @@ describe('getNationalProjectCivYieldBonus', () => {
     expect(getNationalProjectCivYieldBonus(makeState(), 'p1')).toEqual({});
   });
 
+  it('uses the owning civilization era instead of a higher World Age', () => {
+    const state = makeState({
+      era: 5,
+      civilizations: {
+        p1: { id: 'p1', isEliminated: false, techState: { completed: [] } },
+      } as any,
+      builtNationalProjects: {
+        'p1:communal_stores': { civId: 'p1', cityId: 'city1', eraBuilt: 1 },
+      },
+    });
+
+    expect(getNationalProjectCivYieldBonus(state, 'p1')).toEqual({ food: 2 });
+  });
+
   // royal_academy is defined in Task 9 (NP definitions) — re-enable when BUILDINGS has it
   it.skip('sums civYieldBonus for active projects of this civ (royal_academy: science 4, era delta 0)', () => {
     const state = makeState({

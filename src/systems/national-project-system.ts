@@ -1,5 +1,6 @@
 import type { GameState, ResourceYield } from '@/core/types';
 import { BUILDINGS } from '@/systems/city-system';
+import { resolveCivilizationEra } from '@/systems/tech-definitions';
 
 export function getNationalProjectMultiplier(currentEra: number, eraBuilt: number): 0 | 0.5 | 1 {
   const delta = currentEra - eraBuilt;
@@ -33,10 +34,13 @@ export function getActiveNationalProjectsForCiv(
   state: GameState,
   civId: string,
 ): Array<{ id: string; fadeMultiplier: number }> {
+  const currentEra = state.civilizations[civId]
+    ? resolveCivilizationEra(state.civilizations[civId].techState.completed)
+    : state.era;
   const result: Array<{ id: string; fadeMultiplier: number }> = [];
   for (const [key, record] of Object.entries(state.builtNationalProjects ?? {})) {
     if (record.civId !== civId) continue;
-    const fadeMultiplier = getNationalProjectMultiplier(state.era, record.eraBuilt);
+    const fadeMultiplier = getNationalProjectMultiplier(currentEra, record.eraBuilt);
     if (fadeMultiplier === 0) continue;
     const buildingId = key.split(':').slice(1).join(':');
     result.push({ id: buildingId, fadeMultiplier });
@@ -75,11 +79,14 @@ function computePerCityGold(buildingId: string, state: GameState, civId: string)
 }
 
 export function getNationalProjectCivYieldBonus(state: GameState, civId: string): Partial<ResourceYield> {
+  const currentEra = state.civilizations[civId]
+    ? resolveCivilizationEra(state.civilizations[civId].techState.completed)
+    : state.era;
   let totals: Partial<ResourceYield> = {};
   for (const [key, record] of Object.entries(state.builtNationalProjects ?? {})) {
     if (record.civId !== civId) continue;
     const buildingId = key.split(':').slice(1).join(':');
-    const multiplier = getNationalProjectMultiplier(state.era, record.eraBuilt);
+    const multiplier = getNationalProjectMultiplier(currentEra, record.eraBuilt);
     if (multiplier === 0) continue;
 
     // Per-city allowlist checked first — doesn't require a building lookup
