@@ -1,6 +1,18 @@
 export interface UnitDeleteConfirmationConfig {
   unitName: string;
+  /** Overrides the default `Delete ${unitName}?` title — use for non-destructive but
+   * final actions (e.g. a missionary consumed by a successful preach) so the framing
+   * doesn't read as a warning about an accidental/destructive action. */
+  title?: string;
   bodyText?: string;
+  /** Overrides the default "Delete Unit" confirm-button label — pair with `hideCancel`
+   * for actions where the removal already happened and this panel is acknowledging it,
+   * not gating it. */
+  confirmLabel?: string;
+  /** Hides the Cancel button — use when the unit removal already occurred (e.g. a
+   * missionary consumed by its own last preach charge) so there is nothing left to
+   * cancel; onConfirm becomes the single "OK" dismissal. */
+  hideCancel?: boolean;
   onConfirm: () => void;
   onCancel: () => void;
 }
@@ -28,7 +40,7 @@ export function createUnitDeleteConfirmationPanel(
   dialog.style.cssText = 'max-width:360px;width:100%;background:#171923;border:1px solid rgba(255,255,255,0.18);border-radius:8px;padding:16px;color:white;box-shadow:0 18px 60px rgba(0,0,0,0.45);';
 
   const title = document.createElement('h2');
-  title.textContent = `Delete ${config.unitName}?`;
+  title.textContent = config.title ?? `Delete ${config.unitName}?`;
   title.style.cssText = 'font-size:18px;margin:0 0 8px;color:#fca5a5;';
   dialog.appendChild(title);
 
@@ -39,13 +51,15 @@ export function createUnitDeleteConfirmationPanel(
 
   const buttons = document.createElement('div');
   buttons.style.cssText = 'display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;';
+  if (!config.hideCancel) {
+    buttons.appendChild(createButton(
+      'Cancel',
+      'padding:9px 14px;border-radius:8px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.08);color:white;cursor:pointer;',
+      config.onCancel,
+    ));
+  }
   buttons.appendChild(createButton(
-    'Cancel',
-    'padding:9px 14px;border-radius:8px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.08);color:white;cursor:pointer;',
-    config.onCancel,
-  ));
-  buttons.appendChild(createButton(
-    'Delete Unit',
+    config.confirmLabel ?? 'Delete Unit',
     'padding:9px 14px;border-radius:8px;border:0;background:#b91c1c;color:white;cursor:pointer;font-weight:bold;',
     config.onConfirm,
   ));

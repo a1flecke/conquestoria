@@ -53,6 +53,8 @@ import { recordCombatForCiv } from '@/systems/threat-pressure-system';
 import { applyWorkerAction } from '@/systems/worker-action-system';
 import { resolveCivilizationEra } from '@/systems/tech-definitions';
 import { resolveCombatEra } from '@/systems/era-resolution';
+import { preach } from '@/systems/religion-system';
+import { createUnitDeleteConfirmationPanel } from '@/ui/unit-delete-confirmation-panel';
 import { isVisible, getVisibility, isForestConcealedUnit } from '@/systems/fog-of-war';
 import { applyCampDestructionAtTarget } from '@/systems/barbarian-system';
 import { recordBeastSlain, isBeastConcealedFrom, applyHoardChoice, getHoardChoicePreview, canUnitAttackBeast, getBeastTrophyGoldPerTurn, isCivUnitInBeastTerritory } from '@/systems/beast-system';
@@ -2022,6 +2024,7 @@ function selectUnit(
       onOpenNetworkIntent: uid => openNetworkIntentPanel(uid),
       onFoundCity: () => foundCityAction(),
       onWorkerAction: action => performWorkerAction(action),
+      onPreach: (unitId, cityId) => performPreach(unitId, cityId),
       onRest: () => restAction(),
       onSkipTurn: uid => getUnitTurnFlow().skipUnitAction(uid),
       onDeleteUnit: uid => getUnitTurnFlow().showDeleteUnitConfirmation(uid),
@@ -2610,6 +2613,48 @@ function performWorkerAction(action: WorkerActionType): void {
   }
 
   showNotification(result.message, result.workerLost ? 'warning' : 'info');
+}
+
+// #592 MR5: preach action. Mirrors performWorkerAction's state-apply + rerender pattern,
+// but adds a non-destructive confirmation dialog when the missionary is consumed on its
+// last charge — the deletion has already happened inside preach() by this point, so the
+// dialog is an acknowledgment, not a gate (hideCancel: true, no undo possible).
+function performPreach(unitId: string, cityId: string): void {
+  const unit = gameState.units[unitId];
+  const cityName = gameState.cities[cityId]?.name ?? cityId;
+  const result = preach(gameState, unitId, cityId, bus);
+  if (!result.ok) return;
+
+  gameState = result.state;
+  renderLoop.setGameState(gameState);
+  updateHUD();
+
+  const message = result.converted
+    ? `${cityName} has converted to your faith!`
+    : `You preached in ${cityName}.`;
+
+  if (result.unitConsumed) {
+    deselectUnit();
+    setBlockingOverlay('unit-delete-confirmation');
+    createUnitDeleteConfirmationPanel(uiLayer, {
+      unitName: unit ? UNIT_DEFINITIONS[unit.type].name : 'Missionary',
+      title: 'Missionary Used Up',
+      bodyText: `${message} That was its last charge, so the missionary is gone.`,
+      confirmLabel: 'OK',
+      hideCancel: true,
+      onConfirm: () => {
+        uiLayer.querySelector('#unit-delete-confirmation-panel')?.remove();
+        setBlockingOverlay(null);
+      },
+      onCancel: () => {
+        uiLayer.querySelector('#unit-delete-confirmation-panel')?.remove();
+        setBlockingOverlay(null);
+      },
+    });
+  } else {
+    selectUnit(unitId);
+    showNotification(message, result.converted ? 'success' : 'info');
+  }
 }
 
 function ensurePlayerWarState(targetCivId: string): void {
