@@ -336,6 +336,25 @@ describe('processPurposefulBarbarians', () => {
     expect(result.attackOrders).toHaveLength(1);
     expect(result.attackOrders[0]).toMatchObject({ attackerUnitId: 'raider', defenderUnitId: 'garrison' });
   });
+
+  it('does not let a high-era raider threaten an adjacent civilization that has not reached its roster tier', () => {
+    const state = purposefulState();
+    state.era = 11;
+    const raider = createUnit('tank', 'barbarian', { q: 11, r: 5 }, state.idCounters);
+    raider.id = 'late-raider';
+    state.units = { [raider.id]: raider };
+    state.cities.town = {
+      id: 'town', owner: 'player', position: { q: 12, r: 5 }, hp: 30,
+    } as never;
+    state.civilizations.player.cities = ['town'];
+    state.civilizations.player.techState.completed = [];
+
+    const result = processPurposefulBarbarians(state);
+
+    expect(result.attackOrders).toHaveLength(0);
+    expect(result.cityAttackOrders).toHaveLength(0);
+    expect(result.moveOrders).toHaveLength(0);
+  });
 });
 
 describe('barbarian camp evolution', () => {

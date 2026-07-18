@@ -4508,6 +4508,7 @@ bus.on('civilization:era-advanced', ({ civId, era }) => {
   const civ = gameState.civilizations[civId];
   if (!civ?.isHuman) return;
   appendToCivLog(civId, `${civ.name} has entered Era ${era}. Your technology now sets your civilization's era.`, 'success');
+  if (civId === gameState.currentPlayer) SFX.notification();
 });
 
 bus.on('faction:unrest-started', event => {

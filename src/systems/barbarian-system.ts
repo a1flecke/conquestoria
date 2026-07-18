@@ -24,6 +24,7 @@ import { applyQuestGameplayAction, type ChainTransition } from './quest-chain-sy
 import { UNIT_DEFINITIONS } from './unit-system';
 import { recordHuntCampKillerIfApplicable } from './hunt-crisis-linkage';
 import { resolveCivilizationEra } from './tech-definitions';
+import { classifyOwner } from '@/core/owner-kind';
 
 // Seeded LCG — avoids Math.random() per project rules
 function lcg(seed: number): () => number {
@@ -170,6 +171,25 @@ export const BARBARIAN_ROSTER_BY_ERA: Array<{
 export function getBarbarianRosterForEra(era: number) {
   return BARBARIAN_ROSTER_BY_ERA.find(roster => era <= roster.maxEra)
     ?? BARBARIAN_ROSTER_BY_ERA.at(-1)!;
+}
+
+function minimumEraForBarbarianUnit(unitType: UnitType): number {
+  const rosterIndex = BARBARIAN_ROSTER_BY_ERA.findIndex(roster =>
+    roster.melee.includes(unitType) || roster.ranged.includes(unitType));
+  if (rosterIndex <= 0) return 1;
+  return BARBARIAN_ROSTER_BY_ERA[rosterIndex - 1]!.maxEra + 1;
+}
+
+export function canBarbarianPressureEngage(
+  state: GameState,
+  unit: Unit,
+  targetOwnerId: string | null | undefined,
+): boolean {
+  if (!targetOwnerId || classifyOwner(targetOwnerId) !== 'major') return true;
+  const target = state.civilizations[targetOwnerId];
+  if (!target) return true;
+  return minimumEraForBarbarianUnit(unit.type)
+    <= resolveCivilizationEra(target.techState.completed);
 }
 
 export interface PurposefulBarbarianProcessResult extends BarbarianProcessResult {
@@ -479,6 +499,14 @@ export function processPurposefulBarbarians(state: GameState): PurposefulBarbari
     for (const unit of assigned) {
       if (unit.movementPointsLeft <= 0 || unit.hasActed) continue;
       const withdrawing = plan.phase === 'withdrawing' || unit.health < profile.retreatHealthPercent;
+      const targetOwnerId = plan.target.kind === 'unit'
+        ? state.units[plan.target.id]?.owner
+        : plan.target.kind === 'city'
+          ? state.cities[plan.target.id]?.owner
+          : plan.target.kind === 'resource'
+            ? state.map.tiles[hexKey(plan.target.position)]?.owner
+            : null;
+      if (!withdrawing && !canBarbarianPressureEngage(state, unit, targetOwnerId)) continue;
       const destination = withdrawing ? camp.position : targetPosition;
       if (!destination) continue;
       if (!withdrawing && plan.target.kind === 'unit') {

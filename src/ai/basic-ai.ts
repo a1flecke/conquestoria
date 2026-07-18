@@ -21,6 +21,7 @@ import { applyCombatOutcomeToState } from '@/systems/combat-reward-system';
 import { buildUnitOccupancy } from '@/systems/unit-occupancy';
 import { getAvailableTechs, startResearch } from '@/systems/tech-system';
 import { resolveCivilizationEra } from '@/systems/tech-definitions';
+import { resolveCombatEra } from '@/systems/era-resolution';
 import { updateAndRefreshVisibility } from '@/systems/last-seen-presentation';
 import { resolveCivDefinition } from '@/systems/civ-registry';
 import { hasMetCivilization, syncCivilizationContactsFromVisibility } from '@/systems/discovery-system';
@@ -395,7 +396,7 @@ export function applyPirateAiResponse(state: GameState, civId: string, bus: Even
         nextState.map,
         seed,
         buildCombatContextForDefender(nextState, warship, adjacentPirate),
-        nextState.era,
+        resolveCombatEra(nextState, warship, adjacentPirate),
       );
       const combatPresentation = buildCombatPresentation(nextState, combat, warship, adjacentPirate);
       const applied = applyCombatOutcomeToState(nextState, combat, seed);
