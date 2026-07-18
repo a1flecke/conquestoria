@@ -391,4 +391,13 @@ describe('#591 MR4 — religion state defaults', () => {
     expect(migrated.religions).toEqual(save.religions);
     expect(migrated.cityFaith).toEqual(save.cityFaith);
   });
+
+  it('is idempotent across repeated loads', () => {
+    const save = createNewGame('rome', 'religion-defaults-idempotent', 'small');
+    save.religions = { 'religion-player': { id: 'religion-player', name: 'Order of Test', ownerCivId: 'player', foundedTurn: 5 } };
+    save.cityFaith = { capital: { religionId: 'religion-player', isHolyCity: true } };
+    const migrated = migrateSaveToCurrent(save);
+    const loadedAgain = migrateSaveToCurrent(migrated);
+    expect(loadedAgain).toEqual(migrated);
+  });
 });
