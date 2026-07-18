@@ -16,6 +16,7 @@ import { resolveWorldPressureFlags } from './world-pressure-flags';
 import { applyInteractionReputation, getCrisisInteractionDefinition } from './crisis-interaction-system';
 import { resolveCivDefinition } from './civ-registry';
 import { calculateProjectedCityYields } from './city-work-system';
+import { resolveCivilizationEra } from './tech-definitions';
 
 export const CRISIS_PRESSURE_FLOOR = 2.0;
 export const EXTERNAL_THREAT_RECENCY_TURNS = 5;
@@ -82,11 +83,12 @@ export function getFamineFragility(state: GameState, civId: string): number {
 function maybeStartCrisis(state: GameState, civId: string, bus: EventBus): GameState {
   const civ = state.civilizations[civId];
   if (!civ || civ.cities.length === 0) return state;
+  const civEra = resolveCivilizationEra(civ.techState.completed);
   // AI civs always resolve the 'standard' profile's scheduling knobs — never the
   // game-wide opponentChallenge, whose 'veteran' setting would otherwise make AI
   // suffer MORE and invert difficulty (same principle as resolvePressureSeverityForCiv).
   const profile = civ.isHuman ? getChallengeProfileForCiv(state, civId) : OPPONENT_CHALLENGE_PROFILES.standard;
-  if (state.era <= profile.crisisGraceMaxEra) return state;
+  if (civEra <= profile.crisisGraceMaxEra) return state;
   if (state.turn < profile.crisisGraceMinTurns) return state;
   if (civ.lastCrisisOnsetTurn !== undefined &&
       state.turn - civ.lastCrisisOnsetTurn < profile.crisisCooldownTurns) return state;
@@ -110,7 +112,7 @@ function maybeStartCrisis(state: GameState, civId: string, bus: EventBus): GameS
 
   const rng = seededLcg(state.turn * 7919 + civId.split('').reduce((a, ch) => a + ch.charCodeAt(0), 0) * 31);
   const eligible = CRISIS_FLAVORS.filter(f =>
-    state.era >= f.eraBand[0] && state.era <= f.eraBand[1] &&
+    civEra >= f.eraBand[0] && civEra <= f.eraBand[1] &&
     civ.cities.some(cid => { const c = state.cities[cid]; return !!c && f.geographyPredicate(state, c); }));
   if (eligible.length === 0) return state;
   const history = civ.recentCrisisHistory ?? [];
@@ -488,7 +490,7 @@ function applyCatastropheShock(
   }
 
   const isVeteran = resolvePressureSeverityForCiv(state, owner) === 'veteran';
-  const destroysImprovement = params.destroysEpicenterImprovement && isVeteran && state.era >= 3;
+  const destroysImprovement = params.destroysEpicenterImprovement && isVeteran && resolveCivilizationEra(state.civilizations[owner]?.techState.completed ?? []) >= 3;
 
   const tiles = { ...state.map.tiles };
   for (const key of affectedKeys) {
@@ -588,7 +590,8 @@ function spawnBeastHunt(
   targetCity: City,
   rng: () => number,
 ): { crisis: ActiveCrisis | null; state: GameState } {
-  const eligible = Object.values(BEAST_DEFINITIONS).filter(d => d.awakenEra <= state.era);
+  const targetEra = resolveCivilizationEra(state.civilizations[crisis.targetCivId]?.techState.completed ?? []);
+  const eligible = Object.values(BEAST_DEFINITIONS).filter(d => d.awakenEra <= targetEra);
   if (eligible.length === 0) return { crisis: null, state };
   const def = eligible[Math.floor(rng() * eligible.length)];
 

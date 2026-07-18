@@ -23,6 +23,7 @@ import { getCityGarrisonUnit } from './city-siege-system';
 import { applyQuestGameplayAction, type ChainTransition } from './quest-chain-system';
 import { UNIT_DEFINITIONS } from './unit-system';
 import { recordHuntCampKillerIfApplicable } from './hunt-crisis-linkage';
+import { resolveCivilizationEra } from './tech-definitions';
 
 // Seeded LCG — avoids Math.random() per project rules
 function lcg(seed: number): () => number {
@@ -260,7 +261,12 @@ function chooseBarbarianSpawnType(
   campId: string,
   assignedUnits: Unit[],
 ): UnitType {
-  const roster = getBarbarianRosterForEra(state.era);
+  const camp = state.barbarianCamps[campId];
+  const target = camp ? Object.values(state.cities)
+    .filter(city => state.civilizations[city.owner] && !state.civilizations[city.owner].isEliminated)
+    .sort((a, b) => barbarianDistance(state, camp.position, a.position) - barbarianDistance(state, camp.position, b.position) || a.owner.localeCompare(b.owner))[0]
+    : undefined;
+  const roster = getBarbarianRosterForEra(target ? resolveCivilizationEra(state.civilizations[target.owner].techState.completed) : 1);
   const rangedCount = assignedUnits.filter(unit => roster.ranged.includes(unit.type)).length;
   const canAddRanged = (rangedCount + 1) * 3 <= assignedUnits.length + 1;
   const pool = canAddRanged ? [...roster.melee, ...roster.ranged] : roster.melee;

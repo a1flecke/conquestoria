@@ -2,6 +2,7 @@ import type { ActiveCrisis, City, GameState, HexCoord, HexTile, OpponentChalleng
 import { createDiplomacyState } from '@/systems/diplomacy-system';
 import { hexKey } from '@/systems/hex-utils';
 import { createEmptyOpponentAIState } from '@/core/opponent-ai-state';
+import { TECH_TREE } from '@/systems/tech-definitions';
 
 const LANDMASS = 'landmass-1';
 
@@ -255,6 +256,13 @@ export function makeCrisisFixture({
       },
     } : undefined,
   } as GameState;
+
+  const completedForEra = TECH_TREE
+    .filter(tech => tech.era <= era && tech.countsForEraAdvancement !== false)
+    .map(tech => tech.id);
+  for (const civilization of Object.values(state.civilizations)) {
+    civilization.techState.completed = [...completedForEra];
+  }
 
   return { state, civId };
 }
