@@ -10,7 +10,7 @@ Canonical project policy lives in:
 Claude-specific hook scripts in `.claude/hooks/` are enforcement helpers, not the policy source. When Codex is working in this repo, follow the policy files above and run the repo checks listed below.
 
 ## Codex Operating Loop
-Start new implementation work from a fresh branch or worktree based on the latest `origin/main`. In a new worktree, run `mise trust` if mise blocks project commands, then `./scripts/run-with-mise.sh yarn install` if Yarn says the project has not been installed.
+Start new implementation work from a fresh branch or worktree based on the latest `origin/main`. In a new worktree, run `./scripts/setup-git-hooks.sh` before the first commit or push and verify `git config --worktree --get core.hooksPath` returns `.githooks`; run `mise trust` if mise blocks project commands, then `./scripts/run-with-mise.sh yarn install` if Yarn says the project has not been installed.
 
 Before editing, read the rule files that match the files you will touch. While implementing, keep gameplay mutations in canonical systems/helpers, wire player-visible behavior all the way to the live UI/renderer path, and add the smallest regression that proves the exact behavior. Before reporting completion, run the required checks, inspect both committed and uncommitted diffs, and call out any checks you could not run.
 

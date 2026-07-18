@@ -4,10 +4,22 @@ import { EventBus } from '@/core/event-bus';
 import { runCompletedRound } from '@/core/completed-round-orchestrator';
 import { processNonHumanMajorRound } from '@/ai/ai-round-scheduler';
 import { processImprovementTurns } from '@/systems/improvement-turn-system';
+import { getEraAdvancementTechs, resolveCivilizationEra } from '@/systems/tech-definitions';
 import { initializeScenario } from '../simulation/ai-playability-fixture';
 
 const SEEDS = ['fairness-seed-1', 'fairness-seed-2', 'fairness-seed-3'];
 const TURNS = 150;
+
+function seedCrisisEligiblePersonalEra(state: ReturnType<typeof initializeScenario>): void {
+  const completed = [2, 3].flatMap(era => {
+    const techs = getEraAdvancementTechs(era);
+    return techs.slice(0, Math.ceil(techs.length * 0.5)).map(tech => tech.id);
+  });
+  for (const civ of Object.values(state.civilizations)) {
+    civ.techState.completed = [...completed];
+    expect(resolveCivilizationEra(civ.techState.completed)).toBe(3);
+  }
+}
 
 function simulateCrisisCounts(seed: string): { humanCount: number; aiCounts: number[] } {
   let state = initializeScenario({
@@ -15,6 +27,7 @@ function simulateCrisisCounts(seed: string): { humanCount: number; aiCounts: num
     humanCount: 1, aiCount: 2, personalitySet: ['aggressive', 'expansionist'],
   });
   state = { ...state, settings: { ...state.settings, aiPressure: 'full' } };
+  seedCrisisEligiblePersonalEra(state);
 
   const counts: Record<string, number> = {};
   const bus = new EventBus();

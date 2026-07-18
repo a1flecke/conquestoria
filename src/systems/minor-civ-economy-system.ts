@@ -25,6 +25,7 @@ import { MINOR_CIV_DEFINITIONS } from '@/systems/minor-civ-definitions';
 import { RESOURCE_DEFINITIONS } from '@/systems/resource-definitions';
 import { calculateCityYields } from '@/systems/resource-system';
 import { TECH_TREE } from '@/systems/tech-definitions';
+import { resolveNeutralPressureEra } from '@/systems/era-resolution';
 import { createUnit, UNIT_DEFINITIONS } from '@/systems/unit-system';
 
 export const MINOR_CIV_ECONOMY_TUNING = {
@@ -227,11 +228,14 @@ export function normalizeMinorCivEconomyState(state: GameState): GameState {
 }
 
 export function getMinorCivCompletedTechBand(state: GameState, minorCivId: string): string[] {
-  if (!state.minorCivs[minorCivId]) {
+  const minorCiv = state.minorCivs[minorCivId];
+  const city = minorCiv ? state.cities[minorCiv.cityId] : undefined;
+  if (!minorCiv || !city) {
     return [];
   }
+  const pressureEra = resolveNeutralPressureEra(state, city.position) ?? 1;
   return TECH_TREE
-    .filter(tech => tech.era <= state.era)
+    .filter(tech => tech.era <= pressureEra)
     .map(tech => tech.id)
     .sort();
 }
@@ -284,7 +288,8 @@ export function getMinorCivBuildCandidates(
 
   const completedTechs = getMinorCivCompletedTechBand(state, minorCivId);
   const resources = getMinorCivAvailableResources(state, minorCivId);
-  const buildings = getAvailableBuildings(city, completedTechs, state.map, resources, state.era)
+  const pressureEra = resolveNeutralPressureEra(state, city.position) ?? 1;
+  const buildings = getAvailableBuildings(city, completedTechs, state.map, resources, pressureEra)
     .filter(building => !building.nationalProject && !building.uniquePerEmpire && !UNSAFE_BUILDING_IDS.has(building.id));
   const units = getTrainableUnitsForCity(city, completedTechs, state.map, undefined, resources)
     .filter(unit => !UNSAFE_UNIT_TYPES.has(unit.type));
@@ -624,7 +629,7 @@ export function processMinorCivEconomyTurn(
     undefined,
     completedTechs,
     undefined,
-    nextState.era,
+    resolveNeutralPressureEra(nextState, cityForYields.position) ?? 1,
     availableResources,
   );
   nextState = {

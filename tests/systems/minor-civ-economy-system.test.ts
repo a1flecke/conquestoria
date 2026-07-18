@@ -13,6 +13,7 @@ import {
 import { getCivAvailableResources } from '@/systems/resource-acquisition-system';
 import { getWrappedHexNeighbors, hexKey, hexNeighbors } from '@/systems/hex-utils';
 import { createUnit } from '@/systems/unit-system';
+import { getEraAdvancementTechs } from '@/systems/tech-definitions';
 
 describe('minor-civ economy normalization', () => {
   it('does not change city queue, production progress, units, or regional grievance', () => {
@@ -43,10 +44,18 @@ describe('minor-civ economy normalization', () => {
 });
 
 describe('minor-civ economy helpers', () => {
-  it('derives minor-civ tech bands by era without needing a Civilization record', () => {
+  it('derives minor-civ tech bands from nearby civilization pressure without needing a Civilization record', () => {
     const state = createNewGame(undefined, 'minor-economy-tech-band', 'small');
     const minorCiv = Object.values(state.minorCivs)[0];
     state.era = 2;
+    state.civilizations.player.techState.completed = getEraAdvancementTechs(2)
+      .slice(0, Math.ceil(getEraAdvancementTechs(2).length * 0.5))
+      .map(tech => tech.id);
+    const city = state.cities[minorCiv.cityId];
+    state.cities['pressure-source'] = {
+      id: 'pressure-source', owner: 'player', position: { q: city.position.q + 1, r: city.position.r },
+    } as never;
+    state.civilizations.player.cities = ['pressure-source'];
 
     const techs = getMinorCivCompletedTechBand(state, minorCiv.id);
 
