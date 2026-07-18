@@ -323,3 +323,52 @@ describe('save migrations', () => {
     expect(migrated.idCounters.nextNetworkPlanId).toBe(2);
   });
 });
+
+describe('#590 MR3 — defensive crisis archetype normalization', () => {
+  it('recomputes a stale outbreak archetype for a re-homed famine flavor id', () => {
+    const save = createNewGame('rome', 'famine-archetype-drift', 'small');
+    save.saveSchemaVersion = CURRENT_SAVE_SCHEMA_VERSION; // already current -- no versioned migration would touch it
+    save.activeCrises = {
+      'crisis-1': {
+        id: 'crisis-1', flavorId: 'crop-blight', archetype: 'outbreak', // stale: pre-#590 save
+        targetCivId: 'player', cityIds: [], tileKeys: [], startedTurn: 1, stage: 'active', turnsInStage: 1,
+      },
+    };
+
+    const migrated = migrateSaveToCurrent(save);
+
+    expect(migrated.activeCrises!['crisis-1'].archetype).toBe('famine');
+  });
+
+  it('leaves a correctly-archetyped crisis (e.g. plague/outbreak) unchanged', () => {
+    const save = createNewGame('rome', 'famine-archetype-unaffected', 'small');
+    save.saveSchemaVersion = CURRENT_SAVE_SCHEMA_VERSION;
+    save.activeCrises = {
+      'crisis-1': {
+        id: 'crisis-1', flavorId: 'plague', archetype: 'outbreak',
+        targetCivId: 'player', cityIds: [], tileKeys: [], startedTurn: 1, stage: 'active', turnsInStage: 1,
+      },
+    };
+
+    const migrated = migrateSaveToCurrent(save);
+
+    expect(migrated.activeCrises!['crisis-1'].archetype).toBe('outbreak');
+  });
+
+  it('is idempotent across repeated loads', () => {
+    const save = createNewGame('rome', 'famine-archetype-idempotent', 'small');
+    save.saveSchemaVersion = CURRENT_SAVE_SCHEMA_VERSION;
+    save.activeCrises = {
+      'crisis-1': {
+        id: 'crisis-1', flavorId: 'locust-swarm', archetype: 'outbreak',
+        targetCivId: 'player', cityIds: [], tileKeys: [], startedTurn: 1, stage: 'active', turnsInStage: 1,
+      },
+    };
+
+    const migrated = migrateSaveToCurrent(save);
+    const loadedAgain = migrateSaveToCurrent(migrated);
+
+    expect(loadedAgain.activeCrises!['crisis-1'].archetype).toBe('famine');
+    expect(loadedAgain).toEqual(migrated);
+  });
+});

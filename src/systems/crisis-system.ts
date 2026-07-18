@@ -14,6 +14,8 @@ import { createUnit } from './unit-system';
 import { buildUnitOccupancy, getUnitIdsAtCoord } from './unit-occupancy';
 import { resolveWorldPressureFlags } from './world-pressure-flags';
 import { applyInteractionReputation, getCrisisInteractionDefinition } from './crisis-interaction-system';
+import { resolveCivDefinition } from './civ-registry';
+import { calculateProjectedCityYields } from './city-work-system';
 
 export const CRISIS_PRESSURE_FLOOR = 2.0;
 export const EXTERNAL_THREAT_RECENCY_TURNS = 5;
@@ -58,6 +60,25 @@ export function processCrisisScheduler(state: GameState, bus: EventBus): GameSta
   return next;
 }
 
+// Fraction of a civ's cities with food surplus <= +1 (#590 MR3). Multiplies famine
+// flavor selection weight in maybeStartCrisis below — food-poor civs see famine flavors
+// far more often; food-rich civs still see them occasionally (floor, not zero) since a
+// famine can plausibly strike even a well-fed empire.
+const FAMINE_WEIGHT_FLOOR = 0.1;
+
+export function getFamineFragility(state: GameState, civId: string): number {
+  const civ = state.civilizations[civId];
+  if (!civ || civ.cities.length === 0) return 0;
+  const bonusEffect = resolveCivDefinition(state, civ.civType)?.bonusEffect;
+  const fragileCount = civ.cities.filter(cityId => {
+    const city = state.cities[cityId];
+    if (!city) return false;
+    const projectedYields = calculateProjectedCityYields(state, cityId, bonusEffect);
+    return projectedYields.food - city.population <= 1;
+  }).length;
+  return fragileCount / civ.cities.length;
+}
+
 function maybeStartCrisis(state: GameState, civId: string, bus: EventBus): GameState {
   const civ = state.civilizations[civId];
   if (!civ || civ.cities.length === 0) return state;
@@ -93,7 +114,12 @@ function maybeStartCrisis(state: GameState, civId: string, bus: EventBus): GameS
     civ.cities.some(cid => { const c = state.cities[cid]; return !!c && f.geographyPredicate(state, c); }));
   if (eligible.length === 0) return state;
   const history = civ.recentCrisisHistory ?? [];
-  const flavor = weightedPick(eligible, eligible.map(f => history.includes(f.id) ? 0.25 : 1.0), rng);
+  const famineFragility = getFamineFragility(state, civId);
+  const flavor = weightedPick(eligible, eligible.map(f => {
+    const repeatPenalty = history.includes(f.id) ? 0.25 : 1.0;
+    if (f.archetype !== 'famine') return repeatPenalty;
+    return repeatPenalty * (FAMINE_WEIGHT_FLOOR + (1 - FAMINE_WEIGHT_FLOOR) * famineFragility);
+  }), rng);
   const targets = civ.cities.map(cid => state.cities[cid])
     .filter((c): c is City => !!c && flavor.geographyPredicate(state, c));
   const target = weightedPick(targets, targets.map(c => Math.max(1, c.population)), rng);
@@ -140,20 +166,35 @@ export function getCatastropheRecoveryMultiplier(severity: { yieldPenalty: numbe
   return 1 - severity.yieldPenalty;
 }
 
-export function getCrisisYieldMultiplier(state: GameState, cityId: string): number {
-  let multiplier = 1;
+export interface CrisisYieldMultiplier {
+  food: number;
+  production: number;
+  gold: number;
+  science: number;
+}
+
+// Outbreak/catastrophe penalize all four yields uniformly (general disruption).
+// Famine (#590 MR3) penalizes food only — reuses the same quarantine-doubling/floor
+// formula as outbreak (getOutbreakSeverityMultiplier), just scoped to one yield key.
+export function getCrisisYieldMultiplier(state: GameState, cityId: string): CrisisYieldMultiplier {
+  let result: CrisisYieldMultiplier = { food: 1, production: 1, gold: 1, science: 1 };
   for (const crisis of Object.values(state.activeCrises ?? {})) {
     if (!crisis.cityIds.includes(cityId)) continue;
     const flavor = getCrisisFlavor(crisis.flavorId);
     if (!flavor) continue;
     const severity = flavor.severityByChallenge[resolvePressureSeverityForCiv(state, crisis.targetCivId)];
     if (crisis.archetype === 'outbreak') {
-      multiplier *= getOutbreakSeverityMultiplier(severity, crisis.quarantinedCityIds?.includes(cityId) ?? false);
+      const m = getOutbreakSeverityMultiplier(severity, crisis.quarantinedCityIds?.includes(cityId) ?? false);
+      result = { food: result.food * m, production: result.production * m, gold: result.gold * m, science: result.science * m };
     } else if (crisis.archetype === 'catastrophe' && crisis.stage === 'recovery') {
-      multiplier *= getCatastropheRecoveryMultiplier(severity);
+      const m = getCatastropheRecoveryMultiplier(severity);
+      result = { food: result.food * m, production: result.production * m, gold: result.gold * m, science: result.science * m };
+    } else if (crisis.archetype === 'famine') {
+      const m = getOutbreakSeverityMultiplier(severity, crisis.quarantinedCityIds?.includes(cityId) ?? false);
+      result = { ...result, food: result.food * m };
     }
   }
-  return multiplier;
+  return result;
 }
 
 function hashString(s: string): number {
@@ -242,6 +283,151 @@ function tickOutbreakCrisis(
       mapDistance(nextState.map, c.position, city.position) < mapDistance(nextState.map, closest.position, city.position) ? c : closest);
     working = { ...working, cityIds: [...working.cityIds, target.id] };
     bus.emit('crisis:spread', { crisisId: working.id, fromCityId: cityId, toCityId: target.id });
+  }
+
+  return { crisis: working, state: nextState };
+}
+
+// ── Famine resolver (#590 MR3) ───────────────────────────────────────────────
+
+// Consecutive turns a city's food surplus must stay positive before the famine
+// auto-resolves out of that city — independent of remedy/quarantine (issue #590:
+// "containment accelerates while the afflicted city's food surplus > 0"). Shorter
+// than plague's autoExpireTurns (5) since this is a player-influenceable mechanic
+// (farms, granary, aid can all push surplus positive), not a pure timer.
+export const FAMINE_CONTAINMENT_SURPLUS_TURNS = 3;
+
+function tickFamineCrisis(
+  state: GameState,
+  crisis: ActiveCrisis,
+  bus: EventBus,
+): { crisis: ActiveCrisis | null; state: GameState } {
+  const flavor = getCrisisFlavor(crisis.flavorId);
+  if (!flavor) return { crisis: null, state };
+
+  let working: ActiveCrisis = { ...crisis, turnsInStage: crisis.turnsInStage + 1 };
+  let nextState = state;
+  const severity = flavor.severityByChallenge[resolvePressureSeverityForCiv(state, crisis.targetCivId)];
+
+  if (working.sabotage && working.sabotage.untilTurn <= state.turn) {
+    working = { ...working, sabotage: undefined };
+  }
+  const remedyPaused = working.sabotage !== undefined && working.sabotage.untilTurn > state.turn;
+
+  // Remedy completion — identical shape to tickOutbreakCrisis, plus clearing any
+  // surplus-streak bookkeeping for a city that just left via remedy.
+  if (working.remedyCompletionByCity && !remedyPaused) {
+    const remaining: Record<string, number> = {};
+    let cityIds = working.cityIds;
+    let quarantinedCityIds = working.quarantinedCityIds;
+    let surplusStreak = working.famineSurplusStreakByCity;
+    for (const [cityId, completionTurn] of Object.entries(working.remedyCompletionByCity)) {
+      if (state.turn >= completionTurn) {
+        cityIds = cityIds.filter(id => id !== cityId);
+        quarantinedCityIds = quarantinedCityIds?.filter(id => id !== cityId);
+        if (surplusStreak && cityId in surplusStreak) {
+          const { [cityId]: _removed, ...rest } = surplusStreak;
+          surplusStreak = rest;
+        }
+      } else {
+        remaining[cityId] = completionTurn;
+      }
+    }
+    working = { ...working, cityIds, quarantinedCityIds, remedyCompletionByCity: remaining, famineSurplusStreakByCity: surplusStreak };
+  }
+
+  if (working.cityIds.length === 0) {
+    bus.emit('crisis:resolved', {
+      crisisId: working.id, flavorId: working.flavorId, civId: working.targetCivId, outcome: 'contained',
+    });
+    return { crisis: null, state: nextState };
+  }
+
+  // Explorer auto-expiry — identical to tickOutbreakCrisis.
+  if (severity.autoExpireTurns !== null && working.turnsInStage >= severity.autoExpireTurns) {
+    bus.emit('crisis:resolved', {
+      crisisId: working.id, flavorId: working.flavorId, civId: working.targetCivId, outcome: 'expired',
+    });
+    return { crisis: null, state: nextState };
+  }
+
+  // Veteran pop loss — epidemic-control (era 6 tech) halves the effective interval.
+  // Scoped to famine only: the tech's promise text says "population loss from famine",
+  // never disease — plague/red-tide (still outbreak) are intentionally unaffected.
+  if (severity.popLossEveryNTurnsIgnored !== null) {
+    const targetCiv = nextState.civilizations[working.targetCivId];
+    const hasEpidemicControl = targetCiv?.techState.completed.includes('epidemic-control') ?? false;
+    const effectiveInterval = hasEpidemicControl
+      ? severity.popLossEveryNTurnsIgnored * 2
+      : severity.popLossEveryNTurnsIgnored;
+    if (working.turnsInStage % effectiveInterval === 0) {
+      const cities = { ...nextState.cities };
+      for (const cityId of working.cityIds) {
+        if (working.quarantinedCityIds?.includes(cityId)) continue;
+        if (working.remedyCompletionByCity?.[cityId] !== undefined) continue;
+        const city = cities[cityId];
+        if (!city) continue;
+        cities[cityId] = { ...city, population: Math.max(1, city.population - 1) };
+      }
+      nextState = { ...nextState, cities };
+    }
+  }
+
+  // Spread — identical shape to tickOutbreakCrisis.
+  const owner = working.targetCivId;
+  for (const cityId of [...working.cityIds]) {
+    if (working.quarantinedCityIds?.includes(cityId)) continue;
+    const city = nextState.cities[cityId];
+    if (!city) continue;
+    const rng = seededLcg(nextState.turn * 104729 + hashString(working.id + cityId));
+    const boost = flavor.spreadBoostPredicate?.(nextState, city) ? 0.15 : 0;
+    if (rng() >= 0.20 + boost) continue;
+    const candidates = Object.values(nextState.cities)
+      .filter(c => c.owner === owner && !working.cityIds.includes(c.id));
+    if (candidates.length === 0) continue;
+    const target = candidates.reduce((closest, c) =>
+      mapDistance(nextState.map, c.position, city.position) < mapDistance(nextState.map, closest.position, city.position) ? c : closest);
+    working = { ...working, cityIds: [...working.cityIds, target.id] };
+    bus.emit('crisis:spread', { crisisId: working.id, fromCityId: cityId, toCityId: target.id });
+  }
+
+  // Passive auto-contain: consecutive turns of positive food surplus resolve a city
+  // out of the crisis on its own, independent of remedy/quarantine (issue #590). Not
+  // blocked by quarantine — quarantine's job is stopping SPREAD, not the afflicted
+  // city's own recovery.
+  const civ = nextState.civilizations[owner];
+  const bonusEffect = civ ? resolveCivDefinition(nextState, civ.civType)?.bonusEffect : undefined;
+  const nextSurplusStreak: Record<string, number> = { ...(working.famineSurplusStreakByCity ?? {}) };
+  let remainingCityIds = working.cityIds;
+  for (const cityId of working.cityIds) {
+    const city = nextState.cities[cityId];
+    if (!city) continue;
+    const projectedYields = calculateProjectedCityYields(nextState, cityId, bonusEffect);
+    const surplus = projectedYields.food - city.population;
+    if (surplus > 0) {
+      const streak = (nextSurplusStreak[cityId] ?? 0) + 1;
+      if (streak >= FAMINE_CONTAINMENT_SURPLUS_TURNS) {
+        remainingCityIds = remainingCityIds.filter(id => id !== cityId);
+        delete nextSurplusStreak[cityId];
+      } else {
+        nextSurplusStreak[cityId] = streak;
+      }
+    } else {
+      delete nextSurplusStreak[cityId];
+    }
+  }
+  working = {
+    ...working,
+    cityIds: remainingCityIds,
+    quarantinedCityIds: working.quarantinedCityIds?.filter(id => remainingCityIds.includes(id)),
+    famineSurplusStreakByCity: Object.keys(nextSurplusStreak).length > 0 ? nextSurplusStreak : undefined,
+  };
+
+  if (working.cityIds.length === 0) {
+    bus.emit('crisis:resolved', {
+      crisisId: working.id, flavorId: working.flavorId, civId: working.targetCivId, outcome: 'contained',
+    });
+    return { crisis: null, state: nextState };
   }
 
   return { crisis: working, state: nextState };
@@ -605,6 +791,8 @@ function tickCrisisByArchetype(
       return tickCatastropheCrisis(state, crisis, bus);
     case 'hunt':
       return tickHuntCrisis(state, crisis, bus);
+    case 'famine':
+      return tickFamineCrisis(state, crisis, bus);
     default:
       // Not yet implemented (MR4's uprising lives in faction-system.ts, not here) —
       // leave untouched rather than silently dropping or mutating a crisis type this

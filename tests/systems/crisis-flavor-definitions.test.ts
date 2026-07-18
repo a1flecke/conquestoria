@@ -52,3 +52,32 @@ describe('CRISIS_FLAVORS table invariants', () => {
     });
   }
 });
+
+describe('#590 MR3 — famine archetype', () => {
+  it('re-homes crop-blight and locust-swarm to famine', () => {
+    expect(getCrisisFlavor('crop-blight')!.archetype).toBe('famine');
+    expect(getCrisisFlavor('locust-swarm')!.archetype).toBe('famine');
+  });
+
+  it('adds failed-harvest and great-famine as famine flavors', () => {
+    expect(getCrisisFlavor('failed-harvest')!.archetype).toBe('famine');
+    expect(getCrisisFlavor('great-famine')!.archetype).toBe('famine');
+  });
+
+  it('keeps red-tide and plague on outbreak (poisoning/disease theme unchanged)', () => {
+    expect(getCrisisFlavor('red-tide')!.archetype).toBe('outbreak');
+    expect(getCrisisFlavor('plague')!.archetype).toBe('outbreak');
+  });
+
+  it('great-famine is a later-era, more severe flavor than failed-harvest', () => {
+    const mild = getCrisisFlavor('failed-harvest')!;
+    const severe = getCrisisFlavor('great-famine')!;
+    expect(severe.eraBand[0]).toBeGreaterThan(mild.eraBand[0]);
+    expect(severe.severityByChallenge.standard.yieldPenalty).toBeGreaterThan(mild.severityByChallenge.standard.yieldPenalty);
+  });
+
+  it('failed-harvest has no geography gate (mild, era-agnostic)', () => {
+    // geographyPredicate () => true regardless of state/city shape.
+    expect(getCrisisFlavor('failed-harvest')!.geographyPredicate(null as never, null as never)).toBe(true);
+  });
+});

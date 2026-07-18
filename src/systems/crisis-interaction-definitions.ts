@@ -32,7 +32,9 @@ export interface CrisisInteractionDefinition {
 // MR7 appends exploit_weakness and sabotage_relief.
 export const CRISIS_INTERACTION_DEFINITIONS: CrisisInteractionDefinition[] = [
   { id: 'hunt_their_foe', techRequired: null, kind: 'overt', targetReputationDelta: 15, witnessReputationDelta: 4, oncePerCrisisPerActor: true },
-  { id: 'send_aid', techRequired: { outbreak: 'medicine', catastrophe: 'trade-routes' }, kind: 'overt', targetReputationDelta: 15, witnessReputationDelta: 4, oncePerCrisisPerActor: true },
+  // #590 MR3: famine reuses outbreak's medicine gate exactly — "send-aid diplomacy
+  // interaction applies unchanged" means the same tech, the same behavior.
+  { id: 'send_aid', techRequired: { outbreak: 'medicine', catastrophe: 'trade-routes', famine: 'medicine' }, kind: 'overt', targetReputationDelta: 15, witnessReputationDelta: 4, oncePerCrisisPerActor: true },
   // exploit_weakness's reputation penalty applies to ANY war declared on a crisis-struck
   // civ regardless of the declarer's tech (see applyOpportunisticWarPenaltyIfCrisisStruck
   // below) -- techRequired here gates only the bonus intel detail in

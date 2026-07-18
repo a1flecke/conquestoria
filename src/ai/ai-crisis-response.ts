@@ -125,8 +125,10 @@ export function getCrisisResponseActions(state: GameState, civId: string): Crisi
   // cities) rather than waiting for 3 — same competence axis as crisisResponseDelayTurns.
   const spreadThreshold = 2 + (resolveChallengeForCiv(state, civId) === 'veteran' ? 0 : 1);
 
+  // Famine (#590 MR3) reuses the same quarantine/fund-remedy response shape as
+  // outbreak — both are attrition-style crises with cityIds-based spread/containment.
   const crises = Object.values(state.activeCrises ?? {})
-    .filter((c): c is ActiveCrisis => c.targetCivId === civId && c.archetype === 'outbreak')
+    .filter((c): c is ActiveCrisis => c.targetCivId === civId && (c.archetype === 'outbreak' || c.archetype === 'famine'))
     .sort((a, b) => a.id.localeCompare(b.id));
 
   const actions: CrisisResponseAction[] = [];

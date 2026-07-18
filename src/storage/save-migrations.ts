@@ -1,4 +1,4 @@
-import type { AirBaseRef, GameState, Unit } from '@/core/types';
+import type { ActiveCrisis, AirBaseRef, GameState, Unit } from '@/core/types';
 import { createRng } from '@/systems/map-generator';
 import { placeLateResources } from '@/systems/late-resource-placement';
 import { createMarketplaceState } from '@/systems/trade-system';
@@ -7,6 +7,7 @@ import { createEmptyAutonomyCivState } from '@/core/autonomy-state';
 import { hexDistance, wrappedHexDistance } from '@/systems/hex-utils';
 import { assignNetworkPlan, isAutonomyActivated } from '@/systems/network-plan-system';
 import { UNIT_DEFINITIONS } from '@/systems/unit-system';
+import { getCrisisFlavor } from '@/systems/crisis-flavor-definitions';
 
 export const CURRENT_SAVE_SCHEMA_VERSION = 4;
 
@@ -245,6 +246,23 @@ function migrateLegacyBasedAircraft(state: GameState): GameState {
   return { ...state, units, civilizations, reconReveals: state.reconReveals ?? [] };
 }
 
+// #590 MR3: defensive re-derivation of stored crisis archetype from its flavorId. Not a
+// versioned migration (this MR doesn't bump CURRENT_SAVE_SCHEMA_VERSION — the change is
+// additive), so it must run unconditionally on every load, not just saves passing
+// through the numbered migration loop above. A save written before crop-blight/
+// locust-swarm's re-home to 'famine' would have `archetype: 'outbreak'` baked in for
+// those flavor ids; recompute from the current flavor roster so stale saves don't
+// silently misfire the outbreak-only code paths (remedy wording, AI response filter).
+function normalizeCrisisArchetypes(state: GameState): GameState {
+  if (!state.activeCrises) return state;
+  const activeCrises: Record<string, ActiveCrisis> = {};
+  for (const [id, crisis] of Object.entries(state.activeCrises)) {
+    const flavor = getCrisisFlavor(crisis.flavorId);
+    activeCrises[id] = flavor ? { ...crisis, archetype: flavor.archetype } : crisis;
+  }
+  return { ...state, activeCrises };
+}
+
 export const SAVE_MIGRATIONS: Readonly<Record<number, SaveMigration>> = {
   1: migrateToEra13Foundation,
   2: migrateLateResources,
@@ -279,5 +297,6 @@ export function migrateSaveToCurrent(raw: unknown): GameState {
     }
     state = { ...migration(state), saveSchemaVersion: version };
   }
-  return state.gameId ? state : migrateToEra13Foundation(state);
+  const migrated = state.gameId ? state : migrateToEra13Foundation(state);
+  return normalizeCrisisArchetypes(migrated);
 }

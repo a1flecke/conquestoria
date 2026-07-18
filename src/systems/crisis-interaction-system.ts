@@ -77,13 +77,13 @@ export function canSendAid(
   return { ok: true, goldCost };
 }
 
-// Outbreak: pays the target's remedy cost from the ACTOR's treasury and writes the same
-// remedyCompletionByCity record applyRemedy would (crisis-system.ts's tick reads that
-// record unchanged either way) -- never call applyRemedy itself, it deducts the
-// TARGET's gold. Catastrophe: the actor's payment is credited to the target civ as
-// relief gold instead. Both archetypes: aidedByCivIds enforces once-per-crisis-per-actor,
-// reputation moves bilaterally (actor<->target, actor<->every witness), and
-// crisis:aid-sent fires once.
+// Outbreak and famine (#590 MR3: famine is outbreak-shaped here): pays the target's
+// remedy cost from the ACTOR's treasury and writes the same remedyCompletionByCity
+// record applyRemedy would (crisis-system.ts's tick reads that record unchanged either
+// way) -- never call applyRemedy itself, it deducts the TARGET's gold. Catastrophe: the
+// actor's payment is credited to the target civ as relief gold instead. All archetypes:
+// aidedByCivIds enforces once-per-crisis-per-actor, reputation moves bilaterally
+// (actor<->target, actor<->every witness), and crisis:aid-sent fires once.
 export function applySendAid(
   state: GameState,
   actorCivId: string,
@@ -121,7 +121,10 @@ export function applySendAid(
   const updatedCrisis: ActiveCrisis = {
     ...crisis,
     aidedByCivIds: [...(crisis.aidedByCivIds ?? []), actorCivId],
-    ...(crisis.archetype === 'outbreak' ? {
+    // #590 MR3: famine is outbreak-shaped for send_aid purposes (writes the same
+    // remedyCompletionByCity record applyRemedy would). Catastrophe stays the only
+    // gold-credit archetype.
+    ...((crisis.archetype === 'outbreak' || crisis.archetype === 'famine') ? {
       remedyCompletionByCity: { ...(crisis.remedyCompletionByCity ?? {}), [city.id]: nextState.turn + 2 },
     } : {}),
   };

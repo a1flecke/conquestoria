@@ -1864,7 +1864,7 @@ export interface GameEvents {
 
 // --- Crisis Events & Revolutionary Movements ---
 
-export type CrisisArchetype = 'outbreak' | 'catastrophe' | 'hunt';
+export type CrisisArchetype = 'outbreak' | 'catastrophe' | 'hunt' | 'famine';
 export type CrisisStage = 'active' | 'contained' | 'recovery' | 'menacing' | 'assaulting';
 export type CrisisOutcome = 'contained' | 'expired' | 'hunted' | 'recovered' | 'abandoned';
 
@@ -1886,4 +1886,7 @@ export interface ActiveCrisis {
   aidedByCivIds?: string[]; // #526 MR6 send_aid: enforces once-per-crisis-per-actor
   // #526 MR7 sabotage_relief: one active sabotage per crisis, across all actors.
   sabotage?: { byCivId: string; untilTurn: number; discovered: boolean };
+  // #590 MR3: consecutive turns of positive food surplus per city, toward the famine
+  // archetype's passive auto-contain path (independent of remedy/quarantine).
+  famineSurplusStreakByCity?: Record<string, number>;
 }

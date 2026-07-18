@@ -33,13 +33,17 @@ describe('outbreak resolver', () => {
     expect(next.activeCrises!['crisis-1'].turnsInStage).toBe(3);
   });
 
-  it('applies yield multiplier: afflicted, quarantined, unaffected', () => {
+  it('applies yield multiplier to all four yields uniformly: afflicted, quarantined, unaffected', () => {
     const { state } = withCrisis();
-    expect(getCrisisYieldMultiplier(state, 'c1')).toBeCloseTo(0.75); // standard yieldPenalty 0.25
-    expect(getCrisisYieldMultiplier(state, 'c2')).toBe(1);
+    const afflicted = getCrisisYieldMultiplier(state, 'c1');
+    expect(afflicted.food).toBeCloseTo(0.75); // standard yieldPenalty 0.25
+    expect(afflicted.production).toBeCloseTo(0.75);
+    expect(afflicted.gold).toBeCloseTo(0.75);
+    expect(afflicted.science).toBeCloseTo(0.75);
+    expect(getCrisisYieldMultiplier(state, 'c2').food).toBe(1);
 
     const { state: quarantined } = withCrisis({ quarantinedCityIds: ['c1'] });
-    expect(getCrisisYieldMultiplier(quarantined, 'c1')).toBeCloseTo(0.5); // 1 - 2*0.25
+    expect(getCrisisYieldMultiplier(quarantined, 'c1').food).toBeCloseTo(0.5); // 1 - 2*0.25
   });
 
   it('floors the quarantined multiplier at 0.25 for high-severity flavors, matching the shared helper city-panel.ts also uses', () => {
@@ -58,7 +62,7 @@ describe('outbreak resolver', () => {
       cityIds: ['c1'], tileKeys: [], startedTurn: 39, stage: 'active', turnsInStage: 1,
     };
     const withBoth = { ...state, activeCrises: { ...state.activeCrises, [secondCrisis.id]: secondCrisis } };
-    expect(getCrisisYieldMultiplier(withBoth, 'c1')).toBeCloseTo(0.75 * 0.75);
+    expect(getCrisisYieldMultiplier(withBoth, 'c1').food).toBeCloseTo(0.75 * 0.75);
   });
 
   it('spreads to nearest same-owner non-afflicted city, never to another civ', () => {

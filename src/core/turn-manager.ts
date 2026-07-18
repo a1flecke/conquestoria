@@ -238,18 +238,24 @@ export function processTurn(
         .some(w => w.cityId === cityId);
       const baseYields = calculateCityYields(city, newState.map, civDef?.bonusEffect, civ.techState.completed, { activeRouteCount, hostsCompletedLegendaryWonder }, newState.turn);
       const wonderCityBonuses = getLegendaryWonderCityYieldBonus(newState, civId, cityId);
-      const unrestMultiplier = Math.min(getUnrestYieldMultiplier(city), getOccupiedCityYieldMultiplier(city))
-        * getCrisisYieldMultiplier(newState, cityId);
+      const baseYieldMultiplier = Math.min(getUnrestYieldMultiplier(city), getOccupiedCityYieldMultiplier(city));
+      const crisisMultiplier = getCrisisYieldMultiplier(newState, cityId);
+      const unrestMultiplier = {
+        food: baseYieldMultiplier * crisisMultiplier.food,
+        production: baseYieldMultiplier * crisisMultiplier.production,
+        gold: baseYieldMultiplier * crisisMultiplier.gold,
+        science: baseYieldMultiplier * crisisMultiplier.science,
+      };
       const empireFlatFoodForCity = cityId === empireFlatTargetCityId ? empireFlatTechYields.food : 0;
       const empireFlatProductionForCity = cityId === empireFlatTargetCityId ? empireFlatTechYields.production : 0;
       const networkGovernanceScienceForCity = cityId === lowestScienceCityId ? networkGovernanceBonus : 0;
       // Catastrophe-crisis recovery reward: +1 food +1 production while active, transient by design.
       const resilienceBonus = (city.resilienceBonusUntilTurn ?? 0) > newState.turn ? 1 : 0;
       const yields = {
-        food:       Math.floor((baseYields.food       + (wonderCityBonuses.food       ?? 0) + resourceYieldBonus.food       + (npCivBonuses.food       ?? 0) + empireFlatFoodForCity + resilienceBonus) * unrestMultiplier),
-        production: Math.floor((baseYields.production + (wonderCityBonuses.production ?? 0) + resourceYieldBonus.production + (npCivBonuses.production ?? 0) + empireFlatProductionForCity + resilienceBonus) * unrestMultiplier * (1 + (empireTechPercents.production ?? 0) / 100)),
-        gold:       Math.floor((baseYields.gold       + (wonderCityBonuses.gold       ?? 0) + resourceYieldBonus.gold)       * unrestMultiplier * (1 + (empireTechPercents.gold ?? 0) / 100)),
-        science:    Math.floor((baseYields.science    + (wonderCityBonuses.science    ?? 0) + resourceYieldBonus.science + networkGovernanceScienceForCity) * unrestMultiplier * (1 + (empireTechPercents.science ?? 0) / 100)),
+        food:       Math.floor((baseYields.food       + (wonderCityBonuses.food       ?? 0) + resourceYieldBonus.food       + (npCivBonuses.food       ?? 0) + empireFlatFoodForCity + resilienceBonus) * unrestMultiplier.food),
+        production: Math.floor((baseYields.production + (wonderCityBonuses.production ?? 0) + resourceYieldBonus.production + (npCivBonuses.production ?? 0) + empireFlatProductionForCity + resilienceBonus) * unrestMultiplier.production * (1 + (empireTechPercents.production ?? 0) / 100)),
+        gold:       Math.floor((baseYields.gold       + (wonderCityBonuses.gold       ?? 0) + resourceYieldBonus.gold)       * unrestMultiplier.gold * (1 + (empireTechPercents.gold ?? 0) / 100)),
+        science:    Math.floor((baseYields.science    + (wonderCityBonuses.science    ?? 0) + resourceYieldBonus.science + networkGovernanceScienceForCity) * unrestMultiplier.science * (1 + (empireTechPercents.science ?? 0) / 100)),
       };
       totalScience += yields.science;
       totalGold += yields.gold;
