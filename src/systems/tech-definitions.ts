@@ -1,4 +1,4 @@
-import type { Tech } from '@/core/types';
+import type { Civilization, Tech } from '@/core/types';
 import { TECH_TREE_ERAS_1_4 } from './tech-definitions-eras1-4';
 import { TECH_TREE_ERAS_5_7 } from './tech-definitions-eras5-7';
 import { TECH_TREE_ERAS_8 } from './tech-definitions-eras8';
@@ -7,7 +7,7 @@ import { TECH_TREE_ERAS_10 } from './tech-definitions-eras10';
 import { TECH_TREE_ERAS_11 } from './tech-definitions-eras11';
 import { TECH_TREE_ERAS_12 } from './tech-definitions-eras12';
 import { TECH_TREE_ERAS_13 } from './tech-definitions-eras13';
-import { requireEraPacingProfile } from './era-pacing-profiles';
+import { getEraAdvancementFraction as getProfileEraAdvancementFraction, requireEraPacingProfile } from './era-pacing-profiles';
 
 export { TECH_TREE_ERAS_1_4 } from './tech-definitions-eras1-4';
 export { TECH_TREE_ERAS_5_7 } from './tech-definitions-eras5-7';
@@ -35,12 +35,16 @@ export function getEraAdvancementTechs(era: number): Tech[] {
   return TECH_TREE.filter(tech => tech.era === era && tech.countsForEraAdvancement !== false);
 }
 
+export function getEraAdvancementFraction(era: number): number {
+  return getProfileEraAdvancementFraction(era);
+}
+
 export function hasReachedEraThreshold(completedTechIds: readonly string[], era: number): boolean {
   const advancementTechs = getEraAdvancementTechs(era);
   if (advancementTechs.length === 0) return false;
   const completed = new Set(completedTechIds);
   const completedCount = advancementTechs.filter(tech => completed.has(tech.id)).length;
-  return completedCount >= Math.ceil(advancementTechs.length * 0.6);
+  return completedCount >= Math.ceil(advancementTechs.length * getEraAdvancementFraction(era));
 }
 
 export function resolveCivilizationEra(completedTechIds: readonly string[]): number {
@@ -53,4 +57,12 @@ export function resolveCivilizationEra(completedTechIds: readonly string[]): num
   }
 
   return era;
+}
+
+export function resolveWorldAge(civilizations: Record<string, Civilization>): number {
+  const active = Object.values(civilizations).filter(civ => !civ.isEliminated);
+  if (active.length === 0) return 1;
+  const required = Math.floor(active.length / 2) + 1;
+  const eras = active.map(civ => resolveCivilizationEra(civ.techState.completed));
+  return Math.max(1, ...eras.filter(candidate => eras.filter(era => era >= candidate).length >= required));
 }
