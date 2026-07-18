@@ -201,6 +201,45 @@ describe('preach() (#592)', () => {
     expect(getCityConversionPoints(result.state.cityFaith?.[cityId], `religion-${civId}`)).toBe(50);
   });
 
+  it('does NOT double when the occupied target is a rival city the missionary owner does not itself occupy', () => {
+    // Regression: target-city.owner = otherCivId, occupation.originalOwnerId = civId (i.e.
+    // otherCivId captured this city FROM civId) -- civId's missionary has missionary-zeal
+    // and preaches it anyway (not at war, discovered). The city IS occupied, but NOT by
+    // civId, so this must NOT get the doubled bonus -- only the actual occupier's preach
+    // should double, per "a city the owner holds under occupation."
+    const bus = new EventBus();
+    const fixture = makeReligionFixture();
+    const { civId, otherCivId } = fixture;
+    let state = foundReligion(fixture.state, civId, fixture.templeCity, bus);
+    state = {
+      ...state,
+      civilizations: {
+        ...state.civilizations,
+        [civId]: {
+          ...state.civilizations[civId],
+          techState: { ...state.civilizations[civId].techState, completed: [...state.civilizations[civId].techState.completed, 'missionary-zeal'] },
+        },
+      },
+    };
+    const targetPos: HexCoord = { q: 20, r: 20 };
+    state = addCity(state, 'rival-occupied-city', otherCivId, targetPos, { occupation: { originalOwnerId: civId, turnsRemaining: 5 } });
+    const missionary = createUnit('missionary', civId, targetPos, state.idCounters);
+    missionary.chargesRemaining = 2;
+    state = {
+      ...state,
+      units: { ...state.units, [missionary.id]: missionary },
+      civilizations: {
+        ...state.civilizations,
+        [civId]: { ...state.civilizations[civId], units: [...state.civilizations[civId].units, missionary.id] },
+      },
+    };
+    state = markVisible(state, civId, [targetPos]);
+
+    const result = preach(state, missionary.id, 'rival-occupied-city', bus);
+    expect(result.ok).toBe(true);
+    expect(getCityConversionPoints(result.state.cityFaith?.['rival-occupied-city'], `religion-${civId}`)).toBe(50);
+  });
+
   it('refuses to preach a holy city', () => {
     const { state, bus, unitId, cityId } = seedPreachScenario({ holyCity: true });
     const result = preach(state, unitId, cityId, bus);

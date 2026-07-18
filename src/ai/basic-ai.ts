@@ -2,7 +2,7 @@ import type { GameState, Unit, HexCoord, PersonalityTraits, SpyMissionType, City
 import { EventBus } from '@/core/event-bus';
 import { hexKey, wrappedHexDistance, hexDistance, mapDistance } from '@/systems/hex-utils';
 import { getDetectionUnitTypeForCiv, cityFollowsOwnFaith } from '@/systems/city-system';
-import { preach, canPreachTarget } from '@/systems/religion-system';
+import { preach, isPreachTargetEligible } from '@/systems/religion-system';
 import { foundCityInState } from '@/systems/city-founding-system';
 import { canFoundCityAt } from '@/systems/city-territory-system';
 import { getMovementRangeDetails, moveUnitWithZoneOfControl, findPath, createUnit, UNIT_DEFINITIONS } from '@/systems/unit-system';
@@ -1481,7 +1481,7 @@ function chooseMissionaryDispatchTarget(state: GameState, civId: string, unit: U
   const ownUnconverted = civ.cities
     .map(id => state.cities[id])
     .filter((city): city is City => !!city && !cityFollowsOwnFaith(state, city))
-    .filter(city => canPreachTarget(state, unit, city.id))
+    .filter(city => isPreachTargetEligible(state, unit, city.id))
     .map(city => city.id)
     .sort();
   if (ownUnconverted.length > 0) return ownUnconverted[0];
@@ -1489,7 +1489,7 @@ function chooseMissionaryDispatchTarget(state: GameState, civId: string, unit: U
   const friendlyMinorCityIds = Object.values(state.minorCivs ?? {})
     .filter(mc => !mc.isDestroyed && !(civ.diplomacy.atWarWith ?? []).includes(mc.id))
     .map(mc => mc.cityId)
-    .filter(cityId => canPreachTarget(state, unit, cityId))
+    .filter(cityId => isPreachTargetEligible(state, unit, cityId))
     .sort();
   if (friendlyMinorCityIds.length > 0) return friendlyMinorCityIds[0];
 
