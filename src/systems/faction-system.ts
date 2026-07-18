@@ -98,6 +98,15 @@ export function getUnrestPressureBreakdown(
   const buildingHappiness = getCityHappinessFromBuildings(city);
   if (buildingHappiness > 0) rows.push({ label: 'Happiness buildings', amount: -buildingHappiness * 2 });
 
+  // #591 MR4: Serenity boon — +1 happiness in cities following the owner's OWN faith.
+  const cityFaith = state.cityFaith?.[cityId];
+  if (cityFaith) {
+    const religion = state.religions?.[cityFaith.religionId];
+    if (religion && religion.ownerCivId === owner && religion.boon === 'serenity') {
+      rows.push({ label: 'Religious serenity', amount: -2 });
+    }
+  }
+
   const contagion = getContagionSpread(cityId, state).pressure;
   if (contagion > 0) rows.push({ label: 'Uprising contagion', amount: contagion });
 

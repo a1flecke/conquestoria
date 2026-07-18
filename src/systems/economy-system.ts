@@ -15,6 +15,7 @@ import { getLegendaryWonderCityYieldBonus, getLegendaryWonderCivYieldBonus } fro
 import { getActiveNationalProjectsForCiv, getNationalProjectCivYieldBonus } from './national-project-system';
 import { processTradeRouteIncome } from './trade-system';
 import { getClaimedTrophyGoldPerTurn } from './beast-system';
+import { getReligionTithesGold } from './religion-system';
 import { createUnit, UNIT_DEFINITIONS } from './unit-system';
 import { resolveCivDefinition } from './civ-registry';
 import { getCivAvailableResources, getCivHappinessFromResources } from './resource-acquisition-system';
@@ -560,6 +561,7 @@ export function projectCivGrossGold(
   }
 
   grossGold += getClaimedTrophyGoldPerTurn(state, civId);
+  grossGold += getReligionTithesGold(state, civId);
 
   return grossGold;
 }

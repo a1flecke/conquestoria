@@ -352,6 +352,70 @@ describe('rush buy', () => {
   });
 });
 
+describe('#591 MR4 — Tithes gold', () => {
+  it('adds +1 gold per foreign city following the tithes-boon religion, capped at TITHES_CAP', () => {
+    const state = makeState();
+    const withTithes: GameState = {
+      ...state,
+      religions: { 'religion-player': { id: 'religion-player', name: 'Order of Test', ownerCivId: 'player', boon: 'tithes', foundedTurn: 1 } },
+      cities: {
+        ...state.cities,
+        'foreign-1': { ...state.cities.capital, id: 'foreign-1', owner: 'rival' },
+        'foreign-2': { ...state.cities.capital, id: 'foreign-2', owner: 'rival' },
+      },
+      cityFaith: {
+        'foreign-1': { religionId: 'religion-player' },
+        'foreign-2': { religionId: 'religion-player' },
+      },
+    };
+    const withoutTithes = { ...withTithes, religions: {} };
+    const gold = projectCivGrossGold(withTithes, 'player');
+    const baseline = projectCivGrossGold(withoutTithes, 'player');
+    expect(gold - baseline).toBe(2);
+  });
+
+  it('does not count own-civ follower cities toward Tithes', () => {
+    const state = makeState();
+    const withTithes: GameState = {
+      ...state,
+      religions: { 'religion-player': { id: 'religion-player', name: 'Order of Test', ownerCivId: 'player', boon: 'tithes', foundedTurn: 1 } },
+      cityFaith: { capital: { religionId: 'religion-player', isHolyCity: true } },
+    };
+    const withoutTithes = { ...withTithes, religions: {} };
+    expect(projectCivGrossGold(withTithes, 'player') - projectCivGrossGold(withoutTithes, 'player')).toBe(0);
+  });
+
+  it('contributes 0 when the boon is not tithes', () => {
+    const state = makeState();
+    const withSerenity: GameState = {
+      ...state,
+      religions: { 'religion-player': { id: 'religion-player', name: 'Order of Test', ownerCivId: 'player', boon: 'serenity', foundedTurn: 1 } },
+      cities: { ...state.cities, 'foreign-1': { ...state.cities.capital, id: 'foreign-1', owner: 'rival' } },
+      cityFaith: { 'foreign-1': { religionId: 'religion-player' } },
+    };
+    const withoutReligion = { ...withSerenity, religions: {} };
+    expect(projectCivGrossGold(withSerenity, 'player') - projectCivGrossGold(withoutReligion, 'player')).toBe(0);
+  });
+
+  it('caps at TITHES_CAP even with many foreign follower cities', () => {
+    const state = makeState();
+    const foreignCities: GameState['cities'] = {};
+    const cityFaith: GameState['cityFaith'] = {};
+    for (let i = 0; i < 15; i++) {
+      foreignCities[`foreign-${i}`] = { ...state.cities.capital, id: `foreign-${i}`, owner: 'rival' };
+      cityFaith[`foreign-${i}`] = { religionId: 'religion-player' };
+    }
+    const withTithes: GameState = {
+      ...state,
+      religions: { 'religion-player': { id: 'religion-player', name: 'Order of Test', ownerCivId: 'player', boon: 'tithes', foundedTurn: 1 } },
+      cities: { ...state.cities, ...foreignCities },
+      cityFaith,
+    };
+    const withoutTithes = { ...withTithes, religions: {} };
+    expect(projectCivGrossGold(withTithes, 'player') - projectCivGrossGold(withoutTithes, 'player')).toBe(10);
+  });
+});
+
 describe('pirate economy modifiers', () => {
   it('zeros routes involving a blockaded city and reduces that city gold once without changing food or production', () => {
     const state = makeState();

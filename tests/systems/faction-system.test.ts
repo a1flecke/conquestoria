@@ -1018,4 +1018,47 @@ describe('unrest pressure breakdown (#552)', () => {
     expect(row).toBeDefined();
     expect(row!.amount).toBe(-2);
   });
+
+  describe('#591 MR4 — Religious serenity boon row', () => {
+    it('adds a -2 Religious serenity row when the city follows its own civ\'s serenity-boon faith', () => {
+      const state = makeState({ cityCount: 1 });
+      const withFaith: GameState = {
+        ...state,
+        religions: { 'religion-player': { id: 'religion-player', name: 'Order of Test', ownerCivId: 'player', boon: 'serenity', foundedTurn: 1 } },
+        cityFaith: { 'city-1': { religionId: 'religion-player' } },
+      };
+      const rows = getUnrestPressureBreakdown('city-1', withFaith, 0);
+      const row = rows.find(r => r.label === 'Religious serenity');
+      expect(row).toBeDefined();
+      expect(row!.amount).toBe(-2);
+    });
+
+    it('does not add the row when the boon is not serenity', () => {
+      const state = makeState({ cityCount: 1 });
+      const withFaith: GameState = {
+        ...state,
+        religions: { 'religion-player': { id: 'religion-player', name: 'Order of Test', ownerCivId: 'player', boon: 'tithes', foundedTurn: 1 } },
+        cityFaith: { 'city-1': { religionId: 'religion-player' } },
+      };
+      const rows = getUnrestPressureBreakdown('city-1', withFaith, 0);
+      expect(rows.find(r => r.label === 'Religious serenity')).toBeUndefined();
+    });
+
+    it('does not add the row when the city follows a foreign civ\'s serenity faith', () => {
+      const state = makeState({ cityCount: 1 });
+      const withFaith: GameState = {
+        ...state,
+        religions: { 'religion-rival': { id: 'religion-rival', name: 'Order of Rival', ownerCivId: 'rival', boon: 'serenity', foundedTurn: 1 } },
+        cityFaith: { 'city-1': { religionId: 'religion-rival' } },
+      };
+      const rows = getUnrestPressureBreakdown('city-1', withFaith, 0);
+      expect(rows.find(r => r.label === 'Religious serenity')).toBeUndefined();
+    });
+
+    it('does not add the row when the city has no faith at all', () => {
+      const state = makeState({ cityCount: 1 });
+      const rows = getUnrestPressureBreakdown('city-1', state, 0);
+      expect(rows.find(r => r.label === 'Religious serenity')).toBeUndefined();
+    });
+  });
 });
