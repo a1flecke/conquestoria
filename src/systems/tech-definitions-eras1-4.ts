@@ -27,7 +27,7 @@ export const TECH_TREE_ERAS_1_4: Tech[] = [
   { id: 'wheel', name: 'The Wheel', track: 'science', cost: 10, prerequisites: ['fire'], unlocks: ['Foundational mechanics knowledge'], unlocksBuildings: ['caravanserai'], era: 2 },
   { id: 'mathematics', name: 'Mathematics', track: 'science', cost: 25, prerequisites: ['writing'], unlocks: [], unlocksBuildings: ['archive', 'scribes_hall'], era: 2 },
   { id: 'engineering', name: 'Engineering', track: 'science', cost: 55, prerequisites: ['mathematics', 'wheel'], unlocks: [], unlocksBuildings: ['aqueduct', 'forge'], era: 3 },
-  { id: 'philosophy', name: 'Philosophy', track: 'science', cost: 70, prerequisites: ['writing'], unlocks: [], unlocksBuildings: ['temple', 'philosophers_circle'], era: 3 },
+  { id: 'philosophy', name: 'Philosophy', track: 'science', cost: 70, prerequisites: ['writing'], unlocks: [], unlocksBuildings: ['temple', 'philosophers_circle', 'sacred_council'], era: 3 },
   { id: 'astronomy', name: 'Astronomy', track: 'science', cost: 75, prerequisites: ['mathematics'], unlocks: [], unlocksBuildings: ['observatory'], era: 4 },
   { id: 'medicine', name: 'Medicine', track: 'science', cost: 75, prerequisites: ['philosophy', 'pottery'], unlocks: ['City population grows faster', 'Send medical aid to a plague-struck civilization you have met'], era: 4 },
 

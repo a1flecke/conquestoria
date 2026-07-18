@@ -302,6 +302,14 @@ export const BUILDINGS: Record<string, Building> = {
     uniquePerEmpire: true, nationalProject: { homeEra: 3 },
     civYieldBonus: { production: 2 },
   },
+  sacred_council: {
+    id: 'sacred_council', name: 'Sacred Council', category: 'culture',
+    yields: { food: 0, production: 0, gold: 0, science: 0 }, productionCost: 120,
+    description: 'Founds your empire\'s faith. One-time — permanent effect, never fades.',
+    techRequired: 'philosophy', requiresBuildings: ['temple'],
+    pacing: { band: 'marquee', role: 'national-project', impact: 1.5, scope: 'empire', snowball: 1.3, urgency: 1.1, situationality: 1, unlockBreadth: 1 },
+    uniquePerEmpire: true, nationalProject: { homeEra: 3, milestone: true },
+  },
 
   // Era 4
   imperial_archive: {
@@ -1474,6 +1482,7 @@ export const PRODUCTION_ICONS: Record<string, string> = {
   philosophers_circle:  '🏛️',
   road_corps:           '🛤️',
   iron_legion:          '🛡️',
+  sacred_council:       '📿',
   imperial_archive:     '📚',
   praetorian_legion:    '⚔️',
   royal_mint:           '💰',
@@ -1766,7 +1775,11 @@ export function getAvailableBuildings(
     }
     if (b.nationalProject) {
       const currentEra = era ?? 1;
-      if (currentEra < b.nationalProject.homeEra || currentEra > b.nationalProject.homeEra + 1) return false;
+      const belowWindow = currentEra < b.nationalProject.homeEra;
+      // Milestone NPs (#591 MR4) have no upper build-window bound -- they're buildable
+      // from homeEra onward forever, unlike a normal NP's homeEra..homeEra+1 window.
+      const aboveWindow = !b.nationalProject.milestone && currentEra > b.nationalProject.homeEra + 1;
+      if (belowWindow || aboveWindow) return false;
       if (b.uniquePerEmpire && civId && builtNationalProjectKeys?.has(`${civId}:${b.id}`)) return false;
     }
     return true;
@@ -1949,7 +1962,8 @@ export function processCity(
     const filteredNP = newQueue.filter((item: string) => {
       const bldg = BUILDINGS[item];
       if (!bldg?.nationalProject) return true;
-      const inWindow = era >= bldg.nationalProject.homeEra && era <= bldg.nationalProject.homeEra + 1;
+      const inWindow = era >= bldg.nationalProject.homeEra
+        && (bldg.nationalProject.milestone || era <= bldg.nationalProject.homeEra + 1);
       if (!inWindow) {
         droppedProductionItems.push({ itemId: item, itemKind: 'building', reason: 'build-window-expired' });
       }

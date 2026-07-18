@@ -245,4 +245,26 @@ describe('expireNationalProjects', () => {
     expect(next.cities['city1'].buildings).not.toContain('royal_academy');
     expect(next.cities['city1'].buildings).toContain('library');
   });
+
+  it('#591 MR4: never expires a milestone NP (sacred_council), even far past the normal delta>=3 threshold', () => {
+    const state = makeState({
+      era: 20,
+      cities: {
+        city1: {
+          id: 'city1', name: 'Rome', owner: 'p1', position: { q: 0, r: 0 },
+          population: 3, food: 0, foodNeeded: 10,
+          buildings: ['temple', 'sacred_council'],
+          productionQueue: [], productionProgress: 0,
+          ownedTiles: [], workedTiles: [], focus: 'balanced', maturity: 'town',
+        } as any,
+      },
+      builtNationalProjects: {
+        'p1:sacred_council': { civId: 'p1', cityId: 'city1', eraBuilt: 3 },
+      },
+    });
+    const { state: next, expired } = expireNationalProjects(state, 20);
+    expect(expired).toHaveLength(0);
+    expect(next.builtNationalProjects?.['p1:sacred_council']).toBeDefined();
+    expect(next.cities['city1'].buildings).toContain('sacred_council');
+  });
 });

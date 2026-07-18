@@ -351,6 +351,7 @@ export const BUILDING_SPRITE_CATALOG: Record<string, BuildingSpriteComponent> = 
   philosophers_circle:    ForumSprite,
   road_corps:             WorkshopSprite,
   iron_legion:            ArmorySprite,
+  sacred_council:         TempleSprite,
   imperial_archive:       ArchiveSprite,
   praetorian_legion:      BarracksSprite,
   royal_mint:             BankSprite,
