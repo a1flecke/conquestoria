@@ -13,6 +13,11 @@ export interface UnitDeleteConfirmationConfig {
    * missionary consumed by its own last preach charge) so there is nothing left to
    * cancel; onConfirm becomes the single "OK" dismissal. */
   hideCancel?: boolean;
+  /** 'danger' (default) is the destructive-action red styling. 'neutral' swaps the title
+   * color and the confirm button to a calm, non-alarming palette — use for acknowledgment
+   * dialogs (like a missionary consumed by a successful preach) where nothing bad
+   * happened; a red "OK" button after good news reads as a warning to younger players. */
+  tone?: 'danger' | 'neutral';
   onConfirm: () => void;
   onCancel: () => void;
 }
@@ -39,9 +44,11 @@ export function createUnitDeleteConfirmationPanel(
   const dialog = document.createElement('div');
   dialog.style.cssText = 'max-width:360px;width:100%;background:#171923;border:1px solid rgba(255,255,255,0.18);border-radius:8px;padding:16px;color:white;box-shadow:0 18px 60px rgba(0,0,0,0.45);';
 
+  const isNeutral = config.tone === 'neutral';
+
   const title = document.createElement('h2');
   title.textContent = config.title ?? `Delete ${config.unitName}?`;
-  title.style.cssText = 'font-size:18px;margin:0 0 8px;color:#fca5a5;';
+  title.style.cssText = `font-size:18px;margin:0 0 8px;color:${isNeutral ? '#b39ddb' : '#fca5a5'};`;
   dialog.appendChild(title);
 
   const body = document.createElement('p');
@@ -60,7 +67,7 @@ export function createUnitDeleteConfirmationPanel(
   }
   buttons.appendChild(createButton(
     config.confirmLabel ?? 'Delete Unit',
-    'padding:9px 14px;border-radius:8px;border:0;background:#b91c1c;color:white;cursor:pointer;font-weight:bold;',
+    `padding:9px 14px;border-radius:8px;border:0;background:${isNeutral ? '#7c5cbf' : '#b91c1c'};color:white;cursor:pointer;font-weight:bold;`,
     config.onConfirm,
   ));
   dialog.appendChild(buttons);

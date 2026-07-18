@@ -1486,10 +1486,19 @@ function chooseMissionaryDispatchTarget(state: GameState, civId: string, unit: U
     .sort();
   if (ownUnconverted.length > 0) return ownUnconverted[0];
 
+  // A minor-civ city is foreign-owned by definition, so cityFollowsOwnFaith (which
+  // compares against city.owner) can never match here -- the correct check is whether
+  // the city's cityFaith.religionId already equals civId's OWN religion id directly.
+  const ownReligionId = Object.values(state.religions ?? {}).find(r => r.ownerCivId === civId)?.id;
   const friendlyMinorCityIds = Object.values(state.minorCivs ?? {})
     .filter(mc => !mc.isDestroyed && !(civ.diplomacy.atWarWith ?? []).includes(mc.id))
     .map(mc => mc.cityId)
-    .filter(cityId => isPreachTargetEligible(state, unit, cityId))
+    .filter(cityId => {
+      // Don't waste a charge re-preaching a friendly minor city that already follows
+      // this civ's own faith -- there's no conversion progress left to make.
+      if (ownReligionId && state.cityFaith?.[cityId]?.religionId === ownReligionId) return false;
+      return isPreachTargetEligible(state, unit, cityId);
+    })
     .sort();
   if (friendlyMinorCityIds.length > 0) return friendlyMinorCityIds[0];
 

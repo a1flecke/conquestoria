@@ -301,6 +301,50 @@ describe('preach() (#592)', () => {
     expect(result.ok).toBe(true);
   });
 
+  it('refuses to preach a city under its anti-flip-flop cooldown when the preaching civ is NOT the exempt civ', () => {
+    // Regression: preach() must respect CityFaith.conversionCooldownUntilTurn just like
+    // passive spread does, or a missionary trivially bypasses the whole anti-flip-flop
+    // mechanic. Here otherCivId just converted the city (cooldown exempts otherCivId,
+    // the political owner at conversion time); civId's missionary tries to flip it to
+    // civId's own faith during the cooldown window and must be refused.
+    const { state, bus, unitId, cityId, otherCivId } = seedPreachScenario();
+    const cooling = {
+      ...state,
+      cityFaith: {
+        ...state.cityFaith,
+        [cityId]: {
+          religionId: `religion-${otherCivId}`,
+          conversionCooldownUntilTurn: state.turn + 5,
+          conversionCooldownExemptCivId: otherCivId,
+        },
+      },
+    };
+    const result = preach(cooling, unitId, cityId, bus);
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.reason).toBe('city-conversion-cooldown');
+  });
+
+  it('the exempt civ (the city\'s own political owner) can still preach through its own cooldown window', () => {
+    // Same setup as above, but the cooldown's exempt civ IS the preaching civ (civId owns
+    // the city politically; it just flipped religions and civId wants it back
+    // immediately) -- this must succeed, preserving "re-convert a flipped city."
+    const { state, bus, unitId, cityId, civId, otherCivId } = seedPreachScenario();
+    const cooling = {
+      ...state,
+      cities: { ...state.cities, [cityId]: { ...state.cities[cityId], owner: civId } },
+      cityFaith: {
+        ...state.cityFaith,
+        [cityId]: {
+          religionId: `religion-${otherCivId}`,
+          conversionCooldownUntilTurn: state.turn + 5,
+          conversionCooldownExemptCivId: civId,
+        },
+      },
+    };
+    const result = preach(cooling, unitId, cityId, bus);
+    expect(result.ok).toBe(true);
+  });
+
   it('canPreachTarget matches preach()\'s own refusal conditions (no drift between UI eligibility and the real gate)', () => {
     const { state, unitId, cityId } = seedPreachScenario({ holyCity: true });
     expect(canPreachTarget(state, state.units[unitId], cityId)).toBe(false);
@@ -343,5 +387,35 @@ describe('occupation passive pressure (#592)', () => {
     const result = preach(state, unitId, cityId, bus);
     expect(result.ok && result.converted).toBe(true);
     expect(getCityConversionPoints(result.state.cityFaith?.[cityId], `religion-${civId}`)).toBe(0); // bucket cleared/replaced once converted, religionId set directly
+  });
+
+  it('occupation accrual respects the anti-flip-flop cooldown just like passive spread and preach', () => {
+    // Regression: a city that just converted to religion A must not be immediately
+    // grindable toward the occupier's DIFFERENT religion via occupation accrual -- that
+    // would be a loophole around the cooldown from the military-conquest side.
+    const bus = new EventBus();
+    const fixture = makeReligionFixture();
+    const { civId, otherCivId } = fixture;
+    let state = foundReligion(fixture.state, civId, fixture.templeCity, bus);
+    const targetPos: HexCoord = { q: 20, r: 20 };
+    state = addCity(state, 'occupied-city', civId, targetPos, { occupation: { originalOwnerId: otherCivId, turnsRemaining: 5 } });
+    // City politically owned by civId (the occupier here) already follows a DIFFERENT
+    // religion (otherCivId's), and is under a cooldown that exempts otherCivId, not civId.
+    state = {
+      ...state,
+      cityFaith: {
+        ...state.cityFaith,
+        'occupied-city': {
+          religionId: `religion-${otherCivId}`,
+          conversionCooldownUntilTurn: state.turn + 5,
+          conversionCooldownExemptCivId: otherCivId,
+        },
+      },
+    };
+
+    const before = getCityConversionPoints(state.cityFaith?.['occupied-city'], `religion-${civId}`);
+    const next = processReligionTurn(state, bus);
+    const after = getCityConversionPoints(next.cityFaith?.['occupied-city'], `religion-${civId}`);
+    expect(after).toBe(before);
   });
 });
