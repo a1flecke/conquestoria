@@ -63,6 +63,6 @@ export function resolveWorldAge(civilizations: Record<string, Civilization>): nu
   const active = Object.values(civilizations).filter(civ => !civ.isEliminated);
   if (active.length === 0) return 1;
   const required = Math.floor(active.length / 2) + 1;
-  const eras = active.map(civ => resolveCivilizationEra(civ.techState.completed));
+  const eras = active.map(civ => resolveCivilizationEra(civ.techState?.completed ?? []));
   return Math.max(1, ...eras.filter(candidate => eras.filter(era => era >= candidate).length >= required));
 }

@@ -10,6 +10,17 @@ import { UNIT_DEFINITIONS } from '@/systems/unit-system';
 import { getTradeUnitTripBonus, canEstablishRoute } from '@/systems/trade-system';
 
 describe('save migrations', () => {
+  it('recalculates a legacy World Age from a strict majority of personal eras', () => {
+    const legacy = createNewGame('rome', 'dual-era-migration', 'small');
+    legacy.saveSchemaVersion = 4;
+    legacy.era = 9;
+    for (const civ of Object.values(legacy.civilizations)) civ.techState.completed = [];
+
+    const migrated = migrateSaveToCurrent(legacy);
+    expect(migrated.saveSchemaVersion).toBe(CURRENT_SAVE_SCHEMA_VERSION);
+    expect(migrated.era).toBe(1);
+    expect(migrateSaveToCurrent(migrated)).toEqual(migrated);
+  });
   it('migrates an unversioned save to a stable current schema exactly once', () => {
     const legacySave = createNewGame('rome', 'era13-legacy-save', 'small');
     delete legacySave.gameId;

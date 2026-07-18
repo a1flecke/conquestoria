@@ -627,7 +627,7 @@ describe('tech-panel', () => {
 
     expect(panel.textContent).toContain('Researching: Bronze Working');
     expect(panel.textContent).toMatch(/Turns remaining: (9|10|11)/);
-    expect(panel.textContent).not.toContain('50');
+    expect(panel.querySelector('[data-tech-id="bronze-working"]')?.textContent).not.toContain('50 turns');
     expect(panel.querySelector('[data-tech-id="bronze-working"]')?.textContent).toMatch(/(9|10|11) turns/);
   });
 

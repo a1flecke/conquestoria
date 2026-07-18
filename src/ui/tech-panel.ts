@@ -10,6 +10,7 @@ import {
   type TechTreeZoom,
 } from '@/systems/tech-progression';
 import { TECH_TREE, getEffectiveTechCost } from '@/systems/tech-system';
+import { getEraAdvancementFraction, getEraAdvancementTechs, resolveCivilizationEra } from '@/systems/tech-definitions';
 import { UNIT_DEFINITIONS } from '@/systems/unit-system';
 
 function getUnlockLines(tech: Tech): string[] {
@@ -409,6 +410,19 @@ export function createTechPanel(
   header.appendChild(close);
 
   panel.appendChild(header);
+
+  const personalEra = resolveCivilizationEra(civ.techState.completed);
+  const nextEra = personalEra + 1;
+  const nextEraTechs = getEraAdvancementTechs(nextEra);
+  if (nextEraTechs.length > 0) {
+    const progress = nextEraTechs.filter(tech => civ.techState.completed.includes(tech.id)).length;
+    const needed = Math.ceil(nextEraTechs.length * getEraAdvancementFraction(nextEra));
+    const eraProgress = document.createElement('div');
+    eraProgress.dataset.role = 'personal-era-progress';
+    eraProgress.textContent = `Your Era ${personalEra} · Next era: ${progress} / ${needed} qualifying technologies (${Math.round(getEraAdvancementFraction(nextEra) * 100)}%)`;
+    eraProgress.style.cssText = 'background:rgba(232,193,112,0.12);border:1px solid rgba(232,193,112,0.38);border-radius:8px;padding:8px 10px;margin-bottom:12px;font-size:13px;';
+    panel.appendChild(eraProgress);
+  }
 
   const currentTech = civ.techState.currentResearch
     ? TECH_TREE.find(tech => tech.id === civ.techState.currentResearch)
