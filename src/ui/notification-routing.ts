@@ -474,6 +474,33 @@ export function routeReligionFounded(
   }
 }
 
+// #591 MR4: the issue's spec explicitly calls for a notification on conversion too
+// ("fire religion:city-converted (+ notification where discovery allows)"), not just
+// founding. Two distinct recipients, since city ownership and religion ownership are
+// independent: the CITY's owner always sees it (it's their own city's internal
+// affairs, regardless of who founded the faith it now follows); the NEW religion's
+// owner is told they gained a follower, but only if they're a different civ AND have
+// met the city's owner (discovery-gated, same convention as routeReligionFounded).
+// Deliberately no "you lost a follower" notification to the old religion's owner --
+// not called for by the spec, and would double the notification volume for a mechanic
+// that already ticks somewhat frequently via passive spread.
+export function routeReligionCityConverted(
+  state: GameState,
+  event: GameEvents['religion:city-converted'],
+  sink: NotificationSink,
+): void {
+  const city = state.cities[event.cityId];
+  if (!city) return;
+  const toReligion = state.religions?.[event.toReligionId];
+  if (!toReligion) return;
+
+  sink(city.owner, `${city.name} now follows ${toReligion.name}.`, 'info');
+
+  if (toReligion.ownerCivId !== city.owner && hasMetCivilization(state, toReligion.ownerCivId, city.owner)) {
+    sink(toReligion.ownerCivId, `${city.name} has converted to ${toReligion.name}!`, 'success');
+  }
+}
+
 export function routeCrisisEscalated(
   state: GameState,
   event: GameEvents['crisis:escalated'],
