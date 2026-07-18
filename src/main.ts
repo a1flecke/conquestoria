@@ -243,6 +243,7 @@ import {
   routeCrisisFoeHuntedByAlly,
   routeCrisisAidSent,
   routeReligionFounded,
+  routeReligionCityConverted,
   routeOpportunisticWar,
   routeSabotageReliefDiscovered,
   type NotificationSink,
@@ -4536,6 +4537,10 @@ bus.on('crisis:started', event => {
 
 bus.on('religion:founded', event => {
   routeReligionFounded(gameState, event, appendToCivLog);
+});
+
+bus.on('religion:city-converted', event => {
+  routeReligionCityConverted(gameState, event, appendToCivLog);
 });
 
 bus.on('crisis:spread', event => {

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { GameState } from '@/core/types';
-import { routeReligionFounded } from '@/ui/notification-routing';
+import { routeReligionFounded, routeReligionCityConverted } from '@/ui/notification-routing';
 
 // Deliberately a separate file from notification-routing.test.ts: that file mocks
 // @/systems/discovery-system at module scope with a narrow hardcoded stub built for an
@@ -61,6 +61,44 @@ describe('#591 MR4 — religion:founded routing', () => {
     });
     const { sink, calls } = makeSink();
     routeReligionFounded(state, { religionId: 'religion-p1', civId: 'p1', cityId: 'c1', name: 'Order of Test' }, sink as never);
+
+    expect(calls.map(c => c.civId)).toEqual(['p1']);
+  });
+});
+
+describe('#591 MR4 — religion:city-converted routing', () => {
+  it('notifies the city\'s own owner, and the new religion\'s owner if a different civ who has met them', () => {
+    const state = makeState({
+      religions: { 'religion-p2': { id: 'religion-p2', name: 'Order of Rivals', ownerCivId: 'p2', foundedTurn: 1 } },
+    });
+    const { sink, calls } = makeSink();
+    routeReligionCityConverted(state, { cityId: 'c1', toReligionId: 'religion-p2' }, sink as never);
+
+    const civIds = calls.map(c => c.civId);
+    expect(civIds).toContain('p1'); // c1's own owner
+    expect(civIds).toContain('p2'); // religion-p2's owner, gained a follower
+  });
+
+  it('does not double-notify when the city owner and the new religion\'s owner are the same civ', () => {
+    const state = makeState({
+      religions: { 'religion-p1': { id: 'religion-p1', name: 'Order of Test', ownerCivId: 'p1', foundedTurn: 1 } },
+    });
+    const { sink, calls } = makeSink();
+    routeReligionCityConverted(state, { cityId: 'c1', toReligionId: 'religion-p1' }, sink as never);
+
+    expect(calls.map(c => c.civId)).toEqual(['p1']);
+  });
+
+  it('does not notify the new religion\'s owner if they have never met the city\'s owner', () => {
+    const state = makeState({
+      civilizations: {
+        p1: { id: 'p1', name: 'Alice', diplomacy: { relationships: {}, atWarWith: [], treaties: [] }, visibility: { tiles: {} }, cities: ['c1'], units: [] },
+        p3: { id: 'p3', name: 'Carol', diplomacy: { relationships: {}, atWarWith: [], treaties: [] }, visibility: { tiles: {} }, cities: [], units: [] },
+      } as unknown as GameState['civilizations'],
+      religions: { 'religion-p3': { id: 'religion-p3', name: 'Order of Strangers', ownerCivId: 'p3', foundedTurn: 1 } },
+    });
+    const { sink, calls } = makeSink();
+    routeReligionCityConverted(state, { cityId: 'c1', toReligionId: 'religion-p3' }, sink as never);
 
     expect(calls.map(c => c.civId)).toEqual(['p1']);
   });
