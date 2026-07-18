@@ -12,6 +12,22 @@ const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1
 
 const bus = new EventBus();
 
+function setNearbyPressureEra(state: ReturnType<typeof createNewGame>, minorCivId: string, era: number): void {
+  const city = state.cities[state.minorCivs[minorCivId]!.cityId];
+  setTargetCivEra(state, era);
+  state.cities['pressure-source'] = {
+    id: 'pressure-source', owner: 'player', position: { q: city.position.q + 1, r: city.position.r },
+  } as never;
+  state.civilizations.player.cities = ['pressure-source'];
+}
+
+function setTargetCivEra(state: ReturnType<typeof createNewGame>, era: number): void {
+  state.civilizations.player.techState.completed = Array.from({ length: era - 1 }, (_, index) => index + 2)
+    .flatMap(candidate => getEraAdvancementTechs(candidate)
+      .slice(0, Math.ceil(getEraAdvancementTechs(candidate).length * (candidate <= 3 ? 0.5 : candidate <= 8 ? 0.6 : 0.55)))
+      .map(tech => tech.id));
+}
+
 describe('minor civ placement', () => {
   it('places correct number for small map', () => {
     const state = createNewGame(undefined, 'mc-place-test', 'small');
@@ -124,6 +140,7 @@ describe('minor civ turn processing', () => {
     const state = createNewGame(undefined, 'minor-economy-turn-order', 'small');
     const mcId = Object.keys(state.minorCivs)[0]!;
     const mc = state.minorCivs[mcId];
+    setTargetCivEra(state, 2);
     const city = state.cities[mc.cityId];
     city.productionQueue = ['warrior'];
     city.productionProgress = 999;
@@ -142,6 +159,7 @@ describe('minor civ turn processing', () => {
     const state = createNewGame(undefined, 'minor-economy-no-double-spawn', 'small');
     state.era = 2;
     const mcId = Object.keys(state.minorCivs)[0]!;
+    setTargetCivEra(state, 2);
     const mc = state.minorCivs[mcId];
     const city = state.cities[mc.cityId];
     city.population = 4;
@@ -497,6 +515,7 @@ describe('minor civ era upgrades', () => {
     if (!mcId) return;
     const mc = state.minorCivs[mcId];
     mc.lastEraUpgrade = 1;
+    setNearbyPressureEra(state, mcId, 2);
 
     processMinorCivEraUpgrade(state, mc);
     const garrison = state.units[mc.units[0]];
@@ -511,6 +530,7 @@ describe('minor civ era upgrades', () => {
     if (!mcId) return;
     const mc = state.minorCivs[mcId];
     mc.lastEraUpgrade = 1;
+    setNearbyPressureEra(state, mcId, 2);
     const popBefore = state.cities[mc.cityId].population;
 
     processMinorCivEraUpgrade(state, mc);
@@ -523,11 +543,25 @@ describe('minor civ era upgrades', () => {
     const mcId = Object.keys(state.minorCivs)[0]!;
     const mc = state.minorCivs[mcId];
     mc.lastEraUpgrade = 4;
+    setNearbyPressureEra(state, mcId, 12);
 
     processMinorCivEraUpgrade(state, mc);
 
     expect(state.units[mc.units[0]].type).toBe('tank');
     expect(mc.lastEraUpgrade).toBe(12);
+  });
+
+  it('does not upgrade a minor-civ garrison beyond the nearby civilization pressure era', () => {
+    const state = createNewGame(undefined, 'mc-local-era-cap', 'small');
+    state.era = 12;
+    const mcId = Object.keys(state.minorCivs)[0]!;
+    const mc = state.minorCivs[mcId];
+    mc.lastEraUpgrade = 1;
+
+    processMinorCivEraUpgrade(state, mc);
+
+    expect(state.units[mc.units[0]].type).toBe('warrior');
+    expect(mc.lastEraUpgrade).toBe(1);
   });
 });
 
@@ -610,6 +644,7 @@ describe('regional grievance mobilization', () => {
     const state = createNewGame(undefined, 'mc-mobilize-defender', 'small');
     state.era = 2;
     const mcId = Object.keys(state.minorCivs)[0]!;
+    setTargetCivEra(state, 2);
     const mc = state.minorCivs[mcId];
     mc.regionalGrievanceByCiv = {
       player: {
@@ -653,6 +688,7 @@ describe('regional grievance mobilization', () => {
     });
     for (const state of [explorer, veteran]) {
       state.era = 2;
+      setTargetCivEra(state, 2);
       const mc = Object.values(state.minorCivs)[0];
       mc.regionalGrievanceByCiv = {
         player: {
@@ -680,6 +716,7 @@ describe('regional grievance mobilization', () => {
     state.era = 4;
     const mcId = Object.keys(state.minorCivs)[0]!;
     const mc = state.minorCivs[mcId];
+    setTargetCivEra(state, 4);
     const city = state.cities[mc.cityId];
     city.population = 3;
     const garrison = state.units[mc.units[0]];
@@ -717,6 +754,7 @@ describe('regional grievance mobilization', () => {
     state.era = 3;
     const mcId = Object.keys(state.minorCivs)[0]!;
     const mc = state.minorCivs[mcId];
+    setTargetCivEra(state, 3);
     state.cities[mc.cityId].population = 2;
     mc.regionalGrievanceByCiv = {
       player: {
@@ -741,6 +779,7 @@ describe('regional grievance mobilization', () => {
     state.era = 2;
     state.turn = 20;
     const mcId = Object.keys(state.minorCivs)[0]!;
+    setTargetCivEra(state, 2);
     state.minorCivs[mcId].regionalGrievanceByCiv = {
       player: {
         targetCivId: 'player',
@@ -764,6 +803,7 @@ describe('regional grievance mobilization', () => {
     state.era = 2;
     state.turn = 20;
     const mcId = Object.keys(state.minorCivs)[0]!;
+    setTargetCivEra(state, 2);
     state.minorCivs[mcId].regionalGrievanceByCiv = {
       player: {
         targetCivId: 'player',
@@ -786,6 +826,7 @@ describe('regional grievance mobilization', () => {
     const state = createNewGame(undefined, 'mc-coalition-talks', 'medium');
     state.era = 2;
     const [a, b] = Object.keys(state.minorCivs);
+    setTargetCivEra(state, 2);
     for (const id of [a, b]) {
       state.cities[state.minorCivs[id].cityId].population = 3;
       state.minorCivs[id].regionalGrievanceByCiv = {

@@ -14,6 +14,7 @@ import { declareWar, modifyRelationship } from '@/systems/diplomacy-system';
 import { getWrappedHexNeighbors, hexKey, wrappedHexDistance } from '@/systems/hex-utils';
 import { MINOR_CIV_DEFINITIONS } from '@/systems/minor-civ-definitions';
 import { createUnit } from '@/systems/unit-system';
+import { resolveNeutralPressureEra } from '@/systems/era-resolution';
 
 export const MINOR_CIV_REGIONAL_GRIEVANCE_RADIUS = 14;
 const CONQUEST_PRESSURE = 35;
@@ -163,12 +164,14 @@ export function getMinorCivMobilizationBudget(state: GameState, minorCivId: stri
 function spawnRegionalDefender(
   state: GameState,
   minorCiv: MinorCivState,
+  targetCivId: string,
   health: number,
 ): { state: GameState; unitId: string } | null {
   const city = state.cities[minorCiv.cityId];
   const spawnPosition = findRegionalDefenderSpawnPosition(state, minorCiv);
   if (!city || !spawnPosition) return null;
-  const unit = createUnit(eraDefenderUnit(state.era), minorCiv.id, spawnPosition, state.idCounters);
+  const pressureEra = resolveNeutralPressureEra(state, city.position, targetCivId) ?? 1;
+  const unit = createUnit(eraDefenderUnit(pressureEra), minorCiv.id, spawnPosition, state.idCounters);
   unit.health = health;
   unit.movementPointsLeft = 0;
   unit.hasMoved = true;
@@ -242,7 +245,7 @@ export function applyRegionalGrievanceForMinorCivConquest(
     const nextGrievance: MinorCivRegionalGrievance = {
       targetCivId: conquerorId,
       pressure: nextPressure,
-      status: resolveGrievanceStatus(nextPressure, state.era),
+      status: resolveGrievanceStatus(nextPressure, resolveNeutralPressureEra(state, city.position, conquerorId) ?? 1),
       lastUpdatedTurn: state.turn,
       lastConquestTurn: state.turn,
       decayBlockedUntilTurn: state.turn + 4,
@@ -293,7 +296,7 @@ export function processMinorCivRegionalGrievanceTurn(
     let nextGrievance: MinorCivRegionalGrievance = {
       ...grievance,
       pressure: Math.max(0, grievance.pressure),
-      status: resolveGrievanceStatus(grievance.pressure, nextState.era),
+      status: resolveGrievanceStatus(grievance.pressure, resolveNeutralPressureEra(nextState, nextState.cities[minorCiv.cityId]!.position, targetCivId) ?? 1),
       mobilizationProgress: grievance.mobilizationProgress ?? 0,
       causes: [...grievance.causes],
     };
@@ -305,7 +308,7 @@ export function processMinorCivRegionalGrievanceTurn(
     }
     nextGrievance = {
       ...nextGrievance,
-      status: resolveGrievanceStatus(nextGrievance.pressure, nextState.era),
+      status: resolveGrievanceStatus(nextGrievance.pressure, resolveNeutralPressureEra(nextState, nextState.cities[nextState.minorCivs[minorCivId]!.cityId]!.position, targetCivId) ?? 1),
     };
 
     const currentMinor = nextState.minorCivs[minorCivId];
@@ -314,14 +317,14 @@ export function processMinorCivRegionalGrievanceTurn(
     const severeThreat = nextGrievance.pressure >= CONSCRIPTION_PRESSURE
       || isDirectWarGrievance(nextState, currentMinor, targetCivId);
     if (
-      nextState.era >= 2
+      (resolveNeutralPressureEra(nextState, city?.position ?? { q: 0, r: 0 }, targetCivId) ?? 1) >= 2
       && city
       && city.population >= 3
       && conscriptionReady
       && severeThreat
       && allowDefenderSpawns
     ) {
-      const spawned = spawnRegionalDefender(nextState, currentMinor, 65);
+      const spawned = spawnRegionalDefender(nextState, currentMinor, targetCivId, 65);
       if (spawned) {
         nextState = {
           ...spawned.state,
@@ -339,13 +342,13 @@ export function processMinorCivRegionalGrievanceTurn(
     }
 
     if (
-      nextState.era >= 2
+      (resolveNeutralPressureEra(nextState, city?.position ?? { q: 0, r: 0 }, targetCivId) ?? 1) >= 2
       && (nextGrievance.status === 'mobilizing' || nextGrievance.status === 'coalition-talks')
     ) {
       const nextProgress = (nextGrievance.mobilizationProgress ?? 0) + mobilizationProgressPerTurn(nextState);
       if (nextProgress >= TRAINED_DEFENDER_PROGRESS) {
         const spawned = allowDefenderSpawns
-          ? spawnRegionalDefender(nextState, nextState.minorCivs[minorCivId], 100)
+          ? spawnRegionalDefender(nextState, nextState.minorCivs[minorCivId], targetCivId, 100)
           : null;
         if (spawned) {
           nextState = spawned.state;
@@ -448,8 +451,6 @@ export function processMinorCivCoalitionsTurn(state: GameState): GameState {
       nextState = activateCoalitionWar(nextState, coalition);
     }
   }
-
-  if (nextState.era <= 1) return nextState;
 
   const existingTargets = new Set(
     Object.values(nextState.minorCivCoalitions ?? {})

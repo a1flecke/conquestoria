@@ -15,7 +15,7 @@ import { OPPONENT_CHALLENGE_PROFILES, resolveOpponentChallenge } from '@/core/op
 import { isAlwaysHostilePair } from '@/core/owner-kind';
 import { MINOR_CIV_DEFINITIONS } from './minor-civ-definitions';
 import { resolveWorldAge } from './tech-definitions';
-import { resolveCombatEra } from './era-resolution';
+import { resolveCombatEra, resolveNeutralPressureEra } from './era-resolution';
 import { createDiplomacyState, modifyRelationship } from './diplomacy-system';
 import { applyResearchBonus } from './tech-system';
 import {
@@ -894,9 +894,11 @@ export function checkEraAdvancement(state: GameState): number {
 
 export function processMinorCivEraUpgrade(state: GameState, mc: MinorCivState): void {
   if (mc.isDestroyed) return;
-  if (state.era <= mc.lastEraUpgrade) return;
+  const city = state.cities[mc.cityId];
+  const pressureEra = city ? resolveNeutralPressureEra(state, city.position) : null;
+  if (pressureEra === null || pressureEra <= mc.lastEraUpgrade) return;
 
-  const newType = ERA_UNIT_MAP[state.era] ?? 'warrior';
+  const newType = ERA_UNIT_MAP[pressureEra] ?? 'warrior';
   for (const uid of mc.units) {
     const unit = state.units[uid];
     if (unit && unit.type !== 'settler' && unit.type !== 'worker') {
@@ -904,12 +906,11 @@ export function processMinorCivEraUpgrade(state: GameState, mc: MinorCivState): 
     }
   }
 
-  const city = state.cities[mc.cityId];
   if (city) {
     city.population += 1;
   }
 
-  mc.lastEraUpgrade = state.era;
+  mc.lastEraUpgrade = pressureEra;
 }
 
 export type DiplomaticReaction = 'camp_destroyed_nearby' | 'attacked_neighbor' | 'trade_established' | 'wonder_built';
