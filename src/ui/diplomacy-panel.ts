@@ -128,6 +128,30 @@ export function createDiplomacyPanel(
   // single read path, never state.activeCrises directly.
   const worldPressurePresentation = getWorldPressurePresentationForViewer(state, state.currentPlayer);
 
+  // Religion summary (#591 MR4): the viewer's OWN religion only -- name, boon (or a
+  // pending-choice note), and own/foreign follower counts. Text injected via textContent
+  // below (XSS-safe) -- the template only carries the static shell + data-text hooks.
+  const ownReligion = Object.values(state.religions ?? {}).find(r => r.ownerCivId === state.currentPlayer);
+  const religionSummary = ownReligion ? (() => {
+    const followerCityIds = Object.entries(state.cityFaith ?? {})
+      .filter(([, faith]) => faith.religionId === ownReligion.id)
+      .map(([cityId]) => cityId);
+    const ownFollowers = followerCityIds.filter(id => state.cities[id]?.owner === state.currentPlayer).length;
+    const foreignFollowers = followerCityIds.length - ownFollowers;
+    const boonLabel = ownReligion.boon
+      ? `${ownReligion.boon.charAt(0).toUpperCase()}${ownReligion.boon.slice(1)}`
+      : 'Choosing a boon…';
+    return {
+      nameLine: `🙏 ${ownReligion.name}`,
+      statusLine: `Boon: ${boonLabel} · ${ownFollowers} own cit${ownFollowers === 1 ? 'y' : 'ies'}, ${foreignFollowers} foreign cit${foreignFollowers === 1 ? 'y' : 'ies'} following`,
+    };
+  })() : null;
+  const religionSummaryHtml = religionSummary ? `
+    <div style="background:rgba(150,120,217,0.12);border:1px solid rgba(150,120,217,0.35);border-radius:8px;padding:10px 12px;margin-bottom:16px;font-size:12px;">
+      <div style="font-weight:bold;color:#b39ddb;margin-bottom:4px;" data-text="religion-name"></div>
+      <div style="opacity:0.85;" data-text="religion-status"></div>
+    </div>` : '';
+
   // Pre-compute all data to avoid iterating twice
   const civRows: CivRowData[] = [];
   let civIdx = 0;
@@ -474,6 +498,7 @@ export function createDiplomacyPanel(
       <h2 style="font-size:18px;color:#e8c170;margin:0;">Diplomacy</h2>
       <span id="diplo-close" style="cursor:pointer;font-size:24px;opacity:0.6;">✕</span>
     </div>
+    ${religionSummaryHtml}
     ${civRowsHtml}
     ${minorCivsHtml}
   `;
@@ -485,6 +510,11 @@ export function createDiplomacyPanel(
     const el = panel.querySelector(`[data-text="${sel}"]`);
     if (el) el.textContent = text;
   };
+
+  if (religionSummary) {
+    setText('religion-name', religionSummary.nameLine);
+    setText('religion-status', religionSummary.statusLine);
+  }
 
   for (const row of civRows) {
     setText(`civ-name-${row.civIdx}`, row.name);

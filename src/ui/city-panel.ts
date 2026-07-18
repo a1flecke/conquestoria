@@ -40,6 +40,8 @@ import {
 } from '@/systems/faction-system';
 import { getCrisisFlavor, getCrisisDisplayName } from '@/systems/crisis-flavor-definitions';
 import { getCrisisYieldMultiplier, getOutbreakSeverityMultiplier, getCatastropheRecoveryMultiplier, FAMINE_CONTAINMENT_SURPLUS_TURNS } from '@/systems/crisis-system';
+import { getStrongestPressure } from '@/systems/religion-system';
+import { CONVERSION_THRESHOLD } from '@/systems/religion-definitions';
 import { resolvePressureSeverityForCiv } from '@/core/opponent-challenge';
 import { getCityIntrinsicStrength, isCityHpRegenerating } from '@/systems/city-siege-system';
 import { getOccupiedCityMood, getOccupiedCityYieldMultiplier } from '@/systems/city-occupation-system';
@@ -430,6 +432,30 @@ export function createCityPanel(
         <button type="button" data-remedy-crisis="${chip.crisis.id}:${city.id}" ${chip.remedyDisabled ? 'disabled' : ''} title="${chip.remedyLabel}" style="min-height:44px;padding:7px 12px;border-radius:6px;font-size:12px;font-weight:bold;cursor:${chip.remedyDisabled ? 'default' : 'pointer'};background:${chip.remedyDisabled ? 'rgba(255,255,255,0.08)' : '#d4aa2c'};color:${chip.remedyDisabled ? 'rgba(255,255,255,0.4)' : '#1a1a1a'};border:none;">${chip.remedyLabel}</button>
       </div>
     </div>`).join('');
+  // Faith row (#591 MR4): a city has at most one faith relationship at a time, so this
+  // is a single optional row, not a chip list like crises. `getStrongestPressure` is
+  // recomputed at display time only to derive turns-remaining (display-only per the
+  // issue's "points ÷ current rate" spec) — it never mutates state.
+  const cityFaithEntry = state.cityFaith?.[city.id];
+  const faithReligion = cityFaithEntry ? state.religions?.[cityFaithEntry.religionId] : undefined;
+  const faithData = cityFaithEntry && faithReligion ? (() => {
+    const progress = cityFaithEntry.conversionProgress;
+    const pressure = progress ? getStrongestPressure(state, city.id) : null;
+    const turnsRemaining = progress && pressure && pressure.accrual > 0
+      ? Math.ceil((CONVERSION_THRESHOLD - progress.points) / pressure.accrual)
+      : null;
+    return {
+      religionName: faithReligion.name,
+      isHolyCity: !!cityFaithEntry.isHolyCity,
+      inProgress: !!progress,
+      turnsRemaining,
+    };
+  })() : null;
+  const faithSectionHtml = faithData ? `
+    <div style="background:rgba(150,120,217,0.12);border:1px solid rgba(150,120,217,0.35);border-radius:8px;padding:10px 12px;margin-bottom:16px;font-size:12px;">
+      <div style="font-weight:bold;color:#b39ddb;margin-bottom:4px;">🙏 Faith</div>
+      <div data-text="faith-status"></div>
+    </div>` : '';
   const getFutureBuildingUpkeep = (buildingId: string): number => {
     const projected = calculateCityBuildingMaintenance(state, {
       ...city,
@@ -820,6 +846,7 @@ export function createCityPanel(
     ${crisisSectionHtml}
     ${famineSectionHtml}
     ${catastropheSectionHtml}
+    ${faithSectionHtml}
     ${resilienceSectionHtml}
 
     <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
@@ -916,6 +943,15 @@ export function createCityPanel(
       : 'Build farms or a granary to run a food surplus and end the famine naturally';
     setText(`famine-progress-${idx}`, progressText);
   });
+
+  if (faithData) {
+    const statusText = faithData.isHolyCity
+      ? `Holy City of ${faithData.religionName}`
+      : faithData.inProgress
+        ? `Converting to ${faithData.religionName}${faithData.turnsRemaining !== null ? ` — ~${faithData.turnsRemaining} turn${faithData.turnsRemaining === 1 ? '' : 's'} remaining` : ''}`
+        : `Follows ${faithData.religionName}`;
+    setText('faith-status', statusText);
+  }
 
   catastropheChips.forEach((chip, idx) => {
     const displayName = getCrisisDisplayName(chip.flavor, state.era);
