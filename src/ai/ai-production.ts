@@ -179,8 +179,19 @@ function projectedBuildingMaintenanceImpact(
   );
 }
 
+// A milestone national project (#591 MR4) has no civYieldBonus by contract -- its
+// effect is a one-time state mutation (e.g. founding a religion), not an ongoing
+// yield. Scoring it via yields alone would value it at 0, deeply undercutting its
+// production cost in the candidate score formula below and making the AI functionally
+// never build it. Flat value roughly matching a mid-tier same-era normal NP (e.g.
+// era 3's iron_legion at 2.5, philosophers_circle at 3.75) -- generic to the
+// `milestone` flag, not sacred_council-specific, so any future milestone NP scores
+// reasonably without a new branch here.
+const MILESTONE_NP_ECONOMY_VALUE = 4;
+
 export function economyValue(buildingId: string): number {
   const building = BUILDINGS[buildingId];
+  if (building?.nationalProject?.milestone) return MILESTONE_NP_ECONOMY_VALUE;
   const yields = building?.nationalProject
     ? building.civYieldBonus ?? building.yields
     : building?.yields;

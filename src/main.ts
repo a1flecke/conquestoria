@@ -242,6 +242,7 @@ import {
   routeWorldPressureCrisisResolved,
   routeCrisisFoeHuntedByAlly,
   routeCrisisAidSent,
+  routeReligionFounded,
   routeOpportunisticWar,
   routeSabotageReliefDiscovered,
   type NotificationSink,
@@ -4531,6 +4532,10 @@ bus.on('faction:critical-status', event => {
 bus.on('crisis:started', event => {
   routeCrisisStarted(gameState, event, appendToCivLog);
   routeWorldPressureCrisisStarted(gameState, event, appendToCivLog);
+});
+
+bus.on('religion:founded', event => {
+  routeReligionFounded(gameState, event, appendToCivLog);
 });
 
 bus.on('crisis:spread', event => {

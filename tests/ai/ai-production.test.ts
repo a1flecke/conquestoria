@@ -454,3 +454,34 @@ describe('happiness building AI scoring (#552)', () => {
     expect(temple!.economyScore).toBe(economyValue('temple'));
   });
 });
+
+describe('#591 MR4 — milestone national project AI scoring', () => {
+  it('economyValue treats a milestone NP as comparable to a normal same-era NP, not worthless', () => {
+    // sacred_council has civYieldBonus: undefined (its effect is a one-time state
+    // mutation, not a yield) -- without a milestone-specific floor, economyValue would
+    // score it 0, deeply undercutting its 120-production-turn cost in the candidate
+    // score formula (score = economyScore*2 - productionTurns*1.5 - ...) and making the
+    // AI functionally never build it. Compare against philosophers_circle (era 3 NP,
+    // civYieldBonus: { science: 3 } -> economyValue 3.75) as a same-era reference point.
+    expect(economyValue('sacred_council')).toBeGreaterThan(0);
+    expect(economyValue('sacred_council')).toBeGreaterThanOrEqual(economyValue('iron_legion'));
+  });
+
+  it('sacred_council scores comparably to a same-cost, same-era normal NP (not singled out as worthless)', () => {
+    // Absolute score floors are meaningless here -- productionTurns dominates the
+    // formula and swings hugely with this fixture's (low, unrealistic-for-era-3)
+    // production rate. The real fairness check is RELATIVE: does sacred_council score
+    // in the same ballpark as iron_legion, an equal-cost (120) era-3 NP, under the
+    // identical city/production conditions -- proving the milestone floor actually
+    // closed the gap, not just made the number less negative in isolation.
+    const state = setupState(['philosophy', 'iron-forging']);
+    state.era = 3; // sacred_council homeEra: 3 -- below-window check still applies to milestone NPs
+    state.cities['city-a']!.buildings = ['temple'];
+    const candidates = generateAIProductionCandidates(state, 'ai-1', 'city-a', [], aggressive);
+    const sacredCouncil = candidates.find(c => c.itemId === 'sacred_council');
+    const ironLegion = candidates.find(c => c.itemId === 'iron_legion');
+    expect(sacredCouncil).toBeDefined();
+    expect(ironLegion).toBeDefined();
+    expect(Math.abs(sacredCouncil!.score - ironLegion!.score)).toBeLessThan(5);
+  });
+});

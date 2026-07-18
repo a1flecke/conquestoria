@@ -10,6 +10,7 @@ import { presentStrategicWarning } from '@/ui/strategic-warning-presentation';
 import { getCrisisFlavor, getCrisisDisplayName } from '@/systems/crisis-flavor-definitions';
 import { resolveWorldPressureFlags } from '@/systems/world-pressure-flags';
 import { getWitnessCivIds } from '@/systems/crisis-interaction-system';
+import { hasMetCivilization } from '@/systems/discovery-system';
 
 export type NotificationSink = (
   civId: string,
@@ -451,6 +452,26 @@ export function routeCrisisStarted(
     coord: { ...city.position },
     label: name,
   } : undefined);
+}
+
+// #591 MR4: unlike the wonder-completion pattern (notifies everyone, anonymizes the
+// name), religion founding is notified ONLY to civs who have already met the founder —
+// the issue's spec calls this out explicitly as "discovery-gated", stricter than the
+// wonder precedent. The founder themself always sees it (hasMetCivilization treats
+// self-vs-self as met).
+export function routeReligionFounded(
+  state: GameState,
+  event: GameEvents['religion:founded'],
+  sink: NotificationSink,
+): void {
+  const city = state.cities[event.cityId];
+  for (const civId of Object.keys(state.civilizations)) {
+    if (!hasMetCivilization(state, civId, event.civId)) continue;
+    const message = civId === event.civId
+      ? `${event.name} has been founded in ${city?.name ?? 'your empire'}!`
+      : `${state.civilizations[event.civId]?.name ?? 'A rival civilization'} has founded ${event.name}.`;
+    sink(civId, message, 'success');
+  }
 }
 
 export function routeCrisisEscalated(
