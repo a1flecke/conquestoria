@@ -45,6 +45,7 @@ import type { HexCoord } from './types';
 import { applyReconReveals, updateVisibility, revealMinorCivCities, applySharedVision, applySatelliteSurveillance, applyMassSurveillanceReveal } from '@/systems/fog-of-war';
 import { getActiveNationalProjectsForCiv } from '@/systems/national-project-system';
 import { UNIT_CLASS_BY_TYPE } from '@/systems/unit-modifier-definitions';
+import { MISSIONARY_BASE_CHARGES, MISSIONARY_ZEAL_CHARGES } from '@/systems/religion-definitions';
 import { getHealingBonus, getVisionBonus, isWithinRangeOfTelemedicineHub } from '@/systems/unit-modifier-system';
 import { syncCivilizationContactsFromVisibility } from '@/systems/discovery-system';
 import { refreshLastSeenPresentationsForCiv } from '@/systems/last-seen-presentation';
@@ -355,6 +356,14 @@ export function processTurn(
       if (result.completedUnit) {
         bus.emit('city:unit-trained', { cityId, unitType: result.completedUnit });
         const newUnit = createUnit(result.completedUnit, civId, city.position, newState.idCounters, civDef?.bonusEffect);
+        if (result.completedUnit === 'missionary') {
+          // #592 MR5: charges are baked in from the owner's tech state AT BUILD TIME, never
+          // re-derived later — a missionary built before missionary-zeal completes keeps 2
+          // charges forever, even if the civ researches it afterward.
+          newUnit.chargesRemaining = civ.techState.completed.includes('missionary-zeal')
+            ? MISSIONARY_ZEAL_CHARGES
+            : MISSIONARY_BASE_CHARGES;
+        }
         const unitDef = UNIT_DEFINITIONS[result.completedUnit];
         if (unitDef?.domain === 'naval') {
           let navalMoveBonus = 0;

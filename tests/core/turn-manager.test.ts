@@ -777,6 +777,39 @@ describe('processTurn', () => {
     expect(newState.units[newUnitId!].experience).toBe(0);
   });
 
+  it('#592 MR5: missionary gets 2 charges by default, 3 if missionary-zeal was completed at build time', () => {
+    const stateWithoutZeal = createNewGame(undefined, 'missionary-charges-base', 'small');
+    const startPos = stateWithoutZeal.units[stateWithoutZeal.civilizations.player.units[0]].position;
+    const cityNoZeal = foundCity('player', startPos, stateWithoutZeal.map, mkC());
+    cityNoZeal.buildings = [...cityNoZeal.buildings, 'temple'];
+    stateWithoutZeal.cities[cityNoZeal.id] = cityNoZeal;
+    stateWithoutZeal.civilizations.player.cities.push(cityNoZeal.id);
+    cityNoZeal.productionQueue = ['missionary'];
+    cityNoZeal.productionProgress = 15; // missionary cost is 16 — 1 short so this turn completes it
+
+    const beforeNoZeal = new Set(Object.keys(stateWithoutZeal.units));
+    const afterNoZeal = processTurn(stateWithoutZeal, new EventBus());
+    const missionaryNoZealId = Object.keys(afterNoZeal.units).find(id => !beforeNoZeal.has(id) && afterNoZeal.units[id].type === 'missionary');
+    expect(missionaryNoZealId).toBeDefined();
+    expect(afterNoZeal.units[missionaryNoZealId!].chargesRemaining).toBe(2);
+
+    const stateWithZeal = createNewGame(undefined, 'missionary-charges-zeal', 'small');
+    stateWithZeal.civilizations.player.techState.completed.push('missionary-zeal');
+    const startPosZeal = stateWithZeal.units[stateWithZeal.civilizations.player.units[0]].position;
+    const cityZeal = foundCity('player', startPosZeal, stateWithZeal.map, mkC());
+    cityZeal.buildings = [...cityZeal.buildings, 'temple'];
+    stateWithZeal.cities[cityZeal.id] = cityZeal;
+    stateWithZeal.civilizations.player.cities.push(cityZeal.id);
+    cityZeal.productionQueue = ['missionary'];
+    cityZeal.productionProgress = 15;
+
+    const beforeZeal = new Set(Object.keys(stateWithZeal.units));
+    const afterZeal = processTurn(stateWithZeal, new EventBus());
+    const missionaryZealId = Object.keys(afterZeal.units).find(id => !beforeZeal.has(id) && afterZeal.units[id].type === 'missionary');
+    expect(missionaryZealId).toBeDefined();
+    expect(afterZeal.units[missionaryZealId!].chargesRemaining).toBe(3);
+  });
+
   it('advances World Age after a strict majority reaches the next personal era', () => {
     const state = createNewGame(undefined, 'turn-era', 'small');
     const bus = new EventBus();
