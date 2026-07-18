@@ -372,3 +372,23 @@ describe('#590 MR3 — defensive crisis archetype normalization', () => {
     expect(loadedAgain).toEqual(migrated);
   });
 });
+
+describe('#591 MR4 — religion state defaults', () => {
+  it('defaults religions and cityFaith to {} for a save predating this feature', () => {
+    const save = createNewGame('rome', 'religion-defaults-drift', 'small');
+    delete save.religions;
+    delete save.cityFaith;
+    const migrated = migrateSaveToCurrent(save);
+    expect(migrated.religions).toEqual({});
+    expect(migrated.cityFaith).toEqual({});
+  });
+
+  it('preserves existing religions/cityFaith data unchanged', () => {
+    const save = createNewGame('rome', 'religion-defaults-preserve', 'small');
+    save.religions = { 'religion-player': { id: 'religion-player', name: 'Order of Test', ownerCivId: 'player', foundedTurn: 5 } };
+    save.cityFaith = { capital: { religionId: 'religion-player', isHolyCity: true } };
+    const migrated = migrateSaveToCurrent(save);
+    expect(migrated.religions).toEqual(save.religions);
+    expect(migrated.cityFaith).toEqual(save.cityFaith);
+  });
+});

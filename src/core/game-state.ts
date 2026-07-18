@@ -367,6 +367,8 @@ export function createNewGame(
     settings,
     mapScript,
     startPlacementMode,
+    religions: {},
+    cityFaith: {},
   };
 
   // Place minor civilizations
@@ -535,6 +537,8 @@ export function createHotSeatGame(
     settings,
     mapScript,
     startPlacementMode,
+    religions: {},
+    cityFaith: {},
   };
 
   // Place minor civilizations
