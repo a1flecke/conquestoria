@@ -8,6 +8,7 @@ import { describeDroppedProductionItem } from '@/systems/city-system';
 import type { NotificationCityAction, NotificationEntry } from '@/core/notification-log';
 import { presentStrategicWarning } from '@/ui/strategic-warning-presentation';
 import { getCrisisFlavor, getCrisisDisplayName } from '@/systems/crisis-flavor-definitions';
+import { resolveCivilizationEra } from '@/systems/tech-definitions';
 import { resolveWorldPressureFlags } from '@/systems/world-pressure-flags';
 import { getWitnessCivIds } from '@/systems/crisis-interaction-system';
 import { hasMetCivilization } from '@/systems/discovery-system';
@@ -443,7 +444,7 @@ export function routeCrisisStarted(
   if (flavor.archetype === 'hunt') return;
   const cityId = event.cityIds[0];
   const city = cityId ? state.cities[cityId] : undefined;
-  const name = getCrisisDisplayName(flavor, state.era);
+  const name = getCrisisDisplayName(flavor, resolveCivilizationEra(state.civilizations[event.civId]?.techState?.completed ?? []));
   const message = flavor.advisorLine
     .replace('{name}', name)
     .replace('{city}', city?.name ?? 'a city');
@@ -542,7 +543,7 @@ export function routeCrisisSpread(
   const flavor = getCrisisFlavor(crisis.flavorId);
   if (!flavor) return;
   const toCity = state.cities[event.toCityId];
-  const name = getCrisisDisplayName(flavor, state.era);
+  const name = getCrisisDisplayName(flavor, resolveCivilizationEra(state.civilizations[crisis.targetCivId]?.techState?.completed ?? []));
   sink(
     crisis.targetCivId,
     `${name} has spread to ${toCity?.name ?? 'another city'}!`,
@@ -580,7 +581,7 @@ export function routeCrisisResolved(
   const flavor = getCrisisFlavor(event.flavorId);
   // Naming the resolved crisis matters once a player can have 2-3 concurrent crises
   // (veteran cap) — a bare "A crisis..." message would be ambiguous about which one.
-  const name = flavor ? getCrisisDisplayName(flavor, state.era) : 'A crisis';
+  const name = flavor ? getCrisisDisplayName(flavor, resolveCivilizationEra(state.civilizations[event.civId]?.techState?.completed ?? [])) : 'A crisis';
   sink(event.civId, `${name} ${outcomeMessage[event.outcome]}`, type);
 }
 
@@ -684,7 +685,7 @@ export function routeWorldPressureCrisisStarted(
 
   const cityId = event.cityIds[0];
   const city = cityId ? state.cities[cityId] : undefined;
-  const name = getCrisisDisplayName(flavor, state.era);
+  const name = getCrisisDisplayName(flavor, resolveCivilizationEra(targetCiv.techState?.completed ?? []));
   const message = `${name} reported in ${city?.name ?? targetCiv.name}.`;
   const target = city ? { kind: 'map' as const, coord: { ...city.position }, label: name } : undefined;
 
@@ -714,7 +715,7 @@ export function routeWorldPressureCrisisResolved(
   const targetCiv = state.civilizations[event.civId];
   if (!targetCiv || targetCiv.isHuman) return;
   const flavor = getCrisisFlavor(event.flavorId);
-  const name = flavor ? getCrisisDisplayName(flavor, state.era) : 'its crisis';
+  const name = flavor ? getCrisisDisplayName(flavor, resolveCivilizationEra(targetCiv.techState?.completed ?? [])) : 'its crisis';
   const message = `${targetCiv.name} ${WORLD_PRESSURE_OUTCOME_VERB[event.outcome]} ${name}.`;
 
   for (const [viewerId, viewer] of Object.entries(state.civilizations)) {

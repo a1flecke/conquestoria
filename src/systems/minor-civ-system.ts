@@ -14,7 +14,7 @@ import { createEmptyOpponentAIState } from '@/core/opponent-ai-state';
 import { OPPONENT_CHALLENGE_PROFILES, resolveOpponentChallenge } from '@/core/opponent-challenge';
 import { isAlwaysHostilePair } from '@/core/owner-kind';
 import { MINOR_CIV_DEFINITIONS } from './minor-civ-definitions';
-import { TECH_TREE, resolveWorldAge } from './tech-definitions';
+import { resolveWorldAge } from './tech-definitions';
 import { createDiplomacyState, modifyRelationship } from './diplomacy-system';
 import { applyResearchBonus } from './tech-system';
 import {
@@ -886,13 +886,6 @@ const ERA_UNIT_MAP: Record<number, UnitType> = {
   11: 'tank',
   12: 'tank',
 };
-
-// Pre-built for O(1) lookup in checkEraAdvancement (called every turn)
-const ERA_ADVANCEMENT_TECH_ERA = new Map<string, number>(
-  TECH_TREE
-    .filter(t => t.countsForEraAdvancement !== false)
-    .map(t => [t.id, t.era])
-);
 
 export function checkEraAdvancement(state: GameState): number {
   return resolveWorldAge(state.civilizations);

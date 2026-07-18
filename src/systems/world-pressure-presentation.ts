@@ -1,6 +1,7 @@
 import type { ActiveCrisis, GameState, HexCoord, CrisisArchetype } from '@/core/types';
 import { getVisibility } from './fog-of-war';
 import { getCrisisFlavor, getCrisisDisplayName } from './crisis-flavor-definitions';
+import { resolveCivilizationEra } from './tech-definitions';
 import { resolveWorldPressureFlags } from './world-pressure-flags';
 import { resolvePressureSeverityForCiv } from '@/core/opponent-challenge';
 
@@ -70,7 +71,7 @@ export function getWorldPressurePresentationForViewer(
     const flavor = getCrisisFlavor(crisis.flavorId);
     if (!flavor) continue;
 
-    const displayName = getCrisisDisplayName(flavor, state.era);
+    const displayName = getCrisisDisplayName(flavor, resolveCivilizationEra(state.civilizations[targetCivId]?.techState?.completed ?? []));
     const cityCount = crisis.cityIds.length;
     const turns = crisis.turnsInStage;
     statusLinesByCivId[targetCivId] = {
