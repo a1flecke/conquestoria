@@ -8,8 +8,9 @@ import { hexDistance, wrappedHexDistance } from '@/systems/hex-utils';
 import { assignNetworkPlan, isAutonomyActivated } from '@/systems/network-plan-system';
 import { UNIT_DEFINITIONS } from '@/systems/unit-system';
 import { getCrisisFlavor } from '@/systems/crisis-flavor-definitions';
+import { resolveWorldAge } from '@/systems/tech-definitions';
 
-export const CURRENT_SAVE_SCHEMA_VERSION = 4;
+export const CURRENT_SAVE_SCHEMA_VERSION = 5;
 
 export type SaveMigration = (state: GameState) => GameState;
 
@@ -275,11 +276,17 @@ function withReligionDefaults(state: GameState): GameState {
   };
 }
 
+function migrateDualEraWorldAge(state: GameState): GameState {
+  const withAircraft = migrateLegacyBasedAircraft(state);
+  return { ...withAircraft, era: resolveWorldAge(withAircraft.civilizations) };
+}
+
 export const SAVE_MIGRATIONS: Readonly<Record<number, SaveMigration>> = {
   1: migrateToEra13Foundation,
   2: migrateLateResources,
   3: migrateAutonomyNetwork,
   4: migrateLegacyBasedAircraft,
+  5: migrateDualEraWorldAge,
 };
 
 function readSchemaVersion(raw: Record<string, unknown>): number {

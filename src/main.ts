@@ -51,6 +51,7 @@ import {
 import { applyCombatOutcomeToState } from '@/systems/combat-reward-system';
 import { recordCombatForCiv } from '@/systems/threat-pressure-system';
 import { applyWorkerAction } from '@/systems/worker-action-system';
+import { resolveCivilizationEra } from '@/systems/tech-definitions';
 import { isVisible, getVisibility, isForestConcealedUnit } from '@/systems/fog-of-war';
 import { applyCampDestructionAtTarget } from '@/systems/barbarian-system';
 import { recordBeastSlain, isBeastConcealedFrom, applyHoardChoice, getHoardChoicePreview, canUnitAttackBeast, getBeastTrophyGoldPerTurn, isCivUnitInBeastTerritory } from '@/systems/beast-system';
@@ -628,7 +629,7 @@ function updateHUD(): void {
     infoRow.appendChild(nameSpan);
   }
   const turnSpan = document.createElement('span');
-  turnSpan.textContent = `Turn ${gameState.turn} · Era ${gameState.era}`;
+  turnSpan.textContent = `Turn ${gameState.turn} · Your Era ${resolveCivilizationEra(civ.techState.completed)} · World Age ${gameState.era}`;
   infoRow.appendChild(turnSpan);
 
   hud.appendChild(yieldsRow);
