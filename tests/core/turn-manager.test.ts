@@ -1556,4 +1556,29 @@ describe('journey automation', () => {
     const next = processTurn(state, new EventBus());
     expect(next.cityFaith?.[neighbor.id]?.conversionProgress?.toReligionId).toBe(religionId);
   });
+
+  it('#591 MR4: completing Sacred Council founds a religion at the building city', () => {
+    const state = createNewGame(undefined, 'sacred-council-completion', 'small');
+    const civId = 'player';
+    const pos = { q: 0, r: 0 };
+    state.map.tiles[hexKey(pos)] = {
+      coord: pos, terrain: 'grassland', elevation: 'lowland', resource: null,
+      improvement: 'none', owner: civId, improvementTurnsLeft: 0, hasRiver: false, wonder: null,
+    };
+    const city = foundCity(civId, pos, state.map, state.idCounters);
+    city.workedTiles = [];
+    city.buildings = ['temple'];
+    city.productionQueue = ['sacred_council'];
+    city.productionProgress = 119; // 1 short of the 120 cost -- completes with even minimal production this turn
+    state.cities = { [city.id]: city };
+    state.civilizations[civId].cities = [city.id];
+    state.civilizations[civId].techState.completed = ['philosophy'];
+    state.units = {};
+    state.barbarianCamps = {};
+
+    const next = processTurn(state, new EventBus());
+    const religionId = `religion-${civId}`;
+    expect(next.religions?.[religionId]).toMatchObject({ ownerCivId: civId });
+    expect(next.cityFaith?.[city.id]).toMatchObject({ religionId, isHolyCity: true });
+  });
 });

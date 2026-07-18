@@ -407,6 +407,25 @@ describe('city-capture-system', () => {
     );
   });
 
+  it('#591 MR4: deletes cityFaith when a city is razed', () => {
+    const state = makeExposedCityCaptureState({ population: 6, buildings: ['granary'] });
+    state.cityFaith = { athens: { religionId: 'religion-ai-1', isHolyCity: true } };
+
+    const result = resolveMajorCityCapture(state, 'athens', 'player', 'raze', state.turn);
+
+    expect(result.state.cityFaith?.athens).toBeUndefined();
+  });
+
+  it('#591 MR4: preserves cityFaith (under the new owner) when a city is captured (occupy)', () => {
+    const state = makeExposedCityCaptureState({ population: 6, buildings: ['granary'] });
+    state.cityFaith = { athens: { religionId: 'religion-ai-1', isHolyCity: true } };
+
+    const result = resolveMajorCityCapture(state, 'athens', 'player', 'occupy', state.turn);
+
+    expect(result.state.cityFaith?.athens).toEqual({ religionId: 'religion-ai-1', isHolyCity: true });
+    expect(result.state.cities.athens.owner).toBe('player');
+  });
+
   it('razes a population-1 major city when the conqueror chooses raze', () => {
     const state = makeExposedCityCaptureState({ population: 1, buildings: ['granary'] });
 

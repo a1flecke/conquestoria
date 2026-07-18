@@ -560,10 +560,18 @@ export function resolveMajorCityCapture(
   const nextCities = { ...state.cities };
   delete nextCities[cityId];
 
+  // #591 MR4: cityFaith is keyed by cityId -- razing a city must clean it up here, the
+  // same way it does for legendaryWonderProjects above. Capture (occupy) does NOT need
+  // this: the city record persists across ownership transfer, so faith persists with it
+  // for free (see resolveMajorCityCapture's occupy branch -- no cityFaith touch there).
+  const nextCityFaith = { ...(state.cityFaith ?? {}) };
+  delete nextCityFaith[cityId];
+
   const nextState: GameState = {
     ...state,
     cities: nextCities,
     civilizations: nextCivilizations,
+    cityFaith: nextCityFaith,
     legendaryWonderProjects: removeLegendaryWonderProjectsForCity(state.legendaryWonderProjects, cityId),
   };
   const elimination = eliminateCivilization(nextState, previousOwnerId, newOwnerId);

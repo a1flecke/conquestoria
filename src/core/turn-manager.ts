@@ -91,7 +91,7 @@ import { processFactionTurn, getUnrestYieldMultiplier, isCityProductionLocked } 
 import { getOccupiedCityYieldMultiplier, tickOccupiedCities } from '@/systems/city-occupation-system';
 import { processBreakawayTurn } from '@/systems/breakaway-system';
 import { processCrisisTurn, processCrisisScheduler, getCrisisYieldMultiplier } from '@/systems/crisis-system';
-import { processReligionTurn } from '@/systems/religion-system';
+import { processReligionTurn, foundReligion } from '@/systems/religion-system';
 import { applyCrisisResponses } from '@/ai/ai-crisis-response';
 import { resolveWorldPressureFlags } from '@/systems/world-pressure-flags';
 import {
@@ -335,6 +335,9 @@ export function processTurn(
             buildingId: result.completedBuilding,
             eraBuilt: newState.era,
           });
+          if (result.completedBuilding === 'sacred_council') {
+            newState = foundReligion(newState, civId, cityId, bus);
+          }
         }
       }
       for (const item of result.droppedProductionItems) {
