@@ -11,6 +11,7 @@ const FALLBACK_ICONS: Record<UnitType, string> = {
   scout: '🔭',
   warrior: '⚔️',
   archer: '🏹',
+  missionary: '🙏',
   swordsman: '🗡️',
   pikeman: '🔱',
   musketeer: '🔫',

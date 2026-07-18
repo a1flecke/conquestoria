@@ -33,7 +33,7 @@ describe('#591 MR4 — city panel Faith row', () => {
     const { container, city, state } = withFaith();
     const withCityFaith: GameState = {
       ...state,
-      cityFaith: { [city.id]: { religionId: 'religion-owner', conversionProgress: { toReligionId: 'religion-owner', points: 85 } } },
+      cityFaith: { [city.id]: { religionId: 'religion-owner', conversionProgress: { 'religion-owner': 85 } } },
     };
     const panel = createCityPanel(container, city, withCityFaith, { onBuild: () => {}, onOpenWonderPanel: () => {}, onClose: () => {} });
     expect(panel.textContent).toContain('Converting to Order of Test');

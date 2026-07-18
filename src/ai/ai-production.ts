@@ -9,6 +9,7 @@ import {
   getAvailableBuildings,
   getProductionCostForItem,
   getTrainableUnitsForCity,
+  cityFollowsOwnFaith,
 } from '@/systems/city-system';
 import { calculateProjectedCityYields } from '@/systems/city-work-system';
 import {
@@ -78,6 +79,7 @@ function validQueuedUnitRoles(
         state.map,
         civ.civType,
         resources,
+        cityFollowsOwnFaith(state, city),
       ).map(unit => unit.type),
     );
     return city.productionQueue.flatMap(itemId =>
@@ -275,6 +277,7 @@ function generateWithResidual(
     state.map,
     civ.civType,
     resources,
+    cityFollowsOwnFaith(state, city),
   )) {
     if (UNIT_DEFINITIONS[unit.type].airOperation
       && !canCompleteAirUnitProduction(state, cityId, unit.type).ok) continue;

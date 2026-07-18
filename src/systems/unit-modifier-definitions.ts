@@ -9,6 +9,7 @@ export type UnitClass = 'melee' | 'ranged' | 'siege' | 'mounted' | 'gunpowder' |
 export const UNIT_CLASS_BY_TYPE: Record<UnitType, UnitClass[]> = {
   settler: ['civilian'],
   worker: ['civilian'],
+  missionary: ['civilian'],
   scout: ['recon'],
   warrior: ['melee'],
   archer: ['ranged'],

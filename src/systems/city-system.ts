@@ -1,4 +1,4 @@
-import type { City, Building, HexCoord, GameMap, UnitType, CivBonusEffect, TrainableUnitEntry, IdCounters, ResourceType, DroppedProductionItem, ProductionDropReason } from '@/core/types';
+import type { City, Building, HexCoord, GameMap, UnitType, CivBonusEffect, TrainableUnitEntry, IdCounters, ResourceType, DroppedProductionItem, ProductionDropReason, GameState } from '@/core/types';
 import { isSpyUnitType } from './espionage-system';
 import { hexKey, hexesInRange, hexNeighbors, wrapHexCoord } from './hex-utils';
 import { drawNextCityName, DEFAULT_CITY_NAMES } from './city-name-system';
@@ -1091,6 +1091,7 @@ export const TRAINABLE_UNITS: Array<TrainableUnitEntry & { pacing?: Building['pa
   { type: 'archer', name: 'Archer', cost: 35, techRequired: 'archery', obsoletedByTech: 'tactics', upgradesTo: 'crossbowman', pacing: { band: 'power-spike', role: 'ranged-breakpoint', impact: 1.15, scope: 'military', snowball: 1, urgency: 1.05, situationality: 1, unlockBreadth: 1 } },
   { type: 'scout', name: 'Scout', cost: 6, pacing: { band: 'starter', role: 'early-exploration', impact: 1, scope: 'military', snowball: 1, urgency: 1.1, situationality: 1, unlockBreadth: 1 } },
   { type: 'worker', name: 'Worker', cost: 12 },
+  { type: 'missionary', name: 'Missionary', cost: 16, trainedFromBuilding: 'temple' },
   { type: 'settler', name: 'Settler', cost: 24, pacing: { band: 'power-spike', role: 'expansion', impact: 1.25, scope: 'empire', snowball: 1.3, urgency: 1.05, situationality: 1, unlockBreadth: 1.2 } },
   { type: 'swordsman',    name: 'Swordsman',    cost: 50,  techRequired: 'bronze-working',   resourceRequired: ['iron'],   obsoletedByTech: 'rifled-infantry', upgradesTo: 'rifleman',        pacing: { band: 'power-spike', role: 'melee-breakpoint',       impact: 1.2,  scope: 'military', snowball: 1,   urgency: 1,    situationality: 1,    unlockBreadth: 1 } },
   { type: 'pikeman',      name: 'Pikeman',      cost: 70,  techRequired: 'fortification',    obsoletedByTech: 'rifled-infantry', upgradesTo: 'rifleman',                                        pacing: { band: 'power-spike', role: 'anti-cavalry-breakpoint', impact: 1.15, scope: 'military', snowball: 1,   urgency: 1,    situationality: 1.05, unlockBreadth: 1 } },
@@ -1409,6 +1410,7 @@ export const PRODUCTION_ICONS: Record<string, string> = {
   archer: '🏹',
   scout: '🔍',
   worker: '🪚',
+  missionary: '🙏',
   settler: '🏕️',
   swordsman: '🗡️',
   pikeman: '🔱',
@@ -1680,17 +1682,28 @@ export function getTrainableUnitsForCiv(
   });
 }
 
+// #592 MR5: single source of truth for missionary's "city follows owner's own faith" gate,
+// so every getTrainableUnitsForCity call site computes it the same way.
+export function cityFollowsOwnFaith(state: GameState, city: City): boolean {
+  const faith = state.cityFaith?.[city.id];
+  if (!faith) return false;
+  const religion = state.religions?.[faith.religionId];
+  return !!religion && religion.ownerCivId === city.owner;
+}
+
 export function getTrainableUnitsForCity(
   city: City,
   completedTechs: string[],
   map: GameMap,
   civType?: string,
   availableResources?: Set<ResourceType>,
+  followsOwnFaith: boolean = false,
 ): TrainableUnitEntry[] {
   const coastal = isCityCoastal(city, map);
   return getTrainableUnitsForCiv(completedTechs, civType, availableResources)
     .filter(unit => !unit.coastalRequired || coastal)
-    .filter(unit => !unit.trainedFromBuilding || (city.buildings ?? []).includes(unit.trainedFromBuilding));
+    .filter(unit => !unit.trainedFromBuilding || (city.buildings ?? []).includes(unit.trainedFromBuilding))
+    .filter(unit => unit.type !== 'missionary' || followsOwnFaith);
 }
 
 export function getDetectionUnitTypeForCiv(civType?: string): UnitType {

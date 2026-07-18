@@ -4,6 +4,7 @@ import {
   BUILDINGS,
   TRAINABLE_UNITS,
   getTrainableUnitsForCity,
+  cityFollowsOwnFaith,
   getProductionCostForItem,
   getProductionDisplayName,
   getProductionIconForItem,
@@ -441,15 +442,18 @@ export function createCityPanel(
   const cityFaithEntry = state.cityFaith?.[city.id];
   const faithReligion = cityFaithEntry ? state.religions?.[cityFaithEntry.religionId] : undefined;
   const faithData = cityFaithEntry && faithReligion ? (() => {
-    const progress = cityFaithEntry.conversionProgress;
-    const pressure = progress ? getStrongestPressure(state, city.id) : null;
-    const turnsRemaining = progress && pressure && pressure.accrual > 0
-      ? Math.ceil((CONVERSION_THRESHOLD - progress.points) / pressure.accrual)
+    // #592 MR5: conversionProgress is now a per-religion map (see CityFaith doc comment in
+    // types.ts) — the bucket relevant to this display is the one keyed by the city's
+    // current pending/settled target, cityFaithEntry.religionId.
+    const pointsTowardCurrentTarget = cityFaithEntry.conversionProgress?.[cityFaithEntry.religionId];
+    const pressure = pointsTowardCurrentTarget !== undefined ? getStrongestPressure(state, city.id) : null;
+    const turnsRemaining = pointsTowardCurrentTarget !== undefined && pressure && pressure.accrual > 0
+      ? Math.ceil((CONVERSION_THRESHOLD - pointsTowardCurrentTarget) / pressure.accrual)
       : null;
     return {
       religionName: faithReligion.name,
       isHolyCity: !!cityFaithEntry.isHolyCity,
-      inProgress: !!progress,
+      inProgress: pointsTowardCurrentTarget !== undefined,
       turnsRemaining,
     };
   })() : null;
@@ -539,7 +543,7 @@ export function createCityPanel(
   }
 
   const completedTechs = currentCiv.techState.completed;
-  const availableUnits = getTrainableUnitsForCity(city, completedTechs, state.map, currentCiv.civType, playerResources);
+  const availableUnits = getTrainableUnitsForCity(city, completedTechs, state.map, currentCiv.civType, playerResources, cityFollowsOwnFaith(state, city));
 
   // Trade Routes Overhaul (#553 MR4/4) — City panel Trade Routes section. Gated behind
   // the same 'trade-routes' tech marketplace-panel.ts already uses. Scoped to this
@@ -568,7 +572,7 @@ export function createCityPanel(
     : [];
 
   // Locked items: tech met + resource NOT met (tech-missing items stay hidden entirely)
-  const allTechUnlockedUnits = getTrainableUnitsForCity(city, completedTechs, state.map, currentCiv.civType, undefined);
+  const allTechUnlockedUnits = getTrainableUnitsForCity(city, completedTechs, state.map, currentCiv.civType, undefined, cityFollowsOwnFaith(state, city));
   const lockedUnits = allTechUnlockedUnits.filter(u => !availableUnits.some(a => a.type === u.type));
 
   const allTechUnlockedBuildings = getAvailableBuildings(city, completedTechs, state.map, undefined)

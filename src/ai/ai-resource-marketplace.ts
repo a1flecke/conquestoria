@@ -4,6 +4,7 @@ import {
   getAvailableBuildings,
   getProductionCostForItem,
   getTrainableUnitsForCity,
+  cityFollowsOwnFaith,
   TRAINABLE_UNITS,
 } from '@/systems/city-system';
 import { calculateProjectedCityYields } from '@/systems/city-work-system';
@@ -48,6 +49,7 @@ function getResourcePurchaseCandidates(state: GameState, civId: string, cityId: 
       state.map,
       civ.civType,
       undefined,
+      cityFollowsOwnFaith(state, city),
     ).map(unit => unit.type),
   ].sort();
 }

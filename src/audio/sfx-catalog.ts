@@ -268,6 +268,7 @@ export const UNIT_SFX: Partial<Record<UnitType, Partial<Record<SfxClass, TrackEn
 const LOCOMOTION_CLASS: Record<UnitType, LocomotionClass> = {
   settler:       'humanoid',
   worker:        'humanoid',
+  missionary:    'humanoid',
   scout:         'humanoid',
   scout_hound:   'animal',
   war_hound:     'animal',
