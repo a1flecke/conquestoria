@@ -28,6 +28,7 @@ export const UNIT_CLASS_BY_TYPE: Record<UnitType, UnitClass[]> = {
   cannon: ['siege', 'gunpowder'],
   artillery: ['siege', 'gunpowder'],
   grenadier: ['gunpowder'],
+  marine: ['gunpowder'],
   rifleman: ['gunpowder'],
   frigate: ['naval', 'ranged'],
   ironclad: ['naval', 'gunpowder'],
@@ -110,11 +111,13 @@ export type ModifierCondition =
   | 'inFriendlyCity'
   | 'inFriendlyTerritory'
   | 'vsCoastalCity'
+  | 'amphibiousAssault'
   | 'withinRangeOfFriendlyCity3';
 
 export type ModifierSource =
   | { kind: 'tech'; id: string }
-  | { kind: 'nationalProject'; id: string };
+  | { kind: 'nationalProject'; id: string }
+  | { kind: 'unit'; id: UnitType };
 
 export interface UnitModifier {
   source: ModifierSource;
@@ -133,6 +136,7 @@ export interface UnitModifier {
 
 const tech = (id: string): ModifierSource => ({ kind: 'tech', id });
 const nationalProject = (id: string): ModifierSource => ({ kind: 'nationalProject', id });
+const unit = (id: UnitType): ModifierSource => ({ kind: 'unit', id });
 
 export const UNIT_MODIFIERS: UnitModifier[] = [
   // --- Combat: techs ---
@@ -152,6 +156,7 @@ export const UNIT_MODIFIERS: UnitModifier[] = [
   // authoring) instead of a runtime attackProfile check, since unitTypes overrides appliesTo.
   { source: tech('torpedo-warfare'), effect: 'combatStrength', mode: 'flat', value: 8, unitTypes: ['ironclad', 'pre_dreadnought', 'submarine', 'missile_submarine', 'carrier'], when: 'always', label: 'Torpedo Warfare' },
   { source: tech('stone-weapons'), effect: 'combatStrength', mode: 'flat', value: 2, unitTypes: ['warrior'], when: 'attacking', label: 'Stone Weapons' },
+  { source: unit('marine'), effect: 'combatStrength', mode: 'multiplier', value: 2, unitTypes: ['marine'], when: 'attacking', condition: 'amphibiousAssault', label: 'Marine landing training' },
 
   // --- Combat: national projects ---
   { source: nationalProject('foundry_guild'), effect: 'combatStrength', mode: 'flat', value: 2, appliesTo: ['melee'], when: 'always', label: 'Foundry Guild' },

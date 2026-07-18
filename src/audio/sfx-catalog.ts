@@ -113,7 +113,6 @@ export const UNIT_SFX: Partial<Record<UnitType, Partial<Record<SfxClass, TrackEn
     'attack-impact': real('sfx-musketeer-attack-impact', 'audio/sfx/musketeer-attack-impact.ogg', 0.937),
     death:           real('sfx-musketeer-death',          'audio/sfx/musketeer-death.ogg',          0.572, 'death'),
   },
-
   // === Foot Ranged (attack-swing, ranged-loose, ranged-impact, death) ===
   archer: {
     'attack-swing':  real('sfx-archer-attack-swing',  'audio/sfx/archer-attack-swing.ogg',  0.266),
@@ -307,6 +306,7 @@ const LOCOMOTION_CLASS: Record<UnitType, LocomotionClass> = {
   cannon:        'humanoid',
   artillery:     'humanoid',
   grenadier:     'humanoid',
+  marine:        'humanoid',
   rifleman:       'humanoid',
   frigate:        'naval',
   ironclad:       'naval',

@@ -130,6 +130,7 @@ export interface BeginMajorCityAssaultOptions {
   civId: string;
   bus?: EventBus;
   precedingCombat?: CombatResult;
+  attackerMultiplier?: number;
 }
 
 function distanceForState(
@@ -266,7 +267,9 @@ export function beginMajorCityAssault(
       }
       const counterFireSeed = baseSeed;
       const assaultSeed = baseSeed ^ 0x5a5a;
-      const strengths = calculateCityAssaultStrengths(attacker, city, ownerCiv, state.map);
+      const strengths = calculateCityAssaultStrengths(attacker, city, ownerCiv, state.map, {
+        attackerMultiplier: options.attackerMultiplier,
+      });
       const counterFireDamage = getCityCounterFireDamage(
         city,
         ownerCiv,

@@ -11,6 +11,7 @@ import {
   NO_LAND_UNIT_WATER_RECOVERY,
   type LandUnitWaterRecovery,
 } from '@/systems/unit-water-recovery';
+import { getEmbarkedAssaultTargets } from '@/systems/transport-system';
 
 export interface SelectedUnitHighlightResult {
   movementRange: HexCoord[];
@@ -122,8 +123,10 @@ export function buildSelectedUnitHighlights(state: GameState, unitId: string): S
     .filter(coord => isPreviewableMoveDestination(state, unit.position, coord));
   const zocLimitedRange = detailedRange.zocLimited
     .filter(coord => isPreviewableMoveDestination(state, unit.position, coord));
-  const attackTargets = getAttackTargets(state, unit, { viewerId: state.currentPlayer })
-    .filter(target => target.result.targetType === 'unit');
+  const attackTargets = unit.transportId
+    ? getEmbarkedAssaultTargets(state, unitId, { viewerId: state.currentPlayer })
+    : getAttackTargets(state, unit, { viewerId: state.currentPlayer })
+      .filter(target => target.result.targetType === 'unit');
   const attackKeys = new Set(attackTargets.map(target => hexKey(target.coord)));
   const nonCombatMovementRange = movementRange
     .filter(coord => !attackKeys.has(hexKey(coord)));

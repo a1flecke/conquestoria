@@ -125,6 +125,7 @@ const UNIT_MOTION_STYLES: Record<UnitType, UnitMotionStyle> = {
   cannon:   'humanoid',
   artillery: 'humanoid',
   grenadier: 'humanoid',
+  marine: 'humanoid',
   rifleman: 'humanoid',
   frigate: 'naval',
   ironclad: 'naval',
@@ -247,6 +248,7 @@ export const UNIT_SPRITE_CATALOG: Record<UnitType, UnitSpriteComponent> = {
   // generate-sprite-prompt follow-up.
   artillery:      withMotion('artillery', CannonSprite),
   grenadier:      withMotion('grenadier', GrenadierSprite),
+  marine:         withMotion('marine', RiflemanSprite),
   rifleman:       withMotion('rifleman', RiflemanSprite),
   // frigate/destroyer reuse existing hulls as placeholders (same pattern as stealth_bomber
   // reusing JetFighterSprite below); bespoke sprites are a generate-sprite-prompt follow-up.

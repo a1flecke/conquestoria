@@ -35,6 +35,8 @@ import {
 import { recordCombatForCiv } from '@/systems/threat-pressure-system';
 import {
   loadUnitOntoTransport,
+  detachCargoForEmbarkedAssault,
+  getEmbarkedAssaultTarget,
   unloadUnitFromTransport,
 } from '@/systems/transport-system';
 import { executeUnitMove } from '@/systems/unit-movement-system';
@@ -169,9 +171,10 @@ function occupyMajorCity(
 
 function executeAttack(
   state: GameState,
-  action: Extract<AITacticalAction, { kind: 'attack' }>,
+  action: Extract<AITacticalAction, { kind: 'attack' | 'embarked-attack' }>,
   civId: string,
   bus: EventBus,
+  amphibiousAssault = false,
 ): { state: GameState; followUps: AITacticalAction[] } {
   const next = structuredClone(state);
   const attacker = next.units[action.unitId];
@@ -199,7 +202,7 @@ function executeAttack(
     defender,
     next.map,
     seed,
-    buildCombatContextForDefender(next, attacker, defender),
+    buildCombatContextForDefender(next, attacker, defender, { amphibiousAssault }),
     next.era,
   );
   const presentation = buildCombatPresentation(next, combat, attacker, defender);
@@ -262,6 +265,28 @@ function executeAttack(
     }
   }
   return { state: working, followUps };
+}
+
+function executeEmbarkedAttack(
+  state: GameState,
+  action: Extract<AITacticalAction, { kind: 'embarked-attack' }>,
+  civId: string,
+  bus: EventBus,
+): { state: GameState; followUps: AITacticalAction[] } {
+  const cargo = state.units[action.unitId];
+  const defender = state.units[action.targetUnitId];
+  if (!cargo || !defender || cargo.owner !== civId) return { state, followUps: [] };
+  const legality = getEmbarkedAssaultTarget(state, cargo.id, defender.position, { viewerId: civId, requireVisibility: true });
+  if (!legality.ok || legality.targetType !== 'unit' || legality.targetUnitId !== defender.id) return { state, followUps: [] };
+  const detached = detachCargoForEmbarkedAssault(state, cargo.id);
+  if (!detached.ok) return { state, followUps: [] };
+  return executeAttack(
+    detached.state,
+    { kind: 'embarked-attack', unitId: cargo.id, targetUnitId: defender.id },
+    civId,
+    bus,
+    true,
+  );
 }
 
 function executeMinorCityCapture(
@@ -344,6 +369,10 @@ function executeAction(
         succeeded: attack.state !== state,
         followUps: attack.followUps,
       };
+    }
+    case 'embarked-attack': {
+      const attack = executeEmbarkedAttack(state, action, civId, bus);
+      return { state: attack.state, succeeded: attack.state !== state, followUps: attack.followUps };
     }
     case 'capture-city': {
       const city = state.cities[action.cityId];

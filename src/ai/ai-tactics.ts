@@ -43,6 +43,8 @@ import {
 } from '@/systems/resource-acquisition-system';
 import {
   canLoadUnitOntoTransport,
+  detachCargoForEmbarkedAssault,
+  getEmbarkedAssaultTargets,
   getUnloadDestinations,
   loadUnitOntoTransport,
   syncTransportCargoPositions,
@@ -69,6 +71,7 @@ import { getLegalRebaseDestinations, resolveAirStrike, resolveReconMission, reba
 
 export type AITacticalAction =
   | { kind: 'attack'; unitId: string; targetUnitId: string }
+  | { kind: 'embarked-attack'; unitId: string; targetUnitId: string }
   | { kind: 'air-strike'; unitId: string; target: HexCoord }
   | { kind: 'air-recon'; unitId: string; target: HexCoord }
   | { kind: 'air-intercept'; unitId: string }
@@ -126,6 +129,8 @@ function actionId(action: AITacticalAction): string {
   switch (action.kind) {
     case 'attack':
       return `attack:${action.unitId}:${action.targetUnitId}`;
+    case 'embarked-attack':
+      return `embarked-attack:${action.unitId}:${action.targetUnitId}`;
     case 'air-strike':
       return `air-strike:${action.unitId}:${hexKey(action.target)}`;
     case 'air-recon':
@@ -651,6 +656,7 @@ export function rankUnitTacticalActions(
   }
   if (unit.transportId) {
     return sortRanked([
+      ...rankEmbarkedAttacks(context, unit),
       ...rankCivilianAndTransportActions(context, unit),
       ranked({ kind: 'hold', unitId }, 0),
     ]);
@@ -671,6 +677,35 @@ export function rankUnitTacticalActions(
   }
   candidates.push(ranked({ kind: 'hold', unitId }, 0));
   return sortRanked(candidates);
+}
+
+function rankEmbarkedAttacks(
+  context: AITacticalContext,
+  unit: Unit,
+): RankedAITacticalAction[] {
+  if (context.allowOffensiveActions === false) return [];
+  return getEmbarkedAssaultTargets(context.state, unit.id, { viewerId: context.actorId, requireVisibility: true })
+    .flatMap(target => {
+      if (target.result.targetType !== 'unit') return [];
+      const defender = context.state.units[target.result.targetUnitId];
+      if (!defender || !isAIHostileOwner(context.state, context.actorId, defender.owner)) return [];
+      const transport = unit.transportId ? context.state.units[unit.transportId] : undefined;
+      if (!transport) return [];
+      const attacker = { ...unit, position: { ...transport.position }, transportId: undefined };
+      const combatContext = buildCombatContextForDefender(context.state, attacker, defender, { amphibiousAssault: true });
+      const preview = resolveCombat(
+        attacker,
+        defender,
+        context.state.map,
+        combatSeed(context.state, attacker.id, defender.id),
+        combatContext,
+        context.state.era,
+      );
+      return [ranked(
+        { kind: 'embarked-attack', unitId: unit.id, targetUnitId: defender.id },
+        500 + preview.defenderDamage - preview.attackerDamage * 0.5 + (!preview.defenderSurvived ? 120 : 0),
+      )];
+    });
 }
 
 function chooseRankedAction(
@@ -752,6 +787,21 @@ function applyPredictedAction(
         next.era,
       );
       return applyCombatOutcomeToState(next, result, seed).state;
+    }
+    case 'embarked-attack': {
+      const defender = next.units[action.targetUnitId];
+      const detached = detachCargoForEmbarkedAssault(next, action.unitId);
+      if (!defender || !detached.ok) return next;
+      const seed = combatSeed(detached.state, detached.attacker.id, defender.id);
+      const result = resolveCombat(
+        detached.attacker,
+        defender,
+        detached.state.map,
+        seed,
+        buildCombatContextForDefender(detached.state, detached.attacker, defender, { amphibiousAssault: true }),
+        detached.state.era,
+      );
+      return applyCombatOutcomeToState(detached.state, result, seed).state;
     }
     case 'move':
     case 'withdraw':

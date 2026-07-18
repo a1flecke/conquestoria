@@ -3,10 +3,11 @@ import { getUnitAttackProfile } from '@/systems/attack-targeting';
 import { hexDistance, hexKey, wrappedHexDistance } from '@/systems/hex-utils';
 import { buildUnitOccupancy, getStackRelationship } from '@/systems/unit-occupancy';
 import { getMovementRange } from '@/systems/unit-system';
+import { getEmbarkedAssaultTarget } from '@/systems/transport-system';
 
 export type SelectedUnitTapIntent =
   | { kind: 'move' }
-  | { kind: 'assault-city'; cityId: string }
+  | { kind: 'assault-city'; cityId: string; embarkedAssault?: boolean }
   | { kind: 'assault-minor-civ'; cityId: string; minorCivId: string }
   | { kind: 'confirm-war-minor-civ'; cityId: string; minorCivId: string }
   | { kind: 'confirm-war-city'; cityId: string; defenderId: string };
@@ -63,13 +64,17 @@ export function resolveSelectedUnitTapIntent(
   })();
 
   const targetKey = hexKey(targetCoord);
-  if (!movementRange.some(coord => hexKey(coord) === targetKey)) {
+  const embarkedTarget = unit.transportId
+    ? getEmbarkedAssaultTarget(state, unitId, targetCoord)
+    : undefined;
+  const isEmbarkedCityAssault = embarkedTarget?.ok && embarkedTarget.targetType === 'city';
+  if (!isEmbarkedCityAssault && !movementRange.some(coord => hexKey(coord) === targetKey)) {
     return { kind: 'move' };
   }
 
   const occupancy = buildUnitOccupancy(state.units);
   const relationship = getStackRelationship(occupancy, unit, targetCoord);
-  if (relationship.hasHostileBlocker) {
+  if (!isEmbarkedCityAssault && relationship.hasHostileBlocker) {
     return { kind: 'move' };
   }
 
@@ -81,7 +86,7 @@ export function resolveSelectedUnitTapIntent(
     return { kind: 'move' };
   }
 
-  if (!canReachCityAssault(state, unitId, targetCoord)) {
+  if (!isEmbarkedCityAssault && !canReachCityAssault(state, unitId, targetCoord)) {
     return { kind: 'move' };
   }
 
@@ -100,5 +105,7 @@ export function resolveSelectedUnitTapIntent(
     return { kind: 'confirm-war-city', cityId: cityAtTarget.id, defenderId: cityAtTarget.owner };
   }
 
-  return { kind: 'assault-city', cityId: cityAtTarget.id };
+  return isEmbarkedCityAssault
+    ? { kind: 'assault-city', cityId: cityAtTarget.id, embarkedAssault: true }
+    : { kind: 'assault-city', cityId: cityAtTarget.id };
 }
