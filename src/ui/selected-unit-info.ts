@@ -409,7 +409,7 @@ export function renderSelectedUnitInfo(
         btn.style.cursor = 'not-allowed';
         btn.title = onCooldown
           ? 'This missionary is resting after its last preach — try again in a few turns.'
-          : 'No eligible city nearby — move next to a discovered city that is not a holy city and not held by a civ you are at war with.';
+          : 'No eligible city nearby — move next to a discovered city that is not a holy city, not held by a civ you are at war with, and hasn\'t recently changed faith.';
         actionsDiv.appendChild(btn);
       }
     }

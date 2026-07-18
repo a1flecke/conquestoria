@@ -411,4 +411,35 @@ describe('#591 MR4 — religion state defaults', () => {
     const loadedAgain = migrateSaveToCurrent(migrated);
     expect(loadedAgain).toEqual(migrated);
   });
+
+  it('#592 MR5: converts a legacy single-slot conversionProgress ({toReligionId, points}) into the new per-religion map shape, preserving the in-flight points', () => {
+    const save = createNewGame('rome', 'conversion-progress-shape-migration', 'small');
+    save.religions = { 'religion-player': { id: 'religion-player', name: 'Order of Test', ownerCivId: 'player', foundedTurn: 5 } };
+    save.cityFaith = {
+      capital: { religionId: 'religion-player', isHolyCity: true },
+      // Legacy MR4 shape -- a city mid-conversion toward religion-player with 65 banked
+      // points, saved before MR5's per-religion map restructure.
+      contested: { religionId: 'religion-player', conversionProgress: { toReligionId: 'religion-player', points: 65 } as any },
+    };
+
+    const migrated = migrateSaveToCurrent(save);
+
+    expect(migrated.cityFaith!.contested.conversionProgress).toEqual({ 'religion-player': 65 });
+    // Unrelated holy-city entry with no conversionProgress at all is untouched.
+    expect(migrated.cityFaith!.capital).toEqual(save.cityFaith!.capital);
+  });
+
+  it('leaves an already-current per-religion conversionProgress map untouched and stays idempotent', () => {
+    const save = createNewGame('rome', 'conversion-progress-shape-current', 'small');
+    save.religions = { 'religion-player': { id: 'religion-player', name: 'Order of Test', ownerCivId: 'player', foundedTurn: 5 } };
+    save.cityFaith = {
+      contested: { religionId: 'religion-player', conversionProgress: { 'religion-player': 40, 'religion-ai-1': 14 } },
+    };
+
+    const migrated = migrateSaveToCurrent(save);
+    expect(migrated.cityFaith!.contested.conversionProgress).toEqual({ 'religion-player': 40, 'religion-ai-1': 14 });
+
+    const loadedAgain = migrateSaveToCurrent(migrated);
+    expect(loadedAgain).toEqual(migrated);
+  });
 });

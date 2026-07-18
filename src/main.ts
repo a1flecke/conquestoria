@@ -2642,6 +2642,7 @@ function performPreach(unitId: string, cityId: string): void {
       bodyText: `${message} That was its last charge, so the missionary is gone.`,
       confirmLabel: 'OK',
       hideCancel: true,
+      tone: 'neutral',
       onConfirm: () => {
         uiLayer.querySelector('#unit-delete-confirmation-panel')?.remove();
         setBlockingOverlay(null);

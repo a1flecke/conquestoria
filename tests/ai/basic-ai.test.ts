@@ -2747,4 +2747,34 @@ describe('#592 MR5 — AI missionary dispatch', () => {
     // Charges must be untouched -- it moved, it did not preach yet (still out of range).
     expect(movedUnit!.chargesRemaining).toBe(missionary.chargesRemaining);
   });
+
+  // Regression: the friendly-minor-civ branch of chooseMissionaryDispatchTarget must
+  // skip a minor city that already follows the civ's own faith -- otherwise the AI
+  // wastes a missionary charge (and its cooldown) re-preaching a city with no
+  // conversion progress left to make.
+  it('does not waste a charge re-preaching a friendly minor-civ city that already follows the civ\'s own faith', () => {
+    const { state, unconvertedCityId, missionaryId } = withMissionaryAndUnconvertedCity('592-ai-missionary-minor-skip');
+    const missionary = state.units[missionaryId]!;
+    const minor = Object.values(state.minorCivs)[0];
+    if (!minor) throw new Error('missing generated minor civilization');
+    const minorCity = state.cities[minor.cityId];
+    if (!minorCity) throw new Error('missing minor civ city');
+
+    // Empty the "own unconverted" branch so dispatch falls through to the minor-civ
+    // branch -- otherwise the still-unconverted own city would win first regardless of
+    // what this test is checking.
+    state.cityFaith![unconvertedCityId] = { religionId: 'religion-ai-1' };
+    // Minor city already follows ai-1's own faith -- no progress left to gain there.
+    state.cityFaith![minor.cityId] = { religionId: 'religion-ai-1' };
+    state.civilizations['ai-1'].visibility.tiles[hexKey(minorCity.position)] = 'visible';
+    // Place the missionary right next to the minor city so it WOULD be preached this
+    // turn if the dispatch logic incorrectly selected it as a target.
+    state.units[missionaryId] = { ...missionary, position: minorCity.position };
+
+    const next = processAITurn(state, 'ai-1', new EventBus());
+    // Charges must be unchanged -- confirms the missionary did not preach the
+    // already-converted minor city (no conversionProgress bucket was opened there).
+    expect(next.units[missionaryId]?.chargesRemaining).toBe(missionary.chargesRemaining);
+    expect(next.cityFaith?.[minor.cityId]?.conversionProgress).toBeUndefined();
+  });
 });

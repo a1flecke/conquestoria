@@ -185,11 +185,8 @@ export function processReligionTurn(state: GameState, bus: EventBus): GameState 
     // must NOT be skipped here, or it would freeze at turn-1's point total forever.
     if (faith?.religionId === pressure.religionId && !getCityConversionPoints(faith, pressure.religionId)) continue;
 
-    const cooldownActive = (faith?.conversionCooldownUntilTurn ?? 0) > state.turn;
-    const exemptCivId = faith?.conversionCooldownExemptCivId;
-    const pressureReligion = state.religions?.[pressure.religionId];
-    const pressureIsExempt = !!exemptCivId && pressureReligion?.ownerCivId === exemptCivId;
-    if (cooldownActive && !pressureIsExempt) continue; // rival religion's passive pressure is paused during cooldown
+    const pressureReligionOwnerCivId = state.religions?.[pressure.religionId]?.ownerCivId;
+    if (pressureReligionOwnerCivId && isCityConversionCooldownBlocking(faith, pressureReligionOwnerCivId, state.turn)) continue;
 
     const { cityFaith: updatedFaith, converted } = applyCityConversionPoints(faith, pressure.religionId, pressure.accrual);
 
@@ -232,6 +229,11 @@ function processOccupationAccrual(state: GameState, bus: EventBus): GameState {
     if (!occupierReligion) continue;
     const faith = cityFaith[cityId];
     if (faith?.isHolyCity) continue;
+    // Same anti-flip-flop rule as passive spread and preach: a city that just converted
+    // is protected from a DIFFERENT religion's pressure for the cooldown window, and
+    // occupation accrual is no exception — otherwise conquering a city the instant it
+    // finishes converting would be a loophole around the cooldown from the military side.
+    if (isCityConversionCooldownBlocking(faith, city.owner, state.turn)) continue;
 
     const { cityFaith: updatedFaith, converted } = applyCityConversionPoints(faith, occupierReligion.id, OCCUPATION_ACCRUAL);
     if (converted) {
@@ -254,17 +256,31 @@ function processOccupationAccrual(state: GameState, bus: EventBus): GameState {
   return changed ? { ...state, cityFaith } : state;
 }
 
-export type PreachFailureReason = 'not-missionary' | 'no-charges' | 'on-cooldown' | 'holy-city' | 'at-war' | 'undiscovered' | 'no-religion' | 'out-of-range';
+export type PreachFailureReason = 'not-missionary' | 'no-charges' | 'on-cooldown' | 'holy-city' | 'at-war' | 'undiscovered' | 'no-religion' | 'out-of-range' | 'city-conversion-cooldown';
 
 export type PreachResult =
   | { ok: true; state: GameState; converted: boolean; unitConsumed: boolean }
   | { ok: false; state: GameState; reason: PreachFailureReason };
 
+// Shared by preach() and isPreachTargetEligible: a city under its anti-flip-flop
+// cooldown (see CityFaith.conversionCooldownUntilTurn) blocks conversion toward any
+// religion OTHER than conversionCooldownExemptCivId's — including ACTIVE preach, not
+// just passive spread (processReligionTurn/processOccupationAccrual already respect
+// this; preach() must too, or a missionary trivially bypasses the whole cooldown and
+// the anti-flip-flop protection the user asked for is a no-op against active play).
+// preach() always targets the preaching civ's OWN religion, so the exemption check
+// only needs to compare civ ids, not resolve religion ownership.
+function isCityConversionCooldownBlocking(faith: CityFaith | undefined, preachingCivId: string, currentTurn: number): boolean {
+  const cooldownActive = (faith?.conversionCooldownUntilTurn ?? 0) > currentTurn;
+  if (!cooldownActive) return false;
+  return faith?.conversionCooldownExemptCivId !== preachingCivId;
+}
+
 // Range-independent half of the preach eligibility gate (holy city, at-war, discovered,
-// religion-founded) — everything EXCEPT adjacency. Exposed separately from
-// canPreachTarget so a caller choosing a STRATEGIC target to walk toward (the AI
-// dispatch loop in basic-ai.ts) can pick a distant-but-otherwise-eligible city without
-// the adjacency check silently excluding every target outside the unit's current
+// religion-founded, city-conversion-cooldown) — everything EXCEPT adjacency. Exposed
+// separately from canPreachTarget so a caller choosing a STRATEGIC target to walk toward
+// (the AI dispatch loop in basic-ai.ts) can pick a distant-but-otherwise-eligible city
+// without the adjacency check silently excluding every target outside the unit's current
 // movement range. UI/action callers that mean "can I preach RIGHT NOW" should use
 // canPreachTarget instead.
 export function isPreachTargetEligible(state: GameState, unit: { owner: string }, cityId: string): boolean {
@@ -272,6 +288,7 @@ export function isPreachTargetEligible(state: GameState, unit: { owner: string }
   if (!city) return false;
   const faith = state.cityFaith?.[cityId];
   if (faith?.isHolyCity) return false;
+  if (isCityConversionCooldownBlocking(faith, unit.owner, state.turn)) return false;
 
   const owner = state.civilizations[unit.owner];
   if (!owner) return false;
@@ -313,6 +330,9 @@ export function preach(state: GameState, unitId: string, cityId: string, bus: Ev
 
   const faith = state.cityFaith?.[cityId];
   if (faith?.isHolyCity) return { ok: false, state, reason: 'holy-city' };
+  if (isCityConversionCooldownBlocking(faith, unit.owner, state.turn)) {
+    return { ok: false, state, reason: 'city-conversion-cooldown' };
+  }
 
   const owner = state.civilizations[unit.owner];
   if (!owner) return { ok: false, state, reason: 'not-missionary' };
