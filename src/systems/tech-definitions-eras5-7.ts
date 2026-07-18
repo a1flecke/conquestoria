@@ -265,7 +265,7 @@ const ERA_6_TECHS: Tech[] = [
     unlocks: ['+2 gold per city with a temple empire-wide'], era: 6 },
   { id: 'missionary-zeal', name: 'Missionary Zeal', track: 'spirituality', cost: 120,
     prerequisites: ['monastic-orders'],
-    unlocks: ['Missionaries spread religion to conquered cities faster'], era: 6 },
+    unlocks: ['Preaching in cities conquered from other civilizations is twice as effective; missionaries carry 3 charges instead of 2'], era: 6 },
 ];
 
 const ERA_7_TECHS: Tech[] = [
