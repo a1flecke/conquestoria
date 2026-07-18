@@ -260,6 +260,27 @@ export type PreachResult =
   | { ok: true; state: GameState; converted: boolean; unitConsumed: boolean }
   | { ok: false; state: GameState; reason: PreachFailureReason };
 
+// Range-independent half of the preach eligibility gate (holy city, at-war, discovered,
+// religion-founded) — everything EXCEPT adjacency. Exposed separately from
+// canPreachTarget so a caller choosing a STRATEGIC target to walk toward (the AI
+// dispatch loop in basic-ai.ts) can pick a distant-but-otherwise-eligible city without
+// the adjacency check silently excluding every target outside the unit's current
+// movement range. UI/action callers that mean "can I preach RIGHT NOW" should use
+// canPreachTarget instead.
+export function isPreachTargetEligible(state: GameState, unit: { owner: string }, cityId: string): boolean {
+  const city = state.cities[cityId];
+  if (!city) return false;
+  const faith = state.cityFaith?.[cityId];
+  if (faith?.isHolyCity) return false;
+
+  const owner = state.civilizations[unit.owner];
+  if (!owner) return false;
+  if ((owner.diplomacy.atWarWith ?? []).includes(city.owner)) return false;
+  if (!hasDiscoveredCity(state, unit.owner, cityId)) return false;
+
+  return Object.values(state.religions ?? {}).some(r => r.ownerCivId === unit.owner);
+}
+
 // Returns whether `unit` (assumed to be a missionary belonging to a civ with a founded
 // religion) could currently preach `cityId` — the same refusal conditions preach() itself
 // checks, exposed read-only so UI eligibility (which city to show a Preach button for) can
@@ -270,15 +291,7 @@ export function canPreachTarget(state: GameState, unit: { owner: string; positio
   const city = state.cities[cityId];
   if (!city) return false;
   if (mapDistance(state.map, unit.position, city.position) > 1) return false;
-  const faith = state.cityFaith?.[cityId];
-  if (faith?.isHolyCity) return false;
-
-  const owner = state.civilizations[unit.owner];
-  if (!owner) return false;
-  if ((owner.diplomacy.atWarWith ?? []).includes(city.owner)) return false;
-  if (!hasDiscoveredCity(state, unit.owner, cityId)) return false;
-
-  return Object.values(state.religions ?? {}).some(r => r.ownerCivId === unit.owner);
+  return isPreachTargetEligible(state, unit, cityId);
 }
 
 // #592 MR5: active conversion via missionary preach. Grants PREACH_POINTS toward the
@@ -311,7 +324,11 @@ export function preach(state: GameState, unitId: string, cityId: string, bus: Ev
   if (!religion) return { ok: false, state, reason: 'no-religion' };
 
   const hasZeal = owner.techState.completed.includes('missionary-zeal');
-  const isDoubled = hasZeal && !!city.occupation;
+  // "a city the owner holds under occupation" — city.owner must be the missionary's own
+  // civ. Without this check, a rival's occupied city (captured from some third civ) would
+  // incorrectly grant the doubled bonus to any preaching civ with missionary-zeal, not
+  // just the actual occupier.
+  const isDoubled = hasZeal && !!city.occupation && city.owner === unit.owner;
   const pointsGranted = isDoubled ? PREACH_OCCUPIED_DOUBLE : PREACH_POINTS;
 
   const { cityFaith: updatedFaith, converted } = applyCityConversionPoints(faith, religion.id, pointsGranted);

@@ -2711,4 +2711,40 @@ describe('#592 MR5 — AI missionary dispatch', () => {
     const runB = processAITurn(structuredClone(state), 'ai-1', new EventBus());
     expect(runA.cityFaith).toEqual(runB.cityFaith);
   });
+
+  // Regression: chooseMissionaryDispatchTarget must pick a strategic target regardless of
+  // current distance, not filter candidates down to only those already in preach range —
+  // otherwise a missionary starting more than 1 tile from every eligible city would never
+  // move (the target-selection step itself would return null for every real candidate).
+  it('an idle AI missionary starting more than 1 tile away WALKS toward its target instead of staying put', () => {
+    const { state, unconvertedCityId, missionaryId } = withMissionaryAndUnconvertedCity('592-ai-missionary-walk');
+    const missionary = state.units[missionaryId]!;
+    const targetPos = state.cities[unconvertedCityId]!.position;
+    // Move the missionary back to the holy city (3 tiles from the target) so it must walk.
+    const farPos: HexCoord = { q: targetPos.q - 3, r: targetPos.r };
+    state.units[missionaryId] = { ...missionary, position: farPos };
+    state.civilizations['ai-1'].visibility.tiles[hexKey(farPos)] = 'visible';
+    // Guarantee a walkable land corridor between farPos and targetPos -- random map
+    // generation can otherwise place impassable terrain (ocean/mountain) in between,
+    // which would make findPath return null for a reason unrelated to what this test
+    // actually checks (target selection + move-toward-target dispatch logic).
+    for (let q = farPos.q; q <= targetPos.q; q++) {
+      const coord: HexCoord = { q, r: targetPos.r };
+      const key = hexKey(coord);
+      const existing = state.map.tiles[key];
+      state.map.tiles[key] = {
+        coord, terrain: 'grassland', elevation: 'lowland', resource: null, improvement: 'none',
+        owner: existing?.owner ?? null, improvementTurnsLeft: 0, hasRiver: false, wonder: null,
+        regionKey: existing?.regionKey,
+      };
+    }
+
+    const next = processAITurn(state, 'ai-1', new EventBus());
+    const movedUnit = next.units[missionaryId];
+    expect(movedUnit).toBeDefined();
+    expect(movedUnit!.position).not.toEqual(farPos);
+    expect(hexDistance(movedUnit!.position, targetPos)).toBeLessThan(hexDistance(farPos, targetPos));
+    // Charges must be untouched -- it moved, it did not preach yet (still out of range).
+    expect(movedUnit!.chargesRemaining).toBe(missionary.chargesRemaining);
+  });
 });
