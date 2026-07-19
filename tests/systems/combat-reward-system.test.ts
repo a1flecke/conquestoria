@@ -10,6 +10,7 @@ import {
 } from '@/systems/combat-reward-system';
 import { createEmptyPirateState, type PirateFactionState } from '@/core/pirate-state';
 import type { CombatResult, GameState } from '@/core/types';
+import { selectDefenderForAttack } from '@/systems/combat-system';
 
 const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
 
@@ -647,5 +648,144 @@ describe('applyCombatOutcomeToState', () => {
     expect(applied.rewards).toEqual([]);
     expect(applied.state.units.attacker.experience).toBe(0);
     expect(applied.state.units.attacker.health).toBe(30);
+  });
+
+  it('captures an unescorted worker instead of destroying it, transferring civ.units[] both ways', () => {
+    const state = makeRewardState();
+    state.units.defender = { ...state.units.defender, type: 'worker', owner: 'ai-1' };
+    state.civilizations['ai-1'].units = ['defender'];
+    const result: CombatResult = {
+      attackerId: 'attacker', defenderId: 'defender', attackerDamage: 0, defenderDamage: 100,
+      attackerSurvived: true, defenderSurvived: false,
+      attackerPosition: { q: 0, r: 0 }, defenderPosition: { q: 1, r: 0 },
+    };
+
+    const applied = applyCombatOutcomeToState(state, result, 64);
+
+    expect(applied.defenderDefeated).toBe(false);
+    expect(applied.defenderCaptured).toBe(true);
+    expect(applied.state.units.defender.owner).toBe('player');
+    expect(applied.state.units.defender.type).toBe('worker');
+    expect(applied.state.civilizations.player.units).toContain('defender');
+    expect(applied.state.civilizations['ai-1'].units).not.toContain('defender');
+  });
+
+  it('downgrades a captured settler to worker, keeping health/hasActed unchanged from before combat', () => {
+    const state = makeRewardState();
+    state.units.defender = { ...state.units.defender, type: 'settler', owner: 'ai-1', health: 77, hasActed: false };
+    state.civilizations['ai-1'].units = ['defender'];
+    const result: CombatResult = {
+      attackerId: 'attacker', defenderId: 'defender', attackerDamage: 0, defenderDamage: 100,
+      attackerSurvived: true, defenderSurvived: false,
+      attackerPosition: { q: 0, r: 0 }, defenderPosition: { q: 1, r: 0 },
+    };
+
+    const applied = applyCombatOutcomeToState(state, result, 64);
+
+    expect(applied.state.units.defender.type).toBe('worker');
+    expect(applied.state.units.defender.health).toBe(77);
+    expect(applied.state.units.defender.hasActed).toBe(false);
+  });
+
+  it('keeps a captured caravan as a caravan (no type downgrade beyond settler)', () => {
+    const state = makeRewardState();
+    state.units.defender = { ...state.units.defender, type: 'caravan', owner: 'ai-1' };
+    state.civilizations['ai-1'].units = ['defender'];
+    const result: CombatResult = {
+      attackerId: 'attacker', defenderId: 'defender', attackerDamage: 0, defenderDamage: 100,
+      attackerSurvived: true, defenderSurvived: false,
+      attackerPosition: { q: 0, r: 0 }, defenderPosition: { q: 1, r: 0 },
+    };
+
+    const applied = applyCombatOutcomeToState(state, result, 64);
+
+    expect(applied.state.units.defender.type).toBe('caravan');
+    expect(applied.defenderCaptured).toBe(true);
+  });
+
+  it('captures a losing attacker civilian too (attacker-loses side), mirroring the defender side', () => {
+    const state = makeRewardState();
+    state.units.attacker = { ...state.units.attacker, type: 'worker', owner: 'player' };
+    state.civilizations.player.units = ['attacker'];
+    const result: CombatResult = {
+      attackerId: 'attacker', defenderId: 'defender', attackerDamage: 100, defenderDamage: 0,
+      attackerSurvived: false, defenderSurvived: true,
+      attackerPosition: { q: 0, r: 0 }, defenderPosition: { q: 1, r: 0 },
+    };
+
+    const applied = applyCombatOutcomeToState(state, result, 64);
+
+    expect(applied.attackerDefeated).toBe(false);
+    expect(applied.attackerCaptured).toBe(true);
+    expect(applied.state.units.attacker.owner).toBe('ai-1');
+  });
+
+  it('captures an empty naval-civilian transport instead of sinking it', () => {
+    const state = makeRewardState();
+    state.units.defender = { ...state.units.defender, type: 'transport', owner: 'ai-1' };
+    state.civilizations['ai-1'].units = ['defender'];
+    const result: CombatResult = {
+      attackerId: 'attacker', defenderId: 'defender', attackerDamage: 0, defenderDamage: 100,
+      attackerSurvived: true, defenderSurvived: false,
+      attackerPosition: { q: 0, r: 0 }, defenderPosition: { q: 1, r: 0 },
+    };
+
+    const applied = applyCombatOutcomeToState(state, result, 64);
+
+    expect(applied.defenderCaptured).toBe(true);
+    expect(applied.state.units.defender.owner).toBe('player');
+  });
+
+  it('still destroys (never captures) a naval-civilian transport that is currently carrying cargo', () => {
+    const state = makeRewardState();
+    state.units.defender = { ...state.units.defender, type: 'transport', owner: 'ai-1', cargoUnitIds: ['cargo-1'] };
+    state.civilizations['ai-1'].units = ['defender'];
+    const result: CombatResult = {
+      attackerId: 'attacker', defenderId: 'defender', attackerDamage: 0, defenderDamage: 100,
+      attackerSurvived: true, defenderSurvived: false,
+      attackerPosition: { q: 0, r: 0 }, defenderPosition: { q: 1, r: 0 },
+    };
+
+    const applied = applyCombatOutcomeToState(state, result, 64);
+
+    expect(applied.defenderCaptured).toBe(false);
+    expect(applied.defenderDefeated).toBe(true);
+    expect(applied.state.units.defender).toBeUndefined();
+  });
+
+  it('still destroys a defeated combat unit — capture only applies to civilian-class units', () => {
+    const state = makeRewardState();
+    const result: CombatResult = {
+      attackerId: 'attacker', defenderId: 'defender', attackerDamage: 0, defenderDamage: 100,
+      attackerSurvived: true, defenderSurvived: false,
+      attackerPosition: { q: 0, r: 0 }, defenderPosition: { q: 1, r: 0 },
+    };
+
+    const applied = applyCombatOutcomeToState(state, result, 64);
+
+    expect(applied.defenderDefeated).toBe(true);
+    expect(applied.defenderCaptured).toBe(false);
+    expect(applied.state.units.defender).toBeUndefined();
+  });
+});
+
+describe('escort protection (civilian capture precondition)', () => {
+  it("never selects an unescorted civilian's escort — the combat unit always defends the stack", () => {
+    const civilian = { ...createUnit('worker', 'ai-1', { q: 1, r: 0 }, mkC()), id: 'civilian' };
+    const escort = { ...createUnit('warrior', 'ai-1', { q: 1, r: 0 }, mkC()), id: 'escort' };
+    const map = { width: 4, height: 4, wrapsHorizontally: false, rivers: [], tiles: {} };
+
+    const defender = selectDefenderForAttack([civilian, escort], map);
+
+    expect(defender?.id).toBe('escort');
+  });
+
+  it('selects the civilian only when it is alone on its tile', () => {
+    const civilian = { ...createUnit('worker', 'ai-1', { q: 1, r: 0 }, mkC()), id: 'civilian' };
+    const map = { width: 4, height: 4, wrapsHorizontally: false, rivers: [], tiles: {} };
+
+    const defender = selectDefenderForAttack([civilian], map);
+
+    expect(defender?.id).toBe('civilian');
   });
 });
