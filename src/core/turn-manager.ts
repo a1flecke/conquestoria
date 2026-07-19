@@ -908,12 +908,16 @@ export function processTurn(
       newState = recordCombatForCiv(newState, defender.owner, defenderPosBarbarian);
     }
     emitMinorCivQuestTransitions(bus, applied.questTransitions, newState);
-    // Clean up trade routes for any committed caravans that died
+    // Clean up trade routes for any committed caravans that died or were captured
     if (applied.attackerDefeated && attackerRouteId) {
       newState = removeRouteForUnit(newState, result.attackerId, bus, 'unit-died', attackerRouteId);
+    } else if (applied.attackerCaptured && attackerRouteId) {
+      newState = removeRouteForUnit(newState, result.attackerId, bus, 'unit-captured', attackerRouteId);
     }
     if (applied.defenderDefeated && defenderRouteId) {
       newState = removeRouteForUnit(newState, result.defenderId, bus, 'unit-died', defenderRouteId);
+    } else if (applied.defenderCaptured && defenderRouteId) {
+      newState = removeRouteForUnit(newState, result.defenderId, bus, 'unit-captured', defenderRouteId);
     }
     bus.emit('combat:resolved', { result, ...combatPresentation });
     for (const reward of applied.rewards) {

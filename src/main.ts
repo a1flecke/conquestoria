@@ -2984,12 +2984,16 @@ function executeAttack(attackerId: string, targetKey: string): void {
   gameState = applied.state;
   gameState = recordCombatForCiv(gameState, gameState.currentPlayer, defenderPosition);
   emitMinorCivQuestTransitions(bus, applied.questTransitions, gameState);
-  // Clean up trade routes for any committed caravans that died
+  // Clean up trade routes for any committed caravans that died or were captured
   if (applied.attackerDefeated && attackerRouteId) {
     gameState = removeRouteForUnit(gameState, result.attackerId, bus, 'unit-died', attackerRouteId);
+  } else if (applied.attackerCaptured && attackerRouteId) {
+    gameState = removeRouteForUnit(gameState, result.attackerId, bus, 'unit-captured', attackerRouteId);
   }
   if (applied.defenderDefeated && defenderRouteId) {
     gameState = removeRouteForUnit(gameState, result.defenderId, bus, 'unit-died', defenderRouteId);
+  } else if (applied.defenderCaptured && defenderRouteId) {
+    gameState = removeRouteForUnit(gameState, result.defenderId, bus, 'unit-captured', defenderRouteId);
   }
 
   if (applied.attackerDefeated) {
@@ -3060,6 +3064,8 @@ function executeAttack(attackerId: string, targetKey: string): void {
         }
       }
     }
+  } else if (applied.defenderCaptured) {
+    showNotification(`${UNIT_DEFINITIONS[defender.type].name} captured!`, 'success');
   }
 
   // `attacker` was captured before applyCombatOutcomeToState — safe even if attacker was destroyed
@@ -4893,6 +4899,7 @@ bus.on('trade:route-ended', ({ fromCityId, toCityId, reason }) => {
     'hostile-relations': 'hostile relations — caravan is free to redeploy',
     'embargo': 'embargo enforced — caravan is free to redeploy',
     'trips-exhausted': 'caravan retired after completing its service',
+    'unit-captured': 'caravan captured',
   };
   appendToCivLog(ownerCity.owner, `Trade route to ${toCity?.name ?? toCityId} ended: ${reasonText[reason] ?? reason}`, 'warning');
   // Also tell the other end of the route, if it's a different human civ (#551).

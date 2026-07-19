@@ -489,9 +489,13 @@ function executePurposefulMinorCivOrders(
     emitMinorCivQuestTransitions(bus, applied.questTransitions, nextState);
     if (applied.attackerDefeated && attackerRouteId) {
       nextState = removeRouteForUnit(nextState, attacker.id, bus, 'unit-died', attackerRouteId);
+    } else if (applied.attackerCaptured && attackerRouteId) {
+      nextState = removeRouteForUnit(nextState, attacker.id, bus, 'unit-captured', attackerRouteId);
     }
     if (applied.defenderDefeated && defenderRouteId) {
       nextState = removeRouteForUnit(nextState, defender.id, bus, 'unit-died', defenderRouteId);
+    } else if (applied.defenderCaptured && defenderRouteId) {
+      nextState = removeRouteForUnit(nextState, defender.id, bus, 'unit-captured', defenderRouteId);
     }
     bus.emit('combat:resolved', { result, ...presentation });
     for (const reward of applied.rewards) bus.emit('combat:reward-earned', { reward });

@@ -218,6 +218,14 @@ function attackTarget(
       'unit-died',
       attacker.committedToRouteId,
     );
+  } else if (bus && applied.attackerCaptured && attacker.committedToRouteId) {
+    appliedState = removeRouteForUnit(
+      appliedState,
+      attacker.id,
+      bus,
+      'unit-captured',
+      attacker.committedToRouteId,
+    );
   }
   if (bus && applied.defenderDefeated && defender.committedToRouteId) {
     appliedState = removeRouteForUnit(
@@ -225,6 +233,14 @@ function attackTarget(
       defender.id,
       bus,
       'unit-died',
+      defender.committedToRouteId,
+    );
+  } else if (bus && applied.defenderCaptured && defender.committedToRouteId) {
+    appliedState = removeRouteForUnit(
+      appliedState,
+      defender.id,
+      bus,
+      'unit-captured',
       defender.committedToRouteId,
     );
   }
