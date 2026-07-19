@@ -21,8 +21,11 @@ describe('pacing reference economy (Part C exact-value pin)', () => {
   // a milestone project is buildable forever, so its prerequisite building staying
   // "relevant infrastructure" indefinitely in the reference economy is the correct model,
   // not a leak.
+  // #441: Security Bureau now enters the bounded loadout at era 13 through its era-10 gate.
+  // That crosses the reference fixture's four-buildings-per-population threshold, adding one
+  // worked tile and therefore one science.
   const expectedBoundedByEra: Record<number, number> = {
-    1: 2, 2: 6, 3: 8, 4: 9, 5: 9, 6: 24, 7: 35, 8: 50, 9: 68, 10: 75, 11: 103, 12: 113, 13: 113,
+    1: 2, 2: 6, 3: 8, 4: 9, 5: 9, 6: 24, 7: 35, 8: 50, 9: 68, 10: 75, 11: 103, 12: 113, 13: 114,
   };
   const expectedMaximalByEra: Record<number, number> = {
     1: 2, 2: 6, 3: 8, 4: 9, 5: 13, 6: 34, 7: 48, 8: 79, 9: 118, 10: 135, 11: 170, 12: 198, 13: 236,
@@ -46,12 +49,11 @@ describe('pacing reference economy (Part C exact-value pin)', () => {
     }
   });
 
-  it('reference economy science output stays monotonic apart from the measured one-point bounded Era 13 transition', () => {
+  it('reference economy science output stays monotonic across every era', () => {
     for (const profile of ['bounded', 'maximal'] as const) {
     const outputs = Array.from({ length: 13 }, (_, i) => getReferenceEconomyOutput(i + 1, profile).science);
       for (let i = 1; i < outputs.length; i++) {
-        const allowedDrop = profile === 'bounded' && i + 1 === 13 ? 1 : 0;
-        expect(outputs[i], `${profile} era ${i + 2} drops too far from era ${i + 1}`).toBeGreaterThanOrEqual(outputs[i - 1] - allowedDrop);
+        expect(outputs[i], `${profile} era ${i + 2} drops below era ${i + 1}`).toBeGreaterThanOrEqual(outputs[i - 1]);
       }
     }
   });
