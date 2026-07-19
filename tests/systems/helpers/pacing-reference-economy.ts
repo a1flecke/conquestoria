@@ -3,6 +3,12 @@ import { TECH_TREE } from '@/systems/tech-definitions';
 import { BUILDINGS } from '@/systems/city-system';
 import { calculateCityYields } from '@/systems/resource-system';
 import { getEmpireTechPercents, applyEmpireTechPercents, getEmpireFlatTechYields } from '@/systems/tech-yield-system';
+import {
+  buildRepresentativeResearchTimeline,
+  getRepresentativeCohorts,
+  simulateRepresentativeCity,
+  type SimulatedRepresentativeCity,
+} from './pacing-production-budget';
 
 /**
  * Methodology (documented per issue #481's "state who/what justifies the loadout"
@@ -153,5 +159,60 @@ export function getReferenceEconomyOutput(
   return {
     science: Math.round(withPercents.science + flat.science),
     production: Math.round(withPercents.production + flat.production),
+  };
+}
+
+export interface RepresentativeEmpireOutput {
+  era: number;
+  infrastructureShare: 0.5 | 0.6 | 0.7;
+  completedTechIds: string[];
+  cityCount: number;
+  cities: SimulatedRepresentativeCity[];
+  total: Pick<ResourceYield, 'science' | 'production'>;
+  averagePerCity: Pick<ResourceYield, 'science' | 'production'>;
+}
+
+export function getRepresentativeEmpireOutput(
+  era: number,
+  options: { infrastructureShare?: 0.5 | 0.6 | 0.7 } = {},
+): RepresentativeEmpireOutput {
+  const infrastructureShare = options.infrastructureShare ?? 0.6;
+  const timeline = buildRepresentativeResearchTimeline(era);
+  const cities = getRepresentativeCohorts(era).map((cohort) =>
+    simulateRepresentativeCity({
+      cohort,
+      targetEra: era,
+      timeline,
+      infrastructureShare,
+    }),
+  );
+  const cityTotal = cities.reduce(
+    (total, city) => ({
+      science: total.science + city.yieldsBeforeEmpireFlat.science,
+      production: total.production + city.yieldsBeforeEmpireFlat.production,
+    }),
+    { science: 0, production: 0 },
+  );
+  const empireFlat = getEmpireFlatTechYields(timeline.completedTechIds);
+  const unroundedTotal = {
+    science: cityTotal.science + empireFlat.science,
+    production: cityTotal.production + empireFlat.production,
+  };
+  const total = {
+    science: Math.round(unroundedTotal.science),
+    production: Math.round(unroundedTotal.production),
+  };
+
+  return {
+    era,
+    infrastructureShare,
+    completedTechIds: [...timeline.completedTechIds],
+    cityCount: cities.length,
+    cities,
+    total,
+    averagePerCity: {
+      science: Number((unroundedTotal.science / cities.length).toFixed(2)),
+      production: Number((unroundedTotal.production / cities.length).toFixed(2)),
+    },
   };
 }
