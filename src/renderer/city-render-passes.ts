@@ -40,6 +40,9 @@ export interface CityRenderItem {
   // Viewer-safe world-pressure intel (#526 MR5) -- set only when this city appears in
   // getWorldPressurePresentationForViewer(...).cityBadges for the current viewer.
   worldPressureCrisis?: CrisisArchetype;
+  // #593 MR6: set only when this city appears in
+  // getLoyaltyPressurePresentationForViewer(...).cityBadges for the current viewer.
+  loyaltyPressure?: true;
 }
 
 export type CityRenderPassName =
@@ -51,7 +54,8 @@ export type CityRenderPassName =
   | 'production'
   | 'idle'
   | 'intel'
-  | 'world-pressure';
+  | 'world-pressure'
+  | 'loyalty-pressure';
 
 export type CityRenderPass = {
   name: CityRenderPassName;
@@ -512,6 +516,25 @@ export function drawCityWorldPressureBadgePass(ctx: CanvasRenderingContext2D, it
   drawFittedText(ctx, '⚠️', x, y, item.size * 0.28, item.size * 0.2);
 }
 
+// #593 MR6: same dark-circle badge style, offset to the upper-right of the
+// world-pressure badge (which sits top-center) so the two never collide when a city
+// happens to have both a world-pressure crisis and active loyalty pressure.
+export function drawCityLoyaltyPressureBadgePass(ctx: CanvasRenderingContext2D, item: CityRenderItem): void {
+  if (item.projection.renderMode === 'landmark-only') return;
+  markPass(ctx, 'loyalty-pressure');
+  if (!item.projection.isLive || !item.city || !item.loyaltyPressure) return;
+
+  const x = item.screen.x + item.size * 0.5;
+  const y = item.screen.y - item.size * 0.58;
+  ctx.beginPath();
+  ctx.arc(x, y, item.size * 0.14, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(20,24,30,0.86)';
+  ctx.fill();
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  drawFittedText(ctx, '☦', x, y, item.size * 0.28, item.size * 0.2);
+}
+
 export const CITY_RENDER_PASSES: CityRenderPass[] = [
   { name: 'base', draw: drawCityBasePass },
   { name: 'icon', draw: drawCityIconPass },
@@ -522,6 +545,7 @@ export const CITY_RENDER_PASSES: CityRenderPass[] = [
   { name: 'idle', draw: drawCityIdleBadgePass },
   { name: 'intel', draw: drawCityIntelBadgePass },
   { name: 'world-pressure', draw: drawCityWorldPressureBadgePass },
+  { name: 'loyalty-pressure', draw: drawCityLoyaltyPressureBadgePass },
 ];
 
 export function drawCityRenderItem(ctx: CanvasRenderingContext2D, item: CityRenderItem): void {

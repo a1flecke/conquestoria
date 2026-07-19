@@ -37,6 +37,10 @@ import {
   getWorldPressurePresentationForViewer,
   type WorldPressurePresentation,
 } from '@/systems/world-pressure-presentation';
+import {
+  getLoyaltyPressurePresentationForViewer,
+  type LoyaltyPressurePresentation,
+} from '@/systems/loyalty-pressure-presentation';
 
 export { CIVTYPE_TO_FACTION, civTypeToFaction };
 
@@ -208,6 +212,8 @@ export class RenderLoop {
   // Computed once per setGameState (not per animation frame) -- see
   // getWorldPressurePresentationForViewer's own doc comment for the cost this avoids.
   private worldPressurePresentation: WorldPressurePresentation = { cityBadges: [], statusLinesByCivId: {} };
+  // #593 MR6: same per-setGameState caching convention as worldPressurePresentation above.
+  private loyaltyPressurePresentation: LoyaltyPressurePresentation = { cityBadges: [] };
   private running = false;
   private animFrameId = 0;
   private highlights: HexHighlight[] = [];
@@ -377,6 +383,7 @@ export class RenderLoop {
   setGameState(state: GameState): void {
     this.state = state;
     this.worldPressurePresentation = getWorldPressurePresentationForViewer(state, state.currentPlayer);
+    this.loyaltyPressurePresentation = getLoyaltyPressurePresentationForViewer(state, state.currentPlayer);
   }
 
   start(): void {
@@ -558,6 +565,7 @@ export class RenderLoop {
       reducedMotion: prefersReducedMotion(),
       nowMs: performance.now(),
       worldPressurePresentation: this.worldPressurePresentation,
+      loyaltyPressurePresentation: this.loyaltyPressurePresentation,
     });
 
     // Draw trade route lines (after cities, before units)

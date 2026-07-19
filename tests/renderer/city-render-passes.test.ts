@@ -8,6 +8,7 @@ import {
   drawCityProductionBadgePass,
   drawCityStatusBadgePass,
   drawCityWorldPressureBadgePass,
+  drawCityLoyaltyPressureBadgePass,
   fitCityBannerLabel,
   type CityRenderItem,
 } from '@/renderer/city-render-passes';
@@ -273,6 +274,44 @@ describe('city icon and badge text bounds', () => {
     });
 
     drawCityWorldPressureBadgePass(ctx, item);
+
+    expect((ctx as unknown as MockCtx).fillTextCalls).toHaveLength(0);
+  });
+
+  it('#593 MR6 — draws a loyalty-pressure badge when the item carries one', () => {
+    const ctx = new MockCtx() as unknown as CanvasRenderingContext2D;
+    const city = {
+      id: 'city-1', owner: 'ai-1', productionQueue: [] as string[], idleProduction: null, unrestLevel: 0,
+    } as CityRenderItem['city'];
+    const item = makeItem({ city, loyaltyPressure: true });
+
+    drawCityLoyaltyPressureBadgePass(ctx, item);
+
+    expect((ctx as unknown as MockCtx).fillTextCalls).toHaveLength(1);
+    expect((ctx as unknown as MockCtx).fillTextCalls[0]!.text).toBe('☦');
+  });
+
+  it('#593 MR6 — draws nothing when the item carries no loyalty pressure', () => {
+    const ctx = new MockCtx() as unknown as CanvasRenderingContext2D;
+    const city = {
+      id: 'city-1', owner: 'ai-1', productionQueue: [] as string[], idleProduction: null, unrestLevel: 0,
+    } as CityRenderItem['city'];
+    const item = makeItem({ city });
+
+    drawCityLoyaltyPressureBadgePass(ctx, item);
+
+    expect((ctx as unknown as MockCtx).fillTextCalls).toHaveLength(0);
+  });
+
+  it('#593 MR6 — skips the loyalty-pressure badge for landmark-only (non-live) render items', () => {
+    const ctx = new MockCtx() as unknown as CanvasRenderingContext2D;
+    const item = makeItem({
+      projection: { ...makeItem().projection, renderMode: 'landmark-only', isLive: false },
+      city: undefined,
+      loyaltyPressure: true,
+    });
+
+    drawCityLoyaltyPressureBadgePass(ctx, item);
 
     expect((ctx as unknown as MockCtx).fillTextCalls).toHaveLength(0);
   });

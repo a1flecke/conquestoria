@@ -3,6 +3,7 @@ import { hexToPixel } from '@/systems/hex-utils';
 import { getVisibility } from '@/systems/fog-of-war';
 import { MINOR_CIV_DEFINITIONS } from '@/systems/minor-civ-definitions';
 import type { WorldPressurePresentation } from '@/systems/world-pressure-presentation';
+import type { LoyaltyPressurePresentation } from '@/systems/loyalty-pressure-presentation';
 import { Camera } from './camera';
 import { getHorizontalWrapRenderCoords } from './wrap-rendering';
 import { LOD_SPRITE_ZOOM_THRESHOLD } from './sprites/sprite-system';
@@ -40,6 +41,8 @@ interface CityRenderOptions {
   // see getWorldPressurePresentationForViewer). Falling back to an empty presentation
   // when omitted keeps direct drawCities() callers (tests, tooling) working unchanged.
   worldPressurePresentation?: WorldPressurePresentation;
+  // #593 MR6: same caching convention as worldPressurePresentation above.
+  loyaltyPressurePresentation?: LoyaltyPressurePresentation;
 }
 
 const OWNER_COLORS: Record<string, string> = {
@@ -89,6 +92,10 @@ function createCityRenderItems(
   const worldPressurePresentation = typeof options === 'boolean' ? undefined : options.worldPressurePresentation;
   const worldPressureBadgesByCityId = new Map(
     (worldPressurePresentation?.cityBadges ?? []).map(badge => [badge.cityId, badge.archetype]),
+  );
+  const loyaltyPressurePresentation = typeof options === 'boolean' ? undefined : options.loyaltyPressurePresentation;
+  const loyaltyPressureCityIds = new Set(
+    (loyaltyPressurePresentation?.cityBadges ?? []).map(badge => badge.cityId),
   );
   const vis = state.civilizations[playerCivId]?.visibility;
   if (!vis) return [];
@@ -159,6 +166,7 @@ function createCityRenderItems(
         reducedMotion,
         nowMs,
         worldPressureCrisis: city ? worldPressureBadgesByCityId.get(city.id) : undefined,
+        loyaltyPressure: city && loyaltyPressureCityIds.has(city.id) ? true : undefined,
       });
     }
   }
