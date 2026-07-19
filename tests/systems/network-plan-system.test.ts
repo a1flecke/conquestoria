@@ -175,6 +175,22 @@ describe('network plan lifecycle', () => {
     expect(retargeted.state.idCounters.nextNetworkPlanId).toBe(2);
   });
 
+  it('keeps an active constructive plan active after a valid retarget', () => {
+    const state = makeState();
+    const secondCity = makeCity('city-player-2', 'player', 1);
+    state.cities['city-player'].buildings = ['smart_grid'];
+    secondCity.buildings = ['smart_grid'];
+    state.cities[secondCity.id] = secondCity;
+    state.civilizations.player.cities.push(secondCity.id);
+    const assigned = assignNetworkPlan(state, {
+      ownerCivId: 'player', source: { kind: 'city', cityId: 'city-player' },
+      definitionId: 'fabrication-sprint', target: { kind: 'city', cityId: 'city-player' },
+    });
+
+    expect(retargetNetworkPlan(assigned.state, 'player', 'network-plan-1', { kind: 'city', cityId: secondCity.id }).plan)
+      .toMatchObject({ status: 'active', target: { kind: 'city', cityId: secondCity.id } });
+  });
+
   it('puts a Cyber Unit on Hold by removing its current plan', () => {
     const assigned = assignNetworkPlan(makeState(), {
       ownerCivId: 'player',
