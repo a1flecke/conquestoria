@@ -3830,6 +3830,12 @@ function releaseHandoffToViewer(nextSlotId: string): void {
   handleVictoryIfNeeded();
 }
 
+/** These player-owned surfaces may contain strategic targets; never carry them across a hot-seat veil. */
+function closeNetworkPanelsForHandoff(): void {
+  document.getElementById('network-panel')?.remove();
+  document.querySelector('[aria-label="Network intent"]')?.remove();
+}
+
 async function beginHotSeatHandoff(
   hotSeat: NonNullable<GameState['hotSeat']>,
   completesRound: boolean,
@@ -3841,6 +3847,7 @@ async function beginHotSeatHandoff(
     : getNextActiveHumanPlayerId(preSimulationState, previousHumanId);
   const nextPlayer = hotSeat.players.find(player => player.slotId === resolvedNextSlotId);
   closePirateWatersPanels(uiLayer);
+  closeNetworkPanelsForHandoff();
   renderLoop.setSelectedPirateFactionId(null);
   audio.stopPirateAmbience('player-changed');
   audio.setMasterVolume(0);
@@ -4858,6 +4865,7 @@ function enterCampaign(
   }
 
   audio.setMasterVolume(0);
+  closeNetworkPanelsForHandoff();
   const player = gameState.hotSeat.players.find(candidate => candidate.slotId === gameState.currentPlayer);
   setBlockingOverlay('turn-handoff');
   roundPresentationGate.suppress();
