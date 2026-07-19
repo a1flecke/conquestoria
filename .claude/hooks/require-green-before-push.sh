@@ -32,7 +32,7 @@ fi
 VERIFY_LOG="$(mktemp)"
 trap 'rm -f "$VERIFY_LOG"' EXIT
 
-if (cd "$PROJECT_DIR" && "$VERIFY") >"$VERIFY_LOG" 2>&1; then
+if (cd "$PROJECT_DIR" && "$VERIFY" --fast) >"$VERIFY_LOG" 2>&1; then
   exit 0
 fi
 

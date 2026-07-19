@@ -101,13 +101,23 @@ describe('pacing reference economy (Part C exact-value pin)', () => {
 });
 
 describe('representative multi-city reference economy', () => {
+  // Timeouts below are widened from vitest's 5s/30s defaults (#608): this
+  // machine routinely runs several Claude Code worktree agents concurrently,
+  // each invoking `yarn test` independently, and this describe block's cohort
+  // simulation is CPU-heavy enough to blow past the defaults under that
+  // contention even with no code regression. Measured worst observed
+  // durations across two contended runs: cohort count 19.1s, empire-flat
+  // yields 31.7s, unrounded averages 40.6s, infrastructure ordering 84.9s.
+  // Each timeout below carries roughly 2x headroom over the worst observed
+  // value, not the solo-run duration, so it still catches a genuine
+  // regression while tolerating 2-3 concurrent agents on this hardware.
   it('uses the documented 1/3/5/7/9 cohort count', () => {
     expect(getRepresentativeEmpireOutput(1).cityCount).toBe(1);
     expect(getRepresentativeEmpireOutput(3).cityCount).toBe(2);
     expect(getRepresentativeEmpireOutput(5).cityCount).toBe(3);
     expect(getRepresentativeEmpireOutput(7).cityCount).toBe(4);
     expect(getRepresentativeEmpireOutput(9).cityCount).toBe(5);
-  });
+  }, 45_000);
 
   it('applies empire-flat yields once after city aggregation', () => {
     const output = getRepresentativeEmpireOutput(10);
@@ -121,7 +131,7 @@ describe('representative multi-city reference economy', () => {
       science: Math.round(cityTotals.science + flat.science),
       production: Math.round(cityTotals.production + flat.production),
     });
-  });
+  }, 60_000);
 
   it('derives averages from unrounded empire totals', () => {
     const output = getRepresentativeEmpireOutput(10);
@@ -135,7 +145,7 @@ describe('representative multi-city reference economy', () => {
       science: Number(((cityTotals.science + flat.science) / output.cityCount).toFixed(2)),
       production: Number(((cityTotals.production + flat.production) / output.cityCount).toFixed(2)),
     });
-  });
+  }, 75_000);
 
   it('orders infrastructure allocation across sensitivity shares', () => {
     const light = getRepresentativeEmpireOutput(10, { infrastructureShare: 0.5 });
@@ -146,7 +156,7 @@ describe('representative multi-city reference economy', () => {
 
     expect(allocated(light)).toBeLessThan(allocated(canonical));
     expect(allocated(canonical)).toBeLessThan(allocated(heavy));
-  }, 30_000);
+  }, 150_000);
 
   it('pins the canonical 60% representative profile for eras 10-13', () => {
     const outputs = [10, 11, 12, 13].map(era => {

@@ -81,6 +81,20 @@ if [ -n "$MAIN_ROOT" ] && [ "$CURRENT_ROOT" != "$MAIN_ROOT" ]; then
         && run_without_local_git_env bash "$CURRENT_ROOT/tests/hooks/run.sh"
       exit
       ;;
+    yarn,test:fast)
+      # Same expansion as yarn,test, but via run-tests-by-tier.sh (#608) so
+      # the excluded heavy-simulation file list stays defined in one place.
+      shift 2
+      (cd "$MAIN_ROOT" && run_without_local_git_env "$MAIN_RUN" sh "$CURRENT_ROOT/scripts/run-tests-by-tier.sh" fast --root "$CURRENT_ROOT" "$@") \
+        && run_without_local_git_env bash "$CURRENT_ROOT/tests/hooks/run.sh"
+      exit
+      ;;
+    yarn,test:slow)
+      shift 2
+      cd "$MAIN_ROOT"
+      run_without_local_git_env "$MAIN_RUN" sh "$CURRENT_ROOT/scripts/run-tests-by-tier.sh" slow --root "$CURRENT_ROOT" "$@"
+      exit
+      ;;
     yarn,test:hooks)
       run_without_local_git_env bash "$CURRENT_ROOT/tests/hooks/run.sh"
       exit
