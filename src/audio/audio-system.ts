@@ -13,6 +13,7 @@ import { allSfxEntries } from './sfx-catalog';
 import { SfxDirector } from './sfx-director';
 import { routeSfxComponents } from './sfx';
 import { PirateAudioDirector, type PirateAmbientStopReason } from './pirate-audio-director';
+import { ReligionAudioDirector } from './religion-audio-director';
 import type { GameEvents } from '@/core/types';
 
 export class AudioSystem {
@@ -23,6 +24,7 @@ export class AudioSystem {
   private naturalWonderDirector: NaturalWonderAudioDirector;
   private sfxDirector: SfxDirector;
   private pirateAudioDirector: PirateAudioDirector;
+  private religionAudioDirector: ReligionAudioDirector;
   private stateProvider: (() => GameState) | null = null;
   private unsubscribers: Array<() => void> = [];
   private warCount = 0;
@@ -58,6 +60,11 @@ export class AudioSystem {
       () => this.stateProvider!(),
       () => this.isPresentationSuppressed(),
     );
+    this.religionAudioDirector = new ReligionAudioDirector(
+      path => this.director.playStingerWithDuck(path),
+      () => this.stateProvider!(),
+      () => this.isPresentationSuppressed(),
+    );
   }
 
   start(
@@ -82,6 +89,7 @@ export class AudioSystem {
       () => this.isPresentationSuppressed(),
     );
     this.pirateAudioDirector.start(bus);
+    this.religionAudioDirector.start(bus);
     routeSfxComponents(this.mixer, this.loader, () => this.isPresentationSuppressed());
     this.armIosResume();
     this.resumeAndDisarmGestureOnSuccess();
@@ -115,6 +123,14 @@ export class AudioSystem {
   setSfxEnabled(enabled: boolean): void {
     this.mixer.setSfxEnabled(enabled);
     this.pirateAudioDirector.setEnabled(enabled);
+  }
+
+  // #594 MR7: entry point for the 4 toast-replacement religion cues (founded,
+  // city-converted, loyalty-warning, city-defected). See displayNextNotification in
+  // main.ts, which calls this instead of SFX.notification() when a toast carries a
+  // religion sfxCue.
+  async playReligionStinger(cue: string): Promise<void> {
+    await this.religionAudioDirector.playCue(cue);
   }
 
   setMusicVolume(volume: number): void {
