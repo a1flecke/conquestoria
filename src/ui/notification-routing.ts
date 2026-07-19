@@ -502,6 +502,44 @@ export function routeReligionCityConverted(
   }
 }
 
+const LOYALTY_WARNING_TEXT: Record<'start' | 'midpoint' | 'final', string> = {
+  start: 'is starting to slip toward',
+  midpoint: 'is now halfway to defecting to',
+  final: 'will defect to',
+};
+
+// #593 MR6: notifies the PRESSURING civ (the faith owner) -- the target city's owner is
+// always a minor civ or non-human AI (isLoyaltyTrackEligible excludes human owners), so
+// notifying them would only ever silently log, never toast.
+export function routeLoyaltyWarning(
+  state: GameState,
+  event: GameEvents['religion:loyalty-warning'],
+  sink: NotificationSink,
+): void {
+  const city = state.cities[event.cityId];
+  if (!city) return;
+  const verb = LOYALTY_WARNING_TEXT[event.stage];
+  const suffix = event.stage === 'final' ? ' next turn' : ` in ~${event.turnsRemaining} turns`;
+  sink(event.pressuringCivId, `${city.name} ${verb} your faith${suffix}!`, event.stage === 'final' ? 'warning' : 'info');
+}
+
+// #593 MR6: mirrors routeReligionCityConverted's two-recipient shape -- the new owner
+// gets a success toast, the former owner (if it still exists as a real civ) gets a
+// warning. A minor-civ former owner isn't in state.civilizations, so it's silently
+// skipped (there's no player to notify).
+export function routeCityDefected(
+  state: GameState,
+  event: GameEvents['religion:city-defected'],
+  sink: NotificationSink,
+): void {
+  const city = state.cities[event.cityId];
+  if (!city) return;
+  sink(event.toCivId, `${city.name} has defected to your faith!`, 'success');
+  if (state.civilizations[event.fromCivId]) {
+    sink(event.fromCivId, `${city.name} has defected to a rival faith and left your empire.`, 'warning');
+  }
+}
+
 export function routeCrisisEscalated(
   state: GameState,
   event: GameEvents['crisis:escalated'],

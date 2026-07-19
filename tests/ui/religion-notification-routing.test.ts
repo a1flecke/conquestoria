@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { GameState } from '@/core/types';
-import { routeReligionFounded, routeReligionCityConverted } from '@/ui/notification-routing';
+import { routeReligionFounded, routeReligionCityConverted, routeLoyaltyWarning, routeCityDefected } from '@/ui/notification-routing';
 
 // Deliberately a separate file from notification-routing.test.ts: that file mocks
 // @/systems/discovery-system at module scope with a narrow hardcoded stub built for an
@@ -101,5 +101,41 @@ describe('#591 MR4 — religion:city-converted routing', () => {
     routeReligionCityConverted(state, { cityId: 'c1', toReligionId: 'religion-p3' }, sink as never);
 
     expect(calls.map(c => c.civId)).toEqual(['p1']);
+  });
+});
+
+describe('#593 MR6 — routeLoyaltyWarning', () => {
+  it('notifies the pressuring civ with the warning stage', () => {
+    const state = makeState();
+    const { sink, calls } = makeSink();
+    routeLoyaltyWarning(state, { cityId: 'c1', pressuringCivId: 'p2', stage: 'start', turnsRemaining: 18 }, sink as never);
+    expect(calls).toHaveLength(1);
+    expect(calls[0].civId).toBe('p2');
+    expect(calls[0].message).toMatch(/Thebes/);
+  });
+
+  it('final stage message differs from start/midpoint phrasing', () => {
+    const state = makeState();
+    const { sink, calls } = makeSink();
+    routeLoyaltyWarning(state, { cityId: 'c1', pressuringCivId: 'p2', stage: 'final', turnsRemaining: 1 }, sink as never);
+    expect(calls[0].type).toBe('warning');
+  });
+});
+
+describe('#593 MR6 — routeCityDefected', () => {
+  it('notifies both the new owner (success) and the former owner (warning), when the former owner still exists', () => {
+    const state = makeState();
+    const { sink, calls } = makeSink();
+    routeCityDefected(state, { cityId: 'c1', fromCivId: 'p2', toCivId: 'p1' }, sink as never);
+    expect(calls.some(c => c.civId === 'p1' && c.type === 'success')).toBe(true);
+    expect(calls.some(c => c.civId === 'p2' && c.type === 'warning')).toBe(true);
+  });
+
+  it('only notifies the new owner when the former owner was a minor civ (not in civilizations)', () => {
+    const state = makeState();
+    const { sink, calls } = makeSink();
+    routeCityDefected(state, { cityId: 'c1', fromCivId: 'mc-1', toCivId: 'p1' }, sink as never);
+    expect(calls).toHaveLength(1);
+    expect(calls[0].civId).toBe('p1');
   });
 });
