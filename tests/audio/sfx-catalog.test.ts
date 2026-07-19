@@ -9,6 +9,8 @@ import {
   PIRATE_MOVEMENT_SFX,
   PIRATE_HEADQUARTERS_SFX,
   PIRATE_STRATEGIC_SFX,
+  RELIGION_SFX,
+  FAMINE_SFX,
   type LocomotionClass,
   type PirateUnitType,
 } from '../../src/audio/sfx-catalog';
@@ -106,7 +108,17 @@ describe('sfx-catalog completeness', () => {
     ]);
   });
 
-  it('allSfxEntries returns exactly 141 entries', () => {
+  it('has all 5 religion cues and 2 famine cues with distinct files', () => {
+    const religionKeys = Object.keys(RELIGION_SFX);
+    expect(religionKeys.sort()).toEqual(['city-converted', 'city-defected', 'founded', 'loyalty-warning', 'preach'].sort());
+    const famineKeys = Object.keys(FAMINE_SFX);
+    expect(famineKeys.sort()).toEqual(['onset', 'resolved'].sort());
+    const allFiles = [...Object.values(RELIGION_SFX), ...Object.values(FAMINE_SFX)].map(entry => entry.file);
+    expect(new Set(allFiles).size).toBe(allFiles.length);
+    for (const file of allFiles) expect(file).toMatch(/^audio\/stinger\/(religion|famine)\/[a-z-]+\.ogg$/);
+  });
+
+  it('allSfxEntries returns exactly 148 entries', () => {
     // 18 foot-melee (6×3) + 8 foot-ranged (2×4) + 9 mounted (3×3) + 6 naval combat (2×3)
     // + 6 siege (2×3) + 9 special-combat (3×3) + 6 non-combat (6×1) + 5 spy-death (5×1) + 3 move-step = 70
     // + 4 new transport death (carrack, galleon, steamship, troop_transport) + 2 transport load/unload = 76
@@ -117,7 +129,8 @@ describe('sfx-catalog completeness', () => {
     // + 4 Naval Trader line death sounds (#553 MR1/4) = 136
     // + 2 land trade line death sounds — Merchant Wagon, Freight Convoy (#553 MR2/4) = 138
     // + 3 Air trade line death sounds — Air Freighter, Jet Freighter, Global Air Cargo (#553 MR3/4) = 141
-    expect(allSfxEntries()).toHaveLength(141);
+    // + 5 religion stingers + 2 famine stingers (#594 MR7) = 148
+    expect(allSfxEntries()).toHaveLength(148);
   });
 
   it('no two entries share the same ID', () => {

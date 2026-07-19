@@ -48,6 +48,22 @@ export const PIRATE_STRATEGIC_SFX = {
   'city-razed': real('stinger-pirate-city-razed', 'audio/stinger/pirates/city-razed.ogg', 1.20, 'stinger'),
 } as const;
 
+// #594 MR7: bespoke religion/famine stingers replacing MR3-6's placeholder/reused
+// sounds. Generated via scripts/generate-religion-sfx.sh, same real()/lavfi-layering
+// pattern as PIRATE_STRATEGIC_SFX above.
+export const RELIGION_SFX = {
+  founded: real('stinger-religion-founded', 'audio/stinger/religion/founded.ogg', 1.60, 'stinger'),
+  'city-converted': real('stinger-religion-city-converted', 'audio/stinger/religion/city-converted.ogg', 1.10, 'stinger'),
+  preach: real('stinger-religion-preach', 'audio/stinger/religion/preach.ogg', 0.90, 'stinger'),
+  'loyalty-warning': real('stinger-religion-loyalty-warning', 'audio/stinger/religion/loyalty-warning.ogg', 1.00, 'stinger'),
+  'city-defected': real('stinger-religion-city-defected', 'audio/stinger/religion/city-defected.ogg', 1.30, 'stinger'),
+} as const;
+
+export const FAMINE_SFX = {
+  onset: real('stinger-famine-onset', 'audio/stinger/famine/onset.ogg', 1.20, 'stinger'),
+  resolved: real('stinger-famine-resolved', 'audio/stinger/famine/resolved.ogg', 1.30, 'stinger'),
+} as const;
+
 // Unit SFX — keyed by UnitType, then by SfxClass. Non-combat units have death only.
 export const UNIT_SFX: Partial<Record<UnitType, Partial<Record<SfxClass, TrackEntry>>>> = {
 
@@ -378,5 +394,7 @@ export function allSfxEntries(): TrackEntry[] {
     ...Object.values(PIRATE_HEADQUARTERS_SFX),
     ...Object.values(PIRATE_STRATEGIC_SFX),
     ...Object.values(TRANSPORT_SFX),
+    ...Object.values(RELIGION_SFX),
+    ...Object.values(FAMINE_SFX),
   ];
 }
