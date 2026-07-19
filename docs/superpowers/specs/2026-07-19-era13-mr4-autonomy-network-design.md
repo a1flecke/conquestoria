@@ -38,9 +38,10 @@ explorers, defenders, and aggressors alike.
   resolver, cleanup, and viewer-intel path. Do not introduce another evaluator, plan
   lifecycle, viewer-intel store, or UI-owned mutation. Definitions use typed, closed
   effect data; Capacity, Load, valid links, and previews are derived selectors.
-- **Save safety:** Preserve schema version 3. Any MR4 state is serializable plain data,
-  deterministic, normalized in the existing migration/load path, and byte-stable after
-  load-save-load. No stable IDs are repurposed.
+- **Save safety:** Advance the current schema-5 migration registry to schema 6 for MR4
+  posture, pending-boundary, Surge/recovery, and plan-effect fields. The migration is
+  serializable, deterministic, normalized only in the existing migration/load path, and
+  byte-stable after load-save-load. No stable IDs are repurposed.
 - **SFX:** MR4 may use existing viewer-authorized feedback routes only. New authored
   network motifs remain MR6 work. One formation yields one batched cue; no hidden-source
   preparation or location audio is permitted.
@@ -54,6 +55,10 @@ definition metadata: precursor-city Capacity is capped at 4 empire-wide; the fir
 Network Operations Centers provide 2 each and later copies 1; AI Safety Institute provides
 1; National AI Assurance Program provides 2; category-restricted Capacity is capped at 2
 per category. These rules keep wide empires useful without granting linear dominance.
+MR4's Capacity/source presentation must distinguish a source the player can build now from
+an Era 13 source reserved for MR5; it may explain the latter in formula detail but cannot
+recommend it as an immediate remedy. Existing Era 11/12 anchors (Smart Grid, Data Center,
+Automated Port, and Space Center) keep the four constructive routes usable before MR5.
 
 Stable means Load is at or below Capacity. Strained occurs only during Surge recovery;
 existing plans continue, but no new or expanded ordinary plan may begin. Safeguarded
@@ -125,3 +130,14 @@ until its canonical effect, preview, validation, cleanup, AI use, UI refresh, sa
 and viewer-safe presentation ship together. Each commit and the final MR must build and
 pass its narrowest relevant checks; the final MR also runs the complete test suite and
 production build.
+
+## Decision review
+
+The chosen vertical-contract approach was reviewed against gameplay, ages 7–43, all stated
+play styles, difficulty, AI, UI/UX, architecture, data, audio, saves, regressions, solo,
+hot seat, and deliverability. The retained decisions are: optional budget rather than a
+punishment loop; staged teaching rather than formula-first onboarding; equal rules rather
+than difficulty bonuses; public canonical previews rather than separate AI/UI calculations;
+viewer-scoped feedback rather than globally rendered state; versioned migration rather than
+ad-hoc load defaults; and hidden foundations rather than incomplete player actions. These
+are product safeguards, not delivery shortcuts.
