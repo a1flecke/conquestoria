@@ -379,6 +379,7 @@ describe('trade-system', () => {
       state.cities[city.id] = city;
       state.civilizations.player.cities.push(city.id);
       const cityId = city.id;
+      state.cities[cityId].buildings = ['automated_port'];
       state.autonomyByCiv!.player.plans['network-plan-1'] = {
         id: 'network-plan-1', ownerCivId: 'player', definitionId: 'logistics-routing',
         source: { kind: 'city', cityId }, target: { kind: 'city', cityId },
