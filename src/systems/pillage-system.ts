@@ -9,8 +9,18 @@ import { hexKey } from '@/systems/hex-utils';
  * second per-improvement gold table. */
 export const GOLD_PER_PILLAGE_BUILD_TURN = 3;
 
+// resource_outpost is Expedition-placed (not worker-built), so IMPROVEMENT_BUILD_TURNS
+// carries it as 0 — a naive lookup would price pillaging one at 0 gold despite it being
+// the most consequential thing on the map to burn (it denies a strategic resource
+// outright). Priced at the top of the existing flat band (5 build-turns) rather than a
+// new tier, so it stays proportionate to every other improvement.
+const PILLAGE_BUILD_TURNS_OVERRIDE: Partial<Record<ImprovementType, number>> = {
+  resource_outpost: 5,
+};
+
 export function getPillageGoldReward(improvement: ImprovementType): number {
-  return Math.round(IMPROVEMENT_BUILD_TURNS[improvement] * GOLD_PER_PILLAGE_BUILD_TURN);
+  const buildTurns = PILLAGE_BUILD_TURNS_OVERRIDE[improvement] ?? IMPROVEMENT_BUILD_TURNS[improvement];
+  return Math.round(buildTurns * GOLD_PER_PILLAGE_BUILD_TURN);
 }
 
 /** A tile can be pillaged only if it is not currently owned by the pillaging
@@ -27,6 +37,7 @@ export type PillageBlockerReason =
   | 'missing-unit'
   | 'no-strength'
   | 'already-acted'
+  | 'missing-tile'
   | 'own-tile'
   | 'nothing-to-pillage';
 
@@ -52,7 +63,8 @@ export function applyPillageToState(state: GameState, unitId: string): PillageRe
 
   const tileKey = hexKey(unit.position);
   const tile = state.map.tiles[tileKey];
-  if (!tile || tile.owner === unit.owner) return { ok: false, state, reason: 'own-tile' };
+  if (!tile) return { ok: false, state, reason: 'missing-tile' };
+  if (tile.owner === unit.owner) return { ok: false, state, reason: 'own-tile' };
 
   const hasFinishedImprovement = tile.improvement !== 'none' && tile.improvementTurnsLeft === 0;
   const hasRoad = Boolean(tile.hasRoad);
