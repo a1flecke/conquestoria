@@ -305,7 +305,7 @@ export function retargetNetworkPlan(
   const plan: NetworkPlan = {
     ...existing,
     target: structuredClone(target),
-    status: existing.definitionId === 'harden' ? 'active' : 'preparing',
+    status: getNetworkPlanDefinition(existing.definitionId).targetKind === 'at-war-enemy-city' ? 'preparing' : 'active',
     nextResolutionTurn: state.turn,
     warnedTurn: null,
   };

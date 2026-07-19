@@ -58,7 +58,6 @@ export function getNetworkPanelModel(state: GameState, civId: string): NetworkPa
   }
   const autonomy = state.autonomyByCiv?.[civId];
   const load = getAutonomyLoad(state, civId);
-  const stable = autonomy?.surgeRecoveryUntilTurn === null;
   const candidates: NetworkPanelCandidate[] = [];
   const ownedCities = Object.values(state.cities).filter(candidate => candidate.owner === civId).sort((a, b) => a.id.localeCompare(b.id));
   for (const city of ownedCities) {
