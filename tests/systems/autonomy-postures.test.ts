@@ -49,4 +49,19 @@ describe('autonomy postures', () => {
     const recovered = advanceAutonomySurge({ ...surged.state, turn: 3 }, 'player');
     expect(recovered.autonomyByCiv!.player).toMatchObject({ surgeRecoveryUntilTurn: null, surgeCooldownUntilTurn: 7 });
   });
+
+  it('shortens Surge recovery by one round after Machine Ethics without changing its allowance', () => {
+    const state = createNewGame('rome', 'autonomy-machine-ethics', 'small');
+    state.civilizations.player.techState.completed = ['quantum-computing', 'machine-ethics'];
+    state.autonomyByCiv!.player.plans.fabrication = {
+      id: 'fabrication', ownerCivId: 'player', definitionId: 'fabrication-sprint',
+      source: { kind: 'city', cityId: 'city-1' }, target: { kind: 'city', cityId: 'city-1' },
+      status: 'active', createdTurn: 1, nextResolutionTurn: 1, warnedTurn: null,
+    };
+
+    const surged = beginAutonomySurge(state, 'player', 'fabrication');
+
+    expect(surged.validation).toEqual({ ok: true });
+    expect(surged.state.autonomyByCiv!.player.surgeRecoveryUntilTurn).toBe(2);
+  });
 });

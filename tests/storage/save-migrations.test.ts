@@ -312,10 +312,24 @@ describe('save migrations', () => {
     }
 
     const migrated = migrateSaveToCurrent(legacySave);
-    expect(migrated.saveSchemaVersion).toBe(6);
+    expect(migrated.saveSchemaVersion).toBe(CURRENT_SAVE_SCHEMA_VERSION);
     expect(migrated.autonomyByCiv!.player).toMatchObject({
       posture: 'integrated', pendingPosture: null, surgeRecoveryUntilTurn: null, surgeCooldownUntilTurn: null,
     });
+    expect(migrateSaveToCurrent(migrated)).toEqual(migrated);
+  });
+
+  it('migrates Circular Manufacturing choices to a normalized empty record without changing a second load', () => {
+    const legacySave = createNewGame('rome', 'circular-material-schema-v6', 'small');
+    legacySave.saveSchemaVersion = 6;
+    (legacySave as { nationalProjectChoices?: unknown }).nationalProjectChoices = {
+      'player:circular_manufacturing_network': 'iron',
+    };
+
+    const migrated = migrateSaveToCurrent(legacySave);
+
+    expect(migrated.saveSchemaVersion).toBe(CURRENT_SAVE_SCHEMA_VERSION);
+    expect(migrated.nationalProjectChoices).toEqual({});
     expect(migrateSaveToCurrent(migrated)).toEqual(migrated);
   });
 

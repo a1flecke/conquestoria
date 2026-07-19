@@ -213,6 +213,7 @@ export function getTradeRouteTechGold(
     if (modifier.effect.kind !== 'perTradeRoute') continue;
     if (!techSet.has(modifier.techId)) continue;
     if (modifier.effect.foreignOnly && !route.foreignCivId) continue;
+    if (modifier.effect.domesticOnly && route.foreignCivId) continue;
     if (modifier.effect.coastalOnly && !opts.bothEndpointsCoastal) continue;
     gold += modifier.effect.gold;
   }

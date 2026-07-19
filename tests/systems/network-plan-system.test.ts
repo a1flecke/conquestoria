@@ -5,6 +5,7 @@ import {
   assignNetworkPlan,
   holdNetworkPlan,
   isAutonomyActivated,
+  previewNetworkPlan,
   cancelInvalidNetworkPlans,
   retargetNetworkPlan,
   validateNetworkPlanAssignment,
@@ -48,6 +49,10 @@ function makeCyberUnit(id: string, owner: string, q: number): Unit {
   };
 }
 
+function makeDroneController(id: string, owner: string, q: number): Unit {
+  return { ...makeCyberUnit(id, owner, q), type: 'drone_controller' };
+}
+
 function makeState(): GameState {
   const state = createNewGame('rome', 'network-plan-system', 'small');
   const playerCity = makeCity('city-player', 'player', 0);
@@ -73,6 +78,27 @@ function makeState(): GameState {
 }
 
 describe('network plan lifecycle', () => {
+  it('uses the Autonomous Mobility Survey Grid Load in both validation and preview', () => {
+    const state = makeState();
+    state.cities['city-player']!.buildings = ['network_operations_center'];
+    state.units['unit-one'] = makeCyberUnit('unit-one', 'player', 0);
+    state.units['unit-two'] = makeCyberUnit('unit-two', 'player', 0);
+    state.civilizations.player.units = ['unit-cyber', 'unit-one', 'unit-two'];
+    state.autonomyByCiv!.player.plans.existing = {
+      id: 'existing', ownerCivId: 'player', definitionId: 'exploit', sourceUnitId: 'unit-cyber',
+      target: { kind: 'city', cityId: 'city-ai' }, status: 'active', createdTurn: 1, nextResolutionTurn: 1, warnedTurn: null,
+    };
+    const request = {
+      ownerCivId: 'player', source: { kind: 'city' as const, cityId: 'city-player' },
+      definitionId: 'survey-grid' as const, target: { kind: 'city' as const, cityId: 'city-player' },
+      linkedUnitIds: ['unit-one', 'unit-two'],
+    };
+
+    expect(previewNetworkPlan(state, request)).toMatchObject({ validation: { ok: false }, load: 3 });
+    state.civilizations.player.techState.completed.push('autonomous-mobility');
+    expect(previewNetworkPlan(state, request)).toMatchObject({ validation: { ok: true }, load: 2 });
+  });
+
   it('activates only after a civilization completes its first Era 13 technology', () => {
     const state = makeState();
     expect(isAutonomyActivated(state, 'player')).toBe(true);
@@ -190,6 +216,22 @@ describe('network plan lifecycle', () => {
       ownerCivId: 'player', source: { kind: 'city', cityId: 'city-player' }, definitionId: 'survey-grid',
       target: { kind: 'city', cityId: 'city-player' }, linkedUnitIds: ['unit-cyber', 'unit-second', 'unit-third'],
     })).toEqual({ ok: false, reason: 'invalid-target' });
+  });
+
+  it('allows formation plans only from a Drone Controller through the canonical validator', () => {
+    const state = makeState();
+    state.units.controller = makeDroneController('controller', 'player', 1);
+    state.units.escort = { ...makeCyberUnit('escort', 'player', 2), type: 'exosuit_infantry' };
+    state.civilizations.player.units.push('controller', 'escort');
+
+    const controllerRequest = {
+      ownerCivId: 'player', sourceUnitId: 'controller', definitionId: 'guardian-screen' as const,
+      target: { kind: 'formation' as const, unitIds: ['escort'] },
+    };
+    const cyberRequest = { ...controllerRequest, sourceUnitId: 'unit-cyber' };
+
+    expect(validateNetworkPlanAssignment(state, controllerRequest)).toEqual({ ok: true });
+    expect(validateNetworkPlanAssignment(state, cyberRequest)).toEqual({ ok: false, reason: 'invalid-source' });
   });
 
   it('retargets an active Harden plan without allocating another ID', () => {

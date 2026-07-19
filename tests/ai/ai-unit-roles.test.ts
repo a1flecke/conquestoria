@@ -23,6 +23,11 @@ describe('AI strategic unit roles', () => {
     ['artillery', ['siege', 'ranged']],
     ['infantry', ['ranged', 'capture']],
     ['bomber', ['air-combat', 'ranged']],
+    ['combat_drone', ['air-combat', 'ranged']],
+    ['autonomous_frigate', ['naval-combat', 'escort']],
+    ['exosuit_infantry', ['ranged', 'mobile', 'capture']],
+    ['propagandist', ['espionage']],
+    ['drone_controller', ['detection']],
   ] satisfies Array<[UnitType, string[]]>)('classifies %s from canonical unit fields', (type, roles) => {
     expect(getAIStrategicRoles(type)).toEqual(roles);
   });

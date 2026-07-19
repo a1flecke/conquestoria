@@ -27,6 +27,8 @@ import { hexKey, hexToPixel, hexesInRange, parseHexKey, wrapHexCoord } from '@/s
 import { moveUnit, getMovementCost, UNIT_DEFINITIONS, UNIT_DESCRIPTIONS, restUnit, canHeal, getUnmovedUnits, createUnit, findPath } from '@/systems/unit-system';
 import { classifyOwner, isAlwaysHostilePair, isMajorCivOwner } from '@/core/owner-kind';
 import { BUILDINGS, getProductionDisplayName } from '@/systems/city-system';
+import { chooseCircularManufacturingMaterial } from '@/systems/national-project-system';
+import { usePropagandistAction } from '@/systems/propagandist-system';
 import { foundCityInState } from '@/systems/city-founding-system';
 import { assignCityFocus, setCityWorkedTile } from '@/systems/city-work-system';
 import { formatCityFoundingBlockerMessage, getCityFoundingBlockers } from '@/systems/city-territory-system';
@@ -1422,6 +1424,18 @@ function openCityPanelForCity(city: import('@/core/types').City): void {
       renderLoop.setHighlights(highlights.map(coord => ({ coord, type: 'worker-buildable' as const })));
       for (const t of toasts) showNotification(t.message, t.type);
     },
+    onChooseCircularManufacturingMaterial: (material) => {
+      try {
+        gameState = chooseCircularManufacturingMaterial(gameState, gameState.currentPlayer, material);
+      } catch (error) {
+        showNotification(error instanceof Error ? error.message : 'That material choice is unavailable.', 'warning');
+        return;
+      }
+      renderLoop.setGameState(gameState);
+      showNotification(`Circular Manufacturing Network will substitute ${material.replaceAll('-', ' ')} when it helps.`, 'success');
+      const refreshedCity = gameState.cities[city.id];
+      if (refreshedCity) openCityPanelForCity(refreshedCity);
+    },
   });
 }
 
@@ -1896,8 +1910,19 @@ function openUnitStackPicker(coord: HexCoord, unitIds: string[]): void {
 function openNetworkIntentPanel(sourceUnitId: string): void {
   const source = gameState.units[sourceUnitId];
   const ownerCivId = gameState.currentPlayer;
-  if (!source || source.owner !== ownerCivId || source.type !== 'cyber_unit' || !isAutonomyActivated(gameState, ownerCivId)) {
-    showNotification('This Cyber Unit cannot set a network intent right now.', 'warning');
+  if (!source || source.owner !== ownerCivId || !isAutonomyActivated(gameState, ownerCivId)) {
+    showNotification('This unit cannot coordinate the network right now.', 'warning');
+    return;
+  }
+  if (source.type === 'drone_controller') {
+    // Formation targets are generated and previewed by the same full Network
+    // panel used for city plans, so the controller never receives a UI-only
+    // legality shortcut.
+    openNetworkPanel();
+    return;
+  }
+  if (source.type !== 'cyber_unit') {
+    showNotification('Only a Cyber Unit or Drone Controller can coordinate the network.', 'warning');
     return;
   }
 
@@ -2107,6 +2132,18 @@ function selectUnit(
         showNotification('Air mission cancelled.', 'info');
       },
       onOpenNetworkIntent: uid => openNetworkIntentPanel(uid),
+      onUsePropagandistAction: (uid, action, cityId) => {
+        const result = usePropagandistAction(gameState, uid, action, cityId);
+        if (!result.ok) {
+          showNotification('That civic action is no longer available.', 'warning');
+          return;
+        }
+        gameState = result.state;
+        renderLoop.setGameState(gameState);
+        updateHUD();
+        showNotification(result.message, action === 'rally' ? 'success' : 'warning');
+        selectUnit(uid);
+      },
       onFoundCity: () => foundCityAction(),
       onWorkerAction: action => performWorkerAction(action),
       onPreach: (unitId, cityId) => performPreach(unitId, cityId),

@@ -1857,4 +1857,48 @@ describe('renderSelectedUnitInfo — Cyber Unit intent launcher', () => {
     renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'cyber', { onOpenNetworkIntent });
     expect(collectAllText(container)).not.toContain('Set Network Intent');
   });
+
+  it('gives an activated Drone Controller a formation-planning launcher', () => {
+    const state = createNewGame(undefined, 'controller-intent-launcher', 'small');
+    state.currentPlayer = 'player';
+    state.units = {
+      controller: { ...createUnit('drone_controller', 'player', { q: 1, r: 1 }, state.idCounters), id: 'controller' },
+    };
+    state.civilizations.player.units = ['controller'];
+    state.civilizations.player.techState.completed = ['quantum-computing'];
+    const onOpenNetworkIntent = vi.fn();
+    const container = new MockElement('div');
+
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'controller', { onOpenNetworkIntent });
+
+    const launcher = findButtons(container).find(button => button.textContent === 'Coordinate Formation');
+    expect(launcher).toBeDefined();
+    launcher?.click();
+    expect(onOpenNetworkIntent).toHaveBeenCalledWith('controller');
+  });
+
+  it('shows an actionable Rally button for a nearby friendly city under civic pressure', () => {
+    const state = createNewGame(undefined, 'propagandist-rally-launcher', 'small');
+    state.currentPlayer = 'player';
+    state.units = {
+      propagandist: { ...createUnit('propagandist', 'player', { q: 1, r: 1 }, state.idCounters), id: 'propagandist' },
+    };
+    state.cities = {
+      own: {
+        id: 'own', name: 'Own', owner: 'player', position: { q: 1, r: 1 }, population: 2, food: 0, foodNeeded: 10,
+        buildings: [], productionQueue: [], productionProgress: 0, ownedTiles: [], workedTiles: [], focus: 'balanced', maturity: 'village', unrestLevel: 0, unrestTurns: 0, spyUnrestBonus: 10, idleProduction: null,
+      },
+    };
+    state.civilizations.player.units = ['propagandist'];
+    state.civilizations.player.cities = ['own'];
+    const onUsePropagandistAction = vi.fn();
+    const container = new MockElement('div');
+
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'propagandist', { onUsePropagandistAction });
+
+    const rally = findButtons(container).find(button => button.textContent === 'Rally Own');
+    expect(rally).toBeDefined();
+    rally?.click();
+    expect(onUsePropagandistAction).toHaveBeenCalledWith('propagandist', 'rally', 'own');
+  });
 });

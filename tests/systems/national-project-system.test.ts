@@ -5,6 +5,8 @@ import {
   getNationalProjectCivYieldBonus,
   getReservedNationalProjectKeys,
   expireNationalProjects,
+  chooseCircularManufacturingMaterial,
+  getCircularManufacturingMaterial,
 } from '@/systems/national-project-system';
 
 function makeState(overrides: Partial<GameState> = {}): GameState {
@@ -69,6 +71,30 @@ describe('getReservedNationalProjectKeys', () => {
       'p1:communal_stores',
       'p1:sacred_grove',
     ]);
+  });
+});
+
+describe('Circular Manufacturing Network material choice', () => {
+  it('persists an explicitly selected soft-material substitution only after the project is built', () => {
+    const state = makeState({
+      builtNationalProjects: {
+        'p1:circular_manufacturing_network': { civId: 'p1', cityId: 'city1', eraBuilt: 13 },
+      },
+    });
+
+    const result = chooseCircularManufacturingMaterial(state, 'p1', 'battery-minerals');
+
+    expect(result.nationalProjectChoices).toEqual({
+      'p1:circular_manufacturing_network': 'battery-minerals',
+    });
+    expect(getCircularManufacturingMaterial(result, 'p1')).toBe('battery-minerals');
+  });
+
+  it('does not create an automatic or invalid material choice', () => {
+    const state = makeState();
+
+    expect(getCircularManufacturingMaterial(state, 'p1')).toBeUndefined();
+    expect(() => chooseCircularManufacturingMaterial(state, 'p1', 'iron')).toThrow('not built');
   });
 });
 

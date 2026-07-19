@@ -35,6 +35,7 @@ function baseHealCtx(overrides: Partial<HealingModifierContext> = {}): HealingMo
     inFriendlyCity: false,
     inFriendlyTerritory: false,
     withinRangeOfFriendlyCity3: false,
+    withinRangeOfNeuralRehabilitationCenter: false,
     ...overrides,
   };
 }
@@ -237,6 +238,13 @@ describe('getClassCounterMultiplier — class counters', () => {
     expect(vsPreDreadnought).toBeUndefined();
   });
 
+  it('keeps efficient non-network counters against each Era 13 combat line', () => {
+    expect(getClassCounterMultiplier('jet_fighter', 'combat_drone', false)?.multiplier).toBe(1.35);
+    expect(getClassCounterMultiplier('submarine', 'autonomous_frigate', false)?.multiplier).toBe(1.25);
+    expect(getClassCounterMultiplier('tank', 'exosuit_infantry', false)?.multiplier).toBe(1.25);
+    expect(getClassCounterMultiplier('warrior', 'combat_drone', false)).toBeUndefined();
+  });
+
   it('counters only apply on the attacker side of getCombatModifier (negative: defender role)', () => {
     const asAttacker = getCombatModifier('pikeman', 'attacker', baseCombatCtx({ opponentType: 'knight' }));
     const asDefender = getCombatModifier('knight', 'defender', baseCombatCtx({ opponentType: 'pikeman' }));
@@ -302,6 +310,20 @@ describe('getHealingBonus — stacking order and conditions', () => {
     }));
     expect(withinRange.flat).toBe(1);
     expect(outOfRange.flat).toBe(0);
+  });
+
+  it('Precision Gene Editing adds +5 healing only near a Neural Rehabilitation Center', () => {
+    const nearCare = getHealingBonus({
+      ...baseHealCtx({ completedTechs: ['precision-gene-editing'] }),
+      withinRangeOfNeuralRehabilitationCenter: true,
+    } as HealingModifierContext);
+    const farFromCare = getHealingBonus({
+      ...baseHealCtx({ completedTechs: ['precision-gene-editing'] }),
+      withinRangeOfNeuralRehabilitationCenter: false,
+    } as HealingModifierContext);
+
+    expect(nearCare.flat).toBe(5);
+    expect(farFromCare.flat).toBe(0);
   });
 });
 

@@ -18,6 +18,9 @@ export function getAutonomyCapacity(state: GameState, civId: string): AutonomyCa
   const cities = Object.values(state.cities).filter(city => city.owner === civId);
   const completed = state.civilizations[civId]?.techState.completed ?? [];
   const hasQuantumNetworking = completed.includes('quantum-networking');
+  const generalPurposeAiCapacity = completed.includes('general-purpose-ai') ? 2 : 0;
+  const digitalPersonhoodCapacity = completed.includes('digital-personhood')
+    && state.autonomyByCiv?.[civId]?.posture === 'integrated' ? 1 : 0;
   const precursorBuildings = new Set([
     'data_center', 'signals_hub', 'cyber_defense_center', 'automated_port',
     'smart_grid', 'space_center', 'semiconductor_fab',
@@ -30,16 +33,21 @@ export function getAutonomyCapacity(state: GameState, civId: string): AutonomyCa
   const safetyCapacity = cities.some(city => city.buildings.includes('ai_safety_institute')) ? 1 : 0;
   const nationalCapacity = Object.entries(state.builtNationalProjects ?? {})
     .some(([key, project]) => project.civId === civId && key === `${civId}:national_ai_assurance_program`) ? 2 : 0;
-  return { unrestricted: 2 + precursorCapacity + operationsCapacity + safetyCapacity + nationalCapacity, restricted: {} };
+  return {
+    unrestricted: 2 + generalPurposeAiCapacity + digitalPersonhoodCapacity
+      + precursorCapacity + operationsCapacity + safetyCapacity + nationalCapacity,
+    restricted: {},
+  };
 }
 
 export function getAutonomyLoad(state: GameState, civId: string): AutonomyLoad {
+  const completed = state.civilizations[civId]?.techState.completed ?? [];
   const plans = Object.values(state.autonomyByCiv?.[civId]?.plans ?? {})
     .filter(plan => plan.status !== 'canceled' && plan.status !== 'completed');
   const byCategory: Record<string, number> = {};
   const total = plans.reduce((sum, plan) => {
     const definition = getNetworkPlanDefinition(plan.definitionId);
-    const planLoad = getNetworkPlanLoad(plan.definitionId, plan.linkedUnitIds);
+    const planLoad = getNetworkPlanLoad(plan.definitionId, plan.linkedUnitIds, completed);
     const safeguardedHostileLoad = state.autonomyByCiv?.[civId]?.posture === 'safeguarded'
       && definition.targetKind === 'at-war-enemy-city' ? 1 : 0;
     const surgedLoad = plan.surgeResolutionTurn === state.turn ? planLoad : 0;

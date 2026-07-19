@@ -5,7 +5,7 @@ import { getAvailableTechs, TECH_TREE } from '@/systems/tech-system';
 import { resolveBuildingPacingBand, resolveUnitPacingBand } from '@/systems/pacing-model';
 import { resolveCivDefinition } from '@/systems/civ-registry';
 import { getQueueableResearchIds } from '@/systems/tech-progression';
-import { getActiveNationalProjectsForCiv, getReservedNationalProjectKeys } from '@/systems/national-project-system';
+import { getActiveNationalProjectsForCiv, getCircularManufacturingMaterial, getReservedNationalProjectKeys } from '@/systems/national-project-system';
 import { getCivAvailableResources } from '@/systems/resource-acquisition-system';
 import { resolveCivilizationEra } from '@/systems/tech-definitions';
 
@@ -190,7 +190,7 @@ export function getRecommendedIdleCityChoice(
       reservedNationalProjects,
       civId,
     ) : []).map(building => {
-      const cost = getProductionCostForItem(building.id, { city, bonusEffect, era: civEra, completedTechs, activeNationalProjects, availableResources });
+      const cost = getProductionCostForItem(building.id, { city, bonusEffect, era: civEra, completedTechs, activeNationalProjects, availableResources, materialSubstitution: getCircularManufacturingMaterial(state, civId) });
       return {
         itemId: building.id,
         label: building.name,
@@ -201,7 +201,7 @@ export function getRecommendedIdleCityChoice(
     }),
     ...getTrainableUnitsForCiv(completedTechs, civ.civType, availableResources)
       .map(unit => {
-        const cost = getProductionCostForItem(unit.type, { city, bonusEffect, era: civEra, completedTechs, activeNationalProjects, availableResources });
+        const cost = getProductionCostForItem(unit.type, { city, bonusEffect, era: civEra, completedTechs, activeNationalProjects, availableResources, materialSubstitution: getCircularManufacturingMaterial(state, civId) });
         return {
           itemId: unit.type,
           label: unit.name,
