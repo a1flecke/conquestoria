@@ -1,5 +1,9 @@
-import type { Building, BuildingCategory, Tech } from '@/core/types';
+import type { Building, BuildingCategory, City, CityMaturity, GameMap, HexCoord, HexTile, Tech } from '@/core/types';
 import { BUILDINGS } from '@/systems/city-system';
+import { resolveCityMaturity } from '@/systems/city-maturity-system';
+import { calculateCityYields } from '@/systems/resource-system';
+import { getProductionOutputProfileForEra } from '@/systems/pacing-model';
+import { applyEmpireTechPercents, getEmpireTechPercents } from '@/systems/tech-yield-system';
 import {
   TECH_TREE,
   getEraAdvancementFraction,
@@ -47,6 +51,8 @@ const CATEGORY_ORDER: readonly BuildingCategory[] = [
 ];
 
 const CATEGORY_RANK = new Map(CATEGORY_ORDER.map((category, index) => [category, index]));
+const EPSILON = 1e-9;
+const REFERENCE_MAP_SIZE = 8;
 
 function compareIds(left: string, right: string): number {
   return left < right ? -1 : left > right ? 1 : 0;
@@ -236,4 +242,199 @@ export function selectRepresentativeBuilding(input: RepresentativeBuildingInput)
   const selected = candidates[0];
   if (!selected) return null;
   return selected.closure.find(building => !completedBuildings.has(building.id)) ?? null;
+}
+
+export interface RepresentativeCityYieldOutput {
+  science: number;
+  production: number;
+}
+
+export interface SimulatedRepresentativeCity {
+  cohortId: string;
+  foundedEra: number;
+  maturity: CityMaturity;
+  population: number;
+  completedBuildings: string[];
+  activeBuilding: { id: string; progress: number } | null;
+  actualProductionEarned: number;
+  cappedProductionEarned: number;
+  infrastructureProductionAllocated: number;
+  infrastructureProductionSpent: number;
+  completedBuildingCost: number;
+  activeBuildingProgress: number;
+  activeBuildingCount: 0 | 1;
+  discardedObsoleteProgress: number;
+  unspentInfrastructureProduction: number;
+  yieldsBeforeEmpireFlat: RepresentativeCityYieldOutput;
+}
+
+export interface SimulateRepresentativeCityInput {
+  cohort: RepresentativeCohort;
+  targetEra: number;
+  timeline: RepresentativeResearchTimeline;
+  infrastructureShare: 0.5 | 0.6 | 0.7;
+}
+
+export function makeRepresentativeMap(): GameMap {
+  const tiles: Record<string, HexTile> = {};
+  for (let q = 0; q < REFERENCE_MAP_SIZE; q++) {
+    for (let r = 0; r < REFERENCE_MAP_SIZE; r++) {
+      const terrain = q % 3 === 0 ? 'hills' : q % 3 === 1 ? 'grassland' : 'plains';
+      tiles[`${q},${r}`] = {
+        coord: { q, r },
+        terrain,
+        elevation: terrain === 'hills' ? 'highland' : 'lowland',
+        resource: null,
+        improvement: 'none',
+        owner: 'reference-civ',
+        improvementTurnsLeft: 0,
+        hasRiver: false,
+        wonder: null,
+      };
+    }
+  }
+  return { width: REFERENCE_MAP_SIZE, height: REFERENCE_MAP_SIZE, tiles, wrapsHorizontally: false, rivers: [] };
+}
+
+function workedTilesForPopulation(population: number, position: HexCoord): HexCoord[] {
+  const workedTiles: HexCoord[] = [position];
+  for (let index = 0; index < population && workedTiles.length <= population; index++) {
+    const q = 3 + (index % 4);
+    const r = 3 + Math.floor(index / 4);
+    if (q === position.q && r === position.r) continue;
+    workedTiles.push({ q, r });
+  }
+  return workedTiles;
+}
+
+export function makeRepresentativeCity(input: {
+  cohort: RepresentativeCohort;
+  completedBuildings: readonly string[];
+  completedTechs: readonly string[];
+}): City {
+  const position: HexCoord = { q: 4, r: 4 };
+  const population = Math.min(12, 2 + Math.floor(input.completedBuildings.length / 4));
+  const workedTiles = workedTilesForPopulation(population, position);
+  return {
+    id: `representative-${input.cohort.id}`,
+    name: input.cohort.id,
+    owner: 'reference-civ',
+    position,
+    population,
+    food: 0,
+    foodNeeded: 9999,
+    buildings: [...input.completedBuildings],
+    productionQueue: [],
+    productionProgress: 0,
+    ownedTiles: workedTiles,
+    workedTiles,
+    focus: 'balanced',
+    maturity: resolveCityMaturity(population, [...input.completedTechs]),
+    unrestLevel: 0,
+    unrestTurns: 0,
+    spyUnrestBonus: 0,
+  };
+}
+
+function assertInfrastructureShare(share: number): asserts share is 0.5 | 0.6 | 0.7 {
+  if (share !== 0.5 && share !== 0.6 && share !== 0.7) {
+    throw new Error(`Unsupported infrastructure share: ${share}`);
+  }
+}
+
+export function simulateRepresentativeCity(input: SimulateRepresentativeCityInput): SimulatedRepresentativeCity {
+  if (!Number.isInteger(input.targetEra) || input.targetEra < 1) {
+    throw new Error(`Unsupported representative era: ${input.targetEra}`);
+  }
+  assertInfrastructureShare(input.infrastructureShare);
+  const foundedTurn = input.timeline.arrivalTurnByEra.get(input.cohort.foundedEra);
+  const targetTurn = input.timeline.arrivalTurnByEra.get(input.targetEra);
+  if (foundedTurn === undefined || targetTurn === undefined || input.cohort.foundedEra > input.targetEra) {
+    throw new Error(`Cohort ${input.cohort.id} is not active in representative era ${input.targetEra}`);
+  }
+
+  const map = makeRepresentativeMap();
+  const completedBuildings: string[] = [];
+  let activeBuilding: { id: string; progress: number } | null = null;
+  let actualProductionEarned = 0;
+  let cappedProductionEarned = 0;
+  let infrastructureProductionAllocated = 0;
+  let completedBuildingCost = 0;
+  let discardedObsoleteProgress = 0;
+  let unspentInfrastructureProduction = 0;
+
+  for (let turn = foundedTurn; turn < targetTurn; turn++) {
+    const completedTechs = input.timeline.entries
+      .filter(entry => entry.completionTurn <= turn)
+      .map(entry => entry.techId);
+    if (activeBuilding?.id && BUILDINGS[activeBuilding.id].obsoletedByTech
+      && completedTechs.includes(BUILDINGS[activeBuilding.id].obsoletedByTech!)) {
+      discardedObsoleteProgress += activeBuilding.progress;
+      activeBuilding = null;
+    }
+
+    const city = makeRepresentativeCity({ cohort: input.cohort, completedBuildings, completedTechs });
+    const baseYields = calculateCityYields(city, map, undefined, completedTechs, {});
+    const yields = applyEmpireTechPercents(baseYields, getEmpireTechPercents(completedTechs));
+    const personalEra = resolveCivilizationEra(completedTechs);
+    const cappedProduction = Math.min(yields.production, getProductionOutputProfileForEra(personalEra));
+    if (!Number.isFinite(cappedProduction) || cappedProduction <= 0) {
+      throw new Error(`Non-positive representative production for ${input.cohort.id} on turn ${turn}`);
+    }
+    actualProductionEarned += yields.production;
+    cappedProductionEarned += cappedProduction;
+    let remaining = cappedProduction * input.infrastructureShare;
+    infrastructureProductionAllocated += remaining;
+
+    while (remaining > EPSILON) {
+      if (!activeBuilding) {
+        const selected = selectRepresentativeBuilding({ completedTechs, completedBuildings });
+        if (!selected) {
+          unspentInfrastructureProduction += remaining;
+          break;
+        }
+        activeBuilding = { id: selected.id, progress: 0 };
+      }
+      const building = BUILDINGS[activeBuilding.id];
+      const needed = building.productionCost - activeBuilding.progress;
+      const invested = Math.min(remaining, needed);
+      activeBuilding.progress += invested;
+      remaining -= invested;
+      if (activeBuilding.progress + EPSILON >= building.productionCost) {
+        completedBuildings.push(building.id);
+        completedBuildingCost += building.productionCost;
+        activeBuilding = null;
+      }
+    }
+  }
+
+  const finalTechs = input.timeline.completedTechIds;
+  const finalCity = makeRepresentativeCity({ cohort: input.cohort, completedBuildings, completedTechs: finalTechs });
+  const finalBaseYields = calculateCityYields(finalCity, map, undefined, finalTechs, {});
+  const finalYields = applyEmpireTechPercents(finalBaseYields, getEmpireTechPercents(finalTechs));
+  const activeBuildingProgress = activeBuilding?.progress ?? 0;
+  const infrastructureProductionSpent = completedBuildingCost + activeBuildingProgress + discardedObsoleteProgress;
+  const accounted = infrastructureProductionSpent + unspentInfrastructureProduction;
+  if (Math.abs(accounted - infrastructureProductionAllocated) > EPSILON) {
+    throw new Error(`Representative production accounting mismatch for ${input.cohort.id}`);
+  }
+
+  return {
+    cohortId: input.cohort.id,
+    foundedEra: input.cohort.foundedEra,
+    maturity: finalCity.maturity,
+    population: finalCity.population,
+    completedBuildings,
+    activeBuilding,
+    actualProductionEarned,
+    cappedProductionEarned,
+    infrastructureProductionAllocated,
+    infrastructureProductionSpent,
+    completedBuildingCost,
+    activeBuildingProgress,
+    activeBuildingCount: activeBuilding ? 1 : 0,
+    discardedObsoleteProgress,
+    unspentInfrastructureProduction,
+    yieldsBeforeEmpireFlat: { science: finalYields.science, production: finalYields.production },
+  };
 }
