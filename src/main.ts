@@ -248,6 +248,8 @@ import {
   routeCrisisAidSent,
   routeReligionFounded,
   routeReligionCityConverted,
+  routeLoyaltyWarning,
+  routeCityDefected,
   routeOpportunisticWar,
   routeSabotageReliefDiscovered,
   routeCityFlipped,
@@ -4607,6 +4609,14 @@ bus.on('religion:founded', event => {
 
 bus.on('religion:city-converted', event => {
   routeReligionCityConverted(gameState, event, appendToCivLog);
+});
+
+bus.on('religion:loyalty-warning', event => {
+  routeLoyaltyWarning(gameState, event, appendToCivLog);
+});
+
+bus.on('religion:city-defected', event => {
+  routeCityDefected(gameState, event, appendToCivLog);
 });
 
 bus.on('crisis:spread', event => {
