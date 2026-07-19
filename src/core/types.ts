@@ -788,6 +788,8 @@ export type SpyMissionType =
   | 'forge_documents'     // diplomatic relationship penalty between two other civs
   | 'fund_rebels'         // escalate unrest in already-unrest city
   | 'arms_smuggling'      // spawn hostile units near target city
+  // propaganda tech (#524 MR2a): gates flip_loyalty specifically, not the shared Stage 4 set
+  | 'flip_loyalty'        // on success, peacefully transfers a foreign non-capital city to the spy's owner
   // Stage 5 (digital-surveillance and cyber-warfare tech)
   | 'cyber_attack'
   | 'misinformation_campaign'
@@ -1874,6 +1876,7 @@ export interface GameEvents {
   'espionage:spy-promoted': { civId: string; spyId: string; promotion: SpyPromotion };
   'espionage:advisor-assassinated': { targetCivId: string; advisorType: AdvisorType; disabledUntilTurn: number };
   'espionage:documents-forged': { civA: string; civB: string; relationshipPenalty: number };
+  'espionage:city-flipped': { civId: string; victimCivId: string; cityId: string };
   'espionage:spy-executed': { executingCivId: string; spyOwner: string; spyId: string; spyName: string };
   'espionage:intel-extracted': { captorId: string; intel: InterrogationIntel[] };
   'unit:obsolete': { civId: string; unitId: string; unitType: UnitType };

@@ -82,6 +82,7 @@ const MISSION_LABELS: Record<SpyMissionType, string> = {
   forge_documents: 'Forge Documents',
   fund_rebels: 'Fund Rebels',
   arms_smuggling: 'Arms Smuggling',
+  flip_loyalty: 'Flip Loyalty',
   cyber_attack: 'Cyber Attack',
   misinformation_campaign: 'Misinformation Campaign',
   election_interference: 'Election Interference',
@@ -103,6 +104,7 @@ const MISSION_STAGE: Record<SpyMissionType, 1 | 2 | 3 | 4 | 5> = {
   forge_documents: 4,
   fund_rebels: 4,
   arms_smuggling: 4,
+  flip_loyalty: 4, // propaganda is era 6, same "Shadow Operations" UI bucket as the other era 5-6 Stage 4 missions
   cyber_attack: 5,
   misinformation_campaign: 5,
   election_interference: 5,

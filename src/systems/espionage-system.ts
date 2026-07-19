@@ -55,6 +55,7 @@ const MISSION_BASE_SUCCESS = {
   election_interference: 0.40,
   satellite_surveillance: 0.70,
   sabotage_relief: 0.60, // #526 MR7: reuses sabotage_production's detection parameters
+  flip_loyalty: 0.40, // #524 MR2a: lowest tier alongside election_interference — outright city transfer, not a temporary effect
 } as Record<SpyMissionType, number>;
 
 const MISSION_DURATIONS = {
@@ -75,6 +76,7 @@ const MISSION_DURATIONS = {
   election_interference: 5,
   satellite_surveillance: 1,
   sabotage_relief: 4, // #526 MR7: reuses sabotage_production's duration
+  flip_loyalty: 8, // #524 MR2a: longest duration in the game, above fund_rebels/assassinate_advisor (6) — matches the stakes
 } as Record<SpyMissionType, number>;
 
 // --- State creation ---
@@ -358,6 +360,7 @@ const STAGE_7_TECHS = ['cyber-intelligence'];        // era 12 — cyber operati
 // than folded into STAGE_4_TECHS, since covert-operations isn't one of that stage's
 // gating techs (cryptography/counter-intelligence) and gates only this one mission.
 const SABOTAGE_RELIEF_TECHS = ['covert-operations'];
+const PROPAGANDA_TECHS = ['propaganda']; // era 6 — gates flip_loyalty specifically, not the shared Stage 4 set
 
 const STAGE_1_MISSIONS: SpyMissionType[] = ['scout_area', 'monitor_troops'];
 const STAGE_2_MISSIONS: SpyMissionType[] = ['gather_intel', 'identify_resources', 'monitor_diplomacy'];
@@ -367,6 +370,7 @@ const STAGE_5_MISSIONS: SpyMissionType[] = ['misinformation_campaign', 'election
 const STAGE_6_MISSIONS: SpyMissionType[] = ['satellite_surveillance'];
 const STAGE_7_MISSIONS: SpyMissionType[] = ['cyber_attack'];
 const SABOTAGE_RELIEF_MISSIONS: SpyMissionType[] = ['sabotage_relief'];
+const PROPAGANDA_MISSIONS: SpyMissionType[] = ['flip_loyalty'];
 
 export function getAvailableMissions(completedTechs: string[]): SpyMissionType[] {
   const missions: SpyMissionType[] = [];
@@ -378,6 +382,7 @@ export function getAvailableMissions(completedTechs: string[]): SpyMissionType[]
   if (STAGE_6_TECHS.some(t => completedTechs.includes(t))) missions.push(...STAGE_6_MISSIONS);
   if (STAGE_7_TECHS.some(t => completedTechs.includes(t))) missions.push(...STAGE_7_MISSIONS);
   if (SABOTAGE_RELIEF_TECHS.some(t => completedTechs.includes(t))) missions.push(...SABOTAGE_RELIEF_MISSIONS);
+  if (PROPAGANDA_TECHS.some(t => completedTechs.includes(t))) missions.push(...PROPAGANDA_MISSIONS);
   return missions;
 }
 
@@ -452,7 +457,7 @@ const INFILTRATOR_MISSIONS = new Set<SpyMissionType>([
   'steal_tech', 'sabotage_production', 'assassinate_advisor', 'arms_smuggling', 'sabotage_relief',
 ]);
 const HANDLER_MISSIONS = new Set<SpyMissionType>([
-  'incite_unrest', 'forge_documents', 'fund_rebels', 'monitor_diplomacy',
+  'incite_unrest', 'forge_documents', 'fund_rebels', 'monitor_diplomacy', 'flip_loyalty',
 ]);
 // Sentinel: everything else (intel, scouting, defensive)
 
@@ -474,6 +479,7 @@ const XP_PER_MISSION = {
   election_interference: 16,
   satellite_surveillance: 8,
   sabotage_relief: 12, // #526 MR7: matches sabotage_production's xp
+  flip_loyalty: 20, // #524 MR2a: highest xp in the game, above assassinate_advisor (18)
 } as Record<SpyMissionType, number>;
 
 const EXPULSION_COOLDOWN = 5;
@@ -636,6 +642,10 @@ export interface MissionResult {
   // sabotage_relief (#526 MR7): the outbreak crisis to pause, if the target civ has one
   // eligible (active, no existing sabotage already in place).
   sabotageCrisisId?: string;
+  // flip_loyalty (#524 MR2a): the city and its former owner, if the flip is eligible
+  // (non-capital, still owned by targetCivId).
+  flippedCityId?: string;
+  flippedFromCivId?: string;
 }
 
 const SCOUT_VISION_RADIUS = 3;
@@ -760,6 +770,16 @@ export function resolveMissionResult(
       const targetCity = gameState.cities[targetCityId];
       if (!targetCity || targetCity.unrestLevel === 0) return {};
       return { unrestInjected: 35 };
+    }
+
+    // flip_loyalty (#524 MR2a): capitals never flip -- mirrors the targetIsCapital guard
+    // already used elsewhere in this file (see getEspionageModifierBreakdown).
+    case 'flip_loyalty': {
+      const targetCity = gameState.cities[targetCityId];
+      if (!targetCity) return {};
+      if (getCapitalCityId(gameState, targetCivId) === targetCityId) return {};
+      if (targetCity.owner !== targetCivId) return {}; // already changed hands this turn
+      return { flippedCityId: targetCityId, flippedFromCivId: targetCivId };
     }
 
     case 'counter_espionage': {
@@ -1437,6 +1457,37 @@ export function processEspionageTurn(state: GameState, bus: EventBus): GameState
             bus.emit('espionage:documents-forged', {
               civA, civB, relationshipPenalty: penalty,
             });
+          }
+
+          // flip_loyalty (#524 MR2a): the actual ownership transfer happens in
+          // turn-manager.ts (subscribed to 'espionage:city-flipped'), via the shared
+          // non-combat ownership-transfer helper in city-capture-system.ts -- NOT here.
+          // espionage-system.ts cannot import city-capture-system.ts directly: doing so
+          // closes a real import cycle (city-system -> espionage-system ->
+          // city-capture-system -> city-system, since city-capture-system imports
+          // BUILDINGS from city-system). The bilateral relationship penalty is applied
+          // here since diplomacy-system has no such cycle.
+          // -30: steeper than forge_documents (-25, no territorial loss) but shallower
+          // than a raze (-40, destructive), reflecting a non-destructive but direct
+          // territorial loss.
+          if (evt.missionType === 'flip_loyalty' && result.flippedCityId && result.flippedFromCivId) {
+            const victimCivId = result.flippedFromCivId as string;
+            const flippedCityId = result.flippedCityId as string;
+            if (state.cities[flippedCityId] && state.cities[flippedCityId].owner === victimCivId) {
+              if (state.civilizations[civId]) {
+                state.civilizations[civId].diplomacy = modifyRelationship(
+                  state.civilizations[civId].diplomacy, victimCivId, -30,
+                );
+              }
+              if (state.civilizations[victimCivId]) {
+                state.civilizations[victimCivId].diplomacy = modifyRelationship(
+                  state.civilizations[victimCivId].diplomacy, civId, -30,
+                );
+              }
+              bus.emit('espionage:city-flipped', {
+                civId, victimCivId, cityId: flippedCityId,
+              });
+            }
           }
 
           // arms_smuggling: spawn a hostile 'rebels' unit near the target city

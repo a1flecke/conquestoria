@@ -242,6 +242,24 @@ describe('espionage-panel', () => {
       expect(view.missionStages[2].missions.some(m => m.id === 'steal_tech')).toBe(true);
     });
 
+    // #524 MR2a
+    it('shows flip_loyalty in the Stage 4 (Shadow Operations) group once propaganda is researched', () => {
+      const state = makeEspUiState();
+      state.civilizations.player.techState.completed = ['propaganda'];
+      const view = getEspionagePanelViewModel(state);
+      const stage4 = view.missionStages.find(s => s.stage === 4)!;
+      expect(stage4.missions.some(m => m.id === 'flip_loyalty')).toBe(true);
+      expect(stage4.missions.find(m => m.id === 'flip_loyalty')!.label).toBe('Flip Loyalty');
+    });
+
+    it('does not show flip_loyalty without propaganda', () => {
+      const state = makeEspUiState();
+      state.civilizations.player.techState.completed = [];
+      const view = getEspionagePanelViewModel(state);
+      const allMissionIds = view.missionStages.flatMap(s => s.missions.map(m => m.id));
+      expect(allMissionIds).not.toContain('flip_loyalty');
+    });
+
     it('never exposes other players spy data', () => {
       const state = makeEspUiState();
       const aiSpy = makeTestSpy('spy-ai-1', 'ai-egypt');
