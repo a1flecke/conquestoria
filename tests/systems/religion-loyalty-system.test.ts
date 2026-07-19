@@ -5,6 +5,8 @@ import {
   getForeignFaithPressure, isLoyaltyTrackEligible, getLoyaltyThreshold, getLoyaltyTickAmount,
   executeLoyaltyDefection, setLoyaltyPoints, clearLoyaltyProgress, processLoyaltyTurn,
 } from '@/systems/religion-loyalty-system';
+import { getUnrestPressureBreakdown } from '@/systems/faction-system';
+import { getLoyaltyPressurePresentationForViewer } from '@/systems/loyalty-pressure-presentation';
 import { makeLoyaltyFixture } from './helpers/religion-loyalty-fixture';
 
 describe('#593 MR6 — CityFaith.loyaltyProgress type', () => {
@@ -297,5 +299,49 @@ describe('#593 MR6 — processLoyaltyTurn', () => {
     expect(current.minorCivs[mcId].diplomacy.relationships[p2]).toBe(60);
     current = processLoyaltyTurn(current, bus);
     expect(current.minorCivs[mcId].diplomacy.relationships[p2]).toBe(60);
+  });
+});
+
+describe('#593 MR6 — deterministic flip timing at the explorer threshold', () => {
+  it('flips at exactly turn 15 for explorer (150 / 10 = 15 turns) -- completes the three-tier sweep alongside standard (18) and veteran (22)', () => {
+    const { state, p1, p2, p2City } = makeLoyaltyFixture();
+    let current = { ...withFaith(p1, p2City, state), opponentChallenge: 'explorer' as const };
+    const bus = new EventBus();
+    for (let turn = 0; turn < 14; turn++) {
+      current = processLoyaltyTurn(current, bus);
+      expect(current.cities[p2City].owner).toBe(p2);
+    }
+    current = processLoyaltyTurn(current, bus);
+    expect(current.cities[p2City].owner).toBe(p1);
+  });
+});
+
+describe('#593 MR6 — human-immunity regression (run to completion)', () => {
+  it('a human city under max foreign-faith pressure never flips even after 100 turns, and the unrest row is present every turn', () => {
+    const { state, p1, p2, p1City } = makeLoyaltyFixture();
+    let current = withFaith(p2, p1City, state, 'fervor');
+    const bus = new EventBus();
+    for (let turn = 0; turn < 100; turn++) {
+      current = processLoyaltyTurn(current, bus);
+      expect(current.cities[p1City].owner).toBe(p1);
+      expect(current.cityFaith![p1City].loyaltyProgress).toBeUndefined();
+      const rows = getUnrestPressureBreakdown(p1City, current);
+      expect(rows).toContainEqual({ label: 'Foreign faith pressure', amount: 2 });
+    }
+  });
+});
+
+describe('#593 MR6 — currentPlayer correctness for badge/row visibility', () => {
+  it('map badge presentation only shows the pressuring civ\'s or pressured owner\'s own badges, never a bystander\'s, regardless of state.currentPlayer', () => {
+    const { state, p1, p2, p2City } = makeLoyaltyFixture();
+    const seeded = {
+      ...state,
+      currentPlayer: p2, // hot-seat: it's p2's turn to view, not p1's
+      cityFaith: { [p2City]: { religionId: `religion-${p1}`, loyaltyProgress: { toCivId: p1, points: 50 } } },
+      religions: { [`religion-${p1}`]: { id: `religion-${p1}`, name: 'Test', ownerCivId: p1, foundedTurn: 1 } },
+    };
+    // p2 is the pressured owner -- sees it regardless of currentPlayer being p2 or p1.
+    expect(getLoyaltyPressurePresentationForViewer(seeded, p2).cityBadges.map(b => b.cityId)).toContain(p2City);
+    expect(getLoyaltyPressurePresentationForViewer({ ...seeded, currentPlayer: p1 }, p2).cityBadges.map(b => b.cityId)).toContain(p2City);
   });
 });
