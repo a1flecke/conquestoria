@@ -24,10 +24,11 @@ export interface OpponentChallengeProfile {
   crisisResponseDelayTurns: number;   // crisis age before the AI acts
   crisisRemedyGoldMultiplier: number; // treasury needed as multiple of remedy cost
   crisisDispatchWeight: number;       // multiplier on dispatch objective score
-  // #541: scales how eagerly barbarian/pirate raid plans prefer a pillage-capable
-  // resource-tile raid target over a plain unit-raid target. Player-side pillage
-  // rules are identical at every difficulty — only barbarian/pirate/AI frequency
-  // changes.
+  // #541: scales how eagerly a barbarian camp's raid plan (barbarian-system.ts)
+  // prefers a pillage-capable resource-tile raid target over a plain unit-raid
+  // target. Pirates use a separate plunder/blockade targeting model and don't
+  // consume this field. Player-side pillage rules are identical at every
+  // difficulty — only barbarian raid-target frequency changes.
   pillageAggressivenessMultiplier: number;
 }
 
