@@ -288,7 +288,7 @@ describe('city icon and badge text bounds', () => {
     drawCityLoyaltyPressureBadgePass(ctx, item);
 
     expect((ctx as unknown as MockCtx).fillTextCalls).toHaveLength(1);
-    expect((ctx as unknown as MockCtx).fillTextCalls[0]!.text).toBe('☦');
+    expect((ctx as unknown as MockCtx).fillTextCalls[0]!.text).toBe('🙏');
   });
 
   it('#593 MR6 — draws nothing when the item carries no loyalty pressure', () => {

@@ -1624,7 +1624,12 @@ export interface CityFaith {
   // #593 MR6: loyalty flip track. Only ever set for a minor-civ or non-human-AI-owned
   // city bordering a foreign faith's territory (see isLoyaltyTrackEligible in
   // religion-loyalty-system.ts) -- human-owned cities are never tracked here.
-  loyaltyProgress?: { toCivId: string; points: number };
+  // sinceOwnerId is the city's owner at the moment this record was (re)started --
+  // inline review fix: the spec requires "ownership transfers" to clear the record,
+  // not just a religionId/target change, so an unrelated conquest (e.g. a third AI
+  // civ capturing the city by combat while it still borders the same faith owner)
+  // must not let the new owner inherit the old owner's accumulated points.
+  loyaltyProgress?: { toCivId: string; points: number; sinceOwnerId: string };
 }
 
 export interface ReconReveal {

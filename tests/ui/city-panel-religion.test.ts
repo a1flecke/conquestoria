@@ -48,34 +48,48 @@ describe('#591 MR4 — city panel Faith row', () => {
 });
 
 describe('#593 MR6 — city panel loyalty row', () => {
+  // Loyalty progress is only ever real on a NON-human-owned city (isLoyaltyTrackEligible
+  // excludes human owners unconditionally -- "Humans NEVER flip"). makeWonderPanelFixture's
+  // primary city ('city-river') is human-owned, so these tests target its non-human
+  // 'city-rival' city instead, with an added bordering tile so the live eligibility
+  // re-check (inline review fix) actually passes.
   function withRivalFaith(overrides: Partial<GameState> = {}) {
     const { container, city, state } = makeWonderPanelFixture();
+    const rivalCity = state.cities['city-rival'];
+    const borderTile = { q: 4, r: 5 };
     const withReligionState: GameState = {
       ...state,
       opponentChallenge: 'standard',
-      religions: { 'religion-rival': { id: 'religion-rival', name: 'Order of Rivals', ownerCivId: 'rival', foundedTurn: 1 } },
+      religions: { 'religion-player': { id: 'religion-player', name: 'Order of Player', ownerCivId: city.owner, foundedTurn: 1 } },
+      map: {
+        ...state.map,
+        tiles: {
+          ...state.map.tiles,
+          '4,5': { coord: borderTile, terrain: 'plains', elevation: 'lowland', resource: null, improvement: 'none', owner: city.owner, improvementTurnsLeft: 0, hasRiver: false, wonder: null },
+        },
+      },
       ...overrides,
     };
-    return { container, city, state: withReligionState };
+    return { container, city: rivalCity, playerCivId: city.owner, state: withReligionState };
   }
 
   it('shows the pressuring civ name, current tick, and threshold when loyaltyProgress is active', () => {
-    const { container, city, state } = withRivalFaith();
+    const { container, city, playerCivId, state } = withRivalFaith();
     const withCityFaith: GameState = {
       ...state,
-      cityFaith: { [city.id]: { religionId: 'religion-rival', loyaltyProgress: { toCivId: 'rival', points: 90 } } },
+      cityFaith: { [city.id]: { religionId: 'religion-player', loyaltyProgress: { toCivId: playerCivId, points: 90, sinceOwnerId: city.owner } } },
     };
     const panel = createCityPanel(container, city, withCityFaith, { onBuild: () => {}, onOpenWonderPanel: () => {}, onClose: () => {} });
-    expect(panel.textContent).toContain('Loyalty to Rival');
+    expect(panel.textContent).toContain('Loyalty to Player');
     expect(panel.textContent).toContain('90');
     expect(panel.textContent).toContain('180');
   });
 
   it('shows a garrisoned-paused suffix when a friendly unit occupies the city', () => {
-    const { container, city, state } = withRivalFaith();
+    const { container, city, playerCivId, state } = withRivalFaith();
     const withCityFaith: GameState = {
       ...state,
-      cityFaith: { [city.id]: { religionId: 'religion-rival', loyaltyProgress: { toCivId: 'rival', points: 90 } } },
+      cityFaith: { [city.id]: { religionId: 'religion-player', loyaltyProgress: { toCivId: playerCivId, points: 90, sinceOwnerId: city.owner } } },
       units: {
         garrison1: {
           id: 'garrison1', type: 'warrior', owner: city.owner, position: city.position,
@@ -88,13 +102,14 @@ describe('#593 MR6 — city panel loyalty row', () => {
   });
 
   it('shows a temple-halved suffix when the city has a temple', () => {
-    const { container, city, state } = withRivalFaith();
+    const { container, city, playerCivId, state } = withRivalFaith();
+    const templeCity = { ...city, buildings: ['temple'] };
     const withCityFaith: GameState = {
       ...state,
-      cities: { ...state.cities, [city.id]: { ...city, buildings: ['temple'] } },
-      cityFaith: { [city.id]: { religionId: 'religion-rival', loyaltyProgress: { toCivId: 'rival', points: 90 } } },
+      cities: { ...state.cities, [city.id]: templeCity },
+      cityFaith: { [city.id]: { religionId: 'religion-player', loyaltyProgress: { toCivId: playerCivId, points: 90, sinceOwnerId: city.owner } } },
     };
-    const panel = createCityPanel(container, { ...city, buildings: ['temple'] }, withCityFaith, { onBuild: () => {}, onOpenWonderPanel: () => {}, onClose: () => {} });
+    const panel = createCityPanel(container, templeCity, withCityFaith, { onBuild: () => {}, onOpenWonderPanel: () => {}, onClose: () => {} });
     expect(panel.textContent).toContain('temple');
   });
 
@@ -102,7 +117,17 @@ describe('#593 MR6 — city panel loyalty row', () => {
     const { container, city, state } = withRivalFaith();
     const withCityFaith: GameState = {
       ...state,
-      cityFaith: { [city.id]: { religionId: 'religion-rival' } },
+      cityFaith: { [city.id]: { religionId: 'religion-player' } },
+    };
+    const panel = createCityPanel(container, city, withCityFaith, { onBuild: () => {}, onOpenWonderPanel: () => {}, onClose: () => {} });
+    expect(panel.textContent).not.toContain('Loyalty to');
+  });
+
+  it('renders no loyalty row when loyaltyProgress is stale (city changed owner since it was recorded)', () => {
+    const { container, city, playerCivId, state } = withRivalFaith();
+    const withCityFaith: GameState = {
+      ...state,
+      cityFaith: { [city.id]: { religionId: 'religion-player', loyaltyProgress: { toCivId: playerCivId, points: 90, sinceOwnerId: 'some-other-former-owner' } } },
     };
     const panel = createCityPanel(container, city, withCityFaith, { onBuild: () => {}, onOpenWonderPanel: () => {}, onClose: () => {} });
     expect(panel.textContent).not.toContain('Loyalty to');

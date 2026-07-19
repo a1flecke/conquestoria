@@ -1628,7 +1628,7 @@ describe('journey automation', () => {
     state.religions = { [religionId]: { id: religionId, name: 'Order of Test', ownerCivId: civId, foundedTurn: 1 } };
     // One tick (10) short of the standard threshold (180) -- processTurn's single call to
     // processLoyaltyTurn must both advance the tick AND complete the flip this turn.
-    state.cityFaith = { [aiCity.id]: { religionId, loyaltyProgress: { toCivId: civId, points: 170 } } };
+    state.cityFaith = { [aiCity.id]: { religionId, loyaltyProgress: { toCivId: civId, points: 170, sinceOwnerId: aiId } } };
     state.opponentChallenge = 'standard';
 
     const next = processTurn(state, new EventBus());
