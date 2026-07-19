@@ -34,49 +34,29 @@ describe('ReligionAudioDirector', () => {
     expect(played).toEqual(['audio/stinger/religion/preach.ogg']);
   });
 
-  it('plays the famine-onset stinger only when the crisis archetype is famine', () => {
+  // #594 MR7 inline review fix: famine onset/resolved are NOT bus-driven (they were in
+  // an earlier draft, but famine already has an existing toast notification via
+  // routeCrisisStarted/routeCrisisResolved -- a direct bus subscription here would have
+  // played this stinger ALONGSIDE that toast's generic chime, a doubled-sound bug).
+  // Famine now goes through playCue() exactly like the other four toast-replacement
+  // cues; see the notification-routing.test.ts assertions for the sfxCue tagging.
+  it('does not subscribe to crisis:started/crisis:resolved at all (famine goes through playCue instead)', () => {
     const played: string[] = [];
     const bus = makeBus();
     const state = makeState({ currentPlayer: 'player' });
     const director = new ReligionAudioDirector(async path => { played.push(path); }, () => state);
     director.start(bus.bus);
-    // 'corsair-armada' is a 'hunt' archetype flavor (not famine) -- see crisis-flavor-definitions.ts
-    bus.emit('crisis:started', { crisisId: 'x', flavorId: 'corsair-armada', civId: 'player', cityIds: ['c1'] });
-    expect(played).toEqual([]);
-    bus.emit('crisis:started', { crisisId: 'y', flavorId: 'crop-blight', civId: 'player', cityIds: ['c1'] });
-    expect(played).toEqual(['audio/stinger/famine/onset.ogg']);
-  });
-
-  it('does not play the famine-onset stinger for a different civ', () => {
-    const played: string[] = [];
-    const bus = makeBus();
-    const state = makeState({ currentPlayer: 'player' });
-    const director = new ReligionAudioDirector(async path => { played.push(path); }, () => state);
-    director.start(bus.bus);
-    bus.emit('crisis:started', { crisisId: 'x', flavorId: 'crop-blight', civId: 'ai-1', cityIds: ['c1'] });
-    expect(played).toEqual([]);
-  });
-
-  it('plays the famine-resolved stinger only for positive outcomes', () => {
-    const played: string[] = [];
-    const bus = makeBus();
-    const state = makeState({ currentPlayer: 'player' });
-    const director = new ReligionAudioDirector(async path => { played.push(path); }, () => state);
-    director.start(bus.bus);
-    bus.emit('crisis:resolved', { crisisId: 'x', flavorId: 'crop-blight', civId: 'player', outcome: 'expired' });
-    expect(played).toEqual([]);
+    bus.emit('crisis:started', { crisisId: 'x', flavorId: 'crop-blight', civId: 'player', cityIds: ['c1'] });
     bus.emit('crisis:resolved', { crisisId: 'y', flavorId: 'crop-blight', civId: 'player', outcome: 'contained' });
-    expect(played).toEqual(['audio/stinger/famine/resolved.ogg']);
+    expect(played).toEqual([]);
   });
 
-  it('does not play the famine-resolved stinger for a non-famine archetype even on a positive outcome', () => {
+  it('playCue maps famine-onset and famine-resolved to their stinger files', async () => {
     const played: string[] = [];
-    const bus = makeBus();
-    const state = makeState({ currentPlayer: 'player' });
-    const director = new ReligionAudioDirector(async path => { played.push(path); }, () => state);
-    director.start(bus.bus);
-    bus.emit('crisis:resolved', { crisisId: 'x', flavorId: 'corsair-armada', civId: 'player', outcome: 'hunted' });
-    expect(played).toEqual([]);
+    const director = new ReligionAudioDirector(async path => { played.push(path); }, () => makeState());
+    await director.playCue('famine-onset');
+    await director.playCue('famine-resolved');
+    expect(played).toEqual(['audio/stinger/famine/onset.ogg', 'audio/stinger/famine/resolved.ogg']);
   });
 
   it('playCue maps religion-founded to the founded stinger file and passes other cues through', async () => {
