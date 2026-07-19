@@ -156,6 +156,21 @@ describe('safehouse spy training cost reduction', () => {
   });
 });
 
+describe('espionage building save compatibility', () => {
+  it('grandfathers an intelligence-agency already queued before its gate moved', () => {
+    const city = {
+      id: 'legacy-city', food: 0, foodNeeded: 10, population: 1,
+      productionProgress: 60, productionQueue: ['intelligence-agency'], buildings: [],
+      ownedTiles: [], grid: [[null]],
+    } as any;
+    const map = { tiles: {}, width: 10, height: 10, wrapsHorizontally: false } as any;
+    const result = processCity(city, map, 0, 0, undefined, ['espionage-informants']);
+
+    expect(result.completedBuilding).toBe('intelligence-agency');
+    expect(result.droppedProductionItems).toEqual([]);
+  });
+});
+
 // ─── Security bureau turning-resistance tests ─────────────────────────────────
 // The security bureau blocks 50% of turning attempts for captured spies.
 // Seed format: `sec-bureau-${spy.id}-${state.turn}`.
