@@ -1,6 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import { CIV_DEFINITIONS } from '@/systems/civ-definitions';
-import { NAME_CANDIDATES, NEUTRAL_NAME_CANDIDATES, BOON_DESCRIPTIONS } from '@/systems/religion-definitions';
+import {
+  NAME_CANDIDATES, NEUTRAL_NAME_CANDIDATES, BOON_DESCRIPTIONS,
+  LOYALTY_THRESHOLD_BY_CHALLENGE, LOYALTY_BASE_TICK,
+} from '@/systems/religion-definitions';
 
 describe('#591 MR4 — religion definitions', () => {
   it('has at least 2 name candidates for every playable civ id', () => {
@@ -29,8 +32,25 @@ describe('#591 MR4 — religion definitions', () => {
     expect(new Set(all).size).toBe(all.length);
   });
 
-  it('fervor description mentions only conversion speed, not territory/loyalty (MR4 honesty)', () => {
+  it('fervor description mentions conversion speed AND territory/loyalty (MR4+MR6 honesty contract complete)', () => {
     const lower = BOON_DESCRIPTIONS.fervor.toLowerCase();
-    expect(lower).not.toMatch(/territory|loyalty|flip/);
+    expect(lower).toMatch(/faster|speed/);
+    expect(lower).toMatch(/territory|loyalty|defect/);
+  });
+});
+
+describe('#593 MR6 — loyalty constants', () => {
+  it('has a threshold for every OpponentChallenge tier, gentlest to hardest', () => {
+    expect(LOYALTY_THRESHOLD_BY_CHALLENGE.explorer).toBe(150);
+    expect(LOYALTY_THRESHOLD_BY_CHALLENGE.standard).toBe(180);
+    expect(LOYALTY_THRESHOLD_BY_CHALLENGE.veteran).toBe(220);
+  });
+
+  it('LOYALTY_BASE_TICK is 10', () => {
+    expect(LOYALTY_BASE_TICK).toBe(10);
+  });
+
+  it('Fervor description now mentions territory pressure and loyalty, not just conversion speed', () => {
+    expect(BOON_DESCRIPTIONS.fervor).toMatch(/loyalty|territory/i);
   });
 });
