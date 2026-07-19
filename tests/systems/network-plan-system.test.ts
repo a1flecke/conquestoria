@@ -283,4 +283,19 @@ describe('network plan lifecycle', () => {
 
     expect(cancelInvalidNetworkPlans(assigned.state).cancelled).toEqual([{ planId: 'network-plan-1', reason: 'invalid-target' }]);
   });
+
+  it('does not cancel a stable plan merely because another plan is temporarily Surged', () => {
+    const state = makeState();
+    const secondCity = makeCity('city-player-2', 'player', 1);
+    state.cities['city-player'].buildings = ['network_operations_center'];
+    secondCity.buildings = ['smart_grid'];
+    state.cities[secondCity.id] = secondCity;
+    state.civilizations.player.cities.push(secondCity.id);
+    state.autonomyByCiv!.player.plans = {
+      surged: { id: 'surged', ownerCivId: 'player', definitionId: 'fabrication-sprint', source: { kind: 'city', cityId: 'city-player' }, target: { kind: 'city', cityId: 'city-player' }, surgeResolutionTurn: state.turn, status: 'active', createdTurn: 1, nextResolutionTurn: 1, warnedTurn: null },
+      stable: { id: 'stable', ownerCivId: 'player', definitionId: 'fabrication-sprint', source: { kind: 'city', cityId: secondCity.id }, target: { kind: 'city', cityId: secondCity.id }, status: 'active', createdTurn: 1, nextResolutionTurn: 1, warnedTurn: null },
+    };
+
+    expect(cancelInvalidNetworkPlans(state).cancelled).toEqual([]);
+  });
 });

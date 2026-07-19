@@ -356,7 +356,9 @@ export function cancelInvalidNetworkPlans(state: GameState): NetworkPlanCleanupR
     .sort((left, right) => left.plan.id.localeCompare(right.plan.id));
   for (const { ownerCivId, plan } of candidates) {
     const withoutPlan = stateWithoutPlan(nextState, ownerCivId, plan.id);
-    const validation = validateNetworkPlanAssignment(withoutPlan, requestForPlan(plan, ownerCivId, plan.target), { allowDuringRecovery: true });
+    // Cleanup preserves ordinary valid plans through a temporary Surge overload.
+    const maintenanceState = { ...withoutPlan, turn: withoutPlan.turn + 1 };
+    const validation = validateNetworkPlanAssignment(maintenanceState, requestForPlan(plan, ownerCivId, plan.target), { allowDuringRecovery: true });
     if (validation.ok) continue;
     nextState = withoutPlan;
     cancelled.push({ planId: plan.id, reason: validation.reason });
