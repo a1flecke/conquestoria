@@ -11,6 +11,7 @@ import { getCapitalCity } from './capital-system';
 import { getChallengeProfileForCiv } from '../core/opponent-challenge';
 import { TECH_TREE, resolveCivilizationEra } from './tech-definitions';
 import { BUILDINGS } from './city-system';
+import { getForeignFaithPressure } from './religion-loyalty-system';
 
 // --- Thresholds ---
 const UNREST_TRIGGER_PRESSURE = 40;
@@ -109,6 +110,13 @@ export function getUnrestPressureBreakdown(
 
   const contagion = getContagionSpread(cityId, state).pressure;
   if (contagion > 0) rows.push({ label: 'Uprising contagion', amount: contagion });
+
+  // #593 MR6: human cities never enter the loyalty-flip track (see
+  // isLoyaltyTrackEligible), but sustained foreign-faith dominance still costs them --
+  // a flat +2 unrest pressure row instead of a literal defection risk.
+  if (civ.isHuman && getForeignFaithPressure(state, cityId)) {
+    rows.push({ label: 'Foreign faith pressure', amount: 2 });
+  }
 
   return rows;
 }

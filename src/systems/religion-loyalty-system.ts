@@ -50,7 +50,7 @@ export function getLoyaltyThreshold(state: Pick<GameState, 'opponentChallenge'>)
 // Garrison pauses (0), Fervor multiplies (floored), temple halves whatever tick results
 // (floored) -- applied in that order: base -> Fervor -> temple. Matches issue #593's
 // worked examples: 10 -> Fervor 12 -> temple 6; 10 -> temple 5 (no Fervor).
-export function getLoyaltyTickAmount(state: GameState, city: City, religion: Pick<Religion, 'boon'>): number {
+export function getLoyaltyTickAmount(state: GameState, city: City, religion: Religion): number {
   if (canGarrisonCity(city.id, state)) return 0;
   let tick = LOYALTY_BASE_TICK;
   if (religion.boon === 'fervor') tick = Math.floor(tick * FERVOR_MULTIPLIER);
