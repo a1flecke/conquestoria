@@ -476,6 +476,27 @@ describe('AI attack targeting', () => {
     expect(result.map.tiles['3,3'].improvement).toBe('farm');
   });
 
+  it('pillages a null-owner (unclaimed) improved tile without needing a war check (#541 second-pass review)', () => {
+    // canPillageTile treats null-owner tiles as pillageable (no diplomatic owner to be at
+    // war with), same as the player's own Pillage action -- the AI loop's original
+    // `!tile.owner` guard rejected null-owner tiles outright, an inconsistency between what
+    // the player could pillage and what the AI would even attempt.
+    const state = createNewGame(undefined, 'ai-pillage-unclaimed', 'small');
+    const raider = createUnit('warrior', 'ai-1', { q: 3, r: 3 }, mkC());
+    raider.id = 'raider';
+    state.units = { [raider.id]: raider };
+    state.civilizations['ai-1'].units = [raider.id];
+    state.map.tiles['3,3'] = {
+      ...state.map.tiles['3,3'],
+      owner: null, improvement: 'farm', improvementTurnsLeft: 0,
+    };
+
+    const result = processAITurn(state, 'ai-1', new EventBus());
+
+    expect(result.units[raider.id].hasActed).toBe(true);
+    expect(result.map.tiles['3,3'].improvement).toBe('none');
+  });
+
   it('does not make AI units opportunistically attack minor-civ units', () => {
     const state = createNewGame(undefined, 'ai-minor-neutral-range', 'small');
     const attacker = createUnit('warrior', 'ai-1', { q: 0, r: 0 }, mkC());

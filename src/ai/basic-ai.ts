@@ -704,7 +704,8 @@ function processAITurnInternal(
     const current = newState.units[unit.id];
     if (!current || current.hasActed) continue;
     const tile = newState.map.tiles[hexKey(current.position)];
-    if (!tile || !tile.owner || !isAtWar(civ.diplomacy, tile.owner)) continue;
+    if (!tile) continue;
+    if (tile.owner && !isAtWar(civ.diplomacy, tile.owner)) continue;
     if (!canPillageTile(tile, civId)) continue;
     const result = applyPillageToState(newState, current.id);
     if (result.ok) newState = result.state;

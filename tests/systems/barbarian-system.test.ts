@@ -13,6 +13,8 @@ import { checkCampEvolution } from '@/systems/minor-civ-system';
 import { createNewGame } from '@/core/game-state';
 import { MINOR_CIV_DEFINITIONS } from '@/systems/minor-civ-definitions';
 import { createUnit } from '@/systems/unit-system';
+import { applyPillageToState } from '@/systems/pillage-system';
+import { executeUnitMove } from '@/systems/unit-movement-system';
 
 const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
 
@@ -372,6 +374,99 @@ describe('processPurposefulBarbarians', () => {
     const result = processPurposefulBarbarians(state);
 
     expect(result.pillageOrders).toContainEqual({ unitId: 'raider', tileKey: '7,5' });
+  });
+
+  it('also queues a same-turn withdrawal move for a raider that arrives on a pre-existing (not freshly-created) plan (#541 second-pass review)', () => {
+    // The first pillage-on-arrival test above accidentally avoided this: with no
+    // pre-existing plan, the plan is created fresh THIS turn (createdTurn === state.turn),
+    // so completedResourceRaid's `plan.createdTurn < state.turn` check is false and the
+    // withdrawal transition never fires in the same call. A raider that has been walking
+    // toward the tile for several turns (the realistic case) arrives with an
+    // ALREADY-EXISTING plan, so completedResourceRaid IS true this turn, the plan flips to
+    // 'withdrawing', and the same unit gets a moveOrder queued in the very same call that
+    // queued its pillageOrder — turn-manager.ts must apply pillage before move, or the
+    // raider steps off the tile before applyPillageToState ever runs.
+    const state = purposefulState();
+    const raider = createUnit('warrior', 'barbarian', { q: 7, r: 5 }, state.idCounters);
+    raider.id = 'raider';
+    state.units = { raider };
+    state.map.tiles['7,5'] = {
+      ...state.map.tiles['7,5'],
+      resource: 'iron',
+      improvement: 'mine',
+      improvementTurnsLeft: 0,
+      owner: 'player',
+    };
+    state.opponentAI = {
+      barbarianCamps: {
+        'camp-a': {
+          objective: 'raid',
+          target: { kind: 'resource', resource: 'iron', position: { q: 7, r: 5 } },
+          phase: 'raiding',
+          commitment: 1,
+          createdTurn: state.turn - 3,
+          lastProgressTurn: state.turn - 1,
+          expiresAfterTurn: state.turn + 10,
+          assignedUnitIds: ['raider'],
+        },
+      },
+      barbarianHomeCampByUnitId: { raider: 'camp-a' },
+    } as never;
+
+    const result = processPurposefulBarbarians(state);
+
+    expect(result.pillageOrders).toContainEqual({ unitId: 'raider', tileKey: '7,5' });
+    expect(result.moveOrders.some(order => order.unitId === 'raider')).toBe(true);
+    expect(result.opponentAI.barbarianCamps['camp-a']).toMatchObject({ phase: 'withdrawing' });
+  });
+
+  it('pillages the tile even though a same-turn withdrawal move is also queued, because pillage applies first (#541 second-pass review)', () => {
+    // Proves the actual fix at the level turn-manager.ts consumes these orders: applying
+    // the queued pillageOrder before the queued moveOrder still burns the tile (and the
+    // subsequent move — now blocked by 0 movementPointsLeft — correctly fails validation
+    // instead of silently relocating the "arrived" raider first).
+    const state = purposefulState();
+    const raider = createUnit('warrior', 'barbarian', { q: 7, r: 5 }, state.idCounters);
+    raider.id = 'raider';
+    state.units = { raider };
+    state.map.tiles['7,5'] = {
+      ...state.map.tiles['7,5'],
+      resource: 'iron',
+      improvement: 'mine',
+      improvementTurnsLeft: 0,
+      owner: 'player',
+    };
+    state.opponentAI = {
+      barbarianCamps: {
+        'camp-a': {
+          objective: 'raid',
+          target: { kind: 'resource', resource: 'iron', position: { q: 7, r: 5 } },
+          phase: 'raiding',
+          commitment: 1,
+          createdTurn: state.turn - 3,
+          lastProgressTurn: state.turn - 1,
+          expiresAfterTurn: state.turn + 10,
+          assignedUnitIds: ['raider'],
+        },
+      },
+      barbarianHomeCampByUnitId: { raider: 'camp-a' },
+    } as never;
+
+    const result = processPurposefulBarbarians(state);
+    const pillageOrder = result.pillageOrders.find(order => order.unitId === 'raider')!;
+    const moveOrder = result.moveOrders.find(order => order.unitId === 'raider')!;
+    expect(pillageOrder).toBeDefined();
+    expect(moveOrder).toBeDefined();
+
+    // Simulate turn-manager.ts's fixed order: pillage first, then attempt the move.
+    const pillaged = applyPillageToState(state, pillageOrder.unitId);
+    expect(pillaged.ok).toBe(true);
+    expect(pillaged.state.map.tiles['7,5'].improvement).toBe('none');
+    expect(pillaged.state.units.raider.movementPointsLeft).toBe(0);
+
+    const moveResult = executeUnitMove(pillaged.state, moveOrder.unitId, moveOrder.toCoord, { actor: 'world' });
+    expect(moveResult.ok).toBe(false);
+    expect(pillaged.state.units.raider.position).toEqual({ q: 7, r: 5 });
   });
 
   it('prioritizes a resource-raid target over a unit-raid target on veteran (multiplier > 1) (#541)', () => {
