@@ -214,7 +214,7 @@ import {
   unloadUnitFromTransport,
 } from '@/systems/transport-system';
 import { getPendingUnload, getUnloadRange, setPendingUnload, clearPendingUnload } from '@/ui/transport-ui-state';
-import { getCapitalCity } from '@/systems/capital-system';
+import { getCapitalCity, getCapitalCityId } from '@/systems/capital-system';
 import type { CombatResult, GameState, HexCoord, ImprovementType, Unit, UnitType, DiplomaticAction, CivBonusEffect, WorkerActionType, TreatyType } from '@/core/types';
 import {
   appendNotification,
@@ -250,6 +250,7 @@ import {
   routeReligionCityConverted,
   routeOpportunisticWar,
   routeSabotageReliefDiscovered,
+  routeCityFlipped,
   type NotificationSink,
 } from '@/ui/notification-routing';
 import { createNotificationDelivery } from '@/ui/notification-delivery';
@@ -1625,8 +1626,18 @@ function togglePanel(panel: string): void {
     const chooseMission = (spyId: string): string | null => {
       const spy = gameState.espionage?.[gameState.currentPlayer]?.spies[spyId];
       const completedTechs = currentCiv().techState.completed ?? [];
+      // #524 MR2a review fix: flip_loyalty can never succeed against a capital (see
+      // resolveMissionResult's guard in espionage-system.ts) -- don't offer it as a
+      // choice when the spy's current target already is one. Without this, a spy
+      // stationed in an enemy capital could "succeed" an 8-turn flip_loyalty mission
+      // that silently does nothing, with no explanation.
+      const spyTargetsCapital = Boolean(
+        spy?.targetCivId && spy.targetCityId
+          && getCapitalCityId(gameState, spy.targetCivId) === spy.targetCityId,
+      );
       const missions = getAvailableMissions(completedTechs)
-        .filter(mission => !missionRequiresPlacedSpy(mission) || Boolean(spy?.targetCivId));
+        .filter(mission => !missionRequiresPlacedSpy(mission) || Boolean(spy?.targetCivId))
+        .filter(mission => mission !== 'flip_loyalty' || !spyTargetsCapital);
       if (missions.length === 0) {
         showNotification('No missions available for this spy.', 'info');
         return null;
@@ -4702,6 +4713,10 @@ bus.on('espionage:spy-expired', ({ civId, spyName, unitType }) => {
 bus.on('espionage:spy-auto-exfiltrated', ({ civId, cityId }) => {
   const city = gameState.cities[cityId];
   appendToCivLog(civId, `Your spy was auto-exfiltrated from ${city?.name ?? 'a city'} after it changed hands.`, 'info');
+});
+
+bus.on('espionage:city-flipped', event => {
+  routeCityFlipped(gameState, event, appendToCivLog);
 });
 
 bus.on('trade:route-created', ({ route }) => {
