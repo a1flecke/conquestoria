@@ -1621,7 +1621,10 @@ export interface CityFaith {
   // still stopping rival faiths from ping-ponging a border city turn after turn.
   conversionCooldownUntilTurn?: number;
   conversionCooldownExemptCivId?: string;
-  // loyaltyProgress added by MR6 (#593)
+  // #593 MR6: loyalty flip track. Only ever set for a minor-civ or non-human-AI-owned
+  // city bordering a foreign faith's territory (see isLoyaltyTrackEligible in
+  // religion-loyalty-system.ts) -- human-owned cities are never tracked here.
+  loyaltyProgress?: { toCivId: string; points: number };
 }
 
 export interface ReconReveal {
@@ -1891,6 +1894,8 @@ export interface GameEvents {
   'religion:founded': { religionId: string; civId: string; cityId: string; name: string };
   'religion:city-converted': { cityId: string; toReligionId: string; fromReligionId?: string };
   'religion:preached': { cityId: string; unitId: string; civId: string; points: number; unitConsumed: boolean };
+  'religion:loyalty-warning': { cityId: string; pressuringCivId: string; stage: 'start' | 'midpoint' | 'final'; turnsRemaining: number };
+  'religion:city-defected': { cityId: string; fromCivId: string; toCivId: string };
   'crisis:spread':    { crisisId: string; fromCityId: string; toCityId: string };
   // civId/foeName are populated for Hunt transitions (spawn -> menacing, menacing ->
   // assaulting) — carried directly rather than re-read from state because both are set
