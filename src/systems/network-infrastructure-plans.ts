@@ -1,9 +1,18 @@
 import type { GameState, ResourceYield, TradeRoute } from '@/core/types';
 import { getNetworkPlanDefinition } from './network-plan-definitions';
 
+function hasLiveCitySource(state: GameState, plan: { ownerCivId: string; definitionId: Parameters<typeof getNetworkPlanDefinition>[0]; source?: { kind: 'unit'; unitId: string } | { kind: 'city'; cityId: string } }): boolean {
+  const definition = getNetworkPlanDefinition(plan.definitionId);
+  if (definition.sourceKind !== 'city' || plan.source?.kind !== 'city') return false;
+  const sourceCity = state.cities[plan.source.cityId];
+  return sourceCity?.owner === plan.ownerCivId
+    && Boolean(definition.sourceBuildings?.some(building => sourceCity.buildings.includes(building)));
+}
+
 function isActiveOwnedPlanForCity(state: GameState, ownerCivId: string, cityId: string, definitionId?: string): boolean {
   return Object.values(state.autonomyByCiv?.[ownerCivId]?.plans ?? {}).some(plan =>
     plan.status === 'active'
+      && hasLiveCitySource(state, plan)
       && ((plan.target.kind === 'city' && plan.target.cityId === cityId) || plan.linkedCityIds?.includes(cityId))
       && (!definitionId || plan.definitionId === definitionId),
   );
@@ -24,7 +33,7 @@ export function getNetworkCityYieldBonus(
   if (!city) return { production, science };
   for (const autonomy of Object.values(state.autonomyByCiv ?? {})) {
     for (const plan of Object.values(autonomy.plans)) {
-      if (plan.ownerCivId !== city.owner || plan.status !== 'active'
+      if (plan.ownerCivId !== city.owner || plan.status !== 'active' || !hasLiveCitySource(state, plan)
         || (plan.target.kind !== 'city' || (plan.target.cityId !== cityId && !plan.linkedCityIds?.includes(cityId)))) continue;
       const effect = getNetworkPlanDefinition(plan.definitionId).effect;
       if (effect.kind === 'city-production-percent') {
@@ -51,7 +60,7 @@ export function getNetworkRouteGoldBonus(state: GameState, route: TradeRoute): n
     .sort((a, b) => a.id.localeCompare(b.id));
   if (!eligibleRoutes.slice(0, 2).some(candidate => candidate.id === route.id)) return 0;
   const plans = Object.values(state.autonomyByCiv?.[city.owner]?.plans ?? {})
-    .filter(plan => plan.status === 'active' && plan.definitionId === 'logistics-routing'
+    .filter(plan => plan.status === 'active' && hasLiveCitySource(state, plan) && plan.definitionId === 'logistics-routing'
       && plan.target.kind === 'city' && plan.target.cityId === city.id);
   return Math.max(0, ...plans.map(plan => {
     const effect = getNetworkPlanDefinition(plan.definitionId).effect;
@@ -64,7 +73,7 @@ export function getNetworkUnitVisionBonus(state: GameState, unitId: string): num
   if (!unit) return 0;
   let bonus = 0;
   for (const plan of Object.values(state.autonomyByCiv?.[unit.owner]?.plans ?? {})) {
-    if (plan.status !== 'active' || plan.definitionId !== 'survey-grid' || !plan.linkedUnitIds?.includes(unitId)) continue;
+    if (plan.status !== 'active' || !hasLiveCitySource(state, plan) || plan.definitionId !== 'survey-grid' || !plan.linkedUnitIds?.includes(unitId)) continue;
     const effect = getNetworkPlanDefinition(plan.definitionId).effect;
     if (effect.kind === 'unit-vision') bonus = Math.max(bonus, isPlanSurgedThisTurn(state, plan) ? effect.surgedAmount : effect.normalAmount);
   }

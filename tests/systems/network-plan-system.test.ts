@@ -139,6 +139,17 @@ describe('network plan lifecycle', () => {
     })).toEqual({ ok: false, reason: 'ordinary-load-exceeds-capacity' });
   });
 
+  it('does not allow a new ordinary plan while the network is in Surge recovery', () => {
+    const state = makeState();
+    state.cities['city-player'].buildings = ['smart_grid'];
+    state.autonomyByCiv!.player.surgeRecoveryUntilTurn = state.turn + 2;
+
+    expect(validateNetworkPlanAssignment(state, {
+      ownerCivId: 'player', source: { kind: 'city', cityId: 'city-player' },
+      definitionId: 'fabrication-sprint', target: { kind: 'city', cityId: 'city-player' },
+    })).toEqual({ ok: false, reason: 'network-recovering' });
+  });
+
   it('rejects Exploit without bilateral war and leaves state untouched', () => {
     const state = makeState();
     state.civilizations.player.diplomacy.atWarWith = [];
@@ -152,6 +163,33 @@ describe('network plan lifecycle', () => {
 
     expect(validateNetworkPlanAssignment(state, request)).toEqual({ ok: false, reason: 'target-not-at-war' });
     expect(assignNetworkPlan(state, request)).toMatchObject({ state, validation: { ok: false, reason: 'target-not-at-war' }, plan: null });
+  });
+
+  it('makes hostile plans cost one extra Load and delay one preparation round in Safeguarded posture', () => {
+    const state = makeState();
+    state.autonomyByCiv!.player.posture = 'safeguarded';
+    const request = {
+      ownerCivId: 'player', sourceUnitId: 'unit-cyber', definitionId: 'exploit' as const,
+      target: { kind: 'city' as const, cityId: 'city-ai' },
+    };
+
+    expect(validateNetworkPlanAssignment(state, request)).toEqual({ ok: false, reason: 'ordinary-load-exceeds-capacity' });
+    state.cities['city-player'].buildings = ['network_operations_center'];
+    const assigned = assignNetworkPlan(state, request);
+    expect(assigned.plan).toMatchObject({ status: 'preparing', nextResolutionTurn: state.turn + 1 });
+  });
+
+  it('limits Survey Grid to two linked friendly units', () => {
+    const state = makeState();
+    state.cities['city-player'].buildings = ['space_center'];
+    state.units['unit-second'] = makeCyberUnit('unit-second', 'player', 1);
+    state.units['unit-third'] = makeCyberUnit('unit-third', 'player', 1);
+    state.civilizations.player.units.push('unit-second', 'unit-third');
+
+    expect(validateNetworkPlanAssignment(state, {
+      ownerCivId: 'player', source: { kind: 'city', cityId: 'city-player' }, definitionId: 'survey-grid',
+      target: { kind: 'city', cityId: 'city-player' }, linkedUnitIds: ['unit-cyber', 'unit-second', 'unit-third'],
+    })).toEqual({ ok: false, reason: 'invalid-target' });
   });
 
   it('retargets an active Harden plan without allocating another ID', () => {

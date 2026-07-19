@@ -68,8 +68,8 @@ export function getNetworkPanelModel(state: GameState, civId: string): NetworkPa
         source: { kind: 'city', cityId: city.id },
         definitionId,
         target: { kind: 'city', cityId: city.id },
-        ...(definitionId === 'research-mesh' ? { linkedCityIds: ownedCities.filter(candidate => candidate.id !== city.id).slice(0, 2).map(candidate => candidate.id) } : {}),
-        ...(definitionId === 'survey-grid' ? { linkedUnitIds: state.civilizations[civId]?.units.slice(0, 3) ?? [] } : {}),
+        ...(definitionId === 'research-mesh' ? { linkedCityIds: ownedCities.filter(candidate => candidate.id !== city.id).slice(0, 1).map(candidate => candidate.id) } : {}),
+        ...(definitionId === 'survey-grid' ? { linkedUnitIds: state.civilizations[civId]?.units.slice(0, 2) ?? [] } : {}),
       };
       const preview = previewNetworkPlan(state, request);
       candidates.push({

@@ -28,8 +28,8 @@ export function getNetworkPlanCandidates(state: GameState, civId: string): reado
       const request: NetworkPlanRequest = {
         ownerCivId: civId, source: { kind: 'city', cityId: city.id }, definitionId,
         target: { kind: 'city', cityId: city.id },
-        ...(definitionId === 'research-mesh' ? { linkedCityIds: ownedCities.filter(candidate => candidate.id !== city.id).slice(0, 2).map(candidate => candidate.id) } : {}),
-        ...(definitionId === 'survey-grid' ? { linkedUnitIds: civ.units.slice(0, 3) } : {}),
+        ...(definitionId === 'research-mesh' ? { linkedCityIds: ownedCities.filter(candidate => candidate.id !== city.id).slice(0, 1).map(candidate => candidate.id) } : {}),
+        ...(definitionId === 'survey-grid' ? { linkedUnitIds: civ.units.slice(0, 2) } : {}),
       };
       if (!previewNetworkPlan(state, request).validation.ok) continue;
       const score = definitionId === 'research-mesh' ? 60

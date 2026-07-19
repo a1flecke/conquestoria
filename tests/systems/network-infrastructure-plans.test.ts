@@ -19,6 +19,7 @@ describe('network infrastructure plans', () => {
   it('returns Fabrication Sprint from an active city-sourced plan using the unmodified base cap', () => {
     const state = createNewGame('rome', 'fabrication-bonus', 'small');
     const cityId = addPlayerCity(state);
+    state.cities[cityId].buildings = ['smart_grid'];
     state.autonomyByCiv!.player.plans['network-plan-1'] = {
       id: 'network-plan-1', ownerCivId: 'player', definitionId: 'fabrication-sprint',
       source: { kind: 'city', cityId }, target: { kind: 'city', cityId },
@@ -31,6 +32,7 @@ describe('network infrastructure plans', () => {
   it('adds Logistics Routing gold to only the first two stable routes from its target city', () => {
     const state = createNewGame('rome', 'logistics-bonus', 'small');
     const cityId = addPlayerCity(state);
+    state.cities[cityId].buildings = ['automated_port'];
     state.autonomyByCiv!.player.plans['network-plan-1'] = {
       id: 'network-plan-1', ownerCivId: 'player', definitionId: 'logistics-routing',
       source: { kind: 'city', cityId }, target: { kind: 'city', cityId },
@@ -48,6 +50,7 @@ describe('network infrastructure plans', () => {
     const state = createNewGame('rome', 'survey-vision', 'small');
     const cityId = addPlayerCity(state);
     const unitId = state.civilizations.player.units[0];
+    state.cities[cityId].buildings = ['space_center'];
     state.autonomyByCiv!.player.plans['network-plan-1'] = {
       id: 'network-plan-1', ownerCivId: 'player', definitionId: 'survey-grid',
       source: { kind: 'city', cityId }, target: { kind: 'city', cityId },
@@ -62,6 +65,7 @@ describe('network infrastructure plans', () => {
   it('uses the enhanced Fabrication cap only for the resolved Surge turn', () => {
     const state = createNewGame('rome', 'fabrication-surge', 'small');
     const cityId = addPlayerCity(state);
+    state.cities[cityId].buildings = ['smart_grid'];
     state.autonomyByCiv!.player.plans['network-plan-1'] = {
       id: 'network-plan-1', ownerCivId: 'player', definitionId: 'fabrication-sprint',
       source: { kind: 'city', cityId }, target: { kind: 'city', cityId }, surgeResolutionTurn: state.turn,
@@ -70,5 +74,21 @@ describe('network infrastructure plans', () => {
 
     expect(getNetworkCityYieldBonus(state, cityId, { production: 50, science: 0 })).toEqual({ production: 6, science: 0 });
     expect(getNetworkCityYieldBonus({ ...state, turn: state.turn + 1 }, cityId, { production: 50, science: 0 })).toEqual({ production: 4, science: 0 });
+  });
+
+  it('stops a city bonus immediately when its source city is captured before turn cleanup runs', () => {
+    const state = createNewGame('rome', 'captured-network-source', 'small');
+    const sourceCityId = addPlayerCity(state);
+    const targetCityId = addPlayerCity(state);
+    state.cities[sourceCityId].buildings = ['smart_grid'];
+    state.autonomyByCiv!.player.plans['network-plan-1'] = {
+      id: 'network-plan-1', ownerCivId: 'player', definitionId: 'fabrication-sprint',
+      source: { kind: 'city', cityId: sourceCityId }, target: { kind: 'city', cityId: targetCityId },
+      status: 'active', createdTurn: 1, nextResolutionTurn: 1, warnedTurn: null,
+    };
+    state.cities[sourceCityId].owner = 'ai-1';
+
+    expect(getNetworkCityYieldBonus(state, targetCityId, { production: 50, science: 0 }))
+      .toEqual({ production: 0, science: 0 });
   });
 });
