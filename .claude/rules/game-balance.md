@@ -137,17 +137,25 @@ When adding a new wonder, national project, or special building in any future er
   snapshot numbers and a one-line justification, not just a passing test — this is the
   seam future MRs go through instead of silently drifting pacing the way MR4–6 did
   (see issue #481 for the incident this rule prevents).
-- The reference-economy fixture (`tests/systems/helpers/pacing-reference-economy.ts`) computes
-  two profiles per era: `'bounded'` (only buildings gated within the last `BUILDING_ERA_WINDOW`
-  eras count as active production) and `'maximal'` (every eligible building regardless of era —
-  a completionist player who builds everything, a real playstyle, not a corner case).
-  `RESEARCH_OUTPUT_BY_ERA` targets **`'maximal'`**, not `'bounded'`: tuning against the lower
-  bounded output would let a completionist empire blow through late-game tech far faster than
-  the target window, which is exactly the "feels automatic" failure the pacing design doc warns
-  against. Both profiles are pinned by `tests/systems/pacing-reference-economy.test.ts` so this
-  tradeoff stays visible in one place — do not quietly change which profile `RESEARCH_OUTPUT_BY_ERA`
-  targets without updating that file's comments and re-running the full outlier gate (era 10-12
-  tech costs will shift; that cascade is expected, not a sign something broke).
+- The reference-economy fixture has three views. `'bounded'` and `'maximal'` retain their legacy
+  single-city, strictly-prior-era arrival convention: bounded admits only recently gated
+  buildings, while maximal admits every eligible building (a completionist playstyle, not a
+  corner case). `'representative'` is a diagnostic-only, mixed-age 1/3/5/7/9-city cohort that
+  follows the live personal-era resolver and spends a bounded production share on neutral
+  infrastructure. It reports aggregate and average outputs; it never supplies runtime AI,
+  difficulty, UI, save, or player behavior.
+- `RESEARCH_OUTPUT_BY_ERA` targets **`'maximal'`**, never bounded or representative: tuning
+  against the lower bounded output would let a completionist empire blow through late-game tech
+  far faster than the target window, which is exactly the "feels automatic" failure the pacing
+  design doc warns about. The legacy and canonical representative snapshots are pinned by
+  `tests/systems/pacing-reference-economy.test.ts`. Do not quietly change which profile
+  `RESEARCH_OUTPUT_BY_ERA` targets without updating that file's comments and re-running the
+  full outlier gate (era 10-12 tech costs will shift; that cascade is expected, not a sign
+  something broke).
+- Any representative route-selection, cohort, infrastructure-share, scoring-weight, or
+  aggregation-scope change must update the canonical 60% snapshot with a concise justification,
+  retain the 50/70% sensitivity invariants, and re-run the full-catalog outlier gate. Do not use
+  a representative snapshot change to justify a pacing retune without explicit approval.
 - That same test file also gates the era-over-era output growth ratio (currently capped at 3x)
   for both profiles. This is a guardrail against a repeat of the MR13 review finding: a bug in
   building-eligibility logic can silently produce runaway output that only becomes visible once

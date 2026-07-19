@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { getReferenceEconomyOutput } from './helpers/pacing-reference-economy';
+import { getEmpireFlatTechYields } from '@/systems/tech-yield-system';
+import {
+  getReferenceEconomyOutput,
+  getRepresentativeEmpireOutput,
+} from './helpers/pacing-reference-economy';
 import { getResearchOutputProfileForEra } from '@/systems/pacing-model';
 
 describe('pacing reference economy (Part C exact-value pin)', () => {
@@ -92,6 +96,83 @@ describe('pacing reference economy (Part C exact-value pin)', () => {
       const profile = getResearchOutputProfileForEra(era);
       const reference = getReferenceEconomyOutput(era, 'maximal');
       expect(Math.abs(profile.outputPerTurn - reference.science)).toBeLessThanOrEqual(3);
+    }
+  });
+});
+
+describe('representative multi-city reference economy', () => {
+  it('uses the documented 1/3/5/7/9 cohort count', () => {
+    expect(getRepresentativeEmpireOutput(1).cityCount).toBe(1);
+    expect(getRepresentativeEmpireOutput(3).cityCount).toBe(2);
+    expect(getRepresentativeEmpireOutput(5).cityCount).toBe(3);
+    expect(getRepresentativeEmpireOutput(7).cityCount).toBe(4);
+    expect(getRepresentativeEmpireOutput(9).cityCount).toBe(5);
+  });
+
+  it('applies empire-flat yields once after city aggregation', () => {
+    const output = getRepresentativeEmpireOutput(10);
+    const cityTotals = output.cities.reduce((total, city) => ({
+      science: total.science + city.yieldsBeforeEmpireFlat.science,
+      production: total.production + city.yieldsBeforeEmpireFlat.production,
+    }), { science: 0, production: 0 });
+    const flat = getEmpireFlatTechYields(output.completedTechIds);
+
+    expect(output.total).toEqual({
+      science: Math.round(cityTotals.science + flat.science),
+      production: Math.round(cityTotals.production + flat.production),
+    });
+  });
+
+  it('derives averages from unrounded empire totals', () => {
+    const output = getRepresentativeEmpireOutput(10);
+    const cityTotals = output.cities.reduce((total, city) => ({
+      science: total.science + city.yieldsBeforeEmpireFlat.science,
+      production: total.production + city.yieldsBeforeEmpireFlat.production,
+    }), { science: 0, production: 0 });
+    const flat = getEmpireFlatTechYields(output.completedTechIds);
+
+    expect(output.averagePerCity).toEqual({
+      science: Number(((cityTotals.science + flat.science) / output.cityCount).toFixed(2)),
+      production: Number(((cityTotals.production + flat.production) / output.cityCount).toFixed(2)),
+    });
+  });
+
+  it('orders infrastructure allocation across sensitivity shares', () => {
+    const light = getRepresentativeEmpireOutput(10, { infrastructureShare: 0.5 });
+    const canonical = getRepresentativeEmpireOutput(10, { infrastructureShare: 0.6 });
+    const heavy = getRepresentativeEmpireOutput(10, { infrastructureShare: 0.7 });
+    const allocated = (output: typeof canonical) => output.cities
+      .reduce((sum, city) => sum + city.infrastructureProductionAllocated, 0);
+
+    expect(allocated(light)).toBeLessThan(allocated(canonical));
+    expect(allocated(canonical)).toBeLessThan(allocated(heavy));
+  }, 30_000);
+
+  it('pins the canonical 60% representative profile for eras 10-13', () => {
+    const outputs = [10, 11, 12, 13].map(era => {
+      const output = getRepresentativeEmpireOutput(era);
+      return {
+        era,
+        cityCount: output.cityCount,
+        total: output.total,
+        averagePerCity: output.averagePerCity,
+      };
+    });
+
+    expect(outputs).toEqual([
+      { era: 10, cityCount: 5, total: { science: 590, production: 520 }, averagePerCity: { science: 117.9, production: 103.92 } },
+      { era: 11, cityCount: 5, total: { science: 734, production: 607 }, averagePerCity: { science: 146.7, production: 121.4 } },
+      { era: 12, cityCount: 5, total: { science: 829, production: 607 }, averagePerCity: { science: 165.8, production: 121.4 } },
+      { era: 13, cityCount: 5, total: { science: 961, production: 655 }, averagePerCity: { science: 192.2, production: 131 } },
+    ]);
+  }, 60_000);
+
+  it('keeps maximal as the era 10-13 target while representative is diagnostic', () => {
+    for (const era of [10, 11, 12, 13]) {
+      const profile = getResearchOutputProfileForEra(era);
+      const maximal = getReferenceEconomyOutput(era, 'maximal');
+
+      expect(Math.abs(profile.outputPerTurn - maximal.science)).toBeLessThanOrEqual(3);
     }
   });
 });
