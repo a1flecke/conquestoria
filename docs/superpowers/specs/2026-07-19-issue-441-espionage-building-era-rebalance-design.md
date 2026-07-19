@@ -21,9 +21,11 @@ existing saves or creating an AI-only advantage.
 ## Data and gameplay
 
 Building definitions remain the canonical source for their tech gate, CI
-behavior, and AI production semantics. Each defensive espionage building will
-declare typed metadata sufficient for AI scoring rather than requiring
-building-ID branches in AI production.
+behavior, and AI production semantics. A `defensiveEspionageAiValue` numeric
+field on `Building` declares the strategic value available when that building's
+city has a confirmed hostile-spy threat. This is the only new data contract:
+AI production consumes the field generically, so it needs no building-ID
+branches.
 
 Political Intelligence receives `intelligence-agency` in its
 `unlocksBuildings` list, and Informant Rings no longer lists it. Cold War
@@ -44,9 +46,10 @@ use as “counter-intelligence (CI)”; all effect claims remain mechanically tr
 
 AI production continues to discover eligible buildings through
 `getAvailableBuildings`; it receives no special tech, resource, or difficulty
-exception. A defensive espionage building gets an additional generic strategic
-value only when its city has live defensive need: a detected hostile spy or no
-counter-intelligence protection. With neither signal, its defensive value is
+exception. A defensive espionage building gets its additional generic strategic
+value only when its city has a detected hostile spy. Counter-intelligence level
+may scale that value after a threat is confirmed, but zero CI alone never
+creates a build incentive. With no detected hostile spy, its defensive value is
 zero and it remains naturally deprioritized behind economic infrastructure.
 
 This scoring is definition-driven. Future defensive espionage buildings can opt
@@ -72,8 +75,11 @@ choices after the save is loaded.
   their new gates.
 - Assert full and faded CI values, including the negative case that Security
   Bureau is full before Signals Intelligence.
-- Assert AI candidates receive defensive value only with a detected threat or
-  missing CI, and are not boosted without either condition.
+- Assert AI candidates receive defensive value only with a detected hostile
+  spy, including the negative case that zero CI without a threat is not enough.
+- Assert the deterministic AI production choice promotes the defensive building
+  above its otherwise preferred alternative when a detected hostile spy is
+  present, and does not promote it without that threat.
 - Assert a legacy queue and completed building survive a load/turn cycle while
   a newly opened production list still enforces the new gate.
 - Assert solo and hot-seat city panels use the city owner's tech state.
