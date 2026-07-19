@@ -20,6 +20,15 @@ const PRECACHE_URLS = [
   '/conquestoria/audio/stinger/defeat.ogg',
   '/conquestoria/audio/stinger/era1-transition-cue.ogg',
   '/conquestoria/audio/stinger/era1-advance.ogg',
+  // #594 MR7: religion/famine stingers, precached per user decision (era 3+ content
+  // but small files, same curation reasoning as the era-1 stingers above).
+  '/conquestoria/audio/stinger/religion/founded.ogg',
+  '/conquestoria/audio/stinger/religion/city-converted.ogg',
+  '/conquestoria/audio/stinger/religion/preach.ogg',
+  '/conquestoria/audio/stinger/religion/loyalty-warning.ogg',
+  '/conquestoria/audio/stinger/religion/city-defected.ogg',
+  '/conquestoria/audio/stinger/famine/onset.ogg',
+  '/conquestoria/audio/stinger/famine/resolved.ogg',
 ];
 
 self.addEventListener('install', (event) => {
