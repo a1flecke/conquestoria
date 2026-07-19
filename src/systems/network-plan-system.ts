@@ -94,6 +94,17 @@ function requestSourceForPlan(plan: NetworkPlan): Pick<NetworkPlanRequest, 'sour
   return plan.sourceUnitId ? { sourceUnitId: plan.sourceUnitId } : {};
 }
 
+function requestForPlan(plan: NetworkPlan, ownerCivId: string, target: NetworkPlanTarget): NetworkPlanRequest {
+  return {
+    ownerCivId,
+    ...requestSourceForPlan(plan),
+    definitionId: plan.definitionId,
+    target,
+    linkedUnitIds: plan.linkedUnitIds,
+    linkedCityIds: plan.linkedCityIds,
+  };
+}
+
 function hasCapacityForAssignment(state: GameState, request: NetworkPlanRequest): boolean {
   const load = getAutonomyLoad(state, request.ownerCivId).unrestricted;
   const capacity = getAutonomyCapacity(state, request.ownerCivId).unrestricted;
@@ -287,12 +298,7 @@ export function retargetNetworkPlan(
     return { state, validation: { ok: false, reason: 'missing-plan' }, plan: null };
   }
   const withoutOldPlan = stateWithoutPlan(state, ownerCivId, planId);
-  const request: NetworkPlanRequest = {
-    ownerCivId,
-    ...requestSourceForPlan(existing),
-    definitionId: existing.definitionId,
-    target,
-  };
+  const request = requestForPlan(existing, ownerCivId, target);
   const validation = validateNetworkPlanAssignment(withoutOldPlan, request);
   if (!validation.ok) return { state, validation, plan: null };
 
@@ -345,12 +351,7 @@ export function cancelInvalidNetworkPlans(state: GameState): NetworkPlanCleanupR
     .sort((left, right) => left.plan.id.localeCompare(right.plan.id));
   for (const { ownerCivId, plan } of candidates) {
     const withoutPlan = stateWithoutPlan(nextState, ownerCivId, plan.id);
-    const validation = validateNetworkPlanAssignment(withoutPlan, {
-      ownerCivId,
-      ...requestSourceForPlan(plan),
-      definitionId: plan.definitionId,
-      target: plan.target,
-    });
+    const validation = validateNetworkPlanAssignment(withoutPlan, requestForPlan(plan, ownerCivId, plan.target));
     if (validation.ok) continue;
     nextState = withoutPlan;
     cancelled.push({ planId: plan.id, reason: validation.reason });
