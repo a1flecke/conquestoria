@@ -46,11 +46,12 @@ philosophy.
 ### Targeting and action
 
 A unit with `UNIT_DEFINITIONS[unit.type].strength > 0`, standing on a tile
-where `tile.owner` is a different civ (or `null`/barbarian-owned
-improvement) and `!unit.hasActed`, gets a "Pillage" action alongside its
-existing Fortify/Rest/Skip Turn buttons in `selected-unit-info.ts`, using
-the same contextual-button pattern already used there (e.g. the worker
-`onWorkerAction` button at line 425).
+where `tile.owner !== unit.owner` (covers enemy-owned, unclaimed/`null`, and
+barbarian-owned tiles uniformly — a single strict inequality, not a
+different-civ-or-null special case) and `!unit.hasActed`, gets a "Pillage"
+action alongside its existing Fortify/Rest/Skip Turn buttons in
+`selected-unit-info.ts`, using the same contextual-button pattern already
+used there (e.g. the worker `onWorkerAction` button at line 425).
 
 One action pillages everything present on the tile in a single step:
 
@@ -86,9 +87,20 @@ One action pillages everything present on the tile in a single step:
 - If `tile.hasRoad`: also clear `hasRoad`, in the same action.
 - A tile with only an in-progress improvement (`improvementTurnsLeft > 0`)
   and no road offers no Pillage action — there is nothing finished to burn.
-- A tile with `tile.owner === pillagingUnit.owner` (recovering your own
-  territory) awards **zero** gold even if it still shows an enemy-built
-  improvement — prevents scorched-earth gold farming on recaptured land.
+- The eligibility rule above (`tile.owner !== unit.owner`) already makes
+  pillaging your own currently-owned tiles structurally impossible — there
+  is no separate "zero gold on recaptured territory" carve-out to implement,
+  because that situation can never reach the Pillage action in the first
+  place. (An earlier pass of this design described such a carve-out; it
+  contradicted the eligibility rule above, since a tile you currently own
+  can never satisfy `tile.owner !== unit.owner`. Fixed here rather than
+  carried into the plan.) A tile that reverted to `null` ownership after its
+  claiming city was lost, but still carries a completed improvement, is
+  pillageable for the standard reward like any other non-owned tile —
+  there is no reliable "who originally built this" record to special-case
+  on, and treating abandoned/no-man's-land improvements as fair game is
+  consistent with how this game already treats unclaimed territory
+  elsewhere.
 - Pillaging consumes the unit's full action (`hasActed: true`,
   `movementPointsLeft: 0`), mirroring Fortify/Rest.
 
@@ -114,9 +126,10 @@ pillage posts a notification: `Pillaged {improvement name} for {N} gold`.
 Pillage gold is a **one-time combat reward**, not a recurring yield — the
 wonder/national-project `civYieldBonus`/`cityYieldBonus` ceilings in
 `game-balance.md` do not apply to it. Its own ceiling is: capped by the
-`GOLD_PER_PILLAGE_BUILD_TURN` constant above, zero gold on your own
-territory, one pillage per unit per turn (the action-consumption rule
-already enforces this).
+`GOLD_PER_PILLAGE_BUILD_TURN` constant above, structurally impossible on
+your own currently-owned tiles (the eligibility rule already excludes
+them), one pillage per unit per turn (the action-consumption rule already
+enforces this).
 
 ## Civilian Capture
 
@@ -346,7 +359,8 @@ the addendum's "player-side rules identical at all levels."
 |---|---|
 | Combat unit on enemy tile with finished improvement, unit hasn't acted | Pillage action available; confirm shows improvement name + gold |
 | Same, but improvement is mid-construction, no road | No Pillage action — nothing to burn |
-| Combat unit pillages a tile the player used to own (recaptured) | Improvement/road still cleared, but **zero gold** |
+| Unit stands on a tile it currently owns | No Pillage action, regardless of history — self-owned tiles are outside eligibility entirely |
+| Combat unit pillages a `null`-owner (unclaimed/abandoned) tile with a completed improvement | Pillage available, full reward — no special-casing by who originally built it |
 | Unescorted worker/settler/caravan/missionary/naval trader loses combat | Always captured (owner transfers); settler becomes worker, everything else keeps its type |
 | Civilian stacked with any combat unit loses combat | The combat unit is always the resolved defender — the civilian is never targeted or captured |
 | Naval military unit loses combat, loser's effective strength ≤ 50% of winner's, winner ends ≥ 50% health | Captured, not sunk (label varies by era) |
@@ -357,8 +371,9 @@ the addendum's "player-side rules identical at all levels."
 ## Test Strategy
 
 - **Pillage**: gold formula (`IMPROVEMENT_BUILD_TURNS[type] *
-  GOLD_PER_PILLAGE_BUILD_TURN`, rounded), zero gold on own territory, heal
-  cap at 100, road-and-improvement cleared together, no action available on
+  GOLD_PER_PILLAGE_BUILD_TURN`, rounded), no Pillage action on a
+  self-owned tile, heal cap at 100, road-and-improvement cleared together,
+  no action available on
   mid-build tiles, action consumes the unit's turn.
 - **Civilian capture**: deterministic capture (seeded-RNG test proving no
   randomness affects the outcome), settler→worker conversion via
