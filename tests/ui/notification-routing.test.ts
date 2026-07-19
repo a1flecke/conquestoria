@@ -252,6 +252,7 @@ describe('notification routing', () => {
       attackerId: 'a', defenderId: 'd',
       attackerDamage: 10, defenderDamage: 20,
       attackerSurvived: true, defenderSurvived: true,
+      attackerStrength: 20, defenderStrength: 20,
       attackerPosition: { q: 0, r: 0 }, defenderPosition: { q: 1, r: 0 },
     };
     const { sink, calls } = makeSink();
@@ -272,6 +273,7 @@ describe('notification routing', () => {
       attackerId: 'a', defenderId: 'd',
       attackerDamage: 0, defenderDamage: 100,
       attackerSurvived: true, defenderSurvived: false,
+      attackerStrength: 20, defenderStrength: 20,
       attackerPosition: { q: 0, r: 0 }, defenderPosition: { q: 1, r: 0 },
     };
     const { sink, calls } = makeSink();
@@ -290,6 +292,7 @@ describe('notification routing', () => {
       attackerId: 'destroyed-attacker', defenderId: 'destroyed-defender',
       attackerDamage: 8, defenderDamage: 22,
       attackerSurvived: true, defenderSurvived: true,
+      attackerStrength: 20, defenderStrength: 20,
       attackerPosition: { q: 0, r: 0 }, defenderPosition: { q: 1, r: 0 },
       exchange: {
         kind: 'turret-fire',

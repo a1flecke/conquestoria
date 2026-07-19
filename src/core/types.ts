@@ -1160,6 +1160,8 @@ export interface CombatResult {
   defenderDamage: number;
   attackerSurvived: boolean;
   defenderSurvived: boolean;
+  attackerStrength: number;
+  defenderStrength: number;
   attackerPosition: HexCoord;
   defenderPosition: HexCoord;
   exchange?: CombatExchangeSummary;

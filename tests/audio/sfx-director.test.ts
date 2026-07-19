@@ -59,6 +59,7 @@ function makeCombatResult(o: Partial<CombatResult> = {}): CombatResult {
     attackerId: 'a1', defenderId: 'd1',
     attackerDamage: 10, defenderDamage: 10,
     attackerSurvived: true, defenderSurvived: true,
+    attackerStrength: 20, defenderStrength: 20,
     attackerPosition: { q: 0, r: 0 }, defenderPosition: { q: 1, r: 0 },
     ...o,
   };

@@ -171,6 +171,7 @@ describe('geneTherapyReady — combat survival', () => {
       attackerId: 'a1', defenderId: 'd1',
       attackerDamage: 80, defenderDamage: 30,
       attackerSurvived: false, defenderSurvived: true,
+      attackerStrength: 20, defenderStrength: 20,
       attackerPosition: { q: 0, r: 0 }, defenderPosition: { q: 1, r: 0 },
     };
     const applied = applyCombatOutcomeToState(state, result, 42);
@@ -190,6 +191,7 @@ describe('geneTherapyReady — combat survival', () => {
       attackerId: 'a2', defenderId: 'd2',
       attackerDamage: 80, defenderDamage: 30,
       attackerSurvived: false, defenderSurvived: true,
+      attackerStrength: 20, defenderStrength: 20,
       attackerPosition: { q: 0, r: 0 }, defenderPosition: { q: 1, r: 0 },
     };
     const applied = applyCombatOutcomeToState(state, result, 42);
@@ -207,6 +209,7 @@ describe('geneTherapyReady — combat survival', () => {
       attackerId: 'a3', defenderId: 'd3',
       attackerDamage: 80, defenderDamage: 30,
       attackerSurvived: false, defenderSurvived: true,
+      attackerStrength: 20, defenderStrength: 20,
       attackerPosition: { q: 0, r: 0 }, defenderPosition: { q: 1, r: 0 },
     };
     const applied = applyCombatOutcomeToState(state, result, 42);
@@ -226,6 +229,7 @@ describe('cyber_unit capture', () => {
       attackerId: 'w1', defenderId: 'cu1',
       attackerDamage: 0, defenderDamage: 100,
       attackerSurvived: true, defenderSurvived: false,
+      attackerStrength: 20, defenderStrength: 20,
       attackerPosition: { q: 1, r: 0 }, defenderPosition: { q: 0, r: 0 },
     };
     const applied = applyCombatOutcomeToState(state, result, 42);
@@ -246,6 +250,7 @@ describe('cyber_unit capture', () => {
       attackerId: 'cu2', defenderId: 'w2',
       attackerDamage: 100, defenderDamage: 0,
       attackerSurvived: false, defenderSurvived: true,
+      attackerStrength: 20, defenderStrength: 20,
       attackerPosition: { q: 0, r: 0 }, defenderPosition: { q: 1, r: 0 },
     };
     const applied = applyCombatOutcomeToState(state, result, 42);
