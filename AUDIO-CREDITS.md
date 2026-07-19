@@ -418,3 +418,11 @@ Used for: all unit attack-swing, attack-impact, ranged-loose, ranged-impact,
 `beast-*-attack.ogg` / `beast-*-death.ogg` — synthesized in-project with ffmpeg 8.0.1
 (lavfi sine + anoisesrc layering with vibrato, echo, and filter chains).
 No external sources used.
+
+## Religion / Famine Stingers (#594 MR7)
+
+`public/audio/stinger/religion/*.ogg` and `public/audio/stinger/famine/*.ogg` were
+synthesized in-project with ffmpeg 8.0.1 (lavfi sine + anoisesrc layering over
+existing Kenney CC0 source clips — see `src/audio/religion-audio-sources.ts` for the
+exact source-to-output mapping). No new external sources were introduced; reuses the
+same Kenney Impact Sounds / RPG Audio CC0 pack already credited above.
