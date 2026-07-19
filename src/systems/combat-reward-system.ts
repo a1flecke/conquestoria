@@ -1,4 +1,4 @@
-import type { CombatResult, CombatRewardNotification, GameState, Unit } from '@/core/types';
+import type { CombatResult, CombatRewardNotification, GameState, Unit, UnitType } from '@/core/types';
 import { cleanupDeadSpyUnit } from '@/systems/espionage-system';
 import { UNIT_DEFINITIONS } from '@/systems/unit-system';
 import { applyQuestGameplayAction, type ChainTransition } from '@/systems/quest-chain-system';
@@ -11,6 +11,46 @@ import {
 } from '@/systems/pirate-actions';
 import { recordMilitaryAttack } from './diplomacy-system';
 import { UNIT_CLASS_BY_TYPE } from '@/systems/unit-modifier-definitions';
+
+/** Age-of-Sail through ironclad — boarding-action flavor. Everything else
+ * (destroyer onward) uses modern "disabled and captured" phrasing. Same
+ * underlying mechanic at every era — this only changes notification text. */
+const PRE_INDUSTRIAL_NAVAL_TYPES: readonly UnitType[] = [
+  'galley', 'trireme', 'frigate', 'ironclad',
+  'pirate_galley', 'pirate_corsair', 'pirate_frigate',
+];
+
+export function isCapturableNavalMilitary(type: UnitType): boolean {
+  if (type === 'beast_sea_serpent') return false;
+  const classes = UNIT_CLASS_BY_TYPE[type];
+  return classes.includes('naval') && !classes.includes('civilian');
+}
+
+export function meetsCaptureMargin(loserStrength: number, winnerStrength: number, winnerHealthAfter: number): boolean {
+  return loserStrength <= winnerStrength * 0.5 && winnerHealthAfter >= 50;
+}
+
+// A deep-sea-flotilla pirate faction's flagship must never be captured: destroyPirateFaction
+// (called later in applyCombatOutcomeToState when the flagship is actually destroyed) removes
+// every ship in the faction, including the flagship, from state.units — capturing the flagship
+// here and then having that cleanup delete it out from under the new owner would silently
+// undo the capture. Faction-destruction-on-capture is a separate, unscoped feature; until it
+// exists, flagships are always destroyed on defeat, never captured.
+function isPirateFlagship(state: GameState, unit: Unit): boolean {
+  const faction = state.pirates?.factions[unit.owner];
+  return faction?.headquarters.kind === 'deep-sea-flotilla' && faction.headquarters.flagshipUnitId === unit.id;
+}
+
+export function getCaptureNotificationLabel(type: UnitType): string {
+  const name = UNIT_DEFINITIONS[type].name;
+  if (type === 'settler') return 'Settler captured — converted to Worker';
+  if (isCapturableNavalMilitary(type)) {
+    return PRE_INDUSTRIAL_NAVAL_TYPES.includes(type)
+      ? `${name} boarded — prize crew aboard!`
+      : `${name} disabled and captured!`;
+  }
+  return `${name} captured!`;
+}
 
 export type VeterancyTierId = 'recruit' | 'seasoned' | 'veteran' | 'elite';
 
@@ -329,6 +369,27 @@ export function applyCombatOutcomeToState(
     };
     attackerActuallyDefeated = false;
     attackerCaptured = true;
+  } else if (
+    result.defenderSurvived
+    && isCapturableNavalMilitary(attackerBefore.type)
+    && !isPirateFlagship(state, attackerBefore)
+    && meetsCaptureMargin(result.attackerStrength, result.defenderStrength, Math.max(1, defenderBefore.health - result.defenderDamage))
+  ) {
+    // Prize crew: a decisive naval defeat captures the hull instead of sinking it.
+    units[result.attackerId] = { ...attackerBefore, owner: defenderBefore.owner };
+    civilizations = {
+      ...civilizations,
+      [attackerBefore.owner]: {
+        ...civilizations[attackerBefore.owner],
+        units: (civilizations[attackerBefore.owner]?.units ?? []).filter(id => id !== result.attackerId),
+      },
+      [defenderBefore.owner]: {
+        ...civilizations[defenderBefore.owner],
+        units: [...(civilizations[defenderBefore.owner]?.units ?? []), result.attackerId],
+      },
+    };
+    attackerActuallyDefeated = false;
+    attackerCaptured = true;
   } else {
     const removed = removeUnitFromCopies(units, civilizations, espionage, result.attackerId);
     units = removed.units;
@@ -361,6 +422,27 @@ export function applyCombatOutcomeToState(
     // same major-civ-only capturing-side requirement).
     const capturedType = defenderBefore.type === 'settler' ? 'worker' : defenderBefore.type;
     units[result.defenderId] = { ...defenderBefore, type: capturedType, owner: attackerBefore.owner };
+    civilizations = {
+      ...civilizations,
+      [defenderBefore.owner]: {
+        ...civilizations[defenderBefore.owner],
+        units: (civilizations[defenderBefore.owner]?.units ?? []).filter(id => id !== result.defenderId),
+      },
+      [attackerBefore.owner]: {
+        ...civilizations[attackerBefore.owner],
+        units: [...(civilizations[attackerBefore.owner]?.units ?? []), result.defenderId],
+      },
+    };
+    defenderActuallyDefeated = false;
+    defenderCaptured = true;
+  } else if (
+    result.attackerSurvived
+    && isCapturableNavalMilitary(defenderBefore.type)
+    && !isPirateFlagship(state, defenderBefore)
+    && meetsCaptureMargin(result.defenderStrength, result.attackerStrength, Math.max(1, attackerBefore.health - result.attackerDamage))
+  ) {
+    // Prize crew: mirror of the attacker-side branch above.
+    units[result.defenderId] = { ...defenderBefore, owner: attackerBefore.owner };
     civilizations = {
       ...civilizations,
       [defenderBefore.owner]: {
