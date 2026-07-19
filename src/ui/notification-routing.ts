@@ -475,7 +475,7 @@ export function routeReligionFounded(
     const message = civId === event.civId
       ? `${event.name} has been founded in ${city?.name ?? 'your empire'}!`
       : `${state.civilizations[event.civId]?.name ?? 'A rival civilization'} has founded ${event.name}.`;
-    sink(civId, message, 'success');
+    sink(civId, message, 'success', undefined, undefined, 'religion-founded');
   }
 }
 
@@ -499,10 +499,10 @@ export function routeReligionCityConverted(
   const toReligion = state.religions?.[event.toReligionId];
   if (!toReligion) return;
 
-  sink(city.owner, `${city.name} now follows ${toReligion.name}.`, 'info');
+  sink(city.owner, `${city.name} now follows ${toReligion.name}.`, 'info', undefined, undefined, 'city-converted');
 
   if (toReligion.ownerCivId !== city.owner && hasMetCivilization(state, toReligion.ownerCivId, city.owner)) {
-    sink(toReligion.ownerCivId, `${city.name} has converted to ${toReligion.name}!`, 'success');
+    sink(toReligion.ownerCivId, `${city.name} has converted to ${toReligion.name}!`, 'success', undefined, undefined, 'city-converted');
   }
 }
 
@@ -524,7 +524,7 @@ export function routeLoyaltyWarning(
   if (!city) return;
   const verb = LOYALTY_WARNING_TEXT[event.stage];
   const suffix = event.stage === 'final' ? ' next turn' : ` in ~${event.turnsRemaining} turns`;
-  sink(event.pressuringCivId, `${city.name} ${verb} your faith${suffix}!`, event.stage === 'final' ? 'warning' : 'info');
+  sink(event.pressuringCivId, `${city.name} ${verb} your faith${suffix}!`, event.stage === 'final' ? 'warning' : 'info', undefined, undefined, 'loyalty-warning');
 }
 
 // #593 MR6: mirrors routeReligionCityConverted's two-recipient shape -- the new owner
@@ -538,9 +538,9 @@ export function routeCityDefected(
 ): void {
   const city = state.cities[event.cityId];
   if (!city) return;
-  sink(event.toCivId, `${city.name} has defected to your faith!`, 'success');
+  sink(event.toCivId, `${city.name} has defected to your faith!`, 'success', undefined, undefined, 'city-defected');
   if (state.civilizations[event.fromCivId]) {
-    sink(event.fromCivId, `${city.name} has defected to a rival faith and left your empire.`, 'warning');
+    sink(event.fromCivId, `${city.name} has defected to a rival faith and left your empire.`, 'warning', undefined, undefined, 'city-defected');
   }
 }
 

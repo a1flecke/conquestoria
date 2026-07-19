@@ -23,8 +23,9 @@ function makeState(overrides: Partial<GameState> = {}): GameState {
 }
 
 function makeSink() {
-  const calls: Array<{ civId: string; message: string; type: string }> = [];
-  const sink = (civId: string, message: string, type: string) => calls.push({ civId, message, type });
+  const calls: Array<{ civId: string; message: string; type: string; sfxCue?: string }> = [];
+  const sink = (civId: string, message: string, type: string, _target?: unknown, _cityActions?: unknown, sfxCue?: string) =>
+    calls.push({ civId, message, type, sfxCue });
   return { sink, calls };
 }
 
@@ -64,6 +65,14 @@ describe('#591 MR4 — religion:founded routing', () => {
 
     expect(calls.map(c => c.civId)).toEqual(['p1']);
   });
+
+  it('#594 MR7: tags every toast with the religion-founded sfx cue', () => {
+    const state = makeState();
+    const { sink, calls } = makeSink();
+    routeReligionFounded(state, { religionId: 'religion-p1', civId: 'p1', cityId: 'c1', name: 'Order of Test' }, sink as never);
+
+    expect(calls.every(c => c.sfxCue === 'religion-founded')).toBe(true);
+  });
 });
 
 describe('#591 MR4 — religion:city-converted routing', () => {
@@ -102,6 +111,16 @@ describe('#591 MR4 — religion:city-converted routing', () => {
 
     expect(calls.map(c => c.civId)).toEqual(['p1']);
   });
+
+  it('#594 MR7: tags every toast with the city-converted sfx cue', () => {
+    const state = makeState({
+      religions: { 'religion-p2': { id: 'religion-p2', name: 'Order of Rivals', ownerCivId: 'p2', foundedTurn: 1 } },
+    });
+    const { sink, calls } = makeSink();
+    routeReligionCityConverted(state, { cityId: 'c1', toReligionId: 'religion-p2' }, sink as never);
+
+    expect(calls.every(c => c.sfxCue === 'city-converted')).toBe(true);
+  });
 });
 
 describe('#593 MR6 — routeLoyaltyWarning', () => {
@@ -120,6 +139,13 @@ describe('#593 MR6 — routeLoyaltyWarning', () => {
     routeLoyaltyWarning(state, { cityId: 'c1', pressuringCivId: 'p2', stage: 'final', turnsRemaining: 1 }, sink as never);
     expect(calls[0].type).toBe('warning');
   });
+
+  it('#594 MR7: tags the toast with the loyalty-warning sfx cue', () => {
+    const state = makeState();
+    const { sink, calls } = makeSink();
+    routeLoyaltyWarning(state, { cityId: 'c1', pressuringCivId: 'p2', stage: 'midpoint', turnsRemaining: 9 }, sink as never);
+    expect(calls[0].sfxCue).toBe('loyalty-warning');
+  });
 });
 
 describe('#593 MR6 — routeCityDefected', () => {
@@ -137,5 +163,12 @@ describe('#593 MR6 — routeCityDefected', () => {
     routeCityDefected(state, { cityId: 'c1', fromCivId: 'mc-1', toCivId: 'p1' }, sink as never);
     expect(calls).toHaveLength(1);
     expect(calls[0].civId).toBe('p1');
+  });
+
+  it('#594 MR7: tags every toast with the city-defected sfx cue', () => {
+    const state = makeState();
+    const { sink, calls } = makeSink();
+    routeCityDefected(state, { cityId: 'c1', fromCivId: 'p2', toCivId: 'p1' }, sink as never);
+    expect(calls.every(c => c.sfxCue === 'city-defected')).toBe(true);
   });
 });
