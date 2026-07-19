@@ -449,6 +449,96 @@ describe('applyCombatOutcomeToState', () => {
     expect(applied.state.minorCivs['mc-sparta'].activeQuests.player).toBeUndefined();
   });
 
+  it('destroys (never captures) a civilian defeated by a barbarian — barbarian has no civilizations[] entry (#541 second-pass review)', () => {
+    // 'barbarian' is not a key in state.civilizations (classifyOwner routes it separately).
+    // Before this fix, the capture branch unconditionally wrote
+    // civilizations['barbarian'] = { ...undefined, units: [...] } — a malformed partial
+    // civ object missing every required field (cities, techState, diplomacy, ...), which
+    // crashes the first downstream code that iterates Object.values(state.civilizations)
+    // assuming complete civ objects (e.g. getCrisisEligibleCivIds's civ.cities.length).
+    // Barbarians raiding workers/caravans (their core raid behavior, see barbarian-system.ts)
+    // makes this the single most common combat outcome in the game — this must destroy, not
+    // silently corrupt state.
+    const state = makeRewardState();
+    state.units.attacker = { ...state.units.attacker, owner: 'barbarian' };
+    state.units.defender = { ...state.units.defender, type: 'worker', owner: 'ai-1' };
+    state.civilizations['ai-1'].units = ['defender'];
+    const result: CombatResult = {
+      attackerId: 'attacker', defenderId: 'defender', attackerDamage: 0, defenderDamage: 100,
+      attackerSurvived: true, defenderSurvived: false,
+      attackerPosition: { q: 0, r: 0 }, defenderPosition: { q: 1, r: 0 },
+    };
+
+    const applied = applyCombatOutcomeToState(state, result, 64);
+
+    expect(applied.defenderCaptured).toBe(false);
+    expect(applied.defenderDefeated).toBe(true);
+    expect(applied.state.units.defender).toBeUndefined();
+    expect(applied.state.civilizations.barbarian).toBeUndefined();
+  });
+
+  it('destroys (never captures) a civilian defeated by a minor civ — minor civs track units in state.minorCivs, not state.civilizations (#541 second-pass review)', () => {
+    const state = makeRewardState();
+    state.units.attacker = { ...state.units.attacker, owner: 'mc-sparta' };
+    state.units.defender = { ...state.units.defender, type: 'worker', owner: 'ai-1' };
+    state.civilizations['ai-1'].units = ['defender'];
+    state.minorCivs['mc-sparta'] = {
+      id: 'mc-sparta', definitionId: 'sparta', cityId: 'mc-city', units: ['attacker'],
+      diplomacy: { relationships: {}, treaties: [], events: [], atWarWith: [], treacheryScore: 0, vassalage: { overlord: null, vassals: [], protectionScore: 100, protectionTimers: [], peakCities: 0, peakMilitary: 1 } },
+      activeQuests: {}, chainStatusByCiv: {}, questCooldownUntilByCiv: {}, lastNotifiedStatusByCiv: {},
+      isDestroyed: false, garrisonCooldown: 0, lastEraUpgrade: 1,
+    };
+    const result: CombatResult = {
+      attackerId: 'attacker', defenderId: 'defender', attackerDamage: 0, defenderDamage: 100,
+      attackerSurvived: true, defenderSurvived: false,
+      attackerPosition: { q: 0, r: 0 }, defenderPosition: { q: 1, r: 0 },
+    };
+
+    const applied = applyCombatOutcomeToState(state, result, 64);
+
+    expect(applied.defenderCaptured).toBe(false);
+    expect(applied.defenderDefeated).toBe(true);
+    expect(applied.state.units.defender).toBeUndefined();
+    expect(applied.state.civilizations['mc-sparta']).toBeUndefined();
+  });
+
+  it('still counts a captured (not destroyed) civilian toward a defeat_units quest (#541 second-pass review)', () => {
+    // eligibleHostileUnits (quest-objective-system.ts) treats any hostile unit as a valid
+    // defeat_units target, civilians included. Capture sets defenderActuallyDefeated to
+    // false, so without this the quest silently stops progressing whenever the player
+    // captures rather than kills — a real regression the capture generalization exposed.
+    const state = makeRewardState();
+    state.units.defender = { ...state.units.defender, type: 'worker', owner: 'ai-1' };
+    state.civilizations['ai-1'].units = ['defender'];
+    state.civilizations.player.diplomacy.atWarWith = ['ai-1'];
+    state.civilizations['ai-1'].diplomacy.atWarWith = ['player'];
+    state.minorCivs['mc-sparta'] = {
+      id: 'mc-sparta', definitionId: 'sparta', cityId: 'mc-city', units: [],
+      diplomacy: { ...state.civilizations.player.diplomacy, relationships: { player: 0 } },
+      activeQuests: {
+        player: {
+          id: 'quest-defeat', type: 'defeat_units', description: 'Defeat one enemy',
+          target: { type: 'defeat_units', count: 1, nearPosition: { q: 1, r: 0 }, radius: 3 },
+          reward: { relationshipBonus: 10 }, progress: 0, status: 'active',
+          turnIssued: state.turn, expiresOnTurn: state.turn + 20,
+        },
+      },
+      chainStatusByCiv: {}, questCooldownUntilByCiv: {}, lastNotifiedStatusByCiv: {},
+      isDestroyed: false, garrisonCooldown: 0, lastEraUpgrade: 1,
+    };
+    const result: CombatResult = {
+      attackerId: 'attacker', defenderId: 'defender', attackerDamage: 0, defenderDamage: 100,
+      attackerSurvived: true, defenderSurvived: false,
+      attackerPosition: { q: 0, r: 0 }, defenderPosition: { q: 1, r: 0 },
+    };
+
+    const applied = applyCombatOutcomeToState(state, result, 64);
+
+    expect(applied.defenderCaptured).toBe(true);
+    expect(applied.questTransitions.some(transition => transition.type === 'completed')).toBe(true);
+    expect(applied.state.minorCivs['mc-sparta'].activeQuests.player).toBeUndefined();
+  });
+
   it('restores victory health from the survivor post-combat health', () => {
     const state = makeRewardState();
     state.units.attacker = { ...state.units.attacker, health: 100 };
