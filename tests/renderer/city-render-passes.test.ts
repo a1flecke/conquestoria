@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import {
   drawCityIconPass,
   drawCityIdleBadgePass,
@@ -14,9 +14,11 @@ import {
 } from '@/renderer/city-render-passes';
 import { getLegendaryWonderLandmarkMetadata } from '@/systems/legendary-wonder-landmark-catalog';
 import type { LegendaryWonderMapEntry } from '@/systems/legendary-wonder-map-presentation';
+import * as famineBadgeMarker from '@/renderer/improvements/famine-badge-marker';
 
 class MockCtx {
   fillTextCalls: Array<{ text: string; x: number; y: number; font: string; measuredWidth: number; maxWidth?: number }> = [];
+  drawImageCalls: unknown[][] = [];
   font = '';
   fillStyle = '';
   strokeStyle = '';
@@ -54,6 +56,7 @@ class MockCtx {
   moveTo(): void {}
   lineTo(): void {}
   closePath(): void {}
+  drawImage(...args: unknown[]): void { this.drawImageCalls.push(args); }
 }
 
 function makeItem(overrides: Partial<CityRenderItem> = {}): CityRenderItem {
@@ -263,6 +266,39 @@ describe('city icon and badge text bounds', () => {
     drawCityWorldPressureBadgePass(ctx, item);
 
     expect((ctx as unknown as MockCtx).fillTextCalls).toHaveLength(0);
+  });
+
+  it('#594 MR7: draws the famine badge marker image (not the ⚠️ glyph) when worldPressureCrisis is famine and the marker image is loaded', () => {
+    const getFamineBadgeMarkerImageSpy = vi.spyOn(famineBadgeMarker, 'getFamineBadgeMarkerImage')
+      .mockReturnValue({} as HTMLImageElement);
+    const ctx = new MockCtx() as unknown as CanvasRenderingContext2D;
+    const city = {
+      id: 'city-1', owner: 'ai-1', productionQueue: [] as string[], idleProduction: null, unrestLevel: 0,
+    } as CityRenderItem['city'];
+    const item = makeItem({ city, worldPressureCrisis: 'famine' });
+
+    drawCityWorldPressureBadgePass(ctx, item);
+
+    expect((ctx as unknown as MockCtx).drawImageCalls).toHaveLength(1);
+    expect((ctx as unknown as MockCtx).fillTextCalls).toHaveLength(0);
+    getFamineBadgeMarkerImageSpy.mockRestore();
+  });
+
+  it('#594 MR7: falls back to the ⚠️ glyph for famine when the marker image has not loaded yet', () => {
+    const getFamineBadgeMarkerImageSpy = vi.spyOn(famineBadgeMarker, 'getFamineBadgeMarkerImage')
+      .mockReturnValue(null);
+    const ctx = new MockCtx() as unknown as CanvasRenderingContext2D;
+    const city = {
+      id: 'city-1', owner: 'ai-1', productionQueue: [] as string[], idleProduction: null, unrestLevel: 0,
+    } as CityRenderItem['city'];
+    const item = makeItem({ city, worldPressureCrisis: 'famine' });
+
+    drawCityWorldPressureBadgePass(ctx, item);
+
+    expect((ctx as unknown as MockCtx).drawImageCalls).toHaveLength(0);
+    expect((ctx as unknown as MockCtx).fillTextCalls).toHaveLength(1);
+    expect((ctx as unknown as MockCtx).fillTextCalls[0]!.text).toBe('⚠️');
+    getFamineBadgeMarkerImageSpy.mockRestore();
   });
 
   it('skips the world-pressure badge for landmark-only (non-live) render items', () => {

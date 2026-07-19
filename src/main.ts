@@ -15,6 +15,7 @@ import { processNonHumanMajorRound } from '@/ai/ai-round-scheduler';
 import { RenderLoop } from '@/renderer/render-loop';
 import { initSprites } from '@/renderer/sprites/sprite-loader';
 import { preloadOutpostMarker } from '@/renderer/improvements/resource-outpost-marker';
+import { preloadFamineBadgeMarker } from '@/renderer/improvements/famine-badge-marker';
 import { preloadRailSegment } from '@/renderer/improvements/rail-segment-loader';
 import { preloadTerrainTiles } from '@/renderer/terrain/terrain-tile-loader';
 import { preloadNaturalWonderTiles } from '@/renderer/terrain/wonder-tile-loader';
@@ -5121,6 +5122,7 @@ function startGame(): void {
   }
   initSprites(civColors);
   preloadOutpostMarker().catch(() => {});
+  preloadFamineBadgeMarker().catch(() => {});
   preloadRailSegment().catch(() => {});
   preloadTerrainTiles().catch(() => {});
   preloadNaturalWonderTiles().catch(() => {});
