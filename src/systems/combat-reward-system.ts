@@ -10,6 +10,7 @@ import {
   type PirateActionEvent,
 } from '@/systems/pirate-actions';
 import { recordMilitaryAttack } from './diplomacy-system';
+import { UNIT_CLASS_BY_TYPE } from '@/systems/unit-modifier-definitions';
 
 export type VeterancyTierId = 'recruit' | 'seasoned' | 'veteran' | 'elite';
 
@@ -48,6 +49,8 @@ export interface CombatOutcomeApplication {
   rewards: CombatReward[];
   attackerDefeated: boolean;
   defenderDefeated: boolean;
+  attackerCaptured: boolean;
+  defenderCaptured: boolean;
   questTransitions: ChainTransition[];
   pirateEvents: PirateActionEvent[];
 }
@@ -231,7 +234,7 @@ export function applyCombatOutcomeToState(
   const attackerBefore = state.units[result.attackerId];
   const defenderBefore = state.units[result.defenderId];
   if (!attackerBefore || !defenderBefore) {
-    return { state, rewards: [], attackerDefeated: false, defenderDefeated: false, questTransitions: [], pirateEvents: [] };
+    return { state, rewards: [], attackerDefeated: false, defenderDefeated: false, attackerCaptured: false, defenderCaptured: false, questTransitions: [], pirateEvents: [] };
   }
 
   let units = { ...state.units };
@@ -268,6 +271,8 @@ export function applyCombatOutcomeToState(
 
   let attackerActuallyDefeated = !result.attackerSurvived;
   let defenderActuallyDefeated = !result.defenderSurvived;
+  let attackerCaptured = false;
+  let defenderCaptured = false;
 
   if (result.attackerSurvived) {
     units[result.attackerId] = {
@@ -288,9 +293,18 @@ export function applyCombatOutcomeToState(
       geneTherapyReady: false,
     };
     attackerActuallyDefeated = false;
-  } else if (attackerBefore.type === 'cyber_unit') {
-    // Cyber unit: capture (transfer ownership) instead of destroy
-    units[result.attackerId] = { ...attackerBefore, owner: defenderBefore.owner };
+  } else if (UNIT_CLASS_BY_TYPE[attackerBefore.type].includes('civilian') && !attackerBefore.cargoUnitIds?.length) {
+    // Civilian capture: transfer ownership instead of destroying. Covers cyber_unit
+    // (already tagged 'civilian') and every other civilian type uniformly — settler
+    // downgrades to worker so a captured settler can't hand the capturing civ a free
+    // city-founding unit. No other field resets: health/hasActed/movementPointsLeft
+    // carry over exactly as they were, matching this branch's pre-existing behavior.
+    // A transport/carrier currently loaded with cargo is excluded — capturing a
+    // civilian ship is out of scope for what happens to enemy troops riding along,
+    // so a loaded transport still falls through to the destroy branch below, which
+    // already cascades cargo cleanup correctly.
+    const capturedType = attackerBefore.type === 'settler' ? 'worker' : attackerBefore.type;
+    units[result.attackerId] = { ...attackerBefore, type: capturedType, owner: defenderBefore.owner };
     civilizations = {
       ...civilizations,
       [attackerBefore.owner]: {
@@ -303,6 +317,7 @@ export function applyCombatOutcomeToState(
       },
     };
     attackerActuallyDefeated = false;
+    attackerCaptured = true;
   } else {
     const removed = removeUnitFromCopies(units, civilizations, espionage, result.attackerId);
     units = removed.units;
@@ -326,9 +341,10 @@ export function applyCombatOutcomeToState(
       geneTherapyReady: false,
     };
     defenderActuallyDefeated = false;
-  } else if (defenderBefore.type === 'cyber_unit') {
-    // Cyber unit: capture (transfer ownership) instead of destroy
-    units[result.defenderId] = { ...defenderBefore, owner: attackerBefore.owner };
+  } else if (UNIT_CLASS_BY_TYPE[defenderBefore.type].includes('civilian') && !defenderBefore.cargoUnitIds?.length) {
+    // Civilian capture: mirror of the attacker-side branch above (same cargo exclusion).
+    const capturedType = defenderBefore.type === 'settler' ? 'worker' : defenderBefore.type;
+    units[result.defenderId] = { ...defenderBefore, type: capturedType, owner: attackerBefore.owner };
     civilizations = {
       ...civilizations,
       [defenderBefore.owner]: {
@@ -341,6 +357,7 @@ export function applyCombatOutcomeToState(
       },
     };
     defenderActuallyDefeated = false;
+    defenderCaptured = true;
   } else {
     const removed = removeUnitFromCopies(units, civilizations, espionage, result.defenderId);
     units = removed.units;
@@ -450,6 +467,8 @@ export function applyCombatOutcomeToState(
     rewards,
     attackerDefeated: attackerActuallyDefeated,
     defenderDefeated: defenderActuallyDefeated,
+    attackerCaptured,
+    defenderCaptured,
     questTransitions,
     pirateEvents,
   };
