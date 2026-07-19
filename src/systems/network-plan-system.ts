@@ -2,6 +2,7 @@ import type {
   NetworkPlan,
   NetworkPlanDefinitionId,
   NetworkPlanTarget,
+  NetworkPlanSource,
 } from '@/core/autonomy-state';
 import { createEmptyAutonomyCivState } from '@/core/autonomy-state';
 import type { GameState } from '@/core/types';
@@ -16,7 +17,8 @@ import {
 
 export interface NetworkPlanRequest {
   ownerCivId: string;
-  sourceUnitId: string;
+  sourceUnitId?: string;
+  source?: NetworkPlanSource;
   definitionId: NetworkPlanDefinitionId;
   target: NetworkPlanTarget;
 }
@@ -75,6 +77,14 @@ function hasActivePlanForSource(state: GameState, sourceUnitId: string): boolean
   );
 }
 
+function hasActivePlanForCitySource(state: GameState, cityId: string): boolean {
+  return Object.values(state.autonomyByCiv ?? {}).some(autonomy =>
+    Object.values(autonomy.plans).some(plan =>
+      plan.source?.kind === 'city' && plan.source.cityId === cityId
+      && plan.status !== 'canceled' && plan.status !== 'completed'),
+  );
+}
+
 function hasSameTypeCityPlan(state: GameState, definitionId: NetworkPlanDefinitionId, cityId: string): boolean {
   return Object.values(state.autonomyByCiv ?? {}).some(autonomy =>
     Object.values(autonomy.plans).some(plan =>
@@ -94,7 +104,30 @@ export function validateNetworkPlanAssignment(
   if (!owner) return { ok: false, reason: 'missing-owner' };
   if (!isAutonomyActivated(state, request.ownerCivId)) return { ok: false, reason: 'autonomy-not-activated' };
 
-  const source = state.units[request.sourceUnitId];
+  const definition = getNetworkPlanDefinition(request.definitionId);
+  if (definition.sourceKind === 'city') {
+    const cityId = request.source?.kind === 'city' ? request.source.cityId : '';
+    const sourceCity = state.cities[cityId];
+    if (!sourceCity || sourceCity.owner !== request.ownerCivId) return { ok: false, reason: 'missing-source' };
+    const anchors: Record<string, string[]> = {
+      'fabrication-sprint': ['network_operations_center', 'smart_grid'],
+      'research-mesh': ['network_operations_center', 'data_center'],
+      'logistics-routing': ['network_operations_center', 'automated_port'],
+      'survey-grid': ['network_operations_center', 'space_center'],
+    };
+    if (!anchors[request.definitionId]?.some(building => sourceCity.buildings.includes(building))) {
+      return { ok: false, reason: 'invalid-source' };
+    }
+    if (hasActivePlanForCitySource(state, cityId)) return { ok: false, reason: 'source-already-assigned' };
+    if (request.target.kind !== 'city') return { ok: false, reason: 'invalid-target' };
+    const targetCity = state.cities[request.target.cityId];
+    if (!targetCity) return { ok: false, reason: 'missing-target-city' };
+    if (targetCity.owner !== request.ownerCivId) return { ok: false, reason: 'target-not-friendly' };
+    return { ok: true };
+  }
+
+  const sourceUnitId = request.source?.kind === 'unit' ? request.source.unitId : request.sourceUnitId;
+  const source = sourceUnitId ? state.units[sourceUnitId] : undefined;
   if (!source) return { ok: false, reason: 'missing-source' };
   if (source.owner !== request.ownerCivId || source.type !== 'cyber_unit') {
     return { ok: false, reason: 'invalid-source' };
@@ -104,7 +137,6 @@ export function validateNetworkPlanAssignment(
 
   const city = state.cities[request.target.cityId];
   if (!city) return { ok: false, reason: 'missing-target-city' };
-  const definition = getNetworkPlanDefinition(request.definitionId);
   if (hexDistance(source.position, city.position) > definition.range) {
     return { ok: false, reason: 'target-out-of-range' };
   }
@@ -131,14 +163,16 @@ export function assignNetworkPlan(
   const validation = validateNetworkPlanAssignment(state, request);
   if (!validation.ok) return { state, validation, plan: null };
 
+  const definition = getNetworkPlanDefinition(request.definitionId);
   const nextId = state.idCounters.nextNetworkPlanId ?? 1;
   const plan: NetworkPlan = {
     id: `network-plan-${nextId}`,
     ownerCivId: request.ownerCivId,
     definitionId: request.definitionId,
-    sourceUnitId: request.sourceUnitId,
+    sourceUnitId: request.source?.kind === 'unit' ? request.source.unitId : request.sourceUnitId,
+    ...(request.source ? { source: structuredClone(request.source) } : {}),
     target: structuredClone(request.target),
-    status: request.definitionId === 'harden' ? 'active' : 'preparing',
+    status: definition.targetKind === 'at-war-enemy-city' ? 'preparing' : 'active',
     createdTurn: state.turn,
     // A victim's next player turn can occur later in this hot-seat round, before the
     // global round counter advances.  The warning gate, not a round offset, owns timing.
@@ -189,7 +223,7 @@ export function retargetNetworkPlan(
   const withoutOldPlan = stateWithoutPlan(state, ownerCivId, planId);
   const request: NetworkPlanRequest = {
     ownerCivId,
-    sourceUnitId: existing.sourceUnitId,
+    sourceUnitId: existing.source?.kind === 'unit' ? existing.source.unitId : existing.sourceUnitId ?? '',
     definitionId: existing.definitionId,
     target,
   };
@@ -241,7 +275,7 @@ export function cancelInvalidNetworkPlans(state: GameState): NetworkPlanCleanupR
     const withoutPlan = stateWithoutPlan(nextState, ownerCivId, plan.id);
     const validation = validateNetworkPlanAssignment(withoutPlan, {
       ownerCivId,
-      sourceUnitId: plan.sourceUnitId,
+      sourceUnitId: plan.source?.kind === 'unit' ? plan.source.unitId : plan.sourceUnitId ?? '',
       definitionId: plan.definitionId,
       target: plan.target,
     });

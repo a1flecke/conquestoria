@@ -33,6 +33,23 @@ describe('network plan definitions', () => {
         surgedPercent: 15,
       },
     });
-    expect(Object.keys(NETWORK_PLAN_DEFINITIONS).sort()).toEqual(['exploit', 'harden']);
+    expect(Object.keys(NETWORK_PLAN_DEFINITIONS).sort()).toEqual([
+      'exploit', 'fabrication-sprint', 'guardian-screen', 'harden',
+      'logistics-routing', 'research-mesh', 'survey-grid', 'swarm-strike',
+    ]);
+  });
+
+  it('defines constructive plans and dormant formation contracts with bounded effects', () => {
+    expect(getNetworkPlanDefinition('fabrication-sprint')).toMatchObject({
+      targetKind: 'owned-city', sourceKind: 'city', load: 2,
+      effect: { kind: 'city-production-percent', normalPercent: 10, normalCap: 4, surgedPercent: 15, surgedCap: 6 },
+    });
+    expect(getNetworkPlanDefinition('research-mesh')).toMatchObject({
+      targetKind: 'owned-city', sourceKind: 'city', load: 3,
+      effect: { kind: 'city-science-percent', normalPercent: 5, normalCap: 3, surgedPercent: 8, surgedCap: 5 },
+    });
+    expect(getNetworkPlanDefinition('guardian-screen').effect).toEqual({
+      kind: 'formation-strength', normalAmount: 4, surgedAmount: 6, mode: 'defense',
+    });
   });
 });

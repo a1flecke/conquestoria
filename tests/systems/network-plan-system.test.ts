@@ -103,6 +103,23 @@ describe('network plan lifecycle', () => {
     expect(state.idCounters.nextNetworkPlanId).toBe(1);
   });
 
+  it('assigns Fabrication Sprint from an eligible owned city without a Cyber Unit', () => {
+    const state = makeState();
+    state.cities['city-player'].buildings = ['smart_grid'];
+
+    const result = assignNetworkPlan(state, {
+      ownerCivId: 'player',
+      source: { kind: 'city', cityId: 'city-player' },
+      definitionId: 'fabrication-sprint',
+      target: { kind: 'city', cityId: 'city-player' },
+    });
+
+    expect(result.validation).toEqual({ ok: true });
+    expect(result.plan).toMatchObject({
+      definitionId: 'fabrication-sprint', source: { kind: 'city', cityId: 'city-player' }, status: 'active',
+    });
+  });
+
   it('rejects Exploit without bilateral war and leaves state untouched', () => {
     const state = makeState();
     state.civilizations.player.diplomacy.atWarWith = [];

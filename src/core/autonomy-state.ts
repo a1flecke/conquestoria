@@ -15,13 +15,29 @@ export type NetworkPlanStatus =
   | 'completed'
   | 'canceled';
 
-export type NetworkPlanDefinitionId = 'harden' | 'exploit';
+export type NetworkPlanDefinitionId =
+  | 'harden'
+  | 'exploit'
+  | 'fabrication-sprint'
+  | 'research-mesh'
+  | 'logistics-routing'
+  | 'survey-grid'
+  | 'guardian-screen'
+  | 'swarm-strike';
+
+export type NetworkPlanSource =
+  | { kind: 'unit'; unitId: string }
+  | { kind: 'city'; cityId: string };
+
+export type AutonomyPostureId = 'safeguarded' | 'integrated' | 'accelerated';
 
 export interface NetworkPlan {
   id: string;
   ownerCivId: string;
   definitionId: NetworkPlanDefinitionId;
-  sourceUnitId: string;
+  sourceUnitId?: string;
+  /** MR4 source form; sourceUnitId remains for schema-3 compatibility until migration normalizes it. */
+  source?: NetworkPlanSource;
   target: NetworkPlanTarget;
   status: NetworkPlanStatus;
   createdTurn: number;
@@ -43,8 +59,19 @@ export interface NetworkViewerDetection {
 export interface AutonomyCivState {
   plans: Record<string, NetworkPlan>;
   detections: Record<string, NetworkViewerDetection>;
+  posture: AutonomyPostureId;
+  pendingPosture: { id: AutonomyPostureId; appliesOnTurn: number } | null;
+  surgeRecoveryUntilTurn: number | null;
+  surgeCooldownUntilTurn: number | null;
 }
 
 export function createEmptyAutonomyCivState(): AutonomyCivState {
-  return { plans: {}, detections: {} };
+  return {
+    plans: {},
+    detections: {},
+    posture: 'integrated',
+    pendingPosture: null,
+    surgeRecoveryUntilTurn: null,
+    surgeCooldownUntilTurn: null,
+  };
 }

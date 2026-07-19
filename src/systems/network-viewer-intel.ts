@@ -30,7 +30,8 @@ export function getNetworkWarningForViewer(
   const detection = state.autonomyByCiv?.[viewerId]?.detections[planId];
   if (!detection || (!detection.sourceIdentityKnown && !detection.sourcePositionKnown)) return warning;
 
-  const source = state.units[ownerEntry.sourceUnitId];
+  const sourceUnitId = ownerEntry.source?.kind === 'unit' ? ownerEntry.source.unitId : ownerEntry.sourceUnitId;
+  const source = sourceUnitId ? state.units[sourceUnitId] : undefined;
   warning.source = {
     ...(detection.sourceIdentityKnown && source ? { unitId: source.id } : {}),
     ...(detection.sourcePositionKnown && source ? { position: { ...source.position } } : {}),
