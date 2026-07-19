@@ -43,6 +43,7 @@ import { getCrisisFlavor, getCrisisDisplayName } from '@/systems/crisis-flavor-d
 import { getCrisisYieldMultiplier, getOutbreakSeverityMultiplier, getCatastropheRecoveryMultiplier, FAMINE_CONTAINMENT_SURPLUS_TURNS } from '@/systems/crisis-system';
 import { getStrongestPressure } from '@/systems/religion-system';
 import { CONVERSION_THRESHOLD } from '@/systems/religion-definitions';
+import { getLoyaltyThreshold, getLoyaltyTickAmount } from '@/systems/religion-loyalty-system';
 import { resolvePressureSeverityForCiv } from '@/core/opponent-challenge';
 import { getCityIntrinsicStrength, isCityHpRegenerating } from '@/systems/city-siege-system';
 import { getOccupiedCityMood, getOccupiedCityYieldMultiplier } from '@/systems/city-occupation-system';
@@ -450,17 +451,38 @@ export function createCityPanel(
     const turnsRemaining = pointsTowardCurrentTarget !== undefined && pressure && pressure.accrual > 0
       ? Math.ceil((CONVERSION_THRESHOLD - pointsTowardCurrentTarget) / pressure.accrual)
       : null;
+    // #593 MR6: loyalty-flip counterplay display. Only present when the city is
+    // actively on the loyalty track (loyaltyProgress set) -- most cities, most of the
+    // time, have none.
+    const loyalty = cityFaithEntry.loyaltyProgress && faithReligion ? (() => {
+      const pressuringCiv = state.civilizations[cityFaithEntry.loyaltyProgress!.toCivId];
+      const threshold = getLoyaltyThreshold(state);
+      const tick = getLoyaltyTickAmount(state, city, faithReligion);
+      const counterplaySuffix = tick === 0
+        ? ' (garrisoned — paused)'
+        : city.buildings.includes('temple')
+          ? ' (temple — halved)'
+          : '';
+      return {
+        pressuringCivName: pressuringCiv?.name ?? 'Unknown',
+        points: cityFaithEntry.loyaltyProgress!.points,
+        threshold,
+        counterplaySuffix,
+      };
+    })() : null;
     return {
       religionName: faithReligion.name,
       isHolyCity: !!cityFaithEntry.isHolyCity,
       inProgress: pointsTowardCurrentTarget !== undefined,
       turnsRemaining,
+      loyalty,
     };
   })() : null;
   const faithSectionHtml = faithData ? `
     <div style="background:rgba(150,120,217,0.12);border:1px solid rgba(150,120,217,0.35);border-radius:8px;padding:10px 12px;margin-bottom:16px;font-size:12px;">
       <div style="font-weight:bold;color:#b39ddb;margin-bottom:4px;">🙏 Faith</div>
       <div data-text="faith-status"></div>
+      ${faithData.loyalty ? '<div data-text="faith-loyalty" style="margin-top:4px;color:#e0b0ff;"></div>' : ''}
     </div>` : '';
   const getFutureBuildingUpkeep = (buildingId: string): number => {
     const projected = calculateCityBuildingMaintenance(state, {
@@ -957,6 +979,10 @@ export function createCityPanel(
         ? `Converting to ${faithData.religionName}${faithData.turnsRemaining !== null ? ` — ~${faithData.turnsRemaining} turn${faithData.turnsRemaining === 1 ? '' : 's'} remaining` : ''}`
         : `Follows ${faithData.religionName}`;
     setText('faith-status', statusText);
+    if (faithData.loyalty) {
+      const { pressuringCivName, points, threshold, counterplaySuffix } = faithData.loyalty;
+      setText('faith-loyalty', `Loyalty to ${pressuringCivName}: ${points} / ${threshold}${counterplaySuffix}`);
+    }
   }
 
   catastropheChips.forEach((chip, idx) => {
