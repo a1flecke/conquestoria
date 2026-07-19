@@ -19,6 +19,10 @@ export type NotificationSink = (
   type: NotificationEntry['type'],
   target?: NotificationEntry['target'],
   cityActions?: NotificationCityAction[],
+  // #594 MR7: transient presentation-only cue id (e.g. 'religion-founded'). Never
+  // persisted -- deliver() does not pass this to appendNotification, so it has no
+  // effect on the notification log or save schema. See ReligionAudioDirector.playCue.
+  sfxCue?: string,
 ) => void;
 
 type FactionTransitionEvent =

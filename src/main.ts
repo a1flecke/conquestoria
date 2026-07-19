@@ -658,7 +658,7 @@ function updateHUD(): void {
 }
 
 // --- Notification queue ---
-const notificationQueue: Array<Pick<NotificationEntry, 'message' | 'type' | 'target'>> = [];
+const notificationQueue: Array<Pick<NotificationEntry, 'message' | 'type' | 'target'> & { sfxCue?: string }> = [];
 let isShowingNotification = false;
 let currentDismissTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -666,9 +666,10 @@ function enqueueToast(
   message: string,
   type: NotificationEntry['type'],
   target?: NotificationEntry['target'],
+  sfxCue?: string,
 ): void {
   if (roundPresentationGate.isSuppressed()) return;
-  notificationQueue.push({ message, type, target });
+  notificationQueue.push({ message, type, target, sfxCue });
   if (!isShowingNotification) displayNextNotification();
 }
 
@@ -901,7 +902,14 @@ function displayNextNotification(): void {
     if (notif.parentNode) dismiss();
   }, 6000);
 
-  SFX.notification();
+  // #594 MR7: religion toasts carry a bespoke sfxCue that replaces the generic synth
+  // chime -- see notification-routing.ts's routeReligionFounded/routeReligionCityConverted/
+  // routeLoyaltyWarning/routeCityDefected for where sfxCue is set.
+  if (next.sfxCue) {
+    void audio.playReligionStinger(next.sfxCue).catch(() => {});
+  } else {
+    SFX.notification();
+  }
 }
 
 function toggleNotificationLog(): void {
