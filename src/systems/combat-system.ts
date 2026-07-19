@@ -332,6 +332,8 @@ export function resolveCombat(
       defenderDamage: defender.health,
       attackerSurvived: true,
       defenderSurvived: false,
+      attackerStrength: atkStrength,
+      defenderStrength: defStrength,
       attackerPosition: attacker.position,
       defenderPosition: defender.position,
     };
@@ -345,6 +347,8 @@ export function resolveCombat(
       defenderDamage: 0,
       attackerSurvived: false,
       defenderSurvived: true,
+      attackerStrength: atkStrength,
+      defenderStrength: defStrength,
       attackerPosition: attacker.position,
       defenderPosition: defender.position,
     };
@@ -388,6 +392,8 @@ export function resolveCombat(
     defenderDamage,
     attackerSurvived: attackerHealthAfter > 0,
     defenderSurvived: defenderHealthAfter > 0,
+    attackerStrength: atkStrength,
+    defenderStrength: defStrength,
     attackerPosition: attacker.position,
     defenderPosition: defender.position,
     ...(exchange.kind === 'none' ? {} : { exchange: { kind: exchange.kind, label: exchange.label! } }),

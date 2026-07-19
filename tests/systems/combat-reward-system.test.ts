@@ -93,6 +93,8 @@ describe('combat-reward-system', () => {
       defenderDamage: 100,
       attackerSurvived: true,
       defenderSurvived: false,
+      attackerStrength: 20,
+      defenderStrength: 20,
       attackerPosition: { q: 0, r: 0 },
       defenderPosition: { q: 1, r: 0 },
     };
@@ -117,6 +119,8 @@ describe('combat-reward-system', () => {
       defenderDamage: 12,
       attackerSurvived: false,
       defenderSurvived: true,
+      attackerStrength: 20,
+      defenderStrength: 20,
       attackerPosition: { q: 0, r: 0 },
       defenderPosition: { q: 1, r: 0 },
     };
@@ -141,6 +145,8 @@ describe('combat-reward-system', () => {
       defenderDamage: 100,
       attackerSurvived: false,
       defenderSurvived: false,
+      attackerStrength: 20,
+      defenderStrength: 20,
       attackerPosition: { q: 0, r: 0 },
       defenderPosition: { q: 1, r: 0 },
     };
@@ -213,7 +219,7 @@ describe('applyCombatOutcomeToState', () => {
     state.civilizations['ai-1'].units = ['carrier', 'based'];
     const result: CombatResult = {
       attackerId: 'attacker', defenderId: 'carrier', attackerDamage: 0, defenderDamage: 100,
-      attackerSurvived: true, defenderSurvived: false, attackerPosition: { q: 0, r: 0 }, defenderPosition: { q: 1, r: 0 },
+      attackerSurvived: true, defenderSurvived: false, attackerStrength: 20, defenderStrength: 20, attackerPosition: { q: 0, r: 0 }, defenderPosition: { q: 1, r: 0 },
     };
 
     const applied = applyCombatOutcomeToState(state, result, 64);
@@ -238,6 +244,8 @@ describe('applyCombatOutcomeToState', () => {
       defenderDamage: 5,
       attackerSurvived: true,
       defenderSurvived: true,
+      attackerStrength: 20,
+      defenderStrength: 20,
       attackerPosition: { q: 0, r: 0 },
       defenderPosition: { q: 1, r: 0 },
     };
@@ -263,6 +271,8 @@ describe('applyCombatOutcomeToState', () => {
       defenderDamage: 5,
       attackerSurvived: true,
       defenderSurvived: true,
+      attackerStrength: 20,
+      defenderStrength: 20,
       attackerPosition: { q: 0, r: 0 },
       defenderPosition: { q: 1, r: 0 },
     };
@@ -290,6 +300,8 @@ describe('applyCombatOutcomeToState', () => {
       defenderDamage: 5,
       attackerSurvived: true,
       defenderSurvived: false,
+      attackerStrength: 20,
+      defenderStrength: 20,
       attackerPosition: { q: 0, r: 0 },
       defenderPosition: { q: 1, r: 0 },
     };
@@ -317,6 +329,8 @@ describe('applyCombatOutcomeToState', () => {
       defenderDamage: 5,
       attackerSurvived: true,
       defenderSurvived: false,
+      attackerStrength: 20,
+      defenderStrength: 20,
       attackerPosition: { q: 0, r: 0 },
       defenderPosition: { q: 1, r: 0 },
     };
@@ -342,6 +356,8 @@ describe('applyCombatOutcomeToState', () => {
       defenderDamage: 5,
       attackerSurvived: true,
       defenderSurvived: false,
+      attackerStrength: 20,
+      defenderStrength: 20,
       attackerPosition: { q: 0, r: 0 },
       defenderPosition: { q: 1, r: 0 },
     };
@@ -380,6 +396,8 @@ describe('applyCombatOutcomeToState', () => {
       defenderDamage: 5,
       attackerSurvived: true,
       defenderSurvived: true,
+      attackerStrength: 20,
+      defenderStrength: 20,
       attackerPosition: { q: 0, r: 0 },
       defenderPosition: { q: 1, r: 0 },
     };
@@ -403,6 +421,8 @@ describe('applyCombatOutcomeToState', () => {
       defenderDamage: 100,
       attackerSurvived: true,
       defenderSurvived: false,
+      attackerStrength: 20,
+      defenderStrength: 20,
       attackerPosition: { q: 0, r: 0 },
       defenderPosition: { q: 1, r: 0 },
     };
@@ -440,6 +460,7 @@ describe('applyCombatOutcomeToState', () => {
     const result: CombatResult = {
       attackerId: 'attacker', defenderId: 'defender', attackerDamage: 10, defenderDamage: 100,
       attackerSurvived: true, defenderSurvived: false,
+      attackerStrength: 20, defenderStrength: 20,
       attackerPosition: { q: 0, r: 0 }, defenderPosition: { q: 1, r: 0 },
     };
 
@@ -549,6 +570,8 @@ describe('applyCombatOutcomeToState', () => {
       defenderDamage: 100,
       attackerSurvived: true,
       defenderSurvived: false,
+      attackerStrength: 20,
+      defenderStrength: 20,
       attackerPosition: { q: 0, r: 0 },
       defenderPosition: { q: 1, r: 0 },
     };
@@ -570,6 +593,8 @@ describe('applyCombatOutcomeToState', () => {
       defenderDamage: 100,
       attackerSurvived: true,
       defenderSurvived: false,
+      attackerStrength: 20,
+      defenderStrength: 20,
       attackerPosition: { q: 0, r: 0 },
       defenderPosition: { q: 1, r: 0 },
     };
@@ -599,6 +624,8 @@ describe('applyCombatOutcomeToState', () => {
       defenderDamage: 20,
       attackerSurvived: true,
       defenderSurvived: true,
+      attackerStrength: 20,
+      defenderStrength: 20,
       attackerPosition: { q: 0, r: 0 },
       defenderPosition: { q: 1, r: 0 },
     };
@@ -628,6 +655,8 @@ describe('applyCombatOutcomeToState', () => {
       defenderDamage: 5,
       attackerSurvived: false,
       defenderSurvived: true,
+      attackerStrength: 20,
+      defenderStrength: 20,
       attackerPosition: { q: 0, r: 0 },
       defenderPosition: { q: 1, r: 0 },
     };
@@ -662,6 +691,8 @@ describe('applyCombatOutcomeToState', () => {
       defenderDamage: 100,
       attackerSurvived: true,
       defenderSurvived: false,
+      attackerStrength: 20,
+      defenderStrength: 20,
       attackerPosition: { q: 0, r: 0 },
       defenderPosition: { q: 1, r: 0 },
     };
@@ -688,6 +719,7 @@ describe('applyCombatOutcomeToState', () => {
     const result: CombatResult = {
       attackerId: 'attacker', defenderId: 'defender', attackerDamage: 5, defenderDamage: 5,
       attackerSurvived: true, defenderSurvived: true,
+      attackerStrength: 20, defenderStrength: 20,
       attackerPosition: { q: 0, r: 0 }, defenderPosition: { q: 1, r: 0 },
     };
 
@@ -712,6 +744,7 @@ describe('applyCombatOutcomeToState', () => {
     const result: CombatResult = {
       attackerId: 'attacker', defenderId: 'defender', attackerDamage: 5, defenderDamage: 100,
       attackerSurvived: true, defenderSurvived: false,
+      attackerStrength: 20, defenderStrength: 20,
       attackerPosition: { q: 0, r: 0 }, defenderPosition: { q: 1, r: 0 },
     };
 
@@ -730,6 +763,7 @@ describe('applyCombatOutcomeToState', () => {
     const result: CombatResult = {
       attackerId: 'attacker', defenderId: 'defender', attackerDamage: 10, defenderDamage: 100,
       attackerSurvived: true, defenderSurvived: false,
+      attackerStrength: 20, defenderStrength: 20,
       attackerPosition: { q: 0, r: 0 }, defenderPosition: { q: 1, r: 0 },
     };
 
@@ -747,6 +781,7 @@ describe('applyCombatOutcomeToState', () => {
     const result: CombatResult = {
       attackerId: 'attacker', defenderId: 'defender', attackerDamage: 0, defenderDamage: 100,
       attackerSurvived: true, defenderSurvived: false,
+      attackerStrength: 20, defenderStrength: 20,
       attackerPosition: { q: 0, r: 0 }, defenderPosition: { q: 1, r: 0 },
     };
 
@@ -767,6 +802,7 @@ describe('applyCombatOutcomeToState', () => {
     const result: CombatResult = {
       attackerId: 'attacker', defenderId: 'defender', attackerDamage: 0, defenderDamage: 100,
       attackerSurvived: true, defenderSurvived: false,
+      attackerStrength: 20, defenderStrength: 20,
       attackerPosition: { q: 0, r: 0 }, defenderPosition: { q: 1, r: 0 },
     };
 
@@ -784,6 +820,7 @@ describe('applyCombatOutcomeToState', () => {
     const result: CombatResult = {
       attackerId: 'attacker', defenderId: 'defender', attackerDamage: 0, defenderDamage: 100,
       attackerSurvived: true, defenderSurvived: false,
+      attackerStrength: 20, defenderStrength: 20,
       attackerPosition: { q: 0, r: 0 }, defenderPosition: { q: 1, r: 0 },
     };
 
@@ -800,6 +837,7 @@ describe('applyCombatOutcomeToState', () => {
     const result: CombatResult = {
       attackerId: 'attacker', defenderId: 'defender', attackerDamage: 100, defenderDamage: 0,
       attackerSurvived: false, defenderSurvived: true,
+      attackerStrength: 20, defenderStrength: 20,
       attackerPosition: { q: 0, r: 0 }, defenderPosition: { q: 1, r: 0 },
     };
 
@@ -817,6 +855,7 @@ describe('applyCombatOutcomeToState', () => {
     const result: CombatResult = {
       attackerId: 'attacker', defenderId: 'defender', attackerDamage: 0, defenderDamage: 100,
       attackerSurvived: true, defenderSurvived: false,
+      attackerStrength: 20, defenderStrength: 20,
       attackerPosition: { q: 0, r: 0 }, defenderPosition: { q: 1, r: 0 },
     };
 
@@ -833,6 +872,7 @@ describe('applyCombatOutcomeToState', () => {
     const result: CombatResult = {
       attackerId: 'attacker', defenderId: 'defender', attackerDamage: 0, defenderDamage: 100,
       attackerSurvived: true, defenderSurvived: false,
+      attackerStrength: 20, defenderStrength: 20,
       attackerPosition: { q: 0, r: 0 }, defenderPosition: { q: 1, r: 0 },
     };
 
@@ -848,6 +888,7 @@ describe('applyCombatOutcomeToState', () => {
     const result: CombatResult = {
       attackerId: 'attacker', defenderId: 'defender', attackerDamage: 0, defenderDamage: 100,
       attackerSurvived: true, defenderSurvived: false,
+      attackerStrength: 20, defenderStrength: 20,
       attackerPosition: { q: 0, r: 0 }, defenderPosition: { q: 1, r: 0 },
     };
 

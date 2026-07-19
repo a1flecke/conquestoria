@@ -92,6 +92,26 @@ describe('resolveCombat', () => {
     expect(result.defenderDamage).toBeGreaterThan(0);
   });
 
+  it('exposes the attacker and defender effective strengths it used to resolve the exchange', () => {
+    const attacker = createUnit('warrior', 'p1', { q: 10, r: 10 }, mkC());
+    const defender = createUnit('warrior', 'p2', { q: 11, r: 10 }, mkC());
+
+    const result = resolveCombat(attacker, defender, map, 64);
+
+    expect(result.attackerStrength).toBeGreaterThan(0);
+    expect(result.defenderStrength).toBeGreaterThan(0);
+  });
+
+  it('reports zero defender strength when the defender cannot fight', () => {
+    const attacker = createUnit('warrior', 'p1', { q: 10, r: 10 }, mkC());
+    const defender = createUnit('worker', 'p2', { q: 11, r: 10 }, mkC());
+
+    const result = resolveCombat(attacker, defender, map, 64);
+
+    expect(result.defenderStrength).toBe(0);
+    expect(result.attackerStrength).toBeGreaterThan(0);
+  });
+
   it('stronger unit deals more damage', () => {
     const warrior = createUnit('warrior', 'p1', { q: 10, r: 10 }, mkC());
     const scout = createUnit('scout', 'p2', { q: 11, r: 10 }, mkC());
