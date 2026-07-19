@@ -161,11 +161,19 @@ destroy it or have it escape.
 
 A captured unit keeps its own type — a captured caravan is still a caravan,
 a captured galleon is still a galleon — **except** `settler`, which
-converts to `worker` on capture (matching the existing `applyUpgrade`
-type-swap helper in `unit-upgrade-system.ts:77`: swap `type`, normalize
-`health` to 100, zero `movementPointsLeft`, mark `hasActed: true`). This is
-the one deliberate downgrade: capturing an enemy settler must not hand the
-capturing civ a free city-founding unit.
+converts to `worker` on capture. This is a narrower change than
+`unit-upgrade-system.ts:77`'s `applyUpgrade` helper (which also resets
+health to 100 and forces `hasActed: true` — correct for a voluntary
+in-city upgrade, but not for a battlefield capture): the existing
+`cyber_unit` branch this design extends performs no field reset at all
+beyond `owner` — it carries the unit's current (possibly battle-damaged)
+`health`, `hasActed`, and `movementPointsLeft` through unchanged, since
+those become irrelevant once the unit belongs to a different civ's turn
+cycle. Captured civilians follow that same minimal-mutation precedent:
+only `owner` changes (plus `type` for the settler→worker case) — no
+health reset, matching "you get what you caught," not a free heal on top
+of it. This is the one deliberate downgrade: capturing an enemy settler
+must not hand the capturing civ a free city-founding unit.
 
 ### Side-state cleanup on capture (verified against current code)
 
@@ -376,9 +384,10 @@ the addendum's "player-side rules identical at all levels."
   no action available on
   mid-build tiles, action consumes the unit's turn.
 - **Civilian capture**: deterministic capture (seeded-RNG test proving no
-  randomness affects the outcome), settler→worker conversion via
-  `applyUpgrade`-equivalent field reconciliation, every other civilian type
-  keeps its own type, both civs' `civilizations[id].units[]` arrays update
+  randomness affects the outcome), settler→worker type swap with health/
+  hasActed/movementPointsLeft left exactly as they were (no reset, unlike
+  `applyUpgrade`), every other civilian type keeps its own type, both civs'
+  `civilizations[id].units[]` arrays update
   correctly. **Trade-route cleanup on capture, explicitly**: a caravan (or
   merchant_wagon/freight_convoy/naval_trader) with a `committedToRouteId`
   that gets captured must have its route removed via `removeRouteForUnit`
