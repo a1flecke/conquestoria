@@ -22,6 +22,7 @@ import { RESOURCE_DEFINITIONS } from '@/systems/resource-definitions';
 import type { AIForceDemand } from '@/ai/ai-unit-assignment';
 import { getAIStrategicRoles } from '@/ai/ai-unit-roles';
 import { hexKey, hexNeighbors } from '@/systems/hex-utils';
+import { createEspionageCivState } from '@/systems/espionage-system';
 
 const aggressive: PersonalityTraits = {
   traits: ['aggressive'],
@@ -103,6 +104,37 @@ function makeCoastal(state: GameState, cityId = 'city-a'): void {
 }
 
 describe('AI strategic production', () => {
+  it('prioritizes a defensive espionage building only for a live detected city threat', () => {
+    const state = setupState(['cold-war-networks', 'writing']);
+    state.cities['city-a'].buildings = Object.keys(BUILDINGS)
+      .filter(id => id !== 'security-bureau' && id !== 'library');
+    state.espionage = {
+      ...state.espionage,
+      'ai-1': {
+        ...createEspionageCivState(),
+        detectedThreats: {
+          hostile: {
+            cityId: 'city-a', foreignCivId: 'player', detectedTurn: state.turn, expiresOnTurn: state.turn + 5,
+          },
+        },
+      },
+    };
+
+    const candidates = generateAIProductionCandidates(state, 'ai-1', 'city-a', [], aggressive);
+    const security = candidates.find(candidate => candidate.itemId === 'security-bureau')!;
+    const library = candidates.find(candidate => candidate.itemId === 'library')!;
+    expect(security.defensiveEspionageScore).toBe(40);
+    expect(security.score).toBeGreaterThan(library.score);
+    expect(applyAIProduction(state, 'ai-1', [], aggressive).cities['city-a'].productionQueue)
+      .toEqual(['security-bureau']);
+
+    const withoutThreat = { ...state, espionage: { ...state.espionage, 'ai-1': createEspionageCivState() } };
+    const noThreatCandidates = generateAIProductionCandidates(withoutThreat, 'ai-1', 'city-a', [], aggressive);
+    expect(noThreatCandidates.find(candidate => candidate.itemId === 'security-bureau')!.defensiveEspionageScore).toBe(0);
+    expect(applyAIProduction(withoutThreat, 'ai-1', [], aggressive).cities['city-a'].productionQueue)
+      .toEqual(['library']);
+  });
+
   it('selects an eligible catapult for missing siege demand', () => {
     const state = setupState(['gathering', 'siege-warfare']);
     grantResources(state, ['stone']);
