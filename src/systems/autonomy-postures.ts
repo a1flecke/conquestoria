@@ -52,7 +52,9 @@ export function beginAutonomySurge(state: GameState, civId: string, planId: stri
   const plan = autonomy?.plans[planId];
   if (!autonomy || !plan || plan.status !== 'active') return { state, validation: { ok: false, reason: 'missing-plan' } };
   const capacity = getAutonomyCapacity(state, civId).unrestricted;
-  if (getAutonomyLoad(state, civId).unrestricted > capacity) {
+  // Surge may temporarily exceed Capacity; eligibility is based on ordinary Load only.
+  const ordinaryLoad = getAutonomyLoad({ ...state, turn: state.turn + 1 }, civId).unrestricted;
+  if (ordinaryLoad > capacity) {
     return { state, validation: { ok: false, reason: 'ordinary-load-exceeds-capacity' } };
   }
   const surgedThisTurn = Object.values(autonomy.plans)

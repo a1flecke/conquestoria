@@ -1,6 +1,6 @@
 import type { GameState } from '@/core/types';
 import { isAutonomyActivated } from './autonomy-activation';
-import { getNetworkPlanDefinition } from './network-plan-definitions';
+import { getNetworkPlanDefinition, getNetworkPlanLoad } from './network-plan-definitions';
 
 export interface AutonomyCapacity {
   unrestricted: number;
@@ -39,8 +39,12 @@ export function getAutonomyLoad(state: GameState, civId: string): AutonomyLoad {
   const byCategory: Record<string, number> = {};
   const total = plans.reduce((sum, plan) => {
     const definition = getNetworkPlanDefinition(plan.definitionId);
-    byCategory[definition.category] = (byCategory[definition.category] ?? 0) + definition.load;
-    return sum + definition.load;
+    const planLoad = getNetworkPlanLoad(plan.definitionId, plan.linkedUnitIds);
+    const safeguardedHostileLoad = state.autonomyByCiv?.[civId]?.posture === 'safeguarded'
+      && definition.targetKind === 'at-war-enemy-city' ? 1 : 0;
+    const surgedLoad = plan.surgeResolutionTurn === state.turn ? planLoad : 0;
+    byCategory[definition.category] = (byCategory[definition.category] ?? 0) + planLoad + safeguardedHostileLoad + surgedLoad;
+    return sum + planLoad + safeguardedHostileLoad + surgedLoad;
   }, 0);
   return { total, unrestricted: total, byCategory };
 }

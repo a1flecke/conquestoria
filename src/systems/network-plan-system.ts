@@ -9,7 +9,7 @@ import type { GameState } from '@/core/types';
 import { isAtWar } from '@/systems/diplomacy-system';
 import { hexDistance } from '@/systems/hex-utils';
 import { isAutonomyActivated as isAutonomyActivatedForCiv } from './autonomy-activation';
-import { getNetworkPlanDefinition } from './network-plan-definitions';
+import { getNetworkPlanDefinition, getNetworkPlanLoad } from './network-plan-definitions';
 import { getAutonomyCapacity, getAutonomyLoad } from './autonomy-capacity';
 import {
   resolveNetworkPlanAtTargetEnd,
@@ -44,6 +44,7 @@ export type NetworkPlanValidation =
         | 'target-out-of-range'
         | 'same-type-target-already-assigned'
         | 'ordinary-load-exceeds-capacity'
+        | 'network-recovering'
         | 'missing-plan';
     };
 
@@ -108,7 +109,10 @@ function requestForPlan(plan: NetworkPlan, ownerCivId: string, target: NetworkPl
 function hasCapacityForAssignment(state: GameState, request: NetworkPlanRequest): boolean {
   const load = getAutonomyLoad(state, request.ownerCivId).unrestricted;
   const capacity = getAutonomyCapacity(state, request.ownerCivId).unrestricted;
-  return load + getNetworkPlanDefinition(request.definitionId).load <= capacity;
+  const definition = getNetworkPlanDefinition(request.definitionId);
+  const safeguardedHostileLoad = state.autonomyByCiv?.[request.ownerCivId]?.posture === 'safeguarded'
+    && definition.targetKind === 'at-war-enemy-city' ? 1 : 0;
+  return load + getNetworkPlanLoad(request.definitionId, request.linkedUnitIds) + safeguardedHostileLoad <= capacity;
 }
 
 function hasActivePlanForCitySource(state: GameState, cityId: string): boolean {
@@ -133,23 +137,23 @@ function hasSameTypeCityPlan(state: GameState, definitionId: NetworkPlanDefiniti
 export function validateNetworkPlanAssignment(
   state: GameState,
   request: NetworkPlanRequest,
+  options: { allowDuringRecovery?: boolean } = {},
 ): NetworkPlanValidation {
   const owner = state.civilizations[request.ownerCivId];
   if (!owner) return { ok: false, reason: 'missing-owner' };
   if (!isAutonomyActivated(state, request.ownerCivId)) return { ok: false, reason: 'autonomy-not-activated' };
+  const autonomy = state.autonomyByCiv?.[request.ownerCivId];
+  if (!options.allowDuringRecovery && autonomy?.surgeRecoveryUntilTurn !== null
+    && autonomy?.surgeRecoveryUntilTurn !== undefined && autonomy.surgeRecoveryUntilTurn > state.turn) {
+    return { ok: false, reason: 'network-recovering' };
+  }
 
   const definition = getNetworkPlanDefinition(request.definitionId);
   if (definition.sourceKind === 'city') {
     const cityId = request.source?.kind === 'city' ? request.source.cityId : '';
     const sourceCity = state.cities[cityId];
     if (!sourceCity || sourceCity.owner !== request.ownerCivId) return { ok: false, reason: 'missing-source' };
-    const anchors: Record<string, string[]> = {
-      'fabrication-sprint': ['network_operations_center', 'smart_grid'],
-      'research-mesh': ['network_operations_center', 'data_center'],
-      'logistics-routing': ['network_operations_center', 'automated_port'],
-      'survey-grid': ['network_operations_center', 'space_center'],
-    };
-    if (!anchors[request.definitionId]?.some(building => sourceCity.buildings.includes(building))) {
+    if (!definition.sourceBuildings?.some(building => sourceCity.buildings.includes(building))) {
       return { ok: false, reason: 'invalid-source' };
     }
     if (hasActivePlanForCitySource(state, cityId)) return { ok: false, reason: 'source-already-assigned' };
@@ -159,7 +163,7 @@ export function validateNetworkPlanAssignment(
     if (targetCity.owner !== request.ownerCivId) return { ok: false, reason: 'target-not-friendly' };
     if (request.definitionId === 'research-mesh') {
       const linkedCityIds = request.linkedCityIds ?? [];
-      if (linkedCityIds.length > 2 || new Set(linkedCityIds).size !== linkedCityIds.length
+      if (linkedCityIds.length > 1 || new Set(linkedCityIds).size !== linkedCityIds.length
         || linkedCityIds.includes(targetCity.id)
         || linkedCityIds.some(linkedCityId => state.cities[linkedCityId]?.owner !== request.ownerCivId)) {
         return { ok: false, reason: 'invalid-target' };
@@ -167,7 +171,7 @@ export function validateNetworkPlanAssignment(
     }
     if (request.definitionId === 'survey-grid') {
       const linkedUnitIds = request.linkedUnitIds ?? [];
-      if (linkedUnitIds.length < 1 || linkedUnitIds.length > 3 || new Set(linkedUnitIds).size !== linkedUnitIds.length
+      if (linkedUnitIds.length < 1 || linkedUnitIds.length > 2 || new Set(linkedUnitIds).size !== linkedUnitIds.length
         || linkedUnitIds.some(unitId => state.units[unitId]?.owner !== request.ownerCivId)) {
         return { ok: false, reason: 'invalid-target' };
       }
@@ -223,7 +227,7 @@ export function previewNetworkPlan(state: GameState, request: NetworkPlanRequest
   const currentLoad = getAutonomyLoad(state, request.ownerCivId).unrestricted;
   return {
     validation: validateNetworkPlanAssignment(state, request),
-    load: definition.load,
+    load: getNetworkPlanLoad(request.definitionId, request.linkedUnitIds),
     capacity,
     remainingCapacity: capacity - currentLoad,
     effect: definition.effect,
@@ -238,6 +242,7 @@ export function assignNetworkPlan(
   if (!validation.ok) return { state, validation, plan: null };
 
   const definition = getNetworkPlanDefinition(request.definitionId);
+  const currentAutonomy = state.autonomyByCiv?.[request.ownerCivId] ?? createEmptyAutonomyCivState();
   const nextId = state.idCounters.nextNetworkPlanId ?? 1;
   const plan: NetworkPlan = {
     id: `network-plan-${nextId}`,
@@ -252,12 +257,12 @@ export function assignNetworkPlan(
     createdTurn: state.turn,
     // A victim's next player turn can occur later in this hot-seat round, before the
     // global round counter advances.  The warning gate, not a round offset, owns timing.
-    nextResolutionTurn: state.turn,
+    nextResolutionTurn: definition.targetKind === 'at-war-enemy-city' && currentAutonomy.posture === 'safeguarded'
+      ? state.turn + 1 : state.turn,
     warnedTurn: null,
     surgeResolutionTurn: null,
     ...(request.definitionId === 'harden' ? { effectState: { hardenCharges: 1 } } : {}),
   };
-  const currentAutonomy = state.autonomyByCiv?.[request.ownerCivId] ?? createEmptyAutonomyCivState();
   return {
     state: {
       ...state,
@@ -299,7 +304,7 @@ export function retargetNetworkPlan(
   }
   const withoutOldPlan = stateWithoutPlan(state, ownerCivId, planId);
   const request = requestForPlan(existing, ownerCivId, target);
-  const validation = validateNetworkPlanAssignment(withoutOldPlan, request);
+  const validation = validateNetworkPlanAssignment(withoutOldPlan, request, { allowDuringRecovery: true });
   if (!validation.ok) return { state, validation, plan: null };
 
   const plan: NetworkPlan = {
@@ -351,7 +356,7 @@ export function cancelInvalidNetworkPlans(state: GameState): NetworkPlanCleanupR
     .sort((left, right) => left.plan.id.localeCompare(right.plan.id));
   for (const { ownerCivId, plan } of candidates) {
     const withoutPlan = stateWithoutPlan(nextState, ownerCivId, plan.id);
-    const validation = validateNetworkPlanAssignment(withoutPlan, requestForPlan(plan, ownerCivId, plan.target));
+    const validation = validateNetworkPlanAssignment(withoutPlan, requestForPlan(plan, ownerCivId, plan.target), { allowDuringRecovery: true });
     if (validation.ok) continue;
     nextState = withoutPlan;
     cancelled.push({ planId: plan.id, reason: validation.reason });

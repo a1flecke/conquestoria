@@ -40,4 +40,15 @@ describe('autonomy capacity', () => {
 
     expect(getAutonomyLoad(state, 'player')).toEqual({ total: 2, unrestricted: 2, byCategory: { infrastructure: 2 } });
   });
+
+  it('counts Survey Grid at one Load plus each linked unit and adds temporary Surge Load', () => {
+    const state = createNewGame('rome', 'autonomy-variable-load', 'small');
+    state.civilizations.player.techState.completed = ['quantum-computing'];
+    state.autonomyByCiv!.player.plans = {
+      survey: { id: 'survey', ownerCivId: 'player', definitionId: 'survey-grid', source: { kind: 'city', cityId: 'city-1' }, target: { kind: 'city', cityId: 'city-1' }, linkedUnitIds: ['unit-1', 'unit-2'], status: 'active', createdTurn: 1, nextResolutionTurn: 1, warnedTurn: null },
+      fabrication: { id: 'fabrication', ownerCivId: 'player', definitionId: 'fabrication-sprint', source: { kind: 'city', cityId: 'city-1' }, target: { kind: 'city', cityId: 'city-1' }, surgeResolutionTurn: state.turn, status: 'active', createdTurn: 1, nextResolutionTurn: 1, warnedTurn: null },
+    };
+
+    expect(getAutonomyLoad(state, 'player')).toMatchObject({ total: 7, unrestricted: 7, byCategory: { infrastructure: 7 } });
+  });
 });
