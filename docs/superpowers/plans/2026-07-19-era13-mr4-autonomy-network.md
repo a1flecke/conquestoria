@@ -40,6 +40,23 @@
 - Every visible action mutates through the canonical evaluator and rerenders the open surface.
 - Save schema 6 is deterministic, idempotent, and preserves MR3 plans/viewer detections.
 - No overlay, focus, notification, or SFX leaks at hot-seat handoff before identity confirmation.
+- Before activation, every Capacity/Load selector returns zero and the HUD/panel/overlay are absent; activation must not fabricate an MR5 building or capacity source.
+
+## Implementation decision matrix
+
+| Dimension | Non-negotiable decision | Task / proof |
+|---|---|---|
+| Gameplay balance | Stable plans fit ordinary Capacity; Surge is the only bounded overload; no base-stat loss | Tasks 1–3; Capacity caps, overload, recovery, and preview/result tests |
+| Fun and new mechanics | Persistent plan → visible payoff → optional Surge, never repeated per-turn confirmation | Tasks 2, 3, 5; immediate yield/route/vision refresh and replay tests |
+| Ages 7–43 | Outcome-first Integrated onboarding; formulas are optional; no color-only meaning | Task 5; staged tutorial, formula, keyboard, touch, and reduced-motion assertions |
+| Play styles | Build, research, trade, explore, defend, influence, and conquer all retain a valid route | Tasks 2–4 and 6; definition catalog and portfolio coverage fixtures |
+| Difficulty and AI | Same legal candidates/effects/intel; only deterministic choice quality changes | Task 6; cross-profile candidate/effect equality plus Explorer-counter tests |
+| UI/UX | One preview drives disabled state, confirmation, deep links, and open-panel rerender | Task 5; truth table, `Show all`, stale-click, and DOM assertions |
+| Architecture/extensibility/data | Closed typed definitions; serializable minimal state; derived Capacity/Load; one lifecycle | Tasks 1–2; migration, no-duplicate-evaluator, and definition coverage tests |
+| SFX/privacy | Existing authorized feedback only; no hidden preparation/source audio; one formation cue | Tasks 5–6; audio-request and hot-seat leak negatives |
+| Saves/regressions | Ordered schema 6 retains every prior migration and is twice-load stable | Task 1; schema 0–5, future-version, and round-trip tests |
+| Solo/hot seat | One advisory recommendation; no AI/previous-viewer residue after veil and confirmation | Task 6; solo limit and 2–4 player handoff replay tests |
+| Deliverability | No player action ships before full effect/AI/UI/save/privacy wiring; build/test after final integration | Task 7; source check, targeted matrix, full test, build, and two diff reviews |
 
 ### Task 1: Establish schema-6 autonomy state and pure Capacity/Load contracts
 
@@ -79,7 +96,7 @@ export function getAutonomyCapacity(state: GameState, civId: string): AutonomyCa
 export function getAutonomyLoad(state: GameState, civId: string): AutonomyLoad;
 ```
 
-Add ordered schema step 6, `migrateAutonomyNetworkPostures()`, which initializes these values for every civilization, preserves all MR3 plans/detections, and does not use wall-clock time. Capacity counts only definition metadata, applies precursor/diminishing/restricted caps, and returns `buildableNow` separately from future explanatory sources.
+Add ordered schema step 6, `migrateAutonomyNetworkPostures()`, which initializes these values for every civilization, preserves all MR3 plans/detections, and does not use wall-clock time. Test migrations from each supported schema `0` through `5`, a malformed future schema rejection without input mutation, and a second-load byte-equivalence check. Capacity returns zero before activation; after activation it counts only definition metadata, applies precursor/diminishing/restricted caps, and returns `buildableNow` separately from future explanatory sources.
 
 - [ ] **Step 4: Add posture/Surge boundary tests and implementation.**
 
@@ -125,7 +142,7 @@ export type NetworkPlanDefinitionId =
 export function previewNetworkPlan(state: GameState, request: NetworkPlanRequest): NetworkPlanPreview;
 ```
 
-Definitions encode anchors, target kind, max links, Load, `surgeLoad`, stable/surged closed effects, AI tags, category, presentation text, and counter data. Preserve Harden/Exploit values unchanged. Validate ownership, anchors, first-two-active-route limit, science-building links, eligible survey units, no recursive base, same-plan target non-stacking, diplomacy, range, and ordinary Capacity before any Surge selection.
+Extend `NetworkPlan` with serializable `linkedCityIds`, `linkedUnitIds`, and `surgeResolutionTurn: number | null`; preserve absent legacy values as empty arrays/null in schema 6. Definitions encode anchors, target kind, max links, Load, `surgeLoad`, stable/surged closed effects, AI tags, category, presentation text, and counter data. Preserve Harden/Exploit values unchanged. Validate ownership, anchors, first-two-active-route limit, science-building links, eligible survey units, no recursive base, same-plan target non-stacking, diplomacy, range, and ordinary Capacity before any Surge selection.
 
 - [ ] **Step 3: Make assignment, retarget, Hold, cancellation, and target-end resolution consume the same preview.**
 
@@ -135,7 +152,8 @@ The mutation result returns the preview used for the state change. Cleanup cance
 
 ```ts
 expect(validateNetworkPlanAssignment(state, duplicateMesh)).toEqual({ ok: false, reason: 'same-type-target-already-assigned' });
-expect(resolveNetworkPlanAtTargetEnd(state, plan.id, context).preview).toEqual(preview);
+expect(getActiveNetworkEffects(assigned.state, 'player').find(effect => effect.planId === assigned.plan!.id))
+  .toMatchObject({ effect: preview.effect });
 ```
 
 Run: `bash scripts/run-with-mise.sh yarn test --run tests/systems/network-plan-definitions.test.ts tests/systems/network-plan-system.test.ts tests/systems/network-effect-resolver.test.ts tests/systems/network-infrastructure-plans.test.ts`
@@ -154,8 +172,8 @@ Commit: `feat(era13-mr4): add constructive network plan contracts`
 
 ```ts
 expect(calculateProjectedCityYields(state, city).production).toBe(baseProduction + 4);
-expect(getTradeRouteIncome(state, route).gold).toBe(baseGold + 1);
-expect(getVisibilityRange(unit.position, baseVision + 1, state.map)).toContain(expectedHex);
+expect(getEffectiveGoldPerTurn(route, getRouteTechGoldBonus(state, route) + getNetworkRouteGoldBonus(state, route))).toBe(baseGold + 1);
+expect(updateVisibility(vis, [unit], state.map, [], unit => getNetworkVisionBonus(state, unit))).toContainEqual(expectedHex);
 ```
 
 Include cap tests (+4/+6 production, +3/+5 per linked science city), a recursive-base negative test, inactive/broken-link negatives, first-two-routes-only, and Surge preview/result equality.
@@ -165,9 +183,11 @@ Include cap tests (+4/+6 production, +3/+5 per linked science city), a recursive
 ```ts
 export function getActiveNetworkEffects(state: GameState, civId: string): readonly ActiveNetworkEffect[];
 export function getCityNetworkYieldBonus(state: GameState, cityId: string): Partial<ResourceYield>;
+export function getNetworkVisionBonus(state: GameState, unit: Unit): number;
+export function getNetworkRouteGoldBonus(state: GameState, route: TradeRoute): number;
 ```
 
-Apply percentages to unmodified base values at the same layer used by turn income and city projections. Route income reads only active valid links. Fog reads valid Survey Grid links but never changes movement. UI panels consume these helpers; they do not calculate a separate bonus.
+Apply percentages to unmodified base values at the same layer used by turn income and city projections. Route income flows through `getEffectiveGoldPerTurn()` and `processTradeRouteIncome()` so both per-route and aggregate callers agree. In `turn-manager`, compose `getNetworkVisionBonus(state, unit)` with the existing `updateVisibility(..., getVisionBonus)` callback; Survey Grid never changes movement. UI panels consume these helpers; they do not calculate a separate bonus.
 
 - [ ] **Step 3: Verify immediate rendered recalculation and commit.**
 
@@ -240,6 +260,8 @@ expect(panel.textContent).toContain('Network: Stable · 2/2');
 await user.click(screen.getByRole('button', { name: 'Show all plans' }));
 expect(screen.getByText('Survey Grid')).toBeTruthy();
 expect(panel.textContent).toContain('Need 1 more Capacity');
+expect(screen.getByRole('button', { name: 'Show formula details' })).toBeTruthy();
+expect(screen.getByRole('button', { name: /Assign Fabrication Sprint/ })).toHaveStyle({ minHeight: '44px' });
 ```
 
 - [ ] **Step 2: Replace the MR3 intent-only surface with a canonical-preview model.**
@@ -254,6 +276,10 @@ The model asks `previewNetworkPlan()` for every action. Use `createGameButton`, 
 - [ ] **Step 3: Add staged teaching and viewer-safe overlay wiring.**
 
 Integrated is set automatically on activation; first valid constructive success unlocks posture teaching; first Stable resolution unlocks Surge teaching. Skip/replay is persistent, never locks the panel, and advice is derived from valid previews. Overlay only receives viewer-authorized plan/intel data and clears at handoff.
+
+- [ ] **Step 3a: Add explicit accessibility and no-leak regressions.**
+
+Assert keyboard activation of every catalog action, reduced-motion rendering without animation-only meaning, text labels for Stable/Strained and posture, and that a viewer without a detection receives neither source name/coordinates nor a map line. Assert the UI's audio request list is empty for hidden preparation and cleared before handoff confirmation.
 
 - [ ] **Step 4: Run UI/renderer tests and commit.**
 
@@ -278,7 +304,7 @@ expect(getNetworkRecommendation(state, 'player')).toHaveLength(1);
 expect(handoff.notifications.every(n => n.recipient === confirmedViewer)).toBe(true);
 ```
 
-Assert Explorer chooses at least one valid constructive candidate and, after observed hostile impact, a valid counter within `planReconsiderRounds`; Veteran has better candidate selection but no numeric/intel advantage. Assert no more than one advisor recommendation and no automatic assign/retarget/Surge. Assert veil → confirm identity → clear viewer state → authorized warning → input → target-end resolution, including 2–4 player order.
+Assert Explorer chooses at least one valid constructive candidate and, after observed hostile impact, a valid counter within `planReconsiderRounds`; Veteran has better candidate selection but no numeric/intel advantage. For the same serialized state and known-city set, assert all three profiles generate the same legal candidates/effect previews and never read an undiscovered city. Assert no more than one advisor recommendation and no automatic assign/retarget/Surge. Assert veil → confirm identity → clear viewer state → authorized warning → input → target-end resolution, including 2–4 player order.
 
 - [ ] **Step 2: Implement bounded candidate selection and caches.**
 
@@ -287,7 +313,7 @@ export function getNetworkPlanCandidates(state: GameState, civId: string): reado
 export function planNetworkTurn(state: GameState, civId: string, profile: OpponentChallengeProfile): NetworkPlanningResult;
 ```
 
-Candidates come only from public valid previews, stable-sort by IDs, use existing `tacticalTopK`, `seededSuboptimalChance`, `recoveryRounds`, and `planReconsiderRounds`, and cache unchanged forecasts by civ/turn. Add `maxConcurrentNetworkPlans` only if a failing profile test proves top-K cannot express the intended Explorer behavior.
+Candidates come only from public valid previews, stable-sort by score then definition/source/target IDs, use existing `tacticalTopK`, `seededSuboptimalChance`, `recoveryRounds`, and `planReconsiderRounds`, and cache unchanged forecasts by civ/turn. Use `createRng(\`${gameId}:${turn}:${civId}:network\`)`; do not use `Math.random()`. Add `maxConcurrentNetworkPlans` only if a failing profile test proves top-K cannot express the intended Explorer behavior.
 
 - [ ] **Step 3: Thread viewer-safe events through turn/handoff callers.**
 
