@@ -2,7 +2,7 @@ import type { Building, BuildingCategory, City, CityMaturity, GameMap, HexCoord,
 import { BUILDINGS } from '@/systems/city-system';
 import { resolveCityMaturity } from '@/systems/city-maturity-system';
 import { calculateCityYields } from '@/systems/resource-system';
-import { getProductionOutputProfileForEra } from '@/systems/pacing-model';
+import { getProductionOutputProfileForEra, getResearchOutputProfileForTech } from '@/systems/pacing-model';
 import { applyEmpireTechPercents, getEmpireTechPercents } from '@/systems/tech-yield-system';
 import {
   TECH_TREE,
@@ -11,7 +11,6 @@ import {
   hasReachedEraThreshold,
   resolveCivilizationEra,
 } from '@/systems/tech-definitions';
-import { getResearchOutputProfileForTech } from '@/systems/pacing-model';
 import { requireEraPacingProfile } from '@/systems/era-pacing-profiles';
 
 export interface ResearchTimelineEntry {
@@ -187,10 +186,11 @@ export function getMissingRepresentativeBuildingClosure(
   const completedTechs = new Set(input.completedTechs);
   const completedBuildings = new Set(input.completedBuildings);
   const visiting = new Set<string>();
+  const resolved = new Set<string>();
   const result: string[] = [];
 
   const visit = (buildingId: string): void => {
-    if (completedBuildings.has(buildingId)) return;
+    if (completedBuildings.has(buildingId) || resolved.has(buildingId)) return;
     if (visiting.has(buildingId)) throw new Error(`Building prerequisite cycle at ${buildingId}`);
     const building = BUILDINGS[buildingId];
     if (!building) throw new Error(`Missing building prerequisite: ${buildingId}`);
@@ -198,6 +198,7 @@ export function getMissingRepresentativeBuildingClosure(
     visiting.add(buildingId);
     for (const prerequisite of building.requiresBuildings ?? []) visit(prerequisite);
     visiting.delete(buildingId);
+    resolved.add(buildingId);
     result.push(buildingId);
   };
 
@@ -221,8 +222,11 @@ export function selectRepresentativeBuilding(input: RepresentativeBuildingInput)
         const cost = closure.reduce((sum, building) => sum + building.productionCost, 0);
         if (value <= 0 || cost <= 0) return [];
         return [{ terminal, closure, value, cost }];
-      } catch {
-        return [];
+      } catch (error) {
+        if (error instanceof Error && error.message.startsWith('Unavailable building prerequisite:')) {
+          return [];
+        }
+        throw error;
       }
     })
     .sort((left, right) => {
