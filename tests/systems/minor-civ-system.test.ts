@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { placeMinorCivs, processMinorCivTurn, planPurposefulMinorCivTurn, checkEraAdvancement, processMinorCivEraUpgrade, conquestMinorCiv, processGuerrilla, processScuffles, applyDiplomaticReaction } from '@/systems/minor-civ-system';
+import { placeMinorCivs, processMinorCivTurn, planPurposefulMinorCivTurn, checkEraAdvancement, processMinorCivEraUpgrade, conquestMinorCiv, peacefullyAbsorbMinorCiv, processGuerrilla, processScuffles, applyDiplomaticReaction } from '@/systems/minor-civ-system';
 import { createNewGame } from '@/core/game-state';
 import { hexDistance, hexKey } from '@/systems/hex-utils';
 import { EventBus } from '@/core/event-bus';
@@ -636,6 +636,70 @@ describe('conquest mechanics', () => {
 
     expect(result.state.minorCivs[nearby.id].regionalGrievanceByCiv?.[aiId]?.pressure).toBeGreaterThan(0);
     expect(result.state.minorCivs[nearby.id].diplomacy.relationships[aiId]).toBeLessThan(0);
+  });
+});
+
+describe('#593 MR6 — peacefullyAbsorbMinorCiv', () => {
+  it('marks the minor civ destroyed, transfers the city, and TRANSFERS (does not delete) garrison units', () => {
+    const state = createNewGame(undefined, 'mc-peaceful-absorb', 'small');
+    const mcId = Object.keys(state.minorCivs)[0];
+    if (!mcId) return;
+    const mc = state.minorCivs[mcId];
+    const garrisonUnitIds = [...mc.units];
+    expect(garrisonUnitIds.length).toBeGreaterThan(0);
+
+    const result = peacefullyAbsorbMinorCiv(state, mcId, 'player');
+
+    expect(result.absorbed).toBe(true);
+    expect(result.state.minorCivs[mcId].isDestroyed).toBe(true);
+    expect(result.state.cities[mc.cityId].owner).toBe('player');
+    expect(result.state.civilizations.player.cities).toContain(mc.cityId);
+    for (const unitId of garrisonUnitIds) {
+      expect(result.state.units[unitId]).toBeDefined();
+      expect(result.state.units[unitId].owner).toBe('player');
+      expect(result.state.civilizations.player.units).toContain(unitId);
+    }
+    // Original state is untouched (immutable turn processing).
+    expect(state.minorCivs[mcId].isDestroyed).toBe(false);
+  });
+
+  it('reports an alliance-broken transition for any allied major civ', () => {
+    const state = createNewGame(undefined, 'mc-peaceful-absorb-alliance', 'small');
+    const mcId = Object.keys(state.minorCivs)[0];
+    if (!mcId) return;
+    state.minorCivs[mcId].chainStatusByCiv = {
+      player: { status: 'allied', chainId: 'chain-1' } as any,
+    };
+
+    const result = peacefullyAbsorbMinorCiv(state, mcId, 'player');
+
+    expect(result.transitions).toContainEqual({ type: 'alliance-broken', majorCivId: 'player', minorCivId: mcId, chainId: 'chain-1' });
+  });
+
+  it('does NOT apply a regional grievance to nearby minor civs (peaceful, not a conquest)', () => {
+    const state = createNewGame(undefined, 'mc-peaceful-absorb-no-grievance', 'medium');
+    state.era = 2;
+    const mcIds = Object.keys(state.minorCivs);
+    const absorbed = state.minorCivs[mcIds[0]];
+    const nearby = state.minorCivs[mcIds[1]];
+    state.cities[nearby.cityId].position = { ...state.cities[absorbed.cityId].position, q: state.cities[absorbed.cityId].position.q + 11 };
+
+    const result = peacefullyAbsorbMinorCiv(state, absorbed.id, 'player');
+
+    expect(result.state.minorCivs[nearby.id].regionalGrievanceByCiv?.player).toBeUndefined();
+    expect(result.state.minorCivs[nearby.id].diplomacy.relationships.player).toBe(0);
+  });
+
+  it('is a no-op for an already-destroyed minor civ', () => {
+    const state = createNewGame(undefined, 'mc-peaceful-absorb-destroyed', 'small');
+    const mcId = Object.keys(state.minorCivs)[0];
+    if (!mcId) return;
+    state.minorCivs[mcId].isDestroyed = true;
+
+    const result = peacefullyAbsorbMinorCiv(state, mcId, 'player');
+
+    expect(result.absorbed).toBe(false);
+    expect(result.state).toBe(state);
   });
 });
 

@@ -719,6 +719,58 @@ export function conquestMinorCiv(
   };
 }
 
+// #593 MR6: peaceful counterpart to conquestMinorCiv, used by a religious loyalty
+// defection rather than military conquest. Same core bookkeeping (destroyed flag,
+// alliance-broken transitions, city ownership transfer) but deliberately does NOT
+// delete the garrison units (they're transferred to the new owner, since nothing
+// hostile happened) and does NOT call applyRegionalGrievanceForMinorCivConquest
+// (peaceful defection isn't a regional act of war). Territory tiles are not touched
+// here -- the per-turn recalculateTerritory pass in turn-manager.ts picks up the
+// city.owner change on the same turn, matching conquestMinorCiv's existing convention.
+export function peacefullyAbsorbMinorCiv(
+  state: GameState,
+  mcId: string,
+  newOwnerId: string,
+): { state: GameState; transitions: ChainTransition[]; absorbed: boolean } {
+  const existing = state.minorCivs[mcId];
+  if (!existing || existing.isDestroyed) return { state, transitions: [], absorbed: false };
+  const nextState = structuredClone(state);
+  const mc = nextState.minorCivs[mcId];
+  const transitions: ChainTransition[] = [];
+  for (const [majorCivId, status] of Object.entries(mc.chainStatusByCiv)) {
+    if (status.status === 'allied') {
+      transitions.push({ type: 'alliance-broken', majorCivId, minorCivId: mcId, chainId: status.chainId });
+    }
+  }
+
+  mc.isDestroyed = true;
+  mc.activeQuests = {};
+  mc.chainStatusByCiv = {};
+  mc.questCooldownUntilByCiv = {};
+  mc.lastNotifiedStatusByCiv = {};
+
+  const city = nextState.cities[mc.cityId];
+  if (city) {
+    city.owner = newOwnerId;
+    const civ = nextState.civilizations[newOwnerId];
+    if (civ && !civ.cities.includes(mc.cityId)) {
+      civ.cities.push(mc.cityId);
+    }
+  }
+
+  const transferredUnitIds = mc.units.filter(uid => nextState.units[uid] !== undefined);
+  for (const unitId of transferredUnitIds) {
+    nextState.units[unitId].owner = newOwnerId;
+  }
+  const civ = nextState.civilizations[newOwnerId];
+  if (civ) {
+    civ.units = [...civ.units, ...transferredUnitIds.filter(id => !civ.units.includes(id))];
+  }
+  mc.units = [];
+
+  return { state: nextState, transitions, absorbed: true };
+}
+
 // === Guerrilla & Scuffles ===
 
 export function processGuerrilla(state: GameState, mc: MinorCivState, bus: EventBus): GameState {
