@@ -441,6 +441,41 @@ describe('AI attack targeting', () => {
     expect(state.units[attacker.id]?.position).toEqual({ q: 0, r: 0 });
   });
 
+  it('pillages an enemy improved tile it is already at war with, using its action (#541)', () => {
+    const state = createNewGame(undefined, 'ai-pillage-at-war', 'small');
+    const raider = createUnit('warrior', 'ai-1', { q: 3, r: 3 }, mkC());
+    raider.id = 'raider';
+    state.units = { [raider.id]: raider };
+    state.civilizations['ai-1'].units = [raider.id];
+    state.civilizations['ai-1'].diplomacy.atWarWith = ['player'];
+    state.civilizations.player.diplomacy.atWarWith = ['ai-1'];
+    state.map.tiles['3,3'] = {
+      ...state.map.tiles['3,3'],
+      owner: 'player', improvement: 'farm', improvementTurnsLeft: 0,
+    };
+
+    const result = processAITurn(state, 'ai-1', new EventBus());
+
+    expect(result.units[raider.id].hasActed).toBe(true);
+    expect(result.map.tiles['3,3'].improvement).toBe('none');
+  });
+
+  it('does not pillage a tile owned by a civ it is not at war with (#541)', () => {
+    const state = createNewGame(undefined, 'ai-no-pillage-at-peace', 'small');
+    const raider = createUnit('warrior', 'ai-1', { q: 3, r: 3 }, mkC());
+    raider.id = 'raider';
+    state.units = { [raider.id]: raider };
+    state.civilizations['ai-1'].units = [raider.id];
+    state.map.tiles['3,3'] = {
+      ...state.map.tiles['3,3'],
+      owner: 'player', improvement: 'farm', improvementTurnsLeft: 0,
+    };
+
+    const result = processAITurn(state, 'ai-1', new EventBus());
+
+    expect(result.map.tiles['3,3'].improvement).toBe('farm');
+  });
+
   it('does not make AI units opportunistically attack minor-civ units', () => {
     const state = createNewGame(undefined, 'ai-minor-neutral-range', 'small');
     const attacker = createUnit('warrior', 'ai-1', { q: 0, r: 0 }, mkC());
