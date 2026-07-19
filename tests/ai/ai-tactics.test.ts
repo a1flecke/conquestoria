@@ -174,6 +174,37 @@ describe('AI tactical action ranking', () => {
       .toBeGreaterThan(actions.findIndex(action => action.unitId === 'archer'));
   });
 
+  it.each(['autonomous_frigate', 'exosuit_infantry'] satisfies UnitType[])('selects %s for a legal tactical attack', type => {
+    const state = makeState('standard');
+    const attacker = addUnit(state, 'attacker', type, AI, { q: 0, r: 0 });
+    const defender = addUnit(state, 'defender', 'warrior', HUMAN, { q: 1, r: 0 });
+    const plan = makePlan(
+      { kind: 'unit', id: defender.id, lastKnownPosition: defender.position },
+      [attacker.id],
+      { objective: 'repel' },
+    );
+
+    expect(chooseUnitTacticalAction(context(state, plan), attacker.id))
+      .toMatchObject({ kind: 'attack', unitId: attacker.id, targetUnitId: defender.id });
+  });
+
+  it('selects Combat Drone for a legal air strike from its air base', () => {
+    const state = makeState('standard');
+    const base = addCity(state, 'drone-base', AI, { q: 0, r: 0 });
+    const drone = addUnit(state, 'drone', 'combat_drone', AI, { q: 0, r: 0 }, {
+      airBase: { kind: 'city', cityId: base.id },
+    });
+    const defender = addUnit(state, 'defender', 'warrior', HUMAN, { q: 1, r: 0 });
+    const plan = makePlan(
+      { kind: 'unit', id: defender.id, lastKnownPosition: defender.position },
+      [drone.id],
+      { objective: 'repel' },
+    );
+
+    expect(chooseUnitTacticalAction(context(state, plan), drone.id))
+      .toMatchObject({ kind: 'air-strike', unitId: drone.id, target: defender.position });
+  });
+
   it('scores a revealed stealth bomber from its resolved evasion exchange, not raw counter-strength', () => {
     const state = makeState('veteran');
     const fighter = addUnit(state, 'fighter', 'jet_fighter', AI, { q: 0, r: 0 });
