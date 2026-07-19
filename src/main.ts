@@ -2998,6 +2998,8 @@ function executeAttack(attackerId: string, targetKey: string): void {
 
   if (applied.attackerDefeated) {
     showNotification('Our unit was destroyed!', 'warning');
+  } else if (applied.attackerCaptured) {
+    showNotification(`Our ${UNIT_DEFINITIONS[attacker.type].name} was captured!`, 'warning');
   }
 
   for (const reward of applied.rewards) {
