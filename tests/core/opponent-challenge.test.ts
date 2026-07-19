@@ -139,6 +139,12 @@ describe('crisis profile knobs', () => {
       crisisCooldownTurns: 5, crisisGraceMaxEra: 1, crisisGraceMinTurns: 10, crisisSeverityMultiplier: 1.3 });
   });
 
+  it('scales barbarian/pirate pillage aggressiveness across all three difficulty tiers (#541)', () => {
+    expect(OPPONENT_CHALLENGE_PROFILES.explorer.pillageAggressivenessMultiplier).toBe(0.5);
+    expect(OPPONENT_CHALLENGE_PROFILES.standard.pillageAggressivenessMultiplier).toBe(1.0);
+    expect(OPPONENT_CHALLENGE_PROFILES.veteran.pillageAggressivenessMultiplier).toBe(1.3);
+  });
+
   it('getChallengeProfileForCiv resolves the per-civ profile', () => {
     expect(getChallengeProfileForCiv(stateWith('veteran', 'explorer'), 'c1').crisisCooldownTurns).toBe(5);
   });

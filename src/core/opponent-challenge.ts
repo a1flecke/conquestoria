@@ -24,6 +24,11 @@ export interface OpponentChallengeProfile {
   crisisResponseDelayTurns: number;   // crisis age before the AI acts
   crisisRemedyGoldMultiplier: number; // treasury needed as multiple of remedy cost
   crisisDispatchWeight: number;       // multiplier on dispatch objective score
+  // #541: scales how eagerly barbarian/pirate raid plans prefer a pillage-capable
+  // resource-tile raid target over a plain unit-raid target. Player-side pillage
+  // rules are identical at every difficulty — only barbarian/pirate/AI frequency
+  // changes.
+  pillageAggressivenessMultiplier: number;
 }
 
 export const OPPONENT_CHALLENGE_PROFILES: Record<OpponentChallenge, OpponentChallengeProfile> = {
@@ -45,6 +50,7 @@ export const OPPONENT_CHALLENGE_PROFILES: Record<OpponentChallenge, OpponentChal
     crisisResponseDelayTurns: 4,
     crisisRemedyGoldMultiplier: 3.0,
     crisisDispatchWeight: 0.5,
+    pillageAggressivenessMultiplier: 0.5,
   },
   standard: {
     mobilizationRounds: 1,
@@ -64,6 +70,7 @@ export const OPPONENT_CHALLENGE_PROFILES: Record<OpponentChallenge, OpponentChal
     crisisResponseDelayTurns: 2,
     crisisRemedyGoldMultiplier: 2.0,
     crisisDispatchWeight: 1.0,
+    pillageAggressivenessMultiplier: 1.0,
   },
   veteran: {
     mobilizationRounds: 0,
@@ -83,6 +90,7 @@ export const OPPONENT_CHALLENGE_PROFILES: Record<OpponentChallenge, OpponentChal
     crisisResponseDelayTurns: 0,
     crisisRemedyGoldMultiplier: 1.2,
     crisisDispatchWeight: 1.5,
+    pillageAggressivenessMultiplier: 1.3,
   },
 };
 
