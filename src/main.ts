@@ -51,7 +51,7 @@ import {
   NO_LAND_UNIT_WATER_RECOVERY,
   type LandUnitWaterRecovery,
 } from '@/systems/unit-water-recovery';
-import { applyCombatOutcomeToState } from '@/systems/combat-reward-system';
+import { applyCombatOutcomeToState, getCaptureNotificationLabel } from '@/systems/combat-reward-system';
 import { recordCombatForCiv } from '@/systems/threat-pressure-system';
 import { applyWorkerAction } from '@/systems/worker-action-system';
 import { resolveCivilizationEra } from '@/systems/tech-definitions';
@@ -3030,7 +3030,7 @@ function executeAttack(attackerId: string, targetKey: string): void {
       }
     }
   } else if (applied.defenderCaptured) {
-    showNotification(`${UNIT_DEFINITIONS[defender.type].name} captured!`, 'success');
+    showNotification(getCaptureNotificationLabel(defender.type), 'success');
   }
 
   // `attacker` was captured before applyCombatOutcomeToState — safe even if attacker was destroyed
