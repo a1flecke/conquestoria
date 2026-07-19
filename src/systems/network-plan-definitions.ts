@@ -70,8 +70,17 @@ export function getNetworkPlanDefinition(id: NetworkPlanDefinitionId): NetworkPl
   return NETWORK_PLAN_DEFINITIONS[id];
 }
 
-/** Survey Grid spends one base Load plus one per selected recipient; all other plans use fixed Load. */
-export function getNetworkPlanLoad(id: NetworkPlanDefinitionId, linkedUnitIds: readonly string[] = []): number {
+/** Survey Grid spends one base Load plus one per selected recipient; Autonomous Mobility removes one recipient Load. */
+export function getNetworkPlanLoad(
+  id: NetworkPlanDefinitionId,
+  linkedUnitIds: readonly string[] = [],
+  completedTechs: readonly string[] = [],
+): number {
   const definition = getNetworkPlanDefinition(id);
-  return id === 'survey-grid' ? definition.load + linkedUnitIds.length : definition.load;
+  if (id === 'guardian-screen' || id === 'swarm-strike') {
+    return completedTechs.includes('ambient-interfaces') ? Math.max(1, definition.load - 1) : definition.load;
+  }
+  if (id !== 'survey-grid') return definition.load;
+  const autonomousMobilityReduction = completedTechs.includes('autonomous-mobility') ? 1 : 0;
+  return Math.max(definition.load, definition.load + linkedUnitIds.length - autonomousMobilityReduction);
 }

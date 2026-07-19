@@ -5,7 +5,7 @@ import { drawNextCityName, DEFAULT_CITY_NAMES } from './city-name-system';
 import { INITIAL_CITY_FOCUS, INITIAL_CITY_MATURITY } from './city-maturity-system';
 import { TECH_COST_DISCOUNTS, getFoundingBonusFood } from './tech-yield-definitions';
 import { UNIT_CLASS_BY_TYPE, isMilitaryUnitType, type UnitClass } from './unit-modifier-definitions';
-import { getResourceAdvantageMultiplier } from './resource-advantages';
+import { getResourceAdvantageMultiplier, getResourceAdvantagesForItem } from './resource-advantages';
 import {
   getLegendaryWonderDisplayName,
   getLegendaryWonderProductionCost,
@@ -1085,6 +1085,23 @@ export const BUILDINGS: Record<string, Building> = {
     uniquePerEmpire: true, nationalProject: { homeEra: 12 },
     civYieldBonus: { production: 6 },
   },
+
+  /* === ERA 13 BUILDINGS AND NATIONAL PROJECTS === */
+  network_operations_center: { id: 'network_operations_center', name: 'Network Operations Center', category: 'science', yields: { food: 0, production: 0, gold: 1, science: 1 }, productionCost: 224, description: 'Coordinates empire networks. Capacity follows the diminishing empire rule.', techRequired: 'general-purpose-ai', pacing: { band: 'infrastructure', role: 'network-capacity', impact: 1.2, scope: 'empire', snowball: 1.2, urgency: 1, situationality: 1.1, unlockBreadth: 1 } },
+  ai_safety_institute: { id: 'ai_safety_institute', name: 'AI Safety Institute', category: 'science', yields: { food: 0, production: 0, gold: 0, science: 2 }, productionCost: 196, description: '+2 science and +1 Network Capacity for your empire.', techRequired: 'algorithmic-accountability', pacing: { band: 'specialist', role: 'network-defense', impact: 1.2, scope: 'empire', snowball: 1.1, urgency: 1, situationality: 1.1, unlockBreadth: 1 } },
+  drone_fabricator: { id: 'drone_fabricator', name: 'Drone Fabricator', category: 'production', yields: { food: 0, production: 2, gold: 0, science: 0 }, productionCost: 336, description: 'Builds and coordinates autonomous drones.', techRequired: 'autonomous-weapons-systems', pacing: { band: 'marquee', role: 'drone-enabler', impact: 1.4, scope: 'military', snowball: 1.2, urgency: 1.1, situationality: 1.2, unlockBreadth: 1 } },
+  electronic_warfare_array: { id: 'electronic_warfare_array', name: 'Electronic Warfare Array', category: 'military', yields: { food: 0, production: 1, gold: 0, science: 1 }, productionCost: 224, description: '+1 production and +1 science.', techRequired: 'adversarial-ai', pacing: { band: 'infrastructure', role: 'network-counter', impact: 1.2, scope: 'military', snowball: 1, urgency: 1.1, situationality: 1.2, unlockBreadth: 1 } },
+  civic_media_forum: { id: 'civic_media_forum', name: 'Civic Media Forum', category: 'culture', yields: { food: 0, production: 0, gold: 1, science: 1 }, productionCost: 196, description: '+1 gold and +1 science.', techRequired: 'digital-democracy', pacing: { band: 'core', role: 'civic-defense', impact: 1.15, scope: 'city', snowball: 1, urgency: 1.05, situationality: 1.1, unlockBreadth: 1 } },
+  vertical_farm: { id: 'vertical_farm', name: 'Vertical Farm', category: 'food', yields: { food: 4, production: 0, gold: 0, science: 0 }, productionCost: 196, description: '+4 food. Closed-Loop Food Systems adds another +1 food.', techRequired: 'vertical-agriculture', pacing: { band: 'core', role: 'late-food', impact: 1.2, scope: 'city', snowball: 1.15, urgency: 1, situationality: 1, unlockBreadth: 1 } },
+  neural_rehabilitation_center: { id: 'neural_rehabilitation_center', name: 'Neural Rehabilitation Center', category: 'food', yields: { food: 1, production: 0, gold: 0, science: 2 }, productionCost: 224, description: 'Nearby units heal +5 HP per owner turn from Precision Gene Editing.', techRequired: 'precision-gene-editing', pacing: { band: 'infrastructure', role: 'unit-recovery', impact: 1.2, scope: 'military', snowball: 1, urgency: 1.05, situationality: 1.1, unlockBreadth: 1 } },
+  ocean_robotics_yard: { id: 'ocean_robotics_yard', name: 'Ocean Robotics Yard', category: 'production', yields: { food: 0, production: 2, gold: 1, science: 0 }, productionCost: 336, description: 'Coastal autonomous-vessel construction yard.', techRequired: 'ocean-robotics', coastalRequired: true, pacing: { band: 'marquee', role: 'autonomous-naval', impact: 1.4, scope: 'military', snowball: 1.2, urgency: 1.1, situationality: 1.25, unlockBreadth: 1 } },
+  circular_fabricator: { id: 'circular_fabricator', name: 'Circular Fabricator', category: 'production', yields: { food: 0, production: 3, gold: 0, science: 0 }, productionCost: 224, description: 'Supplies one missing local advanced-material soft advantage for the active item.', techRequired: 'programmable-materials', pacing: { band: 'infrastructure', role: 'material-substitution', impact: 1.2, scope: 'city', snowball: 1.15, urgency: 1, situationality: 1.2, unlockBreadth: 1 } },
+  modular_arcology: { id: 'modular_arcology', name: 'Modular Arcology', category: 'food', yields: { food: 2, production: 2, gold: 0, science: 0 }, productionCost: 336, description: 'Dense modular housing and production. Requires a Transplant Hospital and Factory.', techRequired: 'modular-arcologies', requiresBuildings: ['transplant_hospital', 'factory'], pacing: { band: 'marquee', role: 'dense-city', impact: 1.35, scope: 'city', snowball: 1.2, urgency: 1, situationality: 1.1, unlockBreadth: 1 } },
+  carbon_capture_grid: { id: 'carbon_capture_grid', name: 'Carbon Capture Grid', category: 'production', yields: { food: 2, production: 2, gold: 0, science: 0 }, productionCost: 224, description: 'Restorative industrial infrastructure. Requires a Factory and Environmental Agency.', techRequired: 'carbon-negative-infrastructure', requiresBuildings: ['factory', 'environmental_agency'], pacing: { band: 'infrastructure', role: 'restorative-industry', impact: 1.2, scope: 'city', snowball: 1.1, urgency: 1, situationality: 1.1, unlockBreadth: 1 } },
+  immersive_arts_lab: { id: 'immersive_arts_lab', name: 'Immersive Arts Lab', category: 'culture', yields: { food: 0, production: 0, gold: 3, science: 1 }, happiness: 1, productionCost: 196, description: 'Interactive arts studio. +3 gold, +1 science, and +1 happiness; Immersive Worlds adds another +1 science.', techRequired: 'co-creative-arts', pacing: { band: 'specialist', role: 'culture-science', impact: 1.15, scope: 'city', snowball: 1.1, urgency: 1, situationality: 1.1, unlockBreadth: 1 } },
+  national_ai_assurance_program: { id: 'national_ai_assurance_program', name: 'National AI Assurance Program', category: 'science', yields: { food: 0, production: 0, gold: 0, science: 6 }, productionCost: 392, description: 'A temporary empire-wide +6 science program with +2 Network Capacity.', techRequired: 'algorithmic-accountability', uniquePerEmpire: true, nationalProject: { homeEra: 13 }, civYieldBonus: { science: 6 }, pacing: { band: 'marquee', role: 'national-project', impact: 1.6, scope: 'empire', snowball: 1.5, urgency: 1.2, situationality: 1.3, unlockBreadth: 1 } },
+  circular_manufacturing_network: { id: 'circular_manufacturing_network', name: 'Circular Manufacturing Network', category: 'production', yields: { food: 0, production: 6, gold: 0, science: 0 }, productionCost: 392, description: 'A temporary empire-wide production program. Choose one advanced material substitution when completed.', techRequired: 'molecular-fabrication', uniquePerEmpire: true, nationalProject: { homeEra: 13 }, civYieldBonus: { production: 6 }, pacing: { band: 'marquee', role: 'national-project', impact: 1.6, scope: 'empire', snowball: 1.5, urgency: 1.2, situationality: 1.3, unlockBreadth: 1 } },
+  mars_robotics_initiative: { id: 'mars_robotics_initiative', name: 'Mars Robotics Initiative', category: 'science', yields: { food: 0, production: 0, gold: 3, science: 3 }, productionCost: 392, description: 'A temporary empire-wide +3 gold and +3 science program.', techRequired: 'mars-mission-architecture', uniquePerEmpire: true, nationalProject: { homeEra: 13 }, civYieldBonus: { gold: 3, science: 3 }, pacing: { band: 'marquee', role: 'national-project', impact: 1.6, scope: 'empire', snowball: 1.5, urgency: 1.2, situationality: 1.3, unlockBreadth: 1 } },
 };
 
 export const TRAINABLE_UNITS: Array<TrainableUnitEntry & { pacing?: Building['pacing'] }> = [
@@ -1125,7 +1142,7 @@ export const TRAINABLE_UNITS: Array<TrainableUnitEntry & { pacing?: Building['pa
   { type: 'artillery',    name: 'Artillery',    cost: 190, techRequired: 'mass-firepower',   pacing: { band: 'power-spike', role: 'siege-apex',           impact: 1.4,  scope: 'military', snowball: 1.2, urgency: 1.1,  situationality: 1.3,  unlockBreadth: 1 } },
   { type: 'ironclad',     name: 'Ironclad',     cost: 160, techRequired: 'ironclad-warships', coastalRequired: true,         obsoletedByTech: 'naval-armor', upgradesTo: 'pre_dreadnought',       pacing: { band: 'power-spike', role: 'naval-superiority',    impact: 1.4,  scope: 'military', snowball: 1.3, urgency: 1.2,  situationality: 1.4,  unlockBreadth: 1 } },
   { type: 'machine_gunner', name: 'Machine Gunner', cost: 145, techRequired: 'mass-firepower',   obsoletedByTech: 'armored-tactics', upgradesTo: 'infantry',                             pacing: { band: 'power-spike', role: 'ranged-suppression',  impact: 1.35, scope: 'military', snowball: 1.2, urgency: 1.1, situationality: 1.2, unlockBreadth: 1 } },
-  { type: 'infantry',       name: 'Infantry',       cost: 195, techRequired: 'armored-tactics', pacing: { band: 'power-spike', role: 'modern-line-infantry', impact: 1.4,  scope: 'military', snowball: 1.3, urgency: 1.1,  situationality: 1.2,  unlockBreadth: 1 } },
+  { type: 'infantry',       name: 'Infantry',       cost: 195, techRequired: 'armored-tactics', obsoletedByTech: 'neural-prosthetics', upgradesTo: 'exosuit_infantry', pacing: { band: 'power-spike', role: 'modern-line-infantry', impact: 1.4,  scope: 'military', snowball: 1.3, urgency: 1.1,  situationality: 1.2,  unlockBreadth: 1 } },
   { type: 'pre_dreadnought', name: 'Pre-Dreadnought', cost: 175, techRequired: 'naval-armor', coastalRequired: true, obsoletedByTech: 'submarine-warfare', upgradesTo: 'submarine', pacing: { band: 'power-spike', role: 'naval-apex',           impact: 1.5,  scope: 'military', snowball: 1.4, urgency: 1.2, situationality: 1.4, unlockBreadth: 1 } },
   { type: 'tank',      name: 'Tank',      cost: 185, techRequired: 'tank-warfare',                                                                                  pacing: { band: 'power-spike', role: 'armored-assault',     impact: 1.5,  scope: 'military', snowball: 1.4, urgency: 1.2, situationality: 1.3, unlockBreadth: 1 } },
   { type: 'submarine', name: 'Submarine', cost: 180, techRequired: 'submarine-warfare', coastalRequired: true,                                                      pacing: { band: 'power-spike', role: 'naval-stealth',        impact: 1.5,  scope: 'military', snowball: 1.4, urgency: 1.2, situationality: 1.5, unlockBreadth: 1 } },
@@ -1138,13 +1155,18 @@ export const TRAINABLE_UNITS: Array<TrainableUnitEntry & { pacing?: Building['pa
   { type: 'recon_aircraft',      name: 'Recon Aircraft',      cost: 230, techRequired: 'jet-aviation',    trainedFromBuilding: 'airfield', pacing: { band: 'power-spike',  role: 'air-recon',  impact: 1.35, scope: 'military', snowball: 1.1, urgency: 1.1, situationality: 1.4, unlockBreadth: 1 } },
   { type: 'bomber',              name: 'Bomber',              cost: 280, techRequired: 'nuclear-weapons', trainedFromBuilding: 'airfield', obsoletedByTech: 'stealth-technology', upgradesTo: 'stealth_bomber', pacing: { band: 'marquee', role: 'strategic-bombing', impact: 1.6, scope: 'military', snowball: 1.4, urgency: 1.2, situationality: 1.4, unlockBreadth: 1 } },
   { type: 'carrier',             name: 'Carrier',             cost: 220, techRequired: 'carrier-warfare', coastalRequired: true, pacing: { band: 'power-spike', role: 'naval-projection', impact: 1.5, scope: 'military', snowball: 1.4, urgency: 1.1, situationality: 1.4, unlockBreadth: 1 } },
-  { type: 'destroyer',           name: 'Destroyer',           cost: 210, techRequired: 'carrier-warfare', coastalRequired: true, pacing: { band: 'power-spike', role: 'naval-escort-apex', impact: 1.55, scope: 'military', snowball: 1.45, urgency: 1.2, situationality: 1.5, unlockBreadth: 1 } },
+  { type: 'destroyer',           name: 'Destroyer',           cost: 210, techRequired: 'carrier-warfare', coastalRequired: true, obsoletedByTech: 'ocean-robotics', upgradesTo: 'autonomous_frigate', pacing: { band: 'power-spike', role: 'naval-escort-apex', impact: 1.55, scope: 'military', snowball: 1.45, urgency: 1.2, situationality: 1.5, unlockBreadth: 1 } },
   // Era 11 units
-  { type: 'attack_helicopter', name: 'Attack Helicopter', cost: 230, techRequired: 'helicopter-warfare', trainedFromBuilding: 'helicopter_base', pacing: { band: 'marquee', role: 'air-assault', impact: 1.55, scope: 'military', snowball: 1.4, urgency: 1.2, situationality: 1.3, unlockBreadth: 1 } },
+  { type: 'attack_helicopter', name: 'Attack Helicopter', cost: 230, techRequired: 'helicopter-warfare', trainedFromBuilding: 'helicopter_base', obsoletedByTech: 'autonomous-weapons-systems', upgradesTo: 'combat_drone', pacing: { band: 'marquee', role: 'air-assault', impact: 1.55, scope: 'military', snowball: 1.4, urgency: 1.2, situationality: 1.3, unlockBreadth: 1 } },
   { type: 'missile_submarine', name: 'Missile Submarine', cost: 250, techRequired: 'nuclear-submarines', coastalRequired: true, resourceRequired: ['uranium'], pacing: { band: 'marquee', role: 'naval-deterrent', impact: 1.6, scope: 'military', snowball: 1.5, urgency: 1.2, situationality: 1.5, unlockBreadth: 1 } },
   // Era 12 units
   { type: 'cyber_unit', name: 'Cyber Unit', cost: 338, techRequired: 'cyber-warfare', pacing: { band: 'marquee', role: 'cyber-saboteur', impact: 1.4, scope: 'military', snowball: 1.2, urgency: 1.1, situationality: 1.4, unlockBreadth: 1 } },
   { type: 'stealth_bomber', name: 'Stealth Bomber', cost: 360, techRequired: 'stealth-technology', trainedFromBuilding: 'stealth_airbase', pacing: { band: 'marquee', role: 'stealth-strike', impact: 1.7, scope: 'military', snowball: 1.5, urgency: 1.3, situationality: 1.5, unlockBreadth: 1 } },
+  { type: 'combat_drone', name: 'Combat Drone', cost: 224, techRequired: 'autonomous-weapons-systems', trainedFromBuilding: 'drone_fabricator', pacing: { band: 'power-spike', role: 'coordinated-air-support', impact: 1.35, scope: 'military', snowball: 1.1, urgency: 1.1, situationality: 1.2, unlockBreadth: 1 } },
+  { type: 'autonomous_frigate', name: 'Autonomous Frigate', cost: 336, techRequired: 'ocean-robotics', coastalRequired: true, trainedFromBuilding: 'ocean_robotics_yard', pacing: { band: 'marquee', role: 'autonomous-naval', impact: 1.5, scope: 'military', snowball: 1.2, urgency: 1.15, situationality: 1.25, unlockBreadth: 1 } },
+  { type: 'exosuit_infantry', name: 'Exosuit Infantry', cost: 196, techRequired: 'neural-prosthetics', pacing: { band: 'core', role: 'advanced-line-infantry', impact: 1.3, scope: 'military', snowball: 1.1, urgency: 1.1, situationality: 1, unlockBreadth: 1 } },
+  { type: 'propagandist', name: 'Propagandist', cost: 196, techRequired: 'synthetic-media-operations', pacing: { band: 'specialist', role: 'civic-pressure', impact: 1.15, scope: 'military', snowball: 1, urgency: 1.05, situationality: 1.2, unlockBreadth: 1 } },
+  { type: 'drone_controller', name: 'Drone Controller', cost: 196, techRequired: 'autonomous-weapons-systems', trainedFromBuilding: 'drone_fabricator', pacing: { band: 'specialist', role: 'formation-coordination', impact: 1.15, scope: 'military', snowball: 1, urgency: 1.05, situationality: 1.2, unlockBreadth: 1 } },
   { type: 'spy_scout', name: 'Scout Agent', cost: 30, techRequired: 'espionage-scouting', obsoletedByTech: 'espionage-informants', upgradesTo: 'spy_informant', pacing: { band: 'power-spike', role: 'first-spy-unit', impact: 1.15, scope: 'military', snowball: 1.1, urgency: 1.1, situationality: 1.1, unlockBreadth: 1.1 } },
   { type: 'spy_informant', name: 'Informant', cost: 50, techRequired: 'espionage-informants', obsoletedByTech: 'spy-networks', upgradesTo: 'spy_agent', pacing: { band: 'power-spike', role: 'spy-capability-breakpoint', impact: 1.15, scope: 'military', snowball: 1.1, urgency: 1.05, situationality: 1.1, unlockBreadth: 1.1 } },
   { type: 'spy_agent', name: 'Field Agent', cost: 70, techRequired: 'spy-networks', obsoletedByTech: 'cryptography', upgradesTo: 'spy_operative', pacing: { band: 'power-spike', role: 'spy-capability-breakpoint', impact: 1.2, scope: 'military', snowball: 1.1, urgency: 1, situationality: 1.1, unlockBreadth: 1.1 } },
@@ -1192,11 +1214,8 @@ export const TERMINAL_COMBAT_UNITS: Partial<Record<UnitType, string>> = {
   stealth_bomber: 'current air-combat apex (era 12), no later replacement in the roster yet',
   cyber_unit: 'era 12 economic-sabotage unit, unique role (city-only ranged target), no later replacement in the roster yet',
   carrier: 'current top-tier naval projection, no later replacement in the roster yet',
-  destroyer: 'modern surface escort, no later replacement yet',
   artillery: 'current siege apex; rocket artillery is future content',
-  infantry: 'modern line infantry, no later replacement in the roster yet',
   jet_fighter: 'air-superiority apex; stealth bomber is the bomber line, not a fighter upgrade',
-  attack_helicopter: 'era 11, newest air-assault unit, no later replacement yet',
   missile_submarine: 'era 11, newest naval-deterrent unit, no later replacement yet',
   scout: 'recon unit, strength is a self-defense stat not its primary role, no replacement chain',
   observation_balloon: 'recon unit (air-recon role), strength is a self-defense stat, no replacement chain',
@@ -1204,6 +1223,9 @@ export const TERMINAL_COMBAT_UNITS: Partial<Record<UnitType, string>> = {
   scout_hound: 'recon/detection unit, strength is a self-defense stat, no replacement chain',
   shadow_warden: 'civ-specific (Persia) recon/detection replacement for scout_hound, same reasoning',
   war_hound: 'civ-specific (Rome) recon/detection replacement for scout_hound, same reasoning',
+  combat_drone: 'Era 13 coordinated air-support apex; later eras may introduce an autonomous-air successor.',
+  autonomous_frigate: 'Era 13 autonomous surface-escort apex; later eras may introduce a successor.',
+  exosuit_infantry: 'Era 13 advanced line-infantry apex; Tank remains the separate armor apex.',
 };
 
 export const SETTLER_COST_BY_ERA: Record<number, number> = {
@@ -1352,6 +1374,8 @@ export function getProductionCostForItem(
     completedTechs?: string[];
     activeNationalProjects?: ActiveNationalProjectRef[];
     availableResources?: ReadonlySet<ResourceType>;
+    /** One empire-selected soft material supplied by Circular Manufacturing Network. */
+    materialSubstitution?: ResourceType;
   } = {},
 ): number {
   const baseCost = getCatalogProductionCost(itemId, options.era);
@@ -1375,7 +1399,11 @@ export function getProductionCostForItem(
     unit != null,
     options.activeNationalProjects ?? [],
   );
-  const resourceAdvantageMultiplier = getResourceAdvantageMultiplier(itemId, options.availableResources ?? new Set());
+  const advantageResources = new Set(options.availableResources ?? []);
+  // Circular Manufacturing Network is a soft substitution only. The selected
+  // material does not affect hard-resource eligibility anywhere else.
+  if (options.materialSubstitution) advantageResources.add(options.materialSubstitution);
+  const resourceAdvantageMultiplier = getResourceAdvantageMultiplier(itemId, advantageResources);
   const discountMultiplier = buildingDiscountMultiplier * techDiscountMultiplier * npDiscountMultiplier * resourceAdvantageMultiplier;
   const effective = baseCost * civMultiplier * discountMultiplier;
   return discountMultiplier < 1 ? Math.ceil(effective) : Math.round(effective);
@@ -1407,6 +1435,21 @@ export const PRODUCTION_ICONS: Record<string, string> = {
   safehouse: '🏠',
   'intelligence-agency': '🛡️',
   'security-bureau': '🔒',
+  network_operations_center: '🖧',
+  ai_safety_institute: '🛡️',
+  drone_fabricator: '🛠️',
+  electronic_warfare_array: '📶',
+  civic_media_forum: '🗳️',
+  vertical_farm: '🏙️',
+  neural_rehabilitation_center: '🧠',
+  ocean_robotics_yard: '⚓',
+  circular_fabricator: '♻️',
+  modular_arcology: '🏗️',
+  carbon_capture_grid: '🌿',
+  immersive_arts_lab: '🥽',
+  national_ai_assurance_program: '🛡️',
+  circular_manufacturing_network: '♻️',
+  mars_robotics_initiative: '🚀',
   // Units
   warrior: '⚔️',
   archer: '🏹',
@@ -1601,6 +1644,11 @@ export const PRODUCTION_ICONS: Record<string, string> = {
   // era 11 units
   attack_helicopter: '🚁',
   missile_submarine: '🌊',
+  combat_drone: '🛸',
+  autonomous_frigate: '⚓',
+  exosuit_infantry: '🦾',
+  propagandist: '📣',
+  drone_controller: '🎮',
   // Era 12 buildings
   automated_port: '⚓',
   biotech_lab: '🧬',
@@ -1888,6 +1936,7 @@ export function processCity(
   availableResources?: Set<ResourceType>,
   builtNationalProjectKeys?: Set<string>,
   unitCompletionBlocker?: (type: UnitType) => ProductionDropReason | null,
+  materialSubstitution?: ResourceType,
 ): CityProcessResult {
   let grew = false;
   let completedBuilding: string | null = null;
@@ -2031,6 +2080,7 @@ export function processCity(
       era,
       completedTechs,
       availableResources,
+      materialSubstitution,
     });
     if ((BUILDINGS[currentItem] || unitDef) && newProgress >= currentItemCost) {
       const completion = completeCityProductionItem(

@@ -3,6 +3,8 @@ import type { GameState } from '@/core/types';
 import { getAutonomyCapacity, getAutonomyLoad } from '@/systems/autonomy-capacity';
 import { getAutonomySurgeRules } from '@/systems/autonomy-postures';
 import { getNetworkPlanDefinition } from '@/systems/network-plan-definitions';
+import { hexDistance } from '@/systems/hex-utils';
+import { isMilitaryUnitType } from '@/systems/unit-modifier-definitions';
 import {
   type NetworkPlanRequest,
   previewNetworkPlan,
@@ -35,6 +37,7 @@ export interface NetworkPanelCallbacks {
 const CITY_PLAN_IDS: readonly NetworkPlanDefinitionId[] = [
   'fabrication-sprint', 'research-mesh', 'logistics-routing', 'survey-grid',
 ];
+const FORMATION_PLAN_IDS: readonly NetworkPlanDefinitionId[] = ['guardian-screen', 'swarm-strike'];
 
 const LABELS: Readonly<Record<NetworkPlanDefinitionId, string>> = {
   harden: 'Harden', exploit: 'Exploit', 'fabrication-sprint': 'Fabrication Sprint',
@@ -78,9 +81,36 @@ export function getNetworkPanelModel(state: GameState, civId: string): NetworkPa
       });
     }
   }
+  const controllers = Object.values(state.units)
+    .filter(unit => unit.owner === civId && unit.type === 'drone_controller')
+    .sort((left, right) => left.id.localeCompare(right.id));
+  for (const controller of controllers) {
+    const recipients = Object.values(state.units)
+      .filter(unit => unit.owner === civId && unit.id !== controller.id && isMilitaryUnitType(unit.type)
+        && hexDistance(controller.position, unit.position) <= getNetworkPlanDefinition('guardian-screen').range)
+      .sort((left, right) => left.id.localeCompare(right.id))
+      .slice(0, 3)
+      .map(unit => unit.id);
+    if (recipients.length === 0) continue;
+    for (const definitionId of FORMATION_PLAN_IDS) {
+      const request: NetworkPlanRequest = {
+        ownerCivId: civId,
+        sourceUnitId: controller.id,
+        definitionId,
+        target: { kind: 'formation', unitIds: recipients },
+      };
+      const preview = previewNetworkPlan(state, request);
+      candidates.push({
+        label: `${LABELS[definitionId]} · Drone Controller (Load ${preview.load})`,
+        request,
+        enabled: preview.validation.ok,
+        reason: reasonForPreview(preview),
+      });
+    }
+  }
   const posture = autonomy?.posture ?? 'integrated';
   const recovery = autonomy?.surgeRecoveryUntilTurn;
-  const rules = getAutonomySurgeRules(posture);
+  const rules = getAutonomySurgeRules(posture, state.civilizations[civId]?.techState.completed ?? []);
   return {
     active: true,
     statusText: recovery !== null && recovery !== undefined && recovery > state.turn
@@ -91,6 +121,7 @@ export function getNetworkPanelModel(state: GameState, civId: string): NetworkPa
     activePlanIds: Object.values(autonomy?.plans ?? {}).filter(plan => plan.status === 'active').map(plan => plan.id).sort(),
   };
 }
+
 
 export function createNetworkPanel(model: NetworkPanelModel, callbacks: NetworkPanelCallbacks): HTMLElement {
   const panel = document.createElement('div');

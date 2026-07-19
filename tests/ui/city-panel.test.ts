@@ -77,6 +77,31 @@ describe('city-panel national projects', () => {
 
     expect(panel.querySelector('[data-item-id="communal_stores"]')).toBeNull();
   });
+
+  it('shows an unfinished Circular Manufacturing Network material choice only to its current human owner', () => {
+    const { container, city, state } = makeWonderPanelFixture();
+    state.builtNationalProjects = {
+      'player:circular_manufacturing_network': { civId: 'player', cityId: city.id, eraBuilt: 13 },
+    };
+    const onChooseCircularManufacturingMaterial = vi.fn();
+
+    const panel = createCityPanel(container, city, state, {
+      onBuild: () => {},
+      onOpenWonderPanel: () => {},
+      onClose: () => {},
+      onChooseCircularManufacturingMaterial,
+    });
+
+    clickElement(panel.querySelector('[data-circular-material="battery-minerals"]'));
+    expect(onChooseCircularManufacturingMaterial).toHaveBeenCalledWith('battery-minerals');
+
+    state.currentPlayer = 'player-2';
+    const handoff = createCityPanel(container, city, state, {
+      onBuild: () => {}, onOpenWonderPanel: () => {}, onClose: () => {},
+      onChooseCircularManufacturingMaterial,
+    });
+    expect(handoff.querySelector('[data-circular-material]')).toBeNull();
+  });
 });
 
 describe('city-panel unrest section — #436', () => {

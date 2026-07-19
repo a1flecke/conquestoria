@@ -47,10 +47,10 @@ import {
 } from '@/systems/tech-yield-system';
 import type { HexCoord } from './types';
 import { applyReconReveals, updateVisibility, revealMinorCivCities, applySharedVision, applySatelliteSurveillance, applyMassSurveillanceReveal } from '@/systems/fog-of-war';
-import { getActiveNationalProjectsForCiv } from '@/systems/national-project-system';
+import { chooseCircularManufacturingMaterial, getActiveNationalProjectsForCiv, getCircularManufacturingMaterial } from '@/systems/national-project-system';
 import { UNIT_CLASS_BY_TYPE } from '@/systems/unit-modifier-definitions';
 import { MISSIONARY_BASE_CHARGES, MISSIONARY_ZEAL_CHARGES } from '@/systems/religion-definitions';
-import { getHealingBonus, getVisionBonus, isWithinRangeOfTelemedicineHub } from '@/systems/unit-modifier-system';
+import { getHealingBonus, getVisionBonus, isWithinRangeOfNeuralRehabilitationCenter, isWithinRangeOfTelemedicineHub } from '@/systems/unit-modifier-system';
 import { syncCivilizationContactsFromVisibility } from '@/systems/discovery-system';
 import { refreshLastSeenPresentationsForCiv } from '@/systems/last-seen-presentation';
 import {
@@ -296,6 +296,7 @@ export function processTurn(
           if (!UNIT_DEFINITIONS[type].airOperation) return null;
           return canCompleteAirUnitProduction(newState, cityId, type).ok ? null : 'air-base-unavailable';
         },
+        getCircularManufacturingMaterial(newState, civId),
       );
       totalGold += result.idleGoldBonus;
       totalScience += result.idleScienceBonus;
@@ -349,6 +350,12 @@ export function processTurn(
             buildingId: result.completedBuilding,
             eraBuilt: civEra,
           });
+          // A human chooses from the city panel and can carry that decision across
+          // a hot-seat handoff. AI uses the same canonical choice mutation, with
+          // rare-earth elements as the broadest Era-13 soft-material coverage.
+          if (!civ.isHuman && result.completedBuilding === 'circular_manufacturing_network') {
+            newState = chooseCircularManufacturingMaterial(newState, civId, 'rare-earth-elements');
+          }
           if (result.completedBuilding === 'sacred_council') {
             newState = foundReligion(newState, civId, cityId, bus);
           }
@@ -581,12 +588,14 @@ export function processTurn(
       const inFriendlyCity = cityPositionsSet.has(posKey) && (tile?.owner === civId);
       const inFriendlyTerritory = !inFriendlyCity && (tile?.owner === civId);
       const withinRangeOfFriendlyCity3 = isWithinRangeOfTelemedicineHub(newState, civId, unit.position, 3);
+      const nearNeuralRehabilitationCenter = isWithinRangeOfNeuralRehabilitationCenter(newState, civId, unit.position, 1);
       const healingBonus = getHealingBonus({
         completedTechs: healCompletedTechs,
         activeNationalProjects: healActiveNPs,
         inFriendlyCity,
         inFriendlyTerritory,
         withinRangeOfFriendlyCity3,
+        withinRangeOfNeuralRehabilitationCenter: nearNeuralRehabilitationCenter,
       });
       newState.units[unitId] = healUnit(unit, inFriendlyCity, inFriendlyTerritory, healingBonus);
     }

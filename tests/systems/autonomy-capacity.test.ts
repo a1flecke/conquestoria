@@ -30,6 +30,17 @@ describe('autonomy capacity', () => {
     expect(getAutonomyCapacity(state, 'player')).toEqual({ unrestricted: 14, restricted: {} });
   });
 
+  it('adds General-Purpose AI Capacity and only grants Digital Personhood Capacity while integrated', () => {
+    const state = createNewGame('rome', 'autonomy-era13-capacity', 'small');
+    state.civilizations.player.techState.completed = ['quantum-computing', 'general-purpose-ai', 'digital-personhood'];
+    state.autonomyByCiv!.player.posture = 'safeguarded';
+
+    expect(getAutonomyCapacity(state, 'player')).toEqual({ unrestricted: 4, restricted: {} });
+
+    state.autonomyByCiv!.player.posture = 'integrated';
+    expect(getAutonomyCapacity(state, 'player')).toEqual({ unrestricted: 5, restricted: {} });
+  });
+
   it('uses definition Load rather than plan count and ignores completed plans', () => {
     const state = createNewGame('rome', 'autonomy-load', 'small');
     state.civilizations.player.techState.completed = ['quantum-computing'];

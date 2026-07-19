@@ -393,6 +393,11 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     domain: 'naval',
     attackProfile: { kind: 'ranged', range: 3, targets: ['unit', 'city'] },
   },
+  combat_drone: { type: 'combat_drone', name: 'Combat Drone', movementPoints: 6, visionRange: 3, strength: 42, canFoundCity: false, canBuildImprovements: false, productionCost: 224, domain: 'air', attackProfile: { kind: 'ranged', range: 2, targets: ['unit', 'city'] }, airOperation: { baseKinds: ['airfield', 'helicopter_base', 'stealth_airbase', 'carrier'], operationalRange: 5, ferryRange: 8, missions: ['strike', 'rebase'], carrierEligible: true } },
+  autonomous_frigate: { type: 'autonomous_frigate', name: 'Autonomous Frigate', movementPoints: 5, visionRange: 3, strength: 60, canFoundCity: false, canBuildImprovements: false, productionCost: 336, domain: 'naval', attackProfile: { kind: 'ranged', range: 3, targets: ['unit', 'city'] } },
+  exosuit_infantry: { type: 'exosuit_infantry', name: 'Exosuit Infantry', movementPoints: 3, visionRange: 2, strength: 58, canFoundCity: false, canBuildImprovements: false, productionCost: 196, domain: 'land', attackProfile: { kind: 'ranged', range: 1, targets: ['unit', 'city'] } },
+  propagandist: { type: 'propagandist', name: 'Propagandist', movementPoints: 3, visionRange: 2, strength: 0, canFoundCity: false, canBuildImprovements: false, productionCost: 196, domain: 'land' },
+  drone_controller: { type: 'drone_controller', name: 'Drone Controller', movementPoints: 3, visionRange: 3, strength: 0, canFoundCity: false, canBuildImprovements: false, productionCost: 196, domain: 'land' },
   // S5 — trade unit
   caravan: {
     type: 'caravan', name: 'Caravan', movementPoints: 3,
@@ -704,6 +709,11 @@ export const UNIT_DESCRIPTIONS: Record<UnitType, string> = {
   destroyer:   'Fast surface escort. Ranged attack (range 2) vs units and cities; +25% strength attacking submarines and missile submarines. Requires Carrier Warfare and a coastal city. Current top-tier surface escort — no later replacement yet.',
   attack_helicopter: 'Cold War attack helicopter. Combines close air support with anti-armour missiles; faster than jet fighters but more vulnerable to ground fire. Ranged air unit.',
   missile_submarine: 'Nuclear-powered ballistic missile submarine. Long-range submarine-launched missiles threaten any city from the deep. Requires a coastal city to build. Longest range of any unit.',
+  combat_drone: 'Autonomous air-support unit. Its strongest results come from a valid network formation; fast but not a standalone replacement for a mixed force.',
+  autonomous_frigate: 'Long-range autonomous surface warship. Requires a coastal robotics yard and remains vulnerable to efficient mixed naval counters.',
+  exosuit_infantry: 'Advanced line infantry with powered protection. Stronger than ordinary infantry but still weaker than a Tank.',
+  propagandist: 'Capturable civic specialist. Uses visible Rally and Undermine actions instead of direct weapon attacks.',
+  drone_controller: 'Capturable coordination specialist. Assigns valid drone formations through the Network panel; may safely Hold when no plan is needed.',
   // S5 — trade unit
   caravan:     'Trade unit. Establish a trade route to generate gold each turn. '
              + 'Once committed, cannot move or act until the route ends (8 round trips base). '

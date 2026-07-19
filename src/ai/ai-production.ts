@@ -22,7 +22,7 @@ import { resolveCivDefinition } from '@/systems/civ-registry';
 import { createUnit, UNIT_DEFINITIONS } from '@/systems/unit-system';
 import { canCompleteAirUnitProduction } from '@/systems/air-operations-system';
 import { enqueueCityProduction } from '@/systems/planning-system';
-import { getActiveNationalProjectsForCiv, getReservedNationalProjectKeys } from '@/systems/national-project-system';
+import { getActiveNationalProjectsForCiv, getCircularManufacturingMaterial, getReservedNationalProjectKeys } from '@/systems/national-project-system';
 import type { AIForceDemand } from './ai-unit-assignment';
 import { getAIStrategicRoles } from './ai-unit-roles';
 import { weightProductionRoles } from './ai-personality';
@@ -332,6 +332,7 @@ function generateWithResidual(
       completedTechs: civ.techState.completed,
       activeNationalProjects,
       availableResources: resources,
+      materialSubstitution: getCircularManufacturingMaterial(state, civId),
     });
     const productionTurns = Math.max(1, Math.ceil(cost / productionPerTurn));
     const roleDemandScore = fulfilled.missing * 40 + fulfilled.priority / 5;
@@ -444,6 +445,7 @@ function generateWithResidual(
       completedTechs: civ.techState.completed,
       activeNationalProjects,
       availableResources: resources,
+      materialSubstitution: getCircularManufacturingMaterial(state, civId),
     });
     const productionTurns = Math.max(1, Math.ceil(cost / productionPerTurn));
     const personalityScore = weightProductionRoles(personality, []);

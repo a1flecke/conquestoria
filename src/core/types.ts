@@ -359,7 +359,8 @@ export type UnitType =
   | 'pirate_ironclad' | 'pirate_fast_attack_craft' | 'pirate_mothership'
   | 'beast_boar' | 'beast_wolf' | 'beast_basilisk' | 'beast_sea_serpent'
   | 'beast_wurm' | 'beast_roc' | 'beast_hydra' | 'beast_dragon'
-  | 'cyber_unit' | 'stealth_bomber';
+  | 'cyber_unit' | 'stealth_bomber'
+  | 'combat_drone' | 'autonomous_frigate' | 'exosuit_infantry' | 'propagandist' | 'drone_controller';
 
 export interface UnitAttackProfile {
   kind: 'melee' | 'ranged' | 'siege' | 'bombard';
@@ -1574,6 +1575,8 @@ export interface GameState {
   legendaryWonderAvailability?: Record<string, LegendaryWonderAvailabilityRecord>;
   completedLegendaryWonders?: Record<string, CompletedLegendaryWonder>;
   builtNationalProjects?: Record<string, BuiltNationalProjectRecord>; // key: `${civId}:${buildingId}`
+  /** Player-authored, empire-scoped choices made by national projects. */
+  nationalProjectChoices?: Record<string, ResourceType>;
   legendaryWonderHistory?: LegendaryWonderHistory;
   legendaryWonderIntel?: Record<string, LegendaryWonderIntelEntry[]>;
   espionage?: EspionageState;

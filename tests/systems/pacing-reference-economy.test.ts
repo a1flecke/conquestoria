@@ -175,7 +175,10 @@ describe('representative multi-city reference economy', () => {
       { era: 10, cityCount: 5, total: { science: 590, production: 520 }, averagePerCity: { science: 117.9, production: 103.92 } },
       { era: 11, cityCount: 5, total: { science: 734, production: 607 }, averagePerCity: { science: 146.7, production: 121.4 } },
       { era: 12, cityCount: 5, total: { science: 829, production: 607 }, averagePerCity: { science: 165.8, production: 121.4 } },
-      { era: 13, cityCount: 5, total: { science: 961, production: 655 }, averagePerCity: { science: 192.2, production: 131 } },
+      // MR5's live Era-13 city effects, research/building follow-ups, and
+      // production-budgeted 7-turn costs deliberately raise this diagnostic
+      // reference. This is a gameplay target update, not a snapshot workaround.
+      { era: 13, cityCount: 5, total: { science: 1220, production: 775 }, averagePerCity: { science: 243.9, production: 155 } },
     ]);
   }, 60_000);
 

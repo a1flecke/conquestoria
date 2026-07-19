@@ -19,7 +19,7 @@ export type YieldKind =
   | { kind: 'perImprovement'; improvement: ImprovementType; yields: Partial<ResourceYield> }
   | { kind: 'perPopulation'; per: number; yields: Partial<ResourceYield> }
   | { kind: 'empirePercent'; resource: keyof ResourceYield | 'all'; percent: number }
-  | { kind: 'perTradeRoute'; gold: number; foreignOnly?: boolean; coastalOnly?: boolean }
+  | { kind: 'perTradeRoute'; gold: number; foreignOnly?: boolean; domesticOnly?: boolean; coastalOnly?: boolean }
   | { kind: 'perLuxuryResource'; gold: number }
   | { kind: 'perOwnedNaturalWonder'; science: number }
   | { kind: 'foundingBonus'; food: number }
@@ -49,6 +49,8 @@ export interface TechYieldModifier {
 }
 
 export const TECH_YIELD_MODIFIERS: TechYieldModifier[] = [
+  // --- Era 13 ---
+  { techId: 'cooperative-platforms', label: '+1 gold per domestic trade route', effect: { kind: 'perTradeRoute', gold: 1, domesticOnly: true } },
   // --- Era 5 ---
   { techId: 'guilds', label: '+1 gold per active trade route', effect: { kind: 'perTradeRoute', gold: 1 } },
   { techId: 'colonial-charter', label: 'Cities founded on foreign landmasses start with +5 production', effect: { kind: 'foundingProductionBonus', production: 5, foreignLandmassOnly: true } },
@@ -236,6 +238,15 @@ export const TECH_YIELD_MODIFIERS: TechYieldModifier[] = [
   // genomics: resolved directly in resource-system.ts calculateCityYields (needs the city's own pre-empire-percent science total).
   { techId: 'genomics', label: '+1 food per 3 science generated per turn (pre-bonus)', effect: { kind: 'foodFromScience', perScience: 3 } },
   { techId: 'quantum-computing', label: '+2 science in cities with a Data Center', effect: { kind: 'perBuildingId', buildingIds: ['data_center'], yields: { science: 2 } } },
+  // --- Era 13 ---
+  // These modifiers deliberately resolve through the same city-yield seam as every
+  // earlier building follow-up: one effect, one source of truth for UI and AI.
+  { techId: 'universal-basic-services', label: '+1 food in all cities', effect: { kind: 'cityFlat', yields: { food: 1 } } },
+  { techId: 'closed-loop-food-systems', label: '+1 food in cities with a Vertical Farm', effect: { kind: 'perBuildingId', buildingIds: ['vertical_farm'], yields: { food: 1 } } },
+  { techId: 'molecular-fabrication', label: '+1 production in cities with a Circular Fabricator', effect: { kind: 'perBuildingId', buildingIds: ['circular_fabricator'], yields: { production: 1 } } },
+  { techId: 'digital-legacy', label: '+1 science in cities with an Immersive Arts Lab', effect: { kind: 'perBuildingId', buildingIds: ['immersive_arts_lab'], yields: { science: 1 } } },
+  { techId: 'immersive-worlds', label: '+1 science in cities with an Immersive Arts Lab', effect: { kind: 'perBuildingId', buildingIds: ['immersive_arts_lab'], yields: { science: 1 } } },
+  { techId: 'seabed-stewardship', label: '+1 production and +1 science in coastal cities', effect: { kind: 'cityFlatConditional', requiresCoastal: true, yields: { production: 1, science: 1 } } },
   // gps-navigation: movement/terrain-cost effect — deferred to MR7 (movement systems live in unit-system, not the yield engine).
 ];
 

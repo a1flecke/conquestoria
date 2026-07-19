@@ -26,6 +26,17 @@ import { TECH_TREE } from '@/systems/tech-definitions';
 
 const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
 
+describe('Era 13 production catalog', () => {
+  it('ships twelve buildings and three national projects unlocked by Era 13 technologies', () => {
+    const era13TechIds = new Set(TECH_TREE.filter(tech => tech.era === 13).map(tech => tech.id));
+    const era13Buildings = Object.values(BUILDINGS)
+      .filter(building => building.techRequired && era13TechIds.has(building.techRequired));
+
+    expect(era13Buildings.filter(building => !building.nationalProject)).toHaveLength(12);
+    expect(era13Buildings.filter(building => building.nationalProject)).toHaveLength(3);
+  });
+});
+
 describe('describeDroppedProductionItem', () => {
   it('describes an obsoleted building drop', () => {
     expect(describeDroppedProductionItem({ itemId: 'stable', itemKind: 'building', reason: 'obsoleted' }, 'Rome'))
@@ -1752,6 +1763,24 @@ describe('S4b — building production discounts', () => {
     const base = getProductionCostForItem('warrior', { city: noBuildings });
     const withFoundry = getProductionCostForItem('warrior', { city: { buildings: ['steel_foundry'] } });
     expect(withFoundry).toBe(base);
+  });
+
+  it('Circular Manufacturing Network applies only its selected soft-material advantage without bypassing hard eligibility', () => {
+    const base = getProductionCostForItem('combat_drone', {
+      city: noBuildings,
+      availableResources: new Set<ResourceType>(),
+    });
+    const substituted = getProductionCostForItem('combat_drone', {
+      availableResources: new Set<ResourceType>(),
+      materialSubstitution: 'battery-minerals',
+    });
+    const unrelated = getProductionCostForItem('warrior', {
+      availableResources: new Set<ResourceType>(),
+      materialSubstitution: 'battery-minerals',
+    });
+
+    expect(substituted).toBe(Math.ceil(base * 0.85));
+    expect(unrelated).toBe(getProductionCostForItem('warrior', { city: noBuildings }));
   });
 });
 

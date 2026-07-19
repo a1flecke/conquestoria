@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  getNetworkPlanLoad,
   getNetworkPlanDefinition,
   NETWORK_PLAN_DEFINITIONS,
 } from '@/systems/network-plan-definitions';
@@ -53,5 +54,17 @@ describe('network plan definitions', () => {
     expect(getNetworkPlanDefinition('guardian-screen').effect).toEqual({
       kind: 'formation-strength', normalAmount: 4, surgedAmount: 6, mode: 'defense',
     });
+  });
+
+  it('Autonomous Mobility reduces Survey Grid Load by one but never below its base Load', () => {
+    expect(getNetworkPlanLoad('survey-grid', ['u1', 'u2'])).toBe(3);
+    expect(getNetworkPlanLoad('survey-grid', ['u1', 'u2'], ['autonomous-mobility'])).toBe(2);
+    expect(getNetworkPlanLoad('survey-grid', [], ['autonomous-mobility'])).toBe(1);
+  });
+
+  it('Ambient Interfaces reduces Drone Controller formation Load by one', () => {
+    expect(getNetworkPlanLoad('guardian-screen')).toBe(2);
+    expect(getNetworkPlanLoad('guardian-screen', [], ['ambient-interfaces'])).toBe(1);
+    expect(getNetworkPlanLoad('swarm-strike', [], ['ambient-interfaces'])).toBe(1);
   });
 });

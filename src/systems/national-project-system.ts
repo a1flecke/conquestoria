@@ -1,4 +1,4 @@
-import type { GameState, ResourceYield } from '@/core/types';
+import type { GameState, ResourceType, ResourceYield } from '@/core/types';
 import { BUILDINGS } from '@/systems/city-system';
 import { resolveCivilizationEra } from '@/systems/tech-definitions';
 
@@ -28,6 +28,52 @@ export function getReservedNationalProjectKeys(
     }
   }
   return keys;
+}
+
+const CIRCULAR_MANUFACTURING_NETWORK = 'circular_manufacturing_network';
+export const CIRCULAR_MANUFACTURING_MATERIALS = [
+  'aluminum',
+  'rare-earth-elements',
+  'battery-minerals',
+] as const satisfies readonly ResourceType[];
+
+function circularManufacturingKey(civId: string): string {
+  return `${civId}:${CIRCULAR_MANUFACTURING_NETWORK}`;
+}
+
+/**
+ * The Circular Manufacturing Network supplies one player-selected soft material
+ * advantage. It deliberately never changes hard production eligibility.
+ */
+export function getCircularManufacturingMaterial(
+  state: GameState,
+  civId: string,
+): ResourceType | undefined {
+  const choice = state.nationalProjectChoices?.[circularManufacturingKey(civId)];
+  return CIRCULAR_MANUFACTURING_MATERIALS.includes(choice as typeof CIRCULAR_MANUFACTURING_MATERIALS[number])
+    ? choice
+    : undefined;
+}
+
+export function chooseCircularManufacturingMaterial(
+  state: GameState,
+  civId: string,
+  material: ResourceType,
+): GameState {
+  const key = circularManufacturingKey(civId);
+  if (!state.builtNationalProjects?.[key]) {
+    throw new Error('Circular Manufacturing Network is not built.');
+  }
+  if (!CIRCULAR_MANUFACTURING_MATERIALS.includes(material as typeof CIRCULAR_MANUFACTURING_MATERIALS[number])) {
+    throw new Error('Choose aluminum, rare-earth elements, or battery minerals.');
+  }
+  return {
+    ...state,
+    nationalProjectChoices: {
+      ...(state.nationalProjectChoices ?? {}),
+      [key]: material,
+    },
+  };
 }
 
 export function getActiveNationalProjectsForCiv(

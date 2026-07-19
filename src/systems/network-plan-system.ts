@@ -112,7 +112,8 @@ function hasCapacityForAssignment(state: GameState, request: NetworkPlanRequest)
   const definition = getNetworkPlanDefinition(request.definitionId);
   const safeguardedHostileLoad = state.autonomyByCiv?.[request.ownerCivId]?.posture === 'safeguarded'
     && definition.targetKind === 'at-war-enemy-city' ? 1 : 0;
-  return load + getNetworkPlanLoad(request.definitionId, request.linkedUnitIds) + safeguardedHostileLoad <= capacity;
+  const completedTechs = state.civilizations[request.ownerCivId]?.techState.completed ?? [];
+  return load + getNetworkPlanLoad(request.definitionId, request.linkedUnitIds, completedTechs) + safeguardedHostileLoad <= capacity;
 }
 
 function hasActivePlanForCitySource(state: GameState, cityId: string): boolean {
@@ -182,7 +183,11 @@ export function validateNetworkPlanAssignment(
   const sourceUnitId = request.source?.kind === 'unit' ? request.source.unitId : request.sourceUnitId;
   const source = sourceUnitId ? state.units[sourceUnitId] : undefined;
   if (!source) return { ok: false, reason: 'missing-source' };
-  if (source.owner !== request.ownerCivId || source.type !== 'cyber_unit') {
+  // MR5 adds Drone Controller as the sole source for the previously dormant
+  // formation definitions. Cyber Units retain Harden/Exploit; neither source
+  // can borrow the other's actions through a UI-only exception.
+  const requiredSourceType = definition.targetKind === 'formation' ? 'drone_controller' : 'cyber_unit';
+  if (source.owner !== request.ownerCivId || source.type !== requiredSourceType) {
     return { ok: false, reason: 'invalid-source' };
   }
   if (hasActivePlanForSource(state, source.id)) return { ok: false, reason: 'source-already-assigned' };
@@ -227,7 +232,11 @@ export function previewNetworkPlan(state: GameState, request: NetworkPlanRequest
   const currentLoad = getAutonomyLoad(state, request.ownerCivId).unrestricted;
   return {
     validation: validateNetworkPlanAssignment(state, request),
-    load: getNetworkPlanLoad(request.definitionId, request.linkedUnitIds),
+    load: getNetworkPlanLoad(
+      request.definitionId,
+      request.linkedUnitIds,
+      state.civilizations[request.ownerCivId]?.techState.completed ?? [],
+    ),
     capacity,
     remainingCapacity: capacity - currentLoad,
     effect: definition.effect,
