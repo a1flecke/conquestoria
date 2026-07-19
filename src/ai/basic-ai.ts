@@ -102,6 +102,8 @@ import { applyAIResearch } from './ai-research';
 import { processAIResourceMarketplace } from './ai-resource-marketplace';
 import { getCrisisRestoreAssignments } from './ai-crisis-response';
 import { applyWorkerAction, getWorkerChargesRemaining } from '@/systems/worker-action-system';
+import { applyPillageToState, canPillageTile } from '@/systems/pillage-system';
+import { isAtWar } from '@/systems/diplomacy-system';
 import { getAvailableWorkerActions, getKnownTileResourceForWorkerAction } from '@/systems/improvement-system';
 import { chooseRoadBuilderUnit } from '@/systems/road-network';
 import { canBuildRoad } from '@/systems/road-system';
@@ -686,6 +688,26 @@ function processAITurnInternal(
       const result = applyWorkerAction(newState, current.id, actions[0]!);
       if (result.ok) newState = result.state;
     }
+  }
+  civ = newState.civilizations[civId];
+
+  // #541: pillage is discretionary, not a passive combat side effect (unlike civilian/
+  // prize-crew capture, which is automatic inside applyCombatOutcomeToState regardless of
+  // actor) — an AI combat unit standing on a pillageable enemy tile must actively choose to
+  // spend its action burning it. Administrative for the same reason as the worker loops
+  // above: no AIStrategicPlan role covers this. Only pillages civs already at war — never
+  // auto-declares a new war just to pillage, which stays the player's own explicit choice.
+  const combatUnitsForPillage = civ.units
+    .map(id => newState.units[id])
+    .filter((unit): unit is Unit => Boolean(unit) && !unit.hasActed && UNIT_DEFINITIONS[unit.type].strength > 0);
+  for (const unit of combatUnitsForPillage) {
+    const current = newState.units[unit.id];
+    if (!current || current.hasActed) continue;
+    const tile = newState.map.tiles[hexKey(current.position)];
+    if (!tile || !tile.owner || !isAtWar(civ.diplomacy, tile.owner)) continue;
+    if (!canPillageTile(tile, civId)) continue;
+    const result = applyPillageToState(newState, current.id);
+    if (result.ok) newState = result.state;
   }
   civ = newState.civilizations[civId];
 
