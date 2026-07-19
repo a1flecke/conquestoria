@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from 'vitest';
 import { createNewGame } from '@/core/game-state';
-import type { City } from '@/core/types';
+import type { City, Unit } from '@/core/types';
 import { createNetworkPanel, getNetworkPanelModel } from '@/ui/network-panel';
 
 function city(): City {
@@ -45,5 +45,34 @@ describe('network panel model', () => {
     expect(button.disabled).toBe(false);
     button.click();
     expect(assigned).toEqual(['fabrication-sprint']);
+  });
+
+  it('shows the shorter Machine Ethics Surge recovery in the player-visible posture summary', () => {
+    const state = createNewGame('rome', 'network-panel-machine-ethics', 'small');
+    state.cities = { 'city-player': city() };
+    state.civilizations.player.cities = ['city-player'];
+    state.civilizations.player.techState.completed = ['quantum-computing', 'machine-ethics'];
+
+    expect(getNetworkPanelModel(state, 'player').posture).toBe('Integrated · Surge 1/1');
+  });
+
+  it('surfaces the Drone Controller formation plans only when it has friendly military recipients', () => {
+    const state = createNewGame('rome', 'network-panel-controller', 'small');
+    state.cities = { 'city-player': city() };
+    state.civilizations.player.cities = ['city-player'];
+    state.civilizations.player.techState.completed = ['quantum-computing'];
+    const controller: Unit = {
+      id: 'controller', type: 'drone_controller', owner: 'player', position: { q: 1, r: 0 },
+      movementPointsLeft: 2, health: 100, experience: 0, hasMoved: false, hasActed: false, isResting: false,
+    };
+    const escort: Unit = { ...controller, id: 'escort', type: 'exosuit_infantry', position: { q: 2, r: 0 } };
+    state.units = { controller, escort };
+    state.civilizations.player.units = ['controller', 'escort'];
+
+    const model = getNetworkPanelModel(state, 'player');
+    expect(model.candidates.map(candidate => candidate.request.definitionId)).toEqual(expect.arrayContaining(['guardian-screen', 'swarm-strike']));
+    expect(model.candidates.find(candidate => candidate.request.definitionId === 'guardian-screen')?.request).toMatchObject({
+      sourceUnitId: 'controller', target: { kind: 'formation', unitIds: ['escort'] },
+    });
   });
 });

@@ -20,6 +20,8 @@ import { hasAITradeRole } from '@/ai/ai-unit-roles';
 import { buildCityRouteRows, getOutgoingRoutesForCity } from './trade-route-presentation';
 import {
   getActiveNationalProjectsForCiv,
+  getCircularManufacturingMaterial,
+  CIRCULAR_MANUFACTURING_MATERIALS,
   getNationalProjectMultiplier,
   getReservedNationalProjectKeys,
 } from '@/systems/national-project-system';
@@ -90,6 +92,8 @@ export interface CityPanelCallbacks {
     highlights: HexCoord[],
     toasts: Array<{ message: string; type: 'info' | 'warning' }>,
   ) => void;
+  /** Resolves the current human empire's pending Circular Manufacturing choice. */
+  onChooseCircularManufacturingMaterial?: (material: ResourceType) => void;
 }
 
 type CityPanelTab = 'list' | 'districts' | 'citizens' | 'wonders';
@@ -231,6 +235,7 @@ export function createCityPanel(
     completedTechs: currentCiv.techState.completed,
     activeNationalProjects,
     availableResources: playerResources,
+    materialSubstitution: getCircularManufacturingMaterial(state, city.owner),
   });
   const resourceRequirementLine = (itemId: string, required: readonly ResourceType[] = []): string => {
     const requiredNames = required.map(id => RESOURCE_DEFINITIONS.find(def => def.id === id)?.name ?? id);
@@ -1128,6 +1133,35 @@ export function createCityPanel(
   });
 
   container.appendChild(panel);
+
+  // This choice belongs to the owning empire, not the host city. Keep it scoped to
+  // the active human player so a hot-seat handoff never exposes another player's
+  // unfinished decision or offers an automatic default.
+  const circularChoiceKey = `${city.owner}:circular_manufacturing_network`;
+  const hasCircularNetwork = Boolean(state.builtNationalProjects?.[circularChoiceKey]);
+  const circularMaterial = getCircularManufacturingMaterial(state, city.owner);
+  if (hasCircularNetwork && !circularMaterial && city.owner === state.currentPlayer && currentCiv.isHuman) {
+    const choiceSection = document.createElement('section');
+    choiceSection.dataset.circularMaterialChoice = 'true';
+    choiceSection.style.cssText = 'background:rgba(104,184,136,0.12);border:1px solid rgba(104,184,136,0.45);border-radius:8px;padding:10px 12px;margin:0 0 16px;font-size:12px;';
+    const title = document.createElement('div');
+    title.textContent = 'Circular Manufacturing Network: choose one material substitute';
+    title.style.cssText = 'font-weight:bold;color:#9bd3a8;margin-bottom:4px;';
+    choiceSection.appendChild(title);
+    const description = document.createElement('div');
+    description.textContent = 'It gives its normal cost advantage whenever that material would help, but never bypasses a unit or building requirement.';
+    description.style.cssText = 'opacity:0.8;margin-bottom:8px;';
+    choiceSection.appendChild(description);
+    for (const material of CIRCULAR_MANUFACTURING_MATERIALS) {
+      const label = RESOURCE_DEFINITIONS.find(def => def.id === material)?.name ?? material;
+      const button = createGameButton(label, 'secondary');
+      button.dataset.circularMaterial = material;
+      button.style.margin = '0 6px 6px 0';
+      button.addEventListener('click', () => callbacks.onChooseCircularManufacturingMaterial?.(material));
+      choiceSection.appendChild(button);
+    }
+    panel.insertBefore(choiceSection, panel.firstChild);
+  }
 
   // Trade Routes Overhaul (#553 MR4/4) — populate the Trade Routes section placeholder.
   // Built with real DOM nodes (textContent-safe) rather than an HTML string, sharing

@@ -19,7 +19,7 @@ import {
 } from '@/systems/improvement-system';
 import { DEFAULT_WORKER_CHARGES, getWorkerChargesRemaining } from '@/systems/worker-action-system';
 import { getRoadBlockerReason, formatRoadBlockerReason } from '@/systems/road-system';
-import { hexKey } from '@/systems/hex-utils';
+import { hexDistance, hexKey } from '@/systems/hex-utils';
 import { canFoundCityAt, formatCityFoundingBlockerMessage, getCityFoundingBlockers } from '@/systems/city-territory-system';
 import { resolveFromCity } from '@/systems/trade-system';
 import { hasAITradeRole } from '@/ai/ai-unit-roles';
@@ -32,6 +32,8 @@ import {
   type LandUnitWaterRecovery,
 } from '@/systems/unit-water-recovery';
 import { isAutonomyActivated } from '@/systems/network-plan-system';
+import { isAtWar } from '@/systems/diplomacy-system';
+import type { PropagandistAction } from '@/systems/propagandist-system';
 import { canPreachTarget } from '@/systems/religion-system';
 import { getAirBaseCapacity, getAirBaseRoster } from '@/systems/air-operations-system';
 import type { AirBaseRef } from '@/core/types';
@@ -101,6 +103,7 @@ export interface SelectedUnitInfoCallbacks {
   onOpenPirateAssault?: (factionId: string, unitId: string) => void;
   /** Opens the persistent-network intent surface for an activated Cyber Unit. */
   onOpenNetworkIntent?: (unitId: string) => void;
+  onUsePropagandistAction?: (unitId: string, action: PropagandistAction, cityId: string) => void;
   onStartIntercept?: (unitId: string) => void;
   getAirRebaseDestinations?: (unitId: string) => Array<{ base: AirBaseRef; label: string }>;
   onRebaseAircraft?: (unitId: string, base: AirBaseRef) => void;
@@ -742,16 +745,42 @@ export function renderSelectedUnitInfo(
   }
 
   if (
-    unit.type === 'cyber_unit'
+    (unit.type === 'cyber_unit' || unit.type === 'drone_controller')
     && unit.owner === state.currentPlayer
     && isAutonomyActivated(state, unit.owner)
     && callbacks.onOpenNetworkIntent
   ) {
     actionsDiv.appendChild(makeButton(
-      'Set Network Intent',
+      unit.type === 'drone_controller' ? 'Coordinate Formation' : 'Set Network Intent',
       '#2563eb',
       () => callbacks.onOpenNetworkIntent!(unitId),
     ));
+  }
+
+  if (unit.type === 'propagandist' && unit.owner === state.currentPlayer && !unit.hasActed && callbacks.onUsePropagandistAction) {
+    const nearbyCities = Object.values(state.cities)
+      .filter(city => hexDistance(unit.position, city.position) <= 1)
+      .sort((left, right) => left.id.localeCompare(right.id));
+    for (const city of nearbyCities) {
+      if (city.owner === unit.owner && city.spyUnrestBonus > 0) {
+        actionsDiv.appendChild(makeButton(
+          `Rally ${city.name}`,
+          '#2563eb',
+          () => callbacks.onUsePropagandistAction!(unitId, 'rally', city.id),
+        ));
+        continue;
+      }
+      const owner = state.civilizations[unit.owner];
+      const targetOwner = state.civilizations[city.owner];
+      if (city.owner !== unit.owner && owner && targetOwner
+        && isAtWar(owner.diplomacy, city.owner) && isAtWar(targetOwner.diplomacy, unit.owner)) {
+        actionsDiv.appendChild(makeButton(
+          `Undermine ${city.name}`,
+          '#9b2c2c',
+          () => callbacks.onUsePropagandistAction!(unitId, 'undermine', city.id),
+        ));
+      }
+    }
   }
 
   if (callbacks.onUpgradeUnit && !unit.hasActed) {

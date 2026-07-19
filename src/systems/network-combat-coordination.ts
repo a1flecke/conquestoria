@@ -1,6 +1,7 @@
 import type { GameState, Unit } from '@/core/types';
 import { hexDistance } from './hex-utils';
 import { getNetworkPlanDefinition } from './network-plan-definitions';
+import { UNIT_DEFINITIONS } from './unit-system';
 
 export interface NetworkCombatCoordination {
   strengthBonus: number;
@@ -26,8 +27,12 @@ export function getNetworkCombatCoordination(state: GameState, unit: Unit, mode:
     .filter(plan => appliesToUnit(state, plan, unit, mode))
     .map(plan => {
       const effect = getNetworkPlanDefinition(plan.definitionId).effect;
-      return { planId: plan.id, strengthBonus: effect.kind === 'formation-strength'
-        ? (plan.surgeResolutionTurn === state.turn ? effect.surgedAmount : effect.normalAmount) : 0 };
+      const baseBonus = effect.kind === 'formation-strength'
+        ? (plan.surgeResolutionTurn === state.turn ? effect.surgedAmount : effect.normalAmount) : 0;
+      const hypersonicBonus = mode === 'attack'
+        && state.civilizations[unit.owner]?.techState.completed.includes('hypersonic-coordination')
+        && (UNIT_DEFINITIONS[unit.type].attackProfile?.range ?? 1) > 1 ? 2 : 0;
+      return { planId: plan.id, strengthBonus: baseBonus + hypersonicBonus };
     })
     .sort((a, b) => b.strengthBonus - a.strengthBonus || a.planId.localeCompare(b.planId));
   return candidates[0] ?? NONE;

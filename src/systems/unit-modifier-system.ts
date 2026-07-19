@@ -142,6 +142,7 @@ export interface HealingModifierContext {
   inFriendlyCity: boolean;
   inFriendlyTerritory: boolean;
   withinRangeOfFriendlyCity3: boolean;
+  withinRangeOfNeuralRehabilitationCenter: boolean;
 }
 
 export interface HealingModifierResult {
@@ -164,6 +165,7 @@ export function getHealingBonus(ctx: HealingModifierContext): HealingModifierRes
     if (modifier.condition === 'inFriendlyCity' && !ctx.inFriendlyCity) continue;
     if (modifier.condition === 'inFriendlyTerritory' && !ctx.inFriendlyTerritory) continue;
     if (modifier.condition === 'withinRangeOfFriendlyCity3' && !ctx.withinRangeOfFriendlyCity3) continue;
+    if (modifier.condition === 'withinRangeOfNeuralRehabilitationCenter' && !ctx.withinRangeOfNeuralRehabilitationCenter) continue;
 
     if (modifier.mode === 'multiplier') {
       mult *= modifier.value;
@@ -214,6 +216,19 @@ export function isWithinRangeOfTelemedicineHub(
   return Object.values(state.cities).some(city =>
     city.owner === civId
     && city.buildings.includes('telemedicine_hub')
+    && hexDistance(position, city.position) <= range,
+  );
+}
+
+export function isWithinRangeOfNeuralRehabilitationCenter(
+  state: GameState,
+  civId: string,
+  position: HexCoord,
+  range: number,
+): boolean {
+  return Object.values(state.cities).some(city =>
+    city.owner === civId
+    && city.buildings.includes('neural_rehabilitation_center')
     && hexDistance(position, city.position) <= range,
   );
 }

@@ -20,6 +20,7 @@ import { buildCombatContextForDefender } from '@/systems/combat-context';
 import { createTechState } from '@/systems/tech-system';
 import { processIndependentThreatPressure } from '@/systems/threat-pressure-system';
 import { resolveCombatEra } from '@/systems/era-resolution';
+import { isWithinRangeOfNeuralRehabilitationCenter } from '@/systems/unit-modifier-system';
 
 const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
 
@@ -61,6 +62,25 @@ function createWrappedGrasslandMap(width: number, height: number): GameState['ma
 }
 
 describe('processTurn', () => {
+  it('applies Precision Gene Editing healing from a nearby Neural Rehabilitation Center during the owner turn', () => {
+    const state = createNewGame('rome', 'precision-gene-healing', 'small');
+    const civ = state.civilizations.player;
+    const unitId = civ.units[0]!;
+    const city = foundCity('player', state.units[unitId]!.position, state.map, state.idCounters);
+    state.cities[city.id] = city;
+    civ.cities = [city.id];
+    state.map.tiles[hexKey(city.position)]!.owner = 'player';
+    city.buildings = [...city.buildings, 'neural_rehabilitation_center'];
+    civ.techState.completed = ['precision-gene-editing'];
+    state.units[unitId] = { ...state.units[unitId]!, position: city.position, health: 50 };
+    expect(isWithinRangeOfNeuralRehabilitationCenter(state, 'player', city.position, 1)).toBe(true);
+
+    const next = processTurn(state, new EventBus());
+
+    expect(next.civilizations.player.techState.completed).toContain('precision-gene-editing');
+    expect(isWithinRangeOfNeuralRehabilitationCenter(next, 'player', city.position, 1)).toBe(true);
+    expect(next.units[unitId]!.health).toBe(75);
+  });
   it('uses per-human pressure only on the enabled completed-round path', () => {
     const state = createNewGame(undefined, 'per-human-pressure', 'small');
     state.turn = 30;

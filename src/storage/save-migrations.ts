@@ -9,8 +9,9 @@ import { assignNetworkPlan, isAutonomyActivated } from '@/systems/network-plan-s
 import { UNIT_DEFINITIONS } from '@/systems/unit-system';
 import { getCrisisFlavor } from '@/systems/crisis-flavor-definitions';
 import { resolveWorldAge } from '@/systems/tech-definitions';
+import { CIRCULAR_MANUFACTURING_MATERIALS } from '@/systems/national-project-system';
 
-export const CURRENT_SAVE_SCHEMA_VERSION = 6;
+export const CURRENT_SAVE_SCHEMA_VERSION = 7;
 
 export type SaveMigration = (state: GameState) => GameState;
 
@@ -335,6 +336,17 @@ function migrateAutonomyNetworkPostures(state: GameState): GameState {
   return { ...state, autonomyByCiv };
 }
 
+/** Schema 7: persist only valid, actually-built Circular Manufacturing choices. */
+function migrateCircularManufacturingChoices(state: GameState): GameState {
+  const nationalProjectChoices: NonNullable<GameState['nationalProjectChoices']> = {};
+  for (const [key, value] of Object.entries(state.nationalProjectChoices ?? {})) {
+    if (!state.builtNationalProjects?.[key]) continue;
+    if (!CIRCULAR_MANUFACTURING_MATERIALS.includes(value as typeof CIRCULAR_MANUFACTURING_MATERIALS[number])) continue;
+    nationalProjectChoices[key] = value as typeof CIRCULAR_MANUFACTURING_MATERIALS[number];
+  }
+  return { ...state, nationalProjectChoices };
+}
+
 export const SAVE_MIGRATIONS: Readonly<Record<number, SaveMigration>> = {
   1: migrateToEra13Foundation,
   2: migrateLateResources,
@@ -342,6 +354,7 @@ export const SAVE_MIGRATIONS: Readonly<Record<number, SaveMigration>> = {
   4: migrateLegacyBasedAircraft,
   5: migrateDualEraWorldAge,
   6: migrateAutonomyNetworkPostures,
+  7: migrateCircularManufacturingChoices,
 };
 
 function readSchemaVersion(raw: Record<string, unknown>): number {
@@ -372,5 +385,5 @@ export function migrateSaveToCurrent(raw: unknown): GameState {
     state = { ...migration(state), saveSchemaVersion: version };
   }
   const migrated = state.gameId ? state : migrateToEra13Foundation(state);
-  return normalizeCityFaithConversionProgress(withReligionDefaults(normalizeCrisisArchetypes(migrateAutonomyNetworkPostures(migrated))));
+  return normalizeCityFaithConversionProgress(withReligionDefaults(normalizeCrisisArchetypes(migrateCircularManufacturingChoices(migrateAutonomyNetworkPostures(migrated)))));
 }

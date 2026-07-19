@@ -184,6 +184,39 @@ describe('getCityTechYields — per-kind coverage', () => {
     expect(getCityTechYields(otherCity, map, ['quantum-computing']).total.science).toBe(0);
   });
 
+  it('Universal Basic Services adds food to every city without requiring a Network plan', () => {
+    const city = makeCity({ buildings: [] });
+
+    expect(getCityTechYields(city, map, ['universal-basic-services']).total.food).toBe(1);
+  });
+
+  it('Era 13 building-follow-up technologies apply only to their named building', () => {
+    const verticalFarm = makeCity({ buildings: ['vertical_farm'] });
+    const fabricator = makeCity({ buildings: ['circular_fabricator'] });
+    const artsLab = makeCity({ buildings: ['immersive_arts_lab'] });
+    const unrelated = makeCity({ buildings: ['library'] });
+
+    expect(getCityTechYields(verticalFarm, map, ['closed-loop-food-systems']).total.food).toBe(1);
+    expect(getCityTechYields(fabricator, map, ['molecular-fabrication']).total.production).toBe(1);
+    expect(getCityTechYields(artsLab, map, ['digital-legacy']).total.science).toBe(1);
+    expect(getCityTechYields(artsLab, map, ['immersive-worlds']).total.science).toBe(1);
+    expect(getCityTechYields(unrelated, map, [
+      'closed-loop-food-systems', 'molecular-fabrication', 'digital-legacy',
+    ]).total).toEqual({ food: 0, production: 0, gold: 0, science: 0 });
+  });
+
+  it('Seabed Stewardship benefits coastal cities but not inland cities', () => {
+    const coastal = makeCity({ position: { q: 0, r: 0 } });
+    const inland = makeCity();
+    map.tiles[hexKey(coastal.position)] = {
+      ...map.tiles[hexKey(coastal.position)]!,
+      terrain: 'coast',
+    };
+
+    expect(getCityTechYields(coastal, map, ['seabed-stewardship']).total).toEqual({ food: 0, production: 1, gold: 0, science: 1 });
+    expect(getCityTechYields(inland, map, ['seabed-stewardship']).total).toEqual({ food: 0, production: 0, gold: 0, science: 0 });
+  });
+
   it('perImprovement: counts only worked, completed tiles', () => {
     const centerCoord = Object.values(map.tiles).find(t => t.terrain === 'grassland' && !t.hasRiver)!.coord;
     const city = { ...foundCity('player', centerCoord, map, mkC()), population: 2 };
@@ -265,6 +298,11 @@ describe('getTradeRouteTechGold', () => {
   it('colonial-trade (foreignOnly) skips domestic routes', () => {
     expect(getTradeRouteTechGold(domesticRoute, ['colonial-trade'])).toBe(0);
     expect(getTradeRouteTechGold(foreignRoute, ['colonial-trade'])).toBe(2);
+  });
+
+  it('cooperative-platforms rewards domestic routes but not foreign routes', () => {
+    expect(getTradeRouteTechGold(domesticRoute, ['cooperative-platforms'])).toBe(1);
+    expect(getTradeRouteTechGold(foreignRoute, ['cooperative-platforms'])).toBe(0);
   });
 
   it('steam-navigation (coastalOnly) requires both endpoints coastal', () => {

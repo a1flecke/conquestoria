@@ -144,6 +144,11 @@ const UNIT_MOTION_STYLES: Record<UnitType, UnitMotionStyle> = {
   carrier:    'naval',
   attack_helicopter: 'air',
   missile_submarine: 'naval',
+  combat_drone: 'air',
+  autonomous_frigate: 'naval',
+  exosuit_infantry: 'humanoid',
+  propagandist: 'humanoid',
+  drone_controller: 'humanoid',
   caravan: 'humanoid',
   merchant_wagon: 'humanoid',
   freight_convoy: 'humanoid',
@@ -271,6 +276,12 @@ export const UNIT_SPRITE_CATALOG: Record<UnitType, UnitSpriteComponent> = {
   carrier:           withMotion('carrier', CarrierSprite),
   attack_helicopter: withMotion('attack_helicopter', AttackHelicopterSprite),
   missile_submarine: withMotion('missile_submarine', MissileSubmarineSprite),
+  // Era 13 temporary launch silhouettes; #652 tracks the required bespoke art.
+  combat_drone: withMotion('combat_drone', JetFighterSprite),
+  autonomous_frigate: withMotion('autonomous_frigate', IroncladSprite),
+  exosuit_infantry: withMotion('exosuit_infantry', MachineGunnerSprite),
+  propagandist: withMotion('propagandist', MissionarySprite),
+  drone_controller: withMotion('drone_controller', SpyHackerSprite),
   caravan:           withMotion('caravan', CaravanSprite),
   // Trade Routes Overhaul (#553 MR2/4) — Land trade line successors to Caravan.
   // Placeholder: reuses CaravanSprite (closest silhouette) until bespoke sprites ship.
@@ -471,6 +482,25 @@ export const BUILDING_SPRITE_CATALOG: Record<string, BuildingSpriteComponent> = 
   planetary_data_grid:            DataCenterSprite,
   global_logistics_network:       FintechHubSprite,
   orbital_fabrication_program:    SmartGridSprite,
+  // Era 13 content launch: temporary thematically-close mappings. #652 owns
+  // the required replacement with distinct, production-ready SVG components.
+  // Keeping these entries catalog-driven preserves normal renderer fallbacks
+  // while the dedicated art pass is in progress.
+  network_operations_center:      DataCenterSprite,
+  ai_safety_institute:            CyberDefenseCenterSprite,
+  drone_fabricator:               AutomatedPortSprite,
+  electronic_warfare_array:       SignalsHubSprite,
+  civic_media_forum:              BroadcastTowerSprite,
+  vertical_farm:                  PrecisionFarmSprite,
+  neural_rehabilitation_center:   TelemedicineHubSprite,
+  ocean_robotics_yard:            AutomatedPortSprite,
+  circular_fabricator:            SmartGridSprite,
+  modular_arcology:               DataCenterSprite,
+  carbon_capture_grid:            SmartGridSprite,
+  immersive_arts_lab:             BroadcastTowerSprite,
+  national_ai_assurance_program:  CyberDefenseCenterSprite,
+  circular_manufacturing_network: SmartGridSprite,
+  mars_robotics_initiative:       RocketProgramSprite,
 };
 
 export const PIRATE_HEADQUARTERS_SPRITE_CATALOG: Record<PirateHeadquartersSpriteId, LandmarkSpriteComponent> = {

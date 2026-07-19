@@ -13,8 +13,14 @@ const SURGE_RULES: Readonly<Record<AutonomyPostureId, { allowance: number; recov
   accelerated: { allowance: 3, recoveryRounds: 3 },
 };
 
-export function getAutonomySurgeRules(posture: AutonomyPostureId) {
-  return SURGE_RULES[posture];
+export function getAutonomySurgeRules(posture: AutonomyPostureId, completedTechs: string[] = []) {
+  const rules = SURGE_RULES[posture];
+  return {
+    ...rules,
+    recoveryRounds: completedTechs.includes('machine-ethics')
+      ? Math.max(1, rules.recoveryRounds - 1)
+      : rules.recoveryRounds,
+  };
 }
 
 export function requestAutonomyPosture(
@@ -59,7 +65,7 @@ export function beginAutonomySurge(state: GameState, civId: string, planId: stri
   }
   const surgedThisTurn = Object.values(autonomy.plans)
     .filter(candidate => candidate.surgeResolutionTurn === state.turn);
-  const rules = getAutonomySurgeRules(autonomy.posture);
+  const rules = getAutonomySurgeRules(autonomy.posture, state.civilizations[civId]?.techState.completed ?? []);
   const inPriorRecovery = autonomy.surgeRecoveryUntilTurn !== null && autonomy.surgeRecoveryUntilTurn > state.turn;
   const inCooldown = autonomy.surgeCooldownUntilTurn !== null && autonomy.surgeCooldownUntilTurn > state.turn;
   if (plan.surgeResolutionTurn === state.turn || inCooldown || (inPriorRecovery && surgedThisTurn.length === 0)

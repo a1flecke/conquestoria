@@ -8,11 +8,25 @@ import {
 } from '@/systems/pacing-model';
 
 describe('tech definitions', () => {
-  it('has exactly 369 techs after adding the Era 13 Quantum Computing boundary node', () => {
-    expect(TECH_TREE.length).toBe(369);
+  it('ships exactly two Era 13 technologies on every track', () => {
+    const era13 = TECH_TREE.filter(tech => tech.era === 13);
+    expect(era13).toHaveLength(30);
+
+    const perTrack = new Map<string, number>();
+    for (const tech of era13) {
+      perTrack.set(tech.track, (perTrack.get(tech.track) ?? 0) + 1);
+    }
+    expect(perTrack).toHaveLength(15);
+    for (const [track, count] of perTrack) {
+      expect(count, `${track} must have two Era 13 technologies`).toBe(2);
+    }
   });
 
-  it('keeps 15 tracks while expanding to era 12 (2 new techs per track per era)', () => {
+  it('has exactly 398 techs after completing the Era 13 roster', () => {
+    expect(TECH_TREE.length).toBe(398);
+  });
+
+  it('keeps 15 tracks while expanding through two Era 13 technologies per track', () => {
     const tracks = new Map<string, number>();
     for (const tech of TECH_TREE) {
       tracks.set(tech.track, (tracks.get(tech.track) ?? 0) + 1);
@@ -24,13 +38,16 @@ describe('tech definitions', () => {
       // Economy/science/communication/maritime/exploration had 9 (era1-4) + 16 = 25.
       // Military gets +2 from balloon-corps (era 7) + air-superiority (era 9) → 26.
       // Other 8 tracks had 8 era1-4 + 16 = 24.
-      const expected = track === 'military'
+      const expectedBeforeEra13 = track === 'military'
         ? 26
         : ['economy', 'communication', 'maritime', 'exploration', 'espionage'].includes(track)
           ? 25
           : track === 'science'
             ? 26
           : 24;
+      // Quantum Computing was already the one-node Era 13 boundary in the old
+      // science count; MR5 adds its science-track partner and two nodes elsewhere.
+      const expected = expectedBeforeEra13 + (track === 'science' ? 1 : 2);
       expect(count, `track ${track} should have ${expected} techs`).toBe(expected);
     }
   });

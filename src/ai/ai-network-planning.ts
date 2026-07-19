@@ -2,6 +2,8 @@ import type { NetworkPlanDefinitionId } from '@/core/autonomy-state';
 import type { GameState } from '@/core/types';
 import { getChallengeProfileForCiv } from '@/core/opponent-challenge';
 import { createRng } from '@/systems/map-generator';
+import { hexDistance } from '@/systems/hex-utils';
+import { isMilitaryUnitType } from '@/systems/unit-modifier-definitions';
 import {
   assignNetworkPlan,
   type NetworkPlanRequest,
@@ -16,6 +18,7 @@ export interface NetworkPlanCandidate {
 const CONSTRUCTIVE: readonly NetworkPlanDefinitionId[] = [
   'fabrication-sprint', 'research-mesh', 'logistics-routing', 'survey-grid',
 ];
+const FORMATION: readonly NetworkPlanDefinitionId[] = ['guardian-screen', 'swarm-strike'];
 
 /** Generates only owner-visible, validator-approved city plans. No difficulty profile changes this list. */
 export function getNetworkPlanCandidates(state: GameState, civId: string): readonly NetworkPlanCandidate[] {
@@ -36,6 +39,32 @@ export function getNetworkPlanCandidates(state: GameState, civId: string): reado
         : definitionId === 'fabrication-sprint' ? 55
           : definitionId === 'logistics-routing' ? 45 : 35;
       candidates.push({ request, score });
+    }
+  }
+  const controllers = civ.units
+    .map(unitId => state.units[unitId])
+    .filter((unit): unit is NonNullable<typeof unit> => unit?.type === 'drone_controller')
+    .sort((left, right) => left.id.localeCompare(right.id));
+  for (const controller of controllers) {
+    const recipients = civ.units
+      .map(unitId => state.units[unitId])
+      .filter((unit): unit is NonNullable<typeof unit> => Boolean(unit)
+        && unit.id !== controller.id
+        && isMilitaryUnitType(unit.type)
+        && hexDistance(controller.position, unit.position) <= 2)
+      .sort((left, right) => left.id.localeCompare(right.id))
+      .slice(0, 3)
+      .map(unit => unit.id);
+    if (recipients.length === 0) continue;
+    for (const definitionId of FORMATION) {
+      const request: NetworkPlanRequest = {
+        ownerCivId: civId,
+        sourceUnitId: controller.id,
+        definitionId,
+        target: { kind: 'formation', unitIds: recipients },
+      };
+      if (!previewNetworkPlan(state, request).validation.ok) continue;
+      candidates.push({ request, score: definitionId === 'guardian-screen' ? 70 : 65 });
     }
   }
   return candidates.sort((a, b) => b.score - a.score

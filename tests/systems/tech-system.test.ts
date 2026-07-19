@@ -20,29 +20,27 @@ describe('TECH_TREE', () => {
     }
   });
 
-  it('keeps the established catalog shape while adding the Era 13 Quantum Computing node', () => {
+  it('keeps two Era 13 technologies on every track', () => {
     const allTracks = [...new Set(TECH_TREE.map(t => t.track))];
     for (const track of allTracks) {
       const techs = TECH_TREE.filter(t => t.track === track);
-      // cyber-warfare stub removed: espionage drops from 26 to 25.
-      // Economy/science/communication/maritime/exploration/espionage: 9 era1-4 + 16 (era5-12) = 25.
-      // Military gets +2 from balloon-corps (era 7) + air-superiority (era 9) → 26.
-      // Other tracks had 8 era1-4 + 16 (era5-12) = 24.
+      // Era 13 adds two technologies to every track. Quantum Computing was the
+      // previous boundary node in science, so science adds only one new node here.
       const expectedCount = track === 'military'
-        ? 26
+        ? 28
         : ['economy', 'communication', 'maritime', 'exploration', 'espionage'].includes(track)
-          ? 25
+          ? 27
           : track === 'science'
-            ? 26
-          : 24;
+            ? 27
+          : 26;
       expect(techs.length, `track ${track} should have ${expectedCount} techs`).toBe(expectedCount);
     }
   });
 });
 
 describe('expanded tech tree', () => {
-  it('has 369 techs total after adding the Era 13 boundary node', () => {
-    expect(TECH_TREE.length).toBe(369);
+  it('has 398 techs after completing the 30-node Era 13 catalog', () => {
+    expect(TECH_TREE.length).toBe(398);
   });
 
   it('supports cross-track prerequisites', () => {

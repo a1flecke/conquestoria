@@ -169,13 +169,26 @@ describe('MR9 — land/air strength re-curve regression locks', () => {
     expect(jetFighter?.upgradesTo).toBeUndefined();
   });
 
-  it('artillery and infantry are terminal', () => {
+  it('artillery is terminal and infantry upgrades to Exosuit Infantry', () => {
     const artillery = TRAINABLE_UNITS.find(u => u.type === 'artillery');
     const infantry = TRAINABLE_UNITS.find(u => u.type === 'infantry');
     expect(artillery?.obsoletedByTech).toBeUndefined();
     expect(artillery?.upgradesTo).toBeUndefined();
-    expect(infantry?.obsoletedByTech).toBeUndefined();
-    expect(infantry?.upgradesTo).toBeUndefined();
+    expect(infantry?.obsoletedByTech).toBe('neural-prosthetics');
+    expect(infantry?.upgradesTo).toBe('exosuit_infantry');
+  });
+
+  it('walks Era 13 successor tails without crossing unit domains', () => {
+    const expected: Array<[UnitType, UnitType, string]> = [
+      ['infantry', 'exosuit_infantry', 'neural-prosthetics'],
+      ['destroyer', 'autonomous_frigate', 'ocean-robotics'],
+      ['attack_helicopter', 'combat_drone', 'autonomous-weapons-systems'],
+    ];
+    for (const [source, target, tech] of expected) {
+      const entry = TRAINABLE_UNITS.find(unit => unit.type === source);
+      expect(entry?.upgradesTo, source).toBe(target);
+      expect(entry?.obsoletedByTech, source).toBe(tech);
+    }
   });
 });
 

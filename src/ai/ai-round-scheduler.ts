@@ -8,6 +8,7 @@ import type { GameState } from '@/core/types';
 import { hexKey } from '@/systems/hex-utils';
 import { buildMajorCivPerception, refreshMajorCivIntel } from './ai-perception';
 import { assignNetworkIntentsForAI } from './ai-network-intents';
+import { usePropagandistActionsForAI } from './ai-propagandist';
 import type {
   ExecutePreparedMajorCivPlan,
   PrepareMajorCivPlan,
@@ -244,6 +245,7 @@ export function processNonHumanMajorRound(
         .filter(city => city.position !== null)
         .map(city => city.id)),
     });
+    working = usePropagandistActionsForAI(working, civId);
   }
 
   const executePrepared = options.executePrepared ?? processPreparedAITurn;

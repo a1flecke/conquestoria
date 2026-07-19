@@ -47,6 +47,11 @@ export const UNIT_CLASS_BY_TYPE: Record<UnitType, UnitClass[]> = {
   carrier: ['naval'],
   attack_helicopter: ['air'],
   missile_submarine: ['naval'],
+  combat_drone: ['air'],
+  autonomous_frigate: ['naval', 'ranged'],
+  exosuit_infantry: ['gunpowder'],
+  propagandist: ['civilian'],
+  drone_controller: ['civilian'],
   spy_scout: ['spy'],
   spy_informant: ['spy'],
   spy_agent: ['spy'],
@@ -105,7 +110,7 @@ export type ModifierEffect = 'combatStrength' | 'healing' | 'vision';
 export type ModifierMode = 'flat' | 'multiplier';
 export type ModifierWhen = 'attacking' | 'defending' | 'always';
 
-// inFriendlyTerritory / withinRangeOfFriendlyCity3 are only ever read by getHealingBonus;
+// inFriendlyTerritory / care-range conditions are only ever read by getHealingBonus;
 // fullHP / inFriendlyCity / vsCoastalCity are only ever read by getCombatModifier.
 export type ModifierCondition =
   | 'fullHP'
@@ -113,7 +118,8 @@ export type ModifierCondition =
   | 'inFriendlyTerritory'
   | 'vsCoastalCity'
   | 'amphibiousAssault'
-  | 'withinRangeOfFriendlyCity3';
+  | 'withinRangeOfFriendlyCity3'
+  | 'withinRangeOfNeuralRehabilitationCenter';
 
 export type ModifierSource =
   | { kind: 'tech'; id: string }
@@ -181,6 +187,7 @@ export const UNIT_MODIFIERS: UnitModifier[] = [
   // Requires a Telemedicine Hub city within range — text updated (effect-text-only rule)
   // to make the building meaningful instead of "any friendly city".
   { source: tech('telemedicine'), effect: 'healing', mode: 'flat', value: 1, condition: 'withinRangeOfFriendlyCity3', label: 'Telemedicine' },
+  { source: tech('precision-gene-editing'), effect: 'healing', mode: 'flat', value: 5, condition: 'withinRangeOfNeuralRehabilitationCenter', label: 'Precision Gene Editing' },
 
   // --- Vision: techs ---
   { source: tech('pathfinding'), effect: 'vision', mode: 'flat', value: 1, appliesTo: ['recon'], label: 'Pathfinding' },
@@ -213,4 +220,7 @@ export const CLASS_COUNTERS: ClassCounter[] = [
   { attackerTypes: ['submarine', 'missile_submarine'], defenderClass: 'civilian', multiplier: 1.5, label: 'Commerce raider', requiresDefenderDomain: 'naval' },
   { attackerTypes: ['destroyer'], defenderClass: 'naval', defenderTypes: ['submarine', 'missile_submarine'], multiplier: 1.25, label: 'Anti-submarine' },
   { attackerTypes: ['jet_fighter', 'biplane'], defenderClass: 'air', defenderTypes: ['bomber'], multiplier: 1.5, label: 'Interceptor' },
+  { attackerTypes: ['jet_fighter'], defenderClass: 'air', defenderTypes: ['combat_drone'], multiplier: 1.35, label: 'Drone interceptor' },
+  { attackerTypes: ['submarine', 'missile_submarine'], defenderClass: 'naval', defenderTypes: ['autonomous_frigate'], multiplier: 1.25, label: 'Autonomous-hull ambush' },
+  { attackerTypes: ['tank'], defenderClass: 'gunpowder', defenderTypes: ['exosuit_infantry'], multiplier: 1.25, label: 'Armor breakthrough' },
 ];

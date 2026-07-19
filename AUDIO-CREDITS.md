@@ -426,3 +426,11 @@ synthesized in-project with ffmpeg 8.0.1 (lavfi sine + anoisesrc layering over
 existing Kenney CC0 source clips — see `src/audio/religion-audio-sources.ts` for the
 exact source-to-output mapping). No new external sources were introduced; reuses the
 same Kenney Impact Sounds / RPG Audio CC0 pack already credited above.
+
+## Era 13 Unit SFX (#515)
+
+`combat-drone-*.ogg`, `autonomous-frigate-*.ogg`, `exosuit-*.ogg`,
+`propagandist-death.ogg`, and `drone-controller-death.ogg` are generated locally
+by `scripts/generate-era13-sfx.sh` with ffmpeg lavfi sine/noise layers over the
+already-credited local Kenney CC0 clips named in that script. No external source,
+download, voice recording, or player-specific audio data is used.

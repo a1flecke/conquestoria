@@ -50,7 +50,9 @@ const CATEGORY_ORDER: readonly BuildingCategory[] = [
 ];
 
 const CATEGORY_RANK = new Map(CATEGORY_ORDER.map((category, index) => [category, index]));
-const EPSILON = 1e-9;
+// Long representative timelines accumulate fractional production; allow only
+// rounding noise, not a meaningful budget discrepancy.
+const EPSILON = 1e-8;
 const REFERENCE_MAP_SIZE = 8;
 
 function compareIds(left: string, right: string): number {

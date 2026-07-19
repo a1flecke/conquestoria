@@ -31,6 +31,10 @@ const ROLE_OVERRIDES: Partial<Record<UnitType, readonly AIStrategicRole[]>> = {
   spy_operative: ['espionage'],
   spy_hacker: ['espionage'],
   cyber_unit: ['espionage'],
+  // Era 13 specialists have no conventional strength. Their explicit roles keep
+  // production demand-driven rather than silently treating them as combat units.
+  propagandist: ['espionage'],
+  drone_controller: ['detection'],
   scout_hound: ['detection', 'frontline'],
   shadow_warden: ['detection', 'frontline'],
   war_hound: ['detection', 'frontline', 'mobile', 'capture'],
