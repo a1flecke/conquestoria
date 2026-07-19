@@ -83,6 +83,28 @@ describe('representative building selection', () => {
     expect(closure[0]).not.toBe(terminal!.id);
     expect(selectRepresentativeBuilding(input)).toEqual(selectRepresentativeBuilding(input));
   });
+
+  it('deduplicates shared prerequisites and surfaces malformed prerequisite data', () => {
+    const input = { completedTechs: TECH_TREE.map(tech => tech.id), completedBuildings: [] as string[] };
+    for (const terminal of getEligibleRepresentativeBuildings(input)) {
+      try {
+        const closure = getMissingRepresentativeBuildingClosure(terminal, input);
+        expect(new Set(closure).size).toBe(closure.length);
+      } catch (error) {
+        expect(error).toThrowError('Unavailable building prerequisite');
+      }
+    }
+
+    const selected = selectRepresentativeBuilding(input);
+    expect(selected).not.toBeNull();
+    const originalPrerequisites = selected!.requiresBuildings;
+    selected!.requiresBuildings = ['missing-representative-prerequisite'];
+    try {
+      expect(() => selectRepresentativeBuilding(input)).toThrow('Missing building prerequisite');
+    } finally {
+      selected!.requiresBuildings = originalPrerequisites;
+    }
+  });
 });
 
 describe('representative production budget', () => {
