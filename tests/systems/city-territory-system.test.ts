@@ -6,6 +6,7 @@ import { hexKey } from '@/systems/hex-utils';
 import {
   buildCityWorkClaimIndex,
   buildTerritoryTileFlippedEvents,
+  calculateCityPressureForTile,
   canClaimTile,
   canonicalizeCityCoord,
   cityDistance,
@@ -512,5 +513,32 @@ describe('minor-civ placement and founding distance invariant', () => {
         expect(dist).toBeGreaterThanOrEqual(MIN_CITY_CENTER_DISTANCE);
       }
     }
+  });
+});
+
+describe('#593 MR6 — faith territory pressure', () => {
+  it('adds +1 pressure when the city follows its own civ faith, +2 more (so +3 total) if that civ boon is Fervor', () => {
+    const state = createNewGame(undefined, 'faith-pressure-own');
+    const city = addCity(state, 'player', 10, 10);
+    const coord = { q: 11, r: 10 };
+    const base = calculateCityPressureForTile(state, city, coord);
+
+    state.cityFaith = { [city.id]: { religionId: 'religion-player' } };
+    state.religions = { 'religion-player': { id: 'religion-player', name: 'Test Faith', ownerCivId: 'player', foundedTurn: 1 } };
+    expect(calculateCityPressureForTile(state, city, coord)).toBe(base + 1);
+
+    state.religions['religion-player'].boon = 'fervor';
+    expect(calculateCityPressureForTile(state, city, coord)).toBe(base + 3);
+  });
+
+  it('adds no bonus when the city follows a foreign faith', () => {
+    const state = createNewGame(undefined, 'faith-pressure-foreign');
+    const city = addCity(state, 'player', 10, 10);
+    const coord = { q: 11, r: 10 };
+    const base = calculateCityPressureForTile(state, city, coord);
+
+    state.cityFaith = { [city.id]: { religionId: 'religion-ai-1' } };
+    state.religions = { 'religion-ai-1': { id: 'religion-ai-1', name: 'Rival Faith', ownerCivId: 'ai-1', boon: 'fervor', foundedTurn: 1 } };
+    expect(calculateCityPressureForTile(state, city, coord)).toBe(base);
   });
 });

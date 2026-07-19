@@ -120,10 +120,23 @@ export const TERRITORY_PRESSURE_BALANCE = {
 } as const;
 
 export function calculateCityPressureForTile(state: GameState, city: City, coord: HexCoord): number {
+  // #593 MR6: +1 if the city follows its own civ's faith, +2 more (so +3 total) if
+  // that civ's religion boon is Fervor. No bonus for a city following a FOREIGN faith --
+  // that's the loyalty-flip liability, not a territory asset, for the current owner.
+  let faithBonus = 0;
+  const faith = state.cityFaith?.[city.id];
+  if (faith) {
+    const religion = state.religions?.[faith.religionId];
+    if (religion && religion.ownerCivId === city.owner) {
+      faithBonus += 1;
+      if (religion.boon === 'fervor') faithBonus += 2;
+    }
+  }
   return TERRITORY_PRESSURE_BALANCE.basePressure
     + TERRITORY_PRESSURE_BALANCE.maturityBonus[city.maturity]
     + Math.floor(city.population / 2)
     + Math.min(TERRITORY_PRESSURE_BALANCE.cultureBuildingCap, countCultureBuildings(city))
+    + faithBonus
     - cityDistance(city.position, coord, state.map);
 }
 
