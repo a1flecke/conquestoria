@@ -490,6 +490,7 @@ describe('applyCombatOutcomeToState', () => {
     const result: CombatResult = {
       attackerId: 'attacker', defenderId: 'defender', attackerDamage: 0, defenderDamage: 100,
       attackerSurvived: true, defenderSurvived: false,
+      attackerStrength: 20, defenderStrength: 20,
       attackerPosition: { q: 0, r: 0 }, defenderPosition: { q: 1, r: 0 },
     };
 
@@ -515,6 +516,7 @@ describe('applyCombatOutcomeToState', () => {
     const result: CombatResult = {
       attackerId: 'attacker', defenderId: 'defender', attackerDamage: 0, defenderDamage: 100,
       attackerSurvived: true, defenderSurvived: false,
+      attackerStrength: 20, defenderStrength: 20,
       attackerPosition: { q: 0, r: 0 }, defenderPosition: { q: 1, r: 0 },
     };
 
@@ -553,6 +555,7 @@ describe('applyCombatOutcomeToState', () => {
     const result: CombatResult = {
       attackerId: 'attacker', defenderId: 'defender', attackerDamage: 0, defenderDamage: 100,
       attackerSurvived: true, defenderSurvived: false,
+      attackerStrength: 20, defenderStrength: 20,
       attackerPosition: { q: 0, r: 0 }, defenderPosition: { q: 1, r: 0 },
     };
 
@@ -920,6 +923,57 @@ describe('applyCombatOutcomeToState', () => {
     expect(applied.defenderCaptured).toBe(true);
     expect(applied.state.units.defender.owner).toBe('player');
     expect(applied.state.units.defender.type).toBe('galley');
+  });
+
+  it('sinks (never captures) a pirate ship defeated in a decisive win — pirates have no civilizations[] entry (#541 second-pass review)', () => {
+    // Same civ-corruption class as the civilian-capture fix: pirates track units in
+    // state.pirates.factions, not state.civilizations. Prize-crew capture had the same
+    // unconditional civilizations[newOwner] write as civilian capture did, just reached
+    // via a different unit class — fighting pirate ships is a core, frequent interaction,
+    // so this was readily reachable.
+    const state = makeRewardState();
+    state.units.attacker = { ...state.units.attacker, type: 'frigate', owner: 'player', health: 100 };
+    state.units.defender = { ...state.units.defender, type: 'pirate_frigate', owner: 'pirate-1' };
+    const result: CombatResult = {
+      attackerId: 'attacker', defenderId: 'defender', attackerDamage: 0, defenderDamage: 100,
+      attackerSurvived: true, defenderSurvived: false,
+      attackerStrength: 20, defenderStrength: 8,
+      attackerPosition: { q: 0, r: 0 }, defenderPosition: { q: 1, r: 0 },
+    };
+
+    const applied = applyCombatOutcomeToState(state, result, 64);
+
+    expect(applied.defenderCaptured).toBe(false);
+    expect(applied.defenderDefeated).toBe(true);
+    expect(applied.state.units.defender).toBeUndefined();
+    expect(applied.state.civilizations['pirate-1']).toBeUndefined();
+  });
+
+  it('sinks (never captures) a carrier with based aircraft aboard, even in a decisive win (#541 second-pass review)', () => {
+    // Mirrors the civilian-capture cargo exclusion (loaded transports still sink so the
+    // existing cargo-cleanup cascade runs) — the prize-crew branch was missing the same
+    // guard, which would have captured the carrier while leaving its based aircraft
+    // still owned by the old civ, stranded aboard a ship they no longer control.
+    const state = makeRewardState();
+    state.units.attacker = { ...state.units.attacker, type: 'frigate', owner: 'player', health: 100 };
+    state.units.defender = {
+      ...state.units.defender, type: 'carrier', owner: 'ai-1', cargoUnitIds: ['plane-1'],
+    };
+    state.units['plane-1'] = { ...createUnit('biplane', 'ai-1', { q: 1, r: 0 }, mkC()), id: 'plane-1', transportId: 'defender' };
+    state.civilizations['ai-1'].units = ['defender', 'plane-1'];
+    const result: CombatResult = {
+      attackerId: 'attacker', defenderId: 'defender', attackerDamage: 0, defenderDamage: 100,
+      attackerSurvived: true, defenderSurvived: false,
+      attackerStrength: 20, defenderStrength: 8,
+      attackerPosition: { q: 0, r: 0 }, defenderPosition: { q: 1, r: 0 },
+    };
+
+    const applied = applyCombatOutcomeToState(state, result, 64);
+
+    expect(applied.defenderCaptured).toBe(false);
+    expect(applied.defenderDefeated).toBe(true);
+    expect(applied.state.units.defender).toBeUndefined();
+    expect(applied.state.units['plane-1']).toBeUndefined();
   });
 
   it('sinks a naval military unit when the win is not decisive enough', () => {
