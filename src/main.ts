@@ -32,6 +32,7 @@ import { assignCityFocus, setCityWorkedTile } from '@/systems/city-work-system';
 import { formatCityFoundingBlockerMessage, getCityFoundingBlockers } from '@/systems/city-territory-system';
 import { enqueueCityProduction, enqueueResearch, getIdleCityIds, getRecommendedIdleCityChoice, moveQueuedId, needsResearchChoice, removeQueuedId, reorderCityProduction, setIdleProduction } from '@/systems/planning-system';
 import { formatImprovementYieldLabel, getImprovementDisplayName } from '@/systems/improvement-system';
+import { applyPillageToState, canPillageTile, getPillageGoldReward } from '@/systems/pillage-system';
 import { createTechPanel } from '@/ui/tech-panel';
 import { createCityPanel } from '@/ui/city-panel';
 import { createCityCapturePanel } from '@/ui/city-capture-panel';
@@ -2122,6 +2123,30 @@ function selectUnit(
           gameState = fortifyUnitInState(gameState, gameState.currentPlayer, uid);
           showNotification('Unit fortified. +25% defense until unfortified or moved.', 'info');
         }
+        renderLoop.setGameState(gameState);
+        updateHUD();
+        selectUnit(uid);
+      },
+      onPillage: uid => {
+        const unit = gameState.units[uid];
+        if (!unit || unit.owner !== gameState.currentPlayer) return;
+        const tile = gameState.map.tiles[hexKey(unit.position)];
+        if (!tile || !canPillageTile(tile, unit.owner)) return;
+
+        const hasFinishedImprovement = tile.improvement !== 'none' && tile.improvementTurnsLeft === 0;
+        const goldPreview = hasFinishedImprovement ? getPillageGoldReward(tile.improvement) : 0;
+        const targetLabel = hasFinishedImprovement ? getImprovementDisplayName(tile.improvement) : 'the road';
+        const preview = `Pillage ${targetLabel}?\n\n+${goldPreview} gold, unit heals +25 HP.`;
+        if (!window.confirm(preview)) return;
+
+        if (tile.owner && isMajorCivOwner(tile.owner)) {
+          ensurePlayerWarState(tile.owner);
+        }
+
+        const result = applyPillageToState(gameState, uid);
+        if (!result.ok) return;
+        gameState = result.state;
+        showNotification(`Pillaged ${targetLabel} for ${result.goldAwarded} gold.`, 'success');
         renderLoop.setGameState(gameState);
         updateHUD();
         selectUnit(uid);
