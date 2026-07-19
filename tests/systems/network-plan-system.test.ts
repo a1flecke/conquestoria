@@ -217,4 +217,16 @@ describe('network plan lifecycle', () => {
     expect(cancelInvalidNetworkPlans(assigned.state)).toMatchObject({ cancelled: [] });
     expect(cancelInvalidNetworkPlans(assigned.state).state.autonomyByCiv!.player.plans).toHaveProperty('network-plan-1');
   });
+
+  it('cancels Survey Grid when a linked unit is no longer a valid friendly recipient', () => {
+    const state = makeState();
+    state.cities['city-player'].buildings = ['space_center'];
+    const assigned = assignNetworkPlan(state, {
+      ownerCivId: 'player', source: { kind: 'city', cityId: 'city-player' }, definitionId: 'survey-grid',
+      target: { kind: 'city', cityId: 'city-player' }, linkedUnitIds: ['unit-cyber'],
+    });
+    delete assigned.state.units['unit-cyber'];
+
+    expect(cancelInvalidNetworkPlans(assigned.state).cancelled).toEqual([{ planId: 'network-plan-1', reason: 'invalid-target' }]);
+  });
 });
