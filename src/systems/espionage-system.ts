@@ -774,9 +774,20 @@ export function resolveMissionResult(
 
     // flip_loyalty (#524 MR2a): capitals never flip -- mirrors the targetIsCapital guard
     // already used elsewhere in this file (see getEspionageModifierBreakdown).
+    //
+    // Review fix: only real civs (state.civilizations entries) are eligible. Minor civs
+    // (state.minorCivs, keyed separately, with exactly one city and no `civilizations`
+    // entry) and any other non-civilizations owner (e.g. 'rebels') must never be flip
+    // targets -- transferCapturedCityOwnership and eliminateCivilization only know how
+    // to update civilizations records, so annexing a minor civ's city this way would
+    // leave its MinorCivState dangling (stale cityId, isDestroyed still false) and its
+    // garrison units stranded inside a city it no longer owns. getCapitalCityId already
+    // silently returns null for a minor civ id (it only checks civilizations), which is
+    // exactly why the capital guard above was not sufficient by itself.
     case 'flip_loyalty': {
       const targetCity = gameState.cities[targetCityId];
       if (!targetCity) return {};
+      if (!gameState.civilizations[targetCivId]) return {};
       if (getCapitalCityId(gameState, targetCivId) === targetCityId) return {};
       if (targetCity.owner !== targetCivId) return {}; // already changed hands this turn
       return { flippedCityId: targetCityId, flippedFromCivId: targetCivId };

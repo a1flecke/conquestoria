@@ -750,6 +750,22 @@ describe('resolveMissionResult', () => {
       const result = resolveMissionResult('flip_loyalty', 'ai-egypt', 'city-egypt-2', gameState, 'player', 'spy-1');
       expect(result.flippedCityId).toBeUndefined();
     });
+
+    // Review fix: a minor civ's only city has no state.civilizations entry (minor civs
+    // live in state.minorCivs with a single cityId), so getCapitalCityId silently
+    // returns null for it and the capital guard alone never blocked this. Without the
+    // explicit civilizations-membership check, this would let flip_loyalty permanently
+    // annex a minor civ's sole city and leave its MinorCivState dangling.
+    it('never fires against a city owned by a non-civilizations owner (e.g. a minor civ)', () => {
+      const gameState = makeTestGameState();
+      gameState.cities['city-minor-1'] = {
+        ...gameState.cities['city-egypt-1'],
+        id: 'city-minor-1', name: 'Petra', position: { q: 9, r: 3 }, owner: 'minor-nabatea',
+      };
+      const result = resolveMissionResult('flip_loyalty', 'minor-nabatea', 'city-minor-1', gameState, 'player', 'spy-1');
+      expect(result.flippedCityId).toBeUndefined();
+      expect(result.flippedFromCivId).toBeUndefined();
+    });
   });
 });
 

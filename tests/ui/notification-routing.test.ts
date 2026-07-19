@@ -26,6 +26,7 @@ import {
   routeCrisisAidSent,
   routeOpportunisticWar,
   routeSabotageReliefDiscovered,
+  routeCityFlipped,
   type NotificationSink,
 } from '@/ui/notification-routing';
 
@@ -964,5 +965,37 @@ describe('espionage:sabotage-relief-discovered routing (#526 MR7 Task 7.2)', () 
     expect(civIds).toContain('egypt');
     expect(civIds).not.toContain('nubia');
     expect(calls.every(c => c.message === "Rome's spies were caught sabotaging Carthage's relief!")).toBe(true);
+  });
+});
+
+describe('espionage:city-flipped routing (#524 MR2a review fix)', () => {
+  function flipState(): GameState {
+    return makeState({
+      civilizations: {
+        rome: { id: 'rome', name: 'Rome', cities: [], units: [], diplomacy: { relationships: {} }, visibility: { tiles: {} } },
+        carthage: { id: 'carthage', name: 'Carthage', cities: [], units: [], diplomacy: { relationships: {} }, visibility: { tiles: {} } },
+      } as any,
+      cities: { 'city-1': { id: 'city-1', name: 'Utica', owner: 'rome', position: { q: 0, r: 0 } } } as any,
+    });
+  }
+
+  it('notifies both the flipping civ and the victim civ, with distinct messages', () => {
+    const { sink, calls } = makeSink();
+    routeCityFlipped(flipState(), { civId: 'rome', victimCivId: 'carthage', cityId: 'city-1' }, sink);
+    expect(calls).toHaveLength(2);
+    const romeCall = calls.find(c => c.civId === 'rome')!;
+    const carthageCall = calls.find(c => c.civId === 'carthage')!;
+    expect(romeCall.message).toContain('Utica');
+    expect(romeCall.message).toContain('Carthage');
+    expect(romeCall.type).toBe('success');
+    expect(carthageCall.message).toContain('Utica');
+    expect(carthageCall.message).toContain('Rome');
+    expect(carthageCall.type).toBe('warning');
+  });
+
+  it('falls back to generic names when a civ record is missing', () => {
+    const { sink, calls } = makeSink();
+    routeCityFlipped(flipState(), { civId: 'rome', victimCivId: 'unknown-civ', cityId: 'city-1' }, sink);
+    expect(calls.every(c => typeof c.message === 'string' && c.message.length > 0)).toBe(true);
   });
 });

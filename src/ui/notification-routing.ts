@@ -667,6 +667,24 @@ export function routeSabotageReliefDiscovered(
   }
 }
 
+// flip_loyalty (#524 MR2a review fix): the flip itself already happened by the time
+// this event fires -- turn-manager.ts applies transferCapturedCityOwnership right after
+// processEspionageTurn returns, before any listener runs. Both sides must be told: the
+// victim especially, since losing a city with zero in-game feedback (the original gap
+// this router closes) is far worse than any other espionage consequence.
+export function routeCityFlipped(
+  state: GameState,
+  event: GameEvents['espionage:city-flipped'],
+  sink: NotificationSink,
+): void {
+  const cityName = state.cities[event.cityId]?.name ?? 'A city';
+  const flipperName = state.civilizations[event.civId]?.name ?? 'a rival';
+  const victimName = state.civilizations[event.victimCivId]?.name ?? 'a rival';
+
+  sink(event.civId, `${cityName} defected to you after a propaganda campaign against ${victimName}!`, 'success');
+  sink(event.victimCivId, `${cityName} defected to ${flipperName} after a propaganda campaign!`, 'warning');
+}
+
 // Fans out to viewers who know the AI target civ (met-civ gate, spec §Visibility).
 // AI-targeted crises only -- a human's own crisis already notifies its owner via
 // routeCrisisStarted above. Fires on crisis:started only, never per spread/siege tick:
