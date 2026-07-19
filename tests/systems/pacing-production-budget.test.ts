@@ -7,6 +7,7 @@ import {
   getMissingRepresentativeBuildingClosure,
   getRepresentativeCohorts,
   getRequiredAdvancementCount,
+  simulateRepresentativeCity,
   selectRepresentativeBuilding,
 } from './helpers/pacing-production-budget';
 
@@ -81,5 +82,49 @@ describe('representative building selection', () => {
     expect(closure.at(-1)).toBe(terminal!.id);
     expect(closure[0]).not.toBe(terminal!.id);
     expect(selectRepresentativeBuilding(input)).toEqual(selectRepresentativeBuilding(input));
+  });
+});
+
+describe('representative production budget', () => {
+  it('gives a frontier city no pre-founding production', () => {
+    const result = simulateRepresentativeCity({
+      cohort: { id: 'frontier', foundedEra: 9 },
+      targetEra: 9,
+      timeline: buildRepresentativeResearchTimeline(9),
+      infrastructureShare: 0.6,
+    });
+
+    expect(result.actualProductionEarned).toBe(0);
+    expect(result.completedBuildings).toEqual([]);
+  });
+
+  it('accounts for every allocated production point exactly once', () => {
+    const result = simulateRepresentativeCity({
+      cohort: { id: 'capital', foundedEra: 1 },
+      targetEra: 10,
+      timeline: buildRepresentativeResearchTimeline(10),
+      infrastructureShare: 0.6,
+    });
+    const accounted = result.completedBuildingCost
+      + result.activeBuildingProgress
+      + result.discardedObsoleteProgress
+      + result.unspentInfrastructureProduction;
+
+    expect(Math.abs(accounted - result.infrastructureProductionAllocated)).toBeLessThanOrEqual(1e-9);
+    expect(result.activeBuildingCount).toBeLessThanOrEqual(1);
+    expect(result.cappedProductionEarned).toBeLessThanOrEqual(result.actualProductionEarned);
+  });
+
+  it('gives later cohorts less production and no more population than the capital', () => {
+    const timeline = buildRepresentativeResearchTimeline(10);
+    const capital = simulateRepresentativeCity({
+      cohort: { id: 'capital', foundedEra: 1 }, targetEra: 10, timeline, infrastructureShare: 0.6,
+    });
+    const frontier = simulateRepresentativeCity({
+      cohort: { id: 'frontier', foundedEra: 9 }, targetEra: 10, timeline, infrastructureShare: 0.6,
+    });
+
+    expect(frontier.actualProductionEarned).toBeLessThan(capital.actualProductionEarned);
+    expect(frontier.population).toBeLessThanOrEqual(capital.population);
   });
 });
