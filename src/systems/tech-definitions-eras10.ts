@@ -131,7 +131,7 @@ const ERA_10_TECHS: Tech[] = [
     unlocksBuildings: ['signals_bureau'], era: 10 },
   { id: 'cold-war-networks', name: 'Cold War Networks', track: 'espionage', cost: 1310,
     prerequisites: ['propaganda-campaigns', 'counterintelligence'],
-    unlocks: ['+2 gold empire-wide; shadow networks of assets, couriers, and double agents span the globe'], era: 10 },
+    unlocks: ['+2 gold empire-wide; shadow networks of assets, couriers, and double agents span the globe'], unlocksBuildings: ['security-bureau'], era: 10 },
   // MR10: re-homed from a stub — digital-surveillance is no longer a legendary-wonder gate.
   { id: 'digital-surveillance', name: 'Digital Surveillance', track: 'espionage', cost: 1310,
     prerequisites: ['counterintelligence', 'signals-intelligence'],

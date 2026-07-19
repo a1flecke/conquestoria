@@ -142,12 +142,12 @@ export const TECH_TREE_ERAS_1_4: Tech[] = [
     pacing: { band: 'core', role: 'optional-early-espionage', impact: 1, scope: 'empire', snowball: 1, urgency: 0.9, situationality: 1.15, unlockBreadth: 1.1 } },
   { id: 'lookouts', name: 'Lookouts', track: 'espionage', cost: 16, prerequisites: ['espionage-scouting'], unlocks: [], unlocksUnits: ['scout_hound'], era: 1,
     pacing: { band: 'core', role: 'optional-early-espionage', impact: 1, scope: 'empire', snowball: 1, urgency: 0.9, situationality: 1.15, unlockBreadth: 1 } },
-  { id: 'espionage-informants', name: 'Informant Rings', track: 'espionage', cost: 20, prerequisites: ['espionage-scouting'], unlocks: ['Gather Intel mission', 'Identify Resources mission', 'Monitor Diplomacy mission', 'Second spy slot'], unlocksUnits: ['spy_informant'], unlocksBuildings: ['intelligence-agency'], era: 2 },
+  { id: 'espionage-informants', name: 'Informant Rings', track: 'espionage', cost: 20, prerequisites: ['espionage-scouting'], unlocks: ['Gather Intel mission', 'Identify Resources mission', 'Monitor Diplomacy mission', 'Second spy slot'], unlocksUnits: ['spy_informant'], era: 2 },
   { id: 'disguise', name: 'Disguise', track: 'espionage', cost: 25, prerequisites: ['lookouts'], unlocks: ['Spy disguise'], era: 2 },
   { id: 'spy-networks', name: 'Spy Networks', track: 'espionage', cost: 55, prerequisites: ['espionage-informants', 'disguise'], unlocks: ['Spy ring'], unlocksUnits: ['spy_agent'], era: 3 },
   { id: 'sabotage', name: 'Sabotage', track: 'espionage', cost: 55, prerequisites: ['espionage-informants'], unlocks: ['Saboteur'], era: 3 },
   { id: 'cryptography', name: 'Cryptography', track: 'espionage', cost: 75, prerequisites: ['spy-networks'], unlocks: ['Cipher bureau'], unlocksUnits: ['spy_operative'], era: 4 },
-  { id: 'counter-intelligence', name: 'Counter-Intelligence', track: 'espionage', cost: 95, prerequisites: ['spy-networks', 'sabotage'], unlocks: [], unlocksBuildings: ['security-bureau'], era: 4 },
+  { id: 'counter-intelligence', name: 'Counter-Intelligence', track: 'espionage', cost: 95, prerequisites: ['spy-networks', 'sabotage'], unlocks: [], era: 4 },
 
   // === SPIRITUALITY TRACK (8 techs, new) ===
   { id: 'animism', name: 'Animism', track: 'spirituality', cost: 5, prerequisites: [], unlocks: ['Early spirit-worship traditions'], unlocksBuildings: ['sacred_grove'], era: 1 },
@@ -159,4 +159,3 @@ export const TECH_TREE_ERAS_1_4: Tech[] = [
   { id: 'pilgrimages', name: 'Pilgrimages', track: 'spirituality', cost: 75, prerequisites: ['temples'], unlocks: ['Pilgrimage traditions'], era: 4 },
   { id: 'theology-tech', name: 'Theology', track: 'spirituality', cost: 95, prerequisites: ['temples', 'priesthood'], unlocks: ['Organized doctrine'], era: 4 },
 ];
-

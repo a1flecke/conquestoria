@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { processCity, BUILDINGS } from '@/systems/city-system';
+import { processCity, BUILDINGS, getAvailableBuildings } from '@/systems/city-system';
 import { applyBuildingCI, createEspionageCivState, processEspionageTurn } from '@/systems/espionage-system';
 import { createRng } from '@/systems/map-generator';
 import { EventBus } from '@/core/event-bus';
@@ -13,12 +13,28 @@ describe('espionage building definitions', () => {
 
   it('intelligence-agency is defined with espionage category', () => {
     expect(BUILDINGS['intelligence-agency']).toBeDefined();
-    expect(BUILDINGS['intelligence-agency'].techRequired).toBe('espionage-informants');
+    expect(BUILDINGS['intelligence-agency'].techRequired).toBe('political-intelligence');
+    expect(BUILDINGS['intelligence-agency'].defensiveEspionageAiValue).toBe(40);
   });
 
   it('security-bureau is defined with espionage category', () => {
     expect(BUILDINGS['security-bureau']).toBeDefined();
-    expect(BUILDINGS['security-bureau'].techRequired).toBe('counter-intelligence');
+    expect(BUILDINGS['security-bureau'].techRequired).toBe('cold-war-networks');
+    expect(BUILDINGS['security-bureau'].defensiveEspionageAiValue).toBe(40);
+  });
+
+  it('keeps counter-intelligence buildings unavailable until their new era gates', () => {
+    const city = { buildings: [], position: { q: 0, r: 0 } } as any;
+    const map = { tiles: {}, width: 1, height: 1, wrapsHorizontally: false } as any;
+    const early = getAvailableBuildings(city, ['espionage-informants', 'counter-intelligence'], map)
+      .map(building => building.id);
+    const late = getAvailableBuildings(city, ['political-intelligence', 'cold-war-networks'], map)
+      .map(building => building.id);
+
+    expect(early).not.toContain('intelligence-agency');
+    expect(early).not.toContain('security-bureau');
+    expect(late).toContain('intelligence-agency');
+    expect(late).toContain('security-bureau');
   });
 });
 
@@ -56,6 +72,13 @@ describe('applyBuildingCI', () => {
     const city = { id: 'c1', buildings: ['security-bureau'] } as any;
     const result = applyBuildingCI('c1', city, civEsp, ['signals-intelligence']);
     expect(result.counterIntelligence['c1']).toBe(15);
+  });
+
+  it('security-bureau keeps its full CI before signals-intelligence is researched', () => {
+    const civEsp = createEspionageCivState();
+    const city = { id: 'c1', buildings: ['security-bureau'] } as any;
+    const result = applyBuildingCI('c1', city, civEsp, ['cold-war-networks']);
+    expect(result.counterIntelligence['c1']).toBe(30);
   });
 
   it('city without security-bureau gets no CI from that building', () => {
