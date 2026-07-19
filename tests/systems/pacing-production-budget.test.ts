@@ -1,8 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { TECH_TREE, hasReachedEraThreshold, resolveCivilizationEra } from '@/systems/tech-definitions';
+import { BUILDINGS } from '@/systems/city-system';
 import {
   buildRepresentativeResearchTimeline,
+  getEligibleRepresentativeBuildings,
+  getMissingRepresentativeBuildingClosure,
+  getRepresentativeCohorts,
   getRequiredAdvancementCount,
+  selectRepresentativeBuilding,
 } from './helpers/pacing-production-budget';
 
 describe('representative research timeline', () => {
@@ -36,5 +41,45 @@ describe('representative research timeline', () => {
       expect(entries[index].eta).toBeGreaterThan(0);
       expect(entries[index].completionTurn).toBeGreaterThan(entries[index - 1].completionTurn);
     }
+  });
+});
+
+describe('representative building selection', () => {
+  it('adds cohorts only at documented founding eras', () => {
+    expect(getRepresentativeCohorts(1).map(cohort => cohort.id)).toEqual(['capital']);
+    expect(getRepresentativeCohorts(3).map(cohort => cohort.id)).toEqual(['capital', 'expansion-1']);
+    expect(getRepresentativeCohorts(9).map(cohort => cohort.id)).toEqual([
+      'capital', 'expansion-1', 'expansion-2', 'expansion-3', 'frontier',
+    ]);
+  });
+
+  it('excludes non-neutral buildings from the candidate set', () => {
+    const candidates = getEligibleRepresentativeBuildings({
+      completedTechs: TECH_TREE.map(tech => tech.id),
+      completedBuildings: [],
+    });
+    const ids = candidates.map(candidate => candidate.id);
+
+    for (const building of Object.values(BUILDINGS)) {
+      if (building.nationalProject || building.uniquePerEmpire || building.coastalRequired || building.resourceRequired?.length) {
+        expect(ids).not.toContain(building.id);
+      }
+    }
+  });
+
+  it('returns prerequisite closures in build order and selects deterministically', () => {
+    const terminal = Object.values(BUILDINGS).find(building =>
+      (building.requiresBuildings?.length ?? 0) > 0
+      && !building.nationalProject
+      && !building.uniquePerEmpire
+      && !building.coastalRequired
+      && !(building.resourceRequired?.length));
+    expect(terminal).toBeDefined();
+
+    const input = { completedTechs: TECH_TREE.map(tech => tech.id), completedBuildings: [] as string[] };
+    const closure = getMissingRepresentativeBuildingClosure(terminal!, input);
+    expect(closure.at(-1)).toBe(terminal!.id);
+    expect(closure[0]).not.toBe(terminal!.id);
+    expect(selectRepresentativeBuilding(input)).toEqual(selectRepresentativeBuilding(input));
   });
 });
