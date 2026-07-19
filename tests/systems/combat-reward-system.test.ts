@@ -4,9 +4,12 @@ import {
   applyCombatOutcomeToState,
   calculateDefeatReward,
   collectCombatRewards,
+  getCaptureNotificationLabel,
   getExperienceToNextTier,
   getVeterancyCombatModifier,
   getVeterancyTier,
+  isCapturableNavalMilitary,
+  meetsCaptureMargin,
 } from '@/systems/combat-reward-system';
 import { createEmptyPirateState, type PirateFactionState } from '@/core/pirate-state';
 import type { CombatResult, GameState } from '@/core/types';
@@ -897,6 +900,144 @@ describe('applyCombatOutcomeToState', () => {
     expect(applied.defenderDefeated).toBe(true);
     expect(applied.defenderCaptured).toBe(false);
     expect(applied.state.units.defender).toBeUndefined();
+  });
+
+  it('captures a decisively-defeated naval military unit instead of sinking it', () => {
+    const state = makeRewardState();
+    state.units.attacker = { ...state.units.attacker, type: 'frigate', owner: 'player', health: 100 };
+    state.units.defender = { ...state.units.defender, type: 'galley', owner: 'ai-1' };
+    state.civilizations['ai-1'].units = ['defender'];
+    const result: CombatResult = {
+      attackerId: 'attacker', defenderId: 'defender', attackerDamage: 0, defenderDamage: 100,
+      attackerSurvived: true, defenderSurvived: false,
+      attackerStrength: 20, defenderStrength: 8,
+      attackerPosition: { q: 0, r: 0 }, defenderPosition: { q: 1, r: 0 },
+    };
+
+    const applied = applyCombatOutcomeToState(state, result, 64);
+
+    expect(applied.defenderDefeated).toBe(false);
+    expect(applied.defenderCaptured).toBe(true);
+    expect(applied.state.units.defender.owner).toBe('player');
+    expect(applied.state.units.defender.type).toBe('galley');
+  });
+
+  it('sinks a naval military unit when the win is not decisive enough', () => {
+    const state = makeRewardState();
+    state.units.attacker = { ...state.units.attacker, type: 'frigate', owner: 'player' };
+    state.units.defender = { ...state.units.defender, type: 'galley', owner: 'ai-1' };
+    const result: CombatResult = {
+      attackerId: 'attacker', defenderId: 'defender', attackerDamage: 0, defenderDamage: 100,
+      attackerSurvived: true, defenderSurvived: false,
+      attackerStrength: 20, defenderStrength: 15,
+      attackerPosition: { q: 0, r: 0 }, defenderPosition: { q: 1, r: 0 },
+    };
+
+    const applied = applyCombatOutcomeToState(state, result, 64);
+
+    expect(applied.defenderDefeated).toBe(true);
+    expect(applied.defenderCaptured).toBe(false);
+  });
+
+  it('sinks a naval military unit when the winner drops below 50% health, even with a decisive strength margin', () => {
+    const state = makeRewardState();
+    state.units.attacker = { ...state.units.attacker, type: 'frigate', owner: 'player', health: 40 };
+    state.units.defender = { ...state.units.defender, type: 'galley', owner: 'ai-1' };
+    const result: CombatResult = {
+      attackerId: 'attacker', defenderId: 'defender', attackerDamage: 5, defenderDamage: 100,
+      attackerSurvived: true, defenderSurvived: false,
+      attackerStrength: 20, defenderStrength: 8,
+      attackerPosition: { q: 0, r: 0 }, defenderPosition: { q: 1, r: 0 },
+    };
+
+    const applied = applyCombatOutcomeToState(state, result, 64);
+
+    expect(applied.defenderDefeated).toBe(true);
+    expect(applied.defenderCaptured).toBe(false);
+  });
+
+  it('never captures a beast_sea_serpent — it is destroyed like any other beast', () => {
+    const state = makeRewardState();
+    state.units.attacker = { ...state.units.attacker, type: 'frigate', owner: 'player' };
+    state.units.defender = { ...state.units.defender, type: 'beast_sea_serpent', owner: 'beasts' };
+    const result: CombatResult = {
+      attackerId: 'attacker', defenderId: 'defender', attackerDamage: 0, defenderDamage: 100,
+      attackerSurvived: true, defenderSurvived: false,
+      attackerStrength: 20, defenderStrength: 1,
+      attackerPosition: { q: 0, r: 0 }, defenderPosition: { q: 1, r: 0 },
+    };
+
+    const applied = applyCombatOutcomeToState(state, result, 64);
+
+    expect(applied.defenderCaptured).toBe(false);
+    expect(applied.defenderDefeated).toBe(true);
+  });
+
+  it('never captures a deep-sea-flotilla pirate flagship, even in a decisive win — it is destroyed like today', () => {
+    const state = makeRewardState();
+    state.units.attacker = { ...state.units.attacker, type: 'frigate', owner: 'player', health: 100 };
+    state.units.defender = { ...state.units.defender, type: 'pirate_frigate', owner: 'pirate-1' };
+    state.pirates = createEmptyPirateState();
+    state.pirates.factions['pirate-1'] = {
+      id: 'pirate-1', name: 'The Red Wake', spawnedRound: 1, behavior: 'raiding',
+      maritimeStage: 3, notoriety: 2, shipIds: ['defender'],
+      headquarters: { kind: 'deep-sea-flotilla', flagshipUnitId: 'defender', relocation: { planned: null, lastRelocatedRound: null } },
+      tributeByCiv: {}, demandByCiv: {}, contract: null, intent: null,
+      transitionGuards: { emittedEventKeys: [] },
+    } satisfies PirateFactionState;
+    const result: CombatResult = {
+      attackerId: 'attacker', defenderId: 'defender', attackerDamage: 0, defenderDamage: 100,
+      attackerSurvived: true, defenderSurvived: false,
+      attackerStrength: 20, defenderStrength: 8,
+      attackerPosition: { q: 0, r: 0 }, defenderPosition: { q: 1, r: 0 },
+    };
+
+    const applied = applyCombatOutcomeToState(state, result, 64);
+
+    expect(applied.defenderCaptured).toBe(false);
+    expect(applied.defenderDefeated).toBe(true);
+    expect(applied.state.pirates!.factions['pirate-1']).toBeUndefined();
+  });
+
+  it('captures a losing attacker naval military unit too (attacker-loses side), mirroring the defender side', () => {
+    const state = makeRewardState();
+    state.units.attacker = { ...state.units.attacker, type: 'galley', owner: 'player', health: 40 };
+    state.units.defender = { ...state.units.defender, type: 'frigate', owner: 'ai-1', health: 100 };
+    state.civilizations.player.units = ['attacker'];
+    const result: CombatResult = {
+      attackerId: 'attacker', defenderId: 'defender', attackerDamage: 100, defenderDamage: 0,
+      attackerSurvived: false, defenderSurvived: true,
+      attackerStrength: 8, defenderStrength: 20,
+      attackerPosition: { q: 0, r: 0 }, defenderPosition: { q: 1, r: 0 },
+    };
+
+    const applied = applyCombatOutcomeToState(state, result, 64);
+
+    expect(applied.attackerDefeated).toBe(false);
+    expect(applied.attackerCaptured).toBe(true);
+    expect(applied.state.units.attacker.owner).toBe('ai-1');
+  });
+});
+
+describe('prize-crew helpers', () => {
+  it('meetsCaptureMargin requires both a decisive strength ratio and winner health >= 50', () => {
+    expect(meetsCaptureMargin(8, 20, 60)).toBe(true);
+    expect(meetsCaptureMargin(15, 20, 60)).toBe(false);
+    expect(meetsCaptureMargin(8, 20, 40)).toBe(false);
+  });
+
+  it('isCapturableNavalMilitary is true for naval military types, false for naval civilian and beasts', () => {
+    expect(isCapturableNavalMilitary('galley')).toBe(true);
+    expect(isCapturableNavalMilitary('submarine')).toBe(true);
+    expect(isCapturableNavalMilitary('transport')).toBe(false);
+    expect(isCapturableNavalMilitary('beast_sea_serpent')).toBe(false);
+    expect(isCapturableNavalMilitary('warrior')).toBe(false);
+  });
+
+  it('getCaptureNotificationLabel uses Age-of-Sail phrasing for early naval types and modern phrasing for later ones', () => {
+    expect(getCaptureNotificationLabel('galley')).toMatch(/prize crew|boarded/i);
+    expect(getCaptureNotificationLabel('submarine')).toMatch(/disabled|captured/i);
+    expect(getCaptureNotificationLabel('worker')).toMatch(/captured/i);
   });
 });
 
