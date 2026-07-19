@@ -874,18 +874,26 @@ export function processTurn(
     bus.emit('barbarian:spawned', { campId: spawn.campId, unitId: raider.id });
   }
 
+  // Barbarian pillage-on-arrival. Must run BEFORE moves: an arriving raider's plan
+  // transitions to 'withdrawing' in the same processPurposefulBarbarians call that
+  // queues its pillageOrder, which also queues a withdrawal moveOrder for that same
+  // unit this turn (#541 second-pass review — the original order had moves first,
+  // so the raider stepped away from the resource tile before applyPillageToState
+  // re-derived the tile from the unit's now-stale position, silently pillaging
+  // nothing). Pillaging first sets movementPointsLeft to 0, so the queued
+  // withdrawal move correctly fails validation and simply doesn't fire this turn —
+  // the raider retreats next turn instead.
+  for (const order of barbResult.pillageOrders) {
+    const result = applyPillageToState(newState, order.unitId);
+    if (result.ok) newState = result.state;
+  }
+
   // Move barbarian units
   for (const order of barbResult.moveOrders) {
     const unit = newState.units[order.unitId];
     if (unit) {
       executeUnitMove(newState, order.unitId, order.toCoord, { actor: 'world', bus });
     }
-  }
-
-  // Barbarian pillage-on-arrival
-  for (const order of barbResult.pillageOrders) {
-    const result = applyPillageToState(newState, order.unitId);
-    if (result.ok) newState = result.state;
   }
 
   // Barbarian attacks
