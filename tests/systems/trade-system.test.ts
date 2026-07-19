@@ -610,6 +610,20 @@ describe('trade-system', () => {
       newState = removeRouteForUnit(newState, 'caravan1', bus, 'unit-died');
       expect(events).toEqual(['unit-died']);
     });
+
+    it("removeRouteForUnit: accepts 'unit-captured' as a reason and emits it on the event", () => {
+      const state = makeMinimalState();
+      const bus = new EventBus();
+      let newState = establishRoute(state, 'caravan1', 'city2', bus, 0);
+      const routeId = newState.units['caravan1'].committedToRouteId!;
+      const events: string[] = [];
+      bus.on('trade:route-ended', (e) => events.push(e.reason));
+
+      newState = removeRouteForUnit(newState, 'caravan1', bus, 'unit-captured', routeId);
+
+      expect(newState.units['caravan1']?.committedToRouteId).toBeUndefined();
+      expect(events).toEqual(['unit-captured']);
+    });
   });
 
   describe('Trade Routes Overhaul (#553 MR1/4) — domain-generic pathfinding', () => {
