@@ -6,7 +6,7 @@ describe('notification delivery contract', () => {
     const state = makeState();
     const { delivery, toast } = make(state);
     delivery.deliver('p1', 'War!', 'warning');
-    expect(toast).toHaveBeenCalledWith('War!', 'warning', undefined);
+    expect(toast).toHaveBeenCalledWith('War!', 'warning', undefined, undefined);
     expect(state.notificationLog!['p1']).toHaveLength(1);
     expect(state.notificationLog!['p1'][0].turn).toBe(6);
   });
@@ -35,6 +35,13 @@ describe('notification delivery contract', () => {
     delivery.deliver('p1', 'You met the Aztecs.', 'info');
     expect(toast).toHaveBeenCalledTimes(1);
     expect(state.pendingEvents!['p1'] ?? []).toHaveLength(0); // never queue in solo
+  });
+
+  it('passes sfxCue through to the toast callback for the active unsuppressed viewer', () => {
+    const state = makeState();
+    const { delivery, toast } = make(state);
+    delivery.deliver('p1', 'A religion event', 'success', undefined, undefined, 'religion-founded');
+    expect(toast).toHaveBeenCalledWith('A religion event', 'success', undefined, 'religion-founded');
   });
 
   it('AI recipients get log-only', () => {

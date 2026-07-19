@@ -5,7 +5,7 @@ import type { NotificationSink } from '@/ui/notification-routing';
 
 export interface NotificationDeliveryDeps {
   getState: () => GameState;
-  toast: (message: string, type: NotificationEntry['type'], target?: NotificationEntry['target']) => void;
+  toast: (message: string, type: NotificationEntry['type'], target?: NotificationEntry['target'], sfxCue?: string) => void;
   isSuppressed: () => boolean;
 }
 
@@ -22,7 +22,7 @@ export interface NotificationDelivery {
 export function createNotificationDelivery(deps: NotificationDeliveryDeps): NotificationDelivery {
   let happenedTurn: number | null = null;
 
-  const deliver: NotificationSink = (civId, message, type, target, cityActions) => {
+  const deliver: NotificationSink = (civId, message, type, target, cityActions, sfxCue) => {
     const state = deps.getState();
     const turn = happenedTurn ?? state.turn;
     appendNotification(state, civId, { message, type, turn, target, cityActions });
@@ -32,7 +32,7 @@ export function createNotificationDelivery(deps: NotificationDeliveryDeps): Noti
 
     const isActiveViewer = civId === state.currentPlayer && !deps.isSuppressed();
     if (isActiveViewer || !state.hotSeat) {
-      deps.toast(message, type, target);
+      deps.toast(message, type, target, sfxCue);
       return;
     }
     state.pendingEvents ??= {};
