@@ -25,10 +25,12 @@ import {
   setCounterIntelligence,
   turnCapturedSpy,
   verifyAgent,
+  missionRequiresPlacedSpy,
   } from '@/systems/espionage-system';
 import { createDiplomacyState } from '@/systems/diplomacy-system';
 import { createNewGame } from '@/core/game-state';
 import { foundCity } from '@/systems/city-system';
+import { transferCapturedCityOwnership } from '@/systems/city-capture-system';
 
 // MR1: legacy fixture helper for tests that need a spy in state without going through city production
 function makeTestSpy(id: string, owner: string, overrides: Partial<Spy> = {}): Spy {
@@ -716,6 +718,164 @@ describe('resolveMissionResult', () => {
     const gameState = makeTestGameState();
     const result = resolveMissionResult('satellite_surveillance', 'ai-egypt', 'city-egypt-1', gameState, 'player', 'spy-1');
     expect(result.grantTerritoryVision).toBe(true);
+  });
+
+  describe('flip_loyalty (#524 MR2a)', () => {
+    it('never flips a capital city (city-egypt-1 is ai-egypt.cities[0])', () => {
+      const gameState = makeTestGameState();
+      const result = resolveMissionResult('flip_loyalty', 'ai-egypt', 'city-egypt-1', gameState, 'player', 'spy-1');
+      expect(result.flippedCityId).toBeUndefined();
+      expect(result.flippedFromCivId).toBeUndefined();
+    });
+
+    it('flips a non-capital foreign city', () => {
+      const gameState = makeTestGameState();
+      gameState.cities['city-egypt-2'] = {
+        ...gameState.cities['city-egypt-1'],
+        id: 'city-egypt-2', name: 'Memphis', position: { q: 8, r: 3 },
+      };
+      gameState.civilizations['ai-egypt'].cities = ['city-egypt-1', 'city-egypt-2'];
+      const result = resolveMissionResult('flip_loyalty', 'ai-egypt', 'city-egypt-2', gameState, 'player', 'spy-1');
+      expect(result.flippedCityId).toBe('city-egypt-2');
+      expect(result.flippedFromCivId).toBe('ai-egypt');
+    });
+
+    it('does not fire against a city that already changed owner this turn', () => {
+      const gameState = makeTestGameState();
+      gameState.cities['city-egypt-2'] = {
+        ...gameState.cities['city-egypt-1'],
+        id: 'city-egypt-2', name: 'Memphis', position: { q: 8, r: 3 }, owner: 'player',
+      };
+      gameState.civilizations['ai-egypt'].cities = ['city-egypt-1', 'city-egypt-2'];
+      const result = resolveMissionResult('flip_loyalty', 'ai-egypt', 'city-egypt-2', gameState, 'player', 'spy-1');
+      expect(result.flippedCityId).toBeUndefined();
+    });
+  });
+});
+
+describe('flip_loyalty gating and end-to-end resolution (#524 MR2a)', () => {
+  function makeFlipLoyaltyFixture() {
+    let state = createNewGame(undefined, 'flip-loyalty-fixture', 'small');
+    const targetCivId = Object.keys(state.civilizations).find(id => id !== 'player')!;
+    const capitalStartPos = state.units[state.civilizations[targetCivId].units[0]].position;
+    const capital = foundCity(targetCivId, capitalStartPos, state.map, state.idCounters);
+    const nonCapital = foundCity(
+      targetCivId,
+      { q: capitalStartPos.q + 6, r: capitalStartPos.r },
+      state.map,
+      state.idCounters,
+    );
+    state = {
+      ...state,
+      cities: { ...state.cities, [capital.id]: capital, [nonCapital.id]: nonCapital },
+      civilizations: {
+        ...state.civilizations,
+        player: {
+          ...state.civilizations.player,
+          techState: { ...state.civilizations.player.techState, completed: ['propaganda'] },
+        },
+        [targetCivId]: {
+          ...state.civilizations[targetCivId],
+          cities: [capital.id, nonCapital.id],
+        },
+      },
+      espionage: {
+        player: {
+          ...createEspionageCivState(),
+          spies: {
+            'spy-1': makeTestSpy('spy-1', 'player', {
+              status: 'stationed', targetCivId, targetCityId: nonCapital.id,
+              position: nonCapital.position,
+            }),
+          },
+        },
+        [targetCivId]: createEspionageCivState(),
+      },
+    };
+    return { state, targetCivId, capitalId: capital.id, nonCapitalId: nonCapital.id };
+  }
+
+  it('propaganda gates flip_loyalty (unavailable without the tech, available with it)', () => {
+    expect(getAvailableMissions([])).not.toContain('flip_loyalty');
+    expect(getAvailableMissions(['propaganda'])).toContain('flip_loyalty');
+  });
+
+  it('flip_loyalty requires a placed (stationed) spy', () => {
+    expect(missionRequiresPlacedSpy('flip_loyalty')).toBe(true);
+  });
+
+  it('a completed flip_loyalty mission transfers the non-capital city and records a bilateral grievance', () => {
+    const { state: baseState, targetCivId, nonCapitalId } = makeFlipLoyaltyFixture();
+    let succeeded = false;
+    for (let turn = 1; turn <= 200 && !succeeded; turn++) {
+      const state: GameState = {
+        ...baseState,
+        turn,
+        espionage: {
+          ...baseState.espionage!,
+          player: {
+            ...baseState.espionage!.player,
+            spies: {
+              'spy-1': startMission(baseState.espionage!.player, 'spy-1', 'flip_loyalty').spies['spy-1'],
+            },
+          },
+        },
+      };
+      // force resolution this turn by setting turnsRemaining to 1
+      state.espionage!.player.spies['spy-1'].currentMission!.turnsRemaining = 1;
+
+      // Mirrors turn-manager.ts: espionage-system.ts cannot import
+      // transferCapturedCityOwnership directly (import cycle through city-system.ts),
+      // so the caller subscribes to 'espionage:city-flipped' and applies the transfer
+      // immediately after processEspionageTurn returns.
+      const bus = new EventBus();
+      const pendingFlips: Array<{ civId: string; victimCivId: string; cityId: string }> = [];
+      bus.on('espionage:city-flipped', evt => pendingFlips.push(evt));
+      let result = processEspionageTurn(state, bus);
+      for (const flip of pendingFlips) {
+        if (result.cities[flip.cityId]?.owner === flip.victimCivId) {
+          result = transferCapturedCityOwnership(result, flip.cityId, flip.civId, result.turn);
+        }
+      }
+
+      if (result.cities[nonCapitalId].owner === 'player') {
+        succeeded = true;
+        expect(pendingFlips).toHaveLength(1);
+        expect(result.civilizations.player.diplomacy.relationships[targetCivId]).toBeLessThanOrEqual(-30);
+        expect(result.civilizations[targetCivId].diplomacy.relationships.player).toBeLessThanOrEqual(-30);
+        expect(result.civilizations.player.cities).toContain(nonCapitalId);
+        expect(result.civilizations[targetCivId].cities).not.toContain(nonCapitalId);
+      }
+    }
+    expect(succeeded).toBe(true);
+  });
+
+  it('never flips the target civ\'s capital, even across many resolution attempts', () => {
+    const { state: baseState, capitalId } = makeFlipLoyaltyFixture();
+    for (let turn = 1; turn <= 200; turn++) {
+      const state: GameState = {
+        ...baseState,
+        turn,
+        espionage: {
+          ...baseState.espionage!,
+          player: {
+            ...baseState.espionage!.player,
+            spies: {
+              'spy-1': startMission(baseState.espionage!.player, 'spy-1', 'flip_loyalty', undefined, undefined, capitalId).spies['spy-1'],
+            },
+          },
+        },
+      };
+      state.espionage!.player.spies['spy-1'].currentMission!.turnsRemaining = 1;
+      state.espionage!.player.spies['spy-1'].targetCityId = capitalId;
+
+      const bus = new EventBus();
+      const pendingFlips: Array<{ civId: string; victimCivId: string; cityId: string }> = [];
+      bus.on('espionage:city-flipped', evt => pendingFlips.push(evt));
+      const result = processEspionageTurn(state, bus);
+      expect(pendingFlips).toHaveLength(0);
+      expect(result.cities[capitalId].owner).not.toBe('player');
+    }
   });
 });
 

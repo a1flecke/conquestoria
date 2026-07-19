@@ -1605,20 +1605,20 @@ export function chooseAiMission(
   const hasStage5 = available.includes('cyber_attack') || available.includes('misinformation_campaign');
   if (hasStage5 && (civ.civType === 'annuvin' || traits.has('aggressive'))) {
     preferredOrder = [
-      'cyber_attack', 'misinformation_campaign', 'satellite_surveillance',
+      'flip_loyalty', 'cyber_attack', 'misinformation_campaign', 'satellite_surveillance',
       'election_interference', 'steal_tech', 'sabotage_production',
       'arms_smuggling', 'incite_unrest', 'gather_intel', 'monitor_troops',
       'monitor_diplomacy', 'identify_resources', 'scout_area',
     ];
   } else if (traits.has('aggressive')) {
     preferredOrder = [
-      'steal_tech', 'sabotage_production', 'arms_smuggling',
+      'flip_loyalty', 'steal_tech', 'sabotage_production', 'arms_smuggling',
       'incite_unrest', 'gather_intel', 'monitor_troops',
       'monitor_diplomacy', 'identify_resources', 'scout_area',
     ];
   } else if (traits.has('diplomatic') || traits.has('trader')) {
     preferredOrder = [
-      'forge_documents', 'incite_unrest', 'fund_rebels',
+      'forge_documents', 'flip_loyalty', 'incite_unrest', 'fund_rebels',
       'gather_intel', 'monitor_diplomacy', 'identify_resources',
       'monitor_troops', 'scout_area', 'steal_tech',
     ];

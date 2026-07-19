@@ -189,6 +189,27 @@ describe('AI espionage decisions', () => {
       const mission = chooseAiMission(state, 'ai-egypt');
       expect(mission).not.toBe('sabotage_relief');
     });
+
+    // #524 MR2a: aggressive civs should reach for the strongest available mission.
+    it('aggressive civs prefer flip_loyalty over other missions once propaganda is researched', () => {
+      const state = makeAiTestState();
+      state.civilizations['ai-egypt'].civType = 'annuvin';
+      state.civilizations['ai-egypt'].techState.completed = [
+        'espionage-scouting', 'espionage-informants', 'spy-networks', 'cryptography', 'propaganda',
+      ];
+      const mission = chooseAiMission(state, 'ai-egypt');
+      expect(mission).toBe('flip_loyalty');
+    });
+
+    it('flip_loyalty is not chosen without propaganda even for aggressive civs', () => {
+      const state = makeAiTestState();
+      state.civilizations['ai-egypt'].civType = 'annuvin';
+      state.civilizations['ai-egypt'].techState.completed = [
+        'espionage-scouting', 'espionage-informants', 'spy-networks', 'cryptography',
+      ];
+      const mission = chooseAiMission(state, 'ai-egypt');
+      expect(mission).not.toBe('flip_loyalty');
+    });
   });
 
   // #526 MR7 review fix: infiltrated (embedded) spies pick their next mission via a
