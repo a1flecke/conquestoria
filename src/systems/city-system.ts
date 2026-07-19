@@ -88,7 +88,7 @@ export const BUILDINGS: Record<string, Building> = {
   'intelligence-agency': {
     id: 'intelligence-agency', name: 'Intelligence Agency', category: 'espionage',
     yields: { food: 0, production: 0, gold: 0, science: 0 },
-    productionCost: 60,
+    productionCost: 108,
     description: "Raises this city's counter-intelligence score by 20 each turn (max 100). Bonus halves when digital-surveillance era is reached.",
     techRequired: 'political-intelligence',
     defensiveEspionageAiValue: 40,
@@ -97,7 +97,7 @@ export const BUILDINGS: Record<string, Building> = {
   'security-bureau': {
     id: 'security-bureau', name: 'Security Bureau', category: 'espionage',
     yields: { food: 0, production: 0, gold: 0, science: 0 },
-    productionCost: 100,
+    productionCost: 120,
     description: 'Raises counter-intelligence (CI) by 30 each turn and makes captured spies 50% less likely to be turned. Bonus halves when Signals Intelligence is researched.',
     techRequired: 'cold-war-networks',
     defensiveEspionageAiValue: 40,

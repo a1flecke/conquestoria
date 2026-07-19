@@ -14,12 +14,14 @@ describe('espionage building definitions', () => {
   it('intelligence-agency is defined with espionage category', () => {
     expect(BUILDINGS['intelligence-agency']).toBeDefined();
     expect(BUILDINGS['intelligence-agency'].techRequired).toBe('political-intelligence');
+    expect(BUILDINGS['intelligence-agency'].productionCost).toBe(108);
     expect(BUILDINGS['intelligence-agency'].defensiveEspionageAiValue).toBe(40);
   });
 
   it('security-bureau is defined with espionage category', () => {
     expect(BUILDINGS['security-bureau']).toBeDefined();
     expect(BUILDINGS['security-bureau'].techRequired).toBe('cold-war-networks');
+    expect(BUILDINGS['security-bureau'].productionCost).toBe(120);
     expect(BUILDINGS['security-bureau'].defensiveEspionageAiValue).toBe(40);
   });
 
@@ -160,7 +162,7 @@ describe('espionage building save compatibility', () => {
   it('grandfathers an intelligence-agency already queued before its gate moved', () => {
     const city = {
       id: 'legacy-city', food: 0, foodNeeded: 10, population: 1,
-      productionProgress: 60, productionQueue: ['intelligence-agency'], buildings: [],
+      productionProgress: 108, productionQueue: ['intelligence-agency'], buildings: [],
       ownedTiles: [], grid: [[null]],
     } as any;
     const map = { tiles: {}, width: 10, height: 10, wrapsHorizontally: false } as any;
