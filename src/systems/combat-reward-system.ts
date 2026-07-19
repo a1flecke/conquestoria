@@ -373,6 +373,13 @@ export function applyCombatOutcomeToState(
     result.defenderSurvived
     && isCapturableNavalMilitary(attackerBefore.type)
     && !isPirateFlagship(state, attackerBefore)
+    && !attackerBefore.cargoUnitIds?.length
+    // Prize crew moves the ship between two civilizations[] rosters (unlike civilian
+    // capture, naval military ships can legitimately be pirate-owned on either side —
+    // e.g. a player's frigate vs. a pirate_frigate — so both the old and new owner must
+    // be confirmed major civs, not just the new one).
+    && isMajorCivOwner(attackerBefore.owner)
+    && isMajorCivOwner(defenderBefore.owner)
     && meetsCaptureMargin(result.attackerStrength, result.defenderStrength, Math.max(1, defenderBefore.health - result.defenderDamage))
   ) {
     // Prize crew: a decisive naval defeat captures the hull instead of sinking it.
@@ -439,6 +446,10 @@ export function applyCombatOutcomeToState(
     result.attackerSurvived
     && isCapturableNavalMilitary(defenderBefore.type)
     && !isPirateFlagship(state, defenderBefore)
+    && !defenderBefore.cargoUnitIds?.length
+    // Mirror of the attacker-side branch above — both old and new owner must be major civs.
+    && isMajorCivOwner(attackerBefore.owner)
+    && isMajorCivOwner(defenderBefore.owner)
     && meetsCaptureMargin(result.defenderStrength, result.attackerStrength, Math.max(1, attackerBefore.health - result.attackerDamage))
   ) {
     // Prize crew: mirror of the attacker-side branch above.
