@@ -137,6 +137,11 @@ describe('world pressure fairness (#529 MR3)', () => {
       // despite no measurable scheduling imbalance.
       expect(averageAiRate).toBeLessThanOrEqual(averageHumanRate * 1.6 + 1 / aiSamples);
     },
-    120_000,
+    // Widened from 120s (#608): under contention from concurrent Claude Code
+    // worktree agents on this dev machine, this simulation (3 seeds x 150
+    // turns) was observed taking up to 462.7s with no code regression. 600s
+    // gives headroom above that worst-observed value while still failing on
+    // a genuine hang or runaway simulation.
+    600_000,
   );
 });

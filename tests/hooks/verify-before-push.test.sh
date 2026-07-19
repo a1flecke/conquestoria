@@ -33,7 +33,7 @@ cat > "$fake_bin/yarn" <<'EOF'
 #!/bin/sh
 printf '%s\n' "$*" >> "$VERIFY_COMMAND_LOG"
 case "${1:-}" in
-  test) exit "${VERIFY_TEST_STATUS:-0}" ;;
+  test|test:fast) exit "${VERIFY_TEST_STATUS:-0}" ;;
   build) exit "${VERIFY_BUILD_STATUS:-0}" ;;
 esac
 exit 97
@@ -76,5 +76,34 @@ run_verifier 9 0
 }
 [ "$(wc -l < "$command_log" | tr -d ' ')" -eq 1 ] || {
   echo "canonical verifier ran build after tests failed"
+  exit 1
+}
+
+run_verifier_fast() {
+  rm -f "$command_log"
+  set +e
+  (
+    cd "$tmpdir"
+    PATH="$fake_bin:$PATH" \
+      VERIFY_COMMAND_LOG="$command_log" \
+      VERIFY_TEST_STATUS="${1:-0}" \
+      VERIFY_BUILD_STATUS="${2:-0}" \
+      sh scripts/verify-before-push.sh --no-mise --fast
+  ) >/dev/null 2>&1
+  verifier_status=$?
+  set -e
+}
+
+run_verifier_fast 0 0
+[ "$verifier_status" -eq 0 ] || {
+  echo "canonical verifier --fast rejected passing test/build phases"
+  exit 1
+}
+[ "$(sed -n '1p' "$command_log")" = "test:fast" ] || {
+  echo "canonical verifier --fast did not run the fast test suite: got $(sed -n '1p' "$command_log")"
+  exit 1
+}
+[ "$(sed -n '2p' "$command_log")" = "build" ] || {
+  echo "canonical verifier --fast did not run build second"
   exit 1
 }

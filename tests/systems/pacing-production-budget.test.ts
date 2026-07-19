@@ -120,6 +120,12 @@ describe('representative production budget', () => {
     expect(result.completedBuildings).toEqual([]);
   });
 
+  // Timeouts below are widened from vitest's 5s default (#608): this machine
+  // routinely runs several Claude Code worktree agents concurrently, each
+  // invoking `yarn test` independently, and this simulation is CPU-heavy
+  // enough to blow past the default under that contention with no code
+  // regression (worst observed: 9.5s and 13.5s respectively). Each timeout
+  // carries roughly 2x headroom over the worst observed value.
   it('accounts for every allocated production point exactly once', () => {
     const result = simulateRepresentativeCity({
       cohort: { id: 'capital', foundedEra: 1 },
@@ -135,7 +141,7 @@ describe('representative production budget', () => {
     expect(Math.abs(accounted - result.infrastructureProductionAllocated)).toBeLessThanOrEqual(1e-9);
     expect(result.activeBuildingCount).toBeLessThanOrEqual(1);
     expect(result.cappedProductionEarned).toBeLessThanOrEqual(result.actualProductionEarned);
-  });
+  }, 25_000);
 
   it('gives later cohorts less production and no more population than the capital', () => {
     const timeline = buildRepresentativeResearchTimeline(10);
@@ -148,5 +154,5 @@ describe('representative production budget', () => {
 
     expect(frontier.actualProductionEarned).toBeLessThan(capital.actualProductionEarned);
     expect(frontier.population).toBeLessThanOrEqual(capital.population);
-  });
+  }, 30_000);
 });

@@ -40,4 +40,4 @@ if [ -n "$(git status --porcelain --untracked-files=all)" ]; then
   exit 1
 fi
 
-./scripts/verify-before-push.sh
+./scripts/verify-before-push.sh --fast

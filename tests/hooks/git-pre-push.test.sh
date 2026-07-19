@@ -23,10 +23,12 @@ git -C "$tmpdir" commit -q -m base
 mkdir -p "$tmpdir/scripts"
 
 marker="$tmpdir/verifier-ran"
+args_log="$tmpdir/verifier-args"
 cat > "$tmpdir/scripts/verify-before-push.sh" <<'EOF'
 #!/bin/sh
 set -eu
 printf 'ran\n' >> "$VERIFY_MARKER"
+printf '%s\n' "$*" >> "$VERIFY_ARGS_LOG"
 exit "${VERIFY_STUB_STATUS:-0}"
 EOF
 chmod +x "$tmpdir/scripts/verify-before-push.sh"
@@ -39,12 +41,13 @@ zero_sha="$(printf '0%.0s' {1..40})"
 run_hook() {
   payload="$1"
   verifier_status="${2:-0}"
-  rm -f "$marker"
+  rm -f "$marker" "$args_log"
   set +e
   (
     cd "$tmpdir"
     printf '%s\n' "$payload" |
       VERIFY_MARKER="$marker" \
+      VERIFY_ARGS_LOG="$args_log" \
       VERIFY_STUB_STATUS="$verifier_status" \
       bash "$HOOK" origin unused
   ) >/dev/null 2>&1
@@ -59,6 +62,10 @@ run_hook "refs/heads/main $head_sha refs/heads/main $zero_sha"
 }
 [ -f "$marker" ] || {
   echo "pre-push did not invoke the canonical verifier"
+  exit 1
+}
+grep -q -- '--fast' "$args_log" || {
+  echo "pre-push did not invoke the canonical verifier with --fast (#608)"
   exit 1
 }
 

@@ -10,10 +10,12 @@ trap 'rm -rf "$tmpdir"' EXIT
 mkdir -p "$tmpdir/scripts"
 
 marker="$tmpdir/verifier-ran"
+args_log="$tmpdir/verifier-args"
 cat > "$tmpdir/scripts/verify-before-push.sh" <<'EOF'
 #!/bin/sh
 set -eu
 printf 'ran\n' >> "$VERIFY_MARKER"
+printf '%s\n' "$*" >> "$VERIFY_ARGS_LOG"
 exit "${VERIFY_STUB_STATUS:-0}"
 EOF
 chmod +x "$tmpdir/scripts/verify-before-push.sh"
@@ -21,9 +23,10 @@ chmod +x "$tmpdir/scripts/verify-before-push.sh"
 run_hook() {
   payload="$1"
   verifier_status="${2:-0}"
-  rm -f "$marker"
+  rm -f "$marker" "$args_log"
   set +e
   VERIFY_MARKER="$marker" \
+    VERIFY_ARGS_LOG="$args_log" \
     VERIFY_STUB_STATUS="$verifier_status" \
     CLAUDE_PROJECT_DIR="$tmpdir" \
     bash "$HOOK" <<<"$payload" >/dev/null 2>&1
@@ -48,6 +51,10 @@ run_hook "{\"tool_name\":\"Bash\",\"tool_input\":{\"command\":\"cd $tmpdir && gi
 }
 [ -f "$marker" ] || {
   echo "Claude push gate did not invoke the canonical verifier"
+  exit 1
+}
+grep -q -- '--fast' "$args_log" || {
+  echo "Claude push gate did not invoke the canonical verifier with --fast (#608)"
   exit 1
 }
 
