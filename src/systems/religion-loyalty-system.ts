@@ -127,3 +127,84 @@ export function executeLoyaltyDefection(
   bus.emit('religion:city-defected', { cityId, fromCivId, toCivId: pressuringCivId });
   return next;
 }
+
+function applyAmbientFaithDrift(state: GameState): GameState {
+  let next = state;
+  for (const mc of Object.values(state.minorCivs)) {
+    if (mc.isDestroyed) continue;
+    const faith = state.cityFaith?.[mc.cityId];
+    if (!faith) continue;
+    const religion = state.religions?.[faith.religionId];
+    if (!religion) continue;
+    const current = mc.diplomacy.relationships[religion.ownerCivId] ?? 0;
+    if (current >= 60) continue;
+    const updated = Math.min(60, current + 1);
+    next = {
+      ...next,
+      minorCivs: {
+        ...next.minorCivs,
+        [mc.id]: {
+          ...next.minorCivs[mc.id],
+          diplomacy: {
+            ...next.minorCivs[mc.id].diplomacy,
+            relationships: { ...next.minorCivs[mc.id].diplomacy.relationships, [religion.ownerCivId]: updated },
+          },
+        },
+      },
+    };
+  }
+  return next;
+}
+
+function emitLoyaltyWarning(
+  bus: EventBus,
+  cityId: string,
+  pressuringCivId: string,
+  currentPoints: number,
+  newPoints: number,
+  threshold: number,
+  tick: number,
+): void {
+  let stage: 'start' | 'midpoint' | 'final' | null = null;
+  if (tick > 0 && newPoints < threshold && threshold - newPoints <= tick) stage = 'final';
+  else if (currentPoints < threshold / 2 && newPoints >= threshold / 2) stage = 'midpoint';
+  else if (currentPoints === 0 && newPoints > 0) stage = 'start';
+  if (!stage) return;
+  const turnsRemaining = tick > 0 ? Math.max(1, Math.ceil((threshold - newPoints) / tick)) : -1;
+  bus.emit('religion:loyalty-warning', { cityId, pressuringCivId, stage, turnsRemaining });
+}
+
+export function processLoyaltyTurn(state: GameState, bus: EventBus): GameState {
+  let next = applyAmbientFaithDrift(state);
+  const threshold = getLoyaltyThreshold(next);
+
+  for (const city of Object.values(state.cities)) {
+    const pressure = isLoyaltyTrackEligible(next, city.id);
+    const faith = next.cityFaith?.[city.id];
+
+    if (!pressure) {
+      if (faith?.loyaltyProgress) next = clearLoyaltyProgress(next, city.id);
+      continue;
+    }
+
+    const existingProgress = faith!.loyaltyProgress;
+    const currentPoints = existingProgress && existingProgress.toCivId === pressure.pressuringCivId
+      ? existingProgress.points
+      : 0;
+
+    const liveCity = next.cities[city.id];
+    const tick = getLoyaltyTickAmount(next, liveCity, pressure.religion);
+    const newPoints = Math.min(threshold, currentPoints + tick);
+
+    if (tick > 0) {
+      next = setLoyaltyPoints(next, city.id, pressure.pressuringCivId, newPoints);
+      emitLoyaltyWarning(bus, city.id, pressure.pressuringCivId, currentPoints, newPoints, threshold, tick);
+    }
+
+    if (newPoints >= threshold) {
+      next = executeLoyaltyDefection(next, bus, city.id, pressure.pressuringCivId);
+    }
+  }
+
+  return next;
+}

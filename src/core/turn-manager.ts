@@ -96,6 +96,7 @@ import { getOccupiedCityYieldMultiplier, tickOccupiedCities } from '@/systems/ci
 import { processBreakawayTurn } from '@/systems/breakaway-system';
 import { processCrisisTurn, processCrisisScheduler, getCrisisYieldMultiplier } from '@/systems/crisis-system';
 import { processReligionTurn, foundReligion } from '@/systems/religion-system';
+import { processLoyaltyTurn } from '@/systems/religion-loyalty-system';
 import { applyCrisisResponses } from '@/ai/ai-crisis-response';
 import { resolveWorldPressureFlags } from '@/systems/world-pressure-flags';
 import {
@@ -151,6 +152,7 @@ export function processTurn(
   newState = processBreakawayTurn(newState, bus);
   newState = processCrisisTurn(newState, bus);
   newState = processReligionTurn(newState, bus);
+  newState = processLoyaltyTurn(newState, bus);
   // AI civ turns run later via the AI round scheduler, so responses recorded
   // here (quarantine/fund-remedy) shape the same round's plans (#529 MR3 Task 3.2).
   if (resolveWorldPressureFlags(newState.settings).aiPressure === 'full') {

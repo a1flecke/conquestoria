@@ -3,7 +3,7 @@ import { EventBus } from '@/core/event-bus';
 import type { CityFaith, GameEvents } from '@/core/types';
 import {
   getForeignFaithPressure, isLoyaltyTrackEligible, getLoyaltyThreshold, getLoyaltyTickAmount,
-  executeLoyaltyDefection, setLoyaltyPoints, clearLoyaltyProgress,
+  executeLoyaltyDefection, setLoyaltyPoints, clearLoyaltyProgress, processLoyaltyTurn,
 } from '@/systems/religion-loyalty-system';
 import { makeLoyaltyFixture } from './helpers/religion-loyalty-fixture';
 
@@ -193,5 +193,109 @@ describe('#593 MR6 — setLoyaltyPoints / clearLoyaltyProgress', () => {
     const next = clearLoyaltyProgress(withProgress, p2City);
     expect(next.cityFaith![p2City].loyaltyProgress).toBeUndefined();
     expect(next.cityFaith![p2City].religionId).toBe(`religion-${p1}`);
+  });
+});
+
+function withFaith(civId: string, targetCityId: string, state: any, boon?: 'fervor') {
+  return {
+    ...state,
+    cityFaith: { [targetCityId]: { religionId: `religion-${civId}` } },
+    religions: { [`religion-${civId}`]: { id: `religion-${civId}`, name: 'Test', ownerCivId: civId, foundedTurn: 1, ...(boon ? { boon } : {}) } },
+  };
+}
+
+describe('#593 MR6 — processLoyaltyTurn', () => {
+  it('advances loyaltyProgress.points by the tick amount each turn', () => {
+    const { state, p1, p2City } = makeLoyaltyFixture();
+    const seeded = withFaith(p1, p2City, state);
+    const bus = new EventBus();
+    const next = processLoyaltyTurn(seeded, bus);
+    expect(next.cityFaith![p2City].loyaltyProgress).toEqual({ toCivId: p1, points: 10 });
+  });
+
+  it('never advances a human-owned city -- points stay undefined, unrest row is the only signal', () => {
+    const { state, p2, p1City } = makeLoyaltyFixture();
+    const seeded = withFaith(p2, p1City, state);
+    const bus = new EventBus();
+    const next = processLoyaltyTurn(seeded, bus);
+    expect(next.cityFaith![p1City].loyaltyProgress).toBeUndefined();
+  });
+
+  it('deterministically flips at the threshold turn for the standard challenge (180 / 10 = 18 turns)', () => {
+    const { state, p1, p2, p2City } = makeLoyaltyFixture();
+    let current = withFaith(p1, p2City, state);
+    const bus = new EventBus();
+    for (let turn = 0; turn < 17; turn++) {
+      current = processLoyaltyTurn(current, bus);
+      expect(current.cities[p2City].owner).toBe(p2);
+    }
+    current = processLoyaltyTurn(current, bus);
+    expect(current.cities[p2City].owner).toBe(p1);
+  });
+
+  it('deterministically flips at the veteran threshold (220 / 10 = 22 turns)', () => {
+    const { state, p1, p2, p2City } = makeLoyaltyFixture();
+    let current = { ...withFaith(p1, p2City, state), opponentChallenge: 'veteran' as const };
+    const bus = new EventBus();
+    for (let turn = 0; turn < 21; turn++) {
+      current = processLoyaltyTurn(current, bus);
+      expect(current.cities[p2City].owner).toBe(p2);
+    }
+    current = processLoyaltyTurn(current, bus);
+    expect(current.cities[p2City].owner).toBe(p1);
+  });
+
+  it('fires religion:loyalty-warning at start, midpoint, and one-turn-out', () => {
+    const { state, p1, p2City } = makeLoyaltyFixture();
+    let current = withFaith(p1, p2City, state);
+    const bus = new EventBus();
+    const stages: string[] = [];
+    bus.on('religion:loyalty-warning', e => stages.push(e.stage));
+    for (let turn = 0; turn < 18; turn++) {
+      current = processLoyaltyTurn(current, bus);
+    }
+    expect(stages).toContain('start');
+    expect(stages).toContain('midpoint');
+    expect(stages).toContain('final');
+  });
+
+  it('garrisoning pauses the tick entirely', () => {
+    const { state, p1, p2, p2City } = makeLoyaltyFixture();
+    const garrison = {
+      id: 'g1', type: 'warrior', owner: p2, position: state.cities[p2City].position,
+      movementPointsLeft: 2, health: 100, experience: 0, hasMoved: false, hasActed: false, isResting: false,
+    } as any;
+    const seeded = { ...withFaith(p1, p2City, state), units: { [garrison.id]: garrison } };
+    const bus = new EventBus();
+    const next = processLoyaltyTurn(seeded, bus);
+    expect(next.cityFaith![p2City].loyaltyProgress).toBeUndefined();
+  });
+
+  it('re-conversion (religionId change) resets progress to zero on the next tick', () => {
+    const { state, p1, p2, p2City } = makeLoyaltyFixture();
+    let current = withFaith(p1, p2City, state);
+    const bus = new EventBus();
+    current = processLoyaltyTurn(current, bus);
+    current = processLoyaltyTurn(current, bus);
+    expect(current.cityFaith![p2City].loyaltyProgress!.points).toBe(20);
+    // City re-converts back to its own civ's faith -- own-faith means not eligible at all.
+    current = {
+      ...current,
+      cityFaith: { [p2City]: { religionId: `religion-${p2}` } },
+      religions: { ...current.religions, [`religion-${p2}`]: { id: `religion-${p2}`, name: 'Own', ownerCivId: p2, foundedTurn: 1 } },
+    };
+    current = processLoyaltyTurn(current, bus);
+    expect(current.cityFaith![p2City].loyaltyProgress).toBeUndefined();
+  });
+
+  it('ambient drift: minor civs following a civ faith gain +1 relationship/turn toward that civ, capped at 60', () => {
+    const { state, p2, mcId, mcCity } = makeLoyaltyFixture();
+    let current = withFaith(p2, mcCity, state);
+    current = { ...current, minorCivs: { ...current.minorCivs, [mcId]: { ...current.minorCivs[mcId], diplomacy: { relationships: { [p2]: 59 } } } } };
+    const bus = new EventBus();
+    current = processLoyaltyTurn(current, bus);
+    expect(current.minorCivs[mcId].diplomacy.relationships[p2]).toBe(60);
+    current = processLoyaltyTurn(current, bus);
+    expect(current.minorCivs[mcId].diplomacy.relationships[p2]).toBe(60);
   });
 });

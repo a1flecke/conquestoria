@@ -1594,6 +1594,48 @@ describe('journey automation', () => {
     expect(next.cityFaith?.[neighbor.id]?.conversionProgress?.[religionId]).toBeGreaterThan(0);
   });
 
+  it('#593 MR6: processTurn advances religious loyalty pressure (processLoyaltyTurn is wired in)', () => {
+    const state = createNewGame(undefined, 'loyalty-turn-wiring', 'small');
+    const civId = 'player';
+    const aiId = 'ai-1';
+    const playerPos = { q: 0, r: 0 };
+    const playerEdge = { q: 2, r: 0 };
+    const aiPos = { q: 3, r: 0 };
+    state.map = {
+      width: 20, height: 20, wrapsHorizontally: false, rivers: [],
+      tiles: Object.fromEntries([playerPos, playerEdge, aiPos].map(pos => [
+        hexKey(pos),
+        {
+          coord: pos, terrain: 'grassland', elevation: 'lowland', resource: null,
+          improvement: 'none', owner: pos === aiPos ? aiId : civId, improvementTurnsLeft: 0,
+          hasRiver: false, wonder: null, regionKey: 'continent-0',
+        },
+      ])),
+    };
+    const capital = foundCity(civId, playerPos, state.map, state.idCounters);
+    capital.ownedTiles = [playerPos, playerEdge];
+    capital.workedTiles = []; capital.productionQueue = [];
+    const aiCity = foundCity(aiId, aiPos, state.map, state.idCounters);
+    aiCity.ownedTiles = [aiPos];
+    aiCity.workedTiles = []; aiCity.productionQueue = [];
+    state.cities = { [capital.id]: capital, [aiCity.id]: aiCity };
+    state.civilizations[civId].cities = [capital.id];
+    state.civilizations[aiId].cities = [aiCity.id];
+    state.units = {};
+    state.barbarianCamps = {};
+
+    const religionId = `religion-${civId}`;
+    state.religions = { [religionId]: { id: religionId, name: 'Order of Test', ownerCivId: civId, foundedTurn: 1 } };
+    // One tick (10) short of the standard threshold (180) -- processTurn's single call to
+    // processLoyaltyTurn must both advance the tick AND complete the flip this turn.
+    state.cityFaith = { [aiCity.id]: { religionId, loyaltyProgress: { toCivId: civId, points: 170 } } };
+    state.opponentChallenge = 'standard';
+
+    const next = processTurn(state, new EventBus());
+    expect(next.cities[aiCity.id].owner).toBe(civId);
+    expect(next.cityFaith?.[aiCity.id]?.loyaltyProgress).toBeUndefined();
+  });
+
   it('#591 MR4: completing Sacred Council founds a religion at the building city', () => {
     const state = createNewGame(undefined, 'sacred-council-completion', 'small');
     const civId = 'player';
