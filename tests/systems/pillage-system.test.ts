@@ -67,6 +67,14 @@ describe('pillage-system', () => {
       expect(getPillageGoldReward('farm')).toBe(4 * GOLD_PER_PILLAGE_BUILD_TURN);
       expect(getPillageGoldReward('oil_well')).toBe(5 * GOLD_PER_PILLAGE_BUILD_TURN);
     });
+
+    it('awards real gold for a pillaged resource outpost, not zero (#541 second-pass review)', () => {
+      // resource_outpost has IMPROVEMENT_BUILD_TURNS 0 (it's Expedition-placed, not
+      // worker-built) — a naive lookup would price it at 0 gold despite it being the
+      // most impactful thing on the map to burn (it denies a strategic resource).
+      expect(getPillageGoldReward('resource_outpost')).toBeGreaterThan(0);
+      expect(getPillageGoldReward('resource_outpost')).toBe(5 * GOLD_PER_PILLAGE_BUILD_TURN);
+    });
   });
 
   describe('canPillageTile', () => {
@@ -132,6 +140,14 @@ describe('pillage-system', () => {
       expect(result.ok).toBe(false);
       expect(result.reason).toBe('own-tile');
       expect(result.state).toBe(state);
+    });
+
+    it("reports 'missing-tile', not the misleading 'own-tile', when the unit's tile doesn't exist (#541 second-pass review)", () => {
+      const state = makePillageState({ improvement: 'farm', owner: 'ai-1' });
+      state.map.tiles = {};
+      const result = applyPillageToState(state, 'raider');
+      expect(result.ok).toBe(false);
+      expect(result.reason).toBe('missing-tile');
     });
 
     it('refuses to pillage a mid-construction improvement with no road', () => {

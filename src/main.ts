@@ -2136,7 +2136,9 @@ function selectUnit(
         const hasFinishedImprovement = tile.improvement !== 'none' && tile.improvementTurnsLeft === 0;
         const goldPreview = hasFinishedImprovement ? getPillageGoldReward(tile.improvement) : 0;
         const targetLabel = hasFinishedImprovement ? getImprovementDisplayName(tile.improvement) : 'the road';
-        const preview = `Pillage ${targetLabel}?\n\n+${goldPreview} gold, unit heals +25 HP.`;
+        const preview = goldPreview > 0
+          ? `Pillage ${targetLabel}?\n\n+${goldPreview} gold, unit heals +25 HP.`
+          : `Pillage ${targetLabel}?\n\nUnit heals +25 HP.`;
         if (!window.confirm(preview)) return;
 
         if (tile.owner && isMajorCivOwner(tile.owner)) {
@@ -2146,7 +2148,10 @@ function selectUnit(
         const result = applyPillageToState(gameState, uid);
         if (!result.ok) return;
         gameState = result.state;
-        showNotification(`Pillaged ${targetLabel} for ${result.goldAwarded} gold.`, 'success');
+        showNotification(
+          result.goldAwarded! > 0 ? `Pillaged ${targetLabel} for ${result.goldAwarded} gold.` : `Pillaged ${targetLabel}.`,
+          'success',
+        );
         renderLoop.setGameState(gameState);
         updateHUD();
         selectUnit(uid);
