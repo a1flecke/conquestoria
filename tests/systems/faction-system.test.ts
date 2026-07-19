@@ -1071,4 +1071,57 @@ describe('unrest pressure breakdown (#552)', () => {
       expect(rows.find(r => r.label === 'Religious serenity')).toBeUndefined();
     });
   });
+
+  describe('#593 MR6 — Foreign faith pressure unrest row (human immunity)', () => {
+    function withBorderingRival(state: GameState): GameState {
+      const city = { ...state.cities['city-1'], position: { q: 0, r: 0 }, ownedTiles: [{ q: 0, r: 0 }, { q: 1, r: 0 }] };
+      const rivalTile: HexCoord = { q: 2, r: 0 };
+      return {
+        ...state,
+        cities: { ...state.cities, [city.id]: city },
+        map: {
+          ...state.map,
+          tiles: {
+            ...state.map.tiles,
+            '0,0': { ...state.map.tiles[hexKey(city.position)], coord: { q: 0, r: 0 }, owner: 'player' },
+            '1,0': { coord: { q: 1, r: 0 }, terrain: 'plains', elevation: 'lowland', resource: null, improvement: 'none', owner: 'player', improvementTurnsLeft: 0, hasRiver: false, wonder: null },
+            '2,0': { coord: rivalTile, terrain: 'plains', elevation: 'lowland', resource: null, improvement: 'none', owner: 'ai-1', improvementTurnsLeft: 0, hasRiver: false, wonder: null },
+          },
+        },
+      };
+    }
+
+    it('adds a +2 "Foreign faith pressure" row for a human city bordering a foreign faith owner', () => {
+      const state = withBorderingRival(makeState({ cityCount: 1 }));
+      const withFaith: GameState = {
+        ...state,
+        cityFaith: { 'city-1': { religionId: 'religion-ai-1' } },
+        religions: { 'religion-ai-1': { id: 'religion-ai-1', name: 'Rival Faith', ownerCivId: 'ai-1', foundedTurn: 1 } },
+      };
+      const rows = getUnrestPressureBreakdown('city-1', withFaith, 0);
+      expect(rows).toContainEqual({ label: 'Foreign faith pressure', amount: 2 });
+    });
+
+    it('does not add the row when the city follows its own civ faith', () => {
+      const state = withBorderingRival(makeState({ cityCount: 1 }));
+      const withFaith: GameState = {
+        ...state,
+        cityFaith: { 'city-1': { religionId: 'religion-player' } },
+        religions: { 'religion-player': { id: 'religion-player', name: 'Own', ownerCivId: 'player', foundedTurn: 1 } },
+      };
+      const rows = getUnrestPressureBreakdown('city-1', withFaith, 0);
+      expect(rows.find(r => r.label === 'Foreign faith pressure')).toBeUndefined();
+    });
+
+    it('does not add the row when territory does not border the foreign faith owner', () => {
+      const state = makeState({ cityCount: 1 }); // no bordering rival tile
+      const withFaith: GameState = {
+        ...state,
+        cityFaith: { 'city-1': { religionId: 'religion-ai-1' } },
+        religions: { 'religion-ai-1': { id: 'religion-ai-1', name: 'Rival Faith', ownerCivId: 'ai-1', foundedTurn: 1 } },
+      };
+      const rows = getUnrestPressureBreakdown('city-1', withFaith, 0);
+      expect(rows.find(r => r.label === 'Foreign faith pressure')).toBeUndefined();
+    });
+  });
 });
