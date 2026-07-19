@@ -1,4 +1,5 @@
-import type { Tech } from '@/core/types';
+import type { Building, BuildingCategory, Tech } from '@/core/types';
+import { BUILDINGS } from '@/systems/city-system';
 import {
   TECH_TREE,
   getEraAdvancementFraction,
@@ -22,6 +23,30 @@ export interface RepresentativeResearchTimeline {
   completedTechIds: string[];
   arrivalTurnByEra: ReadonlyMap<number, number>;
 }
+
+export interface RepresentativeCohort {
+  id: string;
+  foundedEra: number;
+}
+
+export interface RepresentativeBuildingInput {
+  completedTechs: readonly string[];
+  completedBuildings: readonly string[];
+}
+
+export const REPRESENTATIVE_COHORTS: readonly RepresentativeCohort[] = [
+  { id: 'capital', foundedEra: 1 },
+  { id: 'expansion-1', foundedEra: 3 },
+  { id: 'expansion-2', foundedEra: 5 },
+  { id: 'expansion-3', foundedEra: 7 },
+  { id: 'frontier', foundedEra: 9 },
+];
+
+const CATEGORY_ORDER: readonly BuildingCategory[] = [
+  'food', 'production', 'science', 'economy', 'culture', 'military', 'espionage',
+];
+
+const CATEGORY_RANK = new Map(CATEGORY_ORDER.map((category, index) => [category, index]));
 
 function compareIds(left: string, right: string): number {
   return left < right ? -1 : left > right ? 1 : 0;
@@ -117,4 +142,98 @@ export function buildRepresentativeResearchTimeline(targetEra: number): Represen
     completedTechIds: [...completed],
     arrivalTurnByEra,
   };
+}
+
+export function getRepresentativeCohorts(era: number): RepresentativeCohort[] {
+  return REPRESENTATIVE_COHORTS.filter(cohort => cohort.foundedEra <= era);
+}
+
+function buildingValue(building: Building): number {
+  return building.yields.food
+    + building.yields.production * 1.25
+    + building.yields.gold * 1.5
+    + building.yields.science * 1.25
+    + (building.happiness ?? 0) * 1.5;
+}
+
+function isNeutralBuilding(building: Building, completedTechs: ReadonlySet<string>): boolean {
+  return !building.nationalProject
+    && !building.uniquePerEmpire
+    && !building.coastalRequired
+    && !(building.resourceRequired?.length)
+    && (!building.techRequired || completedTechs.has(building.techRequired))
+    && (!building.obsoletedByTech || !completedTechs.has(building.obsoletedByTech));
+}
+
+export function getEligibleRepresentativeBuildings(input: RepresentativeBuildingInput): Building[] {
+  const completedTechs = new Set(input.completedTechs);
+  const completedBuildings = new Set(input.completedBuildings);
+  return Object.values(BUILDINGS)
+    .filter(building => !completedBuildings.has(building.id))
+    .filter(building => isNeutralBuilding(building, completedTechs))
+    .sort((left, right) => compareIds(left.id, right.id));
+}
+
+export function getMissingRepresentativeBuildingClosure(
+  terminal: Building,
+  input: RepresentativeBuildingInput,
+): string[] {
+  const completedTechs = new Set(input.completedTechs);
+  const completedBuildings = new Set(input.completedBuildings);
+  const visiting = new Set<string>();
+  const result: string[] = [];
+
+  const visit = (buildingId: string): void => {
+    if (completedBuildings.has(buildingId)) return;
+    if (visiting.has(buildingId)) throw new Error(`Building prerequisite cycle at ${buildingId}`);
+    const building = BUILDINGS[buildingId];
+    if (!building) throw new Error(`Missing building prerequisite: ${buildingId}`);
+    if (!isNeutralBuilding(building, completedTechs)) throw new Error(`Unavailable building prerequisite: ${buildingId}`);
+    visiting.add(buildingId);
+    for (const prerequisite of building.requiresBuildings ?? []) visit(prerequisite);
+    visiting.delete(buildingId);
+    result.push(buildingId);
+  };
+
+  visit(terminal.id);
+  return result;
+}
+
+export function selectRepresentativeBuilding(input: RepresentativeBuildingInput): Building | null {
+  const completedBuildings = new Set(input.completedBuildings);
+  const builtCategories = new Set(
+    input.completedBuildings
+      .map(id => BUILDINGS[id]?.category)
+      .filter((category): category is BuildingCategory => category !== undefined),
+  );
+  const candidates = getEligibleRepresentativeBuildings(input)
+    .flatMap(terminal => {
+      try {
+        const closureIds = getMissingRepresentativeBuildingClosure(terminal, input);
+        const closure = closureIds.map(id => BUILDINGS[id]);
+        const value = closure.reduce((sum, building) => sum + buildingValue(building), 0);
+        const cost = closure.reduce((sum, building) => sum + building.productionCost, 0);
+        if (value <= 0 || cost <= 0) return [];
+        return [{ terminal, closure, value, cost }];
+      } catch {
+        return [];
+      }
+    })
+    .sort((left, right) => {
+      const leftCoverage = left.terminal.category && !builtCategories.has(left.terminal.category) ? 0 : 1;
+      const rightCoverage = right.terminal.category && !builtCategories.has(right.terminal.category) ? 0 : 1;
+      const leftEfficiency = left.value / left.cost;
+      const rightEfficiency = right.value / right.cost;
+      const leftCategory = left.terminal.category ? CATEGORY_RANK.get(left.terminal.category) ?? CATEGORY_ORDER.length : CATEGORY_ORDER.length;
+      const rightCategory = right.terminal.category ? CATEGORY_RANK.get(right.terminal.category) ?? CATEGORY_ORDER.length : CATEGORY_ORDER.length;
+      return leftCoverage - rightCoverage
+        || rightEfficiency - leftEfficiency
+        || left.cost - right.cost
+        || leftCategory - rightCategory
+        || compareIds(left.terminal.id, right.terminal.id);
+    });
+
+  const selected = candidates[0];
+  if (!selected) return null;
+  return selected.closure.find(building => !completedBuildings.has(building.id)) ?? null;
 }
