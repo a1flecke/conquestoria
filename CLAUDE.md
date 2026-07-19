@@ -12,7 +12,8 @@ Civilization-building strategy game. TypeScript + Canvas 2D + Vite.
 1. Check if already in a worktree (`git worktree list`).
 2. If not, create one via `EnterWorktree` tool BEFORE writing any code.
 3. Never write code on `main` or on a feature branch in the main working tree — always use a worktree.
-4. After creating a new worktree, run `mise trust <worktree-path>/mise.toml` before the first push — otherwise the `run-with-mise-worktree.test.sh` smoke test will block the push.
+4. After creating a new worktree, run `./scripts/setup-git-hooks.sh` (or `bash scripts/run-with-mise.sh yarn setup:hooks`) immediately, then verify `git config --worktree --get core.hooksPath` returns `.githooks` — a worktree without this has its hooks silently resolve to `main`'s checkout or the plain git default, and `#608`'s investigation found this had regressed on 12 already-active worktrees.
+5. Also run `mise trust <worktree-path>/mise.toml` before the first push — otherwise the `run-with-mise-worktree.test.sh` smoke test will block the push.
 
 This is enforced by the user and is not optional.
 
