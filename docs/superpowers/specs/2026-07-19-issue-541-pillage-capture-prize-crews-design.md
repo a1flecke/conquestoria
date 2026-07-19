@@ -69,6 +69,20 @@ One action pillages everything present on the tile in a single step:
   pillage-valued for free instead of needing a second hand-authored table in
   parallel with `IMPROVEMENT_BUILD_TURNS`. The exact constant is subject to
   the pacing-audit gate in Test Strategy, not fixed by this design.
+
+  This starting value is not arbitrary: `calculateDefeatReward`
+  (`combat-reward-system.ts:94–104`) already gives a flat, non-era-scaled
+  `baseGold` of 4 for defeating an ordinary unit and 8 for a barbarian/pirate
+  horde unit — every combat gold reward in this codebase today is a small
+  flat number, deliberately not inflated for late game. A 12–15 gold pillage
+  reward sits proportionately above that baseline (a bigger, deliberate
+  action deserves more than an incidental kill), while staying in the same
+  flat, non-era-scaled register — it should not itself be re-scaled by era.
+  Note also that a rebuilt-then-repillaged tile is not an exploit to guard
+  against: rebuilding costs the victim real worker-turns, and sustaining it
+  requires an occupying unit and an ongoing war — this is the intended
+  chevauchée-style "sustained economic damage" loop the issue's inspiration
+  section names, not a gold-farming bug.
 - If `tile.hasRoad`: also clear `hasRoad`, in the same action.
 - A tile with only an in-progress improvement (`improvementTurnsLeft > 0`)
   and no road offers no Pillage action — there is nothing finished to burn.
@@ -140,16 +154,49 @@ type-swap helper in `unit-upgrade-system.ts:77`: swap `type`, normalize
 the one deliberate downgrade: capturing an enemy settler must not hand the
 capturing civ a free city-founding unit.
 
-### Side-state cleanup on capture
+### Side-state cleanup on capture (verified against current code)
 
-Some civilian types carry side state beyond `civ.units[]` membership — an
-active `TradeRoute` anchored to a captured caravan/merchant_wagon/
-freight_convoy/naval_trader, or a missionary's `missionaryCooldownUntilTurn`.
-The implementation plan must audit each civilian type's death-cleanup path
-today (what currently happens to this side state when the unit is killed)
-and reconcile it identically on capture — a trade route silently pointing
-at a unit that changed owners is the same class of dangling-reference bug
-`game-systems.md`'s diplomacy-lifecycle rule warns about for civ removal.
+A captured caravan/merchant_wagon/freight_convoy/naval_trader carries side
+state beyond `civ.units[]` membership: an active `TradeRoute` referenced via
+`unit.committedToRouteId`. This is not a hypothetical to "audit later" — it
+is a confirmed, concrete gap. Trade-route cleanup on unit loss is
+implemented **four separate times**, each gated strictly on the existing
+`CombatOutcomeApplication.attackerDefeated` / `defenderDefeated` booleans:
+`main.ts:2860–2864` (player-initiated attacks), `core/turn-manager.ts:898–902`
+(barbarian combat during turn processing), `systems/pirate-system.ts:213–228`
+(pirate combat), and `systems/minor-civ-system.ts:485–494` (minor-civ
+combat). Because civilian capture sets `defenderActuallyDefeated = false` /
+`attackerActuallyDefeated = false` (the same flag flip `cyber_unit` already
+uses to skip destruction), **none of these four sites will fire** for a
+captured caravan under the flags as they exist today — its `TradeRoute`
+would silently keep pointing at a unit that now belongs to the other civ.
+`cyber_unit` never exposed this gap because it never carries a trade route.
+
+Required fix, not optional cleanup: add `attackerCaptured: boolean` and
+`defenderCaptured: boolean` to `CombatOutcomeApplication`
+(`combat-reward-system.ts:46–53`), set alongside the existing `*Defeated`
+flags in `applyCombatOutcomeToState`, and update all four call sites to
+`if (applied.defenderDefeated || applied.defenderCaptured) { removeRouteForUnit(...) }`
+(mirrored for attacker). The same two flags also gate which player-facing
+notification fires at each site — e.g. `main.ts`'s existing `if
+(applied.defenderDefeated) { showNotification('Enemy unit destroyed!', ...) }`
+must not fire for a capture; a distinct "captured" notification must fire
+instead, consistent with the Framing rule below.
+
+`removeRouteForUnit`'s `reason` parameter is a closed union — `'unit-died' |
+'unit-disbanded' | 'trips-exhausted'` (`trade-system.ts:465`) — with a
+matching hardcoded reason→text map at `main.ts:4755–4760` that renders
+`'unit-died'` as `'caravan destroyed'` in the route-ended notification.
+Reusing `'unit-died'` for a captured caravan would tell the player their
+caravan was destroyed when it was actually captured and is now serving the
+enemy — a direct violation of `content-description-honesty.md`'s "describe
+only what actually happens" principle. This requires adding a fourth reason,
+`'unit-captured'`, to the union and a matching entry (e.g. `'caravan
+captured'`) to the text map, threaded through the same four call sites.
+
+A missionary's `missionaryCooldownUntilTurn` needs no equivalent fix — it is
+a plain field on the `Unit` object, so it transfers with the unit on capture
+automatically, same as `health` or `experience` already do.
 
 ### Escort protection
 
@@ -230,12 +277,33 @@ Pirate plunder gets an equivalent coastal-improvement variant.
 
 ### AI civs
 
-AI civs at war pillage and capture through the same shared system helpers
-the player uses (`applyCombatOutcomeToState`, the new pillage action
-helper) — per `end-to-end-wiring.md`'s "shared state mutations must be
-actor-complete" rule, this cannot live only in a UI click handler. This
-also feeds the #526/#535 world-pressure fairness goal: AI civs must be
-pillageable and must pillage back, not just absorb it one-directionally.
+Capture (civilian and prize-crew) and pillage are architecturally different
+asks for the AI, and the plan should treat them as such rather than one
+blanket "AI uses the same helpers" line:
+
+- **Capture is free.** It is a passive side effect of `applyCombatOutcomeToState`
+  — whenever an AI civ's existing attack logic defeats a civilian or wins a
+  decisive naval fight, the capture branch fires automatically, identically
+  to how the player gets it. No new AI decision-making is required, only
+  that AI combat continues to route through the shared helper (already
+  true today).
+- **Pillage is a new discretionary action**, not a passive side effect — an
+  AI-controlled combat unit standing on a pillageable tile must actively
+  *choose* to spend its action pillaging instead of continuing to advance,
+  fortify, or retreat. This needs real tactical decision logic added to AI
+  turn processing (`ai/basic-ai.ts`'s `processAITurnInternal`, which already
+  has an analogous precedent in its existing `applyWorkerAction` worker-AI
+  decision), not just a shared-helper hookup. Scope this explicitly as its
+  own task in the implementation plan, sized like the existing worker-AI
+  decision logic, not folded silently into "wire up the shared helper."
+
+Both must reach barbarians, pirates, and AI civs — per `end-to-end-wiring.md`'s
+"shared state mutations must be actor-complete" rule, capture cannot live
+only in a UI click handler, and per this file's AI/barbarian parity test
+requirement, pillage's AI decision logic needs its own coverage distinct
+from the player-path tests. This also feeds the #526/#535 world-pressure
+fairness goal: AI civs must be pillageable and must pillage back, not just
+absorb it one-directionally.
 
 ### Difficulty scaling
 
@@ -296,8 +364,15 @@ the addendum's "player-side rules identical at all levels."
   randomness affects the outcome), settler→worker conversion via
   `applyUpgrade`-equivalent field reconciliation, every other civilian type
   keeps its own type, both civs' `civilizations[id].units[]` arrays update
-  correctly, side-state cleanup (trade route cancellation, missionary
-  cooldown) verified per civilian type.
+  correctly. **Trade-route cleanup on capture, explicitly**: a caravan (or
+  merchant_wagon/freight_convoy/naval_trader) with a `committedToRouteId`
+  that gets captured must have its route removed via `removeRouteForUnit`
+  with the new `'unit-captured'` reason (not silently left dangling, and
+  not mislabeled `'unit-died'`) — cover this at minimum through
+  `main.ts`'s player-attack path and one AI/barbarian path (`turn-manager.ts`
+  or `pirate-system.ts`), per the four-call-site gap identified above. Also
+  assert the notification text says "captured," never "destroyed," for a
+  captured unit at each covered site.
 - **Escort protection**: explicit regression — a stack of [combat unit,
   civilian] loses combat, assert the civilian unit still exists and is
   still owned by the original civ; only a lone civilian gets captured.
@@ -305,9 +380,15 @@ the addendum's "player-side rules identical at all levels."
   exactly 50% health — pick a side and test both sides of the boundary),
   bidirectional (attacker-captured and defender-captured cases), era-label
   selection for at least one pre-industrial and one modern naval type.
-- **AI/barbarian parity**: at least one test proving an AI civ or barbarian
-  unit pillages/captures through the same shared helper as the player path
-  (per `end-to-end-wiring.md`'s human + non-human coverage requirement).
+- **AI/barbarian parity, split by mechanism**: for capture (passive), at
+  least one test proving an AI civ or barbarian's existing attack logic
+  captures a defeated civilian/naval-military unit exactly like the player
+  path, with no AI-specific branch required. For pillage (discretionary),
+  a separate test targeting the new `processAITurnInternal` decision logic
+  itself — an AI unit standing on a pillageable tile actually chooses to
+  pillage rather than idle/advance — since this is new decision code, not
+  just shared-helper reuse, per `end-to-end-wiring.md`'s human + non-human
+  coverage requirement.
 - **Difficulty**: `pillageAggressivenessMultiplier` present and distinct
   across all three tiers; a barbarian raid-plan-selection test showing the
   multiplier actually shifts plan choice frequency.
