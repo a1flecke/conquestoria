@@ -1400,6 +1400,95 @@ describe('renderSelectedUnitInfo - fortify button', () => {
   });
 });
 
+describe('renderSelectedUnitInfo - pillage button', () => {
+  beforeEach(installMockDocument);
+  afterEach(restoreMockDocument);
+
+  function makePillageableState(unitOverrides: Record<string, unknown> = {}, tileOverrides: Record<string, unknown> = {}): GameState {
+    return {
+      turn: 1, era: 1, currentPlayer: 'player', gameOver: false, winner: null,
+      map: {
+        width: 10, height: 10, wrapsHorizontally: false, rivers: [],
+        tiles: {
+          '0,0': {
+            coord: { q: 0, r: 0 }, terrain: 'plains', elevation: 'lowland', resource: null,
+            improvement: 'farm', owner: 'ai-1', improvementTurnsLeft: 0, hasRiver: false, wonder: null, hasRoad: false,
+            ...tileOverrides,
+          },
+        },
+      },
+      units: {
+        'warrior-1': { id: 'warrior-1', type: 'warrior', owner: 'player', position: { q: 0, r: 0 }, health: 100, experience: 0, movementPointsLeft: 2, hasMoved: false, hasActed: false, isResting: false, ...unitOverrides },
+      },
+      cities: {},
+      civilizations: { player: { color: '#fff', techState: { completed: [] } }, 'ai-1': { color: '#d94a4a', techState: { completed: [] } } },
+    } as unknown as GameState;
+  }
+
+  it('shows a Pillage button for a combat unit standing on a pillageable enemy tile', () => {
+    const state = makePillageableState();
+    const container = new MockElement('div');
+    let pillagedId: string | null = null;
+
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'warrior-1', {
+      onPillage: (uid) => { pillagedId = uid; },
+    });
+
+    const btns = findButtons(container).map(b => b.textContent);
+    expect(btns).toContain('Pillage');
+    findButtons(container).find(b => b.textContent === 'Pillage')?.click();
+    expect(pillagedId).toBe('warrior-1');
+  });
+
+  it("hides the Pillage button when the tile is the unit's own territory", () => {
+    const state = makePillageableState({}, { owner: 'player' });
+    const container = new MockElement('div');
+
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'warrior-1', {
+      onPillage: () => {},
+    });
+
+    const btns = findButtons(container).map(b => b.textContent);
+    expect(btns).not.toContain('Pillage');
+  });
+
+  it('hides the Pillage button when the tile has no finished improvement or road', () => {
+    const state = makePillageableState({}, { improvement: 'none', improvementTurnsLeft: 0, hasRoad: false });
+    const container = new MockElement('div');
+
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'warrior-1', {
+      onPillage: () => {},
+    });
+
+    const btns = findButtons(container).map(b => b.textContent);
+    expect(btns).not.toContain('Pillage');
+  });
+
+  it('hides the Pillage button when the unit has already acted this turn', () => {
+    const state = makePillageableState({ hasActed: true });
+    const container = new MockElement('div');
+
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'warrior-1', {
+      onPillage: () => {},
+    });
+
+    const btns = findButtons(container).map(b => b.textContent);
+    expect(btns).not.toContain('Pillage');
+  });
+
+  it('hides the Pillage button for a non-combat unit (settler)', () => {
+    const state = makePillageableState({ type: 'settler' });
+    const container = new MockElement('div');
+
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'warrior-1', {
+      onPillage: () => {},
+    });
+
+    const btns = findButtons(container).map(b => b.textContent);
+    expect(btns).not.toContain('Pillage');
+  });
+});
+
 describe('renderSelectedUnitInfo - upgrade button building gate', () => {
   beforeEach(installMockDocument);
   afterEach(restoreMockDocument);

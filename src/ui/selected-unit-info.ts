@@ -35,6 +35,7 @@ import { isAutonomyActivated } from '@/systems/network-plan-system';
 import { canPreachTarget } from '@/systems/religion-system';
 import { getAirBaseCapacity, getAirBaseRoster } from '@/systems/air-operations-system';
 import type { AirBaseRef } from '@/core/types';
+import { canPillageTile } from '@/systems/pillage-system';
 
 export interface TransportLoadOption {
   transportId: string;
@@ -69,6 +70,7 @@ export interface SelectedUnitInfoCallbacks {
   onSkipTurn?: (unitId: string) => void;
   onDeleteUnit?: (unitId: string) => void;
   onFortify?: (unitId: string) => void;
+  onPillage?: (unitId: string) => void;
   onCancelAutoExplore?: () => void;
   onCancelJourney?: () => void;
   onSetDisguise?: (unitId: string, disguise: DisguiseType | null) => void;
@@ -657,6 +659,10 @@ export function renderSelectedUnitInfo(
 
   if (callbacks.onDeleteUnit) {
     actionsDiv.appendChild(makeButton('Delete Unit', '#b91c1c', () => callbacks.onDeleteUnit!(unitId)));
+  }
+
+  if (def.strength > 0 && !unit.hasActed && callbacks.onPillage && canPillageTile(tile, unit.owner)) {
+    actionsDiv.appendChild(makeButton('Pillage', '#8b2635', () => callbacks.onPillage!(unitId)));
   }
 
   if (def.strength > 0 && callbacks.onFortify) {
