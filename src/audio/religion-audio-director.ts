@@ -1,20 +1,32 @@
 import type { EventBus } from '@/core/event-bus';
 import type { GameState } from '@/core/types';
-import { getCrisisFlavor } from '@/systems/crisis-flavor-definitions';
 import { RELIGION_SFX, FAMINE_SFX } from './sfx-catalog';
 
 // #594 MR7: bespoke religion + famine stingers. Mirrors PirateAudioDirector's shape
-// (dedicated bus.on() subscriptions calling playStingerWithDuck directly) rather than
-// MusicDirector's STINGER/handle*() machinery, because these are one-shot event
-// stingers, not adaptive-music-state transitions.
+// (playStinger calls, not MusicDirector's STINGER/handle*() machinery), because these
+// are one-shot event stingers, not adaptive-music-state transitions.
 //
-// Notification-chime replacement for religion:founded / city-converted /
-// loyalty-warning / city-defected happens OUTSIDE this class -- via the sfxCue
-// parameter threaded through the toast pipeline (see AudioSystem.playReligionStinger
-// and notification-routing.ts), so the generic SFX.notification() synth chime and
-// this director's bespoke OGG never both fire for the same toast. religion:preached
-// and famine onset/resolved have no existing sound, so they ARE wired here directly
-// as pure additions -- there is nothing to suppress for those three.
+// Notification-chime replacement happens for ALL SIX toast-routed cues (religion:founded,
+// religion:city-converted, religion:loyalty-warning, religion:city-defected, and famine
+// onset/resolved) via the sfxCue parameter threaded through the toast pipeline (see
+// AudioSystem.playReligionStinger and notification-routing.ts's routeReligionFounded/
+// routeReligionCityConverted/routeLoyaltyWarning/routeCityDefected/routeCrisisStarted/
+// routeCrisisResolved), so the generic SFX.notification() synth chime and this director's
+// bespoke OGG never both fire for the same toast.
+//
+// Inline review fix: an earlier draft wired famine onset/resolved via a DIRECT
+// bus.on('crisis:started'/'crisis:resolved') subscription here, on the assumption
+// (carried over from the originating issue) that famine had no existing notification
+// sound. That assumption was wrong -- routeCrisisStarted/routeCrisisResolved in
+// notification-routing.ts already toast famine crises to the affected civ, and that
+// toast already played the generic SFX.notification() chime. The direct bus
+// subscription would have played the bespoke stinger ALONGSIDE that generic chime on
+// every famine onset/resolution -- a doubled-sound bug. Famine now uses the exact same
+// toast-cue replacement mechanism as the other four events instead.
+//
+// religion:preached remains bus-driven (playCue is never called for it) because preach
+// genuinely has no toast/notification today -- it is a pure addition, not a
+// replacement.
 export class ReligionAudioDirector {
   private unsubscribers: Array<() => void> = [];
 
@@ -32,39 +44,24 @@ export class ReligionAudioDirector {
         if (this.isPresentationSuppressed() || event.civId !== state.currentPlayer) return;
         void this.playStingerWithDuck(RELIGION_SFX.preach.file).catch(() => {});
       }),
-
-      // Famine onset -- additive, no existing sound. Filters crisis:started to the
-      // famine archetype and to the current viewer, mirroring the existing
-      // crisis:started subscription's currentPlayerId filter in audio-system.ts.
-      bus.on('crisis:started', event => {
-        const state = this.getState();
-        if (this.isPresentationSuppressed() || event.civId !== state.currentPlayer) return;
-        const flavor = getCrisisFlavor(event.flavorId);
-        if (flavor?.archetype !== 'famine') return;
-        void this.playStingerWithDuck(FAMINE_SFX.onset.file).catch(() => {});
-      }),
-
-      // Famine resolved -- additive, no existing sound. Only plays for genuinely
-      // positive resolutions, matching MusicDirector's own crisis:resolved outcome
-      // filter ('contained' | 'recovered' | 'hunted') so an 'expired'/'abandoned'
-      // outcome doesn't play a triumphant cue.
-      bus.on('crisis:resolved', event => {
-        const state = this.getState();
-        if (this.isPresentationSuppressed() || event.civId !== state.currentPlayer) return;
-        const flavor = getCrisisFlavor(event.flavorId);
-        if (flavor?.archetype !== 'famine') return;
-        if (event.outcome !== 'contained' && event.outcome !== 'recovered') return;
-        void this.playStingerWithDuck(FAMINE_SFX.resolved.file).catch(() => {});
-      }),
     );
   }
 
-  // Called by AudioSystem.playReligionStinger() for the 4 toast-replacement cues
-  // (founded / city-converted / loyalty-warning / city-defected). Not bus-driven --
-  // the toast pipeline already resolved privacy/hot-seat delivery by the time this
-  // fires, so no currentPlayer re-check is needed here.
+  // Called by AudioSystem.playReligionStinger() for the 6 toast-replacement cues
+  // (founded / city-converted / loyalty-warning / city-defected / famine-onset /
+  // famine-resolved). Not bus-driven -- the toast pipeline already resolved
+  // privacy/hot-seat delivery by the time this fires, so no currentPlayer re-check is
+  // needed here.
   async playCue(cue: string): Promise<void> {
     if (this.isPresentationSuppressed()) return;
+    if (cue === 'famine-onset') {
+      await this.playStingerWithDuck(FAMINE_SFX.onset.file).catch(() => {});
+      return;
+    }
+    if (cue === 'famine-resolved') {
+      await this.playStingerWithDuck(FAMINE_SFX.resolved.file).catch(() => {});
+      return;
+    }
     const key = cue === 'religion-founded' ? 'founded' : cue;
     const entry = (RELIGION_SFX as Record<string, { file: string } | undefined>)[key];
     if (!entry) return;

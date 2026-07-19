@@ -452,11 +452,13 @@ export function routeCrisisStarted(
   const message = flavor.advisorLine
     .replace('{name}', name)
     .replace('{city}', city?.name ?? 'a city');
+  // #594 MR7: bespoke famine-onset stinger replaces the generic chime for this toast
+  // only -- other archetypes (outbreak/catastrophe) keep the generic SFX.notification().
   sink(event.civId, message, 'warning', cityId && city ? {
     kind: 'map',
     coord: { ...city.position },
     label: name,
-  } : undefined);
+  } : undefined, undefined, flavor.archetype === 'famine' ? 'famine-onset' : undefined);
 }
 
 // #591 MR4: unlike the wonder-completion pattern (notifies everyone, anonymizes the
@@ -624,7 +626,14 @@ export function routeCrisisResolved(
   // Naming the resolved crisis matters once a player can have 2-3 concurrent crises
   // (veteran cap) — a bare "A crisis..." message would be ambiguous about which one.
   const name = flavor ? getCrisisDisplayName(flavor, resolveCivilizationEra(state.civilizations[event.civId]?.techState?.completed ?? [])) : 'A crisis';
-  sink(event.civId, `${name} ${outcomeMessage[event.outcome]}`, type);
+  // #594 MR7: bespoke famine-resolved stinger replaces the generic chime, but only for
+  // genuinely positive resolutions (contained/recovered) -- a passive 'expired' or
+  // 'abandoned' outcome keeps the generic chime, matching the pre-existing
+  // MusicDirector.handleCrisisResolved outcome filter's spirit.
+  const sfxCue = flavor?.archetype === 'famine' && (event.outcome === 'contained' || event.outcome === 'recovered')
+    ? 'famine-resolved'
+    : undefined;
+  sink(event.civId, `${name} ${outcomeMessage[event.outcome]}`, type, undefined, undefined, sfxCue);
 }
 
 // Hunt-their-foe (#526 MR6 Task 6.2): "Rome slew the beast menacing Carthage!" to

@@ -47,8 +47,9 @@ vi.mock('@/systems/legendary-wonder-definitions', () => ({
 }));
 
 function makeSink() {
-  const calls: Array<{ civId: string; message: string; type: string; target?: unknown }> = [];
-  const sink: NotificationSink = (civId, message, type, target) => calls.push({ civId, message, type, target });
+  const calls: Array<{ civId: string; message: string; type: string; target?: unknown; sfxCue?: string }> = [];
+  const sink: NotificationSink = (civId, message, type, target, _cityActions, sfxCue) =>
+    calls.push({ civId, message, type, target, sfxCue });
   return { sink, calls };
 }
 
@@ -660,6 +661,30 @@ describe('crisis notification routing', () => {
     expect(calls[0]!.civId).toBe('p1');
     expect(calls[0]!.type).toBe('success');
     expect(calls[0]!.message).toContain('The Sweating Sickness');
+  });
+
+  it('#594 MR7: tags crisis:started with the famine-onset sfx cue only for a famine-archetype flavor', () => {
+    const state = makeState({
+      era: 2,
+      cities: { c1: { id: 'c1', name: 'Thebes', owner: 'p1', population: 5, position: { q: 0, r: 0 } } } as any,
+    });
+    const { sink, calls } = makeSink();
+    // 'crop-blight' is a famine-archetype flavor (crisis-flavor-definitions.ts); 'plague' is outbreak.
+    routeCrisisStarted(state, { crisisId: 'crisis-1', flavorId: 'crop-blight', civId: 'p1', cityIds: ['c1'] }, sink);
+    routeCrisisStarted(state, { crisisId: 'crisis-2', flavorId: 'plague', civId: 'p1', cityIds: ['c1'] }, sink);
+    expect(calls[0]!.sfxCue).toBe('famine-onset');
+    expect(calls[1]!.sfxCue).toBeUndefined();
+  });
+
+  it('#594 MR7: tags crisis:resolved with the famine-resolved sfx cue only for famine + a positive outcome', () => {
+    const state = makeState({ era: 2 });
+    const { sink, calls } = makeSink();
+    routeCrisisResolved(state, { crisisId: 'crisis-1', flavorId: 'crop-blight', civId: 'p1', outcome: 'contained' }, sink);
+    routeCrisisResolved(state, { crisisId: 'crisis-2', flavorId: 'crop-blight', civId: 'p1', outcome: 'expired' }, sink);
+    routeCrisisResolved(state, { crisisId: 'crisis-3', flavorId: 'plague', civId: 'p1', outcome: 'contained' }, sink);
+    expect(calls[0]!.sfxCue).toBe('famine-resolved');
+    expect(calls[1]!.sfxCue).toBeUndefined();
+    expect(calls[2]!.sfxCue).toBeUndefined();
   });
 
   it('falls back to a generic message for an unknown flavorId instead of throwing', () => {
