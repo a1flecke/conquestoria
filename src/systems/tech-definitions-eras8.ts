@@ -125,7 +125,7 @@ const ERA_8_TECHS: Tech[] = [
   // ESPIONAGE (2)
   { id: 'political-intelligence', name: 'Political Intelligence', track: 'espionage', cost: 240,
     prerequisites: ['covert-operations', 'secret-police'],
-    unlocks: ['+3 spy slots empire-wide; political intelligence networks improve spy mission success rates by 10%'], era: 8 },
+    unlocks: ['+3 spy slots empire-wide; political intelligence networks improve spy mission success rates by 10%'], unlocksBuildings: ['intelligence-agency'], era: 8 },
   { id: 'disinformation-bureau', name: 'Disinformation Bureau', track: 'espionage', cost: 145,
     prerequisites: ['secret-police'],
     unlocks: ['Enemy spy missions in your cities have -25% success rate; state disinformation weakens foreign loyalty'], era: 8 },
