@@ -1,7 +1,8 @@
+// @vitest-environment jsdom
 import { describe, expect, it } from 'vitest';
 import { createNewGame } from '@/core/game-state';
 import type { City } from '@/core/types';
-import { getNetworkPanelModel } from '@/ui/network-panel';
+import { createNetworkPanel, getNetworkPanelModel } from '@/ui/network-panel';
 
 function city(): City {
   return {
@@ -25,5 +26,24 @@ describe('network panel model', () => {
     expect(model.statusText).toBe('Network: Stable · 0/2');
     expect(model.candidates.find(candidate => candidate.request.definitionId === 'fabrication-sprint')).toMatchObject({ enabled: true });
     expect(model.candidates.find(candidate => candidate.request.definitionId === 'research-mesh')).toMatchObject({ enabled: false });
+  });
+
+  it('renders explicit stable capacity text and invokes the canonical request for a reachable plan', () => {
+    const state = createNewGame('rome', 'network-panel-dom', 'small');
+    state.cities = { 'city-player': city() };
+    state.civilizations.player.cities = ['city-player'];
+    state.civilizations.player.techState.completed = ['quantum-computing'];
+    const assigned: string[] = [];
+    const panel = createNetworkPanel(getNetworkPanelModel(state, 'player'), {
+      onAssign: request => assigned.push(request.definitionId), onCancel: () => {}, onSurge: () => {},
+      onPosture: () => {}, onClose: () => {},
+    });
+    document.body.appendChild(panel);
+
+    expect(panel.textContent).toContain('Network: Stable · 0/2');
+    const button = Array.from(panel.querySelectorAll('button')).find(candidate => candidate.textContent?.includes('Assign Fabrication Sprint'))!;
+    expect(button.disabled).toBe(false);
+    button.click();
+    expect(assigned).toEqual(['fabrication-sprint']);
   });
 });
