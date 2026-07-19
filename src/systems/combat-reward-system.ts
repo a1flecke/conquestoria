@@ -2,7 +2,7 @@ import type { CombatResult, CombatRewardNotification, GameState, Unit } from '@/
 import { cleanupDeadSpyUnit } from '@/systems/espionage-system';
 import { UNIT_DEFINITIONS } from '@/systems/unit-system';
 import { applyQuestGameplayAction, type ChainTransition } from '@/systems/quest-chain-system';
-import { canReceiveCivilizationCombatRewards, isPirateOwner } from '@/core/owner-kind';
+import { canReceiveCivilizationCombatRewards, isMajorCivOwner, isPirateOwner } from '@/core/owner-kind';
 import { recordHuntKillerIfApplicable } from '@/systems/hunt-crisis-linkage';
 import {
   breakPirateTributeOnAttack,
@@ -293,12 +293,23 @@ export function applyCombatOutcomeToState(
       geneTherapyReady: false,
     };
     attackerActuallyDefeated = false;
-  } else if (UNIT_CLASS_BY_TYPE[attackerBefore.type].includes('civilian') && !attackerBefore.cargoUnitIds?.length) {
+  } else if (
+    UNIT_CLASS_BY_TYPE[attackerBefore.type].includes('civilian')
+    && !attackerBefore.cargoUnitIds?.length
+    && isMajorCivOwner(defenderBefore.owner)
+  ) {
     // Civilian capture: transfer ownership instead of destroying. Covers cyber_unit
     // (already tagged 'civilian') and every other civilian type uniformly — settler
     // downgrades to worker so a captured settler can't hand the capturing civ a free
     // city-founding unit. No other field resets: health/hasActed/movementPointsLeft
     // carry over exactly as they were, matching this branch's pre-existing behavior.
+    // The capturing side (defenderBefore.owner here) must be a major civ: barbarians,
+    // pirates, and minor civs are not keys in state.civilizations (they track units in
+    // state.minorCivs / state.pirates instead), so writing civilizations[owner] = {
+    // ...undefined, units: [...] } for one of them would inject a malformed partial civ
+    // object that crashes the next code to iterate Object.values(state.civilizations)
+    // expecting complete civs. Barbarians/pirates/minor civs still destroy civilians,
+    // same as before this feature.
     // A transport/carrier currently loaded with cargo is excluded — capturing a
     // civilian ship is out of scope for what happens to enemy troops riding along,
     // so a loaded transport still falls through to the destroy branch below, which
@@ -341,8 +352,13 @@ export function applyCombatOutcomeToState(
       geneTherapyReady: false,
     };
     defenderActuallyDefeated = false;
-  } else if (UNIT_CLASS_BY_TYPE[defenderBefore.type].includes('civilian') && !defenderBefore.cargoUnitIds?.length) {
-    // Civilian capture: mirror of the attacker-side branch above (same cargo exclusion).
+  } else if (
+    UNIT_CLASS_BY_TYPE[defenderBefore.type].includes('civilian')
+    && !defenderBefore.cargoUnitIds?.length
+    && isMajorCivOwner(attackerBefore.owner)
+  ) {
+    // Civilian capture: mirror of the attacker-side branch above (same cargo exclusion,
+    // same major-civ-only capturing-side requirement).
     const capturedType = defenderBefore.type === 'settler' ? 'worker' : defenderBefore.type;
     units[result.defenderId] = { ...defenderBefore, type: capturedType, owner: attackerBefore.owner };
     civilizations = {
@@ -401,7 +417,10 @@ export function applyCombatOutcomeToState(
     nextState = breakPirateTributeOnAttack(nextState, defenderFaction.id, attackerBefore.owner);
   }
   const questTransitions: ChainTransition[] = [];
-  if (defenderActuallyDefeated) {
+  // A captured civilian is just as gone from the enemy's control as a destroyed one —
+  // eligibleHostileUnits (quest-objective-system.ts) treats any hostile unit (civilians
+  // included) as a valid defeat_units target, so quest progress must count capture too.
+  if (defenderActuallyDefeated || defenderCaptured) {
     const progress = applyQuestGameplayAction(nextState, {
       type: 'unit_defeated', actorCivId: attackerBefore.owner, defeatedOwnerId: defenderBefore.owner,
       unitId: defenderBefore.id, position: defenderBefore.position, turn: state.turn,
@@ -409,7 +428,7 @@ export function applyCombatOutcomeToState(
     nextState = progress.state;
     questTransitions.push(...progress.transitions);
   }
-  if (attackerActuallyDefeated) {
+  if (attackerActuallyDefeated || attackerCaptured) {
     const progress = applyQuestGameplayAction(nextState, {
       type: 'unit_defeated', actorCivId: defenderBefore.owner, defeatedOwnerId: attackerBefore.owner,
       unitId: attackerBefore.id, position: attackerBefore.position, turn: state.turn,
