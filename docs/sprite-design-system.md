@@ -158,6 +158,18 @@ line on any segment where **both** endpoint tiles resolve `hasRail: true` (owner
 non-standard extension of the Improvement Marker contract — see the "Rail Segment" recipe in
 `.claude/rules/sprites.md` for the differences (per-edge rotation, both-endpoints-required).
 
+### City Map Badges — `src/renderer/city-render-passes.ts`
+Small circular badges drawn above a city on the map (not tile improvements). Follow the
+Improvement Marker asset contract (`viewBox 0 0 48 48`, no palette, no animation,
+`HTMLImageElement` cache + emoji fallback while loading).
+
+| Badge | Status | Trigger |
+|-------|--------|---------|
+| world-pressure (generic crisis) | ⚠️ `'⚠️'` emoji | any active crisis (`worldPressureCrisis`), any archetype |
+| famine crisis | ✅ SVG marker (`src/renderer/improvements/famine-badge-marker.ts`, #594 MR7) | `worldPressureCrisis === 'famine'` — overrides the generic ⚠️ for famine only |
+| loyalty-pressure | ⚠️ `'🙏'` emoji | active foreign-faith loyalty pressure (`loyaltyPressure`) |
+| religion badge | ✅ SVG marker (`src/renderer/improvements/religion-badge-marker.ts`, #594 MR7), two variants (own-faith / foreign-faith) | city has a resolved `cityFaith` entry (`religionBadge`) |
+
 ### Legendary Wonders — `src/systems/legendary-wonder-definitions.ts`
 No map sprites yet. Production queue falls back to `'🏗️'`. Codex images exist in `public/images/wonders/codex/*.jpg` (lore art only, not map sprites).
 

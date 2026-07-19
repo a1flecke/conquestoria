@@ -41,6 +41,10 @@ import {
   getLoyaltyPressurePresentationForViewer,
   type LoyaltyPressurePresentation,
 } from '@/systems/loyalty-pressure-presentation';
+import {
+  getReligionBadgePresentationForViewer,
+  type ReligionBadgePresentation,
+} from '@/systems/religion-badge-presentation';
 
 export { CIVTYPE_TO_FACTION, civTypeToFaction };
 
@@ -214,6 +218,8 @@ export class RenderLoop {
   private worldPressurePresentation: WorldPressurePresentation = { cityBadges: [], statusLinesByCivId: {} };
   // #593 MR6: same per-setGameState caching convention as worldPressurePresentation above.
   private loyaltyPressurePresentation: LoyaltyPressurePresentation = { cityBadges: [] };
+  // #594 MR7: same per-setGameState caching convention as worldPressurePresentation above.
+  private religionBadgePresentation: ReligionBadgePresentation = { cityBadges: [] };
   private running = false;
   private animFrameId = 0;
   private highlights: HexHighlight[] = [];
@@ -384,6 +390,7 @@ export class RenderLoop {
     this.state = state;
     this.worldPressurePresentation = getWorldPressurePresentationForViewer(state, state.currentPlayer);
     this.loyaltyPressurePresentation = getLoyaltyPressurePresentationForViewer(state, state.currentPlayer);
+    this.religionBadgePresentation = getReligionBadgePresentationForViewer(state, state.currentPlayer);
   }
 
   start(): void {
@@ -566,6 +573,7 @@ export class RenderLoop {
       nowMs: performance.now(),
       worldPressurePresentation: this.worldPressurePresentation,
       loyaltyPressurePresentation: this.loyaltyPressurePresentation,
+      religionBadgePresentation: this.religionBadgePresentation,
     });
 
     // Draw trade route lines (after cities, before units)
