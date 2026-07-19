@@ -13,7 +13,7 @@ Registered in `UNIT_SPRITE_CATALOG` in `src/renderer/sprites/sprite-catalog.ts`.
 |------|--------|-----------|
 | settler | ✅ sprite | civilian |
 | worker | ✅ sprite | civilian |
-| missionary | ⚠️ placeholder (reuses WorkerSprite) | civilian |
+| missionary | ✅ sprite (#594 MR7) | civilian |
 | scout | ✅ sprite | civilian |
 | scout_hound | ✅ sprite | hound |
 | war_hound | ✅ sprite | hound |

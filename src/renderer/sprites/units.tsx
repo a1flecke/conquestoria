@@ -50,6 +50,29 @@ export function WorkerSprite({ palette, svgOnly = false }: UnitSpriteProps): str
   );
 }
 
+// #594 MR7: replaces the WorkerSprite-reuse placeholder. Robed civilian carrying a
+// scripture book (distinct silhouette from WorkerSprite's tool-carrying pose) --
+// accent flows through palette.mid per the FactionPalette contract, not a fixed color,
+// so the sash reads as "belongs to your civ" the same way SettlerSprite's banner does.
+export function MissionarySprite({ palette, svgOnly = false }: UnitSpriteProps): string {
+  return (
+    <SpriteFrame svgOnly={svgOnly}>
+      <Shadow />
+      <Humanoid cx={64} cy={70} scale={1} cloth={P.cloth.linen} pants={P.cloth.linen} accent={palette.mid} hair={P.ink.soft}
+        hat={<path d="M-8,-40 Q0,-46 8,-40 L8,-36 Q0,-39 -8,-36 Z" fill={P.cloth.linen} stroke={P.ink.line} strokeWidth="0.6" />}
+      />
+      <g transform="translate(80 60) rotate(-8)">
+        <rect x="-8" y="-6" width="16" height="12" rx="1" fill={P.cloth.dye} stroke={P.ink.line} strokeWidth="0.8" />
+        <line x1="0" y1="-6" x2="0" y2="6" stroke={P.metal.gold} strokeWidth="1" />
+        <line x1="-6" y1="-3" x2="-1" y2="-3" stroke={P.metal.gold} strokeWidth="0.6" />
+        <line x1="1" y1="-3" x2="6" y2="-3" stroke={P.metal.gold} strokeWidth="0.6" />
+        <line x1="-6" y1="1" x2="-1" y2="1" stroke={P.metal.gold} strokeWidth="0.6" />
+        <line x1="1" y1="1" x2="6" y2="1" stroke={P.metal.gold} strokeWidth="0.6" />
+      </g>
+    </SpriteFrame>
+  );
+}
+
 /* === SCOUT FAMILY === */
 
 export function ScoutSprite({ palette, svgOnly = false }: UnitSpriteProps): string {

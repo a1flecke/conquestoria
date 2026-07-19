@@ -2,7 +2,7 @@ import type { UnitType } from '@/core/types';
 import type { UnitSpriteMotion, UnitSpriteProps } from './units';
 import type { BuildingSpriteProps } from './buildings';
 import {
-  SettlerSprite, WorkerSprite, ScoutSprite, ScoutHoundSprite,
+  SettlerSprite, WorkerSprite, MissionarySprite, ScoutSprite, ScoutHoundSprite,
   WarHoundSprite, ShadowWardenSprite, WarriorSprite, SwordsmanSprite,
   PikemanSprite, ArcherSprite, MusketeerSprite, GalleySprite,
   TriremeSprite, TransportSprite, SpyScoutSprite, SpyInformantSprite, SpyAgentSprite,
@@ -208,8 +208,8 @@ function withMotion(type: UnitType, render: UnitSpriteComponent): UnitSpriteComp
 export const UNIT_SPRITE_CATALOG: Record<UnitType, UnitSpriteComponent> = {
   settler:        withMotion('settler', SettlerSprite),
   worker:         withMotion('worker', WorkerSprite),
-  // Placeholder art (#592 MR5) — reuses WorkerSprite until bespoke missionary art ships in MR7 (#594).
-  missionary:     withMotion('missionary', WorkerSprite),
+  // Bespoke art shipped in #594 MR7 (previously reused WorkerSprite as a placeholder).
+  missionary:     withMotion('missionary', MissionarySprite),
   scout:          withMotion('scout', ScoutSprite),
   scout_hound:    withMotion('scout_hound', ScoutHoundSprite),
   war_hound:      withMotion('war_hound', WarHoundSprite),
