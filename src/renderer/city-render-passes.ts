@@ -7,6 +7,7 @@ import {
   selectPrimaryCityWonder,
   type CityMapPresentation,
 } from '@/renderer/city-map-presentation';
+import { getFamineBadgeMarkerImage } from '@/renderer/improvements/famine-badge-marker';
 
 export interface CityRenderProjection {
   name: string;
@@ -507,6 +508,20 @@ export function drawCityWorldPressureBadgePass(ctx: CanvasRenderingContext2D, it
 
   const x = item.screen.x;
   const y = item.screen.y - item.size * 0.58;
+
+  // #594 MR7: famine gets bespoke badge art; every other archetype (outbreak,
+  // catastrophe, hunt) keeps the generic ⚠️ glyph -- the badge fires for ANY active
+  // crisis (item.worldPressureCrisis carries the real archetype), so this must stay
+  // conditional rather than swapping the glyph unconditionally.
+  if (item.worldPressureCrisis === 'famine') {
+    const famineImg = getFamineBadgeMarkerImage();
+    if (famineImg) {
+      const s = item.size * 0.32;
+      ctx.drawImage(famineImg, x - s / 2, y - s / 2, s, s);
+      return;
+    }
+  }
+
   ctx.beginPath();
   ctx.arc(x, y, item.size * 0.14, 0, Math.PI * 2);
   ctx.fillStyle = 'rgba(20,24,30,0.86)';
