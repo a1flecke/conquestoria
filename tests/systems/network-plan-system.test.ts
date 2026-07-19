@@ -120,6 +120,25 @@ describe('network plan lifecycle', () => {
     });
   });
 
+  it('rejects ordinary assignments that would exceed Capacity without canceling stable plans', () => {
+    const state = makeState();
+    const secondCity = makeCity('city-player-2', 'player', 1);
+    state.cities['city-player'].buildings = ['smart_grid'];
+    secondCity.buildings = ['smart_grid'];
+    state.cities[secondCity.id] = secondCity;
+    state.civilizations.player.cities.push(secondCity.id);
+    state.autonomyByCiv!.player.plans.existing = {
+      id: 'existing', ownerCivId: 'player', definitionId: 'fabrication-sprint',
+      source: { kind: 'city', cityId: 'city-player' }, target: { kind: 'city', cityId: 'city-player' },
+      status: 'active', createdTurn: 1, nextResolutionTurn: 1, warnedTurn: null,
+    };
+
+    expect(validateNetworkPlanAssignment(state, {
+      ownerCivId: 'player', source: { kind: 'city', cityId: secondCity.id },
+      definitionId: 'fabrication-sprint', target: { kind: 'city', cityId: secondCity.id },
+    })).toEqual({ ok: false, reason: 'ordinary-load-exceeds-capacity' });
+  });
+
   it('rejects Exploit without bilateral war and leaves state untouched', () => {
     const state = makeState();
     state.civilizations.player.diplomacy.atWarWith = [];
@@ -185,5 +204,17 @@ describe('network plan lifecycle', () => {
 
     expect(cleaned.state.autonomyByCiv!.player.plans).toEqual({});
     expect(cleaned.cancelled).toEqual([{ planId: 'network-plan-1', reason: 'target-out-of-range' }]);
+  });
+
+  it('keeps a valid city-sourced plan through lifecycle cleanup', () => {
+    const state = makeState();
+    state.cities['city-player'].buildings = ['smart_grid'];
+    const assigned = assignNetworkPlan(state, {
+      ownerCivId: 'player', source: { kind: 'city', cityId: 'city-player' },
+      definitionId: 'fabrication-sprint', target: { kind: 'city', cityId: 'city-player' },
+    });
+
+    expect(cancelInvalidNetworkPlans(assigned.state)).toMatchObject({ cancelled: [] });
+    expect(cancelInvalidNetworkPlans(assigned.state).state.autonomyByCiv!.player.plans).toHaveProperty('network-plan-1');
   });
 });

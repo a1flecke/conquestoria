@@ -128,6 +128,8 @@ export interface CombatContext {
   defenderPositioningPart?: ModifierPart;
   attackerAmphibiousMultiplier?: number;
   attackerAmphibiousParts?: ModifierPart[];
+  attackerNetworkStrengthBonus?: number;
+  defenderNetworkStrengthBonus?: number;
 }
 
 export interface CombatStrengthBreakdown {
@@ -208,6 +210,8 @@ export function calculateCombatStrengths(
   attackerStrength *= context?.attackerPositioningMultiplier ?? 1;
   attackerStrength *= context?.attackerAmphibiousMultiplier ?? 1;
   defenderStrength *= context?.defenderPositioningMultiplier ?? 1;
+  attackerStrength += context?.attackerNetworkStrengthBonus ?? 0;
+  defenderStrength += context?.defenderNetworkStrengthBonus ?? 0;
 
   // Bombard-kind units (catapult, cannon, artillery, grenadier, bomber, stealth_bomber)
   // defend poorly — classic "siege is terrible on defense" convention. Keyed off

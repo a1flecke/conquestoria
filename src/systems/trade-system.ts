@@ -7,6 +7,7 @@ import { isMinorCivAtWar } from './minor-civ-diplomacy';
 import { RESOURCE_DEFINITIONS } from './resource-definitions';
 import { isCityCoastal } from './city-system';
 import { getTradeRouteTechGold } from './tech-yield-system';
+import { getNetworkRouteGoldBonus } from './network-infrastructure-plans';
 export { RESOURCE_DEFINITIONS } from './resource-definitions';
 export type { ResourceDefinition, ResourceEffect } from './resource-definitions';
 
@@ -150,7 +151,8 @@ export function getRouteTechGoldBonus(state: GameState, route: TradeRoute): numb
 }
 
 export function processTradeRouteIncome(routes: TradeRoute[], state?: GameState): number {
-  return routes.reduce((total, r) => total + getEffectiveGoldPerTurn(r, state ? getRouteTechGoldBonus(state, r) : 0), 0);
+  return routes.reduce((total, r) => total + getEffectiveGoldPerTurn(r, state ? getRouteTechGoldBonus(state, r) : 0)
+    + (state ? getNetworkRouteGoldBonus(state, r) : 0), 0);
 }
 
 // --- S5: route capacity ---

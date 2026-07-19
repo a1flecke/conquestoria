@@ -7,6 +7,7 @@ import { UNIT_DEFINITIONS } from './unit-system';
 import { getActiveNationalProjectsForCiv } from './national-project-system';
 import { getCombatModifier } from './unit-modifier-system';
 import { getCombatAdjacentOccupiedTileCount } from './zone-of-control-system';
+import { getNetworkCombatCoordination } from './network-combat-coordination';
 
 export interface CombatContextOptions {
   amphibiousAssault?: boolean;
@@ -123,5 +124,7 @@ export function buildCombatContextForDefender(
     attackerAmphibiousParts: amphibiousParts,
     attackerPositioningPart: flankingTiles > 0 ? { label: `Flanked +${flankingTiles * 10}%`, kind: 'mult' } : undefined,
     defenderPositioningPart: supportTiles > 0 ? { label: `Supported +${supportTiles * 10}%`, kind: 'mult' } : undefined,
+    attackerNetworkStrengthBonus: getNetworkCombatCoordination(state, attacker, 'attack').strengthBonus,
+    defenderNetworkStrengthBonus: getNetworkCombatCoordination(state, defender, 'defense').strengthBonus,
   };
 }

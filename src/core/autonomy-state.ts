@@ -39,6 +39,10 @@ export interface NetworkPlan {
   /** MR4 source form; sourceUnitId remains for schema-3 compatibility until migration normalizes it. */
   source?: NetworkPlanSource;
   target: NetworkPlanTarget;
+  /** Stable, explicit recipients for plans that affect more than their primary target. */
+  linkedUnitIds?: string[];
+  linkedCityIds?: string[];
+  surgeResolutionTurn?: number | null;
   status: NetworkPlanStatus;
   createdTurn: number;
   nextResolutionTurn: number;
@@ -46,6 +50,7 @@ export interface NetworkPlan {
   effectState?: {
     cdcDelayApplied?: boolean;
     hardenCharges?: number;
+    surged?: boolean;
   };
 }
 
@@ -63,6 +68,7 @@ export interface AutonomyCivState {
   pendingPosture: { id: AutonomyPostureId; appliesOnTurn: number } | null;
   surgeRecoveryUntilTurn: number | null;
   surgeCooldownUntilTurn: number | null;
+  postureChangedTurn?: number | null;
 }
 
 export function createEmptyAutonomyCivState(): AutonomyCivState {
@@ -73,5 +79,6 @@ export function createEmptyAutonomyCivState(): AutonomyCivState {
     pendingPosture: null,
     surgeRecoveryUntilTurn: null,
     surgeCooldownUntilTurn: null,
+    postureChangedTurn: null,
   };
 }

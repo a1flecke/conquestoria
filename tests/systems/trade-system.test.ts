@@ -30,6 +30,8 @@ import { EventBus } from '@/core/event-bus';
 import { advanceRouteRunners } from '@/systems/unit-movement-system';
 import { establishQuestAwareRoute } from '@/systems/quest-aware-trade-system';
 import { hasAITradeRole } from '@/ai/ai-unit-roles';
+import { createNewGame } from '@/core/game-state';
+import { foundCity } from '@/systems/city-system';
 
 // Shared fixture — used by S5 and S6a describe blocks
 function makeTile(q: number, r: number) {
@@ -369,6 +371,26 @@ describe('trade-system', () => {
 
     it('returns 0 for empty routes', () => {
       expect(processTradeRouteIncome([])).toBe(0);
+    });
+
+    it('includes an active Logistics Routing plan when authoritative state is supplied', () => {
+      const state = createNewGame('rome', 'logistics-income', 'small');
+      const city = foundCity('player', state.units[state.civilizations.player.units[0]].position, state.map, state.idCounters);
+      state.cities[city.id] = city;
+      state.civilizations.player.cities.push(city.id);
+      const cityId = city.id;
+      state.autonomyByCiv!.player.plans['network-plan-1'] = {
+        id: 'network-plan-1', ownerCivId: 'player', definitionId: 'logistics-routing',
+        source: { kind: 'city', cityId }, target: { kind: 'city', cityId },
+        status: 'active', createdTurn: 1, nextResolutionTurn: 1, warnedTurn: null,
+      };
+      const routes = [
+        { id: 'r1', fromCityId: cityId, toCityId: cityId, goldPerTrip: 3, turnsPerTrip: 1 },
+        { id: 'r2', fromCityId: cityId, toCityId: cityId, goldPerTrip: 3, turnsPerTrip: 1 },
+      ];
+      state.marketplace!.tradeRoutes = routes;
+
+      expect(processTradeRouteIncome(routes, state)).toBe(8);
     });
   });
 

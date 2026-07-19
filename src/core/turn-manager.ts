@@ -33,7 +33,8 @@ import { hexKey } from '@/systems/hex-utils';
 import { executeUnitMove } from '@/systems/unit-movement-system';
 import { buildCombatPresentation } from '@/systems/viewer-event-presentation';
 import { calculateCityYields } from '@/systems/resource-system';
-import { getNetworkCityYieldBonus } from '@/systems/network-infrastructure-plans';
+import { getNetworkCityYieldBonus, getNetworkUnitVisionBonus } from '@/systems/network-infrastructure-plans';
+import { advanceAutonomySurge, applyPendingAutonomyPosture } from '@/systems/autonomy-postures';
 import { getCivResourceYieldBonus, getCivHappinessFromResources } from '@/systems/resource-acquisition-system';
 import {
   getEmpireTechPercents,
@@ -177,6 +178,8 @@ export function processTurn(
 
   // --- Process each civilization ---
   for (const [civId, civ] of Object.entries(newState.civilizations)) {
+    newState = applyPendingAutonomyPosture(newState, civId);
+    newState = advanceAutonomySurge(newState, civId);
     if (!civ.isHuman) {
       const warningResult = beginNetworkPlansForVictimTurn(newState, civId);
       newState = warningResult.state;
@@ -679,7 +682,7 @@ export function processTurn(
         civUnits,
         newState.map,
         cityPositions,
-        unit => getVisionBonus(unit.type, visionCompletedTechs, visionActiveNPs),
+        unit => getVisionBonus(unit.type, visionCompletedTechs, visionActiveNPs) + getNetworkUnitVisionBonus(newState, unit.id),
       );
       applyReconReveals(newState, civId);
     }

@@ -1,5 +1,6 @@
 import type { GameState } from '@/core/types';
-import { isAutonomyActivated } from './network-plan-system';
+import { isAutonomyActivated } from './autonomy-activation';
+import { getNetworkPlanDefinition } from './network-plan-definitions';
 
 export interface AutonomyCapacity {
   unrestricted: number;
@@ -35,5 +36,11 @@ export function getAutonomyCapacity(state: GameState, civId: string): AutonomyCa
 export function getAutonomyLoad(state: GameState, civId: string): AutonomyLoad {
   const plans = Object.values(state.autonomyByCiv?.[civId]?.plans ?? {})
     .filter(plan => plan.status !== 'canceled' && plan.status !== 'completed');
-  return { total: plans.length, unrestricted: plans.length, byCategory: {} };
+  const byCategory: Record<string, number> = {};
+  const total = plans.reduce((sum, plan) => {
+    const definition = getNetworkPlanDefinition(plan.definitionId);
+    byCategory[definition.category] = (byCategory[definition.category] ?? 0) + definition.load;
+    return sum + definition.load;
+  }, 0);
+  return { total, unrestricted: total, byCategory };
 }

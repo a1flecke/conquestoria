@@ -101,6 +101,7 @@ import { createPirateHeadquartersAssaultPanel } from '@/ui/pirate-headquarters-a
 import { formatNotificationTargetFocusMessage } from '@/ui/notification-targets';
 import { renderSelectedUnitInfo } from '@/ui/selected-unit-info';
 import { createNetworkIntentPanel } from '@/ui/network-intent-panel';
+import { createNetworkPanel, getNetworkPanelModel } from '@/ui/network-panel';
 import { renderUnitStackPanel } from '@/ui/unit-stack-panel';
 import { createUnitTurnFlow } from '@/ui/unit-turn-flow';
 import { createUiInteractionState } from '@/ui/ui-interaction-state';
@@ -132,10 +133,12 @@ import { getAvailableTechs, getEffectiveTechCost } from '@/systems/tech-system';
 import {
   assignNetworkPlan,
   beginNetworkPlansForVictimTurn,
+  cancelNetworkPlan,
   holdNetworkPlan,
   isAutonomyActivated,
   retargetNetworkPlan,
 } from '@/systems/network-plan-system';
+import { beginAutonomySurge, requestAutonomyPosture } from '@/systems/autonomy-postures';
 import { getNetworkWarningForViewer } from '@/systems/network-viewer-intel';
 import {
   getNextActiveHumanPlayerId,
@@ -621,6 +624,15 @@ function updateHUD(): void {
   sciSpan.style.cssText = 'min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex-shrink:1;';
   sciSpan.textContent = `🔬 ${techName !== 'None' ? techName : 'None'} (+${totalScience})`;
   yieldsRow.appendChild(sciSpan);
+
+  if (isAutonomyActivated(gameState, civ.id)) {
+    const networkButton = document.createElement('button');
+    networkButton.type = 'button';
+    networkButton.style.cssText = 'background:transparent;color:inherit;border:1px solid rgba(232,193,112,0.45);border-radius:6px;font:inherit;padding:4px 8px;min-height:44px;';
+    networkButton.textContent = getNetworkPanelModel(gameState, civ.id).statusText;
+    networkButton.addEventListener('click', () => openNetworkPanel());
+    yieldsRow.appendChild(networkButton);
+  }
 
   const happiness = getCivHappinessFromResources(gameState, civ.id);
   if (happiness > 0) {
@@ -1931,6 +1943,55 @@ function openNetworkIntentPanel(sourceUnitId: string): void {
     onClose: close,
   });
   uiLayer.appendChild(panel);
+}
+
+function openNetworkPanel(): void {
+  const civId = gameState.currentPlayer;
+  if (!isAutonomyActivated(gameState, civId)) return;
+  let panel: HTMLElement | undefined;
+  const rerender = () => {
+    panel?.remove();
+    panel = createNetworkPanel(getNetworkPanelModel(gameState, civId), {
+      onAssign: request => {
+        const result = assignNetworkPlan(gameState, request);
+        if (!result.validation.ok) {
+          showNotification('That plan is no longer available.', 'warning');
+          rerender();
+          return;
+        }
+        gameState = result.state;
+        renderLoop.setGameState(gameState);
+        updateHUD();
+        showNotification('Network plan assigned.', 'success');
+        rerender();
+      },
+      onCancel: planId => {
+        gameState = cancelNetworkPlan(gameState, civId, planId).state;
+        renderLoop.setGameState(gameState);
+        updateHUD();
+        rerender();
+      },
+      onSurge: planId => {
+        const result = beginAutonomySurge(gameState, civId, planId);
+        if (!result.validation.ok) showNotification('Surge is unavailable while the network recovers or cools down.', 'warning');
+        else {
+          gameState = result.state;
+          renderLoop.setGameState(gameState);
+          updateHUD();
+          showNotification('Network Surge confirmed.', 'success');
+        }
+        rerender();
+      },
+      onPosture: posture => {
+        gameState = requestAutonomyPosture(gameState, civId, posture);
+        updateHUD();
+        rerender();
+      },
+      onClose: () => panel?.remove(),
+    });
+    uiLayer.appendChild(panel);
+  };
+  rerender();
 }
 
 // Trade Routes Overhaul (#553 MR4/4) — extracted so the City panel's Trade Routes

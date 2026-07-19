@@ -313,16 +313,25 @@ function migrateDualEraWorldAge(state: GameState): GameState {
 }
 
 function migrateAutonomyNetworkPostures(state: GameState): GameState {
-  const autonomyByCiv = Object.fromEntries(Object.entries(state.autonomyByCiv ?? {}).map(([civId, autonomy]) => [
-    civId,
+  const autonomyByCiv = Object.fromEntries(Object.keys(state.civilizations ?? {}).map(civId => {
+    const autonomy = state.autonomyByCiv?.[civId] ?? createEmptyAutonomyCivState();
+    return [civId,
     {
       ...autonomy,
+      plans: Object.fromEntries(Object.entries(autonomy.plans ?? {}).map(([planId, plan]) => [planId, {
+        ...plan,
+        source: plan.source ?? (plan.sourceUnitId ? { kind: 'unit' as const, unitId: plan.sourceUnitId } : undefined),
+        linkedUnitIds: plan.linkedUnitIds ?? [],
+        linkedCityIds: plan.linkedCityIds ?? [],
+        surgeResolutionTurn: plan.surgeResolutionTurn ?? null,
+      }])),
       posture: autonomy.posture ?? 'integrated',
       pendingPosture: autonomy.pendingPosture ?? null,
       surgeRecoveryUntilTurn: autonomy.surgeRecoveryUntilTurn ?? null,
       surgeCooldownUntilTurn: autonomy.surgeCooldownUntilTurn ?? null,
-    },
-  ]));
+      postureChangedTurn: autonomy.postureChangedTurn ?? null,
+    }];
+  }));
   return { ...state, autonomyByCiv };
 }
 
@@ -363,5 +372,5 @@ export function migrateSaveToCurrent(raw: unknown): GameState {
     state = { ...migration(state), saveSchemaVersion: version };
   }
   const migrated = state.gameId ? state : migrateToEra13Foundation(state);
-  return normalizeCityFaithConversionProgress(withReligionDefaults(normalizeCrisisArchetypes(migrated)));
+  return normalizeCityFaithConversionProgress(withReligionDefaults(normalizeCrisisArchetypes(migrateAutonomyNetworkPostures(migrated))));
 }

@@ -11,6 +11,7 @@ describe('network plan definitions', () => {
       targetKind: 'friendly-city',
       range: 1,
       load: 1,
+      category: 'security',
       effect: {
         kind: 'mitigation-charge',
         mitigationPercent: 50,
@@ -27,6 +28,7 @@ describe('network plan definitions', () => {
       targetKind: 'at-war-enemy-city',
       range: 1,
       load: 2,
+      category: 'offense',
       effect: {
         kind: 'city-gold-transfer',
         normalPercent: 10,

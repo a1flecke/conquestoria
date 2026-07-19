@@ -29,4 +29,15 @@ describe('autonomy capacity', () => {
 
     expect(getAutonomyCapacity(state, 'player')).toEqual({ unrestricted: 14, restricted: {} });
   });
+
+  it('uses definition Load rather than plan count and ignores completed plans', () => {
+    const state = createNewGame('rome', 'autonomy-load', 'small');
+    state.civilizations.player.techState.completed = ['quantum-computing'];
+    state.autonomyByCiv!.player.plans = {
+      fabrication: { id: 'fabrication', ownerCivId: 'player', definitionId: 'fabrication-sprint', source: { kind: 'city', cityId: 'city-1' }, target: { kind: 'city', cityId: 'city-1' }, status: 'active', createdTurn: 1, nextResolutionTurn: 1, warnedTurn: null },
+      exploit: { id: 'exploit', ownerCivId: 'player', definitionId: 'exploit', sourceUnitId: 'unit-1', target: { kind: 'city', cityId: 'city-2' }, status: 'completed', createdTurn: 1, nextResolutionTurn: 1, warnedTurn: null },
+    };
+
+    expect(getAutonomyLoad(state, 'player')).toEqual({ total: 2, unrestricted: 2, byCategory: { infrastructure: 2 } });
+  });
 });

@@ -7,6 +7,7 @@ import {
   cancelInvalidNetworkPlans,
   validateNetworkPlanAssignment,
 } from '@/systems/network-plan-system';
+import { planNetworkTurn } from './ai-network-planning';
 
 export interface AINetworkIntentOptions {
   /** City IDs in the actor's freshly earned perception; hostile targets never bypass this boundary. */
@@ -80,5 +81,5 @@ export function assignNetworkIntentsForAI(
     });
     nextState = assigned.state;
   }
-  return nextState;
+  return planNetworkTurn(nextState, civId);
 }
