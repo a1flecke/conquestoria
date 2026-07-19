@@ -149,12 +149,18 @@ export interface BarbarianCityAttackOrder {
   damage: number;
 }
 
+export interface BarbarianPillageOrder {
+  unitId: string;
+  tileKey: string;
+}
+
 export interface BarbarianProcessResult {
   updatedCamps: BarbarianCamp[];
   spawnedUnits: Array<{ campId: string; position: HexCoord; unitType?: UnitType }>;
   moveOrders: BarbarianMoveOrder[];
   attackOrders: BarbarianAttackOrder[];
   cityAttackOrders: BarbarianCityAttackOrder[];
+  pillageOrders: BarbarianPillageOrder[];
 }
 
 export const BARBARIAN_ROSTER_BY_ERA: Array<{
@@ -335,6 +341,7 @@ export function processPurposefulBarbarians(state: GameState): PurposefulBarbari
   const moveOrders: BarbarianMoveOrder[] = [];
   const attackOrders: BarbarianAttackOrder[] = [];
   const cityAttackOrders: BarbarianCityAttackOrder[] = [];
+  const pillageOrders: BarbarianPillageOrder[] = [];
   const profile = OPPONENT_CHALLENGE_PROFILES[resolveOpponentChallenge(state)];
 
   for (const camp of camps) {
@@ -404,7 +411,7 @@ export function processPurposefulBarbarians(state: GameState): PurposefulBarbari
       );
     }
 
-    if (!plan) {
+    const tryRaidUnitPlan = (): typeof plan => {
       const raidUnit = sensedUnits
         .filter(unit => unit.type === 'worker' || unit.type === 'caravan')
         .sort((a, b) => {
@@ -413,19 +420,19 @@ export function processPurposefulBarbarians(state: GameState): PurposefulBarbari
             || barbarianDistance(state, camp.position, a.position) - barbarianDistance(state, camp.position, b.position)
             || a.id.localeCompare(b.id);
         })[0];
-      if (raidUnit) {
-        plan = makeBarbarianPlan(
-          state,
-          camp,
-          { kind: 'unit', id: raidUnit.id, lastKnownPosition: { ...raidUnit.position } },
-          'raid',
-          'opportunistic-raid',
-          assignedIds,
-        );
-      }
-    }
+      return raidUnit
+        ? makeBarbarianPlan(
+            state,
+            camp,
+            { kind: 'unit', id: raidUnit.id, lastKnownPosition: { ...raidUnit.position } },
+            'raid',
+            'opportunistic-raid',
+            assignedIds,
+          )
+        : null;
+    };
 
-    if (!plan) {
+    const tryRaidResourcePlan = (): typeof plan => {
       const resource = Object.values(state.map.tiles)
         .filter(tile =>
           Boolean(tile.resource)
@@ -437,16 +444,25 @@ export function processPurposefulBarbarians(state: GameState): PurposefulBarbari
         .sort((a, b) =>
           barbarianDistance(state, camp.position, a.coord) - barbarianDistance(state, camp.position, b.coord)
           || hexKey(a.coord).localeCompare(hexKey(b.coord)))[0];
-      if (resource?.resource) {
-        plan = makeBarbarianPlan(
-          state,
-          camp,
-          { kind: 'resource', resource: resource.resource as ResourceType, position: { ...resource.coord } },
-          'raid',
-          'opportunistic-raid',
-          assignedIds,
-        );
-      }
+      return resource?.resource
+        ? makeBarbarianPlan(
+            state,
+            camp,
+            { kind: 'resource', resource: resource.resource as ResourceType, position: { ...resource.coord } },
+            'raid',
+            'opportunistic-raid',
+            assignedIds,
+          )
+        : null;
+    };
+
+    // #541: higher-difficulty barbarians prioritize pillage-capable resource-tile
+    // raids over chasing a lone worker/caravan; player-side pillage rules never
+    // change by difficulty — only this raid-target preference does.
+    if (!plan) {
+      plan = profile.pillageAggressivenessMultiplier > 1
+        ? (tryRaidResourcePlan() ?? tryRaidUnitPlan())
+        : (tryRaidUnitPlan() ?? tryRaidResourcePlan());
     }
 
     if (!plan) {
@@ -485,6 +501,12 @@ export function processPurposefulBarbarians(state: GameState): PurposefulBarbari
 
     const targetPosition = planTargetPosition(state, plan);
     const resourceTarget = plan.target.kind === 'resource' ? plan.target : null;
+    const arrivedRaider = resourceTarget !== null
+      ? assigned.find(unit => hexKey(unit.position) === hexKey(resourceTarget.position) && !unit.hasActed)
+      : undefined;
+    if (arrivedRaider && resourceTarget) {
+      pillageOrders.push({ unitId: arrivedRaider.id, tileKey: hexKey(resourceTarget.position) });
+    }
     const completedResourceRaid = resourceTarget !== null
       && plan.createdTurn < state.turn
       && assigned.some(unit => hexKey(unit.position) === hexKey(resourceTarget.position));
@@ -546,6 +568,7 @@ export function processPurposefulBarbarians(state: GameState): PurposefulBarbari
     moveOrders,
     attackOrders,
     cityAttackOrders,
+    pillageOrders,
     opponentAI,
   };
 }
@@ -592,7 +615,7 @@ export function processBarbarians(
 
   // --- Barbarian unit movement and attack ---
   if (!barbarianUnits || barbarianUnits.length === 0) {
-    return { updatedCamps, spawnedUnits, moveOrders, attackOrders, cityAttackOrders };
+    return { updatedCamps, spawnedUnits, moveOrders, attackOrders, cityAttackOrders, pillageOrders: [] };
   }
 
   // Build a set of all occupied positions (for collision avoidance)
@@ -704,5 +727,5 @@ export function processBarbarians(
     }
   }
 
-  return { updatedCamps, spawnedUnits, moveOrders, attackOrders, cityAttackOrders };
+  return { updatedCamps, spawnedUnits, moveOrders, attackOrders, cityAttackOrders, pillageOrders: [] };
 }

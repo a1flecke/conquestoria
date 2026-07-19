@@ -355,6 +355,66 @@ describe('processPurposefulBarbarians', () => {
     expect(result.cityAttackOrders).toHaveLength(0);
     expect(result.moveOrders).toHaveLength(0);
   });
+
+  it('pillages a resource tile on arrival instead of leaving it untouched (#541)', () => {
+    const state = purposefulState();
+    const raider = createUnit('warrior', 'barbarian', { q: 7, r: 5 }, state.idCounters);
+    raider.id = 'raider';
+    state.units = { raider };
+    state.map.tiles['7,5'] = {
+      ...state.map.tiles['7,5'],
+      resource: 'iron',
+      improvement: 'mine',
+      improvementTurnsLeft: 0,
+      owner: 'player',
+    };
+
+    const result = processPurposefulBarbarians(state);
+
+    expect(result.pillageOrders).toContainEqual({ unitId: 'raider', tileKey: '7,5' });
+  });
+
+  it('prioritizes a resource-raid target over a unit-raid target on veteran (multiplier > 1) (#541)', () => {
+    const state = purposefulState();
+    state.opponentChallenge = 'veteran';
+    const raider = createUnit('warrior', 'barbarian', { q: 5, r: 5 }, state.idCounters);
+    raider.id = 'raider';
+    const worker = createUnit('worker', 'player', { q: 6, r: 5 }, state.idCounters);
+    worker.id = 'worker';
+    state.units = { raider, worker };
+    state.civilizations.player.units = ['worker'];
+    state.map.tiles['8,5'] = {
+      ...state.map.tiles['8,5'],
+      resource: 'iron', improvement: 'mine', improvementTurnsLeft: 0, owner: 'player',
+    };
+
+    const result = processPurposefulBarbarians(state);
+
+    expect(result.opponentAI.barbarianCamps['camp-a']).toMatchObject({
+      target: { kind: 'resource' },
+    });
+  });
+
+  it('prioritizes a unit-raid target over a resource-raid target on explorer (multiplier <= 1) (#541)', () => {
+    const state = purposefulState();
+    state.opponentChallenge = 'explorer';
+    const raider = createUnit('warrior', 'barbarian', { q: 5, r: 5 }, state.idCounters);
+    raider.id = 'raider';
+    const worker = createUnit('worker', 'player', { q: 6, r: 5 }, state.idCounters);
+    worker.id = 'worker';
+    state.units = { raider, worker };
+    state.civilizations.player.units = ['worker'];
+    state.map.tiles['8,5'] = {
+      ...state.map.tiles['8,5'],
+      resource: 'iron', improvement: 'mine', improvementTurnsLeft: 0, owner: 'player',
+    };
+
+    const result = processPurposefulBarbarians(state);
+
+    expect(result.opponentAI.barbarianCamps['camp-a']).toMatchObject({
+      target: { kind: 'unit', id: 'worker' },
+    });
+  });
 });
 
 describe('barbarian camp evolution', () => {
