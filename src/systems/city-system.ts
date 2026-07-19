@@ -305,7 +305,7 @@ export const BUILDINGS: Record<string, Building> = {
   sacred_council: {
     id: 'sacred_council', name: 'Sacred Council', category: 'culture',
     yields: { food: 0, production: 0, gold: 0, science: 0 }, productionCost: 120,
-    description: 'Founds your empire\'s faith. One-time — permanent effect, never fades.',
+    description: 'Founds your empire\'s own faith — you\'ll name it and pick a boon afterward. One-time — permanent effect, never fades. Requires a Temple.',
     techRequired: 'philosophy', requiresBuildings: ['temple'],
     pacing: { band: 'marquee', role: 'national-project', impact: 1.5, scope: 'empire', snowball: 1.3, urgency: 1.1, situationality: 1, unlockBreadth: 1 },
     uniquePerEmpire: true, nationalProject: { homeEra: 3, milestone: true },

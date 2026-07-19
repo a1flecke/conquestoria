@@ -401,6 +401,11 @@ export function createCityPanel(
     const foodPenaltyPct = Math.round(severity.yieldPenalty * 100);
     const surplusStreak = crisis.famineSurplusStreakByCity?.[city.id] ?? 0;
     const turnsToAutoContain = Math.max(0, FAMINE_CONTAINMENT_SURPLUS_TURNS - surplusStreak);
+    // #594 MR7: only relevant when this severity tier actually has pop-loss risk
+    // (veteran) AND the civ has researched the tech that halves it -- otherwise the
+    // line would be a dead/irrelevant claim on explorer/standard difficulty.
+    const hasEpidemicControl = civForCrisis?.techState.completed.includes('epidemic-control') ?? false;
+    const showsEpidemicControlLine = severity.popLossEveryNTurnsIgnored !== null && hasEpidemicControl;
 
     const quarantineDisabled = isQuarantined || !callbacks.onQuarantineCrisis;
     const quarantineLabel = isQuarantined ? 'Quarantined' : 'Quarantine (free)';
@@ -413,7 +418,7 @@ export function createCityPanel(
 
     return {
       crisis, flavor, isQuarantined, remedyPending, remedyCompletionTurn, foodPenaltyPct,
-      surplusStreak, turnsToAutoContain,
+      surplusStreak, turnsToAutoContain, showsEpidemicControlLine,
       quarantineDisabled, quarantineLabel, remedyDisabled, remedyLabel,
     };
   }).filter((c): c is NonNullable<typeof c> => c !== null);
@@ -422,6 +427,7 @@ export function createCityPanel(
       <div style="font-weight:bold;color:#e8a85a;margin-bottom:4px;" data-text="famine-stage-${idx}"></div>
       <div style="margin-bottom:4px;opacity:0.85;" data-text="famine-advisor-${idx}"></div>
       <div style="margin-bottom:8px;opacity:0.7;" data-text="famine-progress-${idx}"></div>
+      ${chip.showsEpidemicControlLine ? `<div style="margin-bottom:8px;opacity:0.7;color:#8ac97a;" data-text="famine-epidemic-control-${idx}"></div>` : ''}
       <div style="display:flex;gap:8px;flex-wrap:wrap;">
         <button type="button" data-quarantine-crisis="${chip.crisis.id}:${city.id}" ${chip.quarantineDisabled ? 'disabled' : ''} title="${chip.quarantineLabel}" style="min-height:44px;padding:7px 12px;border-radius:6px;font-size:12px;font-weight:bold;cursor:${chip.quarantineDisabled ? 'default' : 'pointer'};background:${chip.quarantineDisabled ? 'rgba(255,255,255,0.08)' : '#4a90d9'};color:${chip.quarantineDisabled ? 'rgba(255,255,255,0.4)' : '#fff'};border:none;">${chip.quarantineLabel}</button>
         <button type="button" data-remedy-crisis="${chip.crisis.id}:${city.id}" ${chip.remedyDisabled ? 'disabled' : ''} title="${chip.remedyLabel}" style="min-height:44px;padding:7px 12px;border-radius:6px;font-size:12px;font-weight:bold;cursor:${chip.remedyDisabled ? 'default' : 'pointer'};background:${chip.remedyDisabled ? 'rgba(255,255,255,0.08)' : '#d4aa2c'};color:${chip.remedyDisabled ? 'rgba(255,255,255,0.4)' : '#1a1a1a'};border:none;">${chip.remedyLabel}</button>
@@ -473,6 +479,7 @@ export function createCityPanel(
         pressuringCivName: pressuringCiv?.name ?? 'Unknown',
         points: cityFaithEntry.loyaltyProgress!.points,
         threshold,
+        tick,
         counterplaySuffix,
       };
     })() : null;
@@ -976,6 +983,9 @@ export function createCityPanel(
       ? `Food surplus is recovering — ${chip.turnsToAutoContain} more turn${chip.turnsToAutoContain === 1 ? '' : 's'} of surplus ends the famine here`
       : 'Build farms or a granary to run a food surplus and end the famine naturally';
     setText(`famine-progress-${idx}`, progressText);
+    if (chip.showsEpidemicControlLine) {
+      setText(`famine-epidemic-control-${idx}`, 'Epidemic Control halves how often this famine costs population on Veteran difficulty.');
+    }
   });
 
   if (faithData) {
@@ -986,8 +996,12 @@ export function createCityPanel(
         : `Follows ${faithData.religionName}`;
     setText('faith-status', statusText);
     if (faithData.loyalty) {
-      const { pressuringCivName, points, threshold, counterplaySuffix } = faithData.loyalty;
+      const { pressuringCivName, points, threshold, tick, counterplaySuffix } = faithData.loyalty;
       setText('faith-loyalty', `Loyalty to ${pressuringCivName}: ${points} / ${threshold}${counterplaySuffix}`);
+      const loyaltyRowEl = panel.querySelector('[data-text="faith-loyalty"]') as HTMLElement | null;
+      if (loyaltyRowEl) {
+        loyaltyRowEl.title = `Rises by ${tick}/turn toward ${pressuringCivName}. Garrisoning a unit in this city pauses the tick entirely. A Temple halves the tick. At ${threshold} points the city defects.`;
+      }
     }
   }
 
