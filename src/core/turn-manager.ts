@@ -22,6 +22,7 @@ import { deterministicCombatSeed, resolveCombat } from '@/systems/combat-system'
 import { buildCombatContextForDefender } from '@/systems/combat-context';
 import { canUnitAttackTarget } from '@/systems/attack-targeting';
 import { applyCombatOutcomeToState } from '@/systems/combat-reward-system';
+import { applyPillageToState } from '@/systems/pillage-system';
 import {
   PIRATE_OWNER,
   processIndependentThreatPressure,
@@ -870,6 +871,12 @@ export function processTurn(
     if (unit) {
       executeUnitMove(newState, order.unitId, order.toCoord, { actor: 'world', bus });
     }
+  }
+
+  // Barbarian pillage-on-arrival
+  for (const order of barbResult.pillageOrders) {
+    const result = applyPillageToState(newState, order.unitId);
+    if (result.ok) newState = result.state;
   }
 
   // Barbarian attacks
