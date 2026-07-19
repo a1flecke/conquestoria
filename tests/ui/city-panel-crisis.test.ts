@@ -369,6 +369,39 @@ describe('#590 MR3 — famine crisis chip', () => {
     expect(panel.textContent).toContain('Build farms or a granary');
   });
 
+  it('#594 MR7: shows an Epidemic Control line on veteran difficulty when the civ has researched it', () => {
+    const { container, city, state } = withFamineCrisis();
+    state.civilizations[city.owner].gold = 1000;
+    state.opponentChallenge = 'veteran';
+    state.civilizations[city.owner].techState.completed.push('epidemic-control');
+
+    const panel = createCityPanel(container, city, state, {
+      onBuild: () => {},
+      onOpenWonderPanel: () => {},
+      onClose: () => {},
+      onQuarantineCrisis: vi.fn(() => state),
+      onRemedyCrisis: vi.fn(() => state),
+    });
+
+    expect(panel.textContent).toContain('Epidemic Control');
+  });
+
+  it('#594 MR7: does not show an Epidemic Control line without the tech, even on veteran difficulty', () => {
+    const { container, city, state } = withFamineCrisis();
+    state.civilizations[city.owner].gold = 1000;
+    state.opponentChallenge = 'veteran';
+
+    const panel = createCityPanel(container, city, state, {
+      onBuild: () => {},
+      onOpenWonderPanel: () => {},
+      onClose: () => {},
+      onQuarantineCrisis: vi.fn(() => state),
+      onRemedyCrisis: vi.fn(() => state),
+    });
+
+    expect(panel.textContent).not.toContain('Epidemic Control');
+  });
+
   it('grain shipment underway wording once remedy is funded', () => {
     const { container, city, state } = withFamineCrisis();
     state.activeCrises['crisis-1'].remedyCompletionByCity = { [city.id]: state.turn + 2 };

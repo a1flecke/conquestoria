@@ -89,5 +89,5 @@ export const BOON_DESCRIPTIONS: Record<ReligionBoon, string> = {
   // #593 MR6: completes the MR4-deferred honesty contract -- Fervor now also adds
   // territory pressure in cities that follow your faith, and roughly halves the
   // number of turns until a foreign-faith-following minor civ or AI city defects to you.
-  fervor: 'Your faith spreads 25% faster, adds territory pressure in cities that follow it, and speeds up foreign cities defecting to you.',
+  fervor: 'Your faith spreads 25% faster, adds territory pressure that can pull nearby cities toward your religion, and speeds up how fast foreign cities following your faith defect to you.',
 };

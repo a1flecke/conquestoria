@@ -132,4 +132,17 @@ describe('#593 MR6 — city panel loyalty row', () => {
     const panel = createCityPanel(container, city, withCityFaith, { onBuild: () => {}, onOpenWonderPanel: () => {}, onClose: () => {} });
     expect(panel.textContent).not.toContain('Loyalty to');
   });
+
+  it('#594 MR7: loyalty row has a tooltip explaining tick/pause/halve/reset behavior', () => {
+    const { container, city, playerCivId, state } = withRivalFaith();
+    const withCityFaith: GameState = {
+      ...state,
+      cityFaith: { [city.id]: { religionId: 'religion-player', loyaltyProgress: { toCivId: playerCivId, points: 90, sinceOwnerId: city.owner } } },
+    };
+    const panel = createCityPanel(container, city, withCityFaith, { onBuild: () => {}, onOpenWonderPanel: () => {}, onClose: () => {} });
+    const loyaltyRow = panel.querySelector('[data-text="faith-loyalty"]') as HTMLElement;
+    expect(loyaltyRow.title.length).toBeGreaterThan(0);
+    expect(loyaltyRow.title).toMatch(/garrison/i);
+    expect(loyaltyRow.title).toContain('180');
+  });
 });
