@@ -40,6 +40,7 @@ export interface AIProductionCandidate {
   emergencyDefenseScore: number;
   citySpecializationScore: number;
   maintenanceRisk: number;
+  defensiveEspionageScore: number;
   fulfilledRole?: AIStrategicRole;
   score: number;
 }
@@ -239,6 +240,20 @@ function reserveAllows(
   return hasReserve;
 }
 
+function defensiveEspionageScore(
+  state: GameState,
+  civId: string,
+  cityId: string,
+  buildingId: string,
+): number {
+  const value = BUILDINGS[buildingId]?.defensiveEspionageAiValue ?? 0;
+  if (value <= 0) return 0;
+  const threats = Object.values(state.espionage?.[civId]?.detectedThreats ?? {});
+  return threats.some(threat =>
+    threat.cityId === cityId && threat.expiresOnTurn >= state.turn,
+  ) ? value : 0;
+}
+
 function generateWithResidual(
   state: GameState,
   civId: string,
@@ -345,6 +360,7 @@ function generateWithResidual(
       emergencyDefenseScore,
       citySpecializationScore,
       maintenanceRisk,
+      defensiveEspionageScore: 0,
       fulfilledRole: fulfilled.role,
       score,
     });
@@ -397,6 +413,7 @@ function generateWithResidual(
           emergencyDefenseScore: 0,
           citySpecializationScore: 0,
           maintenanceRisk: maintenanceImpact,
+          defensiveEspionageScore: 0,
           score,
         });
       }
@@ -432,9 +449,11 @@ function generateWithResidual(
     const personalityScore = weightProductionRoles(personality, []);
     const citySpecializationScore = building.category === city.focus ? 1 : 0;
     const maintenanceRisk = maintenanceImpact;
+    const buildingDefensiveScore = defensiveEspionageScore(state, civId, cityId, building.id);
     const score = economyScore * 2
       + personalityScore
       + citySpecializationScore
+      + buildingDefensiveScore
       - productionTurns * 1.5
       - maintenanceRisk * 3;
     candidates.push({
@@ -449,6 +468,7 @@ function generateWithResidual(
       emergencyDefenseScore: 0,
       citySpecializationScore,
       maintenanceRisk,
+      defensiveEspionageScore: buildingDefensiveScore,
       score,
     });
   }
