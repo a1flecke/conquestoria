@@ -1,4 +1,4 @@
-import type { ReligionBoon } from '@/core/types';
+import type { OpponentChallenge, ReligionBoon } from '@/core/types';
 
 export const CONVERSION_THRESHOLD = 100;
 export const OWN_CITY_ACCRUAL = 15;
@@ -25,6 +25,17 @@ export const MISSIONARY_ACTION_COOLDOWN_TURNS = 3;
 // exempt, so preaching a just-flipped city back to its owner's faith is never blocked by
 // this cooldown — see CityFaith.conversionCooldownExemptCivId.
 export const CITY_CONVERSION_COOLDOWN_TURNS = 7;
+
+// #593 MR6: loyalty-flip track. Game-wide opponentChallenge governs (see
+// resolveOpponentChallenge), NOT per-civ challenge -- this keeps flip pacing
+// consistent across every civ in a game, matching how the AI opponent difficulty
+// itself is always game-wide.
+export const LOYALTY_THRESHOLD_BY_CHALLENGE: Record<OpponentChallenge, number> = {
+  explorer: 150,
+  standard: 180,
+  veteran: 220,
+};
+export const LOYALTY_BASE_TICK = 10;
 
 // Invented, culture-flavored faith names — NEVER real-world religions (project
 // convention, matches wonder/quest content rules). 2 candidates per civ id; seeded
@@ -70,7 +81,8 @@ export const NEUTRAL_NAME_CANDIDATES: string[] = [
 export const BOON_DESCRIPTIONS: Record<ReligionBoon, string> = {
   serenity: '+1 happiness in every city that follows your faith.',
   tithes: `+1 gold per turn from every foreign city that follows your faith, up to +${TITHES_CAP} gold.`,
-  // MR4-honest: only conversion speed. Territory/loyalty effects ship in MR6 (#593) —
-  // do not add wording here until that MR actually implements them.
-  fervor: 'Your faith spreads 25% faster.',
+  // #593 MR6: completes the MR4-deferred honesty contract -- Fervor now also adds
+  // territory pressure in cities that follow your faith, and roughly halves the
+  // number of turns until a foreign-faith-following minor civ or AI city defects to you.
+  fervor: 'Your faith spreads 25% faster, adds territory pressure in cities that follow it, and speeds up foreign cities defecting to you.',
 };
