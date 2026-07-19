@@ -3,6 +3,7 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import { createCityPanel } from '@/ui/city-panel';
 import { SESSION_SHOWN_TIPS } from '@/ui/advisor-system';
 import { createUnit } from '@/systems/unit-system';
+import { BUILDINGS } from '@/systems/city-system';
 import { assignCityFocus, setCityWorkedTile } from '@/systems/city-work-system';
 import { hexKey } from '@/systems/hex-utils';
 import { TECH_TREE } from '@/systems/tech-definitions';
@@ -23,6 +24,25 @@ function clickElement(element: Element | null | undefined): void {
 }
 
 describe('city-panel national projects', () => {
+  it('uses the city owner research for hot-seat building availability', () => {
+    const { container, city, state } = makeWonderPanelFixture();
+    state.civilizations['player-2'] = {
+      ...structuredClone(state.civilizations.player),
+      id: 'player-2', isHuman: true,
+      techState: { ...state.civilizations.player.techState, completed: ['political-intelligence'] },
+    };
+    city.owner = 'player-2';
+    state.cities[city.id] = city;
+    state.currentPlayer = 'player';
+
+    const panel = createCityPanel(container, city, state, {
+      onBuild: () => {}, onOpenWonderPanel: () => {}, onClose: () => {},
+    });
+
+    expect(panel.querySelector('[data-item-id="intelligence-agency"]')).toBeTruthy();
+    expect(BUILDINGS['security-bureau'].description).toContain('counter-intelligence (CI)');
+  });
+
   it('labels national-project yields as empire-wide', () => {
     const { container, city, state } = makeWonderPanelFixture();
     state.era = 1;
