@@ -2,7 +2,10 @@ import type { City, GameState, Religion } from '@/core/types';
 import type { EventBus } from '@/core/event-bus';
 import { hexKey, hexNeighbors } from '@/systems/hex-utils';
 import { canGarrisonCity } from '@/systems/faction-system';
-import { LOYALTY_BASE_TICK, LOYALTY_THRESHOLD_BY_CHALLENGE, FERVOR_MULTIPLIER } from '@/systems/religion-definitions';
+import {
+  LOYALTY_BASE_TICK, LOYALTY_THRESHOLD_BY_CHALLENGE, FERVOR_MULTIPLIER,
+  AMBIENT_FAITH_DRIFT_PER_TURN, AMBIENT_FAITH_DRIFT_CAP,
+} from '@/systems/religion-definitions';
 import { resolveOpponentChallenge } from '@/core/opponent-challenge';
 import { transferCapturedCityOwnership } from '@/systems/city-capture-system';
 import { modifyRelationship } from '@/systems/diplomacy-system';
@@ -58,12 +61,18 @@ export function getLoyaltyTickAmount(state: GameState, city: City, religion: Rel
   return tick;
 }
 
-export function setLoyaltyPoints(state: GameState, cityId: string, toCivId: string, points: number): GameState {
+export function setLoyaltyPoints(
+  state: GameState,
+  cityId: string,
+  toCivId: string,
+  points: number,
+  sinceOwnerId: string,
+): GameState {
   const faith = state.cityFaith?.[cityId];
   if (!faith) return state;
   return {
     ...state,
-    cityFaith: { ...state.cityFaith, [cityId]: { ...faith, loyaltyProgress: { toCivId, points } } },
+    cityFaith: { ...state.cityFaith, [cityId]: { ...faith, loyaltyProgress: { toCivId, points, sinceOwnerId } } },
   };
 }
 
@@ -137,8 +146,8 @@ function applyAmbientFaithDrift(state: GameState): GameState {
     const religion = state.religions?.[faith.religionId];
     if (!religion) continue;
     const current = mc.diplomacy.relationships[religion.ownerCivId] ?? 0;
-    if (current >= 60) continue;
-    const updated = Math.min(60, current + 1);
+    if (current >= AMBIENT_FAITH_DRIFT_CAP) continue;
+    const updated = Math.min(AMBIENT_FAITH_DRIFT_CAP, current + AMBIENT_FAITH_DRIFT_PER_TURN);
     next = {
       ...next,
       minorCivs: {
@@ -187,17 +196,23 @@ export function processLoyaltyTurn(state: GameState, bus: EventBus): GameState {
       continue;
     }
 
+    const liveCity = next.cities[city.id];
+    // Inline review fix: the spec requires ownership transfer to clear the record, not
+    // just a change in which civ is pressuring -- otherwise a city conquered by a THIRD
+    // civ (unrelated to the loyalty flip) that happens to still border the same faith
+    // owner would let the new owner inherit the previous owner's accumulated points.
     const existingProgress = faith!.loyaltyProgress;
-    const currentPoints = existingProgress && existingProgress.toCivId === pressure.pressuringCivId
+    const currentPoints = existingProgress
+      && existingProgress.toCivId === pressure.pressuringCivId
+      && existingProgress.sinceOwnerId === liveCity.owner
       ? existingProgress.points
       : 0;
 
-    const liveCity = next.cities[city.id];
     const tick = getLoyaltyTickAmount(next, liveCity, pressure.religion);
     const newPoints = Math.min(threshold, currentPoints + tick);
 
     if (tick > 0) {
-      next = setLoyaltyPoints(next, city.id, pressure.pressuringCivId, newPoints);
+      next = setLoyaltyPoints(next, city.id, pressure.pressuringCivId, newPoints, liveCity.owner);
       emitLoyaltyWarning(bus, city.id, pressure.pressuringCivId, currentPoints, newPoints, threshold, tick);
     }
 

@@ -532,7 +532,12 @@ export function drawCityLoyaltyPressureBadgePass(ctx: CanvasRenderingContext2D, 
   ctx.fill();
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  drawFittedText(ctx, '☦', x, y, item.size * 0.28, item.size * 0.2);
+  // Inline review fix: 🙏 matches the existing "Faith" iconography used elsewhere in this
+  // project (city-panel.ts) -- a real-world religious symbol (e.g. a specific faith's
+  // cross/crescent/etc.) was used in an earlier draft and would have broken this
+  // project's "invented faiths, never real-world religions" convention (see
+  // religion-definitions.ts NAME_CANDIDATES doc comment).
+  drawFittedText(ctx, '🙏', x, y, item.size * 0.28, item.size * 0.2);
 }
 
 export const CITY_RENDER_PASSES: CityRenderPass[] = [

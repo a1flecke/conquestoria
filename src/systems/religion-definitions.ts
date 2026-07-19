@@ -36,6 +36,11 @@ export const LOYALTY_THRESHOLD_BY_CHALLENGE: Record<OpponentChallenge, number> =
   veteran: 220,
 };
 export const LOYALTY_BASE_TICK = 10;
+// Ambient minor-civ relationship drift toward a civ whose faith they follow (independent
+// of the loyalty-flip track above -- applies even to minor civs too far away to ever
+// border-flip). Named constants per inline review: previously inlined as magic numbers.
+export const AMBIENT_FAITH_DRIFT_PER_TURN = 1;
+export const AMBIENT_FAITH_DRIFT_CAP = 60;
 
 // Invented, culture-flavored faith names — NEVER real-world religions (project
 // convention, matches wonder/quest content rules). 2 candidates per civ id; seeded

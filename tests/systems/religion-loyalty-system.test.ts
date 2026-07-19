@@ -11,8 +11,8 @@ import { makeLoyaltyFixture } from './helpers/religion-loyalty-fixture';
 
 describe('#593 MR6 — CityFaith.loyaltyProgress type', () => {
   it('accepts a loyaltyProgress record shape', () => {
-    const faith: CityFaith = { religionId: 'religion-p1', loyaltyProgress: { toCivId: 'p2', points: 30 } };
-    expect(faith.loyaltyProgress).toEqual({ toCivId: 'p2', points: 30 });
+    const faith: CityFaith = { religionId: 'religion-p1', loyaltyProgress: { toCivId: 'p2', points: 30, sinceOwnerId: 'p3' } };
+    expect(faith.loyaltyProgress).toEqual({ toCivId: 'p2', points: 30, sinceOwnerId: 'p3' });
   });
 
   it('emits religion:loyalty-warning and religion:city-defected with the expected payload shape', () => {
@@ -143,7 +143,7 @@ describe('#593 MR6 — executeLoyaltyDefection (major civ to major civ)', () => 
     const { state, p1, p2, p2City } = makeLoyaltyFixture();
     const withProgress = {
       ...state,
-      cityFaith: { [p2City]: { religionId: `religion-${p1}`, loyaltyProgress: { toCivId: p1, points: 180 } } },
+      cityFaith: { [p2City]: { religionId: `religion-${p1}`, loyaltyProgress: { toCivId: p1, points: 180, sinceOwnerId: p2 } } },
       religions: { [`religion-${p1}`]: { id: `religion-${p1}`, name: 'Test', ownerCivId: p1, foundedTurn: 1 } },
     };
     const bus = new EventBus();
@@ -165,7 +165,7 @@ describe('#593 MR6 — executeLoyaltyDefection (minor civ absorption)', () => {
     const { state, p2, mcId, mcCity } = makeLoyaltyFixture();
     const withProgress = {
       ...state,
-      cityFaith: { [mcCity]: { religionId: `religion-${p2}`, loyaltyProgress: { toCivId: p2, points: 180 } } },
+      cityFaith: { [mcCity]: { religionId: `religion-${p2}`, loyaltyProgress: { toCivId: p2, points: 180, sinceOwnerId: mcId } } },
       religions: { [`religion-${p2}`]: { id: `religion-${p2}`, name: 'Test', ownerCivId: p2, foundedTurn: 1 } },
     };
     const bus = new EventBus();
@@ -182,16 +182,16 @@ describe('#593 MR6 — executeLoyaltyDefection (minor civ absorption)', () => {
 });
 
 describe('#593 MR6 — setLoyaltyPoints / clearLoyaltyProgress', () => {
-  it('setLoyaltyPoints writes points for the given civ', () => {
-    const { state, p1, p2City } = makeLoyaltyFixture();
+  it('setLoyaltyPoints writes points and the current owner for the given civ', () => {
+    const { state, p1, p2, p2City } = makeLoyaltyFixture();
     const withFaith = { ...state, cityFaith: { [p2City]: { religionId: `religion-${p1}` } } };
-    const next = setLoyaltyPoints(withFaith, p2City, p1, 40);
-    expect(next.cityFaith![p2City].loyaltyProgress).toEqual({ toCivId: p1, points: 40 });
+    const next = setLoyaltyPoints(withFaith, p2City, p1, 40, p2);
+    expect(next.cityFaith![p2City].loyaltyProgress).toEqual({ toCivId: p1, points: 40, sinceOwnerId: p2 });
   });
 
   it('clearLoyaltyProgress removes the field without touching religionId', () => {
-    const { state, p1, p2City } = makeLoyaltyFixture();
-    const withProgress = { ...state, cityFaith: { [p2City]: { religionId: `religion-${p1}`, loyaltyProgress: { toCivId: p1, points: 40 } } } };
+    const { state, p1, p2, p2City } = makeLoyaltyFixture();
+    const withProgress = { ...state, cityFaith: { [p2City]: { religionId: `religion-${p1}`, loyaltyProgress: { toCivId: p1, points: 40, sinceOwnerId: p2 } } } };
     const next = clearLoyaltyProgress(withProgress, p2City);
     expect(next.cityFaith![p2City].loyaltyProgress).toBeUndefined();
     expect(next.cityFaith![p2City].religionId).toBe(`religion-${p1}`);
@@ -208,11 +208,11 @@ function withFaith(civId: string, targetCityId: string, state: any, boon?: 'ferv
 
 describe('#593 MR6 — processLoyaltyTurn', () => {
   it('advances loyaltyProgress.points by the tick amount each turn', () => {
-    const { state, p1, p2City } = makeLoyaltyFixture();
+    const { state, p1, p2, p2City } = makeLoyaltyFixture();
     const seeded = withFaith(p1, p2City, state);
     const bus = new EventBus();
     const next = processLoyaltyTurn(seeded, bus);
-    expect(next.cityFaith![p2City].loyaltyProgress).toEqual({ toCivId: p1, points: 10 });
+    expect(next.cityFaith![p2City].loyaltyProgress).toEqual({ toCivId: p1, points: 10, sinceOwnerId: p2 });
   });
 
   it('never advances a human-owned city -- points stay undefined, unrest row is the only signal', () => {
@@ -290,6 +290,32 @@ describe('#593 MR6 — processLoyaltyTurn', () => {
     expect(current.cityFaith![p2City].loyaltyProgress).toBeUndefined();
   });
 
+  it('inline review fix: an unrelated ownership transfer (same pressuring civ, different new owner) resets accumulated points to 0, not just a religionId/toCivId change', () => {
+    const { state, p1, p2, p2City } = makeLoyaltyFixture();
+    let current = withFaith(p1, p2City, state);
+    const bus = new EventBus();
+    current = processLoyaltyTurn(current, bus);
+    current = processLoyaltyTurn(current, bus);
+    expect(current.cityFaith![p2City].loyaltyProgress).toEqual({ toCivId: p1, points: 20, sinceOwnerId: p2 });
+
+    // Simulate a THIRD civ conquering p2City by unrelated combat this same turn, while
+    // p2City still borders p1's territory and still follows p1's faith -- the
+    // pressuringCivId (p1) is unchanged, but the owner changed, so accumulated points
+    // must reset per the spec ("Record clears whenever... ownership transfers").
+    const p3 = 'p3';
+    current = {
+      ...current,
+      cities: { ...current.cities, [p2City]: { ...current.cities[p2City], owner: p3 } },
+      civilizations: {
+        ...current.civilizations,
+        [p3]: { ...current.civilizations[p2], id: p3, cities: [p2City], units: [] },
+      },
+    };
+    current = processLoyaltyTurn(current, bus);
+    // Only ONE tick's worth of points (10), not 20+10=30 -- proves the reset happened.
+    expect(current.cityFaith![p2City].loyaltyProgress).toEqual({ toCivId: p1, points: 10, sinceOwnerId: p3 });
+  });
+
   it('ambient drift: minor civs following a civ faith gain +1 relationship/turn toward that civ, capped at 60', () => {
     const { state, p2, mcId, mcCity } = makeLoyaltyFixture();
     let current = withFaith(p2, mcCity, state);
@@ -337,7 +363,7 @@ describe('#593 MR6 — currentPlayer correctness for badge/row visibility', () =
     const seeded = {
       ...state,
       currentPlayer: p2, // hot-seat: it's p2's turn to view, not p1's
-      cityFaith: { [p2City]: { religionId: `religion-${p1}`, loyaltyProgress: { toCivId: p1, points: 50 } } },
+      cityFaith: { [p2City]: { religionId: `religion-${p1}`, loyaltyProgress: { toCivId: p1, points: 50, sinceOwnerId: p2 } } },
       religions: { [`religion-${p1}`]: { id: `religion-${p1}`, name: 'Test', ownerCivId: p1, foundedTurn: 1 } },
     };
     // p2 is the pressured owner -- sees it regardless of currentPlayer being p2 or p1.

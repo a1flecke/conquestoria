@@ -43,7 +43,7 @@ import { getCrisisFlavor, getCrisisDisplayName } from '@/systems/crisis-flavor-d
 import { getCrisisYieldMultiplier, getOutbreakSeverityMultiplier, getCatastropheRecoveryMultiplier, FAMINE_CONTAINMENT_SURPLUS_TURNS } from '@/systems/crisis-system';
 import { getStrongestPressure } from '@/systems/religion-system';
 import { CONVERSION_THRESHOLD } from '@/systems/religion-definitions';
-import { getLoyaltyThreshold, getLoyaltyTickAmount } from '@/systems/religion-loyalty-system';
+import { getLoyaltyThreshold, getLoyaltyTickAmount, isLoyaltyTrackEligible } from '@/systems/religion-loyalty-system';
 import { resolvePressureSeverityForCiv } from '@/core/opponent-challenge';
 import { getCityIntrinsicStrength, isCityHpRegenerating } from '@/systems/city-siege-system';
 import { getOccupiedCityMood, getOccupiedCityYieldMultiplier } from '@/systems/city-occupation-system';
@@ -453,8 +453,14 @@ export function createCityPanel(
       : null;
     // #593 MR6: loyalty-flip counterplay display. Only present when the city is
     // actively on the loyalty track (loyaltyProgress set) -- most cities, most of the
-    // time, have none.
-    const loyalty = cityFaithEntry.loyaltyProgress && faithReligion ? (() => {
+    // time, have none. Inline review fix: re-verify against live eligibility, not just
+    // field presence -- a city captured by unrelated combat this same turn (before the
+    // next processLoyaltyTurn self-heal) could otherwise show a stale row on a now-
+    // immune (e.g. human-owned) city.
+    const liveLoyaltyEligibility = isLoyaltyTrackEligible(state, city.id);
+    const loyalty = cityFaithEntry.loyaltyProgress && faithReligion
+      && liveLoyaltyEligibility?.pressuringCivId === cityFaithEntry.loyaltyProgress.toCivId
+      && cityFaithEntry.loyaltyProgress.sinceOwnerId === city.owner ? (() => {
       const pressuringCiv = state.civilizations[cityFaithEntry.loyaltyProgress!.toCivId];
       const threshold = getLoyaltyThreshold(state);
       const tick = getLoyaltyTickAmount(state, city, faithReligion);
