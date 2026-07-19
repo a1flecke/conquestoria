@@ -23,6 +23,8 @@ function makeEvent(): GameEvents['combat:resolved'] {
       defenderDamage: 100,
       attackerSurvived: true,
       defenderSurvived: false,
+      attackerStrength: 20,
+      defenderStrength: 20,
       attackerPosition: { q: 0, r: 0 },
       defenderPosition: { q: 1, r: 0 },
     },
