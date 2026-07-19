@@ -9,12 +9,14 @@ import {
   drawCityStatusBadgePass,
   drawCityWorldPressureBadgePass,
   drawCityLoyaltyPressureBadgePass,
+  drawCityReligionBadgePass,
   fitCityBannerLabel,
   type CityRenderItem,
 } from '@/renderer/city-render-passes';
 import { getLegendaryWonderLandmarkMetadata } from '@/systems/legendary-wonder-landmark-catalog';
 import type { LegendaryWonderMapEntry } from '@/systems/legendary-wonder-map-presentation';
 import * as famineBadgeMarker from '@/renderer/improvements/famine-badge-marker';
+import * as religionBadgeMarker from '@/renderer/improvements/religion-badge-marker';
 
 class MockCtx {
   fillTextCalls: Array<{ text: string; x: number; y: number; font: string; measuredWidth: number; maxWidth?: number }> = [];
@@ -350,6 +352,47 @@ describe('city icon and badge text bounds', () => {
     drawCityLoyaltyPressureBadgePass(ctx, item);
 
     expect((ctx as unknown as MockCtx).fillTextCalls).toHaveLength(0);
+  });
+
+  it('#594 MR7: draws the religion badge with own-faith art when religionBadge.isOwnFaith is true', () => {
+    const getReligionBadgeMarkerImageSpy = vi.spyOn(religionBadgeMarker, 'getReligionBadgeMarkerImage')
+      .mockReturnValue({} as HTMLImageElement);
+    const ctx = new MockCtx() as unknown as CanvasRenderingContext2D;
+    const city = {
+      id: 'city-1', owner: 'ai-1', productionQueue: [] as string[], idleProduction: null, unrestLevel: 0,
+    } as CityRenderItem['city'];
+    const item = makeItem({ city, religionBadge: { isOwnFaith: true } });
+
+    drawCityReligionBadgePass(ctx, item);
+
+    expect((ctx as unknown as MockCtx).drawImageCalls).toHaveLength(1);
+    expect(getReligionBadgeMarkerImageSpy).toHaveBeenCalledWith(true);
+    getReligionBadgeMarkerImageSpy.mockRestore();
+  });
+
+  it('#594 MR7: does not draw the religion badge when religionBadge is undefined', () => {
+    const ctx = new MockCtx() as unknown as CanvasRenderingContext2D;
+    const city = {
+      id: 'city-1', owner: 'ai-1', productionQueue: [] as string[], idleProduction: null, unrestLevel: 0,
+    } as CityRenderItem['city'];
+    const item = makeItem({ city });
+
+    drawCityReligionBadgePass(ctx, item);
+
+    expect((ctx as unknown as MockCtx).drawImageCalls).toHaveLength(0);
+  });
+
+  it('#594 MR7: skips the religion badge for landmark-only (non-live) render items', () => {
+    const ctx = new MockCtx() as unknown as CanvasRenderingContext2D;
+    const item = makeItem({
+      projection: { ...makeItem().projection, renderMode: 'landmark-only', isLive: false },
+      city: undefined,
+      religionBadge: { isOwnFaith: true },
+    });
+
+    drawCityReligionBadgePass(ctx, item);
+
+    expect((ctx as unknown as MockCtx).drawImageCalls).toHaveLength(0);
   });
 
   it('lets breakaway status take priority over an active siege', () => {

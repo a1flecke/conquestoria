@@ -4,6 +4,7 @@ import { getVisibility } from '@/systems/fog-of-war';
 import { MINOR_CIV_DEFINITIONS } from '@/systems/minor-civ-definitions';
 import type { WorldPressurePresentation } from '@/systems/world-pressure-presentation';
 import type { LoyaltyPressurePresentation } from '@/systems/loyalty-pressure-presentation';
+import type { ReligionBadgePresentation } from '@/systems/religion-badge-presentation';
 import { Camera } from './camera';
 import { getHorizontalWrapRenderCoords } from './wrap-rendering';
 import { LOD_SPRITE_ZOOM_THRESHOLD } from './sprites/sprite-system';
@@ -43,6 +44,8 @@ interface CityRenderOptions {
   worldPressurePresentation?: WorldPressurePresentation;
   // #593 MR6: same caching convention as worldPressurePresentation above.
   loyaltyPressurePresentation?: LoyaltyPressurePresentation;
+  // #594 MR7: same caching convention as worldPressurePresentation above.
+  religionBadgePresentation?: ReligionBadgePresentation;
 }
 
 const OWNER_COLORS: Record<string, string> = {
@@ -96,6 +99,10 @@ function createCityRenderItems(
   const loyaltyPressurePresentation = typeof options === 'boolean' ? undefined : options.loyaltyPressurePresentation;
   const loyaltyPressureCityIds = new Set(
     (loyaltyPressurePresentation?.cityBadges ?? []).map(badge => badge.cityId),
+  );
+  const religionBadgePresentation = typeof options === 'boolean' ? undefined : options.religionBadgePresentation;
+  const religionBadgeByCityId = new Map(
+    (religionBadgePresentation?.cityBadges ?? []).map(badge => [badge.cityId, badge.isOwnFaith]),
   );
   const vis = state.civilizations[playerCivId]?.visibility;
   if (!vis) return [];
@@ -167,6 +174,9 @@ function createCityRenderItems(
         nowMs,
         worldPressureCrisis: city ? worldPressureBadgesByCityId.get(city.id) : undefined,
         loyaltyPressure: city && loyaltyPressureCityIds.has(city.id) ? true : undefined,
+        religionBadge: city && religionBadgeByCityId.has(city.id)
+          ? { isOwnFaith: religionBadgeByCityId.get(city.id)! }
+          : undefined,
       });
     }
   }

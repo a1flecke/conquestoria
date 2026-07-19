@@ -8,6 +8,7 @@ import {
   type CityMapPresentation,
 } from '@/renderer/city-map-presentation';
 import { getFamineBadgeMarkerImage } from '@/renderer/improvements/famine-badge-marker';
+import { getReligionBadgeMarkerImage } from '@/renderer/improvements/religion-badge-marker';
 
 export interface CityRenderProjection {
   name: string;
@@ -44,6 +45,9 @@ export interface CityRenderItem {
   // #593 MR6: set only when this city appears in
   // getLoyaltyPressurePresentationForViewer(...).cityBadges for the current viewer.
   loyaltyPressure?: true;
+  // #594 MR7: set only when this city appears in
+  // getReligionBadgePresentationForViewer(...).cityBadges for the current viewer.
+  religionBadge?: { isOwnFaith: boolean };
 }
 
 export type CityRenderPassName =
@@ -56,7 +60,8 @@ export type CityRenderPassName =
   | 'idle'
   | 'intel'
   | 'world-pressure'
-  | 'loyalty-pressure';
+  | 'loyalty-pressure'
+  | 'religion-badge';
 
 export type CityRenderPass = {
   name: CityRenderPassName;
@@ -555,6 +560,23 @@ export function drawCityLoyaltyPressureBadgePass(ctx: CanvasRenderingContext2D, 
   drawFittedText(ctx, '🙏', x, y, item.size * 0.28, item.size * 0.2);
 }
 
+// #594 MR7: offset to the upper-left of the world-pressure badge (top-center) --
+// mirrors the loyalty-pressure badge's upper-right offset above -- so a city that
+// simultaneously has a world-pressure crisis, loyalty pressure, and a religion badge
+// never has more than two badges sharing the same spot.
+export function drawCityReligionBadgePass(ctx: CanvasRenderingContext2D, item: CityRenderItem): void {
+  if (item.projection.renderMode === 'landmark-only') return;
+  markPass(ctx, 'religion-badge');
+  if (!item.projection.isLive || !item.city || !item.religionBadge) return;
+
+  const img = getReligionBadgeMarkerImage(item.religionBadge.isOwnFaith);
+  if (!img) return;
+  const x = item.screen.x - item.size * 0.5;
+  const y = item.screen.y - item.size * 0.58;
+  const s = item.size * 0.32;
+  ctx.drawImage(img, x - s / 2, y - s / 2, s, s);
+}
+
 export const CITY_RENDER_PASSES: CityRenderPass[] = [
   { name: 'base', draw: drawCityBasePass },
   { name: 'icon', draw: drawCityIconPass },
@@ -566,6 +588,7 @@ export const CITY_RENDER_PASSES: CityRenderPass[] = [
   { name: 'intel', draw: drawCityIntelBadgePass },
   { name: 'world-pressure', draw: drawCityWorldPressureBadgePass },
   { name: 'loyalty-pressure', draw: drawCityLoyaltyPressureBadgePass },
+  { name: 'religion-badge', draw: drawCityReligionBadgePass },
 ];
 
 export function drawCityRenderItem(ctx: CanvasRenderingContext2D, item: CityRenderItem): void {
