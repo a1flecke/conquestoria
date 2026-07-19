@@ -10,7 +10,7 @@ import { UNIT_DEFINITIONS } from '@/systems/unit-system';
 import { getCrisisFlavor } from '@/systems/crisis-flavor-definitions';
 import { resolveWorldAge } from '@/systems/tech-definitions';
 
-export const CURRENT_SAVE_SCHEMA_VERSION = 5;
+export const CURRENT_SAVE_SCHEMA_VERSION = 6;
 
 export type SaveMigration = (state: GameState) => GameState;
 
@@ -312,12 +312,27 @@ function migrateDualEraWorldAge(state: GameState): GameState {
   return { ...withAircraft, era: resolveWorldAge(withAircraft.civilizations) };
 }
 
+function migrateAutonomyNetworkPostures(state: GameState): GameState {
+  const autonomyByCiv = Object.fromEntries(Object.entries(state.autonomyByCiv ?? {}).map(([civId, autonomy]) => [
+    civId,
+    {
+      ...autonomy,
+      posture: autonomy.posture ?? 'integrated',
+      pendingPosture: autonomy.pendingPosture ?? null,
+      surgeRecoveryUntilTurn: autonomy.surgeRecoveryUntilTurn ?? null,
+      surgeCooldownUntilTurn: autonomy.surgeCooldownUntilTurn ?? null,
+    },
+  ]));
+  return { ...state, autonomyByCiv };
+}
+
 export const SAVE_MIGRATIONS: Readonly<Record<number, SaveMigration>> = {
   1: migrateToEra13Foundation,
   2: migrateLateResources,
   3: migrateAutonomyNetwork,
   4: migrateLegacyBasedAircraft,
   5: migrateDualEraWorldAge,
+  6: migrateAutonomyNetworkPostures,
 };
 
 function readSchemaVersion(raw: Record<string, unknown>): number {

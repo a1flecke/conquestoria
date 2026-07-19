@@ -194,9 +194,9 @@ describe('unit-movement-system', () => {
             target: { kind: 'city', cityId: target.id }, status: 'preparing', createdTurn: 1, nextResolutionTurn: 2, warnedTurn: null,
           },
         },
-        detections: {},
+        detections: {}, posture: 'integrated', pendingPosture: null, surgeRecoveryUntilTurn: null, surgeCooldownUntilTurn: null,
       },
-      'ai-1': { plans: {}, detections: {} },
+      'ai-1': { plans: {}, detections: {}, posture: 'integrated', pendingPosture: null, surgeRecoveryUntilTurn: null, surgeCooldownUntilTurn: null },
     };
 
     expect(executeUnitMove(state, cyber.id, { q: 2, r: 0 }, { actor: 'player', civId: 'player' })).toMatchObject({ ok: true });

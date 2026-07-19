@@ -50,7 +50,7 @@ describe('save migrations', () => {
 
   it('lands legacy combat aircraft at the nearest compatible friendly base and removes stranded craft', () => {
     const legacySave = createNewGame('rome', 'legacy-based-aircraft', 'small');
-    legacySave.saveSchemaVersion = CURRENT_SAVE_SCHEMA_VERSION - 1;
+    legacySave.saveSchemaVersion = 3; // schema 4 owns legacy aircraft basing
     const playerCityId = 'legacy-airfield';
     const playerCity: City = {
       id: playerCityId, name: 'Legacy Airfield', owner: 'player', position: { q: 3, r: 3 }, population: 2,
@@ -77,7 +77,7 @@ describe('save migrations', () => {
 
   it('does not overfill a base while repairing multiple legacy aircraft', () => {
     const legacySave = createNewGame('rome', 'legacy-air-capacity', 'small');
-    legacySave.saveSchemaVersion = CURRENT_SAVE_SCHEMA_VERSION - 1;
+    legacySave.saveSchemaVersion = 3; // schema 4 owns legacy aircraft basing
     const cityId = 'legacy-airfield';
     legacySave.cities = {
       ...legacySave.cities,
@@ -292,10 +292,31 @@ describe('save migrations', () => {
     expect(migrated.saveSchemaVersion).toBe(CURRENT_SAVE_SCHEMA_VERSION);
     expect(migrated.networkCivicPressureByCity).toEqual({});
     expect(migrated.autonomyByCiv).toEqual(Object.fromEntries(
-      Object.keys(migrated.civilizations).map(civId => [civId, { plans: {}, detections: {} }]),
+      Object.keys(migrated.civilizations).map(civId => [civId, expect.objectContaining({
+        plans: {}, detections: {}, posture: 'integrated', pendingPosture: null,
+        surgeRecoveryUntilTurn: null, surgeCooldownUntilTurn: null,
+      })]),
     ));
     expect(migrated.idCounters.nextNetworkPlanId).toBe(1);
     expect(loadedAgain).toEqual(migrated);
+  });
+
+  it('migrates schema-v5 autonomy records to posture and Surge defaults once', () => {
+    const legacySave = createNewGame('rome', 'autonomy-posture-v5', 'small');
+    legacySave.saveSchemaVersion = 5;
+    for (const autonomy of Object.values(legacySave.autonomyByCiv!)) {
+      delete (autonomy as Partial<typeof autonomy>).posture;
+      delete (autonomy as Partial<typeof autonomy>).pendingPosture;
+      delete (autonomy as Partial<typeof autonomy>).surgeRecoveryUntilTurn;
+      delete (autonomy as Partial<typeof autonomy>).surgeCooldownUntilTurn;
+    }
+
+    const migrated = migrateSaveToCurrent(legacySave);
+    expect(migrated.saveSchemaVersion).toBe(6);
+    expect(migrated.autonomyByCiv!.player).toMatchObject({
+      posture: 'integrated', pendingPosture: null, surgeRecoveryUntilTurn: null, surgeCooldownUntilTurn: null,
+    });
+    expect(migrateSaveToCurrent(migrated)).toEqual(migrated);
   });
 
   it('migrates activated legacy Cyber Units in stable order with one Exploit per city', () => {
