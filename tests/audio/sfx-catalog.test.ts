@@ -11,6 +11,7 @@ import {
   PIRATE_STRATEGIC_SFX,
   RELIGION_SFX,
   FAMINE_SFX,
+  NETWORK_STRATEGIC_SFX,
   type LocomotionClass,
   type PirateUnitType,
 } from '../../src/audio/sfx-catalog';
@@ -129,7 +130,13 @@ describe('sfx-catalog completeness', () => {
     for (const file of allFiles) expect(file).toMatch(/^audio\/stinger\/(religion|famine)\/[a-z-]+\.ogg$/);
   });
 
-  it('allSfxEntries returns exactly 159 entries', () => {
+  it('has all five viewer-safe network strategic cues', () => {
+    expect(Object.keys(NETWORK_STRATEGIC_SFX).sort()).toEqual([
+      'constructive-resolution', 'hostile-consequence', 'hostile-warning', 'recovery', 'surge',
+    ]);
+  });
+
+  it('allSfxEntries returns exactly 164 entries', () => {
     // 18 foot-melee (6×3) + 8 foot-ranged (2×4) + 9 mounted (3×3) + 6 naval combat (2×3)
     // + 6 siege (2×3) + 9 special-combat (3×3) + 6 non-combat (6×1) + 5 spy-death (5×1) + 3 move-step = 70
     // + 4 new transport death (carrack, galleon, steamship, troop_transport) + 2 transport load/unload = 76
@@ -142,7 +149,8 @@ describe('sfx-catalog completeness', () => {
     // + 3 Air trade line death sounds — Air Freighter, Jet Freighter, Global Air Cargo (#553 MR3/4) = 141
     // + 5 religion stingers + 2 famine stingers (#594 MR7) = 148
     // + 11 Era-13 unit clips (3+3+3 combat and 2 specialist deaths) = 159
-    expect(allSfxEntries()).toHaveLength(159);
+    // + 5 network strategic stingers = 164
+    expect(allSfxEntries()).toHaveLength(164);
   });
 
   it('no two entries share the same ID', () => {

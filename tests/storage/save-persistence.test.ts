@@ -510,6 +510,9 @@ describe('save persistence (#38)', () => {
             turn: 33,
           },
         ],
+        networkPlanResolutions: [
+          { civId: 'player', planId: 'network-plan-3', definitionId: 'research-mesh', cityId: 'city-7', stable: true, turn: 34 },
+        ],
       },
     };
 
@@ -520,6 +523,9 @@ describe('save persistence (#38)', () => {
       campId: 'camp-7',
       position: { q: 4, r: -2 },
       turn: 33,
+    });
+    expect(roundTrip.legendaryWonderHistory.networkPlanResolutions).toContainEqual({
+      civId: 'player', planId: 'network-plan-3', definitionId: 'research-mesh', cityId: 'city-7', stable: true, turn: 34,
     });
   });
 

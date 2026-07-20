@@ -37,6 +37,8 @@ export const SUPPORTED_BESPOKE_LEGENDARY_LANDMARK_ASSET_KEYS = [
   'wright-flyer-bespoke',
   'united-nations-bespoke',
   'apollo-program-bespoke',
+  'open-intelligence-commons-bespoke',
+  'lunar-gateway-bespoke',
 ] as const;
 
 export type LegendaryWonderBespokeAssetKey = typeof SUPPORTED_BESPOKE_LEGENDARY_LANDMARK_ASSET_KEYS[number];
@@ -93,6 +95,8 @@ const BESPOKE_ASSETS: Record<LegendaryWonderBespokeAssetKey, LegendaryWonderBesp
   'wright-flyer-bespoke':           { key: 'wright-flyer-bespoke',           draw: drawWrightFlyer },
   'united-nations-bespoke':         { key: 'united-nations-bespoke',         draw: drawUnitedNations },
   'apollo-program-bespoke':         { key: 'apollo-program-bespoke',         draw: drawApolloProgram },
+  'open-intelligence-commons-bespoke': { key: 'open-intelligence-commons-bespoke', draw: drawOpenIntelligenceCommons },
+  'lunar-gateway-bespoke': { key: 'lunar-gateway-bespoke', draw: drawLunarGateway },
 };
 
 export function resolveLegendaryWonderBespokeAsset(assetKey: string | undefined): LegendaryWonderBespokeAsset | null {
@@ -1585,4 +1589,61 @@ function drawApolloProgram(options: LegendaryWonderBespokeDrawOptions): void {
   ctx.textAlign = 'center';
   ctx.fillText('APOLLO', cx, cy + r * 0.82);
   ctx.textAlign = 'left';
+}
+
+function drawOpenIntelligenceCommons(options: LegendaryWonderBespokeDrawOptions): void {
+  const { ctx, cx, cy, radius, metadata } = options;
+  markBespoke(ctx, 'open-intelligence-commons-bespoke');
+  ctx.strokeStyle = metadata.palette.glow;
+  ctx.fillStyle = metadata.palette.accent;
+  ctx.lineWidth = Math.max(1, radius * 0.055);
+  const nodes = [
+    [cx, cy - radius * 0.55], [cx - radius * 0.5, cy - radius * 0.05],
+    [cx + radius * 0.5, cy - radius * 0.05], [cx, cy + radius * 0.5],
+  ] as const;
+  for (const [x, y] of nodes) {
+    ctx.beginPath();
+    ctx.arc(x, y, radius * 0.13, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+  }
+  ctx.strokeStyle = metadata.palette.base;
+  for (let index = 0; index < nodes.length; index += 1) {
+    const [fromX, fromY] = nodes[index];
+    const [toX, toY] = nodes[(index + 1) % nodes.length];
+    ctx.beginPath();
+    ctx.moveTo(fromX, fromY);
+    ctx.lineTo(toX, toY);
+    ctx.stroke();
+  }
+  ctx.fillStyle = metadata.palette.glow;
+  ctx.font = `bold ${radius * 0.12}px sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.fillText('OPEN', cx, cy + radius * 0.08);
+  ctx.textAlign = 'left';
+}
+
+function drawLunarGateway(options: LegendaryWonderBespokeDrawOptions): void {
+  const { ctx, cx, cy, radius, metadata } = options;
+  markBespoke(ctx, 'lunar-gateway-bespoke');
+  ctx.fillStyle = metadata.palette.base;
+  ctx.beginPath();
+  ctx.arc(cx + radius * 0.28, cy - radius * 0.18, radius * 0.5, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = metadata.palette.glow;
+  ctx.lineWidth = Math.max(1, radius * 0.06);
+  ctx.beginPath();
+  ctx.arc(cx - radius * 0.12, cy + radius * 0.12, radius * 0.43, Math.PI * 1.1, Math.PI * 1.9);
+  ctx.stroke();
+  ctx.strokeStyle = metadata.palette.accent;
+  ctx.beginPath();
+  ctx.moveTo(cx - radius * 0.12, cy - radius * 0.2);
+  ctx.lineTo(cx - radius * 0.12, cy + radius * 0.58);
+  ctx.moveTo(cx - radius * 0.34, cy + radius * 0.1);
+  ctx.lineTo(cx + radius * 0.1, cy + radius * 0.1);
+  ctx.stroke();
+  ctx.fillStyle = metadata.palette.glow;
+  ctx.beginPath();
+  ctx.arc(cx - radius * 0.12, cy - radius * 0.2, radius * 0.09, 0, Math.PI * 2);
+  ctx.fill();
 }

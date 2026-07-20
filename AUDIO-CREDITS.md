@@ -434,3 +434,11 @@ same Kenney Impact Sounds / RPG Audio CC0 pack already credited above.
 by `scripts/generate-era13-sfx.sh` with ffmpeg lavfi sine/noise layers over the
 already-credited local Kenney CC0 clips named in that script. No external source,
 download, voice recording, or player-specific audio data is used.
+
+## Era 13 Network Stingers (#516)
+
+`constructive-resolution.ogg`, `hostile-warning.ogg`, `hostile-consequence.ogg`,
+`surge.ogg`, and `recovery.ogg` are generated locally by
+`scripts/generate-network-sfx.sh` with deterministic ffmpeg lavfi sine/noise layers
+over the already-credited local Kenney CC0 clips named in that script. No external
+source, download, voice recording, or player-specific audio data is used.

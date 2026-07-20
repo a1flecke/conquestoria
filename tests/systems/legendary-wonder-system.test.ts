@@ -26,6 +26,45 @@ import { makeLegendaryWonderFixture } from './helpers/legendary-wonder-fixture';
 import { getLegendaryWonderDefinition } from '@/systems/legendary-wonder-definitions';
 
 describe('legendary-wonder-system', () => {
+  it('requires Open Intelligence Commons safety institutes in two distinct cities', () => {
+    const state = makeLegendaryWonderFixture({
+      completedTechs: ['algorithmic-accountability', 'machine-ethics'],
+    });
+    const secondCity = {
+      ...state.cities['city-river'],
+      id: 'city-commons-second',
+      name: 'Second Commons City',
+      position: { q: 3, r: 2 },
+      buildings: [],
+    };
+    state.cities[secondCity.id] = secondCity;
+    state.civilizations.player.cities.push(secondCity.id);
+    state.cities['city-river'].buildings = ['ai_safety_institute'];
+    const definition = getLegendaryWonderDefinition('open-intelligence-commons')!;
+    state.legendaryWonderProjects!['open-intelligence-commons:player:city-river'] = {
+      wonderId: definition.id,
+      ownerId: 'player',
+      cityId: 'city-river',
+      phase: 'questing',
+      investedProduction: 0,
+      transferableProduction: 0,
+      questSteps: definition.questSteps.map(step => ({
+        id: step.id,
+        description: step.description ?? '',
+        completed: false,
+      })),
+    };
+
+    const oneInstitute = tickLegendaryWonderProjects(state, new EventBus());
+    expect(oneInstitute.legendaryWonderProjects!['open-intelligence-commons:player:city-river']
+      .questSteps.find(step => step.id === 'safety-institutes')?.completed).toBe(false);
+
+    oneInstitute.cities[secondCity.id].buildings = ['ai_safety_institute'];
+    const twoInstitutes = tickLegendaryWonderProjects(oneInstitute, new EventBus());
+    expect(twoInstitutes.legendaryWonderProjects!['open-intelligence-commons:player:city-river']
+      .questSteps.find(step => step.id === 'safety-institutes')?.completed).toBe(true);
+  });
+
   it('notifies the owner when resource loss scraps active wonder construction', () => {
     const state = makeLegendaryWonderFixture({ oracleStepsCompleted: 2, resources: ['stone'] });
     const bus = new EventBus();
@@ -197,7 +236,7 @@ describe('legendary-wonder-system', () => {
 
     const result = initializeLegendaryWonderProjectsForCity(state, 'player', 'city-river');
 
-    expect(Object.values(result.legendaryWonderProjects ?? {}).filter(project => project.cityId === 'city-river')).toHaveLength(36);
+    expect(Object.values(result.legendaryWonderProjects ?? {}).filter(project => project.cityId === 'city-river')).toHaveLength(38);
   });
 
   it('allows multiple civilizations to pursue the same legendary wonder in different cities', () => {
