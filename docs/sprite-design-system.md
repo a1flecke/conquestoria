@@ -71,6 +71,12 @@ Registered in `UNIT_SPRITE_CATALOG` in `src/renderer/sprites/sprite-catalog.ts`.
 ### Buildings — `src/renderer/sprites/buildings.tsx`
 Registered in `BUILDING_SPRITE_CATALOG` in `src/renderer/sprites/sprite-catalog.ts`.
 
+Live render surface (#658): the city production badge on the hex map
+(`drawCityProductionBadgePass` in `src/renderer/city-render-passes.ts`) draws the queued
+building's sprite via `spriteCache.getBuilding()`, falling back to the `PRODUCTION_ICONS`
+emoji while sprites load and for non-building queue items. City-panel thumbnail surfaces
+are a possible follow-up, not yet implemented — do not claim them in art prompts.
+
 | Building | Status | Category |
 |----------|--------|----------|
 | granary | ✅ sprite | food |
