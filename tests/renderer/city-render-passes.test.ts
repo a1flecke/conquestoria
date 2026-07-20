@@ -17,6 +17,7 @@ import { getLegendaryWonderLandmarkMetadata } from '@/systems/legendary-wonder-l
 import type { LegendaryWonderMapEntry } from '@/systems/legendary-wonder-map-presentation';
 import * as famineBadgeMarker from '@/renderer/improvements/famine-badge-marker';
 import * as religionBadgeMarker from '@/renderer/improvements/religion-badge-marker';
+import { spriteCache } from '@/renderer/sprites/sprite-loader';
 
 class MockCtx {
   fillTextCalls: Array<{ text: string; x: number; y: number; font: string; measuredWidth: number; maxWidth?: number }> = [];
@@ -301,6 +302,54 @@ describe('city icon and badge text bounds', () => {
     expect((ctx as unknown as MockCtx).fillTextCalls).toHaveLength(1);
     expect((ctx as unknown as MockCtx).fillTextCalls[0]!.text).toBe('⚠️');
     getFamineBadgeMarkerImageSpy.mockRestore();
+  });
+
+  it('#658: draws the queued building sprite (not the emoji) when the sprite is cached for the city owner', () => {
+    const fakeSprite = {} as HTMLImageElement;
+    const getBuildingSpy = vi.spyOn(spriteCache, 'getBuilding').mockReturnValue(fakeSprite);
+    const ctx = new MockCtx() as unknown as CanvasRenderingContext2D;
+    const city = {
+      id: 'city-1', owner: 'player', productionQueue: ['granary'], idleProduction: null, unrestLevel: 0,
+    } as CityRenderItem['city'];
+    const item = makeItem({ city });
+
+    drawCityProductionBadgePass(ctx, item);
+
+    expect(getBuildingSpy).toHaveBeenCalledWith('granary', 'player');
+    expect((ctx as unknown as MockCtx).drawImageCalls).toHaveLength(1);
+    expect((ctx as unknown as MockCtx).drawImageCalls[0]![0]).toBe(fakeSprite);
+    expect((ctx as unknown as MockCtx).fillTextCalls).toHaveLength(0);
+    getBuildingSpy.mockRestore();
+  });
+
+  it('#658: falls back to the PRODUCTION_ICONS emoji while the building sprite is not yet cached', () => {
+    const getBuildingSpy = vi.spyOn(spriteCache, 'getBuilding').mockReturnValue(null);
+    const ctx = new MockCtx() as unknown as CanvasRenderingContext2D;
+    const city = {
+      id: 'city-1', owner: 'player', productionQueue: ['granary'], idleProduction: null, unrestLevel: 0,
+    } as CityRenderItem['city'];
+    const item = makeItem({ city });
+
+    drawCityProductionBadgePass(ctx, item);
+
+    expect((ctx as unknown as MockCtx).drawImageCalls).toHaveLength(0);
+    expect((ctx as unknown as MockCtx).fillTextCalls).toHaveLength(1);
+    expect((ctx as unknown as MockCtx).fillTextCalls[0]!.text).toBe('🌾');
+    getBuildingSpy.mockRestore();
+  });
+
+  it('#658: keeps the emoji for a non-building queue head (units have no entry in the building sprite cache)', () => {
+    const ctx = new MockCtx() as unknown as CanvasRenderingContext2D;
+    const city = {
+      id: 'city-1', owner: 'player', productionQueue: ['warrior'], idleProduction: null, unrestLevel: 0,
+    } as CityRenderItem['city'];
+    const item = makeItem({ city });
+
+    drawCityProductionBadgePass(ctx, item);
+
+    expect((ctx as unknown as MockCtx).drawImageCalls).toHaveLength(0);
+    expect((ctx as unknown as MockCtx).fillTextCalls).toHaveLength(1);
+    expect((ctx as unknown as MockCtx).fillTextCalls[0]!.text).toBe('⚔️');
   });
 
   it('skips the world-pressure badge for landmark-only (non-live) render items', () => {

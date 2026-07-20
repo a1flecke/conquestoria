@@ -9,6 +9,7 @@ import {
 } from '@/renderer/city-map-presentation';
 import { getFamineBadgeMarkerImage } from '@/renderer/improvements/famine-badge-marker';
 import { getReligionBadgeMarkerImage } from '@/renderer/improvements/religion-badge-marker';
+import { spriteCache } from '@/renderer/sprites/sprite-loader';
 
 export interface CityRenderProjection {
   name: string;
@@ -427,6 +428,24 @@ export function drawCityProductionBadgePass(ctx: CanvasRenderingContext2D, item:
   if (item.projection.renderMode === 'landmark-only') return;
   markPass(ctx, 'production');
   if (!item.projection.isLive || !item.city || item.city.owner !== item.playerCivId) return;
+  if (item.city.productionQueue.length === 0) return;
+
+  // #658: prefer the queued building's catalog sprite (loaded per-civ by initSprites);
+  // non-building queue heads (units, wonders) miss the building cache and fall through
+  // to the PRODUCTION_ICONS emoji, which also covers the not-yet-loaded window.
+  const queueHead = item.city.productionQueue[0];
+  const buildingSprite = spriteCache.getBuilding(queueHead, item.city.owner);
+  if (buildingSprite) {
+    const s = item.size * 0.32;
+    ctx.drawImage(
+      buildingSprite,
+      item.screen.x - item.size * 0.48 - s / 2,
+      item.screen.y - item.size * 0.42 - s / 2,
+      s,
+      s,
+    );
+    return;
+  }
 
   const buildIcon = getProductionBadgeIcon(item.city);
   if (!buildIcon) return;
