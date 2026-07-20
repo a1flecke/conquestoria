@@ -70,6 +70,8 @@ describe('legendary wonder landmark catalog', () => {
     expect(getLegendaryWonderLandmarkMetadata('hall-of-champions').assetKey).toBe('hall-of-champions-bespoke');
     expect(getLegendaryWonderLandmarkMetadata('gate-of-the-world').assetKey).toBe('gate-of-the-world-bespoke');
     expect(getLegendaryWonderLandmarkMetadata('manhattan-project').assetKey).toBe('manhattan-project-bespoke');
+    expect(getLegendaryWonderLandmarkMetadata('open-intelligence-commons').assetKey).toBe('open-intelligence-commons-bespoke');
+    expect(getLegendaryWonderLandmarkMetadata('lunar-gateway').assetKey).toBe('lunar-gateway-bespoke');
 
     const definitionIds = getLegendaryWonderDefinitions().map(definition => definition.id).sort();
     const keyedWonderIds = getLegendaryWonderLandmarkMetadataCatalog()
@@ -120,6 +122,8 @@ describe('legendary wonder landmark catalog', () => {
       ['wright-flyer', 'wright-flyer-bespoke'],
       ['united-nations', 'united-nations-bespoke'],
       ['apollo-program', 'apollo-program-bespoke'],
+      ['open-intelligence-commons', 'open-intelligence-commons-bespoke'],
+      ['lunar-gateway', 'lunar-gateway-bespoke'],
     ]);
   });
 

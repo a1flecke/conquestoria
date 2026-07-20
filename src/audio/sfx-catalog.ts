@@ -64,6 +64,14 @@ export const FAMINE_SFX = {
   resolved: real('stinger-famine-resolved', 'audio/stinger/famine/resolved.ogg', 1.30, 'stinger'),
 } as const;
 
+export const NETWORK_STRATEGIC_SFX = {
+  'constructive-resolution': real('stinger-network-constructive-resolution', 'audio/stinger/network/constructive-resolution.ogg', 0.72, 'stinger'),
+  'hostile-warning': real('stinger-network-hostile-warning', 'audio/stinger/network/hostile-warning.ogg', 0.82, 'stinger'),
+  'hostile-consequence': real('stinger-network-hostile-consequence', 'audio/stinger/network/hostile-consequence.ogg', 0.76, 'stinger'),
+  surge: real('stinger-network-surge', 'audio/stinger/network/surge.ogg', 0.70, 'stinger'),
+  recovery: real('stinger-network-recovery', 'audio/stinger/network/recovery.ogg', 0.78, 'stinger'),
+} as const;
+
 // Unit SFX — keyed by UnitType, then by SfxClass. Non-combat units have death only.
 export const UNIT_SFX: Partial<Record<UnitType, Partial<Record<SfxClass, TrackEntry>>>> = {
 
@@ -419,5 +427,6 @@ export function allSfxEntries(): TrackEntry[] {
     ...Object.values(TRANSPORT_SFX),
     ...Object.values(RELIGION_SFX),
     ...Object.values(FAMINE_SFX),
+    ...Object.values(NETWORK_STRATEGIC_SFX),
   ];
 }

@@ -82,6 +82,13 @@ interface LegendaryWonderQuestStepBase {
 }
 
 export type LegendaryWonderStandardQuestStep =
+  | (LegendaryWonderQuestStepBase & { type: 'required-techs'; techIds: string[] })
+  | (LegendaryWonderQuestStepBase & {
+    type: 'specific-buildings'; buildingIds: string[]; cityScope: 'host-city' | 'distinct-cities'; targetCount?: number;
+  })
+  | (LegendaryWonderQuestStepBase & {
+    type: 'network-plan-resolutions'; targetCount: number; definitionIds: string[]; stableOnly: boolean; hostCityOnly?: boolean;
+  })
   | (LegendaryWonderQuestStepBase & { type: 'discover_wonder'; targetCount?: number })
   | (LegendaryWonderQuestStepBase & {
     type: 'trade_route' | 'trade-routes-established';
@@ -173,6 +180,7 @@ export interface LegendaryWonderDiscoveredSiteRecord {
 export interface LegendaryWonderHistory {
   destroyedStrongholds: DestroyedStrongholdRecord[];
   discoveredSites: LegendaryWonderDiscoveredSiteRecord[];
+  networkPlanResolutions?: Array<{ civId: string; planId: string; definitionId: string; cityId?: string; stable: boolean; turn: number }>;
 }
 
 export type LegendaryWonderIntelKind = 'started' | 'completed' | 'host-location-known';
@@ -1749,6 +1757,10 @@ export interface GameEvents {
   'city:cyber-drained': { cityId: string; cityName: string; drainerOwner: string; drainerUnitId: string; goldLost: number; blocked: boolean; victimCivId: string };
   'network:exploit-warning': { planId: string; victimCivId: string; cityId: string };
   'network:exploit-resolved': { planId: string; cityId: string; ownerCivId: string; goldTransferred: number; delayed: boolean };
+  'network:audio-cue': {
+    cue: 'constructive-resolution' | 'hostile-warning' | 'hostile-consequence' | 'surge' | 'recovery';
+    viewerIds: string[];
+  };
   'city:grew': { cityId: string; newPopulation: number };
   'city:maturity-upgraded': { cityId: string; previous: CityMaturity; current: CityMaturity };
   'economy:treasury-strain': { civId: string; level: Exclude<TreasuryStrainLevel, 'none'>; netGoldPerTurn: number; unpaidMaintenance: number };

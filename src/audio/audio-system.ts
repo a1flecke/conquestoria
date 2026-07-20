@@ -14,6 +14,7 @@ import { SfxDirector } from './sfx-director';
 import { routeSfxComponents } from './sfx';
 import { PirateAudioDirector, type PirateAmbientStopReason } from './pirate-audio-director';
 import { ReligionAudioDirector } from './religion-audio-director';
+import { NetworkAudioDirector } from './network-audio-director';
 import type { GameEvents } from '@/core/types';
 
 export class AudioSystem {
@@ -25,6 +26,7 @@ export class AudioSystem {
   private sfxDirector: SfxDirector;
   private pirateAudioDirector: PirateAudioDirector;
   private religionAudioDirector: ReligionAudioDirector;
+  private networkAudioDirector: NetworkAudioDirector;
   private stateProvider: (() => GameState) | null = null;
   private unsubscribers: Array<() => void> = [];
   private warCount = 0;
@@ -65,6 +67,11 @@ export class AudioSystem {
       () => this.stateProvider!(),
       () => this.isPresentationSuppressed(),
     );
+    this.networkAudioDirector = new NetworkAudioDirector(
+      path => this.director.playStingerWithDuck(path),
+      () => this.stateProvider!(),
+      () => this.isPresentationSuppressed(),
+    );
   }
 
   start(
@@ -90,6 +97,7 @@ export class AudioSystem {
     );
     this.pirateAudioDirector.start(bus);
     this.religionAudioDirector.start(bus);
+    this.networkAudioDirector.start(bus);
     routeSfxComponents(this.mixer, this.loader, () => this.isPresentationSuppressed());
     this.armIosResume();
     this.resumeAndDisarmGestureOnSuccess();
@@ -201,6 +209,7 @@ export class AudioSystem {
     this.naturalWonderDirector.stopAmbient('system-disposed');
     this.sfxDirector.dispose();
     this.pirateAudioDirector.dispose();
+    this.networkAudioDirector.dispose();
     this.mixer.dispose();
     this.warCount = 0;
     this.currentPlayerId = '';

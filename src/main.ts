@@ -2004,6 +2004,7 @@ function openNetworkPanel(): void {
           gameState = result.state;
           renderLoop.setGameState(gameState);
           updateHUD();
+          bus.emit('network:audio-cue', { cue: 'surge', viewerIds: [civId] });
           showNotification('Network Surge confirmed.', 'success');
         }
         rerender();
@@ -4412,6 +4413,7 @@ bus.on('network:exploit-warning', ({ planId, victimCivId, cityId }) => {
     'warning',
     { kind: 'map', coord: city.position, label: city.name },
   );
+  bus.emit('network:audio-cue', { cue: 'hostile-warning', viewerIds: [victimCivId] });
 });
 
 bus.on('network:exploit-resolved', ({ cityId, ownerCivId, goldTransferred, delayed }) => {
@@ -4424,6 +4426,15 @@ bus.on('network:exploit-resolved', ({ cityId, ownerCivId, goldTransferred, delay
   }
   appendToCivLog(city.owner, `Network exploit: ${city.name} lost ${goldTransferred} gold.`, 'warning');
   appendToCivLog(ownerCivId, `Network exploit transferred ${goldTransferred} gold from ${city.name}.`, 'success');
+  bus.emit('network:audio-cue', { cue: 'hostile-consequence', viewerIds: [city.owner, ownerCivId] });
+});
+
+bus.on('network:audio-cue', ({ cue, viewerIds }) => {
+  if (cue === 'constructive-resolution') {
+    appendToCivLog(viewerIds[0]!, 'Stable network plan milestone reached: three resolutions recorded.', 'success');
+  } else if (cue === 'recovery') {
+    appendToCivLog(viewerIds[0]!, 'Network recovery complete.', 'success');
+  }
 });
 
 bus.on('village:visited', ({ civId, outcome, message }) => {
@@ -5099,6 +5110,7 @@ function migrateLegacySave(): void {
     (gameState as any).legendaryWonderHistory = { destroyedStrongholds: [], discoveredSites: [] };
   }
   const legendaryWonderHistory = gameState.legendaryWonderHistory!;
+  legendaryWonderHistory.networkPlanResolutions ??= [];
   if (!legendaryWonderHistory.discoveredSites) {
     legendaryWonderHistory.discoveredSites = [];
     for (const [wonderId, discoverers] of Object.entries(gameState.wonderDiscoverers ?? {})) {

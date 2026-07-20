@@ -9,7 +9,7 @@ import type { GameState } from '@/core/types';
 import { isAtWar } from '@/systems/diplomacy-system';
 import { hexDistance } from '@/systems/hex-utils';
 import { isAutonomyActivated as isAutonomyActivatedForCiv } from './autonomy-activation';
-import { getNetworkPlanDefinition, getNetworkPlanLoad } from './network-plan-definitions';
+import { getNetworkPlanDefinition, getNetworkPlanLoad, isConstructiveSpecialistPlan } from './network-plan-definitions';
 import { getAutonomyCapacity, getAutonomyLoad } from './autonomy-capacity';
 import {
   resolveNetworkPlanAtTargetEnd,
@@ -106,14 +106,30 @@ function requestForPlan(plan: NetworkPlan, ownerCivId: string, target: NetworkPl
   };
 }
 
+function isOpenIntelligenceCommonsFreeLoadAssignment(state: GameState, request: NetworkPlanRequest): boolean {
+  if (state.completedLegendaryWonders?.['open-intelligence-commons']?.ownerId !== request.ownerCivId) return false;
+  if (!isConstructiveSpecialistPlan(request.definitionId)) return false;
+  return !Object.values(state.autonomyByCiv?.[request.ownerCivId]?.plans ?? {})
+    .some(plan => plan.status !== 'canceled' && plan.status !== 'completed'
+      && plan.effectState?.openIntelligenceCommonsFreeLoad);
+}
+
+function getAssignmentLoad(state: GameState, request: NetworkPlanRequest): number {
+  if (isOpenIntelligenceCommonsFreeLoadAssignment(state, request)) return 0;
+  return getNetworkPlanLoad(
+    request.definitionId,
+    request.linkedUnitIds,
+    state.civilizations[request.ownerCivId]?.techState.completed ?? [],
+  );
+}
+
 function hasCapacityForAssignment(state: GameState, request: NetworkPlanRequest): boolean {
   const load = getAutonomyLoad(state, request.ownerCivId).unrestricted;
   const capacity = getAutonomyCapacity(state, request.ownerCivId).unrestricted;
   const definition = getNetworkPlanDefinition(request.definitionId);
   const safeguardedHostileLoad = state.autonomyByCiv?.[request.ownerCivId]?.posture === 'safeguarded'
     && definition.targetKind === 'at-war-enemy-city' ? 1 : 0;
-  const completedTechs = state.civilizations[request.ownerCivId]?.techState.completed ?? [];
-  return load + getNetworkPlanLoad(request.definitionId, request.linkedUnitIds, completedTechs) + safeguardedHostileLoad <= capacity;
+  return load + getAssignmentLoad(state, request) + safeguardedHostileLoad <= capacity;
 }
 
 function hasActivePlanForCitySource(state: GameState, cityId: string): boolean {
@@ -232,11 +248,7 @@ export function previewNetworkPlan(state: GameState, request: NetworkPlanRequest
   const currentLoad = getAutonomyLoad(state, request.ownerCivId).unrestricted;
   return {
     validation: validateNetworkPlanAssignment(state, request),
-    load: getNetworkPlanLoad(
-      request.definitionId,
-      request.linkedUnitIds,
-      state.civilizations[request.ownerCivId]?.techState.completed ?? [],
-    ),
+    load: getAssignmentLoad(state, request),
     capacity,
     remainingCapacity: capacity - currentLoad,
     effect: definition.effect,
@@ -253,6 +265,7 @@ export function assignNetworkPlan(
   const definition = getNetworkPlanDefinition(request.definitionId);
   const currentAutonomy = state.autonomyByCiv?.[request.ownerCivId] ?? createEmptyAutonomyCivState();
   const nextId = state.idCounters.nextNetworkPlanId ?? 1;
+  const commonsFreeLoad = isOpenIntelligenceCommonsFreeLoadAssignment(state, request);
   const plan: NetworkPlan = {
     id: `network-plan-${nextId}`,
     ownerCivId: request.ownerCivId,
@@ -270,7 +283,12 @@ export function assignNetworkPlan(
       ? state.turn + 1 : state.turn,
     warnedTurn: null,
     surgeResolutionTurn: null,
-    ...(request.definitionId === 'harden' ? { effectState: { hardenCharges: 1 } } : {}),
+    ...((request.definitionId === 'harden' || commonsFreeLoad) ? {
+      effectState: {
+        ...(request.definitionId === 'harden' ? { hardenCharges: 1 } : {}),
+        ...(commonsFreeLoad ? { openIntelligenceCommonsFreeLoad: true } : {}),
+      },
+    } : {}),
   };
   return {
     state: {

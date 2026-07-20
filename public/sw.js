@@ -29,6 +29,12 @@ const PRECACHE_URLS = [
   '/conquestoria/audio/stinger/religion/city-defected.ogg',
   '/conquestoria/audio/stinger/famine/onset.ogg',
   '/conquestoria/audio/stinger/famine/resolved.ogg',
+  // Era 13 network feedback: short, local, viewer-gated stingers.
+  '/conquestoria/audio/stinger/network/constructive-resolution.ogg',
+  '/conquestoria/audio/stinger/network/hostile-warning.ogg',
+  '/conquestoria/audio/stinger/network/hostile-consequence.ogg',
+  '/conquestoria/audio/stinger/network/surge.ogg',
+  '/conquestoria/audio/stinger/network/recovery.ogg',
 ];
 
 self.addEventListener('install', (event) => {

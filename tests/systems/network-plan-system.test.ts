@@ -99,6 +99,24 @@ describe('network plan lifecycle', () => {
     expect(previewNetworkPlan(state, request)).toMatchObject({ validation: { ok: true }, load: 2 });
   });
 
+  it('lets Open Intelligence Commons assign its first constructive plan at zero Load', () => {
+    const state = makeState();
+    state.cities['city-player']!.buildings = ['network_operations_center'];
+    state.completedLegendaryWonders = {
+      'open-intelligence-commons': { ownerId: 'player', cityId: 'city-player', turnCompleted: state.turn },
+    };
+    const request = {
+      ownerCivId: 'player', source: { kind: 'city' as const, cityId: 'city-player' },
+      definitionId: 'research-mesh' as const, target: { kind: 'city' as const, cityId: 'city-player' },
+    };
+
+    expect(previewNetworkPlan(state, request)).toMatchObject({ validation: { ok: true }, load: 0 });
+    const assigned = assignNetworkPlan(state, request);
+
+    expect(assigned.plan?.effectState?.openIntelligenceCommonsFreeLoad).toBe(true);
+    expect(previewNetworkPlan(assigned.state, request).load).toBe(3);
+  });
+
   it('activates only after a civilization completes its first Era 13 technology', () => {
     const state = makeState();
     expect(isAutonomyActivated(state, 'player')).toBe(true);

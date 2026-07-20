@@ -62,6 +62,15 @@ describe('network infrastructure plans', () => {
     expect(getNetworkUnitVisionBonus(state, 'not-linked')).toBe(0);
   });
 
+  it('adds Lunar Gateway vision only to an owned autonomous air unit', () => {
+    const state = createNewGame('rome', 'lunar-vision', 'small');
+    const unitId = state.civilizations.player.units[0];
+    state.units[unitId] = { ...state.units[unitId], type: 'combat_drone' };
+    state.completedLegendaryWonders = { 'lunar-gateway': { ownerId: 'player', cityId: 'city', turnCompleted: state.turn } };
+
+    expect(getNetworkUnitVisionBonus(state, unitId)).toBe(1);
+  });
+
   it('uses the enhanced Fabrication cap only for the resolved Surge turn', () => {
     const state = createNewGame('rome', 'fabrication-surge', 'small');
     const cityId = addPlayerCity(state);

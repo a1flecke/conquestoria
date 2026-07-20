@@ -874,6 +874,34 @@ const LEGENDARY_WONDER_DEFINITIONS_BY_ID: Record<string, LegendaryWonderDefiniti
       civYieldBonus: { science: 6 },
     },
   },
+  'open-intelligence-commons': {
+    id: 'open-intelligence-commons',
+    name: 'Open Intelligence Commons',
+    era: 13,
+    productionCost: 1960,
+    requiredTechs: ['algorithmic-accountability', 'machine-ethics'],
+    requiredResources: [],
+    cityRequirement: 'any',
+    questSteps: [
+      { id: 'safety-institutes', type: 'specific-buildings', buildingIds: ['ai_safety_institute'], cityScope: 'distinct-cities', targetCount: 2, description: 'Build AI Safety Institutes in two different cities.' },
+      { id: 'constructive-resolutions', type: 'network-plan-resolutions', definitionIds: ['fabrication-sprint', 'research-mesh', 'logistics-routing'], targetCount: 3, stableOnly: true, description: 'Resolve three Stable constructive specialist plans.' },
+    ],
+    reward: { summary: '+4 science empire-wide. The first active constructive specialist intent costs zero Load.', civYieldBonus: { science: 4 } },
+  },
+  'lunar-gateway': {
+    id: 'lunar-gateway',
+    name: 'Lunar Gateway',
+    era: 13,
+    productionCost: 1960,
+    requiredTechs: ['mars-mission-architecture', 'quantum-networking'],
+    requiredResources: [],
+    cityRequirement: 'any',
+    questSteps: [
+      { id: 'gateway-infrastructure', type: 'specific-buildings', buildingIds: ['space_center', 'network_operations_center'], cityScope: 'host-city', description: 'In this city, build a Space Center and Network Operations Center.' },
+      { id: 'exploration-resolutions', type: 'network-plan-resolutions', definitionIds: ['survey-grid'], targetCount: 3, stableOnly: true, hostCityOnly: true, description: 'Maintain a Stable constructive exploration plan here for three resolutions.' },
+    ],
+    reward: { summary: '+3 science and +3 gold empire-wide. Autonomous air units gain +1 vision.', civYieldBonus: { science: 3, gold: 3 } },
+  },
 };
 
 export const LEGENDARY_WONDER_DEFINITIONS: LegendaryWonderDefinition[] = getApprovedM4LegendaryWonderRoster().map(entry => {

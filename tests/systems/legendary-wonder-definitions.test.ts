@@ -13,8 +13,31 @@ describe('legendary-wonder-definitions', () => {
     const shipped = getLegendaryWonderDefinitions().map(w => w.id);
 
     expect(shipped).toEqual(approved);
-    expect(approved).toHaveLength(36);
-    expect(approved).toEqual(expect.arrayContaining(['standing-stones', 'great-pyramid', 'tidemother-colossus', 'manhattan-project', 'internet', 'sistine-vault', 'codex-eternal', 'navigators-compass', 'palace-of-the-sun', 'iron-arsenal', 'merchant-admiralty', 'crystal-palace', 'suez-canal', 'continental-congress', 'eiffel-tower', 'brooklyn-bridge', 'trans-siberian-railway', 'panama-canal', 'empire-state-building', 'hoover-dam', 'wright-flyer', 'united-nations', 'apollo-program']));
+    expect(approved).toHaveLength(38);
+    expect(approved).toEqual(expect.arrayContaining(['standing-stones', 'great-pyramid', 'tidemother-colossus', 'manhattan-project', 'internet', 'sistine-vault', 'codex-eternal', 'navigators-compass', 'palace-of-the-sun', 'iron-arsenal', 'merchant-admiralty', 'crystal-palace', 'suez-canal', 'continental-congress', 'eiffel-tower', 'brooklyn-bridge', 'trans-siberian-railway', 'panama-canal', 'empire-state-building', 'hoover-dam', 'wright-flyer', 'united-nations', 'apollo-program', 'open-intelligence-commons', 'lunar-gateway']));
+  });
+
+  it('defines the two Era 13 autonomous-systems wonder contracts', () => {
+    const definitions = getLegendaryWonderDefinitions();
+
+    expect(definitions.find(wonder => wonder.id === 'open-intelligence-commons')).toMatchObject({
+      era: 13,
+      requiredTechs: ['algorithmic-accountability', 'machine-ethics'],
+      reward: { civYieldBonus: { science: 4 } },
+    });
+    expect(definitions.find(wonder => wonder.id === 'open-intelligence-commons')?.questSteps).toEqual(expect.arrayContaining([
+      expect.objectContaining({ type: 'specific-buildings', buildingIds: ['ai_safety_institute'], cityScope: 'distinct-cities', targetCount: 2 }),
+      expect.objectContaining({ type: 'network-plan-resolutions', definitionIds: ['fabrication-sprint', 'research-mesh', 'logistics-routing'], targetCount: 3, stableOnly: true }),
+    ]));
+    expect(definitions.find(wonder => wonder.id === 'lunar-gateway')).toMatchObject({
+      era: 13,
+      requiredTechs: ['mars-mission-architecture', 'quantum-networking'],
+      reward: { civYieldBonus: { science: 3, gold: 3 } },
+    });
+    expect(definitions.find(wonder => wonder.id === 'lunar-gateway')?.questSteps).toEqual(expect.arrayContaining([
+      expect.objectContaining({ type: 'specific-buildings', buildingIds: ['space_center', 'network_operations_center'], cityScope: 'host-city' }),
+      expect.objectContaining({ type: 'network-plan-resolutions', definitionIds: ['survey-grid'], targetCount: 3, stableOnly: true, hostCityOnly: true }),
+    ]));
   });
 
   it('supports the new Slice 4 quest-step patterns in the expanded catalog', () => {

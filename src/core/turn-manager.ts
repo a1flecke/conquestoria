@@ -9,6 +9,7 @@ import { getCivAvailableResources } from '@/systems/resource-acquisition-system'
 import { applyCityMaturity } from '@/systems/city-maturity-system';
 import { assignCityFocus, normalizeWorkedTilesForCity } from '@/systems/city-work-system';
 import { processResearch, getTechById, getEffectiveTechCost } from '@/systems/tech-system';
+import { recordStableConstructivePlanResolutions } from '@/systems/legendary-wonder-history';
 import {
   processPurposefulBarbarians,
 } from '@/systems/barbarian-system';
@@ -179,8 +180,13 @@ export function processTurn(
 
   // --- Process each civilization ---
   for (const [civId, civ] of Object.entries(newState.civilizations)) {
+    const recoveringBeforeAdvance = newState.autonomyByCiv?.[civId]?.surgeRecoveryUntilTurn;
     newState = applyPendingAutonomyPosture(newState, civId);
     newState = advanceAutonomySurge(newState, civId);
+    if (recoveringBeforeAdvance !== null && recoveringBeforeAdvance !== undefined
+      && newState.autonomyByCiv?.[civId]?.surgeRecoveryUntilTurn === null) {
+      bus.emit('network:audio-cue', { cue: 'recovery', viewerIds: [civId] });
+    }
     if (!civ.isHuman) {
       const warningResult = beginNetworkPlansForVictimTurn(newState, civId);
       newState = warningResult.state;
@@ -460,6 +466,15 @@ export function processTurn(
         goldTransferred: event.goldTransferred,
         delayed: event.kind === 'exploit-delayed',
       });
+    }
+
+    const resolutionCountBefore = (newState.legendaryWonderHistory?.networkPlanResolutions ?? [])
+      .filter(record => record.civId === civId).length;
+    newState = recordStableConstructivePlanResolutions(newState, civId);
+    const resolutionCountAfter = (newState.legendaryWonderHistory?.networkPlanResolutions ?? [])
+      .filter(record => record.civId === civId).length;
+    if (resolutionCountBefore < 3 && resolutionCountAfter >= 3) {
+      bus.emit('network:audio-cue', { cue: 'constructive-resolution', viewerIds: [civId] });
     }
 
     // Process research

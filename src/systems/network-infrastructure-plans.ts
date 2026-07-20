@@ -71,7 +71,8 @@ export function getNetworkRouteGoldBonus(state: GameState, route: TradeRoute): n
 export function getNetworkUnitVisionBonus(state: GameState, unitId: string): number {
   const unit = state.units[unitId];
   if (!unit) return 0;
-  let bonus = 0;
+  let bonus = state.completedLegendaryWonders?.['lunar-gateway']?.ownerId === unit.owner
+    && unit.type === 'combat_drone' ? 1 : 0;
   for (const plan of Object.values(state.autonomyByCiv?.[unit.owner]?.plans ?? {})) {
     if (plan.status !== 'active' || !hasLiveCitySource(state, plan) || plan.definitionId !== 'survey-grid' || !plan.linkedUnitIds?.includes(unitId)) continue;
     const effect = getNetworkPlanDefinition(plan.definitionId).effect;
