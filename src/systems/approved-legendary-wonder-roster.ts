@@ -50,5 +50,8 @@ export function getApprovedM4LegendaryWonderRoster(): ReadonlyArray<{ id: string
     { id: 'united-nations', name: 'United Nations' },
     // Era 11 wonders (Space Race & Détente)
     { id: 'apollo-program', name: 'Apollo Program' },
+    // Era 13 wonders (Autonomous Systems)
+    { id: 'open-intelligence-commons', name: 'Open Intelligence Commons' },
+    { id: 'lunar-gateway', name: 'Lunar Gateway' },
   ] as const;
 }

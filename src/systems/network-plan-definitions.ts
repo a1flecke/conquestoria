@@ -70,6 +70,11 @@ export function getNetworkPlanDefinition(id: NetworkPlanDefinitionId): NetworkPl
   return NETWORK_PLAN_DEFINITIONS[id];
 }
 
+/** City-sourced, non-hostile plans that represent the Commons' specialist work. */
+export function isConstructiveSpecialistPlan(id: NetworkPlanDefinitionId): boolean {
+  return id === 'fabrication-sprint' || id === 'research-mesh' || id === 'logistics-routing';
+}
+
 /** Survey Grid spends one base Load plus one per selected recipient; Autonomous Mobility removes one recipient Load. */
 export function getNetworkPlanLoad(
   id: NetworkPlanDefinitionId,

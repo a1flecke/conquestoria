@@ -51,6 +51,7 @@ export interface NetworkPlan {
     cdcDelayApplied?: boolean;
     hardenCharges?: number;
     surged?: boolean;
+    openIntelligenceCommonsFreeLoad?: boolean;
   };
 }
 

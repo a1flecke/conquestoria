@@ -47,7 +47,7 @@ export function getAutonomyLoad(state: GameState, civId: string): AutonomyLoad {
   const byCategory: Record<string, number> = {};
   const total = plans.reduce((sum, plan) => {
     const definition = getNetworkPlanDefinition(plan.definitionId);
-    const planLoad = getNetworkPlanLoad(plan.definitionId, plan.linkedUnitIds, completed);
+    const planLoad = plan.effectState?.openIntelligenceCommonsFreeLoad ? 0 : getNetworkPlanLoad(plan.definitionId, plan.linkedUnitIds, completed);
     const safeguardedHostileLoad = state.autonomyByCiv?.[civId]?.posture === 'safeguarded'
       && definition.targetKind === 'at-war-enemy-city' ? 1 : 0;
     const surgedLoad = plan.surgeResolutionTurn === state.turn ? planLoad : 0;

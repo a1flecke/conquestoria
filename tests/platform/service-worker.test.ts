@@ -132,4 +132,11 @@ describe('public/sw.js — activate handler cache versioning', () => {
 
     expect(opened).toContain(currentCacheName);
   });
+
+  it('precaches every declared Era 13 network stinger for offline play', () => {
+    const source = readFileSync(resolve(__dirname, '../../public/sw.js'), 'utf-8');
+    for (const cue of ['constructive-resolution', 'hostile-warning', 'hostile-consequence', 'surge', 'recovery']) {
+      expect(source).toContain(`/conquestoria/audio/stinger/network/${cue}.ogg`);
+    }
+  });
 });

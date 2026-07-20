@@ -145,6 +145,14 @@ function hasActiveLegendaryWonderBuildForCiv(
 
 function getDefaultQuestStepDescription(step: NonNullable<ReturnType<typeof getLegendaryWonderDefinition>>['questSteps'][number]): string {
   switch (step.type) {
+    case 'required-techs':
+      return `Research ${step.techIds.length} required technologies.`;
+    case 'specific-buildings':
+      return step.cityScope === 'host-city'
+        ? 'Complete the required buildings in this city.'
+        : 'Complete the required building in separate cities.';
+    case 'network-plan-resolutions':
+      return `Resolve ${step.targetCount} Stable network plans.`;
     case 'discover_wonder':
       return 'Discover a natural wonder.';
     case 'trade_route':
@@ -270,6 +278,22 @@ function evaluateLegendaryWonderStep(state: GameState, project: LegendaryWonderP
       scope: step.scope,
       cityId: step.scope === 'host-city' ? project.cityId : undefined,
     }) >= step.target;
+  }
+  if (step.type === 'required-techs') {
+    return step.techIds.every(techId => civ.techState.completed.includes(techId));
+  }
+  if (step.type === 'specific-buildings') {
+    if (step.cityScope === 'host-city') return step.buildingIds.every(id => city.buildings.includes(id));
+    return civ.cities.filter(cityId =>
+      step.buildingIds.every(id => state.cities[cityId]?.buildings.includes(id)),
+    ).length >= (step.targetCount ?? 1);
+  }
+  if (step.type === 'network-plan-resolutions') {
+    return (state.legendaryWonderHistory?.networkPlanResolutions ?? []).filter(record =>
+      record.civId === project.ownerId && step.definitionIds.includes(record.definitionId)
+      && (!step.stableOnly || record.stable)
+      && (!step.hostCityOnly || record.cityId === project.cityId),
+    ).length >= step.targetCount;
   }
 
   const discoveredWonderCount = Object.values(state.wonderDiscoverers ?? {})

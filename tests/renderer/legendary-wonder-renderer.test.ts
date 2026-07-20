@@ -7,6 +7,7 @@ import {
   getLegendaryWonderLandmarkMetadata,
   getLegendaryWonderLandmarkMetadataCatalog,
 } from '@/systems/legendary-wonder-landmark-catalog';
+import { resolveLegendaryWonderBespokeAsset } from '@/renderer/wonders/legendary-wonder-bespoke-assets';
 import { getWonderVisualDefinition } from '@/systems/wonder-visual-catalog';
 
 class MockCanvasContext {
@@ -72,6 +73,14 @@ function getGlyphGeometryProfile(ctx: MockCanvasContext): string {
 }
 
 describe('legendary-wonder-renderer', () => {
+  it('draws the Era 13 landmark identities with their own Canvas assets', () => {
+    const commons = getLegendaryWonderLandmarkMetadata('open-intelligence-commons');
+    const gateway = getLegendaryWonderLandmarkMetadata('lunar-gateway');
+
+    expect(resolveLegendaryWonderBespokeAsset(commons.assetKey)?.key).toBe('open-intelligence-commons-bespoke');
+    expect(resolveLegendaryWonderBespokeAsset(gateway.assetKey)?.key).toBe('lunar-gateway-bespoke');
+  });
+
   it('draws completed legendary landmarks with canvas primitives', () => {
     const ctx = new MockCanvasContext();
 

@@ -160,6 +160,8 @@ During implementation, add a row for every codex entry using this shape:
 | `hoover-dam` | `loc-about` | `image-foundry` | `/images/wonders/codex/foundry.jpg` | CC BY-SA 3.0 | Nlynch / CC BY-SA 3.0 |
 | `wright-flyer` | `loc-about` | `image-foundry` | `/images/wonders/codex/foundry.jpg` | CC BY-SA 3.0 | Nlynch / CC BY-SA 3.0 |
 | `united-nations` | `loc-about` | `image-archive` | `/images/wonders/codex/archive.jpg` | public domain | Carol M. Highsmith / public domain |
+| `open-intelligence-commons` | `internet-society-history` | `image-archive` | `/images/wonders/codex/archive.jpg` | public domain | Carol M. Highsmith / public domain |
+| `lunar-gateway` | `nasa-observatories` | `image-archive` | `/images/wonders/codex/archive.jpg` | public domain | Carol M. Highsmith / public domain |
 | `apollo-program` | `loc-about` | `image-archive` | `/images/wonders/codex/archive.jpg` | public domain | Carol M. Highsmith / public domain |
 | `standing-stones` | `unesco-stonehenge` | `image-olympia-stadium` | `/images/wonders/codex/olympia-stadium.jpg` | CC BY 2.0 | dronepicr / CC BY 2.0 |
 | `great-pyramid` | `unesco-giza` | `image-desert` | `/images/wonders/codex/desert.jpg` | public domain | NASA / public domain |
