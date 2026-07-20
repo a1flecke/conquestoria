@@ -1,4 +1,4 @@
-import type { City, CrisisArchetype, HexCoord } from '@/core/types';
+import type { City, CrisisArchetype, HexCoord, UnitType } from '@/core/types';
 import { getOccupiedCityMood } from '@/systems/city-occupation-system';
 import { PRODUCTION_ICONS, PRODUCTION_ICON_FALLBACK } from '@/systems/city-system';
 import type { LegendaryWonderMapEntry } from '@/systems/legendary-wonder-map-presentation';
@@ -430,15 +430,19 @@ export function drawCityProductionBadgePass(ctx: CanvasRenderingContext2D, item:
   if (!item.projection.isLive || !item.city || item.city.owner !== item.playerCivId) return;
   if (item.city.productionQueue.length === 0) return;
 
-  // #658: prefer the queued building's catalog sprite (loaded per-civ by initSprites);
-  // non-building queue heads (units, wonders) miss the building cache and fall through
-  // to the PRODUCTION_ICONS emoji, which also covers the not-yet-loaded window.
+  // #658: prefer the queued item's catalog sprite (loaded per-civ by initSprites),
+  // keyed by the city owner so hot-seat players each get their own palette. Buildings
+  // and units are separate cache namespaces, so at most one lookup hits. Unit sprites
+  // matter beyond looks: the old ⚔️ training emoji was the same glyph as the
+  // under-siege status badge on the opposite corner of the city. Wonders and
+  // not-yet-loaded sprites fall through to the PRODUCTION_ICONS emoji.
   const queueHead = item.city.productionQueue[0];
-  const buildingSprite = spriteCache.getBuilding(queueHead, item.city.owner);
-  if (buildingSprite) {
+  const spriteImage = spriteCache.getBuilding(queueHead, item.city.owner)
+    ?? spriteCache.getUnit(queueHead as UnitType, item.city.owner);
+  if (spriteImage) {
     const s = item.size * 0.32;
     ctx.drawImage(
-      buildingSprite,
+      spriteImage,
       item.screen.x - item.size * 0.48 - s / 2,
       item.screen.y - item.size * 0.42 - s / 2,
       s,

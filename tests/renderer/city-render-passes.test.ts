@@ -338,7 +338,7 @@ describe('city icon and badge text bounds', () => {
     getBuildingSpy.mockRestore();
   });
 
-  it('#658: keeps the emoji for a non-building queue head (units have no entry in the building sprite cache)', () => {
+  it('#658: keeps the emoji fallback while neither a building nor a unit sprite is cached yet', () => {
     const ctx = new MockCtx() as unknown as CanvasRenderingContext2D;
     const city = {
       id: 'city-1', owner: 'player', productionQueue: ['warrior'], idleProduction: null, unrestLevel: 0,
@@ -350,6 +350,44 @@ describe('city icon and badge text bounds', () => {
     expect((ctx as unknown as MockCtx).drawImageCalls).toHaveLength(0);
     expect((ctx as unknown as MockCtx).fillTextCalls).toHaveLength(1);
     expect((ctx as unknown as MockCtx).fillTextCalls[0]!.text).toBe('⚔️');
+  });
+
+  it('#658 review: draws the queued unit sprite for a unit queue head, so training ⚔️ can never be mistaken for the under-siege ⚔️ badge', () => {
+    const fakeSprite = {} as HTMLImageElement;
+    const getUnitSpy = vi.spyOn(spriteCache, 'getUnit').mockReturnValue(fakeSprite);
+    const ctx = new MockCtx() as unknown as CanvasRenderingContext2D;
+    const city = {
+      id: 'city-1', owner: 'player', productionQueue: ['warrior'], idleProduction: null, unrestLevel: 0,
+    } as CityRenderItem['city'];
+    const item = makeItem({ city });
+
+    drawCityProductionBadgePass(ctx, item);
+
+    expect(getUnitSpy).toHaveBeenCalledWith('warrior', 'player');
+    expect((ctx as unknown as MockCtx).drawImageCalls).toHaveLength(1);
+    expect((ctx as unknown as MockCtx).drawImageCalls[0]![0]).toBe(fakeSprite);
+    expect((ctx as unknown as MockCtx).fillTextCalls).toHaveLength(0);
+    getUnitSpy.mockRestore();
+  });
+
+  it('#658 review: hot seat — sprite lookup is keyed by the city owner, never a hardcoded player id', () => {
+    const fakeSprite = {} as HTMLImageElement;
+    const getBuildingSpy = vi.spyOn(spriteCache, 'getBuilding').mockReturnValue(fakeSprite);
+    const ctx = new MockCtx() as unknown as CanvasRenderingContext2D;
+    const city = {
+      id: 'city-9', owner: 'player-2', productionQueue: ['granary'], idleProduction: null, unrestLevel: 0,
+    } as CityRenderItem['city'];
+    const item = makeItem({
+      city,
+      playerCivId: 'player-2',
+      projection: { ...makeItem().projection, owner: 'player-2' },
+    });
+
+    drawCityProductionBadgePass(ctx, item);
+
+    expect(getBuildingSpy).toHaveBeenCalledWith('granary', 'player-2');
+    expect((ctx as unknown as MockCtx).drawImageCalls).toHaveLength(1);
+    getBuildingSpy.mockRestore();
   });
 
   it('skips the world-pressure badge for landmark-only (non-live) render items', () => {
