@@ -177,10 +177,19 @@ export interface LegendaryWonderDiscoveredSiteRecord {
   turn: number;
 }
 
+export interface LegendaryWonderNetworkPlanResolutionRecord {
+  civId: string;
+  planId: string;
+  definitionId: string;
+  cityId?: string;
+  stable: boolean;
+  turn: number;
+}
+
 export interface LegendaryWonderHistory {
   destroyedStrongholds: DestroyedStrongholdRecord[];
   discoveredSites: LegendaryWonderDiscoveredSiteRecord[];
-  networkPlanResolutions?: Array<{ civId: string; planId: string; definitionId: string; cityId?: string; stable: boolean; turn: number }>;
+  networkPlanResolutions?: LegendaryWonderNetworkPlanResolutionRecord[];
 }
 
 export type LegendaryWonderIntelKind = 'started' | 'completed' | 'host-location-known';

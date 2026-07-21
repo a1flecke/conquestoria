@@ -8,6 +8,7 @@ import {
   previewNetworkPlan,
   cancelInvalidNetworkPlans,
   retargetNetworkPlan,
+  resolveStableNetworkPlansForOwnerTurn,
   validateNetworkPlanAssignment,
 } from '@/systems/network-plan-system';
 
@@ -78,6 +79,82 @@ function makeState(): GameState {
 }
 
 describe('network plan lifecycle', () => {
+  it('emits one explicit stable resolution for an active constructive plan on its owner turn', () => {
+    const state = makeState();
+    state.cities['city-player']!.buildings = ['network_operations_center'];
+    state.autonomyByCiv!.player.plans.mesh = {
+      id: 'mesh', ownerCivId: 'player', definitionId: 'research-mesh',
+      source: { kind: 'city', cityId: 'city-player' }, target: { kind: 'city', cityId: 'city-player' },
+      status: 'active', createdTurn: state.turn, nextResolutionTurn: state.turn, warnedTurn: null,
+    };
+
+    const result = resolveStableNetworkPlansForOwnerTurn(state, 'player');
+
+    expect(result.resolutions).toEqual([
+      { civId: 'player', planId: 'mesh', definitionId: 'research-mesh', cityId: 'city-player', stable: true, turn: state.turn },
+    ]);
+  });
+
+  it('does not emit stable resolutions during Surge or recovery', () => {
+    const state = makeState();
+    state.cities['city-player']!.buildings = ['space_center'];
+    state.autonomyByCiv!.player.plans.survey = {
+      id: 'survey', ownerCivId: 'player', definitionId: 'survey-grid',
+      source: { kind: 'city', cityId: 'city-player' }, target: { kind: 'city', cityId: 'city-player' },
+      linkedUnitIds: ['unit-cyber'], status: 'active', createdTurn: state.turn, nextResolutionTurn: state.turn, warnedTurn: null,
+      surgeResolutionTurn: state.turn,
+    };
+
+    expect(resolveStableNetworkPlansForOwnerTurn(state, 'player').resolutions).toEqual([]);
+
+    state.autonomyByCiv!.player.plans.survey.surgeResolutionTurn = null;
+    state.autonomyByCiv!.player.surgeRecoveryUntilTurn = state.turn + 1;
+    expect(resolveStableNetworkPlansForOwnerTurn(state, 'player').resolutions).toEqual([]);
+  });
+
+  it('emits a Survey Grid fact with its source city on an ordinary owner turn', () => {
+    const state = makeState();
+    state.cities['city-player']!.buildings = ['space_center'];
+    state.autonomyByCiv!.player.plans.survey = {
+      id: 'survey', ownerCivId: 'player', definitionId: 'survey-grid',
+      source: { kind: 'city', cityId: 'city-player' }, target: { kind: 'city', cityId: 'city-player' },
+      linkedUnitIds: ['unit-cyber'], status: 'active', createdTurn: state.turn, nextResolutionTurn: state.turn, warnedTurn: null,
+    };
+
+    expect(resolveStableNetworkPlansForOwnerTurn(state, 'player').resolutions).toEqual([
+      { civId: 'player', planId: 'survey', definitionId: 'survey-grid', cityId: 'city-player', stable: true, turn: state.turn },
+    ]);
+  });
+
+  it('cleans an invalid plan before it can emit a stable resolution', () => {
+    const state = makeState();
+    state.autonomyByCiv!.player.plans.mesh = {
+      id: 'mesh', ownerCivId: 'player', definitionId: 'research-mesh',
+      source: { kind: 'city', cityId: 'city-player' }, target: { kind: 'city', cityId: 'city-player' },
+      status: 'active', createdTurn: state.turn, nextResolutionTurn: state.turn, warnedTurn: null,
+    };
+
+    const result = resolveStableNetworkPlansForOwnerTurn(state, 'player');
+
+    expect(result.resolutions).toEqual([]);
+    expect(result.state.autonomyByCiv!.player.plans).not.toHaveProperty('mesh');
+  });
+
+  it('emits the same owner-turn fact for an AI civilization', () => {
+    const state = makeState();
+    state.cities['city-ai']!.buildings = ['network_operations_center'];
+    state.civilizations['ai-1']!.techState.completed = ['quantum-computing'];
+    state.autonomyByCiv!['ai-1'].plans.mesh = {
+      id: 'mesh', ownerCivId: 'ai-1', definitionId: 'research-mesh',
+      source: { kind: 'city', cityId: 'city-ai' }, target: { kind: 'city', cityId: 'city-ai' },
+      status: 'active', createdTurn: state.turn, nextResolutionTurn: state.turn, warnedTurn: null,
+    };
+
+    expect(resolveStableNetworkPlansForOwnerTurn(state, 'ai-1').resolutions).toEqual([
+      { civId: 'ai-1', planId: 'mesh', definitionId: 'research-mesh', cityId: 'city-ai', stable: true, turn: state.turn },
+    ]);
+  });
+
   it('uses the Autonomous Mobility Survey Grid Load in both validation and preview', () => {
     const state = makeState();
     state.cities['city-player']!.buildings = ['network_operations_center'];

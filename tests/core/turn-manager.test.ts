@@ -62,6 +62,33 @@ function createWrappedGrasslandMap(width: number, height: number): GameState['ma
 }
 
 describe('processTurn', () => {
+  it('records a stable NetworkPlan resolution through the live owner-turn loop for player and AI owners', () => {
+    const state = createNewGame('rome', 'network-plan-history-turn-loop', 'small');
+    state.cities = {};
+    for (const [civId, position] of [['player', { q: 2, r: 2 }], ['ai-1', { q: 5, r: 2 }]] as const) {
+      const civ = state.civilizations[civId]!;
+      const city = foundCity(civId, position, state.map, state.idCounters);
+      city.buildings = ['network_operations_center'];
+      city.workedTiles = [];
+      city.productionQueue = [];
+      state.cities[city.id] = city;
+      civ.cities = [city.id];
+      civ.techState.completed = ['quantum-computing'];
+      state.autonomyByCiv![civId]!.plans[`${civId}-mesh`] = {
+        id: `${civId}-mesh`, ownerCivId: civId, definitionId: 'research-mesh',
+        source: { kind: 'city', cityId: city.id }, target: { kind: 'city', cityId: city.id },
+        status: 'active', createdTurn: state.turn, nextResolutionTurn: state.turn, warnedTurn: null,
+      };
+    }
+
+    const result = processTurn(state, new EventBus());
+
+    expect(result.legendaryWonderHistory?.networkPlanResolutions).toEqual(expect.arrayContaining([
+      expect.objectContaining({ civId: 'player', planId: 'player-mesh', stable: true, turn: 1 }),
+      expect.objectContaining({ civId: 'ai-1', planId: 'ai-1-mesh', stable: true, turn: 1 }),
+    ]));
+  });
+
   it('applies Precision Gene Editing healing from a nearby Neural Rehabilitation Center during the owner turn', () => {
     const state = createNewGame('rome', 'precision-gene-healing', 'small');
     const civ = state.civilizations.player;
