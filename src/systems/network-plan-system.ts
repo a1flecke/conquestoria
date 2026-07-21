@@ -5,7 +5,7 @@ import type {
   NetworkPlanSource,
 } from '@/core/autonomy-state';
 import { createEmptyAutonomyCivState } from '@/core/autonomy-state';
-import type { GameState } from '@/core/types';
+import type { GameState, LegendaryWonderNetworkPlanResolutionRecord } from '@/core/types';
 import { isAtWar } from '@/systems/diplomacy-system';
 import { hexDistance } from '@/systems/hex-utils';
 import { isAutonomyActivated as isAutonomyActivatedForCiv } from './autonomy-activation';
@@ -71,6 +71,13 @@ export interface NetworkTurnEndResult {
   state: GameState;
   creditsByOwner: Record<string, number>;
   events: NetworkEffectEvent[];
+}
+
+export type NetworkPlanResolutionRecord = LegendaryWonderNetworkPlanResolutionRecord;
+
+export interface NetworkPlanOwnerTurnResolutionResult {
+  state: GameState;
+  resolutions: NetworkPlanResolutionRecord[];
 }
 
 export interface NetworkPlanCleanupResult {
@@ -391,6 +398,37 @@ export function cancelInvalidNetworkPlans(state: GameState): NetworkPlanCleanupR
     cancelled.push({ planId: plan.id, reason: validation.reason });
   }
   return { state: nextState, cancelled };
+}
+
+/**
+ * Resolves the owner-turn fact for passive specialist plans before city yields
+ * consume their effects. These records are the canonical progression input for
+ * legendary-wonder quests; callers must not infer them from later state scans.
+ */
+export function resolveStableNetworkPlansForOwnerTurn(
+  state: GameState,
+  civId: string,
+): NetworkPlanOwnerTurnResolutionResult {
+  const nextState = cancelInvalidNetworkPlans(state).state;
+  const autonomy = nextState.autonomyByCiv?.[civId];
+  if (!autonomy || (autonomy.surgeRecoveryUntilTurn ?? 0) > nextState.turn) {
+    return { state: nextState, resolutions: [] };
+  }
+
+  const resolutions = Object.values(autonomy.plans)
+    .filter(plan => plan.status === 'active'
+      && (isConstructiveSpecialistPlan(plan.definitionId) || plan.definitionId === 'survey-grid')
+      && plan.surgeResolutionTurn !== nextState.turn)
+    .sort((left, right) => left.id.localeCompare(right.id))
+    .map(plan => ({
+      civId,
+      planId: plan.id,
+      definitionId: plan.definitionId,
+      cityId: plan.source?.kind === 'city' ? plan.source.cityId : undefined,
+      stable: true,
+      turn: nextState.turn,
+    }));
+  return { state: nextState, resolutions };
 }
 
 export function beginNetworkPlansForVictimTurn(
