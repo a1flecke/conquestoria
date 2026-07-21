@@ -9,7 +9,7 @@ import { getCivAvailableResources } from '@/systems/resource-acquisition-system'
 import { applyCityMaturity } from '@/systems/city-maturity-system';
 import { assignCityFocus, normalizeWorkedTilesForCity } from '@/systems/city-work-system';
 import { processResearch, getTechById, getEffectiveTechCost } from '@/systems/tech-system';
-import { recordStableConstructivePlanResolutions } from '@/systems/legendary-wonder-history';
+import { appendLegendaryWonderNetworkPlanResolutions } from '@/systems/legendary-wonder-history';
 import {
   processPurposefulBarbarians,
 } from '@/systems/barbarian-system';
@@ -89,6 +89,7 @@ import {
   beginNetworkPlansForVictimTurn,
   isAutonomyActivated,
   resolveNetworkPlansForVictimTurnEnd,
+  resolveStableNetworkPlansForOwnerTurn,
 } from '@/systems/network-plan-system';
 import { processEspionageTurn, isSpyUnitType, createSpyFromUnit, processInterrogation, applyBuildingCI } from '@/systems/espionage-system';
 import { processDetection } from '@/systems/detection-system';
@@ -186,6 +187,15 @@ export function processTurn(
     if (recoveringBeforeAdvance !== null && recoveringBeforeAdvance !== undefined
       && newState.autonomyByCiv?.[civId]?.surgeRecoveryUntilTurn === null) {
       bus.emit('network:audio-cue', { cue: 'recovery', viewerIds: [civId] });
+    }
+    const resolutionCountBefore = (newState.legendaryWonderHistory?.networkPlanResolutions ?? [])
+      .filter(record => record.civId === civId).length;
+    const ownerTurnResolution = resolveStableNetworkPlansForOwnerTurn(newState, civId);
+    newState = appendLegendaryWonderNetworkPlanResolutions(ownerTurnResolution.state, ownerTurnResolution.resolutions);
+    const resolutionCountAfter = (newState.legendaryWonderHistory?.networkPlanResolutions ?? [])
+      .filter(record => record.civId === civId).length;
+    if (resolutionCountBefore < 3 && resolutionCountAfter >= 3) {
+      bus.emit('network:audio-cue', { cue: 'constructive-resolution', viewerIds: [civId] });
     }
     if (!civ.isHuman) {
       const warningResult = beginNetworkPlansForVictimTurn(newState, civId);
@@ -466,15 +476,6 @@ export function processTurn(
         goldTransferred: event.goldTransferred,
         delayed: event.kind === 'exploit-delayed',
       });
-    }
-
-    const resolutionCountBefore = (newState.legendaryWonderHistory?.networkPlanResolutions ?? [])
-      .filter(record => record.civId === civId).length;
-    newState = recordStableConstructivePlanResolutions(newState, civId);
-    const resolutionCountAfter = (newState.legendaryWonderHistory?.networkPlanResolutions ?? [])
-      .filter(record => record.civId === civId).length;
-    if (resolutionCountBefore < 3 && resolutionCountAfter >= 3) {
-      bus.emit('network:audio-cue', { cue: 'constructive-resolution', viewerIds: [civId] });
     }
 
     // Process research
