@@ -13,6 +13,10 @@ import { resolveOpponentChallenge, setPendingOpponentChallenge, resolveChallenge
 import { processTurn } from '@/core/turn-manager';
 import { processNonHumanMajorRound } from '@/ai/ai-round-scheduler';
 import { RenderLoop } from '@/renderer/render-loop';
+import {
+  getVisibleCityBadgeSlots,
+  getVisibleHexViewportCopies,
+} from '@/renderer/city-renderer';
 import { initSprites } from '@/renderer/sprites/sprite-loader';
 import { preloadOutpostMarker } from '@/renderer/improvements/resource-outpost-marker';
 import { preloadFamineBadgeMarker } from '@/renderer/improvements/famine-badge-marker';
@@ -4929,6 +4933,31 @@ async function init(): Promise<void> {
   createUI();
   persistedSettings = await loadSettings();
 
+  if (import.meta.env.MODE === 'e2e') {
+    const { isExactAutosaveE2ERequest } = await import('@/testing/e2e-mode');
+    if (isExactAutosaveE2ERequest(import.meta.env.MODE, window.location.search)) {
+      const { installE2ERuntime } = await import('@/testing/e2e-runtime');
+      await installE2ERuntime({
+        loadAutosave: loadMostRecentAutoSaveEntry,
+        enterSoloCampaign: state => enterCampaignForE2E(state),
+        getVisibleHexCopies: coord => getVisibleHexViewportCopies(
+          gameState,
+          renderLoop.camera,
+          gameState.currentPlayer,
+          coord,
+        ),
+        getCityBadgeSlots: (cityId, slot) => getVisibleCityBadgeSlots(
+          gameState,
+          renderLoop.camera,
+          gameState.currentPlayer,
+          cityId,
+          slot,
+        ),
+      });
+      return;
+    }
+  }
+
   await showStartSavePanel();
 }
 
@@ -4936,19 +4965,19 @@ function enterCampaign(
   state: GameState,
   message: string,
   persistBeforeReady: boolean = false,
-): void {
+): Promise<void> | null {
   document.getElementById('save-panel')?.remove();
   gameState = state;
   migrateLegacySave();
   if (gameState.gameOver) {
-    startGame();
+    const spritesReady = startGame();
     handleVictoryIfNeeded();
-    return;
+    return spritesReady;
   }
   if (!gameState.hotSeat) {
-    startGame();
+    const spritesReady = startGame();
     showNotification(message, 'info');
-    return;
+    return spritesReady;
   }
 
   audio.setMasterVolume(0);
@@ -4992,7 +5021,7 @@ function enterCampaign(
     },
   );
 
-  if (!persistBeforeReady) return;
+  if (!persistBeforeReady) return null;
   const persist = async (): Promise<void> => {
     try {
       await autoSave(gameState);
@@ -5011,6 +5040,14 @@ function enterCampaign(
     }
   };
   void persist();
+  return null;
+}
+
+function enterCampaignForE2E(state: GameState): Promise<void> {
+  if (state.hotSeat) throw new Error('E2E direct entry does not bypass hot-seat handoff.');
+  const spritesReady = enterCampaign(state, `Welcome back! Turn ${state.turn}`);
+  if (!spritesReady) throw new Error('E2E direct entry requires a solo campaign.');
+  return spritesReady;
 }
 
 async function showStartSavePanel(): Promise<void> {
@@ -5266,7 +5303,7 @@ function showGameModeSelection(): void {
   });
 }
 
-function startGame(): void {
+function startGame(): Promise<void> {
   // Initialize treasury drawer once
   if (!drawer) {
     drawer = createTreasuryDrawer();
@@ -5278,7 +5315,8 @@ function startGame(): void {
   for (const [civId, civ] of Object.entries(gameState.civilizations)) {
     civColors[civId] = civ.color;
   }
-  initSprites(civColors);
+  const spritesReady = initSprites(civColors);
+  void spritesReady.catch(() => {});
   preloadOutpostMarker().catch(() => {});
   preloadFamineBadgeMarker().catch(() => {});
   preloadReligionBadgeMarker().catch(() => {});
@@ -5375,6 +5413,7 @@ function startGame(): void {
 
   // Start render loop
   renderLoop.start();
+  return spritesReady;
 }
 
 init();

@@ -14,6 +14,7 @@ Object.defineProperty(HTMLImageElement.prototype, 'src', {
 
 import {
   SPRITE_DIAGNOSTIC_METADATA,
+  getSpriteDiagnosticMetadata,
   spriteCache,
   initSprites,
 } from '@/renderer/sprites/sprite-loader';
@@ -83,16 +84,16 @@ describe('SpriteCache after initSprites', () => {
     const building = spriteCache.getBuilding('granary', 'player')!;
     const landmark = spriteCache.getLandmark('pirate_enclave_stage_1')!;
 
-    expect(unit[SPRITE_DIAGNOSTIC_METADATA]).toEqual({
+    expect(getSpriteDiagnosticMetadata(unit)).toEqual({
       kind: 'unit', itemId: 'warrior', civilization: 'player', motion: 'idle',
     });
-    expect(building[SPRITE_DIAGNOSTIC_METADATA]).toEqual({
+    expect(getSpriteDiagnosticMetadata(building)).toEqual({
       kind: 'building', itemId: 'granary', civilization: 'player',
     });
-    expect(landmark[SPRITE_DIAGNOSTIC_METADATA]).toEqual({
+    expect(getSpriteDiagnosticMetadata(landmark)).toEqual({
       kind: 'landmark', itemId: 'pirate_enclave_stage_1', civilization: 'pirates',
     });
     expect(Object.keys(unit)).not.toContain(String(SPRITE_DIAGNOSTIC_METADATA));
-    expect(Object.isFrozen(unit[SPRITE_DIAGNOSTIC_METADATA])).toBe(true);
+    expect(Object.isFrozen(getSpriteDiagnosticMetadata(unit))).toBe(true);
   });
 });

@@ -404,7 +404,7 @@ export function drawCityStatusBadgePass(ctx: CanvasRenderingContext2D, item: Cit
   const statusText = item.breakaway
     ? item.breakaway.status === 'secession'
       ? CITY_BADGE_GLYPHS.breakawaySecession
-      : CITY_BADGE_GLYPHS.breakawayCapital
+      : CITY_BADGE_GLYPHS.breakawayEstablished
     : item.presentation.underSiege
       ? CITY_BADGE_GLYPHS.underSiege
       : item.city.occupation
@@ -511,14 +511,13 @@ export function drawCityIntelBadgePass(ctx: CanvasRenderingContext2D, item: City
   if (!item.projection.isLive || item.lowZoom) return;
 
   const layout = getCityBadgeLayout(item.screen, item.size);
-  const badges = [
-    item.intel.hasEmbeddedSpy
-      ? { text: CITY_BADGE_GLYPHS.embeddedIntel, slot: layout.leftIntel }
-      : null,
-    item.intel.hasInfiltratedSpy
-      ? { text: CITY_BADGE_GLYPHS.infiltratedIntel, slot: layout.rightIntel }
-      : null,
-  ].filter((badge): badge is { text: string; slot: typeof layout.leftIntel } => badge !== null);
+  const badges: Array<{ text: string; slot: typeof layout.leftIntel }> = [];
+  if (item.intel.hasEmbeddedSpy) {
+    badges.push({ text: CITY_BADGE_GLYPHS.embeddedIntel, slot: layout.leftIntel });
+  }
+  if (item.intel.hasInfiltratedSpy) {
+    badges.push({ text: CITY_BADGE_GLYPHS.infiltratedIntel, slot: layout.rightIntel });
+  }
   for (const badge of badges) {
     const { center, bounds } = badge.slot;
     ctx.beginPath();
