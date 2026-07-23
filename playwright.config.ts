@@ -2,8 +2,8 @@ import { defineConfig, devices } from '@playwright/test';
 
 export function resolvePlaywrightDevCommand(ci = process.env.CI): string {
   return ci
-    ? 'yarn dev --host 127.0.0.1'
-    : './scripts/run-with-mise.sh yarn dev --host 127.0.0.1';
+    ? 'yarn dev --mode e2e --host 127.0.0.1'
+    : './scripts/run-with-mise.sh yarn dev --mode e2e --host 127.0.0.1';
 }
 
 export default defineConfig({
