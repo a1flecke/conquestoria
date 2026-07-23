@@ -15,11 +15,41 @@ const PIRATE_HULL_SET = new Set<string>(PIRATE_HULL_TYPES);
 
 const UNIT_MOTIONS: UnitSpriteMotion[] = ['idle', 'move-a', 'move-b'];
 
-function svgStringToImage(svgString: string, size: number): Promise<HTMLImageElement> {
+export const SPRITE_DIAGNOSTIC_METADATA = Symbol.for('conquestoria.spriteDiagnostic');
+
+export interface SpriteDiagnosticMetadata {
+  kind: 'unit' | 'building' | 'landmark';
+  itemId: string;
+  civilization: string;
+  motion?: UnitSpriteMotion;
+}
+
+type DiagnosticImage = HTMLImageElement & {
+  [SPRITE_DIAGNOSTIC_METADATA]?: SpriteDiagnosticMetadata;
+};
+
+function attachSpriteDiagnosticMetadata(
+  image: HTMLImageElement,
+  metadata: SpriteDiagnosticMetadata,
+): HTMLImageElement {
+  Object.defineProperty(image as DiagnosticImage, SPRITE_DIAGNOSTIC_METADATA, {
+    value: Object.freeze({ ...metadata }),
+    enumerable: false,
+    configurable: false,
+    writable: false,
+  });
+  return image;
+}
+
+function svgStringToImage(
+  svgString: string,
+  size: number,
+  metadata: SpriteDiagnosticMetadata,
+): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const blob = new Blob([svgString], { type: 'image/svg+xml' });
     const url = URL.createObjectURL(blob);
-    const img = new Image(size, size);
+    const img = attachSpriteDiagnosticMetadata(new Image(size, size), metadata);
     img.onload = () => { URL.revokeObjectURL(url); resolve(img); };
     img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('SVG image load failed')); };
     img.src = url;
@@ -40,7 +70,9 @@ class SpriteCache {
       UNIT_MOTIONS.map(async (motion) => {
         const svg = fn({ palette, svgOnly: true, motion });
         if (!svg) return;
-        const img = await svgStringToImage(svg, UNIT_SPRITE_SIZE);
+        const img = await svgStringToImage(svg, UNIT_SPRITE_SIZE, {
+          kind: 'unit', itemId: type, civilization: civId, motion,
+        });
         this.units.set(`${type}:${civId}:${motion}`, img);
         if (motion === 'idle') {
           this.units.set(`${type}:${civId}`, img);
@@ -51,7 +83,9 @@ class SpriteCache {
     const buildingWork = Object.entries(BUILDING_SPRITE_CATALOG).map(async ([id, fn]) => {
       const svg = fn({ palette, svgOnly: true });
       if (!svg) return;
-      const img = await svgStringToImage(svg, BUILDING_SPRITE_SIZE);
+      const img = await svgStringToImage(svg, BUILDING_SPRITE_SIZE, {
+        kind: 'building', itemId: id, civilization: civId,
+      });
       this.buildings.set(`${id}:${civId}`, img);
     });
 
@@ -61,12 +95,16 @@ class SpriteCache {
   async loadPirates(): Promise<void> {
     const unitWork = PIRATE_HULL_TYPES.flatMap(type => UNIT_MOTIONS.map(async motion => {
       const svg = UNIT_SPRITE_CATALOG[type]({ palette: PIRATE_PALETTE, svgOnly: true, motion });
-      const img = await svgStringToImage(svg, UNIT_SPRITE_SIZE);
+      const img = await svgStringToImage(svg, UNIT_SPRITE_SIZE, {
+        kind: 'unit', itemId: type, civilization: PIRATE_OWNER_FAMILY, motion,
+      });
       this.units.set(`${type}:${PIRATE_OWNER_FAMILY}:${motion}`, img);
       if (motion === 'idle') this.units.set(`${type}:${PIRATE_OWNER_FAMILY}`, img);
     }));
     const landmarkWork = Object.entries(PIRATE_HEADQUARTERS_SPRITE_CATALOG).map(async ([id, render]) => {
-      const img = await svgStringToImage(render({ svgOnly: true }), LANDMARK_SPRITE_SIZE);
+      const img = await svgStringToImage(render({ svgOnly: true }), LANDMARK_SPRITE_SIZE, {
+        kind: 'landmark', itemId: id, civilization: PIRATE_OWNER_FAMILY,
+      });
       this.landmarks.set(id, img);
     });
     await Promise.all([...unitWork, ...landmarkWork]);
