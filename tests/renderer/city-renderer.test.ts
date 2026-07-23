@@ -691,7 +691,7 @@ describe('drawCities — explicit city render pass contract', () => {
 });
 
 describe('drawCities — bottom-right build badge', () => {
-  it('draws the production icon for a player-owned city with a non-empty queue', () => {
+  it('draws the neutral construction badge for a player-owned city with a non-empty queue', () => {
     const state = createNewGame(undefined, 'badge-build-render');
     const settler = Object.values(state.units).find(u => u.owner === 'player' && u.type === 'settler')!;
     const city = foundCity('player', settler.position, state.map, state.idCounters);
@@ -704,7 +704,7 @@ describe('drawCities — bottom-right build badge', () => {
     drawCities(ctx, state, makeCamera(), 'player');
 
     const texts = (ctx as unknown as MockCanvasContext).fillTextCalls.map(c => c.text);
-    expect(texts).toContain('⚔️');
+    expect(texts).toContain('🏗️');
   });
 
   it('does NOT draw the production icon for an enemy-owned visible city', () => {
@@ -793,15 +793,15 @@ describe('drawCities — bottom-right build badge', () => {
 });
 
 describe('getProductionBadgeIcon', () => {
-  it('returns the matching icon when productionQueue[0] is a known building', () => {
-    expect(getProductionBadgeIcon({ productionQueue: ['granary'] })).toBe('🌾');
+  it('returns construction for a queued building', () => {
+    expect(getProductionBadgeIcon({ productionQueue: ['granary'] })).toBe('🏗️');
   });
 
-  it('returns the matching icon when productionQueue[0] is a known unit', () => {
-    expect(getProductionBadgeIcon({ productionQueue: ['warrior'] })).toBe('⚔️');
+  it('returns construction for a queued unit', () => {
+    expect(getProductionBadgeIcon({ productionQueue: ['warrior'] })).toBe('🏗️');
   });
 
-  it('returns the fallback icon when productionQueue[0] is unknown (e.g. legendary wonder)', () => {
+  it('returns construction for other queued content such as a legendary wonder', () => {
     expect(getProductionBadgeIcon({ productionQueue: ['some-legendary-wonder-id'] })).toBe('🏗️');
   });
 
