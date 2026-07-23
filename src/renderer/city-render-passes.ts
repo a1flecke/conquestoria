@@ -1,6 +1,5 @@
 import type { City, CrisisArchetype, HexCoord, UnitType } from '@/core/types';
 import { getOccupiedCityMood } from '@/systems/city-occupation-system';
-import { PRODUCTION_ICONS, PRODUCTION_ICON_FALLBACK } from '@/systems/city-system';
 import type { LegendaryWonderMapEntry } from '@/systems/legendary-wonder-map-presentation';
 import { drawLegendaryWonderLandmarkGlyph } from '@/renderer/wonders/legendary-wonder-renderer';
 import {
@@ -10,6 +9,10 @@ import {
 import { getFamineBadgeMarkerImage } from '@/renderer/improvements/famine-badge-marker';
 import { getReligionBadgeMarkerImage } from '@/renderer/improvements/religion-badge-marker';
 import { spriteCache } from '@/renderer/sprites/sprite-loader';
+import {
+  CITY_BADGE_GLYPHS,
+  getCityBadgeLayout,
+} from '@/renderer/city-badge-presentation';
 
 export interface CityRenderProjection {
   name: string;
@@ -70,9 +73,7 @@ export type CityRenderPass = {
 };
 
 export function getProductionBadgeIcon(city: { productionQueue: string[] }): string | null {
-  if (city.productionQueue.length === 0) return null;
-  const id = city.productionQueue[0];
-  return PRODUCTION_ICONS[id] ?? PRODUCTION_ICON_FALLBACK;
+  return city.productionQueue.length > 0 ? CITY_BADGE_GLYPHS.production : null;
 }
 
 const TIER_STRUCTURE_COUNTS = {
@@ -401,15 +402,23 @@ export function drawCityStatusBadgePass(ctx: CanvasRenderingContext2D, item: Cit
   // '⚔️' matches the city panel's own "Under siege" label icon (#522) for consistency
   // between the map badge and the panel status line.
   const statusText = item.breakaway
-    ? item.breakaway.status === 'secession' ? '⛓' : '👑'
+    ? item.breakaway.status === 'secession'
+      ? CITY_BADGE_GLYPHS.breakawaySecession
+      : CITY_BADGE_GLYPHS.breakawayCapital
     : item.presentation.underSiege
-      ? '⚔️'
+      ? CITY_BADGE_GLYPHS.underSiege
       : item.city.occupation
-        ? getOccupiedCityMood(item.city) === 2 ? '☹' : '⚡'
+        ? getOccupiedCityMood(item.city) === 2
+          ? CITY_BADGE_GLYPHS.occupationSevere
+          : CITY_BADGE_GLYPHS.occupation
         : item.city.unrestLevel > 0
-          ? item.city.unrestLevel === 2 ? '🔥' : '⚡'
+          ? item.city.unrestLevel === 2
+            ? CITY_BADGE_GLYPHS.unrestSevere
+            : CITY_BADGE_GLYPHS.unrest
           : null;
   if (!statusText) return;
+
+  const { center, bounds } = getCityBadgeLayout(item.screen, item.size).status;
 
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
@@ -417,9 +426,9 @@ export function drawCityStatusBadgePass(ctx: CanvasRenderingContext2D, item: Cit
   drawFittedText(
     ctx,
     statusText,
-    item.screen.x + item.size * 0.48,
-    item.screen.y - item.size * 0.42,
-    item.size * 0.28,
+    center.x,
+    center.y,
+    bounds.width,
     item.size * 0.28,
   );
 }
@@ -433,20 +442,20 @@ export function drawCityProductionBadgePass(ctx: CanvasRenderingContext2D, item:
   // #658: prefer the queued item's catalog sprite (loaded per-civ by initSprites),
   // keyed by the city owner so hot-seat players each get their own palette. Buildings
   // and units are separate cache namespaces, so at most one lookup hits. Unit sprites
-  // matter beyond looks: the old ⚔️ training emoji was the same glyph as the
+  // matter beyond looks: an old training emoji shared a glyph with the
   // under-siege status badge on the opposite corner of the city. Wonders and
-  // not-yet-loaded sprites fall through to the PRODUCTION_ICONS emoji.
+  // not-yet-loaded sprites fall through to the neutral construction marker.
   const queueHead = item.city.productionQueue[0];
+  const { center, bounds } = getCityBadgeLayout(item.screen, item.size).production;
   const spriteImage = spriteCache.getBuilding(queueHead, item.city.owner)
     ?? spriteCache.getUnit(queueHead as UnitType, item.city.owner);
   if (spriteImage) {
-    const s = item.size * 0.32;
     ctx.drawImage(
       spriteImage,
-      item.screen.x - item.size * 0.48 - s / 2,
-      item.screen.y - item.size * 0.42 - s / 2,
-      s,
-      s,
+      bounds.x,
+      bounds.y,
+      bounds.width,
+      bounds.height,
     );
     return;
   }
@@ -459,8 +468,8 @@ export function drawCityProductionBadgePass(ctx: CanvasRenderingContext2D, item:
   drawFittedText(
     ctx,
     buildIcon,
-    item.screen.x - item.size * 0.48,
-    item.screen.y - item.size * 0.42,
+    center.x,
+    center.y,
     item.size * 0.28,
     item.size * 0.28,
   );
@@ -479,15 +488,18 @@ export function drawCityIdleBadgePass(ctx: CanvasRenderingContext2D, item: CityR
     return;
   }
 
-  const idleIcon = item.city.idleProduction === 'gold' ? '💰' : '🔬';
+  const idleIcon = item.city.idleProduction === 'gold'
+    ? CITY_BADGE_GLYPHS.idleGold
+    : CITY_BADGE_GLYPHS.idleScience;
+  const { center, bounds } = getCityBadgeLayout(item.screen, item.size).idle;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillStyle = '#fff';
   drawFittedText(
     ctx,
     idleIcon,
-    item.screen.x - item.size * 0.48,
-    item.screen.y - item.size * 0.42,
+    center.x,
+    center.y,
     item.size * 0.28,
     item.size * 0.28,
   );
@@ -498,18 +510,19 @@ export function drawCityIntelBadgePass(ctx: CanvasRenderingContext2D, item: City
   markPass(ctx, 'intel');
   if (!item.projection.isLive || item.lowZoom) return;
 
+  const layout = getCityBadgeLayout(item.screen, item.size);
   const badges = [
     item.intel.hasEmbeddedSpy
-      ? { text: '🛡', x: item.screen.x - item.size * 0.5 }
+      ? { text: CITY_BADGE_GLYPHS.embeddedIntel, slot: layout.leftIntel }
       : null,
     item.intel.hasInfiltratedSpy
-      ? { text: '👁', x: item.screen.x + item.size * 0.5 }
+      ? { text: CITY_BADGE_GLYPHS.infiltratedIntel, slot: layout.rightIntel }
       : null,
-  ].filter((badge): badge is { text: string; x: number } => badge !== null);
-  const y = item.screen.y + item.size * 0.04;
+  ].filter((badge): badge is { text: string; slot: typeof layout.leftIntel } => badge !== null);
   for (const badge of badges) {
+    const { center, bounds } = badge.slot;
     ctx.beginPath();
-    ctx.arc(badge.x, y, item.size * 0.14, 0, Math.PI * 2);
+    ctx.arc(center.x, center.y, bounds.width / 2, 0, Math.PI * 2);
     ctx.fillStyle = 'rgba(20,24,30,0.86)';
     ctx.fill();
     ctx.textAlign = 'center';
@@ -517,16 +530,16 @@ export function drawCityIntelBadgePass(ctx: CanvasRenderingContext2D, item: City
     drawFittedText(
       ctx,
       badge.text,
-      badge.x,
-      y,
-      item.size * 0.28,
+      center.x,
+      center.y,
+      bounds.width,
       item.size * 0.2,
     );
   }
 }
 
-// Reuses drawCityIntelBadgePass's dark-circle "intel" style, at top-center so it never
-// collides with the corner status/production/idle/spy badges. One glyph for every
+// Reuses drawCityIntelBadgePass's dark-circle "intel" style. Its dedicated shared
+// layout slot never collides with the other city indicators. One glyph for every
 // archetype (matches city-panel's existing '⚠️' crisis convention) -- this is player
 // intel about a rival's crisis, not the rival's own detailed diagnosis.
 export function drawCityWorldPressureBadgePass(ctx: CanvasRenderingContext2D, item: CityRenderItem): void {
@@ -534,8 +547,7 @@ export function drawCityWorldPressureBadgePass(ctx: CanvasRenderingContext2D, it
   markPass(ctx, 'world-pressure');
   if (!item.projection.isLive || !item.city || !item.worldPressureCrisis) return;
 
-  const x = item.screen.x;
-  const y = item.screen.y - item.size * 0.58;
+  const { center, bounds } = getCityBadgeLayout(item.screen, item.size).worldPressure;
 
   // #594 MR7: famine gets bespoke badge art; every other archetype (outbreak,
   // catastrophe, hunt) keeps the generic ⚠️ glyph -- the badge fires for ANY active
@@ -544,33 +556,30 @@ export function drawCityWorldPressureBadgePass(ctx: CanvasRenderingContext2D, it
   if (item.worldPressureCrisis === 'famine') {
     const famineImg = getFamineBadgeMarkerImage();
     if (famineImg) {
-      const s = item.size * 0.32;
-      ctx.drawImage(famineImg, x - s / 2, y - s / 2, s, s);
+      ctx.drawImage(famineImg, bounds.x, bounds.y, bounds.width, bounds.height);
       return;
     }
   }
 
   ctx.beginPath();
-  ctx.arc(x, y, item.size * 0.14, 0, Math.PI * 2);
+  ctx.arc(center.x, center.y, bounds.width / 2, 0, Math.PI * 2);
   ctx.fillStyle = 'rgba(20,24,30,0.86)';
   ctx.fill();
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  drawFittedText(ctx, '⚠️', x, y, item.size * 0.28, item.size * 0.2);
+  drawFittedText(ctx, CITY_BADGE_GLYPHS.worldPressure, center.x, center.y, bounds.width, item.size * 0.2);
 }
 
-// #593 MR6: same dark-circle badge style, offset to the upper-right of the
-// world-pressure badge (which sits top-center) so the two never collide when a city
-// happens to have both a world-pressure crisis and active loyalty pressure.
+// #593 MR6: same dark-circle badge style. The shared layout keeps this signal distinct
+// from world pressure when a city has both conditions.
 export function drawCityLoyaltyPressureBadgePass(ctx: CanvasRenderingContext2D, item: CityRenderItem): void {
   if (item.projection.renderMode === 'landmark-only') return;
   markPass(ctx, 'loyalty-pressure');
   if (!item.projection.isLive || !item.city || !item.loyaltyPressure) return;
 
-  const x = item.screen.x + item.size * 0.5;
-  const y = item.screen.y - item.size * 0.58;
+  const { center, bounds } = getCityBadgeLayout(item.screen, item.size).loyaltyPressure;
   ctx.beginPath();
-  ctx.arc(x, y, item.size * 0.14, 0, Math.PI * 2);
+  ctx.arc(center.x, center.y, bounds.width / 2, 0, Math.PI * 2);
   ctx.fillStyle = 'rgba(20,24,30,0.86)';
   ctx.fill();
   ctx.textAlign = 'center';
@@ -580,13 +589,11 @@ export function drawCityLoyaltyPressureBadgePass(ctx: CanvasRenderingContext2D, 
   // cross/crescent/etc.) was used in an earlier draft and would have broken this
   // project's "invented faiths, never real-world religions" convention (see
   // religion-definitions.ts NAME_CANDIDATES doc comment).
-  drawFittedText(ctx, '🙏', x, y, item.size * 0.28, item.size * 0.2);
+  drawFittedText(ctx, CITY_BADGE_GLYPHS.loyaltyPressure, center.x, center.y, bounds.width, item.size * 0.2);
 }
 
-// #594 MR7: offset to the upper-left of the world-pressure badge (top-center) --
-// mirrors the loyalty-pressure badge's upper-right offset above -- so a city that
-// simultaneously has a world-pressure crisis, loyalty pressure, and a religion badge
-// never has more than two badges sharing the same spot.
+// #594 MR7: the shared layout assigns faith a dedicated slot, distinct from production,
+// status, world pressure, and loyalty indicators.
 export function drawCityReligionBadgePass(ctx: CanvasRenderingContext2D, item: CityRenderItem): void {
   if (item.projection.renderMode === 'landmark-only') return;
   markPass(ctx, 'religion-badge');
@@ -594,10 +601,8 @@ export function drawCityReligionBadgePass(ctx: CanvasRenderingContext2D, item: C
 
   const img = getReligionBadgeMarkerImage(item.religionBadge.isOwnFaith);
   if (!img) return;
-  const x = item.screen.x - item.size * 0.5;
-  const y = item.screen.y - item.size * 0.58;
-  const s = item.size * 0.32;
-  ctx.drawImage(img, x - s / 2, y - s / 2, s, s);
+  const { bounds } = getCityBadgeLayout(item.screen, item.size).religion;
+  ctx.drawImage(img, bounds.x, bounds.y, bounds.width, bounds.height);
 }
 
 export const CITY_RENDER_PASSES: CityRenderPass[] = [

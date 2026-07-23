@@ -11,6 +11,7 @@ import {
   drawCityLoyaltyPressureBadgePass,
   drawCityReligionBadgePass,
   fitCityBannerLabel,
+  getProductionBadgeIcon,
   type CityRenderItem,
 } from '@/renderer/city-render-passes';
 import { getLegendaryWonderLandmarkMetadata } from '@/systems/legendary-wonder-landmark-catalog';
@@ -187,6 +188,12 @@ describe('drawCityLabelPass', () => {
 });
 
 describe('city icon and badge text bounds', () => {
+  it('uses construction only as the map production fallback', () => {
+    expect(getProductionBadgeIcon({ productionQueue: ['granary'] })).toBe('🏗️');
+    expect(getProductionBadgeIcon({ productionQueue: ['warrior'] })).toBe('🏗️');
+    expect(getProductionBadgeIcon({ productionQueue: [] })).toBeNull();
+  });
+
   it('fits minor-civ, status, production, idle, and intel glyphs to their containers', () => {
     const ctx = new MockCtx() as unknown as CanvasRenderingContext2D;
     const city = {
@@ -322,7 +329,7 @@ describe('city icon and badge text bounds', () => {
     getBuildingSpy.mockRestore();
   });
 
-  it('#658: falls back to the PRODUCTION_ICONS emoji while the building sprite is not yet cached', () => {
+  it('falls back to the generic construction badge while the building sprite is not yet cached', () => {
     const getBuildingSpy = vi.spyOn(spriteCache, 'getBuilding').mockReturnValue(null);
     const ctx = new MockCtx() as unknown as CanvasRenderingContext2D;
     const city = {
@@ -334,11 +341,11 @@ describe('city icon and badge text bounds', () => {
 
     expect((ctx as unknown as MockCtx).drawImageCalls).toHaveLength(0);
     expect((ctx as unknown as MockCtx).fillTextCalls).toHaveLength(1);
-    expect((ctx as unknown as MockCtx).fillTextCalls[0]!.text).toBe('🌾');
+    expect((ctx as unknown as MockCtx).fillTextCalls[0]!.text).toBe('🏗️');
     getBuildingSpy.mockRestore();
   });
 
-  it('#658: keeps the emoji fallback while neither a building nor a unit sprite is cached yet', () => {
+  it('uses the generic construction fallback while neither a building nor unit sprite is cached', () => {
     const ctx = new MockCtx() as unknown as CanvasRenderingContext2D;
     const city = {
       id: 'city-1', owner: 'player', productionQueue: ['warrior'], idleProduction: null, unrestLevel: 0,
@@ -349,7 +356,7 @@ describe('city icon and badge text bounds', () => {
 
     expect((ctx as unknown as MockCtx).drawImageCalls).toHaveLength(0);
     expect((ctx as unknown as MockCtx).fillTextCalls).toHaveLength(1);
-    expect((ctx as unknown as MockCtx).fillTextCalls[0]!.text).toBe('⚔️');
+    expect((ctx as unknown as MockCtx).fillTextCalls[0]!.text).toBe('🏗️');
   });
 
   it('#658 review: draws the queued unit sprite for a unit queue head, so training ⚔️ can never be mistaken for the under-siege ⚔️ badge', () => {
