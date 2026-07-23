@@ -2,6 +2,7 @@ import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
+// @ts-expect-error JavaScript CLI module has no declaration file.
 import { assertNoE2ERuntime } from '../../scripts/assert-no-e2e-runtime.mjs';
 
 const tempDirs: string[] = [];

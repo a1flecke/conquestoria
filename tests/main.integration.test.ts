@@ -29,6 +29,17 @@ describe('campaign entry wiring', () => {
       .toBeLessThan(entry.indexOf('if (!gameState.hotSeat)'));
     expect(entry).toContain('handleVictoryIfNeeded()');
   });
+
+  it('gates direct E2E autosave entry before the save-panel UI and exposes no mutable runtime globals', () => {
+    const main = readFileSync(resolve(PROJECT_ROOT, 'src/main.ts'), 'utf8');
+
+    expect(main).toContain("if (import.meta.env.MODE === 'e2e')");
+    expect(main).toContain("await import('@/testing/e2e-runtime')");
+    expect(main.indexOf("import.meta.env.MODE === 'e2e'"))
+      .toBeLessThan(main.indexOf('await showStartSavePanel()'));
+    expect(main).not.toContain('window.gameState');
+    expect(main).not.toContain('window.renderLoop');
+  });
 });
 
 describe('player combat wiring', () => {

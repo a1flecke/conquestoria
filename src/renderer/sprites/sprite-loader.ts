@@ -41,6 +41,10 @@ function attachSpriteDiagnosticMetadata(
   return image;
 }
 
+export function getSpriteDiagnosticMetadata(image: HTMLImageElement): SpriteDiagnosticMetadata | undefined {
+  return (image as DiagnosticImage)[SPRITE_DIAGNOSTIC_METADATA];
+}
+
 function svgStringToImage(
   svgString: string,
   size: number,
