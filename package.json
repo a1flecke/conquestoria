@@ -3,8 +3,8 @@
   "packageManager": "yarn@4.17.0",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build && node scripts/version-sw-cache.mjs",
-    "build:tauri": "tsc && vite build --mode tauri",
+    "build": "tsc && vite build && node scripts/version-sw-cache.mjs && node scripts/assert-no-e2e-runtime.mjs dist",
+    "build:tauri": "tsc && vite build --mode tauri && node scripts/assert-no-e2e-runtime.mjs dist",
     "preview": "vite preview",
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build",

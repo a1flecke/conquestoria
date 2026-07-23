@@ -7,13 +7,13 @@ describe('playwright config', () => {
       ? playwrightConfig.webServer[0]
       : playwrightConfig.webServer;
 
-    expect(resolvePlaywrightDevCommand('true')).toBe('yarn dev --host 127.0.0.1');
+    expect(resolvePlaywrightDevCommand('true')).toBe('yarn dev --mode e2e --host 127.0.0.1');
     expect(resolvePlaywrightDevCommand('true')).not.toContain('run-with-mise');
     expect(webServer?.command).toBe(resolvePlaywrightDevCommand());
   });
 
   it('uses the worktree-aware wrapper for local browser tests', () => {
     expect(resolvePlaywrightDevCommand(''))
-      .toBe('./scripts/run-with-mise.sh yarn dev --host 127.0.0.1');
+      .toBe('./scripts/run-with-mise.sh yarn dev --mode e2e --host 127.0.0.1');
   });
 });
