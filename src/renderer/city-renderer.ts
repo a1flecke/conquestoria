@@ -21,6 +21,11 @@ import {
   buildLiveCityMapPresentation,
   buildStaleCityMapPresentation,
 } from '@/renderer/city-map-presentation';
+import {
+  getCityBadgeLayout,
+  type CityBadgeSlot,
+  type CityBadgeSlotLayout,
+} from '@/renderer/city-badge-presentation';
 
 export { getProductionBadgeIcon } from '@/renderer/city-render-passes';
 
@@ -69,6 +74,46 @@ export function getCityRenderData(state: GameState): CityRenderInfo[] {
         : undefined,
     };
   });
+}
+
+/**
+ * Returns the on-screen centers of every visible render copy of one canonical
+ * hex. The query uses the same horizontal-wrap and camera transforms as the
+ * live renderer, but exposes no game-state or camera references.
+ */
+export function getVisibleHexViewportCopies(
+  state: GameState,
+  camera: Camera,
+  viewerId: string,
+  coord: HexCoord,
+): Array<{ x: number; y: number }> {
+  if (!state.civilizations[viewerId]?.visibility) return [];
+  const renderCoords = state.map.wrapsHorizontally
+    ? getHorizontalWrapRenderCoords(coord, state.map.width, camera)
+    : [coord];
+  return renderCoords
+    .filter(copy => camera.isHexVisible(copy))
+    .map(copy => {
+      const pixel = hexToPixel(copy, camera.hexSize);
+      return camera.worldToScreen(pixel.x, pixel.y);
+    });
+}
+
+/**
+ * Returns the badge geometry for visible, live city render copies. This keeps
+ * visual checks viewer-scoped and prevents fogged snapshots from exposing live
+ * city state to diagnostic callers.
+ */
+export function getVisibleCityBadgeSlots(
+  state: GameState,
+  camera: Camera,
+  viewerId: string,
+  cityId: string,
+  slot: CityBadgeSlot,
+): CityBadgeSlotLayout[] {
+  return createCityRenderItems(state, camera, viewerId, {})
+    .filter(item => item.projection.isLive && item.city?.id === cityId)
+    .map(item => getCityBadgeLayout(item.screen, item.size)[slot]);
 }
 
 export function drawCities(
