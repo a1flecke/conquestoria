@@ -217,6 +217,25 @@ There is no queue mutation, new action, panel filtering, or recommendation surfa
 
 Rendering must continue to key sprite lookup and visibility to `state.currentPlayer` and the actual city owner. The new registry/layout helper is presentation-only and receives already viewer-safe `CityRenderItem` data; it must not read richer state or introduce a new privacy path.
 
+## Cross-Cutting Gameplay and Audience Contract
+
+Issue #660 changes verification and map presentation, not simulation. The implementation must make that neutrality explicit instead of relying on the absence of intended gameplay work.
+
+| Dimension | Required contract |
+|---|---|
+| Balance and pacing | No yield, cost, ETA, combat, movement, research, crisis, or difficulty value changes. Badge rendering does not mutate the queue, progress, city, civilization, or turn state. |
+| Fun and new mechanics | No new action, reward, penalty, resource, rule, or decision is introduced. The benefit is faster visual comprehension and fewer misleading badge collisions. |
+| Ages and comprehension | A specific text name, icon, progress, and ETA remain available in the DOM city panel; the small Canvas badge is only a glanceable supplement. Meaning never depends on color or sound alone. Distinct simultaneous glyphs and disjoint bounds reduce ambiguity for early readers without removing detail for experienced players. |
+| Play styles | Completionist, military, builder, wonder, and idle-production play remain behaviorally identical. Full production browsing, queue ordering, and lower-ranked item reachability are unchanged. |
+| Difficulty modes | `explorer`, `standard`, and `veteran` all render through the same badge and sprite path. The e2e bridge accepts every valid built-in challenge and rejects missing or invalid values; it does not resolve, rewrite, or rebalance difficulty. |
+| Computer players | AI production, scoring, research, and turn scheduling are untouched. Rival/AI queue contents remain private because the production badge is still restricted to a city owned by `state.currentPlayer`; loading sprites for all civilizations does not make AI choices observable. |
+| Solo and hot seat | Direct e2e entry is solo-only. The live UI path retains hot-seat handoff and privacy. Renderer tests switch `currentPlayer` between hot-seat seats and prove that only the active seat's city production is presented. |
+| SFX and reduced motion | Badge drawing and sprite readiness are silent presentation updates; they emit no SFX, music, notification, or gameplay event. Existing campaign-entry audio starts through the unchanged `startGame()` path. Reduced-motion behavior remains controlled by the existing renderer/overlay setting. |
+| Saved games | No save field, schema version, migration, or serialized metadata changes. Direct entry consumes the normalized `LoadedSaveEntry.state` returned by the existing storage path. A rejected direct entry does not rewrite storage or mutate the loaded state. |
+| Extensibility | New badge meanings require one typed registry entry, one named slot/coexistence decision, and operations-log coverage. New catalog sprites inherit metadata at the shared loader boundary. No ID-specific renderer branch is added for granary, warrior, or Standing Stones. |
+
+The target audience range cannot be proven by a numeric age test. The enforceable proxy is redundant readable detail, non-color/non-audio-only meaning, mobile/reduced-motion coverage, and deterministic tests for simultaneous meanings. Manual playtesting may supplement those contracts but must not replace them.
+
 ## Building Catalog Contract
 
 The live production path currently depends on:
@@ -268,7 +287,10 @@ Additional unit coverage verifies:
 - fixture builders return independent states, derive ownership from `currentPlayer`, reject missing definitions, and produce a consistent legendary-wonder project/queue pair;
 - Playwright config resolves both CI and local dev-server commands with `--mode e2e`;
 - e2e mode/query gating rejects normal development, production, Tauri, missing-query, and wrong-query inputs, and direct entry rejects hot-seat state;
+- direct entry accepts each valid built-in challenge without changing it, while rejected direct entry leaves the supplied state and storage dependencies untouched;
 - renderer-owned visible-copy coordinate queries agree with `Camera.screenToHex()` for non-wrapped and horizontally wrapped cases, while badge-slot queries reject cities not rendered for the current viewer;
+- hot-seat viewer switching shows production only for the active seat, AI/rival production remains private, and all three challenge values produce identical presentation operations for identical visible state;
+- badge passes are state-pure and silent: no gameplay event, notification, audio, or SFX dependency is introduced;
 - a narrow e2e-source guard rejects reintroduced local `pointyHexPixel` helpers and the removed `waitForTimeout(500)` bootstrap pattern;
 - capture overload parsing, transform/DPR normalization, filtering, overflow, freeze, return values, and native error propagation;
 - the dormant-v2 source-use allowlist.
@@ -283,6 +305,7 @@ One focused production-badge spec uses the shared harness and transformed canoni
 - each image operation's normalized bounds intersect, and each text operation's normalized anchor lies within, the expected production slot for a visible copy of the selected city;
 - building/unit sprite frames do not emit a production fallback at that slot, while the wonder frame does not emit a catalog sprite for its queue item;
 - the game is entered without save-panel or migration-dialog interaction.
+- the real city panel still exposes the queued item's specific name and turns remaining, so the generic loading badge is never the only source of production identity.
 
 One separate browser smoke test installs the modernized clone, clicks the real Continue button, and proves the live save-panel callback still reaches the game. Legacy challenge choice, cancel/focus restoration, persistence failure/retry, and import ordering remain covered by the existing campaign-entry and prompt interaction tests.
 
@@ -357,6 +380,10 @@ Because the design changes renderer output, final review must inspect both `orig
 - The production fallback cannot collide with any simultaneous city-map badge glyph.
 - Simultaneous city badges have non-overlapping bounds at supported sizes, including production/religion and status/loyalty.
 - Specific production icons remain visible in the city panel while the temporary map fallback is generic.
+- The same presentation result is produced at explorer, standard, and veteran difficulty for identical visible state, without changing AI or balance data.
+- AI/rival production remains private, and hot-seat viewer switching follows `state.currentPlayer` without bypassing handoff.
+- Badge rendering and sprite readiness emit no gameplay event or SFX and mutate no saved/gameplay state.
+- Existing saves need no schema or migration change; invalid or hot-seat direct entry performs no storage write.
 - Live building catalogs have subset/exact-extra consistency coverage with the five named retained assets.
 - V2 building assets remain intact and out of scope.
 - The functional and source-use v2 sentinels fail with actionable guidance when building rendering becomes live.

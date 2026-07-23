@@ -86,6 +86,20 @@
 - Existing reorder/remove behavior and invalid-item handling remain owned by the city panel and city system.
 - The renderer tests must snapshot the queue before and after every badge pass and prove presentation is state-pure.
 
+## Cross-Cutting Regression Matrix
+
+| Concern | Proof required by this plan |
+|---|---|
+| Balance, pacing, and new mechanics | Renderer tests deep-compare gameplay state before/after badge passes; the committed diff contains no definition, economy, combat, movement, research, crisis, AI-scoring, or turn-processing change. |
+| Fun, ages, and play styles | Simultaneous meanings are distinct and non-overlapping; the production browser test opens the real city panel and verifies the specific name and turns remaining remain readable. Full catalog and queue interaction tests stay green. |
+| Difficulty | Runtime tests accept `explorer`, `standard`, and `veteran` unchanged; identical visible state produces identical badge operations across the three values. |
+| Computer players | AI/rival queue items do not render as player production badges. No `src/ai/**` file changes, and sprite preloading exposes catalog identity only—not AI state. |
+| Solo and hot seat | Direct entry covers solo saves only. Unit/integration tests switch hot-seat `currentPlayer`, preserve handoff, and prove production visibility follows the active seat. |
+| UI, UX, and reduced motion | Desktop and mobile bounds, reduced motion before navigation, DOM production identity, viewer privacy, and no color/audio-only meaning. |
+| Architecture and extensibility | Typed registry/slots, shared loader metadata, viewer-safe serialized geometry, bounded Playwright-owned capture, literal tree-shaken mode gate, and v2 consumer sentinel. |
+| Data and saved games | Relationship-based catalog assertions, fresh fixture clones, valid canonical wonder transition, no save schema change, normalized load path, and no write/mutation on rejected direct entry. |
+| SFX | New presentation/testing modules import no audio/SFX modules; render and readiness transitions call no audio, notification, event-bus, or state mutation function. Existing `startGame()` remains the sole campaign audio startup path. |
+
 ---
 
 ### Task 1: Secure the e2e mode and production-bundle boundary
@@ -364,6 +378,12 @@ export interface BadgeBounds {
 - [ ] **Step 4: Refactor every affected pass to the registry/layout**
 
 ```ts
+export function getProductionBadgeIcon(
+  city: { productionQueue: string[] },
+): string | null {
+  return city.productionQueue.length > 0 ? CITY_BADGE_GLYPHS.production : null;
+}
+
 const layout = getCityBadgeLayout(item.screen, item.size);
 const { center } = layout.production;
 const queueHead = item.city.productionQueue[0];
@@ -376,7 +396,7 @@ if (spriteImage) {
 }
 drawFittedText(
   ctx,
-  CITY_BADGE_GLYPHS.production,
+  getProductionBadgeIcon(item.city)!,
   center.x,
   center.y,
   layout.production.bounds.width,
@@ -394,6 +414,9 @@ all visibility/ownership checks.
 Add cases proving:
 
 ```ts
+expect(getProductionBadgeIcon({ productionQueue: ['granary'] })).toBe('🏗️');
+expect(getProductionBadgeIcon({ productionQueue: ['warrior'] })).toBe('🏗️');
+expect(getProductionBadgeIcon({ productionQueue: [] })).toBeNull();
 expect(fallback.fillTextCalls[0]?.text).toBe('🏗️');
 expect(cached.drawImageCalls).toHaveLength(1);
 expect(cached.fillTextCalls).toHaveLength(0);
@@ -401,7 +424,10 @@ expect(wonder.fillTextCalls[0]?.text).toBe('🏗️');
 expect(state.city.productionQueue).toEqual(queueBefore);
 ```
 
-Also retain the existing exact status, world-pressure, loyalty, religion, and idle assertions.
+Deep-compare the complete input `CityRenderItem` before and after every badge pass.
+Retain the existing exact status, world-pressure, loyalty, religion, and idle
+assertions. `PRODUCTION_ICONS`, `PRODUCTION_ICON_FALLBACK`, and
+`getProductionIconForItem()` remain untouched for the DOM city panel.
 
 - [ ] **Step 6: Run renderer tests and source checks**
 
@@ -431,15 +457,21 @@ git commit -m "fix(renderer): separate city badge meanings and bounds"
 
 ```ts
 import {
-  getSpriteDiagnosticMetadata,
   initSprites,
+  SPRITE_DIAGNOSTIC_METADATA_KEY,
   spriteCache,
+  type SpriteDiagnosticMetadata,
 } from '@/renderer/sprites/sprite-loader';
+
+const readMetadata = (image: HTMLImageElement) =>
+  (image as unknown as Record<symbol, Readonly<SpriteDiagnosticMetadata> | undefined>)[
+    Symbol.for(SPRITE_DIAGNOSTIC_METADATA_KEY)
+  ];
 
 it('attaches stable building catalog metadata before load completion', async () => {
   const promise = initSprites({ civ: '#336699' });
   const created = imageConstructorSpy.mock.results[0]?.value as HTMLImageElement;
-  expect(getSpriteDiagnosticMetadata(created)).toMatchObject({
+  expect(readMetadata(created)).toMatchObject({
     kind: 'building',
     itemId: expect.any(String),
     civilization: 'civ',
@@ -454,13 +486,13 @@ it('identifies unit motion and neutral landmarks without state data', async () =
   await loading;
   const unit = spriteCache.getUnitMotion('warrior', 'civ', 'move-a');
   const landmark = spriteCache.getLandmark('pirate-headquarters');
-  expect(getSpriteDiagnosticMetadata(unit!)).toEqual({
+  expect(readMetadata(unit!)).toEqual({
     kind: 'unit',
     itemId: 'warrior',
     civilization: 'civ',
     motion: 'move-a',
   });
-  expect(getSpriteDiagnosticMetadata(landmark!)).toEqual({
+  expect(readMetadata(landmark!)).toEqual({
     kind: 'landmark',
     itemId: 'pirate-headquarters',
     civilization: 'neutral',
@@ -492,16 +524,6 @@ export interface SpriteDiagnosticMetadata {
 
 export const SPRITE_DIAGNOSTIC_METADATA_KEY = 'conquestoria.spriteDiagnostic';
 const diagnosticMetadataSymbol = Symbol.for(SPRITE_DIAGNOSTIC_METADATA_KEY);
-
-export function getSpriteDiagnosticMetadata(
-  image: CanvasImageSource,
-): Readonly<SpriteDiagnosticMetadata> | null {
-  if (!(image instanceof HTMLImageElement)) return null;
-  return (image as unknown as Record<
-    symbol,
-    Readonly<SpriteDiagnosticMetadata> | undefined
-  >)[diagnosticMetadataSymbol] ?? null;
-}
 
 function svgStringToImage(
   svgString: string,
@@ -560,7 +582,10 @@ it('returns every visible wrapped copy through production projection', () => {
   const results = getVisibleHexViewportCopies(state, camera, state.currentPlayer, city.position);
   expect(results).not.toHaveLength(0);
   for (const result of results) {
-    expect(camera.screenToHex(result.x, result.y)).toEqual(city.position);
+    expect(wrapHexCoord(
+      camera.screenToHex(result.x, result.y),
+      state.map.width,
+    )).toEqual(city.position);
   }
 });
 
@@ -569,6 +594,30 @@ it('returns a named badge slot only for a live city rendered to the viewer', () 
     .not.toHaveLength(0);
   expect(getVisibleCityBadgeSlots(state, camera, state.currentPlayer, hiddenCity.id, 'production'))
     .toEqual([]);
+});
+
+it.each(['explorer', 'standard', 'veteran'] as const)(
+  'keeps city presentation independent of %s difficulty',
+  challenge => {
+    const challenged = { ...state, opponentChallenge: challenge };
+    expect(collectCityOperations(challenged, camera, challenged.currentPlayer))
+      .toEqual(collectCityOperations(state, camera, state.currentPlayer));
+  },
+);
+
+it('keeps rival AI production private', () => {
+  const rivalCity = { ...city, owner: 'ai-1', productionQueue: ['warrior'] };
+  const rivalState = {
+    ...state,
+    cities: { ...state.cities, [rivalCity.id]: rivalCity },
+  };
+  expect(collectProductionOperations(rivalState, camera, state.currentPlayer, rivalCity.id))
+    .toEqual([]);
+});
+
+it('switches hot-seat production visibility with currentPlayer', () => {
+  expect(visibleProductionCityIds(hotSeatState, camera, 'player-1')).toEqual(['city-p1']);
+  expect(visibleProductionCityIds(hotSeatState, camera, 'player-2')).toEqual(['city-p2']);
 });
 ```
 
@@ -647,11 +696,32 @@ git commit -m "test(renderer): expose viewer-safe canvas geometry"
 
 ```ts
 it('rejects missing challenge and hot-seat autosaves before entry', async () => {
+  const hotSeatBefore = structuredClone(hotSeatState);
   await expect(startE2ERuntime(deps({ state: withoutChallenge })))
     .rejects.toThrow(/opponent challenge/i);
   await expect(startE2ERuntime(deps({ state: hotSeatState })))
     .rejects.toThrow(/hot-seat/i);
   expect(enterCampaign).not.toHaveBeenCalled();
+  expect(storageWriter).not.toHaveBeenCalled();
+  expect(hotSeatState).toEqual(hotSeatBefore);
+});
+
+it.each(['explorer', 'standard', 'veteran'] as const)(
+  'accepts %s without resolving or rewriting it',
+  async challenge => {
+    const state = { ...soloState, opponentChallenge: challenge };
+    await startE2ERuntime(deps({ state }));
+    expect(enterCampaign).toHaveBeenCalledWith(
+      expect.objectContaining({ opponentChallenge: challenge }),
+    );
+  },
+);
+
+it('rejects an unknown challenge without entering or writing', async () => {
+  const state = { ...soloState, opponentChallenge: 'impossible' as never };
+  await expect(startE2ERuntime(deps({ state }))).rejects.toThrow(/valid opponent challenge/i);
+  expect(enterCampaign).not.toHaveBeenCalled();
+  expect(storageWriter).not.toHaveBeenCalled();
 });
 
 it('exposes only frozen readiness and serialized geometry queries', async () => {
@@ -911,10 +981,14 @@ function configureStandingStones(initial: GameState, city: City): GameState {
   civ.techState.completed = [
     ...new Set([...civ.techState.completed, 'animism', 'mud-brick', 'gathering']),
   ];
-  state.marketplace.purchasedResources = [
-    ...(state.marketplace.purchasedResources ?? []),
-    { civId: state.currentPlayer, resource: 'stone', expiresOnTurn: state.turn + 10 },
-  ];
+  if (!state.marketplace) throw new Error('Standing Stones fixture requires marketplace state.');
+  state.marketplace = {
+    ...state.marketplace,
+    purchasedResources: [
+      ...(state.marketplace.purchasedResources ?? []),
+      { civId: state.currentPlayer, resource: 'stone', expiresOnTurn: state.turn + 10 },
+    ],
+  };
   const village = Object.values(state.tribalVillages ?? {})[0];
   if (!village) throw new Error('Standing Stones fixture requires an existing village.');
   state.legendaryWonderHistory ??= { destroyedStrongholds: [], discoveredSites: [] };
@@ -1053,36 +1127,107 @@ pure functions/classes so Vitest can cover them without launching a browser.
 - [ ] **Step 4: Install dormant native-method wrappers**
 
 ```ts
+export function installBrowserCanvasProbe(config: {
+  maxOperations: number;
+  metadataKey: string;
+}): void {
+  // All recorder, filter, overload, matrix, and normalization helpers are
+  // declared inside this function. Playwright serializes this function body;
+  // it cannot close over imports or module-local helpers.
+  const createBrowserRecorder = (maxOperations: number) => {
+    const state = {
+      active: false,
+      sessionId: 0,
+      sequence: 0,
+      overflowed: false,
+      operations: [] as CapturedCanvasOperation[],
+      instrumentationErrors: [] as string[],
+      filter: null as CaptureFilter | null,
+    };
+    return {
+      start(filter: CaptureFilter) {
+        state.active = true;
+        state.sessionId += 1;
+        state.sequence = 0;
+        state.overflowed = false;
+        state.operations = [];
+        state.instrumentationErrors = [];
+        state.filter = structuredClone(filter);
+      },
+      freeze() {
+        state.active = false;
+        return structuredClone(state);
+      },
+      prepareText(context: CanvasRenderingContext2D, args: unknown[]) {
+        return prepareBrowserTextOperation(context, args, state, config);
+      },
+      prepareImage(context: CanvasRenderingContext2D, args: unknown[]) {
+        return prepareBrowserImageOperation(context, args, state, config);
+      },
+      instrumentationError(error: unknown) {
+        state.instrumentationErrors.push(String(error));
+      },
+      commit(operation: CapturedCanvasOperation) {
+        if (!state.active || !matchesBrowserFilter(operation, state.filter)) return;
+        if (state.operations.length >= maxOperations) {
+          state.overflowed = true;
+          state.active = false;
+          return;
+        }
+        state.operations.push({ ...operation, sequence: state.sequence++ });
+      },
+    };
+  };
+
+  // Define prepareBrowserTextOperation, prepareBrowserImageOperation, and
+  // matchesBrowserFilter above createBrowserRecorder in the real function body
+  // using the pure algorithms from Step 3. They may reference only parameters,
+  // local declarations, and browser globals.
+  const capture = createBrowserRecorder(config.maxOperations);
+  const originalFillText = CanvasRenderingContext2D.prototype.fillText;
+  const originalDrawImage = CanvasRenderingContext2D.prototype.drawImage;
+
+  CanvasRenderingContext2D.prototype.fillText = function (...args) {
+    let prepared;
+    try { prepared = capture.prepareText(this, args); }
+    catch (error) { capture.instrumentationError(error); }
+    const result = Reflect.apply(originalFillText, this, args);
+    if (prepared) capture.commit(prepared);
+    return result;
+  };
+
+  CanvasRenderingContext2D.prototype.drawImage = function (...args) {
+    let prepared;
+    try { prepared = capture.prepareImage(this, args); }
+    catch (error) { capture.instrumentationError(error); }
+    const result = Reflect.apply(originalDrawImage, this, args);
+    if (prepared) capture.commit(prepared);
+    return result;
+  };
+
+  Object.defineProperty(window, '__CQ_CANVAS_CAPTURE__', {
+    value: Object.freeze({ start: capture.start, freeze: capture.freeze }),
+    enumerable: false,
+    configurable: false,
+    writable: false,
+  });
+}
+
 export async function installCanvasCapture(page: Page): Promise<void> {
-  await page.addInitScript(({ maxOperations }) => {
-    const originalFillText = CanvasRenderingContext2D.prototype.fillText;
-    const originalDrawImage = CanvasRenderingContext2D.prototype.drawImage;
-    const capture = createBrowserRecorder(maxOperations);
-
-    CanvasRenderingContext2D.prototype.fillText = function (...args) {
-      let prepared;
-      try { prepared = capture.prepareText(this, args); }
-      catch (error) { capture.instrumentationError(error); }
-      const result = Reflect.apply(originalFillText, this, args);
-      if (prepared) capture.commit(prepared);
-      return result;
-    };
-
-    CanvasRenderingContext2D.prototype.drawImage = function (...args) {
-      let prepared;
-      try { prepared = capture.prepareImage(this, args); }
-      catch (error) { capture.instrumentationError(error); }
-      const result = Reflect.apply(originalDrawImage, this, args);
-      if (prepared) capture.commit(prepared);
-      return result;
-    };
-  }, { maxOperations: 500 });
+  await page.addInitScript(installBrowserCanvasProbe, {
+    maxOperations: 500,
+    metadataKey: 'conquestoria.spriteDiagnostic',
+  });
 }
 ```
 
 The browser-side implementation reads the non-enumerable value from
 `image[Symbol.for('conquestoria.spriteDiagnostic')]`. It contains only the
 approved catalog fields and is installed before the image load promise resolves.
+Add a unit test that invokes `installBrowserCanvasProbe.toString()` in an isolated
+browser-like VM with only the approved Canvas/window globals; it must install and
+capture successfully. This fails if the function accidentally closes over a
+module import such as `createBrowserRecorder`.
 
 - [ ] **Step 5: Add capture lifecycle and two-frame synchronization**
 
@@ -1148,6 +1293,20 @@ it('keeps renderer math and fixed bootstrap sleeps out of e2e specs', () => {
     expect(source, path).not.toMatch(/Math\.sqrt\(3\).*48/);
   }
 });
+
+it('keeps badge and e2e support out of gameplay, AI, audio, and save schemas', () => {
+  const presentation = readSource('src/renderer/city-badge-presentation.ts');
+  const runtime = readSource('src/testing/e2e-runtime.ts');
+  for (const [path, source] of [
+    ['city-badge-presentation.ts', presentation],
+    ['e2e-runtime.ts', runtime],
+  ] as const) {
+    expect(source, path).not.toMatch(/@\/(ai|audio|core\/event-bus|systems\/economy)/);
+    expect(source, path).not.toMatch(/SFX|EventBus|showNotification/);
+  }
+  expect(runtime).not.toMatch(/autoSave|rewriteLoadedSaveEntry|localStorage|indexedDB/);
+});
+
 ```
 
 - [ ] **Step 2: Run the guard and verify it fails on issues 365 and 447**
@@ -1286,6 +1445,17 @@ test('building production draws the identified catalog sprite in its slot', asyn
   expect(image).toBeDefined();
   expect(slots.some(slot => rectsIntersect(image!.bounds, slot.bounds))).toBe(true);
   expect(capture.operations.some(isTextInSlots('🏗️', slots))).toBe(false);
+
+  const cityCenter = await visibleHexCopyNearest(
+    page,
+    city.position,
+    slots[0]!.center,
+  );
+  await page.mouse.click(cityCenter.x, cityCenter.y);
+  const panel = page.locator('#city-panel');
+  await expect(panel).toBeVisible();
+  await expect(panel).toContainText('Granary');
+  await expect(panel).toContainText('turns remaining');
 });
 ```
 
@@ -1532,6 +1702,12 @@ bash scripts/run-with-mise.sh yarn test --run \
   tests/systems/city-system.test.ts \
   tests/platform/playwright-config.test.ts \
   tests/main.integration.test.ts \
+  tests/ui/city-panel.test.ts \
+  tests/ui/campaign-entry-flow.test.ts \
+  tests/ui/turn-handoff.test.ts \
+  tests/storage/save-manager.test.ts \
+  tests/core/hotseat-events.test.ts \
+  tests/integration/hot-seat-unit-persistence.test.ts \
   tests/scripts/assert-no-e2e-runtime.test.ts \
   tests/architecture/e2e-source-guard.test.ts \
   tests/architecture/v2-building-consumer.test.ts
@@ -1590,6 +1766,10 @@ Review that:
 - production/religion and status/loyalty bounds are disjoint at supported sizes;
 - no queue/menu icon, name, order, progress, ETA, or action changed;
 - only the map fallback and overlapping anchors visibly changed;
+- `explorer`, `standard`, and `veteran` presentation is identical for identical visible state;
+- AI scoring/turn code, balance definitions, gameplay systems, and save schemas are absent from the source diff;
+- hot-seat production visibility follows `currentPlayer`, while direct entry still rejects handoff bypass;
+- no new audio/SFX/event dependency or color/audio-only meaning was introduced;
 - no e2e state/capture API exists in normal bundles;
 - no `pointyHexPixel`, fixed bootstrap sleep, or copied fixture installer remains;
 - v2 building assets and lookups remain intact and dormant.
