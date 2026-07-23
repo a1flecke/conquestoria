@@ -85,7 +85,7 @@ function configureStandingStones(initial: GameState, cityId: string): GameState 
 }
 
 export function createScenarioState(scenario: ProductionScenario): GameState {
-  let state = normalizeLoadedState(createBaseFixture());
+  let state: GameState = normalizeLoadedState(createBaseFixture());
   state.opponentChallenge = 'standard';
   const city = findVisibleOwnedCity(state);
   if (scenario === 'building') setValidatedQueueHead(state, city, 'granary');
