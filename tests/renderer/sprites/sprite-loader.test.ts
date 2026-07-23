@@ -12,7 +12,11 @@ Object.defineProperty(HTMLImageElement.prototype, 'src', {
   configurable: true,
 });
 
-import { spriteCache, initSprites } from '@/renderer/sprites/sprite-loader';
+import {
+  SPRITE_DIAGNOSTIC_METADATA,
+  spriteCache,
+  initSprites,
+} from '@/renderer/sprites/sprite-loader';
 
 describe('SpriteCache before initSprites', () => {
   it('getUnit returns null before any load', () => {
@@ -72,5 +76,23 @@ describe('SpriteCache after initSprites', () => {
     expect(spriteCache.getLandmark('pirate_enclave_stage_1')).toBeInstanceOf(HTMLImageElement);
     expect(spriteCache.getLandmark('pirate_flotilla_stage_5')).toBeInstanceOf(HTMLImageElement);
     expect(spriteCache.getLandmark('missing')).toBeNull();
+  });
+
+  it('attaches immutable, non-enumerable diagnostic provenance to cached sprites', () => {
+    const unit = spriteCache.getUnit('warrior', 'player')!;
+    const building = spriteCache.getBuilding('granary', 'player')!;
+    const landmark = spriteCache.getLandmark('pirate_enclave_stage_1')!;
+
+    expect(unit[SPRITE_DIAGNOSTIC_METADATA]).toEqual({
+      kind: 'unit', itemId: 'warrior', civilization: 'player', motion: 'idle',
+    });
+    expect(building[SPRITE_DIAGNOSTIC_METADATA]).toEqual({
+      kind: 'building', itemId: 'granary', civilization: 'player',
+    });
+    expect(landmark[SPRITE_DIAGNOSTIC_METADATA]).toEqual({
+      kind: 'landmark', itemId: 'pirate_enclave_stage_1', civilization: 'pirates',
+    });
+    expect(Object.keys(unit)).not.toContain(String(SPRITE_DIAGNOSTIC_METADATA));
+    expect(Object.isFrozen(unit[SPRITE_DIAGNOSTIC_METADATA])).toBe(true);
   });
 });
