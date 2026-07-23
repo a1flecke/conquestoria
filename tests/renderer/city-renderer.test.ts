@@ -1,6 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import type { Camera } from '@/renderer/camera';
-import { drawCities, getCityRenderData, getProductionBadgeIcon } from '@/renderer/city-renderer';
+import {
+  drawCities,
+  getCityRenderData,
+  getProductionBadgeIcon,
+  getVisibleCityBadgeSlots,
+  getVisibleHexViewportCopies,
+} from '@/renderer/city-renderer';
 import { createNewGame } from '@/core/game-state';
 import { foundCity } from '@/systems/city-system';
 import { hexKey, hexToPixel } from '@/systems/hex-utils';
@@ -262,6 +268,45 @@ describe('city renderer', () => {
 
     const labels = (ctx as unknown as MockCanvasContext).fillTextCalls.map(call => call.text);
     expect(labels).toContain(`${city.name} (${city.population})`);
+  });
+
+  it('returns every visible wrapped hex copy through the live viewport transform', () => {
+    const state = createNewGame(undefined, 'wrapped-geometry');
+    state.map.wrapsHorizontally = true;
+    state.map.width = 5;
+    const city = foundCity('player', { q: 0, r: 0 }, state.map, state.idCounters);
+    state.cities[city.id] = city;
+    state.civilizations.player.cities.push(city.id);
+    state.civilizations.player.visibility.tiles['0,0'] = 'visible';
+    const camera = {
+      zoom: 1,
+      hexSize: 48,
+      isHexVisible: (coord: { q: number; r: number }) => coord.q === 0 || coord.q === 5,
+      worldToScreen: (x: number, y: number) => ({ x, y }),
+    } as unknown as Camera;
+
+    expect(getVisibleHexViewportCopies(state, camera, 'player', city.position))
+      .toEqual([hexToPixel({ q: 0, r: 0 }, 48), hexToPixel({ q: 5, r: 0 }, 48)]);
+  });
+
+  it('returns a named badge slot only for a live city rendered to the viewer', () => {
+    const state = createNewGame(undefined, 'city-badge-geometry');
+    const settler = Object.values(state.units).find(unit => unit.owner === 'player' && unit.type === 'settler')!;
+    const city = foundCity('player', settler.position, state.map, state.idCounters);
+    city.productionQueue = ['granary'];
+    state.cities[city.id] = city;
+    state.civilizations.player.cities.push(city.id);
+    state.civilizations.player.visibility.tiles[hexKey(city.position)] = 'visible';
+    const hiddenCity = foundCity('ai-1', { q: city.position.q + 1, r: city.position.r }, state.map, state.idCounters);
+    hiddenCity.productionQueue = ['warrior'];
+    state.cities[hiddenCity.id] = hiddenCity;
+    state.civilizations['ai-1'].cities.push(hiddenCity.id);
+    state.civilizations.player.visibility.tiles[hexKey(hiddenCity.position)] = 'fog';
+
+    const visible = getVisibleCityBadgeSlots(state, makeCamera(), 'player', city.id, 'production');
+    expect(visible).not.toHaveLength(0);
+    expect(visible[0]!.bounds.width).toBeGreaterThan(0);
+    expect(getVisibleCityBadgeSlots(state, makeCamera(), 'player', hiddenCity.id, 'production')).toEqual([]);
   });
 
   it('draws legendary landmark layer before city label and production badges remain above it', () => {
