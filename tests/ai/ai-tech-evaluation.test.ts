@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { evaluateAITechCapabilities } from '@/ai/ai-tech-evaluation';
 import type { Tech } from '@/core/types';
 import { TECH_TREE } from '@/systems/tech-definitions';
+import { TRAINABLE_UNITS } from '@/systems/city-system';
 
 describe('structured AI technology capabilities', () => {
   it('derives military roles and building yields from typed catalogs', () => {
@@ -37,5 +38,36 @@ describe('structured AI technology capabilities', () => {
       (capabilities.rolesUnlocked.frontline ?? 0) > 0
       || (capabilities.rolesUnlocked['air-combat'] ?? 0) > 0,
     )).toBe(true);
+  });
+
+  it('does not claim a role is unlocked until every conjunctive unit gate is complete', () => {
+    const archer = TRAINABLE_UNITS.find(unit => unit.type === 'archer')!;
+    const original = archer.requiredTechs;
+    archer.requiredTechs = ['bronze-working'];
+    try {
+      const archery = TECH_TREE.find(tech => tech.id === 'archery')!;
+      expect(evaluateAITechCapabilities(archery, new Set(['archery'])).rolesUnlocked.ranged)
+        .toBeUndefined();
+      expect(evaluateAITechCapabilities(archery, new Set(['archery', 'bronze-working'])).rolesUnlocked.ranged)
+        .toBeGreaterThan(0);
+    } finally {
+      archer.requiredTechs = original;
+    }
+  });
+
+  it('credits the final conjunctive technology when it completes an earlier unit unlock', () => {
+    const archer = TRAINABLE_UNITS.find(unit => unit.type === 'archer')!;
+    const original = archer.requiredTechs;
+    archer.requiredTechs = ['bronze-working'];
+    try {
+      const bronzeWorking = TECH_TREE.find(tech => tech.id === 'bronze-working')!;
+      expect(evaluateAITechCapabilities(
+        bronzeWorking,
+        new Set(['archery', 'bronze-working']),
+        new Set(['archery', 'bronze-working']),
+      ).rolesUnlocked.ranged).toBeGreaterThan(0);
+    } finally {
+      archer.requiredTechs = original;
+    }
   });
 });

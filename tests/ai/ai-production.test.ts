@@ -104,6 +104,25 @@ function makeCoastal(state: GameState, cityId = 'city-a'): void {
 }
 
 describe('AI strategic production', () => {
+  it('does not generate a partially unlocked conjunctive unit candidate', () => {
+    const state = setupState(['archery']);
+    const archer = TRAINABLE_UNITS.find(unit => unit.type === 'archer')!;
+    const original = archer.requiredTechs;
+    archer.requiredTechs = ['bronze-working'];
+    try {
+      const candidates = generateAIProductionCandidates(
+        state,
+        'ai-1',
+        'city-a',
+        [demand('ranged')],
+        aggressive,
+      );
+      expect(candidates.map(candidate => candidate.itemId)).not.toContain('archer');
+    } finally {
+      archer.requiredTechs = original;
+    }
+  });
+
   it('prioritizes a defensive espionage building only for a live detected city threat', () => {
     const state = setupState(['cold-war-networks', 'writing']);
     state.cities['city-a'].buildings = Object.keys(BUILDINGS)

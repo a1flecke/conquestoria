@@ -1,5 +1,5 @@
 import type { GameState, Tech, TechTrack } from '@/core/types';
-import { BUILDINGS } from '@/systems/city-system';
+import { BUILDINGS, TRAINABLE_UNITS } from '@/systems/city-system';
 import { calculateProjectedCityYields } from '@/systems/city-work-system';
 import { estimateTurnsToComplete } from '@/systems/pacing-model';
 import {
@@ -12,16 +12,37 @@ import {
 import { TECH_TREE, getEffectiveTechCost } from '@/systems/tech-system';
 import { getEraAdvancementFraction, getEraAdvancementTechs, resolveCivilizationEra } from '@/systems/tech-definitions';
 import { UNIT_DEFINITIONS } from '@/systems/unit-system';
+import { evaluateProductionPrerequisites } from '@/systems/production-prerequisites';
 
-function getUnlockLines(tech: Tech): string[] {
+function getUnlockLines(tech: Tech, completedTechs?: readonly string[]): string[] {
   const lines = [...tech.unlocks];
+  const completedAfterResearch = completedTechs
+    ? new Set([...completedTechs, tech.id])
+    : undefined;
   for (const unitType of tech.unlocksUnits ?? []) {
     const def = UNIT_DEFINITIONS[unitType];
-    if (def) lines.push(def.name);
+    const entry = TRAINABLE_UNITS.find(unit => unit.type === unitType);
+    const prerequisites = completedAfterResearch && entry
+      ? evaluateProductionPrerequisites(entry, completedAfterResearch)
+      : undefined;
+    const prerequisiteLabel = prerequisites?.missing.length && completedAfterResearch
+      ? prerequisites.required.map(techId => `${getTechName(techId)}${completedAfterResearch.has(techId) ? ' ✓' : ''}`).join(' + ')
+      : null;
+    if (def) lines.push(prerequisiteLabel
+      ? `${def.name} (requires ${prerequisiteLabel})`
+      : def.name);
   }
   for (const buildingId of tech.unlocksBuildings ?? []) {
     const building = BUILDINGS[buildingId];
-    if (building) lines.push(building.name);
+    const prerequisites = completedAfterResearch && building
+      ? evaluateProductionPrerequisites(building, completedAfterResearch)
+      : undefined;
+    const prerequisiteLabel = prerequisites?.missing.length && completedAfterResearch
+      ? prerequisites.required.map(techId => `${getTechName(techId)}${completedAfterResearch.has(techId) ? ' ✓' : ''}`).join(' + ')
+      : null;
+    if (building) lines.push(prerequisiteLabel
+      ? `${building.name} (requires ${prerequisiteLabel})`
+      : building.name);
   }
   return lines;
 }
@@ -311,7 +332,7 @@ function renderInspector(
   inspector.appendChild(meta);
 
   const unlocks = document.createElement('div');
-  unlocks.textContent = getUnlockLines(selectedNode.tech).join(', ') || 'New options for your empire';
+  unlocks.textContent = getUnlockLines(selectedNode.tech, civ.techState.completed).join(', ') || 'New options for your empire';
   unlocks.style.cssText = 'font-size:12px;line-height:1.35;margin-bottom:10px;';
   inspector.appendChild(unlocks);
 

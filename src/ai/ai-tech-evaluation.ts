@@ -6,6 +6,7 @@ import type {
 import { BUILDINGS, TRAINABLE_UNITS } from '@/systems/city-system';
 import { RESOURCE_DEFINITIONS } from '@/systems/resource-definitions';
 import { UNIT_DEFINITIONS } from '@/systems/unit-system';
+import { evaluateProductionPrerequisites } from '@/systems/production-prerequisites';
 import { getAIStrategicRoles } from './ai-unit-roles';
 
 export interface AITechCapabilities {
@@ -20,13 +21,30 @@ export interface AITechCapabilities {
   situationality: number;
 }
 
-export function evaluateAITechCapabilities(tech: Tech): AITechCapabilities {
+export function evaluateAITechCapabilities(
+  tech: Tech,
+  completedTechs?: ReadonlySet<string>,
+  knownTechIds?: ReadonlySet<string>,
+): AITechCapabilities {
   const rolesUnlocked: Partial<Record<AIStrategicRole, number>> = {};
   let militaryPowerSpike = 0;
-  for (const type of tech.unlocksUnits ?? []) {
+  const isAvailableAfterResearch = (definition: typeof TRAINABLE_UNITS[number] | typeof BUILDINGS[string]): boolean =>
+    !completedTechs || !evaluateProductionPrerequisites(definition, completedTechs).missing
+      .some(techId => !knownTechIds || knownTechIds.has(techId));
+  const unitTypes = new Set(tech.unlocksUnits ?? []);
+  if (completedTechs) {
+    for (const unit of TRAINABLE_UNITS) {
+      if (evaluateProductionPrerequisites(unit, completedTechs).required.includes(tech.id)
+        && isAvailableAfterResearch(unit)) {
+        unitTypes.add(unit.type);
+      }
+    }
+  }
+  for (const type of unitTypes) {
     const catalogEntry = TRAINABLE_UNITS.find(unit => unit.type === type);
     const definition = UNIT_DEFINITIONS[type];
     if (!catalogEntry || !definition) continue;
+    if (!isAvailableAfterResearch(catalogEntry)) continue;
     for (const role of getAIStrategicRoles(type)) {
       rolesUnlocked[role] = (rolesUnlocked[role] ?? 0) + 1;
     }
@@ -34,8 +52,19 @@ export function evaluateAITechCapabilities(tech: Tech): AITechCapabilities {
   }
 
   const buildingYieldValue: AITechCapabilities['buildingYieldValue'] = {};
-  for (const buildingId of tech.unlocksBuildings ?? []) {
-    const yields = BUILDINGS[buildingId]?.yields;
+  const buildingIds = new Set(tech.unlocksBuildings ?? []);
+  if (completedTechs) {
+    for (const building of Object.values(BUILDINGS)) {
+      if (evaluateProductionPrerequisites(building, completedTechs).required.includes(tech.id)
+        && isAvailableAfterResearch(building)) {
+        buildingIds.add(building.id);
+      }
+    }
+  }
+  for (const buildingId of buildingIds) {
+    const building = BUILDINGS[buildingId];
+    if (building && !isAvailableAfterResearch(building)) continue;
+    const yields = building?.yields;
     if (!yields) continue;
     for (const key of ['food', 'production', 'gold', 'science'] as const) {
       buildingYieldValue[key] = (buildingYieldValue[key] ?? 0) + yields[key];

@@ -3,7 +3,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createNewGame } from '@/core/game-state';
 import { calculateProjectedCityYields } from '@/systems/city-work-system';
-import { foundCity } from '@/systems/city-system';
+import { foundCity, TRAINABLE_UNITS } from '@/systems/city-system';
 import { hexKey } from '@/systems/hex-utils';
 import { enqueueResearch } from '@/systems/planning-system';
 import { startResearch, TECH_TREE } from '@/systems/tech-system';
@@ -12,6 +12,23 @@ import { createTechPanel, formatTechNodeEta } from '@/ui/tech-panel';
 const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
 
 describe('tech-panel', () => {
+  it('explains an unlocked unit\'s remaining conjunctive technology in the inspector', () => {
+    const state = createNewGame(undefined, 'tech-conjunctive-inspector');
+    const archer = TRAINABLE_UNITS.find(unit => unit.type === 'archer')!;
+    const original = archer.requiredTechs;
+    archer.requiredTechs = ['bronze-working'];
+    try {
+      const panel = createTechPanel(document.body, state, {
+        onQueueResearch: () => {}, onMoveQueuedResearch: () => {}, onRemoveQueuedResearch: () => {}, onClose: () => {},
+      });
+      panel.querySelector<HTMLButtonElement>('[data-zoom="all"]')!.click();
+      panel.querySelector<HTMLButtonElement>('[data-tech-id="archery"]')!.click();
+      expect(panel.textContent).toContain('Archer (requires Archery ✓ + Bronze Working)');
+    } finally {
+      archer.requiredTechs = original;
+    }
+  });
+
   it('groups techs by readable tracks and emphasizes current / next relevant research', () => {
     const state = createNewGame(undefined, 'tech-panel-test');
     const firstAvailable = state.civilizations.player.techState.completed.length === 0

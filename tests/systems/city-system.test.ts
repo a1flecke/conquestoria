@@ -256,6 +256,21 @@ describe('isCityCoastal', () => {
 });
 
 describe('getAvailableBuildings', () => {
+  it('does not offer a building until every conjunctive technology is complete', () => {
+    const map = generateMap(30, 30, 'conjunctive-building-tech-gate');
+    const landTile = Object.values(map.tiles).find(tile => tile.terrain === 'grassland')!;
+    const city = foundCity('p1', landTile.coord, map, mkC());
+    const library = BUILDINGS.library;
+    const original = library.requiredTechs;
+    library.requiredTechs = ['mathematics'];
+    try {
+      expect(getAvailableBuildings(city, ['writing'], map).some(building => building.id === 'library')).toBe(false);
+      expect(getAvailableBuildings(city, ['writing', 'mathematics'], map).some(building => building.id === 'library')).toBe(true);
+    } finally {
+      library.requiredTechs = original;
+    }
+  });
+
   it('returns buildings the city can build', () => {
     const map = generateMap(30, 30, 'city-test');
     const landTile = Object.values(map.tiles).find(t => t.terrain === 'grassland')!;
@@ -420,6 +435,39 @@ describe('#443 — building obsolescence data', () => {
 });
 
 describe('MR8 — naval roster gating', () => {
+  it('does not offer a unit until every conjunctive technology is complete', () => {
+    const archer = TRAINABLE_UNITS.find(unit => unit.type === 'archer')!;
+    const original = archer.requiredTechs;
+    archer.requiredTechs = ['bronze-working'];
+    try {
+      expect(getTrainableUnitsForCiv(['archery']).some(unit => unit.type === 'archer')).toBe(false);
+      expect(getTrainableUnitsForCiv(['archery', 'bronze-working']).some(unit => unit.type === 'archer')).toBe(true);
+    } finally {
+      archer.requiredTechs = original;
+    }
+  });
+
+  it('dequeues a saved production item that a newly added conjunction makes ineligible', () => {
+    const map = generateMap(10, 10, 'conjunctive-queue-save-compat');
+    const landTile = Object.values(map.tiles).find(tile => tile.terrain === 'grassland' || tile.terrain === 'plains')!;
+    const city = {
+      ...foundCity('p1', landTile.coord, map, mkC()),
+      productionQueue: ['archer'],
+    };
+    const archer = TRAINABLE_UNITS.find(unit => unit.type === 'archer')!;
+    const original = archer.requiredTechs;
+    archer.requiredTechs = ['bronze-working'];
+    try {
+      const result = processCity(city, map, 2, 3, undefined, ['archery']);
+      expect(result.city.productionQueue).not.toContain('archer');
+      expect(result.droppedProductionItems).toEqual([
+        { itemId: 'archer', itemKind: 'unit', reason: 'no-longer-available' },
+      ]);
+    } finally {
+      archer.requiredTechs = original;
+    }
+  });
+
   it('trireme is trainable through era 5 and obsoletes at frigate-construction', () => {
     expect(getTrainableUnitsForCiv(['triremes']).some(u => u.type === 'trireme')).toBe(true);
     expect(getTrainableUnitsForCiv(['triremes', 'frigate-construction']).some(u => u.type === 'trireme')).toBe(false);

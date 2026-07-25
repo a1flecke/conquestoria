@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { TECH_TREE } from '@/systems/tech-definitions';
 import { BUILDINGS, TRAINABLE_UNITS } from '@/systems/city-system';
 import { PIRATE_HULL_TYPES } from '@/systems/pirate-definitions';
+import { validateProductionPrerequisiteDefinitions } from '@/systems/production-prerequisites';
 
 describe('tech.unlocks copy matches gameplay gating', () => {
   it('every "Unlock <Name> building" claim corresponds to a building gated by that tech', () => {
@@ -65,6 +66,26 @@ describe('tech.unlocks must contain only effect text', () => {
 });
 
 describe('tech structured unlock arrays', () => {
+  it('has only known, non-duplicated production prerequisites across the full catalog', () => {
+    const knownTechIds = new Set(TECH_TREE.map(tech => tech.id));
+    const reachableTechIds = new Set(TECH_TREE
+      .filter(tech => tech.prerequisites.length === 0)
+      .map(tech => tech.id));
+    let changed = true;
+    while (changed) {
+      changed = false;
+      for (const tech of TECH_TREE) {
+        if (reachableTechIds.has(tech.id) || !tech.prerequisites.every(id => reachableTechIds.has(id))) continue;
+        reachableTechIds.add(tech.id);
+        changed = true;
+      }
+    }
+    expect(validateProductionPrerequisiteDefinitions([
+      ...TRAINABLE_UNITS.map(unit => ({ ...unit, id: unit.type })),
+      ...Object.values(BUILDINGS),
+    ], knownTechIds, reachableTechIds)).toEqual([]);
+  });
+
   it('never exposes pirate hulls through technology unlocks', () => {
     const unlockedUnits = new Set(TECH_TREE.flatMap(tech => tech.unlocksUnits ?? []));
     for (const hull of PIRATE_HULL_TYPES) expect(unlockedUnits.has(hull), hull).toBe(false);

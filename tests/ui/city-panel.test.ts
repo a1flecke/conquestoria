@@ -3,7 +3,7 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import { createCityPanel } from '@/ui/city-panel';
 import { SESSION_SHOWN_TIPS } from '@/ui/advisor-system';
 import { createUnit } from '@/systems/unit-system';
-import { BUILDINGS } from '@/systems/city-system';
+import { BUILDINGS, TRAINABLE_UNITS } from '@/systems/city-system';
 import { assignCityFocus, setCityWorkedTile } from '@/systems/city-work-system';
 import { hexKey } from '@/systems/hex-utils';
 import { TECH_TREE } from '@/systems/tech-definitions';
@@ -24,6 +24,66 @@ function clickElement(element: Element | null | undefined): void {
 }
 
 describe('city-panel national projects', () => {
+  it('keeps a partially satisfied conjunctive unit gate visible with every ordered technology state', () => {
+    const { container, city, state } = makeWonderPanelFixture();
+    state.civilizations.player.techState.completed = ['archery'];
+    const archer = TRAINABLE_UNITS.find(unit => unit.type === 'archer')!;
+    const original = archer.requiredTechs;
+    archer.requiredTechs = ['bronze-working'];
+    try {
+      const panel = createCityPanel(container, city, state, {
+        onBuild: () => {}, onOpenWonderPanel: () => {}, onClose: () => {},
+      });
+      expect(collectText(panel)).toContain('Archer');
+      expect(collectText(panel)).toContain('Requires: Archery ✓ + Bronze Working');
+      expect(panel.querySelector('[data-item-id="archer"]')).toBeNull();
+    } finally {
+      archer.requiredTechs = original;
+    }
+  });
+
+  it('uses the current hot-seat city owner\'s prerequisites without leaking another human\'s research', () => {
+    const { container, city, state } = makeWonderPanelFixture();
+    state.civilizations['player-2'] = {
+      ...structuredClone(state.civilizations.player),
+      id: 'player-2', isHuman: true,
+      techState: { ...state.civilizations.player.techState, completed: ['archery'] },
+    };
+    state.civilizations.player.techState.completed = ['archery', 'bronze-working'];
+    city.owner = 'player-2';
+    state.currentPlayer = 'player-2';
+    const archer = TRAINABLE_UNITS.find(unit => unit.type === 'archer')!;
+    const original = archer.requiredTechs;
+    archer.requiredTechs = ['bronze-working'];
+    try {
+      const panel = createCityPanel(container, city, state, {
+        onBuild: () => {}, onOpenWonderPanel: () => {}, onClose: () => {},
+      });
+      expect(collectText(panel)).toContain('Requires: Archery ✓ + Bronze Working');
+      expect(panel.querySelector('[data-item-id="archer"]')).toBeNull();
+    } finally {
+      archer.requiredTechs = original;
+    }
+  });
+
+  it('keeps a conjunctively gated building reachable in the explanatory catalog', () => {
+    const { container, city, state } = makeWonderPanelFixture();
+    state.civilizations.player.techState.completed = ['writing'];
+    const library = BUILDINGS.library;
+    const original = library.requiredTechs;
+    library.requiredTechs = ['mathematics'];
+    try {
+      const panel = createCityPanel(container, city, state, {
+        onBuild: () => {}, onOpenWonderPanel: () => {}, onClose: () => {},
+      });
+      expect(collectText(panel)).toContain('Library');
+      expect(collectText(panel)).toContain('Requires: Writing ✓ + Mathematics');
+      expect(panel.querySelector('[data-item-id="library"]')).toBeNull();
+    } finally {
+      library.requiredTechs = original;
+    }
+  });
+
   it('uses the city owner research for hot-seat building availability', () => {
     const { container, city, state } = makeWonderPanelFixture();
     state.civilizations['player-2'] = {
