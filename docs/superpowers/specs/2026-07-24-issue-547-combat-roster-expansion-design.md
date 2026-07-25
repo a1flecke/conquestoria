@@ -107,6 +107,66 @@ may then heighten those anchors into clear tactical stories: open-ground charges
 fort-directed stampedes, command-dependent elephant hosts, saturation rockets, and
 continental air-defense networks.
 
+### 4.7 One ruleset, several levels of explanation
+
+> **Inline review resolution — ages 7–43 and play styles:** The rules must remain deep
+> without requiring every player to read a technical manual. Hiding options would help a
+> young first-time player at the expense of an optimizer, so the solution is progressive
+> disclosure rather than separate or simplified rulesets.
+
+Every player-visible mechanic has three layers:
+
+1. a plain-language role sentence of at most 18 words;
+2. icon-and-text summaries for strengths, counters, and missing requirements;
+3. expandable exact values and calculation breakdowns.
+
+The first use of an acronym spells it out: anti-aircraft (AA), surface-to-air missile
+(SAM), zone of control (ZOC), main battle tank (MBT), and sound effects (SFX). Color,
+animation, or sound may reinforce a state but may never be its only carrier. Every
+interactive target is usable at the repository's 44-pixel mobile minimum.
+
+Optional one-time hints introduce multi-technology gates, counters, anti-aircraft
+coverage, forts, splash, combined arms, and crisis herding. Hints are dismissible,
+viewer-scoped, and never repeat for a different hot-seat player who has already dismissed
+that hint. Recommendations may promote one understandable response, but the full legal
+production and action catalog remains reachable.
+
+### 4.8 Fair difficulty and varied strategies
+
+> **Inline review resolution — difficulty, fun, and fairness:** Explorer, Standard, and
+> Veteran use identical definitions, legal actions, combat formulas, rewards, information
+> boundaries, and save data. Difficulty changes pressure and decision quality through the
+> existing challenge profile; it never grants hidden unit bonuses or unlocks illegal
+> counters.
+
+- Explorer, Standard, and Veteran may vary AI planning depth, force caps, crisis force
+  size, response delay, cooldown, and escalation exactly through typed challenge fields.
+- AI-targeted world pressure always resolves at the repository's Standard severity.
+- In hot seat, each human's personal challenge applies independently.
+- No difficulty may let a computer player use unseen units, bases, AA providers, or crisis
+  routes.
+- A military expansionist gains tactical sequencing, not an automatic economy.
+- A defender gains forts and layered air defense, but same-era siege and anti-fort roles
+  prevent invulnerability.
+- A builder may contain crises and complete military wonders through positioning and
+  world-pressure defense rather than declaring war on another civilization.
+- An explorer gains reconnaissance and route prediction without being forced into
+  conquest.
+- An optimizer receives exact previews and non-stacking explanations.
+
+### 4.9 Performance and extensibility
+
+> **Inline review resolution — architecture:** Adding 15 units must not produce 15
+> parallel ID switches or repeated full-map scans. Each mechanic gets one canonical
+> definition/helper and event-source facts; presentation consumes those results.
+
+Use serializable plain objects with stable string IDs. Keep combat roles, prerequisites,
+AA coverage, fortification layers, crisis ownership, barbarian observations, and wonder
+effects in focused domain modules rather than extending UI handlers. Cache coverage,
+role, and local-pressure queries at an appropriate turn/state revision; AI evaluation and
+preview must not rescan the entire map once per candidate unit. Shared code remains
+distribution-neutral and must not import Tauri APIs.
+
 ## 5. Current-state corrections that must land first
 
 ### 5.1 Upgrade integrity
@@ -124,6 +184,10 @@ The upgrade foundation must:
 - calculate cost from the source/target transition;
 - expose all missing requirements to UI;
 - remain deterministic and save-safe.
+
+The confirmation surface shows source and target, cost, preserved health and experience,
+destination/base requirements, and the role transition before the irreversible action.
+It uses text plus icons and refreshes the originating panel immediately.
 
 Cross-domain upgrades require an explicit destination contract. In particular, Armored
 Car may upgrade to Attack Helicopter only while in a friendly city with a Helicopter Base
@@ -219,6 +283,40 @@ Fortification modifiers distinguish:
 
 Preview labels show each applied layer and each ignored or superseded layer.
 
+### 6.6 Presentation metadata
+
+Every new or materially changed definition provides:
+
+- plain-language `roleSummary` copy;
+- primary and secondary role keys;
+- counter and vulnerability references derived from typed mechanics;
+- full and abbreviated display names, with acronym expansion;
+- Codex explanation keys and ordered exact-stat rows;
+- optional first-use hint key;
+- sprite and audio fallback keys.
+
+UI must derive labels from the same metadata and calculation helpers used by gameplay and
+AI. Recommendation helpers return an ordered subset plus reasons, never a replacement for
+the complete legal catalog.
+
+### 6.7 Persistence contract
+
+> **Inline review resolution — existing saves:** The current audited save schema is 7,
+> but child issues must not pre-assign future schema numbers. Each PR rebases on the
+> latest main branch and increments only when it introduces required persisted data.
+
+- Existing units are never deleted, downgraded, or made invalid by a retimed unlock.
+- A Cavalry item already active or queued before its technology moves is grandfathered
+  through a one-time normalized eligibility fact; new Cavalry cannot be queued early.
+- Upgrade migrations preserve health, experience, orders, and valid formation state.
+- Cross-domain upgrades normalize through the canonical air-base assignment contract and
+  never synthesize an over-capacity base.
+- Active crisis saves preserve actors, target, stage, seeded route, timers, command links,
+  earned reward state, and warning delivery.
+- Wonder counters store earned facts at their original viewer-safe granularity.
+- Every migration and normalizer is idempotent, rejects malformed values, and supports
+  schema-0, immediately previous, and current fixtures.
+
 ## 7. Unit balance contract
 
 Starting values may change only inside these default envelopes without renewed design
@@ -230,6 +328,33 @@ review:
 
 Movement, vision, range, coverage radius, upgrade edge, splash targeting, and role
 identity are outside the tuning envelope.
+
+> **Inline review resolution — balance and fun:** Spreadsheet parity alone is
+> insufficient. Each content PR runs deterministic representative matchups against its
+> predecessor, successor, intended target, intended counter, and a same-era generalist.
+> A role is accepted because it changes a decision, not merely because its numbers differ.
+
+Default balance gates:
+
+- an intended counter should improve the expected exchange by roughly 20–40% without
+  routinely destroying a full-health peer in one combat;
+- a specialist attacking outside its role should be 10–25% less efficient than the
+  appropriate same-era generalist after cost is considered;
+- a successor should be attractive after its gate while leaving a short, understandable
+  upgrade decision rather than invalidating every contemporary alternative;
+- one AA provider should reduce expected air damage by roughly 20–35%, not negate air
+  play;
+- a representative same-era siege group should break a properly supported Fort/Citadel
+  position in four to eight successful engagements;
+- no ordinary same-era roster composition may be an answer to every land, naval, and air
+  threat;
+- production turns remain within the repository's measured pacing bands in one-city,
+  typical, and high-production cities.
+
+Every affected wave also plays six deterministic scenarios: early rush, defensive turtle,
+mixed combined arms, island/naval, air pressure, and a low-military builder facing world
+pressure. Results and approved envelope changes belong in the issue or PR, not in an
+untracked tuning note.
 
 | Unit | Gate | Cost | Str | Move | Vision/range | Gameplay identity |
 |---|---|---:|---:|---:|---|---|
@@ -324,6 +449,10 @@ eligible line-infantry unit. Multiple infantry do not stack. Eligible infantry i
 definition-driven and includes Mechanized and Exosuit Infantry. AI formation logic uses
 the same predicate.
 
+The formation helper must not require an exact unit ID and must not reward clustering
+multiple infantry around one tank. Preview explains which adjacent unit supplies the
+bonus; an unauthorized viewer receives no identity leak.
+
 ## 8. Infrastructure contract
 
 ### 8.1 Mounted buildings
@@ -406,6 +535,13 @@ the same predicate.
   Cruiser do not add together.
 - Coverage UI exposes only viewer-known providers and no hidden aircraft.
 
+> **Inline review resolution — defensive play:** Forts and layered AA should make
+> preparation rewarding, not passive play dominant. AI valuation includes threatened
+> approaches, local air/naval pressure, maintenance and opportunity cost, and existing
+> same-group coverage. It must not fill every eligible city with redundant defenses.
+> Overlay toggles default off, remember only the current viewer's preference, and preserve
+> map pan/zoom and mobile interaction.
+
 ## 9. Barbarian modernization
 
 ### 9.1 Eligibility
@@ -447,6 +583,12 @@ and strategic-deterrence units.
 - Era changes affect future reinforcement choices; they do not mass-upgrade existing
   units.
 
+> **Inline review resolution — computer-player fairness:** Modernization responds only to
+> persisted camp-local observations and the current era window. Difficulty may alter the
+> existing decision quality and force budget, but it cannot relax eligibility, specialist
+> caps, or information rules. A seeded fallback always yields a viable force when no
+> specialist response is legal.
+
 ## 10. Beast world pressure
 
 ### 10.1 Crisis-force ownership
@@ -465,6 +607,13 @@ Crisis-only unit types are not trainable and scale by era with exact formulas:
 All have 100 health. Herds and Rogue Elephants move two hexes; Rogue Handlers move three.
 Challenge changes force size and escalation behavior, not these base formulas. AI-targeted
 crises use the repository's existing standard-severity rule.
+
+> **Inline review resolution — solo, hot seat, and noncombat players:** Crisis targeting,
+> warnings, rewards, and history are scoped to the target civilization and current
+> viewer. A hot-seat handoff cannot reveal another human's route preview or warning before
+> that player's turn. Computer players use the same visible route and command-link facts
+> as humans. Containment is a complete, rewarding solution; neither crisis requires a war
+> declaration, city conquest, or a particular trainable unit.
 
 ### 10.2 Beast Stampede
 
@@ -502,6 +651,10 @@ crises use the repository's existing standard-severity rule.
 - If no eligible unit becomes reachable before expiry, convert the charge to 20 gold.
 - No duplicate beast-hoard payout.
 
+The preview names the containment conditions and shows remaining pillage/casualty budget
+without exposing hidden route tiles. Explorer, Standard, and Veteran use the same
+containment and reward rules.
+
 ### 10.3 Rogue Elephant Host
 
 - Era band: 4–9.
@@ -524,6 +677,11 @@ crises use the repository's existing standard-severity rule.
 - No capture, taming, camp reward, or duplicate elephant reward.
 - Save/load preserves command links, conversion state, route, warning stage, target,
   reward charge, and duration.
+
+The handler link is visually and textually legible; killing the handler is a tempting
+high-skill shortcut, while screening and dispersal remain viable for cautious players.
+AI compares handler removal, elephant damage, screen placement, and city defense using
+only locally observed state.
 
 ## 11. Legendary wonders
 
@@ -610,6 +768,14 @@ audio are never combined in one issue.
 Every batch includes provenance, catalog coverage, bounded playback/throttling,
 representative event routing, and tests that prove the live event reaches the sound
 director.
+
+> **Inline review resolution — accessibility and hot-seat audio:** Every warning and
+> mechanically relevant sound has an on-screen text/icon equivalent. Playback uses the
+> existing mixer categories and respects mute and per-category volume. Repeated AA fire,
+> rocket splash, herd movement, and multi-actor resolution are coalesced within a bounded
+> window so one event cannot create an audio wall. Reduced motion disables camera shake
+> and large route pulses without disabling information. Hidden activity for a non-current
+> hot-seat player must not be inferable from audio.
 
 ## 13. Ordered GitHub issue program
 
@@ -784,10 +950,68 @@ Every content issue proves:
 - representative production pacing;
 - no hardcoded ID branch where shared metadata is sufficient.
 
+> **Inline review resolution — implementation completeness:** “Definition added” is not
+> completion. The mutation source, AI, production/research planning, UI, renderer, audio
+> fallback, persistence, and both human and non-human callers must agree before content
+> becomes reachable.
+
+Each applicable issue also proves:
+
+- Explorer, Standard, and Veteran legality parity, with challenge differences exercised
+  only through existing or explicitly typed profile fields;
+- full legal catalog reachability after any recommendation or grouping;
+- plain-language and exact-detail UI layers, 44-pixel targets, icon-plus-text status,
+  acronym expansion, and reduced-motion behavior;
+- no color-only, sound-only, or animation-only information;
+- no stale panel after build, upgrade, reorder, cancel, pillage, repair, crisis phase, or
+  current-player change;
+- no hidden-information leak through preview, AI selection, overlay, history,
+  notification, audio, or hot-seat handoff;
+- deterministic behavior across at least three representative seeds when randomness or
+  tie-breaking is involved;
+- bounded notification/audio volume for multi-actor events;
+- no per-candidate full-map scan in AI, coverage, route, or recommendation code;
+- current-schema round trip plus schema-0 and immediately previous migration fixtures
+  when persisted shape changes.
+
 New buildings additionally prove generic AI production eligibility. New wonders prove
 definition-driven AI eligibility, global uniqueness, no same-civilization
 self-competition, quest event provenance, viewer-scoped rival intel, landmark
 presentation, and wonder regression coverage.
+
+### 15.1 Required play matrix
+
+The final issue in every mechanics wave executes and records:
+
+| Mode | Required scenario |
+|---|---|
+| Solo Explorer | first-time hints, recommended response, containment, muted audio |
+| Solo Standard | representative combined-arms and production pacing |
+| Solo Veteran | higher pressure without illegal knowledge or altered unit rules |
+| AI target | Standard-severity crisis, legal production/research, no omniscience |
+| Two-human hot seat | independent personal challenge, viewer-scoped overlays and audio |
+| Save/load mid-state | queue, upgrade eligibility, fort/AA state, crisis or wonder facts |
+
+For UI work, the plan and PR include a Player Truth Table, Misleading UI Risks, an
+Interaction Replay Checklist, and rendered-DOM assertions for every player-visible
+transition. Queue changes assert active item, order, exact estimated turns, remove/reorder
+behavior, and the visible post-action state.
+
+### 15.2 Regression and verification order
+
+Implementation follows test-driven delivery:
+
+1. add the smallest failing regression for the exact contract;
+2. implement through the canonical helper;
+3. run the mirrored targeted tests and source-rule check;
+4. run adjacent catalog, AI, save, hot-seat, and notification-volume regressions;
+5. run `yarn build` and the full suite before push or PR;
+6. run wonder regressions for wonder or legendary-quest changes;
+7. run both web and Tauri builds only when distribution/platform paths are touched.
+
+The final program audit replays the existing solo setup, turn loop, production, combat,
+save/import, current-player switch, and hot-seat tests to detect regressions that focused
+content tests cannot see.
 
 ## 16. Rollout and failure containment
 
@@ -802,6 +1026,24 @@ presentation, and wonder regression coverage.
   the same issue or create a fully specified blocker issue before proceeding.
 - Rewrite #547 as a checked dependency index only after every child issue exists and its
   final number/link is known.
+
+> **Inline review resolution — small, safe delivery:** Dark code is allowed only when it
+> is inert, directly tested, and has no player-visible claim. Every PR must build, deploy,
+> load current saves, and leave all previously reachable play intact. A consumer and its
+> required AI/UI/save behavior merge together; art and audio replacement remain separate
+> because either can be safely improved later without changing mechanics.
+
+- Rebase every child branch on the latest `origin/main`; do not reserve future schema
+  numbers or rely on line locations from this audit.
+- Use one issue and normally one PR per numbered child. If a child becomes too large,
+  split it into independently deployable contract and consumer slices and update
+  dependency links before coding.
+- A definition may merge dark before its consumer only when production, AI, Codex, and
+  unlock paths all prove it unreachable.
+- Feature flags are not substitutes for integration tests and must not create divergent
+  saved-game shapes.
+- Each PR body records measured balance scenarios, migrations, player-facing behavior,
+  targeted checks, build, and full-suite results.
 
 ## 17. Parent issue completion
 
