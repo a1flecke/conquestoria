@@ -1537,6 +1537,18 @@ describe('renderSelectedUnitInfo - upgrade button building gate', () => {
     expect(calls).toBe(1);
   });
 
+  it('does not expose an upgrade action for another hot-seat player', () => {
+    const state = makeJetFighterState(['stealth_airbase']);
+    state.currentPlayer = 'other-player';
+    const container = new MockElement('div');
+
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'bomber-1', {
+      onUpgradeUnit: () => { throw new Error('must not be callable'); },
+    });
+
+    expect(findButtons(container).some(button => button.textContent?.startsWith('Upgrade'))).toBe(false);
+  });
+
   it('hides the Upgrade button and shows a missing-building reason when stealth_airbase is absent', () => {
     const state = makeJetFighterState([]);
     const container = new MockElement('div');
