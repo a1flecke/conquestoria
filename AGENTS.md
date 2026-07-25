@@ -71,6 +71,10 @@ When writing or updating implementation plans for interactive UI, queueing, or r
 ## Required Verification
 `./scripts/run-with-mise.sh yarn test` does not type-check. Run `./scripts/run-with-mise.sh yarn build` whenever TypeScript correctness matters, and always before `git push`, PR creation, or merge.
 
+If a push or long-running verification returns incomplete output, inspect the live process
+and remote ref before retrying. Never start a second push while the first pre-push hook
+may still be running.
+
 After editing files under `src/`, run:
 
 - `scripts/check-src-rule-violations.sh path/to/changed-src-file.ts [more changed src files...]`
