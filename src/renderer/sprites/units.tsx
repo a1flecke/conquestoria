@@ -245,8 +245,8 @@ export function ArcherSprite({ palette, svgOnly = false }: UnitSpriteProps): str
   return (
     <SpriteFrame svgOnly={svgOnly}>
       <Shadow />
-      <Humanoid cx={64} cy={70} scale={1} cloth="#5a6e3a" pants={P.cloth.wool} accent={palette.mid} hair="#3a2a1a"
-        hat={<path d="M-10,-38 Q0,-48 10,-38 L8,-32 L-8,-32 Z" fill="#3a4a20" stroke={P.ink.line} strokeWidth="0.8" />}
+      <Humanoid cx={64} cy={70} scale={1} cloth={palette.mid} pants={P.cloth.wool} accent={palette.bright} hair="#3a2a1a"
+        hat={<path d="M-10,-38 Q0,-48 10,-38 L8,-32 L-8,-32 Z" fill={palette.dark} stroke={P.ink.line} strokeWidth="0.8" />}
       />
       <g transform="translate(84 40)">
         <path d="M0,-22 Q12,0 0,22" fill="none" stroke={P.wood.dark} strokeWidth="2.4" strokeLinecap="round" />

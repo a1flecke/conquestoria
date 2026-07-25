@@ -99,4 +99,23 @@ describe('game-shell', () => {
 
     expect(opened).toBe(true);
   });
+
+  it('keeps desktop utility controls in a non-overlapping toolbar', () => {
+    const shell = createGameShell(document.body, {
+      onOpenCouncil: () => {}, onOpenTech: () => {}, onOpenCity: () => {},
+      onOpenEspionage: () => {}, onOpenDiplomacy: () => {}, onOpenMarketplace: () => {},
+      onEndTurn: () => {}, onNextUnit: () => {}, onOpenNotificationLog: () => {},
+      onToggleIconLegend: () => {}, onOpenWonderAtlas: () => {}, onOpenMenu: () => {},
+    });
+
+    const toolbar = shell.querySelector<HTMLElement>('#utility-toolbar');
+    expect(toolbar?.style.display).toBe('flex');
+    expect(toolbar?.style.gap).toBe('8px');
+    expect(toolbar?.style.position).toBe('absolute');
+    expect([...toolbar?.querySelectorAll('button') ?? []].map(button => button.id)).toEqual([
+      'btn-next-unit', 'btn-notif-log', 'btn-icon-legend', 'btn-wonder-atlas',
+      'btn-pirate-waters', 'btn-pause-menu',
+    ]);
+    expect(toolbar?.querySelectorAll('[style*="right:"]')).toHaveLength(0);
+  });
 });

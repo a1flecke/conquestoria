@@ -10,6 +10,7 @@ import { isHostileOwnerTo } from './owner-hostility';
 
 export type AttackTargetFailure =
   | 'missing-attacker'
+  | 'no-action-points'
   | 'no-combat-strength'
   | 'out-of-range'
   | 'not-visible'
@@ -89,6 +90,7 @@ export function canUnitAttackTarget(
   options: AttackTargetOptions = {},
 ): AttackTargetResult {
   if (!attacker) return { ok: false, reason: 'missing-attacker' };
+  if (attacker.movementPointsLeft <= 0 || attacker.hasActed) return { ok: false, reason: 'no-action-points' };
   if (UNIT_DEFINITIONS[attacker.type].strength <= 0) return { ok: false, reason: 'no-combat-strength' };
 
   const profile = getUnitAttackProfile(attacker.type);

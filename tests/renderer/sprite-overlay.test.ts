@@ -220,6 +220,23 @@ describe('sync() wrapper sizing', () => {
     expect(wrapper!.style.height).toBe(expectedPx);
   });
 
+  it('keeps a unit at the same display size while it transitions from stationary to moving', () => {
+    const { overlay, mount } = mountOverlay();
+    const hexSize = 48;
+    const camera = cam({ zoom: 1.8, hexSize });
+    overlay.sync(camera, [entity({ state: 'idle' })], MAP, OPTS);
+    const wrapper = mount.querySelector('.cq-sprite-wrap')?.parentElement as HTMLElement;
+    const stationarySize = { width: wrapper.style.width, height: wrapper.style.height };
+
+    overlay.sync(camera, [entity({ state: 'walk' })], MAP, OPTS);
+
+    expect(wrapper.style).toMatchObject(stationarySize);
+    expect(stationarySize).toEqual({
+      width: `${getUnitLayoutMetrics(hexSize).displaySize}px`,
+      height: `${getUnitLayoutMetrics(hexSize).displaySize}px`,
+    });
+  });
+
   it('positions and updates co-located owner groups using their shared anchor offset', () => {
     const { overlay, mount } = mountOverlay();
     const camera = cam({ zoom: 1, hexSize: 32 });

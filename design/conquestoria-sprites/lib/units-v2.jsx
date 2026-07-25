@@ -329,10 +329,10 @@ function ArcherV2Sprite({ faction = 'imperials', state = 'idle', phase }) {
 
       <HumanoidV2
         cx={64} cy={70}
-        cloth="#5a6e3a" pants={_P2.cloth.wool}
-        accent={f.mid} hair="#3a2a1a"
+        cloth={f.mid} pants={_P2.cloth.wool}
+        accent={f.bright} hair="#3a2a1a"
         arms="locked"
-        hat={<path d="M-10,-38 Q0,-48 10,-38 L8,-32 L-8,-32 Z" fill="#3a4a20" stroke={_P2.ink.line} strokeWidth="0.8" />}
+        hat={<path d="M-10,-38 Q0,-48 10,-38 L8,-32 L-8,-32 Z" fill={f.dark} stroke={_P2.ink.line} strokeWidth="0.8" />}
       />
 
       {/* QUIVER (left back) \u2014 static body-attached */}
