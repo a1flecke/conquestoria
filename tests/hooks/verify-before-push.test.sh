@@ -15,6 +15,7 @@ tmpdir="$(mktemp -d)"
 trap 'rm -rf "$tmpdir"' EXIT
 fake_bin="$tmpdir/bin"
 command_log="$tmpdir/commands.log"
+lock_log="$tmpdir/lock.log"
 mkdir -p "$fake_bin" "$tmpdir/scripts"
 cp "$VERIFIER" "$tmpdir/scripts/verify-before-push.sh"
 printf 'export default {};\n' > "$tmpdir/scripts/run-with-timeout.mjs"
@@ -38,17 +39,26 @@ case "${1:-}" in
 esac
 exit 97
 EOF
-chmod +x "$fake_bin/node" "$fake_bin/yarn"
+
+cat > "$tmpdir/scripts/with-verification-lock.sh" <<'EOF'
+#!/bin/sh
+printf '%s\n' "$*" >> "$VERIFY_LOCK_LOG"
+export CONQUESTORIA_VERIFICATION_LOCK_HELD=1
+exec "$@"
+EOF
+chmod +x "$fake_bin/node" "$fake_bin/yarn" "$tmpdir/scripts/with-verification-lock.sh"
 
 run_verifier() {
-  rm -f "$command_log"
+  rm -f "$command_log" "$lock_log"
   set +e
   (
     cd "$tmpdir"
     PATH="$fake_bin:$PATH" \
       VERIFY_COMMAND_LOG="$command_log" \
+      VERIFY_LOCK_LOG="$lock_log" \
       VERIFY_TEST_STATUS="${1:-0}" \
       VERIFY_BUILD_STATUS="${2:-0}" \
+      CONQUESTORIA_VERIFICATION_LOCK_HELD= \
       sh scripts/verify-before-push.sh --no-mise
   ) >/dev/null 2>&1
   verifier_status=$?
@@ -68,6 +78,10 @@ run_verifier 0 0
   echo "canonical verifier did not run build second"
   exit 1
 }
+grep -q 'verify-before-push.sh --no-mise' "$lock_log" || {
+  echo "canonical verifier did not hold the shared verification lock"
+  exit 1
+}
 
 run_verifier 9 0
 [ "$verifier_status" -eq 9 ] || {
@@ -80,14 +94,16 @@ run_verifier 9 0
 }
 
 run_verifier_fast() {
-  rm -f "$command_log"
+  rm -f "$command_log" "$lock_log"
   set +e
   (
     cd "$tmpdir"
     PATH="$fake_bin:$PATH" \
       VERIFY_COMMAND_LOG="$command_log" \
+      VERIFY_LOCK_LOG="$lock_log" \
       VERIFY_TEST_STATUS="${1:-0}" \
       VERIFY_BUILD_STATUS="${2:-0}" \
+      CONQUESTORIA_VERIFICATION_LOCK_HELD= \
       sh scripts/verify-before-push.sh --no-mise --fast
   ) >/dev/null 2>&1
   verifier_status=$?
