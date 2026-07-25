@@ -52,6 +52,35 @@ describe('selected-unit-highlights', () => {
     expect(result.highlights).toContainEqual({ coord: { q: 5, r: 5 }, type: 'zoc-limited' });
   });
 
+  it('removes the zone-of-control warning input after the active hot-seat player kills the nearby enemy', () => {
+    const state = createNewGame(undefined, 'zoc-clears-after-combat', 'small');
+    state.currentPlayer = 'ai-1';
+    state.hotSeat = {
+      playerCount: 2,
+      mapSize: 'small',
+      players: [
+        { name: 'Player One', slotId: 'player', civType: 'rome', isHuman: true },
+        { name: 'Player Two', slotId: 'ai-1', civType: 'egypt', isHuman: true },
+      ],
+    };
+    state.units = {
+      mover: { ...createUnit('warrior', 'ai-1', { q: 4, r: 5 }, mkC()), id: 'mover', movementPointsLeft: 2 },
+      enemy: { ...createUnit('warrior', 'player', { q: 6, r: 4 }, mkC()), id: 'enemy' },
+    };
+    state.civilizations.player.units = ['enemy'];
+    state.civilizations['ai-1'].units = ['mover'];
+    state.civilizations['ai-1'].diplomacy.atWarWith = ['player'];
+    state.civilizations['ai-1'].visibility.tiles = {
+      '4,5': 'visible', '5,5': 'visible', '6,4': 'visible',
+    };
+
+    expect(buildSelectedUnitHighlights(state, 'mover').zocLimitedRange).not.toEqual([]);
+
+    delete state.units.enemy;
+
+    expect(buildSelectedUnitHighlights(state, 'mover').zocLimitedRange).toEqual([]);
+  });
+
   it('marks legal non-combat land exits as water-recovery without changing movement truth', () => {
     const state = createNewGame(undefined, 'water-recovery-highlight', 'small');
     state.currentPlayer = 'player';

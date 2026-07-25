@@ -45,7 +45,7 @@ export function createGameShell(container: HTMLElement, callbacks: GameShellCall
 
   const utilityToolbar = document.createElement('div');
   utilityToolbar.id = 'utility-toolbar';
-  utilityToolbar.style.cssText = 'position:absolute;top:60px;right:12px;z-index:21;display:flex;gap:8px;align-items:center;';
+  utilityToolbar.style.cssText = 'position:absolute;top:60px;right:12px;z-index:21;display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end;max-width:calc(100% - 24px);';
 
   const nextUnitButton = createFloatingButton('btn-next-unit', '⏩', 'Select next unmoved unit', callbacks.onNextUnit);
   nextUnitButton.style.display = 'none';
