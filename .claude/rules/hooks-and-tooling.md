@@ -52,6 +52,21 @@ paths:
 - `git push` / `gh pr create` / `gh pr merge` — **120 000 ms** is enough for the local `--fast` gate. If you've just changed a slow-tier file and want to also verify it locally first (`yarn test:slow` or a targeted `yarn vitest run <file>`), do that as its own step before pushing — see #608 investigation notes above for observed durations up to ~600s worst case.
 - A 360 000 ms timeout on `git commit` papers over the wrong symptom. Match the timeout to what the command actually does.
 
+## Shared local verification lock
+
+`scripts/run-with-mise.sh` acquires a repository-wide lock for `yarn test`,
+`test:fast`, `test:slow`, `build`, and `build:tauri`. The canonical verifier
+acquires the same lock around its entire test-plus-build sequence. The lock is
+stored in Git's common directory, so linked worktrees share it.
+
+- A second verification attempt exits promptly with status `75`, the owning
+  PID, and the command already running. Do not retry it; wait for the owner to
+  finish, then run the command once.
+- A lock whose PID no longer exists is reclaimed automatically.
+- The lock prevents CPU oversubscription; it does not make a single full suite
+  faster. For iteration, run the mirrored targeted test first and reserve the
+  full suite for the required final verification.
+
 ## Fast/slow test split (#608)
 
 `scripts/run-tests-by-tier.sh` splits the suite into two tiers, to keep the local push gate fast without losing coverage at merge time:

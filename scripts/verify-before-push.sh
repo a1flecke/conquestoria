@@ -6,8 +6,13 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 RUN="$REPO_ROOT/scripts/run-with-mise.sh"
 TIMEOUT_RUNNER="$REPO_ROOT/scripts/run-with-timeout.mjs"
+LOCK_RUNNER="$REPO_ROOT/scripts/with-verification-lock.sh"
 USE_MISE=1
 TEST_SCOPE=full
+
+if [ "${CONQUESTORIA_VERIFICATION_LOCK_HELD:-}" != "1" ]; then
+  exec "$LOCK_RUNNER" "$0" "$@"
+fi
 
 while [ "$#" -gt 0 ]; do
   case "$1" in
