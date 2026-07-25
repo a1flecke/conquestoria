@@ -1,8 +1,12 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import {
   estimateMilitaryStrength,
+  getMedianFrontlineStrengthForEra,
   type AIStrengthObservation,
 } from '@/ai/ai-strength';
+import { getAIStrategicRoles } from '@/ai/ai-unit-roles';
+import { TRAINABLE_UNITS } from '@/systems/city-system';
+import { TECH_TREE } from '@/systems/tech-definitions';
 
 function observation(
   overrides: Partial<AIStrengthObservation> = {},
@@ -123,5 +127,26 @@ describe('AI military strength estimation', () => {
       uncertaintyUpper: 0,
       midpoint: 0,
     });
+  });
+});
+
+describe('AI difficulty strength baseline', () => {
+  const originalRequirements = TRAINABLE_UNITS.map(unit => unit.requiredTechs);
+
+  afterEach(() => {
+    TRAINABLE_UNITS.forEach((unit, index) => {
+      unit.requiredTechs = originalRequirements[index];
+    });
+  });
+
+  it('does not count frontline content until every conjunctive technology reaches the requested era', () => {
+    const futureTech = TECH_TREE.find(tech => tech.era > 1)!;
+    TRAINABLE_UNITS
+      .filter(unit => getAIStrategicRoles(unit.type).some(role => role === 'frontline' || role === 'capture'))
+      .forEach(unit => {
+        unit.requiredTechs = [futureTech.id];
+      });
+
+    expect(getMedianFrontlineStrengthForEra(1)).toBe(0);
   });
 });

@@ -1,6 +1,7 @@
 import type { City, GameMap, HexCoord, HexTile, ResourceYield } from '@/core/types';
 import { TECH_TREE } from '@/systems/tech-definitions';
 import { BUILDINGS } from '@/systems/city-system';
+import { evaluateProductionPrerequisites, getProductionPrerequisiteEra } from '@/systems/production-prerequisites';
 import { calculateCityYields } from '@/systems/resource-system';
 import { getEmpireTechPercents, applyEmpireTechPercents, getEmpireFlatTechYields } from '@/systems/tech-yield-system';
 import {
@@ -49,10 +50,6 @@ function completedTechsForEra(era: number): string[] {
   return TECH_TREE.filter(tech => tech.era < era).map(tech => tech.id);
 }
 
-function techEra(techId: string): number {
-  return TECH_TREE.find(tech => tech.id === techId)?.era ?? 1;
-}
-
 function eligibleBuildingIds(completedTechs: string[], era: number, profile: ReferenceEconomyProfile): string[] {
   const techSet = new Set(completedTechs);
   const built = new Set<string>();
@@ -62,12 +59,12 @@ function eligibleBuildingIds(completedTechs: string[], era: number, profile: Ref
     added = false;
     for (const building of Object.values(BUILDINGS)) {
       if (built.has(building.id) || building.nationalProject || building.coastalRequired) continue;
-      if (building.techRequired) {
-        if (!techSet.has(building.techRequired)) continue;
+      if (building.techRequired || building.requiredTechs?.length) {
+        if (evaluateProductionPrerequisites(building, techSet).missing.length > 0) continue;
         if (profile === 'bounded') {
           // Bound: only recently-gated buildings count toward active production, unless a
           // still-eligible newer building's requiresBuildings chain forces an older one in.
-          const isRecent = techEra(building.techRequired) > era - BUILDING_ERA_WINDOW;
+          const isRecent = getProductionPrerequisiteEra(building, TECH_TREE) > era - BUILDING_ERA_WINDOW;
           const isForcedPrereq = Object.values(BUILDINGS).some(other =>
             (other.requiresBuildings ?? []).includes(building.id));
           if (!isRecent && !isForcedPrereq) continue;

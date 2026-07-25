@@ -13,6 +13,7 @@ import type {
   UnitType,
 } from '@/core/types';
 import { getTrainableUnitsForCity, TRAINABLE_UNITS } from '@/systems/city-system';
+import { evaluateProductionPrerequisites } from '@/systems/production-prerequisites';
 import { foundCityInState } from '@/systems/city-founding-system';
 import { getVisibility } from '@/systems/fog-of-war';
 import { hexKey } from '@/systems/hex-utils';
@@ -327,7 +328,7 @@ function assertLateEraForce(state: GameState, seed: string): void {
       throw new Error(`${seed}: ${civ.id} has no capture/frontline unit`);
     }
     const trainable = TRAINABLE_UNITS.filter(entry =>
-      (!entry.techRequired || civ.techState.completed.includes(entry.techRequired))
+      evaluateProductionPrerequisites(entry, civ.techState.completed).missing.length === 0
       && (!entry.obsoletedByTech || !civ.techState.completed.includes(entry.obsoletedByTech)));
     const supportTrainable = trainable.some(entry =>
       getAIStrategicRoles(entry.type).some(role => role === 'ranged' || role === 'siege'));

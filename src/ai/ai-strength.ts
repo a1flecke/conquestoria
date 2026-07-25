@@ -1,6 +1,7 @@
 import type { UnitType } from '@/core/types';
 import { TRAINABLE_UNITS } from '@/systems/city-system';
 import { TECH_TREE } from '@/systems/tech-system';
+import { getProductionPrerequisiteEra } from '@/systems/production-prerequisites';
 import { UNIT_DEFINITIONS } from '@/systems/unit-system';
 import { getAIStrategicRoles, hasAICombatRole } from './ai-unit-roles';
 
@@ -88,9 +89,7 @@ export function getMedianFrontlineStrengthForEra(era: number): number {
   const boundedEra = Number.isFinite(era) ? Math.max(1, Math.floor(era)) : 1;
   const strengths = TRAINABLE_UNITS
     .filter(entry => {
-      const requiredEra = entry.techRequired
-        ? TECH_TREE.find(tech => tech.id === entry.techRequired)?.era ?? 1
-        : 1;
+      const requiredEra = getProductionPrerequisiteEra(entry, TECH_TREE);
       const roles = getAIStrategicRoles(entry.type);
       return requiredEra <= boundedEra
         && (roles.includes('frontline') || roles.includes('capture'))

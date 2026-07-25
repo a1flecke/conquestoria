@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   evaluateProductionPrerequisites,
+  getProductionPrerequisiteEra,
   getRequiredTechIds,
   validateProductionPrerequisiteDefinitions,
 } from '@/systems/production-prerequisites';
@@ -62,5 +63,15 @@ describe('production prerequisites', () => {
       'unknown: unknown prerequisite omega',
       'unreachable: unreachable prerequisite beta',
     ]);
+  });
+
+  it('uses the latest conjunctive technology era for pacing and difficulty', () => {
+    expect(getProductionPrerequisiteEra(
+      { techRequired: 'bronze-working', requiredTechs: ['engineering'] },
+      [
+        { id: 'bronze-working', era: 2 },
+        { id: 'engineering', era: 4 },
+      ],
+    )).toBe(4);
   });
 });

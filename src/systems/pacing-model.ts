@@ -1,5 +1,6 @@
 import type { Building, PacingBand, PacingContentType, PacingMetadata, Tech } from '@/core/types';
 import { BUILDINGS, type TRAINABLE_UNITS } from '@/systems/city-system';
+import { getRequiredTechIds } from '@/systems/production-prerequisites';
 import { TECH_TREE } from '@/systems/tech-definitions';
 import {
   ERA_PACING_PROFILES,
@@ -183,12 +184,16 @@ export function getRecommendedTechCost(tech: Tech, techs: Tech[] = TECH_TREE): n
 
 type TrainableUnit = (typeof TRAINABLE_UNITS)[number];
 
+function hasProductionTechPrerequisites(definition: { techRequired?: string | null; requiredTechs?: readonly string[] }): boolean {
+  return getRequiredTechIds(definition).length > 0;
+}
+
 export function resolveBuildingPacingBand(building: Building): PacingBand {
   if (building.pacing) {
     return building.pacing.band;
   }
 
-  if (!building.techRequired && building.productionCost <= 18) {
+  if (!hasProductionTechPrerequisites(building) && building.productionCost <= 18) {
     return 'starter';
   }
 
@@ -200,7 +205,7 @@ export function resolveBuildingPacingBand(building: Building): PacingBand {
     return 'power-spike';
   }
 
-  if (building.category === 'military' && building.techRequired) {
+  if (building.category === 'military' && hasProductionTechPrerequisites(building)) {
     return 'power-spike';
   }
 
@@ -216,7 +221,7 @@ export function resolveUnitPacingBand(unit: TrainableUnit): PacingBand {
     return unit.pacing.band;
   }
 
-  if (!unit.techRequired && unit.cost <= 12) {
+  if (!hasProductionTechPrerequisites(unit) && unit.cost <= 12) {
     return 'starter';
   }
 
@@ -224,11 +229,11 @@ export function resolveUnitPacingBand(unit: TrainableUnit): PacingBand {
     return 'power-spike';
   }
 
-  if (unit.cost >= 80 || unit.techRequired === 'tactics') {
+  if (unit.cost >= 80 || getRequiredTechIds(unit).includes('tactics')) {
     return 'power-spike';
   }
 
-  if (unit.techRequired && unit.cost >= 40) {
+  if (hasProductionTechPrerequisites(unit) && unit.cost >= 40) {
     return 'specialist';
   }
 

@@ -9,6 +9,11 @@ export interface ProductionPrerequisiteEvaluation {
   missing: string[];
 }
 
+export interface ProductionPrerequisiteTech {
+  id: string;
+  era: number;
+}
+
 export function getRequiredTechIds(definition: ProductionPrerequisiteDefinition): string[] {
   const required = [
     ...(definition.techRequired ? [definition.techRequired] : []),
@@ -29,6 +34,15 @@ export function evaluateProductionPrerequisites(
     satisfied,
     missing: required.filter(techId => !completed.has(techId)),
   };
+}
+
+export function getProductionPrerequisiteEra(
+  definition: ProductionPrerequisiteDefinition,
+  techs: readonly ProductionPrerequisiteTech[],
+): number {
+  const erasById = new Map(techs.map(tech => [tech.id, tech.era]));
+  return getRequiredTechIds(definition)
+    .reduce((latestEra, techId) => Math.max(latestEra, erasById.get(techId) ?? 1), 1);
 }
 
 export function validateProductionPrerequisiteDefinitions(

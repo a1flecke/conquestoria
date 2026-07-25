@@ -1,5 +1,6 @@
 import type { Building, BuildingCategory, City, CityMaturity, GameMap, HexCoord, HexTile, Tech } from '@/core/types';
 import { BUILDINGS } from '@/systems/city-system';
+import { evaluateProductionPrerequisites } from '@/systems/production-prerequisites';
 import { resolveCityMaturity } from '@/systems/city-maturity-system';
 import { calculateCityYields } from '@/systems/resource-system';
 import { getProductionOutputProfileForEra, getResearchOutputProfileForTech } from '@/systems/pacing-model';
@@ -168,7 +169,7 @@ function isNeutralBuilding(building: Building, completedTechs: ReadonlySet<strin
     && !building.uniquePerEmpire
     && !building.coastalRequired
     && !(building.resourceRequired?.length)
-    && (!building.techRequired || completedTechs.has(building.techRequired))
+    && evaluateProductionPrerequisites(building, completedTechs).missing.length === 0
     && (!building.obsoletedByTech || !completedTechs.has(building.obsoletedByTech));
 }
 

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { buildPacingAudit } from '@/systems/pacing-audit';
 import { BUILDINGS, TRAINABLE_UNITS } from '@/systems/city-system';
+import { TECH_TREE } from '@/systems/tech-definitions';
 
 describe('pacing-audit', () => {
   it('returns audit rows for current techs, units, and buildings', () => {
@@ -16,6 +17,18 @@ describe('pacing-audit', () => {
     expect(rows.find(row => row.id === 'walls')?.era).toBe(3);
     expect(rows.find(row => row.id === 'observatory')?.era).toBe(4);
     expect(rows.find(row => row.id === 'musketeer')?.era).toBe(5);
+  });
+
+  it('uses the final conjunctive technology for a catalog item\'s pacing era', () => {
+    const library = BUILDINGS.library;
+    const original = library.requiredTechs;
+    library.requiredTechs = ['mathematics'];
+    try {
+      expect(buildPacingAudit().find(row => row.id === 'library')?.era)
+        .toBe(TECH_TREE.find(tech => tech.id === 'mathematics')!.era);
+    } finally {
+      library.requiredTechs = original;
+    }
   });
 
   it('reports recommended cost and outlier signals', () => {

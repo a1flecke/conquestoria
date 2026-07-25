@@ -12,6 +12,7 @@ import {
   resolveUnitPacingBand,
 } from '@/systems/pacing-model';
 import { TECH_TREE } from '@/systems/tech-definitions';
+import { getProductionPrerequisiteEra } from './production-prerequisites';
 
 export interface PacingAuditRow {
   id: string;
@@ -27,14 +28,6 @@ export interface PacingAuditRow {
   outlierReason: string;
   researchProfile?: ResearchOutputProfile['name'];
   liveBaselineTurns?: number;
-}
-
-function getUnlockEra(techId?: string | null): number {
-  if (!techId) {
-    return 1;
-  }
-
-  return TECH_TREE.find(tech => tech.id === techId)?.era ?? 1;
 }
 
 function buildAuditSignals(
@@ -64,7 +57,7 @@ function buildAuditSignals(
 export function buildPacingAudit(options: { era?: number } = {}): PacingAuditRow[] {
   return [
     ...Object.values(BUILDINGS).map(building => {
-      const era = getUnlockEra(building.techRequired);
+      const era = getProductionPrerequisiteEra(building, TECH_TREE);
       const band = resolveBuildingPacingBand(building);
       const outputPerTurn = getProductionOutputProfileForEra(era);
       const currentCost = getCatalogProductionCost(building.id, era);
@@ -85,7 +78,7 @@ export function buildPacingAudit(options: { era?: number } = {}): PacingAuditRow
       };
     }),
     ...TRAINABLE_UNITS.map(unit => {
-      const era = getUnlockEra(unit.techRequired);
+      const era = getProductionPrerequisiteEra(unit, TECH_TREE);
       const auditEra = unit.type === 'settler' ? options.era ?? era : era;
       const band = resolveUnitPacingBand(unit);
       const outputPerTurn = getProductionOutputProfileForEra(auditEra);

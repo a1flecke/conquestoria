@@ -468,6 +468,27 @@ describe('MR8 — naval roster gating', () => {
     }
   });
 
+  it('dequeues a saved building that a newly added conjunction makes ineligible', () => {
+    const map = generateMap(10, 10, 'conjunctive-building-queue-save-compat');
+    const landTile = Object.values(map.tiles).find(tile => tile.terrain === 'grassland' || tile.terrain === 'plains')!;
+    const city = {
+      ...foundCity('p1', landTile.coord, map, mkC()),
+      productionQueue: ['library'],
+    };
+    const library = BUILDINGS.library;
+    const original = library.requiredTechs;
+    library.requiredTechs = ['mathematics'];
+    try {
+      const result = processCity(city, map, 2, 3, undefined, ['writing']);
+      expect(result.city.productionQueue).not.toContain('library');
+      expect(result.droppedProductionItems).toEqual([
+        { itemId: 'library', itemKind: 'building', reason: 'no-longer-available' },
+      ]);
+    } finally {
+      library.requiredTechs = original;
+    }
+  });
+
   it('trireme is trainable through era 5 and obsoletes at frigate-construction', () => {
     expect(getTrainableUnitsForCiv(['triremes']).some(u => u.type === 'trireme')).toBe(true);
     expect(getTrainableUnitsForCiv(['triremes', 'frigate-construction']).some(u => u.type === 'trireme')).toBe(false);

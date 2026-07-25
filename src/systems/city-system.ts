@@ -1985,6 +1985,13 @@ export function processCity(
             return false;
           }
         }
+        // Building queues historically tolerate a legacy techRequired mismatch in imported
+        // saves. Only the newly introduced conjunctive extension can invalidate an existing
+        // queue item, so preserve that compatibility while preventing new multi-tech bypasses.
+        if (building.requiredTechs?.some(techId => !completedTechs.includes(techId))) {
+          droppedProductionItems.push({ itemId: item, itemKind: 'building', reason: 'no-longer-available' });
+          return false;
+        }
         return true;
       }
       const unit = TRAINABLE_UNITS.find(candidate => candidate.type === item);

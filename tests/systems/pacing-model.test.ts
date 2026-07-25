@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { PacingMetadata } from '@/core/types';
+import { BUILDINGS } from '@/systems/city-system';
 import { TECH_TREE } from '@/systems/tech-definitions';
 import {
   ERA_PACING_PROFILES,
@@ -15,6 +16,7 @@ import {
   isFirstRealUnlockTech,
   isStarterPrerequisiteTech,
   resolveEraRelativeCostBand,
+  resolveBuildingPacingBand,
   resolveTechPacingBand,
   requireEraPacingProfile,
 } from '@/systems/pacing-model';
@@ -56,6 +58,14 @@ describe('pacing-model', () => {
     expect(requireEraPacingProfile(13)).toBe(ERA_PACING_PROFILES.get(13));
     expect(() => requireEraPacingProfile(16)).toThrow('Missing authored pacing profile for era 16');
     expect(getFrontierPacingProfile(25)).toBe(ERA_PACING_PROFILES.get(13));
+  });
+
+  it('does not classify a requiredTechs-only building as starter content', () => {
+    expect(resolveBuildingPacingBand({
+      ...BUILDINGS.workshop,
+      pacing: undefined,
+      requiredTechs: ['mathematics'],
+    })).not.toBe('starter');
   });
 });
 
