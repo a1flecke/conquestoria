@@ -1,6 +1,8 @@
 import type { Unit, UnitType, City, GameState, ResourceType, TrainableUnitEntry } from '@/core/types';
 import { TRAINABLE_UNITS, getProductionCostForItem } from './city-system';
 import { getCivAvailableResources } from './resource-acquisition-system';
+import { baseNewAirUnit, canCompleteAirUnitProduction } from './air-operations-system';
+import { UNIT_DEFINITIONS } from './unit-system';
 
 export type UpgradeMissingRequirement =
   | { kind: 'friendly-city' }
@@ -9,6 +11,7 @@ export type UpgradeMissingRequirement =
   | { kind: 'resource'; resource: ResourceType }
   | { kind: 'gold'; required: number; available: number }
   | { kind: 'action-already-spent' }
+  | { kind: 'air-base'; reason: 'base-missing' | 'incompatible-base' | 'base-full' }
   | { kind: 'invalid-target' };
 
 export interface UpgradeEvaluation {
@@ -81,6 +84,12 @@ export function evaluateUnitUpgrade(
   }
   if (!civ || civ.gold < cost) {
     missing.push({ kind: 'gold', required: cost, available: civ?.gold ?? 0 });
+  }
+  if (city && UNIT_DEFINITIONS[target.type].airOperation) {
+    const airBase = canCompleteAirUnitProduction(state, city.id, target.type);
+    if (!airBase.ok && airBase.reason !== 'not-based-aircraft') {
+      missing.push({ kind: 'air-base', reason: airBase.reason });
+    }
   }
   if (unit.hasActed) missing.push({ kind: 'action-already-spent' });
 
@@ -217,6 +226,11 @@ export function applyUnitUpgradeToState(
     gold: next.civilizations[unit.owner].gold - evaluation.cost,
   };
   next.units[unitId] = applyUpgrade(next.units[unitId], targetType);
+  if (UNIT_DEFINITIONS[targetType].airOperation) {
+    const based = baseNewAirUnit(next, city.id, next.units[unitId]);
+    if (!based.ok) return { state, upgraded: false, reason: based.reason };
+    Object.assign(next, based.state);
+  }
   const espionage = next.espionage?.[unit.owner];
   if (espionage?.spies[unitId]) {
     next.espionage![unit.owner] = {

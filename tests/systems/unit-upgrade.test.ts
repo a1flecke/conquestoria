@@ -279,6 +279,27 @@ describe('applyUnitUpgradeToState', () => {
     });
   });
 
+  it('reports a full helicopter base for an explicit cross-domain upgrade fixture', () => {
+    const { state, city } = setup();
+    const definitions = TRAINABLE_UNITS.map(entry => entry.type === 'tank'
+      ? { ...entry, obsoletedByTech: 'armored-tactics', upgradesTo: 'attack_helicopter' as const }
+      : entry);
+    state.units['upgrade-unit'].type = 'tank';
+    state.civilizations.player.gold = 1000;
+    state.civilizations.player.techState.completed = ['tank-warfare', 'armored-tactics', 'helicopter-warfare'];
+    city.buildings = ['helicopter_base'];
+    for (const id of ['helicopter-1', 'helicopter-2']) {
+      state.units[id] = {
+        ...state.units['upgrade-unit'], id, type: 'attack_helicopter',
+        airBase: { kind: 'city', cityId: city.id },
+      };
+      state.civilizations.player.units.push(id);
+    }
+
+    expect(evaluateUnitUpgrade(state, 'upgrade-unit', 'attack_helicopter', definitions).missing)
+      .toContainEqual({ kind: 'air-base', reason: 'base-full' });
+  });
+
   it('upgrades canonically, deducts exact gold, preserves health, and consumes the action', () => {
     const { state } = setup();
 
