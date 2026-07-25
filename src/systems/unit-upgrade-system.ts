@@ -1,6 +1,104 @@
-import type { Unit, UnitType, City, GameState, ResourceType } from '@/core/types';
+import type { Unit, UnitType, City, GameState, ResourceType, TrainableUnitEntry } from '@/core/types';
 import { TRAINABLE_UNITS, getProductionCostForItem } from './city-system';
 import { getCivAvailableResources } from './resource-acquisition-system';
+
+export type UpgradeMissingRequirement =
+  | { kind: 'friendly-city' }
+  | { kind: 'technology'; techId: string }
+  | { kind: 'building'; buildingId: string }
+  | { kind: 'resource'; resource: ResourceType }
+  | { kind: 'gold'; required: number; available: number }
+  | { kind: 'action-already-spent' }
+  | { kind: 'invalid-target' };
+
+export interface UpgradeEvaluation {
+  canUpgrade: boolean;
+  sourceType: UnitType;
+  targetType: UnitType | null;
+  cost: number;
+  cityId: string | null;
+  preserved: {
+    health: number;
+    experience: number;
+    movementPointsLeft: 0;
+    hasActed: true;
+  };
+  missing: UpgradeMissingRequirement[];
+}
+
+function findFriendlyHostCity(state: GameState, unit: Unit): City | undefined {
+  return Object.values(state.cities)
+    .filter(city => city.owner === unit.owner)
+    .sort((left, right) => left.id.localeCompare(right.id))
+    .find(city => city.position.q === unit.position.q && city.position.r === unit.position.r);
+}
+
+export function evaluateUnitUpgrade(
+  state: GameState,
+  unitId: string,
+  requestedTarget: UnitType,
+  definitions: readonly TrainableUnitEntry[] = TRAINABLE_UNITS,
+): UpgradeEvaluation {
+  const unit = state.units[unitId];
+  const fallback = {
+    canUpgrade: false,
+    sourceType: unit?.type ?? requestedTarget,
+    targetType: null,
+    cost: 0,
+    cityId: null,
+    preserved: {
+      health: unit?.health ?? 0,
+      experience: unit?.experience ?? 0,
+      movementPointsLeft: 0 as const,
+      hasActed: true as const,
+    },
+  };
+  if (!unit) return { ...fallback, missing: [{ kind: 'invalid-target' }] };
+
+  const source = definitions.find(candidate => candidate.type === unit.type);
+  const target = source?.upgradesTo === requestedTarget
+    ? definitions.find(candidate => candidate.type === requestedTarget)
+    : undefined;
+  if (!source || !target) return { ...fallback, missing: [{ kind: 'invalid-target' }] };
+
+  const civ = state.civilizations[unit.owner];
+  const city = findFriendlyHostCity(state, unit);
+  const resources = getCivAvailableResources(state, unit.owner);
+  const cost = getUpgradeCost(target.type, resources);
+  const missing: UpgradeMissingRequirement[] = [];
+  if (!city) missing.push({ kind: 'friendly-city' });
+  if (source.obsoletedByTech && !civ?.techState.completed.includes(source.obsoletedByTech)) {
+    missing.push({ kind: 'technology', techId: source.obsoletedByTech });
+  }
+  if (target.techRequired && !civ?.techState.completed.includes(target.techRequired)) {
+    missing.push({ kind: 'technology', techId: target.techRequired });
+  }
+  if (target.trainedFromBuilding && !city?.buildings.includes(target.trainedFromBuilding)) {
+    missing.push({ kind: 'building', buildingId: target.trainedFromBuilding });
+  }
+  for (const resource of target.resourceRequired ?? []) {
+    if (!resources.has(resource)) missing.push({ kind: 'resource', resource });
+  }
+  if (!civ || civ.gold < cost) {
+    missing.push({ kind: 'gold', required: cost, available: civ?.gold ?? 0 });
+  }
+  if (unit.hasActed) missing.push({ kind: 'action-already-spent' });
+
+  return {
+    canUpgrade: missing.length === 0,
+    sourceType: unit.type,
+    targetType: target.type,
+    cost,
+    cityId: city?.id ?? null,
+    preserved: {
+      health: unit.health,
+      experience: unit.experience,
+      movementPointsLeft: 0,
+      hasActed: true,
+    },
+    missing,
+  };
+}
 
 export function getUpgradeCost(targetType: UnitType, availableResources?: ReadonlySet<ResourceType>): number {
   const cost = getProductionCostForItem(targetType, { availableResources });
@@ -72,13 +170,12 @@ export function getCanonicalUpgradeTarget(
   return target.type;
 }
 
-// Returns a new Unit with the upgraded type, full health, and action consumed.
+// Returns a new Unit with the upgraded type and action consumed.
 // Caller is responsible for deducting civ.gold by getUpgradeCost(targetType).
 export function applyUpgrade(unit: Unit, targetType: UnitType): Unit {
   return {
     ...unit,
     type: targetType,
-    health: 100,
     movementPointsLeft: 0,
     hasActed: true,
   };
@@ -90,6 +187,14 @@ export interface ApplyUnitUpgradeToStateResult {
   reason?: string;
 }
 
+function upgradeFailureReason(evaluation: UpgradeEvaluation): string {
+  const first = evaluation.missing[0]?.kind;
+  if (first === 'building' || first === 'technology' || first === 'resource') return 'tech-unavailable';
+  if (first === 'gold') return 'insufficient-gold';
+  if (first === 'friendly-city') return 'not-in-friendly-city';
+  return first ?? 'tech-unavailable';
+}
+
 export function applyUnitUpgradeToState(
   state: GameState,
   unitId: string,
@@ -99,37 +204,17 @@ export function applyUnitUpgradeToState(
   if (!unit) return { state, upgraded: false, reason: 'invalid-unit' };
   const civ = state.civilizations[unit.owner];
   if (!civ) return { state, upgraded: false, reason: 'invalid-owner' };
-  const city = civ.cities
-    .map(cityId => state.cities[cityId])
-    .filter((candidate): candidate is City => Boolean(candidate))
-    .sort((left, right) => left.id.localeCompare(right.id))
-    .find(candidate =>
-      candidate.owner === unit.owner
-      && candidate.position.q === unit.position.q
-      && candidate.position.r === unit.position.r);
+  const city = findFriendlyHostCity(state, unit);
   if (!city) {
     return { state, upgraded: false, reason: 'not-in-friendly-city' };
   }
-  const canonicalTarget = getCanonicalUpgradeTarget(
-    unit,
-    civ.techState.completed,
-    city.buildings,
-    getCivAvailableResources(state, unit.owner),
-  );
-  if (!canonicalTarget) {
-    return { state, upgraded: false, reason: 'tech-unavailable' };
-  }
-  if (canonicalTarget !== targetType) {
-    return { state, upgraded: false, reason: 'invalid-target' };
-  }
-  const cost = getUpgradeCost(targetType, getCivAvailableResources(state, unit.owner));
-  if (civ.gold < cost) {
-    return { state, upgraded: false, reason: 'insufficient-gold' };
-  }
+  const evaluation = evaluateUnitUpgrade(state, unitId, targetType);
+  if (evaluation.targetType !== targetType) return { state, upgraded: false, reason: 'invalid-target' };
+  if (!evaluation.canUpgrade) return { state, upgraded: false, reason: upgradeFailureReason(evaluation) };
   const next = structuredClone(state);
   next.civilizations[unit.owner] = {
     ...next.civilizations[unit.owner],
-    gold: next.civilizations[unit.owner].gold - cost,
+    gold: next.civilizations[unit.owner].gold - evaluation.cost,
   };
   next.units[unitId] = applyUpgrade(next.units[unitId], targetType);
   const espionage = next.espionage?.[unit.owner];
