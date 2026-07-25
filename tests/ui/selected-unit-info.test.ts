@@ -16,6 +16,9 @@ class MockElement {
   type = '';
   disabled = false;
   title = '';
+  scrollHeight = 0;
+  clientHeight = 0;
+  scrollTop = 0;
   listeners: Record<string, Array<(...args: unknown[]) => void>> = {};
 
   get childElementCount(): number {
@@ -113,6 +116,43 @@ function findZoneOfControlWarning(node: unknown): MockElement | undefined {
   }
   return undefined;
 }
+
+function findScrollCue(node: unknown): MockElement | undefined {
+  const el = node as MockElement;
+  if (el.dataset?.scrollCue) return el;
+  for (const child of el.children ?? []) {
+    const found = findScrollCue(child);
+    if (found) return found;
+  }
+  return undefined;
+}
+
+describe('selected-unit scroll affordance', () => {
+  beforeEach(installMockDocument);
+  afterEach(restoreMockDocument);
+
+  it('shows a clear cue before details and actions that overflow the capped card', () => {
+    const state = createNewGame(undefined, 'selected-unit-scroll-cue', 'small');
+    const unit = {
+      ...createUnit('warrior', 'player', { q: 1, r: 1 }, {
+        nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1,
+      }),
+      id: 'warrior',
+    };
+    state.currentPlayer = 'player';
+    state.units = { warrior: unit };
+    state.civilizations.player.units = ['warrior'];
+    const container = new MockElement('div');
+    container.clientHeight = 100;
+    container.scrollHeight = 220;
+
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'warrior', {});
+
+    const cue = findScrollCue(container);
+    expect(cue?.textContent).toBe('↓ More details and actions below — scroll');
+    expect(cue?.style.display).toBe('block');
+  });
+});
 
 describe('land-unit water recovery guidance', () => {
   beforeEach(installMockDocument);
@@ -1242,6 +1282,21 @@ describe('renderSelectedUnitInfo - journey automation', () => {
       civilizations: { player: { color: '#fff', techState: { completed: [] } } },
     } as unknown as GameState;
   }
+
+  it('renders and invokes Auto-explore for an idle owned unit', () => {
+    const state = makeScoutState();
+    const container = new MockElement('div');
+    let startedUnitId: string | null = null;
+
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'scout-1', {
+      onStartAutoExplore: unitId => { startedUnitId = unitId; },
+    });
+
+    const start = findButtons(container).find(button => button.textContent === 'Auto-explore');
+    expect(start).toBeDefined();
+    start!.click();
+    expect(startedUnitId).toBe('scout-1');
+  });
 
   it('shows journey destination text when unit has journey automation', () => {
     const state = makeScoutState({ automation: { mode: 'journey', destination: { q: 5, r: 3 } } });

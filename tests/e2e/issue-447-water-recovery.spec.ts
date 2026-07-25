@@ -51,81 +51,47 @@ async function continueFixture(page: Page): Promise<void> {
   ).click();
   await page.getByRole('button', { name: 'Continue Campaign', exact: true }).click();
   await expect(continueButton).toBeHidden();
+  const requiredChoices = page.locator('#required-choice-panel');
+  await expect(requiredChoices).toBeVisible();
+  await requiredChoices.locator('section').first().getByRole('button').first().click();
+  await expect(requiredChoices).toBeHidden();
   await expect(page.locator('#game-canvas')).toBeVisible();
-  await page.waitForTimeout(500);
 }
 
-function pointyHexPixel(coord: { q: number; r: number }): { x: number; y: number } {
-  return {
-    x: Math.sqrt(3) * (coord.q + coord.r / 2) * 48,
-    y: 1.5 * coord.r * 48,
-  };
+async function clickVisibleHex(page: Page, coord: { q: number; r: number }): Promise<void> {
+  const point = await page.evaluate((target) => (
+    window.__CONQUESTORIA_E2E_GET_VISIBLE_HEX_COPIES__?.(target)[0]
+  ), coord);
+  expect(point, `Expected ${coord.q},${coord.r} to be visible in the live camera`).toBeDefined();
+  await page.mouse.click(point!.x, point!.y);
 }
 
-async function getOnScreenBox(page: Page, selector: string) {
-  const locator = page.locator(selector);
-  const viewport = page.viewportSize()!;
-  const count = await locator.count();
-  for (let index = 0; index < count; index++) {
-    const box = await locator.nth(index).boundingBox();
-    if (
-      box
-      && box.x + box.width > 0
-      && box.y + box.height > 0
-      && box.x < viewport.width
-      && box.y < viewport.height
-    ) {
-      return box;
-    }
-  }
-  throw new Error(`No on-screen copy for ${selector}`);
-}
-
-async function selectLeadWarrior(page: Page) {
-  const stackBox = await getOnScreenBox(
-    page,
-    '#unit-sprites > [data-member-ids*="issue-365-lead"]',
-  );
-  await page.mouse.click(
-    stackBox.x + stackBox.width / 2,
-    stackBox.y + stackBox.height / 2,
-  );
+async function selectLeadWarrior(page: Page): Promise<void> {
+  await clickVisibleHex(page, ORIGIN);
   const leadButton = page.locator(
     '[data-unit-stack-item="true"][data-unit-id="issue-365-lead"]',
   );
   await expect(leadButton).toBeVisible();
   await leadButton.click();
-  return stackBox;
-}
-
-async function clickHexFromOrigin(
-  page: Page,
-  originBox: { x: number; y: number; width: number; height: number },
-  target: { q: number; r: number },
-): Promise<void> {
-  const originPixel = pointyHexPixel(ORIGIN);
-  const targetPixel = pointyHexPixel(target);
-  await page.mouse.click(
-    originBox.x + originBox.width / 2 + targetPixel.x - originPixel.x,
-    originBox.y + originBox.height / 2 + targetPixel.y - originPixel.y,
-  );
 }
 
 test('saved water unit stays selected after a blocked tap and can return ashore', async ({ page }, testInfo) => {
   await installFixture(page);
   await continueFixture(page);
-  const originBox = await selectLeadWarrior(page);
+  await selectLeadWarrior(page);
   const guidance = page.locator('[data-water-recovery-kind="recoverable"]');
 
   await expect(guidance).toContainText('Move to an amber land tile to return ashore.');
   expect(await page.evaluate(() => window.__issue447AmberFills ?? 0)).toBeGreaterThan(0);
 
   await page.evaluate(() => { window.__issue447ToneFrequencies = []; });
-  await clickHexFromOrigin(page, originBox, WATER_TARGET);
+  await clickVisibleHex(page, WATER_TARGET);
 
-  await expect(page.locator('#notifications')).toContainText(
+  await page.locator('#btn-notif-log').click();
+  await expect(page.locator('#notification-log')).toContainText(
     'Move this land unit to an amber land tile to return ashore',
   );
+  await page.locator('#close-log').click();
   await expect(guidance).toBeVisible();
   const blockedTapTones = await page.evaluate(() => window.__issue447ToneFrequencies ?? []);
   expect(blockedTapTones).toContain(200);
@@ -135,7 +101,7 @@ test('saved water unit stays selected after a blocked tap and can return ashore'
     fullPage: true,
   });
 
-  await clickHexFromOrigin(page, originBox, LAND_EXIT);
+  await clickVisibleHex(page, LAND_EXIT);
 
   await expect(guidance).toHaveCount(0);
   await expect(page.locator(

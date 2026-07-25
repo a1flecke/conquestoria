@@ -44,15 +44,19 @@ async function continueFixture(page: Page): Promise<void> {
   ).click();
   await page.getByRole('button', { name: 'Continue Campaign', exact: true }).click();
   await expect(continueButton).toBeHidden();
+  const requiredChoices = page.locator('#required-choice-panel');
+  await expect(requiredChoices).toBeVisible();
+  await requiredChoices.locator('section').first().getByRole('button').first().click();
+  await expect(requiredChoices).toBeHidden();
   await expect(page.locator('#game-canvas')).toBeVisible();
-  await page.waitForTimeout(500);
 }
 
-function pointyHexPixel(coord: { q: number; r: number }): { x: number; y: number } {
-  return {
-    x: Math.sqrt(3) * (coord.q + coord.r / 2) * 48,
-    y: 1.5 * coord.r * 48,
-  };
+async function clickVisibleHex(page: Page, coord: { q: number; r: number }): Promise<void> {
+  const point = await page.evaluate((target) => (
+    window.__CONQUESTORIA_E2E_GET_VISIBLE_HEX_COPIES__?.(target)[0]
+  ), coord);
+  expect(point, `Expected ${coord.q},${coord.r} to be visible in the live camera`).toBeDefined();
+  await page.mouse.click(point!.x, point!.y);
 }
 
 function findMoveTarget(origin: { q: number; r: number }): { q: number; r: number } {
@@ -118,19 +122,14 @@ test('moving a member out of the crowded stack preserves its rendered size', asy
   const stack = await getOnScreenCopy(page, '#unit-sprites > [data-member-ids*="issue-365-lead"]');
   const before = stack.box;
 
-  await page.mouse.click(before.x + before.width / 2, before.y + before.height / 2);
+  await clickVisibleHex(page, FIXTURE.units['issue-365-lead'].position);
   const leadButton = page.locator('[data-unit-stack-item="true"][data-unit-id="issue-365-lead"]');
   await expect(leadButton).toBeVisible();
   await leadButton.click();
 
   const origin = FIXTURE.units['issue-365-lead'].position;
   const target = findMoveTarget(origin);
-  const originPixel = pointyHexPixel(origin);
-  const targetPixel = pointyHexPixel(target);
-  await page.mouse.click(
-    before.x + before.width / 2 + targetPixel.x - originPixel.x,
-    before.y + before.height / 2 + targetPixel.y - originPixel.y,
-  );
+  await clickVisibleHex(page, target);
 
   await expect(page.locator('#unit-sprites > [data-entity-id="issue-365-lead"]')).not.toHaveCount(0, { timeout: 5_000 });
   const moved = await getOnScreenCopy(page, '#unit-sprites > [data-entity-id="issue-365-lead"]');

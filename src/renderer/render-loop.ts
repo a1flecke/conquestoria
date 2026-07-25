@@ -382,7 +382,9 @@ export class RenderLoop {
     const rect = this.canvas.getBoundingClientRect();
     this.canvas.width = rect.width * dpr;
     this.canvas.height = rect.height * dpr;
-    this.ctx.scale(dpr, dpr);
+    // resizeCanvas can run after responsive UI changes as well as window
+    // resizes. Reset first so repeated calls never compound the DPR scale.
+    this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     this.camera.setViewport(rect.width, rect.height);
   }
 

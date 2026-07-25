@@ -7,13 +7,45 @@ export interface GameShellCallbacks extends PrimaryActionBarCallbacks {
   onOpenWonderAtlas: () => void;
   onOpenPirateWaters?: () => void;
   onOpenMenu: () => void;
+  /** Keeps the canvas viewport above the bottom action bar as its height changes. */
+  onBottomBarHeightChange?: (height: number) => void;
   iconLegendOverlay?: HTMLElement;
 }
 
+let stopBottomBarLayoutTracking: (() => void) | undefined;
+
 function removeExistingShell(container: HTMLElement): void {
+  stopBottomBarLayoutTracking?.();
+  stopBottomBarLayoutTracking = undefined;
   for (const id of ['game-shell', 'hud', 'bottom-bar', 'btn-next-unit', 'btn-notif-log', 'btn-icon-legend', 'btn-wonder-atlas', 'btn-pirate-waters', 'notifications', 'info-panel', 'icon-legend']) {
     container.querySelector(`#${id}`)?.remove();
   }
+}
+
+function trackBottomBarLayout(
+  container: HTMLElement,
+  bottomBar: HTMLElement,
+  onBottomBarHeightChange: GameShellCallbacks['onBottomBarHeightChange'],
+): () => void {
+  const sync = () => {
+    // 88px is the compact action bar's minimum touch-safe height. The measured
+    // value takes over when labels wrap or a device needs more room.
+    const height = Math.max(88, Math.ceil(bottomBar.getBoundingClientRect().height));
+    container.style.setProperty('--bottom-ui-height', `${height}px`);
+    onBottomBarHeightChange?.(height);
+  };
+
+  sync();
+  window.addEventListener('resize', sync);
+  const observer = typeof ResizeObserver === 'undefined'
+    ? undefined
+    : new ResizeObserver(sync);
+  observer?.observe(bottomBar);
+
+  return () => {
+    window.removeEventListener('resize', sync);
+    observer?.disconnect();
+  };
 }
 
 function createHud(): HTMLDivElement {
@@ -41,7 +73,8 @@ export function createGameShell(container: HTMLElement, callbacks: GameShellCall
   shell.id = 'game-shell';
 
   shell.appendChild(createHud());
-  shell.appendChild(createPrimaryActionBar(callbacks));
+  const bottomBar = createPrimaryActionBar(callbacks);
+  shell.appendChild(bottomBar);
 
   const utilityToolbar = document.createElement('div');
   utilityToolbar.id = 'utility-toolbar';
@@ -72,9 +105,11 @@ export function createGameShell(container: HTMLElement, callbacks: GameShellCall
 
   const infoPanel = document.createElement('div');
   infoPanel.id = 'info-panel';
-  infoPanel.style.cssText = 'position:absolute;bottom:80px;left:12px;right:12px;z-index:10;display:none;';
+  infoPanel.setAttribute('aria-label', 'Selected unit details and actions (scroll for more)');
+  infoPanel.style.cssText = 'position:absolute;bottom:calc(var(--bottom-ui-height) + 12px);left:12px;width:calc(100% - 24px);max-width:620px;max-height:calc(100% - 84px - var(--bottom-ui-height));overflow-y:auto;overscroll-behavior:contain;scrollbar-gutter:stable;z-index:10;display:none;';
   shell.appendChild(infoPanel);
 
   container.appendChild(shell);
+  stopBottomBarLayoutTracking = trackBottomBarLayout(container, bottomBar, callbacks.onBottomBarHeightChange);
   return shell;
 }

@@ -410,6 +410,15 @@ legendaryCompletionQueue = createLegendaryWonderCompletionQueue({
 
 // --- Resize ---
 window.addEventListener('resize', () => renderLoop.resizeCanvas());
+
+function setMapViewportBottomInset(height: number): void {
+  canvas.style.bottom = `${height}px`;
+  // With both top and bottom set, an auto height makes the canvas occupy only
+  // the remaining map viewport instead of living behind the action bar.
+  canvas.style.height = 'auto';
+  renderLoop.resizeCanvas();
+}
+
 window.addEventListener('keydown', event => {
   if (event.key === 'Escape' && pendingJourneyUnitId) {
     pendingJourneyUnitId = null;
@@ -455,6 +464,7 @@ function createUI(): void {
       uiLayer.appendChild(overlay);
     },
     onOpenWonderAtlas: () => openWonderAtlas(),
+    onBottomBarHeightChange: setMapViewportBottomInset,
     onOpenMenu: () => {
       showPauseMenu(uiLayer, {
         turn: gameState.turn,
@@ -2188,6 +2198,7 @@ function selectUnit(
         updateHUD();
         selectUnit(uid);
       },
+      onStartAutoExplore: uid => startAutoExplore(uid),
       onCancelAutoExplore: () => cancelAutoExplore(unitId),
       onCancelJourney: () => cancelJourney(unitId),
       onOpenStack: (coord) => {
@@ -3905,7 +3916,8 @@ function releaseHandoffToViewer(nextSlotId: string): void {
   audio.setMasterVolume(currentMasterVolume);
   setBlockingOverlay(null);
   emitCurrentPlayerAudioSnapshot(nextSlotId);
-  handleVictoryIfNeeded();
+  if (handleVictoryIfNeeded()) return;
+  showRequiredChoicesIfNeeded();
 }
 
 /** These player-owned surfaces may contain strategic targets; never carry them across a hot-seat veil. */
@@ -4130,6 +4142,7 @@ async function endTurn(options: { allowUnmovedUnits?: boolean } = {}): Promise<v
       renderLoop.setGameState(gameState);
       await replayAIMoves(soloMoves);
       updateHUD();
+      showRequiredChoicesIfNeeded();
 
       showNotification(`Turn ${gameState.turn}`, 'info');
       advisorSystem.check(gameState);
@@ -4932,6 +4945,14 @@ async function init(): Promise<void> {
   persistedSettings = await loadSettings();
 
   if (import.meta.env.MODE === 'e2e') {
+    // Browser tests must target the same live camera transform as player input;
+    // exposing only viewport copies keeps game state and camera internals private.
+    window.__CONQUESTORIA_E2E_GET_VISIBLE_HEX_COPIES__ = coord => getVisibleHexViewportCopies(
+      gameState,
+      renderLoop.camera,
+      gameState.currentPlayer,
+      coord,
+    );
     const { isExactAutosaveE2ERequest } = await import('@/testing/e2e-mode');
     if (isExactAutosaveE2ERequest(import.meta.env.MODE, window.location.search)) {
       const { installE2ERuntime } = await import('@/testing/e2e-runtime');
@@ -5408,6 +5429,7 @@ function startGame(): Promise<void> {
 
   // Initial advisor check
   advisorSystem.check(gameState);
+  showRequiredChoicesIfNeeded();
 
   // Start render loop
   renderLoop.start();

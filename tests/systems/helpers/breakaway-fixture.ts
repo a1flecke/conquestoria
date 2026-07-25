@@ -77,6 +77,7 @@ export function makeBreakawayFixture({
   const cityId = 'city-border';
   const capitalId = 'city-capital';
   const outsiderId = 'outsider';
+  const outsiderCityId = 'city-outsider';
 
   const capital = makeCity(capitalId, playerId, { q: 0, r: 0 });
   const city = makeCity(cityId, breakawayStartedTurn === undefined ? playerId : breakawayId, { q: 4, r: 0 }, {
@@ -84,6 +85,7 @@ export function makeBreakawayFixture({
     unrestLevel,
     unrestTurns,
   });
+  const outsiderCity = makeCity(outsiderCityId, outsiderId, { q: 6, r: 0 });
 
   const playerUnit = makeUnit('unit-player', playerId, { q: 4, r: 1 });
   const playerCapitalUnit = makeUnit('unit-player-capital', playerId, { q: 3, r: 0 });
@@ -103,6 +105,7 @@ export function makeBreakawayFixture({
         '4,0': makeTile({ q: 4, r: 0 }, city.owner),
         '3,0': makeTile({ q: 3, r: 0 }, playerId),
         '4,1': makeTile({ q: 4, r: 1 }, city.owner),
+        ...(includeThirdCiv ? { '6,0': makeTile({ q: 6, r: 0 }, outsiderId) } : {}),
       },
       wrapsHorizontally: false,
       rivers: [],
@@ -115,6 +118,7 @@ export function makeBreakawayFixture({
     cities: {
       [capital.id]: capital,
       [city.id]: city,
+      ...(includeThirdCiv ? { [outsiderCity.id]: outsiderCity } : {}),
     },
     civilizations: {
       [playerId]: {
@@ -161,7 +165,7 @@ export function makeBreakawayFixture({
           color: '#22c55e',
           isHuman: false,
           civType: 'rome',
-          cities: [],
+          cities: [outsiderCityId],
           units: [],
           techState: { completed: [], currentResearch: null, researchProgress: 0, researchQueue: [], trackPriorities: {} as any },
           gold: 500,

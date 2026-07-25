@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createGameShell } from '@/ui/game-shell';
 
 describe('game-shell', () => {
@@ -119,5 +119,43 @@ describe('game-shell', () => {
       'btn-pirate-waters', 'btn-pause-menu',
     ]);
     expect(toolbar?.querySelectorAll('[style*="right:"]')).toHaveLength(0);
+  });
+
+  it('caps selected-unit cards at a readable desktop width while preserving mobile width', () => {
+    const shell = createGameShell(document.body, {
+      onOpenCouncil: () => {}, onOpenTech: () => {}, onOpenCity: () => {},
+      onOpenEspionage: () => {}, onOpenDiplomacy: () => {}, onOpenMarketplace: () => {},
+      onEndTurn: () => {}, onNextUnit: () => {}, onOpenNotificationLog: () => {},
+      onToggleIconLegend: () => {}, onOpenWonderAtlas: () => {}, onOpenMenu: () => {},
+    });
+
+    const panel = shell.querySelector<HTMLElement>('#info-panel');
+    expect(panel?.style.width).toBe('calc(100% - 24px)');
+    expect(panel?.style.maxWidth).toBe('620px');
+  });
+
+  it('reserves the measured action-bar height for the map and keeps selected-unit details scrollable', () => {
+    const onBottomBarHeightChange = vi.fn();
+    const shell = createGameShell(document.body, {
+      onOpenCouncil: () => {}, onOpenTech: () => {}, onOpenCity: () => {},
+      onOpenEspionage: () => {}, onOpenDiplomacy: () => {}, onOpenMarketplace: () => {},
+      onEndTurn: () => {}, onNextUnit: () => {}, onOpenNotificationLog: () => {},
+      onToggleIconLegend: () => {}, onOpenWonderAtlas: () => {}, onOpenMenu: () => {},
+      onBottomBarHeightChange,
+    });
+    const bottomBar = shell.querySelector<HTMLElement>('#bottom-bar')!;
+    vi.spyOn(bottomBar, 'getBoundingClientRect').mockReturnValue({
+      height: 132,
+    } as DOMRect);
+
+    window.dispatchEvent(new Event('resize'));
+
+    const panel = shell.querySelector<HTMLElement>('#info-panel');
+    expect(onBottomBarHeightChange).toHaveBeenLastCalledWith(132);
+    expect(document.body.style.getPropertyValue('--bottom-ui-height')).toBe('132px');
+    expect(panel?.style.bottom).toBe('calc(var(--bottom-ui-height) + 12px)');
+    expect(panel?.style.maxHeight).toBe('calc(100% - 84px - var(--bottom-ui-height))');
+    expect(panel?.style.overflowY).toBe('auto');
+    expect(panel?.getAttribute('aria-label')).toBe('Selected unit details and actions (scroll for more)');
   });
 });

@@ -73,6 +73,7 @@ export interface SelectedUnitInfoCallbacks {
   onDeleteUnit?: (unitId: string) => void;
   onFortify?: (unitId: string) => void;
   onPillage?: (unitId: string) => void;
+  onStartAutoExplore?: (unitId: string) => void;
   onCancelAutoExplore?: () => void;
   onCancelJourney?: () => void;
   onSetDisguise?: (unitId: string, disguise: DisguiseType | null) => void;
@@ -244,6 +245,12 @@ export function renderSelectedUnitInfo(
   wrapper.appendChild(topRow);
   wrapper.appendChild(descDiv);
 
+  const scrollCue = document.createElement('div');
+  scrollCue.dataset.scrollCue = 'true';
+  scrollCue.style.cssText = 'display:none;margin-top:6px;font-size:11px;font-weight:700;color:#f8d28a;letter-spacing:0.01em;';
+  scrollCue.textContent = '↓ More details and actions below — scroll';
+  wrapper.appendChild(scrollCue);
+
   if (unit.airBase && def.airOperation) {
     const baseName = unit.airBase.kind === 'city'
       ? `${state.cities[unit.airBase.cityId]?.name ?? 'Unknown'} Airfield`
@@ -356,6 +363,12 @@ export function renderSelectedUnitInfo(
 
   const actionsDiv = document.createElement('div');
   actionsDiv.style.cssText = 'margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;';
+
+  if (unit.owner === state.currentPlayer && !unit.automation && callbacks.onStartAutoExplore) {
+    const autoExplore = makeButton('Auto-explore', '#0f766e', () => callbacks.onStartAutoExplore!(unitId));
+    autoExplore.title = 'Explore nearby unknown land automatically until you cancel or the unit can no longer continue.';
+    actionsDiv.appendChild(autoExplore);
+  }
 
   if (unit.transportId) {
     const transport = state.units[unit.transportId];
@@ -790,14 +803,14 @@ export function renderSelectedUnitInfo(
       const requirementLabel = (requirement: UpgradeMissingRequirement): string => {
         const displayId = (id: string) => id.split('_').map(word => word[0]!.toUpperCase() + word.slice(1)).join(' ');
         switch (requirement.kind) {
-          case 'technology': return `📜 Requires technology: ${displayId(requirement.techId)}`;
-          case 'building': return `🏛️ Requires building: ${displayId(requirement.buildingId)}`;
-          case 'resource': return `⛏️ Requires resource: ${requirement.resource}`;
-          case 'gold': return `💰 Requires ${requirement.required} gold (have ${requirement.available})`;
-          case 'friendly-city': return '🏙️ Must be in a friendly city';
-          case 'action-already-spent': return '⏳ This unit has already acted';
-          case 'air-base': return `🛬 Air base unavailable: ${requirement.reason}`;
-          default: return '⚠️ Upgrade target is unavailable';
+          case 'technology': return `Research ${displayId(requirement.techId)}`;
+          case 'building': return `Build ${displayId(requirement.buildingId)}`;
+          case 'resource': return `Acquire ${requirement.resource}`;
+          case 'gold': return `Need ${requirement.required} gold (have ${requirement.available})`;
+          case 'friendly-city': return 'Move into one of your cities';
+          case 'action-already-spent': return 'Wait until next turn';
+          case 'air-base': return `Air base unavailable: ${requirement.reason.replace(/-/g, ' ')}`;
+          default: return 'Upgrade target is unavailable';
         }
       };
       if (upgrade.canUpgrade && upgrade.cityId) {
@@ -814,12 +827,15 @@ export function renderSelectedUnitInfo(
         });
         actionsDiv.appendChild(upgradeButton);
       } else if (upgrade.targetType) {
-        for (const requirement of upgrade.missing) {
-          const blocker = document.createElement('div');
-          blocker.style.cssText = 'font-size:11px;color:#f8d28a;margin-top:4px;';
-          blocker.textContent = requirementLabel(requirement);
-          wrapper.appendChild(blocker);
-        }
+        const readiness = document.createElement('div');
+        readiness.style.cssText = 'margin-top:8px;padding:8px 10px;border-radius:8px;background:rgba(232,193,112,0.1);border:1px solid rgba(232,193,112,0.28);font-size:11px;color:#f8d28a;line-height:1.45;';
+        const heading = document.createElement('strong');
+        heading.textContent = `Upgrade to ${UNIT_DEFINITIONS[upgrade.targetType].name} needs:`;
+        readiness.appendChild(heading);
+        const details = document.createElement('div');
+        details.textContent = upgrade.missing.map(requirementLabel).join(' · ');
+        readiness.appendChild(details);
+        wrapper.appendChild(readiness);
       }
     }
   }
@@ -829,4 +845,12 @@ export function renderSelectedUnitInfo(
   }
 
   container.appendChild(wrapper);
+
+  const updateScrollCue = () => {
+    const hasOverflow = container.scrollHeight > container.clientHeight + 1;
+    const isAtBottom = container.scrollTop + container.clientHeight >= container.scrollHeight - 1;
+    scrollCue.style.display = hasOverflow && !isAtBottom ? 'block' : 'none';
+  };
+  updateScrollCue();
+  container.onscroll = updateScrollCue;
 }

@@ -1,5 +1,6 @@
 /** @vitest-environment jsdom */
 
+import { vi } from 'vitest';
 import { createContextMenu } from '@/ui/context-menu';
 import { renderSelectedUnitInfo } from '@/ui/selected-unit-info';
 import { createTooltipLayer } from '@/ui/tooltip-layer';
@@ -27,6 +28,33 @@ describe('desktop controls', () => {
     expect(container.textContent).toContain('Auto-exploring');
     const menu = createContextMenu(container, state, { unitId });
     expect(menu.textContent).toContain('Cancel auto-explore');
+  });
+
+  it('offers auto-explore directly from an eligible selected-unit card', () => {
+    const { state, container, unitId } = makeDesktopControlFixture();
+    const start = vi.fn();
+
+    renderSelectedUnitInfo(container, state, unitId, { onStartAutoExplore: start });
+
+    const button = [...container.querySelectorAll('button')]
+      .find(candidate => candidate.textContent === 'Auto-explore');
+    expect(button).toBeDefined();
+    button!.click();
+    expect(start).toHaveBeenCalledWith(unitId);
+  });
+
+  it('shows compact, plain-language upgrade readiness without duplicate technology blockers', () => {
+    const { state, container, unitId } = makeDesktopControlFixture();
+    state.units[unitId].type = 'archer';
+    state.civilizations.player.techState.completed = [];
+
+    renderSelectedUnitInfo(container, state, unitId, { onUpgradeUnit: () => {} });
+
+    expect(container.textContent).toContain('Upgrade to Crossbowman needs:');
+    expect(container.textContent).toContain('Research Tactics');
+    expect(container.textContent).toContain('Acquire copper');
+    expect(container.textContent).toContain('Move into one of your cities');
+    expect(container.textContent?.match(/Research Tactics/g)).toHaveLength(1);
   });
 
   it('does not expose context actions while a blocking overlay is active', () => {
