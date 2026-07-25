@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createNewGame } from '@/core/game-state';
-import type { City, Unit } from '@/core/types';
+import type { City, GameState, Unit } from '@/core/types';
 import {
   CURRENT_SAVE_SCHEMA_VERSION,
   migrateSaveToCurrent,
@@ -8,8 +8,35 @@ import {
 } from '@/storage/save-migrations';
 import { UNIT_DEFINITIONS } from '@/systems/unit-system';
 import { getTradeUnitTripBonus, canEstablishRoute } from '@/systems/trade-system';
+import { applyUnitUpgradeToState } from '@/systems/unit-upgrade-system';
+import { foundCity } from '@/systems/city-system';
 
 describe('save migrations', () => {
+  it.each(['legacy', 'current'] as const)('preserves an upgraded damaged veteran through %s save normalization', schema => {
+    const save = createNewGame('rome', `upgrade-${schema}-round-trip`, 'small');
+    const civ = save.civilizations.player;
+    const source = civ.units.map(id => save.units[id]).find(Boolean)!;
+    const city = foundCity(civ.id, source.position, save.map, save.idCounters);
+    save.cities[city.id] = city;
+    civ.cities = [city.id];
+    source.id = 'upgrade-veteran';
+    source.type = 'spy_scout';
+    source.health = 41;
+    source.experience = 3;
+    save.units = { [source.id]: source };
+    civ.units = [source.id];
+    civ.gold = 100;
+    civ.techState.completed = ['espionage-scouting', 'espionage-informants'];
+    if (schema === 'legacy') delete (save as Partial<GameState>).saveSchemaVersion;
+
+    const upgraded = applyUnitUpgradeToState(migrateSaveToCurrent(save), source.id, 'spy_informant');
+    expect(upgraded.upgraded).toBe(true);
+    const loadedAgain = migrateSaveToCurrent(migrateSaveToCurrent(upgraded.state));
+    expect(loadedAgain.units[source.id]).toMatchObject({
+      type: 'spy_informant', health: 41, experience: 3, movementPointsLeft: 0, hasActed: true,
+    });
+    expect(loadedAgain.civilizations.player.gold).toBe(75);
+  });
   it('recalculates a legacy World Age from a strict majority of personal eras', () => {
     const legacy = createNewGame('rome', 'dual-era-migration', 'small');
     legacy.saveSchemaVersion = 4;
