@@ -1521,6 +1521,22 @@ describe('renderSelectedUnitInfo - upgrade button building gate', () => {
     expect(texts.some(t => t.startsWith('Upgrade → Stealth Bomber'))).toBe(true);
   });
 
+  it('requires confirmation before invoking a legal upgrade callback', () => {
+    const state = makeJetFighterState(['stealth_airbase']);
+    const container = new MockElement('div');
+    let calls = 0;
+
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'bomber-1', {
+      onUpgradeUnit: () => { calls++; },
+    });
+
+    findButtons(container).find(button => button.textContent?.startsWith('Upgrade'))!.click();
+    expect(calls).toBe(0);
+    expect(collectAllText(container).join(' ')).toContain('Keeps 100 HP and 0 XP');
+    findButtons(container).find(button => button.textContent === 'Confirm upgrade')!.click();
+    expect(calls).toBe(1);
+  });
+
   it('hides the Upgrade button and shows a missing-building reason when stealth_airbase is absent', () => {
     const state = makeJetFighterState([]);
     const container = new MockElement('div');

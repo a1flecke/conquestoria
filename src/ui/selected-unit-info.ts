@@ -2,8 +2,8 @@ import type { BuildableImprovementType, GameState, DisguiseType, HexCoord, Unit,
 import { UNIT_DEFINITIONS, UNIT_DESCRIPTIONS, canHeal } from '@/systems/unit-system';
 import { getExperienceToNextTier, getVeterancyCombatModifier, getVeterancyTier } from '@/systems/combat-reward-system';
 import { isSpyUnitType } from '@/systems/espionage-system';
-import { canUpgradeUnit, getCanonicalUpgradeTarget } from '@/systems/unit-upgrade-system';
-import { TRAINABLE_UNITS, BUILDINGS } from '@/systems/city-system';
+import { evaluateUnitUpgrade, type UpgradeMissingRequirement } from '@/systems/unit-upgrade-system';
+import { TRAINABLE_UNITS } from '@/systems/city-system';
 import {
   formatImprovementYieldLabel,
   formatWorkerActionBlockerReason,
@@ -783,35 +783,43 @@ export function renderSelectedUnitInfo(
     }
   }
 
-  if (callbacks.onUpgradeUnit && !unit.hasActed) {
-    const homeCity = Object.values(state.cities).find(
-      c => c.owner === unit.owner &&
-           c.position.q === unit.position.q &&
-           c.position.r === unit.position.r,
-    );
-    if (homeCity) {
-      const completedTechs = state.civilizations[unit.owner]?.techState?.completed ?? [];
-      const civGold = state.civilizations[unit.owner]?.gold ?? 0;
-      const availableResources = getCivAvailableResources(state, unit.owner);
-      const upgrade = canUpgradeUnit(unit, homeCity.id, state.cities, completedTechs, civGold, availableResources);
-      if (upgrade.canUpgrade && upgrade.targetType) {
-        const targetName = UNIT_DEFINITIONS[upgrade.targetType].name;
-        const btn = makeButton(
-          `Upgrade → ${targetName} (${upgrade.cost} gold)`,
-          '#7c3aed',
-          () => callbacks.onUpgradeUnit!(unitId, homeCity.id),
-        );
-        actionsDiv.appendChild(btn);
-      } else if (upgrade.reason === 'missing-building') {
-        const targetType = getCanonicalUpgradeTarget(unit, completedTechs);
-        const requiredBuilding = targetType
-          ? TRAINABLE_UNITS.find(candidate => candidate.type === targetType)?.trainedFromBuilding
-          : undefined;
-        const buildingName = requiredBuilding ? BUILDINGS[requiredBuilding]?.name ?? requiredBuilding : 'the required building';
-        const blockerDiv = document.createElement('div');
-        blockerDiv.style.cssText = 'font-size:11px;color:#f8d28a;margin-top:4px;';
-        blockerDiv.textContent = `Upgrade requires ${buildingName} in this city.`;
-        wrapper.appendChild(blockerDiv);
+  if (callbacks.onUpgradeUnit) {
+    const targetType = TRAINABLE_UNITS.find(entry => entry.type === unit.type)?.upgradesTo;
+    if (targetType) {
+      const upgrade = evaluateUnitUpgrade(state, unitId, targetType);
+      const requirementLabel = (requirement: UpgradeMissingRequirement): string => {
+        const displayId = (id: string) => id.split('_').map(word => word[0]!.toUpperCase() + word.slice(1)).join(' ');
+        switch (requirement.kind) {
+          case 'technology': return `📜 Requires technology: ${displayId(requirement.techId)}`;
+          case 'building': return `🏛️ Requires building: ${displayId(requirement.buildingId)}`;
+          case 'resource': return `⛏️ Requires resource: ${requirement.resource}`;
+          case 'gold': return `💰 Requires ${requirement.required} gold (have ${requirement.available})`;
+          case 'friendly-city': return '🏙️ Must be in a friendly city';
+          case 'action-already-spent': return '⏳ This unit has already acted';
+          case 'air-base': return `🛬 Air base unavailable: ${requirement.reason}`;
+          default: return '⚠️ Upgrade target is unavailable';
+        }
+      };
+      if (upgrade.canUpgrade && upgrade.cityId) {
+        const upgradeButton = makeButton(`Upgrade → ${UNIT_DEFINITIONS[targetType].name} (${upgrade.cost} gold)`, '#7c3aed', () => {
+          const confirmation = document.createElement('div');
+          confirmation.style.cssText = 'font-size:12px;color:#f8d28a;margin-top:6px;';
+          confirmation.textContent = `Upgrade to ${UNIT_DEFINITIONS[targetType].name}? Keeps ${upgrade.preserved.health} HP and ${upgrade.preserved.experience} XP.`;
+          const confirm = makeButton('Confirm upgrade', '#7c3aed', () => callbacks.onUpgradeUnit!(unitId, upgrade.cityId!));
+          const cancel = makeButton('Cancel', '#555', () => confirmation.remove());
+          confirmation.appendChild(confirm);
+          confirmation.appendChild(cancel);
+          wrapper.appendChild(confirmation);
+          upgradeButton.style.display = 'none';
+        });
+        actionsDiv.appendChild(upgradeButton);
+      } else if (upgrade.targetType) {
+        for (const requirement of upgrade.missing) {
+          const blocker = document.createElement('div');
+          blocker.style.cssText = 'font-size:11px;color:#f8d28a;margin-top:4px;';
+          blocker.textContent = requirementLabel(requirement);
+          wrapper.appendChild(blocker);
+        }
       }
     }
   }
