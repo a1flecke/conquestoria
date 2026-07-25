@@ -2638,6 +2638,16 @@ function selectNextUnit(): void {
   renderLoop.camera.centerOn(next.position);
 }
 
+function refreshSelectedUnitAfterCombat(): void {
+  if (!selectedUnitId) return;
+  const selectedUnit = gameState.units[selectedUnitId];
+  if (!selectedUnit || selectedUnit.owner !== gameState.currentPlayer) {
+    deselectUnit();
+    return;
+  }
+  selectUnit(selectedUnitId, { suppressSelectionSfx: true });
+}
+
 function refreshCurrentPlayerVisibility(): void {
   if (!currentCiv()?.visibility) return;
 
@@ -3065,6 +3075,7 @@ function executeAttack(attackerId: string, targetKey: string): void {
   SFX.combat();
   renderLoop.setGameState(gameState);
   updateHUD();
+  refreshSelectedUnitAfterCombat();
   renderLoop.animations.add('combat-flash', 400, { coord: attacker.position }, () => selectNextUnit());
 }
 

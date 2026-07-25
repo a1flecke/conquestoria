@@ -54,6 +54,21 @@ describe('player combat wiring', () => {
       'deterministicCombatSeed(gameState.gameId, gameState.turn, attacker.id, defender.id)',
     );
   });
+
+  it('refreshes the open selected-unit panel from post-combat state before delayed selection', () => {
+    const main = readFileSync(resolve(PROJECT_ROOT, 'src/main.ts'), 'utf8');
+    const executeAttack = main.slice(
+      main.indexOf('function executeAttack('),
+      main.indexOf("bus.on('combat:resolved'"),
+    );
+    const stateRefresh = executeAttack.indexOf('renderLoop.setGameState(gameState);');
+    const panelRefresh = executeAttack.indexOf('refreshSelectedUnitAfterCombat();');
+    const delayedSelection = executeAttack.indexOf("renderLoop.animations.add('combat-flash'");
+
+    expect(stateRefresh).toBeGreaterThan(-1);
+    expect(panelRefresh).toBeGreaterThan(stateRefresh);
+    expect(panelRefresh).toBeLessThan(delayedSelection);
+  });
 });
 
 describe('land-unit water recovery wiring', () => {

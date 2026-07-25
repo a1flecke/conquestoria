@@ -23,13 +23,13 @@ function createHud(): HTMLDivElement {
   return hud;
 }
 
-function createFloatingButton(id: string, text: string, title: string, right: number, onClick: () => void): HTMLButtonElement {
+function createFloatingButton(id: string, text: string, title: string, onClick: () => void): HTMLButtonElement {
   const button = document.createElement('button');
   button.id = id;
   button.type = 'button';
   button.textContent = text;
   button.title = title;
-  button.style.cssText = `position:absolute;top:60px;right:${right}px;z-index:21;min-height:44px;min-width:40px;background:rgba(0,0,0,0.6);border:1px solid rgba(255,255,255,0.2);border-radius:8px;color:white;font-size:14px;padding:4px 8px;cursor:pointer;`;
+  button.style.cssText = 'min-height:44px;min-width:40px;background:rgba(0,0,0,0.6);border:1px solid rgba(255,255,255,0.2);border-radius:8px;color:white;font-size:14px;padding:4px 8px;cursor:pointer;';
   button.addEventListener('click', () => onClick());
   return button;
 }
@@ -43,18 +43,23 @@ export function createGameShell(container: HTMLElement, callbacks: GameShellCall
   shell.appendChild(createHud());
   shell.appendChild(createPrimaryActionBar(callbacks));
 
-  const nextUnitButton = createFloatingButton('btn-next-unit', '⏩', 'Select next unmoved unit', 12, callbacks.onNextUnit);
+  const utilityToolbar = document.createElement('div');
+  utilityToolbar.id = 'utility-toolbar';
+  utilityToolbar.style.cssText = 'position:absolute;top:60px;right:12px;z-index:21;display:flex;gap:8px;align-items:center;';
+
+  const nextUnitButton = createFloatingButton('btn-next-unit', '⏩', 'Select next unmoved unit', callbacks.onNextUnit);
   nextUnitButton.style.display = 'none';
   nextUnitButton.style.padding = '4px 10px';
-  shell.appendChild(nextUnitButton);
+  utilityToolbar.appendChild(nextUnitButton);
 
-  shell.appendChild(createFloatingButton('btn-notif-log', '📜', 'View message log', 52, callbacks.onOpenNotificationLog));
-  shell.appendChild(createFloatingButton('btn-icon-legend', '🗺️', 'Toggle icon legend', 92, callbacks.onToggleIconLegend));
-  shell.appendChild(createFloatingButton('btn-wonder-atlas', '✦', 'Open Wonder Atlas', 132, callbacks.onOpenWonderAtlas));
-  const pirateWatersButton = createFloatingButton('btn-pirate-waters', 'Pirates', 'Open Pirate Waters', 172, () => callbacks.onOpenPirateWaters?.());
+  utilityToolbar.appendChild(createFloatingButton('btn-notif-log', '📜', 'View message log', callbacks.onOpenNotificationLog));
+  utilityToolbar.appendChild(createFloatingButton('btn-icon-legend', '🗺️', 'Toggle icon legend', callbacks.onToggleIconLegend));
+  utilityToolbar.appendChild(createFloatingButton('btn-wonder-atlas', '✦', 'Open Wonder Atlas', callbacks.onOpenWonderAtlas));
+  const pirateWatersButton = createFloatingButton('btn-pirate-waters', 'Pirates', 'Open Pirate Waters', () => callbacks.onOpenPirateWaters?.());
   pirateWatersButton.hidden = true;
-  shell.appendChild(pirateWatersButton);
-  shell.appendChild(createFloatingButton('btn-pause-menu', '☰', 'Pause menu', 236, callbacks.onOpenMenu));
+  utilityToolbar.appendChild(pirateWatersButton);
+  utilityToolbar.appendChild(createFloatingButton('btn-pause-menu', '☰', 'Pause menu', callbacks.onOpenMenu));
+  shell.appendChild(utilityToolbar);
 
   if (callbacks.iconLegendOverlay) {
     shell.appendChild(callbacks.iconLegendOverlay);

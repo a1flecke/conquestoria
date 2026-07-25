@@ -238,14 +238,17 @@ describe('attack-targeting', () => {
     expect(getAttackTargets(state, state.units['attacker'], { viewerId: 'player' })).toHaveLength(1);
   });
 
-  it('returns targets for a ranged unit with movementPointsLeft=0 but hasActed=false', () => {
-    // ranged units can attack without moving — movementPointsLeft alone must not block
+  it('rejects zero-movement units through both legality and target enumeration', () => {
     const attacker = unit('attacker', 'archer', 'player', { q: 0, r: 0 });
     const defender = unit('defender', 'warrior', 'ai-1', { q: 2, r: 0 });
     const state = stateWithUnits({ attacker, defender }, { '2,0': 'visible' });
     state.units['attacker'] = { ...attacker, movementPointsLeft: 0, hasActed: false };
 
-    expect(getAttackTargets(state, state.units['attacker'], { viewerId: 'player' })).toHaveLength(1);
+    expect(canUnitAttackTarget(state, state.units['attacker'], { q: 2, r: 0 }, { viewerId: 'player' })).toEqual({
+      ok: false,
+      reason: 'no-action-points',
+    });
+    expect(getAttackTargets(state, state.units['attacker'], { viewerId: 'player' })).toEqual([]);
   });
 
   it('rejects ranged attacks against a basilisk concealed in jungle (no adjacent viewer)', () => {
