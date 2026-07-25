@@ -783,7 +783,7 @@ export function renderSelectedUnitInfo(
     }
   }
 
-  if (callbacks.onUpgradeUnit) {
+  if (callbacks.onUpgradeUnit && unit.owner === state.currentPlayer) {
     const targetType = TRAINABLE_UNITS.find(entry => entry.type === unit.type)?.upgradesTo;
     if (targetType) {
       const upgrade = evaluateUnitUpgrade(state, unitId, targetType);
