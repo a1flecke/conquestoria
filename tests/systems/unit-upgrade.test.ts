@@ -279,6 +279,14 @@ describe('applyUnitUpgradeToState', () => {
     });
   });
 
+  it.each(['explorer', 'standard', 'veteran'] as const)('keeps human upgrade legality identical on %s', challenge => {
+    const { state } = setup();
+    state.opponentChallenge = challenge;
+
+    expect(evaluateUnitUpgrade(state, 'upgrade-unit', 'spy_informant'))
+      .toMatchObject({ canUpgrade: true, missing: [] });
+  });
+
   it('reports a full helicopter base for an explicit cross-domain upgrade fixture', () => {
     const { state, city } = setup();
     const definitions = TRAINABLE_UNITS.map(entry => entry.type === 'tank'
