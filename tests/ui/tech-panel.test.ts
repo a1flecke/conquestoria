@@ -14,6 +14,8 @@ const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1
 describe('tech-panel', () => {
   it('explains an unlocked unit\'s remaining conjunctive technology in the inspector', () => {
     const state = createNewGame(undefined, 'tech-conjunctive-inspector');
+    state.civilizations.player.techState.completed = ['stone-weapons'];
+    state.civilizations.player.techState.currentResearch = 'archery';
     const archer = TRAINABLE_UNITS.find(unit => unit.type === 'archer')!;
     const original = archer.requiredTechs;
     archer.requiredTechs = ['bronze-working'];
@@ -21,8 +23,7 @@ describe('tech-panel', () => {
       const panel = createTechPanel(document.body, state, {
         onQueueResearch: () => {}, onMoveQueuedResearch: () => {}, onRemoveQueuedResearch: () => {}, onClose: () => {},
       });
-      panel.querySelector<HTMLButtonElement>('[data-zoom="all"]')!.click();
-      panel.querySelector<HTMLButtonElement>('[data-tech-id="archery"]')!.click();
+      expect(panel.querySelector('[data-tech-id="archery"]')).toBeTruthy();
       expect(panel.textContent).toContain('Archer (requires Archery ✓ + Bronze Working)');
     } finally {
       archer.requiredTechs = original;
