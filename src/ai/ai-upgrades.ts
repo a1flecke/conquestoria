@@ -22,8 +22,8 @@ import { findPath, UNIT_DEFINITIONS } from '@/systems/unit-system';
 import { executeUnitMove } from '@/systems/unit-movement-system';
 import {
   applyUnitUpgradeToState,
+  evaluateUnitUpgrade,
   getCanonicalUpgradeTarget,
-  getUpgradeCost,
 } from '@/systems/unit-upgrade-system';
 import { hexDistance, wrappedHexDistance } from '@/systems/hex-utils';
 import type { PreparedMajorCivPlan } from './ai-prepared-turn';
@@ -250,10 +250,10 @@ export function processAIUpgrades(
       availableResources,
     );
     if (!targetType) continue;
+    const evaluation = evaluateUnitUpgrade(working, current.id, targetType);
     const city = cityAtUnit(working, civId, current);
     if (city && safeCity(working, civId, city, prepared) && remainingCap > 0) {
-      const cost = getUpgradeCost(targetType);
-      if (working.civilizations[civId].gold - cost < reserve) continue;
+      if (!evaluation.canUpgrade || working.civilizations[civId].gold - evaluation.cost < reserve) continue;
       const result = applyUnitUpgradeToState(
         working,
         current.id,
