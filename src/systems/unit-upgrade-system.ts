@@ -75,7 +75,9 @@ export function evaluateUnitUpgrade(
     missing.push({ kind: 'technology', techId: source.obsoletedByTech });
   }
   for (const techId of evaluateProductionPrerequisites(target, civ?.techState.completed ?? []).missing) {
-    missing.push({ kind: 'technology', techId });
+    if (!missing.some(requirement => requirement.kind === 'technology' && requirement.techId === techId)) {
+      missing.push({ kind: 'technology', techId });
+    }
   }
   if (target.trainedFromBuilding && !city?.buildings.includes(target.trainedFromBuilding)) {
     missing.push({ kind: 'building', buildingId: target.trainedFromBuilding });

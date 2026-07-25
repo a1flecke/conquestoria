@@ -300,6 +300,19 @@ describe('applyUnitUpgradeToState', () => {
     }
   });
 
+  it('reports an overlapping source and target technology requirement only once', () => {
+    const { state, city } = setup();
+    state.units['upgrade-unit'].type = 'archer';
+    state.civilizations.player.techState.completed = [];
+    city.buildings = [];
+
+    const missing = evaluateUnitUpgrade(state, 'upgrade-unit', 'crossbowman').missing;
+
+    expect(missing.filter(requirement => requirement.kind === 'technology' && requirement.techId === 'tactics'))
+      .toHaveLength(1);
+    expect(missing).toContainEqual({ kind: 'resource', resource: 'copper' });
+  });
+
   it('reports a full helicopter base for an explicit cross-domain upgrade fixture', () => {
     const { state, city } = setup();
     const definitions = TRAINABLE_UNITS.map(entry => entry.type === 'tank'

@@ -113,6 +113,10 @@ interface MinorCivRowData {
   atWar: boolean;
 }
 
+function hasValidOwnedCity(state: GameState, civId: string): boolean {
+  return Object.values(state.cities).some(city => city.owner === civId);
+}
+
 export function createDiplomacyPanel(
   container: HTMLElement,
   state: GameState,
@@ -158,6 +162,7 @@ export function createDiplomacyPanel(
   for (const [civId, civ] of Object.entries(state.civilizations)) {
     if (civId === state.currentPlayer) continue;
     if (civ.isEliminated) continue;
+    if (!hasValidOwnedCity(state, civId)) continue;
     if (!shouldListMajorCivForViewer(state, state.currentPlayer, civId)) continue;
 
     const civDef = resolveCivDefinition(state, civ.civType ?? '');

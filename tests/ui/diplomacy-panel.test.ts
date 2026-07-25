@@ -197,6 +197,25 @@ describe('diplomacy-panel breakaway rows', () => {
     expect(rendered).not.toContain('Outsider');
   });
 
+  it('hides a known major civ with no valid owned city even when a legacy save lacks isEliminated', () => {
+    const { container, state } = makeDiplomacyFixture({
+      currentPlayer: 'player',
+      includeThirdCiv: true,
+    });
+    state.civilizations.player.knownCivilizations = ['outsider'];
+    state.civilizations.outsider.knownCivilizations = ['player'];
+    state.civilizations.outsider.cities = ['missing-city'];
+    delete state.cities['city-outsider'];
+    delete state.civilizations.outsider.isEliminated;
+
+    const panel = createDiplomacyPanel(container, state, {
+      onAction: () => {},
+      onClose: () => {},
+    });
+
+    expect(panel.textContent).not.toContain('Outsider');
+  });
+
   it('keeps a rival named in diplomacy after brief scouting contact is recorded', () => {
     const { container, state } = makeDiplomacyFixture({
       currentPlayer: 'player',

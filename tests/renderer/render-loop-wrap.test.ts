@@ -51,6 +51,8 @@ import type { GameState, Unit } from '@/core/types';
 interface LineRecordingCtx {
   moveTo: ReturnType<typeof vi.fn>;
   lineTo: ReturnType<typeof vi.fn>;
+  scale: ReturnType<typeof vi.fn>;
+  setTransform: ReturnType<typeof vi.fn>;
 }
 
 function createCanvasWithCtx(): { canvas: HTMLCanvasElement; ctx: LineRecordingCtx } {
@@ -62,6 +64,7 @@ function createCanvasWithCtx(): { canvas: HTMLCanvasElement; ctx: LineRecordingC
     lineWidth: 0,
     globalAlpha: 1,
     scale: vi.fn(),
+    setTransform: vi.fn(),
     save: vi.fn(),
     restore: vi.fn(),
     setLineDash: vi.fn(),
@@ -145,6 +148,23 @@ describe('render-loop wrap parity', () => {
       'rgba(245, 184, 73, 0.55)',
       '#fff0a8',
     );
+  });
+
+  it('resets the device-pixel transform on every viewport resize instead of compounding it', () => {
+    const windowRef = globalThis.window as Window & typeof globalThis;
+    const originalDpr = windowRef.devicePixelRatio;
+    windowRef.devicePixelRatio = 2;
+    try {
+      const { canvas, ctx } = createCanvasWithCtx();
+      const loop = new RenderLoop(canvas);
+
+      loop.resizeCanvas();
+
+      expect(ctx.setTransform).toHaveBeenLastCalledWith(2, 0, 0, 2, 0, 0);
+      expect(ctx.scale).not.toHaveBeenCalled();
+    } finally {
+      windowRef.devicePixelRatio = originalDpr;
+    }
   });
 
   it('draws air-mission highlights with distinct strike and recon colors', () => {

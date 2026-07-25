@@ -40,6 +40,20 @@ describe('campaign entry wiring', () => {
     expect(main).not.toContain('window.gameState');
     expect(main).not.toContain('window.renderLoop');
   });
+
+  it('opens required research choices whenever a human turn becomes playable', () => {
+    const main = readFileSync(resolve(PROJECT_ROOT, 'src/main.ts'), 'utf8');
+    const release = main.slice(
+      main.indexOf('function releaseHandoffToViewer'),
+      main.indexOf('/** These player-owned surfaces may contain strategic targets'),
+    );
+    const start = main.slice(main.indexOf('function startGame()'), main.indexOf('\ninit();'));
+    const endTurn = main.slice(main.indexOf('async function endTurn'), main.indexOf('function centerOnCurrentPlayer'));
+
+    expect(release).toContain('showRequiredChoicesIfNeeded();');
+    expect(start).toContain('showRequiredChoicesIfNeeded();');
+    expect(endTurn).toMatch(/await replayAIMoves\(soloMoves\);\s*updateHUD\(\);\s*showRequiredChoicesIfNeeded\(\);/);
+  });
 });
 
 describe('player combat wiring', () => {

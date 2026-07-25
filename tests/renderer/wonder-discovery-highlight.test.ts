@@ -14,6 +14,7 @@ function canvas(): HTMLCanvasElement {
     save: vi.fn(),
     restore: vi.fn(),
     scale: vi.fn(),
+    setTransform: vi.fn(),
     fillStyle: '',
     globalAlpha: 1,
     lineWidth: 0,
