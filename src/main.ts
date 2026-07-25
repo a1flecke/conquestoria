@@ -30,7 +30,7 @@ import { installKeyboardShortcuts } from '@/input/keyboard-shortcuts';
 import { hexKey, hexToPixel, hexesInRange, parseHexKey, wrapHexCoord } from '@/systems/hex-utils';
 import { moveUnit, getMovementCost, UNIT_DEFINITIONS, UNIT_DESCRIPTIONS, restUnit, canHeal, getUnmovedUnits, createUnit, findPath } from '@/systems/unit-system';
 import { classifyOwner, isAlwaysHostilePair, isMajorCivOwner } from '@/core/owner-kind';
-import { BUILDINGS, getProductionDisplayName } from '@/systems/city-system';
+import { BUILDINGS, getProductionDisplayName, TRAINABLE_UNITS } from '@/systems/city-system';
 import { chooseCircularManufacturingMaterial } from '@/systems/national-project-system';
 import { usePropagandistAction } from '@/systems/propagandist-system';
 import { foundCityInState } from '@/systems/city-founding-system';
@@ -210,7 +210,7 @@ import { getCouncilInterrupt } from '@/systems/council-system';
 import { applyAutoExploreOrder } from '@/systems/auto-explore-system';
 import {
   applyUnitUpgradeToState,
-  canUpgradeUnit,
+  evaluateUnitUpgrade,
 } from '@/systems/unit-upgrade-system';
 import { executeUnitMove, isWorkerBusy, type ExecuteUnitMoveResult } from '@/systems/unit-movement-system';
 import {
@@ -1360,20 +1360,10 @@ function openCityPanelForCity(city: import('@/core/types').City): void {
     onUpgradeUnit: (unitId) => {
       const unit = gameState.units[unitId];
       if (!unit || unit.owner !== gameState.currentPlayer) return;
-      const civ = gameState.civilizations[gameState.currentPlayer];
-      const completedTechs = civ?.techState?.completed ?? [];
-      const homeCity = Object.values(gameState.cities).find(
-        c => c.owner === unit.owner &&
-             c.position.q === unit.position.q &&
-             c.position.r === unit.position.r,
-      );
-      if (!homeCity) return;
-      const upgrade = canUpgradeUnit(unit, homeCity.id, gameState.cities, completedTechs, undefined, getCivAvailableResources(gameState, unit.owner));
+      const targetType = TRAINABLE_UNITS.find(entry => entry.type === unit.type)?.upgradesTo;
+      if (!targetType) return;
+      const upgrade = evaluateUnitUpgrade(gameState, unitId, targetType);
       if (!upgrade.canUpgrade || !upgrade.targetType) return;
-      if (civ.gold < upgrade.cost) {
-        showNotification('Not enough gold to upgrade!', 'warning');
-        return;
-      }
       if (executeUpgrade(unitId, upgrade.targetType)) {
         showNotification(`Upgraded to ${UNIT_DEFINITIONS[upgrade.targetType].name}!`, 'success');
       }
@@ -2426,14 +2416,10 @@ function selectUnit(
       onUpgradeUnit: (uid, cityId) => {
         const unit = gameState.units[uid];
         if (!unit || unit.owner !== gameState.currentPlayer) return;
-        const civ = gameState.civilizations[gameState.currentPlayer];
-        const completedTechs = civ?.techState?.completed ?? [];
-        const upgrade = canUpgradeUnit(unit, cityId, gameState.cities, completedTechs, undefined, getCivAvailableResources(gameState, unit.owner));
+        const targetType = TRAINABLE_UNITS.find(entry => entry.type === unit.type)?.upgradesTo;
+        if (!targetType) return;
+        const upgrade = evaluateUnitUpgrade(gameState, uid, targetType);
         if (!upgrade.canUpgrade || !upgrade.targetType) return;
-        if (civ.gold < upgrade.cost) {
-          showNotification('Not enough gold to upgrade!', 'warning');
-          return;
-        }
         if (executeUpgrade(uid, upgrade.targetType)) {
           selectUnit(uid);
           showNotification(`Upgraded to ${UNIT_DEFINITIONS[upgrade.targetType].name}!`, 'success');
