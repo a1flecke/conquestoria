@@ -70,12 +70,14 @@ interface SearchTarget {
   depth: number;
   pathCost: number;
   preliminary: number;
+  completedAfterPath: ReadonlySet<string>;
 }
 
 function descendantsWithinLimit(
   frontier: Tech,
   techs: readonly Tech[],
   completed: ReadonlySet<string>,
+  knownTechIds: ReadonlySet<string>,
 ): SearchTarget[] {
   const byId = new Map(techs.map(tech => [tech.id, tech]));
   const targets: SearchTarget[] = [];
@@ -92,7 +94,8 @@ function descendantsWithinLimit(
     const previousDepth = bestDepth.get(current.tech.id);
     if (previousDepth !== undefined && previousDepth <= current.depth) continue;
     bestDepth.set(current.tech.id, current.depth);
-    const capabilities = evaluateAITechCapabilities(current.tech);
+    const completedAfterPath = new Set([...completed, ...current.pathIds]);
+    const capabilities = evaluateAITechCapabilities(current.tech, completedAfterPath, knownTechIds);
     const preliminary = capabilities.militaryPowerSpike
       + capabilities.economicSupport
       + capabilities.eraProgress
@@ -104,6 +107,7 @@ function descendantsWithinLimit(
       depth: current.depth,
       pathCost: current.pathCost,
       preliminary,
+      completedAfterPath,
     });
     if (current.depth === 4) continue;
     for (const child of techs
@@ -144,6 +148,7 @@ export function planAIResearch(
   context: AIResearchPlanningContext,
 ): AIResearchDecision | null {
   const techs = context.techs ?? TECH_TREE;
+  const knownTechIds = new Set(techs.map(tech => tech.id));
   const completed = new Set(context.techState.completed);
   const frontier = techs
     .filter(tech =>
@@ -155,14 +160,14 @@ export function planAIResearch(
   if (frontier.length === 0) return null;
 
   const searchTargets = frontier
-    .flatMap(tech => descendantsWithinLimit(tech, techs, completed))
+    .flatMap(tech => descendantsWithinLimit(tech, techs, completed, knownTechIds))
     .sort((left, right) =>
       right.preliminary - left.preliminary
       || left.frontier.id.localeCompare(right.frontier.id)
       || left.target.id.localeCompare(right.target.id))
     .slice(0, 24);
   const evaluated = searchTargets.map(entry => {
-    const capabilities = evaluateAITechCapabilities(entry.target);
+    const capabilities = evaluateAITechCapabilities(entry.target, entry.completedAfterPath, knownTechIds);
     const roleCount = Object.values(capabilities.rolesUnlocked)
       .reduce((sum, value) => sum + (value ?? 0), 0);
     const modernizationFit = context.modernizationDemand / 25

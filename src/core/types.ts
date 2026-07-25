@@ -479,6 +479,8 @@ export interface Building {
   productionCost: number;
   description: string;
   techRequired?: string | null;
+  /** Additional technologies required alongside the legacy single-tech gate. */
+  requiredTechs?: string[];
   coastalRequired?: boolean;
   pacing?: PacingMetadata;
   resourceRequired?: ResourceType[];
@@ -895,6 +897,8 @@ export interface TrainableUnitEntry {
   name: string;
   cost: number;
   techRequired?: string;
+  /** Additional technologies required alongside the legacy single-tech gate. */
+  requiredTechs?: string[];
   obsoletedByTech?: string;
   upgradesTo?: UnitType;
   civTypeRequired?: string;  // only available/shown for this civ

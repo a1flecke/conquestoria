@@ -287,6 +287,19 @@ describe('applyUnitUpgradeToState', () => {
       .toMatchObject({ canUpgrade: true, missing: [] });
   });
 
+  it('reports every missing conjunctive target technology', () => {
+    const { state } = setup();
+    const target = TRAINABLE_UNITS.find(entry => entry.type === 'spy_informant')!;
+    const original = target.requiredTechs;
+    target.requiredTechs = ['disguise'];
+    try {
+      expect(evaluateUnitUpgrade(state, 'upgrade-unit', 'spy_informant').missing)
+        .toContainEqual({ kind: 'technology', techId: 'disguise' });
+    } finally {
+      target.requiredTechs = original;
+    }
+  });
+
   it('reports a full helicopter base for an explicit cross-domain upgrade fixture', () => {
     const { state, city } = setup();
     const definitions = TRAINABLE_UNITS.map(entry => entry.type === 'tank'

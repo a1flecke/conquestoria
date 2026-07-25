@@ -3,6 +3,7 @@ import { TRAINABLE_UNITS, getProductionCostForItem } from './city-system';
 import { getCivAvailableResources } from './resource-acquisition-system';
 import { baseNewAirUnit, canCompleteAirUnitProduction } from './air-operations-system';
 import { UNIT_DEFINITIONS } from './unit-system';
+import { evaluateProductionPrerequisites } from './production-prerequisites';
 
 export type UpgradeMissingRequirement =
   | { kind: 'friendly-city' }
@@ -73,8 +74,8 @@ export function evaluateUnitUpgrade(
   if (source.obsoletedByTech && !civ?.techState.completed.includes(source.obsoletedByTech)) {
     missing.push({ kind: 'technology', techId: source.obsoletedByTech });
   }
-  if (target.techRequired && !civ?.techState.completed.includes(target.techRequired)) {
-    missing.push({ kind: 'technology', techId: target.techRequired });
+  for (const techId of evaluateProductionPrerequisites(target, civ?.techState.completed ?? []).missing) {
+    missing.push({ kind: 'technology', techId });
   }
   if (target.trainedFromBuilding && !city?.buildings.includes(target.trainedFromBuilding)) {
     missing.push({ kind: 'building', buildingId: target.trainedFromBuilding });
@@ -158,7 +159,7 @@ export function getCanonicalUpgradeTarget(
     candidate.type === currentEntry.upgradesTo);
   if (
     !target
-    || (target.techRequired && !completedTechs.includes(target.techRequired))
+    || evaluateProductionPrerequisites(target, completedTechs).missing.length > 0
     || (
       target.obsoletedByTech
       && completedTechs.includes(target.obsoletedByTech)

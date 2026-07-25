@@ -11,6 +11,7 @@ import type {
   TechTrack,
 } from '@/core/types';
 import { createTechState } from '@/systems/tech-system';
+import { TRAINABLE_UNITS } from '@/systems/city-system';
 import { prepareMajorCivStrategicPlan } from '@/ai/ai-prepared-turn';
 
 const neutral: PersonalityTraits = {
@@ -56,6 +57,28 @@ function context(
 }
 
 describe('AI strategic research planning', () => {
+  it('values the final conjunctive prerequisite without claiming the first tech already enables the unit', () => {
+    const archer = TRAINABLE_UNITS.find(unit => unit.type === 'archer')!;
+    const original = archer.requiredTechs;
+    archer.requiredTechs = ['bronze-working'];
+    try {
+      const result = planAIResearch(context([
+        tech('archery', 'military'),
+        tech('bronze-working', 'military'),
+      ], {
+        techState: { ...createTechState(), completed: ['archery'] },
+        forceDemands: [{
+          role: 'ranged', desired: 1, assigned: 0, missing: 1, priority: 100, sourcePlanIds: ['primary'],
+        }],
+      }));
+
+      expect(result?.frontierTechId).toBe('bronze-working');
+      expect(result?.scoreComponents.activePlanFit).toBeGreaterThan(0);
+    } finally {
+      archer.requiredTechs = original;
+    }
+  });
+
   it('chooses the available prerequisite toward a modern frontline unit', () => {
     const result = planAIResearch(context([
       tech('economy-now', 'economy', [], { unlocksBuildings: ['marketplace'] }),

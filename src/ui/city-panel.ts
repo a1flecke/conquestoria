@@ -52,7 +52,8 @@ import { getOccupiedCityMood, getOccupiedCityYieldMultiplier } from '@/systems/c
 import { calculateProjectedCityYields } from '@/systems/city-work-system';
 import { getCityTechYields } from '@/systems/tech-yield-system';
 import { resolveCivDefinition } from '@/systems/civ-registry';
-import { resolveCivilizationEra } from '@/systems/tech-definitions';
+import { TECH_TREE, resolveCivilizationEra } from '@/systems/tech-definitions';
+import { evaluateProductionPrerequisites } from '@/systems/production-prerequisites';
 import { createCityWorkSection } from './city-grid';
 import { createCityDistrictsTab } from './city-districts';
 import {
@@ -611,7 +612,7 @@ export function createCityPanel(
     ? availableUnits.filter(u => hasAITradeRole(u.type))
     : [];
 
-  // Locked items: tech met + resource NOT met (tech-missing items stay hidden entirely)
+  // Locked items retain explanatory resource and partial-conjunction states.
   const allTechUnlockedUnits = getTrainableUnitsForCity(city, completedTechs, state.map, currentCiv.civType, undefined, cityFollowsOwnFaith(state, city));
   const lockedUnits = allTechUnlockedUnits.filter(u => !availableUnits.some(a => a.type === u.type));
 
@@ -619,18 +620,58 @@ export function createCityPanel(
     .filter(b => !b.nationalProject);
   const lockedBuildings = allTechUnlockedBuildings.filter(b => !availableBuildings.some(a => a.id === b.id));
 
-  const lockedItems: Array<{ id: string; name: string; missingResources: ResourceType[] }> = [
+  const partialPrerequisiteUnits = TRAINABLE_UNITS.filter(unit => {
+    const prerequisites = evaluateProductionPrerequisites(unit, completedTechs);
+    return prerequisites.required.length > 1
+      && prerequisites.missing.length > 0
+      && !availableUnits.some(available => available.type === unit.type)
+      && !lockedUnits.some(locked => locked.type === unit.type)
+      && (!unit.civTypeRequired || unit.civTypeRequired === currentCiv.civType);
+  });
+
+  const partialPrerequisiteBuildings = Object.values(BUILDINGS).filter(building => {
+    const prerequisites = evaluateProductionPrerequisites(building, completedTechs);
+    return prerequisites.required.length > 1
+      && prerequisites.missing.length > 0
+      && !building.nationalProject
+      && !city.buildings.includes(building.id)
+      && !availableBuildings.some(available => available.id === building.id)
+      && !lockedBuildings.some(locked => locked.id === building.id);
+  });
+
+  const lockedItems: Array<{ id: string; name: string; missingResources: ResourceType[]; requiredTechs: string[] }> = [
     ...lockedUnits.map(u => ({
       id: u.type,
       name: u.name,
       missingResources: (u.resourceRequired ?? []).filter(r => !playerResources.has(r)),
+      requiredTechs: [],
     })),
     ...lockedBuildings.map(b => ({
       id: b.id,
       name: b.name,
       missingResources: (b.resourceRequired ?? []).filter(r => !playerResources.has(r)),
+      requiredTechs: [],
+    })),
+    ...partialPrerequisiteUnits.map(unit => ({
+      id: unit.type,
+      name: unit.name,
+      missingResources: [],
+      requiredTechs: evaluateProductionPrerequisites(unit, completedTechs).required,
+    })),
+    ...partialPrerequisiteBuildings.map(building => ({
+      id: building.id,
+      name: building.name,
+      missingResources: [],
+      requiredTechs: evaluateProductionPrerequisites(building, completedTechs).required,
     })),
   ];
+
+  const prerequisiteChecklist = (techIds: readonly string[]): string => techIds
+    .map(techId => {
+      const name = TECH_TREE.find(tech => tech.id === techId)?.name ?? techId;
+      return completedTechs.includes(techId) ? `${name} ✓` : name;
+    })
+    .join(' + ');
 
   const IMPROVEMENT_LABELS: Record<string, string> = { mine: 'Mine', pasture: 'Pasture', quarry: 'Quarry', plantation: 'Plantation', camp: 'Camp', oil_well: 'Oil Well' };
 
@@ -1106,7 +1147,9 @@ export function createCityPanel(
     const nameEl = panel.querySelector(`[data-locked-name="${item.id}"]`);
     if (nameEl) nameEl.textContent = item.name;
     const reasonEl = panel.querySelector(`[data-locked-reason="${item.id}"]`);
-    if (reasonEl) reasonEl.textContent = item.missingResources.map(r => buildLockedItemReason(r, completedTechs)).join('\n\n');
+    if (reasonEl) reasonEl.textContent = item.requiredTechs.length > 0
+      ? `Requires: ${prerequisiteChecklist(item.requiredTechs)}`
+      : item.missingResources.map(r => buildLockedItemReason(r, completedTechs)).join('\n\n');
   }
 
   city.productionQueue.forEach((itemId, index) => {
@@ -1401,7 +1444,9 @@ export function createCityPanel(
       const nameEl = panel.querySelector(`[data-locked-name-extra="${item.id}"]`);
       if (nameEl) nameEl.textContent = item.name;
       const reasonEl = panel.querySelector(`[data-locked-reason-extra="${item.id}"]`);
-      if (reasonEl) reasonEl.textContent = item.missingResources.map(r => buildLockedItemReason(r, completedTechs)).join('\n\n');
+      if (reasonEl) reasonEl.textContent = item.requiredTechs.length > 0
+        ? `Requires: ${prerequisiteChecklist(item.requiredTechs)}`
+        : item.missingResources.map(r => buildLockedItemReason(r, completedTechs)).join('\n\n');
     }
     btn.remove();
   });

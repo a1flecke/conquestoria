@@ -11,6 +11,7 @@ import {
   getLegendaryWonderProductionCost,
   getLegendaryWonderQueueItemMetadata,
 } from './legendary-wonder-production';
+import { evaluateProductionPrerequisites } from './production-prerequisites';
 
 export const CITY_NAMES = DEFAULT_CITY_NAMES;
 
@@ -1721,7 +1722,7 @@ export function getTrainableUnitsForCiv(
       .map(u => u.replacesUnit!),
   );
   return TRAINABLE_UNITS.filter(u => {
-    if (u.techRequired && !completedTechs.includes(u.techRequired)) return false;
+    if (evaluateProductionPrerequisites(u, completedTechs).missing.length > 0) return false;
     if (u.obsoletedByTech && completedTechs.includes(u.obsoletedByTech)) return false;
     if (u.civTypeRequired && u.civTypeRequired !== civType) return false;
     if (replacedForCiv.has(u.type)) return false;
@@ -1827,7 +1828,7 @@ export function getAvailableBuildings(
   const coastal = isCityCoastal(city, map);
   return Object.values(BUILDINGS).filter(b => {
     if (city.buildings.includes(b.id)) return false;
-    if (b.techRequired && !completedTechs.includes(b.techRequired)) return false;
+    if (evaluateProductionPrerequisites(b, completedTechs).missing.length > 0) return false;
     if (isBuildingObsolete(b, completedTechs)) return false;
     if (b.coastalRequired && !coastal) return false;
     if (availableResources !== undefined && b.resourceRequired?.length) {
