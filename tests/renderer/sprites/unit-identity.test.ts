@@ -19,12 +19,11 @@ describe('unit sprite ownership identity', () => {
   });
 
   it('serializes ownership-colored archer clothing for the DOM overlay', () => {
-    const imperialArcher = getUnitSpriteV2('archer', 'imperials');
-    const vikingArcher = getUnitSpriteV2('archer', 'vikings');
+    for (const faction of ['imperials', 'vikings', 'pharaohs', 'hellenes', 'khanate', 'shogunate']) {
+      const archer = getUnitSpriteV2('archer', faction);
 
-    expect(imperialArcher).not.toContain('#5a6e3a');
-    expect(vikingArcher).not.toContain('#5a6e3a');
-    expect(imperialArcher).not.toContain('#3a4a20');
-    expect(vikingArcher).not.toContain('#3a4a20');
+      expect(archer).not.toContain('#5a6e3a');
+      expect(archer).not.toContain('#3a4a20');
+    }
   });
 });

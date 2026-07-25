@@ -69,6 +69,23 @@ describe('player combat wiring', () => {
     expect(panelRefresh).toBeGreaterThan(stateRefresh);
     expect(panelRefresh).toBeLessThan(delayedSelection);
   });
+
+  it('refreshes the open selected-unit panel before returning through the city-capture branch', () => {
+    const main = readFileSync(resolve(PROJECT_ROOT, 'src/main.ts'), 'utf8');
+    const executeAttack = main.slice(
+      main.indexOf('function executeAttack('),
+      main.indexOf('function restAction('),
+    );
+    const cityCaptureBranch = executeAttack.slice(
+      executeAttack.indexOf('const assaultStatus = beginPlayerCityAssault('),
+      executeAttack.indexOf('return;', executeAttack.indexOf('const assaultStatus = beginPlayerCityAssault(')),
+    );
+
+    expect(cityCaptureBranch.indexOf('renderLoop.setGameState(gameState);')).toBeGreaterThan(-1);
+    expect(cityCaptureBranch.indexOf('refreshSelectedUnitAfterCombat();')).toBeGreaterThan(
+      cityCaptureBranch.indexOf('renderLoop.setGameState(gameState);'),
+    );
+  });
 });
 
 describe('land-unit water recovery wiring', () => {

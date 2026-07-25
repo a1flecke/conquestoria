@@ -3060,6 +3060,7 @@ function executeAttack(attackerId: string, targetKey: string): void {
           SFX.combat();
           renderLoop.setGameState(gameState);
           updateHUD();
+          refreshSelectedUnitAfterCombat();
           if (assaultStatus === 'resolved') {
             setTimeout(() => selectNextUnit(), 400);
           }

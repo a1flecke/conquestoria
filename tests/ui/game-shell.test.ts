@@ -112,6 +112,8 @@ describe('game-shell', () => {
     expect(toolbar?.style.display).toBe('flex');
     expect(toolbar?.style.gap).toBe('8px');
     expect(toolbar?.style.position).toBe('absolute');
+    expect(toolbar?.style.flexWrap).toBe('wrap');
+    expect(toolbar?.style.maxWidth).toBe('calc(100% - 24px)');
     expect([...toolbar?.querySelectorAll('button') ?? []].map(button => button.id)).toEqual([
       'btn-next-unit', 'btn-notif-log', 'btn-icon-legend', 'btn-wonder-atlas',
       'btn-pirate-waters', 'btn-pause-menu',

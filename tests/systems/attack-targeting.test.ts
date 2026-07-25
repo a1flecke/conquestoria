@@ -251,6 +251,29 @@ describe('attack-targeting', () => {
     expect(getAttackTargets(state, state.units['attacker'], { viewerId: 'player' })).toEqual([]);
   });
 
+  it('applies the zero-movement rule to the active second hot-seat player and AI callers', () => {
+    const attacker = unit('attacker', 'archer', 'ai-1', { q: 0, r: 0 });
+    const defender = unit('defender', 'warrior', 'player', { q: 2, r: 0 });
+    const state = stateWithUnits({ attacker, defender });
+    state.currentPlayer = 'ai-1';
+    state.hotSeat = {
+      playerCount: 2,
+      mapSize: 'small',
+      players: [
+        { name: 'Player One', slotId: 'player', civType: 'rome', isHuman: true },
+        { name: 'Player Two', slotId: 'ai-1', civType: 'egypt', isHuman: true },
+      ],
+    };
+    state.civilizations['ai-1'].visibility.tiles = { '2,0': 'visible' };
+    state.units.attacker = { ...attacker, movementPointsLeft: 0, hasActed: false };
+
+    expect(canUnitAttackTarget(state, state.units.attacker, defender.position, { viewerId: 'ai-1' })).toEqual({
+      ok: false,
+      reason: 'no-action-points',
+    });
+    expect(getAttackTargets(state, state.units.attacker, { viewerId: 'ai-1' })).toEqual([]);
+  });
+
   it('rejects ranged attacks against a basilisk concealed in jungle (no adjacent viewer)', () => {
     const archer = unit('archer', 'archer', 'player', { q: 0, r: 0 });
     const basilisk = unit('basilisk', 'beast_basilisk', 'beasts', { q: 2, r: 0 });
