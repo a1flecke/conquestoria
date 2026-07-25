@@ -4,6 +4,7 @@ import {
   canUpgradeUnit,
   getUpgradeCost,
   applyUpgrade,
+  evaluateUnitUpgrade,
 } from '@/systems/unit-upgrade-system';
 import { EventBus } from '@/core/event-bus';
 import { processTurn } from '@/core/turn-manager';
@@ -221,11 +222,13 @@ describe('getUpgradeCost', () => {
 });
 
 describe('applyUpgrade', () => {
-  it('changes unit type, heals to full health, and consumes action', () => {
+  it('changes unit type, preserves health and experience, and consumes action', () => {
     const unit = makeUnit('spy_scout');
+    unit.experience = 3;
     const upgraded = applyUpgrade(unit, 'spy_informant');
     expect(upgraded.type).toBe('spy_informant');
-    expect(upgraded.health).toBe(100);
+    expect(upgraded.health).toBe(70);
+    expect(upgraded.experience).toBe(3);
     expect(upgraded.hasActed).toBe(true);
     expect(upgraded.movementPointsLeft).toBe(0);
   });
@@ -257,7 +260,26 @@ describe('applyUnitUpgradeToState', () => {
     return { state, city, source };
   }
 
-  it('upgrades canonically, deducts exact gold, heals, and consumes the action', () => {
+  it('evaluates a legal upgrade with its cost and preserved-state preview', () => {
+    const { state } = setup();
+    state.units['upgrade-unit'].experience = 3;
+
+    expect(evaluateUnitUpgrade(state, 'upgrade-unit', 'spy_informant')).toMatchObject({
+      canUpgrade: true,
+      sourceType: 'spy_scout',
+      targetType: 'spy_informant',
+      cost: 25,
+      preserved: {
+        health: 41,
+        experience: 3,
+        movementPointsLeft: 0,
+        hasActed: true,
+      },
+      missing: [],
+    });
+  });
+
+  it('upgrades canonically, deducts exact gold, preserves health, and consumes the action', () => {
     const { state } = setup();
 
     const result = applyUnitUpgradeToState(state, 'upgrade-unit', 'spy_informant');
@@ -266,7 +288,7 @@ describe('applyUnitUpgradeToState', () => {
     expect(result.state.civilizations.player.gold).toBe(75);
     expect(result.state.units['upgrade-unit']).toMatchObject({
       type: 'spy_informant',
-      health: 100,
+      health: 41,
       hasActed: true,
       movementPointsLeft: 0,
     });
