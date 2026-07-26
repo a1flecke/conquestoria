@@ -13,6 +13,7 @@ import { TECH_TREE, getEffectiveTechCost } from '@/systems/tech-system';
 import { getEraAdvancementFraction, getEraAdvancementTechs, resolveCivilizationEra } from '@/systems/tech-definitions';
 import { UNIT_DEFINITIONS } from '@/systems/unit-system';
 import { evaluateProductionPrerequisites } from '@/systems/production-prerequisites';
+import { getUnitRolePresentation } from '@/ui/unit-role-presentation';
 
 function getUnlockLines(tech: Tech, completedTechs?: readonly string[]): string[] {
   const lines = [...tech.unlocks];
@@ -335,6 +336,30 @@ function renderInspector(
   unlocks.textContent = getUnlockLines(selectedNode.tech, civ.techState.completed).join(', ') || 'New options for your empire';
   unlocks.style.cssText = 'font-size:12px;line-height:1.35;margin-bottom:10px;';
   inspector.appendChild(unlocks);
+
+  for (const unitType of selectedNode.tech.unlocksUnits ?? []) {
+    const presentation = getUnitRolePresentation(unitType, civ.techState.completed);
+    if (!presentation) continue;
+    const details = document.createElement('details');
+    details.style.cssText = 'margin:0 0 8px;font-size:12px;line-height:1.4;';
+    const summary = document.createElement('summary');
+    summary.textContent = `${UNIT_DEFINITIONS[unitType].name} role details`;
+    summary.style.cssText = 'cursor:pointer;color:#f8d28a;font-weight:700;';
+    details.appendChild(summary);
+    for (const fact of [
+      { icon: '🛡️', text: presentation.summary },
+      ...presentation.counters,
+      ...presentation.vulnerabilities,
+      presentation.upgrade,
+      ...presentation.requirements,
+    ]) {
+      const row = document.createElement('div');
+      row.style.cssText = 'margin-top:3px;';
+      row.textContent = `${fact.icon} ${fact.text}`;
+      details.appendChild(row);
+    }
+    inspector.appendChild(details);
+  }
 
   const prereqTitle = document.createElement('div');
   prereqTitle.textContent = 'Prerequisites';

@@ -12,6 +12,56 @@ import { createTechPanel, formatTechNodeEta } from '@/ui/tech-panel';
 const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
 
 describe('tech-panel', () => {
+  it('shows canonical role facts and current-player prerequisite status in the inspector', () => {
+    const state = createNewGame(undefined, 'tech-role-inspector');
+    state.civilizations.player.techState.completed = ['archery'];
+    state.civilizations.player.techState.currentResearch = 'archery';
+    const archer = TRAINABLE_UNITS.find(unit => unit.type === 'archer')!;
+    const original = archer.requiredTechs;
+    archer.requiredTechs = ['bronze-working'];
+    try {
+      const panel = createTechPanel(document.body, state, {
+        onQueueResearch: () => {}, onMoveQueuedResearch: () => {}, onRemoveQueuedResearch: () => {}, onClose: () => {},
+      });
+      expect(panel.textContent).toContain('Safe early ranged support that punishes slow frontline units.');
+      expect(panel.textContent).toContain('Strong against frontline units');
+      expect(panel.textContent).toContain('Bronze Working · Missing');
+    } finally {
+      archer.requiredTechs = original;
+    }
+  });
+
+  it('recomputes role prerequisites for the current hot-seat player', () => {
+    const state = createNewGame(undefined, 'tech-role-hot-seat');
+    state.civilizations['player-2'] = {
+      ...structuredClone(state.civilizations.player),
+      id: 'player-2',
+      isHuman: true,
+      techState: { ...state.civilizations.player.techState, completed: ['archery'], currentResearch: 'archery' },
+    };
+    state.civilizations.player.techState = {
+      ...state.civilizations.player.techState,
+      completed: ['archery', 'bronze-working'],
+      currentResearch: 'archery',
+    };
+    const archer = TRAINABLE_UNITS.find(unit => unit.type === 'archer')!;
+    const original = archer.requiredTechs;
+    archer.requiredTechs = ['bronze-working'];
+    try {
+      state.currentPlayer = 'player-2';
+      expect(createTechPanel(document.body, state, {
+        onQueueResearch: () => {}, onMoveQueuedResearch: () => {}, onRemoveQueuedResearch: () => {}, onClose: () => {},
+      }).textContent).toContain('Bronze Working · Missing');
+
+      state.currentPlayer = 'player';
+      expect(createTechPanel(document.body, state, {
+        onQueueResearch: () => {}, onMoveQueuedResearch: () => {}, onRemoveQueuedResearch: () => {}, onClose: () => {},
+      }).textContent).toContain('Bronze Working · Complete');
+    } finally {
+      archer.requiredTechs = original;
+    }
+  });
+
   it('explains an unlocked unit\'s remaining conjunctive technology in the inspector', () => {
     const state = createNewGame(undefined, 'tech-conjunctive-inspector');
     state.civilizations.player.techState.completed = ['stone-weapons'];
