@@ -2,6 +2,7 @@ import type {
   Unit,
   CombatExchangeKind,
   CombatResult,
+  CombatModifierFact,
   GameMap,
   CivBonusEffect,
   UnitAttackProfile,
@@ -111,6 +112,7 @@ export interface UnitModifierBreakdown {
   mult: number;
   flat: number;
   parts: ModifierPart[];
+  facts?: CombatModifierFact[];
 }
 
 export interface CombatContext {
@@ -140,6 +142,8 @@ export interface CombatStrengthBreakdown {
   cityDefense?: CityDefenseBreakdown;
   attackerModifierParts?: ModifierPart[];
   defenderModifierParts?: ModifierPart[];
+  attackerModifierFacts?: CombatModifierFact[];
+  defenderModifierFacts?: CombatModifierFact[];
   defenderDefendsPoorly?: boolean;
   exchange: CombatExchangeModifiers;
 }
@@ -277,6 +281,8 @@ export function calculateCombatStrengths(
     cityDefense,
     attackerModifierParts: [...(context?.attackerModifiers?.parts ?? []), ...(context?.attackerPositioningPart ? [context.attackerPositioningPart] : []), ...(context?.attackerAmphibiousParts ?? [])],
     defenderModifierParts: [...(context?.defenderModifiers?.parts ?? []), ...(context?.defenderPositioningPart ? [context.defenderPositioningPart] : [])],
+    attackerModifierFacts: context?.attackerModifiers?.facts ?? [],
+    defenderModifierFacts: context?.defenderModifiers?.facts ?? [],
     defenderDefendsPoorly: defendsPoorly(defenderDefinition.attackProfile),
     exchange: getCombatExchangeModifiers(attacker, defender),
   };
@@ -336,6 +342,7 @@ export function resolveCombat(
       defenderStrength: defStrength,
       attackerPosition: attacker.position,
       defenderPosition: defender.position,
+      modifierFacts: { attacker: strengths.attackerModifierFacts ?? [], defender: strengths.defenderModifierFacts ?? [] },
     };
   }
 
@@ -351,6 +358,7 @@ export function resolveCombat(
       defenderStrength: defStrength,
       attackerPosition: attacker.position,
       defenderPosition: defender.position,
+      modifierFacts: { attacker: strengths.attackerModifierFacts ?? [], defender: strengths.defenderModifierFacts ?? [] },
     };
   }
 
@@ -396,6 +404,7 @@ export function resolveCombat(
     defenderStrength: defStrength,
     attackerPosition: attacker.position,
     defenderPosition: defender.position,
+    modifierFacts: { attacker: strengths.attackerModifierFacts ?? [], defender: strengths.defenderModifierFacts ?? [] },
     ...(exchange.kind === 'none' ? {} : { exchange: { kind: exchange.kind, label: exchange.label! } }),
   };
 }

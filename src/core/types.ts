@@ -1231,7 +1231,21 @@ export interface CombatResult {
   defenderStrength: number;
   attackerPosition: HexCoord;
   defenderPosition: HexCoord;
+  modifierFacts?: {
+    attacker: CombatModifierFact[];
+    defender: CombatModifierFact[];
+  };
   exchange?: CombatExchangeSummary;
+}
+
+export interface CombatModifierFact {
+  key: string;
+  label: string;
+  sourceVisibility: 'owner' | 'public';
+  operation: 'flat' | 'multiplier';
+  value: number;
+  outcome: 'applied' | 'ignored' | 'capped' | 'superseded';
+  ignoredReason?: 'role' | 'condition' | 'unit-class' | 'domain' | 'inactive-source';
 }
 
 export type CombatExchangeKind = 'none' | 'turret-fire' | 'evasion';

@@ -253,6 +253,36 @@ describe('getClassCounterMultiplier — class counters', () => {
   });
 });
 
+describe('combat modifier facts', () => {
+  it('records an applied counter and an ignored role-gated modifier without changing totals', () => {
+    const counter = getCombatModifier('pikeman', 'attacker', baseCombatCtx({ opponentType: 'knight' }));
+    const ignored = getCombatModifier('warrior', 'attacker', baseCombatCtx({
+      completedTechs: ['steel-plate-armor'],
+    }));
+
+    expect(counter.mult).toBeCloseTo(1.5);
+    expect(counter.facts).toContainEqual(expect.objectContaining({
+      key: 'counter:anti-cavalry',
+      outcome: 'applied',
+      operation: 'multiplier',
+      value: 1.5,
+    }));
+    expect(ignored.flat).toBe(0);
+    expect(ignored.facts).toContainEqual(expect.objectContaining({
+      key: 'tech:steel-plate-armor',
+      outcome: 'ignored',
+      ignoredReason: 'role',
+    }));
+
+    const damaged = getCombatModifier('warrior', 'attacker', baseCombatCtx({
+      completedTechs: ['transhumanism'], fullHP: false,
+    }));
+    expect(damaged.facts).toContainEqual(expect.objectContaining({
+      key: 'tech:transhumanism', outcome: 'ignored', ignoredReason: 'condition',
+    }));
+  });
+});
+
 describe('getHealingBonus — stacking order and conditions', () => {
   it('flat bonuses stack, then a single multiplier applies last (mindfulness-movement)', () => {
     const bonus = getHealingBonus(baseHealCtx({
@@ -419,6 +449,19 @@ describe('order-of-operations lock (composition test)', () => {
 
     expect(result.attackerStrength).toBeCloseTo(expectedAttacker);
     expect(result.defenderStrength).toBeCloseTo(expectedDefenderFinal);
+  });
+
+  it('snapshots evaluator facts onto the resolved combat result', () => {
+    const attacker = createUnit('pikeman', 'p1', { q: 5, r: 5 }, mkC());
+    const defender = createUnit('knight', 'p2', { q: 6, r: 5 }, mkC());
+    const result = resolveCombat(attacker, defender, map, 17, {
+      attackerModifiers: getCombatModifier('pikeman', 'attacker', baseCombatCtx({ opponentType: 'knight' })),
+      defenderModifiers: getCombatModifier('knight', 'defender', baseCombatCtx({ opponentType: 'pikeman' })),
+    });
+
+    expect(result.modifierFacts!.attacker).toContainEqual(expect.objectContaining({
+      key: 'counter:anti-cavalry', outcome: 'applied', value: 1.5,
+    }));
   });
 });
 
