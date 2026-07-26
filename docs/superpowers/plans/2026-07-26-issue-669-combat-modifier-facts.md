@@ -272,4 +272,3 @@ bash scripts/run-with-mise.sh yarn test
 ## Plan self-review
 
 The plan preserves balance by making facts observational, keeps casual and expert UX distinct, covers AI/difficulty/solo/hot-seat privacy, persists only recipient-safe history, adds no SFX, and rejects fabricated cap/supersession rows. Names and paths are consistent across all tasks.
-
