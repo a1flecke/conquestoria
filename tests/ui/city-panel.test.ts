@@ -24,6 +24,19 @@ function clickElement(element: Element | null | undefined): void {
 }
 
 describe('city-panel national projects', () => {
+  it('keeps every legal unit reachable while showing its canonical role summary', () => {
+    const { container, city, state } = makeWonderPanelFixture();
+    const panel = createCityPanel(container, city, state, {
+      onBuild: () => {}, onOpenWonderPanel: () => {}, onClose: () => {},
+    });
+
+    expect(panel.querySelector('[data-item-id="warrior"]')).toBeTruthy();
+    expect(panel.querySelector('[data-unit-role-summary="warrior"]')?.textContent)
+      .toBe('Cheap early defender that holds ground and captures exposed positions.');
+    expect(panel.querySelectorAll('[data-unit-role-summary]').length)
+      .toBe(panel.querySelectorAll('[data-section="trainable-units"] [data-item-id]').length);
+  });
+
   it('keeps a partially satisfied conjunctive unit gate visible with every ordered technology state', () => {
     const { container, city, state } = makeWonderPanelFixture();
     state.civilizations.player.techState.completed = ['archery'];
