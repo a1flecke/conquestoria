@@ -38,6 +38,7 @@ import { canPreachTarget } from '@/systems/religion-system';
 import { getAirBaseCapacity, getAirBaseRoster } from '@/systems/air-operations-system';
 import type { AirBaseRef } from '@/core/types';
 import { canPillageTile } from '@/systems/pillage-system';
+import { getUnitRolePresentation } from '@/ui/unit-role-presentation';
 
 export interface TransportLoadOption {
   transportId: string;
@@ -244,6 +245,39 @@ export function renderSelectedUnitInfo(
 
   wrapper.appendChild(topRow);
   wrapper.appendChild(descDiv);
+
+  const rolePresentation = getUnitRolePresentation(
+    unit.type,
+    unit.owner === state.currentPlayer
+      ? state.civilizations[state.currentPlayer]?.techState.completed ?? []
+      : [],
+  );
+  if (rolePresentation) {
+    const roleSummary = document.createElement('div');
+    roleSummary.style.cssText = 'font-size:11px;line-height:1.35;margin-top:6px;color:#f8d28a;';
+    roleSummary.textContent = rolePresentation.summary;
+    wrapper.appendChild(roleSummary);
+
+    const details = document.createElement('details');
+    details.style.cssText = 'margin-top:6px;font-size:11px;line-height:1.4;';
+    const summary = document.createElement('summary');
+    summary.textContent = 'Role details';
+    summary.style.cssText = 'cursor:pointer;color:#f8d28a;font-weight:700;';
+    details.appendChild(summary);
+    for (const fact of [
+      { icon: '🛡️', text: rolePresentation.roleText },
+      ...rolePresentation.counters,
+      ...rolePresentation.vulnerabilities,
+      rolePresentation.upgrade,
+      ...(unit.owner === state.currentPlayer ? rolePresentation.requirements : []),
+    ]) {
+      const row = document.createElement('div');
+      row.style.cssText = 'margin-top:3px;';
+      row.textContent = `${fact.icon} ${fact.text}`;
+      details.appendChild(row);
+    }
+    wrapper.appendChild(details);
+  }
 
   const scrollCue = document.createElement('div');
   scrollCue.dataset.scrollCue = 'true';
