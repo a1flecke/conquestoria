@@ -97,6 +97,16 @@ function findButtons(node: unknown): MockElement[] {
   return result;
 }
 
+function findDetails(node: unknown): MockElement | undefined {
+  const el = node as MockElement;
+  if (el.tagName === 'DETAILS') return el;
+  for (const child of el.children ?? []) {
+    const found = findDetails(child);
+    if (found) return found;
+  }
+  return undefined;
+}
+
 function findWaterRecoveryGuidance(node: unknown): MockElement | undefined {
   const el = node as MockElement;
   if (el.dataset?.waterRecoveryKind) return el;
@@ -151,6 +161,53 @@ describe('selected-unit scroll affordance', () => {
     const cue = findScrollCue(container);
     expect(cue?.textContent).toBe('↓ More details and actions below — scroll');
     expect(cue?.style.display).toBe('block');
+  });
+});
+
+describe('selected-unit role presentation', () => {
+  beforeEach(installMockDocument);
+  afterEach(restoreMockDocument);
+
+  it('renders canonical counterplay as expandable icon-and-text details', () => {
+    const state = createNewGame(undefined, 'selected-unit-role-presentation', 'small');
+    const unit = {
+      ...createUnit('pikeman', 'player', { q: 1, r: 1 }, {
+        nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1,
+      }),
+      id: 'pikeman',
+    };
+    state.currentPlayer = 'player';
+    state.units = { pikeman: unit };
+    state.civilizations.player.units = ['pikeman'];
+    const container = new MockElement('div');
+
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'pikeman', {});
+
+    const text = collectAllText(container).join(' ');
+    expect(text).toContain('Polearm defender that stops charging mounted attackers.');
+    expect(text).toContain('Strong against shock units');
+    expect(text).toContain('Vulnerable to ranged units');
+    expect(findDetails(container)?.children[0]?.textContent).toBe('Role details');
+  });
+
+  it('renders a terminal explanation instead of inventing an artillery successor', () => {
+    const state = createNewGame(undefined, 'selected-unit-terminal-role', 'small');
+    const unit = {
+      ...createUnit('artillery', 'player', { q: 1, r: 1 }, {
+        nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1,
+      }),
+      id: 'artillery',
+    };
+    state.currentPlayer = 'player';
+    state.units = { artillery: unit };
+    state.civilizations.player.units = ['artillery'];
+    const container = new MockElement('div');
+
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'artillery', {});
+
+    const text = collectAllText(container).join(' ');
+    expect(text).toContain('Current siege apex; rocket artillery is future content.');
+    expect(text).not.toContain('Upgrades to');
   });
 });
 
