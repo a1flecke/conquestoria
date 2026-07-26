@@ -84,3 +84,11 @@ each unit unlocked by the selected technology, including a partial-conjunction c
   assert the old player's completed-tech markers do not remain.
 - Reopen each surface after its existing state mutation; no disclosure or stale-DOM
   callback owns persistent state.
+
+## Verification ownership
+
+The worktree command wrapper must return immediately after its special `yarn install`
+and `yarn setup:hooks` paths. The smoke test rejects a second fall-through invocation.
+For long-running verification, agent tooling must retain and poll the original terminal
+session until it yields both an exit code and its normal completion summary; an incomplete
+tool response is not a passing result and must not trigger a duplicate run.

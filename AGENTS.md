@@ -73,9 +73,13 @@ When writing or updating implementation plans for interactive UI, queueing, or r
 ## Required Verification
 `./scripts/run-with-mise.sh yarn test` does not type-check. Run `./scripts/run-with-mise.sh yarn build` whenever TypeScript correctness matters, and always before `git push`, PR creation, or merge.
 
-If a push or long-running verification returns incomplete output, inspect the live process
-and remote ref before retrying. Never start a second push while the first pre-push hook
-may still be running.
+If a push or long-running verification returns incomplete output, treat it as
+**incomplete**, not successful: preserve its terminal session ID, inspect the live process,
+and poll that same session until it supplies an exit code and normal completion summary.
+Never start a second equivalent verification command while the first process may still be
+running. If the process exits but its status cannot be recovered, report verification as
+inconclusive rather than retrying automatically or claiming it passed. Never start a
+second push while the first pre-push hook may still be running.
 
 After editing files under `src/`, run:
 
