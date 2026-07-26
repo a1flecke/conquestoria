@@ -725,6 +725,7 @@ export function createCityPanel(
       <div style="font-weight:bold;font-size:13px;">${getProductionIconForItem(u.type)} <span data-text="unit-name-${idx}"></span></div>
       <div style="font-size:11px;opacity:0.7;">Cost: ${cost} · ${turns} turns</div>
       <div style="font-size:11px;opacity:0.82;margin-top:3px;" data-unit-role-summary="${u.type}"></div>
+      <div style="font-size:10px;opacity:0.72;margin-top:2px;line-height:1.35;" data-unit-role-facts="${u.type}"></div>
       ${resourceRequirementLine(u.type, u.resourceRequired)}
     </div>`;
   }
@@ -1145,6 +1146,15 @@ export function createCityPanel(
     const roleSummary = panel.querySelector(`[data-unit-role-summary="${u.type}"]`);
     if (roleSummary) {
       roleSummary.textContent = getUnitRolePresentation(u.type, completedTechs)?.summary ?? '';
+    }
+    const roleFacts = panel.querySelector(`[data-unit-role-facts="${u.type}"]`);
+    const presentation = getUnitRolePresentation(u.type, completedTechs);
+    if (roleFacts && presentation) {
+      roleFacts.textContent = [
+        ...presentation.counters,
+        ...presentation.vulnerabilities,
+        presentation.upgrade,
+      ].map(fact => `${fact.icon} ${fact.text}`).join(' · ');
     }
   });
 

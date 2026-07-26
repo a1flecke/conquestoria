@@ -33,6 +33,10 @@ describe('city-panel national projects', () => {
     expect(panel.querySelector('[data-item-id="warrior"]')).toBeTruthy();
     expect(panel.querySelector('[data-unit-role-summary="warrior"]')?.textContent)
       .toBe('Cheap early defender that holds ground and captures exposed positions.');
+    expect(panel.querySelector('[data-unit-role-facts="warrior"]')?.textContent)
+      .toContain('Strong against civilian units');
+    expect(panel.querySelector('[data-unit-role-facts="warrior"]')?.textContent)
+      .toContain('Upgrades to Spearman');
     expect(panel.querySelectorAll('[data-unit-role-summary]').length)
       .toBe(panel.querySelectorAll('[data-section="trainable-units"] [data-item-id]').length);
   });
