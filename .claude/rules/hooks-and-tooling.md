@@ -49,7 +49,7 @@ paths:
 
 **Set Bash tool timeout to match the command, not the hook:**
 - `git commit` — **30 000 ms**. No hook runs tests; the commit itself takes < 1s.
-- `git push` / `gh pr create` / `gh pr merge` — **120 000 ms** is enough for the local `--fast` gate. If you've just changed a slow-tier file and want to also verify it locally first (`yarn test:slow` or a targeted `yarn vitest run <file>`), do that as its own step before pushing — see #608 investigation notes above for observed durations up to ~600s worst case.
+- `git push` / `gh pr create` / `gh pr merge` — allow **240 000 ms** for the local `--fast` gate. The fast suite plus build has been measured at about 174 seconds on this shared workstation; a 120-second tool window can interrupt its detached timeout child and leave Vitest workers behind. If you've just changed a slow-tier file and want to also verify it locally first (`yarn test:slow` or a targeted `yarn vitest run <file>`), do that as its own step before pushing — see #608 investigation notes above for observed durations up to ~600s worst case.
 - A 360 000 ms timeout on `git commit` papers over the wrong symptom. Match the timeout to what the command actually does.
 
 ## Concurrent local verification
