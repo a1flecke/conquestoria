@@ -22,6 +22,8 @@ Platform and distribution-specific code lives outside the gameplay core. Use `sr
 ## Build, Test, and Development Commands
 Prefer the repo wrapper `./scripts/run-with-mise.sh` for project commands so Codex can reuse one stable approval path. In a fresh interactive shell, `eval "$(mise activate bash)"` still works. Main commands:
 
+The wrapper always executes `package.json`, project scripts, configuration, sources, hooks, and outputs from the **active worktree**. Each worktree owns its generated Yarn PnP map because it represents that worktree's lockfile; Yarn may share its download cache, but never borrow another checkout's `.pnp.cjs`. Standard focused-test paths remain root-relative, for example `tests/systems/city-system.test.ts`.
+
 - `./scripts/run-with-mise.sh yarn dev` starts the Vite dev server.
 - `./scripts/run-with-mise.sh yarn build` runs `tsc` and then produces a production bundle with Vite.
 - `./scripts/run-with-mise.sh yarn test` runs the full Vitest suite and hook smoke tests once. It does not type-check; use `yarn build` for TypeScript validation.

@@ -1,19 +1,9 @@
 #!/usr/bin/env bash
-# Functional tests for linked-worktree command routing.
+# Functional contract tests for linked-worktree command routing.
 
 set -eu
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
-MAIN_ROOT="$(git -C "$ROOT" worktree list --porcelain 2>/dev/null | awk '/^worktree /{sub(/^worktree /, ""); print; exit}')"
-
-if [ -n "$MAIN_ROOT" ] && [ "$ROOT" != "$MAIN_ROOT" ]; then
-  observed="$(cd "$ROOT" && ./scripts/run-with-mise.sh yarn node -e 'console.log(process.cwd())')" || exit 1
-  [ "$observed" = "$ROOT" ] || {
-    echo "expected yarn node cwd $ROOT, got $observed"
-    exit 1
-  }
-fi
-
 tmpdir="$(mktemp -d)"
 trap 'rm -rf "$tmpdir"' EXIT
 
@@ -21,189 +11,106 @@ main="$tmpdir/main"
 linked="$tmpdir/linked"
 fake_bin="$tmpdir/bin"
 mise_log="$tmpdir/mise.log"
-lock_log="$tmpdir/verification-lock.log"
 
 git init -q "$main"
 git -C "$main" config user.name Test
 git -C "$main" config user.email test@example.com
 mkdir -p "$main/scripts" "$fake_bin"
 cp "$ROOT/scripts/run-with-mise.sh" "$main/scripts/run-with-mise.sh"
-cp "$ROOT/scripts/setup-git-hooks.sh" "$main/scripts/setup-git-hooks.sh"
-cp -R "$ROOT/.githooks" "$main/.githooks"
-cp "$ROOT/mise.toml" "$main/mise.toml"
-printf 'base\n' > "$main/base.txt"
+printf 'runtime base\n' > "$main/base.txt"
 git -C "$main" add .
 git -C "$main" commit -q -m base
 git -C "$main" worktree add -q -b linked "$linked"
 main="$(cd "$main" && pwd -P)"
 linked="$(cd "$linked" && pwd -P)"
 
-cat > "$linked/scripts/with-verification-lock.sh" <<'EOF'
-#!/bin/sh
-printf '%s\n' "$*" >> "$VERIFY_LOCK_LOG"
-exec "$@"
-EOF
-chmod +x "$linked/scripts/with-verification-lock.sh"
-
-# Simulate version skew: the main checkout can still have the older wrapper
-# while the linked branch contains this fix. The linked wrapper must not leak
-# hook-exported Git variables when it delegates into the main checkout.
+# A stale main branch must never be selected as an executor for linked-worktree
+# commands. Its wrapper is deliberately fatal; a correct adapter never reads it.
 cat > "$main/scripts/run-with-mise.sh" <<'EOF'
 #!/bin/sh
-set -eu
-[ -z "${GIT_DIR:-}" ] || {
-  echo "linked-worktree GIT_DIR leaked into main wrapper" >&2
-  exit 41
-}
-[ "$*" != "yarn bin tauri" ] || {
-  printf '%s\n' '/fake/tauri.js'
-  exit 0
-}
-exec mise exec -- "$@"
+echo 'stale main wrapper executed' >&2
+exit 99
 EOF
 chmod +x "$main/scripts/run-with-mise.sh"
 
 cat > "$fake_bin/mise" <<'EOF'
 #!/bin/sh
-printf '%s|%s|%s\n' "$PWD" "${CONQUESTORIA_VITEST_CACHE_DIR:-}" "$*" >> "$MISE_LOG"
+printf '%s|%s|%s|%s\n' "$PWD" "${CONQUESTORIA_VITEST_CACHE_DIR:-}" "${GIT_DIR:-}" "$*" >> "$MISE_LOG"
 exit 0
 EOF
 chmod +x "$fake_bin/mise"
 
-cat > "$fake_bin/node" <<'EOF'
-#!/bin/sh
-echo "worktree wrapper invoked node outside mise" >&2
-exit 43
-EOF
-chmod +x "$fake_bin/node"
-
-linked_git_dir="$(git -C "$linked" rev-parse --git-dir)"
-
-rm -f "$mise_log"
-(
-  cd "$linked"
-  PATH="$fake_bin:$PATH" \
-    MISE_LOG="$mise_log" \
-    GIT_DIR="$linked_git_dir" \
-    ./scripts/run-with-mise.sh yarn install --immutable
-)
-install_cwd="$(cut -d'|' -f1 "$mise_log")"
-install_cwd="$(cd "$install_cwd" && pwd -P)"
-[ "$install_cwd" = "$main" ] || {
-  echo "first linked-worktree install ran in $install_cwd instead of $main"
-  exit 1
-}
-
-rm -f "$mise_log"
+# A linked worktree without its own PnP map must be told to install from its
+# own lockfile rather than borrowing a potentially stale map from main.
 set +e
 missing_output="$(
   cd "$linked"
-  PATH="$fake_bin:$PATH" \
-    MISE_LOG="$mise_log" \
+  PATH="$fake_bin:$PATH" MISE_LOG="$mise_log" \
     ./scripts/run-with-mise.sh yarn test 2>&1
 )"
 missing_status=$?
 set -e
 [ "$missing_status" -ne 0 ] || {
-  echo "dependency-requiring command ran without main-worktree .pnp.cjs"
+  echo 'dependency-requiring command ran without an active-worktree PnP map' >&2
   exit 1
 }
 printf '%s' "$missing_output" | grep -Fq 'yarn install --immutable' || {
-  echo "missing-dependency error did not provide the install command"
+  echo 'missing-runtime error did not provide the active install command' >&2
   exit 1
 }
 
+# A linked PnP file is just as unsafe: it can describe a different branch's
+# dependency graph and must be rejected in favor of an active install.
 touch "$main/.pnp.cjs"
-mkdir -p "$linked/tests/hooks"
-cat > "$linked/tests/hooks/run.sh" <<'EOF'
-#!/bin/sh
-[ -z "${GIT_DIR:-}" ] || {
-  echo "linked-worktree GIT_DIR leaked into hook smoke tests" >&2
-  exit 42
-}
-EOF
-chmod +x "$linked/tests/hooks/run.sh"
-
-rm -f "$mise_log" "$lock_log"
-(
+ln -s "$main/.pnp.cjs" "$linked/.pnp.cjs"
+set +e
+linked_output="$(
   cd "$linked"
-  PATH="$fake_bin:$PATH" \
-    MISE_LOG="$mise_log" \
-    VERIFY_LOCK_LOG="$lock_log" \
-    CONQUESTORIA_VITEST_CACHE_DIR="$tmpdir/inherited-cache" \
-    ./scripts/run-with-mise.sh yarn build
-)
-grep -Fq "$linked|$linked/.vite/vitest|exec -- node $linked/scripts/version-sw-cache.mjs" "$mise_log" || {
-  echo "worktree build did not route service-worker versioning through mise"
+  PATH="$fake_bin:$PATH" MISE_LOG="$mise_log" \
+    ./scripts/run-with-mise.sh yarn build 2>&1
+)"
+linked_status=$?
+set -e
+[ "$linked_status" -ne 0 ] && printf '%s' "$linked_output" | grep -Fq 'yarn install --immutable' || {
+  echo 'linked PnP map was accepted as an active dependency graph' >&2
   exit 1
 }
-[ ! -e "$lock_log" ] || {
-  echo "worktree build invoked the legacy shared verification lock"
-  exit 1
-}
+rm "$linked/.pnp.cjs"
+touch "$linked/.pnp.cjs"
 
 rm -f "$mise_log"
 (
   cd "$linked"
-  PATH="$fake_bin:$PATH" \
-    MISE_LOG="$mise_log" \
-    ./scripts/run-with-mise.sh yarn tauri:build:mac-app
+  PATH="$fake_bin:$PATH" MISE_LOG="$mise_log" GIT_DIR="$(git -C "$linked" rev-parse --git-dir)" \
+    ./scripts/run-with-mise.sh yarn test --run tests/systems/example.test.ts
 )
-grep -Eq "^$linked\\|$linked/\.vite/vitest\\|exec -- node /fake/tauri\\.js build --config .* --bundles app$" "$mise_log" || {
-  echo "worktree macOS app build ran outside the active worktree"
-  exit 1
-}
-grep -Fq './scripts/run-with-mise.sh yarn build:tauri' "$mise_log" || {
-  echo "worktree macOS app build did not override the frontend command"
+grep -Fq "$linked|$linked/.vite/vitest||exec -- yarn test --run tests/systems/example.test.ts" "$mise_log" || {
+  echo 'focused test did not use the active worktree package command' >&2
   exit 1
 }
 
+for command in 'test:fast' 'test:slow' 'test:watch' build build:tauri test:web-smoke verify:push; do
+  rm -f "$mise_log"
+  (
+    cd "$linked"
+    PATH="$fake_bin:$PATH" MISE_LOG="$mise_log" \
+      ./scripts/run-with-mise.sh yarn "$command"
+  )
+  grep -Fq "$linked|$linked/.vite/vitest||exec -- yarn $command" "$mise_log" || {
+    echo "$command did not execute through the active worktree package command" >&2
+    exit 1
+  }
+done
+
+# Installation is active-worktree-local: it materializes the PnP map for that
+# exact package.json/yarn.lock while Yarn's download cache remains shared.
 rm -f "$mise_log"
 (
   cd "$linked"
-  PATH="$fake_bin:$PATH" \
-    MISE_LOG="$mise_log" \
-    ./scripts/run-with-mise.sh yarn tauri:check:mac-artifacts
+  PATH="$fake_bin:$PATH" MISE_LOG="$mise_log" \
+    ./scripts/run-with-mise.sh yarn install --immutable
 )
-grep -Fq "$linked|$linked/.vite/vitest|exec -- node $linked/scripts/check-tauri-macos-artifacts.mjs" "$mise_log" || {
-  echo "worktree macOS artifact check ran outside the active worktree"
-  exit 1
-}
-
-verify_marker="$tmpdir/linked-verifier-ran"
-cat > "$linked/scripts/verify-before-push.sh" <<EOF
-#!/bin/sh
-printf 'ran\n' > "$verify_marker"
-EOF
-chmod +x "$linked/scripts/verify-before-push.sh"
-
-(
-  cd "$linked"
-  PATH="$fake_bin:$PATH" \
-    MISE_LOG="$mise_log" \
-    GIT_DIR="$linked_git_dir" \
-    ./scripts/run-with-mise.sh yarn test
-)
-
-(
-  cd "$linked"
-  PATH="$fake_bin:$PATH" \
-    MISE_LOG="$mise_log" \
-    ./scripts/run-with-mise.sh yarn verify:push
-)
-[ -f "$verify_marker" ] || {
-  echo "canonical verifier package route ran from the main worktree"
-  exit 1
-}
-
-(
-  cd "$linked"
-  PATH="$fake_bin:$PATH" \
-    MISE_LOG="$mise_log" \
-    ./scripts/run-with-mise.sh yarn setup:hooks >/dev/null
-)
-hooks_path="$(git -C "$linked" config core.hooksPath)"
-[ "$hooks_path" = ".githooks" ] || {
-  echo "hook setup was not applied to the active linked worktree: $hooks_path"
+grep -Fq "$linked|$linked/.vite/vitest||exec -- yarn install --immutable" "$mise_log" || {
+  echo 'install did not target the active worktree' >&2
   exit 1
 }
