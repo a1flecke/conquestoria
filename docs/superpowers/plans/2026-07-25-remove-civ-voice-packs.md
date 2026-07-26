@@ -10,7 +10,7 @@
 
 **Scope decision (read before implementing):** "Remove all language speech packs" includes the `generic` pack. `generic` is itself an English advisor speech pack used as the fallback for every civ — removing only the 10 hero packs would leave every civ still speaking. The whole voice-line system goes. Music (era bases, war layers, accents), stingers, and SFX are explicitly kept.
 
-**Reviewed audio-feedback change (2026-07-25 inline review):** `wonder-lost`, `city-lost`, and `near-defeat` had no stinger — voice was their only audio cue, so they become audio-silent after this change. This is deliberate and safe: all three keep visual feedback (`src/ui/legendary-wonder-notifications.ts`, `src/ui/notification-routing.ts`, and the `showNotification` capture paths in `src/main.ts`), and near-defeat also flips the adaptive music to the `brink-of-defeat` layer. Do NOT add replacement stingers in this PR — if the family ever misses an audio cue there, that is a separate content issue. The PR body documents this explicitly.
+**Reviewed audio-feedback change (2026-07-25 inline review; revised per user direction):** `wonder-lost`, `city-lost`, and `near-defeat` had no stinger — voice was their only audio cue. Per user direction these must NOT become audio-silent: Task 1 rewires all three to a new `MusicDirector.handleLossEvent()` that plays the war-declared stinger as the negative-event placeholder — the exact convention `handleCrisisStarted()` already uses (`music-director.ts` ~line 205, "Placeholder stingers … until bespoke crisis-onset … stingers exist"), with bespoke replacements tracked by commenting on issue #616 in Task 6. All three keep their visual feedback (`src/ui/legendary-wonder-notifications.ts`, `src/ui/notification-routing.ts`, `showNotification` capture paths in `src/main.ts`), and near-defeat still flips the adaptive music to `brink-of-defeat`.
 
 ## Global Constraints
 
@@ -143,7 +143,26 @@ down to (and including) the `diplomacy:peace-made` subscription, EXCEPT keep the
         this.director.handleWonderBuilt();
       }),
 ```
-Concretely, delete these subscriptions entirely — in every case the deletion target is the handler that calls `this.voiceDirector.playLine(…)`, never a same-named subscription elsewhere in the file: the second `era:advanced` (voice), `city:founded` (voice), the second `diplomacy:war-declared` (voice — the stinger subscription at ~line 322 calling `this.director.handleWarDeclared(…)` stays), the second `tech:completed` (voice), the second `wonder:legendary-completed` (voice), `wonder:legendary-lost` (voice-only handler), the `city:captured` voice handler (body is only a `playLine('city-lost')` call), the `civ:near-defeat` voice handler (the separate `civ:near-defeat` subscription calling `this.director.handleNearDefeat(…)` in the adaptive-state block stays), and the second `diplomacy:peace-made` (voice — the stinger subscription calling `this.director.handlePeaceSigned(…)` stays). Also delete the now-orphaned comment:
+Concretely, delete these subscriptions entirely — in every case the deletion target is the handler that calls `this.voiceDirector.playLine(…)`, never a same-named subscription elsewhere in the file: the second `era:advanced` (voice), `city:founded` (voice), the second `diplomacy:war-declared` (voice — the stinger subscription at ~line 322 calling `this.director.handleWarDeclared(…)` stays), the second `tech:completed` (voice), the second `wonder:legendary-completed` (voice), and the second `diplomacy:peace-made` (voice — the stinger subscription calling `this.director.handlePeaceSigned(…)` stays). All of those events already have stingers.
+
+The three events whose ONLY audio cue was voice are rewired to the loss-event stinger instead of deleted — replace their bodies:
+```ts
+      bus.on('wonder:legendary-lost', p => {
+        if (p.civId !== this.currentPlayerId) return;
+        this.director.handleLossEvent();
+      }),
+
+      bus.on('city:captured', p => {
+        if (p.previousOwner !== this.currentPlayerId) return;
+        this.director.handleLossEvent();
+      }),
+
+      bus.on('civ:near-defeat', p => {
+        if (p.civId !== this.currentPlayerId) return;
+        this.director.handleLossEvent();
+      }),
+```
+(The pre-existing `civ:near-defeat` subscription calling `this.director.handleNearDefeat(…)` in the adaptive-state block stays — the adaptive brink-of-defeat shift and the one-shot stinger are complementary, exactly as the stinger+voice pair was before.) Also delete the now-orphaned comment:
 ```ts
       // Stinger subs registered BEFORE voice subs for the same event so that
       // when the event fires the stinger handler updates currentStingerPromise
@@ -166,12 +185,63 @@ Concretely, delete these subscriptions entirely — in every case the deletion t
   }
 ```
 
-- [ ] **Step 4: Update stale comments in `src/audio/music-director.ts`**
+- [ ] **Step 4: Add `handleLossEvent()` to `src/audio/music-director.ts` and update stale comments**
+
+Immediately after `handleCrisisResolved()`, add:
+```ts
+  /**
+   * Loss/threat events that previously carried an advisor voice line and have
+   * no bespoke stinger (wonder-lost, city-lost, near-defeat warning). Reuses
+   * the war-declared stinger as the negative-event placeholder — same
+   * convention as handleCrisisStarted above; bespoke replacements are tracked
+   * in #616. Deliberately does not touch atWar/inUnrest/nearDefeat flags.
+   */
+  handleLossEvent(): void {
+    this.currentStingerPromise = this.playStingerWithDuck(STINGER.warDeclared.file);
+  }
+```
 
 Three comments reference the removed system (keep the code they describe — `currentStingerPromise` and `resolveSnapshot()` stay public because `tests/audio/music-director*.test.ts` assert on them):
 - Line ~67: `* AudioSystem (MR3) awaits this before playing voice lines for co-fire events.` → `* Public: exposed for stinger-sequencing tests.`
 - Line ~79: `* Public so AudioSystem can inject it as the VoiceDirector getSnapshot callback.` → `* Public: exposed for snapshot-priority tests.`
 - Line ~243: `* AudioSystem (MR3) awaits this before playing the victory voice line.` → delete that line from the doc comment.
+
+- [ ] **Step 4b: Add regression tests for the loss-event stinger**
+
+In `tests/audio/music-director-crisis.test.ts`, after the crisis-placeholder tests (mirroring their exact style):
+```ts
+  it('plays the war-declared stinger placeholder on loss events without flipping atWar', async () => {
+    director.handleLossEvent();
+    await flushPromises();
+    expect(loader.get).toHaveBeenCalledWith(STINGER.warDeclared.file);
+    expect(director.resolveSnapshot()).not.toBe('at-war');
+  });
+```
+In `tests/audio/audio-system.integration.test.ts`, mirroring the crisis spy tests (current player in `makeState()` is `rome`):
+```ts
+  it('wonder-lost, city-lost, and near-defeat play the loss-event stinger for the current player', () => {
+    system.start(makeState(), busHelper.bus);
+    const handleLossEvent = vi.spyOn((system as any).director, 'handleLossEvent');
+
+    busHelper.emit('wonder:legendary-lost', { civId: 'rome', cityId: 'c1', wonderId: 'w1', goldRefund: 0, transferableProduction: 0 });
+    busHelper.emit('city:captured', { cityId: 'c1', newOwner: 'egypt', previousOwner: 'rome' });
+    busHelper.emit('civ:near-defeat', { civId: 'rome' });
+
+    expect(handleLossEvent).toHaveBeenCalledTimes(3);
+  });
+
+  it('loss events for other civs do not play the loss-event stinger (hot-seat privacy)', () => {
+    system.start(makeState(), busHelper.bus);
+    const handleLossEvent = vi.spyOn((system as any).director, 'handleLossEvent');
+
+    busHelper.emit('wonder:legendary-lost', { civId: 'egypt', cityId: 'c1', wonderId: 'w1', goldRefund: 0, transferableProduction: 0 });
+    busHelper.emit('city:captured', { cityId: 'c1', newOwner: 'rome', previousOwner: 'egypt' });
+    busHelper.emit('civ:near-defeat', { civId: 'egypt' });
+
+    expect(handleLossEvent).not.toHaveBeenCalled();
+  });
+```
+Adjust payload shapes to the real `GameEvents` types if they differ — check `src/core/types.ts` before writing.
 
 - [ ] **Step 5: Run targeted tests and type-check**
 
@@ -462,7 +532,7 @@ Deleted end-to-end:
 
 Music (era bases, war layers, accents), stingers, SFX, and ambience are untouched.
 
-Documented audio-feedback change: `wonder-lost`, `city-lost`, and `near-defeat` had no stinger (voice was their only audio cue) and are now audio-silent. All three keep visual notifications, and near-defeat still drives the brink-of-defeat adaptive music layer.
+Audio-feedback continuity: `wonder-lost`, `city-lost`, and `near-defeat` had no stinger (voice was their only audio cue). They now play the war-declared stinger via a new `MusicDirector.handleLossEvent()` — the same placeholder convention as crisis onset — so no game event lost its audio cue. Bespoke loss stingers are tracked on #616. All three also keep visual notifications, and near-defeat still drives the brink-of-defeat adaptive layer.
 
 ## Related issues (to be closed as not planned after merge — intentionally no close keywords)
 #421 #423 #424 #623 #624 #625 #626 #627 #628 #629 #630 #631 #632 #633 #634 #635 #636 #637 #638 #639 #640 #641 #642 #643 #644
@@ -517,4 +587,12 @@ Expected: no output.
 
 ```bash
 gh issue comment 622 --body "Voice-pack placeholder rows are obsolete: the advisor voice system was removed entirely in PR #<PR> (see issues #623–#644, closed as not planned)."
+```
+
+- [ ] **Step 4: Note the three new placeholder substitutions on #616**
+
+#616 tracks replacing generic diplomacy-stinger substitutions with bespoke stingers. Task 1 added three more substitutions to its scope:
+
+```bash
+gh issue comment 616 --body "PR #<PR> (voice-pack removal) added three more war-declared placeholder substitutions via MusicDirector.handleLossEvent(): wonder:legendary-lost, city:captured (city lost), and civ:near-defeat. These previously carried advisor voice lines as their only audio cue. Bespoke loss/threat stingers for them belong to this issue's scope."
 ```
