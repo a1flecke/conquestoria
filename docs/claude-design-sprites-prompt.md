@@ -1,64 +1,145 @@
-# Claude Design Prompt: Missing Sprites for Conquestoria
+# Claude Design Prompt: Conquestoria Sprites
 
-## Developer Instructions (do not copy this section into Claude)
+**This file currently contains exactly one active prompt: Era 13 content-launch sprite
+replacements (issue #652).** Everything that used to live here — the original economy-sprite
+batch (Caravan/Expedition/Caravanserai/Bank/Stock Exchange/Resource Outpost), the terrain-tiles
+prompt, the naval transport sprites (Carrack/Galleon/Steamship/Troop Transport), the legendary
+beast prompt, and the rail-segment addendum — has been **removed from this file because all of it
+is already implemented and shipped**, verified directly against the source (real, non-placeholder
+`export function` sprites in `units.tsx`/`buildings.tsx`/`beasts.tsx`, `terrain-tiles.ts` fully
+wired into `main.ts`, `rail-segment-marker.ts` implemented). Re-running any of those against
+Claude Design regenerates work that's already done — that happened twice this session (terrain,
+naval transport) before this cleanup. If you need the history of those old prompts, they're in
+this file's git history before this cleanup commit; there's no reason to resurrect them here.
 
-This prompt has **three independent sections** — send them in separate conversations for best results:
-
-**Part A (Unit/Building sprites):** Paste from `<role>` through the end of `<style_checklist>`. Output = TypeScript export functions to insert into existing sprite files.
-
-**Part B (Terrain tiles):** Paste from the `=== TERRAIN TILES PROMPT ===` heading through `</style_checklist_terrain>`. Output = a new `src/renderer/terrain/terrain-tiles.ts` file + a new `src/renderer/terrain/terrain-tile-loader.ts`.
-
-**Part C (Naval transport unit sprites):** Paste from the `=== NAVAL TRANSPORT SPRITES PROMPT ===` heading through the end of the file. Output = 4 TypeScript export functions (CarrackSprite, GalleonSprite, SteamshipSprite, TroopTransportSprite) to insert into `src/renderer/sprites/units.tsx`.
-
-If the repository is **private**, the GitHub raw URLs will return 403 — attach these files as uploads instead:
-- Part A: `src/renderer/sprites/sprite-system.tsx`, `units.tsx`, `buildings.tsx`, `src/assets/sprite-animations-v2.css`
-- Part B: `src/renderer/hex-renderer.ts`, `src/core/types.ts`
-
-**What to do with Part A output**: Each sprite is a TypeScript export function. Insert it into the file named in the spec, then add the single catalog line into `src/renderer/sprites/sprite-catalog.ts`. For the resource outpost, create `src/renderer/improvements/resource-outpost-marker.ts`.
-
-**What to do with Part B output**: Create the two new files as specified. Then update `src/renderer/hex-renderer.ts` per the integration notes at the bottom of the terrain prompt.
+**Going forward:** when a new sprite/terrain/prompt need is identified, use the
+`.claude/skills/generate-sprite-prompt.md` skill to generate it, and append it to this file the
+same way the Era 13 section below was added — dated, scoped to the specific issue, and removed
+from this file once shipped (matching this same cleanup) rather than left to accumulate.
 
 ---
 
-## Prompt (copy everything below this line)
+# === ERA 13 CONTENT-LAUNCH SPRITE REPLACEMENTS (#652) — 2026-07-19, revised 2026-07-19 ===
+
+## Developer Instructions (do not copy this section into Claude)
+
+Issue: https://github.com/a1flecke/conquestoria/issues/652 — replaces the 20 temporary alias
+mappings in `sprite-catalog.ts` shipped by #515 (Era 13 content launch) with unique, production
+SVG components. Audited base: `22e176e067986ea9ec5f79fb9c3938d48553014b` (`origin/main`).
+
+**Revision note**: this section was checked against Anthropic's published Claude Design and
+prompt-engineering guidance (multishot examples, XML structuring, explicit quality modifiers,
+Goal/Layout/Content/Audience framing) and against the live codebase, and four inaccuracies from
+the first draft were corrected:
+1. `BuildingFrame` is a **local helper defined inside `buildings.tsx`** (line ~25), not exported
+   from `sprite-system.tsx` — the reference-file list below now attributes it correctly.
+2. `SpriteFrame` **automatically wraps every unit's children** in `<g class="cq-sprite-figure">` —
+   sprite authors never add that class themselves. The first draft listed it as a class to assign,
+   which was wrong; only assign the finer-grained limb classes, and only on `<Humanoid>`-based
+   figures.
+3. The issue's own acceptance criteria require the five units to "remain distinct at **32px**,"
+   not 40px — the audience/size guidance below is corrected to match.
+4. **Building sprites currently have no live renderer call site.** `spriteCache.getBuilding()` in
+   `src/renderer/sprites/sprite-loader.ts` is exercised only by `tests/renderer/sprites/sprite-loader.test.ts`
+   — grepping `src/main.ts`, `render-loop.ts`, and `city-render-passes.ts` turns up zero calls to it,
+   unlike `spriteCache.getUnit()` which `unit-renderer.ts` calls on every frame. The production
+   chooser, queue, and city panel most likely still render `PRODUCTION_ICONS` emoji today. Treat
+   the 192×192 SVG as the established **asset contract** (correct format, correct catalog
+   registration, ready for whenever a UI surface consumes it) rather than asserting it is already
+   visibly live everywhere the issue's acceptance criteria describe — the prompt below no longer
+   overclaims this. **This dead-call-site gap is a separate, pre-existing issue outside #652's
+   art-only scope** — flag it for a follow-up if you want it wired up; do not fold it into this
+   sprite-replacement change.
+
+This batch has **three independent parts** — paste each into its own Claude Design conversation
+(20 sprites in one conversation risks truncated/rushed output, and per Claude's prompt-engineering
+guidance, focused prompts with fewer competing instructions produce more reliable output):
+
+- **Part 1 (5 unit sprites, 128×128):** `combat_drone`, `autonomous_frigate`, `exosuit_infantry`,
+  `propagandist`, `drone_controller`. Output goes into `src/renderer/sprites/units.tsx`.
+- **Part 2 (8 building sprites, 192×192 — batch 1):** `network_operations_center`,
+  `ai_safety_institute`, `drone_fabricator`, `electronic_warfare_array`, `civic_media_forum`,
+  `vertical_farm`, `neural_rehabilitation_center`, `ocean_robotics_yard`. Output goes into
+  `src/renderer/sprites/buildings.tsx`.
+- **Part 3 (7 building/national-project sprites, 192×192 — batch 2):** `circular_fabricator`,
+  `modular_arcology`, `carbon_capture_grid`, `immersive_arts_lab`,
+  `national_ai_assurance_program`, `circular_manufacturing_network`, `mars_robotics_initiative`.
+  Output goes into `src/renderer/sprites/buildings.tsx`.
+
+Each part below is **fully self-contained** — paste everything from `<role>` through
+`</style_checklist>` for that part into a fresh Claude Design conversation. If the repository is
+private and raw GitHub URLs 403, attach these files instead: `src/renderer/sprites/sprite-system.tsx`,
+`units.tsx`, `buildings.tsx`, `src/assets/sprite-animations-v2.css`, `src/renderer/sprites/sprite-catalog.ts`.
+
+**What to do with the output**:
+1. Insert each function into the file/anchor named in its spec (Part 1 → `units.tsx` after
+   `MissileSubmarineSprite`; Part 2 → `buildings.tsx` after `TelemedicineHubSprite`; Part 3 →
+   `buildings.tsx` after the Part 2 block you just added, i.e. after `OceanRoboticsYardSprite`).
+2. Replace the corresponding placeholder line in `UNIT_SPRITE_CATALOG` / `BUILDING_SPRITE_CATALOG`
+   in `src/renderer/sprites/sprite-catalog.ts` (exact replacement lines given in each spec below —
+   do **not** touch `UNIT_MOTION_STYLES`, it's already correctly configured for these 5 units).
+3. Remove the `// Era 13 content launch: temporary thematically-close mappings...` comment block
+   above the building catalog entries once all 15 are replaced (see `.claude/rules/wonder-content.md`-
+   style hygiene — stale placeholder comments must go once the swap lands).
+4. Update `docs/sprite-design-system.md`'s asset inventory table only after the replacements are
+   live in the same PR, per the issue's acceptance criteria.
+5. Run the catalog completeness tests (`tests/renderer/sprites/sprite-catalog.test.ts`) plus any
+   new alias-rejection tests the issue's acceptance criteria call for.
+
+---
+
+## Prompt — PART 1: UNITS (copy everything below this line, through the end of Part 1's `</style_checklist>`)
 
 <role>
-You are a senior SVG sprite artist and TypeScript developer specializing in hand-crafted game graphics. You write clean, geometric SVG in JSX-based TypeScript — no photorealism, no gradient meshes, no blur filters. Your work integrates directly into a production codebase.
+You are a senior SVG sprite artist and TypeScript developer specializing in hand-crafted game graphics. You write clean, geometric SVG in JSX-based TypeScript — no photorealism, no gradient meshes, no blur filters, no embedded raster images. Your work integrates directly into a production codebase.
 </role>
 
 <context>
-**Project**: Conquestoria — an HTML5 Canvas + DOM strategy game built with TypeScript and Vite. Medieval/ancient civilizations theme spanning Eras 1–4 (Stone Age to Renaissance). Mobile-first, played by families including children. All game sprites are inline SVG generated by JSX functions, rendered into Canvas via cached `<img>` elements.
+**Goal**: replace 5 temporary Era 13 unit sprites — currently exact visual reuses of older-era units — with distinct, production-quality silhouettes that fit the game's existing hand-drawn flat-geometric style.
 
-**Audience**: The sprites appear on a hex tile map viewed at 40–120px per unit. They must be bold, readable, and charming at small sizes. Children should recognize what a caravan, inn, and bank are at a glance.
+**Layout**: each sprite is a standalone 128×128 SVG rendered onto a hex tile at 32–120px, viewed from a slight 2.5D angle (facing right, slightly toward viewer) — the same layout every existing unit sprite uses.
 
-**Platform**: Web (Canvas 2D + DOM). Sprites are prerendered to HTMLImageElement via SVG blob URLs. CSS animations are used for idle/walk/attack states and building effects. The repository is at https://github.com/a1flecke/conquestoria.
+**Content**: 5 units — Combat Drone (an autonomous UAV), Autonomous Frigate (unmanned naval hull), Exosuit Infantry (powered-armor soldier), Propagandist (civilian broadcaster), Drone Controller (field operator with a companion micro-drone). Full per-unit specs are in `<sprites>` below.
+
+**Audience**: children and adults playing a mobile-first family strategy game. Silhouettes must be instantly recognizable and stay visually distinct from each other and from the sprite each currently reuses, down to 32px (this is the game's smallest unit-render scale and the literal bar set by this issue's acceptance criteria — do not design only for a larger comfortable size and assume it scales down cleanly).
+
+**Project**: Conquestoria — an HTML5 Canvas + DOM strategy game built with TypeScript and Vite. Gameplay spans Eras 1–13, from Stone Age to a near-future "Information Age." All game sprites are inline SVG generated by JSX functions, rendered into Canvas via cached `<img>` elements.
+
+**Why this batch is distinct from most of the catalog**: Era 13 is the newest, most futuristic era — autonomous drones, exosuit infantry, AI-safety institutes, Mars robotics. These five units currently render as **exact reuses of older-era sprites** (Combat Drone reuses the WWII Jet Fighter silhouette, Autonomous Frigate reuses the 19th-century Ironclad, etc.) as a temporary launch placeholder. Stay inside the game's established flat-geometric visual language, but use the sci-fi accent colors already introduced by the Era 10–12 sprites (see `<design_system>` below) rather than defaulting to purely medieval-earthy tones — these must read as near-future tech.
+
+**Quality bar**: go beyond a bare placeholder silhouette. Include the small hand-crafted details — a rivet line, a panel seam, a single status light, a texture accent — that make every existing sprite in `units.tsx` feel intentional rather than generic. At the same time, every added detail must stay subordinate to the one dominant silhouette element named per sprite below (see "Composition discipline") — more detail should read as *texture on* the dominant shape, never as a second competing focal point.
+
+**Platform**: Web (Canvas 2D + DOM). Sprites are prerendered to `HTMLImageElement` via SVG blob URLs. CSS animations drive idle/walk/attack states, entirely from the outside — see "Animation & motion ownership" below. Repository: https://github.com/a1flecke/conquestoria
 </context>
 
 <reference_files>
-Read all of the following files before writing any code. They define the entire visual language, helper components, material palette, and animation system you must match:
+Read all of the following before writing any code — they define the entire visual language, helper components, material palette, and animation system you must match:
 
-1. **Sprite system helpers** (SpriteFrame, BuildingFrame, Humanoid, Banner, Shadow, HexBase, BuildingPlinth, FactionPalette type, full MATERIAL_PALETTE constant):
+1. **Sprite system helpers** (`SpriteFrame`, `Humanoid`, `Banner`, `Shadow`, `HexBase`, `FactionPalette` type, full `MATERIAL_PALETTE` constant — note `BuildingFrame` is NOT here, it lives in `buildings.tsx`, irrelevant to this unit-only part):
    https://raw.githubusercontent.com/a1flecke/conquestoria/main/src/renderer/sprites/sprite-system.tsx
-
-2. **All existing UNIT sprites** — read every function to internalize the style, proportions, and palette usage:
+2. **All existing unit sprites** — read every function, but pay special attention to the Era 9–11 tail (`JetFighterSprite`, `CarrierSprite`, `AttackHelicopterSprite`, `MissileSubmarineSprite`) for the established sci-fi/military-tech idiom, and to `MissionarySprite` / `SpyHackerSprite` for humanoid civilian/spy conventions:
    https://raw.githubusercontent.com/a1flecke/conquestoria/main/src/renderer/sprites/units.tsx
-
-3. **All existing BUILDING sprites** — read every function, especially `DockSprite` (animated water), `ForgeSprite` (fire glow), `RanchSprite` (cq-peek animal), and `StableSprite`:
-   https://raw.githubusercontent.com/a1flecke/conquestoria/main/src/renderer/sprites/buildings.tsx
-
-4. **CSS animation system** — all animation keyframes and class hooks used by sprites:
+3. **CSS animation system** — all keyframes and class hooks. Confirms that `data-state`, `prefers-reduced-motion` handling, and the outer `cq-v2` wrapper class are applied by the runtime DOM overlay, never by the sprite SVG itself:
    https://raw.githubusercontent.com/a1flecke/conquestoria/main/src/assets/sprite-animations-v2.css
-
-5. **Sprite catalog** — shows which sprites currently use fallbacks (the 4 TBD entries):
+4. **Sprite catalog** — shows the exact placeholder lines you are replacing (search for "Era 13 temporary launch silhouettes"):
    https://raw.githubusercontent.com/a1flecke/conquestoria/main/src/renderer/sprites/sprite-catalog.ts
 </reference_files>
 
 <design_system>
 ## Visual Language
-- **Style**: Flat geometric SVG. Medieval earthy tones. Slight isometric/2.5D, figures face right and slightly toward viewer.
+- **Style**: Flat geometric SVG. Slight isometric/2.5D — figures/vehicles face right, slightly toward viewer.
 - **Line weight**: `stroke="#1f1a14"` (`P.ink.line`) at `strokeWidth="1"` for main outlines; `0.5–0.8` for interior detail.
 - **No gradients, no filters, no drop-shadows.** Single highlight layer at `opacity="0.3–0.5"`.
-- **Warmth**: Everything should feel tactile and hand-made, not sterile.
+
+## Composition discipline: one dominant silhouette, everything else supporting
+This is a hard project rule (`.claude/skills/generate-sprite-prompt.md`'s design brief for this
+issue): every sprite is "one dominant silhouette plus a supporting prop," never several
+competing focal shapes. Each of the 5 sprite specs below opens its **Key requirements** with a
+line labeled **Dominant silhouette** — that is the one shape that must read first, even in flat
+grey silhouette form, at 32px. Every other bullet is labeled **Supporting detail** and must stay
+visually smaller/quieter than the dominant shape — it should read as a clarifying accent, not a
+second thing competing for the eye. If in doubt, cut a supporting detail rather than let it
+rival the dominant silhouette.
 
 ## Material Palette (use as `P.*` — imported as `MATERIAL_PALETTE as P`)
 ```
@@ -67,1105 +148,736 @@ cloth:  tunic=#c19a6b  linen=#e6dcc6  wool=#7a6e5b  dye=#5b4a7a
 metal:  iron=#5a6068  steel=#8a929b  bronze=#b8895a  gold=#d4a13c  shine=#e8edf2
 wood:   light=#c19a6b  mid=#8a6a3a  dark=#5e3f24
 stone:  light=#c4b8a4  mid=#9a8e78  dark=#6a5e4a
-thatch: straw=#d6b46a  shadow=#8a6a3a
 ground: grass=#7ea860  dirt=#a08260  sand=#d8c896  water=#3a6e94
 ink:    line=#1f1a14  soft=#3a3228
 ```
 
+## Sci-Fi / Modern Accent Palette (introduced by Era 10–12 sprites — reuse these exact hex values verbatim for Era 13 continuity; they are NOT in `MATERIAL_PALETTE`, write them as literal hex strings same as the existing code does)
+```
+dark tech panel fills:  #181830  #0a0a20  #111122  #112244
+status LEDs / glow:      #00aaff (blue-online)  #00ff44 / #00ff88 (green-active)  #ffaa00 (amber-standby)
+glass / display surface: #b8d4e8
+heat / exhaust / afterburner: #ff6600  #cc5500
+warning / power accent:  #ffdd00  #ffd700
+```
+
 ## Faction Color Rules
 Every sprite receives `palette: FactionPalette` (`{ dark, mid, bright, trim }`).
-- Primary armor/tunic/cloth → `palette.mid`
-- Belt/shadow/border → `palette.dark`
-- Highlight/gem/glow dot → `palette.bright`
-- Flag trim circle, small heraldic accent → `palette.trim`
-- **Never hardcode a faction name or a specific hex color for faction identity.**
+- Primary hull/armor/chassis fill → `palette.mid`
+- Belt/shadow/panel-line/undercarriage → `palette.dark`
+- Highlight/sensor-glow/status-light/gem → `palette.bright`
+- Faction pennant/roundel/small heraldic accent → `palette.trim`
+- **Never hardcode a faction name or a specific hex color for faction identity.** The sci-fi accent hex values above are for *non-faction* tech details (screens, LEDs, exhaust) — faction identity always flows through `palette.*`.
 
 ## Unit Sprite Contract
 ```typescript
 export function FooSprite({ palette, svgOnly = false }: UnitSpriteProps): string
 ```
 - ViewBox: `0 0 128 128`. Wrap in `<SpriteFrame svgOnly={svgOnly}>` — do NOT write a raw `<svg>` tag.
-- Always include `<Shadow />` and a `<HexBase />` hex ring.
-- Use `<Humanoid cx={64} cy={70} ...>` for humanoid figures.
-- Use `<Banner ... palette={palette} />` for a faction pennant.
-- **Animation hooks**: assign CSS class names only — `cq-sprite-figure`, `cq-arm-l`, `cq-arm-r`, `cq-leg-l`, `cq-leg-r`, `cq-weapon`, `cq-cape`, `cq-plume`, `cq-sail`. The CSS file drives all motion; you only set the class names.
-- Set `data-kind="..."` on the outermost group inside SpriteFrame: `civilian | melee | ranged | naval | hound | spy`.
+- Always include `<Shadow />` (adjust `cx`/`cy`/`rx`/`ry` to match silhouette footprint, see `IroncladSprite`/`JetFighterSprite` for naval/air shadow proportions).
+- Use `<Humanoid cx={64} cy={70} ...>` as the base for humanoid figures (exosuit, propagandist, drone controller) — armor/gear layers as additional shapes over/around it, same technique `MachineGunnerSprite`/`SpyHackerSprite` use for helmets, packs, and held gadgets.
+- Use `<Banner ... palette={palette} />` for a faction pennant/roundel — this is always a **supporting detail**, never the dominant silhouette.
+- **`SpriteFrame` automatically wraps everything you return in `<g class="cq-sprite-figure">`** (see its source in `sprite-system.tsx`) — do not add that class yourself. Only assign the finer-grained classes, and only where they apply: `cq-arm-l`, `cq-arm-r`, `cq-leg-l`, `cq-leg-r`, `cq-weapon`, `cq-cape` exist for `<Humanoid>`-based figures with discrete limbs (Exosuit Infantry, Propagandist, Drone Controller). Vehicle sprites with no limbs (Combat Drone, Autonomous Frigate) need none of these class names — follow `JetFighterSprite`/`IroncladSprite`, which set none.
+- No explicit `data-kind` attribute is required on these five (follow the precedent of the sprites they replace — `IroncladSprite`, `JetFighterSprite`, `MachineGunnerSprite`, `MissionarySprite`, `SpyHackerSprite` — none of which set one); `UNIT_MOTION_STYLES` in `sprite-catalog.ts` already correctly maps each of these five types to its motion style (`air`, `naval`, `humanoid` default) and does not need to change.
 
-## Building Sprite Contract
-```typescript
-export function FooSprite({ palette, svgOnly = false }: BuildingSpriteProps): string
+## Animation & motion ownership
+All idle/walk/attack states, `prefers-reduced-motion` handling, and the outer `cq-v2` wrapper
+class are applied by the runtime DOM sprite overlay (`sprite-overlay.ts`), never by the sprite
+function you write. Do not add `data-state`, a `cq-v2` class, or any reduced-motion handling
+yourself — it would be redundant at best and could conflict with the overlay's own attributes at
+worst. Your only job is to assign the plain class names listed above where a sprite has a
+matching moving part; the CSS file and the overlay wire everything else automatically.
+
+## Example — matching the existing sci-fi/military idiom (from `JetFighterSprite`, already in `units.tsx`)
+<example>
+```tsx
+export function JetFighterSprite({ palette, svgOnly = false }: UnitSpriteProps): string {
+  return (
+    <SpriteFrame svgOnly={svgOnly}>
+      <Shadow cx={64} cy={110} rx={48} ry={4} />
+      {/* fuselage — sleek tapered body */}
+      <path d="M64,30 L72,58 L70,80 L58,80 L56,58 Z" fill={palette.mid} stroke={P.ink.line} strokeWidth="1.2" />
+      {/* swept wings */}
+      <path d="M64,55 L8,78 L12,88 L64,68 L116,88 L120,78 Z" fill={palette.bright} stroke={P.ink.line} strokeWidth="1" />
+      {/* afterburner glow */}
+      <ellipse cx="64" cy="88" rx="5" ry="10" fill="#ff6600" opacity="0.7" />
+      <Banner x={64} y={16} palette={palette} scale={0.6} />
+    </SpriteFrame>
+  );
+}
 ```
-- ViewBox: `0 0 192 192`. Wrap in `<BuildingFrame label="Name" sub="Sub" category="gold" svgOnly={svgOnly}>`.
-- Always include `<BuildingPlinth w={...} />` and `<Banner ... palette={palette} />`.
-- **Available animated effect CSS classes** (assign class name only — CSS drives them):
-  - `.cq-fire` → orange/yellow fire flicker
-  - `.cq-smoke` + `.cq-smoke--b` + `.cq-smoke--c` → smoke plumes rising
-  - `.cq-spark` + `.cq-spark--b` + `.cq-spark--c` → hammering sparks
-  - `.cq-glow` → soft interior light pulse
-  - `.cq-peek` → animal head bob (wrap the animal head group in `<g className="cq-peek">`)
-  - `.cq-dust` → dust puff
-- For wave / rocking effects, use inline SVG `<animate>` elements (see DockSprite).
+Note the pattern this demonstrates: one dominant shape (the fuselage+wing silhouette, drawn first, largest), a small number of supporting details (nose cone, cockpit, afterburner glow — each a single shape, not a cluster), faction color only on `palette.*` fills, and the sci-fi accent `#ff6600` used as a literal hex string exactly as documented above. Match this density — not sparser, not busier.
+</example>
 </design_system>
 
 <sprites>
 
-## SPRITE 1 — CaravanSprite (Unit)
+## SPRITE 1 — CombatDroneSprite (Unit)
 
-**Insert into**: `src/renderer/sprites/units.tsx`, after `WorkerSprite`
-**Catalog entry**: `caravan: withMotion('caravan', CaravanSprite),`  (replaces the current WorkerSprite fallback on line 117)
-**data-kind**: `civilian`
+**Insert into**: `src/renderer/sprites/units.tsx`, after `MissileSubmarineSprite` (end of file)
+**Catalog entry**: replace `combat_drone: withMotion('combat_drone', JetFighterSprite),` with `combat_drone: withMotion('combat_drone', CombatDroneSprite),` in `sprite-catalog.ts`
+**data-kind context**: air (motion style already set)
 
 ### Concept
-A lone merchant guiding a loaded pack donkey (mule) through ancient roads. The donkey faces right, slightly toward viewer. Its saddlebags — fat, rounded bundles — hang heavy on both flanks in `P.cloth.linen` draped with a small `palette.mid` cloth. A short merchant figure in `P.cloth.tunic` walks alongside, holding a lead rope. A small `<Banner>` pennant rises from the load on a thin pole.
+A compact autonomous combat UAV — small, boxy, and mechanical, nothing like a manned jet. A central sensor pod with a glowing camera "eye" sits at the nose, flanked by two paired ducted-fan rotors (quadcopter-style, not swept wings) that lift it. A small under-slung precision payload (a single stubby missile or camera/targeting pod) hangs beneath. No cockpit, no pilot, no afterburner — it must read as unmanned at a glance, the opposite silhouette of `JetFighterSprite`.
 
 ### Key requirements
-- Donkey body: stocky quadruped in `P.wood.mid` / muted tan; four stubby legs, large ears, round haunches. NOT the sleek racing-dog shape of ScoutHound — wider, rounder, more comedic.
-- Saddlebags: two bulging rounded rectangles on each flank, `P.cloth.linen`, bound with `P.wood.dark` straps.
-- Optional: add a small crate or barrel tied on top for extra visual interest.
-- Merchant: a `<Humanoid>` at `scale={0.65}` placed behind/beside the donkey — just the body is fine, can overlap.
-- Lead rope: a curved line from the merchant's hand to the donkey's head.
-- Ground shadow via `<Shadow cx={64} cy={94} rx={28} />`.
-- Wrap the whole figure group in `<g className="cq-sprite-figure">` so the v2 idle breathing applies.
-- No weapons. Peaceful, mercantile warmth.
+- **Dominant silhouette**: the central chassis + its glowing sensor eye. A short, flat-sided hexagonal or rounded-rectangle body in `palette.mid` with `P.metal.steel` panel-seam lines, and a circular lens on the nose — `#0a0a20` housing with a glowing `#00aaff` iris. This eye is the single most important read at 32px; everything else must stay visually quieter than it.
+- **Supporting detail — ducted fans**: two pairs of ring-shaped ducted fans (4 total, or 2 if space is tight) in `P.metal.iron`/`P.metal.steel` with thin blade lines inside, positioned symmetrically around the chassis — NOT swept aircraft wings, and kept smaller/lower-contrast than the sensor eye.
+- **Supporting detail — payload pod**: a small stubby cylinder/box in `P.metal.iron` underneath, one `palette.bright` status LED.
+- **Supporting detail — faction identity**: a small `<Banner scale={0.5}>` or a thin `palette.trim` stripe on the chassis — small, since this is a machine, not a flag-bearer.
+- Optional supporting detail: a thin antenna or sensor whisker off the rear, `P.metal.steel`.
+- Tone: cold, mechanical, purposeful. No warmth, no crew — the antithesis of every earlier-era unit's hand-made feel.
 
 ---
 
-## SPRITE 2 — ExpeditionSprite (Unit)
+## SPRITE 2 — AutonomousFrigateSprite (Unit)
 
-**Insert into**: `src/renderer/sprites/units.tsx`, after `CaravanSprite`
-**Catalog entry**: `expedition: withMotion('expedition', ExpeditionSprite),`  (replaces the current ScoutSprite fallback)
-**data-kind**: `civilian`
+**Insert into**: `src/renderer/sprites/units.tsx`, after `CombatDroneSprite`
+**Catalog entry**: replace `autonomous_frigate: withMotion('autonomous_frigate', IroncladSprite),` with `autonomous_frigate: withMotion('autonomous_frigate', AutonomousFrigateSprite),` in `sprite-catalog.ts`
+**data-kind context**: naval (motion style already set)
 
 ### Concept
-A rugged frontier explorer dispatched to claim resource outposts — part soldier, part prospector. They travel alone carrying light gear, a pickaxe or surveying staff over one shoulder, and a rolled map or small flag under the other arm. More purposeful and equipped than the Scout; less mercantile than the Caravan. Think: a lone pioneer planting a claim stake.
+A low, unmanned naval frigate — sleek and faceted like a real-world stealth hull, nothing like the riveted iron slab of `IroncladSprite`. No smokestack, no visible crew, no gun turrets with barrels — instead a flush deck, a slim radar/sensor mast, and a single remote weapon module. It should look like it drives itself.
 
 ### Key requirements
-- `<Humanoid cx={64} cy={70} scale={1} cloth={P.cloth.tunic} pants={P.cloth.wool} accent={palette.mid} hair="#3a2a1a">` with a wide-brim leather hat in `P.wood.dark` (heavier and more frontier than the Scout's cap)
-- **Pickaxe or surveying staff** over right shoulder — the defining silhouette: wooden pole `P.wood.mid` with a small angled pick head `P.metal.iron` at the top (or a T-bar cross for a surveyor look). Must read clearly as a tool at 40 px.
-- **Rolled map or folded flag** tucked under left arm: a short `P.cloth.linen` cylinder with a dark tie band, OR a folded `palette.mid` pennant.
-- Small `<Banner scale={0.6}>` on a short belt-hook or at the staff tip.
-- `<Shadow />` and `<HexBase />`.
-- `cq-sprite-figure` class on the outer group.
-- Tone: determined, self-sufficient, frontier. Earthy and practical — not glamorous.
+- **Dominant silhouette**: the low, angular faceted hull — straight diagonal panel lines meeting at sharp angles (stealth-ship faceting), not `IroncladSprite`'s rounded riveted slab. Fill `palette.mid`, seams in `P.metal.steel`. This faceted-wedge shape alone must read as "not Ironclad" even in flat grey silhouette.
+- **Supporting detail — sensor mast**: replaces the smokestack entirely. A thin vertical `P.metal.steel` mast topped with a small flat phased-array panel (`#112244` fill, thin `#00aaff` scan-line accents) instead of a rotating dish — must stay lower-profile than the hull.
+- **Supporting detail — remote turret**: one small unmanned weapon module amidships, a low box on a ring mount in `P.metal.iron`, no visible barrel crew, one `palette.bright` targeting-sensor dot.
+- **Supporting detail — waterline + wake**: a thin low-opacity `palette.bright` waterline stripe, plus bow/stern wake using the same white curved-line technique as `MissileSubmarineSprite`.
+- Small faction `<Banner>` on the mast — subordinate to the hull silhouette; this is a warship, not ceremonial.
+- Tone: low-profile, stealthy, unmanned. Should read as clearly distinct from Ironclad's boxy riveted-iron silhouette even in flat grey silhouette form.
 
 ---
 
-## SPRITE 3 — CaravanseraiSprite (Building)
+## SPRITE 3 — ExosuitInfantrySprite (Unit)
 
-**Insert into**: `src/renderer/sprites/buildings.tsx`, after `MarketplaceSprite`
-**Catalog entry**: `caravanserai: CaravanseraiSprite,`  (replaces MarketplaceSprite fallback)
-**category**: `gold`
-**label**: `"Caravanserai"`  **sub**: `"Economy"`
+**Insert into**: `src/renderer/sprites/units.tsx`, after `AutonomousFrigateSprite`
+**Catalog entry**: replace `exosuit_infantry: withMotion('exosuit_infantry', MachineGunnerSprite),` with `exosuit_infantry: withMotion('exosuit_infantry', ExosuitInfantrySprite),` in `sprite-catalog.ts`
+**data-kind context**: humanoid (motion style already set)
 
 ### Concept
-A walled roadside waystation (Silk Road inn) with a signature arched gate entrance, sandstone walls, and an implied inner courtyard. Warm, Middle Eastern / Central Asian aesthetic. This is where weary merchants rest and trade goods.
+A human soldier wearing a powered exoskeleton frame — bulkier and more mechanical than `MachineGunnerSprite`'s WWI-era infantryman, but still clearly a person inside armor (not a robot). Hydraulic-jointed limb frames overlay a `<Humanoid>` base, a plated torso shell, and a recognizable held weapon — this is Conquestoria's late-game line-infantry apex, distinct from both Tank (a vehicle) and Machine Gunner (unarmored).
 
 ### Key requirements
-- **Focal element**: A prominent horseshoe or pointed arch gateway centered in the building, wide enough for a loaded camel. Stone surround in `P.stone.mid`; dark interior `P.ink.line`.
-- Low flanking walls (crenellated or plain) extending left and right of the gate in `P.stone.light` with `stoneTexture` fill pattern.
-- Flat ground color inside (`P.ground.sand` or `P.ground.dirt`) peeking above the wall.
-- A well or circular fountain at the center of the courtyard — simple ring + crossbar.
-- One arched window on each wing with dark interior `P.ink.line`.
-- **Animated element**: a camel or horse head appearing above the inner wall — wrap in `<g className="cq-peek">` for the gentle head-bob animation.
-- Faction `<Banner scale={0.9}>` above or beside the gate arch.
-- `<BuildingPlinth w={160} />` in `P.stone.dark`.
-- No fire/smoke — this is a rest stop. Calm, warm, hospitable.
-- Tone: sandstone + warm wood + earthy ground. Inviting archway silhouette.
+- **Dominant silhouette**: the armored torso plate over the `<Humanoid cx={64} cy={70} scale={1.05} ...>` base — a segmented chest/shoulder shell in `palette.mid`, `P.metal.steel` trim, riveted or paneled seams. A person is still visibly inside; this is armor, not a mech. This bulked-up torso silhouette is what must read first at 32px.
+- **Supporting detail — hydraulic limb frame**: visible exoskeleton struts running alongside the arms/legs — thin parallel lines or narrow rectangles in `P.metal.iron`, small piston/joint circles (`P.metal.steel`) at elbow and knee. Keep these thin so they read as struts on the dominant torso, not a second silhouette.
+- **Supporting detail — helmet**: an enclosed visor helmet (not a soft cap) — dark `#0a0a20` visor with a thin `palette.bright` HUD-line accent, `palette.dark` shell.
+- **Supporting detail — weapon**: either a held rifle bulkier than `RiflemanSprite`'s, or a powered gauntlet with a glowing knuckle accent (`palette.bright`) — pick exactly one, keep it a single strong read, don't add both.
+- **Supporting detail — power unit**: a small rounded backpack box between the shoulders, `P.metal.iron`, one `#00ff44` status light.
+- `cq-arm-l`/`cq-arm-r`/`cq-leg-l`/`cq-leg-r`/`cq-weapon` class names on the corresponding `<Humanoid>`-derived parts, per the Unit Sprite Contract above.
+- Small faction `<Banner scale={0.6}>`.
+- Tone: heavy, powerful, still human — armored muscle, not a drone or a tank.
 
 ---
 
-## SPRITE 4 — BankSprite (Building)
+## SPRITE 4 — PropagandistSprite (Unit)
 
-**Insert into**: `src/renderer/sprites/buildings.tsx`, after `CaravanseraiSprite`
-**Catalog entry**: `bank: BankSprite,`  (replaces MarketplaceSprite fallback)
-**category**: `gold`
-**label**: `"Bank"`  **sub**: `"Economy"`
+**Insert into**: `src/renderer/sprites/units.tsx`, after `ExosuitInfantrySprite`
+**Catalog entry**: replace `propagandist: withMotion('propagandist', MissionarySprite),` with `propagandist: withMotion('propagandist', PropagandistSprite),` in `sprite-catalog.ts`
+**data-kind context**: humanoid civilian (motion style already set)
 
 ### Concept
-A formal financial institution — the most authoritative building on the block. Neoclassical / Renaissance civic architecture: symmetrical, columned facade, heavy vault door, gold coin details. Power and wealth in stone.
+A civilian information operator — modern dress, not robes, carrying a portable speaker/projector rig instead of `MissionarySprite`'s censer. Clearly non-combat, clearly modern, clearly a public communicator rather than a religious figure. Think: a field broadcaster or activist with amplification gear.
 
 ### Key requirements
-- **3–4 fluted columns** across the front in `P.cloth.linen` / `P.stone.mid`. Use the same column pattern as LibrarySprite but heavier proportions.
-- Triangular pediment (gable roof) above the columns in `P.stone.light`; stone texture fill.
-- **Central vault door** in `P.metal.iron` with a circular gear-wheel lock mechanism (`circle` with small `line` spokes), 2 gold rivets (`circle fill={P.metal.gold}`), and iron banding stripes.
-- **Stacked gold coins** at the base of the entrance steps — 2–3 small ellipses stacked in `P.metal.gold` with dark outline.
-- Wide steps `P.stone.light` leading up to the door.
-- **`.cq-glow`** class on a subtle rect/ellipse behind the vault door to pulse a faint gold light (implies stored wealth).
-- Faction `<Banner>` on a rooftop flagpole.
-- `<BuildingPlinth w={150} />`.
-- Tone: imposing, symmetrical, wealthy. Stone, gold, iron.
+- **Dominant silhouette**: the `<Humanoid cx={64} cy={70} scale={1} ...>` base in plain modern civilian clothing (a jacket/vest in `P.cloth.wool` or a muted modern tone, NOT `MissionarySprite`'s linen robe) with **no hat/hood** — bare head or a simple cap. The bare-headed modern-dress read, at a glance, is what separates this from Missionary's robed-hood silhouette.
+- **Supporting detail — speaker/projector**: a rectangular device slung over one shoulder or held out, `P.metal.iron` casing, a small round speaker cone or lens (`#0a0a20` housing with a `palette.bright` glow ring) — this fully replaces Missionary's swinging censer, but must stay smaller than the figure itself.
+- **Supporting detail (optional)**: a thin antenna or a small handheld screen/tablet in the other hand, `#112244` screen fill with a thin bright scan-line — only add this if the speaker prop above doesn't already crowd the silhouette.
+- Clear non-combat stance: open hand or gesturing pose, no weapon, no shield — same peaceful posture spirit as `CaravanSprite`'s merchant.
+- Small `<Banner scale={0.55}>` — subdued, civilian, not a religious pennant.
+- Tone: modern, persuasive, civic — a public-facing communicator, not a preacher and not a soldier.
 
 ---
 
-## SPRITE 5 — StockExchangeSprite (Building)
+## SPRITE 5 — DroneControllerSprite (Unit)
 
-**Insert into**: `src/renderer/sprites/buildings.tsx`, after `BankSprite`
-**Catalog entry**: `stock_exchange: StockExchangeSprite,`  (replaces MarketplaceSprite fallback)
-**category**: `gold`
-**label**: `"Stock Exchange"`  **sub**: `"Economy"`
+**Insert into**: `src/renderer/sprites/units.tsx`, after `PropagandistSprite`
+**Catalog entry**: replace `drone_controller: withMotion('drone_controller', SpyHackerSprite),` with `drone_controller: withMotion('drone_controller', DroneControllerSprite),` in `sprite-catalog.ts`
+**data-kind context**: humanoid spy-adjacent (motion style already set)
 
 ### Concept
-A grand mercantile trading hall — the most elaborate economy building in the game. Busy, frantic energy. Late-medieval / Renaissance trading floor vibes: open floor plan, a central rotunda or domed roof, exterior ledger/ticker boards, tall arched windows with warm interior glow, and a crier's bell platform on one corner.
+A field operator running a swarm of Combat Drones — visibly a technician, not a cloaked spy. Carries a tablet/control rig with an antenna, and is accompanied by one small hovering micro-drone (a miniature callback to `CombatDroneSprite`'s design) rather than `SpyHackerSprite`'s laptop-in-shadow. This is a formation-coordination specialist, out in the open, not sneaking.
 
 ### Key requirements
-- **Wide building** with a domed or barrel-vaulted center section — dome in `P.stone.mid`; drum in `P.stone.light`.
-- **2–3 tall arched windows** on the facade with a warm `.cq-glow` interior element behind each (gold/amber light pulsing inside implies busy trading floor).
-- **Horizontal ticker/ledger boards** mounted on exterior walls: flat rectangles in `P.wood.light` with 4–6 horizontal fine lines (`P.ink.soft`) suggesting rows of text/numbers.
-- **Bell crier's platform**: a short corner tower stub with a rounded arch opening and a small bell shape (`P.metal.bronze`) hanging inside.
-- **Merchant figures**: two tiny foreground silhouettes (just 2-color torso+head shapes, no need for full Humanoid) gesturing as if arguing prices.
-- **`.cq-spark` + `.cq-spark--b`** near the ledger boards to suggest quill-writing activity.
-- **`.cq-glow`** inside the windows (warm amber rect at low opacity).
-- Faction `<Banner>` on the rooftop flagpole.
-- `<BuildingPlinth w={170} />`.
-- Tone: chaotic, bustling, mercantile energy. Stone, wood, gold. More visual complexity than the Bank — this is the busiest economy building.
-
----
-
-## SPRITE 6 — ResourceOutpostSVG (Map Improvement Marker)
-
-**Create new file**: `src/renderer/improvements/resource-outpost-marker.ts`
-
-### Purpose
-This replaces the `'🚩'` emoji placeholder in `src/renderer/hex-renderer.ts` (line 22). It is a standalone inline SVG string drawn directly onto the Canvas 2D context via `ctx.drawImage()` or via an `HTMLImageElement` from a blob URL. It must read as "a claimed resource outpost" at 24–32 px on a hex tile.
-
-### Format
-```typescript
-// src/renderer/improvements/resource-outpost-marker.ts
-// Standalone SVG marker for a claimed resource outpost.
-// Rendered directly on the hex map canvas — no faction palette, no JSX wrapper.
-export const RESOURCE_OUTPOST_SVG = `<svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
-  <!-- your SVG here -->
-</svg>`;
-```
-
-### Key requirements
-- **Wooden post**: vertical stake, 3.5 px wide, `fill="#5e3f24"` (P.wood.dark), from approximately y=8 to y=42.
-- **Pennant / flag at top**: a small triangular pennant `fill="#d4a13c"` (P.metal.gold / amber — faction-neutral "claimed territory" color) with a simple single horizontal stripe or circle dot for visual interest. Flag attached at y≈8 pointing right.
-- **Supply crates at base**: 2 small square/rectangular crates in `fill="#8a6a3a"` (P.wood.mid) with `stroke="#1f1a14"` outlines, stacked or side by side around the post base (y≈34–44). Add one horizontal plank line across each crate.
-- **Ground shadow**: a small ellipse `fill="rgba(0,0,0,0.22)"` beneath the crates.
-- **No animation classes** — this is a Canvas element, not a DOM SVG.
-- `stroke-linecap="round"` and `stroke-linejoin="round"` on all path elements.
-- Total visual weight should be legible at 24 px but not overwhelming at 48 px.
-- The flag must be visually distinct from a unit's `<Banner>` — it's more like a territory stake, less heraldic.
+- **Dominant silhouette**: the `<Humanoid cx={64} cy={70} scale={0.95} ...>` base in practical field-technician gear — `P.cloth.wool` vest/jacket, **no full cloak** (SpyHackerSprite's defining silhouette is a dark cloak — deliberately avoid that here, an open-stance technician is the whole point).
+- **Supporting detail — micro-drone companion**: one small hovering shape near the shoulder or above the head — a miniature version of `CombatDroneSprite`'s ducted-fan-and-eye silhouette (~15–20% of figure height), with its own tiny `#00aaff` eye dot. This is the signature element distinguishing this unit from every other humanoid in the roster — keep it small and clearly a companion, not a second dominant shape.
+- **Supporting detail — control rig**: held in both hands or on a chest harness — a flat rectangle, `#0a0a20` bezel, `palette.bright` screen glow, one or two thin `#00aaff` UI lines (echo `SpyHackerSprite`'s gadget technique, but brighter/more open).
+- **Supporting detail — antenna**: a thin whip antenna off the rig or a backpack unit, `P.metal.steel`, small tip node.
+- No cloak, no shadow-cloaked hood — brighter tone than the spy family.
+- Small `<Banner scale={0.5}>`.
+- Tone: technical, coordinated, confident — a field controller in daylight, not a covert operative.
 
 </sprites>
 
 <output_format>
-For each sprite, output:
-
-1. The **complete TypeScript export function** — self-contained, imports nothing beyond what already exists in the target file. Use the exact function signature shown in the spec.
-2. A **one-line comment** inside the function describing the primary animated element and what CSS class drives it (e.g., `{/* camel peeks over wall — .cq-peek drives the head-bob */}`).
-3. The **single catalog registration line** shown in each sprite spec.
-
-For SPRITE 5 (`ResourceOutpostSVG`), output the complete new file.
-
-Output each sprite as a separate code block. Do NOT output full file replacements — the developer will insert only the new functions.
-
-Work through sprites 1–5 in order. After each sprite, wait for the developer to confirm before proceeding to the next, unless the developer says "output all at once."
+Output one `export function FooSprite(...)` per sprite, in the order above, as plain TypeScript ready to paste into `units.tsx`. State the exact single-line catalog replacement for each (already given above) so the developer can apply them without re-deriving them. Output one sprite at a time, pausing for confirmation between each, unless told otherwise.
 </output_format>
 
 <style_checklist>
-Before finalizing each sprite, verify:
-- [ ] No hardcoded faction hex colors — faction identity only via `palette.*`
-- [ ] No React / react-dom imports
-- [ ] No `Object.assign(window, ...)` or global mutations
-- [ ] Unit sprites use `<SpriteFrame>`, never a raw `<svg>`
-- [ ] Building sprites use `<BuildingFrame>`, never a raw `<svg>`
-- [ ] All outlines use `stroke={P.ink.line}` (`"#1f1a14"`)
-- [ ] No CSS gradients or filter effects
-- [ ] Animation is CSS class names only — no inline `style="animation:..."` on animated elements
-- [ ] `<Banner>` always receives `palette` prop
-- [ ] Unit sprites have `<Shadow />` and `<HexBase />`
-- [ ] Building sprites have `<BuildingPlinth />`
-- [ ] `ResourceOutpostSVG` is a plain string constant, not a JSX function
-- [ ] Children can recognize what each building/unit is at 32 px
+- [ ] ViewBox `0 0 128 128`, wrapped in `<SpriteFrame svgOnly={svgOnly}>`
+- [ ] `<Shadow />` present with footprint-appropriate `rx`/`ry`
+- [ ] Exactly one dominant silhouette per sprite (named in its spec); every other element is visibly smaller/quieter and reads as a supporting detail, not a second focal point
+- [ ] All faction color via `palette.mid` / `palette.dark` / `palette.bright` / `palette.trim` — zero hardcoded faction hex
+- [ ] Sci-fi accent colors (LED/glow/panel) use the literal hex values from the Sci-Fi/Modern Accent Palette above, not invented ones
+- [ ] Silhouette is unmistakably distinct from the sprite it replaces (Jet Fighter / Ironclad / Machine Gunner / Missionary / Spy Hacker), and from the other four sprites in this batch, even in flat grey silhouette
+- [ ] No photorealism, gradients, blur filters, or embedded raster/text-as-image
+- [ ] `cq-sprite-figure` is NOT added manually (SpriteFrame adds it automatically); limb/weapon class names are used only on the three humanoid sprites, never on the two vehicles
+- [ ] No `data-state`, `cq-v2` class, or reduced-motion handling added inside the sprite function — that is entirely the runtime overlay's responsibility
+- [ ] Reads clearly and stays distinct from the other four units at **32px**, not just at a larger comfortable preview size
 </style_checklist>
 
-
 ---
 
-# === TERRAIN TILES PROMPT (Part B — send in a separate conversation) ===
+## Prompt — PART 2: BUILDINGS BATCH 1 (copy everything below this line, through the end of Part 2's `</style_checklist>`)
 
 <role>
-You are a senior SVG terrain artist and TypeScript developer building a hex map tile system for a strategy game. You write compact, high-quality SVG that renders crisply at 60–160 px per tile. You understand pointy-top hex geometry and design within hex-shaped clip regions.
+You are a senior SVG sprite artist and TypeScript developer specializing in hand-crafted game graphics. You write clean, geometric SVG in JSX-based TypeScript — no photorealism, no gradient meshes, no blur filters, no embedded raster images. Your work integrates directly into a production codebase.
 </role>
 
 <context>
-**Project**: Conquestoria — HTML5 Canvas + DOM strategy game, medieval/ancient theme, mobile-first.
+**Goal**: replace 8 temporary Era 13 building sprites — currently exact visual reuses of Era 12 sprites — with distinct, production-quality silhouettes that continue the game's established near-future tech idiom.
 
-**Current situation**: The map tiles are filled with flat solid colors only (e.g. `'#5b8c3e'` for grassland). We want real terrain graphics: hand-crafted SVG tiles with scattered natural elements that make every patch of land look alive. Neighboring tiles of the same type should still feel *different* — like real terrain rather than stamped wallpaper — so each terrain type needs at least 4 visual variants.
+**Layout**: each sprite is a standalone 192×192 SVG built on `<BuildingFrame>`/`<BuildingPlinth>`, the same layout every existing building sprite uses. This is the game's fixed building-sprite asset format, used consistently across the ~60 buildings already in `buildings.tsx` — match it exactly rather than inventing a new layout.
 
-**How terrain tiles are drawn**: The Canvas 2D renderer clips to the hex polygon first, then fills. We will replace the flat `ctx.fillStyle` + `ctx.fill()` call with a `ctx.drawImage(terrainImg, ...)` call while the hex clip path is still active. Tiles are pre-rendered to `HTMLImageElement` via SVG blob URL (same technique as unit sprites).
+**Content**: 8 buildings — Network Operations Center, AI Safety Institute, Drone Fabricator, Electronic Warfare Array, Civic Media Forum, Vertical Farm, Neural Rehabilitation Center, Ocean Robotics Yard. Full per-building specs are in `<sprites>` below.
 
-**Hex geometry**: Pointy-top hexagons. For a hex of radius `r` centered at `(cx, cy)`, the 6 corner points (i = 0..5) are at angle `30° + 60°i` from the horizontal. The full bounding box is `2r × r√3`. Tiles will be rendered at `ctx.drawImage(img, cx - r, cy - r * 0.866, r * 2, r * 1.732)`.
+**Audience**: this 192×192 SVG is the established building-sprite asset contract used by every other entry in `BUILDING_SPRITE_CATALOG` — correct format and correct catalog registration matter regardless of exactly which UI surface currently renders it (see the honesty note below). Design at the same visual density and scale as the existing Era 12 sprites you're replacing (roughly 60–140px effective render size), and keep every building in this batch visually distinct from the other 7 and from the Era 12 sprite it replaces.
 
-**Variation selection**: Variants are chosen deterministically by `Math.abs(tile.q * 7 + tile.r * 13) % 4` so the same tile always shows the same variant across frames and zoom levels.
+**A note on current UI wiring, for honesty rather than overclaiming**: `spriteCache.getBuilding()` (the function that would draw one of these sprites) has no live call site in `src/main.ts`, `render-loop.ts`, or `city-render-passes.ts` today — it's only exercised by a unit test. The production chooser, queue, and city panel most likely still show `PRODUCTION_ICONS` emoji rather than these SVGs. Design to the same quality bar as if it were fully wired up today (that wiring is a separate, smaller follow-up), but don't assume a live in-game screenshot exists to check your work against — go by the sibling sprites in `buildings.tsx` instead.
+
+**Project**: Conquestoria — an HTML5 Canvas + DOM strategy game built with TypeScript and Vite. Gameplay spans Eras 1–13. Mobile-first, played by families including children.
+
+**Why this batch is distinct from most of the catalog**: Era 13 ("Information Age") buildings currently render as **exact reuses of Era 12 sprites** (e.g. Network Operations Center reuses the Data Center sprite verbatim) as a temporary launch placeholder. Stay inside the game's established near-future tech idiom (the Sci-Fi/Modern Accent Palette below is a continuation of Era 10–12's visual language, not a new one).
+
+**Quality bar**: go beyond a bare placeholder silhouette. Include the small hand-crafted details — a rivet, a panel seam, a status LED, a texture accent — that make every existing sprite in `buildings.tsx` feel intentional rather than generic. At the same time, every added detail must stay subordinate to the one dominant silhouette element named per sprite below (see "Composition discipline") — more detail should read as texture on the dominant shape, never as a second competing focal point.
+
+**Platform**: Web (Canvas 2D + DOM). Sprites are prerendered to `HTMLImageElement` via SVG blob URLs. Repository: https://github.com/a1flecke/conquestoria
 </context>
 
 <reference_files>
-Please read these files for the existing rendering context and terrain type list:
-
-1. **Terrain type enum, colors, and hex renderer** (understand what you're replacing):
-   https://raw.githubusercontent.com/a1flecke/conquestoria/main/src/renderer/hex-renderer.ts
-
-2. **Type definitions** (TerrainType union):
-   https://raw.githubusercontent.com/a1flecke/conquestoria/main/src/core/types.ts
-</reference_files>
-
-<terrain_design_system>
-## SVG Tile Format
-
-Each terrain variant is a **self-contained SVG string** with:
-- `viewBox="0 0 128 111"` — matches the bounding box of a pointy-top hex where width=128, height=128×0.866≈111
-- An internal `<clipPath id="hex">` defining the pointy-top hex polygon within that viewBox, so the terrain content is clipped to the hex shape and transparent outside it
-- A `<rect>` or `<polygon>` base fill covering the full hex, then layered detail elements on top
-- **No faction palette, no imports** — purely self-contained SVG
-
-### The standard hex clipPath (copy into every tile)
-```svg
-<defs>
-  <clipPath id="hex">
-    <polygon points="64,0 128,27.75 128,83.25 64,111 0,83.25 0,27.75"/>
-  </clipPath>
-</defs>
-```
-
-### Palette (use these hex values verbatim — match the game's material palette)
-```
-Inks/outlines:  #1f1a14 (dark),  #3a3228 (soft)
-Wood:           #5e3f24 (dark),  #8a6a3a (mid),  #c19a6b (light)
-Stone:          #6a5e4a (dark),  #9a8e78 (mid),  #c4b8a4 (light)
-Ground tones:   #7ea860 (grass),  #a08260 (dirt),  #d8c896 (sand)
-Water:          #2a5f8f (deep ocean),  #3a6e94 (coast water),  #4a8faf (shallow)
-Snow/ice:       #e8e8f0 (snow),  #d0d8e8 (ice shadow)
-```
-
-## Visual Rules
-
-1. **Base fill first**: Fill the entire hex with the terrain's base color (a solid `<polygon>` clipped to hex). This is the "floor" all detail elements sit on top of.
-
-2. **Detail elements**: 4–8 scattered natural elements per tile — rocks, grass tufts, trees, waves, etc. Position them to feel natural and slightly random-looking even though they are fixed SVG. Use the pre-placed approach (you decide exact positions), not algorithmic generation.
-
-3. **Variation principle**: Variants **share the same base color and element vocabulary** but differ in:
-   - Number of elements (sparse → dense)
-   - Element positions and orientations
-   - Sub-features (e.g. v0 = single peak, v1 = twin peaks, v2 = jagged ridge, v3 = rounded summit with snowfield)
-   - Slight color value shifts within a ±10% lightness range are acceptable for micro-variety
-
-4. **Readable at 60 px**: At small zoom, only the base fill and 2–3 dominant silhouettes should matter. Fine detail should be clearly visible at 100+ px but not required below that.
-
-5. **No text, no icons, no emoji.**
-
-6. **Stroke weight**: Outline important silhouettes at `stroke-width="1.5"`. Finer interior detail at `stroke-width="0.8"` or `stroke-width="0.5"`.
-
-7. **Ambient animation** — use SVG `<animate>` and `<animateTransform>` elements, not CSS. Only these terrain types animate; all others are static:
-
-   | Terrain | What animates | Technique |
-   |---------|---------------|-----------|
-   | ocean | wave arcs drift up/down | `<animate attributeName="d">` or `<animateTransform type="translate">` on path groups, ±2px Y, 2.5–4s |
-   | coast | wave arcs drift | same as ocean |
-   | volcanic | lava cracks pulse glow; small lava bubbles pop | `<animate attributeName="opacity">` on crack fill; `<animate attributeName="r">` + opacity on bubble circles |
-   | snow | snow particles drift diagonally (wind) | `<animateTransform type="translate">` on small circles, staggered `begin` offsets |
-   | tundra | sparse, slow snowflakes drift | same as snow, half the particle count, 1.3× slower |
-   | swamp | slow bubbles rise from water pools | `<animate attributeName="cy">` + opacity on small circles |
-
-   Keep all amplitudes subtle — the map has dozens of tiles on screen simultaneously. A single tile's animation should register as "alive" not "distracting."
-
-8. **clip-path**: Apply `clip-path="url(#hex)"` to a wrapper `<g>` containing all the visible content.
-</terrain_design_system>
-
-<terrain_types>
-
-## GRASSLAND — base color `#5b8c3e`
-*Rolling green meadow. The most common tile. Should feel lush and pastoral.*
-
-**Element vocabulary**: low grass tufts (small upward arcs/lines in `#3d6b3d`), scattered small wildflowers (tiny circles in `#e8c64a` or `#c46db4`), ground texture patches (subtle ellipses in `#4a7a32`).
-
-- **v0**: 5 sparse grass tufts, 2 flower dots, open feel
-- **v1**: 7 grass tufts clustered slightly left, 1 small rock `#9a8e78`
-- **v2**: Denser (8 tufts), 3 flower dots, 2 elliptical ground patches
-- **v3**: 6 tufts arranged in natural bands, a small meandering crack/path line `#a08260`
-
----
-
-## PLAINS — base color `#c4a94d`
-*Dry, flat expanse. Sparse vegetation, cracked earth, wind-swept.*
-
-**Element vocabulary**: sparse dry grass tufts (shorter, browner than grassland: `#8a7a40`), cracked earth lines (thin angular paths in `#a08260`), scattered pebbles (tiny ellipses `#9a8e78`).
-
-- **v0**: 3 dry tufts, 2 cracked earth lines forming a rough Y-shape
-- **v1**: 4 tufts, small scattered pebble cluster center-right
-- **v2**: 2 tufts, strong central crack line splitting the hex, pebble row along it
-- **v3**: 5 tufts leaning right (wind-swept), 3 small pebbles
-
----
-
-## DESERT — base color `#e0c872`
-*Sand dunes, ripple marks, scattered rock.*
-
-**Element vocabulary**: dune ridge lines (shallow curved arcs in `#c8aa50`), pebble/rock clusters (`#9a8e78` / `#6a5e4a`), ripple lines (parallel thin arcs).
-
-- **v0**: 2 dune ridge arcs, 1 small rock cluster bottom-left
-- **v1**: 3 parallel ripple lines (horizontal), 2 isolated pebbles
-- **v2**: 1 large dune arc top-right, fine ripple lines below it, 1 weathered stone `#6a5e4a`
-- **v3**: Concentric ripple rings centered slightly off-center (like a sand drop pattern), 1 pebble
-
----
-
-## TUNDRA — base color `#a0b8a0`
-*Cold, grey-green, semi-frozen ground. Sparse low plants, frost patches. Light snowflakes drift.*
-
-**Element vocabulary**: frost patches (irregular light shapes in `#c8d4c8`), low scrub clumps (small brown-green ovals `#6a7a5a`), grey pebbles (`#9a8e78`).
-
-**Animation**: 3–4 slow-drifting snowflake dots (`fill="#e8e8f0"`, `r="1"–"1.3"`, `opacity="0.55"`). Use `<animateTransform type="translate">` on each: drift diagonally from upper-left toward lower-right, about 20–30px of travel over 5–7s (slower and sparser than the snow tile), stagger `begin` offsets so they don't move in sync. Particles should loop with `repeatCount="indefinite"`.
-
-- **v0**: 2 frost patches, 3 scrub clumps, 2 pebbles
-- **v1**: Large frost patch upper half, 2 scrub clumps lower
-- **v2**: 4 scrub clumps scattered, 1 frost patch, cracked frozen ground line `#8a9888`
-- **v3**: Frost covers ~60% of hex with organic edge, 3 isolated scrub dots
-
----
-
-## SNOW — base color `#e8e8f0`
-*Deep snow coverage. Pure white, minimal texture. Ice patches and drifts. Wind drives particles across the tile.*
-
-**Element vocabulary**: snow drift ridges (very subtle arcs in `#d0d8e8`), ice patches (slightly blue-grey `#c8d4e4` with thin outline), buried rock hints (just the top of a stone visible `#9a8e78`).
-
-**Animation**: 6–8 small snow particle dots (`fill="#ffffff"`, `r="1"–"1.5"`, `opacity="0.7"`). Place them at different starting X/Y positions scattered across the hex. Animate each with `<animateTransform type="translate">`: drift from left-to-right and slightly downward (wind-blown), travel ~30–45px over 3–5s, stagger `begin` offsets by 0.4–0.8s increments so the flow looks continuous. Loop with `repeatCount="indefinite"`. Particles re-enter from the left edge when they exit right. Keep movement horizontal-dominant to sell the wind direction.
-
-- **v0**: 2 gentle drift ridges, clean open feel
-- **v1**: 1 ice patch center, 3 drift lines radiating from it
-- **v2**: Buried rock top visible at lower-left, 2 drift arcs
-- **v3**: Overlapping drift arcs forming a wind-blown layered look, very minimal
-
----
-
-## FOREST — base color `#3d6b3d`
-*Dense woodland viewed from slight above-angle. Tree canopies, not silhouettes.*
-
-**Element vocabulary**: tree canopy circles (overlapping filled circles in `#2d5a2d` / `#4a7a4a` / `#5a8a5a`, with `#1f1a14` outline at `stroke-width="1"`), trunk hints (short vertical `#5e3f24` lines between canopies at the lower edge), leaf scatter (tiny `#4a7a4a` ellipses around canopy edges).
-
-- **v0**: 3 canopy circles (large-medium-small), trunks peeking below, 4 leaf scatter dots
-- **v1**: 4 canopy circles tightly packed, lighter green `#5a8a5a` highlight on each canopy
-- **v2**: 2 large overlapping canopies dominate, 1 smaller canopy, misty edge `#3d6b3d` fading
-- **v3**: 5 smaller canopies scattered, emphasizes the "dense understory" feel; darker greens `#2d5a2d`
-
----
-
-## HILLS — base color `#8b7355`
-*Rolling elevated terrain. Rounded ridgelines, rocky outcrops, patchy grass.*
-
-**Element vocabulary**: hill ridge arcs (curved thick arcs in `#6a5a40`, `stroke-width="3–4"`, no fill), rocky outcrops (angular polygons `#6a5e4a`), grass patches (small ellipses `#7ea860`).
-
-- **v0**: 1 dominant ridge arc spanning the upper half, 2 rocky outcrops, 3 grass patches
-- **v1**: 2 overlapping ridges (front/back), 1 outcrop right, 2 grass patches left
-- **v2**: 3 stepped ridge lines (low/mid/high), minimal outcrops, subtle
-- **v3**: 1 large rounded hill silhouette filling most of hex, outcrop cluster at base
-
----
-
-## MOUNTAIN — base color `#6b6b7b`
-*Rocky peaks, significant elevation. No vegetation. Snow near summit on some variants.*
-
-**Element vocabulary**: peak polygon (sharp triangular polygon in `#5a5a6a`), snow cap (`#e8e8f0` irregular polygon near peak tip), rock face shading (offset polygon fills at `opacity="0.35"`), shadow side (darker `#4a4a5a`).
-
-- **v0**: Single tall peak centered, snow cap, shaded right face
-- **v1**: Twin peaks of different heights, shared base, snow on taller peak only
-- **v2**: Jagged multi-summit ridge (3 teeth), no snow, heavy rock shading
-- **v3**: Rounded massif (wider, lower), large snowfield covering upper 40%, 2 rock bands
-
----
-
-## OCEAN — base color `#2a5f8f`
-*Deep open water. Wave patterns, depth color variation.*
-
-**Element vocabulary**: wave lines (curved strokes in `#3a7aaa`, `stroke-width="1.5"–"2.5"`, animated), depth patch (slightly darker ellipse `#1e4a72` in the center), foam fleck (tiny white `#e8f4ff` curved marks).
-
-- **v0**: 2 large wave arcs, 1 depth patch, 3 foam flecks — **animate** both wave paths with a gentle translate-Y oscillation (±2px, 3s)
-- **v1**: 3 parallel wave lines at different heights, animated, 2 foam flecks
-- **v2**: Choppy cross-waves (2 sets at slight angles), 1 depth patch — animated
-- **v3**: 1 large swell arc + 4 small wavelets — animated swell only
-
-*Use SVG `<animateTransform>` or `<animate attributeName="d">` for water motion. Keep amplitude subtle (±1.5–2px vertical drift, 2.5–4s period).*
-
----
-
-## COAST — base color `#4a8faf`
-*Shallow coastal water where land meets sea. Lighter, seafloor visible, wave edges.*
-
-**Element vocabulary**: seafloor sand patches (ellipses `#d8c896` at `opacity="0.3"`), shallow wave lines (`#5aaacf`, subtle), sea-foam fringe (white arc at hex edges suggesting breaking waves).
-
-- **v0**: 2 sand patches, 1 foam fringe arc lower edge, 2 wave lines — **animate** wave lines
-- **v1**: 3 scattered sand patches of varying size, subtle animated wave line upper half
-- **v2**: Large sand patch covering lower-right of hex, foam fringe on 2 edges, animated
-- **v3**: Sandy shallows `#c4a040` at `opacity="0.25"` covering 30%, 3 wavelets — animated
-
----
-
-## JUNGLE — base color `#2d5a2d`
-*Dense tropical canopy. Darker and denser than Forest. Layered greens, vines.*
-
-**Element vocabulary**: dense canopy blobs (larger, irregular ovals `#1e4020` / `#3d6b3d` / `#4a8a3a`), vine hints (thin curved lines `#2a5a20`), dappled light spots (tiny `#7ab860` circles at `opacity="0.5"`), exotic flower dot (optional `#c4413a` or `#e8c64a` accent).
-
-- **v0**: 4 large overlapping canopy blobs, 6 dappled light spots, 1 flower dot
-- **v1**: 5 smaller irregular blobs, more vine lines, very dense feel
-- **v2**: 3 dominant canopy masses + vine network connecting them, minimal light
-- **v3**: Layered canopy (back/mid/front in 3 color values of green), 4 dappled spots
-
----
-
-## SWAMP — base color `#4a6b4a`
-*Waterlogged ground. Murky water patches, mud, reeds/cattails. Slow gas bubbles rise from the water.*
-
-**Element vocabulary**: murky water pool (irregular dark polygon `#2a4a2a` / `#1e3a1e`), mud area (`#6a4a2a` ellipse), reed/cattail group (thin upright lines `#3a3228` with small oval tops `#5e3f24`), algae surface (wavy line `#3d6b3d`).
-
-**Animation**: 2–3 slow bubble circles (`fill="none"`, `stroke="#5a8a5a"`, `stroke-width="0.8"`, `r` starts at `1` and grows to `3`) positioned on the water pool surface. Each bubble uses two chained `<animate>` elements: one on `r` (grows from 1 to 3 over 2.5s) and one on `opacity` (0→0.8→0 over the same duration). Stagger `begin` offsets by ~1s. This simulates marsh gas bubbling up. Keep bubbles inside the water pool polygon's approximate bounds.
-
-- **v0**: 1 central water pool, 2 reed clusters left/right, 1 mud patch
-- **v1**: 2 smaller water pools, 1 large reed cluster, algae line
-- **v2**: Water pool covers half the hex, mud at edge, 3 scattered reeds
-- **v3**: Multiple interconnected water channels (thin dark shapes), reeds in between
-
----
-
-## VOLCANIC — base color `#5a3a3a`
-*Barren lava field. Dark rock, glowing cracks, ash. Lava pulses with inner heat and small bubbles pop at the surface.*
-
-**Element vocabulary**: lava crack (thin irregular path `#e85a20` / `#ffa040` glowing, `stroke-width="2–3"`), cooled lava rock (dark irregular polygon `#3a2020`), ash patches (grey ellipse `#7a6a6a`).
-
-**Animation — two layers**:
-
-1. **Lava glow pulse**: Add a duplicate of the main lava crack path filled/stroked in `#ffa040` at reduced opacity, and animate its `opacity` between `0.3` and `0.9` over 1.6–2s with `calcMode="spline"` easing for an organic ember-glow feel. The underlying static crack stays visible; this layer breathes on top.
-
-2. **Lava bubbles**: 2–3 small circles (`r="1.5"–"2.5"`, `fill="#ff8040"`) positioned along the lava crack line. Each uses chained `<animate>` on `r` (0 → 2.5 → 0, over 2s) and `opacity` (0 → 1 → 0) to simulate a bubble forming, swelling, and popping. Stagger `begin` values by ~0.7s. This should feel dangerous, not cute — keep timing irregular and amplitudes small.
-
-- **v0**: 1 main lava crack branching center to edge, 2 cooled rock formations, 1 ash patch
-- **v1**: 2 parallel lava cracks, heavy cooled rock coverage, minimal ash
-- **v2**: Network of 3 fine lava cracks spreading from center, 1 large ash field
-- **v3**: 1 wide lava river crack dominating lower half (filled `#c43010` at `opacity="0.7"`), cooled rock border
-
-</terrain_types>
-
-<output_format>
-## File 1: `src/renderer/terrain/terrain-tiles.ts`
-
-Produce this complete file. Structure:
-
-```typescript
-// src/renderer/terrain/terrain-tiles.ts
-// Hand-crafted SVG terrain tile variants for each TerrainType.
-// 4 variants per type; variant selected by Math.abs(q*7 + r*13) % 4.
-// viewBox="0 0 128 111" — pointy-top hex bounding box.
-
-import type { TerrainType } from '@/core/types';
-
-// Each string is a complete SVG document with internal hex clipPath.
-export const TERRAIN_TILES: Record<TerrainType, [string, string, string, string]> = {
-  grassland: [ /* v0 */ `...`, /* v1 */ `...`, /* v2 */ `...`, /* v3 */ `...` ],
-  plains:    [ `...`, `...`, `...`, `...` ],
-  // ... all 13 terrain types
-};
-
-export function getTerrainTile(terrain: TerrainType, q: number, r: number): string {
-  const variants = TERRAIN_TILES[terrain];
-  return variants[Math.abs(q * 7 + r * 13) % 4];
-}
-```
-
-## File 2: `src/renderer/terrain/terrain-tile-loader.ts`
-
-A simple async loader that mirrors the pattern in `sprite-loader.ts`:
-
-```typescript
-// src/renderer/terrain/terrain-tile-loader.ts
-import type { TerrainType } from '@/core/types';
-import { TERRAIN_TILES } from './terrain-tiles';
-
-function svgToImage(svg: string): Promise<HTMLImageElement> {
-  return new Promise((resolve, reject) => {
-    const blob = new Blob([svg], { type: 'image/svg+xml' });
-    const url = URL.createObjectURL(blob);
-    const img = new Image();
-    img.onload = () => { URL.revokeObjectURL(url); resolve(img); };
-    img.onerror = reject;
-    img.src = url;
-  });
-}
-
-// Cache: "terrain:variant" → HTMLImageElement
-const cache = new Map<string, HTMLImageElement>();
-
-export async function preloadTerrainTiles(): Promise<void> {
-  const entries = Object.entries(TERRAIN_TILES) as [TerrainType, [string,string,string,string]][];
-  await Promise.all(
-    entries.flatMap(([terrain, variants]) =>
-      variants.map((svg, i) =>
-        svgToImage(svg).then(img => cache.set(`${terrain}:${i}`, img))
-      )
-    )
-  );
-}
-
-export function getTerrainTileImage(terrain: TerrainType, q: number, r: number): HTMLImageElement | null {
-  const idx = Math.abs(q * 7 + r * 13) % 4;
-  return cache.get(`${terrain}:${idx}`) ?? null;
-}
-```
-
-## Integration note for `hex-renderer.ts` (developer applies manually)
-
-After calling `ctx.beginPath()` + hex polygon + `ctx.closePath()` and before any other drawing, replace:
-```typescript
-ctx.fillStyle = TERRAIN_COLORS[tile.terrain] ?? '#888';
-ctx.fill();
-```
-with:
-```typescript
-const terrainImg = getTerrainTileImage(tile.terrain, tile.coord.q, tile.coord.r);
-if (terrainImg) {
-  ctx.save();
-  ctx.clip();
-  ctx.drawImage(terrainImg, cx - size, cy - size * 0.866, size * 2, size * 1.732);
-  ctx.restore();
-} else {
-  ctx.fillStyle = TERRAIN_COLORS[tile.terrain] ?? '#888';
-  ctx.fill();
-}
-```
-Also call `await preloadTerrainTiles()` once during game initialization alongside `initSprites()`.
-</output_format>
-
-<style_checklist_terrain>
-Before finalizing, verify each SVG tile:
-- [ ] Has `viewBox="0 0 128 111"`
-- [ ] Has the standard `<clipPath id="hex">` with the correct 6 polygon points
-- [ ] All visible content is wrapped in `<g clip-path="url(#hex)">`
-- [ ] Base fill polygon covers the full hex (not just a rectangle)
-- [ ] Detail elements stay comfortably inside the hex — nothing pokes out to corners
-- [ ] No transparency in the base fill (no blank spots that would show Canvas background)
-- [ ] The 4 variants within a type look meaningfully different, not just slightly offset
-- [ ] Ocean and coast tiles have wave `<animate>` elements
-- [ ] Volcanic tiles have lava glow pulse and bubble `<animate>` elements
-- [ ] Snow tiles have drifting particle `<animateTransform>` elements
-- [ ] Tundra tiles have sparse slow particle `<animateTransform>` elements
-- [ ] Swamp tiles have bubble `<animate>` elements on water pools
-- [ ] Grassland, plains, desert, forest, hills, mountain, jungle have NO animation
-- [ ] No faction palette, no imports, no JSX — plain SVG string only
-- [ ] Readable at 60 px: base color + 2–3 dominant shapes are clear
-</style_checklist_terrain>
-
-
----
-
-# === NAVAL TRANSPORT SPRITES PROMPT (Part C — send in a separate conversation) ===
-
-**Developer instructions — do not copy into Claude:**
-
-These 4 sprites replace `TransportSprite` placeholders for the `carrack`, `galleon`, `steamship`, and `troop_transport` unit types. Insert each export function into `src/renderer/sprites/units.tsx` directly after `TransportSprite`. Then update `src/renderer/sprites/sprite-catalog.ts` lines 118–121 to reference the real sprite instead of `TransportSprite`.
-
-Send **one conversation** for all 4 — they share the same naval style family. Ask for them one at a time (one sprite → confirm → next) to keep each output focused.
-
-After each sprite is confirmed, update the asset inventory table in `docs/sprite-design-system.md` to mark the unit as `✅ sprite`.
-
----
-
-<role>
-You are a senior SVG sprite artist and TypeScript developer specialising in hand-crafted game graphics. You write clean, geometric SVG — no photorealism, no gradient meshes, no blur filters. Your work integrates directly into a production TypeScript/Vite codebase.
-</role>
-
-<context>
-**Project**: Conquestoria — HTML5 Canvas + DOM strategy game, medieval/ancient theme (Eras 1–5), mobile-first, played by families including young children. All map graphics are inline SVG rendered to Canvas via cached HTMLImageElement.
-
-**Audience**: Sprites appear on a hex tile map at 40–120 px. Bold, readable silhouettes. Children should recognise what each ship is at a glance.
-
-**Repository**: https://github.com/a1flecke/conquestoria
-</context>
-
-<reference_files>
-Read all four files in full before writing any code. Internalise the helper API, palette constants, and existing naval sprite style.
-
-1. Sprite system helpers (SpriteFrame, Shadow, HexBase, Banner, full MATERIAL_PALETTE `P`):
+1. **Sprite system helpers** (`BuildingPlinth`, `Banner`, `FactionPalette` type, full `MATERIAL_PALETTE` constant, `CATEGORY_TINTS`):
    https://raw.githubusercontent.com/a1flecke/conquestoria/main/src/renderer/sprites/sprite-system.tsx
-
-2. Existing unit sprites — pay special attention to GalleySprite, TriremeSprite, TransportSprite (the three naval precedents):
-   https://raw.githubusercontent.com/a1flecke/conquestoria/main/src/renderer/sprites/units.tsx
-
-3. CSS animation system (all keyframes and class hooks — use `cq-sail`, `cq-shadow`):
+2. **All existing building sprites, including the `BuildingFrame` helper itself** (`BuildingFrame` is defined locally near the top of this file, around line 25 — it is NOT exported from `sprite-system.tsx`, it lives here). Read every function, but pay special attention to the Era 12 tail (`AutomatedPortSprite` through `TelemedicineHubSprite`, especially `CyberDefenseCenterSprite`, `DataCenterSprite`, `SignalsHubSprite`, `SmartGridSprite`, `PrecisionFarmSprite`) for the established near-future tech idiom you must continue:
+   https://raw.githubusercontent.com/a1flecke/conquestoria/main/src/renderer/sprites/buildings.tsx
+3. **CSS animation system**:
    https://raw.githubusercontent.com/a1flecke/conquestoria/main/src/assets/sprite-animations-v2.css
-
-4. Sprite catalog (see lines 114–121 for the naval registration block you will update):
+4. **Sprite catalog** — shows the exact placeholder lines you are replacing (search for "Era 13 content launch"):
    https://raw.githubusercontent.com/a1flecke/conquestoria/main/src/renderer/sprites/sprite-catalog.ts
 </reference_files>
 
 <design_system>
 ## Visual Language
-- Flat geometric SVG. No photorealism, no gradients, no blur filters.
-- Medieval/Renaissance theme. Era 1 = galley oar-power. Era 5 = early steam.
-- 2.5D perspective: ships face right, slightly toward the viewer. Not top-down, not full side-on.
-- Warmth: earthy, hand-made feel. Ink line `#1f1a14` holds everything together.
+- **Style**: Flat geometric SVG, slight isometric/2.5D.
+- **Line weight**: `stroke="#1f1a14"` (`P.ink.line`) `strokeWidth="1"` main outlines, `0.5–0.8` interior detail.
+- **No gradients, no filters, no drop-shadows.**
 
-## Line Weights
-- Major outlines: stroke="#1f1a14" strokeWidth="1"–"1.2"
-- Interior detail: strokeWidth="0.5"–"0.8"
-- Thin highlights: same color, opacity="0.3–0.5"
+## Composition discipline: one dominant silhouette, everything else supporting
+This is a hard project rule (`.claude/skills/generate-sprite-prompt.md`'s design brief for this
+issue): every sprite is "one dominant silhouette plus a supporting prop," never several
+competing focal shapes. Each spec below opens its **Key requirements** with a line labeled
+**Dominant silhouette** — that is the one shape that must read first, even in a small production-
+queue thumbnail. Every other bullet is labeled **Supporting detail** and must stay visually
+smaller/quieter than the dominant shape. If in doubt, cut a supporting detail rather than let it
+rival the dominant silhouette.
 
-## Material Palette (MATERIAL_PALETTE aliased as `P`)
+## Material Palette (`P.*`)
 ```
 skin:   warm=#d4a373  cool=#b08968  deep=#8a5a3c
 cloth:  tunic=#c19a6b  linen=#e6dcc6  wool=#7a6e5b  dye=#5b4a7a
 metal:  iron=#5a6068  steel=#8a929b  bronze=#b8895a  gold=#d4a13c  shine=#e8edf2
 wood:   light=#c19a6b  mid=#8a6a3a  dark=#5e3f24
 stone:  light=#c4b8a4  mid=#9a8e78  dark=#6a5e4a
-thatch: straw=#d6b46a  shadow=#8a6a3a
 ground: grass=#7ea860  dirt=#a08260  sand=#d8c896  water=#3a6e94
-ink:    line=#1f1a14   soft=#3a3228
-hud:    food=#7bb850  prod=#c98a3a  gold=#e8c64a  sci=#5fb4d4  cult=#c46db4  mil=#c4413a  esp=#7a5ec4
+ink:    line=#1f1a14  soft=#3a3228
 ```
 
-## Faction Color (FactionPalette)
-Every unit receives `palette: { dark, mid, bright, trim }` — generated by `derivePalette(civColor)`. Never hardcode a civ color.
-- `palette.mid` → primary sail stripe / hull accent
-- `palette.dark` → belt, rope shadows, trim outlines
-- `palette.bright` → lantern glow, pennant gem
-- `palette.trim` → heraldic roundel on sail or hull shield
+## Sci-Fi / Modern Accent Palette (established by Era 10–12 sprites — reuse verbatim; write as literal hex strings, they are not `MATERIAL_PALETTE` members)
+```
+dark tech panel fills:  #181830  #0a0a20  #111122  #112244
+status LEDs / glow:      #00aaff (blue-online)  #00ff44 / #00ff88 (green-active)  #ffaa00 (amber-standby)
+glass / display surface: #b8d4e8
+medical cross:           #dd2222
+power / warning accent:  #ffdd00
+```
 
-## Naval Sprite Conventions (from GalleySprite, TriremeSprite, TransportSprite)
-- `hexTint={P.ground.water}` on SpriteFrame
-- Hull: a wide Q-curve path, fill P.wood.mid / P.wood.dark
-- Deck: a lighter Q-curve slightly higher, fill P.wood.light
-- Central mast: a vertical line, P.wood.dark, strokeWidth 2–2.5
-- Sails: two mirrored path triangles (fore and aft of mast), fill P.cloth.linen, with a faction-colour stripe (palette.mid) rect across the widest third
-- Faction Banner: `<Banner x={mastX} y={mastTop} palette={palette} scale={0.85–1} />`
-- Ram or prow: small triangle to the left, P.metal.bronze
-- Shadow: `<Shadow cx={64} cy={96–100} rx={42–50} ry={6–8} />`
-- `data-kind="naval"` on the outermost group inside SpriteFrame
-- CSS class `cq-sail` on the sail paths to enable wind billow animation
+## Faction Color Rules
+Every sprite receives `palette: FactionPalette` (`{ dark, mid, bright, trim }`). Primary structure fill → `palette.mid`; shadow/trim → `palette.dark`; glow/highlight → `palette.bright`; small heraldic accent → `palette.trim`. **Never hardcode a faction name or hex for faction identity** — the sci-fi accent hex values above are for non-faction tech details only.
+
+## Building Sprite Contract
+```typescript
+export function FooSprite({ palette, svgOnly = false }: BuildingSpriteProps): string
+```
+- ViewBox: `0 0 192 192`. Wrap in `<BuildingFrame label="Name" sub="Sub" category="..." svgOnly={svgOnly}>` — use the exact `label`/`sub`/`category` given per sprite below. `category` must be one of the real `CATEGORY_TINTS` keys used elsewhere in the codebase: `food`, `production`, `gold`, `science`, `culture`, `military`, `espionage` (each spec below already tells you which one).
+- Always include `<BuildingPlinth w={...} />` and a faction `<Banner ... palette={palette} />` — the banner is always a supporting detail, never the dominant silhouette.
+- **Available animated effect CSS classes** (assign class name only): `.cq-fire`, `.cq-smoke`/`.cq-smoke--b`/`.cq-smoke--c`, `.cq-spark`/`.cq-spark--b`/`.cq-spark--c`, `.cq-glow` (soft pulse — this is the workhorse for "screen glow"/"status light" effects in the Era 12 sprites, use it liberally), `.cq-peek`, `.cq-dust`.
+- For continuous motion (radar sweep, rotating fan, etc.) use inline SVG `<animate>`/`<animateTransform>` exactly as `SignalsHubSprite`'s dish-ring `<animate>` or `DockSprite`'s water does — keep it subtle.
+
+## Animation & motion ownership
+As with units, `prefers-reduced-motion` handling and any outer state-driven wrapper classes are
+owned entirely by the runtime (the CSS file's `@media (prefers-reduced-motion: reduce)` block
+covers every sprite globally). Do not add reduced-motion handling inside an individual building
+function — just use `.cq-glow`/`.cq-fire`/etc. class names and inline `<animate>` as documented,
+and the runtime takes care of the rest.
+
+## Example — matching the existing near-future tech idiom (from `DataCenterSprite`, already in `buildings.tsx`)
+<example>
+```tsx
+export function DataCenterSprite({ palette, svgOnly = false }: BuildingSpriteProps): string {
+  return (
+    <BuildingFrame label="Data Center" category="science" svgOnly={svgOnly}>
+      <BuildingPlinth w={148} />
+      <rect x="16" y="72" width="160" height="64" rx="3" fill="#181830" stroke={P.metal.steel} strokeWidth="1.4" />
+      {/* rack rows */}
+      <rect x="24" y="80" width="32" height="48" rx="2" fill="#0a0a20" stroke={P.metal.steel} strokeWidth="0.8" />
+      <rect x="62" y="80" width="32" height="48" rx="2" fill="#0a0a20" stroke={P.metal.steel} strokeWidth="0.8" />
+      {/* status LEDs */}
+      <circle cx="48" cy="88" r="2" fill="#00aaff" />
+      <circle cx="86" cy="88" r="2" fill="#00ff44" />
+      <Banner x={30} y={20} palette={palette} scale={0.65} />
+    </BuildingFrame>
+  );
+}
+```
+Note the pattern this demonstrates: one dominant shape (the wide dark rack-wall, `#181830`, drawn
+first and largest), a small number of supporting details (individual rack units, a couple of LED
+dots — not a dozen), faction color only on `Banner`, and the sci-fi accent hex values used
+literally exactly as documented above. Match this density per sprite — not sparser, not busier.
+</example>
 </design_system>
 
 <sprites>
-## SPRITE 1 — CarrackSprite (Unit)
 
-**Insert into**: `src/renderer/sprites/units.tsx`, directly after `TransportSprite`
-**Catalog entry** (replace line 118): `carrack: withMotion('carrack', CarrackSprite),`
-**data-kind**: naval
+## SPRITE 1 — NetworkOperationsCenterSprite (Building)
+
+**Insert into**: `src/renderer/sprites/buildings.tsx`, after `TelemedicineHubSprite` (end of file)
+**Catalog entry**: replace `network_operations_center: DataCenterSprite,` with `network_operations_center: NetworkOperationsCenterSprite,`
+**label**: `"Network Operations Center"`  **sub**: `"Infrastructure"`  **category**: `science`
 
 ### Concept
-The Carrack is a high-sided, broad-hulled sailing ship of the late medieval era — the first true ocean-going transport. It is wider and taller than the Transport, with a prominent forecastle (raised bow deck) and a single large square sail. Think of a stubby, sturdy ship built for carrying capacity over speed.
+An empire-wide network coordination hub — an antenna crown atop a control building, with a live network-topology display instead of Data Center's plain server racks. This building's whole identity is "the empire's network is coordinated from here," so the antenna array should dominate the silhouette, not rack boxes.
 
 ### Key requirements
-- Hull is noticeably wider and higher than TransportSprite — use Q-curves spanning roughly x=10–118
-- Add a raised forecastle block at the bow (left side): a small rectangular superstructure about 14–16 px wide, sitting on top of the main deck, filled P.wood.dark
-- Single large square sail (wider than Transport's triangular sails) stretched on a crossbeam — fill P.cloth.linen with a bold palette.mid horizontal stripe across the centre third
-- Three mooring ropes along the hull side (thin diagonal lines, P.wood.dark, strokeWidth 0.8)
-- Faction Banner at mast top, scale 0.9
-- Bronze ram/anchor hook at prow, P.metal.bronze
-- Tone: sturdy, broad, workmanlike
+- **Dominant silhouette**: an antenna crown — 3–5 short mast antennas of varying height rising from a low control-room roofline (`P.stone.mid`/`#181830` mixed fill), each tipped with a small `palette.bright` node dot, arranged like a crown. This must be the first thing read at thumbnail size, echoing but not copying `DataCenterSprite`'s dark-panel base.
+- **Supporting detail — network topology display**: a small diagram on the facade of dots connected by thin lines (`#00aaff`, 4–6 nodes, a few connecting segments) — visually distinct from Data Center's rack-row pattern, and smaller than the antenna crown above it.
+- **Supporting detail (optional, keep minor)**: one small rack-like element as a quiet echo of Data Center — must stay clearly subordinate to the antenna crown.
+- `.cq-glow` on the topology display panel for a soft pulsing "live network" feel.
+- `<Banner palette={palette} scale={0.65}>` on the tallest antenna or roof corner.
+- Tone: coordinated, empire-scale infrastructure — the calm nerve-center, not a data warehouse.
 
 ---
 
-## SPRITE 2 — GalleonSprite (Unit)
+## SPRITE 2 — AiSafetyInstituteSprite (Building)
 
-**Insert into**: `src/renderer/sprites/units.tsx`, directly after `CarrackSprite`
-**Catalog entry** (replace line 119): `galleon: withMotion('galleon', GalleonSprite),`
-**data-kind**: naval
+**Insert into**: `src/renderer/sprites/buildings.tsx`, after `NetworkOperationsCenterSprite`
+**Catalog entry**: replace `ai_safety_institute: CyberDefenseCenterSprite,` with `ai_safety_institute: AiSafetyInstituteSprite,`
+**label**: `"AI Safety Institute"`  **sub**: `"Civic Research"`  **category**: `science`
 
 ### Concept
-The Galleon is the grandest sailing ship of the Renaissance — tall, multi-decked, with two masts and billowing sails. It is clearly larger than the Carrack. It has a distinctive high stern castle (raised rear deck) plus the forecastle, giving it a double-humped profile from the side.
+A civic research institute focused on AI oversight — closer to a research campus / courthouse than Cyber Defense Center's server-and-firewall aesthetic. A shield-and-checkmark oversight motif should be the dominant symbol (distinct from Cyber Defense's angular shield-with-X). Think: a public trust institution, not a defensive bunker.
 
 ### Key requirements
-- Widest hull of all transports (x=8–120 Q-curves), with the stern castle raising the right side of the deck notably higher than the waterline
-- Two masts: a shorter foremast (left, x≈40) and a taller mainmast (right, x≈72)
-- Two sails, one per mast — both P.cloth.linen with palette.mid stripes. Mainmast sail is taller
-- Small stern lantern at the rear (right) castle: a tiny circle, P.metal.gold, with a `cq-glow` class
-- Decorative hull port-holes: 3–4 small circles along the waterline, P.metal.iron
-- Faction Banner on the mainmast, scale 1.0
-- Prow ram or carved figurehead (a simple wedge), P.metal.bronze
-- Tone: majestic, powerful, ornate but geometric
+- **Dominant silhouette**: a rounded shield-and-checkmark emblem in `palette.mid`/`palette.bright` — softer and more rounded than Cyber Defense's angular shield, with a clear checkmark inside (not an X or lightning bolt). This is the single most important distinguishing symbol from `CyberDefenseCenterSprite` and must read first.
+- **Supporting detail — civic base structure**: a modest civic building silhouette behind the emblem — a few shallow entrance steps, `P.stone.light` facade, one or two dignified columns (echo `LibrarySprite`/`ArchiveSprite` civic conventions) — kept low-key so the emblem stays dominant.
+- **Supporting detail — oversight screens**: 2–3 small monitors visible through a window/opening, `#112244` with `#00ff44` status dots, implying human review of AI systems rather than raw server racks.
+- `.cq-glow` on the shield emblem for a soft trust/authority pulse.
+- `<Banner palette={palette} scale={0.65}>`.
+- Tone: trustworthy, deliberate, civic — oversight and accountability, not raw defense.
 
 ---
 
-## SPRITE 3 — SteamshipSprite (Unit)
+## SPRITE 3 — DroneFabricatorSprite (Building)
 
-**Insert into**: `src/renderer/sprites/units.tsx`, directly after `GalleonSprite`
-**Catalog entry** (replace line 120): `steamship: withMotion('steamship', SteamshipSprite),`
-**data-kind**: naval
+**Insert into**: `src/renderer/sprites/buildings.tsx`, after `AiSafetyInstituteSprite`
+**Catalog entry**: replace `drone_fabricator: AutomatedPortSprite,` with `drone_fabricator: DroneFabricatorSprite,`
+**label**: `"Drone Fabricator"`  **sub**: `"Robotics Production"`  **category**: `production`
 
 ### Concept
-The Steamship is the bridge from sail to steam — early Industrial era. It has a single short mast with a small remnant sail, but the defining feature is a central smokestack (chimney) emitting smoke. The hull is more box-like than earlier ships, with iron rivets suggested by small circles.
+A robotic production cell that builds and coordinates autonomous drones (it's the `trainedFromBuilding` for both Combat Drone and Drone Controller units) — a factory floor with a visible articulated robotic arm assembling a drone frame, not a dockside crane like Automated Port. This should look unmistakably like where `CombatDroneSprite` gets built.
 
 ### Key requirements
-- Hull is flatter and more rectangular than earlier ships — less curvature, more straight horizontal lines, suggesting iron construction
-- One central smokestack (a tall rect ≈ 8 px wide, 20 px tall, fill P.metal.iron) positioned at x≈64, rising above the deck, with a `cq-smoke` class on a small ellipse at the top for the smoke animation
-- Small mast (x≈48) with a reduced sail (narrower, shorter triangles than Transport), suggesting this ship no longer relies on wind
-- Iron hull rivets: 4–5 circles along the hull, fill P.stone.mid, r=2, strokeWidth=0.5
-- Faction Banner on the small mast, scale 0.75 (diminished — steam is the real power)
-- Paddle wheel suggestion on the right side: a half-circle of evenly-spaced radial lines, P.wood.dark, suggesting a side-wheel
-- Tone: industrial, mechanical, transitional
+- **Dominant silhouette**: an articulated robotic arm (2–3 jointed segments, small pivot circles at each joint, `P.metal.iron`/`P.metal.steel`) reaching toward a partially-assembled drone frame on the shop floor — a clear visual callback to `CombatDroneSprite`'s ducted-fan-and-eye shape, one ring/fan visible, one still an open frame. This arm+frame pairing is the defining silhouette, distinct from any crane shape, and must read first.
+- **Supporting detail — fabrication bay**: an industrial shell behind the arm, open front or large window, `P.stone.mid`/`P.metal.steel`, kept subordinate to the arm.
+- **Supporting detail — sparks**: `.cq-spark`/`.cq-spark--b` near the arm's working tip.
+- **Supporting detail — status panel**: one or two `#00aaff`/`#00ff44` LEDs on a control panel beside the arm.
+- `<Banner palette={palette} scale={0.65}>`.
+- Tone: precise, mechanical, productive — a robotics assembly line, not a shipping port.
 
 ---
 
-## SPRITE 4 — TroopTransportSprite (Unit)
+## SPRITE 4 — ElectronicWarfareArraySprite (Building)
 
-**Insert into**: `src/renderer/sprites/units.tsx`, directly after `SteamshipSprite`
-**Catalog entry** (replace line 121): `troop_transport: withMotion('troop_transport', TroopTransportSprite),`
-**data-kind**: naval
+**Insert into**: `src/renderer/sprites/buildings.tsx`, after `DroneFabricatorSprite`
+**Catalog entry**: replace `electronic_warfare_array: SignalsHubSprite,` with `electronic_warfare_array: ElectronicWarfareArraySprite,`
+**label**: `"Electronic Warfare Array"`  **sub**: `"Signal Denial"`  **category**: `military`
 
 ### Concept
-The Troop Transport is a purpose-built military vessel of the late Industrial era — large, functional, stripped of decorative sails. It has two smokestacks, armoured bulkheads, and visible troop-deck hatches suggesting it carries soldiers. This is the workhorse of amphibious operations.
+A directional jamming/counter-signal installation — reuse the general dish-and-mast language of `SignalsHubSprite` (which this replaces) but shift the visual story from "receiving signals" to "disrupting/interfering with them": a directional phased array instead of a parabolic dish, and jagged interference-pattern arcs instead of clean signal rings.
 
 ### Key requirements
-- Widest and flattest hull — almost barge-like with minimal curvature, fill P.metal.iron (grey, not brown wood)
-- Two smokestacks side-by-side at roughly x=56 and x=72, both with `cq-smoke` class on their smoke ellipses. Slightly different heights for visual interest
-- No sail or mast — this ship is purely steam-powered; omit the Banner flag pole (or place a tiny signal flag at the bow instead)
-- Signal flag at bow: a small rectangle fill palette.mid at x≈20, y≈60, 10×6 px, no mast — just a flag on the prow railing
-- Deck hatches: 2–3 small rounded rectangles (rx=1) on the flat deck, fill P.wood.dark, suggesting troop access doors
-- Armour plating: slight hull colour difference — base hull fill P.metal.iron (`#5a6068`), with a narrower inner deck path fill P.stone.mid
-- Faction Banner: omit the `<Banner>` component — replace with a faction shield emblem: a small rounded rect fill palette.mid on the bow, with palette.trim inner circle
-- Tone: military, no-nonsense, heavy
+- **Dominant silhouette**: a flat rectangular phased-array panel (not a curved dish) angled outward on a short, stockier mast than Signals Hub's — `P.metal.steel` frame, `#112244` panel face with a grid of small `#ffaa00` emitter dots. This flat-panel-vs-curved-dish contrast is what must read first against Signals Hub.
+- **Supporting detail — interference pattern**: jagged/zigzag broadcast arcs (angular `<path>` zigzags, not Signals Hub's smooth dashed arcs) in `palette.bright`, opacity 0.5–0.7, radiating from the array — kept thin so it doesn't overwhelm the panel.
+- **Supporting detail — equipment shed**: a small hardened shed at the base, `P.stone.dark`, one narrow slit window with a `#00aaff` glow.
+- `<Banner palette={palette} scale={0.6}>`.
+- Tone: aggressive, hardened, disruptive — countermeasure, not communication.
+
+---
+
+## SPRITE 5 — CivicMediaForumSprite (Building)
+
+**Insert into**: `src/renderer/sprites/buildings.tsx`, after `ElectronicWarfareArraySprite`
+**Catalog entry**: replace `civic_media_forum: BroadcastTowerSprite,` with `civic_media_forum: CivicMediaForumSprite,`
+**label**: `"Civic Media Forum"`  **sub**: `"Public Discourse"`  **category**: `culture`
+
+### Concept
+A public plaza where citizens gather around a large public screen and a speaker's platform — an open civic square, not a broadcast tower. This is the ground-level "the public actually gathers here" counterpart to `BroadcastTowerSprite`'s one-way transmission tower.
+
+### Key requirements
+- **Dominant silhouette**: a low, wide plaza platform/stage (`P.stone.light`) — this building must read as *wide and low*, the opposite silhouette of Broadcast Tower's *tall and narrow*. That width-vs-height contrast is the key differentiator and must be established first.
+- **Supporting detail — public screen**: one large flat screen/projection surface (`#112244` fill, `#00aaff` display content — abstract bars/icons only, never literal words, per the game's no-`innerHTML`-string convention) mounted at one end of the plaza.
+- **Supporting detail — megaphone**: a stylized megaphone/PA-horn shape (`palette.mid`, `P.metal.steel` rim) on the speaker's platform.
+- **Supporting detail — citizen silhouettes**: 2–3 small simplified citizen shapes (flat 2-color torso+head, the same lightweight technique `StockExchangeSprite` uses for its merchant figures) gathered facing the screen — small enough not to compete with the plaza/screen.
+- `.cq-glow` on the screen for a soft "live broadcast" pulse.
+- `<Banner palette={palette} scale={0.65}>` on a flagpole beside the stage.
+- Tone: open, communal, democratic — a town square, not a transmission mast.
+
+---
+
+## SPRITE 6 — VerticalFarmSprite (Building)
+
+**Insert into**: `src/renderer/sprites/buildings.tsx`, after `CivicMediaForumSprite`
+**Catalog entry**: replace `vertical_farm: PrecisionFarmSprite,` with `vertical_farm: VerticalFarmSprite,`
+**label**: `"Vertical Farm"`  **sub**: `"Urban Agriculture"`  **category**: `food`
+
+### Concept
+A stacked greenhouse tower — multiple visibly distinct growing levels stacked vertically inside a glass/frame structure, replacing Precision Farm's ground-level tractor-and-crop-rows scene entirely with a *tall* silhouette. This should be the tallest, most vertical food building in the game.
+
+### Key requirements
+- **Dominant silhouette**: a tall glass-and-frame tower with 4–5 stacked horizontal growing levels, each a shallow tray/shelf visible through a glass facade (`#b8d4e8` glass fill, `P.metal.steel` frame mullions between levels). The stacking is the whole visual point — make each level clearly countable, and this tall tower shape must read first.
+- **Supporting detail — crops**: small green plant/leaf shapes (rounded triangles or ellipse clusters, `#44aa44`/`P.ground.grass`) in each tray, varying density slightly for interest — kept subordinate to the tower's overall silhouette.
+- **Supporting detail — grow lighting**: a thin `palette.bright`/`#ffdd00` light strip along the underside of each level.
+- **Supporting detail — irrigation**: a slim rooftop water tank, `P.metal.steel`, small pipe down the tower's side.
+- `<BuildingPlinth w={110} />` — narrower footprint than most buildings, since it's a tower, not a wide structure.
+- `<Banner palette={palette} scale={0.65}>` near the top.
+- Tone: bright, green, dense — urban agriculture stacked skyward, distinctly not a tractor-in-a-field scene.
+
+---
+
+## SPRITE 7 — NeuralRehabilitationCenterSprite (Building)
+
+**Insert into**: `src/renderer/sprites/buildings.tsx`, after `VerticalFarmSprite`
+**Catalog entry**: replace `neural_rehabilitation_center: TelemedicineHubSprite,` with `neural_rehabilitation_center: NeuralRehabilitationCenterSprite,`
+**label**: `"Neural Rehabilitation Center"`  **sub**: `"Unit Recovery"`  **category**: `food`
+
+### Concept
+A medical campus specializing in neural/rehabilitation therapy for wounded units (mechanically: nearby units heal faster) — reuse Telemedicine Hub's medical-cross language but replace its remote-consultation screen with a neural/brainwave motif, and give it a rehabilitation-campus feel (an outdoor recovery courtyard) rather than a single consultation room.
+
+### Key requirements
+- **Dominant silhouette**: a calm medical campus building, `#f0f4f0`/`P.stone.light` facade (echo Telemedicine Hub's clinical-white base for family resemblance), with the `#dd2222` medical cross convention kept as the primary identifying mark — same cross convention as Telemedicine Hub/Gene Therapy Clinic for instant "healing building" recognition.
+- **Supporting detail — neural/brainwave motif** (the key differentiator from Telemedicine Hub): a simplified brain silhouette with a few branching internal lines, or 4–5 small dots connected by thin curved lines (a neural-network graphic), in `#00aaff`/`palette.bright`, replacing Telemedicine Hub's remote-patient screen — kept smaller than the medical-cross+facade.
+- **Supporting detail — recovery courtyard**: a small bench or low garden hedge (`P.ground.grass`) beside the building, implying physical rehabilitation space.
+- `.cq-glow` on the neural diagram for a gentle pulsing "active recovery" feel.
+- `<Banner palette={palette} scale={0.6}>`.
+- Tone: calm, restorative, clinical-but-warm — recovery, not just remote diagnosis.
+
+---
+
+## SPRITE 8 — OceanRoboticsYardSprite (Building)
+
+**Insert into**: `src/renderer/sprites/buildings.tsx`, after `NeuralRehabilitationCenterSprite`
+**Catalog entry**: replace `ocean_robotics_yard: AutomatedPortSprite,` with `ocean_robotics_yard: OceanRoboticsYardSprite,`
+**label**: `"Ocean Robotics Yard"`  **sub**: `"Autonomous Naval"`  **category**: `production`
+**Note**: this building is `coastalRequired: true` and is the `trainedFromBuilding` for `autonomous_frigate` — it should visually connect to `AutonomousFrigateSprite`'s design.
+
+### Concept
+A coastal slipway purpose-built for constructing autonomous naval vessels — must clearly differ from `AutomatedPortSprite` (which it currently reuses as a placeholder and which represents generic automated cargo handling) by putting a partially-built `AutonomousFrigateSprite`-style hull on the slipway as the focal element, not shipping containers.
+
+### Key requirements
+- **Dominant silhouette**: a partially-built autonomous hull on the slipway — a faceted low hull shape echoing `AutonomousFrigateSprite`'s angular stealth-panel silhouette, partially scaffolded, sitting on an angled ramp running into `P.ground.water` with `P.stone.mid` retaining walls. This hull-on-slipway pairing is the single most important visual link between the building and the unit it trains, and must read first.
+- **Supporting detail — robotic gantry**: an overhead gantry frame (not a traditional crane hook) with a small robotic arm segment, `P.metal.steel`, positioned over the hull, smaller/quieter than the hull itself.
+- **Supporting detail — status lights**: 1–2 `#00aaff`/`#00ff44` lights on the hull or gantry control panel.
+- **Supporting detail — sparks**: `.cq-spark`/`.cq-spark--b` at the gantry arm's working point.
+- `<Banner palette={palette} scale={0.65}>`.
+- Tone: coastal, industrial, robotics-forward — a naval drone shipyard, distinct from a generic automated cargo port.
 
 </sprites>
 
 <output_format>
-Output one sprite at a time in this order: CarrackSprite, GalleonSprite, SteamshipSprite, TroopTransportSprite.
-
-For each sprite:
-1. Output the complete TypeScript export function (ready to paste into `src/renderer/sprites/units.tsx` after `TransportSprite` or its predecessor)
-2. Output the exact one-line catalog registration to replace in `src/renderer/sprites/sprite-catalog.ts`
-3. Wait for confirmation before proceeding to the next sprite
-
-The function signature must be:
-```typescript
-export function CarrackSprite({ palette, svgOnly = false }: UnitSpriteProps): string
-```
-(adjust name per sprite)
-
-All JSX must compile with the project's custom JSX transform (`/** @jsxRuntime classic */ /** @jsx h */`). Use only helpers imported at the top of `units.tsx` — do not add new imports.
+Output one `export function FooSprite(...)` per sprite, in the order above, ready to paste into `buildings.tsx`. State the exact single-line catalog replacement for each (already given above). Output one sprite at a time, pausing for confirmation between each, unless told otherwise.
 </output_format>
 
 <style_checklist>
-Before finalising each sprite, verify:
-- [ ] No hardcoded faction hex colors — faction identity only via `palette.*`
-- [ ] No React / react-dom imports
-- [ ] Unit sprites use `<SpriteFrame>`, never a raw `<svg>`
-- [ ] All outlines use `stroke={P.ink.line}` (`"#1f1a14"`)
-- [ ] No CSS gradients or filter effects
-- [ ] Animation is CSS class names only — no inline `style="animation:..."` on animated elements
-- [ ] `<Banner>` always receives `palette` prop (or omitted only when spec says so — TroopTransport)
-- [ ] Unit sprites have `<Shadow />` (HexBase is optional for naval)
-- [ ] `data-kind="naval"` on the outermost group
-- [ ] hexTint={P.ground.water} on SpriteFrame
-- [ ] Children can recognise what each ship is at 32 px (distinctive silhouette per tier)
-- [ ] Each sprite is visually distinct from the others — escalating size/complexity
+- [ ] ViewBox `0 0 192 192`, wrapped in `<BuildingFrame label="..." sub="..." category="...">` using the exact label/sub/category given per sprite, `category` matching a real `CATEGORY_TINTS` key
+- [ ] `<BuildingPlinth w={...} />` and a faction `<Banner palette={palette} .../>` present
+- [ ] Exactly one dominant silhouette per sprite (named in its spec); every other element is visibly smaller/quieter and reads as a supporting detail, not a second focal point
+- [ ] All faction color via `palette.mid` / `palette.dark` / `palette.bright` / `palette.trim` — zero hardcoded faction hex
+- [ ] Sci-fi accent colors use the literal hex values from the Sci-Fi/Modern Accent Palette above
+- [ ] Silhouette is unmistakably distinct from the Era 12 sprite it replaces AND from the other 7 sprites in this batch
+- [ ] No photorealism, gradients, blur filters, embedded raster images, or SVG `<text>` used as in-world signage (screens show abstract bars/dots/icons only, never literal words, per the game's no-`innerHTML`-string convention)
+- [ ] No reduced-motion handling or state-driven wrapper classes added inside the sprite function — that is entirely the runtime's responsibility
+- [ ] Reads clearly at the same effective scale as the sibling sprites already in `buildings.tsx`
 </style_checklist>
 
 ---
 
-## === LEGENDARY BEAST v2 DOM SPRITES PROMPT (2026-06-12) ===
-
-### Developer Instructions (do not copy this section into Claude Design)
-
-This prompt generates **two v2 DOM sprites** (Dire Wolf + Emerald Basilisk) plus their **companion CSS animation files**. This is the same format as the existing Giant Boar (`src/renderer/sprites/v2/beast_boar.svg.ts` + `src/assets/boar-animations.css`).
-
-**These are NOT JSX sprites.** They are raw HTML/SVG strings — no JSX, no TypeScript imports inside the string, no `palette` prop. The string is stored as `export const svg: Record<string, string> = { beast: "..." }` and loaded by `src/renderer/sprites/v2/index.ts`.
-
-**What to do with the output:**
-
-1. Create `src/renderer/sprites/v2/beast_wolf.svg.ts` — paste the Dire Wolf SVG export.
-2. Create `src/renderer/sprites/v2/beast_basilisk.svg.ts` — paste the Emerald Basilisk SVG export.
-3. Create `src/assets/wolf-animations.css` — paste the Dire Wolf animation CSS.
-4. Create `src/assets/basilisk-animations.css` — paste the Emerald Basilisk animation CSS.
-5. Register both in `src/renderer/sprites/v2/index.ts`:
-   ```typescript
-   import { svg as beastWolfSvg }     from './beast_wolf.svg';
-   import { svg as beastBasiliskSvg } from './beast_basilisk.svg';
-   // ... in UNIT_SPRITES:
-   beast_wolf:     beastWolfSvg,
-   beast_basilisk: beastBasiliskSvg,
-   ```
-6. Import both CSS files in the app entry point alongside `boar-animations.css`.
-
-**Repository is private** — the GitHub raw URLs return 403. Attach these files as uploads instead:
-- `src/renderer/sprites/v2/beast_boar.svg.ts` (primary format reference)
-- `src/assets/boar-animations.css` (animation CSS reference)
-- `src/assets/sprite-animations-v2.css` (broader animation context)
-
----
-
-### Prompt (copy everything below this line into Claude Design)
+## Prompt — PART 3: BUILDINGS BATCH 2 (copy everything below this line, through the end of Part 3's `</style_checklist>`)
 
 <role>
-You are a senior SVG sprite artist and CSS animation engineer specializing in hand-crafted game graphics. You write clean, geometric SVG — no photorealism, no gradient meshes, no blur filters. You produce raw HTML/SVG strings (not JSX, not React) that integrate directly into a production codebase as DOM elements with CSS-driven animation.
+You are a senior SVG sprite artist and TypeScript developer specializing in hand-crafted game graphics. You write clean, geometric SVG in JSX-based TypeScript — no photorealism, no gradient meshes, no blur filters, no embedded raster images. Your work integrates directly into a production codebase.
 </role>
 
 <context>
-**Project**: Conquestoria — HTML5 Canvas + DOM strategy game, medieval/ancient theme (Eras 1–4), mobile-first, played by families including young children. Map unit graphics are DOM elements with inline SVG, positioned over a Canvas 2D hex map.
+**Goal**: replace 7 temporary Era 13 building/national-project sprites — currently exact visual reuses of Era 12 sprites — with distinct, production-quality silhouettes, three of which must additionally read as empire-scale national projects rather than ordinary local buildings.
 
-**This task**: Add v2 DOM sprites for two new Legendary Beast units — the Dire Wolf and the Emerald Basilisk. These are PvE monsters that roam the map. They use the same animated DOM overlay system as the existing Giant Boar.
+**Layout**: each sprite is a standalone 192×192 SVG built on `<BuildingFrame>`/`<BuildingPlinth>`, the same fixed layout every existing building sprite uses.
 
-**Audience**: Sprites appear on a hex tile map at 40–120 px. Bold, readable silhouettes. Children should immediately recognise a wolf pack and a giant lizard.
+**Content**: 4 ordinary buildings (Circular Fabricator, Modular Arcology, Carbon Capture Grid, Immersive Arts Lab) plus 3 national projects (National AI Assurance Program, Circular Manufacturing Network, Mars Robotics Initiative). Full per-sprite specs are in `<sprites>` below.
 
-**Existing reference**: The Giant Boar sprite (`beast_boar.svg.ts`) and its companion `boar-animations.css` are attached — read them in full before producing anything. Every structural and animation decision must follow the boar's precedent.
+**Audience**: this 192×192 SVG is the established building-sprite asset contract used by every entry in `BUILDING_SPRITE_CATALOG` — correct format and correct catalog registration matter regardless of exactly which UI surface currently renders it (see the honesty note below). Design at the same visual density and scale as the existing Era 10–12 sprites you're referencing, and keep every sprite in this batch visually distinct from the other 6 and from the sprite it replaces.
+
+**A note on current UI wiring, for honesty rather than overclaiming**: `spriteCache.getBuilding()` (the function that would draw one of these sprites) has no live call site in `src/main.ts`, `render-loop.ts`, or `city-render-passes.ts` today — it's only exercised by a unit test. Design to the same quality bar as if it were fully wired up (that wiring is a separate follow-up), but go by the sibling sprites in `buildings.tsx` rather than a live in-game screenshot.
+
+**Project**: Conquestoria — an HTML5 Canvas + DOM strategy game built with TypeScript and Vite. Gameplay spans Eras 1–13. Mobile-first, played by families including children.
+
+**Why three of these are different from a normal building**: `national_ai_assurance_program`, `circular_manufacturing_network`, and `mars_robotics_initiative` are **national projects** — empire-wide, one-per-civ, temporary-effect structures. Per this game's design rules, national projects must visually read as empire-scale initiatives, not ordinary local buildings: give them a larger, more monumental composition (a full campus/complex rather than a single structure) and a clear "this is temporary/programmatic" visual cue (e.g. a countdown/program-status readout), distinct from the permanent local buildings around them. The other 4 sprites in this batch are ordinary single buildings and should not adopt this campus treatment.
+
+**Quality bar**: go beyond a bare placeholder silhouette. Include the small hand-crafted details that make every existing sprite in `buildings.tsx` feel intentional rather than generic. At the same time, every added detail must stay subordinate to the one dominant silhouette element named per sprite below (see "Composition discipline") — for the 3 national projects, "dominant" means the largest single element of the campus, not the whole campus at equal weight; the campus reads as a set of one dominant structure plus smaller satellite pieces, the same one-dominant-plus-supporting principle at a bigger scale, not an exception to it.
+
+**Platform**: Web (Canvas 2D + DOM). Sprites are prerendered to `HTMLImageElement` via SVG blob URLs. Repository: https://github.com/a1flecke/conquestoria
 </context>
 
 <reference_files>
-Attach these files as uploads (repository is private):
-
-1. **`src/renderer/sprites/v2/beast_boar.svg.ts`** — PRIMARY FORMAT REFERENCE. The output files must follow this exact structure: `export const svg: Record<string, string> = { beast: "..." }` where the value is a single HTML string starting with `<div class="cq-sprite-wrap cq-v2" ...>`.
-
-2. **`src/assets/boar-animations.css`** — PRIMARY ANIMATION REFERENCE. The output CSS files must follow this exact pattern: keyframes + state selectors using `[data-state="..."][data-kind="..."]` targeting `.cq-sprite-figure` and beast-specific classes. Your companion CSS files will use `data-kind="beast-wolf"` and `data-kind="beast-basilisk"` respectively.
-
-3. **`src/assets/sprite-animations-v2.css`** — Do NOT use any selectors from this file for beasts. It controls human units. Read it for CSS variable / custom property context only.
+1. **Sprite system helpers** (`BuildingPlinth`, `Banner`, `FactionPalette` type, full `MATERIAL_PALETTE` constant, `CATEGORY_TINTS`):
+   https://raw.githubusercontent.com/a1flecke/conquestoria/main/src/renderer/sprites/sprite-system.tsx
+2. **All existing building sprites, including the `BuildingFrame` helper itself** (`BuildingFrame` is defined locally near the top of this file, around line 25 — it is NOT exported from `sprite-system.tsx`). Read every function, especially the Era 10 national-project trio (`ManhattanProjectSprite`, `PostwarReconstructionSprite`, `SpaceProgramInitiativeSprite`) for how this codebase visually distinguishes a national project from a normal building, and the Era 12 tail (`AutomatedPortSprite` through `TelemedicineHubSprite`, especially `CyberDefenseCenterSprite`, `DataCenterSprite`, `SmartGridSprite`, `RocketProgramSprite`) for the near-future tech idiom:
+   https://raw.githubusercontent.com/a1flecke/conquestoria/main/src/renderer/sprites/buildings.tsx
+3. **CSS animation system**:
+   https://raw.githubusercontent.com/a1flecke/conquestoria/main/src/assets/sprite-animations-v2.css
+4. **Sprite catalog** — shows the exact placeholder lines you are replacing (search for "Era 13 content launch"):
+   https://raw.githubusercontent.com/a1flecke/conquestoria/main/src/renderer/sprites/sprite-catalog.ts
 </reference_files>
 
 <design_system>
-**Visual Language**: Flat geometric SVG. Medieval/ancient theme. 2.5D perspective — figures face right, slightly toward the viewer. Warmth: earthy, hand-made feel. Ink line `#1f1a14` holds everything together.
+## Visual Language
+- **Style**: Flat geometric SVG, slight isometric/2.5D.
+- **Line weight**: `stroke="#1f1a14"` (`P.ink.line`) `strokeWidth="1"` main outlines, `0.5–0.8` interior detail.
+- **No gradients, no filters, no drop-shadows.**
 
-**Line Weights**:
-- Major outlines: `stroke="#1f1a14"` `stroke-width="1"` to `"2.5"`
-- Interior detail: `stroke-width="0.5"`–`"1"`
-- No CSS filters, no gradients
+## Composition discipline: one dominant silhouette, everything else supporting
+This is a hard project rule (`.claude/skills/generate-sprite-prompt.md`'s design brief for this
+issue): every sprite is "one dominant silhouette plus a supporting prop." For the 4 ordinary
+buildings in this batch, apply it exactly as in Part 2. For the 3 national projects, apply it at
+campus scale: one dominant structure (the largest, most detailed element) plus a small number of
+clearly smaller satellite structures and a compact status readout — never three or more
+equally-sized buildings competing for attention. If a national-project composition starts to feel
+like a busy diorama, cut a satellite element rather than shrink everything to fit.
 
-**Material Palette** (use these exact hex values — never arbitrary colors):
+## Material Palette (`P.*`)
 ```
 skin:   warm=#d4a373  cool=#b08968  deep=#8a5a3c
 cloth:  tunic=#c19a6b  linen=#e6dcc6  wool=#7a6e5b  dye=#5b4a7a
 metal:  iron=#5a6068  steel=#8a929b  bronze=#b8895a  gold=#d4a13c  shine=#e8edf2
 wood:   light=#c19a6b  mid=#8a6a3a  dark=#5e3f24
 stone:  light=#c4b8a4  mid=#9a8e78  dark=#6a5e4a
-thatch: straw=#d6b46a  shadow=#8a6a3a
 ground: grass=#7ea860  dirt=#a08260  sand=#d8c896  water=#3a6e94
-ink:    line=#1f1a14   soft=#3a3228
+ink:    line=#1f1a14  soft=#3a3228
 ```
 
-**Wound color**: `#c43b2e` (same as boar — blood red)
-
-**v2 DOM Sprite Structure** (copy this skeleton exactly, substituting your SVG content):
-```html
-<div class="cq-sprite-wrap cq-v2" data-state="idle" data-kind="BEAST_KIND" data-damage="0" style="--phase:0">
-  <svg viewBox="0 0 128 128" width="100%" height="100%" data-state="idle" data-kind="BEAST_KIND">
-    <!-- Hex tile overlay indicator (translucent hex border at the base) -->
-    <g transform="translate(16 38.864000000000004)">
-      <g>
-        <ellipse cx="48" cy="45.568" rx="35.88" ry="14.72" fill="#000" opacity="0.18"/>
-        <polygon points="87.837,64.568 48,87.568 8.163,64.568 8.163,18.568 48,-4.432 87.837,18.568"
-          fill="none" stroke="#000" stroke-opacity="0.25" stroke-width="1.2" stroke-dasharray="2 3"/>
-      </g>
-    </g>
-    <!-- Animated figure — all visible body content goes inside this group -->
-    <g class="cq-sprite-figure">
-      <!-- ground shadow ellipse -->
-      <ellipse cx="64" cy="95" rx="28" ry="5" fill="#000" opacity="0.35"/>
-
-      <!-- BODY CONTENT HERE -->
-
-      <!-- Damage overlays — all hidden at data-damage="0", revealed progressively -->
-      <g class="cq-wound cq-wound-1"> <!-- tier 1: first scratch --> </g>
-      <g class="cq-wound cq-wound-2"> <!-- tier 2: gash + drips --> </g>
-      <g class="cq-wound cq-wound-3"> <!-- tier 3: near-death injury --> </g>
-    </g>
-  </svg>
-</div>
+## Sci-Fi / Modern Accent Palette (established by Era 10–12 sprites — reuse verbatim; write as literal hex strings, they are not `MATERIAL_PALETTE` members)
+```
+dark tech panel fills:  #181830  #0a0a20  #111122  #112244
+status LEDs / glow:      #00aaff (blue-online)  #00ff44 / #00ff88 (green-active)  #ffaa00 (amber-standby)
+glass / display surface: #b8d4e8
+power / warning accent:  #ffdd00  #ffd700
+exhaust / launch flame:  #ff6600  #cc5500
 ```
 
-**Animation CSS Structure** (copy the boar's pattern; substitute beast-specific class names and `data-kind`):
-- 5 states: `idle`, `walk`, `attack`, `hurt`, `death`
-- 4 damage tiers: `data-damage="0"` (healthy) → `"1"` (wounded) → `"2"` (bloodied) → `"3"` (near death)
-- Selectors always target `[data-state="..."][data-kind="BEAST_KIND"]`
-- `.cq-wound-1/2/3` default to `opacity: 0` — shown cumulatively by `[data-damage]` selectors
-- End with `@media (prefers-reduced-motion: reduce)` block that sets `animation: none !important` on all animated elements
+## Faction Color Rules
+Every sprite receives `palette: FactionPalette` (`{ dark, mid, bright, trim }`). Primary structure fill → `palette.mid`; shadow/trim → `palette.dark`; glow/highlight → `palette.bright`; small heraldic accent → `palette.trim`. **Never hardcode a faction name or hex for faction identity.**
+
+## Building Sprite Contract
+```typescript
+export function FooSprite({ palette, svgOnly = false }: BuildingSpriteProps): string
+```
+- ViewBox: `0 0 192 192`. Wrap in `<BuildingFrame label="Name" sub="Sub" category="..." svgOnly={svgOnly}>` — use the exact `label`/`sub`/`category` given per sprite below. `category` must be a real `CATEGORY_TINTS` key: `food`, `production`, `gold`, `science`, `culture`, `military`, `espionage`.
+- Always include `<BuildingPlinth w={...} />` and a faction `<Banner ... palette={palette} />`.
+- **Available animated effect CSS classes**: `.cq-fire`, `.cq-smoke`/`.cq-smoke--b`/`.cq-smoke--c`, `.cq-spark`/`.cq-spark--b`/`.cq-spark--c`, `.cq-glow`, `.cq-peek`, `.cq-dust`.
+- For continuous motion use inline SVG `<animate>`/`<animateTransform>`, subtle only.
+- **National projects specifically**: compose a wider, multi-element "campus" (one dominant structure + 1–2 clearly smaller satellite structures/pads within the same 192×192 frame) rather than one single building, and include one explicit "this is a temporary program" visual cue — a status/countdown readout, a program banner across the facade, or similar. See how `SpaceProgramInitiativeSprite`/`ManhattanProjectSprite` achieve this scale in the reference file.
+
+## Animation & motion ownership
+`prefers-reduced-motion` handling and any outer state-driven wrapper classes are owned entirely
+by the runtime CSS. Do not add reduced-motion handling inside an individual building function —
+use `.cq-glow`/`.cq-fire`/etc. class names and inline `<animate>` as documented, and the runtime
+takes care of the rest.
+
+## Example — how this codebase composes a national-project "campus" without losing the one-dominant-shape rule (from `SpaceProgramInitiativeSprite`, already in `buildings.tsx`)
+<example>
+Read the full `SpaceProgramInitiativeSprite`, `ManhattanProjectSprite`, and
+`PostwarReconstructionSprite` functions in the `buildings.tsx` reference file before writing
+Sprites 5–7 below. Notice that even the largest, busiest national-project sprites still commit to
+one dominant element (a mission-control room, a guarded compound, a skyline under construction)
+drawn largest and first, with only 2–3 smaller supporting elements around it — none of them use
+more than one dominant focal shape. Match that discipline; do not use the larger 192×192 canvas
+as license to add more equally-weighted elements.
+</example>
 </design_system>
 
 <sprites>
 
-## SPRITE 1 — Dire Wolf (beast_wolf)
+## SPRITE 1 — CircularFabricatorSprite (Building)
 
-**Output files**:
-- `src/renderer/sprites/v2/beast_wolf.svg.ts` — export as `export const svg: Record<string, string> = { beast: "..." }`
-- `src/assets/wolf-animations.css` — companion animation CSS
-
-**data-kind**: `beast-wolf`
-
-**Color palette** (use ONLY these values for the wolf body — no other colors):
-```
-fur:     #7d8a99   (blue-grey wolf body)
-furDark: #55606e   (undercoat shadow, legs, muzzle)
-belly:   #aab4c0   (lighter chest/underbelly)
-eye:     #d8b13a   (amber predator eye)
-fang:    #e8e0cc   (ivory fangs — same as boar tusk color)
-ink:     #1f1a14   (all outlines)
-wound:   #c43b2e   (blood, same as boar)
-```
+**Insert into**: `src/renderer/sprites/buildings.tsx`, after `OceanRoboticsYardSprite` (the last sprite from Part 2)
+**Catalog entry**: replace `circular_fabricator: SmartGridSprite,` with `circular_fabricator: CircularFabricatorSprite,`
+**label**: `"Circular Fabricator"`  **sub**: `"Materials Loop"`  **category**: `production`
 
 ### Concept
-A dire wolf — massive, low-slung, built for endurance over speed. Broad-shouldered body with a heavy raised hackle ridge along the spine. Four sturdy legs drawn in diagonal pairs for quadruped gait. Large wedge-shaped head with visible fangs, upright ears, and burning amber eyes. Curled tail. The overall silhouette reads as "huge dangerous wolf" at 32 px.
-
-### Key requirements — SVG body
-- **Legs**: Four legs as rounded rects in two diagonal pairs (front-far/back-near vs front-near/back-far). Each pair shares a class for animation phase-offset. Name classes: `cq-wolf-leg--ff`, `cq-wolf-leg--bf`, `cq-wolf-leg--fn`, `cq-wolf-leg--bn`.
-- **Body**: A single `<path>` or `<ellipse>` for the torso — muscular, wide at the shoulders, tapering to haunches. Fill `furDark` for the core, with a secondary `<ellipse>` in `belly` for the chest patch.
-- **Hackle ridge**: A jagged/serrated `<path>` along the dorsal spine in `furDark`, `stroke-width="5"` — raises on alert.
-- **Head**: `<ellipse>` for the skull. Attached `<rect>` for the muzzle in `furDark`. The muzzle should face right.
-- **Ear**: Triangle `<path>` in `furDark`, upright.
-- **Eye**: `<circle>` in `eye` color — one glowing amber eye.
-- **Fangs**: Two small droop lines from the muzzle in `fang` color, `stroke-linecap="round"`. Name the fang group `cq-wolf-fangs`.
-- **Tail**: A curling `<path>` sweeping to the left (behind the body), `stroke-width="4"`, `fill="none"`.
-- **Breath**: On idle, the wolf pants — 2–3 small ellipses (`cq-wolf-breath`, `cq-wolf-breath--b`) near the muzzle, animated to drift forward and fade. Same technique as the boar's `cq-breath`.
-- **Wound tier 1** (`cq-wound-1`): Three claw-rake lines across the flank, `stroke="#c43b2e"`.
-- **Wound tier 2** (`cq-wound-2`): A deeper tear on the shoulder + blood drops.
-- **Wound tier 3** (`cq-wound-3`): A torn ear (`cq-wolf-ear-tear` element appears) + hindquarter gash.
-- Tone: feral, pack predator, cold northern wilderness
-
-### Key requirements — animation CSS (`wolf-animations.css`)
-- **idle**: Panting breath ellipses animate with `cq-wolf-breath` keyframes (same drift+fade pattern as boar's `cq-boar-breath`).
-- **walk**: `cq-sprite-figure` uses a loping lumber (`translateY` + slight `rotate`). Four legs swing with `cq-wolf-leg` keyframes; diagonal pairs phase-offset by half cycle (same technique as boar's legs).
-- **attack**: `cq-sprite-figure` snaps forward with a quick lunge (`translateX`). Assign class `cq-wolf-head` to the head+muzzle group; animate it with a swift bite-and-retract rotation.
-- **hurt**: Shudder + red `filter: brightness` flash, looping.
-- **death**: `cq-sprite-figure` tilts and fades with `forwards` fill, same as boar fall.
-- Damage escalation: at `data-damage="3"`, the hurt animation quickens and the head hangs at a downward `rotate`.
-
----
-
-## SPRITE 2 — Emerald Basilisk (beast_basilisk)
-
-**Output files**:
-- `src/renderer/sprites/v2/beast_basilisk.svg.ts` — export as `export const svg: Record<string, string> = { beast: "..." }`
-- `src/assets/basilisk-animations.css` — companion animation CSS
-
-**data-kind**: `beast-basilisk`
-
-**Color palette** (use ONLY these values for the basilisk body):
-```
-scale:     #2f7d4f   (deep emerald green body)
-scaleDark: #1d5535   (dark scale shadow, legs, underbelly)
-frill:     #46b878   (bright green dorsal frill spines)
-eye:       #9aedc0   (glowing pale mint gaze — the basilisk's weapon)
-tongue:    #c43b2e   (forked red tongue)
-ink:       #1f1a14   (all outlines)
-wound:     #c43b2e   (blood)
-```
-
-### Concept
-A giant basilisk — long, low, reptilian. A thick barrel body close to the ground with four wide-splayed legs giving it an ancient crocodilian silhouette. A prominent fan of dorsal frill spines running the full spine length. A wide, blunt-snouted head facing right with an unblinking luminous eye. A thick, slowly-curling tail sweeping left. Scale texture along the body. The figure is wider and lower than the wolf — it should feel ancient and immovable.
-
-### Key requirements — SVG body
-- **Legs**: Four short, wide splayed legs (wider stance than the wolf — a reptile's sprawl). Use rounded rects or small arcs. Name classes: `cq-basilisk-leg--ff`, `--bf`, `--fn`, `--bn`.
-- **Body**: One large compound `<path>` for the main torso — long oval, low-slung, overlapping slightly onto the legs. Fill `scale`. Add a secondary belly stripe in `scaleDark` along the underside.
-- **Dorsal frill**: A series of 5–7 triangular spines along the top of the body from neck to tail-base. Fill `frill`, stroke `scaleDark`. Name the whole group `cq-basilisk-frill`.
-- **Tail**: A thick curving path sweeping left and slightly downward, tapering to a point. Fill `scaleDark` for the tail.
-- **Head**: A wide `<ellipse>` (wider than tall) for the skull. Small nostril dots. A short triangular snout.
-- **Forked tongue**: Two thin line segments from the snout tip in `tongue` color, curling outward. Name `cq-basilisk-tongue`. Animate with a flick on idle.
-- **Eye**: A large `<circle>` in `eye` color with a narrow vertical-slit pupil (`<rect>` rotated, in `ink`). The eye should glow — add a larger `<circle>` at `opacity="0.3"` in `eye` color as a glow ring. Name `cq-basilisk-eye-glow`.
-- **Scale texture**: 4–6 short arc `<path>` segments across the mid-body (`fill="none"`, `stroke=scaleDark`, `stroke-width="1"`).
-- **Wound tier 1** (`cq-wound-1`): Two claw rakes across the flank.
-- **Wound tier 2** (`cq-wound-2`): A deeper gash with blood drips and a cracked scale piece.
-- **Wound tier 3** (`cq-wound-3`): A broken dorsal spine (`cq-basilisk-spine-break` appears), deep hindquarter wound.
-- Tone: ancient, reptilian menace, lurking stillness
-
-### Key requirements — animation CSS (`basilisk-animations.css`)
-- **idle**: Two animations simultaneously — (1) tongue flick: `cq-basilisk-tongue` scales/rotates rapidly and returns, looping every 3s; (2) eye glow pulse: `cq-basilisk-eye-glow` opacity pulses 0.15→0.5→0.15, 2s period.
-- **walk**: A deliberate heavy plod — `cq-sprite-figure` uses a slow, heavy vertical bob (`translateY` ±2px, 0.9s). The four legs swing with slow alternating `cq-basilisk-leg` keyframes (diagonal pairs, but slower and wider arc than wolf). The frill subtly fans out (scale or rotate transform on `cq-basilisk-frill`).
-- **attack**: `cq-sprite-figure` lurches forward quickly. Assign `cq-basilisk-head` to the head group; animate a rapid forward snap and retract. The tongue flick fires simultaneously.
-- **hurt**: Shudder + brightness flash. At `data-damage="3"`, the frill droops (downward rotate on `cq-basilisk-frill`) and the shudder quickens.
-- **death**: The basilisk sinks — `cq-sprite-figure` translates downward and fades with `forwards` fill. Slightly slower than the wolf (1.4s vs 1s), befitting its mass.
-- Damage escalation: at `data-damage="3"`, the tongue-flick animation slows and the eye glow dims.
-
-</sprites>
-
-<output_format>
-Produce output in this order — one file at a time:
-
-1. `src/renderer/sprites/v2/beast_wolf.svg.ts`
-   - Single export: `export const svg: Record<string, string> = { beast: "..." }`
-   - The string value is a complete HTML+SVG fragment (not a JSX/TSX function)
-   - All attribute values with double quotes must be escaped as `\"` inside the JS string
-   - Test mentally: paste the HTML string into an HTML file and confirm it renders correctly at 128×128
-
-2. `src/assets/wolf-animations.css`
-   - CSS only, no imports, no variables
-   - Selectors use `[data-kind="beast-wolf"]` throughout
-   - Include the `@media (prefers-reduced-motion: reduce)` block at the end
-
-3. `src/renderer/sprites/v2/beast_basilisk.svg.ts`
-   - Same format as the wolf file
-
-4. `src/assets/basilisk-animations.css`
-   - Selectors use `[data-kind="beast-basilisk"]` throughout
-   - Include the `@media (prefers-reduced-motion: reduce)` block at the end
-
-**Do not output all four at once.** Complete each file fully before moving to the next. After each file, pause and ask if adjustments are needed before continuing.
-</output_format>
-
-<style_checklist>
-Before finalising each sprite, verify:
-- [ ] File exports `export const svg: Record<string, string> = { beast: "..." }` — no JSX, no TypeScript imports
-- [ ] Outer wrapper is `<div class="cq-sprite-wrap cq-v2" data-state="idle" data-kind="beast-wolf|beast-basilisk" data-damage="0" style="--phase:0">`
-- [ ] Inner SVG is `<svg viewBox="0 0 128 128" width="100%" height="100%" data-state="idle" data-kind="...">` (data-kind repeated)
-- [ ] Hex tile overlay group is present (translucent ellipse + dashed hex polygon at base)
-- [ ] All visible content (except the overlay) is inside `<g class="cq-sprite-figure">`
-- [ ] Ground shadow ellipse (`cx="64" cy="95"`) is the first child of `cq-sprite-figure`
-- [ ] Three wound groups present: `cq-wound cq-wound-1`, `cq-wound-2`, `cq-wound-3`
-- [ ] No hardcoded faction colors — only the species-specific palette values listed in the spec
-- [ ] No CSS gradients or filter effects anywhere in the SVG
-- [ ] All attribute strings use double quotes escaped as `\"` inside the JS template string
-- [ ] Animation CSS uses `[data-kind="beast-wolf"]` / `[data-kind="beast-basilisk"]` — never `[data-kind="beast"]`
-- [ ] CSS wound visibility: `.cq-wound-1, .cq-wound-2, .cq-wound-3 { opacity: 0 }` default; progressive reveal via `[data-damage]`
-- [ ] `@media (prefers-reduced-motion: reduce)` block present at end of CSS, covering all animated selectors
-- [ ] Wolf silhouette reads as "wolf" at 32 px; basilisk reads as "big lizard" at 32 px
-- [ ] Wolf and basilisk are visually distinct from the boar — different shape language, different palette, different animations
-</style_checklist>
-
----
-
-## 2026-07-06 addendum — Rail Segment (MR14, issue #483)
-
-### Developer instructions (do not copy into Claude)
-
-This is a **non-standard Improvement Marker** — a single reusable edge sprite drawn rotated along
-a road segment (see `.claude/rules/sprites.md` → "Extension Recipe — Rail Segment") rather than
-centered on a hex. For this MR the SVG was hand-authored directly in
-`src/renderer/improvements/rail-segment-marker.ts` following the checklist below rather than
-round-tripped through Claude Design, since the change needed to ship in the same session. Use
-this prompt if a future pass wants a higher-fidelity replacement asset.
-
-### Prompt (copy everything below this line)
-
-<role>
-You are a senior SVG sprite artist specializing in hand-crafted game graphics. You write clean, geometric SVG — no photorealism, no gradient meshes, no blur filters.
-</role>
-
-<context>
-**Project**: Conquestoria — HTML5 Canvas + DOM strategy game, medieval/ancient theme (Eras 1–4), mobile-first. This asset represents a rail-upgraded road (unlocked by the "Railway Expansion" tech, era 7+).
-</context>
-
-<reference_files>
-1. Hex renderer (road/rail draw calls): https://raw.githubusercontent.com/a1flecke/conquestoria/main/src/renderer/hex-renderer.ts
-2. Existing improvement marker for style reference: https://raw.githubusercontent.com/a1flecke/conquestoria/main/src/renderer/improvements/resource-outpost-marker.ts
-</reference_files>
-
-<sprites>
-## IMPROVEMENT — RailSegmentSvg (edge sprite, not a tile-centered marker)
-
-**Create file**: `src/renderer/improvements/rail-segment-marker.ts`
-**Replaces**: the plain `#8a6a3a` road line drawn by `drawRoads`/`drawWrapGhostRoads` in `hex-renderer.ts`, but only on segments where both endpoint tiles are rail-upgraded.
-
-### Concept
-A short straight length of railway track: two steel rails running the full width of the tile with wooden ties (sleepers) crossing perpendicular beneath them. Drawn along the X axis of the viewBox (length axis) so the renderer can rotate it to match any hex-to-hex edge direction.
+A modular material-recycling loop — closed-cycle fabrication where output feeds back into input. The defining shape is a circular/looped conveyor or material-flow ring, not Smart Grid's transformer-and-power-lines scene.
 
 ### Key requirements
-- viewBox="0 0 48 48", no palette prop, no animation, no JSX
-- Rails run horizontally (length axis), ties run vertical/perpendicular — the renderer stretches this along the edge and rotates it, so the "length" direction must be the sprite's horizontal axis
-- Wood ties: `#5e3f24`, evenly spaced, 5 ties across the 48-unit width
-- Steel rails: `#8a929b` with a thin `#e8edf2` highlight line at ~50% opacity for a metallic sheen
-- `stroke-linecap="round"` and `stroke-linejoin="round"` throughout
-- Tone: industrial, functional, distinct at a glance from the plain brown road line
+- **Dominant silhouette**: a ring-shaped conveyor or closed circuit of connected pipe segments in `P.metal.steel`, visibly closed (start meets end) — this "circular" shape is the single most important read at a glance and must be established first, larger than anything else in the sprite.
+- **Supporting detail — material flow**: small material blocks/pellets (rounded rectangles, `palette.mid` and `P.metal.bronze`) at 3–4 points around the loop to imply continuous flow — kept smaller than the loop itself.
+- **Supporting detail — fabricator head**: a compact boxy unit with a small nozzle/output slot, `P.stone.dark`, at one point on the loop.
+- **Supporting detail — status**: one or two `#00ff44` flow-indicator LEDs at loop junctions; `.cq-spark`/`.cq-spark--b` at the fabricator head.
+- `<Banner palette={palette} scale={0.65}>`.
+- Tone: efficient, closed-loop, industrial-green — sustainability through engineering, not a power substation.
+
+---
+
+## SPRITE 2 — ModularArcologySprite (Building)
+
+**Insert into**: `src/renderer/sprites/buildings.tsx`, after `CircularFabricatorSprite`
+**Catalog entry**: replace `modular_arcology: DataCenterSprite,` with `modular_arcology: ModularArcologySprite,`
+**label**: `"Modular Arcology"`  **sub**: `"Dense Housing"`  **category**: `food`
+**Note**: `requiresBuildings: ['transplant_hospital', 'factory']` — a special building per `.claude/rules/game-balance.md`, may lean on two thematic elements (housing density + industry) since it's condition-gated.
+
+### Concept
+Tall interlocking residential/industrial modules — a dense vertical arcology block built from visibly distinct stacked/interlocking cuboid modules (some glowing warm as living space, some darker as production space), replacing Data Center's server-rack rows with a housing silhouette entirely.
+
+### Key requirements
+- **Dominant silhouette**: the whole interlocking-module tower — 6–10 rectangular modules of varying size, offset/staggered (not a uniform grid) so they visibly "interlock," treated as ONE tall composite shape rather than several separate buildings. This tower silhouette must read first, distinct from Data Center's flat rack-row pattern.
+- **Supporting detail — mixed-use contrast**: within that one tower, some modules `#e6dcc6`/`P.cloth.linen` warm-lit (residential, small warm window dots), others `P.stone.dark`/`P.metal.steel` (industrial, small `#00aaff` status dot) — this mixed-use contrast lives *inside* the dominant tower shape, it is not a second silhouette.
+- **Supporting detail — connectors**: thin connecting walkways/bridges between module clusters, `P.metal.iron`; a central vertical core/spine tying the modules together, `P.stone.mid`.
+- **Supporting detail — window glow**: a few small warm window dots (`P.metal.gold`, low opacity) scattered on residential modules.
+- `<BuildingPlinth w={130} />` — should read as *tall*, narrower footprint than most food buildings.
+- `<Banner palette={palette} scale={0.65}>` near the top of the core spine.
+- Tone: dense, vertical, mixed-use — a self-contained micro-city block.
+
+---
+
+## SPRITE 3 — CarbonCaptureGridSprite (Building)
+
+**Insert into**: `src/renderer/sprites/buildings.tsx`, after `ModularArcologySprite`
+**Catalog entry**: replace `carbon_capture_grid: SmartGridSprite,` with `carbon_capture_grid: CarbonCaptureGridSprite,`
+**label**: `"Carbon Capture Grid"`  **sub**: `"Restorative Industry"`  **category**: `production`
+**Note**: `requiresBuildings: ['factory', 'environmental_agency']` — special building, two thematic elements allowed.
+
+### Concept
+Capture stacks and a pipeline/grid network drawing emissions in and locking carbon away — must read as distinct restorative infrastructure, NOT a generic power plant (the issue explicitly calls this out). No cooling towers, no smokestacks emitting visible smoke — instead, stacks that visibly *pull inward*, and a pipeline grid running to a sequestration point.
+
+### Key requirements
+- **Dominant silhouette**: 2–3 slim vertical capture stacks (NOT wide cooling towers) in `P.metal.steel`, each with a filter/mesh cap and small inward-pointing chevron marks near the intake implying air being drawn IN, not smoke going out. This inward-flow read is the critical differentiator from "generic power plant" and must be the first thing read.
+- **Supporting detail — pipeline network**: pipes (`P.metal.iron`) running from the stacks to a sequestration node — a small hatched circle or "sealed vault" hatch shape, `P.stone.dark` — kept lower-profile than the stacks.
+- **Supporting detail — control building + green accent**: a small control building, `P.stone.mid`, one `#00ff44` active-capture status light; optionally a few small green accents (`P.ground.grass`) reinforcing "restorative," echoing `EnvironmentalAgencySprite` without copying its composition.
+- No `.cq-smoke` (that would read as emitting, the opposite of this building's purpose) — if you want a particle effect, use small upward chevron/arrow ticks near the stack intakes instead.
+- `<Banner palette={palette} scale={0.65}>`.
+- Tone: restorative, green-industrial — pulling carbon down, not a power plant pushing pollution up.
+
+---
+
+## SPRITE 4 — ImmersiveArtsLabSprite (Building)
+
+**Insert into**: `src/renderer/sprites/buildings.tsx`, after `CarbonCaptureGridSprite`
+**Catalog entry**: replace `immersive_arts_lab: BroadcastTowerSprite,` with `immersive_arts_lab: ImmersiveArtsLabSprite,`
+**label**: `"Immersive Arts Lab"`  **sub**: `"Interactive Arts"`  **category**: `culture`
+
+### Concept
+A cultural studio built around a projection dome and light-sculpture installation — a rounded geodesic/projection dome as the defining silhouette, replacing Broadcast Tower's tall transmission mast entirely with something low, rounded, and artistic.
+
+### Key requirements
+- **Dominant silhouette**: a rounded geodesic dome (a hemisphere built from a handful of visible triangular facets) in `P.stone.light`/translucent `#b8d4e8`, with an interior glow visible through the panels. This rounded-dome shape is the opposite of Broadcast Tower's tall mast and must read first.
+- **Supporting detail — light sculpture**: 2–3 thin vertical light beams or a floating abstract light shape beside/above the dome, `palette.bright`/`#ffdd00`, low opacity — kept subordinate to the dome itself.
+- **Supporting detail — studio wing**: a small entrance wing beside the dome, `P.stone.mid`, one or two windows with a warm `.cq-glow`.
+- **Supporting detail — plaza**: a ground-level reflecting pool or plaza strip in front, `P.ground.water`/light blue.
+- `.cq-glow` on the dome interior for a soft pulsing "installation is active" feel.
+- `<Banner palette={palette} scale={0.65}>` beside the studio wing (not atop the dome, to keep the dome's rounded silhouette clean).
+- Tone: contemplative, artistic, luminous — an immersive gallery, not a transmission tower.
+
+---
+
+## SPRITE 5 — NationalAiAssuranceProgramSprite (National Project)
+
+**Insert into**: `src/renderer/sprites/buildings.tsx`, after `ImmersiveArtsLabSprite`
+**Catalog entry**: replace `national_ai_assurance_program: CyberDefenseCenterSprite,` with `national_ai_assurance_program: NationalAiAssuranceProgramSprite,`
+**label**: `"National AI Assurance Program"`  **sub**: `"National Project"`  **category**: `science`
+
+### Concept
+An empire-scale AI-standards and assurance campus — a larger, more monumental relative of `AiSafetyInstituteSprite` (Part 2), not a copy of it. Per the national-project campus guidance above: compose this as one dominant assurance hall plus a small number of clearly smaller satellite pieces, with a visible "program status" readout, since this project's effect is explicitly temporary (fades after era `homeEra + 2`).
+
+### Key requirements
+- **Dominant silhouette**: a wide, columned central assurance hall (larger footprint than any single Part 2 building), `P.stone.light`, with the same rounded shield-and-checkmark motif as `AiSafetyInstituteSprite` scaled up and centered above the entrance — reinforcing the family resemblance while reading as clearly bigger/national in scope. This hall is the one dominant element the whole composition organizes around.
+- **Supporting detail — satellite pavilions**: 1–2 smaller flanking structures connected by a short covered walkway (`P.stone.mid` columns), each visibly smaller than the main hall, each with a small `#00aaff` status screen.
+- **Supporting detail — program status readout**: a banner, plaque, or screen on the facade showing an abstract progress/status bar (a rectangle partially filled — NOT literal text/numbers, per the no-text-as-image rule) signaling "this is an active time-limited program."
+- `.cq-glow` on the shield emblem and the status readout.
+- `<BuildingPlinth w={175} />` — wider than the single-building Part 2 sprites, to read as a campus.
+- `<Banner palette={palette} scale={0.75}>` — larger than typical, for empire-scale presence, placed on the dominant hall.
+- Tone: authoritative, national, temporary-but-significant — bigger and more ceremonial than the local AI Safety Institute, never a copy-paste of it.
+
+---
+
+## SPRITE 6 — CircularManufacturingNetworkSprite (National Project)
+
+**Insert into**: `src/renderer/sprites/buildings.tsx`, after `NationalAiAssuranceProgramSprite`
+**Catalog entry**: replace `circular_manufacturing_network: SmartGridSprite,` with `circular_manufacturing_network: CircularManufacturingNetworkSprite,`
+**label**: `"Circular Manufacturing Network"`  **sub**: `"National Project"`  **category**: `production`
+
+### Concept
+An empire-scale connected fabrication/logistics network — the national-scale sibling of `CircularFabricatorSprite` (Part 2), but composed as a network of multiple fabrication nodes linked by visible logistics lines, not a single closed loop. This is where "network," not just "circular," must dominate the composition.
+
+### Key requirements
+- **Dominant silhouette**: one larger central fabrication node (a bigger echo of `CircularFabricatorSprite`'s ring shape, roughly double the scale of the satellite nodes below) — this central node, not the network of lines, is the element that must read first and largest.
+- **Supporting detail — satellite nodes**: two smaller fabricator-loop nodes (~40–50px each, clearly smaller than the central node) positioned across the frame.
+- **Supporting detail — logistics lines**: connecting lines/pipes (`P.metal.steel`) linking the three nodes in a hub-and-spoke pattern from the central node — this network topology is the key differentiator from the single-loop local Fabricator, but the lines themselves stay thinner/quieter than any of the three nodes.
+- **Supporting detail — status**: `.cq-spark`/`.cq-spark--b` at each fabrication node; a "program status" readout (abstract progress bar, same convention as Sprite 5) on the central node.
+- `<BuildingPlinth w={175} />`.
+- `<Banner palette={palette} scale={0.75}>` on the central node.
+- Tone: expansive, networked, industrial-green — an empire-wide production web organized around one clear hub, not three equal buildings.
+
+---
+
+## SPRITE 7 — MarsRoboticsInitiativeSprite (National Project)
+
+**Insert into**: `src/renderer/sprites/buildings.tsx`, after `CircularManufacturingNetworkSprite`
+**Catalog entry**: replace `mars_robotics_initiative: RocketProgramSprite,` with `mars_robotics_initiative: MarsRoboticsInitiativeSprite,`
+**label**: `"Mars Robotics Initiative"`  **sub**: `"National Project"`  **category**: `science`
+
+### Concept
+A national launch-and-robotics complex focused on a Mars mission — must clearly exceed `RocketProgramSprite` (Era 10's early test-rocket-on-a-gantry scene) in scale and specificity: a full launch complex with a visible Mars-mission identity (a red-planet motif on a mission patch, a rover payload visible before launch), not a generic rocket.
+
+### Key requirements
+- **Dominant silhouette**: a taller, more modern launch gantry (`P.metal.steel`, more refined than Rocket Program's early scaffold) beside a sleek modern rocket body (`palette.mid`, `P.metal.shine` nose cone) — larger and more advanced-looking than `RocketProgramSprite`. This gantry+rocket pairing is the one dominant element everything else supports.
+- **Supporting detail — Mars mission identity**: a small red-orange planet roundel (a simple circle, `#c0522a` or similar, with 1–2 thin surface-feature lines) on the rocket fairing or a mission banner beside the gantry — the single element that makes it read as "Mars," not just "a rocket." Keep it small — a patch, not a second focal shape.
+- **Supporting detail — rover payload**: a small wheeled rover (a boxy chassis on 4–6 small wheel circles, an antenna mast) visible in a payload bay or beside the gantry pre-launch, clearly smaller than the rocket.
+- **Supporting detail — status + launch pad**: an abstract program-status readout (same convention as Sprites 5–6) on the control building at the gantry base; a launch-pad flame trench at the base, `P.stone.dark`, with a small static `#ff6600`/`#cc5500` exhaust-glow accent (pre-launch readiness, not an active launch).
+- `<BuildingPlinth w={175} />`.
+- `<Banner palette={palette} scale={0.75}>` on the gantry.
+- Tone: ambitious, national-scale, forward-looking — a real Mars program, distinct from any earlier-era generic rocket sprite.
+
 </sprites>
 
 <output_format>
-Output a single `export function getRailSegmentSvg(): string` returning the SVG string, matching the shape of `resource-outpost-marker.ts`'s exported constant/loader pair.
+Output one `export function FooSprite(...)` per sprite, in the order above, ready to paste into `buildings.tsx`. State the exact single-line catalog replacement for each (already given above). Output one sprite at a time, pausing for confirmation between each, unless told otherwise.
 </output_format>
 
 <style_checklist>
-- [ ] viewBox="0 0 48 48"
-- [ ] No palette prop, no animation, no JSX
-- [ ] Rails run along the horizontal (length) axis; ties perpendicular
-- [ ] Reads clearly as "railway track" at 24–32px when stretched along a hex edge
+- [ ] ViewBox `0 0 192 192`, wrapped in `<BuildingFrame label="..." sub="..." category="...">` using the exact label/sub/category given per sprite
+- [ ] `<BuildingPlinth w={...} />` and a faction `<Banner palette={palette} .../>` present
+- [ ] Exactly one dominant silhouette per sprite (named in its spec) — for the 3 national projects, one dominant structure plus clearly smaller satellites, never several equally-weighted buildings
+- [ ] All faction color via `palette.mid` / `palette.dark` / `palette.bright` / `palette.trim` — zero hardcoded faction hex
+- [ ] Sci-fi accent colors use the literal hex values from the Sci-Fi/Modern Accent Palette above
+- [ ] The three national projects (Sprites 5–7) are visibly larger/campus-scale and each includes an explicit temporary-program status readout — they must NOT look like an ordinary single local building
+- [ ] Silhouette is unmistakably distinct from the Era 12 sprite it replaces AND from every other sprite across both Part 2 and Part 3
+- [ ] No photorealism, gradients, blur filters, embedded raster images, or SVG `<text>` used as in-world signage
+- [ ] No reduced-motion handling or state-driven wrapper classes added inside the sprite function
+- [ ] Reads clearly at the same effective scale as the sibling sprites already in `buildings.tsx`
 </style_checklist>
