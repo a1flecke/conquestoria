@@ -18,6 +18,10 @@
   player-reachable surfaces specified by Task 4 and declare a future unit Codex out of scope.
 - All labels must be icon plus text; role summaries remain 18 words or fewer by the existing
   catalog validator; all catalog entries remain reachable.
+- `run-with-mise.sh` special install/setup paths must exit after their delegated command;
+  the linked-worktree smoke test must reject a fall-through `install --immutable` call.
+- Long-running verification must retain and poll one terminal session through its final exit
+  code and summary; an incomplete response blocks completion and never justifies a retry.
 
 ### Task 1: Canonical unit-role presentation model
 

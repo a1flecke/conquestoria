@@ -30,11 +30,13 @@ export CONQUESTORIA_VITEST_CACHE_DIR="$CURRENT_ROOT/.vite/vitest"
 case "${1:-},${2:-}" in
   yarn,setup:hooks)
     run_without_local_git_env sh "$CURRENT_ROOT/scripts/setup-git-hooks.sh"
+    exit $?
     ;;
   yarn,install)
     cd "$CURRENT_ROOT"
     shift
     run_without_local_git_env mise exec -- yarn "$@"
+    exit $?
     ;;
 esac
 

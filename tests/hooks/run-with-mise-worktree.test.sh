@@ -114,3 +114,7 @@ grep -Fq "$linked|$linked/.vite/vitest||exec -- yarn install --immutable" "$mise
   echo 'install did not target the active worktree' >&2
   exit 1
 }
+! grep -Fq "$linked|$linked/.vite/vitest||exec -- install --immutable" "$mise_log" || {
+  echo 'install fell through and invoked the system install command' >&2
+  exit 1
+}
