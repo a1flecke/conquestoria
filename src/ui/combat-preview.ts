@@ -17,11 +17,20 @@ export function formatCombatPreviewDetails(
   if (preview.riverAttackPenalty < 0) {
     details.push(`${Math.round(preview.riverAttackPenalty * 100)}% river crossing`);
   }
-  for (const part of preview.attackerModifierParts ?? []) {
-    details.push(part.label);
-  }
-  for (const part of preview.defenderModifierParts ?? []) {
-    details.push(part.label);
+  const appliedFacts = preview.attackerModifierFacts?.filter(fact => fact.outcome === 'applied') ?? [];
+  if (appliedFacts.length > 0) {
+    const decisive = appliedFacts[0]!;
+    const value = decisive.operation === 'multiplier'
+      ? `×${decisive.value}`
+      : `${decisive.value >= 0 ? '+' : ''}${decisive.value}`;
+    details.push(`${decisive.label} ${value}`);
+  } else {
+    for (const part of preview.attackerModifierParts ?? []) {
+      details.push(part.label);
+    }
+    for (const part of preview.defenderModifierParts ?? []) {
+      details.push(part.label);
+    }
   }
   for (const part of preview.cityDefense?.parts ?? []) {
     details.push(part.label);

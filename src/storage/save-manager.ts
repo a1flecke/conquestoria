@@ -23,7 +23,7 @@ import {
   type PirateRelocationDirection,
   type PirateState,
 } from '@/core/pirate-state';
-import type { NotificationEntry, NotificationLog } from '@/core/notification-log';
+import type { CombatNotificationFact, NotificationEntry, NotificationLog } from '@/core/notification-log';
 import { dbGet, dbPut, dbDelete, dbGetAllKeys } from './db';
 import { tagLandmassRegions } from '@/systems/landmass-tagger';
 import { getPirateStageDefinition, PIRATE_NOTORIETY, PIRATE_PRESSURE } from '@/systems/pirate-definitions';
@@ -475,6 +475,26 @@ function normalizeNotificationTarget(value: unknown): NotificationEntry['target'
   return { kind: 'map', coord: { ...(value.coord as { q: number; r: number }) }, label: value.label };
 }
 
+function normalizeCombatNotificationDetails(value: unknown): NotificationEntry['combatDetails'] | undefined {
+  if (!isRecord(value) || !Array.isArray(value.facts)) return undefined;
+  const facts = value.facts.flatMap(fact => {
+    if (!isRecord(fact)
+      || typeof fact.label !== 'string'
+      || (fact.operation !== 'flat' && fact.operation !== 'multiplier')
+      || !Number.isFinite(fact.value)
+      || !['applied', 'ignored', 'capped', 'superseded'].includes(String(fact.outcome))
+      || typeof fact.redacted !== 'boolean') return [];
+    return [{
+      label: fact.label,
+      operation: fact.operation,
+      value: Number(fact.value),
+      outcome: fact.outcome as CombatNotificationFact['outcome'],
+      redacted: fact.redacted,
+    }] as const;
+  });
+  return facts.length > 0 ? { facts } : undefined;
+}
+
 export function normalizeNotificationLog(value: unknown, state?: Pick<GameState, 'cities'>): NotificationLog {
   if (!isRecord(value)) return {};
   const allEntries = Object.values(value).flatMap(entries => Array.isArray(entries) ? entries : []);
@@ -510,6 +530,7 @@ export function normalizeNotificationLog(value: unknown, state?: Pick<GameState,
             : [],
         )
         : [];
+      const combatDetails = normalizeCombatNotificationDetails(rawEntry.combatDetails);
       entries.push({
         id,
         message: rawEntry.message,
@@ -520,6 +541,7 @@ export function normalizeNotificationLog(value: unknown, state?: Pick<GameState,
         ...(typeof rawEntry.linkedCityId === 'string' ? { linkedCityId: rawEntry.linkedCityId } : {}),
         ...(cityActions.length > 0 ? { cityActions } : {}),
         ...(review ? { review } : {}),
+        ...(combatDetails ? { combatDetails } : {}),
       });
     }
     log[civId] = entries;

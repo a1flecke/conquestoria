@@ -47,9 +47,9 @@ vi.mock('@/systems/legendary-wonder-definitions', () => ({
 }));
 
 function makeSink() {
-  const calls: Array<{ civId: string; message: string; type: string; target?: unknown; sfxCue?: string }> = [];
-  const sink: NotificationSink = (civId, message, type, target, _cityActions, sfxCue) =>
-    calls.push({ civId, message, type, target, sfxCue });
+  const calls: Array<{ civId: string; message: string; type: string; target?: unknown; sfxCue?: string; combatDetails?: unknown }> = [];
+  const sink: NotificationSink = (civId, message, type, target, _cityActions, sfxCue, combatDetails) =>
+    calls.push({ civId, message, type, target, sfxCue, combatDetails });
   return { sink, calls };
 }
 
@@ -69,6 +69,31 @@ function makeState(partial: Partial<GameState> = {}): GameState {
 }
 
 describe('notification routing', () => {
+  it('persists a defender-safe projection without exposing an attacker-owned source', () => {
+    const state = makeState({ units: {
+      attacker: { id: 'attacker', owner: 'p1', type: 'warrior' },
+      defender: { id: 'defender', owner: 'p2', type: 'archer' },
+    } } as unknown as Partial<GameState>);
+    const { sink, calls } = makeSink();
+    const result: CombatResult = {
+      attackerId: 'attacker', defenderId: 'defender', attackerDamage: 0, defenderDamage: 12,
+      attackerSurvived: true, defenderSurvived: true, attackerStrength: 11, defenderStrength: 10,
+      attackerPosition: { q: 0, r: 0 }, defenderPosition: { q: 1, r: 0 },
+      modifierFacts: {
+        attacker: [{ key: 'tech:tactics', label: 'Tactics', sourceVisibility: 'owner', operation: 'multiplier', value: 1.1, outcome: 'applied' }],
+        defender: [],
+      },
+    };
+
+    routeCombatResolved(state, result, sink, {
+      attackerOwnerId: 'p1', attackerType: 'warrior', defenderOwnerId: 'p2', defenderType: 'archer',
+    });
+
+    expect(calls[0]).toMatchObject({ civId: 'p2', combatDetails: {
+      facts: [expect.objectContaining({ label: 'Unknown advantage', redacted: true })],
+    } });
+  });
+
   it('routes a strategic warning only to its viewer with the already-safe map target', () => {
     const { sink, calls } = makeSink();
     const target = { kind: 'map' as const, coord: { q: 4, r: 2 }, label: 'Ravenna' };

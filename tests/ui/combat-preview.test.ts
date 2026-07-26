@@ -43,6 +43,21 @@ describe('formatCombatPreviewDetails', () => {
     expect(details).toContain('Walls ×1.25');
   });
 
+  it('uses the canonical applied modifier fact in the preview rather than reconstructing a label', () => {
+    const details = formatCombatPreviewDetails('Rival', 100, {
+      attackerStrength: 15,
+      defenderStrength: 10,
+      terrainDefenseBonus: 0,
+      riverAttackPenalty: 0,
+      attackerModifierFacts: [{
+        key: 'counter:anti-cavalry', label: 'Anti-cavalry', sourceVisibility: 'public',
+        operation: 'multiplier', value: 1.5, outcome: 'applied',
+      }],
+    });
+
+    expect(details).toContain('Anti-cavalry ×1.5');
+  });
+
   it('omits city defense modifier lines when the defender is not in a city (negative test)', () => {
     const details = formatCombatPreviewDetails('Rival', 100, {
       attackerStrength: 10,

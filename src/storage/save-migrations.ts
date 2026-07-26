@@ -11,7 +11,7 @@ import { getCrisisFlavor } from '@/systems/crisis-flavor-definitions';
 import { resolveWorldAge } from '@/systems/tech-definitions';
 import { CIRCULAR_MANUFACTURING_MATERIALS } from '@/systems/national-project-system';
 
-export const CURRENT_SAVE_SCHEMA_VERSION = 7;
+export const CURRENT_SAVE_SCHEMA_VERSION = 8;
 
 export type SaveMigration = (state: GameState) => GameState;
 
@@ -347,6 +347,10 @@ function migrateCircularManufacturingChoices(state: GameState): GameState {
   return { ...state, nationalProjectChoices };
 }
 
+function migrateCombatNotificationDetails(state: GameState): GameState {
+  return state;
+}
+
 export const SAVE_MIGRATIONS: Readonly<Record<number, SaveMigration>> = {
   1: migrateToEra13Foundation,
   2: migrateLateResources,
@@ -355,6 +359,7 @@ export const SAVE_MIGRATIONS: Readonly<Record<number, SaveMigration>> = {
   5: migrateDualEraWorldAge,
   6: migrateAutonomyNetworkPostures,
   7: migrateCircularManufacturingChoices,
+  8: migrateCombatNotificationDetails,
 };
 
 function readSchemaVersion(raw: Record<string, unknown>): number {

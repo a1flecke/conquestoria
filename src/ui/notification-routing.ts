@@ -1,4 +1,5 @@
-import type { CombatResult, CombatRewardNotification, GameEvents, GameState, ProductionDropReason, TreatyType } from '@/core/types';
+import type { CombatModifierFact, CombatResult, CombatRewardNotification, GameEvents, GameState, ProductionDropReason, TreatyType } from '@/core/types';
+import type { CombatNotificationDetails } from '@/core/notification-log';
 import { hexKey } from '@/systems/hex-utils';
 import { getImprovementDisplayName } from '@/systems/improvement-system';
 import { UNIT_DEFINITIONS } from '@/systems/unit-system';
@@ -23,7 +24,27 @@ export type NotificationSink = (
   // persisted -- deliver() does not pass this to appendNotification, so it has no
   // effect on the notification log or save schema. See ReligionAudioDirector.playCue.
   sfxCue?: string,
+  combatDetails?: CombatNotificationDetails,
 ) => void;
+
+function projectCombatFacts(
+  result: CombatResult,
+  recipient: 'attacker' | 'defender',
+): CombatNotificationDetails | undefined {
+  const facts = result.modifierFacts;
+  if (!facts) return undefined;
+  const own = recipient === 'attacker' ? facts.attacker : facts.defender;
+  const rival = recipient === 'attacker' ? facts.defender : facts.attacker;
+  const project = (fact: CombatModifierFact, ownFact: boolean) => ({
+    label: ownFact || fact.sourceVisibility === 'public' ? fact.label : 'Unknown advantage',
+    operation: fact.operation,
+    value: fact.value,
+    outcome: fact.outcome,
+    redacted: !ownFact && fact.sourceVisibility !== 'public',
+  });
+  const projected = [...own.map(fact => project(fact, true)), ...rival.map(fact => project(fact, false))];
+  return projected.length > 0 ? { facts: projected } : undefined;
+}
 
 type FactionTransitionEvent =
   | { type: 'faction:unrest-started'; cityId: string; owner: string }
@@ -330,7 +351,12 @@ export function routeCombatResolved(
   const msg = result.defenderSurvived
     ? `${defenderType} was attacked by ${attackerLabel} (${result.defenderDamage} damage taken)`
     : `${defenderType} was destroyed by ${attackerLabel}!`;
-  sink(defenderOwner, `${msg}${exchangeSuffix}`, 'warning');
+  const combatDetails = projectCombatFacts(result, 'defender');
+  if (combatDetails) {
+    sink(defenderOwner, `${msg}${exchangeSuffix}`, 'warning', undefined, undefined, undefined, combatDetails);
+  } else {
+    sink(defenderOwner, `${msg}${exchangeSuffix}`, 'warning');
+  }
 
   if (!result.exchange || !attackerOwner || attackerOwner === 'barbarian') return;
   const attackerTypeId = facts?.attackerType ?? attacker?.type;

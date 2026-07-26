@@ -101,5 +101,27 @@ function createNotificationRow(
     });
     row.appendChild(reviewButton);
   }
+  if (entry.combatDetails) {
+    const details = document.createElement('div');
+    details.hidden = true;
+    details.dataset.combatDetails = 'true';
+    details.style.cssText = 'margin-top:6px;padding:6px;background:rgba(255,255,255,0.06);font-size:10px;';
+    for (const fact of entry.combatDetails.facts) {
+      const line = document.createElement('div');
+      const value = fact.operation === 'multiplier' ? `×${fact.value}` : `${fact.value >= 0 ? '+' : ''}${fact.value}`;
+      line.textContent = `${fact.label} ${value}${fact.outcome === 'ignored' ? ' (not active)' : ''}`;
+      details.appendChild(line);
+    }
+    const detailsButton = createGameButton('Show calculation', 'secondary');
+    detailsButton.dataset.combatDetailsToggle = entry.id;
+    detailsButton.style.marginTop = '6px';
+    detailsButton.addEventListener('click', event => {
+      event.stopPropagation();
+      details.hidden = !details.hidden;
+      detailsButton.textContent = details.hidden ? 'Show calculation' : 'Hide calculation';
+    });
+    row.appendChild(detailsButton);
+    row.appendChild(details);
+  }
   return row;
 }

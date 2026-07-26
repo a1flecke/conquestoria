@@ -70,4 +70,21 @@ describe('notification log panel', () => {
     row?.click();
     expect(onOpenCity).toHaveBeenCalledWith('city-1');
   });
+
+  it('expands persisted combat detail without triggering the notification row action', () => {
+    const panel = createNotificationLogPanel([{
+      id: 'notification-4', message: 'Archer was attacked.', type: 'warning', turn: 9, read: false,
+      combatDetails: {
+        facts: [{ label: 'Unknown advantage', operation: 'multiplier', value: 1.1, outcome: 'applied', redacted: true }],
+      },
+    }], { onClose: vi.fn(), onFocusTarget: vi.fn() });
+
+    const toggle = panel.querySelector('[data-combat-details-toggle]') as HTMLButtonElement;
+    const details = panel.querySelector('[data-combat-details]') as HTMLElement;
+    expect(details.hidden).toBe(true);
+    toggle.click();
+    expect(details.hidden).toBe(false);
+    expect(details.textContent).toContain('Unknown advantage ×1.1');
+    expect(toggle.textContent).toBe('Hide calculation');
+  });
 });

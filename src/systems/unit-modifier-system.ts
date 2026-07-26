@@ -1,4 +1,4 @@
-import type { GameState, HexCoord, UnitType } from '@/core/types';
+import type { CombatModifierFact, GameState, HexCoord, UnitType } from '@/core/types';
 import { hexDistance } from './hex-utils';
 import { UNIT_DEFINITIONS } from './unit-system';
 import {
@@ -33,6 +33,17 @@ export interface CombatModifierResult {
   mult: number;
   flat: number;
   parts: ModifierPart[];
+  facts: CombatModifierFact[];
+}
+
+function modifierFactKey(source: { kind: string; id: string }): string {
+  if (source.kind === 'tech') return `tech:${source.id}`;
+  if (source.kind === 'nationalProject') return `national-project:${source.id}`;
+  return `unit:${source.id}`;
+}
+
+function counterFactKey(label: string): string {
+  return `counter:${label.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}`;
 }
 
 function formatPart(label: string, mode: ModifierMode, value: number): string {
@@ -88,6 +99,7 @@ export function getCombatModifier(
   let mult = 1;
   let flat = 0;
   const parts: ModifierPart[] = [];
+  const facts: CombatModifierFact[] = [];
   const classes = UNIT_CLASS_BY_TYPE[unitType];
   const domain = UNIT_DEFINITIONS[unitType]?.domain ?? 'land';
 
@@ -106,23 +118,36 @@ export function getCombatModifier(
     if (modifier.domain && modifier.domain !== domain) continue;
 
     const when = modifier.when ?? 'always';
-    if (when === 'attacking' && role !== 'attacker') continue;
-    if (when === 'defending' && role !== 'defender') continue;
+    const value = modifier.mode === 'flat' ? Math.floor(modifier.value * scale) : modifier.value;
+    if (when === 'attacking' && role !== 'attacker') {
+      facts.push({ key: modifierFactKey(modifier.source), label: modifier.label, sourceVisibility: 'owner', operation: modifier.mode, value, outcome: 'ignored', ignoredReason: 'role' });
+      continue;
+    }
+    if (when === 'defending' && role !== 'defender') {
+      facts.push({ key: modifierFactKey(modifier.source), label: modifier.label, sourceVisibility: 'owner', operation: modifier.mode, value, outcome: 'ignored', ignoredReason: 'role' });
+      continue;
+    }
 
-    if (modifier.condition === 'fullHP' && !ctx.fullHP) continue;
-    if (modifier.condition === 'inFriendlyCity' && !ctx.inFriendlyCity) continue;
-    if (modifier.condition === 'vsCoastalCity' && !ctx.targetIsCoastalCity) continue;
-    if (modifier.condition === 'amphibiousAssault' && !ctx.amphibiousAssault) continue;
+    const conditionMet = modifier.condition !== 'fullHP' || ctx.fullHP
+      ? modifier.condition !== 'inFriendlyCity' || ctx.inFriendlyCity
+      : false;
+    const contextualConditionMet = conditionMet
+      && (modifier.condition !== 'vsCoastalCity' || ctx.targetIsCoastalCity)
+      && (modifier.condition !== 'amphibiousAssault' || ctx.amphibiousAssault);
+    if (!contextualConditionMet) {
+      facts.push({ key: modifierFactKey(modifier.source), label: modifier.label, sourceVisibility: 'owner', operation: modifier.mode, value, outcome: 'ignored', ignoredReason: 'condition' });
+      continue;
+    }
 
     if (modifier.mode === 'multiplier') {
       mult *= modifier.value;
       parts.push({ label: formatPart(modifier.label, 'multiplier', modifier.value), kind: 'mult' });
     } else {
-      const value = Math.floor(modifier.value * scale);
       if (value === 0) continue;
       flat += value;
       parts.push({ label: formatPart(modifier.label, 'flat', value), kind: 'flat' });
     }
+    facts.push({ key: modifierFactKey(modifier.source), label: modifier.label, sourceVisibility: 'owner', operation: modifier.mode, value, outcome: 'applied' });
   }
 
   if (role === 'attacker') {
@@ -130,10 +155,11 @@ export function getCombatModifier(
     if (counter) {
       mult *= counter.multiplier;
       parts.push({ label: counter.label, kind: 'mult' });
+      facts.push({ key: counterFactKey(counter.label.replace(/ ×.+$/, '')), label: counter.label.replace(/ ×.+$/, ''), sourceVisibility: 'public', operation: 'multiplier', value: counter.multiplier, outcome: 'applied' });
     }
   }
 
-  return { mult, flat, parts };
+  return { mult, flat, parts, facts };
 }
 
 export interface HealingModifierContext {

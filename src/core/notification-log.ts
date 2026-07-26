@@ -1,4 +1,4 @@
-import type { GameState, HexCoord } from './types';
+import type { CombatModifierFact, GameState, HexCoord } from './types';
 
 export interface NotificationMapTarget {
   kind: 'map';
@@ -16,6 +16,18 @@ export type PirateNotificationReview =
   | { kind: 'pirate-faction'; factionId: string }
   | { kind: 'pirate-history'; historyId: string };
 
+export interface CombatNotificationFact {
+  label: string;
+  operation: CombatModifierFact['operation'];
+  value: number;
+  outcome: CombatModifierFact['outcome'];
+  redacted: boolean;
+}
+
+export interface CombatNotificationDetails {
+  facts: CombatNotificationFact[];
+}
+
 export interface NotificationEntry {
   id: string;
   message: string;
@@ -26,6 +38,7 @@ export interface NotificationEntry {
   linkedCityId?: string;
   cityActions?: NotificationCityAction[];
   review?: PirateNotificationReview;
+  combatDetails?: CombatNotificationDetails;
 }
 
 export type NotificationDraft = Omit<NotificationEntry, 'id' | 'read'> & Partial<Pick<NotificationEntry, 'read'>>;
