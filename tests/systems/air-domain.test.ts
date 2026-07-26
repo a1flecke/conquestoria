@@ -123,7 +123,7 @@ describe('anti_air_battery combat modifier', () => {
     const defender = makeUnit('rifleman', 'p2', 1, 0);
 
     const withoutAntiAir = calculateCombatStrengths(biplane, defender, map, {});
-    const withAntiAir    = calculateCombatStrengths(biplane, defender, map, { defenderCityHasAntiAir: true });
+    const withAntiAir    = calculateCombatStrengths(biplane, defender, map, { airDefenseCoverage: { flatDefenseModifier: 8, facts: [], providers: [] } });
 
     expect(withAntiAir.defenderStrength - withoutAntiAir.defenderStrength).toBe(8);
   });
@@ -133,7 +133,7 @@ describe('anti_air_battery combat modifier', () => {
     const defender = makeUnit('rifleman', 'p2', 1, 0);
 
     const withoutAntiAir = calculateCombatStrengths(warrior, defender, map, {});
-    const withAntiAir    = calculateCombatStrengths(warrior, defender, map, { defenderCityHasAntiAir: true });
+    const withAntiAir    = calculateCombatStrengths(warrior, defender, map, { airDefenseCoverage: { flatDefenseModifier: 8, facts: [], providers: [] } });
 
     expect(withAntiAir.defenderStrength).toBeCloseTo(withoutAntiAir.defenderStrength, 6);
   });
@@ -143,7 +143,7 @@ describe('anti_air_battery combat modifier', () => {
     const defender = makeUnit('warrior', 'p2', 1, 0);
 
     const withoutAntiAir = calculateCombatStrengths(balloon, defender, map, {});
-    const withAntiAir    = calculateCombatStrengths(balloon, defender, map, { defenderCityHasAntiAir: true });
+    const withAntiAir    = calculateCombatStrengths(balloon, defender, map, { airDefenseCoverage: { flatDefenseModifier: 8, facts: [], providers: [] } });
 
     expect(withAntiAir.defenderStrength - withoutAntiAir.defenderStrength).toBe(8);
   });
@@ -209,7 +209,7 @@ describe('air_force_command combat modifier', () => {
 
     const base       = calculateCombatStrengths(biplane, defender, map, {});
     const bothActive = calculateCombatStrengths(biplane, defender, map, {
-      defenderCityHasAntiAir: true,
+      airDefenseCoverage: { flatDefenseModifier: 8, facts: [], providers: [] },
       attackerModifiers: airForceCommandModifiers,
     });
 

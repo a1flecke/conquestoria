@@ -8,6 +8,7 @@ import { getActiveNationalProjectsForCiv } from './national-project-system';
 import { getCombatModifier } from './unit-modifier-system';
 import { getCombatAdjacentOccupiedTileCount } from './zone-of-control-system';
 import { getNetworkCombatCoordination } from './network-combat-coordination';
+import { resolveAirDefenseCoverage } from './air-defense-system';
 
 export interface CombatContextOptions {
   amphibiousAssault?: boolean;
@@ -89,9 +90,7 @@ export function buildCombatContextForDefender(
       state,
       state.civilizations[defender.owner]?.civType ?? '',
     )?.bonusEffect,
-    defenderCityHasAntiAir: Object.values(state.cities).some(city =>
-      hexKey(city.position) === defenderKey
-      && city.buildings.includes('anti_air_battery')),
+    airDefenseCoverage: resolveAirDefenseCoverage(state, defender, attacker.owner),
     defenderCity: defenderCity
       ? {
           cityBuildings: defenderCity.buildings,

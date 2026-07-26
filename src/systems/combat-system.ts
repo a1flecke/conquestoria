@@ -119,7 +119,7 @@ export interface CombatContext {
   attackerBonus?: CivBonusEffect;
   defenderBonus?: CivBonusEffect;
   defenderCity?: CityDefenseInput;
-  defenderCityHasAntiAir?: boolean;
+  airDefenseCoverage?: import('@/core/types').AirDefenseCoverageResult;
   // Precomputed by buildCombatContextForDefender (unit-modifier-system's getCombatModifier)
   // so combat-system.ts stays a pure function of its inputs.
   attackerModifiers?: UnitModifierBreakdown;
@@ -261,9 +261,8 @@ export function calculateCombatStrengths(
     defenderStrength = defenderStrength * cityDefense.multiplier + cityDefense.flatBonus;
   }
 
-  // Anti-air battery: +8 flat defense against air attacker domain
-  if (context?.defenderCityHasAntiAir && UNIT_DEFINITIONS[attacker.type]?.domain === 'air') {
-    defenderStrength += 8;
+  if (context?.airDefenseCoverage && UNIT_DEFINITIONS[attacker.type]?.domain === 'air') {
+    defenderStrength += context.airDefenseCoverage.flatDefenseModifier;
   }
 
   if (
@@ -282,7 +281,7 @@ export function calculateCombatStrengths(
     attackerModifierParts: [...(context?.attackerModifiers?.parts ?? []), ...(context?.attackerPositioningPart ? [context.attackerPositioningPart] : []), ...(context?.attackerAmphibiousParts ?? [])],
     defenderModifierParts: [...(context?.defenderModifiers?.parts ?? []), ...(context?.defenderPositioningPart ? [context.defenderPositioningPart] : [])],
     attackerModifierFacts: context?.attackerModifiers?.facts ?? [],
-    defenderModifierFacts: context?.defenderModifiers?.facts ?? [],
+    defenderModifierFacts: [...(context?.defenderModifiers?.facts ?? []), ...(context?.airDefenseCoverage?.facts ?? [])],
     defenderDefendsPoorly: defendsPoorly(defenderDefinition.attackProfile),
     exchange: getCombatExchangeModifiers(attacker, defender),
   };
