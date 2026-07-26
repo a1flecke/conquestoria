@@ -4,8 +4,14 @@ import type { UnitType } from '@/core/types';
 import { TRAINABLE_UNITS } from '@/systems/city-system';
 import { isSpyUnitType } from '@/systems/espionage-system';
 import { UNIT_DEFINITIONS } from '@/systems/unit-system';
+import { UNIT_ROLE_DEFINITIONS } from '@/systems/combat-role-definitions';
 
 describe('AI strategic unit roles', () => {
+  it('reads strategic roles from the typed unit-role catalog', () => {
+    const definition = UNIT_ROLE_DEFINITIONS.warrior;
+    expect(getAIStrategicRoles('warrior')).toBe(definition.aiRoles);
+  });
+
   it('classifies every trainable unit into at least one strategic role', () => {
     for (const unit of TRAINABLE_UNITS) {
       expect(getAIStrategicRoles(unit.type), unit.type).not.toHaveLength(0);
