@@ -1673,8 +1673,6 @@ export interface GameSettings {
   musicEnabled: boolean;
   musicVolume: number;       // 0-1
   sfxVolume: number;         // 0-1
-  voiceVolume?: number;      // 0-1; default 1.0
-  voiceEnabled?: boolean;    // default true
   stingerVolume?: number;    // 0-1; default 1.0
   stingerEnabled?: boolean;  // default true
   tutorialEnabled: boolean;
