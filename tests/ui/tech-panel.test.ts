@@ -31,6 +31,19 @@ describe('tech-panel', () => {
     }
   });
 
+  it('treats the inspected unlock technology as complete in its unit role facts', () => {
+    const state = createNewGame(undefined, 'tech-role-unlock-projection');
+    state.civilizations.player.techState.completed = ['stone-weapons'];
+    state.civilizations.player.techState.currentResearch = 'archery';
+
+    const panel = createTechPanel(document.body, state, {
+      onQueueResearch: () => {}, onMoveQueuedResearch: () => {}, onRemoveQueuedResearch: () => {}, onClose: () => {},
+    });
+
+    expect(panel.textContent).toContain('Archery · Complete');
+    expect(panel.textContent).not.toContain('Archery · Missing');
+  });
+
   it('recomputes role prerequisites for the current hot-seat player', () => {
     const state = createNewGame(undefined, 'tech-role-hot-seat');
     state.civilizations['player-2'] = {

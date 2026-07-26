@@ -1,7 +1,7 @@
 # Issue #668 Unit Role Legibility Design
 
-**Date:** 2026-07-26  
-**Status:** Approved through inline review  
+**Date:** 2026-07-26
+**Status:** Approved through inline review
 **Issue:** #668
 
 ## Scope and drift decision
@@ -59,7 +59,7 @@ each unit unlocked by the selected technology, including a partial-conjunction c
 |---|---|---|
 | Eligible unit is visible in a city build catalog | Open Build tab | Its summary and role/counter line appear; all other legal units remain reachable. |
 | Selected friendly unit has an upgrade | Open its info panel | Role details and the explicit successor or terminal reason appear before the upgrade action. |
-| Selected tech unlocks a unit with two technology requirements | Inspect the tech | The unit's missing requirement is visible and it is not presented as immediately trainable. |
+| Selected tech unlocks a unit with two technology requirements | Inspect the tech | The inspected unlock is shown as complete after research; any other missing requirement remains visible, and the unit is not presented as immediately trainable. |
 | Current player changes in hot seat | Open that player's city, unit, or tech panel | The panel derives eligibility and missing requirements from the new current player only. |
 | Player queues research or completes an upgrade | Existing callback rerenders the open panel | The same presentation recomputes from current state; stale requirement text is not retained. |
 
