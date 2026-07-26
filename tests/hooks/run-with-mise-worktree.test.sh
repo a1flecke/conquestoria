@@ -40,8 +40,7 @@ linked="$(cd "$linked" && pwd -P)"
 
 cat > "$linked/scripts/with-verification-lock.sh" <<'EOF'
 #!/bin/sh
-[ -z "${VERIFY_LOCK_LOG:-}" ] || printf '%s\n' "$*" >> "$VERIFY_LOCK_LOG"
-export CONQUESTORIA_VERIFICATION_LOCK_HELD=1
+printf '%s\n' "$*" >> "$VERIFY_LOCK_LOG"
 exec "$@"
 EOF
 chmod +x "$linked/scripts/with-verification-lock.sh"
@@ -66,7 +65,7 @@ chmod +x "$main/scripts/run-with-mise.sh"
 
 cat > "$fake_bin/mise" <<'EOF'
 #!/bin/sh
-printf '%s|%s\n' "$PWD" "$*" >> "$MISE_LOG"
+printf '%s|%s|%s\n' "$PWD" "${CONQUESTORIA_VITEST_CACHE_DIR:-}" "$*" >> "$MISE_LOG"
 exit 0
 EOF
 chmod +x "$fake_bin/mise"
@@ -125,21 +124,20 @@ cat > "$linked/tests/hooks/run.sh" <<'EOF'
 EOF
 chmod +x "$linked/tests/hooks/run.sh"
 
-rm -f "$mise_log"
+rm -f "$mise_log" "$lock_log"
 (
   cd "$linked"
   PATH="$fake_bin:$PATH" \
     MISE_LOG="$mise_log" \
     VERIFY_LOCK_LOG="$lock_log" \
-    CONQUESTORIA_VERIFICATION_LOCK_HELD= \
     ./scripts/run-with-mise.sh yarn build
 )
-grep -Fq "$linked|exec -- node $linked/scripts/version-sw-cache.mjs" "$mise_log" || {
+grep -Fq "$linked|$linked/.vite/vitest|exec -- node $linked/scripts/version-sw-cache.mjs" "$mise_log" || {
   echo "worktree build did not route service-worker versioning through mise"
   exit 1
 }
-grep -q 'yarn build' "$lock_log" || {
-  echo "worktree build did not acquire the shared verification lock"
+[ ! -e "$lock_log" ] || {
+  echo "worktree build invoked the legacy shared verification lock"
   exit 1
 }
 
@@ -150,7 +148,7 @@ rm -f "$mise_log"
     MISE_LOG="$mise_log" \
     ./scripts/run-with-mise.sh yarn tauri:build:mac-app
 )
-grep -Eq "^$linked\\|exec -- node /fake/tauri\\.js build --config .* --bundles app$" "$mise_log" || {
+grep -Eq "^$linked\\|$linked/\.vite/vitest\\|exec -- node /fake/tauri\\.js build --config .* --bundles app$" "$mise_log" || {
   echo "worktree macOS app build ran outside the active worktree"
   exit 1
 }
@@ -166,7 +164,7 @@ rm -f "$mise_log"
     MISE_LOG="$mise_log" \
     ./scripts/run-with-mise.sh yarn tauri:check:mac-artifacts
 )
-grep -Fq "$linked|exec -- node $linked/scripts/check-tauri-macos-artifacts.mjs" "$mise_log" || {
+grep -Fq "$linked|$linked/.vite/vitest|exec -- node $linked/scripts/check-tauri-macos-artifacts.mjs" "$mise_log" || {
   echo "worktree macOS artifact check ran outside the active worktree"
   exit 1
 }
