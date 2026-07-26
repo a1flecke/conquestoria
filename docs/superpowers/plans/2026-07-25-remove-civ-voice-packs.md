@@ -10,6 +10,8 @@
 
 **Scope decision (read before implementing):** "Remove all language speech packs" includes the `generic` pack. `generic` is itself an English advisor speech pack used as the fallback for every civ — removing only the 10 hero packs would leave every civ still speaking. The whole voice-line system goes. Music (era bases, war layers, accents), stingers, and SFX are explicitly kept.
 
+**Reviewed audio-feedback change (2026-07-25 inline review):** `wonder-lost`, `city-lost`, and `near-defeat` had no stinger — voice was their only audio cue, so they become audio-silent after this change. This is deliberate and safe: all three keep visual feedback (`src/ui/legendary-wonder-notifications.ts`, `src/ui/notification-routing.ts`, and the `showNotification` capture paths in `src/main.ts`), and near-defeat also flips the adaptive music to the `brink-of-defeat` layer. Do NOT add replacement stingers in this PR — if the family ever misses an audio cue there, that is a separate content issue. The PR body documents this explicitly.
+
 ## Global Constraints
 
 - ALL commands run via `bash scripts/run-with-mise.sh yarn <cmd>` — never `eval "$(mise activate bash)"`.
@@ -399,7 +401,11 @@ git rm scripts/gen-voice-manifest.ts scripts/synthesise-voice.sh scripts/synthes
 ```bash
 grep -rni "voicepack\|voice pack\|voice-pack\|voice/\|voiceVolume\|voiceEnabled\|VoiceDirector\|VOICE_CATALOG" src/ tests/ scripts/ public/ docs/superpowers/plans/audio-remaining-work.md package.json
 ```
-Expected: no hits in `src/`, `tests/`, `scripts/`, `public/`, or `package.json`. (Hits in historical spec files under `docs/superpowers/specs/` and in `tests/fixtures/issue-365-crowded-map-save.json` are acceptable — specs are immutable history and the fixture's extra JSON keys are ignored at load. `AUDIO-CREDITS.md` has no voice-pack attribution section — its two "voice recording" mentions are privacy-disclaimer boilerplate about SFX generation and stay.)
+Expected: no hits in `src/`, `tests/`, `scripts/`, `public/`, or `package.json`. (Hits in historical spec files under `docs/superpowers/specs/` and in `tests/fixtures/issue-365-crowded-map-save.json` are acceptable — specs are immutable history and the fixture's extra JSON keys are ignored at load. `AUDIO-CREDITS.md` has no voice-pack attribution section — its two "voice recording" mentions are privacy-disclaimer boilerplate about SFX generation and stay. Flavor-prose matches like "a unified voice of enlightened governance" in wonder/tech content are unrelated and stay.)
+
+Verified during the 2026-07-25 inline review, requiring no changes:
+- `public/sw.js`: voice OGGs were never in `PRECACHE_URLS`; they were only ever runtime-cached on fetch. Existing installs keep inert cached copies that are never re-requested — do not touch the service worker for this removal.
+- `tests/audio/audio-system.integration.test.ts` and every other test under `tests/audio/`, `tests/ui/`, `tests/systems/`, `tests/core/`: zero voice references beyond the four test files already handled in Tasks 1–3.
 
 - [ ] **Step 4: Commit**
 
@@ -455,6 +461,8 @@ Deleted end-to-end:
 - Voice curation sections of `docs/superpowers/plans/audio-remaining-work.md`
 
 Music (era bases, war layers, accents), stingers, SFX, and ambience are untouched.
+
+Documented audio-feedback change: `wonder-lost`, `city-lost`, and `near-defeat` had no stinger (voice was their only audio cue) and are now audio-silent. All three keep visual notifications, and near-defeat still drives the brink-of-defeat adaptive music layer.
 
 ## Related issues (to be closed as not planned after merge — intentionally no close keywords)
 #421 #423 #424 #623 #624 #625 #626 #627 #628 #629 #630 #631 #632 #633 #634 #635 #636 #637 #638 #639 #640 #641 #642 #643 #644
