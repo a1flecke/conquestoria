@@ -32,6 +32,7 @@ import {
 import { getLegendaryLandmarkPreviewViewForCity } from '@/systems/legendary-wonder-landmark-presentation';
 import { canUpgradeUnit, getUpgradeCost } from '@/systems/unit-upgrade-system';
 import { UNIT_DEFINITIONS } from '@/systems/unit-system';
+import { getUnitRolePresentation } from '@/ui/unit-role-presentation';
 import {
   getUnrestYieldMultiplier,
   getCityAppeaseCost,
@@ -723,6 +724,7 @@ export function createCityPanel(
     unitPlaceholders += `<div class="build-item" data-item-id="${u.type}" style="background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);border-radius:8px;padding:10px;margin-bottom:6px;cursor:pointer;">
       <div style="font-weight:bold;font-size:13px;">${getProductionIconForItem(u.type)} <span data-text="unit-name-${idx}"></span></div>
       <div style="font-size:11px;opacity:0.7;">Cost: ${cost} · ${turns} turns</div>
+      <div style="font-size:11px;opacity:0.82;margin-top:3px;" data-unit-role-summary="${u.type}"></div>
       ${resourceRequirementLine(u.type, u.resourceRequired)}
     </div>`;
   }
@@ -1140,6 +1142,10 @@ export function createCityPanel(
 
   availableUnits.forEach((u, i) => {
     setText(`unit-name-${i}`, u.name);
+    const roleSummary = panel.querySelector(`[data-unit-role-summary="${u.type}"]`);
+    if (roleSummary) {
+      roleSummary.textContent = getUnitRolePresentation(u.type, completedTechs)?.summary ?? '';
+    }
   });
 
   // Fill locked item names and reasons via textContent (XSS-safe)
