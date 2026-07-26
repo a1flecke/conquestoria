@@ -338,7 +338,10 @@ function renderInspector(
   inspector.appendChild(unlocks);
 
   for (const unitType of selectedNode.tech.unlocksUnits ?? []) {
-    const presentation = getUnitRolePresentation(unitType, civ.techState.completed);
+    const presentation = getUnitRolePresentation(
+      unitType,
+      [...civ.techState.completed, selectedNode.tech.id],
+    );
     if (!presentation) continue;
     const details = document.createElement('details');
     details.style.cssText = 'margin:0 0 8px;font-size:12px;line-height:1.4;';

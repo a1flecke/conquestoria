@@ -161,8 +161,9 @@ Run: `bash scripts/run-with-mise.sh yarn vitest run tests/ui/tech-panel.test.ts`
 
 In `renderInspector`, replace plain unit-only unlock strings with child rows that retain
 the existing unlock copy and append role summary plus a native details disclosure. Use the
-same current-player completed technology IDs passed to the shared helper. Do not change
-research queue eligibility or controls.
+current player's completed technology IDs plus the inspected technology, because the
+details describe the unit after that unlock is researched. Do not change research queue
+eligibility or controls.
 
 - [ ] **Step 4: Run the tech-panel test and verify it passes**
 
