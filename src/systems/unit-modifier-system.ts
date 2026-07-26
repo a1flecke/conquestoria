@@ -128,13 +128,11 @@ export function getCombatModifier(
       continue;
     }
 
-    const conditionMet = modifier.condition !== 'fullHP' || ctx.fullHP
-      ? modifier.condition !== 'inFriendlyCity' || ctx.inFriendlyCity
-      : false;
-    const contextualConditionMet = conditionMet
+    const conditionMet = (modifier.condition !== 'fullHP' || ctx.fullHP)
+      && (modifier.condition !== 'inFriendlyCity' || ctx.inFriendlyCity)
       && (modifier.condition !== 'vsCoastalCity' || ctx.targetIsCoastalCity)
       && (modifier.condition !== 'amphibiousAssault' || ctx.amphibiousAssault);
-    if (!contextualConditionMet) {
+    if (!conditionMet) {
       facts.push({ key: modifierFactKey(modifier.source), label: modifier.label, sourceVisibility: 'owner', operation: modifier.mode, value, outcome: 'ignored', ignoredReason: 'condition' });
       continue;
     }
