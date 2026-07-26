@@ -235,9 +235,19 @@ export class RenderLoop {
   private touchHandlerRef: { isPinching: boolean } | null = null;
   private selectedUnitId: string | null = null;
   private selectedPirateFactionId: string | null = null;
-  private airDefenseOverlayEnabled = false;
+  private airDefenseOverlayEnabledByViewer = new Map<string, boolean>();
 
-  setAirDefenseOverlayEnabled(enabled: boolean): void { this.airDefenseOverlayEnabled = enabled; }
+  toggleAirDefenseOverlay(): boolean {
+    const viewerId = this.state?.currentPlayer;
+    if (!viewerId) return false;
+    const enabled = !this.airDefenseOverlayEnabledByViewer.get(viewerId);
+    this.airDefenseOverlayEnabledByViewer.set(viewerId, enabled);
+    return enabled;
+  }
+
+  isAirDefenseOverlayEnabled(viewerId = this.state?.currentPlayer): boolean {
+    return viewerId !== undefined && this.airDefenseOverlayEnabledByViewer.get(viewerId) === true;
+  }
   private pirateSpriteState = new PirateSpriteStateController();
   private pirateUnitDeathSnapshots = new Map<string, { unit: Unit; expiresAtMs: number }>();
   private pirateLandmarkDeathSnapshots = new Map<string, {
@@ -502,7 +512,7 @@ export class RenderLoop {
       Object.entries(this.state.civilizations).map(([id, civ]) => [id, civ.techState?.completed ?? []]),
     );
     drawRoads(this.ctx, this.state.map, this.camera, cityTileKeys, viewerVisibility, completedTechsByCiv);
-    if (this.airDefenseOverlayEnabled) {
+    if (this.isAirDefenseOverlayEnabled(viewerId)) {
       const ids = new Set<string>();
       const providers = Object.values(this.state.cities).flatMap(city => resolveAirDefenseCoverage(this.state!, { owner: city.owner, position: city.position } as Unit, viewerId).providers).filter(provider => !ids.has(provider.id) && (ids.add(provider.id), true));
       drawAirDefenseOverlay(this.ctx, this.camera, this.state.map, providers);
