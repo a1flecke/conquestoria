@@ -401,6 +401,11 @@ export interface AirOperationDefinition {
   carrierEligible: boolean;
 }
 
+export type AirDefenseProviderKind = 'building' | 'unit' | 'naval-unit';
+export interface AirDefenseProviderDefinition { id: string; kind: AirDefenseProviderKind; radius: number; defenseModifier: number; stackingGroup: string; label: string; }
+export interface AirDefenseCoverageProvider { id: string; label: string; position: HexCoord; ownerId: string; radius: number; defenseModifier: number; stackingGroup: string; }
+export interface AirDefenseCoverageResult { flatDefenseModifier: number; facts: CombatModifierFact[]; providers: AirDefenseCoverageProvider[]; }
+
 export interface UnitDefinition {
   type: UnitType;
   name: string;
