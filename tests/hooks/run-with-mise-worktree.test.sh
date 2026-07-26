@@ -130,6 +130,7 @@ rm -f "$mise_log" "$lock_log"
   PATH="$fake_bin:$PATH" \
     MISE_LOG="$mise_log" \
     VERIFY_LOCK_LOG="$lock_log" \
+    CONQUESTORIA_VITEST_CACHE_DIR="$tmpdir/inherited-cache" \
     ./scripts/run-with-mise.sh yarn build
 )
 grep -Fq "$linked|$linked/.vite/vitest|exec -- node $linked/scripts/version-sw-cache.mjs" "$mise_log" || {
