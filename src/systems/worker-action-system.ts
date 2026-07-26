@@ -36,6 +36,7 @@ export type WorkerActionFailureReason =
   | 'invalid-action'
   | 'outside-territory'
   | 'no-charges'
+  | 'no-movement'
   | 'already-acted';
 
 export interface WorkerActionOptions {
@@ -120,6 +121,7 @@ export function applyWorkerAction(
   if (!unit) return { ok: false, state, reason: 'missing-unit', events: [] };
   if (unit.type !== 'worker') return { ok: false, state, reason: 'not-worker', events: [] };
   if (unit.hasActed) return { ok: false, state, reason: 'already-acted', events: [] };
+  if (unit.movementPointsLeft <= 0) return { ok: false, state, reason: 'no-movement', events: [] };
   const chargesBefore = getWorkerChargesRemaining(unit);
   if (chargesBefore <= 0) return { ok: false, state, reason: 'no-charges', events: [] };
 

@@ -440,7 +440,7 @@ export function renderSelectedUnitInfo(
     chargeDiv.textContent = `Worker Charges: ${charges}/${DEFAULT_WORKER_CHARGES}`;
     wrapper.appendChild(chargeDiv);
 
-    if (charges > 0 && !unit.hasActed && callbacks.onWorkerAction) {
+    if (charges > 0 && !unit.hasActed && unit.movementPointsLeft > 0 && callbacks.onWorkerAction) {
       const completedTechs = state.civilizations[unit.owner]?.techState.completed ?? [];
       const unitTileKey = hexKey(unit.position);
       const isCityTile = Object.values(state.cities).some(city => hexKey(city.position) === unitTileKey);

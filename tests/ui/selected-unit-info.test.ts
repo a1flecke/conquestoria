@@ -838,6 +838,19 @@ describe('renderSelectedUnitInfo - worker actions', () => {
     expect(buttons).not.toContain('Build Lumber Camp (+2 Prod)');
   });
 
+  it('hides worker actions after the worker has spent all movement', () => {
+    const state = makeWorkerState({ terrain: 'forest' }, { movementPointsLeft: 0, hasMoved: true });
+    const container = new MockElement('div');
+
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'worker-1', {
+      onWorkerAction: () => {},
+    });
+
+    const buttons = findButtons(container).map(button => button.textContent);
+    expect(buttons).not.toContain('Build Farm (+2 Food)');
+    expect(buttons).not.toContain('Build Lumber Camp (+2 Prod)');
+  });
+
   it('hides worker actions when the worker has no charges left', () => {
     const state = makeWorkerState({ terrain: 'forest' }, { chargesRemaining: 0 });
     const container = new MockElement('div');

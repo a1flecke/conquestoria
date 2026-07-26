@@ -784,6 +784,26 @@ describe('AI road-building', () => {
     expect(outpost.id).toBe('outpost'); // sanity: second city exists and is the disconnection target
   });
 
+  it('does not queue a worker action after the worker has spent all movement', () => {
+    const state = makeState('veteran');
+    state.civilizations[AI].techState.completed = ['road-building'];
+    const capital = addCity(state, 'capital', AI, { q: 0, r: 0 });
+    addCity(state, 'outpost', AI, { q: 2, r: 0 });
+    for (const tile of Object.values(state.map.tiles)) tile.owner = AI;
+    const worker = addUnit(state, 'road-worker', 'worker', AI, { q: 1, r: 0 }, {
+      movementPointsLeft: 0,
+      hasMoved: true,
+      hasActed: false,
+    });
+    const plan = makePlan(
+      { kind: 'region', id: 'infra', anchor: capital.position },
+      [worker.id],
+      { objective: 'expand', requiredRoles: {} },
+    );
+
+    expect(chooseUnitTacticalAction(context(state, plan), worker.id)).toEqual({ kind: 'hold', unitId: worker.id });
+  });
+
   it('moves the worker toward the road target when not yet standing on it', () => {
     const state = makeState('veteran');
     state.civilizations[AI].techState.completed = ['road-building'];
