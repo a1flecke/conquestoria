@@ -71,6 +71,8 @@ interface PoolEntry {
   el:           HTMLDivElement; // positional wrapper (world-space left/top)
   spriteWrapEl: HTMLElement;    // .cq-sprite-wrap.cq-v2 — animation root
   phase:        number;
+  kind:         SpriteEntity['kind'];
+  subtype:      string;
   faction:      string;
   civColor:     string;
   coord:        HexCoord;       // stored so we can detect position change after movement
@@ -156,8 +158,13 @@ export class SpriteOverlay {
         const anchorOffsetFactor = entity.anchorOffsetFactor ?? { x: 0, y: 0 };
         const newCivColor = entity.civId ? (colorLookup[entity.civId] ?? '') : '';
         const poolEntry = this.pool.get(key);
-        // Invalidate if faction or civ color changed (e.g. unit captured or color reassigned)
-        if (poolEntry && (poolEntry.faction !== entity.faction || poolEntry.civColor !== newCivColor)) {
+        // Invalidate if sprite identity or palette changed (e.g. unit upgrades, capture, or color reassignment).
+        if (poolEntry && (
+          poolEntry.kind !== entity.kind
+          || poolEntry.subtype !== entity.subtype
+          || poolEntry.faction !== entity.faction
+          || poolEntry.civColor !== newCivColor
+        )) {
           poolEntry.el.remove();
           this.pool.delete(key);
         }
@@ -224,6 +231,8 @@ export class SpriteOverlay {
             el: wrapper,
             spriteWrapEl,
             phase,
+            kind: entity.kind,
+            subtype: entity.subtype,
             faction: entity.faction,
             civColor: newCivColor,
             coord,

@@ -182,6 +182,18 @@ describe('sync() pool lifecycle', () => {
     expect((original as HTMLElement).getAttribute('data-state')).toBe('walk');
   });
 
+  it('replaces the pooled sprite when a unit upgrades to a different subtype', () => {
+    const { overlay, mount } = mountOverlay();
+    overlay.sync(cam({ zoom: 1 }), [entity({ subtype: 'warrior' })], MAP, OPTS);
+    const original = mount.querySelector('.cq-sprite-wrap');
+
+    overlay.sync(cam({ zoom: 1 }), [entity({ subtype: 'archer' })], MAP, OPTS);
+
+    const upgraded = mount.querySelector('.cq-sprite-wrap');
+    expect(upgraded).not.toBe(original);
+    expect((upgraded as HTMLElement).getAttribute('data-kind')).toBe('ranged');
+  });
+
   it('updates landmark state, mode, damage, tier, and stage without replacing its DOM node', () => {
     const { overlay, mount } = mountOverlay();
     const first = entity({

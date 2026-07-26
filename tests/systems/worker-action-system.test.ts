@@ -127,6 +127,19 @@ describe('worker action system', () => {
     expect(getWorkerChargesRemaining(worker({ chargesRemaining: undefined }))).toBe(2);
   });
 
+  it('rejects a worker action after the worker has spent all movement', () => {
+    const start = state({
+      units: { 'worker-1': worker({ movementPointsLeft: 0, hasMoved: true, hasActed: false }) },
+    });
+
+    expect(applyWorkerAction(start, 'worker-1', 'farm')).toEqual({
+      ok: false,
+      state: start,
+      reason: 'no-movement',
+      events: [],
+    });
+  });
+
   it('builds lumber camp, keeps forest, and consumes one charge', () => {
     const start = state();
     start.map.tiles['0,0'] = tile({ terrain: 'forest' });

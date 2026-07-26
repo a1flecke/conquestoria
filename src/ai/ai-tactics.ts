@@ -519,6 +519,7 @@ function rankCivilianAndTransportActions(
   if (
     unit.type === 'worker'
     && !unit.hasActed
+    && unit.movementPointsLeft > 0
     && getWorkerChargesRemaining(unit) > 0
   ) {
     const tile = context.state.map.tiles[hexKey(unit.position)];
