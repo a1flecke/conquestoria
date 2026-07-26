@@ -25,32 +25,24 @@ done
 }
 
 set +e
-blocked_output="$(CONQUESTORIA_VERIFICATION_LOCK_DIR="$lock_dir" \
-  "$RUNNER" sh -c 'touch "$1"' -- "$second_marker" 2>&1)"
-blocked_status=$?
+CONQUESTORIA_VERIFICATION_LOCK_DIR="$lock_dir" \
+  "$RUNNER" sh -c 'touch "$1"' -- "$second_marker" > "$tmpdir/second-output" 2>&1 &
+queued_pid=$!
 set -e
 
-[ "$blocked_status" -eq 75 ] || {
-  echo "expected concurrent verification to fail with 75, got $blocked_status"
-  exit 1
-}
 [ ! -e "$second_marker" ] || {
-  echo "concurrent verification ran despite the lock"
-  exit 1
-}
-[[ "$blocked_output" == *"already running"* ]] || {
-  echo "concurrent verification did not explain the active lock"
+  echo "queued verification ran while the lock owner was still active"
   exit 1
 }
 
 wait "$owner_pid"
-
-mkdir "$lock_dir"
-printf '%s\n' 999999 > "$lock_dir/pid"
-CONQUESTORIA_VERIFICATION_LOCK_DIR="$lock_dir" \
-  "$RUNNER" sh -c 'touch "$1"' -- "$second_marker"
+wait "$queued_pid"
 
 [ -f "$second_marker" ] || {
-  echo "stale verification lock was not reclaimed"
+  echo "queued verification did not run after the owner completed"
+  exit 1
+}
+grep -q 'Queued behind active verification' "$tmpdir/second-output" || {
+  echo "queued verification did not report its wait"
   exit 1
 }

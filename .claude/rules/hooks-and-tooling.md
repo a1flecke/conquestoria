@@ -54,18 +54,17 @@ paths:
 
 ## Shared local verification lock
 
-`scripts/run-with-mise.sh` acquires a repository-wide lock for `yarn test`,
-`test:fast`, `test:slow`, `build`, and `build:tauri`. The canonical verifier
-acquires the same lock around its entire test-plus-build sequence. The lock is
-stored in Git's common directory, so linked worktrees share it.
+Routine `yarn test`, `test:fast`, `test:slow`, `build`, and `build:tauri`
+commands run concurrently across worktrees. The canonical pre-push verifier
+alone holds a repository-wide advisory lock around its complete test-plus-build
+sequence, so two full verifications queue instead of racing or failing.
 
-- A second verification attempt exits promptly with status `75`, the owning
-  PID, and the command already running. Do not retry it; wait for the owner to
-  finish, then run the command once.
-- A lock whose PID no longer exists is reclaimed automatically.
-- The lock prevents CPU oversubscription; it does not make a single full suite
-  faster. For iteration, run the mirrored targeted test first and reserve the
-  full suite for the required final verification.
+- A queued full verifier reports the current holder and acquires the lock when
+  that process exits; advisory locks release automatically after a crash.
+- Do not add a global lock back to focused iteration commands. Worker limits
+  and isolated caches, rather than mutual exclusion, protect concurrent work.
+- For iteration, run the mirrored targeted test first and reserve the full
+  suite for the required final verification.
 
 ## Fast/slow test split (#608)
 
@@ -79,11 +78,13 @@ stored in Git's common directory, so linked worktrees share it.
 
 ## Vitest cache config
 
-`cacheDir` in `vite.config.ts` is pinned to `node_modules/.vite/vitest` in the main worktree. Without this, `vitest --root /worktree/path` looked for Vite's dependency optimizer cache inside the worktree where `node_modules/` doesn't exist.
+`run-with-mise.sh` sets `CONQUESTORIA_VITEST_CACHE_DIR` to the active
+worktree's `.vite/vitest` directory. This prevents concurrent worktrees from
+writing one shared optimizer cache. The cache directory is ignored by Git.
 
-**What this fixes:** Vite's dependency pre-bundling cache is shared across all worktrees.
-
-**What this does NOT change:** esbuild TypeScript transforms. That time is proportional to suite size and worker count (`test.maxWorkers: 4`, see #608 below) and is inherent to every run — it is not a cache miss.
+The local Vitest default is two workers per process; isolated CI runners use
+four. `CONQUESTORIA_VITEST_MAX_WORKERS` may override either value. This limits
+CPU pressure without blocking independent worktrees.
 
 ## Heavy simulation tests need an explicit, headroom-sized timeout (#608)
 
@@ -92,7 +93,7 @@ worktree directories exist; a live agent was directly observed running the same 
 concurrently during the #608 investigation), each invoking `yarn test` independently and each
 defaulting to vitest's own multi-worker sizing. That oversubscribes the machine's CPU whenever
 2-3 agents' test runs overlap, and it is not something a single repo-side config change can fully
-eliminate (`vite.config.ts`'s `test.maxWorkers: 4` caps one process's own worker count but can't
+eliminate (`vite.config.ts`'s local two-worker default caps one process's own worker count but can't
 stop several concurrent processes from adding up).
 
 Most of this suite is fine regardless, because most tests are cheap unit tests that finish in
