@@ -12,6 +12,7 @@ import {
   getLegendaryWonderQueueItemMetadata,
 } from './legendary-wonder-production';
 import { evaluateProductionPrerequisites } from './production-prerequisites';
+import { getTerminalCombatUnitReasons } from './combat-role-definitions';
 
 export const CITY_NAMES = DEFAULT_CITY_NAMES;
 
@@ -1209,25 +1210,7 @@ export const TRAINABLE_UNITS: Array<TrainableUnitEntry & { pacing?: Building['pa
  * tests/systems/city-system.test.ts — a new combat unit added to TRAINABLE_UNITS without
  * either obsoletedByTech or an entry here will fail that test.
  */
-export const TERMINAL_COMBAT_UNITS: Partial<Record<UnitType, string>> = {
-  tank: 'current top-tier armor, no later replacement in the roster yet — stays apex over modern infantry',
-  submarine: 'current top-tier submarine, no later replacement in the roster yet',
-  stealth_bomber: 'current air-combat apex (era 12), no later replacement in the roster yet',
-  cyber_unit: 'era 12 economic-sabotage unit, unique role (city-only ranged target), no later replacement in the roster yet',
-  carrier: 'current top-tier naval projection, no later replacement in the roster yet',
-  artillery: 'current siege apex; rocket artillery is future content',
-  jet_fighter: 'air-superiority apex; stealth bomber is the bomber line, not a fighter upgrade',
-  missile_submarine: 'era 11, newest naval-deterrent unit, no later replacement yet',
-  scout: 'recon unit, strength is a self-defense stat not its primary role, no replacement chain',
-  observation_balloon: 'recon unit (air-recon role), strength is a self-defense stat, no replacement chain',
-  spy_hacker: 'terminal tier of the espionage chain (spy_operative already obsoletes into this at cyber-warfare), no further replacement yet',
-  scout_hound: 'recon/detection unit, strength is a self-defense stat, no replacement chain',
-  shadow_warden: 'civ-specific (Persia) recon/detection replacement for scout_hound, same reasoning',
-  war_hound: 'civ-specific (Rome) recon/detection replacement for scout_hound, same reasoning',
-  combat_drone: 'Era 13 coordinated air-support apex; later eras may introduce an autonomous-air successor.',
-  autonomous_frigate: 'Era 13 autonomous surface-escort apex; later eras may introduce a successor.',
-  exosuit_infantry: 'Era 13 advanced line-infantry apex; Tank remains the separate armor apex.',
-};
+export const TERMINAL_COMBAT_UNITS = getTerminalCombatUnitReasons();
 
 export const SETTLER_COST_BY_ERA: Record<number, number> = {
   1: 24,

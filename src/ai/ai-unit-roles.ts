@@ -1,44 +1,6 @@
 import type { AIStrategicRole, UnitType } from '@/core/types';
+import { getUnitRoleDefinition } from '@/systems/combat-role-definitions';
 import { UNIT_DEFINITIONS } from '@/systems/unit-system';
-
-const ROLE_OVERRIDES: Partial<Record<UnitType, readonly AIStrategicRole[]>> = {
-  scout: ['recon'],
-  observation_balloon: ['recon'],
-  caravan: ['trade'],
-  // Trade Routes Overhaul (#553 MR1/4) — Naval Trader line. Without this override these
-  // fall through to the naval-domain branch below and get misclassified as
-  // ['naval-combat', 'escort'] despite strength 0 and no cargoCapacity.
-  naval_trader: ['trade'],
-  steamship_trader: ['trade'],
-  cargo_freighter: ['trade'],
-  container_ship: ['trade'],
-  // Trade Routes Overhaul (#553 MR2/4) — Land trade line successors to Caravan.
-  merchant_wagon: ['trade'],
-  freight_convoy: ['trade'],
-  // Trade Routes Overhaul (#553 MR3/4) — Air trade line. Without this override these
-  // fall through to the air-domain branch and get misclassified as ['recon'] (no
-  // attackProfile), same rationale as the Naval Trader line above.
-  air_freighter: ['trade'],
-  jet_freighter: ['trade'],
-  global_air_cargo: ['trade'],
-  expedition: ['resource-expedition', 'recon'],
-  settler: ['settlement'],
-  worker: ['worker'],
-  missionary: ['missionary'],
-  spy_scout: ['espionage', 'recon'],
-  spy_informant: ['espionage'],
-  spy_agent: ['espionage'],
-  spy_operative: ['espionage'],
-  spy_hacker: ['espionage'],
-  cyber_unit: ['espionage'],
-  // Era 13 specialists have no conventional strength. Their explicit roles keep
-  // production demand-driven rather than silently treating them as combat units.
-  propagandist: ['espionage'],
-  drone_controller: ['detection'],
-  scout_hound: ['detection', 'frontline'],
-  shadow_warden: ['detection', 'frontline'],
-  war_hound: ['detection', 'frontline', 'mobile', 'capture'],
-};
 
 const COMBAT_ROLES = new Set<AIStrategicRole>([
   'capture',
@@ -52,9 +14,10 @@ const COMBAT_ROLES = new Set<AIStrategicRole>([
 ]);
 
 export function getAIStrategicRoles(type: UnitType): readonly AIStrategicRole[] {
-  const override = ROLE_OVERRIDES[type];
-  if (override) return override;
+  const catalogDefinition = getUnitRoleDefinition(type);
+  if (catalogDefinition) return catalogDefinition.aiRoles;
 
+  // Non-trainable actors, such as pirate-only hulls, retain generic AI handling.
   const definition = UNIT_DEFINITIONS[type];
   if (definition.domain === 'air') {
     return definition.attackProfile ? ['air-combat', 'ranged'] : ['recon'];

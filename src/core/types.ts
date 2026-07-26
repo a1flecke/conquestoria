@@ -908,6 +908,52 @@ export interface TrainableUnitEntry {
   trainedFromBuilding?: string;  // city must contain this building to train the unit
 }
 
+export type CombatRole =
+  | 'frontline'
+  | 'ranged'
+  | 'siege'
+  | 'shock'
+  | 'pursuit'
+  | 'reconnaissance'
+  | 'detection'
+  | 'anti-mounted'
+  | 'anti-armor'
+  | 'air-superiority'
+  | 'ground-air-defense'
+  | 'capital-ship'
+  | 'escort'
+  | 'formation-support'
+  | 'capture'
+  | 'civilian';
+
+export type UpgradeFamily =
+  | 'line-infantry'
+  | 'mounted'
+  | 'ranged-infantry'
+  | 'siege'
+  | 'surface-warship'
+  | 'submarine'
+  | 'fighter'
+  | 'bomber'
+  | 'air-support'
+  | 'transport'
+  | 'trade'
+  | 'espionage'
+  | 'detection'
+  | 'civilian';
+
+export interface UnitRoleDefinition {
+  primaryRole: CombatRole;
+  secondaryRoles?: readonly CombatRole[];
+  counters: readonly CombatRole[];
+  vulnerableTo: readonly CombatRole[];
+  roleSummary: string;
+  upgradeFamily: UpgradeFamily;
+  aiRoles: readonly AIStrategicRole[];
+  terminalReason?: string;
+  domainTransitionReason?: string;
+}
+
 // --- Civilizations ---
 
 export interface Civilization {
