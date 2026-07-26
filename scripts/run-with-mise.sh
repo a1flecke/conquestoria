@@ -52,7 +52,7 @@ MAIN_ROOT="$(git_without_local_env -C "$SCRIPT_DIR" worktree list --porcelain 2>
 
 # Linked worktrees share Yarn's read-only PnP installation but must not share
 # Vite's writable cache. The active config consumes this override for Vitest.
-export CONQUESTORIA_VITEST_CACHE_DIR="${CONQUESTORIA_VITEST_CACHE_DIR:-$CURRENT_ROOT/.vite/vitest}"
+export CONQUESTORIA_VITEST_CACHE_DIR="$CURRENT_ROOT/.vite/vitest"
 
 if [ -n "$MAIN_ROOT" ] && [ "$CURRENT_ROOT" != "$MAIN_ROOT" ]; then
   MAIN_RUN="$MAIN_ROOT/scripts/run-with-mise.sh"
