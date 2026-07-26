@@ -50,16 +50,9 @@ CURRENT_ROOT="$(git_without_local_env -C "$SCRIPT_DIR" rev-parse --show-toplevel
 MAIN_ROOT="$(git_without_local_env -C "$SCRIPT_DIR" worktree list --porcelain 2>/dev/null \
   | awk '/^worktree /{sub(/^worktree /, ""); print; exit}' || echo "$CURRENT_ROOT")"
 
-# Test and build commands contend for the same CPU and dependency cache across
-# linked worktrees. Re-exec through one shared lock unless a parent verifier
-# already holds it for its whole test-plus-build sequence.
-case "${1:-},${2:-}" in
-  yarn,test|yarn,test:fast|yarn,test:slow|yarn,build|yarn,build:tauri)
-    if [ "${CONQUESTORIA_VERIFICATION_LOCK_HELD:-}" != "1" ]; then
-      exec "$CURRENT_ROOT/scripts/with-verification-lock.sh" "$0" "$@"
-    fi
-    ;;
-esac
+# Linked worktrees share Yarn's read-only PnP installation but must not share
+# Vite's writable cache. The active config consumes this override for Vitest.
+export CONQUESTORIA_VITEST_CACHE_DIR="${CONQUESTORIA_VITEST_CACHE_DIR:-$CURRENT_ROOT/.vite/vitest}"
 
 if [ -n "$MAIN_ROOT" ] && [ "$CURRENT_ROOT" != "$MAIN_ROOT" ]; then
   MAIN_RUN="$MAIN_ROOT/scripts/run-with-mise.sh"

@@ -52,20 +52,18 @@ paths:
 - `git push` / `gh pr create` / `gh pr merge` — **120 000 ms** is enough for the local `--fast` gate. If you've just changed a slow-tier file and want to also verify it locally first (`yarn test:slow` or a targeted `yarn vitest run <file>`), do that as its own step before pushing — see #608 investigation notes above for observed durations up to ~600s worst case.
 - A 360 000 ms timeout on `git commit` papers over the wrong symptom. Match the timeout to what the command actually does.
 
-## Shared local verification lock
+## Concurrent local verification
 
-`scripts/run-with-mise.sh` acquires a repository-wide lock for `yarn test`,
-`test:fast`, `test:slow`, `build`, and `build:tauri`. The canonical verifier
-acquires the same lock around its entire test-plus-build sequence. The lock is
-stored in Git's common directory, so linked worktrees share it.
+Routine `yarn test`, `test:fast`, `test:slow`, `build`, and `build:tauri` run
+concurrently across linked worktrees. Do not add a repository-wide lock around
+them: it turns unrelated agents into a queue and does not make a test suite
+safer.
 
-- A second verification attempt exits promptly with status `75`, the owning
-  PID, and the command already running. Do not retry it; wait for the owner to
-  finish, then run the command once.
-- A lock whose PID no longer exists is reclaimed automatically.
-- The lock prevents CPU oversubscription; it does not make a single full suite
-  faster. For iteration, run the mirrored targeted test first and reserve the
-  full suite for the required final verification.
+Vitest's worker limit applies to one process, not the whole machine. The config
+uses 25% of the available CPU locally, leaving capacity for four simultaneous
+worktree runs; CI uses 100% on isolated hardware. Override a one-off run with
+Vitest's supported `VITEST_MAX_WORKERS` environment variable. Run the mirrored
+targeted test first; reserve the complete suite for final verification.
 
 ## Fast/slow test split (#608)
 
@@ -79,11 +77,13 @@ stored in Git's common directory, so linked worktrees share it.
 
 ## Vitest cache config
 
-`cacheDir` in `vite.config.ts` is pinned to `node_modules/.vite/vitest` in the main worktree. Without this, `vitest --root /worktree/path` looked for Vite's dependency optimizer cache inside the worktree where `node_modules/` doesn't exist.
+Vite and Vitest caches are writable state, so they stay in the active
+worktree's ignored `.vite/` directory. The wrapper exports a test cache path
+for each worktree; the Vite config uses separate test and non-test cache
+subdirectories. Do not redirect a linked worktree to another worktree's cache.
 
-**What this fixes:** Vite's dependency pre-bundling cache is shared across all worktrees.
-
-**What this does NOT change:** esbuild TypeScript transforms. That time is proportional to suite size and worker count (`test.maxWorkers: 4`, see #608 below) and is inherent to every run — it is not a cache miss.
+Cache reuse does not remove esbuild's TypeScript transform cost. That cost is
+proportional to suite size and worker count and is inherent to each run.
 
 ## Heavy simulation tests need an explicit, headroom-sized timeout (#608)
 
@@ -92,8 +92,8 @@ worktree directories exist; a live agent was directly observed running the same 
 concurrently during the #608 investigation), each invoking `yarn test` independently and each
 defaulting to vitest's own multi-worker sizing. That oversubscribes the machine's CPU whenever
 2-3 agents' test runs overlap, and it is not something a single repo-side config change can fully
-eliminate (`vite.config.ts`'s `test.maxWorkers: 4` caps one process's own worker count but can't
-stop several concurrent processes from adding up).
+eliminate (`vite.config.ts`'s local 25% worker budget caps one process but
+cannot stop several manually overridden processes from adding up).
 
 Most of this suite is fine regardless, because most tests are cheap unit tests that finish in
 milliseconds even under contention. The failure mode is specific to a growing minority of tests

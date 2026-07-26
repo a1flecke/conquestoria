@@ -45,3 +45,24 @@ if printf '%s' "$pirate_audio_job" | grep -Fq -- ' -t '; then
   echo "Pirate audio reproducibility job skips catalog or format coverage"
   exit 1
 fi
+
+grep -Fq 'VITEST_MAX_WORKERS' "$ROOT/vite.config.ts" || {
+  echo "Vitest worker count cannot be overridden with the official environment variable"
+  exit 1
+}
+grep -Fq "process.env.CI ? '100%' : '25%'" "$ROOT/vite.config.ts" || {
+  echo "Vitest does not declare separate local and CI worker budgets"
+  exit 1
+}
+grep -Fq 'CONQUESTORIA_VITEST_CACHE_DIR' "$ROOT/vite.config.ts" || {
+  echo "Vitest does not use the worktree cache override"
+  exit 1
+}
+grep -Fq "dir: resolve(__dirname, 'tests')" "$ROOT/vite.config.ts" || {
+  echo "Vitest does not limit discovery to the tests directory"
+  exit 1
+}
+grep -Fxq '.vite/' "$ROOT/.gitignore" || {
+  echo "worktree-local Vite caches are not ignored"
+  exit 1
+}
