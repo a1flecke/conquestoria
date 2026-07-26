@@ -1,6 +1,6 @@
 import type { LoopPoints } from './audio-catalog';
 
-export type BusId = 'era' | 'accent' | 'adaptive' | 'stinger' | 'voice' | 'sfx';
+export type BusId = 'era' | 'accent' | 'adaptive' | 'stinger' | 'sfx';
 export type SnapshotId =
   | 'silent'
   | 'peace'
@@ -8,29 +8,24 @@ export type SnapshotId =
   | 'at-war'
   | 'unrest'
   | 'brink-of-defeat'
-  | 'stinger-duck'
-  | 'voice-duck';
+  | 'stinger-duck';
 
-type MusicBusId = 'era' | 'accent' | 'adaptive' | 'stinger' | 'voice';
+type MusicBusId = 'era' | 'accent' | 'adaptive' | 'stinger';
 
 // Re-export for consumers that need the type without importing audio-catalog
 export type { LoopPoints };
 
 // Gain values per snapshot per music bus.
-// voice bus routes through voiceMasterGain directly to destination (bypasses
-//   masterGain) — its values here control ducking only; absolute voice volume
-//   is set via setVoiceVolume() on voiceMasterGain.
 // stinger bus routes through stingerMasterGain → masterGain — its values here
 //   control ducking; absolute stinger volume is set via setStingerVolume().
 const SNAPSHOTS: Record<SnapshotId, Record<MusicBusId, number>> = {
-  silent:             { era: 0.0, accent: 0.00, adaptive: 0.0, stinger: 0.0, voice: 0.0 },
-  peace:              { era: 1.0, accent: 0.70, adaptive: 0.0, stinger: 1.0, voice: 1.0 },
-  'beast-territory':  { era: 1.0, accent: 0.60, adaptive: 0.3, stinger: 1.0, voice: 1.0 },
-  'at-war':           { era: 1.0, accent: 0.50, adaptive: 0.8, stinger: 1.0, voice: 1.0 },
-  unrest:             { era: 1.0, accent: 0.55, adaptive: 0.5, stinger: 1.0, voice: 1.0 },
-  'brink-of-defeat':  { era: 0.7, accent: 0.15, adaptive: 1.0, stinger: 1.0, voice: 1.0 },
-  'stinger-duck':     { era: 0.5, accent: 0.35, adaptive: 0.4, stinger: 1.0, voice: 0.2 },
-  'voice-duck':       { era: 0.5, accent: 0.35, adaptive: 0.4, stinger: 0.6, voice: 1.0 },
+  silent:             { era: 0.0, accent: 0.00, adaptive: 0.0, stinger: 0.0 },
+  peace:              { era: 1.0, accent: 0.70, adaptive: 0.0, stinger: 1.0 },
+  'beast-territory':  { era: 1.0, accent: 0.60, adaptive: 0.3, stinger: 1.0 },
+  'at-war':           { era: 1.0, accent: 0.50, adaptive: 0.8, stinger: 1.0 },
+  unrest:             { era: 1.0, accent: 0.55, adaptive: 0.5, stinger: 1.0 },
+  'brink-of-defeat':  { era: 0.7, accent: 0.15, adaptive: 1.0, stinger: 1.0 },
+  'stinger-duck':     { era: 0.5, accent: 0.35, adaptive: 0.4, stinger: 1.0 },
 };
 
 interface BusState {
@@ -52,15 +47,12 @@ export class AudioMixer {
   private masterGain: GainNode;         // era + accent + adaptive + stinger → destination
   private musicLayerGain: GainNode;     // era + accent + adaptive → masterGain
   private stingerMasterGain: GainNode;  // stinger → masterGain
-  private voiceMasterGain: GainNode;    // voice → destination (bypasses masterGain)
 
   private currentMasterVolume = 1.0;
   private currentMusicVolume = 1.0;
   private musicEnabled = true;
   private currentSfxVolume = 1.0;
   private sfxEnabled = true;
-  private currentVoiceVolume = 1.0;
-  private voiceEnabled = true;
   private currentStingerVolume = 1.0;
   private stingerEnabled = true;
 
@@ -80,12 +72,6 @@ export class AudioMixer {
     this.stingerMasterGain.gain.setValueAtTime(1.0, ctx.currentTime);
     this.stingerMasterGain.connect(this.masterGain);
 
-    // voiceMasterGain → destination (bypasses masterGain intentionally —
-    //   "mute music" must not silence advisor lines)
-    this.voiceMasterGain = ctx.createGain();
-    this.voiceMasterGain.gain.setValueAtTime(1.0, ctx.currentTime);
-    this.voiceMasterGain.connect(ctx.destination);
-
     const makeMusicBus = (parent: AudioNode): BusState => {
       const g = ctx.createGain();
       g.gain.setValueAtTime(0, ctx.currentTime);
@@ -98,7 +84,6 @@ export class AudioMixer {
       accent:   makeMusicBus(this.musicLayerGain),
       adaptive: makeMusicBus(this.musicLayerGain),
       stinger:  makeMusicBus(this.stingerMasterGain),
-      voice:    makeMusicBus(this.voiceMasterGain),
     };
 
     // SFX bus → destination (unchanged — bypasses all music gain nodes)
@@ -243,7 +228,7 @@ export class AudioMixer {
     }
   }
 
-  // --- Master volume (covers era + accent + adaptive + stinger; NOT voice or SFX) ---
+  // --- Master volume (covers era + accent + adaptive + stinger; NOT SFX) ---
   setMasterVolume(v: number, fadeMs = 0): void {
     this.currentMasterVolume = Math.max(0, Math.min(1, v));
     const now = this.ctx.currentTime;
@@ -303,28 +288,6 @@ export class AudioMixer {
       this.stingerMasterGain.gain.setValueAtTime(perceptual, now);
     } else {
       this.stingerMasterGain.gain.setValueAtTime(0, now);
-    }
-  }
-
-  // --- Voice volume (bypasses masterGain) ---
-  setVoiceVolume(v: number): void {
-    this.currentVoiceVolume = Math.max(0, Math.min(1, v));
-    if (this.voiceEnabled) {
-      const perceptual = this.currentVoiceVolume * this.currentVoiceVolume;
-      this.voiceMasterGain.gain.setValueAtTime(perceptual, this.ctx.currentTime);
-    }
-  }
-
-  setVoiceEnabled(enabled: boolean): void {
-    this.voiceEnabled = enabled;
-    const now = this.ctx.currentTime;
-    // Cancel any in-flight ramp before overriding (mirrors setMusicEnabled M-2 contract)
-    this.voiceMasterGain.gain.cancelScheduledValues(now);
-    if (enabled) {
-      const perceptual = this.currentVoiceVolume * this.currentVoiceVolume;
-      this.voiceMasterGain.gain.setValueAtTime(perceptual, now);
-    } else {
-      this.voiceMasterGain.gain.setValueAtTime(0, now);
     }
   }
 
