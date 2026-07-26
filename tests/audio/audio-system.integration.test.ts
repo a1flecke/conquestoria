@@ -537,4 +537,30 @@ describe('AudioSystem integration', () => {
 
     expect(handleCrisisResolved).not.toHaveBeenCalled();
   });
+
+  it('wonder-lost, city-lost, and near-defeat play the loss-event stinger for the current player', () => {
+    system.start(makeState(), busHelper.bus);
+    const handleLossEvent = vi.spyOn((system as any).director, 'handleLossEvent');
+
+    busHelper.emit('wonder:legendary-lost', {
+      civId: 'rome', cityId: 'c1', wonderId: 'w1', goldRefund: 0, transferableProduction: 0,
+    });
+    busHelper.emit('city:captured', { cityId: 'c1', newOwner: 'egypt', previousOwner: 'rome' });
+    busHelper.emit('civ:near-defeat', { civId: 'rome' });
+
+    expect(handleLossEvent).toHaveBeenCalledTimes(3);
+  });
+
+  it('loss events for other civs do not play the loss-event stinger (hot-seat privacy)', () => {
+    system.start(makeState(), busHelper.bus);
+    const handleLossEvent = vi.spyOn((system as any).director, 'handleLossEvent');
+
+    busHelper.emit('wonder:legendary-lost', {
+      civId: 'egypt', cityId: 'c1', wonderId: 'w1', goldRefund: 0, transferableProduction: 0,
+    });
+    busHelper.emit('city:captured', { cityId: 'c1', newOwner: 'rome', previousOwner: 'egypt' });
+    busHelper.emit('civ:near-defeat', { civId: 'egypt' });
+
+    expect(handleLossEvent).not.toHaveBeenCalled();
+  });
 });

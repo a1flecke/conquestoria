@@ -3,12 +3,9 @@ import type { GameState } from '../core/types';
 import { AudioLoader } from './audio-loader';
 import { AudioMixer } from './audio-mixer';
 import { MusicDirector } from './music-director';
-import { VoiceDirector } from './voice-director';
 import { NaturalWonderAudioDirector, type NaturalWonderAmbientStopReason } from './natural-wonder-audio-director';
 import { getFamilyForCiv } from './civ-audio-family';
-import { getVoicePackForCiv } from './civ-voice-family';
 import { ERA_BASE, WAR_LAYER, ACCENT, resolveEra } from './audio-catalog';
-import { VOICE_CATALOG, ALL_VOICE_EVENT_IDS, type VoicePackId } from './voice-catalog';
 import { allSfxEntries } from './sfx-catalog';
 import { SfxDirector } from './sfx-director';
 import { routeSfxComponents } from './sfx';
@@ -21,7 +18,6 @@ export class AudioSystem {
   private loader: AudioLoader;
   private mixer: AudioMixer;
   private director: MusicDirector;
-  private voiceDirector: VoiceDirector;
   private naturalWonderDirector: NaturalWonderAudioDirector;
   private sfxDirector: SfxDirector;
   private pirateAudioDirector: PirateAudioDirector;
@@ -44,11 +40,6 @@ export class AudioSystem {
     this.loader = new AudioLoader(ctx);
     this.mixer = new AudioMixer(ctx);
     this.director = new MusicDirector(this.mixer, this.loader);
-    this.voiceDirector = new VoiceDirector(
-      this.mixer,
-      this.loader,
-      () => this.director.resolveSnapshot(),
-    );
     this.naturalWonderDirector = new NaturalWonderAudioDirector(
       this.mixer,
       this.loader,
@@ -104,14 +95,6 @@ export class AudioSystem {
 
     void this.preloadForEra(state.era, this.currentCivType);
     void this.preloadSfx();
-    // Spec 3: set current voice pack and preload its clips
-    this.voiceDirector.setVoicePack(this.currentCivType);
-    void this.preloadVoicePack(this.currentCivType);
-    // Always preload generic pack — used as fallback for partial hero packs
-    // and for all 19 non-hero civs. 10 clips ≈ 350 KB, negligible cost.
-    if (this.currentCivType !== 'generic') {
-      void this.preloadVoicePack('generic');
-    }
 
     // Restore correct snapshot state machine when resuming a saved game mid-era.
     // Guard on era only, not musicEnabled — director state must be correct even when muted.
@@ -205,7 +188,6 @@ export class AudioSystem {
     this.unsubscribers.forEach(fn => fn());
     this.unsubscribers = [];
     this.disarmIosResume();
-    this.voiceDirector.stop();
     this.naturalWonderDirector.stopAmbient('system-disposed');
     this.sfxDirector.dispose();
     this.pirateAudioDirector.dispose();
@@ -268,9 +250,6 @@ export class AudioSystem {
     );
     this.naturalWonderDirector.stopAmbient('player-changed');
     this.pirateAudioDirector.stopAmbience('player-changed');
-    this.voiceDirector.stop();
-    this.voiceDirector.setVoicePack(this.currentCivType);
-    void this.preloadVoicePack(this.currentCivType);
 
     const civ = state.civilizations[this.currentPlayerId];
     this.warCount = civ?.diplomacy?.atWarWith?.length ?? 0;
@@ -368,10 +347,6 @@ export class AudioSystem {
         // Hidden round processing may have advanced the era. Rewire all loop buses
         // from the authoritative handoff snapshot without replaying the era stinger.
         void this.preloadForEra(era, this.currentCivType);
-        // Spec 3: hot-seat voice privacy — stop any in-progress voice line from outgoing player
-        this.voiceDirector.stop();
-        this.voiceDirector.setVoicePack(this.currentCivType);
-        void this.preloadVoicePack(this.currentCivType);
       }),
 
       bus.on('crisis:started', p => {
@@ -396,50 +371,12 @@ export class AudioSystem {
       bus.on('game:over', p => {
         const outcome = p.winnerId === this.currentPlayerId ? 'victory' : 'defeat';
         this.naturalWonderDirector.stopAmbient('game-ended');
-        this.voiceDirector.stop(); // cut any in-progress voice line
-        const stingerPromise = this.director.handleGameEnded({ outcome });
-        if (outcome === 'victory') {
-          // Chain victory voice line after stinger completes, then silence
-          void stingerPromise.then(() => this.voiceDirector.playLine('victory'));
-        }
+        void this.director.handleGameEnded({ outcome });
       }),
 
-      // ── Spec 3: voice line subscriptions ─────────────────────────────────
-      // Each event has its own explicit bus.on() rather than a dynamic table
-      // because bus.on() is strongly typed per GameEvents key — a generic
-      // Record<string, handler> loop cannot satisfy the overload signature.
-
-      // era:advanced — second subscription (first handles music era-advance).
-      // Multiple subscribers to the same event are intentional here.
-      bus.on('era:advanced', async () => {
-        await this.director.currentStingerPromise; // era stinger plays first
-        void this.voiceDirector.playLine('era-advance');
-      }),
-
-      bus.on('city:founded', async p => {
-        if (p.founderId !== this.currentPlayerId) return;
-        await this.director.currentStingerPromise;
-        void this.voiceDirector.playLine('city-founded');
-      }),
-
-      bus.on('diplomacy:war-declared', async p => {
-        if (p.attackerId !== this.currentPlayerId) return;
-        await this.director.currentStingerPromise;
-        void this.voiceDirector.playLine('war-declared');
-      }),
-
-      // Stinger subs registered BEFORE voice subs for the same event so that
-      // when the event fires the stinger handler updates currentStingerPromise
-      // first, and the voice handler then awaits the correct (new) promise.
       bus.on('tech:completed', p => {
         if (p.civId !== this.currentPlayerId) return;
         this.director.handleTechResearched();
-      }),
-
-      bus.on('tech:completed', async p => {
-        if (p.civId !== this.currentPlayerId) return;
-        await this.director.currentStingerPromise;
-        void this.voiceDirector.playLine('tech-completed');
       }),
 
       bus.on('wonder:legendary-completed', p => {
@@ -447,34 +384,21 @@ export class AudioSystem {
         this.director.handleWonderBuilt();
       }),
 
-      bus.on('wonder:legendary-completed', async p => {
-        if (p.civId !== this.currentPlayerId) return;
-        await this.director.currentStingerPromise;
-        void this.voiceDirector.playLine('wonder-built');
-      }),
-
+      // Loss/threat events whose only audio cue was the removed advisor voice
+      // line — rewired to the shared loss-event stinger placeholder (#616).
       bus.on('wonder:legendary-lost', p => {
         if (p.civId !== this.currentPlayerId) return;
-        // no stinger for wonder-lost — voice plays immediately
-        void this.voiceDirector.playLine('wonder-lost');
+        this.director.handleLossEvent();
       }),
 
       bus.on('city:captured', p => {
         if (p.previousOwner !== this.currentPlayerId) return;
-        // no stinger for city-lost — voice plays immediately
-        void this.voiceDirector.playLine('city-lost');
+        this.director.handleLossEvent();
       }),
 
       bus.on('civ:near-defeat', p => {
         if (p.civId !== this.currentPlayerId) return;
-        void this.voiceDirector.playLine('near-defeat');
-      }),
-
-      bus.on('diplomacy:peace-made', async p => {
-        const involved = p.civA === this.currentPlayerId || p.civB === this.currentPlayerId;
-        if (!involved) return;
-        await this.director.currentStingerPromise;
-        void this.voiceDirector.playLine('peace-signed');
+        this.director.handleLossEvent();
       }),
 
       // Spec 3: new stinger events
@@ -587,19 +511,6 @@ export class AudioSystem {
 
   private preloadSfx(): Promise<void> {
     return this.loader.preload(allSfxEntries().map(e => e.file));
-  }
-
-  /**
-   * Preload the current voice pack (10 clips ≈ 350 KB).
-   * Called on game start and on each player handoff.
-   * Only preloads the current player's pack — generic is lazy-loaded on first use.
-   */
-  private preloadVoicePack(civType: string): Promise<void> {
-    const packId: VoicePackId = getVoicePackForCiv(civType);
-    const files = ALL_VOICE_EVENT_IDS
-      .map(e => VOICE_CATALOG[packId]?.[e]?.file)
-      .filter((f): f is string => !!f);
-    return this.loader.preload(files);
   }
 
   private async preloadForEra(era: number, civType: string): Promise<void> {
