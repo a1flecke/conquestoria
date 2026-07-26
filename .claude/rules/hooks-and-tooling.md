@@ -65,6 +65,20 @@ worktree runs; CI uses 100% on isolated hardware. Override a one-off run with
 Vitest's supported `VITEST_MAX_WORKERS` environment variable. Run the mirrored
 targeted test first; reserve the complete suite for final verification.
 
+## Worktree command-runner contract
+
+`scripts/run-with-mise.sh` executes all project behavior from the active
+worktree: its `package.json`, generated PnP map, scripts, Vite/Vitest
+configuration, sources, hooks, and output paths. A PnP map is generated from a
+specific lockfile, so never borrow another checkout's `.pnp.cjs` or re-execute
+another checkout's wrapper. Yarn's own download cache may be shared safely.
+
+Do not manually duplicate a package script in the wrapper; put multi-step
+package behavior in one active project script instead. `yarn install` also runs
+from the active worktree so it produces that worktree's PnP map. Keep focused
+test filters root-relative (`tests/foo.test.ts`) and cover this contract in
+`tests/hooks/run-with-mise-worktree.test.sh` whenever the adapter changes.
+
 ## Fast/slow test split (#608)
 
 `scripts/run-tests-by-tier.sh` splits the suite into two tiers, to keep the local push gate fast without losing coverage at merge time:

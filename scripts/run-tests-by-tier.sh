@@ -36,9 +36,8 @@ if [ "$#" -gt 0 ]; then
   shift
 fi
 
-# Any remaining args (e.g. `--root <worktree>`, appended by
-# scripts/run-with-mise.sh so vitest targets the calling worktree) are kept
-# in "$@" and passed through to the final vitest invocation in both modes.
+# Any remaining Vitest arguments (such as root-relative focused test paths) are
+# kept in "$@" and passed through to the final invocation in both modes.
 case "$MODE" in
   fast)
     for f in $SLOW_TEST_FILES; do

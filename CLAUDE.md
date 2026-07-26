@@ -28,7 +28,7 @@ This is enforced by the user and is not optional.
 
 **Bash tool timeout guidance** — set `timeout` to match what the command actually does:
 - `git commit` → **30 000 ms** (commit itself < 1s; no hook runs tests on commit)
-- `git push` / `gh pr create` / `gh pr merge` → **120 000 ms** (pre-push hook runs tsc + vitest in parallel, ~35–45s from a worktree)
+- `git push` / `gh pr create` / `gh pr merge` → **120 000 ms** (pre-push verification runs the fast test tier, then the production build, sequentially)
 - Using a 360 000 ms timeout for commits papers over the root cause; the correct fix is matching the timeout to the command's expected duration.
 
 ## Rules Index
