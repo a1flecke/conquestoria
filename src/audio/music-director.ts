@@ -64,7 +64,7 @@ export class MusicDirector {
 
   /**
    * Resolves when the current stinger (if any) completes.
-   * AudioSystem (MR3) awaits this before playing voice lines for co-fire events.
+   * Public: exposed for stinger-sequencing tests.
    * Starts as Promise.resolve() — always safe to await.
    */
   public currentStingerPromise: Promise<void> = Promise.resolve();
@@ -76,7 +76,7 @@ export class MusicDirector {
 
   /**
    * Priority: brink-of-defeat > at-war > unrest > beast-territory > peace
-   * Public so AudioSystem can inject it as the VoiceDirector getSnapshot callback.
+   * Public: exposed for snapshot-priority tests.
    */
   public resolveSnapshot(): SnapshotId {
     if (this.nearDefeat)      return 'brink-of-defeat';
@@ -213,6 +213,17 @@ export class MusicDirector {
     this.currentStingerPromise = this.playStingerWithDuck(STINGER.peaceSigned.file);
   }
 
+  /**
+   * Loss/threat events that previously carried an advisor voice line and have
+   * no bespoke stinger (wonder-lost, city-lost, near-defeat warning). Reuses
+   * the war-declared stinger as the negative-event placeholder — same
+   * convention as handleCrisisStarted above; bespoke replacements are tracked
+   * in #616. Deliberately does not touch atWar/inUnrest/nearDefeat flags.
+   */
+  handleLossEvent(): void {
+    this.currentStingerPromise = this.playStingerWithDuck(STINGER.warDeclared.file);
+  }
+
   handleNearDefeat(p: CivNearDefeatPayload): void {
     if (p.civId !== this.currentCivId) return;
     this.nearDefeat = true;
@@ -240,7 +251,6 @@ export class MusicDirector {
 
   /**
    * Returns a Promise that resolves after the stinger + post-stinger silence fade.
-   * AudioSystem (MR3) awaits this before playing the victory voice line.
    * IMPORTANT: deliberately calls setSnapshot('silent') after stinger, NOT resolveSnapshot()
    * — the game is over; the music loop must not resume.
    */

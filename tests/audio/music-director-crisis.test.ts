@@ -75,4 +75,11 @@ describe('MusicDirector crisis snapshot', () => {
     // stinger doesn't clear it; main.ts's own recompute does that via setCrisisActiveForCurrentPlayer.
     expect(director.resolveSnapshot()).toBe('unrest');
   });
+
+  it('plays the war-declared stinger placeholder on loss events without flipping atWar', async () => {
+    director.handleLossEvent();
+    await flushPromises();
+    expect(loader.get).toHaveBeenCalledWith(STINGER.warDeclared.file);
+    expect(director.resolveSnapshot()).not.toBe('at-war');
+  });
 });
