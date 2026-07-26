@@ -4,9 +4,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { showPauseMenu, type AudioSettingsSnapshot } from '@/ui/pause-menu-panel';
 
 const DEFAULT_TEST_AUDIO: AudioSettingsSnapshot = {
-  masterVolume: 1.0, musicVolume: 0.5, sfxVolume: 0.7,
-  voiceVolume: 1.0, stingerVolume: 1.0,
-  musicEnabled: true, soundEnabled: true, voiceEnabled: true, stingerEnabled: true,
+  masterVolume: 1.0, musicVolume: 0.5, sfxVolume: 0.7, stingerVolume: 1.0,
+  musicEnabled: true, soundEnabled: true, stingerEnabled: true,
 };
 
 function makeCallbacks(overrides: Partial<Parameters<typeof showPauseMenu>[1]> = {}): Parameters<typeof showPauseMenu>[1] {
@@ -193,16 +192,16 @@ describe('pause-menu-panel', () => {
   });
 
   describe('audio settings section (Spec 3)', () => {
-    it('renders 5 range sliders (Master, Music, SFX, Voice, Stinger)', () => {
+    it('renders 4 range sliders (Master, Music, SFX, Stinger)', () => {
       showPauseMenu(document.body, makeCallbacks());
       const sliders = document.querySelectorAll('input[type="range"]');
-      expect(sliders).toHaveLength(5);
+      expect(sliders).toHaveLength(4);
     });
 
-    it('renders 4 checkboxes (Music, SFX, Voice, Stinger — Master has no toggle)', () => {
+    it('renders 3 checkboxes (Music, SFX, Stinger — Master has no toggle)', () => {
       showPauseMenu(document.body, makeCallbacks());
       const checkboxes = document.querySelectorAll('input[type="checkbox"]');
-      expect(checkboxes).toHaveLength(4);
+      expect(checkboxes).toHaveLength(3);
     });
 
     it('sliders are initialised with audioSettings values', () => {
@@ -242,14 +241,10 @@ describe('pause-menu-panel', () => {
       expect(document.querySelector('input[aria-label="Master enabled"]')).toBeNull();
     });
 
-    it('Voice slider calls onAudioSettingChange with voiceVolume', () => {
-      const callbacks = makeCallbacks();
-      showPauseMenu(document.body, callbacks);
-      const voiceSlider = document.querySelector<HTMLInputElement>('input[aria-label="Voice volume"]');
-      if (!voiceSlider) throw new Error('Voice slider not found');
-      voiceSlider.value = '0.7';
-      voiceSlider.dispatchEvent(new Event('input'));
-      expect(callbacks.onAudioSettingChange).toHaveBeenCalledWith('voiceVolume', 0.7);
+    it('renders no Voice row (voice packs removed)', () => {
+      showPauseMenu(document.body, makeCallbacks());
+      expect(document.querySelector('input[aria-label="Voice volume"]')).toBeNull();
+      expect(document.querySelector('input[aria-label="Voice enabled"]')).toBeNull();
     });
   });
 });

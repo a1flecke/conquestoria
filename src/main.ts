@@ -492,11 +492,9 @@ function createUI(): void {
           masterVolume:   currentMasterVolume,   // tracked in memory across menu reopens
           musicVolume:    gameState.settings.musicVolume,
           sfxVolume:      gameState.settings.sfxVolume,
-          voiceVolume:    gameState.settings.voiceVolume    ?? 1.0,
           stingerVolume:  gameState.settings.stingerVolume  ?? 1.0,
           musicEnabled:   gameState.settings.musicEnabled,
           soundEnabled:   gameState.settings.soundEnabled,
-          voiceEnabled:   gameState.settings.voiceEnabled   ?? true,
           stingerEnabled: gameState.settings.stingerEnabled ?? true,
         },
         onAudioSettingChange: (key, value) => {
@@ -508,11 +506,9 @@ function createUI(): void {
               return; // master not in GameSettings — skip the settings write below
             case 'musicVolume':    audio.setMusicVolume(value as number);   break;
             case 'sfxVolume':      audio.setSfxVolume(value as number);     break;
-            case 'voiceVolume':    audio.setVoiceVolume(value as number);   break;
             case 'stingerVolume':  audio.setStingerVolume(value as number); break;
             case 'musicEnabled':   audio.setMusicEnabled(value as boolean); break;
             case 'soundEnabled':   audio.setSfxEnabled(value as boolean);   break;
-            case 'voiceEnabled':   audio.setVoiceEnabled(value as boolean); break;
             case 'stingerEnabled': audio.setStingerEnabled(value as boolean); break;
           }
           // Persist all non-master settings to GameSettings (saved on next save)
@@ -1879,8 +1875,6 @@ function getPersistedSettingsOverrides(): Partial<GameState['settings']> {
     musicEnabled: persistedSettings.musicEnabled,
     musicVolume: persistedSettings.musicVolume,
     sfxVolume: persistedSettings.sfxVolume,
-    voiceVolume:    persistedSettings.voiceVolume    ?? 1.0,
-    voiceEnabled:   persistedSettings.voiceEnabled   ?? true,
     stingerVolume:  persistedSettings.stingerVolume  ?? 1.0,
     stingerEnabled: persistedSettings.stingerEnabled ?? true,
     tutorialEnabled: persistedSettings.tutorialEnabled,

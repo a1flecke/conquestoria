@@ -10,11 +10,9 @@ export interface AudioSettingsSnapshot {
   masterVolume: number;
   musicVolume: number;
   sfxVolume: number;
-  voiceVolume: number;
   stingerVolume: number;
   musicEnabled: boolean;
   soundEnabled: boolean;
-  voiceEnabled: boolean;
   stingerEnabled: boolean;
 }
 
@@ -68,13 +66,12 @@ function buildHeader(turn: number, civName: string): HTMLElement {
 }
 
 /**
- * Build the 5-channel audio settings section.
+ * Build the 4-channel audio settings section.
  * Uses <input type="range"> and <input type="checkbox"> — no bare <button> elements.
  */
 const DEFAULT_AUDIO_SETTINGS: AudioSettingsSnapshot = {
-  masterVolume: 1.0, musicVolume: 0.5, sfxVolume: 0.7,
-  voiceVolume: 1.0, stingerVolume: 1.0,
-  musicEnabled: true, soundEnabled: true, voiceEnabled: true, stingerEnabled: true,
+  masterVolume: 1.0, musicVolume: 0.5, sfxVolume: 0.7, stingerVolume: 1.0,
+  musicEnabled: true, soundEnabled: true, stingerEnabled: true,
 };
 
 function buildAudioSettings(callbacks: PauseMenuCallbacks): HTMLElement {
@@ -109,7 +106,6 @@ function buildAudioSettings(callbacks: PauseMenuCallbacks): HTMLElement {
     { label: 'Master',  volumeKey: 'masterVolume',  enabledKey: '' },
     { label: 'Music',   volumeKey: 'musicVolume',   enabledKey: 'musicEnabled' },
     { label: 'SFX',     volumeKey: 'sfxVolume',     enabledKey: 'soundEnabled' },
-    { label: 'Voice',   volumeKey: 'voiceVolume',   enabledKey: 'voiceEnabled' },
     { label: 'Stinger', volumeKey: 'stingerVolume', enabledKey: 'stingerEnabled' },
   ];
 
