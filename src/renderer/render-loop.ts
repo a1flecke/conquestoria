@@ -45,6 +45,8 @@ import {
   getReligionBadgePresentationForViewer,
   type ReligionBadgePresentation,
 } from '@/systems/religion-badge-presentation';
+import { drawAirDefenseOverlay } from './air-defense-overlay';
+import { resolveAirDefenseCoverage } from '@/systems/air-defense-system';
 
 export { CIVTYPE_TO_FACTION, civTypeToFaction };
 
@@ -233,6 +235,9 @@ export class RenderLoop {
   private touchHandlerRef: { isPinching: boolean } | null = null;
   private selectedUnitId: string | null = null;
   private selectedPirateFactionId: string | null = null;
+  private airDefenseOverlayEnabled = false;
+
+  setAirDefenseOverlayEnabled(enabled: boolean): void { this.airDefenseOverlayEnabled = enabled; }
   private pirateSpriteState = new PirateSpriteStateController();
   private pirateUnitDeathSnapshots = new Map<string, { unit: Unit; expiresAtMs: number }>();
   private pirateLandmarkDeathSnapshots = new Map<string, {
@@ -497,6 +502,11 @@ export class RenderLoop {
       Object.entries(this.state.civilizations).map(([id, civ]) => [id, civ.techState?.completed ?? []]),
     );
     drawRoads(this.ctx, this.state.map, this.camera, cityTileKeys, viewerVisibility, completedTechsByCiv);
+    if (this.airDefenseOverlayEnabled) {
+      const ids = new Set<string>();
+      const providers = Object.values(this.state.cities).flatMap(city => resolveAirDefenseCoverage(this.state!, { owner: city.owner, position: city.position } as Unit, viewerId).providers).filter(provider => !ids.has(provider.id) && (ids.add(provider.id), true));
+      drawAirDefenseOverlay(this.ctx, this.camera, this.state.map, providers);
+    }
 
     // Draw minor civ territory
     if (this.state.minorCivs) {

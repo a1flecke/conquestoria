@@ -364,6 +364,18 @@ const uiInteractions = createUiInteractionState();
 const canvas = document.getElementById('game-canvas') as HTMLCanvasElement;
 const uiLayer = document.getElementById('ui-layer') as HTMLDivElement;
 const renderLoop = new RenderLoop(canvas);
+let airDefenseOverlayEnabled = false;
+const airDefenseOverlayButton = createGameButton('🛡 AA coverage', 'secondary');
+airDefenseOverlayButton.id = 'btn-air-defense-overlay';
+airDefenseOverlayButton.style.cssText += ';position:absolute;right:12px;top:64px;z-index:12;min-height:44px;';
+airDefenseOverlayButton.setAttribute('aria-pressed', 'false');
+airDefenseOverlayButton.addEventListener('click', () => {
+  airDefenseOverlayEnabled = !airDefenseOverlayEnabled;
+  renderLoop.setAirDefenseOverlayEnabled(airDefenseOverlayEnabled);
+  airDefenseOverlayButton.setAttribute('aria-pressed', String(airDefenseOverlayEnabled));
+  airDefenseOverlayButton.textContent = airDefenseOverlayEnabled ? '🛡 AA coverage: on' : '🛡 AA coverage';
+});
+uiLayer.appendChild(airDefenseOverlayButton);
 let wonderDiscoveryQueue: ReturnType<typeof createWonderDiscoveryRevealQueue> | null = null;
 let legendaryCompletionQueue: ReturnType<typeof createLegendaryWonderCompletionQueue> | null = null;
 
