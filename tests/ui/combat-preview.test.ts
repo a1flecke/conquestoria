@@ -58,6 +58,15 @@ describe('formatCombatPreviewDetails', () => {
     expect(details).toContain('Anti-cavalry ×1.5');
   });
 
+  it('shows canonical defender air-defense facts without inspecting city buildings', () => {
+    const details = formatCombatPreviewDetails('Rival', 100, {
+      attackerStrength: 15, defenderStrength: 18, terrainDefenseBonus: 0, riverAttackPenalty: 0,
+      defenderModifierFacts: [{ key: 'air-defense:city:alpha:anti_air_battery', label: 'Anti-Air Battery', sourceVisibility: 'owner', operation: 'flat', value: 8, outcome: 'applied' }],
+    });
+
+    expect(details).toContain('Anti-Air Battery +8');
+  });
+
   it('omits city defense modifier lines when the defender is not in a city (negative test)', () => {
     const details = formatCombatPreviewDetails('Rival', 100, {
       attackerStrength: 10,

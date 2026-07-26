@@ -17,7 +17,10 @@ export function formatCombatPreviewDetails(
   if (preview.riverAttackPenalty < 0) {
     details.push(`${Math.round(preview.riverAttackPenalty * 100)}% river crossing`);
   }
-  const appliedFacts = preview.attackerModifierFacts?.filter(fact => fact.outcome === 'applied') ?? [];
+  const appliedFacts = [
+    ...(preview.attackerModifierFacts ?? []),
+    ...(preview.defenderModifierFacts ?? []),
+  ].filter(fact => fact.outcome === 'applied');
   if (appliedFacts.length > 0) {
     const decisive = appliedFacts[0]!;
     const value = decisive.operation === 'multiplier'
