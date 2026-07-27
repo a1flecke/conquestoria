@@ -626,4 +626,37 @@ describe('#751 — migrateCoastalHullsOffOcean (schema 9)', () => {
     expect(ownerNotifications.some(entry => entry.message.includes('Galley'))).toBe(true);
     expect(otherNotifications.some(entry => entry.message.includes('Galley'))).toBe(false);
   });
+
+  it('never relocates two stranded units (even different owners) onto the same tile', () => {
+    const save = createNewGame('rome', 'naval-migration-no-stack', 'small');
+    save.saveSchemaVersion = 8;
+    const civ = save.civilizations.player;
+    const otherCivId = Object.keys(save.civilizations).find(id => id !== civ.id)!;
+
+    const coastEntry = Object.entries(save.map.tiles).find(([, tile]) => tile.terrain === 'coast');
+    if (!coastEntry) throw new Error('fixture map has no coast tile — regenerate with a different seed');
+    const [, coastTile] = coastEntry;
+    const oceanNeighborKey = Object.keys(save.map.tiles).find(key => {
+      const tile = save.map.tiles[key]!;
+      if (tile.terrain !== 'ocean') return false;
+      const dq = Math.abs(tile.coord.q - coastTile.coord.q);
+      const dr = Math.abs(tile.coord.r - coastTile.coord.r);
+      return dq <= 1 && dr <= 1;
+    });
+    if (!oceanNeighborKey) throw new Error('fixture map has no ocean tile adjacent to a coast tile — regenerate with a different seed');
+    const oceanTile = save.map.tiles[oceanNeighborKey]!;
+
+    // Two coastal-only units of different owners, stacked on the exact same stranded ocean
+    // tile — the shape a pre-#751 save with no stacking checks on naval movement could produce.
+    const galleyA = { ...Object.values(save.units)[0]!, id: 'stranded-galley-a', type: 'galley' as const, owner: civ.id, position: { ...oceanTile.coord } };
+    const galleyB = { ...Object.values(save.units)[0]!, id: 'stranded-galley-b', type: 'galley' as const, owner: otherCivId, position: { ...oceanTile.coord } };
+    save.units = { [galleyA.id]: galleyA, [galleyB.id]: galleyB };
+    civ.units = [galleyA.id];
+    save.civilizations[otherCivId]!.units = [galleyB.id];
+
+    const migrated = migrateSaveToCurrent(save);
+    const posA = migrated.units[galleyA.id]!.position;
+    const posB = migrated.units[galleyB.id]!.position;
+    expect(`${posA.q},${posA.r}`).not.toBe(`${posB.q},${posB.r}`);
+  });
 });

@@ -3143,7 +3143,8 @@ function handleHexTap(rawCoord: HexCoord): void {
     const unit = gameState.units[pendingJourneyUnitId];
     if (unit) {
       const domain = UNIT_DEFINITIONS[unit.type]?.domain ?? 'land';
-      const path = findPath(unit.position, coord, gameState.map, domain);
+      const completedTechs = gameState.civilizations[unit.owner]?.techState.completed ?? [];
+      const path = findPath(unit.position, coord, gameState.map, domain, { unit, completedTechs });
       if (!path || path.length < 2) {
         showNotification('No path to that destination.', 'warning');
       } else {

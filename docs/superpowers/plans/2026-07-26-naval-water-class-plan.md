@@ -1497,4 +1497,48 @@ check's outcome from Step 4 (clean, or a follow-up issue is warranted).
   parameter is retyped from bare `string` to `UnitType` as part of this task (its only caller
   always passed a `UnitType` anyway), so no cast is needed at either call site.
   `waterAccess: 'coastal' | 'ocean'` (Task 1) is used identically in every later task that reads
+
+## Post-implementation review findings (found and fixed after all 7 tasks, before opening the PR)
+
+A final inline review against the actual merged diff (not just the plan/spec text) — the same
+cross-cutting dimensions requested throughout this work — found three more real issues, all fixed
+and covered by tests before this branch was proposed for merge:
+
+1. **Save migration could stack two different units on one tile.** `migrateCoastalHullsOffOcean`'s
+   BFS computed each stranded unit's destination independently, so two different stranded units
+   (potentially different owners, e.g. a player Galley and an enemy pirate_galley both stranded
+   near the same coast) could converge on the identical nearest coast tile. Per
+   `game-systems.md`'s spawn-occupancy rule — never place a unit onto an already-occupied tile —
+   the same hazard applies to relocation, not just spawning. Fixed: `nearestCoastTile` now takes
+   an `occupied: ReadonlySet<string>` set (seeded with every non-stranded unit's current position,
+   updated as each stranded unit claims its destination), so no two units can ever be routed onto
+   the same tile. New test: `tests/storage/save-migrations.test.ts` — "never relocates two
+   stranded units (even different owners) onto the same tile."
+
+2. **Journey automation path-planning was hull-blind — a real, live gap, not just a documented
+   one.** `findPath(unit.position, destination, map, domain)` was called without `{ unit }` in two
+   places: `main.ts`'s `handleHexTap` (setting a journey) and `turn-manager.ts`'s per-turn journey
+   stepper. Both used the domain-only passability check, which cannot see `waterAccess` at all —
+   so a coastal-only ship given a journey order across open ocean would have its path *approved*
+   at the planning layer, only to be silently rejected at the per-step *execution* layer
+   (`executeUnitMove`, which is unit-aware) with no `unit:journey-blocked` feedback and no
+   automation cleanup — a soft-stuck unit, not a correctness bypass, but still a real bug this
+   change newly exposes for more unit types (previously it could only misfire for Transport's old
+   tech gate; now it affects every coastal-only hull, permanently). Fixed by threading
+   `{ unit, completedTechs }` through both calls, matching the pattern every other `findPath`
+   caller in the codebase already uses. New test: `tests/core/turn-manager.test.ts` — "#751:
+   journey planning respects hull class — a coastal-only ship never plans a path across ocean" —
+   verified to fail without the fix (temporarily reverted `turn-manager.ts` and confirmed red)
+   before being left in place green.
+
+3. **`getMovementCostForUnit` (the domain-only, non-context sibling of
+   `getMovementCostForUnitInContext`) considered and deliberately not changed.** It has no access
+   to a specific unit type, only `domain`, so it structurally cannot see hull class — this is the
+   same shape of gap as (2) above, but its only remaining callers (the `options.unit`-less
+   fallback branches inside `findPath`'s own destination/step checks, and `findPathToCity`) are
+   already covered by the spec's documented `findPathToCity` limitation. No behavior change here;
+   noted so a future reader doesn't rediscover the same question.
+
+All three were verified against the actual code and covered by real tests, not just documented as
+residual risk — full suite (`yarn test`) and `yarn build` both green after these fixes.
   it.

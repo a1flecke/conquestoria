@@ -354,12 +354,12 @@ function migrateCombatNotificationDetails(state: GameState): GameState {
 }
 
 /**
- * BFS outward from `start` over ocean/coast tiles only, returning the nearest coast tile.
- * Deterministic (neighbors visited in sorted hexKey order) so migration output doesn't depend
- * on map object iteration order. Returns null if the connected water body has no coast tile at
- * all (only possible on a pathological all-ocean map).
+ * BFS outward from `start` over ocean/coast tiles only, returning the nearest coast tile not in
+ * `occupied`. Deterministic (neighbors visited in sorted hexKey order) so migration output
+ * doesn't depend on map object iteration order. Returns null if the connected water body has no
+ * free coast tile at all (only possible on a pathological all-ocean or fully-occupied map).
  */
-function nearestCoastTile(map: GameState['map'], start: HexCoord): HexCoord | null {
+function nearestCoastTile(map: GameState['map'], start: HexCoord, occupied: ReadonlySet<string>): HexCoord | null {
   const visited = new Set<string>([hexKey(start)]);
   let frontier: HexCoord[] = [start];
   while (frontier.length > 0) {
@@ -375,8 +375,8 @@ function nearestCoastTile(map: GameState['map'], start: HexCoord): HexCoord | nu
         visited.add(key);
         const tile = map.tiles[key];
         if (!tile || (tile.terrain !== 'ocean' && tile.terrain !== 'coast')) continue;
-        if (tile.terrain === 'coast') return neighbor;
-        next.push(neighbor);
+        if (tile.terrain === 'coast' && !occupied.has(key)) return neighbor;
+        if (tile.terrain === 'ocean' || tile.terrain === 'coast') next.push(neighbor);
       }
     }
     frontier = next;
@@ -391,6 +391,12 @@ function nearestCoastTile(map: GameState['map'], start: HexCoord): HexCoord | nu
  * the nearest coast tile (deterministic BFS); if no coast is reachable at all (pathological
  * landlocked-ocean map), remove the unit rather than leave it permanently stranded and
  * unselectable — mirrors the deletion fallback in migrateLegacyBasedAircraft above.
+ *
+ * Per game-systems.md's spawn-occupancy rule (never stack units placed onto the map, even
+ * though this relocates rather than spawns, the same hazard applies): each stranded unit's
+ * destination is added to `occupied` immediately after being claimed, so two different stranded
+ * units — potentially different owners — can never be relocated onto the same tile, and a
+ * destination already held by a unit that isn't itself being relocated away is never chosen.
  */
 function migrateCoastalHullsOffOcean(state: GameState): GameState {
   const units = { ...state.units };
@@ -406,16 +412,24 @@ function migrateCoastalHullsOffOcean(state: GameState): GameState {
     })
     .map(unit => unit.id)
     .sort();
+  const strandedIdSet = new Set(strandedIds);
+
+  const occupied = new Set(
+    Object.values(state.units)
+      .filter(unit => !strandedIdSet.has(unit.id))
+      .map(unit => hexKey(unit.position)),
+  );
 
   for (const unitId of strandedIds) {
     const unit = units[unitId];
     if (!unit) continue;
-    const destination = nearestCoastTile(state.map, unit.position);
+    const destination = nearestCoastTile(state.map, unit.position, occupied);
     if (!destination) {
       delete units[unitId];
       removedIds.add(unitId);
       continue;
     }
+    occupied.add(hexKey(destination));
     units[unitId] = { ...unit, position: { ...destination } };
     relocatedIds.push(unitId);
   }

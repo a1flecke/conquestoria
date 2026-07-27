@@ -639,7 +639,7 @@ export function processTurn(
       } else if (unit?.automation?.mode === 'journey') {
         const destination = unit.automation.destination;
         const domain = UNIT_DEFINITIONS[unit.type]?.domain ?? 'land';
-        const path = findPath(unit.position, destination, newState.map, domain);
+        const path = findPath(unit.position, destination, newState.map, domain, { unit, completedTechs: healCompletedTechs });
         if (!path || path.length < 2) {
           newState.units[unitId] = { ...unit, automation: undefined };
           bus.emit('unit:journey-blocked', { unitId, position: { ...unit.position } });
