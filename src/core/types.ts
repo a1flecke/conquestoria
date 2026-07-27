@@ -416,6 +416,7 @@ export interface UnitDefinition {
   canBuildImprovements: boolean;
   productionCost: number;
   domain?: 'land' | 'naval' | 'air';
+  waterAccess?: 'coastal' | 'ocean'; // required whenever domain === 'naval' — see #751
   spyDetectionChance?: number; // 0–1, probability per adjacent spy unit per turn
   attackProfile?: UnitAttackProfile;
   airInterceptionDefense?: AirInterceptionDefense;

@@ -259,6 +259,14 @@ function createPirateUnitDefinition(
 This is the critical wiring step — without it, every pirate hull's `waterAccess` on the derived
 `UnitDefinition` would be `undefined`, silently defaulting every pirate ship to coastal-only.
 
+**Execution note (found during implementation, not anticipated by this plan or the design
+spec):** `beast_sea_serpent` (`src/systems/unit-system.ts:495`) also has `domain: 'naval'` — it's
+a legendary aquatic beast, not a player/pirate unit, and neither the design spec's research nor
+this plan's file sweep caught it. The Step 4 catalog test below caught it immediately (failing
+with `['beast_sea_serpent']` in the "missing waterAccess" list) — exactly what that test exists
+for. Classified `waterAccess: 'ocean'` per its own `UNIT_DESCRIPTIONS` text ("A serpent of the
+deep ocean").
+
 - [ ] **Step 4: Write the catalog-coverage tests (new file)**
 
 Create `tests/systems/naval-water-class.test.ts`:
