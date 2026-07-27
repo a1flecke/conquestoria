@@ -319,9 +319,15 @@ describe('save-manager autosave listing', () => {
     expect(normalized.units['unit-901']).toMatchObject({
       owner: factions[0].id, type: 'pirate_frigate', health: 63, position: waterTiles[0].coord,
     });
+    // #751: pirate_galley is coastal-only, and this fixture places it on a real ocean tile
+    // from the generated map — the naval-hull save migration (schema 9) now legitimately
+    // relocates it to the nearest coast rather than leaving it on ocean, so its position can
+    // no longer be asserted as the original waterTiles[1].coord.
     expect(normalized.units['unit-902']).toMatchObject({
-      owner: factions[1].id, type: 'pirate_galley', health: 88, position: waterTiles[1].coord,
+      owner: factions[1].id, type: 'pirate_galley', health: 88,
     });
+    const relocatedTerrain = normalized.map.tiles[`${normalized.units['unit-902'].position.q},${normalized.units['unit-902'].position.r}`]?.terrain;
+    expect(relocatedTerrain).not.toBe('ocean');
     expect(normalized.units['unit-999']).toBeUndefined();
     expect(normalized.pirateFleets).toEqual({});
     expect(normalized.pirateFleetCooldownByCivLandmass).toEqual({});

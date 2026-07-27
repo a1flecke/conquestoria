@@ -505,3 +505,125 @@ describe('#591 MR4 — religion state defaults', () => {
     expect(loadedAgain).toEqual(migrated);
   });
 });
+
+describe('#751 — migrateCoastalHullsOffOcean (schema 9)', () => {
+  it('relocates a coastal-only hull stranded on ocean to the nearest coast tile', () => {
+    const save = createNewGame('rome', 'naval-migration-relocate', 'small');
+    save.saveSchemaVersion = 8;
+    const civ = save.civilizations.player;
+
+    const coastEntry = Object.entries(save.map.tiles).find(([, tile]) => tile.terrain === 'coast');
+    if (!coastEntry) throw new Error('fixture map has no coast tile — regenerate with a different seed');
+    const [, coastTile] = coastEntry;
+    const oceanNeighborKey = Object.keys(save.map.tiles).find(key => {
+      const tile = save.map.tiles[key]!;
+      if (tile.terrain !== 'ocean') return false;
+      const dq = Math.abs(tile.coord.q - coastTile.coord.q);
+      const dr = Math.abs(tile.coord.r - coastTile.coord.r);
+      return dq <= 1 && dr <= 1;
+    });
+    if (!oceanNeighborKey) throw new Error('fixture map has no ocean tile adjacent to a coast tile — regenerate with a different seed');
+    const oceanTile = save.map.tiles[oceanNeighborKey]!;
+
+    const galley = { ...Object.values(save.units)[0]!, id: 'stranded-galley', type: 'galley' as const, owner: civ.id, position: { ...oceanTile.coord } };
+    save.units = { [galley.id]: galley };
+    civ.units = [galley.id];
+
+    const migrated = migrateSaveToCurrent(save);
+    expect(migrated.saveSchemaVersion).toBe(CURRENT_SAVE_SCHEMA_VERSION);
+    const relocated = migrated.units[galley.id]!;
+    const relocatedTile = migrated.map.tiles[`${relocated.position.q},${relocated.position.r}`]!;
+    expect(relocatedTile.terrain).not.toBe('ocean');
+  });
+
+  it('moves loaded cargo along with a relocated Transport', () => {
+    const save = createNewGame('rome', 'naval-migration-cargo', 'small');
+    save.saveSchemaVersion = 8;
+    const civ = save.civilizations.player;
+
+    const coastEntry = Object.entries(save.map.tiles).find(([, tile]) => tile.terrain === 'coast');
+    if (!coastEntry) throw new Error('fixture map has no coast tile — regenerate with a different seed');
+    const [, coastTile] = coastEntry;
+    const oceanNeighborKey = Object.keys(save.map.tiles).find(key => {
+      const tile = save.map.tiles[key]!;
+      if (tile.terrain !== 'ocean') return false;
+      const dq = Math.abs(tile.coord.q - coastTile.coord.q);
+      const dr = Math.abs(tile.coord.r - coastTile.coord.r);
+      return dq <= 1 && dr <= 1;
+    });
+    if (!oceanNeighborKey) throw new Error('fixture map has no ocean tile adjacent to a coast tile — regenerate with a different seed');
+    const oceanTile = save.map.tiles[oceanNeighborKey]!;
+
+    const transport = { ...Object.values(save.units)[0]!, id: 'stranded-transport', type: 'transport' as const, owner: civ.id, position: { ...oceanTile.coord }, cargoUnitIds: ['cargo-warrior'] };
+    const cargo = { ...Object.values(save.units)[0]!, id: 'cargo-warrior', type: 'warrior' as const, owner: civ.id, position: { ...oceanTile.coord }, transportId: transport.id };
+    save.units = { [transport.id]: transport, [cargo.id]: cargo };
+    civ.units = [transport.id, cargo.id];
+
+    const migrated = migrateSaveToCurrent(save);
+    const relocatedTransport = migrated.units[transport.id]!;
+    const relocatedCargo = migrated.units[cargo.id]!;
+    expect(relocatedCargo.position).toEqual(relocatedTransport.position);
+  });
+
+  it('removes a coastal-only unit with no reachable coast (deletion fallback)', () => {
+    const save = createNewGame('rome', 'naval-migration-no-coast', 'small');
+    save.saveSchemaVersion = 8;
+    const civ = save.civilizations.player;
+
+    const oceanTiles: GameState['map']['tiles'] = {};
+    for (let q = 0; q < 3; q += 1) {
+      for (let r = 0; r < 3; r += 1) {
+        oceanTiles[`${q},${r}`] = {
+          coord: { q, r }, terrain: 'ocean', elevation: 'lowland', resource: null,
+          improvement: 'none', owner: null, improvementTurnsLeft: 0, hasRiver: false, wonder: null,
+        };
+      }
+    }
+    save.map = { width: 3, height: 3, tiles: oceanTiles, wrapsHorizontally: false, rivers: [] };
+
+    const galley = { ...Object.values(save.units)[0]!, id: 'unreachable-galley', type: 'galley' as const, owner: civ.id, position: { q: 1, r: 1 } };
+    save.units = { [galley.id]: galley };
+    civ.units = [galley.id];
+    // The synthetic 3x3 map above doesn't contain createNewGame's original starting-city
+    // position, so both save.cities and civ.cities must be cleared together here — leaving
+    // civ.cities pointing at a city id no longer present in save.cities would dangle through
+    // this migration pipeline's unconditional passes exactly the way a stale diplomacy
+    // reference would (see game-systems.md's Diplomacy Lifecycle rule for the general pattern).
+    save.cities = {};
+    civ.cities = [];
+
+    const migrated = migrateSaveToCurrent(save);
+    expect(migrated.units[galley.id]).toBeUndefined();
+    expect(migrated.civilizations.player.units).not.toContain(galley.id);
+  });
+
+  it('logs a per-owner notification and does not leak it to other civs (hot-seat privacy)', () => {
+    const save = createNewGame('rome', 'naval-migration-notify', 'small');
+    save.saveSchemaVersion = 8;
+    const civ = save.civilizations.player;
+    const otherCivId = Object.keys(save.civilizations).find(id => id !== civ.id)!;
+
+    const coastEntry = Object.entries(save.map.tiles).find(([, tile]) => tile.terrain === 'coast');
+    if (!coastEntry) throw new Error('fixture map has no coast tile — regenerate with a different seed');
+    const [, coastTile] = coastEntry;
+    const oceanNeighborKey = Object.keys(save.map.tiles).find(key => {
+      const tile = save.map.tiles[key]!;
+      if (tile.terrain !== 'ocean') return false;
+      const dq = Math.abs(tile.coord.q - coastTile.coord.q);
+      const dr = Math.abs(tile.coord.r - coastTile.coord.r);
+      return dq <= 1 && dr <= 1;
+    });
+    if (!oceanNeighborKey) throw new Error('fixture map has no ocean tile adjacent to a coast tile — regenerate with a different seed');
+    const oceanTile = save.map.tiles[oceanNeighborKey]!;
+
+    const galley = { ...Object.values(save.units)[0]!, id: 'stranded-galley', type: 'galley' as const, owner: civ.id, position: { ...oceanTile.coord } };
+    save.units = { [galley.id]: galley };
+    civ.units = [galley.id];
+
+    const migrated = migrateSaveToCurrent(save);
+    const ownerNotifications = migrated.notificationLog?.[civ.id] ?? [];
+    const otherNotifications = migrated.notificationLog?.[otherCivId] ?? [];
+    expect(ownerNotifications.some(entry => entry.message.includes('Galley'))).toBe(true);
+    expect(otherNotifications.some(entry => entry.message.includes('Galley'))).toBe(false);
+  });
+});
