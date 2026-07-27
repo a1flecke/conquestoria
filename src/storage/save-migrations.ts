@@ -1,17 +1,19 @@
-import type { ActiveCrisis, AirBaseRef, GameState, Unit } from '@/core/types';
+import type { ActiveCrisis, AirBaseRef, GameState, HexCoord, Unit } from '@/core/types';
 import { createRng } from '@/systems/map-generator';
 import { placeLateResources } from '@/systems/late-resource-placement';
 import { createMarketplaceState } from '@/systems/trade-system';
 import { BUILDINGS, TRAINABLE_UNITS } from '@/systems/city-system';
 import { createEmptyAutonomyCivState } from '@/core/autonomy-state';
-import { hexDistance, wrappedHexDistance } from '@/systems/hex-utils';
+import { hexDistance, wrappedHexDistance, hexKey, hexNeighbors, getWrappedHexNeighbors } from '@/systems/hex-utils';
 import { assignNetworkPlan, isAutonomyActivated } from '@/systems/network-plan-system';
 import { UNIT_DEFINITIONS } from '@/systems/unit-system';
 import { getCrisisFlavor } from '@/systems/crisis-flavor-definitions';
 import { resolveWorldAge } from '@/systems/tech-definitions';
 import { CIRCULAR_MANUFACTURING_MATERIALS } from '@/systems/national-project-system';
+import { appendNotification } from '@/core/notification-log';
+import { syncTransportCargoPositions } from '@/systems/transport-system';
 
-export const CURRENT_SAVE_SCHEMA_VERSION = 8;
+export const CURRENT_SAVE_SCHEMA_VERSION = 9;
 
 export type SaveMigration = (state: GameState) => GameState;
 
@@ -351,6 +353,92 @@ function migrateCombatNotificationDetails(state: GameState): GameState {
   return state;
 }
 
+/**
+ * BFS outward from `start` over ocean/coast tiles only, returning the nearest coast tile.
+ * Deterministic (neighbors visited in sorted hexKey order) so migration output doesn't depend
+ * on map object iteration order. Returns null if the connected water body has no coast tile at
+ * all (only possible on a pathological all-ocean map).
+ */
+function nearestCoastTile(map: GameState['map'], start: HexCoord): HexCoord | null {
+  const visited = new Set<string>([hexKey(start)]);
+  let frontier: HexCoord[] = [start];
+  while (frontier.length > 0) {
+    const next: HexCoord[] = [];
+    for (const coord of frontier) {
+      const neighbors = map.wrapsHorizontally
+        ? getWrappedHexNeighbors(coord, map.width)
+        : hexNeighbors(coord);
+      const sorted = [...neighbors].sort((a, b) => hexKey(a).localeCompare(hexKey(b)));
+      for (const neighbor of sorted) {
+        const key = hexKey(neighbor);
+        if (visited.has(key)) continue;
+        visited.add(key);
+        const tile = map.tiles[key];
+        if (!tile || (tile.terrain !== 'ocean' && tile.terrain !== 'coast')) continue;
+        if (tile.terrain === 'coast') return neighbor;
+        next.push(neighbor);
+      }
+    }
+    frontier = next;
+  }
+  return null;
+}
+
+/**
+ * #751: coastal-only hulls (Galley, Transport, and their pirate equivalents) used to be able to
+ * enter ocean tiles due to the bug this MR fixes. Any existing save may have one of those units
+ * sitting on `ocean` right now, which is no longer a legal position for its hull. Relocate to
+ * the nearest coast tile (deterministic BFS); if no coast is reachable at all (pathological
+ * landlocked-ocean map), remove the unit rather than leave it permanently stranded and
+ * unselectable — mirrors the deletion fallback in migrateLegacyBasedAircraft above.
+ */
+function migrateCoastalHullsOffOcean(state: GameState): GameState {
+  const units = { ...state.units };
+  const removedIds = new Set<string>();
+  const relocatedIds: string[] = [];
+
+  const strandedIds = Object.values(state.units)
+    .filter(unit => {
+      const def = UNIT_DEFINITIONS[unit.type];
+      if (!def || def.domain !== 'naval' || def.waterAccess === 'ocean') return false;
+      const tile = state.map.tiles[hexKey(unit.position)];
+      return tile?.terrain === 'ocean';
+    })
+    .map(unit => unit.id)
+    .sort();
+
+  for (const unitId of strandedIds) {
+    const unit = units[unitId];
+    if (!unit) continue;
+    const destination = nearestCoastTile(state.map, unit.position);
+    if (!destination) {
+      delete units[unitId];
+      removedIds.add(unitId);
+      continue;
+    }
+    units[unitId] = { ...unit, position: { ...destination } };
+    relocatedIds.push(unitId);
+  }
+
+  const civilizations = Object.fromEntries(Object.entries(state.civilizations).map(([civId, civ]) => [
+    civId,
+    removedIds.size > 0 ? { ...civ, units: civ.units.filter(id => !removedIds.has(id)) } : civ,
+  ]));
+
+  let working: GameState = { ...state, units, civilizations };
+  for (const unitId of relocatedIds) {
+    working = syncTransportCargoPositions(working, unitId);
+    const unit = working.units[unitId]!;
+    const name = UNIT_DEFINITIONS[unit.type]?.name ?? unit.type;
+    appendNotification(working, unit.owner, {
+      message: `Your ${name} couldn't survive the open ocean and put in near shore.`,
+      type: 'warning',
+      turn: working.turn,
+    });
+  }
+  return working;
+}
+
 export const SAVE_MIGRATIONS: Readonly<Record<number, SaveMigration>> = {
   1: migrateToEra13Foundation,
   2: migrateLateResources,
@@ -360,6 +448,7 @@ export const SAVE_MIGRATIONS: Readonly<Record<number, SaveMigration>> = {
   6: migrateAutonomyNetworkPostures,
   7: migrateCircularManufacturingChoices,
   8: migrateCombatNotificationDetails,
+  9: migrateCoastalHullsOffOcean,
 };
 
 function readSchemaVersion(raw: Record<string, unknown>): number {

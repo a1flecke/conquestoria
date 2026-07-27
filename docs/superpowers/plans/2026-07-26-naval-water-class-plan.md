@@ -1306,10 +1306,35 @@ Expected: all PASS, including the pre-existing tests in this file (double-check 
 hardcode `CURRENT_SAVE_SCHEMA_VERSION` as a literal `8` instead of importing the constant — if one
 does, it needs updating to `9` as part of this step, not deferred).
 
+**Execution note (real bug found during implementation):** the first pass at `strandedIds`'
+filter — `if (!def || def.waterAccess === 'ocean') return false;` — is wrong. `waterAccess` is
+only meaningful on naval units; every non-naval unit (aircraft, land units) has
+`waterAccess: undefined`, which is `!== 'ocean'` and so incorrectly passed the filter. Any
+non-naval unit that happened to be positioned on an `ocean` tile (a legacy aircraft in the
+existing `migrateLegacyBasedAircraft` test fixture, in this case) got swept up and relocated by
+this migration, silently corrupting a completely unrelated, already-passing test one migration
+step later in the pipeline. Fixed by requiring `def.domain === 'naval'` explicitly:
+`if (!def || def.domain !== 'naval' || def.waterAccess === 'ocean') return false;`. This is
+exactly the kind of bug the full-suite run (not just the new tests in isolation) exists to catch —
+running only `naval-water-class.test.ts` or only the new describe block in
+`save-migrations.test.ts` would never have surfaced it.
+
 - [ ] **Step 5: Run the fast suite and build**
 
 Run: `bash scripts/run-with-mise.sh yarn test`
 Expected: PASS.
+
+**Execution note (second real bug found via the full suite, not the targeted test run):** even
+after the domain-check fix above, the full suite surfaced one more failure —
+`tests/storage/save-manager.test.ts`'s "migrates legacy pirate fleets into distinct active v2
+flotillas" test placed a legacy `galley` unit (which normalizes to `pirate_galley`, coastal-only)
+directly on a real ocean tile from the generated map, then asserted its position stayed exactly at
+that tile through migration. That assertion predates hull classes and is simply wrong now — the
+migration correctly relocates it. Fixed by asserting the unit's new tile isn't `ocean` instead of
+pinning the exact original coordinate, with a comment explaining why. This is the second instance
+in this task of "the new migration works correctly and an old test's fixture just happened to
+already be sitting in the exact scenario it targets" — both were only found by running the full
+suite, not the isolated new-test files.
 
 Run: `bash scripts/run-with-mise.sh yarn build`
 Expected: PASS.
