@@ -1412,6 +1412,15 @@ Regression sweep found and corrected [describe what was found — e.g.
 If Steps 1-3 found nothing to fix, skip this commit — there's nothing to commit, and an empty
 commit would misrepresent this task as having changed something it didn't.
 
+**Execution result:** Steps 1-3 found nothing left to fix. `grep -rn "requires-galleys\|requires-
+celestial-navigation" src tests` returned zero hits, `grep -rn "unit.type === 'transport'" src`
+returned one hit (`unit-movement-system.ts:153`, unrelated cargo-position-sync logic, not a
+duplicate water-access check), and every fixture referencing `'galley'`/`'trireme'` across
+`tests/systems`, `tests/ai`, `tests/renderer`, `tests/input`, `tests/ui` was already exercised by
+the full suite run in Tasks 2 and 5 — both of which found and fixed every real instance of this
+class of bug at the time (the pirate/AI fixtures placing a now-coastal-only hull on an all-ocean
+map, and the two save-migration test position assertions). No commit made for this task.
+
 ---
 
 ## Task 7: Final verification
