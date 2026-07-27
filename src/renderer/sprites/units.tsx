@@ -1693,3 +1693,272 @@ export function MissileSubmarineSprite({ palette, svgOnly = false }: UnitSpriteP
     </SpriteFrame>
   );
 }
+
+/* === ERA 13 file-local helpers (same convention as mountedRider / spyBase) === */
+
+// One ducted-fan ring. Shared by CombatDrone and DroneController's micro-drone.
+function ductedFan(x: number, y: number, r = 7.5): string {
+  const b = r - 3;
+  return (
+    <g transform={`translate(${x} ${y})`}>
+      <circle r={r} fill={P.metal.iron} stroke={P.ink.line} strokeWidth="1" />
+      <circle r={b} fill="#181830" stroke={P.metal.steel} strokeWidth="0.7" />
+      <path d={`M0,0 L0,${-b} M0,0 L${b * 0.87},${b * 0.5} M0,0 L${-b * 0.87},${b * 0.5}`}
+        stroke={P.metal.steel} strokeWidth="0.9" strokeLinecap="round" opacity="0.85" />
+      <circle r="1.2" fill={P.metal.steel} />
+    </g>
+  );
+}
+
+// Enclosed visor helmet, drawn in Humanoid head-local coords (head centre 0,-30).
+function helmetVisor(palette: FactionPalette): string {
+  return (
+    <g>
+      <path d="M-10,-31 Q-11,-42 0,-43 Q11,-42 10,-31 L9,-26 L-9,-26 Z" fill={palette.dark} stroke={P.ink.line} strokeWidth="0.9" />
+      <path d="M-8,-34 Q0,-38 8,-34 L7,-29 L-7,-29 Z" fill="#0a0a20" stroke={P.ink.line} strokeWidth="0.6" />
+      <line className="cq-glow" x1="-6" y1="-31.5" x2="6" y2="-31.5" stroke={palette.bright} strokeWidth="0.9" />
+    </g>
+  );
+}
+
+// Miniature CombatDrone for the DroneController's companion.
+function microDrone(x: number, y: number, palette: FactionPalette): string {
+  return (
+    <g transform={`translate(${x} ${y}) scale(0.82)`}>
+      <line x1="-6" y1="0" x2="-11" y2="-3" stroke={P.metal.iron} strokeWidth="2" strokeLinecap="round" />
+      <line x1="6" y1="0" x2="11" y2="-3" stroke={P.metal.iron} strokeWidth="2" strokeLinecap="round" />
+      <circle cx="-12" cy="-3" r="3.4" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.7" />
+      <circle cx="-12" cy="-3" r="1.9" fill="#181830" />
+      <circle cx="12" cy="-3" r="3.4" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.7" />
+      <circle cx="12" cy="-3" r="1.9" fill="#181830" />
+      <path d="M-6,-3 L4,-3 L8,1 L4,5 L-6,5 L-9,1 Z" fill={palette.mid} stroke={P.ink.line} strokeWidth="0.8" />
+      <circle cx="5" cy="1" r="3" fill="#0a0a20" stroke={P.ink.line} strokeWidth="0.6" />
+      <circle className="cq-glow" cx="5" cy="1" r="1.6" fill="#00aaff" />
+    </g>
+  );
+}
+
+/* === SPRITE 1 — CombatDroneSprite  (air · replaces JetFighterSprite) ===
+   Dominant: boxy chassis + glowing cyan sensor eye. Quadcopter ducted fans
+   (not swept wings) + a slung payload pod read as quieter supporting detail. */
+export function CombatDroneSprite({ palette, svgOnly = false }: UnitSpriteProps): string {
+  return (
+    <SpriteFrame svgOnly={svgOnly}>
+      <Shadow cx={64} cy={108} rx={34} ry={4} />
+      {/* rear sensor whisker */}
+      <line x1="42" y1="52" x2="24" y2="40" stroke={P.metal.steel} strokeWidth="1.2" strokeLinecap="round" />
+      <circle cx="24" cy="40" r="1.5" fill={palette.bright} />
+      {/* struts chassis -> fans */}
+      <line x1="52" y1="54" x2="32" y2="44" stroke={P.metal.iron} strokeWidth="3.4" strokeLinecap="round" />
+      <line x1="76" y1="54" x2="96" y2="44" stroke={P.metal.iron} strokeWidth="3.4" strokeLinecap="round" />
+      <line x1="52" y1="66" x2="36" y2="78" stroke={P.metal.iron} strokeWidth="3.4" strokeLinecap="round" />
+      <line x1="76" y1="66" x2="92" y2="78" stroke={P.metal.iron} strokeWidth="3.4" strokeLinecap="round" />
+      {/* ducted fans — supporting */}
+      {ductedFan(30, 42)}
+      {ductedFan(98, 42)}
+      {ductedFan(36, 80)}
+      {ductedFan(92, 80)}
+      {/* payload pod underneath */}
+      <g transform="translate(60 72)">
+        <rect x="-9" y="0" width="18" height="9" rx="3" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.8" />
+        <rect x="-9" y="0" width="18" height="2.4" fill={P.metal.steel} />
+        <circle className="cq-glow" cx="7" cy="5" r="1.5" fill={palette.bright} />
+      </g>
+      {/* CHASSIS — dominant solid mass */}
+      <path d="M44,50 L74,48 L86,59 L74,70 L44,70 L38,60 Z" fill={palette.mid} stroke={P.ink.line} strokeWidth="1.2" />
+      <path d="M44,50 L74,48 L80,53 L44,55 Z" fill={P.metal.shine} opacity="0.16" />
+      <line x1="48" y1="54" x2="72" y2="53" stroke={P.metal.steel} strokeWidth="0.7" opacity="0.75" />
+      <line x1="46" y1="65" x2="74" y2="65" stroke={P.metal.steel} strokeWidth="0.7" opacity="0.75" />
+      <rect x="44" y="58" width="30" height="2.2" fill={palette.trim} opacity="0.9" />
+      {/* SENSOR EYE — single dominant read at 32px */}
+      <circle cx="82" cy="59" r="8.4" fill="#0a0a20" stroke={P.ink.line} strokeWidth="1" />
+      <circle className="cq-glow" cx="82" cy="59" r="4.6" fill="#00aaff" />
+      <circle cx="80" cy="57" r="1.4" fill="#b8d4e8" />
+      {/* ATTACK — payload muzzle flash forward of the pod */}
+      <g transform="translate(96 68)"><g className="cq-muzzle-flash">
+        <circle r="4" fill="#ffd966" />
+        <circle r="2" fill="#fff" />
+      </g></g>
+      <Banner x={58} y={38} palette={palette} scale={0.5} />
+    </SpriteFrame>
+  );
+}
+
+/* === SPRITE 2 — AutonomousFrigateSprite  (naval · replaces IroncladSprite) ===
+   Dominant: low, angular faceted stealth hull (vs Ironclad's rounded riveted
+   slab). Slim sensor mast + one remote turret; no smokestack, no crew. */
+export function AutonomousFrigateSprite({ palette, svgOnly = false }: UnitSpriteProps): string {
+  return (
+    <SpriteFrame svgOnly={svgOnly} hexTint={P.ground.water}>
+      <Shadow cx={64} cy={100} rx={48} ry={6} />
+      {/* bow (right) + stern (left) wake — white curved lines */}
+      <path d="M104,91 Q118,89 125,95" fill="none" stroke="#fff" strokeWidth="1.4" opacity="0.5" strokeLinecap="round" />
+      <path d="M100,96 Q115,96 122,101" fill="none" stroke="#fff" strokeWidth="1" opacity="0.32" strokeLinecap="round" />
+      <path d="M22,92 Q9,92 2,98" fill="none" stroke="#fff" strokeWidth="1" opacity="0.3" strokeLinecap="round" />
+      {/* HULL — faceted stealth wedge (dominant) */}
+      <path d="M14,82 L92,79 L120,90 L98,98 L20,98 Z" fill={palette.mid} stroke={P.ink.line} strokeWidth="1.2" />
+      <path d="M14,82 L34,90 L20,98 Z" fill={palette.dark} opacity="0.55" stroke={P.ink.line} strokeWidth="0.5" />
+      <path d="M92,79 L120,90 L98,98 L84,90 Z" fill={palette.dark} opacity="0.42" stroke={P.ink.line} strokeWidth="0.5" />
+      <line x1="34" y1="90" x2="84" y2="90" stroke={P.metal.steel} strokeWidth="0.7" opacity="0.7" />
+      <line x1="50" y1="81" x2="58" y2="90" stroke={P.metal.steel} strokeWidth="0.6" opacity="0.6" />
+      <line x1="74" y1="80" x2="82" y2="90" stroke={P.metal.steel} strokeWidth="0.6" opacity="0.6" />
+      {/* waterline stripe */}
+      <line x1="22" y1="96" x2="98" y2="96" stroke={palette.bright} strokeWidth="1.4" opacity="0.4" />
+      {/* faceted low deckhouse */}
+      <path d="M46,79 L78,77 L82,68 L58,64 L44,72 Z" fill={palette.mid} stroke={P.ink.line} strokeWidth="1" />
+      <path d="M58,64 L82,68 L78,77 L64,74 Z" fill={palette.dark} opacity="0.45" />
+      <line x1="50" y1="72" x2="74" y2="70" stroke={P.metal.steel} strokeWidth="0.6" opacity="0.7" />
+      {/* remote turret amidships — low box on ring mount */}
+      <g transform="translate(52 66)">
+        <ellipse cx="0" cy="2.5" rx="7" ry="2.4" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.7" />
+        <path d="M-5,1.5 L5,1.5 L4,-4.5 L-4,-4.5 Z" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.8" />
+        <circle className="cq-glow" cx="0" cy="-1.5" r="1.4" fill={palette.bright} />
+      </g>
+      {/* SENSOR MAST + phased-array panel (replaces the smokestack) */}
+      <line x1="72" y1="66" x2="72" y2="36" stroke={P.metal.steel} strokeWidth="2.2" />
+      <g transform="translate(72 37)">
+        <rect x="-6" y="-8" width="12" height="12" rx="1" fill="#112244" stroke={P.ink.line} strokeWidth="0.8" />
+        <line x1="-4" y1="-5" x2="4" y2="-5" stroke="#00aaff" strokeWidth="0.7" opacity="0.9" />
+        <line x1="-4" y1="-2" x2="4" y2="-2" stroke="#00aaff" strokeWidth="0.7" opacity="0.65" />
+        <line className="cq-glow" x1="-4" y1="1" x2="4" y2="1" stroke="#00aaff" strokeWidth="0.7" />
+      </g>
+      {/* ATTACK — turret muzzle flash */}
+      <g transform="translate(52 60)"><g className="cq-muzzle-flash">
+        <circle r="4" fill="#ffd966" />
+        <circle r="2" fill="#fff" />
+      </g></g>
+      <Banner x={72} y={30} palette={palette} scale={0.5} />
+    </SpriteFrame>
+  );
+}
+
+/* === SPRITE 3 — ExosuitInfantrySprite  (humanoid · replaces MachineGunnerSprite) ===
+   Dominant: segmented armored torso shell over a visible person. Hydraulic
+   struts + enclosed visor helmet + bulky rifle as supporting detail. */
+export function ExosuitInfantrySprite({ palette, svgOnly = false }: UnitSpriteProps): string {
+  return (
+    <SpriteFrame svgOnly={svgOnly}>
+      <Shadow />
+      {/* power unit backpack between the shoulders */}
+      <g transform="translate(55 50)">
+        <rect x="-7" y="-8" width="14" height="18" rx="2" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.8" />
+        <rect x="-7" y="-8" width="14" height="3" fill={P.metal.steel} />
+        <circle className="cq-glow" cx="0" cy="4" r="1.6" fill="#00ff44" />
+      </g>
+      {/* person inside */}
+      <Humanoid cx={64} cy={70} scale={1.05} cloth={P.cloth.wool} pants="#3a3628" accent={palette.dark} skin={P.skin.warm} hair="#2a1a10"
+        hat={helmetVisor(palette)}
+      />
+      {/* leg greaves + knee pistons */}
+      <g>
+        <rect x="52" y="84" width="8" height="16" rx="2" fill={palette.mid} stroke={P.ink.line} strokeWidth="0.8" />
+        <rect x="51" y="82" width="10" height="4" rx="1" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.6" />
+        <circle cx="56" cy="84" r="1.7" fill={P.metal.steel} stroke={P.ink.line} strokeWidth="0.5" />
+      </g>
+      <g>
+        <rect x="68" y="84" width="8" height="16" rx="2" fill={palette.mid} stroke={P.ink.line} strokeWidth="0.8" />
+        <rect x="67" y="82" width="10" height="4" rx="1" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.6" />
+        <circle cx="72" cy="84" r="1.7" fill={P.metal.steel} stroke={P.ink.line} strokeWidth="0.5" />
+      </g>
+      {/* TORSO PLATE — dominant */}
+      <path d="M50,52 Q64,48 78,52 L80,74 Q64,80 48,74 Z" fill={palette.mid} stroke={P.ink.line} strokeWidth="1.2" />
+      <path d="M50,52 Q64,48 78,52 L79,60 Q64,56 49,60 Z" fill={P.metal.shine} opacity="0.18" />
+      <line x1="64" y1="50" x2="64" y2="78" stroke={P.metal.steel} strokeWidth="0.8" opacity="0.7" />
+      <line x1="50" y1="62" x2="78" y2="62" stroke={P.metal.steel} strokeWidth="0.8" opacity="0.7" />
+      <path d="M56,68 L72,68 L70,74 L58,74 Z" fill={palette.dark} opacity="0.5" />
+      {/* shoulder pauldrons + arm struts */}
+      <g>
+        <ellipse cx="47" cy="56" rx="7" ry="6" fill={palette.mid} stroke={P.ink.line} strokeWidth="1" />
+        <ellipse cx="47" cy="55" rx="5" ry="3.4" fill={P.metal.shine} opacity="0.2" />
+        <rect x="44" y="60" width="3" height="18" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.5" />
+        <circle cx="45.5" cy="68" r="1.7" fill={P.metal.steel} stroke={P.ink.line} strokeWidth="0.5" />
+      </g>
+      <g>
+        <ellipse cx="81" cy="56" rx="7" ry="6" fill={palette.mid} stroke={P.ink.line} strokeWidth="1" />
+        <ellipse cx="81" cy="55" rx="5" ry="3.4" fill={P.metal.shine} opacity="0.2" />
+        <rect x="81" y="60" width="3" height="16" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.5" />
+        <circle cx="82.5" cy="67" r="1.7" fill={P.metal.steel} stroke={P.ink.line} strokeWidth="0.5" />
+      </g>
+      {/* WEAPON — bulky braced rifle. Static: gun units fire via muzzle flash +
+          body recoil (cq2-attack-body), never the melee overhead swing. */}
+      <g transform="translate(84 74) rotate(-24)">
+          <rect x="-22" y="-3" width="34" height="7" rx="1.5" fill="#181830" stroke={P.ink.line} strokeWidth="0.8" />
+          <rect x="-22" y="-3" width="34" height="2" fill={P.metal.steel} opacity="0.6" />
+          <rect x="10" y="-1.5" width="11" height="3" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.5" />
+          <rect x="-16" y="4" width="5" height="8" rx="1" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.5" />
+          <circle className="cq-glow" cx="-18" cy="0" r="1.4" fill={palette.bright} />
+      </g>
+      {/* ATTACK — rifle muzzle flash at the barrel tip (only fires on data-state=attack) */}
+      <g transform="translate(104 65)"><g className="cq-muzzle-flash">
+        <circle r="3.6" fill="#ffd966" />
+        <circle r="1.8" fill="#fff" />
+      </g></g>
+      <Banner x={42} y={40} palette={palette} scale={0.6} />
+    </SpriteFrame>
+  );
+}
+
+/* === SPRITE 4 — PropagandistSprite  (humanoid civilian · replaces MissionarySprite) ===
+   Dominant: bare-headed modern-dress civilian (vs Missionary's robed hood).
+   Held speaker/projector rig + broadcast arcs replace the swinging censer. */
+export function PropagandistSprite({ palette, svgOnly = false }: UnitSpriteProps): string {
+  return (
+    <SpriteFrame svgOnly={svgOnly}>
+      <Shadow />
+      {/* modern civilian — no hat/hood, muted vest */}
+      <Humanoid cx={64} cy={70} scale={1} cloth={P.cloth.wool} pants="#3a3628" accent={palette.mid} skin={P.skin.warm} hair="#2a1a10" />
+      {/* open collar / zip line — reads as a modern jacket */}
+      <path d="M58,50 L64,60 L70,50" fill="none" stroke={palette.dark} strokeWidth="1.1" />
+      <line x1="64" y1="52" x2="64" y2="70" stroke={palette.dark} strokeWidth="0.7" opacity="0.7" />
+      {/* broadcast arcs from the speaker */}
+      <g className="cq-glow" transform="translate(93 58)">
+        <path d="M2,-8 Q10,-2 2,8" fill="none" stroke={palette.bright} strokeWidth="1.2" opacity="0.75" />
+        <path d="M6,-13 Q18,-2 6,13" fill="none" stroke={palette.bright} strokeWidth="1" opacity="0.4" />
+      </g>
+      {/* SPEAKER / PROJECTOR — held out, right hand */}
+      <g transform="translate(84 58) rotate(-10)">
+        <rect x="-8" y="-10" width="16" height="21" rx="2" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="1" />
+        <rect x="-8" y="-10" width="16" height="3" fill={P.metal.steel} />
+        <rect x="-6" y="-8" width="4" height="2" fill={palette.trim} />
+        <circle cx="0" cy="2" r="6.2" fill="#0a0a20" stroke={P.ink.line} strokeWidth="0.9" />
+        <circle className="cq-glow" cx="0" cy="2" r="6.2" fill="none" stroke={palette.bright} strokeWidth="1.4" />
+        <circle cx="0" cy="2" r="2.2" fill={P.metal.iron} stroke={P.metal.steel} strokeWidth="0.5" />
+      </g>
+      <Banner x={48} y={44} palette={palette} scale={0.55} />
+    </SpriteFrame>
+  );
+}
+
+/* === SPRITE 5 — DroneControllerSprite  (humanoid · replaces SpyHackerSprite) ===
+   Dominant: open-stance field technician in a wool vest (no cloak). Signature
+   supporting detail: a companion micro-drone + a glowing tablet control rig. */
+export function DroneControllerSprite({ palette, svgOnly = false }: UnitSpriteProps): string {
+  return (
+    <SpriteFrame svgOnly={svgOnly}>
+      <Shadow />
+      {/* field-tech figure — wool vest, soft cap, no cloak */}
+      <Humanoid cx={64} cy={70} scale={0.95} cloth={P.cloth.wool} pants="#3a3628" accent={palette.mid} skin={P.skin.warm} hair="#2a1a10"
+        hat={<path d="M-9,-37 Q0,-42 9,-37 L10,-34 L-10,-34 Z" fill={palette.dark} stroke={P.ink.line} strokeWidth="0.7" />}
+      />
+      {/* CONTROL RIG — held in both hands */}
+      <g transform="translate(64 71)">
+        <rect x="-13" y="-5" width="26" height="14" rx="2" fill="#0a0a20" stroke={P.ink.line} strokeWidth="1" />
+        <rect x="-11" y="-3" width="22" height="10" rx="1" fill="#112244" />
+        <rect className="cq-glow" x="-11" y="-3" width="22" height="10" rx="1" fill={palette.bright} opacity="0.22" />
+        <line x1="-8" y1="0" x2="8" y2="0" stroke="#00aaff" strokeWidth="0.8" opacity="0.9" />
+        <line x1="-8" y1="3.2" x2="3" y2="3.2" stroke="#00aaff" strokeWidth="0.8" opacity="0.65" />
+        {/* whip antenna */}
+        <line x1="11" y1="-5" x2="21" y2="-21" stroke={P.metal.steel} strokeWidth="1.2" strokeLinecap="round" />
+        <circle className="cq-glow" cx="21" cy="-21" r="1.6" fill={palette.bright} />
+      </g>
+      {/* MICRO-DRONE companion — above the right shoulder (the signature read) */}
+      {microDrone(93, 33, palette)}
+      {/* ATTACK — the companion drone fires a spark */}
+      <g transform="translate(101 33)"><g className="cq-muzzle-flash">
+        <circle r="2.6" fill="#ffd966" />
+        <circle r="1.3" fill="#fff" />
+      </g></g>
+      <Banner x={44} y={46} palette={palette} scale={0.5} />
+    </SpriteFrame>
+  );
+}

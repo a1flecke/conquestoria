@@ -8,6 +8,13 @@ import { derivePalette } from '@/renderer/sprites/sprite-system';
 import { BUILDINGS } from '@/systems/city-system';
 import { UNIT_DEFINITIONS } from '@/systems/unit-system';
 import { PIRATE_HULL_TYPES } from '@/systems/pirate-definitions';
+import {
+  JetFighterSprite, IroncladSprite, MachineGunnerSprite, MissionarySprite, SpyHackerSprite,
+} from '@/renderer/sprites/units';
+import {
+  DataCenterSprite, CyberDefenseCenterSprite, AutomatedPortSprite, SignalsHubSprite,
+  BroadcastTowerSprite, PrecisionFarmSprite, TelemedicineHubSprite,
+} from '@/renderer/sprites/buildings';
 
 // Derive the authoritative unit-type list from UNIT_DEFINITIONS so this test
 // automatically catches any new UnitType added to types.ts without a matching
@@ -95,6 +102,45 @@ describe('sprite-catalog coverage', () => {
       expect(svg).toContain('data-pirate-headquarters');
       expect(svg).toContain('viewBox="0 0 192 192"');
       expect(svg.length).toBeGreaterThan(900);
+    }
+  });
+});
+
+// #652 batch A: these 13 entries were temporary aliases to older-era sprites at Era 13
+// launch (#515). Reject any regression back to that aliasing — if one of these ever
+// starts rendering byte-identical output to the sprite it replaced, either the catalog
+// line was reverted or a future edit accidentally reintroduced the old alias.
+describe('Era 13 batch A sprites are not aliases of their placeholders (#652)', () => {
+  const palette = derivePalette('#4a90d9');
+
+  it('unit sprites render different markup than the placeholders they replaced', () => {
+    const replacements: Array<[keyof typeof UNIT_SPRITE_CATALOG, (props: { palette: typeof palette; svgOnly: boolean }) => string]> = [
+      ['combat_drone', JetFighterSprite],
+      ['autonomous_frigate', IroncladSprite],
+      ['exosuit_infantry', MachineGunnerSprite],
+      ['propagandist', MissionarySprite],
+      ['drone_controller', SpyHackerSprite],
+    ];
+    for (const [type, placeholderFn] of replacements) {
+      const actual = UNIT_SPRITE_CATALOG[type]({ palette, svgOnly: true });
+      const placeholder = placeholderFn({ palette, svgOnly: true });
+      expect(actual, `${type} still renders identically to its old placeholder`).not.toBe(placeholder);
+    }
+  });
+
+  it('building sprites are not the same component as the placeholders they replaced', () => {
+    const replacements: Array<[keyof typeof BUILDING_SPRITE_CATALOG, unknown]> = [
+      ['network_operations_center', DataCenterSprite],
+      ['ai_safety_institute', CyberDefenseCenterSprite],
+      ['drone_fabricator', AutomatedPortSprite],
+      ['electronic_warfare_array', SignalsHubSprite],
+      ['civic_media_forum', BroadcastTowerSprite],
+      ['vertical_farm', PrecisionFarmSprite],
+      ['neural_rehabilitation_center', TelemedicineHubSprite],
+      ['ocean_robotics_yard', AutomatedPortSprite],
+    ];
+    for (const [id, placeholderFn] of replacements) {
+      expect(BUILDING_SPRITE_CATALOG[id], `${id} still aliases its old placeholder component`).not.toBe(placeholderFn);
     }
   });
 });
