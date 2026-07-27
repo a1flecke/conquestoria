@@ -473,7 +473,10 @@ describe('flotilla relocation', () => {
     const state = stateWithMap(oceanGrid());
     state.turn = 4;
     addUnit(state, unit('flagship', 'pirate_frigate', 'pirate-1', { q: 6, r: 6 }));
-    addUnit(state, unit('escort', 'pirate_corsair', 'pirate-1', { q: 6, r: 7 }));
+    // #751: pirate_corsair is coastal-only; this fixture's map is an ocean grid, so the escort
+    // needs an ocean-going hull instead (leadership here is flagship-based, not strength-based,
+    // so hull choice doesn't affect who leads).
+    addUnit(state, unit('escort', 'pirate_ironclad', 'pirate-1', { q: 6, r: 7 }));
     state.pirates!.factions['pirate-1'] = faction('pirate-1', 'raiding', {
       kind: 'deep-sea-flotilla', flagshipUnitId: 'flagship', relocation: { planned: null, lastRelocatedRound: null },
     }, ['flagship', 'escort']);

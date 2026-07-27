@@ -132,8 +132,14 @@ describe('completed-round pirate coordinator', () => {
   it('moves a purposeful fleet along canonical multi-step cohesive paths and retains intent', () => {
     const state = fixture();
     addCity(state);
-    addUnit(state, 'leader', 'pirate_frigate', 'pirate-1', { q: 5, r: 1 });
-    addUnit(state, 'escort', 'pirate_corsair', 'pirate-1', { q: 4, r: 1 });
+    // #751: pirate_corsair is coastal-only; this fixture's map is all-ocean apart from the
+    // city tile, so both ships need an ocean-going hull now. getPirateFleetLeader
+    // (pirate-behavior.ts) picks the leader by highest strength, alphabetical id as
+    // tie-break — 'leader' must stay strictly stronger than 'escort' or the tie-break
+    // (which favors 'escort' alphabetically) flips who leads. pirate_frigate is the
+    // weakest ocean-going pirate hull, so 'leader' uses the next tier up instead.
+    addUnit(state, 'leader', 'pirate_ironclad', 'pirate-1', { q: 5, r: 1 });
+    addUnit(state, 'escort', 'pirate_frigate', 'pirate-1', { q: 4, r: 1 });
     state.pirates!.factions['pirate-1'] = faction({
       kind: 'coastal-enclave',
       position: { q: 1, r: 1 },
@@ -353,7 +359,9 @@ describe('completed-round pirate coordinator', () => {
     const state = fixture();
     addCity(state);
     addUnit(state, 'ship-a', 'pirate_frigate', 'pirate-1', { q: 5, r: 3 });
-    addUnit(state, 'ship-b', 'pirate_corsair', 'pirate-1', { q: 4, r: 3 });
+    // #751: pirate_corsair is coastal-only; this fixture's map is all-ocean apart from the
+    // city tile, so use an ocean-going hull instead.
+    addUnit(state, 'ship-b', 'pirate_ironclad', 'pirate-1', { q: 4, r: 3 });
     state.pirates!.factions['pirate-1'] = faction({
       kind: 'coastal-enclave', position: { q: 1, r: 1 }, integrity: 100, maxIntegrity: 100,
     }, ['ship-a', 'ship-b']);
@@ -452,7 +460,11 @@ describe('pirate naval siege (#522)', () => {
     addCity(state);
     state.cities.port = { ...state.cities.port!, hp: cityHp };
     addUnit(state, 'ship-a', 'pirate_frigate', 'pirate-1', { q: 5, r: 3 });
-    addUnit(state, 'ship-b', 'pirate_corsair', 'pirate-1', { q: 4, r: 3 });
+    // #751: pirate_corsair is coastal-only (stage-2 hull) and this fixture's map is all-ocean
+    // apart from the city tile, so a coastal-only hull can never legally occupy any of these
+    // positions. Use pirate_ironclad (ocean-going) instead — the siege tests here exercise
+    // general blockade/siege behavior, not anything specific to the corsair hull.
+    addUnit(state, 'ship-b', 'pirate_ironclad', 'pirate-1', { q: 4, r: 3 });
     state.pirates!.factions['pirate-1'] = besiegingFaction(PIRATE_SIEGE_BLOCKADE_TURNS - 1);
     return state;
   }
@@ -584,7 +596,9 @@ describe('pirate naval siege (#522)', () => {
     state.civilizations.player.cities = [];
     state.civilizations['ai-1']!.cities = ['port'];
     addUnit(state, 'ship-a', 'pirate_frigate', 'pirate-1', { q: 5, r: 3 });
-    addUnit(state, 'ship-b', 'pirate_corsair', 'pirate-1', { q: 4, r: 3 });
+    // #751: pirate_corsair is coastal-only; this fixture's map is all-ocean apart from the
+    // city tile, so use an ocean-going hull instead.
+    addUnit(state, 'ship-b', 'pirate_ironclad', 'pirate-1', { q: 4, r: 3 });
     state.pirates!.factions['pirate-1'] = besiegingFaction(PIRATE_SIEGE_BLOCKADE_TURNS - 1);
     state.era = 12;
     state.opponentChallenge = 'veteran';

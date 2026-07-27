@@ -740,6 +740,21 @@ Expected: PASS. If any other existing test fails referencing `'requires-galleys'
 finding every such fixture, but fix any that block this task's own test run now rather than
 deferring a build-breaking failure.
 
+**Execution note (found during implementation):** the fast suite surfaced 15 failures across 5
+files on the first run, all from the same root cause — fixtures placing a now-coastal-only hull
+(`transport`, `galley`, or `pirate_corsair`) on an all-ocean or ocean-only test map, so the unit
+could no longer move at all. Fixed each by swapping to an ocean-going hull (`trireme` or
+`pirate_ironclad`) where the test's actual intent didn't depend on the specific hull, and by
+rewriting the two tests that directly asserted the old tech-gate blocker codes
+(`tests/systems/unit-movement-system.test.ts`'s "gates Transport coast and ocean movement by owner
+tech" and `tests/input/selected-unit-highlights.test.ts`'s Transport highlight test) to assert the
+new hull-class behavior instead. One subtlety worth flagging for future readers:
+`getPirateFleetLeader` (`pirate-behavior.ts:271`) picks the fleet leader by highest strength, with
+alphabetical unit-id as a tie-break — swapping a weaker coastal hull for an equal- or
+lower-strength ocean-going hull can silently flip which unit becomes "leader" in a test that
+asserts a specific `leaderUnitId`, so the substitute hull's strength relative to its fleet-mates
+matters, not just its `waterAccess`.
+
 Run: `bash scripts/run-with-mise.sh yarn build`
 Expected: PASS.
 

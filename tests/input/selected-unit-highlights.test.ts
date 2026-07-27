@@ -432,8 +432,8 @@ describe('selected-unit-highlights', () => {
     expect(result.highlights).not.toContainEqual({ coord: { q: 1, r: -1 }, type: 'worker-foreign-blocked' });
   });
 
-  it('does not highlight Transport coast movement before Galleys and does after unlock', () => {
-    const state = createNewGame(undefined, 'transport-highlight-tech-gate', 'small');
+  it('highlights coast but never ocean for a coastal-only Transport, regardless of tech (#751)', () => {
+    const state = createNewGame(undefined, 'transport-highlight-hull-class', 'small');
     state.currentPlayer = 'player';
     state.units = {
       transport: { ...createUnit('transport', 'player', { q: 0, r: 0 }, mkC()), id: 'transport', movementPointsLeft: 3 },
@@ -461,10 +461,23 @@ describe('selected-unit-highlights', () => {
       hasRiver: false,
       wonder: null,
     };
+    state.map.tiles['2,0'] = {
+      coord: { q: 2, r: 0 },
+      terrain: 'ocean',
+      elevation: 'lowland',
+      resource: null,
+      owner: null,
+      improvement: 'none',
+      improvementTurnsLeft: 0,
+      hasRiver: false,
+      wonder: null,
+    };
 
-    expect(buildSelectedUnitHighlights(state, 'transport').movementRange.map(hexKey)).not.toContain('1,0');
-
-    state.civilizations.player.techState.completed = ['galleys'];
+    // Coast is highlighted with no techs at all — hull class governs this now, not research.
     expect(buildSelectedUnitHighlights(state, 'transport').movementRange.map(hexKey)).toContain('1,0');
+
+    // Ocean is never highlighted for a coastal-only hull, even with every relevant tech completed.
+    state.civilizations.player.techState.completed = ['galleys', 'celestial-navigation'];
+    expect(buildSelectedUnitHighlights(state, 'transport').movementRange.map(hexKey)).not.toContain('2,0');
   });
 });
