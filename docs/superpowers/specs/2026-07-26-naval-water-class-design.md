@@ -125,7 +125,14 @@ UI wiring — confirmed that file already generically surfaces `reason.message` 
 function at every path step, not just the destination — confirmed by reading `findPath`'s A* loop
 in `unit-system.ts`. Pirate movement (`pirate-system.ts`, `pirate-behavior.ts`) already calls these
 same shared functions with `{ unit }` context, so pirates and AI get the fix automatically with no
-separate movement logic to touch.
+separate movement logic to touch — **provided** `createPirateUnitDefinition()` (`unit-system.ts:15`,
+the function that synthesizes each pirate hull's `UnitDefinition` entry in `UNIT_DEFINITIONS` from
+`PIRATE_HULL_DEFINITIONS`) is explicitly updated to pass `waterAccess: hull.waterAccess` through.
+`canHullEnterOcean` reads `UNIT_DEFINITIONS`, not `PIRATE_HULL_DEFINITIONS` directly — if this one
+line is missed, every pirate hull silently defaults to coastal (`undefined !== 'ocean'`), including
+the ones this design classifies ocean-going. The catalog-coverage test in Data Model would
+eventually catch it (pirate entries carry `domain: 'naval'`), but call it out here as an explicit
+implementation step rather than leaving it to be rediscovered as a confusing test failure.
 
 **Known, accepted gap:** `findPathToCity` (used only by `trade-system.ts` and
 `unit-movement-system.ts` for establishing trade routes) does not thread unit context and falls
@@ -210,8 +217,9 @@ deletion fallback:
    not just an assumption from the existing rule text.
 4. Log a per-owner notification through the persistent notification log (not a toast — per
    `strategy-game-mechanics.md`'s persistent-notification rule, the player must be able to find this
-   after the fact): "Your Trireme couldn't survive the open ocean and put in near shore" (owner-appropriate
-   unit name).
+   after the fact): "Your Galley couldn't survive the open ocean and put in near shore" (owner-appropriate
+   unit name — only Galley/Transport, and pirate_galley/pirate_corsair, can ever trigger this, since
+   they're the only hulls still coastal-only).
 5. **Hot-seat privacy:** the migration runs once over the whole save touching every civ's units, but
    the notification must surface only on that unit's own owner's screen — per `ui-panels.md`'s
    privacy rule, civ A must never see "civ B's ship washed ashore" text. Needs an explicit test.
@@ -244,8 +252,11 @@ deletion fallback:
   follows; no-reachable-coast fallback triggers cleanly; hot-seat notification scoping (civ A never
   sees civ B's relocation text).
 - Regression sweep: search existing naval movement fixtures for any that currently assert a
-  Trireme/Galley/Transport can enter ocean under the old (buggy) behavior — these need to be found
-  and corrected as part of implementation, not discovered after merge.
+  Galley/Transport can enter ocean under the old (buggy) behavior — these need to be found and
+  corrected as part of implementation, not discovered after merge. Trireme is the opposite case:
+  add a positive test confirming it is NOT blocked from ocean, since it's the unit whose
+  classification changed most recently in this design and is the easiest one to regress by copying
+  the Galley/Transport blocker logic too broadly.
 - Targeted rerun of `pacing-audit.test.ts`, `pacing-reference-economy.test.ts`, and
   `world-pressure-fairness.test.ts` — this isn't a yield change so none should be directly affected,
   but AI naval-expansion timing on archipelago-style maps is close enough to what
