@@ -13,6 +13,8 @@ import {
   MachineGunnerSprite, PreDreadnoughtSprite, TankSprite, SubmarineSprite,
   ObservationBalloonSprite, BiplaneSprite, JetFighterSprite, CarrierSprite,
   AttackHelicopterSprite, MissileSubmarineSprite,
+  CombatDroneSprite, AutonomousFrigateSprite, ExosuitInfantrySprite,
+  PropagandistSprite, DroneControllerSprite,
   CaravanSprite, ExpeditionSprite,
   CarrackSprite, GalleonSprite, SteamshipSprite, TroopTransportSprite,
   NavalTraderSprite, SteamshipTraderSprite, CargoFreighterSprite, ContainerShipSprite,
@@ -54,6 +56,10 @@ import {
   AutomatedPortSprite, BiotechLabSprite, BroadcastTowerSprite, CyberDefenseCenterSprite,
   DataCenterSprite, FintechHubSprite, GeneTherapyClinicSprite, PrecisionFarmSprite,
   SignalsHubSprite, SmartGridSprite, StealthAirbaseSprite, TelemedicineHubSprite,
+  // era 13 batch A
+  NetworkOperationsCenterSprite, AiSafetyInstituteSprite, DroneFabricatorSprite,
+  ElectronicWarfareArraySprite, CivicMediaForumSprite, VerticalFarmSprite,
+  NeuralRehabilitationCenterSprite, OceanRoboticsYardSprite,
 } from './buildings';
 import {
   PyramidsSprite, ColosseumSprite, GreatLibrarySprite, LighthouseSprite, WrightFlyerSprite,
@@ -276,12 +282,12 @@ export const UNIT_SPRITE_CATALOG: Record<UnitType, UnitSpriteComponent> = {
   carrier:           withMotion('carrier', CarrierSprite),
   attack_helicopter: withMotion('attack_helicopter', AttackHelicopterSprite),
   missile_submarine: withMotion('missile_submarine', MissileSubmarineSprite),
-  // Era 13 temporary launch silhouettes; #652 tracks the required bespoke art.
-  combat_drone: withMotion('combat_drone', JetFighterSprite),
-  autonomous_frigate: withMotion('autonomous_frigate', IroncladSprite),
-  exosuit_infantry: withMotion('exosuit_infantry', MachineGunnerSprite),
-  propagandist: withMotion('propagandist', MissionarySprite),
-  drone_controller: withMotion('drone_controller', SpyHackerSprite),
+  // Era 13 (#652), batch A — bespoke sprites landed 2026-07-26.
+  combat_drone: withMotion('combat_drone', CombatDroneSprite),
+  autonomous_frigate: withMotion('autonomous_frigate', AutonomousFrigateSprite),
+  exosuit_infantry: withMotion('exosuit_infantry', ExosuitInfantrySprite),
+  propagandist: withMotion('propagandist', PropagandistSprite),
+  drone_controller: withMotion('drone_controller', DroneControllerSprite),
   caravan:           withMotion('caravan', CaravanSprite),
   // Trade Routes Overhaul (#553 MR2/4) — Land trade line successors to Caravan.
   // Placeholder: reuses CaravanSprite (closest silhouette) until bespoke sprites ship.
@@ -482,18 +488,19 @@ export const BUILDING_SPRITE_CATALOG: Record<string, BuildingSpriteComponent> = 
   planetary_data_grid:            DataCenterSprite,
   global_logistics_network:       FintechHubSprite,
   orbital_fabrication_program:    SmartGridSprite,
+  // Era 13 (#652), batch A — bespoke sprites landed 2026-07-26.
+  network_operations_center:      NetworkOperationsCenterSprite,
+  ai_safety_institute:            AiSafetyInstituteSprite,
+  drone_fabricator:               DroneFabricatorSprite,
+  electronic_warfare_array:       ElectronicWarfareArraySprite,
+  civic_media_forum:              CivicMediaForumSprite,
+  vertical_farm:                  VerticalFarmSprite,
+  neural_rehabilitation_center:   NeuralRehabilitationCenterSprite,
+  ocean_robotics_yard:            OceanRoboticsYardSprite,
   // Era 13 content launch: temporary thematically-close mappings. #652 owns
-  // the required replacement with distinct, production-ready SVG components.
-  // Keeping these entries catalog-driven preserves normal renderer fallbacks
-  // while the dedicated art pass is in progress.
-  network_operations_center:      DataCenterSprite,
-  ai_safety_institute:            CyberDefenseCenterSprite,
-  drone_fabricator:               AutomatedPortSprite,
-  electronic_warfare_array:       SignalsHubSprite,
-  civic_media_forum:              BroadcastTowerSprite,
-  vertical_farm:                  PrecisionFarmSprite,
-  neural_rehabilitation_center:   TelemedicineHubSprite,
-  ocean_robotics_yard:            AutomatedPortSprite,
+  // the remaining replacement (batch B) with distinct, production-ready SVG
+  // components. Keeping these entries catalog-driven preserves normal
+  // renderer fallbacks while the dedicated art pass is in progress.
   circular_fabricator:            SmartGridSprite,
   modular_arcology:               DataCenterSprite,
   carbon_capture_grid:            SmartGridSprite,

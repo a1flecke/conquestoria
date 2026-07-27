@@ -3208,3 +3208,283 @@ export function TelemedicineHubSprite({ palette, svgOnly = false }: BuildingSpri
     </BuildingFrame>
   );
 }
+
+/* 1 — NetworkOperationsCenterSprite (science · replaces DataCenterSprite)
+   Dominant: antenna crown atop a low control room; live topology display. */
+export function NetworkOperationsCenterSprite({ palette, svgOnly = false }: BuildingSpriteProps): string {
+  const masts = [[50, 46], [70, 30], [96, 22], [122, 32], [142, 48]].map(m => (
+    <g>
+      <line x1={m[0]} y1="90" x2={m[0]} y2={m[1]} stroke={P.metal.steel} strokeWidth="2" />
+      <line x1={m[0] - 4} y1={m[1] + 8} x2={m[0] + 4} y2={m[1] + 8} stroke={P.metal.iron} strokeWidth="1.4" />
+      <circle className="cq-glow" cx={m[0]} cy={m[1]} r="2.6" fill={palette.bright} />
+    </g>
+  )).join('');
+  return (
+    <BuildingFrame label="Network Operations Center" sub="Infrastructure" category="science" svgOnly={svgOnly}>
+      <BuildingPlinth w={148} />
+      {masts}
+      <rect x="34" y="90" width="124" height="46" rx="3" fill="#181830" stroke={P.metal.steel} strokeWidth="1.4" />
+      <rect x="34" y="90" width="124" height="6" fill={P.stone.mid} opacity="0.5" />
+      <rect className="cq-glow" x="46" y="100" width="62" height="30" rx="2" fill="#112244" stroke={P.metal.steel} strokeWidth="0.8" />
+      <g stroke="#00aaff" strokeWidth="0.8" fill="none" opacity="0.9">
+        <line x1="56" y1="108" x2="72" y2="118" />
+        <line x1="72" y1="118" x2="92" y2="110" />
+        <line x1="72" y1="118" x2="66" y2="126" />
+        <line x1="92" y1="110" x2="100" y2="122" />
+      </g>
+      <g fill="#00aaff">
+        <circle cx="56" cy="108" r="2" /><circle cx="72" cy="118" r="2.2" />
+        <circle cx="92" cy="110" r="2" /><circle cx="66" cy="126" r="1.8" /><circle cx="100" cy="122" r="1.8" />
+      </g>
+      <rect x="116" y="102" width="30" height="28" rx="2" fill="#0a0a20" stroke={P.metal.steel} strokeWidth="0.8" />
+      <line x1="116" y1="112" x2="146" y2="112" stroke={P.metal.steel} strokeWidth="0.5" opacity="0.6" />
+      <line x1="116" y1="120" x2="146" y2="120" stroke={P.metal.steel} strokeWidth="0.5" opacity="0.6" />
+      <circle cx="140" cy="107" r="1.6" fill="#00ff44" />
+      <circle cx="140" cy="116" r="1.6" fill="#00aaff" />
+      <Banner x={96} y={20} palette={palette} scale={0.65} />
+    </BuildingFrame>
+  );
+}
+
+/* 2 — AiSafetyInstituteSprite (science · replaces CyberDefenseCenterSprite)
+   Dominant: rounded shield + checkmark oversight emblem over a civic facade. */
+export function AiSafetyInstituteSprite({ palette, svgOnly = false }: BuildingSpriteProps): string {
+  return (
+    <BuildingFrame label="AI Safety Institute" sub="Civic Research" category="science" svgOnly={svgOnly}>
+      <BuildingPlinth w={150} />
+      <rect x="34" y="130" width="124" height="8" fill={P.stone.light} stroke={P.ink.line} strokeWidth="0.6" />
+      <rect x="42" y="124" width="108" height="6" fill={P.stone.light} stroke={P.ink.line} strokeWidth="0.6" />
+      <rect x="48" y="86" width="96" height="40" fill={P.stone.light} stroke={P.ink.line} strokeWidth="1" />
+      <rect x="48" y="86" width="96" height="40" fill="url(#stoneTexture)" opacity="0.4" />
+      <rect x="54" y="88" width="9" height="38" fill={P.cloth.linen} stroke={P.ink.line} strokeWidth="0.6" />
+      <rect x="129" y="88" width="9" height="38" fill={P.cloth.linen} stroke={P.ink.line} strokeWidth="0.6" />
+      <rect x="72" y="100" width="48" height="24" fill="#0a0a20" stroke={P.metal.steel} strokeWidth="0.8" />
+      <rect x="76" y="104" width="12" height="16" fill="#112244" /><circle cx="82" cy="107" r="1.4" fill="#00ff44" />
+      <rect x="90" y="104" width="12" height="16" fill="#112244" /><circle cx="96" cy="107" r="1.4" fill="#00ff44" />
+      <rect x="104" y="104" width="12" height="16" fill="#112244" /><circle cx="110" cy="107" r="1.4" fill="#00aaff" />
+      <path d="M40,86 L152,86 L96,58 Z" fill={P.stone.mid} stroke={P.ink.line} strokeWidth="0.8" />
+      <g className="cq-glow">
+        <path d="M96,40 Q118,48 118,70 Q118,92 96,102 Q74,92 74,70 Q74,48 96,40 Z" fill={palette.mid} stroke={P.ink.line} strokeWidth="1.2" />
+        <path d="M96,46 Q112,52 112,70 Q112,87 96,95 Q80,87 80,70 Q80,52 96,46 Z" fill={palette.dark} opacity="0.35" />
+        <path d="M85,70 L93,80 L109,58" fill="none" stroke={palette.bright} strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" />
+      </g>
+      <Banner x={44} y={70} palette={palette} scale={0.65} />
+    </BuildingFrame>
+  );
+}
+
+/* 3 — DroneFabricatorSprite (production · replaces AutomatedPortSprite)
+   Dominant: articulated robotic arm assembling a CombatDrone frame. */
+export function DroneFabricatorSprite({ palette, svgOnly = false }: BuildingSpriteProps): string {
+  return (
+    <BuildingFrame label="Drone Fabricator" sub="Robotics Production" category="production" svgOnly={svgOnly}>
+      <BuildingPlinth w={150} />
+      <rect x="30" y="66" width="132" height="72" fill={P.stone.mid} stroke={P.ink.line} strokeWidth="1" />
+      <rect x="30" y="66" width="132" height="72" fill="url(#stoneTexture)" opacity="0.4" />
+      <rect x="40" y="76" width="112" height="56" fill="#181830" stroke={P.metal.steel} strokeWidth="1" />
+      <rect x="30" y="62" width="132" height="8" fill={P.metal.steel} stroke={P.ink.line} strokeWidth="0.8" />
+      <rect x="44" y="82" width="16" height="10" rx="1" fill="#0a0a20" stroke={P.metal.steel} strokeWidth="0.6" />
+      <circle cx="49" cy="87" r="1.6" fill="#00aaff" /><circle cx="55" cy="87" r="1.6" fill="#00ff44" />
+      <g transform="translate(120 118)">
+        <line x1="-14" y1="-2" x2="-22" y2="-8" stroke={P.metal.iron} strokeWidth="2.4" strokeLinecap="round" />
+        <line x1="14" y1="-2" x2="22" y2="-8" stroke={P.metal.iron} strokeWidth="2.4" strokeLinecap="round" />
+        <circle cx="-22" cy="-9" r="6" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.8" />
+        <circle cx="-22" cy="-9" r="3.4" fill="#181830" stroke={P.metal.steel} strokeWidth="0.6" />
+        <circle cx="22" cy="-9" r="6" fill="none" stroke={P.metal.steel} strokeWidth="1.4" strokeDasharray="2 2" />
+        <path d="M-9,-6 L6,-6 L11,0 L6,6 L-9,6 L-13,0 Z" fill={palette.mid} stroke={P.ink.line} strokeWidth="0.9" />
+        <circle cx="7" cy="0" r="3.4" fill="#0a0a20" stroke={P.ink.line} strokeWidth="0.6" />
+        <circle className="cq-glow" cx="7" cy="0" r="1.6" fill="#00aaff" />
+      </g>
+      <g>
+        <rect x="52" y="118" width="16" height="14" rx="1" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.8" />
+        <line x1="60" y1="118" x2="60" y2="96" stroke={P.metal.iron} strokeWidth="5" strokeLinecap="round" />
+        <line x1="60" y1="96" x2="92" y2="86" stroke={P.metal.steel} strokeWidth="4.4" strokeLinecap="round" />
+        <line x1="92" y1="86" x2="108" y2="98" stroke={P.metal.iron} strokeWidth="4" strokeLinecap="round" />
+        <circle cx="60" cy="96" r="3.2" fill={P.metal.steel} stroke={P.ink.line} strokeWidth="0.8" />
+        <circle cx="92" cy="86" r="3" fill={P.metal.steel} stroke={P.ink.line} strokeWidth="0.8" />
+        <path d="M108,98 L114,96 L114,102 Z" fill={P.metal.steel} stroke={P.ink.line} strokeWidth="0.6" />
+      </g>
+      <circle className="cq-spark" cx="110" cy="102" r="1.6" fill="#ffd966" />
+      <circle className="cq-spark cq-spark--b" cx="116" cy="98" r="1.3" fill="#ffd966" />
+      <circle className="cq-spark cq-spark--c" cx="112" cy="108" r="1.1" fill="#ffb84d" />
+      <Banner x={44} y={44} palette={palette} scale={0.65} />
+    </BuildingFrame>
+  );
+}
+
+/* 4 — ElectronicWarfareArraySprite (military · replaces SignalsHubSprite)
+   Dominant: flat phased-array panel (not a dish) with jamming interference. */
+export function ElectronicWarfareArraySprite({ palette, svgOnly = false }: BuildingSpriteProps): string {
+  const emittersArr: string[] = [];
+  for (let r = 0; r < 3; r++) for (let c = 0; c < 4; c++) {
+    emittersArr.push(<circle cx={-16 + c * 11} cy={-11 + r * 11} r="1.8" fill="#ffaa00" />);
+  }
+  const emitters = emittersArr.join('');
+  return (
+    <BuildingFrame label="Electronic Warfare Array" sub="Signal Denial" category="military" svgOnly={svgOnly}>
+      <BuildingPlinth w={140} color={P.stone.dark} />
+      <rect x="52" y="98" width="88" height="42" fill={P.stone.dark} stroke={P.ink.line} strokeWidth="1" />
+      <rect x="52" y="98" width="88" height="42" fill="url(#stoneTexture)" opacity="0.6" />
+      <rect x="60" y="112" width="6" height="18" fill="#0a0a20" stroke={P.metal.iron} strokeWidth="0.6" />
+      <rect className="cq-glow" x="61" y="114" width="4" height="14" fill="#00aaff" />
+      <rect x="88" y="64" width="16" height="36" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="1" />
+      <rect x="88" y="64" width="16" height="4" fill={P.metal.steel} />
+      <g fill="none" stroke={palette.bright} strokeLinejoin="miter" opacity="0.6">
+        <path d="M118,40 L126,46 L118,52 L128,58" strokeWidth="1.4" />
+        <path d="M126,30 L138,40 L126,50 L142,60" strokeWidth="1.2" opacity="0.75" />
+        <path d="M132,22 L148,36 L132,50 L152,64" strokeWidth="1" opacity="0.5" />
+      </g>
+      <g transform="translate(96 52)">
+        <path d="M-22,-18 L22,-14 L22,18 L-22,14 Z" fill="#112244" stroke={P.metal.steel} strokeWidth="1.6" />
+        <path d="M-22,-18 L22,-14 L22,-8 L-22,-12 Z" fill={P.metal.steel} opacity="0.25" />
+        {emitters}
+      </g>
+      <Banner x={128} y={92} palette={palette} scale={0.6} />
+    </BuildingFrame>
+  );
+}
+
+/* 5 — CivicMediaForumSprite (culture · replaces BroadcastTowerSprite)
+   Dominant: low, WIDE plaza stage (opposite of the tall narrow tower). */
+export function CivicMediaForumSprite({ palette, svgOnly = false }: BuildingSpriteProps): string {
+  const bars = [10, 22, 16, 28, 14, 24].map((hh, i) => (
+    <rect x={122 + i * 7} y={98 - hh} width="5" height={hh} fill="#00aaff" opacity="0.85" />
+  )).join('');
+  const citizen = (x: number, y: number, s: string, c: string): string => (
+    <g transform={`translate(${x} ${y})`}>
+      <circle cx="0" cy="-9" r="3" fill={s} stroke={P.ink.line} strokeWidth="0.4" />
+      <path d="M-4,4 Q-4,-6 0,-6 Q4,-6 4,4 Z" fill={c} stroke={P.ink.line} strokeWidth="0.5" />
+    </g>
+  );
+  return (
+    <BuildingFrame label="Civic Media Forum" sub="Public Discourse" category="culture" svgOnly={svgOnly}>
+      <BuildingPlinth w={170} />
+      <rect x="18" y="124" width="156" height="16" fill={P.stone.light} stroke={P.ink.line} strokeWidth="1" />
+      <rect x="18" y="124" width="156" height="16" fill="url(#stoneTexture)" opacity="0.4" />
+      <rect x="26" y="118" width="140" height="6" fill={P.stone.mid} stroke={P.ink.line} strokeWidth="0.6" />
+      <path d="M40,118 V140 M72,118 V140 M104,118 V140 M136,118 V140" stroke={P.stone.dark} strokeWidth="0.4" />
+      <line x1="126" y1="98" x2="126" y2="118" stroke={P.metal.iron} strokeWidth="2.4" />
+      <line x1="162" y1="98" x2="162" y2="118" stroke={P.metal.iron} strokeWidth="2.4" />
+      <rect className="cq-glow" x="114" y="60" width="62" height="42" rx="2" fill="#112244" stroke={P.metal.steel} strokeWidth="1.2" />
+      {bars}
+      <rect x="34" y="112" width="16" height="6" fill={P.stone.mid} stroke={P.ink.line} strokeWidth="0.6" />
+      <g transform="translate(42 100)">
+        <path d="M-6,-6 L-6,6 L2,10 L2,-10 Z" fill={palette.mid} stroke={P.ink.line} strokeWidth="0.8" />
+        <path d="M2,-10 L14,-16 L14,16 L2,10 Z" fill={palette.mid} stroke={P.ink.line} strokeWidth="1" />
+        <ellipse cx="14" cy="0" rx="3" ry="16" fill={P.metal.steel} stroke={P.ink.line} strokeWidth="0.8" />
+      </g>
+      {citizen(66, 122, P.skin.warm, palette.mid)}
+      {citizen(80, 123, P.skin.cool, P.cloth.wool)}
+      {citizen(94, 122, P.skin.warm, palette.dark)}
+      <line x1="24" y1="70" x2="24" y2="124" stroke={P.wood.dark} strokeWidth="1.6" />
+      <Banner x={24} y={72} palette={palette} scale={0.65} />
+    </BuildingFrame>
+  );
+}
+
+/* 6 — VerticalFarmSprite (food · replaces PrecisionFarmSprite)
+   Dominant: tall glass tower with 5 stacked, countable growing levels. */
+export function VerticalFarmSprite({ palette, svgOnly = false }: BuildingSpriteProps): string {
+  const levels = [0, 1, 2, 3, 4].map(i => {
+    const y = 52 + i * 17;
+    return (
+      <g>
+        <rect x="70" y={y + 13} width="52" height="1.6" fill="#ffdd00" opacity="0.85" />
+        <rect x="70" y={y + 9} width="52" height="4" fill={P.metal.steel} stroke={P.ink.line} strokeWidth="0.5" />
+        <ellipse cx="80" cy={y + 6} rx="5" ry="4" fill="#44aa44" />
+        <ellipse cx="92" cy={y + 5} rx="6" ry="5" fill="#4fb84f" />
+        <ellipse cx="104" cy={y + 6} rx="5" ry="4" fill="#44aa44" />
+        <ellipse cx="114" cy={y + 6} rx="4" ry="3.4" fill="#5cc45c" />
+        <line x1="66" y1={y} x2="126" y2={y} stroke={P.metal.steel} strokeWidth="1.4" />
+      </g>
+    );
+  }).join('');
+  return (
+    <BuildingFrame label="Vertical Farm" sub="Urban Agriculture" category="food" svgOnly={svgOnly}>
+      <BuildingPlinth w={110} />
+      <rect x="98" y="30" width="18" height="12" rx="3" fill={P.metal.steel} stroke={P.ink.line} strokeWidth="0.8" />
+      <rect x="98" y="30" width="18" height="3" fill={P.metal.shine} opacity="0.5" />
+      <line x1="124" y1="44" x2="124" y2="136" stroke={P.metal.steel} strokeWidth="2" />
+      <rect x="66" y="44" width="60" height="94" fill="#b8d4e8" stroke={P.metal.steel} strokeWidth="1.6" opacity="0.92" />
+      {levels}
+      <line x1="66" y1="44" x2="66" y2="138" stroke={P.metal.steel} strokeWidth="1.6" />
+      <line x1="126" y1="44" x2="126" y2="138" stroke={P.metal.steel} strokeWidth="1.6" />
+      <path d="M60,48 L96,30 L132,48 Z" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="1" />
+      <Banner x={78} y={40} palette={palette} scale={0.65} />
+    </BuildingFrame>
+  );
+}
+
+/* 7 — NeuralRehabilitationCenterSprite (food · replaces TelemedicineHubSprite)
+   Dominant: clinical-white campus + red medical cross; neural motif inset. */
+export function NeuralRehabilitationCenterSprite({ palette, svgOnly = false }: BuildingSpriteProps): string {
+  return (
+    <BuildingFrame label="Neural Rehabilitation Center" sub="Unit Recovery" category="food" svgOnly={svgOnly}>
+      <BuildingPlinth w={150} />
+      <ellipse cx="150" cy="134" rx="20" ry="7" fill={P.ground.grass} stroke={P.ink.line} strokeWidth="0.5" />
+      <g transform="translate(150 128)">
+        <rect x="-8" y="0" width="16" height="2.4" fill={P.wood.mid} stroke={P.ink.line} strokeWidth="0.4" />
+        <rect x="-7" y="2" width="2" height="5" fill={P.wood.dark} /><rect x="5" y="2" width="2" height="5" fill={P.wood.dark} />
+        <rect x="-8" y="-4" width="16" height="2" fill={P.wood.mid} stroke={P.ink.line} strokeWidth="0.4" />
+      </g>
+      <rect x="40" y="70" width="96" height="66" fill="#f0f4f0" stroke={P.ink.line} strokeWidth="1" />
+      <rect x="40" y="66" width="96" height="6" fill={P.stone.light} stroke={P.ink.line} strokeWidth="0.6" />
+      <rect x="52" y="118" width="20" height="18" fill="#d9e2dc" stroke={P.ink.line} strokeWidth="0.6" />
+      <g transform="translate(60 84)">
+        <rect x="-4" y="-11" width="8" height="22" fill="#dd2222" />
+        <rect x="-11" y="-4" width="22" height="8" fill="#dd2222" />
+      </g>
+      <rect className="cq-glow" x="82" y="80" width="46" height="34" rx="2" fill="#112244" stroke={P.metal.steel} strokeWidth="0.8" />
+      <g stroke="#00aaff" strokeWidth="0.8" fill="none" opacity="0.9">
+        <path d="M90,98 Q98,86 108,94 Q118,102 122,90" />
+        <path d="M92,104 Q102,98 112,104" />
+      </g>
+      <g fill={palette.bright}>
+        <circle cx="90" cy="98" r="2" /><circle cx="108" cy="94" r="2.2" />
+        <circle cx="122" cy="90" r="2" /><circle cx="112" cy="104" r="1.8" /><circle cx="92" cy="104" r="1.8" />
+      </g>
+      <Banner x={44} y={44} palette={palette} scale={0.6} />
+    </BuildingFrame>
+  );
+}
+
+/* 8 — OceanRoboticsYardSprite (production · replaces AutomatedPortSprite)
+   Dominant: partially-built AutonomousFrigate hull on a slipway into water. */
+export function OceanRoboticsYardSprite({ palette, svgOnly = false }: BuildingSpriteProps): string {
+  return (
+    <BuildingFrame label="Ocean Robotics Yard" sub="Autonomous Naval" category="production" svgOnly={svgOnly}>
+      <BuildingPlinth w={150} color={P.stone.dark} />
+      <rect x="0" y="126" width="192" height="34" fill={P.ground.water} />
+      <path d="M0,132 Q24,128 48,132 T96,132 T144,132 T192,132" stroke="#fff" strokeWidth="0.6" fill="none" opacity="0.5">
+        <animate attributeName="d"
+          values="M0,132 Q24,128 48,132 T96,132 T144,132 T192,132;M0,134 Q24,130 48,134 T96,130 T144,134 T192,134;M0,132 Q24,128 48,132 T96,132 T144,132 T192,132"
+          dur="3s" repeatCount="indefinite" calcMode="spline" keySplines="0.4 0 0.6 1;0.4 0 0.6 1" />
+      </path>
+      <path d="M28,90 L150,90 L168,132 L18,132 Z" fill={P.stone.mid} stroke={P.ink.line} strokeWidth="1" />
+      <path d="M28,90 L150,90 L168,132 L18,132 Z" fill="url(#stoneTexture)" opacity="0.4" />
+      <line x1="40" y1="96" x2="34" y2="128" stroke={P.stone.dark} strokeWidth="1.4" />
+      <line x1="120" y1="96" x2="132" y2="128" stroke={P.stone.dark} strokeWidth="1.4" />
+      <g transform="translate(90 104)">
+        <path d="M-52,4 L28,0 L52,12 L34,20 L-46,20 Z" fill={palette.mid} stroke={P.ink.line} strokeWidth="1.2" />
+        <path d="M-52,4 L-30,12 L-46,20 Z" fill={palette.dark} opacity="0.5" />
+        <path d="M28,0 L52,12 L34,20 L22,12 Z" fill={palette.dark} opacity="0.4" />
+        <line x1="-30" y1="12" x2="22" y2="12" stroke={P.metal.steel} strokeWidth="0.7" opacity="0.7" />
+        <path d="M-14,0 L14,-2 L18,-9 L-2,-12 L-18,-6 Z" fill={palette.mid} stroke={P.ink.line} strokeWidth="0.9" />
+        <line x1="-40" y1="4" x2="-40" y2="-16" stroke={P.wood.mid} strokeWidth="1.2" />
+        <line x1="0" y1="-11" x2="0" y2="-20" stroke={P.wood.mid} strokeWidth="1.2" />
+        <line x1="-40" y1="-16" x2="24" y2="-16" stroke={P.wood.mid} strokeWidth="1.2" />
+        <circle className="cq-glow" cx="12" cy="-2" r="1.8" fill="#00ff44" />
+        <circle className="cq-glow" cx="-8" cy="6" r="1.8" fill="#00aaff" />
+      </g>
+      <line x1="40" y1="46" x2="40" y2="92" stroke={P.metal.steel} strokeWidth="3" />
+      <line x1="150" y1="46" x2="150" y2="92" stroke={P.metal.steel} strokeWidth="3" />
+      <rect x="36" y="42" width="118" height="7" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.8" />
+      <line x1="96" y1="49" x2="96" y2="70" stroke={P.metal.steel} strokeWidth="2.4" />
+      <line x1="96" y1="70" x2="110" y2="80" stroke={P.metal.iron} strokeWidth="2.4" strokeLinecap="round" />
+      <circle cx="96" cy="70" r="2.6" fill={P.metal.steel} stroke={P.ink.line} strokeWidth="0.6" />
+      <circle className="cq-spark" cx="110" cy="82" r="1.6" fill="#ffd966" />
+      <circle className="cq-spark cq-spark--b" cx="116" cy="78" r="1.3" fill="#ffd966" />
+      <Banner x={54} y={46} palette={palette} scale={0.65} />
+    </BuildingFrame>
+  );
+}

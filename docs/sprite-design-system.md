@@ -118,6 +118,19 @@ follow-up, not yet implemented — do not claim them in art prompts.
 | anti_air_battery | ⚠️ placeholder | military |
 | air_force_command | ⚠️ placeholder | military |
 
+**Note:** this table predates Eras 5–13 and was never kept current for them — treat any
+building/unit not listed above as unverified by this table rather than assuming placeholder
+status. One exception, tracked explicitly because of #652: as of 2026-07-26, 5 Era 13 units
+(`combat_drone`, `autonomous_frigate`, `exosuit_infantry`, `propagandist`, `drone_controller`)
+and 8 of 15 Era 13 buildings (`network_operations_center`, `ai_safety_institute`,
+`drone_fabricator`, `electronic_warfare_array`, `civic_media_forum`, `vertical_farm`,
+`neural_rehabilitation_center`, `ocean_robotics_yard`) have real, distinct sprites — "batch A."
+The remaining 7 Era 13 buildings (`circular_fabricator`, `modular_arcology`,
+`carbon_capture_grid`, `immersive_arts_lab`, `national_ai_assurance_program`,
+`circular_manufacturing_network`, `mars_robotics_initiative` — "batch B") are still aliased to
+Era 12 placeholder sprites in `sprite-catalog.ts`; see `docs/claude-design-sprites-prompt.md`
+Part 3 for the pending prompt.
+
 ### Terrain Tiles — `src/renderer/terrain/terrain-tiles.ts` (not yet created)
 13 terrain types × 4 variants each = 52 tiles. Variant chosen by `Math.abs(q*7 + r*13) % 4`.
 
