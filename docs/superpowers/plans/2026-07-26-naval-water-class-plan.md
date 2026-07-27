@@ -1463,6 +1463,18 @@ landmass's coast via an all-`coast` path (not crossing `ocean`). If this check r
 soft-lock case, report it to the user as a separate follow-up rather than fixing it inline here —
 it's explicitly out of scope for this plan per the spec.
 
+**Execution result: the risk is real.** A throwaway check (landmass connected-component
+detection + coast-only BFS between landmasses' coastal fringes, generated via `generateMap` at 5
+seeds × 3 map sizes, run once via a temporary test file and deleted afterward — not committed, not
+a permanent test) found that in 19 of the ~19 multi-landmass map/seed combinations tested, at
+least one pair of landmasses had **no** coast-only path between them at all. The map generator
+gives no connectivity guarantee between separate landmasses. Combined with coastal-only hulls
+(Galley, Transport), this means an explorer-style player can very plausibly be unable to reach a
+second landmass until an ocean-going hull exists (Carrack at era 2, at the earliest) — not a rare
+edge case, but close to the generator's normal output. Per this step's own instruction, this is
+reported to the user rather than fixed here; it needs its own separate decision (accept as
+intentional pacing, or file a map-generator follow-up issue) before any code response.
+
 - [ ] **Step 5: Report final status**
 
 Summarize for the user: all tasks complete, full suite green, build green, and the map-connectivity
