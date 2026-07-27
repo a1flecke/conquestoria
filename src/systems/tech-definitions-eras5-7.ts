@@ -29,7 +29,7 @@ const ERA_5_TECHS: Tech[] = [
   // 100 it resolved in 8 turns, tripping the pacing-audit outlier gate. 185 lands at the
   // window midpoint. See game-balance.md's Pacing Regression Prevention rule.
   { id: 'colonial-trade', name: 'Colonial Trade', track: 'economy', cost: 185,
-    prerequisites: ['trade-routes', 'banking'],
+    prerequisites: ['trade-routes', 'banking', 'celestial-navigation'],
     unlocks: ['Trade routes to foreign civs yield +2 gold'], unlocksUnits: ['naval_trader'], era: 5 },
 
   // SCIENCE (2)
