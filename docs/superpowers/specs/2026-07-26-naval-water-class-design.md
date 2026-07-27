@@ -43,29 +43,42 @@ ceilings.
 
 ## Hull classification
 
-Boundary confirmed against two independent signals: the existing `UNIT_DESCRIPTIONS` flavor text
-(ground truth — see below) and real naval history (triremes were coastal-bound low-freeboard oared
-vessels; carracks/galleons were the first genuinely ocean-going hulls and carried their own guns,
-so cargo and combat capability graduated to open ocean together, not generations apart).
-
 | Coastal-only (forever) | Ocean-going |
 |---|---|
 | Galley, Transport | Trireme, Carrack, Galleon, Steamship, Troop Transport, Frigate, Ironclad, Pre-Dreadnought, Submarine, Carrier, Destroyer, Missile Submarine, Autonomous Frigate, Naval Trader, Steamship Trader, Cargo Freighter, Container Ship |
 
-Trireme was initially slated coastal-only (era 3, historically accurate on its own), but that
-created a 3-era window (era 3–6) where cargo ships and pirates already have ocean access and no
-player combat ship can follow — a gap real history doesn't support (armed galleons *were* the
-ocean escort of their own era, not a later invention). Trireme is unlocked by the same `triremes`
-tech as Galleon, so classifying it ocean-going too closes the gap with no new content and keeps the
-`triremes` tech as the real "the world can now cross open ocean" moment for both lines. The
-remaining coastal-only gap (Carrack goes ocean-going at era 2 `navigation`; Trireme catches up one
-era later at `triremes`) is a single-era window, not three, and is left as acceptable — a small
-piece of the ancient-piracy tension this whole feature is trying to preserve, not eliminate.
+**This boundary is a deliberate genre-convention choice, not a historically-forced one — said
+plainly so a future reader doesn't mistake it for research.** The real ancient-world split was
+never "early era = coastal, later era = ocean." It was oar-galley vs. sail-built cargo/troop ship,
+and both existed side by side from very early antiquity: Phoenician sail-powered "round ships" were
+meaningfully more seaworthy than contemporary war-galleys, and Julius Caesar's 55 BCE invasion of
+Britain crossed the open, tidal English Channel using repurposed merchant sailing ships specifically
+*because* his war-galleys/triremes were known to be unfit for that crossing. Taken at face value,
+that history argues for reclassifying `Transport` ocean-going too, leaving only `Galley` (a pure
+oared warship) permanently coastal.
 
-**Content check, not just design:** `UNIT_DESCRIPTIONS['transport']` already says "between coasts"
-and `UNIT_DESCRIPTIONS['carrack']` already says "across coasts and oceans" — both confirm this
-table without needing a text change. `UNIT_DESCRIPTIONS['galley']` ("Coastal vessel...") is
-directionally right but vague; `UNIT_DESCRIPTIONS['trireme']` makes no water claim either way.
+We're diverging from that reading on purpose. Keeping both `Galley` and `Transport` coastal until
+`Trireme`/`Carrack` matches the well-established 4X convention (Civilization's Trireme-can't-enter-
+ocean trope) that this genre's players already expect, and it's far more legible across a 7–43 age
+range than "this era-2 oared ship can't cross, but this other era-2 sailed ship can" — a distinction
+real history supports but that needs real UI teaching investment to not read as arbitrary. The
+earlier draft of this section cited `UNIT_DESCRIPTIONS['transport']`'s existing "between coasts"
+flavor text as if it were confirming evidence; it isn't — it's just pre-existing prose nobody wrote
+with this mechanic in mind, and it doesn't settle the historical question either way. The table
+above is a fun/legibility call, held deliberately against a genuinely closer historical case for the
+opposite answer.
+
+Trireme itself is classified ocean-going (not coastal) because it's unlocked by the same `triremes`
+tech as Galleon; keeping it coastal would leave a 3-era window (era 3–6) where cargo ships and
+pirates already have ocean access and no player combat ship can follow. The remaining coastal-only
+gap (Carrack goes ocean-going at era 2 `navigation`; Trireme catches up one era later at `triremes`)
+is a single-era window, not three, and is left as acceptable — a small piece of the ancient-piracy
+tension this feature is trying to preserve, not eliminate.
+
+`UNIT_DESCRIPTIONS['carrack']` ("across coasts and oceans") is consistent with the table and needs
+no text change. `UNIT_DESCRIPTIONS['galley']` ("Coastal vessel...") is directionally consistent but
+vague. `UNIT_DESCRIPTIONS['transport']` ("between coasts") also happens to be consistent with the
+chosen table, but per above that's coincidence, not corroboration.
 
 Pirate hulls, keyed to the same `PIRATE_STAGE_DEFINITIONS.triggerTechId` progression that already
 exists (this *is* the "pirates upgrade as the world era progresses" mechanism — it just doesn't
@@ -143,7 +156,9 @@ graph, not a binding pacing constraint in practice. That's an accepted, visible 
 
 - `UNIT_DESCRIPTIONS['galley']`: tighten to explicitly state it cannot enter open ocean (currently
   vague — "Coastal vessel for exploration..." implies but doesn't say so directly).
-- `UNIT_DESCRIPTIONS['transport']`: already accurate ("between coasts"); no change needed.
+- `UNIT_DESCRIPTIONS['transport']`: text ("between coasts") happens to already match the chosen
+  classification; no change needed. Not treated as historical corroboration — see Hull
+  classification above.
 - `UNIT_DESCRIPTIONS['carrack']`: already accurate ("across coasts and oceans"); no change needed.
 - `UNIT_DESCRIPTIONS['trireme']`: add a short note that it can now cross open ocean — this is a
   genuine new capability worth surfacing, not just an absence of restriction.
