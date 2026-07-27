@@ -22,6 +22,12 @@ const DENYLIST_PATTERNS: RegExp[] = [
   // unit is attacking (unit-modifier-definitions.ts: when: 'attacking') — the old
   // "in combat" wording implied it also applied on defense, which it never has.
   /air units gain \+4 strength in combat/i,
+  // #751: celestial-navigation used to be the only thing that gated ocean movement
+  // (and only for Transport, via a hardcoded check) — now ocean access is a permanent
+  // per-hull property (UnitDefinition.waterAccess) and celestial-navigation is a
+  // production prerequisite instead. This phrase claimed a universal movement unlock
+  // that was never true for any unit except Transport, and isn't true for anyone now.
+  /units can cross ocean/i,
 ];
 
 function collectStrings(): Array<{ source: string; text: string }> {
