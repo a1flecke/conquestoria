@@ -188,11 +188,15 @@ graph, not a binding pacing constraint in practice. That's an accepted, visible 
 
 ## AI
 
-Movement is centrally fixed for both player and AI/pirates (see above). Separately, AI
-escort/production logic (`ai-unit-roles.ts`, `ai-tactics.ts`, `ai-production.ts`) currently has no
-concept of hull class and could pair a coastal escort with an ocean-going convoy, producing an
-escort that silently can't follow past the coastline — not a crash, but visibly poor AI play.
-Needs its own behavioral test (see Testing).
+Movement is centrally fixed for both player and AI/pirates (see above). An earlier draft of this
+section claimed AI could pair a coastal escort with an ocean-going convoy and silently strand it —
+checked directly against `ai-unit-roles.ts`, `ai-tactics.ts`, `ai-unit-assignment.ts`, `basic-ai.ts`,
+and `ai-major-turn.ts`, and no such pairing/formation/convoy-following mechanic exists anywhere in
+this codebase. `'escort'` in `ai-unit-roles.ts` is only a role-classification tag used for threat
+prioritization, not a "follow this other unit" behavior. There is nothing for a hull-class mismatch
+to break here; the claim is retracted rather than carried into the plan. The only real AI
+requirement is the general AI/pirate parity test already covered under Testing — confirming AI-
+driven naval movement respects the same blocker as player movement, via the same shared functions.
 
 ## Save migration
 
@@ -247,7 +251,6 @@ deletion fallback:
 - `description-honesty.test.ts` denylist addition for the retired "Units can cross ocean" phrase.
 - AI/pirate parity test covering both the human path and a non-human path, per
   `end-to-end-wiring.md`.
-- AI escort-assignment test: AI does not pair a coastal escort with an ocean-going convoy.
 - Save-migration tests: ocean-stranded coastal unit relocates to nearest coast; loaded cargo
   follows; no-reachable-coast fallback triggers cleanly; hot-seat notification scoping (civ A never
   sees civ B's relocation text).
