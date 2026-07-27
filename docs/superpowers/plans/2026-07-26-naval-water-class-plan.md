@@ -616,6 +616,16 @@ import {
 } from '@/systems/unit-system';
 ```
 
+Add `UnitType` to the existing type-only import from `@/core/types` (current line 2):
+
+```ts
+import type { GameState, HexCoord, UnitType, VillageOutcomeType } from '@/core/types';
+```
+
+`getImpassableReason`'s `unitType` parameter was always typed as bare `string` even though its
+only caller (`unit.type`) is always `UnitType` — fixing that properly here instead of casting
+around it, since the function body is being rewritten anyway.
+
 Replace `getImpassableReason` (current lines 295-310):
 
 ```ts
@@ -641,11 +651,11 @@ with:
 
 ```ts
 function getImpassableReason(
-  unitType: string,
+  unitType: UnitType,
   terrain: string,
 ): { reason: UnitMovementBlockerCode; message: string } {
-  const domain = UNIT_DEFINITIONS[unitType as keyof typeof UNIT_DEFINITIONS]?.domain ?? 'land';
-  if (domain === 'naval' && terrain === 'ocean' && !canHullEnterOcean(unitType as never)) {
+  const domain = UNIT_DEFINITIONS[unitType]?.domain ?? 'land';
+  if (domain === 'naval' && terrain === 'ocean' && !canHullEnterOcean(unitType)) {
     return {
       reason: 'requires-ocean-hull',
       message: "This ship can't survive the open sea — upgrade it to go further.",
@@ -901,7 +911,7 @@ to:
 
 ```ts
   galley: 'Coastal vessel for exploration and early naval patrols. Cannot enter open ocean.',
-  trireme: 'Warship with strong naval combat capabilities. Can now cross open ocean.',
+  trireme: 'Warship with strong naval combat capabilities. Ocean-capable — can sail beyond the coast.',
 ```
 
 - [ ] **Step 2: Add the retired tech text to the description-honesty denylist**
@@ -1060,7 +1070,13 @@ describe('#751 — migrateCoastalHullsOffOcean (schema 9)', () => {
     const galley = { ...Object.values(save.units)[0]!, id: 'unreachable-galley', type: 'galley' as const, owner: civ.id, position: { q: 1, r: 1 } };
     save.units = { [galley.id]: galley };
     civ.units = [galley.id];
+    // The synthetic 3x3 map above doesn't contain createNewGame's original starting-city
+    // position, so both save.cities and civ.cities must be cleared together here — leaving
+    // civ.cities pointing at a city id no longer present in save.cities would dangle through
+    // this migration pipeline's unconditional passes exactly the way a stale diplomacy
+    // reference would (see game-systems.md's Diplomacy Lifecycle rule for the general pattern).
     save.cities = {};
+    civ.cities = [];
 
     const migrated = migrateSaveToCurrent(save);
     expect(migrated.units[galley.id]).toBeUndefined();
@@ -1408,7 +1424,8 @@ check's outcome from Step 4 (clean, or a follow-up issue is warranted).
   advance), and its steps give exact grep commands and exact decision criteria rather than vague
   instructions.
 - **Type consistency:** `canHullEnterOcean(unitType: UnitType): boolean` (Task 2) matches its use
-  in both `unit-system.ts` and `unit-movement-system.ts` (cast via `unitType as never` in the
-  latter, since that function's parameter is untyped `string` — matching its existing signature
-  rather than widening it beyond this task's scope). `waterAccess: 'coastal' | 'ocean'` (Task 1)
-  is used identically in every later task that reads it.
+  in both `unit-system.ts` and `unit-movement-system.ts` — `getImpassableReason`'s `unitType`
+  parameter is retyped from bare `string` to `UnitType` as part of this task (its only caller
+  always passed a `UnitType` anyway), so no cast is needed at either call site.
+  `waterAccess: 'coastal' | 'ocean'` (Task 1) is used identically in every later task that reads
+  it.
