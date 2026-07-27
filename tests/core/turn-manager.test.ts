@@ -1608,6 +1608,32 @@ describe('journey automation', () => {
     expect(result.units[unitId]!.automation).toBeUndefined();
   });
 
+  it('#751: journey planning respects hull class — a coastal-only ship never plans a path across ocean', () => {
+    const { state, unitId } = makeJourneyFixture({ q: 0, r: 1 }, { q: 5, r: 1 });
+    const galley: Unit = { ...state.units[unitId]!, type: 'galley' };
+    state.units[unitId] = galley;
+    // The whole map between start and destination is ocean apart from a strip of coast at the
+    // start — a coastal-only hull can never reach column 5, so this must behave exactly like
+    // the "unreachable" case above, not silently accept a domain-only path through ocean.
+    for (let q = 1; q <= 5; q += 1) {
+      for (const r of [0, 1, 2]) {
+        state.map.tiles[`${q},${r}`] = { ...state.map.tiles[`${q},${r}`]!, terrain: 'ocean' };
+      }
+    }
+    state.map.tiles['0,1'] = { ...state.map.tiles['0,1']!, terrain: 'coast' };
+
+    const bus = new EventBus();
+    const blockedEvents: { unitId: string }[] = [];
+    bus.on('unit:journey-blocked', (payload) => blockedEvents.push(payload));
+
+    const result = processTurn(state, bus);
+    expect(blockedEvents).toHaveLength(1);
+    expect(blockedEvents[0].unitId).toBe(unitId);
+    expect(result.units[unitId]!.automation).toBeUndefined();
+    // The unit must not have silently taken a step into ocean before being caught.
+    expect(result.units[unitId]!.position).toEqual({ q: 0, r: 1 });
+  });
+
   it('#591 MR4: processTurn advances religion spread (processReligionTurn is wired in)', () => {
     const state = createNewGame(undefined, 'religion-turn-wiring', 'small');
     const civId = 'player';
