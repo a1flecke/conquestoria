@@ -421,16 +421,17 @@ describe('getMovementBlockerReason', () => {
     });
   });
 
-  it('uses distinct Transport tech blocker reasons for coast and ocean', () => {
+  it('blocks a coastal-only Transport from ocean regardless of completed techs', () => {
     const map = createWrappedGrasslandMap(5, 5);
     map.tiles['0,0'] = { ...map.tiles['0,0'], terrain: 'coast' };
     map.tiles['1,0'] = { ...map.tiles['1,0'], terrain: 'coast' };
     map.tiles['2,0'] = { ...map.tiles['2,0'], terrain: 'ocean' };
     const transport = createUnit('transport', 'player', { q: 0, r: 0 }, mkC());
 
-    expect(getMovementBlockerReason(transport, { q: 1, r: 0 }, map)?.code).toBe('requires-galleys');
-    expect(getMovementBlockerReason(transport, { q: 2, r: 0 }, map, { completedTechs: ['galleys'] })?.code)
-      .toBe('requires-celestial-navigation');
+    expect(getMovementBlockerReason(transport, { q: 1, r: 0 }, map)).toBeNull();
+    expect(
+      getMovementBlockerReason(transport, { q: 2, r: 0 }, map, { completedTechs: ['galleys', 'celestial-navigation'] })?.code,
+    ).toBe('requires-ocean-hull');
   });
 });
 

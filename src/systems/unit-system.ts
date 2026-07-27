@@ -813,8 +813,7 @@ export type UnitMovementBlockerCode =
   | 'unexplored'
   | 'impassable-water'
   | 'impassable-terrain'
-  | 'requires-galleys'
-  | 'requires-celestial-navigation'
+  | 'requires-ocean-hull'
   | 'occupied'
   | 'foreign-city'
   | 'unreachable'
@@ -822,6 +821,10 @@ export type UnitMovementBlockerCode =
 
 export interface UnitMovementContext {
   completedTechs?: string[];
+}
+
+export function canHullEnterOcean(unitType: UnitType): boolean {
+  return UNIT_DEFINITIONS[unitType]?.waterAccess === 'ocean';
 }
 
 export function getMovementCostForUnitInContext(
@@ -836,10 +839,7 @@ export function getMovementCostForUnitInContext(
 
   if (domain === 'naval') {
     if (terrain !== 'ocean' && terrain !== 'coast') return Infinity;
-    if (unit.type !== 'transport') return 1;
-    const completedTechs = context.completedTechs ?? [];
-    if (!completedTechs.includes('galleys')) return Infinity;
-    if (terrain === 'ocean' && !completedTechs.includes('celestial-navigation')) return Infinity;
+    if (terrain === 'ocean' && !canHullEnterOcean(unit.type)) return Infinity;
     return 1;
   }
 
@@ -906,8 +906,7 @@ export interface MovementBlockerReason {
     | 'unknown-tile'
     | 'impassable-water'
     | 'impassable-terrain'
-    | 'requires-galleys'
-    | 'requires-celestial-navigation'
+    | 'requires-ocean-hull'
     | 'occupied'
     | 'unreachable'
     | 'insufficient-movement';
@@ -932,11 +931,11 @@ export function getMovementBlockerReason(
 
   const domain = UNIT_DEFINITIONS[unit.type]?.domain ?? 'land';
   if (!isPassableForUnitInContext(unit, tile.terrain, { completedTechs: options.completedTechs })) {
-    if (unit.type === 'transport' && (tile.terrain === 'coast' || tile.terrain === 'ocean') && !options.completedTechs?.includes('galleys')) {
-      return { code: 'requires-galleys', message: 'Need Galleys to sail a Transport.' };
-    }
-    if (unit.type === 'transport' && tile.terrain === 'ocean') {
-      return { code: 'requires-celestial-navigation', message: 'Need Celestial Navigation to cross ocean.' };
+    if (domain === 'naval' && tile.terrain === 'ocean' && !canHullEnterOcean(unit.type)) {
+      return {
+        code: 'requires-ocean-hull',
+        message: "This ship can't survive the open sea — upgrade it to go further.",
+      };
     }
     if (domain === 'naval') {
       return { code: 'impassable-terrain', message: 'Naval units cannot move on land.' };

@@ -1,5 +1,5 @@
 import type { EventBus } from '@/core/event-bus';
-import type { GameState, HexCoord, VillageOutcomeType } from '@/core/types';
+import type { GameState, HexCoord, UnitType, VillageOutcomeType } from '@/core/types';
 import { getVisibility, updateVisibility } from '@/systems/fog-of-war';
 import { getActiveNationalProjectsForCiv } from '@/systems/national-project-system';
 import { getVisionBonus } from '@/systems/unit-modifier-system';
@@ -13,6 +13,7 @@ import {
   findPath,
   findPathToCity,
   UNIT_DEFINITIONS,
+  canHullEnterOcean,
   type UnitMovementBlockerCode,
 } from '@/systems/unit-system';
 import { visitVillage } from '@/systems/village-system';
@@ -293,15 +294,15 @@ function hasAlliance(
 }
 
 function getImpassableReason(
-  unitType: string,
+  unitType: UnitType,
   terrain: string,
-  completedTechs: string[],
 ): { reason: UnitMovementBlockerCode; message: string } {
-  if (unitType === 'transport' && (terrain === 'coast' || terrain === 'ocean') && !completedTechs.includes('galleys')) {
-    return { reason: 'requires-galleys', message: 'Need Galleys to sail a Transport.' };
-  }
-  if (unitType === 'transport' && terrain === 'ocean' && !completedTechs.includes('celestial-navigation')) {
-    return { reason: 'requires-celestial-navigation', message: 'Need Celestial Navigation to cross ocean.' };
+  const domain = UNIT_DEFINITIONS[unitType]?.domain ?? 'land';
+  if (domain === 'naval' && terrain === 'ocean' && !canHullEnterOcean(unitType)) {
+    return {
+      reason: 'requires-ocean-hull',
+      message: "This ship can't survive the open sea — upgrade it to go further.",
+    };
   }
   if (terrain === 'ocean' || terrain === 'coast') {
     return { reason: 'impassable-water', message: 'Land units cannot cross water yet.' };
@@ -352,7 +353,7 @@ export function validateUnitMove(
   const completedTechs = getOwnerCompletedTechs(state, unit.owner);
   const targetCost = getMovementCostForUnitInContext(unit, tile.terrain, { completedTechs });
   if (targetCost === Infinity) {
-    const blocker = getImpassableReason(unit.type, tile.terrain, completedTechs);
+    const blocker = getImpassableReason(unit.type, tile.terrain);
     return movementFailure(from, target, [from, target], blocker.reason, blocker.message);
   }
 

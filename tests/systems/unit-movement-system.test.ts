@@ -443,7 +443,7 @@ describe('unit-movement-system', () => {
     expect(state.units.mover.position).toEqual({ q: 0, r: 0 });
   });
 
-  it('gates Transport coast and ocean movement by owner tech', () => {
+  it('blocks Transport (coastal-only hull) from ocean regardless of owner tech', () => {
     const transport = createUnit('transport', 'player', { q: 0, r: 0 }, mkC());
     transport.id = 'transport';
     const tiles = [
@@ -452,24 +452,19 @@ describe('unit-movement-system', () => {
       tile({ q: 2, r: 0 }, 'ocean'),
     ];
 
-    const noGalleys = movementState({ ...transport }, tiles);
-    expect(executeUnitMove(noGalleys, 'transport', { q: 1, r: 0 }, { actor: 'player', civId: 'player' })).toMatchObject({
-      ok: false,
-      reason: 'requires-galleys',
-    });
-
-    const withGalleys = movementState({ ...transport }, tiles, { completedTechs: ['galleys'] });
-    expect(executeUnitMove(withGalleys, 'transport', { q: 1, r: 0 }, { actor: 'player', civId: 'player' })).toMatchObject({
+    const noTechs = movementState({ ...transport }, tiles);
+    expect(executeUnitMove(noTechs, 'transport', { q: 1, r: 0 }, { actor: 'player', civId: 'player' })).toMatchObject({
       ok: true,
     });
-    expect(executeUnitMove(withGalleys, 'transport', { q: 2, r: 0 }, { actor: 'player', civId: 'player' })).toMatchObject({
+    expect(executeUnitMove(noTechs, 'transport', { q: 2, r: 0 }, { actor: 'player', civId: 'player' })).toMatchObject({
       ok: false,
-      reason: 'requires-celestial-navigation',
+      reason: 'requires-ocean-hull',
     });
 
     const withOceanTech = movementState({ ...transport }, tiles, { completedTechs: ['galleys', 'celestial-navigation'] });
     expect(executeUnitMove(withOceanTech, 'transport', { q: 2, r: 0 }, { actor: 'player', civId: 'player' })).toMatchObject({
-      ok: true,
+      ok: false,
+      reason: 'requires-ocean-hull',
     });
   });
 

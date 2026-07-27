@@ -68,7 +68,10 @@ describe('AI pirate response', () => {
     const state = fixture();
     addFaction(state);
     revealFaction(state);
-    const escort = addUnit(state, 'escort', 'galley', 'ai-1', { q: 0, r: 0 });
+    // #751: Galley is coastal-only and this fixture's map is all-ocean apart from the r===1
+    // land row, so a Galley placed on ocean could never move at all. Use Trireme (ocean-going)
+    // instead — the test is about AI escort behavior generally, not the Galley hull.
+    const escort = addUnit(state, 'escort', 'trireme', 'ai-1', { q: 0, r: 0 });
     const transport = addUnit(state, 'transport', 'transport', 'ai-1', { q: 3, r: 0 });
     const cargo = addUnit(state, 'cargo', 'warrior', 'ai-1', { q: 3, r: 0 });
     transport.cargoUnitIds = [cargo.id];
@@ -82,14 +85,16 @@ describe('AI pirate response', () => {
   it('hunts only an earned headquarters location and never a hidden live coordinate', () => {
     const hidden = fixture();
     addFaction(hidden);
-    const ship = addUnit(hidden, 'hunter', 'galley', 'ai-1', { q: 0, r: 0 });
+    // #751: Trireme (ocean-going) instead of Galley (coastal-only) — this fixture's map is
+    // all-ocean apart from the land row, so a coastal-only hull could never move to hunt.
+    const ship = addUnit(hidden, 'hunter', 'trireme', 'ai-1', { q: 0, r: 0 });
 
     const hiddenResult = applyPirateAiResponse(hidden, 'ai-1', new EventBus());
     expect(hiddenResult.units[ship.id].position).toEqual({ q: 0, r: 0 });
 
     const known = fixture();
     addFaction(known);
-    const knownShip = addUnit(known, 'hunter', 'galley', 'ai-1', { q: 0, r: 0 });
+    const knownShip = addUnit(known, 'hunter', 'trireme', 'ai-1', { q: 0, r: 0 });
     known.civilizations['ai-1'].visibility.tiles['6,1'] = 'visible';
     revealFaction(known, {
       lastKnownHeadquarters: { kind: 'coastal-enclave', position: { q: 6, r: 1 }, observedRound: 20, integrityBand: 'healthy' },
