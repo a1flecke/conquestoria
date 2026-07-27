@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { UNIT_DEFINITIONS, createUnit, getMovementBlockerReason } from '@/systems/unit-system';
 import { PIRATE_HULL_DEFINITIONS, PIRATE_HULL_TYPES } from '@/systems/pirate-definitions';
+import { TECH_TREE } from '@/systems/tech-definitions';
 import type { GameMap } from '@/core/types';
 
 describe('naval hull water-class catalog coverage', () => {
@@ -122,5 +123,28 @@ describe('naval hull water-class movement enforcement', () => {
     const reason = getMovementBlockerReason(galley, { q: 2, r: 0 }, map);
     expect(reason?.message.toLowerCase()).not.toContain('waterAccess'.toLowerCase());
     expect(reason?.message.toLowerCase()).not.toContain('hull class');
+  });
+});
+
+describe('celestial-navigation repurposed as an ocean-going production prerequisite', () => {
+  function techPrereqs(id: string): string[] {
+    return TECH_TREE.find(tech => tech.id === id)?.prerequisites ?? [];
+  }
+
+  it('is a prerequisite of navigation (first ocean-going cargo hull, Carrack)', () => {
+    expect(techPrereqs('navigation')).toContain('celestial-navigation');
+  });
+
+  it('is a prerequisite of triremes (first ocean-going combat hull, Trireme)', () => {
+    expect(techPrereqs('triremes')).toContain('celestial-navigation');
+  });
+
+  it('is a prerequisite of colonial-trade (first ocean-going trade hull, Naval Trader)', () => {
+    expect(techPrereqs('colonial-trade')).toContain('celestial-navigation');
+  });
+
+  it('no longer claims to be a movement unlock', () => {
+    const tech = TECH_TREE.find(t => t.id === 'celestial-navigation')!;
+    expect(tech.unlocks).not.toContain('Units can cross ocean');
   });
 });
