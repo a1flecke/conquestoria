@@ -26,6 +26,7 @@ export interface PirateHullDefinition {
   strength: number;
   movementPoints: number;
   visionRange: number;
+  waterAccess: 'coastal' | 'ocean';
   mapIcon: string;
   spriteId: PirateHullType;
   sfxFamily: PirateSfxFamily;
@@ -34,32 +35,32 @@ export interface PirateHullDefinition {
 export const PIRATE_HULL_DEFINITIONS: Record<PirateHullType, PirateHullDefinition> = {
   pirate_galley: {
     type: 'pirate_galley', name: 'Pirate Galley', introducedAtStage: 1,
-    strength: 14, movementPoints: 3, visionRange: 3,
+    strength: 14, movementPoints: 3, visionRange: 3, waterAccess: 'coastal',
     mapIcon: 'sail', spriteId: 'pirate_galley', sfxFamily: 'oared-raider',
   },
   pirate_corsair: {
     type: 'pirate_corsair', name: 'Corsair Xebec', introducedAtStage: 2,
-    strength: 20, movementPoints: 4, visionRange: 3,
+    strength: 20, movementPoints: 4, visionRange: 3, waterAccess: 'coastal',
     mapIcon: 'lateen-sail', spriteId: 'pirate_corsair', sfxFamily: 'sail-raider',
   },
   pirate_frigate: {
     type: 'pirate_frigate', name: 'Pirate Frigate', introducedAtStage: 3,
-    strength: 28, movementPoints: 4, visionRange: 4,
+    strength: 28, movementPoints: 4, visionRange: 4, waterAccess: 'ocean',
     mapIcon: 'broadside', spriteId: 'pirate_frigate', sfxFamily: 'cannon-raider',
   },
   pirate_ironclad: {
     type: 'pirate_ironclad', name: 'Ironclad Raider', introducedAtStage: 4,
-    strength: 36, movementPoints: 4, visionRange: 4,
+    strength: 36, movementPoints: 4, visionRange: 4, waterAccess: 'ocean',
     mapIcon: 'iron-hull', spriteId: 'pirate_ironclad', sfxFamily: 'iron-raider',
   },
   pirate_fast_attack_craft: {
     type: 'pirate_fast_attack_craft', name: 'Fast Attack Craft', introducedAtStage: 5,
-    strength: 40, movementPoints: 5, visionRange: 5,
+    strength: 40, movementPoints: 5, visionRange: 5, waterAccess: 'ocean',
     mapIcon: 'fast-craft', spriteId: 'pirate_fast_attack_craft', sfxFamily: 'fast-attack-raider',
   },
   pirate_mothership: {
     type: 'pirate_mothership', name: 'Pirate Mothership', introducedAtStage: 5,
-    strength: 46, movementPoints: 4, visionRange: 5,
+    strength: 46, movementPoints: 4, visionRange: 5, waterAccess: 'ocean',
     mapIcon: 'command-ship', spriteId: 'pirate_mothership', sfxFamily: 'command-flotilla',
   },
 };
