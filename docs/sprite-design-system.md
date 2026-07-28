@@ -71,12 +71,21 @@ Registered in `UNIT_SPRITE_CATALOG` in `src/renderer/sprites/sprite-catalog.ts`.
 ### Buildings — `src/renderer/sprites/buildings.tsx`
 Registered in `BUILDING_SPRITE_CATALOG` in `src/renderer/sprites/sprite-catalog.ts`.
 
-Live render surface (#658): the city production badge on the hex map
-(`drawCityProductionBadgePass` in `src/renderer/city-render-passes.ts`) draws the queued
-building's sprite via `spriteCache.getBuilding()` — or the queued unit's sprite via
-`spriteCache.getUnit()` — falling back to the `PRODUCTION_ICONS` emoji while sprites load
-and for legendary-wonder queue items. City-panel thumbnail surfaces are a possible
-follow-up, not yet implemented — do not claim them in art prompts.
+Live render surfaces:
+- **City production badge (#658)** — the hex map's `drawCityProductionBadgePass` in
+  `src/renderer/city-render-passes.ts` draws the queued building's sprite via
+  `spriteCache.getBuilding()` — or the queued unit's sprite via `spriteCache.getUnit()` — falling
+  back to the `PRODUCTION_ICONS` emoji while sprites load and for legendary-wonder queue items.
+  Canvas-rasterized, always static (see sprite-loader.ts's two-pipeline note below).
+- **City panel Buildings list** — `src/ui/city-panel-building-icon.ts`'s
+  `getAnimatedBuildingIconHtml()` renders every *built* building as a small (36px) animated
+  `.cq-v2` DOM sprite next to its row, picking up `sprite-animations-v2.css` idle animation for
+  free. Falls back to `PRODUCTION_ICON_FALLBACK` (🏗️) for the ~69 of 74 legendary-wonder ids with
+  no `BUILDING_SPRITE_CATALOG` entry (only `pyramids`, `colosseum`, `great_library`, `lighthouse`,
+  and `wright-flyer` have one).
+
+Both consumers read the same `BUILDING_SPRITE_CATALOG`; nothing else (map diorama tiles, a
+build-chooser preview, damage-tier states) is wired to it yet — do not claim those in art prompts.
 
 | Building | Status | Category |
 |----------|--------|----------|
