@@ -60,6 +60,10 @@ import {
   NetworkOperationsCenterSprite, AiSafetyInstituteSprite, DroneFabricatorSprite,
   ElectronicWarfareArraySprite, CivicMediaForumSprite, VerticalFarmSprite,
   NeuralRehabilitationCenterSprite, OceanRoboticsYardSprite,
+  // era 13 batch B
+  CircularFabricatorSprite, ModularArcologySprite, CarbonCaptureGridSprite,
+  ImmersiveArtsLabSprite, NationalAiAssuranceProgramSprite,
+  CircularManufacturingNetworkSprite, MarsRoboticsInitiativeSprite,
 } from './buildings';
 import {
   PyramidsSprite, ColosseumSprite, GreatLibrarySprite, LighthouseSprite, WrightFlyerSprite,
@@ -497,17 +501,15 @@ export const BUILDING_SPRITE_CATALOG: Record<string, BuildingSpriteComponent> = 
   vertical_farm:                  VerticalFarmSprite,
   neural_rehabilitation_center:   NeuralRehabilitationCenterSprite,
   ocean_robotics_yard:            OceanRoboticsYardSprite,
-  // Era 13 content launch: temporary thematically-close mappings. #652 owns
-  // the remaining replacement (batch B) with distinct, production-ready SVG
-  // components. Keeping these entries catalog-driven preserves normal
-  // renderer fallbacks while the dedicated art pass is in progress.
-  circular_fabricator:            SmartGridSprite,
-  modular_arcology:               DataCenterSprite,
-  carbon_capture_grid:            SmartGridSprite,
-  immersive_arts_lab:             BroadcastTowerSprite,
-  national_ai_assurance_program:  CyberDefenseCenterSprite,
-  circular_manufacturing_network: SmartGridSprite,
-  mars_robotics_initiative:       RocketProgramSprite,
+  // Era 13 (#652), batch B — bespoke sprites landed 2026-07-27. #652 is now
+  // fully shipped: all 20 Era 13 units/buildings have bespoke, non-aliased art.
+  circular_fabricator:            CircularFabricatorSprite,
+  modular_arcology:               ModularArcologySprite,
+  carbon_capture_grid:            CarbonCaptureGridSprite,
+  immersive_arts_lab:             ImmersiveArtsLabSprite,
+  national_ai_assurance_program:  NationalAiAssuranceProgramSprite,
+  circular_manufacturing_network: CircularManufacturingNetworkSprite,
+  mars_robotics_initiative:       MarsRoboticsInitiativeSprite,
 };
 
 export const PIRATE_HEADQUARTERS_SPRITE_CATALOG: Record<PirateHeadquartersSpriteId, LandmarkSpriteComponent> = {

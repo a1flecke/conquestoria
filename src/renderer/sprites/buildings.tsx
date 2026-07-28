@@ -3488,3 +3488,376 @@ export function OceanRoboticsYardSprite({ palette, svgOnly = false }: BuildingSp
     </BuildingFrame>
   );
 }
+/* 1 — CircularFabricatorSprite (production · replaces SmartGridSprite)
+   Dominant: a closed material-loop conveyor ring (NOT Smart Grid's transformer
+   scene). Material blocks ride the loop; a fabricator head sits at its base. */
+export function CircularFabricatorSprite({ palette, svgOnly = false }: BuildingSpriteProps): string {
+  const rollers = Array.from({ length: 18 }).map((_, i) => {
+    const a = (i / 18) * Math.PI * 2;
+    return (
+      <line
+        x1={94 + Math.cos(a) * 35} y1={86 + Math.sin(a) * 35}
+        x2={94 + Math.cos(a) * 49} y2={86 + Math.sin(a) * 49}
+        stroke={P.ink.soft} strokeWidth="0.7" opacity="0.45"
+      />
+    );
+  }).join('');
+  const block = (a: number, fill: string): string => (
+    <rect
+      x={94 + Math.cos(a) * 42 - 6} y={86 + Math.sin(a) * 42 - 4}
+      width="12" height="8" rx="2" fill={fill} stroke={P.ink.line} strokeWidth="0.6"
+    />
+  );
+  return (
+    <BuildingFrame label="Circular Fabricator" sub="Materials Loop" category="production" svgOnly={svgOnly}>
+      <BuildingPlinth w={150} />
+      {/* DOMINANT — closed conveyor ring, established first & largest */}
+      <circle cx="94" cy="86" r="42" fill="none" stroke={P.metal.steel} strokeWidth="15" />
+      <circle cx="94" cy="86" r="49.5" fill="none" stroke={P.ink.line} strokeWidth="0.9" opacity="0.6" />
+      <circle cx="94" cy="86" r="34.5" fill="none" stroke={P.ink.line} strokeWidth="0.9" opacity="0.6" />
+      {/* material blocks + rollers ORBIT the loop via .cq-wheel — reads as a
+         running fabricator, not a static ring. Pivots about the loop centre. */}
+      <g className="cq-wheel" style="transform-box:view-box;transform-origin:94px 86px;animation-duration:11s">
+        {rollers}
+        {block(-Math.PI / 2, palette.mid)}
+        {block(0, P.metal.bronze)}
+        {block(Math.PI * 0.78, palette.mid)}
+        {block(Math.PI * 1.16, P.metal.bronze)}
+      </g>
+      {/* flow LEDs at loop junctions */}
+      <circle className="cq-glow" cx="136" cy="86" r="2.4" fill="#00ff44" />
+      <circle className="cq-glow" cx="60" cy="114" r="2.4" fill="#00ff44" />
+      {/* fabricator head at the base of the loop */}
+      <rect x="76" y="120" width="36" height="20" rx="2" fill={P.stone.dark} stroke={P.ink.line} strokeWidth="1" />
+      <rect x="76" y="120" width="36" height="5" fill={P.stone.mid} opacity="0.5" />
+      <rect x="88" y="112" width="12" height="10" fill={P.stone.dark} stroke={P.ink.line} strokeWidth="0.7" />
+      <rect x="90" y="138" width="8" height="4" fill="#00ff44" opacity="0.85" />
+      <rect x="82" y="126" width="10" height="6" rx="1" fill="#0a0a20" stroke={P.metal.steel} strokeWidth="0.6" />
+      <circle cx="85" cy="129" r="1.3" fill="#00aaff" />
+      {/* sparks at the fabricator head */}
+      <circle className="cq-spark" cx="98" cy="118" r="1.5" fill="#ffd966" />
+      <circle className="cq-spark cq-spark--b" cx="104" cy="114" r="1.2" fill="#ffd966" />
+      <circle className="cq-spark cq-spark--c" cx="100" cy="122" r="1.1" fill="#ffb84d" />
+      <Banner x={46} y={52} palette={palette} scale={0.65} />
+    </BuildingFrame>
+  );
+}
+
+/* 2 — ModularArcologySprite (food · replaces DataCenterSprite)
+   Dominant: one tall interlocking-module tower (staggered cuboids read as a
+   single composite). Warm residential modules vs dark industrial ones. */
+export function ModularArcologySprite({ palette, svgOnly = false }: BuildingSpriteProps): string {
+  return (
+    <BuildingFrame label="Modular Arcology" sub="Dense Housing" category="food" svgOnly={svgOnly}>
+      <BuildingPlinth w={130} />
+      {/* central vertical core/spine tying the modules together */}
+      <rect x="90" y="30" width="13" height="110" fill={P.stone.mid} stroke={P.ink.line} strokeWidth="1" />
+      <rect x="90" y="30" width="13" height="110" fill="url(#stoneTexture)" opacity="0.4" />
+      {/* connecting walkways between module clusters */}
+      <rect x="62" y="70" width="34" height="4" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.5" />
+      <rect x="98" y="94" width="30" height="4" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.5" />
+      <rect x="60" y="120" width="34" height="4" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.5" />
+      {/* DOMINANT — staggered interlocking modules (one composite tower) */}
+      {/* residential (linen, warm) */}
+      <rect x="60" y="38" width="34" height="28" fill={P.cloth.linen} stroke={P.ink.line} strokeWidth="1" />
+      <rect x="62" y="72" width="32" height="26" fill={P.cloth.linen} stroke={P.ink.line} strokeWidth="1" />
+      <rect x="56" y="102" width="38" height="26" fill={P.cloth.linen} stroke={P.ink.line} strokeWidth="1" />
+      {/* industrial (dark steel) */}
+      <rect x="100" y="34" width="36" height="26" fill={P.stone.dark} stroke={P.ink.line} strokeWidth="1" />
+      <rect x="100" y="34" width="36" height="26" fill={P.metal.steel} opacity="0.18" />
+      <rect x="100" y="62" width="34" height="30" fill={P.stone.dark} stroke={P.ink.line} strokeWidth="1" />
+      <rect x="100" y="62" width="34" height="30" fill={P.metal.steel} opacity="0.18" />
+      <rect x="100" y="100" width="32" height="28" fill={P.stone.dark} stroke={P.ink.line} strokeWidth="1" />
+      <rect x="100" y="100" width="32" height="28" fill={P.metal.steel} opacity="0.18" />
+      {/* warm window dots on residential modules */}
+      <g fill={P.metal.gold} opacity="0.7">
+        <circle cx="67" cy="46" r="2" /><circle cx="75" cy="46" r="2" /><circle cx="83" cy="46" r="2" />
+        <circle cx="68" cy="56" r="2" /><circle cx="76" cy="56" r="2" />
+        <circle cx="69" cy="80" r="2" /><circle cx="77" cy="80" r="2" /><circle cx="85" cy="80" r="2" />
+        <circle cx="64" cy="112" r="2" /><circle cx="72" cy="112" r="2" /><circle cx="80" cy="112" r="2" /><circle cx="88" cy="112" r="2" />
+      </g>
+      {/* small industrial status dots */}
+      <circle className="cq-glow" cx="118" cy="46" r="1.8" fill="#00aaff" />
+      <circle className="cq-glow" cx="116" cy="76" r="1.8" fill="#00aaff" />
+      <circle cx="115" cy="114" r="1.8" fill="#00ff44" />
+      {/* industrial louvre lines */}
+      <g stroke={P.ink.line} strokeWidth="0.4" opacity="0.5">
+        <line x1="104" y1="70" x2="130" y2="70" /><line x1="104" y1="78" x2="130" y2="78" />
+        <line x1="104" y1="108" x2="128" y2="108" /><line x1="104" y1="118" x2="128" y2="118" />
+      </g>
+      <Banner x={92} y={30} palette={palette} scale={0.65} />
+    </BuildingFrame>
+  );
+}
+
+/* 3 — CarbonCaptureGridSprite (production · replaces SmartGridSprite)
+   Dominant: slim capture stacks that pull air IN (inward chevrons at the
+   intakes), piped to a sealed sequestration vault. NOT a power plant. */
+export function CarbonCaptureGridSprite({ palette, svgOnly = false }: BuildingSpriteProps): string {
+  const stack = (x: number, h: number): string => (
+    <g>
+      {/* slim vertical stack */}
+      <rect x={x - 6} y={140 - h} width="12" height={h} fill={P.metal.steel} stroke={P.ink.line} strokeWidth="1" />
+      <rect x={x - 6} y={140 - h} width="4" height={h} fill={P.metal.shine} opacity="0.35" />
+      {/* filter / mesh cap */}
+      <rect x={x - 9} y={140 - h - 8} width="18" height="8" rx="1.5" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.8" />
+      <line x1={x - 7} y1={140 - h - 6} x2={x + 7} y2={140 - h - 6} stroke={P.ink.line} strokeWidth="0.4" opacity="0.6" />
+      <line x1={x - 7} y1={140 - h - 3} x2={x + 7} y2={140 - h - 3} stroke={P.ink.line} strokeWidth="0.4" opacity="0.6" />
+      {/* inward-drawing chevrons above the intake (air pulled IN, not smoke out);
+         .cq-glow pulses them so the intake reads as actively running */}
+      <g className="cq-glow" stroke="#00ff88" strokeWidth="1.4" fill="none" strokeLinecap="round" opacity="0.85">
+        <path d={`M${x - 7},${140 - h - 20} L${x},${140 - h - 14} L${x + 7},${140 - h - 20}`} />
+        <path d={`M${x - 5},${140 - h - 28} L${x},${140 - h - 23} L${x + 5},${140 - h - 28}`} opacity="0.6" />
+      </g>
+    </g>
+  );
+  return (
+    <BuildingFrame label="Carbon Capture Grid" sub="Restorative Industry" category="production" svgOnly={svgOnly}>
+      <BuildingPlinth w={155} />
+      {/* pipeline network from the stacks down to the sequestration node */}
+      <g stroke={P.metal.iron} strokeWidth="3.4" fill="none">
+        <path d="M70,132 L70,120 L128,120 L128,128" />
+        <path d="M96,132 L96,124 L128,124" />
+        <path d="M118,120 L118,112" />
+      </g>
+      {/* DOMINANT — three slim capture stacks pulling inward */}
+      {stack(70, 84)}
+      {stack(96, 96)}
+      {stack(118, 72)}
+      {/* sealed sequestration vault (hatched circle) */}
+      <circle cx="128" cy="134" r="12" fill={P.stone.dark} stroke={P.ink.line} strokeWidth="1" />
+      <g stroke={P.stone.mid} strokeWidth="0.7" opacity="0.7">
+        <line x1="120" y1="130" x2="136" y2="130" /><line x1="118" y1="134" x2="138" y2="134" />
+        <line x1="120" y1="138" x2="136" y2="138" />
+      </g>
+      <circle cx="128" cy="134" r="3" fill={P.stone.mid} stroke={P.ink.line} strokeWidth="0.5" />
+      {/* small control building + active-capture status light */}
+      <rect x="30" y="112" width="30" height="28" fill={P.stone.mid} stroke={P.ink.line} strokeWidth="1" />
+      <rect x="30" y="112" width="30" height="28" fill="url(#stoneTexture)" opacity="0.5" />
+      <rect x="36" y="120" width="18" height="10" fill="#112244" stroke={P.metal.steel} strokeWidth="0.6" />
+      <circle className="cq-glow" cx="45" cy="116" r="2" fill="#00ff44" />
+      {/* restorative green accents */}
+      <ellipse cx="46" cy="140" rx="8" ry="3" fill={P.ground.grass} opacity="0.9" />
+      <circle cx="150" cy="138" r="3" fill={P.ground.grass} />
+      <circle cx="156" cy="139" r="2.4" fill={P.ground.grass} opacity="0.8" />
+      <Banner x={40} y={100} palette={palette} scale={0.65} />
+    </BuildingFrame>
+  );
+}
+
+/* 4 — ImmersiveArtsLabSprite (culture · replaces BroadcastTowerSprite)
+   Dominant: a rounded geodesic projection dome (opposite of a tall mast) with
+   an interior glow; a light-sculpture, studio wing, and reflecting plaza. */
+export function ImmersiveArtsLabSprite({ palette, svgOnly = false }: BuildingSpriteProps): string {
+  return (
+    <BuildingFrame label="Immersive Arts Lab" sub="Interactive Arts" category="culture" svgOnly={svgOnly}>
+      <BuildingPlinth w={150} />
+      {/* reflecting plaza strip in front */}
+      <ellipse cx="90" cy="138" rx="66" ry="8" fill={P.ground.water} opacity="0.55" />
+      <path d="M40,138 Q64,135 90,138 T140,138" stroke="#b8d4e8" strokeWidth="0.6" fill="none" opacity="0.7" />
+      {/* light sculpture — thin beams beside/above the dome */}
+      <g opacity="0.5">
+        <rect x="139" y="40" width="3" height="80" fill="#ffdd00" opacity="0.55" />
+        <rect x="146" y="54" width="2.4" height="66" fill={palette.bright} opacity="0.6" />
+        <rect x="152" y="66" width="2" height="54" fill="#ffdd00" opacity="0.4" />
+        <circle cx="140" cy="36" r="3" fill="#ffdd00" opacity="0.8" />
+        <circle cx="147" cy="50" r="2.4" fill={palette.bright} />
+      </g>
+      {/* small studio wing beside the dome */}
+      <rect x="122" y="98" width="40" height="42" fill={P.stone.mid} stroke={P.ink.line} strokeWidth="1" />
+      <rect x="122" y="98" width="40" height="42" fill="url(#stoneTexture)" opacity="0.4" />
+      <rect x="122" y="94" width="40" height="6" fill={P.stone.light} stroke={P.ink.line} strokeWidth="0.6" />
+      <rect className="cq-glow" x="128" y="108" width="12" height="14" fill={P.metal.gold} opacity="0.5" stroke={P.ink.line} strokeWidth="0.5" />
+      <rect className="cq-glow" x="144" y="108" width="12" height="14" fill={P.metal.gold} opacity="0.5" stroke={P.ink.line} strokeWidth="0.5" />
+      {/* DOMINANT — rounded geodesic dome with interior glow */}
+      <path d="M40,120 A46 46 0 0 1 132,120 Z" fill="#b8d4e8" stroke={P.metal.steel} strokeWidth="1.4" opacity="0.92" />
+      <path className="cq-glow" d="M52,120 A34 34 0 0 1 120,120 Z" fill={palette.bright} opacity="0.4" />
+      {/* geodesic facet ribs */}
+      <g stroke={P.metal.steel} strokeWidth="0.8" opacity="0.7" fill="none">
+        <path d="M40,120 A46 46 0 0 1 132,120" />
+        <path d="M52,102 Q86,90 120,102" />
+        <path d="M63,120 L74,88" /><path d="M86,120 L86,74" /><path d="M109,120 L98,88" />
+        <path d="M52,110 Q86,100 120,110" opacity="0.6" />
+      </g>
+      <rect x="40" y="118" width="92" height="4" fill={P.stone.light} stroke={P.ink.line} strokeWidth="0.6" />
+      {/* dome oculus */}
+      <circle cx="86" cy="76" r="4" fill={P.metal.shine} stroke={P.ink.line} strokeWidth="0.6" />
+      <Banner x={166} y={98} palette={palette} scale={0.65} />
+    </BuildingFrame>
+  );
+}
+
+/* 5 — NationalAiAssuranceProgramSprite  (NATIONAL PROJECT · science · replaces CyberDefenseCenterSprite)
+   Empire-scale assurance CAMPUS: one dominant columned hall carrying an enlarged
+   shield+checkmark (AiSafetyInstitute family resemblance) + two smaller flanking
+   pavilions + a partially-filled programme-status bar (temporary-effect cue). */
+export function NationalAiAssuranceProgramSprite({ palette, svgOnly = false }: BuildingSpriteProps): string {
+  const columns = [0, 1, 2, 3, 4].map(i => (
+    <rect x={60 + i * 18} y="104" width="8" height="34" fill={P.cloth.linen} stroke={P.ink.line} strokeWidth="0.6" />
+  )).join('');
+  const pavilion = (x: number): string => (
+    <g>
+      <rect x={x} y="110" width="30" height="30" fill={P.stone.mid} stroke={P.ink.line} strokeWidth="1" />
+      <rect x={x} y="110" width="30" height="30" fill="url(#stoneTexture)" opacity="0.4" />
+      <rect x={x} y="106" width="30" height="5" fill={P.stone.light} stroke={P.ink.line} strokeWidth="0.5" />
+      <rect x={x + 6} y="118" width="18" height="12" fill="#0a0a20" stroke={P.metal.steel} strokeWidth="0.6" />
+      <circle className="cq-glow" cx={x + 9} cy="122" r="1.4" fill="#00aaff" />
+      <line x1={x + 13} y1="120" x2={x + 21} y2="120" stroke="#00aaff" strokeWidth="0.6" opacity="0.7" />
+      <line x1={x + 13} y1="124" x2={x + 19} y2="124" stroke="#00aaff" strokeWidth="0.6" opacity="0.7" />
+    </g>
+  );
+  return (
+    <BuildingFrame label="National AI Assurance Program" sub="National Project" category="science" svgOnly={svgOnly}>
+      <BuildingPlinth w={175} />
+      {/* covered walkways linking satellites to the hall */}
+      <rect x="46" y="128" width="20" height="4" fill={P.stone.mid} stroke={P.ink.line} strokeWidth="0.5" />
+      <rect x="126" y="128" width="20" height="4" fill={P.stone.mid} stroke={P.ink.line} strokeWidth="0.5" />
+      {/* smaller flanking pavilions */}
+      {pavilion(16)}
+      {pavilion(146)}
+      {/* DOMINANT — wide columned assurance hall */}
+      <rect x="52" y="138" width="88" height="4" fill={P.stone.light} stroke={P.ink.line} strokeWidth="0.6" />
+      <rect x="56" y="100" width="80" height="40" fill={P.stone.light} stroke={P.ink.line} strokeWidth="1" />
+      <rect x="56" y="100" width="80" height="40" fill="url(#stoneTexture)" opacity="0.35" />
+      {columns}
+      <path d="M48,100 L144,100 L96,72 Z" fill={P.stone.mid} stroke={P.ink.line} strokeWidth="0.8" />
+      {/* programme-status readout — partially-filled bar (temporary programme cue) */}
+      <rect className="cq-glow" x="70" y="126" width="52" height="9" rx="1.5" fill="#0a0a20" stroke={P.metal.steel} strokeWidth="0.7" />
+      <rect x="72" y="128" width="30" height="5" rx="1" fill="#00ff44" opacity="0.9" />
+      <rect x="102" y="128" width="18" height="5" rx="1" fill="#112244" />
+      {/* DOMINANT emblem — enlarged shield + checkmark, centered above the entrance */}
+      <g className="cq-glow">
+        <path d="M96,30 Q124,40 124,66 Q124,92 96,106 Q68,92 68,66 Q68,40 96,30 Z" fill={palette.mid} stroke={P.ink.line} strokeWidth="1.3" />
+        <path d="M96,38 Q117,45 117,66 Q117,87 96,98 Q75,87 75,66 Q75,45 96,38 Z" fill={palette.dark} opacity="0.35" />
+        <path d="M83,66 L93,78 L112,50" fill="none" stroke={palette.bright} strokeWidth="6" strokeLinecap="round" strokeLinejoin="round" />
+      </g>
+      <Banner x={44} y={96} palette={palette} scale={0.75} />
+    </BuildingFrame>
+  );
+}
+
+/* 6 — CircularManufacturingNetworkSprite  (NATIONAL PROJECT · production · replaces SmartGridSprite)
+   Empire-scale fabrication NETWORK: one dominant central loop node (a bigger
+   echo of Circular Fabricator) + two smaller satellite loops linked hub-and-
+   spoke, with a programme-status bar on the hub. "Network" dominates. */
+export function CircularManufacturingNetworkSprite({ palette, svgOnly = false }: BuildingSpriteProps): string {
+  const node = (cx: number, cy: number, r: number, band: number): string => {
+    const rollers = Array.from({ length: 12 }).map((_, i) => {
+      const a = (i / 12) * Math.PI * 2;
+      return (
+        <line
+          x1={cx + Math.cos(a) * (r - band / 2 + 1)} y1={cy + Math.sin(a) * (r - band / 2 + 1)}
+          x2={cx + Math.cos(a) * (r + band / 2 - 1)} y2={cy + Math.sin(a) * (r + band / 2 - 1)}
+          stroke={P.ink.soft} strokeWidth="0.6" opacity="0.4"
+        />
+      );
+    }).join('');
+    const dur = (r * 0.42).toFixed(1);
+    return (
+      <g>
+        {/* static track rings */}
+        <circle cx={cx} cy={cy} r={r} fill="none" stroke={P.metal.steel} strokeWidth={band} />
+        <circle cx={cx} cy={cy} r={r + band / 2} fill="none" stroke={P.ink.line} strokeWidth="0.8" opacity="0.6" />
+        <circle cx={cx} cy={cy} r={r - band / 2} fill="none" stroke={P.ink.line} strokeWidth="0.8" opacity="0.6" />
+        {/* rollers + material orbit each node; larger nodes turn slower */}
+        <g className="cq-wheel" style={`transform-box:view-box;transform-origin:${cx}px ${cy}px;animation-duration:${dur}s`}>
+          {rollers}
+          <rect x={cx - 5} y={cy + r - 4} width="10" height="7" rx="1.5" fill={P.metal.bronze} stroke={P.ink.line} strokeWidth="0.5" />
+          <rect x={cx + r - 4} y={cy - 4} width="8" height="6" rx="1.5" fill={palette.mid} stroke={P.ink.line} strokeWidth="0.5" />
+        </g>
+      </g>
+    );
+  };
+  return (
+    <BuildingFrame label="Circular Manufacturing Network" sub="National Project" category="production" svgOnly={svgOnly}>
+      <BuildingPlinth w={175} />
+      {/* logistics lines — hub-and-spoke, quieter than the nodes */}
+      <g stroke={P.metal.steel} strokeWidth="2.4" opacity="0.75">
+        <line x1="92" y1="78" x2="40" y2="118" />
+        <line x1="98" y1="78" x2="152" y2="116" />
+      </g>
+      <g stroke={P.metal.iron} strokeWidth="0.8" opacity="0.5" strokeDasharray="2 2">
+        <line x1="92" y1="78" x2="40" y2="118" />
+        <line x1="98" y1="78" x2="152" y2="116" />
+      </g>
+      {/* satellite fabrication nodes (smaller) */}
+      {node(40, 118, 16, 7)}
+      {node(152, 116, 16, 7)}
+      {/* DOMINANT — larger central fabrication node */}
+      {node(94, 80, 34, 12)}
+      {/* programme-status readout on the hub (temporary programme cue) */}
+      <rect className="cq-glow" x="72" y="74" width="44" height="9" rx="1.5" fill="#0a0a20" stroke={P.metal.steel} strokeWidth="0.7" />
+      <rect x="74" y="76" width="22" height="5" rx="1" fill="#00ff44" opacity="0.9" />
+      <rect x="96" y="76" width="18" height="5" rx="1" fill="#112244" />
+      {/* sparks at each node */}
+      <circle className="cq-spark" cx="94" cy="50" r="1.6" fill="#ffd966" />
+      <circle className="cq-spark cq-spark--b" cx="40" cy="104" r="1.3" fill="#ffd966" />
+      <circle className="cq-spark cq-spark--c" cx="152" cy="102" r="1.3" fill="#ffb84d" />
+      <Banner x={62} y={52} palette={palette} scale={0.75} />
+    </BuildingFrame>
+  );
+}
+
+/* 7 — MarsRoboticsInitiativeSprite  (NATIONAL PROJECT · science · replaces RocketProgramSprite)
+   Empire-scale launch-and-robotics complex: a tall modern gantry + sleek rocket
+   (dominant), a Mars mission roundel on the fairing, a rover payload pre-launch,
+   a flame trench, and a programme-status bar on the control building. */
+export function MarsRoboticsInitiativeSprite({ palette, svgOnly = false }: BuildingSpriteProps): string {
+  return (
+    <BuildingFrame label="Mars Robotics Initiative" sub="National Project" category="science" svgOnly={svgOnly}>
+      <BuildingPlinth w={175} />
+      {/* launch pad + flame trench — exhaust flickers via .cq-fire (idle burn) */}
+      <rect x="76" y="128" width="48" height="12" fill={P.stone.dark} stroke={P.ink.line} strokeWidth="1" />
+      <path d="M92,128 L108,128 L104,140 L96,140 Z" fill="#1a1410" />
+      <g className="cq-fire" style="transform-box:view-box;transform-origin:100px 141px">
+        <ellipse cx="100" cy="138" rx="7" ry="3" fill="#ff6600" opacity="0.8" />
+        <ellipse cx="100" cy="139" rx="4" ry="1.8" fill="#cc5500" />
+      </g>
+      {/* DOMINANT — modern launch gantry beside a sleek rocket */}
+      {/* gantry tower */}
+      <rect x="64" y="34" width="4" height="104" fill={P.metal.steel} />
+      <rect x="80" y="34" width="4" height="104" fill={P.metal.steel} />
+      <g stroke={P.metal.iron} strokeWidth="1.6">
+        <line x1="68" y1="46" x2="80" y2="58" /><line x1="80" y1="46" x2="68" y2="58" />
+        <line x1="68" y1="70" x2="80" y2="82" /><line x1="80" y1="70" x2="68" y2="82" />
+        <line x1="68" y1="94" x2="80" y2="106" /><line x1="80" y1="94" x2="68" y2="106" />
+        <line x1="68" y1="46" x2="80" y2="46" /><line x1="68" y1="94" x2="80" y2="94" /><line x1="68" y1="118" x2="80" y2="118" />
+      </g>
+      {/* service arms reaching to the rocket */}
+      <rect x="84" y="52" width="14" height="3" fill={P.metal.iron} />
+      <rect x="84" y="90" width="14" height="3" fill={P.metal.iron} />
+      {/* sleek rocket body */}
+      <rect x="96" y="46" width="22" height="82" rx="3" fill={palette.mid} stroke={P.ink.line} strokeWidth="1" />
+      <rect x="96" y="46" width="7" height="82" fill={palette.dark} opacity="0.3" />
+      <path d="M96,46 Q107,20 118,46 Z" fill={P.metal.shine} stroke={P.ink.line} strokeWidth="1" />
+      {/* fins */}
+      <path d="M96,110 L86,128 L96,124 Z" fill={palette.dark} stroke={P.ink.line} strokeWidth="0.8" />
+      <path d="M118,110 L128,128 L118,124 Z" fill={palette.dark} stroke={P.ink.line} strokeWidth="0.8" />
+      {/* Mars mission roundel on the fairing — the "this is Mars" cue */}
+      <circle cx="107" cy="70" r="8" fill="#c0522a" stroke={P.ink.line} strokeWidth="0.8" />
+      <path d="M100,68 Q107,66 114,69" stroke="#8a3a1c" strokeWidth="0.9" fill="none" />
+      <path d="M101,73 Q107,72 113,74" stroke="#8a3a1c" strokeWidth="0.9" fill="none" />
+      {/* control building + programme-status readout (temporary programme cue) */}
+      <rect x="126" y="104" width="40" height="34" fill={P.stone.mid} stroke={P.ink.line} strokeWidth="1" />
+      <rect x="126" y="104" width="40" height="34" fill="url(#stoneTexture)" opacity="0.4" />
+      <rect x="126" y="100" width="40" height="5" fill={P.stone.light} stroke={P.ink.line} strokeWidth="0.5" />
+      <rect className="cq-glow" x="131" y="112" width="30" height="9" rx="1.5" fill="#0a0a20" stroke={P.metal.steel} strokeWidth="0.7" />
+      <rect x="133" y="114" width="16" height="5" rx="1" fill="#00ff44" opacity="0.9" />
+      <rect x="149" y="114" width="10" height="5" rx="1" fill="#112244" />
+      <circle className="cq-glow" cx="163" cy="108" r="1.4" fill="#00aaff" />
+      {/* rover payload waiting pre-launch */}
+      <g transform="translate(40 126)">
+        <rect x="-13" y="-9" width="26" height="11" rx="1.5" fill={P.metal.steel} stroke={P.ink.line} strokeWidth="0.8" />
+        <rect x="-13" y="-9" width="26" height="3" fill={P.metal.shine} opacity="0.4" />
+        <line x1="6" y1="-9" x2="10" y2="-20" stroke={P.metal.iron} strokeWidth="1" />
+        <circle cx="10" cy="-21" r="1.6" fill="#00aaff" />
+        <rect x="-10" y="-14" width="7" height="5" fill="#112244" stroke={P.metal.steel} strokeWidth="0.5" />
+        <circle cx="-10" cy="3" r="3.4" fill={P.stone.dark} stroke={P.ink.line} strokeWidth="0.7" />
+        <circle cx="-2" cy="3" r="3.4" fill={P.stone.dark} stroke={P.ink.line} strokeWidth="0.7" />
+        <circle cx="6" cy="3" r="3.4" fill={P.stone.dark} stroke={P.ink.line} strokeWidth="0.7" />
+        <circle cx="-10" cy="3" r="1.2" fill={P.metal.steel} /><circle cx="-2" cy="3" r="1.2" fill={P.metal.steel} /><circle cx="6" cy="3" r="1.2" fill={P.metal.steel} />
+      </g>
+      <Banner x={72} y={40} palette={palette} scale={0.75} />
+    </BuildingFrame>
+  );
+}
