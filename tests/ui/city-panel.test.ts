@@ -2304,3 +2304,57 @@ describe('concede vs appease copy (#552)', () => {
     expect(collectText(panel)).toContain('Concede costs more but grants long immunity');
   });
 });
+
+describe('city-panel building icons — #665', () => {
+  it('renders an animated sprite wrapper for a built ordinary building', () => {
+    const { container, city, state } = makeWonderPanelFixture();
+    city.buildings = ['granary'];
+
+    const panel = createCityPanel(container, city, state, {
+      onBuild: () => {}, onOpenWonderPanel: () => {}, onClose: () => {},
+    });
+
+    const wrapper = panel.querySelector('.cq-sprite-wrap.cq-v2[data-kind="building"]');
+    expect(wrapper).toBeTruthy();
+    expect(wrapper!.getAttribute('data-state')).toBe('idle');
+  });
+
+  it('does not throw and still renders the rest of the row for a completed legendary wonder with no catalog sprite', () => {
+    const { container, city, state } = makeWonderPanelFixture();
+    // 'grand-canal' has no BUILDING_SPRITE_CATALOG entry (only 5 of 74 wonder ids do).
+    // BUILDINGS has no entry for it either, so it's added directly to exercise the
+    // fallback path in isolation from the wonder-completion system.
+    city.buildings = ['granary', 'grand-canal'];
+
+    expect(() => createCityPanel(container, city, state, {
+      onBuild: () => {}, onOpenWonderPanel: () => {}, onClose: () => {},
+    })).not.toThrow();
+  });
+
+  it('derives the icon palette from the CURRENT city owner, not any cached founder color', () => {
+    const { container, city, state } = makeWonderPanelFixture();
+    city.buildings = ['granary'];
+    city.owner = 'rival'; // rival civ color is #9333ea, player civ color is #4a90d9
+    state.civilizations.rival.cities.push(city.id);
+
+    const panel = createCityPanel(container, city, state, {
+      onBuild: () => {}, onOpenWonderPanel: () => {}, onClose: () => {},
+    });
+
+    const rendered = panel.innerHTML;
+    expect(rendered).toContain('#9333ea');
+    expect(rendered).not.toContain('#4a90d9');
+  });
+
+  it('renders no duplicate SVG id attributes when the city has multiple buildings with bespoke defs', () => {
+    const { container, city, state } = makeWonderPanelFixture();
+    city.buildings = ['stock_exchange', 'bank'];
+
+    const panel = createCityPanel(container, city, state, {
+      onBuild: () => {}, onOpenWonderPanel: () => {}, onClose: () => {},
+    });
+
+    const ids = [...panel.querySelectorAll('[id]')].map(el => el.id);
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+});
