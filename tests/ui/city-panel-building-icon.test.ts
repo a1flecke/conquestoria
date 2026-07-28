@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { namespaceSvgIds } from '@/ui/city-panel-building-icon';
+import { namespaceSvgIds, getAnimatedBuildingIconHtml } from '@/ui/city-panel-building-icon';
+import { NEUTRAL_FACTION_PALETTE } from '@/renderer/sprites/sprite-system';
 
 describe('namespaceSvgIds', () => {
   it('suffixes a plain id attribute', () => {
@@ -43,5 +44,43 @@ describe('namespaceSvgIds', () => {
     const firstId = /id="([^"]+)"/.exec(first)?.[1];
     const secondId = /id="([^"]+)"/.exec(second)?.[1];
     expect(firstId).not.toBe(secondId);
+  });
+});
+
+describe('getAnimatedBuildingIconHtml', () => {
+  it('renders the animated wrapper for a building present in BUILDING_SPRITE_CATALOG', () => {
+    const html = getAnimatedBuildingIconHtml('granary', NEUTRAL_FACTION_PALETTE, 'city-a:granary');
+    expect(html).toContain('cq-sprite-wrap');
+    expect(html).toContain('cq-v2');
+    expect(html).toContain('data-state="idle"');
+    expect(html).toContain('data-kind="building"');
+  });
+
+  it('does not throw and falls back to the production-icon emoji for a legendary-wonder id with no catalog entry', () => {
+    expect(() => getAnimatedBuildingIconHtml('grand-canal', NEUTRAL_FACTION_PALETTE, 'city-a:grand-canal')).not.toThrow();
+    const html = getAnimatedBuildingIconHtml('grand-canal', NEUTRAL_FACTION_PALETTE, 'city-a:grand-canal');
+    expect(html).toContain('🏗️');
+    expect(html).not.toContain('cq-sprite-wrap');
+  });
+
+  it('renders a covered wonder (pyramids) as an animated sprite, not the fallback', () => {
+    const html = getAnimatedBuildingIconHtml('pyramids', NEUTRAL_FACTION_PALETTE, 'city-a:pyramids');
+    expect(html).toContain('cq-sprite-wrap');
+    expect(html).not.toContain('🏗️');
+  });
+
+  it('gives two different phaseKeys two different --phase values, so identical building types desync', () => {
+    const a = getAnimatedBuildingIconHtml('granary', NEUTRAL_FACTION_PALETTE, 'city-a:granary');
+    const b = getAnimatedBuildingIconHtml('granary', NEUTRAL_FACTION_PALETTE, 'city-b:granary');
+    const phaseOf = (html: string) => /--phase:([\d.]+)/.exec(html)?.[1];
+    expect(phaseOf(a)).not.toBe(phaseOf(b));
+  });
+
+  it('namespaces ids so two different buildings rendered together never collide', () => {
+    const a = getAnimatedBuildingIconHtml('stock_exchange', NEUTRAL_FACTION_PALETTE, 'city-a:stock_exchange');
+    const b = getAnimatedBuildingIconHtml('bank', NEUTRAL_FACTION_PALETTE, 'city-a:bank');
+    const idsOf = (html: string) => [...html.matchAll(/\bid="([^"]+)"/g)].map(m => m[1]);
+    const combined = [...idsOf(a), ...idsOf(b)];
+    expect(new Set(combined).size).toBe(combined.length);
   });
 });
