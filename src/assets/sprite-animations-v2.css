@@ -764,6 +764,151 @@
 [data-kind="beast-winged"] .cq-hover-body { animation: cq-hover-bob 2.2s ease-in-out infinite; animation-delay: calc(var(--phase, 0) * -2.2s); }
 [data-kind="beast-winged"] .cq-shadow-detached { transform: scale(0.7); opacity: 0.5; }
 
+/* ─────────────────── AMBIENT DECORATIVE EFFECTS ───────────────────
+ * These class hooks were referenced by dozens of already-shipped sprites
+ * (Bank's vault glow, Iron Foundry's chimney smoke, Caravanserai's peeking
+ * camel, the Steamship's paddle wheel, wonder crowd figures, ...) and were
+ * even listed below in the reduced-motion pause block, but had NO actual
+ * animation defined anywhere in this file — verified by grep across the
+ * whole file for a real selector rule targeting each one. They were
+ * silently inert. This section gives them the behavior already documented
+ * in .claude/rules/sprites.md's "Building effect classes" table and used
+ * throughout units.tsx/buildings.tsx/wonders.tsx's own comments describing
+ * what each class was supposed to do.
+ *
+ * Unlike the idle/walk/attack/hurt/death animations above, these are
+ * ambient and NOT gated by data-state — a lit window glows, a torch
+ * flickers, and a wheel spins continuously regardless of unit/building
+ * state, matching how every sprite author already used these classes.
+ */
+
+/* Interior light pulse — vault glow, screens, status LEDs, sensor eyes */
+@keyframes cq2-glow-pulse {
+  0%, 100% { opacity: 0.55; transform: scale(1); }
+  50%      { opacity: 1; transform: scale(1.12); }
+}
+.cq-v2 .cq-glow {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: cq2-glow-pulse 2.4s ease-in-out infinite;
+  animation-delay: calc(var(--phase, 0) * -2.4s);
+}
+
+/* Flame flicker — torches, forge fires, launch-pad exhaust */
+@keyframes cq2-fire-flicker {
+  0%, 100% { transform: scaleY(1) scaleX(1); opacity: 0.92; }
+  40%      { transform: scaleY(1.16) scaleX(0.9); opacity: 1; }
+  70%      { transform: scaleY(0.92) scaleX(1.05); opacity: 0.8; }
+}
+.cq-v2 .cq-fire {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  animation: cq2-fire-flicker 0.9s ease-in-out infinite;
+  animation-delay: calc(var(--phase, 0) * -0.9s);
+}
+
+/* Smoke plumes rising — chimneys, foundries */
+@keyframes cq2-smoke-rise {
+  0%   { opacity: 0; transform: translateY(0) scale(0.5); }
+  25%  { opacity: 0.55; }
+  100% { opacity: 0; transform: translateY(-18px) scale(1.5); }
+}
+.cq-v2 .cq-smoke {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: cq2-smoke-rise 3s ease-in infinite;
+}
+.cq-v2 .cq-smoke--b { animation-delay: -1s; }
+.cq-v2 .cq-smoke--c { animation-delay: -2s; }
+
+/* Sparks flying — weld/hammer/forge work */
+@keyframes cq2-spark-fly {
+  0%   { opacity: 0; transform: translate(0, 0) scale(0.4); }
+  15%  { opacity: 1; }
+  100% { opacity: 0; transform: translate(5px, -9px) scale(1.2); }
+}
+.cq-v2 .cq-spark {
+  opacity: 0;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: cq2-spark-fly 1.1s ease-out infinite;
+}
+.cq-v2 .cq-spark--b { animation-delay: -0.4s; }
+.cq-v2 .cq-spark--c { animation-delay: -0.8s; }
+
+/* Dust puff — quarry/masonry work */
+@keyframes cq2-dust-puff {
+  0%, 58% { opacity: 0; transform: translateY(0) scale(0.5); }
+  72%     { opacity: 0.7; }
+  100%    { opacity: 0; transform: translateY(-7px) scale(1.5); }
+}
+.cq-v2 .cq-dust {
+  opacity: 0;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: cq2-dust-puff 1.4s ease-out infinite;
+}
+
+/* Animal head bob — Caravanserai camel, Ranch/Stable horse */
+@keyframes cq2-peek-bob {
+  0%, 100% { transform: translateY(0) rotate(0); }
+  50%      { transform: translateY(-2.5px) rotate(2deg); }
+}
+.cq-v2 .cq-peek {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  animation: cq2-peek-bob 3.4s ease-in-out infinite;
+  animation-delay: calc(var(--phase, 0) * -3.4s);
+}
+
+/* Full rotation — paddle wheels, conveyor loops. animation-duration is
+   commonly overridden inline per-instance (larger wheels turn slower). */
+@keyframes cq2-wheel-spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+.cq-v2 .cq-wheel {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: cq2-wheel-spin 4s linear infinite;
+  animation-delay: calc(var(--phase, 0) * -4s);
+}
+
+/* Banner cloth wave — faction pennants */
+@keyframes cq2-banner-wave {
+  0%, 100% { transform: skewX(0) skewY(0); }
+  50%      { transform: skewX(-9deg) skewY(2deg); }
+}
+.cq-v2 .cq-banner-cloth {
+  transform-box: fill-box;
+  transform-origin: 0% 50%;
+  animation: cq2-banner-wave 2.6s ease-in-out infinite;
+  animation-delay: calc(var(--phase, 0) * -2.6s);
+}
+
+/* Throbbing beacon light — lighthouse-style wonders */
+@keyframes cq2-beacon-throb {
+  0%, 100% { opacity: 0.4; transform: scale(1); }
+  50%      { opacity: 1; transform: scale(1.35); }
+}
+.cq-v2 .cq-beacon {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: cq2-beacon-throb 1.6s ease-in-out infinite;
+}
+
+/* Idle crowd figures — wonder spectators/workers, gentle sway */
+@keyframes cq2-crowd-sway {
+  0%, 100% { transform: translateX(0) translateY(0); }
+  50%      { transform: translateX(1px) translateY(-0.6px); }
+}
+.cq-v2 .cq-crowd-fig {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  animation: cq2-crowd-sway 2.2s ease-in-out infinite;
+  animation-delay: calc(var(--phase, 0) * -2.2s);
+}
+
 /* Pause everything when prefers-reduced-motion */
 @media (prefers-reduced-motion: reduce) {
   .cq-sprite-figure, .cq-weapon, .cq-tool, .cq-smoke, .cq-dust, .cq-work-dust,
