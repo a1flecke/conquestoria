@@ -153,3 +153,42 @@ describe('Era 13 sprites are not aliases of their placeholders (#652)', () => {
     }
   });
 });
+
+// The completeness tests above only check `typeof fn === 'function'` — they never call the
+// function, so a runtime-only bug (a NaN from a bad coordinate calc, a property access that
+// only fails for a specific palette's derived colors, etc.) would slip through undetected until
+// a live crash. `yarn build`'s type-check caught the one real bug found while integrating Era 13
+// batch A (an unjoined string[] passed as JSX children) — but tsc only catches type errors, not
+// runtime ones. This actually renders every catalog entry, across multiple real faction
+// palettes, matching the pattern already used for PIRATE_HEADQUARTERS_SPRITE_CATALOG above.
+describe('every catalog sprite renders without throwing, across multiple factions', () => {
+  const testFactions = ['#4a90d9', '#b8434a', '#3a6e94']; // arbitrary real civ colors, not the neutral palette
+
+  it('every UNIT_SPRITE_CATALOG entry renders non-empty SVG markup for every test faction', () => {
+    for (const civColor of testFactions) {
+      const palette = derivePalette(civColor);
+      for (const type of Object.keys(UNIT_SPRITE_CATALOG)) {
+        let svg: string;
+        expect(() => {
+          svg = UNIT_SPRITE_CATALOG[type as keyof typeof UNIT_SPRITE_CATALOG]({ palette, svgOnly: true });
+        }, `${type} threw for faction color ${civColor}`).not.toThrow();
+        expect(svg!, `${type} produced no markup for faction color ${civColor}`).toContain('<svg');
+        expect(svg!.length, `${type} produced suspiciously short markup for faction color ${civColor}`).toBeGreaterThan(100);
+      }
+    }
+  });
+
+  it('every BUILDING_SPRITE_CATALOG entry renders non-empty SVG markup for every test faction', () => {
+    for (const civColor of testFactions) {
+      const palette = derivePalette(civColor);
+      for (const id of Object.keys(BUILDING_SPRITE_CATALOG)) {
+        let svg: string;
+        expect(() => {
+          svg = BUILDING_SPRITE_CATALOG[id]({ palette, svgOnly: true });
+        }, `${id} threw for faction color ${civColor}`).not.toThrow();
+        expect(svg!, `${id} produced no markup for faction color ${civColor}`).toContain('<svg');
+        expect(svg!.length, `${id} produced suspiciously short markup for faction color ${civColor}`).toBeGreaterThan(100);
+      }
+    }
+  });
+});
