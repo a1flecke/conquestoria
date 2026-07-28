@@ -120,16 +120,21 @@ follow-up, not yet implemented — do not claim them in art prompts.
 
 **Note:** this table predates Eras 5–13 and was never kept current for them — treat any
 building/unit not listed above as unverified by this table rather than assuming placeholder
-status. One exception, tracked explicitly because of #652: as of 2026-07-26, 5 Era 13 units
-(`combat_drone`, `autonomous_frigate`, `exosuit_infantry`, `propagandist`, `drone_controller`)
-and 8 of 15 Era 13 buildings (`network_operations_center`, `ai_safety_institute`,
-`drone_fabricator`, `electronic_warfare_array`, `civic_media_forum`, `vertical_farm`,
-`neural_rehabilitation_center`, `ocean_robotics_yard`) have real, distinct sprites — "batch A."
-The remaining 7 Era 13 buildings (`circular_fabricator`, `modular_arcology`,
-`carbon_capture_grid`, `immersive_arts_lab`, `national_ai_assurance_program`,
-`circular_manufacturing_network`, `mars_robotics_initiative` — "batch B") are still aliased to
-Era 12 placeholder sprites in `sprite-catalog.ts`; see `docs/claude-design-sprites-prompt.md`
-Part 3 for the pending prompt.
+status. One exception, tracked explicitly because of #652: as of 2026-07-27, **all 20 Era 13
+units/buildings have bespoke, non-placeholder sprites** — the 5 units (`combat_drone`,
+`autonomous_frigate`, `exosuit_infantry`, `propagandist`, `drone_controller`) and all 15
+buildings, including the 3 national projects (`national_ai_assurance_program`,
+`circular_manufacturing_network`, `mars_robotics_initiative`), which read as empire-scale
+campuses per `.claude/rules/game-balance.md`'s national-project conventions. #652 is fully
+shipped; `sprite-catalog.ts` has no remaining Era 13 alias comments.
+
+**Ambient effect classes (`.cq-glow`, `.cq-fire`, `.cq-smoke`, `.cq-spark`, `.cq-dust`,
+`.cq-peek`, `.cq-wheel`, `.cq-banner-cloth`, `.cq-beacon`, `.cq-crowd-fig`) were fixed alongside
+this batch (2026-07-27).** They were referenced by dozens of already-shipped sprites (and listed
+in `sprite-animations-v2.css`'s own reduced-motion pause block) but had no real animation rule
+anywhere — silently inert since whenever each was first used, not something introduced by Era
+13. See `tests/renderer/sprites/sprite-animations-v2-css.test.ts` for the regression test that
+would have caught this and now guards against it recurring.
 
 ### Terrain Tiles — `src/renderer/terrain/terrain-tiles.ts` (not yet created)
 13 terrain types × 4 variants each = 52 tiles. Variant chosen by `Math.abs(q*7 + r*13) % 4`.

@@ -13,7 +13,8 @@ import {
 } from '@/renderer/sprites/units';
 import {
   DataCenterSprite, CyberDefenseCenterSprite, AutomatedPortSprite, SignalsHubSprite,
-  BroadcastTowerSprite, PrecisionFarmSprite, TelemedicineHubSprite,
+  BroadcastTowerSprite, PrecisionFarmSprite, TelemedicineHubSprite, SmartGridSprite,
+  RocketProgramSprite,
 } from '@/renderer/sprites/buildings';
 
 // Derive the authoritative unit-type list from UNIT_DEFINITIONS so this test
@@ -106,11 +107,12 @@ describe('sprite-catalog coverage', () => {
   });
 });
 
-// #652 batch A: these 13 entries were temporary aliases to older-era sprites at Era 13
-// launch (#515). Reject any regression back to that aliasing — if one of these ever
-// starts rendering byte-identical output to the sprite it replaced, either the catalog
-// line was reverted or a future edit accidentally reintroduced the old alias.
-describe('Era 13 batch A sprites are not aliases of their placeholders (#652)', () => {
+// #652: all 20 of these entries were temporary aliases to older-era sprites at Era 13
+// launch (#515), replaced across two batches (A: 2026-07-26, B: 2026-07-27). Reject any
+// regression back to that aliasing — if one of these ever starts rendering byte-identical
+// output to the sprite it replaced, either the catalog line was reverted or a future edit
+// accidentally reintroduced the old alias.
+describe('Era 13 sprites are not aliases of their placeholders (#652)', () => {
   const palette = derivePalette('#4a90d9');
 
   it('unit sprites render different markup than the placeholders they replaced', () => {
@@ -138,6 +140,13 @@ describe('Era 13 batch A sprites are not aliases of their placeholders (#652)', 
       ['vertical_farm', PrecisionFarmSprite],
       ['neural_rehabilitation_center', TelemedicineHubSprite],
       ['ocean_robotics_yard', AutomatedPortSprite],
+      ['circular_fabricator', SmartGridSprite],
+      ['modular_arcology', DataCenterSprite],
+      ['carbon_capture_grid', SmartGridSprite],
+      ['immersive_arts_lab', BroadcastTowerSprite],
+      ['national_ai_assurance_program', CyberDefenseCenterSprite],
+      ['circular_manufacturing_network', SmartGridSprite],
+      ['mars_robotics_initiative', RocketProgramSprite],
     ];
     for (const [id, placeholderFn] of replacements) {
       expect(BUILDING_SPRITE_CATALOG[id], `${id} still aliases its old placeholder component`).not.toBe(placeholderFn);
