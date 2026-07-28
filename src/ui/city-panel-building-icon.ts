@@ -38,10 +38,14 @@ export function getAnimatedBuildingIconHtml(
   }
 
   const rawSvg = spriteFn({ palette, svgOnly: true });
-  const suffix = `${buildingId}-${Math.abs(hashCode(phaseKey))}`;
+  const hash = Math.abs(hashCode(phaseKey));
+  const suffix = `${buildingId}-${hash}`;
+  // SpriteFrame's svgOnly output always bakes in `width="192" height="192"` (the sprite's
+  // native viewBox size) — replace those in place rather than prepending a second width/height
+  // pair, which would leave two attributes of the same name on one element.
   const svg = namespaceSvgIds(rawSvg, suffix)
-    .replace('<svg ', `<svg width="${ICON_SIZE_PX}" height="${ICON_SIZE_PX}" `);
-  const phase = (Math.abs(hashCode(phaseKey)) % 100) / 100;
+    .replace(/(<svg\b[^>]*?)\swidth="\d+"\s+height="\d+"/, `$1 width="${ICON_SIZE_PX}" height="${ICON_SIZE_PX}"`);
+  const phase = (hash % 100) / 100;
 
   return `<div class="cq-sprite-wrap cq-v2" data-state="idle" data-kind="building" ` +
     `style="--phase:${phase};width:${ICON_SIZE_PX}px;height:${ICON_SIZE_PX}px;flex:none;` +

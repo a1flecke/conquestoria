@@ -83,4 +83,17 @@ describe('getAnimatedBuildingIconHtml', () => {
     const combined = [...idsOf(a), ...idsOf(b)];
     expect(new Set(combined).size).toBe(combined.length);
   });
+
+  it('scales the icon to 36px without leaving the sprite\'s native 192px width/height as a duplicate attribute', () => {
+    const html = getAnimatedBuildingIconHtml('granary', NEUTRAL_FACTION_PALETTE, 'city-a:granary');
+    const svgTagMatch = /<svg\b[^>]*>/.exec(html);
+    expect(svgTagMatch).toBeTruthy();
+    const svgTag = svgTagMatch![0];
+    const widthMatches = [...svgTag.matchAll(/\bwidth="(\d+)"/g)];
+    const heightMatches = [...svgTag.matchAll(/\bheight="(\d+)"/g)];
+    expect(widthMatches).toHaveLength(1);
+    expect(heightMatches).toHaveLength(1);
+    expect(widthMatches[0][1]).toBe('36');
+    expect(heightMatches[0][1]).toBe('36');
+  });
 });
