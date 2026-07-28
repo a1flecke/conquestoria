@@ -51,13 +51,14 @@ includes and that individual building-sprite functions cannot suppress via their
 - The `CATEGORY_TINTS` ring `BuildingFrame` draws behind every sprite.
 
 Rather than changing the shared sprite-prop contract (which would touch all 116 `FooSprite`
-signatures for a purely cosmetic concern in one new caller), the fix lives entirely at the new call
-site: render the returned SVG inside a fixed-size `overflow: hidden` box, scaled/positioned so the
-building's own silhouette fills the crop and the ring — which sits at a known, fixed location in
-every sprite's 192×192 viewBox, being emitted by the same shared `BuildingFrame`/`HexBase` call —
-falls outside it. **This needs a visual re-check once actually built** — it wasn't part of what was
-approved in the mockup, since the mockup didn't include it. If cropping still reads as busy at 36px,
-revisit sizing (not the crop approach) before touching shared sprite code.
+signatures for a purely cosmetic concern in one new caller), **v1 ships the sprite as-is, rings
+included** — the `HexBase` dashed ring and `CATEGORY_TINTS` circle sit at low opacity (0.18–0.25)
+and largely overlap the building's own silhouette rather than sitting in an isolated corner, so
+there is no clean crop that removes them without also clipping the building. Whether they read as
+a problem at 36px is a manual-QA question (see below), not something to pre-solve with unverified
+geometry. If QA finds it necessary, the follow-up options are: reduce the ring opacity further at
+the call site via a small CSS filter, or — only as a last resort — thread an optional `hex`/ring
+flag through `BuildingFrame`. Do not build either speculatively.
 
 Palette is the city's *current* owner's civ color via the existing `derivePalette()` export — a
 captured city's buildings immediately reflect the new owner's colors, consistent with the map and
@@ -147,9 +148,10 @@ insertion for a different reason).
 
 ### Manual QA (before merge)
 
-- Re-verify the 36px crop against the *real* sprite output (hex ring + category ring included,
-  unlike the approved mockup) — confirm it still reads clearly; adjust the crop or, only if that's
-  insufficient, revisit sizing.
+- Re-verify the 36px icon against the *real* sprite output (hex ring + category ring included,
+  unlike the approved mockup) — confirm the rings don't read as visually busy at this size. If they
+  do, follow the escalation path noted above (opacity filter, then — last resort — a `BuildingFrame`
+  flag) rather than reaching for a crop.
 - A city with several buildings, at least one of which uses bespoke SVG defs (stock exchange, if
   built), to visually confirm no id-collision artifacts.
 - A captured city, to confirm the palette switches to the new owner.
