@@ -16,6 +16,8 @@ import { getResourceAdvantagesForItem, getResourceAdvantageMultiplier } from '@/
 import { SESSION_SHOWN_TIPS } from '@/ui/advisor-system';
 import { hexDistance, wrappedHexDistance } from '@/systems/hex-utils';
 import { createGameButton } from './ui-kit';
+import { getAnimatedBuildingIconHtml } from './city-panel-building-icon';
+import { derivePalette, NEUTRAL_FACTION_PALETTE } from '@/renderer/sprites/sprite-system';
 import { hasAITradeRole } from '@/ai/ai-unit-roles';
 import { buildCityRouteRows, getOutgoingRoutesForCity } from './trade-route-presentation';
 import {
@@ -513,6 +515,9 @@ export function createCityPanel(
   };
 
   // Build placeholders for dynamic data; style attributes with pure numbers (progress%) are safe
+  const buildingIconPalette = state.civilizations[city.owner]?.color
+    ? derivePalette(state.civilizations[city.owner]!.color)
+    : NEUTRAL_FACTION_PALETTE;
   let buildingPlaceholders = '';
   for (let idx = 0; idx < city.buildings.length; idx++) {
     const bid = city.buildings[idx];
@@ -539,9 +544,13 @@ export function createCityPanel(
         : upkeep > 0
           ? `Upkeep: -${upkeep} gold/turn`
           : 'Free support';
-      buildingPlaceholders += `<div style="background:rgba(255,255,255,0.05);border-radius:6px;padding:8px;margin-bottom:4px;font-size:12px;">
-        <strong data-text="bldg-name-${idx}"></strong>${fadingBadge}${obsoleteBadge} — <span data-text="bldg-desc-${idx}"></span>
-        <div style="font-size:11px;opacity:0.72;margin-top:3px;" data-text="bldg-upkeep-${idx}">${upkeepText}</div>
+      const icon = getAnimatedBuildingIconHtml(bid, buildingIconPalette, `${city.id}:${bid}`);
+      buildingPlaceholders += `<div style="background:rgba(255,255,255,0.05);border-radius:6px;padding:8px;margin-bottom:4px;font-size:12px;display:flex;gap:8px;align-items:flex-start;">
+        ${icon}
+        <div style="flex:1;min-width:0;">
+          <strong data-text="bldg-name-${idx}"></strong>${fadingBadge}${obsoleteBadge} — <span data-text="bldg-desc-${idx}"></span>
+          <div style="font-size:11px;opacity:0.72;margin-top:3px;" data-text="bldg-upkeep-${idx}">${upkeepText}</div>
+        </div>
       </div>`;
     }
   }
