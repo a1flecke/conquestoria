@@ -17,8 +17,8 @@ civilization visual families) or, as of #755, a live-fallback sprite rendered di
 regardless of type). Every unit type is guaranteed to animate via one of these two paths — none
 silently render as a static Canvas bitmap anymore. `isV2NativeUnit(unitType)` tells you which path
 a given type takes. See `.claude/rules/sprites.md`'s "DOM-Overlay Live Fallback" section for the
-mechanism, and the `art: migrate live-fallback unit sprites to native v2 archetype art` GitHub
-issue for the incremental-richness backlog (upgrading fallback-tier units to full archetype art) —
+mechanism, and #759 ("art: migrate live-fallback unit sprites to native v2 archetype art") for
+the incremental-richness backlog (upgrading fallback-tier units to full archetype art) —
 run `Object.keys(UNIT_SPRITE_CATALOG).filter(t => !isV2NativeUnit(t))` for the current, always-up-
 to-date list rather than trusting a pasted snapshot.
 
