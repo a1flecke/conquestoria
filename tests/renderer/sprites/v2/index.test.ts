@@ -1,26 +1,13 @@
 import { describe, it, expect } from 'vitest';
 import {
   getUnitSpriteV2,
+  isV2NativeUnit,
   getBuildingSpriteV2,
   getPirateHeadquartersSpriteV2,
   getImprovementSpriteV2,
 } from '@/renderer/sprites/v2/index';
-
-// All unit types that must have a v2 serialization (MR 1 + MR 2 + MR 4 + MR 6).
-const ALL_SPRITE_UNIT_TYPES = [
-  // MR 1 — already serialized
-  'archer', 'galley', 'musketeer', 'pikeman', 'scout', 'scout_hound', 'settler',
-  'shadow_warden', 'spy_agent', 'spy_hacker', 'spy_informant', 'spy_operative',
-  'spy_scout', 'swordsman', 'trireme', 'war_hound', 'warrior', 'worker',
-  // MR 2 — new
-  'axeman', 'spearman', 'horseman', 'cavalry', 'knight',
-  'crossbowman', 'catapult', 'ballista',
-  'caravan', 'expedition', 'transport',
-  // MR 4 — late-era naval
-  'carrack', 'galleon', 'steamship', 'troop_transport',
-  // MR 6 — legendary beasts
-  'beast_boar',
-];
+import { UNIT_SPRITE_CATALOG } from '@/renderer/sprites/sprite-catalog';
+import { PIRATE_HULL_TYPES } from '@/systems/pirate-definitions';
 
 // All building types that must have a v2 serialization (MR 1 + MR 3).
 const ALL_SPRITE_BUILDING_TYPES = [
@@ -39,8 +26,15 @@ describe('getUnitSpriteV2', () => {
     expect(getUnitSpriteV2('unknown', 'imperials')).toBeNull();
   });
 
-  it('returns null for unknown faction', () => {
-    expect(getUnitSpriteV2('warrior', 'unknownfaction')).toBeNull();
+  it('falls back to a live-rendered sprite for a known unit type with an unrecognized faction (e.g. a minor civ)', () => {
+    // Before #755's fix this silently returned null (static Canvas fallback forever) — 'warrior'
+    // is a v2-native type, but 'unknownfaction' isn't one of the 6 baked archetype-family keys,
+    // which is exactly what happens for any minor-civ-owned unit today (getFaction() returns the
+    // raw owner id for any owner not in state.civilizations).
+    const result = getUnitSpriteV2('warrior', 'unknownfaction', '#7a5a16');
+    expect(result).not.toBeNull();
+    expect(result).toContain('cq-sprite-wrap');
+    expect(result).toContain('cq-v2');
   });
 
   it('returns a cq-sprite-wrap string for warrior/imperials', () => {
@@ -179,12 +173,95 @@ describe('beast_boar v2 sprite', () => {
   });
 });
 
-describe('full unit coverage — every type returns a cq-sprite-wrap for imperials', () => {
-  it.each(ALL_SPRITE_UNIT_TYPES)('%s', (type) => {
-    const r = getUnitSpriteV2(type, 'imperials');
+describe('full unit coverage — every catalog entry returns a cq-sprite-wrap for imperials (native or live-fallback)', () => {
+  // Pirate hull types are deliberately faction-gated to 'pirates' only (see 'neutral pirate v2
+  // sprites' above) — querying them with 'imperials' is supposed to return null, not a gap.
+  const nonPirateTypes = Object.keys(UNIT_SPRITE_CATALOG)
+    .filter(type => !(PIRATE_HULL_TYPES as readonly string[]).includes(type));
+
+  it.each(nonPirateTypes)('%s', (type) => {
+    const r = getUnitSpriteV2(type, 'imperials', '#4a90d9');
     expect(r).not.toBeNull();
     expect(r!).toContain('cq-sprite-wrap');
     expect(r!).toContain('cq-v2');
+  });
+});
+
+describe('isV2NativeUnit', () => {
+  it('is true for a v2-native unit', () => {
+    expect(isV2NativeUnit('archer')).toBe(true);
+  });
+
+  it('is false for a unit type that only has the live-fallback path', () => {
+    expect(isV2NativeUnit('tank')).toBe(false);
+  });
+
+  it('is false for a genuinely unknown type', () => {
+    expect(isV2NativeUnit('not-a-real-unit')).toBe(false);
+  });
+});
+
+describe('getUnitSpriteV2 — live fallback for uncovered unit types', () => {
+  // Representative sample of the 24 units with no UNIT_SPRITES entry (confirmed via diff against
+  // UNIT_SPRITE_CATALOG, 2026-07-28) — not exhaustive here; the full-catalog loop above covers
+  // all of them for the "never null" guarantee.
+  const FALLBACK_TIER_SAMPLE = ['tank', 'rifleman', 'submarine', 'combat_drone', 'grenadier'];
+
+  it.each(FALLBACK_TIER_SAMPLE)('%s renders via the live fallback, not v2-native', (type) => {
+    expect(isV2NativeUnit(type)).toBe(false);
+    const result = getUnitSpriteV2(type, 'imperials', '#4a90d9');
+    expect(result, `${type} should not be null`).not.toBeNull();
+  });
+
+  it.each(FALLBACK_TIER_SAMPLE)('%s output has the animation hook point (cq-sprite-figure)', (type) => {
+    const result = getUnitSpriteV2(type, 'imperials', '#4a90d9')!;
+    expect(result).toContain('cq-sprite-wrap');
+    expect(result).toContain('cq-v2');
+    expect(result).toContain('cq-sprite-figure');
+  });
+
+  it.each(FALLBACK_TIER_SAMPLE)('%s output has exactly one width="100%" and one height="100%" on the outer <svg> tag, never a hardcoded pixel size', (type) => {
+    const result = getUnitSpriteV2(type, 'imperials', '#4a90d9')!;
+    // Scope the check to the <svg ...> opening tag itself, not the whole markup string — child
+    // elements legitimately have their own width="N" attributes (e.g. a <rect width="6" .../>)
+    // that have nothing to do with the sprite's overall display size.
+    const svgTag = /<svg\b[^>]*>/.exec(result)![0];
+    expect(svgTag.match(/width="100%"/g)?.length).toBe(1);
+    expect(svgTag.match(/height="100%"/g)?.length).toBe(1);
+    expect(svgTag).not.toMatch(/width="\d+"/);
+    expect(svgTag).not.toMatch(/height="\d+"/);
+  });
+
+  it.each(FALLBACK_TIER_SAMPLE)('%s output does not contain data-kind (deliberately omitted for fallback-tier units)', (type) => {
+    const result = getUnitSpriteV2(type, 'imperials', '#4a90d9')!;
+    expect(result).not.toContain('data-kind');
+  });
+
+  it('does not throw and returns non-null for a missing civColor (falls back to NEUTRAL_FACTION_PALETTE)', () => {
+    expect(() => getUnitSpriteV2('tank', 'imperials', '')).not.toThrow();
+    const result = getUnitSpriteV2('tank', 'imperials', '');
+    expect(result).not.toBeNull();
+    expect(result).not.toMatch(/NaN/);
+  });
+
+  it('does not throw and returns non-null when civColor is omitted entirely', () => {
+    expect(() => getUnitSpriteV2('tank', 'imperials')).not.toThrow();
+    expect(getUnitSpriteV2('tank', 'imperials')).not.toBeNull();
+  });
+});
+
+describe('getUnitSpriteV2 — structural guarantee (would have caught #755)', () => {
+  it('never returns null for any type in UNIT_SPRITE_CATALOG, the canonical live unit roster', () => {
+    // Pirate hull types are deliberately faction-gated (see 'neutral pirate v2 sprites' above) —
+    // getUnitSpriteV2(pirateType, 'imperials') is SUPPOSED to return null, that's not a coverage
+    // gap. This loop asserts the "never silently static" guarantee for every type that isn't
+    // pirate-exclusive; pirate hull coverage is already asserted with the correct 'pirates'
+    // faction in the dedicated describe block above.
+    for (const type of Object.keys(UNIT_SPRITE_CATALOG)) {
+      if ((PIRATE_HULL_TYPES as readonly string[]).includes(type)) continue;
+      const result = getUnitSpriteV2(type, 'imperials', '#4a90d9');
+      expect(result, `${type} returned null — silently stuck on static Canvas rendering`).not.toBeNull();
+    }
   });
 });
 

@@ -103,6 +103,10 @@ import { svg as caravanseraiSvg }      from './caravanserai.svg';
 import { svg as bankSvg }              from './bank.svg';
 import { svg as stockExchangeSvg }     from './stock_exchange.svg';
 
+import { UNIT_SPRITE_CATALOG } from '@/renderer/sprites/sprite-catalog';
+import { derivePalette, NEUTRAL_FACTION_PALETTE } from '../sprite-system';
+import type { UnitType } from '@/core/types';
+
 // ── Unit sprites ─────────────────────────────────────────────────────────────
 
 const UNIT_SPRITES: Record<string, Record<string, string>> = {
@@ -158,12 +162,47 @@ const UNIT_SPRITES: Record<string, Record<string, string>> = {
   pirate_mothership: pirateMothershipSvg,
 };
 
-export function getUnitSpriteV2(unitType: string, faction: string): string | null {
+export function isV2NativeUnit(unitType: string): boolean {
+  return unitType in UNIT_SPRITES;
+}
+
+/**
+ * #755: closes the DOM-overlay animation gap for any unit type not hand-authored in
+ * UNIT_SPRITES — both the 24 unit types with no v2 entry at all, and (found during design
+ * review) any unit owned by a faction with no per-family key here, which is what happens for
+ * every minor-civ-owned unit today (getFaction() returns the raw owner id, not one of the 6
+ * archetype names, whenever the owner isn't in state.civilizations). Renders the live
+ * units.tsx/UNIT_SPRITE_CATALOG function directly instead of a second, hand-authored copy.
+ */
+function buildLiveFallbackUnitSprite(unitType: string, civColor: string): string | null {
+  const spriteFn = UNIT_SPRITE_CATALOG[unitType as UnitType];
+  if (!spriteFn) return null; // genuinely unknown type — Canvas handles it, unchanged today
+  const palette = civColor ? derivePalette(civColor) : NEUTRAL_FACTION_PALETTE;
+  const rawSvg = spriteFn({ palette, svgOnly: true });
+  // SpriteFrame's svgOnly output bakes in a fixed pixel width/height (unit sprites: 128x128).
+  // The DOM overlay's outer wrapper (sized in sprite-overlay.ts from camera.hexSize) controls
+  // actual display size; the inner <svg> must fill it responsively instead of carrying its own
+  // fixed size. Replace the baked attribute pair in place — never prepend a duplicate (same fix
+  // shape as the city-panel building-icon feature, #665).
+  const svg = rawSvg.replace(
+    /(<svg\b[^>]*?)\swidth="\d+"\s+height="\d+"/,
+    '$1 width="100%" height="100%"',
+  );
+  // data-kind deliberately omitted: no ambient-effect CSS class (.cq-glow, .cq-fire, etc.) is
+  // data-kind-scoped, and guessing wrong (e.g. tagging a land unit "naval") risks triggering an
+  // unrelated body-plan animation rule. Revisit per-unit once real v2-native art exists (see the
+  // migration-backlog follow-up issue).
+  return `<div class="cq-sprite-wrap cq-v2" data-state="idle" style="--phase:0">${svg}</div>`;
+}
+
+export function getUnitSpriteV2(unitType: string, faction: string, civColor: string = ''): string | null {
   // Faction-neutral sprites (e.g. beasts) are stored under 'beast' and shared across all factions
   const sprites = UNIT_SPRITES[unitType];
-  if (!sprites) return null;
-  if (sprites.pirates) return faction === 'pirates' ? sprites.pirates : null;
-  return sprites[faction] ?? sprites.beast ?? null;
+  if (sprites) {
+    if (sprites.pirates) return faction === 'pirates' ? sprites.pirates : null;
+    return sprites[faction] ?? sprites.beast ?? buildLiveFallbackUnitSprite(unitType, civColor);
+  }
+  return buildLiveFallbackUnitSprite(unitType, civColor);
 }
 
 const PIRATE_HEADQUARTERS_SPRITES: Record<string, Record<string, string>> = {
