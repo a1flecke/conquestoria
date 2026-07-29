@@ -1944,7 +1944,9 @@ export function processCity(
   const newQueue = [...city.productionQueue];
   const newBuildings = [...city.buildings];
   const legacyResourceGrace = new Set(city.legacyResourceGrace ?? []);
-  const legacyTechGrace = [...(city.legacyTechGrace ?? [])];
+  const legacyTechGrace = Array.isArray(city.legacyTechGrace)
+    ? city.legacyTechGrace.filter(item => item === 'cavalry')
+    : [];
   const droppedProductionItems: DroppedProductionItem[] = [];
 
   // Drop queued items that are no longer available (tech lost, resource lost)
@@ -2090,7 +2092,7 @@ export function processCity(
       newBuildings.push(...completion.city.buildings);
       newProgress = completion.city.productionProgress;
       legacyResourceGrace.delete(currentItem);
-      const graceIndex = legacyTechGrace.indexOf(currentItem);
+      const graceIndex = currentItem === 'cavalry' ? legacyTechGrace.indexOf(currentItem) : -1;
       if (graceIndex >= 0) legacyTechGrace.splice(graceIndex, 1);
       completedBuilding = completion.completedBuilding;
       completedUnit = completion.completedUnit;

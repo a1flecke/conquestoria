@@ -355,11 +355,29 @@ function migrateCombatNotificationDetails(state: GameState): GameState {
 
 function migrateRetimedCavalry(state: GameState): GameState {
   const cities = Object.fromEntries(Object.entries(state.cities ?? {}).map(([cityId, city]) => {
-    if (!city.productionQueue.includes('cavalry')) return [cityId, city];
+    const existingGrace = Array.isArray(city.legacyTechGrace)
+      ? city.legacyTechGrace.filter(item => item === 'cavalry')
+      : [];
+    const queuedCavalry = city.productionQueue.filter(item => item === 'cavalry');
+    const legacyTechGrace = [...existingGrace, ...queuedCavalry];
+    if (legacyTechGrace.length === 0) return [cityId, city];
     return [cityId, {
       ...city,
-      legacyTechGrace: [...(city.legacyTechGrace ?? []), ...city.productionQueue.filter(item => item === 'cavalry')],
+      legacyTechGrace,
     }];
+  }));
+  return { ...state, cities };
+}
+
+function normalizeLegacyTechGrace(state: GameState): GameState {
+  const cities = Object.fromEntries(Object.entries(state.cities ?? {}).map(([cityId, city]) => {
+    if (city.legacyTechGrace === undefined) return [cityId, city];
+    const legacyTechGrace = Array.isArray(city.legacyTechGrace)
+      ? city.legacyTechGrace.filter(item => item === 'cavalry')
+      : [];
+    if (legacyTechGrace.length > 0) return [cityId, { ...city, legacyTechGrace }];
+    const { legacyTechGrace: _invalidGrace, ...withoutLegacyTechGrace } = city;
+    return [cityId, withoutLegacyTechGrace];
   }));
   return { ...state, cities };
 }
@@ -505,5 +523,5 @@ export function migrateSaveToCurrent(raw: unknown): GameState {
     state = { ...migration(state), saveSchemaVersion: version };
   }
   const migrated = state.gameId ? state : migrateToEra13Foundation(state);
-  return normalizeCityFaithConversionProgress(withReligionDefaults(normalizeCrisisArchetypes(migrateCircularManufacturingChoices(migrateAutonomyNetworkPostures(migrated)))));
+  return normalizeCityFaithConversionProgress(withReligionDefaults(normalizeCrisisArchetypes(normalizeLegacyTechGrace(migrateCircularManufacturingChoices(migrateAutonomyNetworkPostures(migrated))))));
 }

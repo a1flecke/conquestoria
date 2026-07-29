@@ -1971,7 +1971,39 @@ describe('processCity — resource dequeue', () => {
   });
 });
 
-describe('#429 regression: AI training selection respects new obsolescence data', () => {
+describe('Cavalry retime save compatibility and #429 AI training selection', () => {
+  it('drops an early Cavalry queue safely when malformed legacy tech grace reaches production processing', () => {
+    const map = generateMap(30, 30, 'malformed-cavalry-grace-production');
+    const tile = Object.values(map.tiles).find(candidate => candidate.terrain === 'grassland')!;
+    const city: City = {
+      ...foundCity('p1', tile.coord, map, mkC()),
+      productionQueue: ['cavalry'],
+      legacyTechGrace: { cavalry: true } as unknown as string[],
+    };
+
+    const result = processCity(city, map, 2, 1, undefined, ['horseback-riding'], undefined, 2, new Set<ResourceType>(['horses']));
+
+    expect(result.city.productionQueue).toEqual([]);
+    expect(result.city.legacyTechGrace).toBeUndefined();
+    expect(result.droppedProductionItems).toContainEqual(expect.objectContaining({ itemId: 'cavalry', reason: 'no-longer-available' }));
+  });
+
+  it('does not let malformed Cavalry grace grandfather a different early unit', () => {
+    const map = generateMap(30, 30, 'wrong-unit-cavalry-grace-production');
+    const tile = Object.values(map.tiles).find(candidate => candidate.terrain === 'grassland')!;
+    const city: City = {
+      ...foundCity('p1', tile.coord, map, mkC()),
+      productionQueue: ['horseman'],
+      legacyTechGrace: ['horseman'],
+    };
+
+    const result = processCity(city, map, 2, 1, undefined, [], undefined, 2, new Set<ResourceType>(['horses']));
+
+    expect(result.city.productionQueue).toEqual([]);
+    expect(result.city.legacyTechGrace).toBeUndefined();
+    expect(result.droppedProductionItems).toContainEqual(expect.objectContaining({ itemId: 'horseman', reason: 'no-longer-available' }));
+  });
+
   it('keeps each grandfathered early Cavalry queue slot through production exactly once', () => {
     const map = generateMap(30, 30, 'legacy-cavalry-queue-completion');
     const tile = Object.values(map.tiles).find(candidate => candidate.terrain === 'grassland')!;
