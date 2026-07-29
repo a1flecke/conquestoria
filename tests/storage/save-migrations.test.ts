@@ -306,6 +306,22 @@ describe('save migrations', () => {
     expect(migrated.cities[city.id].legacyResourceGrace).toEqual(['oil_refinery']);
   });
 
+  it('grandfathers pre-retime queued Cavalry exactly once without making new early Cavalry legal', () => {
+    const legacySave = createNewGame('rome', 'legacy-cavalry-queue', 'small');
+    legacySave.saveSchemaVersion = CURRENT_SAVE_SCHEMA_VERSION - 1;
+    const city = Object.values(legacySave.cities)[0]!;
+    city.productionQueue = ['cavalry', 'cavalry'];
+    city.productionProgress = 80;
+
+    const migrated = migrateSaveToCurrent(legacySave);
+    const loadedAgain = migrateSaveToCurrent(migrated);
+
+    expect(migrated.cities[city.id]).toMatchObject({
+      productionQueue: ['cavalry', 'cavalry'], legacyTechGrace: ['cavalry', 'cavalry'],
+    });
+    expect(loadedAgain).toEqual(migrated);
+  });
+
   it('migrates a schema-v2 pre-Autonomy save to empty network state once', () => {
     const legacySave = createNewGame('rome', 'autonomy-pre-activation', 'small');
     legacySave.saveSchemaVersion = 2;

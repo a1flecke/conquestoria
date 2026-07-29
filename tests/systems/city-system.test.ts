@@ -1429,7 +1429,7 @@ describe('getTrainableUnitsForCiv — resource gate', () => {
     expect(units.some(u => u.type === 'axeman')).toBe(true);
   });
 
-  it('excludes cavalry when horses present but iron missing (conjunctive check)', () => {
+  it('excludes cavalry before its two technology requirements are complete', () => {
     const units = getTrainableUnitsForCiv(
       ['horseback-riding'],
       undefined,
@@ -1438,20 +1438,20 @@ describe('getTrainableUnitsForCiv — resource gate', () => {
     expect(units.some(u => u.type === 'cavalry')).toBe(false);
   });
 
-  it('excludes cavalry when iron present but horses missing', () => {
+  it('excludes cavalry when Horses are missing', () => {
     const units = getTrainableUnitsForCiv(
-      ['horseback-riding'],
+      ['rifle-tactics', 'professional-army'],
       undefined,
       new Set<ResourceType>(['iron']),
     );
     expect(units.some(u => u.type === 'cavalry')).toBe(false);
   });
 
-  it('includes cavalry when both horses and iron are present', () => {
+  it('includes cavalry when both technologies and Horses are present without Iron', () => {
     const units = getTrainableUnitsForCiv(
-      ['horseback-riding'],
+      ['rifle-tactics', 'professional-army'],
       undefined,
-      new Set<ResourceType>(['horses', 'iron']),
+      new Set<ResourceType>(['horses']),
     );
     expect(units.some(u => u.type === 'cavalry')).toBe(true);
   });
@@ -1526,6 +1526,16 @@ describe('S4b — new unit entries', () => {
   it('horseman: trainable with horseback-riding + horses', () => {
     const units = getTrainableUnitsForCiv(['horseback-riding'], undefined, new Set<ResourceType>(['horses']));
     expect(units.some(u => u.type === 'horseman')).toBe(true);
+  });
+
+  it('Cavalry needs both Rifle Tactics and Professional Army, but not Iron', () => {
+    const onlyRifleTactics = getTrainableUnitsForCiv(['rifle-tactics'], undefined, new Set<ResourceType>(['horses']));
+    const onlyProfessionalArmy = getTrainableUnitsForCiv(['professional-army'], undefined, new Set<ResourceType>(['horses']));
+    const completeGate = getTrainableUnitsForCiv(['rifle-tactics', 'professional-army'], undefined, new Set<ResourceType>(['horses']));
+
+    expect(onlyRifleTactics.some(unit => unit.type === 'cavalry')).toBe(false);
+    expect(onlyProfessionalArmy.some(unit => unit.type === 'cavalry')).toBe(false);
+    expect(completeGate.find(unit => unit.type === 'cavalry')).toMatchObject({ cost: 140, techRequired: 'rifle-tactics', requiredTechs: ['professional-army'] });
   });
 
   it('knight: trainable with iron-forging + horses + iron', () => {
@@ -1962,6 +1972,28 @@ describe('processCity — resource dequeue', () => {
 });
 
 describe('#429 regression: AI training selection respects new obsolescence data', () => {
+  it('keeps each grandfathered early Cavalry queue slot through production exactly once', () => {
+    const map = generateMap(30, 30, 'legacy-cavalry-queue-completion');
+    const tile = Object.values(map.tiles).find(candidate => candidate.terrain === 'grassland')!;
+    const city: City = {
+      ...foundCity('p1', tile.coord, map, mkC()),
+      productionQueue: ['cavalry', 'cavalry'],
+      productionProgress: 139,
+      legacyTechGrace: ['cavalry', 'cavalry'],
+    };
+
+    const result = processCity(city, map, 2, 1, undefined, ['horseback-riding'], undefined, 2, new Set<ResourceType>(['horses']));
+
+    expect(result.completedUnit).toBe('cavalry');
+    expect(result.city.productionQueue).toEqual(['cavalry']);
+    expect(result.city.legacyTechGrace).toEqual(['cavalry']);
+
+    const secondResult = processCity({ ...result.city, productionProgress: 139 }, map, 2, 1, undefined, ['horseback-riding'], undefined, 2, new Set<ResourceType>(['horses']));
+    expect(secondResult.completedUnit).toBe('cavalry');
+    expect(secondResult.city.productionQueue).toEqual([]);
+    expect(secondResult.city.legacyTechGrace).toBeUndefined();
+  });
+
   it('warrior drops out of the AI-visible trainable pool once bronze-working completes (same getTrainableUnitsForCiv call basic-ai.ts:948 uses)', () => {
     const before = getTrainableUnitsForCiv([], 'rome', new Set<ResourceType>());
     const after = getTrainableUnitsForCiv(['bronze-working'], 'rome', new Set<ResourceType>());

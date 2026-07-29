@@ -1131,7 +1131,7 @@ export const TRAINABLE_UNITS: Array<TrainableUnitEntry & { pacing?: Building['pa
   { type: 'axeman',       name: 'Axeman',       cost: 22,  techRequired: 'stone-weapons',    resourceRequired: ['copper'],         obsoletedByTech: 'fortification', upgradesTo: 'pikeman', pacing: { band: 'power-spike', role: 'early-copper-melee',    impact: 1.1,  scope: 'military', snowball: 1,   urgency: 1.05, situationality: 1.1,  unlockBreadth: 1 } },
   { type: 'spearman',     name: 'Spearman',     cost: 54,  techRequired: 'bronze-working',                                        obsoletedByTech: 'fortification', upgradesTo: 'pikeman', pacing: { band: 'power-spike', role: 'ungated-era2-melee',    impact: 1.05, scope: 'military', snowball: 1,   urgency: 1,    situationality: 1,    unlockBreadth: 1 } },
   { type: 'horseman',     name: 'Horseman',     cost: 55,  techRequired: 'horseback-riding', resourceRequired: ['horses'],           obsoletedByTech: 'tank-warfare', upgradesTo: 'tank',                       pacing: { band: 'power-spike', role: 'basic-cavalry',         impact: 1.15, scope: 'military', snowball: 1,   urgency: 1.05, situationality: 1.1,  unlockBreadth: 1 } },
-  { type: 'cavalry',      name: 'Cavalry',      cost: 60,  techRequired: 'horseback-riding', resourceRequired: ['horses', 'iron'],   obsoletedByTech: 'tank-warfare', upgradesTo: 'tank',                       pacing: { band: 'power-spike', role: 'heavy-cavalry',         impact: 1.2,  scope: 'military', snowball: 1.1, urgency: 1,    situationality: 1.1,  unlockBreadth: 1 } },
+  { type: 'cavalry',      name: 'Cavalry',      cost: 140, techRequired: 'rifle-tactics', requiredTechs: ['professional-army'], resourceRequired: ['horses'], obsoletedByTech: 'tank-warfare', upgradesTo: 'tank', pacing: { band: 'power-spike', role: 'heavy-cavalry', impact: 1.2, scope: 'military', snowball: 1.1, urgency: 1, situationality: 1.1, unlockBreadth: 1 } },
   { type: 'knight',       name: 'Knight',       cost: 80,  techRequired: 'iron-forging',     resourceRequired: ['horses', 'iron'],   obsoletedByTech: 'tank-warfare', upgradesTo: 'tank',                       pacing: { band: 'power-spike', role: 'heavy-cavalry-apex',    impact: 1.25, scope: 'military', snowball: 1.1, urgency: 1,    situationality: 1.1,  unlockBreadth: 1 } },
   // S4b — ranged + siege
   { type: 'marine',       name: 'Marine',       cost: 125, techRequired: 'amphibious-warfare', coastalRequired: true, obsoletedByTech: 'mass-firepower', upgradesTo: 'machine_gunner' },
@@ -1944,6 +1944,7 @@ export function processCity(
   const newQueue = [...city.productionQueue];
   const newBuildings = [...city.buildings];
   const legacyResourceGrace = new Set(city.legacyResourceGrace ?? []);
+  const legacyTechGrace = [...(city.legacyTechGrace ?? [])];
   const droppedProductionItems: DroppedProductionItem[] = [];
 
   // Drop queued items that are no longer available (tech lost, resource lost)
@@ -1953,6 +1954,12 @@ export function processCity(
       ...trainable.map(u => u.type),
       ...[...legacyResourceGrace].filter(item => TRAINABLE_UNITS.some(unit => unit.type === item)),
     ]);
+    const legacyTechGraceCounts = new Map<UnitType, number>();
+    for (const item of legacyTechGrace) {
+      if (!TRAINABLE_UNITS.some(unit => unit.type === item)) continue;
+      const type = item as UnitType;
+      legacyTechGraceCounts.set(type, (legacyTechGraceCounts.get(type) ?? 0) + 1);
+    }
     const BUILDING_IDS = new Set(Object.keys(BUILDINGS));
     const filtered = newQueue.filter(item => {
       if (item.startsWith('legendary:')) return true;
@@ -1972,6 +1979,11 @@ export function processCity(
       }
       const unit = TRAINABLE_UNITS.find(candidate => candidate.type === item);
       if (unit && !trainableTypes.has(unit.type)) {
+        const remainingGrace = legacyTechGraceCounts.get(unit.type) ?? 0;
+        if (remainingGrace > 0) {
+          legacyTechGraceCounts.set(unit.type, remainingGrace - 1);
+          return true;
+        }
         // Within one continuous session, a validly-queued unit's techRequired/civTypeRequired
         // can never later become false (completedTechs never shrinks; civType never changes) —
         // the only two dynamic reasons it can stop being trainable are obsoletedByTech firing or
@@ -2078,6 +2090,8 @@ export function processCity(
       newBuildings.push(...completion.city.buildings);
       newProgress = completion.city.productionProgress;
       legacyResourceGrace.delete(currentItem);
+      const graceIndex = legacyTechGrace.indexOf(currentItem);
+      if (graceIndex >= 0) legacyTechGrace.splice(graceIndex, 1);
       completedBuilding = completion.completedBuilding;
       completedUnit = completion.completedUnit;
     }
@@ -2102,6 +2116,7 @@ export function processCity(
     productionQueue: newQueue,
     buildings: newBuildings,
     ...(legacyResourceGrace.size > 0 ? { legacyResourceGrace: [...legacyResourceGrace] } : { legacyResourceGrace: undefined }),
+    ...(legacyTechGrace.length > 0 ? { legacyTechGrace } : { legacyTechGrace: undefined }),
   };
 
   return {

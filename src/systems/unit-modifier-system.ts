@@ -26,6 +26,7 @@ export interface CombatModifierContext {
   targetIsCoastalCity?: boolean;
   amphibiousAssault?: boolean;
   opponentType: UnitType;
+  opponentHealth?: number;
   opponentInFriendlyCity?: boolean;
 }
 
@@ -131,7 +132,8 @@ export function getCombatModifier(
     const conditionMet = (modifier.condition !== 'fullHP' || ctx.fullHP)
       && (modifier.condition !== 'inFriendlyCity' || ctx.inFriendlyCity)
       && (modifier.condition !== 'vsCoastalCity' || ctx.targetIsCoastalCity)
-      && (modifier.condition !== 'amphibiousAssault' || ctx.amphibiousAssault);
+      && (modifier.condition !== 'amphibiousAssault' || ctx.amphibiousAssault)
+      && (modifier.condition !== 'opponentBelow60HP' || (ctx.opponentHealth ?? 100) < 60);
     if (!conditionMet) {
       facts.push({ key: modifierFactKey(modifier.source), label: modifier.label, sourceVisibility: 'owner', operation: modifier.mode, value, outcome: 'ignored', ignoredReason: 'condition' });
       continue;
