@@ -194,7 +194,7 @@ export class SpriteOverlay {
           }
         } else {
           // Pool miss — create element
-          const rawSvgHtml = this.lookupSprite(entity);
+          const rawSvgHtml = this.lookupSprite(entity, newCivColor);
           if (!rawSvgHtml) continue; // no v2 sprite — canvas handles it
           const svgHtml = applyFactionCivColor(rawSvgHtml, entity.faction, newCivColor);
 
@@ -258,9 +258,9 @@ export class SpriteOverlay {
     }
   }
 
-  private lookupSprite(entity: SpriteEntity): string | null {
+  private lookupSprite(entity: SpriteEntity, civColor: string): string | null {
     switch (entity.kind) {
-      case 'unit':        return getUnitSpriteV2(entity.subtype, entity.faction);
+      case 'unit':        return getUnitSpriteV2(entity.subtype, entity.faction, civColor);
       case 'building':    return getBuildingSpriteV2(entity.subtype, entity.faction);
       case 'improvement': return getImprovementSpriteV2(entity.subtype); // always null
       case 'landmark':    return getPirateHeadquartersSpriteV2(entity.subtype)

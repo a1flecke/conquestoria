@@ -411,3 +411,29 @@ describe('SpriteOverlay.sync() — pool invalidation on civColor change', () => 
     spy.mockRestore();
   });
 });
+
+// ── civColor reaches the live-fallback sprite path ──────────────────────────
+
+describe('SpriteOverlay.sync() — civColor reaches live-fallback unit sprites', () => {
+  it('bakes the real civ color into a fallback-tier unit sprite (e.g. tank), not just native ones', () => {
+    const { overlay, mount } = mountOverlay();
+    const ent = entity({ subtype: 'tank', faction: 'imperials', civId: 'civ-1' });
+
+    overlay.sync(cam(), [ent], MAP, OPTS, { 'civ-1': '#2d6a4f' });
+
+    const el = mount.querySelector('[data-entity-id="u1"]') as HTMLElement;
+    expect(el).not.toBeNull();
+    expect(el.innerHTML).toContain('#2d6a4f');
+  });
+
+  it('still resolves a native unit sprite unchanged when civColor is provided', () => {
+    const { overlay, mount } = mountOverlay();
+    const ent = entity({ subtype: 'warrior', faction: 'imperials', civId: 'civ-1' });
+
+    overlay.sync(cam(), [ent], MAP, OPTS, { 'civ-1': '#2d6a4f' });
+
+    const el = mount.querySelector('[data-entity-id="u1"]') as HTMLElement;
+    expect(el).not.toBeNull();
+    expect(el.innerHTML).toContain('cq-sprite-wrap');
+  });
+});
