@@ -322,6 +322,29 @@ describe('save migrations', () => {
     expect(loadedAgain).toEqual(migrated);
   });
 
+  it('removes malformed legacy Cavalry grace data from an otherwise current save', () => {
+    const save = createNewGame('rome', 'malformed-cavalry-grace', 'small');
+    save.saveSchemaVersion = CURRENT_SAVE_SCHEMA_VERSION;
+    const city = Object.values(save.cities)[0]!;
+    city.legacyTechGrace = { cavalry: true } as unknown as string[];
+
+    const migrated = migrateSaveToCurrent(save);
+
+    expect(migrated.cities[city.id].legacyTechGrace).toBeUndefined();
+    expect(migrateSaveToCurrent(migrated)).toEqual(migrated);
+  });
+
+  it('retains only Cavalry in persisted retime grace data', () => {
+    const save = createNewGame('rome', 'wrong-unit-cavalry-grace', 'small');
+    save.saveSchemaVersion = CURRENT_SAVE_SCHEMA_VERSION;
+    const city = Object.values(save.cities)[0]!;
+    city.legacyTechGrace = ['horseman', 'cavalry'];
+
+    const migrated = migrateSaveToCurrent(save);
+
+    expect(migrated.cities[city.id].legacyTechGrace).toEqual(['cavalry']);
+  });
+
   it('migrates a schema-v2 pre-Autonomy save to empty network state once', () => {
     const legacySave = createNewGame('rome', 'autonomy-pre-activation', 'small');
     legacySave.saveSchemaVersion = 2;
