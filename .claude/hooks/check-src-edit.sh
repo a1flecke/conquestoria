@@ -112,6 +112,20 @@ $lines"
     ;;
 esac
 
+# --- hardcoded numeric width/height SVG attribute in v2/index.ts's unit-sprite live fallback ---
+# (different syntax from the sprite-overlay.ts check above: this is an SVG attribute, width="128",
+# not a CSS style property, width:128px — the DOM overlay wrapper controls actual display size,
+# so the inner <svg> must always be responsive: width="100%" height="100%".)
+case "$file_path" in
+  */src/renderer/sprites/v2/index.ts)
+    if grep -nE 'width="[0-9]+"|height="[0-9]+"' "$file_path" | grep -v '//' >/dev/null; then
+      lines="$(grep -nE 'width="[0-9]+"|height="[0-9]+"' "$file_path" | grep -v '//' | head -5)"
+      append "Hardcoded numeric width/height SVG attribute in v2/index.ts — the DOM overlay wrapper controls display size; the inner <svg> must use width=\"100%\" height=\"100%\" (see .claude/rules/sprites.md#dom-overlay-live-fallback-for-uncovered-unit-sprites):
+$lines"
+    fi
+    ;;
+esac
+
 # --- Object.assign(window or React import in sprite files ---
 case "$file_path" in
   */src/renderer/sprites/*.tsx|*/src/renderer/sprites/*.ts)
