@@ -59,6 +59,38 @@ same way:
 
 ---
 
+## DOM-Overlay Live Fallback For Uncovered Unit Sprites
+
+`getUnitSpriteV2` (`src/renderer/sprites/v2/index.ts`) no longer returns `null` for a unit type
+with no hand-authored `UNIT_SPRITES` entry, or for a known unit type queried with a `faction`
+string that doesn't match one of the 6 archetype-family keys (which happens for every minor-civ-
+owned unit — `getFaction()` returns the raw owner id for any owner not in `state.civilizations`).
+Instead it calls the live `UNIT_SPRITE_CATALOG` function directly (`{palette, svgOnly: true}`) and
+wraps the result in the same `.cq-sprite-wrap.cq-v2` shell every pre-serialized sprite uses — see
+`isV2NativeUnit(unitType)` to check which path a given unit takes.
+
+**This is intentional and permanent — do not "fix" it by reverting to `null`.** It's what makes
+"every unit animates via the DOM overlay" a structural guarantee (enforced by a test in
+`tests/renderer/sprites/v2/index.test.ts` that loops over `UNIT_SPRITE_CATALOG` and asserts
+`getUnitSpriteV2` is never `null`) instead of something that silently regresses whenever a new unit
+ships without matching hand-authored v2 art — which is exactly what happened before issue #755.
+
+- The inner `<svg>` this path produces is always `width="100%" height="100%"`, never a fixed pixel
+  value — the DOM overlay's outer wrapper (sized from `camera.hexSize`) controls actual display
+  size. A hook (`check-src-edit.sh`) blocks a hardcoded numeric width/height here.
+- `data-kind` is deliberately omitted on fallback-tier sprites — no ambient-effect CSS class is
+  `data-kind`-scoped, and guessing wrong risks triggering an unrelated body-plan animation rule.
+- Fallback-tier units get ambient-effect animation (`.cq-glow`, `.cq-fire`, etc.) and idle motion,
+  but not the 6-way archetype body/armor variation native v2-native units have, nor full
+  limb-level walk-cycle art. Upgrading a specific unit to native v2 art is optional, incremental
+  work — see the migration-backlog issue referenced in `docs/sprite-design-system.md`'s Units
+  section for the recipe.
+- Step 5 of the "Extension Recipe — Unit or Building Sprite" above (adding the catalog entry) is
+  now sufficient by itself for a new unit to animate via the DOM overlay — writing v2-native
+  archetype art is optional richness, not a required step.
+
+---
+
 ## Hard Rules
 
 **Units and buildings:**
