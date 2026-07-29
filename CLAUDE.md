@@ -24,6 +24,8 @@ This is enforced by the user and is not optional.
 - `bash scripts/run-with-mise.sh yarn dev` — Start dev server
 - `bash scripts/run-with-mise.sh yarn build` — Production build
 - `bash scripts/run-with-mise.sh yarn test` — Run vitest + hook smoke tests. DOES NOT type-check — `yarn build` is the only path that runs `tsc`. Before any `git push`, `gh pr create`, or `gh pr merge`, run `yarn build` and `yarn test` and confirm both exit 0. The `require-green-before-push` hook enforces this, but catching it locally is faster.
+- `bash scripts/run-with-mise.sh yarn test:durable` — Run the complete suite and persist its result in this worktree's ignored `.verification/` directory. Use this for agent-driven full-suite checks when terminal output might be interrupted; it removes stale completed evidence before it starts, refuses to replace a live run in the same worktree, and records the tested HEAD plus exit code.
+- `bash scripts/run-with-mise.sh yarn test:durable:status` — Accept durable evidence only when it passed and belongs to the current `HEAD` and working tree; otherwise it exits non-zero and explains why.
 - `bash scripts/run-with-mise.sh yarn test:watch` — Run tests in watch mode
 
 **Bash tool timeout guidance** — set `timeout` to match what the command actually does:

@@ -59,6 +59,15 @@ concurrently across linked worktrees. Do not add a repository-wide lock around
 them: it turns unrelated agents into a queue and does not make a test suite
 safer.
 
+When an agent needs a durable complete-suite result, use `yarn test:durable`.
+It writes only under the active worktree's ignored `.verification/` directory,
+cleans stale completed artifacts before starting, and refuses to overwrite a
+live run in that same worktree. Read it with `yarn test:durable:status`; a
+passing result is valid only when its recorded commit and working-tree state
+match the current worktree. Different worktrees keep independent durable
+evidence and must never share an artifact directory or a repository-wide
+verification lock.
+
 Vitest's worker limit applies to one process, not the whole machine. The config
 uses 25% of the available CPU locally, leaving capacity for four simultaneous
 worktree runs; CI uses 100% on isolated hardware. Override a one-off run with

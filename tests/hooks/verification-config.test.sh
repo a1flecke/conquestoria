@@ -66,3 +66,15 @@ grep -Fxq '.vite/' "$ROOT/.gitignore" || {
   echo "worktree-local Vite caches are not ignored"
   exit 1
 }
+grep -Fxq '.verification/' "$ROOT/.gitignore" || {
+  echo "worktree-local durable verification artifacts are not ignored"
+  exit 1
+}
+grep -Fq '"test:durable": "sh scripts/run-durable-test-suite.sh full -- sh scripts/run-test-suite.sh full"' "$ROOT/package.json" || {
+  echo "package.json does not expose the durable full-suite runner"
+  exit 1
+}
+grep -Fq '"test:durable:status": "sh scripts/read-durable-test-result.sh full"' "$ROOT/package.json" || {
+  echo "package.json does not expose the durable full-suite status reader"
+  exit 1
+}

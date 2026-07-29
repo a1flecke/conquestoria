@@ -98,6 +98,15 @@ Before `git push`, PR creation, or merge, run:
 - `./scripts/run-with-mise.sh yarn build`
 - `./scripts/run-with-mise.sh yarn test`
 
+When a full-suite terminal session may be interrupted or its final status is
+not recoverable, run `./scripts/run-with-mise.sh yarn test:durable` instead of
+inferring success from partial output. It clears stale completed evidence and
+writes only under the active worktree's ignored `.verification/` directory.
+Confirm it with `./scripts/run-with-mise.sh yarn test:durable:status`; it
+accepts a result only when it passed for the current `HEAD` and working tree.
+Do not point two worktrees at a shared durable-artifact directory or add a
+repository-wide verification lock.
+
 When `HEAD` is ahead of `origin/main`, also review both:
 
 - `git diff --stat origin/main...HEAD`
