@@ -136,4 +136,20 @@ wrapper.style.cssText = `position:absolute;width:${wrapSizePx}px;height:${wrapSi
 EOF
 expect_allow "$tmp/src/renderer/sprite-overlay.ts" "dynamic hexSize-derived size in sprite-overlay.ts"
 
+# --- v2/index.ts: block hardcoded numeric SVG width/height attribute ---
+mkdir -p "$tmp/src/renderer/sprites/v2"
+cat > "$tmp/src/renderer/sprites/v2/index.ts" <<'EOF'
+const svg = rawSvg.replace(/width="\d+"/, 'width="128" height="128"');
+EOF
+expect_block "$tmp/src/renderer/sprites/v2/index.ts" "hardcoded width=\"128\" in v2/index.ts"
+
+# --- v2/index.ts: allow the correct responsive-percentage replacement ---
+cat > "$tmp/src/renderer/sprites/v2/index.ts" <<'EOF'
+const svg = rawSvg.replace(
+  /(<svg\b[^>]*?)\swidth="\d+"\s+height="\d+"/,
+  '$1 width="100%" height="100%"',
+);
+EOF
+expect_allow "$tmp/src/renderer/sprites/v2/index.ts" "width=\"100%\" replacement in v2/index.ts"
+
 exit "$fail"
