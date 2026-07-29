@@ -32,6 +32,7 @@ playwright-report/
 # OS
 .DS_Store
 .vite/
+.verification/
 Thumbs.db
 
 # Environment
