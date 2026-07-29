@@ -64,6 +64,19 @@ describe('UNIT_CLASS_BY_TYPE completeness', () => {
 });
 
 describe('getCombatModifier — tech rows', () => {
+  it('Cavalry gains exactly 15% pursuit strength only against targets below 60 HP', () => {
+    const woundedTarget = getCombatModifier('cavalry', 'attacker', baseCombatCtx({ opponentHealth: 59 }));
+    const thresholdTarget = getCombatModifier('cavalry', 'attacker', baseCombatCtx({ opponentHealth: 60 }));
+    const defender = getCombatModifier('cavalry', 'defender', baseCombatCtx({ opponentHealth: 25 }));
+
+    expect(woundedTarget.mult).toBeCloseTo(1.15);
+    expect(woundedTarget.facts).toContainEqual(expect.objectContaining({
+      key: 'unit:cavalry', label: 'Cavalry pursuit', outcome: 'applied', value: 1.15,
+    }));
+    expect(thresholdTarget.mult).toBe(1);
+    expect(defender.mult).toBe(1);
+  });
+
   it('tactics: +10% multiplier, always, applies with no completed techs missing it (negative test)', () => {
     const withTech = getCombatModifier('warrior', 'attacker', baseCombatCtx({ completedTechs: ['tactics'] }));
     const withoutTech = getCombatModifier('warrior', 'attacker', baseCombatCtx());

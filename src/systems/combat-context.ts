@@ -106,6 +106,7 @@ export function buildCombatContextForDefender(
       amphibiousAssault: options.amphibiousAssault,
       targetIsCoastalCity: defenderCity ? isCityCoastal(defenderCity, state.map) : false,
       opponentType: defender.type,
+      opponentHealth: defender.health,
       opponentInFriendlyCity: defenderInFriendlyCity,
     }),
     defenderModifiers: getCombatModifier(defender.type, 'defender', {

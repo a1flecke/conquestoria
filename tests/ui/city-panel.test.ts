@@ -1642,16 +1642,16 @@ describe('city-panel locked section — S4b', () => {
     expect(html).not.toContain('Horseman');
   });
 
-  it('multi-resource locked item (cavalry) shows both missing resources', () => {
+  it('retimed Cavalry shows both missing technology requirements', () => {
     const { container, city, state } = makeLockedFixture({
       completedTechs: ['horseback-riding'],
-      resources: [],  // missing both horses and iron
+      resources: [],
     });
     const panel = createCityPanel(container, city, state, { onBuild: () => {}, onOpenWonderPanel: () => {}, onClose: () => {} });
     const html = (panel as unknown as HTMLElement).innerHTML ?? '';
     expect(html).toContain('Cavalry');
-    expect(html).toContain('Horses');
-    expect(html).toContain('Iron');
+    expect(html).toContain('Rifle Tactics');
+    expect(html).toContain('Professional Army');
   });
 
   it('shows Show X more button when more than 3 items are locked', () => {
@@ -1665,15 +1665,15 @@ describe('city-panel locked section — S4b', () => {
     expect(html).toContain('more locked');
   });
 
-  it('does NOT show Show X more button when 3 or fewer items are locked', () => {
-    // Only stone-weapons unlocks resource-gated units (axeman + armory = 2 items)
+  it('shows Show X more when the retimed Cavalry adds a fourth locked catalog item', () => {
+    // The full catalog keeps Cavalry reachable with its missing requirements explained.
     const { container, city, state } = makeLockedFixture({
       completedTechs: ['stone-weapons'],
       resources: [],
     });
     const panel = createCityPanel(container, city, state, { onBuild: () => {}, onOpenWonderPanel: () => {}, onClose: () => {} });
     const html = (panel as unknown as HTMLElement).innerHTML ?? '';
-    expect(html).not.toContain('more locked');
+    expect(html).toContain('more locked');
   });
 
   it('Show more locked button — clicking reveals all hidden locked items and removes the button', () => {

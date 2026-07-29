@@ -13,7 +13,7 @@ import { CIRCULAR_MANUFACTURING_MATERIALS } from '@/systems/national-project-sys
 import { appendNotification } from '@/core/notification-log';
 import { syncTransportCargoPositions } from '@/systems/transport-system';
 
-export const CURRENT_SAVE_SCHEMA_VERSION = 9;
+export const CURRENT_SAVE_SCHEMA_VERSION = 10;
 
 export type SaveMigration = (state: GameState) => GameState;
 
@@ -353,6 +353,17 @@ function migrateCombatNotificationDetails(state: GameState): GameState {
   return state;
 }
 
+function migrateRetimedCavalry(state: GameState): GameState {
+  const cities = Object.fromEntries(Object.entries(state.cities ?? {}).map(([cityId, city]) => {
+    if (!city.productionQueue.includes('cavalry')) return [cityId, city];
+    return [cityId, {
+      ...city,
+      legacyTechGrace: [...(city.legacyTechGrace ?? []), ...city.productionQueue.filter(item => item === 'cavalry')],
+    }];
+  }));
+  return { ...state, cities };
+}
+
 /**
  * BFS outward from `start` over ocean/coast tiles only, returning the nearest coast tile not in
  * `occupied`. Deterministic (neighbors visited in sorted hexKey order) so migration output
@@ -463,6 +474,7 @@ export const SAVE_MIGRATIONS: Readonly<Record<number, SaveMigration>> = {
   7: migrateCircularManufacturingChoices,
   8: migrateCombatNotificationDetails,
   9: migrateCoastalHullsOffOcean,
+  10: migrateRetimedCavalry,
 };
 
 function readSchemaVersion(raw: Record<string, unknown>): number {

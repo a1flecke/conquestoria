@@ -519,6 +519,8 @@ export interface City {
   productionProgress: number;
   /** One-time save-migration exemption for pre-resource-gate queued items. */
   legacyResourceGrace?: string[];
+  /** One-time save-migration exemption for queued items retimed behind new technologies. */
+  legacyTechGrace?: string[];
   ownedTiles: HexCoord[];    // city territory/control, not active citizen assignment
   workedTiles: HexCoord[];
   focus: CityFocus;

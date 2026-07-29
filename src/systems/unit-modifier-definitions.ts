@@ -119,7 +119,8 @@ export type ModifierCondition =
   | 'vsCoastalCity'
   | 'amphibiousAssault'
   | 'withinRangeOfFriendlyCity3'
-  | 'withinRangeOfNeuralRehabilitationCenter';
+  | 'withinRangeOfNeuralRehabilitationCenter'
+  | 'opponentBelow60HP';
 
 export type ModifierSource =
   | { kind: 'tech'; id: string }
@@ -164,6 +165,7 @@ export const UNIT_MODIFIERS: UnitModifier[] = [
   { source: tech('torpedo-warfare'), effect: 'combatStrength', mode: 'flat', value: 8, unitTypes: ['ironclad', 'pre_dreadnought', 'submarine', 'missile_submarine', 'carrier'], when: 'always', label: 'Torpedo Warfare' },
   { source: tech('stone-weapons'), effect: 'combatStrength', mode: 'flat', value: 2, unitTypes: ['warrior'], when: 'attacking', label: 'Stone Weapons' },
   { source: unit('marine'), effect: 'combatStrength', mode: 'multiplier', value: 2, unitTypes: ['marine'], when: 'attacking', condition: 'amphibiousAssault', label: 'Marine landing training' },
+  { source: unit('cavalry'), effect: 'combatStrength', mode: 'multiplier', value: 1.15, unitTypes: ['cavalry'], when: 'attacking', condition: 'opponentBelow60HP', label: 'Cavalry pursuit' },
 
   // --- Combat: national projects ---
   { source: nationalProject('foundry_guild'), effect: 'combatStrength', mode: 'flat', value: 2, appliesTo: ['melee'], when: 'always', label: 'Foundry Guild' },
