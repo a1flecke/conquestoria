@@ -23,7 +23,7 @@ const PROJECT_ROOT = path.resolve(__dirname, '../..');
 
 const COMBAT_MELEE_TYPES: UnitType[] = [
   'warrior', 'axeman', 'spearman', 'swordsman', 'pikeman', 'musketeer',
-  'horseman', 'cavalry', 'knight',
+  'horseman', 'chariot', 'cavalry', 'knight',
   'galley', 'trireme',
   'shadow_warden', 'scout_hound', 'war_hound',
 ];

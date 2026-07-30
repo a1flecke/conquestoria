@@ -2033,3 +2033,30 @@ describe('Cavalry retime save compatibility and #429 AI training selection', () 
     expect(after.some(u => u.type === 'warrior')).toBe(false);
   });
 });
+
+describe('Chariot production contract', () => {
+  it('requires both Wheel and Horseback Riding plus Horses', () => {
+    const chariot = TRAINABLE_UNITS.find(unit => unit.name === 'Chariot');
+
+    expect(chariot).toMatchObject({
+      type: 'chariot',
+      cost: 65,
+      techRequired: 'wheel',
+      requiredTechs: ['horseback-riding'],
+      resourceRequired: ['horses'],
+      upgradesTo: 'knight',
+    });
+  });
+
+  it('rejects either partial technology gate and missing Horses', () => {
+    const onlyWheel = getTrainableUnitsForCiv(['wheel'], undefined, new Set<ResourceType>(['horses']));
+    const onlyHorsebackRiding = getTrainableUnitsForCiv(['horseback-riding'], undefined, new Set<ResourceType>(['horses']));
+    const missingHorses = getTrainableUnitsForCiv(['wheel', 'horseback-riding'], undefined, new Set<ResourceType>());
+    const legal = getTrainableUnitsForCiv(['wheel', 'horseback-riding'], undefined, new Set<ResourceType>(['horses']));
+
+    expect(onlyWheel.some(unit => unit.type === 'chariot')).toBe(false);
+    expect(onlyHorsebackRiding.some(unit => unit.type === 'chariot')).toBe(false);
+    expect(missingHorses.some(unit => unit.type === 'chariot')).toBe(false);
+    expect(legal.some(unit => unit.type === 'chariot')).toBe(true);
+  });
+});

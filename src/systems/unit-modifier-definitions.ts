@@ -21,6 +21,7 @@ export const UNIT_CLASS_BY_TYPE: Record<UnitType, UnitClass[]> = {
   axeman: ['melee'],
   spearman: ['melee'],
   horseman: ['mounted'],
+  chariot: ['mounted'],
   cavalry: ['mounted'],
   knight: ['mounted', 'melee'],
   crossbowman: ['ranged'],
@@ -120,7 +121,9 @@ export type ModifierCondition =
   | 'amphibiousAssault'
   | 'withinRangeOfFriendlyCity3'
   | 'withinRangeOfNeuralRehabilitationCenter'
-  | 'opponentBelow60HP';
+  | 'opponentBelow60HP'
+  | 'onOpenGround'
+  | 'onRoughGround';
 
 export type ModifierSource =
   | { kind: 'tech'; id: string }
@@ -139,6 +142,8 @@ export interface UnitModifier {
   domain?: 'land' | 'naval' | 'air';
   when?: ModifierWhen;
   condition?: ModifierCondition;
+  /** Stable per-row identity for player-visible applied/ignored combat facts. */
+  factKey?: string;
   label: string;
 }
 
@@ -165,6 +170,8 @@ export const UNIT_MODIFIERS: UnitModifier[] = [
   { source: tech('torpedo-warfare'), effect: 'combatStrength', mode: 'flat', value: 8, unitTypes: ['ironclad', 'pre_dreadnought', 'submarine', 'missile_submarine', 'carrier'], when: 'always', label: 'Torpedo Warfare' },
   { source: tech('stone-weapons'), effect: 'combatStrength', mode: 'flat', value: 2, unitTypes: ['warrior'], when: 'attacking', label: 'Stone Weapons' },
   { source: unit('marine'), effect: 'combatStrength', mode: 'multiplier', value: 2, unitTypes: ['marine'], when: 'attacking', condition: 'amphibiousAssault', label: 'Marine landing training' },
+  { source: unit('chariot'), effect: 'combatStrength', mode: 'multiplier', value: 1.2, unitTypes: ['chariot'], when: 'attacking', condition: 'onOpenGround', factKey: 'unit:chariot:open-ground', label: 'Chariot open-ground charge' },
+  { source: unit('chariot'), effect: 'combatStrength', mode: 'multiplier', value: 0.85, unitTypes: ['chariot'], when: 'attacking', condition: 'onRoughGround', factKey: 'unit:chariot:rough-ground', label: 'Chariot rough-ground penalty' },
   { source: unit('cavalry'), effect: 'combatStrength', mode: 'multiplier', value: 1.15, unitTypes: ['cavalry'], when: 'attacking', condition: 'opponentBelow60HP', label: 'Cavalry pursuit' },
 
   // --- Combat: national projects ---

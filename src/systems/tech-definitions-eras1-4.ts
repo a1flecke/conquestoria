@@ -24,7 +24,7 @@ export const TECH_TREE_ERAS_1_4: Tech[] = [
   // === SCIENCE TRACK (9 techs, with Slice 3 late-era scaffolding) ===
   { id: 'fire', name: 'Fire', track: 'science', cost: 4, prerequisites: [], unlocks: ['Unlock basic research'], era: 1, pacing: { band: 'starter', role: 'foundational-science', impact: 1, scope: 'empire', snowball: 1.15, urgency: 1.1, situationality: 1, unlockBreadth: 1.1 } },
   { id: 'writing', name: 'Writing', track: 'science', cost: 10, prerequisites: ['fire'], unlocks: [], unlocksBuildings: ['library'], era: 1 },
-  { id: 'wheel', name: 'The Wheel', track: 'science', cost: 10, prerequisites: ['fire'], unlocks: ['Foundational mechanics knowledge'], unlocksBuildings: ['caravanserai'], era: 2 },
+  { id: 'wheel', name: 'The Wheel', track: 'science', cost: 10, prerequisites: ['fire'], unlocks: ['Foundational mechanics knowledge'], unlocksUnits: ['chariot'], unlocksBuildings: ['caravanserai'], era: 2 },
   { id: 'mathematics', name: 'Mathematics', track: 'science', cost: 25, prerequisites: ['writing'], unlocks: [], unlocksBuildings: ['archive', 'scribes_hall'], era: 2 },
   { id: 'engineering', name: 'Engineering', track: 'science', cost: 55, prerequisites: ['mathematics', 'wheel'], unlocks: [], unlocksBuildings: ['aqueduct', 'forge'], era: 3 },
   { id: 'philosophy', name: 'Philosophy', track: 'science', cost: 70, prerequisites: ['writing'], unlocks: [], unlocksBuildings: ['temple', 'philosophers_circle', 'sacred_council'], era: 3 },

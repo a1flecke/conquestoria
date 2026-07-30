@@ -64,6 +64,54 @@ describe('UNIT_CLASS_BY_TYPE completeness', () => {
 });
 
 describe('getCombatModifier — tech rows', () => {
+  it('Chariot gains 20% strength on open ground and loses 15% in rough terrain', () => {
+    const open = getCombatModifier('chariot', 'attacker', baseCombatCtx({ targetTerrain: 'plains' }));
+    const rough = getCombatModifier('chariot', 'attacker', baseCombatCtx({ targetTerrain: 'forest' }));
+    const defending = getCombatModifier('chariot', 'defender', baseCombatCtx({ targetTerrain: 'plains' }));
+
+    expect(open.mult).toBeCloseTo(1.2);
+    expect(rough.mult).toBeCloseTo(0.85);
+    expect(defending.mult).toBe(1);
+    expect(open.facts).toContainEqual(expect.objectContaining({
+      key: 'unit:chariot:open-ground', outcome: 'applied', value: 1.2,
+    }));
+    expect(open.facts).toContainEqual(expect.objectContaining({
+      key: 'unit:chariot:rough-ground', outcome: 'ignored', ignoredReason: 'condition', value: 0.85,
+    }));
+  });
+
+  it('lets Spearman apply its anti-mounted counter against Chariot', () => {
+    expect(getClassCounterMultiplier('spearman', 'chariot', false)).toEqual({
+      multiplier: 1.5,
+      label: 'Anti-cavalry ×1.5',
+    });
+  });
+
+  it('keeps the heavy-mobile opener inside its intended deterministic terrain envelope', () => {
+    const balanceMap = generateMap(20, 20, 'chariot-terrain-balance');
+    const attacker = createUnit('chariot', 'p1', { q: 5, r: 5 }, mkC());
+    const defender = createUnit('swordsman', 'p2', { q: 6, r: 5 }, mkC());
+    balanceMap.tiles['6,5'] = { ...balanceMap.tiles['6,5']!, terrain: 'plains' };
+
+    const open = calculateCombatStrengths(attacker, defender, balanceMap, {
+      attackerModifiers: getCombatModifier('chariot', 'attacker', baseCombatCtx({
+        opponentType: 'swordsman', targetTerrain: 'plains',
+      })),
+    });
+
+    balanceMap.tiles['6,5'] = { ...balanceMap.tiles['6,5']!, terrain: 'forest' };
+    const rough = calculateCombatStrengths(attacker, defender, balanceMap, {
+      attackerModifiers: getCombatModifier('chariot', 'attacker', baseCombatCtx({
+        opponentType: 'swordsman', targetTerrain: 'forest',
+      })),
+    });
+
+    expect(UNIT_DEFINITIONS.chariot.strength).toBeGreaterThan(UNIT_DEFINITIONS.horseman.strength);
+    expect(UNIT_DEFINITIONS.chariot.strength).toBeLessThan(UNIT_DEFINITIONS.knight.strength);
+    expect(open.attackerStrength).toBeGreaterThan(open.defenderStrength);
+    expect(rough.attackerStrength).toBeLessThan(rough.defenderStrength);
+  });
+
   it('Cavalry gains exactly 15% pursuit strength only against targets below 60 HP', () => {
     const woundedTarget = getCombatModifier('cavalry', 'attacker', baseCombatCtx({ opponentHealth: 59 }));
     const thresholdTarget = getCombatModifier('cavalry', 'attacker', baseCombatCtx({ opponentHealth: 60 }));

@@ -1,4 +1,4 @@
-import type { CombatModifierFact, GameState, HexCoord, UnitType } from '@/core/types';
+import type { CombatModifierFact, GameState, HexCoord, TerrainType, UnitType } from '@/core/types';
 import { hexDistance } from './hex-utils';
 import { UNIT_DEFINITIONS } from './unit-system';
 import {
@@ -28,6 +28,7 @@ export interface CombatModifierContext {
   opponentType: UnitType;
   opponentHealth?: number;
   opponentInFriendlyCity?: boolean;
+  targetTerrain?: TerrainType;
 }
 
 export interface CombatModifierResult {
@@ -37,7 +38,8 @@ export interface CombatModifierResult {
   facts: CombatModifierFact[];
 }
 
-function modifierFactKey(source: { kind: string; id: string }): string {
+function modifierFactKey(source: { kind: string; id: string }, factKey?: string): string {
+  if (factKey) return factKey;
   if (source.kind === 'tech') return `tech:${source.id}`;
   if (source.kind === 'nationalProject') return `national-project:${source.id}`;
   return `unit:${source.id}`;
@@ -45,6 +47,19 @@ function modifierFactKey(source: { kind: string; id: string }): string {
 
 function counterFactKey(label: string): string {
   return `counter:${label.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}`;
+}
+
+function isRoughGround(terrain: TerrainType | undefined): boolean {
+  return terrain === 'forest'
+    || terrain === 'hills'
+    || terrain === 'jungle'
+    || terrain === 'swamp'
+    || terrain === 'volcanic'
+    || terrain === 'mountain';
+}
+
+function isOpenGround(terrain: TerrainType | undefined): boolean {
+  return terrain !== undefined && !isRoughGround(terrain) && terrain !== 'ocean' && terrain !== 'coast';
 }
 
 function formatPart(label: string, mode: ModifierMode, value: number): string {
@@ -121,11 +136,11 @@ export function getCombatModifier(
     const when = modifier.when ?? 'always';
     const value = modifier.mode === 'flat' ? Math.floor(modifier.value * scale) : modifier.value;
     if (when === 'attacking' && role !== 'attacker') {
-      facts.push({ key: modifierFactKey(modifier.source), label: modifier.label, sourceVisibility: 'owner', operation: modifier.mode, value, outcome: 'ignored', ignoredReason: 'role' });
+      facts.push({ key: modifierFactKey(modifier.source, modifier.factKey), label: modifier.label, sourceVisibility: 'owner', operation: modifier.mode, value, outcome: 'ignored', ignoredReason: 'role' });
       continue;
     }
     if (when === 'defending' && role !== 'defender') {
-      facts.push({ key: modifierFactKey(modifier.source), label: modifier.label, sourceVisibility: 'owner', operation: modifier.mode, value, outcome: 'ignored', ignoredReason: 'role' });
+      facts.push({ key: modifierFactKey(modifier.source, modifier.factKey), label: modifier.label, sourceVisibility: 'owner', operation: modifier.mode, value, outcome: 'ignored', ignoredReason: 'role' });
       continue;
     }
 
@@ -133,9 +148,11 @@ export function getCombatModifier(
       && (modifier.condition !== 'inFriendlyCity' || ctx.inFriendlyCity)
       && (modifier.condition !== 'vsCoastalCity' || ctx.targetIsCoastalCity)
       && (modifier.condition !== 'amphibiousAssault' || ctx.amphibiousAssault)
-      && (modifier.condition !== 'opponentBelow60HP' || (ctx.opponentHealth ?? 100) < 60);
+      && (modifier.condition !== 'opponentBelow60HP' || (ctx.opponentHealth ?? 100) < 60)
+      && (modifier.condition !== 'onOpenGround' || isOpenGround(ctx.targetTerrain))
+      && (modifier.condition !== 'onRoughGround' || isRoughGround(ctx.targetTerrain));
     if (!conditionMet) {
-      facts.push({ key: modifierFactKey(modifier.source), label: modifier.label, sourceVisibility: 'owner', operation: modifier.mode, value, outcome: 'ignored', ignoredReason: 'condition' });
+      facts.push({ key: modifierFactKey(modifier.source, modifier.factKey), label: modifier.label, sourceVisibility: 'owner', operation: modifier.mode, value, outcome: 'ignored', ignoredReason: 'condition' });
       continue;
     }
 
@@ -147,7 +164,7 @@ export function getCombatModifier(
       flat += value;
       parts.push({ label: formatPart(modifier.label, 'flat', value), kind: 'flat' });
     }
-    facts.push({ key: modifierFactKey(modifier.source), label: modifier.label, sourceVisibility: 'owner', operation: modifier.mode, value, outcome: 'applied' });
+    facts.push({ key: modifierFactKey(modifier.source, modifier.factKey), label: modifier.label, sourceVisibility: 'owner', operation: modifier.mode, value, outcome: 'applied' });
   }
 
   if (role === 'attacker') {
