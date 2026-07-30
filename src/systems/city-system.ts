@@ -1131,6 +1131,7 @@ export const TRAINABLE_UNITS: Array<TrainableUnitEntry & { pacing?: Building['pa
   { type: 'axeman',       name: 'Axeman',       cost: 22,  techRequired: 'stone-weapons',    resourceRequired: ['copper'],         obsoletedByTech: 'fortification', upgradesTo: 'pikeman', pacing: { band: 'power-spike', role: 'early-copper-melee',    impact: 1.1,  scope: 'military', snowball: 1,   urgency: 1.05, situationality: 1.1,  unlockBreadth: 1 } },
   { type: 'spearman',     name: 'Spearman',     cost: 54,  techRequired: 'bronze-working',                                        obsoletedByTech: 'fortification', upgradesTo: 'pikeman', pacing: { band: 'power-spike', role: 'ungated-era2-melee',    impact: 1.05, scope: 'military', snowball: 1,   urgency: 1,    situationality: 1,    unlockBreadth: 1 } },
   { type: 'horseman',     name: 'Horseman',     cost: 55,  techRequired: 'horseback-riding', resourceRequired: ['horses'],           obsoletedByTech: 'tank-warfare', upgradesTo: 'tank',                       pacing: { band: 'power-spike', role: 'basic-cavalry',         impact: 1.15, scope: 'military', snowball: 1,   urgency: 1.05, situationality: 1.1,  unlockBreadth: 1 } },
+  { type: 'chariot',      name: 'Chariot',      cost: 65,  techRequired: 'wheel', requiredTechs: ['horseback-riding'], resourceRequired: ['horses'], obsoletedByTech: 'iron-forging', upgradesTo: 'knight', pacing: { band: 'power-spike', role: 'ancient-heavy-mobile', impact: 1.2, scope: 'military', snowball: 1, urgency: 1.05, situationality: 1.2, unlockBreadth: 1 } },
   { type: 'cavalry',      name: 'Cavalry',      cost: 140, techRequired: 'rifle-tactics', requiredTechs: ['professional-army'], resourceRequired: ['horses'], obsoletedByTech: 'tank-warfare', upgradesTo: 'tank', pacing: { band: 'power-spike', role: 'heavy-cavalry', impact: 1.2, scope: 'military', snowball: 1.1, urgency: 1, situationality: 1.1, unlockBreadth: 1 } },
   { type: 'knight',       name: 'Knight',       cost: 80,  techRequired: 'iron-forging',     resourceRequired: ['horses', 'iron'],   obsoletedByTech: 'tank-warfare', upgradesTo: 'tank',                       pacing: { band: 'power-spike', role: 'heavy-cavalry-apex',    impact: 1.25, scope: 'military', snowball: 1.1, urgency: 1,    situationality: 1.1,  unlockBreadth: 1 } },
   // S4b — ranged + siege
@@ -1254,7 +1255,7 @@ export function getCatalogProductionCost(itemId: string, era: number = 1): numbe
 export const MELEE_RANGED_UNIT_TYPES: string[] = [
   'warrior', 'axeman', 'spearman', 'swordsman', 'pikeman', 'musketeer', 'archer', 'crossbowman',
 ];
-export const CAVALRY_UNIT_TYPES: string[] = ['horseman', 'cavalry', 'knight'];
+export const CAVALRY_UNIT_TYPES: string[] = ['horseman', 'chariot', 'cavalry', 'knight'];
 export const SIEGE_UNIT_TYPES: string[] = ['catapult', 'ballista', 'cannon'];
 
 // era-1/2 melee units eligible for the Tribal Muster Ground national-project discount.
@@ -1463,6 +1464,7 @@ export const PRODUCTION_ICONS: Record<string, string> = {
   axeman:      '🪓',
   spearman:    '🗼',
   horseman:    '🏇',
+  chariot:     '🛞',
   cavalry:     '⚡',
   knight:      '♞',
   crossbowman: '🪃',

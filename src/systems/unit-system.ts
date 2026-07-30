@@ -211,6 +211,12 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     canBuildImprovements: false, productionCost: 55,
     cargoSize: 2,
   },
+  chariot: {
+    type: 'chariot', name: 'Chariot', movementPoints: 3,
+    visionRange: 2, strength: 30, canFoundCity: false,
+    canBuildImprovements: false, productionCost: 65,
+    cargoSize: 2,
+  },
   cavalry: {
     type: 'cavalry', name: 'Cavalry', movementPoints: 4,
     visionRange: 2, strength: 44, canFoundCity: false,
@@ -684,6 +690,7 @@ export const UNIT_DESCRIPTIONS: Record<UnitType, string> = {
   axeman:      'Early copper-armed warrior. Strong for the era but outpaced once iron is mastered.',
   spearman:    'Versatile polearm soldier effective against mounted units. No resources required.',
   horseman:    'Swift light cavalry for raids and flanking. Requires Horses.',
+  chariot:     'A heavy mobile attacker that gains 20% strength on open ground but loses 15% in rough terrain. Requires Horses.',
   cavalry:     'Fast pursuit cavalry gains 15% strength against enemies below 60 HP. Requires Horses.',
   knight:      'The apex of mounted warfare — armored and devastating. Requires Horses and Iron.',
   crossbowman: 'Precision-ranged unit with a longer reach than Archers. Requires Copper.',

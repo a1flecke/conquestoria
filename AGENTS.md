@@ -96,14 +96,17 @@ Test-selection rule:
 Before `git push`, PR creation, or merge, run:
 
 - `./scripts/run-with-mise.sh yarn build`
-- `./scripts/run-with-mise.sh yarn test`
+- `./scripts/run-with-mise.sh yarn test:durable`
+- `./scripts/run-with-mise.sh yarn test:durable:status`
 
-When a full-suite terminal session may be interrupted or its final status is
-not recoverable, run `./scripts/run-with-mise.sh yarn test:durable` instead of
-inferring success from partial output. It clears stale completed evidence and
-writes only under the active worktree's ignored `.verification/` directory.
-Confirm it with `./scripts/run-with-mise.sh yarn test:durable:status`; it
-accepts a result only when it passed for the current `HEAD` and working tree.
+For agent-driven full-suite verification, do not use plain `yarn test` as
+completion evidence: terminal output may be truncated after the process has
+already completed. `yarn test:durable` runs the same complete suite while
+persisting worktree-local evidence under the ignored `.verification/`
+directory. Confirm it with `yarn test:durable:status`; it accepts a result
+only when it passed for the current `HEAD` and working tree. Plain `yarn test`
+remains appropriate for interactive/local investigation where durable evidence
+is not being used to support a completion claim.
 Do not point two worktrees at a shared durable-artifact directory or add a
 repository-wide verification lock.
 

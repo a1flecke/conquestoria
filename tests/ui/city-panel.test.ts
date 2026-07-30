@@ -1648,10 +1648,24 @@ describe('city-panel locked section — S4b', () => {
       resources: [],
     });
     const panel = createCityPanel(container, city, state, { onBuild: () => {}, onOpenWonderPanel: () => {}, onClose: () => {} });
-    const html = (panel as unknown as HTMLElement).innerHTML ?? '';
+    const lockedSection = panel.querySelector('[data-section="locked-items"]')!;
+    clickElement(lockedSection.querySelector('[data-locked-show-more]'));
+    const html = (lockedSection as HTMLElement).innerHTML;
     expect(html).toContain('Cavalry');
     expect(html).toContain('Rifle Tactics');
     expect(html).toContain('Professional Army');
+  });
+
+  it('keeps Chariot reachable in the locked catalog when its tech gates are met but Horses are missing', () => {
+    const { container, city, state } = makeLockedFixture({
+      completedTechs: ['wheel', 'horseback-riding'],
+      resources: [],
+    });
+    const panel = createCityPanel(container, city, state, { onBuild: () => {}, onOpenWonderPanel: () => {}, onClose: () => {} });
+    const html = (panel as unknown as HTMLElement).innerHTML ?? '';
+
+    expect(html).toContain('Chariot');
+    expect(html).toContain('Horses');
   });
 
   it('shows Show X more button when more than 3 items are locked', () => {

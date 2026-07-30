@@ -19,6 +19,7 @@ const FALLBACK_ICONS: Record<UnitType, string> = {
   axeman: '🪓',
   spearman: '🏹',
   horseman: '🐴',
+  chariot: '🛞',
   cavalry: '⚔️',
   knight: '🛡️',
   crossbowman: '🏹',

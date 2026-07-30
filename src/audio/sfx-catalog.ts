@@ -72,6 +72,12 @@ export const NETWORK_STRATEGIC_SFX = {
   recovery: real('stinger-network-recovery', 'audio/stinger/network/recovery.ogg', 0.78, 'stinger'),
 } as const;
 
+const HORSEMAN_SFX = {
+  'attack-swing':  real('sfx-horseman-attack-swing',  'audio/sfx/horseman-attack-swing.ogg',  0.649),
+  'attack-impact': real('sfx-horseman-attack-impact', 'audio/sfx/horseman-attack-impact.ogg', 0.119),
+  death:           real('sfx-horseman-death',          'audio/sfx/horseman-death.ogg',          0.501, 'death'),
+};
+
 // Unit SFX — keyed by UnitType, then by SfxClass. Non-combat units have death only.
 export const UNIT_SFX: Partial<Record<UnitType, Partial<Record<SfxClass, TrackEntry>>>> = {
 
@@ -152,11 +158,9 @@ export const UNIT_SFX: Partial<Record<UnitType, Partial<Record<SfxClass, TrackEn
   },
 
   // === Mounted (attack-swing, attack-impact, death) ===
-  horseman: {
-    'attack-swing':  real('sfx-horseman-attack-swing',  'audio/sfx/horseman-attack-swing.ogg',  0.649),
-    'attack-impact': real('sfx-horseman-attack-impact', 'audio/sfx/horseman-attack-impact.ogg', 0.119),
-    death:           real('sfx-horseman-death',          'audio/sfx/horseman-death.ogg',          0.501, 'death'),
-  },
+  horseman: HORSEMAN_SFX,
+  // Temporary mounted fallback for #672. Its bespoke audio arrives in #714.
+  chariot: HORSEMAN_SFX,
   cavalry: {
     'attack-swing':  real('sfx-cavalry-attack-swing',  'audio/sfx/cavalry-attack-swing.ogg',  0.536),
     'attack-impact': real('sfx-cavalry-attack-impact', 'audio/sfx/cavalry-attack-impact.ogg', 0.352),
@@ -341,6 +345,7 @@ const LOCOMOTION_CLASS: Record<UnitType, LocomotionClass> = {
   axeman:        'humanoid',
   spearman:      'humanoid',
   horseman:      'animal',
+  chariot:       'animal',
   cavalry:       'animal',
   knight:        'animal',
   crossbowman:   'humanoid',
@@ -412,10 +417,14 @@ export const TRANSPORT_SFX = {
 // Flat list of all catalog entries — used for preloading and catalog integrity tests.
 export function allSfxEntries(): TrackEntry[] {
   const entries: TrackEntry[] = [];
+  const includedEntries = new Set<TrackEntry>();
   for (const sfxMap of Object.values(UNIT_SFX)) {
     if (!sfxMap) continue;
     for (const entry of Object.values(sfxMap)) {
-      if (entry) entries.push(entry);
+      if (entry && !includedEntries.has(entry)) {
+        entries.push(entry);
+        includedEntries.add(entry);
+      }
     }
   }
   return [

@@ -75,6 +75,19 @@ describe('save migrations', () => {
     });
   });
 
+  it('#672 Chariot is definition data, so a saved Chariot round-trips without a schema migration', () => {
+    const savedGame = createNewGame('rome', 'chariot-save-compatibility', 'small');
+    const unit = Object.values(savedGame.units)[0]!;
+    unit.type = 'chariot';
+
+    const loaded = migrateSaveToCurrent(structuredClone(savedGame));
+    const loadedAgain = migrateSaveToCurrent(structuredClone(loaded));
+
+    expect(loaded.saveSchemaVersion).toBe(CURRENT_SAVE_SCHEMA_VERSION);
+    expect(loaded.units[unit.id]?.type).toBe('chariot');
+    expect(loadedAgain).toEqual(loaded);
+  });
+
   it('lands legacy combat aircraft at the nearest compatible friendly base and removes stranded craft', () => {
     const legacySave = createNewGame('rome', 'legacy-based-aircraft', 'small');
     legacySave.saveSchemaVersion = 3; // schema 4 owns legacy aircraft basing

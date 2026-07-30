@@ -108,6 +108,7 @@ export function buildCombatContextForDefender(
       opponentType: defender.type,
       opponentHealth: defender.health,
       opponentInFriendlyCity: defenderInFriendlyCity,
+      targetTerrain: state.map.tiles[defenderKey]?.terrain,
     }),
     defenderModifiers: getCombatModifier(defender.type, 'defender', {
       completedTechs: defenderCompletedTechs,

@@ -219,6 +219,22 @@ describe('buildCombatContextForDefender parity (human vs world-actor paths)', ()
       uncontextualizedWorldStrengths.defenderStrength,
     );
   });
+
+  it('gives Chariot the same terrain modifier through the shared combat context for all callers', () => {
+    const state = makeState();
+    const defender = Object.values(state.units).find(u => u.owner === 'p2')!;
+    const humanAttacker = createUnit('chariot', 'p1', { q: 1, r: 0 }, mkC());
+    const worldAttacker = createUnit('chariot', 'barbarian', { q: 1, r: 0 }, { ...mkC(), nextUnitId: 100 });
+
+    const humanContext = buildCombatContextForDefender(state, humanAttacker, defender);
+    const worldContext = buildCombatContextForDefender(state, worldAttacker, defender);
+    expect(humanContext.attackerModifiers?.mult).toBeCloseTo(1.2);
+    expect(worldContext.attackerModifiers?.mult).toBeCloseTo(1.2);
+
+    state.map.tiles['0,0']!.terrain = 'forest';
+    expect(buildCombatContextForDefender(state, humanAttacker, defender).attackerModifiers?.mult).toBeCloseTo(0.85);
+    expect(buildCombatContextForDefender(state, worldAttacker, defender).attackerModifiers?.mult).toBeCloseTo(0.85);
+  });
 });
 
 describe('city defense balance guardrail', () => {

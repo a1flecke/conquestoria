@@ -357,7 +357,7 @@ export interface LastSeenTilePresentation {
 export type UnitType =
   | 'settler' | 'worker' | 'scout' | 'warrior' | 'archer' | 'missionary'
   | 'swordsman' | 'pikeman' | 'musketeer' | 'galley' | 'trireme'
-  | 'axeman' | 'spearman' | 'horseman' | 'cavalry' | 'knight'
+  | 'axeman' | 'spearman' | 'horseman' | 'chariot' | 'cavalry' | 'knight'
   | 'crossbowman' | 'catapult' | 'ballista' | 'cannon' | 'grenadier' | 'marine' | 'rifleman' | 'ironclad'
   | 'frigate' | 'destroyer' | 'artillery' | 'infantry'
   | 'machine_gunner' | 'pre_dreadnought'

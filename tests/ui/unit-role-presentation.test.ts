@@ -31,4 +31,15 @@ describe('unit role presentation', () => {
       archer.requiredTechs = original;
     }
   });
+
+  it('presents Chariot’s readable role, both technology gates, and explicit Knight upgrade', () => {
+    expect(getUnitRolePresentation('chariot', ['wheel', 'horseback-riding'])).toMatchObject({
+      summary: 'Heavy early charger gains 20% on open ground but loses 15% in rough terrain.',
+      upgrade: { icon: '⬆️', text: 'Upgrades to Knight' },
+      requirements: [
+        { icon: '✓', text: 'The Wheel · Complete' },
+        { icon: '✓', text: 'Horseback Riding · Complete' },
+      ],
+    });
+  });
 });
