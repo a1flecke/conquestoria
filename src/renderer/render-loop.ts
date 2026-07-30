@@ -643,47 +643,15 @@ export class RenderLoop {
         if (def) colorLookup[mc.id] = def.color;
       }
       const nowMs = performance.now();
-      const unitEntities = unitPresentations.map(presentation => {
-        const faction = this.state!.pirates?.factions[presentation.leadUnit.owner];
-        // besieging shares blockading's sprite mode/tier (#522) -- the apex threat must
-        // never render as indistinguishable from a harmless patrol.
-        const persistentMode = faction?.behavior === 'besieging' || faction?.behavior === 'blockading'
-          ? 'blockade' as const
-          : faction?.behavior === 'raiding' ? 'raid' as const : 'patrol' as const;
-        const visual = faction
-          ? this.pirateSpriteState.resolve(presentation.leadUnitId, {
-              mode: persistentMode,
-              damage: presentation.damage as 0 | 1 | 2 | 3,
-              tier: faction.behavior === 'besieging' || faction.behavior === 'blockading' ? 3 : faction.behavior === 'raiding' ? 2 : 1,
-              stage: faction.maritimeStage,
-            }, nowMs)
-          : null;
-        // Non-pirate units have no PirateSpriteVisualState (mode/tier/stage are pirate-only
-        // concepts), but applyCombatVisual() records an attack/hurt/death transient for every
-        // combat's attacker/defender unconditionally, pirate or not. Before this fix that
-        // transient was only ever read back through the `faction ?` branch above, so it
-        // silently expired unread for every non-pirate combat.
-        const combatState = visual?.state
-          ?? this.pirateSpriteState.resolveTransientState(presentation.leadUnitId, nowMs);
-        return {
-          id: presentation.leadUnitId,
-          memberIds: presentation.memberIds,
-          kind: 'unit' as const,
-          subtype: presentation.leadUnit.type,
-          coord: presentation.coord,
-          state: combatState,
-          faction: presentation.faction,
-          damage: visual?.damage ?? presentation.damage,
-          stackCount: presentation.stackCount,
-          selected: presentation.isSelected,
-          health: presentation.leadUnit.health,
-          fortified: presentation.leadUnit.isFortified,
-          roleMarker: presentation.roleMarker,
-          anchorOffsetFactor: presentation.anchorOffsetFactor,
-          civId: presentation.leadUnit.owner,
-          ...(visual ? { mode: visual.mode, tier: visual.tier, stage: visual.stage } : {}),
-        };
-      });
+      const unitEntities = buildUnitEntities(
+        this.state,
+        viewerId,
+        viewerVisibility,
+        movingUnitIds,
+        this.selectedUnitId,
+        this.pirateSpriteState,
+        nowMs,
+      );
       for (const [unitId, snapshot] of this.pirateUnitDeathSnapshots) {
         if (snapshot.expiresAtMs <= nowMs) {
           this.pirateUnitDeathSnapshots.delete(unitId);
