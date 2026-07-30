@@ -1,0 +1,142 @@
+// @vitest-environment jsdom
+
+import { describe, it, expect, vi } from 'vitest';
+
+vi.mock('@/renderer/hex-renderer', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/renderer/hex-renderer')>();
+  return {
+    ...actual,
+    drawHexMap: vi.fn(),
+    drawRivers: vi.fn(),
+    drawHexHighlight: vi.fn(),
+    drawMinorCivTerritory: vi.fn(),
+  };
+});
+vi.mock('@/renderer/fog-renderer', () => ({ drawFogOfWar: vi.fn() }));
+vi.mock('@/renderer/city-renderer', () => ({ drawCities: vi.fn() }));
+vi.mock('@/renderer/unit-renderer', () => ({
+  drawUnits: vi.fn(),
+  drawUnitPresentations: vi.fn(),
+  drawUnitGlyph: vi.fn(),
+}));
+vi.mock('@/renderer/pirate-headquarters-presentation', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/renderer/pirate-headquarters-presentation')>();
+  return { ...actual, drawPirateHeadquartersMapPresentation: vi.fn() };
+});
+
+import { RenderLoop } from '@/renderer/render-loop';
+import type { CombatResult, GameState, Unit } from '@/core/types';
+
+function createMountedCanvas(): { canvas: HTMLCanvasElement; mount: HTMLDivElement } {
+  const mount = document.createElement('div');
+  const ctx = {
+    clearRect: vi.fn(), fillRect: vi.fn(), save: vi.fn(), restore: vi.fn(),
+    setTransform: vi.fn(), scale: vi.fn(), setLineDash: vi.fn(), beginPath: vi.fn(),
+    moveTo: vi.fn(), lineTo: vi.fn(), stroke: vi.fn(), arc: vi.fn(), fill: vi.fn(),
+  };
+  const canvas = {
+    getContext: () => ctx as unknown as CanvasRenderingContext2D,
+    getBoundingClientRect: () => ({ width: 320, height: 240 }),
+    parentElement: mount,
+  } as unknown as HTMLCanvasElement;
+  return { canvas, mount };
+}
+
+function buildTestState(attacker: Unit, defender: Unit): GameState {
+  return {
+    turn: 5,
+    currentPlayer: 'player',
+    map: { width: 5, height: 5, wrapsHorizontally: false, tiles: {}, rivers: [] },
+    tribalVillages: {},
+    minorCivs: {},
+    cities: {},
+    units: { [attacker.id]: attacker, [defender.id]: defender },
+    civilizations: {
+      player: {
+        color: '#4a90d9',
+        visibility: { tiles: { '0,0': 'visible', '1,0': 'visible' } },
+      },
+    },
+  } as unknown as GameState;
+}
+
+describe('render-loop — non-pirate combat sprite state', () => {
+  it('reflects attack/hurt data-state for a regular unit combat via the DOM overlay', () => {
+    const { canvas, mount } = createMountedCanvas();
+    const loop = new RenderLoop(canvas);
+
+    const attacker = {
+      id: 'rifleman-1', type: 'rifleman', owner: 'player', position: { q: 0, r: 0 },
+      movementPointsLeft: 2, health: 100, experience: 0, hasMoved: false, hasActed: false,
+      isResting: false,
+    } as unknown as Unit;
+    const defender = {
+      id: 'barbarian-1', type: 'warrior', owner: 'barbarian', position: { q: 1, r: 0 },
+      movementPointsLeft: 2, health: 60, experience: 0, hasMoved: false, hasActed: false,
+      isResting: false,
+    } as unknown as Unit;
+
+    loop.setGameState(buildTestState(attacker, defender));
+    loop.camera.isHexVisible = () => true;
+
+    loop.applyCombatVisual({
+      attackerId: attacker.id,
+      defenderId: defender.id,
+      attackerDamage: 10,
+      defenderDamage: 40,
+      attackerSurvived: true,
+      defenderSurvived: true,
+      attackerStrength: 10,
+      defenderStrength: 6,
+      attackerPosition: attacker.position,
+      defenderPosition: defender.position,
+    } as CombatResult);
+
+    (loop as unknown as { render: () => void }).render();
+
+    const attackerWrap = mount.querySelector(`[data-entity-id="${attacker.id}"]`)?.firstElementChild;
+    const defenderWrap = mount.querySelector(`[data-entity-id="${defender.id}"]`)?.firstElementChild;
+    expect(attackerWrap?.getAttribute('data-state')).toBe('attack');
+    expect(defenderWrap?.getAttribute('data-state')).toBe('hurt');
+  });
+
+  it('returns to idle after the combat pulse window expires', () => {
+    const { canvas, mount } = createMountedCanvas();
+    const loop = new RenderLoop(canvas);
+
+    const attacker = {
+      id: 'rifleman-1', type: 'rifleman', owner: 'player', position: { q: 0, r: 0 },
+      movementPointsLeft: 2, health: 100, experience: 0, hasMoved: false, hasActed: false,
+      isResting: false,
+    } as unknown as Unit;
+    const defender = {
+      id: 'barbarian-1', type: 'warrior', owner: 'barbarian', position: { q: 1, r: 0 },
+      movementPointsLeft: 2, health: 60, experience: 0, hasMoved: false, hasActed: false,
+      isResting: false,
+    } as unknown as Unit;
+
+    loop.setGameState(buildTestState(attacker, defender));
+    loop.camera.isHexVisible = () => true;
+
+    const nowMs = 10_000;
+    loop.applyCombatVisual({
+      attackerId: attacker.id,
+      defenderId: defender.id,
+      attackerDamage: 10,
+      defenderDamage: 40,
+      attackerSurvived: true,
+      defenderSurvived: true,
+      attackerStrength: 10,
+      defenderStrength: 6,
+      attackerPosition: attacker.position,
+      defenderPosition: defender.position,
+    } as CombatResult, nowMs);
+
+    vi.spyOn(performance, 'now').mockReturnValue(nowMs + 1_000); // past COMBAT_STATE_MS (420ms)
+    (loop as unknown as { render: () => void }).render();
+
+    const defenderWrap = mount.querySelector(`[data-entity-id="${defender.id}"]`)?.firstElementChild;
+    expect(defenderWrap?.getAttribute('data-state')).toBe('idle');
+    vi.restoreAllMocks();
+  });
+});
