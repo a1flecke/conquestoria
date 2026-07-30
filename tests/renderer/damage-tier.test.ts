@@ -8,6 +8,7 @@ vi.mock('@/renderer/unit-renderer', () => ({ drawUnits: vi.fn(), drawUnitGlyph: 
 vi.mock('@/renderer/sprite-overlay', () => ({ SpriteOverlay: class { sync = vi.fn(); getActiveIds = () => new Set() } }));
 
 import { buildUnitEntities } from '@/renderer/render-loop';
+import { PirateSpriteStateController } from '@/renderer/pirate-sprite-state';
 import type { GameState, Unit } from '@/core/types';
 
 function makeState(units: Partial<Unit>[]): GameState {
@@ -42,61 +43,61 @@ const visMap = { tiles: { '0,0': 'visible' as const }, exploredTiles: {} };
 describe('damage tier computation in buildUnitEntities', () => {
   it('warrior at 100 HP → damage tier 0', () => {
     const state = makeState([{ id: 'u1', type: 'warrior', owner: 'player', health: 100 }]);
-    const entities = buildUnitEntities(state, 'player', visMap as any, new Set());
+    const entities = buildUnitEntities(state, 'player', visMap as any, new Set(), null, new PirateSpriteStateController(), 0);
     expect(entities[0]?.damage).toBe(0);
   });
 
   it('warrior at 76 HP → damage tier 0 (boundary)', () => {
     const state = makeState([{ id: 'u1', type: 'warrior', owner: 'player', health: 76 }]);
-    const entities = buildUnitEntities(state, 'player', visMap as any, new Set());
+    const entities = buildUnitEntities(state, 'player', visMap as any, new Set(), null, new PirateSpriteStateController(), 0);
     expect(entities[0]?.damage).toBe(0);
   });
 
   it('warrior at 75 HP → damage tier 1', () => {
     const state = makeState([{ id: 'u1', type: 'warrior', owner: 'player', health: 75 }]);
-    const entities = buildUnitEntities(state, 'player', visMap as any, new Set());
+    const entities = buildUnitEntities(state, 'player', visMap as any, new Set(), null, new PirateSpriteStateController(), 0);
     expect(entities[0]?.damage).toBe(1);
   });
 
   it('warrior at 51 HP → damage tier 1 (boundary)', () => {
     const state = makeState([{ id: 'u1', type: 'warrior', owner: 'player', health: 51 }]);
-    const entities = buildUnitEntities(state, 'player', visMap as any, new Set());
+    const entities = buildUnitEntities(state, 'player', visMap as any, new Set(), null, new PirateSpriteStateController(), 0);
     expect(entities[0]?.damage).toBe(1);
   });
 
   it('warrior at 50 HP → damage tier 2', () => {
     const state = makeState([{ id: 'u1', type: 'warrior', owner: 'player', health: 50 }]);
-    const entities = buildUnitEntities(state, 'player', visMap as any, new Set());
+    const entities = buildUnitEntities(state, 'player', visMap as any, new Set(), null, new PirateSpriteStateController(), 0);
     expect(entities[0]?.damage).toBe(2);
   });
 
   it('warrior at 26 HP → damage tier 2 (boundary)', () => {
     const state = makeState([{ id: 'u1', type: 'warrior', owner: 'player', health: 26 }]);
-    const entities = buildUnitEntities(state, 'player', visMap as any, new Set());
+    const entities = buildUnitEntities(state, 'player', visMap as any, new Set(), null, new PirateSpriteStateController(), 0);
     expect(entities[0]?.damage).toBe(2);
   });
 
   it('warrior at 25 HP → damage tier 3 (near death)', () => {
     const state = makeState([{ id: 'u1', type: 'warrior', owner: 'player', health: 25 }]);
-    const entities = buildUnitEntities(state, 'player', visMap as any, new Set());
+    const entities = buildUnitEntities(state, 'player', visMap as any, new Set(), null, new PirateSpriteStateController(), 0);
     expect(entities[0]?.damage).toBe(3);
   });
 
   it('warrior at 1 HP → damage tier 3', () => {
     const state = makeState([{ id: 'u1', type: 'warrior', owner: 'player', health: 1 }]);
-    const entities = buildUnitEntities(state, 'player', visMap as any, new Set());
+    const entities = buildUnitEntities(state, 'player', visMap as any, new Set(), null, new PirateSpriteStateController(), 0);
     expect(entities[0]?.damage).toBe(3);
   });
 
   it('worker (strength 0) at 1 HP → damage tier 0 (non-combat units never show damage)', () => {
     const state = makeState([{ id: 'u1', type: 'worker', owner: 'player', health: 1 }]);
-    const entities = buildUnitEntities(state, 'player', visMap as any, new Set());
+    const entities = buildUnitEntities(state, 'player', visMap as any, new Set(), null, new PirateSpriteStateController(), 0);
     expect(entities[0]?.damage).toBe(0);
   });
 
   it('settler (strength 0) at 25 HP → damage tier 0', () => {
     const state = makeState([{ id: 'u1', type: 'settler', owner: 'player', health: 25 }]);
-    const entities = buildUnitEntities(state, 'player', visMap as any, new Set());
+    const entities = buildUnitEntities(state, 'player', visMap as any, new Set(), null, new PirateSpriteStateController(), 0);
     expect(entities[0]?.damage).toBe(0);
   });
 
@@ -104,13 +105,13 @@ describe('damage tier computation in buildUnitEntities', () => {
     // Beast units have strength > 0, so they progress through all 4 tiers
     const state = makeState([{ id: 'beast1', type: 'beast_boar', owner: 'beasts', health: 30 }]);
     // beasts owner has no civ entry — that is intentional
-    const entities = buildUnitEntities(state, 'player', visMap as any, new Set());
+    const entities = buildUnitEntities(state, 'player', visMap as any, new Set(), null, new PirateSpriteStateController(), 0);
     expect(entities[0]?.damage).toBe(2);
   });
 
   it('beast_boar at 100 HP → damage tier 0', () => {
     const state = makeState([{ id: 'beast1', type: 'beast_boar', owner: 'beasts', health: 100 }]);
-    const entities = buildUnitEntities(state, 'player', visMap as any, new Set());
+    const entities = buildUnitEntities(state, 'player', visMap as any, new Set(), null, new PirateSpriteStateController(), 0);
     expect(entities[0]?.damage).toBe(0);
   });
 });

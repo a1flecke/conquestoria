@@ -72,12 +72,20 @@ export function drawZoneOfControlChevrons(
   ctx.restore();
 }
 
+/**
+ * Not a pure function: mutates `pirateSpriteState` as a side effect (clears expired combat/pirate
+ * transients on read, inside PirateSpriteStateController.resolve()). Calling this twice with the
+ * same arguments in the same frame can return different results for the second call — call it
+ * exactly once per frame, matching the real render loop's usage.
+ */
 export function buildUnitEntities(
   state: GameState,
   viewerId: string,
   viewerVisibility: VisibilityMap,
   movingUnitIds: ReadonlySet<string>,
   selectedUnitId: string | null = null,
+  pirateSpriteState: PirateSpriteStateController,
+  nowMs: number,
 ): SpriteEntity[] {
   return buildUnitMapPresentations(
     state,
@@ -86,23 +94,45 @@ export function buildUnitEntities(
     movingUnitIds,
     selectedUnitId,
   ).map(presentation => {
-      return {
-        id: presentation.leadUnitId,
-        memberIds: presentation.memberIds,
-        kind: 'unit' as const,
-        subtype: presentation.leadUnit.type,
-        coord: presentation.coord,
-        state: 'idle' as const,
-        faction: presentation.faction,
-        damage: presentation.damage,
-        stackCount: presentation.stackCount,
-        selected: presentation.isSelected,
-        health: presentation.leadUnit.health,
-        fortified: presentation.leadUnit.isFortified,
-        roleMarker: presentation.roleMarker,
-        anchorOffsetFactor: presentation.anchorOffsetFactor,
-      };
-    });
+    const faction = state.pirates?.factions[presentation.leadUnit.owner];
+    // besieging shares blockading's sprite mode/tier (#522) -- the apex threat must
+    // never render as indistinguishable from a harmless patrol.
+    const persistentMode = faction?.behavior === 'besieging' || faction?.behavior === 'blockading'
+      ? 'blockade' as const
+      : faction?.behavior === 'raiding' ? 'raid' as const : 'patrol' as const;
+    const visual = faction
+      ? pirateSpriteState.resolve(presentation.leadUnitId, {
+          mode: persistentMode,
+          damage: presentation.damage as 0 | 1 | 2 | 3,
+          tier: faction.behavior === 'besieging' || faction.behavior === 'blockading' ? 3 : faction.behavior === 'raiding' ? 2 : 1,
+          stage: faction.maritimeStage,
+        }, nowMs)
+      : null;
+    // Non-pirate units have no PirateSpriteVisualState (mode/tier/stage are pirate-only
+    // concepts), but applyCombatVisual() records an attack/hurt/death transient for every
+    // combat's attacker/defender unconditionally, pirate or not — this reads it back for
+    // everyone else so the transient doesn't just expire unread.
+    const combatState = visual?.state
+      ?? pirateSpriteState.resolveTransientState(presentation.leadUnitId, nowMs);
+    return {
+      id: presentation.leadUnitId,
+      memberIds: presentation.memberIds,
+      kind: 'unit' as const,
+      subtype: presentation.leadUnit.type,
+      coord: presentation.coord,
+      state: combatState,
+      faction: presentation.faction,
+      damage: visual?.damage ?? presentation.damage,
+      stackCount: presentation.stackCount,
+      selected: presentation.isSelected,
+      health: presentation.leadUnit.health,
+      fortified: presentation.leadUnit.isFortified,
+      roleMarker: presentation.roleMarker,
+      anchorOffsetFactor: presentation.anchorOffsetFactor,
+      civId: presentation.leadUnit.owner,
+      ...(visual ? { mode: visual.mode, tier: visual.tier, stage: visual.stage } : {}),
+    };
+  });
 }
 
 type TimedMovementAnimation = UnitMovementAnimation & {
