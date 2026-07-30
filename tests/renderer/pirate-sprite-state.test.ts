@@ -67,3 +67,39 @@ describe('PirateSpriteStateController', () => {
     expect(derivePirateSpriteMode({ behavior: 'blockading', headquarters: { kind: 'coastal-enclave' } })).toBe('blockade');
   });
 });
+
+describe('resolveTransientState', () => {
+  it('returns idle when there is no transient for the entity', () => {
+    const controller = new PirateSpriteStateController();
+    expect(controller.resolveTransientState('nobody', 0)).toBe('idle');
+  });
+
+  it('returns attack/hurt for a combat pair with no pirate-only persistent fields required', () => {
+    const controller = new PirateSpriteStateController();
+    controller.apply({
+      type: 'combat',
+      attackerId: 'rifleman-1',
+      defenderId: 'musketeer-2',
+      attackerSurvived: true,
+      defenderSurvived: true,
+    }, 1_000);
+
+    expect(controller.resolveTransientState('rifleman-1', 1_100)).toBe('attack');
+    expect(controller.resolveTransientState('musketeer-2', 1_100)).toBe('hurt');
+  });
+
+  it('expires back to idle and deletes the transient once its window passes', () => {
+    const controller = new PirateSpriteStateController();
+    controller.apply({
+      type: 'combat',
+      attackerId: 'rifleman-1',
+      defenderId: 'musketeer-2',
+      attackerSurvived: true,
+      defenderSurvived: false,
+    }, 1_000);
+
+    // defender died -- death lasts DEATH_STATE_MS (1200ms), not COMBAT_STATE_MS (420ms)
+    expect(controller.resolveTransientState('musketeer-2', 1_500)).toBe('death');
+    expect(controller.resolveTransientState('musketeer-2', 2_300)).toBe('idle');
+  });
+});

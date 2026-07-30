@@ -55,6 +55,16 @@ export function derivePirateSpriteMode(
   return 'patrol';
 }
 
+/**
+ * Despite the name, this controller now serves two audiences:
+ *  - Pirates get the full `resolve()` path: a persistent mode/tier/stage visual state plus a
+ *    transient attack/hurt/death overlay, because pirate factions have patrol/raid/blockade
+ *    identity that regular units don't.
+ *  - Every other unit (player, AI, barbarian, minor-civ) gets only the transient combat pulse,
+ *    via `resolveTransientState()` — the same underlying `transients` map, just without the
+ *    pirate-specific persistent fields. `RenderLoop.applyCombatVisual()` writes into this map
+ *    unconditionally for every combat, regardless of which audience will end up reading it back.
+ */
 export class PirateSpriteStateController {
   private transients = new Map<string, TransientState>();
 
@@ -98,5 +108,22 @@ export class PirateSpriteStateController {
       mode: transient.mode ?? persistent.mode,
       ...(transient.expiresAtMs === undefined ? {} : { expiresAtMs: transient.expiresAtMs }),
     };
+  }
+
+  /**
+   * Bare transient state for entities that have no PirateSpriteVisualState (mode/tier/stage
+   * don't apply to non-pirate units). applyCombatVisual() records an attack/hurt/death
+   * transient for *every* combat's attacker/defender unconditionally, pirate or not — this is
+   * the missing read side for everyone else, so the transient it already writes doesn't just
+   * expire unread.
+   */
+  resolveTransientState(entityId: string, nowMs: number): PirateSpriteState {
+    const transient = this.transients.get(entityId);
+    if (!transient) return 'idle';
+    if (transient.expiresAtMs !== undefined && transient.expiresAtMs <= nowMs) {
+      this.transients.delete(entityId);
+      return 'idle';
+    }
+    return transient.state;
   }
 }
