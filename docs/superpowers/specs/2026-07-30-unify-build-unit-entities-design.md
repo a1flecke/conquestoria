@@ -66,9 +66,24 @@ anyway, weighed against complexity/bugs/testability/regression-risk rather than 
 
 ## Implementation
 
+**Not a pure function — document the mutation.** `pirateSpriteState.resolve()` internally calls
+`this.transients.delete(entityId)` when a transient has expired — a real mutation of the passed-in
+controller. This is unchanged, pre-existing behavior (the current shipped inline code already does
+this); the fix doesn't introduce it. But moving it into an exported, directly-testable function
+makes the misleading appearance worse: a future caller could reasonably assume calling a "builder"
+function twice with the same inputs is safe, and hit a subtle bug when the second call sees a
+different result because the first call already cleared an expired transient. Add a doc comment on
+`buildUnitEntities` making this explicit — found during review, not in the original investigation.
+
 New `buildUnitEntities` (replacing the current one in `render-loop.ts`):
 
 ```ts
+/**
+ * Not a pure function: mutates `pirateSpriteState` as a side effect (clears expired combat/pirate
+ * transients on read). Calling this twice with the same arguments in the same frame can return
+ * different results for the second call — call it exactly once per frame, matching the real
+ * render loop's usage.
+ */
 export function buildUnitEntities(
   state: GameState,
   viewerId: string,
@@ -184,6 +199,7 @@ still pass"):
 
 ## Self-review
 
+**First pass** (at authoring time):
 - **Scope check**: single-function unification, matching #760's actual title/scope.
 - **Placeholder scan**: no TBD/TODO; the implementation is a verbatim extraction, not a sketch.
 - **Behavior-preservation check**: the new `buildUnitEntities` body was compared line-by-line
@@ -192,3 +208,28 @@ still pass"):
 - **Regression risk**: the render loop change is a pure extract-and-call refactor; the three
   existing test files need only additive argument changes, not restructuring, minimizing edit risk
   to already-passing assertions.
+
+**Second pass** (requested review against balance/fun/ages/playstyles/AI/UI/architecture/testing/
+data/hot-seat/proper implementation):
+- **Real finding — hidden mutation side effect**: `buildUnitEntities` reads as a pure query
+  function but isn't, once `pirateSpriteState` is threaded through (`resolve()` mutates the
+  controller's internal transients map on expiry). Pre-existing in the current shipped code, not
+  introduced by this fix — but exporting it as a directly-testable, prominently-named function
+  makes the misleading "looks pure" appearance worse. Fixed by adding an explicit doc comment
+  warning against calling it more than once per frame with the same state.
+- **Hot-seat traced, confirmed unchanged and out of scope**: `pirateSpriteState`'s transients are
+  keyed by unit id, not by viewer, so a combat-transient animation could in principle remain
+  visible across a hot-seat player switch mid-animation (420ms–1200ms window). Confirmed this is
+  identical to current shipped behavior (this fix is a byte-for-byte extraction, not a behavior
+  change) — not something #760 introduces or needs to fix, and too narrow an edge case to justify
+  a separate issue on its own.
+- **AI decoupling reconfirmed**: no AI code references `buildUnitEntities`, `SpriteEntity`, or
+  anything in the renderer layer — unaffected by this change, same as #755's finding.
+- **Test-fixture safety verified, not assumed**: checked all three existing test files' `makeState`
+  helpers directly — none set `state.pirates`, and `state.pirates?.factions[...]` optional-chains
+  safely to `undefined` → `faction` is `undefined` → falls through to the non-pirate
+  `resolveTransientState` path (`'idle'` for a fresh controller) without throwing. None of the
+  existing assertions check the `.state` field either, so the fix doesn't touch what they validate.
+- **No new regression surface**: reconfirmed via grep that the only references to
+  `buildUnitEntities`'s current 5-argument signature are the three test files — no other
+  production code depends on the signature this change modifies.
