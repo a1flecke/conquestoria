@@ -628,13 +628,20 @@ export class RenderLoop {
               stage: faction.maritimeStage,
             }, nowMs)
           : null;
+        // Non-pirate units have no PirateSpriteVisualState (mode/tier/stage are pirate-only
+        // concepts), but applyCombatVisual() records an attack/hurt/death transient for every
+        // combat's attacker/defender unconditionally, pirate or not. Before this fix that
+        // transient was only ever read back through the `faction ?` branch above, so it
+        // silently expired unread for every non-pirate combat.
+        const combatState = visual?.state
+          ?? this.pirateSpriteState.resolveTransientState(presentation.leadUnitId, nowMs);
         return {
           id: presentation.leadUnitId,
           memberIds: presentation.memberIds,
           kind: 'unit' as const,
           subtype: presentation.leadUnit.type,
           coord: presentation.coord,
-          state: visual?.state ?? 'idle' as const,
+          state: combatState,
           faction: presentation.faction,
           damage: visual?.damage ?? presentation.damage,
           stackCount: presentation.stackCount,
