@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { buildUnitEntities } from '@/renderer/render-loop';
+import { PirateSpriteStateController } from '@/renderer/pirate-sprite-state';
 import type { GameState, City, VisibilityMap } from '@/core/types';
 
 describe('strategic-map overlay ownership', () => {
@@ -25,7 +26,7 @@ describe('strategic-map overlay ownership', () => {
       map: { width: 20, height: 20, wrapsHorizontally: false, tiles: {}, rivers: [] },
     } as unknown as GameState;
 
-    const entities = buildUnitEntities(state, 'player1', visibility, new Set());
+    const entities = buildUnitEntities(state, 'player1', visibility, new Set(), null, new PirateSpriteStateController(), 0);
 
     expect(entities).toEqual([]);
   });
