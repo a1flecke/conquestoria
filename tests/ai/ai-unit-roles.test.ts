@@ -34,6 +34,7 @@ describe('AI strategic unit roles', () => {
     ['exosuit_infantry', ['ranged', 'mobile', 'capture']],
     ['propagandist', ['espionage']],
     ['drone_controller', ['detection']],
+    ['beast_handler' as UnitType, ['detection']],
   ] satisfies Array<[UnitType, string[]]>)('classifies %s from canonical unit fields', (type, roles) => {
     expect(getAIStrategicRoles(type)).toEqual(roles);
   });
@@ -80,6 +81,7 @@ describe('AI strategic unit roles', () => {
       'mobile',
       'capture',
     ]);
+    expect(getAIStrategicRoles('beast_handler' as UnitType)).toEqual(['detection']);
   });
 
   it('#553 MR1/4 — classifies the Naval Trader line as trade, not naval-combat (strength-0 naval units without the override would otherwise fall into naval-combat)', () => {

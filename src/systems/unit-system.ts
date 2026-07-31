@@ -194,6 +194,12 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     canBuildImprovements: false, productionCost: 32,
     spyDetectionChance: 0.30,
   },
+  beast_handler: {
+    type: 'beast_handler', name: 'Beast Handler Company', movementPoints: 3,
+    visionRange: 3, strength: 24, canFoundCity: false,
+    canBuildImprovements: false, productionCost: 72,
+    spyDetectionChance: 0.35,
+  },
   // S4b — new unit definitions
   axeman: {
     type: 'axeman', name: 'Axeman', movementPoints: 2,
@@ -686,6 +692,7 @@ export const UNIT_DESCRIPTIONS: Record<UnitType, string> = {
   scout_hound: 'Detection unit. Patrols territory and has a 35% chance per turn to reveal disguised or stealthed spy units within vision range.',
   shadow_warden: 'Elite detection unit. 50% chance per turn to reveal disguised spies within vision range. Favored by intelligence-focused civilizations.',
   war_hound: 'Combat-focused detection unit. Weaker spy detection (30%) but formidable in battle. Tears apart lightly-armored spy units.',
+  beast_handler: 'Mobile detection support. Has a 35% chance per turn to reveal disguised or stealthed spies within vision range.',
   // S4b — new unit descriptions
   axeman:      'Early copper-armed warrior. Strong for the era but outpaced once iron is mastered.',
   spearman:    'Versatile polearm soldier effective against mounted units. No resources required.',

@@ -2034,6 +2034,46 @@ describe('Cavalry retime save compatibility and #429 AI training selection', () 
   });
 });
 
+describe('Beast Handler production contract', () => {
+  it('is a resource-free Horseback Riding detection unit for every civilization', () => {
+    const handlerType = 'beast_handler' as UnitType;
+    const handler = TRAINABLE_UNITS.find(unit => unit.type === handlerType);
+
+    expect(handler).toMatchObject({
+      type: handlerType,
+      name: 'Beast Handler Company',
+      cost: 72,
+      techRequired: 'horseback-riding',
+    });
+    expect(handler?.resourceRequired).toBeUndefined();
+    expect(UNIT_DEFINITIONS[handlerType]).toMatchObject({
+      type: handlerType,
+      strength: 24,
+      movementPoints: 3,
+      visionRange: 3,
+      spyDetectionChance: 0.35,
+    });
+
+    for (const civType of ['egypt', 'rome', 'persia']) {
+      expect(getTrainableUnitsForCiv(['lookouts'], civType).some(unit => unit.type === handlerType), civType).toBe(false);
+      expect(getTrainableUnitsForCiv(['lookouts', 'horseback-riding'], civType, new Set<ResourceType>()).some(unit => unit.type === handlerType), civType).toBe(true);
+    }
+  });
+
+  it('converges generic and Roman hounds while keeping the Persian line terminal', () => {
+    const scoutHound = TRAINABLE_UNITS.find(unit => unit.type === 'scout_hound');
+    const warHound = TRAINABLE_UNITS.find(unit => unit.type === 'war_hound');
+    const shadowWarden = TRAINABLE_UNITS.find(unit => unit.type === 'shadow_warden');
+    const handler = TRAINABLE_UNITS.find(unit => unit.type === ('beast_handler' as UnitType));
+
+    expect(scoutHound).toMatchObject({ obsoletedByTech: 'horseback-riding', upgradesTo: 'beast_handler' });
+    expect(warHound).toMatchObject({ obsoletedByTech: 'horseback-riding', upgradesTo: 'beast_handler' });
+    expect(shadowWarden?.upgradesTo).toBeUndefined();
+    expect(handler?.upgradesTo).toBeUndefined();
+    expect(TERMINAL_COMBAT_UNITS['beast_handler' as UnitType]).toBe('War Elephant Corps is future content.');
+  });
+});
+
 describe('Chariot production contract', () => {
   it('requires both Wheel and Horseback Riding plus Horses', () => {
     const chariot = TRAINABLE_UNITS.find(unit => unit.name === 'Chariot');
