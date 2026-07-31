@@ -21,6 +21,7 @@ export const UNIT_CLASS_BY_TYPE: Record<UnitType, UnitClass[]> = {
   axeman: ['melee'],
   spearman: ['melee'],
   horseman: ['mounted'],
+  beast_handler: ['recon'],
   chariot: ['mounted'],
   cavalry: ['mounted'],
   knight: ['mounted', 'melee'],

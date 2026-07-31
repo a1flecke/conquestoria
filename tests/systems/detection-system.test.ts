@@ -232,7 +232,7 @@ describe('scout_hound detection', () => {
       state.units['unit-hound-1'].transportId = 'transport-1';
       state.cities['city-enemy'].position = { q: 8, r: 0 };
       const next = processDetection(state, new EventBus());
-      detections += next.espionage?.['ai-egypt']?.recentDetections.length ?? 0;
+      detections += next.espionage?.['ai-egypt']?.recentDetections?.length ?? 0;
     }
     expect(detections).toBe(0);
   });

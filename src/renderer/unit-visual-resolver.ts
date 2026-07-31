@@ -72,6 +72,7 @@ const FALLBACK_ICONS: Record<UnitType, string> = {
   scout_hound: '🐕',
   shadow_warden: '🦅',
   war_hound: '🐺',
+  beast_handler: '🐾',
   // S5 — trade unit
   caravan: '🐪',
   // Trade Routes Overhaul (#553 MR2/4) — Land trade line successors to Caravan
