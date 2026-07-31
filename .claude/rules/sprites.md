@@ -81,10 +81,17 @@ ships without matching hand-authored v2 art — which is exactly what happened b
 - `data-kind` is deliberately omitted on fallback-tier sprites — no ambient-effect CSS class is
   `data-kind`-scoped, and guessing wrong risks triggering an unrelated body-plan animation rule.
 - Fallback-tier units get ambient-effect animation (`.cq-glow`, `.cq-fire`, etc.) and idle motion,
-  but not the 6-way archetype body/armor variation native v2-native units have, nor full
-  limb-level walk-cycle art. Upgrading a specific unit to native v2 art is optional, incremental
-  work — see the migration-backlog issue referenced in `docs/sprite-design-system.md`'s Units
-  section for the recipe.
+  but not full limb-level walk-cycle art, weapon-pivot rotation, or secondary motion (capes,
+  plumes, antennae). **Correction (found 2026-07-31, verified by reading
+  `design/conquestoria-sprites/lib/units-v2.jsx` directly):** the 6 faction "archetypes" are
+  **not** 6 separate hand-drawn body/armor illustrations — every v2-native sprite, including the
+  file's own flagship example, uses `faction` only to derive 4-5 fill colors on one fixed shape,
+  the same palette-recolor pattern the live catalog already uses. The real thing fallback-tier
+  units are missing is the CSS-animation-hook wiring (`.cq-leg-l`/`.cq-leg-r`, `.cq-weapon` with
+  pivot vars, `.cq-hit-spark`, etc.) — a rigging upgrade to the existing silhouette, not a
+  redesign. Upgrading a specific unit to native v2 art is optional, incremental work — see the
+  migration-backlog issue referenced in `docs/sprite-design-system.md`'s Units section for the
+  recipe.
 - Step 5 of the "Extension Recipe — Unit or Building Sprite" above (adding the catalog entry) is
   now sufficient by itself for a new unit to animate via the DOM overlay — writing v2-native
   archetype art is optional richness, not a required step.
