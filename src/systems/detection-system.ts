@@ -21,16 +21,23 @@ export function processDetection(state: GameState, bus: EventBus): GameState {
     // Only idle (on-map, traveling) spies can be detected
     const spyRecord = state.espionage?.[spyUnit.owner]?.spies[spyUnitId];
     if (!spyRecord || spyRecord.status !== 'idle') continue;
+    const detectedByCivIds = new Set<string>();
+    const registerOnce = (detectingCivId: string, wasDisguised: boolean): void => {
+      if (detectedByCivIds.has(detectingCivId)) return;
+      detectedByCivIds.add(detectingCivId);
+      nextState = registerDetection(nextState, detectingCivId, spyUnit, wasDisguised, bus);
+    };
 
     // 1. Scout Hound detection
     for (const detectUnit of Object.values(state.units)) {
       if (detectUnit.owner === spyUnit.owner) continue;
+      if (detectUnit.transportId) continue;
       const def = UNIT_DEFINITIONS[detectUnit.type];
       if (!def?.spyDetectionChance) continue;
       const dist = hexDistance(detectUnit.position, spyUnit.position);
       if (dist > def.visionRange) continue;
       if (rng() < def.spyDetectionChance) {
-        nextState = registerDetection(nextState, detectUnit.owner, spyUnit, false, bus);
+        registerOnce(detectUnit.owner, false);
       }
     }
 
@@ -40,7 +47,7 @@ export function processDetection(state: GameState, bus: EventBus): GameState {
       if (hexDistance(city.position, spyUnit.position) > 1) continue;
       const chance = getPassiveDetectionChance(city.population);
       if (rng() < chance) {
-        nextState = registerDetection(nextState, city.owner, spyUnit, spyRecord.disguiseAs != null, bus);
+        registerOnce(city.owner, spyRecord.disguiseAs != null);
       }
     }
   }
