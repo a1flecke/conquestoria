@@ -25,7 +25,7 @@ const COMBAT_MELEE_TYPES: UnitType[] = [
   'warrior', 'axeman', 'spearman', 'swordsman', 'pikeman', 'musketeer',
   'horseman', 'chariot', 'cavalry', 'knight',
   'galley', 'trireme',
-  'shadow_warden', 'scout_hound', 'war_hound',
+  'shadow_warden', 'scout_hound', 'war_hound', 'beast_handler',
 ];
 const RANGED_TYPES: UnitType[] = ['archer', 'crossbowman'];
 const SIEGE_TYPES: UnitType[] = ['catapult', 'ballista'];
@@ -173,7 +173,7 @@ describe('sfx-catalog completeness', () => {
 
 describe('getLocomotionClass', () => {
   it('maps animal units correctly', () => {
-    const animalTypes: UnitType[] = ['scout_hound', 'war_hound', 'horseman', 'cavalry', 'knight'];
+    const animalTypes: UnitType[] = ['scout_hound', 'war_hound', 'beast_handler', 'horseman', 'cavalry', 'knight'];
     for (const t of animalTypes) {
       expect(getLocomotionClass(t), t).toBe('animal');
     }

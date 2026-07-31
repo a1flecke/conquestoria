@@ -78,6 +78,12 @@ const HORSEMAN_SFX = {
   death:           real('sfx-horseman-death',          'audio/sfx/horseman-death.ogg',          0.501, 'death'),
 };
 
+const WAR_HOUND_SFX = {
+  'attack-swing':  real('sfx-war_hound-attack-swing',  'audio/sfx/war_hound-attack-swing.ogg',  0.474),
+  'attack-impact': real('sfx-war_hound-attack-impact', 'audio/sfx/war_hound-attack-impact.ogg', 0.536),
+  death:           real('sfx-war_hound-death',          'audio/sfx/war_hound-death.ogg',          0.572, 'death'),
+};
+
 // Unit SFX — keyed by UnitType, then by SfxClass. Non-combat units have death only.
 export const UNIT_SFX: Partial<Record<UnitType, Partial<Record<SfxClass, TrackEntry>>>> = {
 
@@ -207,11 +213,9 @@ export const UNIT_SFX: Partial<Record<UnitType, Partial<Record<SfxClass, TrackEn
     'attack-impact': real('sfx-scout_hound-attack-impact', 'audio/sfx/scout_hound-attack-impact.ogg', 0.183),
     death:           real('sfx-scout_hound-death',          'audio/sfx/scout_hound-death.ogg',          0.135, 'death'),
   },
-  war_hound: {
-    'attack-swing':  real('sfx-war_hound-attack-swing',  'audio/sfx/war_hound-attack-swing.ogg',  0.474),
-    'attack-impact': real('sfx-war_hound-attack-impact', 'audio/sfx/war_hound-attack-impact.ogg', 0.536),
-    death:           real('sfx-war_hound-death',          'audio/sfx/war_hound-death.ogg',          0.572, 'death'),
-  },
+  war_hound: WAR_HOUND_SFX,
+  // Temporary War Hound cues; #714 owns Beast Handler's bespoke audio.
+  beast_handler: WAR_HOUND_SFX,
 
   // === Non-Combat (death only) ===
   settler:    { death: real('sfx-settler-death',    'audio/sfx/settler-death.ogg',    0.118, 'death') },
@@ -318,6 +322,7 @@ const LOCOMOTION_CLASS: Record<UnitType, LocomotionClass> = {
   scout:         'humanoid',
   scout_hound:   'animal',
   war_hound:     'animal',
+  beast_handler: 'animal',
   shadow_warden: 'humanoid',
   warrior:       'humanoid',
   swordsman:     'humanoid',
