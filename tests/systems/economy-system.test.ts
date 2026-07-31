@@ -157,6 +157,17 @@ describe('economy maintenance', () => {
     expect(breakdown.upkeep).toBe(4);
   });
 
+  it('treats Beast Handler Company as an advanced detection specialist for upkeep', () => {
+    const state = makeState();
+    addUnits(state, 2, 'warrior');
+    addUnits(state, 8, 'musketeer');
+    addUnitOfType(state, 'beast_handler', 'beast-handler');
+
+    const breakdown = calculateCivUnitMaintenance(state, 'player');
+
+    expect(breakdown.paidUnits).toContainEqual(expect.objectContaining({ id: 'beast-handler', upkeep: 2 }));
+  });
+
   it('projects and applies compact economy status without mutating the input state', () => {
     const state = makeState();
     city(state).buildings = ['marketplace'];

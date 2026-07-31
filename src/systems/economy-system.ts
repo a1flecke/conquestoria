@@ -75,6 +75,7 @@ export const ECONOMY_RULES = {
     'scout_hound',
     'shadow_warden',
     'war_hound',
+    'beast_handler',
   ]),
   specialistUnitTypes: new Set<UnitType>([
     'galley',
@@ -87,6 +88,7 @@ export const ECONOMY_RULES = {
     'scout_hound',
     'shadow_warden',
     'war_hound',
+    'beast_handler',
   ]),
   basicDefenderTypes: new Set<UnitType>(['warrior', 'archer']),
   defenderSlotsPerCity: 2,
