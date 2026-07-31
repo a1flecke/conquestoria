@@ -107,6 +107,11 @@ directory. Confirm it with `yarn test:durable:status`; it accepts a result
 only when it passed for the current `HEAD` and working tree. Plain `yarn test`
 remains appropriate for interactive/local investigation where durable evidence
 is not being used to support a completion claim.
+If durable-run terminal output is incomplete, run `yarn test:durable:status`
+before inspecting processes: a completed status result is authoritative even
+when streamed output was truncated. Inspect the process tree only when status
+reports an active run; do not call a completed durable run "still running"
+solely because its terminal stream ended early.
 Do not point two worktrees at a shared durable-artifact directory or add a
 repository-wide verification lock.
 

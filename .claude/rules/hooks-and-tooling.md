@@ -68,6 +68,12 @@ match the current worktree. Different worktrees keep independent durable
 evidence and must never share an artifact directory or a repository-wide
 verification lock.
 
+If the durable command's terminal stream is incomplete, first run
+`yarn test:durable:status`. Its completed result is authoritative even if the
+streamed output ended early. Inspect the process tree only when that command
+reports an active run; never report a completed durable run as still running
+solely because the terminal stream was truncated.
+
 Vitest's worker limit applies to one process, not the whole machine. The config
 uses 25% of the available CPU locally, leaving capacity for four simultaneous
 worktree runs; CI uses 100% on isolated hardware. Override a one-off run with
