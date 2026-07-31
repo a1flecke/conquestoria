@@ -100,6 +100,7 @@ const UNIT_MOTION_STYLES: Record<UnitType, UnitMotionStyle> = {
   scout: 'humanoid',
   scout_hound: 'animal',
   war_hound: 'animal',
+  beast_handler: 'animal',
   shadow_warden: 'humanoid',
   warrior: 'humanoid',
   swordsman: 'humanoid',
@@ -229,6 +230,8 @@ export const UNIT_SPRITE_CATALOG: Record<UnitType, UnitSpriteComponent> = {
   scout:          withMotion('scout', ScoutSprite),
   scout_hound:    withMotion('scout_hound', ScoutHoundSprite),
   war_hound:      withMotion('war_hound', WarHoundSprite),
+  // Temporary War Hound silhouette; #708 owns Beast Handler's bespoke sprite.
+  beast_handler:  withMotion('beast_handler', WarHoundSprite),
   shadow_warden:  withMotion('shadow_warden', ShadowWardenSprite),
   warrior:        withMotion('warrior', WarriorSprite),
   swordsman:      withMotion('swordsman', SwordsmanSprite),
