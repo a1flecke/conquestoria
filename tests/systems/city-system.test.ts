@@ -2053,6 +2053,7 @@ describe('Beast Handler production contract', () => {
       visionRange: 3,
       spyDetectionChance: 0.35,
     });
+    expect(handler?.pacing?.band).toBe('marquee');
 
     for (const civType of ['egypt', 'rome', 'persia']) {
       expect(getTrainableUnitsForCiv(['lookouts'], civType).some(unit => unit.type === handlerType), civType).toBe(false);
