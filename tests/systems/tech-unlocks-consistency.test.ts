@@ -66,6 +66,11 @@ describe('tech.unlocks must contain only effect text', () => {
 });
 
 describe('tech structured unlock arrays', () => {
+  it('lists Beast Handler Company in Horseback Riding structured unit unlocks', () => {
+    const horsebackRiding = TECH_TREE.find(tech => tech.id === 'horseback-riding');
+    expect(horsebackRiding?.unlocksUnits).toContain('beast_handler');
+  });
+
   it('has only known, non-duplicated production prerequisites across the full catalog', () => {
     const knownTechIds = new Set(TECH_TREE.map(tech => tech.id));
     const reachableTechIds = new Set(TECH_TREE

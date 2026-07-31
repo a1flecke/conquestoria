@@ -103,6 +103,18 @@ describe('unit upgrade-chain integrity', () => {
   });
 });
 
+describe('Beast Handler Company balance envelope', () => {
+  it('improves on its hound predecessors without overtaking the Horseman combat role', () => {
+    expect(attackerWinRate('beast_handler', 'scout_hound')).toBeGreaterThan(0.9);
+    expect(attackerWinRate('beast_handler', 'war_hound')).toBeGreaterThan(0.8);
+    expect(attackerWinRate('horseman', 'beast_handler')).toBeGreaterThan(0.5);
+  });
+
+  it('can defend itself against an Archer but remains a detection specialist in the role catalog', () => {
+    expect(attackerWinRate('beast_handler', 'archer')).toBeGreaterThan(0.5);
+  });
+});
+
 describe('naval roster — regression locks', () => {
   it('missile_submarine strength exceeds submarine strength', () => {
     expect(UNIT_DEFINITIONS.missile_submarine.strength).toBeGreaterThan(UNIT_DEFINITIONS.submarine.strength);
