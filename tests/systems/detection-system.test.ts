@@ -167,6 +167,76 @@ describe('passive baseline detection', () => {
 });
 
 describe('scout_hound detection', () => {
+  it('records and emits at most one detection per detecting civilization for each spy', () => {
+    let observedDetection = false;
+
+    for (let i = 0; i < 200; i++) {
+      const state = buildDetectionState(`seed-deduplicate-${i}`, { scoutHound: true });
+      state.turn = i + 1;
+      state.units['unit-hound-2'] = {
+        ...state.units['unit-hound-1'],
+        id: 'unit-hound-2',
+      } as any;
+      state.civilizations['ai-egypt'].units.push('unit-hound-2');
+      const events: unknown[] = [];
+      const bus = new EventBus();
+      bus.on('espionage:spy-detected-traveling', event => events.push(event));
+
+      const next = processDetection(state, bus);
+      const detections = next.espionage?.['ai-egypt']?.recentDetections ?? [];
+      observedDetection ||= detections.length > 0;
+      expect(detections.length).toBeLessThanOrEqual(1);
+      expect(events.length).toBeLessThanOrEqual(1);
+    }
+
+    expect(observedDetection).toBe(true);
+  });
+
+  it('keeps detection records scoped independently to each detecting civilization', () => {
+    let bothCivsDetected = false;
+
+    for (let i = 0; i < 400; i++) {
+      const state = buildDetectionState(`seed-owner-scope-${i}`, { scoutHound: true });
+      state.turn = i + 1;
+      state.civilizations['ai-greece'] = {
+        ...state.civilizations['ai-egypt'],
+        id: 'ai-greece',
+        name: 'Greece',
+        cities: [],
+        units: ['unit-greek-hound'],
+      };
+      state.espionage!['ai-greece'] = createEspionageCivState();
+      state.units['unit-greek-hound'] = {
+        ...state.units['unit-hound-1'],
+        id: 'unit-greek-hound',
+        owner: 'ai-greece',
+      } as any;
+      const bus = new EventBus();
+      const next = processDetection(state, bus);
+      const egypt = next.espionage?.['ai-egypt']?.recentDetections ?? [];
+      const greece = next.espionage?.['ai-greece']?.recentDetections ?? [];
+
+      expect(egypt.length).toBeLessThanOrEqual(1);
+      expect(greece.length).toBeLessThanOrEqual(1);
+      bothCivsDetected ||= egypt.length === 1 && greece.length === 1;
+    }
+
+    expect(bothCivsDetected).toBe(true);
+  });
+
+  it('does not let a transported scout_hound detect a spy', () => {
+    let detections = 0;
+    for (let i = 0; i < 100; i++) {
+      const state = buildDetectionState(`seed-transported-hound-${i}`, { scoutHound: true });
+      state.turn = i + 1;
+      state.units['unit-hound-1'].transportId = 'transport-1';
+      state.cities['city-enemy'].position = { q: 8, r: 0 };
+      const next = processDetection(state, new EventBus());
+      detections += next.espionage?.['ai-egypt']?.recentDetections.length ?? 0;
+    }
+    expect(detections).toBe(0);
+  });
+
   it('scout_hound within vision range detects spy at ~35% rate', () => {
     let detections = 0;
     for (let i = 0; i < 200; i++) {

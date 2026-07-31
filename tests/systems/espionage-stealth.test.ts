@@ -66,6 +66,20 @@ describe('getVisibleUnitsForPlayer', () => {
     expect(visible['unit-1'].owner).toBe('player');
   });
 
+  it('transported scout_hound does not reveal a disguised spy', () => {
+    const state = makeStealthState('barbarian');
+    (state.units as any)['hound-1'] = {
+      id: 'hound-1', type: 'scout_hound', owner: 'ai-egypt',
+      position: { q: 5, r: 3 },
+      health: 100, maxHealth: 100,
+      movementPointsLeft: 3, movement: 3,
+      hasActed: false, status: 'idle', transportId: 'transport-1',
+    };
+    const visible = getVisibleUnitsForPlayer(state.units, state, 'ai-egypt');
+    expect(visible['unit-1'].type).toBe('warrior');
+    expect(visible['unit-1'].owner).toBe('barbarian');
+  });
+
   it('spy disguised as archer appears as archer', () => {
     const state = makeStealthState('archer');
     const visible = getVisibleUnitsForPlayer(state.units, state, 'ai-egypt');
