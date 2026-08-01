@@ -209,6 +209,39 @@ describe('selected-unit role presentation', () => {
     expect(text).toContain('Current siege apex; rocket artillery is future content.');
     expect(text).not.toContain('Upgrades to');
   });
+
+  it('renders War Elephant public tactical facts for its owner', () => {
+    const state = createNewGame(undefined, 'war-elephant-role-presentation', 'small');
+    state.civilizations.player.techState.completed = ['tactics'];
+    const unit = { ...createUnit('war_elephant' as any, 'player', { q: 1, r: 1 }, state.idCounters), id: 'war-elephant' };
+    state.currentPlayer = 'player';
+    state.units = { [unit.id]: unit };
+    state.civilizations.player.units = [unit.id];
+    const container = new MockElement('div');
+
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, unit.id, {});
+
+    const text = collectAllText(container).join(' ');
+    expect(text).toContain('Reduces non-polearm return damage by 15%');
+    expect(text).toContain('Spearman and Pikeman gain +35% against this unit');
+  });
+
+  it('keeps War Elephant tactical facts public without leaking its owner-only Tactics state in hot seat', () => {
+    const state = createNewGame(undefined, 'war-elephant-hot-seat-role', 'small');
+    state.civilizations['player-2'] = { ...structuredClone(state.civilizations.player), id: 'player-2', isHuman: true };
+    state.civilizations.player.techState.completed = ['tactics'];
+    const unit = { ...createUnit('war_elephant' as any, 'player', { q: 1, r: 1 }, state.idCounters), id: 'war-elephant' };
+    state.currentPlayer = 'player-2';
+    state.units = { [unit.id]: unit };
+    state.civilizations.player.units = [unit.id];
+    const container = new MockElement('div');
+
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, unit.id, {});
+
+    const text = collectAllText(container).join(' ');
+    expect(text).toContain('Reduces non-polearm return damage by 15%');
+    expect(text).not.toContain('Tactics ·');
+  });
 });
 
 describe('land-unit water recovery guidance', () => {

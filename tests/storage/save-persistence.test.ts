@@ -16,6 +16,8 @@ import { loadGame, migrateLegacyNamingState, normalizeLoadedStateForTest, saveGa
 import type { CustomCivDefinition, GameState } from '@/core/types';
 import { foundCity } from '@/systems/city-system';
 import { hexKey } from '@/systems/hex-utils';
+import { createUnit } from '@/systems/unit-system';
+import { CURRENT_SAVE_SCHEMA_VERSION } from '@/storage/save-migrations';
 
 const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
 
@@ -749,6 +751,29 @@ describe('save persistence (#38)', () => {
     const loaded = await loadGame('slot-legacy-queue');
 
     expect(loaded?.cities['city-1'].productionQueue).toEqual(['warrior', 'shrine', 'worker', 'library']);
+  });
+
+  it('round-trips legacy Beast Handler and current War Elephant unit/queue records without a schema change', async () => {
+    const state = createNewGame('rome', 'war-elephant-save-round-trip');
+    state.saveSchemaVersion = CURRENT_SAVE_SCHEMA_VERSION;
+    const tile = Object.values(state.map.tiles).find(candidate => candidate.terrain === 'grassland')!;
+    const city = foundCity('player', tile.coord, state.map, state.idCounters);
+    state.cities = { [city.id]: city };
+    state.civilizations.player.cities = [city.id];
+    state.civilizations.player.techState.completed = ['horseback-riding', 'tactics'];
+    const handler = { ...createUnit('beast_handler', 'player', city.position, state.idCounters), id: 'handler' };
+    const elephant = { ...createUnit('war_elephant' as any, 'player', city.position, state.idCounters), id: 'elephant' };
+    state.units = { handler, elephant };
+    state.civilizations.player.units = [handler.id, elephant.id];
+    state.cities[city.id] = { ...city, productionQueue: ['war_elephant', 'beast_handler'] };
+
+    await saveGame('slot-war-elephant-round-trip', 'War Elephant Round Trip', state);
+    const loaded = await loadGame('slot-war-elephant-round-trip');
+
+    expect(loaded?.saveSchemaVersion).toBe(state.saveSchemaVersion);
+    expect(loaded?.units.handler?.type).toBe('beast_handler');
+    expect(loaded?.units.elephant?.type).toBe('war_elephant');
+    expect(loaded?.cities[city.id]?.productionQueue).toEqual(['war_elephant', 'beast_handler']);
   });
 
   it('adds an empty research queue when loading older saves', async () => {
