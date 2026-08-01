@@ -10,6 +10,7 @@ import { UNIT_DEFINITIONS } from '@/systems/unit-system';
 import { PIRATE_HULL_TYPES } from '@/systems/pirate-definitions';
 import {
   JetFighterSprite, IroncladSprite, MachineGunnerSprite, MissionarySprite, SpyHackerSprite,
+  HorsemanSprite, CannonSprite, RiflemanSprite,
 } from '@/renderer/sprites/units';
 import {
   DataCenterSprite, CyberDefenseCenterSprite, AutomatedPortSprite, SignalsHubSprite,
@@ -150,6 +151,29 @@ describe('Era 13 sprites are not aliases of their placeholders (#652)', () => {
     ];
     for (const [id, placeholderFn] of replacements) {
       expect(BUILDING_SPRITE_CATALOG[id], `${id} still aliases its old placeholder component`).not.toBe(placeholderFn);
+    }
+  });
+});
+
+// #769 batch 1 (2026-08-01): chariot/infantry/artillery/marine/cyber_unit got real, distinct
+// sprites, replacing their donor aliases (HorsemanSprite/MachineGunnerSprite/CannonSprite/
+// RiflemanSprite/SpyHackerSprite). Same pattern and purpose as the Era 13 block above — reject
+// any regression back to rendering byte-identical to the old donor.
+describe('#769 batch 1 sprites are not aliases of their donors', () => {
+  const palette = derivePalette('#4a90d9');
+
+  it('unit sprites render different markup than the donors they replaced', () => {
+    const replacements: Array<[keyof typeof UNIT_SPRITE_CATALOG, (props: { palette: typeof palette; svgOnly: boolean }) => string]> = [
+      ['chariot', HorsemanSprite],
+      ['infantry', MachineGunnerSprite],
+      ['artillery', CannonSprite],
+      ['marine', RiflemanSprite],
+      ['cyber_unit', SpyHackerSprite],
+    ];
+    for (const [type, donorFn] of replacements) {
+      const actual = UNIT_SPRITE_CATALOG[type]({ palette, svgOnly: true });
+      const donor = donorFn({ palette, svgOnly: true });
+      expect(actual, `${type} still renders identically to its old donor sprite`).not.toBe(donor);
     }
   });
 });
