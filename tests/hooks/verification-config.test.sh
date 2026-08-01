@@ -9,6 +9,14 @@ grep -Fq '"verify:push": "sh scripts/verify-before-push.sh --no-mise"' "$ROOT/pa
   echo "package.json does not expose the canonical verifier"
   exit 1
 }
+grep -Fq '"verify:pr": "sh scripts/verify-pr.sh"' "$ROOT/package.json" || {
+  echo "package.json does not expose the durable PR verifier"
+  exit 1
+}
+grep -Fq '"verify:pr:status": "sh scripts/read-pr-verification-result.sh"' "$ROOT/package.json" || {
+  echo "package.json does not expose the PR verification status reader"
+  exit 1
+}
 
 test_job="$(
   sed -n '/^  test:/,/^  pirate-audio-reproducibility:/p' "$ROOT/.github/workflows/deploy.yml"
@@ -76,5 +84,13 @@ grep -Fq '"test:durable": "sh scripts/run-durable-test-suite.sh full -- sh scrip
 }
 grep -Fq '"test:durable:status": "sh scripts/read-durable-test-result.sh full"' "$ROOT/package.json" || {
   echo "package.json does not expose the durable full-suite status reader"
+  exit 1
+}
+grep -Fq 'Never chain `yarn build && yarn test`' "$ROOT/AGENTS.md" || {
+  echo "AGENTS.md permits chained build and test verification"
+  exit 1
+}
+grep -Fq 'verify the remote branch ref equals local `HEAD`' "$ROOT/AGENTS.md" || {
+  echo "AGENTS.md does not require remote SHA confirmation after incomplete push output"
   exit 1
 }

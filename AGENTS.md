@@ -112,6 +112,11 @@ before inspecting processes: a completed status result is authoritative even
 when streamed output was truncated. Inspect the process tree only when status
 reports an active run; do not call a completed durable run "still running"
 solely because its terminal stream ended early.
+Never chain `yarn build && yarn test` in one terminal session. Run the build
+separately, then use `yarn verify:pr` followed by `yarn verify:pr:status` for
+a bounded build-plus-durable-suite proof. The result is worktree/HEAD-bound,
+records elapsed time, and fails when verification exceeds 480 seconds.
+If a push terminal stream is incomplete after its process exits, verify the remote branch ref equals local `HEAD` before treating the push as successful; do not infer success from partial hook output.
 Do not point two worktrees at a shared durable-artifact directory or add a
 repository-wide verification lock.
 

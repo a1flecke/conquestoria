@@ -21,6 +21,8 @@
     "test:hooks": "bash tests/hooks/run.sh",
     "test:web-smoke": "playwright test",
     "test:watch": "vitest",
+    "verify:pr": "sh scripts/verify-pr.sh",
+    "verify:pr:status": "sh scripts/read-pr-verification-result.sh",
     "verify:push": "sh scripts/verify-before-push.sh --no-mise",
     "generate-maps": "tsx scripts/generate-earth-maps.ts"
   },
