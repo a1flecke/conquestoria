@@ -1162,6 +1162,7 @@ export function createCityPanel(
       roleFacts.textContent = [
         ...presentation.counters,
         ...presentation.vulnerabilities,
+        ...presentation.publicFacts,
         presentation.upgrade,
       ].map(fact => `${fact.icon} ${fact.text}`).join(' · ');
     }

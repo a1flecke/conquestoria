@@ -17,6 +17,7 @@ export interface UnitRolePresentation {
   vulnerabilities: readonly IconTextFact[];
   upgrade: IconTextFact;
   requirements: readonly IconTextFact[];
+  publicFacts: readonly IconTextFact[];
 }
 
 const ROLE_LABELS: Record<CombatRole, string> = {
@@ -75,5 +76,6 @@ export function getUnitRolePresentation(
       icon: prerequisites.satisfied.includes(id) ? '✓' : '🔒',
       text: `${techName(id)} · ${prerequisites.satisfied.includes(id) ? 'Complete' : 'Missing'}`,
     })),
+    publicFacts: (definition.publicFacts ?? []).map(text => ({ icon: '⚔️', text })),
   };
 }

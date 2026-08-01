@@ -216,6 +216,8 @@ export const UNIT_SFX: Partial<Record<UnitType, Partial<Record<SfxClass, TrackEn
   war_hound: WAR_HOUND_SFX,
   // Temporary War Hound cues; #714 owns Beast Handler's bespoke audio.
   beast_handler: WAR_HOUND_SFX,
+  // Temporary beast-combat cues; #714 owns War Elephant's bespoke audio.
+  war_elephant: WAR_HOUND_SFX,
 
   // === Non-Combat (death only) ===
   settler:    { death: real('sfx-settler-death',    'audio/sfx/settler-death.ogg',    0.118, 'death') },
@@ -323,6 +325,7 @@ const LOCOMOTION_CLASS: Record<UnitType, LocomotionClass> = {
   scout_hound:   'animal',
   war_hound:     'animal',
   beast_handler: 'animal',
+  war_elephant: 'animal',
   shadow_warden: 'humanoid',
   warrior:       'humanoid',
   swordsman:     'humanoid',

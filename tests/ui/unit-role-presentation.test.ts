@@ -42,4 +42,19 @@ describe('unit role presentation', () => {
       ],
     });
   });
+
+  it('presents War Elephant tactical facts from typed role data', () => {
+    expect(getUnitRolePresentation('war_elephant' as any, ['tactics'])).toMatchObject({
+      summary: 'A powerful charger that thrives in open ground but fears polearms and rough terrain.',
+      roleText: 'Role: shock',
+      vulnerabilities: [{ icon: '⚠️', text: 'Vulnerable to anti-mounted units' }],
+      publicFacts: [
+        { icon: '⚔️', text: '+20% attack on open ground' },
+        { icon: '⚔️', text: '−15% attack in forest, jungle, swamp, or hills' },
+        { icon: '⚔️', text: 'Reduces non-polearm return damage by 15%' },
+        { icon: '⚔️', text: 'Spearman and Pikeman gain +35% against this unit' },
+        { icon: '⚔️', text: 'Live Ivory reduces new city production cost by 15%' },
+      ],
+    });
+  });
 });
