@@ -41,6 +41,12 @@ import { svg as carrackSvg }       from './carrack.svg';
 import { svg as galleonSvg }       from './galleon.svg';
 import { svg as steamshipSvg }     from './steamship.svg';
 import { svg as troopTransportSvg } from './troop_transport.svg';
+// #759 batch 1
+import { svg as combatDroneSvg }       from './combat_drone.svg';
+import { svg as autonomousFrigateSvg } from './autonomous_frigate.svg';
+import { svg as exosuitInfantrySvg }   from './exosuit_infantry.svg';
+import { svg as propagandistSvg }      from './propagandist.svg';
+import { svg as droneControllerSvg }   from './drone_controller.svg';
 // Legendary beasts — faction-neutral, keyed under 'beast'
 import { svg as beastBoarSvg }     from './beast_boar.svg';
 import { svg as beastWolfSvg }     from './beast_wolf.svg';
@@ -145,6 +151,12 @@ const UNIT_SPRITES: Record<string, Record<string, string>> = {
   galleon:        galleonSvg,
   steamship:      steamshipSvg,
   troop_transport: troopTransportSvg,
+  // #759 batch 1
+  combat_drone:       combatDroneSvg,
+  autonomous_frigate: autonomousFrigateSvg,
+  exosuit_infantry:   exosuitInfantrySvg,
+  propagandist:       propagandistSvg,
+  drone_controller:   droneControllerSvg,
   // Legendary beasts
   beast_boar:     beastBoarSvg,
   beast_wolf:     beastWolfSvg,

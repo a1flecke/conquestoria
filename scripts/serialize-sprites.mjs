@@ -118,6 +118,12 @@ const UNIT_SPRITES = [
   ['galleon',       'GalleonV2Sprite'],
   ['steamship',     'SteamshipV2Sprite'],
   ['troop_transport', 'TroopTransportV2Sprite'],
+  // #759 batch 1
+  ['combat_drone',        'CombatDroneV2Sprite'],
+  ['autonomous_frigate',  'AutonomousFrigateV2Sprite'],
+  ['exosuit_infantry',    'ExosuitInfantryV2Sprite'],
+  ['propagandist',        'PropagandistV2Sprite'],
+  ['drone_controller',    'DroneControllerV2Sprite'],
 ];
 
 const BUILDING_SPRITES = [
