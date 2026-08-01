@@ -925,7 +925,6 @@ export type CombatRole =
   | 'pursuit'
   | 'reconnaissance'
   | 'detection'
-  | 'anti-armor'
   | 'anti-mounted'
   | 'anti-armor'
   | 'air-superiority'
@@ -1345,6 +1344,7 @@ export type OpponentChallenge = 'explorer' | 'standard' | 'veteran';
 export type AIStrategicRole =
   | 'capture'
   | 'frontline'
+  | 'anti-armor'
   | 'ranged'
   | 'siege'
   | 'mobile'
