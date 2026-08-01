@@ -35,6 +35,13 @@ export function formatCombatPreviewDetails(
       details.push(part.label);
     }
   }
+  for (const fact of preview.attackerModifierFacts ?? []) {
+    if (fact.outcome !== 'ignored') continue;
+    const value = fact.operation === 'multiplier'
+      ? `×${fact.value}`
+      : `${fact.value >= 0 ? '+' : ''}${fact.value}`;
+    details.push(`${fact.label} ${value} (not active)`);
+  }
   for (const part of preview.cityDefense?.parts ?? []) {
     details.push(part.label);
   }

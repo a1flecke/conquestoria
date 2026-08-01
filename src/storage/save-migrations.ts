@@ -13,7 +13,7 @@ import { CIRCULAR_MANUFACTURING_MATERIALS } from '@/systems/national-project-sys
 import { appendNotification } from '@/core/notification-log';
 import { syncTransportCargoPositions } from '@/systems/transport-system';
 
-export const CURRENT_SAVE_SCHEMA_VERSION = 10;
+export const CURRENT_SAVE_SCHEMA_VERSION = 11;
 
 export type SaveMigration = (state: GameState) => GameState;
 
@@ -369,11 +369,24 @@ function migrateRetimedCavalry(state: GameState): GameState {
   return { ...state, cities };
 }
 
+function migrateRetimedKnight(state: GameState): GameState {
+  const cities = Object.fromEntries(Object.entries(state.cities ?? {}).map(([cityId, city]) => {
+    const existingGrace = Array.isArray(city.legacyTechGrace)
+      ? city.legacyTechGrace.filter(item => item === 'cavalry' || item === 'knight')
+      : [];
+    const queuedKnights = city.productionQueue.filter(item => item === 'knight');
+    const legacyTechGrace = [...existingGrace, ...queuedKnights];
+    if (legacyTechGrace.length === 0) return [cityId, city];
+    return [cityId, { ...city, legacyTechGrace }];
+  }));
+  return { ...state, cities };
+}
+
 function normalizeLegacyTechGrace(state: GameState): GameState {
   const cities = Object.fromEntries(Object.entries(state.cities ?? {}).map(([cityId, city]) => {
     if (city.legacyTechGrace === undefined) return [cityId, city];
     const legacyTechGrace = Array.isArray(city.legacyTechGrace)
-      ? city.legacyTechGrace.filter(item => item === 'cavalry')
+      ? city.legacyTechGrace.filter(item => item === 'cavalry' || item === 'knight')
       : [];
     if (legacyTechGrace.length > 0) return [cityId, { ...city, legacyTechGrace }];
     const { legacyTechGrace: _invalidGrace, ...withoutLegacyTechGrace } = city;
@@ -493,6 +506,7 @@ export const SAVE_MIGRATIONS: Readonly<Record<number, SaveMigration>> = {
   8: migrateCombatNotificationDetails,
   9: migrateCoastalHullsOffOcean,
   10: migrateRetimedCavalry,
+  11: migrateRetimedKnight,
 };
 
 function readSchemaVersion(raw: Record<string, unknown>): number {

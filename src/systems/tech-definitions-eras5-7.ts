@@ -144,7 +144,7 @@ const ERA_6_TECHS: Tech[] = [
   // MILITARY (2)
   { id: 'rifle-tactics', name: 'Rifle Tactics', track: 'military', cost: 185,
     prerequisites: ['black-powder', 'professional-army'],
-    unlocks: ['Musketeer-class units replaced by riflemen; Cavalry pursues weakened enemies'], unlocksUnits: ['cavalry'], unlocksBuildings: ['military_academy'], era: 6 },
+    unlocks: ['Musketeer-class units replaced by riflemen; Cavalry pursues weakened enemies; Cuirassier charges open ground'], unlocksUnits: ['cavalry', 'cuirassier'], unlocksBuildings: ['military_academy'], era: 6 },
   { id: 'grenade-warfare', name: 'Grenade Warfare', track: 'military', cost: 185,
     prerequisites: ['black-powder', 'military-logistics'],
     unlocks: ['Grenadier unlocked — anti-fortification specialist'], unlocksUnits: ['grenadier'], era: 6 },

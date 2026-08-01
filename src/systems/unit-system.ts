@@ -240,6 +240,12 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     canBuildImprovements: false, productionCost: 80,
     cargoSize: 2,
   },
+  cuirassier: {
+    type: 'cuirassier', name: 'Cuirassier', movementPoints: 3,
+    visionRange: 2, strength: 52, canFoundCity: false,
+    canBuildImprovements: false, productionCost: 150,
+    cargoSize: 2,
+  },
   crossbowman: {
     type: 'crossbowman', name: 'Crossbowman', movementPoints: 2,
     visionRange: 3, strength: 30, canFoundCity: false,
@@ -706,6 +712,7 @@ export const UNIT_DESCRIPTIONS: Record<UnitType, string> = {
   chariot:     'A heavy mobile attacker that gains 20% strength on open ground but loses 15% in rough terrain. Requires Horses.',
   cavalry:     'Fast pursuit cavalry gains 15% strength against enemies below 60 HP. Requires Horses.',
   knight:      'The apex of mounted warfare — armored and devastating. Requires Horses and Iron.',
+  cuirassier:  'Armored cavalry breaks open ground but is slower than Cavalry and vulnerable to polearms.',
   crossbowman: 'Precision-ranged unit with a longer reach than Archers. Requires Copper.',
   catapult:    'Slow but devastating siege engine that bombards units and cities. Requires Stone.',
   ballista:    'Long-range bolt-thrower effective against massed units. Requires Iron.',

@@ -84,6 +84,12 @@ const WAR_HOUND_SFX = {
   death:           real('sfx-war_hound-death',          'audio/sfx/war_hound-death.ogg',          0.572, 'death'),
 };
 
+const KNIGHT_SFX = {
+  'attack-swing':  real('sfx-knight-attack-swing',  'audio/sfx/knight-attack-swing.ogg',  0.457),
+  'attack-impact': real('sfx-knight-attack-impact', 'audio/sfx/knight-attack-impact.ogg', 0.494),
+  death:           real('sfx-knight-death',          'audio/sfx/knight-death.ogg',          0.530, 'death'),
+};
+
 // Unit SFX — keyed by UnitType, then by SfxClass. Non-combat units have death only.
 export const UNIT_SFX: Partial<Record<UnitType, Partial<Record<SfxClass, TrackEntry>>>> = {
 
@@ -172,11 +178,9 @@ export const UNIT_SFX: Partial<Record<UnitType, Partial<Record<SfxClass, TrackEn
     'attack-impact': real('sfx-cavalry-attack-impact', 'audio/sfx/cavalry-attack-impact.ogg', 0.352),
     death:           real('sfx-cavalry-death',          'audio/sfx/cavalry-death.ogg',          0.147, 'death'),
   },
-  knight: {
-    'attack-swing':  real('sfx-knight-attack-swing',  'audio/sfx/knight-attack-swing.ogg',  0.457),
-    'attack-impact': real('sfx-knight-attack-impact', 'audio/sfx/knight-attack-impact.ogg', 0.494),
-    death:           real('sfx-knight-death',          'audio/sfx/knight-death.ogg',          0.530, 'death'),
-  },
+  knight: KNIGHT_SFX,
+  // Temporary Knight cues; #714 owns Cuirassier's bespoke mounted audio.
+  cuirassier: KNIGHT_SFX,
 
   // === Naval (attack-swing, attack-impact, death) ===
   galley: {
@@ -356,6 +360,7 @@ const LOCOMOTION_CLASS: Record<UnitType, LocomotionClass> = {
   chariot:       'animal',
   cavalry:       'animal',
   knight:        'animal',
+  cuirassier:    'animal',
   crossbowman:   'humanoid',
   catapult:      'humanoid',
   ballista:      'humanoid',

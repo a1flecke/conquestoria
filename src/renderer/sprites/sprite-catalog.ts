@@ -133,6 +133,7 @@ const UNIT_MOTION_STYLES: Record<UnitType, UnitMotionStyle> = {
   chariot: 'animal',
   cavalry: 'animal',
   knight: 'animal',
+  cuirassier: 'animal',
   crossbowman: 'humanoid',
   catapult: 'humanoid',
   ballista: 'humanoid',
@@ -265,6 +266,8 @@ export const UNIT_SPRITE_CATALOG: Record<UnitType, UnitSpriteComponent> = {
   chariot:        withMotion('chariot', HorsemanSprite),
   cavalry:        withMotion('cavalry', CavalrySprite),
   knight:         withMotion('knight', KnightSprite),
+  // Temporary Knight silhouette; #708 owns Cuirassier's distinct final sprite.
+  cuirassier:     withMotion('cuirassier', KnightSprite),
   crossbowman:    withMotion('crossbowman', CrossbowmanSprite),
   catapult:       withMotion('catapult', CatapultSprite),
   ballista:       withMotion('ballista', BallistaSprite),
