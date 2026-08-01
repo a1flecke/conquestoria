@@ -497,15 +497,16 @@ describe('MR8 — naval roster gating', () => {
 });
 
 describe('#443 — building obsolescence matches the retired unit line', () => {
-  it('stable ("Trains mounted units"): horseman/cavalry/knight are all gone once tank-warfare completes', () => {
+  it('stable ("Trains mounted units"): the mounted line is gone once its retirement technologies complete', () => {
     const units = getTrainableUnitsForCiv(
-      ['horseback-riding', 'iron-forging', 'tank-warfare'],
+      ['horseback-riding', 'iron-forging', 'professional-army', 'rifle-tactics', 'tank-warfare'],
       undefined,
       new Set<ResourceType>(['horses', 'iron']),
     );
     expect(units.some(u => u.type === 'horseman')).toBe(false);
     expect(units.some(u => u.type === 'cavalry')).toBe(false);
     expect(units.some(u => u.type === 'knight')).toBe(false);
+    expect(units.some(u => u.type === ('cuirassier' as UnitType))).toBe(false);
   });
 
   it('siege-workshop ("Reduces Catapult and Ballista training cost"): both gone once black-powder completes', () => {
@@ -1538,6 +1539,25 @@ describe('S4b — new unit entries', () => {
     expect(completeGate.find(unit => unit.type === 'cavalry')).toMatchObject({ cost: 140, techRequired: 'rifle-tactics', requiredTechs: ['professional-army'] });
   });
 
+  it('Cuirassier needs both Rifle Tactics and Professional Army plus Horses and Iron', () => {
+    const cuirassier = 'cuirassier' as UnitType;
+    const completeGate = getTrainableUnitsForCiv(
+      ['rifle-tactics', 'professional-army'], undefined, new Set<ResourceType>(['horses', 'iron']),
+    );
+    const missingRifle = getTrainableUnitsForCiv(['professional-army'], undefined, new Set<ResourceType>(['horses', 'iron']));
+    const missingProfessionalArmy = getTrainableUnitsForCiv(['rifle-tactics'], undefined, new Set<ResourceType>(['horses', 'iron']));
+    const missingHorses = getTrainableUnitsForCiv(['rifle-tactics', 'professional-army'], undefined, new Set<ResourceType>(['iron']));
+    const missingIron = getTrainableUnitsForCiv(['rifle-tactics', 'professional-army'], undefined, new Set<ResourceType>(['horses']));
+
+    expect(completeGate.find(unit => unit.type === cuirassier)).toMatchObject({
+      cost: 150, techRequired: 'rifle-tactics', requiredTechs: ['professional-army'],
+      resourceRequired: ['horses', 'iron'], obsoletedByTech: 'tank-warfare', upgradesTo: 'tank',
+    });
+    for (const units of [missingRifle, missingProfessionalArmy, missingHorses, missingIron]) {
+      expect(units.some(unit => unit.type === cuirassier)).toBe(false);
+    }
+  });
+
   it('knight: trainable with iron-forging + horses + iron', () => {
     const units = getTrainableUnitsForCiv(['iron-forging'], undefined, new Set<ResourceType>(['horses', 'iron']));
     expect(units.some(u => u.type === 'knight')).toBe(true);
@@ -1580,9 +1600,9 @@ describe('S4b — new unit entries', () => {
     expect(entry?.obsoletedByTech).toBe('tank-warfare');
   });
 
-  it('knight obsoletes at tank-warfare', () => {
+  it('knight obsoletes at Rifle Tactics and upgrades to Cuirassier', () => {
     const entry = TRAINABLE_UNITS.find(u => u.type === 'knight');
-    expect(entry?.obsoletedByTech).toBe('tank-warfare');
+    expect(entry).toMatchObject({ obsoletedByTech: 'rifle-tactics', upgradesTo: 'cuirassier' });
   });
 
   it('dead-end prevention: iron-poor civ still has tank once tank-warfare completes, even though it never had cavalry or knight', () => {
@@ -1756,6 +1776,13 @@ describe('S4b — building production discounts', () => {
   it('cavalry-academy: reduces horseman cost by 15%', () => {
     const base = getProductionCostForItem('horseman', { city: noBuildings });
     const discounted = getProductionCostForItem('horseman', { city: { buildings: ['cavalry-academy'] } });
+    expect(discounted).toBe(Math.ceil(base * 0.85));
+  });
+
+  it('stable discounts the Cuirassier as part of the mounted production line', () => {
+    const base = getProductionCostForItem('cuirassier', { city: noBuildings });
+    const discounted = getProductionCostForItem('cuirassier', { city: { buildings: ['stable'] } });
+
     expect(discounted).toBe(Math.ceil(base * 0.85));
   });
 
@@ -2022,6 +2049,36 @@ describe('Cavalry retime save compatibility and #429 AI training selection', () 
 
     const secondResult = processCity({ ...result.city, productionProgress: 139 }, map, 2, 1, undefined, ['horseback-riding'], undefined, 2, new Set<ResourceType>(['horses']));
     expect(secondResult.completedUnit).toBe('cavalry');
+    expect(secondResult.city.productionQueue).toEqual([]);
+    expect(secondResult.city.legacyTechGrace).toBeUndefined();
+  });
+
+  it('keeps each migrated Knight queue slot through production exactly once after Rifle Tactics', () => {
+    const map = generateMap(30, 30, 'legacy-knight-queue-completion');
+    const tile = Object.values(map.tiles).find(candidate => candidate.terrain === 'grassland')!;
+    const city: City = {
+      ...foundCity('p1', tile.coord, map, mkC()),
+      productionQueue: ['knight', 'knight'],
+      productionProgress: 79,
+      legacyTechGrace: ['knight', 'knight'],
+    };
+
+    const result = processCity(
+      city, map, 2, 1, undefined,
+      ['iron-forging', 'rifle-tactics', 'professional-army'], undefined, 2,
+      new Set<ResourceType>(['horses', 'iron']),
+    );
+
+    expect(result.completedUnit).toBe('knight');
+    expect(result.city.productionQueue).toEqual(['knight']);
+    expect(result.city.legacyTechGrace).toEqual(['knight']);
+
+    const secondResult = processCity(
+      { ...result.city, productionProgress: 79 }, map, 2, 1, undefined,
+      ['iron-forging', 'rifle-tactics', 'professional-army'], undefined, 2,
+      new Set<ResourceType>(['horses', 'iron']),
+    );
+    expect(secondResult.completedUnit).toBe('knight');
     expect(secondResult.city.productionQueue).toEqual([]);
     expect(secondResult.city.legacyTechGrace).toBeUndefined();
   });

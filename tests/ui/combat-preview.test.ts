@@ -58,6 +58,26 @@ describe('formatCombatPreviewDetails', () => {
     expect(details).toContain('Anti-cavalry ×1.5');
   });
 
+  it('shows the initiating player when Cuirassier open-ground charge is not active without leaking defender facts', () => {
+    const details = formatCombatPreviewDetails('Rival', 100, {
+      attackerStrength: 52,
+      defenderStrength: 40,
+      terrainDefenseBonus: 0.25,
+      riverAttackPenalty: 0,
+      attackerModifierFacts: [{
+        key: 'unit:cuirassier:open-ground', label: 'Cuirassier open-ground charge',
+        sourceVisibility: 'owner', operation: 'multiplier', value: 1.15, outcome: 'ignored',
+      }],
+      defenderModifierFacts: [{
+        key: 'secret:defender', label: 'Hidden defender advantage',
+        sourceVisibility: 'owner', operation: 'flat', value: 9, outcome: 'ignored',
+      }],
+    });
+
+    expect(details).toContain('Cuirassier open-ground charge ×1.15 (not active)');
+    expect(details).not.toContain('Hidden defender advantage');
+  });
+
   it('shows canonical defender air-defense facts without inspecting city buildings', () => {
     const details = formatCombatPreviewDetails('Rival', 100, {
       attackerStrength: 15, defenderStrength: 18, terrainDefenseBonus: 0, riverAttackPenalty: 0,

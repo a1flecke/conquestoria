@@ -104,6 +104,25 @@ function makeCoastal(state: GameState, cityId = 'city-a'): void {
 }
 
 describe('AI strategic production', () => {
+  it('offers Cuirassier for mobile demand only when the AI owns Horses and Iron', () => {
+    const state = setupState([
+      'animal-husbandry', 'bronze-working', 'rifle-tactics', 'professional-army',
+    ]);
+    grantResources(state, ['horses', 'iron']);
+
+    const available = generateAIProductionCandidates(
+      state, 'ai-1', 'city-a', [demand('mobile')], aggressive,
+    );
+    expect(available.find(candidate => candidate.itemId === 'cuirassier')?.roles)
+      .toEqual(expect.arrayContaining(['mobile', 'capture']));
+
+    grantResources(state, ['horses']);
+    const ironBlocked = generateAIProductionCandidates(
+      state, 'ai-1', 'city-a', [demand('mobile')], aggressive,
+    );
+    expect(ironBlocked.some(candidate => candidate.itemId === 'cuirassier')).toBe(false);
+  });
+
   it('does not generate a partially unlocked conjunctive unit candidate', () => {
     const state = setupState(['archery']);
     const archer = TRAINABLE_UNITS.find(unit => unit.type === 'archer')!;

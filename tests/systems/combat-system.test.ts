@@ -10,6 +10,7 @@ import { createNewGame } from '@/core/game-state';
 import type { GameMap } from '@/core/types';
 import { createUnit, UNIT_DEFINITIONS } from '@/systems/unit-system';
 import { generateMap } from '@/systems/map-generator';
+import { buildCombatContextForDefender } from '@/systems/combat-context';
 
 const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
 
@@ -102,6 +103,29 @@ describe('resolveCombat', () => {
 
   beforeAll(() => {
     map = generateMap(30, 30, 'combat-test');
+  });
+
+  it('carries Cuirassier open-ground facts through the shared state combat context', () => {
+    const state = createNewGame(undefined, 'cuirassier-shared-combat', 'small');
+    const plains = Object.values(state.map.tiles).find(tile => tile.terrain === 'plains')!;
+    const defenderPosition = { q: plains.coord.q + 1, r: plains.coord.r };
+    state.map.tiles[`${defenderPosition.q},${defenderPosition.r}`] = {
+      ...plains, coord: defenderPosition, terrain: 'plains', owner: 'ai-1',
+    };
+    const counters = mkC();
+    const attacker = createUnit('cuirassier', 'player', plains.coord, counters);
+    const defender = createUnit('warrior', 'ai-1', defenderPosition, counters);
+    state.units = { [attacker.id]: attacker, [defender.id]: defender };
+
+    const context = buildCombatContextForDefender(state, attacker, defender);
+    const result = resolveCombat(attacker, defender, state.map, 42, context);
+
+    expect(context.attackerModifiers?.facts).toContainEqual(expect.objectContaining({
+      key: 'unit:cuirassier:open-ground', outcome: 'applied', value: 1.15,
+    }));
+    expect(result.modifierFacts?.attacker).toContainEqual(expect.objectContaining({
+      key: 'unit:cuirassier:open-ground', outcome: 'applied', value: 1.15,
+    }));
   });
 
   it('produces a combat result with damage to both sides', () => {

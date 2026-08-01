@@ -121,6 +121,21 @@ describe('AI strategic research planning', () => {
       .toBeGreaterThan(Number.NEGATIVE_INFINITY);
   });
 
+  it('keeps Rifle Tactics researchable while pricing Cuirassier\'s missing Iron', () => {
+    const result = planAIResearch(context([
+      tech('rifle-tactics', 'military', [], { unlocksUnits: ['cuirassier'] }),
+    ], {
+      availableResources: new Set(['horses']),
+      forceDemands: [{
+        role: 'mobile', desired: 1, assigned: 0, missing: 1, priority: 100, sourcePlanIds: ['primary'],
+      }],
+    }));
+
+    expect(result?.frontierTechId).toBe('rifle-tactics');
+    expect(result?.scoreComponents.resourceMismatchPenalty).toBe(4);
+    expect(result?.scoreComponents.activePlanFit).toBeGreaterThan(0);
+  });
+
   it('lets economy support outrank an unaffordable war path', () => {
     const result = planAIResearch(context([
       tech('war', 'military', [], { unlocksUnits: ['knight'] }),

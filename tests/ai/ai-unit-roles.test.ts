@@ -22,6 +22,7 @@ describe('AI strategic unit roles', () => {
     ['warrior', ['frontline', 'capture']],
     ['archer', ['ranged', 'capture']],
     ['horseman', ['mobile', 'capture']],
+    ['cuirassier', ['mobile', 'capture']],
     ['catapult', ['siege', 'ranged']],
     ['galley', ['naval-combat', 'escort']],
     ['frigate', ['naval-combat', 'escort']],

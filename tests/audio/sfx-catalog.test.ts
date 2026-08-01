@@ -23,7 +23,7 @@ const PROJECT_ROOT = path.resolve(__dirname, '../..');
 
 const COMBAT_MELEE_TYPES: UnitType[] = [
   'warrior', 'axeman', 'spearman', 'swordsman', 'pikeman', 'musketeer',
-  'horseman', 'chariot', 'cavalry', 'knight',
+  'horseman', 'chariot', 'cavalry', 'knight', 'cuirassier',
   'galley', 'trireme',
   'shadow_warden', 'scout_hound', 'war_hound', 'beast_handler', 'war_elephant',
 ];
@@ -173,7 +173,7 @@ describe('sfx-catalog completeness', () => {
 
 describe('getLocomotionClass', () => {
   it('maps animal units correctly', () => {
-    const animalTypes: UnitType[] = ['scout_hound', 'war_hound', 'beast_handler', 'war_elephant', 'horseman', 'cavalry', 'knight'];
+    const animalTypes: UnitType[] = ['scout_hound', 'war_hound', 'beast_handler', 'war_elephant', 'horseman', 'cavalry', 'knight', 'cuirassier'];
     for (const t of animalTypes) {
       expect(getLocomotionClass(t), t).toBe('animal');
     }

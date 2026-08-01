@@ -43,6 +43,23 @@ describe('unit role presentation', () => {
     });
   });
 
+  it('presents Cuirassier as the concise heavy-cavalry route to Tank', () => {
+    const presentation = getUnitRolePresentation('cuirassier', ['rifle-tactics', 'professional-army']);
+
+    expect(presentation).toMatchObject({
+      upgrade: { icon: '⬆️', text: 'Upgrades to Tank' },
+      requirements: [
+        { icon: '✓', text: 'Rifle Tactics · Complete' },
+        { icon: '✓', text: 'Professional Army · Complete' },
+      ],
+      publicFacts: [
+        { icon: '⚔️', text: '+15% attack on open ground' },
+        { icon: '⚔️', text: 'Requires Horses and Iron' },
+      ],
+    });
+    expect(presentation?.summary.split(/\s+/)).toHaveLength(10);
+  });
+
   it('presents War Elephant tactical facts from typed role data', () => {
     expect(getUnitRolePresentation('war_elephant' as any, ['tactics'])).toMatchObject({
       summary: 'A powerful charger that thrives in open ground but fears polearms and rough terrain.',
