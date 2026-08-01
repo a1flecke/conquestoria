@@ -1133,7 +1133,8 @@ export const TRAINABLE_UNITS: Array<TrainableUnitEntry & { pacing?: Building['pa
   { type: 'horseman',     name: 'Horseman',     cost: 55,  techRequired: 'horseback-riding', resourceRequired: ['horses'],           obsoletedByTech: 'tank-warfare', upgradesTo: 'tank',                       pacing: { band: 'power-spike', role: 'basic-cavalry',         impact: 1.15, scope: 'military', snowball: 1,   urgency: 1.05, situationality: 1.1,  unlockBreadth: 1 } },
   { type: 'chariot',      name: 'Chariot',      cost: 65,  techRequired: 'wheel', requiredTechs: ['horseback-riding'], resourceRequired: ['horses'], obsoletedByTech: 'iron-forging', upgradesTo: 'knight', pacing: { band: 'power-spike', role: 'ancient-heavy-mobile', impact: 1.2, scope: 'military', snowball: 1, urgency: 1.05, situationality: 1.2, unlockBreadth: 1 } },
   { type: 'cavalry',      name: 'Cavalry',      cost: 140, techRequired: 'rifle-tactics', requiredTechs: ['professional-army'], resourceRequired: ['horses'], obsoletedByTech: 'tank-warfare', upgradesTo: 'tank', pacing: { band: 'power-spike', role: 'heavy-cavalry', impact: 1.2, scope: 'military', snowball: 1.1, urgency: 1, situationality: 1.1, unlockBreadth: 1 } },
-  { type: 'knight',       name: 'Knight',       cost: 80,  techRequired: 'iron-forging',     resourceRequired: ['horses', 'iron'],   obsoletedByTech: 'tank-warfare', upgradesTo: 'tank',                       pacing: { band: 'power-spike', role: 'heavy-cavalry-apex',    impact: 1.25, scope: 'military', snowball: 1.1, urgency: 1,    situationality: 1.1,  unlockBreadth: 1 } },
+  { type: 'knight',       name: 'Knight',       cost: 80,  techRequired: 'iron-forging',     resourceRequired: ['horses', 'iron'],   obsoletedByTech: 'rifle-tactics', upgradesTo: 'cuirassier',                  pacing: { band: 'power-spike', role: 'heavy-cavalry-apex',    impact: 1.25, scope: 'military', snowball: 1.1, urgency: 1,    situationality: 1.1,  unlockBreadth: 1 } },
+  { type: 'cuirassier',   name: 'Cuirassier',   cost: 150, techRequired: 'rifle-tactics', requiredTechs: ['professional-army'], resourceRequired: ['horses', 'iron'], obsoletedByTech: 'tank-warfare', upgradesTo: 'tank', pacing: { band: 'power-spike', role: 'heavy-cavalry', impact: 1.2, scope: 'military', snowball: 1.1, urgency: 1, situationality: 1.1, unlockBreadth: 1 } },
   // S4b — ranged + siege
   { type: 'marine',       name: 'Marine',       cost: 125, techRequired: 'amphibious-warfare', coastalRequired: true, obsoletedByTech: 'mass-firepower', upgradesTo: 'machine_gunner' },
   { type: 'crossbowman',  name: 'Crossbowman',  cost: 75,  techRequired: 'tactics',          resourceRequired: ['copper'],  obsoletedByTech: 'rifled-infantry', upgradesTo: 'rifleman',        pacing: { band: 'power-spike', role: 'precision-ranged',      impact: 1.15, scope: 'military', snowball: 1,   urgency: 1,    situationality: 1.05, unlockBreadth: 1 } },
@@ -1257,7 +1258,7 @@ export function getCatalogProductionCost(itemId: string, era: number = 1): numbe
 export const MELEE_RANGED_UNIT_TYPES: string[] = [
   'warrior', 'axeman', 'spearman', 'swordsman', 'pikeman', 'musketeer', 'archer', 'crossbowman',
 ];
-export const CAVALRY_UNIT_TYPES: string[] = ['horseman', 'chariot', 'cavalry', 'knight'];
+export const CAVALRY_UNIT_TYPES: string[] = ['horseman', 'chariot', 'cavalry', 'knight', 'cuirassier'];
 export const SIEGE_UNIT_TYPES: string[] = ['catapult', 'ballista', 'cannon'];
 
 // era-1/2 melee units eligible for the Tribal Muster Ground national-project discount.
@@ -1473,6 +1474,7 @@ export const PRODUCTION_ICONS: Record<string, string> = {
   chariot:     '🛞',
   cavalry:     '⚡',
   knight:      '♞',
+  cuirassier:  '🛡️',
   crossbowman: '🪃',
   catapult:    '🪨',
   ballista:    '🔩',
@@ -1953,7 +1955,7 @@ export function processCity(
   const newBuildings = [...city.buildings];
   const legacyResourceGrace = new Set(city.legacyResourceGrace ?? []);
   const legacyTechGrace = Array.isArray(city.legacyTechGrace)
-    ? city.legacyTechGrace.filter(item => item === 'cavalry')
+    ? city.legacyTechGrace.filter(item => item === 'cavalry' || item === 'knight')
     : [];
   const droppedProductionItems: DroppedProductionItem[] = [];
 
@@ -2100,7 +2102,9 @@ export function processCity(
       newBuildings.push(...completion.city.buildings);
       newProgress = completion.city.productionProgress;
       legacyResourceGrace.delete(currentItem);
-      const graceIndex = currentItem === 'cavalry' ? legacyTechGrace.indexOf(currentItem) : -1;
+      const graceIndex = (currentItem === 'cavalry' || currentItem === 'knight')
+        ? legacyTechGrace.indexOf(currentItem)
+        : -1;
       if (graceIndex >= 0) legacyTechGrace.splice(graceIndex, 1);
       completedBuilding = completion.completedBuilding;
       completedUnit = completion.completedUnit;
