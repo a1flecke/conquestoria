@@ -268,6 +268,7 @@ export function renderSelectedUnitInfo(
       { icon: '🛡️', text: rolePresentation.roleText },
       ...rolePresentation.counters,
       ...rolePresentation.vulnerabilities,
+      ...rolePresentation.publicFacts,
       rolePresentation.upgrade,
       ...(unit.owner === state.currentPlayer ? rolePresentation.requirements : []),
     ]) {
