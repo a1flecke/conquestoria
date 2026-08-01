@@ -1,4 +1,4 @@
-import type { UnitType } from '@/core/types';
+import type { TerrainType, UnitType } from '@/core/types';
 
 export type UnitClass = 'melee' | 'ranged' | 'siege' | 'mounted' | 'gunpowder' | 'armor'
   | 'naval' | 'air' | 'recon' | 'spy' | 'civilian';
@@ -144,6 +144,8 @@ export interface UnitModifier {
   domain?: 'land' | 'naval' | 'air';
   when?: ModifierWhen;
   condition?: ModifierCondition;
+  /** Exact target-terrain list for unit-specific combat contracts. */
+  targetTerrains?: readonly TerrainType[];
   /** Stable per-row identity for player-visible applied/ignored combat facts. */
   factKey?: string;
   label: string;
@@ -174,6 +176,8 @@ export const UNIT_MODIFIERS: UnitModifier[] = [
   { source: unit('marine'), effect: 'combatStrength', mode: 'multiplier', value: 2, unitTypes: ['marine'], when: 'attacking', condition: 'amphibiousAssault', label: 'Marine landing training' },
   { source: unit('chariot'), effect: 'combatStrength', mode: 'multiplier', value: 1.2, unitTypes: ['chariot'], when: 'attacking', condition: 'onOpenGround', factKey: 'unit:chariot:open-ground', label: 'Chariot open-ground charge' },
   { source: unit('chariot'), effect: 'combatStrength', mode: 'multiplier', value: 0.85, unitTypes: ['chariot'], when: 'attacking', condition: 'onRoughGround', factKey: 'unit:chariot:rough-ground', label: 'Chariot rough-ground penalty' },
+  { source: unit('war_elephant'), effect: 'combatStrength', mode: 'multiplier', value: 1.2, unitTypes: ['war_elephant'], when: 'attacking', targetTerrains: ['grassland', 'plains', 'desert', 'tundra', 'snow'], factKey: 'unit:war-elephant:open-ground', label: 'War Elephant open-ground charge' },
+  { source: unit('war_elephant'), effect: 'combatStrength', mode: 'multiplier', value: 0.85, unitTypes: ['war_elephant'], when: 'attacking', targetTerrains: ['forest', 'jungle', 'swamp', 'hills'], factKey: 'unit:war-elephant:rough-ground', label: 'War Elephant rough-ground penalty' },
   { source: unit('cavalry'), effect: 'combatStrength', mode: 'multiplier', value: 1.15, unitTypes: ['cavalry'], when: 'attacking', condition: 'opponentBelow60HP', label: 'Cavalry pursuit' },
 
   // --- Combat: national projects ---
@@ -225,6 +229,7 @@ export interface ClassCounter {
 }
 
 export const CLASS_COUNTERS: ClassCounter[] = [
+  { attackerTypes: ['spearman', 'pikeman'], defenderClass: 'mounted', defenderTypes: ['war_elephant'], multiplier: 1.35, label: 'Elephant counter' },
   { attackerTypes: ['spearman', 'pikeman'], defenderClass: 'mounted', multiplier: 1.5, label: 'Anti-cavalry' },
   { attackerTypes: ['grenadier'], defenderClass: 'melee', multiplier: 1.25, label: 'Anti-fortification', requiresDefenderInFriendlyCity: true },
   { attackerTypes: ['attack_helicopter'], defenderClass: 'armor', multiplier: 1.5, label: 'Anti-armor' },
@@ -234,4 +239,26 @@ export const CLASS_COUNTERS: ClassCounter[] = [
   { attackerTypes: ['jet_fighter'], defenderClass: 'air', defenderTypes: ['combat_drone'], multiplier: 1.35, label: 'Drone interceptor' },
   { attackerTypes: ['submarine', 'missile_submarine'], defenderClass: 'naval', defenderTypes: ['autonomous_frigate'], multiplier: 1.25, label: 'Autonomous-hull ambush' },
   { attackerTypes: ['tank'], defenderClass: 'gunpowder', defenderTypes: ['exosuit_infantry'], multiplier: 1.25, label: 'Armor breakthrough' },
+];
+
+export type CombatExchangeRule =
+  | {
+    kind: 'air-interception';
+    attackerDomain: 'air';
+    attackerAttackProfile: 'ranged';
+    defenderDomain: 'air';
+    defenderAttackProfile: 'bombard';
+  }
+  | {
+    kind: 'shock';
+    attackerTypes: readonly UnitType[];
+    excludedDefenderTypes: readonly UnitType[];
+    defenderCounterDamageMultiplier: number;
+    label: string;
+  };
+
+/** Shared public combat-exchange contracts; no AI or UI consumer infers these from IDs. */
+export const COMBAT_EXCHANGE_RULES: readonly CombatExchangeRule[] = [
+  { kind: 'air-interception', attackerDomain: 'air', attackerAttackProfile: 'ranged', defenderDomain: 'air', defenderAttackProfile: 'bombard' },
+  { kind: 'shock', attackerTypes: ['war_elephant'], excludedDefenderTypes: ['spearman', 'pikeman'], defenderCounterDamageMultiplier: 0.85, label: 'War Elephant shock: −15% return damage' },
 ];

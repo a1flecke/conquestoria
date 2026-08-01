@@ -1,6 +1,7 @@
 import {
   calculateCombatStrengths,
   deterministicCombatSeed,
+  getCombatExchangeModifiers,
   getTerrainDefenseBonus,
   resolveCombat,
   selectDefenderForAttack,
@@ -71,6 +72,28 @@ describe('deterministicCombatSeed', () => {
     state.opponentChallenge = 'veteran';
 
     expect(deterministicCombatSeed(state.gameId, state.turn, 'unit-1', 'unit-2')).toBe(seed);
+  });
+});
+
+describe('War Elephant shock exchange', () => {
+  it('reduces non-polearm return damage by 15% through the shared exchange result', () => {
+    const elephant = createUnit('war_elephant' as any, 'p1', { q: 0, r: 0 }, mkC());
+    const swordsman = createUnit('swordsman', 'p2', { q: 1, r: 0 }, mkC());
+
+    expect(getCombatExchangeModifiers(elephant, swordsman)).toMatchObject({
+      kind: 'shock',
+      defenderCounterDamageMultiplier: 0.85,
+      label: 'War Elephant shock: −15% return damage',
+    });
+  });
+
+  it('does not reduce Spearman or Pikeman return damage', () => {
+    const elephant = createUnit('war_elephant' as any, 'p1', { q: 0, r: 0 }, mkC());
+
+    expect(getCombatExchangeModifiers(elephant, createUnit('spearman', 'p2', { q: 1, r: 0 }, mkC())).kind)
+      .toBe('none');
+    expect(getCombatExchangeModifiers(elephant, createUnit('pikeman', 'p2', { q: 1, r: 0 }, mkC())).kind)
+      .toBe('none');
   });
 });
 

@@ -1258,7 +1258,7 @@ export interface CombatModifierFact {
   ignoredReason?: 'role' | 'condition' | 'unit-class' | 'domain' | 'inactive-source';
 }
 
-export type CombatExchangeKind = 'none' | 'turret-fire' | 'evasion';
+export type CombatExchangeKind = 'none' | 'turret-fire' | 'evasion' | 'shock';
 
 export interface CombatExchangeSummary {
   kind: Exclude<CombatExchangeKind, 'none'>;

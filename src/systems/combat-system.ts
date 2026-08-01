@@ -13,6 +13,7 @@ import { getWonderCombatBonus } from './wonder-system';
 import { getVeterancyCombatModifier } from './combat-reward-system';
 import { getRiverDefensePenalty, isRiverBetween } from './river-system';
 import type { ModifierPart } from './unit-modifier-system';
+import { COMBAT_EXCHANGE_RULES } from './unit-modifier-definitions';
 
 export function getTerrainDefenseBonus(terrain: string): number {
   const bonuses: Record<string, number> = {
@@ -167,29 +168,40 @@ export function getCombatExchangeModifiers(attacker: Unit, defender: Unit): Comb
     defenderCounterDamageMultiplier: 1,
     defenderIncomingDamageMultiplier: 1,
   };
-  if (
-    attackerDefinition.domain !== 'air'
-    || attackerDefinition.attackProfile?.kind !== 'ranged'
-    || defenderDefinition.domain !== 'air'
-    || defenderDefinition.attackProfile?.kind !== 'bombard'
-  ) return neutral;
-
-  const doctrine = defenderDefinition.airInterceptionDefense;
-  if (!doctrine) return neutral;
-  if (doctrine.kind === 'turret-fire') {
+  for (const rule of COMBAT_EXCHANGE_RULES) {
+    if (rule.kind === 'shock') {
+      if (!rule.attackerTypes.includes(attacker.type) || rule.excludedDefenderTypes.includes(defender.type)) continue;
+      return {
+        kind: rule.kind,
+        defenderCounterDamageMultiplier: rule.defenderCounterDamageMultiplier,
+        defenderIncomingDamageMultiplier: 1,
+        label: rule.label,
+      };
+    }
+    if (
+      attackerDefinition.domain !== rule.attackerDomain
+      || attackerDefinition.attackProfile?.kind !== rule.attackerAttackProfile
+      || defenderDefinition.domain !== rule.defenderDomain
+      || defenderDefinition.attackProfile?.kind !== rule.defenderAttackProfile
+    ) continue;
+    const doctrine = defenderDefinition.airInterceptionDefense;
+    if (!doctrine) continue;
+    if (doctrine.kind === 'turret-fire') {
+      return {
+        kind: 'turret-fire',
+        defenderCounterDamageMultiplier: doctrine.counterDamageMultiplier,
+        defenderIncomingDamageMultiplier: 1,
+        label: `Bomber gunners fire back weakly: ${Math.round(doctrine.counterDamageMultiplier * 100)}% return fire`,
+      };
+    }
     return {
-      kind: 'turret-fire',
-      defenderCounterDamageMultiplier: doctrine.counterDamageMultiplier,
-      defenderIncomingDamageMultiplier: 1,
-      label: `Bomber gunners fire back weakly: ${Math.round(doctrine.counterDamageMultiplier * 100)}% return fire`,
+      kind: 'evasion',
+      defenderCounterDamageMultiplier: 0,
+      defenderIncomingDamageMultiplier: doctrine.incomingDamageMultiplier,
+      label: `Stealth makes it harder to hit: −${Math.round((1 - doctrine.incomingDamageMultiplier) * 100)}% interceptor damage`,
     };
   }
-  return {
-    kind: 'evasion',
-    defenderCounterDamageMultiplier: 0,
-    defenderIncomingDamageMultiplier: doctrine.incomingDamageMultiplier,
-    label: `Stealth makes it harder to hit: −${Math.round((1 - doctrine.incomingDamageMultiplier) * 100)}% interceptor damage`,
-  };
+  return neutral;
 }
 
 export function calculateCombatStrengths(
