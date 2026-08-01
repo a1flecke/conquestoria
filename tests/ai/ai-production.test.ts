@@ -377,6 +377,7 @@ describe('AI strategic production', () => {
       'city-a',
       [
         demand('frontline', 99),
+        demand('anti-armor', 99),
         demand('ranged', 99),
         demand('siege', 99),
         demand('mobile', 99),

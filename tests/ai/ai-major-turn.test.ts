@@ -137,6 +137,25 @@ function prepared(
 }
 
 describe('processMajorCivStrategicTurn', () => {
+  it('allows an assigned Anti-Tank Gun to satisfy a frontline mobilization slot', () => {
+    const state = makeState();
+    addUnit(state, 'anti-tank', 'anti_tank_gun', AI, { q: 0, r: 0 });
+    const plan = makePlan(
+      { kind: 'region', id: 'armor-defense', anchor: { q: 1, r: 0 } },
+      ['anti-tank'],
+      {
+        objective: 'defend',
+        phase: 'mobilizing',
+        createdTurn: state.turn,
+        requiredRoles: { frontline: 1 },
+      },
+    );
+
+    const result = processMajorCivStrategicTurn(state, prepared(state, plan), new EventBus());
+
+    expect(result.state.opponentAI?.majorCivs[AI].primaryPlan?.phase).toBe('advancing');
+  });
+
   it('uses the canonical pair seed when resolving a major-AI attack', () => {
     const state = makeState();
     const attacker = addUnit(state, 'attacker', 'warrior', AI, { q: 0, r: 0 });

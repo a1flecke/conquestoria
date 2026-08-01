@@ -58,6 +58,30 @@ function portfolio(): MajorCivPlanPortfolio {
 }
 
 describe('AI unit assignment', () => {
+  it('assigns an Anti-Tank Gun to a frontline defense slot without making it a generic production role', () => {
+    const result = assignUnitsToPortfolio({
+      portfolio: {
+        ...createEmptyMajorCivPortfolio(),
+        defensePlansByCityId: {
+          capital: plan('defend-armor-threat', 'defend', { frontline: 1 }),
+        },
+      },
+      units: [unit('anti-tank', 'anti_tank_gun', { 'defend-armor-threat': 1 })],
+      profile: { maxPrimaryForce: 3, retreatHealthPercent: 30 },
+      defenseThreatScoreByPlanId: { 'defend-armor-threat': 100 },
+      eliminationDefensePlanIds: [],
+      onlyImmediateDefenderUnitIds: [],
+      requiresEmbarkationByPlanId: {},
+    });
+
+    expect(result.assignmentsByPlanId['defend-armor-threat']).toEqual(['anti-tank']);
+    expect(result.forceDemands.find(demand => demand.role === 'frontline')).toMatchObject({
+      desired: 1,
+      assigned: 1,
+      missing: 0,
+    });
+  });
+
   it('keeps route-committed modernization units unavailable to plans', () => {
     const result = assignUnitsToPortfolio({
       portfolio: {

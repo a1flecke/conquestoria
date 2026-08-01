@@ -54,6 +54,7 @@ export function weightProductionChoice(
 const COMBAT_PRODUCTION_ROLES = new Set<AIStrategicRole>([
   'capture',
   'frontline',
+  'anti-armor',
   'ranged',
   'siege',
   'mobile',

@@ -11,6 +11,7 @@ import { getCivAvailableResources } from '@/systems/resource-acquisition-system'
 import { isTrustedObservedLastSeenTile } from '@/systems/last-seen-presentation';
 import { resolveCivilizationEra } from '@/systems/tech-definitions';
 import { findPath, UNIT_DEFINITIONS } from '@/systems/unit-system';
+import { UNIT_CLASS_BY_TYPE } from '@/systems/unit-modifier-definitions';
 import {
   buildMajorCivPerception,
   estimatePerceivedCivStrength,
@@ -74,6 +75,8 @@ export interface PreparedForceDemandSeed {
   role: AIForceDemand['role'];
   sourceId: string;
   priority: number;
+  desired?: number;
+  assigned?: number;
 }
 
 export function getPreparedAssignmentProfile(
@@ -102,7 +105,8 @@ export function mergePreparedForceDemands(
       priority: 0,
       sourcePlanIds: [],
     };
-    existing.desired += 1;
+    existing.desired += Math.max(0, Math.floor(addition.desired ?? 1));
+    existing.assigned += Math.max(0, Math.floor(addition.assigned ?? 0));
     existing.missing = Math.max(0, existing.desired - existing.assigned);
     existing.priority = Math.max(existing.priority, addition.priority);
     existing.sourcePlanIds = [...new Set([
@@ -113,6 +117,30 @@ export function mergePreparedForceDemands(
   }
   return [...byRole.values()].sort((left, right) =>
     right.priority - left.priority || left.role.localeCompare(right.role));
+}
+
+function observedArmorDemand(
+  perception: MajorCivPerception,
+  profile: ReturnType<typeof getPreparedAssignmentProfile>,
+): PreparedForceDemandSeed[] {
+  const armor = perception.units.filter(unit =>
+    unit.type !== null && UNIT_CLASS_BY_TYPE[unit.type].includes('armor'));
+  const visibleArmor = armor.filter(unit => unit.confidence === 'visible');
+  const rememberedArmor = armor.filter(unit => unit.confidence === 'remembered');
+  const counterCap = Math.max(1, Math.floor(profile.maxPrimaryForce / 3));
+  const desired = visibleArmor.length > 0
+    ? Math.min(visibleArmor.length, counterCap)
+    : rememberedArmor.length > 0 ? 1 : 0;
+  if (desired === 0) return [];
+  const assigned = perception.ownUnits.filter(unit =>
+    getAIStrategicRoles(unit.type).includes('anti-armor')).length;
+  return [{
+    role: 'anti-armor',
+    sourceId: visibleArmor.length > 0 ? 'observed-armor' : 'remembered-armor',
+    priority: visibleArmor.length > 0 ? 180 : 80,
+    desired,
+    assigned,
+  }];
 }
 
 function distance(
@@ -503,6 +531,7 @@ export function prepareMajorCivStrategicPlan(
         sourceId: `defense-overflow:${cityId}`,
         priority: 600,
       })),
+      ...observedArmorDemand(perception, getPreparedAssignmentProfile(state)),
     ],
   );
   const preparedAssignments = {
