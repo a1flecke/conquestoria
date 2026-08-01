@@ -54,6 +54,24 @@ describe('prepared major-civilization planning', () => {
     });
   });
 
+  it('does not create anti-armor demand from a peaceful civilization\'s visible Tank', () => {
+    const state = createNewGame(undefined, 'prepared-peaceful-armor', 'small');
+    const civ = state.civilizations['ai-1'];
+    const tile = Object.values(state.map.tiles).find(tile => tile.terrain !== 'mountain')!;
+    const tank = createUnit('tank', 'player', tile.coord, state.idCounters);
+    tank.id = 'peaceful-observed-tank';
+    state.units[tank.id] = tank;
+    state.civilizations.player.units.push(tank.id);
+    civ.knownCivilizations = ['player'];
+    civ.diplomacy.atWarWith = [];
+    civ.visibility.tiles[hexKey(tile.coord)] = 'visible';
+
+    const demand = prepareMajorCivStrategicPlan(state, civ.id).forceDemands
+      .find(entry => entry.role === 'anti-armor');
+
+    expect(demand).toBeUndefined();
+  });
+
   it('preserves objective-readiness demand when no current unit can fill the role', () => {
     const state = createNewGame(undefined, 'prepared-objective-demand', 'small');
     const civ = state.civilizations['ai-1'];

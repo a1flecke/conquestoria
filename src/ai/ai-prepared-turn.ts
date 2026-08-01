@@ -120,11 +120,14 @@ export function mergePreparedForceDemands(
 }
 
 function observedArmorDemand(
+  state: Readonly<GameState>,
   perception: MajorCivPerception,
   profile: ReturnType<typeof getPreparedAssignmentProfile>,
 ): PreparedForceDemandSeed[] {
   const armor = perception.units.filter(unit =>
-    unit.type !== null && UNIT_CLASS_BY_TYPE[unit.type].includes('armor'));
+    unit.type !== null
+      && isAIHostileOwner(state, perception.actorId, unit.owner)
+      && UNIT_CLASS_BY_TYPE[unit.type].includes('armor'));
   const visibleArmor = armor.filter(unit => unit.confidence === 'visible');
   const rememberedArmor = armor.filter(unit => unit.confidence === 'remembered');
   const counterCap = Math.max(1, Math.floor(profile.maxPrimaryForce / 3));
@@ -531,7 +534,7 @@ export function prepareMajorCivStrategicPlan(
         sourceId: `defense-overflow:${cityId}`,
         priority: 600,
       })),
-      ...observedArmorDemand(perception, getPreparedAssignmentProfile(state)),
+      ...observedArmorDemand(state, perception, getPreparedAssignmentProfile(state)),
     ],
   );
   const preparedAssignments = {
