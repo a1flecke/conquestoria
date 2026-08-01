@@ -38,6 +38,7 @@ const FALLBACK_ICONS: Record<UnitType, string> = {
   infantry:   '🪖',
   pre_dreadnought: '🚢',
   tank:       '🛡️',
+  anti_tank_gun: '🎯',
   submarine:  '🌊',
   observation_balloon: '🎈',
   biplane:    '✈️',

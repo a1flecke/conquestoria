@@ -150,6 +150,7 @@ const UNIT_MOTION_STYLES: Record<UnitType, UnitMotionStyle> = {
   infantry: 'humanoid',
   pre_dreadnought: 'naval',
   tank:       'humanoid',
+  anti_tank_gun: 'humanoid',
   submarine:  'naval',
   observation_balloon: 'air',
   biplane:    'air',
@@ -294,6 +295,8 @@ export const UNIT_SPRITE_CATALOG: Record<UnitType, UnitSpriteComponent> = {
   infantry:          withMotion('infantry', InfantrySprite),
   pre_dreadnought:   withMotion('pre_dreadnought', PreDreadnoughtSprite),
   tank:              withMotion('tank', TankSprite),
+  // Temporary Tank silhouette; a dedicated anti-tank gun sprite remains asset follow-up work.
+  anti_tank_gun:     withMotion('anti_tank_gun', TankSprite),
   submarine:         withMotion('submarine', SubmarineSprite),
   observation_balloon: withMotion('observation_balloon', ObservationBalloonSprite),
   biplane:           withMotion('biplane', BiplaneSprite),

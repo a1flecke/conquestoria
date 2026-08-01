@@ -379,6 +379,8 @@ const LOCOMOTION_CLASS: Record<UnitType, LocomotionClass> = {
   infantry:       'humanoid',
   pre_dreadnought: 'naval',
   tank:       'humanoid',
+  // Temporary humanoid locomotion fallback; bespoke artillery audio remains asset follow-up work.
+  anti_tank_gun: 'humanoid',
   submarine:  'naval',
   observation_balloon: 'air',
   biplane:    'air',
