@@ -12,8 +12,8 @@ const ERA_9_TECHS: Tech[] = [
     unlocksUnits: ['infantry'], unlocksBuildings: ['mobilization_act'], era: 9 },
   { id: 'air-superiority', name: 'Air Superiority', track: 'military', cost: 275,
     prerequisites: ['aviation', 'general-mobilization'],
-    unlocks: ['Biplane fighters can attack land and naval units; anti-aircraft batteries protect ground forces'],
-    unlocksUnits: ['biplane', 'air_freighter'],
+    unlocks: ['World War II fighters protect nearby forces and intercept enemy aircraft; anti-aircraft batteries protect ground forces'],
+    unlocksUnits: ['wwii_fighter', 'air_freighter'],
     unlocksBuildings: ['anti_air_battery', 'air_force_command'], era: 9 },
 
   // ECONOMY (2)
@@ -34,7 +34,7 @@ const ERA_9_TECHS: Tech[] = [
   { id: 'aviation', name: 'Aviation', track: 'science', cost: 280,
     prerequisites: ['structural-engineering', 'aluminium-smelting'],
     unlocks: ['Powered flight achieved; military and civilian aviation begins'],
-    unlocksBuildings: ['airfield'], era: 9 },
+    unlocksUnits: ['biplane'], unlocksBuildings: ['airfield'], era: 9 },
 
   // CIVICS (2)
   { id: 'universal-suffrage', name: 'Universal Suffrage', track: 'civics', cost: 190,

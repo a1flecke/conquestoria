@@ -363,7 +363,7 @@ function simulate(
       }
       const city = civ.cities.map(id => state.cities[id]).find(Boolean);
       if (city) {
-        const support = createUnit('biplane', civ.id, city.position, state.idCounters);
+        const support = createUnit('wwii_fighter', civ.id, city.position, state.idCounters);
         state.units[support.id] = support;
         civ.units.push(support.id);
       }

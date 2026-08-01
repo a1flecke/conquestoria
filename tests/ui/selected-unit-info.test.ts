@@ -226,6 +226,19 @@ describe('selected-unit role presentation', () => {
     expect(text).toContain('Spearman and Pikeman gain +35% against this unit');
   });
 
+  it('renders the World War II fighter interception bonus in its expandable role details', () => {
+    const state = createNewGame(undefined, 'wwii-fighter-role-presentation', 'small');
+    const unit = { ...createUnit('wwii_fighter' as any, 'player', { q: 1, r: 1 }, state.idCounters), id: 'wwii-fighter' };
+    state.currentPlayer = 'player';
+    state.units = { [unit.id]: unit };
+    state.civilizations.player.units = [unit.id];
+    const container = new MockElement('div');
+
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, unit.id, {});
+
+    expect(collectAllText(container).join(' ')).toContain('Interception +20% strength');
+  });
+
   it('keeps War Elephant tactical facts public without leaking its owner-only Tactics state in hot seat', () => {
     const state = createNewGame(undefined, 'war-elephant-hot-seat-role', 'small');
     state.civilizations['player-2'] = { ...structuredClone(state.civilizations.player), id: 'player-2', isHuman: true };

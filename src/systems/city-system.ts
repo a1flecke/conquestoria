@@ -1152,8 +1152,9 @@ export const TRAINABLE_UNITS: Array<TrainableUnitEntry & { pacing?: Building['pa
   { type: 'tank',      name: 'Tank',      cost: 185, techRequired: 'tank-warfare',                                                                                  pacing: { band: 'power-spike', role: 'armored-assault',     impact: 1.5,  scope: 'military', snowball: 1.4, urgency: 1.2, situationality: 1.3, unlockBreadth: 1 } },
   { type: 'submarine', name: 'Submarine', cost: 180, techRequired: 'submarine-warfare', coastalRequired: true,                                                      pacing: { band: 'power-spike', role: 'naval-stealth',        impact: 1.5,  scope: 'military', snowball: 1.4, urgency: 1.2, situationality: 1.5, unlockBreadth: 1 } },
   { type: 'observation_balloon', name: 'Observation Balloon', cost: 144,  techRequired: 'balloon-corps',   pacing: { band: 'power-spike', role: 'air-recon',  impact: 1.2, scope: 'military', snowball: 1.0, urgency: 1.0, situationality: 1.4, unlockBreadth: 1 } },
-  { type: 'biplane',             name: 'Biplane',             cost: 200, techRequired: 'air-superiority', trainedFromBuilding: 'airfield', obsoletedByTech: 'jet-aviation', upgradesTo: 'jet_fighter', pacing: { band: 'power-spike', role: 'air-strike', impact: 1.5, scope: 'military', snowball: 1.4, urgency: 1.2, situationality: 1.3, unlockBreadth: 1 } },
-  // jet_fighter is the terminal air-superiority fighter; the bomber (below) is the strike line,
+  { type: 'biplane',             name: 'Biplane',             cost: 200, techRequired: 'aviation', trainedFromBuilding: 'airfield', obsoletedByTech: 'air-superiority', upgradesTo: 'wwii_fighter', pacing: { band: 'power-spike', role: 'air-strike', impact: 1.5, scope: 'military', snowball: 1.4, urgency: 1.2, situationality: 1.3, unlockBreadth: 1 } },
+  { type: 'wwii_fighter',        name: 'World War II Fighter', cost: 240, techRequired: 'air-superiority', trainedFromBuilding: 'airfield', obsoletedByTech: 'jet-aviation', upgradesTo: 'jet_fighter', pacing: { band: 'marquee', role: 'air-superiority', impact: 1.55, scope: 'military', snowball: 1.4, urgency: 1.2, situationality: 1.3, unlockBreadth: 1 } },
+  // jet_fighter is the terminal postwar fighter; the bomber (below) is the strike line,
   // not a fighter upgrade — researching stealth tech without a Stealth Airbase must not zero out
   // trainable air units.
   { type: 'jet_fighter',         name: 'Jet Fighter',         cost: 300, techRequired: 'jet-aviation',    trainedFromBuilding: 'airfield', pacing: { band: 'marquee',      role: 'air-apex',   impact: 1.6, scope: 'military', snowball: 1.5, urgency: 1.2, situationality: 1.3, unlockBreadth: 1 } },
@@ -1615,6 +1616,7 @@ export const PRODUCTION_ICONS: Record<string, string> = {
   submarine:  '🌊',
   observation_balloon: '🎈',
   biplane:    '✈️',
+  wwii_fighter: '🛩️',
   recon_aircraft: '🔭',
   jet_fighter: '🛩️',
   bomber:     '💣',

@@ -88,6 +88,20 @@ describe('save migrations', () => {
     expect(loadedAgain).toEqual(loaded);
   });
 
+  it('#678 preserves a legacy Biplane queue by retiming it to the legal fighter successor', () => {
+    const savedGame = createNewGame('rome', 'retimed-biplane-queue', 'small');
+    const source = Object.values(savedGame.units)[0]!;
+    const city = foundCity('player', source.position, savedGame.map, savedGame.idCounters);
+    city.productionQueue = ['warrior', 'biplane', 'archer'];
+    savedGame.cities = { [city.id]: city };
+    savedGame.civilizations.player.cities = [city.id];
+    savedGame.civilizations.player.techState.completed = ['aviation', 'air-superiority'];
+
+    const migrated = migrateSaveToCurrent(savedGame);
+    expect(migrated.cities[city.id]?.productionQueue).toEqual(['warrior', 'wwii_fighter', 'archer']);
+    expect(migrateSaveToCurrent(migrated)).toEqual(migrated);
+  });
+
   it('lands legacy combat aircraft at the nearest compatible friendly base and removes stranded craft', () => {
     const legacySave = createNewGame('rome', 'legacy-based-aircraft', 'small');
     legacySave.saveSchemaVersion = 3; // schema 4 owns legacy aircraft basing
