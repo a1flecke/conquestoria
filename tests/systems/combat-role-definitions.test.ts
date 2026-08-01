@@ -39,6 +39,21 @@ describe('combat role definitions', () => {
     });
   });
 
+  it('partitions mounted production discounts into typed light/support and heavy families', () => {
+    const lightSupport = ['horseman', 'cavalry', 'armored_car', 'beast_handler'] as const;
+    const heavy = ['chariot', 'knight', 'cuirassier', 'war_elephant'] as const;
+
+    for (const type of lightSupport) {
+      expect(getUnitRoleDefinition(type)?.productionDiscountFamily, type).toBe('mounted-light-support');
+    }
+    for (const type of heavy) {
+      expect(getUnitRoleDefinition(type)?.productionDiscountFamily, type).toBe('mounted-heavy');
+    }
+    for (const type of ['tank', 'attack_helicopter', 'combat_drone'] as const) {
+      expect(getUnitRoleDefinition(type)?.productionDiscountFamily, type).toBeUndefined();
+    }
+  });
+
   it('accepts the live catalog and rejects malformed upgrade contracts', () => {
     const reachableTechIds = new Set(TECH_TREE.map(tech => tech.id));
     expect(validateUnitRoleDefinitions(TRAINABLE_UNITS, UNIT_DEFINITIONS, reachableTechIds)).toEqual([]);

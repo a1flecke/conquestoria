@@ -1,4 +1,4 @@
-import type { City, Building, HexCoord, GameMap, UnitType, CivBonusEffect, TrainableUnitEntry, IdCounters, ResourceType, DroppedProductionItem, ProductionDropReason, GameState } from '@/core/types';
+import type { City, Building, HexCoord, GameMap, UnitType, CivBonusEffect, TrainableUnitEntry, IdCounters, ResourceType, DroppedProductionItem, ProductionDropReason, GameState, UnitRoleDefinition } from '@/core/types';
 import { isSpyUnitType } from './espionage-system';
 import { hexKey, hexesInRange, hexNeighbors, wrapHexCoord } from './hex-utils';
 import { drawNextCityName, DEFAULT_CITY_NAMES } from './city-name-system';
@@ -12,7 +12,7 @@ import {
   getLegendaryWonderQueueItemMetadata,
 } from './legendary-wonder-production';
 import { evaluateProductionPrerequisites } from './production-prerequisites';
-import { getTerminalCombatUnitReasons } from './combat-role-definitions';
+import { getTerminalCombatUnitReasons, getUnitRoleDefinition } from './combat-role-definitions';
 
 export const CITY_NAMES = DEFAULT_CITY_NAMES;
 
@@ -69,7 +69,7 @@ export const BUILDINGS: Record<string, Building> = {
   // Military
   barracks: { id: 'barracks', name: 'Barracks', category: 'military', yields: { food: 0, production: 0, gold: 0, science: 0 }, productionCost: 10, description: 'Training ground. New land units start with +10 experience.', techRequired: null, pacing: { band: 'starter', role: 'military-enabler', impact: 1, scope: 'city', snowball: 1, urgency: 1.15, situationality: 1, unlockBreadth: 1.05 } },
   walls: { id: 'walls', name: 'Walls', category: 'military', yields: { food: 0, production: 0, gold: 0, science: 0 }, productionCost: 60, description: 'Defends the city', techRequired: 'fortification' },
-  stable: { id: 'stable', name: 'Stable', category: 'military', yields: { food: 0, production: 0, gold: 0, science: 0 }, productionCost: 55, description: 'Trains mounted units. Cavalry-class units train 15% cheaper in this city.', techRequired: 'horseback-riding', obsoletedByTech: 'tank-warfare' },
+  stable: { id: 'stable', name: 'Stable', category: 'military', yields: { food: 0, production: 0, gold: 0, science: 0 }, productionCost: 55, description: 'Trains light mounted and handler units. Horsemen, Cavalry, Armored Cars, and Beast Handlers cost 15% less here.', techRequired: 'horseback-riding', obsoletedByTech: 'tank-warfare' },
 
   // Culture
   temple: { id: 'temple', name: 'Temple', category: 'culture', yields: { food: 0, production: 0, gold: 0, science: 1 }, productionCost: 45, description: 'Spiritual center. +1 happiness in this city (reduces unrest pressure). Halves the rate at which a foreign faith can pull this city toward defecting.', techRequired: 'philosophy', happiness: 1 },
@@ -141,7 +141,7 @@ export const BUILDINGS: Record<string, Building> = {
     id: 'cavalry-academy', name: 'Cavalry Academy', category: 'military',
     yields: { food: 0, production: 0, gold: 0, science: 0 },
     productionCost: 55,
-    description: 'Mounted warfare school. Reduces cavalry unit training cost by 15% in this city.',
+    description: 'Trains heavy mounted and elephant units. Chariots, Knights, Cuirassiers, and War Elephants cost 15% less here.',
     techRequired: 'horseback-riding',
     resourceRequired: ['horses'],
     obsoletedByTech: 'tank-warfare',
@@ -1259,8 +1259,18 @@ export function getCatalogProductionCost(itemId: string, era: number = 1): numbe
 export const MELEE_RANGED_UNIT_TYPES: string[] = [
   'warrior', 'axeman', 'spearman', 'swordsman', 'pikeman', 'musketeer', 'archer', 'crossbowman',
 ];
-export const CAVALRY_UNIT_TYPES: string[] = ['horseman', 'chariot', 'cavalry', 'knight', 'cuirassier'];
 export const SIEGE_UNIT_TYPES: string[] = ['catapult', 'ballista', 'cannon'];
+
+interface MountedProductionDiscountBuilding {
+  buildingId: string;
+  productionDiscountFamily: NonNullable<UnitRoleDefinition['productionDiscountFamily']>;
+  multiplier: number;
+}
+
+const MOUNTED_PRODUCTION_DISCOUNT_BUILDINGS: readonly MountedProductionDiscountBuilding[] = [
+  { buildingId: 'stable', productionDiscountFamily: 'mounted-light-support', multiplier: 0.85 },
+  { buildingId: 'cavalry-academy', productionDiscountFamily: 'mounted-heavy', multiplier: 0.85 },
+];
 
 // era-1/2 melee units eligible for the Tribal Muster Ground national-project discount.
 export const ERA_1_2_MELEE_UNIT_TYPES: UnitType[] = ['warrior', 'axeman', 'spearman', 'swordsman'];
@@ -1276,9 +1286,14 @@ function getBuildingDiscountMultiplier(itemId: string, cityBuildings: string[]):
     if (cityBuildings.includes('armory'))      best = Math.min(best, 0.85);
     if (cityBuildings.includes('war-academy')) best = Math.min(best, 0.85);
   }
-  if (CAVALRY_UNIT_TYPES.includes(itemId)) {
-    if (cityBuildings.includes('cavalry-academy')) best = Math.min(best, 0.85);
-    if (cityBuildings.includes('stable'))          best = Math.min(best, 0.85);
+  const unit = TRAINABLE_UNITS.find(candidate => candidate.type === itemId);
+  const mountedDiscountFamily = unit
+    ? getUnitRoleDefinition(unit.type)?.productionDiscountFamily
+    : undefined;
+  for (const discount of MOUNTED_PRODUCTION_DISCOUNT_BUILDINGS) {
+    if (mountedDiscountFamily === discount.productionDiscountFamily && cityBuildings.includes(discount.buildingId)) {
+      best = Math.min(best, discount.multiplier);
+    }
   }
   if (SIEGE_UNIT_TYPES.includes(itemId)) {
     if (cityBuildings.includes('siege-workshop')) best = Math.min(best, 0.80);

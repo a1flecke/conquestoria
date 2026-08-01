@@ -1773,17 +1773,40 @@ describe('S4b — building production discounts', () => {
     expect(discounted).toBe(Math.ceil(base * 0.85));
   });
 
-  it('cavalry-academy: reduces horseman cost by 15%', () => {
+  it('cavalry-academy: does not discount light mounted horseman', () => {
     const base = getProductionCostForItem('horseman', { city: noBuildings });
     const discounted = getProductionCostForItem('horseman', { city: { buildings: ['cavalry-academy'] } });
-    expect(discounted).toBe(Math.ceil(base * 0.85));
+    expect(discounted).toBe(base);
   });
 
-  it('stable discounts the Cuirassier as part of the mounted production line', () => {
+  it('stable does not discount heavy mounted Cuirassier', () => {
     const base = getProductionCostForItem('cuirassier', { city: noBuildings });
     const discounted = getProductionCostForItem('cuirassier', { city: { buildings: ['stable'] } });
 
+    expect(discounted).toBe(base);
+  });
+
+  it.each([
+    ['stable', 'horseman'],
+    ['stable', 'cavalry'],
+    ['stable', 'armored_car'],
+    ['stable', 'beast_handler'],
+    ['cavalry-academy', 'chariot'],
+    ['cavalry-academy', 'knight'],
+    ['cavalry-academy', 'cuirassier'],
+    ['cavalry-academy', 'war_elephant'],
+  ] as const)('%s grants its typed mounted family a single 15% discount on %s', (building, unitType) => {
+    const base = getProductionCostForItem(unitType, { city: noBuildings });
+    const discounted = getProductionCostForItem(unitType, { city: { buildings: [building] } });
+
     expect(discounted).toBe(Math.ceil(base * 0.85));
+  });
+
+  it.each(['tank', 'attack_helicopter', 'combat_drone'] as const)('mounted buildings exclude %s', (unitType) => {
+    const base = getProductionCostForItem(unitType, { city: noBuildings });
+    const discounted = getProductionCostForItem(unitType, { city: { buildings: ['stable', 'cavalry-academy'] } });
+
+    expect(discounted).toBe(base);
   });
 
   it('siege-workshop: reduces catapult cost by 20%', () => {
@@ -1831,9 +1854,9 @@ describe('S4b — building production discounts', () => {
     expect(discounted).toBe(Math.ceil(base * 0.85));
   });
 
-  it('stable + cavalry-academy: non-stacking — min(0.85, 0.85) not 0.7225', () => {
-    const base = getProductionCostForItem('horseman', { city: noBuildings });
-    const both = getProductionCostForItem('horseman', { city: { buildings: ['stable', 'cavalry-academy'] } });
+  it.each(['horseman', 'cuirassier'] as const)('stable + cavalry-academy: %s receives one 15% discount, never a stacked discount', (unitType) => {
+    const base = getProductionCostForItem(unitType, { city: noBuildings });
+    const both = getProductionCostForItem(unitType, { city: { buildings: ['stable', 'cavalry-academy'] } });
     expect(both).toBe(Math.ceil(base * 0.85));
     expect(both).toBeGreaterThan(Math.ceil(base * 0.7225));
   });
