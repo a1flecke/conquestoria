@@ -44,9 +44,10 @@ slower than Cavalry and vulnerable to polearms.” It is under 18 words, explain
 trade-off in plain language, and does not depend on color, animation, or audio.
 
 The production and unit-information surfaces retain the complete legal catalog. The
-combat preview shows the modifier as text and an icon-backed unit identity; an
-open-ground attack shows the applied bonus and a rough-ground attack shows it as
-inapplicable. Existing mobile target sizes and reduced-motion behavior are retained.
+combat preview shows the initiating player's own modifier as text and an icon-backed
+unit identity; an open-ground attack shows the applied bonus and a rough-ground attack
+shows the Cuirassier fact as “not active.” It never exposes an opponent's owner-only
+facts. Existing mobile target sizes and reduced-motion behavior are retained.
 
 ### Player truth table
 
