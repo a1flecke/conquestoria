@@ -819,6 +819,66 @@ export function SpyHackerSprite({ palette, svgOnly = false }: UnitSpriteProps): 
   });
 }
 
+// #769 de-alias: cyber_unit previously reused SpyHackerSprite verbatim. It is a distinct
+// unit type — a non-combat economic saboteur (strength 0, capturable) that drains gold from
+// ADJACENT cities from range, so it reads as a STANDING technical specialist with a portable
+// field laptop (glowing screen, backpack radio + antenna) rather than SpyHacker's cloaked infiltrator.
+export function CyberUnitSprite({ palette, svgOnly = false }: UnitSpriteProps): string {
+  const screen = '#00c8ff';
+  return (
+    <SpriteFrame svgOnly={svgOnly} hexTint="#10202c">
+      <g data-kind="civilian">
+        <Shadow cx={62} cy={100} rx={22} ry={5} />
+        {/* backpack field radio + antenna (the "kit" that makes it a cyber operative) */}
+        <g transform="translate(40 66)">
+          <rect x="-8" y="-8" width="14" height="22" rx="2" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.9" />
+          <rect x="-8" y="-8" width="14" height="4" fill={P.metal.steel} />
+          <rect x="-6" y="1" width="10" height="3" fill={palette.mid} />
+          <line x1="4" y1="-8" x2="10" y2="-30" stroke={P.metal.steel} strokeWidth="1.4" />
+          <circle cx="10" cy="-31" r="2.2" fill={palette.bright} className="cq-glow" />
+        </g>
+        {/* STANDING operative, hunched over a rugged field laptop — bespectacled "army nerd" */}
+        <Humanoid cx={60} cy={80} scale={0.95} cloth={palette.mid} pants="#454b38" accent={palette.dark} skin={P.skin.warm} hair="#2a1a0a"
+          hat={
+            <g>
+              <path d="M-9,-33 Q-9,-39 0,-39 Q9,-39 9,-33 L9,-31 L-9,-31 Z" fill={palette.dark} stroke={P.ink.line} strokeWidth="0.7" />
+              <path d="M-9,-31 L-15,-30 L-9,-28 Z" fill={palette.dark} stroke={P.ink.line} strokeWidth="0.5" />
+              {/* glasses — the "nerd" tell */}
+              <g stroke={P.metal.iron} strokeWidth="0.8" fill="none">
+                <rect x="-6" y="-25.5" width="4.6" height="3.4" rx="0.8" />
+                <rect x="1.4" y="-25.5" width="4.6" height="3.4" rx="0.8" />
+                <line x1="-1.4" y1="-24" x2="1.4" y2="-24" />
+              </g>
+            </g>
+          }
+        />
+        {/* both arms bent forward, cradling the laptop */}
+        <path d="M50,73 Q56,80 63,82" fill="none" stroke={palette.mid} strokeWidth="5" strokeLinecap="round" />
+        <path d="M74,73 Q70,80 66,82" fill="none" stroke={palette.mid} strokeWidth="5" strokeLinecap="round" />
+        {/* rugged portable laptop with a glowing screen */}
+        <g transform="translate(64 82)">
+          <path d="M-16,4 L16,4 L20,10 L-20,10 Z" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.9" />
+          <rect x="-15" y="5.5" width="30" height="2.6" fill={P.stone.dark} />
+          <g transform="rotate(-13 -14 4)">
+            <rect x="-16" y="-14" width="30" height="18" rx="1.5" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.9" />
+            <g className="cq-glow"><rect x="-13" y="-11" width="24" height="12" rx="1" fill={screen} opacity="0.9" /></g>
+            <line x1="-10" y1="-8" x2="6" y2="-8" stroke="#06303f" strokeWidth="1" />
+            <line x1="-10" y1="-5" x2="2" y2="-5" stroke="#06303f" strokeWidth="1" />
+            <line x1="-10" y1="-2" x2="8" y2="-2" stroke="#06303f" strokeWidth="1" />
+          </g>
+          {/* team status LED */}
+          <circle cx="17" cy="7" r="1.4" fill={palette.bright} className="cq-glow" />
+        </g>
+        {/* cable from the laptop to the backpack radio */}
+        <path d="M48,86 Q42,82 44,72" fill="none" stroke={P.ink.soft} strokeWidth="1.6" />
+        {/* hands on the device */}
+        <circle cx="52" cy="83" r="2.4" fill={P.skin.warm} stroke={P.ink.line} strokeWidth="0.5" />
+        <circle cx="76" cy="83" r="2.4" fill={P.skin.warm} stroke={P.ink.line} strokeWidth="0.5" />
+      </g>
+    </SpriteFrame>
+  );
+}
+
 /* === Helpers (file-local) === */
 
 function mountedRider({
@@ -953,6 +1013,96 @@ export function HorsemanSprite({ palette, svgOnly = false }: UnitSpriteProps): s
         </g>
       </g>
       <Banner x={42} y={34} palette={palette} scale={0.7} />
+    </SpriteFrame>
+  );
+}
+
+// #708 de-alias: chariot previously reused HorsemanSprite verbatim. A chariot is a
+// two-wheeled cart with a STANDING driver pulled by a harnessed horse — the pair of
+// large spoked wheels is the silhouette differentiator from a single mounted rider.
+export function ChariotSprite({ palette, svgOnly = false }: UnitSpriteProps): string {
+  return (
+    <SpriteFrame svgOnly={svgOnly}>
+      <g data-kind="melee">
+        <Shadow cx={58} cy={99} rx={46} ry={7} />
+        {/* HORSE in harness — head to the right, pulling the cart (no rider on its back) */}
+        <g transform="translate(88 76)">
+          <rect x="-13" y="4" width="5" height="18" fill="#7a5a3a" stroke={P.ink.line} strokeWidth="0.6" />
+          <rect x="9" y="4" width="5" height="18" fill="#7a5a3a" stroke={P.ink.line} strokeWidth="0.6" />
+          <ellipse cx="0" cy="0" rx="25" ry="12" fill="#a07a4a" stroke={P.ink.line} strokeWidth="1" />
+          <ellipse cx="-1" cy="-3" rx="23" ry="8" fill="#b88a5a" />
+          <rect x="-18" y="4" width="5" height="18" fill="#8a6a44" stroke={P.ink.line} strokeWidth="0.6" />
+          <rect x="14" y="4" width="5" height="18" fill="#8a6a44" stroke={P.ink.line} strokeWidth="0.6" />
+          <ellipse cx="-15.5" cy="22.5" rx="3.2" ry="1.8" fill="#5e3f24" stroke={P.ink.line} strokeWidth="0.4" />
+          <ellipse cx="16.5" cy="22.5" rx="3.2" ry="1.8" fill="#5e3f24" stroke={P.ink.line} strokeWidth="0.4" />
+          <path d="M-24,-6 Q-33,-3 -30,8" fill="none" stroke="#7a5a3a" strokeWidth="3" strokeLinecap="round" />
+          <path d="M16,-6 Q26,-16 29,-24 L35,-21 Q33,-9 24,-2 Z" fill="#a07a4a" stroke={P.ink.line} strokeWidth="1" />
+          <path d="M28,-25 Q39,-25 41,-17 Q41,-13 35,-12 L28,-14 Z" fill="#a07a4a" stroke={P.ink.line} strokeWidth="1" />
+          <ellipse cx="40" cy="-15" rx="4" ry="3.2" fill="#b88a5a" stroke={P.ink.line} strokeWidth="0.6" />
+          <path d="M29,-24 L30,-31 L33,-24 Z" fill="#8a6a44" stroke={P.ink.line} strokeWidth="0.5" />
+          <path d="M19,-8 Q26,-20 30,-26 L32,-24 Q27,-15 23,-5 Z" fill="#7a5a3a" />
+          <circle cx="36" cy="-18" r="0.8" fill={P.ink.line} />
+          {/* leather harness collar — marks this as a draft horse, not a mount */}
+          <path d="M21,-8 Q29,-14 29,-22" fill="none" stroke={P.wood.dark} strokeWidth="2.2" strokeLinecap="round" />
+          <path d="M19,-1 Q27,-5 29,-13" fill="none" stroke={P.wood.dark} strokeWidth="2" strokeLinecap="round" />
+        </g>
+        {/* TRACES + draft pole from the harness back to the cart */}
+        <line x1="52" y1="72" x2="74" y2="72" stroke={P.wood.mid} strokeWidth="2.2" strokeLinecap="round" />
+        <line x1="54" y1="66" x2="72" y2="64" stroke={P.wood.dark} strokeWidth="1.6" strokeLinecap="round" />
+        <line x1="54" y1="78" x2="72" y2="80" stroke={P.wood.dark} strokeWidth="1.6" strokeLinecap="round" />
+        {/* axle + far wheel (behind the bed, smaller + darker) */}
+        <rect x="26" y="80" width="34" height="3" fill={P.wood.dark} />
+        <g transform="translate(34 84)">
+          <circle r="13" fill={P.wood.dark} stroke={P.ink.line} strokeWidth="1.2" />
+          <circle r="13" fill="none" stroke={P.wood.mid} strokeWidth="1.4" />
+          <g className="cq-wheel" style="animation-duration:3s">
+            <line x1="-13" y1="0" x2="13" y2="0" stroke={P.wood.mid} strokeWidth="1" />
+            <line x1="0" y1="-13" x2="0" y2="13" stroke={P.wood.mid} strokeWidth="1" />
+            <line x1="-9.2" y1="-9.2" x2="9.2" y2="9.2" stroke={P.wood.mid} strokeWidth="1" />
+            <line x1="-9.2" y1="9.2" x2="9.2" y2="-9.2" stroke={P.wood.mid} strokeWidth="1" />
+          </g>
+          <circle r="2.5" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.6" />
+        </g>
+        {/* DRIVER standing in the bed — legs occluded by the basket drawn next */}
+        <Humanoid cx={40} cy={52} scale={0.62} cloth={palette.mid} pants={P.cloth.wool} accent={palette.dark} skin={P.skin.warm} hair="#3a2a1a"
+          hat={<path d="M-9,-34 Q0,-40 9,-34 L9,-30 L-9,-30 Z" fill={P.metal.bronze} stroke={P.ink.line} strokeWidth="0.5" />}
+        />
+        {/* CART BED — geometric basket, wood + bronze trim + curved front hoop */}
+        <path d="M20,58 L52,58 Q57,58 57,64 L57,74 Q57,80 51,80 L26,80 Q20,80 20,74 Z" fill={P.wood.mid} stroke={P.ink.line} strokeWidth="1" />
+        <path d="M20,58 L52,58 Q57,58 57,64 L57,66 L20,66 Z" fill={P.wood.light} />
+        <line x1="23" y1="70" x2="54" y2="70" stroke={P.wood.dark} strokeWidth="0.6" opacity="0.6" />
+        <line x1="23" y1="74" x2="52" y2="74" stroke={P.wood.dark} strokeWidth="0.6" opacity="0.6" />
+        <rect x="20" y="57" width="37" height="2.6" fill={P.metal.bronze} />
+        <path d="M55,58 Q64,54 61,44" fill="none" stroke={P.wood.dark} strokeWidth="2.4" strokeLinecap="round" />
+        {/* small round shield on the cart front — team color */}
+        <g transform="translate(54 68)">
+          <circle r="7" fill={palette.mid} stroke={P.ink.line} strokeWidth="1" />
+          <circle r="7" fill="none" stroke={palette.dark} strokeWidth="1.4" />
+          <circle r="1.8" fill={P.metal.bronze} stroke={P.ink.line} strokeWidth="0.4" />
+        </g>
+        {/* near wheel (front, large) — the key silhouette differentiator vs a mounted rider */}
+        <g transform="translate(48 84)">
+          <circle r="15" fill={P.wood.mid} stroke={P.ink.line} strokeWidth="1.5" />
+          <circle r="15" fill="none" stroke={P.wood.dark} strokeWidth="1.6" />
+          <g className="cq-wheel" style="animation-duration:3s">
+            <line x1="-15" y1="0" x2="15" y2="0" stroke={P.wood.dark} strokeWidth="1.4" />
+            <line x1="0" y1="-15" x2="0" y2="15" stroke={P.wood.dark} strokeWidth="1.4" />
+            <line x1="-10.6" y1="-10.6" x2="10.6" y2="10.6" stroke={P.wood.dark} strokeWidth="1.4" />
+            <line x1="-10.6" y1="10.6" x2="10.6" y2="-10.6" stroke={P.wood.dark} strokeWidth="1.4" />
+          </g>
+          <circle r="3.4" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.8" />
+          <circle r="1.4" fill={P.metal.steel} />
+        </g>
+        {/* spear raised forward over the team */}
+        <g transform="translate(50 54) rotate(30)">
+          <g className="cq-weapon" style="transform-origin: 50px 54px; transform-box: view-box;">
+            <rect x="-1" y="-30" width="2" height="58" fill={P.wood.mid} stroke={P.ink.line} strokeWidth="0.5" />
+            <path d="M-3,-30 L3,-30 L4,-40 L0,-46 L-4,-40 Z" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.7" />
+            <rect x="-3" y="-31" width="6" height="2" fill={P.metal.gold} />
+          </g>
+        </g>
+        <Banner x={20} y={44} palette={palette} scale={0.62} />
+      </g>
     </SpriteFrame>
   );
 }
@@ -1239,6 +1389,74 @@ export function CannonSprite({ palette, svgOnly = false }: UnitSpriteProps): str
   );
 }
 
+// #769 de-alias: artillery previously reused CannonSprite verbatim. As a later-era
+// siege piece (bombard range 2 vs cannon's shorter reach) it must read as bigger and
+// more mechanically complex: larger wheeled carriage, a longer slender barrel angled
+// up for indirect fire, a visible elevation screw, and an ammo crate with shells.
+export function ArtillerySprite({ palette, svgOnly = false }: UnitSpriteProps): string {
+  return (
+    <SpriteFrame svgOnly={svgOnly}>
+      <g data-kind="ranged">
+        <Shadow cx={66} cy={100} rx={46} ry={7} />
+        {/* trail spade — rear leg of the carriage */}
+        <path d="M16,99 L40,86 L44,90 L22,103 Z" fill={P.wood.dark} stroke={P.ink.line} strokeWidth="1" />
+        {/* carriage frame with a team-color band */}
+        <path d="M38,78 L94,78 L98,90 L44,90 Z" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="1" />
+        <rect x="42" y="80" width="54" height="3" fill={palette.mid} />
+        {/* rear wheel — large spoked, wood + iron rim */}
+        <g transform="translate(52 92)">
+          <circle r="16" fill={P.wood.dark} stroke={P.ink.line} strokeWidth="1.6" />
+          <circle r="16" fill="none" stroke={P.metal.iron} strokeWidth="2.4" />
+          <g className="cq-wheel" style="animation-duration:3.6s">
+            <line x1="-16" y1="0" x2="16" y2="0" stroke={P.wood.mid} strokeWidth="1.4" />
+            <line x1="0" y1="-16" x2="0" y2="16" stroke={P.wood.mid} strokeWidth="1.4" />
+            <line x1="-11.3" y1="-11.3" x2="11.3" y2="11.3" stroke={P.wood.mid} strokeWidth="1.4" />
+            <line x1="-11.3" y1="11.3" x2="11.3" y2="-11.3" stroke={P.wood.mid} strokeWidth="1.4" />
+          </g>
+          <circle r="3.6" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.8" />
+          <circle r="1.4" fill={P.metal.steel} />
+        </g>
+        {/* elevation block + screw — the "more advanced than a muzzle-loader" detail */}
+        <rect x="58" y="66" width="14" height="15" rx="2" fill={P.wood.dark} stroke={P.ink.line} strokeWidth="0.8" />
+        <line x1="56" y1="82" x2="56" y2="68" stroke={P.metal.steel} strokeWidth="2.2" />
+        <circle cx="56" cy="67" r="2.6" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.6" />
+        {/* long slender barrel angled up for indirect fire — recoil cylinder + breech */}
+        <g transform="translate(66 74) rotate(-30)">
+          <rect x="-4" y="-9.5" width="42" height="4" rx="2" fill={P.metal.steel} stroke={P.ink.line} strokeWidth="0.6" />
+          <rect x="-8" y="-4.5" width="72" height="9" rx="4.5" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="1" />
+          <rect x="-8" y="-4.5" width="72" height="3.5" rx="3" fill={P.metal.steel} />
+          <rect x="-11" y="-6" width="13" height="12" rx="2" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="1" />
+          <circle cx="-4" cy="0" r="2.4" fill={P.ink.soft} />
+          <ellipse cx="64" cy="0" rx="4" ry="4.6" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.8" />
+          <ellipse cx="64" cy="0" rx="2" ry="2.6" fill="#111" />
+        </g>
+        {/* front wheel — drawn over the barrel base for depth */}
+        <g transform="translate(86 92)">
+          <circle r="16" fill={P.wood.dark} stroke={P.ink.line} strokeWidth="1.6" />
+          <circle r="16" fill="none" stroke={P.metal.iron} strokeWidth="2.4" />
+          <g className="cq-wheel" style="animation-duration:3.6s">
+            <line x1="-16" y1="0" x2="16" y2="0" stroke={P.wood.mid} strokeWidth="1.4" />
+            <line x1="0" y1="-16" x2="0" y2="16" stroke={P.wood.mid} strokeWidth="1.4" />
+            <line x1="-11.3" y1="-11.3" x2="11.3" y2="11.3" stroke={P.wood.mid} strokeWidth="1.4" />
+            <line x1="-11.3" y1="11.3" x2="11.3" y2="-11.3" stroke={P.wood.mid} strokeWidth="1.4" />
+          </g>
+          <circle r="3.6" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.8" />
+          <circle r="1.4" fill={P.metal.steel} />
+        </g>
+        {/* muzzle flash at the barrel tip */}
+        <g transform="translate(121 42)"><g className="cq-muzzle-flash"><circle r="6" fill="#ffd966" /><circle r="3" fill="#fff" /></g></g>
+        {/* ammunition crate staged behind the gun (left) */}
+        <g transform="translate(24 99)">
+          <rect x="-9" y="-7" width="18" height="10" fill={P.wood.mid} stroke={P.ink.line} strokeWidth="0.8" />
+          <path d="M-9,-3 H9 M0,-7 V3" stroke={P.wood.dark} strokeWidth="0.6" />
+          <rect x="-9" y="-7" width="18" height="2.4" fill={P.metal.bronze} opacity="0.7" />
+        </g>
+        <Banner x={40} y={60} palette={palette} scale={0.62} />
+      </g>
+    </SpriteFrame>
+  );
+}
+
 /* === GRENADIER === */
 
 export function GrenadierSprite({ palette, svgOnly = false }: UnitSpriteProps): string {
@@ -1287,6 +1505,60 @@ export function RiflemanSprite({ palette, svgOnly = false }: UnitSpriteProps): s
       {/* bayonet */}
       <line x1="74.5" y1="36" x2="74.5" y2="22" stroke={P.metal.shine} strokeWidth="2.5" strokeLinecap="round" />
       <Banner x={100} y={28} palette={palette} scale={0.7} />
+    </SpriteFrame>
+  );
+}
+
+// #769 de-alias: marine previously reused RiflemanSprite verbatim. Marine is coastal
+// assault infantry with a MELEE attack profile — so it reads as a leaner amphibious
+// trooper in olive combat fatigues lunging with a bayonet-fixed rifle (not the rifleman's
+// static vertical carry), with a flotation/plate-carrier vest signalling "coastal assault."
+export function MarineSprite({ palette, svgOnly = false }: UnitSpriteProps): string {
+  return (
+    <SpriteFrame svgOnly={svgOnly}>
+      <g data-kind="melee">
+        <Shadow cx={62} cy={100} rx={22} ry={5} />
+        {/* lean, forward-crouched amphibious assault stance in olive combat fatigues */}
+        <g transform="rotate(-9 60 78)">
+          <Humanoid cx={60} cy={78} scale={0.94} cloth="#5b6248" pants="#454b38" accent="#3a3f2c" skin={P.skin.cool} hair="#2a1a0a"
+            hat={
+              <g>
+                {/* rounded amphibious combat helmet with a team-color band + chin strap */}
+                <path d="M-10,-33 Q-10,-44 0,-44 Q10,-44 10,-33 L10,-31 Q0,-34 -10,-31 Z" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.9" />
+                <path d="M-11,-31 Q0,-34 11,-31 L10,-28 Q0,-31 -10,-28 Z" fill={P.ink.soft} />
+                <path d="M-10,-33 Q0,-36 10,-33 L10,-31 Q0,-33.5 -10,-31 Z" fill={palette.mid} />
+                <path d="M-9,-30 Q-8,-25 -4,-24" fill="none" stroke={P.ink.soft} strokeWidth="1" />
+              </g>
+            }
+          />
+          {/* flotation / plate-carrier vest — linen with a team-color trim band */}
+          <g transform="translate(60 68)">
+            <path d="M-11,-8 Q0,-11 11,-8 L12,10 L-12,10 Z" fill={P.cloth.linen} stroke={P.ink.line} strokeWidth="0.9" />
+            <rect x="-12" y="-2" width="24" height="2.4" fill={palette.mid} />
+            <line x1="0" y1="-9" x2="0" y2="10" stroke={P.ink.soft} strokeWidth="0.8" />
+            <rect x="-9" y="3" width="6" height="6" rx="1" fill={P.cloth.wool} stroke={P.ink.line} strokeWidth="0.5" />
+            <rect x="3" y="3" width="6" height="6" rx="1" fill={P.cloth.wool} stroke={P.ink.line} strokeWidth="0.5" />
+          </g>
+          {/* sheathed combat knife on the thigh */}
+          <g transform="translate(49 87) rotate(18)"><rect x="-1.4" y="0" width="2.8" height="8" rx="1" fill={P.ink.soft} stroke={P.ink.line} strokeWidth="0.4" /><rect x="-1" y="-3" width="2" height="3" fill={P.metal.shine} /></g>
+        </g>
+        {/* bayonet-fixed rifle thrust FORWARD as a melee weapon (not aimed for fire) */}
+        <g transform="translate(58 76) rotate(-6)">
+          <g className="cq-weapon" style="transform-origin: 58px 76px; transform-box: view-box;">
+            <rect x="-14" y="-2.5" width="16" height="5" rx="1.5" fill={P.wood.dark} stroke={P.ink.line} strokeWidth="0.7" />
+            <rect x="2" y="-2" width="22" height="4" rx="1" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.6" />
+            <rect x="24" y="-1.5" width="18" height="3" rx="1" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.5" />
+            <path d="M42,-1.5 L62,-1 L42,1.5 Z" fill={P.metal.shine} stroke={P.ink.line} strokeWidth="0.6" />
+            <path d="M-2,2 L2,2 L1,8 L-3,8 Z" fill={P.ink.soft} stroke={P.ink.line} strokeWidth="0.5" />
+          </g>
+        </g>
+        {/* bare forearms (sleeves rolled) gripping the rifle */}
+        <path d="M56,71 Q57,75 60,77" fill="none" stroke={P.skin.cool} strokeWidth="3.4" strokeLinecap="round" />
+        <path d="M62,71 Q72,70 78,68" fill="none" stroke={P.skin.cool} strokeWidth="3.4" strokeLinecap="round" />
+        <circle cx="60" cy="77" r="2.4" fill={P.skin.cool} stroke={P.ink.line} strokeWidth="0.5" />
+        <circle cx="79" cy="68" r="2.4" fill={P.skin.cool} stroke={P.ink.line} strokeWidth="0.5" />
+        <Banner x={102} y={34} palette={palette} scale={0.6} />
+      </g>
     </SpriteFrame>
   );
 }
@@ -1437,6 +1709,59 @@ export function MachineGunnerSprite({ palette, svgOnly = false }: UnitSpriteProp
       {/* gunner — prone/crouching silhouette */}
       <Humanoid cx={46} cy={84} scale={0.72} cloth={palette.dark} pants={palette.dark} accent={palette.mid} skin={P.skin.warm} hair="#2a1a0a" />
       <Banner x={100} y={30} palette={palette} scale={0.65} />
+    </SpriteFrame>
+  );
+}
+
+// #769 de-alias: infantry previously reused MachineGunnerSprite verbatim. Per its
+// in-game text ("modern line infantry... current infantry apex") it must read as a
+// LATER-era upgrade: rounded combat helmet + tactical vest, rifle held two-handed at
+// the ready (NOT a tripod-mounted belt-fed gun), standing/mobile — not crouched.
+export function InfantrySprite({ palette, svgOnly = false }: UnitSpriteProps): string {
+  return (
+    <SpriteFrame svgOnly={svgOnly}>
+      <g data-kind="ranged">
+        <Shadow cx={62} cy={100} rx={22} ry={5} />
+        <Humanoid cx={60} cy={78} scale={1} cloth={palette.dark} pants="#3a3a2e" accent={palette.mid} skin={P.skin.warm} hair="#2a1a0a"
+          hat={
+            <g>
+              {/* modern rounded combat helmet (not a WWI Brodie/Stahlhelm) */}
+              <path d="M-11,-33 Q-11,-45 0,-45 Q11,-45 11,-33 L11,-31 Q0,-34 -11,-31 Z" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="1" />
+              <path d="M-11,-33 Q0,-36 11,-33 L11,-31 L-11,-31 Z" fill={P.metal.steel} opacity="0.5" />
+              <path d="M-12,-31 Q0,-34 12,-31 L11,-28 Q0,-31 -11,-28 Z" fill={P.ink.soft} />
+            </g>
+          }
+        />
+        {/* tactical vest with pouches over the torso */}
+        <g transform="translate(60 66)">
+          <rect x="-13" y="-6" width="26" height="20" rx="3" fill={palette.mid} stroke={P.ink.line} strokeWidth="1" />
+          <rect x="-13" y="-6" width="26" height="4" fill={palette.dark} />
+          <rect x="-11" y="2" width="7" height="8" rx="1" fill={palette.dark} stroke={P.ink.line} strokeWidth="0.6" />
+          <rect x="-2" y="2" width="7" height="8" rx="1" fill={palette.dark} stroke={P.ink.line} strokeWidth="0.6" />
+          <rect x="7" y="2" width="5" height="8" rx="1" fill={palette.dark} stroke={P.ink.line} strokeWidth="0.6" />
+          <path d="M-5,-6 L5,-6 L3,-1 L-3,-1 Z" fill={P.cloth.wool} stroke={P.ink.line} strokeWidth="0.5" />
+        </g>
+        {/* both forearms bent to grip the rifle — connects gun to the body */}
+        <path d="M55,66 Q57,74 60,79" fill="none" stroke={palette.dark} strokeWidth="5" strokeLinecap="round" />
+        <path d="M62,66 Q72,67 80,71" fill="none" stroke={palette.dark} strokeWidth="5" strokeLinecap="round" />
+        {/* RIFLE gripped two-handed, muzzle up — NOT tripod-mounted; recoils + flashes on attack */}
+        <g transform="translate(60 80) rotate(-20)">
+          <g className="cq-weapon" style="transform-origin: 60px 80px; transform-box: view-box;">
+            <rect x="-18" y="-3" width="20" height="6" rx="1.5" fill={P.wood.dark} stroke={P.ink.line} strokeWidth="0.7" />
+            <rect x="0" y="-4" width="24" height="6" rx="1" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.7" />
+            <rect x="24" y="-2.5" width="22" height="3" rx="1" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.6" />
+            <rect x="46" y="-3" width="4" height="4" rx="1" fill={P.metal.steel} stroke={P.ink.line} strokeWidth="0.5" />
+            <path d="M6,2 L14,2 L13,13 L7,13 Z" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.6" />
+            <path d="M-2,2 L2,2 L1,9 L-3,9 Z" fill={P.ink.soft} stroke={P.ink.line} strokeWidth="0.5" />
+            <rect x="16" y="-6" width="2.5" height="3" fill={P.metal.iron} />
+            <g transform="translate(52 -1)"><g className="cq-muzzle-flash"><circle r="5" fill="#ffd966" /><circle r="2.5" fill="#fff" /></g></g>
+          </g>
+        </g>
+        {/* hands on the rifle */}
+        <circle cx="60" cy="80" r="2.6" fill={P.skin.warm} stroke={P.ink.line} strokeWidth="0.6" />
+        <circle cx="81" cy="72" r="2.6" fill={P.skin.warm} stroke={P.ink.line} strokeWidth="0.6" />
+        <Banner x={100} y={30} palette={palette} scale={0.65} />
+      </g>
     </SpriteFrame>
   );
 }
