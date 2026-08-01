@@ -1386,11 +1386,13 @@ export function getProductionCostForItem(
     unit != null,
     options.activeNationalProjects ?? [],
   );
-  const advantageResources = new Set(options.availableResources ?? []);
-  // Circular Manufacturing Network is a soft substitution only. The selected
-  // material does not affect hard-resource eligibility anywhere else.
-  if (options.materialSubstitution) advantageResources.add(options.materialSubstitution);
-  const resourceAdvantageMultiplier = getResourceAdvantageMultiplier(itemId, advantageResources);
+  // Circular Manufacturing Network is a soft substitution only. The selected material
+  // remains distinct from live resources so catalog rows can opt out (for example Ivory).
+  const resourceAdvantageMultiplier = getResourceAdvantageMultiplier(
+    itemId,
+    options.availableResources ?? new Set<ResourceType>(),
+    options.materialSubstitution,
+  );
   const discountMultiplier = buildingDiscountMultiplier * techDiscountMultiplier * npDiscountMultiplier * resourceAdvantageMultiplier;
   const effective = baseCost * civMultiplier * discountMultiplier;
   return discountMultiplier < 1 ? Math.ceil(effective) : Math.round(effective);

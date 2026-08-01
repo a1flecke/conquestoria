@@ -23,6 +23,15 @@ describe('production cost catalog', () => {
     expect(getResourceAdvantageMultiplier('combat_drone', new Set(['aluminum', 'rare-earth-elements', 'battery-minerals']))).toBe(0.75);
     expect(getProductionCostForItem('tank', { availableResources: new Set(['oil']) })).toBe(Math.ceil(185 * 0.85));
   });
+
+  it('gives War Elephant a live-Ivory-only production discount without making Ivory a gate', () => {
+    expect(getProductionCostForItem('war_elephant')).toBe(110);
+    expect(getProductionCostForItem('war_elephant', { availableResources: new Set(['ivory']) })).toBe(94);
+    expect(getProductionCostForItem('war_elephant', { materialSubstitution: 'ivory' })).toBe(110);
+    expect(getResourceAdvantageMultiplier('war_elephant', new Set(['ivory']))).toBe(0.85);
+    expect(getResourceAdvantageMultiplier('war_elephant', new Set(), 'ivory')).toBe(1);
+    expect(getProductionCostForItem('horseman', { availableResources: new Set(['ivory']) })).toBe(55);
+  });
   it('keeps Herbalist in the Era 1 starter window for a new capital', () => {
     expect(BUILDINGS.herbalist.productionCost).toBe(16);
     expect(BUILDINGS.herbalist.pacing?.band).toBe('starter');
