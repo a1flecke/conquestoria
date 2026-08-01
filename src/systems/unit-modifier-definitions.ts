@@ -49,6 +49,7 @@ export const UNIT_CLASS_BY_TYPE: Record<UnitType, UnitClass[]> = {
   jet_fighter: ['air'],
   bomber: ['air'],
   tank: ['armor'],
+  anti_tank_gun: ['gunpowder'],
   submarine: ['naval'],
   carrier: ['naval'],
   attack_helicopter: ['air'],
@@ -222,7 +223,8 @@ export const UNIT_MODIFIERS: UnitModifier[] = [
 export interface ClassCounter {
   attackerTypes?: UnitType[];
   attackerClass?: UnitClass;
-  defenderClass: UnitClass;
+  defenderClass?: UnitClass;
+  excludedDefenderClass?: UnitClass;
   multiplier: number;
   label: string;
   // Grenadier's "anti-fortification" bonus only counts a defender standing on a city tile.
@@ -238,6 +240,8 @@ export const CLASS_COUNTERS: ClassCounter[] = [
   { attackerTypes: ['spearman', 'pikeman'], defenderClass: 'mounted', multiplier: 1.5, label: 'Anti-cavalry' },
   { attackerTypes: ['grenadier'], defenderClass: 'melee', multiplier: 1.25, label: 'Anti-fortification', requiresDefenderInFriendlyCity: true },
   { attackerTypes: ['attack_helicopter'], defenderClass: 'armor', multiplier: 1.5, label: 'Anti-armor' },
+  { attackerTypes: ['anti_tank_gun'], defenderClass: 'armor', multiplier: 1.5, label: 'Anti-armor' },
+  { attackerTypes: ['anti_tank_gun'], excludedDefenderClass: 'armor', multiplier: 0.85, label: 'Anti-Tank Gun non-armor penalty' },
   { attackerTypes: ['submarine', 'missile_submarine'], defenderClass: 'civilian', multiplier: 1.5, label: 'Commerce raider', requiresDefenderDomain: 'naval' },
   { attackerTypes: ['destroyer'], defenderClass: 'naval', defenderTypes: ['submarine', 'missile_submarine'], multiplier: 1.25, label: 'Anti-submarine' },
   { attackerTypes: ['jet_fighter', 'wwii_fighter', 'biplane'], defenderClass: 'air', defenderTypes: ['bomber'], multiplier: 1.5, label: 'Interceptor' },

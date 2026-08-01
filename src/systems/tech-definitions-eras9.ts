@@ -5,7 +5,7 @@ const ERA_9_TECHS: Tech[] = [
   { id: 'tank-warfare', name: 'Tank Warfare', track: 'military', cost: 260,
     prerequisites: ['mass-firepower', 'bessemer-steel'],
     unlocks: ['Armored vehicles break through entrenched lines; land combat transformed'],
-    unlocksUnits: ['tank'], unlocksBuildings: ['tank_depot'], era: 9 },
+    unlocksUnits: ['tank', 'anti_tank_gun'], unlocksBuildings: ['tank_depot'], era: 9 },
   { id: 'armored-tactics', name: 'Armored Tactics', track: 'military', cost: 265,
     prerequisites: ['tank-warfare', 'general-mobilization'],
     unlocks: ['Combined-arms doctrine; tanks gain +5 strength; modern line infantry replaces machine gunners'],

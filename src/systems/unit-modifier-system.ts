@@ -92,7 +92,9 @@ export function getClassCounterMultiplier(
     if (counter.requiresDefenderInFriendlyCity && !defenderInFriendlyCity) return false;
     if (counter.requiresDefenderDomain && counter.requiresDefenderDomain !== defenderDomain) return false;
     if (counter.defenderTypes && !counter.defenderTypes.includes(defenderType)) return false;
-    if (!defenderClasses.includes(counter.defenderClass)) return false;
+    if (counter.defenderClass && !defenderClasses.includes(counter.defenderClass)) return false;
+    if (counter.excludedDefenderClass && defenderClasses.includes(counter.excludedDefenderClass)) return false;
+    if (!counter.defenderClass && !counter.excludedDefenderClass) return false;
     if (counter.attackerTypes) {
       if (!counter.attackerTypes.includes(attackerType)) return false;
     } else if (counter.attackerClass) {
