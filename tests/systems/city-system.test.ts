@@ -499,7 +499,7 @@ describe('MR8 — naval roster gating', () => {
 describe('#443 — building obsolescence matches the retired unit line', () => {
   it('stable ("Trains mounted units"): the mounted line is gone once its retirement technologies complete', () => {
     const units = getTrainableUnitsForCiv(
-      ['horseback-riding', 'iron-forging', 'professional-army', 'rifle-tactics', 'tank-warfare'],
+      ['horseback-riding', 'iron-forging', 'professional-army', 'rifle-tactics', 'motorized-transport', 'tank-warfare'],
       undefined,
       new Set<ResourceType>(['horses', 'iron']),
     );
@@ -1595,9 +1595,9 @@ describe('S4b — new unit entries', () => {
     expect(entry?.obsoletedByTech).toBe('tank-warfare');
   });
 
-  it('cavalry obsoletes at tank-warfare, not iron-forging (avoids the resource dead-end)', () => {
+  it('cavalry obsoletes at Motorized Transport, not iron-forging (avoids the resource dead-end)', () => {
     const entry = TRAINABLE_UNITS.find(u => u.type === 'cavalry');
-    expect(entry?.obsoletedByTech).toBe('tank-warfare');
+    expect(entry?.obsoletedByTech).toBe('motorized-transport');
   });
 
   it('knight obsoletes at Rifle Tactics and upgrades to Cuirassier', () => {

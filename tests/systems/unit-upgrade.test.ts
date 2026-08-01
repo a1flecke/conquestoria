@@ -368,6 +368,30 @@ describe('applyUnitUpgradeToState', () => {
       .toContainEqual({ kind: 'air-base', reason: 'base-full' });
   });
 
+  it('blocks the real Armored Car transition when the host Helicopter Base is full', () => {
+    const { state, city } = setup();
+    state.units['upgrade-unit'].type = 'armored_car' as any;
+    state.civilizations.player.gold = 1000;
+    state.civilizations.player.techState.completed = ['motorized-transport', 'helicopter-warfare'];
+    city.buildings = ['helicopter_base'];
+    for (const id of ['helicopter-1', 'helicopter-2']) {
+      state.units[id] = { ...state.units['upgrade-unit'], id, type: 'attack_helicopter', airBase: { kind: 'city', cityId: city.id } };
+      state.civilizations.player.units.push(id);
+    }
+    expect(evaluateUnitUpgrade(state, 'upgrade-unit', 'attack_helicopter').missing)
+      .toContainEqual({ kind: 'air-base', reason: 'base-full' });
+  });
+
+  it('bases the real Armored Car successor at its host Helicopter Base', () => {
+    const { state, city } = setup();
+    state.units['upgrade-unit'].type = 'armored_car' as any;
+    state.civilizations.player.gold = 1000;
+    state.civilizations.player.techState.completed = ['motorized-transport', 'helicopter-warfare'];
+    city.buildings = ['helicopter_base'];
+    expect(applyUnitUpgradeToState(state, 'upgrade-unit', 'attack_helicopter').state.units['upgrade-unit'])
+      .toMatchObject({ type: 'attack_helicopter', airBase: { kind: 'city', cityId: city.id } });
+  });
+
   it('upgrades canonically, deducts exact gold, preserves health, and consumes the action', () => {
     const { state } = setup();
 

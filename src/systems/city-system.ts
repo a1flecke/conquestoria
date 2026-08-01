@@ -1132,7 +1132,8 @@ export const TRAINABLE_UNITS: Array<TrainableUnitEntry & { pacing?: Building['pa
   { type: 'spearman',     name: 'Spearman',     cost: 54,  techRequired: 'bronze-working',                                        obsoletedByTech: 'fortification', upgradesTo: 'pikeman', pacing: { band: 'power-spike', role: 'ungated-era2-melee',    impact: 1.05, scope: 'military', snowball: 1,   urgency: 1,    situationality: 1,    unlockBreadth: 1 } },
   { type: 'horseman',     name: 'Horseman',     cost: 55,  techRequired: 'horseback-riding', resourceRequired: ['horses'],           obsoletedByTech: 'tank-warfare', upgradesTo: 'tank',                       pacing: { band: 'power-spike', role: 'basic-cavalry',         impact: 1.15, scope: 'military', snowball: 1,   urgency: 1.05, situationality: 1.1,  unlockBreadth: 1 } },
   { type: 'chariot',      name: 'Chariot',      cost: 65,  techRequired: 'wheel', requiredTechs: ['horseback-riding'], resourceRequired: ['horses'], obsoletedByTech: 'iron-forging', upgradesTo: 'knight', pacing: { band: 'power-spike', role: 'ancient-heavy-mobile', impact: 1.2, scope: 'military', snowball: 1, urgency: 1.05, situationality: 1.2, unlockBreadth: 1 } },
-  { type: 'cavalry',      name: 'Cavalry',      cost: 140, techRequired: 'rifle-tactics', requiredTechs: ['professional-army'], resourceRequired: ['horses'], obsoletedByTech: 'tank-warfare', upgradesTo: 'tank', pacing: { band: 'power-spike', role: 'heavy-cavalry', impact: 1.2, scope: 'military', snowball: 1.1, urgency: 1, situationality: 1.1, unlockBreadth: 1 } },
+  { type: 'cavalry',      name: 'Cavalry',      cost: 140, techRequired: 'rifle-tactics', requiredTechs: ['professional-army'], resourceRequired: ['horses'], obsoletedByTech: 'motorized-transport', upgradesTo: 'armored_car', pacing: { band: 'power-spike', role: 'heavy-cavalry', impact: 1.2, scope: 'military', snowball: 1.1, urgency: 1, situationality: 1.1, unlockBreadth: 1 } },
+  { type: 'armored_car',  name: 'Armored Car',  cost: 168, techRequired: 'motorized-transport', obsoletedByTech: 'helicopter-warfare', upgradesTo: 'attack_helicopter', pacing: { band: 'power-spike', role: 'light-mobile-recon', impact: 1.2, scope: 'military', snowball: 1.05, urgency: 1, situationality: 1.25, unlockBreadth: 1 } },
   { type: 'knight',       name: 'Knight',       cost: 80,  techRequired: 'iron-forging',     resourceRequired: ['horses', 'iron'],   obsoletedByTech: 'rifle-tactics', upgradesTo: 'cuirassier',                  pacing: { band: 'power-spike', role: 'heavy-cavalry-apex',    impact: 1.25, scope: 'military', snowball: 1.1, urgency: 1,    situationality: 1.1,  unlockBreadth: 1 } },
   { type: 'cuirassier',   name: 'Cuirassier',   cost: 150, techRequired: 'rifle-tactics', requiredTechs: ['professional-army'], resourceRequired: ['horses', 'iron'], obsoletedByTech: 'tank-warfare', upgradesTo: 'tank', pacing: { band: 'power-spike', role: 'heavy-cavalry', impact: 1.2, scope: 'military', snowball: 1.1, urgency: 1, situationality: 1.1, unlockBreadth: 1 } },
   // S4b — ranged + siege
@@ -1473,6 +1474,7 @@ export const PRODUCTION_ICONS: Record<string, string> = {
   horseman:    '🏇',
   chariot:     '🛞',
   cavalry:     '⚡',
+  armored_car: '🚙',
   knight:      '♞',
   cuirassier:  '🛡️',
   crossbowman: '🪃',

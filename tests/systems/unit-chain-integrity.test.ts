@@ -4,6 +4,7 @@ import { UNIT_DEFINITIONS, createUnit } from '@/systems/unit-system';
 import { resolveCombat } from '@/systems/combat-system';
 import { TECH_TREE } from '@/systems/tech-definitions';
 import { isSpyUnitType } from '@/systems/espionage-system';
+import { UNIT_CLASS_BY_TYPE } from '@/systems/unit-modifier-definitions';
 import type { GameMap, HexTile, UnitType } from '@/core/types';
 
 const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
@@ -43,8 +44,6 @@ const TECH_ERA_BY_ID = new Map(TECH_TREE.map(tech => [tech.id, tech.era]));
 // Recon/detection units carry a self-defense strength stat rather than a real combat
 // role (see TERMINAL_COMBAT_UNITS reasoning for scout/scout_hound/etc.), so the "target
 // strength >= source strength" rule would false-fail their replacement chains.
-const RECON_DETECTION_TYPES = new Set<UnitType>(['scout_hound', 'shadow_warden', 'war_hound']);
-
 // MR9's strength re-curve (musketeer 34 < rifleman 46) emptied the exemption this list
 // held for MR8. Keep the list — and this regression — so a future strength change that
 // reintroduces an inversion must add an explicit, reviewed exemption rather than silently
@@ -53,7 +52,7 @@ const TEMPORARY_STRENGTH_EXEMPTIONS = new Set<string>([]);
 
 function isRealCombatUnit(type: UnitType): boolean {
   const def = UNIT_DEFINITIONS[type];
-  return def.strength >= 10 && !isSpyUnitType(type) && !RECON_DETECTION_TYPES.has(type);
+  return def.strength >= 10 && !isSpyUnitType(type) && !UNIT_CLASS_BY_TYPE[type].includes('recon');
 }
 
 function isCivilian(type: UnitType): boolean {
@@ -110,6 +109,27 @@ describe('early-modern mounted upgrade chain', () => {
 
     expect(knight).toMatchObject({ obsoletedByTech: 'rifle-tactics', upgradesTo: 'cuirassier' });
     expect(cuirassier).toMatchObject({ obsoletedByTech: 'tank-warfare', upgradesTo: 'tank' });
+  });
+
+  it('routes Cavalry through the Motorized Transport Armored Car step', () => {
+    const cavalry = TRAINABLE_UNITS.find(unit => unit.type === 'cavalry');
+    const armoredCar = TRAINABLE_UNITS.find(unit => unit.type === ('armored_car' as UnitType));
+
+    expect(cavalry).toMatchObject({
+      obsoletedByTech: 'motorized-transport',
+      upgradesTo: 'armored_car',
+    });
+    expect(armoredCar).toMatchObject({
+      cost: 168,
+      techRequired: 'motorized-transport',
+      obsoletedByTech: 'helicopter-warfare',
+      upgradesTo: 'attack_helicopter',
+    });
+    expect(UNIT_DEFINITIONS['armored_car' as UnitType]).toMatchObject({
+      strength: 48,
+      movementPoints: 4,
+      visionRange: 3,
+    });
   });
 });
 

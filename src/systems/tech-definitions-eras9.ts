@@ -46,9 +46,10 @@ const ERA_9_TECHS: Tech[] = [
     unlocksBuildings: ['national_insurance', 'national_census'], era: 9 },
 
   // EXPLORATION (2)
-  { id: 'motorized-transport', name: 'Motorized Transport', track: 'exploration', cost: 190,
+  { id: 'motorized-transport', name: 'Motorized Transport', track: 'exploration', cost: 240,
     prerequisites: ['transcontinental-rail', 'petroleum-industry'],
-    unlocks: ['Automobiles and trucks reshape logistics; supply chains reach further than ever'], era: 9 },
+    unlocks: ['Automobiles and trucks reshape logistics; supply chains reach further than ever'],
+    unlocksUnits: ['armored_car'], era: 9 },
   { id: 'aerial-survey', name: 'Aerial Survey', track: 'exploration', cost: 175,
     prerequisites: ['imperial-survey', 'aviation'],
     unlocks: ['+1 vision range for air units'], era: 9 },

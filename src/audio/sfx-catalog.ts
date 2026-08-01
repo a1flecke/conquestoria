@@ -178,6 +178,8 @@ export const UNIT_SFX: Partial<Record<UnitType, Partial<Record<SfxClass, TrackEn
     'attack-impact': real('sfx-cavalry-attack-impact', 'audio/sfx/cavalry-attack-impact.ogg', 0.352),
     death:           real('sfx-cavalry-death',          'audio/sfx/cavalry-death.ogg',          0.147, 'death'),
   },
+  // Temporary Knight cues; #715 owns Armored Car's bespoke vehicle audio.
+  armored_car: KNIGHT_SFX,
   knight: KNIGHT_SFX,
   // Temporary Knight cues; #714 owns Cuirassier's bespoke mounted audio.
   cuirassier: KNIGHT_SFX,
@@ -359,6 +361,7 @@ const LOCOMOTION_CLASS: Record<UnitType, LocomotionClass> = {
   horseman:      'animal',
   chariot:       'animal',
   cavalry:       'animal',
+  armored_car:   'humanoid',
   knight:        'animal',
   cuirassier:    'animal',
   crossbowman:   'humanoid',

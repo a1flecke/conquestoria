@@ -25,6 +25,7 @@ export const UNIT_CLASS_BY_TYPE: Record<UnitType, UnitClass[]> = {
   war_elephant: ['mounted'],
   chariot: ['mounted'],
   cavalry: ['mounted'],
+  armored_car: ['recon'],
   knight: ['mounted', 'melee'],
   cuirassier: ['mounted', 'melee'],
   crossbowman: ['ranged'],
@@ -180,6 +181,7 @@ export const UNIT_MODIFIERS: UnitModifier[] = [
   { source: unit('war_elephant'), effect: 'combatStrength', mode: 'multiplier', value: 1.2, unitTypes: ['war_elephant'], when: 'attacking', targetTerrains: ['grassland', 'plains', 'desert', 'tundra', 'snow'], factKey: 'unit:war-elephant:open-ground', label: 'War Elephant open-ground charge' },
   { source: unit('war_elephant'), effect: 'combatStrength', mode: 'multiplier', value: 0.85, unitTypes: ['war_elephant'], when: 'attacking', targetTerrains: ['forest', 'jungle', 'swamp', 'hills'], factKey: 'unit:war-elephant:rough-ground', label: 'War Elephant rough-ground penalty' },
   { source: unit('cavalry'), effect: 'combatStrength', mode: 'multiplier', value: 1.15, unitTypes: ['cavalry'], when: 'attacking', condition: 'opponentBelow60HP', label: 'Cavalry pursuit' },
+  { source: unit('armored_car'), effect: 'combatStrength', mode: 'multiplier', value: 1.15, unitTypes: ['armored_car'], when: 'attacking', condition: 'opponentBelow60HP', factKey: 'unit:armored-car:pursuit', label: 'Armored Car pursuit' },
   { source: unit('cuirassier'), effect: 'combatStrength', mode: 'multiplier', value: 1.15, unitTypes: ['cuirassier'], when: 'attacking', condition: 'onOpenGround', factKey: 'unit:cuirassier:open-ground', label: 'Cuirassier open-ground charge' },
 
   // --- Combat: national projects ---

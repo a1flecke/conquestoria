@@ -234,6 +234,11 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     canBuildImprovements: false, productionCost: 140,
     cargoSize: 2,
   },
+  armored_car: {
+    type: 'armored_car', name: 'Armored Car', movementPoints: 4,
+    visionRange: 3, strength: 48, canFoundCity: false,
+    canBuildImprovements: false, productionCost: 168,
+  },
   knight: {
     type: 'knight', name: 'Knight', movementPoints: 3,
     visionRange: 2, strength: 45, canFoundCity: false,
@@ -711,6 +716,7 @@ export const UNIT_DESCRIPTIONS: Record<UnitType, string> = {
   horseman:    'Swift light cavalry for raids and flanking. Requires Horses.',
   chariot:     'A heavy mobile attacker that gains 20% strength on open ground but loses 15% in rough terrain. Requires Horses.',
   cavalry:     'Fast pursuit cavalry gains 15% strength against enemies below 60 HP. Requires Horses.',
+  armored_car: 'Fast reconnaissance car pursues damaged foes but cannot hold enemies in place.',
   knight:      'The apex of mounted warfare — armored and devastating. Requires Horses and Iron.',
   cuirassier:  'Armored cavalry breaks open ground but is slower than Cavalry and vulnerable to polearms.',
   crossbowman: 'Precision-ranged unit with a longer reach than Archers. Requires Copper.',
