@@ -131,6 +131,9 @@ export interface CombatContext {
   defenderPositioningPart?: ModifierPart;
   attackerAmphibiousMultiplier?: number;
   attackerAmphibiousParts?: ModifierPart[];
+  attackerInterceptionStrengthMultiplier?: number;
+  attackerInterceptionPart?: ModifierPart;
+  attackerInterceptionFact?: CombatModifierFact;
   attackerNetworkStrengthBonus?: number;
   defenderNetworkStrengthBonus?: number;
 }
@@ -225,6 +228,7 @@ export function calculateCombatStrengths(
 
   attackerStrength *= context?.attackerPositioningMultiplier ?? 1;
   attackerStrength *= context?.attackerAmphibiousMultiplier ?? 1;
+  attackerStrength *= context?.attackerInterceptionStrengthMultiplier ?? 1;
   defenderStrength *= context?.defenderPositioningMultiplier ?? 1;
   attackerStrength += context?.attackerNetworkStrengthBonus ?? 0;
   defenderStrength += context?.defenderNetworkStrengthBonus ?? 0;
@@ -290,9 +294,9 @@ export function calculateCombatStrengths(
     terrainDefenseBonus,
     riverAttackPenalty,
     cityDefense,
-    attackerModifierParts: [...(context?.attackerModifiers?.parts ?? []), ...(context?.attackerPositioningPart ? [context.attackerPositioningPart] : []), ...(context?.attackerAmphibiousParts ?? [])],
+    attackerModifierParts: [...(context?.attackerModifiers?.parts ?? []), ...(context?.attackerPositioningPart ? [context.attackerPositioningPart] : []), ...(context?.attackerAmphibiousParts ?? []), ...(context?.attackerInterceptionPart ? [context.attackerInterceptionPart] : [])],
     defenderModifierParts: [...(context?.defenderModifiers?.parts ?? []), ...(context?.defenderPositioningPart ? [context.defenderPositioningPart] : [])],
-    attackerModifierFacts: context?.attackerModifiers?.facts ?? [],
+    attackerModifierFacts: [...(context?.attackerModifiers?.facts ?? []), ...(context?.attackerInterceptionFact ? [context.attackerInterceptionFact] : [])],
     defenderModifierFacts: [...(context?.defenderModifiers?.facts ?? []), ...(context?.airDefenseCoverage?.facts ?? [])],
     defenderDefendsPoorly: defendsPoorly(defenderDefinition.attackProfile),
     exchange: getCombatExchangeModifiers(attacker, defender),

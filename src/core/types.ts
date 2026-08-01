@@ -361,7 +361,7 @@ export type UnitType =
   | 'crossbowman' | 'catapult' | 'ballista' | 'cannon' | 'grenadier' | 'marine' | 'rifleman' | 'ironclad'
   | 'frigate' | 'destroyer' | 'artillery' | 'infantry'
   | 'machine_gunner' | 'pre_dreadnought'
-  | 'observation_balloon' | 'biplane' | 'jet_fighter' | 'bomber' | 'recon_aircraft'
+  | 'observation_balloon' | 'biplane' | 'wwii_fighter' | 'jet_fighter' | 'bomber' | 'recon_aircraft'
   | 'tank' | 'submarine' | 'carrier'
   | 'attack_helicopter' | 'missile_submarine'
   | 'spy_scout' | 'spy_informant' | 'spy_agent' | 'spy_operative' | 'spy_hacker'
@@ -399,6 +399,7 @@ export interface AirOperationDefinition {
   ferryRange: number;
   missions: AirMission[];
   carrierEligible: boolean;
+  interceptionStrengthMultiplier?: number;
 }
 
 export type AirDefenseProviderKind = 'building' | 'unit' | 'naval-unit';

@@ -382,6 +382,7 @@ const LOCOMOTION_CLASS: Record<UnitType, LocomotionClass> = {
   submarine:  'naval',
   observation_balloon: 'air',
   biplane:    'air',
+  wwii_fighter: 'air',
   recon_aircraft: 'air',
   jet_fighter: 'air',
   bomber:     'air',

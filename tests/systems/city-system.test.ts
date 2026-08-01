@@ -828,7 +828,7 @@ describe('processCity', () => {
       buildings: [], productionQueue: ['biplane'], productionProgress: 50,
     };
 
-    const result = processCity(city, map, 2, 100, undefined, ['air-superiority']);
+    const result = processCity(city, map, 2, 100, undefined, ['aviation']);
 
     expect(result.droppedProductionItems).toEqual([{ itemId: 'biplane', itemKind: 'unit', reason: 'training-building-missing' }]);
     expect(result.completedUnit).toBeNull();
@@ -842,7 +842,7 @@ describe('processCity', () => {
       buildings: ['airfield'], productionQueue: ['biplane'], productionProgress: 50,
     };
 
-    const result = processCity(city, map, 2, 100, undefined, ['air-superiority'], undefined, 1, undefined, undefined, () => 'air-base-unavailable');
+    const result = processCity(city, map, 2, 100, undefined, ['aviation'], undefined, 1, undefined, undefined, () => 'air-base-unavailable');
 
     expect(result.droppedProductionItems).toEqual([{ itemId: 'biplane', itemKind: 'unit', reason: 'air-base-unavailable' }]);
     expect(result.completedUnit).toBeNull();
@@ -1645,7 +1645,8 @@ describe('#429 — expanded obsolescence coverage', () => {
     { type: 'trireme', unlockTech: 'triremes', obsoleteTech: 'frigate-construction' },
     { type: 'grenadier', unlockTech: 'grenade-warfare', obsoleteTech: 'mass-firepower' },
     { type: 'rifleman', unlockTech: 'rifled-infantry', obsoleteTech: 'mass-firepower' },
-    { type: 'biplane', unlockTech: 'air-superiority', obsoleteTech: 'jet-aviation' },
+    { type: 'biplane', unlockTech: 'aviation', obsoleteTech: 'air-superiority' },
+    { type: 'wwii_fighter', unlockTech: 'air-superiority', obsoleteTech: 'jet-aviation' },
     // MR9: jet_fighter reverted to terminal (air-superiority apex) — the bomber, not the
     // fighter, is the era-10-to-12 strike line. This also fixes "researched stealth tech
     // but no airbase yet -> zero trainable air units".

@@ -495,6 +495,22 @@ function migrateCoastalHullsOffOcean(state: GameState): GameState {
   return working;
 }
 
+// #678: Biplane moved from Air Superiority to Aviation. Existing queued Biplanes were
+// legal under the old roster, so retain the player's queue position by replacing only
+// entries that the new obsolescence rule makes illegal. This is deliberately
+// unconditional and idempotent: current-schema saves also need the repair.
+function normalizeRetimedBiplaneQueues(state: GameState): GameState {
+  let changed = false;
+  const cities = Object.fromEntries(Object.entries(state.cities).map(([cityId, city]) => {
+    const completed = state.civilizations[city.owner]?.techState.completed ?? [];
+    if (!completed.includes('air-superiority') || !city.productionQueue.includes('biplane')) return [cityId, city];
+    changed = true;
+    const replacement = completed.includes('jet-aviation') ? 'jet_fighter' : 'wwii_fighter';
+    return [cityId, { ...city, productionQueue: city.productionQueue.map(item => item === 'biplane' ? replacement : item) }];
+  }));
+  return changed ? { ...state, cities } : state;
+}
+
 export const SAVE_MIGRATIONS: Readonly<Record<number, SaveMigration>> = {
   1: migrateToEra13Foundation,
   2: migrateLateResources,
@@ -537,5 +553,10 @@ export function migrateSaveToCurrent(raw: unknown): GameState {
     state = { ...migration(state), saveSchemaVersion: version };
   }
   const migrated = state.gameId ? state : migrateToEra13Foundation(state);
-  return normalizeCityFaithConversionProgress(withReligionDefaults(normalizeCrisisArchetypes(normalizeLegacyTechGrace(migrateCircularManufacturingChoices(migrateAutonomyNetworkPostures(migrated))))));
+  const postures = migrateAutonomyNetworkPostures(migrated);
+  const manufacturing = migrateCircularManufacturingChoices(postures);
+  const techGrace = normalizeLegacyTechGrace(manufacturing);
+  const crises = normalizeCrisisArchetypes(techGrace);
+  const religions = withReligionDefaults(crises);
+  return normalizeRetimedBiplaneQueues(normalizeCityFaithConversionProgress(religions));
 }

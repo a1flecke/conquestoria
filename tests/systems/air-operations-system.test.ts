@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { UNIT_DEFINITIONS } from '@/systems/unit-system';
 import { TRAINABLE_UNITS } from '@/systems/city-system';
 import { baseNewAirUnit, canCompleteAirUnitProduction, getAirBaseCapacity, getAirBaseRoster, getInterceptCoverage, getLegalAirMissionTargets, getLegalRebaseDestinations, isBasedAirUnit, rebaseAircraft, resolveAirBaseLoss, resolveAirStrike, resolveReconMission, selectInterceptor, startIntercept, syncCarrierBasedAircraft } from '@/systems/air-operations-system';
+import { calculateCombatStrengths } from '@/systems/combat-system';
+import { buildCombatContextForDefender } from '@/systems/combat-context';
 import type { GameState, Unit } from '@/core/types';
 
 describe('air-operation definitions', () => {
@@ -10,6 +12,14 @@ describe('air-operation definitions', () => {
       baseKinds: ['airfield', 'carrier'], operationalRange: 3, ferryRange: 6,
       missions: ['strike', 'intercept', 'rebase'], carrierEligible: true,
     });
+    expect((UNIT_DEFINITIONS as any).wwii_fighter).toMatchObject({
+      name: 'World War II Fighter', strength: 42, productionCost: 240,
+      airOperation: {
+        baseKinds: ['airfield', 'carrier'], operationalRange: 4, ferryRange: 8,
+        missions: ['strike', 'intercept', 'rebase'], carrierEligible: true,
+        interceptionStrengthMultiplier: 1.2,
+      },
+    });
     expect((UNIT_DEFINITIONS.attack_helicopter as any).airOperation).toMatchObject({
       baseKinds: ['helicopter_base'], operationalRange: 4, ferryRange: 8,
       missions: ['strike', 'rebase'], carrierEligible: false,
@@ -17,6 +27,14 @@ describe('air-operation definitions', () => {
     expect((UNIT_DEFINITIONS.jet_fighter as any).airOperation).toMatchObject({ operationalRange: 5, ferryRange: 10 });
     expect((UNIT_DEFINITIONS.bomber as any).airOperation).toMatchObject({ operationalRange: 6, ferryRange: 12 });
     expect((UNIT_DEFINITIONS.stealth_bomber as any).airOperation).toMatchObject({ operationalRange: 7, ferryRange: 14 });
+  });
+
+  it('keeps carrier eligibility identical to compatible carrier basing for every aircraft', () => {
+    for (const definition of Object.values(UNIT_DEFINITIONS)) {
+      const operation = definition.airOperation;
+      if (!operation) continue;
+      expect(operation.carrierEligible, definition.type).toBe(operation.baseKinds.includes('carrier'));
+    }
   });
 
   it('adds the modern Recon Aircraft to the trainable roster at Jet Aviation', () => {
@@ -119,6 +137,28 @@ describe('air bases', () => {
     expect(selectInterceptor(missionState, missionState.units.incoming!, { q: 4, r: 2 })?.id).toBe('fighter-b');
   });
 
+  it('selects a World War II fighter when its interception bonus beats a stronger base-stat fighter', () => {
+    const missionState = {
+      ...state,
+      map: { width: 10, height: 10, wrapsHorizontally: false },
+      units: {
+        wwii: { ...biplane, id: 'wwii', type: 'wwii_fighter', airMission: 'intercept' },
+        jet: { ...biplane, id: 'jet', type: 'jet_fighter', airMission: 'intercept' },
+        incoming: { ...biplane, id: 'incoming', owner: 'enemy', position: { q: 4, r: 2 }, airBase: { kind: 'city', cityId: 'enemy-city' } },
+      },
+      cities: {
+        ...state.cities,
+        'enemy-city': { id: 'enemy-city', owner: 'enemy', position: { q: 4, r: 2 }, buildings: ['airfield'] },
+      },
+      civilizations: {
+        player: { diplomacy: { atWarWith: ['enemy'] } },
+        enemy: { diplomacy: { atWarWith: ['player'] } },
+      },
+    } as unknown as GameState;
+
+    expect(selectInterceptor(missionState, missionState.units.incoming!, { q: 4, r: 2 })?.id).toBe('wwii');
+  });
+
   it('derives intercept coverage from the same operational range used by interception', () => {
     const missionState = {
       ...state,
@@ -129,6 +169,33 @@ describe('air bases', () => {
     expect(getInterceptCoverage(missionState, 'fighter')).toContainEqual({ q: 7, r: 2 });
     expect(getInterceptCoverage({ ...missionState, units: { fighter: { ...missionState.units.fighter, hasActed: true, airMission: 'intercept' } } }, 'fighter')).toContainEqual({ q: 7, r: 2 });
     expect(getInterceptCoverage({ ...missionState, units: { fighter: { ...missionState.units.fighter, hasActed: true } } }, 'fighter')).toEqual([]);
+  });
+
+  it('applies World War II Fighter’s typed bonus only to canonical interception', () => {
+    const missionState = {
+      ...state,
+      map: { width: 10, height: 10, wrapsHorizontally: false, tiles: {} },
+      units: {
+        fighter: { ...biplane, id: 'fighter', type: 'wwii_fighter' as const },
+        bomber: { ...biplane, id: 'bomber', type: 'bomber' as const, owner: 'enemy', position: { q: 4, r: 2 } },
+      },
+      civilizations: { player: { techState: { completed: [] } }, enemy: { techState: { completed: [] } } },
+    } as unknown as GameState;
+    const fighter = missionState.units.fighter!;
+    const bomber = missionState.units.bomber!;
+
+    const normal = calculateCombatStrengths(fighter, bomber, missionState.map,
+      buildCombatContextForDefender(missionState, fighter, bomber));
+    const intercept = calculateCombatStrengths(fighter, bomber, missionState.map,
+      buildCombatContextForDefender(missionState, fighter, bomber, { isIntercepting: true }));
+
+    expect(intercept.attackerStrength).toBeCloseTo(normal.attackerStrength * 1.2);
+    expect(intercept.attackerModifierParts).toContainEqual({ label: 'Interception +20%', kind: 'mult' });
+    expect(intercept.attackerModifierFacts).toContainEqual(expect.objectContaining({ key: 'fighter-interception', value: 1.2 }));
+    expect(calculateCombatStrengths({ ...fighter, type: 'biplane' }, bomber, missionState.map,
+      buildCombatContextForDefender(missionState, { ...fighter, type: 'biplane' }, bomber, { isIntercepting: true })).attackerStrength)
+      .toBeCloseTo(calculateCombatStrengths({ ...fighter, type: 'biplane' }, bomber, missionState.map,
+        buildCombatContextForDefender(missionState, { ...fighter, type: 'biplane' }, bomber)).attackerStrength);
   });
 
   it('reveals a recon center only for its owner until the next turn', () => {

@@ -181,10 +181,16 @@ export function selectInterceptor(state: GameState, incoming: Unit, target: { q:
         && airDistance(state, unit.position, target) <= definition.operationalRange;
     })
     .sort((left, right) => {
-      const leftDamage = UNIT_DEFINITIONS[left.type].strength * left.health / 100;
-      const rightDamage = UNIT_DEFINITIONS[right.type].strength * right.health / 100;
-      return rightDamage - leftDamage || right.health - left.health || left.id.localeCompare(right.id);
+      const leftStrength = getInterceptionStrength(left);
+      const rightStrength = getInterceptionStrength(right);
+      return rightStrength - leftStrength || right.health - left.health || left.id.localeCompare(right.id);
     })[0];
+}
+
+function getInterceptionStrength(unit: Unit): number {
+  const definition = UNIT_DEFINITIONS[unit.type];
+  const multiplier = definition.airOperation?.interceptionStrengthMultiplier ?? 1;
+  return definition.strength * unit.health / 100 * multiplier;
 }
 
 export function getLegalAirMissionTargets(state: GameState, unitId: string, mission: Extract<AirMission, 'recon' | 'strike'>): HexCoord[] {
@@ -253,7 +259,7 @@ export function resolveAirStrike(state: GameState, unitId: string, target: HexCo
   const interceptor = selectInterceptor(state, striker, target);
   let interception: { interceptorId: string; result: CombatResult } | undefined;
   if (interceptor) {
-    const result = resolveCombat(interceptor, striker, state.map, deterministicCombatSeed(state.gameId, state.turn, interceptor.id, striker.id), buildCombatContextForDefender(state, interceptor, striker), resolveCombatEra(state, interceptor, striker));
+    const result = resolveCombat(interceptor, striker, state.map, deterministicCombatSeed(state.gameId, state.turn, interceptor.id, striker.id), buildCombatContextForDefender(state, interceptor, striker, { isIntercepting: true }), resolveCombatEra(state, interceptor, striker));
     nextState = applyAirCombatResult(nextState, result, deterministicCombatSeed(state.gameId, state.turn, interceptor.id, striker.id));
     if (nextState.units[interceptor.id]) nextState = { ...nextState, units: { ...nextState.units, [interceptor.id]: { ...nextState.units[interceptor.id]!, interceptedTurn: state.turn } } };
     interception = { interceptorId: interceptor.id, result };

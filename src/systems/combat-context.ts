@@ -12,6 +12,7 @@ import { resolveAirDefenseCoverage } from './air-defense-system';
 
 export interface CombatContextOptions {
   amphibiousAssault?: boolean;
+  isIntercepting?: boolean;
 }
 
 function hasAdjacentShoreBombardment(state: GameState, owner: string, target: HexCoord): boolean {
@@ -80,6 +81,9 @@ export function buildCombatContextForDefender(
         ...(shoreSupport ? [{ label: 'Shore bombardment +10%', kind: 'mult' as const }] : []),
       ]
     : [];
+  const interceptionStrengthMultiplier = options.isIntercepting
+    ? UNIT_DEFINITIONS[attacker.type].airOperation?.interceptionStrengthMultiplier
+    : undefined;
 
   return {
     attackerBonus: resolveCivDefinition(
@@ -123,6 +127,13 @@ export function buildCombatContextForDefender(
       ? getAmphibiousAssaultMultiplier(state, attacker, defender.position)
       : undefined,
     attackerAmphibiousParts: amphibiousParts,
+    attackerInterceptionStrengthMultiplier: interceptionStrengthMultiplier,
+    attackerInterceptionPart: interceptionStrengthMultiplier && interceptionStrengthMultiplier !== 1
+      ? { label: `Interception +${Math.round((interceptionStrengthMultiplier - 1) * 100)}%`, kind: 'mult' }
+      : undefined,
+    attackerInterceptionFact: interceptionStrengthMultiplier && interceptionStrengthMultiplier !== 1
+      ? { key: 'fighter-interception', label: `Interception +${Math.round((interceptionStrengthMultiplier - 1) * 100)}%`, sourceVisibility: 'public', operation: 'multiplier', value: interceptionStrengthMultiplier, outcome: 'applied' }
+      : undefined,
     attackerPositioningPart: flankingTiles > 0 ? { label: `Flanked +${flankingTiles * 10}%`, kind: 'mult' } : undefined,
     defenderPositioningPart: supportTiles > 0 ? { label: `Supported +${supportTiles * 10}%`, kind: 'mult' } : undefined,
     attackerNetworkStrengthBonus: getNetworkCombatCoordination(state, attacker, 'attack').strengthBonus,
