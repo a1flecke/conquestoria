@@ -120,4 +120,21 @@ describe('formatCombatPreviewDetails', () => {
 
     expect(details).toContain('Bomber gunners fire back weakly: 25% return fire');
   });
+
+  it('explains War Elephant shock as a public exchange effect', () => {
+    const details = formatCombatPreviewDetails('Rival', 100, {
+      attackerStrength: 43,
+      defenderStrength: 32,
+      terrainDefenseBonus: 0,
+      riverAttackPenalty: 0,
+      exchange: {
+        kind: 'shock',
+        defenderCounterDamageMultiplier: 0.85,
+        defenderIncomingDamageMultiplier: 1,
+        label: 'War Elephant shock: −15% return damage',
+      },
+    });
+
+    expect(details).toContain('War Elephant shock: −15% return damage');
+  });
 });

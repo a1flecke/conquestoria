@@ -88,18 +88,23 @@ export function getClassCounterMultiplier(
 ): { multiplier: number; label: string } | undefined {
   const defenderClasses = UNIT_CLASS_BY_TYPE[defenderType];
   const defenderDomain = UNIT_DEFINITIONS[defenderType]?.domain ?? 'land';
-  for (const counter of CLASS_COUNTERS) {
-    if (counter.requiresDefenderInFriendlyCity && !defenderInFriendlyCity) continue;
-    if (counter.requiresDefenderDomain && counter.requiresDefenderDomain !== defenderDomain) continue;
-    if (counter.defenderTypes && !counter.defenderTypes.includes(defenderType)) continue;
-    if (!defenderClasses.includes(counter.defenderClass)) continue;
+  const matchingCounters = CLASS_COUNTERS.filter(counter => {
+    if (counter.requiresDefenderInFriendlyCity && !defenderInFriendlyCity) return false;
+    if (counter.requiresDefenderDomain && counter.requiresDefenderDomain !== defenderDomain) return false;
+    if (counter.defenderTypes && !counter.defenderTypes.includes(defenderType)) return false;
+    if (!defenderClasses.includes(counter.defenderClass)) return false;
     if (counter.attackerTypes) {
-      if (!counter.attackerTypes.includes(attackerType)) continue;
+      if (!counter.attackerTypes.includes(attackerType)) return false;
     } else if (counter.attackerClass) {
-      if (!UNIT_CLASS_BY_TYPE[attackerType].includes(counter.attackerClass)) continue;
+      if (!UNIT_CLASS_BY_TYPE[attackerType].includes(counter.attackerClass)) return false;
     } else {
-      continue;
+      return false;
     }
+    return true;
+  });
+  matchingCounters.sort((left, right) => Number(Boolean(right.defenderTypes)) - Number(Boolean(left.defenderTypes)));
+  const counter = matchingCounters[0];
+  if (counter) {
     return { multiplier: counter.multiplier, label: `${counter.label} ×${counter.multiplier}` };
   }
   return undefined;
@@ -150,7 +155,8 @@ export function getCombatModifier(
       && (modifier.condition !== 'amphibiousAssault' || ctx.amphibiousAssault)
       && (modifier.condition !== 'opponentBelow60HP' || (ctx.opponentHealth ?? 100) < 60)
       && (modifier.condition !== 'onOpenGround' || isOpenGround(ctx.targetTerrain))
-      && (modifier.condition !== 'onRoughGround' || isRoughGround(ctx.targetTerrain));
+      && (modifier.condition !== 'onRoughGround' || isRoughGround(ctx.targetTerrain))
+      && (!modifier.targetTerrains || (ctx.targetTerrain !== undefined && modifier.targetTerrains.includes(ctx.targetTerrain)));
     if (!conditionMet) {
       facts.push({ key: modifierFactKey(modifier.source, modifier.factKey), label: modifier.label, sourceVisibility: 'owner', operation: modifier.mode, value, outcome: 'ignored', ignoredReason: 'condition' });
       continue;

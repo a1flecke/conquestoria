@@ -87,6 +87,19 @@ describe('getCombatModifier — tech rows', () => {
     });
   });
 
+  it('gives War Elephant its exact four-terrain rough penalty and open-land bonus', () => {
+    expect(getCombatModifier('war_elephant' as UnitType, 'attacker', baseCombatCtx({ targetTerrain: 'plains' })).mult)
+      .toBeCloseTo(1.2);
+    for (const terrain of ['forest', 'jungle', 'swamp', 'hills'] as const) {
+      expect(getCombatModifier('war_elephant' as UnitType, 'attacker', baseCombatCtx({ targetTerrain: terrain })).mult)
+        .toBeCloseTo(0.85);
+    }
+    for (const terrain of ['volcanic', 'mountain'] as const) {
+      expect(getCombatModifier('war_elephant' as UnitType, 'attacker', baseCombatCtx({ targetTerrain: terrain })).mult)
+        .toBe(1);
+    }
+  });
+
   it('keeps the heavy-mobile opener inside its intended deterministic terrain envelope', () => {
     const balanceMap = generateMap(20, 20, 'chariot-terrain-balance');
     const attacker = createUnit('chariot', 'p1', { q: 5, r: 5 }, mkC());
@@ -264,6 +277,15 @@ describe('getClassCounterMultiplier — class counters', () => {
   it('pikeman attacking knight (mounted): ×1.5', () => {
     const result = getClassCounterMultiplier('pikeman', 'knight', false);
     expect(result?.multiplier).toBe(1.5);
+  });
+
+  it('uses the specific 35% polearm counter against War Elephant without changing other mounted counters', () => {
+    expect(getClassCounterMultiplier('spearman', 'war_elephant' as UnitType, false)).toEqual({
+      multiplier: 1.35,
+      label: 'Elephant counter ×1.35',
+    });
+    expect(getClassCounterMultiplier('pikeman', 'war_elephant' as UnitType, false)?.multiplier).toBe(1.35);
+    expect(getClassCounterMultiplier('spearman', 'knight', false)?.multiplier).toBe(1.5);
   });
 
   it('pikeman vs swordsman (melee, not mounted): no counter (negative test)', () => {
