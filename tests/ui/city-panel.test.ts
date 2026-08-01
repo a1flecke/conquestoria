@@ -132,6 +132,52 @@ describe('city-panel national projects', () => {
     expect(text).toContain('Professional Army');
   });
 
+  it('renders the Cavalry Academy heavy-mounted discount in the live Cuirassier cost and ETA', () => {
+    const { container, city, state } = makeWonderPanelFixture();
+    city.buildings = ['cavalry-academy'];
+    state.civilizations.player.techState.completed = [
+      'animal-husbandry', 'bronze-working', 'rifle-tactics', 'professional-army',
+    ];
+    state.marketplace = { ...createMarketplaceState(), purchasedResources: [
+      { civId: 'player', resource: 'horses', expiresOnTurn: state.turn + 1 },
+      { civId: 'player', resource: 'iron', expiresOnTurn: state.turn + 1 },
+    ] };
+
+    const panel = createCityPanel(container, city, state, {
+      onBuild: () => {}, onOpenWonderPanel: () => {}, onClose: () => {},
+    });
+
+    expect(collectText(panel.querySelector('[data-item-id="cuirassier"]'))).toContain('Cost: 128');
+    expect(collectText(panel.querySelector('[data-item-id="cuirassier"]'))).toMatch(/\d+ turns/);
+  });
+
+  it('uses the hot-seat city owner\'s Cavalry Academy discount without leaking the other player\'s state', () => {
+    const { container, city, state } = makeWonderPanelFixture();
+    state.civilizations['player-2'] = {
+      ...structuredClone(state.civilizations.player),
+      id: 'player-2',
+      isHuman: true,
+      techState: {
+        ...state.civilizations.player.techState,
+        completed: ['animal-husbandry', 'bronze-working', 'rifle-tactics', 'professional-army'],
+      },
+    };
+    city.owner = 'player-2';
+    city.buildings = ['cavalry-academy'];
+    state.cities[city.id] = city;
+    state.currentPlayer = 'player-2';
+    state.marketplace = { ...createMarketplaceState(), purchasedResources: [
+      { civId: 'player-2', resource: 'horses', expiresOnTurn: state.turn + 1 },
+      { civId: 'player-2', resource: 'iron', expiresOnTurn: state.turn + 1 },
+    ] };
+
+    const panel = createCityPanel(container, city, state, {
+      onBuild: () => {}, onOpenWonderPanel: () => {}, onClose: () => {},
+    });
+
+    expect(collectText(panel.querySelector('[data-item-id="cuirassier"]'))).toContain('Cost: 128');
+  });
+
   it('keeps a conjunctively gated building reachable in the explanatory catalog', () => {
     const { container, city, state } = makeWonderPanelFixture();
     state.civilizations.player.techState.completed = ['writing'];

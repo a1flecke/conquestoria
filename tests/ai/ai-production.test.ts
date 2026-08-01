@@ -123,6 +123,23 @@ describe('AI strategic production', () => {
     expect(ironBlocked.some(candidate => candidate.itemId === 'cuirassier')).toBe(false);
   });
 
+  it('values the Cavalry Academy heavy-mounted discount through the canonical candidate ETA', () => {
+    const state = setupState([
+      'animal-husbandry', 'bronze-working', 'rifle-tactics', 'professional-army',
+    ]);
+    grantResources(state, ['horses', 'iron']);
+    const undiscounted = generateAIProductionCandidates(
+      state, 'ai-1', 'city-a', [demand('mobile')], aggressive,
+    ).find(candidate => candidate.itemId === 'cuirassier');
+
+    state.cities['city-a'].buildings = ['cavalry-academy'];
+    const discounted = generateAIProductionCandidates(
+      state, 'ai-1', 'city-a', [demand('mobile')], aggressive,
+    ).find(candidate => candidate.itemId === 'cuirassier');
+
+    expect(discounted?.productionTurns).toBeLessThan(undiscounted!.productionTurns);
+  });
+
   it('does not generate a partially unlocked conjunctive unit candidate', () => {
     const state = setupState(['archery']);
     const archer = TRAINABLE_UNITS.find(unit => unit.type === 'archer')!;
