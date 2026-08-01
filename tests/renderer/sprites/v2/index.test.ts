@@ -201,11 +201,60 @@ describe('isV2NativeUnit', () => {
   });
 });
 
+describe('#759 batch 1 — v2-native migration', () => {
+  const MIGRATED = ['combat_drone', 'autonomous_frigate', 'exosuit_infantry', 'propagandist', 'drone_controller'];
+  const EXPECTED_KIND: Record<string, string> = {
+    combat_drone: 'civilian',
+    autonomous_frigate: 'naval',
+    exosuit_infantry: 'melee',
+    propagandist: 'civilian',
+    drone_controller: 'spy',
+  };
+  const NON_COMBAT = new Set(['propagandist', 'drone_controller']);
+
+  it.each(MIGRATED)('%s is now v2-native, not live-fallback', (type) => {
+    expect(isV2NativeUnit(type)).toBe(true);
+  });
+
+  it.each(MIGRATED)('%s renders with its documented data-kind for every faction', (type) => {
+    for (const faction of ['imperials', 'vikings', 'pharaohs', 'hellenes', 'khanate', 'shogunate']) {
+      const result = getUnitSpriteV2(type, faction)!;
+      expect(result, `${type}/${faction}`).not.toBeNull();
+      expect(result, `${type}/${faction}`).toContain(`data-kind="${EXPECTED_KIND[type]}"`);
+    }
+  });
+
+  // combat_drone uses .cq-weapon (a mounted emitter that pivots) with an embedded .cq-hit-spark.
+  // autonomous_frigate and exosuit_infantry deliberately skip .cq-weapon for their mounted
+  // turret/rifle — a full swing looked physically wrong for a rigidly-mounted weapon — and use
+  // .cq-muzzle-flash + body recoil (cq2-attack-body) instead. Each is a real, distinct
+  // attack-feedback mechanism; there's no single class shared by all three combat units.
+  const ATTACK_FEEDBACK_CLASS: Record<string, string> = {
+    combat_drone: 'cq-hit-spark',
+    autonomous_frigate: 'cq-muzzle-flash',
+    exosuit_infantry: 'cq-muzzle-flash',
+  };
+
+  it.each(MIGRATED.filter(t => !NON_COMBAT.has(t)))('%s (combat unit) has an attack-feedback hook', (type) => {
+    const result = getUnitSpriteV2(type, 'imperials')!;
+    expect(result, type).toContain(ATTACK_FEEDBACK_CLASS[type]);
+  });
+
+  it.each([...NON_COMBAT])('%s (non-combat unit) has no .cq-weapon, .cq-hit-spark, or .cq-muzzle-flash', (type) => {
+    const result = getUnitSpriteV2(type, 'imperials')!;
+    expect(result, type).not.toContain('cq-weapon');
+    expect(result, type).not.toContain('cq-hit-spark');
+    expect(result, type).not.toContain('cq-muzzle-flash');
+  });
+});
+
 describe('getUnitSpriteV2 — live fallback for uncovered unit types', () => {
-  // Representative sample of the 24 units with no UNIT_SPRITES entry (confirmed via diff against
-  // UNIT_SPRITE_CATALOG, 2026-07-28) — not exhaustive here; the full-catalog loop above covers
-  // all of them for the "never null" guarantee.
-  const FALLBACK_TIER_SAMPLE = ['tank', 'rifleman', 'submarine', 'combat_drone', 'grenadier'];
+  // Representative sample of units with no UNIT_SPRITES entry (confirmed via diff against
+  // UNIT_SPRITE_CATALOG) — not exhaustive here; the full-catalog loop above covers all of them
+  // for the "never null" guarantee. combat_drone was migrated to v2-native in #759 batch 1
+  // (2026-07-31) and moved out of this sample accordingly — see the new describe block below
+  // for its dedicated native-path coverage.
+  const FALLBACK_TIER_SAMPLE = ['tank', 'rifleman', 'submarine', 'cannon', 'grenadier'];
 
   it.each(FALLBACK_TIER_SAMPLE)('%s renders via the live fallback, not v2-native', (type) => {
     expect(isV2NativeUnit(type)).toBe(false);
