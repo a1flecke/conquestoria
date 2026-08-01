@@ -1178,7 +1178,8 @@ export const TRAINABLE_UNITS: Array<TrainableUnitEntry & { pacing?: Building['pa
   { type: 'scout_hound', name: 'Scout Hound', cost: 36, techRequired: 'lookouts', obsoletedByTech: 'horseback-riding', upgradesTo: 'beast_handler', pacing: { band: 'power-spike', role: 'spy-detection', impact: 1.15, scope: 'military', snowball: 1, urgency: 1.05, situationality: 1.15, unlockBreadth: 1 } },
   { type: 'shadow_warden', name: 'Shadow Warden', cost: 36, techRequired: 'lookouts', civTypeRequired: 'persia', replacesUnit: 'scout_hound', pacing: { band: 'power-spike', role: 'unique-spy-detection', impact: 1.2, scope: 'military', snowball: 1, urgency: 1.05, situationality: 1.15, unlockBreadth: 1 } },
   { type: 'war_hound', name: 'War Hound', cost: 32, techRequired: 'lookouts', civTypeRequired: 'rome', replacesUnit: 'scout_hound', obsoletedByTech: 'horseback-riding', upgradesTo: 'beast_handler', pacing: { band: 'power-spike', role: 'unique-spy-detection-combat', impact: 1.1, scope: 'military', snowball: 1, urgency: 1.05, situationality: 1.1, unlockBreadth: 1 } },
-  { type: 'beast_handler', name: 'Beast Handler Company', cost: 72, techRequired: 'horseback-riding', pacing: { band: 'marquee', role: 'detection-support', impact: 1.2, scope: 'military', snowball: 1, urgency: 1, situationality: 1.15, unlockBreadth: 1 } },
+  { type: 'beast_handler', name: 'Beast Handler Company', cost: 72, techRequired: 'horseback-riding', obsoletedByTech: 'tactics', upgradesTo: 'war_elephant', pacing: { band: 'marquee', role: 'detection-support', impact: 1.2, scope: 'military', snowball: 1, urgency: 1, situationality: 1.15, unlockBreadth: 1 } },
+  { type: 'war_elephant', name: 'War Elephant Corps', cost: 110, techRequired: 'tactics', pacing: { band: 'power-spike', role: 'era-4-shock', impact: 1.5, scope: 'military', snowball: 1.15, urgency: 1.15, situationality: 1.15, unlockBreadth: 1 } },
   // S5 — trade unit
   // Trade Routes Overhaul (#553 MR2/4) — Caravan now upgrades into the land trade line.
   { type: 'caravan', name: 'Caravan', cost: 60, techRequired: 'trade-routes', obsoletedByTech: 'mercantilism', upgradesTo: 'merchant_wagon' },
@@ -1462,6 +1463,7 @@ export const PRODUCTION_ICONS: Record<string, string> = {
   shadow_warden: '👤',
   war_hound: '🐺',
   beast_handler: '🐾',
+  war_elephant: '🐘',
   // S4b — new unit icons
   axeman:      '🪓',
   spearman:    '🗼',

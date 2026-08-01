@@ -365,7 +365,7 @@ export type UnitType =
   | 'tank' | 'submarine' | 'carrier'
   | 'attack_helicopter' | 'missile_submarine'
   | 'spy_scout' | 'spy_informant' | 'spy_agent' | 'spy_operative' | 'spy_hacker'
-  | 'scout_hound' | 'shadow_warden' | 'war_hound' | 'beast_handler'
+  | 'scout_hound' | 'shadow_warden' | 'war_hound' | 'beast_handler' | 'war_elephant'
   | 'caravan' | 'merchant_wagon' | 'freight_convoy'
   | 'naval_trader' | 'steamship_trader' | 'cargo_freighter' | 'container_ship'
   | 'air_freighter' | 'jet_freighter' | 'global_air_cargo'
@@ -958,6 +958,8 @@ export interface UnitRoleDefinition {
   roleSummary: string;
   upgradeFamily: UpgradeFamily;
   aiRoles: readonly AIStrategicRole[];
+  /** Public, player-facing facts that are true regardless of the viewer's private state. */
+  publicFacts?: readonly string[];
   terminalReason?: string;
   domainTransitionReason?: string;
 }
