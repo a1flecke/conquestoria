@@ -23,8 +23,9 @@ a given type takes. See `.claude/rules/sprites.md`'s "DOM-Overlay Live Fallback"
 mechanism, and #759 ("art: migrate live-fallback unit sprites to native v2 archetype art") for the
 incremental animation-hook-rigging backlog — run
 `Object.keys(UNIT_SPRITE_CATALOG).filter(t => !isV2NativeUnit(t))` for the current, always-up-to-
-date list (39 units as of 2026-07-31, not the 24 originally logged) rather than trusting a pasted
-snapshot.
+date list (34 units as of 2026-08-01, after #759 batch 1 migrated `combat_drone`,
+`autonomous_frigate`, `exosuit_infantry`, `propagandist`, and `drone_controller` — was 39 before
+that, 24 when #759 was originally filed) rather than trusting a pasted snapshot.
 
 | Unit | Status | data-kind |
 |------|--------|-----------|
