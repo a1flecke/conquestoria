@@ -39,6 +39,8 @@
 - Modify: `tests/systems/city-system.test.ts`
 - Modify: `tests/systems/unit-chain-integrity.test.ts`
 - Modify: `tests/systems/tech-unlocks-consistency.test.ts`
+- Modify: `tests/systems/unit-upgrade.test.ts`
+- Modify: `tests/ui/unit-role-presentation.test.ts`
 - Modify: `src/core/types.ts`
 - Modify: `src/systems/unit-system.ts`
 - Modify: `src/systems/city-system.ts`
@@ -50,11 +52,12 @@
 
   ```ts
   it('cuirassier requires Rifle Tactics, Professional Army, Horses, and Iron', () => {
+    const cuirassier = 'cuirassier' as UnitType;
     const complete = getTrainableUnitsForCiv(
       ['rifle-tactics', 'professional-army'], undefined,
       new Set<ResourceType>(['horses', 'iron']),
     );
-    expect(complete.find(unit => unit.type === 'cuirassier')).toMatchObject({
+    expect(complete.find(unit => unit.type === cuirassier)).toMatchObject({
       cost: 150, techRequired: 'rifle-tactics', requiredTechs: ['professional-army'],
       resourceRequired: ['horses', 'iron'], upgradesTo: 'tank',
     });
@@ -65,12 +68,12 @@
       [['rifle-tactics', 'professional-army'], ['iron']],
     ] as const) {
       expect(getTrainableUnitsForCiv([...techs], undefined, new Set<ResourceType>(resources))
-        .some(unit => unit.type === 'cuirassier')).toBe(false);
+        .some(unit => unit.type === cuirassier)).toBe(false);
     }
   });
   ```
 
-  Add an explicit chain assertion:
+  Add explicit metadata, live-upgrade, and player-presentation assertions:
 
   ```ts
   expect(TRAINABLE_UNITS.find(unit => unit.type === 'knight'))
@@ -79,14 +82,27 @@
     .toMatchObject({ obsoletedByTech: 'tank-warfare', upgradesTo: 'tank' });
   expect(TECH_TREE.find(tech => tech.id === 'rifle-tactics')?.unlocksUnits)
     .toContain('cuirassier');
+  expect(getCanonicalUpgradeTarget(knight, ['iron-forging', 'rifle-tactics', 'professional-army'], undefined,
+    new Set<ResourceType>(['horses', 'iron']))).toBe(cuirassier);
+  expect(getUnitRolePresentation(cuirassier, ['rifle-tactics', 'professional-army']).upgrade)
+    .toEqual({ icon: '⬆️', text: 'Upgrades to Tank' });
   ```
+
+  Create `const knight = makeUnit('knight')` in the existing explicit-chain suite to
+  test target resolution with both resources. In the existing whole-state `setup()`
+  fixture, change `upgrade-unit` to Knight, give it 1,000 gold, both Cuirassier
+  technologies, and city-center Horses/Iron tiles with their reveal technologies;
+  assert `applyUnitUpgradeToState(state, 'upgrade-unit', cuirassier)` preserves health
+  and consumes the action. Add a negative case with Professional Army absent; it must
+  report `{ kind: 'technology', techId: 'professional-army' }` and leave state
+  unchanged.
 
 - [ ] **Step 2: Run the focused red tests.**
 
   Run:
 
   ```bash
-  ./scripts/run-with-mise.sh yarn test --run tests/systems/city-system.test.ts tests/systems/unit-chain-integrity.test.ts tests/systems/tech-unlocks-consistency.test.ts
+  ./scripts/run-with-mise.sh yarn test --run tests/systems/city-system.test.ts tests/systems/unit-chain-integrity.test.ts tests/systems/tech-unlocks-consistency.test.ts tests/systems/unit-upgrade.test.ts tests/ui/unit-role-presentation.test.ts
   ```
 
   Expected: failures because `cuirassier` is not yet a `UnitType` or trainable unit.
@@ -124,7 +140,7 @@
 
   ```bash
   scripts/check-src-rule-violations.sh src/core/types.ts src/systems/unit-system.ts src/systems/city-system.ts src/systems/tech-definitions-eras5-7.ts
-  ./scripts/run-with-mise.sh yarn test --run tests/systems/city-system.test.ts tests/systems/unit-chain-integrity.test.ts tests/systems/tech-unlocks-consistency.test.ts
+  ./scripts/run-with-mise.sh yarn test --run tests/systems/city-system.test.ts tests/systems/unit-chain-integrity.test.ts tests/systems/tech-unlocks-consistency.test.ts tests/systems/unit-upgrade.test.ts tests/ui/unit-role-presentation.test.ts
   ```
 
   Expected: PASS.
@@ -132,7 +148,7 @@
 - [ ] **Step 5: Commit the catalog slice.**
 
   ```bash
-  git add src/core/types.ts src/systems/unit-system.ts src/systems/city-system.ts src/systems/tech-definitions-eras5-7.ts tests/systems/city-system.test.ts tests/systems/unit-chain-integrity.test.ts tests/systems/tech-unlocks-consistency.test.ts
+  git add src/core/types.ts src/systems/unit-system.ts src/systems/city-system.ts src/systems/tech-definitions-eras5-7.ts tests/systems/city-system.test.ts tests/systems/unit-chain-integrity.test.ts tests/systems/tech-unlocks-consistency.test.ts tests/systems/unit-upgrade.test.ts tests/ui/unit-role-presentation.test.ts
   git commit -m "feat(combat): add Cuirassier catalog contract"
   ```
 
@@ -142,6 +158,7 @@
 - Modify: `tests/systems/unit-modifier-system.test.ts`
 - Modify: `tests/systems/combat-system.test.ts`
 - Modify: `tests/ai/ai-unit-roles.test.ts`
+- Modify: `src/ui/combat-preview.ts`
 - Modify: `src/systems/unit-modifier-definitions.ts`
 - Modify: `src/systems/combat-role-definitions.ts`
 
@@ -204,15 +221,31 @@
 
 - [ ] **Step 4: Verify player-visible combat facts and shared combat use.**
 
-  Add a `tests/ui/combat-preview.test.ts` assertion that an owner sees “Cuirassier
-  open-ground charge” for plains and an ignored/not-applied fact for forest. Add a
-  system test that passes a Cuirassier through `buildCombatContextForDefender` and
-  `resolveCombat`, proving the same modifier facts are present for a non-UI caller.
+  Add two `tests/ui/combat-preview.test.ts` assertions: plains shows “Cuirassier
+  open-ground charge ×1.15”; forest shows “Cuirassier open-ground charge ×1.15 (not
+  active).” Include a defender-only owner fact in the forest preview input and assert
+  it is not rendered. Add a system test that passes a Cuirassier through
+  `buildCombatContextForDefender` and `resolveCombat`, proving the same modifier facts
+  are present for a non-UI caller.
+
+  Update `formatCombatPreviewDetails` after its existing applied-fact block to append
+  only ignored facts from `preview.attackerModifierFacts`:
+
+  ```ts
+  for (const fact of preview.attackerModifierFacts ?? []) {
+    if (fact.outcome !== 'ignored') continue;
+    const value = fact.operation === 'multiplier' ? `×${fact.value}` : `${fact.value >= 0 ? '+' : ''}${fact.value}`;
+    details.push(`${fact.label} ${value} (not active)`);
+  }
+  ```
+
+  Do not append ignored defender facts: the preview caller controls the attacking human
+  unit, while defender facts can be owner-scoped rival information.
 
   Run:
 
   ```bash
-  scripts/check-src-rule-violations.sh src/systems/unit-modifier-definitions.ts src/systems/combat-role-definitions.ts
+  scripts/check-src-rule-violations.sh src/systems/unit-modifier-definitions.ts src/systems/combat-role-definitions.ts src/ui/combat-preview.ts
   ./scripts/run-with-mise.sh yarn test --run tests/systems/unit-modifier-system.test.ts tests/systems/combat-system.test.ts tests/ai/ai-unit-roles.test.ts tests/ui/combat-preview.test.ts
   ```
 
@@ -221,7 +254,7 @@
 - [ ] **Step 5: Commit the tactical slice.**
 
   ```bash
-  git add src/systems/unit-modifier-definitions.ts src/systems/combat-role-definitions.ts tests/systems/unit-modifier-system.test.ts tests/systems/combat-system.test.ts tests/ai/ai-unit-roles.test.ts tests/ui/combat-preview.test.ts
+  git add src/systems/unit-modifier-definitions.ts src/systems/combat-role-definitions.ts src/ui/combat-preview.ts tests/systems/unit-modifier-system.test.ts tests/systems/combat-system.test.ts tests/ai/ai-unit-roles.test.ts tests/ui/combat-preview.test.ts
   git commit -m "feat(combat): add Cuirassier tactical rules"
   ```
 
@@ -358,7 +391,7 @@
 
 - [ ] **Step 1: Write migration and production red tests.**
 
-  Create a schema-10 save with `['knight', 'knight']` queued and Rifle Tactics already
+  Create an explicit schema-10 save with `['knight', 'knight']` queued and Rifle Tactics already
   completed. Assert migration to schema 11 keeps the queue order and records
   `legacyTechGrace: ['knight', 'knight']`; a second load is identical. Add malformed
   current-save tests asserting `['horseman', 'cavalry', 'knight']` normalizes to
@@ -440,8 +473,8 @@
   Run:
 
   ```bash
-  scripts/check-src-rule-violations.sh src/core/types.ts src/systems/unit-system.ts src/systems/city-system.ts src/systems/tech-definitions-eras5-7.ts src/systems/unit-modifier-definitions.ts src/systems/combat-role-definitions.ts src/storage/save-migrations.ts src/renderer/sprites/sprite-catalog.ts src/audio/sfx-catalog.ts
-  ./scripts/run-with-mise.sh yarn test --run tests/systems/city-system.test.ts tests/systems/unit-chain-integrity.test.ts tests/systems/tech-unlocks-consistency.test.ts tests/systems/unit-modifier-system.test.ts tests/systems/combat-system.test.ts tests/ai/ai-unit-roles.test.ts tests/ai/ai-production.test.ts tests/ai/ai-research.test.ts tests/ui/city-panel.test.ts tests/ui/combat-preview.test.ts tests/audio/sfx-catalog.test.ts tests/renderer/sprites/sprite-catalog.test.ts tests/storage/save-migrations.test.ts tests/core/opponent-challenge.test.ts
+  scripts/check-src-rule-violations.sh src/core/types.ts src/systems/unit-system.ts src/systems/city-system.ts src/systems/tech-definitions-eras5-7.ts src/systems/unit-modifier-definitions.ts src/systems/combat-role-definitions.ts src/ui/combat-preview.ts src/storage/save-migrations.ts src/renderer/sprites/sprite-catalog.ts src/audio/sfx-catalog.ts
+  ./scripts/run-with-mise.sh yarn test --run tests/systems/city-system.test.ts tests/systems/unit-chain-integrity.test.ts tests/systems/tech-unlocks-consistency.test.ts tests/systems/unit-upgrade.test.ts tests/systems/unit-modifier-system.test.ts tests/systems/combat-system.test.ts tests/ai/ai-unit-roles.test.ts tests/ai/ai-production.test.ts tests/ai/ai-research.test.ts tests/ui/city-panel.test.ts tests/ui/combat-preview.test.ts tests/ui/unit-role-presentation.test.ts tests/audio/sfx-catalog.test.ts tests/renderer/sprites/sprite-catalog.test.ts tests/storage/save-migrations.test.ts tests/core/opponent-challenge.test.ts
   ```
 
   Expected: PASS.
