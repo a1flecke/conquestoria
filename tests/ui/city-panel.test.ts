@@ -41,6 +41,19 @@ describe('city-panel national projects', () => {
       .toBe(panel.querySelectorAll('[data-section="trainable-units"] [data-item-id]').length);
   });
 
+  it('renders War Elephant public tactical facts in the live production catalog', () => {
+    const { container, city, state } = makeWonderPanelFixture();
+    state.civilizations.player.techState.completed = ['tactics'];
+    const panel = createCityPanel(container, city, state, {
+      onBuild: () => {}, onOpenWonderPanel: () => {}, onClose: () => {},
+    });
+
+    expect(panel.querySelector('[data-item-id="war_elephant"]')).toBeTruthy();
+    const facts = panel.querySelector('[data-unit-role-facts="war_elephant"]')?.textContent ?? '';
+    expect(facts).toContain('Reduces non-polearm return damage by 15%');
+    expect(facts).toContain('Live Ivory reduces new city production cost by 15%');
+  });
+
   it('keeps a partially satisfied conjunctive unit gate visible with every ordered technology state', () => {
     const { container, city, state } = makeWonderPanelFixture();
     state.civilizations.player.techState.completed = ['archery'];
