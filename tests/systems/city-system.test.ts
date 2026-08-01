@@ -2070,8 +2070,33 @@ describe('Beast Handler production contract', () => {
     expect(scoutHound).toMatchObject({ obsoletedByTech: 'horseback-riding', upgradesTo: 'beast_handler' });
     expect(warHound).toMatchObject({ obsoletedByTech: 'horseback-riding', upgradesTo: 'beast_handler' });
     expect(shadowWarden?.upgradesTo).toBeUndefined();
-    expect(handler?.upgradesTo).toBeUndefined();
-    expect(TERMINAL_COMBAT_UNITS['beast_handler' as UnitType]).toBe('War Elephant Corps is future content.');
+    expect(handler).toMatchObject({ obsoletedByTech: 'tactics', upgradesTo: 'war_elephant' });
+    expect(TERMINAL_COMBAT_UNITS['beast_handler' as UnitType]).toBeUndefined();
+  });
+
+  it('promotes Beast Handler into a resource-optional Tactics War Elephant Corps', () => {
+    const warElephant = 'war_elephant' as UnitType;
+    const entry = TRAINABLE_UNITS.find(unit => unit.type === warElephant);
+
+    expect(entry).toMatchObject({
+      type: warElephant,
+      name: 'War Elephant Corps',
+      cost: 110,
+      techRequired: 'tactics',
+      pacing: expect.objectContaining({ band: 'power-spike' }),
+    });
+    expect(entry?.resourceRequired).toBeUndefined();
+    expect(UNIT_DEFINITIONS[warElephant]).toMatchObject({
+      type: warElephant,
+      strength: 43,
+      movementPoints: 2,
+      visionRange: 2,
+      productionCost: 110,
+    });
+    expect(getTrainableUnitsForCiv(['horseback-riding'], 'rome', new Set<ResourceType>())
+      .some(unit => unit.type === warElephant)).toBe(false);
+    expect(getTrainableUnitsForCiv(['horseback-riding', 'tactics'], 'rome', new Set<ResourceType>())
+      .some(unit => unit.type === warElephant)).toBe(true);
   });
 });
 

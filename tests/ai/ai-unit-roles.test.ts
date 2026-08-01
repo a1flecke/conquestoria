@@ -35,6 +35,7 @@ describe('AI strategic unit roles', () => {
     ['propagandist', ['espionage']],
     ['drone_controller', ['detection']],
     ['beast_handler' as UnitType, ['detection']],
+    ['war_elephant' as UnitType, ['mobile', 'capture']],
   ] satisfies Array<[UnitType, string[]]>)('classifies %s from canonical unit fields', (type, roles) => {
     expect(getAIStrategicRoles(type)).toEqual(roles);
   });
@@ -82,6 +83,16 @@ describe('AI strategic unit roles', () => {
       'capture',
     ]);
     expect(getAIStrategicRoles('beast_handler' as UnitType)).toEqual(['detection']);
+  });
+
+  it('classifies War Elephant as a catalog-driven shock attacker instead of detection support', () => {
+    const elephant = UNIT_ROLE_DEFINITIONS.war_elephant as typeof UNIT_ROLE_DEFINITIONS.warrior;
+
+    expect(elephant).toMatchObject({
+      primaryRole: 'shock',
+      aiRoles: ['mobile', 'capture'],
+      vulnerableTo: ['anti-mounted'],
+    });
   });
 
   it('#553 MR1/4 — classifies the Naval Trader line as trade, not naval-combat (strength-0 naval units without the override would otherwise fall into naval-combat)', () => {

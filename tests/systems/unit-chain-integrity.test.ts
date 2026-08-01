@@ -115,6 +115,14 @@ describe('Beast Handler Company balance envelope', () => {
   });
 });
 
+describe('War Elephant Corps balance envelope', () => {
+  it('keeps the Beast Handler successor above its detection predecessor', () => {
+    expect(UNIT_DEFINITIONS['war_elephant' as UnitType].strength).toBe(43);
+    expect(UNIT_DEFINITIONS['war_elephant' as UnitType].strength)
+      .toBeGreaterThan(UNIT_DEFINITIONS.beast_handler.strength);
+  });
+});
+
 describe('naval roster — regression locks', () => {
   it('missile_submarine strength exceeds submarine strength', () => {
     expect(UNIT_DEFINITIONS.missile_submarine.strength).toBeGreaterThan(UNIT_DEFINITIONS.submarine.strength);
