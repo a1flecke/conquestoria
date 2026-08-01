@@ -5,6 +5,7 @@ import {
   resolveOpponentChallenge,
 } from '@/core/opponent-challenge';
 import type {
+  AIStrategicRole,
   AIStrategicPlan,
   CombatResult,
   GameState,
@@ -61,7 +62,7 @@ import {
   type AITacticalAction,
   type AITacticalContext,
 } from './ai-tactics';
-import { getAIStrategicRoles } from './ai-unit-roles';
+import { canUnitFulfillAIStrategicRole, getAIStrategicRoles } from './ai-unit-roles';
 import { isAIHostileOwner } from './ai-hostility';
 import { processAIUpgrades } from './ai-upgrades';
 
@@ -524,16 +525,12 @@ function hasRequiredRoles(
   plan: AIStrategicPlan,
   assignedUnitIds: readonly string[],
 ): boolean {
-  const counts = new Map<string, number>();
-  for (const unitId of assignedUnitIds) {
-    const unit = state.units[unitId];
-    if (!unit || unit.owner !== plan.actorId) continue;
-    for (const role of getAIStrategicRoles(unit.type)) {
-      counts.set(role, (counts.get(role) ?? 0) + 1);
-    }
-  }
   return Object.entries(plan.requiredRoles).every(([role, desired]) =>
-    (counts.get(role) ?? 0) >= (desired ?? 0));
+    assignedUnitIds
+      .map(unitId => state.units[unitId])
+      .filter((unit): unit is Unit => Boolean(unit) && unit.owner === plan.actorId)
+      .filter(unit => canUnitFulfillAIStrategicRole(unit.type, role as AIStrategicRole))
+      .length >= (desired ?? 0));
 }
 
 function hasCaptureOrFrontline(
@@ -543,8 +540,8 @@ function hasCaptureOrFrontline(
   return assignedUnitIds.some(unitId => {
     const unit = state.units[unitId];
     if (!unit) return false;
-    const roles = getAIStrategicRoles(unit.type);
-    return roles.includes('capture') || roles.includes('frontline');
+    return getAIStrategicRoles(unit.type).includes('capture')
+      || canUnitFulfillAIStrategicRole(unit.type, 'frontline');
   });
 }
 

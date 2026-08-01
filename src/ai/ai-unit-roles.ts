@@ -5,6 +5,7 @@ import { UNIT_DEFINITIONS } from '@/systems/unit-system';
 const COMBAT_ROLES = new Set<AIStrategicRole>([
   'capture',
   'frontline',
+  'anti-armor',
   'ranged',
   'siege',
   'mobile',
@@ -12,6 +13,15 @@ const COMBAT_ROLES = new Set<AIStrategicRole>([
   'naval-combat',
   'escort',
 ]);
+
+const COMPATIBLE_REQUIRED_ROLES: Partial<Record<AIStrategicRole, readonly AIStrategicRole[]>> = {
+  frontline: ['capture', 'anti-armor'],
+  capture: ['frontline'],
+  recon: ['mobile'],
+  mobile: ['recon'],
+  escort: ['naval-combat'],
+  'naval-combat': ['escort'],
+};
 
 export function getAIStrategicRoles(type: UnitType): readonly AIStrategicRole[] {
   const catalogDefinition = getUnitRoleDefinition(type);
@@ -40,6 +50,15 @@ export function getAIStrategicRoles(type: UnitType): readonly AIStrategicRole[] 
   }
   if (definition.movementPoints >= 3) return ['mobile', 'capture'];
   return ['frontline', 'capture'];
+}
+
+export function canUnitFulfillAIStrategicRole(
+  type: UnitType,
+  required: AIStrategicRole,
+): boolean {
+  const roles = getAIStrategicRoles(type);
+  return roles.includes(required)
+    || (COMPATIBLE_REQUIRED_ROLES[required] ?? []).some(role => roles.includes(role));
 }
 
 export function hasAICombatRole(type: UnitType): boolean {

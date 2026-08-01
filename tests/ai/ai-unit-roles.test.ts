@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getAIStrategicRoles, hasAITradeRole } from '@/ai/ai-unit-roles';
+import { getAIStrategicRoles, hasAICombatRole, hasAITradeRole } from '@/ai/ai-unit-roles';
 import type { UnitType } from '@/core/types';
 import { TRAINABLE_UNITS } from '@/systems/city-system';
 import { isSpyUnitType } from '@/systems/espionage-system';
@@ -10,6 +10,12 @@ describe('AI strategic unit roles', () => {
   it('reads strategic roles from the typed unit-role catalog', () => {
     const definition = UNIT_ROLE_DEFINITIONS.warrior;
     expect(getAIStrategicRoles('warrior')).toBe(definition.aiRoles);
+  });
+
+  it('classifies Anti-Tank Gun as a combat specialist without making it generic frontline production', () => {
+    expect(getAIStrategicRoles('anti_tank_gun')).toEqual(['anti-armor']);
+    expect(hasAICombatRole('anti_tank_gun')).toBe(true);
+    expect(getAIStrategicRoles('anti_tank_gun')).not.toContain('frontline');
   });
 
   it('classifies every trainable unit into at least one strategic role', () => {

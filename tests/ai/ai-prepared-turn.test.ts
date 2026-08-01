@@ -20,6 +20,40 @@ describe('prepared major-civilization planning', () => {
     expect(getPreparedAssignmentProfile(state).maxPrimaryForce).toBe(expectedCap);
   });
 
+
+  it.each([
+    ['explorer', 1],
+    ['standard', 2],
+    ['veteran', 2],
+  ] as const)('caps visible armor response at %s profile capacity', (challenge, expected) => {
+    const state = createNewGame(undefined, `prepared-anti-armor-${challenge}`, 'small');
+    const civ = state.civilizations['ai-1'];
+    state.opponentChallenge = challenge;
+    civ.knownCivilizations = ['player'];
+    civ.diplomacy.atWarWith = ['player'];
+    const tiles = Object.values(state.map.tiles)
+      .filter(tile => tile.terrain !== 'mountain')
+      .slice(0, 3);
+    for (const [index, tile] of tiles.entries()) {
+      const tank = createUnit('tank', 'player', tile.coord, state.idCounters);
+      tank.id = `observed-tank-${index}`;
+      state.units[tank.id] = tank;
+      state.civilizations.player.units.push(tank.id);
+      civ.visibility.tiles[hexKey(tile.coord)] = 'visible';
+    }
+
+    const demand = prepareMajorCivStrategicPlan(state, civ.id).forceDemands
+      .find(entry => entry.role === 'anti-armor');
+
+    expect(demand).toMatchObject({
+      desired: expected,
+      assigned: 0,
+      missing: expected,
+      priority: 180,
+      sourcePlanIds: ['observed-armor'],
+    });
+  });
+
   it('preserves objective-readiness demand when no current unit can fill the role', () => {
     const state = createNewGame(undefined, 'prepared-objective-demand', 'small');
     const civ = state.civilizations['ai-1'];

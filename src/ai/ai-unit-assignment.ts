@@ -5,7 +5,7 @@ import type {
   UnitType,
 } from '@/core/types';
 import { UNIT_DEFINITIONS } from '@/systems/unit-system';
-import { getAIStrategicRoles } from './ai-unit-roles';
+import { canUnitFulfillAIStrategicRole, getAIStrategicRoles } from './ai-unit-roles';
 
 export interface AIUnitAssignmentCandidate {
   id: string;
@@ -50,6 +50,7 @@ export interface AIUnitAssignmentResult {
 const ROLE_ORDER: AIStrategicRole[] = [
   'transport',
   'frontline',
+  'anti-armor',
   'capture',
   'ranged',
   'siege',
@@ -66,19 +67,10 @@ const ROLE_ORDER: AIStrategicRole[] = [
   'espionage',
 ];
 
-const COMPATIBLE_ROLES: Partial<Record<AIStrategicRole, readonly AIStrategicRole[]>> = {
-  frontline: ['capture'],
-  capture: ['frontline'],
-  recon: ['mobile'],
-  mobile: ['recon'],
-  escort: ['naval-combat'],
-  'naval-combat': ['escort'],
-};
-
 function roleFit(type: UnitType, required: AIStrategicRole): number {
   const roles = getAIStrategicRoles(type);
   if (roles.includes(required)) return 1;
-  if (COMPATIBLE_ROLES[required]?.some(role => roles.includes(role))) return 0.7;
+  if (canUnitFulfillAIStrategicRole(type, required)) return 0.7;
   return 0;
 }
 
