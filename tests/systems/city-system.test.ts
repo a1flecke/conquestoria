@@ -1558,6 +1558,25 @@ describe('S4b — new unit entries', () => {
     }
   });
 
+  it('Anti-Tank Gun unlocks at Tank Warfare without a strategic-resource gate', () => {
+    const antiTankGun = 'anti_tank_gun' as UnitType;
+    const beforeTankWarfare = getTrainableUnitsForCiv([], undefined, new Set<ResourceType>());
+    const afterTankWarfare = getTrainableUnitsForCiv(
+      ['tank-warfare'], undefined, new Set<ResourceType>(),
+    );
+
+    expect(beforeTankWarfare.some(unit => unit.type === antiTankGun)).toBe(false);
+    expect(afterTankWarfare.find(unit => unit.type === antiTankGun)).toMatchObject({
+      cost: 170,
+      techRequired: 'tank-warfare',
+    });
+    expect(UNIT_DEFINITIONS[antiTankGun]).toMatchObject({
+      strength: 43,
+      movementPoints: 2,
+      attackProfile: { kind: 'ranged', range: 1, targets: ['unit'] },
+    });
+  });
+
   it('knight: trainable with iron-forging + horses + iron', () => {
     const units = getTrainableUnitsForCiv(['iron-forging'], undefined, new Set<ResourceType>(['horses', 'iron']));
     expect(units.some(u => u.type === 'knight')).toBe(true);

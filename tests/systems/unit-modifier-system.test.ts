@@ -102,6 +102,25 @@ describe('getCombatModifier — tech rows', () => {
     });
   });
 
+  it('gives Anti-Tank Gun attack-only armor and non-armor counter facts', () => {
+    const antiTankGun = 'anti_tank_gun' as UnitType;
+
+    expect(getClassCounterMultiplier(antiTankGun, 'tank', false)).toEqual({
+      multiplier: 1.5,
+      label: 'Anti-armor ×1.5',
+    });
+    expect(getClassCounterMultiplier(antiTankGun, 'rifleman', false)).toEqual({
+      multiplier: 0.85,
+      label: 'Anti-Tank Gun non-armor penalty ×0.85',
+    });
+    expect(getCombatModifier(antiTankGun, 'attacker', baseCombatCtx({ opponentType: 'tank' })).mult)
+      .toBe(1.5);
+    expect(getCombatModifier(antiTankGun, 'attacker', baseCombatCtx({ opponentType: 'rifleman' })).mult)
+      .toBeCloseTo(0.85);
+    expect(getCombatModifier(antiTankGun, 'defender', baseCombatCtx({ opponentType: 'tank' })).mult)
+      .toBe(1);
+  });
+
   it('gives War Elephant its exact four-terrain rough penalty and open-land bonus', () => {
     expect(getCombatModifier('war_elephant' as UnitType, 'attacker', baseCombatCtx({ targetTerrain: 'plains' })).mult)
       .toBeCloseTo(1.2);
