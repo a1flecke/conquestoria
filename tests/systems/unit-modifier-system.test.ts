@@ -125,6 +125,33 @@ describe('getCombatModifier — tech rows', () => {
     expect(rough.attackerStrength).toBeLessThan(rough.defenderStrength);
   });
 
+  it('keeps Cuirassier inside its predecessor, successor, counter, and generalist balance envelope', () => {
+    const balanceMap = generateMap(20, 20, 'cuirassier-balance-envelope');
+    const counters = mkC();
+    const cuirassier = createUnit('cuirassier', 'p1', { q: 5, r: 5 }, counters);
+    const rifleman = createUnit('rifleman', 'p2', { q: 6, r: 5 }, counters);
+    balanceMap.tiles['6,5'] = { ...balanceMap.tiles['6,5']!, terrain: 'plains' };
+
+    const charge = calculateCombatStrengths(cuirassier, rifleman, balanceMap, {
+      attackerModifiers: getCombatModifier('cuirassier', 'attacker', baseCombatCtx({
+        opponentType: 'rifleman', targetTerrain: 'plains',
+      })),
+    });
+    const pikeman = createUnit('pikeman', 'p2', { q: 5, r: 5 }, counters);
+    const counter = calculateCombatStrengths(pikeman, cuirassier, balanceMap, {
+      attackerModifiers: getCombatModifier('pikeman', 'attacker', baseCombatCtx({
+        opponentType: 'cuirassier', targetTerrain: 'plains',
+      })),
+    });
+
+    expect(UNIT_DEFINITIONS.cuirassier.strength).toBeGreaterThan(UNIT_DEFINITIONS.knight.strength);
+    expect(charge.attackerStrength).toBeGreaterThan(charge.defenderStrength); // same-era generalist
+    expect(counter.attackerStrength).toBeGreaterThan(counter.defenderStrength); // affordable polearm answer
+    expect(UNIT_DEFINITIONS.cuirassier.strength * 1.15).toBeLessThan(UNIT_DEFINITIONS.tank.strength);
+    expect(UNIT_DEFINITIONS.cuirassier.movementPoints).toBeLessThan(UNIT_DEFINITIONS.cavalry.movementPoints);
+    expect(UNIT_DEFINITIONS.cuirassier.productionCost).toBeGreaterThan(UNIT_DEFINITIONS.cavalry.productionCost);
+  });
+
   it('Cavalry gains exactly 15% pursuit strength only against targets below 60 HP', () => {
     const woundedTarget = getCombatModifier('cavalry', 'attacker', baseCombatCtx({ opponentHealth: 59 }));
     const thresholdTarget = getCombatModifier('cavalry', 'attacker', baseCombatCtx({ opponentHealth: 60 }));
@@ -136,6 +163,22 @@ describe('getCombatModifier — tech rows', () => {
     }));
     expect(thresholdTarget.mult).toBe(1);
     expect(defender.mult).toBe(1);
+  });
+
+  it('Cuirassier gains exactly 15% only while initiating on open ground', () => {
+    const open = getCombatModifier('cuirassier', 'attacker', baseCombatCtx({ targetTerrain: 'plains' }));
+    const rough = getCombatModifier('cuirassier', 'attacker', baseCombatCtx({ targetTerrain: 'forest' }));
+    const defending = getCombatModifier('cuirassier', 'defender', baseCombatCtx({ targetTerrain: 'plains' }));
+
+    expect(open.mult).toBeCloseTo(1.15);
+    expect(open.facts).toContainEqual(expect.objectContaining({
+      key: 'unit:cuirassier:open-ground', label: 'Cuirassier open-ground charge', outcome: 'applied', value: 1.15,
+    }));
+    expect(rough.mult).toBe(1);
+    expect(rough.facts).toContainEqual(expect.objectContaining({
+      key: 'unit:cuirassier:open-ground', outcome: 'ignored', ignoredReason: 'condition', value: 1.15,
+    }));
+    expect(defending.mult).toBe(1);
   });
 
   it('tactics: +10% multiplier, always, applies with no completed techs missing it (negative test)', () => {
@@ -277,6 +320,13 @@ describe('getClassCounterMultiplier — class counters', () => {
   it('pikeman attacking knight (mounted): ×1.5', () => {
     const result = getClassCounterMultiplier('pikeman', 'knight', false);
     expect(result?.multiplier).toBe(1.5);
+  });
+
+  it('pikeman retains the anti-mounted counter against Cuirassier', () => {
+    expect(getClassCounterMultiplier('pikeman', 'cuirassier', false)).toEqual({
+      multiplier: 1.5,
+      label: 'Anti-cavalry ×1.5',
+    });
   });
 
   it('uses the specific 35% polearm counter against War Elephant without changing other mounted counters', () => {

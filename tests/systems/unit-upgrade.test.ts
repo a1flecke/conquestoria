@@ -12,6 +12,7 @@ import type { GameState, ResourceType, Spy, Unit } from '@/core/types';
 import { createNewGame } from '@/core/game-state';
 import { TRAINABLE_UNITS, foundCity } from '@/systems/city-system';
 import { TECH_TREE } from '@/systems/tech-definitions';
+import { createMarketplaceState } from '@/systems/trade-system';
 
 const TECH_ERA_BY_ID = new Map(TECH_TREE.map(tech => [tech.id, tech.era]));
 
@@ -59,6 +60,22 @@ describe('canUpgradeUnit', () => {
 });
 
 describe('explicit upgrade chains', () => {
+  it('Knight upgrades only to Cuirassier when both technologies and resources are present', () => {
+    const knight = makeUnit('knight');
+    const city = { id: 'c1', owner: 'player', position: { q: 0, r: 0 } } as any;
+
+    expect(canUpgradeUnit(
+      knight, city.id, { [city.id]: city },
+      ['iron-forging', 'rifle-tactics'], undefined,
+      new Set<ResourceType>(['horses', 'iron']),
+    ).targetType).toBeNull();
+    expect(canUpgradeUnit(
+      knight, city.id, { [city.id]: city },
+      ['iron-forging', 'rifle-tactics', 'professional-army'], undefined,
+      new Set<ResourceType>(['horses', 'iron']),
+    ).targetType).toBe('cuirassier');
+  });
+
   it('upgrades spy_operative to spy_hacker instead of the conventional cyber unit', () => {
     const unit = makeUnit('spy_operative');
 
@@ -285,6 +302,23 @@ describe('applyUnitUpgradeToState', () => {
 
     expect(evaluateUnitUpgrade(state, 'upgrade-unit', 'spy_informant'))
       .toMatchObject({ canUpgrade: true, missing: [] });
+  });
+
+  it.each(['explorer', 'standard', 'veteran'] as const)('keeps Knight -> Cuirassier legality identical on %s', challenge => {
+    const { state } = setup();
+    state.opponentChallenge = challenge;
+    state.units['upgrade-unit'].type = 'knight';
+    state.civilizations.player.gold = 1000;
+    state.civilizations.player.techState.completed = [
+      'animal-husbandry', 'bronze-working', 'iron-forging', 'rifle-tactics', 'professional-army',
+    ];
+    state.marketplace = { ...createMarketplaceState(), purchasedResources: [
+      { civId: 'player', resource: 'horses', expiresOnTurn: state.turn + 1 },
+      { civId: 'player', resource: 'iron', expiresOnTurn: state.turn + 1 },
+    ] };
+
+    expect(evaluateUnitUpgrade(state, 'upgrade-unit', 'cuirassier'))
+      .toMatchObject({ canUpgrade: true, targetType: 'cuirassier', missing: [] });
   });
 
   it('reports every missing conjunctive target technology', () => {

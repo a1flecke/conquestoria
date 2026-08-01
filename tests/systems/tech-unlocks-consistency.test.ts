@@ -5,6 +5,11 @@ import { PIRATE_HULL_TYPES } from '@/systems/pirate-definitions';
 import { validateProductionPrerequisiteDefinitions } from '@/systems/production-prerequisites';
 
 describe('tech.unlocks copy matches gameplay gating', () => {
+  it('Rifle Tactics describes both of its player-visible mounted unlocks', () => {
+    expect(TECH_TREE.find(tech => tech.id === 'rifle-tactics')?.unlocks)
+      .toContain('Musketeer-class units replaced by riflemen; Cavalry pursues weakened enemies; Cuirassier charges open ground');
+  });
+
   it('every "Unlock <Name> building" claim corresponds to a building gated by that tech', () => {
     const failures: string[] = [];
     for (const tech of TECH_TREE) {

@@ -321,7 +321,7 @@ describe('save migrations', () => {
 
   it('grandfathers pre-retime queued Cavalry exactly once without making new early Cavalry legal', () => {
     const legacySave = createNewGame('rome', 'legacy-cavalry-queue', 'small');
-    legacySave.saveSchemaVersion = CURRENT_SAVE_SCHEMA_VERSION - 1;
+    legacySave.saveSchemaVersion = 9; // schema 10 owns the Cavalry retime
     const city = Object.values(legacySave.cities)[0]!;
     city.productionQueue = ['cavalry', 'cavalry'];
     city.productionProgress = 80;
@@ -331,6 +331,22 @@ describe('save migrations', () => {
 
     expect(migrated.cities[city.id]).toMatchObject({
       productionQueue: ['cavalry', 'cavalry'], legacyTechGrace: ['cavalry', 'cavalry'],
+    });
+    expect(loadedAgain).toEqual(migrated);
+  });
+
+  it('grandfathers schema-10 queued Knights exactly once after the Cuirassier retime', () => {
+    const legacySave = createNewGame('rome', 'legacy-knight-queue', 'small');
+    legacySave.saveSchemaVersion = 10;
+    const city = Object.values(legacySave.cities)[0]!;
+    city.productionQueue = ['knight', 'knight'];
+
+    const migrated = migrateSaveToCurrent(legacySave);
+    const loadedAgain = migrateSaveToCurrent(migrated);
+
+    expect(migrated.saveSchemaVersion).toBe(11);
+    expect(migrated.cities[city.id]).toMatchObject({
+      productionQueue: ['knight', 'knight'], legacyTechGrace: ['knight', 'knight'],
     });
     expect(loadedAgain).toEqual(migrated);
   });

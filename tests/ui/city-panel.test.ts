@@ -7,6 +7,7 @@ import { BUILDINGS, TRAINABLE_UNITS } from '@/systems/city-system';
 import { assignCityFocus, setCityWorkedTile } from '@/systems/city-work-system';
 import { hexKey } from '@/systems/hex-utils';
 import { TECH_TREE } from '@/systems/tech-definitions';
+import { createMarketplaceState } from '@/systems/trade-system';
 import { collectText, makeWonderPanelFixture } from './helpers/wonder-panel-fixture';
 import type { City, HexCoord, ResourceType } from '@/core/types';
 
@@ -96,6 +97,41 @@ describe('city-panel national projects', () => {
     }
   });
 
+  it('renders Cuirassier only for the hot-seat owner with both gates and resources', () => {
+    const { container, city, state } = makeWonderPanelFixture();
+    state.civilizations.player.techState.completed = [
+      'animal-husbandry', 'bronze-working', 'rifle-tactics', 'professional-army',
+    ];
+    state.marketplace = { ...createMarketplaceState(), purchasedResources: [
+      { civId: 'player', resource: 'horses', expiresOnTurn: state.turn + 1 },
+      { civId: 'player', resource: 'iron', expiresOnTurn: state.turn + 1 },
+    ] };
+    const firstPanel = createCityPanel(container, city, state, {
+      onBuild: () => {}, onOpenWonderPanel: () => {}, onClose: () => {},
+    });
+    expect(firstPanel.querySelector('[data-item-id="cuirassier"]')).toBeTruthy();
+
+    state.civilizations['player-2'] = {
+      ...structuredClone(state.civilizations.player),
+      id: 'player-2', isHuman: true,
+      techState: {
+        ...state.civilizations.player.techState,
+        completed: ['animal-husbandry', 'bronze-working', 'rifle-tactics'],
+      },
+    };
+    city.owner = 'player-2';
+    state.cities[city.id] = city;
+    state.currentPlayer = 'player-2';
+    const secondPanel = createCityPanel(container, city, state, {
+      onBuild: () => {}, onOpenWonderPanel: () => {}, onClose: () => {},
+    });
+    clickElement(secondPanel.querySelector('[data-locked-show-more]'));
+    const text = collectText(secondPanel);
+    expect(secondPanel.querySelector('[data-item-id="cuirassier"]')).toBeNull();
+    expect(text).toContain('Cuirassier');
+    expect(text).toContain('Professional Army');
+  });
+
   it('keeps a conjunctively gated building reachable in the explanatory catalog', () => {
     const { container, city, state } = makeWonderPanelFixture();
     state.civilizations.player.techState.completed = ['writing'];
@@ -106,6 +142,7 @@ describe('city-panel national projects', () => {
       const panel = createCityPanel(container, city, state, {
         onBuild: () => {}, onOpenWonderPanel: () => {}, onClose: () => {},
       });
+      clickElement(panel.querySelector('[data-locked-show-more]'));
       expect(collectText(panel)).toContain('Library');
       expect(collectText(panel)).toContain('Requires: Writing ✓ + Mathematics');
       expect(panel.querySelector('[data-item-id="library"]')).toBeNull();

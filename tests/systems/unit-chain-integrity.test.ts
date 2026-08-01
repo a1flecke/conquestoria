@@ -103,6 +103,16 @@ describe('unit upgrade-chain integrity', () => {
   });
 });
 
+describe('early-modern mounted upgrade chain', () => {
+  it('redirects Knight through Cuirassier before Tank', () => {
+    const knight = TRAINABLE_UNITS.find(unit => unit.type === 'knight');
+    const cuirassier = TRAINABLE_UNITS.find(unit => unit.type === ('cuirassier' as UnitType));
+
+    expect(knight).toMatchObject({ obsoletedByTech: 'rifle-tactics', upgradesTo: 'cuirassier' });
+    expect(cuirassier).toMatchObject({ obsoletedByTech: 'tank-warfare', upgradesTo: 'tank' });
+  });
+});
+
 describe('Beast Handler Company balance envelope', () => {
   it('improves on its hound predecessors without overtaking the Horseman combat role', () => {
     expect(attackerWinRate('beast_handler', 'scout_hound')).toBeGreaterThan(0.9);
