@@ -154,6 +154,67 @@ describe('Era 13 sprites are not aliases of their placeholders (#652)', () => {
   });
 });
 
+// #769: full audit (2026-08-01, `scripts/audit-sprite-aliases.mjs`) of UNIT_SPRITE_CATALOG
+// originally found 17 units still rendering via another unit's exact sprite function — not
+// similar art, literally the same component (distinct from the Era 13 placeholders above,
+// which have all shipped real replacements). This is the audit baseline; batches ship 5 at a
+// time and each row is deleted the moment its unit gets real bespoke art (mirroring the Era 13
+// pattern above) — so a shrinking list here is expected and desired, not a bug.
+//
+// Batch 1 (chariot, infantry, artillery, marine, cyber_unit) shipped 2026-08-01 and is no
+// longer listed below. `chariot` also closed out the overlapping portion of pre-existing issue
+// #708's scope that this issue didn't originally know about (see next paragraph) — #708's
+// comment was updated to reflect that.
+//
+// Reconciled with issue #708 (2026-08-01): #708 is a pre-existing, separately-tracked issue
+// (part of the larger #547 combat-roster initiative) that already owned `beast_handler`,
+// `war_elephant`, and `cuirassier`'s bespoke-sprite work with its own design doc and
+// implementation plan — this issue didn't know about it when originally filed. Per project
+// decision, #769 no longer tracks those 3 units (removed from the batch plan below); #708
+// keeps them. `armored_car` (owned by issue #709) is similarly out of #769's scope. Both
+// `cuirassier` and `armored_car` landed on `main` as new aliased placeholders *after* this
+// baseline was first written — `scripts/audit-sprite-aliases.mjs` will (correctly) still flag
+// them as aliases, since they mechanically are; they're just not this issue's units to fix.
+//
+// Both sides render through their own UNIT_SPRITE_CATALOG entry (not the raw sprite function)
+// with an explicit motion so the wrapper's per-unit `data-motion`/transform injection is
+// identical on both sides — true visual identity is what we're asserting, not incidental
+// string equality from bypassing the wrapper.
+//
+// If a `toBe` assertion below starts failing, the unit already got its own art — delete that
+// row. If a *new* alias appears that isn't listed here, `scripts/audit-sprite-aliases.mjs`
+// will catch it too — run it before starting any new #769 batch in case another agent added a
+// unit that reuses an existing sprite in the meantime. Not every alias the script reports is
+// automatically #769's scope — check whether another issue already owns it first (as happened
+// with #708/#709 above) before adding a row here.
+describe('#769 pending sprite-alias audit baseline', () => {
+  const palette = derivePalette('#4a90d9');
+
+  it('known-pending aliased units still render identically to their donor unit', () => {
+    const pendingAliasPairs: Array<[keyof typeof UNIT_SPRITE_CATALOG, keyof typeof UNIT_SPRITE_CATALOG]> = [
+      // Batch 2 (naval + logistics) — beast_handler/war_elephant removed, owned by #708
+      ['frigate', 'trireme'],
+      ['destroyer', 'ironclad'],
+      ['merchant_wagon', 'caravan'],
+      // Batch 3 (logistics + air)
+      ['freight_convoy', 'caravan'],
+      ['recon_aircraft', 'biplane'],
+      ['air_freighter', 'biplane'],
+      ['bomber', 'jet_fighter'],
+      ['jet_freighter', 'jet_fighter'],
+      // Batch 4 (air, remainder)
+      ['global_air_cargo', 'jet_fighter'],
+      ['stealth_bomber', 'jet_fighter'],
+    ];
+    expect(pendingAliasPairs.length, "baseline count should match #769's remaining scope (17 originally, minus batch 1's 5, minus beast_handler/war_elephant deferred to #708)").toBe(10);
+    for (const [aliasType, donorType] of pendingAliasPairs) {
+      const actual = UNIT_SPRITE_CATALOG[aliasType]({ palette, svgOnly: true, motion: 'idle' });
+      const donor = UNIT_SPRITE_CATALOG[donorType]({ palette, svgOnly: true, motion: 'idle' });
+      expect(actual, `${aliasType} no longer renders identically to ${donorType} — delete this row from the baseline`).toBe(donor);
+    }
+  });
+});
+
 // The completeness tests above only check `typeof fn === 'function'` — they never call the
 // function, so a runtime-only bug (a NaN from a bad coordinate calc, a property access that
 // only fails for a specific palette's derived colors, etc.) would slip through undetected until

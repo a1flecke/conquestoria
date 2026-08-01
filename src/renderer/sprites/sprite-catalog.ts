@@ -6,11 +6,11 @@ import {
   WarHoundSprite, ShadowWardenSprite, WarriorSprite, SwordsmanSprite,
   PikemanSprite, ArcherSprite, MusketeerSprite, GalleySprite,
   TriremeSprite, TransportSprite, SpyScoutSprite, SpyInformantSprite, SpyAgentSprite,
-  SpyOperativeSprite, SpyHackerSprite,
-  AxemanSprite, SpearmanSprite, HorsemanSprite, CavalrySprite, KnightSprite,
-  CrossbowmanSprite, CatapultSprite, BallistaSprite, CannonSprite, GrenadierSprite,
-  RiflemanSprite, IroncladSprite,
-  MachineGunnerSprite, PreDreadnoughtSprite, TankSprite, SubmarineSprite,
+  SpyOperativeSprite, SpyHackerSprite, CyberUnitSprite,
+  AxemanSprite, SpearmanSprite, HorsemanSprite, ChariotSprite, CavalrySprite, KnightSprite,
+  CrossbowmanSprite, CatapultSprite, BallistaSprite, CannonSprite, ArtillerySprite, GrenadierSprite,
+  RiflemanSprite, MarineSprite, IroncladSprite,
+  MachineGunnerSprite, InfantrySprite, PreDreadnoughtSprite, TankSprite, SubmarineSprite,
   ObservationBalloonSprite, BiplaneSprite, JetFighterSprite, CarrierSprite,
   AttackHelicopterSprite, MissileSubmarineSprite,
   CombatDroneSprite, AutonomousFrigateSprite, ExosuitInfantrySprite,
@@ -264,7 +264,9 @@ export const UNIT_SPRITE_CATALOG: Record<UnitType, UnitSpriteComponent> = {
   axeman:         withMotion('axeman', AxemanSprite),
   spearman:       withMotion('spearman', SpearmanSprite),
   horseman:       withMotion('horseman', HorsemanSprite),
-  chariot:        withMotion('chariot', HorsemanSprite),
+  // De-aliased in #769 batch 1, folding in #708's chariot scope (#708 still owns
+  // beast_handler/war_elephant/cuirassier's bespoke sprites — see comments below).
+  chariot:        withMotion('chariot', ChariotSprite),
   cavalry:        withMotion('cavalry', CavalrySprite),
   // Temporary Tank silhouette; #709 owns Armored Car's distinct final sprite.
   armored_car:    withMotion('armored_car', TankSprite),
@@ -275,12 +277,12 @@ export const UNIT_SPRITE_CATALOG: Record<UnitType, UnitSpriteComponent> = {
   catapult:       withMotion('catapult', CatapultSprite),
   ballista:       withMotion('ballista', BallistaSprite),
   cannon:         withMotion('cannon', CannonSprite),
-  // artillery/infantry/bomber reuse existing sprites as placeholders (same pattern as
-  // frigate/destroyer above and stealth_bomber below); bespoke art is a
-  // generate-sprite-prompt follow-up.
-  artillery:      withMotion('artillery', CannonSprite),
+  // bomber still reuses an existing sprite as a placeholder (same pattern as frigate/destroyer
+  // below and stealth_bomber further down); bespoke art is a generate-sprite-prompt follow-up.
+  // artillery/infantry/marine de-aliased in #769 batch 1.
+  artillery:      withMotion('artillery', ArtillerySprite),
   grenadier:      withMotion('grenadier', GrenadierSprite),
-  marine:         withMotion('marine', RiflemanSprite),
+  marine:         withMotion('marine', MarineSprite),
   rifleman:       withMotion('rifleman', RiflemanSprite),
   // frigate/destroyer reuse existing hulls as placeholders (same pattern as stealth_bomber
   // reusing JetFighterSprite below); bespoke sprites are a generate-sprite-prompt follow-up.
@@ -288,7 +290,7 @@ export const UNIT_SPRITE_CATALOG: Record<UnitType, UnitSpriteComponent> = {
   ironclad:          withMotion('ironclad', IroncladSprite),
   destroyer:         withMotion('destroyer', IroncladSprite),
   machine_gunner:    withMotion('machine_gunner', MachineGunnerSprite),
-  infantry:          withMotion('infantry', MachineGunnerSprite),
+  infantry:          withMotion('infantry', InfantrySprite),
   pre_dreadnought:   withMotion('pre_dreadnought', PreDreadnoughtSprite),
   tank:              withMotion('tank', TankSprite),
   submarine:         withMotion('submarine', SubmarineSprite),
@@ -331,7 +333,8 @@ export const UNIT_SPRITE_CATALOG: Record<UnitType, UnitSpriteComponent> = {
   beast_roc:          withMotion('beast_roc', StormRocSprite),
   beast_hydra:        withMotion('beast_hydra', SwampHydraSprite),
   beast_dragon:       withMotion('beast_dragon', AncientDragonSprite),
-  cyber_unit:         withMotion('cyber_unit', SpyHackerSprite),
+  // De-aliased in #769 batch 1.
+  cyber_unit:         withMotion('cyber_unit', CyberUnitSprite),
   stealth_bomber:     withMotion('stealth_bomber', JetFighterSprite),
 };
 
