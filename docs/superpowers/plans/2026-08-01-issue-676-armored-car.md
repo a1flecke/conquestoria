@@ -4,6 +4,9 @@
 
 **Goal:** Deliver Armored Car as a save-safe, catalog-driven Era 9 reconnaissance and pursuit unit with a legal Cavalry-to-helicopter succession.
 
+**Approved adjustment:** Motorized Transport costs 240 science (retuned from the issue's
+190 after the live pacing audit measured eight turns; 240 reaches the 10-turn floor).
+
 **Architecture:** Add the stable `armored_car` definition and feed it through current catalog, role, modifier, ZOC-class, presentation, AI, sprite, and audio seams. Reuse `evaluateUnitUpgrade` and `baseNewAirUnit` for the host-city Helicopter Base transition; do not add an Armored-Car-specific conversion path or migration.
 
 **Tech Stack:** TypeScript, Vitest, Canvas/DOM game UI, Yarn 4, serializable save state.
@@ -16,7 +19,7 @@
 - `src/systems/unit-system.ts` — exact stats and honest description.
 - `src/systems/city-system.ts`, `src/systems/tech-definitions-eras9.ts` — production, explicit succession, icon, and Motorized Transport unlock.
 - `src/systems/unit-modifier-definitions.ts`, `src/systems/combat-role-definitions.ts` — pursuit fact and definition-driven recon/mobile/pursuit role.
-- `src/renderer/sprites/sprite-catalog.ts`, `src/audio/sfx-catalog.ts` — documented Tank visual/audio temporary fallbacks.
+- `src/renderer/sprites/sprite-catalog.ts`, `src/audio/sfx-catalog.ts` — documented Tank visual and Knight audio temporary fallbacks.
 - `tests/systems/*`, `tests/ai/*`, `tests/ui/*`, `tests/audio/*`, `tests/renderer/*`, `tests/storage/*` — contract coverage.
 
 ## Player Truth Table

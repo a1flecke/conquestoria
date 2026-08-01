@@ -2,6 +2,9 @@
 
 **Issue:** #676 — Add Armored Car as light-mobile reconnaissance and pursuit
 
+**Approved pacing adjustment:** Motorized Transport is retuned from 190 to 240 science
+to meet the repository's Era-9 10–16 turn pacing window.
+
 ## Goal
 
 Deliver Armored Car as a distinct Era 9 light-mobile choice: fast reconnaissance and
