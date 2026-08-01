@@ -41,6 +41,10 @@ function baseHealCtx(overrides: Partial<HealingModifierContext> = {}): HealingMo
 }
 
 describe('UNIT_CLASS_BY_TYPE completeness', () => {
+  it('classifies Armored Car as reconnaissance so it neither projects nor suffers ordinary zone of control', () => {
+    expect(UNIT_CLASS_BY_TYPE['armored_car' as UnitType]).toContain('recon');
+  });
+
   it('defines Marine as a gunpowder amphibious specialist', () => {
     expect(UNIT_DEFINITIONS.marine).toMatchObject({
       name: 'Marine',
@@ -64,6 +68,17 @@ describe('UNIT_CLASS_BY_TYPE completeness', () => {
 });
 
 describe('getCombatModifier — tech rows', () => {
+  it('gives Armored Car exactly 15% pursuit only below 60 opponent health', () => {
+    const wounded = getCombatModifier('armored_car' as UnitType, 'attacker', baseCombatCtx({ opponentHealth: 59 }));
+    const healthy = getCombatModifier('armored_car' as UnitType, 'attacker', baseCombatCtx({ opponentHealth: 60 }));
+
+    expect(wounded.mult).toBeCloseTo(1.15);
+    expect(wounded.facts).toContainEqual(expect.objectContaining({
+      key: 'unit:armored-car:pursuit', outcome: 'applied', value: 1.15,
+    }));
+    expect(healthy.mult).toBe(1);
+  });
+
   it('Chariot gains 20% strength on open ground and loses 15% in rough terrain', () => {
     const open = getCombatModifier('chariot', 'attacker', baseCombatCtx({ targetTerrain: 'plains' }));
     const rough = getCombatModifier('chariot', 'attacker', baseCombatCtx({ targetTerrain: 'forest' }));
