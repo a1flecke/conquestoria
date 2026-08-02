@@ -18,6 +18,7 @@ import {
   CaravanSprite, ExpeditionSprite,
   CarrackSprite, GalleonSprite, SteamshipSprite, TroopTransportSprite,
   NavalTraderSprite, SteamshipTraderSprite, CargoFreighterSprite, ContainerShipSprite,
+  FrigateSprite, DestroyerSprite, MerchantWagonSprite,
 } from './units';
 import {
   GranarySprite, HerbalistSprite, AqueductSprite,
@@ -286,11 +287,10 @@ export const UNIT_SPRITE_CATALOG: Record<UnitType, UnitSpriteComponent> = {
   grenadier:      withMotion('grenadier', GrenadierSprite),
   marine:         withMotion('marine', MarineSprite),
   rifleman:       withMotion('rifleman', RiflemanSprite),
-  // frigate/destroyer reuse existing hulls as placeholders (same pattern as stealth_bomber
-  // reusing JetFighterSprite below); bespoke sprites are a generate-sprite-prompt follow-up.
-  frigate:           withMotion('frigate', TriremeSprite),
+  // frigate/destroyer de-aliased in #769 batch 2.
+  frigate:           withMotion('frigate', FrigateSprite),
   ironclad:          withMotion('ironclad', IroncladSprite),
-  destroyer:         withMotion('destroyer', IroncladSprite),
+  destroyer:         withMotion('destroyer', DestroyerSprite),
   machine_gunner:    withMotion('machine_gunner', MachineGunnerSprite),
   infantry:          withMotion('infantry', InfantrySprite),
   pre_dreadnought:   withMotion('pre_dreadnought', PreDreadnoughtSprite),
@@ -315,8 +315,10 @@ export const UNIT_SPRITE_CATALOG: Record<UnitType, UnitSpriteComponent> = {
   drone_controller: withMotion('drone_controller', DroneControllerSprite),
   caravan:           withMotion('caravan', CaravanSprite),
   // Trade Routes Overhaul (#553 MR2/4) — Land trade line successors to Caravan.
-  // Placeholder: reuses CaravanSprite (closest silhouette) until bespoke sprites ship.
-  merchant_wagon:    withMotion('merchant_wagon', CaravanSprite),
+  // merchant_wagon de-aliased in #769 batch 2.
+  merchant_wagon:    withMotion('merchant_wagon', MerchantWagonSprite),
+  // freight_convoy still a placeholder reusing CaravanSprite — out of scope for #769 batch 2,
+  // remains #769 batch 3's to de-alias.
   freight_convoy:    withMotion('freight_convoy', CaravanSprite),
   // Trade Routes Overhaul (#553 MR1/4) — Naval Trader line, bespoke sprites
   naval_trader:      withMotion('naval_trader', NavalTraderSprite),

@@ -1,9 +1,11 @@
 # Claude Design Prompt: Conquestoria Sprites
 
-**This file has no active prompt right now.** The last one — #769 batch 1 (real, distinct
-live-catalog sprites for `chariot`, `infantry`, `artillery`, `marine`, `cyber_unit`) — shipped
-2026-08-01. All 5 now render their own bespoke `units.tsx` sprite function instead of aliasing
-another unit's exact art.
+**This file has no active prompt right now.** The last one — #769 batch 2 (real, distinct
+live-catalog sprites for `frigate`, `destroyer`, `merchant_wagon`, drafted 2026-08-01 as
+[issue #775](https://github.com/a1flecke/conquestoria/issues/775)) — shipped 2026-08-01. All 3
+now render their own bespoke `units.tsx` sprite function instead of aliasing another unit's exact
+art. The prior batch — #769 batch 1 (`chariot`, `infantry`, `artillery`, `marine`, `cyber_unit`)
+— shipped 2026-08-01 in PR #773 (merged).
 
 ## Durable note: check for other issues owning the same units before scoping a batch
 
@@ -31,34 +33,33 @@ during the same reconciliation) belongs to issue #709, also not #769.
 
 ## Audit before starting every batch
 
-Two new aliases (`cuirassier`, `armored_car`) landed on `main` between batch 1 being filed and
-batch 1 shipping — added by a separate, actively-landing automated initiative (issue #547). This
-is exactly the drift this audit step exists to catch:
-
 ```bash
 bash scripts/run-with-mise.sh yarn node scripts/audit-sprite-aliases.mjs
 ```
 
 This re-derives the alias list directly from `sprite-catalog.ts` (not from this doc or any issue
-body) and exits non-zero while any alias remains. Cross-check its output against:
+body) and exits non-zero while any alias remains. As of batch 2 shipping (2026-08-01) it reports
+11 total: 7 remaining in #769's scope (batch 3's 5, batch 4's 2), plus `beast_handler`/
+`war_elephant`/`cuirassier` (owned by #708) and `armored_car` (owned by #709). Cross-check its
+output against:
 - `tests/renderer/sprites/sprite-catalog.test.ts` → `describe('#769 pending sprite-alias audit
-  baseline', ...)` — the mechanically-enforced remaining-scope list for #769 specifically (10
-  units as of 2026-08-01, batch 1 shipped, beast_handler/war_elephant/cuirassier/armored_car
-  excluded as described above). A unit is only "done" when its row is deleted here — that
-  deletion is the proof, not a checkbox in prose.
+  baseline', ...)` — the mechanically-enforced remaining-scope list for #769 specifically. A unit
+  is only "done" when its row is deleted here — that deletion is the proof, not a checkbox in prose.
 - Issue #769's body, for the batch grouping of whatever's left.
 
 If the audit reports a unit not in either place, don't assume it's #769's — check for another
 owning issue first (see "Durable note" above), then update both the baseline test and #769's plan
 in the same PR.
 
+---
+
 ## When a new sprite/terrain/prompt need comes up
 
 Use the `.claude/skills/generate-sprite-prompt.md` skill for live-catalog (`units.tsx`/
 `buildings.tsx`) sprites, or hand-write a v2-native prompt (see git history for #759 batch 1's
 prompt as a template) for animation-hook rigging work. Append the new prompt to this file the same
-way every prior prompt was — dated, scoped to the specific issue — and prune it back out once
-shipped rather than leaving it to accumulate. Everything that has ever lived in this file (economy
-sprites, terrain tiles, naval transports, legendary beasts, rail segments, both Era 13 batches,
-#759 batch 1, #769 batch 1) was pruned the same way, verified against actual source each time
+way this one was — dated, scoped to the specific issue — and prune it back out once shipped rather
+than leaving it to accumulate. Everything that has ever lived in this file (economy sprites,
+terrain tiles, naval transports, legendary beasts, rail segments, both Era 13 batches, #759 batch
+1, #769 batch 1, #769 batch 2) was pruned the same way, verified against actual source each time
 before removal — the history is in git, not preserved here.

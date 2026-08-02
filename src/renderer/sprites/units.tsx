@@ -349,6 +349,69 @@ export function TriremeSprite({ palette, svgOnly = false }: UnitSpriteProps): st
   );
 }
 
+// #769 de-alias: frigate previously reused TriremeSprite verbatim. Frigate is an
+// era-6 age-of-sail warship — three-masted, square-rigged, with a painted gunport
+// stripe and cannon along the hull and a bowsprit at the bow, so it reads as a real
+// sailing warship rather than an ancient oared galley.
+export function FrigateSprite({ palette, svgOnly = false }: UnitSpriteProps): string {
+  return (
+    <SpriteFrame svgOnly={svgOnly} hexTint={P.ground.water}>
+      <g data-kind="naval">
+        <Shadow cx={64} cy={100} rx={48} ry={7} />
+        {/* BOWSPRIT — spar projecting forward from the bow (left); a jib sail
+            rides it. A silhouette element the Trireme does not have. */}
+        <line x1="18" y1="84" x2="-2" y2="70" stroke={P.wood.dark} strokeWidth="2.4" strokeLinecap="round" />
+        <line x1="1" y1="70" x2="40" y2="26" stroke={P.wood.dark} strokeWidth="0.8" opacity="0.7" />
+        <path className="cq-sail" d="M2,71 L28,50 L15,79 Z" fill={P.cloth.linen} stroke={P.ink.line} strokeWidth="0.8" />
+        {/* HULL — a real sailing hull, no oar rows / oar blades */}
+        <path d="M14,86 Q64,78 114,84 Q112,104 64,106 Q18,104 14,86 Z" fill={P.wood.dark} stroke={P.ink.line} strokeWidth="1.2" />
+        <path d="M20,82 Q64,76 110,82 L106,92 Q64,97 24,92 Z" fill={P.wood.mid} stroke={P.ink.line} strokeWidth="1" />
+        <path d="M18,90 Q64,96 110,90" fill="none" stroke={P.wood.dark} strokeWidth="1" opacity="0.6" />
+        {/* painted GUNPORT STRIPE — faction-accent band */}
+        <rect x="24" y="83.5" width="84" height="6" fill={palette.mid} opacity="0.9" />
+        {/* gunports — alternating dark squares */}
+        <rect x="30" y="84" width="5" height="5" fill={P.wood.dark} stroke={P.ink.line} strokeWidth="0.5" />
+        <rect x="42" y="84" width="5" height="5" fill={P.ink.line} />
+        <rect x="54" y="84" width="5" height="5" fill={P.wood.dark} stroke={P.ink.line} strokeWidth="0.5" />
+        <rect x="66" y="84" width="5" height="5" fill={P.ink.line} />
+        <rect x="78" y="84" width="5" height="5" fill={P.wood.dark} stroke={P.ink.line} strokeWidth="0.5" />
+        <rect x="90" y="84" width="5" height="5" fill={P.ink.line} />
+        {/* cannon barrel tips (iron) poking through the ports */}
+        <rect x="33" y="88.6" width="4" height="2.4" rx="1" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.4" />
+        <rect x="49" y="88.9" width="4" height="2.4" rx="1" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.4" />
+        <rect x="65" y="89" width="4" height="2.4" rx="1" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.4" />
+        <rect x="81" y="88.9" width="4" height="2.4" rx="1" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.4" />
+        <rect x="97" y="88.6" width="4" height="2.4" rx="1" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.4" />
+        {/* THREE MASTS — fore, main (tallest), mizzen */}
+        <line x1="40" y1="82" x2="40" y2="24" stroke={P.wood.dark} strokeWidth="2.2" />
+        <line x1="64" y1="82" x2="64" y2="12" stroke={P.wood.dark} strokeWidth="2.5" />
+        <line x1="88" y1="80" x2="88" y2="30" stroke={P.wood.dark} strokeWidth="2" />
+        {/* yards */}
+        <line x1="28" y1="30" x2="52" y2="30" stroke={P.wood.dark} strokeWidth="1.6" strokeLinecap="round" />
+        <line x1="49" y1="20" x2="79" y2="20" stroke={P.wood.dark} strokeWidth="1.8" strokeLinecap="round" />
+        <line x1="78" y1="38" x2="98" y2="38" stroke={P.wood.dark} strokeWidth="1.5" strokeLinecap="round" />
+        {/* SQUARE-RIGGED SAILS — cq-sail billow, mainmast tallest */}
+        <path className="cq-sail" d="M28,31 Q40,34 52,31 L50,58 Q40,61 30,58 Z" fill={P.cloth.linen} stroke={P.ink.line} strokeWidth="1" />
+        <path className="cq-sail" d="M49,21 Q64,26 79,21 L76,62 Q64,66 52,62 Z" fill={P.cloth.linen} stroke={P.ink.line} strokeWidth="1" />
+        <path className="cq-sail" d="M78,39 Q88,41 98,39 L96,60 Q88,63 80,60 Z" fill={P.cloth.linen} stroke={P.ink.line} strokeWidth="1" />
+        {/* faction reef-band across the mainsail */}
+        <path d="M51,40 Q64,44 77,40 L76,50 Q64,54 52,50 Z" fill={palette.mid} opacity="0.85" />
+        {/* raised QUARTERDECK at the stern (right) */}
+        <path d="M97,72 L116,74 L114,84 L99,82 Z" fill={P.wood.dark} stroke={P.ink.line} strokeWidth="1" />
+        <path d="M97,72 L116,74 L116,76 L97,74 Z" fill={P.wood.mid} />
+        <line x1="99" y1="74" x2="114" y2="76" stroke={P.ink.soft} strokeWidth="0.6" opacity="0.5" />
+        {/* faction Banner mounted on the quarterdeck */}
+        <Banner x={101} y={72} palette={palette} scale={0.8} />
+        {/* stern ENSIGN — spanker gaff off the mizzen, palette.trim, cq-cape flutter */}
+        <line x1="88" y1="34" x2="104" y2="44" stroke={P.wood.dark} strokeWidth="1.2" />
+        <path className="cq-cape" d="M88,40 L104,44 L102,52 L88,49 Z" fill={palette.trim} stroke={palette.dark} strokeWidth="0.6" />
+        {/* bronze cathead at the prow (left) */}
+        <path d="M14,88 L4,92 L14,95 Z" fill={P.metal.bronze} stroke={P.ink.line} strokeWidth="0.6" />
+      </g>
+    </SpriteFrame>
+  );
+}
+
 export function TransportSprite({ palette, svgOnly = false }: UnitSpriteProps): string {
   return (
     <SpriteFrame svgOnly={svgOnly} hexTint={P.ground.water}>
@@ -1588,6 +1651,68 @@ export function IroncladSprite({ palette, svgOnly = false }: UnitSpriteProps): s
   );
 }
 
+// #769 de-alias: destroyer previously reused IroncladSprite verbatim. Destroyer is
+// an era-10 modern warship — long, low, lean welded-steel hull, enclosed forward gun
+// turret, radar lattice mast, and torpedo tubes, so it reads as decades past the
+// riveted, boxy Ironclad rather than a recolor of it.
+export function DestroyerSprite({ palette, svgOnly = false }: UnitSpriteProps): string {
+  return (
+    <SpriteFrame svgOnly={svgOnly} hexTint={P.ground.water}>
+      <g data-kind="naval">
+        <Shadow cx={64} cy={100} rx={52} ry={6.5} />
+        {/* HULL — long, low, lean with real freeboard; smooth welded plating,
+            a continuous deck edge at ~y80 (no rivet lines) */}
+        <path d="M6,84 L114,79 Q123,84 121,92 L116,99 L20,100 Q7,98 6,89 Z" fill={P.metal.steel} stroke={P.ink.line} strokeWidth="1.2" />
+        <path d="M12,82 L112,78 L109,82 L15,85 Z" fill={P.metal.iron} />
+        <path d="M9,93 Q64,98 118,92" fill="none" stroke={P.metal.iron} strokeWidth="2.4" opacity="0.7" />
+        {/* faction pennant-number stripe near the bow */}
+        <rect x="20" y="86" width="18" height="3.2" fill={palette.mid} />
+        <rect x="24" y="86.6" width="2" height="2" fill={palette.trim} />
+        <rect x="29" y="86.6" width="2" height="2" fill={palette.trim} />
+        {/* continuous 01-DECK — the base every superstructure fitting mounts on */}
+        <path d="M28,72 L102,72 L100,80 L30,80 Z" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.9" />
+        <rect x="30" y="72" width="70" height="1.6" fill={P.metal.steel} />
+        {/* forward enclosed GUN TURRET on the foredeck, barrel over the bow */}
+        <rect x="20" y="73" width="15" height="7" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.8" />
+        <path d="M20,73 Q27.5,67 35,73 Z" fill={P.metal.steel} stroke={P.ink.line} strokeWidth="0.9" />
+        <rect x="6" y="74.6" width="16" height="2.8" rx="1.2" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.4" />
+        {/* BRIDGE superstructure on the 01-deck */}
+        <rect x="48" y="58" width="20" height="14" fill={P.metal.steel} stroke={P.ink.line} strokeWidth="1" />
+        <rect x="52" y="51" width="12" height="7" fill={P.metal.steel} stroke={P.ink.line} strokeWidth="0.8" />
+        <rect x="50" y="61" width="16" height="2.4" fill={P.ink.line} opacity="0.75" />
+        <rect x="53" y="53" width="10" height="2" fill={P.ink.line} opacity="0.6" />
+        {/* RADAR LATTICE MAST rising from the bridge top */}
+        <line x1="58" y1="51" x2="58" y2="30" stroke={P.metal.iron} strokeWidth="1.6" />
+        <path d="M54,50 L62,43 M62,50 L54,43 M54,43 L62,36 M62,43 L54,36 M55,36 L61,31" fill="none" stroke={P.metal.iron} strokeWidth="0.7" />
+        <rect x="50" y="29" width="16" height="2.2" rx="1" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.4" />
+        <circle cx="58" cy="26" r="1.6" fill={palette.bright} />
+        {/* single thin raked FUNNEL, base flush with the 01-deck */}
+        <path d="M74,72 L82,72 L86,55 L80,55 Z" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="1" />
+        <path d="M80,55 L86,55 L86.6,52 L80.6,52 Z" fill={P.metal.bronze} stroke={P.ink.line} strokeWidth="0.4" />
+        {/* turbine exhaust — cq-smoke wisp */}
+        <g transform="translate(83 51)">
+          <ellipse className="cq-smoke" cx="0" cy="0" rx="4" ry="3" fill={P.stone.light} opacity="0.6" />
+          <ellipse className="cq-smoke cq-smoke--b" cx="2" cy="-1" rx="5" ry="4" fill={P.stone.mid} opacity="0.4" />
+          <ellipse className="cq-smoke cq-smoke--c" cx="-1" cy="0" rx="3" ry="2.4" fill={P.stone.light} opacity="0.5" />
+        </g>
+        {/* angled TORPEDO TUBES resting on the 01-deck, aft */}
+        <g transform="translate(93 73)">
+          <rect x="-9" y="0" width="20" height="2.6" rx="1.3" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.5" />
+          <rect x="-9" y="3" width="20" height="2.6" rx="1.3" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.5" />
+          <circle cx="11" cy="1.3" r="1" fill={P.ink.line} />
+          <circle cx="11" cy="4.3" r="1" fill={P.ink.line} />
+        </g>
+        {/* faction Banner on a short jackstaff, base on the foredeck */}
+        <Banner x={39} y={72} palette={palette} scale={0.5} />
+        {/* stern ENSIGN — staff rises from the deck, flag hugging the staff
+            (palette.trim, cq-cape flutter) */}
+        <line x1="110" y1="80" x2="110" y2="62" stroke={P.metal.iron} strokeWidth="1.4" />
+        <path className="cq-cape" d="M110,63 L122,66 L116,70 L121,74 L110,73 Z" fill={palette.trim} stroke={palette.dark} strokeWidth="0.5" />
+      </g>
+    </SpriteFrame>
+  );
+}
+
 /* === CARAVAN === */
 
 export function CaravanSprite({ palette, svgOnly = false }: UnitSpriteProps): string {
@@ -1643,6 +1768,101 @@ export function CaravanSprite({ palette, svgOnly = false }: UnitSpriteProps): st
         <ellipse cx="24" cy="90" rx="4.5" ry="1.8" fill={P.metal.gold} stroke={P.ink.line} strokeWidth="0.5" />
         <ellipse cx="24" cy="87.8" rx="4.5" ry="1.8" fill="#e8c64a" stroke={P.ink.line} strokeWidth="0.5" />
         <ellipse cx="34" cy="91" rx="3.4" ry="1.4" fill={P.metal.gold} stroke={P.ink.line} strokeWidth="0.4" />
+      </g>
+    </SpriteFrame>
+  );
+}
+
+// #769 de-alias: merchant_wagon previously reused CaravanSprite verbatim. Merchant
+// Wagon is the wheeled successor to the walking pack-donkey Caravan — two large
+// spoked wheels (the silhouette Caravan lacks entirely), a harnessed draft horse
+// pulling ahead of the cart, and a driver seated on a raised bench holding the reins
+// instead of walking alongside.
+export function MerchantWagonSprite({ palette, svgOnly = false }: UnitSpriteProps): string {
+  return (
+    <SpriteFrame svgOnly={svgOnly}>
+      <g data-kind="civilian">
+        <Shadow cx={62} cy={96} rx={46} ry={6} />
+        {/* DRAFT HORSE in harness, ahead of the cart (right), pulling forward */}
+        <g transform="translate(94 60)">
+          <rect x="-7" y="14" width="4.5" height="21" fill="#6b4f2f" stroke={P.ink.line} strokeWidth="0.5" />
+          <rect x="9" y="14" width="4.5" height="21" fill="#6b4f2f" stroke={P.ink.line} strokeWidth="0.5" />
+          <path d="M-17,-1 Q-24,5 -22,17 L-18,16 Q-19,6 -14,1 Z" fill="#4a341c" stroke={P.ink.line} strokeWidth="0.5" />
+          <ellipse cx="0" cy="4" rx="18" ry="11" fill="#7a5a34" stroke={P.ink.line} strokeWidth="1" />
+          <ellipse cx="-1" cy="1" rx="16" ry="7" fill="#8a6a3a" />
+          <path d="M13,-1 Q21,-9 21,-17 L15,-19 Q9,-9 7,-2 Z" fill="#7a5a34" stroke={P.ink.line} strokeWidth="1" />
+          <path d="M16,-17 Q25,-21 28,-16 L26,-6 Q19,-6 15,-11 Z" fill="#7a5a34" stroke={P.ink.line} strokeWidth="1" />
+          <ellipse cx="27" cy="-12" rx="3.6" ry="2.6" fill="#8a6a3a" stroke={P.ink.line} strokeWidth="0.6" />
+          <circle cx="25" cy="-14" r="0.8" fill={P.ink.line} />
+          <path d="M15,-18 L16,-24 L20,-19 Z" fill="#6b4f2f" stroke={P.ink.line} strokeWidth="0.5" />
+          <path d="M11,-14 Q15,-21 20,-19 Q14,-10 13,-1 Z" fill="#4a341c" />
+          <rect x="-3" y="14" width="5" height="22" fill="#7a5a34" stroke={P.ink.line} strokeWidth="0.6" />
+          <rect x="7" y="14" width="5" height="22" fill="#7a5a34" stroke={P.ink.line} strokeWidth="0.6" />
+          <ellipse cx="-0.5" cy="36" rx="3" ry="1.6" fill="#3a2a18" />
+          <ellipse cx="9.5" cy="36" rx="3" ry="1.6" fill="#3a2a18" />
+          {/* harness collar — faction accent */}
+          <path d="M9,-2 Q15,-7 16,-15" fill="none" stroke={palette.mid} strokeWidth="2.6" />
+        </g>
+        {/* harness traces / draw-shaft linking horse to cart */}
+        <line x1="76" y1="70" x2="90" y2="62" stroke={P.wood.dark} strokeWidth="1.8" />
+        <line x1="76" y1="76" x2="92" y2="68" stroke={P.wood.dark} strokeWidth="1.8" />
+        {/* wooden AXLE / undercarriage */}
+        <rect x="24" y="80" width="48" height="3.6" fill={P.wood.dark} stroke={P.ink.line} strokeWidth="0.5" />
+        {/* two large spoked WHEELS (wood.dark rims) — Caravan has none */}
+        <g transform="translate(30 82)">
+          <circle r="13" fill="none" stroke={P.wood.dark} strokeWidth="3.4" />
+          <circle r="10" fill="none" stroke={P.wood.dark} strokeWidth="1" />
+          <line x1="-12" y1="0" x2="12" y2="0" stroke={P.wood.dark} strokeWidth="1.4" />
+          <line x1="0" y1="-12" x2="0" y2="12" stroke={P.wood.dark} strokeWidth="1.4" />
+          <line x1="-8.5" y1="-8.5" x2="8.5" y2="8.5" stroke={P.wood.dark} strokeWidth="1.4" />
+          <line x1="-8.5" y1="8.5" x2="8.5" y2="-8.5" stroke={P.wood.dark} strokeWidth="1.4" />
+          <circle r="2.6" fill={P.wood.mid} stroke={P.ink.line} strokeWidth="0.6" />
+        </g>
+        <g transform="translate(66 82)">
+          <circle r="13" fill="none" stroke={P.wood.dark} strokeWidth="3.4" />
+          <circle r="10" fill="none" stroke={P.wood.dark} strokeWidth="1" />
+          <line x1="-12" y1="0" x2="12" y2="0" stroke={P.wood.dark} strokeWidth="1.4" />
+          <line x1="0" y1="-12" x2="0" y2="12" stroke={P.wood.dark} strokeWidth="1.4" />
+          <line x1="-8.5" y1="-8.5" x2="8.5" y2="8.5" stroke={P.wood.dark} strokeWidth="1.4" />
+          <line x1="-8.5" y1="8.5" x2="8.5" y2="-8.5" stroke={P.wood.dark} strokeWidth="1.4" />
+          <circle r="2.6" fill={P.wood.mid} stroke={P.ink.line} strokeWidth="0.6" />
+        </g>
+        {/* CART BODY */}
+        <path d="M18,79 L74,79 L72,58 L22,58 Z" fill={P.wood.mid} stroke={P.ink.line} strokeWidth="1" />
+        <path d="M22,58 L72,58 L72,62 L22,62 Z" fill={P.wood.light} />
+        <line x1="20" y1="71" x2="73" y2="71" stroke={P.wood.dark} strokeWidth="0.6" opacity="0.6" />
+        <line x1="34" y1="62" x2="33" y2="79" stroke={P.wood.dark} strokeWidth="0.5" opacity="0.5" />
+        <line x1="48" y1="62" x2="48" y2="79" stroke={P.wood.dark} strokeWidth="0.5" opacity="0.5" />
+        <line x1="60" y1="62" x2="61" y2="79" stroke={P.wood.dark} strokeWidth="0.5" opacity="0.5" />
+        {/* CARGO BED — crates (wood.light) + linen sack: 3 stacked shapes */}
+        <rect x="26" y="46" width="15" height="14" fill={P.wood.light} stroke={P.ink.line} strokeWidth="0.8" />
+        <path d="M26,52 H41 M33.5,46 V60" stroke={P.wood.dark} strokeWidth="0.6" opacity="0.7" />
+        <rect x="42" y="44" width="13" height="16" fill={P.wood.light} stroke={P.ink.line} strokeWidth="0.8" />
+        <path d="M42,52 H55 M48.5,44 V60" stroke={P.wood.dark} strokeWidth="0.6" opacity="0.7" />
+        <path d="M56,60 L56,52 Q56,45 63,45 Q70,45 70,52 L70,60 Z" fill={P.cloth.linen} stroke={P.ink.line} strokeWidth="0.8" />
+        <path d="M60,45 Q63,49 66,45" fill="none" stroke={P.ink.soft} strokeWidth="0.5" opacity="0.6" />
+        {/* WORK = delivering goods: coin glint at the cargo bed (.cq-deliver) */}
+        <g className="cq-deliver">
+          <ellipse cx="47" cy="40" rx="4.5" ry="1.8" fill={P.metal.gold} stroke={P.ink.line} strokeWidth="0.5" />
+          <ellipse cx="47" cy="37.8" rx="4.5" ry="1.8" fill="#e8c64a" stroke={P.ink.line} strokeWidth="0.5" />
+          <ellipse cx="55" cy="41" rx="3.2" ry="1.4" fill={P.metal.gold} stroke={P.ink.line} strokeWidth="0.4" />
+        </g>
+        {/* DRIVER'S BENCH raised at the front */}
+        <rect x="65" y="52" width="11" height="6" fill={P.wood.dark} stroke={P.ink.line} strokeWidth="0.8" />
+        {/* DRIVER seated on the bench, holding the reins */}
+        <g transform="translate(69 44)">
+          <path d="M0,4 L9,7 L9,10 L1,10 Z" fill={P.cloth.wool} stroke={P.ink.line} strokeWidth="0.5" />
+          <path d="M-3,-8 Q4,-10 6,-3 L5,6 L-4,6 Z" fill={P.cloth.tunic} stroke={P.ink.line} strokeWidth="0.8" />
+          <path d="M-3,-6 L6,-3" fill="none" stroke={palette.mid} strokeWidth="2" />
+          <path d="M4,-4 Q10,-3 13,0" fill="none" stroke={P.cloth.tunic} strokeWidth="3" strokeLinecap="round" />
+          <circle cx="13.4" cy="0.6" r="1.6" fill={P.skin.warm} stroke={P.ink.line} strokeWidth="0.5" />
+          <circle cx="0" cy="-13" r="5.4" fill={P.skin.warm} stroke={P.ink.line} strokeWidth="0.8" />
+          <path d="M-7,-15 Q0,-20 7,-15 Q4,-13 0,-13 Q-4,-13 -7,-15 Z" fill={P.wood.mid} stroke={P.ink.line} strokeWidth="0.6" />
+        </g>
+        {/* reins from the driver's hand to the horse's mouth */}
+        <path d="M83,45 Q100,42 119,48" fill="none" stroke="#3a2a18" strokeWidth="1" opacity="0.85" />
+        {/* faction Banner on a short staff at the wagon rear (left) */}
+        <Banner x={20} y={56} palette={palette} scale={0.62} />
       </g>
     </SpriteFrame>
   );
