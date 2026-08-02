@@ -1,8 +1,9 @@
-import type { AirDefenseCoverageProvider, AirDefenseCoverageResult, AirDefenseProviderDefinition, CombatModifierFact, GameState, Unit } from '@/core/types';
+import type { AirDefenseCoverageProvider, AirDefenseCoverageResult, CombatModifierFact, GameState, Unit } from '@/core/types';
 import { getVisibility } from './fog-of-war';
 import { hexDistance, wrappedHexDistance } from './hex-utils';
+import { BUILDINGS } from './city-system';
+import { UNIT_DEFINITIONS } from './unit-system';
 
-const ANTI_AIR_BATTERY: AirDefenseProviderDefinition = { id: 'anti_air_battery', kind: 'building', radius: 0, defenseModifier: 8, stackingGroup: 'ground-air-defense', label: 'Anti-Air Battery' };
 export interface ResolvedAirDefenseProvider extends AirDefenseCoverageProvider {}
 interface UnfilteredCoverage { flatDefenseModifier: number; facts: CombatModifierFact[]; providers: ResolvedAirDefenseProvider[]; }
 const coverageCache = new WeakMap<GameState, Map<string, UnfilteredCoverage>>();
@@ -13,8 +14,25 @@ function distance(state: GameState, left: Unit['position'], right: Unit['positio
 function known(state: GameState, provider: ResolvedAirDefenseProvider, viewerId: string): boolean {
   return provider.ownerId === viewerId || getVisibility(state.civilizations[viewerId]?.visibility ?? { tiles: {} }, provider.position) === 'visible';
 }
+function providersForOwner(state: GameState, ownerId: string): ResolvedAirDefenseProvider[] {
+  const cityProviders = Object.values(state.cities).flatMap(city => city.owner !== ownerId ? [] : city.buildings.flatMap(buildingId => {
+    const building = BUILDINGS[buildingId]; const capability = building?.airDefenseProvider;
+    return capability ? [{ id: `city:${city.id}:${building.id}`, label: building.name, position: { ...city.position }, ownerId, ...capability }] : [];
+  }));
+  const unitProviders = Object.values(state.units).flatMap(unit => {
+    const capability = UNIT_DEFINITIONS[unit.type].airDefenseProvider;
+    return unit.owner === ownerId && !unit.transportId && capability ? [{ id: `unit:${unit.id}:${unit.type}`, label: UNIT_DEFINITIONS[unit.type].name, position: { ...unit.position }, ownerId, ...capability }] : [];
+  });
+  return [...cityProviders, ...unitProviders];
+}
 function providersFor(state: GameState, defender: Unit): ResolvedAirDefenseProvider[] {
-  return Object.values(state.cities).filter(city => city.owner === defender.owner && city.buildings.includes(ANTI_AIR_BATTERY.id) && distance(state, city.position, defender.position) <= ANTI_AIR_BATTERY.radius).map(city => ({ id: `city:${city.id}:${ANTI_AIR_BATTERY.id}`, label: ANTI_AIR_BATTERY.label, position: { ...city.position }, ownerId: city.owner, radius: 0, defenseModifier: 8, stackingGroup: ANTI_AIR_BATTERY.stackingGroup }));
+  return providersForOwner(state, defender.owner).filter(provider => distance(state, provider.position, defender.position) <= provider.radius);
+}
+export function getKnownAirDefenseProviders(state: GameState, viewerId: string): ResolvedAirDefenseProvider[] {
+  return Object.keys(state.civilizations).flatMap(ownerId => providersForOwner(state, ownerId))
+    .filter(provider => known(state, provider, viewerId))
+    .sort((left, right) => left.id.localeCompare(right.id))
+    .map(provider => ({ ...provider, position: { ...provider.position } }));
 }
 export function selectStrongestAirDefenseProviders(providers: ResolvedAirDefenseProvider[]): UnfilteredCoverage {
   const winners = new Map<string, ResolvedAirDefenseProvider>();
