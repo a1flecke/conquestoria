@@ -1148,7 +1148,8 @@ export const TRAINABLE_UNITS: Array<TrainableUnitEntry & { pacing?: Building['pa
   { type: 'artillery',    name: 'Artillery',    cost: 190, techRequired: 'mass-firepower',   pacing: { band: 'power-spike', role: 'siege-apex',           impact: 1.4,  scope: 'military', snowball: 1.2, urgency: 1.1,  situationality: 1.3,  unlockBreadth: 1 } },
   { type: 'ironclad',     name: 'Ironclad',     cost: 160, techRequired: 'ironclad-warships', coastalRequired: true,         obsoletedByTech: 'naval-armor', upgradesTo: 'pre_dreadnought',       pacing: { band: 'power-spike', role: 'naval-superiority',    impact: 1.4,  scope: 'military', snowball: 1.3, urgency: 1.2,  situationality: 1.4,  unlockBreadth: 1 } },
   { type: 'machine_gunner', name: 'Machine Gunner', cost: 145, techRequired: 'mass-firepower',   obsoletedByTech: 'armored-tactics', upgradesTo: 'infantry',                             pacing: { band: 'power-spike', role: 'ranged-suppression',  impact: 1.35, scope: 'military', snowball: 1.2, urgency: 1.1, situationality: 1.2, unlockBreadth: 1 } },
-  { type: 'infantry',       name: 'Infantry',       cost: 195, techRequired: 'armored-tactics', obsoletedByTech: 'neural-prosthetics', upgradesTo: 'exosuit_infantry', pacing: { band: 'power-spike', role: 'modern-line-infantry', impact: 1.4,  scope: 'military', snowball: 1.3, urgency: 1.1,  situationality: 1.2,  unlockBreadth: 1 } },
+  { type: 'infantry',       name: 'Infantry',       cost: 195, techRequired: 'armored-tactics', obsoletedByTech: 'neural-prosthetics', upgradesTo: 'mechanized_infantry', pacing: { band: 'power-spike', role: 'modern-line-infantry', impact: 1.4,  scope: 'military', snowball: 1.3, urgency: 1.1,  situationality: 1.2,  unlockBreadth: 1 } },
+  { type: 'mechanized_infantry', name: 'Mechanized Infantry', cost: 220, techRequired: 'armored-tactics', requiredTechs: ['motorized-transport'], trainedFromBuilding: 'tank_depot', obsoletedByTech: 'neural-prosthetics', upgradesTo: 'exosuit_infantry', pacing: { band: 'power-spike', role: 'mobile-line-infantry', impact: 1.45, scope: 'military', snowball: 1.3, urgency: 1.1, situationality: 1.2, unlockBreadth: 1 } },
   { type: 'pre_dreadnought', name: 'Pre-Dreadnought', cost: 175, techRequired: 'naval-armor', coastalRequired: true, obsoletedByTech: 'submarine-warfare', upgradesTo: 'submarine', pacing: { band: 'power-spike', role: 'naval-apex',           impact: 1.5,  scope: 'military', snowball: 1.4, urgency: 1.2, situationality: 1.4, unlockBreadth: 1 } },
   { type: 'tank',      name: 'Tank',      cost: 185, techRequired: 'tank-warfare',                                                                                  pacing: { band: 'power-spike', role: 'armored-assault',     impact: 1.5,  scope: 'military', snowball: 1.4, urgency: 1.2, situationality: 1.3, unlockBreadth: 1 } },
   { type: 'anti_tank_gun', name: 'Anti-Tank Gun', cost: 170, techRequired: 'tank-warfare', pacing: { band: 'power-spike', role: 'armor-counter', impact: 1.3, scope: 'military', snowball: 1.1, urgency: 1.1, situationality: 1.4, unlockBreadth: 1 } },
@@ -1598,6 +1599,7 @@ export const PRODUCTION_ICONS: Record<string, string> = {
   machine_gunner:  '🔫',
   pre_dreadnought: '🚢',
   infantry:   '🪖',
+  mechanized_infantry: '🪖',
   // era 9 buildings
   oil_refinery:         '🛢️',
   assembly_line:        '🏭',
