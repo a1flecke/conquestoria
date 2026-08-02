@@ -19,6 +19,7 @@ import {
   CarrackSprite, GalleonSprite, SteamshipSprite, TroopTransportSprite,
   NavalTraderSprite, SteamshipTraderSprite, CargoFreighterSprite, ContainerShipSprite,
   FrigateSprite, DestroyerSprite, MerchantWagonSprite,
+  FreightConvoySprite, AirFreighterSprite, ReconAircraftSprite, BomberSprite, JetFreighterSprite,
 } from './units';
 import {
   GranarySprite, HerbalistSprite, AqueductSprite,
@@ -282,8 +283,8 @@ export const UNIT_SPRITE_CATALOG: Record<UnitType, UnitSpriteComponent> = {
   catapult:       withMotion('catapult', CatapultSprite),
   ballista:       withMotion('ballista', BallistaSprite),
   cannon:         withMotion('cannon', CannonSprite),
-  // bomber still reuses an existing sprite as a placeholder (same pattern as frigate/destroyer
-  // below and stealth_bomber further down); bespoke art is a generate-sprite-prompt follow-up.
+  // stealth_bomber further down still reuses an existing sprite as a placeholder;
+  // bespoke art is a generate-sprite-prompt follow-up.
   // artillery/infantry/marine de-aliased in #769 batch 1.
   artillery:      withMotion('artillery', ArtillerySprite),
   grenadier:      withMotion('grenadier', GrenadierSprite),
@@ -306,9 +307,11 @@ export const UNIT_SPRITE_CATALOG: Record<UnitType, UnitSpriteComponent> = {
   observation_balloon: withMotion('observation_balloon', ObservationBalloonSprite),
   biplane:           withMotion('biplane', BiplaneSprite),
   wwii_fighter:      withMotion('wwii_fighter', JetFighterSprite),
-  recon_aircraft:    withMotion('recon_aircraft', BiplaneSprite),
+  // De-aliased in #769 batch 3 — bespoke jet-age recon jet (camera pod, no weapons).
+  recon_aircraft:    withMotion('recon_aircraft', ReconAircraftSprite),
   jet_fighter:       withMotion('jet_fighter', JetFighterSprite),
-  bomber:            withMotion('bomber', JetFighterSprite),
+  // De-aliased in #769 batch 3 — bespoke 4-engine strategic bomber (bomb-bay, big span).
+  bomber:            withMotion('bomber', BomberSprite),
   carrier:           withMotion('carrier', CarrierSprite),
   attack_helicopter: withMotion('attack_helicopter', AttackHelicopterSprite),
   missile_submarine: withMotion('missile_submarine', MissileSubmarineSprite),
@@ -322,19 +325,18 @@ export const UNIT_SPRITE_CATALOG: Record<UnitType, UnitSpriteComponent> = {
   // Trade Routes Overhaul (#553 MR2/4) — Land trade line successors to Caravan.
   // merchant_wagon de-aliased in #769 batch 2.
   merchant_wagon:    withMotion('merchant_wagon', MerchantWagonSprite),
-  // freight_convoy still a placeholder reusing CaravanSprite — out of scope for #769 batch 2,
-  // remains #769 batch 3's to de-alias.
-  freight_convoy:    withMotion('freight_convoy', CaravanSprite),
+  // De-aliased in #769 batch 3 — bespoke motor flatbed truck (successor to Merchant Wagon).
+  freight_convoy:    withMotion('freight_convoy', FreightConvoySprite),
   // Trade Routes Overhaul (#553 MR1/4) — Naval Trader line, bespoke sprites
   naval_trader:      withMotion('naval_trader', NavalTraderSprite),
   steamship_trader:  withMotion('steamship_trader', SteamshipTraderSprite),
   cargo_freighter:   withMotion('cargo_freighter', CargoFreighterSprite),
   container_ship:    withMotion('container_ship', ContainerShipSprite),
   // Trade Routes Overhaul (#553 MR3/4) — Air trade line.
-  // Placeholder: reuses BiplaneSprite/JetFighterSprite (closest silhouette by tier)
-  // until bespoke sprites ship.
-  air_freighter:     withMotion('air_freighter', BiplaneSprite),
-  jet_freighter:     withMotion('jet_freighter', JetFighterSprite),
+  // De-aliased in #769 batch 3 — bespoke prop cargo transport + cargo jet.
+  air_freighter:     withMotion('air_freighter', AirFreighterSprite),
+  jet_freighter:     withMotion('jet_freighter', JetFreighterSprite),
+  // global_air_cargo still a placeholder reusing JetFighterSprite — #769 batch 4's to de-alias.
   global_air_cargo:  withMotion('global_air_cargo', JetFighterSprite),
   expedition:     withMotion('expedition', ExpeditionSprite),
   beast_boar:         withMotion('beast_boar', GiantBoarSprite),
