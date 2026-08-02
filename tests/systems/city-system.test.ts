@@ -557,6 +557,30 @@ describe('MR9 — land/air roster gating', () => {
     expect(getTrainableUnitsForCiv(['mass-firepower']).some(u => u.type === 'artillery')).toBe(true);
     expect(getTrainableUnitsForCiv(['armored-tactics']).some(u => u.type === 'infantry')).toBe(true);
   });
+
+  it('gates Mechanized Infantry on both technologies and a local Tank Depot', () => {
+    const type = 'mechanized_infantry' as UnitType;
+    const entry = TRAINABLE_UNITS.find(unit => unit.type === type);
+    const map = generateMap(10, 10, 'mechanized-infantry-gate');
+    const tile = Object.values(map.tiles).find(candidate => candidate.terrain === 'grassland')!;
+    const city = foundCity('p1', tile.coord, map, mkC());
+
+    expect(entry).toMatchObject({
+      cost: 220,
+      techRequired: 'armored-tactics',
+      requiredTechs: ['motorized-transport'],
+      trainedFromBuilding: 'tank_depot',
+      upgradesTo: 'exosuit_infantry',
+    });
+    expect(UNIT_DEFINITIONS[type]).toMatchObject({ strength: 61, movementPoints: 3 });
+    expect(getTrainableUnitsForCiv(['armored-tactics']).some(unit => unit.type === type)).toBe(false);
+    expect(getTrainableUnitsForCiv(['motorized-transport']).some(unit => unit.type === type)).toBe(false);
+    expect(getTrainableUnitsForCity(city, ['armored-tactics', 'motorized-transport'], map)
+      .some(unit => unit.type === type)).toBe(false);
+    city.buildings = ['tank_depot'];
+    expect(getTrainableUnitsForCity(city, ['armored-tactics', 'motorized-transport'], map)
+      .some(unit => unit.type === type)).toBe(true);
+  });
 });
 
 describe('#443 — excluded buildings never obsolete (negative regression)', () => {

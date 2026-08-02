@@ -219,18 +219,21 @@ describe('MR9 — land/air strength re-curve regression locks', () => {
     expect(jetFighter?.upgradesTo).toBeUndefined();
   });
 
-  it('artillery is terminal and infantry upgrades to Exosuit Infantry', () => {
+  it('artillery is terminal and the line infantry chain reaches Exosuit Infantry through Mechanized Infantry', () => {
     const artillery = TRAINABLE_UNITS.find(u => u.type === 'artillery');
     const infantry = TRAINABLE_UNITS.find(u => u.type === 'infantry');
+    const mechanized = TRAINABLE_UNITS.find(u => u.type === ('mechanized_infantry' as UnitType));
     expect(artillery?.obsoletedByTech).toBeUndefined();
     expect(artillery?.upgradesTo).toBeUndefined();
-    expect(infantry?.obsoletedByTech).toBe('neural-prosthetics');
-    expect(infantry?.upgradesTo).toBe('exosuit_infantry');
+    expect(infantry?.upgradesTo).toBe('mechanized_infantry');
+    expect(mechanized?.upgradesTo).toBe('exosuit_infantry');
+    expect(UNIT_DEFINITIONS.exosuit_infantry.strength).toBe(70);
   });
 
   it('walks Era 13 successor tails without crossing unit domains', () => {
     const expected: Array<[UnitType, UnitType, string]> = [
-      ['infantry', 'exosuit_infantry', 'neural-prosthetics'],
+      ['infantry', 'mechanized_infantry', 'neural-prosthetics'],
+      ['mechanized_infantry', 'exosuit_infantry', 'neural-prosthetics'],
       ['destroyer', 'autonomous_frigate', 'ocean-robotics'],
       ['attack_helicopter', 'combat_drone', 'autonomous-weapons-systems'],
     ];

@@ -149,6 +149,7 @@ const UNIT_MOTION_STYLES: Record<UnitType, UnitMotionStyle> = {
   destroyer: 'naval',
   machine_gunner: 'humanoid',
   infantry: 'humanoid',
+  mechanized_infantry: 'humanoid',
   pre_dreadnought: 'naval',
   tank:       'humanoid',
   anti_tank_gun: 'humanoid',
@@ -294,6 +295,8 @@ export const UNIT_SPRITE_CATALOG: Record<UnitType, UnitSpriteComponent> = {
   destroyer:         withMotion('destroyer', DestroyerSprite),
   machine_gunner:    withMotion('machine_gunner', MachineGunnerSprite),
   infantry:          withMotion('infantry', InfantrySprite),
+  // Temporary Infantry silhouette; #709 owns Mechanized Infantry's distinct final sprite.
+  mechanized_infantry: withMotion('mechanized_infantry', InfantrySprite),
   pre_dreadnought:   withMotion('pre_dreadnought', PreDreadnoughtSprite),
   tank:              withMotion('tank', TankSprite),
   // Temporary Tank silhouette; a dedicated anti-tank gun sprite remains asset follow-up work.

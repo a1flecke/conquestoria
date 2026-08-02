@@ -96,6 +96,12 @@ const MUSKETEER_SFX = {
   death:           real('sfx-musketeer-death',          'audio/sfx/musketeer-death.ogg',          0.572, 'death'),
 };
 
+const EXOSUIT_INFANTRY_SFX = {
+  'ranged-loose': real('sfx-exosuit-infantry-fire', 'audio/sfx/exosuit-fire.ogg', 0.48),
+  'ranged-impact': real('sfx-exosuit-infantry-impact', 'audio/sfx/exosuit-impact.ogg', 0.42),
+  death: real('sfx-exosuit-infantry-death', 'audio/sfx/exosuit-death.ogg', 0.64, 'death'),
+};
+
 // Unit SFX — keyed by UnitType, then by SfxClass. Non-combat units have death only.
 export const UNIT_SFX: Partial<Record<UnitType, Partial<Record<SfxClass, TrackEntry>>>> = {
 
@@ -314,10 +320,13 @@ export const UNIT_SFX: Partial<Record<UnitType, Partial<Record<SfxClass, TrackEn
     'ranged-impact': real('sfx-autonomous-frigate-impact', 'audio/sfx/autonomous-frigate-hit.ogg', 0.56),
     death: real('sfx-autonomous-frigate-death', 'audio/sfx/autonomous-frigate-death.ogg', 0.88, 'death'),
   },
-  exosuit_infantry: {
-    'ranged-loose': real('sfx-exosuit-infantry-fire', 'audio/sfx/exosuit-fire.ogg', 0.48),
-    'ranged-impact': real('sfx-exosuit-infantry-impact', 'audio/sfx/exosuit-impact.ogg', 0.42),
-    death: real('sfx-exosuit-infantry-death', 'audio/sfx/exosuit-death.ogg', 0.64, 'death'),
+  exosuit_infantry: EXOSUIT_INFANTRY_SFX,
+  // Temporary powered-infantry fallback; #715 owns bespoke mechanized combat audio.
+  mechanized_infantry: {
+    'attack-swing': EXOSUIT_INFANTRY_SFX['ranged-loose'],
+    'ranged-loose': EXOSUIT_INFANTRY_SFX['ranged-loose'],
+    'ranged-impact': EXOSUIT_INFANTRY_SFX['ranged-impact'],
+    death: EXOSUIT_INFANTRY_SFX.death,
   },
   propagandist: { death: real('sfx-propagandist-death', 'audio/sfx/propagandist-death.ogg', 0.46, 'death') },
   drone_controller: { death: real('sfx-drone-controller-death', 'audio/sfx/drone-controller-death.ogg', 0.46, 'death') },
@@ -386,6 +395,7 @@ const LOCOMOTION_CLASS: Record<UnitType, LocomotionClass> = {
   destroyer:      'naval',
   machine_gunner: 'humanoid',
   infantry:       'humanoid',
+  mechanized_infantry: 'humanoid',
   pre_dreadnought: 'naval',
   tank:       'humanoid',
   // Temporary humanoid locomotion fallback; bespoke artillery audio remains asset follow-up work.

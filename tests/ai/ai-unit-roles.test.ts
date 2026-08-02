@@ -41,6 +41,7 @@ describe('AI strategic unit roles', () => {
     ['destroyer', ['naval-combat', 'escort']],
     ['artillery', ['siege', 'ranged']],
     ['infantry', ['ranged', 'capture']],
+    ['mechanized_infantry' as UnitType, ['ranged', 'mobile', 'capture']],
     ['bomber', ['air-combat', 'ranged']],
     ['combat_drone', ['air-combat', 'ranged']],
     ['autonomous_frigate', ['naval-combat', 'escort']],
