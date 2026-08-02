@@ -64,7 +64,7 @@ describe('resolveAirDefenseCoverage', () => {
     const next = state();
     next.units = {
       aa: { id: 'aa', owner: 'defender', type: 'mobile_aa', position: { q: 0, r: 0 } },
-    } as GameState['units'];
+    } as unknown as GameState['units'];
     const covered = { ...defender, position: { q: 1, r: 0 } };
 
     expect(resolveAirDefenseCoverage(next, covered, 'defender')).toMatchObject({
@@ -80,7 +80,7 @@ describe('resolveAirDefenseCoverage', () => {
     const next = state();
     next.units = {
       aa: { id: 'aa', owner: 'defender', type: 'mobile_aa', position: { q: 0, r: 0 } },
-    } as GameState['units'];
+    } as unknown as GameState['units'];
 
     expect(resolveAirDefenseCoverage(next, { ...defender, position: { q: 2, r: 0 } }, 'defender').flatDefenseModifier).toBe(0);
   });
