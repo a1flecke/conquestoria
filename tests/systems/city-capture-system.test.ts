@@ -94,8 +94,13 @@ describe('city-capture-system', () => {
     return state;
   }
 
-  it('begins a legal major-city assault through canonical movement without mutating input', () => {
+  it('lets a human Mechanized Infantry capture and hold a major city through the shared path', () => {
     const state = makeMajorAssaultState();
+    state.units.attacker = {
+      ...createUnit('mechanized_infantry', 'player', { q: 0, r: 0 }, state.idCounters),
+      id: 'attacker',
+      movementPointsLeft: 3,
+    };
     const before = structuredClone(state);
     const bus = new EventBus();
     const moved = vi.fn();
@@ -115,6 +120,16 @@ describe('city-capture-system', () => {
     expect(result.state.units.attacker.movementPointsLeft).toBe(0);
     expect(result.pending.cityId).toBe('athens');
     expect(moved).toHaveBeenCalledOnce();
+
+    const capture = resolveMajorCityCapture(
+      result.state,
+      'athens',
+      'player',
+      'occupy',
+      result.state.turn,
+    );
+    expect(capture.state.cities.athens.owner).toBe('player');
+    expect(capture.state.units.attacker.position).toEqual({ q: 1, r: 0 });
   });
 
   it('emits capture, territory, and elimination transitions from one shared helper', () => {
