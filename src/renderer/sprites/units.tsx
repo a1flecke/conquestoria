@@ -1876,6 +1876,82 @@ export function MerchantWagonSprite({ palette, svgOnly = false }: UnitSpriteProp
   );
 }
 
+// #769 de-alias (batch 3): freight_convoy previously reused CaravanSprite verbatim —
+// an ancient walking pack-donkey with no wheels at all. Freight Convoy is the era-10
+// (highway-network) motor-freight successor to the horse-drawn Merchant Wagon: a
+// highway flatbed TRUCK — rubber tyres (no spoked wheels, no draft animal), a cab with
+// a windshield + headlight, an exhaust stack, and a strapped-down deck of crates. The
+// visible cargo + coin-glint keep the "trade route" read shared with Caravan/Merchant
+// Wagon; the motorised silhouette places it three eras later.
+export function FreightConvoySprite({ palette, svgOnly = false }: UnitSpriteProps): string {
+  return (
+    <SpriteFrame svgOnly={svgOnly}>
+      <g data-kind="civilian">
+        <Shadow cx={62} cy={96} rx={48} ry={6} />
+        {/* CHASSIS rail */}
+        <rect x="14" y="80" width="92" height="5" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.6" />
+        {/* rubber TYRES — solid, no spokes; steel hub + centre nut */}
+        <g transform="translate(32 86)">
+          <circle r="10.5" fill="#26221c" stroke={P.ink.line} strokeWidth="1" />
+          <circle r="4.6" fill={P.metal.steel} stroke={P.ink.line} strokeWidth="0.6" />
+          <circle r="1.4" fill={P.metal.iron} />
+        </g>
+        <g transform="translate(56 86)">
+          <circle r="10.5" fill="#26221c" stroke={P.ink.line} strokeWidth="1" />
+          <circle r="4.6" fill={P.metal.steel} stroke={P.ink.line} strokeWidth="0.6" />
+          <circle r="1.4" fill={P.metal.iron} />
+        </g>
+        <g transform="translate(98 86)">
+          <circle r="10.5" fill="#26221c" stroke={P.ink.line} strokeWidth="1" />
+          <circle r="4.6" fill={P.metal.steel} stroke={P.ink.line} strokeWidth="0.6" />
+          <circle r="1.4" fill={P.metal.iron} />
+        </g>
+        {/* exhaust stack behind the cab + drifting smoke */}
+        <rect x="79" y="42" width="3.4" height="18" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.5" />
+        <g transform="translate(80.5 41)">
+          <ellipse className="cq-smoke" cx="0" cy="0" rx="4" ry="3.2" fill={P.stone.light} opacity="0.6" />
+          <ellipse className="cq-smoke cq-smoke--b" cx="1.5" cy="0" rx="5" ry="4" fill={P.stone.mid} opacity="0.45" />
+        </g>
+        {/* FLATBED deck */}
+        <rect x="14" y="68" width="66" height="12" fill={P.wood.mid} stroke={P.ink.line} strokeWidth="0.9" />
+        <rect x="14" y="68" width="66" height="3" fill={P.wood.light} />
+        <line x1="30" y1="71" x2="30" y2="80" stroke={P.wood.dark} strokeWidth="0.5" opacity="0.5" />
+        <line x1="48" y1="71" x2="48" y2="80" stroke={P.wood.dark} strokeWidth="0.5" opacity="0.5" />
+        <line x1="64" y1="71" x2="64" y2="80" stroke={P.wood.dark} strokeWidth="0.5" opacity="0.5" />
+        {/* CARGO — crates + linen sack strapped to the deck */}
+        <rect x="20" y="50" width="16" height="18" fill={P.wood.light} stroke={P.ink.line} strokeWidth="0.8" />
+        <path d="M20,56 H36 M28,50 V68" stroke={P.wood.dark} strokeWidth="0.6" opacity="0.7" />
+        <rect x="38" y="46" width="15" height="22" fill={P.wood.light} stroke={P.ink.line} strokeWidth="0.8" />
+        <path d="M38,55 H53 M45.5,46 V68" stroke={P.wood.dark} strokeWidth="0.6" opacity="0.7" />
+        <path d="M56,68 L56,56 Q56,47 64,47 Q72,47 72,56 L72,68 Z" fill={P.cloth.linen} stroke={P.ink.line} strokeWidth="0.8" />
+        <path d="M60,47 Q64,51 68,47" fill="none" stroke={P.ink.soft} strokeWidth="0.5" opacity="0.6" />
+        {/* tie-down strap across the load */}
+        <line x1="16" y1="58" x2="76" y2="58" stroke={P.ink.soft} strokeWidth="1.4" opacity="0.8" />
+        {/* WORK = delivering goods: coin glint above the deck (.cq-deliver) */}
+        <g className="cq-deliver">
+          <ellipse cx="44" cy="42" rx="4.5" ry="1.8" fill={P.metal.gold} stroke={P.ink.line} strokeWidth="0.5" />
+          <ellipse cx="44" cy="39.8" rx="4.5" ry="1.8" fill="#e8c64a" stroke={P.ink.line} strokeWidth="0.5" />
+          <ellipse cx="52" cy="43" rx="3.2" ry="1.4" fill={P.metal.gold} stroke={P.ink.line} strokeWidth="0.4" />
+        </g>
+        {/* CAB — faction-coloured, windshield glass, door, grille, headlight */}
+        <rect x="82" y="56" width="24" height="24" rx="2" fill={palette.mid} stroke={P.ink.line} strokeWidth="1" />
+        <path d="M83,56 L88,45 L104,45 L106,56 Z" fill={palette.dark} stroke={P.ink.line} strokeWidth="1" />
+        <path d="M89,55 L91,47 L102,47 L103,55 Z" fill={P.cloth.dye} stroke={P.ink.line} strokeWidth="0.6" />
+        <path d="M90,54 L92,48 L95,48 Z" fill={P.metal.shine} opacity="0.4" />
+        <line x1="95" y1="57" x2="95" y2="79" stroke={P.ink.line} strokeWidth="0.5" opacity="0.6" />
+        <rect x="90" y="66" width="3" height="1.6" fill={P.ink.soft} />
+        <rect x="104" y="60" width="4" height="14" fill={P.metal.steel} stroke={P.ink.line} strokeWidth="0.6" />
+        <line x1="104" y1="64" x2="108" y2="64" stroke={P.ink.line} strokeWidth="0.4" opacity="0.6" />
+        <line x1="104" y1="68" x2="108" y2="68" stroke={P.ink.line} strokeWidth="0.4" opacity="0.6" />
+        <rect x="104" y="76" width="6" height="5" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.5" />
+        <g transform="translate(107 66)"><g className="cq-glow"><circle r="2.4" fill={P.metal.gold} stroke={P.ink.line} strokeWidth="0.5" /></g></g>
+        {/* faction Banner on a short staff at the truck rear (left) */}
+        <Banner x={94} y={45} palette={palette} scale={0.55} />
+      </g>
+    </SpriteFrame>
+  );
+}
+
 /* === EXPEDITION === */
 
 export function ExpeditionSprite({ palette, svgOnly = false }: UnitSpriteProps): string {
@@ -2143,6 +2219,154 @@ export function JetFighterSprite({ palette, svgOnly = false }: UnitSpriteProps):
       {/* afterburner glow */}
       <ellipse cx="64" cy="88" rx="5" ry="10" fill="#ff6600" opacity="0.7" />
       <Banner x={64} y={16} palette={palette} scale={0.6} />
+    </SpriteFrame>
+  );
+}
+
+// #769 de-alias (batch 3): air_freighter previously reused BiplaneSprite — a WWI
+// double-winged biplane. Air Freighter is the era-9 (air-superiority) cargo hauler,
+// drawn in a shallow 3/4 bank nose-right so BOTH wings show as a swept V: a fat
+// aluminium fuselage, two propeller engines (vertical spinning-prop discs), a tail fin.
+export function AirFreighterSprite({ palette, svgOnly = false }: UnitSpriteProps): string {
+  return (
+    <SpriteFrame svgOnly={svgOnly}>
+      <Shadow cx={64} cy={112} rx={44} ry={5} />
+      {/* FAR wing (upper, swept back) + engine/prop */}
+      <path d="M72,50 L26,34 L36,39 L74,53 Z" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="1.1" />
+      <circle cx="50" cy="42" r="3.2" fill={palette.mid} stroke={P.ink.line} strokeWidth="0.5" /><circle cx="50" cy="42" r="1.3" fill={palette.trim} />
+      <g transform="translate(52 43)">
+        <rect x="-2" y="-4" width="18" height="8" rx="4" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.9" />
+        <ellipse cx="17" cy="0" rx="2.2" ry="8" fill={P.metal.shine} opacity="0.3" />
+        <ellipse cx="17" cy="0" rx="1.1" ry="4" fill={P.metal.shine} opacity="0.55" />
+        <circle cx="15" cy="0" r="1.5" fill={P.metal.steel} stroke={P.ink.line} strokeWidth="0.5" />
+      </g>
+      {/* TAIL FIN + stabiliser (rear, left) */}
+      <path d="M28,52 L20,26 L40,52 Z" fill={palette.mid} stroke={P.ink.line} strokeWidth="1" />
+      <path d="M28,54 L10,49 L16,55 L28,57 Z" fill={P.metal.steel} stroke={P.ink.line} strokeWidth="0.9" />
+      {/* FUSELAGE — fat aluminium tube, rounded nose right */}
+      <path d="M20,50 L34,45 L98,46 Q110,47 110,53 Q110,59 98,60 L40,59 Q26,58 20,54 Z" fill={P.metal.steel} stroke={P.ink.line} strokeWidth="1.2" />
+      <path d="M102,47 Q110,48 110,53 L102,53 Z" fill={P.metal.shine} opacity="0.35" />
+      <rect x="24" y="51" width="84" height="3.4" fill={palette.mid} opacity="0.9" />
+      <path d="M96,47 L104,48 L103,51 L95,50 Z" fill={P.cloth.dye} stroke={P.ink.line} strokeWidth="0.5" />
+      <circle cx="54" cy="51.4" r="1.2" fill={P.cloth.dye} stroke={P.ink.line} strokeWidth="0.3" />
+      <circle cx="62" cy="51.4" r="1.2" fill={P.cloth.dye} stroke={P.ink.line} strokeWidth="0.3" />
+      <rect x="70" y="47" width="9" height="9" rx="1" fill={palette.dark} stroke={P.ink.line} strokeWidth="0.6" />
+      {/* NEAR wing (lower, swept back) + engine/prop — over the fuselage */}
+      <path d="M72,56 L26,72 L36,74 L74,59 Z" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="1.1" />
+      <circle cx="50" cy="66" r="3.2" fill={palette.mid} stroke={P.ink.line} strokeWidth="0.5" /><circle cx="50" cy="66" r="1.3" fill={palette.trim} />
+      <g transform="translate(52 65)">
+        <rect x="-2" y="-4" width="18" height="8" rx="4" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.9" />
+        <ellipse cx="17" cy="0" rx="2.2" ry="8" fill={P.metal.shine} opacity="0.3" />
+        <ellipse cx="17" cy="0" rx="1.1" ry="4" fill={P.metal.shine} opacity="0.55" />
+        <circle cx="15" cy="0" r="1.5" fill={P.metal.steel} stroke={P.ink.line} strokeWidth="0.5" />
+      </g>
+      {/* WORK = delivering goods: coin glint above the cargo door (.cq-deliver) */}
+      <g className="cq-deliver">
+        <ellipse cx="74" cy="40" rx="4.5" ry="1.8" fill={P.metal.gold} stroke={P.ink.line} strokeWidth="0.5" />
+        <ellipse cx="74" cy="37.8" rx="4.5" ry="1.8" fill="#e8c64a" stroke={P.ink.line} strokeWidth="0.5" />
+        <ellipse cx="82" cy="41" rx="3.2" ry="1.4" fill={P.metal.gold} stroke={P.ink.line} strokeWidth="0.4" />
+      </g>
+      <Banner x={64} y={20} palette={palette} scale={0.55} />
+    </SpriteFrame>
+  );
+}
+
+// #769 de-alias (batch 3): recon_aircraft previously reused BiplaneSprite — three
+// eras too early. Recon Aircraft is an era-10 (jet-aviation) UNARMED reconnaissance
+// jet, drawn in a shallow 3/4 bank nose-right (both thin high-aspect wings visible),
+// with a T-tail, a glazed nose sensor dome and a belly CAMERA POD — no weapons.
+export function ReconAircraftSprite({ palette, svgOnly = false }: UnitSpriteProps): string {
+  return (
+    <SpriteFrame svgOnly={svgOnly}>
+      <Shadow cx={64} cy={112} rx={40} ry={4} />
+      {/* FAR wing (upper) */}
+      <path d="M70,52 L24,40 L30,43 L72,55 Z" fill={palette.bright} stroke={P.ink.line} strokeWidth="1" />
+      <circle cx="48" cy="47" r="2.4" fill={palette.mid} stroke={P.ink.line} strokeWidth="0.5" />
+      {/* T-TAIL */}
+      <path d="M28,50 L22,24 L36,50 Z" fill={palette.mid} stroke={P.ink.line} strokeWidth="1" />
+      <path d="M16,26 L36,26 L36,30 L16,30 Z" fill={P.metal.steel} stroke={P.ink.line} strokeWidth="0.7" />
+      {/* FUSELAGE — slim, pointed nose right */}
+      <path d="M22,50 L36,45 L96,47 L110,52 L96,57 L40,56 Q28,55 22,52 Z" fill={palette.mid} stroke={P.ink.line} strokeWidth="1.2" />
+      <path d="M22,51 L40,48 L40,53 L22,53 Z" fill={palette.bright} opacity="0.4" />
+      {/* NEAR wing (lower) */}
+      <path d="M70,55 L24,68 L30,70 L72,58 Z" fill={palette.bright} stroke={P.ink.line} strokeWidth="1" />
+      <circle cx="48" cy="63" r="2.4" fill={palette.mid} stroke={P.ink.line} strokeWidth="0.5" />
+      {/* belly CAMERA POD — glowing lens */}
+      <ellipse cx="60" cy="58" rx="7" ry="4.2" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="1" />
+      <g transform="translate(60 59)"><g className="cq-glow"><circle r="2.4" fill={P.ground.water} stroke={P.ink.line} strokeWidth="0.5" /><circle r="0.9" fill={P.metal.shine} opacity="0.8" /></g></g>
+      {/* NOSE sensor dome */}
+      <ellipse cx="106" cy="52" rx="6" ry="4.4" fill={P.cloth.dye} stroke={P.ink.line} strokeWidth="1" />
+      <ellipse cx="108" cy="50.5" rx="1.8" ry="1.2" fill={P.metal.shine} opacity="0.6" />
+      <Banner x={64} y={18} palette={palette} scale={0.5} />
+    </SpriteFrame>
+  );
+}
+
+// #769 de-alias (batch 3): bomber previously reused JetFighterSprite verbatim — a
+// small single-seat swept-wing fighter. Bomber is the era-10 (nuclear-weapons) heavy
+// strategic bomber, drawn in a shallow 3/4 bank nose-right (both swept wings visible),
+// carrying FOUR podded engines, a belly bomb-bay and a tall swept tail — big and slow.
+export function BomberSprite({ palette, svgOnly = false }: UnitSpriteProps): string {
+  return (
+    <SpriteFrame svgOnly={svgOnly}>
+      <Shadow cx={64} cy={114} rx={50} ry={5} />
+      {/* FAR wing (upper) + two pods */}
+      <path d="M74,52 L22,30 L34,35 L78,55 Z" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="1.2" />
+      <g fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.8"><rect x="46" y="40" width="17" height="7" rx="3.5" /><rect x="32" y="34" width="15" height="6" rx="3" /></g>
+      <circle cx="54" cy="43" r="3" fill={palette.mid} stroke={P.ink.line} strokeWidth="0.5" /><circle cx="54" cy="43" r="1.2" fill={palette.bright} />
+      {/* TALL SWEPT TAIL FIN + stab */}
+      <path d="M30,50 L16,16 L42,50 Z" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="1.1" />
+      <path d="M30,50 L22,26 L34,50 Z" fill={P.metal.steel} opacity="0.4" />
+      <path d="M30,52 L8,46 L14,53 L30,56 Z" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.9" />
+      {/* FUSELAGE — long heavy iron tube, pointed nose right */}
+      <path d="M16,48 L34,42 L98,43 L116,52 L98,61 L40,60 Q24,59 16,54 Z" fill={P.metal.steel} stroke={P.ink.line} strokeWidth="1.3" />
+      <path d="M100,44 L116,52 L100,52 Z" fill={P.metal.iron} />
+      <path d="M92,46 L104,49 L102,52 L91,50 Z" fill={P.cloth.dye} stroke={P.ink.line} strokeWidth="0.5" />
+      {/* NEAR wing (lower) + two pods */}
+      <path d="M74,57 L22,80 L34,82 L78,60 Z" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="1.2" />
+      <g fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.8"><rect x="46" y="66" width="17" height="7" rx="3.5" /><rect x="32" y="74" width="15" height="6" rx="3" /></g>
+      <circle cx="54" cy="70" r="3" fill={palette.mid} stroke={P.ink.line} strokeWidth="0.5" /><circle cx="54" cy="70" r="1.2" fill={palette.bright} />
+      {/* belly BOMB-BAY */}
+      <rect x="56" y="57" width="20" height="7" rx="1" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.7" />
+      <line x1="66" y1="57" x2="66" y2="64" stroke={P.ink.line} strokeWidth="0.5" />
+      <Banner x={64} y={10} palette={palette} scale={0.55} />
+    </SpriteFrame>
+  );
+}
+
+// #769 de-alias (batch 3): jet_freighter previously reused JetFighterSprite verbatim —
+// the same fighter silhouette as jet_fighter/wwii_fighter, with no cargo identity. Jet
+// Freighter is the era-10 (jet-aviation) civilian cargo JET, drawn in a shallow 3/4
+// bank nose-right (both swept wings visible), with a white liveried fuselage + cabin
+// windows, two underslung engine pods, a large faction tail fin and a cargo door.
+export function JetFreighterSprite({ palette, svgOnly = false }: UnitSpriteProps): string {
+  return (
+    <SpriteFrame svgOnly={svgOnly}>
+      <Shadow cx={64} cy={112} rx={46} ry={5} />
+      {/* FAR wing (upper) + engine pod */}
+      <path d="M72,52 L28,34 L40,39 L74,55 Z" fill={P.metal.steel} stroke={P.ink.line} strokeWidth="1.1" />
+      <g transform="translate(50 42)"><rect x="-8" y="-4" width="18" height="9" rx="4.5" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.9" /><ellipse cx="10" cy="0.5" rx="2.2" ry="4.2" fill={P.cloth.dye} stroke={P.ink.line} strokeWidth="0.5" /></g>
+      {/* TALL faction TAIL FIN + stab */}
+      <path d="M30,52 L20,20 L40,52 Z" fill={palette.mid} stroke={P.ink.line} strokeWidth="1" />
+      <circle cx="28" cy="36" r="2.4" fill={palette.trim} stroke={palette.dark} strokeWidth="0.5" />
+      <path d="M30,54 L10,48 L16,54 L30,58 Z" fill={P.metal.steel} stroke={P.ink.line} strokeWidth="0.9" />
+      {/* FUSELAGE — white tube, rounded nose right */}
+      <path d="M18,50 L34,44 L100,45 Q112,46 112,53 Q112,59 100,60 L40,60 Q26,59 18,54 Z" fill={P.cloth.linen} stroke={P.ink.line} strokeWidth="1.2" />
+      <path d="M104,47 Q112,48 112,53 L104,53 Z" fill={P.metal.shine} opacity="0.3" />
+      <rect x="24" y="51" width="84" height="3.4" fill={palette.mid} opacity="0.9" />
+      <path d="M98,47 L106,48 L105,51 L97,50 Z" fill={P.cloth.dye} stroke={P.ink.line} strokeWidth="0.5" />
+      <g fill={P.cloth.dye} stroke={P.ink.line} strokeWidth="0.3"><circle cx="46" cy="51.4" r="1.1" /><circle cx="54" cy="51.4" r="1.1" /><circle cx="62" cy="51.4" r="1.1" /><circle cx="90" cy="51.4" r="1.1" /></g>
+      <rect x="72" y="46" width="10" height="10" rx="1" fill={palette.dark} stroke={P.ink.line} strokeWidth="0.6" />
+      {/* NEAR wing (lower) + engine pod */}
+      <path d="M72,57 L28,78 L40,80 L74,60 Z" fill={P.metal.steel} stroke={P.ink.line} strokeWidth="1.1" />
+      <g transform="translate(50 68)"><rect x="-8" y="-4" width="18" height="9" rx="4.5" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.9" /><ellipse cx="10" cy="0.5" rx="2.2" ry="4.2" fill={P.cloth.dye} stroke={P.ink.line} strokeWidth="0.5" /></g>
+      {/* WORK = delivering goods: coin glint above the cargo door (.cq-deliver) */}
+      <g className="cq-deliver">
+        <ellipse cx="77" cy="39" rx="4.5" ry="1.8" fill={P.metal.gold} stroke={P.ink.line} strokeWidth="0.5" />
+        <ellipse cx="77" cy="36.8" rx="4.5" ry="1.8" fill="#e8c64a" stroke={P.ink.line} strokeWidth="0.5" />
+        <ellipse cx="85" cy="40" rx="3.2" ry="1.4" fill={P.metal.gold} stroke={P.ink.line} strokeWidth="0.4" />
+      </g>
+      <Banner x={64} y={14} palette={palette} scale={0.55} />
     </SpriteFrame>
   );
 }
