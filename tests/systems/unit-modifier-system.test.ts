@@ -351,6 +351,20 @@ describe('getCombatModifier — national project fade scaling', () => {
 });
 
 describe('getClassCounterMultiplier — class counters', () => {
+  it('lets a Tank retain an armor-breakthrough advantage over Exosuit Infantry', () => {
+    const tank = createUnit('tank', 'p1', { q: 5, r: 5 }, mkC());
+    const exosuit = createUnit('exosuit_infantry', 'p2', { q: 6, r: 5 }, mkC());
+
+    const tankStrength = calculateCombatStrengths(tank, exosuit, generateMap(30, 30, 'tank-exosuit-balance'), {
+      attackerModifiers: getCombatModifier('tank', 'attacker', baseCombatCtx({
+        opponentType: 'exosuit_infantry',
+      })),
+    });
+
+    expect(tankStrength.attackerStrength).toBeCloseTo(62 * 1.25);
+    expect(tankStrength.attackerStrength).toBeGreaterThan(tankStrength.defenderStrength);
+  });
+
   it('pikeman attacking knight (mounted): ×1.5', () => {
     const result = getClassCounterMultiplier('pikeman', 'knight', false);
     expect(result?.multiplier).toBe(1.5);

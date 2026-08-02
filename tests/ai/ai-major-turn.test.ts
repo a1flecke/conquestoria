@@ -494,9 +494,9 @@ describe('processMajorCivStrategicTurn', () => {
       .toBe(false);
   });
 
-  it('advances and captures after the same attacker defeats the final city defender', () => {
+  it('lets AI Mechanized Infantry advance and capture after defeating the final city defender', () => {
     const state = makeState();
-    addUnit(state, 'captor', 'swordsman', AI, { q: 0, r: 0 });
+    addUnit(state, 'captor', 'mechanized_infantry', AI, { q: 0, r: 0 });
     addUnit(state, 'last-defender', 'warrior', HUMAN, { q: 1, r: 0 }, {
       health: 1,
     });
