@@ -11,6 +11,7 @@ import { PIRATE_HULL_TYPES } from '@/systems/pirate-definitions';
 import {
   JetFighterSprite, IroncladSprite, MachineGunnerSprite, MissionarySprite, SpyHackerSprite,
   HorsemanSprite, CannonSprite, RiflemanSprite,
+  TriremeSprite, CaravanSprite,
 } from '@/renderer/sprites/units';
 import {
   DataCenterSprite, CyberDefenseCenterSprite, AutomatedPortSprite, SignalsHubSprite,
@@ -178,6 +179,26 @@ describe('#769 batch 1 sprites are not aliases of their donors', () => {
   });
 });
 
+// #769 batch 2 (naval + logistics, shipped 2026-08-01) — same permanent regression as batch 1
+// above, for frigate/destroyer/merchant_wagon (previously TriremeSprite/IroncladSprite/
+// CaravanSprite verbatim).
+describe('#769 batch 2 sprites are not aliases of their donors', () => {
+  const palette = derivePalette('#4a90d9');
+
+  it('unit sprites render different markup than the donors they replaced', () => {
+    const replacements: Array<[keyof typeof UNIT_SPRITE_CATALOG, (props: { palette: typeof palette; svgOnly: boolean }) => string]> = [
+      ['frigate', TriremeSprite],
+      ['destroyer', IroncladSprite],
+      ['merchant_wagon', CaravanSprite],
+    ];
+    for (const [type, donorFn] of replacements) {
+      const actual = UNIT_SPRITE_CATALOG[type]({ palette, svgOnly: true });
+      const donor = donorFn({ palette, svgOnly: true });
+      expect(actual, `${type} still renders identically to its old donor sprite`).not.toBe(donor);
+    }
+  });
+});
+
 // #769: full audit (2026-08-01, `scripts/audit-sprite-aliases.mjs`) of UNIT_SPRITE_CATALOG
 // originally found 17 units still rendering via another unit's exact sprite function — not
 // similar art, literally the same component (distinct from the Era 13 placeholders above,
@@ -189,6 +210,9 @@ describe('#769 batch 1 sprites are not aliases of their donors', () => {
 // longer listed below. `chariot` also closed out the overlapping portion of pre-existing issue
 // #708's scope that this issue didn't originally know about (see next paragraph) — #708's
 // comment was updated to reflect that.
+//
+// Batch 2 (frigate, destroyer, merchant_wagon) shipped 2026-08-01 (issue #775's Claude Design
+// prompt) and is no longer listed below either — see the permanent regression block above.
 //
 // Reconciled with issue #708 (2026-08-01): #708 is a pre-existing, separately-tracked issue
 // (part of the larger #547 combat-roster initiative) that already owned `beast_handler`,
@@ -216,10 +240,6 @@ describe('#769 pending sprite-alias audit baseline', () => {
 
   it('known-pending aliased units still render identically to their donor unit', () => {
     const pendingAliasPairs: Array<[keyof typeof UNIT_SPRITE_CATALOG, keyof typeof UNIT_SPRITE_CATALOG]> = [
-      // Batch 2 (naval + logistics) — beast_handler/war_elephant removed, owned by #708
-      ['frigate', 'trireme'],
-      ['destroyer', 'ironclad'],
-      ['merchant_wagon', 'caravan'],
       // Batch 3 (logistics + air)
       ['freight_convoy', 'caravan'],
       ['recon_aircraft', 'biplane'],
@@ -230,7 +250,7 @@ describe('#769 pending sprite-alias audit baseline', () => {
       ['global_air_cargo', 'jet_fighter'],
       ['stealth_bomber', 'jet_fighter'],
     ];
-    expect(pendingAliasPairs.length, "baseline count should match #769's remaining scope (17 originally, minus batch 1's 5, minus beast_handler/war_elephant deferred to #708)").toBe(10);
+    expect(pendingAliasPairs.length, "baseline count should match #769's remaining scope (17 originally, minus batch 1's 5, minus batch 2's 3, minus beast_handler/war_elephant deferred to #708)").toBe(7);
     for (const [aliasType, donorType] of pendingAliasPairs) {
       const actual = UNIT_SPRITE_CATALOG[aliasType]({ palette, svgOnly: true, motion: 'idle' });
       const donor = UNIT_SPRITE_CATALOG[donorType]({ palette, svgOnly: true, motion: 'idle' });
