@@ -272,6 +272,36 @@ describe('getCombatModifier — tech rows', () => {
     expect(asDefender.flat).toBe(0);
   });
 
+  it('gives Battleship exactly 20% bombardment against cities or coastal targets only', () => {
+    const city = getCombatModifier('battleship' as UnitType, 'attacker', baseCombatCtx({
+      targetIsCity: true,
+      targetTerrain: 'plains',
+    }));
+    const coast = getCombatModifier('battleship' as UnitType, 'attacker', baseCombatCtx({
+      targetIsCity: false,
+      targetTerrain: 'coast',
+    }));
+    const openOcean = getCombatModifier('battleship' as UnitType, 'attacker', baseCombatCtx({
+      targetIsCity: false,
+      targetTerrain: 'ocean',
+    }));
+    const defending = getCombatModifier('battleship' as UnitType, 'defender', baseCombatCtx({
+      targetIsCity: true,
+      targetTerrain: 'coast',
+    }));
+
+    expect(city.mult).toBeCloseTo(1.2);
+    expect(coast.mult).toBeCloseTo(1.2);
+    expect(openOcean.mult).toBe(1);
+    expect(defending.mult).toBe(1);
+    expect(city.facts).toContainEqual(expect.objectContaining({
+      key: 'unit:battleship:bombardment', outcome: 'applied', value: 1.2,
+    }));
+    expect(openOcean.facts).toContainEqual(expect.objectContaining({
+      key: 'unit:battleship:bombardment', outcome: 'ignored', ignoredReason: 'condition', value: 1.2,
+    }));
+  });
+
   it('armored-tactics: +5 flat only for tank (negative: cavalry)', () => {
     const tank = getCombatModifier('tank', 'attacker', baseCombatCtx({ completedTechs: ['armored-tactics'] }));
     const cavalry = getCombatModifier('cavalry', 'attacker', baseCombatCtx({ completedTechs: ['armored-tactics'] }));
@@ -351,6 +381,14 @@ describe('getCombatModifier — national project fade scaling', () => {
 });
 
 describe('getClassCounterMultiplier — class counters', () => {
+  it('gives submarines a documented counter against Battleships but not other surface ships', () => {
+    expect(getClassCounterMultiplier('submarine', 'battleship' as UnitType, false)).toEqual({
+      multiplier: 1.25,
+      label: 'Capital-ship ambush ×1.25',
+    });
+    expect(getClassCounterMultiplier('submarine', 'pre_dreadnought', false)).toBeUndefined();
+  });
+
   it('lets a Tank retain an armor-breakthrough advantage over Exosuit Infantry', () => {
     const tank = createUnit('tank', 'p1', { q: 5, r: 5 }, mkC());
     const exosuit = createUnit('exosuit_infantry', 'p2', { q: 6, r: 5 }, mkC());

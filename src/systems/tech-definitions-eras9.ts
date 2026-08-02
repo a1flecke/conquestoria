@@ -87,10 +87,14 @@ const ERA_9_TECHS: Tech[] = [
     prerequisites: ['impressionism', 'telephony'],
     unlocks: ['+2 gold per city with an opera house; jazz culture electrifies urban life'], era: 9 },
 
-  // MARITIME (2)
+  // MARITIME (2 advancing + 1 optional bridge)
+  { id: 'dreadnought-construction', name: 'Dreadnought Construction', track: 'maritime', cost: 275,
+    prerequisites: ['naval-armor', 'bessemer-steel'],
+    unlocks: ['Heavy-gun fleet construction enables decisive maritime fire support'],
+    unlocksUnits: ['battleship'], era: 9, countsForEraAdvancement: false },
   { id: 'submarine-warfare', name: 'Submarine Warfare', track: 'maritime', cost: 275,
     prerequisites: ['torpedo-warfare', 'naval-armor'],
-    unlocks: ['Undersea warfare reshapes naval combat; pre-dreadnoughts obsolete'],
+    unlocks: ['Undersea warfare reshapes naval combat; submarines hunt capital ships'],
     unlocksUnits: ['submarine'], era: 9 },
   { id: 'convoy-system', name: 'Convoy System', track: 'maritime', cost: 270,
     prerequisites: ['torpedo-warfare', 'transcontinental-rail'],

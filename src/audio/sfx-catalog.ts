@@ -102,6 +102,13 @@ const EXOSUIT_INFANTRY_SFX = {
   death: real('sfx-exosuit-infantry-death', 'audio/sfx/exosuit-death.ogg', 0.64, 'death'),
 };
 
+// Shared naval cannon fallback for capital ships until their bespoke battle audio lands.
+const NAVAL_CANNON_SFX = {
+  'attack-swing':  real('sfx-trireme-attack-swing',  'audio/sfx/trireme-attack-swing.ogg',  0.313),
+  'attack-impact': real('sfx-trireme-attack-impact', 'audio/sfx/trireme-attack-impact.ogg', 0.779),
+  death:           real('sfx-trireme-death',          'audio/sfx/trireme-death.ogg',          0.313, 'death'),
+};
+
 // Unit SFX — keyed by UnitType, then by SfxClass. Non-combat units have death only.
 export const UNIT_SFX: Partial<Record<UnitType, Partial<Record<SfxClass, TrackEntry>>>> = {
 
@@ -198,10 +205,13 @@ export const UNIT_SFX: Partial<Record<UnitType, Partial<Record<SfxClass, TrackEn
     'attack-impact': real('sfx-galley-attack-impact', 'audio/sfx/galley-attack-impact.ogg', 0.779),
     death:           real('sfx-galley-death',          'audio/sfx/galley-death.ogg',          0.313, 'death'),
   },
-  trireme: {
-    'attack-swing':  real('sfx-trireme-attack-swing',  'audio/sfx/trireme-attack-swing.ogg',  0.313),
-    'attack-impact': real('sfx-trireme-attack-impact', 'audio/sfx/trireme-attack-impact.ogg', 0.779),
-    death:           real('sfx-trireme-death',          'audio/sfx/trireme-death.ogg',          0.313, 'death'),
+  trireme: NAVAL_CANNON_SFX,
+  battleship: {
+    'attack-swing': NAVAL_CANNON_SFX['attack-swing'],
+    'attack-impact': NAVAL_CANNON_SFX['attack-impact'],
+    'ranged-loose': NAVAL_CANNON_SFX['attack-swing'],
+    'ranged-impact': NAVAL_CANNON_SFX['attack-impact'],
+    death: NAVAL_CANNON_SFX.death,
   },
 
   // === Siege (siege-fire, siege-impact, death) ===
@@ -397,6 +407,7 @@ const LOCOMOTION_CLASS: Record<UnitType, LocomotionClass> = {
   infantry:       'humanoid',
   mechanized_infantry: 'humanoid',
   pre_dreadnought: 'naval',
+  battleship: 'naval',
   tank:       'humanoid',
   // Temporary humanoid locomotion fallback; bespoke artillery audio remains asset follow-up work.
   anti_tank_gun: 'humanoid',

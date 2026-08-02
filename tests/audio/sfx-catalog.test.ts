@@ -27,7 +27,7 @@ const COMBAT_MELEE_TYPES: UnitType[] = [
   'galley', 'trireme',
   'shadow_warden', 'scout_hound', 'war_hound', 'beast_handler', 'war_elephant',
 ];
-const RANGED_TYPES: UnitType[] = ['archer', 'crossbowman', 'mobile_aa', 'mechanized_infantry'];
+const RANGED_TYPES: UnitType[] = ['archer', 'crossbowman', 'mobile_aa', 'mechanized_infantry', 'battleship'];
 const SIEGE_TYPES: UnitType[] = ['catapult', 'ballista'];
 const NON_COMBAT_TYPES: UnitType[] = ['settler', 'worker', 'caravan', 'scout', 'expedition', 'transport'];
 const SPY_TYPES: UnitType[] = ['spy_scout', 'spy_informant', 'spy_agent', 'spy_operative', 'spy_hacker'];
@@ -84,6 +84,10 @@ describe('sfx-catalog completeness', () => {
     for (const loco of ALL_LOCOMOTION_CLASSES) {
       expect(MOVEMENT_SFX[loco], `MOVEMENT_SFX missing for ${loco}`).toBeDefined();
     }
+  });
+
+  it('routes Battleship movement through the shared naval cue', () => {
+    expect(getLocomotionClass('battleship')).toBe('naval');
   });
 
   it('every non-combat unit type has a death entry', () => {

@@ -100,6 +100,23 @@ describe('AI strategic research planning', () => {
       .toBe('sea');
   });
 
+  it('lets a coastal AI pursue Dreadnought Construction for an unmet naval-combat role', () => {
+    const result = planAIResearch(context([
+      tech('dreadnought-construction', 'maritime', ['naval-armor', 'bessemer-steel'], {
+        unlocksUnits: ['battleship'], era: 9, countsForEraAdvancement: false,
+      }),
+    ], {
+      techState: { ...createTechState(), completed: ['naval-armor', 'bessemer-steel'] },
+      coastalEmpire: true,
+      forceDemands: [{
+        role: 'naval-combat', desired: 1, assigned: 0, missing: 1, priority: 100, sourcePlanIds: ['fleet'],
+      }],
+    }));
+
+    expect(result?.frontierTechId).toBe('dreadnought-construction');
+    expect(result?.scoreComponents.activePlanFit).toBeGreaterThan(0);
+  });
+
   it('penalizes a cavalry path without horses without making it impossible', () => {
     const result = planAIResearch(context([
       tech('cavalry', 'military', [], { unlocksUnits: ['horseman'] }),

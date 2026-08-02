@@ -360,7 +360,7 @@ export type UnitType =
   | 'axeman' | 'spearman' | 'horseman' | 'chariot' | 'cavalry' | 'armored_car' | 'knight' | 'cuirassier'
   | 'crossbowman' | 'catapult' | 'ballista' | 'cannon' | 'grenadier' | 'marine' | 'rifleman' | 'ironclad'
   | 'frigate' | 'destroyer' | 'artillery' | 'infantry' | 'mechanized_infantry'
-  | 'machine_gunner' | 'pre_dreadnought'
+  | 'machine_gunner' | 'pre_dreadnought' | 'battleship'
   | 'observation_balloon' | 'biplane' | 'wwii_fighter' | 'jet_fighter' | 'bomber' | 'recon_aircraft'
   | 'tank' | 'anti_tank_gun' | 'mobile_aa' | 'submarine' | 'carrier'
   | 'attack_helicopter' | 'missile_submarine'

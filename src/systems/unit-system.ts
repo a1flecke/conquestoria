@@ -348,6 +348,13 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     domain: 'naval', waterAccess: 'ocean',
     attackProfile: { kind: 'ranged', range: 2, targets: ['unit', 'city'] },
   },
+  battleship: {
+    type: 'battleship', name: 'Battleship', movementPoints: 4,
+    visionRange: 3, strength: 66, canFoundCity: false,
+    canBuildImprovements: false, productionCost: 240,
+    domain: 'naval', waterAccess: 'ocean',
+    attackProfile: { kind: 'ranged', range: 3, targets: ['unit', 'city'] },
+  },
   tank: {
     type: 'tank', name: 'Tank', movementPoints: 3,
     visionRange: 2, strength: 62, canFoundCity: false,
@@ -762,6 +769,7 @@ export const UNIT_DESCRIPTIONS: Record<UnitType, string> = {
   infantry: 'Modern line infantry. Ranged attack (range 1) vs units and cities; beats the machine gunner it replaces. Upgrades into Mechanized Infantry.',
   mechanized_infantry: 'Mobile line infantry. Captures and holds ground faster than Infantry; upgrades into Exosuit Infantry.',
   pre_dreadnought: 'Armored steam battleship. Long-range guns (range 2), powerful vs coastal cities and fleets. Replaces the ironclad era of naval warfare.',
+  battleship: 'Heavy naval fire support. Deals 20% more attack strength against cities and coastal targets; submarines counter it.',
   tank:       'Armored fighting vehicle. Breaks entrenched positions, high strength, range-1 attack. Stays the land apex over modern infantry.',
   anti_tank_gun: 'Ranged anti-armor gun. Strong against armored vehicles but weaker against other targets.',
   mobile_aa: 'Mobile anti-aircraft support. Protects adjacent allies: +8 defense against air attacks; weak in direct combat.',

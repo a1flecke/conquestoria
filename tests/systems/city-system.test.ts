@@ -482,12 +482,19 @@ describe('MR8 — naval roster gating', () => {
     expect(getTrainableUnitsForCiv(['frigate-construction', 'ironclad-warships']).some(u => u.type === 'frigate')).toBe(false);
   });
 
+  it('keeps the Pre-Dreadnought until Dreadnought Construction, while Submarine Warfare remains independent', () => {
+    expect(getTrainableUnitsForCiv(['naval-armor', 'submarine-warfare']).some(u => u.type === 'pre_dreadnought')).toBe(true);
+    expect(getTrainableUnitsForCiv(['naval-armor', 'dreadnought-construction']).some(u => u.type === 'pre_dreadnought')).toBe(false);
+    expect(getTrainableUnitsForCiv(['dreadnought-construction']).some(u => u.type === ('battleship' as UnitType))).toBe(true);
+    expect(getTrainableUnitsForCiv(['submarine-warfare']).some(u => u.type === ('battleship' as UnitType))).toBe(false);
+  });
+
   it('destroyer is trainable exactly when carrier-warfare is complete (negative: not complete)', () => {
     expect(getTrainableUnitsForCiv(['carrier-warfare']).some(u => u.type === 'destroyer')).toBe(true);
     expect(getTrainableUnitsForCiv([]).some(u => u.type === 'destroyer')).toBe(false);
   });
 
-  it.each(['frigate', 'destroyer'] satisfies UnitType[])('%s is coastalRequired', (unitType) => {
+  it.each(['frigate', 'destroyer', 'battleship'] satisfies UnitType[])('%s is coastalRequired', (unitType) => {
     expect(TRAINABLE_UNITS.find(u => u.type === unitType)?.coastalRequired).toBe(true);
   });
 
