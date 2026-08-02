@@ -362,7 +362,7 @@ export type UnitType =
   | 'frigate' | 'destroyer' | 'artillery' | 'infantry'
   | 'machine_gunner' | 'pre_dreadnought'
   | 'observation_balloon' | 'biplane' | 'wwii_fighter' | 'jet_fighter' | 'bomber' | 'recon_aircraft'
-  | 'tank' | 'anti_tank_gun' | 'submarine' | 'carrier'
+  | 'tank' | 'anti_tank_gun' | 'mobile_aa' | 'submarine' | 'carrier'
   | 'attack_helicopter' | 'missile_submarine'
   | 'spy_scout' | 'spy_informant' | 'spy_agent' | 'spy_operative' | 'spy_hacker'
   | 'scout_hound' | 'shadow_warden' | 'war_hound' | 'beast_handler' | 'war_elephant'
@@ -404,6 +404,7 @@ export interface AirOperationDefinition {
 
 export type AirDefenseProviderKind = 'building' | 'unit' | 'naval-unit';
 export interface AirDefenseProviderDefinition { id: string; kind: AirDefenseProviderKind; radius: number; defenseModifier: number; stackingGroup: string; label: string; }
+export type AirDefenseProviderCapability = Omit<AirDefenseProviderDefinition, 'id' | 'kind' | 'label'>;
 export interface AirDefenseCoverageProvider { id: string; label: string; position: HexCoord; ownerId: string; radius: number; defenseModifier: number; stackingGroup: string; }
 export interface AirDefenseCoverageResult { flatDefenseModifier: number; facts: CombatModifierFact[]; providers: AirDefenseCoverageProvider[]; }
 
@@ -422,6 +423,7 @@ export interface UnitDefinition {
   attackProfile?: UnitAttackProfile;
   airInterceptionDefense?: AirInterceptionDefense;
   airOperation?: AirOperationDefinition;
+  airDefenseProvider?: AirDefenseProviderCapability;
   terrainCostOverrides?: Partial<Record<string, number>>;
   cargoCapacity?: number;
   cargoSize?: number;
@@ -500,6 +502,7 @@ export interface Building {
   happiness?: number;  // per-city unrest-pressure reduction while built (#552); NOT for nationalProject buildings — those must be empire-wide, see game-balance.md
   /** AI priority granted only when this city has a live detected hostile-spy threat. */
   defensiveEspionageAiValue?: number;
+  airDefenseProvider?: AirDefenseProviderCapability;
 }
 
 export interface OccupiedCityState {
@@ -1349,6 +1352,7 @@ export type AIStrategicRole =
   | 'siege'
   | 'mobile'
   | 'air-combat'
+  | 'air-defense'
   | 'naval-combat'
   | 'transport'
   | 'escort'

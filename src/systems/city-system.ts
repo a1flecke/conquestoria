@@ -690,6 +690,7 @@ export const BUILDINGS: Record<string, Building> = {
     yields: { food: 0, production: 0, gold: 0, science: 0 }, productionCost: 170,
     description: 'Flak guns on city rooftops. All city defenders gain +8 defense strength against air unit attacks.',
     techRequired: 'air-superiority',
+    airDefenseProvider: { radius: 0, defenseModifier: 8, stackingGroup: 'ground-air-defense' },
   },
 
   /* === ERA 9 NATIONAL PROJECTS === */
@@ -1151,6 +1152,7 @@ export const TRAINABLE_UNITS: Array<TrainableUnitEntry & { pacing?: Building['pa
   { type: 'pre_dreadnought', name: 'Pre-Dreadnought', cost: 175, techRequired: 'naval-armor', coastalRequired: true, obsoletedByTech: 'submarine-warfare', upgradesTo: 'submarine', pacing: { band: 'power-spike', role: 'naval-apex',           impact: 1.5,  scope: 'military', snowball: 1.4, urgency: 1.2, situationality: 1.4, unlockBreadth: 1 } },
   { type: 'tank',      name: 'Tank',      cost: 185, techRequired: 'tank-warfare',                                                                                  pacing: { band: 'power-spike', role: 'armored-assault',     impact: 1.5,  scope: 'military', snowball: 1.4, urgency: 1.2, situationality: 1.3, unlockBreadth: 1 } },
   { type: 'anti_tank_gun', name: 'Anti-Tank Gun', cost: 170, techRequired: 'tank-warfare', pacing: { band: 'power-spike', role: 'armor-counter', impact: 1.3, scope: 'military', snowball: 1.1, urgency: 1.1, situationality: 1.4, unlockBreadth: 1 } },
+  { type: 'mobile_aa', name: 'Mobile AA', cost: 175, techRequired: 'air-superiority', pacing: { band: 'power-spike', role: 'field-air-defense', impact: 1.25, scope: 'military', snowball: 1.05, urgency: 1.1, situationality: 1.4, unlockBreadth: 1 } },
   { type: 'submarine', name: 'Submarine', cost: 180, techRequired: 'submarine-warfare', coastalRequired: true,                                                      pacing: { band: 'power-spike', role: 'naval-stealth',        impact: 1.5,  scope: 'military', snowball: 1.4, urgency: 1.2, situationality: 1.5, unlockBreadth: 1 } },
   { type: 'observation_balloon', name: 'Observation Balloon', cost: 144,  techRequired: 'balloon-corps',   pacing: { band: 'power-spike', role: 'air-recon',  impact: 1.2, scope: 'military', snowball: 1.0, urgency: 1.0, situationality: 1.4, unlockBreadth: 1 } },
   { type: 'biplane',             name: 'Biplane',             cost: 200, techRequired: 'aviation', trainedFromBuilding: 'airfield', obsoletedByTech: 'air-superiority', upgradesTo: 'wwii_fighter', pacing: { band: 'power-spike', role: 'air-strike', impact: 1.5, scope: 'military', snowball: 1.4, urgency: 1.2, situationality: 1.3, unlockBreadth: 1 } },
@@ -1615,6 +1617,7 @@ export const PRODUCTION_ICONS: Record<string, string> = {
   // era 9 units
   tank:       '🛡️',
   anti_tank_gun: '🎯',
+  mobile_aa: '🛡️',
   submarine:  '🌊',
   observation_balloon: '🎈',
   biplane:    '✈️',

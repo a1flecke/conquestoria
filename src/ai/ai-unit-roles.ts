@@ -10,6 +10,7 @@ const COMBAT_ROLES = new Set<AIStrategicRole>([
   'siege',
   'mobile',
   'air-combat',
+  'air-defense',
   'naval-combat',
   'escort',
 ]);

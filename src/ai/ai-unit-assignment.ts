@@ -56,6 +56,7 @@ const ROLE_ORDER: AIStrategicRole[] = [
   'siege',
   'mobile',
   'air-combat',
+  'air-defense',
   'naval-combat',
   'escort',
   'recon',

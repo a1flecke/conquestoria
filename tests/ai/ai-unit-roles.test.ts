@@ -18,6 +18,12 @@ describe('AI strategic unit roles', () => {
     expect(getAIStrategicRoles('anti_tank_gun')).not.toContain('frontline');
   });
 
+  it('classifies Mobile AA as a field air-defense specialist', () => {
+    expect(getAIStrategicRoles('mobile_aa')).toEqual(['air-defense']);
+    expect(hasAICombatRole('mobile_aa')).toBe(true);
+    expect(getAIStrategicRoles('mobile_aa')).not.toContain('frontline');
+  });
+
   it('classifies every trainable unit into at least one strategic role', () => {
     for (const unit of TRAINABLE_UNITS) {
       expect(getAIStrategicRoles(unit.type), unit.type).not.toHaveLength(0);
