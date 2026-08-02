@@ -714,6 +714,42 @@ describe('AI tactical action ranking', () => {
     expect(legalNearBest).toContain(selected!.id);
   });
 
+  it.each(['explorer', 'standard', 'veteran'] satisfies OpponentChallenge[])('escorts a threatened high-value formation with Mobile AA on %s', challenge => {
+    const state = makeState(challenge);
+    const mobileAa = addUnit(state, 'mobile-aa', 'mobile_aa', AI, { q: 0, r: 0 });
+    const protectedUnit = addUnit(state, 'protected-tank', 'tank', AI, { q: 2, r: 0 });
+    addUnit(state, 'visible-striker', 'biplane', HUMAN, { q: 4, r: 0 });
+    const plan = makePlan(
+      { kind: 'region', id: 'front', anchor: protectedUnit.position },
+      [mobileAa.id, protectedUnit.id],
+      { objective: 'repel' },
+    );
+
+    const action = chooseUnitTacticalAction(context(state, plan), mobileAa.id);
+
+    expect(action).toMatchObject({ kind: 'move', unitId: mobileAa.id });
+    expect(action.kind === 'move' ? hexDistance(action.destination, protectedUnit.position) : Infinity)
+      .toBeLessThanOrEqual(UNIT_DEFINITIONS.mobile_aa.airDefenseProvider!.radius);
+  });
+
+  it('does not escort against a strike aircraft hidden by fog', () => {
+    const state = makeState('standard');
+    const mobileAa = addUnit(state, 'mobile-aa', 'mobile_aa', AI, { q: 0, r: 0 });
+    const protectedUnit = addUnit(state, 'protected-tank', 'tank', AI, { q: 2, r: 0 });
+    const hiddenAircraft = addUnit(state, 'hidden-striker', 'biplane', HUMAN, { q: 4, r: 0 });
+    state.civilizations[AI].visibility.tiles[hexKey(hiddenAircraft.position)] = 'fog';
+    const plan = makePlan(
+      { kind: 'region', id: 'front', anchor: protectedUnit.position },
+      [mobileAa.id, protectedUnit.id],
+      { objective: 'repel' },
+    );
+
+    const actions = rankUnitTacticalActions(context(state, plan), mobileAa.id);
+
+    expect(actions.some(candidate => candidate.action.kind === 'move'
+      && candidate.score >= 550)).toBe(false);
+  });
+
   it('moves as far as legal movement permits instead of advancing one hex', () => {
     const state = makeState('veteran');
     const mover = addUnit(state, 'mover', 'horseman', AI, { q: 0, r: 0 });
