@@ -1921,6 +1921,7 @@ export interface GameEvents {
   'advisor:message': { advisor: AdvisorType; message: string; icon: string; tone?: CouncilCallbackTone; memoryKey?: string };
   'trade:route-created': { route: TradeRoute };
   'trade:route-ended': { routeId: string; fromCityId: string; toCityId: string; reason: 'unit-died' | 'unit-disbanded' | 'war-declared' | 'hostile-relations' | 'embargo' | 'trips-exhausted' | 'unit-captured' };
+  'trade:route-delivered': { unitId: string; routeId: string; toCityId: string };
   'trade:price-changed': { resource: ResourceType; oldPrice: number; newPrice: number };
   'wonder:discovered': { civId: string; wonderId: string; position: HexCoord; isFirstDiscoverer: boolean };
   'wonder:eruption': { wonderId: string; position: HexCoord; tilesAffected: HexCoord[] };

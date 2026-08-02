@@ -102,4 +102,12 @@ describe('resolveTransientState', () => {
     expect(controller.resolveTransientState('musketeer-2', 1_500)).toBe('death');
     expect(controller.resolveTransientState('musketeer-2', 2_300)).toBe('idle');
   });
+
+  it('supports a work one-shot (e.g. a trade unit delivering goods) that expires back to idle', () => {
+    const controller = new PirateSpriteStateController();
+    controller.apply({ type: 'work', entityId: 'merchant-wagon-1' }, 1_000);
+
+    expect(controller.resolveTransientState('merchant-wagon-1', 1_100)).toBe('work');
+    expect(controller.resolveTransientState('merchant-wagon-1', 1_000 + 10_000)).toBe('idle');
+  });
 });

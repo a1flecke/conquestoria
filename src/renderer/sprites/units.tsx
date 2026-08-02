@@ -41,11 +41,19 @@ export function WorkerSprite({ palette, svgOnly = false }: UnitSpriteProps): str
       <Humanoid cx={64} cy={70} scale={1} cloth={P.cloth.tunic} pants={P.cloth.wool} accent={palette.mid} hair="#5a3a20"
         hat={<ellipse cx="0" cy="-40" rx="12" ry="3" fill={P.thatch.straw} stroke={P.ink.line} strokeWidth="0.6" />}
       />
+      {/* PICKAXE over the right shoulder — .cq-tool digs down on the work action,
+         grip pivot at (82,30). NOT .cq-weapon: civilians never do a combat swing. */}
       <g transform="translate(82 30) rotate(28)">
-        <rect x="-1" y="0" width="2.4" height="46" fill={P.wood.mid} stroke={P.ink.line} strokeWidth="0.6" />
-        <path d="M-5,46 L5,46 L4,58 L-4,58 Z" fill={P.metal.steel} stroke={P.ink.line} strokeWidth="0.8" />
+        <g className="cq-tool" style="transform-origin: 82px 30px; transform-box: view-box;">
+          <rect x="-1" y="0" width="2.4" height="46" fill={P.wood.mid} stroke={P.ink.line} strokeWidth="0.6" />
+          <path d="M-5,46 L5,46 L4,58 L-4,58 Z" fill={P.metal.steel} stroke={P.ink.line} strokeWidth="0.8" />
+        </g>
       </g>
+      {/* dirt mound where the pick strikes; dust kicked up on the work action (.cq-work-dust) */}
       <rect x="58" y="74" width="8" height="6" fill={P.wood.dark} stroke={P.ink.line} strokeWidth="0.5" />
+      <g className="cq-work-dust">
+        <ellipse cx="62" cy="76" rx="6" ry="2.6" fill={P.ground.dirt} />
+      </g>
     </SpriteFrame>
   );
 }

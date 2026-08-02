@@ -43,7 +43,7 @@ export interface SpriteEntity {
    * v2 animation state — NOT the same as UnitMotionState ('move-a' | 'move-b').
    * RenderLoop translates: 'move-a' | 'move-b' → 'walk'.
    */
-  state:   'idle' | 'walk' | 'attack' | 'hurt' | 'death';
+  state:   'idle' | 'walk' | 'attack' | 'hurt' | 'death' | 'work';
   /** Sprite palette name derived from owner's civType via civTypeToFaction() — e.g. 'imperials', 'pharaohs', 'vikings'. */
   faction: string;
   /**

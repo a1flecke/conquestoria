@@ -1,6 +1,6 @@
 import type { PirateBehavior } from '@/core/pirate-state';
 
-export type PirateSpriteState = 'idle' | 'walk' | 'attack' | 'hurt' | 'death';
+export type PirateSpriteState = 'idle' | 'walk' | 'attack' | 'hurt' | 'death' | 'work';
 export type PirateSpriteMode = 'patrol' | 'raid' | 'blockade' | 'relocating';
 
 export interface PirateSpriteVisualState {
@@ -23,6 +23,7 @@ export type PirateSpriteVisualEvent =
   | { type: 'destroyed'; entityId: string }
   | { type: 'attack'; entityId: string }
   | { type: 'hurt'; entityId: string }
+  | { type: 'work'; entityId: string }
   | { type: 'relocation-started'; entityId: string }
   | { type: 'relocation-finished'; entityId: string };
 
@@ -30,6 +31,10 @@ type PersistentVisualState = Omit<PirateSpriteVisualState, 'state' | 'expiresAtM
 
 const COMBAT_STATE_MS = 420;
 const DEATH_STATE_MS = 1_200;
+// A brief "just performed its civilian action" pulse (e.g. a trade unit delivering
+// goods) -- long enough to see the cq-deliver/cq-work-bob loop play at least once
+// (their keyframes run ~1.1s), matching COMBAT_STATE_MS's role for attack/hurt.
+const WORK_STATE_MS = 1_400;
 
 interface TransientState {
   state: PirateSpriteState;
@@ -86,6 +91,9 @@ export class PirateSpriteStateController {
       case 'attack':
       case 'hurt':
         this.transients.set(event.entityId, { state: event.type, expiresAtMs: nowMs + COMBAT_STATE_MS });
+        return;
+      case 'work':
+        this.transients.set(event.entityId, { state: 'work', expiresAtMs: nowMs + WORK_STATE_MS });
         return;
       case 'relocation-started':
         this.transients.set(event.entityId, { state: 'walk', mode: 'relocating' });
