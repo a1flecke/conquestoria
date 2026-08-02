@@ -72,6 +72,28 @@ describe('prepared major-civilization planning', () => {
     expect(demand).toBeUndefined();
   });
 
+  it('creates Mobile AA demand only for observed hostile strike aircraft, not reconnaissance', () => {
+    const state = createNewGame(undefined, 'prepared-air-defense', 'small');
+    const civ = state.civilizations['ai-1'];
+    civ.knownCivilizations = ['player'];
+    civ.diplomacy.atWarWith = ['player'];
+    const [strikeTile, reconTile] = Object.values(state.map.tiles).filter(tile => tile.terrain !== 'mountain').slice(0, 2);
+    const fighter = createUnit('biplane', 'player', strikeTile!.coord, state.idCounters);
+    const balloon = createUnit('observation_balloon', 'player', reconTile!.coord, state.idCounters);
+    state.units[fighter.id] = fighter; state.units[balloon.id] = balloon;
+    state.civilizations.player.units.push(fighter.id, balloon.id);
+    civ.visibility.tiles[hexKey(strikeTile!.coord)] = 'visible';
+    civ.visibility.tiles[hexKey(reconTile!.coord)] = 'visible';
+
+    expect(prepareMajorCivStrategicPlan(state, civ.id).forceDemands).toContainEqual(expect.objectContaining({
+      role: 'air-defense', desired: 1, missing: 1, sourcePlanIds: ['observed-air'],
+    }));
+
+    delete state.units[fighter.id];
+    state.civilizations.player.units = state.civilizations.player.units.filter(id => id !== fighter.id);
+    expect(prepareMajorCivStrategicPlan(state, civ.id).forceDemands.some(entry => entry.role === 'air-defense')).toBe(false);
+  });
+
   it('preserves objective-readiness demand when no current unit can fill the role', () => {
     const state = createNewGame(undefined, 'prepared-objective-demand', 'small');
     const civ = state.civilizations['ai-1'];

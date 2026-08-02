@@ -152,7 +152,8 @@ function observedAirDefenseDemand(
 ): PreparedForceDemandSeed[] {
   const hostileAir = perception.units.filter(unit => unit.type !== null
     && isAIHostileOwner(state, perception.actorId, unit.owner)
-    && UNIT_DEFINITIONS[unit.type].domain === 'air');
+    && UNIT_DEFINITIONS[unit.type].domain === 'air'
+    && UNIT_DEFINITIONS[unit.type].airOperation?.missions.includes('strike'));
   const visible = hostileAir.filter(unit => unit.confidence === 'visible');
   const remembered = hostileAir.filter(unit => unit.confidence === 'remembered');
   if (visible.length === 0 && remembered.length === 0) return [];
