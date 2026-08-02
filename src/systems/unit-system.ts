@@ -355,6 +355,13 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     domain: 'land',
     attackProfile: { kind: 'ranged', range: 1, targets: ['unit'] },
   },
+  mobile_aa: {
+    type: 'mobile_aa', name: 'Mobile AA', movementPoints: 2,
+    visionRange: 2, strength: 32, canFoundCity: false,
+    canBuildImprovements: false, productionCost: 175, domain: 'land',
+    attackProfile: { kind: 'ranged', range: 1, targets: ['unit'] },
+    airDefenseProvider: { radius: 1, defenseModifier: 8, stackingGroup: 'ground-air-defense' },
+  },
   submarine: {
     type: 'submarine', name: 'Submarine', movementPoints: 4,
     visionRange: 2, strength: 52, canFoundCity: false,
@@ -749,6 +756,7 @@ export const UNIT_DESCRIPTIONS: Record<UnitType, string> = {
   pre_dreadnought: 'Armored steam battleship. Long-range guns (range 2), powerful vs coastal cities and fleets. Replaces the ironclad era of naval warfare.',
   tank:       'Armored fighting vehicle. Breaks entrenched positions, high strength, range-1 attack. Stays the land apex over modern infantry.',
   anti_tank_gun: 'Ranged anti-armor gun. Strong against armored vehicles but weaker against other targets.',
+  mobile_aa: 'Mobile anti-aircraft support. Protects adjacent allies: +8 defense against air attacks; weak in direct combat.',
   submarine:  'Undersea warship. Long-range torpedoes (range 2), high naval strength, stealth approach. Replaces pre-dreadnought surface-fleet dominance.',
   observation_balloon: 'Tethered hydrogen balloon used for aerial reconnaissance. Cannot attack. Provides unmatched long-range vision over enemy territory. Extremely fragile.',
   biplane:    'World War I fabric-and-wood fighter. An early aircraft that attacks nearby land and naval targets. Vulnerable to anti-air batteries.',
