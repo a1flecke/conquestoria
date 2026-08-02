@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { GameState, Unit } from '@/core/types';
 import {
+  getKnownAirDefenseProviders,
   resolveAirDefenseCoverage,
   selectStrongestAirDefenseProviders,
   type ResolvedAirDefenseProvider,
@@ -57,6 +58,31 @@ describe('resolveAirDefenseCoverage', () => {
     hidden.civilizations.attacker!.visibility.tiles = {};
 
     expect(resolveAirDefenseCoverage(hidden, defender, 'attacker')).toEqual({ flatDefenseModifier: 8, facts: [], providers: [] });
+  });
+
+  it('covers adjacent defenders from a Mobile AA unit and exposes it to its owner', () => {
+    const next = state();
+    next.units = {
+      aa: { id: 'aa', owner: 'defender', type: 'mobile_aa', position: { q: 0, r: 0 } },
+    } as GameState['units'];
+    const covered = { ...defender, position: { q: 1, r: 0 } };
+
+    expect(resolveAirDefenseCoverage(next, covered, 'defender')).toMatchObject({
+      flatDefenseModifier: 8,
+      providers: expect.arrayContaining([expect.objectContaining({ id: 'unit:aa:mobile_aa', radius: 1 })]),
+    });
+    expect(getKnownAirDefenseProviders(next, 'defender')).toContainEqual(
+      expect.objectContaining({ id: 'unit:aa:mobile_aa' }),
+    );
+  });
+
+  it('does not cover defenders beyond the Mobile AA radius', () => {
+    const next = state();
+    next.units = {
+      aa: { id: 'aa', owner: 'defender', type: 'mobile_aa', position: { q: 0, r: 0 } },
+    } as GameState['units'];
+
+    expect(resolveAirDefenseCoverage(next, { ...defender, position: { q: 2, r: 0 } }, 'defender').flatDefenseModifier).toBe(0);
   });
 });
 

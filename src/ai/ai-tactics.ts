@@ -648,6 +648,32 @@ function rankMoves(
   });
 }
 
+function rankMobileAirDefenseEscortMoves(
+  context: AITacticalContext,
+  unit: Unit,
+): RankedAITacticalAction[] {
+  const capability = UNIT_DEFINITIONS[unit.type].airDefenseProvider;
+  if (!capability || unit.hasActed || unit.movementPointsLeft <= 0 || unit.transportId) return [];
+  const visibleAircraft = Object.values(context.state.units).filter(candidate =>
+    candidate.owner !== context.actorId
+      && isAIHostileOwner(context.state, context.actorId, candidate.owner)
+      && getVisibility(context.state.civilizations[context.actorId].visibility, candidate.position) === 'visible'
+      && UNIT_DEFINITIONS[candidate.type].domain === 'air'
+      && UNIT_DEFINITIONS[candidate.type].airOperation?.missions.includes('strike'));
+  if (visibleAircraft.length === 0) return [];
+  const targets = Object.values(context.state.units).filter(candidate => candidate.owner === context.actorId
+    && !candidate.transportId && candidate.id !== unit.id
+    && visibleAircraft.some(aircraft => distance(context.state, aircraft.position, candidate.position)
+      <= (UNIT_DEFINITIONS[aircraft.type].airOperation?.operationalRange ?? 0)));
+  if (targets.length === 0) return [];
+  return movementRange(context.state, context.actorId, unit).flatMap(destination => {
+    const target = targets.filter(candidate => distance(context.state, destination, candidate.position) <= capability.radius)
+      .sort((left, right) => UNIT_DEFINITIONS[right.type].productionCost - UNIT_DEFINITIONS[left.type].productionCost || left.id.localeCompare(right.id))[0];
+    return target && !isForeignCityDestination(context.state, context.actorId, destination)
+      ? [ranked({ kind: 'move', unitId: unit.id, destination }, 550 + UNIT_DEFINITIONS[target.type].productionCost / 10)] : [];
+  });
+}
+
 export function rankUnitTacticalActions(
   context: AITacticalContext,
   unitId: string,
@@ -672,6 +698,7 @@ export function rankUnitTacticalActions(
     ...rankAirSupport(context, unit),
     ...rankAttacks(context, unit),
     ...rankCapture(context, unit),
+    ...rankMobileAirDefenseEscortMoves(context, unit),
     ...rankMoves(context, unit),
   ];
   if (unit.health < 100 && !unit.hasActed) {

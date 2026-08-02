@@ -382,6 +382,7 @@ describe('AI strategic production', () => {
         demand('siege', 99),
         demand('mobile', 99),
         demand('air-combat', 99),
+        demand('air-defense', 99),
         demand('naval-combat', 99),
         demand('transport', 99),
         demand('escort', 99),

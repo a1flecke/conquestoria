@@ -146,6 +146,21 @@ function observedArmorDemand(
   }];
 }
 
+function observedAirDefenseDemand(
+  state: Readonly<GameState>,
+  perception: MajorCivPerception,
+): PreparedForceDemandSeed[] {
+  const hostileAir = perception.units.filter(unit => unit.type !== null
+    && isAIHostileOwner(state, perception.actorId, unit.owner)
+    && UNIT_DEFINITIONS[unit.type].domain === 'air');
+  const visible = hostileAir.filter(unit => unit.confidence === 'visible');
+  const remembered = hostileAir.filter(unit => unit.confidence === 'remembered');
+  if (visible.length === 0 && remembered.length === 0) return [];
+  const assigned = perception.ownUnits.filter(unit =>
+    getAIStrategicRoles(unit.type).includes('air-defense')).length;
+  return [{ role: 'air-defense', sourceId: visible.length > 0 ? 'observed-air' : 'remembered-air', priority: visible.length > 0 ? 180 : 80, desired: 1, assigned }];
+}
+
 function distance(
   state: Readonly<GameState>,
   left: { q: number; r: number },
@@ -535,6 +550,7 @@ export function prepareMajorCivStrategicPlan(
         priority: 600,
       })),
       ...observedArmorDemand(state, perception, getPreparedAssignmentProfile(state)),
+      ...observedAirDefenseDemand(state, perception),
     ],
   );
   const preparedAssignments = {
