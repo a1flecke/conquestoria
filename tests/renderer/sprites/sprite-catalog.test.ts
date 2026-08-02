@@ -248,15 +248,22 @@ describe('#769 batch 3 sprites are not aliases of their donors', () => {
 // 2026-08-02 rather than silently added here) and batch 4's `global_air_cargo`/`stealth_bomber`
 // remain pending.
 //
+// A rebase of batch 3's branch onto `main` (2026-08-02) picked up two more new aliases from
+// separate concurrent work (#681, mechanized infantry): `mechanized_infantry` (its catalog
+// comment cites #709 as owner — out of #769's scope, not listed below) and `mobile_aa` (a
+// generic "asset follow-up" comment with no owning issue, same situation `anti_tank_gun` was
+// in before it — folded into Batch 5 alongside it rather than added silently).
+//
 // Reconciled with issue #708 (2026-08-01): #708 is a pre-existing, separately-tracked issue
 // (part of the larger #547 combat-roster initiative) that already owned `beast_handler`,
 // `war_elephant`, and `cuirassier`'s bespoke-sprite work with its own design doc and
 // implementation plan — this issue didn't know about it when originally filed. Per project
 // decision, #769 no longer tracks those 3 units (removed from the batch plan below); #708
-// keeps them. `armored_car` (owned by issue #709) is similarly out of #769's scope. Both
-// `cuirassier` and `armored_car` landed on `main` as new aliased placeholders *after* this
-// baseline was first written — `scripts/audit-sprite-aliases.mjs` will (correctly) still flag
-// them as aliases, since they mechanically are; they're just not this issue's units to fix.
+// keeps them. `armored_car` and `mechanized_infantry` (owned by issue #709) are similarly out
+// of #769's scope. `cuirassier`, `armored_car`, and `mechanized_infantry` all landed on `main`
+// as new aliased placeholders *after* this baseline was first written —
+// `scripts/audit-sprite-aliases.mjs` will (correctly) still flag them as aliases, since they
+// mechanically are; they're just not this issue's units to fix.
 //
 // Both sides render through their own UNIT_SPRITE_CATALOG entry (not the raw sprite function)
 // with an explicit motion so the wrapper's per-unit `data-motion`/transform injection is
@@ -279,11 +286,13 @@ describe('#769 pending sprite-alias audit baseline', () => {
       ['stealth_bomber', 'jet_fighter'],
       // Batch 5 (drift, unscoped until 2026-08-02): anti_tank_gun/wwii_fighter landed on main
       // from unrelated work mid-arc and were folded into #769 as their own batch rather than
-      // silently added to an existing one.
+      // silently added to an existing one. mobile_aa joined the same batch after a batch 3
+      // rebase picked it up as a third unclaimed TankSprite/JetFighterSprite-family alias.
       ['anti_tank_gun', 'tank'],
       ['wwii_fighter', 'jet_fighter'],
+      ['mobile_aa', 'tank'],
     ];
-    expect(pendingAliasPairs.length, "baseline count should match #769's remaining scope (17 originally, minus batch 1's 5, minus batch 2's 3, minus batch 3's 5, minus beast_handler/war_elephant deferred to #708, plus batch 5's anti_tank_gun/wwii_fighter folded in 2026-08-02)").toBe(4);
+    expect(pendingAliasPairs.length, "baseline count should match #769's remaining scope (17 originally, minus batch 1's 5, minus batch 2's 3, minus batch 3's 5, minus beast_handler/war_elephant deferred to #708, plus batch 5's anti_tank_gun/wwii_fighter/mobile_aa folded in 2026-08-02)").toBe(5);
     for (const [aliasType, donorType] of pendingAliasPairs) {
       const actual = UNIT_SPRITE_CATALOG[aliasType]({ palette, svgOnly: true, motion: 'idle' });
       const donor = UNIT_SPRITE_CATALOG[donorType]({ palette, svgOnly: true, motion: 'idle' });
