@@ -25,12 +25,13 @@ a stronger infantry unit or a second, stacking city-defense system.
 
 ## Architecture and data
 
-`UnitDefinition` gains optional typed air-defense-provider capability metadata. Mobile
-AA declares `{ kind: 'unit', radius: 1, defenseModifier: 8,
-stackingGroup: 'ground-air-defense' }`; Anti-Air Battery retains equivalent typed
-building metadata. The air-defense system enumerates providers from these definitions
-rather than branching on Mobile AA IDs. It returns the same normalized provider shape
-for combat and presentation.
+`UnitDefinition` and `Building` gain the same optional typed air-defense-provider
+capability metadata. Mobile AA declares `{ radius: 1, defenseModifier: 8,
+stackingGroup: 'ground-air-defense' }`; Anti-Air Battery declares the equivalent
+building capability. The owning catalog supplies provider kind, stable ID, and label.
+The air-defense system enumerates providers from these definitions rather than branching
+on Mobile AA IDs. It returns the same normalized provider shape for combat and
+presentation.
 
 The renderer obtains providers from a viewer-filtered enumeration helper, not by asking
 for coverage only at city coordinates. Consequently a Mobile AA operating entirely in
@@ -69,10 +70,13 @@ when sound is muted, so the mechanic is understandable without audio.
 
 Mobile AA receives a typed strategic role and a dedicated tactical escort ranking.
 It chooses an eligible friendly formation from its own assigned/nearby units only when
-a currently visible hostile aircraft can legally threaten that formation. It ranks
-targets by threat relevance, protected formation value, legal distance, and stable ID
-tie-break; it moves to a legal destination that keeps the formation within radius 1. If
-no such target exists, ordinary plan movement remains the fallback.
+a currently visible hostile strike-capable aircraft is within the definition's
+operational range of that formation. The AI deliberately treats that as a conservative
+observed threat without reading whether the aircraft is based, its base location, or its
+remaining private action state. It ranks targets by threat relevance, protected
+formation value, legal distance, and stable ID tie-break; it moves to a legal destination
+that keeps the formation within radius 1. If no such target exists, ordinary plan
+movement remains the fallback.
 
 The AI derives every threat input from `MajorCivPerception`. It cannot read an unseen
 air base, a hidden aircraft's live coordinate/type, an opponent production queue, or
