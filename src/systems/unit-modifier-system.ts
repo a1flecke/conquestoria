@@ -24,6 +24,7 @@ export interface CombatModifierContext {
   fullHP: boolean;
   inFriendlyCity: boolean;
   targetIsCoastalCity?: boolean;
+  targetIsCity?: boolean;
   amphibiousAssault?: boolean;
   opponentType: UnitType;
   opponentHealth?: number;
@@ -154,6 +155,7 @@ export function getCombatModifier(
     const conditionMet = (modifier.condition !== 'fullHP' || ctx.fullHP)
       && (modifier.condition !== 'inFriendlyCity' || ctx.inFriendlyCity)
       && (modifier.condition !== 'vsCoastalCity' || ctx.targetIsCoastalCity)
+      && (modifier.condition !== 'vsCityOrCoastalTarget' || ctx.targetIsCity || ctx.targetTerrain === 'coast')
       && (modifier.condition !== 'amphibiousAssault' || ctx.amphibiousAssault)
       && (modifier.condition !== 'opponentBelow60HP' || (ctx.opponentHealth ?? 100) < 60)
       && (modifier.condition !== 'onOpenGround' || isOpenGround(ctx.targetTerrain))

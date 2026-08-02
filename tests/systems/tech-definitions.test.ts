@@ -8,6 +8,21 @@ import {
 } from '@/systems/pacing-model';
 
 describe('tech definitions', () => {
+  it('adds Dreadnought Construction as a non-advancing Naval Armor and Bessemer Steel bridge', () => {
+    const bridge = TECH_TREE.find(tech => tech.id === 'dreadnought-construction');
+
+    expect(bridge).toMatchObject({
+      name: 'Dreadnought Construction',
+      track: 'maritime',
+      cost: 275,
+      prerequisites: ['naval-armor', 'bessemer-steel'],
+      unlocksUnits: ['battleship'],
+      era: 9,
+      countsForEraAdvancement: false,
+    });
+    expect(getEraAdvancementTechs(9).map(tech => tech.id)).not.toContain('dreadnought-construction');
+  });
+
   it('ships exactly two Era 13 technologies on every track', () => {
     const era13 = TECH_TREE.filter(tech => tech.era === 13);
     expect(era13).toHaveLength(30);
@@ -22,8 +37,8 @@ describe('tech definitions', () => {
     }
   });
 
-  it('has exactly 398 techs after completing the Era 13 roster', () => {
-    expect(TECH_TREE.length).toBe(398);
+  it('has exactly 399 techs after completing the Era 13 roster', () => {
+    expect(TECH_TREE.length).toBe(399);
   });
 
   it('keeps 15 tracks while expanding through two Era 13 technologies per track', () => {
@@ -35,12 +50,15 @@ describe('tech definitions', () => {
     for (const [track, count] of tracks) {
       // Era 5-12 each add 2 techs per track.
       // cyber-warfare stub removed: espionage had 8 era1-4 + 1 stub + 16 (era5-12) = 25.
-      // Economy/science/communication/maritime/exploration had 9 (era1-4) + 16 = 25.
+      // Economy/science/communication/exploration had 9 (era1-4) + 16 = 25.
+      // Maritime also has the optional Dreadnought Construction bridge → 26.
       // Military gets +2 from balloon-corps (era 7) + air-superiority (era 9) → 26.
       // Other 8 tracks had 8 era1-4 + 16 = 24.
       const expectedBeforeEra13 = track === 'military'
         ? 26
-        : ['economy', 'communication', 'maritime', 'exploration', 'espionage'].includes(track)
+        : track === 'maritime'
+          ? 26
+          : ['economy', 'communication', 'exploration', 'espionage'].includes(track)
           ? 25
           : track === 'science'
             ? 26

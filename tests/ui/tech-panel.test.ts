@@ -12,6 +12,19 @@ import { createTechPanel, formatTechNodeEta } from '@/ui/tech-panel';
 const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
 
 describe('tech-panel', () => {
+  it('shows the complete Dreadnought Construction unlock in the live tech inspector', () => {
+    const state = createNewGame(undefined, 'dreadnought-tech-panel');
+    state.civilizations.player.techState.completed = ['naval-armor', 'bessemer-steel'];
+    state.civilizations.player.techState.currentResearch = 'dreadnought-construction';
+
+    const panel = createTechPanel(document.body, state, {
+      onQueueResearch: () => {}, onMoveQueuedResearch: () => {}, onRemoveQueuedResearch: () => {}, onClose: () => {},
+    });
+
+    expect(panel.querySelector('[data-tech-id="dreadnought-construction"]')).toBeTruthy();
+    expect(panel.textContent).toContain('Battleship');
+  });
+
   it('shows canonical role facts and current-player prerequisite status in the inspector', () => {
     const state = createNewGame(undefined, 'tech-role-inspector');
     state.civilizations.player.techState.completed = ['archery'];

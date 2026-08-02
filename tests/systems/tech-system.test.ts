@@ -28,7 +28,9 @@ describe('TECH_TREE', () => {
       // previous boundary node in science, so science adds only one new node here.
       const expectedCount = track === 'military'
         ? 28
-        : ['economy', 'communication', 'maritime', 'exploration', 'espionage'].includes(track)
+        : track === 'maritime'
+          ? 28
+          : ['economy', 'communication', 'exploration', 'espionage'].includes(track)
           ? 27
           : track === 'science'
             ? 27
@@ -39,8 +41,8 @@ describe('TECH_TREE', () => {
 });
 
 describe('expanded tech tree', () => {
-  it('has 398 techs after completing the 30-node Era 13 catalog', () => {
-    expect(TECH_TREE.length).toBe(398);
+  it('has 399 techs after adding the optional Dreadnought bridge to the 30-node Era 13 catalog', () => {
+    expect(TECH_TREE.length).toBe(399);
   });
 
   it('supports cross-track prerequisites', () => {

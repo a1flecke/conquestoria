@@ -108,6 +108,7 @@ export function buildCombatContextForDefender(
       fullHP: attacker.health >= 100,
       inFriendlyCity: attackerInFriendlyCity,
       amphibiousAssault: options.amphibiousAssault,
+      targetIsCity: Boolean(defenderCity),
       targetIsCoastalCity: defenderCity ? isCityCoastal(defenderCity, state.map) : false,
       opponentType: defender.type,
       opponentHealth: defender.health,

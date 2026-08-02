@@ -154,13 +154,37 @@ describe('War Elephant Corps balance envelope', () => {
 });
 
 describe('naval roster — regression locks', () => {
+  it('keeps submarine warfare independent while advancing Pre-Dreadnought into Battleship', () => {
+    const preDreadnought = TRAINABLE_UNITS.find(unit => unit.type === 'pre_dreadnought');
+    const submarine = TRAINABLE_UNITS.find(unit => unit.type === 'submarine');
+    const battleship = TRAINABLE_UNITS.find(unit => unit.type === ('battleship' as UnitType));
+
+    expect(preDreadnought).toMatchObject({
+      obsoletedByTech: 'dreadnought-construction',
+      upgradesTo: 'battleship',
+    });
+    expect(submarine?.techRequired).toBe('submarine-warfare');
+    expect(battleship).toMatchObject({
+      cost: 240,
+      techRequired: 'dreadnought-construction',
+      coastalRequired: true,
+    });
+    expect(UNIT_DEFINITIONS['battleship' as UnitType]).toMatchObject({
+      strength: 66,
+      movementPoints: 4,
+      visionRange: 3,
+      domain: 'naval',
+      attackProfile: { kind: 'ranged', range: 3, targets: ['unit', 'city'] },
+    });
+  });
+
   it('missile_submarine strength exceeds submarine strength', () => {
     expect(UNIT_DEFINITIONS.missile_submarine.strength).toBeGreaterThan(UNIT_DEFINITIONS.submarine.strength);
   });
 
-  it('walks the full naval fighting-line upgrade chain trireme -> frigate -> ironclad -> pre_dreadnought -> submarine', () => {
+  it('walks the full naval fighting-line upgrade chain through Battleship', () => {
     const chain: UnitType[] = ['trireme', 'frigate', 'ironclad', 'pre_dreadnought'];
-    const expectedNext: UnitType[] = ['frigate', 'ironclad', 'pre_dreadnought', 'submarine'];
+    const expectedNext: UnitType[] = ['frigate', 'ironclad', 'pre_dreadnought', 'battleship'];
     chain.forEach((type, i) => {
       const entry = TRAINABLE_UNITS.find(u => u.type === type);
       expect(entry?.upgradesTo, type).toBe(expectedNext[i]);

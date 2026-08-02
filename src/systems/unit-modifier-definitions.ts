@@ -43,6 +43,7 @@ export const UNIT_CLASS_BY_TYPE: Record<UnitType, UnitClass[]> = {
   infantry: ['gunpowder'],
   mechanized_infantry: ['gunpowder'],
   pre_dreadnought: ['naval', 'gunpowder'],
+  battleship: ['naval', 'ranged'],
   mobile_aa: ['gunpowder'],
   observation_balloon: ['air', 'recon'],
   biplane: ['air'],
@@ -126,6 +127,7 @@ export type ModifierCondition =
   | 'inFriendlyCity'
   | 'inFriendlyTerritory'
   | 'vsCoastalCity'
+  | 'vsCityOrCoastalTarget'
   | 'amphibiousAssault'
   | 'withinRangeOfFriendlyCity3'
   | 'withinRangeOfNeuralRehabilitationCenter'
@@ -180,6 +182,7 @@ export const UNIT_MODIFIERS: UnitModifier[] = [
   { source: tech('torpedo-warfare'), effect: 'combatStrength', mode: 'flat', value: 8, unitTypes: ['ironclad', 'pre_dreadnought', 'submarine', 'missile_submarine', 'carrier'], when: 'always', label: 'Torpedo Warfare' },
   { source: tech('stone-weapons'), effect: 'combatStrength', mode: 'flat', value: 2, unitTypes: ['warrior'], when: 'attacking', label: 'Stone Weapons' },
   { source: unit('marine'), effect: 'combatStrength', mode: 'multiplier', value: 2, unitTypes: ['marine'], when: 'attacking', condition: 'amphibiousAssault', label: 'Marine landing training' },
+  { source: unit('battleship'), effect: 'combatStrength', mode: 'multiplier', value: 1.2, unitTypes: ['battleship'], when: 'attacking', condition: 'vsCityOrCoastalTarget', factKey: 'unit:battleship:bombardment', label: 'Battleship bombardment' },
   { source: unit('chariot'), effect: 'combatStrength', mode: 'multiplier', value: 1.2, unitTypes: ['chariot'], when: 'attacking', condition: 'onOpenGround', factKey: 'unit:chariot:open-ground', label: 'Chariot open-ground charge' },
   { source: unit('chariot'), effect: 'combatStrength', mode: 'multiplier', value: 0.85, unitTypes: ['chariot'], when: 'attacking', condition: 'onRoughGround', factKey: 'unit:chariot:rough-ground', label: 'Chariot rough-ground penalty' },
   { source: unit('war_elephant'), effect: 'combatStrength', mode: 'multiplier', value: 1.2, unitTypes: ['war_elephant'], when: 'attacking', targetTerrains: ['grassland', 'plains', 'desert', 'tundra', 'snow'], factKey: 'unit:war-elephant:open-ground', label: 'War Elephant open-ground charge' },
@@ -249,6 +252,7 @@ export const CLASS_COUNTERS: ClassCounter[] = [
   { attackerTypes: ['jet_fighter', 'wwii_fighter', 'biplane'], defenderClass: 'air', defenderTypes: ['bomber'], multiplier: 1.5, label: 'Interceptor' },
   { attackerTypes: ['jet_fighter'], defenderClass: 'air', defenderTypes: ['combat_drone'], multiplier: 1.35, label: 'Drone interceptor' },
   { attackerTypes: ['submarine', 'missile_submarine'], defenderClass: 'naval', defenderTypes: ['autonomous_frigate'], multiplier: 1.25, label: 'Autonomous-hull ambush' },
+  { attackerTypes: ['submarine', 'missile_submarine'], defenderClass: 'naval', defenderTypes: ['battleship'], multiplier: 1.25, label: 'Capital-ship ambush' },
   { attackerTypes: ['tank'], defenderClass: 'gunpowder', defenderTypes: ['exosuit_infantry'], multiplier: 1.25, label: 'Armor breakthrough' },
 ];
 
