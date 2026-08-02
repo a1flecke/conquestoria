@@ -27,7 +27,7 @@ const COMBAT_MELEE_TYPES: UnitType[] = [
   'galley', 'trireme',
   'shadow_warden', 'scout_hound', 'war_hound', 'beast_handler', 'war_elephant',
 ];
-const RANGED_TYPES: UnitType[] = ['archer', 'crossbowman'];
+const RANGED_TYPES: UnitType[] = ['archer', 'crossbowman', 'mobile_aa'];
 const SIEGE_TYPES: UnitType[] = ['catapult', 'ballista'];
 const NON_COMBAT_TYPES: UnitType[] = ['settler', 'worker', 'caravan', 'scout', 'expedition', 'transport'];
 const SPY_TYPES: UnitType[] = ['spy_scout', 'spy_informant', 'spy_agent', 'spy_operative', 'spy_hacker'];

@@ -90,6 +90,12 @@ const KNIGHT_SFX = {
   death:           real('sfx-knight-death',          'audio/sfx/knight-death.ogg',          0.530, 'death'),
 };
 
+const MUSKETEER_SFX = {
+  'attack-swing':  real('sfx-musketeer-attack-swing',  'audio/sfx/musketeer-attack-swing.ogg',  0.164),
+  'attack-impact': real('sfx-musketeer-attack-impact', 'audio/sfx/musketeer-attack-impact.ogg', 0.937),
+  death:           real('sfx-musketeer-death',          'audio/sfx/musketeer-death.ogg',          0.572, 'death'),
+};
+
 // Unit SFX — keyed by UnitType, then by SfxClass. Non-combat units have death only.
 export const UNIT_SFX: Partial<Record<UnitType, Partial<Record<SfxClass, TrackEntry>>>> = {
 
@@ -150,11 +156,7 @@ export const UNIT_SFX: Partial<Record<UnitType, Partial<Record<SfxClass, TrackEn
     'attack-impact': real('sfx-pikeman-attack-impact', 'audio/sfx/pikeman-attack-impact.ogg', 0.489),
     death:           real('sfx-pikeman-death',          'audio/sfx/pikeman-death.ogg',          0.140, 'death'),
   },
-  musketeer: {
-    'attack-swing':  real('sfx-musketeer-attack-swing',  'audio/sfx/musketeer-attack-swing.ogg',  0.164),
-    'attack-impact': real('sfx-musketeer-attack-impact', 'audio/sfx/musketeer-attack-impact.ogg', 0.937),
-    death:           real('sfx-musketeer-death',          'audio/sfx/musketeer-death.ogg',          0.572, 'death'),
-  },
+  musketeer: MUSKETEER_SFX,
   // === Foot Ranged (attack-swing, ranged-loose, ranged-impact, death) ===
   archer: {
     'attack-swing':  real('sfx-archer-attack-swing',  'audio/sfx/archer-attack-swing.ogg',  0.266),
@@ -319,6 +321,13 @@ export const UNIT_SFX: Partial<Record<UnitType, Partial<Record<SfxClass, TrackEn
   },
   propagandist: { death: real('sfx-propagandist-death', 'audio/sfx/propagandist-death.ogg', 0.46, 'death') },
   drone_controller: { death: real('sfx-drone-controller-death', 'audio/sfx/drone-controller-death.ogg', 0.46, 'death') },
+  // Temporary audible fallback until dedicated automatic-cannon assets are available.
+  mobile_aa: {
+    'attack-swing': MUSKETEER_SFX['attack-swing'],
+    'ranged-loose': MUSKETEER_SFX['attack-swing'],
+    'ranged-impact': MUSKETEER_SFX['attack-impact'],
+    death: MUSKETEER_SFX.death,
+  },
 };
 
 // Mirrors UNIT_MOTION_STYLES in src/renderer/sprites/sprite-catalog.ts — keep in sync.
