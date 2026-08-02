@@ -1228,6 +1228,34 @@ describe('trade-system', () => {
       expect(caravan.tripsRemaining).toBe(3);
     });
 
+    it('emits trade:route-delivered when a route runner arrives at toCityId', () => {
+      const state = makeS6bState({
+        caravanPos: { q: 2, r: 0 },
+        routeDirection: 'outbound',
+        tripsRemaining: 3,
+      });
+      const bus = { emit: vi.fn(), on: vi.fn(), off: vi.fn() } as any;
+      advanceRouteRunners(state, bus);
+
+      expect(bus.emit).toHaveBeenCalledWith('trade:route-delivered', {
+        unitId: 'caravan1',
+        routeId: 'route1',
+        toCityId: 'city2',
+      });
+    });
+
+    it('does not emit trade:route-delivered on the inbound (return) leg', () => {
+      const state = makeS6bState({
+        caravanPos: { q: 0, r: 0 },
+        routeDirection: 'inbound',
+        tripsRemaining: 3,
+      });
+      const bus = { emit: vi.fn(), on: vi.fn(), off: vi.fn() } as any;
+      advanceRouteRunners(state, bus);
+
+      expect(bus.emit).not.toHaveBeenCalledWith('trade:route-delivered', expect.anything());
+    });
+
     it('flips routeDirection to outbound and decrements tripsRemaining on arrival at fromCityId', () => {
       const state = makeS6bState({
         caravanPos: { q: 0, r: 0 },

@@ -4564,6 +4564,10 @@ bus.on('combat:resolved', event => {
   });
 });
 
+bus.on('trade:route-delivered', ({ unitId }) => {
+  renderLoop.applyDeliveryVisual(unitId);
+});
+
 bus.on('combat:reward-earned', ({ reward }) => {
   routeCombatRewardEarned(gameState, reward, appendToCivLog);
 });

@@ -140,3 +140,132 @@ describe('render-loop — non-pirate combat sprite state', () => {
     vi.restoreAllMocks();
   });
 });
+
+describe('render-loop — trade unit delivery sprite state', () => {
+  it('reflects a work data-state for a unit right after applyDeliveryVisual', () => {
+    const { canvas, mount } = createMountedCanvas();
+    const loop = new RenderLoop(canvas);
+
+    const wagon = {
+      id: 'wagon-1', type: 'merchant_wagon', owner: 'player', position: { q: 0, r: 0 },
+      movementPointsLeft: 0, health: 100, experience: 0, hasMoved: false, hasActed: true,
+      isResting: false,
+    } as unknown as Unit;
+
+    loop.setGameState({
+      turn: 5,
+      currentPlayer: 'player',
+      map: { width: 5, height: 5, wrapsHorizontally: false, tiles: {}, rivers: [] },
+      tribalVillages: {},
+      minorCivs: {},
+      cities: {},
+      units: { [wagon.id]: wagon },
+      civilizations: { player: { color: '#4a90d9', visibility: { tiles: { '0,0': 'visible' } } } },
+    } as unknown as GameState);
+    loop.camera.isHexVisible = () => true;
+
+    loop.applyDeliveryVisual(wagon.id);
+    (loop as unknown as { render: () => void }).render();
+
+    const wagonWrap = mount.querySelector(`[data-entity-id="${wagon.id}"]`)?.firstElementChild;
+    expect(wagonWrap?.getAttribute('data-state')).toBe('work');
+  });
+
+  it('returns to idle after the work pulse window expires', () => {
+    const { canvas, mount } = createMountedCanvas();
+    const loop = new RenderLoop(canvas);
+
+    const wagon = {
+      id: 'wagon-1', type: 'merchant_wagon', owner: 'player', position: { q: 0, r: 0 },
+      movementPointsLeft: 0, health: 100, experience: 0, hasMoved: false, hasActed: true,
+      isResting: false,
+    } as unknown as Unit;
+
+    loop.setGameState({
+      turn: 5,
+      currentPlayer: 'player',
+      map: { width: 5, height: 5, wrapsHorizontally: false, tiles: {}, rivers: [] },
+      tribalVillages: {},
+      minorCivs: {},
+      cities: {},
+      units: { [wagon.id]: wagon },
+      civilizations: { player: { color: '#4a90d9', visibility: { tiles: { '0,0': 'visible' } } } },
+    } as unknown as GameState);
+    loop.camera.isHexVisible = () => true;
+
+    const nowMs = 20_000;
+    loop.applyDeliveryVisual(wagon.id, nowMs);
+
+    vi.spyOn(performance, 'now').mockReturnValue(nowMs + 2_000); // past WORK_STATE_MS (1400ms)
+    (loop as unknown as { render: () => void }).render();
+
+    const wagonWrap = mount.querySelector(`[data-entity-id="${wagon.id}"]`)?.firstElementChild;
+    expect(wagonWrap?.getAttribute('data-state')).toBe('idle');
+    vi.restoreAllMocks();
+  });
+});
+
+describe('render-loop — sustained work state for an active workerTask', () => {
+  function buildWorkerState(worker: Unit): GameState {
+    return {
+      turn: 5,
+      currentPlayer: 'player',
+      map: { width: 5, height: 5, wrapsHorizontally: false, tiles: {}, rivers: [] },
+      tribalVillages: {},
+      minorCivs: {},
+      cities: {},
+      units: { [worker.id]: worker },
+      civilizations: { player: { color: '#4a90d9', visibility: { tiles: { '0,0': 'visible' } } } },
+    } as unknown as GameState;
+  }
+
+  it('renders data-state="work" for a unit with an active workerTask and no combat transient', () => {
+    const { canvas, mount } = createMountedCanvas();
+    const loop = new RenderLoop(canvas);
+
+    const worker = {
+      id: 'worker-1', type: 'worker', owner: 'player', position: { q: 0, r: 0 },
+      movementPointsLeft: 0, health: 100, experience: 0, hasMoved: false, hasActed: true,
+      isResting: false,
+      workerTask: { action: 'build-farm', coord: { q: 0, r: 0 } },
+    } as unknown as Unit;
+
+    loop.setGameState(buildWorkerState(worker));
+    loop.camera.isHexVisible = () => true;
+    (loop as unknown as { render: () => void }).render();
+
+    const workerWrap = mount.querySelector(`[data-entity-id="${worker.id}"]`)?.firstElementChild;
+    expect(workerWrap?.getAttribute('data-state')).toBe('work');
+  });
+
+  it('lets an active combat transient take priority over a sustained workerTask', () => {
+    const { canvas, mount } = createMountedCanvas();
+    const loop = new RenderLoop(canvas);
+
+    const worker = {
+      id: 'worker-1', type: 'worker', owner: 'player', position: { q: 0, r: 0 },
+      movementPointsLeft: 0, health: 60, experience: 0, hasMoved: false, hasActed: true,
+      isResting: false,
+      workerTask: { action: 'build-farm', coord: { q: 0, r: 0 } },
+    } as unknown as Unit;
+
+    loop.setGameState(buildWorkerState(worker));
+    loop.camera.isHexVisible = () => true;
+    loop.applyCombatVisual({
+      attackerId: 'enemy-1',
+      defenderId: worker.id,
+      attackerDamage: 0,
+      defenderDamage: 40,
+      attackerSurvived: true,
+      defenderSurvived: true,
+      attackerStrength: 10,
+      defenderStrength: 0,
+      attackerPosition: { q: 1, r: 0 },
+      defenderPosition: worker.position,
+    } as unknown as CombatResult);
+    (loop as unknown as { render: () => void }).render();
+
+    const workerWrap = mount.querySelector(`[data-entity-id="${worker.id}"]`)?.firstElementChild;
+    expect(workerWrap?.getAttribute('data-state')).toBe('hurt');
+  });
+});

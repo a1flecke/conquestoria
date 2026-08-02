@@ -438,6 +438,7 @@ function processCaravanArrival(
   bus?: EventBus,
 ): GameState {
   if (arrivedAtToCity) {
+    bus?.emit('trade:route-delivered', { unitId: caravanId, routeId: route.id, toCityId: route.toCityId });
     return {
       ...state,
       units: {

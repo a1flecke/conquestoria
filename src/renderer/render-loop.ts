@@ -114,13 +114,17 @@ export function buildUnitEntities(
     // everyone else so the transient doesn't just expire unread.
     const combatState = visual?.state
       ?? pirateSpriteState.resolveTransientState(presentation.leadUnitId, nowMs);
+    // A unit mid-way through a multi-turn improvement build shows a sustained "work" pose
+    // (matching cq-work-bob/.cq-tool's infinite loop) whenever nothing more urgent (an
+    // active combat transient) is already claiming its state -- combat always wins.
+    const entityState = combatState === 'idle' && presentation.leadUnit.workerTask ? 'work' as const : combatState;
     return {
       id: presentation.leadUnitId,
       memberIds: presentation.memberIds,
       kind: 'unit' as const,
       subtype: presentation.leadUnit.type,
       coord: presentation.coord,
-      state: combatState,
+      state: entityState,
       faction: presentation.faction,
       damage: visual?.damage ?? presentation.damage,
       stackCount: presentation.stackCount,
@@ -295,6 +299,13 @@ export class RenderLoop {
 
   setSelectedPirateFactionId(factionId: string | null): void {
     this.selectedPirateFactionId = factionId;
+  }
+
+  /** Brief "work" pulse for a unit that just performed its civilian action (e.g. a
+   * trade-line unit delivering goods on route arrival) -- same transient mechanism
+   * as applyCombatVisual's attack/hurt, just a different trigger. */
+  applyDeliveryVisual(unitId: string, nowMs = performance.now()): void {
+    this.pirateSpriteState.apply({ type: 'work', entityId: unitId }, nowMs);
   }
 
   applyCombatVisual(result: CombatResult, nowMs = performance.now()): void {

@@ -11,7 +11,7 @@ import { PIRATE_HULL_TYPES } from '@/systems/pirate-definitions';
 import {
   JetFighterSprite, IroncladSprite, MachineGunnerSprite, MissionarySprite, SpyHackerSprite,
   HorsemanSprite, CannonSprite, RiflemanSprite,
-  TriremeSprite, CaravanSprite,
+  TriremeSprite, CaravanSprite, WorkerSprite,
 } from '@/renderer/sprites/units';
 import {
   DataCenterSprite, CyberDefenseCenterSprite, AutomatedPortSprite, SignalsHubSprite,
@@ -295,5 +295,18 @@ describe('every catalog sprite renders without throwing, across multiple faction
         expect(svg!.length, `${id} produced suspiciously short markup for faction color ${civColor}`).toBeGreaterThan(100);
       }
     }
+  });
+});
+
+// A worker with an active workerTask now renders data-state="work" (see render-loop.ts),
+// which drives [data-state="work"] .cq-tool / .cq-work-dust in sprite-animations-v2.css --
+// but only if WorkerSprite's own markup actually carries those classes. ExpeditionSprite's
+// prospecting pickaxe already does this correctly; WorkerSprite's pickaxe didn't.
+describe("WorkerSprite carries the work-action animation hooks", () => {
+  it('has a cq-tool class on its pickaxe and a cq-work-dust element', () => {
+    const palette = derivePalette('#4a90d9');
+    const svg = WorkerSprite({ palette, svgOnly: true });
+    expect(svg, 'WorkerSprite is missing the cq-tool class on its pickaxe').toContain('cq-tool');
+    expect(svg, 'WorkerSprite is missing a cq-work-dust element').toContain('cq-work-dust');
   });
 });
