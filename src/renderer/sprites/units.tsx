@@ -2371,6 +2371,96 @@ export function JetFreighterSprite({ palette, svgOnly = false }: UnitSpriteProps
   );
 }
 
+// #769 de-alias (batch 4): global_air_cargo previously reused JetFighterSprite — the
+// small single-seat fighter. Global Air Cargo is the era-12 (digital-economy, 🌐) final
+// rung of the air trade line, one generation past JetFreighter: a far bigger WHALE-BODY
+// hauler with a bulbous upper cargo deck, FOUR engine pods, an AUTONOMOUS nose sensor
+// (no cockpit glazing) and a spine-mounted comms-GLOBE beacon — the "global network" cue.
+export function GlobalAirCargoSprite({ palette, svgOnly = false }: UnitSpriteProps): string {
+  return (
+    <SpriteFrame svgOnly={svgOnly}>
+      <Shadow cx={64} cy={114} rx={52} ry={5} />
+      {/* FAR wing (upper) + two engine pods */}
+      <path d="M76,52 L20,30 L34,36 L78,55 Z" fill={P.metal.steel} stroke={P.ink.line} strokeWidth="1.1" />
+      <g transform="translate(42 40) scale(0.8)"><rect x="-8" y="-4" width="18" height="9" rx="4.5" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.9" /><ellipse cx="10" cy="0.5" rx="2.2" ry="4.2" fill={P.cloth.dye} stroke={P.ink.line} strokeWidth="0.5" /></g>
+      <g transform="translate(58 42) scale(0.8)"><rect x="-8" y="-4" width="18" height="9" rx="4.5" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.9" /><ellipse cx="10" cy="0.5" rx="2.2" ry="4.2" fill={P.cloth.dye} stroke={P.ink.line} strokeWidth="0.5" /></g>
+      {/* faction TAIL FIN + roundel + stabiliser (rear, left) */}
+      <path d="M28,52 L18,20 L40,52 Z" fill={palette.mid} stroke={P.ink.line} strokeWidth="1" />
+      <circle cx="28" cy="36" r="2.4" fill={palette.trim} stroke={palette.dark} strokeWidth="0.5" />
+      <path d="M28,55 L8,48 L16,55 L28,58 Z" fill={P.metal.steel} stroke={P.ink.line} strokeWidth="0.9" />
+      {/* FUSELAGE lower tube + bulbous upper cargo deck (whale-body) — metallic livery */}
+      <path d="M14,58 L30,50 L98,49 Q116,50 116,58 Q116,66 98,67 L34,66 Q18,65 14,60 Z" fill={P.metal.steel} stroke={P.ink.line} strokeWidth="1.2" />
+      <path d="M36,53 Q46,31 74,30 Q100,31 106,53 Z" fill={P.metal.steel} stroke={P.ink.line} strokeWidth="1.2" />
+      <path d="M41,50 Q52,35 72,34" fill="none" stroke={P.metal.shine} strokeWidth="0.7" opacity="0.4" />
+      {/* faction band */}
+      <rect x="20" y="57" width="90" height="3.4" fill={palette.mid} opacity="0.9" />
+      {/* sparse cabin windows (automated freighter) */}
+      <g fill={P.cloth.dye} stroke={P.ink.line} strokeWidth="0.3"><circle cx="50" cy="51.4" r="1.1" /><circle cx="58" cy="51.4" r="1.1" /><circle cx="66" cy="51.4" r="1.1" /></g>
+      {/* cargo door on flank */}
+      <rect x="74" y="46" width="10" height="10" rx="1" fill={palette.dark} stroke={P.ink.line} strokeWidth="0.6" />
+      {/* upswing nose cargo-door seam */}
+      <path d="M102,40 Q107,52 104,66" fill="none" stroke={P.ink.line} strokeWidth="0.6" opacity="0.55" />
+      {/* AUTONOMOUS nose sensor blister (no cockpit) — glowing eye */}
+      <ellipse cx="109" cy="56" rx="5" ry="4.4" fill={P.cloth.dye} stroke={P.ink.line} strokeWidth="1" />
+      <g transform="translate(110 55)"><g className="cq-glow"><circle r="2.2" fill={P.ground.water} stroke={P.ink.line} strokeWidth="0.5" /><circle r="0.8" fill={P.metal.shine} opacity="0.8" /></g></g>
+      {/* NEAR wing (lower) + two engine pods over the fuselage */}
+      <path d="M76,58 L20,80 L34,82 L78,61 Z" fill={P.metal.steel} stroke={P.ink.line} strokeWidth="1.1" />
+      <g transform="translate(42 70) scale(0.8)"><rect x="-8" y="-4" width="18" height="9" rx="4.5" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.9" /><ellipse cx="10" cy="0.5" rx="2.2" ry="4.2" fill={P.cloth.dye} stroke={P.ink.line} strokeWidth="0.5" /></g>
+      <g transform="translate(58 72) scale(0.8)"><rect x="-8" y="-4" width="18" height="9" rx="4.5" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.9" /><ellipse cx="10" cy="0.5" rx="2.2" ry="4.2" fill={P.cloth.dye} stroke={P.ink.line} strokeWidth="0.5" /></g>
+      {/* spine COMMS-GLOBE beacon + orbit arc — the "global network" identity (🌐) */}
+      <line x1="72" y1="31" x2="72" y2="25" stroke={P.ink.line} strokeWidth="0.8" />
+      <path d="M60,23 Q72,13 84,23" fill="none" stroke={palette.bright} strokeWidth="0.7" opacity="0.55" />
+      <g transform="translate(72 21)"><g className="cq-glow"><circle r="4" fill={P.ground.water} stroke={P.ink.line} strokeWidth="0.6" /><ellipse cx="0" cy="0" rx="4" ry="1.5" fill="none" stroke={P.metal.shine} strokeWidth="0.6" opacity="0.85" /><ellipse cx="0" cy="0" rx="1.5" ry="4" fill="none" stroke={P.metal.shine} strokeWidth="0.6" opacity="0.85" /></g></g>
+      {/* WORK = delivering goods: coin glint above the cargo door (.cq-deliver) */}
+      <g className="cq-deliver">
+        <ellipse cx="80" cy="40" rx="4.5" ry="1.8" fill={P.metal.gold} stroke={P.ink.line} strokeWidth="0.5" />
+        <ellipse cx="80" cy="37.8" rx="4.5" ry="1.8" fill="#e8c64a" stroke={P.ink.line} strokeWidth="0.5" />
+        <ellipse cx="88" cy="41" rx="3.2" ry="1.4" fill={P.metal.gold} stroke={P.ink.line} strokeWidth="0.4" />
+      </g>
+      <Banner x={64} y={9} palette={palette} scale={0.5} />
+    </SpriteFrame>
+  );
+}
+
+// #769 de-alias (batch 4): stealth_bomber previously reused JetFighterSprite — a
+// conventional fuselage-and-wings fighter. Stealth Bomber is the era-12 (stealth-technology,
+// 🛩️) low-observable strategic bomber. Its whole identity is stealth: a genuine tailless
+// FLYING WING — one continuous faceted planform with a sawtooth trailing edge, NO vertical
+// fin and NO separate fuselage — a silhouette family shared by no other aircraft in the
+// catalog. Belly bomb-bay (bombard); a pulsing radar-cloak shimmer reads its evasion identity.
+export function StealthBomberSprite({ palette, svgOnly = false }: UnitSpriteProps): string {
+  const wing = 'M112,64 L42,38 L68,52 L56,57 L66,64 L56,71 L68,76 L42,90 Z';
+  return (
+    <SpriteFrame svgOnly={svgOnly}>
+      <Shadow cx={64} cy={112} rx={50} ry={4} />
+      {/* radar-cloak shimmer — a ghost of the planform, pulsing (evasion identity) */}
+      <g className="cq-glow"><path d={wing} fill="none" stroke={palette.bright} strokeWidth="1.6" opacity="0.5" /></g>
+      {/* one continuous faceted FLYING WING — no fuselage, no tail fin */}
+      <path d={wing} fill={P.metal.iron} stroke={P.ink.line} strokeWidth="1.2" />
+      <path d="M112,64 L42,38 L68,52 L66,64 Z" fill={P.metal.steel} stroke={P.ink.line} strokeWidth="0.5" />
+      <path d="M112,64 L42,90 L68,76 L66,64 Z" fill="#3a4149" stroke={P.ink.line} strokeWidth="0.5" />
+      {/* faceted panel lines */}
+      <line x1="112" y1="64" x2="66" y2="64" stroke={P.ink.line} strokeWidth="0.5" opacity="0.7" />
+      <line x1="94" y1="56" x2="60" y2="50" stroke={P.ink.line} strokeWidth="0.4" opacity="0.4" />
+      <line x1="94" y1="72" x2="60" y2="78" stroke={P.ink.line} strokeWidth="0.4" opacity="0.4" />
+      <line x1="78" y1="60" x2="72" y2="52" stroke={P.ink.line} strokeWidth="0.4" opacity="0.35" />
+      <line x1="78" y1="68" x2="72" y2="76" stroke={P.ink.line} strokeWidth="0.4" opacity="0.35" />
+      {/* faction leading-edge accents */}
+      <path d="M112,64 L42,38" fill="none" stroke={palette.mid} strokeWidth="2" opacity="0.9" strokeLinecap="round" />
+      <path d="M112,64 L42,90" fill="none" stroke={palette.mid} strokeWidth="2" opacity="0.9" strokeLinecap="round" />
+      {/* blended low cockpit bump (no glass bubble) */}
+      <path d="M97,60 L86,58 L84,64 L95,66 Z" fill={palette.dark} stroke={P.ink.line} strokeWidth="0.7" />
+      <path d="M95,61 L88,60 L87,63 Z" fill={P.metal.shine} opacity="0.35" />
+      {/* belly BOMB-BAY centerline slot (bombard) */}
+      <rect x="66" y="62.6" width="24" height="3" fill="#25292f" stroke={P.ink.line} strokeWidth="0.5" />
+      <line x1="78" y1="62.6" x2="78" y2="65.6" stroke={P.ink.line} strokeWidth="0.4" opacity="0.7" />
+      {/* faction chevron marking */}
+      <path d="M70,48 L78,50 L74,54 Z" fill={palette.mid} stroke={palette.dark} strokeWidth="0.4" />
+      <Banner x={64} y={22} palette={palette} scale={0.46} />
+    </SpriteFrame>
+  );
+}
+
 export function CarrierSprite({ palette, svgOnly = false }: UnitSpriteProps): string {
   return (
     <SpriteFrame svgOnly={svgOnly}>

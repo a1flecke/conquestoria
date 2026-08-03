@@ -20,6 +20,7 @@ import {
   NavalTraderSprite, SteamshipTraderSprite, CargoFreighterSprite, ContainerShipSprite,
   FrigateSprite, DestroyerSprite, MerchantWagonSprite,
   FreightConvoySprite, AirFreighterSprite, ReconAircraftSprite, BomberSprite, JetFreighterSprite,
+  GlobalAirCargoSprite, StealthBomberSprite,
 } from './units';
 import {
   GranarySprite, HerbalistSprite, AqueductSprite,
@@ -339,8 +340,9 @@ export const UNIT_SPRITE_CATALOG: Record<UnitType, UnitSpriteComponent> = {
   // De-aliased in #769 batch 3 — bespoke prop cargo transport + cargo jet.
   air_freighter:     withMotion('air_freighter', AirFreighterSprite),
   jet_freighter:     withMotion('jet_freighter', JetFreighterSprite),
-  // global_air_cargo still a placeholder reusing JetFighterSprite — #769 batch 4's to de-alias.
-  global_air_cargo:  withMotion('global_air_cargo', JetFighterSprite),
+  // De-aliased in #769 batch 4 — bespoke whale-body autonomous cargo hauler (comms-globe
+  // beacon, 4 engines), one generation past JetFreighter.
+  global_air_cargo:  withMotion('global_air_cargo', GlobalAirCargoSprite),
   expedition:     withMotion('expedition', ExpeditionSprite),
   beast_boar:         withMotion('beast_boar', GiantBoarSprite),
   beast_wolf:         withMotion('beast_wolf', DireWolfSprite),
@@ -352,7 +354,9 @@ export const UNIT_SPRITE_CATALOG: Record<UnitType, UnitSpriteComponent> = {
   beast_dragon:       withMotion('beast_dragon', AncientDragonSprite),
   // De-aliased in #769 batch 1.
   cyber_unit:         withMotion('cyber_unit', CyberUnitSprite),
-  stealth_bomber:     withMotion('stealth_bomber', JetFighterSprite),
+  // De-aliased in #769 batch 4 — bespoke tailless faceted flying wing (bomb-bay, radar-cloak
+  // shimmer); a low-observable silhouette family unlike any other aircraft in the catalog.
+  stealth_bomber:     withMotion('stealth_bomber', StealthBomberSprite),
 };
 
 export const BUILDING_SPRITE_CATALOG: Record<string, BuildingSpriteComponent> = {
