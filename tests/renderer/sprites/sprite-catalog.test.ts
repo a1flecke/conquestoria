@@ -227,6 +227,42 @@ describe('#769 batch 3 sprites are not aliases of their donors', () => {
   });
 });
 
+// #769 batch 4 (air, remainder, shipped 2026-08-03) — same permanent regression as batches 1-3
+// above, for global_air_cargo/stealth_bomber (previously JetFighterSprite verbatim for both).
+describe('#769 batch 4 sprites are not aliases of their donors', () => {
+  const palette = derivePalette('#4a90d9');
+
+  it('unit sprites render different markup than the donor they replaced', () => {
+    const replacements: Array<[keyof typeof UNIT_SPRITE_CATALOG, (props: { palette: typeof palette; svgOnly: boolean }) => string]> = [
+      ['global_air_cargo', JetFighterSprite],
+      ['stealth_bomber', JetFighterSprite],
+    ];
+    for (const [type, donorFn] of replacements) {
+      const actual = UNIT_SPRITE_CATALOG[type]({ palette, svgOnly: true });
+      const donor = donorFn({ palette, svgOnly: true });
+      expect(actual, `${type} still renders identically to its old donor sprite`).not.toBe(donor);
+    }
+  });
+
+  it('global_air_cargo and stealth_bomber are distinct from each other despite sharing a former donor', () => {
+    const globalAirCargo = UNIT_SPRITE_CATALOG.global_air_cargo({ palette, svgOnly: true });
+    const stealthBomber = UNIT_SPRITE_CATALOG.stealth_bomber({ palette, svgOnly: true });
+    expect(globalAirCargo).not.toBe(stealthBomber);
+  });
+
+  it('global_air_cargo is also distinct from jet_freighter, its own batch-3 predecessor in the same trade line', () => {
+    const globalAirCargo = UNIT_SPRITE_CATALOG.global_air_cargo({ palette, svgOnly: true });
+    const jetFreighter = UNIT_SPRITE_CATALOG.jet_freighter({ palette, svgOnly: true });
+    expect(globalAirCargo).not.toBe(jetFreighter);
+  });
+
+  it('stealth_bomber is also distinct from bomber, its own batch-3 predecessor in the same bomber line', () => {
+    const stealthBomber = UNIT_SPRITE_CATALOG.stealth_bomber({ palette, svgOnly: true });
+    const bomber = UNIT_SPRITE_CATALOG.bomber({ palette, svgOnly: true });
+    expect(stealthBomber).not.toBe(bomber);
+  });
+});
+
 // #769: full audit (2026-08-01, `scripts/audit-sprite-aliases.mjs`) of UNIT_SPRITE_CATALOG
 // originally found 17 units still rendering via another unit's exact sprite function — not
 // similar art, literally the same component (distinct from the Era 13 placeholders above,
@@ -244,15 +280,18 @@ describe('#769 batch 3 sprites are not aliases of their donors', () => {
 //
 // Batch 3 (freight_convoy, recon_aircraft, air_freighter, bomber, jet_freighter) shipped
 // 2026-08-02 and is no longer listed below either — see the permanent regression block above.
-// `anti_tank_gun`/`wwii_fighter` (discovered mid-batch-2, folded into a new Batch 5 on
-// 2026-08-02 rather than silently added here) and batch 4's `global_air_cargo`/`stealth_bomber`
-// remain pending.
+//
+// Batch 4 (global_air_cargo, stealth_bomber) shipped 2026-08-03 and is no longer listed below
+// either — see the permanent regression block above. Only batch 5's drift units remain pending.
 //
 // A rebase of batch 3's branch onto `main` (2026-08-02) picked up two more new aliases from
 // separate concurrent work (#681, mechanized infantry): `mechanized_infantry` (its catalog
 // comment cites #709 as owner — out of #769's scope, not listed below) and `mobile_aa` (a
 // generic "asset follow-up" comment with no owning issue, same situation `anti_tank_gun` was
-// in before it — folded into Batch 5 alongside it rather than added silently).
+// in before it — folded into Batch 5 alongside it rather than added silently). A rebase of
+// batch 4's branch onto `main` (2026-08-03) similarly picked up `battleship` (#682, dreadnought
+// construction) — its catalog comment cites #711 as owner, out of #769's scope entirely, not
+// listed below.
 //
 // Reconciled with issue #708 (2026-08-01): #708 is a pre-existing, separately-tracked issue
 // (part of the larger #547 combat-roster initiative) that already owned `beast_handler`,
@@ -281,9 +320,6 @@ describe('#769 pending sprite-alias audit baseline', () => {
 
   it('known-pending aliased units still render identically to their donor unit', () => {
     const pendingAliasPairs: Array<[keyof typeof UNIT_SPRITE_CATALOG, keyof typeof UNIT_SPRITE_CATALOG]> = [
-      // Batch 4 (air, remainder)
-      ['global_air_cargo', 'jet_fighter'],
-      ['stealth_bomber', 'jet_fighter'],
       // Batch 5 (drift, unscoped until 2026-08-02): anti_tank_gun/wwii_fighter landed on main
       // from unrelated work mid-arc and were folded into #769 as their own batch rather than
       // silently added to an existing one. mobile_aa joined the same batch after a batch 3
@@ -292,7 +328,7 @@ describe('#769 pending sprite-alias audit baseline', () => {
       ['wwii_fighter', 'jet_fighter'],
       ['mobile_aa', 'tank'],
     ];
-    expect(pendingAliasPairs.length, "baseline count should match #769's remaining scope (17 originally, minus batch 1's 5, minus batch 2's 3, minus batch 3's 5, minus beast_handler/war_elephant deferred to #708, plus batch 5's anti_tank_gun/wwii_fighter/mobile_aa folded in 2026-08-02)").toBe(5);
+    expect(pendingAliasPairs.length, "baseline count should match #769's remaining scope (17 originally, minus batch 1's 5, minus batch 2's 3, minus batch 3's 5, minus batch 4's 2, minus beast_handler/war_elephant deferred to #708, plus batch 5's anti_tank_gun/wwii_fighter/mobile_aa folded in 2026-08-02)").toBe(3);
     for (const [aliasType, donorType] of pendingAliasPairs) {
       const actual = UNIT_SPRITE_CATALOG[aliasType]({ palette, svgOnly: true, motion: 'idle' });
       const donor = UNIT_SPRITE_CATALOG[donorType]({ palette, svgOnly: true, motion: 'idle' });
