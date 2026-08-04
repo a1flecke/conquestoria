@@ -308,3 +308,27 @@ describe('era:advanced notification', () => {
     expect(calls).toHaveLength(0);
   });
 });
+
+describe('air-defense overlay button placement (#783)', () => {
+  it('joins the utility toolbar flex row instead of an independent absolute position', () => {
+    const main = readFileSync(resolve(PROJECT_ROOT, 'src/main.ts'), 'utf8');
+    const createUI = main.slice(main.indexOf('function createUI(): void {'), main.indexOf('function openBestiary('));
+
+    // Regression for #783: this button used to carry its own
+    // `position:absolute;right:12px;top:64px` and land directly on `uiLayer`, which put it
+    // on top of the utility toolbar's own icon buttons and the HUD's turn/era text at the
+    // same screen coordinates. It must not reintroduce a competing absolute anchor.
+    expect(main).not.toMatch(/airDefenseOverlayButton\.style\.cssText[^;]*position:\s*absolute/);
+    expect(createUI).toContain("document.getElementById('utility-toolbar')");
+    expect(createUI).toMatch(/utilityToolbar\.(insertBefore|appendChild)\(airDefenseOverlayButton/);
+  });
+
+  it('only shows the button once the current civ has built AA coverage', () => {
+    const main = readFileSync(resolve(PROJECT_ROOT, 'src/main.ts'), 'utf8');
+
+    // Starts hidden so it never flashes visible before the first updateHUD() call.
+    expect(main).toContain('airDefenseOverlayButton.hidden = true;');
+    const updateHud = main.slice(main.indexOf('function updateHUD(): void {'), main.indexOf('\nfunction ', main.indexOf('function updateHUD(): void {') + 1));
+    expect(updateHud).toContain('airDefenseOverlayButton.hidden = !civHasAirDefenseCoverage(gameState, civ.id);');
+  });
+});

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { GameState, Unit } from '@/core/types';
 import {
+  civHasAirDefenseCoverage,
   getKnownAirDefenseProviders,
   resolveAirDefenseCoverage,
   selectStrongestAirDefenseProviders,
@@ -83,6 +84,36 @@ describe('resolveAirDefenseCoverage', () => {
     } as unknown as GameState['units'];
 
     expect(resolveAirDefenseCoverage(next, { ...defender, position: { q: 2, r: 0 } }, 'defender').flatDefenseModifier).toBe(0);
+  });
+});
+
+describe('civHasAirDefenseCoverage', () => {
+  it('is true for a civ with an Anti-Air Battery already built (#783 follow-up)', () => {
+    expect(civHasAirDefenseCoverage(state(), 'defender')).toBe(true);
+  });
+
+  it('is true for a civ with a Mobile AA unit on the map', () => {
+    const next = state();
+    next.units = {
+      aa: { id: 'aa', owner: 'attacker', type: 'mobile_aa', position: { q: 0, r: 0 } },
+    } as unknown as GameState['units'];
+
+    expect(civHasAirDefenseCoverage(next, 'attacker')).toBe(true);
+  });
+
+  it('is false for a civ with no AA-providing building or unit built', () => {
+    expect(civHasAirDefenseCoverage(state(), 'attacker')).toBe(false);
+  });
+
+  it('stays false for a civ that has researched the unlocking tech but built nothing yet', () => {
+    const next = state();
+    next.civilizations.attacker!.techState.completed = ['air-superiority'];
+
+    expect(civHasAirDefenseCoverage(next, 'attacker')).toBe(false);
+  });
+
+  it('is false for an unknown civ id', () => {
+    expect(civHasAirDefenseCoverage(state(), 'nobody')).toBe(false);
   });
 });
 
