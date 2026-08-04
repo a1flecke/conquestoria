@@ -25,8 +25,8 @@ describe('campaign entry wiring', () => {
       main.indexOf('async function showStartSavePanel'),
     );
 
-    expect(entry.indexOf('if (gameState.gameOver)'))
-      .toBeLessThan(entry.indexOf('if (!gameState.hotSeat)'));
+    expect(entry.indexOf('if (session.getState().gameOver)'))
+      .toBeLessThan(entry.indexOf('if (!session.getState().hotSeat)'));
     expect(entry).toContain('handleVictoryIfNeeded()');
   });
 
@@ -65,7 +65,7 @@ describe('player combat wiring', () => {
     );
 
     expect(executeAttack).toContain(
-      'deterministicCombatSeed(gameState.gameId, gameState.turn, attacker.id, defender.id)',
+      'deterministicCombatSeed(session.getState().gameId, session.getState().turn, attacker.id, defender.id)',
     );
   });
 
@@ -75,7 +75,7 @@ describe('player combat wiring', () => {
       main.indexOf('function executeAttack('),
       main.indexOf("bus.on('combat:resolved'"),
     );
-    const stateRefresh = executeAttack.indexOf('renderLoop.setGameState(gameState);');
+    const stateRefresh = executeAttack.indexOf('renderLoop.setGameState(session.getState());');
     const panelRefresh = executeAttack.indexOf('refreshSelectedUnitAfterCombat();');
     const delayedSelection = executeAttack.indexOf("renderLoop.animations.add('combat-flash'");
 
@@ -95,9 +95,9 @@ describe('player combat wiring', () => {
       executeAttack.indexOf('return;', executeAttack.indexOf('const assaultStatus = beginPlayerCityAssault(')),
     );
 
-    expect(cityCaptureBranch.indexOf('renderLoop.setGameState(gameState);')).toBeGreaterThan(-1);
+    expect(cityCaptureBranch.indexOf('renderLoop.setGameState(session.getState());')).toBeGreaterThan(-1);
     expect(cityCaptureBranch.indexOf('refreshSelectedUnitAfterCombat();')).toBeGreaterThan(
-      cityCaptureBranch.indexOf('renderLoop.setGameState(gameState);'),
+      cityCaptureBranch.indexOf('renderLoop.setGameState(session.getState());'),
     );
   });
 });
@@ -150,7 +150,7 @@ describe('completed-round AI wiring', () => {
 
     expect(handoff).toContain('onReady: async summary =>');
     expect(handoff).toMatch(
-      /acknowledgeTurnHandoffSummary\(\s*gameState,\s*resolvedNextSlotId,\s*summary,\s*\)/,
+      /acknowledgeTurnHandoffSummary\(\s*session\.getState\(\),\s*resolvedNextSlotId,\s*summary,\s*\)/,
     );
     expect(handoff.indexOf('releaseHandoffToViewer(resolvedNextSlotId)'))
       .toBeLessThan(handoff.indexOf("bus.emit('ai:strategic-warning-audio'"));
@@ -184,7 +184,7 @@ describe('shared city founding wiring', () => {
     );
 
     expect(playerFlow).toContain(
-      'foundCityInState(gameState, selectedUnitId, bus)',
+      'foundCityInState(session.getState(), selectedUnitId, bus)',
     );
     expect(playerFlow).not.toContain('const city = foundCity(');
     expect(basicAi).toContain(
@@ -212,7 +212,7 @@ describe('shared city assault wiring', () => {
     const main = readFileSync(resolve(PROJECT_ROOT, 'src/main.ts'), 'utf8');
 
     expect(main).toMatch(
-      /beginPlayerCityAssaultChoice\(\s*gameState,\s*attackerId,\s*cityId,\s*bus,\s*precedingCombat,\s*attackerMultiplier,\s*\)/,
+      /beginPlayerCityAssaultChoice\(\s*session\.getState\(\),\s*attackerId,\s*cityId,\s*bus,\s*precedingCombat,\s*attackerMultiplier,\s*\)/,
     );
     expect(main).toMatch(
       /beginPlayerCityAssault\(\s*attackerId,\s*cityAtTarget\.id,\s*attackerBonus,\s*result,\s*amphibiousAssault,\s*\)/,
@@ -270,7 +270,7 @@ describe('era:advanced notification', () => {
       main.indexOf("bus.on('faction:unrest-started'"),
     );
 
-    expect(handler).toContain('if (civId === gameState.currentPlayer) SFX.notification();');
+    expect(handler).toContain('if (civId === session.getState().currentPlayer) SFX.notification();');
   });
 
   it('era 2 delivers to every human civ, with an extra unrest-primer line per civ', () => {
@@ -329,6 +329,6 @@ describe('air-defense overlay button placement (#783)', () => {
     // Starts hidden so it never flashes visible before the first updateHUD() call.
     expect(main).toContain('airDefenseOverlayButton.hidden = true;');
     const updateHud = main.slice(main.indexOf('function updateHUD(): void {'), main.indexOf('\nfunction ', main.indexOf('function updateHUD(): void {') + 1));
-    expect(updateHud).toContain('airDefenseOverlayButton.hidden = !civHasAirDefenseCoverage(gameState, civ.id);');
+    expect(updateHud).toContain('airDefenseOverlayButton.hidden = !civHasAirDefenseCoverage(session.getState(), civ.id);');
   });
 });
