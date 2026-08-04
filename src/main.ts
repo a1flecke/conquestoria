@@ -303,9 +303,19 @@ import { processImprovementTurns } from '@/systems/improvement-turn-system';
 import { handleCombatResolvedEvent } from '@/ui/combat-resolved-presentation';
 import { applyStrategicWarningTransitions } from '@/systems/strategic-warning-system';
 import { createCityOverviewPanel } from '@/ui/city-overview-panel';
+import type { GameSession } from '@/app/ports';
+import { createGameSession } from '@/app/game-session';
 
 // --- App State ---
-let gameState: GameState;
+/**
+ * The single owner of game state (#787 phase 2).
+ *
+ * Constructed unset: `enterCampaign` commits the first real state, exactly
+ * where `let gameState: GameState` used to receive its first assignment. The
+ * cast reproduces that binding's pre-assignment `undefined` so the existing
+ * `if (session.getState())` guards keep their current meaning.
+ */
+const session: GameSession = createGameSession(undefined as unknown as GameState);
 let drawer: TreasuryDrawer;
 let selectedUnitId: string | null = null;
 let selectedUnitWaterRecovery: LandUnitWaterRecovery = NO_LAND_UNIT_WATER_RECOVERY;
@@ -350,7 +360,7 @@ async function refreshPersistedSettings(): Promise<GameState['settings']> {
 }
 
 function currentCivDef() {
-  return resolveCivDefinition(gameState, currentCiv().civType ?? '');
+  return resolveCivDefinition(session.getState(), currentCiv().civType ?? '');
 }
 const bus = new EventBus();
 const audioCtx = new AudioContext();
@@ -410,11 +420,11 @@ legendaryCompletionQueue = createLegendaryWonderCompletionQueue({
   isInteractionBlocked: () => uiInteractions.isInteractionBlocked(),
   reducedMotion: prefersReducedMotion,
   openCity: cityId => {
-    const city = gameState.cities[cityId];
+    const city = session.getState().cities[cityId];
     if (city) openCityPanelForCity(city);
   },
   openJournal: cityId => {
-    if (gameState.cities[cityId]) openWonderPanelForCityId(cityId);
+    if (session.getState().cities[cityId]) openWonderPanelForCityId(cityId);
   },
   setBlockingOverlay,
 });
@@ -442,8 +452,8 @@ window.addEventListener('keydown', event => {
 
   pacingDebugOpen = !pacingDebugOpen;
   document.getElementById('pacing-debug-panel')?.remove();
-  if (pacingDebugOpen && gameState) {
-    createPacingDebugPanel(uiLayer, gameState);
+  if (pacingDebugOpen && session.getState()) {
+    createPacingDebugPanel(uiLayer, session.getState());
   }
 });
 
@@ -469,7 +479,7 @@ function createUI(): void {
       // Stale or absent — remove old, rebuild fresh with current techs
       existing?.remove();
       const viewerTechs = new Set<string>(
-        gameState.civilizations[gameState.currentPlayer]?.techState.completed ?? []
+        session.getState().civilizations[session.getState().currentPlayer]?.techState.completed ?? []
       );
       const overlay = createIconLegendOverlay(viewerTechs);
       uiLayer.appendChild(overlay);
@@ -478,35 +488,35 @@ function createUI(): void {
     onBottomBarHeightChange: setMapViewportBottomInset,
     onOpenMenu: () => {
       showPauseMenu(uiLayer, {
-        turn: gameState.turn,
-        civName: gameState.civilizations[gameState.currentPlayer].name,
+        turn: session.getState().turn,
+        civName: session.getState().civilizations[session.getState().currentPlayer].name,
         onResume: () => {},
         onSave: async (slotId, name) => {
-          await saveGame(slotId, name, gameState);
+          await saveGame(slotId, name, session.getState());
           showNotification('Game saved.', 'info');
         },
         onNewGame: () => showGameModeSelection(),
-        autoSave: () => autoSave(gameState),
+        autoSave: () => autoSave(session.getState()),
         onOpenBestiary: () => openBestiary(),
-        opponentChallenge: resolveOpponentChallenge(gameState),
-        pendingOpponentChallenge: gameState.pendingOpponentChallenge,
+        opponentChallenge: resolveOpponentChallenge(session.getState()),
+        pendingOpponentChallenge: session.getState().pendingOpponentChallenge,
         onOpponentChallengeChange: (challenge) => {
-          gameState = setPendingOpponentChallenge(gameState, challenge);
+          session.setStateWithoutRefresh(setPendingOpponentChallenge(session.getState(), challenge));
         },
-        personalChallenge: resolveChallengeForCiv(gameState, gameState.currentPlayer),
-        pendingPersonalChallenge: gameState.civilizations[gameState.currentPlayer]?.pendingChallenge,
+        personalChallenge: resolveChallengeForCiv(session.getState(), session.getState().currentPlayer),
+        pendingPersonalChallenge: session.getState().civilizations[session.getState().currentPlayer]?.pendingChallenge,
         onPersonalChallengeChange: (challenge) => {
-          gameState = setPendingChallengeForCiv(gameState, gameState.currentPlayer, challenge);
+          session.setStateWithoutRefresh(setPendingChallengeForCiv(session.getState(), session.getState().currentPlayer, challenge));
         },
         // Spec 3: per-channel audio settings
         audioSettings: {
           masterVolume:   currentMasterVolume,   // tracked in memory across menu reopens
-          musicVolume:    gameState.settings.musicVolume,
-          sfxVolume:      gameState.settings.sfxVolume,
-          stingerVolume:  gameState.settings.stingerVolume  ?? 1.0,
-          musicEnabled:   gameState.settings.musicEnabled,
-          soundEnabled:   gameState.settings.soundEnabled,
-          stingerEnabled: gameState.settings.stingerEnabled ?? true,
+          musicVolume:    session.getState().settings.musicVolume,
+          sfxVolume:      session.getState().settings.sfxVolume,
+          stingerVolume:  session.getState().settings.stingerVolume  ?? 1.0,
+          musicEnabled:   session.getState().settings.musicEnabled,
+          soundEnabled:   session.getState().settings.soundEnabled,
+          stingerEnabled: session.getState().settings.stingerEnabled ?? true,
         },
         onAudioSettingChange: (key, value) => {
           // Apply to audio system immediately — no restart needed
@@ -523,7 +533,7 @@ function createUI(): void {
             case 'stingerEnabled': audio.setStingerEnabled(value as boolean); break;
           }
           // Persist all non-master settings to GameSettings (saved on next save)
-          (gameState.settings as unknown as Record<string, number | boolean>)[key] = value;
+          (session.getState().settings as unknown as Record<string, number | boolean>)[key] = value;
         },
       });
     },
@@ -541,42 +551,42 @@ function createUI(): void {
 }
 
 function openBestiary(): void {
-  createBestiaryPanel(uiLayer, getBestiaryEntriesForPlayer(gameState, gameState.currentPlayer), {
+  createBestiaryPanel(uiLayer, getBestiaryEntriesForPlayer(session.getState(), session.getState().currentPlayer), {
     onClose: () => {},
-    slayerNameFor: (civId) => gameState.civilizations[civId]?.name ?? civId,
+    slayerNameFor: (civId) => session.getState().civilizations[civId]?.name ?? civId,
   });
 }
 
 function scanBeastSightings(): void {
   const visTiles = currentCiv()?.visibility?.tiles;
   if (!visTiles) return;
-  const viewerUnits = Object.values(gameState.units).filter(
-    u => u.owner === gameState.currentPlayer && !u.transportId,
+  const viewerUnits = Object.values(session.getState().units).filter(
+    u => u.owner === session.getState().currentPlayer && !u.transportId,
   );
   const visibleKeys = new Set(
     Object.entries(visTiles).filter(([, v]) => v === 'visible').map(([k]) => k),
   );
   // A beast concealed in its habitat cannot be sighted even if the tile is visible
-  for (const unit of Object.values(gameState.units)) {
-    if (isBeastConcealedFrom(unit, gameState.map, viewerUnits)) {
+  for (const unit of Object.values(session.getState().units)) {
+    if (isBeastConcealedFrom(unit, session.getState().map, viewerUnits)) {
       visibleKeys.delete(hexKey(unit.position));
     }
   }
-  const sightingResult = recordBeastSightings(gameState, gameState.currentPlayer, visibleKeys);
-  gameState = sightingResult.state;
+  const sightingResult = recordBeastSightings(session.getState(), session.getState().currentPlayer, visibleKeys);
+  session.setStateWithoutRefresh(sightingResult.state);
   for (const beastId of sightingResult.newSightings) {
-    bus.emit('beast:sighted', { beastId, civId: gameState.currentPlayer });
+    bus.emit('beast:sighted', { beastId, civId: session.getState().currentPlayer });
   }
 }
 
 function maybeShowPendingHoardChoice(): void {
-  const pending = (gameState.beasts?.pendingHoardChoices ?? [])
-    .find(p => p.civId === gameState.currentPlayer);
+  const pending = (session.getState().beasts?.pendingHoardChoices ?? [])
+    .find(p => p.civId === session.getState().currentPlayer);
   if (!pending) return;
-  const preview = getHoardChoicePreview(gameState, pending.lairId);
-  const lair = gameState.beasts!.lairs[pending.lairId];
+  const preview = getHoardChoicePreview(session.getState(), pending.lairId);
+  const lair = session.getState().beasts!.lairs[pending.lairId];
   createBeastHoardPanel(uiLayer, preview, choice => {
-    gameState = applyHoardChoice(gameState, pending.lairId, pending.civId, choice);
+    session.setStateWithoutRefresh(applyHoardChoice(session.getState(), pending.lairId, pending.civId, choice));
     bus.emit('beast:hoard-claimed', { lairId: pending.lairId, beastId: lair.beastId, civId: pending.civId, choice });
     updateHUD();
     maybeShowPendingHoardChoice();
@@ -586,13 +596,13 @@ function maybeShowPendingHoardChoice(): void {
 function openWonderAtlas(initialWonderId?: string): void {
   drawer?.close();
   audio.stopNaturalWonderAmbient('codex-page-hidden');
-  createWonderAtlasPanel(uiLayer, gameState, {
+  createWonderAtlasPanel(uiLayer, session.getState(), {
     initialWonderId,
     onViewOnMap: coord => {
       renderLoop.camera.centerOn(coord);
     },
     onOpenCity: cityId => {
-      const city = gameState.cities[cityId];
+      const city = session.getState().cities[cityId];
       if (city) openCityPanelForCity(city);
     },
     onNaturalWonderPageShown: wonderId => {
@@ -610,13 +620,13 @@ function openWonderAtlas(initialWonderId?: string): void {
 
 // --- Game Logic ---
 function currentCiv() {
-  return gameState.civilizations[gameState.currentPlayer];
+  return session.getState().civilizations[session.getState().currentPlayer];
 }
 
 function updateHUD(): void {
   const civ = currentCiv();
-  airDefenseOverlayButton.hidden = !civHasAirDefenseCoverage(gameState, civ.id);
-  const airDefenseEnabled = renderLoop.isAirDefenseOverlayEnabled(gameState.currentPlayer);
+  airDefenseOverlayButton.hidden = !civHasAirDefenseCoverage(session.getState(), civ.id);
+  const airDefenseEnabled = renderLoop.isAirDefenseOverlayEnabled(session.getState().currentPlayer);
   airDefenseOverlayButton.setAttribute('aria-pressed', String(airDefenseEnabled));
   airDefenseOverlayButton.textContent = airDefenseEnabled ? '🛡 Anti-aircraft coverage: on' : '🛡 Anti-aircraft coverage';
   const hud = document.getElementById('hud');
@@ -625,14 +635,14 @@ function updateHUD(): void {
   // Sum yields across all cities
   let totalFood = 0, totalProd = 0, totalScience = 0;
   for (const cityId of civ.cities) {
-    const city = gameState.cities[cityId];
+    const city = session.getState().cities[cityId];
     if (!city) continue;
-    const y = calculateProjectedCityYields(gameState, cityId);
+    const y = calculateProjectedCityYields(session.getState(), cityId);
     totalFood += y.food;
     totalProd += y.production;
     totalScience += y.science;
   }
-  const economyStatus = calculateCivEconomy(gameState, civ.id);
+  const economyStatus = calculateCivEconomy(session.getState(), civ.id);
 
   const techName = civ.techState.currentResearch ?? 'None';
   hud.textContent = '';
@@ -663,16 +673,16 @@ function updateHUD(): void {
   sciSpan.textContent = `🔬 ${techName !== 'None' ? techName : 'None'} (+${totalScience})`;
   yieldsRow.appendChild(sciSpan);
 
-  if (isAutonomyActivated(gameState, civ.id)) {
+  if (isAutonomyActivated(session.getState(), civ.id)) {
     const networkButton = document.createElement('button');
     networkButton.type = 'button';
     networkButton.style.cssText = 'background:transparent;color:inherit;border:1px solid rgba(232,193,112,0.45);border-radius:6px;font:inherit;padding:4px 8px;min-height:44px;';
-    networkButton.textContent = getNetworkPanelModel(gameState, civ.id).statusText;
+    networkButton.textContent = getNetworkPanelModel(session.getState(), civ.id).statusText;
     networkButton.addEventListener('click', () => openNetworkPanel());
     yieldsRow.appendChild(networkButton);
   }
 
-  const happiness = getCivHappinessFromResources(gameState, civ.id);
+  const happiness = getCivHappinessFromResources(session.getState(), civ.id);
   if (happiness > 0) {
     const happySpan = document.createElement('span');
     happySpan.title = 'Happiness from luxury resources — each point reduces city unrest pressure by 2';
@@ -681,13 +691,13 @@ function updateHUD(): void {
   }
 
   const infoRow = document.createElement('div');
-  if (gameState.hotSeat && civ.name) {
+  if (session.getState().hotSeat && civ.name) {
     const nameSpan = document.createElement('span');
     nameSpan.textContent = `${civ.name} · `;
     infoRow.appendChild(nameSpan);
   }
   const turnSpan = document.createElement('span');
-  turnSpan.textContent = `Turn ${gameState.turn} · Your Era ${resolveCivilizationEra(civ.techState.completed)} · World Age ${gameState.era}`;
+  turnSpan.textContent = `Turn ${session.getState().turn} · Your Era ${resolveCivilizationEra(civ.techState.completed)} · World Age ${session.getState().era}`;
   infoRow.appendChild(turnSpan);
 
   hud.appendChild(yieldsRow);
@@ -695,13 +705,13 @@ function updateHUD(): void {
 
   const pirateWatersButton = document.getElementById('btn-pirate-waters');
   if (pirateWatersButton) {
-    pirateWatersButton.hidden = !getPirateWatersPresentation(gameState, gameState.currentPlayer).available;
+    pirateWatersButton.hidden = !getPirateWatersPresentation(session.getState(), session.getState().currentPlayer).available;
   }
 
   // Show "Next Unit" button when there are unmoved units
   const nextUnitBtn = document.getElementById('btn-next-unit');
   if (nextUnitBtn) {
-    const unmovedCount = getUnmovedUnits(gameState.units, gameState.currentPlayer).length;
+    const unmovedCount = getUnmovedUnits(session.getState().units, session.getState().currentPlayer).length;
     nextUnitBtn.style.display = unmovedCount > 0 ? 'block' : 'none';
     if (unmovedCount > 0) {
       nextUnitBtn.textContent = `⏩ ${unmovedCount}`;
@@ -731,11 +741,11 @@ function showNotification(
   target?: NotificationEntry['target'],
 ): void {
   enqueueToast(message, type, target);
-  if (gameState) {
-    appendNotification(gameState, gameState.currentPlayer, {
+  if (session.getState()) {
+    appendNotification(session.getState(), session.getState().currentPlayer, {
       message,
       type,
-      turn: gameState.turn,
+      turn: session.getState().turn,
       target,
     });
   }
@@ -749,7 +759,7 @@ function showNotification(
 // of the old emit-time currentPlayer attribution that leaked across hot-seat
 // players and never drained in solo.
 const notificationDelivery = createNotificationDelivery({
-  getState: () => gameState,
+  getState: () => session.getState(),
   toast: enqueueToast,
   isSuppressed: () => roundPresentationGate.isSuppressed(),
 });
@@ -774,7 +784,7 @@ function applyPirateActionResult(result: PirateActionResult, successMessage: str
     showNotification(result.reason ?? 'That pirate action is no longer available.', 'warning');
     return;
   }
-  gameState = result.state;
+  session.setStateWithoutRefresh(result.state);
   for (const event of result.events) {
     if (event.type === 'tribute-paid') {
       bus.emit('pirate:audio-cue', { cue: 'tribute', factionId: event.factionId, viewerIds: [event.civId] });
@@ -782,7 +792,7 @@ function applyPirateActionResult(result: PirateActionResult, successMessage: str
       bus.emit('pirate:audio-cue', { cue: 'contract-accepted', factionId: event.factionId, viewerIds: [event.employerId] });
     }
   }
-  renderLoop.setGameState(gameState);
+  renderLoop.setGameState(session.getState());
   updateHUD();
   showNotification(successMessage, 'success');
 }
@@ -797,7 +807,7 @@ function openPirateWaters(selection?: { factionId?: string; historyId?: string }
   }
 
   const renderPanel = (): void => {
-    const base = getPirateWatersPresentation(gameState, gameState.currentPlayer);
+    const base = getPirateWatersPresentation(session.getState(), session.getState().currentPlayer);
     if (!base.available) return;
     const factionId = selectedPirateFactionId && base.factions.some(faction => faction.factionId === selectedPirateFactionId)
       ? selectedPirateFactionId
@@ -836,20 +846,20 @@ function openPirateWaters(selection?: { factionId?: string; historyId?: string }
       },
       onFocus: focusPirateTarget,
       onPayTribute: faction => {
-        const result = payPirateTribute(gameState, faction, gameState.currentPlayer);
+        const result = payPirateTribute(session.getState(), faction, session.getState().currentPlayer);
         applyPirateActionResult(result, 'Pirate tribute paid.');
         renderPanel();
         return result;
       },
       onHireFlotilla: (faction, targetId) => {
-        const result = hirePirateFlotilla(gameState, faction, gameState.currentPlayer, targetId);
+        const result = hirePirateFlotilla(session.getState(), faction, session.getState().currentPlayer, targetId);
         applyPirateActionResult(result, 'Pirate flotilla hired.');
         renderPanel();
         return result;
       },
       onOpenAssault: faction => {
         if (selectedUnitId) {
-          const pending = preparePirateHeadquartersAssault(gameState, faction, selectedUnitId);
+          const pending = preparePirateHeadquartersAssault(session.getState(), faction, selectedUnitId);
           if (pending.preview.available) {
             openPirateHeadquartersAssault(faction, selectedUnitId);
             return;
@@ -866,7 +876,7 @@ function openPirateWaters(selection?: { factionId?: string; historyId?: string }
 }
 
 function openPirateHeadquartersAssault(factionId: string, unitId: string): void {
-  const pending = preparePirateHeadquartersAssault(gameState, factionId, unitId);
+  const pending = preparePirateHeadquartersAssault(session.getState(), factionId, unitId);
   if (!pending.preview.available) {
     showNotification(pending.preview.reason ?? 'This enclave cannot be assaulted now.', 'warning');
     return;
@@ -874,11 +884,11 @@ function openPirateHeadquartersAssault(factionId: string, unitId: string): void 
   const panel = createPirateHeadquartersAssaultPanel(uiLayer, pending, {
     onCancel: () => panel.remove(),
     onConfirm: () => {
-      const result = confirmPirateHeadquartersAssault(gameState, pending);
+      const result = confirmPirateHeadquartersAssault(session.getState(), pending);
       if (!result.success) {
         panel.remove();
         showNotification(result.reason ?? 'The assault is no longer available.', 'warning');
-        if (gameState.units[unitId]) selectUnit(unitId);
+        if (session.getState().units[unitId]) selectUnit(unitId);
         return;
       }
       renderLoop.applyPirateHeadquartersAssaultVisual(factionId, unitId, {
@@ -888,12 +898,12 @@ function openPirateHeadquartersAssault(factionId: string, unitId: string): void 
       if (result.destroyed) {
         bus.emit('pirate:headquarters-destroyed', {
           factionId,
-          viewerIds: [gameState.currentPlayer],
+          viewerIds: [session.getState().currentPlayer],
         });
       }
-      gameState = result.state;
+      session.setStateWithoutRefresh(result.state);
       panel.remove();
-      renderLoop.setGameState(gameState);
+      renderLoop.setGameState(session.getState());
       updateHUD();
       SFX.combat();
       const bountyAwarded = result.events.find(event => event.type === 'faction-destroyed')?.bountyAwarded ?? 0;
@@ -903,7 +913,7 @@ function openPirateHeadquartersAssault(factionId: string, unitId: string): void 
           : `Pirate enclave damaged for ${result.damageToHeadquarters ?? 0} integrity.`,
         result.destroyed ? 'success' : 'info',
       );
-      if (gameState.units[unitId]) selectUnit(unitId);
+      if (session.getState().units[unitId]) selectUnit(unitId);
       else deselectUnit();
       openPirateWaters({ factionId });
     },
@@ -971,22 +981,22 @@ function toggleNotificationLog(): void {
   const ul = document.getElementById('ui-layer');
   if (!ul) return;
 
-  const entries = gameState
-    ? getNotificationsForPlayer(gameState.notificationLog ?? {}, gameState.currentPlayer)
+  const entries = session.getState()
+    ? getNotificationsForPlayer(session.getState().notificationLog ?? {}, session.getState().currentPlayer)
     : [];
   const panel = createNotificationLogPanel(entries, {
     onClose: () => panel.remove(),
     onFocusTarget: focusNotificationTarget,
     onOpenCity: (cityId) => {
       panel.remove();
-      const city = gameState?.cities[cityId];
+      const city = session.getState()?.cities[cityId];
       if (city) openCityPanelForCity(city);
     },
     onOpenWonderCity: action => {
-      const city = gameState?.cities[action.cityId];
+      const city = session.getState()?.cities[action.cityId];
       const definition = getLegendaryWonderDefinition(action.wonderId);
-      if (!city || !definition || city.owner !== gameState.currentPlayer
-        || !getLegendaryWonderEligibility(gameState, gameState.currentPlayer, city.id, definition).buildable) {
+      if (!city || !definition || city.owner !== session.getState().currentPlayer
+        || !getLegendaryWonderEligibility(session.getState(), session.getState().currentPlayer, city.id, definition).buildable) {
         showNotification('That wonder is no longer available in this city.', 'warning');
         return;
       }
@@ -994,10 +1004,10 @@ function toggleNotificationLog(): void {
       openWonderPanelForCityId(city.id);
     },
     onMarkRead: notificationId => {
-      gameState = markNotificationRead(gameState, gameState.currentPlayer, notificationId);
+      session.setStateWithoutRefresh(markNotificationRead(session.getState(), session.getState().currentPlayer, notificationId));
     },
     onReviewPirate: review => {
-      const resolved = resolvePirateNotificationReview(gameState, gameState.currentPlayer, review);
+      const resolved = resolvePirateNotificationReview(session.getState(), session.getState().currentPlayer, review);
       panel.remove();
       if (resolved?.kind === 'active') openPirateWaters({ factionId: resolved.factionId });
       if (resolved?.kind === 'history') openPirateWaters({ historyId: resolved.historyId });
@@ -1018,12 +1028,12 @@ function toggleNotificationLog(): void {
 }
 
 function handleDiplomaticAction(targetCivId: string, action: DiplomaticAction): void {
-  const cp = gameState.currentPlayer;
-  gameState = applyDiplomaticAction(gameState, cp, targetCivId, action, bus);
+  const cp = session.getState().currentPlayer;
+  session.setStateWithoutRefresh(applyDiplomaticAction(session.getState(), cp, targetCivId, action, bus));
   if (action === 'declare_war') {
-    gameState = applyOpportunisticWarPenaltyIfCrisisStruck(gameState, cp, targetCivId, bus);
+    session.setStateWithoutRefresh(applyOpportunisticWarPenaltyIfCrisisStruck(session.getState(), cp, targetCivId, bus));
   }
-  renderLoop.setGameState(gameState);
+  renderLoop.setGameState(session.getState());
   updateHUD();
   openDiplomacyPanel();
   if (action === 'request_peace') {
@@ -1034,138 +1044,138 @@ function handleDiplomaticAction(targetCivId: string, action: DiplomaticAction): 
 }
 
 function handleAcceptPeaceRequest(requestId: string): void {
-  gameState = acceptDiplomaticRequest(gameState, gameState.currentPlayer, requestId, bus);
-  renderLoop.setGameState(gameState);
+  session.setStateWithoutRefresh(acceptDiplomaticRequest(session.getState(), session.getState().currentPlayer, requestId, bus));
+  renderLoop.setGameState(session.getState());
   updateHUD();
   openDiplomacyPanel();
   showNotification('Peace accepted.', 'success');
 }
 
 function handleRejectPeaceRequest(requestId: string): void {
-  gameState = rejectDiplomaticRequest(gameState, gameState.currentPlayer, requestId);
-  renderLoop.setGameState(gameState);
+  session.setStateWithoutRefresh(rejectDiplomaticRequest(session.getState(), session.getState().currentPlayer, requestId));
+  renderLoop.setGameState(session.getState());
   updateHUD();
   openDiplomacyPanel();
   showNotification('Peace request rejected.', 'info');
 }
 
 function handleAcceptTreatyProposal(requestId: string): void {
-  gameState = acceptDiplomaticRequest(gameState, gameState.currentPlayer, requestId, bus);
-  renderLoop.setGameState(gameState);
+  session.setStateWithoutRefresh(acceptDiplomaticRequest(session.getState(), session.getState().currentPlayer, requestId, bus));
+  renderLoop.setGameState(session.getState());
   updateHUD();
   openDiplomacyPanel();
   showNotification('Treaty signed.', 'success');
 }
 
 function handleDeclineTreatyProposal(requestId: string): void {
-  gameState = rejectDiplomaticRequest(gameState, gameState.currentPlayer, requestId);
-  renderLoop.setGameState(gameState);
+  session.setStateWithoutRefresh(rejectDiplomaticRequest(session.getState(), session.getState().currentPlayer, requestId));
+  renderLoop.setGameState(session.getState());
   updateHUD();
   openDiplomacyPanel();
   showNotification('Proposal declined.', 'info');
 }
 
 function handleBreakTreaty(civId: string, treatyType: TreatyType): void {
-  const actorId = gameState.currentPlayer;
-  const actor = gameState.civilizations[actorId];
-  const target = gameState.civilizations[civId];
+  const actorId = session.getState().currentPlayer;
+  const actor = session.getState().civilizations[actorId];
+  const target = session.getState().civilizations[civId];
   if (!actor || !target) return;
-  gameState = {
-    ...gameState,
+  session.setStateWithoutRefresh({
+    ...session.getState(),
     civilizations: {
-      ...gameState.civilizations,
-      [actorId]: { ...actor, diplomacy: breakTreaty(actor.diplomacy, civId, treatyType, gameState.turn) },
-      [civId]: { ...target, diplomacy: breakTreaty(target.diplomacy, actorId, treatyType, gameState.turn) },
+      ...session.getState().civilizations,
+      [actorId]: { ...actor, diplomacy: breakTreaty(actor.diplomacy, civId, treatyType, session.getState().turn) },
+      [civId]: { ...target, diplomacy: breakTreaty(target.diplomacy, actorId, treatyType, session.getState().turn) },
     },
-  };
-  renderLoop.setGameState(gameState);
+  });
+  renderLoop.setGameState(session.getState());
   updateHUD();
   openDiplomacyPanel();
   showNotification(`${TREATY_LABELS[treatyType]} broken with ${target.name}.`, 'warning');
 }
 
 function executeMinorCivConquest(unitId: string, target: HexCoord, minorCivId: string, cityId: string): void {
-  const cityName = gameState.cities[cityId]?.name ?? 'City-State';
-  const movement = executeAnimatedUnitMove(unitId, () => executeUnitMove(gameState, unitId, target, {
+  const cityName = session.getState().cities[cityId]?.name ?? 'City-State';
+  const movement = executeAnimatedUnitMove(unitId, () => executeUnitMove(session.getState(), unitId, target, {
     actor: 'player',
-    civId: gameState.currentPlayer,
+    civId: session.getState().currentPlayer,
     bus,
     foreignCityEntryId: cityId,
   }));
   if (!movement.ok) return;
-  const movedUnit = gameState.units[unitId];
-  if (movedUnit) gameState.units[unitId] = { ...movedUnit, movementPointsLeft: 0 };
-  const conquered = conquestMinorCiv(gameState, minorCivId, gameState.currentPlayer);
-  gameState = conquered.state;
-  emitMinorCivQuestTransitions(bus, conquered.transitions, gameState);
-  if (conquered.conquered) bus.emit('minor-civ:destroyed', { minorCivId, conquerorId: gameState.currentPlayer });
+  const movedUnit = session.getState().units[unitId];
+  if (movedUnit) session.getState().units[unitId] = { ...movedUnit, movementPointsLeft: 0 };
+  const conquered = conquestMinorCiv(session.getState(), minorCivId, session.getState().currentPlayer);
+  session.setStateWithoutRefresh(conquered.state);
+  emitMinorCivQuestTransitions(bus, conquered.transitions, session.getState());
+  if (conquered.conquered) bus.emit('minor-civ:destroyed', { minorCivId, conquerorId: session.getState().currentPlayer });
   showNotification(`${cityName} has been conquered!`, 'success');
   SFX.tap();
-  renderLoop.setGameState(gameState);
+  renderLoop.setGameState(session.getState());
   updateHUD();
 }
 
 function handleGiftGold(mcId: string): void {
-  const result = performMinorCivGift(gameState, gameState.currentPlayer, mcId);
+  const result = performMinorCivGift(session.getState(), session.getState().currentPlayer, mcId);
   if (!result.ok) {
     showNotification(result.reason ?? 'Gift unavailable.', 'warning');
     return;
   }
-  gameState = result.state;
-  emitMinorCivQuestTransitions(bus, result.transitions, gameState);
+  session.setStateWithoutRefresh(result.state);
+  emitMinorCivQuestTransitions(bus, result.transitions, session.getState());
   showNotification('Gift delivered.', 'info');
-  renderLoop.setGameState(gameState);
+  renderLoop.setGameState(session.getState());
   updateHUD();
   openDiplomacyPanel();
 }
 
 function handleSponsorFestival(mcId: string): void {
-  const result = performMinorCivFestival(gameState, gameState.currentPlayer, mcId);
+  const result = performMinorCivFestival(session.getState(), session.getState().currentPlayer, mcId);
   if (!result.ok) {
     showNotification(result.reason ?? 'Festival unavailable.', 'warning');
     return;
   }
-  gameState = result.state;
-  emitMinorCivQuestTransitions(bus, result.transitions, gameState);
+  session.setStateWithoutRefresh(result.state);
+  emitMinorCivQuestTransitions(bus, result.transitions, session.getState());
   showNotification('Festival sponsored.', 'success');
-  renderLoop.setGameState(gameState);
+  renderLoop.setGameState(session.getState());
   updateHUD();
   openDiplomacyPanel();
 }
 
 function handleMinorCivReparations(mcId: string): void {
-  const result = performMinorCivReparations(gameState, gameState.currentPlayer, mcId);
+  const result = performMinorCivReparations(session.getState(), session.getState().currentPlayer, mcId);
   if (!result.ok) {
     showNotification(result.reason ?? 'Reparations unavailable.', 'warning');
     return;
   }
-  gameState = result.state;
+  session.setStateWithoutRefresh(result.state);
   showNotification('Reparations paid.', 'success');
-  renderLoop.setGameState(gameState);
+  renderLoop.setGameState(session.getState());
   updateHUD();
   openDiplomacyPanel();
 }
 
 function handleSendAid(crisisId: string): void {
-  const check = canSendAid(gameState, gameState.currentPlayer, crisisId);
+  const check = canSendAid(session.getState(), session.getState().currentPlayer, crisisId);
   if (!check.ok) {
     showNotification('Send Aid unavailable.', 'warning');
     return;
   }
-  gameState = applySendAid(gameState, gameState.currentPlayer, crisisId, bus);
+  session.setStateWithoutRefresh(applySendAid(session.getState(), session.getState().currentPlayer, crisisId, bus));
   showNotification('Aid sent.', 'success');
-  renderLoop.setGameState(gameState);
+  renderLoop.setGameState(session.getState());
   updateHUD();
   openDiplomacyPanel();
 }
 
 function handleMinorCivWarPeace(mcId: string, currentlyAtWar: boolean): void {
-  const result = setMinorCivWarState(gameState, gameState.currentPlayer, mcId, !currentlyAtWar);
+  const result = setMinorCivWarState(session.getState(), session.getState().currentPlayer, mcId, !currentlyAtWar);
   if (!result.ok) return;
-  gameState = result.state;
-  emitMinorCivQuestTransitions(bus, result.transitions, gameState);
+  session.setStateWithoutRefresh(result.state);
+  emitMinorCivQuestTransitions(bus, result.transitions, session.getState());
   showNotification(currentlyAtWar ? 'Peace with city-state' : 'War declared on city-state!', currentlyAtWar ? 'success' : 'warning');
-  renderLoop.setGameState(gameState);
+  renderLoop.setGameState(session.getState());
   updateHUD();
   openDiplomacyPanel();
 }
@@ -1173,7 +1183,7 @@ function handleMinorCivWarPeace(mcId: string, currentlyAtWar: boolean): void {
 function openDiplomacyPanel(): void {
   drawer?.close();
   document.getElementById('diplomacy-panel')?.remove();
-  createDiplomacyPanel(uiLayer, gameState, {
+  createDiplomacyPanel(uiLayer, session.getState(), {
     onAction: handleDiplomaticAction,
     onAcceptPeaceRequest: handleAcceptPeaceRequest,
     onRejectPeaceRequest: handleRejectPeaceRequest,
@@ -1192,18 +1202,18 @@ function openDiplomacyPanel(): void {
 function openMarketplacePanel(): void {
   drawer?.close();
   document.getElementById('marketplace-panel')?.remove();
-  createMarketplacePanel(uiLayer, gameState, {
+  createMarketplacePanel(uiLayer, session.getState(), {
     onClose: () => {},
     onSelectUnit: (unitId) => {
       document.getElementById('marketplace-panel')?.remove();
       selectUnit(unitId);
-      const unit = gameState.units[unitId];
+      const unit = session.getState().units[unitId];
       if (unit) renderLoop.camera.centerOn(unit.position);
     },
     onBuyResourceAccess: (sellerCivId, resource) => {
-      if (!canBuyResourceAccess(gameState, gameState.currentPlayer, sellerCivId, resource)) return;
-      gameState = performBuyResourceAccess(gameState, gameState.currentPlayer, sellerCivId, resource);
-      renderLoop.setGameState(gameState);
+      if (!canBuyResourceAccess(session.getState(), session.getState().currentPlayer, sellerCivId, resource)) return;
+      session.setStateWithoutRefresh(performBuyResourceAccess(session.getState(), session.getState().currentPlayer, sellerCivId, resource));
+      renderLoop.setGameState(session.getState());
       updateHUD();
       showNotification(`Purchased ${resource} access for 10 turns.`, 'success');
       openMarketplacePanel(); // re-render panel with updated state
@@ -1215,25 +1225,25 @@ function executeUpgrade(
   unitId: string,
   targetType: import('@/core/types').UnitType,
 ): boolean {
-  const result = applyUnitUpgradeToState(gameState, unitId, targetType);
+  const result = applyUnitUpgradeToState(session.getState(), unitId, targetType);
   if (!result.upgraded) return false;
-  gameState = result.state;
-  renderLoop.setGameState(gameState);
+  session.setStateWithoutRefresh(result.state);
+  renderLoop.setGameState(session.getState());
   updateHUD();
   return true;
 }
 
 function openWonderPanelForCityId(selectedCityId: string): void {
-  if (!gameState.cities[selectedCityId]) return;
+  if (!session.getState().cities[selectedCityId]) return;
 
   const openWonderPanel = () => {
     document.getElementById('wonder-panel')?.remove();
-    createWonderPanel(uiLayer, gameState, selectedCityId, {
+    createWonderPanel(uiLayer, session.getState(), selectedCityId, {
       onStartBuild: (buildCityId, wonderId) => {
-        gameState = startLegendaryWonderBuild(gameState, gameState.currentPlayer, buildCityId, wonderId, bus);
-        const targetCity = gameState.cities[buildCityId];
+        session.setStateWithoutRefresh(startLegendaryWonderBuild(session.getState(), session.getState().currentPlayer, buildCityId, wonderId, bus));
+        const targetCity = session.getState().cities[buildCityId];
         if (targetCity) {
-          renderLoop.setGameState(gameState);
+          renderLoop.setGameState(session.getState());
           updateHUD();
           const productionItemId = `legendary:${wonderId}`;
           if (targetCity.productionQueue[0] === productionItemId) {
@@ -1249,7 +1259,7 @@ function openWonderPanelForCityId(selectedCityId: string): void {
       },
     });
   };
-  gameState = initializeLegendaryWonderProjectsForCity(gameState, gameState.currentPlayer, selectedCityId);
+  session.setStateWithoutRefresh(initializeLegendaryWonderProjectsForCity(session.getState(), session.getState().currentPlayer, selectedCityId));
   openWonderPanel();
 }
 
@@ -1257,11 +1267,11 @@ function openCityOverviewPanel(): void {
   drawer?.close();
   const existing = document.getElementById('city-overview-panel');
   if (existing) existing.remove();
-  createCityOverviewPanel(uiLayer, gameState, {
+  createCityOverviewPanel(uiLayer, session.getState(), {
     onOpenCity: (cityId) => {
       const overview = document.getElementById('city-overview-panel');
       overview?.remove();
-      const city = gameState.cities[cityId];
+      const city = session.getState().cities[cityId];
       if (city) openCityPanelForCity(city);
     },
     onAppeaseFaction: (cityId) => {
@@ -1278,52 +1288,52 @@ function openCityOverviewPanel(): void {
   });
 }
 
-function handleAppeaseFaction(cityId: string): typeof gameState {
-  const targetCity = gameState.cities[cityId];
-  if (!targetCity) return gameState;
-  const result = appeaseFaction(gameState, cityId, gameState.currentPlayer);
+function handleAppeaseFaction(cityId: string): GameState {
+  const targetCity = session.getState().cities[cityId];
+  if (!targetCity) return session.getState();
+  const result = appeaseFaction(session.getState(), cityId, session.getState().currentPlayer);
   if (!result.success) {
     showNotification(result.message, 'warning');
-    return gameState;
+    return session.getState();
   }
-  gameState = result.state;
-  renderLoop.setGameState(gameState);
+  session.setStateWithoutRefresh(result.state);
+  renderLoop.setGameState(session.getState());
   updateHUD();
   showNotification(result.message, 'success');
-  return gameState;
+  return session.getState();
 }
 
-function handleConcedeToMovement(cityId: string): typeof gameState {
-  const targetCity = gameState.cities[cityId];
-  if (!targetCity) return gameState;
-  const result = concedeToMovement(gameState, cityId, gameState.currentPlayer);
+function handleConcedeToMovement(cityId: string): GameState {
+  const targetCity = session.getState().cities[cityId];
+  if (!targetCity) return session.getState();
+  const result = concedeToMovement(session.getState(), cityId, session.getState().currentPlayer);
   if (!result.success) {
     showNotification(result.message, 'warning');
-    return gameState;
+    return session.getState();
   }
-  gameState = result.state;
-  bus.emit('faction:unrest-resolved', { cityId, owner: gameState.currentPlayer });
-  bus.emit('faction:concession-made', { cityId, owner: gameState.currentPlayer, concessionType: 'charter' });
-  renderLoop.setGameState(gameState);
+  session.setStateWithoutRefresh(result.state);
+  bus.emit('faction:unrest-resolved', { cityId, owner: session.getState().currentPlayer });
+  bus.emit('faction:concession-made', { cityId, owner: session.getState().currentPlayer, concessionType: 'charter' });
+  renderLoop.setGameState(session.getState());
   updateHUD();
   showNotification(result.message, 'success');
-  return gameState;
+  return session.getState();
 }
 
 function openCityPanelForCity(city: import('@/core/types').City): void {
   drawer?.close();
-  if (city.owner !== gameState.currentPlayer) return;
+  if (city.owner !== session.getState().currentPlayer) return;
   const playerCities = currentCiv().cities;
   const idx = playerCities.indexOf(city.id);
   if (idx !== -1) currentCityIndex = (idx + 1) % playerCities.length;
 
-  createCityPanel(uiLayer, city, gameState, {
+  createCityPanel(uiLayer, city, session.getState(), {
     onBuild: (cityId, itemId) => {
-      const targetCity = gameState.cities[cityId];
+      const targetCity = session.getState().cities[cityId];
       if (targetCity) {
         try {
-          gameState.cities[cityId] = enqueueCityProduction(targetCity, itemId);
-          renderLoop.setGameState(gameState);
+          session.getState().cities[cityId] = enqueueCityProduction(targetCity, itemId);
+          renderLoop.setGameState(session.getState());
           showNotification(`${targetCity.name}: queued ${getProductionDisplayName(itemId)}`, 'info');
         } catch (error) {
           const message = error instanceof Error ? error.message : 'Queue limit reached';
@@ -1332,41 +1342,41 @@ function openCityPanelForCity(city: import('@/core/types').City): void {
       }
     },
     onMoveQueueItem: (cityId, fromIndex, toIndex) => {
-      const targetCity = gameState.cities[cityId];
+      const targetCity = session.getState().cities[cityId];
       if (!targetCity) return;
-      gameState.cities[cityId] = reorderCityProduction(targetCity, fromIndex, toIndex);
-      renderLoop.setGameState(gameState);
+      session.getState().cities[cityId] = reorderCityProduction(targetCity, fromIndex, toIndex);
+      renderLoop.setGameState(session.getState());
     },
     onRemoveQueueItem: (cityId, index) => {
-      const targetCity = gameState.cities[cityId];
+      const targetCity = session.getState().cities[cityId];
       if (!targetCity) return;
-      gameState.cities[cityId] = {
+      session.getState().cities[cityId] = {
         ...targetCity,
         productionQueue: removeQueuedId(targetCity.productionQueue, index),
         productionProgress: index === 0 ? 0 : targetCity.productionProgress,
       };
-      renderLoop.setGameState(gameState);
+      renderLoop.setGameState(session.getState());
     },
     onOpenWonderPanel: (selectedCityId) => {
       openWonderPanelForCityId(selectedCityId);
     },
     onSetCityFocus: (cityId, focus) => {
-      const result = assignCityFocus(gameState, cityId, focus);
-      gameState = result.state;
-      renderLoop.setGameState(gameState);
+      const result = assignCityFocus(session.getState(), cityId, focus);
+      session.setStateWithoutRefresh(result.state);
+      renderLoop.setGameState(session.getState());
       updateHUD();
-      showNotification(`${gameState.cities[cityId].name} reassigned citizens for ${focus} focus.`, 'info');
-      return gameState;
+      showNotification(`${session.getState().cities[cityId].name} reassigned citizens for ${focus} focus.`, 'info');
+      return session.getState();
     },
     onToggleWorkedTile: (cityId, coord, worked) => {
-      const result = setCityWorkedTile(gameState, cityId, coord, worked);
-      gameState = result.state;
-      renderLoop.setGameState(gameState);
+      const result = setCityWorkedTile(session.getState(), cityId, coord, worked);
+      session.setStateWithoutRefresh(result.state);
+      renderLoop.setGameState(session.getState());
       updateHUD();
       if (!result.changed && result.reason === 'claimed') {
         showNotification('That tile is already worked by another city.', 'warning');
       }
-      return gameState;
+      return session.getState();
     },
     onClose: () => {},
     onTip: (message) => { showNotification(message, 'info'); },
@@ -1377,7 +1387,7 @@ function openCityPanelForCity(city: import('@/core/types').City): void {
       if (cities.length <= 1) return;
       const currentIdx = cities.indexOf(city.id);
       const prevIdx = (currentIdx - 1 + cities.length) % cities.length;
-      const prevCity = gameState.cities[cities[prevIdx]];
+      const prevCity = session.getState().cities[cities[prevIdx]];
       if (prevCity) openCityPanelForCity(prevCity);
     },
     onNextCity: () => {
@@ -1385,65 +1395,65 @@ function openCityPanelForCity(city: import('@/core/types').City): void {
       if (cities.length <= 1) return;
       const currentIdx = cities.indexOf(city.id);
       const nextIdx = (currentIdx + 1) % cities.length;
-      const nextCity = gameState.cities[cities[nextIdx]];
+      const nextCity = session.getState().cities[cities[nextIdx]];
       if (nextCity) openCityPanelForCity(nextCity);
     },
     onUpgradeUnit: (unitId) => {
-      const unit = gameState.units[unitId];
-      if (!unit || unit.owner !== gameState.currentPlayer) return;
+      const unit = session.getState().units[unitId];
+      if (!unit || unit.owner !== session.getState().currentPlayer) return;
       const targetType = TRAINABLE_UNITS.find(entry => entry.type === unit.type)?.upgradesTo;
       if (!targetType) return;
-      const upgrade = evaluateUnitUpgrade(gameState, unitId, targetType);
+      const upgrade = evaluateUnitUpgrade(session.getState(), unitId, targetType);
       if (!upgrade.canUpgrade || !upgrade.targetType) return;
       if (executeUpgrade(unitId, upgrade.targetType)) {
         showNotification(`Upgraded to ${UNIT_DEFINITIONS[upgrade.targetType].name}!`, 'success');
       }
     },
     onSetIdleProduction: (cityId, mode) => {
-      const targetCity = gameState.cities[cityId];
+      const targetCity = session.getState().cities[cityId];
       if (!targetCity) return;
-      gameState.cities[cityId] = setIdleProduction(targetCity, mode);
-      renderLoop.setGameState(gameState);
+      session.getState().cities[cityId] = setIdleProduction(targetCity, mode);
+      renderLoop.setGameState(session.getState());
     },
     onRushBuyActiveProduction: (cityId) => {
-      const targetCity = gameState.cities[cityId];
-      if (!targetCity) return gameState;
-      const result = rushBuyActiveProduction(gameState, gameState.currentPlayer, cityId, bus);
+      const targetCity = session.getState().cities[cityId];
+      if (!targetCity) return session.getState();
+      const result = rushBuyActiveProduction(session.getState(), session.getState().currentPlayer, cityId, bus);
       if (!result.success) {
         showNotification(result.message, 'warning');
-        return gameState;
+        return session.getState();
       }
-      gameState = result.state;
-      renderLoop.setGameState(gameState);
+      session.setStateWithoutRefresh(result.state);
+      renderLoop.setGameState(session.getState());
       updateHUD();
       showNotification(`${targetCity.name}: rush bought ${result.label} for ${result.cost} gold.`, 'success');
-      return gameState;
+      return session.getState();
     },
     onAppeaseFaction: (cityId) => handleAppeaseFaction(cityId),
     onConcedeToMovement: (cityId) => handleConcedeToMovement(cityId),
     onQuarantineCrisis: (crisisId, cityId) => {
-      const result = applyQuarantine(gameState, crisisId, cityId);
+      const result = applyQuarantine(session.getState(), crisisId, cityId);
       if (!result.success) {
         showNotification(result.message, 'warning');
-        return gameState;
+        return session.getState();
       }
-      gameState = result.state;
-      renderLoop.setGameState(gameState);
+      session.setStateWithoutRefresh(result.state);
+      renderLoop.setGameState(session.getState());
       updateHUD();
       showNotification(result.message, 'success');
-      return gameState;
+      return session.getState();
     },
     onRemedyCrisis: (crisisId, cityId) => {
-      const result = applyRemedy(gameState, crisisId, cityId);
+      const result = applyRemedy(session.getState(), crisisId, cityId);
       if (!result.success) {
         showNotification(result.message, 'warning');
-        return gameState;
+        return session.getState();
       }
-      gameState = result.state;
-      renderLoop.setGameState(gameState);
+      session.setStateWithoutRefresh(result.state);
+      renderLoop.setGameState(session.getState());
       updateHUD();
       showNotification(result.message, 'success');
-      return gameState;
+      return session.getState();
     },
     onFindResources: (highlights, toasts) => {
       renderLoop.setHighlights(highlights.map(coord => ({ coord, type: 'worker-buildable' as const })));
@@ -1451,14 +1461,14 @@ function openCityPanelForCity(city: import('@/core/types').City): void {
     },
     onChooseCircularManufacturingMaterial: (material) => {
       try {
-        gameState = chooseCircularManufacturingMaterial(gameState, gameState.currentPlayer, material);
+        session.setStateWithoutRefresh(chooseCircularManufacturingMaterial(session.getState(), session.getState().currentPlayer, material));
       } catch (error) {
         showNotification(error instanceof Error ? error.message : 'That material choice is unavailable.', 'warning');
         return;
       }
-      renderLoop.setGameState(gameState);
+      renderLoop.setGameState(session.getState());
       showNotification(`Circular Manufacturing Network will substitute ${material.replaceAll('-', ' ')} when it helps.`, 'success');
-      const refreshedCity = gameState.cities[city.id];
+      const refreshedCity = session.getState().cities[city.id];
       if (refreshedCity) openCityPanelForCity(refreshedCity);
     },
   });
@@ -1474,10 +1484,10 @@ function closeRequiredChoicePanel(): void {
 // showRequiredChoicesIfNeeded (the only other "must decide before proceeding" surface
 // in this file), so a human owner can never leave their own religion pending forever.
 function showReligionBoonIfNeeded(): boolean {
-  const civId = gameState.currentPlayer;
-  const civ = gameState.civilizations[civId];
+  const civId = session.getState().currentPlayer;
+  const civ = session.getState().civilizations[civId];
   if (!civ?.isHuman) return false;
-  const ownReligion = Object.values(gameState.religions ?? {}).find(r => r.ownerCivId === civId);
+  const ownReligion = Object.values(session.getState().religions ?? {}).find(r => r.ownerCivId === civId);
   if (!ownReligion || ownReligion.boon !== undefined) {
     document.getElementById('religion-boon-modal')?.remove();
     return false;
@@ -1489,11 +1499,11 @@ function showReligionBoonIfNeeded(): boolean {
   createReligionBoonModal(uiLayer, {
     religionName: ownReligion.name,
     onChooseBoon: (boon) => {
-      gameState = chooseBoon(gameState, ownReligion.id, boon);
+      session.setStateWithoutRefresh(chooseBoon(session.getState(), ownReligion.id, boon));
       document.getElementById('religion-boon-modal')?.remove();
       setBlockingOverlay(null);
       showNotification(`${ownReligion.name} now grants ${boon}.`, 'success');
-      renderLoop.setGameState(gameState);
+      renderLoop.setGameState(session.getState());
       updateHUD();
     },
   });
@@ -1503,15 +1513,15 @@ function showReligionBoonIfNeeded(): boolean {
 function refreshRequiredChoicesAfterAction(): void {
   document.getElementById('required-choice-panel')?.remove();
   closePlanningPanels(document);
-  renderLoop.setGameState(gameState);
+  renderLoop.setGameState(session.getState());
   updateHUD();
   showRequiredChoicesIfNeeded();
 }
 
 function showRequiredChoicesIfNeeded(): boolean {
-  const civId = gameState.currentPlayer;
-  const idleCityIds = getIdleCityIds(gameState, civId);
-  const missingResearch = needsResearchChoice(gameState, civId);
+  const civId = session.getState().currentPlayer;
+  const idleCityIds = getIdleCityIds(session.getState(), civId);
+  const missingResearch = needsResearchChoice(session.getState(), civId);
   const existing = document.getElementById('required-choice-panel');
 
   if (!idleCityIds.length && !missingResearch) {
@@ -1529,7 +1539,7 @@ function showRequiredChoicesIfNeeded(): boolean {
   const sciencePerTurn = Math.max(
     1,
     civ.cities
-      .reduce((total, cityId) => total + calculateProjectedCityYields(gameState, cityId).science, 0),
+      .reduce((total, cityId) => total + calculateProjectedCityYields(session.getState(), cityId).science, 0),
   );
   const researchChoices = missingResearch
     ? getAvailableTechs(civ.techState).slice(0, 3).map(tech => ({
@@ -1541,8 +1551,8 @@ function showRequiredChoicesIfNeeded(): boolean {
 
   const cityChoices = idleCityIds
     .map(cityId => {
-      const city = gameState.cities[cityId];
-      const choice = getRecommendedIdleCityChoice(gameState, civId, cityId);
+      const city = session.getState().cities[cityId];
+      const choice = getRecommendedIdleCityChoice(session.getState(), civId, cityId);
       if (!city || !choice) {
         return null;
       }
@@ -1566,9 +1576,9 @@ function showRequiredChoicesIfNeeded(): boolean {
       refreshRequiredChoicesAfterAction();
     },
     onChooseCityBuild: (cityId, itemId) => {
-      const city = gameState.cities[cityId];
+      const city = session.getState().cities[cityId];
       if (!city) return;
-      gameState.cities[cityId] = enqueueCityProduction(city, itemId);
+      session.getState().cities[cityId] = enqueueCityProduction(city, itemId);
       showNotification(`${city.name}: queued ${itemId}`, 'info');
       refreshRequiredChoicesAfterAction();
     },
@@ -1577,7 +1587,7 @@ function showRequiredChoicesIfNeeded(): boolean {
       togglePanel('tech');
     },
     onOpenCity: (cityId) => {
-      const city = gameState.cities[cityId];
+      const city = session.getState().cities[cityId];
       if (!city) return;
       closeRequiredChoicePanel();
       openCityPanelForCity(city);
@@ -1599,19 +1609,19 @@ function togglePanel(panel: string): void {
   councilPanelOpen = false;
 
   if (panel === 'council') {
-    createCouncilPanel(uiLayer, gameState, {
+    createCouncilPanel(uiLayer, session.getState(), {
       onClose: () => {
         document.getElementById('council-panel')?.remove();
         councilPanelOpen = false;
       },
       onTalkLevelChange: (level) => {
-        gameState.settings.councilTalkLevel = level;
-        void saveSettings(gameState.settings);
+        session.getState().settings.councilTalkLevel = level;
+        void saveSettings(session.getState().settings);
       },
     });
     councilPanelOpen = true;
   } else if (panel === 'tech') {
-    createTechPanel(uiLayer, gameState, {
+    createTechPanel(uiLayer, session.getState(), {
       onQueueResearch: (techId) => {
         try {
           currentCiv().techState = enqueueResearch(currentCiv().techState, techId);
@@ -1620,7 +1630,7 @@ function togglePanel(panel: string): void {
           showNotification(message, 'warning');
           return;
         }
-        renderLoop.setGameState(gameState);
+        renderLoop.setGameState(session.getState());
         updateHUD();
         showNotification(`Queued research: ${techId}`, 'info');
       },
@@ -1629,7 +1639,7 @@ function togglePanel(panel: string): void {
           ...currentCiv().techState,
           researchQueue: moveQueuedId(currentCiv().techState.researchQueue, fromIndex, toIndex),
         };
-        renderLoop.setGameState(gameState);
+        renderLoop.setGameState(session.getState());
         updateHUD();
       },
       onRemoveQueuedResearch: (index) => {
@@ -1637,7 +1647,7 @@ function togglePanel(panel: string): void {
           ...currentCiv().techState,
           researchQueue: removeQueuedId(currentCiv().techState.researchQueue, index),
         };
-        renderLoop.setGameState(gameState);
+        renderLoop.setGameState(session.getState());
         updateHUD();
       },
       onClose: () => {},
@@ -1646,8 +1656,8 @@ function togglePanel(panel: string): void {
     openCityOverviewPanel();
   } else if (panel === 'espionage') {
     const chooseForeignCityTarget = (): { civId: string; cityId: string; position: HexCoord } | null => {
-      const choices = Object.values(gameState.cities)
-        .filter(city => city.owner !== gameState.currentPlayer)
+      const choices = Object.values(session.getState().cities)
+        .filter(city => city.owner !== session.getState().currentPlayer)
         .sort((a, b) => a.name.localeCompare(b.name));
       if (choices.length === 0) {
         showNotification('No foreign cities available for espionage.', 'info');
@@ -1658,8 +1668,8 @@ function togglePanel(panel: string): void {
         choices[0].id,
       );
       if (!selection) return null;
-      const city = gameState.cities[selection];
-      if (!city || city.owner === gameState.currentPlayer) {
+      const city = session.getState().cities[selection];
+      if (!city || city.owner === session.getState().currentPlayer) {
         showNotification('Invalid espionage target.', 'warning');
         return null;
       }
@@ -1668,8 +1678,8 @@ function togglePanel(panel: string): void {
 
     const chooseFriendlyCityTarget = (): { cityId: string; position: HexCoord } | null => {
       const choices = currentCiv().cities
-        .map(cityId => gameState.cities[cityId])
-        .filter((city): city is NonNullable<typeof gameState.cities[string]> => city !== undefined);
+        .map(cityId => session.getState().cities[cityId])
+        .filter((city): city is NonNullable<GameState['cities'][string]> => city !== undefined);
       if (choices.length === 0) {
         showNotification('No cities available for defensive espionage.', 'info');
         return null;
@@ -1679,8 +1689,8 @@ function togglePanel(panel: string): void {
         choices[0].id,
       );
       if (!selection) return null;
-      const city = gameState.cities[selection];
-      if (!city || city.owner !== gameState.currentPlayer) {
+      const city = session.getState().cities[selection];
+      if (!city || city.owner !== session.getState().currentPlayer) {
         showNotification('Invalid defensive target.', 'warning');
         return null;
       }
@@ -1688,7 +1698,7 @@ function togglePanel(panel: string): void {
     };
 
     const chooseMission = (spyId: string): string | null => {
-      const spy = gameState.espionage?.[gameState.currentPlayer]?.spies[spyId];
+      const spy = session.getState().espionage?.[session.getState().currentPlayer]?.spies[spyId];
       const completedTechs = currentCiv().techState.completed ?? [];
       // #524 MR2a review fix: flip_loyalty can never succeed against a capital (see
       // resolveMissionResult's guard in espionage-system.ts) -- don't offer it as a
@@ -1697,7 +1707,7 @@ function togglePanel(panel: string): void {
       // that silently does nothing, with no explanation.
       const spyTargetsCapital = Boolean(
         spy?.targetCivId && spy.targetCityId
-          && getCapitalCityId(gameState, spy.targetCivId) === spy.targetCityId,
+          && getCapitalCityId(session.getState(), spy.targetCivId) === spy.targetCityId,
       );
       const missions = getAvailableMissions(completedTechs)
         .filter(mission => !missionRequiresPlacedSpy(mission) || Boolean(spy?.targetCivId))
@@ -1709,30 +1719,30 @@ function togglePanel(panel: string): void {
       return window.prompt(`Choose mission:\n${missions.join('\n')}`, missions[0]);
     };
 
-    uiLayer.appendChild(createEspionagePanel(gameState, {
+    uiLayer.appendChild(createEspionagePanel(session.getState(), {
       onClose: () => document.getElementById('espionage-panel')?.remove(),
       onAssignDefensive: (spyId) => {
         const target = chooseFriendlyCityTarget();
         if (!target) return;
-        gameState.espionage![gameState.currentPlayer] = embedSpy(
-          gameState.espionage![gameState.currentPlayer],
+        session.getState().espionage![session.getState().currentPlayer] = embedSpy(
+          session.getState().espionage![session.getState().currentPlayer],
           spyId,
           target.cityId,
           target.position,
         );
-        const unit = gameState.units[spyId];
+        const unit = session.getState().units[spyId];
         if (unit) {
-          delete gameState.units[spyId];
-          gameState.civilizations[gameState.currentPlayer].units =
-            gameState.civilizations[gameState.currentPlayer].units.filter(id => id !== spyId);
+          delete session.getState().units[spyId];
+          session.getState().civilizations[session.getState().currentPlayer].units =
+            session.getState().civilizations[session.getState().currentPlayer].units.filter(id => id !== spyId);
         }
-        renderLoop.setGameState(gameState);
+        renderLoop.setGameState(session.getState());
         togglePanel('espionage');
-        const cityName = gameState.cities[target.cityId]?.name ?? target.cityId;
+        const cityName = session.getState().cities[target.cityId]?.name ?? target.cityId;
         showNotification(`Spy embedded in ${cityName}. Counter-intelligence boosted.`, 'info');
       },
       onStartMission: (spyId) => {
-        const spy = gameState.espionage?.[gameState.currentPlayer]?.spies[spyId];
+        const spy = session.getState().espionage?.[session.getState().currentPlayer]?.spies[spyId];
         if (!spy) return;
         const mission = chooseMission(spyId);
         if (!mission) return;
@@ -1744,53 +1754,53 @@ function togglePanel(panel: string): void {
           targetCivId = target.civId;
           targetCityId = target.cityId;
         }
-        gameState.espionage![gameState.currentPlayer] = startMission(
-          gameState.espionage![gameState.currentPlayer],
+        session.getState().espionage![session.getState().currentPlayer] = startMission(
+          session.getState().espionage![session.getState().currentPlayer],
           spyId,
           mission as any,
           currentCivDef()?.bonusEffect,
           targetCivId,
           targetCityId,
         );
-        renderLoop.setGameState(gameState);
+        renderLoop.setGameState(session.getState());
         togglePanel('espionage');
         showNotification(`Mission ${mission} started.`, 'info');
       },
       onRecall: (spyId) => {
-        gameState.espionage![gameState.currentPlayer] = recallSpy(
-          gameState.espionage![gameState.currentPlayer],
+        session.getState().espionage![session.getState().currentPlayer] = recallSpy(
+          session.getState().espionage![session.getState().currentPlayer],
           spyId,
         );
-        renderLoop.setGameState(gameState);
+        renderLoop.setGameState(session.getState());
         togglePanel('espionage');
         showNotification('Spy recalled.', 'info');
       },
       onVerifyAgent: (spyId) => {
-        gameState.espionage![gameState.currentPlayer] = verifyAgent(
-          gameState.espionage![gameState.currentPlayer],
+        session.getState().espionage![session.getState().currentPlayer] = verifyAgent(
+          session.getState().espionage![session.getState().currentPlayer],
           spyId,
         );
-        renderLoop.setGameState(gameState);
+        renderLoop.setGameState(session.getState());
         togglePanel('espionage');
         showNotification('Agent verified and cleared.', 'success');
       },
       onExfiltrate: (spyId) => {
-        const ownerEsp = gameState.espionage?.[gameState.currentPlayer];
+        const ownerEsp = session.getState().espionage?.[session.getState().currentPlayer];
         const spy = ownerEsp?.spies[spyId];
         if (!spy || spy.status !== 'stationed') return;
-        const capital = getCapitalCity(gameState, gameState.currentPlayer);
+        const capital = getCapitalCity(session.getState(), session.getState().currentPlayer);
         if (!capital) { showNotification('Cannot exfiltrate — no capital found.', 'warning'); return; }
 
         // Spawn occupancy: find a free tile at/near the capital
         const existingPositions = new Set(
-          Object.values(gameState.units).map(u => `${u.position.q},${u.position.r}`),
+          Object.values(session.getState().units).map(u => `${u.position.q},${u.position.r}`),
         );
         let spawnPos = capital.position;
         if (existingPositions.has(`${spawnPos.q},${spawnPos.r}`)) {
           const adjacent = hexesInRange(capital.position, 1).filter(
             c => !(c.q === capital.position.q && c.r === capital.position.r) &&
                  !existingPositions.has(`${c.q},${c.r}`) &&
-                 gameState.map.tiles[hexKey(c)],
+                 session.getState().map.tiles[hexKey(c)],
           );
           if (adjacent.length === 0) {
             showNotification('Cannot exfiltrate — no free tile near capital.', 'warning');
@@ -1799,72 +1809,72 @@ function togglePanel(panel: string): void {
           spawnPos = adjacent[0];
         }
 
-        const newUnit = createUnit(spy.unitType, gameState.currentPlayer, spawnPos, gameState.idCounters);
-        gameState.units[newUnit.id] = newUnit;
-        gameState.civilizations[gameState.currentPlayer].units =
-          [...(gameState.civilizations[gameState.currentPlayer].units ?? []), newUnit.id];
+        const newUnit = createUnit(spy.unitType, session.getState().currentPlayer, spawnPos, session.getState().idCounters);
+        session.getState().units[newUnit.id] = newUnit;
+        session.getState().civilizations[session.getState().currentPlayer].units =
+          [...(session.getState().civilizations[session.getState().currentPlayer].units ?? []), newUnit.id];
         const updatedSpy = {
           ...spy, id: newUnit.id, status: 'cooldown' as const,
           cooldownTurns: 8, infiltrationCityId: null, cityVisionTurnsLeft: 0, targetCivId: null, cooldownMode: undefined,
         };
         const { [spyId]: _old, ...rest } = ownerEsp!.spies;
-        gameState.espionage![gameState.currentPlayer] = { ...ownerEsp!, spies: { ...rest, [newUnit.id]: updatedSpy } };
-        renderLoop.setGameState(gameState);
+        session.getState().espionage![session.getState().currentPlayer] = { ...ownerEsp!, spies: { ...rest, [newUnit.id]: updatedSpy } };
+        renderLoop.setGameState(session.getState());
         // Refresh panel in place
         document.getElementById('espionage-panel')?.remove();
         togglePanel('espionage');
         showNotification('Spy exfiltrated. Available again in 8 turns.', 'info');
       },
       onToggleCooldownMode: (spyId) => {
-        const civEsp = gameState.espionage?.[gameState.currentPlayer];
+        const civEsp = session.getState().espionage?.[session.getState().currentPlayer];
         const spy = civEsp?.spies[spyId];
         if (!spy || spy.status !== 'cooldown') return;
         const next: 'stay_low' | 'passive_observe' =
           (spy.cooldownMode ?? 'stay_low') === 'passive_observe' ? 'stay_low' : 'passive_observe';
-        gameState = {
-          ...gameState,
+        session.setStateWithoutRefresh({
+          ...session.getState(),
           espionage: {
-            ...gameState.espionage!,
-            [gameState.currentPlayer]: {
+            ...session.getState().espionage!,
+            [session.getState().currentPlayer]: {
               ...civEsp!,
               spies: { ...civEsp!.spies, [spyId]: { ...spy, cooldownMode: next } },
             },
           },
-        };
-        renderLoop.setGameState(gameState);
+        });
+        renderLoop.setGameState(session.getState());
         document.getElementById('espionage-panel')?.remove();
         togglePanel('espionage');
       },
       onUnembed: (spyId) => {
-        const ownerEsp = gameState.espionage?.[gameState.currentPlayer];
+        const ownerEsp = session.getState().espionage?.[session.getState().currentPlayer];
         const spy = ownerEsp?.spies[spyId];
         if (!spy || spy.status !== 'embedded' || !spy.targetCityId) return;
-        const city = gameState.cities[spy.targetCityId];
+        const city = session.getState().cities[spy.targetCityId];
         if (!city) return;
-        const newUnit = createUnit(spy.unitType, gameState.currentPlayer, city.position, gameState.idCounters);
-        gameState.units[newUnit.id] = newUnit;
-        gameState.civilizations[gameState.currentPlayer].units.push(newUnit.id);
+        const newUnit = createUnit(spy.unitType, session.getState().currentPlayer, city.position, session.getState().idCounters);
+        session.getState().units[newUnit.id] = newUnit;
+        session.getState().civilizations[session.getState().currentPlayer].units.push(newUnit.id);
         const unembedded = unembedSpy(ownerEsp!, spyId);
         const rekeyed = { ...unembedded.spies[spyId], id: newUnit.id };
         const { [spyId]: _old, ...rest } = unembedded.spies;
-        gameState.espionage![gameState.currentPlayer] = { ...unembedded, spies: { ...rest, [newUnit.id]: rekeyed } };
-        renderLoop.setGameState(gameState);
+        session.getState().espionage![session.getState().currentPlayer] = { ...unembedded, spies: { ...rest, [newUnit.id]: rekeyed } };
+        renderLoop.setGameState(session.getState());
         document.getElementById('espionage-panel')?.remove();
         togglePanel('espionage');
         showNotification(`Spy recalled from ${city.name}. Available in 5 turns.`, 'info');
       },
       onSweep: (spyId) => {
-        const ownerEsp = gameState.espionage?.[gameState.currentPlayer];
+        const ownerEsp = session.getState().espionage?.[session.getState().currentPlayer];
         if (!ownerEsp) return;
-        const seed = `sweep-${spyId}-${gameState.turn}`;
-        const { detectedSpyIds, state: updatedEsp } = attemptSweep(ownerEsp, spyId, seed, gameState);
-        gameState.espionage![gameState.currentPlayer] = updatedEsp;
+        const seed = `sweep-${spyId}-${session.getState().turn}`;
+        const { detectedSpyIds, state: updatedEsp } = attemptSweep(ownerEsp, spyId, seed, session.getState());
+        session.getState().espionage![session.getState().currentPlayer] = updatedEsp;
         if (detectedSpyIds.length > 0) {
           showNotification(`Sweep detected ${detectedSpyIds.length} enemy spy(ies) in the city!`, 'warning');
         } else {
           showNotification('Sweep complete — no enemy spies detected.', 'info');
         }
-        renderLoop.setGameState(gameState);
+        renderLoop.setGameState(session.getState());
         document.getElementById('espionage-panel')?.remove();
         togglePanel('espionage');
       },
@@ -1877,15 +1887,16 @@ function togglePanel(panel: string): void {
 }
 
 function maybeShowCouncilInterrupt(): void {
-  if (!gameState) {
+  const state = session.getState();
+  if (!state) {
     return;
   }
-  const interrupt = getCouncilInterrupt(gameState, gameState.currentPlayer, gameState.settings.councilTalkLevel);
+  const interrupt = getCouncilInterrupt(state, state.currentPlayer, state.settings.councilTalkLevel);
   if (!interrupt) {
     return;
   }
-  if (gameState.hotSeat && gameState.pendingEvents && interrupt.civId !== gameState.currentPlayer) {
-    collectCouncilInterrupt(gameState.pendingEvents, interrupt.civId, interrupt, gameState.turn);
+  if (state.hotSeat && state.pendingEvents && interrupt.civId !== state.currentPlayer) {
+    collectCouncilInterrupt(state.pendingEvents, interrupt.civId, interrupt, state.turn);
     return;
   }
   showNotification(interrupt.summary, 'info');
@@ -1912,10 +1923,10 @@ function openUnitStackPicker(coord: HexCoord, unitIds: string[]): void {
   const panel = document.getElementById('info-panel');
   if (!panel) return;
 
-  renderUnitStackPanel(panel, gameState, coord, unitIds, {
+  renderUnitStackPanel(panel, session.getState(), coord, unitIds, {
     onSelectUnit: (unitId) => selectUnit(unitId),
     onOpenCity: (cityId) => {
-      const city = gameState.cities[cityId];
+      const city = session.getState().cities[cityId];
       if (!city) return;
       document.getElementById('tech-panel')?.remove();
       document.getElementById('city-panel')?.remove();
@@ -1931,9 +1942,9 @@ function openUnitStackPicker(coord: HexCoord, unitIds: string[]): void {
 }
 
 function openNetworkIntentPanel(sourceUnitId: string): void {
-  const source = gameState.units[sourceUnitId];
-  const ownerCivId = gameState.currentPlayer;
-  if (!source || source.owner !== ownerCivId || !isAutonomyActivated(gameState, ownerCivId)) {
+  const source = session.getState().units[sourceUnitId];
+  const ownerCivId = session.getState().currentPlayer;
+  if (!source || source.owner !== ownerCivId || !isAutonomyActivated(session.getState(), ownerCivId)) {
     showNotification('This unit cannot coordinate the network right now.', 'warning');
     return;
   }
@@ -1951,15 +1962,15 @@ function openNetworkIntentPanel(sourceUnitId: string): void {
 
   let panel: HTMLElement | undefined;
   const close = () => panel?.remove();
-  panel = createNetworkIntentPanel(gameState, ownerCivId, sourceUnitId, {
+  panel = createNetworkIntentPanel(session.getState(), ownerCivId, sourceUnitId, {
     onAssign: (definitionId, cityId) => {
-      const current = Object.values(gameState.autonomyByCiv?.[ownerCivId]?.plans ?? {})
+      const current = Object.values(session.getState().autonomyByCiv?.[ownerCivId]?.plans ?? {})
         .find(plan => plan.sourceUnitId === sourceUnitId);
       const stateForAssignment = current && current.definitionId !== definitionId
-        ? holdNetworkPlan(gameState, ownerCivId, sourceUnitId).state
-        : gameState;
+        ? holdNetworkPlan(session.getState(), ownerCivId, sourceUnitId).state
+        : session.getState();
       const result = current && current.definitionId === definitionId
-        ? retargetNetworkPlan(gameState, ownerCivId, current.id, { kind: 'city', cityId })
+        ? retargetNetworkPlan(session.getState(), ownerCivId, current.id, { kind: 'city', cityId })
         : assignNetworkPlan(stateForAssignment, {
           ownerCivId,
           sourceUnitId,
@@ -1972,18 +1983,18 @@ function openNetworkIntentPanel(sourceUnitId: string): void {
         openNetworkIntentPanel(sourceUnitId);
         return;
       }
-      gameState = result.state;
-      renderLoop.setGameState(gameState);
+      session.setStateWithoutRefresh(result.state);
+      renderLoop.setGameState(session.getState());
       updateHUD();
       close();
       selectUnit(sourceUnitId);
-      const cityName = gameState.cities[cityId]?.name ?? 'the city';
+      const cityName = session.getState().cities[cityId]?.name ?? 'the city';
       showNotification(`${definitionId === 'harden' ? 'Harden' : 'Exploit'} assigned to ${cityName}.`, 'success');
     },
     onHold: () => {
-      const result = holdNetworkPlan(gameState, ownerCivId, sourceUnitId);
-      gameState = result.state;
-      renderLoop.setGameState(gameState);
+      const result = holdNetworkPlan(session.getState(), ownerCivId, sourceUnitId);
+      session.setStateWithoutRefresh(result.state);
+      renderLoop.setGameState(session.getState());
       updateHUD();
       close();
       selectUnit(sourceUnitId);
@@ -1995,37 +2006,37 @@ function openNetworkIntentPanel(sourceUnitId: string): void {
 }
 
 function openNetworkPanel(): void {
-  const civId = gameState.currentPlayer;
-  if (!isAutonomyActivated(gameState, civId)) return;
+  const civId = session.getState().currentPlayer;
+  if (!isAutonomyActivated(session.getState(), civId)) return;
   let panel: HTMLElement | undefined;
   const rerender = () => {
     panel?.remove();
-    panel = createNetworkPanel(getNetworkPanelModel(gameState, civId), {
+    panel = createNetworkPanel(getNetworkPanelModel(session.getState(), civId), {
       onAssign: request => {
-        const result = assignNetworkPlan(gameState, request);
+        const result = assignNetworkPlan(session.getState(), request);
         if (!result.validation.ok) {
           showNotification('That plan is no longer available.', 'warning');
           rerender();
           return;
         }
-        gameState = result.state;
-        renderLoop.setGameState(gameState);
+        session.setStateWithoutRefresh(result.state);
+        renderLoop.setGameState(session.getState());
         updateHUD();
         showNotification('Network plan assigned.', 'success');
         rerender();
       },
       onCancel: planId => {
-        gameState = cancelNetworkPlan(gameState, civId, planId).state;
-        renderLoop.setGameState(gameState);
+        session.setStateWithoutRefresh(cancelNetworkPlan(session.getState(), civId, planId).state);
+        renderLoop.setGameState(session.getState());
         updateHUD();
         rerender();
       },
       onSurge: planId => {
-        const result = beginAutonomySurge(gameState, civId, planId);
+        const result = beginAutonomySurge(session.getState(), civId, planId);
         if (!result.validation.ok) showNotification('Surge is unavailable while the network recovers or cools down.', 'warning');
         else {
-          gameState = result.state;
-          renderLoop.setGameState(gameState);
+          session.setStateWithoutRefresh(result.state);
+          renderLoop.setGameState(session.getState());
           updateHUD();
           bus.emit('network:audio-cue', { cue: 'surge', viewerIds: [civId] });
           showNotification('Network Surge confirmed.', 'success');
@@ -2033,7 +2044,7 @@ function openNetworkPanel(): void {
         rerender();
       },
       onPosture: posture => {
-        gameState = requestAutonomyPosture(gameState, civId, posture);
+        session.setStateWithoutRefresh(requestAutonomyPosture(session.getState(), civId, posture));
         updateHUD();
         rerender();
       },
@@ -2048,13 +2059,13 @@ function openNetworkPanel(): void {
 // section and selected-unit-info's Establish Route button trigger the exact same code
 // path (per ui-panels.md's Extracted UI Flows rule), not two copies that could drift.
 function handleEstablishRoute(caravanId: string): void {
-  openEstablishRoutePanel(uiLayer, gameState, caravanId, (toCityId) => {
-    const resourceDiversity = getCivAvailableResources(gameState, gameState.currentPlayer).size;
-    const routeResult = establishQuestAwareRoute(gameState, caravanId, toCityId, resourceDiversity);
-    gameState = routeResult.state;
-    emitMinorCivQuestTransitions(bus, routeResult.questTransitions, gameState);
+  openEstablishRoutePanel(uiLayer, session.getState(), caravanId, (toCityId) => {
+    const resourceDiversity = getCivAvailableResources(session.getState(), session.getState().currentPlayer).size;
+    const routeResult = establishQuestAwareRoute(session.getState(), caravanId, toCityId, resourceDiversity);
+    session.setStateWithoutRefresh(routeResult.state);
+    emitMinorCivQuestTransitions(bus, routeResult.questTransitions, session.getState());
     bus.emit('trade:route-created', { route: routeResult.route });
-    renderLoop.setGameState(gameState);
+    renderLoop.setGameState(session.getState());
     updateHUD();
     selectUnit(caravanId);
     showNotification('Trade route established!', 'success');
@@ -2072,14 +2083,14 @@ function selectUnit(
     showNotification('Unit is moving.', 'info');
     return;
   }
-  const unit = gameState.units[unitId];
-  if (!unit || unit.owner !== gameState.currentPlayer) return;
+  const unit = session.getState().units[unitId];
+  if (!unit || unit.owner !== session.getState().currentPlayer) return;
   selectedUnitId = unitId;
   renderLoop.setSelectedUnitId(unitId);
 
-  const highlightResult = buildSelectedUnitHighlights(gameState, unitId);
+  const highlightResult = buildSelectedUnitHighlights(session.getState(), unitId);
   selectedUnitWaterRecovery = highlightResult.waterRecovery;
-  if (gameState.units[unitId]?.committedToRouteId) {
+  if (session.getState().units[unitId]?.committedToRouteId) {
     // Committed caravans cannot move or attack — keep highlights empty
     movementRange = [];
     attackRange = [];
@@ -2093,8 +2104,8 @@ function selectUnit(
   // Update journey path overlay
   if (unit.automation?.mode === 'journey') {
     const domain = UNIT_DEFINITIONS[unit.type]?.domain ?? 'land';
-    const completedTechs = gameState.civilizations[unit.owner]?.techState.completed ?? [];
-    const path = findPath(unit.position, unit.automation.destination, gameState.map, domain, { unit, completedTechs });
+    const completedTechs = session.getState().civilizations[unit.owner]?.techState.completed ?? [];
+    const path = findPath(unit.position, unit.automation.destination, session.getState().map, domain, { unit, completedTechs });
     renderLoop.setJourneyPath(path);
   } else {
     renderLoop.setJourneyPath(null);
@@ -2103,43 +2114,43 @@ function selectUnit(
   // Show unit info panel
   const panel = document.getElementById('info-panel');
   if (panel) {
-    renderSelectedUnitInfo(panel, gameState, unitId, {
+    renderSelectedUnitInfo(panel, session.getState(), unitId, {
       onClose: () => deselectUnit(),
       onStartIntercept: uid => {
-        const result = startIntercept(gameState, uid);
+        const result = startIntercept(session.getState(), uid);
         if (!result.ok) {
           showNotification('That fighter cannot enter intercept stance now.', 'warning');
           return;
         }
-        gameState = result.state;
-        renderLoop.setGameState(gameState);
+        session.setStateWithoutRefresh(result.state);
+        renderLoop.setGameState(session.getState());
         updateHUD();
         SFX.airScramble();
         selectUnit(uid);
-        renderLoop.setHighlights(getInterceptCoverage(gameState, uid).map(coord => ({ coord, type: 'air-intercept' as const })));
+        renderLoop.setHighlights(getInterceptCoverage(session.getState(), uid).map(coord => ({ coord, type: 'air-intercept' as const })));
       },
-      getAirRebaseDestinations: uid => getLegalRebaseDestinations(gameState, uid).map(base => {
-        const position = base.kind === 'city' ? gameState.cities[base.cityId]?.position : gameState.units[base.unitId]?.position;
+      getAirRebaseDestinations: uid => getLegalRebaseDestinations(session.getState(), uid).map(base => {
+        const position = base.kind === 'city' ? session.getState().cities[base.cityId]?.position : session.getState().units[base.unitId]?.position;
         const name = base.kind === 'city'
-          ? gameState.cities[base.cityId]?.name ?? base.cityId
-          : UNIT_DEFINITIONS[gameState.units[base.unitId]?.type ?? 'carrier'].name;
-        return { base, label: `${name} (${getAirBaseRoster(gameState, base).length}/${getAirBaseCapacity(gameState, base)})${position ? '' : ''}` };
+          ? session.getState().cities[base.cityId]?.name ?? base.cityId
+          : UNIT_DEFINITIONS[session.getState().units[base.unitId]?.type ?? 'carrier'].name;
+        return { base, label: `${name} (${getAirBaseRoster(session.getState(), base).length}/${getAirBaseCapacity(session.getState(), base)})${position ? '' : ''}` };
       }),
       onRebaseAircraft: (uid, base) => {
-        const result = rebaseAircraft(gameState, uid, base);
+        const result = rebaseAircraft(session.getState(), uid, base);
         if (!result.ok) {
           showNotification('That base is no longer reachable.', 'warning');
           return;
         }
-        gameState = result.state;
-        renderLoop.setGameState(gameState);
+        session.setStateWithoutRefresh(result.state);
+        renderLoop.setGameState(session.getState());
         updateHUD();
         SFX.airRebase();
         selectUnit(uid);
       },
       onStartAirMission: (uid, mission) => {
         pendingAirMission = { unitId: uid, mission };
-        const targets = getLegalAirMissionTargets(gameState, uid, mission);
+        const targets = getLegalAirMissionTargets(session.getState(), uid, mission);
         movementRange = [];
         attackRange = [];
         selectUnit(uid);
@@ -2157,13 +2168,13 @@ function selectUnit(
       },
       onOpenNetworkIntent: uid => openNetworkIntentPanel(uid),
       onUsePropagandistAction: (uid, action, cityId) => {
-        const result = usePropagandistAction(gameState, uid, action, cityId);
+        const result = usePropagandistAction(session.getState(), uid, action, cityId);
         if (!result.ok) {
           showNotification('That civic action is no longer available.', 'warning');
           return;
         }
-        gameState = result.state;
-        renderLoop.setGameState(gameState);
+        session.setStateWithoutRefresh(result.state);
+        renderLoop.setGameState(session.getState());
         updateHUD();
         showNotification(result.message, action === 'rally' ? 'success' : 'warning');
         selectUnit(uid);
@@ -2175,23 +2186,23 @@ function selectUnit(
       onSkipTurn: uid => getUnitTurnFlow().skipUnitAction(uid),
       onDeleteUnit: uid => getUnitTurnFlow().showDeleteUnitConfirmation(uid),
       onFortify: uid => {
-        const unit = gameState.units[uid];
-        if (!unit || unit.owner !== gameState.currentPlayer) return;
+        const unit = session.getState().units[uid];
+        if (!unit || unit.owner !== session.getState().currentPlayer) return;
         if (unit.isFortified) {
-          gameState = unfortifyUnitInState(gameState, gameState.currentPlayer, uid);
+          session.setStateWithoutRefresh(unfortifyUnitInState(session.getState(), session.getState().currentPlayer, uid));
           showNotification('Unit unfortified.', 'info');
         } else {
-          gameState = fortifyUnitInState(gameState, gameState.currentPlayer, uid);
+          session.setStateWithoutRefresh(fortifyUnitInState(session.getState(), session.getState().currentPlayer, uid));
           showNotification('Unit fortified. +25% defense until unfortified or moved.', 'info');
         }
-        renderLoop.setGameState(gameState);
+        renderLoop.setGameState(session.getState());
         updateHUD();
         selectUnit(uid);
       },
       onPillage: uid => {
-        const unit = gameState.units[uid];
-        if (!unit || unit.owner !== gameState.currentPlayer) return;
-        const tile = gameState.map.tiles[hexKey(unit.position)];
+        const unit = session.getState().units[uid];
+        if (!unit || unit.owner !== session.getState().currentPlayer) return;
+        const tile = session.getState().map.tiles[hexKey(unit.position)];
         if (!tile || !canPillageTile(tile, unit.owner)) return;
 
         const hasFinishedImprovement = tile.improvement !== 'none' && tile.improvementTurnsLeft === 0;
@@ -2206,14 +2217,14 @@ function selectUnit(
           ensurePlayerWarState(tile.owner);
         }
 
-        const result = applyPillageToState(gameState, uid);
+        const result = applyPillageToState(session.getState(), uid);
         if (!result.ok) return;
-        gameState = result.state;
+        session.setStateWithoutRefresh(result.state);
         showNotification(
           result.goldAwarded! > 0 ? `Pillaged ${targetLabel} for ${result.goldAwarded} gold.` : `Pillaged ${targetLabel}.`,
           'success',
         );
-        renderLoop.setGameState(gameState);
+        renderLoop.setGameState(session.getState());
         updateHUD();
         selectUnit(uid);
       },
@@ -2221,22 +2232,22 @@ function selectUnit(
       onCancelAutoExplore: () => cancelAutoExplore(unitId),
       onCancelJourney: () => cancelJourney(unitId),
       onOpenStack: (coord) => {
-        handleFriendlyUnitStackTap(gameState, coord, selectedUnitId, {
+        handleFriendlyUnitStackTap(session.getState(), coord, selectedUnitId, {
           onSelectUnit: selectUnit,
           onOpenStackPicker: openUnitStackPicker,
         });
       },
       getTransportOptions: uid => {
-        const selectedUnit = gameState.units[uid];
+        const selectedUnit = session.getState().units[uid];
         const needs = selectedUnit ? getUnitCargoSize(selectedUnit) : 1;
-        return Object.values(gameState.units)
+        return Object.values(session.getState().units)
           .filter(candidate => {
             const def = UNIT_DEFINITIONS[candidate.type];
             return (def?.domain ?? 'land') === 'naval' && def?.cargoCapacity !== undefined
-              && candidate.owner === gameState.currentPlayer;
+              && candidate.owner === session.getState().currentPlayer;
           })
           .map(candidate => {
-            const used  = getTransportCargoUsed(gameState, candidate.id);
+            const used  = getTransportCargoUsed(session.getState(), candidate.id);
             const cap   = getTransportCapacity(candidate);
             const free  = cap - used;
             const fits  = needs <= free;
@@ -2254,19 +2265,19 @@ function selectUnit(
                 : undefined,
             };
           })
-          .filter(o => canLoadUnitOntoTransport(gameState, uid, o.transportId).ok || o.disabled);
+          .filter(o => canLoadUnitOntoTransport(session.getState(), uid, o.transportId).ok || o.disabled);
       },
-      getCargoBoardInfo: transportId => getTransportCargo(gameState, transportId).map(cargoUnit => ({
+      getCargoBoardInfo: transportId => getTransportCargo(session.getState(), transportId).map(cargoUnit => ({
         cargoUnitId: cargoUnit.id,
         label: UNIT_DEFINITIONS[cargoUnit.type]?.name ?? cargoUnit.type,
         slotCost: getUnitCargoSize(cargoUnit),
         canUnload: !cargoUnit.hasActed && cargoUnit.movementPointsLeft > 0,
       })),
       onSelectCargoToUnload: (transportId, cargoUnitId) => {
-        const range = getUnloadDestinations(gameState, transportId, cargoUnitId);
+        const range = getUnloadDestinations(session.getState(), transportId, cargoUnitId);
         setPendingUnload({ transportId, cargoUnitId }, range);
         renderLoop.setHighlights(range.map(coord => ({ coord, type: 'move' as const })));
-        const cargoUnit = gameState.units[cargoUnitId];
+        const cargoUnit = session.getState().units[cargoUnitId];
         const unitName = UNIT_DEFINITIONS[cargoUnit?.type ?? 'warrior']?.name ?? 'Unit';
         selectUnit(transportId, { pendingUnloadUnitName: unitName });
       },
@@ -2277,26 +2288,26 @@ function selectUnit(
       },
       pendingUnloadUnitName: opts?.pendingUnloadUnitName,
       getPirateAssaultAction: uid => {
-        const pending = findAvailablePirateHeadquartersAssault(gameState, gameState.currentPlayer, uid);
+        const pending = findAvailablePirateHeadquartersAssault(session.getState(), session.getState().currentPlayer, uid);
         if (!pending) return null;
-        const faction = getPirateWatersPresentation(gameState, gameState.currentPlayer).factions
+        const faction = getPirateWatersPresentation(session.getState(), session.getState().currentPlayer).factions
           .find(entry => entry.factionId === pending.factionId);
         return { factionId: pending.factionId, label: `Assault ${faction?.name ?? 'pirate'} enclave` };
       },
       onOpenPirateAssault: (factionId, uid) => openPirateHeadquartersAssault(factionId, uid),
       onLoadTransport: (uid, transportId) => {
-        const prevPos = gameState.units[uid]?.position;
-        const result = loadUnitOntoTransport(gameState, uid, transportId);
+        const prevPos = session.getState().units[uid]?.position;
+        const result = loadUnitOntoTransport(session.getState(), uid, transportId);
         if (!result.ok) {
           showNotification(result.message, 'warning');
           SFX.error();
           return;
         }
-        gameState = result.state;
-        renderLoop.setGameState(gameState);
+        session.setStateWithoutRefresh(result.state);
+        renderLoop.setGameState(session.getState());
         updateHUD();
         // Boarding animation: slide cargo unit to transport hex before it disappears
-        const transportUnit = gameState.units[transportId];
+        const transportUnit = session.getState().units[transportId];
         if (prevPos && transportUnit) {
           renderLoop.animateUnitSlide(
             { ...result.state.units[uid] ?? { id: uid } as Unit, position: prevPos },
@@ -2304,22 +2315,22 @@ function selectUnit(
           );
         }
         selectUnit(transportId);
-        const tName = UNIT_DEFINITIONS[gameState.units[transportId]?.type ?? 'transport']?.name ?? 'Transport';
+        const tName = UNIT_DEFINITIONS[session.getState().units[transportId]?.type ?? 'transport']?.name ?? 'Transport';
         showNotification(`Unit loaded onto ${tName}.`, 'info');
         SFX.transportLoad();
       },
       onUnloadTransport: (transportId, cargoUnitId, destination) => {
-        const result = unloadUnitFromTransport(gameState, transportId, cargoUnitId, destination);
+        const result = unloadUnitFromTransport(session.getState(), transportId, cargoUnitId, destination);
         if (!result.ok) {
           showNotification(result.message, 'warning');
           SFX.error();
           return;
         }
-        const tName = UNIT_DEFINITIONS[gameState.units[transportId]?.type ?? 'transport']?.name ?? 'Transport';
-        const cName = UNIT_DEFINITIONS[gameState.units[cargoUnitId]?.type ?? 'warrior']?.name ?? 'Unit';
+        const tName = UNIT_DEFINITIONS[session.getState().units[transportId]?.type ?? 'transport']?.name ?? 'Transport';
+        const cName = UNIT_DEFINITIONS[session.getState().units[cargoUnitId]?.type ?? 'warrior']?.name ?? 'Unit';
         clearUnloadState();
-        gameState = result.state;
-        renderLoop.setGameState(gameState);
+        session.setStateWithoutRefresh(result.state);
+        renderLoop.setGameState(session.getState());
         updateHUD();
         renderLoop.animateUnitAppear(destination);
         // Stay on the transport so the player can unload remaining cargo
@@ -2328,29 +2339,29 @@ function selectUnit(
         SFX.transportUnload();
       },
       onSetDisguise: (uid, disguise) => {
-        const unit = gameState.units[uid];
+        const unit = session.getState().units[uid];
         if (!unit || unit.hasActed) return;
-        if (unit.owner !== gameState.currentPlayer) return;
-        const civEsp = gameState.espionage?.[gameState.currentPlayer];
+        if (unit.owner !== session.getState().currentPlayer) return;
+        const civEsp = session.getState().espionage?.[session.getState().currentPlayer];
         if (!civEsp) return;
         const spy = civEsp.spies[uid];
         if (!spy || spy.status !== 'idle') return;
-        gameState.espionage![gameState.currentPlayer] = setDisguise(civEsp, uid, disguise);
+        session.getState().espionage![session.getState().currentPlayer] = setDisguise(civEsp, uid, disguise);
         if (disguise !== null) {
-          gameState.units[uid] = { ...unit, hasActed: true, movementPointsLeft: 0 };
+          session.getState().units[uid] = { ...unit, hasActed: true, movementPointsLeft: 0 };
         }
-        renderLoop.setGameState(gameState);
+        renderLoop.setGameState(session.getState());
         updateHUD();
         selectUnit(uid);
         showNotification(disguise ? `Spy disguised as ${disguise}.` : 'Disguise removed.', 'info');
       },
       onInfiltrate: (uid) => {
-        const unit = gameState.units[uid];
-        if (!unit || unit.owner !== gameState.currentPlayer) return;
-        const civEsp = gameState.espionage?.[gameState.currentPlayer];
+        const unit = session.getState().units[uid];
+        if (!unit || unit.owner !== session.getState().currentPlayer) return;
+        const civEsp = session.getState().espionage?.[session.getState().currentPlayer];
         if (!civEsp) return;
-        const targetCity = Object.values(gameState.cities).find(
-          c => c.owner !== gameState.currentPlayer &&
+        const targetCity = Object.values(session.getState().cities).find(
+          c => c.owner !== session.getState().currentPlayer &&
                c.position.q === unit.position.q && c.position.r === unit.position.r,
         );
         if (!targetCity) { showNotification('No enemy city at this location.', 'info'); return; }
@@ -2361,12 +2372,12 @@ function selectUnit(
         );
         if (alreadyInside) { showNotification('You already have a spy in that city.', 'info'); return; }
 
-        const cityCI = gameState.espionage![targetCity.owner]?.counterIntelligence[targetCity.id] ?? 0;
+        const cityCI = session.getState().espionage![targetCity.owner]?.counterIntelligence[targetCity.id] ?? 0;
         const chance = getInfiltrationSuccessChance(unit.type as UnitType, civEsp.spies[uid]?.experience ?? 0, cityCI);
         const preview = `Infiltrate ${targetCity.name}?\n\nSuccess chance: ${Math.round(chance * 100)}%\nCity CI: ${cityCI}\n\nIf caught, spy may be lost permanently.`;
         if (!window.confirm(preview)) return;
 
-        const seed = `infiltrate-${uid}-${gameState.turn}`;
+        const seed = `infiltrate-${uid}-${session.getState().turn}`;
         const result = attemptInfiltration(
           civEsp, uid, unit.type as UnitType, targetCity.id, targetCity.position, cityCI, seed,
         );
@@ -2376,79 +2387,79 @@ function selectUnit(
           ...result.civEsp,
           spies: { ...result.civEsp.spies, [uid]: { ...spyAfterAttempt, targetCivId: targetCity.owner } },
         } : result.civEsp;
-        gameState.espionage![gameState.currentPlayer] = civEspWithTarget;
+        session.getState().espionage![session.getState().currentPlayer] = civEspWithTarget;
 
         if (result.removeUnitFromMap) {
           // Era 2+: spy removed from map, stationed inside city
-          delete gameState.units[uid];
-          const civUnits = gameState.civilizations[gameState.currentPlayer].units;
+          delete session.getState().units[uid];
+          const civUnits = session.getState().civilizations[session.getState().currentPlayer].units;
           if (civUnits) {
-            gameState.civilizations[gameState.currentPlayer].units = civUnits.filter(id => id !== uid);
+            session.getState().civilizations[session.getState().currentPlayer].units = civUnits.filter(id => id !== uid);
           }
           showNotification(`Spy successfully infiltrated ${targetCity.name}. Open Intel panel to issue orders.`, 'success');
-          bus.emit('espionage:spy-infiltrated', { civId: gameState.currentPlayer, spyId: uid, cityId: targetCity.id });
+          bus.emit('espionage:spy-infiltrated', { civId: session.getState().currentPlayer, spyId: uid, cityId: targetCity.id });
           deselectUnit();
         } else if (result.era1ScoutResult !== undefined) {
           // Era 1 (spy_scout): spy stays on map, infiltrationCityId + 5-turn city vision already set
-          const missionResult = resolveMissionResult('scout_area', targetCity.owner, targetCity.id, gameState, gameState.currentPlayer, uid);
+          const missionResult = resolveMissionResult('scout_area', targetCity.owner, targetCity.id, session.getState(), session.getState().currentPlayer, uid);
           const tilesToReveal = missionResult.tilesToReveal ?? [];
           if (tilesToReveal.length > 0) {
-            const visibilityTiles = { ...(gameState.civilizations[gameState.currentPlayer].visibility?.tiles ?? {}) };
+            const visibilityTiles = { ...(session.getState().civilizations[session.getState().currentPlayer].visibility?.tiles ?? {}) };
             for (const coord of tilesToReveal) {
               visibilityTiles[`${coord.q},${coord.r}`] = 'visible';
             }
-            gameState.civilizations[gameState.currentPlayer].visibility = {
-              ...gameState.civilizations[gameState.currentPlayer].visibility!,
+            session.getState().civilizations[session.getState().currentPlayer].visibility = {
+              ...session.getState().civilizations[session.getState().currentPlayer].visibility!,
               tiles: visibilityTiles,
             };
           }
-          gameState.units[uid] = { ...unit, hasActed: true, movementPointsLeft: 0 };
+          session.getState().units[uid] = { ...unit, hasActed: true, movementPointsLeft: 0 };
           showNotification(`Scout revealed ${tilesToReveal.length} tile${tilesToReveal.length !== 1 ? 's' : ''} around ${targetCity.name}.`, 'success');
           selectUnit(uid);
         } else if (result.caught) {
           // Caught: remove unit from map (spy lost)
-          delete gameState.units[uid];
-          const civUnits = gameState.civilizations[gameState.currentPlayer].units;
+          delete session.getState().units[uid];
+          const civUnits = session.getState().civilizations[session.getState().currentPlayer].units;
           if (civUnits) {
-            gameState.civilizations[gameState.currentPlayer].units = civUnits.filter(id => id !== uid);
+            session.getState().civilizations[session.getState().currentPlayer].units = civUnits.filter(id => id !== uid);
           }
-          bus.emit('espionage:spy-caught-infiltrating', { capturingCivId: targetCity.owner, spyOwner: gameState.currentPlayer, spyId: uid, cityId: targetCity.id });
+          bus.emit('espionage:spy-caught-infiltrating', { capturingCivId: targetCity.owner, spyOwner: session.getState().currentPlayer, spyId: uid, cityId: targetCity.id });
           deselectUnit();
         } else {
           const cooldown = result.civEsp.spies[uid]?.cooldownTurns ?? 3;
           showNotification(`Spy failed to infiltrate ${targetCity.name}. Lying low for ${cooldown} turns.`, 'info');
-          gameState.units[uid] = { ...unit, hasActed: true, movementPointsLeft: 0 };
+          session.getState().units[uid] = { ...unit, hasActed: true, movementPointsLeft: 0 };
           selectUnit(uid);
         }
 
-        renderLoop.setGameState(gameState);
+        renderLoop.setGameState(session.getState());
         updateHUD();
       },
       onEmbed: (uid) => {
-        const unit = gameState.units[uid];
-        if (!unit || unit.owner !== gameState.currentPlayer) return;
-        const civEsp = gameState.espionage?.[gameState.currentPlayer];
+        const unit = session.getState().units[uid];
+        if (!unit || unit.owner !== session.getState().currentPlayer) return;
+        const civEsp = session.getState().espionage?.[session.getState().currentPlayer];
         if (!civEsp) return;
-        const city = Object.values(gameState.cities).find(
-          c => c.owner === gameState.currentPlayer &&
+        const city = Object.values(session.getState().cities).find(
+          c => c.owner === session.getState().currentPlayer &&
                c.position.q === unit.position.q && c.position.r === unit.position.r,
         );
         if (!city) return;
-        gameState.espionage![gameState.currentPlayer] = embedSpy(civEsp, uid, city.id, city.position);
-        delete gameState.units[uid];
-        gameState.civilizations[gameState.currentPlayer].units =
-          gameState.civilizations[gameState.currentPlayer].units.filter(id => id !== uid);
+        session.getState().espionage![session.getState().currentPlayer] = embedSpy(civEsp, uid, city.id, city.position);
+        delete session.getState().units[uid];
+        session.getState().civilizations[session.getState().currentPlayer].units =
+          session.getState().civilizations[session.getState().currentPlayer].units.filter(id => id !== uid);
         deselectUnit();
-        renderLoop.setGameState(gameState);
+        renderLoop.setGameState(session.getState());
         updateHUD();
         showNotification(`Spy embedded in ${city.name}. Counter-intelligence boosted.`, 'info');
       },
       onUpgradeUnit: (uid, cityId) => {
-        const unit = gameState.units[uid];
-        if (!unit || unit.owner !== gameState.currentPlayer) return;
+        const unit = session.getState().units[uid];
+        if (!unit || unit.owner !== session.getState().currentPlayer) return;
         const targetType = TRAINABLE_UNITS.find(entry => entry.type === unit.type)?.upgradesTo;
         if (!targetType) return;
-        const upgrade = evaluateUnitUpgrade(gameState, uid, targetType);
+        const upgrade = evaluateUnitUpgrade(session.getState(), uid, targetType);
         if (!upgrade.canUpgrade || !upgrade.targetType) return;
         if (executeUpgrade(uid, upgrade.targetType)) {
           selectUnit(uid);
@@ -2456,22 +2467,22 @@ function selectUnit(
         }
       },
       onEstablishOutpost: (unitId) => {
-        if (!canEstablishOutpost(gameState, unitId)) return;
-        gameState = performEstablishOutpost(gameState, unitId);
-        autoSave(gameState).catch(() => {});
+        if (!canEstablishOutpost(session.getState(), unitId)) return;
+        session.setStateWithoutRefresh(performEstablishOutpost(session.getState(), unitId));
+        autoSave(session.getState()).catch(() => {});
         selectedUnitId = null;
         renderLoop.setSelectedUnitId(null);
-        renderLoop.setGameState(gameState);
+        renderLoop.setGameState(session.getState());
         updateHUD();
         showNotification('Expedition planted a flag! Outpost completes in 2 turns.', 'success');
       },
       onEstablishRoute: handleEstablishRoute,
       onReplaceImprovement: (action) => {
         if (!selectedUnitId) return;
-        const unit = gameState.units[selectedUnitId];
+        const unit = session.getState().units[selectedUnitId];
         if (!unit) return;
         const tileKey = hexKey(unit.position);
-        const currentTile = gameState.map.tiles[tileKey];
+        const currentTile = session.getState().map.tiles[tileKey];
         if (!currentTile || currentTile.improvement === 'none') return;
         const existingName = getImprovementDisplayName(currentTile.improvement);
         const newName = getImprovementDisplayName(action);
@@ -2485,9 +2496,9 @@ function selectUnit(
           newYield,
           onCancel: () => selectUnit(uid),
           onConfirm: () => {
-            const result = applyWorkerAction(gameState, uid, action, { allowReplacement: true });
+            const result = applyWorkerAction(session.getState(), uid, action, { allowReplacement: true });
             if (!result.ok) return;
-            gameState = result.state;
+            session.setStateWithoutRefresh(result.state);
             for (const event of result.events) {
               if (event.type === 'improvement:started') {
                 bus.emit('improvement:started', event.payload);
@@ -2497,9 +2508,9 @@ function selectUnit(
                 bus.emit('unit:destroyed', event.payload);
               }
             }
-            renderLoop.setGameState(gameState);
+            renderLoop.setGameState(session.getState());
             updateHUD();
-            if (result.workerConsumed || result.workerLost || !gameState.units[uid]) {
+            if (result.workerConsumed || result.workerLost || !session.getState().units[uid]) {
               deselectUnit();
             } else {
               selectUnit(uid);
@@ -2541,19 +2552,19 @@ function isUnitAnimationLocked(unitId: string | null): boolean {
 }
 
 function animateMovedUnit(unitId: string, path: HexCoord[]): void {
-  const movedUnit = gameState.units[unitId];
+  const movedUnit = session.getState().units[unitId];
   if (!movedUnit || path.length < 2) return;
   movementRange = [];
   attackRange = [];
   clearUnloadState();
   renderLoop.clearHighlights();
   renderLoop.animateUnitMove({ ...movedUnit, position: path[0]! }, path, () => {
-    renderLoop.setGameState(gameState);
+    renderLoop.setGameState(session.getState());
     updateHUD();
     deferWonderDiscoveryRevealUntilMoveSettles = false;
     wonderDiscoveryQueue?.notifyActionSettled();
-    const unit = gameState.units[unitId];
-    if (!unit || unit.owner !== gameState.currentPlayer) return;
+    const unit = session.getState().units[unitId];
+    if (!unit || unit.owner !== session.getState().currentPlayer) return;
 
     if ((unit.movementPointsLeft ?? 0) <= 0) {
       selectNextUnit();
@@ -2564,7 +2575,7 @@ function animateMovedUnit(unitId: string, path: HexCoord[]): void {
 }
 
 function executeAnimatedUnitMove(unitId: string, move: () => ExecuteUnitMoveResult): ExecuteUnitMoveResult {
-  const movingUnit = gameState.units[unitId];
+  const movingUnit = session.getState().units[unitId];
   deferWonderDiscoveryRevealUntilMoveSettles = true;
   try {
     const moveResult = move();
@@ -2579,12 +2590,12 @@ function executeAnimatedUnitMove(unitId: string, move: () => ExecuteUnitMoveResu
     }
     // Clear journey automation when the player manually moves a unit.
     if (movingUnit?.automation?.mode === 'journey') {
-      const movedUnit = gameState.units[unitId];
+      const movedUnit = session.getState().units[unitId];
       if (movedUnit) {
-        gameState = {
-          ...gameState,
-          units: { ...gameState.units, [unitId]: { ...movedUnit, automation: undefined } },
-        };
+        session.setStateWithoutRefresh({
+          ...session.getState(),
+          units: { ...session.getState().units, [unitId]: { ...movedUnit, automation: undefined } },
+        });
       }
       renderLoop.setJourneyPath(null);
     }
@@ -2597,32 +2608,32 @@ function executeAnimatedUnitMove(unitId: string, move: () => ExecuteUnitMoveResu
 }
 
 function startAutoExplore(unitId: string): void {
-  const unit = gameState.units[unitId];
-  if (!unit || unit.owner !== gameState.currentPlayer) return;
+  const unit = session.getState().units[unitId];
+  if (!unit || unit.owner !== session.getState().currentPlayer) return;
 
-  gameState.units[unitId] = {
+  session.getState().units[unitId] = {
     ...unit,
     automation: {
       mode: 'auto-explore',
-      startedTurn: gameState.turn,
+      startedTurn: session.getState().turn,
       lastTargets: unit.automation?.mode === 'auto-explore' ? unit.automation.lastTargets : [],
     },
   };
 
-  if (gameState.units[unitId].movementPointsLeft > 0 && !gameState.units[unitId].hasActed) {
-    applyAutoExploreOrder(gameState, unitId, { bus });
+  if (session.getState().units[unitId].movementPointsLeft > 0 && !session.getState().units[unitId].hasActed) {
+    applyAutoExploreOrder(session.getState(), unitId, { bus });
   }
 
-  renderLoop.setGameState(gameState);
+  renderLoop.setGameState(session.getState());
   updateHUD();
   selectUnit(unitId);
 }
 
 function cancelAutoExplore(unitId: string): void {
-  const unit = gameState.units[unitId];
+  const unit = session.getState().units[unitId];
   if (!unit?.automation) return;
-  delete gameState.units[unitId].automation;
-  renderLoop.setGameState(gameState);
+  delete session.getState().units[unitId].automation;
+  renderLoop.setGameState(session.getState());
   updateHUD();
   if (selectedUnitId === unitId) {
     selectUnit(unitId);
@@ -2630,13 +2641,13 @@ function cancelAutoExplore(unitId: string): void {
 }
 
 function cancelJourney(unitId: string): void {
-  const unit = gameState.units[unitId];
+  const unit = session.getState().units[unitId];
   if (!unit?.automation) return;
-  gameState = {
-    ...gameState,
-    units: { ...gameState.units, [unitId]: { ...unit, automation: undefined } },
-  };
-  renderLoop.setGameState(gameState);
+  session.setStateWithoutRefresh({
+    ...session.getState(),
+    units: { ...session.getState().units, [unitId]: { ...unit, automation: undefined } },
+  });
+  renderLoop.setGameState(session.getState());
   renderLoop.setJourneyPath(null);
   updateHUD();
   if (selectedUnitId === unitId) {
@@ -2648,14 +2659,14 @@ function openUnitContextMenu(unitId: string): void {
   const panel = document.getElementById('info-panel');
   if (!panel) return;
 
-  createContextMenu(panel, gameState, { unitId }, {
+  createContextMenu(panel, session.getState(), { unitId }, {
     onStartAutoExplore: id => startAutoExplore(id),
     onCancelAutoExplore: id => cancelAutoExplore(id),
   }, uiInteractions);
 }
 
 function selectNextUnit(): void {
-  const unmoved = getUnmovedUnits(gameState.units, gameState.currentPlayer);
+  const unmoved = getUnmovedUnits(session.getState().units, session.getState().currentPlayer);
   if (unmoved.length === 0) {
     // All units have moved — silently deselect
     deselectUnit();
@@ -2670,8 +2681,8 @@ function selectNextUnit(): void {
 
 function refreshSelectedUnitAfterCombat(): void {
   if (!selectedUnitId) return;
-  const selectedUnit = gameState.units[selectedUnitId];
-  if (!selectedUnit || selectedUnit.owner !== gameState.currentPlayer) {
+  const selectedUnit = session.getState().units[selectedUnitId];
+  if (!selectedUnit || selectedUnit.owner !== session.getState().currentPlayer) {
     deselectUnit();
     return;
   }
@@ -2687,22 +2698,22 @@ function refreshCurrentPlayerVisibility(): void {
     Object.keys(visTiles).filter(k => visTiles[k] === 'unexplored'),
   );
 
-  updateAndRefreshVisibility(gameState, gameState.currentPlayer);
+  updateAndRefreshVisibility(session.getState(), session.getState().currentPlayer);
 
   // Fire at most one resource-discovered tip per visibility update to avoid
   // flooding the player when a scout reveals several resource tiles at once.
   const updatedTiles = currentCiv()?.visibility?.tiles ?? {};
   for (const key of prevUnexplored) {
     if (updatedTiles[key] !== 'unexplored') {
-      const tile = gameState.map.tiles[key];
+      const tile = session.getState().map.tiles[key];
       if (tile?.resource) {
-        const fired = fireResourceDiscoveredTip(tile.resource, gameState, bus);
+        const fired = fireResourceDiscoveredTip(tile.resource, session.getState(), bus);
         if (fired) break; // one tip per move is enough
       }
     }
   }
 
-  for (const contact of syncCivilizationContactsFromVisibility(gameState, gameState.currentPlayer)) {
+  for (const contact of syncCivilizationContactsFromVisibility(session.getState(), session.getState().currentPlayer)) {
     bus.emit('civilization:first-contact', contact);
   }
 
@@ -2712,8 +2723,8 @@ function refreshCurrentPlayerVisibility(): void {
 function getUnitTurnFlow() {
   return createUnitTurnFlow({
     uiLayer,
-    getState: () => gameState,
-    setState: nextState => { gameState = nextState; },
+    getState: () => session.getState(),
+    setState: nextState => { session.setStateWithoutRefresh(nextState); },
     getSelectedUnitId: () => selectedUnitId,
     selectUnit,
     deselectUnit,
@@ -2732,10 +2743,10 @@ function getUnitTurnFlow() {
 
 function foundCityAction(): void {
   if (!selectedUnitId) return;
-  const unit = gameState.units[selectedUnitId];
+  const unit = session.getState().units[selectedUnitId];
   if (!unit || unit.type !== 'settler') return;
 
-  const blockers = getCityFoundingBlockers(gameState, unit.position);
+  const blockers = getCityFoundingBlockers(session.getState(), unit.position);
   if (blockers.length > 0) {
     showNotification(formatCityFoundingBlockerMessage(blockers), 'warning');
     return;
@@ -2743,7 +2754,7 @@ function foundCityAction(): void {
 
   let result;
   try {
-    result = foundCityInState(gameState, selectedUnitId, bus);
+    result = foundCityInState(session.getState(), selectedUnitId, bus);
   } catch (error) {
     showNotification(
       error instanceof Error ? error.message : 'City cannot be founded here.',
@@ -2751,30 +2762,30 @@ function foundCityAction(): void {
     );
     return;
   }
-  gameState = result.state;
+  session.setStateWithoutRefresh(result.state);
 
   deselectUnit();
-  const foundedCity = gameState.cities[result.cityId];
+  const foundedCity = session.getState().cities[result.cityId];
   showNotification(`${foundedCity.name} has been founded!`, 'success');
   SFX.foundCity();
 
   // Update visibility
-  updateAndRefreshVisibility(gameState, gameState.currentPlayer);
-  for (const contact of syncCivilizationContactsFromVisibility(gameState, gameState.currentPlayer)) {
+  updateAndRefreshVisibility(session.getState(), session.getState().currentPlayer);
+  for (const contact of syncCivilizationContactsFromVisibility(session.getState(), session.getState().currentPlayer)) {
     bus.emit('civilization:first-contact', contact);
   }
 
-  renderLoop.setGameState(gameState);
+  renderLoop.setGameState(session.getState());
   updateHUD();
 }
 
 function performWorkerAction(action: WorkerActionType): void {
   if (!selectedUnitId) return;
 
-  const result = applyWorkerAction(gameState, selectedUnitId, action);
+  const result = applyWorkerAction(session.getState(), selectedUnitId, action);
   if (!result.ok) return;
 
-  gameState = result.state;
+  session.setStateWithoutRefresh(result.state);
   for (const event of result.events) {
     if (event.type === 'improvement:started') {
       bus.emit('improvement:started', event.payload);
@@ -2785,10 +2796,10 @@ function performWorkerAction(action: WorkerActionType): void {
     }
   }
 
-  renderLoop.setGameState(gameState);
+  renderLoop.setGameState(session.getState());
   updateHUD();
 
-  if (result.workerConsumed || result.workerLost || !gameState.units[selectedUnitId]) {
+  if (result.workerConsumed || result.workerLost || !session.getState().units[selectedUnitId]) {
     deselectUnit();
   } else {
     selectUnit(selectedUnitId);
@@ -2802,13 +2813,13 @@ function performWorkerAction(action: WorkerActionType): void {
 // last charge — the deletion has already happened inside preach() by this point, so the
 // dialog is an acknowledgment, not a gate (hideCancel: true, no undo possible).
 function performPreach(unitId: string, cityId: string): void {
-  const unit = gameState.units[unitId];
-  const cityName = gameState.cities[cityId]?.name ?? cityId;
-  const result = preach(gameState, unitId, cityId, bus);
+  const unit = session.getState().units[unitId];
+  const cityName = session.getState().cities[cityId]?.name ?? cityId;
+  const result = preach(session.getState(), unitId, cityId, bus);
   if (!result.ok) return;
 
-  gameState = result.state;
-  renderLoop.setGameState(gameState);
+  session.setStateWithoutRefresh(result.state);
+  renderLoop.setGameState(session.getState());
   updateHUD();
 
   const message = result.converted
@@ -2841,17 +2852,17 @@ function performPreach(unitId: string, cityId: string): void {
 }
 
 function ensurePlayerWarState(targetCivId: string): void {
-  const targetCiv = gameState.civilizations[targetCivId];
+  const targetCiv = session.getState().civilizations[targetCivId];
   if (!targetCiv || !isMajorCivOwner(targetCivId)) return;
 
-  const cp = gameState.currentPlayer;
+  const cp = session.getState().currentPlayer;
   const alreadyAtWar = currentCiv().diplomacy?.atWarWith.includes(targetCivId) ?? false;
   if (alreadyAtWar) return;
 
-  currentCiv().diplomacy = declareWar(currentCiv().diplomacy, targetCivId, gameState.turn);
-  targetCiv.diplomacy = declareWar(targetCiv.diplomacy, cp, gameState.turn);
+  currentCiv().diplomacy = declareWar(currentCiv().diplomacy, targetCivId, session.getState().turn);
+  targetCiv.diplomacy = declareWar(targetCiv.diplomacy, cp, session.getState().turn);
   bus.emit('diplomacy:war-declared', { attackerId: cp, defenderId: targetCivId, opponentKind: resolveOpponentKind(targetCivId) });
-  gameState = applyOpportunisticWarPenaltyIfCrisisStruck(gameState, cp, targetCivId, bus);
+  session.setStateWithoutRefresh(applyOpportunisticWarPenaltyIfCrisisStruck(session.getState(), cp, targetCivId, bus));
 }
 
 function finalizePendingCityCaptureChoice(
@@ -2861,20 +2872,20 @@ function finalizePendingCityCaptureChoice(
   if (!pendingCityCaptureChoice) return;
 
   const pending = pendingCityCaptureChoice;
-  const cityBeforeResolution = gameState.cities[pending.cityId];
+  const cityBeforeResolution = session.getState().cities[pending.cityId];
   const previousOwner = cityBeforeResolution?.owner ?? '';
   const cityName = cityBeforeResolution?.name ?? pending.cityId;
-  const beforeCapture = gameState;
-  const result = finalizePlayerCityAssaultChoice(gameState, pending, disposition, gameState.turn, bus);
+  const beforeCapture = session.getState();
+  const result = finalizePlayerCityAssaultChoice(session.getState(), pending, disposition, session.getState().turn, bus);
 
   pendingCityCaptureChoice = null;
   document.getElementById('city-capture-panel')?.remove();
-  gameState = result.state;
+  session.setStateWithoutRefresh(result.state);
   emitMajorCityCaptureEvents(
     beforeCapture,
     result,
     pending.cityId,
-    gameState.currentPlayer,
+    session.getState().currentPlayer,
     previousOwner,
     bus,
   );
@@ -2890,7 +2901,7 @@ function finalizePendingCityCaptureChoice(
     showNotification(`${cityName} was razed! +${result.goldAwarded} gold`, 'success');
   }
 
-  renderLoop.setGameState(gameState);
+  renderLoop.setGameState(session.getState());
   updateHUD();
   setTimeout(() => selectNextUnit(), 400);
 }
@@ -2902,33 +2913,33 @@ function beginPlayerCityAssault(
   precedingCombat?: CombatResult,
   embarkedAssault = false,
 ): 'pending' | 'resolved' {
-  const city = gameState.cities[cityId];
+  const city = session.getState().cities[cityId];
   if (!city) return 'resolved';
-  const attacker = gameState.units[attackerId];
+  const attacker = session.getState().units[attackerId];
   if (!attacker || !canUnitOccupyCity(attacker)) return 'resolved';
 
   ensurePlayerWarState(city.owner);
   let attackerMultiplier: number | undefined;
   if (embarkedAssault) {
-    const legality = getEmbarkedAssaultTarget(gameState, attackerId, city.position, { viewerId: gameState.currentPlayer });
+    const legality = getEmbarkedAssaultTarget(session.getState(), attackerId, city.position, { viewerId: session.getState().currentPlayer });
     if (!legality.ok || legality.targetType !== 'city') {
       showNotification('That coastal assault is no longer possible.', 'warning');
       return 'resolved';
     }
-    attackerMultiplier = getAmphibiousAssaultMultiplier(gameState, attacker, city.position);
-    const detached = detachCargoForEmbarkedAssault(gameState, attackerId);
+    attackerMultiplier = getAmphibiousAssaultMultiplier(session.getState(), attacker, city.position);
+    const detached = detachCargoForEmbarkedAssault(session.getState(), attackerId);
     if (!detached.ok) return 'resolved';
-    gameState = detached.state;
+    session.setStateWithoutRefresh(detached.state);
   }
   const begun = beginPlayerCityAssaultChoice(
-    gameState,
+    session.getState(),
     attackerId,
     cityId,
     bus,
     precedingCombat,
     attackerMultiplier,
   );
-  gameState = begun.state;
+  session.setStateWithoutRefresh(begun.state);
 
   if (!begun.ok) {
     showNotification(
@@ -2937,7 +2948,7 @@ function beginPlayerCityAssault(
         : 'The attack could not proceed.',
       'warning',
     );
-    renderLoop.setGameState(gameState);
+    renderLoop.setGameState(session.getState());
     updateHUD();
     return 'resolved';
   }
@@ -2959,12 +2970,12 @@ function beginPlayerCityAssault(
 }
 
 function executeAttack(attackerId: string, targetKey: string): void {
-  const initialAttacker = gameState.units[attackerId];
+  const initialAttacker = session.getState().units[attackerId];
   const targetCoord = parseHexKey(targetKey);
   const amphibiousAssault = Boolean(initialAttacker?.transportId);
   const legality = amphibiousAssault
-    ? getEmbarkedAssaultTarget(gameState, attackerId, targetCoord, { viewerId: gameState.currentPlayer })
-    : canUnitAttackTarget(gameState, initialAttacker, targetCoord, { viewerId: gameState.currentPlayer });
+    ? getEmbarkedAssaultTarget(session.getState(), attackerId, targetCoord, { viewerId: session.getState().currentPlayer })
+    : canUnitAttackTarget(session.getState(), initialAttacker, targetCoord, { viewerId: session.getState().currentPlayer });
   // hasActed guard: enforce "no action remaining" at the execution layer, not just
   // the highlight layer (getAttackTargets). Prevents double-action if executeAttack
   // is ever called outside the normal tap → highlight → confirm flow.
@@ -2975,23 +2986,23 @@ function executeAttack(attackerId: string, targetKey: string): void {
   }
 
   const defenderId = legality.targetUnitId;
-  const defender = gameState.units[defenderId];
+  const defender = session.getState().units[defenderId];
   if (!defender) return;
 
   let attacker = initialAttacker;
   if (amphibiousAssault) {
-    const detached = detachCargoForEmbarkedAssault(gameState, attackerId);
+    const detached = detachCargoForEmbarkedAssault(session.getState(), attackerId);
     if (!detached.ok) {
       showNotification('That coastal assault is no longer possible.', 'warning');
       return;
     }
-    gameState = detached.state;
+    session.setStateWithoutRefresh(detached.state);
     attacker = detached.attacker;
   }
 
   ensurePlayerWarState(defender.owner);
 
-  const seed = deterministicCombatSeed(gameState.gameId, gameState.turn, attacker.id, defender.id);
+  const seed = deterministicCombatSeed(session.getState().gameId, session.getState().turn, attacker.id, defender.id);
   const attackerBonus = currentCivDef()?.bonusEffect;
   // Capture defender position before combat (defender may be removed from state after)
   const defenderPosition = { ...defender.position };
@@ -3000,31 +3011,31 @@ function executeAttack(attackerId: string, targetKey: string): void {
   const defenderRouteId = defender.committedToRouteId;
   const result = resolveCombat(
     attacker,
-    gameState.units[defenderId] ?? defender,
-    gameState.map,
+    session.getState().units[defenderId] ?? defender,
+    session.getState().map,
     seed,
-    buildCombatContextForDefender(gameState, attacker, defender, { amphibiousAssault }),
-    resolveCombatEra(gameState, attacker, defender),
+    buildCombatContextForDefender(session.getState(), attacker, defender, { amphibiousAssault }),
+    resolveCombatEra(session.getState(), attacker, defender),
   );
   bus.emit('combat:resolved', {
     result,
-    ...buildCombatPresentation(gameState, result, attacker, defender),
+    ...buildCombatPresentation(session.getState(), result, attacker, defender),
   });
 
-  const applied = applyCombatOutcomeToState(gameState, result, seed);
-  gameState = applied.state;
-  gameState = recordCombatForCiv(gameState, gameState.currentPlayer, defenderPosition);
-  emitMinorCivQuestTransitions(bus, applied.questTransitions, gameState);
+  const applied = applyCombatOutcomeToState(session.getState(), result, seed);
+  session.setStateWithoutRefresh(applied.state);
+  session.setStateWithoutRefresh(recordCombatForCiv(session.getState(), session.getState().currentPlayer, defenderPosition));
+  emitMinorCivQuestTransitions(bus, applied.questTransitions, session.getState());
   // Clean up trade routes for any committed caravans that died or were captured
   if (applied.attackerDefeated && attackerRouteId) {
-    gameState = removeRouteForUnit(gameState, result.attackerId, bus, 'unit-died', attackerRouteId);
+    session.setStateWithoutRefresh(removeRouteForUnit(session.getState(), result.attackerId, bus, 'unit-died', attackerRouteId));
   } else if (applied.attackerCaptured && attackerRouteId) {
-    gameState = removeRouteForUnit(gameState, result.attackerId, bus, 'unit-captured', attackerRouteId);
+    session.setStateWithoutRefresh(removeRouteForUnit(session.getState(), result.attackerId, bus, 'unit-captured', attackerRouteId));
   }
   if (applied.defenderDefeated && defenderRouteId) {
-    gameState = removeRouteForUnit(gameState, result.defenderId, bus, 'unit-died', defenderRouteId);
+    session.setStateWithoutRefresh(removeRouteForUnit(session.getState(), result.defenderId, bus, 'unit-died', defenderRouteId));
   } else if (applied.defenderCaptured && defenderRouteId) {
-    gameState = removeRouteForUnit(gameState, result.defenderId, bus, 'unit-captured', defenderRouteId);
+    session.setStateWithoutRefresh(removeRouteForUnit(session.getState(), result.defenderId, bus, 'unit-captured', defenderRouteId));
   }
 
   if (applied.attackerDefeated) {
@@ -3040,8 +3051,8 @@ function executeAttack(attackerId: string, targetKey: string): void {
   if (applied.defenderDefeated) {
     showNotification('Enemy unit destroyed!', 'success');
 
-    const slayResult = recordBeastSlain(gameState, defender, attacker);
-    gameState = slayResult.state;
+    const slayResult = recordBeastSlain(session.getState(), defender, attacker);
+    session.setStateWithoutRefresh(slayResult.state);
     if (slayResult.slain) {
       bus.emit('beast:slain', slayResult.slain);
     }
@@ -3052,34 +3063,34 @@ function executeAttack(attackerId: string, targetKey: string): void {
       maybeShowPendingHoardChoice();
     }
 
-    const destroyedCamp = applyCampDestructionAtTarget(gameState, gameState.currentPlayer, defender.position, gameState.turn);
+    const destroyedCamp = applyCampDestructionAtTarget(session.getState(), session.getState().currentPlayer, defender.position, session.getState().turn);
     if (destroyedCamp.campId) {
-      gameState = destroyedCamp.state;
-      emitMinorCivQuestTransitions(bus, destroyedCamp.questTransitions, gameState);
+      session.setStateWithoutRefresh(destroyedCamp.state);
+      emitMinorCivQuestTransitions(bus, destroyedCamp.questTransitions, session.getState());
       showNotification(`Barbarian camp destroyed! +${destroyedCamp.reward} gold`, 'success');
       advisorSystem.resetMessage('treasurer_camp_reward');
-      advisorSystem.check(gameState);
-      for (const mcId of Object.keys(gameState.minorCivs)) {
-        applyDiplomaticReaction(gameState, 'camp_destroyed_nearby', gameState.currentPlayer, mcId);
+      advisorSystem.check(session.getState());
+      for (const mcId of Object.keys(session.getState().minorCivs)) {
+        applyDiplomaticReaction(session.getState(), 'camp_destroyed_nearby', session.getState().currentPlayer, mcId);
       }
     }
 
-    const cityAtTarget = Object.values(gameState.cities).find(c => hexKey(c.position) === targetKey);
+    const cityAtTarget = Object.values(session.getState().cities).find(c => hexKey(c.position) === targetKey);
     if (cityAtTarget) {
-      const occupancy = buildUnitOccupancy(gameState.units);
-      const remainingHostileDefenders = hasHostileUnitAtCoord(occupancy, cityAtTarget.position, gameState.currentPlayer);
+      const occupancy = buildUnitOccupancy(session.getState().units);
+      const remainingHostileDefenders = hasHostileUnitAtCoord(occupancy, cityAtTarget.position, session.getState().currentPlayer);
       if (!remainingHostileDefenders) {
         if (cityAtTarget.owner.startsWith('mc-')) {
           const conqueredCityName = cityAtTarget.name;
-          const conquered = conquestMinorCiv(gameState, cityAtTarget.owner, gameState.currentPlayer);
-          gameState = conquered.state;
-          emitMinorCivQuestTransitions(bus, conquered.transitions, gameState);
+          const conquered = conquestMinorCiv(session.getState(), cityAtTarget.owner, session.getState().currentPlayer);
+          session.setStateWithoutRefresh(conquered.state);
+          emitMinorCivQuestTransitions(bus, conquered.transitions, session.getState());
           if (conquered.conquered) {
-            bus.emit('minor-civ:destroyed', { minorCivId: cityAtTarget.owner, conquerorId: gameState.currentPlayer });
+            bus.emit('minor-civ:destroyed', { minorCivId: cityAtTarget.owner, conquerorId: session.getState().currentPlayer });
           }
           showNotification(`${conqueredCityName} has been conquered!`, 'success');
         }
-        if (!cityAtTarget.owner.startsWith('mc-') && cityAtTarget.owner !== gameState.currentPlayer) {
+        if (!cityAtTarget.owner.startsWith('mc-') && cityAtTarget.owner !== session.getState().currentPlayer) {
           const assaultStatus = beginPlayerCityAssault(
             attackerId,
             cityAtTarget.id,
@@ -3088,7 +3099,7 @@ function executeAttack(attackerId: string, targetKey: string): void {
             amphibiousAssault,
           );
           SFX.combat();
-          renderLoop.setGameState(gameState);
+          renderLoop.setGameState(session.getState());
           updateHUD();
           refreshSelectedUnitAfterCombat();
           if (assaultStatus === 'resolved') {
@@ -3104,7 +3115,7 @@ function executeAttack(attackerId: string, targetKey: string): void {
 
   // `attacker` was captured before applyCombatOutcomeToState — safe even if attacker was destroyed
   SFX.combat();
-  renderLoop.setGameState(gameState);
+  renderLoop.setGameState(session.getState());
   updateHUD();
   refreshSelectedUnitAfterCombat();
   renderLoop.animations.add('combat-flash', 400, { coord: attacker.position }, () => selectNextUnit());
@@ -3112,32 +3123,32 @@ function executeAttack(attackerId: string, targetKey: string): void {
 
 function restAction(): void {
   if (!selectedUnitId) return;
-  const unit = gameState.units[selectedUnitId];
+  const unit = session.getState().units[selectedUnitId];
   if (!unit || !canHeal(unit)) return;
 
-  gameState.units[selectedUnitId] = restUnit(unit);
+  session.getState().units[selectedUnitId] = restUnit(unit);
   showNotification(`${UNIT_DEFINITIONS[unit.type].name} is resting and will heal +15 HP next turn`, 'info');
   deselectUnit();
-  renderLoop.setGameState(gameState);
+  renderLoop.setGameState(session.getState());
 }
 
 function visibleUnitEntriesAtKey(key: string): Array<[string, Unit]> {
-  const viewerUnits = Object.values(gameState.units).filter(u => u.owner === gameState.currentPlayer && !u.transportId);
-  return Object.entries(gameState.units).filter(([, unit]) =>
+  const viewerUnits = Object.values(session.getState().units).filter(u => u.owner === session.getState().currentPlayer && !u.transportId);
+  return Object.entries(session.getState().units).filter(([, unit]) =>
     hexKey(unit.position) === key
-    && canInspectUnitForViewer(gameState, gameState.currentPlayer, unit.id)
-    && (unit.owner === gameState.currentPlayer || !isForestConcealedUnit(gameState, gameState.currentPlayer, unit))
-    && !isBeastConcealedFrom(unit, gameState.map, viewerUnits)
+    && canInspectUnitForViewer(session.getState(), session.getState().currentPlayer, unit.id)
+    && (unit.owner === session.getState().currentPlayer || !isForestConcealedUnit(session.getState(), session.getState().currentPlayer, unit))
+    && !isBeastConcealedFrom(unit, session.getState().map, viewerUnits)
   );
 }
 
 function visibleHostileUnitEntriesAtKey(key: string): Array<[string, Unit]> {
-  return visibleUnitEntriesAtKey(key).filter(([, unit]) => unit.owner !== gameState.currentPlayer);
+  return visibleUnitEntriesAtKey(key).filter(([, unit]) => unit.owner !== session.getState().currentPlayer);
 }
 
 function selectDefenderEntryAtKey(key: string): [string, Unit] | undefined {
   const hostileEntries = visibleHostileUnitEntriesAtKey(key);
-  const defender = selectDefenderForAttack(hostileEntries.map(([, unit]) => unit), gameState.map);
+  const defender = selectDefenderForAttack(hostileEntries.map(([, unit]) => unit), session.getState().map);
   if (!defender) return undefined;
   return hostileEntries.find(([id]) => id === defender.id);
 }
@@ -3147,27 +3158,27 @@ function handleHexTap(rawCoord: HexCoord): void {
     return;
   }
 
-  const coord = gameState.map.wrapsHorizontally
-    ? wrapHexCoord(rawCoord, gameState.map.width)
+  const coord = session.getState().map.wrapsHorizontally
+    ? wrapHexCoord(rawCoord, session.getState().map.width)
     : rawCoord;
 
   if (pendingJourneyUnitId) {
-    const unit = gameState.units[pendingJourneyUnitId];
+    const unit = session.getState().units[pendingJourneyUnitId];
     if (unit) {
       const domain = UNIT_DEFINITIONS[unit.type]?.domain ?? 'land';
-      const completedTechs = gameState.civilizations[unit.owner]?.techState.completed ?? [];
-      const path = findPath(unit.position, coord, gameState.map, domain, { unit, completedTechs });
+      const completedTechs = session.getState().civilizations[unit.owner]?.techState.completed ?? [];
+      const path = findPath(unit.position, coord, session.getState().map, domain, { unit, completedTechs });
       if (!path || path.length < 2) {
         showNotification('No path to that destination.', 'warning');
       } else {
-        gameState = {
-          ...gameState,
+        session.setStateWithoutRefresh({
+          ...session.getState(),
           units: {
-            ...gameState.units,
+            ...session.getState().units,
             [pendingJourneyUnitId]: { ...unit, automation: { mode: 'journey', destination: coord } },
           },
-        };
-        renderLoop.setGameState(gameState);
+        });
+        renderLoop.setGameState(session.getState());
         selectUnit(pendingJourneyUnitId);
         showNotification('Journey set. Your unit will advance each turn.', 'info');
       }
@@ -3180,15 +3191,15 @@ function handleHexTap(rawCoord: HexCoord): void {
   if (pendingAirMission) {
     const pending = pendingAirMission;
     const result = pending.mission === 'strike'
-      ? resolveAirStrike(gameState, pending.unitId, coord)
-      : resolveReconMission(gameState, pending.unitId, coord);
+      ? resolveAirStrike(session.getState(), pending.unitId, coord)
+      : resolveReconMission(session.getState(), pending.unitId, coord);
     if (!result.ok) {
       showNotification('That air mission target is no longer legal.', 'warning');
       return;
     }
     pendingAirMission = null;
-    gameState = result.state;
-    renderLoop.setGameState(gameState);
+    session.setStateWithoutRefresh(result.state);
+    renderLoop.setGameState(session.getState());
     refreshCurrentPlayerVisibility();
     updateHUD();
     if (pending.mission === 'recon') SFX.airRecon();
@@ -3198,7 +3209,7 @@ function handleHexTap(rawCoord: HexCoord): void {
   }
 
   if (!selectedUnitId) {
-    const pirateSelection = resolvePirateHeadquartersSelection(gameState, gameState.currentPlayer, coord);
+    const pirateSelection = resolvePirateHeadquartersSelection(session.getState(), session.getState().currentPlayer, coord);
     if (pirateSelection?.kind === 'faction') {
       openPirateWaters({ factionId: pirateSelection.factionId });
       return;
@@ -3227,16 +3238,16 @@ function handleHexTap(rawCoord: HexCoord): void {
         // Re-invoke via the callback registered in selectUnit's renderSelectedUnitInfo block
         // by triggering the transport system directly here (callbacks are not stored).
         const { transportId, cargoUnitId } = pendingUnload;
-        const result = unloadUnitFromTransport(gameState, transportId, cargoUnitId, coord);
+        const result = unloadUnitFromTransport(session.getState(), transportId, cargoUnitId, coord);
         if (!result.ok) {
           showNotification(result.message, 'warning');
           SFX.error();
         } else {
-          const tName = UNIT_DEFINITIONS[gameState.units[transportId]?.type ?? 'transport']?.name ?? 'Transport';
-          const cName = UNIT_DEFINITIONS[gameState.units[cargoUnitId]?.type ?? 'warrior']?.name ?? 'Unit';
+          const tName = UNIT_DEFINITIONS[session.getState().units[transportId]?.type ?? 'transport']?.name ?? 'Transport';
+          const cName = UNIT_DEFINITIONS[session.getState().units[cargoUnitId]?.type ?? 'warrior']?.name ?? 'Unit';
           clearUnloadState();
-          gameState = result.state;
-          renderLoop.setGameState(gameState);
+          session.setStateWithoutRefresh(result.state);
+          renderLoop.setGameState(session.getState());
           updateHUD();
           renderLoop.animateUnitAppear(coord);
           selectUnit(transportId);
@@ -3258,7 +3269,7 @@ function handleHexTap(rawCoord: HexCoord): void {
   const selectedUnitCanMoveToTappedHex = selectedUnitId && movementRange.some(h => hexKey(h) === key);
   const selectedUnitCanAttackTappedHex = selectedUnitId && attackRange.some(h => hexKey(h) === key);
   if (!selectedUnitCanMoveToTappedHex && !selectedUnitCanAttackTappedHex) {
-    if (handleFriendlyUnitStackTap(gameState, coord, selectedUnitId, {
+    if (handleFriendlyUnitStackTap(session.getState(), coord, selectedUnitId, {
       onSelectUnit: selectUnit,
       onOpenStackPicker: openUnitStackPicker,
     })) {
@@ -3267,7 +3278,7 @@ function handleHexTap(rawCoord: HexCoord): void {
   }
 
   if (selectedUnitId && !selectedUnitCanMoveToTappedHex && !selectedUnitCanAttackTappedHex) {
-    const selectedUnit = gameState.units[selectedUnitId];
+    const selectedUnit = session.getState().units[selectedUnitId];
     if (selectedUnit) {
       if (selectedUnit.committedToRouteId) {
         showNotification('Caravan is committed to a trade route and cannot move.', 'warning');
@@ -3286,7 +3297,7 @@ function handleHexTap(rawCoord: HexCoord): void {
         }
       }
       if (handleSelectedUnitMovementBlocker(
-        gameState,
+        session.getState(),
         selectedUnitId,
         coord,
         selectedUnitWaterRecovery,
@@ -3327,16 +3338,16 @@ function handleHexTap(rawCoord: HexCoord): void {
         ownerName = 'Legendary Beasts';
         ownerColor = '#7a1f2b';
       } else if (isMinorCiv) {
-        const presentation = getMinorCivPresentationForPlayer(gameState, gameState.currentPlayer, enemyUnit.owner, 'City-State');
+        const presentation = getMinorCivPresentationForPlayer(session.getState(), session.getState().currentPlayer, enemyUnit.owner, 'City-State');
         ownerName = presentation.name;
         ownerColor = presentation.color;
       } else {
-        const civ = gameState.civilizations[enemyUnit.owner];
+        const civ = session.getState().civilizations[enemyUnit.owner];
         ownerName = civ?.name ?? enemyUnit.owner;
         ownerColor = civ?.color ?? '#888';
       }
 
-      const alwaysHostile = isAlwaysHostilePair(gameState.currentPlayer, enemyUnit.owner);
+      const alwaysHostile = isAlwaysHostilePair(session.getState().currentPlayer, enemyUnit.owner);
       const atWar = ownerKind === 'major' && (currentCiv()?.diplomacy?.atWarWith.includes(enemyUnit.owner) ?? false);
       const relationshipTag = alwaysHostile ? 'Hostile' : atWar ? 'At War' : 'Neutral';
       const relColor = alwaysHostile || atWar ? '#d94a4a' : '#e8c170';
@@ -3407,7 +3418,7 @@ function handleHexTap(rawCoord: HexCoord): void {
 
   // If unit is selected and tapping a movement or attack target
   if (selectedUnitId && (selectedUnitCanMoveToTappedHex || selectedUnitCanAttackTappedHex)) {
-    const unit = gameState.units[selectedUnitId];
+    const unit = session.getState().units[selectedUnitId];
     if (!unit) return;
 
     // Check for enemy unit at target — show combat preview
@@ -3416,7 +3427,7 @@ function handleHexTap(rawCoord: HexCoord): void {
       const defender = defenderEntry[1];
       const amphibiousAssault = Boolean(unit.transportId);
       const previewAttacker = amphibiousAssault
-        ? { ...unit, position: { ...gameState.units[unit.transportId!].position }, transportId: undefined }
+        ? { ...unit, position: { ...session.getState().units[unit.transportId!].position }, transportId: undefined }
         : unit;
       const navalGate = canUnitAttackBeast(previewAttacker, defender);
       if (!navalGate.allowed) {
@@ -3429,8 +3440,8 @@ function handleHexTap(rawCoord: HexCoord): void {
       const strengthPreview = calculateCombatStrengths(
         previewAttacker,
         defender,
-        gameState.map,
-        buildCombatContextForDefender(gameState, previewAttacker, defender, { amphibiousAssault }),
+        session.getState().map,
+        buildCombatContextForDefender(session.getState(), previewAttacker, defender, { amphibiousAssault }),
       );
       const atkStr = Math.round(strengthPreview.attackerStrength);
       const defStr = Math.round(strengthPreview.defenderStrength);
@@ -3447,10 +3458,10 @@ function handleHexTap(rawCoord: HexCoord): void {
       } else if (ownerKind === 'beast') {
         ownerName = 'Legendary Beasts';
       } else if (isMinorCiv) {
-        const presentation = getMinorCivPresentationForPlayer(gameState, gameState.currentPlayer, defender.owner, 'City-State');
+        const presentation = getMinorCivPresentationForPlayer(session.getState(), session.getState().currentPlayer, defender.owner, 'City-State');
         ownerName = presentation.name;
       } else {
-        ownerName = gameState.civilizations[defender.owner]?.name ?? defender.owner;
+        ownerName = session.getState().civilizations[defender.owner]?.name ?? defender.owner;
       }
 
       const odds = atkStr > defStr ? 'Favorable' : atkStr === defStr ? 'Even' : 'Risky';
@@ -3527,10 +3538,10 @@ function handleHexTap(rawCoord: HexCoord): void {
 
         cancelBtn.addEventListener('click', deselectUnit);
         attackBtn.addEventListener('click', () => {
-          const attacker = selectedUnitId ? gameState.units[selectedUnitId] : undefined;
+          const attacker = selectedUnitId ? session.getState().units[selectedUnitId] : undefined;
           const legality = attacker?.transportId
-            ? getEmbarkedAssaultTarget(gameState, attacker.id, coord, { viewerId: gameState.currentPlayer })
-            : canUnitAttackTarget(gameState, attacker, coord, { viewerId: gameState.currentPlayer });
+            ? getEmbarkedAssaultTarget(session.getState(), attacker.id, coord, { viewerId: session.getState().currentPlayer })
+            : canUnitAttackTarget(session.getState(), attacker, coord, { viewerId: session.getState().currentPlayer });
           if (!legality.ok || legality.targetType !== 'unit') {
             showNotification('That target is no longer attackable.', 'warning');
             if (selectedUnitId) selectUnit(selectedUnitId);
@@ -3541,20 +3552,20 @@ function handleHexTap(rawCoord: HexCoord): void {
         return; // Wait for button press
       }
     } else {
-      const tapIntent = resolveSelectedUnitTapIntent(gameState, selectedUnitId, coord, movementRange);
+      const tapIntent = resolveSelectedUnitTapIntent(session.getState(), selectedUnitId, coord, movementRange);
       if (tapIntent.kind === 'assault-city') {
-        const attackerUnit = gameState.units[selectedUnitId];
-        const targetCity = gameState.cities[tapIntent.cityId];
-        const ownerCiv = targetCity ? gameState.civilizations[targetCity.owner] : undefined;
+        const attackerUnit = session.getState().units[selectedUnitId];
+        const targetCity = session.getState().cities[tapIntent.cityId];
+        const ownerCiv = targetCity ? session.getState().civilizations[targetCity.owner] : undefined;
         if (!attackerUnit || !targetCity || !ownerCiv) return;
 
         const attackerMultiplier = tapIntent.embarkedAssault
-          ? getAmphibiousAssaultMultiplier(gameState, attackerUnit, targetCity.position)
+          ? getAmphibiousAssaultMultiplier(session.getState(), attackerUnit, targetCity.position)
           : undefined;
         const effectiveAttacker = tapIntent.embarkedAssault && attackerUnit.transportId
-          ? { ...attackerUnit, position: { ...gameState.units[attackerUnit.transportId].position }, transportId: undefined }
+          ? { ...attackerUnit, position: { ...session.getState().units[attackerUnit.transportId].position }, transportId: undefined }
           : attackerUnit;
-        const strengths = calculateCityAssaultStrengths(effectiveAttacker, targetCity, ownerCiv, gameState.map, { attackerMultiplier });
+        const strengths = calculateCityAssaultStrengths(effectiveAttacker, targetCity, ownerCiv, session.getState().map, { attackerMultiplier });
         const atkStr = Math.round(strengths.attackerStrength);
         const cityStr = Math.round(strengths.intrinsicStrength);
         const odds = strengths.winProbability > 0.55 ? 'Favorable' : strengths.winProbability > 0.45 ? 'Even' : 'Risky';
@@ -3613,7 +3624,7 @@ function handleHexTap(rawCoord: HexCoord): void {
           attackBtn.addEventListener('click', () => {
             const assaultStatus = beginPlayerCityAssault(selectedUnitId!, tapIntent.cityId, undefined, undefined, tapIntent.embarkedAssault);
             SFX.combat();
-            renderLoop.setGameState(gameState);
+            renderLoop.setGameState(session.getState());
             updateHUD();
             if (assaultStatus === 'resolved') {
               setTimeout(() => selectNextUnit(), 400);
@@ -3625,14 +3636,14 @@ function handleHexTap(rawCoord: HexCoord): void {
 
       if (tapIntent.kind === 'confirm-war-city') {
         const selectedId = selectedUnitId;
-        const city = gameState.cities[tapIntent.cityId];
-        const defender = gameState.civilizations[tapIntent.defenderId];
+        const city = session.getState().cities[tapIntent.cityId];
+        const defender = session.getState().civilizations[tapIntent.defenderId];
         createForeignCityEntryPanel(uiLayer, {
           cityName: city?.name ?? 'this city',
           defenderName: defender?.name ?? tapIntent.defenderId,
           onConfirm: () => {
-            const begun = beginConfirmedForeignCityEntry(gameState, selectedId, tapIntent.cityId, bus);
-            gameState = begun.state;
+            const begun = beginConfirmedForeignCityEntry(session.getState(), selectedId, tapIntent.cityId, bus);
+            session.setStateWithoutRefresh(begun.state);
             if (!begun.ok) {
               showNotification(
                 begun.reason === 'repelled-by-city-defense'
@@ -3640,12 +3651,12 @@ function handleHexTap(rawCoord: HexCoord): void {
                   : 'The attack could not proceed.',
                 'warning',
               );
-              renderLoop.setGameState(gameState);
+              renderLoop.setGameState(session.getState());
               updateHUD();
               return;
             }
             pendingCityCaptureChoice = begun.pending;
-            const captureCity = gameState.cities[tapIntent.cityId];
+            const captureCity = session.getState().cities[tapIntent.cityId];
             if (captureCity) {
               createCityCapturePanel(uiLayer, {
                 cityName: captureCity.name,
@@ -3656,7 +3667,7 @@ function handleHexTap(rawCoord: HexCoord): void {
               });
             }
             SFX.tap();
-            renderLoop.setGameState(gameState);
+            renderLoop.setGameState(session.getState());
             updateHUD();
           },
           onCancel: () => selectUnit(selectedId),
@@ -3666,17 +3677,17 @@ function handleHexTap(rawCoord: HexCoord): void {
 
       if (tapIntent.kind === 'confirm-war-minor-civ') {
         const selectedId = selectedUnitId;
-        const city = gameState.cities[tapIntent.cityId];
-        const minor = gameState.minorCivs[tapIntent.minorCivId];
+        const city = session.getState().cities[tapIntent.cityId];
+        const minor = session.getState().minorCivs[tapIntent.minorCivId];
         const definition = MINOR_CIV_DEFINITIONS.find(candidate => candidate.id === minor?.definitionId);
         createForeignCityEntryPanel(uiLayer, {
           cityName: city?.name ?? 'this city-state',
           defenderName: definition?.name ?? 'the city-state',
           onConfirm: () => {
-            const war = setMinorCivWarState(gameState, gameState.currentPlayer, tapIntent.minorCivId, true);
+            const war = setMinorCivWarState(session.getState(), session.getState().currentPlayer, tapIntent.minorCivId, true);
             if (!war.ok) return;
-            gameState = war.state;
-            emitMinorCivQuestTransitions(bus, war.transitions, gameState);
+            session.setStateWithoutRefresh(war.state);
+            emitMinorCivQuestTransitions(bus, war.transitions, session.getState());
             executeMinorCivConquest(selectedId, coord, tapIntent.minorCivId, tapIntent.cityId);
           },
           onCancel: () => selectUnit(selectedId),
@@ -3685,12 +3696,12 @@ function handleHexTap(rawCoord: HexCoord): void {
       }
 
       if (tapIntent.kind === 'assault-minor-civ') {
-        const mc = gameState.minorCivs[tapIntent.minorCivId];
+        const mc = session.getState().minorCivs[tapIntent.minorCivId];
         if (mc && !mc.isDestroyed) {
           executeMinorCivConquest(selectedUnitId, coord, tapIntent.minorCivId, tapIntent.cityId);
         } else {
           SFX.tap();
-          renderLoop.setGameState(gameState);
+          renderLoop.setGameState(session.getState());
           updateHUD();
           setTimeout(() => selectNextUnit(), 400);
         }
@@ -3698,10 +3709,10 @@ function handleHexTap(rawCoord: HexCoord): void {
       }
 
       // Move unit
-      if (isWorkerBusy(gameState, selectedUnitId)) {
+      if (isWorkerBusy(session.getState(), selectedUnitId)) {
         const selectedId = selectedUnitId;
-        const task = gameState.units[selectedId]?.workerTask;
-        const taskTile = task ? gameState.map.tiles[hexKey(task.coord)] : undefined;
+        const task = session.getState().units[selectedId]?.workerTask;
+        const taskTile = task ? session.getState().map.tiles[hexKey(task.coord)] : undefined;
         const isRoadTask = task?.action === 'build_road';
         createWorkerTaskWarningPanel(uiLayer, {
           improvementName: task
@@ -3710,35 +3721,35 @@ function handleHexTap(rawCoord: HexCoord): void {
           turnsLeft: (isRoadTask ? taskTile?.roadTurnsLeft : taskTile?.improvementTurnsLeft) ?? 1,
           onCancel: () => selectUnit(selectedId),
           onConfirm: () => {
-            executeAnimatedUnitMove(selectedId, () => confirmBusyWorkerMove(gameState, selectedId, coord, {
+            executeAnimatedUnitMove(selectedId, () => confirmBusyWorkerMove(session.getState(), selectedId, coord, {
               actor: 'player',
-              civId: gameState.currentPlayer,
+              civId: session.getState().currentPlayer,
               bus,
             }));
             SFX.tap();
-            renderLoop.setGameState(gameState);
+            renderLoop.setGameState(session.getState());
             updateHUD();
           },
         });
         return;
       }
 
-      executeAnimatedUnitMove(selectedUnitId, () => executeUnitMove(gameState, selectedUnitId!, coord, {
+      executeAnimatedUnitMove(selectedUnitId, () => executeUnitMove(session.getState(), selectedUnitId!, coord, {
         actor: 'player',
-        civId: gameState.currentPlayer,
+        civId: session.getState().currentPlayer,
         bus,
       }));
       SFX.tap();
     }
 
-    renderLoop.setGameState(gameState);
+    renderLoop.setGameState(session.getState());
     updateHUD();
     return;
   }
 
   // Check if tapping a player-owned city hex
-  const cityAtHex = Object.values(gameState.cities).find(
-    c => c.owner === gameState.currentPlayer && hexKey(c.position) === key,
+  const cityAtHex = Object.values(session.getState().cities).find(
+    c => c.owner === session.getState().currentPlayer && hexKey(c.position) === key,
   );
   if (cityAtHex) {
     document.getElementById('tech-panel')?.remove();
@@ -3752,10 +3763,10 @@ function handleHexTap(rawCoord: HexCoord): void {
     return;
   }
 
-  const wonderAtlasIntent = resolveWonderAtlasIntent(gameState, gameState.currentPlayer, coord);
+  const wonderAtlasIntent = resolveWonderAtlasIntent(session.getState(), session.getState().currentPlayer, coord);
   if (wonderAtlasIntent.type === 'open-atlas') {
     deselectUnit();
-    const audioFocus = resolveNaturalWonderAudioFocus(gameState, gameState.currentPlayer, coord);
+    const audioFocus = resolveNaturalWonderAudioFocus(session.getState(), session.getState().currentPlayer, coord);
     if (audioFocus) void audio.startNaturalWonderMapFocusAmbient(audioFocus.wonderId);
     openWonderAtlas(wonderAtlasIntent.wonderId);
     SFX.tap();
@@ -3769,9 +3780,9 @@ function handleHexTap(rawCoord: HexCoord): void {
 
 function openTerritoryInspectionPanel(coord: HexCoord): void {
   document.getElementById('territory-inspection-panel')?.remove();
-  const audioFocus = resolveNaturalWonderAudioFocus(gameState, gameState.currentPlayer, coord);
+  const audioFocus = resolveNaturalWonderAudioFocus(session.getState(), session.getState().currentPlayer, coord);
   if (audioFocus) void audio.startNaturalWonderMapFocusAmbient(audioFocus.wonderId);
-  const panel = createTerritoryInspectionPanel(gameState, coord, gameState.currentPlayer, () => {
+  const panel = createTerritoryInspectionPanel(session.getState(), coord, session.getState().currentPlayer, () => {
     audio.stopNaturalWonderAmbient('panel-closed');
     document.getElementById('territory-inspection-panel')?.remove();
   });
@@ -3784,10 +3795,10 @@ function closeTerritoryInspectionPanel(): void {
 }
 
 function handleHexLongPress(rawCoord: HexCoord): void {
-  const coord = gameState.map.wrapsHorizontally
-    ? wrapHexCoord(rawCoord, gameState.map.width)
+  const coord = session.getState().map.wrapsHorizontally
+    ? wrapHexCoord(rawCoord, session.getState().map.width)
     : rawCoord;
-  const tile = gameState.map.tiles[hexKey(coord)];
+  const tile = session.getState().map.tiles[hexKey(coord)];
   if (!tile) return;
 
   const vis = currentCiv()?.visibility;
@@ -3806,8 +3817,8 @@ function handleHexLongPress(rawCoord: HexCoord): void {
     return;
   }
 
-  const unitAtHex = Object.values(gameState.units).find(unit =>
-    unit.owner === gameState.currentPlayer
+  const unitAtHex = Object.values(session.getState().units).find(unit =>
+    unit.owner === session.getState().currentPlayer
       && unit.position.q === coord.q
       && unit.position.r === coord.r,
   );
@@ -3822,19 +3833,20 @@ function handleHexLongPress(rawCoord: HexCoord): void {
 }
 
 function handleVictoryIfNeeded(): boolean {
-  if (!gameState.gameOver) return false;
-  const winnerCiv = gameState.winner
-    ? gameState.civilizations[gameState.winner]
+  const state = session.getState();
+  if (!state.gameOver) return false;
+  const winnerCiv = state.winner
+    ? state.civilizations[state.winner]
     : undefined;
-  const winnerName = winnerCiv?.name ?? gameState.winner ?? '';
-  const outcome = gameState.winner === gameState.currentPlayer ? 'victory' : 'defeat';
+  const winnerName = winnerCiv?.name ?? state.winner ?? '';
+  const outcome = state.winner === state.currentPlayer ? 'victory' : 'defeat';
   setBlockingOverlay('victory');
   showVictoryPanel(uiLayer, {
     winnerName,
     victoryType: outcome === 'victory' ? 'Domination Victory' : 'Campaign Defeat',
     outcome,
-    reason: gameState.gameOverReason ?? 'domination',
-    turn: gameState.turn,
+    reason: state.gameOverReason ?? 'domination',
+    turn: state.turn,
     onNewGame: () => {
       document.getElementById('victory-panel')?.remove();
       setBlockingOverlay(null);
@@ -3869,11 +3881,11 @@ function captureAIMoves(fn: () => void): AIMoveRecord[] {
 async function replayAIMoves(moves: AIMoveRecord[]): Promise<void> {
   if (roundPresentationGate.isSuppressed()) return;
   const visibleMoves = moves
-    .filter(move => move.viewerId === gameState.currentPlayer)
+    .filter(move => move.viewerId === session.getState().currentPlayer)
     .slice(0, 6);
   for (const { unit, visibleSegments } of visibleMoves) {
     for (const path of visibleSegments.filter(segment => segment.length >= 2)) {
-      if (roundPresentationGate.isSuppressed() || gameState.currentPlayer !== visibleMoves[0]?.viewerId) return;
+      if (roundPresentationGate.isSuppressed() || session.getState().currentPlayer !== visibleMoves[0]?.viewerId) return;
       await new Promise<void>(resolve => renderLoop.animateUnitMove(
         { ...unit, position: path[0]! },
         path,
@@ -3894,27 +3906,27 @@ function runCurrentCompletedRound(state: GameState) {
 }
 
 function emitCurrentPlayerAudioSnapshot(civId: string): void {
-  const civ = gameState.civilizations[civId];
-  const cities = Object.values(gameState.cities).filter(city => city.owner === civId);
+  const civ = session.getState().civilizations[civId];
+  const cities = Object.values(session.getState().cities).filter(city => city.owner === civId);
   bus.emit('currentPlayer:changed-after-handoff', {
     civId,
     civType: civ?.civType ?? civId,
-    era: gameState.era,
+    era: session.getState().era,
     atWarCount: civ?.diplomacy?.atWarWith?.length ?? 0,
     unrestCityCount: cities.filter(city => city.unrestLevel > 0).length,
     nearDefeat: civ?.nearDefeat ?? false,
-    inBeastTerritory: isCivUnitInBeastTerritory(gameState, civId),
+    inBeastTerritory: isCivUnitInBeastTerritory(session.getState(), civId),
   });
 }
 
 /** Opens due Exploit warnings only after the human viewer's identity has been confirmed. */
 function beginNetworkPlansForCurrentViewer(): void {
-  const viewerId = gameState.currentPlayer;
-  if (!gameState.civilizations[viewerId]?.isHuman) return;
-  const result = beginNetworkPlansForVictimTurn(gameState, viewerId);
-  gameState = result.state;
+  const viewerId = session.getState().currentPlayer;
+  if (!session.getState().civilizations[viewerId]?.isHuman) return;
+  const result = beginNetworkPlansForVictimTurn(session.getState(), viewerId);
+  session.setStateWithoutRefresh(result.state);
   for (const warning of result.warnings) {
-    const plan = Object.values(gameState.autonomyByCiv ?? {})
+    const plan = Object.values(session.getState().autonomyByCiv ?? {})
       .map(autonomy => autonomy.plans[warning.planId])
       .find(Boolean);
     if (plan?.target.kind !== 'city') continue;
@@ -3928,7 +3940,7 @@ function beginNetworkPlansForCurrentViewer(): void {
 
 function releaseHandoffToViewer(nextSlotId: string): void {
   centerOnCurrentPlayer();
-  renderLoop.setGameState(gameState);
+  renderLoop.setGameState(session.getState());
   updateHUD();
   scanBeastSightings();
   maybeShowPendingHoardChoice();
@@ -3950,7 +3962,7 @@ async function beginHotSeatHandoff(
   hotSeat: NonNullable<GameState['hotSeat']>,
   completesRound: boolean,
 ): Promise<void> {
-  const preSimulationState = gameState;
+  const preSimulationState = session.getState();
   const previousHumanId = preSimulationState.currentPlayer;
   let resolvedNextSlotId = completesRound
     ? null
@@ -3974,15 +3986,15 @@ async function beginHotSeatHandoff(
       onReady: async summary => {
         if (!resolvedNextSlotId) return;
         const acknowledgement = acknowledgeTurnHandoffSummary(
-          gameState,
+          session.getState(),
           resolvedNextSlotId,
           summary,
         );
-        gameState = acknowledgement.state;
+        session.setStateWithoutRefresh(acknowledgement.state);
         beginNetworkPlansForCurrentViewer();
         let acknowledgementFailed = false;
         try {
-          await autoSave(gameState);
+          await autoSave(session.getState());
         } catch {
           acknowledgementFailed = true;
         }
@@ -4007,8 +4019,8 @@ async function beginHotSeatHandoff(
 
   const persistIntermediateHandoff = async (): Promise<void> => {
     try {
-      await autoSave(gameState);
-      controller.setReady(gameState);
+      await autoSave(session.getState());
+      controller.setReady(session.getState());
     } catch {
       controller.setError(
         'The turn handoff could not be saved. Retry saving before opening the next turn.',
@@ -4022,15 +4034,15 @@ async function beginHotSeatHandoff(
 
   if (!completesRound) {
     if (!resolvedNextSlotId) {
-      gameState = resolveHotSeatPostSimulation(preSimulationState, previousHumanId).state;
+      session.setStateWithoutRefresh(resolveHotSeatPostSimulation(preSimulationState, previousHumanId).state);
       controller.remove();
       handleVictoryIfNeeded();
       return;
     }
-    gameState = applyPendingChallengeForCiv(
+    session.setStateWithoutRefresh(applyPendingChallengeForCiv(
       { ...preSimulationState, currentPlayer: resolvedNextSlotId },
       resolvedNextSlotId,
-    );
+    ));
     void persistIntermediateHandoff();
     return;
   }
@@ -4042,7 +4054,7 @@ async function beginHotSeatHandoff(
       resolveHotSeatPostSimulation(state, previousHumanId).state,
     eventTarget: bus,
     adoptState: state => {
-      gameState = state;
+      session.setStateWithoutRefresh(state);
     },
     persistState: autoSave,
     onCommitErrors: errors => {
@@ -4118,7 +4130,7 @@ async function beginHotSeatHandoff(
 }
 
 async function endTurn(options: { allowUnmovedUnits?: boolean } = {}): Promise<void> {
-  if (gameState.gameOver) return;
+  if (session.getState().gameOver) return;
   try {
     if (showReligionBoonIfNeeded()) {
       showNotification('Choose a boon for your religion before ending the turn.', 'info');
@@ -4137,19 +4149,19 @@ async function endTurn(options: { allowUnmovedUnits?: boolean } = {}): Promise<v
     SFX.endTurn();
     deselectUnit();
 
-    const hotSeat = gameState.hotSeat;
+    const hotSeat = session.getState().hotSeat;
 
     if (hotSeat) {
       await beginHotSeatHandoff(
         hotSeat,
-        isActiveHumanRoundComplete(gameState, gameState.currentPlayer),
+        isActiveHumanRoundComplete(session.getState(), session.getState().currentPlayer),
       );
     } else {
       // --- Solo Mode ---
-      const roundTurn = gameState.turn;
-      const result = runCurrentCompletedRound(gameState);
+      const roundTurn = session.getState().turn;
+      const result = runCurrentCompletedRound(session.getState());
       if (!result.ok) throw result.error;
-      gameState = result.state;
+      session.setStateWithoutRefresh(result.state);
       beginNetworkPlansForCurrentViewer();
       const soloMoves = captureAIMoves(() => {
         notificationDelivery.withHappenedTurn(roundTurn, () => {
@@ -4159,16 +4171,16 @@ async function endTurn(options: { allowUnmovedUnits?: boolean } = {}): Promise<v
 
       if (handleVictoryIfNeeded()) return;
 
-      renderLoop.setGameState(gameState);
+      renderLoop.setGameState(session.getState());
       await replayAIMoves(soloMoves);
       updateHUD();
       showRequiredChoicesIfNeeded();
 
-      showNotification(`Turn ${gameState.turn}`, 'info');
-      advisorSystem.check(gameState);
+      showNotification(`Turn ${session.getState().turn}`, 'info');
+      advisorSystem.check(session.getState());
 
-      await autoSave(gameState);
-      bus.emit('game:saved', { turn: gameState.turn });
+      await autoSave(session.getState());
+      bus.emit('game:saved', { turn: session.getState().turn });
     }
   } catch (err) {
     console.error('endTurn error:', err);
@@ -4177,7 +4189,7 @@ async function endTurn(options: { allowUnmovedUnits?: boolean } = {}): Promise<v
 }
 
 function centerOnCurrentPlayer(): void {
-  const units = Object.values(gameState.units).filter(u => u.owner === gameState.currentPlayer);
+  const units = Object.values(session.getState().units).filter(u => u.owner === session.getState().currentPlayer);
   if (units.length > 0) {
     renderLoop.camera.centerOn(units[0].position);
   }
@@ -4229,10 +4241,10 @@ function createPersistentChoiceNotification(message: string, actions: ChoiceActi
 }
 
 function showEspionageCaptureChoice(spyId: string, spyOwner: string): void {
-  const captorEsp = gameState.espionage?.[gameState.currentPlayer];
-  const spy = gameState.espionage?.[spyOwner]?.spies[spyId];
+  const captorEsp = session.getState().espionage?.[session.getState().currentPlayer];
+  const spy = session.getState().espionage?.[spyOwner]?.spies[spyId];
   if (!captorEsp || !spy) return;
-  const spyOwnerName = gameState.civilizations[spyOwner]?.name ?? spyOwner;
+  const spyOwnerName = session.getState().civilizations[spyOwner]?.name ?? spyOwner;
 
   // D1: always reveal true identity to captor regardless of disguise
   const captureMessage = `You have captured ${spy.name}, a ${spy.unitType} belonging to ${spyOwnerName}.`;
@@ -4245,57 +4257,57 @@ function showEspionageCaptureChoice(spyId: string, spyOwner: string): void {
     {
       label: `Expel (${relPenalty} relations)`,
       onClick: () => {
-        const updatedOwnerEsp = expelSpy(gameState.espionage![spyOwner], spyId, 15);
-        const capital = getCapitalCity(gameState, spyOwner);
+        const updatedOwnerEsp = expelSpy(session.getState().espionage![spyOwner], spyId, 15);
+        const capital = getCapitalCity(session.getState(), spyOwner);
         if (capital) {
-          const newUnit = createUnit(spy.unitType, spyOwner, capital.position, gameState.idCounters);
-          gameState = {
-            ...gameState,
-            units: { ...gameState.units, [newUnit.id]: newUnit },
+          const newUnit = createUnit(spy.unitType, spyOwner, capital.position, session.getState().idCounters);
+          session.setStateWithoutRefresh({
+            ...session.getState(),
+            units: { ...session.getState().units, [newUnit.id]: newUnit },
             civilizations: {
-              ...gameState.civilizations,
+              ...session.getState().civilizations,
               [spyOwner]: {
-                ...gameState.civilizations[spyOwner],
-                units: [...gameState.civilizations[spyOwner].units, newUnit.id],
+                ...session.getState().civilizations[spyOwner],
+                units: [...session.getState().civilizations[spyOwner].units, newUnit.id],
               },
             },
-          };
+          });
           const { [spyId]: _old, ...rest } = updatedOwnerEsp.spies;
-          gameState = {
-            ...gameState,
+          session.setStateWithoutRefresh({
+            ...session.getState(),
             espionage: {
-              ...gameState.espionage,
+              ...session.getState().espionage,
               [spyOwner]: {
                 ...updatedOwnerEsp,
                 spies: { ...rest, [newUnit.id]: { ...updatedOwnerEsp.spies[spyId]!, id: newUnit.id } },
               },
             },
-          };
+          });
         } else {
-          gameState = { ...gameState, espionage: { ...gameState.espionage, [spyOwner]: updatedOwnerEsp } };
+          session.setStateWithoutRefresh({ ...session.getState(), espionage: { ...session.getState().espionage, [spyOwner]: updatedOwnerEsp } });
         }
         // Bilateral: captor's view of spy owner AND spy owner's view of captor
-        const captorId = gameState.currentPlayer;
-        gameState = {
-          ...gameState,
+        const captorId = session.getState().currentPlayer;
+        session.setStateWithoutRefresh({
+          ...session.getState(),
           civilizations: {
-            ...gameState.civilizations,
+            ...session.getState().civilizations,
             [captorId]: {
-              ...gameState.civilizations[captorId],
+              ...session.getState().civilizations[captorId],
               diplomacy: modifyRelationship(
-                gameState.civilizations[captorId].diplomacy, spyOwner, relPenalty,
+                session.getState().civilizations[captorId].diplomacy, spyOwner, relPenalty,
               ),
             },
             [spyOwner]: {
-              ...gameState.civilizations[spyOwner],
+              ...session.getState().civilizations[spyOwner],
               diplomacy: modifyRelationship(
-                gameState.civilizations[spyOwner].diplomacy, captorId, relPenalty,
+                session.getState().civilizations[spyOwner].diplomacy, captorId, relPenalty,
               ),
             },
           },
-        };
+        });
         showNotification(`${spy.name} expelled. Will return to their capital after 15 turns.`, 'info');
-        renderLoop.setGameState(gameState);
+        renderLoop.setGameState(session.getState());
       },
     },
     {
@@ -4314,35 +4326,35 @@ function showEspionageCaptureChoice(spyId: string, spyOwner: string): void {
               label: 'Confirm Execute',
               danger: true,
               onClick: () => {
-                const captorId = gameState.currentPlayer;
-                gameState = {
-                  ...gameState,
+                const captorId = session.getState().currentPlayer;
+                session.setStateWithoutRefresh({
+                  ...session.getState(),
                   espionage: {
-                    ...gameState.espionage,
-                    [spyOwner]: executeSpy(gameState.espionage![spyOwner], spyId),
+                    ...session.getState().espionage,
+                    [spyOwner]: executeSpy(session.getState().espionage![spyOwner], spyId),
                   },
                   // Bilateral: captor's view AND spy owner's view
                   civilizations: {
-                    ...gameState.civilizations,
+                    ...session.getState().civilizations,
                     [captorId]: {
-                      ...gameState.civilizations[captorId],
+                      ...session.getState().civilizations[captorId],
                       diplomacy: modifyRelationship(
-                        gameState.civilizations[captorId].diplomacy, spyOwner, relPenalty * 2,
+                        session.getState().civilizations[captorId].diplomacy, spyOwner, relPenalty * 2,
                       ),
                     },
                     [spyOwner]: {
-                      ...gameState.civilizations[spyOwner],
+                      ...session.getState().civilizations[spyOwner],
                       diplomacy: modifyRelationship(
-                        gameState.civilizations[spyOwner].diplomacy, captorId, relPenalty * 2,
+                        session.getState().civilizations[spyOwner].diplomacy, captorId, relPenalty * 2,
                       ),
                     },
                   },
-                };
+                });
                 bus.emit('espionage:spy-executed', {
                   executingCivId: captorId, spyOwner, spyId, spyName: spy.name,
                 });
                 showNotification(`${spy.name} has been executed.`, 'warning');
-                renderLoop.setGameState(gameState);
+                renderLoop.setGameState(session.getState());
               },
             },
           ],
@@ -4352,12 +4364,12 @@ function showEspionageCaptureChoice(spyId: string, spyOwner: string): void {
     {
       label: 'Interrogate (4 turns)',
       onClick: () => {
-        const ownerEsp = gameState.espionage![spyOwner];
-        gameState = {
-          ...gameState,
+        const ownerEsp = session.getState().espionage![spyOwner];
+        session.setStateWithoutRefresh({
+          ...session.getState(),
           espionage: {
-            ...gameState.espionage,
-            [gameState.currentPlayer]: startInterrogation(captorEsp, spyId, spyOwner),
+            ...session.getState().espionage,
+            [session.getState().currentPlayer]: startInterrogation(captorEsp, spyId, spyOwner),
             // Set spy status to 'interrogated' on the spy owner's record
             [spyOwner]: {
               ...ownerEsp,
@@ -4367,9 +4379,9 @@ function showEspionageCaptureChoice(spyId: string, spyOwner: string): void {
               },
             },
           },
-        };
+        });
         showNotification(`${spy.name} is being interrogated. Check the Intel panel for results.`, 'info');
-        renderLoop.setGameState(gameState);
+        renderLoop.setGameState(session.getState());
       },
     },
   ]);
@@ -4381,24 +4393,24 @@ bus.on('tech:completed', ({ civId, techId }) => {
   if (techId === 'fishing') {
     appendToCivLog(civId, 'Fishing unlocked — build a Dock in your coastal cities to boost food and trade.', 'info');
   }
-  if (civId === gameState.currentPlayer) SFX.research();
+  if (civId === session.getState().currentPlayer) SFX.research();
 });
 
 bus.on('city:grew', ({ cityId, newPopulation }) => {
-  const city = gameState.cities[cityId];
+  const city = session.getState().cities[cityId];
   if (!city) return;
   appendToCivLog(city.owner, `${city.name} grew to ${newPopulation} population!`, 'success');
 });
 
 bus.on('city:maturity-upgraded', ({ cityId, current }) => {
-  const city = gameState.cities[cityId];
+  const city = session.getState().cities[cityId];
   if (!city) return;
   const label = `${current[0].toUpperCase()}${current.slice(1)}`;
   appendToCivLog(city.owner, `${city.name} became a ${label}. New city slots unlocked.`, 'success');
 });
 
 bus.on('city:building-complete', ({ cityId, buildingId }) => {
-  const city = gameState.cities[cityId];
+  const city = session.getState().cities[cityId];
   if (!city) return;
   const bldg = BUILDINGS[buildingId];
   const buildingName = bldg?.name ?? buildingId;
@@ -4409,7 +4421,7 @@ bus.on('city:building-complete', ({ cityId, buildingId }) => {
 });
 
 bus.on('city:national-project-expired', ({ civId, cityId, buildingId }) => {
-  const city = gameState.cities[cityId];
+  const city = session.getState().cities[cityId];
   const bldg = BUILDINGS[buildingId];
   if (!bldg || !city) return;
   const msg = document.createTextNode(
@@ -4419,11 +4431,11 @@ bus.on('city:national-project-expired', ({ civId, cityId, buildingId }) => {
   SFX.nationalProjectExpired();
 });
 
-bus.on('city:production-item-dropped', event => routeDroppedProductionItem(gameState, event, appendToCivLog));
+bus.on('city:production-item-dropped', event => routeDroppedProductionItem(session.getState(), event, appendToCivLog));
 
 bus.on('city:cyber-drained', ({ cityName, drainerOwner, goldLost, blocked, victimCivId }) => {
-  const drainerName = gameState.civilizations[drainerOwner]?.name ?? drainerOwner;
-  const victimName = gameState.civilizations[victimCivId]?.name ?? victimCivId;
+  const drainerName = session.getState().civilizations[drainerOwner]?.name ?? drainerOwner;
+  const victimName = session.getState().civilizations[victimCivId]?.name ?? victimCivId;
   if (blocked) {
     appendToCivLog(victimCivId, `Cyber Defense Center blocked an intrusion in ${cityName}.`, 'success');
     appendToCivLog(drainerOwner, `Cyber attack on ${cityName} was blocked by ${victimName}'s Cyber Defense Center.`, 'warning');
@@ -4434,8 +4446,8 @@ bus.on('city:cyber-drained', ({ cityName, drainerOwner, goldLost, blocked, victi
 });
 
 bus.on('network:exploit-warning', ({ planId, victimCivId, cityId }) => {
-  const warning = getNetworkWarningForViewer(gameState, victimCivId, planId);
-  const city = gameState.cities[cityId];
+  const warning = getNetworkWarningForViewer(session.getState(), victimCivId, planId);
+  const city = session.getState().cities[cityId];
   if (!warning || !city) return;
   const disclosure = warning.source?.unitId
     ? ' The source has been identified.'
@@ -4452,7 +4464,7 @@ bus.on('network:exploit-warning', ({ planId, victimCivId, cityId }) => {
 });
 
 bus.on('network:exploit-resolved', ({ cityId, ownerCivId, goldTransferred, delayed }) => {
-  const city = gameState.cities[cityId];
+  const city = session.getState().cities[cityId];
   if (!city) return;
   if (delayed) {
     appendToCivLog(city.owner, `${city.name}'s Cyber Defense Center delayed a network exploit.`, 'success');
@@ -4476,7 +4488,7 @@ bus.on('village:visited', ({ civId, outcome, message }) => {
   if (outcome === 'gold') advisorSystem.resetMessage('treasurer_village_gold');
   if (outcome === 'science') advisorSystem.resetMessage('scholar_village_science');
   if (outcome === 'free_tech') advisorSystem.resetMessage('scholar_village_tech');
-  advisorSystem.check(gameState);
+  advisorSystem.check(session.getState());
   appendToCivLog(civId, message, outcome === 'ambush' || outcome === 'illness' ? 'warning' : 'success');
 });
 
@@ -4488,7 +4500,7 @@ bus.on('wonder:discovered', event => {
     : `Found ${wonderDef.name}!`;
   appendToCivLog(event.civId, message, event.isFirstDiscoverer ? 'success' : 'info');
 
-  const revealItem = buildWonderDiscoveryRevealItem(gameState, gameState.currentPlayer, event);
+  const revealItem = buildWonderDiscoveryRevealItem(session.getState(), session.getState().currentPlayer, event);
   if (revealItem) {
     wonderDiscoveryQueue?.enqueue(revealItem);
     if (!deferWonderDiscoveryRevealUntilMoveSettles) {
@@ -4498,17 +4510,17 @@ bus.on('wonder:discovered', event => {
 });
 
 bus.on('wonder:legendary-ready', ({ civId, cityId, wonderId }) => {
-  routeLegendaryWonder(gameState, { type: 'wonder:legendary-ready', civId, cityId, wonderId }, appendToCivLog);
+  routeLegendaryWonder(session.getState(), { type: 'wonder:legendary-ready', civId, cityId, wonderId }, appendToCivLog);
 });
 
 bus.on('wonder:legendary-availability', event => {
-  routeLegendaryWonder(gameState, { type: 'wonder:legendary-availability', ...event }, appendToCivLog);
+  routeLegendaryWonder(session.getState(), { type: 'wonder:legendary-availability', ...event }, appendToCivLog);
 });
 
 bus.on('wonder:legendary-completed', ({ civId, cityId, wonderId, turnCompleted }) => {
   const event = { civId, cityId, wonderId, turnCompleted };
-  routeLegendaryWonder(gameState, { type: 'wonder:legendary-completed', ...event }, appendToCivLog);
-  const ceremonyItem = buildLegendaryWonderCompletionCeremonyItem(gameState, event);
+  routeLegendaryWonder(session.getState(), { type: 'wonder:legendary-completed', ...event }, appendToCivLog);
+  const ceremonyItem = buildLegendaryWonderCompletionCeremonyItem(session.getState(), event);
   if (ceremonyItem) {
     legendaryCompletionQueue?.enqueue(ceremonyItem);
     legendaryCompletionQueue?.notifyActionSettled();
@@ -4517,7 +4529,7 @@ bus.on('wonder:legendary-completed', ({ civId, cityId, wonderId, turnCompleted }
 
 bus.on('wonder:legendary-lost', ({ civId, cityId, wonderId, goldRefund, transferableProduction }) => {
   routeLegendaryWonder(
-    gameState,
+    session.getState(),
     { type: 'wonder:legendary-lost', civId, cityId, wonderId, goldRefund, transferableProduction },
     appendToCivLog,
   );
@@ -4525,18 +4537,18 @@ bus.on('wonder:legendary-lost', ({ civId, cityId, wonderId, goldRefund, transfer
 
 bus.on('wonder:legendary-race-revealed', ({ observerId, civId, cityId, wonderId }) => {
   routeLegendaryWonder(
-    gameState,
+    session.getState(),
     { type: 'wonder:legendary-race-revealed', observerId, civId, cityId, wonderId },
     appendToCivLog,
   );
 });
 
 bus.on('diplomacy:war-declared', ({ attackerId, defenderId }) => {
-  routeWarDeclared(gameState, attackerId, defenderId, appendToCivLog);
+  routeWarDeclared(session.getState(), attackerId, defenderId, appendToCivLog);
 });
 
 bus.on('diplomacy:treaty-proposed', event => {
-  routeTreatyProposed(gameState, event, appendToCivLog);
+  routeTreatyProposed(session.getState(), event, appendToCivLog);
 });
 
 bus.on('civilization:first-contact', ({ civA, civB }) => {
@@ -4544,7 +4556,7 @@ bus.on('civilization:first-contact', ({ civA, civB }) => {
   // queues to pendingEvents for a non-active hot-seat recipient -- the old
   // unconditional queueFirstContactPendingEvents call was a second, always-on
   // queue that leaked stale growth into solo saves (which never drain it).
-  routeFirstContact(gameState, civA, civB, appendToCivLog);
+  routeFirstContact(session.getState(), civA, civB, appendToCivLog);
 });
 
 bus.on('diplomacy:peace-requested', ({ fromCivId, toCivId }) => {
@@ -4552,11 +4564,11 @@ bus.on('diplomacy:peace-requested', ({ fromCivId, toCivId }) => {
   // (the delivery contract) -- the old extra showNotification here duplicated
   // the message AND leaked it to whoever currentPlayer was at emit time
   // instead of the actual recipient.
-  routePeaceRequested(gameState, fromCivId, toCivId, appendToCivLog);
+  routePeaceRequested(session.getState(), fromCivId, toCivId, appendToCivLog);
 });
 
 bus.on('diplomacy:peace-made', ({ civA, civB }) => {
-  routePeaceMade(gameState, civA, civB, appendToCivLog);
+  routePeaceMade(session.getState(), civA, civB, appendToCivLog);
 });
 
 // viewer-scoped by design: advisors run for the active player only (#551).
@@ -4569,7 +4581,7 @@ bus.on('advisor:message', ({ advisor, message, icon }) => {
 const notifiedBarbarianCampsPerCiv = new Map<string, Set<string>>();
 
 bus.on('combat:resolved', event => {
-  handleCombatResolvedEvent(gameState, event, {
+  handleCombatResolvedEvent(session.getState(), event, {
     isPresentationSuppressed: () => roundPresentationGate.isSuppressed(),
     applyVisual: result => renderLoop.applyCombatVisual(result),
     appendNotification: appendToCivLog,
@@ -4581,18 +4593,18 @@ bus.on('trade:route-delivered', ({ unitId }) => {
 });
 
 bus.on('combat:reward-earned', ({ reward }) => {
-  routeCombatRewardEarned(gameState, reward, appendToCivLog);
+  routeCombatRewardEarned(session.getState(), reward, appendToCivLog);
 });
 
 bus.on('territory:tile-flipped', event => {
-  routeTerritoryTileFlipped(gameState, { type: 'territory:tile-flipped', ...event }, appendToCivLog);
+  routeTerritoryTileFlipped(session.getState(), { type: 'territory:tile-flipped', ...event }, appendToCivLog);
 });
 
 bus.on('barbarian:spawned', ({ campId, unitId }) => {
-  const unit = gameState.units[unitId];
+  const unit = session.getState().units[unitId];
   if (!unit) return;
   routeBarbarianSpawned(
-    gameState,
+    session.getState(),
     unit.position,
     campId,
     notifiedBarbarianCampsPerCiv,
@@ -4610,15 +4622,15 @@ bus.on('threat:barbarian-resurgence', ({ civId, isBanditLord, banditLordName }) 
 });
 
 bus.on('barbarian:city-attacked', ({ cityId, hpLost }) => {
-  const city = gameState.cities[cityId];
+  const city = session.getState().cities[cityId];
   if (!city) return;
-  if (!gameState.civilizations[city.owner]?.isHuman) return;
+  if (!session.getState().civilizations[city.owner]?.isHuman) return;
   appendToCivLog(city.owner, `Barbarians attack ${city.name}! (−${hpLost} HP)`, 'warning');
 });
 
 bus.on('barbarian:city-destroyed', ({ cityId, ownerId }) => {
-  if (!gameState.civilizations[ownerId]?.isHuman) return;
-  const cityName = gameState.cities[cityId]?.name ?? 'A city';
+  if (!session.getState().civilizations[ownerId]?.isHuman) return;
+  const cityName = session.getState().cities[cityId]?.name ?? 'A city';
   appendToCivLog(ownerId, `${cityName} was destroyed by barbarian raiders!`, 'warning');
 });
 
@@ -4626,9 +4638,9 @@ bus.on('barbarian:city-destroyed', ({ cityId, ownerId }) => {
 // the barbarian (turn-manager.ts) and pirate (pirate-system.ts) counter-fire call
 // sites, since both emit this same shared event with their respective 'source' value.
 bus.on('city:counter-fire', ({ cityId, source, damage, attackerDied }) => {
-  const city = gameState.cities[cityId];
+  const city = session.getState().cities[cityId];
   if (!city) return;
-  if (!gameState.civilizations[city.owner]?.isHuman) return;
+  if (!session.getState().civilizations[city.owner]?.isHuman) return;
   const raiderLabel = source === 'barbarian' ? 'raider' : 'ship';
   const message = attackerDied
     ? `${city.name}'s defenses destroyed a ${source === 'barbarian' ? 'barbarian raider' : 'pirate ship'}!`
@@ -4638,8 +4650,8 @@ bus.on('city:counter-fire', ({ cityId, source, damage, attackerDied }) => {
 
 // Pirate-faction naval siege (#522) mirror of the barbarian handler above.
 bus.on('pirate:city-destroyed', ({ cityId, ownerId }) => {
-  if (!gameState.civilizations[ownerId]?.isHuman) return;
-  const cityName = gameState.cities[cityId]?.name ?? 'A coastal city';
+  if (!session.getState().civilizations[ownerId]?.isHuman) return;
+  const cityName = session.getState().cities[cityId]?.name ?? 'A coastal city';
   appendToCivLog(ownerId, `${cityName} was razed by pirates!`, 'warning');
 });
 
@@ -4648,9 +4660,9 @@ bus.on('pirate:city-destroyed', ({ cityId, ownerId }) => {
 // barbarians (turn-manager.ts) and pirates (pirate-system.ts, #522) route through
 // this shared event with their respective 'source' value.
 bus.on('city:sacked', ({ cityId, source, goldLost }) => {
-  const city = gameState.cities[cityId];
+  const city = session.getState().cities[cityId];
   if (!city) return;
-  if (!gameState.civilizations[city.owner]?.isHuman) return;
+  if (!session.getState().civilizations[city.owner]?.isHuman) return;
   const raiders = source === 'barbarian' ? 'Barbarian raiders' : 'Pirates';
   appendToCivLog(
     city.owner,
@@ -4661,7 +4673,7 @@ bus.on('city:sacked', ({ cityId, source, goldLost }) => {
 
 bus.on('beast:awakened', ({ beastId, position }) => {
   const def = BEAST_DEFINITIONS[beastId];
-  for (const [civId, civ] of Object.entries(gameState.civilizations)) {
+  for (const [civId, civ] of Object.entries(session.getState().civilizations)) {
     if (!civ.visibility || getVisibility(civ.visibility, position) === 'unexplored') continue;
     appendToCivLog(civId, def.awakeningFlavor, 'warning', { kind: 'map', coord: position, label: `${def.name} lair` });
   }
@@ -4669,10 +4681,10 @@ bus.on('beast:awakened', ({ beastId, position }) => {
 
 bus.on('beast:slain', ({ beastId, lairId, slayerCivId, goldAwarded }) => {
   const def = BEAST_DEFINITIONS[beastId];
-  const slayerName = gameState.civilizations[slayerCivId]?.name ?? slayerCivId;
+  const slayerName = session.getState().civilizations[slayerCivId]?.name ?? slayerCivId;
   const isApex = def.tier >= 4;
   const isChoiceTier = def.tier >= 2 && !isApex;
-  for (const civId of Object.keys(gameState.civilizations)) {
+  for (const civId of Object.keys(session.getState().civilizations)) {
     const slayerMsg = isApex
       ? `Your forces have slain the ${def.name}! The apex hoard is yours — gold, lore, trophy, and legend.`
       : isChoiceTier
@@ -4681,7 +4693,7 @@ bus.on('beast:slain', ({ beastId, lairId, slayerCivId, goldAwarded }) => {
     const message = civId === slayerCivId ? slayerMsg : `${slayerName} has slain the ${def.name}!`;
     appendToCivLog(civId, message, civId === slayerCivId ? 'success' : 'info');
   }
-  if (slayerCivId === gameState.currentPlayer) {
+  if (slayerCivId === session.getState().currentPlayer) {
     if (def.tier >= 3) {
       let rewardLines: string[];
       if (isApex) {
@@ -4693,7 +4705,7 @@ bus.on('beast:slain', ({ beastId, lairId, slayerCivId, goldAwarded }) => {
           'Your hero is now Legendary',
         ];
       } else {
-        const preview = getHoardChoicePreview(gameState, lairId);
+        const preview = getHoardChoicePreview(session.getState(), lairId);
         rewardLines = [
           'Choose one reward:',
           `Gold: +${preview.gold}`,
@@ -4728,10 +4740,11 @@ bus.on('beast:hoard-claimed', ({ beastId, civId, choice }) => {
 
 bus.on('beast:sighted', ({ beastId, civId }) => {
   const def = BEAST_DEFINITIONS[beastId];
-  const lair = gameState.beasts ? Object.values(gameState.beasts.lairs).find(l => l.beastId === beastId) : undefined;
+  const beasts = session.getState().beasts;
+  const lair = beasts ? Object.values(beasts.lairs).find(l => l.beastId === beastId) : undefined;
   const target = lair ? { kind: 'map' as const, coord: lair.position, label: def.name } : undefined;
   appendToCivLog(civId, def.sightingFlavor, 'info', target);
-  if (civId === gameState.currentPlayer) {
+  if (civId === session.getState().currentPlayer) {
     showBeastSightingBanner(uiLayer, {
       name: def.name,
       flavor: def.sightingFlavor,
@@ -4742,7 +4755,7 @@ bus.on('beast:sighted', ({ beastId, civId }) => {
   }
 });
 
-registerMinorCivNotificationListeners(bus, () => gameState, { appendToCivLog });
+registerMinorCivNotificationListeners(bus, () => session.getState(), { appendToCivLog });
 
 bus.on('ai:strategic-warning', event => {
   // #551: appendToCivLog (the delivery contract) already queues to
@@ -4760,102 +4773,102 @@ function appendFactionNotice(civId: string, message: string, type: NotificationE
 }
 
 bus.on('era:advanced', ({ era }) => {
-  const humanCivIds = Object.entries(gameState.civilizations)
+  const humanCivIds = Object.entries(session.getState().civilizations)
     .filter(([, civ]) => civ.isHuman)
     .map(([civId]) => civId);
   routeEraAdvanced(era, humanCivIds, appendToCivLog);
 });
 
 bus.on('civilization:era-advanced', ({ civId, era }) => {
-  const civ = gameState.civilizations[civId];
+  const civ = session.getState().civilizations[civId];
   if (!civ?.isHuman) return;
   appendToCivLog(civId, `${civ.name} has entered Era ${era}. Your technology now sets your civilization's era.`, 'success');
-  if (civId === gameState.currentPlayer) SFX.notification();
+  if (civId === session.getState().currentPlayer) SFX.notification();
 });
 
 bus.on('faction:unrest-started', event => {
-  routeFactionTransition(gameState, { type: 'faction:unrest-started', ...event }, appendFactionNotice);
+  routeFactionTransition(session.getState(), { type: 'faction:unrest-started', ...event }, appendFactionNotice);
 });
 
 bus.on('faction:revolt-started', event => {
-  routeFactionTransition(gameState, { type: 'faction:revolt-started', ...event }, appendFactionNotice);
+  routeFactionTransition(session.getState(), { type: 'faction:revolt-started', ...event }, appendFactionNotice);
 });
 
 bus.on('faction:unrest-resolved', event => {
-  routeFactionTransition(gameState, { type: 'faction:unrest-resolved', ...event }, appendFactionNotice);
+  routeFactionTransition(session.getState(), { type: 'faction:unrest-resolved', ...event }, appendFactionNotice);
 });
 
 bus.on('faction:concession-made', event => {
-  routeFactionTransition(gameState, { type: 'faction:concession-made', ...event }, appendFactionNotice);
+  routeFactionTransition(session.getState(), { type: 'faction:concession-made', ...event }, appendFactionNotice);
 });
 
 bus.on('faction:breakaway-started', event => {
-  routeFactionTransition(gameState, { type: 'faction:breakaway-started', ...event }, appendFactionNotice);
+  routeFactionTransition(session.getState(), { type: 'faction:breakaway-started', ...event }, appendFactionNotice);
 });
 
 bus.on('faction:breakaway-established', event => {
-  routeFactionTransition(gameState, { type: 'faction:breakaway-established', ...event }, appendFactionNotice);
+  routeFactionTransition(session.getState(), { type: 'faction:breakaway-established', ...event }, appendFactionNotice);
 });
 
 bus.on('faction:critical-status', event => {
-  routeFactionTransition(gameState, { type: 'faction:critical-status', ...event }, appendFactionNotice);
+  routeFactionTransition(session.getState(), { type: 'faction:critical-status', ...event }, appendFactionNotice);
 });
 
 bus.on('crisis:started', event => {
-  routeCrisisStarted(gameState, event, appendToCivLog);
-  routeWorldPressureCrisisStarted(gameState, event, appendToCivLog);
+  routeCrisisStarted(session.getState(), event, appendToCivLog);
+  routeWorldPressureCrisisStarted(session.getState(), event, appendToCivLog);
 });
 
 bus.on('religion:founded', event => {
-  routeReligionFounded(gameState, event, appendToCivLog);
+  routeReligionFounded(session.getState(), event, appendToCivLog);
 });
 
 bus.on('religion:city-converted', event => {
-  routeReligionCityConverted(gameState, event, appendToCivLog);
+  routeReligionCityConverted(session.getState(), event, appendToCivLog);
 });
 
 bus.on('religion:loyalty-warning', event => {
-  routeLoyaltyWarning(gameState, event, appendToCivLog);
+  routeLoyaltyWarning(session.getState(), event, appendToCivLog);
 });
 
 bus.on('religion:city-defected', event => {
-  routeCityDefected(gameState, event, appendToCivLog);
+  routeCityDefected(session.getState(), event, appendToCivLog);
 });
 
 bus.on('crisis:spread', event => {
-  routeCrisisSpread(gameState, event, appendToCivLog);
+  routeCrisisSpread(session.getState(), event, appendToCivLog);
 });
 
 bus.on('crisis:escalated', event => {
-  routeCrisisEscalated(gameState, event, appendToCivLog);
+  routeCrisisEscalated(session.getState(), event, appendToCivLog);
 });
 
 bus.on('crisis:resolved', event => {
-  routeCrisisResolved(gameState, event, appendToCivLog);
-  routeWorldPressureCrisisResolved(gameState, event, appendToCivLog);
+  routeCrisisResolved(session.getState(), event, appendToCivLog);
+  routeWorldPressureCrisisResolved(session.getState(), event, appendToCivLog);
 });
 
 bus.on('crisis:foe-hunted-by-ally', event => {
-  routeCrisisFoeHuntedByAlly(gameState, event, appendToCivLog);
+  routeCrisisFoeHuntedByAlly(session.getState(), event, appendToCivLog);
 });
 
 bus.on('crisis:aid-sent', event => {
-  routeCrisisAidSent(gameState, event, appendToCivLog);
+  routeCrisisAidSent(session.getState(), event, appendToCivLog);
 });
 
 bus.on('diplomacy:opportunistic-war', event => {
-  routeOpportunisticWar(gameState, event, appendToCivLog);
+  routeOpportunisticWar(session.getState(), event, appendToCivLog);
 });
 
 bus.on('espionage:sabotage-relief-discovered', event => {
-  routeSabotageReliefDiscovered(gameState, event, appendToCivLog);
+  routeSabotageReliefDiscovered(session.getState(), event, appendToCivLog);
 });
 
 bus.on('economy:treasury-strain', event => {
   // #551: routeEconomyTreasuryStrain already delivers to event.civId via the
   // delivery contract; the old extra showNotification duplicated the message
   // and leaked it to whoever currentPlayer was at emit time.
-  routeEconomyTreasuryStrain(gameState, event, appendToCivLog);
+  routeEconomyTreasuryStrain(session.getState(), event, appendToCivLog);
 });
 
 bus.on('espionage:spy-detected-traveling', ({ detectingCivId, spyOwner, wasDisguised, position }) => {
@@ -4868,28 +4881,28 @@ bus.on('espionage:spy-detected-traveling', ({ detectingCivId, spyOwner, wasDisgu
 });
 
 bus.on('espionage:spy-caught-infiltrating', ({ capturingCivId, spyOwner, spyId, cityId }) => {
-  const spy = gameState.espionage?.[spyOwner]?.spies[spyId];
-  const city = gameState.cities[cityId];
-  const captor = gameState.civilizations[capturingCivId]?.name ?? capturingCivId;
+  const spy = session.getState().espionage?.[spyOwner]?.spies[spyId];
+  const city = session.getState().cities[cityId];
+  const captor = session.getState().civilizations[capturingCivId]?.name ?? capturingCivId;
   appendToCivLog(
     spyOwner,
     `${spy?.name ?? 'Your spy'} was caught by ${captor} trying to infiltrate ${city?.name ?? 'an enemy city'}!`,
     'warning',
   );
   // Captor side: show verdict choice only when the human captor is currently active
-  if (capturingCivId === gameState.currentPlayer) {
+  if (capturingCivId === session.getState().currentPlayer) {
     showEspionageCaptureChoice(spyId, spyOwner);
   }
 });
 
 // Show verdict choice when human player captures a spy during a mission
 bus.on('espionage:spy-captured', ({ capturingCivId, spyOwner, spyId }) => {
-  if (capturingCivId === gameState.currentPlayer) {
+  if (capturingCivId === session.getState().currentPlayer) {
     showEspionageCaptureChoice(spyId, spyOwner);
   }
   // Spy owner always gets a log entry, regardless of who is "current"
-  const spy = gameState.espionage?.[spyOwner]?.spies[spyId];
-  const captorName = gameState.civilizations[capturingCivId]?.name ?? capturingCivId;
+  const spy = session.getState().espionage?.[spyOwner]?.spies[spyId];
+  const captorName = session.getState().civilizations[capturingCivId]?.name ?? capturingCivId;
   appendToCivLog(spyOwner, `${spy?.name ?? 'Your spy'} was captured by ${captorName}!`, 'warning');
 });
 
@@ -4897,7 +4910,7 @@ bus.on('espionage:spy-captured', ({ capturingCivId, spyOwner, spyId }) => {
 bus.on('espionage:spy-executed', ({ executingCivId, spyOwner, spyName }) => {
   appendToCivLog(
     spyOwner,
-    `${spyName} was executed by ${gameState.civilizations[executingCivId]?.name ?? 'an enemy'}.`,
+    `${spyName} was executed by ${session.getState().civilizations[executingCivId]?.name ?? 'an enemy'}.`,
     'warning',
   );
 });
@@ -4912,7 +4925,7 @@ bus.on('unit:journey-blocked', ({ unitId, position }) => {
   // happens to be at emit time -- the old showNotification call leaked this
   // to the wrong hot-seat player. Skip entirely if the unit is gone rather
   // than falling back to currentPlayer.
-  const unit = gameState.units[unitId];
+  const unit = session.getState().units[unitId];
   if (!unit) return;
   const type = UNIT_DEFINITIONS[unit.type]?.name ?? unit.type;
   const msg = `Your ${type} was blocked and stopped at (${position.q}, ${position.r}).`;
@@ -4924,25 +4937,25 @@ bus.on('espionage:spy-expired', ({ civId, spyName, unitType }) => {
 });
 
 bus.on('espionage:spy-auto-exfiltrated', ({ civId, cityId }) => {
-  const city = gameState.cities[cityId];
+  const city = session.getState().cities[cityId];
   appendToCivLog(civId, `Your spy was auto-exfiltrated from ${city?.name ?? 'a city'} after it changed hands.`, 'info');
 });
 
 bus.on('espionage:city-flipped', event => {
-  routeCityFlipped(gameState, event, appendToCivLog);
+  routeCityFlipped(session.getState(), event, appendToCivLog);
 });
 
 bus.on('trade:route-created', ({ route }) => {
-  const ownerCity = gameState.cities[route.fromCityId];
-  const toCity = gameState.cities[route.toCityId];
+  const ownerCity = session.getState().cities[route.fromCityId];
+  const toCity = session.getState().cities[route.toCityId];
   if (!ownerCity) return;
-  const goldPerTurn = getEffectiveGoldPerTurn(route, getRouteTechGoldBonus(gameState, route));
+  const goldPerTurn = getEffectiveGoldPerTurn(route, getRouteTechGoldBonus(session.getState(), route));
   appendToCivLog(ownerCity.owner, `Trade route to ${toCity?.name ?? route.toCityId} established (+${goldPerTurn} gold/turn)`, 'success');
 });
 
 bus.on('trade:route-ended', ({ fromCityId, toCityId, reason }) => {
-  const ownerCity = gameState.cities[fromCityId];
-  const toCity = gameState.cities[toCityId];
+  const ownerCity = session.getState().cities[fromCityId];
+  const toCity = session.getState().cities[toCityId];
   if (!ownerCity) return;
   const reasonText: Record<string, string> = {
     'unit-died': 'caravan destroyed',
@@ -4955,7 +4968,7 @@ bus.on('trade:route-ended', ({ fromCityId, toCityId, reason }) => {
   };
   appendToCivLog(ownerCity.owner, `Trade route to ${toCity?.name ?? toCityId} ended: ${reasonText[reason] ?? reason}`, 'warning');
   // Also tell the other end of the route, if it's a different human civ (#551).
-  if (toCity && toCity.owner !== ownerCity.owner && gameState.civilizations[toCity.owner]?.isHuman) {
+  if (toCity && toCity.owner !== ownerCity.owner && session.getState().civilizations[toCity.owner]?.isHuman) {
     appendToCivLog(toCity.owner, `Trade route from ${ownerCity.name} ended: ${reasonText[reason] ?? reason}`, 'warning');
   }
 });
@@ -4972,9 +4985,9 @@ async function init(): Promise<void> {
     // Browser tests must target the same live camera transform as player input;
     // exposing only viewport copies keeps game state and camera internals private.
     window.__CONQUESTORIA_E2E_GET_VISIBLE_HEX_COPIES__ = coord => getVisibleHexViewportCopies(
-      gameState,
+      session.getState(),
       renderLoop.camera,
-      gameState.currentPlayer,
+      session.getState().currentPlayer,
       coord,
     );
     const { isExactAutosaveE2ERequest } = await import('@/testing/e2e-mode');
@@ -4984,15 +4997,15 @@ async function init(): Promise<void> {
         loadAutosave: loadMostRecentAutoSaveEntry,
         enterSoloCampaign: state => enterCampaignForE2E(state),
         getVisibleHexCopies: coord => getVisibleHexViewportCopies(
-          gameState,
+          session.getState(),
           renderLoop.camera,
-          gameState.currentPlayer,
+          session.getState().currentPlayer,
           coord,
         ),
         getCityBadgeSlots: (cityId, slot) => getVisibleCityBadgeSlots(
-          gameState,
+          session.getState(),
           renderLoop.camera,
-          gameState.currentPlayer,
+          session.getState().currentPlayer,
           cityId,
           slot,
         ),
@@ -5010,13 +5023,13 @@ function enterCampaign(
   persistBeforeReady: boolean = false,
 ): Promise<void> | null {
   document.getElementById('save-panel')?.remove();
-  gameState = applyPersistedUserSettings(state, persistedSettings);
-  if (gameState.gameOver) {
+  session.setStateWithoutRefresh(applyPersistedUserSettings(state, persistedSettings));
+  if (session.getState().gameOver) {
     const spritesReady = startGame();
     handleVictoryIfNeeded();
     return spritesReady;
   }
-  if (!gameState.hotSeat) {
+  if (!session.getState().hotSeat) {
     const spritesReady = startGame();
     showNotification(message, 'info');
     return spritesReady;
@@ -5024,27 +5037,27 @@ function enterCampaign(
 
   audio.setMasterVolume(0);
   closeNetworkPanelsForHandoff();
-  const player = gameState.hotSeat.players.find(candidate => candidate.slotId === gameState.currentPlayer);
+  const player = session.getState().hotSeat?.players.find(candidate => candidate.slotId === session.getState().currentPlayer);
   setBlockingOverlay('turn-handoff');
   roundPresentationGate.suppress();
   const controller = showTurnHandoff(
     uiLayer,
-    gameState,
-    gameState.currentPlayer,
+    session.getState(),
+    session.getState().currentPlayer,
     player?.name ?? 'Player',
     {
       initiallyReady: !persistBeforeReady,
       preparingLabel: 'Saving campaign…',
       onReady: async summary => {
-        const viewerId = gameState.currentPlayer;
+        const viewerId = session.getState().currentPlayer;
         const acknowledgement = acknowledgeTurnHandoffSummary(
-          gameState,
+          session.getState(),
           viewerId,
           summary,
         );
-        gameState = acknowledgement.state;
+        session.setStateWithoutRefresh(acknowledgement.state);
         try {
-          await autoSave(gameState);
+          await autoSave(session.getState());
         } catch {
           // Entry persistence already succeeded; acknowledgement may safely retry later.
         }
@@ -5066,8 +5079,8 @@ function enterCampaign(
   if (!persistBeforeReady) return null;
   const persist = async (): Promise<void> => {
     try {
-      await autoSave(gameState);
-      controller.setReady(gameState);
+      await autoSave(session.getState());
+      controller.setReady(session.getState());
     } catch {
       controller.setError(
         'The campaign could not be saved. Retry before opening the first turn.',
@@ -5166,7 +5179,7 @@ function showGameModeSelection(): void {
       showCampaignSetup(uiLayer, {
         initialTitle: title,
         onStartSolo: (config) => {
-          gameState = createNewGame({
+          session.setStateWithoutRefresh(createNewGame({
             civType: config.civType,
             mapSize: config.mapSize,
             opponentCount: config.opponentCount,
@@ -5178,9 +5191,9 @@ function showGameModeSelection(): void {
             mapScript: config.mapScript,
             startPlacementMode: config.startPlacementMode,
             opponentChallenge: config.opponentChallenge,
-          });
+          }));
           if (persistedSettings?.councilTalkLevel) {
-            gameState.settings.councilTalkLevel = persistedSettings.councilTalkLevel;
+            session.getState().settings.councilTalkLevel = persistedSettings.councilTalkLevel;
           }
           startGame();
         },
@@ -5198,12 +5211,12 @@ function showGameModeSelection(): void {
       modePanel.remove();
       showHotSeatSetup(uiLayer, {
         onComplete: (config, opponentChallenge) => {
-          gameState = createHotSeatGame(config, undefined, title, opponentChallenge ?? 'standard');
+          session.setStateWithoutRefresh(createHotSeatGame(config, undefined, title, opponentChallenge ?? 'standard'));
           if (persistedSettings?.councilTalkLevel) {
-            gameState.settings.councilTalkLevel = persistedSettings.councilTalkLevel;
+            session.getState().settings.councilTalkLevel = persistedSettings.councilTalkLevel;
           }
           enterCampaign(
-            gameState,
+            session.getState(),
             `Hot seat game started! ${config.players.filter(p => p.isHuman).length} players`,
             true,
           );
@@ -5230,7 +5243,7 @@ function startGame(): Promise<void> {
 
   // Warm sprite cache non-blocking — renderers fall back to emoji while loading
   const civColors: Record<string, string> = {};
-  for (const [civId, civ] of Object.entries(gameState.civilizations)) {
+  for (const [civId, civ] of Object.entries(session.getState().civilizations)) {
     civColors[civId] = civ.color;
   }
   const spritesReady = initSprites(civColors);
@@ -5245,13 +5258,13 @@ function startGame(): Promise<void> {
   // Center camera on current player's starting position
   centerOnCurrentPlayer();
 
-  renderLoop.setGameState(gameState);
+  renderLoop.setGameState(session.getState());
   updateHUD();
   maybeShowCouncilInterrupt();
   maybeShowPendingHoardChoice();
 
   // Auto-save immediately so closing before turn 1 doesn't lose the game
-  autoSave(gameState).catch(() => {});
+  autoSave(session.getState()).catch(() => {});
 
   // Input (only set up once)
   if (!inputInitialized) {
@@ -5273,27 +5286,27 @@ function startGame(): Promise<void> {
       getSelectedUnitId: () => selectedUnitId,
       onCenterUnit: () => {
         if (!selectedUnitId) return;
-        const unit = gameState.units[selectedUnitId];
+        const unit = session.getState().units[selectedUnitId];
         if (unit) renderLoop.camera.centerOn(unit.position);
       },
       onFortify: () => {
         if (!selectedUnitId) return;
-        const unit = gameState.units[selectedUnitId];
-        if (!unit || unit.hasActed || unit.owner !== gameState.currentPlayer) return;
+        const unit = session.getState().units[selectedUnitId];
+        if (!unit || unit.hasActed || unit.owner !== session.getState().currentPlayer) return;
         if (unit.isFortified) {
-          gameState = unfortifyUnitInState(gameState, gameState.currentPlayer, selectedUnitId);
+          session.setStateWithoutRefresh(unfortifyUnitInState(session.getState(), session.getState().currentPlayer, selectedUnitId));
           showNotification('Unit unfortified.', 'info');
         } else {
-          gameState = fortifyUnitInState(gameState, gameState.currentPlayer, selectedUnitId);
+          session.setStateWithoutRefresh(fortifyUnitInState(session.getState(), session.getState().currentPlayer, selectedUnitId));
           showNotification('Unit fortified. +25% defense until unfortified or moved.', 'info');
         }
-        renderLoop.setGameState(gameState);
+        renderLoop.setGameState(session.getState());
         updateHUD();
         selectUnit(selectedUnitId);
       },
       onSettle: () => {
         if (!selectedUnitId) return;
-        const unit = gameState.units[selectedUnitId];
+        const unit = session.getState().units[selectedUnitId];
         if (!unit || unit.type !== 'settler') return;
         foundCityAction();
       },
@@ -5310,24 +5323,24 @@ function startGame(): Promise<void> {
   }
 
   audio.start(
-    gameState,
+    session.getState(),
     bus,
-    () => gameState,
+    () => session.getState(),
     () => roundPresentationGate.isSuppressed(),
   );
   audio.setMasterVolume(currentMasterVolume);
   routeSfxThrough(audio.getSfxRoutingNode());
-  emitCurrentPlayerAudioSnapshot(gameState.currentPlayer);
+  emitCurrentPlayerAudioSnapshot(session.getState().currentPlayer);
 
   // Prevent zoom-out duplication: ensure the camera cannot zoom past one full
   // map-width. hexToPixel({q: width, r:0}).x equals the wrapSpan used in
   // wrap-rendering.ts, so minZoom = camera.width / wrapSpan guarantees the
   // visible world is never wider than one map copy.
-  const mapWidthPx = hexToPixel({ q: gameState.map.width, r: 0 }, renderLoop.camera.hexSize).x;
+  const mapWidthPx = hexToPixel({ q: session.getState().map.width, r: 0 }, renderLoop.camera.hexSize).x;
   renderLoop.camera.setMinZoomForMap(mapWidthPx);
 
   // Initial advisor check
-  advisorSystem.check(gameState);
+  advisorSystem.check(session.getState());
   showRequiredChoicesIfNeeded();
 
   // Start render loop
