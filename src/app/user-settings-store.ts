@@ -13,7 +13,7 @@ export interface UserSettingsStore {
 }
 
 export interface UserSettingsStoreDeps {
-  load: () => Promise<Settings | undefined>;
+  readonly load: () => Promise<Settings | undefined>;
 }
 
 /**
