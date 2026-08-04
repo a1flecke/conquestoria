@@ -116,7 +116,9 @@ describe('land-unit water recovery wiring', () => {
 
     expect(selectFlow).toContain('waterRecovery: highlightResult.waterRecovery');
     expect(tapFlow).toContain('handleSelectedUnitMovementBlocker(');
-    expect(tapFlow).toContain('selectedUnitWaterRecovery');
+    // Phase 3 (#787) moved the water-recovery binding into SelectionStore; the
+    // tap flow now reads it from the store instead of a module-scope `let`.
+    expect(tapFlow).toContain('selection.getWaterRecovery()');
     expect(tapFlow).not.toContain('getLandUnitWaterRecovery(');
     expect(tapFlow).toContain('reselectUnit: unitId => selectUnit(unitId, { suppressSelectionSfx: true })');
     expect(tapFlow).toContain('playError: SFX.error');

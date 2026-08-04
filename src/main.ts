@@ -54,10 +54,6 @@ import { canUnitAttackTarget } from '@/systems/attack-targeting';
 import { getAirBaseCapacity, getAirBaseRoster, getInterceptCoverage, getLegalAirMissionTargets, getLegalRebaseDestinations, rebaseAircraft, resolveAirStrike, resolveReconMission, startIntercept } from '@/systems/air-operations-system';
 import { buildSelectedUnitHighlights } from '@/input/selected-unit-highlights';
 import { handleSelectedUnitMovementBlocker } from '@/input/selected-unit-movement-feedback';
-import {
-  NO_LAND_UNIT_WATER_RECOVERY,
-  type LandUnitWaterRecovery,
-} from '@/systems/unit-water-recovery';
 import { applyCombatOutcomeToState, getCaptureNotificationLabel } from '@/systems/combat-reward-system';
 import { recordCombatForCiv } from '@/systems/threat-pressure-system';
 import { applyWorkerAction } from '@/systems/worker-action-system';
@@ -168,7 +164,6 @@ import { createIconLegendOverlay } from '@/ui/icon-legend';
 import { showVictoryPanel } from '@/ui/victory-panel';
 import { buildUnitOccupancy, hasHostileUnitAtCoord } from '@/systems/unit-occupancy';
 import {
-  type PendingCityCaptureChoice,
   beginPlayerCityAssaultChoice,
   finalizePlayerCityAssaultChoice,
   shouldPromptForPlayerCityCapture,
@@ -226,7 +221,7 @@ import {
   loadUnitOntoTransport,
   unloadUnitFromTransport,
 } from '@/systems/transport-system';
-import { getPendingUnload, getUnloadRange, setPendingUnload, clearPendingUnload } from '@/ui/transport-ui-state';
+import { createSelectionStore } from '@/app/selection-store';
 import { getCapitalCity, getCapitalCityId } from '@/systems/capital-system';
 import type { CombatResult, GameState, HexCoord, ImprovementType, Unit, UnitType, DiplomaticAction, CivBonusEffect, WorkerActionType, TreatyType } from '@/core/types';
 import {
@@ -316,30 +311,29 @@ import { createGameSession } from '@/app/game-session';
  * `if (session.getState())` guards keep their current meaning.
  */
 const session: GameSession = createGameSession(undefined as unknown as GameState);
+/**
+ * Owns the selected unit, its highlight ranges, the pirate-panel focus, and the
+ * pending-map-intent union that replaced four independent nullable flags.
+ */
+const selection = createSelectionStore();
 let drawer: TreasuryDrawer;
-let selectedUnitId: string | null = null;
-let selectedUnitWaterRecovery: LandUnitWaterRecovery = NO_LAND_UNIT_WATER_RECOVERY;
-let selectedPirateFactionId: string | null = null;
-let selectedPirateHistoryId: string | null = null;
-let movementRange: HexCoord[] = [];
-let attackRange: HexCoord[] = [];
-// Tracks whether the "tap a highlighted tile or cancel" notification has been shown
-// for the current pendingUnload session — resets when clearUnloadState() is called.
-let _mistapNotified = false;
-let currentCityIndex = 0;
 let inputInitialized = false;
 let councilPanelOpen = false;
 let persistedSettings: GameState['settings'] | undefined;
 let pacingDebugOpen = false;
-let pendingCityCaptureChoice: PendingCityCaptureChoice | null = null;
-let pendingJourneyUnitId: string | null = null;
-let pendingAirMission: { unitId: string; mission: 'strike' | 'recon' } | null = null;
 let deferWonderDiscoveryRevealUntilMoveSettles = false;
 
-/** Clears pendingUnload state and resets the mis-tap notification guard. */
+/**
+ * Cancels a pending unload, and only a pending unload.
+ *
+ * Deliberately narrower than `selection.setPendingIntent({ kind: 'none' })`:
+ * the call sites below fire on selection and movement changes that must not
+ * cancel a pending air mission, journey, or city-capture choice.
+ */
 function clearUnloadState(): void {
-  clearPendingUnload();
-  _mistapNotified = false;
+  if (selection.getPendingIntent().kind === 'unload') {
+    selection.setPendingIntent({ kind: 'none' });
+  }
 }
 
 function mergePersistedSettings(loadedSettings?: GameState['settings']): GameState['settings'] {
@@ -448,8 +442,8 @@ function setMapViewportBottomInset(height: number): void {
 }
 
 window.addEventListener('keydown', event => {
-  if (event.key === 'Escape' && pendingJourneyUnitId) {
-    pendingJourneyUnitId = null;
+  if (event.key === 'Escape' && selection.getPendingIntent().kind === 'journey') {
+    selection.setPendingIntent({ kind: 'none' });
     showNotification('Journey cancelled.', 'info');
     return;
   }
@@ -804,18 +798,17 @@ function applyPirateActionResult(result: PirateActionResult, successMessage: str
   showNotification(successMessage, 'success');
 }
 
-function openPirateWaters(selection?: { factionId?: string; historyId?: string }): void {
-  if (selection?.factionId) {
-    selectedPirateFactionId = selection.factionId;
-    selectedPirateHistoryId = null;
-  } else if (selection?.historyId) {
-    selectedPirateHistoryId = selection.historyId;
-    selectedPirateFactionId = null;
+function openPirateWaters(focus?: { factionId?: string; historyId?: string }): void {
+  if (focus?.factionId) {
+    selection.setPirateSelection(focus.factionId, null);
+  } else if (focus?.historyId) {
+    selection.setPirateSelection(null, focus.historyId);
   }
 
   const renderPanel = (): void => {
     const base = getPirateWatersPresentation(session.getState(), session.getState().currentPlayer);
     if (!base.available) return;
+    const { factionId: selectedPirateFactionId, historyId: selectedPirateHistoryId } = selection.getPirateSelection();
     const factionId = selectedPirateFactionId && base.factions.some(faction => faction.factionId === selectedPirateFactionId)
       ? selectedPirateFactionId
       : base.factions[0]?.factionId;
@@ -824,9 +817,9 @@ function openPirateWaters(selection?: { factionId?: string; historyId?: string }
       : undefined;
     if (!historyId && selectedPirateFactionId && !base.factions.some(faction => faction.factionId === selectedPirateFactionId)) {
       historyId = [...base.history].reverse().find(entry => entry.factionId === selectedPirateFactionId)?.id;
-      selectedPirateHistoryId = historyId ?? null;
+      selection.setPirateSelection(selectedPirateFactionId, historyId ?? null);
     }
-    if (!historyId) selectedPirateFactionId = factionId ?? null;
+    if (!historyId) selection.setPirateSelection(factionId ?? null, selection.getPirateSelection().historyId);
     renderLoop.setSelectedPirateFactionId(historyId ? null : (factionId ?? null));
     if (historyId || !factionId) audio.stopPirateAmbience('focus-changed');
     else void audio.startPirateHeadquartersAmbience(factionId);
@@ -842,13 +835,11 @@ function openPirateWaters(selection?: { factionId?: string; historyId?: string }
         audio.stopPirateAmbience('panel-closed');
       },
       onSelectFaction: nextFactionId => {
-        selectedPirateFactionId = nextFactionId;
-        selectedPirateHistoryId = null;
+        selection.setPirateSelection(nextFactionId, null);
         renderPanel();
       },
       onSelectHistory: nextHistoryId => {
-        selectedPirateHistoryId = nextHistoryId;
-        selectedPirateFactionId = null;
+        selection.setPirateSelection(null, nextHistoryId);
         renderPanel();
       },
       onFocus: focusPirateTarget,
@@ -865,6 +856,7 @@ function openPirateWaters(selection?: { factionId?: string; historyId?: string }
         return result;
       },
       onOpenAssault: faction => {
+        const selectedUnitId = selection.getSelectedUnitId();
         if (selectedUnitId) {
           const pending = preparePirateHeadquartersAssault(session.getState(), faction, selectedUnitId);
           if (pending.preview.available) {
@@ -1314,9 +1306,6 @@ function handleConcedeToMovement(cityId: string): GameState {
 function openCityPanelForCity(city: import('@/core/types').City): void {
   drawer?.close();
   if (city.owner !== session.getState().currentPlayer) return;
-  const playerCities = currentCiv().cities;
-  const idx = playerCities.indexOf(city.id);
-  if (idx !== -1) currentCityIndex = (idx + 1) % playerCities.length;
 
   createCityPanel(uiLayer, city, session.getState(), {
     onBuild: (cityId, itemId) => {
@@ -1918,7 +1907,7 @@ function openUnitStackPicker(coord: HexCoord, unitIds: string[]): void {
       openCityPanelForCity(city);
     },
     onClose: () => deselectUnit(),
-  }, { selectedUnitId });
+  }, { selectedUnitId: selection.getSelectedUnitId() });
 }
 
 function openNetworkIntentPanel(sourceUnitId: string): void {
@@ -2054,19 +2043,17 @@ function selectUnit(
   }
   const unit = session.getState().units[unitId];
   if (!unit || unit.owner !== session.getState().currentPlayer) return;
-  selectedUnitId = unitId;
+  selection.setSelectedUnitId(unitId);
   renderLoop.setSelectedUnitId(unitId);
 
   const highlightResult = buildSelectedUnitHighlights(session.getState(), unitId);
-  selectedUnitWaterRecovery = highlightResult.waterRecovery;
+  selection.setWaterRecovery(highlightResult.waterRecovery);
   if (session.getState().units[unitId]?.committedToRouteId) {
     // Committed caravans cannot move or attack — keep highlights empty
-    movementRange = [];
-    attackRange = [];
+    selection.setRanges([], []);
     clearUnloadState();
   } else {
-    movementRange = highlightResult.movementRange;
-    attackRange = highlightResult.attackTargets.map(target => target.coord);
+    selection.setRanges(highlightResult.movementRange, highlightResult.attackTargets.map(target => target.coord));
   }
   renderLoop.setHighlights(highlightResult.highlights);
 
@@ -2083,6 +2070,7 @@ function selectUnit(
   // Show unit info panel
   const panel = document.getElementById('info-panel');
   if (panel) {
+    const pendingIntent = selection.getPendingIntent();
     renderSelectedUnitInfo(panel, session.getState(), unitId, {
       onClose: () => deselectUnit(),
       onStartIntercept: uid => {
@@ -2114,10 +2102,9 @@ function selectUnit(
         selectUnit(uid);
       },
       onStartAirMission: (uid, mission) => {
-        pendingAirMission = { unitId: uid, mission };
+        selection.setPendingIntent({ kind: 'air-mission', unitId: uid, mission });
         const targets = getLegalAirMissionTargets(session.getState(), uid, mission);
-        movementRange = [];
-        attackRange = [];
+        selection.setRanges([], []);
         selectUnit(uid);
         renderLoop.setHighlights(targets.map(coord => ({
           coord,
@@ -2126,8 +2113,9 @@ function selectUnit(
         showNotification(mission === 'strike' ? 'Tap a hostile target within operational range, or cancel.' : 'Tap a recon center within operational range, or cancel.', 'info');
       },
       onCancelAirMission: uid => {
-        if (pendingAirMission?.unitId !== uid) return;
-        pendingAirMission = null;
+        const intent = selection.getPendingIntent();
+        if (intent.kind !== 'air-mission' || intent.unitId !== uid) return;
+        selection.setPendingIntent({ kind: 'none' });
         selectUnit(uid);
         showNotification('Air mission cancelled.', 'info');
       },
@@ -2195,7 +2183,7 @@ function selectUnit(
       onCancelAutoExplore: () => cancelAutoExplore(unitId),
       onCancelJourney: () => cancelJourney(unitId),
       onOpenStack: (coord) => {
-        handleFriendlyUnitStackTap(session.getState(), coord, selectedUnitId, {
+        handleFriendlyUnitStackTap(session.getState(), coord, selection.getSelectedUnitId(), {
           onSelectUnit: selectUnit,
           onOpenStackPicker: openUnitStackPicker,
         });
@@ -2238,7 +2226,7 @@ function selectUnit(
       })),
       onSelectCargoToUnload: (transportId, cargoUnitId) => {
         const range = getUnloadDestinations(session.getState(), transportId, cargoUnitId);
-        setPendingUnload({ transportId, cargoUnitId }, range);
+        selection.setPendingIntent({ kind: 'unload', transportId, cargoUnitId, range });
         renderLoop.setHighlights(range.map(coord => ({ coord, type: 'move' as const })));
         const cargoUnit = session.getState().units[cargoUnitId];
         const unitName = UNIT_DEFINITIONS[cargoUnit?.type ?? 'warrior']?.name ?? 'Unit';
@@ -2247,7 +2235,8 @@ function selectUnit(
       onCancelUnload: () => {
         clearUnloadState();
         renderLoop.clearHighlights();
-        if (selectedUnitId) selectUnit(selectedUnitId);
+        const currentlySelected = selection.getSelectedUnitId();
+        if (currentlySelected) selectUnit(currentlySelected);
       },
       pendingUnloadUnitName: opts?.pendingUnloadUnitName,
       getPirateAssaultAction: uid => {
@@ -2429,7 +2418,7 @@ function selectUnit(
         if (!canEstablishOutpost(session.getState(), unitId)) return;
         session.setStateWithoutRefresh(performEstablishOutpost(session.getState(), unitId));
         autoSave(session.getState()).catch(() => {});
-        selectedUnitId = null;
+        selection.setSelectedUnitId(null);
         renderLoop.setSelectedUnitId(null);
         renderLoop.setGameState(session.getState());
         updateHUD();
@@ -2437,6 +2426,7 @@ function selectUnit(
       },
       onEstablishRoute: handleEstablishRoute,
       onReplaceImprovement: (action) => {
+        const selectedUnitId = selection.getSelectedUnitId();
         if (!selectedUnitId) return;
         const unit = session.getState().units[selectedUnitId];
         if (!unit) return;
@@ -2481,7 +2471,7 @@ function selectUnit(
     }, {
       waterRecovery: highlightResult.waterRecovery,
       hasZoneOfControlWarning: highlightResult.zocLimitedRange.length > 0,
-      airMissionPending: pendingAirMission?.unitId === unitId ? pendingAirMission.mission : undefined,
+      airMissionPending: pendingIntent.kind === 'air-mission' && pendingIntent.unitId === unitId ? pendingIntent.mission : undefined,
     });
   }
 
@@ -2489,14 +2479,11 @@ function selectUnit(
 }
 
 function deselectUnit(): void {
-  selectedUnitId = null;
-  pendingAirMission = null;
-  selectedUnitWaterRecovery = NO_LAND_UNIT_WATER_RECOVERY;
+  // Clears the selection, both ranges, and any pending air mission, journey, or
+  // unload. A pending city-capture choice deliberately survives — see the
+  // `SelectionStore.clear()` contract.
+  selection.clear();
   renderLoop.setSelectedUnitId(null);
-  movementRange = [];
-  attackRange = [];
-  clearUnloadState();
-  pendingJourneyUnitId = null;
   renderLoop.clearHighlights();
   renderLoop.setJourneyPath(null);
   const panel = document.getElementById('info-panel');
@@ -2513,8 +2500,7 @@ function isUnitAnimationLocked(unitId: string | null): boolean {
 function animateMovedUnit(unitId: string, path: HexCoord[]): void {
   const movedUnit = session.getState().units[unitId];
   if (!movedUnit || path.length < 2) return;
-  movementRange = [];
-  attackRange = [];
+  selection.setRanges([], []);
   clearUnloadState();
   renderLoop.clearHighlights();
   renderLoop.animateUnitMove({ ...movedUnit, position: path[0]! }, path, () => {
@@ -2527,7 +2513,7 @@ function animateMovedUnit(unitId: string, path: HexCoord[]): void {
 
     if ((unit.movementPointsLeft ?? 0) <= 0) {
       selectNextUnit();
-    } else if (selectedUnitId === unitId) {
+    } else if (selection.getSelectedUnitId() === unitId) {
       selectUnit(unitId);
     }
   });
@@ -2594,7 +2580,7 @@ function cancelAutoExplore(unitId: string): void {
   delete session.getState().units[unitId].automation;
   renderLoop.setGameState(session.getState());
   updateHUD();
-  if (selectedUnitId === unitId) {
+  if (selection.getSelectedUnitId() === unitId) {
     selectUnit(unitId);
   }
 }
@@ -2608,7 +2594,7 @@ function cancelJourney(unitId: string): void {
   });
   renderLoop.setJourneyPath(null);
   updateHUD();
-  if (selectedUnitId === unitId) {
+  if (selection.getSelectedUnitId() === unitId) {
     selectUnit(unitId);
   }
 }
@@ -2631,13 +2617,14 @@ function selectNextUnit(): void {
     return;
   }
   // Skip current unit if it's in the list
-  const filtered = unmoved.filter(u => u.id !== selectedUnitId);
+  const filtered = unmoved.filter(u => u.id !== selection.getSelectedUnitId());
   const next = filtered.length > 0 ? filtered[0] : unmoved[0];
   selectUnit(next.id);
   renderLoop.camera.centerOn(next.position);
 }
 
 function refreshSelectedUnitAfterCombat(): void {
+  const selectedUnitId = selection.getSelectedUnitId();
   if (!selectedUnitId) return;
   const selectedUnit = session.getState().units[selectedUnitId];
   if (!selectedUnit || selectedUnit.owner !== session.getState().currentPlayer) {
@@ -2683,7 +2670,7 @@ function getUnitTurnFlow() {
     uiLayer,
     getState: () => session.getState(),
     setState: nextState => { session.setStateWithoutRefresh(nextState); },
-    getSelectedUnitId: () => selectedUnitId,
+    getSelectedUnitId: () => selection.getSelectedUnitId(),
     selectUnit,
     deselectUnit,
     selectNextUnit,
@@ -2700,6 +2687,7 @@ function getUnitTurnFlow() {
 }
 
 function foundCityAction(): void {
+  const selectedUnitId = selection.getSelectedUnitId();
   if (!selectedUnitId) return;
   const unit = session.getState().units[selectedUnitId];
   if (!unit || unit.type !== 'settler') return;
@@ -2738,6 +2726,7 @@ function foundCityAction(): void {
 }
 
 function performWorkerAction(action: WorkerActionType): void {
+  const selectedUnitId = selection.getSelectedUnitId();
   if (!selectedUnitId) return;
 
   const result = applyWorkerAction(session.getState(), selectedUnitId, action);
@@ -2825,16 +2814,17 @@ function finalizePendingCityCaptureChoice(
   disposition: 'occupy' | 'raze',
   attackerBonus?: CivBonusEffect,
 ): void {
-  if (!pendingCityCaptureChoice) return;
+  const captureIntent = selection.getPendingIntent();
+  if (captureIntent.kind !== 'city-capture') return;
 
-  const pending = pendingCityCaptureChoice;
+  const pending = captureIntent.choice;
   const cityBeforeResolution = session.getState().cities[pending.cityId];
   const previousOwner = cityBeforeResolution?.owner ?? '';
   const cityName = cityBeforeResolution?.name ?? pending.cityId;
   const beforeCapture = session.getState();
   const result = finalizePlayerCityAssaultChoice(session.getState(), pending, disposition, session.getState().turn, bus);
 
-  pendingCityCaptureChoice = null;
+  selection.setPendingIntent({ kind: 'none' });
   document.getElementById('city-capture-panel')?.remove();
   session.setStateWithoutRefresh(result.state);
   emitMajorCityCaptureEvents(
@@ -2909,7 +2899,7 @@ function beginPlayerCityAssault(
     return 'resolved';
   }
 
-  pendingCityCaptureChoice = begun.pending;
+  selection.setPendingIntent({ kind: 'city-capture', choice: begun.pending });
   if (!shouldPromptForPlayerCityCapture(city)) {
     finalizePendingCityCaptureChoice('raze', attackerBonus);
     return 'resolved';
@@ -2937,7 +2927,8 @@ function executeAttack(attackerId: string, targetKey: string): void {
   // is ever called outside the normal tap → highlight → confirm flow.
   if (!initialAttacker || initialAttacker.hasActed || !legality.ok || legality.targetType !== 'unit') {
     showNotification('That target is no longer attackable.', 'warning');
-    if (selectedUnitId) selectUnit(selectedUnitId);
+    const currentlySelected = selection.getSelectedUnitId();
+    if (currentlySelected) selectUnit(currentlySelected);
     return;
   }
 
@@ -3078,6 +3069,7 @@ function executeAttack(attackerId: string, targetKey: string): void {
 }
 
 function restAction(): void {
+  const selectedUnitId = selection.getSelectedUnitId();
   if (!selectedUnitId) return;
   const unit = session.getState().units[selectedUnitId];
   if (!unit || !canHeal(unit)) return;
@@ -3110,7 +3102,10 @@ function selectDefenderEntryAtKey(key: string): [string, Unit] | undefined {
 }
 
 function handleHexTap(rawCoord: HexCoord): void {
-  if (pendingCityCaptureChoice) {
+  // Precedence between pending intents is preserved exactly as the four
+  // independent flags produced it: city-capture, then journey, then air
+  // mission, then unload (below, after the animation-lock guard).
+  if (selection.getPendingIntent().kind === 'city-capture') {
     return;
   }
 
@@ -3118,8 +3113,10 @@ function handleHexTap(rawCoord: HexCoord): void {
     ? wrapHexCoord(rawCoord, session.getState().map.width)
     : rawCoord;
 
-  if (pendingJourneyUnitId) {
-    const unit = session.getState().units[pendingJourneyUnitId];
+  const journeyIntent = selection.getPendingIntent();
+  if (journeyIntent.kind === 'journey') {
+    const journeyUnitId = journeyIntent.unitId;
+    const unit = session.getState().units[journeyUnitId];
     if (unit) {
       const domain = UNIT_DEFINITIONS[unit.type]?.domain ?? 'land';
       const completedTechs = session.getState().civilizations[unit.owner]?.techState.completed ?? [];
@@ -3131,20 +3128,21 @@ function handleHexTap(rawCoord: HexCoord): void {
           ...session.getState(),
           units: {
             ...session.getState().units,
-            [pendingJourneyUnitId]: { ...unit, automation: { mode: 'journey', destination: coord } },
+            [journeyUnitId]: { ...unit, automation: { mode: 'journey', destination: coord } },
           },
         });
-        selectUnit(pendingJourneyUnitId);
+        selectUnit(journeyUnitId);
         showNotification('Journey set. Your unit will advance each turn.', 'info');
       }
     }
-    pendingJourneyUnitId = null;
+    selection.setPendingIntent({ kind: 'none' });
     return;
   }
   const key = hexKey(coord);
 
-  if (pendingAirMission) {
-    const pending = pendingAirMission;
+  const airIntent = selection.getPendingIntent();
+  if (airIntent.kind === 'air-mission') {
+    const pending = airIntent;
     const result = pending.mission === 'strike'
       ? resolveAirStrike(session.getState(), pending.unitId, coord)
       : resolveReconMission(session.getState(), pending.unitId, coord);
@@ -3152,7 +3150,7 @@ function handleHexTap(rawCoord: HexCoord): void {
       showNotification('That air mission target is no longer legal.', 'warning');
       return;
     }
-    pendingAirMission = null;
+    selection.setPendingIntent({ kind: 'none' });
     session.commit(result.state);
     refreshCurrentPlayerVisibility();
     updateHUD();
@@ -3161,6 +3159,10 @@ function handleHexTap(rawCoord: HexCoord): void {
     selectUnit(pending.unitId);
     return;
   }
+
+  // Every branch below that changes the selection returns immediately after,
+  // so one read here is equivalent to the module binding this replaced.
+  const selectedUnitId = selection.getSelectedUnitId();
 
   if (!selectedUnitId) {
     const pirateSelection = resolvePirateHeadquartersSelection(session.getState(), session.getState().currentPlayer, coord);
@@ -3181,10 +3183,9 @@ function handleHexTap(rawCoord: HexCoord): void {
   }
 
   // ── Pending-unload mode: consume the tap before any normal movement logic ──
-  const pendingUnload = getPendingUnload();
-  if (pendingUnload) {
-    const unloadRange = getUnloadRange();
-    const inRange = unloadRange.some(h => hexKey(h) === key);
+  const pendingUnload = selection.getPendingIntent();
+  if (pendingUnload.kind === 'unload') {
+    const inRange = pendingUnload.range.some(h => hexKey(h) === key);
     if (inRange) {
       // Delegate to onUnloadTransport which handles state, animation, and notification
       const panel = document.getElementById('info-panel');
@@ -3209,17 +3210,16 @@ function handleHexTap(rawCoord: HexCoord): void {
       }
     } else {
       // Mis-tap: block the tap; first occurrence shows an error notification
-      if (!_mistapNotified) {
+      if (selection.shouldWarnOnMistap()) {
         showNotification('Tap a highlighted hex to disembark, or Cancel in the panel.', 'warning');
         SFX.error();
-        _mistapNotified = true;
       }
     }
     return;
   }
 
-  const selectedUnitCanMoveToTappedHex = selectedUnitId && movementRange.some(h => hexKey(h) === key);
-  const selectedUnitCanAttackTappedHex = selectedUnitId && attackRange.some(h => hexKey(h) === key);
+  const selectedUnitCanMoveToTappedHex = selectedUnitId && selection.getMovementRange().some(h => hexKey(h) === key);
+  const selectedUnitCanAttackTappedHex = selectedUnitId && selection.getAttackRange().some(h => hexKey(h) === key);
   if (!selectedUnitCanMoveToTappedHex && !selectedUnitCanAttackTappedHex) {
     if (handleFriendlyUnitStackTap(session.getState(), coord, selectedUnitId, {
       onSelectUnit: selectUnit,
@@ -3252,7 +3252,7 @@ function handleHexTap(rawCoord: HexCoord): void {
         session.getState(),
         selectedUnitId,
         coord,
-        selectedUnitWaterRecovery,
+        selection.getWaterRecovery(),
         {
           showNotification,
           reselectUnit: unitId => selectUnit(unitId, { suppressSelectionSfx: true }),
@@ -3490,21 +3490,24 @@ function handleHexTap(rawCoord: HexCoord): void {
 
         cancelBtn.addEventListener('click', deselectUnit);
         attackBtn.addEventListener('click', () => {
-          const attacker = selectedUnitId ? session.getState().units[selectedUnitId] : undefined;
+          // Read live: the player may have changed selection between the
+          // preview rendering and this confirmation.
+          const attackerId = selection.getSelectedUnitId();
+          const attacker = attackerId ? session.getState().units[attackerId] : undefined;
           const legality = attacker?.transportId
             ? getEmbarkedAssaultTarget(session.getState(), attacker.id, coord, { viewerId: session.getState().currentPlayer })
             : canUnitAttackTarget(session.getState(), attacker, coord, { viewerId: session.getState().currentPlayer });
           if (!legality.ok || legality.targetType !== 'unit') {
             showNotification('That target is no longer attackable.', 'warning');
-            if (selectedUnitId) selectUnit(selectedUnitId);
+            if (attackerId) selectUnit(attackerId);
             return;
           }
-          executeAttack(selectedUnitId!, key);
+          executeAttack(attackerId!, key);
         });
         return; // Wait for button press
       }
     } else {
-      const tapIntent = resolveSelectedUnitTapIntent(session.getState(), selectedUnitId, coord, movementRange);
+      const tapIntent = resolveSelectedUnitTapIntent(session.getState(), selectedUnitId, coord, selection.getMovementRange());
       if (tapIntent.kind === 'assault-city') {
         const attackerUnit = session.getState().units[selectedUnitId];
         const targetCity = session.getState().cities[tapIntent.cityId];
@@ -3574,7 +3577,8 @@ function handleHexTap(rawCoord: HexCoord): void {
 
           cancelBtn.addEventListener('click', deselectUnit);
           attackBtn.addEventListener('click', () => {
-            const assaultStatus = beginPlayerCityAssault(selectedUnitId!, tapIntent.cityId, undefined, undefined, tapIntent.embarkedAssault);
+            // Read live, as the module binding this replaced did.
+            const assaultStatus = beginPlayerCityAssault(selection.getSelectedUnitId()!, tapIntent.cityId, undefined, undefined, tapIntent.embarkedAssault);
             SFX.combat();
             renderLoop.setGameState(session.getState());
             updateHUD();
@@ -3607,7 +3611,7 @@ function handleHexTap(rawCoord: HexCoord): void {
               updateHUD();
               return;
             }
-            pendingCityCaptureChoice = begun.pending;
+            selection.setPendingIntent({ kind: 'city-capture', choice: begun.pending });
             const captureCity = session.getState().cities[tapIntent.cityId];
             if (captureCity) {
               createCityCapturePanel(uiLayer, {
@@ -5236,13 +5240,15 @@ function startGame(): Promise<void> {
       onOpenCouncil: () => togglePanel('council'),
       onOpenTech: () => togglePanel('tech'),
       onEndTurn: () => { void endTurn(); },
-      getSelectedUnitId: () => selectedUnitId,
+      getSelectedUnitId: () => selection.getSelectedUnitId(),
       onCenterUnit: () => {
+        const selectedUnitId = selection.getSelectedUnitId();
         if (!selectedUnitId) return;
         const unit = session.getState().units[selectedUnitId];
         if (unit) renderLoop.camera.centerOn(unit.position);
       },
       onFortify: () => {
+        const selectedUnitId = selection.getSelectedUnitId();
         if (!selectedUnitId) return;
         const unit = session.getState().units[selectedUnitId];
         if (!unit || unit.hasActed || unit.owner !== session.getState().currentPlayer) return;
@@ -5258,6 +5264,7 @@ function startGame(): Promise<void> {
         selectUnit(selectedUnitId);
       },
       onSettle: () => {
+        const selectedUnitId = selection.getSelectedUnitId();
         if (!selectedUnitId) return;
         const unit = session.getState().units[selectedUnitId];
         if (!unit || unit.type !== 'settler') return;
@@ -5265,8 +5272,9 @@ function startGame(): Promise<void> {
       },
       onNextUnit: () => selectNextUnit(),
       onStartJourney: () => {
+        const selectedUnitId = selection.getSelectedUnitId();
         if (!selectedUnitId) return;
-        pendingJourneyUnitId = selectedUnitId;
+        selection.setPendingIntent({ kind: 'journey', unitId: selectedUnitId });
         showNotification('Tap a destination for this unit. Press Escape to cancel.', 'info');
       },
     }, {
