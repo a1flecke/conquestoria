@@ -8,7 +8,7 @@
  * See docs/superpowers/plans/2026-08-04-composition-root-decomposition.md.
  */
 import type { HexCoord } from '@/core/types';
-import type { PendingMapIntent, SelectionStore } from '@/app/ports';
+import type { PendingMapIntent, SelectionSnapshot, SelectionStore } from '@/app/ports';
 import type { LandUnitWaterRecovery } from '@/systems/unit-water-recovery';
 import { NO_LAND_UNIT_WATER_RECOVERY } from '@/systems/unit-water-recovery';
 
@@ -24,7 +24,17 @@ export function createSelectionStore(): SelectionStore {
   let pendingIntent: PendingMapIntent = NO_PENDING_INTENT;
   let mistapNotified = false;
 
+  const snapshot = (): SelectionSnapshot => ({
+    selectedUnitId,
+    movementRange,
+    attackRange,
+    pendingIntent,
+    waterRecovery,
+  });
+
   return {
+    snapshot,
+
     getSelectedUnitId: () => selectedUnitId,
     setSelectedUnitId: unitId => {
       selectedUnitId = unitId;

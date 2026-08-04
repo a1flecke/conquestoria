@@ -69,10 +69,28 @@ export type PendingMapIntent =
   | { readonly kind: 'city-capture'; readonly choice: PendingCityCaptureChoice };
 
 /**
+ * A plain-value read of `SelectionStore` at one instant.
+ *
+ * Exists so `resolveMapTapIntent` (Phase 8) can be a pure function of a value
+ * — `(state, selection: SelectionSnapshot, coord) => MapTapIntent` — instead
+ * of closing over a live, mutable store.
+ */
+export interface SelectionSnapshot {
+  readonly selectedUnitId: string | null;
+  readonly movementRange: readonly HexCoord[];
+  readonly attackRange: readonly HexCoord[];
+  readonly pendingIntent: PendingMapIntent;
+  readonly waterRecovery: LandUnitWaterRecovery;
+}
+
+/**
  * Owns everything about "what the player currently has selected and what their
  * next tap will do" — ten module-scope `let`s in `main.ts` before this port.
  */
 export interface SelectionStore {
+  /** A frozen-in-time value read; does not include pirate-panel focus. */
+  snapshot(): SelectionSnapshot;
+
   getSelectedUnitId(): string | null;
   setSelectedUnitId(unitId: string | null): void;
 
