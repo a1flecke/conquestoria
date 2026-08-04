@@ -8,7 +8,7 @@ const state = { turn: 3, currentPlayer: 'player', civilizations: {}, notificatio
 
 describe('notification center queue', () => {
   let layer: HTMLElement;
-  let playCue: ReturnType<typeof vi.fn<(cue: string) => void>>;
+  let playCue: ReturnType<typeof vi.fn<(cue: string | undefined) => void>>;
   let onFocusTarget: ReturnType<typeof vi.fn<(target: NotificationMapTarget | undefined) => void>>;
 
   beforeEach(() => {
@@ -57,12 +57,12 @@ describe('notification center queue', () => {
     expect(playCue).toHaveBeenCalledWith('city-captured');
   });
 
-  it('plays the default notification cue when no sfxCue is attached', () => {
+  it('passes undefined (never a magic string) when no sfxCue is attached, so the wiring plays the generic chime', () => {
     const center = make();
 
     center.toast('plain toast', 'info');
 
-    expect(playCue).toHaveBeenCalledWith('notification');
+    expect(playCue).toHaveBeenCalledWith(undefined);
   });
 
   it('renders message text via textContent, never innerHTML', () => {
@@ -117,6 +117,22 @@ describe('notification center queue', () => {
     expect(execute).toHaveBeenCalledTimes(1);
     expect(release).not.toHaveBeenCalled();
     expect(document.getElementById('capture-verdict-modal')).toBeNull();
+  });
+
+  it('styles a danger action distinctly from a regular action', () => {
+    const center = make();
+
+    center.choice('Confirm?', [
+      { label: 'Execute', danger: true, onClick: vi.fn() },
+      { label: 'Cancel', onClick: vi.fn() },
+    ]);
+
+    const buttons = [...document.querySelectorAll('button')];
+    const executeButton = buttons.find(b => b.textContent === 'Execute')!;
+    const cancelButton = buttons.find(b => b.textContent === 'Cancel')!;
+
+    expect(executeButton.style.background).toContain('220, 60, 60');
+    expect(cancelButton.style.background).not.toContain('220, 60, 60');
   });
 
   it('deliver logs to the recipient civ and stamps entries made inside withHappenedTurn with that turn', () => {

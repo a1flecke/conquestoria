@@ -7,8 +7,14 @@ export interface NotificationCenterDeps {
   readonly layer: HTMLElement;
   readonly getState: () => GameState;
   readonly isSuppressed: () => boolean;
-  /** REQUIRED. An optional cue callback would silently mute game audio on a wiring mistake. */
-  readonly playCue: (cue: string) => void;
+  /**
+   * REQUIRED. `undefined` means "play the generic notification chime" --
+   * a specific cue means "play that bespoke stinger instead". Deliberately
+   * not defaulted to a sentinel string here: a real sfxCue value could
+   * collide with a magic default and silently play the wrong sound.
+   * An optional callback here would silently mute game audio on a wiring mistake.
+   */
+  readonly playCue: (cue: string | undefined) => void;
   /**
    * REQUIRED. Clicking a toast recenters the camera on its target — the same
    * callback shape `createNotificationLogPanel` already takes as `onFocusTarget`.
@@ -71,12 +77,12 @@ export function createNotificationCenter(deps: NotificationCenterDeps): Notifier
       if (notif.parentNode) dismiss();
     }, 6000);
 
-    deps.playCue(next.sfxCue ?? 'notification');
+    deps.playCue(next.sfxCue);
   }
 
   function toast(
     message: string,
-    type: NotificationEntry['type'] = 'info',
+    type: NotificationEntry['type'],
     target?: NotificationEntry['target'],
     sfxCue?: string,
   ): void {

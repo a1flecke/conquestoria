@@ -4808,10 +4808,10 @@ async function init(): Promise<void> {
       // #594 MR7: religion toasts carry a bespoke sfxCue that replaces the generic
       // synth chime -- see notification-routing.ts's routeReligionFounded/
       // routeReligionCityConverted/routeLoyaltyWarning/routeCityDefected.
-      if (cue === 'notification') {
-        SFX.notification();
-      } else {
+      if (cue) {
         void audio.playReligionStinger(cue).catch(() => {});
+      } else {
+        SFX.notification();
       }
     },
     onFocusTarget: focusNotificationTarget,
@@ -5024,8 +5024,8 @@ function showGameModeSelection(): void {
             startPlacementMode: config.startPlacementMode,
             opponentChallenge: config.opponentChallenge,
           }));
-          if (userSettingsStore.getPersisted()?.councilTalkLevel) {
-            session.getState().settings.councilTalkLevel = userSettingsStore.getPersisted()!.councilTalkLevel;
+          if (currentSettings.councilTalkLevel) {
+            session.getState().settings.councilTalkLevel = currentSettings.councilTalkLevel;
           }
           startGame();
         },
@@ -5044,8 +5044,8 @@ function showGameModeSelection(): void {
       showHotSeatSetup(uiLayer, {
         onComplete: (config, opponentChallenge) => {
           session.setStateWithoutRefresh(createHotSeatGame(config, undefined, title, opponentChallenge ?? 'standard'));
-          if (userSettingsStore.getPersisted()?.councilTalkLevel) {
-            session.getState().settings.councilTalkLevel = userSettingsStore.getPersisted()!.councilTalkLevel;
+          if (currentSettings.councilTalkLevel) {
+            session.getState().settings.councilTalkLevel = currentSettings.councilTalkLevel;
           }
           enterCampaign(
             session.getState(),
