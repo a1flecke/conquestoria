@@ -141,6 +141,7 @@ const UNIT_MOTION_STYLES: Record<UnitType, UnitMotionStyle> = {
   cuirassier: 'animal',
   crossbowman: 'humanoid',
   catapult: 'humanoid',
+  trebuchet: 'humanoid',
   ballista: 'humanoid',
   cannon:   'humanoid',
   artillery: 'humanoid',
@@ -284,6 +285,8 @@ export const UNIT_SPRITE_CATALOG: Record<UnitType, UnitSpriteComponent> = {
   cuirassier:     withMotion('cuirassier', KnightSprite),
   crossbowman:    withMotion('crossbowman', CrossbowmanSprite),
   catapult:       withMotion('catapult', CatapultSprite),
+  // Temporary Catapult silhouette; the heavy-siege art batch owns Trebuchet's bespoke sprite.
+  trebuchet:      withMotion('trebuchet', CatapultSprite),
   ballista:       withMotion('ballista', BallistaSprite),
   cannon:         withMotion('cannon', CannonSprite),
   // stealth_bomber further down still reuses an existing sprite as a placeholder;

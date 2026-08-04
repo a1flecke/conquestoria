@@ -358,7 +358,7 @@ export type UnitType =
   | 'settler' | 'worker' | 'scout' | 'warrior' | 'archer' | 'missionary'
   | 'swordsman' | 'pikeman' | 'musketeer' | 'galley' | 'trireme'
   | 'axeman' | 'spearman' | 'horseman' | 'chariot' | 'cavalry' | 'armored_car' | 'knight' | 'cuirassier'
-  | 'crossbowman' | 'catapult' | 'ballista' | 'cannon' | 'grenadier' | 'marine' | 'rifleman' | 'ironclad'
+  | 'crossbowman' | 'catapult' | 'trebuchet' | 'ballista' | 'cannon' | 'grenadier' | 'marine' | 'rifleman' | 'ironclad'
   | 'frigate' | 'destroyer' | 'artillery' | 'infantry' | 'mechanized_infantry'
   | 'machine_gunner' | 'pre_dreadnought' | 'battleship'
   | 'observation_balloon' | 'biplane' | 'wwii_fighter' | 'jet_fighter' | 'bomber' | 'recon_aircraft'
@@ -427,6 +427,7 @@ export interface UnitDefinition {
   terrainCostOverrides?: Partial<Record<string, number>>;
   cargoCapacity?: number;
   cargoSize?: number;
+  cityAssaultMultiplier?: number;
 }
 
 export interface WorkerTask {
@@ -1264,7 +1265,7 @@ export interface CombatModifierFact {
   ignoredReason?: 'role' | 'condition' | 'unit-class' | 'domain' | 'inactive-source';
 }
 
-export type CombatExchangeKind = 'none' | 'turret-fire' | 'evasion' | 'shock';
+export type CombatExchangeKind = 'none' | 'turret-fire' | 'evasion' | 'shock' | 'siege-anti-personnel';
 
 export interface CombatExchangeSummary {
   kind: Exclude<CombatExchangeKind, 'none'>;

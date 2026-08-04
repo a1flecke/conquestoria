@@ -181,6 +181,15 @@ export function getCombatExchangeModifiers(attacker: Unit, defender: Unit): Comb
         label: rule.label,
       };
     }
+    if (rule.kind === 'siege-anti-personnel') {
+      if (!rule.attackerTypes.includes(attacker.type)) continue;
+      return {
+        kind: rule.kind,
+        defenderCounterDamageMultiplier: 1,
+        defenderIncomingDamageMultiplier: rule.defenderIncomingDamageMultiplier,
+        label: rule.label,
+      };
+    }
     if (
       attackerDefinition.domain !== rule.attackerDomain
       || attackerDefinition.attackProfile?.kind !== rule.attackerAttackProfile

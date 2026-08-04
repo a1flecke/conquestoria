@@ -109,6 +109,13 @@ const NAVAL_CANNON_SFX = {
   death:           real('sfx-trireme-death',          'audio/sfx/trireme-death.ogg',          0.313, 'death'),
 };
 
+// Shared Catapult fallback; the heavy-siege audio batch owns bespoke Trebuchet SFX (#684).
+const CATAPULT_SFX = {
+  'siege-fire':   real('sfx-catapult-siege-fire',   'audio/sfx/catapult-siege-fire.ogg',   0.869),
+  'siege-impact': real('sfx-catapult-siege-impact', 'audio/sfx/catapult-siege-impact.ogg', 0.805),
+  death:          real('sfx-catapult-death',         'audio/sfx/catapult-death.ogg',         0.779, 'death'),
+};
+
 // Unit SFX — keyed by UnitType, then by SfxClass. Non-combat units have death only.
 export const UNIT_SFX: Partial<Record<UnitType, Partial<Record<SfxClass, TrackEntry>>>> = {
 
@@ -215,11 +222,9 @@ export const UNIT_SFX: Partial<Record<UnitType, Partial<Record<SfxClass, TrackEn
   },
 
   // === Siege (siege-fire, siege-impact, death) ===
-  catapult: {
-    'siege-fire':   real('sfx-catapult-siege-fire',   'audio/sfx/catapult-siege-fire.ogg',   0.869),
-    'siege-impact': real('sfx-catapult-siege-impact', 'audio/sfx/catapult-siege-impact.ogg', 0.805),
-    death:          real('sfx-catapult-death',         'audio/sfx/catapult-death.ogg',         0.779, 'death'),
-  },
+  catapult: CATAPULT_SFX,
+  // Temporary Catapult audio fallback; the heavy-siege audio batch owns bespoke Trebuchet SFX.
+  trebuchet: CATAPULT_SFX,
   ballista: {
     'siege-fire':   real('sfx-ballista-siege-fire',   'audio/sfx/ballista-siege-fire.ogg',   0.333),
     'siege-impact': real('sfx-ballista-siege-impact', 'audio/sfx/ballista-siege-impact.ogg', 0.992),
@@ -394,6 +399,7 @@ const LOCOMOTION_CLASS: Record<UnitType, LocomotionClass> = {
   cuirassier:    'animal',
   crossbowman:   'humanoid',
   catapult:      'humanoid',
+  trebuchet:     'humanoid',
   ballista:      'humanoid',
   cannon:        'humanoid',
   artillery:     'humanoid',

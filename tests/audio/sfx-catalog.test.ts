@@ -154,6 +154,9 @@ describe('sfx-catalog completeness', () => {
     // + 5 religion stingers + 2 famine stingers (#594 MR7) = 148
     // + 11 Era-13 unit clips (3+3+3 combat and 2 specialist deaths) = 159
     // + 5 network strategic stingers = 164
+    // Trebuchet (#684) reuses Catapult's SFX object by reference (temporary fallback until the
+    // heavy-siege audio batch ships bespoke clips) — same pattern as chariot/HORSEMAN_SFX and
+    // armored_car/KNIGHT_SFX above, so it adds no new entries to this identity-deduped count.
     expect(allSfxEntries()).toHaveLength(164);
   });
 
