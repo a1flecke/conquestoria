@@ -32,6 +32,20 @@ const CONFIG: SoloSetupConfig = {
 
 const ROUNDS = 20;
 
+/**
+ * gameId must be pinned, not left as createNewGame produced it.
+ *
+ * createGameId embeds Date.now() (game-state.ts:123), and pirate ecology seeds
+ * its RNG from `${state.gameId}:${state.turn}` (pirate-ecology.ts:380). So two
+ * games created at different wall-clock times diverge in unit count by design.
+ * That is correct behaviour for real campaigns and fatal for a fixed baseline --
+ * without this pin the second test below fails intermittently and looks exactly
+ * like the gameplay regression it exists to detect.
+ */
+function pinnedStart(): GameState {
+  return { ...createNewGame(CONFIG), gameId: 'determinism-guard-fixed-id' };
+}
+
 function advance(state: GameState, rounds: number): GameState {
   let current = state;
   for (let i = 0; i < rounds; i += 1) {
@@ -65,11 +79,9 @@ function digest(state: GameState): Record<string, unknown> {
 
 describe('determinism guard', () => {
   it(`${ROUNDS} rounds over the same start produce an identical state across runs`, () => {
-    // Both runs start from ONE created state, cloned. createNewGame cannot be
-    // called twice for this: createGameId embeds Date.now() (game-state.ts:123),
-    // so two fresh games always differ on gameId. Cloning isolates exactly what
-    // this guard is for -- determinism of the turn pipeline itself.
-    const start = createNewGame(CONFIG);
+    // Cloning one start (rather than creating two games) isolates exactly what
+    // this guard is for: determinism of the turn pipeline itself.
+    const start = pinnedStart();
     const a = advance(structuredClone(start), ROUNDS);
     const b = advance(structuredClone(start), ROUNDS);
 
@@ -77,21 +89,25 @@ describe('determinism guard', () => {
   });
 
   it('matches the baseline recorded from the pre-refactor build', () => {
-    const state = advance(createNewGame(CONFIG), ROUNDS);
+    const state = advance(pinnedStart(), ROUNDS);
 
     expect(digest(state)).toEqual(BASELINE);
   });
 });
 
 /**
- * Recorded 2026-08-04 from commit 2ce97c70, before any source file in the
- * decomposition arc was touched. Do not re-record to make a failing phase pass.
+ * Recorded 2026-08-04 from commit 2ce97c70 with `git stash push -- src/` applied,
+ * i.e. against a source tree with zero decomposition-arc changes. Verified stable
+ * across repeated runs with the pinned gameId above.
+ *
+ * Do not re-record to make a failing phase pass. If this fails, find the phase
+ * that moved a system call and revert it.
  */
 const BASELINE = {
   turn: 21,
   era: 1,
   cityCount: 6,
-  unitCount: 24,
+  unitCount: 23,
   // The human seat never acts in this harness -- only non-human majors and the
   // world tick run -- so `player` staying at 0 is correct, and the AI columns
   // are what actually guard AI behavior.

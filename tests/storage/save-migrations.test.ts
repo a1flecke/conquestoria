@@ -358,7 +358,7 @@ describe('save migrations', () => {
     const migrated = migrateSaveToCurrent(legacySave);
     const loadedAgain = migrateSaveToCurrent(migrated);
 
-    expect(migrated.saveSchemaVersion).toBe(11);
+    expect(migrated.saveSchemaVersion).toBe(CURRENT_SAVE_SCHEMA_VERSION);
     expect(migrated.cities[city.id]).toMatchObject({
       productionQueue: ['knight', 'knight'], legacyTechGrace: ['knight', 'knight'],
     });

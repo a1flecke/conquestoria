@@ -11,6 +11,9 @@ import { normalizeMinorCivCoalitionState } from '@/systems/minor-civ-coalition-s
 import { normalizeMinorCivEconomyState } from '@/systems/minor-civ-economy-system';
 import { scanIdCounters } from '@/core/id-counters';
 import { migrateSaveToCurrent } from '@/storage/save-migrations';
+import { refreshKnownCivilizations } from '@/systems/discovery-system';
+import { reconstructLastSeenFromMap } from '@/systems/last-seen-presentation';
+import { clearStaleSoloPendingEvents } from '@/core/hotseat-events';
 import {
   createEmptyPirateState,
   PIRATE_RELOCATION_DIRECTIONS,
@@ -882,6 +885,20 @@ export function normalizeLoadedState(state: GameState): NormalizedGameState {
       }
     }
   }
+  // #787 phase 1: derived rebuilds relocated from main.ts's migrateLegacySave().
+  // These are NOT versioned migrations -- they recompute state from the map and
+  // civ roster, so they must run on every load, not once at a version boundary:
+  // a save written by a build with a since-fixed visibility bug still needs its
+  // lastSeen rebuilt. Order matches main.ts:5233-5241 -- known-civ refresh first,
+  // then lastSeen reconstruction, which reads visibility.
+  for (const civId of Object.keys(normalized.civilizations)) {
+    refreshKnownCivilizations(normalized, civId);
+  }
+  for (const civId of Object.keys(normalized.civilizations)) {
+    reconstructLastSeenFromMap(normalized, civId);
+  }
+  clearStaleSoloPendingEvents(normalized);
+
   return normalizeOpponentAIState(normalized) as NormalizedGameState;
 }
 
