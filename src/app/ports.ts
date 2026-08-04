@@ -8,7 +8,9 @@
  *
  * See docs/superpowers/plans/2026-08-04-composition-root-decomposition.md.
  */
-import type { GameState } from '@/core/types';
+import type { GameState, HexCoord } from '@/core/types';
+import type { PendingCityCaptureChoice } from '@/input/city-assault-flow';
+import type { LandUnitWaterRecovery } from '@/systems/unit-water-recovery';
 
 /**
  * The single owner of game state.
@@ -47,4 +49,65 @@ export interface GameSession {
 
   /** Returns an unsubscribe function, matching EventBus.on's contract. */
   subscribe(listener: (state: GameState) => void): () => void;
+}
+
+/**
+ * "The next map tap means something special."
+ *
+ * This replaces four independent nullable flags in `main.ts`
+ * (`pendingCityCaptureChoice`, `pendingJourneyUnitId`, `pendingAirMission`, and
+ * `transport-ui-state`'s module-scope pending unload). Four nullables encode 16
+ * representable states, of which only 5 are legal; `handleHexTap` disambiguated
+ * them by checking in a fixed order, a precedence rule nothing documented or
+ * tested. As a union, setting one intent structurally clears the others.
+ */
+export type PendingMapIntent =
+  | { readonly kind: 'none' }
+  | { readonly kind: 'journey'; readonly unitId: string }
+  | { readonly kind: 'air-mission'; readonly unitId: string; readonly mission: 'strike' | 'recon' }
+  | { readonly kind: 'unload'; readonly transportId: string; readonly cargoUnitId: string; readonly range: readonly HexCoord[] }
+  | { readonly kind: 'city-capture'; readonly choice: PendingCityCaptureChoice };
+
+/**
+ * Owns everything about "what the player currently has selected and what their
+ * next tap will do" — ten module-scope `let`s in `main.ts` before this port.
+ */
+export interface SelectionStore {
+  getSelectedUnitId(): string | null;
+  setSelectedUnitId(unitId: string | null): void;
+
+  getWaterRecovery(): LandUnitWaterRecovery;
+  setWaterRecovery(recovery: LandUnitWaterRecovery): void;
+
+  getMovementRange(): readonly HexCoord[];
+  getAttackRange(): readonly HexCoord[];
+  /** Sets both ranges together — they are always computed and cleared as a pair. */
+  setRanges(movement: readonly HexCoord[], attack: readonly HexCoord[]): void;
+
+  getPirateSelection(): { factionId: string | null; historyId: string | null };
+  setPirateSelection(factionId: string | null, historyId: string | null): void;
+
+  getPendingIntent(): PendingMapIntent;
+  /** Replaces the intent wholesale and re-arms mis-tap forgiveness. */
+  setPendingIntent(intent: PendingMapIntent): void;
+
+  /**
+   * True the first time only, per pending-intent lifetime.
+   *
+   * Mis-tap forgiveness: the first tap outside a pending unload's legal range
+   * warns once (toast + error SFX) and every tap after it stays silent, so a
+   * child jabbing at the map is not machine-gunned with error sounds.
+   */
+  shouldWarnOnMistap(): boolean;
+
+  /**
+   * Resets the unit selection: selected unit, water recovery, both ranges, and
+   * any pending intent EXCEPT a city-capture choice.
+   *
+   * The capture exception is deliberate and preserves existing behavior: the
+   * capture panel owns its own lifecycle and `handleHexTap` returns early while
+   * a choice is pending, so deselecting a unit must not silently strand a city
+   * the player has already taken but not yet chosen to occupy or raze.
+   */
+  clear(): void;
 }
