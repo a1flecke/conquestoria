@@ -2130,6 +2130,134 @@ export function TankSprite({ palette, svgOnly = false }: UnitSpriteProps): strin
   );
 }
 
+// #769 de-alias (batch 5): anti_tank_gun previously reused TankSprite verbatim — a
+// tracked, armored rhomboid hull. An anti-tank gun is a TOWED emplaced gun, so this
+// draws in the CannonSprite/ArtillerySprite wheeled-carriage family (no tracks, no
+// armored hull), but stays a distinct 4th silhouette via its gun shield, split trail,
+// crouched crew and a low direct-fire barrel with a muzzle brake (vs. Cannon's standing
+// gunner + horizontal barrel and Artillery's single trail spade + steep indirect barrel).
+export function AntiTankGunSprite({ palette, svgOnly = false }: UnitSpriteProps): string {
+  return (
+    <SpriteFrame svgOnly={svgOnly}>
+      <g data-kind="ranged">
+        <Shadow cx={66} cy={104} rx={46} ry={6} />
+        {/* split trail — two spread carriage legs to the rear-left for firing stability */}
+        <path d="M50,84 L17,93 L21,97 L52,88 Z" fill={P.wood.mid} stroke={P.ink.line} strokeWidth="1" />
+        <path d="M50,86 L20,104 L24,107 L53,90 Z" fill={P.wood.dark} stroke={P.ink.line} strokeWidth="1" />
+        <path d="M14,90 L23,92 L20,98 Z" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.6" />
+        <path d="M17,101 L26,103 L23,109 Z" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.6" />
+        {/* axle */}
+        <rect x="44" y="78" width="26" height="8" rx="2" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="1" />
+        <rect x="44" y="78" width="26" height="3" fill={P.metal.steel} />
+        {/* far carriage wheel */}
+        <g transform="translate(51 90)">
+          <circle r="11" fill={P.wood.dark} stroke={P.ink.line} strokeWidth="1.5" />
+          <circle r="11" fill="none" stroke={P.metal.iron} strokeWidth="2" />
+          <g className="cq-wheel" style="animation-duration:3.4s">
+            <line x1="-9.6" y1="0" x2="9.6" y2="0" stroke={P.wood.mid} strokeWidth="1.2" />
+            <line x1="0" y1="-9.6" x2="0" y2="9.6" stroke={P.wood.mid} strokeWidth="1.2" />
+            <line x1="-6.8" y1="-6.8" x2="6.8" y2="6.8" stroke={P.wood.mid} strokeWidth="1.1" />
+            <line x1="-6.8" y1="6.8" x2="6.8" y2="-6.8" stroke={P.wood.mid} strokeWidth="1.1" />
+          </g>
+          <circle r="3.1" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.6" />
+          <circle r="1.4" fill={P.metal.steel} />
+        </g>
+        {/* crouched loading crew behind the shield */}
+        <Humanoid cx={39} cy={78} scale={0.6} cloth={P.cloth.wool} pants={P.cloth.wool} accent={palette.mid} skin={P.skin.warm} hair="#3a2a1a" />
+        {/* gun shield — angled armored plate with a livery band and a barrel notch */}
+        <path d="M58,50 L74,55 L74,92 L58,88 Z" fill={P.metal.steel} stroke={P.ink.line} strokeWidth="1.3" />
+        <path d="M58,50 L74,55 L74,62 L58,57 Z" fill={palette.mid} />
+        <path d="M61,66 L71,68 L71,74 L61,72 Z" fill={P.ink.soft} stroke={P.ink.line} strokeWidth="0.5" />
+        <line x1="58" y1="79" x2="74" y2="83" stroke={P.ink.line} strokeWidth="0.5" opacity="0.4" />
+        {/* long low direct-fire barrel + breech + muzzle brake */}
+        <g transform="translate(63 69) rotate(-8)">
+          <rect x="-12" y="-5" width="10" height="10" rx="1.5" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="1" />
+          <rect x="-4" y="-3.4" width="46" height="6.8" rx="3" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="1" />
+          <rect x="-4" y="-3.4" width="46" height="2.4" rx="2" fill={P.metal.steel} />
+          <rect x="40" y="-5" width="11" height="10" rx="1.5" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="1" />
+          <rect x="43.4" y="-5" width="1.6" height="10" fill={P.ink.line} opacity="0.55" />
+          <rect x="47" y="-5" width="1.6" height="10" fill={P.ink.line} opacity="0.55" />
+        </g>
+        {/* near carriage wheel — drawn over the shield foot for depth */}
+        <g transform="translate(66 92)">
+          <circle r="12" fill={P.wood.dark} stroke={P.ink.line} strokeWidth="1.5" />
+          <circle r="12" fill="none" stroke={P.metal.iron} strokeWidth="2" />
+          <g className="cq-wheel" style="animation-duration:3.4s">
+            <line x1="-10.6" y1="0" x2="10.6" y2="0" stroke={P.wood.mid} strokeWidth="1.2" />
+            <line x1="0" y1="-10.6" x2="0" y2="10.6" stroke={P.wood.mid} strokeWidth="1.2" />
+            <line x1="-7.5" y1="-7.5" x2="7.5" y2="7.5" stroke={P.wood.mid} strokeWidth="1.1" />
+            <line x1="-7.5" y1="7.5" x2="7.5" y2="-7.5" stroke={P.wood.mid} strokeWidth="1.1" />
+          </g>
+          <circle r="3.4" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.6" />
+          <circle r="1.6" fill={P.metal.steel} />
+        </g>
+        {/* muzzle flash at the barrel tip */}
+        <g transform="translate(113 62)"><g className="cq-muzzle-flash"><circle r="6" fill="#ffd966" /><circle r="3" fill="#fff" /></g></g>
+        <Banner x={66} y={36} palette={palette} scale={0.62} />
+      </g>
+    </SpriteFrame>
+  );
+}
+
+// #769 de-alias (batch 5): mobile_aa previously reused TankSprite verbatim. It is a
+// SELF-PROPELLED anti-aircraft vehicle, so this reads as a low tracked chassis with an
+// OPEN-TOP gun mount, a quad autocannon angled sharply UP (anti-air, not the donor's
+// forward-level sponson), and a small radar/sight dish that pulses (.cq-glow) to sell its
+// air-defense support role — no closed rhomboid hull, and no towed trail like AntiTankGun.
+export function MobileAaSprite({ palette, svgOnly = false }: UnitSpriteProps): string {
+  return (
+    <SpriteFrame svgOnly={svgOnly}>
+      <g data-kind="ranged">
+        <Shadow cx={62} cy={108} rx={48} ry={6} />
+        {/* track run + road wheels + end sprockets */}
+        <rect x="14" y="90" width="94" height="16" rx="8" fill="#2a2620" stroke={P.ink.line} strokeWidth="1.3" />
+        <rect x="18" y="91" width="86" height="3.4" rx="1.7" fill={P.metal.iron} opacity="0.5" />
+        {[26, 40, 54, 68, 82, 96].map(x =>
+          <g key={x}><circle cx={x} cy="98.5" r="5" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.8" /><circle cx={x} cy="98.5" r="1.8" fill={P.metal.steel} /></g>
+        ).join('')}
+        <circle cx="16.5" cy="98.5" r="6.5" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="1" />
+        <circle cx="105.5" cy="98.5" r="6.5" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="1" />
+        {/* low hull with a livery band + indicator light */}
+        <path d="M22,90 L28,73 L96,73 L104,90 Z" fill={P.stone.mid} stroke={P.ink.line} strokeWidth="1.3" />
+        <path d="M96,73 L104,90 L96,90 Z" fill={P.ink.soft} opacity="0.5" />
+        <rect x="30" y="83" width="64" height="4" fill={palette.mid} />
+        <circle cx="90" cy="79" r="2" fill={palette.bright} stroke={P.ink.line} strokeWidth="0.5" />
+        {/* rear exhaust stack rooted on the hull top + drifting smoke */}
+        <rect x="29" y="65" width="3.4" height="9" rx="1" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.5" />
+        <g transform="translate(30.7 64)">
+          <ellipse className="cq-smoke" cx="0" cy="0" rx="3" ry="2.4" fill={P.stone.light} opacity="0.6" />
+          <ellipse className="cq-smoke cq-smoke--b" cx="1.2" cy="0" rx="4" ry="3.2" fill={P.stone.mid} opacity="0.42" />
+        </g>
+        {/* open-top gun tub (back wall only — no closed turret) */}
+        <path d="M46,74 Q46,63 63,63 Q80,63 80,74 Z" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="1.1" />
+        <path d="M49,72 Q49,66 63,66" fill="none" stroke={P.metal.shine} strokeWidth="0.7" opacity="0.35" />
+        <ellipse cx="63" cy="74" rx="17" ry="4.2" fill={P.metal.steel} stroke={P.ink.line} strokeWidth="0.9" />
+        <ellipse cx="63" cy="74" rx="12" ry="2.4" fill={P.ink.soft} opacity="0.6" />
+        {/* radar / sight dish on a post rooted to the hull — pulses ("watching the sky") */}
+        <g transform="translate(45 73)">
+          <rect x="-2.6" y="-2.4" width="5.2" height="4.4" rx="1" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.5" />
+          <rect x="-1.1" y="-11" width="2.2" height="9" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.5" />
+          <g className="cq-glow">
+            <ellipse cx="0" cy="-13" rx="5" ry="2.4" fill={P.ground.water} stroke={P.ink.line} strokeWidth="0.6" />
+            <ellipse cx="0" cy="-13" rx="2.2" ry="1" fill={P.metal.shine} opacity="0.7" />
+            <circle cx="0" cy="-13" r="1" fill={P.metal.shine} />
+          </g>
+        </g>
+        {/* quad autocannon angled sharply upward */}
+        <g transform="translate(63 70) rotate(-53)">
+          <rect x="-6" y="-6.5" width="9" height="13" rx="1.5" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.9" />
+          <rect x="0" y="-6.4" width="34" height="2.3" rx="1.1" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.6" />
+          <rect x="0" y="-2.7" width="34" height="2.3" rx="1.1" fill={P.metal.steel} stroke={P.ink.line} strokeWidth="0.6" />
+          <rect x="0" y="1" width="34" height="2.3" rx="1.1" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.6" />
+          <rect x="0" y="4.7" width="34" height="2.3" rx="1.1" fill={P.metal.steel} stroke={P.ink.line} strokeWidth="0.6" />
+          <g transform="translate(35 0)"><g className="cq-muzzle-flash"><circle r="4.4" fill="#ffd966" /><circle r="2.2" fill="#fff" /></g></g>
+        </g>
+        <Banner x={25} y={58} palette={palette} scale={0.55} />
+      </g>
+    </SpriteFrame>
+  );
+}
+
 // TODO(art): Replace submarine: cigar-shaped pressure hull, conning tower with periscope, hydroplane fins, foamy wake at bow.
 export function SubmarineSprite({ palette, svgOnly = false }: UnitSpriteProps): string {
   return (
@@ -2457,6 +2585,55 @@ export function StealthBomberSprite({ palette, svgOnly = false }: UnitSpriteProp
       {/* faction chevron marking */}
       <path d="M70,48 L78,50 L74,54 Z" fill={palette.mid} stroke={palette.dark} strokeWidth="0.4" />
       <Banner x={64} y={22} palette={palette} scale={0.46} />
+    </SpriteFrame>
+  );
+}
+
+// #769 de-alias (batch 5): wwii_fighter previously reused JetFighterSprite — a swept
+// delta jet with an afterburner glow. This is a WWII single-engine PROPELLER fighter
+// (F4U/F6F/P-51 family), one generation past the WWI BiplaneSprite and one before the
+// jet. Drawn as a SIDE PROFILE facing right, ~5° nose-up and banked slightly toward the
+// viewer so both wings show: spinning propeller disc (not a jet nose cone), radial
+// cowling, bubble canopy, straight tapered wings, and NO afterburner.
+export function WwiiFighterSprite({ palette, svgOnly = false }: UnitSpriteProps): string {
+  return (
+    <SpriteFrame svgOnly={svgOnly}>
+      <Shadow cx={64} cy={110} rx={40} ry={5} />
+      <g transform="rotate(-5 64 64)">
+        {/* far wing — foreshortened, sweeping up-back behind the fuselage */}
+        <path d="M66,59 L52,61 L37,44 Q35,41 40,43 Z" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="1" />
+        <g transform="translate(48 51)"><circle r="3.1" fill={palette.mid} stroke={P.ink.line} strokeWidth="0.5" /><circle r="1.8" fill={palette.trim} /><circle r="0.8" fill={palette.dark} /></g>
+        {/* horizontal stabilizer + vertical tail fin */}
+        <path d="M24,66 L7,62 L7,65 L24,68 Z" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.9" />
+        <path d="M22,67 L15,45 L21,45 L33,64 Z" fill={P.metal.steel} stroke={P.ink.line} strokeWidth="1.1" />
+        <path d="M17,49 L20,47 L27,58 L24,59 Z" fill={palette.mid} opacity="0.85" />
+        {/* fuselage — tapered, tail-left to cowl-right */}
+        <path d="M20,69 Q24,65 44,63 L74,57 Q86,55 93,60 Q86,65 74,64 L44,71 Q26,72 20,69 Z" fill={P.metal.steel} stroke={P.ink.line} strokeWidth="1.2" />
+        <path d="M27,66.5 L74,60 Q85,58.5 91,60.6 Q85,60 74,61.6 L29,68 Z" fill={P.metal.shine} opacity="0.25" />
+        <rect x="49" y="62" width="20" height="3" fill={palette.mid} />
+        <g transform="translate(40 63.5)"><circle r="4" fill={palette.mid} stroke={P.ink.line} strokeWidth="0.6" /><circle r="2.4" fill={palette.trim} /><circle r="1" fill={palette.dark} /></g>
+        {/* bubble canopy */}
+        <path d="M54,58 L60,49 L72,48.5 L77,57 Z" fill={P.cloth.dye} stroke={P.ink.line} strokeWidth="1" />
+        <path d="M58,57 L62,50 L70,49.6 L73,56 Z" fill={palette.bright} opacity="0.5" />
+        <line x1="66" y1="49" x2="66" y2="57" stroke={P.ink.line} strokeWidth="0.4" opacity="0.5" />
+        {/* radial piston-engine cowling */}
+        <path d="M83,58 Q92,55 96,60 Q92,66 83,64 Z" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="1.1" />
+        <circle cx="88" cy="60" r="6.5" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="1" />
+        <circle cx="88" cy="60" r="3" fill={P.ink.soft} />
+        {/* spinner + spinning propeller disc */}
+        <g transform="translate(99 59)">
+          <g className="cq-wheel" style="animation-duration:0.25s">
+            <ellipse cx="0" cy="0" rx="2.2" ry="20" fill={P.ink.line} opacity="0.22" />
+            <rect x="-1.3" y="-20" width="2.6" height="40" rx="1.3" fill={P.ink.soft} stroke={P.ink.line} strokeWidth="0.5" />
+          </g>
+          <circle r="2.6" fill={P.metal.steel} stroke={P.ink.line} strokeWidth="0.6" />
+        </g>
+        {/* near wing — broad, sweeping down toward the viewer, in front of the fuselage */}
+        <path d="M72,64 L48,67 L57,90 Q59,93 61,90 L69,78 Z" fill={P.metal.steel} stroke={P.ink.line} strokeWidth="1.2" />
+        <path d="M72,64 L48,67 L53,79 L70,74 Z" fill={P.metal.shine} opacity="0.22" />
+        <g transform="translate(60 76)"><circle r="3.6" fill={palette.mid} stroke={P.ink.line} strokeWidth="0.6" /><circle r="2.2" fill={palette.trim} /><circle r="0.9" fill={palette.dark} /></g>
+        <Banner x={17} y={38} palette={palette} scale={0.5} />
+      </g>
     </SpriteFrame>
   );
 }

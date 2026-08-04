@@ -12,6 +12,7 @@ import {
   JetFighterSprite, IroncladSprite, MachineGunnerSprite, MissionarySprite, SpyHackerSprite,
   HorsemanSprite, CannonSprite, RiflemanSprite,
   TriremeSprite, CaravanSprite, WorkerSprite, BiplaneSprite,
+  TankSprite, ArtillerySprite,
 } from '@/renderer/sprites/units';
 import {
   DataCenterSprite, CyberDefenseCenterSprite, AutomatedPortSprite, SignalsHubSprite,
@@ -263,6 +264,50 @@ describe('#769 batch 4 sprites are not aliases of their donors', () => {
   });
 });
 
+// #769 batch 5 — the LAST batch: anti_tank_gun/mobile_aa previously reused TankSprite verbatim,
+// wwii_fighter previously reused JetFighterSprite verbatim. Mirrors the batch 3/4 pattern
+// above, for anti_tank_gun/mobile_aa/wwii_fighter.
+describe('#769 batch 5 sprites are not aliases of their donors', () => {
+  const palette = derivePalette('#4a90d9');
+
+  it('unit sprites render different markup than the donor they replaced', () => {
+    const replacements: Array<[keyof typeof UNIT_SPRITE_CATALOG, (props: { palette: typeof palette; svgOnly: boolean }) => string]> = [
+      ['anti_tank_gun', TankSprite],
+      ['mobile_aa', TankSprite],
+      ['wwii_fighter', JetFighterSprite],
+    ];
+    for (const [type, donorFn] of replacements) {
+      const actual = UNIT_SPRITE_CATALOG[type]({ palette, svgOnly: true });
+      const donor = donorFn({ palette, svgOnly: true });
+      expect(actual, `${type} still renders identically to its old donor sprite`).not.toBe(donor);
+    }
+  });
+
+  it('anti_tank_gun and mobile_aa are distinct from each other despite sharing a former donor', () => {
+    const antiTankGun = UNIT_SPRITE_CATALOG.anti_tank_gun({ palette, svgOnly: true });
+    const mobileAa = UNIT_SPRITE_CATALOG.mobile_aa({ palette, svgOnly: true });
+    expect(antiTankGun).not.toBe(mobileAa);
+  });
+
+  it('anti_tank_gun is also distinct from the existing towed-gun family (cannon, artillery), not just its TankSprite donor', () => {
+    const antiTankGun = UNIT_SPRITE_CATALOG.anti_tank_gun({ palette, svgOnly: true });
+    const cannon = UNIT_SPRITE_CATALOG.cannon({ palette, svgOnly: true });
+    const artillery = UNIT_SPRITE_CATALOG.artillery({ palette, svgOnly: true });
+    expect(antiTankGun).not.toBe(cannon);
+    expect(antiTankGun).not.toBe(artillery);
+    expect(CannonSprite({ palette, svgOnly: true })).not.toBe(antiTankGun);
+    expect(ArtillerySprite({ palette, svgOnly: true })).not.toBe(antiTankGun);
+  });
+
+  it('every batch 5 sprite carries a faction Banner, matching every other unit in the catalog', () => {
+    const bannerFingerprint = 'M0,-12 L14,-9 L8,-5 L14,-1 L0,-2 Z';
+    for (const type of ['anti_tank_gun', 'mobile_aa', 'wwii_fighter'] as const) {
+      const svg = UNIT_SPRITE_CATALOG[type]({ palette, svgOnly: true });
+      expect(svg, `${type} is missing the faction <Banner>`).toContain(bannerFingerprint);
+    }
+  });
+});
+
 // #769: full audit (2026-08-01, `scripts/audit-sprite-aliases.mjs`) of UNIT_SPRITE_CATALOG
 // originally found 17 units still rendering via another unit's exact sprite function — not
 // similar art, literally the same component (distinct from the Era 13 placeholders above,
@@ -319,16 +364,14 @@ describe('#769 pending sprite-alias audit baseline', () => {
   const palette = derivePalette('#4a90d9');
 
   it('known-pending aliased units still render identically to their donor unit', () => {
-    const pendingAliasPairs: Array<[keyof typeof UNIT_SPRITE_CATALOG, keyof typeof UNIT_SPRITE_CATALOG]> = [
-      // Batch 5 (drift, unscoped until 2026-08-02): anti_tank_gun/wwii_fighter landed on main
-      // from unrelated work mid-arc and were folded into #769 as their own batch rather than
-      // silently added to an existing one. mobile_aa joined the same batch after a batch 3
-      // rebase picked it up as a third unclaimed TankSprite/JetFighterSprite-family alias.
-      ['anti_tank_gun', 'tank'],
-      ['wwii_fighter', 'jet_fighter'],
-      ['mobile_aa', 'tank'],
-    ];
-    expect(pendingAliasPairs.length, "baseline count should match #769's remaining scope (17 originally, minus batch 1's 5, minus batch 2's 3, minus batch 3's 5, minus batch 4's 2, minus beast_handler/war_elephant deferred to #708, plus batch 5's anti_tank_gun/wwii_fighter/mobile_aa folded in 2026-08-02)").toBe(3);
+    // Batch 5 (anti_tank_gun/mobile_aa/wwii_fighter) shipped and was #769's last remaining
+    // batch — see the '#769 batch 5 sprites are not aliases of their donors' describe block
+    // above for their de-alias coverage. This baseline is now empty; #769 is fully complete.
+    // The 6 units still reported by `scripts/audit-sprite-aliases.mjs` (beast_handler/
+    // war_elephant/cuirassier → #708, armored_car/mechanized_infantry/battleship → #709/#711)
+    // are owned by other issues and were never #769's scope.
+    const pendingAliasPairs: Array<[keyof typeof UNIT_SPRITE_CATALOG, keyof typeof UNIT_SPRITE_CATALOG]> = [];
+    expect(pendingAliasPairs.length, "baseline count should match #769's remaining scope — 0, #769 is complete").toBe(0);
     for (const [aliasType, donorType] of pendingAliasPairs) {
       const actual = UNIT_SPRITE_CATALOG[aliasType]({ palette, svgOnly: true, motion: 'idle' });
       const donor = UNIT_SPRITE_CATALOG[donorType]({ palette, svgOnly: true, motion: 'idle' });

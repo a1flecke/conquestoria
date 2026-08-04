@@ -1,13 +1,21 @@
 # Claude Design Prompt: Conquestoria Sprites
 
-**This file has no active prompt right now.** The last one — #769 batch 4 (real, distinct
-live-catalog sprites for `global_air_cargo`, `stealth_bomber`) — shipped 2026-08-03. Both now
-render their own bespoke `units.tsx` sprite function instead of aliasing another unit's exact art.
-The batch before that — #769 batch 3 (`freight_convoy`, `recon_aircraft`, `air_freighter`,
-`bomber`, `jet_freighter`) — merged into `main` 2026-08-02 ([PR #780](https://github.com/a1flecke/conquestoria/pull/780),
-commit `26e7705f`). Batch 2 (`frigate`, `destroyer`, `merchant_wagon`, drafted 2026-08-01 as
-[issue #775](https://github.com/a1flecke/conquestoria/issues/775)) shipped 2026-08-01. Batch 1
-(`chariot`, `infantry`, `artillery`, `marine`, `cyber_unit`) shipped 2026-08-01 in PR #773 (merged).
+**This file has no active prompt right now.** The last one — #769 batch 5, the FINAL batch (real,
+distinct live-catalog sprites for `anti_tank_gun`, `mobile_aa`, `wwii_fighter`) — shipped
+2026-08-04. All three now render their own bespoke `units.tsx` sprite function instead of aliasing
+another unit's exact art. With this batch merged, **#769's own scope is fully complete** — the
+audit script now reports only the 6 units owned by #708/#709/#711, none left for #769. Close #769
+after confirming that (see the "Suggested first steps" / final-sweep note in git history for this
+file, batch 5's drafting revision, for the exact close-out checklist).
+
+The batch before that — #769 batch 4 (`global_air_cargo`, `stealth_bomber`) — shipped 2026-08-03
+([PR #782](https://github.com/a1flecke/conquestoria/pull/782), commit `639449b1`). Both now render
+their own bespoke `units.tsx` sprite function instead of aliasing another unit's exact art. Batch 3
+(`freight_convoy`, `recon_aircraft`, `air_freighter`, `bomber`, `jet_freighter`) — merged into
+`main` 2026-08-02 ([PR #780](https://github.com/a1flecke/conquestoria/pull/780), commit
+`26e7705f`). Batch 2 (`frigate`, `destroyer`, `merchant_wagon`, drafted 2026-08-01 as [issue
+#775](https://github.com/a1flecke/conquestoria/issues/775)) shipped 2026-08-01. Batch 1 (`chariot`,
+`infantry`, `artillery`, `marine`, `cyber_unit`) shipped 2026-08-01 in PR #773 (merged).
 
 ## Durable note: check for other issues owning the same units before scoping a batch
 
@@ -52,11 +60,10 @@ bash scripts/run-with-mise.sh yarn node scripts/audit-sprite-aliases.mjs
 ```
 
 This re-derives the alias list directly from `sprite-catalog.ts` (not from this doc or any issue
-body) and exits non-zero while any alias remains. As of batch 4 shipping (2026-08-03) it reports 9
-total: 3 remaining in #769's scope — batch 5 only (`anti_tank_gun`/`wwii_fighter`/`mobile_aa`, not
-yet scoped into a prompt) — plus `beast_handler`/`war_elephant`/`cuirassier` (owned by #708) and
-`armored_car`/`mechanized_infantry`/`battleship` (owned by #709/#711). Cross-check its output
-against:
+body) and exits non-zero while any alias remains. As of batch 5 shipping (2026-08-04) it reports 6
+total, all owned elsewhere and out of #769's scope: `beast_handler`/`war_elephant`/`cuirassier`
+(owned by #708) and `armored_car`/`mechanized_infantry`/`battleship` (owned by #709/#711). #769
+itself has 0 remaining — its scope is fully shipped. Cross-check its output against:
 - `tests/renderer/sprites/sprite-catalog.test.ts` → `describe('#769 pending sprite-alias audit
   baseline', ...)` — the mechanically-enforced remaining-scope list for #769 specifically. A unit
   is only "done" when its row is deleted here — that deletion is the proof, not a checkbox in prose.
@@ -66,6 +73,8 @@ If the audit reports a unit not in either place, don't assume it's #769's — ch
 owning issue first (see "Durable note" above), then update both the baseline test and #769's plan
 in the same PR.
 
+---
+
 ## When a new sprite/terrain/prompt need comes up
 
 Use the `.claude/skills/generate-sprite-prompt.md` skill for live-catalog (`units.tsx`/
@@ -74,6 +83,7 @@ prompt as a template) for animation-hook rigging work. Append the new prompt to 
 way this one was — dated, scoped to the specific issue — and prune it back out once shipped rather
 than leaving it to accumulate. Everything that has ever lived in this file (economy sprites,
 terrain tiles, naval transports, legendary beasts, rail segments, both Era 13 batches, #759 batch
-1, #769 batch 1, #769 batch 2, #769 batch 3, and now #769 batch 4) was pruned the same way,
-verified against actual source each time before removal — the history is in git, not preserved
-here.
+1, #769 batches 1 through 5) was pruned the same way, verified against actual source each time
+before removal — the history is in git, not preserved here. #769 itself is fully shipped as of
+batch 5 (2026-08-04) — its own scope is complete, though its "Durable note" above stays as a
+process lesson for any future sprite-alias issue.
