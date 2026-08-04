@@ -21,6 +21,7 @@ import {
   FrigateSprite, DestroyerSprite, MerchantWagonSprite,
   FreightConvoySprite, AirFreighterSprite, ReconAircraftSprite, BomberSprite, JetFreighterSprite,
   GlobalAirCargoSprite, StealthBomberSprite,
+  AntiTankGunSprite, MobileAaSprite, WwiiFighterSprite,
 } from './units';
 import {
   GranarySprite, HerbalistSprite, AqueductSprite,
@@ -304,13 +305,18 @@ export const UNIT_SPRITE_CATALOG: Record<UnitType, UnitSpriteComponent> = {
   // Temporary silhouette; #711 owns Battleship's dedicated capital-ship art.
   battleship:        withMotion('battleship', PreDreadnoughtSprite),
   tank:              withMotion('tank', TankSprite),
-  // Temporary Tank silhouette; a dedicated anti-tank gun sprite remains asset follow-up work.
-  anti_tank_gun:     withMotion('anti_tank_gun', TankSprite),
-  mobile_aa:         withMotion('mobile_aa', TankSprite),
+  // De-aliased in #769 batch 5 — bespoke towed anti-tank gun (wheeled carriage, gun
+  // shield, split trail, crouched crew, low direct-fire barrel); no longer a Tank clone.
+  anti_tank_gun:     withMotion('anti_tank_gun', AntiTankGunSprite),
+  // De-aliased in #769 batch 5 — bespoke self-propelled AA (open-top tracked mount, quad
+  // guns angled up, radar/sight dish); distinct from both Tank and the anti-tank gun.
+  mobile_aa:         withMotion('mobile_aa', MobileAaSprite),
   submarine:         withMotion('submarine', SubmarineSprite),
   observation_balloon: withMotion('observation_balloon', ObservationBalloonSprite),
   biplane:           withMotion('biplane', BiplaneSprite),
-  wwii_fighter:      withMotion('wwii_fighter', JetFighterSprite),
+  // De-aliased in #769 batch 5 — bespoke WWII single-engine prop fighter (spinning prop,
+  // straight monoplane wing, bubble canopy, no afterburner); one generation before the jet.
+  wwii_fighter:      withMotion('wwii_fighter', WwiiFighterSprite),
   // De-aliased in #769 batch 3 — bespoke jet-age recon jet (camera pod, no weapons).
   recon_aircraft:    withMotion('recon_aircraft', ReconAircraftSprite),
   jet_fighter:       withMotion('jet_fighter', JetFighterSprite),
