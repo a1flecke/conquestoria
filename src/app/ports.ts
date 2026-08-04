@@ -9,6 +9,8 @@
  * See docs/superpowers/plans/2026-08-04-composition-root-decomposition.md.
  */
 import type { GameState, HexCoord } from '@/core/types';
+import type { NotificationEntry } from '@/core/notification-log';
+import type { NotificationSink } from '@/ui/notification-routing';
 import type { PendingCityCaptureChoice } from '@/input/city-assault-flow';
 import type { LandUnitWaterRecovery } from '@/systems/unit-water-recovery';
 
@@ -128,4 +130,41 @@ export interface SelectionStore {
    * the player has already taken but not yet chosen to occupy or raze.
    */
   clear(): void;
+}
+
+/**
+ * A single button in a `Notifier.choice` prompt.
+ *
+ * Matches the shape already used by `createPersistentChoiceNotification` at
+ * main.ts:4156 (`danger` drives red destructive-action styling, e.g. the
+ * espionage "Execute" button) — not a simplified `onSelect`-only shape.
+ */
+export interface ChoiceAction {
+  readonly label: string;
+  readonly danger?: boolean;
+  readonly onClick: () => void;
+}
+
+/**
+ * Everything `main.ts` uses to tell the player something happened.
+ *
+ * `toast` is the pure DOM enqueue (today's `enqueueToast`): it does not touch
+ * the notification log. `showNotification`'s log-appending behavior for the
+ * active player's own input stays a thin main.ts wrapper around `toast` so
+ * the distinction `focusNotificationTarget`/`focusPirateTarget` rely on (a
+ * toast that does not create a permanent log entry) is preserved exactly.
+ */
+export interface Notifier {
+  toast(message: string, type: NotificationEntry['type'], target?: NotificationEntry['target'], sfxCue?: string): void;
+  /** The full delivery contract: log always, toast if active viewer, queue for hot-seat. */
+  readonly deliver: NotificationSink;
+  /** A toast that stays until the player picks one of `actions`. */
+  choice(message: string, actions: readonly ChoiceAction[]): void;
+  /**
+   * Stamps notifications produced inside `fn` with `turn` instead of the live
+   * state's turn. REQUIRED — `endTurn` and `beginHotSeatHandoff` both wrap
+   * `events.commitTo(bus)` in this so a completed round's notifications carry
+   * the round's turn, not the new one.
+   */
+  withHappenedTurn<T>(turn: number, fn: () => T): T;
 }
