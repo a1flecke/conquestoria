@@ -53,6 +53,20 @@ describe('createGameSession', () => {
     expect(listener).not.toHaveBeenCalled();
   });
 
+  it('notifies subscribers in registration order', () => {
+    // main.ts registers the renderer before the HUD and relies on that order:
+    // updateHUD() reads the same state the renderer was just handed.
+    const session = createGameSession(stub(1));
+    const order: string[] = [];
+    session.subscribe(() => order.push('renderer'));
+    session.subscribe(() => order.push('hud'));
+
+    session.commit(stub(2));
+    session.update(state => ({ ...state, turn: state.turn + 1 }));
+
+    expect(order).toEqual(['renderer', 'hud', 'renderer', 'hud']);
+  });
+
   it('a subscriber that throws does not prevent later subscribers from running', () => {
     const session = createGameSession(stub(1));
     const boom = vi.fn(() => { throw new Error('render failed'); });
