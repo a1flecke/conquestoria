@@ -77,6 +77,16 @@ function digest(state: GameState): Record<string, unknown> {
   };
 }
 
+// Timeouts per .claude/rules/hooks-and-tooling.md (#608): this file advances the
+// full turn pipeline 40 rounds across 4 civs, so it is a simulation test, not a
+// cheap unit test, and must never sit on vitest's 5s default. Observed: 1520ms /
+// 704ms solo locally, but 6604ms for the first test on CI -- which is exactly how
+// this file first failed. Sized well above the worst observed run so contention
+// from parallel worktree agents cannot turn it into a phantom regression. Do not
+// tighten these toward the solo timings.
+const TWO_RUN_TIMEOUT_MS = 30_000;
+const ONE_RUN_TIMEOUT_MS = 15_000;
+
 describe('determinism guard', () => {
   it(`${ROUNDS} rounds over the same start produce an identical state across runs`, () => {
     // Cloning one start (rather than creating two games) isolates exactly what
@@ -86,13 +96,28 @@ describe('determinism guard', () => {
     const b = advance(structuredClone(start), ROUNDS);
 
     expect(JSON.stringify(a)).toBe(JSON.stringify(b));
-  });
+  }, TWO_RUN_TIMEOUT_MS);
 
+  /**
+   * TEMPORARY — delete this test (and BASELINE, digest, and ONE_RUN_TIMEOUT_MS)
+   * in #787 phase 11, when the arc lands.
+   *
+   * It exists only to back this arc's "no gameplay change" claim while ~5,400
+   * lines move out of main.ts. It is NOT a general-purpose regression test: the
+   * digest is sensitive to any legitimate content or balance work -- a new unit,
+   * a retuned yield, an AI tweak -- and the only sane response to those is to
+   * re-record it. Keeping it past phase 11 would train everyone to re-record on
+   * red, which is precisely the habit the docblock above forbids, and would
+   * eventually mask a real regression.
+   *
+   * The sibling test above has no such expiry: run-to-run determinism is
+   * invariant under gameplay changes and stays useful forever.
+   */
   it('matches the baseline recorded from the pre-refactor build', () => {
     const state = advance(pinnedStart(), ROUNDS);
 
     expect(digest(state)).toEqual(BASELINE);
-  });
+  }, ONE_RUN_TIMEOUT_MS);
 });
 
 /**

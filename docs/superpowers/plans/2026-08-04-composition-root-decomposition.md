@@ -491,6 +491,11 @@ All must exit 0. Then commit, push, and open a PR whose body states: `main.ts` l
 
 **The determinism guard below is the cheap per-phase complement.** It runs the real turn pipeline with no UI in a couple of seconds, so every phase can afford it.
 
+Two operational facts about it, both learned the hard way in Phase 1:
+
+- It lives in `SLOW_TEST_FILES` (`scripts/run-tests-by-tier.sh`), per `.claude/rules/hooks-and-tooling.md`, because it advances 40 full turn rounds across 4 civs. That means `yarn test:fast` — the **local pre-push gate** — skips it. This is fine and intended: every phase runs it explicitly (`yarn test tests/app/determinism-guard.test.ts`, which forwards the path to Vitest), and CI's required `test` job runs the full suite including the slow tier. Do not assume pushing green means the guard ran.
+- Both tests carry explicit headroom timeouts (30 s / 15 s). Solo local runs are ~1.5 s / 0.7 s, but the first test was measured at 6.6 s on CI, and it failed the very first CI run on vitest's 5 s default. A simulation test on the default timeout produces a red build that looks exactly like a gameplay regression.
+
 **No `toMatchSnapshot`.** This repo has zero snapshot files and zero snapshot assertions — introducing them here would both break convention and pick exactly the wrong tool, since a snapshot's failure mode is "re-record until green," which is the one response this guard must never permit. Record the numbers once from the pre-refactor build and write them as literals.
 
 `tests/app/determinism-guard.test.ts`:
@@ -1909,6 +1914,7 @@ it('controllers depend on ports, not on RenderLoop/AudioSystem/document', () => 
 Type-only imports of `RenderLoop`/`AudioSystem` for `Pick<>` deps are fine; the regexes target value imports, so write those as `import type`.
 
 - [ ] **Step 4: Delete `tests/app/refresh-bypass-ratchet.test.ts`** (or, if some bypasses are genuinely correct, lower its bound to that number and document each in a comment).
+- [ ] **Step 4a: Retire the determinism guard's baseline test.** Delete the `matches the baseline recorded from the pre-refactor build` test, plus `BASELINE`, `digest`, and `ONE_RUN_TIMEOUT_MS`. **Keep** the run-to-run determinism test and `pinnedStart` — that one is invariant under gameplay changes and stays useful indefinitely. The baseline digest only ever backed this arc's "no gameplay change" claim; left in place it fires on ordinary content and balance work, where the only sane response is to re-record, which is the exact habit the file's docblock forbids. Once only the one test remains, re-evaluate whether the file still belongs in `SLOW_TEST_FILES` (halving the work may put it back under the fast tier's budget).
 - [ ] **Step 4b: Retire `createUiInteractionState`.** Nothing should construct it once `PanelHost` is wired everywhere. Delete the factory; keep the `UiInteractionState` interface, which `src/ui/context-menu.ts` and two UI test suites still import. Run those three suites explicitly before committing:
 
 ```bash
