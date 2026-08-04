@@ -25,6 +25,15 @@ function providersForOwner(state: GameState, ownerId: string): ResolvedAirDefens
   });
   return [...cityProviders, ...unitProviders];
 }
+/**
+ * Whether a civ currently has at least one built AA-providing building or unit anywhere
+ * on the map. Deliberately stricter than a tech-unlock check: researching `air-superiority`
+ * alone does not count until the civ actually places a battery or Mobile AA, so the overlay
+ * toggle stays hidden through the (potentially long) gap between unlocking and building one.
+ */
+export function civHasAirDefenseCoverage(state: GameState, civId: string): boolean {
+  return providersForOwner(state, civId).length > 0;
+}
 function providersFor(state: GameState, defender: Unit): ResolvedAirDefenseProvider[] {
   return providersForOwner(state, defender.owner).filter(provider => distance(state, provider.position, defender.position) <= provider.radius);
 }

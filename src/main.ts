@@ -31,6 +31,7 @@ import { hexKey, hexToPixel, hexesInRange, parseHexKey, wrapHexCoord } from '@/s
 import { moveUnit, getMovementCost, UNIT_DEFINITIONS, UNIT_DESCRIPTIONS, restUnit, canHeal, getUnmovedUnits, createUnit, findPath } from '@/systems/unit-system';
 import { classifyOwner, isAlwaysHostilePair, isMajorCivOwner } from '@/core/owner-kind';
 import { BUILDINGS, getProductionDisplayName, TRAINABLE_UNITS } from '@/systems/city-system';
+import { civHasAirDefenseCoverage } from '@/systems/air-defense-system';
 import { chooseCircularManufacturingMaterial } from '@/systems/national-project-system';
 import { usePropagandistAction } from '@/systems/propagandist-system';
 import { foundCityInState } from '@/systems/city-founding-system';
@@ -366,14 +367,13 @@ const uiLayer = document.getElementById('ui-layer') as HTMLDivElement;
 const renderLoop = new RenderLoop(canvas);
 const airDefenseOverlayButton = createGameButton('🛡 Anti-aircraft coverage', 'secondary');
 airDefenseOverlayButton.id = 'btn-air-defense-overlay';
-airDefenseOverlayButton.style.cssText += ';position:absolute;right:12px;top:64px;z-index:12;min-height:44px;';
+airDefenseOverlayButton.hidden = true; // shown once the current civ has built AA coverage — see updateHUD()
 airDefenseOverlayButton.setAttribute('aria-pressed', 'false');
 airDefenseOverlayButton.addEventListener('click', () => {
   const enabled = renderLoop.toggleAirDefenseOverlay();
   airDefenseOverlayButton.setAttribute('aria-pressed', String(enabled));
   airDefenseOverlayButton.textContent = enabled ? '🛡 Anti-aircraft coverage: on' : '🛡 Anti-aircraft coverage';
 });
-uiLayer.appendChild(airDefenseOverlayButton);
 let wonderDiscoveryQueue: ReturnType<typeof createWonderDiscoveryRevealQueue> | null = null;
 let legendaryCompletionQueue: ReturnType<typeof createLegendaryWonderCompletionQueue> | null = null;
 
@@ -527,6 +527,16 @@ function createUI(): void {
       });
     },
   });
+
+  // Join the utility toolbar's flex row instead of an independent absolute position —
+  // a second, uncoordinated top-right anchor overlapped the HUD and the toolbar's own
+  // icon buttons (#783).
+  const utilityToolbar = document.getElementById('utility-toolbar');
+  const pauseMenuButton = document.getElementById('btn-pause-menu');
+  if (utilityToolbar) {
+    if (pauseMenuButton) utilityToolbar.insertBefore(airDefenseOverlayButton, pauseMenuButton);
+    else utilityToolbar.appendChild(airDefenseOverlayButton);
+  }
 }
 
 function openBestiary(): void {
@@ -603,12 +613,13 @@ function currentCiv() {
 }
 
 function updateHUD(): void {
+  const civ = currentCiv();
+  airDefenseOverlayButton.hidden = !civHasAirDefenseCoverage(gameState, civ.id);
   const airDefenseEnabled = renderLoop.isAirDefenseOverlayEnabled(gameState.currentPlayer);
   airDefenseOverlayButton.setAttribute('aria-pressed', String(airDefenseEnabled));
   airDefenseOverlayButton.textContent = airDefenseEnabled ? '🛡 Anti-aircraft coverage: on' : '🛡 Anti-aircraft coverage';
   const hud = document.getElementById('hud');
   if (!hud) return;
-  const civ = currentCiv();
 
   // Sum yields across all cities
   let totalFood = 0, totalProd = 0, totalScience = 0;
