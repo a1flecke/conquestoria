@@ -379,8 +379,7 @@ const renderLoop = new RenderLoop(canvas);
 
 // The two refreshes `session.commit()` performs on every state publication.
 // Registered once, here, rather than repeated as a three-statement discipline
-// at each write site — which is what 42 of the remaining write sites still
-// bypass. Renderer first, matching the order the manual pairs used.
+// at each write site. Renderer first, matching the order the manual pairs used.
 session.subscribe(next => renderLoop.setGameState(next));
 session.subscribe(() => updateHUD());
 
@@ -792,7 +791,7 @@ function applyPirateActionResult(result: PirateActionResult, successMessage: str
     showNotification(result.reason ?? 'That pirate action is no longer available.', 'warning');
     return;
   }
-  session.commit(result.state);
+  session.setStateWithoutRefresh(result.state);
   for (const event of result.events) {
     if (event.type === 'tribute-paid') {
       bus.emit('pirate:audio-cue', { cue: 'tribute', factionId: event.factionId, viewerIds: [event.civId] });
@@ -800,6 +799,8 @@ function applyPirateActionResult(result: PirateActionResult, successMessage: str
       bus.emit('pirate:audio-cue', { cue: 'contract-accepted', factionId: event.factionId, viewerIds: [event.employerId] });
     }
   }
+  renderLoop.setGameState(session.getState());
+  updateHUD();
   showNotification(successMessage, 'success');
 }
 
@@ -907,8 +908,10 @@ function openPirateHeadquartersAssault(factionId: string, unitId: string): void 
           viewerIds: [session.getState().currentPlayer],
         });
       }
-      session.commit(result.state);
+      session.setStateWithoutRefresh(result.state);
       panel.remove();
+      renderLoop.setGameState(session.getState());
+      updateHUD();
       SFX.combat();
       const bountyAwarded = result.events.find(event => event.type === 'faction-destroyed')?.bountyAwarded ?? 0;
       showNotification(
@@ -1100,11 +1103,13 @@ function executeMinorCivConquest(unitId: string, target: HexCoord, minorCivId: s
   const movedUnit = session.getState().units[unitId];
   if (movedUnit) session.getState().units[unitId] = { ...movedUnit, movementPointsLeft: 0 };
   const conquered = conquestMinorCiv(session.getState(), minorCivId, session.getState().currentPlayer);
-  session.commit(conquered.state);
+  session.setStateWithoutRefresh(conquered.state);
   emitMinorCivQuestTransitions(bus, conquered.transitions, session.getState());
   if (conquered.conquered) bus.emit('minor-civ:destroyed', { minorCivId, conquerorId: session.getState().currentPlayer });
   showNotification(`${cityName} has been conquered!`, 'success');
   SFX.tap();
+  renderLoop.setGameState(session.getState());
+  updateHUD();
 }
 
 function handleGiftGold(mcId: string): void {
@@ -1113,9 +1118,11 @@ function handleGiftGold(mcId: string): void {
     showNotification(result.reason ?? 'Gift unavailable.', 'warning');
     return;
   }
-  session.commit(result.state);
+  session.setStateWithoutRefresh(result.state);
   emitMinorCivQuestTransitions(bus, result.transitions, session.getState());
   showNotification('Gift delivered.', 'info');
+  renderLoop.setGameState(session.getState());
+  updateHUD();
   openDiplomacyPanel();
 }
 
@@ -1125,9 +1132,11 @@ function handleSponsorFestival(mcId: string): void {
     showNotification(result.reason ?? 'Festival unavailable.', 'warning');
     return;
   }
-  session.commit(result.state);
+  session.setStateWithoutRefresh(result.state);
   emitMinorCivQuestTransitions(bus, result.transitions, session.getState());
   showNotification('Festival sponsored.', 'success');
+  renderLoop.setGameState(session.getState());
+  updateHUD();
   openDiplomacyPanel();
 }
 
@@ -1137,8 +1146,10 @@ function handleMinorCivReparations(mcId: string): void {
     showNotification(result.reason ?? 'Reparations unavailable.', 'warning');
     return;
   }
-  session.commit(result.state);
+  session.setStateWithoutRefresh(result.state);
   showNotification('Reparations paid.', 'success');
+  renderLoop.setGameState(session.getState());
+  updateHUD();
   openDiplomacyPanel();
 }
 
@@ -1148,17 +1159,21 @@ function handleSendAid(crisisId: string): void {
     showNotification('Send Aid unavailable.', 'warning');
     return;
   }
-  session.commit(applySendAid(session.getState(), session.getState().currentPlayer, crisisId, bus));
+  session.setStateWithoutRefresh(applySendAid(session.getState(), session.getState().currentPlayer, crisisId, bus));
   showNotification('Aid sent.', 'success');
+  renderLoop.setGameState(session.getState());
+  updateHUD();
   openDiplomacyPanel();
 }
 
 function handleMinorCivWarPeace(mcId: string, currentlyAtWar: boolean): void {
   const result = setMinorCivWarState(session.getState(), session.getState().currentPlayer, mcId, !currentlyAtWar);
   if (!result.ok) return;
-  session.commit(result.state);
+  session.setStateWithoutRefresh(result.state);
   emitMinorCivQuestTransitions(bus, result.transitions, session.getState());
   showNotification(currentlyAtWar ? 'Peace with city-state' : 'War declared on city-state!', currentlyAtWar ? 'success' : 'warning');
+  renderLoop.setGameState(session.getState());
+  updateHUD();
   openDiplomacyPanel();
 }
 
@@ -1287,9 +1302,11 @@ function handleConcedeToMovement(cityId: string): GameState {
     showNotification(result.message, 'warning');
     return session.getState();
   }
-  session.commit(result.state);
+  session.setStateWithoutRefresh(result.state);
   bus.emit('faction:unrest-resolved', { cityId, owner: session.getState().currentPlayer });
   bus.emit('faction:concession-made', { cityId, owner: session.getState().currentPlayer, concessionType: 'charter' });
+  renderLoop.setGameState(session.getState());
+  updateHUD();
   showNotification(result.message, 'success');
   return session.getState();
 }
@@ -1463,10 +1480,12 @@ function showReligionBoonIfNeeded(): boolean {
   createReligionBoonModal(uiLayer, {
     religionName: ownReligion.name,
     onChooseBoon: (boon) => {
-      session.commit(chooseBoon(session.getState(), ownReligion.id, boon));
+      session.setStateWithoutRefresh(chooseBoon(session.getState(), ownReligion.id, boon));
       document.getElementById('religion-boon-modal')?.remove();
       setBlockingOverlay(null);
       showNotification(`${ownReligion.name} now grants ${boon}.`, 'success');
+      renderLoop.setGameState(session.getState());
+      updateHUD();
     },
   });
   return true;
@@ -2012,9 +2031,11 @@ function handleEstablishRoute(caravanId: string): void {
   openEstablishRoutePanel(uiLayer, session.getState(), caravanId, (toCityId) => {
     const resourceDiversity = getCivAvailableResources(session.getState(), session.getState().currentPlayer).size;
     const routeResult = establishQuestAwareRoute(session.getState(), caravanId, toCityId, resourceDiversity);
-    session.commit(routeResult.state);
+    session.setStateWithoutRefresh(routeResult.state);
     emitMinorCivQuestTransitions(bus, routeResult.questTransitions, session.getState());
     bus.emit('trade:route-created', { route: routeResult.route });
+    renderLoop.setGameState(session.getState());
+    updateHUD();
     selectUnit(caravanId);
     showNotification('Trade route established!', 'success');
   });
@@ -2161,11 +2182,13 @@ function selectUnit(
 
         const result = applyPillageToState(session.getState(), uid);
         if (!result.ok) return;
-        session.commit(result.state);
+        session.setStateWithoutRefresh(result.state);
         showNotification(
           result.goldAwarded! > 0 ? `Pillaged ${targetLabel} for ${result.goldAwarded} gold.` : `Pillaged ${targetLabel}.`,
           'success',
         );
+        renderLoop.setGameState(session.getState());
+        updateHUD();
         selectUnit(uid);
       },
       onStartAutoExplore: uid => startAutoExplore(uid),
@@ -2404,10 +2427,12 @@ function selectUnit(
       },
       onEstablishOutpost: (unitId) => {
         if (!canEstablishOutpost(session.getState(), unitId)) return;
-        session.commit(performEstablishOutpost(session.getState(), unitId));
+        session.setStateWithoutRefresh(performEstablishOutpost(session.getState(), unitId));
         autoSave(session.getState()).catch(() => {});
         selectedUnitId = null;
         renderLoop.setSelectedUnitId(null);
+        renderLoop.setGameState(session.getState());
+        updateHUD();
         showNotification('Expedition planted a flag! Outpost completes in 2 turns.', 'success');
       },
       onEstablishRoute: handleEstablishRoute,
@@ -2432,7 +2457,7 @@ function selectUnit(
           onConfirm: () => {
             const result = applyWorkerAction(session.getState(), uid, action, { allowReplacement: true });
             if (!result.ok) return;
-            session.commit(result.state);
+            session.setStateWithoutRefresh(result.state);
             for (const event of result.events) {
               if (event.type === 'improvement:started') {
                 bus.emit('improvement:started', event.payload);
@@ -2442,6 +2467,8 @@ function selectUnit(
                 bus.emit('unit:destroyed', event.payload);
               }
             }
+            renderLoop.setGameState(session.getState());
+            updateHUD();
             if (result.workerConsumed || result.workerLost || !session.getState().units[uid]) {
               deselectUnit();
             } else {
@@ -2693,7 +2720,7 @@ function foundCityAction(): void {
     );
     return;
   }
-  session.commit(result.state);
+  session.setStateWithoutRefresh(result.state);
 
   deselectUnit();
   const foundedCity = session.getState().cities[result.cityId];
@@ -2706,6 +2733,8 @@ function foundCityAction(): void {
     bus.emit('civilization:first-contact', contact);
   }
 
+  renderLoop.setGameState(session.getState());
+  updateHUD();
 }
 
 function performWorkerAction(action: WorkerActionType): void {
@@ -2714,7 +2743,7 @@ function performWorkerAction(action: WorkerActionType): void {
   const result = applyWorkerAction(session.getState(), selectedUnitId, action);
   if (!result.ok) return;
 
-  session.commit(result.state);
+  session.setStateWithoutRefresh(result.state);
   for (const event of result.events) {
     if (event.type === 'improvement:started') {
       bus.emit('improvement:started', event.payload);
@@ -2725,6 +2754,8 @@ function performWorkerAction(action: WorkerActionType): void {
     }
   }
 
+  renderLoop.setGameState(session.getState());
+  updateHUD();
 
   if (result.workerConsumed || result.workerLost || !session.getState().units[selectedUnitId]) {
     deselectUnit();
@@ -2805,7 +2836,7 @@ function finalizePendingCityCaptureChoice(
 
   pendingCityCaptureChoice = null;
   document.getElementById('city-capture-panel')?.remove();
-  session.commit(result.state);
+  session.setStateWithoutRefresh(result.state);
   emitMajorCityCaptureEvents(
     beforeCapture,
     result,
@@ -2826,6 +2857,8 @@ function finalizePendingCityCaptureChoice(
     showNotification(`${cityName} was razed! +${result.goldAwarded} gold`, 'success');
   }
 
+  renderLoop.setGameState(session.getState());
+  updateHUD();
   setTimeout(() => selectNextUnit(), 400);
 }
 
@@ -4948,7 +4981,8 @@ function enterCampaign(
     handleVictoryIfNeeded();
     return spritesReady;
   }
-  if (!session.getState().hotSeat) {
+  const hotSeat = session.getState().hotSeat;
+  if (!hotSeat) {
     const spritesReady = startGame();
     showNotification(message, 'info');
     return spritesReady;
@@ -4956,7 +4990,7 @@ function enterCampaign(
 
   audio.setMasterVolume(0);
   closeNetworkPanelsForHandoff();
-  const player = session.getState().hotSeat?.players.find(candidate => candidate.slotId === session.getState().currentPlayer);
+  const player = hotSeat.players.find(candidate => candidate.slotId === session.getState().currentPlayer);
   setBlockingOverlay('turn-handoff');
   roundPresentationGate.suppress();
   const controller = showTurnHandoff(

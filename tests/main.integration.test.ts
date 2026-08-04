@@ -26,7 +26,7 @@ describe('campaign entry wiring', () => {
     );
 
     expect(entry.indexOf('if (session.getState().gameOver)'))
-      .toBeLessThan(entry.indexOf('if (!session.getState().hotSeat)'));
+      .toBeLessThan(entry.indexOf('const hotSeat = session.getState().hotSeat;'));
     expect(entry).toContain('handleVictoryIfNeeded()');
   });
 
