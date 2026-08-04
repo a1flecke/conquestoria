@@ -8,7 +8,7 @@ import '@/assets/wurm-animations.css';
 import '@/assets/roc-animations.css';
 import '@/assets/dragon-animations.css';
 import { EventBus } from '@/core/event-bus';
-import { createNewGame, createHotSeatGame, createDefaultSettings } from '@/core/game-state';
+import { createNewGame, createHotSeatGame } from '@/core/game-state';
 import { resolveOpponentChallenge, setPendingOpponentChallenge, resolveChallengeForCiv, setPendingChallengeForCiv, applyPendingChallengeForCiv } from '@/core/opponent-challenge';
 import { processTurn } from '@/core/turn-manager';
 import { processNonHumanMajorRound } from '@/ai/ai-round-scheduler';
@@ -263,7 +263,9 @@ import {
   routeCityFlipped,
   type NotificationSink,
 } from '@/ui/notification-routing';
-import { createNotificationDelivery } from '@/ui/notification-delivery';
+import { createNotificationCenter } from '@/ui/notification-center';
+import { createUserSettingsStore } from '@/app/user-settings-store';
+import type { Notifier } from '@/app/ports';
 import { applyPersistedUserSettings } from '@/storage/settings-merge';
 import { registerConquestoriaServiceWorker } from '@/platform/service-worker';
 import { initializeDesktopMenu } from '@/platform/desktop-menu';
@@ -319,9 +321,20 @@ const selection = createSelectionStore();
 let drawer: TreasuryDrawer;
 let inputInitialized = false;
 let councilPanelOpen = false;
-let persistedSettings: GameState['settings'] | undefined;
 let pacingDebugOpen = false;
 let deferWonderDiscoveryRevealUntilMoveSettles = false;
+/** Owns persisted A/V settings + master volume, moved out of module scope (#787 phase 4). */
+const userSettingsStore = createUserSettingsStore({ load: loadSettings });
+/**
+ * The single source of player-facing notifications (#787 phase 4).
+ *
+ * Constructed in `init()`, once `createUI()` has created the `#notifications`
+ * element `NotificationCenterDeps.layer` needs. Every function below that
+ * reads `notifier` is only ever invoked during real gameplay, well after
+ * `init()` completes -- the same deferred-but-eager pattern `session` and
+ * `selection` already use for their own module-scope bindings.
+ */
+let notifier: Notifier;
 
 /**
  * Cancels a pending unload, and only a pending unload.
@@ -336,23 +349,6 @@ function clearUnloadState(): void {
   }
 }
 
-function mergePersistedSettings(loadedSettings?: GameState['settings']): GameState['settings'] {
-  const baseSettings = loadedSettings ?? persistedSettings ?? createDefaultSettings('small');
-  const customCivilizations = loadedSettings?.customCivilizations ?? persistedSettings?.customCivilizations ?? [];
-
-  return {
-    ...createDefaultSettings('small', baseSettings),
-    ...baseSettings,
-    customCivilizations: [...customCivilizations],
-  };
-}
-
-async function refreshPersistedSettings(): Promise<GameState['settings']> {
-  const loadedSettings = (await loadSettings()) ?? persistedSettings;
-  persistedSettings = mergePersistedSettings(loadedSettings);
-  return persistedSettings;
-}
-
 function currentCivDef() {
   return resolveCivDefinition(session.getState(), currentCiv().civType ?? '');
 }
@@ -360,9 +356,6 @@ const bus = new EventBus();
 const audioCtx = new AudioContext();
 const audio = new AudioSystem(audioCtx);
 const roundPresentationGate = new RoundPresentationGate();
-// Master volume is not persisted (no GameSettings field) — tracked in memory only
-// so the pause menu slider shows the correct current value on re-open.
-let currentMasterVolume = 1.0;
 const advisorSystem = new AdvisorSystem(bus);
 const uiInteractions = createUiInteractionState();
 
@@ -511,7 +504,7 @@ function createUI(): void {
         },
         // Spec 3: per-channel audio settings
         audioSettings: {
-          masterVolume:   currentMasterVolume,   // tracked in memory across menu reopens
+          masterVolume:   userSettingsStore.getMasterVolume(),   // tracked in memory across menu reopens
           musicVolume:    session.getState().settings.musicVolume,
           sfxVolume:      session.getState().settings.sfxVolume,
           stingerVolume:  session.getState().settings.stingerVolume  ?? 1.0,
@@ -523,7 +516,7 @@ function createUI(): void {
           // Apply to audio system immediately — no restart needed
           switch (key) {
             case 'masterVolume':
-              currentMasterVolume = value as number;
+              userSettingsStore.setMasterVolume(value as number);
               audio.setMasterVolume(value as number);
               return; // master not in GameSettings — skip the settings write below
             case 'musicVolume':    audio.setMusicVolume(value as number);   break;
@@ -720,28 +713,19 @@ function updateHUD(): void {
   }
 }
 
-// --- Notification queue ---
-const notificationQueue: Array<Pick<NotificationEntry, 'message' | 'type' | 'target'> & { sfxCue?: string }> = [];
-let isShowingNotification = false;
-let currentDismissTimer: ReturnType<typeof setTimeout> | null = null;
-
-function enqueueToast(
-  message: string,
-  type: NotificationEntry['type'],
-  target?: NotificationEntry['target'],
-  sfxCue?: string,
-): void {
-  if (roundPresentationGate.isSuppressed()) return;
-  notificationQueue.push({ message, type, target, sfxCue });
-  if (!isShowingNotification) displayNextNotification();
-}
+// --- Notifications ---
+// The toast queue, the choice modal, and the delivery contract below all live
+// in notifier (created in init(), see src/ui/notification-center.ts) (#787
+// phase 4). `notifier.toast` is the pure DOM enqueue (no log side effect) --
+// exactly today's enqueueToast, which is why focusNotificationTarget and
+// focusPirateTarget call it directly instead of showNotification below.
 
 function showNotification(
   message: string,
   type: NotificationEntry['type'] = 'info',
   target?: NotificationEntry['target'],
 ): void {
-  enqueueToast(message, type, target);
+  notifier.toast(message, type, target);
   if (session.getState()) {
     appendNotification(session.getState(), session.getState().currentPlayer, {
       message,
@@ -756,28 +740,23 @@ function showNotification(
 // logs to the recipient civ always, toasts only when that civ is the active
 // unsuppressed viewer, and queues to pendingEvents (hot seat only) otherwise
 // -- the turn-handoff summary drains that queue. All existing router call
-// sites keep using this name unchanged; it now enforces the contract instead
-// of the old emit-time currentPlayer attribution that leaked across hot-seat
-// players and never drained in solo.
-const notificationDelivery = createNotificationDelivery({
-  getState: () => session.getState(),
-  toast: enqueueToast,
-  isSuppressed: () => roundPresentationGate.isSuppressed(),
-});
-const appendToCivLog: NotificationSink = notificationDelivery.deliver;
+// sites keep using this name unchanged. Thunked (not `= notifier.deliver`)
+// because `notifier` is not assigned until init() runs, after every one of
+// these module-scope const/function declarations.
+const appendToCivLog: NotificationSink = (...args) => notifier.deliver(...args);
 
 function focusNotificationTarget(target: NotificationEntry['target']): void {
   if (!target) return;
   renderLoop.camera.centerOn(target.coord);
   const visibility = currentCiv().visibility;
   const isCurrentlyVisible = visibility ? getVisibility(visibility, target.coord) === 'visible' : false;
-  enqueueToast(formatNotificationTargetFocusMessage(target, isCurrentlyVisible), 'info');
+  notifier.toast(formatNotificationTargetFocusMessage(target, isCurrentlyVisible), 'info');
 }
 
 function focusPirateTarget(target: PirateFocusTarget): void {
   const coord = target.kind === 'region' ? target.center : target.coord;
   renderLoop.camera.centerOn(coord);
-  enqueueToast(target.label, 'info');
+  notifier.toast(target.label, 'info');
 }
 
 function applyPirateActionResult(result: PirateActionResult, successMessage: string): void {
@@ -917,60 +896,6 @@ function openPirateHeadquartersAssault(factionId: string, unitId: string): void 
       openPirateWaters({ factionId });
     },
   });
-}
-
-function displayNextNotification(): void {
-  const area = document.getElementById('notifications');
-  if (!area) return;
-
-  const next = notificationQueue.shift();
-  if (!next) {
-    isShowingNotification = false;
-    return;
-  }
-
-  isShowingNotification = true;
-  const colors = { info: '#e8c170', success: '#6b9b4b', warning: '#d94a4a' };
-  const notif = document.createElement('div');
-  notif.style.cssText = `background:${colors[next.type]}ee;color:#1a1a2e;padding:10px 14px;border-radius:10px;font-size:12px;cursor:pointer;transition:opacity 0.3s;max-width:90%;`;
-  notif.textContent = next.message;
-
-  if (notificationQueue.length > 0) {
-    const badge = document.createElement('span');
-    badge.style.cssText = 'margin-left:8px;font-size:10px;opacity:0.7;';
-    badge.textContent = `(${notificationQueue.length} more)`;
-    notif.appendChild(badge);
-  }
-
-  const dismiss = () => {
-    if (currentDismissTimer) clearTimeout(currentDismissTimer);
-    currentDismissTimer = null;
-    notif.style.opacity = '0';
-    setTimeout(() => {
-      notif.remove();
-      displayNextNotification();
-    }, 200);
-  };
-
-  notif.addEventListener('click', () => {
-    focusNotificationTarget(next.target);
-    dismiss();
-  });
-  area.innerHTML = '';
-  area.appendChild(notif);
-
-  currentDismissTimer = setTimeout(() => {
-    if (notif.parentNode) dismiss();
-  }, 6000);
-
-  // #594 MR7: religion toasts carry a bespoke sfxCue that replaces the generic synth
-  // chime -- see notification-routing.ts's routeReligionFounded/routeReligionCityConverted/
-  // routeLoyaltyWarning/routeCityDefected for where sfxCue is set.
-  if (next.sfxCue) {
-    void audio.playReligionStinger(next.sfxCue).catch(() => {});
-  } else {
-    SFX.notification();
-  }
 }
 
 function toggleNotificationLog(): void {
@@ -1869,23 +1794,6 @@ function maybeShowCouncilInterrupt(): void {
     return;
   }
   showNotification(interrupt.summary, 'info');
-}
-
-function getPersistedSettingsOverrides(): Partial<GameState['settings']> {
-  if (!persistedSettings) {
-    return {};
-  }
-  return {
-    soundEnabled: persistedSettings.soundEnabled,
-    musicEnabled: persistedSettings.musicEnabled,
-    musicVolume: persistedSettings.musicVolume,
-    sfxVolume: persistedSettings.sfxVolume,
-    stingerVolume:  persistedSettings.stingerVolume  ?? 1.0,
-    stingerEnabled: persistedSettings.stingerEnabled ?? true,
-    tutorialEnabled: persistedSettings.tutorialEnabled,
-    advisorsEnabled: persistedSettings.advisorsEnabled,
-    councilTalkLevel: persistedSettings.councilTalkLevel,
-  };
 }
 
 function openUnitStackPicker(coord: HexCoord, unitIds: string[]): void {
@@ -3901,7 +3809,7 @@ function releaseHandoffToViewer(nextSlotId: string): void {
   scanBeastSightings();
   maybeShowPendingHoardChoice();
   roundPresentationGate.resume();
-  audio.setMasterVolume(currentMasterVolume);
+  audio.setMasterVolume(userSettingsStore.getMasterVolume());
   setBlockingOverlay(null);
   emitCurrentPlayerAudioSnapshot(nextSlotId);
   if (handleVictoryIfNeeded()) return;
@@ -4049,7 +3957,7 @@ async function beginHotSeatHandoff(
     // still stamps every event committed this round with the pre-round turn
     // (#551). If that commit ever moves after an await, thread the turn
     // through the transaction options instead.
-    const outcome = await notificationDelivery.withHappenedTurn(
+    const outcome = await notifier.withHappenedTurn(
       preSimulationState.turn,
       () => transaction.runCompletedRoundSimulation(),
     );
@@ -4120,7 +4028,7 @@ async function endTurn(options: { allowUnmovedUnits?: boolean } = {}): Promise<v
       session.setStateWithoutRefresh(result.state);
       beginNetworkPlansForCurrentViewer();
       const soloMoves = captureAIMoves(() => {
-        notificationDelivery.withHappenedTurn(roundTurn, () => {
+        notifier.withHappenedTurn(roundTurn, () => {
           result.events.commitTo(bus);
         });
       });
@@ -4151,51 +4059,6 @@ function centerOnCurrentPlayer(): void {
   }
 }
 
-// --- Capture verdict UI ---
-
-interface ChoiceAction {
-  label: string;
-  danger?: boolean;
-  onClick: () => void;
-}
-
-function createPersistentChoiceNotification(message: string, actions: ChoiceAction[]): void {
-  const existing = document.getElementById('capture-verdict-modal');
-  if (existing) existing.remove();
-
-  const overlay = document.createElement('div');
-  overlay.id = 'capture-verdict-modal';
-  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;z-index:999;';
-
-  const inner = document.createElement('div');
-  inner.style.cssText = 'background:#1a1e2e;border-radius:14px;padding:20px;max-width:380px;width:90%;display:flex;flex-direction:column;gap:12px;color:#f5f7fb;';
-
-  const msg = document.createElement('p');
-  msg.textContent = message;
-  msg.style.cssText = 'margin:0;font-size:13px;line-height:1.5;';
-  inner.appendChild(msg);
-
-  const btnRow = document.createElement('div');
-  btnRow.style.cssText = 'display:flex;flex-wrap:wrap;gap:8px;';
-
-  for (const action of actions) {
-    const btn = document.createElement('button');
-    btn.textContent = action.label;
-    btn.style.cssText = action.danger
-      ? 'padding:8px 14px;border-radius:8px;background:rgba(220,60,60,0.25);border:1px solid rgba(220,60,60,0.5);color:#ff9999;font-size:12px;cursor:pointer;'
-      : 'padding:8px 14px;border-radius:8px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.2);color:#f5f7fb;font-size:12px;cursor:pointer;';
-    btn.addEventListener('click', () => {
-      overlay.remove();
-      action.onClick();
-    });
-    btnRow.appendChild(btn);
-  }
-
-  inner.appendChild(btnRow);
-  overlay.appendChild(inner);
-  document.body.appendChild(overlay);
-}
-
 function showEspionageCaptureChoice(spyId: string, spyOwner: string): void {
   const captorEsp = session.getState().espionage?.[session.getState().currentPlayer];
   const spy = session.getState().espionage?.[spyOwner]?.spies[spyId];
@@ -4209,7 +4072,7 @@ function showEspionageCaptureChoice(spyId: string, spyOwner: string): void {
   const distanceToCity = spy.infiltrationCityId ? 0 : 1;
   const relPenalty = getSpyCaptureRelationshipPenalty(distanceToCity);
 
-  createPersistentChoiceNotification(captureMessage, [
+  notifier.choice(captureMessage, [
     {
       label: `Expel (${relPenalty} relations)`,
       onClick: () => {
@@ -4271,7 +4134,7 @@ function showEspionageCaptureChoice(spyId: string, spyOwner: string): void {
       danger: true,
       onClick: () => {
         // Second in-panel confirmation — no window.confirm on mobile
-        createPersistentChoiceNotification(
+        notifier.choice(
           `Execute ${spy.name}? This cannot be undone and will severely damage relations with ${spyOwnerName}.`,
           [
             {
@@ -4935,7 +4798,25 @@ async function init(): Promise<void> {
   await initializeDesktopMenu();
 
   createUI();
-  persistedSettings = await loadSettings();
+  // #notifications is created by createGameShell() inside createUI(), so notifier
+  // can only be constructed here, not eagerly at module scope (#787 phase 4).
+  notifier = createNotificationCenter({
+    layer: document.getElementById('notifications') as HTMLElement,
+    getState: () => session.getState(),
+    isSuppressed: () => roundPresentationGate.isSuppressed(),
+    playCue: (cue) => {
+      // #594 MR7: religion toasts carry a bespoke sfxCue that replaces the generic
+      // synth chime -- see notification-routing.ts's routeReligionFounded/
+      // routeReligionCityConverted/routeLoyaltyWarning/routeCityDefected.
+      if (cue === 'notification') {
+        SFX.notification();
+      } else {
+        void audio.playReligionStinger(cue).catch(() => {});
+      }
+    },
+    onFocusTarget: focusNotificationTarget,
+  });
+  await userSettingsStore.refresh();
 
   if (import.meta.env.MODE === 'e2e') {
     // Browser tests must target the same live camera transform as player input;
@@ -4979,7 +4860,7 @@ function enterCampaign(
   persistBeforeReady: boolean = false,
 ): Promise<void> | null {
   document.getElementById('save-panel')?.remove();
-  session.setStateWithoutRefresh(applyPersistedUserSettings(state, persistedSettings));
+  session.setStateWithoutRefresh(applyPersistedUserSettings(state, userSettingsStore.getPersisted()));
   if (session.getState().gameOver) {
     const spritesReady = startGame();
     handleVictoryIfNeeded();
@@ -5021,7 +4902,7 @@ function enterCampaign(
         roundPresentationGate.resume();
         setBlockingOverlay(null);
         startGame();
-        audio.setMasterVolume(currentMasterVolume);
+        audio.setMasterVolume(userSettingsStore.getMasterVolume());
         if (acknowledgement.playStrategicWarningAudio) {
           bus.emit('ai:strategic-warning-audio', {
             viewerId,
@@ -5116,12 +4997,6 @@ async function showStartSavePanel(): Promise<void> {
 
 function showGameModeSelection(): void {
   let modePanel: HTMLElement;
-  const updatePersistedCustomCivilizations = (customCivilizations: GameState['settings']['customCivilizations'] = []): void => {
-    persistedSettings = {
-      ...mergePersistedSettings(persistedSettings),
-      customCivilizations: [...customCivilizations],
-    };
-  };
 
   modePanel = showGameModeSelect(uiLayer, {
     initialTitle: 'New Campaign',
@@ -5130,7 +5005,7 @@ function showGameModeSelection(): void {
       showNotification('Campaign title is required', 'warning');
     },
     onChooseSolo: async (title) => {
-      const currentSettings = await refreshPersistedSettings();
+      const currentSettings = await userSettingsStore.refresh();
       const savedCustomCivilizations = currentSettings.customCivilizations ?? [];
       modePanel.remove();
       showCampaignSetup(uiLayer, {
@@ -5142,20 +5017,20 @@ function showGameModeSelection(): void {
             opponentCount: config.opponentCount,
             gameTitle: config.gameTitle,
             // Merge: persisted A/V settings first, then per-game setup choices (e.g. beastsMode) win
-            settingsOverrides: { ...getPersistedSettingsOverrides(), ...config.settingsOverrides },
+            settingsOverrides: { ...userSettingsStore.getOverrides(), ...config.settingsOverrides },
             customCivilizations: config.customCivilizations,
             seed: config.seed,
             mapScript: config.mapScript,
             startPlacementMode: config.startPlacementMode,
             opponentChallenge: config.opponentChallenge,
           }));
-          if (persistedSettings?.councilTalkLevel) {
-            session.getState().settings.councilTalkLevel = persistedSettings.councilTalkLevel;
+          if (userSettingsStore.getPersisted()?.councilTalkLevel) {
+            session.getState().settings.councilTalkLevel = userSettingsStore.getPersisted()!.councilTalkLevel;
           }
           startGame();
         },
         onCustomCivilizationsChanged: (customCivilizations) => {
-          updatePersistedCustomCivilizations(customCivilizations);
+          userSettingsStore.setCustomCivilizations(customCivilizations);
         },
         onCancel: () => showGameModeSelection(),
       }, {
@@ -5163,14 +5038,14 @@ function showGameModeSelection(): void {
       });
     },
     onChooseHotSeat: async (title) => {
-      const currentSettings = await refreshPersistedSettings();
+      const currentSettings = await userSettingsStore.refresh();
       const savedCustomCivilizations = currentSettings.customCivilizations ?? [];
       modePanel.remove();
       showHotSeatSetup(uiLayer, {
         onComplete: (config, opponentChallenge) => {
           session.setStateWithoutRefresh(createHotSeatGame(config, undefined, title, opponentChallenge ?? 'standard'));
-          if (persistedSettings?.councilTalkLevel) {
-            session.getState().settings.councilTalkLevel = persistedSettings.councilTalkLevel;
+          if (userSettingsStore.getPersisted()?.councilTalkLevel) {
+            session.getState().settings.councilTalkLevel = userSettingsStore.getPersisted()!.councilTalkLevel;
           }
           enterCampaign(
             session.getState(),
@@ -5179,7 +5054,7 @@ function showGameModeSelection(): void {
           );
         },
         onCustomCivilizationsChanged: (customCivilizations) => {
-          updatePersistedCustomCivilizations(customCivilizations);
+          userSettingsStore.setCustomCivilizations(customCivilizations);
         },
         onCancel: () => {
           showGameModeSelection();
@@ -5289,7 +5164,7 @@ function startGame(): Promise<void> {
     () => session.getState(),
     () => roundPresentationGate.isSuppressed(),
   );
-  audio.setMasterVolume(currentMasterVolume);
+  audio.setMasterVolume(userSettingsStore.getMasterVolume());
   routeSfxThrough(audio.getSfxRoutingNode());
   emitCurrentPlayerAudioSnapshot(session.getState().currentPlayer);
 
