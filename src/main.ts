@@ -269,6 +269,7 @@ import {
   type NotificationSink,
 } from '@/ui/notification-routing';
 import { createNotificationDelivery } from '@/ui/notification-delivery';
+import { applyPersistedUserSettings } from '@/storage/settings-merge';
 import { registerConquestoriaServiceWorker } from '@/platform/service-worker';
 import { initializeDesktopMenu } from '@/platform/desktop-menu';
 import { beginConfirmedForeignCityEntry } from '@/input/foreign-city-entry-flow';
@@ -5009,8 +5010,7 @@ function enterCampaign(
   persistBeforeReady: boolean = false,
 ): Promise<void> | null {
   document.getElementById('save-panel')?.remove();
-  gameState = state;
-  migrateLegacySave();
+  gameState = applyPersistedUserSettings(state, persistedSettings);
   if (gameState.gameOver) {
     const spritesReady = startGame();
     handleVictoryIfNeeded();
@@ -5143,130 +5143,6 @@ async function showStartSavePanel(): Promise<void> {
   });
 }
 
-function migrateLegacySave(): void {
-  for (const [civId, civ] of Object.entries(gameState.civilizations)) {
-    if (!civ.civType) (civ as any).civType = 'generic';
-    if (!civ.knownCivilizations) (civ as any).knownCivilizations = [];
-    if (!civ.lastCombatTurnByLandmass) (civ as any).lastCombatTurnByLandmass = {};
-    if (!civ.diplomacy) {
-      const relationships: Record<string, number> = {};
-      for (const otherId of Object.keys(gameState.civilizations)) {
-        if (otherId !== civId) relationships[otherId] = 0;
-      }
-      (civ as any).diplomacy = {
-        relationships,
-        treaties: [],
-        events: [],
-        atWarWith: [],
-      };
-    }
-  }
-  if (!gameState.settings.advisorsEnabled) {
-    gameState.settings.advisorsEnabled = { builder: true, explorer: true, chancellor: true, warchief: true, treasurer: true, scholar: true, spymaster: true, artisan: true };
-  }
-  // Add new advisor types if missing (M3b migration)
-  if (gameState.settings.advisorsEnabled && !('treasurer' in gameState.settings.advisorsEnabled)) {
-    (gameState.settings.advisorsEnabled as any).treasurer = true;
-    (gameState.settings.advisorsEnabled as any).scholar = true;
-  }
-  // Add spymaster advisor if missing (M4a migration)
-  if (gameState.settings.advisorsEnabled && !('spymaster' in gameState.settings.advisorsEnabled)) {
-    (gameState.settings.advisorsEnabled as any).spymaster = true;
-  }
-  if (!gameState.settings.councilTalkLevel) {
-    gameState.settings.councilTalkLevel = persistedSettings?.councilTalkLevel ?? 'normal';
-  }
-  // Ensure pendingEvents exists for hot seat saves
-  if (!gameState.pendingEvents) {
-    gameState.pendingEvents = {};
-  }
-  clearStaleSoloPendingEvents(gameState);
-  // Add wonder/village state if missing
-  if (!gameState.tribalVillages) (gameState as any).tribalVillages = {};
-  if (!gameState.discoveredWonders) (gameState as any).discoveredWonders = {};
-  if (!gameState.wonderDiscoverers) (gameState as any).wonderDiscoverers = {};
-  if (!gameState.legendaryWonderHistory) {
-    (gameState as any).legendaryWonderHistory = { destroyedStrongholds: [], discoveredSites: [] };
-  }
-  const legendaryWonderHistory = gameState.legendaryWonderHistory!;
-  legendaryWonderHistory.networkPlanResolutions ??= [];
-  if (!legendaryWonderHistory.discoveredSites) {
-    legendaryWonderHistory.discoveredSites = [];
-    for (const [wonderId, discoverers] of Object.entries(gameState.wonderDiscoverers ?? {})) {
-      const wonderTile = Object.values(gameState.map.tiles).find(tile => tile.wonder === wonderId);
-      for (const civId of discoverers) {
-        if (!legendaryWonderHistory.discoveredSites.some(record => record.civId === civId && record.siteId === wonderId)) {
-          legendaryWonderHistory.discoveredSites.push({
-            civId,
-            siteId: wonderId,
-            siteType: 'natural-wonder',
-            position: wonderTile?.coord ?? { q: 0, r: 0 },
-            turn: gameState.turn,
-          });
-        }
-      }
-    }
-  }
-  if (!gameState.legendaryWonderIntel) {
-    (gameState as any).legendaryWonderIntel = {};
-  }
-  // Add wonder field to tiles if missing
-  for (const tile of Object.values(gameState.map.tiles)) {
-    if (!('wonder' in tile)) (tile as any).wonder = null;
-  }
-  // M4-playtest migration: add isResting to existing units
-  for (const unit of Object.values(gameState.units)) {
-    if (!('isResting' in unit)) (unit as any).isResting = false;
-  }
-  // M3c migration: minor civs and expanded tech tracks
-  if (!gameState.minorCivs) (gameState as any).minorCivs = {};
-  const allTracks = ['military', 'economy', 'science', 'civics', 'exploration',
-    'agriculture', 'medicine', 'philosophy', 'arts', 'maritime',
-    'metallurgy', 'construction', 'communication', 'espionage', 'spirituality'];
-  for (const civ of Object.values(gameState.civilizations)) {
-    for (const track of allTracks) {
-      if (!(track in civ.techState.trackPriorities)) {
-        (civ.techState.trackPriorities as any)[track] = 'medium';
-      }
-    }
-  }
-  for (const civId of Object.keys(gameState.civilizations)) {
-    refreshKnownCivilizations(gameState, civId);
-  }
-  // Reconstruct missing lastSeen entries for fog tiles on old saves (M5 migration)
-  for (const civId of Object.keys(gameState.civilizations)) {
-    reconstructLastSeenFromMap(gameState, civId);
-  }
-  // S5 migration: marketplace state init
-  if (!gameState.marketplace) {
-    gameState.marketplace = createMarketplaceState();
-  }
-  // S5 migration: TradeRoute shape — assign id, goldPerTrip, turnsPerTrip
-  let legacyRouteN = 1;
-  for (const route of gameState.marketplace.tradeRoutes) {
-    const r = route as any;
-    if (!r.id) {
-      r.id = `route-legacy-${legacyRouteN++}`;
-    }
-    if (!r.goldPerTrip) {
-      r.goldPerTrip = (r.goldPerTurn ?? 2) * (r.turnsPerTrip ?? 3);
-    }
-    if (!r.turnsPerTrip) {
-      r.turnsPerTrip = 3;
-    }
-    delete r.goldPerTurn;
-  }
-
-  // Beasts migration: flag legacy saves so processTurn places lairs on the FIRST tick after load.
-  // This defers the 🐾 markers and discovery notification until the player takes an action,
-  // giving them a moment to orient before the map changes.
-  if (!gameState.beasts) {
-    (gameState as any).beasts = { mode: 'wild', lairs: {}, sightingsByCiv: {}, migrationPending: true };
-  }
-  if (!gameState.resurgentCampCooldownByCivLandmass) {
-    (gameState as any).resurgentCampCooldownByCivLandmass = {};
-  }
-}
 
 function showGameModeSelection(): void {
   let modePanel: HTMLElement;
