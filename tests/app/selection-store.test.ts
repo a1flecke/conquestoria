@@ -113,4 +113,32 @@ describe('createSelectionStore', () => {
     store.setPirateSelection(null, 'h1');
     expect(store.getPirateSelection()).toEqual({ factionId: null, historyId: 'h1' });
   });
+
+  it('snapshot() reflects the current selection, ranges, water recovery, and pending intent', () => {
+    const store = createSelectionStore();
+    store.setSelectedUnitId('u1');
+    store.setRanges([{ q: 0, r: 0 }], [{ q: 1, r: 0 }]);
+    store.setPendingIntent({ kind: 'journey', unitId: 'u1' });
+
+    expect(store.snapshot()).toEqual({
+      selectedUnitId: 'u1',
+      movementRange: [{ q: 0, r: 0 }],
+      attackRange: [{ q: 1, r: 0 }],
+      pendingIntent: { kind: 'journey', unitId: 'u1' },
+      waterRecovery: NO_LAND_UNIT_WATER_RECOVERY,
+    });
+  });
+
+  it('snapshot() is a frozen-in-time value: later mutation does not change a snapshot already taken', () => {
+    const store = createSelectionStore();
+    store.setSelectedUnitId('u1');
+    const before = store.snapshot();
+
+    store.setSelectedUnitId('u2');
+    store.setPendingIntent({ kind: 'journey', unitId: 'u2' });
+
+    expect(before.selectedUnitId).toBe('u1');
+    expect(before.pendingIntent).toEqual({ kind: 'none' });
+    expect(store.snapshot().selectedUnitId).toBe('u2');
+  });
 });
