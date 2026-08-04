@@ -264,6 +264,14 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     attackProfile: { kind: 'bombard', range: 2, targets: ['unit', 'city'] },
     cargoSize: 3,
   },
+  trebuchet: {
+    type: 'trebuchet', name: 'Trebuchet', movementPoints: 1,
+    visionRange: 2, strength: 27, canFoundCity: false,
+    canBuildImprovements: false, productionCost: 125,
+    attackProfile: { kind: 'bombard', range: 2, targets: ['unit', 'city'] },
+    cargoSize: 3,
+    cityAssaultMultiplier: 1.25,
+  },
   ballista: {
     type: 'ballista', name: 'Ballista', movementPoints: 2,
     visionRange: 3, strength: 25, canFoundCity: false,
@@ -757,6 +765,7 @@ export const UNIT_DESCRIPTIONS: Record<UnitType, string> = {
   cuirassier:  'Armored cavalry breaks open ground but is slower than Cavalry and vulnerable to polearms.',
   crossbowman: 'Precision-ranged unit with a longer reach than Archers. Requires Copper.',
   catapult:    'Slow but devastating siege engine that bombards units and cities. Requires Stone.',
+  trebuchet:   'Slow siege engine that excels at breaking cities but is weaker against units.',
   ballista:    'Long-range bolt-thrower effective against massed units. Requires Iron.',
   cannon:      'Gunpowder siege weapon. High bombard damage against cities and fortifications at range 2. Slow movement. Upgrades into the artillery.',
   grenadier:   'Grenade-throwing infantry. Bombard range 1, strong vs fortifications and city walls. Good vs entrenched defenders.',

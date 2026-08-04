@@ -30,6 +30,7 @@ export const UNIT_CLASS_BY_TYPE: Record<UnitType, UnitClass[]> = {
   cuirassier: ['mounted', 'melee'],
   crossbowman: ['ranged'],
   catapult: ['siege'],
+  trebuchet: ['siege'],
   ballista: ['siege', 'ranged'],
   cannon: ['siege', 'gunpowder'],
   artillery: ['siege', 'gunpowder'],
@@ -270,10 +271,17 @@ export type CombatExchangeRule =
     excludedDefenderTypes: readonly UnitType[];
     defenderCounterDamageMultiplier: number;
     label: string;
+  }
+  | {
+    kind: 'siege-anti-personnel';
+    attackerTypes: readonly UnitType[];
+    defenderIncomingDamageMultiplier: number;
+    label: string;
   };
 
 /** Shared public combat-exchange contracts; no AI or UI consumer infers these from IDs. */
 export const COMBAT_EXCHANGE_RULES: readonly CombatExchangeRule[] = [
   { kind: 'air-interception', attackerDomain: 'air', attackerAttackProfile: 'ranged', defenderDomain: 'air', defenderAttackProfile: 'bombard' },
   { kind: 'shock', attackerTypes: ['war_elephant'], excludedDefenderTypes: ['spearman', 'pikeman'], defenderCounterDamageMultiplier: 0.85, label: 'War Elephant shock: −15% return damage' },
+  { kind: 'siege-anti-personnel', attackerTypes: ['trebuchet'], defenderIncomingDamageMultiplier: 0.8, label: 'Trebuchet is weak against units: −20% damage' },
 ];

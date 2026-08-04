@@ -14,6 +14,36 @@ import { buildCombatContextForDefender } from '@/systems/combat-context';
 
 const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
 
+describe('Trebuchet unit-damage penalty (#684)', () => {
+  it('deals 20% less damage to units without changing Catapult damage, reported through the shared exchange result', () => {
+    const map = makeRiverCombatMap();
+    const trebuchet = createUnit('trebuchet', 'player', { q: 0, r: 0 }, mkC());
+    const catapult = createUnit('catapult', 'player', { q: 0, r: 0 }, mkC());
+    const defender = createUnit('warrior', 'ai-1', { q: 1, r: 0 }, mkC());
+
+    const trebuchetResult = resolveCombat(trebuchet, defender, map, 123);
+    expect(trebuchetResult.defenderDamage).toBe(18);
+    expect(trebuchetResult.exchange).toEqual({
+      kind: 'siege-anti-personnel',
+      label: 'Trebuchet is weak against units: −20% damage',
+    });
+
+    const catapultResult = resolveCombat(catapult, defender, map, 123);
+    expect(catapultResult.exchange).toBeUndefined();
+  });
+
+  it('exposes the penalty through getCombatExchangeModifiers, the same lookup used by the combat preview', () => {
+    const trebuchet = createUnit('trebuchet', 'p1', { q: 0, r: 0 }, mkC());
+    const warrior = createUnit('warrior', 'p2', { q: 1, r: 0 }, mkC());
+
+    expect(getCombatExchangeModifiers(trebuchet, warrior)).toMatchObject({
+      kind: 'siege-anti-personnel',
+      defenderIncomingDamageMultiplier: 0.8,
+      label: 'Trebuchet is weak against units: −20% damage',
+    });
+  });
+});
+
 function makeRiverCombatMap(
   rivers: GameMap['rivers'] = [],
 ): GameMap {

@@ -70,6 +70,7 @@ export function calculateCityAssaultStrengths(
     * (attacker.health / 100)
     * (1 + getVeterancyCombatModifier(attacker))
     * (1 + riverAttackPenalty)
+    * (attackerDefinition.cityAssaultMultiplier ?? 1)
     * (options.attackerMultiplier ?? 1);
   const intrinsicStrength = getCityIntrinsicStrength(city, ownerCiv, 'land');
   const winProbability = attackerStrength / (attackerStrength + intrinsicStrength);

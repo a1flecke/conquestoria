@@ -357,6 +357,13 @@ describe('getCityIntrinsicStrength (#522)', () => {
 });
 
 describe('calculateCityAssaultStrengths / resolveCityAssault (#522)', () => {
+  it('applies Trebuchet’s 25% city-assault bonus through the shared city assault calculation', () => {
+    const { city, ownerCiv } = makeCityAndCiv({ population: 1, buildings: [] });
+    const trebuchet = createUnit('trebuchet', 'ai-1', { q: 3, r: 2 }, mkC());
+
+    expect(calculateCityAssaultStrengths(trebuchet, city, ownerCiv, { width: 10, height: 10, wrapsHorizontally: false, rivers: [], tiles: {} }).attackerStrength)
+      .toBeCloseTo(33.75, 5);
+  });
   it('computes attacker strength the same way calculateCombatStrengths does (health, veterancy, river)', () => {
     const { state, cityId } = makeGameStateWithCity();
     const city = { ...state.cities[cityId]!, population: 1, buildings: [] };

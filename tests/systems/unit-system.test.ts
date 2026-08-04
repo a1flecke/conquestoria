@@ -21,6 +21,22 @@ import { createNewGame } from '@/core/game-state';
 
 const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
 
+describe('Trebuchet catalog contract (#684)', () => {
+  it('defines the slow city-focused Era-4 bombard unit', () => {
+    expect(UNIT_DEFINITIONS.trebuchet).toMatchObject({
+      strength: 27,
+      movementPoints: 1,
+      productionCost: 125,
+      attackProfile: { kind: 'bombard', range: 2, targets: ['unit', 'city'] },
+    });
+    expect(TRAINABLE_UNITS.find(unit => unit.type === 'trebuchet')).toMatchObject({
+      techRequired: 'siege-warfare',
+      requiredTechs: ['fortresses'],
+      upgradesTo: 'cannon',
+    });
+  });
+});
+
 function zocRangeState(): GameState {
   const state = createNewGame(undefined, 'zoc-range', 'small');
   const mover = { ...createUnit('warrior', 'player', { q: 0, r: 0 }, mkC()), id: 'mover', movementPointsLeft: 2 };

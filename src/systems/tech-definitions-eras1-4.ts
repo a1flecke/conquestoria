@@ -8,7 +8,7 @@ export const TECH_TREE_ERAS_1_4: Tech[] = [
   { id: 'horseback-riding', name: 'Horseback Riding', track: 'military', cost: 25, prerequisites: ['animal-husbandry'], unlocks: [], unlocksUnits: ['horseman', 'beast_handler'], unlocksBuildings: ['stable', 'cavalry-academy'], era: 2 },
   { id: 'fortification', name: 'Fortification', track: 'military', cost: 60, prerequisites: ['bronze-working'], unlocks: [], unlocksUnits: ['pikeman'], unlocksBuildings: ['walls'], era: 3 },
   { id: 'iron-forging', name: 'Iron Forging', track: 'military', cost: 55, prerequisites: ['bronze-working', 'mining-tech'], unlocks: [], unlocksUnits: ['knight'], unlocksBuildings: ['iron-foundry', 'war-academy', 'iron_legion'], era: 3 },
-  { id: 'siege-warfare', name: 'Siege Warfare', track: 'military', cost: 90, prerequisites: ['iron-forging', 'engineering'], unlocks: [], unlocksUnits: ['catapult', 'ballista'], unlocksBuildings: ['siege-workshop'], era: 4 },
+  { id: 'siege-warfare', name: 'Siege Warfare', track: 'military', cost: 90, prerequisites: ['iron-forging', 'engineering'], unlocks: [], unlocksUnits: ['catapult', 'trebuchet', 'ballista'], unlocksBuildings: ['siege-workshop'], era: 4 },
   { id: 'tactics', name: 'Tactics', track: 'military', cost: 70, prerequisites: ['iron-forging'], unlocks: ['Units get +10% combat bonus'], unlocksUnits: ['crossbowman', 'war_elephant'], unlocksBuildings: ['praetorian_legion'], era: 4 },
 
   // === ECONOMY TRACK (9 techs, with Slice 3 late-era scaffolding) ===
@@ -119,7 +119,7 @@ export const TECH_TREE_ERAS_1_4: Tech[] = [
   { id: 'foundations', name: 'Foundations', track: 'construction', cost: 10, prerequisites: ['mud-brick'], unlocks: ['Structural engineering traditions'], era: 2 },
   { id: 'aqueducts', name: 'Aqueducts', track: 'construction', cost: 55, prerequisites: ['masonry', 'engineering'], unlocks: ['Water management traditions'], era: 3 },
   { id: 'arches', name: 'Arches', track: 'construction', cost: 55, prerequisites: ['masonry', 'foundations'], unlocks: ['Advanced masonry techniques'], era: 3 },
-  { id: 'fortresses', name: 'Fortresses', track: 'construction', cost: 75, prerequisites: ['arches'], unlocks: ['Fortified strongpoints doctrine'], era: 4 },
+  { id: 'fortresses', name: 'Fortresses', track: 'construction', cost: 75, prerequisites: ['arches'], unlocks: ['Fortified strongpoints doctrine', 'Required with Siege Warfare for Trebuchet'], era: 4 },
   { id: 'city-planning', name: 'City Planning', track: 'construction', cost: 95, prerequisites: ['aqueducts', 'arches'], unlocks: ['Urban planning traditions'], era: 4 },
 
   // === COMMUNICATION TRACK (9 techs, with Slice 3 late-era scaffolding) ===

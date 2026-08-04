@@ -1140,7 +1140,12 @@ export const TRAINABLE_UNITS: Array<TrainableUnitEntry & { pacing?: Building['pa
   // S4b — ranged + siege
   { type: 'marine',       name: 'Marine',       cost: 125, techRequired: 'amphibious-warfare', coastalRequired: true, obsoletedByTech: 'mass-firepower', upgradesTo: 'machine_gunner' },
   { type: 'crossbowman',  name: 'Crossbowman',  cost: 75,  techRequired: 'tactics',          resourceRequired: ['copper'],  obsoletedByTech: 'rifled-infantry', upgradesTo: 'rifleman',        pacing: { band: 'power-spike', role: 'precision-ranged',      impact: 1.15, scope: 'military', snowball: 1,   urgency: 1,    situationality: 1.05, unlockBreadth: 1 } },
-  { type: 'catapult',     name: 'Catapult',     cost: 110, techRequired: 'siege-warfare',    resourceRequired: ['stone'],   obsoletedByTech: 'black-powder', upgradesTo: 'cannon',                      pacing: { band: 'power-spike', role: 'siege-bombardment',    impact: 1.2,  scope: 'military', snowball: 1.1, urgency: 1,    situationality: 1.2,  unlockBreadth: 1 } },
+  { type: 'catapult',     name: 'Catapult',     cost: 110, techRequired: 'siege-warfare',    resourceRequired: ['stone'],   obsoletedByTech: 'black-powder', upgradesTo: 'trebuchet',                   pacing: { band: 'power-spike', role: 'siege-bombardment',    impact: 1.2,  scope: 'military', snowball: 1.1, urgency: 1,    situationality: 1.2,  unlockBreadth: 1 } },
+  // band: 'marquee' (not 'power-spike' like Catapult/Ballista) — the dual Siege Warfare +
+  // Fortresses gate and 125 cost push its estimated build time past the power-spike window's
+  // era-4 ceiling (11 turns at 10 production/turn); marquee's wider [10,16] window fits the
+  // 13-turn estimate. See tests/systems/pacing-audit.test.ts.
+  { type: 'trebuchet',    name: 'Trebuchet',    cost: 125, techRequired: 'siege-warfare', requiredTechs: ['fortresses'], obsoletedByTech: 'black-powder', upgradesTo: 'cannon',                   pacing: { band: 'marquee', role: 'city-siege-specialist', impact: 1.2, scope: 'military', snowball: 1.05, urgency: 1, situationality: 1.3, unlockBreadth: 1 } },
   { type: 'ballista',     name: 'Ballista',     cost: 100, techRequired: 'siege-warfare',    resourceRequired: ['iron'],    obsoletedByTech: 'black-powder', upgradesTo: 'cannon',                      pacing: { band: 'power-spike', role: 'anti-unit-siege',      impact: 1.15, scope: 'military', snowball: 1,   urgency: 1,    situationality: 1.15, unlockBreadth: 1 } },
   { type: 'cannon',       name: 'Cannon',       cost: 120, techRequired: 'black-powder',                                      obsoletedByTech: 'mass-firepower', upgradesTo: 'artillery',    pacing: { band: 'power-spike', role: 'gunpowder-siege',      impact: 1.3,  scope: 'military', snowball: 1.2, urgency: 1.1,  situationality: 1.2,  unlockBreadth: 1 } },
   { type: 'grenadier',    name: 'Grenadier',    cost: 130, techRequired: 'grenade-warfare',  obsoletedByTech: 'mass-firepower', upgradesTo: 'machine_gunner',                                                    pacing: { band: 'power-spike', role: 'anti-fortification',   impact: 1.2,  scope: 'military', snowball: 1.1, urgency: 1,    situationality: 1.3,  unlockBreadth: 1 } },
@@ -1265,7 +1270,7 @@ export function getCatalogProductionCost(itemId: string, era: number = 1): numbe
 export const MELEE_RANGED_UNIT_TYPES: string[] = [
   'warrior', 'axeman', 'spearman', 'swordsman', 'pikeman', 'musketeer', 'archer', 'crossbowman',
 ];
-export const SIEGE_UNIT_TYPES: string[] = ['catapult', 'ballista', 'cannon'];
+export const SIEGE_UNIT_TYPES: string[] = ['catapult', 'trebuchet', 'ballista', 'cannon'];
 
 interface MountedProductionDiscountBuilding {
   buildingId: string;
@@ -1500,6 +1505,7 @@ export const PRODUCTION_ICONS: Record<string, string> = {
   cuirassier:  '🛡️',
   crossbowman: '🪃',
   catapult:    '🪨',
+  trebuchet:   '🏰',
   ballista:    '🔩',
   cannon:      '💣',
   artillery:   '💥',
