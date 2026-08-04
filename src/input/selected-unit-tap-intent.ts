@@ -39,7 +39,7 @@ export function resolveSelectedUnitTapIntent(
   state: GameState,
   unitId: string,
   targetCoord: HexCoord,
-  movementRangeOverride?: HexCoord[],
+  movementRangeOverride?: readonly HexCoord[],
 ): SelectedUnitTapIntent {
   const unit = state.units[unitId];
   if (!unit) return { kind: 'move' };
