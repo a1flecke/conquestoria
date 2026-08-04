@@ -21,7 +21,8 @@
 - **No gameplay change of any kind.** No yields, costs, combat modifiers, tech gating, AI decisions, difficulty scaling, RNG seeding, or victory conditions are touched. `src/systems/`, `src/ai/`, and `src/core/turn-manager.ts` are read-only for this entire plan except where a phase explicitly names a file.
 - No new runtime dependencies.
 - `Math.random()` remains forbidden. `state.currentPlayer` remains the only ownership source. `innerHTML` with game strings remains forbidden.
-- Every phase runs the **determinism guard** (Part V) and the **e2e smoke suite** before merge, not just unit tests.
+- Every phase runs the **determinism guard** (Part V) before merge, not just unit tests. Phases that touch the turn pipeline, difficulty, or campaign entry additionally run `yarn test:ai-playability` and `yarn test:web-smoke` — see Part VI for which.
+- Single-file runs work: `yarn test <path>` forwards the path to Vitest (`scripts/run-test-suite.sh` shifts `full` and passes `"$@"` through), then always runs the hook smoke tests.
 
 ---
 
@@ -31,7 +32,7 @@ Numbers below were taken from `src/main.ts` at commit `208dad56`. Re-measure bef
 
 | Metric | Count | What it means |
 |---|---|---|
-| Total lines | 5,462 | 20x the next-largest hand-written app file |
+| Total lines | 5,462 | Largest hand-written file in the repo; 2.4x the largest system module (`city-system.ts`, 2,231) |
 | Top-level `function` declarations | 103 | All sharing one closure scope |
 | Module-scope `let` bindings | **23** | Full inventory in Part II; every one is assigned a phase |
 | `bus.on(...)` registrations at module scope | 72 | Run as an import side effect |
@@ -190,6 +191,14 @@ export interface Notifier {
   readonly deliver: NotificationSink;
   /** A toast that stays until the player picks one of `actions`. */
   choice(message: string, actions: readonly ChoiceAction[]): void;
+  /**
+   * Stamps notifications produced inside `fn` with `turn` instead of the live
+   * state's turn. REQUIRED — `endTurn` (main.ts:4154) and `beginHotSeatHandoff`
+   * (main.ts:4083) both wrap `events.commitTo(bus)` in this so a completed
+   * round's notifications carry the round's turn, not the new one. Omitting it
+   * from the port leaves Phase 9 unable to compile against `Notifier`.
+   */
+  withHappenedTurn<T>(turn: number, fn: () => T): T;
 }
 
 /** Already defined inline at src/main.ts:4193; move to ports.ts verbatim. */
@@ -222,10 +231,18 @@ function setBlockingOverlay(id: string | null): void {
 So `PanelHost` publishes the unblock, and the ceremony owner subscribes:
 
 ```ts
-export interface PanelHost {
+import type { UiInteractionState } from '@/ui/ui-interaction-state';
+
+/**
+ * Extends the existing UiInteractionState rather than replacing it: that
+ * interface has four consumers besides main.ts (src/ui/context-menu.ts plus
+ * tests/ui/keyboard-shortcuts.test.ts and tests/ui/desktop-controls.test.ts),
+ * so deleting the module in Phase 5 would break them. The FACTORY
+ * (createUiInteractionState) is retired in Phase 11 once PanelHost supplies it
+ * everywhere; the interface stays where it is.
+ */
+export interface PanelHost extends UiInteractionState {
   readonly layer: HTMLElement;
-  setBlockingOverlay(id: string | null): void;
-  isInteractionBlocked(): boolean;
   /** Fires whenever the last blocking overlay clears. Returns an unsubscribe fn. */
   onInteractionUnblocked(listener: () => void): () => void;
   /** Removes the panel with this id if present. Idempotent. */
@@ -367,7 +384,7 @@ You asked for review across gameplay, fun, ages, playstyles, difficulty, AI, UI/
 
 | Surface | Why it matters | Where it lives now | Owner | Guard |
 |---|---|---|---|---|
-| **Difficulty (opponent + personal challenge)** | The only difficulty dial the game has; a 7-year-old and a 43-year-old need different ones | `main.ts:490-500` (pause menu), `4029` (`applyPendingChallengeForCiv` at handoff), `5304/5325` (setup) | `HudController` + `TurnFlowController` + `CampaignEntryController` | Phase 9 test: a pending challenge set mid-game applies at the next handoff, once, for the right civ |
+| **Difficulty (`'explorer' \| 'standard' \| 'veteran'`)** | The only difficulty dial the game has; a 7-year-old and a 43-year-old need different ones | `main.ts:490-500` (pause menu), `4029` (`applyPendingChallengeForCiv` at handoff), `5304/5325` (setup); `normalizeLoadedState` also drops invalid values on load | `HudController` + `TurnFlowController` + `CampaignEntryController` | Phase 9 test: a pending challenge set mid-game applies at the next handoff, once, for the right civ; plus `yarn test:ai-playability` in Phases 1/9/11 |
 | **Legacy-save challenge prompt** | Old saves have no challenge; `showLegacyOpponentChallengePrompt` asks, and skipping it would silently pick a difficulty for the player | `main.ts:5109/5123/5135` via `beginCampaignEntry` | `CampaignEntryController` | Phase 10 test: all three entry routes still pass `showChallengePrompt` |
 | **AI move replay** | The only way a player sees what the AI did; without it the world changes silently between turns | `captureAIMoves`/`replayAIMoves`, `main.ts:3852-3884` | `TurnFlowController` | Phase 9 test: solo `endTurn` replays only current-viewer moves, capped at 6, and aborts on gate suppression |
 | **Reduced motion** | Accessibility; also the setting a motion-sensitive adult needs to play at all | `prefersReducedMotion`, `main.ts:388` — read by both ceremony queues | `CeremonyCoordinator` | Phase 6 test: with `matchMedia` reporting reduce, queues receive `reducedMotion: true` |
@@ -384,6 +401,8 @@ You asked for review across gameplay, fun, ages, playstyles, difficulty, AI, UI/
 ### How computer players are affected
 
 They are not, and that is enforced rather than assumed. No file under `src/ai/` is modified by any phase. `processNonHumanMajorRound`, `runCompletedRound`, `processTurn`, and `applyStrategicWarningTransitions` are called from `runCurrentCompletedRound` and move to `TurnFlowController` **as a verbatim call**, with the same bus and the same four callbacks.
+
+The repo already owns the right regression suite for this: `tests/simulation/ai-playability.test.ts` (`yarn test:ai-playability`) runs 30-turn simulations across all three difficulties and multiple AI personality sets. It runs in Phases 1, 9, and 11 — see Part VI. Phase 1 Step 1 records the pre-refactor "before" reading.
 
 Two AI-adjacent risks are real and get explicit guards:
 
@@ -466,9 +485,13 @@ bash scripts/run-with-mise.sh yarn test tests/app/determinism-guard.test.ts
 
 All must exit 0. Then commit, push, and open a PR whose body states: `main.ts` line count before/after, the module-scope bindings retired (from the Part II inventory), and any intentional behavior change with its test.
 
-### The determinism guard (built in Phase 1, run in every phase)
+### Two gameplay guards, not one
 
-The cheapest possible protection for gameplay, balance, AI, and difficulty across all eleven phases: same seed in, same state out.
+**`yarn test:ai-playability` already exists and is the better of the two.** `tests/simulation/ai-playability.test.ts` runs 30-turn simulations across real difficulty levels (`'explorer' | 'standard' | 'veteran'`) and AI personality sets via `simulateAIRounds` / `simulateLateEraAIRounds`. It is the existing, maintained answer to "do computer players still work and does difficulty still mean anything." **It is slow** (`run-ai-playability-regressions.sh` allows 300 s with a 120 s per-test timeout), so it runs in the phases that can plausibly affect it — Phase 1 (save/state construction), Phase 9 (turn flow, AI replay, difficulty application), and Phase 11 (final) — not in every phase.
+
+**The determinism guard below is the cheap per-phase complement.** It runs the real turn pipeline with no UI in a couple of seconds, so every phase can afford it.
+
+**No `toMatchSnapshot`.** This repo has zero snapshot files and zero snapshot assertions — introducing them here would both break convention and pick exactly the wrong tool, since a snapshot's failure mode is "re-record until green," which is the one response this guard must never permit. Record the numbers once from the pre-refactor build and write them as literals.
 
 `tests/app/determinism-guard.test.ts`:
 
@@ -512,19 +535,23 @@ describe('determinism guard', () => {
     const config = { civType: 'generic' as const, mapSize: 'small' as const, opponentCount: 3, gameTitle: 'guard', seed: 20260804 };
     const state = advance(createNewGame(config), 20);
 
-    // Recorded once, at Phase 1, from the pre-refactor build. Any phase that changes
-    // this has changed gameplay — which this plan forbids. Do not re-record to make
-    // it pass; find out which phase moved a system call and revert it.
-    expect({
-      turn: state.turn,
-      era: state.era,
-      cityCount: Object.keys(state.cities).length,
-      unitCount: Object.keys(state.units).length,
-      goldByCiv: Object.fromEntries(Object.entries(state.civilizations).map(([id, c]) => [id, c.gold])),
-    }).toMatchSnapshot();
+    // BASELINE — recorded once in Phase 1 Step 1 from the pre-refactor build, then
+    // written here as literals. Deliberately NOT a snapshot: a snapshot invites
+    // `-u` when it fails, and the only correct response to this failing is to find
+    // which phase moved a system call and revert it. Any phase that changes these
+    // numbers has changed gameplay, which this plan forbids.
+    expect(state.turn).toBe(/* fill from Step 1 */ 21);
+    expect(state.era).toBe(/* fill from Step 1 */ 1);
+    expect(Object.keys(state.cities).length).toBe(/* fill from Step 1 */ 0);
+    expect(Object.keys(state.units).length).toBe(/* fill from Step 1 */ 0);
+    expect(
+      Object.fromEntries(Object.entries(state.civilizations).map(([id, c]) => [id, c.gold])),
+    ).toEqual(/* fill from Step 1 */ {});
   });
 });
 ```
+
+The `/* fill from Step 1 */` values are the one place in this plan where a number is not yet known — they are *recorded output*, not a design decision, and Phase 1 Step 1 is the step that records them. Replace every one before committing; a placeholder left in place is a failed step.
 
 This runs the real turn pipeline with no UI, so it is unaffected by every phase *except* one that accidentally changes a system call — which is exactly the failure it exists to catch. Record the snapshot in Phase 1, before any other change.
 
@@ -611,12 +638,18 @@ function withDefault<T, K extends keyof T>(
 
 - [ ] **Step 1: Record the determinism baseline first**
 
-Create `tests/app/determinism-guard.test.ts` exactly as written in Part V above, run it to record the snapshot, and commit that snapshot **before touching any source file**. This is the pre-refactor baseline for all eleven phases.
+Create `tests/app/determinism-guard.test.ts` as written in Part V, run it, read the actual values out of the failure output, and write them in as literals **before touching any source file**. This is the pre-refactor baseline for all eleven phases.
 
 ```bash
 bash scripts/run-with-mise.sh yarn test tests/app/determinism-guard.test.ts
 ```
-Expected: PASS, and a new `tests/app/__snapshots__/determinism-guard.test.ts.snap`.
+Expected on the first run: the first test PASSES (run-to-run determinism), the second FAILS with the real values in the diff. Copy those in, re-run, expect PASS.
+
+Then confirm the existing AI/difficulty regression suite is green on the untouched build — this is the "before" reading you compare against in Phase 9:
+
+```bash
+bash scripts/run-with-mise.sh yarn test:ai-playability
+```
 
 ```bash
 git add tests/app && git commit -m "test: record pre-refactor determinism baseline"
@@ -731,6 +764,10 @@ In `src/storage/save-manager.ts`, add rows 19–22 to `normalizeLoadedState`: `r
 
 - [ ] **Step 7: Write the new-game completeness test**
 
+**Critical framing correction — read before writing this test.** `createNewGame` and `createHotSeatGame` never set `saveSchemaVersion` (verified: no occurrence in `src/core/game-state.ts`). `getSourceVersion` therefore returns **0** for a fresh state, so `normalizeLoadedState(createNewGame(...))` runs **migrations 1 through 12**, not just 12. That is real existing behavior — a brand-new game autosaved before any load carries no version, so its first load replays the whole chain — and it is exactly why migration 12 must be idempotent and no-op on modern state (Step 2's fourth case).
+
+It also means a naive whole-state `toEqual` here is a **bad gate**: it would fail on any pre-existing non-idempotency anywhere in migrations 1–11, blocking Phase 1 on defects Phase 1 did not introduce. So the gate is scoped to what Phase 1 actually moves, and the whole-state comparison is kept separately as a **diagnostic that is allowed to fail loudly without blocking**.
+
 `tests/storage/new-game-completeness.test.ts`:
 
 ```ts
@@ -738,35 +775,61 @@ import { describe, it, expect } from 'vitest';
 import { createNewGame, createHotSeatGame } from '@/core/game-state';
 import { normalizeLoadedState } from '@/storage/save-manager';
 import { CURRENT_SAVE_SCHEMA_VERSION } from '@/storage/save-migrations';
+import type { GameState } from '@/core/types';
 
-describe('freshly created games need no migration', () => {
-  it('createNewGame output survives normalizeLoadedState unchanged', () => {
-    const state = createNewGame({ civType: 'generic', mapSize: 'small', opponentCount: 2, gameTitle: 'solo', seed: 42 });
+const solo = (): GameState => createNewGame({
+  civType: 'generic', mapSize: 'small', opponentCount: 2, gameTitle: 'solo', seed: 42,
+});
+
+// Match this literal to the real HotSeatConfig type before running.
+const hotSeat = (): GameState => createHotSeatGame(
+  { players: [{ name: 'A', isHuman: true, civType: 'generic' }, { name: 'B', isHuman: true, civType: 'generic' }], mapSize: 'small' },
+  undefined,
+  'hot seat',
+  'standard',
+);
+
+describe('freshly created games need no legacy fixups', () => {
+  // THE GATE: only the fields Phase 1 relocates. Scoped deliberately — a fresh
+  // state has no saveSchemaVersion, so this runs migrations 1..12, and a whole-
+  // state assertion would fail on unrelated pre-existing non-idempotency.
+  for (const [label, make] of [['solo', solo], ['hot seat', hotSeat]] as const) {
+    it(`${label}: the relocated fixups are all no-ops on fresh state`, () => {
+      const state = make();
+      const normalized = normalizeLoadedState(structuredClone(state));
+
+      expect(normalized.saveSchemaVersion).toBe(CURRENT_SAVE_SCHEMA_VERSION);
+      expect(normalized.beasts.migrationPending).toBeUndefined();
+      expect(normalized.beasts.lairs).toEqual(state.beasts.lairs);
+      expect(normalized.marketplace.tradeRoutes).toEqual(state.marketplace.tradeRoutes);
+      expect(normalized.minorCivs).toEqual(state.minorCivs);
+      expect(normalized.legendaryWonderHistory).toEqual(state.legendaryWonderHistory);
+      expect(normalized.settings.advisorsEnabled).toEqual(state.settings.advisorsEnabled);
+      for (const [civId, civ] of Object.entries(normalized.civilizations)) {
+        expect(civ.civType).toBe(state.civilizations[civId].civType);
+        expect(civ.diplomacy).toEqual(state.civilizations[civId].diplomacy);
+        expect(civ.techState.trackPriorities).toEqual(state.civilizations[civId].techState.trackPriorities);
+      }
+    });
+  }
+
+  // THE DIAGNOSTIC: reports total divergence. If this fails, read the diff and
+  // decide — it may be a Phase 1 defect, or a pre-existing migration 1..11 issue
+  // that deserves its own issue. Do not delete it and do not let it block Phase 1.
+  it('diagnostic: reports any other divergence between fresh state and the load pipeline', () => {
+    const state = solo();
     const normalized = normalizeLoadedState(structuredClone(state));
 
     expect(normalized).toEqual({ ...state, saveSchemaVersion: CURRENT_SAVE_SCHEMA_VERSION });
-    expect(normalized.beasts.migrationPending).toBeUndefined();
-  });
-
-  it('createHotSeatGame output survives normalizeLoadedState unchanged', () => {
-    // Match this literal to the real HotSeatConfig type before running.
-    const state = createHotSeatGame(
-      { players: [{ name: 'A', isHuman: true, civType: 'generic' }, { name: 'B', isHuman: true, civType: 'generic' }], mapSize: 'small' },
-      undefined,
-      'hot seat',
-      'standard',
-    );
-    const normalized = normalizeLoadedState(structuredClone(state));
-
-    expect(normalized).toEqual({ ...state, saveSchemaVersion: CURRENT_SAVE_SCHEMA_VERSION });
-    expect(normalized.beasts.migrationPending).toBeUndefined();
   });
 });
 ```
 
-**Expected failure mode, and the correct response.** `createNewGame` and `createHotSeatGame` both hard-code `knownCivilizations: []` (`src/core/game-state.ts:263, 289, 476`) and never call `refreshKnownCivilizations`. If `refreshKnownCivilizations` computes a non-empty list at turn 1 (e.g. a civ always knows itself), this test fails on `knownCivilizations`.
+**Expected divergence, and the correct response.** `createNewGame` and `createHotSeatGame` both hard-code `knownCivilizations: []` (`src/core/game-state.ts:263, 289, 476`) and never call `refreshKnownCivilizations`. If that function computes a non-empty list at turn 1, the diagnostic fails on `knownCivilizations` — a genuine pre-existing inconsistency, since new hot-seat games got the refresh at entry and new solo games did not.
 
-That failure is a genuine pre-existing inconsistency — new hot-seat games got the refresh at entry, new solo games did not. **Fix it by making `createNewGame`/`createHotSeatGame` produce complete state** (call `refreshKnownCivilizations` at creation), not by re-adding an entry-time call or loosening the assertion. Note the fix in the PR body as the one intentional behavior change in Phase 1, and confirm the determinism snapshot from Step 1 still passes — if it moves, you changed gameplay and must stop.
+**Fix it by making `createNewGame`/`createHotSeatGame` produce complete state**, not by re-adding an entry-time call and not by loosening the assertion. Note the fix in the PR body as an intentional behavior change, and re-run the Step 1 determinism baseline — if those numbers move, you changed gameplay and must stop.
+
+If the diagnostic instead fails on something owned by migrations 1–11, file an issue, add a scoped `expect(...).toEqual(...)` exclusion with the issue number in a comment, and continue. Phase 1 is not the place to fix a five-migration-old bug.
 
 - [ ] **Step 8: Delete `migrateLegacySave` and rewire `enterCampaign`**
 
@@ -1216,7 +1279,9 @@ Replaces `togglePanel`'s 288-line `else if` chain (`src/main.ts:1589-1877`), the
 
 **Files:**
 - Create: `src/app/panel-host.ts`, `src/app/panel-registry.ts`, `src/app/panel-router.ts`, `src/app/global-shortcuts.ts`, `tests/app/panel-router.test.ts`, `tests/app/global-shortcuts.test.ts`
-- Modify: `src/main.ts`; delete `src/ui/ui-interaction-state.ts`
+- Modify: `src/main.ts`, `src/ui/ui-interaction-state.ts` (keep the interface, mark the factory as superseded)
+
+**Do not delete `src/ui/ui-interaction-state.ts` in this phase.** `UiInteractionState` has four consumers besides `main.ts`: `src/ui/context-menu.ts`, `tests/ui/keyboard-shortcuts.test.ts`, and `tests/ui/desktop-controls.test.ts`. `PanelHost extends UiInteractionState` (Part II), so `createPanelHost`'s return value is a drop-in for all of them — that is the LSP claim in Part II being cashed. Rewire `main.ts`'s two remaining consumers (`MouseHandler`'s `canInteract` and `installKeyboardShortcuts`'s `canHandle`, both in `startGame`) to the host. The `createUiInteractionState` **factory** is retired in Phase 11, once nothing constructs it.
 
 **Interfaces:**
 - Consumes: `GameSession`, `Notifier`, `SelectionStore`.
@@ -1653,14 +1718,18 @@ The `mistap` variant is separate from `ignore` because mis-tap forgiveness (Phas
 2. `endTurn` is a no-op when `state.gameOver`;
 3. a pending religion boon blocks `endTurn` and toasts, without advancing the turn;
 4. hot-seat `endTurn` suppresses the presentation gate, sets master volume to 0, autosaves, and restores the stored master volume after the handoff resolves;
-5. **difficulty:** a pending opponent challenge set before `endTurn` is applied exactly once, at the handoff, to the correct civ (`applyPendingChallengeForCiv`, `main.ts:4029`) — and a *personal* pending challenge applies only to its own civ;
+5. **difficulty:** a pending opponent challenge set before `endTurn` is applied exactly once, at the handoff, to the correct civ (`applyPendingChallengeForCiv`, `main.ts:4029`) — and a *personal* pending challenge applies only to its own civ. Use the real union values `'explorer' | 'standard' | 'veteran'` (`src/core/types.ts:1346`), and assert the transition (`'standard'` → `'veteran'`), not just that the function was called;
 6. **AI replay:** `captureAIMoves` observes `unit:move` events emitted during `result.events.commitTo(bus)`, and `replayAIMoves` animates only current-viewer moves, capped at 6, aborting early if the gate becomes suppressed.
 
 Cases 5 and 6 have no existing coverage of any kind and are the two highest-risk behaviors in this phase.
 
 - [ ] **Step 2: Run, confirm failure.**
 - [ ] **Step 3: Implement** by moving bodies verbatim; substitute port calls for direct `renderLoop` / `updateHUD` / `showNotification` references. `runCurrentCompletedRound` keeps its four callbacks unchanged — no `src/systems/` or `src/ai/` file is edited.
-- [ ] **Step 4: Run — expect PASS, and re-run the determinism guard.** If the guard snapshot moves in this phase, a system call was reordered; revert and re-approach.
+- [ ] **Step 4: Run — expect PASS, then run both gameplay guards.** If the determinism baseline moves, a system call was reordered; revert and re-approach. This is also the phase where the AI/difficulty suite matters most:
+
+```bash
+bash scripts/run-with-mise.sh yarn test:ai-playability
+```
 - [ ] **Step 5: Convert the affected source-grep assertions.** `completed-round AI wiring` (4) and `campaign entry wiring`'s "opens required research choices" (1) — 5 total.
 - [ ] **Step 6: Close the phase**
 
@@ -1774,10 +1843,10 @@ describe('bootstrap', () => {
 - [ ] **Step 4: Extract `HudController`** — `updateHUD`, the treasury `drawer` (including `PanelRouter`'s `onBeforeOpen: () => drawer.close()`), `airDefenseOverlayButton` placement in `#utility-toolbar` (the `#783` fix — assert placement, not absolute positioning), `setMapViewportBottomInset`. Test: gold text updates on commit; AA button hidden without coverage; drawer closes when a main panel opens.
 - [ ] **Step 5: Extract `CampaignEntryController`** with the difficulty guard: all three entry routes (`onContinue`, `onLoadEntry`, `onImportSave`) still pass `showChallengePrompt: showLegacyOpponentChallengePrompt`, and a legacy save with no challenge still prompts before entry.
 - [ ] **Step 6: Convert the remaining source-grep assertions.** `campaign entry wiring` (3 remaining) and `air-defense overlay button placement` (2) — 5 total. `tests/main.integration.test.ts` is now empty; **delete the file**.
-- [ ] **Step 7: Run the e2e suite** — this phase touches campaign entry and the e2e install branch, so unit tests are not sufficient:
+- [ ] **Step 7: Run the browser smoke suite** — this phase touches campaign entry and the e2e install branch, so unit tests are not sufficient. The script is `test:web-smoke` (Playwright); there is no `test:e2e`:
 
 ```bash
-bash scripts/run-with-mise.sh yarn test:e2e
+bash scripts/run-with-mise.sh yarn test:web-smoke
 ```
 
 - [ ] **Step 8: Close the phase**
@@ -1840,6 +1909,16 @@ it('controllers depend on ports, not on RenderLoop/AudioSystem/document', () => 
 Type-only imports of `RenderLoop`/`AudioSystem` for `Pick<>` deps are fine; the regexes target value imports, so write those as `import type`.
 
 - [ ] **Step 4: Delete `tests/app/refresh-bypass-ratchet.test.ts`** (or, if some bypasses are genuinely correct, lower its bound to that number and document each in a comment).
+- [ ] **Step 4b: Retire `createUiInteractionState`.** Nothing should construct it once `PanelHost` is wired everywhere. Delete the factory; keep the `UiInteractionState` interface, which `src/ui/context-menu.ts` and two UI test suites still import. Run those three suites explicitly before committing:
+
+```bash
+bash scripts/run-with-mise.sh yarn test tests/ui/keyboard-shortcuts.test.ts tests/ui/desktop-controls.test.ts
+```
+- [ ] **Step 4c: Run both gameplay guards one final time**, including the slow AI suite:
+
+```bash
+bash scripts/run-with-mise.sh yarn test:ai-playability
+```
 - [ ] **Step 5: Update `CLAUDE.md`.** Add to Architecture:
 
 > `src/main.ts` is a composition root only. New app behavior goes in `src/app/controllers/` (depending on `src/app/ports.ts`) or a `src/presentation/register-*.ts` registrar. A new panel is one `PANEL_REGISTRY` entry; a new notification is one handler in the matching registrar; a new persisted save field is one numbered migration in `save-migrations.ts`. Enforced by `tests/app/architecture-boundaries.test.ts`.
@@ -1859,7 +1938,8 @@ Per `docs/superpowers/plans/README.md` §5, and because current coverage of this
 
 **Every phase must run**, not just unit tests:
 - `yarn test` (full suite), `yarn build` (the only `tsc` path), and `tests/app/determinism-guard.test.ts`;
-- `yarn test:e2e` in Phases 8 and 10, which touch map input and campaign entry respectively.
+- `yarn test:web-smoke` (Playwright — **not** `test:e2e`, which does not exist) in Phases 8 and 10, which touch map input and campaign entry respectively;
+- `yarn test:ai-playability` in Phases 1, 9, and 11 — the existing 30-turn simulation across `'explorer' | 'standard' | 'veteran'` difficulties and AI personality sets. It is the real guard for "computer players still work and difficulty still means something." It is slow (300 s budget), which is why it is scoped to the three phases that can plausibly affect it rather than run everywhere.
 
 **Running count of source-grep assertions retired** (must reach zero):
 
@@ -1894,7 +1974,8 @@ Per `docs/superpowers/plans/README.md` §5, and because current coverage of this
 | Difficulty applies at the wrong time | `applyPendingChallengeForCiv` sits inside `beginHotSeatHandoff`; moving the function could move the timing | Phase 9 test 5 asserts once, at handoff, for the right civ |
 | AI move replay breaks or duplicates | `captureAIMoves` is a temporary subscription wrapping `commitTo(bus)`; Phase 7 rewrites every permanent subscription | Phase 7 Step 7 asserts single registration; Phase 9 test 6 asserts capture still observes `commitTo` |
 | Hot-seat handoff regressions | Most stateful, least covered flow: audio muting, overlays, autosave, presentation gate, challenge application | Phase 9 tests four ordering guarantees; e2e smoke must pass |
-| A gameplay/balance change slips in | 5,462 lines of moved code, and `main.ts` calls into nearly every system | Determinism guard recorded in Phase 1 Step 1 and run in every phase; `src/systems/` and `src/ai/` are read-only |
+| A gameplay/balance change slips in | 5,462 lines of moved code, and `main.ts` calls into nearly every system | Determinism guard (literals, not snapshots) recorded in Phase 1 Step 1 and run in every phase; `yarn test:ai-playability` in Phases 1/9/11; `src/systems/` and `src/ai/` are read-only |
+| **A test written against an assumed command or convention never runs** | The plan originally cited `yarn test:e2e` (does not exist — it is `test:web-smoke`) and `toMatchSnapshot` (zero usages in this repo) | Every command and convention in this plan is now verified against `package.json` and the existing test tree; verify again if the plan sits unexecuted for long |
 | Losing a fixup during save consolidation | 23 fixups, 20 `as any` casts, no existing tests | Classification table is a checklist; idempotency + preserve-existing tests; new-game completeness test; keep v10/v11 golden fixtures in `tests/fixtures/` |
 | A mid-refactor playtest save cannot be reopened | Phase 1 bumps the schema to 12; older builds throw `UnsupportedSaveSchemaVersionError` | Called out in Part III; family playtest builds stay at or ahead of Phase 1 |
 | Merge conflicts against feature work | `main.ts` is touched by nearly every feature PR | Eleven small PRs merged promptly, not one long branch; no other `main.ts`-touching PR should sit open across a phase merge |
@@ -1908,4 +1989,6 @@ Per `docs/superpowers/plans/README.md` §5, and because current coverage of this
 - **Completeness:** every one of the 23 module-scope `let`s and every module-scope side effect is assigned a phase in the Part II inventory. Phase 11's `not.toMatch(/^let /m)` is only satisfiable if that table is complete — the table and the test check each other.
 - **Placeholder scan:** no TBD/TODO in the plan. The one `// TODO(composition-root)` introduced in Phase 2 Step 5 is a counted, ratcheted debt marker retired in Phase 11.
 - **Type consistency:** `GameSession.commit`/`update`/`setStateWithoutRefresh`/`subscribe` are used with those exact names in Phases 2, 8, 9, and 11. `PendingMapIntent` (Phase 3) is consumed by `MapTapIntent`'s `resolve-pending` and `mistap` variants (Phase 8). `SelectionSnapshot` is defined in Phase 3 and consumed by `resolveMapTapIntent` in Phase 8. `PanelId`, `PanelGroup`, `PanelContext`, and `ChoiceAction` are defined in Part II / Phase 5 before first use. `MovementBlockerReason` is imported from its real home, `@/systems/unit-system:986`. `PresentationRegistrar` returns `() => void` in its definition and its disposal tests.
-- **Known soft spot:** the `createHotSeatGame` config literal in Phase 1 Step 7 and the `makeFakeServices` `renderLoop` double in Phase 10 Step 1 are illustrative and must be matched to the real `HotSeatConfig` and `RenderLoop` shapes when writing those tests.
+- **Command and convention audit (second review pass):** every command in this plan is checked against `package.json`. `yarn test <path>` forwards to Vitest correctly. `yarn test:e2e` **does not exist** and was replaced with `yarn test:web-smoke`. `toMatchSnapshot` was removed — this repo has zero snapshot files and zero snapshot assertions, and a re-recordable baseline is the wrong tool for a guard that must never be re-recorded. `yarn test:ai-playability` was found and adopted; it is a better AI/difficulty guard than anything this plan would have invented.
+- **Deletion audit:** `src/ui/transport-ui-state.ts` has exactly one consumer (`main.ts`) and is safe to delete in Phase 3. `src/ui/ui-interaction-state.ts` has **four** (`src/ui/context-menu.ts` plus two UI test suites) — the interface stays, only the factory is retired, in Phase 11.
+- **Known soft spots:** the `createHotSeatGame` config literal in Phase 1 Step 7 and the `makeFakeServices` `renderLoop` double in Phase 10 Step 1 are illustrative and must be matched to the real `HotSeatConfig` and `RenderLoop` shapes. The determinism baseline literals in Part V are recorded output, filled in by Phase 1 Step 1.
