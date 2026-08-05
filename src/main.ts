@@ -236,13 +236,8 @@ import {
   routeEconomyTreasuryStrain,
   routeEraAdvanced,
   routeFactionTransition,
-  routeFirstContact,
   routeLegendaryWonder,
-  routePeaceMade,
-  routePeaceRequested,
   routeTerritoryTileFlipped,
-  routeWarDeclared,
-  routeTreatyProposed,
   TREATY_LABELS,
   routeStrategicWarning,
   routeCrisisStarted,
@@ -257,7 +252,6 @@ import {
   routeReligionCityConverted,
   routeLoyaltyWarning,
   routeCityDefected,
-  routeOpportunisticWar,
   routeSabotageReliefDiscovered,
   routeCityFlipped,
   type NotificationSink,
@@ -284,6 +278,8 @@ import { getCivHappinessFromResources, getCivAvailableResources, canEstablishOut
 import { fireResourceDiscoveredTip } from '@/ui/advisor-system';
 import { buildLegendaryWonderCompletionCeremonyItem } from '@/systems/legendary-wonder-completion-presentation';
 import { createCeremonyCoordinator, type CeremonyCoordinator } from '@/app/controllers/ceremony-coordinator';
+import type { PresentationContext } from '@/presentation/register-all';
+import { registerDiplomacyPresentation } from '@/presentation/register-diplomacy-presentation';
 import { removeRouteForUnit, createMarketplaceState, getEffectiveGoldPerTurn, getRouteTechGoldBonus } from '@/systems/trade-system';
 import { establishQuestAwareRoute } from '@/systems/quest-aware-trade-system';
 import { emitMinorCivQuestTransitions } from '@/systems/quest-chain-system';
@@ -432,6 +428,21 @@ const ceremonies: CeremonyCoordinator = createCeremonyCoordinator({
     if (session.getState().cities[cityId]) openWonderPanelForCityId(cityId);
   },
 });
+
+/**
+ * Shared deps for the domain presentation registrars replacing 72
+ * module-scope `bus.on(...)` registrations (#787 phase 7). `notifier`/`router`
+ * resolve through getters -- the same deferred-but-eager pattern
+ * `panelContext` above already uses -- since both are only assigned once
+ * `init()` runs.
+ */
+const presentationContext: PresentationContext = {
+  session,
+  get notifier() { return notifier; },
+  get router() { return router; },
+  ceremonies,
+  selection,
+};
 
 // --- Resize ---
 window.addEventListener('resize', () => renderLoop.resizeCanvas());
@@ -4405,33 +4416,10 @@ bus.on('wonder:legendary-race-revealed', ({ observerId, civId, cityId, wonderId 
   );
 });
 
-bus.on('diplomacy:war-declared', ({ attackerId, defenderId }) => {
-  routeWarDeclared(session.getState(), attackerId, defenderId, appendToCivLog);
-});
-
-bus.on('diplomacy:treaty-proposed', event => {
-  routeTreatyProposed(session.getState(), event, appendToCivLog);
-});
-
-bus.on('civilization:first-contact', ({ civA, civB }) => {
-  // #551: routeFirstContact's sink is the delivery contract, which already
-  // queues to pendingEvents for a non-active hot-seat recipient -- the old
-  // unconditional queueFirstContactPendingEvents call was a second, always-on
-  // queue that leaked stale growth into solo saves (which never drain it).
-  routeFirstContact(session.getState(), civA, civB, appendToCivLog);
-});
-
-bus.on('diplomacy:peace-requested', ({ fromCivId, toCivId }) => {
-  // #551: routePeaceRequested already delivers to toCivId via appendToCivLog
-  // (the delivery contract) -- the old extra showNotification here duplicated
-  // the message AND leaked it to whoever currentPlayer was at emit time
-  // instead of the actual recipient.
-  routePeaceRequested(session.getState(), fromCivId, toCivId, appendToCivLog);
-});
-
-bus.on('diplomacy:peace-made', ({ civA, civB }) => {
-  routePeaceMade(session.getState(), civA, civB, appendToCivLog);
-});
+// War, peace, treaties, first contact (#787 phase 7). Opportunistic-war
+// notifications also live in this registrar, further down the old bus.on
+// block below -- see registerDiplomacyPresentation.
+registerDiplomacyPresentation(bus, presentationContext);
 
 // viewer-scoped by design: advisors run for the active player only (#551).
 bus.on('advisor:message', ({ advisor, message, icon }) => {
@@ -4718,9 +4706,7 @@ bus.on('crisis:aid-sent', event => {
   routeCrisisAidSent(session.getState(), event, appendToCivLog);
 });
 
-bus.on('diplomacy:opportunistic-war', event => {
-  routeOpportunisticWar(session.getState(), event, appendToCivLog);
-});
+// diplomacy:opportunistic-war now lives in registerDiplomacyPresentation (#787 phase 7).
 
 bus.on('espionage:sabotage-relief-discovered', event => {
   routeSabotageReliefDiscovered(session.getState(), event, appendToCivLog);
