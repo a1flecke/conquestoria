@@ -130,8 +130,6 @@ import {
 import { calculateProjectedCityYields } from '@/systems/city-work-system';
 import { estimateTurnsToComplete } from '@/systems/pacing-model';
 import { visitVillage } from '@/systems/village-system';
-import { getWonderDefinition } from '@/systems/wonder-definitions';
-import { buildWonderDiscoveryRevealItem } from '@/systems/wonder-discovery-reveal';
 import { getAvailableTechs, getEffectiveTechCost } from '@/systems/tech-system';
 import {
   assignNetworkPlan,
@@ -234,7 +232,6 @@ import {
   routeDroppedProductionItem,
   routeEconomyTreasuryStrain,
   routeFactionTransition,
-  routeLegendaryWonder,
   routeTerritoryTileFlipped,
   TREATY_LABELS,
   routeStrategicWarning,
@@ -270,7 +267,6 @@ import { applyQuarantine, applyRemedy } from '@/systems/crisis-system';
 import { createTreasuryDrawer, type TreasuryDrawer } from '@/ui/treasury-drawer';
 import { getCivHappinessFromResources, getCivAvailableResources, canEstablishOutpost, performEstablishOutpost, canBuyResourceAccess, performBuyResourceAccess } from '@/systems/resource-acquisition-system';
 import { fireResourceDiscoveredTip } from '@/ui/advisor-system';
-import { buildLegendaryWonderCompletionCeremonyItem } from '@/systems/legendary-wonder-completion-presentation';
 import { createCeremonyCoordinator, type CeremonyCoordinator } from '@/app/controllers/ceremony-coordinator';
 import type { PresentationContext } from '@/presentation/register-all';
 import { registerDiplomacyPresentation } from '@/presentation/register-diplomacy-presentation';
@@ -278,6 +274,7 @@ import { registerEraPresentation } from '@/presentation/register-era-presentatio
 import { registerTradePresentation } from '@/presentation/register-trade-presentation';
 import { registerReligionPresentation } from '@/presentation/register-religion-presentation';
 import { registerNetworkPresentation } from '@/presentation/register-network-presentation';
+import { registerWonderPresentation } from '@/presentation/register-wonder-presentation';
 import { removeRouteForUnit, createMarketplaceState } from '@/systems/trade-system';
 import { establishQuestAwareRoute } from '@/systems/quest-aware-trade-system';
 import { emitMinorCivQuestTransitions } from '@/systems/quest-chain-system';
@@ -4320,52 +4317,7 @@ bus.on('village:visited', ({ civId, outcome, message }) => {
   appendToCivLog(civId, message, outcome === 'ambush' || outcome === 'illness' ? 'warning' : 'success');
 });
 
-bus.on('wonder:discovered', event => {
-  const wonderDef = getWonderDefinition(event.wonderId);
-  if (!wonderDef) return;
-  const message = event.isFirstDiscoverer
-    ? `Discovered ${wonderDef.name}! +${wonderDef.discoveryBonus.amount} ${wonderDef.discoveryBonus.type}`
-    : `Found ${wonderDef.name}!`;
-  appendToCivLog(event.civId, message, event.isFirstDiscoverer ? 'success' : 'info');
-
-  const revealItem = buildWonderDiscoveryRevealItem(session.getState(), session.getState().currentPlayer, event);
-  if (revealItem) {
-    ceremonies.enqueueWonderDiscovery(revealItem);
-  }
-});
-
-bus.on('wonder:legendary-ready', ({ civId, cityId, wonderId }) => {
-  routeLegendaryWonder(session.getState(), { type: 'wonder:legendary-ready', civId, cityId, wonderId }, appendToCivLog);
-});
-
-bus.on('wonder:legendary-availability', event => {
-  routeLegendaryWonder(session.getState(), { type: 'wonder:legendary-availability', ...event }, appendToCivLog);
-});
-
-bus.on('wonder:legendary-completed', ({ civId, cityId, wonderId, turnCompleted }) => {
-  const event = { civId, cityId, wonderId, turnCompleted };
-  routeLegendaryWonder(session.getState(), { type: 'wonder:legendary-completed', ...event }, appendToCivLog);
-  const ceremonyItem = buildLegendaryWonderCompletionCeremonyItem(session.getState(), event);
-  if (ceremonyItem) {
-    ceremonies.enqueueLegendaryCompletion(ceremonyItem);
-  }
-});
-
-bus.on('wonder:legendary-lost', ({ civId, cityId, wonderId, goldRefund, transferableProduction }) => {
-  routeLegendaryWonder(
-    session.getState(),
-    { type: 'wonder:legendary-lost', civId, cityId, wonderId, goldRefund, transferableProduction },
-    appendToCivLog,
-  );
-});
-
-bus.on('wonder:legendary-race-revealed', ({ observerId, civId, cityId, wonderId }) => {
-  routeLegendaryWonder(
-    session.getState(),
-    { type: 'wonder:legendary-race-revealed', observerId, civId, cityId, wonderId },
-    appendToCivLog,
-  );
-});
+registerWonderPresentation(bus, presentationContext);
 
 // War, peace, treaties, first contact (#787 phase 7). Opportunistic-war
 // notifications also live in this registrar, further down the old bus.on
