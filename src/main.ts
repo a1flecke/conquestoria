@@ -225,7 +225,6 @@ import {
   type NotificationEntry,
 } from '@/core/notification-log';
 import {
-  routeCombatRewardEarned,
   TREATY_LABELS,
   routeStrategicWarning,
   type NotificationSink,
@@ -263,6 +262,7 @@ import { registerFactionCrisisPresentation } from '@/presentation/register-facti
 import { registerEspionagePresentation } from '@/presentation/register-espionage-presentation';
 import { registerBeastPresentation } from '@/presentation/register-beast-presentation';
 import { registerRaiderPresentation } from '@/presentation/register-raider-presentation';
+import { registerCombatPresentation } from '@/presentation/register-combat-presentation';
 import { removeRouteForUnit, createMarketplaceState } from '@/systems/trade-system';
 import { establishQuestAwareRoute } from '@/systems/quest-aware-trade-system';
 import { emitMinorCivQuestTransitions } from '@/systems/quest-chain-system';
@@ -274,7 +274,6 @@ import { RoundPresentationGate } from '@/presentation/round-presentation-gate';
 import { runCompletedRound } from '@/core/completed-round-orchestrator';
 import { createCompletedRoundHandoffTransaction } from '@/core/completed-round-handoff';
 import { processImprovementTurns } from '@/systems/improvement-turn-system';
-import { handleCombatResolvedEvent } from '@/ui/combat-resolved-presentation';
 import { applyStrategicWarningTransitions } from '@/systems/strategic-warning-system';
 import { createCityOverviewPanel } from '@/ui/city-overview-panel';
 import type { GameSession } from '@/app/ports';
@@ -430,6 +429,7 @@ const presentationContext: PresentationContext = {
   showEspionageCaptureChoice: (spyId, spyOwner) => showEspionageCaptureChoice(spyId, spyOwner),
   uiLayer,
   maybeShowPendingHoardChoice: () => maybeShowPendingHoardChoice(),
+  isPresentationSuppressed: () => roundPresentationGate.isSuppressed(),
 };
 
 // --- Resize ---
@@ -4277,19 +4277,9 @@ bus.on('advisor:message', ({ advisor, message, icon }) => {
   showNotification(`${icon} ${message}`, 'info');
 });
 
-bus.on('combat:resolved', event => {
-  handleCombatResolvedEvent(session.getState(), event, {
-    isPresentationSuppressed: () => roundPresentationGate.isSuppressed(),
-    applyVisual: result => renderLoop.applyCombatVisual(result),
-    appendNotification: appendToCivLog,
-  });
-});
+registerCombatPresentation(bus, presentationContext);
 
 registerTradePresentation(bus, presentationContext);
-
-bus.on('combat:reward-earned', ({ reward }) => {
-  routeCombatRewardEarned(session.getState(), reward, appendToCivLog);
-});
 
 registerRaiderPresentation(bus, presentationContext);
 
@@ -4313,23 +4303,6 @@ registerReligionPresentation(bus, presentationContext);
 // diplomacy:opportunistic-war now lives in registerDiplomacyPresentation (#787 phase 7).
 
 registerEspionagePresentation(bus, presentationContext);
-
-bus.on('unit:obsolete', ({ civId, unitType }) => {
-  const name = UNIT_DEFINITIONS[unitType]?.name ?? unitType;
-  appendToCivLog(civId, `Your ${name} is now obsolete — upgrade it in your home city.`, 'info');
-});
-
-bus.on('unit:journey-blocked', ({ unitId, position }) => {
-  // #551: recipient is the unit's actual owner, not whoever currentPlayer
-  // happens to be at emit time -- the old showNotification call leaked this
-  // to the wrong hot-seat player. Skip entirely if the unit is gone rather
-  // than falling back to currentPlayer.
-  const unit = session.getState().units[unitId];
-  if (!unit) return;
-  const type = UNIT_DEFINITIONS[unit.type]?.name ?? unit.type;
-  const msg = `Your ${type} was blocked and stopped at (${position.q}, ${position.r}).`;
-  appendToCivLog(unit.owner, msg, 'warning');
-});
 
 // trade:route-created and trade:route-ended also live in
 // registerTradePresentation, above (#787 phase 7).
