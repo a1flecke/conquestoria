@@ -30,7 +30,7 @@ import { installKeyboardShortcuts } from '@/input/keyboard-shortcuts';
 import { hexKey, hexToPixel, hexesInRange, parseHexKey, wrapHexCoord } from '@/systems/hex-utils';
 import { moveUnit, getMovementCost, UNIT_DEFINITIONS, UNIT_DESCRIPTIONS, restUnit, canHeal, getUnmovedUnits, createUnit, findPath } from '@/systems/unit-system';
 import { classifyOwner, isAlwaysHostilePair, isMajorCivOwner } from '@/core/owner-kind';
-import { BUILDINGS, getProductionDisplayName, TRAINABLE_UNITS } from '@/systems/city-system';
+import { getProductionDisplayName, TRAINABLE_UNITS } from '@/systems/city-system';
 import { civHasAirDefenseCoverage } from '@/systems/air-defense-system';
 import { chooseCircularManufacturingMaterial } from '@/systems/national-project-system';
 import { usePropagandistAction } from '@/systems/propagandist-system';
@@ -229,10 +229,8 @@ import {
 import {
   routeBarbarianSpawned,
   routeCombatRewardEarned,
-  routeDroppedProductionItem,
   routeEconomyTreasuryStrain,
   routeFactionTransition,
-  routeTerritoryTileFlipped,
   TREATY_LABELS,
   routeStrategicWarning,
   routeCrisisStarted,
@@ -275,6 +273,7 @@ import { registerTradePresentation } from '@/presentation/register-trade-present
 import { registerReligionPresentation } from '@/presentation/register-religion-presentation';
 import { registerNetworkPresentation } from '@/presentation/register-network-presentation';
 import { registerWonderPresentation } from '@/presentation/register-wonder-presentation';
+import { registerCityPresentation } from '@/presentation/register-city-presentation';
 import { removeRouteForUnit, createMarketplaceState } from '@/systems/trade-system';
 import { establishQuestAwareRoute } from '@/systems/quest-aware-trade-system';
 import { emitMinorCivQuestTransitions } from '@/systems/quest-chain-system';
@@ -4262,50 +4261,7 @@ function showEspionageCaptureChoice(spyId: string, spyOwner: string): void {
 }
 
 // --- Event listeners ---
-bus.on('tech:completed', ({ civId, techId }) => {
-  appendToCivLog(civId, `Research complete: ${techId}!`, 'success');
-  if (techId === 'fishing') {
-    appendToCivLog(civId, 'Fishing unlocked — build a Dock in your coastal cities to boost food and trade.', 'info');
-  }
-  if (civId === session.getState().currentPlayer) SFX.research();
-});
-
-bus.on('city:grew', ({ cityId, newPopulation }) => {
-  const city = session.getState().cities[cityId];
-  if (!city) return;
-  appendToCivLog(city.owner, `${city.name} grew to ${newPopulation} population!`, 'success');
-});
-
-bus.on('city:maturity-upgraded', ({ cityId, current }) => {
-  const city = session.getState().cities[cityId];
-  if (!city) return;
-  const label = `${current[0].toUpperCase()}${current.slice(1)}`;
-  appendToCivLog(city.owner, `${city.name} became a ${label}. New city slots unlocked.`, 'success');
-});
-
-bus.on('city:building-complete', ({ cityId, buildingId }) => {
-  const city = session.getState().cities[cityId];
-  if (!city) return;
-  const bldg = BUILDINGS[buildingId];
-  const buildingName = bldg?.name ?? buildingId;
-  appendToCivLog(city.owner, `${city.name}: ${buildingName} completed!`, 'success');
-  if (bldg?.nationalProject) {
-    SFX.nationalProjectBuilt();
-  }
-});
-
-bus.on('city:national-project-expired', ({ civId, cityId, buildingId }) => {
-  const city = session.getState().cities[cityId];
-  const bldg = BUILDINGS[buildingId];
-  if (!bldg || !city) return;
-  const msg = document.createTextNode(
-    `${city.name}: ${bldg.name} has expired — your civilization has grown beyond this era's institutions.`
-  );
-  appendToCivLog(civId, msg.textContent ?? '', 'warning');
-  SFX.nationalProjectExpired();
-});
-
-bus.on('city:production-item-dropped', event => routeDroppedProductionItem(session.getState(), event, appendToCivLog));
+registerCityPresentation(bus, presentationContext);
 
 registerNetworkPresentation(bus, presentationContext);
 
@@ -4345,10 +4301,6 @@ registerTradePresentation(bus, presentationContext);
 
 bus.on('combat:reward-earned', ({ reward }) => {
   routeCombatRewardEarned(session.getState(), reward, appendToCivLog);
-});
-
-bus.on('territory:tile-flipped', event => {
-  routeTerritoryTileFlipped(session.getState(), { type: 'territory:tile-flipped', ...event }, appendToCivLog);
 });
 
 bus.on('barbarian:spawned', ({ campId, unitId }) => {
