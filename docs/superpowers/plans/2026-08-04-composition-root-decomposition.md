@@ -378,7 +378,7 @@ src/main.ts                      ~120 lines: construct concrete services, call b
 
 You asked for review across gameplay, fun, ages, playstyles, difficulty, AI, UI/UX, extensibility, data, SFX, saves, and hot seat. For a behavior-preserving refactor most of those reduce to one question — *is this surface protected?* — so they are enumerated here as protected surfaces with an owning phase and a guard, rather than as design opportunities.
 
-**On new mechanics and fun specifically:** this plan deliberately adds none. A composition-root refactor is the single worst place to land a gameplay change, because there is no test baseline to distinguish "the refactor broke it" from "the new mechanic changed it." The correct sequencing is: land these 11 phases, *then* build new mechanics on top — which is far cheaper afterwards, because a new mechanic becomes one registrar plus one registry entry instead of another 200 lines in `main.ts`. The extensibility payoff is real, and it is the reward for keeping this plan boring.
+**On new mechanics and fun specifically:** this plan deliberately adds none. A composition-root refactor is the single worst place to land a gameplay change, because there is no test baseline to distinguish "the refactor broke it" from "the new mechanic changed it." The correct sequencing is: land these 12 phases, *then* build new mechanics on top — which is far cheaper afterwards, because a new mechanic becomes one registrar plus one registry entry instead of another 200 lines in `main.ts`. The extensibility payoff is real, and it is the reward for keeping this plan boring.
 
 ### Protected surfaces
 
@@ -433,6 +433,8 @@ Per `docs/superpowers/plans/README.md`. This refactor is behavior-preserving, so
 | Journey intent armed | Press Escape | "Journey cancelled." toast; next tap behaves normally | Phase 5, `global-shortcuts.test.ts` |
 | Natural wonder discovered while a city panel is open | Close the panel | Reveal ceremony plays, discovery audio fires | **Phase 6**, `ceremony-coordinator.test.ts` |
 | Natural wonder discovered by a unit mid-move | — | Reveal waits for the move to settle, then plays | Phase 6, `ceremony-coordinator.test.ts` |
+| Hot-seat, discovery reveal queued (or deferred) when a player ends their turn | Confirm handoff | Reveal never plays on the *next* player's screen; it is dropped, not carried across the hot-seat veil | Phase 6, `ceremony-coordinator.test.ts` (`clearForHandoff`) |
+| Ceremony actively presenting when a hot-seat handoff begins | Handoff completes, ceremony's own promise resolves | Handoff's blocking overlay stays active until the handoff itself clears it; the ceremony resolving does not prematurely unblock the next player's screen | **Phase 12**, `panel-host.test.ts` |
 | Pause menu open, difficulty set to a harder challenge | End turn | Challenge applies once, at the next handoff, to the right civ | Phase 9, `turn-flow-controller.test.ts` |
 | Hot-seat, player 1 ends turn | Confirm handoff | Blocking overlay, audio muted to 0, autosave, then player 2's HUD/civ name, volume restored | Phase 9, `turn-flow-controller.test.ts` |
 | Toast visible, second event fires | — | Second toast queues, shows after the first dismisses; timer not reset | Phase 4, `notification-center.test.ts` |
@@ -469,7 +471,7 @@ The derived surface at risk is **"the HUD/renderer reflects current state."** It
 
 ## Part V — Phases
 
-Eleven phases, eleven PRs. Phases 1 and 2 are prerequisites for everything after; 3–10 are strictly ordered because each removes state that the next would otherwise thread through a deps bag.
+Twelve phases, twelve PRs. Phases 1 and 2 are prerequisites for everything after; 3–10 are strictly ordered because each removes state that the next would otherwise thread through a deps bag. Phase 12 was added after Phase 6 shipped, once its inline review surfaced a structural issue (#794) that no earlier phase covered — it has no ordering dependency on 7–10 and could in principle run any time after Phase 6, but is listed last since it was discovered last.
 
 **Every phase ends with the same steps** (written once here, referenced as "**Close the phase**"):
 
@@ -487,7 +489,7 @@ All must exit 0. Then commit, push, and open a PR whose body states: `main.ts` l
 
 ### Two gameplay guards, not one
 
-**`yarn test:ai-playability` already exists and is the better of the two.** `tests/simulation/ai-playability.test.ts` runs 30-turn simulations across real difficulty levels (`'explorer' | 'standard' | 'veteran'`) and AI personality sets via `simulateAIRounds` / `simulateLateEraAIRounds`. It is the existing, maintained answer to "do computer players still work and does difficulty still mean anything." **It is slow** (`run-ai-playability-regressions.sh` allows 300 s with a 120 s per-test timeout), so it runs in the phases that can plausibly affect it — Phase 1 (save/state construction), Phase 9 (turn flow, AI replay, difficulty application), and Phase 11 (final) — not in every phase.
+**`yarn test:ai-playability` already exists and is the better of the two.** `tests/simulation/ai-playability.test.ts` runs 30-turn simulations across real difficulty levels (`'explorer' | 'standard' | 'veteran'`) and AI personality sets via `simulateAIRounds` / `simulateLateEraAIRounds`. It is the existing, maintained answer to "do computer players still work and does difficulty still mean anything." **It is slow** (`run-ai-playability-regressions.sh` allows 300 s with a 120 s per-test timeout), so it runs in the phases that can plausibly affect it — Phase 1 (save/state construction), Phase 9 (turn flow, AI replay, difficulty application), and Phase 11 (boundary-lock, the final phase of the *original* eleven-phase scope) — not in every phase. Phase 12 is UI-blocking-overlay-only and does not touch AI, difficulty, or turn flow, so it does not need this guard.
 
 **The determinism guard below is the cheap per-phase complement.** It runs the real turn pipeline with no UI in a couple of seconds, so every phase can afford it.
 
@@ -643,7 +645,7 @@ function withDefault<T, K extends keyof T>(
 
 - [ ] **Step 1: Record the determinism baseline first**
 
-Create `tests/app/determinism-guard.test.ts` as written in Part V, run it, read the actual values out of the failure output, and write them in as literals **before touching any source file**. This is the pre-refactor baseline for all eleven phases.
+Create `tests/app/determinism-guard.test.ts` as written in Part V, run it, read the actual values out of the failure output, and write them in as literals **before touching any source file**. This is the pre-refactor baseline for all twelve phases.
 
 ```bash
 bash scripts/run-with-mise.sh yarn test tests/app/determinism-guard.test.ts
@@ -1933,6 +1935,37 @@ bash scripts/run-with-mise.sh yarn test:ai-playability
 
 ---
 
+### Phase 12 — Blocking-overlay reference counting (`PanelHost`)
+
+Found during #787 Phase 6's inline review, filed as [#794](https://github.com/a1flecke/conquestoria/issues/794), after Phases 1–11 above were already written — not part of the original six-controller/`CeremonyCoordinator`/`MapInteractionController` inventory in Part II, so it gets its own phase rather than being folded into Phase 5's or Phase 11's scope after the fact.
+
+`createUiInteractionState` (`src/ui/ui-interaction-state.ts`) tracks exactly one `blockingOverlayId: string | null` — no reference count, no stack. Every one of the ~15 `setBlockingOverlay(...)` / `host.setBlockingOverlay(...)` call sites across `main.ts` and both ceremony queues (`wonder-discovery-queue.ts`, `legendary-wonder-completion-queue.ts`) assumes it owns the single slot for the duration of its own operation. If two blockers overlap — concretely: a ceremony's own `play()` sets `'wonder-discovery-ceremony'` while presenting, and a hot-seat handoff sets `'turn-handoff'` before the ceremony's promise has resolved — the second caller's id silently overwrites the first's, and whichever caller clears to `null` first unblocks the *other* caller's operation too, not just its own. Phase 6 (#793) fixed the narrower, confirmed-reachable instance of the wider problem — a ceremony *queued but not yet presenting* surviving a hot-seat handoff — by clearing backlog before the handoff blocks. It did not address a ceremony *already presenting* when a handoff begins; that requires this phase's structural fix to the shared blocking primitive itself.
+
+**Files:**
+- Modify: `src/ui/ui-interaction-state.ts` (or retire it into `PanelHost` directly — decide in Step 1)
+- Modify: `src/app/panel-host.ts`
+- Modify (call-site audit, not necessarily every site changes): `src/main.ts`, `src/ui/wonder-discovery-queue.ts`, `src/ui/legendary-wonder-completion-queue.ts`
+- Modify: `tests/app/panel-host.test.ts`; re-run `tests/ui/keyboard-shortcuts.test.ts` and `tests/ui/desktop-controls.test.ts` unmodified to confirm `context-menu.ts`'s consumption still compiles and passes if the interface shape changes at all
+
+**Interfaces:**
+- `UiInteractionState`'s two consumers outside `main.ts`/`PanelHost` (`src/ui/context-menu.ts`, plus the two test suites above) must stay drop-in compatible — the same LSP constraint Phase 5 and Phase 11 Step 4b already established for this interface. Whatever the new shape is, `context-menu.ts`'s existing call pattern must keep working unmodified, or `context-menu.ts` gets an explicit, tested migration in this phase.
+
+- [ ] **Step 1: Investigate before designing.** This phase was flagged, not root-caused, during Phase 6's review — issue #794 says so explicitly. Before writing any test:
+  - Confirm whether a ceremony can realistically still be *presenting* (not just *queued*) at the exact moment `beginHotSeatHandoff` fires, given `endTurn()`'s existing guards (`showReligionBoonIfNeeded`, `showRequiredChoicesIfNeeded`, the unmoved-unit warning). If genuinely unreachable today, this phase becomes defensive hardening against future call sites re-introducing the hazard (still worth doing — it is easy to add a new blocking overlay without noticing an existing one can overlap it), not an active-bug fix. Say which it is in the PR body.
+  - Grep every current `setBlockingOverlay` / `host.setBlockingOverlay` call site and tabulate: the id used, whether its `null`-clear is reached from a guaranteed path (`try/finally`) or a conditional one, and whether any two sites can plausibly both be "open" (id set, not yet cleared) at the same time. This table is the completeness check for Step 6, the same way Phase 2's 93-site inventory was for its `commit`/`setStateWithoutRefresh` conversion.
+- [ ] **Step 2: Decide the API shape and write the failing tests for it.** Two live options, chosen between based on Step 1's findings:
+  - **(a) Reference-counted, id-agnostic:** `setBlockingOverlay(id)` pushes `id` onto an internal stack; `setBlockingOverlay(null)` pops the most recently pushed reason (LIFO — matching how nesting already occurs in practice: ceremony-inside-handoff, never the reverse). `isInteractionBlocked()` stays `true` until the stack is empty. Keeps every call site's existing `id | null` shape unchanged.
+  - **(b) Explicit push/pop with the id round-tripped:** `pushBlockingOverlay(id): () => void` returns a disposer; callers keep the disposer instead of calling `setBlockingOverlay(null)` blind. More explicit and harder to misuse, but touches every call site's shape, not just its usage.
+  - Whichever is chosen: two blockers pushed, one popped, still blocked; both popped, now unblocked; `onInteractionUnblocked` fires exactly once, only when the last one clears (extending Phase 5's existing "not on overlay replacement" contract to "not while any other reason remains").
+- [ ] **Step 3: Run, confirm failure.**
+- [ ] **Step 4: Implement.** Keep `UiInteractionState`'s public shape stable for `context-menu.ts` unless Step 1's audit shows it genuinely needs the new semantics too (unlikely — it is a single simple blocker, not a nested one).
+- [ ] **Step 5: Run — expect PASS.**
+- [ ] **Step 6: Adopt at every call site from Step 1's table**, converting only the ones that can actually overlap (the ceremony-queue + hot-seat-handoff pair from the motivation above is the one confirmed reachable; others may turn out not to need it after Step 1's investigation).
+- [ ] **Step 7: Regression-test the confirmed overlap case end-to-end** — a ceremony presenting, hot-seat handoff beginning mid-presentation, ceremony resolving: assert the handoff's block is still active until the handoff itself clears it, not the ceremony.
+- [ ] **Step 8: Close the phase**
+
+---
+
 ## Part VI — Test Design Requirements
 
 Per `docs/superpowers/plans/README.md` §5, and because current coverage of this file is 21 regex assertions.
@@ -1984,7 +2017,8 @@ Per `docs/superpowers/plans/README.md` §5, and because current coverage of this
 | **A test written against an assumed command or convention never runs** | The plan originally cited `yarn test:e2e` (does not exist — it is `test:web-smoke`) and `toMatchSnapshot` (zero usages in this repo) | Every command and convention in this plan is now verified against `package.json` and the existing test tree; verify again if the plan sits unexecuted for long |
 | Losing a fixup during save consolidation | 23 fixups, 20 `as any` casts, no existing tests | Classification table is a checklist; idempotency + preserve-existing tests; new-game completeness test; keep v10/v11 golden fixtures in `tests/fixtures/` |
 | A mid-refactor playtest save cannot be reopened | Phase 1 bumps the schema to 12; older builds throw `UnsupportedSaveSchemaVersionError` | Called out in Part III; family playtest builds stay at or ahead of Phase 1 |
-| Merge conflicts against feature work | `main.ts` is touched by nearly every feature PR | Eleven small PRs merged promptly, not one long branch; no other `main.ts`-touching PR should sit open across a phase merge |
+| Merge conflicts against feature work | `main.ts` is touched by nearly every feature PR | Twelve small PRs merged promptly, not one long branch; no other `main.ts`-touching PR should sit open across a phase merge |
+| **Overlapping blocking-overlay reasons silently clobber each other** | `PanelHost`'s `blockingOverlayId` is a single value, not a stack; found during Phase 6's review (#794) | Phase 12 is a dedicated phase investigating reachability first, then converting the primitive to a reference count |
 | Scope creep into "while I'm here" fixes | Guaranteed to be tempting across 5,462 lines | Behavior-preserving is a Global Constraint; the Part VI table is the exhaustive allowlist; file issues otherwise |
 
 ---
@@ -1998,3 +2032,4 @@ Per `docs/superpowers/plans/README.md` §5, and because current coverage of this
 - **Command and convention audit (second review pass):** every command in this plan is checked against `package.json`. `yarn test <path>` forwards to Vitest correctly. `yarn test:e2e` **does not exist** and was replaced with `yarn test:web-smoke`. `toMatchSnapshot` was removed — this repo has zero snapshot files and zero snapshot assertions, and a re-recordable baseline is the wrong tool for a guard that must never be re-recorded. `yarn test:ai-playability` was found and adopted; it is a better AI/difficulty guard than anything this plan would have invented.
 - **Deletion audit:** `src/ui/transport-ui-state.ts` has exactly one consumer (`main.ts`) and is safe to delete in Phase 3. `src/ui/ui-interaction-state.ts` has **four** (`src/ui/context-menu.ts` plus two UI test suites) — the interface stays, only the factory is retired, in Phase 11.
 - **Known soft spots:** the `createHotSeatGame` config literal in Phase 1 Step 7 and the `makeFakeServices` `renderLoop` double in Phase 10 Step 1 are illustrative and must be matched to the real `HotSeatConfig` and `RenderLoop` shapes. The determinism baseline literals in Part V are recorded output, filled in by Phase 1 Step 1.
+- **Post-hoc addition (Phase 12):** this plan originally specified eleven phases. Phase 6's inline review (per #787's no-subagents policy, done inline rather than delegated) traced a hot-seat ceremony leak to its root cause and found a second, structurally deeper issue one level down (`PanelHost`'s blocking-overlay id is a single value, not a stack) that no phase above was scoped to fix. The narrower, confirmed-reachable leak was fixed directly in Phase 6's PR (#793); the structural issue was filed as #794 and added here as Phase 12 rather than expanding #793's blast radius or silently dropping it. All "eleven phases"/"eleven PRs" references above were updated to twelve; Phase 12 has no ordering dependency on Phases 7–10 and is appended at the end only because it was discovered last.
