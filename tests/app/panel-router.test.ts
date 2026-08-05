@@ -51,6 +51,45 @@ describe('panel router', () => {
     expect(layer.querySelector('#territory-panel')).not.toBeNull();
   });
 
+  it('two transient panels coexist -- opening one does not close the other', () => {
+    const layer = document.createElement('div');
+    const host = createPanelHost(layer);
+    const router = createPanelRouter({
+      host,
+      registry: {
+        'wonder-atlas': { domId: 'wonder-codex-panel', group: 'transient', open: stubPanel(layer, 'wonder-codex-panel') },
+        'notification-log': { domId: 'notification-log', group: 'transient', open: stubPanel(layer, 'notification-log') },
+      },
+      context: {} as never,
+    });
+
+    router.open('notification-log');
+    router.open('wonder-atlas');
+
+    expect(layer.querySelector('#notification-log')).not.toBeNull();
+    expect(layer.querySelector('#wonder-codex-panel')).not.toBeNull();
+  });
+
+  it('closeGroup only removes panels in that group', () => {
+    const layer = document.createElement('div');
+    const host = createPanelHost(layer);
+    const router = createPanelRouter({
+      host,
+      registry: {
+        tech: { domId: 'tech-panel', group: 'main', open: stubPanel(layer, 'tech-panel') },
+        bestiary: { domId: 'bestiary-panel', group: 'transient', open: stubPanel(layer, 'bestiary-panel') },
+      },
+      context: {} as never,
+    });
+
+    router.open('tech');
+    router.open('bestiary');
+    router.closeGroup('transient');
+
+    expect(layer.querySelector('#tech-panel')).not.toBeNull();
+    expect(layer.querySelector('#bestiary-panel')).toBeNull();
+  });
+
   it('toggle closes an already-open panel instead of reopening it', () => {
     const layer = document.createElement('div');
     const host = createPanelHost(layer);
