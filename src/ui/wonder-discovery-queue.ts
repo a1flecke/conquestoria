@@ -17,7 +17,12 @@ export interface WonderDiscoveryRevealQueue {
   notifyActionSettled(): void;
   pump(): void;
   pendingCount(): number;
-  /** Drops every reveal not already presenting. Does not interrupt one in progress. */
+  /**
+   * Drops every reveal not already presenting. Does not interrupt one in
+   * progress, and does not un-dedupe anything that already played -- only
+   * the dropped items' own keys are freed, so a wonder shown before this
+   * call can never silently replay after it.
+   */
   clear(): void;
 }
 
@@ -90,8 +95,10 @@ export function createWonderDiscoveryRevealQueue(options: WonderDiscoveryRevealQ
       return pending.length;
     },
     clear() {
+      for (const dropped of pending) {
+        seen.delete(keyFor(dropped));
+      }
       pending.length = 0;
-      seen.clear();
       actionSettled = false;
     },
   };
