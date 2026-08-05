@@ -229,18 +229,8 @@ import {
 import {
   routeBarbarianSpawned,
   routeCombatRewardEarned,
-  routeEconomyTreasuryStrain,
-  routeFactionTransition,
   TREATY_LABELS,
   routeStrategicWarning,
-  routeCrisisStarted,
-  routeCrisisSpread,
-  routeCrisisEscalated,
-  routeCrisisResolved,
-  routeWorldPressureCrisisStarted,
-  routeWorldPressureCrisisResolved,
-  routeCrisisFoeHuntedByAlly,
-  routeCrisisAidSent,
   routeSabotageReliefDiscovered,
   routeCityFlipped,
   type NotificationSink,
@@ -274,6 +264,7 @@ import { registerReligionPresentation } from '@/presentation/register-religion-p
 import { registerNetworkPresentation } from '@/presentation/register-network-presentation';
 import { registerWonderPresentation } from '@/presentation/register-wonder-presentation';
 import { registerCityPresentation } from '@/presentation/register-city-presentation';
+import { registerFactionCrisisPresentation } from '@/presentation/register-faction-crisis-presentation';
 import { removeRouteForUnit, createMarketplaceState } from '@/systems/trade-system';
 import { establishQuestAwareRoute } from '@/systems/quest-aware-trade-system';
 import { emitMinorCivQuestTransitions } from '@/systems/quest-chain-system';
@@ -4467,83 +4458,16 @@ bus.on('ai:strategic-warning', event => {
   routeStrategicWarning(event, appendToCivLog);
 });
 
-function appendFactionNotice(civId: string, message: string, type: NotificationEntry['type']): void {
-  // #551: appendToCivLog (the delivery contract) already queues to
-  // pendingEvents for a non-active hot-seat recipient -- the old manual
-  // collectEvent call here was a second, always-on queue that duplicated the
-  // entry in that player's next turn-handoff summary.
-  appendToCivLog(civId, message, type);
-}
-
 registerEraPresentation(bus, presentationContext);
 
-bus.on('faction:unrest-started', event => {
-  routeFactionTransition(session.getState(), { type: 'faction:unrest-started', ...event }, appendFactionNotice);
-});
-
-bus.on('faction:revolt-started', event => {
-  routeFactionTransition(session.getState(), { type: 'faction:revolt-started', ...event }, appendFactionNotice);
-});
-
-bus.on('faction:unrest-resolved', event => {
-  routeFactionTransition(session.getState(), { type: 'faction:unrest-resolved', ...event }, appendFactionNotice);
-});
-
-bus.on('faction:concession-made', event => {
-  routeFactionTransition(session.getState(), { type: 'faction:concession-made', ...event }, appendFactionNotice);
-});
-
-bus.on('faction:breakaway-started', event => {
-  routeFactionTransition(session.getState(), { type: 'faction:breakaway-started', ...event }, appendFactionNotice);
-});
-
-bus.on('faction:breakaway-established', event => {
-  routeFactionTransition(session.getState(), { type: 'faction:breakaway-established', ...event }, appendFactionNotice);
-});
-
-bus.on('faction:critical-status', event => {
-  routeFactionTransition(session.getState(), { type: 'faction:critical-status', ...event }, appendFactionNotice);
-});
-
-bus.on('crisis:started', event => {
-  routeCrisisStarted(session.getState(), event, appendToCivLog);
-  routeWorldPressureCrisisStarted(session.getState(), event, appendToCivLog);
-});
+registerFactionCrisisPresentation(bus, presentationContext);
 
 registerReligionPresentation(bus, presentationContext);
-
-bus.on('crisis:spread', event => {
-  routeCrisisSpread(session.getState(), event, appendToCivLog);
-});
-
-bus.on('crisis:escalated', event => {
-  routeCrisisEscalated(session.getState(), event, appendToCivLog);
-});
-
-bus.on('crisis:resolved', event => {
-  routeCrisisResolved(session.getState(), event, appendToCivLog);
-  routeWorldPressureCrisisResolved(session.getState(), event, appendToCivLog);
-});
-
-bus.on('crisis:foe-hunted-by-ally', event => {
-  routeCrisisFoeHuntedByAlly(session.getState(), event, appendToCivLog);
-});
-
-bus.on('crisis:aid-sent', event => {
-  routeCrisisAidSent(session.getState(), event, appendToCivLog);
-});
 
 // diplomacy:opportunistic-war now lives in registerDiplomacyPresentation (#787 phase 7).
 
 bus.on('espionage:sabotage-relief-discovered', event => {
   routeSabotageReliefDiscovered(session.getState(), event, appendToCivLog);
-});
-
-bus.on('economy:treasury-strain', event => {
-  // #551: routeEconomyTreasuryStrain already delivers to event.civId via the
-  // delivery contract; the old extra showNotification duplicated the message
-  // and leaked it to whoever currentPlayer was at emit time.
-  routeEconomyTreasuryStrain(session.getState(), event, appendToCivLog);
 });
 
 bus.on('espionage:spy-detected-traveling', ({ detectingCivId, spyOwner, wasDisguised, position }) => {
