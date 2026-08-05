@@ -37,6 +37,20 @@ export interface PresentationContext {
    * later phase, not this one.
    */
   readonly showEspionageCaptureChoice: (spyId: string, spyOwner: string) => void;
+  /**
+   * The panel DOM layer, for `src/ui/*` ceremony/banner builders that take a
+   * container element directly (`showBeastSlayCeremony`,
+   * `showBeastSightingBanner`) -- not a concrete service like `RenderLoop`,
+   * the same class of dependency `PanelHost.layer` already exposes.
+   */
+  readonly uiLayer: HTMLElement;
+  /**
+   * Opens the queued beast-hoard-choice panel for the active viewer, if one
+   * is pending. Kept as a callback -- it mutates state via
+   * `session.setStateWithoutRefresh`, emits `beast:hoard-claimed`, and calls
+   * `updateHUD()`, none of which belong in a subscription-wiring registrar.
+   */
+  readonly maybeShowPendingHoardChoice: () => void;
 }
 
 /** Returns a disposer that removes every subscription the registrar added. */

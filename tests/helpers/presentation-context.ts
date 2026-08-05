@@ -38,6 +38,7 @@ function makeSelectionStoreDouble(): SelectionStore {
 export function makePresentationContext(overrides: {
   state?: Partial<GameState>;
   deliver?: ReturnType<typeof vi.fn<NotificationSink>>;
+  uiLayer?: HTMLElement;
 } = {}): PresentationContext & { deliver: ReturnType<typeof vi.fn<NotificationSink>> } {
   const deliver = overrides.deliver ?? vi.fn<NotificationSink>();
   const state = {
@@ -82,5 +83,11 @@ export function makePresentationContext(overrides: {
     requestDeliveryVisual: vi.fn(),
     applyCombatVisual: vi.fn(),
     showEspionageCaptureChoice: vi.fn(),
+    // Not `document.createElement` -- most test files that use this helper
+    // don't declare `@vitest-environment jsdom`, and this must stay safe to
+    // call from a plain node environment. Pass a real element explicitly
+    // (from a jsdom-enabled test) if a registrar actually touches it.
+    uiLayer: overrides.uiLayer ?? ({} as HTMLElement),
+    maybeShowPendingHoardChoice: vi.fn(),
   };
 }
