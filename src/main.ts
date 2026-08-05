@@ -108,7 +108,6 @@ import { createNetworkIntentPanel } from '@/ui/network-intent-panel';
 import { createNetworkPanel, getNetworkPanelModel } from '@/ui/network-panel';
 import { renderUnitStackPanel } from '@/ui/unit-stack-panel';
 import { createUnitTurnFlow } from '@/ui/unit-turn-flow';
-import { createUiInteractionState } from '@/ui/ui-interaction-state';
 import { closePlanningPanels, createRequiredChoicePanel } from '@/ui/required-choice-panel';
 import { createReligionBoonModal } from '@/ui/religion-boon-modal';
 import { chooseBoon } from '@/systems/religion-system';
@@ -302,6 +301,10 @@ import { applyStrategicWarningTransitions } from '@/systems/strategic-warning-sy
 import { createCityOverviewPanel } from '@/ui/city-overview-panel';
 import type { GameSession } from '@/app/ports';
 import { createGameSession } from '@/app/game-session';
+import { createPanelHost, type PanelHost } from '@/app/panel-host';
+import { createPanelRouter, type PanelRouter } from '@/app/panel-router';
+import type { PanelContext, PanelRegistry } from '@/app/panel-registry';
+import { installGlobalShortcuts } from '@/app/global-shortcuts';
 
 // --- App State ---
 /**
@@ -320,8 +323,6 @@ const session: GameSession = createGameSession(undefined as unknown as GameState
 const selection = createSelectionStore();
 let drawer: TreasuryDrawer;
 let inputInitialized = false;
-let councilPanelOpen = false;
-let pacingDebugOpen = false;
 let deferWonderDiscoveryRevealUntilMoveSettles = false;
 /** Owns persisted A/V settings + master volume, moved out of module scope (#787 phase 4). */
 const userSettingsStore = createUserSettingsStore({ load: loadSettings });
@@ -357,12 +358,33 @@ const audioCtx = new AudioContext();
 const audio = new AudioSystem(audioCtx);
 const roundPresentationGate = new RoundPresentationGate();
 const advisorSystem = new AdvisorSystem(bus);
-const uiInteractions = createUiInteractionState();
 
 // --- Canvas Setup ---
 const canvas = document.getElementById('game-canvas') as HTMLCanvasElement;
 const uiLayer = document.getElementById('ui-layer') as HTMLDivElement;
 const renderLoop = new RenderLoop(canvas);
+
+/**
+ * Owns the panel DOM layer and the interaction-blocking overlay flag,
+ * replacing `createUiInteractionState()` (#787 phase 5).
+ */
+const host: PanelHost = createPanelHost(uiLayer);
+
+/**
+ * `router` and `panelContext` are circular by construction (a panel's
+ * `open(ctx)` reads `ctx.router` to potentially chain-open another panel),
+ * so `panelContext` is built first with `notifier`/`router` behind getters
+ * that resolve to the live module-scope bindings once they exist -- the
+ * same deferred-but-eager pattern `notifier` itself already uses.
+ */
+let router: PanelRouter;
+const panelContext: PanelContext = {
+  session,
+  get notifier() { return notifier; },
+  host,
+  selection,
+  get router() { return router; },
+};
 
 // The two refreshes `session.commit()` performs on every state publication.
 // Registered once, here, rather than repeated as a three-statement discipline
@@ -383,7 +405,7 @@ let wonderDiscoveryQueue: ReturnType<typeof createWonderDiscoveryRevealQueue> | 
 let legendaryCompletionQueue: ReturnType<typeof createLegendaryWonderCompletionQueue> | null = null;
 
 function setBlockingOverlay(id: string | null): void {
-  uiInteractions.setBlockingOverlay(id);
+  host.setBlockingOverlay(id);
   if (id === null) {
     wonderDiscoveryQueue?.pump();
     legendaryCompletionQueue?.pump();
@@ -397,7 +419,7 @@ function prefersReducedMotion(): boolean {
 
 wonderDiscoveryQueue = createWonderDiscoveryRevealQueue({
   container: uiLayer,
-  isInteractionBlocked: () => uiInteractions.isInteractionBlocked(),
+  isInteractionBlocked: () => host.isInteractionBlocked(),
   requestMapHighlight: (item, reducedMotion) => {
     renderLoop.requestWonderDiscoveryHighlight(item.coord, item.visual, { reducedMotion });
   },
@@ -411,7 +433,7 @@ wonderDiscoveryQueue = createWonderDiscoveryRevealQueue({
 
 legendaryCompletionQueue = createLegendaryWonderCompletionQueue({
   container: uiLayer,
-  isInteractionBlocked: () => uiInteractions.isInteractionBlocked(),
+  isInteractionBlocked: () => host.isInteractionBlocked(),
   reducedMotion: prefersReducedMotion,
   openCity: cityId => {
     const city = session.getState().cities[cityId];
@@ -434,35 +456,33 @@ function setMapViewportBottomInset(height: number): void {
   renderLoop.resizeCanvas();
 }
 
-window.addEventListener('keydown', event => {
-  if (event.key === 'Escape' && selection.getPendingIntent().kind === 'journey') {
-    selection.setPendingIntent({ kind: 'none' });
-    showNotification('Journey cancelled.', 'info');
-    return;
-  }
-  if (event.key !== '`') {
-    return;
-  }
+/**
+ * `createPacingDebugPanel` self-removes any prior instance from `uiLayer`,
+ * so the router's own DOM-derived `isOpen`/`close` need no extra bookkeeping
+ * here (#787 phase 5).
+ */
+function openPacingDebugPanel(): void {
+  if (session.getState()) createPacingDebugPanel(uiLayer, session.getState());
+}
 
-  pacingDebugOpen = !pacingDebugOpen;
-  document.getElementById('pacing-debug-panel')?.remove();
-  if (pacingDebugOpen && session.getState()) {
-    createPacingDebugPanel(uiLayer, session.getState());
-  }
-});
+// Escape-cancels-journey and backtick-toggles-pacing-debug used to live in a
+// module-scope `window.addEventListener('keydown', ...)` here. Moved to
+// `installGlobalShortcuts` (called from `init()`, once `notifier` exists) so
+// it can depend on the real `Notifier`/`PanelRouter` ports instead of
+// reaching into module-scope closures directly (#787 phase 5).
 
 function createUI(): void {
   createGameShell(uiLayer, {
-    onOpenCouncil: () => togglePanel('council'),
-    onOpenTech: () => togglePanel('tech'),
-    onOpenCity: () => togglePanel('city'),
-    onOpenEspionage: () => togglePanel('espionage'),
-    onOpenDiplomacy: () => togglePanel('diplomacy'),
-    onOpenMarketplace: () => togglePanel('marketplace'),
+    onOpenCouncil: () => router.open('council'),
+    onOpenTech: () => router.open('tech'),
+    onOpenCity: () => router.open('city-overview'),
+    onOpenEspionage: () => router.open('espionage'),
+    onOpenDiplomacy: () => router.open('diplomacy'),
+    onOpenMarketplace: () => router.open('marketplace'),
     onEndTurn: () => endTurn(),
     onNextUnit: () => selectNextUnit(),
-    onOpenNotificationLog: () => toggleNotificationLog(),
-    onOpenPirateWaters: () => openPirateWaters(),
+    onOpenNotificationLog: () => router.toggle('notification-log'),
+    onOpenPirateWaters: () => router.open('pirate-waters'),
     onToggleIconLegend: () => {
       const existing = document.getElementById('icon-legend');
       if (existing && existing.style.display !== 'none') {
@@ -478,7 +498,7 @@ function createUI(): void {
       const overlay = createIconLegendOverlay(viewerTechs);
       uiLayer.appendChild(overlay);
     },
-    onOpenWonderAtlas: () => openWonderAtlas(),
+    onOpenWonderAtlas: () => router.open('wonder-atlas'),
     onBottomBarHeightChange: setMapViewportBottomInset,
     onOpenMenu: () => {
       showPauseMenu(uiLayer, {
@@ -491,7 +511,7 @@ function createUI(): void {
         },
         onNewGame: () => showGameModeSelection(),
         autoSave: () => autoSave(session.getState()),
-        onOpenBestiary: () => openBestiary(),
+        onOpenBestiary: () => router.open('bestiary'),
         opponentChallenge: resolveOpponentChallenge(session.getState()),
         pendingOpponentChallenge: session.getState().pendingOpponentChallenge,
         onOpponentChallengeChange: (challenge) => {
@@ -672,7 +692,7 @@ function updateHUD(): void {
     networkButton.type = 'button';
     networkButton.style.cssText = 'background:transparent;color:inherit;border:1px solid rgba(232,193,112,0.45);border-radius:6px;font:inherit;padding:4px 8px;min-height:44px;';
     networkButton.textContent = getNetworkPanelModel(session.getState(), civ.id).statusText;
-    networkButton.addEventListener('click', () => openNetworkPanel());
+    networkButton.addEventListener('click', () => router.open('network'));
     yieldsRow.appendChild(networkButton);
   }
 
@@ -898,13 +918,12 @@ function openPirateHeadquartersAssault(factionId: string, unitId: string): void 
   });
 }
 
-function toggleNotificationLog(): void {
-  const existing = document.getElementById('notification-log');
-  if (existing) { existing.remove(); return; }
-
-  const ul = document.getElementById('ui-layer');
-  if (!ul) return;
-
+/**
+ * The "close if already open" behavior moved to `router.toggle('notification-log')`
+ * (#787 phase 5) -- `isOpen`/`close` are DOM-derived, so this only needs to
+ * build and append the panel now.
+ */
+function openNotificationLog(): void {
   const entries = session.getState()
     ? getNotificationsForPlayer(session.getState().notificationLog ?? {}, session.getState().currentPlayer)
     : [];
@@ -938,7 +957,7 @@ function toggleNotificationLog(): void {
     },
   });
 
-  ul.appendChild(panel);
+  uiLayer.appendChild(panel);
 
   setTimeout(() => {
     const handler = (e: Event) => {
@@ -1479,7 +1498,7 @@ function showRequiredChoicesIfNeeded(): boolean {
     },
     onOpenTech: () => {
       closeRequiredChoicePanel();
-      togglePanel('tech');
+      router.open('tech');
     },
     onOpenCity: (cityId) => {
       const city = session.getState().cities[cityId];
@@ -1492,65 +1511,57 @@ function showRequiredChoicesIfNeeded(): boolean {
   return true;
 }
 
-function togglePanel(panel: string): void {
+function openCouncilPanel(): void {
   drawer?.close();
-  // Remove any existing panel
-  document.getElementById('tech-panel')?.remove();
-  document.getElementById('city-panel')?.remove();
-  document.getElementById('espionage-panel')?.remove();
-  document.getElementById('diplomacy-panel')?.remove();
-  document.getElementById('marketplace-panel')?.remove();
-  document.getElementById('council-panel')?.remove();
-  councilPanelOpen = false;
+  createCouncilPanel(uiLayer, session.getState(), {
+    onClose: () => {
+      document.getElementById('council-panel')?.remove();
+    },
+    onTalkLevelChange: (level) => {
+      session.getState().settings.councilTalkLevel = level;
+      void saveSettings(session.getState().settings);
+    },
+  });
+}
 
-  if (panel === 'council') {
-    createCouncilPanel(uiLayer, session.getState(), {
-      onClose: () => {
-        document.getElementById('council-panel')?.remove();
-        councilPanelOpen = false;
-      },
-      onTalkLevelChange: (level) => {
-        session.getState().settings.councilTalkLevel = level;
-        void saveSettings(session.getState().settings);
-      },
-    });
-    councilPanelOpen = true;
-  } else if (panel === 'tech') {
-    createTechPanel(uiLayer, session.getState(), {
-      onQueueResearch: (techId) => {
-        try {
-          currentCiv().techState = enqueueResearch(currentCiv().techState, techId);
-        } catch (error) {
-          const message = error instanceof Error ? error.message : 'Queue limit reached';
-          showNotification(message, 'warning');
-          return;
-        }
-        renderLoop.setGameState(session.getState());
-        updateHUD();
-        showNotification(`Queued research: ${techId}`, 'info');
-      },
-      onMoveQueuedResearch: (fromIndex, toIndex) => {
-        currentCiv().techState = {
-          ...currentCiv().techState,
-          researchQueue: moveQueuedId(currentCiv().techState.researchQueue, fromIndex, toIndex),
-        };
-        renderLoop.setGameState(session.getState());
-        updateHUD();
-      },
-      onRemoveQueuedResearch: (index) => {
-        currentCiv().techState = {
-          ...currentCiv().techState,
-          researchQueue: removeQueuedId(currentCiv().techState.researchQueue, index),
-        };
-        renderLoop.setGameState(session.getState());
-        updateHUD();
-      },
-      onClose: () => {},
-    });
-  } else if (panel === 'city') {
-    openCityOverviewPanel();
-  } else if (panel === 'espionage') {
-    const chooseForeignCityTarget = (): { civId: string; cityId: string; position: HexCoord } | null => {
+function openTechPanel(): void {
+  drawer?.close();
+  createTechPanel(uiLayer, session.getState(), {
+    onQueueResearch: (techId) => {
+      try {
+        currentCiv().techState = enqueueResearch(currentCiv().techState, techId);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Queue limit reached';
+        showNotification(message, 'warning');
+        return;
+      }
+      renderLoop.setGameState(session.getState());
+      updateHUD();
+      showNotification(`Queued research: ${techId}`, 'info');
+    },
+    onMoveQueuedResearch: (fromIndex, toIndex) => {
+      currentCiv().techState = {
+        ...currentCiv().techState,
+        researchQueue: moveQueuedId(currentCiv().techState.researchQueue, fromIndex, toIndex),
+      };
+      renderLoop.setGameState(session.getState());
+      updateHUD();
+    },
+    onRemoveQueuedResearch: (index) => {
+      currentCiv().techState = {
+        ...currentCiv().techState,
+        researchQueue: removeQueuedId(currentCiv().techState.researchQueue, index),
+      };
+      renderLoop.setGameState(session.getState());
+      updateHUD();
+    },
+    onClose: () => {},
+  });
+}
+
+function openEspionagePanel(): void {
+  drawer?.close();
+  const chooseForeignCityTarget = (): { civId: string; cityId: string; position: HexCoord } | null => {
       const choices = Object.values(session.getState().cities)
         .filter(city => city.owner !== session.getState().currentPlayer)
         .sort((a, b) => a.name.localeCompare(b.name));
@@ -1632,7 +1643,7 @@ function togglePanel(panel: string): void {
             session.getState().civilizations[session.getState().currentPlayer].units.filter(id => id !== spyId);
         }
         renderLoop.setGameState(session.getState());
-        togglePanel('espionage');
+        router.open('espionage');
         const cityName = session.getState().cities[target.cityId]?.name ?? target.cityId;
         showNotification(`Spy embedded in ${cityName}. Counter-intelligence boosted.`, 'info');
       },
@@ -1658,7 +1669,7 @@ function togglePanel(panel: string): void {
           targetCityId,
         );
         renderLoop.setGameState(session.getState());
-        togglePanel('espionage');
+        router.open('espionage');
         showNotification(`Mission ${mission} started.`, 'info');
       },
       onRecall: (spyId) => {
@@ -1667,7 +1678,7 @@ function togglePanel(panel: string): void {
           spyId,
         );
         renderLoop.setGameState(session.getState());
-        togglePanel('espionage');
+        router.open('espionage');
         showNotification('Spy recalled.', 'info');
       },
       onVerifyAgent: (spyId) => {
@@ -1676,7 +1687,7 @@ function togglePanel(panel: string): void {
           spyId,
         );
         renderLoop.setGameState(session.getState());
-        togglePanel('espionage');
+        router.open('espionage');
         showNotification('Agent verified and cleared.', 'success');
       },
       onExfiltrate: (spyId) => {
@@ -1717,7 +1728,7 @@ function togglePanel(panel: string): void {
         renderLoop.setGameState(session.getState());
         // Refresh panel in place
         document.getElementById('espionage-panel')?.remove();
-        togglePanel('espionage');
+        router.open('espionage');
         showNotification('Spy exfiltrated. Available again in 8 turns.', 'info');
       },
       onToggleCooldownMode: (spyId) => {
@@ -1737,7 +1748,7 @@ function togglePanel(panel: string): void {
           },
         });
         document.getElementById('espionage-panel')?.remove();
-        togglePanel('espionage');
+        router.open('espionage');
       },
       onUnembed: (spyId) => {
         const ownerEsp = session.getState().espionage?.[session.getState().currentPlayer];
@@ -1754,7 +1765,7 @@ function togglePanel(panel: string): void {
         session.getState().espionage![session.getState().currentPlayer] = { ...unembedded, spies: { ...rest, [newUnit.id]: rekeyed } };
         renderLoop.setGameState(session.getState());
         document.getElementById('espionage-panel')?.remove();
-        togglePanel('espionage');
+        router.open('espionage');
         showNotification(`Spy recalled from ${city.name}. Available in 5 turns.`, 'info');
       },
       onSweep: (spyId) => {
@@ -1770,15 +1781,60 @@ function togglePanel(panel: string): void {
         }
         renderLoop.setGameState(session.getState());
         document.getElementById('espionage-panel')?.remove();
-        togglePanel('espionage');
+        router.open('espionage');
       },
     }));
-  } else if (panel === 'diplomacy') {
-    openDiplomacyPanel();
-  } else if (panel === 'marketplace') {
-    openMarketplacePanel();
-  }
 }
+
+/**
+ * Replaces `togglePanel`'s 288-line `else if` chain (#787 phase 5). Panels
+ * that require a specific target -- a city id, a hex coord -- have no
+ * parameterless "open the current one" call, so their `open` throws; they
+ * still need a registry entry so `closeGroup`/`isOpen`/`close` (all
+ * DOM-derived off `domId`) behave correctly when a 'main' or 'transient'
+ * sweep runs. Their real entry points (`openCityPanelForCity`,
+ * `openWonderPanelForCityId`, `openTerritoryInspectionPanel`) stay
+ * directly-callable functions, untouched by this phase.
+ */
+const panelRegistry = {
+  council: { domId: 'council-panel', group: 'main', open: () => openCouncilPanel() },
+  tech: { domId: 'tech-panel', group: 'main', open: () => openTechPanel() },
+  city: {
+    domId: 'city-panel',
+    group: 'main',
+    open: () => {
+      throw new Error("'city' is parameterized -- call openCityPanelForCity(city) directly, not router.open('city').");
+    },
+  },
+  espionage: { domId: 'espionage-panel', group: 'main', open: () => openEspionagePanel() },
+  diplomacy: { domId: 'diplomacy-panel', group: 'main', open: () => openDiplomacyPanel() },
+  marketplace: { domId: 'marketplace-panel', group: 'main', open: () => openMarketplacePanel() },
+  network: { domId: 'network-panel', group: 'transient', open: () => openNetworkPanel() },
+  wonder: {
+    domId: 'wonder-panel',
+    group: 'transient',
+    open: () => {
+      throw new Error("'wonder' is parameterized -- call openWonderPanelForCityId(cityId) directly, not router.open('wonder').");
+    },
+  },
+  'wonder-atlas': { domId: 'wonder-codex-panel', group: 'transient', open: () => openWonderAtlas() },
+  bestiary: { domId: 'bestiary-panel', group: 'transient', open: () => openBestiary() },
+  'pirate-waters': { domId: 'pirate-waters-panel', group: 'transient', open: () => openPirateWaters() },
+  'notification-log': { domId: 'notification-log', group: 'transient', open: () => openNotificationLog() },
+  'city-overview': { domId: 'city-overview-panel', group: 'main', open: () => openCityOverviewPanel() },
+  'territory-inspection': {
+    domId: 'territory-inspection-panel',
+    group: 'transient',
+    open: () => {
+      throw new Error(
+        "'territory-inspection' is parameterized -- call openTerritoryInspectionPanel(coord) directly, not router.open('territory-inspection').",
+      );
+    },
+  },
+  'pacing-debug': { domId: 'pacing-debug-panel', group: 'transient', open: () => openPacingDebugPanel() },
+} satisfies PanelRegistry;
+
+router = createPanelRouter({ host, registry: panelRegistry, context: panelContext });
 
 function maybeShowCouncilInterrupt(): void {
   const state = session.getState();
@@ -2514,7 +2570,7 @@ function openUnitContextMenu(unitId: string): void {
   createContextMenu(panel, session.getState(), { unitId }, {
     onStartAutoExplore: id => startAutoExplore(id),
     onCancelAutoExplore: id => cancelAutoExplore(id),
-  }, uiInteractions);
+  }, host);
 }
 
 function selectNextUnit(): void {
@@ -3818,7 +3874,7 @@ function releaseHandoffToViewer(nextSlotId: string): void {
 
 /** These player-owned surfaces may contain strategic targets; never carry them across a hot-seat veil. */
 function closeNetworkPanelsForHandoff(): void {
-  document.getElementById('network-panel')?.remove();
+  router.close('network');
   document.querySelector('[aria-label="Network intent"]')?.remove();
 }
 
@@ -4816,6 +4872,9 @@ async function init(): Promise<void> {
     },
     onFocusTarget: focusNotificationTarget,
   });
+  // Needs the real `notifier`, so deferred here alongside it rather than
+  // installed eagerly at module scope (#787 phase 5).
+  installGlobalShortcuts({ target: window, selection, router, notifier });
   await userSettingsStore.refresh();
 
   if (import.meta.env.MODE === 'e2e') {
@@ -5109,11 +5168,11 @@ function startGame(): Promise<void> {
     const touchHandler = new TouchHandler(canvas, renderLoop.camera, callbacks);
     renderLoop.setTouchHandler(touchHandler);
     new MouseHandler(canvas, renderLoop.camera, callbacks, {
-      canInteract: () => !uiInteractions.isInteractionBlocked(),
+      canInteract: () => !host.isInteractionBlocked(),
     });
     installKeyboardShortcuts(document, {
-      onOpenCouncil: () => togglePanel('council'),
-      onOpenTech: () => togglePanel('tech'),
+      onOpenCouncil: () => router.open('council'),
+      onOpenTech: () => router.open('tech'),
       onEndTurn: () => { void endTurn(); },
       getSelectedUnitId: () => selection.getSelectedUnitId(),
       onCenterUnit: () => {
@@ -5153,7 +5212,7 @@ function startGame(): Promise<void> {
         showNotification('Tap a destination for this unit. Press Escape to cancel.', 'info');
       },
     }, {
-      canHandle: () => !uiInteractions.isInteractionBlocked(),
+      canHandle: () => !host.isInteractionBlocked(),
     });
     inputInitialized = true;
   }
