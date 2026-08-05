@@ -234,7 +234,6 @@ import {
   routeCombatRewardEarned,
   routeDroppedProductionItem,
   routeEconomyTreasuryStrain,
-  routeEraAdvanced,
   routeFactionTransition,
   routeLegendaryWonder,
   routeTerritoryTileFlipped,
@@ -280,6 +279,7 @@ import { buildLegendaryWonderCompletionCeremonyItem } from '@/systems/legendary-
 import { createCeremonyCoordinator, type CeremonyCoordinator } from '@/app/controllers/ceremony-coordinator';
 import type { PresentationContext } from '@/presentation/register-all';
 import { registerDiplomacyPresentation } from '@/presentation/register-diplomacy-presentation';
+import { registerEraPresentation } from '@/presentation/register-era-presentation';
 import { removeRouteForUnit, createMarketplaceState, getEffectiveGoldPerTurn, getRouteTechGoldBonus } from '@/systems/trade-system';
 import { establishQuestAwareRoute } from '@/systems/quest-aware-trade-system';
 import { emitMinorCivQuestTransitions } from '@/systems/quest-chain-system';
@@ -4622,19 +4622,7 @@ function appendFactionNotice(civId: string, message: string, type: NotificationE
   appendToCivLog(civId, message, type);
 }
 
-bus.on('era:advanced', ({ era }) => {
-  const humanCivIds = Object.entries(session.getState().civilizations)
-    .filter(([, civ]) => civ.isHuman)
-    .map(([civId]) => civId);
-  routeEraAdvanced(era, humanCivIds, appendToCivLog);
-});
-
-bus.on('civilization:era-advanced', ({ civId, era }) => {
-  const civ = session.getState().civilizations[civId];
-  if (!civ?.isHuman) return;
-  appendToCivLog(civId, `${civ.name} has entered Era ${era}. Your technology now sets your civilization's era.`, 'success');
-  if (civId === session.getState().currentPlayer) SFX.notification();
-});
+registerEraPresentation(bus, presentationContext);
 
 bus.on('faction:unrest-started', event => {
   routeFactionTransition(session.getState(), { type: 'faction:unrest-started', ...event }, appendFactionNotice);
