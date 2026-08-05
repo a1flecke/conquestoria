@@ -89,5 +89,6 @@ export function makePresentationContext(overrides: {
     // (from a jsdom-enabled test) if a registrar actually touches it.
     uiLayer: overrides.uiLayer ?? ({} as HTMLElement),
     maybeShowPendingHoardChoice: vi.fn(),
+    isPresentationSuppressed: () => false,
   };
 }

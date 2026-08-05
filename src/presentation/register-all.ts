@@ -51,6 +51,13 @@ export interface PresentationContext {
    * `updateHUD()`, none of which belong in a subscription-wiring registrar.
    */
   readonly maybeShowPendingHoardChoice: () => void;
+  /**
+   * Whether `RoundPresentationGate` is currently suppressing presentation
+   * (e.g. during a hot-seat handoff replay). A narrow callback rather than
+   * the gate instance itself, matching the same DIP boundary as the other
+   * concrete-service callbacks above.
+   */
+  readonly isPresentationSuppressed: () => boolean;
 }
 
 /** Returns a disposer that removes every subscription the registrar added. */
