@@ -9,11 +9,11 @@
  * from the arc's Architecture section. `createUiInteractionState`'s factory
  * itself is retired in Phase 11, once nothing constructs it directly.
  *
- * `onInteractionUnblocked` is new: `setBlockingOverlay` in `main.ts` today
- * directly pumps the wonder-discovery and legendary-completion ceremony
- * queues whenever the overlay clears. Phase 6's `CeremonyCoordinator` is the
- * intended consumer of this hook; Phase 5 only builds and tests the
- * capability, it does not rewire the ceremony queues to it yet.
+ * `onInteractionUnblocked` replaced a `setBlockingOverlay` side effect that
+ * used to directly pump the wonder-discovery and legendary-completion
+ * ceremony queues whenever the overlay cleared. `CeremonyCoordinator`
+ * (`src/app/controllers/ceremony-coordinator.ts`, #787 phase 6) is now the
+ * sole subscriber.
  */
 import { createUiInteractionState, type UiInteractionState } from '@/ui/ui-interaction-state';
 

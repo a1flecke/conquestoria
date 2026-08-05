@@ -282,9 +282,8 @@ import { applyQuarantine, applyRemedy } from '@/systems/crisis-system';
 import { createTreasuryDrawer, type TreasuryDrawer } from '@/ui/treasury-drawer';
 import { getCivHappinessFromResources, getCivAvailableResources, canEstablishOutpost, performEstablishOutpost, canBuyResourceAccess, performBuyResourceAccess } from '@/systems/resource-acquisition-system';
 import { fireResourceDiscoveredTip } from '@/ui/advisor-system';
-import { createWonderDiscoveryRevealQueue } from '@/ui/wonder-discovery-queue';
 import { buildLegendaryWonderCompletionCeremonyItem } from '@/systems/legendary-wonder-completion-presentation';
-import { createLegendaryWonderCompletionQueue } from '@/ui/legendary-wonder-completion-queue';
+import { createCeremonyCoordinator, type CeremonyCoordinator } from '@/app/controllers/ceremony-coordinator';
 import { removeRouteForUnit, createMarketplaceState, getEffectiveGoldPerTurn, getRouteTechGoldBonus } from '@/systems/trade-system';
 import { establishQuestAwareRoute } from '@/systems/quest-aware-trade-system';
 import { emitMinorCivQuestTransitions } from '@/systems/quest-chain-system';
@@ -323,7 +322,6 @@ const session: GameSession = createGameSession(undefined as unknown as GameState
 const selection = createSelectionStore();
 let drawer: TreasuryDrawer;
 let inputInitialized = false;
-let deferWonderDiscoveryRevealUntilMoveSettles = false;
 /** Owns persisted A/V settings + master volume, moved out of module scope (#787 phase 4). */
 const userSettingsStore = createUserSettingsStore({ load: loadSettings });
 /**
@@ -401,15 +399,8 @@ airDefenseOverlayButton.addEventListener('click', () => {
   airDefenseOverlayButton.setAttribute('aria-pressed', String(enabled));
   airDefenseOverlayButton.textContent = enabled ? '🛡 Anti-aircraft coverage: on' : '🛡 Anti-aircraft coverage';
 });
-let wonderDiscoveryQueue: ReturnType<typeof createWonderDiscoveryRevealQueue> | null = null;
-let legendaryCompletionQueue: ReturnType<typeof createLegendaryWonderCompletionQueue> | null = null;
-
 function setBlockingOverlay(id: string | null): void {
   host.setBlockingOverlay(id);
-  if (id === null) {
-    wonderDiscoveryQueue?.pump();
-    legendaryCompletionQueue?.pump();
-  }
 }
 
 function prefersReducedMotion(): boolean {
@@ -417,24 +408,23 @@ function prefersReducedMotion(): boolean {
     && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 }
 
-wonderDiscoveryQueue = createWonderDiscoveryRevealQueue({
+/**
+ * Owns the wonder-discovery and legendary-completion ceremony queues plus
+ * the move-settle defer flag, replacing three module-scope bindings
+ * (#787 phase 6). Subscribes to `host.onInteractionUnblocked` for the pump
+ * that used to live inside `setBlockingOverlay` above.
+ */
+const ceremonies: CeremonyCoordinator = createCeremonyCoordinator({
+  host,
   container: uiLayer,
-  isInteractionBlocked: () => host.isInteractionBlocked(),
+  reducedMotion: prefersReducedMotion,
   requestMapHighlight: (item, reducedMotion) => {
     renderLoop.requestWonderDiscoveryHighlight(item.coord, item.visual, { reducedMotion });
   },
-  openAtlas: wonderId => openWonderAtlas(wonderId),
-  onRevealStarted: item => {
-    void audio.playNaturalWonderDiscovery(item.wonderId);
+  playDiscoveryAudio: wonderId => {
+    void audio.playNaturalWonderDiscovery(wonderId);
   },
-  reducedMotion: prefersReducedMotion,
-  setBlockingOverlay,
-});
-
-legendaryCompletionQueue = createLegendaryWonderCompletionQueue({
-  container: uiLayer,
-  isInteractionBlocked: () => host.isInteractionBlocked(),
-  reducedMotion: prefersReducedMotion,
+  openAtlas: wonderId => openWonderAtlas(wonderId),
   openCity: cityId => {
     const city = session.getState().cities[cityId];
     if (city) openCityPanelForCity(city);
@@ -442,7 +432,6 @@ legendaryCompletionQueue = createLegendaryWonderCompletionQueue({
   openJournal: cityId => {
     if (session.getState().cities[cityId]) openWonderPanelForCityId(cityId);
   },
-  setBlockingOverlay,
 });
 
 // --- Resize ---
@@ -2470,8 +2459,7 @@ function animateMovedUnit(unitId: string, path: HexCoord[]): void {
   renderLoop.animateUnitMove({ ...movedUnit, position: path[0]! }, path, () => {
     renderLoop.setGameState(session.getState());
     updateHUD();
-    deferWonderDiscoveryRevealUntilMoveSettles = false;
-    wonderDiscoveryQueue?.notifyActionSettled();
+    ceremonies.endAction();
     const unit = session.getState().units[unitId];
     if (!unit || unit.owner !== session.getState().currentPlayer) return;
 
@@ -2485,11 +2473,11 @@ function animateMovedUnit(unitId: string, path: HexCoord[]): void {
 
 function executeAnimatedUnitMove(unitId: string, move: () => ExecuteUnitMoveResult): ExecuteUnitMoveResult {
   const movingUnit = session.getState().units[unitId];
-  deferWonderDiscoveryRevealUntilMoveSettles = true;
+  ceremonies.beginDeferredAction();
   try {
     const moveResult = move();
     if (!moveResult.ok) {
-      deferWonderDiscoveryRevealUntilMoveSettles = false;
+      ceremonies.endAction();
       showNotification(moveResult.message, 'warning');
       SFX.error();
       return moveResult;
@@ -2511,7 +2499,7 @@ function executeAnimatedUnitMove(unitId: string, move: () => ExecuteUnitMoveResu
     animateMovedUnit(unitId, moveResult.path);
     return moveResult;
   } catch (error) {
-    deferWonderDiscoveryRevealUntilMoveSettles = false;
+    ceremonies.endAction();
     throw error;
   }
 }
@@ -4377,10 +4365,7 @@ bus.on('wonder:discovered', event => {
 
   const revealItem = buildWonderDiscoveryRevealItem(session.getState(), session.getState().currentPlayer, event);
   if (revealItem) {
-    wonderDiscoveryQueue?.enqueue(revealItem);
-    if (!deferWonderDiscoveryRevealUntilMoveSettles) {
-      wonderDiscoveryQueue?.notifyActionSettled();
-    }
+    ceremonies.enqueueWonderDiscovery(revealItem);
   }
 });
 
@@ -4397,8 +4382,7 @@ bus.on('wonder:legendary-completed', ({ civId, cityId, wonderId, turnCompleted }
   routeLegendaryWonder(session.getState(), { type: 'wonder:legendary-completed', ...event }, appendToCivLog);
   const ceremonyItem = buildLegendaryWonderCompletionCeremonyItem(session.getState(), event);
   if (ceremonyItem) {
-    legendaryCompletionQueue?.enqueue(ceremonyItem);
-    legendaryCompletionQueue?.notifyActionSettled();
+    ceremonies.enqueueLegendaryCompletion(ceremonyItem);
   }
 });
 
