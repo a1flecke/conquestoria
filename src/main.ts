@@ -280,7 +280,8 @@ import { createCeremonyCoordinator, type CeremonyCoordinator } from '@/app/contr
 import type { PresentationContext } from '@/presentation/register-all';
 import { registerDiplomacyPresentation } from '@/presentation/register-diplomacy-presentation';
 import { registerEraPresentation } from '@/presentation/register-era-presentation';
-import { removeRouteForUnit, createMarketplaceState, getEffectiveGoldPerTurn, getRouteTechGoldBonus } from '@/systems/trade-system';
+import { registerTradePresentation } from '@/presentation/register-trade-presentation';
+import { removeRouteForUnit, createMarketplaceState } from '@/systems/trade-system';
 import { establishQuestAwareRoute } from '@/systems/quest-aware-trade-system';
 import { emitMinorCivQuestTransitions } from '@/systems/quest-chain-system';
 import { performMinorCivFestival, performMinorCivGift, performMinorCivReparations, setMinorCivWarState } from '@/systems/minor-civ-actions';
@@ -442,6 +443,8 @@ const presentationContext: PresentationContext = {
   get router() { return router; },
   ceremonies,
   selection,
+  requestDeliveryVisual: unitId => renderLoop.applyDeliveryVisual(unitId),
+  applyCombatVisual: result => renderLoop.applyCombatVisual(result),
 };
 
 // --- Resize ---
@@ -4438,9 +4441,7 @@ bus.on('combat:resolved', event => {
   });
 });
 
-bus.on('trade:route-delivered', ({ unitId }) => {
-  renderLoop.applyDeliveryVisual(unitId);
-});
+registerTradePresentation(bus, presentationContext);
 
 bus.on('combat:reward-earned', ({ reward }) => {
   routeCombatRewardEarned(session.getState(), reward, appendToCivLog);
@@ -4781,33 +4782,8 @@ bus.on('espionage:city-flipped', event => {
   routeCityFlipped(session.getState(), event, appendToCivLog);
 });
 
-bus.on('trade:route-created', ({ route }) => {
-  const ownerCity = session.getState().cities[route.fromCityId];
-  const toCity = session.getState().cities[route.toCityId];
-  if (!ownerCity) return;
-  const goldPerTurn = getEffectiveGoldPerTurn(route, getRouteTechGoldBonus(session.getState(), route));
-  appendToCivLog(ownerCity.owner, `Trade route to ${toCity?.name ?? route.toCityId} established (+${goldPerTurn} gold/turn)`, 'success');
-});
-
-bus.on('trade:route-ended', ({ fromCityId, toCityId, reason }) => {
-  const ownerCity = session.getState().cities[fromCityId];
-  const toCity = session.getState().cities[toCityId];
-  if (!ownerCity) return;
-  const reasonText: Record<string, string> = {
-    'unit-died': 'caravan destroyed',
-    'unit-disbanded': 'caravan disbanded',
-    'war-declared': 'war declared — caravan is free to redeploy',
-    'hostile-relations': 'hostile relations — caravan is free to redeploy',
-    'embargo': 'embargo enforced — caravan is free to redeploy',
-    'trips-exhausted': 'caravan retired after completing its service',
-    'unit-captured': 'caravan captured',
-  };
-  appendToCivLog(ownerCity.owner, `Trade route to ${toCity?.name ?? toCityId} ended: ${reasonText[reason] ?? reason}`, 'warning');
-  // Also tell the other end of the route, if it's a different human civ (#551).
-  if (toCity && toCity.owner !== ownerCity.owner && session.getState().civilizations[toCity.owner]?.isHuman) {
-    appendToCivLog(toCity.owner, `Trade route from ${ownerCity.name} ended: ${reasonText[reason] ?? reason}`, 'warning');
-  }
-});
+// trade:route-created and trade:route-ended also live in
+// registerTradePresentation, above (#787 phase 7).
 
 // --- Initialization ---
 async function init(): Promise<void> {

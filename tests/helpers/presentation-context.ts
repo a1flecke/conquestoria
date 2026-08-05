@@ -79,5 +79,7 @@ export function makePresentationContext(overrides: {
       clearForHandoff: vi.fn(),
     },
     selection: makeSelectionStoreDouble(),
+    requestDeliveryVisual: vi.fn(),
+    applyCombatVisual: vi.fn(),
   };
 }
