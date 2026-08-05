@@ -61,7 +61,7 @@ import { resolveCivilizationEra } from '@/systems/tech-definitions';
 import { resolveCombatEra } from '@/systems/era-resolution';
 import { preach } from '@/systems/religion-system';
 import { createUnitDeleteConfirmationPanel } from '@/ui/unit-delete-confirmation-panel';
-import { isVisible, getVisibility, isForestConcealedUnit } from '@/systems/fog-of-war';
+import { getVisibility, isForestConcealedUnit } from '@/systems/fog-of-war';
 import { applyCampDestructionAtTarget } from '@/systems/barbarian-system';
 import { recordBeastSlain, isBeastConcealedFrom, applyHoardChoice, getHoardChoicePreview, canUnitAttackBeast, isCivUnitInBeastTerritory } from '@/systems/beast-system';
 import { createBeastHoardPanel } from '@/ui/beast-hoard-panel';
@@ -225,7 +225,6 @@ import {
   type NotificationEntry,
 } from '@/core/notification-log';
 import {
-  routeBarbarianSpawned,
   routeCombatRewardEarned,
   TREATY_LABELS,
   routeStrategicWarning,
@@ -263,6 +262,7 @@ import { registerCityPresentation } from '@/presentation/register-city-presentat
 import { registerFactionCrisisPresentation } from '@/presentation/register-faction-crisis-presentation';
 import { registerEspionagePresentation } from '@/presentation/register-espionage-presentation';
 import { registerBeastPresentation } from '@/presentation/register-beast-presentation';
+import { registerRaiderPresentation } from '@/presentation/register-raider-presentation';
 import { removeRouteForUnit, createMarketplaceState } from '@/systems/trade-system';
 import { establishQuestAwareRoute } from '@/systems/quest-aware-trade-system';
 import { emitMinorCivQuestTransitions } from '@/systems/quest-chain-system';
@@ -4277,10 +4277,6 @@ bus.on('advisor:message', ({ advisor, message, icon }) => {
   showNotification(`${icon} ${message}`, 'info');
 });
 
-// Per-civ dedup: each civ sees a "raiders spotted!" entry only the first time
-// its visibility covers any raider from a given camp.
-const notifiedBarbarianCampsPerCiv = new Map<string, Set<string>>();
-
 bus.on('combat:resolved', event => {
   handleCombatResolvedEvent(session.getState(), event, {
     isPresentationSuppressed: () => roundPresentationGate.isSuppressed(),
@@ -4295,76 +4291,7 @@ bus.on('combat:reward-earned', ({ reward }) => {
   routeCombatRewardEarned(session.getState(), reward, appendToCivLog);
 });
 
-bus.on('barbarian:spawned', ({ campId, unitId }) => {
-  const unit = session.getState().units[unitId];
-  if (!unit) return;
-  routeBarbarianSpawned(
-    session.getState(),
-    unit.position,
-    campId,
-    notifiedBarbarianCampsPerCiv,
-    appendToCivLog,
-    (vis, pos) => isVisible(vis as Parameters<typeof isVisible>[0], pos),
-  );
-});
-
-bus.on('threat:barbarian-resurgence', ({ civId, isBanditLord, banditLordName }) => {
-  const message = isBanditLord
-    ? `${banditLordName ?? 'A bandit lord'} has united the raiders and threatens your lands!`
-    : 'Barbarian forces are resurgent on your lands!';
-  appendToCivLog(civId, message, 'warning');
-  SFX.barbarianResurgence?.();
-});
-
-bus.on('barbarian:city-attacked', ({ cityId, hpLost }) => {
-  const city = session.getState().cities[cityId];
-  if (!city) return;
-  if (!session.getState().civilizations[city.owner]?.isHuman) return;
-  appendToCivLog(city.owner, `Barbarians attack ${city.name}! (−${hpLost} HP)`, 'warning');
-});
-
-bus.on('barbarian:city-destroyed', ({ cityId, ownerId }) => {
-  if (!session.getState().civilizations[ownerId]?.isHuman) return;
-  const cityName = session.getState().cities[cityId]?.name ?? 'A city';
-  appendToCivLog(ownerId, `${cityName} was destroyed by barbarian raiders!`, 'warning');
-});
-
-// A walled, ungarrisoned city fighting back against a besieger (#522) -- covers BOTH
-// the barbarian (turn-manager.ts) and pirate (pirate-system.ts) counter-fire call
-// sites, since both emit this same shared event with their respective 'source' value.
-bus.on('city:counter-fire', ({ cityId, source, damage, attackerDied }) => {
-  const city = session.getState().cities[cityId];
-  if (!city) return;
-  if (!session.getState().civilizations[city.owner]?.isHuman) return;
-  const raiderLabel = source === 'barbarian' ? 'raider' : 'ship';
-  const message = attackerDied
-    ? `${city.name}'s defenses destroyed a ${source === 'barbarian' ? 'barbarian raider' : 'pirate ship'}!`
-    : `${city.name}'s walls fought back, damaging a ${raiderLabel} (−${damage} HP)!`;
-  appendToCivLog(city.owner, message, attackerDied ? 'success' : 'info');
-});
-
-// Pirate-faction naval siege (#522) mirror of the barbarian handler above.
-bus.on('pirate:city-destroyed', ({ cityId, ownerId }) => {
-  if (!session.getState().civilizations[ownerId]?.isHuman) return;
-  const cityName = session.getState().cities[cityId]?.name ?? 'A coastal city';
-  appendToCivLog(ownerId, `${cityName} was razed by pirates!`, 'warning');
-});
-
-// A sacked city survives the raid at 1 HP — phrased distinctly from outright
-// destruction so a recoverable loss is never mistaken for a permanent one. Both
-// barbarians (turn-manager.ts) and pirates (pirate-system.ts, #522) route through
-// this shared event with their respective 'source' value.
-bus.on('city:sacked', ({ cityId, source, goldLost }) => {
-  const city = session.getState().cities[cityId];
-  if (!city) return;
-  if (!session.getState().civilizations[city.owner]?.isHuman) return;
-  const raiders = source === 'barbarian' ? 'Barbarian raiders' : 'Pirates';
-  appendToCivLog(
-    city.owner,
-    `${raiders} have sacked ${city.name}! The city survives at 1 HP, but ${goldLost} gold was looted.`,
-    'warning',
-  );
-});
+registerRaiderPresentation(bus, presentationContext);
 
 registerBeastPresentation(bus, presentationContext);
 
