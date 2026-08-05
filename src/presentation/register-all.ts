@@ -9,6 +9,7 @@
  * itself is added once every domain registrar above it exists.
  */
 import type { EventBus } from '@/core/event-bus';
+import type { CombatResult } from '@/core/types';
 import type { GameSession, Notifier, SelectionStore } from '@/app/ports';
 import type { PanelRouter } from '@/app/panel-router';
 import type { CeremonyCoordinator } from '@/app/controllers/ceremony-coordinator';
@@ -19,6 +20,14 @@ export interface PresentationContext {
   readonly router: PanelRouter;
   readonly ceremonies: CeremonyCoordinator;
   readonly selection: SelectionStore;
+  /**
+   * Narrow renderer-visual callbacks, not a `RenderLoop` import -- only
+   * `trade` (delivery) and `combat` (combat) registrars use these; every
+   * other registrar ignores them, the same way most registrars already
+   * ignore `ceremonies`/`selection`.
+   */
+  readonly requestDeliveryVisual: (unitId: string) => void;
+  readonly applyCombatVisual: (result: CombatResult) => void;
 }
 
 /** Returns a disposer that removes every subscription the registrar added. */
