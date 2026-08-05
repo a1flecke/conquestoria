@@ -247,10 +247,6 @@ import {
   routeWorldPressureCrisisResolved,
   routeCrisisFoeHuntedByAlly,
   routeCrisisAidSent,
-  routeReligionFounded,
-  routeReligionCityConverted,
-  routeLoyaltyWarning,
-  routeCityDefected,
   routeSabotageReliefDiscovered,
   routeCityFlipped,
   type NotificationSink,
@@ -281,6 +277,7 @@ import type { PresentationContext } from '@/presentation/register-all';
 import { registerDiplomacyPresentation } from '@/presentation/register-diplomacy-presentation';
 import { registerEraPresentation } from '@/presentation/register-era-presentation';
 import { registerTradePresentation } from '@/presentation/register-trade-presentation';
+import { registerReligionPresentation } from '@/presentation/register-religion-presentation';
 import { removeRouteForUnit, createMarketplaceState } from '@/systems/trade-system';
 import { establishQuestAwareRoute } from '@/systems/quest-aware-trade-system';
 import { emitMinorCivQuestTransitions } from '@/systems/quest-chain-system';
@@ -4658,21 +4655,7 @@ bus.on('crisis:started', event => {
   routeWorldPressureCrisisStarted(session.getState(), event, appendToCivLog);
 });
 
-bus.on('religion:founded', event => {
-  routeReligionFounded(session.getState(), event, appendToCivLog);
-});
-
-bus.on('religion:city-converted', event => {
-  routeReligionCityConverted(session.getState(), event, appendToCivLog);
-});
-
-bus.on('religion:loyalty-warning', event => {
-  routeLoyaltyWarning(session.getState(), event, appendToCivLog);
-});
-
-bus.on('religion:city-defected', event => {
-  routeCityDefected(session.getState(), event, appendToCivLog);
-});
+registerReligionPresentation(bus, presentationContext);
 
 bus.on('crisis:spread', event => {
   routeCrisisSpread(session.getState(), event, appendToCivLog);
