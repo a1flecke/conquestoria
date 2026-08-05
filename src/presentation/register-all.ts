@@ -4,9 +4,6 @@
  * `main.ts` that ran once at import and could never unregister -- a latent
  * leak across a "new game from the pause menu" transition, since nothing
  * ever called the old handlers' individual unsubscribers.
- *
- * Populated incrementally, one registrar per commit; `registerAllPresentation`
- * itself is added once every domain registrar above it exists.
  */
 import type { EventBus } from '@/core/event-bus';
 import type { CombatResult } from '@/core/types';
@@ -14,6 +11,19 @@ import type { NotificationEntry } from '@/core/notification-log';
 import type { GameSession, Notifier, SelectionStore } from '@/app/ports';
 import type { PanelRouter } from '@/app/panel-router';
 import type { CeremonyCoordinator } from '@/app/controllers/ceremony-coordinator';
+import { registerDiplomacyPresentation } from '@/presentation/register-diplomacy-presentation';
+import { registerEraPresentation } from '@/presentation/register-era-presentation';
+import { registerTradePresentation } from '@/presentation/register-trade-presentation';
+import { registerReligionPresentation } from '@/presentation/register-religion-presentation';
+import { registerNetworkPresentation } from '@/presentation/register-network-presentation';
+import { registerWonderPresentation } from '@/presentation/register-wonder-presentation';
+import { registerCityPresentation } from '@/presentation/register-city-presentation';
+import { registerFactionCrisisPresentation } from '@/presentation/register-faction-crisis-presentation';
+import { registerEspionagePresentation } from '@/presentation/register-espionage-presentation';
+import { registerBeastPresentation } from '@/presentation/register-beast-presentation';
+import { registerRaiderPresentation } from '@/presentation/register-raider-presentation';
+import { registerCombatPresentation } from '@/presentation/register-combat-presentation';
+import { registerGeneralPresentation } from '@/presentation/register-general-presentation';
 
 export interface PresentationContext {
   readonly session: GameSession;
@@ -79,3 +89,34 @@ export interface PresentationContext {
 
 /** Returns a disposer that removes every subscription the registrar added. */
 export type PresentationRegistrar = (bus: EventBus, ctx: PresentationContext) => () => void;
+
+const ALL_REGISTRARS: readonly PresentationRegistrar[] = [
+  registerDiplomacyPresentation,
+  registerEraPresentation,
+  registerTradePresentation,
+  registerReligionPresentation,
+  registerNetworkPresentation,
+  registerWonderPresentation,
+  registerCityPresentation,
+  registerFactionCrisisPresentation,
+  registerEspionagePresentation,
+  registerBeastPresentation,
+  registerRaiderPresentation,
+  registerCombatPresentation,
+  registerGeneralPresentation,
+];
+
+/**
+ * Installs all thirteen domain registrars and returns one disposer that
+ * removes every subscription all of them added. The guard against
+ * double-registration matters concretely: it is what stops AI move replay
+ * and the notification log from firing twice if this were ever installed
+ * more than once (e.g. a future "new game from the pause menu" transition
+ * that doesn't first dispose the previous installation).
+ */
+export const registerAllPresentation: PresentationRegistrar = (bus, ctx) => {
+  const disposers = ALL_REGISTRARS.map(register => register(bus, ctx));
+  return () => {
+    for (const dispose of disposers) dispose();
+  };
+};

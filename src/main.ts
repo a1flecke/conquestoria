@@ -249,20 +249,7 @@ import { createTreasuryDrawer, type TreasuryDrawer } from '@/ui/treasury-drawer'
 import { getCivHappinessFromResources, getCivAvailableResources, canEstablishOutpost, performEstablishOutpost, canBuyResourceAccess, performBuyResourceAccess } from '@/systems/resource-acquisition-system';
 import { fireResourceDiscoveredTip } from '@/ui/advisor-system';
 import { createCeremonyCoordinator, type CeremonyCoordinator } from '@/app/controllers/ceremony-coordinator';
-import type { PresentationContext } from '@/presentation/register-all';
-import { registerDiplomacyPresentation } from '@/presentation/register-diplomacy-presentation';
-import { registerEraPresentation } from '@/presentation/register-era-presentation';
-import { registerTradePresentation } from '@/presentation/register-trade-presentation';
-import { registerReligionPresentation } from '@/presentation/register-religion-presentation';
-import { registerNetworkPresentation } from '@/presentation/register-network-presentation';
-import { registerWonderPresentation } from '@/presentation/register-wonder-presentation';
-import { registerCityPresentation } from '@/presentation/register-city-presentation';
-import { registerFactionCrisisPresentation } from '@/presentation/register-faction-crisis-presentation';
-import { registerEspionagePresentation } from '@/presentation/register-espionage-presentation';
-import { registerBeastPresentation } from '@/presentation/register-beast-presentation';
-import { registerRaiderPresentation } from '@/presentation/register-raider-presentation';
-import { registerCombatPresentation } from '@/presentation/register-combat-presentation';
-import { registerGeneralPresentation } from '@/presentation/register-general-presentation';
+import { registerAllPresentation, type PresentationContext } from '@/presentation/register-all';
 import { removeRouteForUnit, createMarketplaceState } from '@/systems/trade-system';
 import { establishQuestAwareRoute } from '@/systems/quest-aware-trade-system';
 import { emitMinorCivQuestTransitions } from '@/systems/quest-chain-system';
@@ -4256,41 +4243,12 @@ function showEspionageCaptureChoice(spyId: string, spyOwner: string): void {
 }
 
 // --- Event listeners ---
-registerCityPresentation(bus, presentationContext);
-
-registerNetworkPresentation(bus, presentationContext);
-
-registerGeneralPresentation(bus, presentationContext);
-
-registerWonderPresentation(bus, presentationContext);
-
-// War, peace, treaties, first contact (#787 phase 7). Opportunistic-war
-// notifications also live in this registrar, further down the old bus.on
-// block below -- see registerDiplomacyPresentation.
-registerDiplomacyPresentation(bus, presentationContext);
-
-registerCombatPresentation(bus, presentationContext);
-
-registerTradePresentation(bus, presentationContext);
-
-registerRaiderPresentation(bus, presentationContext);
-
-registerBeastPresentation(bus, presentationContext);
+// All 72 module-scope bus.on(...) registrations that used to live inline here
+// now live in the thirteen domain registrars under src/presentation/,
+// composed into one install/dispose pair (#787 phase 7).
+registerAllPresentation(bus, presentationContext);
 
 registerMinorCivNotificationListeners(bus, () => session.getState(), { appendToCivLog });
-
-registerEraPresentation(bus, presentationContext);
-
-registerFactionCrisisPresentation(bus, presentationContext);
-
-registerReligionPresentation(bus, presentationContext);
-
-// diplomacy:opportunistic-war now lives in registerDiplomacyPresentation (#787 phase 7).
-
-registerEspionagePresentation(bus, presentationContext);
-
-// trade:route-created and trade:route-ended also live in
-// registerTradePresentation, above (#787 phase 7).
 
 // --- Initialization ---
 async function init(): Promise<void> {

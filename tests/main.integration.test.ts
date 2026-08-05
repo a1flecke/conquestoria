@@ -139,10 +139,12 @@ describe('completed-round AI wiring', () => {
 
     expect(main).toContain('applyStrategicWarningTransitions(beforeRound, current, eventBus');
     expect(main).toContain('applyStrategicWarningTransitions(beforeRound, current, eventBus)');
-    // ai:strategic-warning's real consumer moved to registerGeneralPresentation
-    // (#787 phase 7) -- register-general-presentation.test.ts proves the
-    // registrar itself routes the event; this only proves main.ts installs it.
-    expect(main).toContain('registerGeneralPresentation(bus, presentationContext)');
+    // ai:strategic-warning's real consumer moved to registerGeneralPresentation,
+    // composed into registerAllPresentation (#787 phase 7) --
+    // register-general-presentation.test.ts and register-all.test.ts prove the
+    // registrar itself routes the event and is actually installed; this only
+    // proves main.ts installs the composed set.
+    expect(main).toContain('registerAllPresentation(bus, presentationContext)');
   });
 
   it('emits one warning cue only after the exact rendered handoff summary is acknowledged', () => {
