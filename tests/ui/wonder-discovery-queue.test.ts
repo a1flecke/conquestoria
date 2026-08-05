@@ -165,6 +165,49 @@ describe('wonder-discovery-queue', () => {
     expect(overlays).toEqual(['wonder-discovery-ceremony', null]);
   });
 
+  it('clear() drops pending reveals so they never surface after a later unblock', () => {
+    const present = vi.fn(() => Promise.resolve('continue' as const));
+    let blocked = true;
+    const queue = createWonderDiscoveryRevealQueue({
+      container: document.body,
+      isInteractionBlocked: () => blocked,
+      present,
+      requestMapHighlight: vi.fn(),
+      openAtlas: vi.fn(),
+      reducedMotion: () => false,
+    });
+
+    queue.enqueue(item('great_volcano', 2));
+    queue.notifyActionSettled();
+    expect(present).not.toHaveBeenCalled();
+
+    queue.clear();
+    blocked = false;
+    queue.pump();
+
+    expect(present).not.toHaveBeenCalled();
+    expect(queue.pendingCount()).toBe(0);
+  });
+
+  it('clear() lets a same wonder be re-queued instead of being treated as a dedupe of the dropped item', () => {
+    const present = vi.fn(() => Promise.resolve('continue' as const));
+    const queue = createWonderDiscoveryRevealQueue({
+      container: document.body,
+      isInteractionBlocked: () => false,
+      present,
+      requestMapHighlight: vi.fn(),
+      openAtlas: vi.fn(),
+      reducedMotion: () => false,
+    });
+
+    queue.enqueue(item('great_volcano', 2));
+    queue.clear();
+    queue.enqueue(item('great_volcano', 2));
+    queue.notifyActionSettled();
+
+    expect(present).toHaveBeenCalledTimes(1);
+  });
+
   it('notifies when a reveal starts so audio can play in sync with the ceremony', () => {
     const onRevealStarted = vi.fn();
     const queue = createWonderDiscoveryRevealQueue({

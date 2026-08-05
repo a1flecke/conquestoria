@@ -19,6 +19,8 @@ export interface LegendaryWonderCompletionQueue {
   notifyActionSettled(): void;
   pump(): void;
   pendingCount(): number;
+  /** Drops every completion not already presenting. Does not interrupt one in progress. */
+  clear(): void;
 }
 
 function keyFor(item: LegendaryWonderCompletionCeremonyItem): string {
@@ -91,6 +93,11 @@ export function createLegendaryWonderCompletionQueue(
     pump,
     pendingCount() {
       return pending.length;
+    },
+    clear() {
+      pending.length = 0;
+      seen.clear();
+      actionSettled = false;
     },
   };
 }

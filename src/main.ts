@@ -416,7 +416,6 @@ function prefersReducedMotion(): boolean {
  */
 const ceremonies: CeremonyCoordinator = createCeremonyCoordinator({
   host,
-  container: uiLayer,
   reducedMotion: prefersReducedMotion,
   requestMapHighlight: (item, reducedMotion) => {
     renderLoop.requestWonderDiscoveryHighlight(item.coord, item.visual, { reducedMotion });
@@ -3878,6 +3877,10 @@ async function beginHotSeatHandoff(
   const nextPlayer = hotSeat.players.find(player => player.slotId === resolvedNextSlotId);
   closePirateWatersPanels(uiLayer);
   closeNetworkPanelsForHandoff();
+  // A discovery ceremony queued (or deferred by an in-flight move animation) at the
+  // instant a player ends their turn must not survive to play on the next player's
+  // screen once releaseHandoffToViewer's setBlockingOverlay(null) pumps the queues.
+  ceremonies.clearForHandoff();
   renderLoop.setSelectedPirateFactionId(null);
   audio.stopPirateAmbience('player-changed');
   audio.setMasterVolume(0);
