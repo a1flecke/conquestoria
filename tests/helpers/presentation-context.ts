@@ -90,5 +90,8 @@ export function makePresentationContext(overrides: {
     uiLayer: overrides.uiLayer ?? ({} as HTMLElement),
     maybeShowPendingHoardChoice: vi.fn(),
     isPresentationSuppressed: () => false,
+    resetAdvisorMessage: vi.fn(),
+    checkAdvisors: vi.fn(),
+    showNotification: vi.fn(),
   };
 }

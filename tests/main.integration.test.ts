@@ -60,7 +60,7 @@ describe('player combat wiring', () => {
     const main = readFileSync(resolve(PROJECT_ROOT, 'src/main.ts'), 'utf8');
     const executeAttack = main.slice(
       main.indexOf('function executeAttack('),
-      main.indexOf("bus.on('combat:resolved'"),
+      main.indexOf('function restAction('),
     );
 
     expect(executeAttack).toContain(
@@ -72,7 +72,7 @@ describe('player combat wiring', () => {
     const main = readFileSync(resolve(PROJECT_ROOT, 'src/main.ts'), 'utf8');
     const executeAttack = main.slice(
       main.indexOf('function executeAttack('),
-      main.indexOf("bus.on('combat:resolved'"),
+      main.indexOf('function restAction('),
     );
     const stateRefresh = executeAttack.indexOf('renderLoop.setGameState(session.getState());');
     const panelRefresh = executeAttack.indexOf('refreshSelectedUnitAfterCombat();');
@@ -139,7 +139,10 @@ describe('completed-round AI wiring', () => {
 
     expect(main).toContain('applyStrategicWarningTransitions(beforeRound, current, eventBus');
     expect(main).toContain('applyStrategicWarningTransitions(beforeRound, current, eventBus)');
-    expect(main).toContain("bus.on('ai:strategic-warning'");
+    // ai:strategic-warning's real consumer moved to registerGeneralPresentation
+    // (#787 phase 7) -- register-general-presentation.test.ts proves the
+    // registrar itself routes the event; this only proves main.ts installs it.
+    expect(main).toContain('registerGeneralPresentation(bus, presentationContext)');
   });
 
   it('emits one warning cue only after the exact rendered handoff summary is acknowledged', () => {

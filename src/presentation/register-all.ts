@@ -10,6 +10,7 @@
  */
 import type { EventBus } from '@/core/event-bus';
 import type { CombatResult } from '@/core/types';
+import type { NotificationEntry } from '@/core/notification-log';
 import type { GameSession, Notifier, SelectionStore } from '@/app/ports';
 import type { PanelRouter } from '@/app/panel-router';
 import type { CeremonyCoordinator } from '@/app/controllers/ceremony-coordinator';
@@ -58,6 +59,22 @@ export interface PresentationContext {
    * concrete-service callbacks above.
    */
   readonly isPresentationSuppressed: () => boolean;
+  /**
+   * `AdvisorSystem`'s two entry points as narrow callbacks rather than the
+   * class instance -- the same DIP boundary as every other concrete-service
+   * field above. `checkAdvisors` reads current state internally (via
+   * `session`), so it takes no arguments.
+   */
+  readonly resetAdvisorMessage: (id: string) => void;
+  readonly checkAdvisors: () => void;
+  /**
+   * The active-viewer's-own-input toast+log path (`main.ts`'s `showNotification`,
+   * a thin wrapper combining `notifier.toast` with a raw log append for the
+   * current player) -- distinct from `notifier.deliver`'s full hot-seat-aware
+   * delivery contract. Reserved for feedback about the active player's own
+   * action, per `.claude/rules/ui-panels.md`'s Notifications section.
+   */
+  readonly showNotification: (message: string, type?: NotificationEntry['type'], target?: NotificationEntry['target']) => void;
 }
 
 /** Returns a disposer that removes every subscription the registrar added. */
