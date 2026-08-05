@@ -27,11 +27,19 @@ export interface CeremonyCoordinator {
   /** Call around an animated move: reveals queued before `endAction` wait for it. */
   beginDeferredAction(): void;
   endAction(): void;
+  /**
+   * Drops every ceremony queued but not yet presenting, and cancels any
+   * in-progress move-settle defer. Call before a hot-seat handoff -- without
+   * this, a discovery deferred (or blocked by another overlay) at the moment
+   * a player ends their turn survives the handoff and plays after
+   * `releaseHandoffToViewer` unblocks the UI, on the *next* player's screen.
+   * A ceremony already presenting is left alone; this only clears backlog.
+   */
+  clearForHandoff(): void;
 }
 
 export interface CeremonyCoordinatorDeps {
   readonly host: PanelHost;
-  readonly container: HTMLElement;
   readonly reducedMotion: () => boolean;
   readonly requestMapHighlight: (item: WonderDiscoveryRevealItem, reducedMotion: boolean) => void;
   readonly playDiscoveryAudio: (wonderId: string) => void;
@@ -47,7 +55,7 @@ export function createCeremonyCoordinator(deps: CeremonyCoordinatorDeps): Ceremo
   let deferUntilMoveSettles = false;
 
   const wonderDiscoveryQueue = createWonderDiscoveryRevealQueue({
-    container: deps.container,
+    container: deps.host.layer,
     isInteractionBlocked: () => deps.host.isInteractionBlocked(),
     requestMapHighlight: deps.requestMapHighlight,
     openAtlas: deps.openAtlas,
@@ -58,7 +66,7 @@ export function createCeremonyCoordinator(deps: CeremonyCoordinatorDeps): Ceremo
   });
 
   const legendaryCompletionQueue = createLegendaryWonderCompletionQueue({
-    container: deps.container,
+    container: deps.host.layer,
     isInteractionBlocked: () => deps.host.isInteractionBlocked(),
     reducedMotion: deps.reducedMotion,
     openCity: deps.openCity,
@@ -89,6 +97,11 @@ export function createCeremonyCoordinator(deps: CeremonyCoordinatorDeps): Ceremo
     endAction() {
       deferUntilMoveSettles = false;
       wonderDiscoveryQueue.notifyActionSettled();
+    },
+    clearForHandoff() {
+      deferUntilMoveSettles = false;
+      wonderDiscoveryQueue.clear();
+      legendaryCompletionQueue.clear();
     },
   };
 }

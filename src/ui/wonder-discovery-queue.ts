@@ -17,6 +17,8 @@ export interface WonderDiscoveryRevealQueue {
   notifyActionSettled(): void;
   pump(): void;
   pendingCount(): number;
+  /** Drops every reveal not already presenting. Does not interrupt one in progress. */
+  clear(): void;
 }
 
 function keyFor(item: WonderDiscoveryRevealItem): string {
@@ -86,6 +88,11 @@ export function createWonderDiscoveryRevealQueue(options: WonderDiscoveryRevealQ
     pump,
     pendingCount() {
       return pending.length;
+    },
+    clear() {
+      pending.length = 0;
+      seen.clear();
+      actionSettled = false;
     },
   };
 }

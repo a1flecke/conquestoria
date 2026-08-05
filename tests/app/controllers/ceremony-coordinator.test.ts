@@ -43,7 +43,6 @@ function legendaryItem(overrides: Partial<LegendaryWonderCompletionCeremonyItem>
 function baseDeps(overrides: Partial<CeremonyCoordinatorDeps> = {}): CeremonyCoordinatorDeps {
   return {
     host: createPanelHost(document.createElement('div')),
-    container: document.body,
     reducedMotion: () => false,
     requestMapHighlight: vi.fn(),
     playDiscoveryAudio: vi.fn(),
@@ -149,5 +148,54 @@ describe('ceremony coordinator', () => {
     await Promise.resolve();
 
     expect(openCity).toHaveBeenCalledWith('city-river');
+  });
+
+  it('clearForHandoff drops a reveal queued but not yet shown, so it never plays after the host later unblocks', () => {
+    // Reproduces a hot-seat leak: a discovery deferred by an in-flight move
+    // animation (or blocked by any overlay) must not survive a handoff and
+    // play on the next player's screen. See beginHotSeatHandoff in main.ts.
+    const host = createPanelHost(document.createElement('div'));
+    const playDiscoveryAudio = vi.fn();
+    const coordinator = createCeremonyCoordinator(baseDeps({ host, playDiscoveryAudio }));
+
+    host.setBlockingOverlay('city-panel');
+    coordinator.enqueueWonderDiscovery(wonderItem());
+    coordinator.clearForHandoff();
+
+    host.setBlockingOverlay(null);
+
+    expect(playDiscoveryAudio).not.toHaveBeenCalled();
+  });
+
+  it('clearForHandoff cancels an in-progress move-settle defer', () => {
+    const playDiscoveryAudio = vi.fn();
+    const coordinator = createCeremonyCoordinator(baseDeps({ playDiscoveryAudio }));
+
+    coordinator.beginDeferredAction();
+    coordinator.enqueueWonderDiscovery(wonderItem());
+    coordinator.clearForHandoff();
+
+    // A later, unrelated discovery must play normally -- clearForHandoff
+    // must not leave the coordinator permanently stuck mid-defer.
+    coordinator.enqueueWonderDiscovery(wonderItem({ wonderId: 'crystal_caverns' }));
+
+    expect(playDiscoveryAudio).toHaveBeenCalledTimes(1);
+    expect(playDiscoveryAudio).toHaveBeenCalledWith('crystal_caverns');
+  });
+
+  it('clearForHandoff drops a queued legendary completion too', () => {
+    const presentLegendaryCompletion = vi.fn(
+      (): Promise<LegendaryWonderCompletionCeremonyAction> => new Promise(() => {}),
+    );
+    const host = createPanelHost(document.createElement('div'));
+    const coordinator = createCeremonyCoordinator(baseDeps({ host, presentLegendaryCompletion }));
+
+    host.setBlockingOverlay('city-panel');
+    coordinator.enqueueLegendaryCompletion(legendaryItem());
+    coordinator.clearForHandoff();
+
+    host.setBlockingOverlay(null);
+
+    expect(presentLegendaryCompletion).not.toHaveBeenCalled();
   });
 });
