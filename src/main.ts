@@ -226,7 +226,6 @@ import {
 } from '@/core/notification-log';
 import {
   TREATY_LABELS,
-  routeStrategicWarning,
   type NotificationSink,
 } from '@/ui/notification-routing';
 import { createNotificationCenter } from '@/ui/notification-center';
@@ -263,6 +262,7 @@ import { registerEspionagePresentation } from '@/presentation/register-espionage
 import { registerBeastPresentation } from '@/presentation/register-beast-presentation';
 import { registerRaiderPresentation } from '@/presentation/register-raider-presentation';
 import { registerCombatPresentation } from '@/presentation/register-combat-presentation';
+import { registerGeneralPresentation } from '@/presentation/register-general-presentation';
 import { removeRouteForUnit, createMarketplaceState } from '@/systems/trade-system';
 import { establishQuestAwareRoute } from '@/systems/quest-aware-trade-system';
 import { emitMinorCivQuestTransitions } from '@/systems/quest-chain-system';
@@ -430,6 +430,9 @@ const presentationContext: PresentationContext = {
   uiLayer,
   maybeShowPendingHoardChoice: () => maybeShowPendingHoardChoice(),
   isPresentationSuppressed: () => roundPresentationGate.isSuppressed(),
+  resetAdvisorMessage: id => advisorSystem.resetMessage(id),
+  checkAdvisors: () => advisorSystem.check(session.getState()),
+  showNotification: (message, type, target) => showNotification(message, type, target),
 };
 
 // --- Resize ---
@@ -4257,13 +4260,7 @@ registerCityPresentation(bus, presentationContext);
 
 registerNetworkPresentation(bus, presentationContext);
 
-bus.on('village:visited', ({ civId, outcome, message }) => {
-  if (outcome === 'gold') advisorSystem.resetMessage('treasurer_village_gold');
-  if (outcome === 'science') advisorSystem.resetMessage('scholar_village_science');
-  if (outcome === 'free_tech') advisorSystem.resetMessage('scholar_village_tech');
-  advisorSystem.check(session.getState());
-  appendToCivLog(civId, message, outcome === 'ambush' || outcome === 'illness' ? 'warning' : 'success');
-});
+registerGeneralPresentation(bus, presentationContext);
 
 registerWonderPresentation(bus, presentationContext);
 
@@ -4271,11 +4268,6 @@ registerWonderPresentation(bus, presentationContext);
 // notifications also live in this registrar, further down the old bus.on
 // block below -- see registerDiplomacyPresentation.
 registerDiplomacyPresentation(bus, presentationContext);
-
-// viewer-scoped by design: advisors run for the active player only (#551).
-bus.on('advisor:message', ({ advisor, message, icon }) => {
-  showNotification(`${icon} ${message}`, 'info');
-});
 
 registerCombatPresentation(bus, presentationContext);
 
@@ -4286,13 +4278,6 @@ registerRaiderPresentation(bus, presentationContext);
 registerBeastPresentation(bus, presentationContext);
 
 registerMinorCivNotificationListeners(bus, () => session.getState(), { appendToCivLog });
-
-bus.on('ai:strategic-warning', event => {
-  // #551: appendToCivLog (the delivery contract) already queues to
-  // pendingEvents for a non-active hot-seat recipient -- the old
-  // queueStrategicWarningPendingEvent call was a second, always-on queue.
-  routeStrategicWarning(event, appendToCivLog);
-});
 
 registerEraPresentation(bus, presentationContext);
 
