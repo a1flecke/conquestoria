@@ -231,8 +231,6 @@ import {
   routeCombatRewardEarned,
   TREATY_LABELS,
   routeStrategicWarning,
-  routeSabotageReliefDiscovered,
-  routeCityFlipped,
   type NotificationSink,
 } from '@/ui/notification-routing';
 import { createNotificationCenter } from '@/ui/notification-center';
@@ -265,6 +263,7 @@ import { registerNetworkPresentation } from '@/presentation/register-network-pre
 import { registerWonderPresentation } from '@/presentation/register-wonder-presentation';
 import { registerCityPresentation } from '@/presentation/register-city-presentation';
 import { registerFactionCrisisPresentation } from '@/presentation/register-faction-crisis-presentation';
+import { registerEspionagePresentation } from '@/presentation/register-espionage-presentation';
 import { removeRouteForUnit, createMarketplaceState } from '@/systems/trade-system';
 import { establishQuestAwareRoute } from '@/systems/quest-aware-trade-system';
 import { emitMinorCivQuestTransitions } from '@/systems/quest-chain-system';
@@ -429,6 +428,7 @@ const presentationContext: PresentationContext = {
   selection,
   requestDeliveryVisual: unitId => renderLoop.applyDeliveryVisual(unitId),
   applyCombatVisual: result => renderLoop.applyCombatVisual(result),
+  showEspionageCaptureChoice: (spyId, spyOwner) => showEspionageCaptureChoice(spyId, spyOwner),
 };
 
 // --- Resize ---
@@ -4466,53 +4466,7 @@ registerReligionPresentation(bus, presentationContext);
 
 // diplomacy:opportunistic-war now lives in registerDiplomacyPresentation (#787 phase 7).
 
-bus.on('espionage:sabotage-relief-discovered', event => {
-  routeSabotageReliefDiscovered(session.getState(), event, appendToCivLog);
-});
-
-bus.on('espionage:spy-detected-traveling', ({ detectingCivId, spyOwner, wasDisguised, position }) => {
-  const label = wasDisguised ? 'A disguised unit' : 'An enemy spy';
-  appendToCivLog(
-    detectingCivId,
-    `${label} from ${spyOwner} was spotted near (${position.q}, ${position.r}).`,
-    'warning',
-  );
-});
-
-bus.on('espionage:spy-caught-infiltrating', ({ capturingCivId, spyOwner, spyId, cityId }) => {
-  const spy = session.getState().espionage?.[spyOwner]?.spies[spyId];
-  const city = session.getState().cities[cityId];
-  const captor = session.getState().civilizations[capturingCivId]?.name ?? capturingCivId;
-  appendToCivLog(
-    spyOwner,
-    `${spy?.name ?? 'Your spy'} was caught by ${captor} trying to infiltrate ${city?.name ?? 'an enemy city'}!`,
-    'warning',
-  );
-  // Captor side: show verdict choice only when the human captor is currently active
-  if (capturingCivId === session.getState().currentPlayer) {
-    showEspionageCaptureChoice(spyId, spyOwner);
-  }
-});
-
-// Show verdict choice when human player captures a spy during a mission
-bus.on('espionage:spy-captured', ({ capturingCivId, spyOwner, spyId }) => {
-  if (capturingCivId === session.getState().currentPlayer) {
-    showEspionageCaptureChoice(spyId, spyOwner);
-  }
-  // Spy owner always gets a log entry, regardless of who is "current"
-  const spy = session.getState().espionage?.[spyOwner]?.spies[spyId];
-  const captorName = session.getState().civilizations[capturingCivId]?.name ?? capturingCivId;
-  appendToCivLog(spyOwner, `${spy?.name ?? 'Your spy'} was captured by ${captorName}!`, 'warning');
-});
-
-// Notify the spy's owner when they are executed by an AI or human captor
-bus.on('espionage:spy-executed', ({ executingCivId, spyOwner, spyName }) => {
-  appendToCivLog(
-    spyOwner,
-    `${spyName} was executed by ${session.getState().civilizations[executingCivId]?.name ?? 'an enemy'}.`,
-    'warning',
-  );
-});
+registerEspionagePresentation(bus, presentationContext);
 
 bus.on('unit:obsolete', ({ civId, unitType }) => {
   const name = UNIT_DEFINITIONS[unitType]?.name ?? unitType;
@@ -4529,19 +4483,6 @@ bus.on('unit:journey-blocked', ({ unitId, position }) => {
   const type = UNIT_DEFINITIONS[unit.type]?.name ?? unit.type;
   const msg = `Your ${type} was blocked and stopped at (${position.q}, ${position.r}).`;
   appendToCivLog(unit.owner, msg, 'warning');
-});
-
-bus.on('espionage:spy-expired', ({ civId, spyName, unitType }) => {
-  appendToCivLog(civId, `${spyName}'s network dissolved — ${unitType} era ended. No diplomatic penalty.`, 'info');
-});
-
-bus.on('espionage:spy-auto-exfiltrated', ({ civId, cityId }) => {
-  const city = session.getState().cities[cityId];
-  appendToCivLog(civId, `Your spy was auto-exfiltrated from ${city?.name ?? 'a city'} after it changed hands.`, 'info');
-});
-
-bus.on('espionage:city-flipped', event => {
-  routeCityFlipped(session.getState(), event, appendToCivLog);
 });
 
 // trade:route-created and trade:route-ended also live in

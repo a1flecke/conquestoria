@@ -28,6 +28,15 @@ export interface PresentationContext {
    */
   readonly requestDeliveryVisual: (unitId: string) => void;
   readonly applyCombatVisual: (result: CombatResult) => void;
+  /**
+   * Opens the (multi-step, stateful) espionage capture verdict dialog. Kept
+   * as a callback into `main.ts` rather than moved here -- it mutates state
+   * directly via `session.setStateWithoutRefresh` and touches `renderLoop`,
+   * `bus.emit`, and `showNotification`, none of which belong in a
+   * subscription-wiring registrar. A candidate for its own extraction in a
+   * later phase, not this one.
+   */
+  readonly showEspionageCaptureChoice: (spyId: string, spyOwner: string) => void;
 }
 
 /** Returns a disposer that removes every subscription the registrar added. */

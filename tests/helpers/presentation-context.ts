@@ -81,5 +81,6 @@ export function makePresentationContext(overrides: {
     selection: makeSelectionStoreDouble(),
     requestDeliveryVisual: vi.fn(),
     applyCombatVisual: vi.fn(),
+    showEspionageCaptureChoice: vi.fn(),
   };
 }
