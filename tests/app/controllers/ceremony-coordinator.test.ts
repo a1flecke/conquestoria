@@ -198,4 +198,26 @@ describe('ceremony coordinator', () => {
 
     expect(presentLegendaryCompletion).not.toHaveBeenCalled();
   });
+
+  it('clearForHandoff does not let an already-played reveal replay on a later re-encounter', async () => {
+    // wonder:discovered re-fires whenever fog-of-war re-reveals an
+    // already-discovered wonder tile, not just on first discovery. A
+    // hot-seat handoff must not reset that dedupe for ceremonies the player
+    // already saw -- only for backlog it never got to show them.
+    const playDiscoveryAudio = vi.fn();
+    const coordinator = createCeremonyCoordinator(baseDeps({
+      playDiscoveryAudio,
+      presentWonderDiscovery: () => Promise.resolve('continue'),
+    }));
+
+    coordinator.enqueueWonderDiscovery(wonderItem());
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(playDiscoveryAudio).toHaveBeenCalledTimes(1);
+
+    coordinator.clearForHandoff();
+    coordinator.enqueueWonderDiscovery(wonderItem());
+
+    expect(playDiscoveryAudio).toHaveBeenCalledTimes(1);
+  });
 });
