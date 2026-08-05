@@ -142,7 +142,6 @@ import {
   retargetNetworkPlan,
 } from '@/systems/network-plan-system';
 import { beginAutonomySurge, requestAutonomyPosture } from '@/systems/autonomy-postures';
-import { getNetworkWarningForViewer } from '@/systems/network-viewer-intel';
 import {
   getNextActiveHumanPlayerId,
   isActiveHumanRoundComplete,
@@ -278,6 +277,7 @@ import { registerDiplomacyPresentation } from '@/presentation/register-diplomacy
 import { registerEraPresentation } from '@/presentation/register-era-presentation';
 import { registerTradePresentation } from '@/presentation/register-trade-presentation';
 import { registerReligionPresentation } from '@/presentation/register-religion-presentation';
+import { registerNetworkPresentation } from '@/presentation/register-network-presentation';
 import { removeRouteForUnit, createMarketplaceState } from '@/systems/trade-system';
 import { establishQuestAwareRoute } from '@/systems/quest-aware-trade-system';
 import { emitMinorCivQuestTransitions } from '@/systems/quest-chain-system';
@@ -4310,56 +4310,7 @@ bus.on('city:national-project-expired', ({ civId, cityId, buildingId }) => {
 
 bus.on('city:production-item-dropped', event => routeDroppedProductionItem(session.getState(), event, appendToCivLog));
 
-bus.on('city:cyber-drained', ({ cityName, drainerOwner, goldLost, blocked, victimCivId }) => {
-  const drainerName = session.getState().civilizations[drainerOwner]?.name ?? drainerOwner;
-  const victimName = session.getState().civilizations[victimCivId]?.name ?? victimCivId;
-  if (blocked) {
-    appendToCivLog(victimCivId, `Cyber Defense Center blocked an intrusion in ${cityName}.`, 'success');
-    appendToCivLog(drainerOwner, `Cyber attack on ${cityName} was blocked by ${victimName}'s Cyber Defense Center.`, 'warning');
-    return;
-  }
-  appendToCivLog(victimCivId, `Cyber attack: ${cityName} lost ${goldLost} gold (${drainerName} cyber unit).`, 'warning');
-  appendToCivLog(drainerOwner, `Cyber unit stole ${goldLost} gold from ${victimName}'s ${cityName}.`, 'success');
-});
-
-bus.on('network:exploit-warning', ({ planId, victimCivId, cityId }) => {
-  const warning = getNetworkWarningForViewer(session.getState(), victimCivId, planId);
-  const city = session.getState().cities[cityId];
-  if (!warning || !city) return;
-  const disclosure = warning.source?.unitId
-    ? ' The source has been identified.'
-    : warning.source?.position
-      ? ' The source position has been detected.'
-      : '';
-  appendToCivLog(
-    victimCivId,
-    `Network exploit warning: ${city.name} will be targeted at the end of this turn. A Cyber Defense Center or Harden reduces the effect.${disclosure}`,
-    'warning',
-    { kind: 'map', coord: city.position, label: city.name },
-  );
-  bus.emit('network:audio-cue', { cue: 'hostile-warning', viewerIds: [victimCivId] });
-});
-
-bus.on('network:exploit-resolved', ({ cityId, ownerCivId, goldTransferred, delayed }) => {
-  const city = session.getState().cities[cityId];
-  if (!city) return;
-  if (delayed) {
-    appendToCivLog(city.owner, `${city.name}'s Cyber Defense Center delayed a network exploit.`, 'success');
-    appendToCivLog(ownerCivId, `Your network exploit against ${city.name} was delayed by its Cyber Defense Center.`, 'warning');
-    return;
-  }
-  appendToCivLog(city.owner, `Network exploit: ${city.name} lost ${goldTransferred} gold.`, 'warning');
-  appendToCivLog(ownerCivId, `Network exploit transferred ${goldTransferred} gold from ${city.name}.`, 'success');
-  bus.emit('network:audio-cue', { cue: 'hostile-consequence', viewerIds: [city.owner, ownerCivId] });
-});
-
-bus.on('network:audio-cue', ({ cue, viewerIds }) => {
-  if (cue === 'constructive-resolution') {
-    appendToCivLog(viewerIds[0]!, 'Stable network plan milestone reached: three resolutions recorded.', 'success');
-  } else if (cue === 'recovery') {
-    appendToCivLog(viewerIds[0]!, 'Network recovery complete.', 'success');
-  }
-});
+registerNetworkPresentation(bus, presentationContext);
 
 bus.on('village:visited', ({ civId, outcome, message }) => {
   if (outcome === 'gold') advisorSystem.resetMessage('treasurer_village_gold');
