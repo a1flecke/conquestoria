@@ -47,7 +47,7 @@ import { createForeignCityEntryPanel } from '@/ui/foreign-city-entry-panel';
 import { createWorkerReplacementConfirmPanel, createWorkerTaskWarningPanel } from '@/ui/worker-task-warning-panel';
 import { createWonderPanel } from '@/ui/wonder-panel';
 import { createWonderAtlasPanel } from '@/ui/wonder-atlas-panel';
-import { calculateCombatStrengths, deterministicCombatSeed, resolveCombat, selectDefenderForAttack } from '@/systems/combat-system';
+import { calculateCombatStrengths, deterministicCombatSeed, resolveCombat } from '@/systems/combat-system';
 import { calculateCityAssaultStrengths } from '@/systems/city-siege-system';
 import { buildCombatContextForDefender, getAmphibiousAssaultMultiplier } from '@/systems/combat-context';
 import { canUnitAttackTarget } from '@/systems/attack-targeting';
@@ -61,7 +61,7 @@ import { resolveCivilizationEra } from '@/systems/tech-definitions';
 import { resolveCombatEra } from '@/systems/era-resolution';
 import { preach } from '@/systems/religion-system';
 import { createUnitDeleteConfirmationPanel } from '@/ui/unit-delete-confirmation-panel';
-import { getVisibility, isForestConcealedUnit } from '@/systems/fog-of-war';
+import { getVisibility } from '@/systems/fog-of-war';
 import { applyCampDestructionAtTarget } from '@/systems/barbarian-system';
 import { recordBeastSlain, isBeastConcealedFrom, applyHoardChoice, getHoardChoicePreview, canUnitAttackBeast, isCivUnitInBeastTerritory } from '@/systems/beast-system';
 import { createBeastHoardPanel } from '@/ui/beast-hoard-panel';
@@ -93,7 +93,6 @@ import { createGameButton } from '@/ui/ui-kit';
 import { getPirateWatersPresentation, type PirateFocusTarget } from '@/systems/pirate-presentation';
 import { hirePirateFlotilla, payPirateTribute, type PirateActionResult } from '@/systems/pirate-actions';
 import { markNotificationRead, resolvePirateNotificationReview } from '@/ui/pirate-notification-listeners';
-import { resolvePirateHeadquartersSelection } from '@/input/pirate-headquarters-selection';
 import {
   confirmPirateHeadquartersAssault,
   findAvailablePirateHeadquartersAssault,
@@ -114,7 +113,6 @@ import { showGameModeSelect } from '@/ui/game-mode-select';
 import { createPacingDebugPanel } from '@/ui/pacing-debug-panel';
 import { formatCombatPreviewDetails } from '@/ui/combat-preview';
 import { resolveCivDefinition } from '@/systems/civ-registry';
-import { canInspectUnitForViewer } from '@/systems/viewer-intel';
 import {
   acceptDiplomaticRequest,
   applyDiplomaticAction,
@@ -166,9 +164,9 @@ import {
   canUnitOccupyCity,
   emitMajorCityCaptureEvents,
 } from '@/systems/city-capture-system';
-import { resolveSelectedUnitTapIntent } from '@/input/selected-unit-tap-intent';
-import { resolveWonderAtlasIntent } from '@/input/wonder-atlas-intent';
 import { resolveNaturalWonderAudioFocus } from '@/input/natural-wonder-audio-focus';
+import { resolveMapTapIntent } from '@/input/map-tap-intent';
+import { visibleHostileUnitEntriesAtKey } from '@/input/hex-defender-selection';
 import { buildCombatPresentation } from '@/systems/viewer-event-presentation';
 import { handleFriendlyUnitStackTap } from '@/input/unit-stack-selection';
 import {
@@ -3020,177 +3018,153 @@ function restAction(): void {
   renderLoop.setGameState(session.getState());
 }
 
-function visibleUnitEntriesAtKey(key: string): Array<[string, Unit]> {
-  const viewerUnits = Object.values(session.getState().units).filter(u => u.owner === session.getState().currentPlayer && !u.transportId);
-  return Object.entries(session.getState().units).filter(([, unit]) =>
-    hexKey(unit.position) === key
-    && canInspectUnitForViewer(session.getState(), session.getState().currentPlayer, unit.id)
-    && (unit.owner === session.getState().currentPlayer || !isForestConcealedUnit(session.getState(), session.getState().currentPlayer, unit))
-    && !isBeastConcealedFrom(unit, session.getState().map, viewerUnits)
-  );
-}
-
-function visibleHostileUnitEntriesAtKey(key: string): Array<[string, Unit]> {
-  return visibleUnitEntriesAtKey(key).filter(([, unit]) => unit.owner !== session.getState().currentPlayer);
-}
-
-function selectDefenderEntryAtKey(key: string): [string, Unit] | undefined {
-  const hostileEntries = visibleHostileUnitEntriesAtKey(key);
-  const defender = selectDefenderForAttack(hostileEntries.map(([, unit]) => unit), session.getState().map);
-  if (!defender) return undefined;
-  return hostileEntries.find(([id]) => id === defender.id);
-}
-
 function handleHexTap(rawCoord: HexCoord): void {
-  // Precedence between pending intents is preserved exactly as the four
-  // independent flags produced it: city-capture, then journey, then air
-  // mission, then unload (below, after the animation-lock guard).
-  if (selection.getPendingIntent().kind === 'city-capture') {
-    return;
-  }
-
   const coord = session.getState().map.wrapsHorizontally
     ? wrapHexCoord(rawCoord, session.getState().map.width)
     : rawCoord;
-
-  const journeyIntent = selection.getPendingIntent();
-  if (journeyIntent.kind === 'journey') {
-    const journeyUnitId = journeyIntent.unitId;
-    const unit = session.getState().units[journeyUnitId];
-    if (unit) {
-      const domain = UNIT_DEFINITIONS[unit.type]?.domain ?? 'land';
-      const completedTechs = session.getState().civilizations[unit.owner]?.techState.completed ?? [];
-      const path = findPath(unit.position, coord, session.getState().map, domain, { unit, completedTechs });
-      if (!path || path.length < 2) {
-        showNotification('No path to that destination.', 'warning');
-      } else {
-        session.commit({
-          ...session.getState(),
-          units: {
-            ...session.getState().units,
-            [journeyUnitId]: { ...unit, automation: { mode: 'journey', destination: coord } },
-          },
-        });
-        selectUnit(journeyUnitId);
-        showNotification('Journey set. Your unit will advance each turn.', 'info');
-      }
-    }
-    selection.setPendingIntent({ kind: 'none' });
-    return;
-  }
   const key = hexKey(coord);
+  const snapshot = selection.snapshot();
+  const isAnimationLocked = isUnitAnimationLocked(snapshot.selectedUnitId);
+  const intent = resolveMapTapIntent(session.getState(), snapshot, coord, isAnimationLocked);
 
-  const airIntent = selection.getPendingIntent();
-  if (airIntent.kind === 'air-mission') {
-    const pending = airIntent;
-    const result = pending.mission === 'strike'
-      ? resolveAirStrike(session.getState(), pending.unitId, coord)
-      : resolveReconMission(session.getState(), pending.unitId, coord);
-    if (!result.ok) {
-      showNotification('That air mission target is no longer legal.', 'warning');
+  switch (intent.kind) {
+    case 'ignore': {
       return;
     }
-    selection.setPendingIntent({ kind: 'none' });
-    session.commit(result.state);
-    refreshCurrentPlayerVisibility();
-    updateHUD();
-    if (pending.mission === 'recon') SFX.airRecon();
-    else SFX.combat();
-    selectUnit(pending.unitId);
-    return;
-  }
 
-  // Every branch below that changes the selection returns immediately after,
-  // so one read here is equivalent to the module binding this replaced.
-  const selectedUnitId = selection.getSelectedUnitId();
+    case 'resolve-pending': {
+      switch (intent.pending.kind) {
+        case 'journey': {
+          const journeyUnitId = intent.pending.unitId;
+          const unit = session.getState().units[journeyUnitId];
+          if (unit) {
+            const domain = UNIT_DEFINITIONS[unit.type]?.domain ?? 'land';
+            const completedTechs = session.getState().civilizations[unit.owner]?.techState.completed ?? [];
+            const path = findPath(unit.position, coord, session.getState().map, domain, { unit, completedTechs });
+            if (!path || path.length < 2) {
+              showNotification('No path to that destination.', 'warning');
+            } else {
+              session.commit({
+                ...session.getState(),
+                units: {
+                  ...session.getState().units,
+                  [journeyUnitId]: { ...unit, automation: { mode: 'journey', destination: coord } },
+                },
+              });
+              selectUnit(journeyUnitId);
+              showNotification('Journey set. Your unit will advance each turn.', 'info');
+            }
+          }
+          selection.setPendingIntent({ kind: 'none' });
+          return;
+        }
 
-  if (!selectedUnitId) {
-    const pirateSelection = resolvePirateHeadquartersSelection(session.getState(), session.getState().currentPlayer, coord);
-    if (pirateSelection?.kind === 'faction') {
-      openPirateWaters({ factionId: pirateSelection.factionId });
-      return;
-    }
-    if (pirateSelection?.kind === 'region') {
-      renderLoop.camera.centerOn(pirateSelection.center);
-      openPirateWaters({ factionId: pirateSelection.factionId });
-      return;
-    }
-  }
-
-  if (isUnitAnimationLocked(selectedUnitId)) {
-    showNotification('Unit is moving.', 'info');
-    return;
-  }
-
-  // ── Pending-unload mode: consume the tap before any normal movement logic ──
-  const pendingUnload = selection.getPendingIntent();
-  if (pendingUnload.kind === 'unload') {
-    const inRange = pendingUnload.range.some(h => hexKey(h) === key);
-    if (inRange) {
-      // Delegate to onUnloadTransport which handles state, animation, and notification
-      const panel = document.getElementById('info-panel');
-      if (panel) {
-        // Re-invoke via the callback registered in selectUnit's renderSelectedUnitInfo block
-        // by triggering the transport system directly here (callbacks are not stored).
-        const { transportId, cargoUnitId } = pendingUnload;
-        const result = unloadUnitFromTransport(session.getState(), transportId, cargoUnitId, coord);
-        if (!result.ok) {
-          showNotification(result.message, 'warning');
-          SFX.error();
-        } else {
-          const tName = UNIT_DEFINITIONS[session.getState().units[transportId]?.type ?? 'transport']?.name ?? 'Transport';
-          const cName = UNIT_DEFINITIONS[session.getState().units[cargoUnitId]?.type ?? 'warrior']?.name ?? 'Unit';
-          clearUnloadState();
+        case 'air-mission': {
+          const pending = intent.pending;
+          const result = pending.mission === 'strike'
+            ? resolveAirStrike(session.getState(), pending.unitId, coord)
+            : resolveReconMission(session.getState(), pending.unitId, coord);
+          if (!result.ok) {
+            showNotification('That air mission target is no longer legal.', 'warning');
+            return;
+          }
+          selection.setPendingIntent({ kind: 'none' });
           session.commit(result.state);
-          renderLoop.animateUnitAppear(coord);
-          selectUnit(transportId);
-          showNotification(`${cName} disembarked from ${tName}.`, 'info');
-          SFX.transportUnload();
+          refreshCurrentPlayerVisibility();
+          updateHUD();
+          if (pending.mission === 'recon') SFX.airRecon();
+          else SFX.combat();
+          selectUnit(pending.unitId);
+          return;
+        }
+
+        case 'unload': {
+          // Delegate to onUnloadTransport which handles state, animation, and notification
+          const panel = document.getElementById('info-panel');
+          if (panel) {
+            // Re-invoke via the callback registered in selectUnit's renderSelectedUnitInfo block
+            // by triggering the transport system directly here (callbacks are not stored).
+            const { transportId, cargoUnitId } = intent.pending;
+            const result = unloadUnitFromTransport(session.getState(), transportId, cargoUnitId, coord);
+            if (!result.ok) {
+              showNotification(result.message, 'warning');
+              SFX.error();
+            } else {
+              const tName = UNIT_DEFINITIONS[session.getState().units[transportId]?.type ?? 'transport']?.name ?? 'Transport';
+              const cName = UNIT_DEFINITIONS[session.getState().units[cargoUnitId]?.type ?? 'warrior']?.name ?? 'Unit';
+              clearUnloadState();
+              session.commit(result.state);
+              renderLoop.animateUnitAppear(coord);
+              selectUnit(transportId);
+              showNotification(`${cName} disembarked from ${tName}.`, 'info');
+              SFX.transportUnload();
+            }
+          }
+          return;
+        }
+
+        default: {
+          const _exhaustive: never = intent.pending;
+          throw new Error(`Unhandled pending map intent: ${JSON.stringify(_exhaustive)}`);
         }
       }
-    } else {
+    }
+
+    case 'mistap': {
       // Mis-tap: block the tap; first occurrence shows an error notification
       if (selection.shouldWarnOnMistap()) {
         showNotification('Tap a highlighted hex to disembark, or Cancel in the panel.', 'warning');
         SFX.error();
       }
-    }
-    return;
-  }
-
-  const selectedUnitCanMoveToTappedHex = selectedUnitId && selection.getMovementRange().some(h => hexKey(h) === key);
-  const selectedUnitCanAttackTappedHex = selectedUnitId && selection.getAttackRange().some(h => hexKey(h) === key);
-  if (!selectedUnitCanMoveToTappedHex && !selectedUnitCanAttackTappedHex) {
-    if (handleFriendlyUnitStackTap(session.getState(), coord, selectedUnitId, {
-      onSelectUnit: selectUnit,
-      onOpenStackPicker: openUnitStackPicker,
-    })) {
       return;
     }
-  }
 
-  if (selectedUnitId && !selectedUnitCanMoveToTappedHex && !selectedUnitCanAttackTappedHex) {
-    const selectedUnit = session.getState().units[selectedUnitId];
-    if (selectedUnit) {
-      if (selectedUnit.committedToRouteId) {
-        showNotification('Caravan is committed to a trade route and cannot move.', 'warning');
-        selectUnit(selectedUnitId);
-        return;
-      }
-      // Check for a navalOnly beast before falling through to the generic movement blocker —
-      // "Ocean is impassable" is less useful than the specific combat restriction reason.
-      const defenderAtHex = selectDefenderEntryAtKey(key)?.[1];
-      if (defenderAtHex) {
-        const navalGate = canUnitAttackBeast(selectedUnit, defenderAtHex);
-        if (!navalGate.allowed) {
-          showNotification(navalGate.reason ?? 'Cannot attack that target.', 'warning');
-          selectUnit(selectedUnitId);
-          return;
-        }
-      }
-      if (handleSelectedUnitMovementBlocker(
+    case 'open-pirate-faction': {
+      openPirateWaters({ factionId: intent.factionId });
+      return;
+    }
+
+    case 'open-pirate-region': {
+      renderLoop.camera.centerOn(intent.center);
+      openPirateWaters({ factionId: intent.factionId });
+      return;
+    }
+
+    case 'animation-locked': {
+      showNotification('Unit is moving.', 'info');
+      return;
+    }
+
+    case 'open-stack-picker': {
+      openUnitStackPicker(intent.coord, [...intent.unitIds]);
+      return;
+    }
+
+    case 'select-unit': {
+      selectUnit(intent.unitId);
+      return;
+    }
+
+    case 'blocked-caravan-committed': {
+      showNotification('Caravan is committed to a trade route and cannot move.', 'warning');
+      selectUnit(intent.unitId);
+      return;
+    }
+
+    case 'blocked-naval-gate': {
+      showNotification(intent.reason, 'warning');
+      selectUnit(intent.unitId);
+      return;
+    }
+
+    case 'blocked-movement': {
+      // Re-invokes the same helper resolveMapTapIntent used internally to decide
+      // this intent -- it recomputes getMovementBlockerReason from the same
+      // inputs (a pure, cheap call) and dispatches the notification/SFX/reselect
+      // side effects, which resolveMapTapIntent deliberately doesn't do itself.
+      handleSelectedUnitMovementBlocker(
         session.getState(),
-        selectedUnitId,
+        intent.unitId,
         coord,
         selection.getWaterRecovery(),
         {
@@ -3198,18 +3172,13 @@ function handleHexTap(rawCoord: HexCoord): void {
           reselectUnit: unitId => selectUnit(unitId, { suppressSelectionSfx: true }),
           playError: SFX.error,
         },
-      )) {
-        return;
-      }
+      );
+      return;
     }
-  }
 
-  const defenderEntryAtHex = selectDefenderEntryAtKey(key);
-
-  if (defenderEntryAtHex) {
-    // Show enemy unit info (if no unit selected for attack)
-    if (!selectedUnitId && defenderEntryAtHex) {
-      const enemyUnit = defenderEntryAtHex[1];
+    case 'enemy-unit-info': {
+      const enemyUnit = session.getState().units[intent.unitId];
+      if (!enemyUnit) return;
       const def = UNIT_DEFINITIONS[enemyUnit.type];
       const desc = UNIT_DESCRIPTIONS[enemyUnit.type] ?? '';
       const ownerKind = classifyOwner(enemyUnit.owner);
@@ -3293,7 +3262,7 @@ function handleHexTap(rawCoord: HexCoord): void {
           wrapper.appendChild(pirateWaters);
         }
 
-        const hostileStackSize = visibleHostileUnitEntriesAtKey(key).length;
+        const hostileStackSize = visibleHostileUnitEntriesAtKey(session.getState(), key).length;
         if (hostileStackSize > 1) {
           const stackDiv = document.createElement('div');
           stackDiv.style.cssText = 'font-size:10px;opacity:0.72;margin-top:4px;';
@@ -3306,27 +3275,15 @@ function handleHexTap(rawCoord: HexCoord): void {
       }
       return;
     }
-  }
 
-  // If unit is selected and tapping a movement or attack target
-  if (selectedUnitId && (selectedUnitCanMoveToTappedHex || selectedUnitCanAttackTappedHex)) {
-    const unit = session.getState().units[selectedUnitId];
-    if (!unit) return;
-
-    // Check for enemy unit at target — show combat preview
-    const defenderEntry = selectDefenderEntryAtKey(key);
-    if (selectedUnitCanAttackTappedHex && defenderEntry) {
-      const defender = defenderEntry[1];
+    case 'combat-preview': {
+      const unit = session.getState().units[intent.attackerId];
+      const defender = session.getState().units[intent.defenderId];
+      if (!unit || !defender) return;
       const amphibiousAssault = Boolean(unit.transportId);
       const previewAttacker = amphibiousAssault
         ? { ...unit, position: { ...session.getState().units[unit.transportId!].position }, transportId: undefined }
         : unit;
-      const navalGate = canUnitAttackBeast(previewAttacker, defender);
-      if (!navalGate.allowed) {
-        showNotification(navalGate.reason ?? 'Cannot attack that target.', 'warning');
-        selectUnit(selectedUnitId);
-        return;
-      }
       const atkDef = UNIT_DEFINITIONS[unit.type];
       const defDef = UNIT_DEFINITIONS[defender.type];
       const strengthPreview = calculateCombatStrengths(
@@ -3403,7 +3360,7 @@ function handleHexTap(rawCoord: HexCoord): void {
           previewDiv.appendChild(traitLine);
         }
 
-        const hostileStackSize = visibleHostileUnitEntriesAtKey(key).length;
+        const hostileStackSize = visibleHostileUnitEntriesAtKey(session.getState(), key).length;
         if (hostileStackSize > 1) {
           const stackInfo = document.createElement('div');
           stackInfo.style.cssText = 'font-size:10px;opacity:0.72;margin-bottom:8px;';
@@ -3444,234 +3401,237 @@ function handleHexTap(rawCoord: HexCoord): void {
           }
           executeAttack(attackerId!, key);
         });
-        return; // Wait for button press
       }
-    } else {
-      const tapIntent = resolveSelectedUnitTapIntent(session.getState(), selectedUnitId, coord, selection.getMovementRange());
-      if (tapIntent.kind === 'assault-city') {
-        const attackerUnit = session.getState().units[selectedUnitId];
-        const targetCity = session.getState().cities[tapIntent.cityId];
-        const ownerCiv = targetCity ? session.getState().civilizations[targetCity.owner] : undefined;
-        if (!attackerUnit || !targetCity || !ownerCiv) return;
+      return; // Wait for button press
+    }
 
-        const attackerMultiplier = tapIntent.embarkedAssault
-          ? getAmphibiousAssaultMultiplier(session.getState(), attackerUnit, targetCity.position)
-          : undefined;
-        const effectiveAttacker = tapIntent.embarkedAssault && attackerUnit.transportId
-          ? { ...attackerUnit, position: { ...session.getState().units[attackerUnit.transportId].position }, transportId: undefined }
-          : attackerUnit;
-        const strengths = calculateCityAssaultStrengths(effectiveAttacker, targetCity, ownerCiv, session.getState().map, { attackerMultiplier });
-        const atkStr = Math.round(strengths.attackerStrength);
-        const cityStr = Math.round(strengths.intrinsicStrength);
-        const odds = strengths.winProbability > 0.55 ? 'Favorable' : strengths.winProbability > 0.45 ? 'Even' : 'Risky';
-        const oddsColor = strengths.winProbability > 0.55 ? '#6b9b4b' : strengths.winProbability > 0.45 ? '#e8c170' : '#d94a4a';
+    case 'assault-preview': {
+      const attackerUnit = session.getState().units[intent.attackerId];
+      const targetCity = session.getState().cities[intent.cityId];
+      const ownerCiv = targetCity ? session.getState().civilizations[targetCity.owner] : undefined;
+      if (!attackerUnit || !targetCity || !ownerCiv) return;
 
-        const panel = document.getElementById('info-panel');
-        if (panel) {
-          panel.style.display = 'block';
-          const previewDiv = document.createElement('div');
-          previewDiv.style.cssText = 'background:rgba(100,0,0,0.9);border-radius:12px;padding:12px 16px;';
+      const attackerMultiplier = intent.embarkedAssault
+        ? getAmphibiousAssaultMultiplier(session.getState(), attackerUnit, targetCity.position)
+        : undefined;
+      const effectiveAttacker = intent.embarkedAssault && attackerUnit.transportId
+        ? { ...attackerUnit, position: { ...session.getState().units[attackerUnit.transportId].position }, transportId: undefined }
+        : attackerUnit;
+      const strengths = calculateCityAssaultStrengths(effectiveAttacker, targetCity, ownerCiv, session.getState().map, { attackerMultiplier });
+      const atkStr = Math.round(strengths.attackerStrength);
+      const cityStr = Math.round(strengths.intrinsicStrength);
+      const odds = strengths.winProbability > 0.55 ? 'Favorable' : strengths.winProbability > 0.45 ? 'Even' : 'Risky';
+      const oddsColor = strengths.winProbability > 0.55 ? '#6b9b4b' : strengths.winProbability > 0.45 ? '#e8c170' : '#d94a4a';
 
-          const title = document.createElement('div');
-          title.style.cssText = 'font-size:13px;color:#e8c170;margin-bottom:6px;';
-          title.textContent = 'Assault Preview';
-          previewDiv.appendChild(title);
+      const panel = document.getElementById('info-panel');
+      if (panel) {
+        panel.style.display = 'block';
+        const previewDiv = document.createElement('div');
+        previewDiv.style.cssText = 'background:rgba(100,0,0,0.9);border-radius:12px;padding:12px 16px;';
 
-          const stats = document.createElement('div');
-          stats.style.cssText = 'display:flex;justify-content:space-between;font-size:12px;margin-bottom:8px;';
-          const atkSpan = document.createElement('span');
-          atkSpan.textContent = `${UNIT_DEFINITIONS[attackerUnit.type].name} (${atkStr})`;
-          const oddsSpan = document.createElement('span');
-          oddsSpan.style.cssText = `color:${oddsColor};font-weight:bold;`;
-          oddsSpan.textContent = odds;
-          const defSpan = document.createElement('span');
-          defSpan.textContent = `${targetCity.name} defenses (${cityStr})`;
-          stats.appendChild(atkSpan);
-          stats.appendChild(oddsSpan);
-          stats.appendChild(defSpan);
-          previewDiv.appendChild(stats);
+        const title = document.createElement('div');
+        title.style.cssText = 'font-size:13px;color:#e8c170;margin-bottom:6px;';
+        title.textContent = 'Assault Preview';
+        previewDiv.appendChild(title);
 
-          const info = document.createElement('div');
-          info.style.cssText = 'font-size:10px;opacity:0.6;margin-bottom:8px;';
-          info.textContent = tapIntent.embarkedAssault
-            ? 'Landing -50%. Marine training and adjacent shore bombardment are included.'
-            : 'A walled city fights back if it has no garrison.';
-          previewDiv.appendChild(info);
+        const stats = document.createElement('div');
+        stats.style.cssText = 'display:flex;justify-content:space-between;font-size:12px;margin-bottom:8px;';
+        const atkSpan = document.createElement('span');
+        atkSpan.textContent = `${UNIT_DEFINITIONS[attackerUnit.type].name} (${atkStr})`;
+        const oddsSpan = document.createElement('span');
+        oddsSpan.style.cssText = `color:${oddsColor};font-weight:bold;`;
+        oddsSpan.textContent = odds;
+        const defSpan = document.createElement('span');
+        defSpan.textContent = `${targetCity.name} defenses (${cityStr})`;
+        stats.appendChild(atkSpan);
+        stats.appendChild(oddsSpan);
+        stats.appendChild(defSpan);
+        previewDiv.appendChild(stats);
 
-          const btnRow = document.createElement('div');
-          btnRow.style.cssText = 'display:flex;gap:8px;';
-          const attackBtn = document.createElement('button');
-          attackBtn.id = 'btn-assault-confirm';
-          attackBtn.textContent = 'Attack';
-          attackBtn.style.cssText = 'flex:1;padding:8px;border-radius:8px;background:#d94a4a;border:none;color:white;font-weight:bold;cursor:pointer;';
-          const cancelBtn = document.createElement('button');
-          cancelBtn.id = 'btn-cancel-assault';
-          cancelBtn.textContent = 'Cancel';
-          cancelBtn.style.cssText = 'flex:1;padding:8px;border-radius:8px;background:rgba(255,255,255,0.15);border:none;color:white;cursor:pointer;';
-          btnRow.appendChild(attackBtn);
-          btnRow.appendChild(cancelBtn);
-          previewDiv.appendChild(btnRow);
+        const info = document.createElement('div');
+        info.style.cssText = 'font-size:10px;opacity:0.6;margin-bottom:8px;';
+        info.textContent = intent.embarkedAssault
+          ? 'Landing -50%. Marine training and adjacent shore bombardment are included.'
+          : 'A walled city fights back if it has no garrison.';
+        previewDiv.appendChild(info);
 
-          panel.innerHTML = '';
-          panel.appendChild(previewDiv);
+        const btnRow = document.createElement('div');
+        btnRow.style.cssText = 'display:flex;gap:8px;';
+        const attackBtn = document.createElement('button');
+        attackBtn.id = 'btn-assault-confirm';
+        attackBtn.textContent = 'Attack';
+        attackBtn.style.cssText = 'flex:1;padding:8px;border-radius:8px;background:#d94a4a;border:none;color:white;font-weight:bold;cursor:pointer;';
+        const cancelBtn = document.createElement('button');
+        cancelBtn.id = 'btn-cancel-assault';
+        cancelBtn.textContent = 'Cancel';
+        cancelBtn.style.cssText = 'flex:1;padding:8px;border-radius:8px;background:rgba(255,255,255,0.15);border:none;color:white;cursor:pointer;';
+        btnRow.appendChild(attackBtn);
+        btnRow.appendChild(cancelBtn);
+        previewDiv.appendChild(btnRow);
 
-          cancelBtn.addEventListener('click', deselectUnit);
-          attackBtn.addEventListener('click', () => {
-            // Read live, as the module binding this replaced did.
-            const assaultStatus = beginPlayerCityAssault(selection.getSelectedUnitId()!, tapIntent.cityId, undefined, undefined, tapIntent.embarkedAssault);
-            SFX.combat();
+        panel.innerHTML = '';
+        panel.appendChild(previewDiv);
+
+        cancelBtn.addEventListener('click', deselectUnit);
+        attackBtn.addEventListener('click', () => {
+          // Read live, as the module binding this replaced did.
+          const assaultStatus = beginPlayerCityAssault(selection.getSelectedUnitId()!, intent.cityId, undefined, undefined, intent.embarkedAssault);
+          SFX.combat();
+          renderLoop.setGameState(session.getState());
+          updateHUD();
+          if (assaultStatus === 'resolved') {
+            setTimeout(() => selectNextUnit(), 400);
+          }
+        });
+      }
+      return;
+    }
+
+    case 'confirm-war-city': {
+      const selectedId = intent.attackerId;
+      const city = session.getState().cities[intent.cityId];
+      const defender = session.getState().civilizations[intent.defenderId];
+      createForeignCityEntryPanel(uiLayer, {
+        cityName: city?.name ?? 'this city',
+        defenderName: defender?.name ?? intent.defenderId,
+        onConfirm: () => {
+          const begun = beginConfirmedForeignCityEntry(session.getState(), selectedId, intent.cityId, bus);
+          session.setStateWithoutRefresh(begun.state);
+          if (!begun.ok) {
+            showNotification(
+              begun.reason === 'repelled-by-city-defense'
+                ? "Your attack was repelled by the city's defenses!"
+                : 'The attack could not proceed.',
+              'warning',
+            );
             renderLoop.setGameState(session.getState());
             updateHUD();
-            if (assaultStatus === 'resolved') {
-              setTimeout(() => selectNextUnit(), 400);
-            }
-          });
-        }
-        return;
-      }
-
-      if (tapIntent.kind === 'confirm-war-city') {
-        const selectedId = selectedUnitId;
-        const city = session.getState().cities[tapIntent.cityId];
-        const defender = session.getState().civilizations[tapIntent.defenderId];
-        createForeignCityEntryPanel(uiLayer, {
-          cityName: city?.name ?? 'this city',
-          defenderName: defender?.name ?? tapIntent.defenderId,
-          onConfirm: () => {
-            const begun = beginConfirmedForeignCityEntry(session.getState(), selectedId, tapIntent.cityId, bus);
-            session.setStateWithoutRefresh(begun.state);
-            if (!begun.ok) {
-              showNotification(
-                begun.reason === 'repelled-by-city-defense'
-                  ? "Your attack was repelled by the city's defenses!"
-                  : 'The attack could not proceed.',
-                'warning',
-              );
-              renderLoop.setGameState(session.getState());
-              updateHUD();
-              return;
-            }
-            selection.setPendingIntent({ kind: 'city-capture', choice: begun.pending });
-            const captureCity = session.getState().cities[tapIntent.cityId];
-            if (captureCity) {
-              createCityCapturePanel(uiLayer, {
-                cityName: captureCity.name,
-                occupiedPopulation: begun.pending.occupiedPopulation,
-                razeGold: begun.pending.razeGold,
-                onOccupy: () => finalizePendingCityCaptureChoice('occupy'),
-                onRaze: () => finalizePendingCityCaptureChoice('raze'),
-              });
-            }
-            SFX.tap();
-            renderLoop.setGameState(session.getState());
-            updateHUD();
-          },
-          onCancel: () => selectUnit(selectedId),
-        });
-        return;
-      }
-
-      if (tapIntent.kind === 'confirm-war-minor-civ') {
-        const selectedId = selectedUnitId;
-        const city = session.getState().cities[tapIntent.cityId];
-        const minor = session.getState().minorCivs[tapIntent.minorCivId];
-        const definition = MINOR_CIV_DEFINITIONS.find(candidate => candidate.id === minor?.definitionId);
-        createForeignCityEntryPanel(uiLayer, {
-          cityName: city?.name ?? 'this city-state',
-          defenderName: definition?.name ?? 'the city-state',
-          onConfirm: () => {
-            const war = setMinorCivWarState(session.getState(), session.getState().currentPlayer, tapIntent.minorCivId, true);
-            if (!war.ok) return;
-            session.setStateWithoutRefresh(war.state);
-            emitMinorCivQuestTransitions(bus, war.transitions, session.getState());
-            executeMinorCivConquest(selectedId, coord, tapIntent.minorCivId, tapIntent.cityId);
-          },
-          onCancel: () => selectUnit(selectedId),
-        });
-        return;
-      }
-
-      if (tapIntent.kind === 'assault-minor-civ') {
-        const mc = session.getState().minorCivs[tapIntent.minorCivId];
-        if (mc && !mc.isDestroyed) {
-          executeMinorCivConquest(selectedUnitId, coord, tapIntent.minorCivId, tapIntent.cityId);
-        } else {
+            return;
+          }
+          selection.setPendingIntent({ kind: 'city-capture', choice: begun.pending });
+          const captureCity = session.getState().cities[intent.cityId];
+          if (captureCity) {
+            createCityCapturePanel(uiLayer, {
+              cityName: captureCity.name,
+              occupiedPopulation: begun.pending.occupiedPopulation,
+              razeGold: begun.pending.razeGold,
+              onOccupy: () => finalizePendingCityCaptureChoice('occupy'),
+              onRaze: () => finalizePendingCityCaptureChoice('raze'),
+            });
+          }
           SFX.tap();
           renderLoop.setGameState(session.getState());
           updateHUD();
-          setTimeout(() => selectNextUnit(), 400);
-        }
-        return;
-      }
+        },
+        onCancel: () => selectUnit(selectedId),
+      });
+      return;
+    }
 
-      // Move unit
-      if (isWorkerBusy(session.getState(), selectedUnitId)) {
-        const selectedId = selectedUnitId;
-        const task = session.getState().units[selectedId]?.workerTask;
-        const taskTile = task ? session.getState().map.tiles[hexKey(task.coord)] : undefined;
-        const isRoadTask = task?.action === 'build_road';
-        createWorkerTaskWarningPanel(uiLayer, {
-          improvementName: task
-            ? (isRoadTask ? 'Road' : getImprovementDisplayName(task.action as ImprovementType))
-            : 'Improvement',
-          turnsLeft: (isRoadTask ? taskTile?.roadTurnsLeft : taskTile?.improvementTurnsLeft) ?? 1,
-          onCancel: () => selectUnit(selectedId),
-          onConfirm: () => {
-            executeAnimatedUnitMove(selectedId, () => confirmBusyWorkerMove(session.getState(), selectedId, coord, {
-              actor: 'player',
-              civId: session.getState().currentPlayer,
-              bus,
-            }));
-            SFX.tap();
-            renderLoop.setGameState(session.getState());
-            updateHUD();
-          },
-        });
-        return;
-      }
+    case 'confirm-war-minor-civ': {
+      const selectedId = intent.attackerId;
+      const city = session.getState().cities[intent.cityId];
+      const minor = session.getState().minorCivs[intent.minorCivId];
+      const definition = MINOR_CIV_DEFINITIONS.find(candidate => candidate.id === minor?.definitionId);
+      createForeignCityEntryPanel(uiLayer, {
+        cityName: city?.name ?? 'this city-state',
+        defenderName: definition?.name ?? 'the city-state',
+        onConfirm: () => {
+          const war = setMinorCivWarState(session.getState(), session.getState().currentPlayer, intent.minorCivId, true);
+          if (!war.ok) return;
+          session.setStateWithoutRefresh(war.state);
+          emitMinorCivQuestTransitions(bus, war.transitions, session.getState());
+          executeMinorCivConquest(selectedId, coord, intent.minorCivId, intent.cityId);
+        },
+        onCancel: () => selectUnit(selectedId),
+      });
+      return;
+    }
 
-      executeAnimatedUnitMove(selectedUnitId, () => executeUnitMove(session.getState(), selectedUnitId!, coord, {
+    case 'assault-minor-civ': {
+      const mc = session.getState().minorCivs[intent.minorCivId];
+      if (mc && !mc.isDestroyed) {
+        executeMinorCivConquest(intent.attackerId, intent.coord, intent.minorCivId, intent.cityId);
+      } else {
+        SFX.tap();
+        renderLoop.setGameState(session.getState());
+        updateHUD();
+        setTimeout(() => selectNextUnit(), 400);
+      }
+      return;
+    }
+
+    case 'worker-busy': {
+      const selectedId = intent.unitId;
+      const task = session.getState().units[selectedId]?.workerTask;
+      const taskTile = task ? session.getState().map.tiles[hexKey(task.coord)] : undefined;
+      const isRoadTask = task?.action === 'build_road';
+      createWorkerTaskWarningPanel(uiLayer, {
+        improvementName: task
+          ? (isRoadTask ? 'Road' : getImprovementDisplayName(task.action as ImprovementType))
+          : 'Improvement',
+        turnsLeft: (isRoadTask ? taskTile?.roadTurnsLeft : taskTile?.improvementTurnsLeft) ?? 1,
+        onCancel: () => selectUnit(selectedId),
+        onConfirm: () => {
+          executeAnimatedUnitMove(selectedId, () => confirmBusyWorkerMove(session.getState(), selectedId, intent.coord, {
+            actor: 'player',
+            civId: session.getState().currentPlayer,
+            bus,
+          }));
+          SFX.tap();
+          renderLoop.setGameState(session.getState());
+          updateHUD();
+        },
+      });
+      return;
+    }
+
+    case 'move': {
+      executeAnimatedUnitMove(intent.unitId, () => executeUnitMove(session.getState(), intent.unitId, intent.coord, {
         actor: 'player',
         civId: session.getState().currentPlayer,
         bus,
       }));
       SFX.tap();
+      renderLoop.setGameState(session.getState());
+      updateHUD();
+      return;
     }
 
-    renderLoop.setGameState(session.getState());
-    updateHUD();
-    return;
-  }
+    case 'open-city': {
+      const cityAtHex = session.getState().cities[intent.cityId];
+      if (!cityAtHex) return;
+      document.getElementById('tech-panel')?.remove();
+      document.getElementById('city-panel')?.remove();
+      document.getElementById('espionage-panel')?.remove();
+      document.getElementById('diplomacy-panel')?.remove();
+      document.getElementById('marketplace-panel')?.remove();
+      document.getElementById('council-panel')?.remove();
+      deselectUnit();
+      openCityPanelForCity(cityAtHex);
+      return;
+    }
 
-  // Check if tapping a player-owned city hex
-  const cityAtHex = Object.values(session.getState().cities).find(
-    c => c.owner === session.getState().currentPlayer && hexKey(c.position) === key,
-  );
-  if (cityAtHex) {
-    document.getElementById('tech-panel')?.remove();
-    document.getElementById('city-panel')?.remove();
-    document.getElementById('espionage-panel')?.remove();
-    document.getElementById('diplomacy-panel')?.remove();
-    document.getElementById('marketplace-panel')?.remove();
-    document.getElementById('council-panel')?.remove();
-    deselectUnit();
-    openCityPanelForCity(cityAtHex);
-    return;
-  }
+    case 'open-wonder-atlas': {
+      deselectUnit();
+      const audioFocus = resolveNaturalWonderAudioFocus(session.getState(), session.getState().currentPlayer, intent.coord);
+      if (audioFocus) void audio.startNaturalWonderMapFocusAmbient(audioFocus.wonderId);
+      openWonderAtlas(intent.wonderId);
+      SFX.tap();
+      return;
+    }
 
-  const wonderAtlasIntent = resolveWonderAtlasIntent(session.getState(), session.getState().currentPlayer, coord);
-  if (wonderAtlasIntent.type === 'open-atlas') {
-    deselectUnit();
-    const audioFocus = resolveNaturalWonderAudioFocus(session.getState(), session.getState().currentPlayer, coord);
-    if (audioFocus) void audio.startNaturalWonderMapFocusAmbient(audioFocus.wonderId);
-    openWonderAtlas(wonderAtlasIntent.wonderId);
-    SFX.tap();
-    return;
-  }
+    case 'deselect': {
+      deselectUnit();
+      SFX.tap();
+      return;
+    }
 
-  // Tapping empty hex — deselect
-  deselectUnit();
-  SFX.tap();
+    default: {
+      const _exhaustive: never = intent;
+      throw new Error(`Unhandled map tap intent: ${JSON.stringify(_exhaustive)}`);
+    }
+  }
 }
 
 function openTerritoryInspectionPanel(coord: HexCoord): void {

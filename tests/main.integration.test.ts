@@ -108,9 +108,15 @@ describe('land-unit water recovery wiring', () => {
       main.indexOf('function selectUnit('),
       main.indexOf('function deselectUnit('),
     );
+    // #787 phase 8b: the movement-blocker dispatch moved from an inline
+    // if-chain in handleHexTap into the 'blocked-movement' case of its
+    // resolveMapTapIntent-driven switch -- resolveMapTapIntent.test.ts and
+    // this switch's own case now own the decision of *whether* a tap is
+    // blocked; this scope only proves the live dispatch site still routes
+    // through the same recovery helpers once resolveMapTapIntent says it is.
     const tapFlow = main.slice(
-      main.indexOf('const selectedUnitCanMoveToTappedHex'),
-      main.indexOf('const defenderEntryAtHex'),
+      main.indexOf("case 'blocked-movement': {"),
+      main.indexOf("case 'enemy-unit-info': {"),
     );
 
     expect(selectFlow).toContain('waterRecovery: highlightResult.waterRecovery');
@@ -283,5 +289,36 @@ describe('air-defense overlay button placement (#783)', () => {
     expect(main).toContain('airDefenseOverlayButton.hidden = true;');
     const updateHud = main.slice(main.indexOf('function updateHUD(): void {'), main.indexOf('\nfunction ', main.indexOf('function updateHUD(): void {') + 1));
     expect(updateHud).toContain('airDefenseOverlayButton.hidden = !civHasAirDefenseCoverage(session.getState(), civ.id);');
+  });
+});
+
+describe('map tap wiring (#787 phase 8b)', () => {
+  it('handleHexTap dispatches on resolveMapTapIntent through an exhaustive switch', () => {
+    const main = readFileSync(resolve(PROJECT_ROOT, 'src/main.ts'), 'utf8');
+    const handleHexTap = main.slice(
+      main.indexOf('function handleHexTap('),
+      main.indexOf('function openTerritoryInspectionPanel('),
+    );
+
+    expect(handleHexTap).toContain('resolveMapTapIntent(');
+    expect(handleHexTap).toContain('switch (intent.kind)');
+
+    // The exhaustiveness guard: a future MapTapIntent variant with no case
+    // arm fails to compile, not silently falls through at runtime.
+    expect(handleHexTap).toContain('const _exhaustive: never = intent;');
+
+    // One case per current MapTapIntent variant (src/input/map-tap-intent.ts) --
+    // resolveMapTapIntent's own test suite proves which *data* reaches each
+    // kind; this only proves handleHexTap still has a live dispatch arm for it.
+    const expectedKinds = [
+      'resolve-pending', 'mistap', 'ignore', 'open-pirate-faction', 'open-pirate-region',
+      'animation-locked', 'open-stack-picker', 'select-unit', 'blocked-caravan-committed',
+      'blocked-naval-gate', 'blocked-movement', 'enemy-unit-info', 'combat-preview',
+      'assault-preview', 'confirm-war-city', 'confirm-war-minor-civ', 'assault-minor-civ',
+      'worker-busy', 'move', 'open-city', 'open-wonder-atlas', 'deselect',
+    ];
+    for (const kind of expectedKinds) {
+      expect(handleHexTap).toContain(`case '${kind}':`);
+    }
   });
 });
