@@ -16,13 +16,23 @@ import {
   routeCrisisFoeHuntedByAlly,
   routeCrisisAidSent,
   routeEconomyTreasuryStrain,
+  type NotificationSink,
 } from '@/ui/notification-routing';
 
 export const registerFactionCrisisPresentation: PresentationRegistrar = (bus, ctx) => {
   // #551: routeFactionTransition already delivers via the delivery contract, which
   // queues to pendingEvents for a non-active hot-seat recipient -- no separate
   // collectEvent call needed here.
-  const deliver = ctx.notifier.deliver;
+  //
+  // Wrapped in a closure rather than hoisted as `const deliver = ctx.notifier.deliver`:
+  // `ctx.notifier` is a getter backed by a `let` in main.ts that's only assigned
+  // once `init()` runs, but this registrar is installed at module scope before
+  // `init()` ever executes. Capturing the property directly here dereferenced
+  // `ctx.notifier` (undefined at that point) immediately at registration time,
+  // crashing every load with "Cannot read properties of undefined (reading
+  // 'deliver')" -- caught by CI's web-smoke e2e run, not by the vitest suite,
+  // since `makePresentationContext` always supplies a real `notifier` up front.
+  const deliver: NotificationSink = (...args) => ctx.notifier.deliver(...args);
 
   const unsubscribers = [
     bus.on('faction:unrest-started', event => {

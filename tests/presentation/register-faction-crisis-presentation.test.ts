@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { EventBus } from '@/core/event-bus';
 import { registerFactionCrisisPresentation } from '@/presentation/register-faction-crisis-presentation';
+import type { PresentationContext } from '@/presentation/register-all';
 import { makePresentationContext } from '../helpers/presentation-context';
 
 function city(overrides: { name?: string; population?: number; position?: { q: number; r: number } } = {}) {
@@ -165,6 +166,34 @@ describe('faction and crisis presentation', () => {
     bus.emit('economy:treasury-strain', { civId: 'p1', level: 'high', netGoldPerTurn: -5, unpaidMaintenance: 0 });
 
     expect(ctx.deliver).toHaveBeenCalledWith('p1', expect.any(String), 'warning');
+  });
+
+  it('does not read ctx.notifier at registration time (guards a #787 phase 7 boot crash)', () => {
+    // main.ts installs every registrar at module scope, before init() runs and
+    // assigns the real `notifier` -- ctx.notifier is a getter over a `let` that's
+    // undefined until then. A registrar that dereferences `ctx.notifier.deliver`
+    // eagerly (instead of only inside an event-handler closure, which only runs
+    // after init() has assigned it) crashes the entire app on load with
+    // "Cannot read properties of undefined (reading 'deliver')" -- this shipped
+    // and was caught by CI's web-smoke e2e run, not by this file's other tests,
+    // since makePresentationContext always hands back a real notifier up front.
+    const bus = new EventBus();
+    const base = makePresentationContext({ state: { civilizations: { p1: {} } as never } });
+    let notifierAssigned = false;
+    const ctx: PresentationContext = {
+      ...base,
+      get notifier() {
+        if (!notifierAssigned) throw new Error('ctx.notifier accessed before init() assigned it');
+        return base.notifier;
+      },
+    };
+
+    expect(() => registerFactionCrisisPresentation(bus, ctx)).not.toThrow();
+
+    notifierAssigned = true;
+    bus.emit('economy:treasury-strain', { civId: 'p1', level: 'high', netGoldPerTurn: -5, unpaidMaintenance: 0 });
+
+    expect(base.deliver).toHaveBeenCalledWith('p1', expect.any(String), 'warning');
   });
 
   it('disposing removes every subscription this registrar added', () => {
