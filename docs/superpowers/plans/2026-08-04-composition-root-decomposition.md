@@ -1654,15 +1654,42 @@ This is the guard against double-registration duplicating every notification —
 
 ### Phase 8 — `SelectionController` and `MapInteractionController`
 
-The biggest phase: `selectUnit` (456 lines), `handleHexTap` (624), `handleHexLongPress` (37), plus movement/animation helpers.
+**Split into four sub-phases/sub-PRs (8a–8d), added 2026-08-06 after actually reading the
+current `selectUnit`/`handleHexTap` against this section's original sketch.** The original
+single-PR, 8-step version of this phase (interface sketch below the split note, kept for
+history) undersold the real scope: as of `#787` Phase 7 landing, `selectUnit` is ~450 lines
+(`src/main.ts:1974-2422`) wiring **~30 mutually-recursive callbacks** into
+`renderSelectedUnitInfo` (several call `selectUnit` itself), and `handleHexTap` is ~650 lines
+(`src/main.ts:3044-3693`) whose later branches (combat preview, city-assault preview,
+confirm-war dialogs) build DOM panels with **live button callbacks that re-read selection state
+at click time** — not simple discrete outcomes. The plan's original 9-variant `MapTapIntent`
+sketch is consequently too small for the real branch count; the real union has roughly twice
+that many variants once pirate-HQ selection, enemy-unit info display, combat/assault preview,
+both confirm-war dialogs, `assault-minor-civ`, worker-busy warning, and wonder-atlas-open are
+each given their own variant. Per `.claude/rules/spec-fidelity.md`, this is a plan-vs-code
+deviation, not a plan mistake to silently paper over — the actual variant list is defined by
+Phase 8a's implementation, not by this document; do not treat this note as the final union.
 
-**Files:**
-- Create: `src/app/controllers/selection-controller.ts`, `src/app/controllers/map-interaction-controller.ts`, `src/input/map-tap-intent.ts`, and their three test files
-- Modify: `src/main.ts`
+This is still the biggest and riskiest phase in the arc — the plan's own risk table already
+flagged it as the phase most likely to cause a replay-sensitive regression. Splitting into four
+independently-mergeable PRs, ordered strictly by increasing risk, is a scope decision (not a
+technical necessity) made to keep each PR reviewable and revertible on its own:
+
+- **8a** is purely additive (new file, zero `main.ts` changes, zero production behavior change)
+  and can be reverted trivially if anything about the union shape needs to change later.
+- **8b** is the one PR where a precedence mistake could actually break a live interaction; it
+  changes nothing else (no file moves), so a regression is easy to bisect to this PR alone.
+- **8c** and **8d** are structural (moving already-correct code into controllers) with lower
+  behavioral risk than 8b, but larger diffs.
+
+**Files (across all four sub-phases):**
+- Create: `src/input/map-tap-intent.ts`, `src/app/controllers/selection-controller.ts`,
+  `src/app/controllers/map-interaction-controller.ts`, and their test files
+- Modify: `src/main.ts` (8b–8d only; 8a does not touch `main.ts`)
 
 **Interfaces:**
 - Consumes: `GameSession`, `SelectionStore`, `Notifier`, `PanelRouter`, `CeremonyCoordinator`.
-- Produces:
+- Produces (illustrative starting point only — see the split note above):
 
 ```ts
 import type { MovementBlockerReason } from '@/systems/unit-system';
@@ -1677,6 +1704,10 @@ export type MapTapIntent =
   | { readonly kind: 'resolve-pending'; readonly intent: PendingMapIntent; readonly coord: HexCoord }
   | { readonly kind: 'mistap'; readonly intent: PendingMapIntent }
   | { readonly kind: 'blocked'; readonly reason: MovementBlockerReason };
+  // 8a will add the remaining ~10 variants named in the split note above
+  // (pirate-hq, enemy-info, combat-preview, assault-preview, confirm-war-city,
+  // confirm-war-minor-civ, assault-minor-civ, worker-busy, wonder-atlas, ...)
+  // as it reads the real branch structure top to bottom.
 
 export function resolveMapTapIntent(
   state: GameState,
@@ -1685,7 +1716,29 @@ export function resolveMapTapIntent(
 ): MapTapIntent;
 ```
 
-`resolveMapTapIntent` is **pure** — no DOM, no mutation, no `bus` — which is what makes the ten-row Interaction Replay Checklist cheap to test. The controller's `handleHexTap` becomes an exhaustive `switch (intent.kind)` with:
+`resolveMapTapIntent` is **pure** — no DOM, no mutation, no `bus`. Variants whose real branch
+also builds a DOM preview panel (combat preview, assault preview, confirm-war dialogs) still
+carry only the *data* the executor needs to build that panel (attacker/defender ids, computed
+strengths are recomputed by the executor, not carried across — keep the intent variant a plain
+data descriptor, not a snapshot of derived UI state) — the DOM construction and live button
+callbacks stay in the 8d executor, not in this function.
+
+The `mistap` variant is separate from `ignore` because mis-tap forgiveness (Phase 3) needs the
+executor to consult `selection.shouldWarnOnMistap()` — an `ignore` result would lose the
+affordance.
+
+#### Phase 8a — `resolveMapTapIntent` (pure function, standalone, zero `main.ts` changes)
+
+- [ ] **Step 1: Write failing tests for `resolveMapTapIntent`** — one per row of the Interaction Replay Checklist in Part IV, **plus** one per additional real branch discovered while reading `src/main.ts:3044-3693` top to bottom (see split note — expect roughly double the checklist's 10 rows once combat/assault preview, confirm-war, pirate-HQ, and wonder-atlas branches are covered). Pure-function tests over a fixture state; reuse `tests/fixtures/` if one fits, otherwise add a builder there.
+- [ ] **Step 2: Run, confirm failure.**
+- [ ] **Step 3: Implement `resolveMapTapIntent`** by reading `src/main.ts:3044-3693` (current line numbers — re-check before starting, they will have shifted again since this note) top to bottom and translating each early-return branch into a union member. **Do not change precedence — the existing order is the specification.** Where the code checks four pending flags in sequence, translate to one `switch (selection.pendingIntent.kind)` preserving the same outcomes.
+- [ ] **Step 4: Run — expect PASS.** `main.ts` is untouched; `handleHexTap` still runs its own inline branching. Close this as its own PR — it is safe to merge without wiring it in yet.
+
+#### Phase 8b — Wire `resolveMapTapIntent` into `handleHexTap`
+
+- [ ] **Step 1: Write failing tests** proving `handleHexTap` dispatches on `resolveMapTapIntent`'s result for each variant from 8a, still calling the same existing inline DOM/mutation code per branch (no code moves yet — only the branch-selection mechanism changes, from ad hoc early returns to one `switch (intent.kind)` with the exhaustiveness guard below).
+- [ ] **Step 2: Run, confirm failure.**
+- [ ] **Step 3: Implement.** Replace `handleHexTap`'s branching with a call to `resolveMapTapIntent` followed by:
 
 ```ts
 default: {
@@ -1694,16 +1747,24 @@ default: {
 }
 ```
 
-The `mistap` variant is separate from `ignore` because mis-tap forgiveness (Phase 3) needs the executor to consult `selection.shouldWarnOnMistap()` — an `ignore` result would lose the affordance.
+Each `case` body is the same code that used to live in the corresponding `if`/early-return branch, moved verbatim under the matching `case`, not rewritten.
+- [ ] **Step 4: Run — expect PASS.** Run the full Interaction Replay Checklist (Part IV) as a manual or e2e smoke pass, not just the unit tests, since this PR is the one most likely to silently change precedence. Close as its own PR.
 
-- [ ] **Step 1: Write failing tests for `resolveMapTapIntent`** — one per row of the Interaction Replay Checklist in Part IV. Pure-function tests over a fixture state; reuse `tests/fixtures/` if one fits, otherwise add a builder there.
+#### Phase 8c — Extract `SelectionController`
+
+- [ ] **Step 1: Write failing tests** for `selectUnit`, `deselectUnit`, `selectNextUnit`, `refreshSelectedUnitAfterCombat`, `refreshCurrentPlayerVisibility`, `animateMovedUnit`, `executeAnimatedUnitMove`, `startAutoExplore`, `cancelAutoExplore`, `cancelJourney`, `openUnitContextMenu`, `isUnitAnimationLocked`: selecting sets ranges; deselecting clears ranges and highlights; `selectNextUnit` skips acted units; a second `selectUnit` on an animating unit is a no-op; an animated move brackets the ceremony defer window.
 - [ ] **Step 2: Run, confirm failure.**
-- [ ] **Step 3: Implement `resolveMapTapIntent`** by reading `src/main.ts:3144-3768` top to bottom and translating each early-return branch into a union member. **Do not change precedence — the existing order is the specification.** Where the code checks four pending flags in sequence, translate to one `switch (selection.pendingIntent.kind)` preserving the same outcomes.
+- [ ] **Step 3: Implement `SelectionController`** in `src/app/controllers/selection-controller.ts`, moving the eleven functions verbatim. The ~30 callbacks `selectUnit` wires into `renderSelectedUnitInfo` move with it unchanged; do not attempt to split them out into a separate concern in this phase — that is out of scope for Phase 8 and would be its own future MR if warranted. `main.ts` calls the controller's methods in place of the old local functions.
+- [ ] **Step 4: Run — expect PASS.** Close as its own PR.
+
+#### Phase 8d — Extract `MapInteractionController`, wire it up, convert affected grep tests
+
+- [ ] **Step 1: Write failing tests** for the extracted executor (from 8b) plus `handleHexLongPress`. Test that long-press opens territory inspection and leaves selection unchanged.
+- [ ] **Step 2: Run, confirm failure.**
+- [ ] **Step 3: Implement `MapInteractionController`** in `src/app/controllers/map-interaction-controller.ts`, moving the 8b-era switch-based `handleHexTap` executor and `handleHexLongPress` verbatim, consuming `resolveMapTapIntent` (8a) and `SelectionController` (8c).
 - [ ] **Step 4: Run — expect PASS.**
-- [ ] **Step 5: Extract `SelectionController`** (`selectUnit`, `deselectUnit`, `selectNextUnit`, `refreshSelectedUnitAfterCombat`, `refreshCurrentPlayerVisibility`, `animateMovedUnit`, `executeAnimatedUnitMove`, `startAutoExplore`, `cancelAutoExplore`, `cancelJourney`, `openUnitContextMenu`, `isUnitAnimationLocked`). Tests: selecting sets ranges; deselecting clears ranges and highlights; `selectNextUnit` skips acted units; a second `selectUnit` on an animating unit is a no-op; an animated move brackets the ceremony defer window.
-- [ ] **Step 6: Extract `MapInteractionController`** — the executor plus `handleHexLongPress`. Test that long-press opens territory inspection and leaves selection unchanged.
-- [ ] **Step 7: Convert the affected source-grep assertions.** `player combat wiring` (3), `land-unit water recovery wiring` (1), `shared city founding wiring` (1), `shared unit upgrade wiring` (1), `shared city assault wiring` (4) — 10 total. Rewrite as real tests; delete from the grep file.
-- [ ] **Step 8: Close the phase**
+- [ ] **Step 5: Convert the affected source-grep assertions.** `player combat wiring` (3), `land-unit water recovery wiring` (1), `shared city founding wiring` (1), `shared unit upgrade wiring` (1), `shared city assault wiring` (4) — 10 total. Rewrite as real tests; delete from the grep file.
+- [ ] **Step 6: Close the phase.** This is the last of the four sub-PRs; once merged, Phase 8 as a whole is done and Phase 9 can begin.
 
 ---
 
