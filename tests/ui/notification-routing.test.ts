@@ -9,6 +9,7 @@ import {
   routeCombatResolved,
   routeDroppedProductionItem,
   routeEconomyTreasuryStrain,
+  routeEraAdvanced,
   routeLegendaryWonder,
   routeFactionTransition,
   routeFirstContact,
@@ -1050,5 +1051,42 @@ describe('espionage:city-flipped routing (#524 MR2a review fix)', () => {
     const { sink, calls } = makeSink();
     routeCityFlipped(flipState(), { civId: 'rome', victimCivId: 'unknown-civ', cityId: 'city-1' }, sink);
     expect(calls.every(c => typeof c.message === 'string' && c.message.length > 0)).toBe(true);
+  });
+});
+
+describe('era:advanced routing', () => {
+  it('era 2 delivers to every human civ, with an extra unrest-primer line per civ', () => {
+    const { sink, calls } = makeSink();
+
+    routeEraAdvanced(2, ['p1', 'p2'], sink);
+
+    // Each human civ gets both the era announcement and the era-2 unrest primer.
+    const p1Calls = calls.filter(c => c.civId === 'p1');
+    const p2Calls = calls.filter(c => c.civId === 'p2');
+    expect(p1Calls).toHaveLength(2);
+    expect(p2Calls).toHaveLength(2);
+    expect(p1Calls[0]!.message).toContain('Era 2');
+    expect(p1Calls[0]!.type).toBe('success');
+    expect(p1Calls[1]!.message).toContain('Era 2');
+    expect(p1Calls[1]!.message).toContain('unrest');
+    expect(p1Calls[1]!.type).toBe('info');
+  });
+
+  it('era 3 delivers only the announcement line to each human civ, no unrest primer', () => {
+    const { sink, calls } = makeSink();
+
+    routeEraAdvanced(3, ['p1'], sink);
+
+    expect(calls).toHaveLength(1);
+    expect(calls[0]!.civId).toBe('p1');
+    expect(calls[0]!.message).toContain('Era 3');
+  });
+
+  it('delivers to no one when there are no human civs', () => {
+    const { sink, calls } = makeSink();
+
+    routeEraAdvanced(2, [], sink);
+
+    expect(calls).toHaveLength(0);
   });
 });

@@ -111,4 +111,52 @@ describe('legendary-wonder-completion-queue', () => {
     expect(queue.pendingCount()).toBe(0);
     expect(present).toHaveBeenCalledTimes(1);
   });
+
+  it('clear() drops pending completions so they never surface after a later unblock', () => {
+    const present = vi.fn(() => Promise.resolve('continue' as const));
+    let blocked = true;
+    const queue = createLegendaryWonderCompletionQueue({
+      container: document.body,
+      isInteractionBlocked: () => blocked,
+      reducedMotion: () => false,
+      openCity: vi.fn(),
+      openJournal: vi.fn(),
+      present,
+    });
+
+    queue.enqueue(item());
+    queue.notifyActionSettled();
+    expect(present).not.toHaveBeenCalled();
+
+    queue.clear();
+    blocked = false;
+    queue.pump();
+
+    expect(present).not.toHaveBeenCalled();
+    expect(queue.pendingCount()).toBe(0);
+  });
+
+  it('clear() does not un-dedupe a completion that already finished playing before the clear', async () => {
+    const present = vi.fn(() => Promise.resolve('continue' as const));
+    const queue = createLegendaryWonderCompletionQueue({
+      container: document.body,
+      isInteractionBlocked: () => false,
+      reducedMotion: () => false,
+      openCity: vi.fn(),
+      openJournal: vi.fn(),
+      present,
+    });
+
+    queue.enqueue(item());
+    queue.notifyActionSettled();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(present).toHaveBeenCalledTimes(1);
+
+    queue.clear();
+    queue.enqueue(item());
+    queue.notifyActionSettled();
+
+    expect(present).toHaveBeenCalledTimes(1);
+  });
 });

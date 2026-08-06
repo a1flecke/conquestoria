@@ -19,6 +19,13 @@ export interface LegendaryWonderCompletionQueue {
   notifyActionSettled(): void;
   pump(): void;
   pendingCount(): number;
+  /**
+   * Drops every completion not already presenting. Does not interrupt one in
+   * progress, and does not un-dedupe anything that already played -- only
+   * the dropped items' own keys are freed, so a completion shown before this
+   * call can never silently replay after it.
+   */
+  clear(): void;
 }
 
 function keyFor(item: LegendaryWonderCompletionCeremonyItem): string {
@@ -91,6 +98,13 @@ export function createLegendaryWonderCompletionQueue(
     pump,
     pendingCount() {
       return pending.length;
+    },
+    clear() {
+      for (const dropped of pending) {
+        seen.delete(keyFor(dropped));
+      }
+      pending.length = 0;
+      actionSettled = false;
     },
   };
 }

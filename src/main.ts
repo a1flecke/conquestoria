@@ -30,7 +30,7 @@ import { installKeyboardShortcuts } from '@/input/keyboard-shortcuts';
 import { hexKey, hexToPixel, hexesInRange, parseHexKey, wrapHexCoord } from '@/systems/hex-utils';
 import { moveUnit, getMovementCost, UNIT_DEFINITIONS, UNIT_DESCRIPTIONS, restUnit, canHeal, getUnmovedUnits, createUnit, findPath } from '@/systems/unit-system';
 import { classifyOwner, isAlwaysHostilePair, isMajorCivOwner } from '@/core/owner-kind';
-import { BUILDINGS, getProductionDisplayName, TRAINABLE_UNITS } from '@/systems/city-system';
+import { getProductionDisplayName, TRAINABLE_UNITS } from '@/systems/city-system';
 import { civHasAirDefenseCoverage } from '@/systems/air-defense-system';
 import { chooseCircularManufacturingMaterial } from '@/systems/national-project-system';
 import { usePropagandistAction } from '@/systems/propagandist-system';
@@ -61,14 +61,12 @@ import { resolveCivilizationEra } from '@/systems/tech-definitions';
 import { resolveCombatEra } from '@/systems/era-resolution';
 import { preach } from '@/systems/religion-system';
 import { createUnitDeleteConfirmationPanel } from '@/ui/unit-delete-confirmation-panel';
-import { isVisible, getVisibility, isForestConcealedUnit } from '@/systems/fog-of-war';
+import { getVisibility, isForestConcealedUnit } from '@/systems/fog-of-war';
 import { applyCampDestructionAtTarget } from '@/systems/barbarian-system';
-import { recordBeastSlain, isBeastConcealedFrom, applyHoardChoice, getHoardChoicePreview, canUnitAttackBeast, getBeastTrophyGoldPerTurn, isCivUnitInBeastTerritory } from '@/systems/beast-system';
+import { recordBeastSlain, isBeastConcealedFrom, applyHoardChoice, getHoardChoicePreview, canUnitAttackBeast, isCivUnitInBeastTerritory } from '@/systems/beast-system';
 import { createBeastHoardPanel } from '@/ui/beast-hoard-panel';
 import { BEAST_DEFINITIONS, getBeastDefinitionByUnitType } from '@/systems/beast-definitions';
 import { recordBeastSightings, getBestiaryEntriesForPlayer } from '@/systems/beast-presentation';
-import { showBeastSightingBanner } from '@/ui/beast-sighting-banner';
-import { showBeastSlayCeremony } from '@/ui/beast-slay-ceremony';
 import { createBestiaryPanel } from '@/ui/bestiary-panel';
 import {
   autoSave,
@@ -130,8 +128,6 @@ import {
 import { calculateProjectedCityYields } from '@/systems/city-work-system';
 import { estimateTurnsToComplete } from '@/systems/pacing-model';
 import { visitVillage } from '@/systems/village-system';
-import { getWonderDefinition } from '@/systems/wonder-definitions';
-import { buildWonderDiscoveryRevealItem } from '@/systems/wonder-discovery-reveal';
 import { getAvailableTechs, getEffectiveTechCost } from '@/systems/tech-system';
 import {
   assignNetworkPlan,
@@ -142,7 +138,6 @@ import {
   retargetNetworkPlan,
 } from '@/systems/network-plan-system';
 import { beginAutonomySurge, requestAutonomyPosture } from '@/systems/autonomy-postures';
-import { getNetworkWarningForViewer } from '@/systems/network-viewer-intel';
 import {
   getNextActiveHumanPlayerId,
   isActiveHumanRoundComplete,
@@ -230,36 +225,7 @@ import {
   type NotificationEntry,
 } from '@/core/notification-log';
 import {
-  routeBarbarianSpawned,
-  routeCombatRewardEarned,
-  routeDroppedProductionItem,
-  routeEconomyTreasuryStrain,
-  routeEraAdvanced,
-  routeFactionTransition,
-  routeFirstContact,
-  routeLegendaryWonder,
-  routePeaceMade,
-  routePeaceRequested,
-  routeTerritoryTileFlipped,
-  routeWarDeclared,
-  routeTreatyProposed,
   TREATY_LABELS,
-  routeStrategicWarning,
-  routeCrisisStarted,
-  routeCrisisSpread,
-  routeCrisisEscalated,
-  routeCrisisResolved,
-  routeWorldPressureCrisisStarted,
-  routeWorldPressureCrisisResolved,
-  routeCrisisFoeHuntedByAlly,
-  routeCrisisAidSent,
-  routeReligionFounded,
-  routeReligionCityConverted,
-  routeLoyaltyWarning,
-  routeCityDefected,
-  routeOpportunisticWar,
-  routeSabotageReliefDiscovered,
-  routeCityFlipped,
   type NotificationSink,
 } from '@/ui/notification-routing';
 import { createNotificationCenter } from '@/ui/notification-center';
@@ -282,10 +248,9 @@ import { applyQuarantine, applyRemedy } from '@/systems/crisis-system';
 import { createTreasuryDrawer, type TreasuryDrawer } from '@/ui/treasury-drawer';
 import { getCivHappinessFromResources, getCivAvailableResources, canEstablishOutpost, performEstablishOutpost, canBuyResourceAccess, performBuyResourceAccess } from '@/systems/resource-acquisition-system';
 import { fireResourceDiscoveredTip } from '@/ui/advisor-system';
-import { createWonderDiscoveryRevealQueue } from '@/ui/wonder-discovery-queue';
-import { buildLegendaryWonderCompletionCeremonyItem } from '@/systems/legendary-wonder-completion-presentation';
-import { createLegendaryWonderCompletionQueue } from '@/ui/legendary-wonder-completion-queue';
-import { removeRouteForUnit, createMarketplaceState, getEffectiveGoldPerTurn, getRouteTechGoldBonus } from '@/systems/trade-system';
+import { createCeremonyCoordinator, type CeremonyCoordinator } from '@/app/controllers/ceremony-coordinator';
+import { registerAllPresentation, type PresentationContext } from '@/presentation/register-all';
+import { removeRouteForUnit, createMarketplaceState } from '@/systems/trade-system';
 import { establishQuestAwareRoute } from '@/systems/quest-aware-trade-system';
 import { emitMinorCivQuestTransitions } from '@/systems/quest-chain-system';
 import { performMinorCivFestival, performMinorCivGift, performMinorCivReparations, setMinorCivWarState } from '@/systems/minor-civ-actions';
@@ -296,7 +261,6 @@ import { RoundPresentationGate } from '@/presentation/round-presentation-gate';
 import { runCompletedRound } from '@/core/completed-round-orchestrator';
 import { createCompletedRoundHandoffTransaction } from '@/core/completed-round-handoff';
 import { processImprovementTurns } from '@/systems/improvement-turn-system';
-import { handleCombatResolvedEvent } from '@/ui/combat-resolved-presentation';
 import { applyStrategicWarningTransitions } from '@/systems/strategic-warning-system';
 import { createCityOverviewPanel } from '@/ui/city-overview-panel';
 import type { GameSession } from '@/app/ports';
@@ -323,7 +287,6 @@ const session: GameSession = createGameSession(undefined as unknown as GameState
 const selection = createSelectionStore();
 let drawer: TreasuryDrawer;
 let inputInitialized = false;
-let deferWonderDiscoveryRevealUntilMoveSettles = false;
 /** Owns persisted A/V settings + master volume, moved out of module scope (#787 phase 4). */
 const userSettingsStore = createUserSettingsStore({ load: loadSettings });
 /**
@@ -401,15 +364,8 @@ airDefenseOverlayButton.addEventListener('click', () => {
   airDefenseOverlayButton.setAttribute('aria-pressed', String(enabled));
   airDefenseOverlayButton.textContent = enabled ? '🛡 Anti-aircraft coverage: on' : '🛡 Anti-aircraft coverage';
 });
-let wonderDiscoveryQueue: ReturnType<typeof createWonderDiscoveryRevealQueue> | null = null;
-let legendaryCompletionQueue: ReturnType<typeof createLegendaryWonderCompletionQueue> | null = null;
-
 function setBlockingOverlay(id: string | null): void {
   host.setBlockingOverlay(id);
-  if (id === null) {
-    wonderDiscoveryQueue?.pump();
-    legendaryCompletionQueue?.pump();
-  }
 }
 
 function prefersReducedMotion(): boolean {
@@ -417,24 +373,22 @@ function prefersReducedMotion(): boolean {
     && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 }
 
-wonderDiscoveryQueue = createWonderDiscoveryRevealQueue({
-  container: uiLayer,
-  isInteractionBlocked: () => host.isInteractionBlocked(),
+/**
+ * Owns the wonder-discovery and legendary-completion ceremony queues plus
+ * the move-settle defer flag, replacing three module-scope bindings
+ * (#787 phase 6). Subscribes to `host.onInteractionUnblocked` for the pump
+ * that used to live inside `setBlockingOverlay` above.
+ */
+const ceremonies: CeremonyCoordinator = createCeremonyCoordinator({
+  host,
+  reducedMotion: prefersReducedMotion,
   requestMapHighlight: (item, reducedMotion) => {
     renderLoop.requestWonderDiscoveryHighlight(item.coord, item.visual, { reducedMotion });
   },
-  openAtlas: wonderId => openWonderAtlas(wonderId),
-  onRevealStarted: item => {
-    void audio.playNaturalWonderDiscovery(item.wonderId);
+  playDiscoveryAudio: wonderId => {
+    void audio.playNaturalWonderDiscovery(wonderId);
   },
-  reducedMotion: prefersReducedMotion,
-  setBlockingOverlay,
-});
-
-legendaryCompletionQueue = createLegendaryWonderCompletionQueue({
-  container: uiLayer,
-  isInteractionBlocked: () => host.isInteractionBlocked(),
-  reducedMotion: prefersReducedMotion,
+  openAtlas: wonderId => openWonderAtlas(wonderId),
   openCity: cityId => {
     const city = session.getState().cities[cityId];
     if (city) openCityPanelForCity(city);
@@ -442,8 +396,31 @@ legendaryCompletionQueue = createLegendaryWonderCompletionQueue({
   openJournal: cityId => {
     if (session.getState().cities[cityId]) openWonderPanelForCityId(cityId);
   },
-  setBlockingOverlay,
 });
+
+/**
+ * Shared deps for the domain presentation registrars replacing 72
+ * module-scope `bus.on(...)` registrations (#787 phase 7). `notifier`/`router`
+ * resolve through getters -- the same deferred-but-eager pattern
+ * `panelContext` above already uses -- since both are only assigned once
+ * `init()` runs.
+ */
+const presentationContext: PresentationContext = {
+  session,
+  get notifier() { return notifier; },
+  get router() { return router; },
+  ceremonies,
+  selection,
+  requestDeliveryVisual: unitId => renderLoop.applyDeliveryVisual(unitId),
+  applyCombatVisual: result => renderLoop.applyCombatVisual(result),
+  showEspionageCaptureChoice: (spyId, spyOwner) => showEspionageCaptureChoice(spyId, spyOwner),
+  uiLayer,
+  maybeShowPendingHoardChoice: () => maybeShowPendingHoardChoice(),
+  isPresentationSuppressed: () => roundPresentationGate.isSuppressed(),
+  resetAdvisorMessage: id => advisorSystem.resetMessage(id),
+  checkAdvisors: () => advisorSystem.check(session.getState()),
+  showNotification: (message, type, target) => showNotification(message, type, target),
+};
 
 // --- Resize ---
 window.addEventListener('resize', () => renderLoop.resizeCanvas());
@@ -2470,8 +2447,7 @@ function animateMovedUnit(unitId: string, path: HexCoord[]): void {
   renderLoop.animateUnitMove({ ...movedUnit, position: path[0]! }, path, () => {
     renderLoop.setGameState(session.getState());
     updateHUD();
-    deferWonderDiscoveryRevealUntilMoveSettles = false;
-    wonderDiscoveryQueue?.notifyActionSettled();
+    ceremonies.endAction();
     const unit = session.getState().units[unitId];
     if (!unit || unit.owner !== session.getState().currentPlayer) return;
 
@@ -2485,11 +2461,11 @@ function animateMovedUnit(unitId: string, path: HexCoord[]): void {
 
 function executeAnimatedUnitMove(unitId: string, move: () => ExecuteUnitMoveResult): ExecuteUnitMoveResult {
   const movingUnit = session.getState().units[unitId];
-  deferWonderDiscoveryRevealUntilMoveSettles = true;
+  ceremonies.beginDeferredAction();
   try {
     const moveResult = move();
     if (!moveResult.ok) {
-      deferWonderDiscoveryRevealUntilMoveSettles = false;
+      ceremonies.endAction();
       showNotification(moveResult.message, 'warning');
       SFX.error();
       return moveResult;
@@ -2511,7 +2487,7 @@ function executeAnimatedUnitMove(unitId: string, move: () => ExecuteUnitMoveResu
     animateMovedUnit(unitId, moveResult.path);
     return moveResult;
   } catch (error) {
-    deferWonderDiscoveryRevealUntilMoveSettles = false;
+    ceremonies.endAction();
     throw error;
   }
 }
@@ -3890,6 +3866,10 @@ async function beginHotSeatHandoff(
   const nextPlayer = hotSeat.players.find(player => player.slotId === resolvedNextSlotId);
   closePirateWatersPanels(uiLayer);
   closeNetworkPanelsForHandoff();
+  // A discovery ceremony queued (or deferred by an in-flight move animation) at the
+  // instant a player ends their turn must not survive to play on the next player's
+  // screen once releaseHandoffToViewer's setBlockingOverlay(null) pumps the queues.
+  ceremonies.clearForHandoff();
   renderLoop.setSelectedPirateFactionId(null);
   audio.stopPirateAmbience('player-changed');
   audio.setMasterVolume(0);
@@ -4263,590 +4243,12 @@ function showEspionageCaptureChoice(spyId: string, spyOwner: string): void {
 }
 
 // --- Event listeners ---
-bus.on('tech:completed', ({ civId, techId }) => {
-  appendToCivLog(civId, `Research complete: ${techId}!`, 'success');
-  if (techId === 'fishing') {
-    appendToCivLog(civId, 'Fishing unlocked — build a Dock in your coastal cities to boost food and trade.', 'info');
-  }
-  if (civId === session.getState().currentPlayer) SFX.research();
-});
-
-bus.on('city:grew', ({ cityId, newPopulation }) => {
-  const city = session.getState().cities[cityId];
-  if (!city) return;
-  appendToCivLog(city.owner, `${city.name} grew to ${newPopulation} population!`, 'success');
-});
-
-bus.on('city:maturity-upgraded', ({ cityId, current }) => {
-  const city = session.getState().cities[cityId];
-  if (!city) return;
-  const label = `${current[0].toUpperCase()}${current.slice(1)}`;
-  appendToCivLog(city.owner, `${city.name} became a ${label}. New city slots unlocked.`, 'success');
-});
-
-bus.on('city:building-complete', ({ cityId, buildingId }) => {
-  const city = session.getState().cities[cityId];
-  if (!city) return;
-  const bldg = BUILDINGS[buildingId];
-  const buildingName = bldg?.name ?? buildingId;
-  appendToCivLog(city.owner, `${city.name}: ${buildingName} completed!`, 'success');
-  if (bldg?.nationalProject) {
-    SFX.nationalProjectBuilt();
-  }
-});
-
-bus.on('city:national-project-expired', ({ civId, cityId, buildingId }) => {
-  const city = session.getState().cities[cityId];
-  const bldg = BUILDINGS[buildingId];
-  if (!bldg || !city) return;
-  const msg = document.createTextNode(
-    `${city.name}: ${bldg.name} has expired — your civilization has grown beyond this era's institutions.`
-  );
-  appendToCivLog(civId, msg.textContent ?? '', 'warning');
-  SFX.nationalProjectExpired();
-});
-
-bus.on('city:production-item-dropped', event => routeDroppedProductionItem(session.getState(), event, appendToCivLog));
-
-bus.on('city:cyber-drained', ({ cityName, drainerOwner, goldLost, blocked, victimCivId }) => {
-  const drainerName = session.getState().civilizations[drainerOwner]?.name ?? drainerOwner;
-  const victimName = session.getState().civilizations[victimCivId]?.name ?? victimCivId;
-  if (blocked) {
-    appendToCivLog(victimCivId, `Cyber Defense Center blocked an intrusion in ${cityName}.`, 'success');
-    appendToCivLog(drainerOwner, `Cyber attack on ${cityName} was blocked by ${victimName}'s Cyber Defense Center.`, 'warning');
-    return;
-  }
-  appendToCivLog(victimCivId, `Cyber attack: ${cityName} lost ${goldLost} gold (${drainerName} cyber unit).`, 'warning');
-  appendToCivLog(drainerOwner, `Cyber unit stole ${goldLost} gold from ${victimName}'s ${cityName}.`, 'success');
-});
-
-bus.on('network:exploit-warning', ({ planId, victimCivId, cityId }) => {
-  const warning = getNetworkWarningForViewer(session.getState(), victimCivId, planId);
-  const city = session.getState().cities[cityId];
-  if (!warning || !city) return;
-  const disclosure = warning.source?.unitId
-    ? ' The source has been identified.'
-    : warning.source?.position
-      ? ' The source position has been detected.'
-      : '';
-  appendToCivLog(
-    victimCivId,
-    `Network exploit warning: ${city.name} will be targeted at the end of this turn. A Cyber Defense Center or Harden reduces the effect.${disclosure}`,
-    'warning',
-    { kind: 'map', coord: city.position, label: city.name },
-  );
-  bus.emit('network:audio-cue', { cue: 'hostile-warning', viewerIds: [victimCivId] });
-});
-
-bus.on('network:exploit-resolved', ({ cityId, ownerCivId, goldTransferred, delayed }) => {
-  const city = session.getState().cities[cityId];
-  if (!city) return;
-  if (delayed) {
-    appendToCivLog(city.owner, `${city.name}'s Cyber Defense Center delayed a network exploit.`, 'success');
-    appendToCivLog(ownerCivId, `Your network exploit against ${city.name} was delayed by its Cyber Defense Center.`, 'warning');
-    return;
-  }
-  appendToCivLog(city.owner, `Network exploit: ${city.name} lost ${goldTransferred} gold.`, 'warning');
-  appendToCivLog(ownerCivId, `Network exploit transferred ${goldTransferred} gold from ${city.name}.`, 'success');
-  bus.emit('network:audio-cue', { cue: 'hostile-consequence', viewerIds: [city.owner, ownerCivId] });
-});
-
-bus.on('network:audio-cue', ({ cue, viewerIds }) => {
-  if (cue === 'constructive-resolution') {
-    appendToCivLog(viewerIds[0]!, 'Stable network plan milestone reached: three resolutions recorded.', 'success');
-  } else if (cue === 'recovery') {
-    appendToCivLog(viewerIds[0]!, 'Network recovery complete.', 'success');
-  }
-});
-
-bus.on('village:visited', ({ civId, outcome, message }) => {
-  if (outcome === 'gold') advisorSystem.resetMessage('treasurer_village_gold');
-  if (outcome === 'science') advisorSystem.resetMessage('scholar_village_science');
-  if (outcome === 'free_tech') advisorSystem.resetMessage('scholar_village_tech');
-  advisorSystem.check(session.getState());
-  appendToCivLog(civId, message, outcome === 'ambush' || outcome === 'illness' ? 'warning' : 'success');
-});
-
-bus.on('wonder:discovered', event => {
-  const wonderDef = getWonderDefinition(event.wonderId);
-  if (!wonderDef) return;
-  const message = event.isFirstDiscoverer
-    ? `Discovered ${wonderDef.name}! +${wonderDef.discoveryBonus.amount} ${wonderDef.discoveryBonus.type}`
-    : `Found ${wonderDef.name}!`;
-  appendToCivLog(event.civId, message, event.isFirstDiscoverer ? 'success' : 'info');
-
-  const revealItem = buildWonderDiscoveryRevealItem(session.getState(), session.getState().currentPlayer, event);
-  if (revealItem) {
-    wonderDiscoveryQueue?.enqueue(revealItem);
-    if (!deferWonderDiscoveryRevealUntilMoveSettles) {
-      wonderDiscoveryQueue?.notifyActionSettled();
-    }
-  }
-});
-
-bus.on('wonder:legendary-ready', ({ civId, cityId, wonderId }) => {
-  routeLegendaryWonder(session.getState(), { type: 'wonder:legendary-ready', civId, cityId, wonderId }, appendToCivLog);
-});
-
-bus.on('wonder:legendary-availability', event => {
-  routeLegendaryWonder(session.getState(), { type: 'wonder:legendary-availability', ...event }, appendToCivLog);
-});
-
-bus.on('wonder:legendary-completed', ({ civId, cityId, wonderId, turnCompleted }) => {
-  const event = { civId, cityId, wonderId, turnCompleted };
-  routeLegendaryWonder(session.getState(), { type: 'wonder:legendary-completed', ...event }, appendToCivLog);
-  const ceremonyItem = buildLegendaryWonderCompletionCeremonyItem(session.getState(), event);
-  if (ceremonyItem) {
-    legendaryCompletionQueue?.enqueue(ceremonyItem);
-    legendaryCompletionQueue?.notifyActionSettled();
-  }
-});
-
-bus.on('wonder:legendary-lost', ({ civId, cityId, wonderId, goldRefund, transferableProduction }) => {
-  routeLegendaryWonder(
-    session.getState(),
-    { type: 'wonder:legendary-lost', civId, cityId, wonderId, goldRefund, transferableProduction },
-    appendToCivLog,
-  );
-});
-
-bus.on('wonder:legendary-race-revealed', ({ observerId, civId, cityId, wonderId }) => {
-  routeLegendaryWonder(
-    session.getState(),
-    { type: 'wonder:legendary-race-revealed', observerId, civId, cityId, wonderId },
-    appendToCivLog,
-  );
-});
-
-bus.on('diplomacy:war-declared', ({ attackerId, defenderId }) => {
-  routeWarDeclared(session.getState(), attackerId, defenderId, appendToCivLog);
-});
-
-bus.on('diplomacy:treaty-proposed', event => {
-  routeTreatyProposed(session.getState(), event, appendToCivLog);
-});
-
-bus.on('civilization:first-contact', ({ civA, civB }) => {
-  // #551: routeFirstContact's sink is the delivery contract, which already
-  // queues to pendingEvents for a non-active hot-seat recipient -- the old
-  // unconditional queueFirstContactPendingEvents call was a second, always-on
-  // queue that leaked stale growth into solo saves (which never drain it).
-  routeFirstContact(session.getState(), civA, civB, appendToCivLog);
-});
-
-bus.on('diplomacy:peace-requested', ({ fromCivId, toCivId }) => {
-  // #551: routePeaceRequested already delivers to toCivId via appendToCivLog
-  // (the delivery contract) -- the old extra showNotification here duplicated
-  // the message AND leaked it to whoever currentPlayer was at emit time
-  // instead of the actual recipient.
-  routePeaceRequested(session.getState(), fromCivId, toCivId, appendToCivLog);
-});
-
-bus.on('diplomacy:peace-made', ({ civA, civB }) => {
-  routePeaceMade(session.getState(), civA, civB, appendToCivLog);
-});
-
-// viewer-scoped by design: advisors run for the active player only (#551).
-bus.on('advisor:message', ({ advisor, message, icon }) => {
-  showNotification(`${icon} ${message}`, 'info');
-});
-
-// Per-civ dedup: each civ sees a "raiders spotted!" entry only the first time
-// its visibility covers any raider from a given camp.
-const notifiedBarbarianCampsPerCiv = new Map<string, Set<string>>();
-
-bus.on('combat:resolved', event => {
-  handleCombatResolvedEvent(session.getState(), event, {
-    isPresentationSuppressed: () => roundPresentationGate.isSuppressed(),
-    applyVisual: result => renderLoop.applyCombatVisual(result),
-    appendNotification: appendToCivLog,
-  });
-});
-
-bus.on('trade:route-delivered', ({ unitId }) => {
-  renderLoop.applyDeliveryVisual(unitId);
-});
-
-bus.on('combat:reward-earned', ({ reward }) => {
-  routeCombatRewardEarned(session.getState(), reward, appendToCivLog);
-});
-
-bus.on('territory:tile-flipped', event => {
-  routeTerritoryTileFlipped(session.getState(), { type: 'territory:tile-flipped', ...event }, appendToCivLog);
-});
-
-bus.on('barbarian:spawned', ({ campId, unitId }) => {
-  const unit = session.getState().units[unitId];
-  if (!unit) return;
-  routeBarbarianSpawned(
-    session.getState(),
-    unit.position,
-    campId,
-    notifiedBarbarianCampsPerCiv,
-    appendToCivLog,
-    (vis, pos) => isVisible(vis as Parameters<typeof isVisible>[0], pos),
-  );
-});
-
-bus.on('threat:barbarian-resurgence', ({ civId, isBanditLord, banditLordName }) => {
-  const message = isBanditLord
-    ? `${banditLordName ?? 'A bandit lord'} has united the raiders and threatens your lands!`
-    : 'Barbarian forces are resurgent on your lands!';
-  appendToCivLog(civId, message, 'warning');
-  SFX.barbarianResurgence?.();
-});
-
-bus.on('barbarian:city-attacked', ({ cityId, hpLost }) => {
-  const city = session.getState().cities[cityId];
-  if (!city) return;
-  if (!session.getState().civilizations[city.owner]?.isHuman) return;
-  appendToCivLog(city.owner, `Barbarians attack ${city.name}! (−${hpLost} HP)`, 'warning');
-});
-
-bus.on('barbarian:city-destroyed', ({ cityId, ownerId }) => {
-  if (!session.getState().civilizations[ownerId]?.isHuman) return;
-  const cityName = session.getState().cities[cityId]?.name ?? 'A city';
-  appendToCivLog(ownerId, `${cityName} was destroyed by barbarian raiders!`, 'warning');
-});
-
-// A walled, ungarrisoned city fighting back against a besieger (#522) -- covers BOTH
-// the barbarian (turn-manager.ts) and pirate (pirate-system.ts) counter-fire call
-// sites, since both emit this same shared event with their respective 'source' value.
-bus.on('city:counter-fire', ({ cityId, source, damage, attackerDied }) => {
-  const city = session.getState().cities[cityId];
-  if (!city) return;
-  if (!session.getState().civilizations[city.owner]?.isHuman) return;
-  const raiderLabel = source === 'barbarian' ? 'raider' : 'ship';
-  const message = attackerDied
-    ? `${city.name}'s defenses destroyed a ${source === 'barbarian' ? 'barbarian raider' : 'pirate ship'}!`
-    : `${city.name}'s walls fought back, damaging a ${raiderLabel} (−${damage} HP)!`;
-  appendToCivLog(city.owner, message, attackerDied ? 'success' : 'info');
-});
-
-// Pirate-faction naval siege (#522) mirror of the barbarian handler above.
-bus.on('pirate:city-destroyed', ({ cityId, ownerId }) => {
-  if (!session.getState().civilizations[ownerId]?.isHuman) return;
-  const cityName = session.getState().cities[cityId]?.name ?? 'A coastal city';
-  appendToCivLog(ownerId, `${cityName} was razed by pirates!`, 'warning');
-});
-
-// A sacked city survives the raid at 1 HP — phrased distinctly from outright
-// destruction so a recoverable loss is never mistaken for a permanent one. Both
-// barbarians (turn-manager.ts) and pirates (pirate-system.ts, #522) route through
-// this shared event with their respective 'source' value.
-bus.on('city:sacked', ({ cityId, source, goldLost }) => {
-  const city = session.getState().cities[cityId];
-  if (!city) return;
-  if (!session.getState().civilizations[city.owner]?.isHuman) return;
-  const raiders = source === 'barbarian' ? 'Barbarian raiders' : 'Pirates';
-  appendToCivLog(
-    city.owner,
-    `${raiders} have sacked ${city.name}! The city survives at 1 HP, but ${goldLost} gold was looted.`,
-    'warning',
-  );
-});
-
-bus.on('beast:awakened', ({ beastId, position }) => {
-  const def = BEAST_DEFINITIONS[beastId];
-  for (const [civId, civ] of Object.entries(session.getState().civilizations)) {
-    if (!civ.visibility || getVisibility(civ.visibility, position) === 'unexplored') continue;
-    appendToCivLog(civId, def.awakeningFlavor, 'warning', { kind: 'map', coord: position, label: `${def.name} lair` });
-  }
-});
-
-bus.on('beast:slain', ({ beastId, lairId, slayerCivId, goldAwarded }) => {
-  const def = BEAST_DEFINITIONS[beastId];
-  const slayerName = session.getState().civilizations[slayerCivId]?.name ?? slayerCivId;
-  const isApex = def.tier >= 4;
-  const isChoiceTier = def.tier >= 2 && !isApex;
-  for (const civId of Object.keys(session.getState().civilizations)) {
-    const slayerMsg = isApex
-      ? `Your forces have slain the ${def.name}! The apex hoard is yours — gold, lore, trophy, and legend.`
-      : isChoiceTier
-        ? `Your forces have slain the ${def.name}! Choose your reward.`
-        : `Your forces have slain the ${def.name}! Hoard claimed: +${goldAwarded} gold.`;
-    const message = civId === slayerCivId ? slayerMsg : `${slayerName} has slain the ${def.name}!`;
-    appendToCivLog(civId, message, civId === slayerCivId ? 'success' : 'info');
-  }
-  if (slayerCivId === session.getState().currentPlayer) {
-    if (def.tier >= 3) {
-      let rewardLines: string[];
-      if (isApex) {
-        const trophyGold = getBeastTrophyGoldPerTurn(def.tier);
-        rewardLines = [
-          `+${goldAwarded} gold`,
-          'Ancient Lore claimed (+research)',
-          `Beast Trophy raised (+${trophyGold} gold/turn)`,
-          'Your hero is now Legendary',
-        ];
-      } else {
-        const preview = getHoardChoicePreview(session.getState(), lairId);
-        rewardLines = [
-          'Choose one reward:',
-          `Gold: +${preview.gold}`,
-          `Lore: +${preview.lore} research`,
-          `Trophy: +${preview.trophyGoldPerTurn} gold/turn`,
-        ];
-      }
-      showBeastSlayCeremony(uiLayer, {
-        beastName: def.name,
-        unitType: def.unitType,
-        slayerName,
-        rewardLines,
-        onContinue: () => { if (!isApex) maybeShowPendingHoardChoice(); },
-      });
-    }
-    // #551: the tier<3 case's toast used to be a separate showNotification
-    // call here, duplicating the delivery-contract message the appendToCivLog
-    // loop above already sent to slayerCivId. Removed; the loop's message
-    // ("Hoard claimed: +N gold" / "Choose your reward.") is the single
-    // delivery for this event now.
-  }
-});
-
-bus.on('beast:hoard-claimed', ({ beastId, civId, choice }) => {
-  const def = BEAST_DEFINITIONS[beastId];
-  let message: string;
-  if (choice === 'gold') message = `You took the Gold Hoard of the ${def.name}.`;
-  else if (choice === 'lore') message = `You claimed the Ancient Lore of the ${def.name}.`;
-  else message = `You raised a ${def.name} Trophy.`;
-  appendToCivLog(civId, message, 'success');
-});
-
-bus.on('beast:sighted', ({ beastId, civId }) => {
-  const def = BEAST_DEFINITIONS[beastId];
-  const beasts = session.getState().beasts;
-  const lair = beasts ? Object.values(beasts.lairs).find(l => l.beastId === beastId) : undefined;
-  const target = lair ? { kind: 'map' as const, coord: lair.position, label: def.name } : undefined;
-  appendToCivLog(civId, def.sightingFlavor, 'info', target);
-  if (civId === session.getState().currentPlayer) {
-    showBeastSightingBanner(uiLayer, {
-      name: def.name,
-      flavor: def.sightingFlavor,
-      unitType: def.unitType,
-      onContinue: () => {},
-      onOpenBestiary: () => openBestiary(),
-    });
-  }
-});
+// All 72 module-scope bus.on(...) registrations that used to live inline here
+// now live in the thirteen domain registrars under src/presentation/,
+// composed into one install/dispose pair (#787 phase 7).
+registerAllPresentation(bus, presentationContext);
 
 registerMinorCivNotificationListeners(bus, () => session.getState(), { appendToCivLog });
-
-bus.on('ai:strategic-warning', event => {
-  // #551: appendToCivLog (the delivery contract) already queues to
-  // pendingEvents for a non-active hot-seat recipient -- the old
-  // queueStrategicWarningPendingEvent call was a second, always-on queue.
-  routeStrategicWarning(event, appendToCivLog);
-});
-
-function appendFactionNotice(civId: string, message: string, type: NotificationEntry['type']): void {
-  // #551: appendToCivLog (the delivery contract) already queues to
-  // pendingEvents for a non-active hot-seat recipient -- the old manual
-  // collectEvent call here was a second, always-on queue that duplicated the
-  // entry in that player's next turn-handoff summary.
-  appendToCivLog(civId, message, type);
-}
-
-bus.on('era:advanced', ({ era }) => {
-  const humanCivIds = Object.entries(session.getState().civilizations)
-    .filter(([, civ]) => civ.isHuman)
-    .map(([civId]) => civId);
-  routeEraAdvanced(era, humanCivIds, appendToCivLog);
-});
-
-bus.on('civilization:era-advanced', ({ civId, era }) => {
-  const civ = session.getState().civilizations[civId];
-  if (!civ?.isHuman) return;
-  appendToCivLog(civId, `${civ.name} has entered Era ${era}. Your technology now sets your civilization's era.`, 'success');
-  if (civId === session.getState().currentPlayer) SFX.notification();
-});
-
-bus.on('faction:unrest-started', event => {
-  routeFactionTransition(session.getState(), { type: 'faction:unrest-started', ...event }, appendFactionNotice);
-});
-
-bus.on('faction:revolt-started', event => {
-  routeFactionTransition(session.getState(), { type: 'faction:revolt-started', ...event }, appendFactionNotice);
-});
-
-bus.on('faction:unrest-resolved', event => {
-  routeFactionTransition(session.getState(), { type: 'faction:unrest-resolved', ...event }, appendFactionNotice);
-});
-
-bus.on('faction:concession-made', event => {
-  routeFactionTransition(session.getState(), { type: 'faction:concession-made', ...event }, appendFactionNotice);
-});
-
-bus.on('faction:breakaway-started', event => {
-  routeFactionTransition(session.getState(), { type: 'faction:breakaway-started', ...event }, appendFactionNotice);
-});
-
-bus.on('faction:breakaway-established', event => {
-  routeFactionTransition(session.getState(), { type: 'faction:breakaway-established', ...event }, appendFactionNotice);
-});
-
-bus.on('faction:critical-status', event => {
-  routeFactionTransition(session.getState(), { type: 'faction:critical-status', ...event }, appendFactionNotice);
-});
-
-bus.on('crisis:started', event => {
-  routeCrisisStarted(session.getState(), event, appendToCivLog);
-  routeWorldPressureCrisisStarted(session.getState(), event, appendToCivLog);
-});
-
-bus.on('religion:founded', event => {
-  routeReligionFounded(session.getState(), event, appendToCivLog);
-});
-
-bus.on('religion:city-converted', event => {
-  routeReligionCityConverted(session.getState(), event, appendToCivLog);
-});
-
-bus.on('religion:loyalty-warning', event => {
-  routeLoyaltyWarning(session.getState(), event, appendToCivLog);
-});
-
-bus.on('religion:city-defected', event => {
-  routeCityDefected(session.getState(), event, appendToCivLog);
-});
-
-bus.on('crisis:spread', event => {
-  routeCrisisSpread(session.getState(), event, appendToCivLog);
-});
-
-bus.on('crisis:escalated', event => {
-  routeCrisisEscalated(session.getState(), event, appendToCivLog);
-});
-
-bus.on('crisis:resolved', event => {
-  routeCrisisResolved(session.getState(), event, appendToCivLog);
-  routeWorldPressureCrisisResolved(session.getState(), event, appendToCivLog);
-});
-
-bus.on('crisis:foe-hunted-by-ally', event => {
-  routeCrisisFoeHuntedByAlly(session.getState(), event, appendToCivLog);
-});
-
-bus.on('crisis:aid-sent', event => {
-  routeCrisisAidSent(session.getState(), event, appendToCivLog);
-});
-
-bus.on('diplomacy:opportunistic-war', event => {
-  routeOpportunisticWar(session.getState(), event, appendToCivLog);
-});
-
-bus.on('espionage:sabotage-relief-discovered', event => {
-  routeSabotageReliefDiscovered(session.getState(), event, appendToCivLog);
-});
-
-bus.on('economy:treasury-strain', event => {
-  // #551: routeEconomyTreasuryStrain already delivers to event.civId via the
-  // delivery contract; the old extra showNotification duplicated the message
-  // and leaked it to whoever currentPlayer was at emit time.
-  routeEconomyTreasuryStrain(session.getState(), event, appendToCivLog);
-});
-
-bus.on('espionage:spy-detected-traveling', ({ detectingCivId, spyOwner, wasDisguised, position }) => {
-  const label = wasDisguised ? 'A disguised unit' : 'An enemy spy';
-  appendToCivLog(
-    detectingCivId,
-    `${label} from ${spyOwner} was spotted near (${position.q}, ${position.r}).`,
-    'warning',
-  );
-});
-
-bus.on('espionage:spy-caught-infiltrating', ({ capturingCivId, spyOwner, spyId, cityId }) => {
-  const spy = session.getState().espionage?.[spyOwner]?.spies[spyId];
-  const city = session.getState().cities[cityId];
-  const captor = session.getState().civilizations[capturingCivId]?.name ?? capturingCivId;
-  appendToCivLog(
-    spyOwner,
-    `${spy?.name ?? 'Your spy'} was caught by ${captor} trying to infiltrate ${city?.name ?? 'an enemy city'}!`,
-    'warning',
-  );
-  // Captor side: show verdict choice only when the human captor is currently active
-  if (capturingCivId === session.getState().currentPlayer) {
-    showEspionageCaptureChoice(spyId, spyOwner);
-  }
-});
-
-// Show verdict choice when human player captures a spy during a mission
-bus.on('espionage:spy-captured', ({ capturingCivId, spyOwner, spyId }) => {
-  if (capturingCivId === session.getState().currentPlayer) {
-    showEspionageCaptureChoice(spyId, spyOwner);
-  }
-  // Spy owner always gets a log entry, regardless of who is "current"
-  const spy = session.getState().espionage?.[spyOwner]?.spies[spyId];
-  const captorName = session.getState().civilizations[capturingCivId]?.name ?? capturingCivId;
-  appendToCivLog(spyOwner, `${spy?.name ?? 'Your spy'} was captured by ${captorName}!`, 'warning');
-});
-
-// Notify the spy's owner when they are executed by an AI or human captor
-bus.on('espionage:spy-executed', ({ executingCivId, spyOwner, spyName }) => {
-  appendToCivLog(
-    spyOwner,
-    `${spyName} was executed by ${session.getState().civilizations[executingCivId]?.name ?? 'an enemy'}.`,
-    'warning',
-  );
-});
-
-bus.on('unit:obsolete', ({ civId, unitType }) => {
-  const name = UNIT_DEFINITIONS[unitType]?.name ?? unitType;
-  appendToCivLog(civId, `Your ${name} is now obsolete — upgrade it in your home city.`, 'info');
-});
-
-bus.on('unit:journey-blocked', ({ unitId, position }) => {
-  // #551: recipient is the unit's actual owner, not whoever currentPlayer
-  // happens to be at emit time -- the old showNotification call leaked this
-  // to the wrong hot-seat player. Skip entirely if the unit is gone rather
-  // than falling back to currentPlayer.
-  const unit = session.getState().units[unitId];
-  if (!unit) return;
-  const type = UNIT_DEFINITIONS[unit.type]?.name ?? unit.type;
-  const msg = `Your ${type} was blocked and stopped at (${position.q}, ${position.r}).`;
-  appendToCivLog(unit.owner, msg, 'warning');
-});
-
-bus.on('espionage:spy-expired', ({ civId, spyName, unitType }) => {
-  appendToCivLog(civId, `${spyName}'s network dissolved — ${unitType} era ended. No diplomatic penalty.`, 'info');
-});
-
-bus.on('espionage:spy-auto-exfiltrated', ({ civId, cityId }) => {
-  const city = session.getState().cities[cityId];
-  appendToCivLog(civId, `Your spy was auto-exfiltrated from ${city?.name ?? 'a city'} after it changed hands.`, 'info');
-});
-
-bus.on('espionage:city-flipped', event => {
-  routeCityFlipped(session.getState(), event, appendToCivLog);
-});
-
-bus.on('trade:route-created', ({ route }) => {
-  const ownerCity = session.getState().cities[route.fromCityId];
-  const toCity = session.getState().cities[route.toCityId];
-  if (!ownerCity) return;
-  const goldPerTurn = getEffectiveGoldPerTurn(route, getRouteTechGoldBonus(session.getState(), route));
-  appendToCivLog(ownerCity.owner, `Trade route to ${toCity?.name ?? route.toCityId} established (+${goldPerTurn} gold/turn)`, 'success');
-});
-
-bus.on('trade:route-ended', ({ fromCityId, toCityId, reason }) => {
-  const ownerCity = session.getState().cities[fromCityId];
-  const toCity = session.getState().cities[toCityId];
-  if (!ownerCity) return;
-  const reasonText: Record<string, string> = {
-    'unit-died': 'caravan destroyed',
-    'unit-disbanded': 'caravan disbanded',
-    'war-declared': 'war declared — caravan is free to redeploy',
-    'hostile-relations': 'hostile relations — caravan is free to redeploy',
-    'embargo': 'embargo enforced — caravan is free to redeploy',
-    'trips-exhausted': 'caravan retired after completing its service',
-    'unit-captured': 'caravan captured',
-  };
-  appendToCivLog(ownerCity.owner, `Trade route to ${toCity?.name ?? toCityId} ended: ${reasonText[reason] ?? reason}`, 'warning');
-  // Also tell the other end of the route, if it's a different human civ (#551).
-  if (toCity && toCity.owner !== ownerCity.owner && session.getState().civilizations[toCity.owner]?.isHuman) {
-    appendToCivLog(toCity.owner, `Trade route from ${ownerCity.name} ended: ${reasonText[reason] ?? reason}`, 'warning');
-  }
-});
 
 // --- Initialization ---
 async function init(): Promise<void> {
