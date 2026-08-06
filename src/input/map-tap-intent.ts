@@ -22,9 +22,19 @@ import { selectDefenderEntryAtKey } from '@/input/hex-defender-selection';
  * rendered strings), which the executor recomputes itself when it builds the
  * panel, exactly as `handleHexTap` does today.
  */
+/**
+ * The three `PendingMapIntent` kinds `resolve-pending` can actually carry.
+ * `city-capture` short-circuits to `ignore` before any pending intent is
+ * inspected, and `none` means there's nothing pending to resolve -- both are
+ * structurally impossible here. Narrowing away from the full `PendingMapIntent`
+ * lets a `switch (intent.pending.kind)` in the executor (#787 phase 8b) be
+ * exhaustive without a dead defensive branch for two cases that can't occur.
+ */
+export type ResolvablePendingIntent = Extract<PendingMapIntent, { kind: 'journey' | 'air-mission' | 'unload' }>;
+
 export type MapTapIntent =
-  /** A pending intent (journey/air-mission/unload/city-capture) consumes this tap. */
-  | { readonly kind: 'resolve-pending'; readonly pending: PendingMapIntent; readonly coord: HexCoord }
+  /** A pending intent (journey/air-mission/unload) consumes this tap. */
+  | { readonly kind: 'resolve-pending'; readonly pending: ResolvablePendingIntent; readonly coord: HexCoord }
   /** The mis-tap case for a pending unload: tapped outside the legal unload range. */
   | { readonly kind: 'mistap'; readonly pending: PendingMapIntent }
   /** A city-capture choice is pending; every tap is swallowed until it resolves. */
