@@ -84,12 +84,6 @@ export function resolveMapTapIntent(
   }
 
   const key = hexKey(coord);
-
-  if (pending.kind === 'unload') {
-    const inRange = pending.range.some(h => hexKey(h) === key);
-    return inRange ? { kind: 'resolve-pending', pending, coord } : { kind: 'mistap', pending };
-  }
-
   const selectedUnitId = selection.selectedUnitId;
 
   if (!selectedUnitId) {
@@ -104,6 +98,14 @@ export function resolveMapTapIntent(
 
   if (isAnimationLocked) {
     return { kind: 'animation-locked' };
+  }
+
+  // `unload` is checked here, after the pirate-HQ and animation-lock checks
+  // above -- matching handleHexTap's real order exactly (main.ts checks
+  // isUnitAnimationLocked before ever reading the pending-unload intent).
+  if (pending.kind === 'unload') {
+    const inRange = pending.range.some(h => hexKey(h) === key);
+    return inRange ? { kind: 'resolve-pending', pending, coord } : { kind: 'mistap', pending };
   }
 
   const canMove = Boolean(selectedUnitId) && selection.movementRange.some(h => hexKey(h) === key);
@@ -148,9 +150,26 @@ export function resolveMapTapIntent(
 
   if (selectedUnitId && (canMove || canAttack)) {
     const unit = state.units[selectedUnitId];
-    if (!unit) return { kind: 'deselect' };
+    // handleHexTap's real branch is a bare `return;` here -- a true no-op,
+    // not the deselect-and-tap-SFX fallback at the bottom of this function.
+    // Reuses `ignore` (already used for the city-capture guard above) rather
+    // than a new variant, since both are genuinely "do nothing at all".
+    if (!unit) return { kind: 'ignore' };
 
     if (canAttack && defenderEntry) {
+      // handleHexTap re-checks the naval attack gate here with an
+      // amphibious-assault-aware attacker position (a unit embarked on a
+      // transport attacks from the transport's position, not its own) --
+      // distinct from the earlier `blocked-naval-gate` check above, which
+      // only runs when the tap is NOT a legal move/attack target at all.
+      const amphibiousAssault = Boolean(unit.transportId);
+      const previewAttacker = amphibiousAssault && unit.transportId
+        ? { ...unit, position: { ...state.units[unit.transportId]?.position }, transportId: undefined }
+        : unit;
+      const navalGate = canUnitAttackBeast(previewAttacker, defenderEntry[1]);
+      if (!navalGate.allowed) {
+        return { kind: 'blocked-naval-gate', unitId: selectedUnitId, reason: navalGate.reason ?? 'Cannot attack that target.' };
+      }
       return { kind: 'combat-preview', attackerId: selectedUnitId, defenderId: defenderEntry[0], targetCoord: coord };
     }
 

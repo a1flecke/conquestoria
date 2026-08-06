@@ -97,13 +97,26 @@ describe('resolveMapTapIntent', () => {
       expect(intent).toEqual({ kind: 'mistap', pending });
     });
 
-    it('takes precedence over animation-lock and every other check', () => {
+    it('journey and air-mission take precedence over animation-lock and every other check', () => {
       const state = makeFixture();
       const pending: PendingMapIntent = { kind: 'journey', unitId: 'unit-1' };
 
       const intent = resolveMapTapIntent(state, snapshot({ pendingIntent: pending, selectedUnitId: 'unit-1' }), { q: 2, r: 2 }, true);
 
       expect(intent.kind).toBe('resolve-pending');
+    });
+
+    it('swallows a tap under a pending unload while the selected unit is mid-animation, instead of resolving the unload', () => {
+      // handleHexTap checks isUnitAnimationLocked before ever reading the
+      // pending-unload intent (unlike journey/air-mission, which are checked
+      // before the animation-lock check) -- an ordering this test locks in
+      // after an earlier draft of resolveMapTapIntent got it backwards.
+      const state = makeFixture();
+      const pending: PendingMapIntent = { kind: 'unload', transportId: 't1', cargoUnitId: 'c1', range: [{ q: 2, r: 2 }] };
+
+      const intent = resolveMapTapIntent(state, snapshot({ pendingIntent: pending, selectedUnitId: 't1' }), { q: 2, r: 2 }, true);
+
+      expect(intent).toEqual({ kind: 'animation-locked' });
     });
   });
 
@@ -236,6 +249,47 @@ describe('resolveMapTapIntent', () => {
       );
 
       expect(intent).toEqual({ kind: 'combat-preview', attackerId: 'unit-1', defenderId: 'enemy-1', targetCoord: { q: 1, r: 0 } });
+    });
+
+    it('blocks the attack preview instead of previewing when the naval gate disallows the attacker', () => {
+      // A second, amphibious-assault-aware naval-gate check that handleHexTap
+      // runs specifically inside the attack-preview branch (distinct from the
+      // earlier blocked-naval-gate check above, which only fires for a tap
+      // that isn't a legal move/attack target at all). An earlier draft of
+      // resolveMapTapIntent omitted this second check entirely.
+      const state = makeFixture();
+      placePlayerUnit(state, 'unit-1', { position: { q: 0, r: 0 }, type: 'warrior' });
+      placeEnemyUnit(state, 'sea-serpent-1', 'beasts', { position: { q: 1, r: 0 }, type: 'beast_sea_serpent' as never });
+      makeVisible(state, { q: 1, r: 0 });
+
+      const intent = resolveMapTapIntent(
+        state,
+        snapshot({ selectedUnitId: 'unit-1', attackRange: [{ q: 1, r: 0 }] }),
+        { q: 1, r: 0 },
+        false,
+      );
+
+      expect(intent).toEqual({
+        kind: 'blocked-naval-gate', unitId: 'unit-1',
+        reason: 'Only ships and ranged units can fight the Sea Serpent.',
+      });
+    });
+
+    it('does nothing when the selected unit no longer exists (a true no-op, not a deselect)', () => {
+      // handleHexTap's real branch here is a bare `return;` -- distinct from
+      // the deselect-and-tap-SFX fallback this function uses for an
+      // unremarkable empty-hex tap. An earlier draft of resolveMapTapIntent
+      // conflated the two.
+      const state = makeFixture();
+
+      const intent = resolveMapTapIntent(
+        state,
+        snapshot({ selectedUnitId: 'gone', movementRange: [{ q: 1, r: 1 }] }),
+        { q: 1, r: 1 },
+        false,
+      );
+
+      expect(intent).toEqual({ kind: 'ignore' });
     });
 
     it('moves the selected unit to a reachable empty hex', () => {
