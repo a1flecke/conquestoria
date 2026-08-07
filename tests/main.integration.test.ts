@@ -103,20 +103,19 @@ describe('player combat wiring', () => {
 
 describe('land-unit water recovery wiring', () => {
   it('routes the live blocked-tap path through recovery helpers', () => {
-    const main = readFileSync(resolve(PROJECT_ROOT, 'src/main.ts'), 'utf8');
-    // #787 phase 8b: the movement-blocker dispatch moved from an inline
-    // if-chain in handleHexTap into the 'blocked-movement' case of its
-    // resolveMapTapIntent-driven switch -- resolveMapTapIntent.test.ts and
-    // this switch's own case now own the decision of *whether* a tap is
-    // blocked; this scope only proves the live dispatch site still routes
-    // through the same recovery helpers once resolveMapTapIntent says it is.
-    // (The selected-unit panel's own water-recovery wiring moved out of
-    // main.ts entirely in phase 8c -- see
-    // selection-controller.test.ts's "threads buildSelectedUnitHighlights'
-    // water recovery into the store".)
-    const tapFlow = main.slice(
-      main.indexOf("case 'blocked-movement': {"),
-      main.indexOf("case 'enemy-unit-info': {"),
+    // #787 phase 8d: handleHexTap itself (and its 'blocked-movement' case)
+    // moved out of main.ts entirely into MapInteractionController -- this
+    // scope, and its DOM anchor, moved with it. Real behavior (a blocked
+    // tap does not move the unit and warns the player) is covered by
+    // map-interaction-controller.test.ts's "blocked-movement shows a
+    // notification and does not move the unit"; this test keeps the
+    // narrower structural proof that survived 8b/8c: the live dispatch
+    // site routes through the same recovery helpers and store, not a
+    // reimplementation of the blocker logic itself.
+    const controller = readFileSync(resolve(PROJECT_ROOT, 'src/app/controllers/map-interaction-controller.ts'), 'utf8');
+    const tapFlow = controller.slice(
+      controller.indexOf("case 'blocked-movement': {"),
+      controller.indexOf("case 'enemy-unit-info': {"),
     );
 
     expect(tapFlow).toContain('handleSelectedUnitMovementBlocker(');
@@ -291,19 +290,23 @@ describe('air-defense overlay button placement (#783)', () => {
   });
 });
 
-describe('map tap wiring (#787 phase 8b)', () => {
+describe('map interaction controller wiring (#787 phase 8d)', () => {
   it('handleHexTap dispatches on resolveMapTapIntent through an exhaustive switch', () => {
-    const main = readFileSync(resolve(PROJECT_ROOT, 'src/main.ts'), 'utf8');
-    const handleHexTap = main.slice(
-      main.indexOf('function handleHexTap('),
-      main.indexOf('function openTerritoryInspectionPanel('),
+    // #787 phase 8d: handleHexTap itself moved out of main.ts into
+    // MapInteractionController, so this completeness check moved with it.
+    // The exhaustiveness guard below is now also enforced by tsc at compile
+    // time (a MapTapIntent variant with no case arm fails the build, not
+    // just this test) -- this stays as a human-readable audit trail of the
+    // full case list, not the only thing standing between a new variant and
+    // a silent runtime fallthrough.
+    const controller = readFileSync(resolve(PROJECT_ROOT, 'src/app/controllers/map-interaction-controller.ts'), 'utf8');
+    const handleHexTap = controller.slice(
+      controller.indexOf('function handleHexTap('),
+      controller.indexOf('function openTerritoryInspectionPanel('),
     );
 
     expect(handleHexTap).toContain('resolveMapTapIntent(');
     expect(handleHexTap).toContain('switch (intent.kind)');
-
-    // The exhaustiveness guard: a future MapTapIntent variant with no case
-    // arm fails to compile, not silently falls through at runtime.
     expect(handleHexTap).toContain('const _exhaustive: never = intent;');
 
     // One case per current MapTapIntent variant (src/input/map-tap-intent.ts) --
@@ -318,6 +321,26 @@ describe('map tap wiring (#787 phase 8b)', () => {
     ];
     for (const kind of expectedKinds) {
       expect(handleHexTap).toContain(`case '${kind}':`);
+    }
+  });
+
+  it('constructs MapInteractionController and routes touch/mouse input through it', () => {
+    const main = readFileSync(resolve(PROJECT_ROOT, 'src/main.ts'), 'utf8');
+
+    expect(main).toContain('createMapInteractionController(');
+    expect(main).toContain('onHexTap: mapInteraction.handleHexTap,');
+    expect(main).toContain('onHexLongPress: mapInteraction.handleHexLongPress,');
+
+    // These four used to be local `function` declarations in main.ts;
+    // map-interaction-controller.test.ts now owns their behavioral coverage.
+    // Asserting their absence guards against a future change silently
+    // re-adding a shadowing local copy instead of calling the controller.
+    const movedFunctionDeclarations = [
+      'function handleHexTap(', 'function handleHexLongPress(',
+      'function openTerritoryInspectionPanel(', 'function closeTerritoryInspectionPanel(',
+    ];
+    for (const declaration of movedFunctionDeclarations) {
+      expect(main).not.toContain(declaration);
     }
   });
 });
