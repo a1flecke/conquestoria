@@ -27,9 +27,9 @@ import { preloadNaturalWonderTiles } from '@/renderer/terrain/wonder-tile-loader
 import { TouchHandler, type InputCallbacks } from '@/input/touch-handler';
 import { MouseHandler } from '@/input/mouse-handler';
 import { installKeyboardShortcuts } from '@/input/keyboard-shortcuts';
-import { hexKey, hexToPixel, hexesInRange, parseHexKey, wrapHexCoord } from '@/systems/hex-utils';
-import { moveUnit, getMovementCost, UNIT_DEFINITIONS, UNIT_DESCRIPTIONS, restUnit, canHeal, getUnmovedUnits, createUnit, findPath } from '@/systems/unit-system';
-import { classifyOwner, isAlwaysHostilePair, isMajorCivOwner } from '@/core/owner-kind';
+import { hexKey, hexToPixel, hexesInRange, parseHexKey } from '@/systems/hex-utils';
+import { moveUnit, getMovementCost, UNIT_DEFINITIONS, restUnit, canHeal, getUnmovedUnits, createUnit } from '@/systems/unit-system';
+import { isMajorCivOwner } from '@/core/owner-kind';
 import { getProductionDisplayName, TRAINABLE_UNITS } from '@/systems/city-system';
 import { civHasAirDefenseCoverage } from '@/systems/air-defense-system';
 import { chooseCircularManufacturingMaterial } from '@/systems/national-project-system';
@@ -37,20 +37,14 @@ import { foundCityInState } from '@/systems/city-founding-system';
 import { assignCityFocus, setCityWorkedTile } from '@/systems/city-work-system';
 import { formatCityFoundingBlockerMessage, getCityFoundingBlockers } from '@/systems/city-territory-system';
 import { enqueueCityProduction, enqueueResearch, getIdleCityIds, getRecommendedIdleCityChoice, moveQueuedId, needsResearchChoice, removeQueuedId, reorderCityProduction, setIdleProduction } from '@/systems/planning-system';
-import { getImprovementDisplayName } from '@/systems/improvement-system';
 import { createTechPanel } from '@/ui/tech-panel';
 import { createCityPanel } from '@/ui/city-panel';
 import { createCityCapturePanel } from '@/ui/city-capture-panel';
-import { createForeignCityEntryPanel } from '@/ui/foreign-city-entry-panel';
-import { createWorkerTaskWarningPanel } from '@/ui/worker-task-warning-panel';
 import { createWonderPanel } from '@/ui/wonder-panel';
 import { createWonderAtlasPanel } from '@/ui/wonder-atlas-panel';
-import { calculateCombatStrengths, deterministicCombatSeed, resolveCombat } from '@/systems/combat-system';
-import { calculateCityAssaultStrengths } from '@/systems/city-siege-system';
+import { deterministicCombatSeed, resolveCombat } from '@/systems/combat-system';
 import { buildCombatContextForDefender, getAmphibiousAssaultMultiplier } from '@/systems/combat-context';
 import { canUnitAttackTarget } from '@/systems/attack-targeting';
-import { resolveAirStrike, resolveReconMission } from '@/systems/air-operations-system';
-import { handleSelectedUnitMovementBlocker } from '@/input/selected-unit-movement-feedback';
 import { applyCombatOutcomeToState, getCaptureNotificationLabel } from '@/systems/combat-reward-system';
 import { recordCombatForCiv } from '@/systems/threat-pressure-system';
 import { applyWorkerAction } from '@/systems/worker-action-system';
@@ -62,7 +56,7 @@ import { getVisibility } from '@/systems/fog-of-war';
 import { applyCampDestructionAtTarget } from '@/systems/barbarian-system';
 import { recordBeastSlain, isBeastConcealedFrom, applyHoardChoice, getHoardChoicePreview, canUnitAttackBeast, isCivUnitInBeastTerritory } from '@/systems/beast-system';
 import { createBeastHoardPanel } from '@/ui/beast-hoard-panel';
-import { BEAST_DEFINITIONS, getBeastDefinitionByUnitType } from '@/systems/beast-definitions';
+import { BEAST_DEFINITIONS } from '@/systems/beast-definitions';
 import { recordBeastSightings, getBestiaryEntriesForPlayer } from '@/systems/beast-presentation';
 import { createBestiaryPanel } from '@/ui/bestiary-panel';
 import {
@@ -95,7 +89,6 @@ import {
 } from '@/input/pirate-headquarters-assault';
 import { createPirateHeadquartersAssaultPanel } from '@/ui/pirate-headquarters-assault-panel';
 import { formatNotificationTargetFocusMessage } from '@/ui/notification-targets';
-import { renderSelectedUnitInfo } from '@/ui/selected-unit-info';
 import { createNetworkIntentPanel } from '@/ui/network-intent-panel';
 import { createNetworkPanel, getNetworkPanelModel } from '@/ui/network-panel';
 import { renderUnitStackPanel } from '@/ui/unit-stack-panel';
@@ -106,7 +99,6 @@ import { chooseBoon } from '@/systems/religion-system';
 import { showCampaignSetup } from '@/ui/campaign-setup';
 import { showGameModeSelect } from '@/ui/game-mode-select';
 import { createPacingDebugPanel } from '@/ui/pacing-debug-panel';
-import { formatCombatPreviewDetails } from '@/ui/combat-preview';
 import { resolveCivDefinition } from '@/systems/civ-registry';
 import {
   acceptDiplomaticRequest,
@@ -143,7 +135,6 @@ import {
 import { showHotSeatSetup } from '@/ui/hotseat-setup';
 import { collectCouncilInterrupt, clearStaleSoloPendingEvents } from '@/core/hotseat-events';
 import { refreshKnownCivilizations, syncCivilizationContactsFromVisibility } from '@/systems/discovery-system';
-import { getMinorCivPresentationForPlayer } from '@/systems/minor-civ-presentation';
 import { getMinorCivNotification } from '@/ui/minor-civ-notifications';
 import { registerMinorCivNotificationListeners } from '@/ui/minor-civ-notification-listeners';
 import { conquestMinorCiv, applyDiplomaticReaction } from '@/systems/minor-civ-system';
@@ -159,9 +150,6 @@ import {
   canUnitOccupyCity,
   emitMajorCityCaptureEvents,
 } from '@/systems/city-capture-system';
-import { resolveNaturalWonderAudioFocus } from '@/input/natural-wonder-audio-focus';
-import { resolveMapTapIntent } from '@/input/map-tap-intent';
-import { visibleHostileUnitEntriesAtKey } from '@/input/hex-defender-selection';
 import { buildCombatPresentation } from '@/systems/viewer-event-presentation';
 import {
   initializeLegendaryWonderProjectsForCity,
@@ -194,11 +182,10 @@ import { executeUnitMove, isWorkerBusy } from '@/systems/unit-movement-system';
 import {
   getEmbarkedAssaultTarget,
   detachCargoForEmbarkedAssault,
-  unloadUnitFromTransport,
 } from '@/systems/transport-system';
 import { createSelectionStore } from '@/app/selection-store';
 import { getCapitalCity, getCapitalCityId } from '@/systems/capital-system';
-import type { CombatResult, GameState, HexCoord, ImprovementType, Unit, UnitType, DiplomaticAction, CivBonusEffect, WorkerActionType, TreatyType } from '@/core/types';
+import type { CombatResult, GameState, HexCoord, Unit, UnitType, DiplomaticAction, CivBonusEffect, WorkerActionType, TreatyType } from '@/core/types';
 import {
   appendNotification,
   getNotificationsForPlayer,
@@ -215,9 +202,6 @@ import type { Notifier } from '@/app/ports';
 import { applyPersistedUserSettings } from '@/storage/settings-merge';
 import { registerConquestoriaServiceWorker } from '@/platform/service-worker';
 import { initializeDesktopMenu } from '@/platform/desktop-menu';
-import { beginConfirmedForeignCityEntry } from '@/input/foreign-city-entry-flow';
-import { confirmBusyWorkerMove } from '@/input/worker-movement-flow';
-import { createTerritoryInspectionPanel } from '@/ui/territory-inspection-panel';
 import { fortifyUnitInState, unfortifyUnitInState } from '@/systems/unit-lifecycle-system';
 import { showPauseMenu } from '@/ui/pause-menu-panel';
 import { beginCampaignEntry } from '@/ui/campaign-entry-flow';
@@ -230,13 +214,13 @@ import { createTreasuryDrawer, type TreasuryDrawer } from '@/ui/treasury-drawer'
 import { getCivHappinessFromResources, getCivAvailableResources, canBuyResourceAccess, performBuyResourceAccess } from '@/systems/resource-acquisition-system';
 import { createCeremonyCoordinator, type CeremonyCoordinator } from '@/app/controllers/ceremony-coordinator';
 import { createSelectionController, type SelectionController } from '@/app/controllers/selection-controller';
+import { createMapInteractionController, type MapInteractionController } from '@/app/controllers/map-interaction-controller';
 import { registerAllPresentation, type PresentationContext } from '@/presentation/register-all';
 import { removeRouteForUnit, createMarketplaceState } from '@/systems/trade-system';
 import { establishQuestAwareRoute } from '@/systems/quest-aware-trade-system';
 import { emitMinorCivQuestTransitions } from '@/systems/quest-chain-system';
 import { performMinorCivFestival, performMinorCivGift, performMinorCivReparations, setMinorCivWarState } from '@/systems/minor-civ-actions';
 import { canSendAid, applySendAid, applyOpportunisticWarPenaltyIfCrisisStruck } from '@/systems/crisis-interaction-system';
-import { MINOR_CIV_DEFINITIONS } from '@/systems/minor-civ-definitions';
 import { openEstablishRoutePanel } from '@/ui/establish-route-panel';
 import { RoundPresentationGate } from '@/presentation/round-presentation-gate';
 import { runCompletedRound } from '@/core/completed-round-orchestrator';
@@ -413,6 +397,37 @@ const selectionController: SelectionController = createSelectionController({
   ensurePlayerWarState,
   scanBeastSightings,
   currentCiv,
+});
+
+/**
+ * Owns the two map-input entry points, `handleHexTap` and
+ * `handleHexLongPress` (#787 phase 8d). References several functions
+ * defined later in this file (`openCityPanelForCity`, `executeAttack`,
+ * etc.) -- safe because they are hoisted function declarations and none of
+ * them run until real gameplay, well after module evaluation finishes. The
+ * same deferred-but-eager pattern `selectionController` above already uses.
+ */
+const mapInteraction: MapInteractionController = createMapInteractionController({
+  session,
+  selection,
+  selectionController,
+  renderLoop,
+  audio,
+  bus,
+  uiLayer,
+  getElementById: id => document.getElementById(id),
+  showNotification,
+  updateHUD,
+  clearUnloadState,
+  currentCiv,
+  openPirateWaters,
+  openUnitStackPicker,
+  openCityPanelForCity,
+  openWonderAtlas,
+  executeAttack,
+  executeMinorCivConquest,
+  beginPlayerCityAssault,
+  finalizePendingCityCaptureChoice,
 });
 
 /**
@@ -1787,8 +1802,10 @@ function openEspionagePanel(): void {
  * still need a registry entry so `closeGroup`/`isOpen`/`close` (all
  * DOM-derived off `domId`) behave correctly when a 'main' or 'transient'
  * sweep runs. Their real entry points (`openCityPanelForCity`,
- * `openWonderPanelForCityId`, `openTerritoryInspectionPanel`) stay
- * directly-callable functions, untouched by this phase.
+ * `openWonderPanelForCityId`) stay directly-callable functions, untouched
+ * by this phase. The territory-inspection panel has no such entry point of
+ * its own -- it opens only as a side effect of `mapInteraction.handleHexLongPress`
+ * (#787 phase 8d), which is not itself in this registry.
  */
 const panelRegistry = {
   council: { domId: 'council-panel', group: 'main', open: () => openCouncilPanel() },
@@ -1821,7 +1838,7 @@ const panelRegistry = {
     group: 'transient',
     open: () => {
       throw new Error(
-        "'territory-inspection' is parameterized -- call openTerritoryInspectionPanel(coord) directly, not router.open('territory-inspection').",
+        "'territory-inspection' opens only via mapInteraction.handleHexLongPress(coord) (#787 phase 8d) -- not router.open('territory-inspection').",
       );
     },
   },
@@ -2401,676 +2418,6 @@ function restAction(): void {
   showNotification(`${UNIT_DEFINITIONS[unit.type].name} is resting and will heal +15 HP next turn`, 'info');
   selectionController.deselectUnit();
   renderLoop.setGameState(session.getState());
-}
-
-function handleHexTap(rawCoord: HexCoord): void {
-  const coord = session.getState().map.wrapsHorizontally
-    ? wrapHexCoord(rawCoord, session.getState().map.width)
-    : rawCoord;
-  const key = hexKey(coord);
-  const snapshot = selection.snapshot();
-  const isAnimationLocked = selectionController.isUnitAnimationLocked(snapshot.selectedUnitId);
-  const intent = resolveMapTapIntent(session.getState(), snapshot, coord, isAnimationLocked);
-
-  switch (intent.kind) {
-    case 'ignore': {
-      return;
-    }
-
-    case 'resolve-pending': {
-      switch (intent.pending.kind) {
-        case 'journey': {
-          const journeyUnitId = intent.pending.unitId;
-          const unit = session.getState().units[journeyUnitId];
-          if (unit) {
-            const domain = UNIT_DEFINITIONS[unit.type]?.domain ?? 'land';
-            const completedTechs = session.getState().civilizations[unit.owner]?.techState.completed ?? [];
-            const path = findPath(unit.position, coord, session.getState().map, domain, { unit, completedTechs });
-            if (!path || path.length < 2) {
-              showNotification('No path to that destination.', 'warning');
-            } else {
-              session.commit({
-                ...session.getState(),
-                units: {
-                  ...session.getState().units,
-                  [journeyUnitId]: { ...unit, automation: { mode: 'journey', destination: coord } },
-                },
-              });
-              selectionController.selectUnit(journeyUnitId);
-              showNotification('Journey set. Your unit will advance each turn.', 'info');
-            }
-          }
-          selection.setPendingIntent({ kind: 'none' });
-          return;
-        }
-
-        case 'air-mission': {
-          const pending = intent.pending;
-          const result = pending.mission === 'strike'
-            ? resolveAirStrike(session.getState(), pending.unitId, coord)
-            : resolveReconMission(session.getState(), pending.unitId, coord);
-          if (!result.ok) {
-            showNotification('That air mission target is no longer legal.', 'warning');
-            return;
-          }
-          selection.setPendingIntent({ kind: 'none' });
-          session.commit(result.state);
-          selectionController.refreshCurrentPlayerVisibility();
-          updateHUD();
-          if (pending.mission === 'recon') SFX.airRecon();
-          else SFX.combat();
-          selectionController.selectUnit(pending.unitId);
-          return;
-        }
-
-        case 'unload': {
-          // Delegate to onUnloadTransport which handles state, animation, and notification
-          const panel = document.getElementById('info-panel');
-          if (panel) {
-            // Re-invoke via the callback registered in SelectionController's renderSelectedUnitInfo block
-            // by triggering the transport system directly here (callbacks are not stored).
-            const { transportId, cargoUnitId } = intent.pending;
-            const result = unloadUnitFromTransport(session.getState(), transportId, cargoUnitId, coord);
-            if (!result.ok) {
-              showNotification(result.message, 'warning');
-              SFX.error();
-            } else {
-              const tName = UNIT_DEFINITIONS[session.getState().units[transportId]?.type ?? 'transport']?.name ?? 'Transport';
-              const cName = UNIT_DEFINITIONS[session.getState().units[cargoUnitId]?.type ?? 'warrior']?.name ?? 'Unit';
-              clearUnloadState();
-              session.commit(result.state);
-              renderLoop.animateUnitAppear(coord);
-              selectionController.selectUnit(transportId);
-              showNotification(`${cName} disembarked from ${tName}.`, 'info');
-              SFX.transportUnload();
-            }
-          }
-          return;
-        }
-
-        default: {
-          const _exhaustive: never = intent.pending;
-          throw new Error(`Unhandled pending map intent: ${JSON.stringify(_exhaustive)}`);
-        }
-      }
-    }
-
-    case 'mistap': {
-      // Mis-tap: block the tap; first occurrence shows an error notification
-      if (selection.shouldWarnOnMistap()) {
-        showNotification('Tap a highlighted hex to disembark, or Cancel in the panel.', 'warning');
-        SFX.error();
-      }
-      return;
-    }
-
-    case 'open-pirate-faction': {
-      openPirateWaters({ factionId: intent.factionId });
-      return;
-    }
-
-    case 'open-pirate-region': {
-      renderLoop.camera.centerOn(intent.center);
-      openPirateWaters({ factionId: intent.factionId });
-      return;
-    }
-
-    case 'animation-locked': {
-      showNotification('Unit is moving.', 'info');
-      return;
-    }
-
-    case 'open-stack-picker': {
-      openUnitStackPicker(intent.coord, [...intent.unitIds]);
-      return;
-    }
-
-    case 'select-unit': {
-      selectionController.selectUnit(intent.unitId);
-      return;
-    }
-
-    case 'blocked-caravan-committed': {
-      showNotification('Caravan is committed to a trade route and cannot move.', 'warning');
-      selectionController.selectUnit(intent.unitId);
-      return;
-    }
-
-    case 'blocked-naval-gate': {
-      showNotification(intent.reason, 'warning');
-      selectionController.selectUnit(intent.unitId);
-      return;
-    }
-
-    case 'blocked-movement': {
-      // Re-invokes the same helper resolveMapTapIntent used internally to decide
-      // this intent -- it recomputes getMovementBlockerReason from the same
-      // inputs (a pure, cheap call) and dispatches the notification/SFX/reselect
-      // side effects, which resolveMapTapIntent deliberately doesn't do itself.
-      handleSelectedUnitMovementBlocker(
-        session.getState(),
-        intent.unitId,
-        coord,
-        selection.getWaterRecovery(),
-        {
-          showNotification,
-          reselectUnit: unitId => selectionController.selectUnit(unitId, { suppressSelectionSfx: true }),
-          playError: SFX.error,
-        },
-      );
-      return;
-    }
-
-    case 'enemy-unit-info': {
-      const enemyUnit = session.getState().units[intent.unitId];
-      if (!enemyUnit) return;
-      const def = UNIT_DEFINITIONS[enemyUnit.type];
-      const desc = UNIT_DESCRIPTIONS[enemyUnit.type] ?? '';
-      const ownerKind = classifyOwner(enemyUnit.owner);
-      const isMinorCiv = ownerKind === 'minor';
-      let ownerName: string;
-      let ownerColor: string;
-
-      if (ownerKind === 'barbarian') {
-        ownerName = 'Barbarian';
-        ownerColor = '#8b4513';
-      } else if (ownerKind === 'pirate') {
-        ownerName = 'Pirates';
-        ownerColor = '#7f1d1d';
-      } else if (ownerKind === 'rebel') {
-        ownerName = 'Rebels';
-        ownerColor = '#6b3f2a';
-      } else if (ownerKind === 'beast') {
-        ownerName = 'Legendary Beasts';
-        ownerColor = '#7a1f2b';
-      } else if (isMinorCiv) {
-        const presentation = getMinorCivPresentationForPlayer(session.getState(), session.getState().currentPlayer, enemyUnit.owner, 'City-State');
-        ownerName = presentation.name;
-        ownerColor = presentation.color;
-      } else {
-        const civ = session.getState().civilizations[enemyUnit.owner];
-        ownerName = civ?.name ?? enemyUnit.owner;
-        ownerColor = civ?.color ?? '#888';
-      }
-
-      const alwaysHostile = isAlwaysHostilePair(session.getState().currentPlayer, enemyUnit.owner);
-      const atWar = ownerKind === 'major' && (currentCiv()?.diplomacy?.atWarWith.includes(enemyUnit.owner) ?? false);
-      const relationshipTag = alwaysHostile ? 'Hostile' : atWar ? 'At War' : 'Neutral';
-      const relColor = alwaysHostile || atWar ? '#d94a4a' : '#e8c170';
-
-      const panel = document.getElementById('info-panel');
-      if (panel) {
-        panel.style.display = 'block';
-        panel.innerHTML = '';
-        const wrapper = document.createElement('div');
-        wrapper.style.cssText = `background:rgba(40,20,20,0.92);border-radius:12px;padding:12px 16px;border-left:4px solid ${ownerColor};`;
-
-        const header = document.createElement('div');
-        header.style.cssText = 'display:flex;justify-content:space-between;align-items:center;';
-
-        const info = document.createElement('div');
-        const ownerLine = document.createElement('div');
-        ownerLine.style.cssText = `font-size:10px;color:${ownerColor};`;
-        const ownerSpan = document.createTextNode(ownerName + ' ');
-        const relSpan = document.createElement('span');
-        relSpan.style.cssText = `color:${relColor};font-size:9px;`;
-        relSpan.textContent = `(${relationshipTag})`;
-        ownerLine.appendChild(ownerSpan);
-        ownerLine.appendChild(relSpan);
-
-        const unitLine = document.createElement('div');
-        const boldName = document.createElement('strong');
-        boldName.textContent = def.name;
-        unitLine.appendChild(boldName);
-        unitLine.appendChild(document.createTextNode(` · HP: ${enemyUnit.health}/100 · Str: ${def.strength}`));
-
-        info.appendChild(ownerLine);
-        info.appendChild(unitLine);
-
-        const closeBtn = createGameButton('X', 'close');
-        closeBtn.id = 'btn-deselect';
-        closeBtn.setAttribute('aria-label', 'Close unit details');
-
-        header.appendChild(info);
-        header.appendChild(closeBtn);
-        wrapper.appendChild(header);
-
-        const descDiv = document.createElement('div');
-        descDiv.style.cssText = 'font-size:10px;opacity:0.6;margin-top:4px;';
-        descDiv.textContent = desc;
-        wrapper.appendChild(descDiv);
-
-        if (ownerKind === 'pirate') {
-          const pirateWaters = createGameButton('Open Pirate Waters', 'secondary');
-          pirateWaters.dataset.action = 'open-pirate-waters';
-          pirateWaters.addEventListener('click', () => openPirateWaters({ factionId: enemyUnit.owner }));
-          wrapper.appendChild(pirateWaters);
-        }
-
-        const hostileStackSize = visibleHostileUnitEntriesAtKey(session.getState(), key).length;
-        if (hostileStackSize > 1) {
-          const stackDiv = document.createElement('div');
-          stackDiv.style.cssText = 'font-size:10px;opacity:0.72;margin-top:4px;';
-          stackDiv.textContent = `${def.name} defends this stack. ${hostileStackSize} enemy units present.`;
-          wrapper.appendChild(stackDiv);
-        }
-
-        panel.appendChild(wrapper);
-        closeBtn.addEventListener('click', selectionController.deselectUnit);
-      }
-      return;
-    }
-
-    case 'combat-preview': {
-      const unit = session.getState().units[intent.attackerId];
-      const defender = session.getState().units[intent.defenderId];
-      if (!unit || !defender) return;
-      const amphibiousAssault = Boolean(unit.transportId);
-      const previewAttacker = amphibiousAssault
-        ? { ...unit, position: { ...session.getState().units[unit.transportId!].position }, transportId: undefined }
-        : unit;
-      const atkDef = UNIT_DEFINITIONS[unit.type];
-      const defDef = UNIT_DEFINITIONS[defender.type];
-      const strengthPreview = calculateCombatStrengths(
-        previewAttacker,
-        defender,
-        session.getState().map,
-        buildCombatContextForDefender(session.getState(), previewAttacker, defender, { amphibiousAssault }),
-      );
-      const atkStr = Math.round(strengthPreview.attackerStrength);
-      const defStr = Math.round(strengthPreview.defenderStrength);
-
-      const ownerKind = classifyOwner(defender.owner);
-      const isMinorCiv = ownerKind === 'minor';
-      let ownerName: string;
-      if (ownerKind === 'barbarian') {
-        ownerName = 'Barbarian';
-      } else if (ownerKind === 'pirate') {
-        ownerName = 'Pirates';
-      } else if (ownerKind === 'rebel') {
-        ownerName = 'Rebels';
-      } else if (ownerKind === 'beast') {
-        ownerName = 'Legendary Beasts';
-      } else if (isMinorCiv) {
-        const presentation = getMinorCivPresentationForPlayer(session.getState(), session.getState().currentPlayer, defender.owner, 'City-State');
-        ownerName = presentation.name;
-      } else {
-        ownerName = session.getState().civilizations[defender.owner]?.name ?? defender.owner;
-      }
-
-      const odds = atkStr > defStr ? 'Favorable' : atkStr === defStr ? 'Even' : 'Risky';
-      const oddsColor = atkStr > defStr ? '#6b9b4b' : atkStr === defStr ? '#e8c170' : '#d94a4a';
-
-      const panel = document.getElementById('info-panel');
-      if (panel) {
-        panel.style.display = 'block';
-        const previewDiv = document.createElement('div');
-        previewDiv.style.cssText = 'background:rgba(100,0,0,0.9);border-radius:12px;padding:12px 16px;';
-
-        const title = document.createElement('div');
-        title.style.cssText = 'font-size:13px;color:#e8c170;margin-bottom:6px;';
-        title.textContent = 'Combat Preview';
-        previewDiv.appendChild(title);
-
-        const stats = document.createElement('div');
-        stats.style.cssText = 'display:flex;justify-content:space-between;font-size:12px;margin-bottom:8px;';
-        const atkSpan = document.createElement('span');
-        atkSpan.textContent = `${atkDef.name} (${atkStr})`;
-        const oddsSpan = document.createElement('span');
-        oddsSpan.style.cssText = `color:${oddsColor};font-weight:bold;`;
-        oddsSpan.textContent = odds;
-        const defSpan = document.createElement('span');
-        defSpan.textContent = `${defDef.name} (${defStr})`;
-        stats.appendChild(atkSpan);
-        stats.appendChild(oddsSpan);
-        stats.appendChild(defSpan);
-        previewDiv.appendChild(stats);
-
-        const info = document.createElement('div');
-        info.style.cssText = 'font-size:10px;opacity:0.6;margin-bottom:8px;';
-        info.textContent = formatCombatPreviewDetails(ownerName, defender.health, strengthPreview);
-        previewDiv.appendChild(info);
-
-        const defenderBeastDef = getBeastDefinitionByUnitType(defender.type);
-        if (defenderBeastDef?.regenPerTurn) {
-          const traitLine = document.createElement('div');
-          traitLine.style.cssText = 'font-size:10px;color:#f4c842;margin-bottom:6px;';
-          traitLine.textContent = `⚠ Regenerates ${defenderBeastDef.regenPerTurn} HP every turn`;
-          previewDiv.appendChild(traitLine);
-        }
-        if (defenderBeastDef?.navalOnly) {
-          const traitLine = document.createElement('div');
-          traitLine.style.cssText = 'font-size:10px;color:#f4c842;margin-bottom:6px;';
-          traitLine.textContent = '⚠ Only ships and ranged units can fight it';
-          previewDiv.appendChild(traitLine);
-        }
-
-        const hostileStackSize = visibleHostileUnitEntriesAtKey(session.getState(), key).length;
-        if (hostileStackSize > 1) {
-          const stackInfo = document.createElement('div');
-          stackInfo.style.cssText = 'font-size:10px;opacity:0.72;margin-bottom:8px;';
-          stackInfo.textContent = `${defDef.name} defends this stack. ${hostileStackSize} enemy units present.`;
-          previewDiv.appendChild(stackInfo);
-        }
-
-        const btnRow = document.createElement('div');
-        btnRow.style.cssText = 'display:flex;gap:8px;';
-        const attackBtn = document.createElement('button');
-        attackBtn.id = 'btn-attack-confirm';
-        attackBtn.textContent = 'Attack';
-        attackBtn.style.cssText = 'flex:1;padding:8px;border-radius:8px;background:#d94a4a;border:none;color:white;font-weight:bold;cursor:pointer;';
-        const cancelBtn = document.createElement('button');
-        cancelBtn.id = 'btn-cancel-attack';
-        cancelBtn.textContent = 'Cancel';
-        cancelBtn.style.cssText = 'flex:1;padding:8px;border-radius:8px;background:rgba(255,255,255,0.15);border:none;color:white;cursor:pointer;';
-        btnRow.appendChild(attackBtn);
-        btnRow.appendChild(cancelBtn);
-        previewDiv.appendChild(btnRow);
-
-        panel.innerHTML = '';
-        panel.appendChild(previewDiv);
-
-        cancelBtn.addEventListener('click', selectionController.deselectUnit);
-        attackBtn.addEventListener('click', () => {
-          // Read live: the player may have changed selection between the
-          // preview rendering and this confirmation.
-          const attackerId = selection.getSelectedUnitId();
-          const attacker = attackerId ? session.getState().units[attackerId] : undefined;
-          const legality = attacker?.transportId
-            ? getEmbarkedAssaultTarget(session.getState(), attacker.id, coord, { viewerId: session.getState().currentPlayer })
-            : canUnitAttackTarget(session.getState(), attacker, coord, { viewerId: session.getState().currentPlayer });
-          if (!legality.ok || legality.targetType !== 'unit') {
-            showNotification('That target is no longer attackable.', 'warning');
-            if (attackerId) selectionController.selectUnit(attackerId);
-            return;
-          }
-          executeAttack(attackerId!, key);
-        });
-      }
-      return; // Wait for button press
-    }
-
-    case 'assault-preview': {
-      const attackerUnit = session.getState().units[intent.attackerId];
-      const targetCity = session.getState().cities[intent.cityId];
-      const ownerCiv = targetCity ? session.getState().civilizations[targetCity.owner] : undefined;
-      if (!attackerUnit || !targetCity || !ownerCiv) return;
-
-      const attackerMultiplier = intent.embarkedAssault
-        ? getAmphibiousAssaultMultiplier(session.getState(), attackerUnit, targetCity.position)
-        : undefined;
-      const effectiveAttacker = intent.embarkedAssault && attackerUnit.transportId
-        ? { ...attackerUnit, position: { ...session.getState().units[attackerUnit.transportId].position }, transportId: undefined }
-        : attackerUnit;
-      const strengths = calculateCityAssaultStrengths(effectiveAttacker, targetCity, ownerCiv, session.getState().map, { attackerMultiplier });
-      const atkStr = Math.round(strengths.attackerStrength);
-      const cityStr = Math.round(strengths.intrinsicStrength);
-      const odds = strengths.winProbability > 0.55 ? 'Favorable' : strengths.winProbability > 0.45 ? 'Even' : 'Risky';
-      const oddsColor = strengths.winProbability > 0.55 ? '#6b9b4b' : strengths.winProbability > 0.45 ? '#e8c170' : '#d94a4a';
-
-      const panel = document.getElementById('info-panel');
-      if (panel) {
-        panel.style.display = 'block';
-        const previewDiv = document.createElement('div');
-        previewDiv.style.cssText = 'background:rgba(100,0,0,0.9);border-radius:12px;padding:12px 16px;';
-
-        const title = document.createElement('div');
-        title.style.cssText = 'font-size:13px;color:#e8c170;margin-bottom:6px;';
-        title.textContent = 'Assault Preview';
-        previewDiv.appendChild(title);
-
-        const stats = document.createElement('div');
-        stats.style.cssText = 'display:flex;justify-content:space-between;font-size:12px;margin-bottom:8px;';
-        const atkSpan = document.createElement('span');
-        atkSpan.textContent = `${UNIT_DEFINITIONS[attackerUnit.type].name} (${atkStr})`;
-        const oddsSpan = document.createElement('span');
-        oddsSpan.style.cssText = `color:${oddsColor};font-weight:bold;`;
-        oddsSpan.textContent = odds;
-        const defSpan = document.createElement('span');
-        defSpan.textContent = `${targetCity.name} defenses (${cityStr})`;
-        stats.appendChild(atkSpan);
-        stats.appendChild(oddsSpan);
-        stats.appendChild(defSpan);
-        previewDiv.appendChild(stats);
-
-        const info = document.createElement('div');
-        info.style.cssText = 'font-size:10px;opacity:0.6;margin-bottom:8px;';
-        info.textContent = intent.embarkedAssault
-          ? 'Landing -50%. Marine training and adjacent shore bombardment are included.'
-          : 'A walled city fights back if it has no garrison.';
-        previewDiv.appendChild(info);
-
-        const btnRow = document.createElement('div');
-        btnRow.style.cssText = 'display:flex;gap:8px;';
-        const attackBtn = document.createElement('button');
-        attackBtn.id = 'btn-assault-confirm';
-        attackBtn.textContent = 'Attack';
-        attackBtn.style.cssText = 'flex:1;padding:8px;border-radius:8px;background:#d94a4a;border:none;color:white;font-weight:bold;cursor:pointer;';
-        const cancelBtn = document.createElement('button');
-        cancelBtn.id = 'btn-cancel-assault';
-        cancelBtn.textContent = 'Cancel';
-        cancelBtn.style.cssText = 'flex:1;padding:8px;border-radius:8px;background:rgba(255,255,255,0.15);border:none;color:white;cursor:pointer;';
-        btnRow.appendChild(attackBtn);
-        btnRow.appendChild(cancelBtn);
-        previewDiv.appendChild(btnRow);
-
-        panel.innerHTML = '';
-        panel.appendChild(previewDiv);
-
-        cancelBtn.addEventListener('click', selectionController.deselectUnit);
-        attackBtn.addEventListener('click', () => {
-          // Read live, as the module binding this replaced did.
-          const assaultStatus = beginPlayerCityAssault(selection.getSelectedUnitId()!, intent.cityId, undefined, undefined, intent.embarkedAssault);
-          SFX.combat();
-          renderLoop.setGameState(session.getState());
-          updateHUD();
-          if (assaultStatus === 'resolved') {
-            setTimeout(() => selectionController.selectNextUnit(), 400);
-          }
-        });
-      }
-      return;
-    }
-
-    case 'confirm-war-city': {
-      const selectedId = intent.attackerId;
-      const city = session.getState().cities[intent.cityId];
-      const defender = session.getState().civilizations[intent.defenderId];
-      createForeignCityEntryPanel(uiLayer, {
-        cityName: city?.name ?? 'this city',
-        defenderName: defender?.name ?? intent.defenderId,
-        onConfirm: () => {
-          const begun = beginConfirmedForeignCityEntry(session.getState(), selectedId, intent.cityId, bus);
-          session.setStateWithoutRefresh(begun.state);
-          if (!begun.ok) {
-            showNotification(
-              begun.reason === 'repelled-by-city-defense'
-                ? "Your attack was repelled by the city's defenses!"
-                : 'The attack could not proceed.',
-              'warning',
-            );
-            renderLoop.setGameState(session.getState());
-            updateHUD();
-            return;
-          }
-          selection.setPendingIntent({ kind: 'city-capture', choice: begun.pending });
-          const captureCity = session.getState().cities[intent.cityId];
-          if (captureCity) {
-            createCityCapturePanel(uiLayer, {
-              cityName: captureCity.name,
-              occupiedPopulation: begun.pending.occupiedPopulation,
-              razeGold: begun.pending.razeGold,
-              onOccupy: () => finalizePendingCityCaptureChoice('occupy'),
-              onRaze: () => finalizePendingCityCaptureChoice('raze'),
-            });
-          }
-          SFX.tap();
-          renderLoop.setGameState(session.getState());
-          updateHUD();
-        },
-        onCancel: () => selectionController.selectUnit(selectedId),
-      });
-      return;
-    }
-
-    case 'confirm-war-minor-civ': {
-      const selectedId = intent.attackerId;
-      const city = session.getState().cities[intent.cityId];
-      const minor = session.getState().minorCivs[intent.minorCivId];
-      const definition = MINOR_CIV_DEFINITIONS.find(candidate => candidate.id === minor?.definitionId);
-      createForeignCityEntryPanel(uiLayer, {
-        cityName: city?.name ?? 'this city-state',
-        defenderName: definition?.name ?? 'the city-state',
-        onConfirm: () => {
-          const war = setMinorCivWarState(session.getState(), session.getState().currentPlayer, intent.minorCivId, true);
-          if (!war.ok) return;
-          session.setStateWithoutRefresh(war.state);
-          emitMinorCivQuestTransitions(bus, war.transitions, session.getState());
-          executeMinorCivConquest(selectedId, coord, intent.minorCivId, intent.cityId);
-        },
-        onCancel: () => selectionController.selectUnit(selectedId),
-      });
-      return;
-    }
-
-    case 'assault-minor-civ': {
-      const mc = session.getState().minorCivs[intent.minorCivId];
-      if (mc && !mc.isDestroyed) {
-        executeMinorCivConquest(intent.attackerId, intent.coord, intent.minorCivId, intent.cityId);
-      } else {
-        SFX.tap();
-        renderLoop.setGameState(session.getState());
-        updateHUD();
-        setTimeout(() => selectionController.selectNextUnit(), 400);
-      }
-      return;
-    }
-
-    case 'worker-busy': {
-      const selectedId = intent.unitId;
-      const task = session.getState().units[selectedId]?.workerTask;
-      const taskTile = task ? session.getState().map.tiles[hexKey(task.coord)] : undefined;
-      const isRoadTask = task?.action === 'build_road';
-      createWorkerTaskWarningPanel(uiLayer, {
-        improvementName: task
-          ? (isRoadTask ? 'Road' : getImprovementDisplayName(task.action as ImprovementType))
-          : 'Improvement',
-        turnsLeft: (isRoadTask ? taskTile?.roadTurnsLeft : taskTile?.improvementTurnsLeft) ?? 1,
-        onCancel: () => selectionController.selectUnit(selectedId),
-        onConfirm: () => {
-          selectionController.executeAnimatedUnitMove(selectedId, () => confirmBusyWorkerMove(session.getState(), selectedId, intent.coord, {
-            actor: 'player',
-            civId: session.getState().currentPlayer,
-            bus,
-          }));
-          SFX.tap();
-          renderLoop.setGameState(session.getState());
-          updateHUD();
-        },
-      });
-      return;
-    }
-
-    case 'move': {
-      selectionController.executeAnimatedUnitMove(intent.unitId, () => executeUnitMove(session.getState(), intent.unitId, intent.coord, {
-        actor: 'player',
-        civId: session.getState().currentPlayer,
-        bus,
-      }));
-      SFX.tap();
-      renderLoop.setGameState(session.getState());
-      updateHUD();
-      return;
-    }
-
-    case 'open-city': {
-      const cityAtHex = session.getState().cities[intent.cityId];
-      if (!cityAtHex) return;
-      document.getElementById('tech-panel')?.remove();
-      document.getElementById('city-panel')?.remove();
-      document.getElementById('espionage-panel')?.remove();
-      document.getElementById('diplomacy-panel')?.remove();
-      document.getElementById('marketplace-panel')?.remove();
-      document.getElementById('council-panel')?.remove();
-      selectionController.deselectUnit();
-      openCityPanelForCity(cityAtHex);
-      return;
-    }
-
-    case 'open-wonder-atlas': {
-      selectionController.deselectUnit();
-      const audioFocus = resolveNaturalWonderAudioFocus(session.getState(), session.getState().currentPlayer, intent.coord);
-      if (audioFocus) void audio.startNaturalWonderMapFocusAmbient(audioFocus.wonderId);
-      openWonderAtlas(intent.wonderId);
-      SFX.tap();
-      return;
-    }
-
-    case 'deselect': {
-      selectionController.deselectUnit();
-      SFX.tap();
-      return;
-    }
-
-    default: {
-      const _exhaustive: never = intent;
-      throw new Error(`Unhandled map tap intent: ${JSON.stringify(_exhaustive)}`);
-    }
-  }
-}
-
-function openTerritoryInspectionPanel(coord: HexCoord): void {
-  document.getElementById('territory-inspection-panel')?.remove();
-  const audioFocus = resolveNaturalWonderAudioFocus(session.getState(), session.getState().currentPlayer, coord);
-  if (audioFocus) void audio.startNaturalWonderMapFocusAmbient(audioFocus.wonderId);
-  const panel = createTerritoryInspectionPanel(session.getState(), coord, session.getState().currentPlayer, () => {
-    audio.stopNaturalWonderAmbient('panel-closed');
-    document.getElementById('territory-inspection-panel')?.remove();
-  });
-  uiLayer.appendChild(panel);
-}
-
-function closeTerritoryInspectionPanel(): void {
-  audio.stopNaturalWonderAmbient('panel-closed');
-  document.getElementById('territory-inspection-panel')?.remove();
-}
-
-function handleHexLongPress(rawCoord: HexCoord): void {
-  const coord = session.getState().map.wrapsHorizontally
-    ? wrapHexCoord(rawCoord, session.getState().map.width)
-    : rawCoord;
-  const tile = session.getState().map.tiles[hexKey(coord)];
-  if (!tile) return;
-
-  const vis = currentCiv()?.visibility;
-  if (!vis) return;
-
-  const visibility = getVisibility(vis, coord);
-
-  if (visibility === 'unexplored') {
-    closeTerritoryInspectionPanel();
-    showNotification('Unexplored territory');
-    return;
-  }
-
-  if (visibility === 'fog') {
-    openTerritoryInspectionPanel(coord);
-    return;
-  }
-
-  const unitAtHex = Object.values(session.getState().units).find(unit =>
-    unit.owner === session.getState().currentPlayer
-      && unit.position.q === coord.q
-      && unit.position.r === coord.r,
-  );
-  if (unitAtHex) {
-    closeTerritoryInspectionPanel();
-    selectionController.selectUnit(unitAtHex.id);
-    selectionController.openUnitContextMenu(unitAtHex.id);
-    return;
-  }
-
-  openTerritoryInspectionPanel(coord);
 }
 
 function handleVictoryIfNeeded(): boolean {
@@ -3909,8 +3256,8 @@ function startGame(): Promise<void> {
     canvas.addEventListener('pointerdown', () => { if (drawer?.isOpen()) drawer.close(); });
 
     const callbacks: InputCallbacks = {
-      onHexTap: handleHexTap,
-      onHexLongPress: handleHexLongPress,
+      onHexTap: mapInteraction.handleHexTap,
+      onHexLongPress: mapInteraction.handleHexLongPress,
     };
     const touchHandler = new TouchHandler(canvas, renderLoop.camera, callbacks);
     renderLoop.setTouchHandler(touchHandler);
