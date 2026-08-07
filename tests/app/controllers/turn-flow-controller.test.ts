@@ -324,7 +324,7 @@ describe('createTurnFlowController', () => {
         }),
       });
 
-      createTurnFlowController(deps).enterViewerTurn();
+      createTurnFlowController(deps).enterViewerTurn('player');
 
       // showRequiredChoicesIfNeeded may probe the panel id twice (once to read
       // `existing`, once more inside closeRequiredChoicePanel() when nothing is
@@ -334,6 +334,26 @@ describe('createTurnFlowController', () => {
       expect(order.indexOf('setGameState')).toBeGreaterThanOrEqual(0);
       expect(updateHUDIndex).toBeGreaterThan(order.indexOf('setGameState'));
       expect(order.indexOf('showRequiredChoicesIfNeeded')).toBeGreaterThan(updateHUDIndex);
+    });
+
+    it('enterViewerTurn reports the passed nextSlotId, not session.currentPlayer, in the audio snapshot', () => {
+      // Regression lock for a real review finding: an earlier draft had
+      // enterViewerTurn() read session.getState().currentPlayer instead of
+      // taking a parameter, on the (verified-at-the-time, but judged too
+      // fragile) claim that the two are always equal when this fires. This
+      // test pins the parameter as the source of truth so a future refactor
+      // can't silently reintroduce that coupling.
+      const state = makeFixture();
+      const aiCivId = Object.keys(state.civilizations).find(id => id !== 'player')!;
+      // session.currentPlayer deliberately does NOT match the nextSlotId argument.
+      state.currentPlayer = 'player';
+      const deps = baseDeps(state);
+      let reportedCivId: string | undefined;
+      deps.bus.on('currentPlayer:changed-after-handoff', ({ civId }) => { reportedCivId = civId; });
+
+      createTurnFlowController(deps).enterViewerTurn(aiCivId);
+
+      expect(reportedCivId).toBe(aiCivId);
     });
   });
 
@@ -468,13 +488,17 @@ describe('createTurnFlowController', () => {
 
       const moves = turnFlow.captureAIMoves(() => {
         deps.bus.emit('unit:move', {
+          unitId: unit.id,
+          from: unit.position,
+          to: { q: 1, r: 0 },
+          path: [unit.position, { q: 1, r: 0 }],
           presentationByViewer: {
             player: {
               unit,
               visibleSegments: [[{ q: 0, r: 0 }, { q: 1, r: 0 }]],
             },
           },
-        } as never);
+        });
       });
 
       expect(moves).toHaveLength(1);
