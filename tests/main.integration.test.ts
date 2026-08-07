@@ -40,18 +40,17 @@ describe('campaign entry wiring', () => {
     expect(main).not.toContain('window.renderLoop');
   });
 
-  it('opens required research choices whenever a human turn becomes playable', () => {
+  it('opens required research choices once startGame hands control to the viewer', () => {
+    // #787 phase 9: releaseHandoffToViewer (renamed enterViewerTurn) and
+    // endTurn's own post-round showRequiredChoicesIfNeeded call both moved
+    // into TurnFlowController -- their call-order guarantee is now proven at
+    // runtime by turn-flow-controller.test.ts's "required choices open after
+    // the viewer can act" describe block, not by slicing main.ts source text.
+    // Only startGame's own one-line delegation still lives in main.ts.
     const main = readFileSync(resolve(PROJECT_ROOT, 'src/main.ts'), 'utf8');
-    const release = main.slice(
-      main.indexOf('function releaseHandoffToViewer'),
-      main.indexOf('/** These player-owned surfaces may contain strategic targets'),
-    );
     const start = main.slice(main.indexOf('function startGame()'), main.indexOf('\ninit();'));
-    const endTurn = main.slice(main.indexOf('async function endTurn'), main.indexOf('function centerOnCurrentPlayer'));
 
-    expect(release).toContain('showRequiredChoicesIfNeeded();');
-    expect(start).toContain('showRequiredChoicesIfNeeded();');
-    expect(endTurn).toMatch(/await replayAIMoves\(soloMoves\);\s*updateHUD\(\);\s*showRequiredChoicesIfNeeded\(\);/);
+    expect(start).toContain('turnFlow.showRequiredChoicesIfNeeded();');
   });
 });
 
@@ -129,55 +128,22 @@ describe('land-unit water recovery wiring', () => {
 });
 
 describe('completed-round AI wiring', () => {
-  it('uses one shared non-human scheduler for solo and hot-seat completed rounds', () => {
+  // #787 phase 9: endTurn, beginHotSeatHandoff, and runCurrentCompletedRound
+  // all moved into TurnFlowController -- the "one shared non-human scheduler",
+  // "strategic-warning postprocess wired into every round", "warning cue
+  // ordering", and "anonymous-then-resolved handoff recipient" invariants
+  // this describe block used to prove by slicing main.ts source text are now
+  // proven at runtime in turn-flow-controller.test.ts's "completed-round
+  // scheduling and postprocess" and "hot-seat handoff" describe blocks.
+  it('installs the composed presentation registrar set that ai:strategic-warning routes through', () => {
     const main = readFileSync(resolve(PROJECT_ROOT, 'src/main.ts'), 'utf8');
 
-    expect(main.match(/processNonHumanMajorRound\(current, eventBus\)/g)).toHaveLength(1);
-    expect(main).not.toContain('processAITurn(');
-    expect(main).not.toContain("getAIPlayers(");
-    expect(main).not.toContain("'ai-1'");
-  });
-
-  it('runs strategic warning postprocess on the live completed-round path', () => {
-    const main = readFileSync(resolve(PROJECT_ROOT, 'src/main.ts'), 'utf8');
-
-    expect(main).toContain('applyStrategicWarningTransitions(beforeRound, current, eventBus');
-    expect(main).toContain('applyStrategicWarningTransitions(beforeRound, current, eventBus)');
     // ai:strategic-warning's real consumer moved to registerGeneralPresentation,
     // composed into registerAllPresentation (#787 phase 7) --
     // register-general-presentation.test.ts and register-all.test.ts prove the
     // registrar itself routes the event and is actually installed; this only
     // proves main.ts installs the composed set.
     expect(main).toContain('registerAllPresentation(bus, presentationContext)');
-  });
-
-  it('emits one warning cue only after the exact rendered handoff summary is acknowledged', () => {
-    const main = readFileSync(resolve(PROJECT_ROOT, 'src/main.ts'), 'utf8');
-    const handoff = main.slice(
-      main.indexOf('async function beginHotSeatHandoff'),
-      main.indexOf('async function endTurn'),
-    );
-
-    expect(handoff).toContain('onReady: async summary =>');
-    expect(handoff).toMatch(
-      /acknowledgeTurnHandoffSummary\(\s*session\.getState\(\),\s*resolvedNextSlotId,\s*summary,\s*\)/,
-    );
-    expect(handoff.indexOf('releaseHandoffToViewer(resolvedNextSlotId)'))
-      .toBeLessThan(handoff.indexOf("bus.emit('ai:strategic-warning-audio'"));
-  });
-
-  it('keeps completed-round handoff anonymous and resolves its recipient after simulation', () => {
-    const main = readFileSync(resolve(PROJECT_ROOT, 'src/main.ts'), 'utf8');
-    const handoff = main.slice(
-      main.indexOf('async function beginHotSeatHandoff'),
-      main.indexOf('async function endTurn'),
-    );
-
-    expect(handoff).toContain('const previousHumanId = preSimulationState.currentPlayer');
-    expect(handoff).toContain('const nextPlayer = hotSeat.players.find');
-    expect(handoff).toContain('resolveHotSeatPostSimulation(state, previousHumanId).state');
-    expect(handoff).toContain('resolvedNextSlotId = outcome.state.currentPlayer');
-    expect(handoff).toContain('controller.setRecipient(outcome.state, resolvedNextSlotId');
   });
 });
 
@@ -241,14 +207,17 @@ describe('shared city assault wiring', () => {
     );
   });
 
-  it('routes player and strategic AI capture transitions through the shared emitter', () => {
-    const main = readFileSync(resolve(PROJECT_ROOT, 'src/main.ts'), 'utf8');
+  it('routes strategic AI capture transitions through the shared emitter', () => {
+    // #787 phase 9: finalizePendingCityCaptureChoice (the player-side caller
+    // of emitMajorCityCaptureEvents) moved into TurnFlowController -- that
+    // half of this invariant is now proven at runtime by
+    // turn-flow-controller.test.ts's "finalizePendingCityCaptureChoice --
+    // shared emitter" test. Only the strategic-AI side is still checked here.
     const strategicAi = readFileSync(
       resolve(PROJECT_ROOT, 'src/ai/ai-major-turn.ts'),
       'utf8',
     );
 
-    expect(main).toContain('emitMajorCityCaptureEvents(');
     expect(strategicAi).toContain('emitMajorCityCaptureEvents(');
   });
 
