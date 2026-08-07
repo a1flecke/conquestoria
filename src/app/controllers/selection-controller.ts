@@ -50,6 +50,7 @@ import { getPirateWatersPresentation } from '@/systems/pirate-presentation';
 import { setDisguise, attemptInfiltration, getInfiltrationSuccessChance, resolveMissionResult, embedSpy } from '@/systems/espionage-system';
 import { evaluateUnitUpgrade } from '@/systems/unit-upgrade-system';
 import { canEstablishOutpost, performEstablishOutpost } from '@/systems/resource-acquisition-system';
+import { autoSave } from '@/storage/save-manager';
 import { applyWorkerAction } from '@/systems/worker-action-system';
 import { formatImprovementYieldLabel } from '@/systems/improvement-system';
 import { applyAutoExploreOrder } from '@/systems/auto-explore-system';
@@ -78,7 +79,15 @@ export interface SelectionControllerDeps {
   readonly session: GameSession;
   readonly selection: SelectionStore;
   readonly renderLoop: SelectionControllerRenderer;
-  readonly bus: Pick<EventBus, 'emit'>;
+  /**
+   * The concrete class, not a narrowed `Pick<EventBus, 'emit'>` -- two
+   * downstream calls (`applyAutoExploreOrder`, `fireResourceDiscoveredTip`)
+   * are typed to require the real `EventBus`, and `EventBus` has a private
+   * field, so no object literal can structurally satisfy it. Narrowing here
+   * would only move the impedance mismatch into an `as EventBus` cast at
+   * each call site instead of removing it.
+   */
+  readonly bus: EventBus;
   readonly uiLayer: HTMLElement;
   readonly host: PanelHost;
   readonly ceremonies: CeremonyCoordinator;
@@ -493,7 +502,6 @@ export function createSelectionController(deps: SelectionControllerDeps): Select
           deps.showNotification(`Spy embedded in ${city.name}. Counter-intelligence boosted.`, 'info');
         },
         onUpgradeUnit: (uid, cityId) => {
-          void cityId;
           const unit = session.getState().units[uid];
           if (!unit || unit.owner !== session.getState().currentPlayer) return;
           const targetType = TRAINABLE_UNITS.find(entry => entry.type === unit.type)?.upgradesTo;
@@ -508,6 +516,7 @@ export function createSelectionController(deps: SelectionControllerDeps): Select
         onEstablishOutpost: (unitId) => {
           if (!canEstablishOutpost(session.getState(), unitId)) return;
           session.setStateWithoutRefresh(performEstablishOutpost(session.getState(), unitId));
+          autoSave(session.getState()).catch(() => {});
           selection.setSelectedUnitId(null);
           renderLoop.setSelectedUnitId(null);
           renderLoop.setGameState(session.getState());
@@ -655,7 +664,7 @@ export function createSelectionController(deps: SelectionControllerDeps): Select
     };
 
     if (session.getState().units[unitId].movementPointsLeft > 0 && !session.getState().units[unitId].hasActed) {
-      applyAutoExploreOrder(session.getState(), unitId, { bus: bus as EventBus });
+      applyAutoExploreOrder(session.getState(), unitId, { bus });
     }
 
     renderLoop.setGameState(session.getState());
@@ -741,7 +750,7 @@ export function createSelectionController(deps: SelectionControllerDeps): Select
       if (updatedTiles[key] !== 'unexplored') {
         const tile = session.getState().map.tiles[key];
         if (tile?.resource) {
-          const fired = fireResourceDiscoveredTip(tile.resource, session.getState(), bus as EventBus);
+          const fired = fireResourceDiscoveredTip(tile.resource, session.getState(), bus);
           if (fired) break; // one tip per move is enough
         }
       }

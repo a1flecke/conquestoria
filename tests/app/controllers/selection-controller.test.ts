@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, expect, it, vi } from 'vitest';
 import { createNewGame } from '@/core/game-state';
+import { EventBus } from '@/core/event-bus';
 import { createUnit } from '@/systems/unit-system';
 import type { GameState, Unit } from '@/core/types';
 import { createGameSession } from '@/app/game-session';
@@ -80,7 +81,10 @@ function baseDeps(state: GameState, overrides: Partial<SelectionControllerDeps> 
     session,
     selection: createSelectionStore(),
     renderLoop: fakeRenderer(),
-    bus: { emit: vi.fn() },
+    // A real EventBus, not a `{ emit: vi.fn() }` stand-in -- deps.bus is
+    // typed as the concrete class (see selection-controller.ts's docblock on
+    // that field) since two downstream calls require it, not just `.emit`.
+    bus: new EventBus(),
     uiLayer: document.createElement('div'),
     host: createPanelHost(document.createElement('div')),
     ceremonies: fakeCeremonies(),
