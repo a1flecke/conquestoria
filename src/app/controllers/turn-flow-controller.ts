@@ -14,15 +14,13 @@
  * `emitCurrentPlayerAudioSnapshot`/`showRequiredChoicesIfNeeded` from
  * `startGame`) that still need a way to call them post-move.
  *
- * `releaseHandoffToViewer(nextSlotId)` is renamed `enterViewerTurn()` and
- * takes no parameter: at every call site, `session.getState().currentPlayer`
- * already equals the `nextSlotId` that used to be passed in (set
- * synchronously earlier in `beginHotSeatHandoff`, before the handoff UI's
- * "ready" callback can fire), so reading it from `session` instead is
- * behavior-identical, not a new consolidation. See
- * `docs/superpowers/plans/2026-08-04-composition-root-decomposition.md`
- * Phase 9 and `.claude/rules/spec-fidelity.md`'s "make the pragmatic,
- * defensible call ... note the deviation" guidance — this is that note.
+ * `releaseHandoffToViewer(nextSlotId)` is renamed `enterViewerTurn(nextSlotId)`
+ * -- same signature, same body, name only. (An earlier draft of this file
+ * dropped the parameter in favor of reading `session.getState().currentPlayer`,
+ * reasoning that the two are always equal at every call site; a second review
+ * pass judged that too fragile a behavioral-equivalence claim to lean on for a
+ * hot-seat-handoff-critical function -- the parameter costs nothing to keep
+ * and removes the risk category entirely, so it stays.)
  *
  * Everything this file calls that is a pure `@/systems/*`, `@/core/*`, or
  * `@/ui/*` helper is imported directly, matching the precedent set by
@@ -131,7 +129,7 @@ export interface TurnFlowController {
   endTurn(options?: { allowUnmovedUnits?: boolean }): Promise<void>;
   beginHotSeatHandoff(hotSeat: NonNullable<GameState['hotSeat']>, completesRound: boolean): Promise<void>;
   /** Renamed from `releaseHandoffToViewer` -- see file docblock. */
-  enterViewerTurn(): void;
+  enterViewerTurn(nextSlotId: string): void;
   closeNetworkPanelsForHandoff(): void;
   beginNetworkPlansForCurrentViewer(): void;
   runCurrentCompletedRound(state: GameState): CompletedRoundResult;
@@ -438,12 +436,8 @@ export function createTurnFlowController(deps: TurnFlowControllerDeps): TurnFlow
     }
   }
 
-  /**
-   * Renamed from `releaseHandoffToViewer(nextSlotId)` -- reads
-   * `session.getState().currentPlayer` instead of taking a parameter. See
-   * file docblock for why this is behavior-identical.
-   */
-  function enterViewerTurn(): void {
+  /** Renamed from `releaseHandoffToViewer` -- see file docblock. */
+  function enterViewerTurn(nextSlotId: string): void {
     centerOnCurrentPlayer();
     renderLoop.setGameState(session.getState());
     deps.updateHUD();
@@ -452,7 +446,7 @@ export function createTurnFlowController(deps: TurnFlowControllerDeps): TurnFlow
     roundPresentationGate.resume();
     audio.setMasterVolume(userSettingsStore.getMasterVolume());
     deps.setBlockingOverlay(null);
-    emitCurrentPlayerAudioSnapshot(session.getState().currentPlayer);
+    emitCurrentPlayerAudioSnapshot(nextSlotId);
     if (handleVictoryIfNeeded()) return;
     showRequiredChoicesIfNeeded();
   }
@@ -507,7 +501,7 @@ export function createTurnFlowController(deps: TurnFlowControllerDeps): TurnFlow
           } catch {
             acknowledgementFailed = true;
           }
-          enterViewerTurn();
+          enterViewerTurn(resolvedNextSlotId);
           if (acknowledgement.playStrategicWarningAudio) {
             bus.emit('ai:strategic-warning-audio', {
               viewerId: resolvedNextSlotId,
