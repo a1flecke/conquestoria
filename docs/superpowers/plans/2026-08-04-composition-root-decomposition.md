@@ -471,7 +471,7 @@ The derived surface at risk is **"the HUD/renderer reflects current state."** It
 
 ## Part V — Phases
 
-Twelve phases, twelve PRs. Phases 1 and 2 are prerequisites for everything after; 3–10 are strictly ordered because each removes state that the next would otherwise thread through a deps bag. Phase 12 was added after Phase 6 shipped, once its inline review surfaced a structural issue (#794) that no earlier phase covered — it has no ordering dependency on 7–10 and could in principle run any time after Phase 6, but is listed last since it was discovered last.
+Thirteen phases, thirteen PRs. Phases 1 and 2 are prerequisites for everything after; 3–10 are strictly ordered because each removes state that the next would otherwise thread through a deps bag. Phase 12 was added after Phase 6 shipped, once its inline review surfaced a structural issue (#794) that no earlier phase covered — it has no ordering dependency on 7–10 and could in principle run any time after Phase 6, but is listed last since it was discovered last. Phase 13 was added after Phase 8d shipped, closing out test debt Phase 8's own Step 5 deferred — it depends on 8c and 8d (both already shipped) and has no ordering dependency on 9–12.
 
 **Every phase ends with the same steps** (written once here, referenced as "**Close the phase**"):
 
@@ -645,7 +645,7 @@ function withDefault<T, K extends keyof T>(
 
 - [ ] **Step 1: Record the determinism baseline first**
 
-Create `tests/app/determinism-guard.test.ts` as written in Part V, run it, read the actual values out of the failure output, and write them in as literals **before touching any source file**. This is the pre-refactor baseline for all twelve phases.
+Create `tests/app/determinism-guard.test.ts` as written in Part V, run it, read the actual values out of the failure output, and write them in as literals **before touching any source file**. This is the pre-refactor baseline for all thirteen phases.
 
 ```bash
 bash scripts/run-with-mise.sh yarn test tests/app/determinism-guard.test.ts
@@ -2027,6 +2027,48 @@ Found during #787 Phase 6's inline review, filed as [#794](https://github.com/a1
 
 ---
 
+### Phase 13 — `PlayerActionController`
+
+Found during #787 Phase 8d's review. Phase 8's original Step 5 (see the historical Phase 8 split note above) listed ten source-grep assertions to convert to real tests: `player combat wiring` (3), `land-unit water recovery wiring` (1), `shared city founding wiring` (1), `shared unit upgrade wiring` (1), and `shared city assault wiring` (4). Phases 8b–8d converted six of those ten as their own targets moved out of `main.ts` (`land-unit water recovery wiring` in 8b/8c/8d; the `map tap wiring` completeness check in 8b/8d). The remaining nine were left as-is in 8d's PR ([#799](https://github.com/a1flecke/conquestoria/pull/799)) with an explicit "Out of scope" note, because their target functions — `executeAttack`, `foundCityAction`, `executeUpgrade`, `beginPlayerCityAssault`, `executeMinorCivConquest`, `finalizePendingCityCaptureChoice` — were never in Phase 8's own Files section for either `SelectionController` (8c) or `MapInteractionController` (8d); they are `main.ts`-local functions those two controllers depend *on*, not files either sub-phase created or moved. Converting the nine assertions to genuine behavioral tests requires extracting these six functions into a testable module first, which is what this phase does.
+
+All six are "the mutation that runs after the player confirms a preview or dialog": `executeAttack` (combat-preview's Attack button), `beginPlayerCityAssault` (assault-preview's Attack button), `executeMinorCivConquest` and `finalizePendingCityCaptureChoice` (the two confirm-war dialogs' onConfirm handlers, city-capture-panel's Occupy/Raze buttons), `foundCityAction` and `executeUpgrade` (buttons inside the selected-unit info panel). All six currently read `selection`/`session` directly and call back into `selectionController` (`selectNextUnit`, `refreshSelectedUnitAfterCombat`, `selectUnit` for reselection) — the same "verbatim move, deps for what stays behind" pattern Phases 8c and 8d already established.
+
+**Files:**
+- Create: `src/app/controllers/player-action-controller.ts`, `tests/app/controllers/player-action-controller.test.ts`
+- Modify: `src/main.ts` (delete the six function bodies; construct the controller; update `SelectionController`'s `foundCityAction`/`executeUpgrade` deps and `MapInteractionController`'s `executeAttack`/`beginPlayerCityAssault`/`executeMinorCivConquest`/`finalizePendingCityCaptureChoice` deps to route through it instead)
+- Modify: `tests/main.integration.test.ts` — delete `player combat wiring`, `shared city founding wiring`, `shared unit upgrade wiring`, `shared city assault wiring` once their behavior has real coverage
+
+**Interfaces:**
+- Consumes: `GameSession`, `SelectionStore`, `SelectionController` (8c), a narrow `renderLoop` `Pick`, `bus: EventBus` (concrete class — `emitMajorCityCaptureEvents`/`emitMinorCivQuestTransitions` need it, same reasoning as 8c/8d's `bus` typing), `showNotification`, `updateHUD`, and whatever narrower main.ts-local deps Step 1's read-through turns up (`currentCiv`, `ensurePlayerWarState`, and similar are likely candidates — this list is illustrative, not final, matching how 8c's and 8d's real dep lists were only settled once the actual code was read line by line).
+- Produces:
+
+```ts
+export interface PlayerActionController {
+  executeAttack(attackerId: string, targetKey: string): void;
+  foundCityAction(): void;
+  executeUpgrade(unitId: string, targetType: UnitType): boolean;
+  beginPlayerCityAssault(
+    attackerId: string,
+    cityId: string,
+    attackerBonus?: CivBonusEffect,
+    precedingCombat?: CombatResult,
+    embarkedAssault?: boolean,
+  ): 'pending' | 'resolved';
+  executeMinorCivConquest(unitId: string, target: HexCoord, minorCivId: string, cityId: string): void;
+  finalizePendingCityCaptureChoice(disposition: 'occupy' | 'raze', attackerBonus?: CivBonusEffect): void;
+}
+```
+
+- [ ] **Step 1: Read all six functions top to bottom** (`src/main.ts`, current line numbers — re-check before starting, they will have shifted since Phase 8d) and build the real dep list the same way 8c and 8d did: every main.ts-local identifier referenced becomes a dep; every pure `@/systems`/`@/ui`/`@/input` helper is imported directly into the new file. Confirm whether the six belong in one controller or whether a cleaner split exists (e.g. combat/assault vs. founding/upgrade) once the actual coupling between them is visible — the grouping above is a starting hypothesis, not a requirement.
+- [ ] **Step 2: Write failing tests** — one per real behavior currently only proven by the four grep blocks being retired (combat seed derivation, post-combat panel-refresh ordering including the city-capture branch, `foundCityInState`/`applyUnitUpgradeToState` delegation with the previous ad hoc gold/HP mutations confirmed absent, the shared-emitter city-capture routing, and the failed-movement short-circuit in minor-civ conquest), plus the plan's standard "performs the interaction and inspects resulting DOM or state" and negative-test requirements from Part VI.
+- [ ] **Step 3: Run, confirm failure.**
+- [ ] **Step 4: Implement `PlayerActionController`** by moving the six function bodies verbatim, using the same exhaustive line-by-line diff technique 8c and 8d used to catch transcription bugs (8c found two real ones this way; 8d found none but confirmed the technique's value). Update `SelectionController`'s and `MapInteractionController`'s construction in `main.ts` to pass `playerActions.<method>` in place of the six individual function deps.
+- [ ] **Step 5: Run — expect PASS.**
+- [ ] **Step 6: Delete the four grep-based describe blocks** from `tests/main.integration.test.ts` now that real tests cover the same ground.
+- [ ] **Step 7: Close the phase**
+
+---
+
 ## Part VI — Test Design Requirements
 
 Per `docs/superpowers/plans/README.md` §5, and because current coverage of this file is 21 regex assertions.
@@ -2046,10 +2088,13 @@ Per `docs/superpowers/plans/README.md` §5, and because current coverage of this
 | Phase | Block retired | Assertions |
 |---|---|---|
 | 7 | `era:advanced notification` | 4 |
-| 8 | combat / water-recovery / city-founding / upgrade / assault wiring | 10 |
+| 8b–8d | `land-unit water recovery wiring`'s behavioral core — its `waterRecovery` threading became a real test in `selection-controller.test.ts` (8c); the remaining dispatch-site proof is a structural completeness check, not deleted (see footnote) | 1 |
 | 9 | `completed-round AI wiring` + required-choices | 5 |
 | 10 | `campaign entry wiring` + air-defense placement | 5 |
+| 13 | `player combat wiring` / `shared city founding wiring` / `shared unit upgrade wiring` / `shared city assault wiring` | 9 |
 | — | **Total** | **24** |
+
+**Footnote on "retired":** a small number of these are structural completeness/wiring proofs (e.g. `land-unit water recovery wiring`'s dispatch-site check above, and the `map tap wiring` / `map interaction controller wiring` exhaustive-case-list check that survived Phase 8b through 8d) that stay as `readFileSync`-based grep assertions on purpose even after their behavioral core gets real test coverage — TSC's own exhaustiveness checking and a behavioral test prove different things than "is the live dispatch site still calling the right helper with the right args," which is genuinely awkward to assert any other way for a `main.ts`-local (or moved-but-still-private) function. Treat these as intentionally-retained, not as debt Phase 13 or any later phase needs to also chase down.
 
 (24 rather than 21 because three `it` blocks carry multiple `readFileSync` assertions; count from the file, not this table, when checking off.)
 
@@ -2078,7 +2123,8 @@ Per `docs/superpowers/plans/README.md` §5, and because current coverage of this
 | **A test written against an assumed command or convention never runs** | The plan originally cited `yarn test:e2e` (does not exist — it is `test:web-smoke`) and `toMatchSnapshot` (zero usages in this repo) | Every command and convention in this plan is now verified against `package.json` and the existing test tree; verify again if the plan sits unexecuted for long |
 | Losing a fixup during save consolidation | 23 fixups, 20 `as any` casts, no existing tests | Classification table is a checklist; idempotency + preserve-existing tests; new-game completeness test; keep v10/v11 golden fixtures in `tests/fixtures/` |
 | A mid-refactor playtest save cannot be reopened | Phase 1 bumps the schema to 12; older builds throw `UnsupportedSaveSchemaVersionError` | Called out in Part III; family playtest builds stay at or ahead of Phase 1 |
-| Merge conflicts against feature work | `main.ts` is touched by nearly every feature PR | Twelve small PRs merged promptly, not one long branch; no other `main.ts`-touching PR should sit open across a phase merge |
+| Merge conflicts against feature work | `main.ts` is touched by nearly every feature PR | Thirteen small PRs merged promptly, not one long branch; no other `main.ts`-touching PR should sit open across a phase merge |
+| **Phase 13 touches two already-shipped controllers' construction call sites** | `SelectionController` (8c) and `MapInteractionController` (8d) both take the six moved functions as individual deps today; Phase 13 changes both call sites in the same `main.ts` edit | Phase 13 Step 4 updates both construction sites in one commit, verified by the same full `yarn test` + `yarn build` gate every phase already runs; neither controller's own public interface changes, only what `main.ts` passes in |
 | **Overlapping blocking-overlay reasons silently clobber each other** | `PanelHost`'s `blockingOverlayId` is a single value, not a stack; found during Phase 6's review (#794) | Phase 12 is a dedicated phase investigating reachability first, then converting the primitive to a reference count |
 | Scope creep into "while I'm here" fixes | Guaranteed to be tempting across 5,462 lines | Behavior-preserving is a Global Constraint; the Part VI table is the exhaustive allowlist; file issues otherwise |
 
@@ -2094,3 +2140,4 @@ Per `docs/superpowers/plans/README.md` §5, and because current coverage of this
 - **Deletion audit:** `src/ui/transport-ui-state.ts` has exactly one consumer (`main.ts`) and is safe to delete in Phase 3. `src/ui/ui-interaction-state.ts` has **four** (`src/ui/context-menu.ts` plus two UI test suites) — the interface stays, only the factory is retired, in Phase 11.
 - **Known soft spots:** the `createHotSeatGame` config literal in Phase 1 Step 7 and the `makeFakeServices` `renderLoop` double in Phase 10 Step 1 are illustrative and must be matched to the real `HotSeatConfig` and `RenderLoop` shapes. The determinism baseline literals in Part V are recorded output, filled in by Phase 1 Step 1.
 - **Post-hoc addition (Phase 12):** this plan originally specified eleven phases. Phase 6's inline review (per #787's no-subagents policy, done inline rather than delegated) traced a hot-seat ceremony leak to its root cause and found a second, structurally deeper issue one level down (`PanelHost`'s blocking-overlay id is a single value, not a stack) that no phase above was scoped to fix. The narrower, confirmed-reachable leak was fixed directly in Phase 6's PR (#793); the structural issue was filed as #794 and added here as Phase 12 rather than expanding #793's blast radius or silently dropping it. All "eleven phases"/"eleven PRs" references above were updated to twelve; Phase 12 has no ordering dependency on Phases 7–10 and is appended at the end only because it was discovered last.
+- **Post-hoc addition (Phase 13):** Phase 8's own Step 5 (in its pre-split form) optimistically listed ten source-grep assertions to convert to real tests, without checking whether their target functions were actually in either sub-phase's Files section. By the time Phase 8d's inline review reached that step, six of the ten functions involved (`executeAttack`, `foundCityAction`, `executeUpgrade`, `beginPlayerCityAssault`, `executeMinorCivConquest`, `finalizePendingCityCaptureChoice`) had never moved — they are `main.ts`-local dependencies `SelectionController` (8c) and `MapInteractionController` (8d) call, not files either phase creates or moves. Rather than silently expand 8d's PR ([#799](https://github.com/a1flecke/conquestoria/pull/799)) to also extract six more functions nobody had scoped, the nine still-unconverted assertions were left in place with an explicit "Out of scope" note in that PR, and added here as Phase 13 — a dedicated phase to extract `PlayerActionController` and finish the conversion Phase 8's Step 5 assumed would be free. All "twelve phases"/"twelve PRs" references above were updated to thirteen; Phase 13 depends on 8c and 8d (both already shipped) and has no ordering dependency on 9–12.
