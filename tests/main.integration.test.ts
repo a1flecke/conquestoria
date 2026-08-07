@@ -102,30 +102,29 @@ describe('player combat wiring', () => {
 });
 
 describe('land-unit water recovery wiring', () => {
-  it('routes the live selected-unit panel and blocked-tap path through recovery helpers', () => {
+  it('routes the live blocked-tap path through recovery helpers', () => {
     const main = readFileSync(resolve(PROJECT_ROOT, 'src/main.ts'), 'utf8');
-    const selectFlow = main.slice(
-      main.indexOf('function selectUnit('),
-      main.indexOf('function deselectUnit('),
-    );
     // #787 phase 8b: the movement-blocker dispatch moved from an inline
     // if-chain in handleHexTap into the 'blocked-movement' case of its
     // resolveMapTapIntent-driven switch -- resolveMapTapIntent.test.ts and
     // this switch's own case now own the decision of *whether* a tap is
     // blocked; this scope only proves the live dispatch site still routes
     // through the same recovery helpers once resolveMapTapIntent says it is.
+    // (The selected-unit panel's own water-recovery wiring moved out of
+    // main.ts entirely in phase 8c -- see
+    // selection-controller.test.ts's "threads buildSelectedUnitHighlights'
+    // water recovery into the store".)
     const tapFlow = main.slice(
       main.indexOf("case 'blocked-movement': {"),
       main.indexOf("case 'enemy-unit-info': {"),
     );
 
-    expect(selectFlow).toContain('waterRecovery: highlightResult.waterRecovery');
     expect(tapFlow).toContain('handleSelectedUnitMovementBlocker(');
     // Phase 3 (#787) moved the water-recovery binding into SelectionStore; the
     // tap flow now reads it from the store instead of a module-scope `let`.
     expect(tapFlow).toContain('selection.getWaterRecovery()');
     expect(tapFlow).not.toContain('getLandUnitWaterRecovery(');
-    expect(tapFlow).toContain('reselectUnit: unitId => selectUnit(unitId, { suppressSelectionSfx: true })');
+    expect(tapFlow).toContain('reselectUnit: unitId => selectionController.selectUnit(unitId, { suppressSelectionSfx: true })');
     expect(tapFlow).toContain('playError: SFX.error');
   });
 });
@@ -262,7 +261,7 @@ describe('shared city assault wiring', () => {
     );
 
     expect(minorCaptureFlow).toContain(
-      'const movement = executeAnimatedUnitMove(',
+      'const movement = selectionController.executeAnimatedUnitMove(',
     );
     expect(minorCaptureFlow).toMatch(/if \(!movement\.ok\) return;/);
   });
@@ -320,5 +319,41 @@ describe('map tap wiring (#787 phase 8b)', () => {
     for (const kind of expectedKinds) {
       expect(handleHexTap).toContain(`case '${kind}':`);
     }
+  });
+});
+
+describe('selection controller wiring (#787 phase 8c)', () => {
+  it('constructs SelectionController and no longer defines the eleven functions it now owns', () => {
+    const main = readFileSync(resolve(PROJECT_ROOT, 'src/main.ts'), 'utf8');
+
+    expect(main).toContain('createSelectionController(');
+
+    // Each of these used to be a local `function` declaration in main.ts;
+    // selection-controller.test.ts now owns their behavioral coverage.
+    // Asserting their absence here guards against a future change silently
+    // re-adding a shadowing local copy instead of calling the controller.
+    const movedFunctionDeclarations = [
+      'function selectUnit(', 'function deselectUnit(', 'function isUnitAnimationLocked(',
+      'function animateMovedUnit(', 'function executeAnimatedUnitMove(', 'function startAutoExplore(',
+      'function cancelAutoExplore(', 'function cancelJourney(', 'function openUnitContextMenu(',
+      'function selectNextUnit(', 'function refreshSelectedUnitAfterCombat(',
+      'function refreshCurrentPlayerVisibility(',
+    ];
+    for (const declaration of movedFunctionDeclarations) {
+      expect(main).not.toContain(declaration);
+    }
+  });
+
+  it('routes the unit-turn-flow deps through the controller instead of stale local references', () => {
+    const main = readFileSync(resolve(PROJECT_ROOT, 'src/main.ts'), 'utf8');
+    const getUnitTurnFlow = main.slice(
+      main.indexOf('function getUnitTurnFlow('),
+      main.indexOf('function foundCityAction('),
+    );
+
+    expect(getUnitTurnFlow).toContain('selectUnit: selectionController.selectUnit,');
+    expect(getUnitTurnFlow).toContain('deselectUnit: selectionController.deselectUnit,');
+    expect(getUnitTurnFlow).toContain('selectNextUnit: selectionController.selectNextUnit,');
+    expect(getUnitTurnFlow).toContain('refreshVisibility: selectionController.refreshCurrentPlayerVisibility,');
   });
 });
