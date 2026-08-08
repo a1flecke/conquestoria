@@ -217,6 +217,7 @@ describe('MR9 — land/air strength re-curve regression locks', () => {
       requiredTechs: ['armored-tactics'],
       cost: 270,
     });
+    expect(mainBattleTank?.trainedFromBuilding).toBeUndefined();
     expect(UNIT_DEFINITIONS['main_battle_tank' as UnitType]).toMatchObject({
       strength: 72,
       movementPoints: 4,
