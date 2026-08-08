@@ -20,7 +20,7 @@ target and damages up to two nearby visible enemy soldiers.”**  It has an expl
 | Difficulty and computer players | AI must neither see hidden units nor value hypothetical chain damage. | Candidate selection receives the same visible, stable-ordered eligible targets as resolution. Explorer, Standard, and Veteran retain identical legality and formula; only existing decision-quality controls may differ. |
 | UI / UX | A result that only changes health is opaque; an over-detailed alert becomes noisy. | Reuse the current combat preview, result history, and one grouped combat notification. Do not add an action, panel, or modal. A hidden non-current hot-seat player receives neither names nor audio/visual evidence. |
 | Architecture / extensibility | An `attacker.type === 'rocket_artillery'` branch would duplicate later area-effect rules. | Add an optional typed splash capability to the unit definition and a focused canonical resolver. Unit catalog data opts in; combat mutation, AI, and presentation consume its result. |
-| Data and saves | The result needs deterministic affected IDs, while long-lived save shapes must not gain transient state. | Put deterministic splash records on `CombatResult`, apply them through the existing outcome mutation, and persist only through the already serialized combat-history/event pathway if that pathway stores the result. Normalizers accept older results with no splash field; no game-state schema bump unless the audited persisted history contract requires one. |
+| Data and saves | The result needs deterministic affected IDs, while long-lived save shapes must not gain transient state. | The audit found no persisted combat-result/history shape: splash records are transient event facts, so no schema bump or migration is warranted. Existing saves remain valid because the new capability is catalog data and newly produced results carry an optional field. |
 | SFX | New distinct effects need audible feedback, but #717 owns siege/heavy-weapons audio. | Reuse the existing combat presentation/audio path with no Rocket-Artillery-specific sound or new mixer event. Text/visual facts remain the primary feedback; #717 can replace the temporary behavior. |
 | Solo, hot seat, and regression | Secondary targets can leak fog information or behave differently outside the player handler. | Filter by current attacker-owner visibility before selection; stable-sort IDs; use the same `applyCombatOutcomeToState` path for player, AI, and pirate callers. Test current-viewer isolation and no recursive splash. |
 | Proper implementation | Applying splash before primary resolution can target invalid state; applying it after deletion can lose targets. | Resolve eligible targets from the pre-combat state after confirming legal primary combat; mutate primary outcome first, then apply capped secondary damage to still-existing eligible units without calling combat/reward resolution again. |
@@ -66,8 +66,9 @@ the whole map per candidate or reading hidden state.
 ### Compatibility and scope
 
 No new player action, queue model, save-owned state, sound asset, or animation is added.
-Existing saves deserialize Rocket Artillery only once it is created through normal
-production/upgrade; omitted optional `splash` result fields are backward-compatible.
+The audit found no persisted `CombatResult` or combat-history shape, so this feature has no
+save migration or schema change. Existing saves deserialize Rocket Artillery only once it
+is created through normal production/upgrade; omitted optional result fields are safe.
 The temporary existing sprite/catalog mapping must be registered and its separate visual
 and audio replacement issues remain #711 and #717.
 
