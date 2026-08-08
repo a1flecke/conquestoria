@@ -91,7 +91,7 @@ const ERA_10_TECHS: Tech[] = [
   { id: 'carrier-warfare', name: 'Carrier Warfare', track: 'maritime', cost: 1895,
     prerequisites: ['submarine-warfare', 'air-superiority'],
     unlocks: ['Mobile airfields project naval power across oceans; sea control no longer requires fixed shore bases'],
-    unlocksUnits: ['carrier', 'destroyer'], era: 10 },
+    unlocksUnits: ['carrier', 'destroyer', 'missile_cruiser'], era: 10 },
   { id: 'amphibious-assault', name: 'Amphibious Assault', track: 'maritime', cost: 945,
     prerequisites: ['convoy-system', 'tank-warfare'],
     unlocks: ['+3 attack strength for all naval units against coastal cities; coordinated sea-to-land operations rewrite grand strategy'], era: 10 },

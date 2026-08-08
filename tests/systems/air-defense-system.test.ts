@@ -85,6 +85,17 @@ describe('resolveAirDefenseCoverage', () => {
 
     expect(resolveAirDefenseCoverage(next, { ...defender, position: { q: 2, r: 0 } }, 'defender').flatDefenseModifier).toBe(0);
   });
+
+  it('limits Missile Cruiser air defense to adjacent friendly naval units', () => {
+    const next = state();
+    next.units = {
+      cruiser: { id: 'cruiser', owner: 'defender', type: 'missile_cruiser', position: { q: 0, r: 0 } },
+    } as unknown as GameState['units'];
+    const navalDefender = { ...defender, type: 'battleship' as const, position: { q: 1, r: 0 } };
+
+    expect(resolveAirDefenseCoverage(next, navalDefender, 'defender').flatDefenseModifier).toBe(10);
+    expect(resolveAirDefenseCoverage(next, { ...defender, position: { q: 0, r: 1 } }, 'defender').flatDefenseModifier).toBe(0);
+  });
 });
 
 describe('civHasAirDefenseCoverage', () => {

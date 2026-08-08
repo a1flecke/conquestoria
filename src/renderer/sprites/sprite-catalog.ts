@@ -157,6 +157,7 @@ const UNIT_MOTION_STYLES: Record<UnitType, UnitMotionStyle> = {
   mechanized_infantry: 'humanoid',
   pre_dreadnought: 'naval',
   battleship: 'naval',
+  missile_cruiser: 'naval',
   tank:       'humanoid',
   main_battle_tank: 'humanoid',
   anti_tank_gun: 'humanoid',
@@ -310,6 +311,7 @@ export const UNIT_SPRITE_CATALOG: Record<UnitType, UnitSpriteComponent> = {
   pre_dreadnought:   withMotion('pre_dreadnought', PreDreadnoughtSprite),
   // Temporary silhouette; #711 owns Battleship's dedicated capital-ship art.
   battleship:        withMotion('battleship', PreDreadnoughtSprite),
+  missile_cruiser:   withMotion('missile_cruiser', PreDreadnoughtSprite),
   tank:              withMotion('tank', TankSprite),
   main_battle_tank:  withMotion('main_battle_tank', TankSprite),
   // De-aliased in #769 batch 5 — bespoke towed anti-tank gun (wheeled carriage, gun

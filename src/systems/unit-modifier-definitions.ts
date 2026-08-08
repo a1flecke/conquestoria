@@ -46,6 +46,7 @@ export const UNIT_CLASS_BY_TYPE: Record<UnitType, UnitClass[]> = {
   mechanized_infantry: ['gunpowder'],
   pre_dreadnought: ['naval', 'gunpowder'],
   battleship: ['naval', 'ranged'],
+  missile_cruiser: ['naval', 'ranged'],
   mobile_aa: ['gunpowder'],
   observation_balloon: ['air', 'recon'],
   biplane: ['air'],
@@ -255,7 +256,7 @@ export const CLASS_COUNTERS: ClassCounter[] = [
   { attackerTypes: ['jet_fighter', 'wwii_fighter', 'biplane'], defenderClass: 'air', defenderTypes: ['bomber'], multiplier: 1.5, label: 'Interceptor' },
   { attackerTypes: ['jet_fighter'], defenderClass: 'air', defenderTypes: ['combat_drone'], multiplier: 1.35, label: 'Drone interceptor' },
   { attackerTypes: ['submarine', 'missile_submarine'], defenderClass: 'naval', defenderTypes: ['autonomous_frigate'], multiplier: 1.25, label: 'Autonomous-hull ambush' },
-  { attackerTypes: ['submarine', 'missile_submarine'], defenderClass: 'naval', defenderTypes: ['battleship'], multiplier: 1.25, label: 'Capital-ship ambush' },
+  { attackerTypes: ['submarine', 'missile_submarine'], defenderClass: 'naval', defenderTypes: ['battleship', 'missile_cruiser'], multiplier: 1.25, label: 'Capital-ship ambush' },
   { attackerTypes: ['tank'], defenderClass: 'gunpowder', defenderTypes: ['exosuit_infantry'], multiplier: 1.25, label: 'Armor breakthrough' },
 ];
 

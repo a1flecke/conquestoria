@@ -360,7 +360,7 @@ export type UnitType =
   | 'axeman' | 'spearman' | 'horseman' | 'chariot' | 'cavalry' | 'armored_car' | 'knight' | 'cuirassier'
   | 'crossbowman' | 'catapult' | 'trebuchet' | 'ballista' | 'cannon' | 'grenadier' | 'marine' | 'rifleman' | 'ironclad'
   | 'frigate' | 'destroyer' | 'artillery' | 'rocket_artillery' | 'infantry' | 'mechanized_infantry'
-  | 'machine_gunner' | 'pre_dreadnought' | 'battleship'
+  | 'machine_gunner' | 'pre_dreadnought' | 'battleship' | 'missile_cruiser'
   | 'observation_balloon' | 'biplane' | 'wwii_fighter' | 'jet_fighter' | 'bomber' | 'recon_aircraft'
   | 'tank' | 'main_battle_tank' | 'anti_tank_gun' | 'mobile_aa' | 'submarine' | 'carrier'
   | 'attack_helicopter' | 'missile_submarine'
@@ -403,9 +403,9 @@ export interface AirOperationDefinition {
 }
 
 export type AirDefenseProviderKind = 'building' | 'unit' | 'naval-unit';
-export interface AirDefenseProviderDefinition { id: string; kind: AirDefenseProviderKind; radius: number; defenseModifier: number; stackingGroup: string; label: string; }
+export interface AirDefenseProviderDefinition { id: string; kind: AirDefenseProviderKind; radius: number; defenseModifier: number; stackingGroup: string; label: string; protectedDomains?: Array<'land' | 'naval' | 'air'>; }
 export type AirDefenseProviderCapability = Omit<AirDefenseProviderDefinition, 'id' | 'kind' | 'label'>;
-export interface AirDefenseCoverageProvider { id: string; label: string; position: HexCoord; ownerId: string; radius: number; defenseModifier: number; stackingGroup: string; }
+export interface AirDefenseCoverageProvider { id: string; label: string; position: HexCoord; ownerId: string; radius: number; defenseModifier: number; stackingGroup: string; protectedDomains?: Array<'land' | 'naval' | 'air'>; }
 export interface AirDefenseCoverageResult { flatDefenseModifier: number; facts: CombatModifierFact[]; providers: AirDefenseCoverageProvider[]; }
 
 export interface UnitDefinition {
@@ -926,6 +926,8 @@ export interface TrainableUnitEntry {
   /** Additional technologies required alongside the legacy single-tech gate. */
   requiredTechs?: string[];
   obsoletedByTech?: string;
+  /** Retires this unit only after every listed technology is complete. */
+  obsoletedWhenAllTechs?: string[];
   upgradesTo?: UnitType;
   civTypeRequired?: string;  // only available/shown for this civ
   replacesUnit?: UnitType;   // hides this standard unit for the civ above

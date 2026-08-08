@@ -52,6 +52,21 @@ describe('Rocket Artillery catalog contract (#686)', () => {
   });
 });
 
+describe('Missile Cruiser catalog contract (#689)', () => {
+  it('defines the three-tech-gated fleet air-defense successor', () => {
+    const type = 'missile_cruiser' as import('@/core/types').UnitType;
+    expect(UNIT_DEFINITIONS[type]).toMatchObject({
+      strength: 70, movementPoints: 5, visionRange: 3, productionCost: 285,
+      domain: 'naval', waterAccess: 'ocean',
+      attackProfile: { kind: 'ranged', range: 3, targets: ['unit', 'city'] },
+      airDefenseProvider: { radius: 1, defenseModifier: 10, stackingGroup: 'ground-air-defense', protectedDomains: ['naval'] },
+    });
+    expect(TRAINABLE_UNITS.find(unit => unit.type === type)).toMatchObject({
+      techRequired: 'carrier-warfare', requiredTechs: ['radar-systems', 'rocketry'], coastalRequired: true,
+    });
+  });
+});
+
 function zocRangeState(): GameState {
   const state = createNewGame(undefined, 'zoc-range', 'small');
   const mover = { ...createUnit('warrior', 'player', { q: 0, r: 0 }, mkC()), id: 'mover', movementPointsLeft: 2 };

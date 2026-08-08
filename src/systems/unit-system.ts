@@ -372,6 +372,14 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     domain: 'naval', waterAccess: 'ocean',
     attackProfile: { kind: 'ranged', range: 3, targets: ['unit', 'city'] },
   },
+  missile_cruiser: {
+    type: 'missile_cruiser', name: 'Missile Cruiser', movementPoints: 5,
+    visionRange: 3, strength: 70, canFoundCity: false,
+    canBuildImprovements: false, productionCost: 285,
+    domain: 'naval', waterAccess: 'ocean',
+    attackProfile: { kind: 'ranged', range: 3, targets: ['unit', 'city'] },
+    airDefenseProvider: { radius: 1, defenseModifier: 10, stackingGroup: 'ground-air-defense', protectedDomains: ['naval'] },
+  },
   tank: {
     type: 'tank', name: 'Tank', movementPoints: 3,
     visionRange: 2, strength: 62, canFoundCity: false,
@@ -797,6 +805,7 @@ export const UNIT_DESCRIPTIONS: Record<UnitType, string> = {
   mechanized_infantry: 'Mobile line infantry. Captures and holds ground faster than Infantry; upgrades into Exosuit Infantry.',
   pre_dreadnought: 'Armored steam battleship. Long-range guns (range 2), powerful vs coastal cities and fleets. Replaces the ironclad era of naval warfare.',
   battleship: 'Heavy naval fire support. Deals 20% more attack strength against cities and coastal targets; submarines counter it.',
+  missile_cruiser: 'Fast capital fire support that protects nearby ships from aircraft. Requires Carrier Warfare, Radar Systems, and Rocketry; submarines counter it.',
   tank:       'Armored fighting vehicle. Breaks entrenched positions, high strength, range-1 attack. Upgrades into a Main Battle Tank.',
   main_battle_tank: 'Heavy breakthrough armor. Gains +10% combat strength beside one adjacent friendly Mechanized or Exosuit Infantry unit.',
   anti_tank_gun: 'Ranged anti-armor gun. Strong against armored vehicles but weaker against other targets.',

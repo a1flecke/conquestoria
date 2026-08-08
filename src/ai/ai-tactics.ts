@@ -663,6 +663,8 @@ function rankMobileAirDefenseEscortMoves(
   if (visibleAircraft.length === 0) return [];
   const targets = Object.values(context.state.units).filter(candidate => candidate.owner === context.actorId
     && !candidate.transportId && candidate.id !== unit.id
+    && (capability.protectedDomains === undefined
+      || capability.protectedDomains.includes(UNIT_DEFINITIONS[candidate.type].domain ?? 'land'))
     && visibleAircraft.some(aircraft => distance(context.state, aircraft.position, candidate.position)
       <= (UNIT_DEFINITIONS[aircraft.type].airOperation?.operationalRange ?? 0)));
   if (targets.length === 0) return [];
