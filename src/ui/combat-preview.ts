@@ -19,7 +19,7 @@ export function formatCombatPreviewDetails(
   }
   const appliedFacts = [
     ...(preview.attackerModifierFacts ?? []),
-    ...(preview.defenderModifierFacts ?? []),
+    ...(preview.defenderModifierFacts ?? []).filter(fact => fact.key !== 'combined-arms'),
   ].filter(fact => fact.outcome === 'applied');
   if (appliedFacts.length > 0) {
     for (const fact of appliedFacts) {

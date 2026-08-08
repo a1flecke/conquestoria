@@ -71,6 +71,19 @@ describe('formatCombatPreviewDetails', () => {
     expect(details).toContain('Combined arms +10% — adjacent Mechanized Infantry ×1.1');
   });
 
+  it('does not leak an unseen defender combined-arms provider to the attacker', () => {
+    const details = formatCombatPreviewDetails('Rival', 100, {
+      attackerStrength: 45, defenderStrength: 79.2, terrainDefenseBonus: 0, riverAttackPenalty: 0,
+      defenderModifierFacts: [{
+        key: 'combined-arms', label: 'Combined arms +10% — adjacent Exosuit Infantry',
+        sourceVisibility: 'owner', operation: 'multiplier', value: 1.1, outcome: 'applied',
+      }],
+    });
+
+    expect(details).not.toContain('Combined arms');
+    expect(details).not.toContain('Exosuit Infantry');
+  });
+
   it('shows the initiating player when Cuirassier open-ground charge is not active without leaking defender facts', () => {
     const details = formatCombatPreviewDetails('Rival', 100, {
       attackerStrength: 52,
