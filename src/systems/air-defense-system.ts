@@ -35,7 +35,10 @@ export function civHasAirDefenseCoverage(state: GameState, civId: string): boole
   return providersForOwner(state, civId).length > 0;
 }
 function providersFor(state: GameState, defender: Unit): ResolvedAirDefenseProvider[] {
-  return providersForOwner(state, defender.owner).filter(provider => distance(state, provider.position, defender.position) <= provider.radius);
+  const defenderDomain = UNIT_DEFINITIONS[defender.type].domain ?? 'land';
+  return providersForOwner(state, defender.owner).filter(provider =>
+    distance(state, provider.position, defender.position) <= provider.radius
+      && (provider.protectedDomains === undefined || provider.protectedDomains.includes(defenderDomain)));
 }
 export function getKnownAirDefenseProviders(state: GameState, viewerId: string): ResolvedAirDefenseProvider[] {
   return Object.keys(state.civilizations).flatMap(ownerId => providersForOwner(state, ownerId))
@@ -50,7 +53,7 @@ export function selectStrongestAirDefenseProviders(providers: ResolvedAirDefense
   return { flatDefenseModifier: ordered.filter(provider => ids.has(provider.id)).reduce((total, provider) => total + provider.defenseModifier, 0), facts: ordered.map(provider => ({ key: `air-defense:${provider.id}`, label: provider.label, sourceVisibility: 'owner', operation: 'flat', value: provider.defenseModifier, outcome: ids.has(provider.id) ? 'applied' : 'superseded' })), providers: ordered };
 }
 export function resolveAirDefenseCoverage(state: GameState, defender: Unit, viewerId: string): AirDefenseCoverageResult {
-  const key = `${defender.owner}:${defender.position.q},${defender.position.r}`; let cache = coverageCache.get(state); if (!cache) { cache = new Map(); coverageCache.set(state, cache); } let result = cache.get(key); if (!result) { result = selectStrongestAirDefenseProviders(providersFor(state, defender)); cache.set(key, result); }
+  const key = `${defender.owner}:${defender.position.q},${defender.position.r}:${UNIT_DEFINITIONS[defender.type].domain ?? 'land'}`; let cache = coverageCache.get(state); if (!cache) { cache = new Map(); coverageCache.set(state, cache); } let result = cache.get(key); if (!result) { result = selectStrongestAirDefenseProviders(providersFor(state, defender)); cache.set(key, result); }
   const visible = new Set(result.providers.filter(provider => known(state, provider, viewerId)).map(provider => provider.id));
   return { flatDefenseModifier: result.flatDefenseModifier, facts: result.facts.filter(fact => visible.has(fact.key.slice('air-defense:'.length))), providers: result.providers.filter(provider => visible.has(provider.id)).map(provider => ({ ...provider, position: { ...provider.position } })) };
 }

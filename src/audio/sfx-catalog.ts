@@ -220,6 +220,10 @@ export const UNIT_SFX: Partial<Record<UnitType, Partial<Record<SfxClass, TrackEn
     'ranged-impact': NAVAL_CANNON_SFX['attack-impact'],
     death: NAVAL_CANNON_SFX.death,
   },
+  missile_cruiser: {
+    'attack-swing': NAVAL_CANNON_SFX['attack-swing'], 'attack-impact': NAVAL_CANNON_SFX['attack-impact'],
+    'ranged-loose': NAVAL_CANNON_SFX['attack-swing'], 'ranged-impact': NAVAL_CANNON_SFX['attack-impact'], death: NAVAL_CANNON_SFX.death,
+  },
 
   // === Siege (siege-fire, siege-impact, death) ===
   catapult: CATAPULT_SFX,
@@ -415,6 +419,7 @@ const LOCOMOTION_CLASS: Record<UnitType, LocomotionClass> = {
   mechanized_infantry: 'humanoid',
   pre_dreadnought: 'naval',
   battleship: 'naval',
+  missile_cruiser: 'naval',
   tank:       'humanoid',
   main_battle_tank: 'humanoid',
   // Temporary humanoid locomotion fallback; bespoke artillery audio remains asset follow-up work.

@@ -489,6 +489,21 @@ describe('MR8 — naval roster gating', () => {
     expect(getTrainableUnitsForCiv(['submarine-warfare']).some(u => u.type === ('battleship' as UnitType))).toBe(false);
   });
 
+  it('keeps Battleship available until every Missile Cruiser prerequisite is complete', () => {
+    const partialGates = [
+      ['dreadnought-construction', 'carrier-warfare', 'radar-systems'],
+      ['dreadnought-construction', 'carrier-warfare', 'rocketry'],
+      ['dreadnought-construction', 'radar-systems', 'rocketry'],
+    ];
+
+    for (const completedTechs of partialGates) {
+      expect(getTrainableUnitsForCiv(completedTechs).some(u => u.type === ('battleship' as UnitType))).toBe(true);
+    }
+    expect(getTrainableUnitsForCiv([
+      'dreadnought-construction', 'carrier-warfare', 'radar-systems', 'rocketry',
+    ]).some(u => u.type === ('battleship' as UnitType))).toBe(false);
+  });
+
   it('destroyer is trainable exactly when carrier-warfare is complete (negative: not complete)', () => {
     expect(getTrainableUnitsForCiv(['carrier-warfare']).some(u => u.type === 'destroyer')).toBe(true);
     expect(getTrainableUnitsForCiv([]).some(u => u.type === 'destroyer')).toBe(false);
@@ -1726,13 +1741,13 @@ describe('#429 — expanded obsolescence coverage', () => {
 describe('#429 — unit obsolescence completeness', () => {
   const UTILITY_TYPES: UnitType[] = ['worker', 'settler', 'troop_transport', 'caravan', 'expedition'];
 
-  it('every combat-capable trainable unit has obsoletedByTech or a TERMINAL_COMBAT_UNITS entry', () => {
+  it('every combat-capable trainable unit has an obsolescence decision or a terminal reason', () => {
     const missing: string[] = [];
     for (const entry of TRAINABLE_UNITS) {
       if (UTILITY_TYPES.includes(entry.type)) continue;
       const strength = UNIT_DEFINITIONS[entry.type]?.strength ?? 0;
       if (strength <= 0) continue;
-      if (entry.obsoletedByTech) continue;
+      if (entry.obsoletedByTech || entry.obsoletedWhenAllTechs) continue;
       if (TERMINAL_COMBAT_UNITS[entry.type]) continue;
       missing.push(entry.type);
     }

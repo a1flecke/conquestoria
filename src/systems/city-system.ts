@@ -1157,7 +1157,8 @@ export const TRAINABLE_UNITS: Array<TrainableUnitEntry & { pacing?: Building['pa
   { type: 'infantry',       name: 'Infantry',       cost: 195, techRequired: 'armored-tactics', obsoletedByTech: 'neural-prosthetics', upgradesTo: 'mechanized_infantry', pacing: { band: 'power-spike', role: 'modern-line-infantry', impact: 1.4,  scope: 'military', snowball: 1.3, urgency: 1.1,  situationality: 1.2,  unlockBreadth: 1 } },
   { type: 'mechanized_infantry', name: 'Mechanized Infantry', cost: 220, techRequired: 'armored-tactics', requiredTechs: ['motorized-transport'], trainedFromBuilding: 'tank_depot', obsoletedByTech: 'neural-prosthetics', upgradesTo: 'exosuit_infantry', pacing: { band: 'power-spike', role: 'mobile-line-infantry', impact: 1.45, scope: 'military', snowball: 1.3, urgency: 1.1, situationality: 1.2, unlockBreadth: 1 } },
   { type: 'pre_dreadnought', name: 'Pre-Dreadnought', cost: 175, techRequired: 'naval-armor', coastalRequired: true, obsoletedByTech: 'dreadnought-construction', upgradesTo: 'battleship', pacing: { band: 'power-spike', role: 'naval-apex',           impact: 1.5,  scope: 'military', snowball: 1.4, urgency: 1.2, situationality: 1.4, unlockBreadth: 1 } },
-  { type: 'battleship', name: 'Battleship', cost: 240, techRequired: 'dreadnought-construction', coastalRequired: true, pacing: { band: 'marquee', role: 'capital-ship-fire-support', impact: 1.6, scope: 'military', snowball: 1.4, urgency: 1.2, situationality: 1.5, unlockBreadth: 1 } },
+  { type: 'battleship', name: 'Battleship', cost: 240, techRequired: 'dreadnought-construction', coastalRequired: true, obsoletedWhenAllTechs: ['carrier-warfare', 'radar-systems', 'rocketry'], upgradesTo: 'missile_cruiser', pacing: { band: 'marquee', role: 'capital-ship-fire-support', impact: 1.6, scope: 'military', snowball: 1.4, urgency: 1.2, situationality: 1.5, unlockBreadth: 1 } },
+  { type: 'missile_cruiser', name: 'Missile Cruiser', cost: 285, techRequired: 'carrier-warfare', requiredTechs: ['radar-systems', 'rocketry'], coastalRequired: true, pacing: { band: 'marquee', role: 'fleet-air-defense', impact: 1.6, scope: 'military', snowball: 1.35, urgency: 1.15, situationality: 1.5, unlockBreadth: 1 } },
   { type: 'tank',      name: 'Tank',      cost: 185, techRequired: 'tank-warfare', obsoletedByTech: 'precision-engineering', upgradesTo: 'main_battle_tank',          pacing: { band: 'power-spike', role: 'armored-assault',     impact: 1.5,  scope: 'military', snowball: 1.4, urgency: 1.2, situationality: 1.3, unlockBreadth: 1 } },
   { type: 'main_battle_tank', name: 'Main Battle Tank', cost: 270, techRequired: 'precision-engineering', requiredTechs: ['armored-tactics'], pacing: { band: 'marquee', role: 'combined-arms-breakthrough', impact: 1.6, scope: 'military', snowball: 1.35, urgency: 1.15, situationality: 1.35, unlockBreadth: 1 } },
   { type: 'anti_tank_gun', name: 'Anti-Tank Gun', cost: 170, techRequired: 'tank-warfare', pacing: { band: 'power-spike', role: 'armor-counter', impact: 1.3, scope: 'military', snowball: 1.1, urgency: 1.1, situationality: 1.4, unlockBreadth: 1 } },
@@ -1620,6 +1621,7 @@ export const PRODUCTION_ICONS: Record<string, string> = {
   machine_gunner:  '🔫',
   pre_dreadnought: '🚢',
   battleship: '🚢',
+  missile_cruiser: '🚢',
   infantry:   '🪖',
   mechanized_infantry: '🪖',
   // era 9 buildings
@@ -1765,7 +1767,7 @@ export function getTrainableUnitsForCiv(
   );
   return TRAINABLE_UNITS.filter(u => {
     if (evaluateProductionPrerequisites(u, completedTechs).missing.length > 0) return false;
-    if (u.obsoletedByTech && completedTechs.includes(u.obsoletedByTech)) return false;
+    if (isUnitObsolete(u, completedTechs)) return false;
     if (u.civTypeRequired && u.civTypeRequired !== civType) return false;
     if (replacedForCiv.has(u.type)) return false;
     if (availableResources !== undefined && u.resourceRequired?.length) {
@@ -1773,6 +1775,12 @@ export function getTrainableUnitsForCiv(
     }
     return true;
   });
+}
+
+export function isUnitObsolete(unit: TrainableUnitEntry, completedTechs: string[]): boolean {
+  return (unit.obsoletedByTech !== undefined && completedTechs.includes(unit.obsoletedByTech))
+    || (unit.obsoletedWhenAllTechs !== undefined
+      && unit.obsoletedWhenAllTechs.every(techId => completedTechs.includes(techId)));
 }
 
 // #592 MR5: single source of truth for missionary's "city follows owner's own faith" gate,
@@ -2055,7 +2063,7 @@ export function processCity(
         // tech-tree rebalance — its techRequired can be unmet with neither of the two dynamic
         // reasons applying (see the musketeer save-compat test above) — so a third, honest
         // fallback reason covers that residual case instead of misreporting it as resource-lost.
-        const obsoleted = unit.obsoletedByTech != null && completedTechs.includes(unit.obsoletedByTech);
+        const obsoleted = isUnitObsolete(unit, completedTechs);
         const resourceLost = !legacyResourceGrace.has(unit.type)
           && (unit.resourceRequired?.length ?? 0) > 0
           && availableResources !== undefined
