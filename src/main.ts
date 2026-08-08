@@ -52,7 +52,7 @@ import { renderUnitStackPanel } from '@/ui/unit-stack-panel';
 import { createUnitTurnFlow } from '@/ui/unit-turn-flow';
 import { createPacingDebugPanel } from '@/ui/pacing-debug-panel';
 import { resolveCivDefinition } from '@/systems/civ-registry';
-import { acceptDiplomaticRequest, applyDiplomaticAction, breakTreaty, declareWar, makePeace, modifyRelationship, rejectDiplomaticRequest, resolveOpponentKind } from '@/systems/diplomacy-system';
+import { declareWar, makePeace, modifyRelationship, resolveOpponentKind } from '@/systems/diplomacy-system';
 import { visitVillage } from '@/systems/village-system';
 import { assignNetworkPlan, cancelNetworkPlan, holdNetworkPlan, isAutonomyActivated, retargetNetworkPlan } from '@/systems/network-plan-system';
 import { beginAutonomySurge, requestAutonomyPosture } from '@/systems/autonomy-postures';
@@ -73,18 +73,18 @@ import { executeUnitMove, isWorkerBusy } from '@/systems/unit-movement-system';
 import { getEmbarkedAssaultTarget, detachCargoForEmbarkedAssault } from '@/systems/transport-system';
 import { createSelectionStore } from '@/app/selection-store';
 import { getCapitalCity, getCapitalCityId } from '@/systems/capital-system';
-import type { CombatResult, GameState, HexCoord, Unit, UnitType, DiplomaticAction, CivBonusEffect, WorkerActionType, TreatyType } from '@/core/types';
+import type { CombatResult, GameState, HexCoord, Unit, UnitType, CivBonusEffect, WorkerActionType } from '@/core/types';
 import { appendNotification, getNotificationsForPlayer, type NotificationCityAction, type NotificationEntry } from '@/core/notification-log';
-import { TREATY_LABELS, type NotificationSink } from '@/ui/notification-routing';
+import type { NotificationSink } from '@/ui/notification-routing';
 import { createUserSettingsStore } from '@/app/user-settings-store';
 import type { Notifier } from '@/app/ports';
 import { updateAndRefreshVisibility, reconstructLastSeenFromMap } from '@/systems/last-seen-presentation';
 import { rushBuyActiveProduction } from '@/systems/economy-system';
-import { appeaseFaction, concedeToMovement } from '@/systems/faction-system';
 import { applyQuarantine, applyRemedy } from '@/systems/crisis-system';
-import { getCivAvailableResources, canBuyResourceAccess, performBuyResourceAccess } from '@/systems/resource-acquisition-system';
+import { canBuyResourceAccess, performBuyResourceAccess } from '@/systems/resource-acquisition-system';
 import { createCeremonyCoordinator, type CeremonyCoordinator } from '@/app/controllers/ceremony-coordinator';
 import { createSelectionController, type SelectionController } from '@/app/controllers/selection-controller';
+import { createDiplomacyActionsController, type DiplomacyActionsController } from '@/app/controllers/diplomacy-actions-controller';
 import { createMapInteractionController, type MapInteractionController } from '@/app/controllers/map-interaction-controller';
 import { createTurnFlowController, type TurnFlowController } from '@/app/controllers/turn-flow-controller';
 import { createHudController, type HudController } from '@/app/controllers/hud-controller';
@@ -93,11 +93,8 @@ import { createGameSessionController, type GameSessionController } from '@/app/c
 import { bootstrap } from '@/app/bootstrap';
 import { registerAllPresentation, type PresentationContext } from '@/presentation/register-all';
 import { removeRouteForUnit, createMarketplaceState } from '@/systems/trade-system';
-import { establishQuestAwareRoute } from '@/systems/quest-aware-trade-system';
 import { emitMinorCivQuestTransitions } from '@/systems/quest-chain-system';
-import { performMinorCivFestival, performMinorCivGift, performMinorCivReparations, setMinorCivWarState } from '@/systems/minor-civ-actions';
-import { canSendAid, applySendAid, applyOpportunisticWarPenaltyIfCrisisStruck } from '@/systems/crisis-interaction-system';
-import { openEstablishRoutePanel } from '@/ui/establish-route-panel';
+import { applyOpportunisticWarPenaltyIfCrisisStruck } from '@/systems/crisis-interaction-system';
 import { RoundPresentationGate } from '@/presentation/round-presentation-gate';
 import { createCityOverviewPanel } from '@/ui/city-overview-panel';
 import type { GameSession } from '@/app/ports';
@@ -235,6 +232,26 @@ const ceremonies: CeremonyCoordinator = createCeremonyCoordinator({
  * until real gameplay, well after module evaluation finishes. The same
  * deferred-but-eager pattern `notifier` and `router` already use.
  */
+/**
+ * Owns the diplomacy, minor-civ, and crisis-interaction handlers (#787 phase
+ * 10b-a). `hud` and `selectionController` are wrapped in thin lazily-evaluating
+ * objects, not passed directly -- both are `const`s not assigned until later
+ * in module evaluation (`selectionController` right below this, `hud` further
+ * down), so a direct reference here would capture `undefined` at construction
+ * time. Same deferred-but-eager closure pattern `selectionController` itself
+ * already uses for `updateHUD: () => hud.update()` below.
+ */
+const diplomacyActions: DiplomacyActionsController = createDiplomacyActionsController({
+  session,
+  bus,
+  renderLoop,
+  uiLayer,
+  showNotification,
+  openDiplomacyPanel,
+  hud: { update: () => hud.update() },
+  selectionController: { selectUnit: (unitId, opts) => selectionController.selectUnit(unitId, opts) },
+});
+
 const selectionController: SelectionController = createSelectionController({
   session,
   selection,
@@ -255,7 +272,7 @@ const selectionController: SelectionController = createSelectionController({
   openNetworkIntentPanel,
   openUnitStackPicker,
   openPirateHeadquartersAssault,
-  handleEstablishRoute,
+  handleEstablishRoute: diplomacyActions.handleEstablishRoute,
   executeUpgrade,
   ensurePlayerWarState,
   scanBeastSightings,
@@ -764,63 +781,6 @@ function openNotificationLog(): void {
   }, 100);
 }
 
-function handleDiplomaticAction(targetCivId: string, action: DiplomaticAction): void {
-  const cp = session.getState().currentPlayer;
-  session.setStateWithoutRefresh(applyDiplomaticAction(session.getState(), cp, targetCivId, action, bus));
-  if (action === 'declare_war') {
-    session.setStateWithoutRefresh(applyOpportunisticWarPenaltyIfCrisisStruck(session.getState(), cp, targetCivId, bus));
-  }
-  renderLoop.setGameState(session.getState());
-  hud.update();
-  openDiplomacyPanel();
-  if (action === 'request_peace') {
-    showNotification('Peace requested.', 'info');
-  } else {
-    showNotification(`Diplomatic action: ${action.replace(/_/g, ' ')}`, 'info');
-  }
-}
-
-function handleAcceptPeaceRequest(requestId: string): void {
-  session.commit(acceptDiplomaticRequest(session.getState(), session.getState().currentPlayer, requestId, bus));
-  openDiplomacyPanel();
-  showNotification('Peace accepted.', 'success');
-}
-
-function handleRejectPeaceRequest(requestId: string): void {
-  session.commit(rejectDiplomaticRequest(session.getState(), session.getState().currentPlayer, requestId));
-  openDiplomacyPanel();
-  showNotification('Peace request rejected.', 'info');
-}
-
-function handleAcceptTreatyProposal(requestId: string): void {
-  session.commit(acceptDiplomaticRequest(session.getState(), session.getState().currentPlayer, requestId, bus));
-  openDiplomacyPanel();
-  showNotification('Treaty signed.', 'success');
-}
-
-function handleDeclineTreatyProposal(requestId: string): void {
-  session.commit(rejectDiplomaticRequest(session.getState(), session.getState().currentPlayer, requestId));
-  openDiplomacyPanel();
-  showNotification('Proposal declined.', 'info');
-}
-
-function handleBreakTreaty(civId: string, treatyType: TreatyType): void {
-  const actorId = session.getState().currentPlayer;
-  const actor = session.getState().civilizations[actorId];
-  const target = session.getState().civilizations[civId];
-  if (!actor || !target) return;
-  session.commit({
-    ...session.getState(),
-    civilizations: {
-      ...session.getState().civilizations,
-      [actorId]: { ...actor, diplomacy: breakTreaty(actor.diplomacy, civId, treatyType, session.getState().turn) },
-      [civId]: { ...target, diplomacy: breakTreaty(target.diplomacy, actorId, treatyType, session.getState().turn) },
-    },
-  });
-  openDiplomacyPanel();
-  showNotification(`${TREATY_LABELS[treatyType]} broken with ${target.name}.`, 'warning');
-}
-
 function executeMinorCivConquest(unitId: string, target: HexCoord, minorCivId: string, cityId: string): void {
   const cityName = session.getState().cities[cityId]?.name ?? 'City-State';
   const movement = selectionController.executeAnimatedUnitMove(unitId, () => executeUnitMove(session.getState(), unitId, target, {
@@ -842,86 +802,21 @@ function executeMinorCivConquest(unitId: string, target: HexCoord, minorCivId: s
   hud.update();
 }
 
-function handleGiftGold(mcId: string): void {
-  const result = performMinorCivGift(session.getState(), session.getState().currentPlayer, mcId);
-  if (!result.ok) {
-    showNotification(result.reason ?? 'Gift unavailable.', 'warning');
-    return;
-  }
-  session.setStateWithoutRefresh(result.state);
-  emitMinorCivQuestTransitions(bus, result.transitions, session.getState());
-  showNotification('Gift delivered.', 'info');
-  renderLoop.setGameState(session.getState());
-  hud.update();
-  openDiplomacyPanel();
-}
-
-function handleSponsorFestival(mcId: string): void {
-  const result = performMinorCivFestival(session.getState(), session.getState().currentPlayer, mcId);
-  if (!result.ok) {
-    showNotification(result.reason ?? 'Festival unavailable.', 'warning');
-    return;
-  }
-  session.setStateWithoutRefresh(result.state);
-  emitMinorCivQuestTransitions(bus, result.transitions, session.getState());
-  showNotification('Festival sponsored.', 'success');
-  renderLoop.setGameState(session.getState());
-  hud.update();
-  openDiplomacyPanel();
-}
-
-function handleMinorCivReparations(mcId: string): void {
-  const result = performMinorCivReparations(session.getState(), session.getState().currentPlayer, mcId);
-  if (!result.ok) {
-    showNotification(result.reason ?? 'Reparations unavailable.', 'warning');
-    return;
-  }
-  session.setStateWithoutRefresh(result.state);
-  showNotification('Reparations paid.', 'success');
-  renderLoop.setGameState(session.getState());
-  hud.update();
-  openDiplomacyPanel();
-}
-
-function handleSendAid(crisisId: string): void {
-  const check = canSendAid(session.getState(), session.getState().currentPlayer, crisisId);
-  if (!check.ok) {
-    showNotification('Send Aid unavailable.', 'warning');
-    return;
-  }
-  session.setStateWithoutRefresh(applySendAid(session.getState(), session.getState().currentPlayer, crisisId, bus));
-  showNotification('Aid sent.', 'success');
-  renderLoop.setGameState(session.getState());
-  hud.update();
-  openDiplomacyPanel();
-}
-
-function handleMinorCivWarPeace(mcId: string, currentlyAtWar: boolean): void {
-  const result = setMinorCivWarState(session.getState(), session.getState().currentPlayer, mcId, !currentlyAtWar);
-  if (!result.ok) return;
-  session.setStateWithoutRefresh(result.state);
-  emitMinorCivQuestTransitions(bus, result.transitions, session.getState());
-  showNotification(currentlyAtWar ? 'Peace with city-state' : 'War declared on city-state!', currentlyAtWar ? 'success' : 'warning');
-  renderLoop.setGameState(session.getState());
-  hud.update();
-  openDiplomacyPanel();
-}
-
 function openDiplomacyPanel(): void {
   hud.closeDrawer();
   document.getElementById('diplomacy-panel')?.remove();
   createDiplomacyPanel(uiLayer, session.getState(), {
-    onAction: handleDiplomaticAction,
-    onAcceptPeaceRequest: handleAcceptPeaceRequest,
-    onRejectPeaceRequest: handleRejectPeaceRequest,
-    onAcceptTreatyProposal: handleAcceptTreatyProposal,
-    onDeclineTreatyProposal: handleDeclineTreatyProposal,
-    onBreakTreaty: handleBreakTreaty,
-    onGiftGold: handleGiftGold,
-    onSponsorFestival: handleSponsorFestival,
-    onMinorCivReparations: handleMinorCivReparations,
-    onMinorCivWarPeace: handleMinorCivWarPeace,
-    onSendAid: handleSendAid,
+    onAction: diplomacyActions.handleDiplomaticAction,
+    onAcceptPeaceRequest: diplomacyActions.handleAcceptPeaceRequest,
+    onRejectPeaceRequest: diplomacyActions.handleRejectPeaceRequest,
+    onAcceptTreatyProposal: diplomacyActions.handleAcceptTreatyProposal,
+    onDeclineTreatyProposal: diplomacyActions.handleDeclineTreatyProposal,
+    onBreakTreaty: diplomacyActions.handleBreakTreaty,
+    onGiftGold: diplomacyActions.handleGiftGold,
+    onSponsorFestival: diplomacyActions.handleSponsorFestival,
+    onMinorCivReparations: diplomacyActions.handleMinorCivReparations,
+    onMinorCivWarPeace: diplomacyActions.handleMinorCivWarPeace,
+    onSendAid: diplomacyActions.handleSendAid,
     onClose: () => {},
   });
 }
@@ -998,47 +893,17 @@ function openCityOverviewPanel(): void {
       if (city) openCityPanelForCity(city);
     },
     onAppeaseFaction: (cityId) => {
-      handleAppeaseFaction(cityId);
+      diplomacyActions.handleAppeaseFaction(cityId);
       openCityOverviewPanel(); // re-render with updated unrest/gold state
     },
     onConcedeToMovement: (cityId) => {
-      handleConcedeToMovement(cityId);
+      diplomacyActions.handleConcedeToMovement(cityId);
       openCityOverviewPanel(); // re-render with updated unrest/gold state
     },
     onClose: () => {
       document.getElementById('city-overview-panel')?.remove();
     },
   });
-}
-
-function handleAppeaseFaction(cityId: string): GameState {
-  const targetCity = session.getState().cities[cityId];
-  if (!targetCity) return session.getState();
-  const result = appeaseFaction(session.getState(), cityId, session.getState().currentPlayer);
-  if (!result.success) {
-    showNotification(result.message, 'warning');
-    return session.getState();
-  }
-  session.commit(result.state);
-  showNotification(result.message, 'success');
-  return session.getState();
-}
-
-function handleConcedeToMovement(cityId: string): GameState {
-  const targetCity = session.getState().cities[cityId];
-  if (!targetCity) return session.getState();
-  const result = concedeToMovement(session.getState(), cityId, session.getState().currentPlayer);
-  if (!result.success) {
-    showNotification(result.message, 'warning');
-    return session.getState();
-  }
-  session.setStateWithoutRefresh(result.state);
-  bus.emit('faction:unrest-resolved', { cityId, owner: session.getState().currentPlayer });
-  bus.emit('faction:concession-made', { cityId, owner: session.getState().currentPlayer, concessionType: 'charter' });
-  renderLoop.setGameState(session.getState());
-  hud.update();
-  showNotification(result.message, 'success');
-  return session.getState();
 }
 
 function openCityPanelForCity(city: import('@/core/types').City): void {
@@ -1095,7 +960,7 @@ function openCityPanelForCity(city: import('@/core/types').City): void {
     onClose: () => {},
     onTip: (message) => { showNotification(message, 'info'); },
     onSelectUnit: (unitId) => selectionController.selectUnit(unitId),
-    onEstablishRoute: handleEstablishRoute,
+    onEstablishRoute: diplomacyActions.handleEstablishRoute,
     onPrevCity: () => {
       const cities = currentCiv().cities;
       if (cities.length <= 1) return;
@@ -1141,8 +1006,8 @@ function openCityPanelForCity(city: import('@/core/types').City): void {
       showNotification(`${targetCity.name}: rush bought ${result.label} for ${result.cost} gold.`, 'success');
       return session.getState();
     },
-    onAppeaseFaction: (cityId) => handleAppeaseFaction(cityId),
-    onConcedeToMovement: (cityId) => handleConcedeToMovement(cityId),
+    onAppeaseFaction: (cityId) => diplomacyActions.handleAppeaseFaction(cityId),
+    onConcedeToMovement: (cityId) => diplomacyActions.handleConcedeToMovement(cityId),
     onQuarantineCrisis: (crisisId, cityId) => {
       const result = applyQuarantine(session.getState(), crisisId, cityId);
       if (!result.success) {
@@ -1632,23 +1497,6 @@ function openNetworkPanel(): void {
     uiLayer.appendChild(panel);
   };
   rerender();
-}
-
-// Trade Routes Overhaul (#553 MR4/4) — extracted so the City panel's Trade Routes
-// section and selected-unit-info's Establish Route button trigger the exact same code
-// path (per ui-panels.md's Extracted UI Flows rule), not two copies that could drift.
-function handleEstablishRoute(caravanId: string): void {
-  openEstablishRoutePanel(uiLayer, session.getState(), caravanId, (toCityId) => {
-    const resourceDiversity = getCivAvailableResources(session.getState(), session.getState().currentPlayer).size;
-    const routeResult = establishQuestAwareRoute(session.getState(), caravanId, toCityId, resourceDiversity);
-    session.setStateWithoutRefresh(routeResult.state);
-    emitMinorCivQuestTransitions(bus, routeResult.questTransitions, session.getState());
-    bus.emit('trade:route-created', { route: routeResult.route });
-    renderLoop.setGameState(session.getState());
-    hud.update();
-    selectionController.selectUnit(caravanId);
-    showNotification('Trade route established!', 'success');
-  });
 }
 
 function getUnitTurnFlow() {
