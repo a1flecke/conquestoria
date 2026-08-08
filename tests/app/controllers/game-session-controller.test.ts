@@ -8,6 +8,7 @@ import { createSelectionStore } from '@/app/selection-store';
 import { createPanelHost } from '@/app/panel-host';
 import { RoundPresentationGate } from '@/presentation/round-presentation-gate';
 import * as saveManager from '@/storage/save-manager';
+import type { HudController } from '@/app/controllers/hud-controller';
 import {
   createGameSessionController,
   type GameSessionControllerDeps,
@@ -56,7 +57,7 @@ function fakeAudio(overrides: Partial<GameSessionAudio> = {}): GameSessionAudio 
   };
 }
 
-function fakeHud() {
+function fakeHud(): HudController {
   return {
     update: vi.fn(),
     setMapViewportBottomInset: vi.fn(),
@@ -94,7 +95,7 @@ function baseDeps(state: GameState, overrides: Partial<GameSessionControllerDeps
     },
     mapInteraction: { handleHexTap: vi.fn(), handleHexLongPress: vi.fn() },
     selectionController: { selectNextUnit: vi.fn(), selectUnit: vi.fn() },
-    hud: fakeHud() as never,
+    hud: fakeHud(),
     campaignEntry: {
       showStartSavePanel: vi.fn().mockResolvedValue(undefined),
       showGameModeSelection: vi.fn(),
