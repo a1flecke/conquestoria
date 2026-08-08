@@ -1,35 +1,9 @@
-import '@/assets/sprite-animations-v2.css';
-import '@/assets/boar-animations.css';
-import '@/assets/wolf-animations.css';
-import '@/assets/basilisk-animations.css';
-import '@/assets/hydra-animations.css';
-import '@/assets/sea-serpent-animations.css';
-import '@/assets/wurm-animations.css';
-import '@/assets/roc-animations.css';
-import '@/assets/dragon-animations.css';
 import { EventBus } from '@/core/event-bus';
-import { createNewGame, createHotSeatGame } from '@/core/game-state';
-import { resolveOpponentChallenge, setPendingOpponentChallenge, resolveChallengeForCiv, setPendingChallengeForCiv } from '@/core/opponent-challenge';
 import { RenderLoop } from '@/renderer/render-loop';
-import {
-  getVisibleCityBadgeSlots,
-  getVisibleHexViewportCopies,
-} from '@/renderer/city-renderer';
-import { initSprites } from '@/renderer/sprites/sprite-loader';
-import { preloadOutpostMarker } from '@/renderer/improvements/resource-outpost-marker';
-import { preloadFamineBadgeMarker } from '@/renderer/improvements/famine-badge-marker';
-import { preloadReligionBadgeMarker } from '@/renderer/improvements/religion-badge-marker';
-import { preloadRailSegment } from '@/renderer/improvements/rail-segment-loader';
-import { preloadTerrainTiles } from '@/renderer/terrain/terrain-tile-loader';
-import { preloadNaturalWonderTiles } from '@/renderer/terrain/wonder-tile-loader';
-import { TouchHandler, type InputCallbacks } from '@/input/touch-handler';
-import { MouseHandler } from '@/input/mouse-handler';
-import { installKeyboardShortcuts } from '@/input/keyboard-shortcuts';
-import { hexKey, hexToPixel, hexesInRange, parseHexKey } from '@/systems/hex-utils';
-import { moveUnit, getMovementCost, UNIT_DEFINITIONS, restUnit, canHeal, getUnmovedUnits, createUnit } from '@/systems/unit-system';
+import { hexKey, hexesInRange, parseHexKey } from '@/systems/hex-utils';
+import { moveUnit, getMovementCost, UNIT_DEFINITIONS, restUnit, canHeal, createUnit } from '@/systems/unit-system';
 import { isMajorCivOwner } from '@/core/owner-kind';
 import { getProductionDisplayName, TRAINABLE_UNITS } from '@/systems/city-system';
-import { civHasAirDefenseCoverage } from '@/systems/air-defense-system';
 import { chooseCircularManufacturingMaterial } from '@/systems/national-project-system';
 import { foundCityInState } from '@/systems/city-founding-system';
 import { assignCityFocus, setCityWorkedTile } from '@/systems/city-work-system';
@@ -46,7 +20,6 @@ import { canUnitAttackTarget } from '@/systems/attack-targeting';
 import { applyCombatOutcomeToState, getCaptureNotificationLabel } from '@/systems/combat-reward-system';
 import { recordCombatForCiv } from '@/systems/threat-pressure-system';
 import { applyWorkerAction } from '@/systems/worker-action-system';
-import { resolveCivilizationEra } from '@/systems/tech-definitions';
 import { resolveCombatEra } from '@/systems/era-resolution';
 import { preach } from '@/systems/religion-system';
 import { createUnitDeleteConfirmationPanel } from '@/ui/unit-delete-confirmation-panel';
@@ -57,146 +30,67 @@ import { createBeastHoardPanel } from '@/ui/beast-hoard-panel';
 import { BEAST_DEFINITIONS } from '@/systems/beast-definitions';
 import { recordBeastSightings, getBestiaryEntriesForPlayer } from '@/systems/beast-presentation';
 import { createBestiaryPanel } from '@/ui/bestiary-panel';
-import {
-  autoSave,
-  loadMostRecentAutoSaveEntry,
-  loadSaveEntry,
-  loadSettings,
-  rewriteLoadedSaveEntry,
-  saveGame,
-  saveSettings,
-} from '@/storage/save-manager';
+import { loadSettings, saveSettings } from '@/storage/save-manager';
 import { AudioSystem } from '@/audio/audio-system';
-import { SFX, routeSfxThrough } from '@/audio/sfx';
+import { SFX } from '@/audio/sfx';
 import { createDiplomacyPanel } from '@/ui/diplomacy-panel';
 import { createMarketplacePanel } from '@/ui/marketplace-panel';
 import { createEspionagePanel } from '@/ui/espionage-panel';
-import { createSavePanel } from '@/ui/save-panel';
 import { AdvisorSystem } from '@/ui/advisor-system';
 import { createCouncilPanel } from '@/ui/council-panel';
-import { createGameShell } from '@/ui/game-shell';
 import { createNotificationLogPanel } from '@/ui/notification-log-panel';
 import { createPirateWatersPanel } from '@/ui/pirate-waters-panel';
-import { createGameButton } from '@/ui/ui-kit';
 import { getPirateWatersPresentation, type PirateFocusTarget } from '@/systems/pirate-presentation';
 import { hirePirateFlotilla, payPirateTribute, type PirateActionResult } from '@/systems/pirate-actions';
 import { markNotificationRead, resolvePirateNotificationReview } from '@/ui/pirate-notification-listeners';
-import {
-  confirmPirateHeadquartersAssault,
-  preparePirateHeadquartersAssault,
-} from '@/input/pirate-headquarters-assault';
+import { confirmPirateHeadquartersAssault, preparePirateHeadquartersAssault } from '@/input/pirate-headquarters-assault';
 import { createPirateHeadquartersAssaultPanel } from '@/ui/pirate-headquarters-assault-panel';
 import { formatNotificationTargetFocusMessage } from '@/ui/notification-targets';
 import { createNetworkIntentPanel } from '@/ui/network-intent-panel';
 import { createNetworkPanel, getNetworkPanelModel } from '@/ui/network-panel';
 import { renderUnitStackPanel } from '@/ui/unit-stack-panel';
 import { createUnitTurnFlow } from '@/ui/unit-turn-flow';
-import { showCampaignSetup } from '@/ui/campaign-setup';
-import { showGameModeSelect } from '@/ui/game-mode-select';
 import { createPacingDebugPanel } from '@/ui/pacing-debug-panel';
 import { resolveCivDefinition } from '@/systems/civ-registry';
-import {
-  acceptDiplomaticRequest,
-  applyDiplomaticAction,
-  breakTreaty,
-  declareWar,
-  makePeace,
-  modifyRelationship,
-  rejectDiplomaticRequest,
-  resolveOpponentKind,
-} from '@/systems/diplomacy-system';
-import { calculateProjectedCityYields } from '@/systems/city-work-system';
+import { acceptDiplomaticRequest, applyDiplomaticAction, breakTreaty, declareWar, makePeace, modifyRelationship, rejectDiplomaticRequest, resolveOpponentKind } from '@/systems/diplomacy-system';
 import { visitVillage } from '@/systems/village-system';
-import {
-  assignNetworkPlan,
-  cancelNetworkPlan,
-  holdNetworkPlan,
-  isAutonomyActivated,
-  retargetNetworkPlan,
-} from '@/systems/network-plan-system';
+import { assignNetworkPlan, cancelNetworkPlan, holdNetworkPlan, isAutonomyActivated, retargetNetworkPlan } from '@/systems/network-plan-system';
 import { beginAutonomySurge, requestAutonomyPosture } from '@/systems/autonomy-postures';
-import {
-  acknowledgeTurnHandoffSummary,
-  showTurnHandoff,
-} from '@/ui/turn-handoff';
-import { showHotSeatSetup } from '@/ui/hotseat-setup';
 import { clearStaleSoloPendingEvents } from '@/core/hotseat-events';
 import { refreshKnownCivilizations, syncCivilizationContactsFromVisibility } from '@/systems/discovery-system';
 import { getMinorCivNotification } from '@/ui/minor-civ-notifications';
 import { registerMinorCivNotificationListeners } from '@/ui/minor-civ-notification-listeners';
 import { conquestMinorCiv, applyDiplomaticReaction } from '@/systems/minor-civ-system';
-import { createIconLegendOverlay } from '@/ui/icon-legend';
 import { buildUnitOccupancy, hasHostileUnitAtCoord } from '@/systems/unit-occupancy';
-import {
-  beginPlayerCityAssaultChoice,
-  shouldPromptForPlayerCityCapture,
-} from '@/input/city-assault-flow';
+import { beginPlayerCityAssaultChoice, shouldPromptForPlayerCityCapture } from '@/input/city-assault-flow';
 import { canUnitOccupyCity } from '@/systems/city-capture-system';
 import { buildCombatPresentation } from '@/systems/viewer-event-presentation';
-import {
-  initializeLegendaryWonderProjectsForCity,
-  getLegendaryWonderEligibility,
-  startLegendaryWonderBuild,
-} from '@/systems/legendary-wonder-system';
+import { initializeLegendaryWonderProjectsForCity, getLegendaryWonderEligibility, startLegendaryWonderBuild } from '@/systems/legendary-wonder-system';
 import { getLegendaryWonderDefinition } from '@/systems/legendary-wonder-definitions';
-import {
-  embedSpy,
-  unembedSpy,
-  attemptSweep,
-  getAvailableMissions,
-  getSpyCaptureRelationshipPenalty,
-  expelSpy,
-  executeSpy,
-  startInterrogation,
-  isSpyUnitType,
-  missionRequiresPlacedSpy,
-  recallSpy,
-  resolveMissionResult,
-  startMission,
-  verifyAgent,
-} from '@/systems/espionage-system';
-import {
-  applyUnitUpgradeToState,
-  evaluateUnitUpgrade,
-} from '@/systems/unit-upgrade-system';
+import { embedSpy, unembedSpy, attemptSweep, getAvailableMissions, getSpyCaptureRelationshipPenalty, expelSpy, executeSpy, startInterrogation, isSpyUnitType, missionRequiresPlacedSpy, recallSpy, resolveMissionResult, startMission, verifyAgent } from '@/systems/espionage-system';
+import { applyUnitUpgradeToState, evaluateUnitUpgrade } from '@/systems/unit-upgrade-system';
 import { executeUnitMove, isWorkerBusy } from '@/systems/unit-movement-system';
-import {
-  getEmbarkedAssaultTarget,
-  detachCargoForEmbarkedAssault,
-} from '@/systems/transport-system';
+import { getEmbarkedAssaultTarget, detachCargoForEmbarkedAssault } from '@/systems/transport-system';
 import { createSelectionStore } from '@/app/selection-store';
 import { getCapitalCity, getCapitalCityId } from '@/systems/capital-system';
 import type { CombatResult, GameState, HexCoord, Unit, UnitType, DiplomaticAction, CivBonusEffect, WorkerActionType, TreatyType } from '@/core/types';
-import {
-  appendNotification,
-  getNotificationsForPlayer,
-  type NotificationCityAction,
-  type NotificationEntry,
-} from '@/core/notification-log';
-import {
-  TREATY_LABELS,
-  type NotificationSink,
-} from '@/ui/notification-routing';
-import { createNotificationCenter } from '@/ui/notification-center';
+import { appendNotification, getNotificationsForPlayer, type NotificationCityAction, type NotificationEntry } from '@/core/notification-log';
+import { TREATY_LABELS, type NotificationSink } from '@/ui/notification-routing';
 import { createUserSettingsStore } from '@/app/user-settings-store';
 import type { Notifier } from '@/app/ports';
-import { applyPersistedUserSettings } from '@/storage/settings-merge';
-import { registerConquestoriaServiceWorker } from '@/platform/service-worker';
-import { initializeDesktopMenu } from '@/platform/desktop-menu';
-import { fortifyUnitInState, unfortifyUnitInState } from '@/systems/unit-lifecycle-system';
-import { showPauseMenu } from '@/ui/pause-menu-panel';
-import { beginCampaignEntry } from '@/ui/campaign-entry-flow';
-import { showLegacyOpponentChallengePrompt } from '@/ui/legacy-opponent-challenge-prompt';
 import { updateAndRefreshVisibility, reconstructLastSeenFromMap } from '@/systems/last-seen-presentation';
-import { calculateCivEconomy, formatGoldHudText, rushBuyActiveProduction } from '@/systems/economy-system';
+import { rushBuyActiveProduction } from '@/systems/economy-system';
 import { appeaseFaction, concedeToMovement } from '@/systems/faction-system';
 import { applyQuarantine, applyRemedy } from '@/systems/crisis-system';
-import { createTreasuryDrawer, type TreasuryDrawer } from '@/ui/treasury-drawer';
-import { getCivHappinessFromResources, getCivAvailableResources, canBuyResourceAccess, performBuyResourceAccess } from '@/systems/resource-acquisition-system';
+import { getCivAvailableResources, canBuyResourceAccess, performBuyResourceAccess } from '@/systems/resource-acquisition-system';
 import { createCeremonyCoordinator, type CeremonyCoordinator } from '@/app/controllers/ceremony-coordinator';
 import { createSelectionController, type SelectionController } from '@/app/controllers/selection-controller';
 import { createMapInteractionController, type MapInteractionController } from '@/app/controllers/map-interaction-controller';
 import { createTurnFlowController, type TurnFlowController } from '@/app/controllers/turn-flow-controller';
+import { createHudController, type HudController } from '@/app/controllers/hud-controller';
+import { createCampaignEntryController, type CampaignEntryController } from '@/app/controllers/campaign-entry-controller';
+import { createGameSessionController, type GameSessionController } from '@/app/controllers/game-session-controller';
+import { bootstrap } from '@/app/bootstrap';
 import { registerAllPresentation, type PresentationContext } from '@/presentation/register-all';
 import { removeRouteForUnit, createMarketplaceState } from '@/systems/trade-system';
 import { establishQuestAwareRoute } from '@/systems/quest-aware-trade-system';
@@ -228,18 +122,18 @@ const session: GameSession = createGameSession(undefined as unknown as GameState
  * pending-map-intent union that replaced four independent nullable flags.
  */
 const selection = createSelectionStore();
-let drawer: TreasuryDrawer;
-let inputInitialized = false;
 /** Owns persisted A/V settings + master volume, moved out of module scope (#787 phase 4). */
 const userSettingsStore = createUserSettingsStore({ load: loadSettings });
 /**
  * The single source of player-facing notifications (#787 phase 4).
  *
- * Constructed in `init()`, once `createUI()` has created the `#notifications`
- * element `NotificationCenterDeps.layer` needs. Every function below that
- * reads `notifier` is only ever invoked during real gameplay, well after
- * `init()` completes -- the same deferred-but-eager pattern `session` and
- * `selection` already use for their own module-scope bindings.
+ * Constructed in `GameSessionController.init()`, once `createUI()` has
+ * created the `#notifications` element `NotificationCenterDeps.layer`
+ * needs, then published back here via `setNotifier` (#787 phase 10).
+ * Every function below that reads `notifier` is only ever invoked during
+ * real gameplay, well after `init()` completes -- the same
+ * deferred-but-eager pattern `session` and `selection` already use for
+ * their own module-scope bindings.
  */
 let notifier: Notifier;
 
@@ -296,17 +190,8 @@ const panelContext: PanelContext = {
 // Registered once, here, rather than repeated as a three-statement discipline
 // at each write site. Renderer first, matching the order the manual pairs used.
 session.subscribe(next => renderLoop.setGameState(next));
-session.subscribe(() => updateHUD());
+session.subscribe(() => hud.update());
 
-const airDefenseOverlayButton = createGameButton('🛡 Anti-aircraft coverage', 'secondary');
-airDefenseOverlayButton.id = 'btn-air-defense-overlay';
-airDefenseOverlayButton.hidden = true; // shown once the current civ has built AA coverage — see updateHUD()
-airDefenseOverlayButton.setAttribute('aria-pressed', 'false');
-airDefenseOverlayButton.addEventListener('click', () => {
-  const enabled = renderLoop.toggleAirDefenseOverlay();
-  airDefenseOverlayButton.setAttribute('aria-pressed', String(enabled));
-  airDefenseOverlayButton.textContent = enabled ? '🛡 Anti-aircraft coverage: on' : '🛡 Anti-aircraft coverage';
-});
 function setBlockingOverlay(id: string | null): void {
   host.setBlockingOverlay(id);
 }
@@ -360,7 +245,7 @@ const selectionController: SelectionController = createSelectionController({
   ceremonies,
   getInfoPanel: () => document.getElementById('info-panel'),
   showNotification,
-  updateHUD,
+  updateHUD: () => hud.update(),
   clearUnloadState,
   getUnitTurnFlow,
   foundCityAction,
@@ -407,7 +292,7 @@ const turnFlow: TurnFlowController = createTurnFlowController({
   getElementById: id => document.getElementById(id),
   getNetworkIntentPanel: () => document.querySelector('[aria-label="Network intent"]'),
   showNotification,
-  updateHUD,
+  updateHUD: () => hud.update(),
   setBlockingOverlay,
   currentCiv,
   getUnitTurnFlow,
@@ -416,7 +301,11 @@ const turnFlow: TurnFlowController = createTurnFlowController({
   scanBeastSightings,
   maybeShowPendingHoardChoice,
   checkAdvisors: () => advisorSystem.check(session.getState()),
-  showGameModeSelection,
+  // `campaignEntry` is declared after `turnFlow` (it needs `turnFlow` itself
+  // as a dep) -- same deferred-but-eager forward reference `router`/`notifier`
+  // already use elsewhere in this file; safe because this closure is not
+  // invoked until real gameplay.
+  showGameModeSelection: () => campaignEntry.showGameModeSelection(),
   reloadPage: () => window.location.reload(),
   openCityPanelForCity,
 });
@@ -439,7 +328,7 @@ const mapInteraction: MapInteractionController = createMapInteractionController(
   uiLayer,
   getElementById: id => document.getElementById(id),
   showNotification,
-  updateHUD,
+  updateHUD: () => hud.update(),
   clearUnloadState,
   currentCiv,
   openPirateWaters,
@@ -450,6 +339,79 @@ const mapInteraction: MapInteractionController = createMapInteractionController(
   executeMinorCivConquest,
   beginPlayerCityAssault,
   finalizePendingCityCaptureChoice: turnFlow.finalizePendingCityCaptureChoice,
+});
+
+/**
+ * Owns the HUD readout, the treasury drawer, the anti-aircraft-overlay
+ * toggle button, and the map viewport bottom inset (#787 phase 10).
+ */
+const hud: HudController = createHudController({
+  session,
+  renderLoop,
+  canvas,
+  router: { open: panel => router.open(panel) },
+  getElementById: id => document.getElementById(id),
+  getDrawerMountRoot: () => document.getElementById('game-shell') ?? document.body,
+});
+
+/**
+ * Owns campaign entry: the start/save panel, mode selection, and
+ * `enterCampaign` (#787 phase 10). `startGame` is a forward reference to
+ * `gameSession` (declared `let` just below and assigned immediately after)
+ * -- the same deferred-but-eager pattern `router`/`notifier` already use,
+ * needed because `gameSession` itself depends on `campaignEntry`.
+ */
+let gameSession: GameSessionController;
+const campaignEntry: CampaignEntryController = createCampaignEntryController({
+  session,
+  uiLayer,
+  audio,
+  bus,
+  roundPresentationGate,
+  host,
+  turnFlow,
+  userSettingsStore,
+  getElementById: id => document.getElementById(id),
+  showNotification,
+  startGame: () => gameSession.startGame(),
+  reloadPage: () => window.location.reload(),
+});
+
+/**
+ * Owns app startup: `init`, `createUI`, `startGame`, and the
+ * `inputInitialized` construct-once guard (#787 phase 10).
+ */
+gameSession = createGameSessionController({
+  session,
+  selection,
+  renderLoop,
+  audio,
+  bus,
+  canvas,
+  uiLayer,
+  documentRef: document,
+  host,
+  router: {
+    toggle: panel => router.toggle(panel),
+    open: panel => router.open(panel),
+    close: panel => router.close(panel),
+    closeGroup: group => router.closeGroup(group),
+    isOpen: panel => router.isOpen(panel),
+  },
+  roundPresentationGate,
+  advisorSystem,
+  userSettingsStore,
+  turnFlow,
+  mapInteraction,
+  selectionController,
+  hud,
+  campaignEntry,
+  getElementById: id => document.getElementById(id),
+  showNotification,
+  foundCityAction,
+  maybeShowPendingHoardChoice,
+  setNotifier: n => { notifier = n; },
+  focusNotificationTarget,
 });
 
 /**
@@ -476,17 +438,6 @@ const presentationContext: PresentationContext = {
   showNotification: (message, type, target) => showNotification(message, type, target),
 };
 
-// --- Resize ---
-window.addEventListener('resize', () => renderLoop.resizeCanvas());
-
-function setMapViewportBottomInset(height: number): void {
-  canvas.style.bottom = `${height}px`;
-  // With both top and bottom set, an auto height makes the canvas occupy only
-  // the remaining map viewport instead of living behind the action bar.
-  canvas.style.height = 'auto';
-  renderLoop.resizeCanvas();
-}
-
 /**
  * `createPacingDebugPanel` self-removes any prior instance from `uiLayer`,
  * so the router's own DOM-derived `isOpen`/`close` need no extra bookkeeping
@@ -501,99 +452,6 @@ function openPacingDebugPanel(): void {
 // `installGlobalShortcuts` (called from `init()`, once `notifier` exists) so
 // it can depend on the real `Notifier`/`PanelRouter` ports instead of
 // reaching into module-scope closures directly (#787 phase 5).
-
-function createUI(): void {
-  createGameShell(uiLayer, {
-    onOpenCouncil: () => router.open('council'),
-    onOpenTech: () => router.open('tech'),
-    onOpenCity: () => router.open('city-overview'),
-    onOpenEspionage: () => router.open('espionage'),
-    onOpenDiplomacy: () => router.open('diplomacy'),
-    onOpenMarketplace: () => router.open('marketplace'),
-    onEndTurn: () => turnFlow.endTurn(),
-    onNextUnit: () => selectionController.selectNextUnit(),
-    onOpenNotificationLog: () => router.toggle('notification-log'),
-    onOpenPirateWaters: () => router.open('pirate-waters'),
-    onToggleIconLegend: () => {
-      const existing = document.getElementById('icon-legend');
-      if (existing && existing.style.display !== 'none') {
-        // Already visible — hide it
-        existing.style.display = 'none';
-        return;
-      }
-      // Stale or absent — remove old, rebuild fresh with current techs
-      existing?.remove();
-      const viewerTechs = new Set<string>(
-        session.getState().civilizations[session.getState().currentPlayer]?.techState.completed ?? []
-      );
-      const overlay = createIconLegendOverlay(viewerTechs);
-      uiLayer.appendChild(overlay);
-    },
-    onOpenWonderAtlas: () => router.open('wonder-atlas'),
-    onBottomBarHeightChange: setMapViewportBottomInset,
-    onOpenMenu: () => {
-      showPauseMenu(uiLayer, {
-        turn: session.getState().turn,
-        civName: session.getState().civilizations[session.getState().currentPlayer].name,
-        onResume: () => {},
-        onSave: async (slotId, name) => {
-          await saveGame(slotId, name, session.getState());
-          showNotification('Game saved.', 'info');
-        },
-        onNewGame: () => showGameModeSelection(),
-        autoSave: () => autoSave(session.getState()),
-        onOpenBestiary: () => router.open('bestiary'),
-        opponentChallenge: resolveOpponentChallenge(session.getState()),
-        pendingOpponentChallenge: session.getState().pendingOpponentChallenge,
-        onOpponentChallengeChange: (challenge) => {
-          session.setStateWithoutRefresh(setPendingOpponentChallenge(session.getState(), challenge));
-        },
-        personalChallenge: resolveChallengeForCiv(session.getState(), session.getState().currentPlayer),
-        pendingPersonalChallenge: session.getState().civilizations[session.getState().currentPlayer]?.pendingChallenge,
-        onPersonalChallengeChange: (challenge) => {
-          session.setStateWithoutRefresh(setPendingChallengeForCiv(session.getState(), session.getState().currentPlayer, challenge));
-        },
-        // Spec 3: per-channel audio settings
-        audioSettings: {
-          masterVolume:   userSettingsStore.getMasterVolume(),   // tracked in memory across menu reopens
-          musicVolume:    session.getState().settings.musicVolume,
-          sfxVolume:      session.getState().settings.sfxVolume,
-          stingerVolume:  session.getState().settings.stingerVolume  ?? 1.0,
-          musicEnabled:   session.getState().settings.musicEnabled,
-          soundEnabled:   session.getState().settings.soundEnabled,
-          stingerEnabled: session.getState().settings.stingerEnabled ?? true,
-        },
-        onAudioSettingChange: (key, value) => {
-          // Apply to audio system immediately — no restart needed
-          switch (key) {
-            case 'masterVolume':
-              userSettingsStore.setMasterVolume(value as number);
-              audio.setMasterVolume(value as number);
-              return; // master not in GameSettings — skip the settings write below
-            case 'musicVolume':    audio.setMusicVolume(value as number);   break;
-            case 'sfxVolume':      audio.setSfxVolume(value as number);     break;
-            case 'stingerVolume':  audio.setStingerVolume(value as number); break;
-            case 'musicEnabled':   audio.setMusicEnabled(value as boolean); break;
-            case 'soundEnabled':   audio.setSfxEnabled(value as boolean);   break;
-            case 'stingerEnabled': audio.setStingerEnabled(value as boolean); break;
-          }
-          // Persist all non-master settings to GameSettings (saved on next save)
-          (session.getState().settings as unknown as Record<string, number | boolean>)[key] = value;
-        },
-      });
-    },
-  });
-
-  // Join the utility toolbar's flex row instead of an independent absolute position —
-  // a second, uncoordinated top-right anchor overlapped the HUD and the toolbar's own
-  // icon buttons (#783).
-  const utilityToolbar = document.getElementById('utility-toolbar');
-  const pauseMenuButton = document.getElementById('btn-pause-menu');
-  if (utilityToolbar) {
-    if (pauseMenuButton) utilityToolbar.insertBefore(airDefenseOverlayButton, pauseMenuButton);
-    else utilityToolbar.appendChild(airDefenseOverlayButton);
-  }
-}
 
 function openBestiary(): void {
   createBestiaryPanel(uiLayer, getBestiaryEntriesForPlayer(session.getState(), session.getState().currentPlayer), {
@@ -633,13 +491,13 @@ function maybeShowPendingHoardChoice(): void {
   createBeastHoardPanel(uiLayer, preview, choice => {
     session.setStateWithoutRefresh(applyHoardChoice(session.getState(), pending.lairId, pending.civId, choice));
     bus.emit('beast:hoard-claimed', { lairId: pending.lairId, beastId: lair.beastId, civId: pending.civId, choice });
-    updateHUD();
+    hud.update();
     maybeShowPendingHoardChoice();
   });
 }
 
 function openWonderAtlas(initialWonderId?: string): void {
-  drawer?.close();
+  hud.closeDrawer();
   audio.stopNaturalWonderAmbient('codex-page-hidden');
   createWonderAtlasPanel(uiLayer, session.getState(), {
     initialWonderId,
@@ -668,101 +526,6 @@ function currentCiv() {
   return session.getState().civilizations[session.getState().currentPlayer];
 }
 
-function updateHUD(): void {
-  const civ = currentCiv();
-  airDefenseOverlayButton.hidden = !civHasAirDefenseCoverage(session.getState(), civ.id);
-  const airDefenseEnabled = renderLoop.isAirDefenseOverlayEnabled(session.getState().currentPlayer);
-  airDefenseOverlayButton.setAttribute('aria-pressed', String(airDefenseEnabled));
-  airDefenseOverlayButton.textContent = airDefenseEnabled ? '🛡 Anti-aircraft coverage: on' : '🛡 Anti-aircraft coverage';
-  const hud = document.getElementById('hud');
-  if (!hud) return;
-
-  // Sum yields across all cities
-  let totalFood = 0, totalProd = 0, totalScience = 0;
-  for (const cityId of civ.cities) {
-    const city = session.getState().cities[cityId];
-    if (!city) continue;
-    const y = calculateProjectedCityYields(session.getState(), cityId);
-    totalFood += y.food;
-    totalProd += y.production;
-    totalScience += y.science;
-  }
-  const economyStatus = calculateCivEconomy(session.getState(), civ.id);
-
-  const techName = civ.techState.currentResearch ?? 'None';
-  hud.textContent = '';
-
-  const yieldsRow = document.createElement('div');
-  yieldsRow.dataset.role = 'hud-yields';
-  yieldsRow.style.cssText =
-    'display:flex;align-items:center;gap:10px;flex-wrap:nowrap;overflow:hidden;min-width:0;';
-
-  const yieldSpan = document.createElement('span');
-  yieldSpan.textContent = `🌾 ${totalFood}`;
-  yieldsRow.appendChild(yieldSpan);
-
-  const prodSpan = document.createElement('span');
-  prodSpan.textContent = `⚒️ ${totalProd}`;
-  yieldsRow.appendChild(prodSpan);
-
-  const goldBtn = document.createElement('button');
-  goldBtn.style.cssText =
-    'background:transparent;color:inherit;border:none;font-family:inherit;font-size:inherit;padding:0;cursor:pointer;min-height:44px;display:inline-flex;align-items:center;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex-shrink:1;';
-  goldBtn.textContent = `💰 ${formatGoldHudText(economyStatus, civ.gold)}`;
-  goldBtn.addEventListener('click', () => drawer?.toggle());
-  yieldsRow.appendChild(goldBtn);
-  drawer?.update(economyStatus, civ.gold);
-
-  const sciSpan = document.createElement('span');
-  sciSpan.style.cssText = 'min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex-shrink:1;';
-  sciSpan.textContent = `🔬 ${techName !== 'None' ? techName : 'None'} (+${totalScience})`;
-  yieldsRow.appendChild(sciSpan);
-
-  if (isAutonomyActivated(session.getState(), civ.id)) {
-    const networkButton = document.createElement('button');
-    networkButton.type = 'button';
-    networkButton.style.cssText = 'background:transparent;color:inherit;border:1px solid rgba(232,193,112,0.45);border-radius:6px;font:inherit;padding:4px 8px;min-height:44px;';
-    networkButton.textContent = getNetworkPanelModel(session.getState(), civ.id).statusText;
-    networkButton.addEventListener('click', () => router.open('network'));
-    yieldsRow.appendChild(networkButton);
-  }
-
-  const happiness = getCivHappinessFromResources(session.getState(), civ.id);
-  if (happiness > 0) {
-    const happySpan = document.createElement('span');
-    happySpan.title = 'Happiness from luxury resources — each point reduces city unrest pressure by 2';
-    happySpan.textContent = `☺ ${happiness} (stability)`;
-    yieldsRow.appendChild(happySpan);
-  }
-
-  const infoRow = document.createElement('div');
-  if (session.getState().hotSeat && civ.name) {
-    const nameSpan = document.createElement('span');
-    nameSpan.textContent = `${civ.name} · `;
-    infoRow.appendChild(nameSpan);
-  }
-  const turnSpan = document.createElement('span');
-  turnSpan.textContent = `Turn ${session.getState().turn} · Your Era ${resolveCivilizationEra(civ.techState.completed)} · World Age ${session.getState().era}`;
-  infoRow.appendChild(turnSpan);
-
-  hud.appendChild(yieldsRow);
-  hud.appendChild(infoRow);
-
-  const pirateWatersButton = document.getElementById('btn-pirate-waters');
-  if (pirateWatersButton) {
-    pirateWatersButton.hidden = !getPirateWatersPresentation(session.getState(), session.getState().currentPlayer).available;
-  }
-
-  // Show "Next Unit" button when there are unmoved units
-  const nextUnitBtn = document.getElementById('btn-next-unit');
-  if (nextUnitBtn) {
-    const unmovedCount = getUnmovedUnits(session.getState().units, session.getState().currentPlayer).length;
-    nextUnitBtn.style.display = unmovedCount > 0 ? 'block' : 'none';
-    if (unmovedCount > 0) {
-      nextUnitBtn.textContent = `⏩ ${unmovedCount}`;
-    }
-  }
-}
 
 // --- Notifications ---
 // The toast queue, the choice modal, and the delivery contract below all live
@@ -824,7 +587,7 @@ function applyPirateActionResult(result: PirateActionResult, successMessage: str
     }
   }
   renderLoop.setGameState(session.getState());
-  updateHUD();
+  hud.update();
   showNotification(successMessage, 'success');
 }
 
@@ -933,7 +696,7 @@ function openPirateHeadquartersAssault(factionId: string, unitId: string): void 
       session.setStateWithoutRefresh(result.state);
       panel.remove();
       renderLoop.setGameState(session.getState());
-      updateHUD();
+      hud.update();
       SFX.combat();
       const bountyAwarded = result.events.find(event => event.type === 'faction-destroyed')?.bountyAwarded ?? 0;
       showNotification(
@@ -1008,7 +771,7 @@ function handleDiplomaticAction(targetCivId: string, action: DiplomaticAction): 
     session.setStateWithoutRefresh(applyOpportunisticWarPenaltyIfCrisisStruck(session.getState(), cp, targetCivId, bus));
   }
   renderLoop.setGameState(session.getState());
-  updateHUD();
+  hud.update();
   openDiplomacyPanel();
   if (action === 'request_peace') {
     showNotification('Peace requested.', 'info');
@@ -1076,7 +839,7 @@ function executeMinorCivConquest(unitId: string, target: HexCoord, minorCivId: s
   showNotification(`${cityName} has been conquered!`, 'success');
   SFX.tap();
   renderLoop.setGameState(session.getState());
-  updateHUD();
+  hud.update();
 }
 
 function handleGiftGold(mcId: string): void {
@@ -1089,7 +852,7 @@ function handleGiftGold(mcId: string): void {
   emitMinorCivQuestTransitions(bus, result.transitions, session.getState());
   showNotification('Gift delivered.', 'info');
   renderLoop.setGameState(session.getState());
-  updateHUD();
+  hud.update();
   openDiplomacyPanel();
 }
 
@@ -1103,7 +866,7 @@ function handleSponsorFestival(mcId: string): void {
   emitMinorCivQuestTransitions(bus, result.transitions, session.getState());
   showNotification('Festival sponsored.', 'success');
   renderLoop.setGameState(session.getState());
-  updateHUD();
+  hud.update();
   openDiplomacyPanel();
 }
 
@@ -1116,7 +879,7 @@ function handleMinorCivReparations(mcId: string): void {
   session.setStateWithoutRefresh(result.state);
   showNotification('Reparations paid.', 'success');
   renderLoop.setGameState(session.getState());
-  updateHUD();
+  hud.update();
   openDiplomacyPanel();
 }
 
@@ -1129,7 +892,7 @@ function handleSendAid(crisisId: string): void {
   session.setStateWithoutRefresh(applySendAid(session.getState(), session.getState().currentPlayer, crisisId, bus));
   showNotification('Aid sent.', 'success');
   renderLoop.setGameState(session.getState());
-  updateHUD();
+  hud.update();
   openDiplomacyPanel();
 }
 
@@ -1140,12 +903,12 @@ function handleMinorCivWarPeace(mcId: string, currentlyAtWar: boolean): void {
   emitMinorCivQuestTransitions(bus, result.transitions, session.getState());
   showNotification(currentlyAtWar ? 'Peace with city-state' : 'War declared on city-state!', currentlyAtWar ? 'success' : 'warning');
   renderLoop.setGameState(session.getState());
-  updateHUD();
+  hud.update();
   openDiplomacyPanel();
 }
 
 function openDiplomacyPanel(): void {
-  drawer?.close();
+  hud.closeDrawer();
   document.getElementById('diplomacy-panel')?.remove();
   createDiplomacyPanel(uiLayer, session.getState(), {
     onAction: handleDiplomaticAction,
@@ -1164,7 +927,7 @@ function openDiplomacyPanel(): void {
 }
 
 function openMarketplacePanel(): void {
-  drawer?.close();
+  hud.closeDrawer();
   document.getElementById('marketplace-panel')?.remove();
   createMarketplacePanel(uiLayer, session.getState(), {
     onClose: () => {},
@@ -1204,7 +967,7 @@ function openWonderPanelForCityId(selectedCityId: string): void {
         const targetCity = session.getState().cities[buildCityId];
         if (targetCity) {
           renderLoop.setGameState(session.getState());
-          updateHUD();
+          hud.update();
           const productionItemId = `legendary:${wonderId}`;
           if (targetCity.productionQueue[0] === productionItemId) {
             showNotification(`${targetCity.name}: preparing ${getProductionDisplayName(productionItemId)}`, 'info');
@@ -1224,7 +987,7 @@ function openWonderPanelForCityId(selectedCityId: string): void {
 }
 
 function openCityOverviewPanel(): void {
-  drawer?.close();
+  hud.closeDrawer();
   const existing = document.getElementById('city-overview-panel');
   if (existing) existing.remove();
   createCityOverviewPanel(uiLayer, session.getState(), {
@@ -1273,13 +1036,13 @@ function handleConcedeToMovement(cityId: string): GameState {
   bus.emit('faction:unrest-resolved', { cityId, owner: session.getState().currentPlayer });
   bus.emit('faction:concession-made', { cityId, owner: session.getState().currentPlayer, concessionType: 'charter' });
   renderLoop.setGameState(session.getState());
-  updateHUD();
+  hud.update();
   showNotification(result.message, 'success');
   return session.getState();
 }
 
 function openCityPanelForCity(city: import('@/core/types').City): void {
-  drawer?.close();
+  hud.closeDrawer();
   if (city.owner !== session.getState().currentPlayer) return;
 
   createCityPanel(uiLayer, city, session.getState(), {
@@ -1420,7 +1183,7 @@ function openCityPanelForCity(city: import('@/core/types').City): void {
 }
 
 function openCouncilPanel(): void {
-  drawer?.close();
+  hud.closeDrawer();
   createCouncilPanel(uiLayer, session.getState(), {
     onClose: () => {
       document.getElementById('council-panel')?.remove();
@@ -1433,7 +1196,7 @@ function openCouncilPanel(): void {
 }
 
 function openTechPanel(): void {
-  drawer?.close();
+  hud.closeDrawer();
   createTechPanel(uiLayer, session.getState(), {
     onQueueResearch: (techId) => {
       try {
@@ -1444,7 +1207,7 @@ function openTechPanel(): void {
         return;
       }
       renderLoop.setGameState(session.getState());
-      updateHUD();
+      hud.update();
       showNotification(`Queued research: ${techId}`, 'info');
     },
     onMoveQueuedResearch: (fromIndex, toIndex) => {
@@ -1453,7 +1216,7 @@ function openTechPanel(): void {
         researchQueue: moveQueuedId(currentCiv().techState.researchQueue, fromIndex, toIndex),
       };
       renderLoop.setGameState(session.getState());
-      updateHUD();
+      hud.update();
     },
     onRemoveQueuedResearch: (index) => {
       currentCiv().techState = {
@@ -1461,14 +1224,14 @@ function openTechPanel(): void {
         researchQueue: removeQueuedId(currentCiv().techState.researchQueue, index),
       };
       renderLoop.setGameState(session.getState());
-      updateHUD();
+      hud.update();
     },
     onClose: () => {},
   });
 }
 
 function openEspionagePanel(): void {
-  drawer?.close();
+  hud.closeDrawer();
   const chooseForeignCityTarget = (): { civId: string; cityId: string; position: HexCoord } | null => {
       const choices = Object.values(session.getState().cities)
         .filter(city => city.owner !== session.getState().currentPlayer)
@@ -1882,7 +1645,7 @@ function handleEstablishRoute(caravanId: string): void {
     emitMinorCivQuestTransitions(bus, routeResult.questTransitions, session.getState());
     bus.emit('trade:route-created', { route: routeResult.route });
     renderLoop.setGameState(session.getState());
-    updateHUD();
+    hud.update();
     selectionController.selectUnit(caravanId);
     showNotification('Trade route established!', 'success');
   });
@@ -1900,7 +1663,7 @@ function getUnitTurnFlow() {
     centerOn: coord => renderLoop.camera.centerOn(coord),
     refreshVisibility: selectionController.refreshCurrentPlayerVisibility,
     setRenderState: state => renderLoop.setGameState(state),
-    updateHUD,
+    updateHUD: () => hud.update(),
     showNotification,
     setBlockingOverlay,
     endTurn: options => { void turnFlow.endTurn(options); },
@@ -1945,7 +1708,7 @@ function foundCityAction(): void {
   }
 
   renderLoop.setGameState(session.getState());
-  updateHUD();
+  hud.update();
 }
 
 function performWorkerAction(action: WorkerActionType): void {
@@ -1967,7 +1730,7 @@ function performWorkerAction(action: WorkerActionType): void {
   }
 
   renderLoop.setGameState(session.getState());
-  updateHUD();
+  hud.update();
 
   if (result.workerConsumed || result.workerLost || !session.getState().units[selectedUnitId]) {
     selectionController.deselectUnit();
@@ -2076,7 +1839,7 @@ function beginPlayerCityAssault(
       'warning',
     );
     renderLoop.setGameState(session.getState());
-    updateHUD();
+    hud.update();
     return 'resolved';
   }
 
@@ -2228,7 +1991,7 @@ function executeAttack(attackerId: string, targetKey: string): void {
           );
           SFX.combat();
           renderLoop.setGameState(session.getState());
-          updateHUD();
+          hud.update();
           selectionController.refreshSelectedUnitAfterCombat();
           if (assaultStatus === 'resolved') {
             setTimeout(() => selectionController.selectNextUnit(), 400);
@@ -2244,7 +2007,7 @@ function executeAttack(attackerId: string, targetKey: string): void {
   // `attacker` was captured before applyCombatOutcomeToState — safe even if attacker was destroyed
   SFX.combat();
   renderLoop.setGameState(session.getState());
-  updateHUD();
+  hud.update();
   selectionController.refreshSelectedUnitAfterCombat();
   renderLoop.animations.add('combat-flash', 400, { coord: attacker.position }, () => selectionController.selectNextUnit());
 }
@@ -2408,407 +2171,17 @@ function showEspionageCaptureChoice(spyId: string, spyOwner: string): void {
   ]);
 }
 
-// --- Event listeners ---
-// All 72 module-scope bus.on(...) registrations that used to live inline here
-// now live in the thirteen domain registrars under src/presentation/,
-// composed into one install/dispose pair (#787 phase 7).
-registerAllPresentation(bus, presentationContext);
-
-registerMinorCivNotificationListeners(bus, () => session.getState(), { appendToCivLog });
-
-// --- Initialization ---
-async function init(): Promise<void> {
-  await registerConquestoriaServiceWorker();
-  await initializeDesktopMenu();
-
-  createUI();
-  // #notifications is created by createGameShell() inside createUI(), so notifier
-  // can only be constructed here, not eagerly at module scope (#787 phase 4).
-  notifier = createNotificationCenter({
-    layer: document.getElementById('notifications') as HTMLElement,
-    getState: () => session.getState(),
-    isSuppressed: () => roundPresentationGate.isSuppressed(),
-    playCue: (cue) => {
-      // #594 MR7: religion toasts carry a bespoke sfxCue that replaces the generic
-      // synth chime -- see notification-routing.ts's routeReligionFounded/
-      // routeReligionCityConverted/routeLoyaltyWarning/routeCityDefected.
-      if (cue) {
-        void audio.playReligionStinger(cue).catch(() => {});
-      } else {
-        SFX.notification();
-      }
-    },
-    onFocusTarget: focusNotificationTarget,
-  });
-  // Needs the real `notifier`, so deferred here alongside it rather than
-  // installed eagerly at module scope (#787 phase 5).
-  installGlobalShortcuts({ target: window, selection, router, notifier });
-  await userSettingsStore.refresh();
-
-  if (import.meta.env.MODE === 'e2e') {
-    // Browser tests must target the same live camera transform as player input;
-    // exposing only viewport copies keeps game state and camera internals private.
-    window.__CONQUESTORIA_E2E_GET_VISIBLE_HEX_COPIES__ = coord => getVisibleHexViewportCopies(
-      session.getState(),
-      renderLoop.camera,
-      session.getState().currentPlayer,
-      coord,
-    );
-    const { isExactAutosaveE2ERequest } = await import('@/testing/e2e-mode');
-    if (isExactAutosaveE2ERequest(import.meta.env.MODE, window.location.search)) {
-      const { installE2ERuntime } = await import('@/testing/e2e-runtime');
-      await installE2ERuntime({
-        loadAutosave: loadMostRecentAutoSaveEntry,
-        enterSoloCampaign: state => enterCampaignForE2E(state),
-        getVisibleHexCopies: coord => getVisibleHexViewportCopies(
-          session.getState(),
-          renderLoop.camera,
-          session.getState().currentPlayer,
-          coord,
-        ),
-        getCityBadgeSlots: (cityId, slot) => getVisibleCityBadgeSlots(
-          session.getState(),
-          renderLoop.camera,
-          session.getState().currentPlayer,
-          cityId,
-          slot,
-        ),
-      });
-      return;
-    }
-  }
-
-  await showStartSavePanel();
-}
-
-function enterCampaign(
-  state: GameState,
-  message: string,
-  persistBeforeReady: boolean = false,
-): Promise<void> | null {
-  document.getElementById('save-panel')?.remove();
-  session.setStateWithoutRefresh(applyPersistedUserSettings(state, userSettingsStore.getPersisted()));
-  if (session.getState().gameOver) {
-    const spritesReady = startGame();
-    turnFlow.handleVictoryIfNeeded();
-    return spritesReady;
-  }
-  const hotSeat = session.getState().hotSeat;
-  if (!hotSeat) {
-    const spritesReady = startGame();
-    showNotification(message, 'info');
-    return spritesReady;
-  }
-
-  audio.setMasterVolume(0);
-  turnFlow.closeNetworkPanelsForHandoff();
-  const player = hotSeat.players.find(candidate => candidate.slotId === session.getState().currentPlayer);
-  setBlockingOverlay('turn-handoff');
-  roundPresentationGate.suppress();
-  const controller = showTurnHandoff(
-    uiLayer,
-    session.getState(),
-    session.getState().currentPlayer,
-    player?.name ?? 'Player',
-    {
-      initiallyReady: !persistBeforeReady,
-      preparingLabel: 'Saving campaign…',
-      onReady: async summary => {
-        const viewerId = session.getState().currentPlayer;
-        const acknowledgement = acknowledgeTurnHandoffSummary(
-          session.getState(),
-          viewerId,
-          summary,
-        );
-        session.setStateWithoutRefresh(acknowledgement.state);
-        try {
-          await autoSave(session.getState());
-        } catch {
-          // Entry persistence already succeeded; acknowledgement may safely retry later.
-        }
-        roundPresentationGate.resume();
-        setBlockingOverlay(null);
-        startGame();
-        audio.setMasterVolume(userSettingsStore.getMasterVolume());
-        if (acknowledgement.playStrategicWarningAudio) {
-          bus.emit('ai:strategic-warning-audio', {
-            viewerId,
-            turn: summary.turn,
-          });
-        }
-        showNotification(message, 'info');
-      },
-    },
-  );
-
-  if (!persistBeforeReady) return null;
-  const persist = async (): Promise<void> => {
-    try {
-      await autoSave(session.getState());
-      controller.setReady(session.getState());
-    } catch {
-      controller.setError(
-        'The campaign could not be saved. Retry before opening the first turn.',
-        {
-          onRetry: () => void persist(),
-          onReturnToSaves: () => {
-            roundPresentationGate.resume();
-            window.location.reload();
-          },
-        },
-      );
-    }
-  };
-  void persist();
-  return null;
-}
-
-function enterCampaignForE2E(state: GameState): Promise<void> {
-  if (state.hotSeat) throw new Error('E2E direct entry does not bypass hot-seat handoff.');
-  const spritesReady = enterCampaign(state, `Welcome back! Turn ${state.turn}`);
-  if (!spritesReady) throw new Error('E2E direct entry requires a solo campaign.');
-  return spritesReady;
-}
-
-async function showStartSavePanel(): Promise<void> {
-  await createSavePanel(uiLayer, {
-    onNewGame: () => {
-      showGameModeSelection();
-    },
-    onContinue: async invoker => {
-      const loaded = await loadMostRecentAutoSaveEntry();
-      if (!loaded) throw new Error('Autosave no longer exists.');
-      await beginCampaignEntry(
-        { kind: 'stored', loaded },
-        invoker,
-        {
-          persistStoredChoice: rewriteLoadedSaveEntry,
-          persistImport: autoSave,
-          showChallengePrompt: showLegacyOpponentChallengePrompt,
-          onReady: state => enterCampaign(state, `Welcome back! Turn ${state.turn}`),
-        },
-      );
-    },
-    onLoadEntry: async (source, invoker) => {
-      const loaded = await loadSaveEntry(source);
-      if (!loaded) throw new Error('Save no longer exists.');
-      await beginCampaignEntry(
-        { kind: 'stored', loaded },
-        invoker,
-        {
-          persistStoredChoice: rewriteLoadedSaveEntry,
-          persistImport: autoSave,
-          showChallengePrompt: showLegacyOpponentChallengePrompt,
-          onReady: state => enterCampaign(state, `Game loaded! Turn ${state.turn}`),
-        },
-      );
-    },
-    onImportSave: async (state, invoker) => {
-      await beginCampaignEntry(
-        { kind: 'import', state },
-        invoker,
-        {
-          persistStoredChoice: rewriteLoadedSaveEntry,
-          persistImport: autoSave,
-          showChallengePrompt: showLegacyOpponentChallengePrompt,
-          onReady: readyState => enterCampaign(
-            readyState,
-            `Save imported! Turn ${readyState.turn}`,
-          ),
-        },
-      );
-    },
-  });
-}
-
-
-function showGameModeSelection(): void {
-  let modePanel: HTMLElement;
-
-  modePanel = showGameModeSelect(uiLayer, {
-    initialTitle: 'New Campaign',
-    onCancel: () => {},
-    onTitleRequired: () => {
-      showNotification('Campaign title is required', 'warning');
-    },
-    onChooseSolo: async (title) => {
-      const currentSettings = await userSettingsStore.refresh();
-      const savedCustomCivilizations = currentSettings.customCivilizations ?? [];
-      modePanel.remove();
-      showCampaignSetup(uiLayer, {
-        initialTitle: title,
-        onStartSolo: (config) => {
-          session.setStateWithoutRefresh(createNewGame({
-            civType: config.civType,
-            mapSize: config.mapSize,
-            opponentCount: config.opponentCount,
-            gameTitle: config.gameTitle,
-            // Merge: persisted A/V settings first, then per-game setup choices (e.g. beastsMode) win
-            settingsOverrides: { ...userSettingsStore.getOverrides(), ...config.settingsOverrides },
-            customCivilizations: config.customCivilizations,
-            seed: config.seed,
-            mapScript: config.mapScript,
-            startPlacementMode: config.startPlacementMode,
-            opponentChallenge: config.opponentChallenge,
-          }));
-          if (currentSettings.councilTalkLevel) {
-            session.getState().settings.councilTalkLevel = currentSettings.councilTalkLevel;
-          }
-          startGame();
-        },
-        onCustomCivilizationsChanged: (customCivilizations) => {
-          userSettingsStore.setCustomCivilizations(customCivilizations);
-        },
-        onCancel: () => showGameModeSelection(),
-      }, {
-        initialCustomCivilizations: savedCustomCivilizations,
-      });
-    },
-    onChooseHotSeat: async (title) => {
-      const currentSettings = await userSettingsStore.refresh();
-      const savedCustomCivilizations = currentSettings.customCivilizations ?? [];
-      modePanel.remove();
-      showHotSeatSetup(uiLayer, {
-        onComplete: (config, opponentChallenge) => {
-          session.setStateWithoutRefresh(createHotSeatGame(config, undefined, title, opponentChallenge ?? 'standard'));
-          if (currentSettings.councilTalkLevel) {
-            session.getState().settings.councilTalkLevel = currentSettings.councilTalkLevel;
-          }
-          enterCampaign(
-            session.getState(),
-            `Hot seat game started! ${config.players.filter(p => p.isHuman).length} players`,
-            true,
-          );
-        },
-        onCustomCivilizationsChanged: (customCivilizations) => {
-          userSettingsStore.setCustomCivilizations(customCivilizations);
-        },
-        onCancel: () => {
-          showGameModeSelection();
-        },
-      }, {
-        initialCustomCivilizations: savedCustomCivilizations,
-      });
-    },
-  });
-}
-
-function startGame(): Promise<void> {
-  // Initialize treasury drawer once
-  if (!drawer) {
-    drawer = createTreasuryDrawer();
-    (document.getElementById('game-shell') ?? document.body).appendChild(drawer.element);
-  }
-
-  // Warm sprite cache non-blocking — renderers fall back to emoji while loading
-  const civColors: Record<string, string> = {};
-  for (const [civId, civ] of Object.entries(session.getState().civilizations)) {
-    civColors[civId] = civ.color;
-  }
-  const spritesReady = initSprites(civColors);
-  void spritesReady.catch(() => {});
-  preloadOutpostMarker().catch(() => {});
-  preloadFamineBadgeMarker().catch(() => {});
-  preloadReligionBadgeMarker().catch(() => {});
-  preloadRailSegment().catch(() => {});
-  preloadTerrainTiles().catch(() => {});
-  preloadNaturalWonderTiles().catch(() => {});
-
-  // Center camera on current player's starting position
-  turnFlow.centerOnCurrentPlayer();
-
-  renderLoop.setGameState(session.getState());
-  updateHUD();
-  turnFlow.maybeShowCouncilInterrupt();
-  maybeShowPendingHoardChoice();
-
-  // Auto-save immediately so closing before turn 1 doesn't lose the game
-  autoSave(session.getState()).catch(() => {});
-
-  // Input (only set up once)
-  if (!inputInitialized) {
-    canvas.addEventListener('pointerdown', () => { if (drawer?.isOpen()) drawer.close(); });
-
-    const callbacks: InputCallbacks = {
-      onHexTap: mapInteraction.handleHexTap,
-      onHexLongPress: mapInteraction.handleHexLongPress,
-    };
-    const touchHandler = new TouchHandler(canvas, renderLoop.camera, callbacks);
-    renderLoop.setTouchHandler(touchHandler);
-    new MouseHandler(canvas, renderLoop.camera, callbacks, {
-      canInteract: () => !host.isInteractionBlocked(),
-    });
-    installKeyboardShortcuts(document, {
-      onOpenCouncil: () => router.open('council'),
-      onOpenTech: () => router.open('tech'),
-      onEndTurn: () => { void turnFlow.endTurn(); },
-      getSelectedUnitId: () => selection.getSelectedUnitId(),
-      onCenterUnit: () => {
-        const selectedUnitId = selection.getSelectedUnitId();
-        if (!selectedUnitId) return;
-        const unit = session.getState().units[selectedUnitId];
-        if (unit) renderLoop.camera.centerOn(unit.position);
-      },
-      onFortify: () => {
-        const selectedUnitId = selection.getSelectedUnitId();
-        if (!selectedUnitId) return;
-        const unit = session.getState().units[selectedUnitId];
-        if (!unit || unit.hasActed || unit.owner !== session.getState().currentPlayer) return;
-        if (unit.isFortified) {
-          session.setStateWithoutRefresh(unfortifyUnitInState(session.getState(), session.getState().currentPlayer, selectedUnitId));
-          showNotification('Unit unfortified.', 'info');
-        } else {
-          session.setStateWithoutRefresh(fortifyUnitInState(session.getState(), session.getState().currentPlayer, selectedUnitId));
-          showNotification('Unit fortified. +25% defense until unfortified or moved.', 'info');
-        }
-        renderLoop.setGameState(session.getState());
-        updateHUD();
-        selectionController.selectUnit(selectedUnitId);
-      },
-      onSettle: () => {
-        const selectedUnitId = selection.getSelectedUnitId();
-        if (!selectedUnitId) return;
-        const unit = session.getState().units[selectedUnitId];
-        if (!unit || unit.type !== 'settler') return;
-        foundCityAction();
-      },
-      onNextUnit: () => selectionController.selectNextUnit(),
-      onStartJourney: () => {
-        const selectedUnitId = selection.getSelectedUnitId();
-        if (!selectedUnitId) return;
-        selection.setPendingIntent({ kind: 'journey', unitId: selectedUnitId });
-        showNotification('Tap a destination for this unit. Press Escape to cancel.', 'info');
-      },
-    }, {
-      canHandle: () => !host.isInteractionBlocked(),
-    });
-    inputInitialized = true;
-  }
-
-  audio.start(
-    session.getState(),
-    bus,
-    () => session.getState(),
-    () => roundPresentationGate.isSuppressed(),
-  );
-  audio.setMasterVolume(userSettingsStore.getMasterVolume());
-  routeSfxThrough(audio.getSfxRoutingNode());
-  turnFlow.emitCurrentPlayerAudioSnapshot(session.getState().currentPlayer);
-
-  // Prevent zoom-out duplication: ensure the camera cannot zoom past one full
-  // map-width. hexToPixel({q: width, r:0}).x equals the wrapSpan used in
-  // wrap-rendering.ts, so minZoom = camera.width / wrapSpan guarantees the
-  // visible world is never wider than one map copy.
-  const mapWidthPx = hexToPixel({ q: session.getState().map.width, r: 0 }, renderLoop.camera.hexSize).x;
-  renderLoop.camera.setMinZoomForMap(mapWidthPx);
-
-  // Initial advisor check
-  advisorSystem.check(session.getState());
-  turnFlow.showRequiredChoicesIfNeeded();
-
-  // Start render loop
-  renderLoop.start();
-  return spritesReady;
-}
-
-init();
+// --- Bootstrap ---
+// registerAllPresentation/registerMinorCivNotificationListeners used to run
+// as bare module-scope statements here, immediately followed by a bare
+// init() call. bootstrap() (#787 phase 10) sequences the same three steps
+// explicitly instead of as an import side effect -- see src/app/bootstrap.ts
+// for why it does not yet also construct session/selection/host/ceremonies/
+// router/panelRegistry (Phase 10b).
+void bootstrap({
+  bus,
+  presentationContext,
+  getState: () => session.getState(),
+  appendToCivLog,
+  gameSession,
+});

@@ -1,0 +1,201 @@
+/**
+ * Owns the HUD readout, the treasury drawer, the anti-aircraft-overlay
+ * toggle button, and the map viewport bottom inset the primary action bar's
+ * height drives (#787 phase 10).
+ *
+ * The treasury drawer is constructed lazily via `ensureDrawerMounted()`,
+ * matching the original module-scope `let drawer: TreasuryDrawer` -- it stays
+ * `undefined` until the first real game start, exactly as `startGame()`'s
+ * `if (!drawer) { drawer = createTreasuryDrawer(); ... }` guard did.
+ *
+ * `placeAirDefenseButton()` is exposed separately from construction because
+ * the button must be created before `GameSessionController.createUI()` calls
+ * it (the button click handler needs to exist before `#utility-toolbar` does)
+ * but can only be placed into the DOM after `createGameShell()` has built
+ * that toolbar.
+ */
+import type { RenderLoop } from '@/renderer/render-loop';
+import type { GameSession } from '@/app/ports';
+import type { PanelRouter } from '@/app/panel-router';
+import { createTreasuryDrawer, type TreasuryDrawer } from '@/ui/treasury-drawer';
+import { createGameButton } from '@/ui/ui-kit';
+import { civHasAirDefenseCoverage } from '@/systems/air-defense-system';
+import { calculateProjectedCityYields } from '@/systems/city-work-system';
+import { calculateCivEconomy, formatGoldHudText } from '@/systems/economy-system';
+import { resolveCivilizationEra } from '@/systems/tech-definitions';
+import { getCivHappinessFromResources } from '@/systems/resource-acquisition-system';
+import { isAutonomyActivated } from '@/systems/network-plan-system';
+import { getNetworkPanelModel } from '@/ui/network-panel';
+import { getPirateWatersPresentation } from '@/systems/pirate-presentation';
+import { getUnmovedUnits } from '@/systems/unit-system';
+
+/** The narrow slice of `RenderLoop` this controller needs. */
+export type HudRenderer = Pick<RenderLoop, 'isAirDefenseOverlayEnabled' | 'toggleAirDefenseOverlay' | 'resizeCanvas'>;
+
+export interface HudController {
+  update(): void;
+  setMapViewportBottomInset(height: number): void;
+  /** Idempotent -- safe to call every `createUI()` even though it only runs once in practice. */
+  placeAirDefenseButton(): void;
+  /** Idempotent -- constructs the drawer on first call only, matching the original `if (!drawer)` guard. */
+  ensureDrawerMounted(): void;
+  closeDrawer(): void;
+  isDrawerOpen(): boolean;
+}
+
+export interface HudControllerDeps {
+  readonly session: GameSession;
+  readonly renderLoop: HudRenderer;
+  readonly canvas: HTMLCanvasElement;
+  readonly router: Pick<PanelRouter, 'open'>;
+  readonly getElementById: (id: string) => HTMLElement | null;
+  /** Where the treasury drawer mounts -- `#game-shell`, falling back to `document.body`. */
+  readonly getDrawerMountRoot: () => HTMLElement;
+}
+
+export function createHudController(deps: HudControllerDeps): HudController {
+  let drawer: TreasuryDrawer | undefined;
+
+  const airDefenseButton = createGameButton('🛡 Anti-aircraft coverage', 'secondary');
+  airDefenseButton.id = 'btn-air-defense-overlay';
+  airDefenseButton.hidden = true; // shown once the current civ has built AA coverage — see update()
+  airDefenseButton.setAttribute('aria-pressed', 'false');
+  airDefenseButton.addEventListener('click', () => {
+    const enabled = deps.renderLoop.toggleAirDefenseOverlay();
+    airDefenseButton.setAttribute('aria-pressed', String(enabled));
+    airDefenseButton.textContent = enabled ? '🛡 Anti-aircraft coverage: on' : '🛡 Anti-aircraft coverage';
+  });
+
+  return {
+    update(): void {
+      const state = deps.session.getState();
+      const civ = state.civilizations[state.currentPlayer];
+      airDefenseButton.hidden = !civHasAirDefenseCoverage(state, civ.id);
+      const airDefenseEnabled = deps.renderLoop.isAirDefenseOverlayEnabled(state.currentPlayer);
+      airDefenseButton.setAttribute('aria-pressed', String(airDefenseEnabled));
+      airDefenseButton.textContent = airDefenseEnabled ? '🛡 Anti-aircraft coverage: on' : '🛡 Anti-aircraft coverage';
+      const hud = deps.getElementById('hud');
+      if (!hud) return;
+
+      // Sum yields across all cities
+      let totalFood = 0, totalProd = 0, totalScience = 0;
+      for (const cityId of civ.cities) {
+        const city = state.cities[cityId];
+        if (!city) continue;
+        const y = calculateProjectedCityYields(state, cityId);
+        totalFood += y.food;
+        totalProd += y.production;
+        totalScience += y.science;
+      }
+      const economyStatus = calculateCivEconomy(state, civ.id);
+
+      const techName = civ.techState.currentResearch ?? 'None';
+      hud.textContent = '';
+
+      const yieldsRow = document.createElement('div');
+      yieldsRow.dataset.role = 'hud-yields';
+      yieldsRow.style.cssText =
+        'display:flex;align-items:center;gap:10px;flex-wrap:nowrap;overflow:hidden;min-width:0;';
+
+      const yieldSpan = document.createElement('span');
+      yieldSpan.textContent = `🌾 ${totalFood}`;
+      yieldsRow.appendChild(yieldSpan);
+
+      const prodSpan = document.createElement('span');
+      prodSpan.textContent = `⚒️ ${totalProd}`;
+      yieldsRow.appendChild(prodSpan);
+
+      const goldBtn = document.createElement('button');
+      goldBtn.style.cssText =
+        'background:transparent;color:inherit;border:none;font-family:inherit;font-size:inherit;padding:0;cursor:pointer;min-height:44px;display:inline-flex;align-items:center;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex-shrink:1;';
+      goldBtn.textContent = `💰 ${formatGoldHudText(economyStatus, civ.gold)}`;
+      goldBtn.addEventListener('click', () => drawer?.toggle());
+      yieldsRow.appendChild(goldBtn);
+      drawer?.update(economyStatus, civ.gold);
+
+      const sciSpan = document.createElement('span');
+      sciSpan.style.cssText = 'min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex-shrink:1;';
+      sciSpan.textContent = `🔬 ${techName !== 'None' ? techName : 'None'} (+${totalScience})`;
+      yieldsRow.appendChild(sciSpan);
+
+      if (isAutonomyActivated(state, civ.id)) {
+        const networkButton = document.createElement('button');
+        networkButton.type = 'button';
+        networkButton.style.cssText = 'background:transparent;color:inherit;border:1px solid rgba(232,193,112,0.45);border-radius:6px;font:inherit;padding:4px 8px;min-height:44px;';
+        networkButton.textContent = getNetworkPanelModel(state, civ.id).statusText;
+        networkButton.addEventListener('click', () => deps.router.open('network'));
+        yieldsRow.appendChild(networkButton);
+      }
+
+      const happiness = getCivHappinessFromResources(state, civ.id);
+      if (happiness > 0) {
+        const happySpan = document.createElement('span');
+        happySpan.title = 'Happiness from luxury resources — each point reduces city unrest pressure by 2';
+        happySpan.textContent = `☺ ${happiness} (stability)`;
+        yieldsRow.appendChild(happySpan);
+      }
+
+      const infoRow = document.createElement('div');
+      if (state.hotSeat && civ.name) {
+        const nameSpan = document.createElement('span');
+        nameSpan.textContent = `${civ.name} · `;
+        infoRow.appendChild(nameSpan);
+      }
+      const turnSpan = document.createElement('span');
+      turnSpan.textContent = `Turn ${state.turn} · Your Era ${resolveCivilizationEra(civ.techState.completed)} · World Age ${state.era}`;
+      infoRow.appendChild(turnSpan);
+
+      hud.appendChild(yieldsRow);
+      hud.appendChild(infoRow);
+
+      const pirateWatersButton = deps.getElementById('btn-pirate-waters');
+      if (pirateWatersButton) {
+        pirateWatersButton.hidden = !getPirateWatersPresentation(state, state.currentPlayer).available;
+      }
+
+      // Show "Next Unit" button when there are unmoved units
+      const nextUnitBtn = deps.getElementById('btn-next-unit');
+      if (nextUnitBtn) {
+        const unmovedCount = getUnmovedUnits(state.units, state.currentPlayer).length;
+        nextUnitBtn.style.display = unmovedCount > 0 ? 'block' : 'none';
+        if (unmovedCount > 0) {
+          nextUnitBtn.textContent = `⏩ ${unmovedCount}`;
+        }
+      }
+    },
+
+    setMapViewportBottomInset(height: number): void {
+      deps.canvas.style.bottom = `${height}px`;
+      // With both top and bottom set, an auto height makes the canvas occupy only
+      // the remaining map viewport instead of living behind the action bar.
+      deps.canvas.style.height = 'auto';
+      deps.renderLoop.resizeCanvas();
+    },
+
+    placeAirDefenseButton(): void {
+      // Join the utility toolbar's flex row instead of an independent absolute position —
+      // a second, uncoordinated top-right anchor overlapped the HUD and the toolbar's own
+      // icon buttons (#783).
+      const utilityToolbar = deps.getElementById('utility-toolbar');
+      const pauseMenuButton = deps.getElementById('btn-pause-menu');
+      if (utilityToolbar) {
+        if (pauseMenuButton) utilityToolbar.insertBefore(airDefenseButton, pauseMenuButton);
+        else utilityToolbar.appendChild(airDefenseButton);
+      }
+    },
+
+    ensureDrawerMounted(): void {
+      if (drawer) return;
+      drawer = createTreasuryDrawer();
+      deps.getDrawerMountRoot().appendChild(drawer.element);
+    },
+
+    closeDrawer(): void {
+      drawer?.close();
+    },
+
+    isDrawerOpen(): boolean {
+      return drawer?.isOpen() ?? false;
+    },
+  };
+}

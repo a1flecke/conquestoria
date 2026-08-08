@@ -1921,7 +1921,44 @@ bash scripts/run-with-mise.sh yarn test:web-smoke
 
 ---
 
+### Phase 10b — `PanelActionsController`, `DiplomacyActionsController`, and finishing the composition root
+
+Found during Phase 10 planning (2026-08-07), before any Phase 10 code was written. Phase 10's own "Moves" list and its "`main.ts`'s final form" code sample are inconsistent: the Moves list accounts for roughly 1,000–1,250 of `main.ts`'s (then-)2,814 lines, but Phase 11's boundary test (`expect(main.split('\n').length).toBeLessThan(150)`) requires all of it gone. Grepping every phase 1–13 section in this document for the ~47 functions below returns zero hits — they were never assigned a destination. This phase is that assignment. It must land **after Phase 10** (needs `GameSessionController`/`bootstrap.ts` to exist as a home for the final wiring) and **before Phase 11** (whose boundary test cannot pass without it).
+
+**Do not trust the line-count estimates below without re-measuring** — `main.ts`'s line numbers will have shifted after Phase 10 lands. Re-run the inventory grep (Step 1) before starting.
+
+**Files:**
+- Create: `src/app/controllers/panel-actions-controller.ts`, `src/app/controllers/diplomacy-actions-controller.ts`, plus test files
+- Modify: `src/app/controllers/player-action-controller.ts` (Phase 13 — see "Fold into Phase 13" below; if Phase 13 has not yet been implemented when this phase starts, add these functions to Phase 13's own Moves list instead of creating a second controller)
+- Modify: `src/main.ts`, `src/app/bootstrap.ts`
+
+**Inventory (as measured against `main.ts` post-Phase-9, pre-Phase-10, commit `a019bb42`):**
+
+*Panel openers → `PanelActionsController`* (~900 lines): `openPacingDebugPanel`, `openBestiary`, `openWonderAtlas`, `openPirateWaters`, `openPirateHeadquartersAssault`, `openNotificationLog`, `openDiplomacyPanel`, `openMarketplacePanel`, `openWonderPanelForCityId`, `openCityOverviewPanel`, `openCityPanelForCity` (the largest single function here at ~141 lines), `openCouncilPanel`, `openTechPanel`, `openEspionagePanel` (the largest at ~279 lines), `openUnitStackPicker`, `openNetworkIntentPanel`, `openNetworkPanel`.
+
+*Diplomacy/minor-civ/crisis handlers → `DiplomacyActionsController`* (~166 lines): `handleDiplomaticAction`, `handleAcceptPeaceRequest`, `handleRejectPeaceRequest`, `handleAcceptTreatyProposal`, `handleDeclineTreatyProposal`, `handleBreakTreaty`, `handleGiftGold`, `handleSponsorFestival`, `handleMinorCivReparations`, `handleSendAid`, `handleMinorCivWarPeace`, `handleAppeaseFaction`, `handleConcedeToMovement`, `handleEstablishRoute`.
+
+*Fold into Phase 13's `PlayerActionController`* (~274 lines) — these are player-unit-action functions, the same domain Phase 13 already covers (`executeAttack`, `foundCityAction`, `executeUpgrade`, `beginPlayerCityAssault`, `executeMinorCivConquest`); adding a third controller for the same domain would violate this arc's own SRP goal: `getUnitTurnFlow`, `performWorkerAction`, `performPreach`, `ensurePlayerWarState`, `restAction`, `showEspionageCaptureChoice`. If Phase 13 already shipped by the time this phase starts, this is an addendum to `PlayerActionController` (its own small PR), not a rewrite.
+
+*Cross-cutting helpers — destination is an implementation-time decision, investigate first* (~108 lines): `currentCiv`, `currentCivDef`, `clearUnloadState`, `setBlockingOverlay` (likely deletable — it is already a one-line wrapper around `host.setBlockingOverlay`, ported to `PanelHost` in Phase 5; audit whether any call site still needs the bare function or can call `host.setBlockingOverlay` directly), `prefersReducedMotion`, `showNotification`, `appendToCivLog`, `focusNotificationTarget`, `focusPirateTarget`, `applyPirateActionResult`, `scanBeastSightings`, `maybeShowPendingHoardChoice`. These are already passed as deps into every existing controller (`ceremonies`, `selectionController`, `turnFlow`, `mapInteraction`), so moving them risks constructor-ordering circularity. The pragmatic default is folding them into `GameSessionController` (Phase 10) since it is already the "foundational glue" controller and is constructed first — but confirm no earlier-constructed controller needs one of these at its own construction time before committing to that. `setBlockingOverlay`, `showNotification`+`appendToCivLog`+`focusNotificationTarget` in particular may be better resolved by having callers depend on `PanelHost`/`Notifier` directly instead of a bare-function wrapper — do not port the wrapper forward reflexively just because it exists today.
+
+**Finishing the composition root:** Once the above have real controller homes, `host`, `panelContext`, `ceremonies`, `selectionController`, `turnFlow`, `mapInteraction`, `presentationContext`, `panelRegistry`, and `router` construction (currently module-scope in `main.ts`, ~254 lines, never assigned a phase because each was constructed inline at extraction time in phases 5/6/8c/8d/9 with no follow-up relocation step) can finally move into `bootstrap.ts`. This is the step that actually makes `bootstrap()` the composition root Phase 10's code sample described, and the step that gets `main.ts` into Phase 11's `<150` line range for the first time. `panelRegistry`'s ~15 entries can only move once every function they reference (all of the panel openers above) already lives outside `main.ts` — that dependency is why this must be the last step of this phase, not the first.
+
+- [ ] **Step 1: Re-run the inventory.** Re-grep `main.ts` for every function named above (and any the earlier grep missed) with current line numbers; confirm none have been renamed or removed since this section was written, and decide the cross-cutting-helpers question above before writing any test.
+- [ ] **Step 2: Write failing tests, then extract `PanelActionsController`.** Given its size (~900 lines, comparable to Phase 8's total pre-split scope), expect to split this into sub-phases (10b-a, 10b-b, ...) grouped by panel domain the same way Phase 8 split into 8a–8d once the real work starts — do not force it into one PR if the diff review would be unreviewable.
+- [ ] **Step 3: Write failing tests, then extract `DiplomacyActionsController`.**
+- [ ] **Step 4: Extend (or write, if Phase 13 hasn't shipped yet) `PlayerActionController`** with the unit-action group.
+- [ ] **Step 5: Resolve the cross-cutting helpers** per Step 1's decision.
+- [ ] **Step 6: Move `host`/`ceremonies`/`selectionController`/`turnFlow`/`mapInteraction`/`presentationContext`/`panelRegistry`/`router` construction into `bootstrap.ts`.** This is the step with the most forward-reference/circularity risk in the whole arc (`panelContext` and `router` are already mutually circular via getters; `PanelActionsController` will need the same lazy-getter pattern for `router` that `turnFlow`/`selectionController` already use). Budget real time for this step specifically.
+- [ ] **Step 7: Re-run Phase 11's boundary-test draft** (`main.ts` line count, zero `bus.on`/`let`/`window.addEventListener`) as a sanity check before calling this phase done, even though writing the actual enforced test is Phase 11's job.
+- [ ] **Step 8: Run the full verification suite** (`yarn build`, `yarn test`, `yarn test:web-smoke` — this phase touches panel routing and campaign-adjacent wiring).
+- [ ] **Step 9: Close the phase.**
+
+---
+
 ### Phase 11 — Ratchet down and lock the boundary
+
+**Depends on Phase 10b.** The `<150` line boundary test below is unreachable until Phase 10b moves the ~47 functions/~1,700 lines it names (panel openers, diplomacy handlers, cross-cutting helpers, and the final `host`/`ceremonies`/`router`/etc. construction) out of `main.ts`. Confirm Phase 10b is closed before starting Step 2.
 
 **Files:**
 - Create: `tests/app/architecture-boundaries.test.ts`
