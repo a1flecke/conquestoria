@@ -1817,6 +1817,31 @@ describe('S4b — new buildings', () => {
 describe('S4b — building production discounts', () => {
   const noBuildings = { buildings: [] };
 
+  it('describes Tank Depot armored production and city healing in plain language', () => {
+    expect(BUILDINGS.tank_depot.description).toContain('10%');
+    expect(BUILDINGS.tank_depot.description).toContain('+5');
+    expect(BUILDINGS.tank_depot.description).toContain('Armored Car');
+  });
+
+  it.each(['armored_car', 'tank', 'mechanized_infantry', 'main_battle_tank'] as const)(
+    'Tank Depot grants %s a typed 10% production discount', type => {
+      const base = getProductionCostForItem(type, { city: noBuildings });
+      expect(getProductionCostForItem(type, { city: { buildings: ['tank_depot'] } }))
+        .toBe(Math.ceil(base * 0.90));
+    },
+  );
+
+  it('Armored Car keeps the strongest single local discount when Stable and Tank Depot coexist', () => {
+    const base = getProductionCostForItem('armored_car', { city: noBuildings });
+    expect(getProductionCostForItem('armored_car', { city: { buildings: ['stable', 'tank_depot'] } }))
+      .toBe(Math.ceil(base * 0.85));
+  });
+
+  it.each(['anti_tank_gun', 'mobile_aa'] as const)('Tank Depot excludes %s', type => {
+    expect(getProductionCostForItem(type, { city: { buildings: ['tank_depot'] } }))
+      .toBe(getProductionCostForItem(type, { city: noBuildings }));
+  });
+
   it('armory: reduces axeman cost by 15%', () => {
     const base = getProductionCostForItem('axeman', { city: noBuildings });
     const discounted = getProductionCostForItem('axeman', { city: { buildings: ['armory'] } });

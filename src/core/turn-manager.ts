@@ -2,7 +2,7 @@ import type { AdvisorType, GameEvents, GameState } from './types';
 import { EventBus } from './event-bus';
 import { checkDominationVictory } from '@/systems/victory-system';
 import { resetUnitTurn, createUnit, healUnit, findPath, UNIT_DEFINITIONS } from '@/systems/unit-system';
-import { processCity, TRAINABLE_UNITS, BUILDINGS } from '@/systems/city-system';
+import { getLocalCityHealingBonus, processCity, TRAINABLE_UNITS, BUILDINGS } from '@/systems/city-system';
 import { transferCapturedCityOwnership } from '@/systems/city-capture-system';
 import { baseNewAirUnit, canCompleteAirUnitProduction } from '@/systems/air-operations-system';
 import { getCivAvailableResources } from '@/systems/resource-acquisition-system';
@@ -590,8 +590,8 @@ export function processTurn(
     }
 
     // Heal units BEFORE resetting hasMoved/hasActed (healing checks those flags)
-    const cityPositionsSet = new Set(
-      civ.cities.map(id => newState.cities[id]).filter(Boolean).map(c => `${c!.position.q},${c!.position.r}`),
+    const friendlyCitiesByPosition = new Map(
+      civ.cities.map(id => newState.cities[id]).filter(Boolean).map(city => [`${city!.position.q},${city!.position.r}`, city!] as const),
     );
     const healCompletedTechs = civ.techState.completed;
     const healActiveNPs = getActiveNationalProjectsForCiv(newState, civId);
@@ -601,7 +601,8 @@ export function processTurn(
       if (unit.committedToRouteId) continue; // committed caravans do not heal
       const posKey = `${unit.position.q},${unit.position.r}`;
       const tile = newState.map.tiles[posKey];
-      const inFriendlyCity = cityPositionsSet.has(posKey) && (tile?.owner === civId);
+      const friendlyCity = friendlyCitiesByPosition.get(posKey as `${number},${number}`);
+      const inFriendlyCity = Boolean(friendlyCity) && (tile?.owner === civId);
       const inFriendlyTerritory = !inFriendlyCity && (tile?.owner === civId);
       const withinRangeOfFriendlyCity3 = isWithinRangeOfTelemedicineHub(newState, civId, unit.position, 3);
       const nearNeuralRehabilitationCenter = isWithinRangeOfNeuralRehabilitationCenter(newState, civId, unit.position, 1);
@@ -612,6 +613,9 @@ export function processTurn(
         inFriendlyTerritory,
         withinRangeOfFriendlyCity3,
         withinRangeOfNeuralRehabilitationCenter: nearNeuralRehabilitationCenter,
+        localCityHealingBonus: inFriendlyCity && friendlyCity
+          ? getLocalCityHealingBonus(unit.type, friendlyCity.buildings)
+          : 0,
       });
       newState.units[unitId] = healUnit(unit, inFriendlyCity, inFriendlyTerritory, healingBonus);
     }

@@ -39,22 +39,26 @@ describe('combat role definitions', () => {
     });
   });
 
-  it('partitions mounted production discounts into typed light/support and heavy families', () => {
+  it('supports overlapping typed local-infrastructure families without losing existing discounts', () => {
     const lightSupport = ['horseman', 'cavalry', 'armored_car', 'beast_handler'] as const;
     const heavy = ['chariot', 'knight', 'cuirassier', 'war_elephant'] as const;
 
     for (const type of lightSupport) {
-      expect(getUnitRoleDefinition(type)?.productionDiscountFamily, type).toBe('mounted-light-support');
+      expect(getUnitRoleDefinition(type)?.localInfrastructureFamilies, type).toContain('mounted-light-support');
     }
     for (const type of heavy) {
-      expect(getUnitRoleDefinition(type)?.productionDiscountFamily, type).toBe('mounted-heavy');
+      expect(getUnitRoleDefinition(type)?.localInfrastructureFamilies, type).toContain('mounted-heavy');
     }
     for (const type of ['catapult', 'ballista', 'trebuchet'] as const) {
-      expect(getUnitRoleDefinition(type)?.productionDiscountFamily, type).toBe('classical-siege');
+      expect(getUnitRoleDefinition(type)?.localInfrastructureFamilies, type).toContain('classical-siege');
     }
-    expect(getUnitRoleDefinition('cannon')?.productionDiscountFamily).toBeUndefined();
-    for (const type of ['tank', 'attack_helicopter', 'combat_drone'] as const) {
-      expect(getUnitRoleDefinition(type)?.productionDiscountFamily, type).toBeUndefined();
+    for (const type of ['armored_car', 'tank', 'mechanized_infantry', 'main_battle_tank'] as const) {
+      expect(getUnitRoleDefinition(type)?.localInfrastructureFamilies, type).toContain('armored');
+    }
+    expect(getUnitRoleDefinition('armored_car')?.localInfrastructureFamilies)
+      .toEqual(expect.arrayContaining(['mounted-light-support', 'armored']));
+    for (const type of ['cannon', 'anti_tank_gun', 'mobile_aa', 'attack_helicopter', 'combat_drone'] as const) {
+      expect(getUnitRoleDefinition(type)?.localInfrastructureFamilies ?? [], type).not.toContain('armored');
     }
   });
 

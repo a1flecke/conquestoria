@@ -968,6 +968,12 @@ export type UpgradeFamily =
   | 'detection'
   | 'civilian';
 
+export type LocalInfrastructureFamily =
+  | 'mounted-light-support'
+  | 'mounted-heavy'
+  | 'classical-siege'
+  | 'armored';
+
 export interface UnitRoleDefinition {
   primaryRole: CombatRole;
   secondaryRoles?: readonly CombatRole[];
@@ -975,8 +981,8 @@ export interface UnitRoleDefinition {
   vulnerableTo: readonly CombatRole[];
   roleSummary: string;
   upgradeFamily: UpgradeFamily;
-  /** Optional typed production-discount family consumed by local military infrastructure. */
-  productionDiscountFamily?: 'mounted-light-support' | 'mounted-heavy' | 'classical-siege';
+  /** Typed local-infrastructure families consumed by production and city-healing effects. */
+  localInfrastructureFamilies?: readonly LocalInfrastructureFamily[];
   aiRoles: readonly AIStrategicRole[];
   /** Public, player-facing facts that are true regardless of the viewer's private state. */
   publicFacts?: readonly string[];
