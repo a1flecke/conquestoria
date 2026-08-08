@@ -183,7 +183,7 @@ export const BUILDINGS: Record<string, Building> = {
     id: 'siege-workshop', name: 'Siege Workshop', category: 'military',
     yields: { food: 0, production: 0, gold: 0, science: 0 },
     productionCost: 90,
-    description: 'Siege engine fabrication. Reduces Catapult and Ballista training cost by 20% in this city.',
+    description: 'Siege engine fabrication. Reduces Catapult, Ballista, and Trebuchet training cost by 20% in this city.',
     techRequired: 'siege-warfare',
     resourceRequired: ['stone'],
     obsoletedByTech: 'black-powder',
@@ -1270,17 +1270,16 @@ export function getCatalogProductionCost(itemId: string, era: number = 1): numbe
 export const MELEE_RANGED_UNIT_TYPES: string[] = [
   'warrior', 'axeman', 'spearman', 'swordsman', 'pikeman', 'musketeer', 'archer', 'crossbowman',
 ];
-export const SIEGE_UNIT_TYPES: string[] = ['catapult', 'trebuchet', 'ballista', 'cannon'];
-
-interface MountedProductionDiscountBuilding {
+interface ProductionDiscountBuilding {
   buildingId: string;
   productionDiscountFamily: NonNullable<UnitRoleDefinition['productionDiscountFamily']>;
   multiplier: number;
 }
 
-const MOUNTED_PRODUCTION_DISCOUNT_BUILDINGS: readonly MountedProductionDiscountBuilding[] = [
+const PRODUCTION_DISCOUNT_BUILDINGS: readonly ProductionDiscountBuilding[] = [
   { buildingId: 'stable', productionDiscountFamily: 'mounted-light-support', multiplier: 0.85 },
   { buildingId: 'cavalry-academy', productionDiscountFamily: 'mounted-heavy', multiplier: 0.85 },
+  { buildingId: 'siege-workshop', productionDiscountFamily: 'classical-siege', multiplier: 0.80 },
 ];
 
 // era-1/2 melee units eligible for the Tribal Muster Ground national-project discount.
@@ -1298,16 +1297,13 @@ function getBuildingDiscountMultiplier(itemId: string, cityBuildings: string[]):
     if (cityBuildings.includes('war-academy')) best = Math.min(best, 0.85);
   }
   const unit = TRAINABLE_UNITS.find(candidate => candidate.type === itemId);
-  const mountedDiscountFamily = unit
+  const productionDiscountFamily = unit
     ? getUnitRoleDefinition(unit.type)?.productionDiscountFamily
     : undefined;
-  for (const discount of MOUNTED_PRODUCTION_DISCOUNT_BUILDINGS) {
-    if (mountedDiscountFamily === discount.productionDiscountFamily && cityBuildings.includes(discount.buildingId)) {
+  for (const discount of PRODUCTION_DISCOUNT_BUILDINGS) {
+    if (productionDiscountFamily === discount.productionDiscountFamily && cityBuildings.includes(discount.buildingId)) {
       best = Math.min(best, discount.multiplier);
     }
-  }
-  if (SIEGE_UNIT_TYPES.includes(itemId)) {
-    if (cityBuildings.includes('siege-workshop')) best = Math.min(best, 0.80);
   }
   // Masonry Works: Walls building 20% cheaper
   if (itemId === 'walls') {

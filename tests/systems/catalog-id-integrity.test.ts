@@ -8,7 +8,7 @@ import {
   WRITING_TECHS,
 } from '@/systems/diplomacy-system';
 import { ESPIONAGE_TECH_MAX_SPIES } from '@/systems/espionage-system';
-import { MELEE_RANGED_UNIT_TYPES, SIEGE_UNIT_TYPES, BUILDINGS } from '@/systems/city-system';
+import { MELEE_RANGED_UNIT_TYPES, BUILDINGS } from '@/systems/city-system';
 import { UNIT_DEFINITIONS } from '@/systems/unit-system';
 import { UNIT_MODIFIERS } from '@/systems/unit-modifier-definitions';
 
@@ -39,7 +39,6 @@ describe('catalog-id-integrity', () => {
   describe('city-system discount unit lists reference real unit types', () => {
     it.each([
       ['MELEE_RANGED_UNIT_TYPES', MELEE_RANGED_UNIT_TYPES],
-      ['SIEGE_UNIT_TYPES', SIEGE_UNIT_TYPES],
     ])('every id in %s exists in UNIT_DEFINITIONS', (_name, ids) => {
       for (const id of ids) {
         expect(unitTypes.has(id)).toBe(true);
