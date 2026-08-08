@@ -102,7 +102,7 @@ const ERA_11_TECHS: Tech[] = [
     unlocks: ['+2 strength all military units; lightweight carbon composite forges stronger aircraft frames and armored vehicles'], era: 11 },
   { id: 'precision-engineering', name: 'Precision Engineering', track: 'metallurgy', cost: 1650,
     prerequisites: ['titanium-processing', 'electronic-computing'],
-    unlocks: ['+2 production in cities with a factory; computer-controlled machining achieves tolerances impossible by hand'], era: 11 },
+    unlocks: ['+2 production in cities with a factory; computer-controlled machining achieves tolerances impossible by hand'], unlocksUnits: ['main_battle_tank'], era: 11 },
 
   // CONSTRUCTION (2)
   { id: 'megastructures', name: 'Megastructures', track: 'construction', cost: 2385,

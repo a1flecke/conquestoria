@@ -362,7 +362,7 @@ export type UnitType =
   | 'frigate' | 'destroyer' | 'artillery' | 'rocket_artillery' | 'infantry' | 'mechanized_infantry'
   | 'machine_gunner' | 'pre_dreadnought' | 'battleship'
   | 'observation_balloon' | 'biplane' | 'wwii_fighter' | 'jet_fighter' | 'bomber' | 'recon_aircraft'
-  | 'tank' | 'anti_tank_gun' | 'mobile_aa' | 'submarine' | 'carrier'
+  | 'tank' | 'main_battle_tank' | 'anti_tank_gun' | 'mobile_aa' | 'submarine' | 'carrier'
   | 'attack_helicopter' | 'missile_submarine'
   | 'spy_scout' | 'spy_informant' | 'spy_agent' | 'spy_operative' | 'spy_hacker'
   | 'scout_hound' | 'shadow_warden' | 'war_hound' | 'beast_handler' | 'war_elephant'
@@ -429,6 +429,12 @@ export interface UnitDefinition {
   cargoCapacity?: number;
   cargoSize?: number;
   cityAssaultMultiplier?: number;
+  combinedArms?: UnitCombinedArmsCapability;
+}
+
+export interface UnitCombinedArmsCapability {
+  provides?: readonly string[];
+  requiresAdjacent?: { providerTag: string; multiplier: number; label: string };
 }
 
 export interface UnitSplashCapability {

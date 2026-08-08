@@ -164,6 +164,10 @@ export interface CombatContext {
   attackerInterceptionStrengthMultiplier?: number;
   attackerInterceptionPart?: ModifierPart;
   attackerInterceptionFact?: CombatModifierFact;
+  attackerCombinedArmsMultiplier?: number;
+  defenderCombinedArmsMultiplier?: number;
+  attackerCombinedArmsFact?: CombatModifierFact;
+  defenderCombinedArmsFact?: CombatModifierFact;
   attackerNetworkStrengthBonus?: number;
   defenderNetworkStrengthBonus?: number;
 }
@@ -268,7 +272,9 @@ export function calculateCombatStrengths(
   attackerStrength *= context?.attackerPositioningMultiplier ?? 1;
   attackerStrength *= context?.attackerAmphibiousMultiplier ?? 1;
   attackerStrength *= context?.attackerInterceptionStrengthMultiplier ?? 1;
+  attackerStrength *= context?.attackerCombinedArmsMultiplier ?? 1;
   defenderStrength *= context?.defenderPositioningMultiplier ?? 1;
+  defenderStrength *= context?.defenderCombinedArmsMultiplier ?? 1;
   attackerStrength += context?.attackerNetworkStrengthBonus ?? 0;
   defenderStrength += context?.defenderNetworkStrengthBonus ?? 0;
 
@@ -335,8 +341,8 @@ export function calculateCombatStrengths(
     cityDefense,
     attackerModifierParts: [...(context?.attackerModifiers?.parts ?? []), ...(context?.attackerPositioningPart ? [context.attackerPositioningPart] : []), ...(context?.attackerAmphibiousParts ?? []), ...(context?.attackerInterceptionPart ? [context.attackerInterceptionPart] : [])],
     defenderModifierParts: [...(context?.defenderModifiers?.parts ?? []), ...(context?.defenderPositioningPart ? [context.defenderPositioningPart] : [])],
-    attackerModifierFacts: [...(context?.attackerModifiers?.facts ?? []), ...(context?.attackerInterceptionFact ? [context.attackerInterceptionFact] : [])],
-    defenderModifierFacts: [...(context?.defenderModifiers?.facts ?? []), ...(context?.airDefenseCoverage?.facts ?? [])],
+    attackerModifierFacts: [...(context?.attackerModifiers?.facts ?? []), ...(context?.attackerInterceptionFact ? [context.attackerInterceptionFact] : []), ...(context?.attackerCombinedArmsFact ? [context.attackerCombinedArmsFact] : [])],
+    defenderModifierFacts: [...(context?.defenderModifiers?.facts ?? []), ...(context?.airDefenseCoverage?.facts ?? []), ...(context?.defenderCombinedArmsFact ? [context.defenderCombinedArmsFact] : [])],
     defenderDefendsPoorly: defendsPoorly(defenderDefinition.attackProfile),
     exchange: getCombatExchangeModifiers(attacker, defender),
   };
