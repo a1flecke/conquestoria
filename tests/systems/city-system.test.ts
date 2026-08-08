@@ -1860,10 +1860,19 @@ describe('S4b — building production discounts', () => {
     expect(discounted).toBe(base);
   });
 
-  it('siege-workshop: reduces catapult cost by 20%', () => {
-    const base = getProductionCostForItem('catapult', { city: noBuildings });
-    const discounted = getProductionCostForItem('catapult', { city: { buildings: ['siege-workshop'] } });
-    expect(discounted).toBe(Math.ceil(base * 0.80));
+  it.each(['catapult', 'ballista', 'trebuchet'] as const)(
+    'siege-workshop grants %s the typed classical-siege 20% discount',
+    (unitType) => {
+      const base = getProductionCostForItem(unitType, { city: noBuildings });
+      const discounted = getProductionCostForItem(unitType, { city: { buildings: ['siege-workshop'] } });
+      expect(discounted).toBe(Math.ceil(base * 0.80));
+    },
+  );
+
+  it('siege-workshop excludes gunpowder Cannon', () => {
+    const base = getProductionCostForItem('cannon', { city: noBuildings });
+    const discounted = getProductionCostForItem('cannon', { city: { buildings: ['siege-workshop'] } });
+    expect(discounted).toBe(base);
   });
 
   it('armory + war-academy: non-stacking — applies 15% not 30% to warrior', () => {

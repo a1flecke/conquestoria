@@ -49,6 +49,10 @@ describe('combat role definitions', () => {
     for (const type of heavy) {
       expect(getUnitRoleDefinition(type)?.productionDiscountFamily, type).toBe('mounted-heavy');
     }
+    for (const type of ['catapult', 'ballista', 'trebuchet'] as const) {
+      expect(getUnitRoleDefinition(type)?.productionDiscountFamily, type).toBe('classical-siege');
+    }
+    expect(getUnitRoleDefinition('cannon')?.productionDiscountFamily).toBeUndefined();
     for (const type of ['tank', 'attack_helicopter', 'combat_drone'] as const) {
       expect(getUnitRoleDefinition(type)?.productionDiscountFamily, type).toBeUndefined();
     }

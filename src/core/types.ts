@@ -963,7 +963,7 @@ export interface UnitRoleDefinition {
   roleSummary: string;
   upgradeFamily: UpgradeFamily;
   /** Optional typed production-discount family consumed by local military infrastructure. */
-  productionDiscountFamily?: 'mounted-light-support' | 'mounted-heavy';
+  productionDiscountFamily?: 'mounted-light-support' | 'mounted-heavy' | 'classical-siege';
   aiRoles: readonly AIStrategicRole[];
   /** Public, player-facing facts that are true regardless of the viewer's private state. */
   publicFacts?: readonly string[];
