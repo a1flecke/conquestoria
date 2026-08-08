@@ -196,6 +196,7 @@ export interface HealingModifierContext {
   inFriendlyTerritory: boolean;
   withinRangeOfFriendlyCity3: boolean;
   withinRangeOfNeuralRehabilitationCenter: boolean;
+  localCityHealingBonus?: number;
 }
 
 export interface HealingModifierResult {
@@ -208,6 +209,11 @@ export function getHealingBonus(ctx: HealingModifierContext): HealingModifierRes
   let flat = 0;
   let mult = 1;
   const parts: ModifierPart[] = [];
+
+  if (ctx.inFriendlyCity && ctx.localCityHealingBonus) {
+    flat += ctx.localCityHealingBonus;
+    parts.push({ label: formatPart('Local infrastructure', 'flat', ctx.localCityHealingBonus), kind: 'flat' });
+  }
 
   for (const modifier of UNIT_MODIFIERS) {
     if (modifier.effect !== 'healing') continue;

@@ -1,4 +1,4 @@
-import type { City, Building, HexCoord, GameMap, UnitType, CivBonusEffect, TrainableUnitEntry, IdCounters, ResourceType, DroppedProductionItem, ProductionDropReason, GameState, UnitRoleDefinition } from '@/core/types';
+import type { City, Building, HexCoord, GameMap, UnitType, CivBonusEffect, TrainableUnitEntry, IdCounters, ResourceType, DroppedProductionItem, ProductionDropReason, GameState, LocalInfrastructureFamily } from '@/core/types';
 import { isSpyUnitType } from './espionage-system';
 import { hexKey, hexesInRange, hexNeighbors, wrapHexCoord } from './hex-utils';
 import { drawNextCityName, DEFAULT_CITY_NAMES } from './city-name-system';
@@ -682,7 +682,7 @@ export const BUILDINGS: Record<string, Building> = {
   tank_depot: {
     id: 'tank_depot', name: 'Tank Depot', category: 'military',
     yields: { food: 0, production: 2, gold: 0, science: 0 }, productionCost: 165,
-    description: 'Armored vehicle maintenance base. +2 production per turn.',
+    description: 'Armored vehicle maintenance base. Armored Car, Tank, Mechanized Infantry, and Main Battle Tank cost 10% less here and heal +5 more in this city. +2 production per turn.',
     techRequired: 'tank-warfare',
   },
   anti_air_battery: {
@@ -1272,17 +1272,30 @@ export function getCatalogProductionCost(itemId: string, era: number = 1): numbe
 export const MELEE_RANGED_UNIT_TYPES: string[] = [
   'warrior', 'axeman', 'spearman', 'swordsman', 'pikeman', 'musketeer', 'archer', 'crossbowman',
 ];
-interface ProductionDiscountBuilding {
+interface LocalInfrastructureBuilding {
   buildingId: string;
-  productionDiscountFamily: NonNullable<UnitRoleDefinition['productionDiscountFamily']>;
-  multiplier: number;
+  family: LocalInfrastructureFamily;
+  productionMultiplier?: number;
+  cityHealingBonus?: number;
 }
 
-const PRODUCTION_DISCOUNT_BUILDINGS: readonly ProductionDiscountBuilding[] = [
-  { buildingId: 'stable', productionDiscountFamily: 'mounted-light-support', multiplier: 0.85 },
-  { buildingId: 'cavalry-academy', productionDiscountFamily: 'mounted-heavy', multiplier: 0.85 },
-  { buildingId: 'siege-workshop', productionDiscountFamily: 'classical-siege', multiplier: 0.80 },
+export const LOCAL_INFRASTRUCTURE_BUILDINGS: readonly LocalInfrastructureBuilding[] = [
+  { buildingId: 'stable', family: 'mounted-light-support', productionMultiplier: 0.85 },
+  { buildingId: 'cavalry-academy', family: 'mounted-heavy', productionMultiplier: 0.85 },
+  { buildingId: 'siege-workshop', family: 'classical-siege', productionMultiplier: 0.80 },
+  { buildingId: 'tank_depot', family: 'armored', productionMultiplier: 0.90, cityHealingBonus: 5 },
 ];
+
+export function getLocalCityHealingBonus(unitType: UnitType, cityBuildings: readonly string[]): number {
+  const families = getUnitRoleDefinition(unitType)?.localInfrastructureFamilies ?? [];
+  return LOCAL_INFRASTRUCTURE_BUILDINGS.reduce((best, infrastructure) => (
+    infrastructure.cityHealingBonus
+      && families.includes(infrastructure.family)
+      && cityBuildings.includes(infrastructure.buildingId)
+      ? Math.max(best, infrastructure.cityHealingBonus)
+      : best
+  ), 0);
+}
 
 // era-1/2 melee units eligible for the Tribal Muster Ground national-project discount.
 export const ERA_1_2_MELEE_UNIT_TYPES: UnitType[] = ['warrior', 'axeman', 'spearman', 'swordsman'];
@@ -1299,12 +1312,14 @@ function getBuildingDiscountMultiplier(itemId: string, cityBuildings: string[]):
     if (cityBuildings.includes('war-academy')) best = Math.min(best, 0.85);
   }
   const unit = TRAINABLE_UNITS.find(candidate => candidate.type === itemId);
-  const productionDiscountFamily = unit
-    ? getUnitRoleDefinition(unit.type)?.productionDiscountFamily
-    : undefined;
-  for (const discount of PRODUCTION_DISCOUNT_BUILDINGS) {
-    if (productionDiscountFamily === discount.productionDiscountFamily && cityBuildings.includes(discount.buildingId)) {
-      best = Math.min(best, discount.multiplier);
+  const localInfrastructureFamilies = unit
+    ? getUnitRoleDefinition(unit.type)?.localInfrastructureFamilies ?? []
+    : [];
+  for (const infrastructure of LOCAL_INFRASTRUCTURE_BUILDINGS) {
+    if (infrastructure.productionMultiplier
+      && localInfrastructureFamilies.includes(infrastructure.family)
+      && cityBuildings.includes(infrastructure.buildingId)) {
+      best = Math.min(best, infrastructure.productionMultiplier);
     }
   }
   // Masonry Works: Walls building 20% cheaper

@@ -522,6 +522,11 @@ describe('getHealingBonus — stacking order and conditions', () => {
     expect(bonus.flat).toBe(0);
   });
 
+  it('adds a qualified local city healing bonus only in a friendly city', () => {
+    expect(getHealingBonus(baseHealCtx({ inFriendlyCity: true, localCityHealingBonus: 5 } as HealingModifierContext)).flat).toBe(5);
+    expect(getHealingBonus(baseHealCtx({ inFriendlyCity: false, localCityHealingBonus: 5 } as HealingModifierContext)).flat).toBe(0);
+  });
+
   it('inFriendlyTerritory-gated techs contribute nothing outside friendly territory (negative test)', () => {
     const bonus = getHealingBonus(baseHealCtx({
       completedTechs: ['advanced-anatomy', 'germ-theory', 'penicillin'],
