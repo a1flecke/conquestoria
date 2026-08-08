@@ -48,8 +48,8 @@ const ERA_10_TECHS: Tech[] = [
   // EXPLORATION (2)
   { id: 'rocketry', name: 'Rocketry', track: 'exploration', cost: 1895,
     prerequisites: ['aerial-survey', 'aluminium-smelting'],
-    unlocks: ['+2 science in cities with a research institute; rocket propulsion points toward the upper atmosphere'],
-    unlocksBuildings: ['rocket_program', 'space_program_initiative'], era: 10 },
+    unlocks: ['+2 science in cities with a research institute; Rocket Artillery saturates nearby visible enemy soldiers'],
+    unlocksUnits: ['rocket_artillery'], unlocksBuildings: ['rocket_program', 'space_program_initiative'], era: 10 },
   { id: 'polar-operations', name: 'Polar Operations', track: 'exploration', cost: 1020,
     prerequisites: ['motorized-transport', 'aerial-survey'],
     unlocks: ['+1 food +1 production in tundra and snow tiles; polar expeditions chart strategic resources at the edges of the map'], era: 10 },

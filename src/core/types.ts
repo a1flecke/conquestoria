@@ -359,7 +359,7 @@ export type UnitType =
   | 'swordsman' | 'pikeman' | 'musketeer' | 'galley' | 'trireme'
   | 'axeman' | 'spearman' | 'horseman' | 'chariot' | 'cavalry' | 'armored_car' | 'knight' | 'cuirassier'
   | 'crossbowman' | 'catapult' | 'trebuchet' | 'ballista' | 'cannon' | 'grenadier' | 'marine' | 'rifleman' | 'ironclad'
-  | 'frigate' | 'destroyer' | 'artillery' | 'infantry' | 'mechanized_infantry'
+  | 'frigate' | 'destroyer' | 'artillery' | 'rocket_artillery' | 'infantry' | 'mechanized_infantry'
   | 'machine_gunner' | 'pre_dreadnought' | 'battleship'
   | 'observation_balloon' | 'biplane' | 'wwii_fighter' | 'jet_fighter' | 'bomber' | 'recon_aircraft'
   | 'tank' | 'anti_tank_gun' | 'mobile_aa' | 'submarine' | 'carrier'
@@ -421,6 +421,7 @@ export interface UnitDefinition {
   waterAccess?: 'coastal' | 'ocean'; // required whenever domain === 'naval' — see #751
   spyDetectionChance?: number; // 0–1, probability per adjacent spy unit per turn
   attackProfile?: UnitAttackProfile;
+  splash?: UnitSplashCapability;
   airInterceptionDefense?: AirInterceptionDefense;
   airOperation?: AirOperationDefinition;
   airDefenseProvider?: AirDefenseProviderCapability;
@@ -428,6 +429,12 @@ export interface UnitDefinition {
   cargoCapacity?: number;
   cargoSize?: number;
   cityAssaultMultiplier?: number;
+}
+
+export interface UnitSplashCapability {
+  damageFraction: number;
+  maxTargets: number;
+  label: string;
 }
 
 export interface WorkerTask {
@@ -1253,6 +1260,12 @@ export interface CombatResult {
     defender: CombatModifierFact[];
   };
   exchange?: CombatExchangeSummary;
+  splashHits?: CombatSplashHit[];
+}
+
+export interface CombatSplashHit {
+  unitId: string;
+  damage: number;
 }
 
 export interface CombatModifierFact {

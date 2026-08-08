@@ -243,12 +243,12 @@ describe('MR9 — land/air strength re-curve regression locks', () => {
     expect(jetFighter?.upgradesTo).toBeUndefined();
   });
 
-  it('artillery is terminal and the line infantry chain reaches Exosuit Infantry through Mechanized Infantry', () => {
+  it('artillery upgrades into Rocket Artillery and the line infantry chain reaches Exosuit Infantry through Mechanized Infantry', () => {
     const artillery = TRAINABLE_UNITS.find(u => u.type === 'artillery');
     const infantry = TRAINABLE_UNITS.find(u => u.type === 'infantry');
     const mechanized = TRAINABLE_UNITS.find(u => u.type === ('mechanized_infantry' as UnitType));
-    expect(artillery?.obsoletedByTech).toBeUndefined();
-    expect(artillery?.upgradesTo).toBeUndefined();
+    expect(artillery?.obsoletedByTech).toBe('rocketry');
+    expect(artillery?.upgradesTo).toBe('rocket_artillery');
     expect(infantry?.upgradesTo).toBe('mechanized_infantry');
     expect(mechanized?.upgradesTo).toBe('exosuit_infantry');
     expect(UNIT_DEFINITIONS.exosuit_infantry.strength).toBe(70);

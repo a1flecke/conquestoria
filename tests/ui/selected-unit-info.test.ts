@@ -190,7 +190,7 @@ describe('selected-unit role presentation', () => {
     expect(findDetails(container)?.children[0]?.textContent).toBe('Role details');
   });
 
-  it('renders a terminal explanation instead of inventing an artillery successor', () => {
+  it('renders Artillery’s real Rocket Artillery successor', () => {
     const state = createNewGame(undefined, 'selected-unit-terminal-role', 'small');
     const unit = {
       ...createUnit('artillery', 'player', { q: 1, r: 1 }, {
@@ -206,8 +206,7 @@ describe('selected-unit role presentation', () => {
     renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'artillery', {});
 
     const text = collectAllText(container).join(' ');
-    expect(text).toContain('Current siege apex; rocket artillery is future content.');
-    expect(text).not.toContain('Upgrades to');
+    expect(text).toContain('Upgrades to Rocket Artillery');
   });
 
   it('renders War Elephant public tactical facts for its owner', () => {

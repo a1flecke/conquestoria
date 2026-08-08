@@ -34,6 +34,7 @@ export const UNIT_CLASS_BY_TYPE: Record<UnitType, UnitClass[]> = {
   ballista: ['siege', 'ranged'],
   cannon: ['siege', 'gunpowder'],
   artillery: ['siege', 'gunpowder'],
+  rocket_artillery: ['siege', 'gunpowder'],
   grenadier: ['gunpowder'],
   marine: ['gunpowder'],
   rifleman: ['gunpowder'],

@@ -37,6 +37,21 @@ describe('Trebuchet catalog contract (#684)', () => {
   });
 });
 
+describe('Rocket Artillery catalog contract (#686)', () => {
+  it('defines the Rocketry-gated range-three siege successor with bounded saturation capability', () => {
+    expect(UNIT_DEFINITIONS.rocket_artillery).toMatchObject({
+      strength: 57,
+      movementPoints: 2,
+      productionCost: 260,
+      attackProfile: { kind: 'bombard', range: 3, targets: ['unit', 'city'] },
+      splash: { damageFraction: 0.25, maxTargets: 2 },
+    });
+    expect(TRAINABLE_UNITS.find(unit => unit.type === 'rocket_artillery')).toMatchObject({
+      techRequired: 'rocketry',
+    });
+  });
+});
+
 function zocRangeState(): GameState {
   const state = createNewGame(undefined, 'zoc-range', 'small');
   const mover = { ...createUnit('warrior', 'player', { q: 0, r: 0 }, mkC()), id: 'mover', movementPointsLeft: 2 };

@@ -11,6 +11,7 @@ import {
 } from '@/systems/pirate-actions';
 import { recordMilitaryAttack } from './diplomacy-system';
 import { UNIT_CLASS_BY_TYPE } from '@/systems/unit-modifier-definitions';
+import { resolveBoundedSplash } from '@/systems/combat-system';
 
 /** Age-of-Sail through ironclad — boarding-action flavor. Everything else
  * (destroyer onward) uses modern "disabled and captured" phrasing. Same
@@ -469,6 +470,20 @@ export function applyCombatOutcomeToState(
     defenderCaptured = true;
   } else {
     const removed = removeUnitFromCopies(units, civilizations, espionage, result.defenderId);
+    units = removed.units;
+    civilizations = removed.civilizations;
+    espionage = removed.espionage;
+  }
+
+  const splashHits = result.splashHits ?? resolveBoundedSplash(state, attackerBefore, defenderBefore, result.defenderDamage);
+  for (const hit of splashHits) {
+    const target = units[hit.unitId];
+    if (!target || hit.damage <= 0) continue;
+    if (target.health > hit.damage) {
+      units[hit.unitId] = { ...target, health: target.health - hit.damage };
+      continue;
+    }
+    const removed = removeUnitFromCopies(units, civilizations, espionage, hit.unitId);
     units = removed.units;
     civilizations = removed.civilizations;
     espionage = removed.espionage;

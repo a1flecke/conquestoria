@@ -6,6 +6,8 @@ import type {
   GameMap,
   CivBonusEffect,
   UnitAttackProfile,
+  GameState,
+  CombatSplashHit,
 } from '@/core/types';
 import { hexDistance, hexKey } from './hex-utils';
 import { UNIT_DEFINITIONS } from './unit-system';
@@ -14,6 +16,34 @@ import { getVeterancyCombatModifier } from './combat-reward-system';
 import { getRiverDefensePenalty, isRiverBetween } from './river-system';
 import type { ModifierPart } from './unit-modifier-system';
 import { COMBAT_EXCHANGE_RULES } from './unit-modifier-definitions';
+import { isMilitaryUnitType } from './unit-modifier-definitions';
+import { isHostileOwnerTo } from './owner-hostility';
+import { isVisible } from './fog-of-war';
+
+/** Returns deterministic secondary damage facts without mutating combat state. */
+export function resolveBoundedSplash(
+  state: Readonly<GameState>,
+  attacker: Unit,
+  defender: Unit,
+  finalPrimaryDamage: number,
+): CombatSplashHit[] {
+  const splash = UNIT_DEFINITIONS[attacker.type]?.splash;
+  if (!splash || finalPrimaryDamage <= 0) return [];
+  const visibility = state.civilizations[attacker.owner]?.visibility;
+  if (!visibility) return [];
+  const damage = Math.round(finalPrimaryDamage * splash.damageFraction);
+  if (damage <= 0) return [];
+  return Object.values(state.units)
+    .filter(candidate => candidate.id !== defender.id
+      && !candidate.transportId
+      && isMilitaryUnitType(candidate.type)
+      && isHostileOwnerTo(state, attacker.owner, candidate.owner)
+      && hexDistance(defender.position, candidate.position) === 1
+      && isVisible(visibility, candidate.position))
+    .sort((left, right) => left.id.localeCompare(right.id))
+    .slice(0, splash.maxTargets)
+    .map(candidate => ({ unitId: candidate.id, damage }));
+}
 
 export function getTerrainDefenseBonus(terrain: string): number {
   const bonuses: Record<string, number> = {
@@ -342,6 +372,7 @@ export function resolveCombat(
   seed: number,
   context?: CombatContext,
   era?: number,
+  state?: GameState,
 ): CombatResult {
   // Seeded RNG for deterministic combat
   let rngState = seed;
@@ -430,5 +461,6 @@ export function resolveCombat(
     defenderPosition: defender.position,
     modifierFacts: { attacker: strengths.attackerModifierFacts ?? [], defender: strengths.defenderModifierFacts ?? [] },
     ...(exchange.kind === 'none' ? {} : { exchange: { kind: exchange.kind, label: exchange.label! } }),
+    ...(state ? { splashHits: resolveBoundedSplash(state, attacker, defender, defenderDamage) } : {}),
   };
 }

@@ -348,14 +348,17 @@ export function routeCombatResolved(
   if (!defenderTypeId) return;
   const defenderType = UNIT_DEFINITIONS[defenderTypeId]?.name ?? defenderTypeId;
   const exchangeSuffix = result.exchange ? `. ${result.exchange.label}.` : '';
+  const splashSuffix = result.splashHits?.length
+    ? ` Rocket saturation damaged ${result.splashHits.length} nearby visible enemy unit${result.splashHits.length === 1 ? '' : 's'}.`
+    : '';
   const msg = result.defenderSurvived
     ? `${defenderType} was attacked by ${attackerLabel} (${result.defenderDamage} damage taken)`
     : `${defenderType} was destroyed by ${attackerLabel}!`;
   const combatDetails = projectCombatFacts(result, 'defender');
   if (combatDetails) {
-    sink(defenderOwner, `${msg}${exchangeSuffix}`, 'warning', undefined, undefined, undefined, combatDetails);
+    sink(defenderOwner, `${msg}${exchangeSuffix}${splashSuffix}`, 'warning', undefined, undefined, undefined, combatDetails);
   } else {
-    sink(defenderOwner, `${msg}${exchangeSuffix}`, 'warning');
+    sink(defenderOwner, `${msg}${exchangeSuffix}${splashSuffix}`, 'warning');
   }
 
   if (!result.exchange || !attackerOwner || attackerOwner === 'barbarian') return;
