@@ -356,6 +356,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     canBuildImprovements: false, productionCost: 220,
     domain: 'land',
     attackProfile: { kind: 'ranged', range: 1, targets: ['unit', 'city'] },
+    combinedArms: { provides: ['line-infantry'] },
   },
   pre_dreadnought: {
     type: 'pre_dreadnought', name: 'Pre-Dreadnought', movementPoints: 4,
@@ -377,6 +378,14 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     canBuildImprovements: false, productionCost: 185,
     domain: 'land',
     attackProfile: { kind: 'ranged', range: 1, targets: ['unit', 'city'] },
+  },
+  main_battle_tank: {
+    type: 'main_battle_tank', name: 'Main Battle Tank', movementPoints: 4,
+    visionRange: 2, strength: 72, canFoundCity: false,
+    canBuildImprovements: false, productionCost: 270,
+    domain: 'land',
+    attackProfile: { kind: 'ranged', range: 1, targets: ['unit', 'city'] },
+    combinedArms: { requiresAdjacent: { providerTag: 'line-infantry', multiplier: 1.10, label: 'Combined arms +10%' } },
   },
   anti_tank_gun: {
     type: 'anti_tank_gun', name: 'Anti-Tank Gun', movementPoints: 2,
@@ -476,7 +485,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
   },
   combat_drone: { type: 'combat_drone', name: 'Combat Drone', movementPoints: 6, visionRange: 3, strength: 42, canFoundCity: false, canBuildImprovements: false, productionCost: 224, domain: 'air', attackProfile: { kind: 'ranged', range: 2, targets: ['unit', 'city'] }, airOperation: { baseKinds: ['airfield', 'helicopter_base', 'stealth_airbase', 'carrier'], operationalRange: 5, ferryRange: 8, missions: ['strike', 'rebase'], carrierEligible: true } },
   autonomous_frigate: { type: 'autonomous_frigate', name: 'Autonomous Frigate', movementPoints: 5, visionRange: 3, strength: 60, canFoundCity: false, canBuildImprovements: false, productionCost: 336, domain: 'naval', waterAccess: 'ocean', attackProfile: { kind: 'ranged', range: 3, targets: ['unit', 'city'] } },
-  exosuit_infantry: { type: 'exosuit_infantry', name: 'Exosuit Infantry', movementPoints: 3, visionRange: 2, strength: 70, canFoundCity: false, canBuildImprovements: false, productionCost: 196, domain: 'land', attackProfile: { kind: 'ranged', range: 1, targets: ['unit', 'city'] } },
+  exosuit_infantry: { type: 'exosuit_infantry', name: 'Exosuit Infantry', movementPoints: 3, visionRange: 2, strength: 70, canFoundCity: false, canBuildImprovements: false, productionCost: 196, domain: 'land', attackProfile: { kind: 'ranged', range: 1, targets: ['unit', 'city'] }, combinedArms: { provides: ['line-infantry'] } },
   propagandist: { type: 'propagandist', name: 'Propagandist', movementPoints: 3, visionRange: 2, strength: 0, canFoundCity: false, canBuildImprovements: false, productionCost: 196, domain: 'land' },
   drone_controller: { type: 'drone_controller', name: 'Drone Controller', movementPoints: 3, visionRange: 3, strength: 0, canFoundCity: false, canBuildImprovements: false, productionCost: 196, domain: 'land' },
   // S5 — trade unit
@@ -788,7 +797,8 @@ export const UNIT_DESCRIPTIONS: Record<UnitType, string> = {
   mechanized_infantry: 'Mobile line infantry. Captures and holds ground faster than Infantry; upgrades into Exosuit Infantry.',
   pre_dreadnought: 'Armored steam battleship. Long-range guns (range 2), powerful vs coastal cities and fleets. Replaces the ironclad era of naval warfare.',
   battleship: 'Heavy naval fire support. Deals 20% more attack strength against cities and coastal targets; submarines counter it.',
-  tank:       'Armored fighting vehicle. Breaks entrenched positions, high strength, range-1 attack. Stays the land apex over modern infantry.',
+  tank:       'Armored fighting vehicle. Breaks entrenched positions, high strength, range-1 attack. Upgrades into a Main Battle Tank.',
+  main_battle_tank: 'Heavy breakthrough armor. Gains +10% combat strength beside one adjacent friendly Mechanized or Exosuit Infantry unit.',
   anti_tank_gun: 'Ranged anti-armor gun. Strong against armored vehicles but weaker against other targets.',
   mobile_aa: 'Mobile anti-aircraft support. Protects adjacent allies: +8 defense against air attacks; weak in direct combat.',
   submarine:  'Undersea warship. Long-range torpedoes (range 2), high naval strength, stealth approach. Replaces pre-dreadnought surface-fleet dominance.',

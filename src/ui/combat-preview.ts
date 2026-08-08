@@ -22,11 +22,12 @@ export function formatCombatPreviewDetails(
     ...(preview.defenderModifierFacts ?? []),
   ].filter(fact => fact.outcome === 'applied');
   if (appliedFacts.length > 0) {
-    const decisive = appliedFacts[0]!;
-    const value = decisive.operation === 'multiplier'
-      ? `×${decisive.value}`
-      : `${decisive.value >= 0 ? '+' : ''}${decisive.value}`;
-    details.push(`${decisive.label} ${value}`);
+    for (const fact of appliedFacts) {
+      const value = fact.operation === 'multiplier'
+        ? `×${fact.value}`
+        : `${fact.value >= 0 ? '+' : ''}${fact.value}`;
+      details.push(`${fact.label} ${value}`);
+    }
   } else {
     for (const part of preview.attackerModifierParts ?? []) {
       details.push(part.label);

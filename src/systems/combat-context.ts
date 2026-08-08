@@ -9,6 +9,7 @@ import { getCombatModifier } from './unit-modifier-system';
 import { getCombatAdjacentOccupiedTileCount } from './zone-of-control-system';
 import { getNetworkCombatCoordination } from './network-combat-coordination';
 import { resolveAirDefenseCoverage } from './air-defense-system';
+import { resolveCombinedArms } from './combined-arms-system';
 
 export interface CombatContextOptions {
   amphibiousAssault?: boolean;
@@ -84,6 +85,8 @@ export function buildCombatContextForDefender(
   const interceptionStrengthMultiplier = options.isIntercepting
     ? UNIT_DEFINITIONS[attacker.type].airOperation?.interceptionStrengthMultiplier
     : undefined;
+  const attackerCombinedArms = resolveCombinedArms(state, attacker);
+  const defenderCombinedArms = resolveCombinedArms(state, defender);
 
   return {
     attackerBonus: resolveCivDefinition(
@@ -135,6 +138,10 @@ export function buildCombatContextForDefender(
     attackerInterceptionFact: interceptionStrengthMultiplier && interceptionStrengthMultiplier !== 1
       ? { key: 'fighter-interception', label: `Interception +${Math.round((interceptionStrengthMultiplier - 1) * 100)}%`, sourceVisibility: 'public', operation: 'multiplier', value: interceptionStrengthMultiplier, outcome: 'applied' }
       : undefined,
+    attackerCombinedArmsMultiplier: attackerCombinedArms.multiplier,
+    defenderCombinedArmsMultiplier: defenderCombinedArms.multiplier,
+    attackerCombinedArmsFact: attackerCombinedArms.fact,
+    defenderCombinedArmsFact: defenderCombinedArms.fact,
     attackerPositioningPart: flankingTiles > 0 ? { label: `Flanked +${flankingTiles * 10}%`, kind: 'mult' } : undefined,
     defenderPositioningPart: supportTiles > 0 ? { label: `Supported +${supportTiles * 10}%`, kind: 'mult' } : undefined,
     attackerNetworkStrengthBonus: getNetworkCombatCoordination(state, attacker, 'attack').strengthBonus,

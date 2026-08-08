@@ -204,6 +204,28 @@ describe('naval roster — regression locks', () => {
 });
 
 describe('MR9 — land/air strength re-curve regression locks', () => {
+  it('advances Tank into a gated Main Battle Tank without breaking its combined-arms identity', () => {
+    const tank = TRAINABLE_UNITS.find(unit => unit.type === 'tank');
+    const mainBattleTank = TRAINABLE_UNITS.find(unit => unit.type === ('main_battle_tank' as UnitType));
+
+    expect(tank).toMatchObject({
+      obsoletedByTech: 'precision-engineering',
+      upgradesTo: 'main_battle_tank',
+    });
+    expect(mainBattleTank).toMatchObject({
+      techRequired: 'precision-engineering',
+      requiredTechs: ['armored-tactics'],
+      cost: 270,
+    });
+    expect(UNIT_DEFINITIONS['main_battle_tank' as UnitType]).toMatchObject({
+      strength: 72,
+      movementPoints: 4,
+      visionRange: 2,
+      domain: 'land',
+      attackProfile: { kind: 'ranged', range: 1, targets: ['unit', 'city'] },
+    });
+  });
+
   it('musketeer < rifleman < machine_gunner < infantry < tank (strictly ascending)', () => {
     const line: UnitType[] = ['musketeer', 'rifleman', 'machine_gunner', 'infantry', 'tank'];
     for (let i = 1; i < line.length; i++) {

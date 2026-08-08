@@ -54,6 +54,7 @@ export const UNIT_CLASS_BY_TYPE: Record<UnitType, UnitClass[]> = {
   jet_fighter: ['air'],
   bomber: ['air'],
   tank: ['armor'],
+  main_battle_tank: ['armor'],
   anti_tank_gun: ['gunpowder'],
   submarine: ['naval'],
   carrier: ['naval'],
@@ -178,7 +179,7 @@ export const UNIT_MODIFIERS: UnitModifier[] = [
   { source: tech('nanomaterials'), effect: 'combatStrength', mode: 'flat', value: 3, when: 'always', label: 'Nanomaterials' },
   { source: tech('transhumanism'), effect: 'combatStrength', mode: 'multiplier', value: 1.05, when: 'always', condition: 'fullHP', label: 'Transhumanism' },
   { source: tech('amphibious-assault'), effect: 'combatStrength', mode: 'flat', value: 3, appliesTo: ['naval'], when: 'attacking', condition: 'vsCoastalCity', label: 'Amphibious Assault' },
-  { source: tech('armored-tactics'), effect: 'combatStrength', mode: 'flat', value: 5, unitTypes: ['tank'], when: 'always', label: 'Armored Tactics' },
+  { source: tech('armored-tactics'), effect: 'combatStrength', mode: 'flat', value: 5, unitTypes: ['tank', 'main_battle_tank'], when: 'always', label: 'Armored Tactics' },
   // Naval ranged/bombard hulls only — encoded as an explicit unitTypes list (per-row
   // authoring) instead of a runtime attackProfile check, since unitTypes overrides appliesTo.
   { source: tech('torpedo-warfare'), effect: 'combatStrength', mode: 'flat', value: 8, unitTypes: ['ironclad', 'pre_dreadnought', 'submarine', 'missile_submarine', 'carrier'], when: 'always', label: 'Torpedo Warfare' },

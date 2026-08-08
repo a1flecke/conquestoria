@@ -58,6 +58,19 @@ describe('formatCombatPreviewDetails', () => {
     expect(details).toContain('Anti-cavalry ×1.5');
   });
 
+  it('keeps the owner-visible combined-arms reason when another modifier is active', () => {
+    const details = formatCombatPreviewDetails('Rival', 100, {
+      attackerStrength: 72, defenderStrength: 40, terrainDefenseBonus: 0, riverAttackPenalty: 0,
+      attackerModifierFacts: [
+        { key: 'tactics', label: 'Tactics', sourceVisibility: 'owner', operation: 'multiplier', value: 1.1, outcome: 'applied' },
+        { key: 'combined-arms', label: 'Combined arms +10% — adjacent Mechanized Infantry', sourceVisibility: 'owner', operation: 'multiplier', value: 1.1, outcome: 'applied' },
+      ],
+    });
+
+    expect(details).toContain('Tactics ×1.1');
+    expect(details).toContain('Combined arms +10% — adjacent Mechanized Infantry ×1.1');
+  });
+
   it('shows the initiating player when Cuirassier open-ground charge is not active without leaking defender facts', () => {
     const details = formatCombatPreviewDetails('Rival', 100, {
       attackerStrength: 52,
