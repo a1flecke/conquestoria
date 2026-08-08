@@ -4,7 +4,7 @@
 
 **Goal:** Give Tank Depot a city-local 10% armored production discount and +5 armored city healing without changing unit legality, saves, or viewer privacy.
 
-**Architecture:** Add an `armored` value to the existing typed `productionDiscountFamily`, then centralize Tank Depot's cost multiplier and healing bonus in typed local-infrastructure data. Production cost and turn-time healing consume that data; no unit or building ID branch is allowed in either evaluator.
+**Architecture:** Replace the single `productionDiscountFamily` with a typed `localInfrastructureFamilies` list, migrating every existing family assignment so no Stable/Cavalry Academy/Siege Workshop effect regresses. Armored Car then belongs to both mounted-light-support and armored; Tank Depot's cost multiplier and healing bonus are centralized in typed local-infrastructure data. Production cost and turn-time healing consume that data; no unit or building ID branch is allowed in either evaluator.
 
 **Tech Stack:** TypeScript and Vitest.
 
@@ -12,7 +12,7 @@
 
 ## File map
 
-- `src/core/types.ts` — family union and healing-context input.
+- `src/core/types.ts` — local-infrastructure family type/list and healing-context input.
 - `src/systems/combat-role-definitions.ts` — four armored recipients.
 - `src/systems/city-system.ts` — typed Tank Depot data, production lookup, plain-language description.
 - `src/systems/unit-modifier-system.ts` — canonical local-city healing input.
@@ -29,17 +29,19 @@ No new button, queue, panel, filter, animation, notification, or SFX is introduc
 
 ```ts
 for (const type of ['armored_car', 'tank', 'mechanized_infantry', 'main_battle_tank'] as const) {
-  expect(getUnitRoleDefinition(type)?.productionDiscountFamily).toBe('armored');
+  expect(getUnitRoleDefinition(type)?.localInfrastructureFamilies).toContain('armored');
 }
+expect(getUnitRoleDefinition('armored_car')?.localInfrastructureFamilies)
+  .toEqual(expect.arrayContaining(['mounted-light-support', 'armored']));
 for (const type of ['anti_tank_gun', 'mobile_aa'] as const) {
-  expect(getUnitRoleDefinition(type)?.productionDiscountFamily).not.toBe('armored');
+  expect(getUnitRoleDefinition(type)?.localInfrastructureFamilies).not.toContain('armored');
 }
 expect(BUILDINGS.tank_depot.description).toContain('10%');
 expect(BUILDINGS.tank_depot.description).toContain('+5');
 ```
 
 - [ ] Run `./scripts/run-with-mise.sh yarn test --run tests/systems/combat-role-definitions.test.ts tests/systems/city-system.test.ts`; confirm RED.
-- [ ] Add `'armored'` to `productionDiscountFamily`, assign it only to the four specified units, and revise the Tank Depot description in plain language. Add typed configuration `{ buildingId: 'tank_depot', family: 'armored', productionMultiplier: 0.90, cityHealingBonus: 5 }` alongside the existing local-infrastructure definitions.
+- [ ] Add a typed `LocalInfrastructureFamily` union and `localInfrastructureFamilies` list. Migrate every current one-family role definition to the equivalent list; give Armored Car both `mounted-light-support` and `armored`, and the other three recipients only `armored`. Revise Tank Depot description in plain language. Add typed configuration `{ buildingId: 'tank_depot', family: 'armored', productionMultiplier: 0.90, cityHealingBonus: 5 }` alongside existing local-infrastructure definitions.
 - [ ] Re-run the same command; confirm GREEN.
 - [ ] Commit: `git add src/core/types.ts src/systems/combat-role-definitions.ts src/systems/city-system.ts tests/systems/combat-role-definitions.test.ts tests/systems/city-system.test.ts && git commit -m "feat(688): define Tank Depot armored family"`.
 
@@ -65,7 +67,7 @@ it.each(['anti_tank_gun', 'mobile_aa'] as const)('Tank Depot excludes %s', type 
 
 - [ ] Add the matching AI candidate ETA test modeled on the Cavalry Academy test: a Tank Depot city has fewer Tank production turns than the same city without it.
 - [ ] Run `./scripts/run-with-mise.sh yarn test --run tests/systems/city-system.test.ts tests/ai/ai-production.test.ts`; confirm RED.
-- [ ] Make `getBuildingDiscountMultiplier` select the strongest matching typed local-infrastructure production multiplier. Do not alter eligibility, tech/resource checks, or AI scoring; AI must retain its existing `getProductionCostForItem` call.
+- [ ] Make `getBuildingDiscountMultiplier` select the strongest matching typed local-infrastructure production multiplier from every member of a unit's `localInfrastructureFamilies` list. Add a regression that Armored Car still receives its Stable discount as well as its Tank Depot discount without multiplying the two local building discounts. Do not alter eligibility, tech/resource checks, or AI scoring; AI must retain its existing `getProductionCostForItem` call.
 - [ ] Re-run the command; confirm GREEN. Commit with `feat(688): apply Tank Depot armored production discount`.
 
 ### Task 3: Route city healing through canonical turn processing

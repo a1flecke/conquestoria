@@ -25,7 +25,7 @@ The building description must state both benefits in plain language, name the fo
 
 ## Architecture and data design
 
-The implementation will extend the existing typed unit-family modifier path. The unit role definition will add the armored value to the existing `productionDiscountFamily` union; Armored Car, Tank, Mechanized Infantry, and Main Battle Tank will opt into it. A typed local-infrastructure configuration will associate Tank Depot with that family, a 0.90 production multiplier, and a +5 city-healing bonus.
+The implementation will replace the single-valued `productionDiscountFamily` with a typed, serializable `localInfrastructureFamilies` list and migrate every current Stable, Cavalry Academy, and Siege Workshop member to the equivalent one-item list. This preserves all existing discounts while allowing Armored Car to declare both `mounted-light-support` and `armored`; Tank, Mechanized Infantry, and Main Battle Tank declare `armored`. A typed local-infrastructure configuration will associate Tank Depot with that family, a 0.90 production multiplier, and a +5 city-healing bonus.
 
 The production-cost evaluator and the existing turn-time healing evaluator will consume the same family/configuration data. No evaluator will branch on `tank_depot` or on a list of unit IDs. The helper must select the strongest applicable local building modifier rather than applying a Tank Depot effect twice; existing unrelated production discounts retain their documented combination behavior.
 
