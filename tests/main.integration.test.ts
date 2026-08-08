@@ -204,7 +204,9 @@ describe('shared city assault wiring', () => {
     const main = readFileSync(resolve(PROJECT_ROOT, 'src/main.ts'), 'utf8');
     const minorCaptureFlow = main.slice(
       main.indexOf('function executeMinorCivConquest('),
-      main.indexOf('function handleGiftGold('),
+      // #787 phase 10b-a: handleGiftGold moved into DiplomacyActionsController;
+      // openDiplomacyPanel is what now immediately follows executeMinorCivConquest.
+      main.indexOf('function openDiplomacyPanel('),
     );
 
     expect(minorCaptureFlow).toContain(
