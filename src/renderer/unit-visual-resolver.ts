@@ -30,6 +30,7 @@ const FALLBACK_ICONS: Record<UnitType, string> = {
   ballista: '🎯',
   cannon:   '💣',
   artillery: '💥',
+  rocket_artillery: '🚀',
   grenadier: '🧨',
   marine: '⚓',
   rifleman:       '🎯',

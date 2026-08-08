@@ -288,6 +288,27 @@ describe('notification routing', () => {
     expect(calls[0]!.message).toMatch(/was attacked by Alice/);
   });
 
+  it('groups bounded Rocket Artillery splash into the primary combat notification', () => {
+    const state = makeState({
+      units: {
+        a: { id: 'a', type: 'rocket_artillery', owner: 'p1' } as any,
+        d: { id: 'd', type: 'warrior', owner: 'p2' } as any,
+      },
+    } as Partial<GameState>);
+    const result: CombatResult = {
+      attackerId: 'a', defenderId: 'd', attackerDamage: 0, defenderDamage: 40,
+      attackerSurvived: true, defenderSurvived: true, attackerStrength: 57, defenderStrength: 20,
+      attackerPosition: { q: 0, r: 0 }, defenderPosition: { q: 1, r: 0 },
+      splashHits: [{ unitId: 'nearby-a', damage: 10 }, { unitId: 'nearby-b', damage: 10 }],
+    };
+    const { sink, calls } = makeSink();
+
+    routeCombatResolved(state, result, sink);
+
+    expect(calls).toHaveLength(1);
+    expect(calls[0]!.message).toContain('Rocket saturation damaged 2 nearby visible enemy units.');
+  });
+
   it('combat-resolved labels barbarian attackers explicitly', () => {
     const state = makeState({
       units: {

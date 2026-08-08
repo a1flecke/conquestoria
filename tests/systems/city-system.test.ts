@@ -565,6 +565,11 @@ describe('MR9 — land/air roster gating', () => {
     expect(getTrainableUnitsForCiv(['armored-tactics']).some(u => u.type === 'infantry')).toBe(true);
   });
 
+  it('gates Rocket Artillery at Rocketry without changing earlier siege legality', () => {
+    expect(getTrainableUnitsForCiv(['rocketry']).some(u => u.type === 'rocket_artillery')).toBe(true);
+    expect(getTrainableUnitsForCiv(['mass-firepower']).some(u => u.type === 'rocket_artillery')).toBe(false);
+  });
+
   it('gates Mechanized Infantry on both technologies and a local Tank Depot', () => {
     const type = 'mechanized_infantry' as UnitType;
     const entry = TRAINABLE_UNITS.find(unit => unit.type === type);

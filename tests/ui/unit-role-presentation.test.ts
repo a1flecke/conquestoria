@@ -14,9 +14,9 @@ describe('unit role presentation', () => {
     });
   });
 
-  it('shows explicit terminal and conjunctive prerequisite facts without inferring a successor', () => {
+  it('shows Artillery’s explicit Rocket Artillery successor and conjunctive prerequisite facts', () => {
     expect(getUnitRolePresentation('artillery', ['mass-firepower'])?.upgrade)
-      .toEqual({ icon: '🏁', text: 'Current siege apex; rocket artillery is future content.' });
+      .toEqual({ icon: '⬆️', text: 'Upgrades to Rocket Artillery' });
 
     const archer = TRAINABLE_UNITS.find(unit => unit.type === 'archer')!;
     const original = archer.requiredTechs;

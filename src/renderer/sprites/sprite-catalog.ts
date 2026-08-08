@@ -145,6 +145,7 @@ const UNIT_MOTION_STYLES: Record<UnitType, UnitMotionStyle> = {
   ballista: 'humanoid',
   cannon:   'humanoid',
   artillery: 'humanoid',
+  rocket_artillery: 'humanoid',
   grenadier: 'humanoid',
   marine: 'humanoid',
   rifleman: 'humanoid',
@@ -293,6 +294,7 @@ export const UNIT_SPRITE_CATALOG: Record<UnitType, UnitSpriteComponent> = {
   // bespoke art is a generate-sprite-prompt follow-up.
   // artillery/infantry/marine de-aliased in #769 batch 1.
   artillery:      withMotion('artillery', ArtillerySprite),
+  rocket_artillery: withMotion('rocket_artillery', ArtillerySprite),
   grenadier:      withMotion('grenadier', GrenadierSprite),
   marine:         withMotion('marine', MarineSprite),
   rifleman:       withMotion('rifleman', RiflemanSprite),

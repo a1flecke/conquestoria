@@ -2144,6 +2144,7 @@ function executeAttack(attackerId: string, targetKey: string): void {
     seed,
     buildCombatContextForDefender(session.getState(), attacker, defender, { amphibiousAssault }),
     resolveCombatEra(session.getState(), attacker, defender),
+    session.getState(),
   );
   bus.emit('combat:resolved', {
     result,

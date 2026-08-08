@@ -3,16 +3,41 @@ import {
   deterministicCombatSeed,
   getCombatExchangeModifiers,
   getTerrainDefenseBonus,
+  resolveBoundedSplash,
   resolveCombat,
   selectDefenderForAttack,
 } from '@/systems/combat-system';
 import { createNewGame } from '@/core/game-state';
-import type { GameMap } from '@/core/types';
+import type { GameMap, GameState } from '@/core/types';
 import { createUnit, UNIT_DEFINITIONS } from '@/systems/unit-system';
 import { generateMap } from '@/systems/map-generator';
 import { buildCombatContextForDefender } from '@/systems/combat-context';
+import { hexKey } from '@/systems/hex-utils';
 
 const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
+
+describe('bounded Rocket Artillery splash (#686)', () => {
+  it('selects at most two visible hostile military targets in stable ID order', () => {
+    const state = createNewGame(undefined, 'rocket-splash', 'small');
+    const attacker = { ...createUnit('rocket_artillery', 'player', { q: 0, r: 0 }, mkC()), id: 'attacker' };
+    const defender = { ...createUnit('warrior', 'ai-1', { q: 1, r: 0 }, mkC()), id: 'defender' };
+    const alpha = { ...createUnit('warrior', 'ai-1', { q: 1, r: -1 }, mkC()), id: 'alpha' };
+    const bravo = { ...createUnit('warrior', 'ai-1', { q: 0, r: 1 }, mkC()), id: 'bravo' };
+    const charlie = { ...createUnit('warrior', 'ai-1', { q: 1, r: 1 }, mkC()), id: 'charlie' };
+    const ally = { ...createUnit('warrior', 'player', { q: 2, r: -1 }, mkC()), id: 'ally' };
+    const civilian = { ...createUnit('worker', 'ai-1', { q: 2, r: 0 }, mkC()), id: 'civilian' };
+    state.units = { attacker, defender, alpha, bravo, charlie, ally, civilian };
+    state.civilizations.player.units = ['attacker', 'ally'];
+    state.civilizations['ai-1'].units = ['defender', 'alpha', 'bravo', 'charlie', 'civilian'];
+    state.civilizations.player.diplomacy.atWarWith = ['ai-1'];
+    for (const unit of Object.values(state.units)) state.civilizations.player.visibility.tiles[hexKey(unit.position)] = 'visible';
+
+    expect(resolveBoundedSplash(state as GameState, attacker, defender, 40)).toEqual([
+      { unitId: 'alpha', damage: 10 },
+      { unitId: 'bravo', damage: 10 },
+    ]);
+  });
+});
 
 describe('Trebuchet unit-damage penalty (#684)', () => {
   it('deals 20% less damage to units without changing Catapult damage, reported through the shared exchange result', () => {
