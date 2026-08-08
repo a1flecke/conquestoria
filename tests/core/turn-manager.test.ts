@@ -108,6 +108,22 @@ describe('processTurn', () => {
     expect(isWithinRangeOfNeuralRehabilitationCenter(next, 'player', city.position, 1)).toBe(true);
     expect(next.units[unitId]!.health).toBe(75);
   });
+  it('heals qualifying human and AI armor only in their own Tank Depot cities', () => {
+    const state = createNewGame('rome', 'tank-depot-healing', 'small');
+    for (const [civId, position] of [['player', { q: 2, r: 2 }], ['ai-1', { q: 5, r: 2 }]] as const) {
+      const civ = state.civilizations[civId]!;
+      const city = foundCity(civId, position, state.map, state.idCounters);
+      city.buildings = ['tank_depot'];
+      state.cities[city.id] = city;
+      civ.cities = [city.id];
+      state.map.tiles[hexKey(position)]!.owner = civId;
+      const unitId = civ.units[0]!;
+      state.units[unitId] = { ...state.units[unitId]!, type: 'tank', position, health: 50 };
+    }
+    const result = processTurn(state, new EventBus());
+    expect(result.units[state.civilizations.player.units[0]!]!.health).toBe(75);
+    expect(result.units[state.civilizations['ai-1']!.units[0]!]!.health).toBe(75);
+  });
   it('uses per-human pressure only on the enabled completed-round path', () => {
     const state = createNewGame(undefined, 'per-human-pressure', 'small');
     state.turn = 30;

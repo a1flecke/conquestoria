@@ -88,6 +88,16 @@ describe('save migrations', () => {
     expect(loadedAgain).toEqual(loaded);
   });
 
+  it('#688 Tank Depot infrastructure is definition data and survives save normalization unchanged', () => {
+    const savedGame = createNewGame('rome', 'tank-depot-save-compatibility', 'small');
+    const cityId = Object.keys(savedGame.cities)[0]!;
+    savedGame.cities[cityId]!.buildings = ['tank_depot'];
+    const loaded = migrateSaveToCurrent(structuredClone(savedGame));
+    expect(loaded.saveSchemaVersion).toBe(CURRENT_SAVE_SCHEMA_VERSION);
+    expect(loaded.cities[cityId]!.buildings).toEqual(['tank_depot']);
+    expect(migrateSaveToCurrent(loaded)).toEqual(loaded);
+  });
+
   it('#678 preserves a legacy Biplane queue by retiming it to the legal fighter successor', () => {
     const savedGame = createNewGame('rome', 'retimed-biplane-queue', 'small');
     const source = Object.values(savedGame.units)[0]!;
