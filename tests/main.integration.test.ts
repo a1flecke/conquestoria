@@ -5,52 +5,25 @@ import { resolve } from 'node:path';
 const PROJECT_ROOT = resolve(__dirname, '..');
 
 describe('campaign entry wiring', () => {
-  it('routes Continue, exact save rows, and imports through the shared entry gate', () => {
-    const main = readFileSync(resolve(PROJECT_ROOT, 'src/main.ts'), 'utf8');
-
-    expect(main).toContain('async function showStartSavePanel()');
-    expect(main).toContain('loadMostRecentAutoSaveEntry()');
-    expect(main).toContain('loadSaveEntry(source)');
-    expect(main).toContain("{ kind: 'import', state }");
-    expect(main.match(/await beginCampaignEntry\(/g)).toHaveLength(3);
-    expect(main).not.toContain('loadAutoSave()');
-    expect(main).not.toContain('loadGame(slotId)');
-  });
-
-  it('restores terminal saves before entering a hot-seat handoff', () => {
-    const main = readFileSync(resolve(PROJECT_ROOT, 'src/main.ts'), 'utf8');
-    const entry = main.slice(
-      main.indexOf('function enterCampaign('),
-      main.indexOf('async function showStartSavePanel'),
-    );
-
-    expect(entry.indexOf('if (session.getState().gameOver)'))
-      .toBeLessThan(entry.indexOf('const hotSeat = session.getState().hotSeat;'));
-    expect(entry).toContain('handleVictoryIfNeeded()');
-  });
-
+  // #787 phase 10: showStartSavePanel, enterCampaign, and startGame all moved
+  // out of main.ts into CampaignEntryController/GameSessionController. Their
+  // real behavior (all three entry routes through the shared challenge-prompt
+  // gate, the gameOver-before-hotSeat ordering + handleVictoryIfNeeded, and
+  // startGame's showRequiredChoicesIfNeeded call) is now proven at runtime by
+  // campaign-entry-controller.test.ts and game-session-controller.test.ts.
+  // Only the e2e-mode gating (never behaviorally tested even before this
+  // phase -- it depends on Vite's build-time import.meta.env.MODE, not
+  // something worth stubbing for a structural regression guard) stays a
+  // source check, relocated to its new home.
   it('gates direct E2E autosave entry before the save-panel UI and exposes no mutable runtime globals', () => {
-    const main = readFileSync(resolve(PROJECT_ROOT, 'src/main.ts'), 'utf8');
+    const controller = readFileSync(resolve(PROJECT_ROOT, 'src/app/controllers/game-session-controller.ts'), 'utf8');
 
-    expect(main).toContain("if (import.meta.env.MODE === 'e2e')");
-    expect(main).toContain("await import('@/testing/e2e-runtime')");
-    expect(main.indexOf("import.meta.env.MODE === 'e2e'"))
-      .toBeLessThan(main.indexOf('await showStartSavePanel()'));
-    expect(main).not.toContain('window.gameState');
-    expect(main).not.toContain('window.renderLoop');
-  });
-
-  it('opens required research choices once startGame hands control to the viewer', () => {
-    // #787 phase 9: releaseHandoffToViewer (renamed enterViewerTurn) and
-    // endTurn's own post-round showRequiredChoicesIfNeeded call both moved
-    // into TurnFlowController -- their call-order guarantee is now proven at
-    // runtime by turn-flow-controller.test.ts's "required choices open after
-    // the viewer can act" describe block, not by slicing main.ts source text.
-    // Only startGame's own one-line delegation still lives in main.ts.
-    const main = readFileSync(resolve(PROJECT_ROOT, 'src/main.ts'), 'utf8');
-    const start = main.slice(main.indexOf('function startGame()'), main.indexOf('\ninit();'));
-
-    expect(start).toContain('turnFlow.showRequiredChoicesIfNeeded();');
+    expect(controller).toContain("if (import.meta.env.MODE === 'e2e')");
+    expect(controller).toContain("await import('@/testing/e2e-runtime')");
+    expect(controller.indexOf("import.meta.env.MODE === 'e2e'"))
+      .toBeLessThan(controller.indexOf('await deps.campaignEntry.showStartSavePanel()'));
+    expect(controller).not.toContain('window.gameState');
+    expect(controller).not.toContain('window.renderLoop');
   });
 });
 
@@ -141,9 +114,15 @@ describe('completed-round AI wiring', () => {
     // ai:strategic-warning's real consumer moved to registerGeneralPresentation,
     // composed into registerAllPresentation (#787 phase 7) --
     // register-general-presentation.test.ts and register-all.test.ts prove the
-    // registrar itself routes the event and is actually installed; this only
-    // proves main.ts installs the composed set.
-    expect(main).toContain('registerAllPresentation(bus, presentationContext)');
+    // registrar itself routes the event and is actually installed. #787 phase
+    // 10 moved the actual registerAllPresentation(...) call out of main.ts's
+    // module scope into bootstrap() (src/app/bootstrap.ts) -- bootstrap.test.ts
+    // proves it is called with these exact bus/presentationContext values;
+    // this only proves main.ts still hands them to bootstrap().
+    const bootstrapCall = main.slice(main.indexOf('void bootstrap({'), main.indexOf('});', main.indexOf('void bootstrap({')));
+    expect(bootstrapCall).toContain('bus,');
+    expect(bootstrapCall).toContain('presentationContext,');
+    expect(bootstrapCall).toContain('gameSession,');
   });
 });
 
@@ -235,29 +214,11 @@ describe('shared city assault wiring', () => {
   });
 });
 
-describe('air-defense overlay button placement (#783)', () => {
-  it('joins the utility toolbar flex row instead of an independent absolute position', () => {
-    const main = readFileSync(resolve(PROJECT_ROOT, 'src/main.ts'), 'utf8');
-    const createUI = main.slice(main.indexOf('function createUI(): void {'), main.indexOf('function openBestiary('));
-
-    // Regression for #783: this button used to carry its own
-    // `position:absolute;right:12px;top:64px` and land directly on `uiLayer`, which put it
-    // on top of the utility toolbar's own icon buttons and the HUD's turn/era text at the
-    // same screen coordinates. It must not reintroduce a competing absolute anchor.
-    expect(main).not.toMatch(/airDefenseOverlayButton\.style\.cssText[^;]*position:\s*absolute/);
-    expect(createUI).toContain("document.getElementById('utility-toolbar')");
-    expect(createUI).toMatch(/utilityToolbar\.(insertBefore|appendChild)\(airDefenseOverlayButton/);
-  });
-
-  it('only shows the button once the current civ has built AA coverage', () => {
-    const main = readFileSync(resolve(PROJECT_ROOT, 'src/main.ts'), 'utf8');
-
-    // Starts hidden so it never flashes visible before the first updateHUD() call.
-    expect(main).toContain('airDefenseOverlayButton.hidden = true;');
-    const updateHud = main.slice(main.indexOf('function updateHUD(): void {'), main.indexOf('\nfunction ', main.indexOf('function updateHUD(): void {') + 1));
-    expect(updateHud).toContain('airDefenseOverlayButton.hidden = !civHasAirDefenseCoverage(session.getState(), civ.id);');
-  });
-});
+// #783 air-defense overlay button placement: both grep assertions that used
+// to live here (no competing absolute position; hidden until the civ has
+// coverage) moved into hud-controller.test.ts as real DOM tests once
+// HudController owned this button (#787 phase 10) -- a real test on the
+// actual controller supersedes a source-text check on where it used to live.
 
 describe('map interaction controller wiring (#787 phase 8d)', () => {
   it('handleHexTap dispatches on resolveMapTapIntent through an exhaustive switch', () => {
@@ -293,12 +254,10 @@ describe('map interaction controller wiring (#787 phase 8d)', () => {
     }
   });
 
-  it('constructs MapInteractionController and routes touch/mouse input through it', () => {
+  it('constructs MapInteractionController', () => {
     const main = readFileSync(resolve(PROJECT_ROOT, 'src/main.ts'), 'utf8');
 
     expect(main).toContain('createMapInteractionController(');
-    expect(main).toContain('onHexTap: mapInteraction.handleHexTap,');
-    expect(main).toContain('onHexLongPress: mapInteraction.handleHexLongPress,');
 
     // These four used to be local `function` declarations in main.ts;
     // map-interaction-controller.test.ts now owns their behavioral coverage.
@@ -312,6 +271,12 @@ describe('map interaction controller wiring (#787 phase 8d)', () => {
       expect(main).not.toContain(declaration);
     }
   });
+
+  // #787 phase 10: the onHexTap/onHexLongPress -> mapInteraction wiring moved
+  // from main.ts's startGame() into GameSessionController.startGame(); the
+  // routing behavior itself is now proven at runtime by
+  // game-session-controller.test.ts's "routes a canvas tap through
+  // MapInteractionController.handleHexTap..." test instead of a source check.
 });
 
 describe('selection controller wiring (#787 phase 8c)', () => {
