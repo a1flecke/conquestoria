@@ -1,15 +1,10 @@
 import { EventBus } from '@/core/event-bus';
 import { RenderLoop } from '@/renderer/render-loop';
-import { hexKey, hexesInRange, parseHexKey } from '@/systems/hex-utils';
+import { hexKey, parseHexKey } from '@/systems/hex-utils';
 import { moveUnit, getMovementCost, UNIT_DEFINITIONS, restUnit, canHeal, createUnit } from '@/systems/unit-system';
 import { isMajorCivOwner } from '@/core/owner-kind';
-import { getProductionDisplayName, TRAINABLE_UNITS } from '@/systems/city-system';
-import { chooseCircularManufacturingMaterial } from '@/systems/national-project-system';
 import { foundCityInState } from '@/systems/city-founding-system';
-import { assignCityFocus, setCityWorkedTile } from '@/systems/city-work-system';
 import { formatCityFoundingBlockerMessage, getCityFoundingBlockers } from '@/systems/city-territory-system';
-import { enqueueCityProduction, removeQueuedId, reorderCityProduction, setIdleProduction } from '@/systems/planning-system';
-import { createCityPanel } from '@/ui/city-panel';
 import { createCityCapturePanel } from '@/ui/city-capture-panel';
 import { deterministicCombatSeed, resolveCombat } from '@/systems/combat-system';
 import { buildCombatContextForDefender, getAmphibiousAssaultMultiplier } from '@/systems/combat-context';
@@ -29,7 +24,6 @@ import { recordBeastSightings } from '@/systems/beast-presentation';
 import { loadSettings } from '@/storage/save-manager';
 import { AudioSystem } from '@/audio/audio-system';
 import { SFX } from '@/audio/sfx';
-import { createEspionagePanel } from '@/ui/espionage-panel';
 import { AdvisorSystem } from '@/ui/advisor-system';
 import type { PirateFocusTarget } from '@/systems/pirate-presentation';
 import type { PirateActionResult } from '@/systems/pirate-actions';
@@ -47,20 +41,18 @@ import { buildUnitOccupancy, hasHostileUnitAtCoord } from '@/systems/unit-occupa
 import { beginPlayerCityAssaultChoice, shouldPromptForPlayerCityCapture } from '@/input/city-assault-flow';
 import { canUnitOccupyCity } from '@/systems/city-capture-system';
 import { buildCombatPresentation } from '@/systems/viewer-event-presentation';
-import { embedSpy, unembedSpy, attemptSweep, getAvailableMissions, getSpyCaptureRelationshipPenalty, expelSpy, executeSpy, startInterrogation, isSpyUnitType, missionRequiresPlacedSpy, recallSpy, resolveMissionResult, startMission, verifyAgent } from '@/systems/espionage-system';
-import { applyUnitUpgradeToState, evaluateUnitUpgrade } from '@/systems/unit-upgrade-system';
+import { getSpyCaptureRelationshipPenalty, expelSpy, executeSpy, startInterrogation, isSpyUnitType } from '@/systems/espionage-system';
+import { applyUnitUpgradeToState } from '@/systems/unit-upgrade-system';
 import { executeUnitMove, isWorkerBusy } from '@/systems/unit-movement-system';
 import { getEmbarkedAssaultTarget, detachCargoForEmbarkedAssault } from '@/systems/transport-system';
 import { createSelectionStore } from '@/app/selection-store';
-import { getCapitalCity, getCapitalCityId } from '@/systems/capital-system';
+import { getCapitalCity } from '@/systems/capital-system';
 import type { CombatResult, GameState, HexCoord, UnitType, CivBonusEffect, WorkerActionType } from '@/core/types';
 import { appendNotification, type NotificationCityAction, type NotificationEntry } from '@/core/notification-log';
 import type { NotificationSink } from '@/ui/notification-routing';
 import { createUserSettingsStore } from '@/app/user-settings-store';
 import type { Notifier } from '@/app/ports';
 import { updateAndRefreshVisibility, reconstructLastSeenFromMap } from '@/systems/last-seen-presentation';
-import { rushBuyActiveProduction } from '@/systems/economy-system';
-import { applyQuarantine, applyRemedy } from '@/systems/crisis-system';
 import { createCeremonyCoordinator, type CeremonyCoordinator } from '@/app/controllers/ceremony-coordinator';
 import { createSelectionController, type SelectionController } from '@/app/controllers/selection-controller';
 import { createDiplomacyActionsController, type DiplomacyActionsController } from '@/app/controllers/diplomacy-actions-controller';
@@ -195,7 +187,7 @@ const ceremonies: CeremonyCoordinator = createCeremonyCoordinator({
   openAtlas: wonderId => panelActions.openWonderAtlas(wonderId),
   openCity: cityId => {
     const city = session.getState().cities[cityId];
-    if (city) openCityPanelForCity(city);
+    if (city) panelActions.openCityPanelForCity(city);
   },
   openJournal: cityId => {
     if (session.getState().cities[cityId]) panelActions.openWonderPanelForCityId(cityId);
@@ -235,12 +227,18 @@ const diplomacyActions: DiplomacyActionsController = createDiplomacyActionsContr
 });
 
 /**
- * Owns the panel openers extracted across #787 phases 10b-b (utility/world-event
- * panels) and 10b-c (unit/network/civ-management panels), see 10b-d for the
- * rest. `hud` and `selectionController` use the same deferred-but-eager
- * lazy-wrapper pattern as `diplomacyActions` above, for the same reason
- * (neither is assigned yet at this point in module evaluation). `diplomacyActions`
- * needs no such wrapper here since it is constructed just above.
+ * Owns every panel opener extracted across #787 phases 10b-b (utility/world-event
+ * panels), 10b-c (unit/network/civ-management panels), and 10b-d (the two
+ * largest panels: `openCityPanelForCity`, `openEspionagePanel`). `hud` and
+ * `selectionController` use the same deferred-but-eager lazy-wrapper pattern
+ * as `diplomacyActions` above, for the same reason (neither is assigned yet
+ * at this point in module evaluation). `diplomacyActions` needs no such
+ * wrapper here since it is constructed just above. `router` DOES need the
+ * wrapper -- it is a `let` not assigned until `createPanelRouter(...)` much
+ * later in module evaluation (after `panelRegistry`, which itself needs this
+ * controller's methods) -- same pattern `turnFlow`'s own `router` dep below
+ * already uses. `executeUpgrade` and `currentCivDef` are plain hoisted
+ * function declarations (like `currentCiv`), so no wrapper needed for them.
  */
 const panelActions: PanelActionsController = createPanelActionsController({
   session,
@@ -255,8 +253,10 @@ const panelActions: PanelActionsController = createPanelActionsController({
   focusPirateTarget,
   applyPirateActionResult,
   currentCiv,
+  currentCivDef,
   diplomacyActions,
-  openCityPanelForCity,
+  executeUpgrade,
+  router: { open: panel => router.open(panel) },
   hud: { closeDrawer: () => hud.closeDrawer(), update: () => hud.update() },
   selectionController: {
     selectUnit: (unitId, opts) => selectionController.selectUnit(unitId, opts),
@@ -336,16 +336,19 @@ const turnFlow: TurnFlowController = createTurnFlowController({
   // invoked until real gameplay.
   showGameModeSelection: () => campaignEntry.showGameModeSelection(),
   reloadPage: () => window.location.reload(),
-  openCityPanelForCity,
+  openCityPanelForCity: panelActions.openCityPanelForCity,
 });
 
 /**
  * Owns the two map-input entry points, `handleHexTap` and
  * `handleHexLongPress` (#787 phase 8d). References several functions
- * defined later in this file (`openCityPanelForCity`, `executeAttack`,
+ * defined later in this file (`executeAttack`, `executeMinorCivConquest`,
  * etc.) -- safe because they are hoisted function declarations and none of
  * them run until real gameplay, well after module evaluation finishes. The
  * same deferred-but-eager pattern `selectionController` above already uses.
+ * `openCityPanelForCity` is a `panelActions` method now (10b-d), not a
+ * hoisted function, but `mapInteraction` is constructed after `panelActions`
+ * so a direct reference still works with no wrapper needed.
  */
 const mapInteraction: MapInteractionController = createMapInteractionController({
   session,
@@ -362,7 +365,7 @@ const mapInteraction: MapInteractionController = createMapInteractionController(
   currentCiv,
   openPirateWaters: panelActions.openPirateWaters,
   openUnitStackPicker: panelActions.openUnitStackPicker,
-  openCityPanelForCity,
+  openCityPanelForCity: panelActions.openCityPanelForCity,
   openWonderAtlas: panelActions.openWonderAtlas,
   executeAttack,
   executeMinorCivConquest,
@@ -610,383 +613,14 @@ function executeUpgrade(
   return true;
 }
 
-function openCityPanelForCity(city: import('@/core/types').City): void {
-  hud.closeDrawer();
-  if (city.owner !== session.getState().currentPlayer) return;
-
-  createCityPanel(uiLayer, city, session.getState(), {
-    onBuild: (cityId, itemId) => {
-      const targetCity = session.getState().cities[cityId];
-      if (targetCity) {
-        try {
-          session.getState().cities[cityId] = enqueueCityProduction(targetCity, itemId);
-          renderLoop.setGameState(session.getState());
-          showNotification(`${targetCity.name}: queued ${getProductionDisplayName(itemId)}`, 'info');
-        } catch (error) {
-          const message = error instanceof Error ? error.message : 'Queue limit reached';
-          showNotification(`${targetCity.name}: ${message}`, 'warning');
-        }
-      }
-    },
-    onMoveQueueItem: (cityId, fromIndex, toIndex) => {
-      const targetCity = session.getState().cities[cityId];
-      if (!targetCity) return;
-      session.getState().cities[cityId] = reorderCityProduction(targetCity, fromIndex, toIndex);
-      renderLoop.setGameState(session.getState());
-    },
-    onRemoveQueueItem: (cityId, index) => {
-      const targetCity = session.getState().cities[cityId];
-      if (!targetCity) return;
-      session.getState().cities[cityId] = {
-        ...targetCity,
-        productionQueue: removeQueuedId(targetCity.productionQueue, index),
-        productionProgress: index === 0 ? 0 : targetCity.productionProgress,
-      };
-      renderLoop.setGameState(session.getState());
-    },
-    onOpenWonderPanel: (selectedCityId) => {
-      panelActions.openWonderPanelForCityId(selectedCityId);
-    },
-    onSetCityFocus: (cityId, focus) => {
-      const result = assignCityFocus(session.getState(), cityId, focus);
-      session.commit(result.state);
-      showNotification(`${session.getState().cities[cityId].name} reassigned citizens for ${focus} focus.`, 'info');
-      return session.getState();
-    },
-    onToggleWorkedTile: (cityId, coord, worked) => {
-      const result = setCityWorkedTile(session.getState(), cityId, coord, worked);
-      session.commit(result.state);
-      if (!result.changed && result.reason === 'claimed') {
-        showNotification('That tile is already worked by another city.', 'warning');
-      }
-      return session.getState();
-    },
-    onClose: () => {},
-    onTip: (message) => { showNotification(message, 'info'); },
-    onSelectUnit: (unitId) => selectionController.selectUnit(unitId),
-    onEstablishRoute: diplomacyActions.handleEstablishRoute,
-    onPrevCity: () => {
-      const cities = currentCiv().cities;
-      if (cities.length <= 1) return;
-      const currentIdx = cities.indexOf(city.id);
-      const prevIdx = (currentIdx - 1 + cities.length) % cities.length;
-      const prevCity = session.getState().cities[cities[prevIdx]];
-      if (prevCity) openCityPanelForCity(prevCity);
-    },
-    onNextCity: () => {
-      const cities = currentCiv().cities;
-      if (cities.length <= 1) return;
-      const currentIdx = cities.indexOf(city.id);
-      const nextIdx = (currentIdx + 1) % cities.length;
-      const nextCity = session.getState().cities[cities[nextIdx]];
-      if (nextCity) openCityPanelForCity(nextCity);
-    },
-    onUpgradeUnit: (unitId) => {
-      const unit = session.getState().units[unitId];
-      if (!unit || unit.owner !== session.getState().currentPlayer) return;
-      const targetType = TRAINABLE_UNITS.find(entry => entry.type === unit.type)?.upgradesTo;
-      if (!targetType) return;
-      const upgrade = evaluateUnitUpgrade(session.getState(), unitId, targetType);
-      if (!upgrade.canUpgrade || !upgrade.targetType) return;
-      if (executeUpgrade(unitId, upgrade.targetType)) {
-        showNotification(`Upgraded to ${UNIT_DEFINITIONS[upgrade.targetType].name}!`, 'success');
-      }
-    },
-    onSetIdleProduction: (cityId, mode) => {
-      const targetCity = session.getState().cities[cityId];
-      if (!targetCity) return;
-      session.getState().cities[cityId] = setIdleProduction(targetCity, mode);
-      renderLoop.setGameState(session.getState());
-    },
-    onRushBuyActiveProduction: (cityId) => {
-      const targetCity = session.getState().cities[cityId];
-      if (!targetCity) return session.getState();
-      const result = rushBuyActiveProduction(session.getState(), session.getState().currentPlayer, cityId, bus);
-      if (!result.success) {
-        showNotification(result.message, 'warning');
-        return session.getState();
-      }
-      session.commit(result.state);
-      showNotification(`${targetCity.name}: rush bought ${result.label} for ${result.cost} gold.`, 'success');
-      return session.getState();
-    },
-    onAppeaseFaction: (cityId) => diplomacyActions.handleAppeaseFaction(cityId),
-    onConcedeToMovement: (cityId) => diplomacyActions.handleConcedeToMovement(cityId),
-    onQuarantineCrisis: (crisisId, cityId) => {
-      const result = applyQuarantine(session.getState(), crisisId, cityId);
-      if (!result.success) {
-        showNotification(result.message, 'warning');
-        return session.getState();
-      }
-      session.commit(result.state);
-      showNotification(result.message, 'success');
-      return session.getState();
-    },
-    onRemedyCrisis: (crisisId, cityId) => {
-      const result = applyRemedy(session.getState(), crisisId, cityId);
-      if (!result.success) {
-        showNotification(result.message, 'warning');
-        return session.getState();
-      }
-      session.commit(result.state);
-      showNotification(result.message, 'success');
-      return session.getState();
-    },
-    onFindResources: (highlights, toasts) => {
-      renderLoop.setHighlights(highlights.map(coord => ({ coord, type: 'worker-buildable' as const })));
-      for (const t of toasts) showNotification(t.message, t.type);
-    },
-    onChooseCircularManufacturingMaterial: (material) => {
-      try {
-        session.setStateWithoutRefresh(chooseCircularManufacturingMaterial(session.getState(), session.getState().currentPlayer, material));
-      } catch (error) {
-        showNotification(error instanceof Error ? error.message : 'That material choice is unavailable.', 'warning');
-        return;
-      }
-      renderLoop.setGameState(session.getState());
-      showNotification(`Circular Manufacturing Network will substitute ${material.replaceAll('-', ' ')} when it helps.`, 'success');
-      const refreshedCity = session.getState().cities[city.id];
-      if (refreshedCity) openCityPanelForCity(refreshedCity);
-    },
-  });
-}
-
-function openEspionagePanel(): void {
-  hud.closeDrawer();
-  const chooseForeignCityTarget = (): { civId: string; cityId: string; position: HexCoord } | null => {
-      const choices = Object.values(session.getState().cities)
-        .filter(city => city.owner !== session.getState().currentPlayer)
-        .sort((a, b) => a.name.localeCompare(b.name));
-      if (choices.length === 0) {
-        showNotification('No foreign cities available for espionage.', 'info');
-        return null;
-      }
-      const selection = window.prompt(
-        `Choose target city by id:\n${choices.map(city => `${city.id} (${city.owner})`).join('\n')}`,
-        choices[0].id,
-      );
-      if (!selection) return null;
-      const city = session.getState().cities[selection];
-      if (!city || city.owner === session.getState().currentPlayer) {
-        showNotification('Invalid espionage target.', 'warning');
-        return null;
-      }
-      return { civId: city.owner, cityId: city.id, position: city.position };
-    };
-
-    const chooseFriendlyCityTarget = (): { cityId: string; position: HexCoord } | null => {
-      const choices = currentCiv().cities
-        .map(cityId => session.getState().cities[cityId])
-        .filter((city): city is NonNullable<GameState['cities'][string]> => city !== undefined);
-      if (choices.length === 0) {
-        showNotification('No cities available for defensive espionage.', 'info');
-        return null;
-      }
-      const selection = window.prompt(
-        `Choose friendly city by id:\n${choices.map(city => city.id).join('\n')}`,
-        choices[0].id,
-      );
-      if (!selection) return null;
-      const city = session.getState().cities[selection];
-      if (!city || city.owner !== session.getState().currentPlayer) {
-        showNotification('Invalid defensive target.', 'warning');
-        return null;
-      }
-      return { cityId: city.id, position: city.position };
-    };
-
-    const chooseMission = (spyId: string): string | null => {
-      const spy = session.getState().espionage?.[session.getState().currentPlayer]?.spies[spyId];
-      const completedTechs = currentCiv().techState.completed ?? [];
-      // #524 MR2a review fix: flip_loyalty can never succeed against a capital (see
-      // resolveMissionResult's guard in espionage-system.ts) -- don't offer it as a
-      // choice when the spy's current target already is one. Without this, a spy
-      // stationed in an enemy capital could "succeed" an 8-turn flip_loyalty mission
-      // that silently does nothing, with no explanation.
-      const spyTargetsCapital = Boolean(
-        spy?.targetCivId && spy.targetCityId
-          && getCapitalCityId(session.getState(), spy.targetCivId) === spy.targetCityId,
-      );
-      const missions = getAvailableMissions(completedTechs)
-        .filter(mission => !missionRequiresPlacedSpy(mission) || Boolean(spy?.targetCivId))
-        .filter(mission => mission !== 'flip_loyalty' || !spyTargetsCapital);
-      if (missions.length === 0) {
-        showNotification('No missions available for this spy.', 'info');
-        return null;
-      }
-      return window.prompt(`Choose mission:\n${missions.join('\n')}`, missions[0]);
-    };
-
-    uiLayer.appendChild(createEspionagePanel(session.getState(), {
-      onClose: () => document.getElementById('espionage-panel')?.remove(),
-      onAssignDefensive: (spyId) => {
-        const target = chooseFriendlyCityTarget();
-        if (!target) return;
-        session.getState().espionage![session.getState().currentPlayer] = embedSpy(
-          session.getState().espionage![session.getState().currentPlayer],
-          spyId,
-          target.cityId,
-          target.position,
-        );
-        const unit = session.getState().units[spyId];
-        if (unit) {
-          delete session.getState().units[spyId];
-          session.getState().civilizations[session.getState().currentPlayer].units =
-            session.getState().civilizations[session.getState().currentPlayer].units.filter(id => id !== spyId);
-        }
-        renderLoop.setGameState(session.getState());
-        router.open('espionage');
-        const cityName = session.getState().cities[target.cityId]?.name ?? target.cityId;
-        showNotification(`Spy embedded in ${cityName}. Counter-intelligence boosted.`, 'info');
-      },
-      onStartMission: (spyId) => {
-        const spy = session.getState().espionage?.[session.getState().currentPlayer]?.spies[spyId];
-        if (!spy) return;
-        const mission = chooseMission(spyId);
-        if (!mission) return;
-        let targetCivId = spy.targetCivId ?? undefined;
-        let targetCityId = spy.targetCityId ?? undefined;
-        if (!missionRequiresPlacedSpy(mission as any)) {
-          const target = chooseForeignCityTarget();
-          if (!target) return;
-          targetCivId = target.civId;
-          targetCityId = target.cityId;
-        }
-        session.getState().espionage![session.getState().currentPlayer] = startMission(
-          session.getState().espionage![session.getState().currentPlayer],
-          spyId,
-          mission as any,
-          currentCivDef()?.bonusEffect,
-          targetCivId,
-          targetCityId,
-        );
-        renderLoop.setGameState(session.getState());
-        router.open('espionage');
-        showNotification(`Mission ${mission} started.`, 'info');
-      },
-      onRecall: (spyId) => {
-        session.getState().espionage![session.getState().currentPlayer] = recallSpy(
-          session.getState().espionage![session.getState().currentPlayer],
-          spyId,
-        );
-        renderLoop.setGameState(session.getState());
-        router.open('espionage');
-        showNotification('Spy recalled.', 'info');
-      },
-      onVerifyAgent: (spyId) => {
-        session.getState().espionage![session.getState().currentPlayer] = verifyAgent(
-          session.getState().espionage![session.getState().currentPlayer],
-          spyId,
-        );
-        renderLoop.setGameState(session.getState());
-        router.open('espionage');
-        showNotification('Agent verified and cleared.', 'success');
-      },
-      onExfiltrate: (spyId) => {
-        const ownerEsp = session.getState().espionage?.[session.getState().currentPlayer];
-        const spy = ownerEsp?.spies[spyId];
-        if (!spy || spy.status !== 'stationed') return;
-        const capital = getCapitalCity(session.getState(), session.getState().currentPlayer);
-        if (!capital) { showNotification('Cannot exfiltrate — no capital found.', 'warning'); return; }
-
-        // Spawn occupancy: find a free tile at/near the capital
-        const existingPositions = new Set(
-          Object.values(session.getState().units).map(u => `${u.position.q},${u.position.r}`),
-        );
-        let spawnPos = capital.position;
-        if (existingPositions.has(`${spawnPos.q},${spawnPos.r}`)) {
-          const adjacent = hexesInRange(capital.position, 1).filter(
-            c => !(c.q === capital.position.q && c.r === capital.position.r) &&
-                 !existingPositions.has(`${c.q},${c.r}`) &&
-                 session.getState().map.tiles[hexKey(c)],
-          );
-          if (adjacent.length === 0) {
-            showNotification('Cannot exfiltrate — no free tile near capital.', 'warning');
-            return;
-          }
-          spawnPos = adjacent[0];
-        }
-
-        const newUnit = createUnit(spy.unitType, session.getState().currentPlayer, spawnPos, session.getState().idCounters);
-        session.getState().units[newUnit.id] = newUnit;
-        session.getState().civilizations[session.getState().currentPlayer].units =
-          [...(session.getState().civilizations[session.getState().currentPlayer].units ?? []), newUnit.id];
-        const updatedSpy = {
-          ...spy, id: newUnit.id, status: 'cooldown' as const,
-          cooldownTurns: 8, infiltrationCityId: null, cityVisionTurnsLeft: 0, targetCivId: null, cooldownMode: undefined,
-        };
-        const { [spyId]: _old, ...rest } = ownerEsp!.spies;
-        session.getState().espionage![session.getState().currentPlayer] = { ...ownerEsp!, spies: { ...rest, [newUnit.id]: updatedSpy } };
-        renderLoop.setGameState(session.getState());
-        // Refresh panel in place
-        document.getElementById('espionage-panel')?.remove();
-        router.open('espionage');
-        showNotification('Spy exfiltrated. Available again in 8 turns.', 'info');
-      },
-      onToggleCooldownMode: (spyId) => {
-        const civEsp = session.getState().espionage?.[session.getState().currentPlayer];
-        const spy = civEsp?.spies[spyId];
-        if (!spy || spy.status !== 'cooldown') return;
-        const next: 'stay_low' | 'passive_observe' =
-          (spy.cooldownMode ?? 'stay_low') === 'passive_observe' ? 'stay_low' : 'passive_observe';
-        session.commit({
-          ...session.getState(),
-          espionage: {
-            ...session.getState().espionage!,
-            [session.getState().currentPlayer]: {
-              ...civEsp!,
-              spies: { ...civEsp!.spies, [spyId]: { ...spy, cooldownMode: next } },
-            },
-          },
-        });
-        document.getElementById('espionage-panel')?.remove();
-        router.open('espionage');
-      },
-      onUnembed: (spyId) => {
-        const ownerEsp = session.getState().espionage?.[session.getState().currentPlayer];
-        const spy = ownerEsp?.spies[spyId];
-        if (!spy || spy.status !== 'embedded' || !spy.targetCityId) return;
-        const city = session.getState().cities[spy.targetCityId];
-        if (!city) return;
-        const newUnit = createUnit(spy.unitType, session.getState().currentPlayer, city.position, session.getState().idCounters);
-        session.getState().units[newUnit.id] = newUnit;
-        session.getState().civilizations[session.getState().currentPlayer].units.push(newUnit.id);
-        const unembedded = unembedSpy(ownerEsp!, spyId);
-        const rekeyed = { ...unembedded.spies[spyId], id: newUnit.id };
-        const { [spyId]: _old, ...rest } = unembedded.spies;
-        session.getState().espionage![session.getState().currentPlayer] = { ...unembedded, spies: { ...rest, [newUnit.id]: rekeyed } };
-        renderLoop.setGameState(session.getState());
-        document.getElementById('espionage-panel')?.remove();
-        router.open('espionage');
-        showNotification(`Spy recalled from ${city.name}. Available in 5 turns.`, 'info');
-      },
-      onSweep: (spyId) => {
-        const ownerEsp = session.getState().espionage?.[session.getState().currentPlayer];
-        if (!ownerEsp) return;
-        const seed = `sweep-${spyId}-${session.getState().turn}`;
-        const { detectedSpyIds, state: updatedEsp } = attemptSweep(ownerEsp, spyId, seed, session.getState());
-        session.getState().espionage![session.getState().currentPlayer] = updatedEsp;
-        if (detectedSpyIds.length > 0) {
-          showNotification(`Sweep detected ${detectedSpyIds.length} enemy spy(ies) in the city!`, 'warning');
-        } else {
-          showNotification('Sweep complete — no enemy spies detected.', 'info');
-        }
-        renderLoop.setGameState(session.getState());
-        document.getElementById('espionage-panel')?.remove();
-        router.open('espionage');
-      },
-    }));
-}
-
 /**
  * Replaces `togglePanel`'s 288-line `else if` chain (#787 phase 5). Panels
  * that require a specific target -- a city id, a hex coord -- have no
  * parameterless "open the current one" call, so their `open` throws; they
  * still need a registry entry so `closeGroup`/`isOpen`/`close` (all
  * DOM-derived off `domId`) behave correctly when a 'main' or 'transient'
- * sweep runs. `openCityPanelForCity`'s real entry point stays a
- * directly-callable function, untouched by this phase (10b-d);
- * `openWonderPanelForCityId`'s moved into `PanelActionsController` (10b-c).
+ * sweep runs. `openCityPanelForCity`'s and `openWonderPanelForCityId`'s real
+ * entry points both now live in `PanelActionsController` (10b-c, 10b-d).
  * The territory-inspection panel has no such entry point of
  * its own -- it opens only as a side effect of `mapInteraction.handleHexLongPress`
  * (#787 phase 8d), which is not itself in this registry.
@@ -998,10 +632,10 @@ const panelRegistry = {
     domId: 'city-panel',
     group: 'main',
     open: () => {
-      throw new Error("'city' is parameterized -- call openCityPanelForCity(city) directly, not router.open('city').");
+      throw new Error("'city' is parameterized -- call panelActions.openCityPanelForCity(city) directly, not router.open('city').");
     },
   },
-  espionage: { domId: 'espionage-panel', group: 'main', open: () => openEspionagePanel() },
+  espionage: { domId: 'espionage-panel', group: 'main', open: () => panelActions.openEspionagePanel() },
   diplomacy: { domId: 'diplomacy-panel', group: 'main', open: () => panelActions.openDiplomacyPanel() },
   marketplace: { domId: 'marketplace-panel', group: 'main', open: () => panelActions.openMarketplacePanel() },
   network: { domId: 'network-panel', group: 'transient', open: () => panelActions.openNetworkPanel() },

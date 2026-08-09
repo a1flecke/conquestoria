@@ -153,9 +153,9 @@ describe('shared unit upgrade wiring', () => {
     const main = readFileSync(resolve(PROJECT_ROOT, 'src/main.ts'), 'utf8');
     const handler = main.slice(
       main.indexOf('function executeUpgrade('),
-      // #787 phase 10b-c: openWonderPanelForCityId moved into PanelActionsController;
-      // openCityPanelForCity is what now immediately follows executeUpgrade.
-      main.indexOf('function openCityPanelForCity('),
+      // #787 phase 10b-d: openCityPanelForCity moved into PanelActionsController;
+      // getUnitTurnFlow is what now immediately follows executeUpgrade.
+      main.indexOf('function getUnitTurnFlow('),
     );
 
     expect(handler).toContain('applyUnitUpgradeToState(');
