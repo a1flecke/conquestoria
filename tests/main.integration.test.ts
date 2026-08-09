@@ -32,7 +32,9 @@ describe('player combat wiring', () => {
     const main = readFileSync(resolve(PROJECT_ROOT, 'src/main.ts'), 'utf8');
     const executeAttack = main.slice(
       main.indexOf('function executeAttack('),
-      main.indexOf('function restAction('),
+      // #787 phase 10b-e: restAction moved into PlayerActionController;
+      // executeAttack is now the last function declaration in main.ts.
+      main.indexOf('// --- Bootstrap ---'),
     );
 
     expect(executeAttack).toContain(
@@ -44,7 +46,9 @@ describe('player combat wiring', () => {
     const main = readFileSync(resolve(PROJECT_ROOT, 'src/main.ts'), 'utf8');
     const executeAttack = main.slice(
       main.indexOf('function executeAttack('),
-      main.indexOf('function restAction('),
+      // #787 phase 10b-e: restAction moved into PlayerActionController;
+      // executeAttack is now the last function declaration in main.ts.
+      main.indexOf('// --- Bootstrap ---'),
     );
     const stateRefresh = executeAttack.indexOf('renderLoop.setGameState(session.getState());');
     const panelRefresh = executeAttack.indexOf('refreshSelectedUnitAfterCombat();');
@@ -59,7 +63,9 @@ describe('player combat wiring', () => {
     const main = readFileSync(resolve(PROJECT_ROOT, 'src/main.ts'), 'utf8');
     const executeAttack = main.slice(
       main.indexOf('function executeAttack('),
-      main.indexOf('function restAction('),
+      // #787 phase 10b-e: restAction moved into PlayerActionController;
+      // executeAttack is now the last function declaration in main.ts.
+      main.indexOf('// --- Bootstrap ---'),
     );
     const cityCaptureBranch = executeAttack.slice(
       executeAttack.indexOf('const assaultStatus = beginPlayerCityAssault('),
@@ -135,7 +141,9 @@ describe('shared city founding wiring', () => {
     );
     const playerFlow = main.slice(
       main.indexOf('function foundCityAction(): void'),
-      main.indexOf('function performWorkerAction('),
+      // #787 phase 10b-e: performWorkerAction moved into PlayerActionController;
+      // beginPlayerCityAssault is what now immediately follows foundCityAction.
+      main.indexOf('function beginPlayerCityAssault('),
     );
 
     expect(playerFlow).toContain(
@@ -153,9 +161,9 @@ describe('shared unit upgrade wiring', () => {
     const main = readFileSync(resolve(PROJECT_ROOT, 'src/main.ts'), 'utf8');
     const handler = main.slice(
       main.indexOf('function executeUpgrade('),
-      // #787 phase 10b-d: openCityPanelForCity moved into PanelActionsController;
-      // getUnitTurnFlow is what now immediately follows executeUpgrade.
-      main.indexOf('function getUnitTurnFlow('),
+      // #787 phase 10b-e: getUnitTurnFlow moved into PlayerActionController;
+      // foundCityAction is what now immediately follows executeUpgrade.
+      main.indexOf('function foundCityAction('),
     );
 
     expect(handler).toContain('applyUnitUpgradeToState(');
@@ -305,16 +313,11 @@ describe('selection controller wiring (#787 phase 8c)', () => {
     }
   });
 
-  it('routes the unit-turn-flow deps through the controller instead of stale local references', () => {
-    const main = readFileSync(resolve(PROJECT_ROOT, 'src/main.ts'), 'utf8');
-    const getUnitTurnFlow = main.slice(
-      main.indexOf('function getUnitTurnFlow('),
-      main.indexOf('function foundCityAction('),
-    );
-
-    expect(getUnitTurnFlow).toContain('selectUnit: selectionController.selectUnit,');
-    expect(getUnitTurnFlow).toContain('deselectUnit: selectionController.deselectUnit,');
-    expect(getUnitTurnFlow).toContain('selectNextUnit: selectionController.selectNextUnit,');
-    expect(getUnitTurnFlow).toContain('refreshVisibility: selectionController.refreshCurrentPlayerVisibility,');
-  });
+  // The former 'routes the unit-turn-flow deps through the controller instead of
+  // stale local references' grep test lived here. #787 phase 10b-e moved
+  // `getUnitTurnFlow` out of `main.ts` into `PlayerActionController` -- the same
+  // routing is now proven behaviorally in
+  // `tests/app/controllers/player-action-controller.test.ts` ('getUnitTurnFlow'
+  // describe block), which exercises the returned `UnitTurnFlow`'s callbacks
+  // against real injected `selectionController` mocks instead of grepping source text.
 });
