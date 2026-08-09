@@ -850,6 +850,25 @@ describe('renderSelectedUnitInfo - worker actions', () => {
     expect(blockedFort?.disabled).toBe(true);
   });
 
+  it('shows the exact empire Fort cap when a Worker cannot build another Fort', () => {
+    const state = makeWorkerState({ terrain: 'plains' });
+    state.civilizations.player.techState.completed = ['fortresses'];
+    state.cities = {
+      capital: { id: 'capital', owner: 'player', position: { q: 0, r: 1 } },
+    } as unknown as GameState['cities'];
+    state.map.tiles['3,0'] = {
+      ...state.map.tiles['0,0'], coord: { q: 3, r: 0 }, improvement: 'fort', improvementOwner: 'player',
+    };
+    const container = new MockElement('div');
+
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'worker-1', {
+      onWorkerAction: () => {},
+    });
+
+    const blockedFort = findButtons(container).find(button => button.textContent === 'Build Fort — Fort limit reached');
+    expect(blockedFort?.title).toBe('Forts: 1/1. Build another city or place this Fort on the frontier.');
+  });
+
   it('shows watermill only on valid river land', () => {
     const state = makeWorkerState({ terrain: 'plains', resource: 'iron', hasRiver: true });
     const container = new MockElement('div');
@@ -1527,6 +1546,24 @@ describe('renderSelectedUnitInfo - fortify button', () => {
     const btns = findButtons(container).map(b => b.textContent);
     expect(btns).toContain('Unfortify');
     expect(btns).not.toContain('Fortify');
+  });
+
+  it('renders separate Fort improvement and Fortify stance defense layers for its owner', () => {
+    const state = makeWarriorState({ isFortified: true });
+    state.map.tiles['0,0'] = {
+      coord: { q: 0, r: 0 }, terrain: 'plains', elevation: 'lowland', resource: null,
+      improvement: 'fort', improvementOwner: 'player', improvementTurnsLeft: 0,
+      owner: 'player', hasRiver: false, wonder: null,
+    } as any;
+    const container = new MockElement('div');
+
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'warrior-1', {
+      onFortify: () => {},
+    });
+
+    const text = collectAllText(container).join(' ');
+    expect(text).toContain('Fort improvement: +10% defense');
+    expect(text).toContain('Fortify stance: +25% defense');
   });
 
   it('does not render Fortify button for a non-combat unit (settler)', () => {

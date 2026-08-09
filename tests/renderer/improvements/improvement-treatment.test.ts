@@ -43,6 +43,13 @@ describe('improvement terrain treatments', () => {
     expect(drawImprovementTreatment(ctx, 'fort', 0, 0, 48)).toBe(true);
   });
 
+  it('renders the Citadel tier as a distinct fortified marker', () => {
+    const ctx = new MockCanvasContext() as unknown as CanvasRenderingContext2D;
+
+    expect(drawImprovementTreatment(ctx, 'fort', 0, 0, 48, { tier: 'citadel' })).toBe(true);
+    expect((ctx as unknown as MockCanvasContext).operations).toContain('fort-marker:citadel');
+  });
+
   it('does not claim unknown improvements', () => {
     const ctx = new MockCanvasContext() as unknown as CanvasRenderingContext2D;
     expect(drawImprovementTreatment(ctx, 'unknown', 0, 0, 48)).toBe(false);
