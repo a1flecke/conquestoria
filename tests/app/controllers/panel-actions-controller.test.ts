@@ -6,9 +6,10 @@ import { createGameSession } from '@/app/game-session';
 import { createEmptyPirateState, type PirateFactionState } from '@/core/pirate-state';
 import { createEmptyAutonomyCivState } from '@/core/autonomy-state';
 import { createUnit } from '@/systems/unit-system';
+import { createEspionageCivState } from '@/systems/espionage-system';
 import type { PirateFocusTarget } from '@/systems/pirate-presentation';
 import type { NotificationMapTarget } from '@/core/notification-log';
-import type { GameState, HexCoord } from '@/core/types';
+import type { GameState, HexCoord, Spy } from '@/core/types';
 import {
   createPanelActionsController,
   type PanelActionsControllerDeps,
@@ -33,6 +34,8 @@ vi.mock('@/ui/network-panel', async () => {
   return { createNetworkPanel: vi.fn(() => document.createElement('div')), getNetworkPanelModel: actual.getNetworkPanelModel };
 });
 vi.mock('@/storage/save-manager', () => ({ saveSettings: vi.fn(() => Promise.resolve()) }));
+vi.mock('@/ui/city-panel', () => ({ createCityPanel: vi.fn() }));
+vi.mock('@/ui/espionage-panel', () => ({ createEspionagePanel: vi.fn(() => document.createElement('div')) }));
 
 import { createPacingDebugPanel } from '@/ui/pacing-debug-panel';
 import { createBestiaryPanel } from '@/ui/bestiary-panel';
@@ -50,6 +53,8 @@ import { renderUnitStackPanel } from '@/ui/unit-stack-panel';
 import { createNetworkIntentPanel } from '@/ui/network-intent-panel';
 import { createNetworkPanel } from '@/ui/network-panel';
 import { saveSettings } from '@/storage/save-manager';
+import { createCityPanel } from '@/ui/city-panel';
+import { createEspionagePanel } from '@/ui/espionage-panel';
 
 function mockedCallArg<T = unknown>(mockFn: unknown, callIndex: number, argIndex: number): T {
   return (mockFn as ReturnType<typeof vi.fn>).mock.calls[callIndex][argIndex] as T;
@@ -67,6 +72,30 @@ function placeUnit(state: GameState, type: Parameters<typeof createUnit>[0], uni
   const idCounters = { nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 };
   state.units[unitId] = { ...createUnit(type, 'player', position, idCounters), id: unitId };
   state.civilizations.player.units.push(unitId);
+}
+
+function makeCity(id: string, overrides: Partial<NonNullable<GameState['cities'][string]>> = {}): NonNullable<GameState['cities'][string]> {
+  return {
+    id, name: `City ${id}`, owner: 'player', position: { q: 0, r: 0 },
+    population: 1, food: 0, foodNeeded: 10, buildings: [], productionQueue: [], productionProgress: 0,
+    ownedTiles: [], workedTiles: [], focus: 'balanced', maturity: 'outpost',
+    unrestLevel: 0, unrestTurns: 0, spyUnrestBonus: 0,
+    ...overrides,
+  };
+}
+
+/** Places a real player-owned spy in `state.espionage`, for espionage-panel tests. */
+function placeSpy(state: GameState, spyId: string, overrides: Partial<Spy> = {}): void {
+  const spy: Spy = {
+    id: spyId, owner: 'player', name: `Agent ${spyId}`, unitType: 'spy_scout',
+    targetCivId: null, targetCityId: null, position: null,
+    status: 'idle', experience: 0, currentMission: null,
+    cooldownTurns: 0, promotion: undefined, promotionAvailable: false,
+    feedsFalseIntel: false,
+    ...overrides,
+  };
+  const existing = state.espionage?.player ?? createEspionageCivState();
+  state.espionage = { ...state.espionage, player: { ...existing, spies: { ...existing.spies, [spyId]: spy } } };
 }
 
 /** A coastal-enclave pirate faction adjacent to a real player unit, with intel already gathered. */
@@ -119,13 +148,14 @@ function makeDeps(state: GameState, overrides: Partial<PanelActionsControllerDep
     },
     renderLoop: {
       camera: { centerOn: vi.fn() }, setSelectedPirateFactionId: vi.fn(),
-      applyPirateHeadquartersAssaultVisual: vi.fn(), setGameState: vi.fn(),
+      applyPirateHeadquartersAssaultVisual: vi.fn(), setGameState: vi.fn(), setHighlights: vi.fn(),
     },
     showNotification: vi.fn(),
     focusNotificationTarget: vi.fn(),
     focusPirateTarget: vi.fn(),
     applyPirateActionResult: vi.fn(),
     currentCiv: vi.fn(() => state.civilizations[state.currentPlayer]),
+    currentCivDef: vi.fn(() => undefined),
     diplomacyActions: {
       handleDiplomaticAction: vi.fn(),
       handleAcceptPeaceRequest: vi.fn(),
@@ -140,8 +170,10 @@ function makeDeps(state: GameState, overrides: Partial<PanelActionsControllerDep
       handleMinorCivWarPeace: vi.fn(),
       handleAppeaseFaction: vi.fn(() => state),
       handleConcedeToMovement: vi.fn(() => state),
+      handleEstablishRoute: vi.fn(),
     },
-    openCityPanelForCity: vi.fn(),
+    executeUpgrade: vi.fn(() => false),
+    router: { open: vi.fn() },
     ...overrides,
   };
 }
@@ -202,7 +234,7 @@ describe('PanelActionsController', () => {
       expect(deps.renderLoop.camera.centerOn).toHaveBeenCalledWith({ q: 3, r: 3 });
 
       options.onOpenCity('nonexistent-city');
-      expect(deps.openCityPanelForCity).not.toHaveBeenCalled();
+      expect(createCityPanel).not.toHaveBeenCalled();
 
       options.onNaturalWonderPageShown('great-lighthouse');
       expect(deps.audio.startNaturalWonderCodexAmbient).toHaveBeenCalledWith('great-lighthouse');
@@ -214,7 +246,7 @@ describe('PanelActionsController', () => {
       expect(deps.audio.playNaturalWonderReplay).toHaveBeenCalledWith('great-lighthouse');
     });
 
-    it('opens the founded city via the injected dep when one exists', () => {
+    it('opens the founded city via the real openCityPanelForCity when one exists', () => {
       const { state } = makeFixture('wonder-atlas-city');
       state.cities['test-city'] = {
         id: 'test-city', name: 'Testopolis', owner: 'player', position: { q: 0, r: 0 },
@@ -228,7 +260,7 @@ describe('PanelActionsController', () => {
       const options = mockedCallArg<{ onOpenCity: (cityId: string) => void }>(createWonderAtlasPanel, 0, 2);
       options.onOpenCity('test-city');
 
-      expect(deps.openCityPanelForCity).toHaveBeenCalledWith(state.cities['test-city']);
+      expect(createCityPanel).toHaveBeenCalledWith(deps.uiLayer, state.cities['test-city'], deps.session.getState(), expect.anything());
     });
   });
 
@@ -329,7 +361,7 @@ describe('PanelActionsController', () => {
       }>(createNotificationLogPanel, 0, 1);
 
       options.onOpenCity('test-city');
-      expect(deps.openCityPanelForCity).toHaveBeenCalledWith(state.cities['test-city']);
+      expect(createCityPanel).toHaveBeenCalledWith(deps.uiLayer, state.cities['test-city'], deps.session.getState(), expect.anything());
       expect(removeSpy).toHaveBeenCalledTimes(1);
 
       options.onClose();
@@ -445,7 +477,7 @@ describe('PanelActionsController', () => {
       };
     }
 
-    it('closes the drawer, removes any prior panel, and opens the injected city panel dep', () => {
+    it('closes the drawer, removes any prior panel, and opens the real city panel', () => {
       const { state } = makeFixture('city-overview');
       state.cities['test-city'] = makeOverviewCity();
       const { deps, controller } = build(state);
@@ -455,7 +487,7 @@ describe('PanelActionsController', () => {
       expect(deps.hud.closeDrawer).toHaveBeenCalledTimes(1);
       const options = mockedCallArg<{ onOpenCity: (cityId: string) => void }>(createCityOverviewPanel, 0, 2);
       options.onOpenCity('test-city');
-      expect(deps.openCityPanelForCity).toHaveBeenCalledWith(state.cities['test-city']);
+      expect(createCityPanel).toHaveBeenCalledWith(deps.uiLayer, state.cities['test-city'], deps.session.getState(), expect.anything());
     });
 
     it('appeases a faction via diplomacyActions and re-renders the panel', () => {
@@ -535,7 +567,7 @@ describe('PanelActionsController', () => {
       expect(deps.getElementById).toHaveBeenCalledWith('info-panel');
     });
 
-    it('opens the injected city panel dep and deselects when a stacked unit opens its city', () => {
+    it('opens the real city panel and deselects when a stacked unit opens its city', () => {
       const { state } = makeFixture('unit-stack-open-city');
       state.cities['test-city'] = {
         id: 'test-city', name: 'Testopolis', owner: 'player', position: { q: 0, r: 0 },
@@ -553,7 +585,7 @@ describe('PanelActionsController', () => {
       options.onOpenCity('test-city');
 
       expect(deps.selectionController.deselectUnit).toHaveBeenCalledTimes(1);
-      expect(deps.openCityPanelForCity).toHaveBeenCalledWith(state.cities['test-city']);
+      expect(createCityPanel).toHaveBeenCalledWith(deps.uiLayer, state.cities['test-city'], deps.session.getState(), expect.anything());
     });
   });
 
@@ -620,6 +652,183 @@ describe('PanelActionsController', () => {
       // requestAutonomyPosture stages the change as `pendingPosture`, applied on a later turn --
       // not an immediate `posture` mutation.
       expect(deps.session.getState().autonomyByCiv?.player?.pendingPosture).toEqual({ id: 'defensive', appliesOnTurn: state.turn + 1 });
+    });
+  });
+
+  describe('openCityPanelForCity', () => {
+    it('closes the drawer but builds no panel for a city the player does not own', () => {
+      const { state, aiCivId } = makeFixture('city-panel-foreign');
+      state.cities['foreign-city'] = makeCity('foreign-city', { owner: aiCivId });
+      const { deps, controller } = build(state);
+
+      controller.openCityPanelForCity(state.cities['foreign-city']);
+
+      expect(deps.hud.closeDrawer).toHaveBeenCalledTimes(1);
+      expect(createCityPanel).not.toHaveBeenCalled();
+    });
+
+    it('builds the panel for an owned city with the live session state', () => {
+      const { state } = makeFixture('city-panel-owned');
+      state.cities['test-city'] = makeCity('test-city');
+      const { deps, controller } = build(state);
+
+      controller.openCityPanelForCity(state.cities['test-city']);
+
+      expect(createCityPanel).toHaveBeenCalledWith(deps.uiLayer, state.cities['test-city'], deps.session.getState(), expect.anything());
+    });
+
+    it('queues real production via the live city state and refreshes the renderer', () => {
+      const { state } = makeFixture('city-panel-build');
+      state.cities['test-city'] = makeCity('test-city');
+      const { deps, controller } = build(state);
+
+      controller.openCityPanelForCity(state.cities['test-city']);
+      const options = mockedCallArg<{ onBuild: (cityId: string, itemId: string) => void }>(createCityPanel, 0, 3);
+      options.onBuild('test-city', 'warrior');
+
+      expect(state.cities['test-city'].productionQueue).toContain('warrior');
+      expect(deps.renderLoop.setGameState).toHaveBeenCalled();
+      expect(deps.showNotification).toHaveBeenCalledWith(expect.stringContaining('Warrior'), 'info');
+    });
+
+    it('cycles to the next and previous city among the civ\'s real roster, recursively calling itself', () => {
+      const { state } = makeFixture('city-panel-cycle');
+      state.cities['city-a'] = makeCity('city-a');
+      state.cities['city-b'] = makeCity('city-b');
+      state.civilizations.player.cities = ['city-a', 'city-b'];
+      const { controller } = build(state);
+
+      controller.openCityPanelForCity(state.cities['city-a']);
+      const firstOptions = mockedCallArg<{ onNextCity: () => void }>(createCityPanel, 0, 3);
+      firstOptions.onNextCity();
+
+      // The recursive self-call re-invokes createCityPanel for city-b.
+      expect(createCityPanel).toHaveBeenCalledTimes(2);
+      expect(mockedCallArg<{ id: string }>(createCityPanel, 1, 1).id).toBe('city-b');
+
+      const secondOptions = mockedCallArg<{ onPrevCity: () => void }>(createCityPanel, 1, 3);
+      secondOptions.onPrevCity();
+
+      expect(createCityPanel).toHaveBeenCalledTimes(3);
+      expect(mockedCallArg<{ id: string }>(createCityPanel, 2, 1).id).toBe('city-a');
+    });
+
+    it('wires onEstablishRoute, onAppeaseFaction, and onConcedeToMovement to diplomacyActions', () => {
+      const { state } = makeFixture('city-panel-diplomacy');
+      state.cities['test-city'] = makeCity('test-city');
+      const { deps, controller } = build(state);
+
+      controller.openCityPanelForCity(state.cities['test-city']);
+      const options = mockedCallArg<{
+        onEstablishRoute: (caravanId: string) => void;
+        onAppeaseFaction: (cityId: string) => void;
+        onConcedeToMovement: (cityId: string) => void;
+      }>(createCityPanel, 0, 3);
+
+      options.onEstablishRoute('caravan-1');
+      expect(deps.diplomacyActions.handleEstablishRoute).toHaveBeenCalledWith('caravan-1');
+
+      options.onAppeaseFaction('test-city');
+      expect(deps.diplomacyActions.handleAppeaseFaction).toHaveBeenCalledWith('test-city');
+
+      options.onConcedeToMovement('test-city');
+      expect(deps.diplomacyActions.handleConcedeToMovement).toHaveBeenCalledWith('test-city');
+    });
+
+    it('does nothing when the selected unit has no real upgrade path available', () => {
+      const { state } = makeFixture('city-panel-no-upgrade');
+      state.cities['test-city'] = makeCity('test-city');
+      placeUnit(state, 'settler', 'settler-1', { q: 0, r: 0 });
+      const { deps, controller } = build(state);
+
+      controller.openCityPanelForCity(state.cities['test-city']);
+      const options = mockedCallArg<{ onUpgradeUnit: (unitId: string) => void }>(createCityPanel, 0, 3);
+      options.onUpgradeUnit('settler-1');
+
+      // `settler` has no `upgradesTo` in TRAINABLE_UNITS, so the real guard returns
+      // before ever reaching the injected `executeUpgrade` dep.
+      expect(deps.executeUpgrade).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('openEspionagePanel', () => {
+    it('closes the drawer and builds the panel from real session state', () => {
+      const { state } = makeFixture('espionage-panel-open');
+      const { deps, controller } = build(state);
+
+      controller.openEspionagePanel();
+
+      expect(deps.hud.closeDrawer).toHaveBeenCalledTimes(1);
+      expect(createEspionagePanel).toHaveBeenCalledWith(deps.session.getState(), expect.anything());
+      expect(deps.uiLayer.children.length).toBeGreaterThan(0);
+    });
+
+    it('recalls a stationed spy via the real system call and reopens the panel through router', () => {
+      const { state } = makeFixture('espionage-recall');
+      placeSpy(state, 'spy-1', { status: 'stationed', targetCivId: 'ai-1', targetCityId: 'foreign-city' });
+      const { deps, controller } = build(state);
+
+      controller.openEspionagePanel();
+      const options = mockedCallArg<{ onRecall: (spyId: string) => void }>(createEspionagePanel, 0, 1);
+      options.onRecall('spy-1');
+
+      expect(state.espionage!.player.spies['spy-1'].status).not.toBe('stationed');
+      expect(deps.renderLoop.setGameState).toHaveBeenCalled();
+      expect(deps.router.open).toHaveBeenCalledWith('espionage');
+      expect(deps.showNotification).toHaveBeenCalledWith(expect.stringContaining('recalled'), 'info');
+    });
+
+    it('verifies a captured-then-cleared agent via the real system call', () => {
+      const { state } = makeFixture('espionage-verify');
+      placeSpy(state, 'spy-1', { status: 'stationed' });
+      const { deps, controller } = build(state);
+
+      controller.openEspionagePanel();
+      const options = mockedCallArg<{ onVerifyAgent: (spyId: string) => void }>(createEspionagePanel, 0, 1);
+      options.onVerifyAgent('spy-1');
+
+      expect(deps.renderLoop.setGameState).toHaveBeenCalled();
+      expect(deps.router.open).toHaveBeenCalledWith('espionage');
+      expect(deps.showNotification).toHaveBeenCalledWith('Agent verified and cleared.', 'success');
+    });
+
+    it('sweeps with a real seed and reports no enemy spies detected', () => {
+      const { state } = makeFixture('espionage-sweep');
+      placeSpy(state, 'spy-1', { status: 'embedded', targetCityId: 'test-city' });
+      const { deps, controller } = build(state);
+
+      controller.openEspionagePanel();
+      const options = mockedCallArg<{ onSweep: (spyId: string) => void }>(createEspionagePanel, 0, 1);
+      options.onSweep('spy-1');
+
+      expect(deps.showNotification).toHaveBeenCalledWith(expect.stringContaining('no enemy spies detected'), 'info');
+      expect(deps.router.open).toHaveBeenCalledWith('espionage');
+    });
+
+    it('toggles cooldown mode for a real spy on cooldown', () => {
+      const { state } = makeFixture('espionage-cooldown');
+      placeSpy(state, 'spy-1', { status: 'cooldown', cooldownMode: 'stay_low' });
+      const { deps, controller } = build(state);
+
+      controller.openEspionagePanel();
+      const options = mockedCallArg<{ onToggleCooldownMode: (spyId: string) => void }>(createEspionagePanel, 0, 1);
+      options.onToggleCooldownMode('spy-1');
+
+      expect(deps.session.getState().espionage!.player.spies['spy-1'].cooldownMode).toBe('passive_observe');
+      expect(deps.router.open).toHaveBeenCalledWith('espionage');
+    });
+
+    it('does nothing when toggling cooldown mode for a spy that is not on cooldown', () => {
+      const { state } = makeFixture('espionage-cooldown-guard');
+      placeSpy(state, 'spy-1', { status: 'idle' });
+      const { deps, controller } = build(state);
+
+      controller.openEspionagePanel();
+      const options = mockedCallArg<{ onToggleCooldownMode: (spyId: string) => void }>(createEspionagePanel, 0, 1);
+      options.onToggleCooldownMode('spy-1');
+
+      expect(deps.session.getState().espionage!.player.spies['spy-1'].status).toBe('idle');
+      expect(deps.router.open).not.toHaveBeenCalled();
     });
   });
 });
