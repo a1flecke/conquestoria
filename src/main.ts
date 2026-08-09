@@ -8,11 +8,9 @@ import { chooseCircularManufacturingMaterial } from '@/systems/national-project-
 import { foundCityInState } from '@/systems/city-founding-system';
 import { assignCityFocus, setCityWorkedTile } from '@/systems/city-work-system';
 import { formatCityFoundingBlockerMessage, getCityFoundingBlockers } from '@/systems/city-territory-system';
-import { enqueueCityProduction, enqueueResearch, moveQueuedId, removeQueuedId, reorderCityProduction, setIdleProduction } from '@/systems/planning-system';
-import { createTechPanel } from '@/ui/tech-panel';
+import { enqueueCityProduction, removeQueuedId, reorderCityProduction, setIdleProduction } from '@/systems/planning-system';
 import { createCityPanel } from '@/ui/city-panel';
 import { createCityCapturePanel } from '@/ui/city-capture-panel';
-import { createWonderPanel } from '@/ui/wonder-panel';
 import { deterministicCombatSeed, resolveCombat } from '@/systems/combat-system';
 import { buildCombatContextForDefender, getAmphibiousAssaultMultiplier } from '@/systems/combat-context';
 import { canUnitAttackTarget } from '@/systems/attack-targeting';
@@ -28,26 +26,18 @@ import { recordBeastSlain, isBeastConcealedFrom, applyHoardChoice, getHoardChoic
 import { createBeastHoardPanel } from '@/ui/beast-hoard-panel';
 import { BEAST_DEFINITIONS } from '@/systems/beast-definitions';
 import { recordBeastSightings } from '@/systems/beast-presentation';
-import { loadSettings, saveSettings } from '@/storage/save-manager';
+import { loadSettings } from '@/storage/save-manager';
 import { AudioSystem } from '@/audio/audio-system';
 import { SFX } from '@/audio/sfx';
-import { createDiplomacyPanel } from '@/ui/diplomacy-panel';
-import { createMarketplacePanel } from '@/ui/marketplace-panel';
 import { createEspionagePanel } from '@/ui/espionage-panel';
 import { AdvisorSystem } from '@/ui/advisor-system';
-import { createCouncilPanel } from '@/ui/council-panel';
 import type { PirateFocusTarget } from '@/systems/pirate-presentation';
 import type { PirateActionResult } from '@/systems/pirate-actions';
 import { formatNotificationTargetFocusMessage } from '@/ui/notification-targets';
-import { createNetworkIntentPanel } from '@/ui/network-intent-panel';
-import { createNetworkPanel, getNetworkPanelModel } from '@/ui/network-panel';
-import { renderUnitStackPanel } from '@/ui/unit-stack-panel';
 import { createUnitTurnFlow } from '@/ui/unit-turn-flow';
 import { resolveCivDefinition } from '@/systems/civ-registry';
 import { declareWar, makePeace, modifyRelationship, resolveOpponentKind } from '@/systems/diplomacy-system';
 import { visitVillage } from '@/systems/village-system';
-import { assignNetworkPlan, cancelNetworkPlan, holdNetworkPlan, isAutonomyActivated, retargetNetworkPlan } from '@/systems/network-plan-system';
-import { beginAutonomySurge, requestAutonomyPosture } from '@/systems/autonomy-postures';
 import { clearStaleSoloPendingEvents } from '@/core/hotseat-events';
 import { refreshKnownCivilizations, syncCivilizationContactsFromVisibility } from '@/systems/discovery-system';
 import { getMinorCivNotification } from '@/ui/minor-civ-notifications';
@@ -57,14 +47,13 @@ import { buildUnitOccupancy, hasHostileUnitAtCoord } from '@/systems/unit-occupa
 import { beginPlayerCityAssaultChoice, shouldPromptForPlayerCityCapture } from '@/input/city-assault-flow';
 import { canUnitOccupyCity } from '@/systems/city-capture-system';
 import { buildCombatPresentation } from '@/systems/viewer-event-presentation';
-import { initializeLegendaryWonderProjectsForCity, startLegendaryWonderBuild } from '@/systems/legendary-wonder-system';
 import { embedSpy, unembedSpy, attemptSweep, getAvailableMissions, getSpyCaptureRelationshipPenalty, expelSpy, executeSpy, startInterrogation, isSpyUnitType, missionRequiresPlacedSpy, recallSpy, resolveMissionResult, startMission, verifyAgent } from '@/systems/espionage-system';
 import { applyUnitUpgradeToState, evaluateUnitUpgrade } from '@/systems/unit-upgrade-system';
 import { executeUnitMove, isWorkerBusy } from '@/systems/unit-movement-system';
 import { getEmbarkedAssaultTarget, detachCargoForEmbarkedAssault } from '@/systems/transport-system';
 import { createSelectionStore } from '@/app/selection-store';
 import { getCapitalCity, getCapitalCityId } from '@/systems/capital-system';
-import type { CombatResult, GameState, HexCoord, Unit, UnitType, CivBonusEffect, WorkerActionType } from '@/core/types';
+import type { CombatResult, GameState, HexCoord, UnitType, CivBonusEffect, WorkerActionType } from '@/core/types';
 import { appendNotification, type NotificationCityAction, type NotificationEntry } from '@/core/notification-log';
 import type { NotificationSink } from '@/ui/notification-routing';
 import { createUserSettingsStore } from '@/app/user-settings-store';
@@ -72,7 +61,6 @@ import type { Notifier } from '@/app/ports';
 import { updateAndRefreshVisibility, reconstructLastSeenFromMap } from '@/systems/last-seen-presentation';
 import { rushBuyActiveProduction } from '@/systems/economy-system';
 import { applyQuarantine, applyRemedy } from '@/systems/crisis-system';
-import { canBuyResourceAccess, performBuyResourceAccess } from '@/systems/resource-acquisition-system';
 import { createCeremonyCoordinator, type CeremonyCoordinator } from '@/app/controllers/ceremony-coordinator';
 import { createSelectionController, type SelectionController } from '@/app/controllers/selection-controller';
 import { createDiplomacyActionsController, type DiplomacyActionsController } from '@/app/controllers/diplomacy-actions-controller';
@@ -88,7 +76,6 @@ import { removeRouteForUnit, createMarketplaceState } from '@/systems/trade-syst
 import { emitMinorCivQuestTransitions } from '@/systems/quest-chain-system';
 import { applyOpportunisticWarPenaltyIfCrisisStruck } from '@/systems/crisis-interaction-system';
 import { RoundPresentationGate } from '@/presentation/round-presentation-gate';
-import { createCityOverviewPanel } from '@/ui/city-overview-panel';
 import type { GameSession } from '@/app/ports';
 import { createGameSession } from '@/app/game-session';
 import { createPanelHost, type PanelHost } from '@/app/panel-host';
@@ -211,7 +198,7 @@ const ceremonies: CeremonyCoordinator = createCeremonyCoordinator({
     if (city) openCityPanelForCity(city);
   },
   openJournal: cityId => {
-    if (session.getState().cities[cityId]) openWonderPanelForCityId(cityId);
+    if (session.getState().cities[cityId]) panelActions.openWonderPanelForCityId(cityId);
   },
 });
 
@@ -231,7 +218,10 @@ const ceremonies: CeremonyCoordinator = createCeremonyCoordinator({
  * in module evaluation (`selectionController` right below this, `hud` further
  * down), so a direct reference here would capture `undefined` at construction
  * time. Same deferred-but-eager closure pattern `selectionController` itself
- * already uses for `updateHUD: () => hud.update()` below.
+ * already uses for `updateHUD: () => hud.update()` below. `openDiplomacyPanel`
+ * is now `PanelActionsController`'s own function (phase 10b-c), but `panelActions`
+ * is constructed just below `diplomacyActions`, so the same lazy-wrapper
+ * treatment applies here too, not a direct reference.
  */
 const diplomacyActions: DiplomacyActionsController = createDiplomacyActionsController({
   session,
@@ -239,17 +229,18 @@ const diplomacyActions: DiplomacyActionsController = createDiplomacyActionsContr
   renderLoop,
   uiLayer,
   showNotification,
-  openDiplomacyPanel,
+  openDiplomacyPanel: () => panelActions.openDiplomacyPanel(),
   hud: { update: () => hud.update() },
   selectionController: { selectUnit: (unitId, opts) => selectionController.selectUnit(unitId, opts) },
 });
 
 /**
- * Owns the utility and world-event panel openers (#787 phase 10b-b -- part 1
- * of 3 for `PanelActionsController`, see 10b-c/10b-d for the rest). `hud` and
- * `selectionController` use the same deferred-but-eager lazy-wrapper pattern
- * as `diplomacyActions` above, for the same reason (neither is assigned yet
- * at this point in module evaluation).
+ * Owns the panel openers extracted across #787 phases 10b-b (utility/world-event
+ * panels) and 10b-c (unit/network/civ-management panels), see 10b-d for the
+ * rest. `hud` and `selectionController` use the same deferred-but-eager
+ * lazy-wrapper pattern as `diplomacyActions` above, for the same reason
+ * (neither is assigned yet at this point in module evaluation). `diplomacyActions`
+ * needs no such wrapper here since it is constructed just above.
  */
 const panelActions: PanelActionsController = createPanelActionsController({
   session,
@@ -263,8 +254,9 @@ const panelActions: PanelActionsController = createPanelActionsController({
   focusNotificationTarget,
   focusPirateTarget,
   applyPirateActionResult,
+  currentCiv,
+  diplomacyActions,
   openCityPanelForCity,
-  openWonderPanelForCityId,
   hud: { closeDrawer: () => hud.closeDrawer(), update: () => hud.update() },
   selectionController: {
     selectUnit: (unitId, opts) => selectionController.selectUnit(unitId, opts),
@@ -289,8 +281,8 @@ const selectionController: SelectionController = createSelectionController({
   performWorkerAction,
   performPreach,
   restAction,
-  openNetworkIntentPanel,
-  openUnitStackPicker,
+  openNetworkIntentPanel: panelActions.openNetworkIntentPanel,
+  openUnitStackPicker: panelActions.openUnitStackPicker,
   openPirateHeadquartersAssault: panelActions.openPirateHeadquartersAssault,
   handleEstablishRoute: diplomacyActions.handleEstablishRoute,
   executeUpgrade,
@@ -369,7 +361,7 @@ const mapInteraction: MapInteractionController = createMapInteractionController(
   clearUnloadState,
   currentCiv,
   openPirateWaters: panelActions.openPirateWaters,
-  openUnitStackPicker,
+  openUnitStackPicker: panelActions.openUnitStackPicker,
   openCityPanelForCity,
   openWonderAtlas: panelActions.openWonderAtlas,
   executeAttack,
@@ -608,45 +600,6 @@ function executeMinorCivConquest(unitId: string, target: HexCoord, minorCivId: s
   hud.update();
 }
 
-function openDiplomacyPanel(): void {
-  hud.closeDrawer();
-  document.getElementById('diplomacy-panel')?.remove();
-  createDiplomacyPanel(uiLayer, session.getState(), {
-    onAction: diplomacyActions.handleDiplomaticAction,
-    onAcceptPeaceRequest: diplomacyActions.handleAcceptPeaceRequest,
-    onRejectPeaceRequest: diplomacyActions.handleRejectPeaceRequest,
-    onAcceptTreatyProposal: diplomacyActions.handleAcceptTreatyProposal,
-    onDeclineTreatyProposal: diplomacyActions.handleDeclineTreatyProposal,
-    onBreakTreaty: diplomacyActions.handleBreakTreaty,
-    onGiftGold: diplomacyActions.handleGiftGold,
-    onSponsorFestival: diplomacyActions.handleSponsorFestival,
-    onMinorCivReparations: diplomacyActions.handleMinorCivReparations,
-    onMinorCivWarPeace: diplomacyActions.handleMinorCivWarPeace,
-    onSendAid: diplomacyActions.handleSendAid,
-    onClose: () => {},
-  });
-}
-
-function openMarketplacePanel(): void {
-  hud.closeDrawer();
-  document.getElementById('marketplace-panel')?.remove();
-  createMarketplacePanel(uiLayer, session.getState(), {
-    onClose: () => {},
-    onSelectUnit: (unitId) => {
-      document.getElementById('marketplace-panel')?.remove();
-      selectionController.selectUnit(unitId);
-      const unit = session.getState().units[unitId];
-      if (unit) renderLoop.camera.centerOn(unit.position);
-    },
-    onBuyResourceAccess: (sellerCivId, resource) => {
-      if (!canBuyResourceAccess(session.getState(), session.getState().currentPlayer, sellerCivId, resource)) return;
-      session.commit(performBuyResourceAccess(session.getState(), session.getState().currentPlayer, sellerCivId, resource));
-      showNotification(`Purchased ${resource} access for 10 turns.`, 'success');
-      openMarketplacePanel(); // re-render panel with updated state
-    },
-  });
-}
-
 function executeUpgrade(
   unitId: string,
   targetType: import('@/core/types').UnitType,
@@ -655,61 +608,6 @@ function executeUpgrade(
   if (!result.upgraded) return false;
   session.commit(result.state);
   return true;
-}
-
-function openWonderPanelForCityId(selectedCityId: string): void {
-  if (!session.getState().cities[selectedCityId]) return;
-
-  const openWonderPanel = () => {
-    document.getElementById('wonder-panel')?.remove();
-    createWonderPanel(uiLayer, session.getState(), selectedCityId, {
-      onStartBuild: (buildCityId, wonderId) => {
-        session.setStateWithoutRefresh(startLegendaryWonderBuild(session.getState(), session.getState().currentPlayer, buildCityId, wonderId, bus));
-        const targetCity = session.getState().cities[buildCityId];
-        if (targetCity) {
-          renderLoop.setGameState(session.getState());
-          hud.update();
-          const productionItemId = `legendary:${wonderId}`;
-          if (targetCity.productionQueue[0] === productionItemId) {
-            showNotification(`${targetCity.name}: preparing ${getProductionDisplayName(productionItemId)}`, 'info');
-          } else {
-            showNotification(`${targetCity.name}: ${getProductionDisplayName(productionItemId)} is not ready to start.`, 'warning');
-          }
-          openWonderPanel();
-        }
-      },
-      onClose: () => {
-        document.getElementById('wonder-panel')?.remove();
-      },
-    });
-  };
-  session.setStateWithoutRefresh(initializeLegendaryWonderProjectsForCity(session.getState(), session.getState().currentPlayer, selectedCityId));
-  openWonderPanel();
-}
-
-function openCityOverviewPanel(): void {
-  hud.closeDrawer();
-  const existing = document.getElementById('city-overview-panel');
-  if (existing) existing.remove();
-  createCityOverviewPanel(uiLayer, session.getState(), {
-    onOpenCity: (cityId) => {
-      const overview = document.getElementById('city-overview-panel');
-      overview?.remove();
-      const city = session.getState().cities[cityId];
-      if (city) openCityPanelForCity(city);
-    },
-    onAppeaseFaction: (cityId) => {
-      diplomacyActions.handleAppeaseFaction(cityId);
-      openCityOverviewPanel(); // re-render with updated unrest/gold state
-    },
-    onConcedeToMovement: (cityId) => {
-      diplomacyActions.handleConcedeToMovement(cityId);
-      openCityOverviewPanel(); // re-render with updated unrest/gold state
-    },
-    onClose: () => {
-      document.getElementById('city-overview-panel')?.remove();
-    },
-  });
 }
 
 function openCityPanelForCity(city: import('@/core/types').City): void {
@@ -747,7 +645,7 @@ function openCityPanelForCity(city: import('@/core/types').City): void {
       renderLoop.setGameState(session.getState());
     },
     onOpenWonderPanel: (selectedCityId) => {
-      openWonderPanelForCityId(selectedCityId);
+      panelActions.openWonderPanelForCityId(selectedCityId);
     },
     onSetCityFocus: (cityId, focus) => {
       const result = assignCityFocus(session.getState(), cityId, focus);
@@ -850,54 +748,6 @@ function openCityPanelForCity(city: import('@/core/types').City): void {
       const refreshedCity = session.getState().cities[city.id];
       if (refreshedCity) openCityPanelForCity(refreshedCity);
     },
-  });
-}
-
-function openCouncilPanel(): void {
-  hud.closeDrawer();
-  createCouncilPanel(uiLayer, session.getState(), {
-    onClose: () => {
-      document.getElementById('council-panel')?.remove();
-    },
-    onTalkLevelChange: (level) => {
-      session.getState().settings.councilTalkLevel = level;
-      void saveSettings(session.getState().settings);
-    },
-  });
-}
-
-function openTechPanel(): void {
-  hud.closeDrawer();
-  createTechPanel(uiLayer, session.getState(), {
-    onQueueResearch: (techId) => {
-      try {
-        currentCiv().techState = enqueueResearch(currentCiv().techState, techId);
-      } catch (error) {
-        const message = error instanceof Error ? error.message : 'Queue limit reached';
-        showNotification(message, 'warning');
-        return;
-      }
-      renderLoop.setGameState(session.getState());
-      hud.update();
-      showNotification(`Queued research: ${techId}`, 'info');
-    },
-    onMoveQueuedResearch: (fromIndex, toIndex) => {
-      currentCiv().techState = {
-        ...currentCiv().techState,
-        researchQueue: moveQueuedId(currentCiv().techState.researchQueue, fromIndex, toIndex),
-      };
-      renderLoop.setGameState(session.getState());
-      hud.update();
-    },
-    onRemoveQueuedResearch: (index) => {
-      currentCiv().techState = {
-        ...currentCiv().techState,
-        researchQueue: removeQueuedId(currentCiv().techState.researchQueue, index),
-      };
-      renderLoop.setGameState(session.getState());
-      hud.update();
-    },
-    onClose: () => {},
   });
 }
 
@@ -1134,15 +984,16 @@ function openEspionagePanel(): void {
  * parameterless "open the current one" call, so their `open` throws; they
  * still need a registry entry so `closeGroup`/`isOpen`/`close` (all
  * DOM-derived off `domId`) behave correctly when a 'main' or 'transient'
- * sweep runs. Their real entry points (`openCityPanelForCity`,
- * `openWonderPanelForCityId`) stay directly-callable functions, untouched
- * by this phase. The territory-inspection panel has no such entry point of
+ * sweep runs. `openCityPanelForCity`'s real entry point stays a
+ * directly-callable function, untouched by this phase (10b-d);
+ * `openWonderPanelForCityId`'s moved into `PanelActionsController` (10b-c).
+ * The territory-inspection panel has no such entry point of
  * its own -- it opens only as a side effect of `mapInteraction.handleHexLongPress`
  * (#787 phase 8d), which is not itself in this registry.
  */
 const panelRegistry = {
-  council: { domId: 'council-panel', group: 'main', open: () => openCouncilPanel() },
-  tech: { domId: 'tech-panel', group: 'main', open: () => openTechPanel() },
+  council: { domId: 'council-panel', group: 'main', open: () => panelActions.openCouncilPanel() },
+  tech: { domId: 'tech-panel', group: 'main', open: () => panelActions.openTechPanel() },
   city: {
     domId: 'city-panel',
     group: 'main',
@@ -1151,21 +1002,21 @@ const panelRegistry = {
     },
   },
   espionage: { domId: 'espionage-panel', group: 'main', open: () => openEspionagePanel() },
-  diplomacy: { domId: 'diplomacy-panel', group: 'main', open: () => openDiplomacyPanel() },
-  marketplace: { domId: 'marketplace-panel', group: 'main', open: () => openMarketplacePanel() },
-  network: { domId: 'network-panel', group: 'transient', open: () => openNetworkPanel() },
+  diplomacy: { domId: 'diplomacy-panel', group: 'main', open: () => panelActions.openDiplomacyPanel() },
+  marketplace: { domId: 'marketplace-panel', group: 'main', open: () => panelActions.openMarketplacePanel() },
+  network: { domId: 'network-panel', group: 'transient', open: () => panelActions.openNetworkPanel() },
   wonder: {
     domId: 'wonder-panel',
     group: 'transient',
     open: () => {
-      throw new Error("'wonder' is parameterized -- call openWonderPanelForCityId(cityId) directly, not router.open('wonder').");
+      throw new Error("'wonder' is parameterized -- call panelActions.openWonderPanelForCityId(cityId) directly, not router.open('wonder').");
     },
   },
   'wonder-atlas': { domId: 'wonder-codex-panel', group: 'transient', open: () => panelActions.openWonderAtlas() },
   bestiary: { domId: 'bestiary-panel', group: 'transient', open: () => panelActions.openBestiary() },
   'pirate-waters': { domId: 'pirate-waters-panel', group: 'transient', open: () => panelActions.openPirateWaters() },
   'notification-log': { domId: 'notification-log', group: 'transient', open: () => panelActions.openNotificationLog() },
-  'city-overview': { domId: 'city-overview-panel', group: 'main', open: () => openCityOverviewPanel() },
+  'city-overview': { domId: 'city-overview-panel', group: 'main', open: () => panelActions.openCityOverviewPanel() },
   'territory-inspection': {
     domId: 'territory-inspection-panel',
     group: 'transient',
@@ -1179,131 +1030,6 @@ const panelRegistry = {
 } satisfies PanelRegistry;
 
 router = createPanelRouter({ host, registry: panelRegistry, context: panelContext });
-
-function openUnitStackPicker(coord: HexCoord, unitIds: string[]): void {
-  const panel = document.getElementById('info-panel');
-  if (!panel) return;
-
-  renderUnitStackPanel(panel, session.getState(), coord, unitIds, {
-    onSelectUnit: (unitId) => selectionController.selectUnit(unitId),
-    onOpenCity: (cityId) => {
-      const city = session.getState().cities[cityId];
-      if (!city) return;
-      document.getElementById('tech-panel')?.remove();
-      document.getElementById('city-panel')?.remove();
-      document.getElementById('espionage-panel')?.remove();
-      document.getElementById('diplomacy-panel')?.remove();
-      document.getElementById('marketplace-panel')?.remove();
-      document.getElementById('council-panel')?.remove();
-      selectionController.deselectUnit();
-      openCityPanelForCity(city);
-    },
-    onClose: () => selectionController.deselectUnit(),
-  }, { selectedUnitId: selection.getSelectedUnitId() });
-}
-
-function openNetworkIntentPanel(sourceUnitId: string): void {
-  const source = session.getState().units[sourceUnitId];
-  const ownerCivId = session.getState().currentPlayer;
-  if (!source || source.owner !== ownerCivId || !isAutonomyActivated(session.getState(), ownerCivId)) {
-    showNotification('This unit cannot coordinate the network right now.', 'warning');
-    return;
-  }
-  if (source.type === 'drone_controller') {
-    // Formation targets are generated and previewed by the same full Network
-    // panel used for city plans, so the controller never receives a UI-only
-    // legality shortcut.
-    openNetworkPanel();
-    return;
-  }
-  if (source.type !== 'cyber_unit') {
-    showNotification('Only a Cyber Unit or Drone Controller can coordinate the network.', 'warning');
-    return;
-  }
-
-  let panel: HTMLElement | undefined;
-  const close = () => panel?.remove();
-  panel = createNetworkIntentPanel(session.getState(), ownerCivId, sourceUnitId, {
-    onAssign: (definitionId, cityId) => {
-      const current = Object.values(session.getState().autonomyByCiv?.[ownerCivId]?.plans ?? {})
-        .find(plan => plan.sourceUnitId === sourceUnitId);
-      const stateForAssignment = current && current.definitionId !== definitionId
-        ? holdNetworkPlan(session.getState(), ownerCivId, sourceUnitId).state
-        : session.getState();
-      const result = current && current.definitionId === definitionId
-        ? retargetNetworkPlan(session.getState(), ownerCivId, current.id, { kind: 'city', cityId })
-        : assignNetworkPlan(stateForAssignment, {
-          ownerCivId,
-          sourceUnitId,
-          definitionId,
-          target: { kind: 'city', cityId },
-        });
-      if (!result.validation.ok) {
-        showNotification('That network intent is no longer available. Choose another target.', 'warning');
-        close();
-        openNetworkIntentPanel(sourceUnitId);
-        return;
-      }
-      session.commit(result.state);
-      close();
-      selectionController.selectUnit(sourceUnitId);
-      const cityName = session.getState().cities[cityId]?.name ?? 'the city';
-      showNotification(`${definitionId === 'harden' ? 'Harden' : 'Exploit'} assigned to ${cityName}.`, 'success');
-    },
-    onHold: () => {
-      const result = holdNetworkPlan(session.getState(), ownerCivId, sourceUnitId);
-      session.commit(result.state);
-      close();
-      selectionController.selectUnit(sourceUnitId);
-      showNotification('Cyber Unit is holding.', 'info');
-    },
-    onClose: close,
-  });
-  uiLayer.appendChild(panel);
-}
-
-function openNetworkPanel(): void {
-  const civId = session.getState().currentPlayer;
-  if (!isAutonomyActivated(session.getState(), civId)) return;
-  let panel: HTMLElement | undefined;
-  const rerender = () => {
-    panel?.remove();
-    panel = createNetworkPanel(getNetworkPanelModel(session.getState(), civId), {
-      onAssign: request => {
-        const result = assignNetworkPlan(session.getState(), request);
-        if (!result.validation.ok) {
-          showNotification('That plan is no longer available.', 'warning');
-          rerender();
-          return;
-        }
-        session.commit(result.state);
-        showNotification('Network plan assigned.', 'success');
-        rerender();
-      },
-      onCancel: planId => {
-        session.commit(cancelNetworkPlan(session.getState(), civId, planId).state);
-        rerender();
-      },
-      onSurge: planId => {
-        const result = beginAutonomySurge(session.getState(), civId, planId);
-        if (!result.validation.ok) showNotification('Surge is unavailable while the network recovers or cools down.', 'warning');
-        else {
-          session.commit(result.state);
-          bus.emit('network:audio-cue', { cue: 'surge', viewerIds: [civId] });
-          showNotification('Network Surge confirmed.', 'success');
-        }
-        rerender();
-      },
-      onPosture: posture => {
-        session.commit(requestAutonomyPosture(session.getState(), civId, posture));
-        rerender();
-      },
-      onClose: () => panel?.remove(),
-    });
-    uiLayer.appendChild(panel);
-  };
-  rerender();
-}
 
 function getUnitTurnFlow() {
   return createUnitTurnFlow({

@@ -4,6 +4,7 @@ import { createNewGame } from '@/core/game-state';
 import { EventBus } from '@/core/event-bus';
 import { createGameSession } from '@/app/game-session';
 import { createEmptyPirateState, type PirateFactionState } from '@/core/pirate-state';
+import { createEmptyAutonomyCivState } from '@/core/autonomy-state';
 import { createUnit } from '@/systems/unit-system';
 import type { PirateFocusTarget } from '@/systems/pirate-presentation';
 import type { NotificationMapTarget } from '@/core/notification-log';
@@ -19,6 +20,19 @@ vi.mock('@/ui/wonder-atlas-panel', () => ({ createWonderAtlasPanel: vi.fn() }));
 vi.mock('@/ui/pirate-waters-panel', () => ({ createPirateWatersPanel: vi.fn() }));
 vi.mock('@/ui/pirate-headquarters-assault-panel', () => ({ createPirateHeadquartersAssaultPanel: vi.fn() }));
 vi.mock('@/ui/notification-log-panel', () => ({ createNotificationLogPanel: vi.fn() }));
+vi.mock('@/ui/diplomacy-panel', () => ({ createDiplomacyPanel: vi.fn() }));
+vi.mock('@/ui/marketplace-panel', () => ({ createMarketplacePanel: vi.fn() }));
+vi.mock('@/ui/wonder-panel', () => ({ createWonderPanel: vi.fn() }));
+vi.mock('@/ui/city-overview-panel', () => ({ createCityOverviewPanel: vi.fn() }));
+vi.mock('@/ui/council-panel', () => ({ createCouncilPanel: vi.fn() }));
+vi.mock('@/ui/tech-panel', () => ({ createTechPanel: vi.fn() }));
+vi.mock('@/ui/unit-stack-panel', () => ({ renderUnitStackPanel: vi.fn() }));
+vi.mock('@/ui/network-intent-panel', () => ({ createNetworkIntentPanel: vi.fn(() => document.createElement('div')) }));
+vi.mock('@/ui/network-panel', async () => {
+  const actual = await vi.importActual<typeof import('@/ui/network-panel')>('@/ui/network-panel');
+  return { createNetworkPanel: vi.fn(() => document.createElement('div')), getNetworkPanelModel: actual.getNetworkPanelModel };
+});
+vi.mock('@/storage/save-manager', () => ({ saveSettings: vi.fn(() => Promise.resolve()) }));
 
 import { createPacingDebugPanel } from '@/ui/pacing-debug-panel';
 import { createBestiaryPanel } from '@/ui/bestiary-panel';
@@ -26,6 +40,16 @@ import { createWonderAtlasPanel } from '@/ui/wonder-atlas-panel';
 import { createPirateWatersPanel } from '@/ui/pirate-waters-panel';
 import { createPirateHeadquartersAssaultPanel } from '@/ui/pirate-headquarters-assault-panel';
 import { createNotificationLogPanel } from '@/ui/notification-log-panel';
+import { createDiplomacyPanel } from '@/ui/diplomacy-panel';
+import { createMarketplacePanel } from '@/ui/marketplace-panel';
+import { createWonderPanel } from '@/ui/wonder-panel';
+import { createCityOverviewPanel } from '@/ui/city-overview-panel';
+import { createCouncilPanel } from '@/ui/council-panel';
+import { createTechPanel } from '@/ui/tech-panel';
+import { renderUnitStackPanel } from '@/ui/unit-stack-panel';
+import { createNetworkIntentPanel } from '@/ui/network-intent-panel';
+import { createNetworkPanel } from '@/ui/network-panel';
+import { saveSettings } from '@/storage/save-manager';
 
 function mockedCallArg<T = unknown>(mockFn: unknown, callIndex: number, argIndex: number): T {
   return (mockFn as ReturnType<typeof vi.fn>).mock.calls[callIndex][argIndex] as T;
@@ -36,6 +60,13 @@ function makeFixture(seed = 'panel-actions-controller'): { state: GameState; aiC
   state.currentPlayer = 'player';
   const aiCivId = Object.keys(state.civilizations).find(id => id !== 'player')!;
   return { state, aiCivId };
+}
+
+/** Places a real player-owned unit of the given type at a position, for network-panel tests. */
+function placeUnit(state: GameState, type: Parameters<typeof createUnit>[0], unitId: string, position: HexCoord): void {
+  const idCounters = { nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 };
+  state.units[unitId] = { ...createUnit(type, 'player', position, idCounters), id: unitId };
+  state.civilizations.player.units.push(unitId);
 }
 
 /** A coastal-enclave pirate faction adjacent to a real player unit, with intel already gathered. */
@@ -94,8 +125,23 @@ function makeDeps(state: GameState, overrides: Partial<PanelActionsControllerDep
     focusNotificationTarget: vi.fn(),
     focusPirateTarget: vi.fn(),
     applyPirateActionResult: vi.fn(),
+    currentCiv: vi.fn(() => state.civilizations[state.currentPlayer]),
+    diplomacyActions: {
+      handleDiplomaticAction: vi.fn(),
+      handleAcceptPeaceRequest: vi.fn(),
+      handleRejectPeaceRequest: vi.fn(),
+      handleAcceptTreatyProposal: vi.fn(),
+      handleDeclineTreatyProposal: vi.fn(),
+      handleBreakTreaty: vi.fn(),
+      handleGiftGold: vi.fn(),
+      handleSponsorFestival: vi.fn(),
+      handleMinorCivReparations: vi.fn(),
+      handleSendAid: vi.fn(),
+      handleMinorCivWarPeace: vi.fn(),
+      handleAppeaseFaction: vi.fn(() => state),
+      handleConcedeToMovement: vi.fn(() => state),
+    },
     openCityPanelForCity: vi.fn(),
-    openWonderPanelForCityId: vi.fn(),
     ...overrides,
   };
 }
@@ -305,8 +351,275 @@ describe('PanelActionsController', () => {
 
       options.onOpenWonderCity({ cityId: 'no-such-city', wonderId: 'great-lighthouse' });
 
-      expect(deps.openWonderPanelForCityId).not.toHaveBeenCalled();
+      // openWonderPanelForCityId is now a real sibling function (phase 10b-c), not an
+      // injected mock -- assert its visible effect (no wonder panel built) instead.
+      expect(createWonderPanel).not.toHaveBeenCalled();
       expect(deps.showNotification).toHaveBeenCalledWith(expect.any(String), 'warning');
+    });
+  });
+
+  describe('openDiplomacyPanel', () => {
+    it('closes the drawer, removes any prior panel, and wires the action callback to diplomacyActions', () => {
+      const { state } = makeFixture('diplomacy-panel');
+      const { deps, controller } = build(state);
+
+      controller.openDiplomacyPanel();
+
+      expect(deps.hud.closeDrawer).toHaveBeenCalledTimes(1);
+      expect(createDiplomacyPanel).toHaveBeenCalledTimes(1);
+      const options = mockedCallArg<{ onAction: (civId: string, action: string) => void }>(createDiplomacyPanel, 0, 2);
+      options.onAction('ai-1', 'declare_war');
+      expect(deps.diplomacyActions.handleDiplomaticAction).toHaveBeenCalledWith('ai-1', 'declare_war');
+    });
+  });
+
+  describe('openMarketplacePanel', () => {
+    it('closes the drawer and selects/centers on a unit chosen from the panel', () => {
+      const { state } = makeFixture('marketplace-panel');
+      addPirateFixture(state, { q: 5, r: 5 }, { q: 5, r: 4 }, 'attacker');
+      const { deps, controller } = build(state);
+
+      controller.openMarketplacePanel();
+
+      expect(deps.hud.closeDrawer).toHaveBeenCalledTimes(1);
+      const options = mockedCallArg<{ onSelectUnit: (unitId: string) => void }>(createMarketplacePanel, 0, 2);
+      options.onSelectUnit('attacker');
+
+      expect(deps.selectionController.selectUnit).toHaveBeenCalledWith('attacker');
+      expect(deps.renderLoop.camera.centerOn).toHaveBeenCalledWith(state.units.attacker.position);
+    });
+
+    it('does not re-render (real canBuyResourceAccess guard blocks it) for an uncontacted civ', () => {
+      // Real system call, not mocked: `canBuyResourceAccess` returns false for a civ the
+      // player hasn't met (no entry in `diplomacy.relationships`), so the early return
+      // must prevent both the purchase and the panel re-render.
+      const { state, aiCivId } = makeFixture('marketplace-buy-blocked');
+      const { controller } = build(state);
+
+      controller.openMarketplacePanel();
+      const options = mockedCallArg<{ onBuyResourceAccess: (sellerCivId: string, resource: string) => void }>(createMarketplacePanel, 0, 2);
+      options.onBuyResourceAccess(aiCivId, 'iron');
+
+      expect(createMarketplacePanel).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('openWonderPanelForCityId', () => {
+    it('does nothing when the city does not exist', () => {
+      const { state } = makeFixture('wonder-panel-missing-city');
+      const { controller } = build(state);
+
+      controller.openWonderPanelForCityId('no-such-city');
+
+      expect(createWonderPanel).not.toHaveBeenCalled();
+    });
+
+    it('builds the panel for a real owned city and removes it on close', () => {
+      const { state } = makeFixture('wonder-panel-real-city');
+      state.cities['test-city'] = {
+        id: 'test-city', name: 'Testopolis', owner: 'player', position: { q: 0, r: 0 },
+        population: 1, food: 0, foodNeeded: 10, buildings: [], productionQueue: [], productionProgress: 0,
+        ownedTiles: [], workedTiles: [], focus: 'balanced', maturity: 'outpost',
+        unrestLevel: 0, unrestTurns: 0, spyUnrestBonus: 0,
+      };
+      const { deps, controller } = build(state);
+
+      controller.openWonderPanelForCityId('test-city');
+
+      expect(createWonderPanel).toHaveBeenCalledTimes(1);
+      expect(mockedCallArg<string>(createWonderPanel, 0, 2)).toBe('test-city');
+
+      const options = mockedCallArg<{ onClose: () => void }>(createWonderPanel, 0, 3);
+      options.onClose();
+      expect(deps.getElementById).toHaveBeenCalledWith('wonder-panel');
+    });
+  });
+
+  describe('openCityOverviewPanel', () => {
+    function makeOverviewCity(): NonNullable<GameState['cities'][string]> {
+      return {
+        id: 'test-city', name: 'Testopolis', owner: 'player', position: { q: 0, r: 0 },
+        population: 1, food: 0, foodNeeded: 10, buildings: [], productionQueue: [], productionProgress: 0,
+        ownedTiles: [], workedTiles: [], focus: 'balanced', maturity: 'outpost',
+        unrestLevel: 0, unrestTurns: 0, spyUnrestBonus: 0,
+      };
+    }
+
+    it('closes the drawer, removes any prior panel, and opens the injected city panel dep', () => {
+      const { state } = makeFixture('city-overview');
+      state.cities['test-city'] = makeOverviewCity();
+      const { deps, controller } = build(state);
+
+      controller.openCityOverviewPanel();
+
+      expect(deps.hud.closeDrawer).toHaveBeenCalledTimes(1);
+      const options = mockedCallArg<{ onOpenCity: (cityId: string) => void }>(createCityOverviewPanel, 0, 2);
+      options.onOpenCity('test-city');
+      expect(deps.openCityPanelForCity).toHaveBeenCalledWith(state.cities['test-city']);
+    });
+
+    it('appeases a faction via diplomacyActions and re-renders the panel', () => {
+      const { state } = makeFixture('city-overview-appease');
+      state.cities['test-city'] = makeOverviewCity();
+      const { deps, controller } = build(state);
+
+      controller.openCityOverviewPanel();
+      const options = mockedCallArg<{ onAppeaseFaction: (cityId: string) => void }>(createCityOverviewPanel, 0, 2);
+      options.onAppeaseFaction('test-city');
+
+      expect(deps.diplomacyActions.handleAppeaseFaction).toHaveBeenCalledWith('test-city');
+      expect(createCityOverviewPanel).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  describe('openCouncilPanel', () => {
+    it('closes the drawer and persists a talk-level change to live session settings', () => {
+      const { state } = makeFixture('council-panel');
+      const { deps, controller } = build(state);
+
+      controller.openCouncilPanel();
+
+      expect(deps.hud.closeDrawer).toHaveBeenCalledTimes(1);
+      const options = mockedCallArg<{ onTalkLevelChange: (level: string) => void }>(createCouncilPanel, 0, 2);
+      options.onTalkLevelChange('detailed');
+
+      expect(deps.session.getState().settings.councilTalkLevel).toBe('detailed');
+      expect(saveSettings).toHaveBeenCalledWith(expect.objectContaining({ councilTalkLevel: 'detailed' }));
+    });
+  });
+
+  describe('openTechPanel', () => {
+    it('queues real research via the live civ tech state and refreshes the renderer/HUD', () => {
+      const { state } = makeFixture('tech-panel-queue');
+      const { deps, controller } = build(state);
+
+      controller.openTechPanel();
+
+      const options = mockedCallArg<{ onQueueResearch: (techId: string) => void }>(createTechPanel, 0, 2);
+      options.onQueueResearch('fire');
+
+      expect(state.civilizations.player.techState.currentResearch).toBe('fire');
+      expect(deps.renderLoop.setGameState).toHaveBeenCalled();
+      expect(deps.hud.update).toHaveBeenCalled();
+      expect(deps.showNotification).toHaveBeenCalledWith(expect.stringContaining('fire'), 'info');
+    });
+
+    it('reorders and removes queued research via the real planning-system helpers', () => {
+      const { state } = makeFixture('tech-panel-reorder');
+      state.civilizations.player.techState.currentResearch = 'fire';
+      state.civilizations.player.techState.researchQueue = ['writing', 'wheel'];
+      const { controller } = build(state);
+
+      controller.openTechPanel();
+      const options = mockedCallArg<{
+        onMoveQueuedResearch: (fromIndex: number, toIndex: number) => void;
+        onRemoveQueuedResearch: (index: number) => void;
+      }>(createTechPanel, 0, 2);
+
+      options.onMoveQueuedResearch(0, 1);
+      expect(state.civilizations.player.techState.researchQueue).toEqual(['wheel', 'writing']);
+
+      options.onRemoveQueuedResearch(0);
+      expect(state.civilizations.player.techState.researchQueue).toEqual(['writing']);
+    });
+  });
+
+  describe('openUnitStackPicker', () => {
+    it('does nothing when the info panel is not present', () => {
+      const { state } = makeFixture('unit-stack-missing-panel');
+      const { deps, controller } = build(state, { getElementById: vi.fn(() => null) });
+
+      controller.openUnitStackPicker({ q: 0, r: 0 }, ['attacker']);
+
+      expect(renderUnitStackPanel).not.toHaveBeenCalled();
+      expect(deps.getElementById).toHaveBeenCalledWith('info-panel');
+    });
+
+    it('opens the injected city panel dep and deselects when a stacked unit opens its city', () => {
+      const { state } = makeFixture('unit-stack-open-city');
+      state.cities['test-city'] = {
+        id: 'test-city', name: 'Testopolis', owner: 'player', position: { q: 0, r: 0 },
+        population: 1, food: 0, foodNeeded: 10, buildings: [], productionQueue: [], productionProgress: 0,
+        ownedTiles: [], workedTiles: [], focus: 'balanced', maturity: 'outpost',
+        unrestLevel: 0, unrestTurns: 0, spyUnrestBonus: 0,
+      };
+      const infoPanel = document.createElement('div');
+      const { deps, controller } = build(state, { getElementById: vi.fn(() => infoPanel) });
+
+      controller.openUnitStackPicker({ q: 0, r: 0 }, ['attacker']);
+
+      expect(renderUnitStackPanel).toHaveBeenCalledTimes(1);
+      const options = mockedCallArg<{ onOpenCity: (cityId: string) => void }>(renderUnitStackPanel, 0, 4);
+      options.onOpenCity('test-city');
+
+      expect(deps.selectionController.deselectUnit).toHaveBeenCalledTimes(1);
+      expect(deps.openCityPanelForCity).toHaveBeenCalledWith(state.cities['test-city']);
+    });
+  });
+
+  describe('openNetworkIntentPanel', () => {
+    it('shows a warning and builds no panel when autonomy is not activated', () => {
+      const { state } = makeFixture('network-intent-inactive');
+      placeUnit(state, 'cyber_unit', 'cyber-1', { q: 5, r: 4 });
+      const { deps, controller } = build(state);
+
+      controller.openNetworkIntentPanel('cyber-1');
+
+      expect(createNetworkIntentPanel).not.toHaveBeenCalled();
+      expect(deps.showNotification).toHaveBeenCalledWith(expect.any(String), 'warning');
+    });
+
+    it('opens the Network panel directly for a drone controller source once autonomy is activated', () => {
+      const { state } = makeFixture('network-intent-drone');
+      state.civilizations.player.techState.completed = ['quantum-computing'];
+      placeUnit(state, 'drone_controller', 'drone-1', { q: 5, r: 4 });
+      const { controller } = build(state);
+
+      controller.openNetworkIntentPanel('drone-1');
+
+      expect(createNetworkIntentPanel).not.toHaveBeenCalled();
+      expect(createNetworkPanel).toHaveBeenCalledTimes(1);
+    });
+
+    it('opens the intent panel for a real cyber unit source once autonomy is activated', () => {
+      const { state } = makeFixture('network-intent-cyber');
+      state.civilizations.player.techState.completed = ['quantum-computing'];
+      placeUnit(state, 'cyber_unit', 'cyber-1', { q: 5, r: 4 });
+      const { deps, controller } = build(state);
+
+      controller.openNetworkIntentPanel('cyber-1');
+
+      expect(createNetworkIntentPanel).toHaveBeenCalledTimes(1);
+      expect(deps.uiLayer.children.length).toBeGreaterThan(0);
+    });
+  });
+
+  describe('openNetworkPanel', () => {
+    it('builds no panel when autonomy is not activated', () => {
+      const { state } = makeFixture('network-panel-inactive');
+      const { controller } = build(state);
+
+      controller.openNetworkPanel();
+
+      expect(createNetworkPanel).not.toHaveBeenCalled();
+    });
+
+    it('builds the panel from real network state once autonomy is activated and commits posture changes', () => {
+      const { state } = makeFixture('network-panel-active');
+      state.civilizations.player.techState.completed = ['quantum-computing'];
+      state.autonomyByCiv = { player: createEmptyAutonomyCivState() };
+      const { deps, controller } = build(state);
+
+      controller.openNetworkPanel();
+
+      expect(createNetworkPanel).toHaveBeenCalledTimes(1);
+      const options = mockedCallArg<{ onPosture: (posture: string) => void }>(createNetworkPanel, 0, 1);
+      options.onPosture('defensive');
+
+      expect(createNetworkPanel).toHaveBeenCalledTimes(2);
+      // requestAutonomyPosture stages the change as `pendingPosture`, applied on a later turn --
+      // not an immediate `posture` mutation.
+      expect(deps.session.getState().autonomyByCiv?.player?.pendingPosture).toEqual({ id: 'defensive', appliesOnTurn: state.turn + 1 });
     });
   });
 });
