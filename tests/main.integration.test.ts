@@ -153,7 +153,9 @@ describe('shared unit upgrade wiring', () => {
     const main = readFileSync(resolve(PROJECT_ROOT, 'src/main.ts'), 'utf8');
     const handler = main.slice(
       main.indexOf('function executeUpgrade('),
-      main.indexOf('function openWonderPanelForCityId'),
+      // #787 phase 10b-c: openWonderPanelForCityId moved into PanelActionsController;
+      // openCityPanelForCity is what now immediately follows executeUpgrade.
+      main.indexOf('function openCityPanelForCity('),
     );
 
     expect(handler).toContain('applyUnitUpgradeToState(');
@@ -204,9 +206,9 @@ describe('shared city assault wiring', () => {
     const main = readFileSync(resolve(PROJECT_ROOT, 'src/main.ts'), 'utf8');
     const minorCaptureFlow = main.slice(
       main.indexOf('function executeMinorCivConquest('),
-      // #787 phase 10b-a: handleGiftGold moved into DiplomacyActionsController;
-      // openDiplomacyPanel is what now immediately follows executeMinorCivConquest.
-      main.indexOf('function openDiplomacyPanel('),
+      // #787 phase 10b-c: openDiplomacyPanel moved into PanelActionsController;
+      // executeUpgrade is what now immediately follows executeMinorCivConquest.
+      main.indexOf('function executeUpgrade('),
     );
 
     expect(minorCaptureFlow).toContain(
