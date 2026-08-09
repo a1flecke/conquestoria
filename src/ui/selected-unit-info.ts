@@ -39,6 +39,7 @@ import { getAirBaseCapacity, getAirBaseRoster } from '@/systems/air-operations-s
 import type { AirBaseRef } from '@/core/types';
 import { canPillageTile } from '@/systems/pillage-system';
 import { getUnitRolePresentation } from '@/ui/unit-role-presentation';
+import { getFortificationPlacement } from '@/systems/fortification-system';
 
 export interface TransportLoadOption {
   transportId: string;
@@ -480,7 +481,7 @@ export function renderSelectedUnitInfo(
       const unitTileKey = hexKey(unit.position);
       const isCityTile = Object.values(state.cities).some(city => hexKey(city.position) === unitTileKey);
       const knownResource = tile ? getKnownTileResourceForWorkerAction(tile, completedTechs) : null;
-      const workerEligibilityOptions = { isCityTile, knownResource, currentTurn: state.turn };
+      const workerEligibilityOptions = { isCityTile, knownResource, currentTurn: state.turn, state };
       const workerActions = getAvailableWorkerActions(tile, completedTechs, unit.owner, workerEligibilityOptions);
       if (knownResource) {
         const rd = RESOURCE_DEFINITIONS.find(r => r.id === knownResource);
@@ -517,6 +518,27 @@ export function renderSelectedUnitInfo(
           }
         }
         actionsDiv.appendChild(makeButton(label, color, () => callbacks.onWorkerAction!(action)));
+      }
+
+      if (tile && completedTechs.includes('fortresses') && !workerActions.includes('fort')) {
+        const placement = getFortificationPlacement(state, unit.owner, unit.position);
+        if (!placement.ok) {
+          const reason = placement.reason === 'adjacent-fort'
+            ? 'adjacent Fort'
+            : placement.reason === 'empire-cap'
+              ? 'Fort limit reached'
+              : placement.reason === 'city-center'
+                ? 'city center'
+                : placement.reason === 'outside-territory'
+                  ? 'outside your territory'
+                  : 'invalid terrain';
+          const fortButton = makeButton(`Build Fort — ${reason}`, '#64748b');
+          fortButton.disabled = true;
+          fortButton.style.opacity = '0.5';
+          fortButton.style.cursor = 'not-allowed';
+          fortButton.title = 'Forts cannot be adjacent and are limited by your city count.';
+          actionsDiv.appendChild(fortButton);
+        }
       }
 
       const roadBlockerReason = getRoadBlockerReason(tile, completedTechs, unit.owner, isCityTile);

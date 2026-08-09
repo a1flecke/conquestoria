@@ -270,6 +270,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     canBuildImprovements: false, productionCost: 125,
     attackProfile: { kind: 'bombard', range: 2, targets: ['unit', 'city'] },
     cargoSize: 3,
+    fortificationPenetration: 0.5,
     cityAssaultMultiplier: 1.25,
   },
   ballista: {
@@ -292,6 +293,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     canBuildImprovements: false, productionCost: 190,
     domain: 'land',
     attackProfile: { kind: 'bombard', range: 2, targets: ['unit', 'city'] },
+    fortificationPenetration: 0.5,
   },
   rocket_artillery: {
     type: 'rocket_artillery', name: 'Rocket Artillery', movementPoints: 2,
@@ -300,6 +302,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     domain: 'land',
     attackProfile: { kind: 'bombard', range: 3, targets: ['unit', 'city'] },
     splash: { damageFraction: 0.25, maxTargets: 2, label: 'Damages up to two nearby visible enemy soldiers' },
+    fortificationPenetration: 0.5,
   },
   grenadier: {
     type: 'grenadier', name: 'Grenadier', movementPoints: 2,
@@ -307,6 +310,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     canBuildImprovements: false, productionCost: 130,
     domain: 'land',
     attackProfile: { kind: 'bombard', range: 1, targets: ['unit', 'city'] },
+    fortificationPenetration: 0.5,
   },
   marine: {
     type: 'marine', name: 'Marine', movementPoints: 2,

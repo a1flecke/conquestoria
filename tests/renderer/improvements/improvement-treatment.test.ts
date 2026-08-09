@@ -15,6 +15,8 @@ class MockCanvasContext {
   closePath(): void { this.operations.push('closePath'); }
   arc(): void { this.operations.push('arc'); }
   rect(): void { this.operations.push('rect'); }
+  fillRect(): void { this.operations.push('fillRect'); }
+  strokeRect(): void { this.operations.push('strokeRect'); }
   fill(): void { this.operations.push('fill'); }
   stroke(): void { this.operations.push('stroke'); }
 }
@@ -33,6 +35,12 @@ describe('improvement terrain treatments', () => {
     expect(getImprovementTreatmentFamily('farm')).toBe('field-rows');
     expect(getImprovementTreatmentFamily('lumber_camp')).toBe('managed-timber');
     expect(getImprovementTreatmentFamily('farm')).not.toBe(getImprovementTreatmentFamily('lumber_camp'));
+  });
+
+  it('renders Fort as a fortification treatment', () => {
+    const ctx = new MockCanvasContext() as unknown as CanvasRenderingContext2D;
+    expect(getImprovementTreatmentFamily('fort')).toBe('fortification');
+    expect(drawImprovementTreatment(ctx, 'fort', 0, 0, 48)).toBe(true);
   });
 
   it('does not claim unknown improvements', () => {

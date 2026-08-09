@@ -10,10 +10,20 @@ import {
   getWorkerActionBlockerReason,
   getWorkerActionLabel,
   getWorkerBlockerHints,
+  IMPROVEMENT_DEFINITIONS,
 } from '@/systems/improvement-system';
 import type { HexTile } from '@/core/types';
 
 describe('canBuildImprovement', () => {
+  it('makes a five-turn Fort available only after Fortresses', () => {
+    const tile: HexTile = {
+      coord: { q: 0, r: 0 }, terrain: 'plains', elevation: 'lowland',
+      resource: null, improvement: 'none', owner: 'p1', improvementTurnsLeft: 0, hasRiver: false, wonder: null,
+    };
+    expect(IMPROVEMENT_DEFINITIONS.fort).toMatchObject({ buildTurns: 5, requiredTech: 'fortresses' });
+    expect(canBuildImprovement(tile, 'fort', ['fortresses'], 'p1')).toBe(true);
+    expect(canBuildImprovement(tile, 'fort', [], 'p1')).toBe(false);
+  });
   it('allows farm on grassland', () => {
     const tile: HexTile = {
       coord: { q: 0, r: 0 }, terrain: 'grassland', elevation: 'lowland',

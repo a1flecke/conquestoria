@@ -24,6 +24,7 @@ export const IMPROVEMENT_ICONS: Record<string, string> = {
   camp: '⛺',
   quarry: '⚒️',
   oil_well: '🛢️',
+  fort: '🏰',
   resource_outpost: '🚩',  // emoji fallback; SVG drawn via getOutpostMarkerImage when loaded
 };
 

@@ -66,6 +66,7 @@ describe('pillage-system', () => {
     it('derives gold from IMPROVEMENT_BUILD_TURNS, not a hand-authored table', () => {
       expect(getPillageGoldReward('farm')).toBe(4 * GOLD_PER_PILLAGE_BUILD_TURN);
       expect(getPillageGoldReward('oil_well')).toBe(5 * GOLD_PER_PILLAGE_BUILD_TURN);
+      expect(getPillageGoldReward('fort')).toBe(5 * GOLD_PER_PILLAGE_BUILD_TURN);
     });
 
     it('awards real gold for a pillaged resource outpost, not zero (#541 second-pass review)', () => {

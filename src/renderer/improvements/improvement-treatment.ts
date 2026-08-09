@@ -5,7 +5,8 @@ export type ImprovementTreatmentFamily =
   | 'water-wheel'
   | 'orchard-rows'
   | 'fence-lines'
-  | 'small-camp';
+  | 'small-camp'
+  | 'fortification';
 
 const TREATMENT_FAMILIES: Record<string, ImprovementTreatmentFamily> = {
   farm: 'field-rows',
@@ -17,6 +18,7 @@ const TREATMENT_FAMILIES: Record<string, ImprovementTreatmentFamily> = {
   pasture: 'fence-lines',
   camp: 'small-camp',
   oil_well: 'worked-rock',
+  fort: 'fortification',
 };
 
 export function getImprovementTreatmentFamily(improvement: string): ImprovementTreatmentFamily | null {
@@ -186,6 +188,13 @@ export function drawImprovementTreatment(
       ctx.arc(cx + size * 0.3, cy + size * 0.28, size * 0.055, 0, Math.PI * 2);
       ctx.fillStyle = 'rgba(226,145,48,0.9)';
       ctx.fill();
+      break;
+    case 'fort':
+      ctx.fillStyle = 'rgba(104, 91, 72, 0.92)';
+      ctx.fillRect(cx - size * 0.3, cy, size * 0.6, size * 0.28);
+      ctx.strokeStyle = 'rgba(53, 43, 34, 0.95)';
+      ctx.lineWidth = Math.max(1, size * 0.04);
+      ctx.strokeRect(cx - size * 0.3, cy, size * 0.6, size * 0.28);
       break;
   }
 

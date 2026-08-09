@@ -800,6 +800,35 @@ describe('AI tactical action ranking', () => {
 });
 
 describe('AI road-building', () => {
+  it('offers the same legal Fort action to an AI worker through the canonical action list', () => {
+    const state = makeState('veteran');
+    state.civilizations[AI].techState.completed = ['fortresses'];
+    addCity(state, 'capital', AI, { q: 0, r: 0 });
+    state.map.tiles[hexKey({ q: 1, r: 0 })]!.owner = AI;
+    const worker = addUnit(state, 'fort-worker', 'worker', AI, { q: 1, r: 0 });
+    const plan = makePlan(
+      { kind: 'region', id: 'frontier', anchor: worker.position },
+      [worker.id],
+      { objective: 'expand', requiredRoles: {} },
+    );
+
+    expect(rankUnitTacticalActions(context(state, plan), worker.id))
+      .toContainEqual(expect.objectContaining({ action: { kind: 'worker-action', unitId: worker.id, action: 'fort' } }));
+  });
+
+  it.each(['explorer', 'standard', 'veteran'] as const)('moves an AI worker to the same visible threatened Fort frontier on %s', difficulty => {
+    const state = makeState(difficulty);
+    state.civilizations[AI].techState.completed = ['fortresses'];
+    addCity(state, 'capital', AI, { q: 0, r: 0 });
+    state.map.tiles[hexKey({ q: 2, r: 0 })]!.owner = AI;
+    const worker = addUnit(state, 'fort-worker', 'worker', AI, { q: 1, r: 0 });
+    addUnit(state, 'threat', 'warrior', HUMAN, { q: 3, r: 0 });
+    const plan = makePlan({ kind: 'region', id: 'frontier', anchor: { q: 2, r: 0 } }, [worker.id], { objective: 'expand', requiredRoles: {} });
+
+    expect(chooseUnitTacticalAction(context(state, plan), worker.id))
+      .toMatchObject({ kind: 'move', unitId: worker.id, destination: { q: 2, r: 0 } });
+  });
+
   it('queues build_road for an idle worker standing on the road-building target tile', () => {
     const state = makeState('veteran');
     state.civilizations[AI].techState.completed = ['road-building'];

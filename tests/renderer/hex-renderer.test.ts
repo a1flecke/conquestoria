@@ -467,6 +467,10 @@ describe('IMPROVEMENT_ICONS', () => {
     expect(IMPROVEMENT_ICONS['quarry']).toBe('⚒️');
   });
 
+  it('has a Fort inspection icon', () => {
+    expect(IMPROVEMENT_ICONS['fort']).toBe('🏰');
+  });
+
   it('does not have an entry for none', () => {
     expect(IMPROVEMENT_ICONS['none']).toBeUndefined();
   });
