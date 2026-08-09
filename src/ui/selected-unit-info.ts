@@ -39,7 +39,7 @@ import { getAirBaseCapacity, getAirBaseRoster } from '@/systems/air-operations-s
 import type { AirBaseRef } from '@/core/types';
 import { canPillageTile } from '@/systems/pillage-system';
 import { getUnitRolePresentation } from '@/ui/unit-role-presentation';
-import { getFortificationPlacement } from '@/systems/fortification-system';
+import { getFortificationCapacity, getFortificationPlacement, getFortificationTier } from '@/systems/fortification-system';
 
 export interface TransportLoadOption {
   transportId: string;
@@ -279,6 +279,15 @@ export function renderSelectedUnitInfo(
       details.appendChild(row);
     }
     wrapper.appendChild(details);
+  }
+
+  if (unit.owner === state.currentPlayer && tile?.improvement === 'fort' && tile.improvementTurnsLeft <= 0 && tile.owner === unit.owner) {
+    const fortification = document.createElement('div');
+    const fortTier = getFortificationTier(state.civilizations[unit.owner]?.techState.completed ?? []);
+    fortification.style.cssText = 'margin-top:6px;padding:6px 8px;border-radius:6px;background:rgba(104,91,72,0.28);border:1px solid rgba(184,157,112,0.55);font-size:11px;line-height:1.4;color:#f8d28a;';
+    const fortifyLayer = unit.isFortified ? ' Fortify stance: +25% defense.' : '';
+    fortification.textContent = `${fortTier.label} improvement: +${Math.round((fortTier.multiplier - 1) * 100)}% defense.${fortifyLayer}`;
+    wrapper.appendChild(fortification);
   }
 
   const scrollCue = document.createElement('div');
@@ -536,7 +545,12 @@ export function renderSelectedUnitInfo(
           fortButton.disabled = true;
           fortButton.style.opacity = '0.5';
           fortButton.style.cursor = 'not-allowed';
-          fortButton.title = 'Forts cannot be adjacent and are limited by your city count.';
+          fortButton.title = placement.reason === 'empire-cap'
+            ? (() => {
+                const capacity = getFortificationCapacity(state, unit.owner);
+                return `Forts: ${capacity.built}/${capacity.limit}. Build another city or place this Fort on the frontier.`;
+              })()
+            : 'Forts cannot be adjacent and are limited by your city count.';
           actionsDiv.appendChild(fortButton);
         }
       }

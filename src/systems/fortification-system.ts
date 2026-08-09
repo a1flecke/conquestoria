@@ -34,6 +34,20 @@ export interface FortificationPlacementOptions {
   allowReplacement?: boolean;
 }
 
+export interface FortificationCapacity {
+  built: number;
+  limit: number;
+}
+
+export function getFortificationCapacity(
+  state: Pick<GameState, 'map' | 'cities'>,
+  ownerId: string,
+): FortificationCapacity {
+  const cityCount = Object.values(state.cities).filter(city => city.owner === ownerId).length;
+  const built = Object.values(state.map.tiles).filter(candidate => candidate.owner === ownerId && candidate.improvement === 'fort').length;
+  return { built, limit: cityCount + Math.floor(cityCount / 3) };
+}
+
 export function getFortificationPlacement(
   state: Pick<GameState, 'map' | 'cities'>,
   ownerId: string,
@@ -53,13 +67,12 @@ export function getFortificationPlacement(
   if (neighbors.some(neighbor => state.map.tiles[hexKey(neighbor)]?.improvement === 'fort')) return { ok: false, reason: 'adjacent-fort' };
 
   const cityCount = Object.values(state.cities).filter(city => city.owner === ownerId).length;
-  const fortCount = Object.values(state.map.tiles).filter(candidate => candidate.owner === ownerId && candidate.improvement === 'fort').length;
+  const capacity = getFortificationCapacity(state, ownerId);
   const isFrontier = neighbors.some(neighbor => {
     const neighborTile = state.map.tiles[hexKey(neighbor)];
     return neighborTile !== undefined && neighborTile.owner !== ownerId;
   });
-  const cap = cityCount + Math.floor(cityCount / 3);
-  if (fortCount >= cap || (fortCount >= cityCount && !isFrontier)) return { ok: false, reason: 'empire-cap' };
+  if (capacity.built >= capacity.limit || (capacity.built >= cityCount && !isFrontier)) return { ok: false, reason: 'empire-cap' };
   return { ok: true, isFrontier };
 }
 
