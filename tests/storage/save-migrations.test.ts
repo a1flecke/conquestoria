@@ -4,6 +4,7 @@ import type { City, GameState, Unit } from '@/core/types';
 import {
   CURRENT_SAVE_SCHEMA_VERSION,
   migrateSaveToCurrent,
+  normalizeImprovementValues,
   UnsupportedSaveSchemaVersionError,
 } from '@/storage/save-migrations';
 import { UNIT_DEFINITIONS } from '@/systems/unit-system';
@@ -12,6 +13,27 @@ import { applyUnitUpgradeToState } from '@/systems/unit-upgrade-system';
 import { foundCity } from '@/systems/city-system';
 
 describe('save migrations', () => {
+  it('preserves Fort saves, clamps invalid build timers, and clears unknown improvements idempotently', () => {
+    const savedGame = createNewGame('rome', 'fort-save-normalization', 'small');
+    const [fortKey, invalidKey] = Object.keys(savedGame.map.tiles);
+    savedGame.map.tiles[fortKey] = {
+      ...savedGame.map.tiles[fortKey],
+      improvement: 'fort',
+      improvementTurnsLeft: 99,
+    };
+    savedGame.map.tiles[invalidKey] = {
+      ...savedGame.map.tiles[invalidKey],
+      improvement: 'obsolete-fort' as never,
+      improvementTurnsLeft: 4,
+    };
+
+    const normalized = normalizeImprovementValues(savedGame);
+
+    expect(normalized.map.tiles[fortKey]).toMatchObject({ improvement: 'fort', improvementTurnsLeft: 5 });
+    expect(normalized.map.tiles[invalidKey]).toMatchObject({ improvement: 'none', improvementTurnsLeft: 0 });
+    expect(normalizeImprovementValues(normalized)).toEqual(normalized);
+  });
+
   it.each(['legacy', 'current'] as const)('preserves an upgraded damaged veteran through %s save normalization', schema => {
     const save = createNewGame('rome', `upgrade-${schema}-round-trip`, 'small');
     const civ = save.civilizations.player;

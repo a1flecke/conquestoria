@@ -815,6 +815,41 @@ describe('renderSelectedUnitInfo - worker actions', () => {
     expect(buttons).not.toContain('Drain Swamp (20% worker risk)');
   });
 
+  it('surfaces the plain-language Fort action once Fortresses is researched', () => {
+    const state = makeWorkerState({ terrain: 'plains' });
+    state.civilizations.player.techState.completed = ['fortresses'];
+    state.cities = {
+      capital: { id: 'capital', owner: 'player', position: { q: 0, r: 1 } },
+    } as unknown as GameState['cities'];
+    const container = new MockElement('div');
+
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'worker-1', {
+      onWorkerAction: () => {},
+    });
+
+    expect(findButtons(container).map(button => button.textContent))
+      .toContain('Build Fort — protect a friendly land unit (5 turns, +10%; Citadel +20%)');
+  });
+
+  it('explains why a researched Fort is unavailable beside another Fort', () => {
+    const state = makeWorkerState({ terrain: 'plains' });
+    state.civilizations.player.techState.completed = ['fortresses'];
+    state.cities = {
+      capital: { id: 'capital', owner: 'player', position: { q: 0, r: 1 } },
+    } as unknown as GameState['cities'];
+    state.map.tiles['1,0'] = {
+      ...state.map.tiles['0,0'], coord: { q: 1, r: 0 }, improvement: 'fort', improvementOwner: 'player',
+    };
+    const container = new MockElement('div');
+
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'worker-1', {
+      onWorkerAction: () => {},
+    });
+
+    const blockedFort = findButtons(container).find(button => button.textContent === 'Build Fort — adjacent Fort');
+    expect(blockedFort?.disabled).toBe(true);
+  });
+
   it('shows watermill only on valid river land', () => {
     const state = makeWorkerState({ terrain: 'plains', resource: 'iron', hasRiver: true });
     const container = new MockElement('div');

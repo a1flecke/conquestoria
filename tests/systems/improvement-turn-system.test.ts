@@ -29,4 +29,20 @@ describe('processImprovementTurns', () => {
     expect(next.notificationLog?.player.at(-1)?.message).toBe('Farm completed!');
     expect(completed).toHaveBeenCalledOnce();
   });
+
+  it('delivers Fort completion only to its owner during a hot-seat turn', () => {
+    const state = createNewGame(undefined, 'fort-hot-seat-completion', 'small');
+    const worker = Object.values(state.units)[0]!;
+    const tile = state.map.tiles[hexKey(worker.position)]!;
+    state.currentPlayer = 'player';
+    tile.improvement = 'fort';
+    tile.improvementTurnsLeft = 1;
+    tile.improvementOwner = worker.owner;
+    worker.workerTask = { action: 'fort', coord: { ...tile.coord } };
+
+    const next = processImprovementTurns(state, new EventBus());
+
+    expect(next.notificationLog?.[worker.owner]?.at(-1)?.message).toBe('Fort completed!');
+    expect(next.notificationLog?.player ?? []).toHaveLength(worker.owner === 'player' ? 1 : 0);
+  });
 });

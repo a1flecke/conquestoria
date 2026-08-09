@@ -10,6 +10,7 @@ import { getCombatAdjacentOccupiedTileCount } from './zone-of-control-system';
 import { getNetworkCombatCoordination } from './network-combat-coordination';
 import { resolveAirDefenseCoverage } from './air-defense-system';
 import { resolveCombinedArms } from './combined-arms-system';
+import { resolveFortificationDefense } from './fortification-system';
 
 export interface CombatContextOptions {
   amphibiousAssault?: boolean;
@@ -87,6 +88,7 @@ export function buildCombatContextForDefender(
     : undefined;
   const attackerCombinedArms = resolveCombinedArms(state, attacker);
   const defenderCombinedArms = resolveCombinedArms(state, defender);
+  const fortification = resolveFortificationDefense(state, defender, attacker);
 
   return {
     attackerBonus: resolveCivDefinition(
@@ -142,6 +144,8 @@ export function buildCombatContextForDefender(
     defenderCombinedArmsMultiplier: defenderCombinedArms.multiplier,
     attackerCombinedArmsFact: attackerCombinedArms.fact,
     defenderCombinedArmsFact: defenderCombinedArms.fact,
+    defenderFortificationMultiplier: fortification.multiplier,
+    defenderFortificationFact: fortification.label ? { key: 'fortification', label: fortification.label, sourceVisibility: 'public', operation: 'multiplier', value: fortification.multiplier, outcome: 'applied' } : undefined,
     attackerPositioningPart: flankingTiles > 0 ? { label: `Flanked +${flankingTiles * 10}%`, kind: 'mult' } : undefined,
     defenderPositioningPart: supportTiles > 0 ? { label: `Supported +${supportTiles * 10}%`, kind: 'mult' } : undefined,
     attackerNetworkStrengthBonus: getNetworkCombatCoordination(state, attacker, 'attack').strengthBonus,

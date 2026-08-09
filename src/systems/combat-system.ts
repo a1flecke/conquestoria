@@ -168,6 +168,8 @@ export interface CombatContext {
   defenderCombinedArmsMultiplier?: number;
   attackerCombinedArmsFact?: CombatModifierFact;
   defenderCombinedArmsFact?: CombatModifierFact;
+  defenderFortificationMultiplier?: number;
+  defenderFortificationFact?: CombatModifierFact;
   attackerNetworkStrengthBonus?: number;
   defenderNetworkStrengthBonus?: number;
 }
@@ -306,6 +308,7 @@ export function calculateCombatStrengths(
   if (defender.isFortified) {
     defenderStrength *= 1.25;
   }
+  defenderStrength *= context?.defenderFortificationMultiplier ?? 1;
 
   // Unit-modifier engine (MR4): tech/national-project combat modifiers + class counters.
   // Order: after terrain/fortify/civ-bonus multipliers above, before MR3 city-defense below.
@@ -342,7 +345,7 @@ export function calculateCombatStrengths(
     attackerModifierParts: [...(context?.attackerModifiers?.parts ?? []), ...(context?.attackerPositioningPart ? [context.attackerPositioningPart] : []), ...(context?.attackerAmphibiousParts ?? []), ...(context?.attackerInterceptionPart ? [context.attackerInterceptionPart] : [])],
     defenderModifierParts: [...(context?.defenderModifiers?.parts ?? []), ...(context?.defenderPositioningPart ? [context.defenderPositioningPart] : [])],
     attackerModifierFacts: [...(context?.attackerModifiers?.facts ?? []), ...(context?.attackerInterceptionFact ? [context.attackerInterceptionFact] : []), ...(context?.attackerCombinedArmsFact ? [context.attackerCombinedArmsFact] : [])],
-    defenderModifierFacts: [...(context?.defenderModifiers?.facts ?? []), ...(context?.airDefenseCoverage?.facts ?? []), ...(context?.defenderCombinedArmsFact ? [context.defenderCombinedArmsFact] : [])],
+    defenderModifierFacts: [...(context?.defenderModifiers?.facts ?? []), ...(context?.airDefenseCoverage?.facts ?? []), ...(context?.defenderCombinedArmsFact ? [context.defenderCombinedArmsFact] : []), ...(context?.defenderFortificationFact ? [context.defenderFortificationFact] : [])],
     defenderDefendsPoorly: defendsPoorly(defenderDefinition.attackProfile),
     exchange: getCombatExchangeModifiers(attacker, defender),
   };

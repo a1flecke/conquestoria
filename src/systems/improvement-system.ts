@@ -1,5 +1,6 @@
 import type {
   BuildableImprovementType,
+  GameState,
   HexTile,
   ImprovementType,
   ResourceType,
@@ -9,6 +10,7 @@ import type {
 } from '@/core/types';
 import { RESOURCE_DEFINITIONS } from '@/systems/resource-definitions';
 import { TECH_TREE } from '@/systems/tech-definitions';
+import { getFortificationPlacement } from '@/systems/fortification-system';
 
 // Improvements that only make sense on tiles with a specific resource.
 // Derived from RESOURCE_DEFINITIONS at module load — avoids re-scanning on every call.
@@ -37,6 +39,8 @@ export interface WorkerActionEligibilityOptions {
   knownResource?: ResourceType | null;
   /** Needed only for `restore_land` eligibility (devastatedUntilTurn > currentTurn). */
   currentTurn?: number;
+  /** Supplies the empire-wide Fort cap and adjacency legality for action lists. */
+  state?: Pick<GameState, 'map' | 'cities'>;
 }
 
 export type WorkerActionBlockerReason =
@@ -150,6 +154,13 @@ export const IMPROVEMENT_DEFINITIONS: Record<BuildableImprovementType, Improveme
     preservesTerrain: true,
     resourceMode: 'resource-only',
   },
+  fort: {
+    type: 'fort', name: 'Fort', buildTurns: 5,
+    validTerrains: ['grassland', 'plains', 'desert', 'forest', 'jungle', 'hills', 'tundra', 'snow', 'swamp', 'volcanic'],
+    requiresRiver: false, requiredTech: 'fortresses',
+    yieldBonus: { food: 0, production: 0, gold: 0, science: 0 },
+    preservesTerrain: true, resourceMode: 'generic',
+  },
 };
 
 export const IMPROVEMENT_BUILD_TURNS: Record<ImprovementType, number> = {
@@ -162,6 +173,7 @@ export const IMPROVEMENT_BUILD_TURNS: Record<ImprovementType, number> = {
   camp: IMPROVEMENT_DEFINITIONS.camp.buildTurns,
   quarry: IMPROVEMENT_DEFINITIONS.quarry.buildTurns,
   oil_well: IMPROVEMENT_DEFINITIONS.oil_well.buildTurns,
+  fort: IMPROVEMENT_DEFINITIONS.fort.buildTurns,
   resource_outpost: 0,  // set by Expedition unit, not by Worker
   none: 0,
 };
@@ -215,6 +227,10 @@ export function canBuildImprovement(
   if (!definition.validTerrains.includes(tile.terrain)) return false;
   if (definition.requiresRiver && !tile.hasRiver) return false;
   if (definition.requiredTech && !completedTechs.includes(definition.requiredTech)) return false;
+  if (type === 'fort' && options.state
+    && !getFortificationPlacement(options.state, ownerId ?? tile.owner ?? '', tile.coord, {
+      allowReplacement: options.allowReplacement,
+    }).ok) return false;
   if (definition.resourceMode === 'resource-only') {
     return hasMatchingKnownResource(tile, type, completedTechs, options);
   }
@@ -337,6 +353,7 @@ export function formatImprovementYieldLabel(type: ImprovementType): string {
 export function getWorkerActionLabel(action: ImprovementWorkerActionType): string {
   if (action === 'drain_swamp') return 'Drain Swamp (20% worker risk)';
   if (action === 'restore_land') return 'Restore Land';
+  if (action === 'fort') return 'Build Fort — protect a friendly land unit (5 turns, +10%; Citadel +20%)';
   const yieldLabel = formatImprovementYieldLabel(action);
   return `Build ${getImprovementDisplayName(action)}${yieldLabel ? ` ${yieldLabel}` : ''}`;
 }

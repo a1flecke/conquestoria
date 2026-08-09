@@ -268,7 +268,7 @@ export interface TribalVillage {
 export type VisibilityState = 'unexplored' | 'fog' | 'visible';
 
 export type ImprovementType = 'farm' | 'mine' | 'lumber_camp' | 'watermill'
-  | 'plantation' | 'pasture' | 'camp' | 'quarry' | 'oil_well' | 'resource_outpost' | 'none';
+  | 'plantation' | 'pasture' | 'camp' | 'quarry' | 'oil_well' | 'fort' | 'resource_outpost' | 'none';
 // resource_outpost is excluded: only Expeditions can establish outposts, not Workers
 export type BuildableImprovementType = Exclude<ImprovementType, 'none' | 'resource_outpost'>;
 export type WorkerActionType = BuildableImprovementType | 'drain_swamp' | 'build_road' | 'restore_land';
@@ -430,6 +430,8 @@ export interface UnitDefinition {
   cargoSize?: number;
   cityAssaultMultiplier?: number;
   combinedArms?: UnitCombinedArmsCapability;
+  /** Portion of an improvement-derived Fort/Citadel multiplier that remains. */
+  fortificationPenetration?: number;
 }
 
 export interface UnitCombinedArmsCapability {

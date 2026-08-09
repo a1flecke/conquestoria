@@ -65,6 +65,7 @@ import {
 } from '@/systems/worker-action-system';
 import { chooseRoadBuilderUnit } from '@/systems/road-network';
 import { canBuildRoad } from '@/systems/road-system';
+import { findFortificationCandidate } from '@/systems/fortification-system';
 import { getAIStrategicRoles, hasAICombatRole } from './ai-unit-roles';
 import { isAIHostileOwner } from './ai-hostility';
 import { getLegalRebaseDestinations, resolveAirStrike, resolveReconMission, rebaseAircraft, startIntercept } from '@/systems/air-operations-system';
@@ -541,6 +542,17 @@ function rankCivilianAndTransportActions(
       }
     }
 
+    const fortCandidate = findFortificationCandidate(context.state, context.actorId);
+    if (fortCandidate) {
+      if (hexKey(unit.position) === hexKey(fortCandidate.coord)) {
+        return [ranked({ kind: 'worker-action', unitId: unit.id, action: 'fort' }, 635)];
+      }
+      const path = findPath(unit.position, fortCandidate.coord, context.state.map, 'land', { unit, completedTechs });
+      if (path && path.length > 1) {
+        return [ranked({ kind: 'move', unitId: unit.id, destination: path[1]! }, 635)];
+      }
+    }
+
     const actions = getAvailableWorkerActions(
       tile,
       completedTechs,
@@ -551,6 +563,7 @@ function rankCivilianAndTransportActions(
           ? getKnownTileResourceForWorkerAction(tile, completedTechs)
           : null,
         currentTurn: context.state.turn,
+        state: context.state,
       },
     );
     return actions.map((action, index) => ranked({

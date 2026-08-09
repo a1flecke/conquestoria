@@ -123,6 +123,34 @@ function state(overrides: Partial<GameState> = {}): GameState {
 }
 
 describe('worker action system', () => {
+  it('starts a legal five-turn Fort through the canonical Worker mutation', () => {
+    const start = state();
+    start.civilizations.player.techState.completed = ['fortresses'];
+    const result = applyWorkerAction(start, 'worker-1', 'fort');
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.map.tiles['0,0']).toMatchObject({ improvement: 'fort', improvementTurnsLeft: 5 });
+  });
+
+  it('rejects a Worker Fort adjacent to an existing Fort', () => {
+    const start = state();
+    start.civilizations.player.techState.completed = ['fortresses'];
+    start.map.tiles['1,0'] = tile({ coord: { q: 1, r: 0 }, improvement: 'fort' });
+    const result = applyWorkerAction(start, 'worker-1', 'fort');
+    expect(result).toMatchObject({ ok: false, reason: 'invalid-action' });
+  });
+
+  it('replaces a normal improvement with a Fort only through the explicit replacement path', () => {
+    const start = state();
+    start.civilizations.player.techState.completed = ['fortresses'];
+    start.map.tiles['0,0'].improvement = 'farm';
+
+    expect(applyWorkerAction(start, 'worker-1', 'fort').ok).toBe(false);
+    const result = applyWorkerAction(start, 'worker-1', 'fort', { allowReplacement: true });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.map.tiles['0,0']).toMatchObject({ improvement: 'fort', improvementTurnsLeft: 5 });
+  });
   it('treats legacy workers without chargesRemaining as two-charge workers', () => {
     expect(getWorkerChargesRemaining(worker({ chargesRemaining: undefined }))).toBe(2);
   });

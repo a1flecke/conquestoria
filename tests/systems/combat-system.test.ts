@@ -409,6 +409,37 @@ describe('fortify defense bonus', () => {
   });
 });
 
+describe('Fortification combat context', () => {
+  it('applies a separate Fortification multiplier supplied by the shared context', () => {
+    const map = generateMap(30, 30, 'fortification-context');
+    const attacker = createUnit('warrior', 'p1', { q: 10, r: 10 }, mkC());
+    const defender = createUnit('warrior', 'p2', { q: 11, r: 10 }, mkC());
+    const base = calculateCombatStrengths(attacker, defender, map);
+    const fortified = calculateCombatStrengths(attacker, defender, map, { defenderFortificationMultiplier: 1.1 });
+    expect(fortified.defenderStrength).toBeCloseTo(base.defenderStrength * 1.1, 5);
+  });
+
+  it('uses the defending owner’s Citadel tech and exposes it to the preview, not the current viewer', () => {
+    const state = createNewGame(undefined, 'fort-hot-seat-context', 'small');
+    const attacker = { ...createUnit('warrior', 'player', { q: 4, r: 4 }, mkC()), id: 'attacker' };
+    const defender = { ...createUnit('warrior', 'ai-1', { q: 5, r: 4 }, mkC()), id: 'defender' };
+    state.currentPlayer = 'player';
+    state.units = { attacker, defender };
+    state.civilizations.player.units = [attacker.id];
+    state.civilizations['ai-1'].units = [defender.id];
+    state.civilizations['ai-1'].techState.completed = ['fortification-engineering'];
+    state.map.tiles[hexKey(defender.position)] = {
+      ...state.map.tiles[hexKey(defender.position)]!,
+      owner: 'ai-1', improvement: 'fort', improvementTurnsLeft: 0,
+    };
+
+    const context = buildCombatContextForDefender(state, attacker, defender);
+
+    expect(context.defenderFortificationMultiplier).toBeCloseTo(1.2);
+    expect(context.defenderFortificationFact).toMatchObject({ label: 'Citadel +20%', outcome: 'applied' });
+  });
+});
+
 describe('bombard-kind defense penalty (MR: counter-attack rule fix, #537)', () => {
   let map: GameMap;
 

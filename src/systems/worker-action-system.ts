@@ -18,6 +18,7 @@ import {
 } from './improvement-system';
 import { getRoadBlockerReason, getRoadBuildTurns } from './road-system';
 import { getActiveNationalProjectsForCiv } from './national-project-system';
+import { getFortificationPlacement } from './fortification-system';
 
 export const DEFAULT_WORKER_CHARGES = 2;
 export const MAX_WORKER_CHARGES = 5;
@@ -131,6 +132,12 @@ export function applyWorkerAction(
 
   const completedTechs = state.civilizations[unit.owner]?.techState.completed ?? [];
   const isCityTile = isCityCenterTile(state, unit.position);
+
+  if (action === 'fort' && !getFortificationPlacement(state, unit.owner, unit.position, {
+    allowReplacement: options.allowReplacement,
+  }).ok) {
+    return { ok: false, state, reason: 'invalid-action', events: [] };
+  }
 
   if (action === 'build_road') {
     const roadReason = getRoadBlockerReason(tile, completedTechs, unit.owner, isCityTile);
