@@ -11,20 +11,14 @@ import { canUnitAttackTarget } from '@/systems/attack-targeting';
 import { applyCombatOutcomeToState, getCaptureNotificationLabel } from '@/systems/combat-reward-system';
 import { recordCombatForCiv } from '@/systems/threat-pressure-system';
 import { resolveCombatEra } from '@/systems/era-resolution';
-import { getVisibility } from '@/systems/fog-of-war';
 import { applyCampDestructionAtTarget } from '@/systems/barbarian-system';
-import { recordBeastSlain, isBeastConcealedFrom, applyHoardChoice, getHoardChoicePreview, canUnitAttackBeast } from '@/systems/beast-system';
+import { recordBeastSlain, applyHoardChoice, getHoardChoicePreview, canUnitAttackBeast } from '@/systems/beast-system';
 import { createBeastHoardPanel } from '@/ui/beast-hoard-panel';
 import { BEAST_DEFINITIONS } from '@/systems/beast-definitions';
-import { recordBeastSightings } from '@/systems/beast-presentation';
 import { loadSettings } from '@/storage/save-manager';
 import { AudioSystem } from '@/audio/audio-system';
 import { SFX } from '@/audio/sfx';
 import { AdvisorSystem } from '@/ui/advisor-system';
-import type { PirateFocusTarget } from '@/systems/pirate-presentation';
-import type { PirateActionResult } from '@/systems/pirate-actions';
-import { formatNotificationTargetFocusMessage } from '@/ui/notification-targets';
-import { resolveCivDefinition } from '@/systems/civ-registry';
 import { makePeace } from '@/systems/diplomacy-system';
 import { visitVillage } from '@/systems/village-system';
 import { clearStaleSoloPendingEvents } from '@/core/hotseat-events';
@@ -42,8 +36,7 @@ import { executeUnitMove, isWorkerBusy } from '@/systems/unit-movement-system';
 import { getEmbarkedAssaultTarget, detachCargoForEmbarkedAssault } from '@/systems/transport-system';
 import { createSelectionStore } from '@/app/selection-store';
 import type { CombatResult, GameState, HexCoord, UnitType, CivBonusEffect } from '@/core/types';
-import { appendNotification, type NotificationCityAction, type NotificationEntry } from '@/core/notification-log';
-import type { NotificationSink } from '@/ui/notification-routing';
+import type { NotificationCityAction, NotificationEntry } from '@/core/notification-log';
 import { createUserSettingsStore } from '@/app/user-settings-store';
 import type { Notifier } from '@/app/ports';
 import { updateAndRefreshVisibility, reconstructLastSeenFromMap } from '@/systems/last-seen-presentation';
@@ -68,6 +61,17 @@ import { createPanelHost, type PanelHost } from '@/app/panel-host';
 import { createPanelRouter, type PanelRouter } from '@/app/panel-router';
 import type { PanelContext, PanelRegistry } from '@/app/panel-registry';
 import { installGlobalShortcuts } from '@/app/global-shortcuts';
+import {
+  getCurrentCiv,
+  getCurrentCivDef,
+  clearUnloadState,
+  prefersReducedMotion,
+  scanBeastSightings,
+  focusNotificationTarget,
+  focusPirateTarget,
+  notifyPlayer,
+  applyPirateActionResult,
+} from '@/app/cross-cutting-helpers';
 
 // --- App State ---
 /**
@@ -99,22 +103,6 @@ const userSettingsStore = createUserSettingsStore({ load: loadSettings });
  */
 let notifier: Notifier;
 
-/**
- * Cancels a pending unload, and only a pending unload.
- *
- * Deliberately narrower than `selection.setPendingIntent({ kind: 'none' })`:
- * the call sites below fire on selection and movement changes that must not
- * cancel a pending air mission, journey, or city-capture choice.
- */
-function clearUnloadState(): void {
-  if (selection.getPendingIntent().kind === 'unload') {
-    selection.setPendingIntent({ kind: 'none' });
-  }
-}
-
-function currentCivDef() {
-  return resolveCivDefinition(session.getState(), currentCiv().civType ?? '');
-}
 const bus = new EventBus();
 const audioCtx = new AudioContext();
 const audio = new AudioSystem(audioCtx);
@@ -156,11 +144,6 @@ session.subscribe(() => hud.update());
 
 function setBlockingOverlay(id: string | null): void {
   host.setBlockingOverlay(id);
-}
-
-function prefersReducedMotion(): boolean {
-  return typeof window.matchMedia === 'function'
-    && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 }
 
 /**
@@ -234,8 +217,12 @@ const diplomacyActions: DiplomacyActionsController = createDiplomacyActionsContr
  * wrapper -- it is a `let` not assigned until `createPanelRouter(...)` much
  * later in module evaluation (after `panelRegistry`, which itself needs this
  * controller's methods) -- same pattern `turnFlow`'s own `router` dep below
- * already uses. `executeUpgrade` and `currentCivDef` are plain hoisted
- * function declarations (like `currentCiv`), so no wrapper needed for them.
+ * already uses. `executeUpgrade` is a plain hoisted function declaration, so
+ * no wrapper needed for it. `focusNotificationTarget`/`focusPirateTarget`/
+ * `applyPirateActionResult`/`currentCiv`/`currentCivDef` are inline arrows
+ * calling the pure functions in `src/app/cross-cutting-helpers.ts` (#787
+ * phase 10b-f) -- `notifier` inside those arrows is a `let` not assigned
+ * until `init()`, same deferred-but-eager pattern as `router` just below.
  */
 const panelActions: PanelActionsController = createPanelActionsController({
   session,
@@ -246,11 +233,15 @@ const panelActions: PanelActionsController = createPanelActionsController({
   audio,
   renderLoop,
   showNotification,
-  focusNotificationTarget,
-  focusPirateTarget,
-  applyPirateActionResult,
-  currentCiv,
-  currentCivDef,
+  focusNotificationTarget: target => focusNotificationTarget(renderLoop, notifier, session, target),
+  focusPirateTarget: target => focusPirateTarget(renderLoop, notifier, target),
+  applyPirateActionResult: (result, successMessage) => applyPirateActionResult(
+    { session, bus, renderLoop, updateHUD: () => hud.update(), showNotification },
+    result,
+    successMessage,
+  ),
+  currentCiv: () => getCurrentCiv(session),
+  currentCivDef: () => getCurrentCivDef(session),
   diplomacyActions,
   executeUpgrade,
   router: { open: panel => router.open(panel) },
@@ -281,7 +272,7 @@ const selectionController: SelectionController = createSelectionController({
   getInfoPanel: () => document.getElementById('info-panel'),
   showNotification,
   updateHUD: () => hud.update(),
-  clearUnloadState,
+  clearUnloadState: () => clearUnloadState(selection),
   getUnitTurnFlow: () => playerActions.getUnitTurnFlow(),
   foundCityAction,
   performWorkerAction: action => playerActions.performWorkerAction(action),
@@ -293,8 +284,8 @@ const selectionController: SelectionController = createSelectionController({
   handleEstablishRoute: diplomacyActions.handleEstablishRoute,
   executeUpgrade,
   ensurePlayerWarState: targetCivId => playerActions.ensurePlayerWarState(targetCivId),
-  scanBeastSightings,
-  currentCiv,
+  scanBeastSightings: () => scanBeastSightings(session, bus),
+  currentCiv: () => getCurrentCiv(session),
 });
 
 /**
@@ -329,14 +320,14 @@ const turnFlow: TurnFlowController = createTurnFlowController({
   showNotification,
   updateHUD: () => hud.update(),
   setBlockingOverlay,
-  currentCiv,
+  currentCiv: () => getCurrentCiv(session),
   // Lazy wrapper: `playerActions` (10b-e) is constructed after `turnFlow`
   // (it needs `turnFlow.endTurn` as a direct dep), same deferred-but-eager
   // reverse forward-reference as `selectionController`'s dep above.
   getUnitTurnFlow: () => playerActions.getUnitTurnFlow(),
   deselectUnit: selectionController.deselectUnit,
   selectNextUnit: selectionController.selectNextUnit,
-  scanBeastSightings,
+  scanBeastSightings: () => scanBeastSightings(session, bus),
   maybeShowPendingHoardChoice,
   checkAdvisors: () => advisorSystem.check(session.getState()),
   // `campaignEntry` is declared after `turnFlow` (it needs `turnFlow` itself
@@ -370,7 +361,7 @@ const playerActions: PlayerActionController = createPlayerActionController({
   renderLoop,
   showNotification,
   setBlockingOverlay,
-  currentCiv,
+  currentCiv: () => getCurrentCiv(session),
   notifier: { choice: (message, actions) => notifier.choice(message, actions) },
 });
 
@@ -396,8 +387,8 @@ const mapInteraction: MapInteractionController = createMapInteractionController(
   getElementById: id => document.getElementById(id),
   showNotification,
   updateHUD: () => hud.update(),
-  clearUnloadState,
-  currentCiv,
+  clearUnloadState: () => clearUnloadState(selection),
+  currentCiv: () => getCurrentCiv(session),
   openPirateWaters: panelActions.openPirateWaters,
   openUnitStackPicker: panelActions.openUnitStackPicker,
   openCityPanelForCity: panelActions.openCityPanelForCity,
@@ -478,7 +469,7 @@ gameSession = createGameSessionController({
   foundCityAction,
   maybeShowPendingHoardChoice,
   setNotifier: n => { notifier = n; },
-  focusNotificationTarget,
+  focusNotificationTarget: target => focusNotificationTarget(renderLoop, notifier, session, target),
 });
 
 /**
@@ -511,28 +502,6 @@ const presentationContext: PresentationContext = {
 // it can depend on the real `Notifier`/`PanelRouter` ports instead of
 // reaching into module-scope closures directly (#787 phase 5).
 
-function scanBeastSightings(): void {
-  const visTiles = currentCiv()?.visibility?.tiles;
-  if (!visTiles) return;
-  const viewerUnits = Object.values(session.getState().units).filter(
-    u => u.owner === session.getState().currentPlayer && !u.transportId,
-  );
-  const visibleKeys = new Set(
-    Object.entries(visTiles).filter(([, v]) => v === 'visible').map(([k]) => k),
-  );
-  // A beast concealed in its habitat cannot be sighted even if the tile is visible
-  for (const unit of Object.values(session.getState().units)) {
-    if (isBeastConcealedFrom(unit, session.getState().map, viewerUnits)) {
-      visibleKeys.delete(hexKey(unit.position));
-    }
-  }
-  const sightingResult = recordBeastSightings(session.getState(), session.getState().currentPlayer, visibleKeys);
-  session.setStateWithoutRefresh(sightingResult.state);
-  for (const beastId of sightingResult.newSightings) {
-    bus.emit('beast:sighted', { beastId, civId: session.getState().currentPlayer });
-  }
-}
-
 function maybeShowPendingHoardChoice(): void {
   const pending = (session.getState().beasts?.pendingHoardChoices ?? [])
     .find(p => p.civId === session.getState().currentPlayer);
@@ -547,74 +516,24 @@ function maybeShowPendingHoardChoice(): void {
   });
 }
 
-// --- Game Logic ---
-function currentCiv() {
-  return session.getState().civilizations[session.getState().currentPlayer];
-}
-
-
 // --- Notifications ---
 // The toast queue, the choice modal, and the delivery contract below all live
 // in notifier (created in init(), see src/ui/notification-center.ts) (#787
 // phase 4). `notifier.toast` is the pure DOM enqueue (no log side effect) --
-// exactly today's enqueueToast, which is why focusNotificationTarget and
-// focusPirateTarget call it directly instead of showNotification below.
+// exactly today's enqueueToast, which is why the extracted `focusNotificationTarget`/
+// `focusPirateTarget` helpers (#787 phase 10b-f, src/app/cross-cutting-helpers.ts)
+// call it directly instead of going through `showNotification` below.
 
+// Thin wrapper (not extracted, see cross-cutting-helpers.ts's module docblock
+// for why): delegates to the pure `notifyPlayer`, but stays a hoisted
+// `main.ts` function so its ~8 controller consumers' `showNotification` dep
+// keeps working as a bare reference, unchanged by this phase.
 function showNotification(
   message: string,
   type: NotificationEntry['type'] = 'info',
   target?: NotificationEntry['target'],
 ): void {
-  notifier.toast(message, type, target);
-  if (session.getState()) {
-    appendNotification(session.getState(), session.getState().currentPlayer, {
-      message,
-      type,
-      turn: session.getState().turn,
-      target,
-    });
-  }
-}
-
-// The single delivery contract for game-consequence notifications (#551):
-// logs to the recipient civ always, toasts only when that civ is the active
-// unsuppressed viewer, and queues to pendingEvents (hot seat only) otherwise
-// -- the turn-handoff summary drains that queue. All existing router call
-// sites keep using this name unchanged. Thunked (not `= notifier.deliver`)
-// because `notifier` is not assigned until init() runs, after every one of
-// these module-scope const/function declarations.
-const appendToCivLog: NotificationSink = (...args) => notifier.deliver(...args);
-
-function focusNotificationTarget(target: NotificationEntry['target']): void {
-  if (!target) return;
-  renderLoop.camera.centerOn(target.coord);
-  const visibility = currentCiv().visibility;
-  const isCurrentlyVisible = visibility ? getVisibility(visibility, target.coord) === 'visible' : false;
-  notifier.toast(formatNotificationTargetFocusMessage(target, isCurrentlyVisible), 'info');
-}
-
-function focusPirateTarget(target: PirateFocusTarget): void {
-  const coord = target.kind === 'region' ? target.center : target.coord;
-  renderLoop.camera.centerOn(coord);
-  notifier.toast(target.label, 'info');
-}
-
-function applyPirateActionResult(result: PirateActionResult, successMessage: string): void {
-  if (!result.success) {
-    showNotification(result.reason ?? 'That pirate action is no longer available.', 'warning');
-    return;
-  }
-  session.setStateWithoutRefresh(result.state);
-  for (const event of result.events) {
-    if (event.type === 'tribute-paid') {
-      bus.emit('pirate:audio-cue', { cue: 'tribute', factionId: event.factionId, viewerIds: [event.civId] });
-    } else if (event.type === 'contract-accepted') {
-      bus.emit('pirate:audio-cue', { cue: 'contract-accepted', factionId: event.factionId, viewerIds: [event.employerId] });
-    }
-  }
-  renderLoop.setGameState(session.getState());
-  hud.update();
-  showNotification(successMessage, 'success');
+  notifyPlayer(notifier, session, message, type, target);
 }
 
 function executeMinorCivConquest(unitId: string, target: HexCoord, minorCivId: string, cityId: string): void {
@@ -837,7 +756,7 @@ function executeAttack(attackerId: string, targetKey: string): void {
   playerActions.ensurePlayerWarState(defender.owner);
 
   const seed = deterministicCombatSeed(session.getState().gameId, session.getState().turn, attacker.id, defender.id);
-  const attackerBonus = currentCivDef()?.bonusEffect;
+  const attackerBonus = getCurrentCivDef(session)?.bonusEffect;
   // Capture defender position before combat (defender may be removed from state after)
   const defenderPosition = { ...defender.position };
   // Capture route IDs before combat (units may be removed from state after)
@@ -967,6 +886,10 @@ void bootstrap({
   bus,
   presentationContext,
   getState: () => session.getState(),
-  appendToCivLog,
+  // Thunked, not `notifier.deliver` directly -- `notifier` is not assigned
+  // until init() runs, after this module-scope call (#787 phase 10b-f,
+  // formerly the separate `appendToCivLog` const, inlined at its one
+  // consumer).
+  appendToCivLog: (...args) => notifier.deliver(...args),
   gameSession,
 });
