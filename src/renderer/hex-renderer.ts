@@ -478,14 +478,18 @@ function drawHex(
         ctx.fillText('🚩', cx, cy);
       }
     } else {
-      drawImprovementTreatment(ctx, tile.improvement, cx, cy, size);
+      drawImprovementTreatment(ctx, tile.improvement, cx, cy, size, tile.improvement === 'fort'
+        ? { tier: viewerTechs.has('fortification-engineering') ? 'citadel' : 'fort' }
+        : undefined);
     }
   }
 
   // Draw construction progress indicator
   if (tile.improvement !== 'none' && tile.improvementTurnsLeft > 0) {
     ctx.globalAlpha = 0.42;
-    drawImprovementTreatment(ctx, tile.improvement, cx, cy, size);
+    drawImprovementTreatment(ctx, tile.improvement, cx, cy, size, tile.improvement === 'fort'
+      ? { tier: viewerTechs.has('fortification-engineering') ? 'citadel' : 'fort' }
+      : undefined);
     ctx.globalAlpha = 1;
     ctx.font = `bold ${size * 0.22}px sans-serif`;
     ctx.fillStyle = 'rgba(255,255,255,0.9)';

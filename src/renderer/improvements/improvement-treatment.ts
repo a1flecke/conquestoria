@@ -73,6 +73,7 @@ export function drawImprovementTreatment(
   cx: number,
   cy: number,
   size: number,
+  options: { tier?: FortMarkerTier } = {},
 ): boolean {
   const family = getImprovementTreatmentFamily(improvement);
   if (!family) return false;
@@ -190,13 +191,10 @@ export function drawImprovementTreatment(
       ctx.fill();
       break;
     case 'fort':
-      ctx.fillStyle = 'rgba(104, 91, 72, 0.92)';
-      ctx.fillRect(cx - size * 0.3, cy, size * 0.6, size * 0.28);
-      ctx.strokeStyle = 'rgba(53, 43, 34, 0.95)';
-      ctx.lineWidth = Math.max(1, size * 0.04);
-      ctx.strokeRect(cx - size * 0.3, cy, size * 0.6, size * 0.28);
+      drawFortMarker(ctx, cx, cy, size, options.tier ?? 'fort');
       break;
   }
 
   return true;
 }
+import { drawFortMarker, type FortMarkerTier } from './fort-marker';
