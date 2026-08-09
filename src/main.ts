@@ -13,7 +13,6 @@ import { createTechPanel } from '@/ui/tech-panel';
 import { createCityPanel } from '@/ui/city-panel';
 import { createCityCapturePanel } from '@/ui/city-capture-panel';
 import { createWonderPanel } from '@/ui/wonder-panel';
-import { createWonderAtlasPanel } from '@/ui/wonder-atlas-panel';
 import { deterministicCombatSeed, resolveCombat } from '@/systems/combat-system';
 import { buildCombatContextForDefender, getAmphibiousAssaultMultiplier } from '@/systems/combat-context';
 import { canUnitAttackTarget } from '@/systems/attack-targeting';
@@ -28,8 +27,7 @@ import { applyCampDestructionAtTarget } from '@/systems/barbarian-system';
 import { recordBeastSlain, isBeastConcealedFrom, applyHoardChoice, getHoardChoicePreview, canUnitAttackBeast } from '@/systems/beast-system';
 import { createBeastHoardPanel } from '@/ui/beast-hoard-panel';
 import { BEAST_DEFINITIONS } from '@/systems/beast-definitions';
-import { recordBeastSightings, getBestiaryEntriesForPlayer } from '@/systems/beast-presentation';
-import { createBestiaryPanel } from '@/ui/bestiary-panel';
+import { recordBeastSightings } from '@/systems/beast-presentation';
 import { loadSettings, saveSettings } from '@/storage/save-manager';
 import { AudioSystem } from '@/audio/audio-system';
 import { SFX } from '@/audio/sfx';
@@ -38,19 +36,13 @@ import { createMarketplacePanel } from '@/ui/marketplace-panel';
 import { createEspionagePanel } from '@/ui/espionage-panel';
 import { AdvisorSystem } from '@/ui/advisor-system';
 import { createCouncilPanel } from '@/ui/council-panel';
-import { createNotificationLogPanel } from '@/ui/notification-log-panel';
-import { createPirateWatersPanel } from '@/ui/pirate-waters-panel';
-import { getPirateWatersPresentation, type PirateFocusTarget } from '@/systems/pirate-presentation';
-import { hirePirateFlotilla, payPirateTribute, type PirateActionResult } from '@/systems/pirate-actions';
-import { markNotificationRead, resolvePirateNotificationReview } from '@/ui/pirate-notification-listeners';
-import { confirmPirateHeadquartersAssault, preparePirateHeadquartersAssault } from '@/input/pirate-headquarters-assault';
-import { createPirateHeadquartersAssaultPanel } from '@/ui/pirate-headquarters-assault-panel';
+import type { PirateFocusTarget } from '@/systems/pirate-presentation';
+import type { PirateActionResult } from '@/systems/pirate-actions';
 import { formatNotificationTargetFocusMessage } from '@/ui/notification-targets';
 import { createNetworkIntentPanel } from '@/ui/network-intent-panel';
 import { createNetworkPanel, getNetworkPanelModel } from '@/ui/network-panel';
 import { renderUnitStackPanel } from '@/ui/unit-stack-panel';
 import { createUnitTurnFlow } from '@/ui/unit-turn-flow';
-import { createPacingDebugPanel } from '@/ui/pacing-debug-panel';
 import { resolveCivDefinition } from '@/systems/civ-registry';
 import { declareWar, makePeace, modifyRelationship, resolveOpponentKind } from '@/systems/diplomacy-system';
 import { visitVillage } from '@/systems/village-system';
@@ -65,8 +57,7 @@ import { buildUnitOccupancy, hasHostileUnitAtCoord } from '@/systems/unit-occupa
 import { beginPlayerCityAssaultChoice, shouldPromptForPlayerCityCapture } from '@/input/city-assault-flow';
 import { canUnitOccupyCity } from '@/systems/city-capture-system';
 import { buildCombatPresentation } from '@/systems/viewer-event-presentation';
-import { initializeLegendaryWonderProjectsForCity, getLegendaryWonderEligibility, startLegendaryWonderBuild } from '@/systems/legendary-wonder-system';
-import { getLegendaryWonderDefinition } from '@/systems/legendary-wonder-definitions';
+import { initializeLegendaryWonderProjectsForCity, startLegendaryWonderBuild } from '@/systems/legendary-wonder-system';
 import { embedSpy, unembedSpy, attemptSweep, getAvailableMissions, getSpyCaptureRelationshipPenalty, expelSpy, executeSpy, startInterrogation, isSpyUnitType, missionRequiresPlacedSpy, recallSpy, resolveMissionResult, startMission, verifyAgent } from '@/systems/espionage-system';
 import { applyUnitUpgradeToState, evaluateUnitUpgrade } from '@/systems/unit-upgrade-system';
 import { executeUnitMove, isWorkerBusy } from '@/systems/unit-movement-system';
@@ -74,7 +65,7 @@ import { getEmbarkedAssaultTarget, detachCargoForEmbarkedAssault } from '@/syste
 import { createSelectionStore } from '@/app/selection-store';
 import { getCapitalCity, getCapitalCityId } from '@/systems/capital-system';
 import type { CombatResult, GameState, HexCoord, Unit, UnitType, CivBonusEffect, WorkerActionType } from '@/core/types';
-import { appendNotification, getNotificationsForPlayer, type NotificationCityAction, type NotificationEntry } from '@/core/notification-log';
+import { appendNotification, type NotificationCityAction, type NotificationEntry } from '@/core/notification-log';
 import type { NotificationSink } from '@/ui/notification-routing';
 import { createUserSettingsStore } from '@/app/user-settings-store';
 import type { Notifier } from '@/app/ports';
@@ -85,6 +76,7 @@ import { canBuyResourceAccess, performBuyResourceAccess } from '@/systems/resour
 import { createCeremonyCoordinator, type CeremonyCoordinator } from '@/app/controllers/ceremony-coordinator';
 import { createSelectionController, type SelectionController } from '@/app/controllers/selection-controller';
 import { createDiplomacyActionsController, type DiplomacyActionsController } from '@/app/controllers/diplomacy-actions-controller';
+import { createPanelActionsController, type PanelActionsController } from '@/app/controllers/panel-actions-controller';
 import { createMapInteractionController, type MapInteractionController } from '@/app/controllers/map-interaction-controller';
 import { createTurnFlowController, type TurnFlowController } from '@/app/controllers/turn-flow-controller';
 import { createHudController, type HudController } from '@/app/controllers/hud-controller';
@@ -213,7 +205,7 @@ const ceremonies: CeremonyCoordinator = createCeremonyCoordinator({
   playDiscoveryAudio: wonderId => {
     void audio.playNaturalWonderDiscovery(wonderId);
   },
-  openAtlas: wonderId => openWonderAtlas(wonderId),
+  openAtlas: wonderId => panelActions.openWonderAtlas(wonderId),
   openCity: cityId => {
     const city = session.getState().cities[cityId];
     if (city) openCityPanelForCity(city);
@@ -252,6 +244,34 @@ const diplomacyActions: DiplomacyActionsController = createDiplomacyActionsContr
   selectionController: { selectUnit: (unitId, opts) => selectionController.selectUnit(unitId, opts) },
 });
 
+/**
+ * Owns the utility and world-event panel openers (#787 phase 10b-b -- part 1
+ * of 3 for `PanelActionsController`, see 10b-c/10b-d for the rest). `hud` and
+ * `selectionController` use the same deferred-but-eager lazy-wrapper pattern
+ * as `diplomacyActions` above, for the same reason (neither is assigned yet
+ * at this point in module evaluation).
+ */
+const panelActions: PanelActionsController = createPanelActionsController({
+  session,
+  bus,
+  uiLayer,
+  getElementById: id => document.getElementById(id),
+  selection,
+  audio,
+  renderLoop,
+  showNotification,
+  focusNotificationTarget,
+  focusPirateTarget,
+  applyPirateActionResult,
+  openCityPanelForCity,
+  openWonderPanelForCityId,
+  hud: { closeDrawer: () => hud.closeDrawer(), update: () => hud.update() },
+  selectionController: {
+    selectUnit: (unitId, opts) => selectionController.selectUnit(unitId, opts),
+    deselectUnit: () => selectionController.deselectUnit(),
+  },
+});
+
 const selectionController: SelectionController = createSelectionController({
   session,
   selection,
@@ -271,7 +291,7 @@ const selectionController: SelectionController = createSelectionController({
   restAction,
   openNetworkIntentPanel,
   openUnitStackPicker,
-  openPirateHeadquartersAssault,
+  openPirateHeadquartersAssault: panelActions.openPirateHeadquartersAssault,
   handleEstablishRoute: diplomacyActions.handleEstablishRoute,
   executeUpgrade,
   ensurePlayerWarState,
@@ -348,10 +368,10 @@ const mapInteraction: MapInteractionController = createMapInteractionController(
   updateHUD: () => hud.update(),
   clearUnloadState,
   currentCiv,
-  openPirateWaters,
+  openPirateWaters: panelActions.openPirateWaters,
   openUnitStackPicker,
   openCityPanelForCity,
-  openWonderAtlas,
+  openWonderAtlas: panelActions.openWonderAtlas,
   executeAttack,
   executeMinorCivConquest,
   beginPlayerCityAssault,
@@ -455,27 +475,11 @@ const presentationContext: PresentationContext = {
   showNotification: (message, type, target) => showNotification(message, type, target),
 };
 
-/**
- * `createPacingDebugPanel` self-removes any prior instance from `uiLayer`,
- * so the router's own DOM-derived `isOpen`/`close` need no extra bookkeeping
- * here (#787 phase 5).
- */
-function openPacingDebugPanel(): void {
-  if (session.getState()) createPacingDebugPanel(uiLayer, session.getState());
-}
-
 // Escape-cancels-journey and backtick-toggles-pacing-debug used to live in a
 // module-scope `window.addEventListener('keydown', ...)` here. Moved to
 // `installGlobalShortcuts` (called from `init()`, once `notifier` exists) so
 // it can depend on the real `Notifier`/`PanelRouter` ports instead of
 // reaching into module-scope closures directly (#787 phase 5).
-
-function openBestiary(): void {
-  createBestiaryPanel(uiLayer, getBestiaryEntriesForPlayer(session.getState(), session.getState().currentPlayer), {
-    onClose: () => {},
-    slayerNameFor: (civId) => session.getState().civilizations[civId]?.name ?? civId,
-  });
-}
 
 function scanBeastSightings(): void {
   const visTiles = currentCiv()?.visibility?.tiles;
@@ -510,31 +514,6 @@ function maybeShowPendingHoardChoice(): void {
     bus.emit('beast:hoard-claimed', { lairId: pending.lairId, beastId: lair.beastId, civId: pending.civId, choice });
     hud.update();
     maybeShowPendingHoardChoice();
-  });
-}
-
-function openWonderAtlas(initialWonderId?: string): void {
-  hud.closeDrawer();
-  audio.stopNaturalWonderAmbient('codex-page-hidden');
-  createWonderAtlasPanel(uiLayer, session.getState(), {
-    initialWonderId,
-    onViewOnMap: coord => {
-      renderLoop.camera.centerOn(coord);
-    },
-    onOpenCity: cityId => {
-      const city = session.getState().cities[cityId];
-      if (city) openCityPanelForCity(city);
-    },
-    onNaturalWonderPageShown: wonderId => {
-      void audio.startNaturalWonderCodexAmbient(wonderId);
-    },
-    onNaturalWonderPageHidden: () => {
-      audio.stopNaturalWonderAmbient('codex-page-hidden');
-    },
-    onNaturalWonderReplay: wonderId => {
-      void audio.playNaturalWonderReplay(wonderId);
-    },
-    onClose: () => {},
   });
 }
 
@@ -606,179 +585,6 @@ function applyPirateActionResult(result: PirateActionResult, successMessage: str
   renderLoop.setGameState(session.getState());
   hud.update();
   showNotification(successMessage, 'success');
-}
-
-function openPirateWaters(focus?: { factionId?: string; historyId?: string }): void {
-  if (focus?.factionId) {
-    selection.setPirateSelection(focus.factionId, null);
-  } else if (focus?.historyId) {
-    selection.setPirateSelection(null, focus.historyId);
-  }
-
-  const renderPanel = (): void => {
-    const base = getPirateWatersPresentation(session.getState(), session.getState().currentPlayer);
-    if (!base.available) return;
-    const { factionId: selectedPirateFactionId, historyId: selectedPirateHistoryId } = selection.getPirateSelection();
-    const factionId = selectedPirateFactionId && base.factions.some(faction => faction.factionId === selectedPirateFactionId)
-      ? selectedPirateFactionId
-      : base.factions[0]?.factionId;
-    let historyId = selectedPirateHistoryId && base.history.some(entry => entry.id === selectedPirateHistoryId)
-      ? selectedPirateHistoryId
-      : undefined;
-    if (!historyId && selectedPirateFactionId && !base.factions.some(faction => faction.factionId === selectedPirateFactionId)) {
-      historyId = [...base.history].reverse().find(entry => entry.factionId === selectedPirateFactionId)?.id;
-      selection.setPirateSelection(selectedPirateFactionId, historyId ?? null);
-    }
-    if (!historyId) selection.setPirateSelection(factionId ?? null, selection.getPirateSelection().historyId);
-    renderLoop.setSelectedPirateFactionId(historyId ? null : (factionId ?? null));
-    if (historyId || !factionId) audio.stopPirateAmbience('focus-changed');
-    else void audio.startPirateHeadquartersAmbience(factionId);
-    const presentation = {
-      ...base,
-      ...(factionId && !historyId ? { selectedFactionId: factionId } : {}),
-      ...(historyId ? { selectedHistoryId: historyId } : {}),
-    };
-    createPirateWatersPanel(uiLayer, presentation, {
-      onClose: () => {
-        document.getElementById('pirate-waters-panel')?.remove();
-        renderLoop.setSelectedPirateFactionId(null);
-        audio.stopPirateAmbience('panel-closed');
-      },
-      onSelectFaction: nextFactionId => {
-        selection.setPirateSelection(nextFactionId, null);
-        renderPanel();
-      },
-      onSelectHistory: nextHistoryId => {
-        selection.setPirateSelection(null, nextHistoryId);
-        renderPanel();
-      },
-      onFocus: focusPirateTarget,
-      onPayTribute: faction => {
-        const result = payPirateTribute(session.getState(), faction, session.getState().currentPlayer);
-        applyPirateActionResult(result, 'Pirate tribute paid.');
-        renderPanel();
-        return result;
-      },
-      onHireFlotilla: (faction, targetId) => {
-        const result = hirePirateFlotilla(session.getState(), faction, session.getState().currentPlayer, targetId);
-        applyPirateActionResult(result, 'Pirate flotilla hired.');
-        renderPanel();
-        return result;
-      },
-      onOpenAssault: faction => {
-        const selectedUnitId = selection.getSelectedUnitId();
-        if (selectedUnitId) {
-          const pending = preparePirateHeadquartersAssault(session.getState(), faction, selectedUnitId);
-          if (pending.preview.available) {
-            openPirateHeadquartersAssault(faction, selectedUnitId);
-            return;
-          }
-        }
-        const target = base.factions.find(entry => entry.factionId === faction)?.focusTarget;
-        if (target) focusPirateTarget(target);
-        showNotification('Select an adjacent available naval combat unit to assault this enclave.', 'info');
-      },
-    });
-  };
-
-  renderPanel();
-}
-
-function openPirateHeadquartersAssault(factionId: string, unitId: string): void {
-  const pending = preparePirateHeadquartersAssault(session.getState(), factionId, unitId);
-  if (!pending.preview.available) {
-    showNotification(pending.preview.reason ?? 'This enclave cannot be assaulted now.', 'warning');
-    return;
-  }
-  const panel = createPirateHeadquartersAssaultPanel(uiLayer, pending, {
-    onCancel: () => panel.remove(),
-    onConfirm: () => {
-      const result = confirmPirateHeadquartersAssault(session.getState(), pending);
-      if (!result.success) {
-        panel.remove();
-        showNotification(result.reason ?? 'The assault is no longer available.', 'warning');
-        if (session.getState().units[unitId]) selectionController.selectUnit(unitId);
-        return;
-      }
-      renderLoop.applyPirateHeadquartersAssaultVisual(factionId, unitId, {
-        destroyed: Boolean(result.destroyed),
-        attackerSurvived: Boolean(result.state.units[unitId]),
-      });
-      if (result.destroyed) {
-        bus.emit('pirate:headquarters-destroyed', {
-          factionId,
-          viewerIds: [session.getState().currentPlayer],
-        });
-      }
-      session.setStateWithoutRefresh(result.state);
-      panel.remove();
-      renderLoop.setGameState(session.getState());
-      hud.update();
-      SFX.combat();
-      const bountyAwarded = result.events.find(event => event.type === 'faction-destroyed')?.bountyAwarded ?? 0;
-      showNotification(
-        result.destroyed
-          ? `Pirate enclave destroyed. Bounty awarded: ${bountyAwarded} gold.`
-          : `Pirate enclave damaged for ${result.damageToHeadquarters ?? 0} integrity.`,
-        result.destroyed ? 'success' : 'info',
-      );
-      if (session.getState().units[unitId]) selectionController.selectUnit(unitId);
-      else selectionController.deselectUnit();
-      openPirateWaters({ factionId });
-    },
-  });
-}
-
-/**
- * The "close if already open" behavior moved to `router.toggle('notification-log')`
- * (#787 phase 5) -- `isOpen`/`close` are DOM-derived, so this only needs to
- * build and append the panel now.
- */
-function openNotificationLog(): void {
-  const entries = session.getState()
-    ? getNotificationsForPlayer(session.getState().notificationLog ?? {}, session.getState().currentPlayer)
-    : [];
-  const panel = createNotificationLogPanel(entries, {
-    onClose: () => panel.remove(),
-    onFocusTarget: focusNotificationTarget,
-    onOpenCity: (cityId) => {
-      panel.remove();
-      const city = session.getState()?.cities[cityId];
-      if (city) openCityPanelForCity(city);
-    },
-    onOpenWonderCity: action => {
-      const city = session.getState()?.cities[action.cityId];
-      const definition = getLegendaryWonderDefinition(action.wonderId);
-      if (!city || !definition || city.owner !== session.getState().currentPlayer
-        || !getLegendaryWonderEligibility(session.getState(), session.getState().currentPlayer, city.id, definition).buildable) {
-        showNotification('That wonder is no longer available in this city.', 'warning');
-        return;
-      }
-      panel.remove();
-      openWonderPanelForCityId(city.id);
-    },
-    onMarkRead: notificationId => {
-      session.setStateWithoutRefresh(markNotificationRead(session.getState(), session.getState().currentPlayer, notificationId));
-    },
-    onReviewPirate: review => {
-      const resolved = resolvePirateNotificationReview(session.getState(), session.getState().currentPlayer, review);
-      panel.remove();
-      if (resolved?.kind === 'active') openPirateWaters({ factionId: resolved.factionId });
-      if (resolved?.kind === 'history') openPirateWaters({ historyId: resolved.historyId });
-    },
-  });
-
-  uiLayer.appendChild(panel);
-
-  setTimeout(() => {
-    const handler = (e: Event) => {
-      if (!panel.contains(e.target as Node)) {
-        panel.remove();
-        document.removeEventListener('click', handler);
-      }
-    };
-    document.addEventListener('click', handler);
-  }, 100);
 }
 
 function executeMinorCivConquest(unitId: string, target: HexCoord, minorCivId: string, cityId: string): void {
@@ -1355,10 +1161,10 @@ const panelRegistry = {
       throw new Error("'wonder' is parameterized -- call openWonderPanelForCityId(cityId) directly, not router.open('wonder').");
     },
   },
-  'wonder-atlas': { domId: 'wonder-codex-panel', group: 'transient', open: () => openWonderAtlas() },
-  bestiary: { domId: 'bestiary-panel', group: 'transient', open: () => openBestiary() },
-  'pirate-waters': { domId: 'pirate-waters-panel', group: 'transient', open: () => openPirateWaters() },
-  'notification-log': { domId: 'notification-log', group: 'transient', open: () => openNotificationLog() },
+  'wonder-atlas': { domId: 'wonder-codex-panel', group: 'transient', open: () => panelActions.openWonderAtlas() },
+  bestiary: { domId: 'bestiary-panel', group: 'transient', open: () => panelActions.openBestiary() },
+  'pirate-waters': { domId: 'pirate-waters-panel', group: 'transient', open: () => panelActions.openPirateWaters() },
+  'notification-log': { domId: 'notification-log', group: 'transient', open: () => panelActions.openNotificationLog() },
   'city-overview': { domId: 'city-overview-panel', group: 'main', open: () => openCityOverviewPanel() },
   'territory-inspection': {
     domId: 'territory-inspection-panel',
@@ -1369,7 +1175,7 @@ const panelRegistry = {
       );
     },
   },
-  'pacing-debug': { domId: 'pacing-debug-panel', group: 'transient', open: () => openPacingDebugPanel() },
+  'pacing-debug': { domId: 'pacing-debug-panel', group: 'transient', open: () => panelActions.openPacingDebugPanel() },
 } satisfies PanelRegistry;
 
 router = createPanelRouter({ host, registry: panelRegistry, context: panelContext });
