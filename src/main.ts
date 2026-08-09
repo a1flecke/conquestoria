@@ -1,8 +1,7 @@
 import { EventBus } from '@/core/event-bus';
 import { RenderLoop } from '@/renderer/render-loop';
 import { hexKey, parseHexKey } from '@/systems/hex-utils';
-import { moveUnit, getMovementCost, UNIT_DEFINITIONS, restUnit, canHeal, createUnit } from '@/systems/unit-system';
-import { isMajorCivOwner } from '@/core/owner-kind';
+import { moveUnit, getMovementCost } from '@/systems/unit-system';
 import { foundCityInState } from '@/systems/city-founding-system';
 import { formatCityFoundingBlockerMessage, getCityFoundingBlockers } from '@/systems/city-territory-system';
 import { createCityCapturePanel } from '@/ui/city-capture-panel';
@@ -11,10 +10,7 @@ import { buildCombatContextForDefender, getAmphibiousAssaultMultiplier } from '@
 import { canUnitAttackTarget } from '@/systems/attack-targeting';
 import { applyCombatOutcomeToState, getCaptureNotificationLabel } from '@/systems/combat-reward-system';
 import { recordCombatForCiv } from '@/systems/threat-pressure-system';
-import { applyWorkerAction } from '@/systems/worker-action-system';
 import { resolveCombatEra } from '@/systems/era-resolution';
-import { preach } from '@/systems/religion-system';
-import { createUnitDeleteConfirmationPanel } from '@/ui/unit-delete-confirmation-panel';
 import { getVisibility } from '@/systems/fog-of-war';
 import { applyCampDestructionAtTarget } from '@/systems/barbarian-system';
 import { recordBeastSlain, isBeastConcealedFrom, applyHoardChoice, getHoardChoicePreview, canUnitAttackBeast } from '@/systems/beast-system';
@@ -28,9 +24,8 @@ import { AdvisorSystem } from '@/ui/advisor-system';
 import type { PirateFocusTarget } from '@/systems/pirate-presentation';
 import type { PirateActionResult } from '@/systems/pirate-actions';
 import { formatNotificationTargetFocusMessage } from '@/ui/notification-targets';
-import { createUnitTurnFlow } from '@/ui/unit-turn-flow';
 import { resolveCivDefinition } from '@/systems/civ-registry';
-import { declareWar, makePeace, modifyRelationship, resolveOpponentKind } from '@/systems/diplomacy-system';
+import { makePeace } from '@/systems/diplomacy-system';
 import { visitVillage } from '@/systems/village-system';
 import { clearStaleSoloPendingEvents } from '@/core/hotseat-events';
 import { refreshKnownCivilizations, syncCivilizationContactsFromVisibility } from '@/systems/discovery-system';
@@ -41,13 +36,12 @@ import { buildUnitOccupancy, hasHostileUnitAtCoord } from '@/systems/unit-occupa
 import { beginPlayerCityAssaultChoice, shouldPromptForPlayerCityCapture } from '@/input/city-assault-flow';
 import { canUnitOccupyCity } from '@/systems/city-capture-system';
 import { buildCombatPresentation } from '@/systems/viewer-event-presentation';
-import { getSpyCaptureRelationshipPenalty, expelSpy, executeSpy, startInterrogation, isSpyUnitType } from '@/systems/espionage-system';
+import { isSpyUnitType } from '@/systems/espionage-system';
 import { applyUnitUpgradeToState } from '@/systems/unit-upgrade-system';
 import { executeUnitMove, isWorkerBusy } from '@/systems/unit-movement-system';
 import { getEmbarkedAssaultTarget, detachCargoForEmbarkedAssault } from '@/systems/transport-system';
 import { createSelectionStore } from '@/app/selection-store';
-import { getCapitalCity } from '@/systems/capital-system';
-import type { CombatResult, GameState, HexCoord, UnitType, CivBonusEffect, WorkerActionType } from '@/core/types';
+import type { CombatResult, GameState, HexCoord, UnitType, CivBonusEffect } from '@/core/types';
 import { appendNotification, type NotificationCityAction, type NotificationEntry } from '@/core/notification-log';
 import type { NotificationSink } from '@/ui/notification-routing';
 import { createUserSettingsStore } from '@/app/user-settings-store';
@@ -57,6 +51,7 @@ import { createCeremonyCoordinator, type CeremonyCoordinator } from '@/app/contr
 import { createSelectionController, type SelectionController } from '@/app/controllers/selection-controller';
 import { createDiplomacyActionsController, type DiplomacyActionsController } from '@/app/controllers/diplomacy-actions-controller';
 import { createPanelActionsController, type PanelActionsController } from '@/app/controllers/panel-actions-controller';
+import { createPlayerActionController, type PlayerActionController } from '@/app/controllers/player-action-controller';
 import { createMapInteractionController, type MapInteractionController } from '@/app/controllers/map-interaction-controller';
 import { createTurnFlowController, type TurnFlowController } from '@/app/controllers/turn-flow-controller';
 import { createHudController, type HudController } from '@/app/controllers/hud-controller';
@@ -66,7 +61,6 @@ import { bootstrap } from '@/app/bootstrap';
 import { registerAllPresentation, type PresentationContext } from '@/presentation/register-all';
 import { removeRouteForUnit, createMarketplaceState } from '@/systems/trade-system';
 import { emitMinorCivQuestTransitions } from '@/systems/quest-chain-system';
-import { applyOpportunisticWarPenaltyIfCrisisStruck } from '@/systems/crisis-interaction-system';
 import { RoundPresentationGate } from '@/presentation/round-presentation-gate';
 import type { GameSession } from '@/app/ports';
 import { createGameSession } from '@/app/game-session';
@@ -197,11 +191,14 @@ const ceremonies: CeremonyCoordinator = createCeremonyCoordinator({
 /**
  * Owns unit selection: `selectUnit`, `deselectUnit`, `selectNextUnit`, and the
  * animated-move / auto-explore / journey lifecycle around a selected unit
- * (#787 phase 8c). References several functions defined later in this file
- * (`foundCityAction`, `performWorkerAction`, `getUnitTurnFlow`, etc.) --
- * safe because they are hoisted function declarations and none of them run
- * until real gameplay, well after module evaluation finishes. The same
+ * (#787 phase 8c). References `foundCityAction`, a function defined later in
+ * this file -- safe because it's a hoisted function declaration that doesn't
+ * run until real gameplay, well after module evaluation finishes. The same
  * deferred-but-eager pattern `notifier` and `router` already use.
+ * `performWorkerAction`/`getUnitTurnFlow`/`restAction`/`ensurePlayerWarState`
+ * moved into `PlayerActionController` (phase 10b-e) and are threaded through
+ * as lazy wrappers instead, per that controller's own construction comment
+ * further down.
  */
 /**
  * Owns the diplomacy, minor-civ, and crisis-interaction handlers (#787 phase
@@ -264,6 +261,15 @@ const panelActions: PanelActionsController = createPanelActionsController({
   },
 });
 
+/**
+ * `getUnitTurnFlow`/`performWorkerAction`/`performPreach`/`restAction`/
+ * `ensurePlayerWarState` are wrapped in thin lazily-evaluating closures, not
+ * passed directly -- `playerActions` (#787 phase 10b-e) is constructed after
+ * `selectionController` (it needs `selectionController` itself as a direct
+ * dep, resolving the reverse forward-reference), so a direct reference here
+ * would capture `undefined` at construction time. Same deferred-but-eager
+ * pattern this file already uses for `router`/`notifier`/`campaignEntry`.
+ */
 const selectionController: SelectionController = createSelectionController({
   session,
   selection,
@@ -276,17 +282,17 @@ const selectionController: SelectionController = createSelectionController({
   showNotification,
   updateHUD: () => hud.update(),
   clearUnloadState,
-  getUnitTurnFlow,
+  getUnitTurnFlow: () => playerActions.getUnitTurnFlow(),
   foundCityAction,
-  performWorkerAction,
-  performPreach,
-  restAction,
+  performWorkerAction: action => playerActions.performWorkerAction(action),
+  performPreach: (unitId, cityId) => playerActions.performPreach(unitId, cityId),
+  restAction: () => playerActions.restAction(),
   openNetworkIntentPanel: panelActions.openNetworkIntentPanel,
   openUnitStackPicker: panelActions.openUnitStackPicker,
   openPirateHeadquartersAssault: panelActions.openPirateHeadquartersAssault,
   handleEstablishRoute: diplomacyActions.handleEstablishRoute,
   executeUpgrade,
-  ensurePlayerWarState,
+  ensurePlayerWarState: targetCivId => playerActions.ensurePlayerWarState(targetCivId),
   scanBeastSightings,
   currentCiv,
 });
@@ -324,7 +330,10 @@ const turnFlow: TurnFlowController = createTurnFlowController({
   updateHUD: () => hud.update(),
   setBlockingOverlay,
   currentCiv,
-  getUnitTurnFlow,
+  // Lazy wrapper: `playerActions` (10b-e) is constructed after `turnFlow`
+  // (it needs `turnFlow.endTurn` as a direct dep), same deferred-but-eager
+  // reverse forward-reference as `selectionController`'s dep above.
+  getUnitTurnFlow: () => playerActions.getUnitTurnFlow(),
   deselectUnit: selectionController.deselectUnit,
   selectNextUnit: selectionController.selectNextUnit,
   scanBeastSightings,
@@ -337,6 +346,32 @@ const turnFlow: TurnFlowController = createTurnFlowController({
   showGameModeSelection: () => campaignEntry.showGameModeSelection(),
   reloadPage: () => window.location.reload(),
   openCityPanelForCity: panelActions.openCityPanelForCity,
+});
+
+/**
+ * Owns the player-unit-action functions `getUnitTurnFlow`, `performWorkerAction`,
+ * `performPreach`, `ensurePlayerWarState`, `restAction`, and
+ * `showEspionageCaptureChoice` (#787 phase 10b-e -- a partial `PlayerActionController`;
+ * Phase 13, not yet merged, will extend this same file with a different
+ * function group in the same domain). Constructed after both `selectionController`
+ * and `turnFlow` so it can take direct references to both -- see the lazy
+ * wrappers those two use above for the reverse direction of this same
+ * three-way forward reference. `notifier` still needs its own lazy wrapper
+ * here since it is a `let` not assigned until `init()` runs.
+ */
+const playerActions: PlayerActionController = createPlayerActionController({
+  session,
+  bus,
+  uiLayer,
+  selection,
+  selectionController,
+  turnFlow,
+  hud: { update: () => hud.update() },
+  renderLoop,
+  showNotification,
+  setBlockingOverlay,
+  currentCiv,
+  notifier: { choice: (message, actions) => notifier.choice(message, actions) },
 });
 
 /**
@@ -461,7 +496,7 @@ const presentationContext: PresentationContext = {
   selection,
   requestDeliveryVisual: unitId => renderLoop.applyDeliveryVisual(unitId),
   applyCombatVisual: result => renderLoop.applyCombatVisual(result),
-  showEspionageCaptureChoice: (spyId, spyOwner) => showEspionageCaptureChoice(spyId, spyOwner),
+  showEspionageCaptureChoice: (spyId, spyOwner) => playerActions.showEspionageCaptureChoice(spyId, spyOwner),
   uiLayer,
   maybeShowPendingHoardChoice: () => maybeShowPendingHoardChoice(),
   isPresentationSuppressed: () => roundPresentationGate.isSuppressed(),
@@ -665,27 +700,6 @@ const panelRegistry = {
 
 router = createPanelRouter({ host, registry: panelRegistry, context: panelContext });
 
-function getUnitTurnFlow() {
-  return createUnitTurnFlow({
-    uiLayer,
-    getState: () => session.getState(),
-    setState: nextState => { session.setStateWithoutRefresh(nextState); },
-    getSelectedUnitId: () => selection.getSelectedUnitId(),
-    selectUnit: selectionController.selectUnit,
-    deselectUnit: selectionController.deselectUnit,
-    selectNextUnit: selectionController.selectNextUnit,
-    centerOn: coord => renderLoop.camera.centerOn(coord),
-    refreshVisibility: selectionController.refreshCurrentPlayerVisibility,
-    setRenderState: state => renderLoop.setGameState(state),
-    updateHUD: () => hud.update(),
-    showNotification,
-    setBlockingOverlay,
-    endTurn: options => { void turnFlow.endTurn(options); },
-    onUnitDisbanded: (state, unitId, routeId) =>
-      removeRouteForUnit(state, unitId, bus, 'unit-disbanded', routeId),
-  });
-}
-
 function foundCityAction(): void {
   const selectedUnitId = selection.getSelectedUnitId();
   if (!selectedUnitId) return;
@@ -725,91 +739,6 @@ function foundCityAction(): void {
   hud.update();
 }
 
-function performWorkerAction(action: WorkerActionType): void {
-  const selectedUnitId = selection.getSelectedUnitId();
-  if (!selectedUnitId) return;
-
-  const result = applyWorkerAction(session.getState(), selectedUnitId, action);
-  if (!result.ok) return;
-
-  session.setStateWithoutRefresh(result.state);
-  for (const event of result.events) {
-    if (event.type === 'improvement:started') {
-      bus.emit('improvement:started', event.payload);
-    } else if (event.type === 'road:started') {
-      bus.emit('road:started', event.payload);
-    } else {
-      bus.emit('unit:destroyed', event.payload);
-    }
-  }
-
-  renderLoop.setGameState(session.getState());
-  hud.update();
-
-  if (result.workerConsumed || result.workerLost || !session.getState().units[selectedUnitId]) {
-    selectionController.deselectUnit();
-  } else {
-    selectionController.selectUnit(selectedUnitId);
-  }
-
-  showNotification(result.message, result.workerLost ? 'warning' : 'info');
-}
-
-// #592 MR5: preach action. Mirrors performWorkerAction's state-apply + rerender pattern,
-// but adds a non-destructive confirmation dialog when the missionary is consumed on its
-// last charge — the deletion has already happened inside preach() by this point, so the
-// dialog is an acknowledgment, not a gate (hideCancel: true, no undo possible).
-function performPreach(unitId: string, cityId: string): void {
-  const unit = session.getState().units[unitId];
-  const cityName = session.getState().cities[cityId]?.name ?? cityId;
-  const result = preach(session.getState(), unitId, cityId, bus);
-  if (!result.ok) return;
-
-  session.commit(result.state);
-
-  const message = result.converted
-    ? `${cityName} has converted to your faith!`
-    : `You preached in ${cityName}.`;
-
-  if (result.unitConsumed) {
-    selectionController.deselectUnit();
-    setBlockingOverlay('unit-delete-confirmation');
-    createUnitDeleteConfirmationPanel(uiLayer, {
-      unitName: unit ? UNIT_DEFINITIONS[unit.type].name : 'Missionary',
-      title: 'Missionary Used Up',
-      bodyText: `${message} That was its last charge, so the missionary is gone.`,
-      confirmLabel: 'OK',
-      hideCancel: true,
-      tone: 'neutral',
-      onConfirm: () => {
-        uiLayer.querySelector('#unit-delete-confirmation-panel')?.remove();
-        setBlockingOverlay(null);
-      },
-      onCancel: () => {
-        uiLayer.querySelector('#unit-delete-confirmation-panel')?.remove();
-        setBlockingOverlay(null);
-      },
-    });
-  } else {
-    selectionController.selectUnit(unitId);
-    showNotification(message, result.converted ? 'success' : 'info');
-  }
-}
-
-function ensurePlayerWarState(targetCivId: string): void {
-  const targetCiv = session.getState().civilizations[targetCivId];
-  if (!targetCiv || !isMajorCivOwner(targetCivId)) return;
-
-  const cp = session.getState().currentPlayer;
-  const alreadyAtWar = currentCiv().diplomacy?.atWarWith.includes(targetCivId) ?? false;
-  if (alreadyAtWar) return;
-
-  currentCiv().diplomacy = declareWar(currentCiv().diplomacy, targetCivId, session.getState().turn);
-  targetCiv.diplomacy = declareWar(targetCiv.diplomacy, cp, session.getState().turn);
-  bus.emit('diplomacy:war-declared', { attackerId: cp, defenderId: targetCivId, opponentKind: resolveOpponentKind(targetCivId) });
-  session.setStateWithoutRefresh(applyOpportunisticWarPenaltyIfCrisisStruck(session.getState(), cp, targetCivId, bus));
-}
-
 function beginPlayerCityAssault(
   attackerId: string,
   cityId: string,
@@ -822,7 +751,7 @@ function beginPlayerCityAssault(
   const attacker = session.getState().units[attackerId];
   if (!attacker || !canUnitOccupyCity(attacker)) return 'resolved';
 
-  ensurePlayerWarState(city.owner);
+  playerActions.ensurePlayerWarState(city.owner);
   let attackerMultiplier: number | undefined;
   if (embarkedAssault) {
     const legality = getEmbarkedAssaultTarget(session.getState(), attackerId, city.position, { viewerId: session.getState().currentPlayer });
@@ -905,7 +834,7 @@ function executeAttack(attackerId: string, targetKey: string): void {
     attacker = detached.attacker;
   }
 
-  ensurePlayerWarState(defender.owner);
+  playerActions.ensurePlayerWarState(defender.owner);
 
   const seed = deterministicCombatSeed(session.getState().gameId, session.getState().turn, attacker.id, defender.id);
   const attackerBonus = currentCivDef()?.bonusEffect;
@@ -1025,165 +954,6 @@ function executeAttack(attackerId: string, targetKey: string): void {
   hud.update();
   selectionController.refreshSelectedUnitAfterCombat();
   renderLoop.animations.add('combat-flash', 400, { coord: attacker.position }, () => selectionController.selectNextUnit());
-}
-
-function restAction(): void {
-  const selectedUnitId = selection.getSelectedUnitId();
-  if (!selectedUnitId) return;
-  const unit = session.getState().units[selectedUnitId];
-  if (!unit || !canHeal(unit)) return;
-
-  session.getState().units[selectedUnitId] = restUnit(unit);
-  showNotification(`${UNIT_DEFINITIONS[unit.type].name} is resting and will heal +15 HP next turn`, 'info');
-  selectionController.deselectUnit();
-  renderLoop.setGameState(session.getState());
-}
-
-function showEspionageCaptureChoice(spyId: string, spyOwner: string): void {
-  const captorEsp = session.getState().espionage?.[session.getState().currentPlayer];
-  const spy = session.getState().espionage?.[spyOwner]?.spies[spyId];
-  if (!captorEsp || !spy) return;
-  const spyOwnerName = session.getState().civilizations[spyOwner]?.name ?? spyOwner;
-
-  // D1: always reveal true identity to captor regardless of disguise
-  const captureMessage = `You have captured ${spy.name}, a ${spy.unitType} belonging to ${spyOwnerName}.`;
-
-  // infiltrated spies are inside the city (distance 0); otherwise use boundary penalty
-  const distanceToCity = spy.infiltrationCityId ? 0 : 1;
-  const relPenalty = getSpyCaptureRelationshipPenalty(distanceToCity);
-
-  notifier.choice(captureMessage, [
-    {
-      label: `Expel (${relPenalty} relations)`,
-      onClick: () => {
-        const updatedOwnerEsp = expelSpy(session.getState().espionage![spyOwner], spyId, 15);
-        const capital = getCapitalCity(session.getState(), spyOwner);
-        if (capital) {
-          const newUnit = createUnit(spy.unitType, spyOwner, capital.position, session.getState().idCounters);
-          session.setStateWithoutRefresh({
-            ...session.getState(),
-            units: { ...session.getState().units, [newUnit.id]: newUnit },
-            civilizations: {
-              ...session.getState().civilizations,
-              [spyOwner]: {
-                ...session.getState().civilizations[spyOwner],
-                units: [...session.getState().civilizations[spyOwner].units, newUnit.id],
-              },
-            },
-          });
-          const { [spyId]: _old, ...rest } = updatedOwnerEsp.spies;
-          session.setStateWithoutRefresh({
-            ...session.getState(),
-            espionage: {
-              ...session.getState().espionage,
-              [spyOwner]: {
-                ...updatedOwnerEsp,
-                spies: { ...rest, [newUnit.id]: { ...updatedOwnerEsp.spies[spyId]!, id: newUnit.id } },
-              },
-            },
-          });
-        } else {
-          session.setStateWithoutRefresh({ ...session.getState(), espionage: { ...session.getState().espionage, [spyOwner]: updatedOwnerEsp } });
-        }
-        // Bilateral: captor's view of spy owner AND spy owner's view of captor
-        const captorId = session.getState().currentPlayer;
-        session.setStateWithoutRefresh({
-          ...session.getState(),
-          civilizations: {
-            ...session.getState().civilizations,
-            [captorId]: {
-              ...session.getState().civilizations[captorId],
-              diplomacy: modifyRelationship(
-                session.getState().civilizations[captorId].diplomacy, spyOwner, relPenalty,
-              ),
-            },
-            [spyOwner]: {
-              ...session.getState().civilizations[spyOwner],
-              diplomacy: modifyRelationship(
-                session.getState().civilizations[spyOwner].diplomacy, captorId, relPenalty,
-              ),
-            },
-          },
-        });
-        showNotification(`${spy.name} expelled. Will return to their capital after 15 turns.`, 'info');
-        renderLoop.setGameState(session.getState());
-      },
-    },
-    {
-      label: 'Execute',
-      danger: true,
-      onClick: () => {
-        // Second in-panel confirmation — no window.confirm on mobile
-        notifier.choice(
-          `Execute ${spy.name}? This cannot be undone and will severely damage relations with ${spyOwnerName}.`,
-          [
-            {
-              label: 'Cancel',
-              onClick: () => showEspionageCaptureChoice(spyId, spyOwner),
-            },
-            {
-              label: 'Confirm Execute',
-              danger: true,
-              onClick: () => {
-                const captorId = session.getState().currentPlayer;
-                session.setStateWithoutRefresh({
-                  ...session.getState(),
-                  espionage: {
-                    ...session.getState().espionage,
-                    [spyOwner]: executeSpy(session.getState().espionage![spyOwner], spyId),
-                  },
-                  // Bilateral: captor's view AND spy owner's view
-                  civilizations: {
-                    ...session.getState().civilizations,
-                    [captorId]: {
-                      ...session.getState().civilizations[captorId],
-                      diplomacy: modifyRelationship(
-                        session.getState().civilizations[captorId].diplomacy, spyOwner, relPenalty * 2,
-                      ),
-                    },
-                    [spyOwner]: {
-                      ...session.getState().civilizations[spyOwner],
-                      diplomacy: modifyRelationship(
-                        session.getState().civilizations[spyOwner].diplomacy, captorId, relPenalty * 2,
-                      ),
-                    },
-                  },
-                });
-                bus.emit('espionage:spy-executed', {
-                  executingCivId: captorId, spyOwner, spyId, spyName: spy.name,
-                });
-                showNotification(`${spy.name} has been executed.`, 'warning');
-                renderLoop.setGameState(session.getState());
-              },
-            },
-          ],
-        );
-      },
-    },
-    {
-      label: 'Interrogate (4 turns)',
-      onClick: () => {
-        const ownerEsp = session.getState().espionage![spyOwner];
-        session.setStateWithoutRefresh({
-          ...session.getState(),
-          espionage: {
-            ...session.getState().espionage,
-            [session.getState().currentPlayer]: startInterrogation(captorEsp, spyId, spyOwner),
-            // Set spy status to 'interrogated' on the spy owner's record
-            [spyOwner]: {
-              ...ownerEsp,
-              spies: {
-                ...ownerEsp.spies,
-                [spyId]: { ...ownerEsp.spies[spyId]!, status: 'interrogated' as const },
-              },
-            },
-          },
-        });
-        showNotification(`${spy.name} is being interrogated. Check the Intel panel for results.`, 'info');
-        renderLoop.setGameState(session.getState());
-      },
-    },
-  ]);
 }
 
 // --- Bootstrap ---
