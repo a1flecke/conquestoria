@@ -749,6 +749,50 @@ describe('PanelActionsController', () => {
       // before ever reaching the injected `executeUpgrade` dep.
       expect(deps.executeUpgrade).not.toHaveBeenCalled();
     });
+
+    it('reassigns city focus via the real city-work-system call', () => {
+      const { state } = makeFixture('city-panel-focus');
+      state.cities['test-city'] = makeCity('test-city');
+      const { deps, controller } = build(state);
+
+      controller.openCityPanelForCity(state.cities['test-city']);
+      const options = mockedCallArg<{ onSetCityFocus: (cityId: string, focus: string) => unknown }>(createCityPanel, 0, 3);
+      options.onSetCityFocus('test-city', 'production');
+
+      expect(deps.session.getState().cities['test-city'].focus).toBe('production');
+      expect(deps.showNotification).toHaveBeenCalledWith(expect.stringContaining('production'), 'info');
+    });
+
+    it('shows a warning instead of committing when the real rush-buy quote is unavailable', () => {
+      const { state } = makeFixture('city-panel-rushbuy');
+      state.cities['test-city'] = makeCity('test-city');
+      const { deps, controller } = build(state);
+
+      controller.openCityPanelForCity(state.cities['test-city']);
+      const options = mockedCallArg<{ onRushBuyActiveProduction: (cityId: string) => unknown }>(createCityPanel, 0, 3);
+      options.onRushBuyActiveProduction('test-city');
+
+      // Empty production queue -> real getRushBuyQuote reports unavailable.
+      expect(deps.showNotification).toHaveBeenCalledWith(expect.any(String), 'warning');
+    });
+
+    it('highlights real worker-buildable tiles and surfaces every toast from onFindResources', () => {
+      const { state } = makeFixture('city-panel-find-resources');
+      state.cities['test-city'] = makeCity('test-city');
+      const { deps, controller } = build(state);
+
+      controller.openCityPanelForCity(state.cities['test-city']);
+      const options = mockedCallArg<{
+        onFindResources: (highlights: HexCoord[], toasts: Array<{ message: string; type: 'info' | 'warning' | 'success' }>) => void;
+      }>(createCityPanel, 0, 3);
+      options.onFindResources([{ q: 1, r: 1 }, { q: 2, r: 2 }], [{ message: 'Found 2 resources', type: 'info' }]);
+
+      expect(deps.renderLoop.setHighlights).toHaveBeenCalledWith([
+        { coord: { q: 1, r: 1 }, type: 'worker-buildable' },
+        { coord: { q: 2, r: 2 }, type: 'worker-buildable' },
+      ]);
+      expect(deps.showNotification).toHaveBeenCalledWith('Found 2 resources', 'info');
+    });
   });
 
   describe('openEspionagePanel', () => {
@@ -829,6 +873,45 @@ describe('PanelActionsController', () => {
 
       expect(deps.session.getState().espionage!.player.spies['spy-1'].status).toBe('idle');
       expect(deps.router.open).not.toHaveBeenCalled();
+    });
+
+    it('starts a real placed-spy mission chosen via window.prompt without prompting for a target', () => {
+      const { state } = makeFixture('espionage-start-mission');
+      state.civilizations.player.techState.completed = ['espionage-scouting'];
+      placeSpy(state, 'spy-1', { status: 'stationed', targetCivId: 'ai-1', targetCityId: 'foreign-city' });
+      const promptSpy = vi.spyOn(window, 'prompt').mockReturnValue('scout_area');
+      const { deps, controller } = build(state);
+
+      controller.openEspionagePanel();
+      const options = mockedCallArg<{ onStartMission: (spyId: string) => void }>(createEspionagePanel, 0, 1);
+      options.onStartMission('spy-1');
+
+      // `scout_area` requires a placed spy, so the mission-choice prompt fires once
+      // but the foreign-city-target prompt never does -- the spy's existing target is reused.
+      expect(promptSpy).toHaveBeenCalledTimes(1);
+      expect(deps.session.getState().espionage!.player.spies['spy-1'].currentMission?.type).toBe('scout_area');
+      expect(deps.router.open).toHaveBeenCalledWith('espionage');
+      expect(deps.showNotification).toHaveBeenCalledWith(expect.stringContaining('scout_area'), 'info');
+      promptSpy.mockRestore();
+    });
+
+    it('exfiltrates a stationed spy to a real capital with a free tile', () => {
+      const { state } = makeFixture('espionage-exfiltrate');
+      state.cities['capital-city'] = makeCity('capital-city');
+      state.civilizations.player.cities = ['capital-city'];
+      placeSpy(state, 'spy-1', { status: 'stationed', unitType: 'spy_scout', targetCivId: 'ai-1', targetCityId: 'foreign-city' });
+      const { deps, controller } = build(state);
+
+      controller.openEspionagePanel();
+      const options = mockedCallArg<{ onExfiltrate: (spyId: string) => void }>(createEspionagePanel, 0, 1);
+      options.onExfiltrate('spy-1');
+
+      const spies = deps.session.getState().espionage!.player.spies;
+      expect(spies['spy-1']).toBeUndefined();
+      const exfiltrated = Object.values(spies).find(spy => spy.status === 'cooldown');
+      expect(exfiltrated).toMatchObject({ cooldownTurns: 8, targetCivId: null });
+      expect(deps.session.getState().units[exfiltrated!.id].position).toEqual(state.cities['capital-city'].position);
+      expect(deps.showNotification).toHaveBeenCalledWith(expect.stringContaining('exfiltrated'), 'info');
     });
   });
 });
