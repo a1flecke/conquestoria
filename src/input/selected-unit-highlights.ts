@@ -12,6 +12,7 @@ import {
   type LandUnitWaterRecovery,
 } from '@/systems/unit-water-recovery';
 import { getEmbarkedAssaultTargets } from '@/systems/transport-system';
+import { UNIT_DEFINITIONS } from '@/systems/unit-system';
 
 export interface SelectedUnitHighlightResult {
   movementRange: HexCoord[];
@@ -126,7 +127,8 @@ export function buildSelectedUnitHighlights(state: GameState, unitId: string): S
   const attackTargets = unit.transportId
     ? getEmbarkedAssaultTargets(state, unitId, { viewerId: state.currentPlayer })
     : getAttackTargets(state, unit, { viewerId: state.currentPlayer })
-      .filter(target => target.result.targetType === 'unit');
+      .filter(target => target.result.targetType === 'unit'
+        || (target.result.targetType === 'city' && UNIT_DEFINITIONS[unit.type].domain === 'naval'));
   const attackKeys = new Set(attackTargets.map(target => hexKey(target.coord)));
   const nonCombatMovementRange = movementRange
     .filter(coord => !attackKeys.has(hexKey(coord)));

@@ -109,6 +109,20 @@ function makePlan(
   };
 }
 
+describe('naval city bombardment', () => {
+  it('offers a visible hostile city to an eligible warship without treating it as a capture', () => {
+    const state = makeState();
+    const ship = addUnit(state, 'ship', 'frigate', AI, { q: 2, r: 2 }, { movementPointsLeft: 3 });
+    const city = addCity(state, 'target-city', HUMAN, { q: 3, r: 2 });
+    const plan = makePlan({ kind: 'city', id: city.id, lastKnownPosition: city.position }, [ship.id]);
+
+    expect(rankUnitTacticalActions({ state, actorId: AI, plan, assignedUnitIds: [ship.id] }, ship.id)
+      .some(candidate => candidate.action.kind === 'bombard-city'
+        && candidate.action.unitId === ship.id
+        && candidate.action.cityId === city.id)).toBe(true);
+  });
+});
+
 function context(
   state: GameState,
   plan: AIStrategicPlan,

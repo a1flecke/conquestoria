@@ -35,6 +35,7 @@ import {
   IronFoundrySprite, WarAcademySprite, MasonryWorksSprite, SiegeWorkshopSprite,
   CaravanseraiSprite, BankSprite, StockExchangeSprite,
   NaturalHistoryMuseumSprite, SurgeryGuildSprite, ConcertHallSprite, StarFortSprite,
+  CoastalBatterySprite,
   MilitaryAcademySprite, GrandCipherBureauSprite, ColonialAdministrationSprite,
   FactorySprite, SteelMillSprite, FieldHospitalSprite, PrintShopSprite, CensusOfficeSprite,
   NationalRailwaySprite, GrandArsenalSprite, PeoplesUniversitySprite,
@@ -454,6 +455,7 @@ export const BUILDING_SPRITE_CATALOG: Record<string, BuildingSpriteComponent> = 
   surgery_guild:          SurgeryGuildSprite,
   concert_hall:           ConcertHallSprite,
   star_fort:              StarFortSprite,
+  coastal_battery:        CoastalBatterySprite,
   // Era 7 regular buildings
   factory:                FactorySprite,
   steel_mill:             SteelMillSprite,

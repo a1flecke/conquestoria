@@ -33,6 +33,24 @@ describe('selected-unit-highlights', () => {
     });
   });
 
+  it('highlights a visible hostile city for a naval bombardment, but not for a land unit', () => {
+    const state = createNewGame(undefined, 'naval-city-highlight', 'small');
+    state.currentPlayer = 'player';
+    state.units = {
+      ship: { ...createUnit('frigate', 'player', { q: 1, r: 1 }, mkC()), id: 'ship', movementPointsLeft: 3 },
+      soldier: { ...createUnit('warrior', 'player', { q: 1, r: 2 }, mkC()), id: 'soldier', movementPointsLeft: 2 },
+    };
+    state.civilizations.player.units = ['ship', 'soldier'];
+    state.civilizations.player.diplomacy.atWarWith = ['ai-1'];
+    state.civilizations.player.visibility.tiles = { '1,1': 'visible', '1,2': 'visible', '2,1': 'visible' };
+    const city = foundCity('ai-1', { q: 2, r: 1 }, state.map, state.idCounters);
+    state.cities[city.id] = city;
+    state.civilizations['ai-1'].cities = [city.id];
+
+    expect(buildSelectedUnitHighlights(state, 'ship').highlights).toContainEqual({ coord: { q: 2, r: 1 }, type: 'attack' });
+    expect(buildSelectedUnitHighlights(state, 'soldier').highlights).not.toContainEqual({ coord: { q: 2, r: 1 }, type: 'attack' });
+  });
+
   it('marks visible ZOC terminal destinations with a non-attack movement highlight', () => {
     const state = createNewGame(undefined, 'zoc-highlight', 'small');
     state.currentPlayer = 'player';

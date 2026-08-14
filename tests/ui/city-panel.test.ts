@@ -5,7 +5,7 @@ import { SESSION_SHOWN_TIPS } from '@/ui/advisor-system';
 import { createUnit } from '@/systems/unit-system';
 import { BUILDINGS, TRAINABLE_UNITS } from '@/systems/city-system';
 import { assignCityFocus, setCityWorkedTile } from '@/systems/city-work-system';
-import { hexKey } from '@/systems/hex-utils';
+import { hexKey, hexNeighbors } from '@/systems/hex-utils';
 import { TECH_TREE } from '@/systems/tech-definitions';
 import { createMarketplaceState } from '@/systems/trade-system';
 import { collectText, makeWonderPanelFixture } from './helpers/wonder-panel-fixture';
@@ -25,6 +25,28 @@ function clickElement(element: Element | null | undefined): void {
 }
 
 describe('city-panel national projects', () => {
+  it('renders Coastal Battery and its naval-only rule only for a researched coastal city', () => {
+    const { container, city, state } = makeWonderPanelFixture();
+    state.civilizations.player.techState.completed.push('naval-armor');
+    const coast = hexNeighbors(city.position)[0]!;
+    state.map.tiles[hexKey(coast)] = {
+      coord: coast, terrain: 'coast', elevation: 'lowland', resource: null,
+      improvement: 'none', owner: city.owner, improvementTurnsLeft: 0, hasRiver: false, wonder: null,
+    } as never;
+
+    const coastalPanel = createCityPanel(container, city, state, {
+      onBuild: () => {}, onOpenWonderPanel: () => {}, onClose: () => {},
+    });
+    expect(coastalPanel.querySelector('[data-item-id="coastal_battery"]')).toBeTruthy();
+    expect(collectText(coastalPanel)).toContain('Naval defense +8. First naval hit each turn returns 20% damage (max 12).');
+
+    state.map.tiles[hexKey(coast)] = { ...state.map.tiles[hexKey(coast)]!, terrain: 'plains' };
+    const inlandPanel = createCityPanel(container, city, state, {
+      onBuild: () => {}, onOpenWonderPanel: () => {}, onClose: () => {},
+    });
+    expect(inlandPanel.querySelector('[data-item-id="coastal_battery"]')).toBeNull();
+  });
+
   it('shows the current hot-seat empire Fort capacity without exposing another player\'s forts', () => {
     const { container, city, state } = makeWonderPanelFixture();
     state.map.tiles['3,2'] = {

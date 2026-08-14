@@ -1336,6 +1336,32 @@ export function StarFortSprite({ palette, svgOnly = false }: BuildingSpriteProps
   );
 }
 
+/** Coastal gun emplacement: low sea wall, two traversing guns, and a signal mast. */
+export function CoastalBatterySprite({ palette, svgOnly = false }: BuildingSpriteProps): string {
+  return (
+    <BuildingFrame label="Coastal Battery" category="military" svgOnly={svgOnly}>
+      <BuildingPlinth w={148} />
+      <path d="M30,122 Q58,100 96,108 Q134,100 162,122 L158,140 H34 Z"
+        fill={P.stone.mid} stroke={P.ink.line} strokeWidth="1.4" />
+      <path d="M36,123 H156" stroke={P.stone.light} strokeWidth="5" opacity="0.75" />
+      <path d="M44,136 Q72,128 96,136 Q124,128 150,136" fill="none" stroke={P.ground.water} strokeWidth="4" opacity="0.8" />
+      {[68, 124].map(x => (
+        <g key={x}>
+          <ellipse cx={x} cy="112" rx="18" ry="8" fill={P.metal.steel} stroke={P.ink.line} strokeWidth="1" />
+          <circle cx={x} cy="108" r="7" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="1" />
+          <rect x={x - 3} y="70" width="7" height="38" rx="2" fill={P.metal.iron}
+            stroke={P.ink.line} strokeWidth="1" transform={`rotate(${x === 68 ? -24 : 24} ${x} 108)`} />
+          <circle cx={x} cy="108" r="2" fill={P.metal.gold} />
+        </g>
+      )).join('')}
+      <path d="M96,102 V48" stroke={P.wood.dark} strokeWidth="3" />
+      <path d="M98,50 L124,58 L98,70 Z" fill={palette.bright} stroke={P.ink.line} strokeWidth="1" />
+      <path d="M44,96 L52,82 L60,96 M132,96 L140,82 L148,96" fill={P.stone.light} stroke={P.ink.line} strokeWidth="1" />
+      <Banner x={42} y={48} palette={palette} scale={0.72} />
+    </BuildingFrame>
+  );
+}
+
 // TODO(art): Replace with a military academy: parade ground archway, colonnaded hall, officers' crest above entrance, stacked muskets flanking doors.
 export function MilitaryAcademySprite({ palette, svgOnly = false }: BuildingSpriteProps): string {
   const merlonsLeft = [28, 36, 44].map(x => <rect x={x} y={52} width="6" height="10" rx="1" fill={P.stone.mid} />).join('');

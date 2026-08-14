@@ -1932,6 +1932,9 @@ export interface GameEvents {
     cityId: string; attackerUnitId: string; recipientCivId: string;
     source: 'player' | 'ai' | 'barbarian' | 'pirate'; damage: number; attackerDied: boolean;
   };
+  'city:naval-bombarded': {
+    cityId: string; recipientCivId: string; source: 'player' | 'ai'; hpLost: number;
+  };
   'tutorial:step': { step: TutorialStep; message: string; advisor: 'builder' | 'explorer' | 'scholar' };
   'notification:show': { message: string; type: 'info' | 'warning' | 'success' };
   'game:saved': { turn: number };

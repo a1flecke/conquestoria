@@ -633,6 +633,28 @@ describe('pirate naval siege (#522)', () => {
     expect(result.state.units['ship-a']?.health ?? 0).toBe(shipBefore);
   });
 
+  it('fires Coastal Battery once from actual naval HP loss and emits an owner-safe Battery event', () => {
+    const state = siegeReadyState(100);
+    state.cities.port = { ...state.cities.port!, buildings: ['coastal_battery'] };
+    state.pirates!.factions['pirate-1']!.maritimeStage = 5;
+    const bus = new EventBus();
+    const onBattery = vi.fn();
+    bus.on('city:coastal-battery-fired', onBattery);
+
+    const result = processPiratesForCompletedRound(state, bus);
+    const event = onBattery.mock.calls[0]?.[0];
+    const hpLost = 100 - (result.state.cities.port!.hp ?? 100);
+
+    expect(event).toMatchObject({ cityId: 'port', recipientCivId: 'player', source: 'pirate' });
+    expect(event.damage).toBe(Math.min(12, Math.round(hpLost * 0.2)));
+    expect(result.state.cities.port!.coastalBatteryCounterfireTurn).toBe(state.turn);
+    expect(result.state.units['ship-a']!.health).toBe(100 - event.damage);
+
+    const repeated = processPiratesForCompletedRound(result.state, bus);
+    expect(onBattery).toHaveBeenCalledTimes(1);
+    expect(repeated.state.units['ship-a']!.health).toBe(result.state.units['ship-a']!.health);
+  });
+
   it('emits city:counter-fire so the player gets feedback that their walls fought back (#522)', () => {
     const state = siegeReadyState(100);
     state.cities.port = { ...state.cities.port!, buildings: ['walls'], population: 20 };
