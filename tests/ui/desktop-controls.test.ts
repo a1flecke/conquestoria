@@ -4,8 +4,21 @@ import { vi } from 'vitest';
 import { createContextMenu } from '@/ui/context-menu';
 import { renderSelectedUnitInfo } from '@/ui/selected-unit-info';
 import { createTooltipLayer } from '@/ui/tooltip-layer';
-import { createUiInteractionState } from '@/ui/ui-interaction-state';
+import type { UiInteractionState } from '@/ui/ui-interaction-state';
 import { makeDesktopControlFixture } from './helpers/desktop-controls-fixture';
+
+// #787 phase 11: `createUiInteractionState` (the factory) was retired once
+// `PanelHost` -- its only remaining production constructor -- inlined the
+// same closure directly. This test only ever needed the interface shape, so
+// it builds its own minimal stateful fixture instead of calling a shared
+// factory.
+function makeInteractions(): UiInteractionState {
+  let blockingOverlayId: string | null = null;
+  return {
+    setBlockingOverlay: id => { blockingOverlayId = id; },
+    isInteractionBlocked: () => blockingOverlayId !== null,
+  };
+}
 
 describe('desktop controls', () => {
   afterEach(() => {
@@ -59,7 +72,7 @@ describe('desktop controls', () => {
 
   it('does not expose context actions while a blocking overlay is active', () => {
     const { state, container, unitId } = makeDesktopControlFixture();
-    const interactions = createUiInteractionState();
+    const interactions = makeInteractions();
     interactions.setBlockingOverlay('turn-handoff');
 
     const menu = createContextMenu(container, state, { unitId }, {}, interactions);

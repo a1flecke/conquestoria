@@ -1,38 +1,31 @@
 /**
- * The composition root (#787 phase 10b-g, extended in phase 13).
+ * The composition root (#787 phase 10b-g, extended in phases 13 and 11).
  * `createAppComposition` constructs every controller `main.ts` used to build
  * at module scope -- `host`, `ceremonies`, `diplomacyActions`,
  * `panelActions`, `selectionController`, `turnFlow`, `playerActions`,
  * `mapInteraction`, `hud`, `campaignEntry`, `gameSession`,
- * `presentationContext`, `panelRegistry`, and `router` -- and returns the
- * handful of them `main.ts` still needs a direct reference to (`gameSession`
- * and `presentationContext` for the final `bootstrap()` call below; the rest
- * are exposed for testability, not because `main.ts` itself still reaches
- * for them -- phase 13 deleted the last `main.ts`-local functions that did).
- * `bootstrap()` itself is unchanged: it still sequences presentation
- * registration, minor-civ notification listeners, and `gameSession.init()`,
- * against the `presentationContext`/`gameSession` this file constructs.
+ * `presentationContext`, `panelRegistry`, and `router` -- plus, as of phase
+ * 11, `showNotification` and `maybeShowPendingHoardChoice` themselves (both
+ * were the last two `main.ts`-local functions; neither needed to live
+ * outside this file, they just predated the composition split). Returns the
+ * handful of controllers `main.ts` still needs a direct reference to
+ * (`gameSession` and `presentationContext` for the final `bootstrap()` call
+ * below; the rest are exposed for testability, not because `main.ts` itself
+ * still reaches for them). `bootstrap()` itself is unchanged: it still
+ * sequences presentation registration, minor-civ notification listeners, and
+ * `gameSession.init()`, against the `presentationContext`/`gameSession` this
+ * file constructs.
  *
- * `main.ts` keeps: the true externally-supplied primitives (`canvas`,
+ * `main.ts` keeps only the true externally-supplied primitives (`canvas`,
  * `uiLayer`, `renderLoop`, `audio`, `bus`, `session`, `selection`,
- * `userSettingsStore`, `roundPresentationGate`, `advisorSystem`), the
- * `notifier` `let` binding itself (read/write via `getNotifier`/`setNotifier`
- * below), and two remaining `main.ts`-local functions -- `showNotification`
- * and `maybeShowPendingHoardChoice` -- passed in as deps because every
- * controller below already depends on them. Phase 13 moved the other five
- * former Phase-13-scoped functions (`foundCityAction`,
- * `beginPlayerCityAssault`, `executeAttack`, `executeMinorCivConquest`,
- * `executeUpgrade`) into `PlayerActionController` itself; they are no longer
- * threaded through this deps interface at all, since every controller that
- * needs them now reaches `playerActions.<method>` directly or via a lazy
- * wrapper, the same as every other `playerActions` method already worked.
- *
- * `notifier` deliberately stays a `main.ts`-owned `let`, not a binding this
- * file owns: `showNotification` (main.ts-local) reads it directly, and
- * `GameSessionController.init()` publishes it back via `setNotifier`, so it
- * has to be reachable from both files. `getNotifier`/`setNotifier` replace
- * the bare-`notifier`-closure pattern the pre-move code used when everything
- * lived in one module scope.
+ * `userSettingsStore`, `roundPresentationGate`, `advisorSystem`) and the
+ * `notifier` binding itself -- as of phase 11 a `{ current }` box, not a
+ * bare `let` (the `architecture-boundaries.test.ts` boundary test bans
+ * module-scope `let` outright; the deferred-assignment semantics
+ * `GameSessionController.init()`'s `setNotifier` callback relies on are
+ * unchanged, only the container shape is). `getNotifier`/`setNotifier`
+ * still cross the file boundary exactly as before -- `main.ts` owns the box,
+ * this file only ever reads/writes it through the accessor pair.
  */
 import type { RenderLoop } from '@/renderer/render-loop';
 import type { AudioSystem } from '@/audio/audio-system';
@@ -66,7 +59,10 @@ import {
   focusNotificationTarget,
   focusPirateTarget,
   applyPirateActionResult,
+  notifyPlayer,
 } from '@/app/cross-cutting-helpers';
+import { applyHoardChoice, getHoardChoicePreview } from '@/systems/beast-system';
+import { createBeastHoardPanel } from '@/ui/beast-hoard-panel';
 
 export interface AppServices {
   readonly bus: EventBus;
@@ -99,18 +95,6 @@ export interface AppCompositionDeps {
   readonly userSettingsStore: UserSettingsStore;
   readonly getNotifier: () => Notifier;
   readonly setNotifier: (notifier: Notifier) => void;
-  /**
-   * #787 phase 13: `executeAttack`'s post-kill beast-hoard hook; stays
-   * `main.ts`-local (see `PlayerActionControllerDeps`'s own docblock for
-   * why) but is now also threaded into `playerActions`' construction below,
-   * not just `turnFlow`'s and `gameSession`'s.
-   */
-  readonly maybeShowPendingHoardChoice: () => void;
-  readonly showNotification: (
-    message: string,
-    type?: NotificationEntry['type'],
-    target?: NotificationEntry['target'],
-  ) => void;
 }
 
 export interface AppComposition {
@@ -126,8 +110,45 @@ export function createAppComposition(deps: AppCompositionDeps): AppComposition {
   const {
     canvas, uiLayer, renderLoop, audio, bus, roundPresentationGate, advisorSystem,
     session, selection, userSettingsStore, getNotifier, setNotifier,
-    maybeShowPendingHoardChoice, showNotification,
   } = deps;
+
+  // Thin wrapper (not extracted, see cross-cutting-helpers.ts's module docblock
+  // for why): delegates to the pure `notifyPlayer`, but stays a sibling
+  // function here so its many controller consumers' `showNotification` dep
+  // keeps working as a bare reference (#787 phase 11 -- moved from `main.ts`,
+  // which owned it only because it needed the `notifier` closure; resolved
+  // via `getNotifier()` here like every other notifier-dependent callback in
+  // this file).
+  function showNotification(
+    message: string,
+    type: NotificationEntry['type'] = 'info',
+    target?: NotificationEntry['target'],
+  ): void {
+    notifyPlayer(getNotifier(), session, message, type, target);
+  }
+
+  /**
+   * `executeAttack`'s post-kill beast-hoard hook (#787 phase 11 -- moved
+   * from `main.ts`, which owned it only because it predated the composition
+   * split, not because it needed to live outside this file). References
+   * `hud`, a `const` declared later in this function -- safe because this
+   * function is never invoked until real gameplay, well after
+   * `createAppComposition` returns, the same deferred-but-eager pattern
+   * every other forward reference in this file already uses.
+   */
+  function maybeShowPendingHoardChoice(): void {
+    const pending = (session.getState().beasts?.pendingHoardChoices ?? [])
+      .find(p => p.civId === session.getState().currentPlayer);
+    if (!pending) return;
+    const preview = getHoardChoicePreview(session.getState(), pending.lairId);
+    const lair = session.getState().beasts!.lairs[pending.lairId];
+    createBeastHoardPanel(uiLayer, preview, choice => {
+      session.setStateWithoutRefresh(applyHoardChoice(session.getState(), pending.lairId, pending.civId, choice));
+      bus.emit('beast:hoard-claimed', { lairId: pending.lairId, beastId: lair.beastId, civId: pending.civId, choice });
+      hud.update();
+      maybeShowPendingHoardChoice();
+    });
+  }
 
   /**
    * Owns the panel DOM layer and the interaction-blocking overlay flag,
@@ -214,13 +235,15 @@ export function createAppComposition(deps: AppCompositionDeps): AppComposition {
    * not assigned until `createPanelRouter(...)` further down (after
    * `panelRegistry`, which itself needs this controller's methods) -- same
    * pattern `turnFlow`'s own `router` dep below already uses. `executeUpgrade`
-   * is a `main.ts`-local Phase-13 function passed in as a dep, so no wrapper
-   * needed for it either. `focusNotificationTarget`/`focusPirateTarget`/
-   * `applyPirateActionResult`/`currentCiv`/`currentCivDef` are inline arrows
-   * calling the pure functions in `src/app/cross-cutting-helpers.ts` (#787
-   * phase 10b-f) -- `getNotifier()` inside those arrows resolves through
-   * `main.ts`'s `notifier` `let`, not assigned until `init()`, same
-   * deferred-but-eager pattern as `router` just below.
+   * is a lazy wrapper around `playerActions.executeUpgrade` (#787 phase 13),
+   * since `playerActions` isn't constructed until later in this function --
+   * same deferred-but-eager reason as `router` just above.
+   * `focusNotificationTarget`/`focusPirateTarget`/`applyPirateActionResult`/
+   * `currentCiv`/`currentCivDef` are inline arrows calling the pure functions
+   * in `src/app/cross-cutting-helpers.ts` (#787 phase 10b-f) --
+   * `getNotifier()` inside those arrows resolves through `main.ts`'s
+   * `notifier` box, not assigned until `init()`, same deferred-but-eager
+   * pattern as `router` just below.
    */
   const panelActions: PanelActionsController = createPanelActionsController({
     session,
@@ -294,7 +317,7 @@ export function createAppComposition(deps: AppCompositionDeps): AppComposition {
    * (#787 phase 9). `router`/`notifier` are wrapped in thin lazily-evaluating
    * objects, not passed directly -- `router` is a `let` not assigned until
    * `createPanelRouter(...)` below, and `getNotifier()` resolves through
-   * `main.ts`'s `notifier` `let`, not assigned until `init()` runs. Same
+   * `main.ts`'s `notifier` box, not assigned until `init()` runs. Same
    * deferred-but-eager pattern as `presentationContext`'s
    * `get notifier()`/`get router()` getters further down.
    */
@@ -350,10 +373,10 @@ export function createAppComposition(deps: AppCompositionDeps): AppComposition {
    * references to both -- see the lazy wrappers those two use above for the
    * reverse direction of this same three-way forward reference.
    * `advisorSystem` is passed directly (a real, already-constructed object,
-   * not a lazy binding). `maybeShowPendingHoardChoice` stays `main.ts`-local
-   * (see this controller's `PlayerActionControllerDeps` docblock).
-   * `getNotifier()` still resolves through `main.ts`'s `notifier` `let`, not
-   * assigned until `init()` runs.
+   * not a lazy binding). `maybeShowPendingHoardChoice` is now a sibling
+   * function in this same file (#787 phase 11), passed bare like every
+   * other hoisted-function dep. `getNotifier()` still resolves through
+   * `main.ts`'s `notifier` box, not assigned until `init()` runs.
    */
   const playerActions: PlayerActionController = createPlayerActionController({
     session,

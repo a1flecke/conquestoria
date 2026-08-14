@@ -120,8 +120,6 @@ function makeCompositionDeps(overrides: Partial<AppCompositionDeps> = {}): AppCo
     userSettingsStore: createUserSettingsStore({ load: async () => undefined }),
     getNotifier: () => notifier as Notifier,
     setNotifier: n => { notifier = n; },
-    maybeShowPendingHoardChoice: vi.fn(),
-    showNotification: vi.fn(),
     ...overrides,
   };
 }
@@ -163,6 +161,22 @@ describe('createAppComposition', () => {
     deps.setNotifier(fakeNotifier);
 
     expect(composition.presentationContext.notifier).toBe(fakeNotifier);
+  });
+
+  it('showNotification (moved from main.ts in phase 11) reaches the real notifier once set', () => {
+    // Regression guard for the #787 phase 11 relocation of `showNotification`
+    // into this file -- it used to be a main.ts-local function reading a
+    // bare `notifier` closure; now it reads `getNotifier()` like every other
+    // notifier-dependent callback here. `presentationContext.showNotification`
+    // is one of its ~8 real consumers.
+    const deps = makeCompositionDeps();
+    const composition = createAppComposition(deps);
+    const fakeNotifier = makeFakeNotifier();
+    deps.setNotifier(fakeNotifier);
+
+    composition.presentationContext.showNotification('hello', 'success');
+
+    expect(fakeNotifier.toast).toHaveBeenCalledWith('hello', 'success', undefined);
   });
 
   it('updating the session HUD subscription does not throw before or after hud construction', () => {
