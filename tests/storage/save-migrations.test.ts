@@ -120,6 +120,17 @@ describe('save migrations', () => {
     expect(migrateSaveToCurrent(loaded)).toEqual(loaded);
   });
 
+  it('#693 Bunker infrastructure is definition data and survives save normalization unchanged', () => {
+    const savedGame = createNewGame('rome', 'bunker-save-compatibility', 'small');
+    const cityId = Object.keys(savedGame.cities)[0]!;
+    savedGame.cities[cityId]!.buildings = ['walls', 'star_fort', 'bunker'];
+    const loaded = migrateSaveToCurrent(structuredClone(savedGame));
+
+    expect(loaded.saveSchemaVersion).toBe(CURRENT_SAVE_SCHEMA_VERSION);
+    expect(loaded.cities[cityId]!.buildings).toEqual(['walls', 'star_fort', 'bunker']);
+    expect(migrateSaveToCurrent(loaded)).toEqual(loaded);
+  });
+
   it('#678 preserves a legacy Biplane queue by retiming it to the legal fighter successor', () => {
     const savedGame = createNewGame('rome', 'retimed-biplane-queue', 'small');
     const source = Object.values(savedGame.units)[0]!;

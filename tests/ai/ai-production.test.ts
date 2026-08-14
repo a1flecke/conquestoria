@@ -451,6 +451,23 @@ describe('AI strategic production', () => {
     }
   });
 
+  it('offers Bunker to an AI city with Walls and Reinforced Concrete through the shared building catalog', () => {
+    const state = setupState(['reinforced-concrete']);
+    state.cities['city-a'].buildings = ['walls'];
+
+    const candidates = generateAIProductionCandidates(
+      state,
+      'ai-1',
+      'city-a',
+      [],
+      aggressive,
+    );
+
+    expect(candidates).toContainEqual(expect.objectContaining({
+      itemId: 'bunker', kind: 'building', productionTurns: expect.any(Number),
+    }));
+  });
+
   it('counts empire-wide national-project yields in economy scoring', () => {
     const state = setupState(['gathering']);
     state.era = 1;

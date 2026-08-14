@@ -24,8 +24,11 @@ describe('pacing reference economy (Part C exact-value pin)', () => {
   // #441: Security Bureau now enters the bounded loadout at era 13 through its era-10 gate.
   // That crosses the reference fixture's four-buildings-per-population threshold, adding one
   // worked tile and therefore one science.
+  // #693: Bunker makes Walls a forced prerequisite of an Era-8 defensive upgrade. The bounded
+  // fixture intentionally retains forced prerequisite chains; at eras 10, 11, and 13 that
+  // crosses its four-buildings-per-population threshold and adds one worked-tile science.
   const expectedBoundedByEra: Record<number, number> = {
-    1: 2, 2: 6, 3: 8, 4: 9, 5: 9, 6: 24, 7: 35, 8: 50, 9: 68, 10: 75, 11: 103, 12: 113, 13: 114,
+    1: 2, 2: 6, 3: 8, 4: 9, 5: 9, 6: 24, 7: 35, 8: 50, 9: 68, 10: 76, 11: 104, 12: 113, 13: 115,
   };
   const expectedMaximalByEra: Record<number, number> = {
     1: 2, 2: 6, 3: 8, 4: 9, 5: 13, 6: 34, 7: 48, 8: 79, 9: 118, 10: 135, 11: 170, 12: 198, 13: 236,

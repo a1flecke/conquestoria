@@ -97,6 +97,8 @@ export interface CityDefensePart {
 export interface CityDefenseBreakdown {
   multiplier: number;
   flatBonus: number;
+  /** Damage multiplier applied only by the city-siege bombardment resolver. */
+  bombardmentDamageMultiplier: number;
   parts: CityDefensePart[];
 }
 
@@ -105,15 +107,30 @@ export function getCityDefenseBreakdown(input: CityDefenseInput): CityDefenseBre
   const parts: CityDefensePart[] = [];
   let multiplier = 1;
   let flatBonus = 0;
+  let bombardmentDamageMultiplier = 1;
 
   if (hasWalls) {
     multiplier *= 1.25;
     parts.push({ source: 'walls', label: 'Walls ×1.25', kind: 'mult', value: 1.25 });
   }
 
+  const hasBunker = hasWalls && input.cityBuildings.includes('bunker');
   if (hasWalls && input.cityBuildings.includes('star_fort')) {
-    flatBonus += 5;
-    parts.push({ source: 'star_fort', label: 'Star Fort +5', kind: 'flat', value: 5 });
+    if (hasBunker) {
+      parts.push({ source: 'star_fort', label: 'Star Fort superseded by Bunker', kind: 'flat', value: 0 });
+    } else {
+      flatBonus += 5;
+      parts.push({ source: 'star_fort', label: 'Star Fort +5', kind: 'flat', value: 5 });
+    }
+  }
+
+  if (hasBunker) {
+    flatBonus += 8;
+    parts.push({ source: 'bunker', label: 'Bunker +8', kind: 'flat', value: 8 });
+    if (input.attackerDomain === 'naval' || input.attackerDomain === 'air') {
+      bombardmentDamageMultiplier = 0.85;
+      parts.push({ source: 'bunker', label: 'Bunker bombardment −15%', kind: 'mult', value: 0.85 });
+    }
   }
 
   if (hasWalls && input.defenderCompletedTechs.includes('fortification-engineering')) {
@@ -141,7 +158,7 @@ export function getCityDefenseBreakdown(input: CityDefenseInput): CityDefenseBre
     parts.push({ source: 'coastal_battery', label: 'Coastal Battery +8 vs naval', kind: 'flat', value: 8 });
   }
 
-  return { multiplier, flatBonus, parts };
+  return { multiplier, flatBonus, bombardmentDamageMultiplier, parts };
 }
 
 export interface UnitModifierBreakdown {

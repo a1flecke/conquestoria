@@ -53,6 +53,37 @@ describe('getCityDefenseBreakdown', () => {
     expect(breakdown.flatBonus).toBe(0);
   });
 
+  it('Bunker supersedes Star Fort, adds +8 with Walls, and limits bombardment only', () => {
+    const naval = getCityDefenseBreakdown(
+      baseCityDefenseInput({
+        cityBuildings: ['walls', 'star_fort', 'bunker'],
+        attackerDomain: 'naval',
+      }),
+    );
+    const air = getCityDefenseBreakdown(
+      baseCityDefenseInput({ cityBuildings: ['walls', 'bunker'], attackerDomain: 'air' }),
+    );
+    const land = getCityDefenseBreakdown(
+      baseCityDefenseInput({ cityBuildings: ['walls', 'bunker'], attackerDomain: 'land' }),
+    );
+
+    expect(naval.flatBonus).toBe(8);
+    expect(naval.bombardmentDamageMultiplier).toBeCloseTo(0.85);
+    expect(air.bombardmentDamageMultiplier).toBeCloseTo(0.85);
+    expect(land.bombardmentDamageMultiplier).toBe(1);
+    expect(naval.parts).toContainEqual({
+      source: 'star_fort', label: 'Star Fort superseded by Bunker', kind: 'flat', value: 0,
+    });
+  });
+
+  it('Bunker WITHOUT Walls contributes no defense or bombardment mitigation (negative test)', () => {
+    const breakdown = getCityDefenseBreakdown(
+      baseCityDefenseInput({ cityBuildings: ['bunker'], attackerDomain: 'naval' }),
+    );
+    expect(breakdown.flatBonus).toBe(0);
+    expect(breakdown.bombardmentDamageMultiplier).toBe(1);
+  });
+
   it('fortification-engineering adds +5 flat defense when walls are present', () => {
     const breakdown = getCityDefenseBreakdown(
       baseCityDefenseInput({

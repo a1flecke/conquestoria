@@ -25,6 +25,29 @@ function clickElement(element: Element | null | undefined): void {
 }
 
 describe('city-panel national projects', () => {
+  it('renders Bunker only after Reinforced Concrete and Walls, with its full defensive rule', () => {
+    const { container, city, state } = makeWonderPanelFixture();
+    state.civilizations.player.techState.completed.push('reinforced-concrete');
+    city.buildings.push('walls');
+
+    const unlockedPanel = createCityPanel(container, city, state, {
+      onBuild: (cityId, itemId) => {
+        state.cities[cityId]!.productionQueue = [itemId];
+      }, onOpenWonderPanel: () => {}, onClose: () => {},
+    });
+    expect(unlockedPanel.querySelector('[data-item-id="bunker"]')).toBeTruthy();
+    expect(collectText(unlockedPanel)).toContain('Reinforced shelter. +8 city defense; naval and air bombardment deal 15% less damage. Supersedes Star Fort.');
+
+    clickElement(unlockedPanel.querySelector('[data-item-id="bunker"]'));
+    expect(collectText(container)).toContain('Producing: 🛡️ Bunker');
+
+    city.buildings = [];
+    const gatedPanel = createCityPanel(container, city, state, {
+      onBuild: () => {}, onOpenWonderPanel: () => {}, onClose: () => {},
+    });
+    expect(gatedPanel.querySelector('[data-item-id="bunker"]')).toBeNull();
+  });
+
   it('renders Coastal Battery and its naval-only rule only for a researched coastal city', () => {
     const { container, city, state } = makeWonderPanelFixture();
     state.civilizations.player.techState.completed.push('naval-armor');

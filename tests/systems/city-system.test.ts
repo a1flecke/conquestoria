@@ -348,6 +348,17 @@ describe('getAvailableBuildings', () => {
       .not.toContain('coastal_battery');
   });
 
+  it('offers Bunker only after Reinforced Concrete and Walls', () => {
+    const map = generateMap(20, 20, 'bunker-gate');
+    const city = foundCity('p1', { q: 5, r: 5 }, map, mkC());
+
+    expect(getAvailableBuildings(city, ['reinforced-concrete'], map).map(building => building.id))
+      .not.toContain('bunker');
+    city.buildings = ['walls'];
+    expect(getAvailableBuildings(city, ['reinforced-concrete'], map))
+      .toContainEqual(expect.objectContaining({ id: 'bunker', productionCost: 175 }));
+  });
+
   it('excludes dock from coastal city without fishing tech', () => {
     const map = generateMap(30, 30, 'coastal-test');
     const waterTile = Object.values(map.tiles).find(t => t.terrain === 'ocean' || t.terrain === 'coast')!;

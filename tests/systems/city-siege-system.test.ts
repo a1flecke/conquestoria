@@ -79,6 +79,31 @@ describe('resolveCitySiegeDamage (#522)', () => {
     expect(fortifiedResult.hpLost).toBeLessThan(baseResult.hpLost);
   });
 
+  it('Bunker replaces Star Fort defense and mitigates naval and air bombardment, not land assaults', () => {
+    const makeBunkerCity = () => makeCityAndCiv({
+      hp: 50, buildings: ['walls', 'star_fort', 'bunker'],
+    });
+    const { city: navalCity, ownerCiv: navalCiv } = makeBunkerCity();
+    const { city: airCity, ownerCiv: airCiv } = makeBunkerCity();
+    const { city: landCity, ownerCiv: landCiv } = makeBunkerCity();
+
+    const naval = resolveCitySiegeDamage({
+      city: navalCity, ownerCiv: navalCiv, rawDamage: 30, attackerDomain: 'naval', hasGarrison: false, era: 1, challenge: 'standard',
+    });
+    const air = resolveCitySiegeDamage({
+      city: airCity, ownerCiv: airCiv, rawDamage: 30, attackerDomain: 'air', hasGarrison: false, era: 1, challenge: 'standard',
+    });
+    const land = resolveCitySiegeDamage({
+      city: landCity, ownerCiv: landCiv, rawDamage: 30, attackerDomain: 'land', hasGarrison: false, era: 1, challenge: 'standard',
+    });
+
+    // +8: round(30 / 1.25) - 8 = 16. Bombardment also receives 15% mitigation:
+    // round((30 * 0.85) / 1.25) - 8 = 12. Star Fort must not stack to +13.
+    expect(naval.hpLost).toBe(12);
+    expect(air.hpLost).toBe(12);
+    expect(land.hpLost).toBe(16);
+  });
+
   it('applies Torpedo Warfare\'s flat bonus only against a naval attacker, not a land attacker', () => {
     const { city: navalCity, ownerCiv: navalCivBase } = makeCityAndCiv({ hp: 50, buildings: ['walls'] });
     const { city: navalCityNoTech, ownerCiv: navalCivNoTech } = makeCityAndCiv({ hp: 50, buildings: ['walls'] });
