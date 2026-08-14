@@ -518,6 +518,65 @@ describe('createTurnFlowController', () => {
     });
   });
 
+  // #787 Phase 12 (#794) inline review finding: refreshRequiredChoicesAfterAction
+  // re-enters showRequiredChoicesIfNeeded once per resolved choice. With 2+ idle
+  // cities pending at once, resolving them one at a time re-pushes the overlay on
+  // every resolution without ever popping the *previous* push -- under the old
+  // single-slot overlay each re-push was a harmless overwrite of the same id, but
+  // the reference-counted overlay nests them, and only the final resolution's
+  // closeRequiredChoicePanel() call ever pops. This is a common midgame state (2+
+  // cities with nothing queued at end of turn), not an edge case -- confirmed via
+  // a real PanelHost, not a spy.
+  describe('required choices — resolving multiple idle cities does not leak the blocking overlay (#794, phase 12)', () => {
+    it('fully unblocks interaction after resolving two idle-city choices in sequence', () => {
+      const state = makeFixture();
+      // createNewGame starts 'player' with zero cities (settled only once a
+      // settler founds one) -- borrow a minor-civ city's real map-position data
+      // as a template and reassign ownership, rather than simulating a full
+      // founding.
+      const template = Object.values(state.cities)[0]!;
+      const firstCityId = 'phase12-first-city';
+      const secondCityId = 'phase12-second-city';
+      state.cities[firstCityId] = { ...template, id: firstCityId, owner: 'player', name: 'First City', productionQueue: [] };
+      state.cities[secondCityId] = { ...template, id: secondCityId, owner: 'player', name: 'Second City', productionQueue: [] };
+      state.civilizations['player']!.cities = [firstCityId, secondCityId];
+
+      const host = createPanelHost(document.createElement('div'));
+      // baseDeps' default getElementById reads from an unpopulated id->element
+      // map, so it can never see panels this test's own code appends -- both
+      // showRequiredChoicesIfNeeded's "existing" guard and
+      // refreshRequiredChoicesAfterAction's removal need a getElementById that
+      // actually reflects uiLayer's live DOM, matching production's
+      // document.getElementById wiring (bootstrap.ts) closely enough for this
+      // panel, which (like the victory panel above) mounts into uiLayer itself.
+      const testUiLayer = document.createElement('div');
+      const deps = baseDeps(state, {
+        uiLayer: testUiLayer,
+        getElementById: id => testUiLayer.querySelector(`#${id}`),
+        setBlockingOverlay: host.setBlockingOverlay,
+      });
+      const turnFlow = createTurnFlowController(deps);
+
+      expect(turnFlow.showRequiredChoicesIfNeeded()).toBe(true);
+      expect(host.isInteractionBlocked()).toBe(true);
+
+      // Resolve the first city's choice (mirrors onChooseCityBuild's own
+      // enqueueCityProduction mutation) -- the second city is still idle, so
+      // exactly one blocker should remain, not zero and not two.
+      state.cities[firstCityId] = { ...state.cities[firstCityId]!, productionQueue: ['warrior'] };
+      turnFlow.refreshRequiredChoicesAfterAction();
+      expect(host.isInteractionBlocked()).toBe(true);
+      expect(deps.uiLayer.querySelector('#required-choice-panel')).toBeTruthy();
+
+      // Resolve the second (last) city's choice -- if the first resolution had
+      // left a phantom push behind, this would still report blocked forever.
+      state.cities[secondCityId] = { ...state.cities[secondCityId]!, productionQueue: ['warrior'] };
+      turnFlow.refreshRequiredChoicesAfterAction();
+      expect(host.isInteractionBlocked()).toBe(false);
+      expect(deps.uiLayer.querySelector('#required-choice-panel')).toBeFalsy();
+    });
+  });
+
   describe('finalizePendingCityCaptureChoice — shared emitter (was: "routes player and strategic AI capture transitions...")', () => {
     it('emits capture transitions through the shared city-capture emitter', () => {
       const state = makeFixture();

@@ -60,6 +60,13 @@ export function createUnitTurnFlow(deps: UnitTurnFlowDeps): UnitTurnFlow {
     const state = deps.getState();
     const unit = state.units[unitId];
     if (!unit || unit.owner !== state.currentPlayer) return;
+    // #787 phase 12 (#794): don't push a second 'unit-delete-confirmation'
+    // blocker onto an already-open panel -- not reachable via the live UI
+    // today (the panel physically covers its own trigger), but matches the
+    // existing-panel guard showRequiredChoicesIfNeeded/showReligionBoonIfNeeded
+    // already use, and costs nothing to keep consistent against a future
+    // caller that isn't DOM-gated the same way.
+    if (deps.uiLayer.querySelector('#unit-delete-confirmation-panel')) return;
 
     // Build caravan-aware confirmation details
     let displayName = UNIT_DEFINITIONS[unit.type].name;
@@ -116,6 +123,8 @@ export function createUnitTurnFlow(deps: UnitTurnFlowDeps): UnitTurnFlow {
     if (unmovedUnits.length === 0) {
       return false;
     }
+    // #787 phase 12 (#794): same existing-panel guard as showDeleteUnitConfirmation above.
+    if (deps.uiLayer.querySelector('#end-turn-warning-panel')) return true;
 
     deps.setBlockingOverlay('end-turn-warning');
     createEndTurnWarningPanel(deps.uiLayer, {

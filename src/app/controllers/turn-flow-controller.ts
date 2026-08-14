@@ -190,6 +190,18 @@ export function createTurnFlowController(deps: TurnFlowControllerDeps): TurnFlow
     closePlanningPanels(document);
     renderLoop.setGameState(session.getState());
     deps.updateHUD();
+    // #787 phase 12 (#794): release 'required-choice' before
+    // showRequiredChoicesIfNeeded() may push it again for the next
+    // outstanding choice. With 2+ idle cities (or an idle city plus missing
+    // research), a player resolving them one at a time re-enters this
+    // function once per choice -- under the old single-slot overlay each
+    // re-push was a harmless overwrite of the same id, but the
+    // reference-counted overlay nests them, and only the *last* choice's
+    // resolution ever pops (via closeRequiredChoicePanel below). Without
+    // this explicit release, resolving N required choices in one sitting
+    // leaves N-1 phantom pushes on the stack, permanently blocking
+    // interaction for the rest of the game.
+    deps.setBlockingOverlay(null);
     showRequiredChoicesIfNeeded();
   }
 
