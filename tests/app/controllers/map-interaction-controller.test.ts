@@ -282,7 +282,10 @@ describe('MapInteractionController', () => {
       // afterward. player-action-controller.test.ts's "does not resolve
       // minor-civilization conquest after failed movement" proves that path calls
       // neither renderLoop.setGameState nor hud.update when the follow-up move fails
-      // -- so a declared war could sit unrendered until an unrelated commit happened.
+      // -- so a declared war could sit unrefreshed until an unrelated commit happened.
+      // Concretely: economy-system.ts excludes trade-route gold from any civ you're
+      // at war with, so a civ with an active route to this minor civ needs its
+      // gold-per-turn (shown on the HUD) recalculated immediately.
       const state = makeFixture();
       document.body.innerHTML = '<div id="info-panel"></div>';
       const mcId = Object.keys(state.minorCivs)[0]!;
