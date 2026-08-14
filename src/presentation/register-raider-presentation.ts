@@ -59,6 +59,23 @@ export const registerRaiderPresentation: PresentationRegistrar = (bus, ctx) => {
         : `${city.name}'s walls fought back, damaging a ${raiderLabel} (−${damage} HP)!`;
       ctx.notifier.deliver(city.owner, message, attackerDied ? 'success' : 'info');
     }),
+    bus.on('city:coastal-battery-fired', ({ cityId, recipientCivId, source, damage, attackerDied }) => {
+      const state = ctx.session.getState();
+      if (!state.civilizations[recipientCivId]?.isHuman) return;
+      const cityName = state.cities[cityId]?.name ?? 'A coastal city';
+      const attackerLabel = source === 'pirate' ? 'pirate ship' : 'naval attacker';
+      const message = attackerDied
+        ? `${cityName}'s Coastal Battery destroyed a ${attackerLabel}!`
+        : `${cityName}'s Coastal Battery returned fire on a ${attackerLabel} (−${damage} HP; first naval hit this turn).`;
+      ctx.notifier.deliver(recipientCivId, message, attackerDied ? 'success' : 'info');
+    }),
+    bus.on('city:naval-bombarded', ({ cityId, recipientCivId, source, hpLost }) => {
+      const state = ctx.session.getState();
+      if (!state.civilizations[recipientCivId]?.isHuman) return;
+      const cityName = state.cities[cityId]?.name ?? 'A coastal city';
+      const attacker = source === 'ai' ? 'an enemy fleet' : 'a naval bombardment';
+      ctx.notifier.deliver(recipientCivId, `${cityName} took ${hpLost} damage from ${attacker}.`, 'warning');
+    }),
     // Pirate-faction naval siege (#522) mirror of the barbarian handler above.
     bus.on('pirate:city-destroyed', ({ cityId, ownerId }) => {
       const state = ctx.session.getState();

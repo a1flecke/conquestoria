@@ -70,9 +70,11 @@ import { getAIStrategicRoles, hasAICombatRole } from './ai-unit-roles';
 import { isAIHostileOwner } from './ai-hostility';
 import { getLegalRebaseDestinations, resolveAirStrike, resolveReconMission, rebaseAircraft, startIntercept } from '@/systems/air-operations-system';
 import { resolveCombatEra } from '@/systems/era-resolution';
+import { resolveNavalCityBombardment } from '@/systems/naval-city-bombardment-system';
 
 export type AITacticalAction =
   | { kind: 'attack'; unitId: string; targetUnitId: string }
+  | { kind: 'bombard-city'; unitId: string; cityId: string }
   | { kind: 'embarked-attack'; unitId: string; targetUnitId: string }
   | { kind: 'air-strike'; unitId: string; target: HexCoord }
   | { kind: 'air-recon'; unitId: string; target: HexCoord }
@@ -131,6 +133,8 @@ function actionId(action: AITacticalAction): string {
   switch (action.kind) {
     case 'attack':
       return `attack:${action.unitId}:${action.targetUnitId}`;
+    case 'bombard-city':
+      return `bombard-city:${action.unitId}:${action.cityId}`;
     case 'embarked-attack':
       return `embarked-attack:${action.unitId}:${action.targetUnitId}`;
     case 'air-strike':
@@ -315,7 +319,18 @@ function rankAttacks(
     viewerId: context.actorId,
     requireVisibility: true,
   })) {
-    if (target.result.targetType !== 'unit') continue;
+    if (target.result.targetType === 'city') {
+      const city = context.state.cities[target.result.cityId];
+      if (
+        city
+        && UNIT_DEFINITIONS[unit.type].domain === 'naval'
+        && isAIHostileOwner(context.state, context.actorId, city.owner)
+      ) {
+        attacks.push(ranked({ kind: 'bombard-city', unitId: unit.id, cityId: city.id },
+          560 + Math.max(0, 100 - (city.hp ?? 100))));
+      }
+      continue;
+    }
     const defender = context.state.units[target.result.targetUnitId];
     if (!defender) continue;
     if (!isAIHostileOwner(context.state, context.actorId, defender.owner)) {
@@ -831,6 +846,14 @@ function applyPredictedAction(
         resolveCombatEra(next, unit, defender),
       );
       return applyCombatOutcomeToState(next, result, seed).state;
+    }
+    case 'bombard-city': {
+      const result = resolveNavalCityBombardment(next, {
+        attackerUnitId: action.unitId,
+        cityId: action.cityId,
+        source: 'ai',
+      });
+      return result.ok ? result.state : next;
     }
     case 'embarked-attack': {
       const defender = next.units[action.targetUnitId];

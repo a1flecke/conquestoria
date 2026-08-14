@@ -82,6 +82,7 @@ import { createCityCapturePanel } from '@/ui/city-capture-panel';
 import { deterministicCombatSeed, resolveCombat } from '@/systems/combat-system';
 import { buildCombatContextForDefender, getAmphibiousAssaultMultiplier } from '@/systems/combat-context';
 import { canUnitAttackTarget } from '@/systems/attack-targeting';
+import { resolveNavalCityBombardment } from '@/systems/naval-city-bombardment-system';
 import { applyCombatOutcomeToState, getCaptureNotificationLabel } from '@/systems/combat-reward-system';
 import { recordCombatForCiv } from '@/systems/threat-pressure-system';
 import { resolveCombatEra } from '@/systems/era-resolution';
@@ -561,10 +562,38 @@ export function createPlayerActionController(deps: PlayerActionControllerDeps): 
     // hasActed guard: enforce "no action remaining" at the execution layer, not just
     // the highlight layer (getAttackTargets). Prevents double-action if executeAttack
     // is ever called outside the normal tap → highlight → confirm flow.
-    if (!initialAttacker || initialAttacker.hasActed || !legality.ok || legality.targetType !== 'unit') {
+    if (!initialAttacker || initialAttacker.hasActed || !legality.ok) {
       deps.showNotification('That target is no longer attackable.', 'warning');
       const currentlySelected = deps.selection.getSelectedUnitId();
       if (currentlySelected) deps.selectionController.selectUnit(currentlySelected);
+      return;
+    }
+
+    if (!amphibiousAssault && legality.targetType === 'city') {
+      const city = deps.session.getState().cities[legality.cityId];
+      if (!city) return;
+      ensurePlayerWarState(city.owner);
+      const bombardment = resolveNavalCityBombardment(deps.session.getState(), {
+        attackerUnitId: initialAttacker.id,
+        cityId: city.id,
+        source: 'player',
+      });
+      if (!bombardment.ok) {
+        deps.showNotification('That city cannot be bombarded by this unit.', 'warning');
+        return;
+      }
+      deps.session.setStateWithoutRefresh(bombardment.state);
+      if (bombardment.cityEvent) deps.bus.emit('city:naval-bombarded', bombardment.cityEvent);
+      if (bombardment.batteryEvent) deps.bus.emit('city:coastal-battery-fired', bombardment.batteryEvent);
+      deps.renderLoop.setGameState(deps.session.getState());
+      deps.hud.update();
+      deps.selectionController.refreshSelectedUnitAfterCombat();
+      deps.selectionController.selectNextUnit();
+      return;
+    }
+
+    if (legality.targetType !== 'unit') {
+      deps.showNotification('That target is no longer attackable.', 'warning');
       return;
     }
 

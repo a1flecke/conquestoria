@@ -49,6 +49,15 @@
 - Repeat on a second Battery city and verify independent state.
 - Switch `currentPlayer` between two human owners and assert delivery stays with the city owner.
 
+## Approved execution expansion — real player and major-AI naval bombardment
+
+The #692 parity audit found that naval units advertise city targets, but the player and major-AI executors only resolve unit combat/capture. The user explicitly approved completing this now so Coastal Battery is never a player-reachable partial feature.
+
+- Introduce one shared naval-bombardment mutation for human and major-AI warships. It validates a visible hostile city target through existing targeting rules, uses `round(attacker strength × current-health fraction × 0.40)` as bounded raw siege damage, resolves the existing naval-defense formula, applies Battery counterfire from the resulting `hpLost`, and consumes the ship's action.
+- Naval bombardment cannot capture, sack, or destroy a city; it leaves an otherwise lethal city at 1 HP for a land capture. This preserves #522's explicit single-exchange land-capture contract and prevents an offshore unit from bypassing occupation/capture choice.
+- Add one recipient-explicit `city:naval-bombarded` event. Presentation uses it only to notify the city owner; the actor's ordinary local feedback stays in the existing action flow. The Battery event remains distinct.
+- Add an AI `bombard-city` tactical action. It can target only a visible hostile city with no hostile unit occupying the city tile, uses the same shared mutation, and scores from legal observed state. It must not derive target information from hidden cities or units.
+
 ### Task 1: Add the buildable, coastal-gated content entry
 
 **Files:**

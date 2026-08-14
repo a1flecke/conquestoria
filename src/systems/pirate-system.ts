@@ -11,6 +11,7 @@ import { applyCombatOutcomeToState } from './combat-reward-system';
 import { deterministicCombatSeed, resolveCombat } from './combat-system';
 import { buildCombatContextForDefender } from './combat-context';
 import { applyCitySiegeOutcome, getCityCounterFireDamage, getCityGarrisonUnit, resolveCitySiegeDamage } from './city-siege-system';
+import { resolveCoastalBatteryCounterfire } from './coastal-defense-system';
 import type { PirateEconomyModifiers } from './economy-system';
 import { getWrappedHexNeighbors, hexDistance, hexKey, hexNeighbors, wrappedHexDistance } from './hex-utils';
 import {
@@ -830,7 +831,27 @@ export function processPiratesForCompletedRound(
       era: resolveCivilizationEra(ownerCiv.techState.completed),
       challenge: resolveChallengeForCiv(nextState, city.owner),
     });
+    const batteryTarget = (nextState.pirates?.factions[siege.factionId]?.shipIds ?? [])
+      .map(id => nextState.units[id])
+      .filter((unit): unit is Unit => Boolean(unit))
+      .sort((left, right) => {
+        const distance = nextState.map.wrapsHorizontally
+          ? (unit: Unit) => wrappedHexDistance(unit.position, city.position, nextState.map.width)
+          : (unit: Unit) => hexDistance(unit.position, city.position);
+        return distance(left) - distance(right) || left.id.localeCompare(right.id);
+      })[0];
+    const battery = batteryTarget
+      ? resolveCoastalBatteryCounterfire(nextState, {
+        cityId: city.id,
+        attackerUnitId: batteryTarget.id,
+        attackerDomain: 'naval',
+        cityDamage: result.hpLost,
+        source: 'pirate',
+      })
+      : undefined;
+    if (battery) nextState = battery.state;
     nextState = applyCitySiegeOutcome(nextState, siege.cityId, result);
+    if (battery?.event) bus.emit('city:coastal-battery-fired', battery.event);
 
     // One-time "under siege" alert ONLY on the transition from full HP into damage —
     // the notification de-dup key is per-turn, so pushing this every damaging round

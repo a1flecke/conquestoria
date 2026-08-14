@@ -123,6 +123,24 @@ describe('raider presentation', () => {
     expect(ctx.deliver).toHaveBeenCalledWith('p1', expect.stringContaining('ship'), 'info');
   });
 
+  it('delivers Coastal Battery feedback to its explicit hot-seat owner, not the currently rendered city owner', () => {
+    const bus = new EventBus();
+    const ctx = makePresentationContext({
+      state: {
+        cities: { 'city-a': city({ owner: 'p2', name: 'Other Rome' }) } as never,
+        civilizations: { p1: humanCiv(), p2: humanCiv() } as never,
+      },
+    });
+
+    registerRaiderPresentation(bus, ctx);
+    bus.emit('city:coastal-battery-fired', {
+      cityId: 'city-a', attackerUnitId: 'unit-1', recipientCivId: 'p1', source: 'pirate', damage: 5, attackerDied: false,
+    });
+
+    expect(ctx.deliver).toHaveBeenCalledWith('p1', expect.stringContaining('Coastal Battery'), 'info');
+    expect(ctx.deliver).not.toHaveBeenCalledWith('p2', expect.anything(), expect.anything());
+  });
+
   it('announces a barbarian sacking, distinct from destruction', () => {
     const bus = new EventBus();
     const ctx = makePresentationContext({

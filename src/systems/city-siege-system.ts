@@ -148,6 +148,8 @@ export interface CitySiegeInput {
   // A civ is only ever ended by another civ's conquest. Optional/defaults false so
   // existing direct-construction call sites keep their current destroy behavior.
   isOwnersLastCity?: boolean;
+  /** Offshore bombardment reduces a city to one HP; only land capture can change ownership. */
+  preventDestruction?: boolean;
   era: number;
   challenge: OpponentChallenge;
 }
@@ -187,6 +189,10 @@ export function resolveCitySiegeDamage(input: CitySiegeInput): CitySiegeResult {
 
   if (newHp > 0) {
     return { hpLost: currentHp - newHp, newHp, outcome: 'damaged', goldLost: 0 };
+  }
+
+  if (input.preventDestruction) {
+    return { hpLost: currentHp - 1, newHp: 1, outcome: 'damaged', goldLost: 0 };
   }
 
   const destructionEra = OPPONENT_CHALLENGE_PROFILES[input.challenge].citySiegeDestructionEra;
