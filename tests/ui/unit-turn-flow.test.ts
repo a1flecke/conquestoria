@@ -197,6 +197,31 @@ describe('unit-turn-flow', () => {
     expect(overlayStates).toEqual(['end-turn-warning', null]);
   });
 
+  // #787 phase 12 (#794): the blocking overlay is now a reference count, so a
+  // second push without a matching pop would leak a phantom blocker. These
+  // panels aren't reachable to open twice via the live UI today (each covers
+  // its own trigger), but the guard costs nothing and matches the sibling
+  // guards showRequiredChoicesIfNeeded/showReligionBoonIfNeeded already use.
+  it('re-invoking showDeleteUnitConfirmation while its own panel is open does not push a second blocker', () => {
+    const { flow, overlayStates } = makeFlow(makeState());
+
+    flow.showDeleteUnitConfirmation('unit-scout');
+    flow.showDeleteUnitConfirmation('unit-scout');
+
+    expect(document.querySelectorAll('#unit-delete-confirmation-panel')).toHaveLength(1);
+    expect(overlayStates).toEqual(['unit-delete-confirmation']);
+  });
+
+  it('re-invoking showEndTurnUnitWarningIfNeeded while its own panel is open does not push a second blocker', () => {
+    const { flow, overlayStates } = makeFlow(makeState());
+
+    expect(flow.showEndTurnUnitWarningIfNeeded()).toBe(true);
+    expect(flow.showEndTurnUnitWarningIfNeeded()).toBe(true);
+
+    expect(document.querySelectorAll('#end-turn-warning-panel')).toHaveLength(1);
+    expect(overlayStates).toEqual(['end-turn-warning']);
+  });
+
   it('does not show an end-turn warning when all current-player units are moved, acted, or skipped', () => {
     const state = makeState();
     state.units['unit-scout'] = { ...state.units['unit-scout'], skippedTurn: true, movementPointsLeft: 0 };

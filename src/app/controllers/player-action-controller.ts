@@ -220,6 +220,10 @@ export function createPlayerActionController(deps: PlayerActionControllerDeps): 
 
     deps.session.commit(result.state);
 
+    // #787 phase 12 (#794): same existing-panel guard as unit-turn-flow.ts's
+    // showDeleteUnitConfirmation -- both call sites share this panel/overlay id.
+    if (result.unitConsumed && deps.uiLayer.querySelector('#unit-delete-confirmation-panel')) return;
+
     const message = result.converted
       ? `${cityName} has converted to your faith!`
       : `You preached in ${cityName}.`;

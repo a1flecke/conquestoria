@@ -217,6 +217,43 @@ describe('PlayerActionController', () => {
       expect(deps.showNotification).toHaveBeenCalledWith(expect.stringContaining('preached'), 'info');
       expect(deps.setBlockingOverlay).not.toHaveBeenCalled();
     });
+
+    // #787 phase 12 (#794): the blocking overlay is a reference count now, so a
+    // second push without a matching pop would leak a phantom blocker. Not
+    // reachable via the live UI today (the confirmation panel covers its own
+    // trigger and any other missionary's), but matches the existing-panel
+    // guard unit-turn-flow.ts's showDeleteUnitConfirmation already uses for
+    // the same shared panel/overlay id.
+    it('does not push a second blocker if a unit-delete-confirmation panel is already open when the last charge is used', () => {
+      const { state: baseState, civId, templeCity, otherCity } = makeReligionFixture();
+      const bus = new EventBus();
+      let state = foundReligion(baseState, civId, templeCity, bus);
+      state = {
+        ...state,
+        civilizations: {
+          ...state.civilizations,
+          [civId]: {
+            ...state.civilizations[civId],
+            visibility: { tiles: { [hexKey(state.cities[otherCity].position)]: 'visible' } },
+          },
+        },
+      };
+      const missionary = createUnit('missionary', civId, state.cities[otherCity].position, state.idCounters);
+      missionary.chargesRemaining = 1;
+      state.units[missionary.id] = missionary;
+      state.civilizations[civId].units.push(missionary.id);
+      state.currentPlayer = civId;
+
+      const { deps, controller } = build(state, { bus });
+      const existingPanel = document.createElement('div');
+      existingPanel.id = 'unit-delete-confirmation-panel';
+      deps.uiLayer.appendChild(existingPanel);
+
+      controller.performPreach(missionary.id, otherCity);
+
+      expect(deps.setBlockingOverlay).not.toHaveBeenCalled();
+      expect(deps.uiLayer.querySelectorAll('#unit-delete-confirmation-panel')).toHaveLength(1);
+    });
   });
 
   describe('ensurePlayerWarState', () => {
