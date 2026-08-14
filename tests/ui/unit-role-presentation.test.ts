@@ -3,6 +3,12 @@ import { TRAINABLE_UNITS } from '@/systems/city-system';
 import { getUnitRolePresentation } from '@/ui/unit-role-presentation';
 
 describe('unit role presentation', () => {
+  it('shows a siege unit\'s exact Fortification penetration in its public facts', () => {
+    const presentation = getUnitRolePresentation('artillery');
+
+    expect(presentation?.publicFacts).toContainEqual({ icon: '🏰', text: 'Penetrates 50% of Fort and Citadel defense' });
+  });
+
   it('turns canonical counterplay into readable icon-and-text facts', () => {
     expect(getUnitRolePresentation('pikeman', ['fortification'])).toMatchObject({
       summary: 'Polearm defender that stops charging mounted attackers.',

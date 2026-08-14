@@ -485,6 +485,13 @@ export function renderSelectedUnitInfo(
     chargeDiv.textContent = `Worker Charges: ${charges}/${DEFAULT_WORKER_CHARGES}`;
     wrapper.appendChild(chargeDiv);
 
+    if (tile?.improvement === 'fort' && tile.improvementOwner === unit.owner && tile.improvementTurnsLeft > 0) {
+      const progress = document.createElement('div');
+      progress.style.cssText = 'font-size:11px;color:#f8d28a;margin-top:4px;';
+      progress.textContent = `Building Fort — ${tile.improvementTurnsLeft} turns remaining.`;
+      wrapper.appendChild(progress);
+    }
+
     if (charges > 0 && !unit.hasActed && unit.movementPointsLeft > 0 && callbacks.onWorkerAction) {
       const completedTechs = state.civilizations[unit.owner]?.techState.completed ?? [];
       const unitTileKey = hexKey(unit.position);
@@ -548,7 +555,9 @@ export function renderSelectedUnitInfo(
           fortButton.title = placement.reason === 'empire-cap'
             ? (() => {
                 const capacity = getFortificationCapacity(state, unit.owner);
-                return `Forts: ${capacity.built}/${capacity.limit}. Build another city or place this Fort on the frontier.`;
+                return capacity.built >= capacity.limit
+                  ? `Forts: ${capacity.built}/${capacity.limit}. Build another city to raise the Fort limit.`
+                  : `Forts: ${capacity.built}/${capacity.limit}. Build another city or place this Fort on the frontier.`;
               })()
             : 'Forts cannot be adjacent and are limited by your city count.';
           actionsDiv.appendChild(fortButton);

@@ -531,6 +531,9 @@ export class RenderLoop {
       beastLairPositions: new Set(beastLairGlyphs?.keys() ?? []),
       viewerTechs,
     });
+    const completedTechsByCiv = Object.fromEntries(
+      Object.entries(this.state.civilizations).map(([id, civ]) => [id, civ.techState?.completed ?? []]),
+    );
     drawHexMap(
       this.ctx,
       this.state.map,
@@ -542,6 +545,7 @@ export class RenderLoop {
       viewerTechs,
       terrainLabelSuppressedCoords,
       this.state.turn,
+      completedTechsByCiv,
     );
 
     // Draw rivers
@@ -549,9 +553,6 @@ export class RenderLoop {
 
     // Draw roads (overlay, drawn under units — see drawUnits below)
     const cityTileKeys = new Set(Object.values(this.state.cities).map(city => hexKey(city.position)));
-    const completedTechsByCiv = Object.fromEntries(
-      Object.entries(this.state.civilizations).map(([id, civ]) => [id, civ.techState?.completed ?? []]),
-    );
     drawRoads(this.ctx, this.state.map, this.camera, cityTileKeys, viewerVisibility, completedTechsByCiv);
     if (this.isAirDefenseOverlayEnabled(viewerId)) {
       drawAirDefenseOverlay(this.ctx, this.camera, this.state.map, getKnownAirDefenseProviders(this.state, viewerId));

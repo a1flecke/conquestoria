@@ -53,6 +53,7 @@ import { resolvePressureSeverityForCiv } from '@/core/opponent-challenge';
 import { getCityIntrinsicStrength, isCityHpRegenerating } from '@/systems/city-siege-system';
 import { getOccupiedCityMood, getOccupiedCityYieldMultiplier } from '@/systems/city-occupation-system';
 import { calculateProjectedCityYields } from '@/systems/city-work-system';
+import { getFortificationCapacity } from '@/systems/fortification-system';
 import { getCityTechYields } from '@/systems/tech-yield-system';
 import { resolveCivDefinition } from '@/systems/civ-registry';
 import { TECH_TREE, resolveCivilizationEra } from '@/systems/tech-definitions';
@@ -903,6 +904,12 @@ export function createCityPanel(
     <div style="font-size:11px;opacity:0.7;margin-top:4px;">
       🛡️ Defense: ${defenseRating}
     </div>`;
+  const fortificationCapacity = city.owner === state.currentPlayer
+    ? getFortificationCapacity(state, city.owner)
+    : null;
+  const fortificationCapacityHtml = fortificationCapacity
+    ? `<div style="font-size:11px;opacity:0.7;margin-top:2px;">🏰 Forts: ${fortificationCapacity.built}/${fortificationCapacity.limit}</div>`
+    : '';
 
   const html = `
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
@@ -913,6 +920,7 @@ export function createCityPanel(
         ${occupiedMoodText ? '<div style="font-size:12px;color:#d9a25c;" data-text="occupied-mood"></div>' : ''}
         ${siegeBarHtml}
         ${defenseRatingHtml}
+        ${fortificationCapacityHtml}
       </div>
       <div style="display:flex;align-items:center;gap:8px;">
         ${navHtml}

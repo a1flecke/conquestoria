@@ -1,3 +1,5 @@
+import { drawFortMarker, type FortMarkerTier } from './fort-marker';
+
 export type ImprovementTreatmentFamily =
   | 'field-rows'
   | 'worked-rock'
@@ -197,4 +199,3 @@ export function drawImprovementTreatment(
 
   return true;
 }
-import { drawFortMarker, type FortMarkerTier } from './fort-marker';

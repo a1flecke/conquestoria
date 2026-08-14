@@ -11,6 +11,7 @@ import { getOutpostMarkerImage } from './improvements/resource-outpost-marker';
 import { getRailSegmentImage } from './improvements/rail-segment-loader';
 import { getTerrainTileImage } from './terrain/terrain-tile-loader';
 import { drawImprovementTreatment } from './improvements/improvement-treatment';
+import type { FortMarkerTier } from './improvements/fort-marker';
 
 // Compatibility catalog for inspection/UI consumers. Strategic-map improvements
 // render as terrain treatments rather than these glyphs.
@@ -56,6 +57,16 @@ export function shouldShowTerrainLabel(zoom: number): boolean {
   return zoom >= LABEL_ZOOM_THRESHOLD;
 }
 
+/** A Citadel is determined by its owner's completed technology, not the viewer's. */
+export function getFortMarkerTierForPresentation(
+  tile: HexTile,
+  presentationKind: TilePresentationKind,
+  completedTechsByCiv: Readonly<Record<string, readonly string[]>>,
+): FortMarkerTier {
+  if (presentationKind !== 'live') return 'fort';
+  return completedTechsByCiv[tile.owner ?? '']?.includes('fortification-engineering') ? 'citadel' : 'fort';
+}
+
 const TERRAIN_COLORS: Record<string, string> = {
   grassland: '#5b8c3e',
   plains: '#c4a94d',
@@ -86,11 +97,12 @@ function drawTileAtScreen(
   reducedMotion: boolean,
   lowZoom: boolean,
   viewerTechs: ReadonlySet<string> = new Set(),
+  completedTechsByCiv: Readonly<Record<string, readonly string[]>> = {},
   lairGlyph?: string,
   suppressTerrainLabel: boolean = false,
   currentTurn?: number,
 ): void {
-  drawHex(ctx, screen.x, screen.y, scaledSize, tile, isVillage, currentPlayer, viewerVisibility, presentationKind, nowMs, reducedMotion, lowZoom, viewerTechs, lairGlyph, currentTurn);
+  drawHex(ctx, screen.x, screen.y, scaledSize, tile, isVillage, currentPlayer, viewerVisibility, presentationKind, nowMs, reducedMotion, lowZoom, viewerTechs, completedTechsByCiv, lairGlyph, currentTurn);
   if (shouldShowTerrainLabel(zoom) && !suppressTerrainLabel) {
     const label = getTerrainLabel(tile.terrain);
     ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
@@ -112,6 +124,7 @@ export function drawHexMap(
   viewerTechs: ReadonlySet<string> = new Set(),
   terrainLabelSuppressedCoords: ReadonlySet<string> = new Set(),
   currentTurn?: number,
+  completedTechsByCiv: Readonly<Record<string, readonly string[]>> = {},
 ): void {
   const size = camera.hexSize;
   const nowMs = typeof performance !== 'undefined' ? performance.now() : 0;
@@ -149,6 +162,7 @@ export function drawHexMap(
         reducedMotion,
         camera.zoom < LOD_SPRITE_ZOOM_THRESHOLD,
         viewerTechs,
+        completedTechsByCiv,
         presentation.kind === 'live' ? rawLairGlyph : undefined,
         terrainLabelSuppressedCoords.has(tileKey),
         currentTurn,
@@ -421,6 +435,7 @@ function drawHex(
   reducedMotion: boolean = false,
   lowZoom: boolean = false,
   viewerTechs: ReadonlySet<string> = new Set(),
+  completedTechsByCiv: Readonly<Record<string, readonly string[]>> = {},
   lairGlyph?: string,
   currentTurn?: number,
 ): void {
@@ -479,7 +494,7 @@ function drawHex(
       }
     } else {
       drawImprovementTreatment(ctx, tile.improvement, cx, cy, size, tile.improvement === 'fort'
-        ? { tier: viewerTechs.has('fortification-engineering') ? 'citadel' : 'fort' }
+        ? { tier: getFortMarkerTierForPresentation(tile, presentationKind, completedTechsByCiv) }
         : undefined);
     }
   }
@@ -488,7 +503,7 @@ function drawHex(
   if (tile.improvement !== 'none' && tile.improvementTurnsLeft > 0) {
     ctx.globalAlpha = 0.42;
     drawImprovementTreatment(ctx, tile.improvement, cx, cy, size, tile.improvement === 'fort'
-      ? { tier: viewerTechs.has('fortification-engineering') ? 'citadel' : 'fort' }
+      ? { tier: getFortMarkerTierForPresentation(tile, presentationKind, completedTechsByCiv) }
       : undefined);
     ctx.globalAlpha = 1;
     ctx.font = `bold ${size * 0.22}px sans-serif`;

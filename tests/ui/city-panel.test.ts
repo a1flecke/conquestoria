@@ -25,6 +25,34 @@ function clickElement(element: Element | null | undefined): void {
 }
 
 describe('city-panel national projects', () => {
+  it('shows the current hot-seat empire Fort capacity without exposing another player\'s forts', () => {
+    const { container, city, state } = makeWonderPanelFixture();
+    state.map.tiles['3,2'] = {
+      coord: { q: 3, r: 2 }, terrain: 'plains', elevation: 'lowland', resource: null,
+      improvement: 'fort', improvementTurnsLeft: 0, owner: city.owner, hasRiver: false, wonder: null,
+    } as any;
+    const panel = createCityPanel(container, city, state, {
+      onBuild: () => {}, onOpenWonderPanel: () => {}, onClose: () => {},
+    });
+
+    expect(collectText(panel)).toContain('Forts: 1/1');
+  });
+
+  it('does not expose a non-current hot-seat owner\'s Fort capacity', () => {
+    const { container, city, state } = makeWonderPanelFixture();
+    state.civilizations['player-2'] = { ...structuredClone(state.civilizations.player), id: 'player-2', isHuman: true };
+    city.owner = 'player-2';
+    state.map.tiles['3,2'] = {
+      coord: { q: 3, r: 2 }, terrain: 'plains', elevation: 'lowland', resource: null,
+      improvement: 'fort', improvementTurnsLeft: 0, owner: 'player-2', hasRiver: false, wonder: null,
+    } as any;
+    const panel = createCityPanel(container, city, state, {
+      onBuild: () => {}, onOpenWonderPanel: () => {}, onClose: () => {},
+    });
+
+    expect(collectText(panel)).not.toContain('Forts:');
+  });
+
   it('keeps every legal unit reachable while showing its canonical role summary', () => {
     const { container, city, state } = makeWonderPanelFixture();
     const panel = createCityPanel(container, city, state, {

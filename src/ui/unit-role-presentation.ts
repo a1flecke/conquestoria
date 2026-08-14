@@ -76,6 +76,14 @@ export function getUnitRolePresentation(
       icon: prerequisites.satisfied.includes(id) ? '✓' : '🔒',
       text: `${techName(id)} · ${prerequisites.satisfied.includes(id) ? 'Complete' : 'Missing'}`,
     })),
-    publicFacts: (definition.publicFacts ?? []).map(text => ({ icon: '⚔️', text })),
+    publicFacts: [
+      ...(definition.publicFacts ?? []).map(text => ({ icon: '⚔️', text })),
+      ...(UNIT_DEFINITIONS[type].fortificationPenetration !== undefined && UNIT_DEFINITIONS[type].fortificationPenetration < 1
+        ? [{
+            icon: '🏰',
+            text: `Penetrates ${Math.round((1 - UNIT_DEFINITIONS[type].fortificationPenetration) * 100)}% of Fort and Citadel defense`,
+          }]
+        : []),
+    ],
   };
 }
