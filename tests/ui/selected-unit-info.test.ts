@@ -866,7 +866,40 @@ describe('renderSelectedUnitInfo - worker actions', () => {
     });
 
     const blockedFort = findButtons(container).find(button => button.textContent === 'Build Fort — Fort limit reached');
-    expect(blockedFort?.title).toBe('Forts: 1/1. Build another city or place this Fort on the frontier.');
+    expect(blockedFort?.title).toBe('Forts: 1/1. Build another city to raise the Fort limit.');
+  });
+
+  it('does not recommend frontier placement after the absolute Fort cap is full', () => {
+    const state = makeWorkerState({ terrain: 'plains' });
+    state.civilizations.player.techState.completed = ['fortresses'];
+    state.cities = Object.fromEntries([0, 1, 2].map(index => [`city-${index}`, {
+      id: `city-${index}`, owner: 'player', position: { q: index * 10, r: 1 },
+    }])) as unknown as GameState['cities'];
+    for (let index = 0; index < 4; index++) {
+      state.map.tiles[`${10 + index},0`] = {
+        ...state.map.tiles['0,0'], coord: { q: 10 + index, r: 0 }, improvement: 'fort', improvementOwner: 'player',
+      };
+    }
+    const container = new MockElement('div');
+
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'worker-1', {
+      onWorkerAction: () => {},
+    });
+
+    const blockedFort = findButtons(container).find(button => button.textContent === 'Build Fort — Fort limit reached');
+    expect(blockedFort?.title).toBe('Forts: 4/4. Build another city to raise the Fort limit.');
+  });
+
+  it('shows a Fort build progress status after the Worker has spent its action', () => {
+    const state = makeWorkerState({ terrain: 'plains', improvement: 'fort', improvementTurnsLeft: 3, improvementOwner: 'player' }, { hasActed: true, movementPointsLeft: 0 });
+    state.civilizations.player.techState.completed = ['fortresses'];
+    const container = new MockElement('div');
+
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'worker-1', {
+      onWorkerAction: () => {},
+    });
+
+    expect(collectAllText(container).join(' ')).toContain('Building Fort — 3 turns remaining.');
   });
 
   it('shows watermill only on valid river land', () => {

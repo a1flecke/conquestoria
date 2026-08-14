@@ -3,10 +3,11 @@ import type { Camera } from '@/renderer/camera';
 import {
   drawHexHighlight,
   drawHexMap,
+  getFortMarkerTierForPresentation,
   drawMinorCivTerritory,
   IMPROVEMENT_ICONS,
 } from '@/renderer/hex-renderer';
-import type { GameMap, VisibilityMap } from '@/core/types';
+import type { GameMap, HexTile, VisibilityMap } from '@/core/types';
 
 vi.mock('@/renderer/improvements/rail-segment-loader', () => ({
   getRailSegmentImage: () => ({} as HTMLImageElement),
@@ -93,6 +94,19 @@ function makeCamera(): Camera {
 }
 
 describe('hex renderer privacy', () => {
+  it('derives a visible Citadel marker from the Fort owner, not the viewer', () => {
+    const tile: HexTile = { ...makeMap().tiles['1,0'], improvement: 'fort', owner: 'ai-1' };
+
+    expect(getFortMarkerTierForPresentation(tile, 'live', { player: ['fortification-engineering'], 'ai-1': [] })).toBe('fort');
+    expect(getFortMarkerTierForPresentation(tile, 'live', { player: [], 'ai-1': ['fortification-engineering'] })).toBe('citadel');
+  });
+
+  it('does not update a fogged Fort marker from unearned owner research', () => {
+    const tile: HexTile = { ...makeMap().tiles['1,0'], improvement: 'fort', owner: 'ai-1' };
+
+    expect(getFortMarkerTierForPresentation(tile, 'last-seen', { 'ai-1': ['fortification-engineering'] })).toBe('fort');
+  });
+
   it('draws foreign ownership borders on visible tiles', () => {
     const ctx = new MockCanvasContext() as unknown as CanvasRenderingContext2D;
     const visibility: VisibilityMap = { tiles: { '0,0': 'visible', '1,0': 'visible' } };
