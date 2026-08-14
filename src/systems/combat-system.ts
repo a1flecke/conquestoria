@@ -136,6 +136,11 @@ export function getCityDefenseBreakdown(input: CityDefenseInput): CityDefenseBre
     parts.push({ source: 'torpedo-warfare', label: 'Torpedo Warfare +5', kind: 'flat', value: 5 });
   }
 
+  if (input.attackerDomain === 'naval' && input.cityBuildings.includes('coastal_battery')) {
+    flatBonus += 8;
+    parts.push({ source: 'coastal_battery', label: 'Coastal Battery +8 vs naval', kind: 'flat', value: 8 });
+  }
+
   return { multiplier, flatBonus, parts };
 }
 

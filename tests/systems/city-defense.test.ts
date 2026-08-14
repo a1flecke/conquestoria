@@ -97,6 +97,23 @@ describe('getCityDefenseBreakdown', () => {
     expect(vsLand.flatBonus).toBe(0);
   });
 
+  it('Coastal Battery grants a named +8 flat defense only against naval attackers', () => {
+    const vsNaval = getCityDefenseBreakdown(
+      baseCityDefenseInput({ cityBuildings: ['coastal_battery'], attackerDomain: 'naval' }),
+    );
+    expect(vsNaval.flatBonus).toBe(8);
+    expect(vsNaval.parts).toContainEqual({
+      source: 'coastal_battery', label: 'Coastal Battery +8 vs naval', kind: 'flat', value: 8,
+    });
+
+    expect(getCityDefenseBreakdown(
+      baseCityDefenseInput({ cityBuildings: ['coastal_battery'], attackerDomain: 'land' }),
+    ).flatBonus).toBe(0);
+    expect(getCityDefenseBreakdown(
+      baseCityDefenseInput({ cityBuildings: ['coastal_battery'], attackerDomain: 'air' }),
+    ).flatBonus).toBe(0);
+  });
+
   it('stacks walls + star_fort + fortification-engineering + professional-army in documented order', () => {
     const breakdown = getCityDefenseBreakdown(
       baseCityDefenseInput({
