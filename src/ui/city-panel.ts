@@ -650,30 +650,65 @@ export function createCityPanel(
       && !lockedBuildings.some(locked => locked.id === building.id);
   });
 
-  const lockedItems: Array<{ id: string; name: string; missingResources: ResourceType[]; requiredTechs: string[] }> = [
+  // getAvailableBuildings intentionally excludes buildings whose local building
+  // requirements are unmet. Keep those projects visible here with a concrete
+  // next step; otherwise a player who has finished every required technology
+  // has no way to discover why the project is absent from the Build list.
+  const localPrerequisiteBuildings = Object.values(BUILDINGS).filter(building => {
+    const prerequisites = evaluateProductionPrerequisites(building, completedTechs);
+    const missingBuildings = (building.requiresBuildings ?? [])
+      .filter(requiredBuilding => !city.buildings.includes(requiredBuilding));
+    return prerequisites.missing.length === 0
+      && missingBuildings.length > 0
+      && !building.nationalProject
+      && !city.buildings.includes(building.id)
+      && !availableBuildings.some(available => available.id === building.id)
+      && !lockedBuildings.some(locked => locked.id === building.id)
+      && !partialPrerequisiteBuildings.some(partial => partial.id === building.id);
+  });
+
+  const lockedItems: Array<{
+    id: string;
+    name: string;
+    missingResources: ResourceType[];
+    requiredTechs: string[];
+    requiredBuildings: string[];
+  }> = [
     ...lockedUnits.map(u => ({
       id: u.type,
       name: u.name,
       missingResources: (u.resourceRequired ?? []).filter(r => !playerResources.has(r)),
       requiredTechs: [],
+      requiredBuildings: [],
     })),
     ...lockedBuildings.map(b => ({
       id: b.id,
       name: b.name,
       missingResources: (b.resourceRequired ?? []).filter(r => !playerResources.has(r)),
       requiredTechs: [],
+      requiredBuildings: [],
     })),
     ...partialPrerequisiteUnits.map(unit => ({
       id: unit.type,
       name: unit.name,
       missingResources: [],
       requiredTechs: evaluateProductionPrerequisites(unit, completedTechs).required,
+      requiredBuildings: [],
     })),
     ...partialPrerequisiteBuildings.map(building => ({
       id: building.id,
       name: building.name,
       missingResources: [],
       requiredTechs: evaluateProductionPrerequisites(building, completedTechs).required,
+      requiredBuildings: [],
+    })),
+    ...localPrerequisiteBuildings.map(building => ({
+      id: building.id,
+      name: building.name,
+      missingResources: (building.resourceRequired ?? []).filter(r => !playerResources.has(r)),
+      requiredTechs: [],
+      requiredBuildings: (building.requiresBuildings ?? [])
+        .filter(requiredBuilding => !city.buildings.includes(requiredBuilding)),
     })),
   ];
 
@@ -682,6 +717,10 @@ export function createCityPanel(
       const name = TECH_TREE.find(tech => tech.id === techId)?.name ?? techId;
       return completedTechs.includes(techId) ? `${name} ✓` : name;
     })
+    .join(' + ');
+
+  const buildingPrerequisiteChecklist = (buildingIds: readonly string[]): string => buildingIds
+    .map(buildingId => BUILDINGS[buildingId]?.name ?? buildingId)
     .join(' + ');
 
   const IMPROVEMENT_LABELS: Record<string, string> = { mine: 'Mine', pasture: 'Pasture', quarry: 'Quarry', plantation: 'Plantation', camp: 'Camp', oil_well: 'Oil Well' };
@@ -699,6 +738,25 @@ export function createCityPanel(
       lines.push(`• Buy access from a known civ (mid-game)`);
     }
     return lines.join('\n');
+  }
+
+  function getLockedItemReason(item: typeof lockedItems[number]): string {
+    const requirements: string[] = [];
+    if (item.requiredTechs.length > 0) {
+      requirements.push(prerequisiteChecklist(item.requiredTechs));
+    }
+    if (item.requiredBuildings.length > 0) {
+      requirements.push(buildingPrerequisiteChecklist(item.requiredBuildings));
+    }
+    if (requirements.length > 0) {
+      const resourceReasons = item.missingResources
+        .map(resource => buildLockedItemReason(resource, completedTechs))
+        .join('\n\n');
+      return resourceReasons.length > 0
+        ? `Requires: ${requirements.join(' + ')}\n\n${resourceReasons}`
+        : `Requires: ${requirements.join(' + ')}`;
+    }
+    return item.missingResources.map(resource => buildLockedItemReason(resource, completedTechs)).join('\n\n');
   }
 
   const LOCKED_SHOW_LIMIT = 3;
@@ -720,7 +778,7 @@ export function createCityPanel(
 
   const lockedSectionHtml = lockedItems.length > 0
     ? `<div data-section="locked-items" style="margin-top:12px;">
-        <div style="font-weight:bold;font-size:13px;color:rgba(255,255,255,0.5);margin-bottom:8px;">🔒 Locked — missing resources</div>
+        <div style="font-weight:bold;font-size:13px;color:rgba(255,255,255,0.5);margin-bottom:8px;">🔒 Locked — missing requirements</div>
         ${lockedItemsHtml}
         ${showMoreButton}
       </div>`
@@ -1181,9 +1239,7 @@ export function createCityPanel(
     const nameEl = panel.querySelector(`[data-locked-name="${item.id}"]`);
     if (nameEl) nameEl.textContent = item.name;
     const reasonEl = panel.querySelector(`[data-locked-reason="${item.id}"]`);
-    if (reasonEl) reasonEl.textContent = item.requiredTechs.length > 0
-      ? `Requires: ${prerequisiteChecklist(item.requiredTechs)}`
-      : item.missingResources.map(r => buildLockedItemReason(r, completedTechs)).join('\n\n');
+    if (reasonEl) reasonEl.textContent = getLockedItemReason(item);
   }
 
   city.productionQueue.forEach((itemId, index) => {
@@ -1304,7 +1360,7 @@ export function createCityPanel(
   const frustrationRef: { timer: ReturnType<typeof setTimeout> | null } = { timer: null };
 
   // Insert 📍 Find missing resources button into the locked section header
-  if (lockedItems.length > 0) {
+  if (lockedItems.some(item => item.missingResources.length > 0)) {
     const lockedSection = panel.querySelector('[data-section="locked-items"]');
     if (lockedSection) {
       const sectionHeader = lockedSection.firstElementChild as HTMLElement | null;
@@ -1478,9 +1534,7 @@ export function createCityPanel(
       const nameEl = panel.querySelector(`[data-locked-name-extra="${item.id}"]`);
       if (nameEl) nameEl.textContent = item.name;
       const reasonEl = panel.querySelector(`[data-locked-reason-extra="${item.id}"]`);
-      if (reasonEl) reasonEl.textContent = item.requiredTechs.length > 0
-        ? `Requires: ${prerequisiteChecklist(item.requiredTechs)}`
-        : item.missingResources.map(r => buildLockedItemReason(r, completedTechs)).join('\n\n');
+      if (reasonEl) reasonEl.textContent = getLockedItemReason(item);
     }
     btn.remove();
   });

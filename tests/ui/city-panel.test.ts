@@ -146,6 +146,22 @@ describe('city-panel national projects', () => {
     }
   });
 
+  it('keeps SAM Site visible with its missing local building prerequisites', () => {
+    const { container, city, state } = makeWonderPanelFixture();
+    state.civilizations.player.techState.completed = TECH_TREE.map(tech => tech.id);
+    city.buildings = Object.keys(BUILDINGS)
+      .filter(id => !['sam_site', 'anti_air_battery', 'radar_station'].includes(id));
+
+    const panel = createCityPanel(container, city, state, {
+      onBuild: () => {}, onOpenWonderPanel: () => {}, onClose: () => {},
+    });
+
+    expect(collectText(panel)).toContain('SAM Site');
+    expect(collectText(panel)).toContain('Requires: Anti-Air Battery + Radar Station');
+    expect(panel.querySelector('[data-item-id="sam_site"]')).toBeNull();
+    expect(panel.querySelector('[data-find-resources-btn]')).toBeNull();
+  });
+
   it('uses the current hot-seat city owner\'s prerequisites without leaking another human\'s research', () => {
     const { container, city, state } = makeWonderPanelFixture();
     state.civilizations['player-2'] = {
@@ -1763,7 +1779,7 @@ describe('city-panel locked section — S4b', () => {
     const panel = createCityPanel(container, city, state, { onBuild: () => {}, onOpenWonderPanel: () => {}, onClose: () => {} });
     const html = (panel as unknown as HTMLElement).innerHTML ?? '';
     expect(html).toContain('Locked');
-    expect(html).toContain('missing resources');
+    expect(html).toContain('missing requirements');
   });
 
   it('locked section shows axeman with copper acquisition hint', () => {
