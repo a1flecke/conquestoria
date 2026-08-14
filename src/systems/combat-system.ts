@@ -347,8 +347,10 @@ export function calculateCombatStrengths(
     defenderStrength = defenderStrength * cityDefense.multiplier + cityDefense.flatBonus;
   }
 
-  if (context?.airDefenseCoverage && UNIT_DEFINITIONS[attacker.type]?.domain === 'air') {
-    defenderStrength += context.airDefenseCoverage.flatDefenseModifier;
+  const airDefenseCoverage = context?.airDefenseCoverage;
+  const airDefenseApplies = airDefenseCoverage !== undefined && attackerDefinition.domain === 'air';
+  if (airDefenseApplies) {
+    defenderStrength += airDefenseCoverage.flatDefenseModifier;
   }
 
   if (
@@ -367,7 +369,7 @@ export function calculateCombatStrengths(
     attackerModifierParts: [...(context?.attackerModifiers?.parts ?? []), ...(context?.attackerPositioningPart ? [context.attackerPositioningPart] : []), ...(context?.attackerAmphibiousParts ?? []), ...(context?.attackerInterceptionPart ? [context.attackerInterceptionPart] : [])],
     defenderModifierParts: [...(context?.defenderModifiers?.parts ?? []), ...(context?.defenderPositioningPart ? [context.defenderPositioningPart] : [])],
     attackerModifierFacts: [...(context?.attackerModifiers?.facts ?? []), ...(context?.attackerInterceptionFact ? [context.attackerInterceptionFact] : []), ...(context?.attackerCombinedArmsFact ? [context.attackerCombinedArmsFact] : [])],
-    defenderModifierFacts: [...(context?.defenderModifiers?.facts ?? []), ...(context?.airDefenseCoverage?.facts ?? []), ...(context?.defenderCombinedArmsFact ? [context.defenderCombinedArmsFact] : []), ...(context?.defenderFortificationFact ? [context.defenderFortificationFact] : [])],
+    defenderModifierFacts: [...(context?.defenderModifiers?.facts ?? []), ...(airDefenseApplies ? airDefenseCoverage.facts : []), ...(context?.defenderCombinedArmsFact ? [context.defenderCombinedArmsFact] : []), ...(context?.defenderFortificationFact ? [context.defenderFortificationFact] : [])],
     defenderDefendsPoorly: defendsPoorly(defenderDefinition.attackProfile),
     exchange: getCombatExchangeModifiers(attacker, defender),
   };

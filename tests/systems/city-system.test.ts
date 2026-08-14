@@ -856,6 +856,25 @@ describe('processCity', () => {
     expect(result.city.productionQueue).toContain('stable');
   });
 
+  it('drops a saved SAM Site queue when its local air-defense prerequisites are absent', () => {
+    const map = generateMap(30, 30, 'sam-site-queue-save-compat');
+    const landTile = Object.values(map.tiles).find(t => t.terrain === 'grassland' || t.terrain === 'plains')!;
+    const city = {
+      ...foundCity('p1', landTile.coord, map, mkC()),
+      buildings: [],
+      productionQueue: ['sam_site'],
+      productionProgress: 0,
+    };
+
+    const result = processCity(city, map, 2, 1_000, undefined, ['radar-systems', 'rocketry']);
+
+    expect(result.droppedProductionItems).toEqual([
+      { itemId: 'sam_site', itemKind: 'building', reason: 'no-longer-available' },
+    ]);
+    expect(result.completedBuilding).toBeNull();
+    expect(result.city.buildings).not.toContain('sam_site');
+  });
+
   it('processCity does NOT demolish an already-built obsolete building — it stays in city.buildings forever, upkeep-free', () => {
     const map = generateMap(30, 30, 'obsolete-building-no-demolish-test');
     const landTile = Object.values(map.tiles).find(t => t.terrain === 'grassland' || t.terrain === 'plains')!;

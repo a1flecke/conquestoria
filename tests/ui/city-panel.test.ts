@@ -148,18 +148,60 @@ describe('city-panel national projects', () => {
 
   it('keeps SAM Site visible with its missing local building prerequisites', () => {
     const { container, city, state } = makeWonderPanelFixture();
-    state.civilizations.player.techState.completed = TECH_TREE.map(tech => tech.id);
-    city.buildings = Object.keys(BUILDINGS)
-      .filter(id => !['sam_site', 'anti_air_battery', 'radar_station'].includes(id));
+    state.civilizations.player.techState.completed = ['radar-systems', 'rocketry'];
+    city.buildings = [];
 
     const panel = createCityPanel(container, city, state, {
       onBuild: () => {}, onOpenWonderPanel: () => {}, onClose: () => {},
     });
 
+    clickElement(panel.querySelector('[data-locked-show-more]'));
     expect(collectText(panel)).toContain('SAM Site');
     expect(collectText(panel)).toContain('Requires: Anti-Air Battery + Radar Station');
     expect(panel.querySelector('[data-item-id="sam_site"]')).toBeNull();
     expect(panel.querySelector('[data-find-resources-btn]')).toBeNull();
+  });
+
+  it('refreshes the open city panel immediately after queuing a SAM Site', () => {
+    const { container, city, state } = makeWonderPanelFixture();
+    state.civilizations.player.techState.completed = ['radar-systems', 'rocketry'];
+    city.buildings = ['anti_air_battery', 'radar_station'];
+
+    const panel = createCityPanel(container, city, state, {
+      onBuild: (cityId, itemId) => {
+        state.cities[cityId]!.productionQueue = [itemId];
+      },
+      onOpenWonderPanel: () => {},
+      onClose: () => {},
+    });
+
+    clickElement(panel.querySelector('[data-item-id="sam_site"]'));
+
+    expect(collectText(container)).toContain('Producing: 🛡️ SAM Site');
+  });
+
+  it('uses the active hot-seat owner\'s SAM research without leaking another human\'s Rocketry', () => {
+    const { container, city, state } = makeWonderPanelFixture();
+    state.civilizations.player.techState.completed = ['radar-systems', 'rocketry'];
+    state.civilizations['player-2'] = {
+      ...structuredClone(state.civilizations.player),
+      id: 'player-2',
+      isHuman: true,
+      techState: { ...state.civilizations.player.techState, completed: ['radar-systems'] },
+    };
+    city.owner = 'player-2';
+    city.buildings = ['anti_air_battery', 'radar_station'];
+    state.cities[city.id] = city;
+    state.currentPlayer = 'player-2';
+
+    const panel = createCityPanel(container, city, state, {
+      onBuild: () => {}, onOpenWonderPanel: () => {}, onClose: () => {},
+    });
+
+    clickElement(panel.querySelector('[data-locked-show-more]'));
+    expect(collectText(panel)).toContain('SAM Site');
+    expect(collectText(panel)).toContain('Requires: Radar Systems ✓ + Rocketry');
+    expect(panel.querySelector('[data-item-id="sam_site"]')).toBeNull();
   });
 
   it('uses the current hot-seat city owner\'s prerequisites without leaking another human\'s research', () => {

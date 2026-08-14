@@ -69,6 +69,30 @@ describe('Trebuchet unit-damage penalty (#684)', () => {
   });
 });
 
+describe('SAM Site air-defense combat effect (#694)', () => {
+  it('adds +12 only against an air attacker, leaving land combat unchanged', () => {
+    const map = makeRiverCombatMap();
+    const defender = createUnit('rifleman', 'ai-1', { q: 1, r: 0 }, mkC());
+    const airAttacker = createUnit('bomber', 'player', { q: 0, r: 0 }, mkC());
+    const landAttacker = createUnit('rifleman', 'player', { q: 0, r: 0 }, mkC());
+    const airDefenseCoverage = {
+      flatDefenseModifier: 12,
+      facts: [{ key: 'air-defense:city:alpha:sam_site', label: 'SAM Site', sourceVisibility: 'owner' as const, operation: 'flat' as const, value: 12, outcome: 'applied' as const }],
+      providers: [],
+    };
+
+    const baselineAir = calculateCombatStrengths(airAttacker, defender, map);
+    const SAMProtectedAir = calculateCombatStrengths(airAttacker, defender, map, { airDefenseCoverage });
+    const baselineLand = calculateCombatStrengths(landAttacker, defender, map);
+    const SAMProtectedLand = calculateCombatStrengths(landAttacker, defender, map, { airDefenseCoverage });
+
+    expect(SAMProtectedAir.defenderStrength - baselineAir.defenderStrength).toBe(12);
+    expect(SAMProtectedAir.defenderModifierFacts).toContainEqual(expect.objectContaining({ label: 'SAM Site', value: 12 }));
+    expect(SAMProtectedLand.defenderStrength).toBe(baselineLand.defenderStrength);
+    expect(SAMProtectedLand.defenderModifierFacts).not.toContainEqual(expect.objectContaining({ label: 'SAM Site', value: 12 }));
+  });
+});
+
 function makeRiverCombatMap(
   rivers: GameMap['rivers'] = [],
 ): GameMap {
