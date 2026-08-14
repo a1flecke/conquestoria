@@ -219,8 +219,10 @@ describe('shared city assault wiring', () => {
       main.indexOf('function executeUpgrade('),
     );
 
+    // #787 phase 10b-g: selectionController now lives behind `composition`,
+    // constructed by createAppComposition in src/app/bootstrap.ts.
     expect(minorCaptureFlow).toContain(
-      'const movement = selectionController.executeAnimatedUnitMove(',
+      'const movement = composition.selectionController.executeAnimatedUnitMove(',
     );
     expect(minorCaptureFlow).toMatch(/if \(!movement\.ok\) return;/);
   });
@@ -268,8 +270,11 @@ describe('map interaction controller wiring (#787 phase 8d)', () => {
 
   it('constructs MapInteractionController', () => {
     const main = readFileSync(resolve(PROJECT_ROOT, 'src/main.ts'), 'utf8');
+    // #787 phase 10b-g: this construction moved from main.ts's module scope
+    // into createAppComposition (src/app/bootstrap.ts), the composition root.
+    const bootstrapSrc = readFileSync(resolve(PROJECT_ROOT, 'src/app/bootstrap.ts'), 'utf8');
 
-    expect(main).toContain('createMapInteractionController(');
+    expect(bootstrapSrc).toContain('createMapInteractionController(');
 
     // These four used to be local `function` declarations in main.ts;
     // map-interaction-controller.test.ts now owns their behavioral coverage.
@@ -281,6 +286,7 @@ describe('map interaction controller wiring (#787 phase 8d)', () => {
     ];
     for (const declaration of movedFunctionDeclarations) {
       expect(main).not.toContain(declaration);
+      expect(bootstrapSrc).not.toContain(declaration);
     }
   });
 
@@ -294,8 +300,11 @@ describe('map interaction controller wiring (#787 phase 8d)', () => {
 describe('selection controller wiring (#787 phase 8c)', () => {
   it('constructs SelectionController and no longer defines the eleven functions it now owns', () => {
     const main = readFileSync(resolve(PROJECT_ROOT, 'src/main.ts'), 'utf8');
+    // #787 phase 10b-g: this construction moved from main.ts's module scope
+    // into createAppComposition (src/app/bootstrap.ts), the composition root.
+    const bootstrapSrc = readFileSync(resolve(PROJECT_ROOT, 'src/app/bootstrap.ts'), 'utf8');
 
-    expect(main).toContain('createSelectionController(');
+    expect(bootstrapSrc).toContain('createSelectionController(');
 
     // Each of these used to be a local `function` declaration in main.ts;
     // selection-controller.test.ts now owns their behavioral coverage.
@@ -310,6 +319,7 @@ describe('selection controller wiring (#787 phase 8c)', () => {
     ];
     for (const declaration of movedFunctionDeclarations) {
       expect(main).not.toContain(declaration);
+      expect(bootstrapSrc).not.toContain(declaration);
     }
   });
 
