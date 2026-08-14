@@ -36,6 +36,7 @@ describe('formatCombatPreviewDetails', () => {
       cityDefense: {
         multiplier: 1.25,
         flatBonus: 0,
+        bombardmentDamageMultiplier: 1,
         parts: [{ source: 'walls', label: 'Walls ×1.25', kind: 'mult', value: 1.25 }],
       },
     });

@@ -482,6 +482,12 @@ export const BUILDINGS: Record<string, Building> = {
     description: 'Angled bastion fortress. +3 production. City walls gain +5 garrison defense.',
     techRequired: 'fortification-engineering',
   },
+  bunker: {
+    id: 'bunker', name: 'Bunker', category: 'military',
+    yields: { food: 0, production: 0, gold: 0, science: 0 }, productionCost: 175,
+    description: 'Reinforced shelter. +8 city defense; naval and air bombardment deal 15% less damage. Supersedes Star Fort.',
+    techRequired: 'reinforced-concrete', requiresBuildings: ['walls'],
+  },
 
   // ERA 7 REGULAR BUILDINGS — costs calibrated to era-7 production rate of ~15/turn
   // infrastructure band [8,13]: 120–195; power-spike band [9,14]: 135–210
@@ -1599,6 +1605,7 @@ export const PRODUCTION_ICONS: Record<string, string> = {
   surgery_guild:        '⚕️',
   concert_hall:         '🎻',
   star_fort:            '⭐',
+  bunker:               '🛡️',
   // era 7 regular buildings
   factory:              '🏭',
   steel_mill:           '⚙️',

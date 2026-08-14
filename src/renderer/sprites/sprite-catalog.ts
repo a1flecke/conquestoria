@@ -455,6 +455,7 @@ export const BUILDING_SPRITE_CATALOG: Record<string, BuildingSpriteComponent> = 
   surgery_guild:          SurgeryGuildSprite,
   concert_hall:           ConcertHallSprite,
   star_fort:              StarFortSprite,
+  bunker:                 StarFortSprite,
   coastal_battery:        CoastalBatterySprite,
   // Era 7 regular buildings
   factory:                FactorySprite,

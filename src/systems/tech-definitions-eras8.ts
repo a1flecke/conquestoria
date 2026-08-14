@@ -108,7 +108,8 @@ const ERA_8_TECHS: Tech[] = [
   // CONSTRUCTION (2)
   { id: 'reinforced-concrete', name: 'Reinforced Concrete', track: 'construction', cost: 250,
     prerequisites: ['urban-planning', 'structural-engineering'],
-    unlocks: ['+2 production in cities with 4 or more buildings; iron-reinforced concrete enables taller urban structures'], era: 8 },
+    unlocks: ['+2 production in cities with 4 or more buildings; iron-reinforced concrete enables taller urban structures'],
+    unlocksBuildings: ['bunker'], era: 8 },
   { id: 'sanitation-networks', name: 'Sanitation Networks', track: 'construction', cost: 240,
     prerequisites: ['iron-bridges', 'urban-planning'],
     unlocks: ['+1 food all cities; municipal water and sewage systems transform urban health'], era: 8 },

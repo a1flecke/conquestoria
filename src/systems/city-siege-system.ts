@@ -183,7 +183,9 @@ export function resolveCitySiegeDamage(input: CitySiegeInput): CitySiegeResult {
   });
   const mitigatedDamage = Math.max(
     0,
-    Math.round(input.rawDamage / breakdown.multiplier) - breakdown.flatBonus,
+    Math.round(
+      (input.rawDamage * breakdown.bombardmentDamageMultiplier) / breakdown.multiplier,
+    ) - breakdown.flatBonus,
   );
   const newHp = Math.max(0, currentHp - mitigatedDamage);
 
