@@ -558,6 +558,8 @@ export interface City {
   hp?: number;               // city hit points for pirate siege (default 100)
   concessionImmunityUntilTurn?: number; // uprising concession: no new unrest until this turn
   resilienceBonusUntilTurn?: number;    // catastrophe recovery: +1 food +1 production until this turn
+  /** Global turn when this city's Coastal Battery last returned naval siege damage. */
+  coastalBatteryCounterfireTurn?: number;
 }
 
 // --- Economy ---
@@ -1926,6 +1928,10 @@ export interface GameEvents {
   'pirate:city-destroyed': { cityId: string; ownerId: string; factionId: string };
   'city:sacked': { cityId: string; source: 'barbarian' | 'pirate'; goldLost: number };
   'city:counter-fire': { cityId: string; attackerUnitId: string; source: 'barbarian' | 'pirate'; damage: number; attackerDied: boolean };
+  'city:coastal-battery-fired': {
+    cityId: string; attackerUnitId: string; recipientCivId: string;
+    source: 'player' | 'ai' | 'barbarian' | 'pirate'; damage: number; attackerDied: boolean;
+  };
   'tutorial:step': { step: TutorialStep; message: string; advisor: 'builder' | 'explorer' | 'scholar' };
   'notification:show': { message: string; type: 'info' | 'warning' | 'success' };
   'game:saved': { turn: number };

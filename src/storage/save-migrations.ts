@@ -16,7 +16,7 @@ import { syncTransportCargoPositions } from '@/systems/transport-system';
 import { IMPROVEMENT_BUILD_TURNS } from '@/systems/improvement-system';
 import type { ImprovementType } from '@/core/types';
 
-export const CURRENT_SAVE_SCHEMA_VERSION = 12;
+export const CURRENT_SAVE_SCHEMA_VERSION = 13;
 
 export type SaveMigration = (state: GameState) => GameState;
 
@@ -717,6 +717,7 @@ export const SAVE_MIGRATIONS: Readonly<Record<number, SaveMigration>> = {
   10: migrateRetimedCavalry,
   11: migrateRetimedKnight,
   12: migrateLegacyMainFixups,
+  13: normalizeCoastalBatteryCounterfireTurns,
 };
 
 function readSchemaVersion(raw: Record<string, unknown>): number {
@@ -749,6 +750,20 @@ export function normalizeImprovementValues(state: GameState): GameState {
   return changed ? { ...state, map: { ...state.map, tiles: nextTiles } } : state;
 }
 
+/** Retains valid per-city Battery turn markers while removing malformed save data. */
+export function normalizeCoastalBatteryCounterfireTurns(state: GameState): GameState {
+  let changed = false;
+  const cities = { ...state.cities };
+  for (const [cityId, city] of Object.entries(state.cities)) {
+    const marker = city.coastalBatteryCounterfireTurn;
+    if (marker === undefined || (Number.isFinite(marker) && Number.isInteger(marker))) continue;
+    const { coastalBatteryCounterfireTurn: _invalidMarker, ...normalizedCity } = city;
+    cities[cityId] = normalizedCity;
+    changed = true;
+  }
+  return changed ? { ...state, cities } : state;
+}
+
 export function migrateSaveToCurrent(raw: unknown): GameState {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
     throw new TypeError('Save data must be an object.');
@@ -773,5 +788,7 @@ export function migrateSaveToCurrent(raw: unknown): GameState {
   const techGrace = normalizeLegacyTechGrace(manufacturing);
   const crises = normalizeCrisisArchetypes(techGrace);
   const religions = withReligionDefaults(crises);
-  return normalizeImprovementValues(normalizeRetimedBiplaneQueues(normalizeCityFaithConversionProgress(religions)));
+  return normalizeImprovementValues(normalizeCoastalBatteryCounterfireTurns(
+    normalizeRetimedBiplaneQueues(normalizeCityFaithConversionProgress(religions)),
+  ));
 }
