@@ -635,14 +635,19 @@ export function createMapInteractionController(deps: MapInteractionControllerDep
             // #787 phase 14: this used to rely entirely on
             // executeMinorCivConquest below to flush the renderer/HUD -- but
             // that function returns early with no refresh at all when the
-            // follow-up move fails. A declared war has a real, if narrow,
-            // HUD-visible effect: economy-system.ts excludes trade-route gold
-            // from any partner you're at war with, so a civ with an active
-            // trade route to this minor civ needs its gold-per-turn
-            // recalculated immediately, not whenever some later unrelated
-            // commit happens to flush it. Explicit refresh here (matching
-            // every sibling case in this switch) also keeps this case
-            // consistent regardless of what the conquest attempt does next.
+            // follow-up move fails. A declared war has a real, immediate
+            // canvas effect: unit-map-presentation.ts's chooseLead reads
+            // viewerDiplomacy.atWarWith every render() frame from the
+            // renderer's own cached state to decide whether a foreign unit
+            // stack picks its "lead" sprite by combat-defender strength
+            // (selectDefenderForAttack) or by plain id sort -- and the city
+            // the player just tapped to declare this war is on-screen right
+            // now, typically with a garrison stack. Without this refresh that
+            // stack keeps rendering its pre-war (non-hostile) lead unit until
+            // some later unrelated commit happens to flush it. Explicit
+            // refresh here (matching every sibling case in this switch) also
+            // keeps this case consistent regardless of what the conquest
+            // attempt does next.
             renderLoop.setGameState(session.getState());
             deps.updateHUD();
             deps.executeMinorCivConquest(selectedId, coord, intent.minorCivId, intent.cityId);
