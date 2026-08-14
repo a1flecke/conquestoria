@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createNewGame } from '@/core/game-state';
 import type { HexCoord, Unit, UnitType } from '@/core/types';
-import { canUnitAttackTarget, getAttackTargets, getUnitAttackProfile } from '@/systems/attack-targeting';
+import { canAttackByProfileOnMap, canUnitAttackTarget, getAttackTargets, getUnitAttackProfile } from '@/systems/attack-targeting';
 import { hexKey } from '@/systems/hex-utils';
 import { createUnit } from '@/systems/unit-system';
 
@@ -24,7 +24,7 @@ function stateWithUnits(units: Record<string, Unit>, visibility: Record<string, 
 
 describe('attack-targeting', () => {
   it('gives warriors the default melee profile and archers an explicit ranged profile', () => {
-    expect(getUnitAttackProfile('warrior')).toEqual({ kind: 'melee', range: 1, targets: ['unit', 'city'] });
+    expect(getUnitAttackProfile('warrior')).toEqual({ kind: 'melee', range: 1, targets: ['unit', 'city'], targetDomains: ['land'] });
     expect(getUnitAttackProfile('archer')).toEqual({ kind: 'ranged', range: 2, targets: ['unit'] });
   });
 
@@ -50,6 +50,22 @@ describe('attack-targeting', () => {
       targetUnitId: 'defender',
       range: 2,
     });
+  });
+
+  it('rejects land melee attacks against naval units while retaining ranged and naval attacks', () => {
+    const spearman = unit('spearman', 'spearman', 'player', { q: 0, r: 0 });
+    const archer = unit('archer', 'archer', 'player', { q: 0, r: 1 });
+    const frigate = unit('frigate', 'frigate', 'player', { q: 0, r: 2 });
+    const pirate = unit('pirate', 'pirate_frigate', 'pirate-1', { q: 1, r: 0 });
+    const state = stateWithUnits({ spearman, archer, frigate, pirate }, { '1,0': 'visible' });
+
+    expect(canAttackByProfileOnMap(spearman, pirate, state.map)).toBe(false);
+    expect(canUnitAttackTarget(state, spearman, pirate.position, { viewerId: 'player' })).toEqual({
+      ok: false,
+      reason: 'unsupported-target',
+    });
+    expect(canAttackByProfileOnMap(archer, pirate, state.map)).toBe(true);
+    expect(canAttackByProfileOnMap(frigate, pirate, state.map)).toBe(true);
   });
 
   it('does not expose an aircraft that is based at an airfield as a map target', () => {

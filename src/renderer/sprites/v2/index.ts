@@ -36,11 +36,6 @@ import { svg as ballistaSvg }      from './ballista.svg';
 import { svg as caravanSvg }       from './caravan.svg';
 import { svg as expeditionSvg }    from './expedition.svg';
 import { svg as transportSvg }     from './transport.svg';
-// MR 4 — late-era naval
-import { svg as carrackSvg }       from './carrack.svg';
-import { svg as galleonSvg }       from './galleon.svg';
-import { svg as steamshipSvg }     from './steamship.svg';
-import { svg as troopTransportSvg } from './troop_transport.svg';
 // #759 batch 1
 import { svg as combatDroneSvg }       from './combat_drone.svg';
 import { svg as autonomousFrigateSvg } from './autonomous_frigate.svg';
@@ -146,11 +141,6 @@ const UNIT_SPRITES: Record<string, Record<string, string>> = {
   caravan:       caravanSvg,
   expedition:    expeditionSvg,
   transport:     transportSvg,
-  // MR 4
-  carrack:        carrackSvg,
-  galleon:        galleonSvg,
-  steamship:      steamshipSvg,
-  troop_transport: troopTransportSvg,
   // #759 batch 1
   combat_drone:       combatDroneSvg,
   autonomous_frigate: autonomousFrigateSvg,

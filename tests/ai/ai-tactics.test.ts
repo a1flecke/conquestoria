@@ -547,6 +547,21 @@ describe('AI tactical action ranking', () => {
         && hexKey(candidate.action.destination) === hexKey(city.position))).toBe(false);
   });
 
+  it('pursues a visible ranged attacker before advancing toward an unrelated strategic target', () => {
+    const state = makeState('standard');
+    const melee = addUnit(state, 'melee', 'swordsman', AI, { q: 0, r: 0 }, { movementPointsLeft: 2 });
+    addUnit(state, 'ranged-threat', 'archer', HUMAN, { q: 2, r: 0 });
+    const plan = makePlan(
+      { kind: 'region', id: 'distant-front', anchor: { q: 0, r: 10 } },
+      [melee.id],
+      { objective: 'repel' },
+    );
+
+    expect(chooseUnitTacticalAction(context(state, plan), melee.id)).toEqual({
+      kind: 'move', unitId: melee.id, destination: { q: 1, r: 0 },
+    });
+  });
+
   it('does not force the sole last-city defender to retreat', () => {
     const state = makeState('standard');
     const city = addCity(state, 'last-city', AI, { q: 0, r: 0 });

@@ -47,16 +47,19 @@ export function createBestiaryPanel(
     card.style.cssText = 'display:flex;gap:12px;align-items:center;margin-bottom:12px;background:rgba(255,255,255,0.06);border-radius:10px;padding:12px;';
 
     const art = document.createElement('div');
-    art.style.cssText = 'width:72px;height:72px;flex:none;display:flex;align-items:center;justify-content:center;';
+    art.style.cssText = 'width:72px;height:72px;flex:none;display:flex;align-items:center;justify-content:center;overflow:hidden;';
     if (entry.status === 'unknown') {
       art.textContent = '❓';
       art.style.fontSize = '40px';
     } else if (entry.unitType) {
       const sprite = UNIT_SPRITE_CATALOG[entry.unitType];
       const holder = document.createElement('div');
-      holder.style.cssText = 'width:72px;height:72px;';
+      holder.style.cssText = 'width:72px;height:72px;overflow:hidden;';
       // Sprite SVGs are module-authored strings, never game/user input — safe for innerHTML.
       holder.innerHTML = sprite({ palette: NEUTRAL_FACTION_PALETTE, svgOnly: true });
+      const svg = holder.querySelector('svg');
+      svg?.setAttribute('width', '100%');
+      svg?.setAttribute('height', '100%');
       art.appendChild(holder);
     }
     card.appendChild(art);

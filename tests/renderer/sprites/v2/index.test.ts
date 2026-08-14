@@ -45,6 +45,14 @@ describe('getUnitSpriteV2', () => {
   });
 });
 
+describe('late-era naval sprite output', () => {
+  it.each(['carrack', 'galleon', 'steamship', 'troop_transport'])('%s never nests HTML inside its SVG', type => {
+    const result = getUnitSpriteV2(type, 'imperials')!;
+    expect(result).not.toMatch(/<svg\b[\s\S]*<div\b/);
+    expect(result).toContain('cq-sprite-wrap');
+  });
+});
+
 const PIRATE_UNIT_TYPES = [
   'pirate_galley', 'pirate_corsair', 'pirate_frigate', 'pirate_ironclad',
   'pirate_fast_attack_craft', 'pirate_mothership',
@@ -100,6 +108,13 @@ describe('neutral pirate headquarters v2 sprites', () => {
     expect(result).toContain('cq-tier-hidden');
     expect(result).toContain('cq-tier-fortified');
     expect(result).toContain('cq-tier-stronghold');
+  });
+
+  it('uses ship-family weapons for flotilla foundations', () => {
+    expect(getPirateHeadquartersSpriteV2('pirate_flotilla_stage_2')).toContain('cq-flotilla-broadside');
+    expect(getPirateHeadquartersSpriteV2('pirate_flotilla_stage_3')).toContain('cq-flotilla-broadside');
+    expect(getPirateHeadquartersSpriteV2('pirate_flotilla_stage_4')).toContain('cq-flotilla-turret');
+    expect(getPirateHeadquartersSpriteV2('pirate_flotilla_stage_5')).toContain('cq-flotilla-turret');
   });
 });
 

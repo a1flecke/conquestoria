@@ -317,7 +317,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     visionRange: 2, strength: 36, canFoundCity: false,
     canBuildImprovements: false, productionCost: 125,
     domain: 'land',
-    attackProfile: { kind: 'melee', range: 1, targets: ['unit', 'city'] },
+    attackProfile: { kind: 'melee', range: 1, targets: ['unit', 'city'], targetDomains: ['land'] },
   },
   rifleman: {
     type: 'rifleman', name: 'Rifleman', movementPoints: 2,

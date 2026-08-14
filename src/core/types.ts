@@ -383,6 +383,8 @@ export interface UnitAttackProfile {
   kind: 'melee' | 'ranged' | 'siege' | 'bombard';
   range: number;
   targets: Array<'unit' | 'city'>;
+  /** Unit domains this profile can engage. Omitted profiles use canonical legacy defaults. */
+  targetDomains?: Array<'land' | 'naval' | 'air'>;
 }
 
 export type AirInterceptionDefense =

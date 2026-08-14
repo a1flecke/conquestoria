@@ -43,7 +43,8 @@ export function getPirateHeadquartersSpriteId(
   entity: Pick<PirateHeadquartersMapEntity, 'subtype' | 'stage'>,
 ): PirateHeadquartersSpriteId {
   const kind = entity.subtype === 'coastal-enclave' ? 'enclave' : 'flotilla';
-  return `pirate_${kind}_stage_${entity.stage}` as PirateHeadquartersSpriteId;
+  const stage = kind === 'flotilla' ? Math.max(2, entity.stage) : entity.stage;
+  return `pirate_${kind}_stage_${stage}` as PirateHeadquartersSpriteId;
 }
 
 function tierForBehavior(behavior: string | undefined): PirateBehaviorTierNumber {
