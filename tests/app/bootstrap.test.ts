@@ -101,6 +101,9 @@ function makeCompositionDeps(overrides: Partial<AppCompositionDeps> = {}): AppCo
     applyDeliveryVisual: vi.fn(),
     applyCombatVisual: vi.fn(),
     animations: { add: vi.fn() },
+    isAirDefenseOverlayEnabled: vi.fn().mockReturnValue(false),
+    toggleAirDefenseOverlay: vi.fn().mockReturnValue(false),
+    resizeCanvas: vi.fn(),
   } as unknown as RenderLoop;
   const audio = {
     playNaturalWonderDiscovery: vi.fn().mockResolvedValue(undefined),
@@ -190,5 +193,44 @@ describe('createAppComposition', () => {
 
     expect(() => deps.session.commit(deps.session.getState())).not.toThrow();
     expect(updateSpy).toHaveBeenCalled();
+  });
+
+  it('maybeShowPendingHoardChoice refreshes the renderer, not just the HUD, when a choice is made', () => {
+    // #787 phase 14: this used to call session.setStateWithoutRefresh(...)
+    // and only manually call hud.update() -- skipping renderLoop.setGameState.
+    // The 'trophy' choice mutates lair.status to 'claimed', which
+    // hex-renderer.ts renders as a different icon (🏆 vs 🐾) -- a real
+    // stale-render bug, since only a later unrelated commit() elsewhere would
+    // ever push the claimed status to the canvas.
+    const deps = makeCompositionDeps();
+    let state = deps.session.getState();
+    state = {
+      ...state,
+      beasts: {
+        mode: 'wild',
+        lairs: {
+          'lair-1': {
+            id: 'lair-1', beastId: 'dire_wolf', position: { q: 10, r: 10 },
+            status: 'slain', strength: 0, unitIds: [], slainBy: state.currentPlayer,
+          },
+        },
+        sightingsByCiv: {},
+        pendingHoardChoices: [{ lairId: 'lair-1', civId: state.currentPlayer }],
+      },
+    };
+    deps.session.commit(state);
+    const setGameStateSpy = vi.mocked(deps.renderLoop.setGameState);
+    setGameStateSpy.mockClear();
+
+    const composition = createAppComposition(deps);
+    composition.presentationContext.maybeShowPendingHoardChoice();
+
+    const trophyButton = deps.uiLayer.querySelector<HTMLButtonElement>('[data-choice="trophy"]');
+    expect(trophyButton).not.toBeNull();
+    trophyButton!.click();
+
+    expect(setGameStateSpy).toHaveBeenCalled();
+    const pushedState = setGameStateSpy.mock.calls.at(-1)![0];
+    expect(pushedState.beasts!.lairs['lair-1'].status).toBe('claimed');
   });
 });

@@ -143,9 +143,13 @@ export function createAppComposition(deps: AppCompositionDeps): AppComposition {
     const preview = getHoardChoicePreview(session.getState(), pending.lairId);
     const lair = session.getState().beasts!.lairs[pending.lairId];
     createBeastHoardPanel(uiLayer, preview, choice => {
-      session.setStateWithoutRefresh(applyHoardChoice(session.getState(), pending.lairId, pending.civId, choice));
+      // #787 phase 14: was setStateWithoutRefresh + a manual hud.update() --
+      // that skipped renderLoop.setGameState, so the 'trophy' choice's
+      // lair.status: 'claimed' (rendered as a different map icon, see
+      // hex-renderer.ts) never reached the canvas until an unrelated commit
+      // elsewhere happened to push it. commit() refreshes both.
+      session.commit(applyHoardChoice(session.getState(), pending.lairId, pending.civId, choice));
       bus.emit('beast:hoard-claimed', { lairId: pending.lairId, beastId: lair.beastId, civId: pending.civId, choice });
-      hud.update();
       maybeShowPendingHoardChoice();
     });
   }
