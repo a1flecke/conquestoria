@@ -68,6 +68,7 @@ When planning interactive UI or queue work, use `docs/superpowers/plans/README.m
 - Offline-first: Service Worker caches everything, IndexedDB stores saves
 - Sprites: JSX→SVG→HTMLImageElement pipeline; unit/building sprites in `src/renderer/sprites/`; terrain tiles in `src/renderer/terrain/`; improvement markers in `src/renderer/improvements/`; wonder graphics in `src/renderer/wonders/`
 - Terrain tiles: 4 SVG variants per terrain type, variant chosen by `Math.abs(q*7 + r*13) % 4`; fallback to flat `TERRAIN_COLORS` while loading
+- `src/main.ts` is a composition root only. New app behavior goes in `src/app/controllers/` (depending on `src/app/ports.ts`) or a `src/presentation/register-*.ts` registrar. A new panel is one `PANEL_REGISTRY` entry; a new notification is one handler in the matching registrar; a new persisted save field is one numbered migration in `save-migrations.ts`. Enforced by `tests/app/architecture-boundaries.test.ts`.
 
 ## Conventions
 - Axial hex coordinates (q, r) everywhere

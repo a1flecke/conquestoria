@@ -9,17 +9,19 @@ import { applyStrategicWarningTransitions } from '@/systems/strategic-warning-sy
 import type { GameState, SoloSetupConfig } from '@/core/types';
 
 /**
- * Gameplay guard for the composition-root decomposition arc (#787).
+ * Run-to-run determinism guard, permanent (unlike the now-retired
+ * pre-refactor baseline test this file used to also carry -- see #787 phase
+ * 11, which deleted it once the composition-root decomposition arc it backed
+ * was done: `BASELINE`, `digest`, and `ONE_RUN_TIMEOUT_MS` are gone).
  *
- * The refactor moves ~5,400 lines out of src/main.ts across eleven phases, and
- * main.ts calls into nearly every system. This runs the real turn pipeline with
- * no UI attached, so it is unaffected by every phase EXCEPT one that
- * accidentally changes a system call -- which is exactly the failure it exists
- * to catch. See docs/superpowers/plans/2026-08-04-composition-root-decomposition.md.
- *
- * Deliberately NOT a snapshot: this repo has no snapshot tests, and a snapshot's
- * failure mode is `-u` until green. The only correct response to the baseline
- * below failing is to find which phase moved a system call and revert it.
+ * Runs the real turn pipeline with no UI attached, twice from the same
+ * cloned start, and asserts the two runs produce byte-identical state. This
+ * is invariant under legitimate gameplay/content/balance changes (both runs
+ * still land on whatever the new correct output is) but catches any
+ * accidental source of nondeterminism -- e.g. `Math.random()` sneaking in
+ * somewhere that should use the seeded RNG. Deliberately NOT a snapshot:
+ * this repo has no snapshot tests, and a snapshot's failure mode is `-u`
+ * until green, which would defeat the point here.
  */
 
 const CONFIG: SoloSetupConfig = {
@@ -62,30 +64,12 @@ function advance(state: GameState, rounds: number): GameState {
   return current;
 }
 
-function digest(state: GameState): Record<string, unknown> {
-  return {
-    turn: state.turn,
-    era: state.era,
-    cityCount: Object.keys(state.cities).length,
-    unitCount: Object.keys(state.units).length,
-    goldByCiv: Object.fromEntries(
-      Object.entries(state.civilizations).map(([id, civ]) => [id, civ.gold]),
-    ),
-    techsCompletedByCiv: Object.fromEntries(
-      Object.entries(state.civilizations).map(([id, civ]) => [id, civ.techState.completed.length]),
-    ),
-  };
-}
-
-// Timeouts per .claude/rules/hooks-and-tooling.md (#608): this file advances the
-// full turn pipeline 40 rounds across 4 civs, so it is a simulation test, not a
-// cheap unit test, and must never sit on vitest's 5s default. Observed: 1520ms /
-// 704ms solo locally, but 6604ms for the first test on CI -- which is exactly how
-// this file first failed. Sized well above the worst observed run so contention
-// from parallel worktree agents cannot turn it into a phantom regression. Do not
-// tighten these toward the solo timings.
+// Timeout per .claude/rules/hooks-and-tooling.md (#608): this file advances the
+// full turn pipeline across several civs twice, so it is a simulation test, not
+// a cheap unit test, and must never sit on vitest's 5s default. Sized well above
+// the worst observed run so contention from parallel worktree agents cannot turn
+// it into a phantom regression. Do not tighten toward solo-run timings.
 const TWO_RUN_TIMEOUT_MS = 30_000;
-const ONE_RUN_TIMEOUT_MS = 15_000;
 
 describe('determinism guard', () => {
   it(`${ROUNDS} rounds over the same start produce an identical state across runs`, () => {
@@ -97,45 +81,4 @@ describe('determinism guard', () => {
 
     expect(JSON.stringify(a)).toBe(JSON.stringify(b));
   }, TWO_RUN_TIMEOUT_MS);
-
-  /**
-   * TEMPORARY — delete this test (and BASELINE, digest, and ONE_RUN_TIMEOUT_MS)
-   * in #787 phase 11, when the arc lands.
-   *
-   * It exists only to back this arc's "no gameplay change" claim while ~5,400
-   * lines move out of main.ts. It is NOT a general-purpose regression test: the
-   * digest is sensitive to any legitimate content or balance work -- a new unit,
-   * a retuned yield, an AI tweak -- and the only sane response to those is to
-   * re-record it. Keeping it past phase 11 would train everyone to re-record on
-   * red, which is precisely the habit the docblock above forbids, and would
-   * eventually mask a real regression.
-   *
-   * The sibling test above has no such expiry: run-to-run determinism is
-   * invariant under gameplay changes and stays useful forever.
-   */
-  it('matches the baseline recorded from the pre-refactor build', () => {
-    const state = advance(pinnedStart(), ROUNDS);
-
-    expect(digest(state)).toEqual(BASELINE);
-  }, ONE_RUN_TIMEOUT_MS);
 });
-
-/**
- * Recorded 2026-08-04 from commit 2ce97c70 with `git stash push -- src/` applied,
- * i.e. against a source tree with zero decomposition-arc changes. Verified stable
- * across repeated runs with the pinned gameId above.
- *
- * Do not re-record to make a failing phase pass. If this fails, find the phase
- * that moved a system call and revert it.
- */
-const BASELINE = {
-  turn: 21,
-  era: 1,
-  cityCount: 6,
-  unitCount: 23,
-  // The human seat never acts in this harness -- only non-human majors and the
-  // world tick run -- so `player` staying at 0 is correct, and the AI columns
-  // are what actually guard AI behavior.
-  goldByCiv: { player: 0, 'ai-1': 20, 'ai-2': 22 },
-  techsCompletedByCiv: { player: 0, 'ai-1': 4, 'ai-2': 4 },
-} as const;
