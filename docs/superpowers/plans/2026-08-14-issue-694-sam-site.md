@@ -84,7 +84,10 @@ sam_site: {
 
 - [ ] **Step 2: Update both technology records**
 
-Append `sam_site` to `radar-systems.unlocksBuildings` and `rocketry.unlocksBuildings`; revise each unlock text so neither tech claims the building is legal by itself.
+Append `sam_site` only to `radar-systems.unlocksBuildings`, because the current
+tech-integrity contract requires each structured building unlock to equal that building's
+single `techRequired`. Revise both technology descriptions to say SAM Site also requires
+the other technology; `requiredTechs: ['rocketry']` remains the authoritative second gate.
 
 - [ ] **Step 3: Add temporary renderer coverage**
 
