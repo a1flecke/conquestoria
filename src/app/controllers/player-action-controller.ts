@@ -1,45 +1,59 @@
 /**
- * Owns the player-unit-action functions extracted from `main.ts` in #787
- * phase 10b-e: `getUnitTurnFlow`, `performWorkerAction`, `performPreach`,
- * `ensurePlayerWarState`, `restAction`, `showEspionageCaptureChoice`
- * (~274 lines pre-move).
- *
- * This is a partial `PlayerActionController` -- Phase 13 (PR #800, not yet
- * merged as of this writing) covers a *different* six-function group in the
- * same domain (`executeAttack`, `foundCityAction`, `executeUpgrade`,
- * `beginPlayerCityAssault`, `executeMinorCivConquest`,
- * `finalizePendingCityCaptureChoice`) and is expected to extend this same
- * file with those functions once it lands, per the plan doc's explicit
- * fallback: "if Phase 13 has not yet been implemented when 10b-e starts,
- * add these functions to Phase 13's own Moves list instead of creating a
- * second controller." Those six functions stay in `main.ts` for now and are
- * NOT touched by this phase.
+ * Owns the player-unit-action functions extracted from `main.ts`:
+ * `getUnitTurnFlow`, `performWorkerAction`, `performPreach`,
+ * `ensurePlayerWarState`, `restAction`, `showEspionageCaptureChoice` (#787
+ * phase 10b-e, ~274 lines pre-move), plus `executeAttack`, `foundCityAction`,
+ * `executeUpgrade`, `beginPlayerCityAssault`, `executeMinorCivConquest`
+ * (#787 phase 13, ~220 lines pre-move) -- "the mutation that runs after the
+ * player confirms a preview or dialog" for combat, city founding, unit
+ * upgrades, and city capture. Phase 13's plan doc (PR #800) was written
+ * before 10b-e shipped and predates two things it still describes
+ * incorrectly: it lists `finalizePendingCityCaptureChoice` as a sixth
+ * function to move here, but that function already belongs to
+ * `TurnFlowController` (#787 phase 9) and was never `main.ts`-local by the
+ * time this phase started -- confirmed by grep, not assumed, per
+ * `.claude/rules/spec-fidelity.md`; it also describes creating this file
+ * fresh, but 10b-e already created it for the unrelated six-function group
+ * above -- exactly the fallback the earlier phase's own docblock predicted
+ * ("if Phase 13 has not yet been implemented when 10b-e starts, add these
+ * functions to Phase 13's own Moves list instead of creating a second
+ * controller").
  *
  * Construction-order circularity: `getUnitTurnFlow`'s body needs
  * `turnFlow.endTurn` and `selectionController`'s unit-selection methods;
  * conversely `selectionController` and `turnFlow` both take
  * `getUnitTurnFlow` (and `selectionController` also takes
- * `performWorkerAction`/`performPreach`/`restAction`/`ensurePlayerWarState`)
- * as their own construction deps. `main.ts` resolves this the same way it
- * resolves every other three-way forward reference in this file: this
- * controller is constructed *after* both `selectionController` and
- * `turnFlow`, taking direct references to both; `selectionController`'s and
- * `turnFlow`'s own construction use lazy wrappers (`{ getUnitTurnFlow: () =>
- * playerActions.getUnitTurnFlow(), ... }`) for the functions that moved here,
- * the same deferred-but-eager pattern `router`/`notifier`/`campaignEntry`
- * already use elsewhere in `main.ts`.
+ * `performWorkerAction`/`performPreach`/`restAction`/`ensurePlayerWarState`,
+ * plus now `foundCityAction`/`executeUpgrade`; `mapInteraction` takes
+ * `executeAttack`/`executeMinorCivConquest`/`beginPlayerCityAssault`) as
+ * their own construction deps. `bootstrap.ts` resolves this the same way it
+ * resolves every other three-way forward reference in `createAppComposition`
+ * (#787 phase 10b-g): this controller is constructed *after*
+ * `selectionController` and `turnFlow`, taking direct references to both;
+ * `selectionController`'s, `turnFlow`'s, and `mapInteraction`'s own
+ * construction route through `playerActions.<method>` for everything that
+ * lives here, the same deferred-but-eager pattern `router`/`notifier`/
+ * `campaignEntry` already use elsewhere in that file.
  *
  * `notifier` is threaded through as a lazy wrapper too -- it's a `let` not
  * assigned until `init()` runs, well after every module-scope controller
  * construction, same as `turnFlow`'s own `notifier` dep.
  *
- * `setBlockingOverlay` and `currentCiv` are cross-cutting helpers (phase
- * 10b-f's domain) still living in `main.ts` -- threaded through as deps
- * until that phase gives them a real home.
+ * `setBlockingOverlay`, `currentCiv`, and `maybeShowPendingHoardChoice` are
+ * cross-cutting helpers/`main.ts`-local functions threaded through as deps
+ * -- `maybeShowPendingHoardChoice` in particular stays `main.ts`-local
+ * because it is not "a mutation after a preview/dialog confirm" the way the
+ * other five functions are; it is `executeAttack`'s own post-kill hook into
+ * a beast-hoard-choice flow that also has other, unrelated callers.
  *
  * Everything this file calls that is a pure `@/systems/*`, `@/ui/*` helper
  * is imported directly, matching the precedent set by every prior controller
- * in this arc.
+ * in this arc. `ensurePlayerWarState`, `beginPlayerCityAssault`, and
+ * `finalizePendingCityCaptureChoice` (the latter via `deps.turnFlow`) are
+ * called as same-file sibling references from `beginPlayerCityAssault`/
+ * `executeAttack` now that they live together -- no wrapper needed, per the
+ * arc's own "keep consumer deps unchanged, rewire only the call site"
+ * precedent.
  */
 import type { RenderLoop } from '@/renderer/render-loop';
 import type { EventBus } from '@/core/event-bus';
@@ -47,7 +61,8 @@ import type { GameSession, SelectionStore, Notifier } from '@/app/ports';
 import type { HudController } from '@/app/controllers/hud-controller';
 import type { SelectionController } from '@/app/controllers/selection-controller';
 import type { TurnFlowController } from '@/app/controllers/turn-flow-controller';
-import type { Civilization, WorkerActionType } from '@/core/types';
+import type { AdvisorSystem } from '@/ui/advisor-system';
+import type { Civilization, CivBonusEffect, CombatResult, HexCoord, UnitType, WorkerActionType } from '@/core/types';
 import type { UnitTurnFlow } from '@/ui/unit-turn-flow';
 import { createUnitTurnFlow } from '@/ui/unit-turn-flow';
 import { removeRouteForUnit } from '@/systems/trade-system';
@@ -60,6 +75,32 @@ import { declareWar, modifyRelationship, resolveOpponentKind } from '@/systems/d
 import { applyOpportunisticWarPenaltyIfCrisisStruck } from '@/systems/crisis-interaction-system';
 import { getSpyCaptureRelationshipPenalty, expelSpy, executeSpy, startInterrogation } from '@/systems/espionage-system';
 import { getCapitalCity } from '@/systems/capital-system';
+import { hexKey, parseHexKey } from '@/systems/hex-utils';
+import { foundCityInState } from '@/systems/city-founding-system';
+import { formatCityFoundingBlockerMessage, getCityFoundingBlockers } from '@/systems/city-territory-system';
+import { createCityCapturePanel } from '@/ui/city-capture-panel';
+import { deterministicCombatSeed, resolveCombat } from '@/systems/combat-system';
+import { buildCombatContextForDefender, getAmphibiousAssaultMultiplier } from '@/systems/combat-context';
+import { canUnitAttackTarget } from '@/systems/attack-targeting';
+import { applyCombatOutcomeToState, getCaptureNotificationLabel } from '@/systems/combat-reward-system';
+import { recordCombatForCiv } from '@/systems/threat-pressure-system';
+import { resolveCombatEra } from '@/systems/era-resolution';
+import { applyCampDestructionAtTarget } from '@/systems/barbarian-system';
+import { recordBeastSlain } from '@/systems/beast-system';
+import { BEAST_DEFINITIONS } from '@/systems/beast-definitions';
+import { SFX } from '@/audio/sfx';
+import { conquestMinorCiv, applyDiplomaticReaction } from '@/systems/minor-civ-system';
+import { buildUnitOccupancy, hasHostileUnitAtCoord } from '@/systems/unit-occupancy';
+import { beginPlayerCityAssaultChoice, shouldPromptForPlayerCityCapture } from '@/input/city-assault-flow';
+import { canUnitOccupyCity } from '@/systems/city-capture-system';
+import { buildCombatPresentation } from '@/systems/viewer-event-presentation';
+import { applyUnitUpgradeToState } from '@/systems/unit-upgrade-system';
+import { executeUnitMove } from '@/systems/unit-movement-system';
+import { getEmbarkedAssaultTarget, detachCargoForEmbarkedAssault } from '@/systems/transport-system';
+import { updateAndRefreshVisibility } from '@/systems/last-seen-presentation';
+import { syncCivilizationContactsFromVisibility } from '@/systems/discovery-system';
+import { emitMinorCivQuestTransitions } from '@/systems/quest-chain-system';
+import { getCurrentCivDef } from '@/app/cross-cutting-helpers';
 
 export interface PlayerActionController {
   getUnitTurnFlow(): UnitTurnFlow;
@@ -68,19 +109,37 @@ export interface PlayerActionController {
   ensurePlayerWarState(targetCivId: string): void;
   restAction(): void;
   showEspionageCaptureChoice(spyId: string, spyOwner: string): void;
+  executeAttack(attackerId: string, targetKey: string): void;
+  foundCityAction(): void;
+  executeUpgrade(unitId: string, targetType: UnitType): boolean;
+  beginPlayerCityAssault(
+    attackerId: string,
+    cityId: string,
+    attackerBonus?: CivBonusEffect,
+    precedingCombat?: CombatResult,
+    embarkedAssault?: boolean,
+  ): 'pending' | 'resolved';
+  executeMinorCivConquest(unitId: string, target: HexCoord, minorCivId: string, cityId: string): void;
 }
 
 /** The narrow slice of `RenderLoop` this controller needs. */
-export type PlayerActionRenderer = Pick<RenderLoop, 'setGameState'> & { readonly camera: Pick<RenderLoop['camera'], 'centerOn'> };
+export type PlayerActionRenderer =
+  & Pick<RenderLoop, 'setGameState'>
+  & { readonly camera: Pick<RenderLoop['camera'], 'centerOn'> }
+  & { readonly animations: Pick<RenderLoop['animations'], 'add'> };
 
 export interface PlayerActionControllerDeps {
   readonly session: GameSession;
   readonly bus: EventBus;
   readonly uiLayer: HTMLDivElement;
-  readonly selection: Pick<SelectionStore, 'getSelectedUnitId'>;
-  readonly selectionController: Pick<SelectionController, 'selectUnit' | 'deselectUnit' | 'selectNextUnit' | 'refreshCurrentPlayerVisibility'>;
-  /** Lazy wrapper not needed here -- constructed after `turnFlow` in `main.ts`. */
-  readonly turnFlow: Pick<TurnFlowController, 'endTurn'>;
+  readonly selection: Pick<SelectionStore, 'getSelectedUnitId' | 'setPendingIntent'>;
+  readonly selectionController: Pick<
+    SelectionController,
+    | 'selectUnit' | 'deselectUnit' | 'selectNextUnit' | 'refreshCurrentPlayerVisibility'
+    | 'executeAnimatedUnitMove' | 'refreshSelectedUnitAfterCombat'
+  >;
+  /** Lazy wrapper not needed here -- constructed after `turnFlow` in `bootstrap.ts`. */
+  readonly turnFlow: Pick<TurnFlowController, 'endTurn' | 'finalizePendingCityCaptureChoice'>;
   readonly hud: Pick<HudController, 'update'>;
   readonly renderLoop: PlayerActionRenderer;
   readonly showNotification: (message: string, type?: 'info' | 'success' | 'warning') => void;
@@ -91,6 +150,9 @@ export interface PlayerActionControllerDeps {
    * assigned until `init()` runs, well after this controller is constructed.
    */
   readonly notifier: Pick<Notifier, 'choice'>;
+  readonly advisorSystem: Pick<AdvisorSystem, 'resetMessage' | 'check'>;
+  /** #787 phase 13: `executeAttack`'s post-kill beast-hoard hook; stays `main.ts`-local (see module docblock). */
+  readonly maybeShowPendingHoardChoice: () => void;
 }
 
 export function createPlayerActionController(deps: PlayerActionControllerDeps): PlayerActionController {
@@ -359,6 +421,290 @@ export function createPlayerActionController(deps: PlayerActionControllerDeps): 
     ]);
   }
 
+  function executeMinorCivConquest(unitId: string, target: HexCoord, minorCivId: string, cityId: string): void {
+    const cityName = deps.session.getState().cities[cityId]?.name ?? 'City-State';
+    const movement = deps.selectionController.executeAnimatedUnitMove(unitId, () => executeUnitMove(deps.session.getState(), unitId, target, {
+      actor: 'player',
+      civId: deps.session.getState().currentPlayer,
+      bus: deps.bus,
+      foreignCityEntryId: cityId,
+    }));
+    if (!movement.ok) return;
+    const movedUnit = deps.session.getState().units[unitId];
+    if (movedUnit) deps.session.getState().units[unitId] = { ...movedUnit, movementPointsLeft: 0 };
+    const conquered = conquestMinorCiv(deps.session.getState(), minorCivId, deps.session.getState().currentPlayer);
+    deps.session.setStateWithoutRefresh(conquered.state);
+    emitMinorCivQuestTransitions(deps.bus, conquered.transitions, deps.session.getState());
+    if (conquered.conquered) deps.bus.emit('minor-civ:destroyed', { minorCivId, conquerorId: deps.session.getState().currentPlayer });
+    deps.showNotification(`${cityName} has been conquered!`, 'success');
+    SFX.tap();
+    deps.renderLoop.setGameState(deps.session.getState());
+    deps.hud.update();
+  }
+
+  function executeUpgrade(unitId: string, targetType: UnitType): boolean {
+    const result = applyUnitUpgradeToState(deps.session.getState(), unitId, targetType);
+    if (!result.upgraded) return false;
+    deps.session.commit(result.state);
+    return true;
+  }
+
+  function foundCityAction(): void {
+    const selectedUnitId = deps.selection.getSelectedUnitId();
+    if (!selectedUnitId) return;
+    const unit = deps.session.getState().units[selectedUnitId];
+    if (!unit || unit.type !== 'settler') return;
+
+    const blockers = getCityFoundingBlockers(deps.session.getState(), unit.position);
+    if (blockers.length > 0) {
+      deps.showNotification(formatCityFoundingBlockerMessage(blockers), 'warning');
+      return;
+    }
+
+    let result;
+    try {
+      result = foundCityInState(deps.session.getState(), selectedUnitId, deps.bus);
+    } catch (error) {
+      deps.showNotification(
+        error instanceof Error ? error.message : 'City cannot be founded here.',
+        'warning',
+      );
+      return;
+    }
+    deps.session.setStateWithoutRefresh(result.state);
+
+    deps.selectionController.deselectUnit();
+    const foundedCity = deps.session.getState().cities[result.cityId];
+    deps.showNotification(`${foundedCity.name} has been founded!`, 'success');
+    SFX.foundCity();
+
+    // Update visibility
+    updateAndRefreshVisibility(deps.session.getState(), deps.session.getState().currentPlayer);
+    for (const contact of syncCivilizationContactsFromVisibility(deps.session.getState(), deps.session.getState().currentPlayer)) {
+      deps.bus.emit('civilization:first-contact', contact);
+    }
+
+    deps.renderLoop.setGameState(deps.session.getState());
+    deps.hud.update();
+  }
+
+  function beginPlayerCityAssault(
+    attackerId: string,
+    cityId: string,
+    attackerBonus?: CivBonusEffect,
+    precedingCombat?: CombatResult,
+    embarkedAssault = false,
+  ): 'pending' | 'resolved' {
+    const city = deps.session.getState().cities[cityId];
+    if (!city) return 'resolved';
+    const attacker = deps.session.getState().units[attackerId];
+    if (!attacker || !canUnitOccupyCity(attacker)) return 'resolved';
+
+    ensurePlayerWarState(city.owner);
+    let attackerMultiplier: number | undefined;
+    if (embarkedAssault) {
+      const legality = getEmbarkedAssaultTarget(deps.session.getState(), attackerId, city.position, { viewerId: deps.session.getState().currentPlayer });
+      if (!legality.ok || legality.targetType !== 'city') {
+        deps.showNotification('That coastal assault is no longer possible.', 'warning');
+        return 'resolved';
+      }
+      attackerMultiplier = getAmphibiousAssaultMultiplier(deps.session.getState(), attacker, city.position);
+      const detached = detachCargoForEmbarkedAssault(deps.session.getState(), attackerId);
+      if (!detached.ok) return 'resolved';
+      deps.session.setStateWithoutRefresh(detached.state);
+    }
+    const begun = beginPlayerCityAssaultChoice(
+      deps.session.getState(),
+      attackerId,
+      cityId,
+      deps.bus,
+      precedingCombat,
+      attackerMultiplier,
+    );
+    deps.session.setStateWithoutRefresh(begun.state);
+
+    if (!begun.ok) {
+      deps.showNotification(
+        begun.reason === 'repelled-by-city-defense'
+          ? "Your attack was repelled by the city's defenses!"
+          : 'The attack could not proceed.',
+        'warning',
+      );
+      deps.renderLoop.setGameState(deps.session.getState());
+      deps.hud.update();
+      return 'resolved';
+    }
+
+    deps.selection.setPendingIntent({ kind: 'city-capture', choice: begun.pending });
+    if (!shouldPromptForPlayerCityCapture(city)) {
+      deps.turnFlow.finalizePendingCityCaptureChoice('raze', attackerBonus);
+      return 'resolved';
+    }
+
+    createCityCapturePanel(deps.uiLayer, {
+      cityName: city.name,
+      occupiedPopulation: begun.pending.occupiedPopulation,
+      razeGold: begun.pending.razeGold,
+      onOccupy: () => deps.turnFlow.finalizePendingCityCaptureChoice('occupy', attackerBonus),
+      onRaze: () => deps.turnFlow.finalizePendingCityCaptureChoice('raze', attackerBonus),
+    });
+    return 'pending';
+  }
+
+  function executeAttack(attackerId: string, targetKey: string): void {
+    const initialAttacker = deps.session.getState().units[attackerId];
+    const targetCoord = parseHexKey(targetKey);
+    const amphibiousAssault = Boolean(initialAttacker?.transportId);
+    const legality = amphibiousAssault
+      ? getEmbarkedAssaultTarget(deps.session.getState(), attackerId, targetCoord, { viewerId: deps.session.getState().currentPlayer })
+      : canUnitAttackTarget(deps.session.getState(), initialAttacker, targetCoord, { viewerId: deps.session.getState().currentPlayer });
+    // hasActed guard: enforce "no action remaining" at the execution layer, not just
+    // the highlight layer (getAttackTargets). Prevents double-action if executeAttack
+    // is ever called outside the normal tap → highlight → confirm flow.
+    if (!initialAttacker || initialAttacker.hasActed || !legality.ok || legality.targetType !== 'unit') {
+      deps.showNotification('That target is no longer attackable.', 'warning');
+      const currentlySelected = deps.selection.getSelectedUnitId();
+      if (currentlySelected) deps.selectionController.selectUnit(currentlySelected);
+      return;
+    }
+
+    const defenderId = legality.targetUnitId;
+    const defender = deps.session.getState().units[defenderId];
+    if (!defender) return;
+
+    let attacker = initialAttacker;
+    if (amphibiousAssault) {
+      const detached = detachCargoForEmbarkedAssault(deps.session.getState(), attackerId);
+      if (!detached.ok) {
+        deps.showNotification('That coastal assault is no longer possible.', 'warning');
+        return;
+      }
+      deps.session.setStateWithoutRefresh(detached.state);
+      attacker = detached.attacker;
+    }
+
+    ensurePlayerWarState(defender.owner);
+
+    const seed = deterministicCombatSeed(deps.session.getState().gameId, deps.session.getState().turn, attacker.id, defender.id);
+    const attackerBonus = getCurrentCivDef(deps.session)?.bonusEffect;
+    // Capture defender position before combat (defender may be removed from state after)
+    const defenderPosition = { ...defender.position };
+    // Capture route IDs before combat (units may be removed from state after)
+    const attackerRouteId = attacker.committedToRouteId;
+    const defenderRouteId = defender.committedToRouteId;
+    const result = resolveCombat(
+      attacker,
+      deps.session.getState().units[defenderId] ?? defender,
+      deps.session.getState().map,
+      seed,
+      buildCombatContextForDefender(deps.session.getState(), attacker, defender, { amphibiousAssault }),
+      resolveCombatEra(deps.session.getState(), attacker, defender),
+      deps.session.getState(),
+    );
+    deps.bus.emit('combat:resolved', {
+      result,
+      ...buildCombatPresentation(deps.session.getState(), result, attacker, defender),
+    });
+
+    const applied = applyCombatOutcomeToState(deps.session.getState(), result, seed);
+    deps.session.setStateWithoutRefresh(applied.state);
+    deps.session.setStateWithoutRefresh(recordCombatForCiv(deps.session.getState(), deps.session.getState().currentPlayer, defenderPosition));
+    emitMinorCivQuestTransitions(deps.bus, applied.questTransitions, deps.session.getState());
+    // Clean up trade routes for any committed caravans that died or were captured
+    if (applied.attackerDefeated && attackerRouteId) {
+      deps.session.setStateWithoutRefresh(removeRouteForUnit(deps.session.getState(), result.attackerId, deps.bus, 'unit-died', attackerRouteId));
+    } else if (applied.attackerCaptured && attackerRouteId) {
+      deps.session.setStateWithoutRefresh(removeRouteForUnit(deps.session.getState(), result.attackerId, deps.bus, 'unit-captured', attackerRouteId));
+    }
+    if (applied.defenderDefeated && defenderRouteId) {
+      deps.session.setStateWithoutRefresh(removeRouteForUnit(deps.session.getState(), result.defenderId, deps.bus, 'unit-died', defenderRouteId));
+    } else if (applied.defenderCaptured && defenderRouteId) {
+      deps.session.setStateWithoutRefresh(removeRouteForUnit(deps.session.getState(), result.defenderId, deps.bus, 'unit-captured', defenderRouteId));
+    }
+
+    if (applied.attackerDefeated) {
+      deps.showNotification('Our unit was destroyed!', 'warning');
+    } else if (applied.attackerCaptured) {
+      deps.showNotification(`Our ${getCaptureNotificationLabel(attacker.type)}`, 'warning');
+    }
+
+    for (const reward of applied.rewards) {
+      deps.bus.emit('combat:reward-earned', { reward });
+    }
+
+    if (applied.defenderDefeated) {
+      deps.showNotification('Enemy unit destroyed!', 'success');
+
+      const slayResult = recordBeastSlain(deps.session.getState(), defender, attacker);
+      deps.session.setStateWithoutRefresh(slayResult.state);
+      if (slayResult.slain) {
+        deps.bus.emit('beast:slain', slayResult.slain);
+      }
+      // Tier 3+ beasts use the slay ceremony (beast:slain listener); ceremony calls
+      // maybeShowPendingHoardChoice via onContinue so the choice panel appears after
+      // the ceremony is dismissed rather than racing with it.
+      if (!slayResult.slain || BEAST_DEFINITIONS[slayResult.slain.beastId].tier < 3) {
+        deps.maybeShowPendingHoardChoice();
+      }
+
+      const destroyedCamp = applyCampDestructionAtTarget(deps.session.getState(), deps.session.getState().currentPlayer, defender.position, deps.session.getState().turn);
+      if (destroyedCamp.campId) {
+        deps.session.setStateWithoutRefresh(destroyedCamp.state);
+        emitMinorCivQuestTransitions(deps.bus, destroyedCamp.questTransitions, deps.session.getState());
+        deps.showNotification(`Barbarian camp destroyed! +${destroyedCamp.reward} gold`, 'success');
+        deps.advisorSystem.resetMessage('treasurer_camp_reward');
+        deps.advisorSystem.check(deps.session.getState());
+        for (const mcId of Object.keys(deps.session.getState().minorCivs)) {
+          applyDiplomaticReaction(deps.session.getState(), 'camp_destroyed_nearby', deps.session.getState().currentPlayer, mcId);
+        }
+      }
+
+      const cityAtTarget = Object.values(deps.session.getState().cities).find(c => hexKey(c.position) === targetKey);
+      if (cityAtTarget) {
+        const occupancy = buildUnitOccupancy(deps.session.getState().units);
+        const remainingHostileDefenders = hasHostileUnitAtCoord(occupancy, cityAtTarget.position, deps.session.getState().currentPlayer);
+        if (!remainingHostileDefenders) {
+          if (cityAtTarget.owner.startsWith('mc-')) {
+            const conqueredCityName = cityAtTarget.name;
+            const conquered = conquestMinorCiv(deps.session.getState(), cityAtTarget.owner, deps.session.getState().currentPlayer);
+            deps.session.setStateWithoutRefresh(conquered.state);
+            emitMinorCivQuestTransitions(deps.bus, conquered.transitions, deps.session.getState());
+            if (conquered.conquered) {
+              deps.bus.emit('minor-civ:destroyed', { minorCivId: cityAtTarget.owner, conquerorId: deps.session.getState().currentPlayer });
+            }
+            deps.showNotification(`${conqueredCityName} has been conquered!`, 'success');
+          }
+          if (!cityAtTarget.owner.startsWith('mc-') && cityAtTarget.owner !== deps.session.getState().currentPlayer) {
+            const assaultStatus = beginPlayerCityAssault(
+              attackerId,
+              cityAtTarget.id,
+              attackerBonus,
+              result,
+              amphibiousAssault,
+            );
+            SFX.combat();
+            deps.renderLoop.setGameState(deps.session.getState());
+            deps.hud.update();
+            deps.selectionController.refreshSelectedUnitAfterCombat();
+            if (assaultStatus === 'resolved') {
+              setTimeout(() => deps.selectionController.selectNextUnit(), 400);
+            }
+            return;
+          }
+        }
+      }
+    } else if (applied.defenderCaptured) {
+      deps.showNotification(getCaptureNotificationLabel(defender.type), 'success');
+    }
+
+    // `attacker` was captured before applyCombatOutcomeToState — safe even if attacker was destroyed
+    SFX.combat();
+    deps.renderLoop.setGameState(deps.session.getState());
+    deps.hud.update();
+    deps.selectionController.refreshSelectedUnitAfterCombat();
+    deps.renderLoop.animations.add('combat-flash', 400, { coord: attacker.position }, () => deps.selectionController.selectNextUnit());
+  }
+
   return {
     getUnitTurnFlow,
     performWorkerAction,
@@ -366,5 +712,10 @@ export function createPlayerActionController(deps: PlayerActionControllerDeps): 
     ensurePlayerWarState,
     restAction,
     showEspionageCaptureChoice,
+    executeAttack,
+    foundCityAction,
+    executeUpgrade,
+    beginPlayerCityAssault,
+    executeMinorCivConquest,
   };
 }

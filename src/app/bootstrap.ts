@@ -1,26 +1,31 @@
 /**
- * The composition root (#787 phase 10b-g). `createAppComposition` constructs
- * every controller `main.ts` used to build at module scope -- `host`,
- * `ceremonies`, `diplomacyActions`, `panelActions`, `selectionController`,
- * `turnFlow`, `playerActions`, `mapInteraction`, `hud`, `campaignEntry`,
- * `gameSession`, `presentationContext`, `panelRegistry`, and `router` -- and
- * returns the handful of them `main.ts` still needs a direct reference to
- * (to build its own remaining hoisted functions and the final `bootstrap()`
- * call below). `bootstrap()` itself is unchanged: it still sequences
- * presentation registration, minor-civ notification listeners, and
- * `gameSession.init()`, now against the `presentationContext`/`gameSession`
- * this file constructs instead of ones built in `main.ts`.
+ * The composition root (#787 phase 10b-g, extended in phase 13).
+ * `createAppComposition` constructs every controller `main.ts` used to build
+ * at module scope -- `host`, `ceremonies`, `diplomacyActions`,
+ * `panelActions`, `selectionController`, `turnFlow`, `playerActions`,
+ * `mapInteraction`, `hud`, `campaignEntry`, `gameSession`,
+ * `presentationContext`, `panelRegistry`, and `router` -- and returns the
+ * handful of them `main.ts` still needs a direct reference to (`gameSession`
+ * and `presentationContext` for the final `bootstrap()` call below; the rest
+ * are exposed for testability, not because `main.ts` itself still reaches
+ * for them -- phase 13 deleted the last `main.ts`-local functions that did).
+ * `bootstrap()` itself is unchanged: it still sequences presentation
+ * registration, minor-civ notification listeners, and `gameSession.init()`,
+ * against the `presentationContext`/`gameSession` this file constructs.
  *
  * `main.ts` keeps: the true externally-supplied primitives (`canvas`,
  * `uiLayer`, `renderLoop`, `audio`, `bus`, `session`, `selection`,
  * `userSettingsStore`, `roundPresentationGate`, `advisorSystem`), the
  * `notifier` `let` binding itself (read/write via `getNotifier`/`setNotifier`
- * below), and the Phase-13-scoped functions (`foundCityAction`,
+ * below), and two remaining `main.ts`-local functions -- `showNotification`
+ * and `maybeShowPendingHoardChoice` -- passed in as deps because every
+ * controller below already depends on them. Phase 13 moved the other five
+ * former Phase-13-scoped functions (`foundCityAction`,
  * `beginPlayerCityAssault`, `executeAttack`, `executeMinorCivConquest`,
- * `executeUpgrade`, `maybeShowPendingHoardChoice`, `showNotification`) --
- * passed in here as deps because every controller below already depends on
- * them, and moving them too would pull Phase 13's own unmerged scope into
- * this phase.
+ * `executeUpgrade`) into `PlayerActionController` itself; they are no longer
+ * threaded through this deps interface at all, since every controller that
+ * needs them now reaches `playerActions.<method>` directly or via a lazy
+ * wrapper, the same as every other `playerActions` method already worked.
  *
  * `notifier` deliberately stays a `main.ts`-owned `let`, not a binding this
  * file owns: `showNotification` (main.ts-local) reads it directly, and
@@ -36,7 +41,6 @@ import type { AdvisorSystem } from '@/ui/advisor-system';
 import type { RoundPresentationGate } from '@/presentation/round-presentation-gate';
 import type { GameSession, Notifier, SelectionStore } from '@/app/ports';
 import type { UserSettingsStore } from '@/app/user-settings-store';
-import type { CombatResult, HexCoord, UnitType, CivBonusEffect } from '@/core/types';
 import type { NotificationEntry } from '@/core/notification-log';
 import { createCeremonyCoordinator, type CeremonyCoordinator } from '@/app/controllers/ceremony-coordinator';
 import { createSelectionController, type SelectionController } from '@/app/controllers/selection-controller';
@@ -95,17 +99,12 @@ export interface AppCompositionDeps {
   readonly userSettingsStore: UserSettingsStore;
   readonly getNotifier: () => Notifier;
   readonly setNotifier: (notifier: Notifier) => void;
-  readonly foundCityAction: () => void;
-  readonly executeUpgrade: (unitId: string, targetType: UnitType) => boolean;
-  readonly executeAttack: (attackerId: string, targetKey: string) => void;
-  readonly executeMinorCivConquest: (unitId: string, target: HexCoord, minorCivId: string, cityId: string) => void;
-  readonly beginPlayerCityAssault: (
-    attackerId: string,
-    cityId: string,
-    attackerBonus?: CivBonusEffect,
-    precedingCombat?: CombatResult,
-    embarkedAssault?: boolean,
-  ) => 'pending' | 'resolved';
+  /**
+   * #787 phase 13: `executeAttack`'s post-kill beast-hoard hook; stays
+   * `main.ts`-local (see `PlayerActionControllerDeps`'s own docblock for
+   * why) but is now also threaded into `playerActions`' construction below,
+   * not just `turnFlow`'s and `gameSession`'s.
+   */
   readonly maybeShowPendingHoardChoice: () => void;
   readonly showNotification: (
     message: string,
@@ -127,8 +126,7 @@ export function createAppComposition(deps: AppCompositionDeps): AppComposition {
   const {
     canvas, uiLayer, renderLoop, audio, bus, roundPresentationGate, advisorSystem,
     session, selection, userSettingsStore, getNotifier, setNotifier,
-    foundCityAction, executeUpgrade, executeAttack, executeMinorCivConquest,
-    beginPlayerCityAssault, maybeShowPendingHoardChoice, showNotification,
+    maybeShowPendingHoardChoice, showNotification,
   } = deps;
 
   /**
@@ -243,7 +241,10 @@ export function createAppComposition(deps: AppCompositionDeps): AppComposition {
     currentCiv: () => getCurrentCiv(session),
     currentCivDef: () => getCurrentCivDef(session),
     diplomacyActions,
-    executeUpgrade,
+    // Lazy wrapper: `playerActions` (10b-e, extended in phase 13) is
+    // constructed after `panelActions`, same deferred-but-eager pattern
+    // `router`/`hud`/`selectionController` below already use.
+    executeUpgrade: (unitId, targetType) => playerActions.executeUpgrade(unitId, targetType),
     router: { open: panel => router.open(panel) },
     hud: { closeDrawer: () => hud.closeDrawer(), update: () => hud.update() },
     selectionController: {
@@ -255,12 +256,10 @@ export function createAppComposition(deps: AppCompositionDeps): AppComposition {
   /**
    * Owns unit selection: `selectUnit`, `deselectUnit`, `selectNextUnit`, and the
    * animated-move / auto-explore / journey lifecycle around a selected unit
-   * (#787 phase 8c). References `foundCityAction`, a `main.ts`-local Phase-13
-   * function passed in as a dep -- safe to call bare since it's only invoked
-   * during real gameplay, well after this function returns.
-   * `performWorkerAction`/`getUnitTurnFlow`/`restAction`/`ensurePlayerWarState`
-   * are lazy wrappers around `playerActions` (phase 10b-e), constructed after
-   * this controller further down.
+   * (#787 phase 8c). `foundCityAction`/`performWorkerAction`/`getUnitTurnFlow`/
+   * `restAction`/`ensurePlayerWarState`/`executeUpgrade` are all lazy wrappers
+   * around `playerActions` (phase 10b-e, extended in phase 13), constructed
+   * after this controller further down.
    */
   const selectionController: SelectionController = createSelectionController({
     session,
@@ -275,7 +274,7 @@ export function createAppComposition(deps: AppCompositionDeps): AppComposition {
     updateHUD: () => hud.update(),
     clearUnloadState: () => clearUnloadState(selection),
     getUnitTurnFlow: () => playerActions.getUnitTurnFlow(),
-    foundCityAction,
+    foundCityAction: () => playerActions.foundCityAction(),
     performWorkerAction: action => playerActions.performWorkerAction(action),
     performPreach: (unitId, cityId) => playerActions.performPreach(unitId, cityId),
     restAction: () => playerActions.restAction(),
@@ -283,7 +282,7 @@ export function createAppComposition(deps: AppCompositionDeps): AppComposition {
     openUnitStackPicker: panelActions.openUnitStackPicker,
     openPirateHeadquartersAssault: panelActions.openPirateHeadquartersAssault,
     handleEstablishRoute: diplomacyActions.handleEstablishRoute,
-    executeUpgrade,
+    executeUpgrade: (unitId, targetType) => playerActions.executeUpgrade(unitId, targetType),
     ensurePlayerWarState: targetCivId => playerActions.ensurePlayerWarState(targetCivId),
     scanBeastSightings: () => scanBeastSightings(session, bus),
     currentCiv: () => getCurrentCiv(session),
@@ -342,14 +341,19 @@ export function createAppComposition(deps: AppCompositionDeps): AppComposition {
 
   /**
    * Owns the player-unit-action functions `getUnitTurnFlow`, `performWorkerAction`,
-   * `performPreach`, `ensurePlayerWarState`, `restAction`, and
-   * `showEspionageCaptureChoice` (#787 phase 10b-e -- a partial `PlayerActionController`;
-   * Phase 13, not yet merged, will extend this same file with a different
-   * function group in the same domain). Constructed after both `selectionController`
-   * and `turnFlow` so it can take direct references to both -- see the lazy
-   * wrappers those two use above for the reverse direction of this same
-   * three-way forward reference. `getNotifier()` still resolves through
-   * `main.ts`'s `notifier` `let`, not assigned until `init()` runs.
+   * `performPreach`, `ensurePlayerWarState`, `restAction`,
+   * `showEspionageCaptureChoice` (#787 phase 10b-e), and `executeAttack`,
+   * `foundCityAction`, `executeUpgrade`, `beginPlayerCityAssault`,
+   * `executeMinorCivConquest` (#787 phase 13 -- see this controller's own
+   * module docblock for the plan-staleness deviations). Constructed after
+   * both `selectionController` and `turnFlow` so it can take direct
+   * references to both -- see the lazy wrappers those two use above for the
+   * reverse direction of this same three-way forward reference.
+   * `advisorSystem` is passed directly (a real, already-constructed object,
+   * not a lazy binding). `maybeShowPendingHoardChoice` stays `main.ts`-local
+   * (see this controller's `PlayerActionControllerDeps` docblock).
+   * `getNotifier()` still resolves through `main.ts`'s `notifier` `let`, not
+   * assigned until `init()` runs.
    */
   const playerActions: PlayerActionController = createPlayerActionController({
     session,
@@ -364,16 +368,18 @@ export function createAppComposition(deps: AppCompositionDeps): AppComposition {
     setBlockingOverlay,
     currentCiv: () => getCurrentCiv(session),
     notifier: { choice: (message, actions) => getNotifier().choice(message, actions) },
+    advisorSystem,
+    maybeShowPendingHoardChoice,
   });
 
   /**
    * Owns the two map-input entry points, `handleHexTap` and
-   * `handleHexLongPress` (#787 phase 8d). References `main.ts`-local Phase-13
-   * functions (`executeAttack`, `executeMinorCivConquest`, `beginPlayerCityAssault`)
-   * passed in as deps -- safe to call bare since none of them run until real
-   * gameplay. `openCityPanelForCity` is a `panelActions` method (10b-d), not a
-   * hoisted function, but `mapInteraction` is constructed after `panelActions`
-   * so a direct reference still works with no wrapper needed.
+   * `handleHexLongPress` (#787 phase 8d). `executeAttack`/
+   * `executeMinorCivConquest`/`beginPlayerCityAssault` are now
+   * `playerActions` methods (#787 phase 13) rather than `main.ts`-local
+   * hoisted functions; `mapInteraction` is constructed after `playerActions`
+   * so direct references work with no wrapper needed -- same as
+   * `openCityPanelForCity` (a `panelActions` method, 10b-d) already does.
    */
   const mapInteraction: MapInteractionController = createMapInteractionController({
     session,
@@ -392,9 +398,9 @@ export function createAppComposition(deps: AppCompositionDeps): AppComposition {
     openUnitStackPicker: panelActions.openUnitStackPicker,
     openCityPanelForCity: panelActions.openCityPanelForCity,
     openWonderAtlas: panelActions.openWonderAtlas,
-    executeAttack,
-    executeMinorCivConquest,
-    beginPlayerCityAssault,
+    executeAttack: playerActions.executeAttack,
+    executeMinorCivConquest: playerActions.executeMinorCivConquest,
+    beginPlayerCityAssault: playerActions.beginPlayerCityAssault,
     finalizePendingCityCaptureChoice: turnFlow.finalizePendingCityCaptureChoice,
   });
 
@@ -473,7 +479,7 @@ export function createAppComposition(deps: AppCompositionDeps): AppComposition {
     campaignEntry,
     getElementById: id => document.getElementById(id),
     showNotification,
-    foundCityAction,
+    foundCityAction: playerActions.foundCityAction,
     maybeShowPendingHoardChoice,
     setNotifier,
     focusNotificationTarget: target => focusNotificationTarget(renderLoop, getNotifier(), session, target),
