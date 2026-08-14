@@ -9,7 +9,7 @@ Add a Naval Armor-era Coastal Battery that gives a city a narrow, intelligible a
 - **Gate:** Naval Armor and a coastal city. The shared city-aware eligibility helper rejects inland cities so players and AI never spend production on an inert naval defense.
 - **Cost:** 170 production.
 - **Defense:** +8 flat city defense only when the attacker is naval.
-- **Counterfire:** The first naval attack that deals damage to each Battery city during a turn takes `min(12, round(actual city damage × 0.20))` retaliation. “Actual city damage” is `CitySiegeResult.hpLost`, captured before a sack or destruction removes the city.
+- **Counterfire:** The first naval attack that deals damage to each Battery city during a turn consumes its reaction and takes `min(12, round(actual city damage × 0.20))` retaliation. A 1–2 HP hit rounds to zero damage but still consumes that turn's reaction. “Actual city damage” is `CitySiegeResult.hpLost`, captured before a sack or destruction removes the city.
 - **Exclusions:** No land or air defense, no land or air counterfire, and no recursive counterfire.
 - **Parity:** The same rule applies to human, major-AI, barbarian, and pirate naval attackers. Explorer, Standard, and Veteran have the same rule values and legality.
 

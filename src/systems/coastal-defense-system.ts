@@ -44,14 +44,16 @@ export function resolveCoastalBatteryCounterfire(
     || city.coastalBatteryCounterfireTurn === state.turn
   ) return noCounterfire(state);
 
-  const damage = Math.min(12, Math.round(input.cityDamage * 0.2));
-  if (damage <= 0) return noCounterfire(state);
-
-  const attackerDied = attacker.health <= damage;
   const cities = {
     ...state.cities,
     [city.id]: { ...city, coastalBatteryCounterfireTurn: state.turn },
   };
+  const damage = Math.min(12, Math.round(input.cityDamage * 0.2));
+  // A 1–2 HP first hit rounds to zero retaliation, but it is still the first
+  // damaging hit and must consume this turn's single Battery reaction.
+  if (damage <= 0) return { state: { ...state, cities }, damage: 0 };
+
+  const attackerDied = attacker.health <= damage;
   const units = { ...state.units };
   if (attackerDied) {
     delete units[attacker.id];
