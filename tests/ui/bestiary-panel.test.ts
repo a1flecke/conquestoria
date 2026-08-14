@@ -39,6 +39,18 @@ describe('bestiary panel', () => {
     expect(panel.textContent).toContain('Sighted');
   });
 
+  it('contains discovered beast art inside its fixed 72px slot', () => {
+    createBestiaryPanel(container, [{ ...sightedEntry, unitType: 'beast_sea_serpent' }], { onClose: () => {}, slayerNameFor: () => '' });
+
+    const art = container.querySelector('[data-bestiary-entry] > div') as HTMLElement;
+    const holder = art.firstElementChild as HTMLElement;
+    const svg = holder.querySelector('svg') as SVGElement;
+    expect(art.style.overflow).toBe('hidden');
+    expect(holder.style.width).toBe('72px');
+    expect(svg.getAttribute('width')).toBe('100%');
+    expect(svg.getAttribute('height')).toBe('100%');
+  });
+
   it('renders slain entries with slayer credit and turn', () => {
     createBestiaryPanel(container, [slainEntry], { onClose: () => {}, slayerNameFor: () => 'Rome' });
     const panel = container.querySelector('#bestiary-panel')!;

@@ -4,6 +4,7 @@ import { createEmptyPirateState, type PirateFactionState } from '@/core/pirate-s
 import {
   buildPirateHeadquartersMapPresentation,
   buildPirateHeadquartersSpriteEntities,
+  getPirateHeadquartersSpriteId,
 } from '@/renderer/pirate-headquarters-presentation';
 import { PirateSpriteStateController } from '@/renderer/pirate-sprite-state';
 
@@ -23,6 +24,11 @@ function fixture() {
 }
 
 describe('pirate headquarters map presentation', () => {
+  it('normalizes unsupported stage-one flotillas to the first flotilla sprite', () => {
+    expect(getPirateHeadquartersSpriteId({ subtype: 'deep-sea-flotilla', stage: 1 }))
+      .toBe('pirate_flotilla_stage_2');
+  });
+
   it('creates no landmark or region without earned intel', () => {
     const result = buildPirateHeadquartersMapPresentation(fixture(), 'player');
     expect(result.entities).toEqual([]);

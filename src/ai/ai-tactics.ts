@@ -11,6 +11,7 @@ import {
 } from '@/core/opponent-challenge';
 import {
   canAttackByProfileOnMap,
+  getRangedAttackersThreateningUnit,
   getAttackTargets,
   getUnitAttackProfile,
 } from '@/systems/attack-targeting';
@@ -676,6 +677,35 @@ function rankMoves(
   });
 }
 
+function rankReactivePursuitMoves(
+  context: AITacticalContext,
+  unit: Unit,
+): RankedAITacticalAction[] {
+  if (
+    unit.hasActed
+    || unit.movementPointsLeft <= 0
+    || unit.transportId
+    || getUnitAttackProfile(unit.type).kind !== 'melee'
+  ) return [];
+  const threat = getRangedAttackersThreateningUnit(context.state, unit)
+    .filter(candidate =>
+      isAIHostileOwner(context.state, context.actorId, candidate.owner)
+      && getVisibility(context.state.civilizations[context.actorId].visibility, candidate.position) === 'visible')
+    .sort((left, right) =>
+      distance(context.state, unit.position, left.position) - distance(context.state, unit.position, right.position)
+      || left.id.localeCompare(right.id))[0];
+  if (!threat) return [];
+  const currentDistance = distance(context.state, unit.position, threat.position);
+  return movementRange(context.state, context.actorId, unit)
+    .filter(destination =>
+      distance(context.state, destination, threat.position) < currentDistance
+      && !isForeignCityDestination(context.state, context.actorId, destination))
+    .sort((left, right) =>
+      distance(context.state, left, threat.position) - distance(context.state, right, threat.position)
+      || hexKey(left).localeCompare(hexKey(right)))
+    .map(destination => ranked({ kind: 'move', unitId: unit.id, destination }, 650));
+}
+
 function rankMobileAirDefenseEscortMoves(
   context: AITacticalContext,
   unit: Unit,
@@ -729,6 +759,7 @@ export function rankUnitTacticalActions(
     ...rankAttacks(context, unit),
     ...rankCapture(context, unit),
     ...rankMobileAirDefenseEscortMoves(context, unit),
+    ...rankReactivePursuitMoves(context, unit),
     ...rankMoves(context, unit),
   ];
   if (unit.health < 100 && !unit.hasActed) {

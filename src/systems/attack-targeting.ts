@@ -34,10 +34,23 @@ export interface AttackTarget {
   result: Extract<AttackTargetResult, { ok: true }>;
 }
 
-const DEFAULT_ATTACK_PROFILE: UnitAttackProfile = { kind: 'melee', range: 1, targets: ['unit', 'city'] };
+const DEFAULT_ATTACK_PROFILE: UnitAttackProfile = {
+  kind: 'melee', range: 1, targets: ['unit', 'city'], targetDomains: ['land'],
+};
 
 export function getUnitAttackProfile(type: UnitType): UnitAttackProfile {
   return UNIT_DEFINITIONS[type].attackProfile ?? DEFAULT_ATTACK_PROFILE;
+}
+
+export function canAttackUnitDomain(attacker: Unit, target: Unit): boolean {
+  const profile = getUnitAttackProfile(attacker.type);
+  const attackerDomain = UNIT_DEFINITIONS[attacker.type].domain ?? 'land';
+  const targetDomain = UNIT_DEFINITIONS[target.type].domain ?? 'land';
+  const targetDomains = profile.targetDomains
+    ?? (attackerDomain === 'land' && profile.kind === 'melee'
+      ? ['land']
+      : ['land', 'naval', 'air']);
+  return targetDomains.includes(targetDomain);
 }
 
 function distanceForMap(map: GameMap, from: HexCoord, to: HexCoord): number {
@@ -79,8 +92,28 @@ export function canAttackByProfileOnMap(attacker: Unit, target: Unit, map: GameM
   const range = distanceForMap(map, attacker.position, target.position);
   return UNIT_DEFINITIONS[attacker.type].strength > 0
     && profile.targets.includes('unit')
+    && canAttackUnitDomain(attacker, target)
     && range > 0
     && range <= profile.range;
+}
+
+/**
+ * Finds units that can currently fire at `target` from beyond adjacency. Callers
+ * supply their own hostility and visibility policy; this layer owns combat range
+ * and domain legality so every controller agrees on what constitutes a threat.
+ */
+export function getRangedAttackersThreateningUnit(
+  state: GameState,
+  target: Unit,
+  candidates: readonly Unit[] = Object.values(state.units),
+): Unit[] {
+  return candidates.filter(candidate => {
+    const profile = getUnitAttackProfile(candidate.type);
+    return candidate.id !== target.id
+      && profile.kind !== 'melee'
+      && distanceForMap(state.map, candidate.position, target.position) > 1
+      && canAttackByProfileOnMap(candidate, target, state.map);
+  });
 }
 
 export function canUnitAttackTarget(
@@ -110,6 +143,7 @@ export function canUnitAttackTarget(
     if (!canUnitAttackBeast(attacker, targetUnit[1]).allowed) return { ok: false, reason: 'unsupported-target' };
     if (!canAttackOwner(state, attacker.owner, targetUnit[1].owner)) return { ok: false, reason: 'not-hostile' };
     if (!profile.targets.includes('unit')) return { ok: false, reason: 'unsupported-target' };
+    if (!canAttackUnitDomain(attacker, targetUnit[1])) return { ok: false, reason: 'unsupported-target' };
     // Stealth bomber: cannot be targeted by ranged attacks unless an enemy signals_hub is within 2 hexes
     if (targetUnit[1].type === 'stealth_bomber' && profile.range > 1) {
       const hubNearby = Object.values(state.cities).some(city => {
