@@ -33,8 +33,8 @@ const ERA_10_TECHS: Tech[] = [
     unlocks: ['+2 science empire-wide'], era: 10, countsForEraAdvancement: false },
   { id: 'radar-systems', name: 'Radar Systems', track: 'science', cost: 1310,
     prerequisites: ['radio-broadcast', 'aviation'],
-    unlocks: ['+2 science empire-wide; radar coverage accelerates navigation and early-warning networks'],
-    unlocksBuildings: ['radar_station'], era: 10 },
+    unlocks: ['+2 science empire-wide; radar coverage accelerates navigation and early-warning networks', 'Surface-to-air missile sites also require Rocketry and local anti-aircraft infrastructure'],
+    unlocksBuildings: ['radar_station', 'sam_site'], era: 10 },
 
   // CIVICS (2)
   { id: 'decolonization', name: 'Decolonization', track: 'civics', cost: 1310,
@@ -48,7 +48,7 @@ const ERA_10_TECHS: Tech[] = [
   // EXPLORATION (2)
   { id: 'rocketry', name: 'Rocketry', track: 'exploration', cost: 1895,
     prerequisites: ['aerial-survey', 'aluminium-smelting'],
-    unlocks: ['+2 science in cities with a research institute; Rocket Artillery saturates nearby visible enemy soldiers'],
+    unlocks: ['+2 science in cities with a research institute; Rocket Artillery saturates nearby visible enemy soldiers', 'Surface-to-air missile sites also require Radar Systems and local anti-aircraft infrastructure'],
     unlocksUnits: ['rocket_artillery'], unlocksBuildings: ['rocket_program', 'space_program_initiative'], era: 10 },
   { id: 'polar-operations', name: 'Polar Operations', track: 'exploration', cost: 1020,
     prerequisites: ['motorized-transport', 'aerial-survey'],

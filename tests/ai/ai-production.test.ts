@@ -104,6 +104,18 @@ function makeCoastal(state: GameState, cityId = 'city-a'): void {
 }
 
 describe('AI strategic production', () => {
+  it('generates SAM Site only from the AI city with both research and local prerequisites', () => {
+    const state = setupState(['radar-systems', 'rocketry']);
+    state.cities['city-a']!.buildings = ['anti_air_battery', 'radar_station'];
+
+    expect(generateAIProductionCandidates(state, 'ai-1', 'city-a', [], aggressive)
+      .some(candidate => candidate.itemId === 'sam_site')).toBe(true);
+
+    state.civilizations['ai-1']!.techState.completed = ['radar-systems'];
+    expect(generateAIProductionCandidates(state, 'ai-1', 'city-a', [], aggressive)
+      .some(candidate => candidate.itemId === 'sam_site')).toBe(false);
+  });
+
   it('offers Cuirassier for mobile demand only when the AI owns Horses and Iron', () => {
     const state = setupState([
       'animal-husbandry', 'bronze-working', 'rifle-tactics', 'professional-army',

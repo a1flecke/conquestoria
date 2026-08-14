@@ -47,6 +47,29 @@ function state(): GameState {
 const defender = { id: 'defender-unit', owner: 'defender', type: 'rifleman', position: { q: 1, r: 0 } } as Unit;
 
 describe('resolveAirDefenseCoverage', () => {
+  it('uses SAM Site at radius two as the strongest ground air-defense provider', () => {
+    const next = state();
+    next.cities.alpha!.buildings = ['anti_air_battery', 'radar_station', 'sam_site'];
+    const covered = { ...defender, position: { q: 1, r: 0 } };
+
+    const coverage = resolveAirDefenseCoverage(next, covered, 'defender');
+
+    expect(coverage.flatDefenseModifier).toBe(12);
+    expect(coverage.providers).toContainEqual(expect.objectContaining({ id: 'city:alpha:sam_site', radius: 2, defenseModifier: 12 }));
+    expect(coverage.facts).toContainEqual(expect.objectContaining({ label: 'SAM Site', outcome: 'applied', value: 12 }));
+    expect(coverage.facts).toContainEqual(expect.objectContaining({ label: 'Anti-Air Battery', outcome: 'superseded', value: 8 }));
+    expect(resolveAirDefenseCoverage(next, { ...defender, position: { q: 3, r: 0 } }, 'defender').flatDefenseModifier).toBe(12);
+  });
+
+  it('does not cover a defender beyond the SAM Site radius or reveal it to an unseeing viewer', () => {
+    const next = state();
+    next.cities.alpha!.buildings = ['anti_air_battery', 'radar_station', 'sam_site'];
+    next.civilizations.attacker!.visibility.tiles = {};
+
+    expect(resolveAirDefenseCoverage(next, { ...defender, position: { q: 4, r: 0 } }, 'defender').flatDefenseModifier).toBe(0);
+    expect(getKnownAirDefenseProviders(next, 'attacker').some(provider => provider.id === 'city:alpha:sam_site')).toBe(false);
+  });
+
   it('preserves Anti-Air Battery +8 coverage for a visible defending city', () => {
     const coverage = resolveAirDefenseCoverage(state(), defender, 'attacker');
 
