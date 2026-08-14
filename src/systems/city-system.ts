@@ -2061,6 +2061,10 @@ export function processCity(
           droppedProductionItems.push({ itemId: item, itemKind: 'building', reason: 'obsoleted' });
           return false;
         }
+        if (building.requiresBuildings?.some(required => !city.buildings.includes(required)) ?? false) {
+          droppedProductionItems.push({ itemId: item, itemKind: 'building', reason: 'no-longer-available' });
+          return false;
+        }
         if (building?.resourceRequired?.length && availableResources !== undefined && !legacyResourceGrace.has(item)) {
           if (!building.resourceRequired.every(r => availableResources!.has(r))) {
             droppedProductionItems.push({ itemId: item, itemKind: 'building', reason: 'resource-lost' });

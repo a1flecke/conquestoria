@@ -572,8 +572,8 @@ export type EconomyStrainLevel = TreasuryStrainLevel;
 export type ProductionDropReason =
   | 'obsoleted'                  // building or unit: obsoletedByTech / isBuildingObsolete fired
   | 'resource-lost'              // building or unit: required resource no longer available
-  | 'no-longer-available'        // unit only: neither obsoleted nor resource-lost explains it
-                                  // (e.g. a save-compat queue item whose techRequired is unmet)
+  | 'no-longer-available'        // building or unit: neither obsoleted nor resource-lost explains it
+                                  // (e.g. a save-compat queue item whose tech or local prerequisite is unmet)
   | 'build-window-expired'       // national-project building: outside homeEra/homeEra+1
   | 'coastal-access-lost'        // building or unit: city lost coastal access
   | 'training-building-missing'  // unit: trainedFromBuilding no longer present

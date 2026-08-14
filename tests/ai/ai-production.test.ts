@@ -116,6 +116,28 @@ describe('AI strategic production', () => {
       .some(candidate => candidate.itemId === 'sam_site')).toBe(false);
   });
 
+  it.each(['explorer', 'standard', 'veteran'] as const)('keeps SAM Site legality identical for AI %s difficulty', difficulty => {
+    const state = setupState(['radar-systems', 'rocketry']);
+    state.opponentChallenge = difficulty;
+    state.cities['city-a']!.buildings = ['anti_air_battery', 'radar_station'];
+
+    expect(generateAIProductionCandidates(state, 'ai-1', 'city-a', [], aggressive)
+      .some(candidate => candidate.itemId === 'sam_site')).toBe(true);
+  });
+
+  it('does not let an AI use a rival city\'s hidden SAM prerequisites', () => {
+    const state = setupState(['radar-systems', 'rocketry'], ['city-a', 'rival-city']);
+    state.cities['rival-city'] = {
+      ...state.cities['rival-city']!,
+      owner: 'player',
+      buildings: ['anti_air_battery', 'radar_station'],
+    };
+    state.civilizations.player.cities = ['rival-city'];
+
+    expect(generateAIProductionCandidates(state, 'ai-1', 'city-a', [], aggressive)
+      .some(candidate => candidate.itemId === 'sam_site')).toBe(false);
+  });
+
   it('offers Cuirassier for mobile demand only when the AI owns Horses and Iron', () => {
     const state = setupState([
       'animal-husbandry', 'bronze-working', 'rifle-tactics', 'professional-army',
