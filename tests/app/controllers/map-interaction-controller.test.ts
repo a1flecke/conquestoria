@@ -275,6 +275,42 @@ describe('MapInteractionController', () => {
       cancelBtn!.click();
       expect(selection.getSelectedUnitId()).toBeNull();
     });
+
+    it('confirming a minor-civ war declaration refreshes the renderer even if the follow-up conquest attempt never does (#787 phase 14)', () => {
+      // Regression guard: this case used to call session.setStateWithoutRefresh(war.state)
+      // and rely entirely on deps.executeMinorCivConquest to flush the renderer/HUD
+      // afterward. player-action-controller.test.ts's "does not resolve
+      // minor-civilization conquest after failed movement" proves that path calls
+      // neither renderLoop.setGameState nor hud.update when the follow-up move fails
+      // -- so a declared war could sit unrendered until an unrelated commit happened.
+      const state = makeFixture();
+      document.body.innerHTML = '<div id="info-panel"></div>';
+      const mcId = Object.keys(state.minorCivs)[0]!;
+      const cityId = state.minorCivs[mcId].cityId;
+      state.cities[cityId] = { ...state.cities[cityId], position: { q: 1, r: 0 } };
+      placePlayerUnit(state, 'u1', { position: { q: 0, r: 0 } });
+      state.civilizations.player.diplomacy.atWarWith = state.civilizations.player.diplomacy.atWarWith.filter(id => id !== mcId);
+      makeVisible(state, { q: 0, r: 0 });
+      makeVisible(state, { q: 1, r: 0 });
+      // Simulate the follow-up move failing silently, same as the real
+      // executeMinorCivConquest does on a blocked/failed move: it just returns.
+      const { deps, session } = baseDeps(state, { executeMinorCivConquest: vi.fn() });
+      const controller = createMapInteractionController(deps);
+      deps.selectionController.selectUnit('u1');
+
+      controller.handleHexTap({ q: 1, r: 0 });
+
+      const confirmBtn = Array.from(deps.uiLayer.querySelectorAll('button')).find(b => b.textContent === 'Continue');
+      expect(confirmBtn).toBeDefined();
+      vi.mocked(deps.renderLoop.setGameState).mockClear();
+
+      confirmBtn!.click();
+
+      expect(session.getState().civilizations.player.diplomacy.atWarWith).toContain(mcId);
+      expect(deps.renderLoop.setGameState).toHaveBeenCalled();
+      const pushedState = vi.mocked(deps.renderLoop.setGameState).mock.calls.at(-1)![0];
+      expect(pushedState.civilizations.player.diplomacy.atWarWith).toContain(mcId);
+    });
   });
 
   describe('handleHexLongPress', () => {

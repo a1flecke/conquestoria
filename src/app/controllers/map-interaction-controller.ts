@@ -632,6 +632,16 @@ export function createMapInteractionController(deps: MapInteractionControllerDep
             if (!war.ok) return;
             session.setStateWithoutRefresh(war.state);
             emitMinorCivQuestTransitions(bus, war.transitions, session.getState());
+            // #787 phase 14: this used to rely entirely on
+            // executeMinorCivConquest below to flush the renderer/HUD -- but
+            // that function returns early with no refresh at all when the
+            // follow-up move fails, leaving a real declared war unrendered
+            // until an unrelated commit happened elsewhere. Explicit refresh
+            // here (matching every sibling case in this switch) makes the war
+            // declaration itself visible regardless of what the conquest
+            // attempt does next.
+            renderLoop.setGameState(session.getState());
+            deps.updateHUD();
             deps.executeMinorCivConquest(selectedId, coord, intent.minorCivId, intent.cityId);
           },
           onCancel: () => selectionController.selectUnit(selectedId),
