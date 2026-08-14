@@ -20,32 +20,50 @@
  * ceremony queues whenever the overlay cleared. `CeremonyCoordinator`
  * (`src/app/controllers/ceremony-coordinator.ts`, #787 phase 6) is now the
  * sole subscriber.
+ *
+ * `setBlockingOverlay` is a reference count, not a single slot, as of #787
+ * phase 12 (#794): a single `blockingOverlayId: string | null` let two
+ * independent blockers overlap (e.g. a ceremony presenting while a hot-seat
+ * handoff begins) silently clobber each other's id, and whichever cleared
+ * to `null` first would incorrectly unblock the *other* caller's operation
+ * too. `setBlockingOverlay(id)` with a non-null `id` now pushes; `null`
+ * pops one level (a pop on an already-unblocked host is a no-op, not a
+ * negative count). `isInteractionBlocked()` stays `true` until every push
+ * has a matching pop. The `id` string itself was never read back by any
+ * consumer (`isInteractionBlocked()` only reports blocked/unblocked), so
+ * this is purely a depth counter -- no need to track which id is "on top."
+ * The public shape is unchanged: every existing call site (`id: string |
+ * null) => void`) keeps working without modification, per this phase's own
+ * LSP constraint on `UiInteractionState`.
  */
 import type { UiInteractionState } from '@/ui/ui-interaction-state';
 
 export interface PanelHost extends UiInteractionState {
   readonly layer: HTMLElement;
-  /** Fires exactly once per transition from blocked to unblocked -- never on overlay-to-overlay swaps. */
+  /** Fires exactly once per transition from blocked to unblocked -- never on overlay-to-overlay swaps or partial pops while another blocker remains. */
   onInteractionUnblocked(listener: () => void): void;
 }
 
 export function createPanelHost(layer: HTMLElement): PanelHost {
-  let blockingOverlayId: string | null = null;
+  let blockDepth = 0;
   const listeners = new Set<() => void>();
-  let wasBlocked = false;
 
   return {
     layer,
     setBlockingOverlay(id: string | null): void {
-      blockingOverlayId = id;
-      const isBlocked = blockingOverlayId !== null;
+      const wasBlocked = blockDepth > 0;
+      if (id !== null) {
+        blockDepth += 1;
+      } else if (blockDepth > 0) {
+        blockDepth -= 1;
+      }
+      const isBlocked = blockDepth > 0;
       if (wasBlocked && !isBlocked) {
         for (const listener of listeners) listener();
       }
-      wasBlocked = isBlocked;
     },
     isInteractionBlocked(): boolean {
-      return blockingOverlayId !== null;
+      return blockDepth > 0;
     },
     onInteractionUnblocked(listener: () => void): void {
       listeners.add(listener);

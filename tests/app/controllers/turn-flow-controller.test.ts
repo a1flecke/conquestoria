@@ -9,11 +9,13 @@ import { getAvailableTechs } from '@/systems/tech-system';
 import type { GameState, HotSeatPlayer, Religion, Unit } from '@/core/types';
 import { createGameSession } from '@/app/game-session';
 import { createSelectionStore } from '@/app/selection-store';
+import { createPanelHost } from '@/app/panel-host';
 import { RoundPresentationGate } from '@/presentation/round-presentation-gate';
 import * as saveManager from '@/storage/save-manager';
 import * as aiRoundScheduler from '@/ai/ai-round-scheduler';
 import * as strategicWarningSystem from '@/systems/strategic-warning-system';
 import * as cityCaptureSystem from '@/systems/city-capture-system';
+import * as hotseatOutcome from '@/core/hotseat-outcome';
 import { finalizePlayerCityAssaultChoice, type PendingCityCaptureChoice } from '@/input/city-assault-flow';
 import {
   createTurnFlowController,
@@ -40,6 +42,11 @@ vi.mock('@/systems/strategic-warning-system', async () => {
 vi.mock('@/systems/city-capture-system', async () => {
   const actual = await vi.importActual<typeof cityCaptureSystem>('@/systems/city-capture-system');
   return { ...actual, emitMajorCityCaptureEvents: vi.fn(actual.emitMajorCityCaptureEvents) };
+});
+
+vi.mock('@/core/hotseat-outcome', async () => {
+  const actual = await vi.importActual<typeof hotseatOutcome>('@/core/hotseat-outcome');
+  return { ...actual, resolveHotSeatPostSimulation: vi.fn(actual.resolveHotSeatPostSimulation) };
 });
 
 /**
@@ -447,6 +454,66 @@ describe('createTurnFlowController', () => {
       await flushMicrotasks();
       document.querySelector<HTMLButtonElement>('#handoff-start')?.click();
       await flushMicrotasks(10);
+      await endTurnPromise;
+    });
+  });
+
+  // #787 Phase 12 (#794): Step 1's investigation found the originally-hypothesized
+  // overlap (a ceremony presenting while a hot-seat handoff begins) unreachable
+  // today -- every path into endTurn() is gated by isInteractionBlocked(), so
+  // beginHotSeatHandoff can never start while something else is already blocking.
+  // But the investigation surfaced a *different*, genuinely reachable hazard: when
+  // a completed round ends the game, beginHotSeatHandoff tears down the
+  // turn-handoff screen and hands off directly to the victory panel without ever
+  // explicitly releasing 'turn-handoff' first. Under the old single-slot overlay
+  // this was harmless (last write wins); under the new reference-counted overlay
+  // it would leave a phantom depth-1 entry that never gets popped, permanently
+  // blocking interaction after the player dismisses the victory panel. This test
+  // proves the fix (explicit setBlockingOverlay(null) before handleVictoryIfNeeded)
+  // against a real PanelHost, not a bare spy.
+  describe('hot-seat handoff — victory does not leave a stale blocker (#794, phase 12)', () => {
+    it('fully unblocks interaction after a completed round ends in victory during a hot-seat handoff', async () => {
+      const state = makeHotSeatFixture();
+      const aiCivId = state.hotSeat!.players.find(p => p.slotId !== 'player')!.slotId;
+      clearRequiredChoices(state, aiCivId);
+      // aiCivId is last in hotSeat.players, so ending its turn completes the round.
+      state.currentPlayer = aiCivId;
+
+      // endTurn() itself bails out immediately if the state is *already*
+      // gameOver, so the fixture must start with gameOver: false and become
+      // gameOver only as a result of round processing -- fake that outcome at
+      // the one seam that decides it (prepareCompletedState), rather than
+      // simulating an actual domination victory through the real systems.
+      vi.mocked(hotseatOutcome.resolveHotSeatPostSimulation).mockImplementationOnce(s => ({
+        state: { ...s, gameOver: true, winner: 'player', gameOverReason: 'domination' },
+        nextHumanId: null,
+      }));
+
+      const host = createPanelHost(document.createElement('div'));
+      const deps = baseDeps(state, { setBlockingOverlay: host.setBlockingOverlay });
+      const turnFlow = createTurnFlowController(deps);
+
+      const endTurnPromise = turnFlow.endTurn();
+      // beginHotSeatHandoff pushes 'turn-handoff' synchronously before any round
+      // simulation can run.
+      expect(host.isInteractionBlocked()).toBe(true);
+
+      await flushMicrotasks(20);
+
+      // The round resolved with the game already over: beginHotSeatHandoff hands
+      // off straight to the victory panel instead of naming a next recipient.
+      // Interaction must still be blocked -- now by 'victory', not stuck
+      // double-blocked by an un-released 'turn-handoff'.
+      expect(deps.uiLayer.querySelector('#victory-panel')).toBeTruthy();
+      expect(host.isInteractionBlocked()).toBe(true);
+
+      deps.uiLayer.querySelector<HTMLButtonElement>('#victory-new-game-btn')?.click();
+
+      // If 'turn-handoff' had been silently overwritten instead of explicitly
+      // released, this would still report blocked -- the whole game would stay
+      // uninteractable after dismissing the victory panel.
+      expect(host.isInteractionBlocked()).toBe(false);
+
       await endTurnPromise;
     });
   });

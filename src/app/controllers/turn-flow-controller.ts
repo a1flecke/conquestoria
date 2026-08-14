@@ -539,6 +539,13 @@ export function createTurnFlowController(deps: TurnFlowControllerDeps): TurnFlow
       if (!resolvedNextSlotId) {
         session.setStateWithoutRefresh(resolveHotSeatPostSimulation(preSimulationState, previousHumanId).state);
         controller.remove();
+        // #787 phase 12 (#794): release 'turn-handoff' explicitly before
+        // handleVictoryIfNeeded() may push 'victory' -- an implicit
+        // overwrite is safe under the old single-slot overlay, but leaves a
+        // phantom entry on the reference-counted stack that never gets
+        // popped, permanently blocking interaction after the player
+        // dismisses the victory panel.
+        deps.setBlockingOverlay(null);
         handleVictoryIfNeeded();
         return;
       }
@@ -572,6 +579,9 @@ export function createTurnFlowController(deps: TurnFlowControllerDeps): TurnFlow
       if (outcome.status === 'ready') {
         if (outcome.state.gameOver) {
           controller.remove();
+          // #787 phase 12 (#794): see the matching comment above -- release
+          // 'turn-handoff' before handleVictoryIfNeeded() may push 'victory'.
+          deps.setBlockingOverlay(null);
           handleVictoryIfNeeded();
           return;
         }
@@ -622,6 +632,9 @@ export function createTurnFlowController(deps: TurnFlowControllerDeps): TurnFlow
       }
       if (outcome.state.gameOver) {
         controller.remove();
+        // #787 phase 12 (#794): see the matching comment above -- release
+        // 'turn-handoff' before handleVictoryIfNeeded() may push 'victory'.
+        deps.setBlockingOverlay(null);
         handleVictoryIfNeeded();
         return;
       }
