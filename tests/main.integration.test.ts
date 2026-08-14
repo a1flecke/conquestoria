@@ -27,58 +27,6 @@ describe('campaign entry wiring', () => {
   });
 });
 
-describe('player combat wiring', () => {
-  it('derives each player combat seed from the game, turn, and unit pair', () => {
-    const main = readFileSync(resolve(PROJECT_ROOT, 'src/main.ts'), 'utf8');
-    const executeAttack = main.slice(
-      main.indexOf('function executeAttack('),
-      // #787 phase 10b-e: restAction moved into PlayerActionController;
-      // executeAttack is now the last function declaration in main.ts.
-      main.indexOf('// --- Bootstrap ---'),
-    );
-
-    expect(executeAttack).toContain(
-      'deterministicCombatSeed(session.getState().gameId, session.getState().turn, attacker.id, defender.id)',
-    );
-  });
-
-  it('refreshes the open selected-unit panel from post-combat state before delayed selection', () => {
-    const main = readFileSync(resolve(PROJECT_ROOT, 'src/main.ts'), 'utf8');
-    const executeAttack = main.slice(
-      main.indexOf('function executeAttack('),
-      // #787 phase 10b-e: restAction moved into PlayerActionController;
-      // executeAttack is now the last function declaration in main.ts.
-      main.indexOf('// --- Bootstrap ---'),
-    );
-    const stateRefresh = executeAttack.indexOf('renderLoop.setGameState(session.getState());');
-    const panelRefresh = executeAttack.indexOf('refreshSelectedUnitAfterCombat();');
-    const delayedSelection = executeAttack.indexOf("renderLoop.animations.add('combat-flash'");
-
-    expect(stateRefresh).toBeGreaterThan(-1);
-    expect(panelRefresh).toBeGreaterThan(stateRefresh);
-    expect(panelRefresh).toBeLessThan(delayedSelection);
-  });
-
-  it('refreshes the open selected-unit panel before returning through the city-capture branch', () => {
-    const main = readFileSync(resolve(PROJECT_ROOT, 'src/main.ts'), 'utf8');
-    const executeAttack = main.slice(
-      main.indexOf('function executeAttack('),
-      // #787 phase 10b-e: restAction moved into PlayerActionController;
-      // executeAttack is now the last function declaration in main.ts.
-      main.indexOf('// --- Bootstrap ---'),
-    );
-    const cityCaptureBranch = executeAttack.slice(
-      executeAttack.indexOf('const assaultStatus = beginPlayerCityAssault('),
-      executeAttack.indexOf('return;', executeAttack.indexOf('const assaultStatus = beginPlayerCityAssault(')),
-    );
-
-    expect(cityCaptureBranch.indexOf('renderLoop.setGameState(session.getState());')).toBeGreaterThan(-1);
-    expect(cityCaptureBranch.indexOf('refreshSelectedUnitAfterCombat();')).toBeGreaterThan(
-      cityCaptureBranch.indexOf('renderLoop.setGameState(session.getState());'),
-    );
-  });
-});
-
 describe('land-unit water recovery wiring', () => {
   it('routes the live blocked-tap path through recovery helpers', () => {
     // #787 phase 8d: handleHexTap itself (and its 'blocked-movement' case)
@@ -132,99 +80,27 @@ describe('completed-round AI wiring', () => {
   });
 });
 
-describe('shared city founding wiring', () => {
-  it('routes both the live player action and legacy AI through foundCityInState', () => {
-    const main = readFileSync(resolve(PROJECT_ROOT, 'src/main.ts'), 'utf8');
-    const basicAi = readFileSync(
-      resolve(PROJECT_ROOT, 'src/ai/basic-ai.ts'),
-      'utf8',
-    );
-    const playerFlow = main.slice(
-      main.indexOf('function foundCityAction(): void'),
-      // #787 phase 10b-e: performWorkerAction moved into PlayerActionController;
-      // beginPlayerCityAssault is what now immediately follows foundCityAction.
-      main.indexOf('function beginPlayerCityAssault('),
-    );
-
-    expect(playerFlow).toContain(
-      'foundCityInState(session.getState(), selectedUnitId, bus)',
-    );
-    expect(playerFlow).not.toContain('const city = foundCity(');
-    expect(basicAi).toContain(
-      'foundCityInState(newState, settler.id, bus)',
-    );
-  });
-});
-
-describe('shared unit upgrade wiring', () => {
-  it('delegates the live human handler to the canonical whole-state mutation', () => {
-    const main = readFileSync(resolve(PROJECT_ROOT, 'src/main.ts'), 'utf8');
-    const handler = main.slice(
-      main.indexOf('function executeUpgrade('),
-      // #787 phase 10b-e: getUnitTurnFlow moved into PlayerActionController;
-      // foundCityAction is what now immediately follows executeUpgrade.
-      main.indexOf('function foundCityAction('),
-    );
-
-    expect(handler).toContain('applyUnitUpgradeToState(');
-    expect(handler).not.toContain('civ.gold - cost');
-    expect(handler).not.toContain('applyUpgrade(');
-  });
-});
-
-describe('shared city assault wiring', () => {
-  it('passes the live event bus and exact post-combat result into canonical assault', () => {
-    const main = readFileSync(resolve(PROJECT_ROOT, 'src/main.ts'), 'utf8');
-
-    expect(main).toMatch(
-      /beginPlayerCityAssaultChoice\(\s*session\.getState\(\),\s*attackerId,\s*cityId,\s*bus,\s*precedingCombat,\s*attackerMultiplier,\s*\)/,
-    );
-    expect(main).toMatch(
-      /beginPlayerCityAssault\(\s*attackerId,\s*cityAtTarget\.id,\s*attackerBonus,\s*result,\s*amphibiousAssault,\s*\)/,
-    );
-  });
-
-  it('does not enter capture flow when the surviving attacker cannot occupy a city', () => {
-    const main = readFileSync(resolve(PROJECT_ROOT, 'src/main.ts'), 'utf8');
-    const playerAssault = main.slice(
-      main.indexOf('function beginPlayerCityAssault('),
-      main.indexOf('function executeAttack('),
-    );
-
-    expect(playerAssault).toMatch(
-      /if \(!attacker \|\| !canUnitOccupyCity\(attacker\)\) return 'resolved';/,
-    );
-  });
-
+// #787 phase 13: `player combat wiring`, `shared city founding wiring`,
+// `shared unit upgrade wiring`, and `shared city assault wiring` (four
+// grep-based describe blocks that used to live here, slicing main.ts source
+// text for executeAttack/foundCityAction/executeUpgrade/beginPlayerCityAssault/
+// executeMinorCivConquest) are retired -- those five functions moved into
+// PlayerActionController and are now covered by real behavioral tests in
+// tests/app/controllers/player-action-controller.test.ts ('executeAttack',
+// 'foundCityAction', 'executeUpgrade', 'beginPlayerCityAssault',
+// 'executeMinorCivConquest' describe blocks), per this phase's plan Step 6.
+// The strategic-AI half of "shared city assault wiring" (ai-major-turn.ts
+// calling emitMajorCityCaptureEvents) had no player-side counterpart in
+// main.ts by this point and needed no new home -- it was never testing
+// main.ts source, only ai-major-turn.ts's.
+describe('strategic AI city capture wiring', () => {
   it('routes strategic AI capture transitions through the shared emitter', () => {
-    // #787 phase 9: finalizePendingCityCaptureChoice (the player-side caller
-    // of emitMajorCityCaptureEvents) moved into TurnFlowController -- that
-    // half of this invariant is now proven at runtime by
-    // turn-flow-controller.test.ts's "finalizePendingCityCaptureChoice --
-    // shared emitter" test. Only the strategic-AI side is still checked here.
     const strategicAi = readFileSync(
       resolve(PROJECT_ROOT, 'src/ai/ai-major-turn.ts'),
       'utf8',
     );
 
     expect(strategicAi).toContain('emitMajorCityCaptureEvents(');
-  });
-
-  it('does not resolve minor-civilization conquest after failed movement', () => {
-    const main = readFileSync(resolve(PROJECT_ROOT, 'src/main.ts'), 'utf8');
-    const minorCaptureFlow = main.slice(
-      main.indexOf('function executeMinorCivConquest('),
-      // #787 phase 10b-c: openDiplomacyPanel moved into PanelActionsController;
-      // executeUpgrade is what now immediately follows executeMinorCivConquest.
-      main.indexOf('function executeUpgrade('),
-    );
-
-    // #787 phase 10b-g: selectionController now lives behind `composition`,
-    // constructed by createAppComposition in src/app/bootstrap.ts.
-    expect(minorCaptureFlow).toContain(
-      'const movement = composition.selectionController.executeAnimatedUnitMove(',
-    );
-    expect(minorCaptureFlow).toMatch(/if \(!movement\.ok\) return;/);
   });
 });
 
