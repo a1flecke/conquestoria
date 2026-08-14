@@ -58,4 +58,35 @@ describe('resolveCoastalBatteryCounterfire', () => {
       cityId: 'port', attackerUnitId: 'ship', attackerDomain: 'naval', cityDamage: 0, source: 'player',
     }).event).toBeUndefined();
   });
+
+  it('consumes the first damaging hit even when the rounded retaliation is zero', () => {
+    const state = makeState();
+    const first = resolveCoastalBatteryCounterfire(state, {
+      cityId: 'port', attackerUnitId: 'ship', attackerDomain: 'naval', cityDamage: 1, source: 'ai',
+    });
+
+    expect(first.damage).toBe(0);
+    expect(first.event).toBeUndefined();
+    expect(first.state.cities.port.coastalBatteryCounterfireTurn).toBe(state.turn);
+    expect(resolveCoastalBatteryCounterfire(first.state, {
+      cityId: 'port', attackerUnitId: 'ship', attackerDomain: 'naval', cityDamage: 40, source: 'ai',
+    }).damage).toBe(0);
+  });
+
+  it('tracks each Battery city independently and resets on the next global turn', () => {
+    const state = makeState();
+    state.cities.secondPort = { ...state.cities.port, id: 'secondPort', position: { q: 3, r: 0 } };
+    const firstPort = resolveCoastalBatteryCounterfire(state, {
+      cityId: 'port', attackerUnitId: 'ship', attackerDomain: 'naval', cityDamage: 40, source: 'pirate',
+    });
+    const secondPort = resolveCoastalBatteryCounterfire(firstPort.state, {
+      cityId: 'secondPort', attackerUnitId: 'ship', attackerDomain: 'naval', cityDamage: 40, source: 'pirate',
+    });
+    expect(secondPort.damage).toBe(8);
+
+    const nextTurn = resolveCoastalBatteryCounterfire({ ...firstPort.state, turn: state.turn + 1 }, {
+      cityId: 'port', attackerUnitId: 'ship', attackerDomain: 'naval', cityDamage: 40, source: 'pirate',
+    });
+    expect(nextTurn.damage).toBe(8);
+  });
 });

@@ -1,6 +1,6 @@
 import type { GameState, Unit } from '@/core/types';
 import { resolveChallengeForCiv } from '@/core/opponent-challenge';
-import { canUnitAttackTarget } from '@/systems/attack-targeting';
+import { canUnitAttackTarget, type AttackTargetFailure } from '@/systems/attack-targeting';
 import { resolveCoastalBatteryCounterfire, type CoastalBatteryCounterfireEvent } from '@/systems/coastal-defense-system';
 import { applyCitySiegeOutcome, getCityGarrisonUnit, resolveCitySiegeDamage } from '@/systems/city-siege-system';
 import { resolveCivilizationEra } from '@/systems/tech-definitions';
@@ -21,9 +21,16 @@ export interface NavalCityBombardmentEvent {
   hpLost: number;
 }
 
+export type NavalCityBombardmentFailure =
+  | 'missing-attacker-or-city'
+  | 'missing-city-owner'
+  | 'non-naval-attacker'
+  | 'invalid-city-target'
+  | AttackTargetFailure;
+
 export type NavalCityBombardmentResult =
   | { ok: true; state: GameState; cityEvent?: NavalCityBombardmentEvent; batteryEvent?: CoastalBatteryCounterfireEvent }
-  | { ok: false; state: GameState; reason: string };
+  | { ok: false; state: GameState; reason: NavalCityBombardmentFailure };
 
 function consumeAttackAction(state: GameState, attacker: Unit): GameState {
   const current = state.units[attacker.id];
