@@ -629,6 +629,12 @@ export const BUILDINGS: Record<string, Building> = {
     description: 'Industrial exhibition center. +2 gold, +1 science per turn.',
     techRequired: 'engineering-exhibition',
   },
+  coastal_battery: {
+    id: 'coastal_battery', name: 'Coastal Battery', category: 'military',
+    yields: { food: 0, production: 0, gold: 0, science: 0 }, productionCost: 170,
+    description: 'Naval defense +8. First naval hit each turn returns 20% damage (max 12).',
+    techRequired: 'naval-armor', coastalRequired: true,
+  },
 
   /* === ERA 9 REGULAR BUILDINGS === */
   oil_refinery: {
@@ -1617,6 +1623,7 @@ export const PRODUCTION_ICONS: Record<string, string> = {
   sanatorium:           '🏥',
   power_station:        '⚡',
   exhibition_hall:      '🏛️',
+  coastal_battery:      '💥',
   // era 8 units
   machine_gunner:  '🔫',
   pre_dreadnought: '🚢',

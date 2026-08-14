@@ -90,7 +90,7 @@ const ERA_8_TECHS: Tech[] = [
   { id: 'naval-armor', name: 'Naval Armor', track: 'maritime', cost: 250,
     prerequisites: ['ironclad-warships', 'steam-navigation'],
     unlocks: ['Naval units +5 strength; armored warships dominate coastal waters'],
-    unlocksUnits: ['pre_dreadnought'], era: 8 },
+    unlocksUnits: ['pre_dreadnought'], unlocksBuildings: ['coastal_battery'], era: 8 },
   { id: 'torpedo-warfare', name: 'Torpedo Warfare', track: 'maritime', cost: 90,
     prerequisites: ['steam-navigation'],
     unlocks: ['Naval ranged units +8 strength; coastal cities gain +5 defense bonus against naval assault'], era: 8 },

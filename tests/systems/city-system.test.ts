@@ -320,6 +320,34 @@ describe('getAvailableBuildings', () => {
     expect(available.find(b => b.id === 'dock')).toBeDefined();
   });
 
+  it('offers Coastal Battery only to a coastal Naval Armor city', () => {
+    const tile = (q: number, r: number, terrain: 'plains' | 'coast') => ({
+      coord: { q, r }, terrain, elevation: 'lowland', resource: null, improvement: 'none',
+      owner: null, improvementTurnsLeft: 0, hasRiver: false, wonder: null,
+    });
+    const map = {
+      width: 20, height: 20, wrapsHorizontally: false, rivers: [],
+      tiles: {
+        [hexKey({ q: 5, r: 5 })]: tile(5, 5, 'plains'),
+        [hexKey({ q: 6, r: 5 })]: tile(6, 5, 'coast'),
+        [hexKey({ q: 15, r: 15 })]: tile(15, 15, 'plains'),
+      },
+    } as GameMap;
+    const cityAt = (position: HexCoord) => ({
+      id: hexKey(position), name: 'Test', owner: 'p1', position, population: 1,
+      food: 0, foodNeeded: 15, buildings: [], productionQueue: [], productionProgress: 0,
+      ownedTiles: [position], workedTiles: [], focus: 'balanced', grid: [], gridSize: 1,
+      hp: 100, maturity: 'core',
+    } as unknown as City);
+    const coastalCity = cityAt({ q: 5, r: 5 });
+    const inlandCity = cityAt({ q: 15, r: 15 });
+
+    expect(getAvailableBuildings(coastalCity, ['naval-armor'], map))
+      .toContainEqual(expect.objectContaining({ id: 'coastal_battery', productionCost: 170 }));
+    expect(getAvailableBuildings(inlandCity, ['naval-armor'], map).map(building => building.id))
+      .not.toContain('coastal_battery');
+  });
+
   it('excludes dock from coastal city without fishing tech', () => {
     const map = generateMap(30, 30, 'coastal-test');
     const waterTile = Object.values(map.tiles).find(t => t.terrain === 'ocean' || t.terrain === 'coast')!;
