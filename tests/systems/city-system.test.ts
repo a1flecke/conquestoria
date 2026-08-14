@@ -256,6 +256,24 @@ describe('isCityCoastal', () => {
 });
 
 describe('getAvailableBuildings', () => {
+  it('offers SAM Site only after both technologies and both local air-defense prerequisites', () => {
+    const map = generateMap(30, 30, 'sam-site-conjunctive-gates');
+    const landTile = Object.values(map.tiles).find(tile => tile.terrain === 'grassland')!;
+    const city = foundCity('p1', landTile.coord, map, mkC());
+    const fullyResearched = ['air-superiority', 'radar-systems', 'rocketry'];
+    const prerequisites = ['anti_air_battery', 'radar_station'];
+
+    expect(getAvailableBuildings(city, fullyResearched, map).some(building => building.id === 'sam_site')).toBe(false);
+    expect(getAvailableBuildings({ ...city, buildings: prerequisites }, ['air-superiority', 'radar-systems'], map)
+      .some(building => building.id === 'sam_site')).toBe(false);
+    expect(getAvailableBuildings({ ...city, buildings: prerequisites }, ['air-superiority', 'rocketry'], map)
+      .some(building => building.id === 'sam_site')).toBe(false);
+    expect(getAvailableBuildings({ ...city, buildings: prerequisites }, fullyResearched, map)
+      .some(building => building.id === 'sam_site')).toBe(true);
+    expect(getAvailableBuildings(city, fullyResearched, map)
+      .some(building => building.id === 'anti_air_battery')).toBe(true);
+  });
+
   it('does not offer a building until every conjunctive technology is complete', () => {
     const map = generateMap(30, 30, 'conjunctive-building-tech-gate');
     const landTile = Object.values(map.tiles).find(tile => tile.terrain === 'grassland')!;

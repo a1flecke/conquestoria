@@ -773,6 +773,14 @@ export const BUILDINGS: Record<string, Building> = {
     techRequired: 'radar-systems',
     pacing: { band: 'infrastructure', role: 'defense-science', impact: 1.2, scope: 'city', snowball: 1.2, urgency: 1.0, situationality: 1.2, unlockBreadth: 1 },
   },
+  sam_site: {
+    id: 'sam_site', name: 'SAM Site', category: 'military',
+    yields: { food: 0, production: 0, gold: 0, science: 0 }, productionCost: 195,
+    description: 'Surface-to-Air Missile (SAM) site protects friendly defenders within 2 hexes from air attacks. +12 defense strength against air attacks.',
+    techRequired: 'radar-systems', requiredTechs: ['rocketry'],
+    requiresBuildings: ['anti_air_battery', 'radar_station'],
+    airDefenseProvider: { radius: 2, defenseModifier: 12, stackingGroup: 'ground-air-defense' },
+  },
   un_delegation: {
     id: 'un_delegation', name: 'UN Delegation', category: 'economy',
     yields: { food: 0, production: 0, gold: 2, science: 1 }, productionCost: 185,
@@ -1673,6 +1681,7 @@ export const PRODUCTION_ICONS: Record<string, string> = {
   central_bank: '🏦',
   atomic_laboratory: '⚛️',
   radar_station: '📡',
+  sam_site: '🛡️',
   un_delegation: '🕊️',
   rocket_program: '🚀',
   public_hospital: '🏥',

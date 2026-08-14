@@ -502,6 +502,8 @@ export const BUILDING_SPRITE_CATALOG: Record<string, BuildingSpriteComponent> = 
   central_bank:                   CentralBankSprite,
   atomic_laboratory:              AtomicLaboratorySprite,
   radar_station:                  RadarStationSprite,
+  // Temporary Radar Station silhouette; #710 owns SAM Site's dedicated air-defense art.
+  sam_site:                       RadarStationSprite,
   un_delegation:                  UnDelegationSprite,
   rocket_program:                 RocketProgramSprite,
   public_hospital:                PublicHospitalSprite,
