@@ -1,7 +1,7 @@
 # Issue #694 SAM Site Design
 
-**Date:** 2026-08-14  
-**Status:** Approved  
+**Date:** 2026-08-14
+**Status:** Approved
 **Parent:** GitHub issue #547, delivery 30 of 63
 
 ## Goal
