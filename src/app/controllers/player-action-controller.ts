@@ -447,9 +447,11 @@ export function createPlayerActionController(deps: PlayerActionControllerDeps): 
     }));
     if (!movement.ok) return;
     const movedUnit = deps.session.getState().units[unitId];
-    if (movedUnit) deps.session.getState().units[unitId] = { ...movedUnit, movementPointsLeft: 0 };
-    const conquered = conquestMinorCiv(deps.session.getState(), minorCivId, deps.session.getState().currentPlayer);
-    deps.session.setStateWithoutRefresh(conquered.state);
+    const stateAfterMove = movedUnit
+      ? { ...deps.session.getState(), units: { ...deps.session.getState().units, [unitId]: { ...movedUnit, movementPointsLeft: 0 } } }
+      : deps.session.getState();
+    const conquered = conquestMinorCiv(stateAfterMove, minorCivId, stateAfterMove.currentPlayer);
+    deps.session.commit(conquered.state);
     emitMinorCivQuestTransitions(deps.bus, conquered.transitions, deps.session.getState());
     if (conquered.conquered) deps.bus.emit('minor-civ:destroyed', { minorCivId, conquerorId: deps.session.getState().currentPlayer });
     deps.showNotification(`${cityName} has been conquered!`, 'success');
