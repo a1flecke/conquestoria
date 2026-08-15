@@ -158,4 +158,3 @@ git commit -m "fix(694): complete SAM Site integration"
 ```
 
 Expected: one focused repair commit after all verification passes.
-

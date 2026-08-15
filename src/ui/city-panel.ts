@@ -698,9 +698,10 @@ export function createCityPanel(
     ...partialPrerequisiteBuildings.map(building => ({
       id: building.id,
       name: building.name,
-      missingResources: [],
+      missingResources: (building.resourceRequired ?? []).filter(r => !playerResources.has(r)),
       requiredTechs: evaluateProductionPrerequisites(building, completedTechs).required,
-      requiredBuildings: [],
+      requiredBuildings: (building.requiresBuildings ?? [])
+        .filter(requiredBuilding => !city.buildings.includes(requiredBuilding)),
     })),
     ...localPrerequisiteBuildings.map(building => ({
       id: building.id,

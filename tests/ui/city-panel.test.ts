@@ -190,7 +190,7 @@ describe('city-panel national projects', () => {
       techState: { ...state.civilizations.player.techState, completed: ['radar-systems'] },
     };
     city.owner = 'player-2';
-    city.buildings = ['anti_air_battery', 'radar_station'];
+    city.buildings = [];
     state.cities[city.id] = city;
     state.currentPlayer = 'player-2';
 
@@ -200,7 +200,7 @@ describe('city-panel national projects', () => {
 
     clickElement(panel.querySelector('[data-locked-show-more]'));
     expect(collectText(panel)).toContain('SAM Site');
-    expect(collectText(panel)).toContain('Requires: Radar Systems ✓ + Rocketry');
+    expect(collectText(panel)).toContain('Requires: Radar Systems ✓ + Rocketry + Anti-Air Battery + Radar Station');
     expect(panel.querySelector('[data-item-id="sam_site"]')).toBeNull();
   });
 

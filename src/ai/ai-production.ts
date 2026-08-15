@@ -27,6 +27,9 @@ import type { AIForceDemand } from './ai-unit-assignment';
 import { getAIStrategicRoles } from './ai-unit-roles';
 import { weightProductionRoles } from './ai-personality';
 import { resolveCivilizationEra } from '@/systems/tech-definitions';
+import { getVisibility } from '@/systems/fog-of-war';
+import { hexDistance, wrappedHexDistance } from '@/systems/hex-utils';
+import { isAIHostileOwner } from './ai-hostility';
 
 export interface AIProductionCandidate {
   itemId: string;
@@ -41,6 +44,7 @@ export interface AIProductionCandidate {
   citySpecializationScore: number;
   maintenanceRisk: number;
   defensiveEspionageScore: number;
+  airDefenseThreatScore: number;
   fulfilledRole?: AIStrategicRole;
   score: number;
 }
@@ -254,6 +258,35 @@ function defensiveEspionageScore(
   ) ? value : 0;
 }
 
+function airDefenseThreatScore(
+  state: GameState,
+  civId: string,
+  cityId: string,
+  buildingId: string,
+): number {
+  const capability = BUILDINGS[buildingId]?.airDefenseProvider;
+  const city = state.cities[cityId];
+  const civ = state.civilizations[civId];
+  if (!capability || !city || !civ) return 0;
+  const hasVisibleReachableStrikeAircraft = Object.values(state.units).some(unit => {
+    const definition = UNIT_DEFINITIONS[unit.type];
+    const range = definition.airOperation?.operationalRange;
+    const distance = state.map.wrapsHorizontally
+      ? wrappedHexDistance(unit.position, city.position, state.map.width)
+      : hexDistance(unit.position, city.position);
+    return unit.owner !== civId
+      && isAIHostileOwner(state, civId, unit.owner)
+      && definition.domain === 'air'
+      && definition.airOperation?.missions.includes('strike')
+      && range !== undefined
+      && distance <= range
+      && getVisibility(civ.visibility, unit.position) === 'visible';
+  });
+  return hasVisibleReachableStrikeAircraft
+    ? Math.min(120, capability.defenseModifier * 10)
+    : 0;
+}
+
 function generateWithResidual(
   state: GameState,
   civId: string,
@@ -362,6 +395,7 @@ function generateWithResidual(
       citySpecializationScore,
       maintenanceRisk,
       defensiveEspionageScore: 0,
+      airDefenseThreatScore: 0,
       fulfilledRole: fulfilled.role,
       score,
     });
@@ -415,6 +449,7 @@ function generateWithResidual(
           citySpecializationScore: 0,
           maintenanceRisk: maintenanceImpact,
           defensiveEspionageScore: 0,
+          airDefenseThreatScore: 0,
           score,
         });
       }
@@ -452,10 +487,12 @@ function generateWithResidual(
     const citySpecializationScore = building.category === city.focus ? 1 : 0;
     const maintenanceRisk = maintenanceImpact;
     const buildingDefensiveScore = defensiveEspionageScore(state, civId, cityId, building.id);
+    const buildingAirDefenseScore = airDefenseThreatScore(state, civId, cityId, building.id);
     const score = economyScore * 2
       + personalityScore
       + citySpecializationScore
       + buildingDefensiveScore
+      + buildingAirDefenseScore
       - productionTurns * 1.5
       - maintenanceRisk * 3;
     candidates.push({
@@ -471,6 +508,7 @@ function generateWithResidual(
       citySpecializationScore,
       maintenanceRisk,
       defensiveEspionageScore: buildingDefensiveScore,
+      airDefenseThreatScore: buildingAirDefenseScore,
       score,
     });
   }
