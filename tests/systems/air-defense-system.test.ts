@@ -47,6 +47,26 @@ function state(): GameState {
 const defender = { id: 'defender-unit', owner: 'defender', type: 'rifleman', position: { q: 1, r: 0 } } as Unit;
 
 describe('resolveAirDefenseCoverage', () => {
+  it('requires a completed Radar Station before a SAM Site provides coverage', () => {
+    const next = state();
+    next.cities.alpha!.buildings = ['anti_air_battery', 'sam_site'];
+
+    expect(resolveAirDefenseCoverage(next, defender, 'defender')).toMatchObject({
+      flatDefenseModifier: 8,
+      providers: [expect.objectContaining({ id: 'city:alpha:anti_air_battery' })],
+    });
+  });
+
+  it('invalidates cached coverage when Radar is removed from the current state revision', () => {
+    const next = state();
+    next.cities.alpha!.buildings = ['anti_air_battery', 'radar_station', 'sam_site'];
+
+    expect(resolveAirDefenseCoverage(next, defender, 'defender').flatDefenseModifier).toBe(12);
+    next.cities.alpha!.buildings = ['anti_air_battery', 'sam_site'];
+
+    expect(resolveAirDefenseCoverage(next, defender, 'defender').flatDefenseModifier).toBe(8);
+  });
+
   it('uses SAM Site at radius two as the strongest ground air-defense provider', () => {
     const next = state();
     next.cities.alpha!.buildings = ['anti_air_battery', 'radar_station', 'sam_site'];

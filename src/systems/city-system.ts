@@ -779,7 +779,7 @@ export const BUILDINGS: Record<string, Building> = {
     description: 'Surface-to-Air Missile (SAM) site protects friendly defenders within 2 hexes from air attacks. +12 defense strength against air attacks.',
     techRequired: 'radar-systems', requiredTechs: ['rocketry'],
     requiresBuildings: ['anti_air_battery', 'radar_station'],
-    airDefenseProvider: { radius: 2, defenseModifier: 12, stackingGroup: 'ground-air-defense' },
+    airDefenseProvider: { radius: 2, defenseModifier: 12, stackingGroup: 'ground-air-defense', requiresCompletedBuildingIds: ['radar_station'] },
   },
   un_delegation: {
     id: 'un_delegation', name: 'UN Delegation', category: 'economy',

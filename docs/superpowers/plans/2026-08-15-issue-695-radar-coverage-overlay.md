@@ -4,7 +4,7 @@
 
 **Goal:** Make an operational Radar Station canonically gate SAM coverage, AI air-defense value, and a viewer-safe, default-off overlay.
 
-**Architecture:** Extend the existing typed `airDefenseProvider` capability with an explicit operational-building requirement and resolve provider eligibility in `air-defense-system.ts`. Cache that canonical provider index per immutable `GameState` revision, then derive combat coverage, AI threat summaries, and renderer input from it. The renderer receives precomputed current-viewer providers during `setGameState`, while the HUD remains the labelled current-viewer toggle approved in the design review.
+**Architecture:** Extend the existing typed `airDefenseProvider` capability with an explicit completed-building requirement and resolve provider eligibility in `air-defense-system.ts`. Cache the canonical provider index against a deterministic revision of provider cities/units and cache each viewer presentation against the provider-tile visibility revision; never rely on mutable `GameState` identity alone. The renderer receives precomputed current-viewer providers during `setGameState`, while the HUD owns the labelled toggle and its non-modal legend.
 
 **Tech Stack:** TypeScript, Vitest, Canvas 2D, DOM UI, existing `GameState` immutable state snapshots.
 
@@ -12,7 +12,7 @@
 
 ## File structure
 
-- `src/core/types.ts` — typed building prerequisites for a provider and the serializable index API.
+- `src/core/types.ts` — capability metadata and serializable index API, using the repository's existing building-ID string convention.
 - `src/systems/city-system.ts` — declares the SAM Site's Radar Station requirement.
 - `src/systems/air-defense-system.ts` — owns provider eligibility, cached indexes, coverage, viewer filtering, and AI-safe threats.
 - `src/ai/ai-production.ts` — consumes precomputed threats once rather than scanning all units per candidate.
@@ -27,7 +27,7 @@
 | --- | --- | --- | --- |
 | No owned provider | Open HUD | `civHasAirDefenseCoverage` is false | No overlay button. |
 | Owned operational provider; overlay off | Tap `Air defense` | Current viewer preference becomes true | Pressed label, rings, and `Known providers only` legend appear. |
-| Radar-backed SAM has no Radar Station | Refresh state | SAM is excluded by its typed operational prerequisite | No SAM ring or combat contribution. |
+| Built SAM has no completed Radar Station | Refresh state | SAM is excluded by its typed completed-building prerequisite | No SAM ring or combat contribution. |
 | Visible rival provider | Enable overlay | Viewer-safe provider list includes it | Its ring appears without aircraft or combat-intel text. |
 | Rival provider becomes fogged | Refresh state | Viewer-safe list removes it | The ring disappears immediately. |
 | Human A enabled overlay | Hand off to human B | B's preference and visibility are selected | A's label and intel do not persist. |
@@ -35,7 +35,7 @@
 ## Misleading UI Risks
 
 - A ring means known defensive coverage, not detection, interception certainty, enemy aircraft, or summed defense.
-- A SAM Site without its operational Radar Station must not appear in combat facts, AI scoring, or overlay geometry.
+- A SAM Site without its completed Radar Station must not appear in combat facts, AI scoring, or overlay geometry.
 - Overlapping providers must retain strongest-in-group semantics; the UI cannot imply values stack.
 - A current player without owned coverage must not gain the control merely by seeing a rival provider.
 - Text and `aria-pressed`, not cyan or an optional future SFX, indicate whether the overlay is on.
@@ -49,6 +49,7 @@
 5. Reduced motion: identical static rings and no animation scheduling.
 6. Reveal, then fog a rival provider: its ring follows current visibility.
 7. Hand off from human A (on) to human B (off): B's preference and knowledge render immediately.
+8. Load current-schema and schema-0 saves with built Radar/SAM: both keep `buildings` and derive identical coverage.
 
 ### Task 1: Encode Radar-backed provider eligibility
 
@@ -90,21 +91,30 @@ Expected: FAIL on the first test because current city-provider enumeration uses 
 export interface AirDefenseProviderCapability extends Omit<
   AirDefenseProviderDefinition, 'id' | 'kind' | 'label'
 > {
-  readonly requiresOperationalBuildings?: readonly string[];
+  /** Building IDs use City.buildings' existing serializable string contract. */
+  readonly requiresCompletedBuildingIds?: readonly string[];
 }
 
-function isOperationalCityProvider(
+function hasCompletedBuildingRequirements(
   city: City,
   capability: AirDefenseProviderCapability,
 ): boolean {
-  return capability.requiresOperationalBuildings?.every(id => city.buildings.includes(id)) ?? true;
+  return capability.requiresCompletedBuildingIds?.every(id => city.buildings.includes(id)) ?? true;
 }
 ```
 
-Set `requiresOperationalBuildings: ['radar_station']` on `sam_site`. Build one provider index in a
-`WeakMap<GameState, ...>`; every public resolver returns fresh serializable copies. Put base-radius
-resolution behind one canonical helper so later NORAD behavior can apply typed radius data without
-a building-ID switch in combat, AI, or renderer code.
+Set `requiresCompletedBuildingIds: ['radar_station']` on `sam_site`. Because core types cannot
+import the `BUILDINGS` catalog without a cycle, retain the repository's established serializable
+string-ID contract and add a catalog-validation test proving every referenced requirement exists.
+
+Build one provider index in a `WeakMap<GameState, { revision, index }>` where `revision` is a
+deterministic string over provider-relevant city id/owner/position/buildings, unit id/owner/type/
+position/transport, and map wrap dimensions. Recompute the small revision before cache use and
+replace the entry when it differs; tests must mutate an already-indexed fixture by removing Radar,
+moving Mobile AA, and changing a provider tile's visibility, then prove coverage and overlay input
+refresh. Cache each viewer-filtered result with a second revision containing only that viewer's
+visibility values at indexed provider coordinates. Put base-radius resolution behind one canonical
+helper so later NORAD behavior can apply typed radius data without an ID switch.
 
 - [ ] **Step 4: Run the system suite**
 
@@ -141,7 +151,9 @@ it('uses one precomputed visible strike-threat summary for all building candidat
 ```
 
 Retain the existing positive/negative fixture: a visible hostile strike aircraft within operational
-range scores SAM; the same aircraft at `fog` scores zero.
+range scores SAM; the same aircraft at `fog` scores zero. Add a deterministic balance fixture:
+the visible threat gives exactly `min(120, modifier * 10)`, out-of-range/fogged gives zero, and
+Explorer, Standard, and Veteran retain the same candidate and score.
 
 - [ ] **Step 2: Run the focused regression**
 
@@ -158,18 +170,20 @@ export function getVisibleAirDefenseThreatenedCityIds(
 ): ReadonlySet<string>;
 
 function airDefenseThreatScore(
-  state: GameState, civId: string, cityId: string, buildingId: string,
+  threatenedCityIds: ReadonlySet<string>, cityId: string, buildingId: string,
 ): number {
   const capability = BUILDINGS[buildingId]?.airDefenseProvider;
-  return capability && getVisibleAirDefenseThreatenedCityIds(state, civId).has(cityId)
+  return capability && threatenedCityIds.has(cityId)
     ? Math.min(120, capability.defenseModifier * 10)
     : 0;
 }
 ```
 
-The summary enumerates the AI's owned cities and only strike aircraft visible to that AI, uses the
-existing wrapped distance helper, and is cached with the provider index. It may not inspect fogged
-aircraft, enemy queues, future technologies, or private rival data.
+Call `getVisibleAirDefenseThreatenedCityIds(state, civId)` once at the start of
+`generateWithResidual` and pass that set to every building candidate. The summary enumerates the
+AI's owned cities and only strike aircraft visible to that AI, uses the existing wrapped-distance
+helper, and is cached with the provider index. It may not inspect fogged aircraft, enemy queues,
+future technologies, or private rival data.
 
 - [ ] **Step 4: Run AI and system tests**
 
@@ -206,8 +220,8 @@ it('resolves viewer-safe providers once per setGameState, not per render frame',
 });
 ```
 
-Also assert an enabled overlay draws no geometry with no known providers, changes arc centers/radii
-after pan/zoom, and schedules no animation under reduced motion.
+Also assert an enabled overlay draws no geometry or legend with no known providers, changes arc
+centers/radii after pan/zoom, and schedules no animation under reduced motion.
 
 - [ ] **Step 2: Run the focused regression**
 
@@ -234,7 +248,7 @@ toggle is on. Keep the overlay static. Do not add an SFX path for a visibility-o
 
 Run: `bash scripts/run-with-mise.sh yarn test --run tests/renderer/air-defense-overlay.test.ts tests/renderer/render-loop-air-defense-overlay.test.ts`
 
-Expected: PASS for fog filtering, empty geometry, pan/zoom, per-state caching, and reduced motion.
+Expected: PASS for fog filtering, empty geometry, pan/zoom, relevant-state invalidation, and reduced motion.
 
 - [ ] **Step 5: Commit**
 
@@ -260,6 +274,8 @@ it('updates pressed text immediately after a coverage toggle', () => {
 
   expect(button.getAttribute('aria-pressed')).toBe('true');
   expect(button.textContent).toContain('on');
+  expect(document.getElementById('air-defense-overlay-legend')?.textContent)
+    .toContain('Known providers only');
 });
 
 it('uses the incoming hot-seat viewer preference after setGameState', () => {
@@ -279,15 +295,18 @@ Expected: FAIL before the new immediate state transition and handoff assertions 
 
 - [ ] **Step 3: Implement immediate viewer-scoped refresh**
 
-Retain the existing `createGameButton` and toolbar placement. On each `update()`, derive hidden,
-`aria-pressed`, and the exact label from `state.currentPlayer`; no prior viewer's label or
-enabled state may survive handoff. Preserve the current button's 44px and icon-plus-text contract.
+Retain the existing `createGameButton` and toolbar placement. In the HUD/controller-owned overlay
+root, create one `#air-defense-overlay-legend` with text `Air defense coverage — Known providers
+only`; keep it hidden until the current viewer has enabled coverage, then set `hidden` and
+`aria-hidden` immediately on every update/click/handoff. On each `update()`, derive button hidden,
+`aria-pressed`, exact label, and legend state from `state.currentPlayer`; no prior viewer's label,
+enabled state, or legend may survive handoff. Preserve the button's 44px and icon-plus-text contract.
 
 - [ ] **Step 4: Run DOM and renderer tests**
 
 Run: `bash scripts/run-with-mise.sh yarn test --run tests/app/controllers/hud-controller.test.ts tests/renderer/render-loop-air-defense-overlay.test.ts`
 
-Expected: PASS for default-off, repeat toggle, immediate text, placement, and two-human handoff.
+Expected: PASS for default-off, repeat toggle, immediate text and legend, placement, and two-human handoff.
 
 - [ ] **Step 5: Commit**
 
@@ -321,9 +340,11 @@ solo toggle, and hot-seat handoff.
 
 - [ ] **Step 3: Preserve save and audio scope**
 
-Record that this change adds no persisted shape: viewer preference and caches stay renderer-local,
-so no save schema migration is allowed. Record that it adds no mechanically relevant action, so no
-SFX event is needed.
+Record that this change adds no persisted shape: buildings remain the existing `City.buildings`
+string list, while viewer preference and caches stay renderer-local, so no save schema migration is
+allowed. Add current-schema and schema-0 save-load fixtures proving the identical built Radar/SAM
+list derives identical coverage. Record that it adds no mechanically relevant action, so no SFX
+event is needed.
 
 - [ ] **Step 4: Run PR-grade verification separately**
 
@@ -351,5 +372,5 @@ Expected: no unrelated files and no uncommitted changes.
 
 - **Spec coverage:** Task 1 implements typed Radar/SAM legality plus a future radius seam; Task 2 removes the per-candidate AI scan without omniscience; Tasks 3–4 implement the approved default-off, viewer-safe desktop/mobile behavior; Task 5 covers save non-change, SFX non-change, rules, tests, build, and durable suite.
 - **UI guardrails:** the Truth Table, risks, replay checklist, and DOM assertions cover immediate toggle updates, fog transitions, repeat interaction, pan/zoom, reduced motion, and hot-seat handoff.
-- **Type consistency:** `requiresOperationalBuildings` and `getVisibleAirDefenseThreatenedCityIds` are introduced before later tasks consume them. No task uses an ID-specific resolver branch.
+- **Type consistency:** `requiresCompletedBuildingIds` and `getVisibleAirDefenseThreatenedCityIds` are introduced before later tasks consume them. Building IDs retain the existing core serializable-string convention and gain catalog validation. No task uses an ID-specific resolver branch.
 - **Scope:** no new save shape, sound event, platform import, difficulty formula, or drawer is planned.
