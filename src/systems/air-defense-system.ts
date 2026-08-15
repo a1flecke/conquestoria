@@ -10,7 +10,9 @@ interface CoverageCache { revision: string; values: Map<string, UnfilteredCovera
 const coverageCache = new WeakMap<GameState, CoverageCache>();
 
 function coverageRevision(state: GameState): string {
-  const cities = Object.values(state.cities).map(city => `${city.id}:${city.owner}:${city.position.q},${city.position.r}:${[...city.buildings].sort().join(',')}`).sort();
+  const cities = Object.values(state.cities)
+    .map(city => `${city.id}:${city.owner}:${city.position.q},${city.position.r}:${[...(city.buildings ?? [])].sort().join(',')}`)
+    .sort();
   const units = Object.values(state.units).map(unit => `${unit.id}:${unit.owner}:${unit.type}:${unit.position.q},${unit.position.r}:${unit.transportId ?? ''}`).sort();
   return `${state.map.width}:${state.map.wrapsHorizontally}:${cities.join('|')}:${units.join('|')}`;
 }

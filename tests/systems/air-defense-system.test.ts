@@ -47,6 +47,15 @@ function state(): GameState {
 const defender = { id: 'defender-unit', owner: 'defender', type: 'rifleman', position: { q: 1, r: 0 } } as Unit;
 
 describe('resolveAirDefenseCoverage', () => {
+  it('treats a partial city record as having no completed air-defense buildings', () => {
+    const next = state();
+    next.cities.alpha = {
+      id: 'alpha', owner: 'defender', position: { q: 1, r: 0 },
+    } as GameState['cities'][string];
+
+    expect(resolveAirDefenseCoverage(next, defender, 'defender').flatDefenseModifier).toBe(0);
+  });
+
   it('requires a completed Radar Station before a SAM Site provides coverage', () => {
     const next = state();
     next.cities.alpha!.buildings = ['anti_air_battery', 'sam_site'];
@@ -65,6 +74,8 @@ describe('resolveAirDefenseCoverage', () => {
     next.cities.alpha!.buildings = ['anti_air_battery', 'sam_site'];
 
     expect(resolveAirDefenseCoverage(next, defender, 'defender').flatDefenseModifier).toBe(8);
+    expect(getKnownAirDefenseProviders(next, 'defender'))
+      .not.toContainEqual(expect.objectContaining({ id: 'city:alpha:sam_site' }));
   });
 
   it('uses SAM Site at radius two as the strongest ground air-defense provider', () => {

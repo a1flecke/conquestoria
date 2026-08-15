@@ -74,6 +74,7 @@ function createCanvasWithCtx(): { canvas: HTMLCanvasElement; ctx: LineRecordingC
     stroke: vi.fn(),
     arc: vi.fn(),
     fill: vi.fn(),
+    fillText: vi.fn(),
   };
 
   const canvas = {
@@ -187,9 +188,14 @@ describe('render-loop wrap parity', () => {
     } as unknown as GameState;
 
     loop.setGameState(state);
-    expect((loop as unknown as { airDefenseOverlayProviders: unknown[] }).airDefenseOverlayProviders)
+    const cachedProviders = (loop as unknown as { airDefenseOverlayProviders: unknown[] }).airDefenseOverlayProviders;
+    expect(cachedProviders)
       .toHaveLength(1);
     expect(loop.toggleAirDefenseOverlay()).toBe(true);
+    (loop as unknown as { render(): void }).render();
+    (loop as unknown as { render(): void }).render();
+    expect((loop as unknown as { airDefenseOverlayProviders: unknown[] }).airDefenseOverlayProviders)
+      .toBe(cachedProviders);
 
     loop.setGameState({ ...state, currentPlayer: 'human-b' });
 
