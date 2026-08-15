@@ -22,11 +22,17 @@ function known(state: GameState, provider: ResolvedAirDefenseProvider, viewerId:
   return provider.ownerId === viewerId || getVisibility(state.civilizations[viewerId]?.visibility ?? { tiles: {} }, provider.position) === 'visible';
 }
 function providersForOwner(state: GameState, ownerId: string): ResolvedAirDefenseProvider[] {
-  const cityProviders = Object.values(state.cities).flatMap(city => city.owner !== ownerId ? [] : city.buildings.flatMap(buildingId => {
+  const cityProviders = Object.values(state.cities).flatMap(city => {
+    if (city.owner !== ownerId) return [];
+    // Render/presentation fixtures may deliberately use partial city records. A missing
+    // completed-building list cannot supply a provider, and must not break rendering.
+    const buildingIds = city.buildings ?? [];
+    return buildingIds.flatMap(buildingId => {
     const building = BUILDINGS[buildingId]; const capability = building?.airDefenseProvider;
-    const requirementsMet = capability?.requiresCompletedBuildingIds?.every(id => city.buildings.includes(id)) ?? true;
+    const requirementsMet = capability?.requiresCompletedBuildingIds?.every(id => buildingIds.includes(id)) ?? true;
     return capability && requirementsMet ? [{ id: `city:${city.id}:${building.id}`, label: building.name, position: { ...city.position }, ownerId, ...capability }] : [];
-  }));
+    });
+  });
   const unitProviders = Object.values(state.units).flatMap(unit => {
     const capability = UNIT_DEFINITIONS[unit.type].airDefenseProvider;
     return unit.owner === ownerId && !unit.transportId && capability ? [{ id: `unit:${unit.id}:${unit.type}`, label: UNIT_DEFINITIONS[unit.type].name, position: { ...unit.position }, ownerId, ...capability }] : [];
