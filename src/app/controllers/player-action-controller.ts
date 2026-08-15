@@ -258,13 +258,21 @@ export function createPlayerActionController(deps: PlayerActionControllerDeps): 
     if (!targetCiv || !isMajorCivOwner(targetCivId)) return;
 
     const cp = deps.session.getState().currentPlayer;
-    const alreadyAtWar = deps.currentCiv().diplomacy?.atWarWith.includes(targetCivId) ?? false;
+    const attackerCiv = deps.currentCiv();
+    const alreadyAtWar = attackerCiv.diplomacy?.atWarWith.includes(targetCivId) ?? false;
     if (alreadyAtWar) return;
 
-    deps.currentCiv().diplomacy = declareWar(deps.currentCiv().diplomacy, targetCivId, deps.session.getState().turn);
-    targetCiv.diplomacy = declareWar(targetCiv.diplomacy, cp, deps.session.getState().turn);
+    const turn = deps.session.getState().turn;
+    const withDeclaredWar = {
+      ...deps.session.getState(),
+      civilizations: {
+        ...deps.session.getState().civilizations,
+        [cp]: { ...attackerCiv, diplomacy: declareWar(attackerCiv.diplomacy, targetCivId, turn) },
+        [targetCivId]: { ...targetCiv, diplomacy: declareWar(targetCiv.diplomacy, cp, turn) },
+      },
+    };
     deps.bus.emit('diplomacy:war-declared', { attackerId: cp, defenderId: targetCivId, opponentKind: resolveOpponentKind(targetCivId) });
-    deps.session.setStateWithoutRefresh(applyOpportunisticWarPenaltyIfCrisisStruck(deps.session.getState(), cp, targetCivId, deps.bus));
+    deps.session.commit(applyOpportunisticWarPenaltyIfCrisisStruck(withDeclaredWar, cp, targetCivId, deps.bus));
   }
 
   function restAction(): void {
