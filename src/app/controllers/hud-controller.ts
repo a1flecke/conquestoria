@@ -60,20 +60,33 @@ export function createHudController(deps: HudControllerDeps): HudController {
   airDefenseButton.id = 'btn-air-defense-overlay';
   airDefenseButton.hidden = true; // shown once the current civ has built AA coverage — see update()
   airDefenseButton.setAttribute('aria-pressed', 'false');
-  airDefenseButton.addEventListener('click', () => {
-    const enabled = deps.renderLoop.toggleAirDefenseOverlay();
+  const airDefenseLegend = document.createElement('div');
+  airDefenseLegend.id = 'air-defense-overlay-legend';
+  airDefenseLegend.hidden = true;
+  airDefenseLegend.setAttribute('aria-hidden', 'true');
+  airDefenseLegend.textContent = 'Air defense coverage — known providers only';
+  airDefenseLegend.style.cssText = 'position:absolute;left:12px;bottom:12px;z-index:8;padding:6px 8px;border:1px solid rgba(126,229,255,0.7);border-radius:6px;background:rgba(8,22,40,0.88);color:#dff8ff;font-size:12px;pointer-events:none;';
+
+  const updateAirDefenseOverlayPresentation = (enabled: boolean, available: boolean): void => {
+    airDefenseButton.hidden = !available;
     airDefenseButton.setAttribute('aria-pressed', String(enabled));
     airDefenseButton.textContent = enabled ? '🛡 Anti-aircraft coverage: on' : '🛡 Anti-aircraft coverage';
+    airDefenseLegend.hidden = !available || !enabled;
+    airDefenseLegend.setAttribute('aria-hidden', String(!available || !enabled));
+  };
+
+  airDefenseButton.addEventListener('click', () => {
+    const enabled = deps.renderLoop.toggleAirDefenseOverlay();
+    updateAirDefenseOverlayPresentation(enabled, !airDefenseButton.hidden);
   });
 
   return {
     update(): void {
       const state = deps.session.getState();
       const civ = state.civilizations[state.currentPlayer];
-      airDefenseButton.hidden = !civHasAirDefenseCoverage(state, civ.id);
+      const airDefenseAvailable = civHasAirDefenseCoverage(state, civ.id);
       const airDefenseEnabled = deps.renderLoop.isAirDefenseOverlayEnabled(state.currentPlayer);
-      airDefenseButton.setAttribute('aria-pressed', String(airDefenseEnabled));
-      airDefenseButton.textContent = airDefenseEnabled ? '🛡 Anti-aircraft coverage: on' : '🛡 Anti-aircraft coverage';
+      updateAirDefenseOverlayPresentation(airDefenseEnabled, airDefenseAvailable);
       const hud = deps.getElementById('hud');
       if (!hud) return;
 
@@ -182,6 +195,8 @@ export function createHudController(deps: HudControllerDeps): HudController {
         if (pauseMenuButton) utilityToolbar.insertBefore(airDefenseButton, pauseMenuButton);
         else utilityToolbar.appendChild(airDefenseButton);
       }
+      const mountRoot = deps.getDrawerMountRoot();
+      if (!mountRoot.contains(airDefenseLegend)) mountRoot.appendChild(airDefenseLegend);
     },
 
     ensureDrawerMounted(): void {
