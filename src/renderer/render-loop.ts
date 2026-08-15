@@ -46,7 +46,10 @@ import {
   type ReligionBadgePresentation,
 } from '@/systems/religion-badge-presentation';
 import { drawAirDefenseOverlay } from './air-defense-overlay';
-import { getKnownAirDefenseProviders } from '@/systems/air-defense-system';
+import {
+  getKnownAirDefenseProviders,
+  type ResolvedAirDefenseProvider,
+} from '@/systems/air-defense-system';
 
 export { CIVTYPE_TO_FACTION, civTypeToFaction };
 
@@ -270,6 +273,9 @@ export class RenderLoop {
   private selectedUnitId: string | null = null;
   private selectedPirateFactionId: string | null = null;
   private airDefenseOverlayEnabledByViewer = new Map<string, boolean>();
+  // Viewer-scoped and refreshed with each authoritative state commit, so render frames
+  // reuse the same fog-safe provider list instead of rebuilding it from game state.
+  private airDefenseOverlayProviders: ResolvedAirDefenseProvider[] = [];
 
   toggleAirDefenseOverlay(): boolean {
     const viewerId = this.state?.currentPlayer;
@@ -449,6 +455,7 @@ export class RenderLoop {
     this.worldPressurePresentation = getWorldPressurePresentationForViewer(state, state.currentPlayer);
     this.loyaltyPressurePresentation = getLoyaltyPressurePresentationForViewer(state, state.currentPlayer);
     this.religionBadgePresentation = getReligionBadgePresentationForViewer(state, state.currentPlayer);
+    this.airDefenseOverlayProviders = getKnownAirDefenseProviders(state, state.currentPlayer);
   }
 
   start(): void {
@@ -555,7 +562,7 @@ export class RenderLoop {
     const cityTileKeys = new Set(Object.values(this.state.cities).map(city => hexKey(city.position)));
     drawRoads(this.ctx, this.state.map, this.camera, cityTileKeys, viewerVisibility, completedTechsByCiv);
     if (this.isAirDefenseOverlayEnabled(viewerId)) {
-      drawAirDefenseOverlay(this.ctx, this.camera, this.state.map, getKnownAirDefenseProviders(this.state, viewerId));
+      drawAirDefenseOverlay(this.ctx, this.camera, this.state.map, this.airDefenseOverlayProviders);
     }
 
     // Draw minor civ territory

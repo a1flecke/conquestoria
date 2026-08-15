@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, expect, it, vi } from 'vitest';
 import { createNewGame } from '@/core/game-state';
-import type { GameState } from '@/core/types';
+import type { City, GameState } from '@/core/types';
 import { createGameSession } from '@/app/game-session';
 import { createPanelHost } from '@/app/panel-host';
 import { createPanelRouter } from '@/app/panel-router';
@@ -17,6 +17,18 @@ function makeFixture(): GameState {
   const state = createNewGame(undefined, 'hud-controller', 'small');
   state.currentPlayer = 'player';
   return state;
+}
+
+function addPlayerAirDefenseCity(state: GameState): void {
+  const city: City = {
+    id: 'air-defense-city', name: 'Aegis', owner: 'player', position: { q: 0, r: 0 },
+    population: 3, food: 0, foodNeeded: 15, buildings: ['anti_air_battery'],
+    productionQueue: [], productionProgress: 0, ownedTiles: [{ q: 0, r: 0 }],
+    workedTiles: [], focus: 'balanced', maturity: 'town', unrestLevel: 0,
+    unrestTurns: 0, spyUnrestBonus: 0, idleProduction: null,
+  };
+  state.cities[city.id] = city;
+  state.civilizations.player.cities = [city.id];
 }
 
 function fakeRenderer(overrides: Partial<HudRenderer> = {}): HudRenderer {
@@ -96,6 +108,26 @@ describe('HudController', () => {
     // turn/era text at the same screen coordinates. It joins the toolbar's
     // flex row instead, so it must not reintroduce a competing absolute anchor.
     expect(button?.style.position).not.toBe('absolute');
+  });
+
+  it('shows the fog-safe coverage legend only while the overlay is enabled', () => {
+    const state = makeFixture();
+    addPlayerAirDefenseCity(state);
+    const renderer = fakeRenderer({
+      isAirDefenseOverlayEnabled: () => true,
+      toggleAirDefenseOverlay: vi.fn(() => true),
+    });
+    const deps = baseDeps(state, { renderLoop: renderer });
+    document.body.innerHTML = '<div id="hud"></div><div id="game-shell"></div><div id="utility-toolbar"></div>';
+    const hud = createHudController(deps);
+
+    hud.placeAirDefenseButton();
+    hud.update();
+
+    const legend = document.getElementById('air-defense-overlay-legend')!;
+    expect(legend.hidden).toBe(false);
+    expect(legend.textContent).toBe('Air defense coverage — known providers only');
+    expect(legend.getAttribute('aria-hidden')).toBe('false');
   });
 
   it('mounts the treasury drawer once, idempotently, and closes it on demand', () => {
