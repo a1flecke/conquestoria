@@ -11,11 +11,14 @@ import {
 } from './hex-utils';
 import { isRiverBetween } from './river-system';
 import { PIRATE_HULL_DEFINITIONS, type PirateHullType } from './pirate-definitions';
+import { BARBARIAN_ELIGIBILITY_BY_UNIT } from './barbarian-roster';
+
+type UnitDefinitionBase = Omit<UnitDefinition, 'barbarianEligibility'>;
 
 function createPirateUnitDefinition(
   type: PirateHullType,
   attackProfile: UnitDefinition['attackProfile'],
-): UnitDefinition {
+): UnitDefinitionBase {
   const hull = PIRATE_HULL_DEFINITIONS[type];
   return {
     type,
@@ -32,7 +35,7 @@ function createPirateUnitDefinition(
   };
 }
 
-export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
+const UNIT_DEFINITION_BASES: Record<UnitType, UnitDefinitionBase> = {
   settler: {
     type: 'settler', name: 'Settler', movementPoints: 2,
     visionRange: 2, strength: 0, canFoundCity: true,
@@ -637,6 +640,13 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     airOperation: { baseKinds: ['stealth_airbase'], operationalRange: 7, ferryRange: 14, missions: ['strike', 'rebase'], carrierEligible: false },
   },
 };
+
+export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = Object.fromEntries(
+  Object.entries(UNIT_DEFINITION_BASES).map(([type, definition]) => [
+    type,
+    { ...definition, barbarianEligibility: BARBARIAN_ELIGIBILITY_BY_UNIT[type as UnitType] },
+  ]),
+) as Record<UnitType, UnitDefinition>;
 
 const VIKING_MOBILITY_UNITS = new Set<UnitType>(['scout', 'warrior', 'archer', 'swordsman']);
 

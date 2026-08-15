@@ -379,6 +379,39 @@ export type UnitType =
   | 'cyber_unit' | 'stealth_bomber'
   | 'combat_drone' | 'autonomous_frigate' | 'exosuit_infantry' | 'propagandist' | 'drone_controller';
 
+/** Declarative composition slot for ordinary barbarian camps. */
+export type BarbarianRoleSlot = 'frontline' | 'ranged' | 'siege' | 'mobile' | 'specialist' | 'anti-air';
+export type BarbarianRarity = 'common' | 'uncommon' | 'rare';
+export type BarbarianObservationRequirement = 'armor' | 'air';
+export type BarbarianExclusionReason =
+  | 'civilian'
+  | 'naval'
+  | 'air'
+  | 'unique'
+  | 'crisis'
+  | 'strategic-deterrence'
+  | 'unsupported';
+
+/**
+ * Static composition metadata. The barbarian composer will consume this in a
+ * later issue; keeping it data-only here preserves the existing live roster.
+ */
+export type BarbarianEligibility =
+  | {
+      status: 'eligible';
+      eraWindow: { min: number; max?: number };
+      roleSlot: BarbarianRoleSlot;
+      weight: number;
+      rarity: BarbarianRarity;
+      /** Ceiling while a camp remains below the escalation threshold. */
+      maxPerCampBeforeEscalation?: number;
+      /** Absolute ceiling, regardless of camp escalation. */
+      maxPerCamp?: number;
+      requiresObservation?: BarbarianObservationRequirement;
+      excludesUnits?: readonly UnitType[];
+    }
+  | { status: 'excluded'; reason: BarbarianExclusionReason };
+
 export interface UnitAttackProfile {
   kind: 'melee' | 'ranged' | 'siege' | 'bombard';
   range: number;
@@ -422,6 +455,8 @@ export interface UnitDefinition {
   canFoundCity: boolean;
   canBuildImprovements: boolean;
   productionCost: number;
+  /** Ordinary-camp composition metadata; static until the barbarian composer consumes it. */
+  barbarianEligibility: BarbarianEligibility;
   domain?: 'land' | 'naval' | 'air';
   waterAccess?: 'coastal' | 'ocean'; // required whenever domain === 'naval' — see #751
   spyDetectionChance?: number; // 0–1, probability per adjacent spy unit per turn
