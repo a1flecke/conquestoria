@@ -1,5 +1,10 @@
 # Radar coverage overlay Implementation Plan
 
+**Implementation status:** Complete on `codex/issue-695-radar-overlay-design`. Radar now gates
+SAM coverage, AI precomputes visible reachable strike threats once per candidate-generation pass,
+the renderer resolves viewer-safe providers at `setGameState`, and the HUD presents the approved
+viewer-scoped legend. Final verification evidence is recorded in the PR.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Make an operational Radar Station canonically gate SAM coverage, AI air-defense value, and a viewer-safe, default-off overlay.

@@ -1,6 +1,7 @@
 # #695 Radar coverage overlay — design review
 
-**Status:** Approved design. Implementation plan pending approval; no gameplay or production UI code changes are included yet.
+**Status:** Approved and implemented. The production change keeps the approved viewer-safe,
+default-off design; verification evidence is recorded in the companion implementation plan.
 
 ## Decision requested
 
