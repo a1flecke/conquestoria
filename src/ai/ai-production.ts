@@ -258,31 +258,45 @@ function defensiveEspionageScore(
   ) ? value : 0;
 }
 
-function airDefenseThreatScore(
+function getVisibleAirDefenseThreatenedCityIds(
   state: GameState,
   civId: string,
-  cityId: string,
-  buildingId: string,
-): number {
-  const capability = BUILDINGS[buildingId]?.airDefenseProvider;
-  const city = state.cities[cityId];
+): ReadonlySet<string> {
   const civ = state.civilizations[civId];
-  if (!capability || !city || !civ) return 0;
-  const hasVisibleReachableStrikeAircraft = Object.values(state.units).some(unit => {
+  if (!civ) return new Set();
+  const cities = civ.cities
+    .map(cityId => state.cities[cityId])
+    .filter((city): city is NonNullable<typeof city> => city?.owner === civId);
+  const threatenedCityIds = new Set<string>();
+
+  for (const unit of Object.values(state.units)) {
     const definition = UNIT_DEFINITIONS[unit.type];
     const range = definition.airOperation?.operationalRange;
-    const distance = state.map.wrapsHorizontally
-      ? wrappedHexDistance(unit.position, city.position, state.map.width)
-      : hexDistance(unit.position, city.position);
-    return unit.owner !== civId
+    const isVisibleHostileStrikeAircraft = unit.owner !== civId
       && isAIHostileOwner(state, civId, unit.owner)
       && definition.domain === 'air'
       && definition.airOperation?.missions.includes('strike')
       && range !== undefined
-      && distance <= range
       && getVisibility(civ.visibility, unit.position) === 'visible';
-  });
-  return hasVisibleReachableStrikeAircraft
+    if (!isVisibleHostileStrikeAircraft || range === undefined) continue;
+    for (const city of cities) {
+      const distance = state.map.wrapsHorizontally
+        ? wrappedHexDistance(unit.position, city.position, state.map.width)
+        : hexDistance(unit.position, city.position);
+      if (distance <= range) threatenedCityIds.add(city.id);
+    }
+  }
+
+  return threatenedCityIds;
+}
+
+function airDefenseThreatScore(
+  threatenedCityIds: ReadonlySet<string>,
+  cityId: string,
+  buildingId: string,
+): number {
+  const capability = BUILDINGS[buildingId]?.airDefenseProvider;
+  return capability && threatenedCityIds.has(cityId)
     ? Math.min(120, capability.defenseModifier * 10)
     : 0;
 }
@@ -317,6 +331,7 @@ function generateWithResidual(
     return roles.includes('capture') || roles.includes('frontline');
   }) || validQueuedUnitRoles(state, civId).some(roles =>
     roles.includes('capture') || roles.includes('frontline'));
+  const airDefenseThreatenedCityIds = getVisibleAirDefenseThreatenedCityIds(state, civId);
   const candidates: AIProductionCandidate[] = [];
 
   for (const unit of getTrainableUnitsForCity(
@@ -487,7 +502,11 @@ function generateWithResidual(
     const citySpecializationScore = building.category === city.focus ? 1 : 0;
     const maintenanceRisk = maintenanceImpact;
     const buildingDefensiveScore = defensiveEspionageScore(state, civId, cityId, building.id);
-    const buildingAirDefenseScore = airDefenseThreatScore(state, civId, cityId, building.id);
+    const buildingAirDefenseScore = airDefenseThreatScore(
+      airDefenseThreatenedCityIds,
+      cityId,
+      building.id,
+    );
     const score = economyScore * 2
       + personalityScore
       + citySpecializationScore
