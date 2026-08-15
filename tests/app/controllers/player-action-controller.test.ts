@@ -296,8 +296,34 @@ describe('PlayerActionController', () => {
 
       controller.ensurePlayerWarState(aiCivId);
 
-      expect(listener).toHaveBeenCalledTimes(1);
-      expect(listener).toHaveBeenCalledWith(deps.session.getState());
+      // Two publishes by design: the declared-war state, then the (possibly
+      // no-op) opportunistic-penalty state -- see the ordering test below for why
+      // the first commit must land before the 'diplomacy:war-declared' emit.
+      expect(listener).toHaveBeenCalledTimes(2);
+      expect(listener).toHaveBeenLastCalledWith(deps.session.getState());
+    });
+
+    it('has already published the declared war (including its relationship penalty) by the time diplomacy:war-declared fires', () => {
+      // registerDiplomacyPresentation's real listener for this event reads
+      // session.getState() synchronously to pick a notification reason from the
+      // post-declareWar relationship score (declareWar applies a -50 relationship
+      // hit). This test proves that invariant directly, without needing to wire
+      // the full presentation registrar.
+      const { state, aiCivId } = makeFixture('war-state-declared-visible-at-emit');
+      const relationshipBefore = state.civilizations[aiCivId].diplomacy.relationships['player'] ?? 0;
+      const { deps, controller } = build(state);
+      let relationshipAtEmitTime: number | undefined;
+      let atWarAtEmitTime = false;
+      deps.bus.on('diplomacy:war-declared', ({ attackerId, defenderId }) => {
+        const emitTimeState = deps.session.getState();
+        relationshipAtEmitTime = emitTimeState.civilizations[defenderId]?.diplomacy?.relationships[attackerId];
+        atWarAtEmitTime = emitTimeState.civilizations[attackerId].diplomacy.atWarWith.includes(defenderId);
+      });
+
+      controller.ensurePlayerWarState(aiCivId);
+
+      expect(atWarAtEmitTime).toBe(true);
+      expect(relationshipAtEmitTime).toBeLessThanOrEqual(relationshipBefore - 50);
     });
   });
 

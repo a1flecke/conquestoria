@@ -263,16 +263,24 @@ export function createPlayerActionController(deps: PlayerActionControllerDeps): 
     if (alreadyAtWar) return;
 
     const turn = deps.session.getState().turn;
-    const withDeclaredWar = {
+    // Commit the declared-war state BEFORE emitting: registerDiplomacyPresentation's
+    // 'diplomacy:war-declared' listener reads session.getState() synchronously to pick
+    // a notification reason from the post-declareWar relationship score (declareWar
+    // applies a -50 relationship hit, and describeWarReason's bands sit at -50/-20/0 --
+    // tight enough that reading pre-war state there would show the wrong reason).
+    // The opportunistic-crisis penalty below is a separate, later state stage and must
+    // not be visible to that listener either, matching this function's original
+    // (accidental, in-place-mutation-order) behavior exactly.
+    deps.session.commit({
       ...deps.session.getState(),
       civilizations: {
         ...deps.session.getState().civilizations,
         [cp]: { ...attackerCiv, diplomacy: declareWar(attackerCiv.diplomacy, targetCivId, turn) },
         [targetCivId]: { ...targetCiv, diplomacy: declareWar(targetCiv.diplomacy, cp, turn) },
       },
-    };
+    });
     deps.bus.emit('diplomacy:war-declared', { attackerId: cp, defenderId: targetCivId, opponentKind: resolveOpponentKind(targetCivId) });
-    deps.session.commit(applyOpportunisticWarPenaltyIfCrisisStruck(withDeclaredWar, cp, targetCivId, deps.bus));
+    deps.session.commit(applyOpportunisticWarPenaltyIfCrisisStruck(deps.session.getState(), cp, targetCivId, deps.bus));
   }
 
   function restAction(): void {
