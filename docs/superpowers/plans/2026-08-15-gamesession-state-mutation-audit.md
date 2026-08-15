@@ -409,7 +409,7 @@ Current code, `onComplete` (hot-seat, `campaign-entry-controller.ts:254-263`):
       const deps = baseDeps(state, {
         userSettingsStore: {
           getPersisted: () => undefined,
-          refresh: vi.fn().mockResolvedValue({ customCivilizations: [], councilTalkLevel: 'verbose' }),
+          refresh: vi.fn().mockResolvedValue({ customCivilizations: [], councilTalkLevel: 'chatty' }),
           getMasterVolume: () => 0.8,
           setCustomCivilizations: vi.fn(),
           getOverrides: () => ({}),
@@ -436,7 +436,7 @@ Current code, `onComplete` (hot-seat, `campaign-entry-controller.ts:254-263`):
       };
       capturedSoloCallbacks!.onStartSolo(soloConfig);
 
-      expect(deps.session.getState().settings.councilTalkLevel).toBe('verbose');
+      expect(deps.session.getState().settings.councilTalkLevel).toBe('chatty');
     });
 ```
 
@@ -550,53 +550,67 @@ Where `refreshRequiredChoicesAfterAction` (`turn-flow-controller.ts:188-192`, un
     deps.updateHUD();
 ```
 
-- [ ] **Step 1: Find or write a test harness that reaches these callbacks.** Search first: `grep -n "onChooseResearch\|onChooseCityBuild\|showRequiredChoicesIfNeeded" tests/app/controllers/turn-flow-controller.test.ts`. If existing tests already capture `createRequiredChoicePanel`'s callbacks (this codebase's convention, per Phase 1/2/5's tests, is to mock the panel factory and capture the callbacks object passed to it), extend that pattern; otherwise add:
+**Correction from this plan's own review pass:** the original draft of this task assumed `createRequiredChoicePanel` is mocked in this test file, following the capture-the-callbacks pattern used elsewhere in this plan. It is not — `tests/app/controllers/turn-flow-controller.test.ts` renders this panel for real into `deps.uiLayer` (confirmed by reading the file: no `vi.mock('@/ui/required-choice-panel', ...)` exists, and the existing `'required choices — resolving multiple idle-city choices...'` test at line 530 asserts against `deps.uiLayer.querySelector('#required-choice-panel')`, a real DOM node). Adding a mock here would break that existing test, which depends on the panel being real. This task instead drives the real rendered panel via DOM clicks, matching that existing test's convention.
+
+**Files it opens with (confirmed real signatures):** `needsResearchChoice(state, civId)` (`src/systems/planning-system.ts:154`) is `true` when `civ.techState.currentResearch` is falsy and at least one tech is available — set `state.civilizations.player.techState.currentResearch = undefined` to force it. `getIdleCityIds(state, civId)` (`src/systems/planning-system.ts:124`) treats a city with an empty `productionQueue` as idle — the existing Phase-12 test at `turn-flow-controller.test.ts:537-542` already establishes a real-city (not settler-founded) fixture pattern for this; reuse it rather than inventing a new one.
+
+`src/ui/required-choice-panel.ts` gives no `id`/`data-*` attribute to individual research/build buttons — only their container `<section>`'s `<h3>` heading text ("Choose Research" / "Choose Production") is a stable anchor. Add a small helper to select by section rather than by brittle DOM index or by guessing a specific tech/item's display label:
 
 ```ts
-vi.mock('@/ui/required-choice-panel', () => ({ createRequiredChoicePanel: vi.fn() }));
+function findSectionButton(container: HTMLElement, sectionTitle: string, buttonIndex = 0): HTMLButtonElement {
+  const heading = Array.from(container.querySelectorAll('h3')).find(h => h.textContent === sectionTitle);
+  const section = heading?.closest('section');
+  const buttons = section ? Array.from(section.querySelectorAll('button')) : [];
+  const button = buttons[buttonIndex];
+  if (!button) throw new Error(`No button at index ${buttonIndex} in section "${sectionTitle}"`);
+  return button as HTMLButtonElement;
+}
 ```
 
-at the top of the test file (only if not already present — check first), then:
+Within "Choose Research", research-choice buttons are appended before the "Open Tech Panel" button, so index 0 is always the first available tech choice. Within "Choose Production", each city's row appends its build button before that row's "Open City" button, so index 0 is always the first idle city's build choice. Both hold regardless of how many techs/cities are available, so the test doesn't need to know a specific tech id or item id ahead of time — it can assert "one new entry appeared" instead.
+
+- [ ] **Step 1: Write the failing tests.**
 
 ```ts
   describe('showRequiredChoicesIfNeeded callbacks', () => {
     it('onChooseResearch publishes the queued tech through session subscribers', () => {
       const { state } = makeFixture('required-choice-research');
-      // arrange an idle-research condition so showRequiredChoicesIfNeeded opens the panel
+      state.civilizations.player.techState.currentResearch = undefined;
       const { deps, controller } = build(state);
       const listener = vi.fn();
       deps.session.subscribe(listener);
+      const queueBefore = deps.session.getState().civilizations.player.techState.researchQueue.length;
+
       controller.showRequiredChoicesIfNeeded();
-      const options = mockedCallArg<{ onChooseResearch: (techId: string) => void }>(createRequiredChoicePanel, 0, 1);
+      const panel = deps.uiLayer.querySelector('#required-choice-panel') as HTMLElement;
+      expect(panel).toBeTruthy();
+      findSectionButton(panel, 'Choose Research', 0).click();
 
-      const someTechId = Object.keys(deps.session.getState().civilizations.player.techState.researchQueue.length
-        ? {}
-        : {})[0]; // placeholder replaced below once the real available-tech id is known from the fixture
-
-      options.onChooseResearch('pottery');
-
-      expect(deps.session.getState().civilizations.player.techState.researchQueue).toContain('pottery');
+      expect(deps.session.getState().civilizations.player.techState.researchQueue.length).toBe(queueBefore + 1);
       expect(listener).toHaveBeenCalled();
     });
 
     it('onChooseCityBuild publishes the queued production through session subscribers', () => {
       const { state } = makeFixture('required-choice-build');
-      state.cities['idle-city'] = makeCity('idle-city');
+      const template = Object.values(state.cities)[0]!;
+      state.cities['idle-city'] = { ...template, id: 'idle-city', owner: 'player', name: 'Idle City', productionQueue: [] };
+      state.civilizations.player.cities = ['idle-city'];
       const { deps, controller } = build(state);
       const listener = vi.fn();
       deps.session.subscribe(listener);
+
       controller.showRequiredChoicesIfNeeded();
-      const options = mockedCallArg<{ onChooseCityBuild: (cityId: string, itemId: string) => void }>(createRequiredChoicePanel, 0, 1);
+      const panel = deps.uiLayer.querySelector('#required-choice-panel') as HTMLElement;
+      expect(panel).toBeTruthy();
+      findSectionButton(panel, 'Choose Production', 0).click();
 
-      options.onChooseCityBuild('idle-city', 'warrior');
-
-      expect(deps.session.getState().cities['idle-city'].productionQueue).toContain('warrior');
+      expect(deps.session.getState().cities['idle-city'].productionQueue.length).toBe(1);
       expect(listener).toHaveBeenCalled();
     });
   });
 ```
 
-Before running, replace the `someTechId` placeholder line — it is a **planning placeholder for this plan document only**, not something to leave in the implementation: when writing this test for real, read `tests/app/controllers/turn-flow-controller.test.ts`'s existing fixture setup for `showRequiredChoicesIfNeeded`/idle-research conditions (search for an existing test that already opens this panel for a research choice) and copy its exact arrangement so `onChooseResearch` is reachable with a real available tech id, then delete the placeholder line entirely — do not commit code containing it.
+Add the `findSectionButton` helper (shown above) near this file's other test helpers, not inline in each test.
 
 - [ ] **Step 2: Run test to verify it fails.**
 
@@ -660,6 +674,25 @@ git commit -m "fix(turn-flow-controller): route required-choice research/build q
 
 15 sites across 3 handler groups inside the unit-info panel's callback object (all under one `session`-scoped closure — no `deps.session`, just `session`, per this file's own factory parameter naming). No turn-flow risk; heaviest single-domain phase.
 
+**Correction from this plan's own review pass:** every test in the original draft of this phase assumed `tests/app/controllers/selection-controller.test.ts` follows the mocked-panel-factory-plus-`mockedCallArg` convention used in `player-action-controller.test.ts` and `panel-actions-controller.test.ts`. It does not — verified by reading the file directly: it has no `mockedCallArg` helper, no `build()` helper, no `makeCity()` helper, and does not mock `@/ui/selected-unit-info`. Its real conventions, confirmed from its existing tests (e.g. `'selecting a unit renders the info panel via the real DOM node'`), are:
+- `makeFixture()` takes no seed argument and returns a `GameState` directly (not `{ state }`).
+- `baseDeps(state, overrides)` builds deps (not `makeDeps`/`build`).
+- `createSelectionController(deps)` constructs the controller directly (not wrapped in a `build()` helper returning `{ deps, controller }`).
+- `renderSelectedUnitInfo` renders for real into a genuine `document.getElementById('info-panel')` node — reachable only by setting `document.body.innerHTML = '<div id="info-panel"></div>';` before calling `controller.selectUnit(id)`, then querying/clicking the real rendered buttons.
+- There is no `makeCity` helper; city fixtures elsewhere in this plan (e.g. `turn-flow-controller.test.ts`) borrow a template from `Object.values(state.cities)[0]!` and override fields — this file should do the same rather than introducing a new one-off helper.
+
+All 3 tasks below (4.1-4.3) are corrected to this real convention. Add this shared helper once, near this file's other helpers, before Task 4.1's test:
+
+```ts
+function findButtonByText(container: HTMLElement, text: string): HTMLButtonElement {
+  const button = Array.from(container.querySelectorAll('button')).find(b => b.textContent === text);
+  if (!button) throw new Error(`No button with exact text "${text}" found in container`);
+  return button as HTMLButtonElement;
+}
+```
+
+And import `createEspionageCivState` from `@/systems/espionage-system` at the top of the file if not already imported (it isn't, as of this plan's review).
+
 ### Task 4.1: `onSetDisguise`
 
 **Files:**
@@ -694,37 +727,41 @@ Current code:
 
 Two flagged mutations here (espionage assignment, conditional unit assignment) — both belong to the same handler and must land in one `commit`.
 
+Note the disguise picker only renders when `disguiseOptions.length > 1` (`src/ui/selected-unit-info.ts:772-805`), which requires a spy tier ≥ 1 — `spy_scout` (tier 0) only ever offers "No Disguise" and renders no picker at all. Use `spy_informant` (tier 1) so "As Warrior" is a real, clickable option.
+
 - [ ] **Step 1: Write the failing test.**
 
 ```ts
   describe('onSetDisguise', () => {
     it('sets the disguise and marks the unit acted, publishing through session subscribers', () => {
       const state = makeFixture();
-      placePlayerUnit(state, 'spy-1', { position: { q: 0, r: 0 } });
+      placePlayerUnit(state, 'spy-1', { type: 'spy_informant', position: { q: 0, r: 0 } });
       state.espionage = { player: createEspionageCivState() };
       state.espionage.player.spies['spy-1'] = {
-        id: 'spy-1', owner: 'player', name: 'Agent', unitType: 'spy_scout',
+        id: 'spy-1', owner: 'player', name: 'Agent', unitType: 'spy_informant',
         targetCivId: null, targetCityId: null, position: null,
         status: 'idle', experience: 0, currentMission: null,
         cooldownTurns: 0, promotion: undefined, promotionAvailable: false, feedsFalseIntel: false,
       };
-      const { deps, controller } = build(state);
+      document.body.innerHTML = '<div id="info-panel"></div>';
+      const deps = baseDeps(state);
+      const controller = createSelectionController(deps);
       const listener = vi.fn();
       deps.session.subscribe(listener);
 
       controller.selectUnit('spy-1');
-      const options = mockedCallArg<{ onSetDisguise: (uid: string, disguise: UnitType | null) => void }>(renderSelectedUnitInfo, 0, 2);
-      options.onSetDisguise('spy-1', 'warrior');
+      const panel = document.getElementById('info-panel')!;
+      findButtonByText(panel, 'As Warrior').click();
 
       const updated = deps.session.getState();
-      expect(updated.espionage!.player.spies['spy-1'].disguisedAs).toBe('warrior');
+      expect(updated.espionage!.player.spies['spy-1'].disguiseAs).toBe('warrior');
       expect(updated.units['spy-1'].hasActed).toBe(true);
       expect(listener).toHaveBeenCalled();
     });
   });
 ```
 
-Before writing this for real: check `tests/app/controllers/selection-controller.test.ts`'s existing fixture helpers (`makeFixture`, `placePlayerUnit`, and how `renderSelectedUnitInfo`'s callbacks are captured — search `mockedCallArg.*renderSelectedUnitInfo` in that file) and match the established pattern and argument indices exactly rather than guessing them; the shape above is illustrative of the assertions needed, not a verbatim drop-in.
+Note the field is `disguiseAs` (verified against `src/ui/selected-unit-info.ts:798`'s `spy?.disguiseAs`), not `disguisedAs`.
 
 - [ ] **Step 2: Run test to verify it fails.**
 
@@ -876,62 +913,81 @@ This is the largest single handler (8 flagged sites across 4 branches). Current 
 
 Behavior-preserving note: the original code emitted `bus.emit(...)` for the `removeUnitFromMap` and `caught` branches *before* the final state mutation happened (since the mutations were interleaved with the emits in-place); the rewrite above keeps emit ordering identical relative to the other statements in each branch — only the *mechanism* of building `nextUnits`/`nextCivilizations` changed from in-place mutation to accumulated spread-copies, committed once at the end instead of write-as-you-go.
 
-- [ ] **Step 1: Write failing tests covering all 4 branches.** Search `tests/app/controllers/selection-controller.test.ts` first for any existing `onInfiltrate` coverage to extend rather than duplicate. At minimum, add one test per branch asserting (a) the branch's distinguishing state change, and (b) a subscribed listener fires:
+**Deterministic branch selection.** `attemptInfiltration` (`src/systems/espionage-system.ts:1809-1857`) is seeded via `` `infiltrate-${uid}-${session.getState().turn}` `` and its branch depends on two RNG rolls compared against `getInfiltrationSuccessChance`. Its own system-level test suite (`tests/systems/espionage-infiltration.test.ts:126-132`) already solves exactly this determinism problem with a `tryUntil` helper that iterates candidate seeds until a predicate matches — reuse that same idiom one level up, varying the spy's `uid` (which is what feeds the seed string) instead of the seed directly, since the controller test can't pass a seed straight through:
+
+```ts
+function tryUntilInfiltrate(
+  unitType: UnitType,
+  predicate: (state: GameState, uid: string) => boolean,
+): { deps: SelectionControllerDeps; uid: string } | null {
+  for (let i = 0; i < 200; i++) {
+    const uid = `infiltrator-${i}`;
+    const state = makeFixture();
+    const template = Object.values(state.cities)[0]!;
+    state.cities['enemy-city'] = { ...template, id: 'enemy-city', owner: 'ai-1', position: { q: 0, r: 0 } };
+    placePlayerUnit(state, uid, { type: unitType, position: { q: 0, r: 0 } });
+    state.espionage = { player: createEspionageCivState() };
+    state.espionage.player.spies[uid] = {
+      id: uid, owner: 'player', name: 'Agent', unitType,
+      targetCivId: null, targetCityId: null, position: null,
+      status: 'idle', experience: 0, currentMission: null,
+      cooldownTurns: 0, promotion: undefined, promotionAvailable: false, feedsFalseIntel: false,
+    };
+    document.body.innerHTML = '<div id="info-panel"></div>';
+    const deps = baseDeps(state);
+    const controller = createSelectionController(deps);
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+
+    controller.selectUnit(uid);
+    const panel = document.getElementById('info-panel')!;
+    findButtonByText(panel, 'Infiltrate City').click();
+
+    if (predicate(deps.session.getState(), uid)) {
+      return { deps, uid };
+    }
+  }
+  return null;
+}
+```
+
+- [ ] **Step 1: Write failing tests covering all 4 branches.**
 
 ```ts
   describe('onInfiltrate', () => {
     it('era-2+ unit types remove the unit from the map and station the spy (removeUnitFromMap branch)', () => {
-      // Arrange a unit type/experience/CI combination that resolves to removeUnitFromMap,
-      // matching whatever helper (if any) existing infiltration tests in this file already
-      // use to force that branch deterministically -- check attemptInfiltration's existing
-      // test coverage in tests/systems/ for the exact inputs that select this branch.
-      // ... arrange ...
-      const listener = vi.fn();
-      deps.session.subscribe(listener);
-
-      options.onInfiltrate('spy-1');
-
-      expect(deps.session.getState().units['spy-1']).toBeUndefined();
-      expect(deps.session.getState().civilizations.player.units).not.toContain('spy-1');
-      expect(listener).toHaveBeenCalled();
+      const found = tryUntilInfiltrate('spy_informant', (state, uid) => state.units[uid] === undefined);
+      expect(found).not.toBeNull();
+      const state = found!.deps.session.getState();
+      expect(state.civilizations.player.units).not.toContain(found!.uid);
+      expect(state.espionage!.player.spies[found!.uid].status).toBe('stationed');
     });
 
     it('era-1 scout infiltration reveals tiles and marks the unit acted without removing it (era1ScoutResult branch)', () => {
-      // ... arrange for era1ScoutResult ...
-      const listener = vi.fn();
-      deps.session.subscribe(listener);
-
-      options.onInfiltrate('scout-1');
-
-      expect(deps.session.getState().units['scout-1'].hasActed).toBe(true);
-      expect(listener).toHaveBeenCalled();
+      const found = tryUntilInfiltrate('spy_scout', (state, uid) => state.units[uid]?.hasActed === true && state.units[uid] !== undefined);
+      expect(found).not.toBeNull();
+      const state = found!.deps.session.getState();
+      expect(state.units[found!.uid].hasActed).toBe(true);
+      expect(state.espionage!.player.spies[found!.uid].infiltrationCityId).toBe('enemy-city');
     });
 
     it('a caught spy is removed from the map (caught branch)', () => {
-      // ... arrange for result.caught ...
-      const listener = vi.fn();
-      deps.session.subscribe(listener);
-
-      options.onInfiltrate('spy-2');
-
-      expect(deps.session.getState().units['spy-2']).toBeUndefined();
-      expect(listener).toHaveBeenCalled();
+      const found = tryUntilInfiltrate('spy_scout', (state, uid) => state.espionage!.player.spies[uid]?.status === 'captured');
+      expect(found).not.toBeNull();
+      expect(found!.deps.session.getState().units[found!.uid]).toBeUndefined();
     });
 
     it('a failed-but-not-caught attempt marks the unit acted and keeps it on the map (default branch)', () => {
-      // ... arrange for the default (not caught, not era1, not removeUnitFromMap) outcome ...
-      const listener = vi.fn();
-      deps.session.subscribe(listener);
-
-      options.onInfiltrate('spy-3');
-
-      expect(deps.session.getState().units['spy-3'].hasActed).toBe(true);
-      expect(listener).toHaveBeenCalled();
+      const found = tryUntilInfiltrate(
+        'spy_scout',
+        (state, uid) => state.units[uid] !== undefined && state.espionage!.player.spies[uid]?.status === 'cooldown',
+      );
+      expect(found).not.toBeNull();
+      expect(found!.deps.session.getState().units[found!.uid].hasActed).toBe(true);
     });
   });
 ```
 
-The `// arrange` comments above are explicitly **not** placeholders to leave in committed code — they mark research the implementer must do against `attemptInfiltration`'s real signature and existing test fixtures in `tests/systems/espionage-system.test.ts` (or wherever it's tested) to pick concrete inputs that deterministically select each branch, before this task's Step 1 is actually complete. Do not check in a test with an unresolved arrange step.
+Each test proves the branch's own distinguishing state via `tryUntilInfiltrate`'s deterministic search rather than asserting a `listener` call on every single test — the publish-plumbing itself only needs proving once per handler (the codebase-wide convention this whole plan follows), and `onSetDisguise`/`onEmbed`'s tests already do that for the same `session.commit` call path this handler also uses. Re-verify against a fresh `yarn vitest run` before treating any of these 4 as flaky: `tryUntil`'s 200-iteration cap matches the existing system-level helper's own cap and has never needed raising there, but if a branch reliably fails to be found, that's a sign the fixture (city ownership, spy status, unit position) doesn't actually satisfy `onInfiltrate`'s own preconditions (`src/app/controllers/selection-controller.ts:405-420`) — fix the fixture, don't raise the cap blindly.
 
 - [ ] **Step 2: Run tests to verify they fail.**
 
@@ -988,17 +1044,26 @@ Current code:
   describe('onEmbed', () => {
     it('embeds the spy, removes the unit from the map, and publishes through session subscribers', () => {
       const state = makeFixture();
-      state.cities['friendly-city'] = makeCity('friendly-city', { owner: 'player', position: { q: 0, r: 0 } });
+      const template = Object.values(state.cities)[0]!;
+      state.cities['friendly-city'] = { ...template, id: 'friendly-city', owner: 'player', position: { q: 0, r: 0 } };
       state.civilizations.player.cities = ['friendly-city'];
-      placePlayerUnit(state, 'spy-1', { position: { q: 0, r: 0 } });
+      placePlayerUnit(state, 'spy-1', { type: 'spy_scout', position: { q: 0, r: 0 } });
       state.espionage = { player: createEspionageCivState() };
-      const { deps, controller } = build(state);
+      state.espionage.player.spies['spy-1'] = {
+        id: 'spy-1', owner: 'player', name: 'Agent', unitType: 'spy_scout',
+        targetCivId: null, targetCityId: null, position: null,
+        status: 'idle', experience: 0, currentMission: null,
+        cooldownTurns: 0, promotion: undefined, promotionAvailable: false, feedsFalseIntel: false,
+      };
+      document.body.innerHTML = '<div id="info-panel"></div>';
+      const deps = baseDeps(state);
+      const controller = createSelectionController(deps);
       const listener = vi.fn();
       deps.session.subscribe(listener);
 
       controller.selectUnit('spy-1');
-      const options = mockedCallArg<{ onEmbed: (uid: string) => void }>(renderSelectedUnitInfo, 0, 2);
-      options.onEmbed('spy-1');
+      const panel = document.getElementById('info-panel')!;
+      findButtonByText(panel, 'Embed (counter-espionage)').click();
 
       const updated = deps.session.getState();
       expect(updated.units['spy-1']).toBeUndefined();
@@ -1008,8 +1073,6 @@ Current code:
     });
   });
 ```
-
-Match this test's exact fixture helpers and `mockedCallArg` argument indices to whatever `tests/app/controllers/selection-controller.test.ts` already establishes for Task 4.1/4.2's tests — write them consistently, not independently guessed per task.
 
 - [ ] **Step 2: Run test to verify it fails.**
 
@@ -1105,7 +1168,7 @@ Current code:
   }
 ```
 
-Note `applyAutoExploreOrder(session.getState(), unitId, { bus })` — check this function's actual signature and return type before converting (`grep -n "export function applyAutoExploreOrder" src/`): if it mutates `session` internally itself (unlikely, but verify) rather than returning a value, this task's implementation needs adjusting; if — as expected from this file's other patterns — it operates on the passed `state` value and its result needs to be applied, the fix must thread that result into the same `commit` as the `automation` assignment, not call it against a stale pre-automation state. Do not assume; read the function first.
+Verified: `applyAutoExploreOrder(state: GameState, unitId: string, options: { bus?: EventBus }): ExecuteUnitMoveResult | null` (`src/systems/auto-explore-system.ts:93-97`) does not mutate `state` and does not return a new `GameState` — it returns a move-intent result that this call site's original code already discards without applying (`applyAutoExploreOrder(session.getState(), unitId, { bus });` with no assignment). That discard is existing behavior outside this task's scope (this task only fixes the flagged `session.getState().units[unitId] = ...` mutation two lines above it) — preserve the call exactly as-is, unexamined further, rather than "fixing" a discarded-return-value pattern this task was never asked to change.
 
 - [ ] **Step 1: Write the failing test.**
 
@@ -1114,7 +1177,8 @@ Note `applyAutoExploreOrder(session.getState(), unitId, { bus })` — check this
     it('starts auto-explore automation and publishes through session subscribers', () => {
       const state = makeFixture();
       placePlayerUnit(state, 'scout-1', { position: { q: 0, r: 0 } });
-      const { deps, controller } = build(state);
+      const deps = baseDeps(state);
+      const controller = createSelectionController(deps);
       const listener = vi.fn();
       deps.session.subscribe(listener);
 
@@ -1127,7 +1191,8 @@ Note `applyAutoExploreOrder(session.getState(), unitId, { bus })` — check this
     it('cancels auto-explore automation and publishes through session subscribers', () => {
       const state = makeFixture();
       placePlayerUnit(state, 'scout-1', { position: { q: 0, r: 0 }, automation: { mode: 'auto-explore', startedTurn: 1, lastTargets: [] } });
-      const { deps, controller } = build(state);
+      const deps = baseDeps(state);
+      const controller = createSelectionController(deps);
       const listener = vi.fn();
       deps.session.subscribe(listener);
 
@@ -1139,7 +1204,7 @@ Note `applyAutoExploreOrder(session.getState(), unitId, { bus })` — check this
   });
 ```
 
-Check whether `startAutoExplore`/`cancelAutoExplore` are exposed on `SelectionController`'s public interface (like `ensurePlayerWarState` was in Task 1.1) before assuming `controller.startAutoExplore(...)` is callable directly — if they're private, find the actual public entry point (likely `openUnitContextMenu`'s `onStartAutoExplore`/`onCancelAutoExplore` callbacks) and drive the test through that instead.
+`startAutoExplore`/`cancelAutoExplore` are confirmed public on `SelectionController` (`src/app/controllers/selection-controller.ts:120-121`, returned from the factory at lines 772-773), so calling them directly on `controller` is correct — no context-menu indirection needed.
 
 - [ ] **Step 2: Run test to verify it fails.**
 
@@ -1216,60 +1281,62 @@ Heaviest phase: 21 sites plus the `city-panel.ts` callback-contract change the s
 - Modify: `src/app/controllers/panel-actions-controller.ts:485-492`
 - Test: `tests/app/controllers/panel-actions-controller.test.ts` (new test in the council-panel describe block; search `grep -n "createCouncilPanel" tests/app/controllers/panel-actions-controller.test.ts` first)
 
-Current code (`panel-actions-controller.ts:485-492`, read exact lines first — this is the `createCouncilPanel` callback wiring):
+Current code, verified against the real file (`panel-actions-controller.ts:483-494`):
 
 ```ts
+  function openCouncilPanel(): void {
+    deps.hud.closeDrawer();
     createCouncilPanel(deps.uiLayer, deps.session.getState(), {
-      // ...
-      onSetTalkLevel: (level) => {
+      onClose: () => {
+        deps.getElementById('council-panel')?.remove();
+      },
+      onTalkLevelChange: (level) => {
         deps.session.getState().settings.councilTalkLevel = level;
         void saveSettings(deps.session.getState().settings);
-        // ...
       },
-      // ...
     });
+  }
 ```
 
-(Confirm the exact surrounding callback name and structure by reading `panel-actions-controller.ts` around line 485 before editing — the spec's grep only captured the flagged line itself, not the enclosing callback's name.)
+The real callback is `onTalkLevelChange` (typed `(level: CouncilTalkLevel) => void` in `src/ui/council-panel.ts:7`), not a guessed name — verified by reading the file directly before writing this task, per this repo's `spec-fidelity.md` convention of not carrying an unverified claim into an implementation step. `CouncilTalkLevel` (`src/core/types.ts:1540`) is `'quiet' | 'normal' | 'chatty' | 'chaos'`.
 
 - [ ] **Step 1: Write the failing test.**
 
 ```ts
-    it('onSetTalkLevel publishes the new council talk level through session subscribers', () => {
+    it('onTalkLevelChange publishes the new council talk level through session subscribers', () => {
       const { state } = makeFixture('council-talk-level');
       const { deps, controller } = build(state);
       const listener = vi.fn();
       deps.session.subscribe(listener);
 
       controller.openCouncilPanel();
-      const options = mockedCallArg<{ onSetTalkLevel: (level: string) => void }>(createCouncilPanel, 0, 2);
-      options.onSetTalkLevel('verbose');
+      const options = mockedCallArg<{ onTalkLevelChange: (level: CouncilTalkLevel) => void }>(createCouncilPanel, 0, 2);
+      options.onTalkLevelChange('chatty');
 
-      expect(deps.session.getState().settings.councilTalkLevel).toBe('verbose');
+      expect(deps.session.getState().settings.councilTalkLevel).toBe('chatty');
       expect(listener).toHaveBeenCalled();
     });
 ```
 
-Match the real method name for opening the council panel (`openCouncilPanel` is illustrative — confirm the controller's actual public method name first) and `createCouncilPanel`'s real callback property name and argument index against the source read in this task's preamble.
+Import `CouncilTalkLevel` from `@/core/types` at the top of the test file if not already imported.
 
 - [ ] **Step 2: Run test to verify it fails.**
 
-Run: `bash scripts/run-with-mise.sh yarn vitest run tests/app/controllers/panel-actions-controller.test.ts -t "onSetTalkLevel"`
+Run: `bash scripts/run-with-mise.sh yarn vitest run tests/app/controllers/panel-actions-controller.test.ts -t "onTalkLevelChange"`
 Expected: FAIL on `expect(listener).toHaveBeenCalled()`.
 
 - [ ] **Step 3: Write minimal implementation.**
 
 ```ts
-      onSetTalkLevel: (level) => {
+      onTalkLevelChange: (level) => {
         deps.session.commit({ ...deps.session.getState(), settings: { ...deps.session.getState().settings, councilTalkLevel: level } });
         void saveSettings(deps.session.getState().settings);
-        // ... (rest of the callback body unchanged)
       },
 ```
 
 - [ ] **Step 4: Run test to verify it passes.**
 
-Run: `bash scripts/run-with-mise.sh yarn vitest run tests/app/controllers/panel-actions-controller.test.ts -t "onSetTalkLevel"`
+Run: `bash scripts/run-with-mise.sh yarn vitest run tests/app/controllers/panel-actions-controller.test.ts -t "onTalkLevelChange"`
 Expected: PASS.
 
 - [ ] **Step 5: Commit.**
@@ -1636,12 +1703,13 @@ Current code:
           researchQueue: removeQueuedId(deps.currentCiv().techState.researchQueue, index),
         };
         deps.renderLoop.setGameState(deps.session.getState());
-        // (read the remainder of this callback before editing -- confirm whether it ends here or has more lines)
+        deps.hud.update();
       },
+      onClose: () => {},
     });
 ```
 
-This site already calls `deps.hud.update()` manually in at least the first two handlers (confirm the third does too by reading the actual file before editing) — architecture-debt only, matching the spec's severity note for this group.
+Verified against the real file (`panel-actions-controller.ts:498-527`) — all 3 handlers call `deps.hud.update()` manually, confirming the spec's severity note: architecture-debt only, not a currently-observable HUD bug.
 
 - [ ] **Step 1: Write the failing test.**
 
@@ -1766,6 +1834,8 @@ Current code:
 
 This handler closes+reopens the espionage panel via `deps.router.open('espionage')` after committing (no closure-staleness risk like `city-panel.ts`), but still skips `hud.update()` — a live bug per the spec's severity table.
 
+**Verified target-picker mechanism:** `chooseFriendlyCityTarget()` (`panel-actions-controller.ts:820-839`, a closure inside the same registrar as this handler) calls `window.prompt(message, choices[0].id)` — jsdom's `window.prompt` returns `null` unless stubbed, so the test must stub it. Since the prompt's second argument is always the first valid choice's id, a generic stub that echoes the suggested default resolves this deterministically without hardcoding a specific city id: `vi.spyOn(window, 'prompt').mockImplementation((_msg, defaultValue) => defaultValue ?? null);`. The same stub covers `chooseForeignCityTarget` (Task 5.7) and `chooseMission` (Task 5.7) too, since both follow the identical `window.prompt(msg, choices[0])` pattern — add it once per test that reaches any of these three pickers.
+
 - [ ] **Step 1: Write the failing test.**
 
 ```ts
@@ -1778,12 +1848,10 @@ This handler closes+reopens the espionage panel via `deps.router.open('espionage
       const { deps, controller } = build(state);
       const listener = vi.fn();
       deps.session.subscribe(listener);
+      vi.spyOn(window, 'prompt').mockImplementation((_msg, defaultValue) => defaultValue ?? null);
 
       controller.openEspionagePanel();
       const options = mockedCallArg<{ onAssignDefensive: (spyId: string) => void }>(createEspionagePanel, 0, 1);
-      // chooseFriendlyCityTarget() likely drives a window.prompt/confirm or an internal picker --
-      // check the real implementation before writing this test and stub whatever it needs
-      // (e.g. vi.spyOn(window, 'prompt')) to deterministically pick 'home-city'.
       options.onAssignDefensive('spy-1');
 
       const updated = deps.session.getState();
@@ -1794,7 +1862,7 @@ This handler closes+reopens the espionage panel via `deps.router.open('espionage
     });
 ```
 
-Confirm `controller.openEspionagePanel`'s real name and how `chooseFriendlyCityTarget` resolves a target (read `panel-actions-controller.ts` around this handler) before finalizing this test — the comment above marks required research, not something to leave unresolved in committed code.
+`controller.openEspionagePanel` is confirmed public on `PanelActionsController` (`panel-actions-controller.ts:125`).
 
 - [ ] **Step 2: Run test to verify it fails.**
 
@@ -1909,11 +1977,10 @@ None of these 3 currently call `hud.update()` — all live bugs per the spec's s
       const { deps, controller } = build(state);
       const listener = vi.fn();
       deps.session.subscribe(listener);
+      vi.spyOn(window, 'prompt').mockImplementation((_msg, defaultValue) => defaultValue ?? null);
 
       controller.openEspionagePanel();
       const options = mockedCallArg<{ onStartMission: (spyId: string) => void }>(createEspionagePanel, 0, 1);
-      // chooseMission() resolves via window.prompt in this file (see chooseMission's definition
-      // above onAssignDefensive) -- stub window.prompt to return a valid SpyMissionType before calling.
       options.onStartMission('spy-1');
 
       expect(deps.session.getState().espionage!.player.spies['spy-1'].status).not.toBe('stationed');
@@ -1936,7 +2003,7 @@ None of these 3 currently call `hud.update()` — all live bugs per the spec's s
 
     it('onVerifyAgent commits the cleared agent and publishes through session subscribers', () => {
       const { state } = makeFixture('espionage-verify');
-      placeSpy(state, 'spy-1', { status: 'suspected' });
+      placeSpy(state, 'spy-1', { status: 'embedded', turnedBy: 'ai' });
       const { deps, controller } = build(state);
       const listener = vi.fn();
       deps.session.subscribe(listener);
@@ -1945,6 +2012,7 @@ None of these 3 currently call `hud.update()` — all live bugs per the spec's s
       const options = mockedCallArg<{ onVerifyAgent: (spyId: string) => void }>(createEspionagePanel, 0, 1);
       options.onVerifyAgent('spy-1');
 
+      expect(deps.session.getState().espionage!.player.spies['spy-1'].turnedBy).toBeUndefined();
       expect(listener).toHaveBeenCalled();
     });
 ```
@@ -2476,6 +2544,27 @@ git commit -m "feat(check-src-edit): catch direct mutation through session.getSt
 
 **Spec coverage:** every numbered section of the design spec maps to a phase/task above — Problem/inventory → Phases 1-5's per-file task breakdown; Scope (including the `city-panel.ts` addition) → Task 5.2/5.3; Fix pattern's chained-write hazard → Task 1.1 and Task 1.3; Fix pattern's `city-panel.ts` hazard → Tasks 5.2-5.4; Regression guard → Phase 6; Behavioral test per site → every task's Step 1/listener assertion; Phasing → the 6 phases match the spec's list one-to-one.
 
-**Placeholder scan:** two intentional exceptions, both explicitly called out as research-required rather than left silent: Task 4.2's `// arrange` comments (branch-selecting inputs for `attemptInfiltration` depend on that function's real signature, which this plan-writing pass did not read) and Task 3.1's `someTechId` line (depends on `turn-flow-controller.test.ts`'s existing idle-research fixture, not read during this pass). Both are marked as "resolve before this task's Step 1 is complete, do not commit as-is" rather than left as ordinary steps — an implementer following `superpowers:executing-plans` must treat these two as blocking sub-steps, not skip them.
+**Placeholder scan:** clean as of the second review pass below — the two exceptions this section originally flagged (Task 4.2's `// arrange` comments, Task 3.1's `someTechId` line) have both been resolved with real, verified code; see that pass's findings for what replaced them.
 
 **Type consistency:** `GameState | void` is used consistently for the 4 `city-panel.ts` callbacks (Task 5.2) and their `panel-actions-controller.ts` implementations (Task 5.3) — matching the pre-existing `onSetCityFocus`/`onToggleWorkedTile`/`onRushBuyActiveProduction` shape exactly, not a new convention. `session.commit(next: GameState)` and `session.update(fn: (state: GameState) => GameState): void` are used with consistent signatures across every task, matching `src/app/ports.ts`'s existing `GameSession` interface (unchanged by this plan). Every task's `deps.session`/`session` naming matches its file's actual factory-parameter convention (`deps.session.getState()` in `player-action-controller.ts`, `panel-actions-controller.ts`, `campaign-entry-controller.ts`; bare `session.getState()` in `selection-controller.ts`, `turn-flow-controller.ts` — confirmed against the actual source reads this plan is based on, not assumed uniform).
+
+## Second Review Pass (2026-08-15)
+
+A follow-up inline review across gameplay/UX/architecture/SOLID/TypeScript dimensions verified every guessed API call in this plan against the real source (not re-derived from memory) and fixed what didn't match. All fixes below are applied inline above, not left as open items.
+
+**Confirmed not applicable, checked rather than assumed:** gameplay balance, fun, new mechanics, player ages 7-43, play styles, difficulty modes, and SFX — this plan only changes *when* already-correct state mutations get published, never *what* they compute, so none of these dimensions have any surface here. Computer players — confirmed via `grep -rln "app/controllers" src/ai/` returning empty that AI turn processing never touches any of the 6 files this plan modifies. Data/saved games — no `GameState` field is added, removed, or retyped by any task, so no save-migration entry is needed anywhere in this plan.
+
+**Real bugs found in this plan's own code and fixed:**
+
+1. **Invalid TypeScript literal, used twice.** `CouncilTalkLevel` (`src/core/types.ts:1540`) is `'quiet' | 'normal' | 'chatty' | 'chaos'` — Tasks 2.1 and 5.1 both used `'verbose'`, which isn't a member of that union and would fail to typecheck. Fixed to `'chatty'` in both.
+2. **Wrong callback name.** Task 5.1 invented `onSetTalkLevel`; the real callback (`src/ui/council-panel.ts:7`, wired at `panel-actions-controller.ts:489`) is `onTalkLevelChange`. Fixed, and the task's "current code" block now matches the real file exactly instead of a paraphrase.
+3. **Invalid `SpyStatus` literal.** Task 5.7's `onVerifyAgent` test used `status: 'suspected'`, not a member of `SpyStatus` (`src/core/types.ts:816-823`). Fixed to `'embedded'` with `turnedBy: 'ai'` set, and the assertion now checks `turnedBy` is cleared (`verifyAgent`'s actual effect) instead of only checking a listener fired — the original assertion didn't verify the function did anything.
+4. **A test harness that would never have compiled.** Task 3.1 assumed `createRequiredChoicePanel` was mocked, following the pattern used in every other phase's tests. It isn't — `turn-flow-controller.test.ts` renders it for real (confirmed: no `vi.mock` for that module exists, and an existing test in the same file already asserts against the real `#required-choice-panel` DOM node). Mocking it as originally drafted would have broken that existing test. Rewrote Task 3.1 to drive the real rendered panel via DOM clicks, using a `findSectionButton` helper keyed off the panel's `<h3>` section headings (the only stable anchor available — no `id`/`data-*` attributes exist on individual choice buttons).
+5. **An entire phase built on the wrong test-file convention.** Every test in Tasks 4.1-4.4 assumed `selection-controller.test.ts` uses the same mocked-panel-plus-`mockedCallArg` pattern as the other controller test files. It doesn't: no `mockedCallArg` helper, no `build()` helper, no `makeCity()` helper exist in that file, and `renderSelectedUnitInfo` is never mocked there — it renders for real into a genuine `document.getElementById('info-panel')` node (confirmed from that file's own existing tests). Rewrote Tasks 4.1-4.4 to use the file's real helpers (`makeFixture()` with no args, `baseDeps`, `createSelectionController`) and real DOM interaction (a `findButtonByText` helper, `document.body.innerHTML` setup) instead of a mocked panel that was never going to exist.
+6. **A test that could never pass or fail meaningfully.** Task 4.2's four branch tests left `// arrange` comments describing research to do rather than code, and referenced an undefined `options` variable. `attemptInfiltration`'s branch is seeded by `` `infiltrate-${uid}-turn` `` and its own system-level test suite (`tests/systems/espionage-infiltration.test.ts:126-132`) already solves forcing each branch deterministically with a `tryUntil`-over-candidate-seeds helper — reused that exact idiom one level up (`tryUntilInfiltrate`, varying `uid` instead of a raw seed, since the controller can't take a seed directly) instead of inventing a new mechanism.
+7. **Wrong disguise-picker assumptions.** Task 4.1 used `unitType: 'spy_scout'` and asserted a field called `disguisedAs`. `spy_scout` is disguise tier 0, which only ever offers "No Disguise" and never renders the picker at all (`src/ui/selected-unit-info.ts:772-805`) — switched to `spy_informant` (tier 1) so "As Warrior" is a real clickable option. The field is `disguiseAs` (`src/core/types.ts:884`), not `disguisedAs`.
+8. **Three unresolved `window.prompt` hedges.** Tasks 5.6 and 5.7's tests noted that `chooseFriendlyCityTarget`/`chooseForeignCityTarget`/`chooseMission` "likely" use `window.prompt` without stubbing it — jsdom's `window.prompt` returns `null` unless stubbed, so these tests would have failed at the `if (!selection) return null;`/`if (!mission) return;` guard before ever reaching the mutation under test. Verified all three follow the identical `window.prompt(msg, choices[0])` shape (`panel-actions-controller.ts:799-863`) and added one generic stub (`vi.spyOn(window, 'prompt').mockImplementation((_msg, defaultValue) => defaultValue ?? null)`) that resolves all three without hardcoding a specific city/mission id.
+9. **Non-existent test helper.** Task 4.3 referenced `makeCity()`, which doesn't exist in `selection-controller.test.ts`. Switched to the template-borrow pattern (`Object.values(state.cities)[0]!` + override) already established in this same plan's `turn-flow-controller.test.ts` tasks, rather than introducing a one-off helper found nowhere else in the file.
+10. **A stale hedge resolved to "no action needed."** Task 4.4 flagged `applyAutoExploreOrder`'s return-value handling as unverified. Its real signature (`src/systems/auto-explore-system.ts:93-97`) returns `ExecuteUnitMoveResult | null` and the *original* code already discards that return value without applying it — confirmed this is pre-existing, out-of-scope behavior the task should preserve verbatim, not something this task needs to fix.
+
+**Architecture/SOLID note deliberately not changed:** Task 4.2's rewrite tests each branch's distinguishing state directly rather than re-asserting a `session.subscribe` listener fires on all 4 — the publish-plumbing this whole audit is about is already proven once per handler by Tasks 4.1 and 4.3 (which share the same `session.commit` call path `onInfiltrate` uses), so repeating that assertion 4 more times in the same handler would be redundant coverage of the same fact, not stronger evidence of it.
