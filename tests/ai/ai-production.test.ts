@@ -23,6 +23,7 @@ import type { AIForceDemand } from '@/ai/ai-unit-assignment';
 import { getAIStrategicRoles } from '@/ai/ai-unit-roles';
 import { hexKey, hexNeighbors } from '@/systems/hex-utils';
 import { createEspionageCivState } from '@/systems/espionage-system';
+import { createUnit } from '@/systems/unit-system';
 
 const aggressive: PersonalityTraits = {
   traits: ['aggressive'],
@@ -136,6 +137,29 @@ describe('AI strategic production', () => {
 
     expect(generateAIProductionCandidates(state, 'ai-1', 'city-a', [], aggressive)
       .some(candidate => candidate.itemId === 'sam_site')).toBe(false);
+  });
+
+  it('scores typed air defense only against a visible hostile strike threat that can reach the city', () => {
+    const state = setupState(['radar-systems', 'rocketry']);
+    const city = state.cities['city-a']!;
+    city.buildings = ['anti_air_battery', 'radar_station'];
+    state.civilizations['ai-1']!.diplomacy.atWarWith = ['player'];
+    state.civilizations.player.diplomacy.atWarWith = ['ai-1'];
+    const bomber = createUnit('bomber', 'player', city.position, state.idCounters);
+    bomber.id = 'visible-hostile-bomber';
+    state.units[bomber.id] = bomber;
+    state.civilizations.player.units.push(bomber.id);
+    state.civilizations['ai-1']!.visibility.tiles[hexKey(bomber.position)] = 'visible';
+
+    const visibleThreat = generateAIProductionCandidates(state, 'ai-1', 'city-a', [], aggressive)
+      .find(candidate => candidate.itemId === 'sam_site')!;
+    expect(visibleThreat.airDefenseThreatScore).toBeGreaterThan(0);
+
+    state.civilizations['ai-1']!.visibility.tiles[hexKey(bomber.position)] = 'fog';
+    const hiddenThreat = generateAIProductionCandidates(state, 'ai-1', 'city-a', [], aggressive)
+      .find(candidate => candidate.itemId === 'sam_site')!;
+    expect(hiddenThreat.airDefenseThreatScore).toBe(0);
+    expect(visibleThreat.score).toBeGreaterThan(hiddenThreat.score);
   });
 
   it('offers Cuirassier for mobile demand only when the AI owns Horses and Iron', () => {
