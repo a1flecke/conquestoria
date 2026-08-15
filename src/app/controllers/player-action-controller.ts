@@ -281,7 +281,10 @@ export function createPlayerActionController(deps: PlayerActionControllerDeps): 
     const unit = deps.session.getState().units[selectedUnitId];
     if (!unit || !canHeal(unit)) return;
 
-    deps.session.getState().units[selectedUnitId] = restUnit(unit);
+    deps.session.commit({
+      ...deps.session.getState(),
+      units: { ...deps.session.getState().units, [selectedUnitId]: restUnit(unit) },
+    });
     deps.showNotification(`${UNIT_DEFINITIONS[unit.type].name} is resting and will heal +15 HP next turn`, 'info');
     deps.selectionController.deselectUnit();
     deps.renderLoop.setGameState(deps.session.getState());

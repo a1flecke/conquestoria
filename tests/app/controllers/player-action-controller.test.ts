@@ -321,10 +321,12 @@ describe('PlayerActionController', () => {
       expect(deps.session.getState().units['warrior-1'].isResting).toBeFalsy();
     });
 
-    it('rests a real damaged unit, heals via restUnit, and deselects', () => {
+    it('rests a real damaged unit, heals via restUnit, deselects, and publishes to subscribers', () => {
       const { state } = makeFixture('rest-damaged');
       placeUnit(state, 'warrior', 'warrior-1', { q: 0, r: 0 }, { health: 50 });
       const { deps, controller } = build(state, { selection: { getSelectedUnitId: vi.fn(() => 'warrior-1'), setPendingIntent: vi.fn() } });
+      const listener = vi.fn();
+      deps.session.subscribe(listener);
 
       controller.restAction();
 
@@ -332,6 +334,7 @@ describe('PlayerActionController', () => {
       expect(deps.selectionController.deselectUnit).toHaveBeenCalledTimes(1);
       expect(deps.renderLoop.setGameState).toHaveBeenCalled();
       expect(deps.showNotification).toHaveBeenCalledWith(expect.stringContaining('heal'), 'info');
+      expect(listener).toHaveBeenCalledTimes(1);
     });
   });
 
