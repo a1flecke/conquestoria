@@ -153,7 +153,7 @@ describe('AI strategic production', () => {
 
     const visibleThreat = generateAIProductionCandidates(state, 'ai-1', 'city-a', [], aggressive)
       .find(candidate => candidate.itemId === 'sam_site')!;
-    expect(visibleThreat.airDefenseThreatScore).toBeGreaterThan(0);
+    expect(visibleThreat.airDefenseThreatScore).toBe(120);
 
     state.civilizations['ai-1']!.visibility.tiles[hexKey(bomber.position)] = 'fog';
     const hiddenThreat = generateAIProductionCandidates(state, 'ai-1', 'city-a', [], aggressive)
