@@ -287,6 +287,18 @@ describe('PlayerActionController', () => {
 
       expect(deps.session.getState().civilizations.player.diplomacy.atWarWith).toEqual([]);
     });
+
+    it('publishes the war declaration to session subscribers, not just the renderer', () => {
+      const { state, aiCivId } = makeFixture('war-state-publishes');
+      const { deps, controller } = build(state);
+      const listener = vi.fn();
+      deps.session.subscribe(listener);
+
+      controller.ensurePlayerWarState(aiCivId);
+
+      expect(listener).toHaveBeenCalledTimes(1);
+      expect(listener).toHaveBeenCalledWith(deps.session.getState());
+    });
   });
 
   describe('restAction', () => {
