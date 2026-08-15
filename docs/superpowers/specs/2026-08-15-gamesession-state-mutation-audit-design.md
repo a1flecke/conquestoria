@@ -25,11 +25,17 @@ cases, manually call `renderLoop.setGameState(session.getState())` to patch
 over the missing publish.
 
 Because `renderLoop.setGameState` is called by hand but `hud.update()` is not,
-**every one of these 44 sites silently skips the HUD refresh.** The renderer
-catches up; the HUD (yield rates, notifications, turn counter — see
-`CLAUDE.md`'s "HUD should show per-turn yield rates... not just totals") does
-not, until some unrelated later action happens to call `commit`/`update` and
-catch it up incidentally.
+**most of these sites silently skip the HUD refresh** — but not uniformly; see
+"Severity is uneven" below. Where the HUD is skipped, it (yield rates,
+notifications, turn counter — see `CLAUDE.md`'s "HUD should show per-turn
+yield rates... not just totals") stays stale until some unrelated later
+action happens to call `commit`/`update` and catch it up incidentally.
+
+**Second-pass review (2026-08-15) found a sharper problem than HUD lag: at
+least one panel's own refresh currently works only *because* of the mutation
+bug, not despite it** — see "Fix pattern" and the `city-panel.ts` scope note
+below. Naively converting those sites would regress a currently-working
+surface into a stale one.
 
 This is separate from the **already in-flight** `#787` Phase 14
 (`setStateWithoutRefresh` debt audit — "14a" landed as of `db578fc9`). Phase 14
@@ -59,20 +65,24 @@ deps.currentCiv().diplomacy = declareWar(deps.currentCiv().diplomacy, targetCivI
 
 ## Full inventory (verified 2026-08-15, re-run before each phase per repo convention)
 
-| File | Sites | Shape | Notes |
-|---|---|---|---|
-| `src/app/controllers/player-action-controller.ts` | 4 | B×2, A×2 | L264-265 (`ensurePlayerWarState`, both civs), L276 (`restAction`), L439 (post-move unit) |
-| `src/app/controllers/campaign-entry-controller.ts` | 2 | A×2 | L237, L257 — duplicate `settings.councilTalkLevel` branches |
-| `src/app/controllers/turn-flow-controller.ts` | 2 | B×1, A×1 | L261 (tech queue), L268 (city production) |
-| `src/app/controllers/selection-controller.ts` | 15 | A×15 | Espionage actions (disguise, infiltrate, embed) + unit-automation clear/rest, all under a `session`-scoped closure |
-| `src/app/controllers/panel-actions-controller.ts` | 21 | B×3, A×18 | Espionage panel (embed/mission/recall/verify/spawn), city production (enqueue/reorder/idle-mode/focus), tech queue (B-shape, mirrors turn-flow-controller), settings |
-| `src/app/cross-cutting-helpers.ts` | 0 direct | — | Root-cause helper (`getCurrentCiv`) enabling all Shape-B sites above; not itself a mutation site |
-| **Total** | **44** | | |
+| File | Sites | Shape | Currently observable staleness | Notes |
+|---|---|---|---|---|
+| `src/app/controllers/player-action-controller.ts` | 4 | B×2, A×2 | HUD only (L264-267, L276); **neither** at L439 — `executeMinorCivConquest` already calls `hud.update()` manually at L447, so that site is architecture-debt only, not a live bug | L264-265 (`ensurePlayerWarState`, both civs — chains into a trailing `setStateWithoutRefresh` at L267, see Fix pattern), L276 (`restAction`), L439 (post-move unit, part of `executeMinorCivConquest`) |
+| `src/app/controllers/campaign-entry-controller.ts` | 2 | A×2 | HUD only | L237, L257 — duplicate `settings.councilTalkLevel` branches |
+| `src/app/controllers/turn-flow-controller.ts` | 2 | B×1, A×1 | **Neither** — `refreshRequiredChoicesAfterAction` (L188-192) already calls `renderLoop.setGameState` + `updateHUD()` manually right after both flagged sites; architecture-debt only | L261 (tech queue), L268 (city production) |
+| `src/app/controllers/selection-controller.ts` | 15 | A×15 | HUD, need per-site re-check during Phase 4 — not individually verified in this review pass | Espionage actions (disguise, infiltrate, embed) + unit-automation clear/rest, all under a `session`-scoped closure |
+| `src/app/controllers/panel-actions-controller.ts` | 21 | B×3, A×18 | HUD only for espionage sites (867-1019 — `deps.router.open('espionage')` fully rebuilds that panel from fresh state each time, so no panel-staleness risk there); **HUD + open-panel** for the 4 city-production sites (L665, L677, L683, L741) — see next section | Espionage panel (embed/mission/recall/verify/spawn), city production (enqueue/reorder/idle-mode/focus), tech queue (B-shape, mirrors turn-flow-controller), settings |
+| `src/app/cross-cutting-helpers.ts` | 0 direct | — | — | Root-cause helper (`getCurrentCiv`) enabling all Shape-B sites above; not itself a mutation site |
+| **Total** | **44** | | | |
 
 Exact line numbers are recorded in each phase's own PR (grep drifts between
 phases the same way Phase 14's 66-site count drifted from its original 46-site
 estimate — re-run the inventory grep at the start of each phase, don't trust
-this table's line numbers verbatim once other phases have landed).
+this table's line numbers verbatim once other phases have landed). The
+"currently observable staleness" column is a spot-check from this review
+pass, not an exhaustive per-site audit — each phase must verify its own
+sites' actual severity before writing PR-body claims, rather than assuming
+uniform HUD-only staleness (`spec-fidelity.md`'s overclaiming concern).
 
 Inventory greps used (rerun with `--include="*.ts"` from repo root):
 ```
@@ -85,7 +95,10 @@ grep -rn "currentCiv()\." src/app/ | grep -v "\.diplomacy\b"
 
 ## Scope
 
-**In scope:** the 6 files above.
+**In scope:** the 6 files above, **plus `src/ui/city-panel.ts`** (added in
+review — see "Fix pattern" below; not a `getState()` mutation site itself,
+but its callback contract must change in lockstep with 4 of
+`panel-actions-controller.ts`'s sites or Phase 5 introduces a regression).
 
 **Out of scope, deliberately:**
 - `src/systems/**`, `src/ai/**`, `src/core/**` — these functions take a local
@@ -160,6 +173,55 @@ its own line in the PR body**, not a silent bundle. Where a call site's
 `commit`/`update` now does it), delete the now-redundant manual call rather
 than leaving both.
 
+**Trace chained writes to the real terminal state-write before converting.**
+A flagged mutation is sometimes followed, in the same function, by a further
+non-refreshing write (`setStateWithoutRefresh`, or a second mutation) that
+would silently absorb the fix if only the flagged line is touched.
+Concretely: `ensurePlayerWarState` ([player-action-controller.ts:256-268](../../../src/app/controllers/player-action-controller.ts))
+mutates both civs' `.diplomacy` (Shape B, the flagged lines) and *then* calls
+`deps.session.setStateWithoutRefresh(applyOpportunisticWarPenaltyIfCrisisStruck(...))`
+— converting only the two flagged lines leaves the function's actual final
+state-write non-publishing. The correct fix unifies all three writes
+(attacker diplomacy, defender diplomacy, opportunistic-penalty) into one
+`session.update(state => ...)` call. Before converting any site, read the
+enclosing function to its actual end, not just the flagged line.
+
+**`city-panel.ts`'s four queue callbacks need a matching contract change, not
+just a mutation fix.** `onBuild`, `onMoveQueueItem`, `onRemoveQueueItem`, and
+`onSetIdleProduction` ([city-panel.ts:72-90](../../../src/ui/city-panel.ts))
+currently return `void`, and their handler in `city-panel.ts` calls bare
+`rerenderPanel()` — which defaults its `nextState` parameter to a **closure
+variable captured once when the panel opened**
+([city-panel.ts:1384](../../../src/ui/city-panel.ts)). Today the panel shows
+fresh data after these actions only because the flagged in-place mutation
+writes onto the exact same object that closure already points to — the panel
+refresh currently works *by accident of shared reference*, not by design.
+Converting `panel-actions-controller.ts`'s corresponding 4 sites (L665, L677,
+L683, L741) to genuine `session.commit()` (a new object) **without** also
+widening those 4 callback signatures to `GameState | void` and passing the
+result to `rerenderPanel(nextState)` — the pattern `onSetCityFocus` /
+`onToggleWorkedTile` / `onRushBuyActiveProduction` already use correctly
+([city-panel.ts:76-95](../../../src/ui/city-panel.ts)) — **regresses a
+currently-working panel into a stale one**, violating
+`.claude/rules/ui-panels.md`'s explicit rule: *"If a panel action mutates
+state that the same panel renders, the visible panel must refresh
+immediately... Updating only global state/HUD while leaving the open panel
+stale is a bug."* Phase 5 must convert these 4 sites and their `city-panel.ts`
+wiring together, in the same commit.
+
+**The existing test for this exact path is coupled to the bug and must be
+rewritten, not extended.** `panel-actions-controller.test.ts`'s "queues real
+production via the live city state and refreshes the renderer" test asserts
+`state.cities['test-city'].productionQueue` against the *outer* fixture
+variable, which only stays in sync with `deps.session.getState()` today
+because of the same in-place-mutation shortcut — and it mocks `createCityPanel`,
+so it cannot currently prove the visible panel re-renders either way. Phase 5
+must rewrite this assertion to read `deps.session.getState()` directly, and
+add real coverage that `createCityPanel` gets re-invoked with the fresh city
+after `onBuild`/`onMoveQueueItem`/`onRemoveQueueItem`/`onSetIdleProduction`
+(matching `docs/superpowers/plans/README.md`'s "test what the player sees,
+not just what state changed").
+
 ## Regression guard
 
 Add a new `it` block to `tests/app/architecture-boundaries.test.ts` (same file
@@ -171,6 +233,15 @@ counter that can only move one direction, same framing as this repo's other
 source-grep ratchets (e.g. the retired `refresh-bypass-ratchet.test.ts`) — add
 it in the **last** phase, once the count is verified at zero, so it isn't
 failing mid-arc.
+
+**Real-time backstop (recommended, cheaper than the test):**
+`.claude/hooks/check-src-edit.sh` already has a PostToolUse check for direct
+state mutation (`state\.(cities|units|civilizations)\[[^]]+\]\s*=`), but it's
+scoped to a bare `state` variable — the turn-processing convention — and does
+not match `getState()` chains, so it currently gives zero real-time feedback
+on this exact bug class. Add a companion block there in the same phase as the
+boundary test, mirroring the existing pattern, so future violations are
+caught at edit time instead of only at `yarn test` time.
 
 ## Behavioral test per site
 
@@ -197,13 +268,21 @@ convention (`#787` Phase 8a-d, 10b-a..g, 14):
    state update needs that guard).
 4. **`selection-controller.ts`** (15 sites) — heaviest single-domain
    (espionage + unit-automation), no turn-flow risk.
-5. **`panel-actions-controller.ts`** (21 sites) — heaviest overall (espionage
-   panel + city production + tech queue).
-6. **Regression guard** — add the boundary test from a verified zero count,
-   close the arc.
+5. **`panel-actions-controller.ts`** (21 sites) **+ `src/ui/city-panel.ts`**
+   — heaviest overall (espionage panel + city production + tech queue). The 4
+   city-production sites must land together with `city-panel.ts`'s callback
+   contract change (see "Fix pattern") and the rewrite of
+   `panel-actions-controller.test.ts`'s coupled queue test — not as follow-up
+   work, since shipping the mutation fix alone regresses the open panel.
+6. **Regression guard** — add the `architecture-boundaries.test.ts` boundary
+   test and the `check-src-edit.sh` real-time check (see "Regression guard"),
+   from a verified zero count, close the arc.
 
 Every phase runs `yarn build` and `yarn test` (per `CLAUDE.md`); Phase 3 also
-runs `yarn test:ai-playability`.
+runs `yarn test:ai-playability`. Phase 1 and Phase 5 each require reading
+their flagged functions to their actual end (not just the flagged line) per
+the chained-write note in "Fix pattern," since both phases contain a
+confirmed instance of that hazard.
 
 ## Risks
 
@@ -212,3 +291,6 @@ runs `yarn test:ai-playability`.
 | Inventory drifts between phases (new mutation sites added by unrelated feature work landing concurrently) | Re-run the inventory greps at the start of each phase, same practice Phase 14 uses |
 | A site's manual `renderLoop.setGameState()` call is deleted but the conversion misses a case where `renderLoop` and `hud` genuinely need different timing | Behavioral test asserts both subscribers fire; if a site turns out to need to stay split, document why at that site rather than silently leaving old code in place |
 | Converting a Shape-B site changes `getCurrentCiv()`'s contract for its other (read-only) callers | Explicitly not changing the helper's shape — only the 6 mutating call sites change, verified by grep before each phase closes |
+| **(found in review) Converting a flagged mutation without checking for a trailing non-refreshing write in the same function leaves the real bug unfixed while looking fixed** | "Trace chained writes to the real terminal state-write" requirement in Fix pattern; confirmed instance at `ensurePlayerWarState` |
+| **(found in review) A panel whose refresh currently works only via shared-object-reference "regresses to stale" once the underlying mutation becomes a genuine copy** | `city-panel.ts`'s 4 queue callbacks scoped into Phase 5 explicitly, converted in the same commit as their `panel-actions-controller.ts` call sites; searched all of `src/ui/*.ts` for the same `GameState \| void = state`-default pattern and confirmed `city-panel.ts` is the only file with this specific hazard shape |
+| **(found in review) The one existing test for the city-production queue path is coupled to the mutation bug and would give a false pass or false regression signal either way** | Phase 5 rewrites (not extends) that test to assert against `deps.session.getState()` and to prove `createCityPanel` is re-invoked with fresh data |
