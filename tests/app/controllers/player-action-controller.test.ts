@@ -588,19 +588,24 @@ describe('PlayerActionController', () => {
       expect(deps.hud.update).not.toHaveBeenCalled();
     });
 
-    it('conquers the minor civ and transfers its city after a successful movement', () => {
+    it('conquers the minor civ, transfers its city, publishes once, and clears the mover\'s movement points', () => {
       const { state } = makeFixture('minor-civ-conquest-success');
       const mcId = Object.keys(state.minorCivs)[0]!;
       const cityId = state.minorCivs[mcId].cityId;
+      placeUnit(state, 'warrior', 'attacker-1', { q: 0, r: 0 });
       const { deps, controller } = build(state);
+      const listener = vi.fn();
+      deps.session.subscribe(listener);
 
       controller.executeMinorCivConquest('attacker-1', { q: 0, r: 0 }, mcId, cityId);
 
       const updated = deps.session.getState();
       expect(updated.minorCivs[mcId].isDestroyed).toBe(true);
       expect(updated.cities[cityId]?.owner).toBe('player');
+      expect(updated.units['attacker-1']?.movementPointsLeft).toBe(0);
       expect(deps.showNotification).toHaveBeenCalledWith(expect.stringContaining('conquered'), 'success');
       expect(deps.hud.update).toHaveBeenCalled();
+      expect(listener).toHaveBeenCalledTimes(1);
     });
   });
 
