@@ -47,7 +47,7 @@ providers, aircraft, routes, or combat values.
 | Current player can see a rival provider | Visible only if the current player also owns coverage | That visible provider may appear when enabled | It reflects current visibility only. |
 | Rival provider is fogged or unknown | No change | Never drawn or hinted | No hot-seat or fog leak. |
 | Hot-seat handoff | Re-evaluated for the new viewer | New viewer's preference and knowledge only | One player's enabled setting cannot reveal another's intel. |
-| Radar Station is pillaged or otherwise non-operational | Re-evaluated immediately | Dependent SAM coverage changes immediately | The map never claims a disabled radar-backed network is active. |
+| Radar Station is not built | Re-evaluated immediately | Dependent SAM coverage is absent | The map never claims an unbuilt radar-backed network is active. |
 
 ## Misleading UI risks to avoid
 
@@ -62,7 +62,7 @@ providers, aircraft, routes, or combat values.
 ## Interaction replay checklist
 
 1. Start a solo game before an operational provider exists: no control is shown.
-2. Build or repair a Radar-backed provider: the labelled control appears, still off.
+2. Complete a Radar-backed provider: the labelled control appears, still off.
 3. Enable it: rings and the `Known providers only` legend appear immediately.
 4. Pan, zoom, and pinch: the rings remain correctly anchored to their hexes.
 5. Enable reduced motion: the same information remains, without an animated sweep.
@@ -74,13 +74,16 @@ providers, aircraft, routes, or combat values.
 
 - Radar operational state, SAM coverage, AI valuation, and renderer input must use one typed,
   canonical resolver; neither AI nor renderer may scan the full map per candidate or frame.
-- Cache viewer-safe coverage by state revision, invalidate on relevant building/unit/visibility
-  changes, and return serializable copies at the boundary.
+- Cache coverage with an explicit relevant-state revision: invalidate on city-building,
+  provider-unit, map-wrap, and provider-tile visibility changes; return serializable copies at
+  the boundary.
 - Keep Explorer, Standard, and Veteran legality and formulas identical. Difficulty may change
   only existing typed decision pressure, never knowledge.
 - Preserve distribution neutrality: no Tauri imports or platform-specific save/UI branches.
-- The intended change is presentation and derived state only. If persisted game shape is not
-  changed, do not introduce a save migration; if it is, make normalization idempotent and test
-  current, schema-0, and previous-schema loads.
+- Buildings currently have no disabled or pillaged persisted state. In this issue, "operational"
+  means completed in the owning city's `buildings` list. The intended change is therefore derived
+  state only: do not add a save migration. If a future issue introduces a persisted disabled
+  building state, it must make normalization idempotent and test current, schema-0, and
+  previous-schema loads.
 - No new sound effect is needed for a visibility-only toggle. If implementation later adds one,
   it must be optional, muted with the mixer, and have a visual/text equivalent.

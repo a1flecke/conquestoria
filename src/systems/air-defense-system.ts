@@ -6,7 +6,14 @@ import { UNIT_DEFINITIONS } from './unit-system';
 
 export interface ResolvedAirDefenseProvider extends AirDefenseCoverageProvider {}
 interface UnfilteredCoverage { flatDefenseModifier: number; facts: CombatModifierFact[]; providers: ResolvedAirDefenseProvider[]; }
-const coverageCache = new WeakMap<GameState, Map<string, UnfilteredCoverage>>();
+interface CoverageCache { revision: string; values: Map<string, UnfilteredCoverage>; }
+const coverageCache = new WeakMap<GameState, CoverageCache>();
+
+function coverageRevision(state: GameState): string {
+  const cities = Object.values(state.cities).map(city => `${city.id}:${city.owner}:${city.position.q},${city.position.r}:${[...city.buildings].sort().join(',')}`).sort();
+  const units = Object.values(state.units).map(unit => `${unit.id}:${unit.owner}:${unit.type}:${unit.position.q},${unit.position.r}:${unit.transportId ?? ''}`).sort();
+  return `${state.map.width}:${state.map.wrapsHorizontally}:${cities.join('|')}:${units.join('|')}`;
+}
 
 function distance(state: GameState, left: Unit['position'], right: Unit['position']): number {
   return state.map.wrapsHorizontally ? wrappedHexDistance(left, right, state.map.width) : hexDistance(left, right);
@@ -17,7 +24,8 @@ function known(state: GameState, provider: ResolvedAirDefenseProvider, viewerId:
 function providersForOwner(state: GameState, ownerId: string): ResolvedAirDefenseProvider[] {
   const cityProviders = Object.values(state.cities).flatMap(city => city.owner !== ownerId ? [] : city.buildings.flatMap(buildingId => {
     const building = BUILDINGS[buildingId]; const capability = building?.airDefenseProvider;
-    return capability ? [{ id: `city:${city.id}:${building.id}`, label: building.name, position: { ...city.position }, ownerId, ...capability }] : [];
+    const requirementsMet = capability?.requiresCompletedBuildingIds?.every(id => city.buildings.includes(id)) ?? true;
+    return capability && requirementsMet ? [{ id: `city:${city.id}:${building.id}`, label: building.name, position: { ...city.position }, ownerId, ...capability }] : [];
   }));
   const unitProviders = Object.values(state.units).flatMap(unit => {
     const capability = UNIT_DEFINITIONS[unit.type].airDefenseProvider;
@@ -53,7 +61,10 @@ export function selectStrongestAirDefenseProviders(providers: ResolvedAirDefense
   return { flatDefenseModifier: ordered.filter(provider => ids.has(provider.id)).reduce((total, provider) => total + provider.defenseModifier, 0), facts: ordered.map(provider => ({ key: `air-defense:${provider.id}`, label: provider.label, sourceVisibility: 'owner', operation: 'flat', value: provider.defenseModifier, outcome: ids.has(provider.id) ? 'applied' : 'superseded' })), providers: ordered };
 }
 export function resolveAirDefenseCoverage(state: GameState, defender: Unit, viewerId: string): AirDefenseCoverageResult {
-  const key = `${defender.owner}:${defender.position.q},${defender.position.r}:${UNIT_DEFINITIONS[defender.type].domain ?? 'land'}`; let cache = coverageCache.get(state); if (!cache) { cache = new Map(); coverageCache.set(state, cache); } let result = cache.get(key); if (!result) { result = selectStrongestAirDefenseProviders(providersFor(state, defender)); cache.set(key, result); }
+  const key = `${defender.owner}:${defender.position.q},${defender.position.r}:${UNIT_DEFINITIONS[defender.type].domain ?? 'land'}`;
+  const revision = coverageRevision(state); let cache = coverageCache.get(state);
+  if (!cache || cache.revision !== revision) { cache = { revision, values: new Map() }; coverageCache.set(state, cache); }
+  let result = cache.values.get(key); if (!result) { result = selectStrongestAirDefenseProviders(providersFor(state, defender)); cache.values.set(key, result); }
   const visible = new Set(result.providers.filter(provider => known(state, provider, viewerId)).map(provider => provider.id));
   return { flatDefenseModifier: result.flatDefenseModifier, facts: result.facts.filter(fact => visible.has(fact.key.slice('air-defense:'.length))), providers: result.providers.filter(provider => visible.has(provider.id)).map(provider => ({ ...provider, position: { ...provider.position } })) };
 }

@@ -406,7 +406,10 @@ export interface AirOperationDefinition {
 
 export type AirDefenseProviderKind = 'building' | 'unit' | 'naval-unit';
 export interface AirDefenseProviderDefinition { id: string; kind: AirDefenseProviderKind; radius: number; defenseModifier: number; stackingGroup: string; label: string; protectedDomains?: Array<'land' | 'naval' | 'air'>; }
-export type AirDefenseProviderCapability = Omit<AirDefenseProviderDefinition, 'id' | 'kind' | 'label'>;
+export type AirDefenseProviderCapability = Omit<AirDefenseProviderDefinition, 'id' | 'kind' | 'label'> & {
+  /** Completed city-building IDs required for this provider to operate. */
+  requiresCompletedBuildingIds?: readonly string[];
+};
 export interface AirDefenseCoverageProvider { id: string; label: string; position: HexCoord; ownerId: string; radius: number; defenseModifier: number; stackingGroup: string; protectedDomains?: Array<'land' | 'naval' | 'air'>; }
 export interface AirDefenseCoverageResult { flatDefenseModifier: number; facts: CombatModifierFact[]; providers: AirDefenseCoverageProvider[]; }
 
