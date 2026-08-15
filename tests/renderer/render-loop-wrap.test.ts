@@ -167,6 +167,37 @@ describe('render-loop wrap parity', () => {
     }
   });
 
+  it('refreshes cached overlay providers and toggle state for a hot-seat handoff', () => {
+    const loop = new RenderLoop(createCanvas());
+    const state = {
+      turn: 1,
+      currentPlayer: 'human-a',
+      map: { width: 5, height: 3, wrapsHorizontally: false, tiles: {}, rivers: [] },
+      tribalVillages: {}, minorCivs: {}, units: {},
+      cities: {
+        aegis: {
+          id: 'aegis', owner: 'human-a', position: { q: 1, r: 1 },
+          buildings: ['anti_air_battery'],
+        },
+      },
+      civilizations: {
+        'human-a': { color: '#4a90d9', visibility: { tiles: {} } },
+        'human-b': { color: '#ef4444', visibility: { tiles: {} } },
+      },
+    } as unknown as GameState;
+
+    loop.setGameState(state);
+    expect((loop as unknown as { airDefenseOverlayProviders: unknown[] }).airDefenseOverlayProviders)
+      .toHaveLength(1);
+    expect(loop.toggleAirDefenseOverlay()).toBe(true);
+
+    loop.setGameState({ ...state, currentPlayer: 'human-b' });
+
+    expect(loop.isAirDefenseOverlayEnabled('human-b')).toBe(false);
+    expect((loop as unknown as { airDefenseOverlayProviders: unknown[] }).airDefenseOverlayProviders)
+      .toHaveLength(0);
+  });
+
   it('draws air-mission highlights with distinct strike and recon colors', () => {
     rendererMocks.drawHexHighlight.mockReset();
     const loop = new RenderLoop(createCanvas());
