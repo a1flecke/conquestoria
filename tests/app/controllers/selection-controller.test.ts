@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { createNewGame } from '@/core/game-state';
 import { EventBus } from '@/core/event-bus';
 import { createUnit } from '@/systems/unit-system';
+import { createEspionageCivState } from '@/systems/espionage-system';
 import type { GameState, Unit } from '@/core/types';
 import { createGameSession } from '@/app/game-session';
 import { createSelectionStore } from '@/app/selection-store';
@@ -37,6 +38,12 @@ function placePlayerUnit(state: GameState, id: string, overrides: Partial<Unit> 
   state.units[id] = { ...template, id, owner: 'player', position: { q: 0, r: 0 }, ...overrides };
   if (!state.civilizations.player.units.includes(id)) state.civilizations.player.units.push(id);
   return state.units[id];
+}
+
+function findButtonByText(container: HTMLElement, text: string): HTMLButtonElement {
+  const button = Array.from(container.querySelectorAll('button')).find(b => b.textContent === text);
+  if (!button) throw new Error(`No button with exact text "${text}" found in container`);
+  return button as HTMLButtonElement;
 }
 
 function fakeRenderer(overrides: Partial<SelectionControllerRenderer> = {}): SelectionControllerRenderer {
@@ -375,5 +382,33 @@ describe('SelectionController', () => {
 
     expect(() => controller.refreshCurrentPlayerVisibility()).not.toThrow();
     expect(deps.scanBeastSightings).toHaveBeenCalledTimes(1);
+  });
+
+  describe('onSetDisguise', () => {
+    it('sets the disguise and marks the unit acted, publishing through session subscribers', () => {
+      const state = makeFixture();
+      placePlayerUnit(state, 'spy-1', { type: 'spy_informant', position: { q: 0, r: 0 } });
+      state.espionage = { player: createEspionageCivState() };
+      state.espionage.player.spies['spy-1'] = {
+        id: 'spy-1', owner: 'player', name: 'Agent', unitType: 'spy_informant',
+        targetCivId: null, targetCityId: null, position: null,
+        status: 'idle', experience: 0, currentMission: null,
+        cooldownTurns: 0, promotion: undefined, promotionAvailable: false, feedsFalseIntel: false,
+      };
+      document.body.innerHTML = '<div id="info-panel"></div>';
+      const deps = baseDeps(state);
+      const controller = createSelectionController(deps);
+      const listener = vi.fn();
+      deps.session.subscribe(listener);
+
+      controller.selectUnit('spy-1');
+      const panel = document.getElementById('info-panel')!;
+      findButtonByText(panel, 'As Warrior').click();
+
+      const updated = deps.session.getState();
+      expect(updated.espionage!.player.spies['spy-1'].disguiseAs).toBe('warrior');
+      expect(updated.units['spy-1'].hasActed).toBe(true);
+      expect(listener).toHaveBeenCalled();
+    });
   });
 });

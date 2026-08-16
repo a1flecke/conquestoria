@@ -393,10 +393,14 @@ export function createSelectionController(deps: SelectionControllerDeps): Select
           if (!civEsp) return;
           const spy = civEsp.spies[uid];
           if (!spy || spy.status !== 'idle') return;
-          session.getState().espionage![session.getState().currentPlayer] = setDisguise(civEsp, uid, disguise);
-          if (disguise !== null) {
-            session.getState().units[uid] = { ...unit, hasActed: true, movementPointsLeft: 0 };
-          }
+          const currentPlayer = session.getState().currentPlayer;
+          session.commit({
+            ...session.getState(),
+            espionage: { ...session.getState().espionage, [currentPlayer]: setDisguise(civEsp, uid, disguise) },
+            units: disguise !== null
+              ? { ...session.getState().units, [uid]: { ...unit, hasActed: true, movementPointsLeft: 0 } }
+              : session.getState().units,
+          });
           renderLoop.setGameState(session.getState());
           deps.updateHUD();
           selectUnit(uid);
