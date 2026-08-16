@@ -841,6 +841,28 @@ describe('PanelActionsController', () => {
       expect(deps.uiLayer.children.length).toBeGreaterThan(0);
     });
 
+    it('onAssignDefensive embeds the spy, removes the unit, and publishes through session subscribers', () => {
+      const { state } = makeFixture('espionage-assign-defensive');
+      state.cities['home-city'] = makeCity('home-city', { owner: 'player' });
+      state.civilizations.player.cities = ['home-city'];
+      placeUnit(state, 'spy_scout', 'spy-1', { q: 0, r: 0 });
+      placeSpy(state, 'spy-1');
+      const { deps, controller } = build(state);
+      const listener = vi.fn();
+      deps.session.subscribe(listener);
+      vi.spyOn(window, 'prompt').mockImplementation((_msg, defaultValue) => defaultValue ?? null);
+
+      controller.openEspionagePanel();
+      const options = mockedCallArg<{ onAssignDefensive: (spyId: string) => void }>(createEspionagePanel, 0, 1);
+      options.onAssignDefensive('spy-1');
+
+      const updated = deps.session.getState();
+      expect(updated.units['spy-1']).toBeUndefined();
+      expect(updated.espionage!.player.spies['spy-1'].status).toBe('embedded');
+      expect(deps.hud.update).toHaveBeenCalled();
+      expect(listener).toHaveBeenCalled();
+    });
+
     it('recalls a stationed spy via the real system call and reopens the panel through router', () => {
       const { state } = makeFixture('espionage-recall');
       placeSpy(state, 'spy-1', { status: 'stationed', targetCivId: 'ai-1', targetCityId: 'foreign-city' });

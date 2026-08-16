@@ -897,19 +897,25 @@ export function createPanelActionsController(deps: PanelActionsControllerDeps): 
       onAssignDefensive: (spyId) => {
         const target = chooseFriendlyCityTarget();
         if (!target) return;
-        deps.session.getState().espionage![deps.session.getState().currentPlayer] = embedSpy(
-          deps.session.getState().espionage![deps.session.getState().currentPlayer],
-          spyId,
-          target.cityId,
-          target.position,
-        );
+        const currentPlayer = deps.session.getState().currentPlayer;
         const unit = deps.session.getState().units[spyId];
+        const nextEspionage = {
+          ...deps.session.getState().espionage,
+          [currentPlayer]: embedSpy(deps.session.getState().espionage![currentPlayer], spyId, target.cityId, target.position),
+        };
+        let nextUnits = deps.session.getState().units;
+        let nextCivilizations = deps.session.getState().civilizations;
         if (unit) {
-          delete deps.session.getState().units[spyId];
-          deps.session.getState().civilizations[deps.session.getState().currentPlayer].units =
-            deps.session.getState().civilizations[deps.session.getState().currentPlayer].units.filter(id => id !== spyId);
+          const { [spyId]: _removed, ...remainingUnits } = nextUnits;
+          nextUnits = remainingUnits;
+          nextCivilizations = {
+            ...nextCivilizations,
+            [currentPlayer]: { ...nextCivilizations[currentPlayer], units: nextCivilizations[currentPlayer].units.filter(id => id !== spyId) },
+          };
         }
+        deps.session.commit({ ...deps.session.getState(), espionage: nextEspionage, units: nextUnits, civilizations: nextCivilizations });
         deps.renderLoop.setGameState(deps.session.getState());
+        deps.hud.update();
         deps.router.open('espionage');
         const cityName = deps.session.getState().cities[target.cityId]?.name ?? target.cityId;
         deps.showNotification(`Spy embedded in ${cityName}. Counter-intelligence boosted.`, 'info');
