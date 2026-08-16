@@ -102,7 +102,7 @@ export interface GameSessionControllerDeps {
   readonly mapInteraction: Pick<MapInteractionController, 'handleHexTap' | 'handleHexLongPress'>;
   readonly selectionController: Pick<SelectionController, 'selectNextUnit' | 'selectUnit'>;
   readonly hud: HudController;
-  readonly campaignEntry: Pick<CampaignEntryController, 'showStartSavePanel' | 'showGameModeSelection' | 'enterCampaignForE2E'>;
+  readonly campaignEntry: Pick<CampaignEntryController, 'showStartSavePanel' | 'showGameModeSelection' | 'enterCampaignForE2E' | 'enterCampaign'>;
   readonly getElementById: (id: string) => HTMLElement | null;
   readonly showNotification: (message: string, type?: 'info' | 'success' | 'warning') => void;
   /** Phase 13's future home -- passed as a dep until `PlayerActionController` exists. */
@@ -346,6 +346,26 @@ export function createGameSessionController(deps: GameSessionControllerDeps): Ga
     // installed eagerly at module scope (#787 phase 5).
     installGlobalShortcuts({ target: window, selection: deps.selection, router: deps.router, notifier });
     await deps.userSettingsStore.refresh();
+
+    // #846: developer scenario loader. import.meta.env.DEV is a Vite
+    // compile-time constant (true for `vite`/`vite dev`, false for
+    // `vite build`) -- this whole branch, and the dynamic imports inside it,
+    // are dead code eliminated from the production bundle. Distinct from the
+    // MODE === 'e2e' branch below: this is reachable under plain `yarn dev`,
+    // not only the Playwright test build.
+    if (import.meta.env.DEV) {
+      const scenarioName = new URLSearchParams(window.location.search).get('scenario');
+      if (scenarioName) {
+        const { SCENARIOS } = await import('@/testing/scenarios');
+        const definition = SCENARIOS[scenarioName];
+        if (!definition) {
+          throw new Error(`Unknown scenario "${scenarioName}". Known scenarios: ${Object.keys(SCENARIOS).join(', ')}`);
+        }
+        const { buildScenario } = await import('@/testing/scenario-builder');
+        await deps.campaignEntry.enterCampaign(buildScenario(definition), `Scenario: ${definition.name}`);
+        return;
+      }
+    }
 
     if (import.meta.env.MODE === 'e2e') {
       // Browser tests must target the same live camera transform as player input;
