@@ -9,7 +9,7 @@ import { createUnit } from '@/systems/unit-system';
 import { createEspionageCivState } from '@/systems/espionage-system';
 import type { PirateFocusTarget } from '@/systems/pirate-presentation';
 import type { NotificationMapTarget } from '@/core/notification-log';
-import type { GameState, HexCoord, Spy } from '@/core/types';
+import type { CouncilTalkLevel, GameState, HexCoord, Spy } from '@/core/types';
 import {
   createPanelActionsController,
   type PanelActionsControllerDeps,
@@ -517,6 +517,20 @@ describe('PanelActionsController', () => {
 
       expect(deps.session.getState().settings.councilTalkLevel).toBe('detailed');
       expect(saveSettings).toHaveBeenCalledWith(expect.objectContaining({ councilTalkLevel: 'detailed' }));
+    });
+
+    it('onTalkLevelChange publishes the new council talk level through session subscribers', () => {
+      const { state } = makeFixture('council-talk-level');
+      const { deps, controller } = build(state);
+      const listener = vi.fn();
+      deps.session.subscribe(listener);
+
+      controller.openCouncilPanel();
+      const options = mockedCallArg<{ onTalkLevelChange: (level: CouncilTalkLevel) => void }>(createCouncilPanel, 0, 2);
+      options.onTalkLevelChange('chatty');
+
+      expect(deps.session.getState().settings.councilTalkLevel).toBe('chatty');
+      expect(listener).toHaveBeenCalled();
     });
   });
 
