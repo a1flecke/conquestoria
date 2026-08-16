@@ -2398,7 +2398,7 @@ Both the grep-based boundary test and the real-time edit hook, added only once P
 - Consumes: `readdirSync`, `readFileSync` (already imported in this file, per its existing `controllers depend on ports...` test).
 - Produces: no new exports — this is a test-only addition.
 
-- [ ] **Step 1: Re-run the full inventory** from the spec's grep commands against the current `src/` tree, restricted to `src/app/**`, `src/presentation/**`, `src/ui/**`, excluding `src/app/game-session.ts` and `src/app/ports.ts`:
+- [x] **Step 1: Re-run the full inventory** from the spec's grep commands against the current `src/` tree, restricted to `src/app/**`, `src/presentation/**`, `src/ui/**`, excluding `src/app/game-session.ts` and `src/app/ports.ts`:
 
 ```bash
 grep -rnE "getState\(\)(\.[A-Za-z0-9_]+[!]?|\[[^]]+\])+\s*=[^=]" src/app src/presentation src/ui --include="*.ts" | grep -v "src/app/game-session.ts\|src/app/ports.ts"
@@ -2408,7 +2408,7 @@ grep -rnE "getState\(\)(\.[A-Za-z0-9_]+|\[[^]]+\])+\.(push|splice|pop|shift|unsh
 
 Expected: zero output from all three, confirming Phases 1-5 closed the count. If anything remains, stop here and add a Task 6.0 to convert it before proceeding — do not add a passing test with a documented allowlist for a real leftover site; the spec's whole point is zero, not "zero except these."
 
-- [ ] **Step 2: Write the test.** Add to `tests/app/architecture-boundaries.test.ts`, after the existing `'controllers depend on ports...'` test:
+- [x] **Step 2: Write the test.** Add to `tests/app/architecture-boundaries.test.ts`, after the existing `'controllers depend on ports...'` test:
 
 ```ts
 it('no app/presentation/ui file mutates the object returned by session.getState() directly', () => {
@@ -2450,14 +2450,14 @@ it('no app/presentation/ui file mutates the object returned by session.getState(
 });
 ```
 
-- [ ] **Step 2: Run test to verify it passes** (Phases 1-5 already emptied the inventory, so this should pass immediately — it's a regression guard, not a TDD-from-red test).
+- [x] **Step 2: Run test to verify it passes** (Phases 1-5 already emptied the inventory, so this should pass immediately — it's a regression guard, not a TDD-from-red test).
 
 Run: `bash scripts/run-with-mise.sh yarn vitest run tests/app/architecture-boundaries.test.ts`
 Expected: PASS.
 
-- [ ] **Step 3: Prove the guard actually catches a violation** (temporary, do not commit): add a throwaway line like `deps.session.getState().turn = 1;` to any file under `src/app/`, re-run the test, confirm it fails with a message naming the file and line, then revert the throwaway line.
+- [x] **Step 3: Prove the guard actually catches a violation** (temporary, do not commit): add a throwaway line like `deps.session.getState().turn = 1;` to any file under `src/app/`, re-run the test, confirm it fails with a message naming the file and line, then revert the throwaway line.
 
-- [ ] **Step 4: Commit.**
+- [x] **Step 4: Commit.**
 
 ```bash
 git add tests/app/architecture-boundaries.test.ts
@@ -2473,7 +2473,7 @@ git commit -m "test(architecture-boundaries): ban direct mutation through sessio
 **Interfaces:**
 - Consumes: the hook's existing `append()` helper function (already defined in the file, used by every other check block).
 
-- [ ] **Step 1: Add block-case and allow-case fixtures to the smoke test.** In `tests/hooks/check-src-edit.test.sh`, after the existing `# --- block: cities[0] in a UI file ---` block (or any existing block near the top), add:
+- [x] **Step 1: Add block-case and allow-case fixtures to the smoke test.** In `tests/hooks/check-src-edit.test.sh`, after the existing `# --- block: cities[0] in a UI file ---` block (or any existing block near the top), add:
 
 ```bash
 # --- block: direct mutation through session.getState() in src/app ---
@@ -2489,12 +2489,12 @@ EOF
 expect_allow "$tmp/src/ui/reader.ts" "getState() read-only in src/ui"
 ```
 
-- [ ] **Step 2: Run the smoke test to verify it fails.**
+- [x] **Step 2: Run the smoke test to verify it fails.**
 
 Run: `bash tests/hooks/check-src-edit.test.sh`
 Expected: FAIL on the new `expect_block` case (`check-src-edit.sh` doesn't check this pattern yet, so it exits 0 instead of the expected 2).
 
-- [ ] **Step 3: Write minimal implementation.** Add a new check block to `.claude/hooks/check-src-edit.sh`, placed near the existing "direct state mutation in turn processing" block (mirroring its structure), before the final `if [ -n "$violations" ]; then`:
+- [x] **Step 3: Write minimal implementation.** Add a new check block to `.claude/hooks/check-src-edit.sh`, placed near the existing "direct state mutation in turn processing" block (mirroring its structure), before the final `if [ -n "$violations" ]; then`:
 
 ```bash
 # --- direct mutation through session.getState() outside game-session.ts/ports.ts ---
@@ -2517,17 +2517,17 @@ $lines"
 esac
 ```
 
-- [ ] **Step 4: Run the smoke test to verify it passes.**
+- [x] **Step 4: Run the smoke test to verify it passes.**
 
 Run: `bash tests/hooks/check-src-edit.test.sh`
 Expected: PASS, all cases (existing ones plus the 2 new ones).
 
-- [ ] **Step 5: Run the full test suite once more** to confirm this hook change doesn't break anything else (it's a hook script, not directly exercised by `yarn test`, but `tests/hooks/run.sh` — if that's how hook smoke tests are wired into `yarn test`, per `.claude/rules/hooks-and-tooling.md` — must still pass):
+- [x] **Step 5: Run the full test suite once more** to confirm this hook change doesn't break anything else (it's a hook script, not directly exercised by `yarn test`, but `tests/hooks/run.sh` — if that's how hook smoke tests are wired into `yarn test`, per `.claude/rules/hooks-and-tooling.md` — must still pass):
 
 Run: `bash scripts/run-with-mise.sh yarn test`
 Expected: PASS.
 
-- [ ] **Step 6: Commit.**
+- [x] **Step 6: Commit.**
 
 ```bash
 git add .claude/hooks/check-src-edit.sh tests/hooks/check-src-edit.test.sh
@@ -2536,9 +2536,9 @@ git commit -m "feat(check-src-edit): catch direct mutation through session.getSt
 
 ### Phase 6 close-out
 
-- [ ] Run `bash scripts/run-with-mise.sh yarn build` — expect exit 0.
-- [ ] Run `bash scripts/run-with-mise.sh yarn test` — expect exit 0.
-- [ ] Open the PR. Title: `fix(787): GameSession state-mutation audit — Phase 6 (regression guard)`. Body confirms the inventory is verified at zero as of this PR and links Phases 1-5.
+- [x] Run `bash scripts/run-with-mise.sh yarn build` — expect exit 0.
+- [x] Run `bash scripts/run-with-mise.sh yarn test` — expect exit 0.
+- [x] Open the PR. Title: `fix(787): GameSession state-mutation audit — Phase 6 (regression guard)`. Body confirms the inventory is verified at zero as of this PR and links Phases 1-5.
 
 ---
 
