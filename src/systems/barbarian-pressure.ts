@@ -1,4 +1,6 @@
-import type { BarbarianCampPressure, GameState } from '@/core/types';
+import type { BarbarianCampPressure, GameState, Unit } from '@/core/types';
+import { getUnitRoleDefinition } from './combat-role-definitions';
+import { mapDistance } from './hex-utils';
 
 export type BarbarianPressureKind = 'armor' | 'air';
 
@@ -58,4 +60,40 @@ export function normalizeBarbarianCampPressure(state: GameState): GameState {
   return JSON.stringify(existing) === JSON.stringify(normalized)
     ? state
     : { ...state, barbarianCampPressure: normalized };
+}
+
+function isArmoredUnit(unit: Unit): boolean {
+  return getUnitRoleDefinition(unit.type)?.localInfrastructureFamilies?.includes('armored') === true;
+}
+
+function airBasePosition(state: GameState, unit: Unit) {
+  if (!unit.airBase) return undefined;
+  return unit.airBase.kind === 'city'
+    ? state.cities[unit.airBase.cityId]?.position
+    : state.units[unit.airBase.unitId]?.position;
+}
+
+/**
+ * Records only observations already supplied by the camp-local planner; callers
+ * must never pass a global unit scan as its sensedUnits argument.
+ */
+export function observeCampPressureFromSensedUnits(
+  state: GameState,
+  campId: string,
+  sensedUnits: readonly Unit[],
+): GameState {
+  const camp = state.barbarianCamps[campId];
+  if (!camp) return state;
+  let nextState = state;
+  for (const unit of sensedUnits) {
+    if (unit.owner === 'barbarian' || unit.transportId) continue;
+    if (isArmoredUnit(unit) && mapDistance(state.map, camp.position, unit.position) <= 6) {
+      nextState = recordCampPressure(nextState, campId, 'armor', state.turn);
+    }
+    const basePosition = airBasePosition(state, unit);
+    if (basePosition && mapDistance(state.map, camp.position, basePosition) <= 6) {
+      nextState = recordCampPressure(nextState, campId, 'air', state.turn);
+    }
+  }
+  return nextState;
 }

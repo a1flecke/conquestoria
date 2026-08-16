@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { createNewGame } from '@/core/game-state';
+import { createUnit } from '@/systems/unit-system';
 import {
   getActiveCampPressure,
+  observeCampPressureFromSensedUnits,
   recordCampPressure,
 } from '@/systems/barbarian-pressure';
 
@@ -34,5 +36,33 @@ describe('barbarian camp pressure', () => {
 
     expect(observed.barbarianCampPressure?.['camp-a']).toEqual({ armorLastObservedTurn: 15 });
     expect(JSON.stringify(observed.barbarianCampPressure)).not.toContain('unit-');
+  });
+
+  it('records a nearby sensed armored unit but ignores a distant unit that only exists in game state', () => {
+    const state = pressureState();
+    const nearbyTank = createUnit('tank', 'player', { q: 7, r: 5 }, state.idCounters);
+    const distantTank = createUnit('tank', 'player', { q: 20, r: 5 }, state.idCounters);
+    state.units = { [nearbyTank.id]: nearbyTank, [distantTank.id]: distantTank };
+
+    const observed = observeCampPressureFromSensedUnits(state, 'camp-a', [nearbyTank]);
+
+    expect(getActiveCampPressure(observed, 'camp-a', state.turn)).toEqual(['armor']);
+    expect(JSON.stringify(observed.barbarianCampPressure)).not.toContain(distantTank.id);
+  });
+
+  it('records a sensed based aircraft only when its base is within six hexes', () => {
+    const state = pressureState();
+    state.cities['airfield'] = {
+      id: 'airfield', owner: 'player', position: { q: 7, r: 5 }, buildings: ['airfield'],
+    } as never;
+    const aircraft = createUnit('biplane', 'player', { q: 7, r: 5 }, state.idCounters);
+    aircraft.airBase = { kind: 'city', cityId: 'airfield' };
+    state.units = { [aircraft.id]: aircraft };
+
+    expect(getActiveCampPressure(observeCampPressureFromSensedUnits(state, 'camp-a', [aircraft]), 'camp-a', state.turn))
+      .toEqual(['air']);
+    state.cities.airfield.position = { q: 20, r: 5 };
+    expect(getActiveCampPressure(observeCampPressureFromSensedUnits(state, 'camp-a', [aircraft]), 'camp-a', state.turn))
+      .toEqual([]);
   });
 });

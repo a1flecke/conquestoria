@@ -267,6 +267,19 @@ describe('processPurposefulBarbarians', () => {
     expect(JSON.stringify(result.opponentAI)).not.toContain('unseen-worker');
   });
 
+  it('records only camp-sensed armor pressure for the next reinforcement slice', () => {
+    const state = purposefulState();
+    const nearbyTank = createUnit('tank', 'player', { q: 7, r: 5 }, state.idCounters);
+    const distantTank = createUnit('tank', 'player', { q: 20, r: 5 }, state.idCounters);
+    state.units = { [nearbyTank.id]: nearbyTank, [distantTank.id]: distantTank };
+    state.civilizations.player.units = [nearbyTank.id, distantTank.id];
+
+    const result = processPurposefulBarbarians(state);
+
+    expect(result.barbarianCampPressure).toEqual({ 'camp-a': { armorLastObservedTurn: state.turn } });
+    expect(JSON.stringify(result.barbarianCampPressure)).not.toContain(distantTank.id);
+  });
+
   it('uses the final roster band beyond its declared maximum era', () => {
     expect(getBarbarianRosterForEra(12)).toEqual({
       maxEra: 11,
