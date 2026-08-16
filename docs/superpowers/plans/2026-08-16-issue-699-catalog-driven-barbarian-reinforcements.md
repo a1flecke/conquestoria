@@ -4,7 +4,7 @@
 
 **Goal:** Activate #699's bounded barbarian reinforcements through the existing eligibility catalog so every future unit is explicitly eligible or excluded.
 
-**Architecture:** `barbarian-roster.ts` remains the complete classification table. `barbarian-force-composer.ts` becomes the sole selector of a legal reinforcement from era, existing camp force, coarse local observations, and deterministic seed. `processPurposefulBarbarians` supplies only camp-local inputs; the turn manager continues creating the selected unit.
+**Architecture:** `barbarian-roster.ts` remains the complete classification table. `barbarian-force-composer.ts` becomes the sole selector of a legal reinforcement from era, the complete existing camp force, coarse local observations, and a deterministic seed. `processPurposefulBarbarians` establishes sensing and a viewer-safe intended target before selection; the turn manager continues creating the selected unit.
 
 **Tech Stack:** TypeScript, Vitest, serializable `GameState`, existing seeded LCG utilities.
 
@@ -14,7 +14,7 @@
 
 #696 already adds `BARBARIAN_ELIGIBILITY_BY_UNIT` as `Record<UnitType, BarbarianEligibility>`; #697 already has an inert deterministic composer; and #698 persists camp-local `armor` / `air` observations. The only missing connection is `chooseBarbarianSpawnType()` in `src/systems/barbarian-system.ts`, which still reads the legacy `BARBARIAN_ROSTER_BY_ERA`.
 
-No new UI, notification, save shape, unit type, art/audio asset, difficulty legality rule, resource rule, or mass upgrade belongs here. #700 retains global spawn-cap and balance auditing. “Bounded” in this change means declared era windows, role shares, mutual exclusions, and per-camp specialist caps.
+No new UI, notification, save shape, unit type, art/audio asset, difficulty *legality* rule, resource rule, or mass upgrade belongs here. #700 retains global spawn-cap and balance auditing. “Bounded” in this change means declared era windows, role shares, mutual exclusions, and per-camp specialist caps. Existing unit presentations and visibility-scoped spawn notifications remain the player-facing explanation.
 
 ## Task 1: Make the catalog executable and future-safe
 
@@ -119,7 +119,7 @@ Run: `bash scripts/run-with-mise.sh yarn test --run tests/systems/barbarian-forc
 
 Expected: FAIL because `selectBarbarianReinforcement` is absent.
 
-- [ ] **Step 3: Implement the selector inside the composer.** Add a context with `assignedUnitTypes`, `escalated`, and `seed`. Convert only catalog-eligible assigned types to internal `Candidate` values and use the existing `canAddCandidate()` predicate with `forceSize: assigned.length + 1`. Return `undefined` when every candidate violates a cap; do not bypass a cap as fallback. Keep `composeBarbarianForce()` and route both APIs through the same candidate/cap helpers.
+- [ ] **Step 3: Implement the selector inside the composer.** Add a context with `assignedUnitTypes`, `escalated`, and `seed`. Convert every catalog-*eligible* assigned type to an internal `Candidate` through a new `candidateFromEligibility()` helper that deliberately ignores its era window and observation requirement: a still-live Chariot must continue consuming its mobile slot after E4. Use `candidateForContext()` only for a newly admitted candidate. Call the existing `canAddCandidate()` predicate with `forceSize: assigned.length + 1`. Return `undefined` when every candidate violates a cap; do not bypass a cap as fallback. Keep `composeBarbarianForce()` and route both APIs through the same candidate/cap helpers.
 
 ```ts
 export interface BarbarianReinforcementContext extends BarbarianReinforcementCandidateContext {
@@ -134,7 +134,7 @@ export function selectBarbarianReinforcement(
   const normalized = { ...context, era: normalizeEra(context.era) };
   const forceSize = context.assignedUnitTypes.length + 1;
   const force = context.assignedUnitTypes
-    .map(type => candidateForContext(type, { ...normalized, forceSize }))
+    .map(candidateFromEligibility)
     .filter((candidate): candidate is Candidate => candidate !== null);
   const selectionContext = { ...normalized, forceSize };
   const legal = candidatesFor(selectionContext)
@@ -165,7 +165,7 @@ git commit -m "feat(699): select bounded camp reinforcements"
 - Modify: `tests/systems/barbarian-system.test.ts`
 - Modify: `tests/core/turn-manager.test.ts`
 
-- [ ] **Step 1: Write failing end-to-end tests.** Through `processPurposefulBarbarians()`, make a camp due at era 9/10 and assert a selected unit is a generic legal candidate. Prove current armor observation permits the armor counter, a missing/expired observation does not, existing Mobile AA blocks a second one, and existing barbarians stay unchanged after an era change. Through `processTurn()`, assert the selected unit is created as `barbarian` and assigned to its spawning camp.
+- [ ] **Step 1: Write failing end-to-end tests.** Through `processPurposefulBarbarians()`, make a camp due at era 9/10 and assert a selected unit is a generic legal candidate. Prove the camp senses and records a local armor/air fact before choosing that same turn's due reinforcement; a missing/expired observation does not unlock a specialist; an existing Mobile AA blocks a second; and existing barbarians stay unchanged after an era change while still counting toward caps. Add a hidden high-era-city negative case: it must not affect a camp without a valid sensed target. Through `processTurn()`, assert the selected unit is created as `barbarian`, gets its camp-home mapping, has a valid existing renderer/SFX catalog entry, and sends only the existing visibility-scoped spawn notification.
 
 ```ts
 it('uses only active camp-local pressure for a due reinforcement', () => {
@@ -189,12 +189,19 @@ Run: `bash scripts/run-with-mise.sh yarn test --run tests/systems/barbarian-syst
 
 Expected: FAIL because live selection still calls `chooseBarbarianSpawnType()`.
 
-- [ ] **Step 3: Replace only the legacy selector.** Delete `chooseBarbarianSpawnType()`. For each due camp, retain its current nearest-city target/era calculation, read `getActiveCampPressure(observationState, camp.id, state.turn)`, and call the composer. Keep occupancy checks, coordinate selection, cooldown updates, the turn-manager creation mutation, camp-home mapping, and event emission unchanged. Omit a spawn only when no bounded candidate is legal.
+- [ ] **Step 3: Replace only the legacy selector.** Delete `chooseBarbarianSpawnType()`. Move sensing and `observeCampPressureFromSensedUnits()` before due-spawn selection so the current turn's earned local facts can affect it. Establish a candidate plan before selection; use a target owner only when that plan is still valid *and* its city/unit target was sensed by this camp. Otherwise pass no intended target to `resolveNeutralPressureEra()`, retaining its local lower-median fallback. Derive `seed` with the previous deterministic `gameId:turn:campId` hash in this function. Read `getActiveCampPressure(observationState, camp.id, state.turn)` and call the composer. Keep occupancy checks, coordinate selection, cooldown updates, the turn-manager creation mutation, camp-home mapping, event emission, and visibility-scoped notification text unchanged. Omit a spawn only when no bounded candidate is legal.
 
 ```ts
+const intendedTargetId = existingValid && plan?.target.kind === 'city'
+  ? state.cities[plan.target.id]?.owner
+  : existingValid && plan?.target.kind === 'unit'
+    ? state.units[plan.target.id]?.owner
+    : undefined;
+const seed = [...`${state.gameId ?? 'game'}:${state.turn}:${camp.id}`]
+  .reduce((value, character) => (value * 31 + character.charCodeAt(0)) >>> 0, 1);
 const observedThreats = getActiveCampPressure(observationState, camp.id, state.turn);
 const unitType = selectBarbarianReinforcement({
-  era: resolveNeutralPressureEra(state, camp.position, target?.owner) ?? 1,
+  era: resolveNeutralPressureEra(state, camp.position, intendedTargetId) ?? 1,
   assignedUnitTypes: assigned.map(unit => unit.type),
   observedThreats,
   escalated: camp.strength >= 8,
@@ -226,7 +233,7 @@ git commit -m "feat(699): wire catalog into barbarian reinforcements"
 
 - [ ] **Step 1: Add reviewed-window fixtures.** Table-drive Chariot E2–4, Trebuchet E4–6, Cavalry/Cuirassier E6–8 mutual exclusion, Armored Car E9–11, armor-gated Anti-Tank Gun E9+, air-gated one-per-camp Mobile AA E10+, and Mechanized Infantry E10+. These fixtures must call the generic APIs, never a hardcoded selector branch.
 
-- [ ] **Step 2: Add negative and parity coverage.** Prove excluded naval/air/unique/crisis/deterrence units are never candidates; the same camp input has identical legality for Explorer, Standard, and Veteran; and candidate selection reads neither global unit state, player research, resources, nor current viewer. Verify saved observations and their expiry through the existing #698 pressure test path.
+- [ ] **Step 2: Add negative, difficulty, hot-seat, and persistence coverage.** Prove excluded naval/air/unique/crisis/deterrence units are never candidates; the same camp input has identical legality for Explorer, Standard, and Veteran; and candidate selection reads neither global unit state, player research, resources, nor current viewer. Add a small target-scoped pressure-profile helper using `resolvePressureSeverityForCiv()`: a human target uses its own challenge, an AI target is always Standard, and no profile changes legal candidates. Test two human owners with different saved challenges and nearby camps independently, including notification recipients at handoff. Load a schema-14 save containing active/expired camp facts, then process a due reinforcement to prove migration/normalization and post-load selection agree with a fresh state.
 
 - [ ] **Step 3: Run narrow verification.**
 
@@ -266,4 +273,3 @@ The PR description must state that #699 activates #696–#698, that every future
 - **Coverage:** Task 1 makes future omissions fail in the catalog; Task 2 applies one shared cap-aware selector; Task 3 reaches the real turn path; Task 4 covers exact approved windows and verification.
 - **No scope drift:** This plan adds no persistence or presentation behavior and preserves #700's audit ownership.
 - **Type consistency:** candidate context contains era/observations; reinforcement context adds assigned types, escalation, and seed; the live caller can derive each from existing camp-local state.
-
