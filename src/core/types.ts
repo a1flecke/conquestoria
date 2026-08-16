@@ -1089,6 +1089,11 @@ export interface BarbarianCamp {
   banditLordName?: string;   // named leader for high-threat resurgent camps
 }
 
+export interface BarbarianCampPressure {
+  armorLastObservedTurn?: number;
+  airLastObservedTurn?: number;
+}
+
 export interface PirateFleet {
   id: string;
   unitId: string;            // Unit in state.units with owner === 'pirate'
@@ -1721,6 +1726,8 @@ export interface GameState {
   units: Record<string, Unit>;
   cities: Record<string, City>;
   barbarianCamps: Record<string, BarbarianCamp>;
+  /** Coarse camp-owned observations; never stores live unit or viewer data. */
+  barbarianCampPressure?: Record<string, BarbarianCampPressure>;
   minorCivs: Record<string, MinorCivState>;
   minorCivCoalitions?: Record<string, MinorCivCoalitionRecord>;
   minorCivRegionalCooldowns?: Record<string, MinorCivRegionalCooldown>;
