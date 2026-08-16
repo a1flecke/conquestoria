@@ -258,14 +258,24 @@ export function createTurnFlowController(deps: TurnFlowControllerDeps): TurnFlow
       researchChoices,
       cityChoices,
       onChooseResearch: (techId) => {
-        deps.currentCiv().techState = enqueueResearch(deps.currentCiv().techState, techId);
+        const civ = deps.currentCiv();
+        session.commit({
+          ...session.getState(),
+          civilizations: {
+            ...session.getState().civilizations,
+            [session.getState().currentPlayer]: { ...civ, techState: enqueueResearch(civ.techState, techId) },
+          },
+        });
         deps.showNotification(`Researching ${techId}...`, 'info');
         refreshRequiredChoicesAfterAction();
       },
       onChooseCityBuild: (cityId, itemId) => {
         const city = session.getState().cities[cityId];
         if (!city) return;
-        session.getState().cities[cityId] = enqueueCityProduction(city, itemId);
+        session.commit({
+          ...session.getState(),
+          cities: { ...session.getState().cities, [cityId]: enqueueCityProduction(city, itemId) },
+        });
         deps.showNotification(`${city.name}: queued ${itemId}`, 'info');
         refreshRequiredChoicesAfterAction();
       },
