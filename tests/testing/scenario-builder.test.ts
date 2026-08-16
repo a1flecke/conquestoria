@@ -162,6 +162,31 @@ describe('city step', () => {
     };
     expect(() => buildScenario(blocked)).toThrow(ScenarioError);
   });
+
+  it('throws ScenarioError on an invalid coordinate', () => {
+    const definition: ScenarioDefinition = {
+      name: 'city-step-bad-coord',
+      description: 'test only',
+      seed: 'scenario-city-step-bad-coord',
+      base: soloBase,
+      steps: [{ kind: 'city', civId: 'ai-1', position: { q: 99999, r: 99999 } }],
+    };
+    expect(() => buildScenario(definition)).toThrow(ScenarioError);
+  });
+
+  it('throws ScenarioError on an unknown civId', () => {
+    const definition: ScenarioDefinition = {
+      name: 'city-step-bad-civ',
+      description: 'test only',
+      seed: 'scenario-city-step-bad-civ',
+      base: soloBase,
+      steps: [
+        { kind: 'terrain', position: { q: 2, r: 0 }, terrain: 'plains' },
+        { kind: 'city', civId: 'nonexistent', position: { q: 2, r: 0 } },
+      ],
+    };
+    expect(() => buildScenario(definition)).toThrow(ScenarioError);
+  });
 });
 
 describe('camp step', () => {
@@ -184,6 +209,42 @@ describe('camp step', () => {
     const mover = Object.values(state.units).find(u => u.owner === 'player');
     const blocking = getBlockingMapEntityAt(state, mover!, { q: 6, r: 5 });
     expect(blocking).toEqual({ reason: 'barbarian-camp', entityId: camp!.id });
+  });
+
+  it('throws ScenarioError on an invalid coordinate', () => {
+    const definition: ScenarioDefinition = {
+      name: 'camp-step-bad-coord',
+      description: 'test only',
+      seed: 'scenario-camp-step-bad-coord',
+      base: soloBase,
+      steps: [{ kind: 'camp', position: { q: 99999, r: 99999 } }],
+    };
+    expect(() => buildScenario(definition)).toThrow(ScenarioError);
+  });
+
+  it('rejects placing a camp on an already-occupied tile unless unsafe: true', () => {
+    const stepsBase: ScenarioStep[] = [
+      { kind: 'terrain', position: { q: 6, r: 5 }, terrain: 'plains' },
+      { kind: 'camp', position: { q: 6, r: 5 } },
+      { kind: 'camp', position: { q: 6, r: 5 } },
+    ];
+    const blocked: ScenarioDefinition = {
+      name: 'camp-step-occupied', description: 'test only', seed: 'scenario-camp-step-occupied',
+      base: soloBase, steps: stepsBase,
+    };
+    expect(() => buildScenario(blocked)).toThrow(ScenarioError);
+
+    const allowed: ScenarioDefinition = {
+      ...blocked,
+      name: 'camp-step-occupied-unsafe',
+      steps: [...stepsBase.slice(0, 2), { ...stepsBase[2], unsafe: true } as ScenarioStep],
+    };
+    expect(() => buildScenario(allowed)).not.toThrow();
+    const camps = buildScenario(allowed).barbarianCamps;
+    // createNewGame also seeds its own base camps elsewhere on the map, so
+    // this counts only camps at the contested tile, not the total.
+    const campsAtTile = Object.values(camps).filter(c => hexKey(c.position) === hexKey({ q: 6, r: 5 }));
+    expect(campsAtTile.length).toBe(2); // both camps coexist on the same tile
   });
 });
 
@@ -227,6 +288,52 @@ describe('diplomacy step', () => {
     expect(state.civilizations.player.diplomacy.atWarWith).toContain('ai-1');
     expect(state.civilizations['ai-1'].diplomacy.atWarWith).toContain('player');
   });
+
+  it('makes peace bilaterally after a war step', () => {
+    const definition: ScenarioDefinition = {
+      name: 'diplomacy-step-peace-check',
+      description: 'test only',
+      seed: 'scenario-diplomacy-step-peace-check',
+      base: soloBase,
+      steps: [
+        { kind: 'diplomacy', civA: 'player', civB: 'ai-1', status: 'war' },
+        { kind: 'diplomacy', civA: 'player', civB: 'ai-1', status: 'peace' },
+      ],
+    };
+    const state = buildScenario(definition);
+    expect(state.civilizations.player.diplomacy.atWarWith).not.toContain('ai-1');
+    expect(state.civilizations['ai-1'].diplomacy.atWarWith).not.toContain('player');
+  });
+
+  it('signs an alliance treaty bilaterally', () => {
+    const definition: ScenarioDefinition = {
+      name: 'diplomacy-step-alliance-check',
+      description: 'test only',
+      seed: 'scenario-diplomacy-step-alliance-check',
+      base: soloBase,
+      steps: [{ kind: 'diplomacy', civA: 'player', civB: 'ai-1', status: 'alliance' }],
+    };
+    const state = buildScenario(definition);
+    const playerTreaty = state.civilizations.player.diplomacy.treaties.find(
+      t => t.type === 'alliance' && t.civA === 'player' && t.civB === 'ai-1',
+    );
+    const aiTreaty = state.civilizations['ai-1'].diplomacy.treaties.find(
+      t => t.type === 'alliance' && t.civA === 'ai-1' && t.civB === 'player',
+    );
+    expect(playerTreaty).toBeDefined();
+    expect(aiTreaty).toBeDefined();
+  });
+
+  it('throws ScenarioError on an unknown civId', () => {
+    const definition: ScenarioDefinition = {
+      name: 'diplomacy-step-bad-civ',
+      description: 'test only',
+      seed: 'scenario-diplomacy-step-bad-civ',
+      base: soloBase,
+      steps: [{ kind: 'diplomacy', civA: 'player', civB: 'nonexistent', status: 'war' }],
+    };
+    expect(() => buildScenario(definition)).toThrow(ScenarioError);
+  });
 });
 
 describe('gold step', () => {
@@ -240,6 +347,17 @@ describe('gold step', () => {
     };
     const state = buildScenario(definition);
     expect(state.civilizations.player.gold).toBe(250);
+  });
+
+  it('throws ScenarioError on an unknown civId', () => {
+    const definition: ScenarioDefinition = {
+      name: 'gold-step-bad-civ',
+      description: 'test only',
+      seed: 'scenario-gold-step-bad-civ',
+      base: soloBase,
+      steps: [{ kind: 'gold', civId: 'nonexistent', amount: 100 }],
+    };
+    expect(() => buildScenario(definition)).toThrow(ScenarioError);
   });
 });
 
