@@ -369,5 +369,38 @@ describe('CampaignEntryController', () => {
       expect(deps.session.getState()).not.toBe(beforeState);
       expect(deps.session.getState().hotSeat).toBeDefined();
     });
+
+    it('the hot-seat path applies a persisted councilTalkLevel to the freshly constructed game', async () => {
+      const state = makeFixture();
+      const deps = baseDeps(state, {
+        userSettingsStore: {
+          getPersisted: () => undefined,
+          refresh: vi.fn().mockResolvedValue({ customCivilizations: [], councilTalkLevel: 'chatty' }),
+          getMasterVolume: () => 0.8,
+          setCustomCivilizations: vi.fn(),
+          getOverrides: () => ({}),
+        },
+      });
+      const campaignEntry = createCampaignEntryController(deps);
+      const callbacks = captureModeSelectCallbacks();
+      let capturedHotSeatCallbacks: hotseatSetupModule.HotSeatSetupCallbacks | undefined;
+      vi.mocked(hotseatSetupModule.showHotSeatSetup).mockImplementation((_layer, cb) => {
+        capturedHotSeatCallbacks = cb;
+      });
+
+      campaignEntry.showGameModeSelection();
+      await callbacks.onChooseHotSeat('Talkative Hot Seat Campaign');
+      expect(capturedHotSeatCallbacks).toBeDefined();
+
+      const beforeState = deps.session.getState();
+      const players: HotSeatPlayer[] = [
+        { name: 'Alice', slotId: 'player', civType: beforeState.civilizations['player'].civType, isHuman: true },
+      ];
+      const hotSeatConfig: HotSeatConfig = { playerCount: 2, mapSize: 'small', players };
+
+      capturedHotSeatCallbacks!.onComplete(hotSeatConfig, 'standard');
+
+      expect(deps.session.getState().settings.councilTalkLevel).toBe('chatty');
+    });
   });
 });
