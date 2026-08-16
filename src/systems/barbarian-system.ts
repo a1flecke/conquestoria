@@ -11,7 +11,7 @@ import type {
   UnitType,
 } from '@/core/types';
 import { createEmptyOpponentAIState } from '@/core/opponent-ai-state';
-import { OPPONENT_CHALLENGE_PROFILES, resolveOpponentChallenge } from '@/core/opponent-challenge';
+import { OPPONENT_CHALLENGE_PROFILES, resolveOpponentChallenge, resolvePressureSeverityForCiv } from '@/core/opponent-challenge';
 import { canAttackByProfileOnMap } from './attack-targeting';
 import {
   hexKey,
@@ -26,7 +26,8 @@ import { recordHuntCampKillerIfApplicable } from './hunt-crisis-linkage';
 import { resolveCivilizationEra } from './tech-definitions';
 import { classifyOwner } from '@/core/owner-kind';
 import { resolveNeutralPressureEra } from './era-resolution';
-import { observeCampPressureFromSensedUnits } from './barbarian-pressure';
+import { getActiveCampPressure, observeCampPressureFromSensedUnits } from './barbarian-pressure';
+import { selectBarbarianReinforcement } from './barbarian-force-composer';
 
 // Seeded LCG — avoids Math.random() per project rules
 function lcg(seed: number): () => number {
@@ -346,12 +347,21 @@ export function processPurposefulBarbarians(state: GameState): PurposefulBarbari
   const cityAttackOrders: BarbarianCityAttackOrder[] = [];
   const pillageOrders: BarbarianPillageOrder[] = [];
   let observationState = state;
-  const profile = OPPONENT_CHALLENGE_PROFILES[resolveOpponentChallenge(state)];
+  const defaultProfile = OPPONENT_CHALLENGE_PROFILES[resolveOpponentChallenge(state)];
 
   for (const camp of camps) {
     const assigned = barbarianUnits.filter(unit =>
       opponentAI.barbarianHomeCampByUnitId[unit.id] === camp.id);
     const assignedIds = assigned.map(unit => unit.id);
+    const sensedUnits = Object.values(state.units)
+      .filter(unit =>
+        unit.owner !== 'barbarian'
+        && !unit.transportId
+        && sensedByCamp(state, camp, assigned, unit.position))
+      .sort((a, b) =>
+        barbarianDistance(state, camp.position, a.position) - barbarianDistance(state, camp.position, b.position)
+        || a.id.localeCompare(b.id));
+    observationState = observeCampPressureFromSensedUnits(observationState, camp.id, sensedUnits);
     const spawn = campTick.spawnedUnits.find(candidate => candidate.campId === camp.id);
     if (spawn) {
       const occupied = new Set(Object.values(state.units)
@@ -363,24 +373,23 @@ export function processPurposefulBarbarians(state: GameState): PurposefulBarbari
           barbarianDistance(state, a, camp.position) - barbarianDistance(state, b, camp.position)
           || a.q - b.q
           || a.r - b.r)[0];
-      if (spawnPosition) {
+      const seed = [...`${state.gameId ?? 'game'}:${state.turn}:${camp.id}`]
+        .reduce((value, character) => (value * 31 + character.charCodeAt(0)) >>> 0, 1);
+      const unitType = selectBarbarianReinforcement({
+        era: resolveNeutralPressureEra(state, camp.position) ?? 1,
+        assignedUnitTypes: assigned.map(unit => unit.type),
+        observedThreats: getActiveCampPressure(observationState, camp.id, state.turn),
+        escalated: camp.strength >= 8,
+        seed,
+      });
+      if (spawnPosition && unitType) {
         spawnedUnits.push({
           ...spawn,
           position: spawnPosition,
-          unitType: chooseBarbarianSpawnType(state, camp.id, assigned),
+          unitType,
         });
       }
     }
-
-    const sensedUnits = Object.values(state.units)
-      .filter(unit =>
-        unit.owner !== 'barbarian'
-        && !unit.transportId
-        && sensedByCamp(state, camp, assigned, unit.position))
-      .sort((a, b) =>
-        barbarianDistance(state, camp.position, a.position) - barbarianDistance(state, camp.position, b.position)
-        || a.id.localeCompare(b.id));
-    observationState = observeCampPressureFromSensedUnits(observationState, camp.id, sensedUnits);
     const campThreat = sensedUnits.find(unit =>
       UNIT_DEFINITIONS[unit.type].strength > 0
       && barbarianDistance(state, camp.position, unit.position) <= BARBARIAN_DEFENSE_RADIUS);
@@ -465,7 +474,7 @@ export function processPurposefulBarbarians(state: GameState): PurposefulBarbari
     // raids over chasing a lone worker/caravan; player-side pillage rules never
     // change by difficulty — only this raid-target preference does.
     if (!plan) {
-      plan = profile.pillageAggressivenessMultiplier > 1
+      plan = defaultProfile.pillageAggressivenessMultiplier > 1
         ? (tryRaidResourcePlan() ?? tryRaidUnitPlan())
         : (tryRaidUnitPlan() ?? tryRaidResourcePlan());
     }
@@ -525,6 +534,17 @@ export function processPurposefulBarbarians(state: GameState): PurposefulBarbari
     }
     plan = { ...plan, assignedUnitIds: assignedIds };
     opponentAI.barbarianCamps[camp.id] = plan;
+
+    const planTargetOwnerId = plan.target.kind === 'unit'
+      ? state.units[plan.target.id]?.owner
+      : plan.target.kind === 'city'
+        ? state.cities[plan.target.id]?.owner
+        : plan.target.kind === 'resource'
+          ? state.map.tiles[hexKey(plan.target.position)]?.owner
+          : undefined;
+    const profile = OPPONENT_CHALLENGE_PROFILES[planTargetOwnerId
+      ? resolvePressureSeverityForCiv(state, planTargetOwnerId)
+      : resolveOpponentChallenge(state)];
 
     for (const unit of assigned) {
       if (unit.movementPointsLeft <= 0 || unit.hasActed) continue;
