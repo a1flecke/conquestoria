@@ -438,48 +438,62 @@ export function createSelectionController(deps: SelectionControllerDeps): Select
             ...result.civEsp,
             spies: { ...result.civEsp.spies, [uid]: { ...spyAfterAttempt, targetCivId: targetCity.owner } },
           } : result.civEsp;
-          session.getState().espionage![session.getState().currentPlayer] = civEspWithTarget;
+
+          const currentPlayer = session.getState().currentPlayer;
+          let nextUnits = session.getState().units;
+          let nextCivilizations = session.getState().civilizations;
 
           if (result.removeUnitFromMap) {
             // Era 2+: spy removed from map, stationed inside city
-            delete session.getState().units[uid];
-            const civUnits = session.getState().civilizations[session.getState().currentPlayer].units;
-            if (civUnits) {
-              session.getState().civilizations[session.getState().currentPlayer].units = civUnits.filter(id => id !== uid);
-            }
+            const { [uid]: _removed, ...remainingUnits } = nextUnits;
+            nextUnits = remainingUnits;
+            const civUnits = nextCivilizations[currentPlayer].units;
+            nextCivilizations = civUnits
+              ? { ...nextCivilizations, [currentPlayer]: { ...nextCivilizations[currentPlayer], units: civUnits.filter(id => id !== uid) } }
+              : nextCivilizations;
             deps.showNotification(`Spy successfully infiltrated ${targetCity.name}. Open Intel panel to issue orders.`, 'success');
-            bus.emit('espionage:spy-infiltrated', { civId: session.getState().currentPlayer, spyId: uid, cityId: targetCity.id });
-            deselectUnit();
+            bus.emit('espionage:spy-infiltrated', { civId: currentPlayer, spyId: uid, cityId: targetCity.id });
           } else if (result.era1ScoutResult !== undefined) {
             // Era 1 (spy_scout): spy stays on map, infiltrationCityId + 5-turn city vision already set
-            const missionResult = resolveMissionResult('scout_area', targetCity.owner, targetCity.id, session.getState(), session.getState().currentPlayer, uid);
+            const missionResult = resolveMissionResult('scout_area', targetCity.owner, targetCity.id, session.getState(), currentPlayer, uid);
             const tilesToReveal = missionResult.tilesToReveal ?? [];
             if (tilesToReveal.length > 0) {
-              const visibilityTiles = { ...(session.getState().civilizations[session.getState().currentPlayer].visibility?.tiles ?? {}) };
+              const visibilityTiles = { ...(nextCivilizations[currentPlayer].visibility?.tiles ?? {}) };
               for (const coord of tilesToReveal) {
                 visibilityTiles[`${coord.q},${coord.r}`] = 'visible';
               }
-              session.getState().civilizations[session.getState().currentPlayer].visibility = {
-                ...session.getState().civilizations[session.getState().currentPlayer].visibility!,
-                tiles: visibilityTiles,
+              nextCivilizations = {
+                ...nextCivilizations,
+                [currentPlayer]: { ...nextCivilizations[currentPlayer], visibility: { ...nextCivilizations[currentPlayer].visibility!, tiles: visibilityTiles } },
               };
             }
-            session.getState().units[uid] = { ...unit, hasActed: true, movementPointsLeft: 0 };
+            nextUnits = { ...nextUnits, [uid]: { ...unit, hasActed: true, movementPointsLeft: 0 } };
             deps.showNotification(`Scout revealed ${tilesToReveal.length} tile${tilesToReveal.length !== 1 ? 's' : ''} around ${targetCity.name}.`, 'success');
-            selectUnit(uid);
           } else if (result.caught) {
             // Caught: remove unit from map (spy lost)
-            delete session.getState().units[uid];
-            const civUnits = session.getState().civilizations[session.getState().currentPlayer].units;
-            if (civUnits) {
-              session.getState().civilizations[session.getState().currentPlayer].units = civUnits.filter(id => id !== uid);
-            }
-            bus.emit('espionage:spy-caught-infiltrating', { capturingCivId: targetCity.owner, spyOwner: session.getState().currentPlayer, spyId: uid, cityId: targetCity.id });
-            deselectUnit();
+            const { [uid]: _removed, ...remainingUnits } = nextUnits;
+            nextUnits = remainingUnits;
+            const civUnits = nextCivilizations[currentPlayer].units;
+            nextCivilizations = civUnits
+              ? { ...nextCivilizations, [currentPlayer]: { ...nextCivilizations[currentPlayer], units: civUnits.filter(id => id !== uid) } }
+              : nextCivilizations;
+            bus.emit('espionage:spy-caught-infiltrating', { capturingCivId: targetCity.owner, spyOwner: currentPlayer, spyId: uid, cityId: targetCity.id });
           } else {
             const cooldown = result.civEsp.spies[uid]?.cooldownTurns ?? 3;
             deps.showNotification(`Spy failed to infiltrate ${targetCity.name}. Lying low for ${cooldown} turns.`, 'info');
-            session.getState().units[uid] = { ...unit, hasActed: true, movementPointsLeft: 0 };
+            nextUnits = { ...nextUnits, [uid]: { ...unit, hasActed: true, movementPointsLeft: 0 } };
+          }
+
+          session.commit({
+            ...session.getState(),
+            espionage: { ...session.getState().espionage, [currentPlayer]: civEspWithTarget },
+            units: nextUnits,
+            civilizations: nextCivilizations,
+          });
+
+          if (result.removeUnitFromMap || result.caught) {
+            deselectUnit();
+          } else {
             selectUnit(uid);
           }
 
