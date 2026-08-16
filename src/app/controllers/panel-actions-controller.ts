@@ -993,16 +993,22 @@ export function createPanelActionsController(deps: PanelActionsControllerDeps): 
           spawnPos = adjacent[0];
         }
 
-        const newUnit = createUnit(spy.unitType, deps.session.getState().currentPlayer, spawnPos, deps.session.getState().idCounters);
-        deps.session.getState().units[newUnit.id] = newUnit;
-        deps.session.getState().civilizations[deps.session.getState().currentPlayer].units =
-          [...(deps.session.getState().civilizations[deps.session.getState().currentPlayer].units ?? []), newUnit.id];
+        const currentPlayer = deps.session.getState().currentPlayer;
+        const newUnit = createUnit(spy.unitType, currentPlayer, spawnPos, deps.session.getState().idCounters);
         const updatedSpy = {
           ...spy, id: newUnit.id, status: 'cooldown' as const,
           cooldownTurns: 8, infiltrationCityId: null, cityVisionTurnsLeft: 0, targetCivId: null, cooldownMode: undefined,
         };
         const { [spyId]: _old, ...rest } = ownerEsp!.spies;
-        deps.session.getState().espionage![deps.session.getState().currentPlayer] = { ...ownerEsp!, spies: { ...rest, [newUnit.id]: updatedSpy } };
+        deps.session.commit({
+          ...deps.session.getState(),
+          units: { ...deps.session.getState().units, [newUnit.id]: newUnit },
+          civilizations: {
+            ...deps.session.getState().civilizations,
+            [currentPlayer]: { ...deps.session.getState().civilizations[currentPlayer], units: [...(deps.session.getState().civilizations[currentPlayer].units ?? []), newUnit.id] },
+          },
+          espionage: { ...deps.session.getState().espionage, [currentPlayer]: { ...ownerEsp!, spies: { ...rest, [newUnit.id]: updatedSpy } } },
+        });
         deps.renderLoop.setGameState(deps.session.getState());
         // Refresh panel in place
         deps.getElementById('espionage-panel')?.remove();
@@ -1034,13 +1040,20 @@ export function createPanelActionsController(deps: PanelActionsControllerDeps): 
         if (!spy || spy.status !== 'embedded' || !spy.targetCityId) return;
         const city = deps.session.getState().cities[spy.targetCityId];
         if (!city) return;
-        const newUnit = createUnit(spy.unitType, deps.session.getState().currentPlayer, city.position, deps.session.getState().idCounters);
-        deps.session.getState().units[newUnit.id] = newUnit;
-        deps.session.getState().civilizations[deps.session.getState().currentPlayer].units.push(newUnit.id);
+        const currentPlayer = deps.session.getState().currentPlayer;
+        const newUnit = createUnit(spy.unitType, currentPlayer, city.position, deps.session.getState().idCounters);
         const unembedded = unembedSpy(ownerEsp!, spyId);
         const rekeyed = { ...unembedded.spies[spyId], id: newUnit.id };
         const { [spyId]: _old, ...rest } = unembedded.spies;
-        deps.session.getState().espionage![deps.session.getState().currentPlayer] = { ...unembedded, spies: { ...rest, [newUnit.id]: rekeyed } };
+        deps.session.commit({
+          ...deps.session.getState(),
+          units: { ...deps.session.getState().units, [newUnit.id]: newUnit },
+          civilizations: {
+            ...deps.session.getState().civilizations,
+            [currentPlayer]: { ...deps.session.getState().civilizations[currentPlayer], units: [...deps.session.getState().civilizations[currentPlayer].units, newUnit.id] },
+          },
+          espionage: { ...deps.session.getState().espionage, [currentPlayer]: { ...unembedded, spies: { ...rest, [newUnit.id]: rekeyed } } },
+        });
         deps.renderLoop.setGameState(deps.session.getState());
         deps.getElementById('espionage-panel')?.remove();
         deps.router.open('espionage');
