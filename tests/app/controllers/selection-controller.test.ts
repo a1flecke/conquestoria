@@ -49,6 +49,7 @@ function findButtonByText(container: HTMLElement, text: string): HTMLButtonEleme
 function tryUntilInfiltrate(
   unitType: Unit['type'],
   predicate: (state: GameState, uid: string) => boolean,
+  setup?: (deps: SelectionControllerDeps) => void,
 ): { deps: SelectionControllerDeps; uid: string } | null {
   for (let i = 0; i < 200; i++) {
     const uid = `infiltrator-${i}`;
@@ -67,6 +68,7 @@ function tryUntilInfiltrate(
     const deps = baseDeps(state);
     const controller = createSelectionController(deps);
     vi.spyOn(window, 'confirm').mockReturnValue(true);
+    setup?.(deps);
 
     controller.selectUnit(uid);
     const panel = document.getElementById('info-panel')!;
@@ -472,6 +474,22 @@ describe('SelectionController', () => {
       const found = tryUntilInfiltrate('spy_scout', (state, uid) => state.espionage!.player.spies[uid]?.status === 'captured');
       expect(found).not.toBeNull();
       expect(found!.deps.session.getState().units[found!.uid]).toBeUndefined();
+    });
+
+    it('espionage:spy-caught-infiltrating fires only after the mutation is published, so listeners observe post-commit state', () => {
+      let capturedUnitAtEmitTime: unknown;
+      const found = tryUntilInfiltrate(
+        'spy_scout',
+        (state, uid) => state.espionage!.player.spies[uid]?.status === 'captured',
+        deps => {
+          deps.bus.on('espionage:spy-caught-infiltrating', ({ spyId }) => {
+            // A synchronous listener firing before session.commit() would still see the unit on the map.
+            capturedUnitAtEmitTime = deps.session.getState().units[spyId];
+          });
+        },
+      );
+      expect(found).not.toBeNull();
+      expect(capturedUnitAtEmitTime).toBeUndefined();
     });
 
     it('a failed-but-not-caught attempt marks the unit acted and keeps it on the map (default branch)', () => {
