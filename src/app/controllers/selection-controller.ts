@@ -682,16 +682,17 @@ export function createSelectionController(deps: SelectionControllerDeps): Select
     const unit = session.getState().units[unitId];
     if (!unit || unit.owner !== session.getState().currentPlayer) return;
 
-    session.getState().units[unitId] = {
+    const withAutomation = {
       ...unit,
       automation: {
-        mode: 'auto-explore',
+        mode: 'auto-explore' as const,
         startedTurn: session.getState().turn,
         lastTargets: unit.automation?.mode === 'auto-explore' ? unit.automation.lastTargets : [],
       },
     };
+    session.commit({ ...session.getState(), units: { ...session.getState().units, [unitId]: withAutomation } });
 
-    if (session.getState().units[unitId].movementPointsLeft > 0 && !session.getState().units[unitId].hasActed) {
+    if (withAutomation.movementPointsLeft > 0 && !withAutomation.hasActed) {
       applyAutoExploreOrder(session.getState(), unitId, { bus });
     }
 
@@ -703,7 +704,8 @@ export function createSelectionController(deps: SelectionControllerDeps): Select
   function cancelAutoExplore(unitId: string): void {
     const unit = session.getState().units[unitId];
     if (!unit?.automation) return;
-    delete session.getState().units[unitId].automation;
+    const { automation: _removed, ...withoutAutomation } = unit;
+    session.commit({ ...session.getState(), units: { ...session.getState().units, [unitId]: withoutAutomation } });
     renderLoop.setGameState(session.getState());
     deps.updateHUD();
     if (selection.getSelectedUnitId() === unitId) {

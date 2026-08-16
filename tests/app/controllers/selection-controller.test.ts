@@ -366,31 +366,37 @@ describe('SelectionController', () => {
     expect(deps.renderLoop.setSelectedUnitId).toHaveBeenCalledWith('u1');
   });
 
-  it('startAutoExplore arms auto-explore automation and re-selects the unit', () => {
+  it('startAutoExplore arms auto-explore automation, re-selects the unit, and publishes through session subscribers', () => {
     const state = makeFixture();
     placePlayerUnit(state, 'u1', { movementPointsLeft: 0 });
     document.body.innerHTML = '<div id="info-panel"></div>';
     const deps = baseDeps(state);
     const controller = createSelectionController(deps);
+    const listener = vi.fn();
+    deps.session.subscribe(listener);
 
     controller.startAutoExplore('u1');
 
     expect(deps.session.getState().units.u1.automation?.mode).toBe('auto-explore');
     expect(deps.selection.getSelectedUnitId()).toBe('u1');
+    expect(listener).toHaveBeenCalled();
   });
 
-  it('cancelAutoExplore clears automation and re-selects only if currently selected', () => {
+  it('cancelAutoExplore clears automation, re-selects only if currently selected, and publishes through session subscribers', () => {
     const state = makeFixture();
     placePlayerUnit(state, 'u1', { automation: { mode: 'auto-explore', startedTurn: 1, lastTargets: [] } });
     document.body.innerHTML = '<div id="info-panel"></div>';
     const deps = baseDeps(state);
     const controller = createSelectionController(deps);
     controller.selectUnit('u1');
+    const listener = vi.fn();
+    deps.session.subscribe(listener);
 
     controller.cancelAutoExplore('u1');
 
     expect(deps.session.getState().units.u1.automation).toBeUndefined();
     expect(deps.selection.getSelectedUnitId()).toBe('u1');
+    expect(listener).toHaveBeenCalled();
   });
 
   it('cancelJourney clears automation via a committed state change', () => {
