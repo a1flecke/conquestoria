@@ -47,6 +47,25 @@ if grep -nE 'state\.(cities|units|civilizations)\[[^]]+\]\s*=' "$file_path" >/de
 $lines"
 fi
 
+# --- direct mutation through session.getState() outside game-session.ts/ports.ts ---
+case "$file_path" in
+  */src/app/game-session.ts|*/src/app/ports.ts)
+    : # allowed: game-session.ts is the one sanctioned mutation path; ports.ts is types-only
+    ;;
+  *)
+    if grep -nE 'getState\(\)(\.[A-Za-z0-9_]+[!]?|\[[^]]+\])+\s*=[^=]' "$file_path" | grep -v '//' >/dev/null; then
+      lines="$(grep -nE 'getState\(\)(\.[A-Za-z0-9_]+[!]?|\[[^]]+\])+\s*=[^=]' "$file_path" | grep -v '//' | head -5)"
+      append "Direct mutation through session.getState() detected -- use session.commit()/session.update() instead (see docs/superpowers/specs/2026-08-15-gamesession-state-mutation-audit-design.md):
+$lines"
+    fi
+    if grep -nE 'delete [A-Za-z0-9_.]*getState\(\)' "$file_path" >/dev/null; then
+      lines="$(grep -nE 'delete [A-Za-z0-9_.]*getState\(\)' "$file_path" | head -5)"
+      append "delete through session.getState() detected -- build a new object and use session.commit()/session.update() instead:
+$lines"
+    fi
+    ;;
+esac
+
 # --- Math.random in src ---
 if grep -nE 'Math\.random\(' "$file_path" | grep -v '//' >/dev/null; then
   lines="$(grep -nE 'Math\.random\(' "$file_path" | grep -v '//' | head -5)"
