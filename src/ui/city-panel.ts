@@ -69,9 +69,9 @@ import {
 } from '@/systems/economy-system';
 
 export interface CityPanelCallbacks {
-  onBuild: (cityId: string, itemId: string) => void;
-  onMoveQueueItem?: (cityId: string, fromIndex: number, toIndex: number) => void;
-  onRemoveQueueItem?: (cityId: string, index: number) => void;
+  onBuild: (cityId: string, itemId: string) => GameState | void;
+  onMoveQueueItem?: (cityId: string, fromIndex: number, toIndex: number) => GameState | void;
+  onRemoveQueueItem?: (cityId: string, index: number) => GameState | void;
   onOpenWonderPanel: (cityId: string) => void;
   onSetCityFocus?: (cityId: string, focus: Exclude<CityFocus, 'custom'>) => GameState | void;
   onToggleWorkedTile?: (cityId: string, coord: HexCoord, worked: boolean) => GameState | void;
@@ -87,7 +87,7 @@ export interface CityPanelCallbacks {
   /** Opens the destination-city picker for an idle trade unit — same path as
    *  selected-unit-info.ts's Establish Route button. */
   onEstablishRoute?: (caravanId: string) => void;
-  onSetIdleProduction?: (cityId: string, mode: 'gold' | 'science' | null) => void;
+  onSetIdleProduction?: (cityId: string, mode: 'gold' | 'science' | null) => GameState | void;
   onRushBuyActiveProduction?: (cityId: string) => GameState | void;
   onAppeaseFaction?: (cityId: string) => GameState | void;
   onConcedeToMovement?: (cityId: string) => GameState | void;
@@ -1508,8 +1508,8 @@ export function createCityPanel(
   panel.querySelectorAll('.build-item').forEach(el => {
     el.addEventListener('click', () => {
       const itemId = (el as HTMLElement).dataset.itemId!;
-      callbacks.onBuild(city.id, itemId);
-      rerenderPanel();
+      const nextState = callbacks.onBuild(city.id, itemId);
+      rerenderPanel(nextState);
     });
   });
 
@@ -1561,20 +1561,20 @@ export function createCityPanel(
       }
 
       if (action === 'remove') {
-        callbacks.onRemoveQueueItem?.(city.id, index);
-        rerenderPanel();
+        const nextState = callbacks.onRemoveQueueItem?.(city.id, index);
+        rerenderPanel(nextState);
         return;
       }
 
       if (action === 'up' && index > 0) {
-        callbacks.onMoveQueueItem?.(city.id, index, index - 1);
-        rerenderPanel();
+        const nextState = callbacks.onMoveQueueItem?.(city.id, index, index - 1);
+        rerenderPanel(nextState);
         return;
       }
 
       if (action === 'down' && index < city.productionQueue.length - 1) {
-        callbacks.onMoveQueueItem?.(city.id, index, index + 1);
-        rerenderPanel();
+        const nextState = callbacks.onMoveQueueItem?.(city.id, index, index + 1);
+        rerenderPanel(nextState);
       }
     });
   });
@@ -1624,8 +1624,8 @@ export function createCityPanel(
     btn.addEventListener('click', () => {
       const raw = btn.dataset.idleMode;
       const mode = raw === 'gold' || raw === 'science' ? raw : null;
-      callbacks.onSetIdleProduction?.(city.id, mode);
-      rerenderPanel();
+      const nextState = callbacks.onSetIdleProduction?.(city.id, mode);
+      rerenderPanel(nextState);
     });
   });
 
