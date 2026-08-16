@@ -15,6 +15,8 @@ import { MINOR_CIV_DEFINITIONS } from '@/systems/minor-civ-definitions';
 import { createUnit } from '@/systems/unit-system';
 import { applyPillageToState } from '@/systems/pillage-system';
 import { executeUnitMove } from '@/systems/unit-movement-system';
+import { TECH_TREE } from '@/systems/tech-definitions';
+import { selectBarbarianReinforcement } from '@/systems/barbarian-force-composer';
 
 const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
 
@@ -291,6 +293,27 @@ describe('processPurposefulBarbarians', () => {
 
     expect(result.barbarianCampPressure).toEqual({ 'camp-a': { armorLastObservedTurn: state.turn } });
     expect(JSON.stringify(result.barbarianCampPressure)).not.toContain(distantTank.id);
+  });
+
+  it('uses the deterministic catalog selector for a due camp reinforcement', () => {
+    const state = purposefulState();
+    state.turn = 20;
+    state.barbarianCamps['camp-a'] = { ...state.barbarianCamps['camp-a'], spawnCooldown: 1 };
+    state.cities.town = { id: 'town', owner: 'player', position: { q: 7, r: 5 }, hp: 50 } as never;
+    state.civilizations.player.cities = ['town'];
+    state.civilizations.player.techState.completed = TECH_TREE
+      .filter(tech => tech.era <= 10)
+      .map(tech => tech.id);
+    state.barbarianCampPressure = { 'camp-a': { armorLastObservedTurn: 20, airLastObservedTurn: 20 } };
+
+    const seed = [...`${state.gameId ?? 'game'}:${state.turn}:camp-a`]
+      .reduce((value, character) => (value * 31 + character.charCodeAt(0)) >>> 0, 1);
+    const expected = selectBarbarianReinforcement({
+      era: 10, assignedUnitTypes: [], observedThreats: ['armor', 'air'], escalated: false, seed,
+    });
+
+    expect(processPurposefulBarbarians(state).spawnedUnits)
+      .toContainEqual(expect.objectContaining({ campId: 'camp-a', unitType: expected }));
   });
 
   it('uses the final roster band beyond its declared maximum era', () => {
