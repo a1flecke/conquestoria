@@ -59,7 +59,7 @@ function ensurePlayerWarState(targetCivId: string): void {
 
 Two bugs here, both fixed by the same rewrite: (1) `deps.currentCiv().diplomacy = ...` and `targetCiv.diplomacy = ...` mutate the live state object directly (Shape B); (2) the trailing `setStateWithoutRefresh` means even a naive fix of just those two lines would still never publish — the function's real terminal write is the opportunistic-penalty result, not the two diplomacy mutations.
 
-- [ ] **Step 1: Write the failing test.** Add to the existing `describe('ensurePlayerWarState', ...)` block in `tests/app/controllers/player-action-controller.test.ts` (after the existing 3 tests, before the closing `});` at line 290):
+- [x] **Step 1: Write the failing test.** Add to the existing `describe('ensurePlayerWarState', ...)` block in `tests/app/controllers/player-action-controller.test.ts` (after the existing 3 tests, before the closing `});` at line 290):
 
 ```ts
     it('publishes the war declaration to session subscribers, not just the renderer', () => {
@@ -75,12 +75,12 @@ Two bugs here, both fixed by the same rewrite: (1) `deps.currentCiv().diplomacy 
     });
 ```
 
-- [ ] **Step 2: Run test to verify it fails.**
+- [x] **Step 2: Run test to verify it fails.**
 
 Run: `bash scripts/run-with-mise.sh yarn vitest run tests/app/controllers/player-action-controller.test.ts -t "publishes the war declaration"`
 Expected: FAIL — `listener` was never called, because the current code path ends in `setStateWithoutRefresh`, which never calls `publish()`.
 
-- [ ] **Step 3: Write minimal implementation.** Replace the function body:
+- [x] **Step 3: Write minimal implementation.** Replace the function body:
 
 ```ts
 function ensurePlayerWarState(targetCivId: string): void {
@@ -108,12 +108,12 @@ function ensurePlayerWarState(targetCivId: string): void {
 
 Note: keyed by `cp` (already `= deps.session.getState().currentPlayer`, the same id `deps.currentCiv()` looks up), not a `.id` field, so no assumption about `Civilization` carrying its own id is introduced.
 
-- [ ] **Step 4: Run test to verify it passes.**
+- [x] **Step 4: Run test to verify it passes.**
 
 Run: `bash scripts/run-with-mise.sh yarn vitest run tests/app/controllers/player-action-controller.test.ts -t "ensurePlayerWarState"`
 Expected: PASS — all 4 tests in the block (the 3 pre-existing behavioral ones plus the new publish test).
 
-- [ ] **Step 5: Commit.**
+- [x] **Step 5: Commit.**
 
 ```bash
 git add src/app/controllers/player-action-controller.ts tests/app/controllers/player-action-controller.test.ts
@@ -154,7 +154,7 @@ Current code:
 
 No chained non-refreshing write here — this one is a clean Shape-A conversion.
 
-- [ ] **Step 1: Write the failing test.** Replace the existing `'rests a real damaged unit, heals via restUnit, and deselects'` test (`tests/app/controllers/player-action-controller.test.ts:312-323`) to also assert publish:
+- [x] **Step 1: Write the failing test.** Replace the existing `'rests a real damaged unit, heals via restUnit, and deselects'` test (`tests/app/controllers/player-action-controller.test.ts:312-323`) to also assert publish:
 
 ```ts
     it('rests a real damaged unit, heals via restUnit, deselects, and publishes to subscribers', () => {
@@ -174,12 +174,12 @@ No chained non-refreshing write here — this one is a clean Shape-A conversion.
     });
 ```
 
-- [ ] **Step 2: Run test to verify it fails.**
+- [x] **Step 2: Run test to verify it fails.**
 
 Run: `bash scripts/run-with-mise.sh yarn vitest run tests/app/controllers/player-action-controller.test.ts -t "rests a real damaged unit"`
 Expected: FAIL on `expect(listener).toHaveBeenCalledTimes(1)` — 0 calls, since the current code never calls `commit`/`update`.
 
-- [ ] **Step 3: Write minimal implementation.**
+- [x] **Step 3: Write minimal implementation.**
 
 ```ts
   function restAction(): void {
@@ -220,12 +220,12 @@ Wait — check this before running: the test at Step 1 still asserts `expect(dep
 
 This is the pattern for every remaining task in this plan: **do not delete a manual `renderLoop.setGameState`/`hud.update` call just because `commit`/`update` now also does it** — these controller unit tests construct their own unwired `createGameSession` instance per test, so the manual call is still the only thing driving the test double's assertion. Only delete a manual call if a specific task's own test coverage proves it's safe to (none in this plan require it — see the corrected Global Constraints intent below).
 
-- [ ] **Step 4: Run test to verify it passes.**
+- [x] **Step 4: Run test to verify it passes.**
 
 Run: `bash scripts/run-with-mise.sh yarn vitest run tests/app/controllers/player-action-controller.test.ts -t "rests a real damaged unit"`
 Expected: PASS.
 
-- [ ] **Step 5: Commit.**
+- [x] **Step 5: Commit.**
 
 ```bash
 git add src/app/controllers/player-action-controller.ts tests/app/controllers/player-action-controller.test.ts
@@ -271,7 +271,7 @@ Current code:
 
 This is architecture-debt only today (per the spec's severity review) — `deps.hud.update()` is already called manually at the end, so the HUD is not currently stale. But `conquestMinorCiv` is called with `deps.session.getState()` *after* the flagged mutation, meaning it operates on the already-mutated live object rather than a value passed explicitly — and the result then goes through `setStateWithoutRefresh` rather than `commit`, relying entirely on the trailing manual `renderLoop.setGameState` + `hud.update()` to catch up. Fix: fold the unit mutation into one input state, call `conquestMinorCiv` on that explicit value, and `commit` its result.
 
-- [ ] **Step 1: Write the failing test.** Extend the existing `'conquers the minor civ and transfers its city after a successful movement'` test (`tests/app/controllers/player-action-controller.test.ts:576-589`):
+- [x] **Step 1: Write the failing test.** Extend the existing `'conquers the minor civ and transfers its city after a successful movement'` test (`tests/app/controllers/player-action-controller.test.ts:576-589`):
 
 ```ts
     it('conquers the minor civ, transfers its city, publishes once, and clears the mover\'s movement points', () => {
@@ -294,12 +294,12 @@ This is architecture-debt only today (per the spec's severity review) — `deps.
     });
 ```
 
-- [ ] **Step 2: Run test to verify it fails.**
+- [x] **Step 2: Run test to verify it fails.**
 
 Run: `bash scripts/run-with-mise.sh yarn vitest run tests/app/controllers/player-action-controller.test.ts -t "conquers the minor civ, transfers its city, publishes once"`
 Expected: FAIL on `expect(listener).toHaveBeenCalledTimes(1)` — the current code path ends in `setStateWithoutRefresh`, which never calls `publish()`, so `listener` sees 0 calls.
 
-- [ ] **Step 3: Write minimal implementation.**
+- [x] **Step 3: Write minimal implementation.**
 
 ```ts
   function executeMinorCivConquest(unitId: string, target: HexCoord, minorCivId: string, cityId: string): void {
@@ -326,12 +326,12 @@ Expected: FAIL on `expect(listener).toHaveBeenCalledTimes(1)` — the current co
   }
 ```
 
-- [ ] **Step 4: Run test to verify it passes.**
+- [x] **Step 4: Run test to verify it passes.**
 
 Run: `bash scripts/run-with-mise.sh yarn vitest run tests/app/controllers/player-action-controller.test.ts -t "executeMinorCivConquest"`
 Expected: PASS — both tests in the block.
 
-- [ ] **Step 5: Commit.**
+- [x] **Step 5: Commit.**
 
 ```bash
 git add src/app/controllers/player-action-controller.ts tests/app/controllers/player-action-controller.test.ts
@@ -340,10 +340,10 @@ git commit -m "fix(player-action-controller): route executeMinorCivConquest's un
 
 ### Phase 1 close-out
 
-- [ ] Run `bash scripts/run-with-mise.sh yarn build` — expect exit 0.
-- [ ] Run `bash scripts/run-with-mise.sh yarn test` — expect exit 0.
-- [ ] Confirm `getCurrentCiv`/`deps.currentCiv()` in `src/app/cross-cutting-helpers.ts` was **not modified** — the decision from the spec (keep its read-only convenience shape) holds because both flagged sites in this phase converted at their call site, not the helper.
-- [ ] Open the PR. Title: `fix(787): GameSession state-mutation audit — Phase 1 (player-action-controller.ts)`. Body lists all 3 conversions individually, per Global Constraints.
+- [x] Run `bash scripts/run-with-mise.sh yarn build` — expect exit 0.
+- [x] Run `bash scripts/run-with-mise.sh yarn test` — expect exit 0.
+- [x] Confirm `getCurrentCiv`/`deps.currentCiv()` in `src/app/cross-cutting-helpers.ts` was **not modified** — the decision from the spec (keep its read-only convenience shape) holds because both flagged sites in this phase converted at their call site, not the helper.
+- [x] Open the PR. Title: `fix(787): GameSession state-mutation audit — Phase 1 (player-action-controller.ts)`. Body lists all 3 conversions individually, per Global Constraints.
 
 ---
 
@@ -401,7 +401,7 @@ Current code, `onComplete` (hot-seat, `campaign-entry-controller.ts:254-263`):
           },
 ```
 
-- [ ] **Step 1: Write the failing test.** Add to `describe('showGameModeSelection', ...)` in `tests/app/controllers/campaign-entry-controller.test.ts`, after the existing solo/hot-seat tests around line 306:
+- [x] **Step 1: Write the failing test.** Add to `describe('showGameModeSelection', ...)` in `tests/app/controllers/campaign-entry-controller.test.ts`, after the existing solo/hot-seat tests around line 306:
 
 ```ts
     it('the solo path applies a persisted councilTalkLevel to the freshly constructed game', async () => {
@@ -440,12 +440,12 @@ Current code, `onComplete` (hot-seat, `campaign-entry-controller.ts:254-263`):
     });
 ```
 
-- [ ] **Step 2: Run test to verify it fails.**
+- [x] **Step 2: Run test to verify it fails.**
 
 Run: `bash scripts/run-with-mise.sh yarn vitest run tests/app/controllers/campaign-entry-controller.test.ts -t "applies a persisted councilTalkLevel"`
 Expected: This specific test actually **passes today** even with the bug, because the mutation does land on the object `deps.session.getState()` returns (same reference) before the assertion reads it back — the test as written can't distinguish the mutation bug from correct behavior. This is intentional: skip to Step 3, then use Step 4's assertion (not Step 2) as the real regression check. Note this in the PR body rather than silently having a step that doesn't fail — the spec's "currently observable staleness" table already flags this site as having no live user-facing symptom; this task is architecture-cleanliness, not a behavior fix, and the test proves the settings value ends up correct after the refactor, not that the refactor was necessary.
 
-- [ ] **Step 3: Write minimal implementation.** `onStartSolo`:
+- [x] **Step 3: Write minimal implementation.** `onStartSolo`:
 
 ```ts
           onStartSolo: (config) => {
@@ -489,12 +489,12 @@ Expected: This specific test actually **passes today** even with the bug, becaus
           },
 ```
 
-- [ ] **Step 4: Run test to verify it passes.**
+- [x] **Step 4: Run test to verify it passes.**
 
 Run: `bash scripts/run-with-mise.sh yarn vitest run tests/app/controllers/campaign-entry-controller.test.ts -t "showGameModeSelection"`
 Expected: PASS — the new test plus the two pre-existing solo/hot-seat tests (their `expect(deps.session.getState()).not.toBe(beforeState)` and `.gameTitle` assertions are unaffected, since `setStateWithoutRefresh` still runs and still replaces the reference).
 
-- [ ] **Step 5: Commit.**
+- [x] **Step 5: Commit.**
 
 ```bash
 git add src/app/controllers/campaign-entry-controller.ts tests/app/controllers/campaign-entry-controller.test.ts
@@ -503,9 +503,9 @@ git commit -m "fix(campaign-entry-controller): merge persisted councilTalkLevel 
 
 ### Phase 2 close-out
 
-- [ ] Run `bash scripts/run-with-mise.sh yarn build` — expect exit 0.
-- [ ] Run `bash scripts/run-with-mise.sh yarn test` — expect exit 0.
-- [ ] Open the PR. Title: `fix(787): GameSession state-mutation audit — Phase 2 (campaign-entry-controller.ts)`. Body notes both sites are architecture-cleanliness (no live user-facing bug — settings never visible before the first real `commit`/`enterCampaign` publish), citing the spec's severity table.
+- [x] Run `bash scripts/run-with-mise.sh yarn build` — expect exit 0.
+- [x] Run `bash scripts/run-with-mise.sh yarn test` — expect exit 0.
+- [x] Open the PR. Title: `fix(787): GameSession state-mutation audit — Phase 2 (campaign-entry-controller.ts)`. Body notes both sites are architecture-cleanliness (no live user-facing bug — settings never visible before the first real `commit`/`enterCampaign` publish), citing the spec's severity table.
 
 ---
 
@@ -569,7 +569,7 @@ function findSectionButton(container: HTMLElement, sectionTitle: string, buttonI
 
 Within "Choose Research", research-choice buttons are appended before the "Open Tech Panel" button, so index 0 is always the first available tech choice. Within "Choose Production", each city's row appends its build button before that row's "Open City" button, so index 0 is always the first idle city's build choice. Both hold regardless of how many techs/cities are available, so the test doesn't need to know a specific tech id or item id ahead of time — it can assert "one new entry appeared" instead.
 
-- [ ] **Step 1: Write the failing tests.**
+- [x] **Step 1: Write the failing tests.**
 
 ```ts
   describe('showRequiredChoicesIfNeeded callbacks', () => {
@@ -612,12 +612,12 @@ Within "Choose Research", research-choice buttons are appended before the "Open 
 
 Add the `findSectionButton` helper (shown above) near this file's other test helpers, not inline in each test.
 
-- [ ] **Step 2: Run test to verify it fails.**
+- [x] **Step 2: Run test to verify it fails.**
 
 Run: `bash scripts/run-with-mise.sh yarn vitest run tests/app/controllers/turn-flow-controller.test.ts -t "showRequiredChoicesIfNeeded callbacks"`
 Expected: FAIL on `expect(listener).toHaveBeenCalled()` in both tests — current code never calls `commit`/`update`.
 
-- [ ] **Step 3: Write minimal implementation.**
+- [x] **Step 3: Write minimal implementation.**
 
 ```ts
       onChooseResearch: (techId) => {
@@ -644,17 +644,17 @@ Expected: FAIL on `expect(listener).toHaveBeenCalled()` in both tests — curren
       },
 ```
 
-- [ ] **Step 4: Run test to verify it passes.**
+- [x] **Step 4: Run test to verify it passes.**
 
 Run: `bash scripts/run-with-mise.sh yarn vitest run tests/app/controllers/turn-flow-controller.test.ts -t "showRequiredChoicesIfNeeded callbacks"`
 Expected: PASS.
 
-- [ ] **Step 5: Run the full turn-flow-controller suite** (this file also has timing-sensitive round/handoff tests elsewhere that must not regress from this change).
+- [x] **Step 5: Run the full turn-flow-controller suite** (this file also has timing-sensitive round/handoff tests elsewhere that must not regress from this change).
 
 Run: `bash scripts/run-with-mise.sh yarn vitest run tests/app/controllers/turn-flow-controller.test.ts`
 Expected: PASS, all tests.
 
-- [ ] **Step 6: Commit.**
+- [x] **Step 6: Commit.**
 
 ```bash
 git add src/app/controllers/turn-flow-controller.ts tests/app/controllers/turn-flow-controller.test.ts
@@ -663,10 +663,10 @@ git commit -m "fix(turn-flow-controller): route required-choice research/build q
 
 ### Phase 3 close-out
 
-- [ ] Run `bash scripts/run-with-mise.sh yarn build` — expect exit 0.
-- [ ] Run `bash scripts/run-with-mise.sh yarn test` — expect exit 0.
-- [ ] Run `bash scripts/run-with-mise.sh yarn test:ai-playability` — expect exit 0 (required for this phase per the spec: it touches turn-advancement-adjacent code).
-- [ ] Open the PR. Title: `fix(787): GameSession state-mutation audit — Phase 3 (turn-flow-controller.ts)`.
+- [x] Run `bash scripts/run-with-mise.sh yarn build` — expect exit 0.
+- [x] Run `bash scripts/run-with-mise.sh yarn test` — expect exit 0.
+- [x] Run `bash scripts/run-with-mise.sh yarn test:ai-playability` — expect exit 0 (required for this phase per the spec: it touches turn-advancement-adjacent code).
+- [x] Open the PR. Title: `fix(787): GameSession state-mutation audit — Phase 3 (turn-flow-controller.ts)`.
 
 ---
 
@@ -729,7 +729,7 @@ Two flagged mutations here (espionage assignment, conditional unit assignment) �
 
 Note the disguise picker only renders when `disguiseOptions.length > 1` (`src/ui/selected-unit-info.ts:772-805`), which requires a spy tier ≥ 1 — `spy_scout` (tier 0) only ever offers "No Disguise" and renders no picker at all. Use `spy_informant` (tier 1) so "As Warrior" is a real, clickable option.
 
-- [ ] **Step 1: Write the failing test.**
+- [x] **Step 1: Write the failing test.**
 
 ```ts
   describe('onSetDisguise', () => {
@@ -763,12 +763,12 @@ Note the disguise picker only renders when `disguiseOptions.length > 1` (`src/ui
 
 Note the field is `disguiseAs` (verified against `src/ui/selected-unit-info.ts:798`'s `spy?.disguiseAs`), not `disguisedAs`.
 
-- [ ] **Step 2: Run test to verify it fails.**
+- [x] **Step 2: Run test to verify it fails.**
 
 Run: `bash scripts/run-with-mise.sh yarn vitest run tests/app/controllers/selection-controller.test.ts -t "onSetDisguise"`
 Expected: FAIL on `expect(listener).toHaveBeenCalled()`.
 
-- [ ] **Step 3: Write minimal implementation.**
+- [x] **Step 3: Write minimal implementation.**
 
 ```ts
         onSetDisguise: (uid, disguise) => {
@@ -794,12 +794,12 @@ Expected: FAIL on `expect(listener).toHaveBeenCalled()`.
         },
 ```
 
-- [ ] **Step 4: Run test to verify it passes.**
+- [x] **Step 4: Run test to verify it passes.**
 
 Run: `bash scripts/run-with-mise.sh yarn vitest run tests/app/controllers/selection-controller.test.ts -t "onSetDisguise"`
 Expected: PASS.
 
-- [ ] **Step 5: Commit.**
+- [x] **Step 5: Commit.**
 
 ```bash
 git add src/app/controllers/selection-controller.ts tests/app/controllers/selection-controller.test.ts
@@ -950,7 +950,7 @@ function tryUntilInfiltrate(
 }
 ```
 
-- [ ] **Step 1: Write failing tests covering all 4 branches.**
+- [x] **Step 1: Write failing tests covering all 4 branches.**
 
 ```ts
   describe('onInfiltrate', () => {
@@ -989,19 +989,19 @@ function tryUntilInfiltrate(
 
 Each test proves the branch's own distinguishing state via `tryUntilInfiltrate`'s deterministic search rather than asserting a `listener` call on every single test — the publish-plumbing itself only needs proving once per handler (the codebase-wide convention this whole plan follows), and `onSetDisguise`/`onEmbed`'s tests already do that for the same `session.commit` call path this handler also uses. Re-verify against a fresh `yarn vitest run` before treating any of these 4 as flaky: `tryUntil`'s 200-iteration cap matches the existing system-level helper's own cap and has never needed raising there, but if a branch reliably fails to be found, that's a sign the fixture (city ownership, spy status, unit position) doesn't actually satisfy `onInfiltrate`'s own preconditions (`src/app/controllers/selection-controller.ts:405-420`) — fix the fixture, don't raise the cap blindly.
 
-- [ ] **Step 2: Run tests to verify they fail.**
+- [x] **Step 2: Run tests to verify they fail.**
 
 Run: `bash scripts/run-with-mise.sh yarn vitest run tests/app/controllers/selection-controller.test.ts -t "onInfiltrate"`
 Expected: FAIL on each branch's `listener` assertion.
 
-- [ ] **Step 3: Write minimal implementation** — the full rewritten handler shown above.
+- [x] **Step 3: Write minimal implementation** — the full rewritten handler shown above.
 
-- [ ] **Step 4: Run tests to verify they pass.**
+- [x] **Step 4: Run tests to verify they pass.**
 
 Run: `bash scripts/run-with-mise.sh yarn vitest run tests/app/controllers/selection-controller.test.ts -t "onInfiltrate"`
 Expected: PASS, all 4 branch tests.
 
-- [ ] **Step 5: Commit.**
+- [x] **Step 5: Commit.**
 
 ```bash
 git add src/app/controllers/selection-controller.ts tests/app/controllers/selection-controller.test.ts
@@ -1038,7 +1038,7 @@ Current code:
         },
 ```
 
-- [ ] **Step 1: Write the failing test.**
+- [x] **Step 1: Write the failing test.**
 
 ```ts
   describe('onEmbed', () => {
@@ -1074,12 +1074,12 @@ Current code:
   });
 ```
 
-- [ ] **Step 2: Run test to verify it fails.**
+- [x] **Step 2: Run test to verify it fails.**
 
 Run: `bash scripts/run-with-mise.sh yarn vitest run tests/app/controllers/selection-controller.test.ts -t "onEmbed"`
 Expected: FAIL on `expect(listener).toHaveBeenCalled()`.
 
-- [ ] **Step 3: Write minimal implementation.**
+- [x] **Step 3: Write minimal implementation.**
 
 ```ts
         onEmbed: (uid) => {
@@ -1113,12 +1113,12 @@ Expected: FAIL on `expect(listener).toHaveBeenCalled()`.
         },
 ```
 
-- [ ] **Step 4: Run test to verify it passes.**
+- [x] **Step 4: Run test to verify it passes.**
 
 Run: `bash scripts/run-with-mise.sh yarn vitest run tests/app/controllers/selection-controller.test.ts -t "onEmbed"`
 Expected: PASS.
 
-- [ ] **Step 5: Commit.**
+- [x] **Step 5: Commit.**
 
 ```bash
 git add src/app/controllers/selection-controller.ts tests/app/controllers/selection-controller.test.ts
@@ -1129,7 +1129,9 @@ git commit -m "fix(selection-controller): route onEmbed's espionage/unit/civ mut
 
 **Files:**
 - Modify: `src/app/controllers/selection-controller.ts:653-684`
-- Test: `tests/app/controllers/selection-controller.test.ts` (new `describe('startAutoExplore / cancelAutoExplore', ...)`)
+- Test: `tests/app/controllers/selection-controller.test.ts` (extend the two existing flat `it(...)` tests at lines 329 and 342 — see drift correction below)
+
+**Drift correction (found during Phase 4 prereq check, 2026-08-16):** the plan's original draft below adds a *new* `describe('startAutoExplore / cancelAutoExplore', ...)` block. That would duplicate coverage — this file already has `'startAutoExplore arms auto-explore automation and re-selects the unit'` (line 329) and `'cancelAutoExplore clears automation and re-selects only if currently selected'` (line 342) as flat `it(...)` tests directly under the top-level `describe('SelectionController', ...)`, with the same fixture setup this task's draft would otherwise recreate. Per this repo's own convention (Phase 1 Task 1.2 extended an existing test rather than duplicating it), **extend these two existing tests in place** to add the `session.subscribe(listener)` + `expect(listener).toHaveBeenCalled()` assertions, rather than adding the new describe block shown below. The implementation step (Step 3) is unaffected by this correction — only the test step changes.
 
 Current code:
 
@@ -1170,7 +1172,7 @@ Current code:
 
 Verified: `applyAutoExploreOrder(state: GameState, unitId: string, options: { bus?: EventBus }): ExecuteUnitMoveResult | null` (`src/systems/auto-explore-system.ts:93-97`) does not mutate `state` and does not return a new `GameState` — it returns a move-intent result that this call site's original code already discards without applying (`applyAutoExploreOrder(session.getState(), unitId, { bus });` with no assignment). That discard is existing behavior outside this task's scope (this task only fixes the flagged `session.getState().units[unitId] = ...` mutation two lines above it) — preserve the call exactly as-is, unexamined further, rather than "fixing" a discarded-return-value pattern this task was never asked to change.
 
-- [ ] **Step 1: Write the failing test.**
+- [x] **Step 1: Write the failing test.**
 
 ```ts
   describe('startAutoExplore / cancelAutoExplore', () => {
@@ -1206,12 +1208,12 @@ Verified: `applyAutoExploreOrder(state: GameState, unitId: string, options: { bu
 
 `startAutoExplore`/`cancelAutoExplore` are confirmed public on `SelectionController` (`src/app/controllers/selection-controller.ts:120-121`, returned from the factory at lines 772-773), so calling them directly on `controller` is correct — no context-menu indirection needed.
 
-- [ ] **Step 2: Run test to verify it fails.**
+- [x] **Step 2: Run test to verify it fails.**
 
 Run: `bash scripts/run-with-mise.sh yarn vitest run tests/app/controllers/selection-controller.test.ts -t "startAutoExplore / cancelAutoExplore"`
 Expected: FAIL on both `listener` assertions.
 
-- [ ] **Step 3: Write minimal implementation** (assuming `applyAutoExploreOrder` returns a value rather than mutating — confirm per the note above and adjust if wrong):
+- [x] **Step 3: Write minimal implementation** (assuming `applyAutoExploreOrder` returns a value rather than mutating — confirm per the note above and adjust if wrong):
 
 ```ts
   function startAutoExplore(unitId: string): void {
@@ -1250,12 +1252,12 @@ Expected: FAIL on both `listener` assertions.
   }
 ```
 
-- [ ] **Step 4: Run test to verify it passes.**
+- [x] **Step 4: Run test to verify it passes.**
 
 Run: `bash scripts/run-with-mise.sh yarn vitest run tests/app/controllers/selection-controller.test.ts -t "startAutoExplore / cancelAutoExplore"`
 Expected: PASS.
 
-- [ ] **Step 5: Commit.**
+- [x] **Step 5: Commit.**
 
 ```bash
 git add src/app/controllers/selection-controller.ts tests/app/controllers/selection-controller.test.ts
@@ -1264,10 +1266,10 @@ git commit -m "fix(selection-controller): route startAutoExplore/cancelAutoExplo
 
 ### Phase 4 close-out
 
-- [ ] Run `bash scripts/run-with-mise.sh yarn build` — expect exit 0.
-- [ ] Run `bash scripts/run-with-mise.sh yarn test` — expect exit 0.
-- [ ] Re-run the inventory grep against `selection-controller.ts` — confirm 0 remaining matches (15 sites, 4 tasks: 2 + 8 + 3 + 2 = 15).
-- [ ] Open the PR. Title: `fix(787): GameSession state-mutation audit — Phase 4 (selection-controller.ts)`.
+- [x] Run `bash scripts/run-with-mise.sh yarn build` — expect exit 0.
+- [x] Run `bash scripts/run-with-mise.sh yarn test` — expect exit 0. (487 test files, 7987 passed / 3 skipped, all hook smoke tests passed.)
+- [x] Re-run the inventory grep against `selection-controller.ts` — confirm 0 remaining matches (15 sites, 4 tasks: 2 + 8 + 3 + 2 = 15).
+- [x] Open the PR. Title: `fix(787): GameSession state-mutation audit — Phase 4 (selection-controller.ts)`.
 
 ---
 
