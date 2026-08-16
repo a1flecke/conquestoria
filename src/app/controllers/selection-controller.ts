@@ -510,10 +510,20 @@ export function createSelectionController(deps: SelectionControllerDeps): Select
                  c.position.q === unit.position.q && c.position.r === unit.position.r,
           );
           if (!city) return;
-          session.getState().espionage![session.getState().currentPlayer] = embedSpy(civEsp, uid, city.id, city.position);
-          delete session.getState().units[uid];
-          session.getState().civilizations[session.getState().currentPlayer].units =
-            session.getState().civilizations[session.getState().currentPlayer].units.filter(id => id !== uid);
+          const currentPlayer = session.getState().currentPlayer;
+          const { [uid]: _removed, ...remainingUnits } = session.getState().units;
+          session.commit({
+            ...session.getState(),
+            espionage: { ...session.getState().espionage, [currentPlayer]: embedSpy(civEsp, uid, city.id, city.position) },
+            units: remainingUnits,
+            civilizations: {
+              ...session.getState().civilizations,
+              [currentPlayer]: {
+                ...session.getState().civilizations[currentPlayer],
+                units: session.getState().civilizations[currentPlayer].units.filter(id => id !== uid),
+              },
+            },
+          });
           deselectUnit();
           renderLoop.setGameState(session.getState());
           deps.updateHUD();

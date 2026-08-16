@@ -477,4 +477,36 @@ describe('SelectionController', () => {
       expect(found!.deps.session.getState().units[found!.uid].hasActed).toBe(true);
     });
   });
+
+  describe('onEmbed', () => {
+    it('embeds the spy, removes the unit from the map, and publishes through session subscribers', () => {
+      const state = makeFixture();
+      const template = Object.values(state.cities)[0]!;
+      state.cities['friendly-city'] = { ...template, id: 'friendly-city', owner: 'player', position: { q: 0, r: 0 } };
+      state.civilizations.player.cities = ['friendly-city'];
+      placePlayerUnit(state, 'spy-1', { type: 'spy_scout', position: { q: 0, r: 0 } });
+      state.espionage = { player: createEspionageCivState() };
+      state.espionage.player.spies['spy-1'] = {
+        id: 'spy-1', owner: 'player', name: 'Agent', unitType: 'spy_scout',
+        targetCivId: null, targetCityId: null, position: null,
+        status: 'idle', experience: 0, currentMission: null,
+        cooldownTurns: 0, promotion: undefined, promotionAvailable: false, feedsFalseIntel: false,
+      };
+      document.body.innerHTML = '<div id="info-panel"></div>';
+      const deps = baseDeps(state);
+      const controller = createSelectionController(deps);
+      const listener = vi.fn();
+      deps.session.subscribe(listener);
+
+      controller.selectUnit('spy-1');
+      const panel = document.getElementById('info-panel')!;
+      findButtonByText(panel, 'Embed (counter-espionage)').click();
+
+      const updated = deps.session.getState();
+      expect(updated.units['spy-1']).toBeUndefined();
+      expect(updated.civilizations.player.units).not.toContain('spy-1');
+      expect(updated.espionage!.player.spies['spy-1'].status).toBe('embedded');
+      expect(listener).toHaveBeenCalled();
+    });
+  });
 });
