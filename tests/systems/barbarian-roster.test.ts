@@ -4,6 +4,8 @@ import {
   BARBARIAN_ELIGIBILITY_BY_UNIT,
   getBarbarianEligibility,
 } from '@/systems/barbarian-roster';
+import { getBarbarianReinforcementCandidates } from '@/systems/barbarian-force-composer';
+import type { BarbarianEligibility, UnitType } from '@/core/types';
 
 describe('barbarian eligibility catalog', () => {
   it('classifies every current unit definition so future units fail closed', () => {
@@ -45,6 +47,24 @@ describe('barbarian eligibility catalog', () => {
     expect(BARBARIAN_ELIGIBILITY_BY_UNIT.mechanized_infantry).toMatchObject({
       status: 'eligible', eraWindow: { min: 10 }, roleSlot: 'frontline', rarity: 'uncommon',
     });
+  });
+
+  it('makes every eligible catalog entry selectable only inside its declared window', () => {
+    for (const [unitType, eligibility] of Object.entries(BARBARIAN_ELIGIBILITY_BY_UNIT) as [UnitType, BarbarianEligibility][]) {
+      if (eligibility.status === 'excluded') continue;
+      const observedThreats = eligibility.requiresObservation ? [eligibility.requiresObservation] : [];
+
+      expect(getBarbarianReinforcementCandidates({ era: eligibility.eraWindow.min, observedThreats }))
+        .toContain(unitType);
+      if (eligibility.eraWindow.min > 1) {
+        expect(getBarbarianReinforcementCandidates({ era: eligibility.eraWindow.min - 1, observedThreats }))
+          .not.toContain(unitType);
+      }
+      if (eligibility.eraWindow.max !== undefined) {
+        expect(getBarbarianReinforcementCandidates({ era: eligibility.eraWindow.max + 1, observedThreats }))
+          .not.toContain(unitType);
+      }
+    }
   });
 
   it.each([

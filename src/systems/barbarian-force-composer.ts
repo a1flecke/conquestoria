@@ -18,6 +18,11 @@ export interface BarbarianForceCompositionContext {
   observedThreats?: readonly BarbarianObservationRequirement[];
 }
 
+export interface BarbarianReinforcementCandidateContext {
+  era: number;
+  observedThreats?: readonly BarbarianObservationRequirement[];
+}
+
 interface Candidate {
   unitType: UnitType;
   eligibility: EligibleBarbarianUnit;
@@ -57,6 +62,18 @@ function candidatesFor(context: BarbarianForceCompositionContext): Candidate[] {
     if (candidate) candidates.push(candidate);
   }
   return candidates.sort((left, right) => left.unitType.localeCompare(right.unitType));
+}
+
+export function getBarbarianReinforcementCandidates(
+  context: BarbarianReinforcementCandidateContext,
+): UnitType[] {
+  return candidatesFor({
+    ...context,
+    era: normalizeEra(context.era),
+    forceSize: 1,
+    escalated: false,
+    seed: 0,
+  }).map(candidate => candidate.unitType);
 }
 
 function countRole(force: readonly Candidate[], role: EligibleBarbarianUnit['roleSlot']): number {
