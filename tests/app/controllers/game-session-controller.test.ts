@@ -100,6 +100,7 @@ function baseDeps(state: GameState, overrides: Partial<GameSessionControllerDeps
       showStartSavePanel: vi.fn().mockResolvedValue(undefined),
       showGameModeSelection: vi.fn(),
       enterCampaignForE2E: vi.fn().mockResolvedValue(undefined),
+      enterCampaign: vi.fn().mockResolvedValue(undefined),
     },
     getElementById: id => elements.get(id) ?? document.getElementById(id),
     showNotification: vi.fn(),
