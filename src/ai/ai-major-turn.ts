@@ -416,6 +416,30 @@ function executeAction(
         followUps: [],
       };
     }
+    case 'assault-camp': {
+      // #845: the AI-facing counterpart to beginPlayerCampAssault (player-action-controller.ts)
+      // -- destroys an undefended camp in one step, mirroring the notification/quest-transition
+      // sequence applyCampDestructionAtTarget's other call site above (resolveAttackFollowUp)
+      // already runs after a camp's last defender dies in combat.
+      const camp = state.barbarianCamps[action.campId];
+      const attacker = state.units[action.unitId];
+      if (
+        !camp
+        || !attacker
+        || attacker.owner !== civId
+        || distance(state, attacker.position, camp.position) !== 1
+        || getUnitIdsAtCoord(buildUnitOccupancy(state.units), camp.position).length > 0
+      ) {
+        return { state, succeeded: false, followUps: [] };
+      }
+      const next = structuredClone(state);
+      next.units[action.unitId] = { ...attacker, hasMoved: true, hasActed: true, movementPointsLeft: 0 };
+      const destroyed = applyCampDestructionAtTarget(next, civId, camp.position, next.turn);
+      if (!destroyed.campId) return { state, succeeded: false, followUps: [] };
+      emitMinorCivQuestTransitions(bus, destroyed.questTransitions, destroyed.state);
+      bus.emit('barbarian:camp-destroyed', { campId: destroyed.campId, reward: destroyed.reward });
+      return { state: destroyed.state, succeeded: true, followUps: [] };
+    }
     case 'move':
     case 'withdraw': {
       const next = structuredClone(state);

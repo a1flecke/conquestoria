@@ -51,6 +51,60 @@ describe('selected-unit-highlights', () => {
     expect(buildSelectedUnitHighlights(state, 'soldier').highlights).not.toContainEqual({ coord: { q: 2, r: 1 }, type: 'attack' });
   });
 
+  // #843: an undefended enemy city radiates no Zone of Control (unlike a hostile unit), so
+  // it was previously treated as ordinary walkable terrain -- highlighted "reachable" from
+  // arbitrarily far away, with the BFS walking straight through it to tiles beyond. Tapping
+  // that false highlight while not yet adjacent produced a confusing "Move adjacent, then
+  // use the city assault action" rejection despite the tile appearing reachable.
+  it('excludes a non-adjacent undefended enemy city (and tiles beyond it) from movementRange/highlights', () => {
+    const state = createNewGame(undefined, 'undefended-city-highlight', 'small');
+    state.currentPlayer = 'player';
+    for (const key of ['0,0', '1,0', '2,0', '3,0']) {
+      state.map.tiles[key] = { ...state.map.tiles[key], terrain: 'plains' };
+    }
+    state.units = {
+      scout: { ...createUnit('scout', 'player', { q: 0, r: 0 }, mkC()), id: 'scout', movementPointsLeft: 3 },
+    };
+    state.civilizations.player.units = ['scout'];
+    state.civilizations.player.diplomacy.atWarWith = ['ai-1'];
+    state.civilizations['ai-1'].diplomacy.atWarWith = ['player'];
+    state.civilizations.player.visibility.tiles = { '0,0': 'visible', '1,0': 'visible', '2,0': 'visible', '3,0': 'visible' };
+    const city = foundCity('ai-1', { q: 2, r: 0 }, state.map, state.idCounters);
+    state.cities[city.id] = city;
+    state.civilizations['ai-1'].cities = [city.id];
+
+    const result = buildSelectedUnitHighlights(state, 'scout');
+    const movementKeys = result.movementRange.map(hexKey);
+    const highlightKeys = result.highlights.map(h => hexKey(h.coord));
+
+    expect(movementKeys).not.toContain('2,0');
+    expect(movementKeys).not.toContain('3,0');
+    expect(highlightKeys).not.toContain('2,0');
+    expect(highlightKeys).not.toContain('3,0');
+  });
+
+  it('still highlights an undefended enemy city as reachable once the unit is actually adjacent', () => {
+    const state = createNewGame(undefined, 'undefended-city-adjacent-highlight', 'small');
+    state.currentPlayer = 'player';
+    for (const key of ['0,0', '1,0']) {
+      state.map.tiles[key] = { ...state.map.tiles[key], terrain: 'plains' };
+    }
+    state.units = {
+      scout: { ...createUnit('scout', 'player', { q: 0, r: 0 }, mkC()), id: 'scout', movementPointsLeft: 3 },
+    };
+    state.civilizations.player.units = ['scout'];
+    state.civilizations.player.diplomacy.atWarWith = ['ai-1'];
+    state.civilizations['ai-1'].diplomacy.atWarWith = ['player'];
+    state.civilizations.player.visibility.tiles = { '0,0': 'visible', '1,0': 'visible' };
+    const city = foundCity('ai-1', { q: 1, r: 0 }, state.map, state.idCounters);
+    state.cities[city.id] = city;
+    state.civilizations['ai-1'].cities = [city.id];
+
+    const result = buildSelectedUnitHighlights(state, 'scout');
+
+    expect(result.movementRange.map(hexKey)).toContain('1,0');
+  });
+
   it('marks visible ZOC terminal destinations with a non-attack movement highlight', () => {
     const state = createNewGame(undefined, 'zoc-highlight', 'small');
     state.currentPlayer = 'player';

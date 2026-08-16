@@ -283,4 +283,59 @@ describe('selected-unit-tap-intent', () => {
     );
     expect(intent).toEqual({ kind: 'move' });
   });
+
+  // #845: an undefended barbarian camp previously had no tap-intent case at all -- a tap
+  // resolved as an ordinary 'move', letting the unit silently walk onto/into it instead of
+  // assaulting it.
+  describe('undefended barbarian camps', () => {
+    it('returns assault-camp for an adjacent undefended camp', () => {
+      const state = makeTapAssaultFixture();
+      delete state.cities.enemyCity;
+      state.civilizations['ai-1'].cities = [];
+      state.barbarianCamps['camp-1'] = { id: 'camp-1', position: { q: 1, r: 0 }, strength: 10, spawnCooldown: 3 };
+
+      const intent = resolveSelectedUnitTapIntent(state, 'unit-1', { q: 1, r: 0 }, [{ q: 1, r: 0 }]);
+
+      expect(intent).toEqual({ kind: 'assault-camp', campId: 'camp-1' });
+    });
+
+    it('returns move for a non-adjacent camp even when it is in the supplied movementRange', () => {
+      const state = makeTapAssaultFixture();
+      delete state.cities.enemyCity;
+      state.civilizations['ai-1'].cities = [];
+      state.barbarianCamps['camp-1'] = { id: 'camp-1', position: { q: 2, r: 0 }, strength: 10, spawnCooldown: 3 };
+
+      const intent = resolveSelectedUnitTapIntent(state, 'unit-1', { q: 2, r: 0 }, [{ q: 1, r: 0 }, { q: 2, r: 0 }]);
+
+      expect(intent).toEqual({ kind: 'move' });
+    });
+
+    it('returns move (not assault-camp) when a hostile unit garrisons the camp -- ordinary combat handles that case', () => {
+      const state = makeTapAssaultFixture();
+      delete state.cities.enemyCity;
+      state.civilizations['ai-1'].cities = [];
+      state.barbarianCamps['camp-1'] = { id: 'camp-1', position: { q: 1, r: 0 }, strength: 10, spawnCooldown: 3 };
+      const raider = createUnit('warrior', 'barbarian', { q: 1, r: 0 }, mkC());
+      raider.id = 'raider';
+      state.units[raider.id] = raider;
+
+      const intent = resolveSelectedUnitTapIntent(state, 'unit-1', { q: 1, r: 0 }, [{ q: 1, r: 0 }]);
+
+      expect(intent).toEqual({ kind: 'move' });
+    });
+
+    it('does not block a barbarian-owned mover from its own camp', () => {
+      const state = makeTapAssaultFixture();
+      delete state.cities.enemyCity;
+      state.civilizations['ai-1'].cities = [];
+      state.units['unit-1'] = { ...state.units['unit-1'], owner: 'barbarian' };
+      state.civilizations.player.units = [];
+      state.civilizations.barbarian = { ...state.civilizations['ai-1'], id: 'barbarian', units: ['unit-1'] };
+      state.barbarianCamps['camp-1'] = { id: 'camp-1', position: { q: 1, r: 0 }, strength: 10, spawnCooldown: 3 };
+
+      const intent = resolveSelectedUnitTapIntent(state, 'unit-1', { q: 1, r: 0 }, [{ q: 1, r: 0 }]);
+
+      expect(intent).toEqual({ kind: 'move' });
+    });
+  });
 });

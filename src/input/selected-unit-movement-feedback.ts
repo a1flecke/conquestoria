@@ -1,6 +1,6 @@
 import type { GameState, HexCoord } from '@/core/types';
 import { getVisibility } from '@/systems/fog-of-war';
-import { getMovementBlockerReason } from '@/systems/unit-system';
+import { getMovementBlockerReason, getBlockingMapEntityAt } from '@/systems/unit-system';
 import {
   getLandUnitWaterRecoveryTapMessage,
   type LandUnitWaterRecovery,
@@ -30,7 +30,7 @@ export function handleSelectedUnitMovementBlocker(
     unit,
     target,
     state.map,
-    { visibilityState, completedTechs },
+    { visibilityState, completedTechs, blockingEntity: getBlockingMapEntityAt(state, unit, target) },
   );
   if (!reason) return false;
 

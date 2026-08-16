@@ -4,7 +4,7 @@ import { getVisibility } from '@/systems/fog-of-war';
 import { hexKey, hexNeighbors, getWrappedHexNeighbors } from '@/systems/hex-utils';
 import { isThreatenedByVisibleHostiles } from '@/systems/movement-safety';
 import { buildUnitOccupancy, getStackRelationship } from '@/systems/unit-occupancy';
-import { getMovementCost, getMovementRange } from '@/systems/unit-system';
+import { getMovementCost, getMovementRange, getBlockingMapEntityKeys } from '@/systems/unit-system';
 import { executeUnitMove, type ExecuteUnitMoveResult } from '@/systems/unit-movement-system';
 
 export interface AutoExploreOrder {
@@ -74,7 +74,13 @@ export function chooseAutoExploreMove(state: GameState, unitId: string): AutoExp
 
   const occupancy = buildUnitOccupancy(state.units);
   const completedTechs = state.civilizations[unit.owner]?.techState.completed ?? [];
-  const best = getMovementRange(unit, state.map, occupancy.unitIdsByHex, occupancy.ownersByUnitId, undefined, { completedTechs })
+  const blockingKeys = getBlockingMapEntityKeys(state, unit);
+  const best = getMovementRange(unit, state.map, occupancy.unitIdsByHex, occupancy.ownersByUnitId, undefined, { completedTechs }, blockingKeys)
+    // A blocking entity's own tile (e.g. an undefended foreign city) stays in the reachable
+    // set for consistency with the rest of the movement system (see getBlockingMapEntityAt),
+    // but auto-explore must never nominate it as an ordinary move destination -- entering it
+    // requires the explicit assault action, which auto-explore does not perform (#843).
+    .filter(coord => !blockingKeys.has(hexKey(coord)))
     .map(coord => ({ coord, rank: rankCandidate(state, unitId, coord) }))
     .filter((entry): entry is { coord: HexCoord; rank: { score: number; reason: string } } => entry.rank !== null)
     .sort((a, b) => b.rank.score - a.rank.score)[0];

@@ -2,6 +2,8 @@ import {
   createUnit,
   getMovementRange,
   getMovementRangeDetails,
+  getBlockingMapEntityAt,
+  getBlockingMapEntityKeys,
   moveUnit,
   findPath,
   findPathToCity,
@@ -15,7 +17,7 @@ import {
 import type { GameMap, GameState } from '@/core/types';
 import { generateMap } from '@/systems/map-generator';
 import { hexKey } from '@/systems/hex-utils';
-import { TRAINABLE_UNITS } from '@/systems/city-system';
+import { TRAINABLE_UNITS, foundCity } from '@/systems/city-system';
 import { PIRATE_HULL_TYPES } from '@/systems/pirate-definitions';
 import { createNewGame } from '@/core/game-state';
 
@@ -88,6 +90,301 @@ describe('getMovementRangeDetails zone of control', () => {
     expect(range.reachable.map(hexKey)).toContain('1,0');
     expect(range.zocLimited.map(hexKey)).toContain('1,0');
     expect(range.reachable.map(hexKey)).not.toContain('2,0');
+  });
+});
+
+// #843: an undefended (no garrison unit) foreign city radiates no Zone of Control,
+// unlike a hostile unit -- these tests prove the BFS treats it as a blocking obstacle
+// anyway, via getBlockingMapEntityAt/getBlockingMapEntityKeys, instead of ordinary
+// walkable terrain. The city always sits at (2,0); `moverPosition` controls whether the
+// mover starts already adjacent to it (1,0) or 2+ hexes away (0,0).
+//
+// IMPORTANT (found during implementation, see #843 plan Task 6 correction): a blocking
+// entity's own tile must behave EXACTLY like a hostile unit's tile under Zone of Control --
+// reachable ONLY when the mover is already directly adjacent to it *before* this action,
+// never via "I have enough movement points to get within striking distance." An earlier
+// version of this fix added the city to `reachable` whenever the BFS visited it regardless
+// of hop count (matching only "don't walk past it", not "don't treat it as reachable from
+// far away"), which left the original bug half-fixed: a mover 2 hexes away with 3 movement
+// points still saw the city highlighted as reachable, and tapping it still produced the
+// "Move adjacent, then use the city assault action" rejection instead of a plain move --
+// the exact symptom from the original report. The regression tests below assert the
+// corrected, adjacency-gated behavior; a prior version of this file asserted the opposite
+// (that the city stays reachable from 2+ hexes away) and that assertion was itself the bug.
+function undefendedCityRangeState(
+  moverPosition: { q: number; r: number } = { q: 0, r: 0 },
+  movementPointsLeft = 3,
+): GameState {
+  const state = createNewGame(undefined, 'undefended-city-range', 'small');
+  const mover = { ...createUnit('scout', 'player', moverPosition, mkC()), id: 'mover', movementPointsLeft };
+  state.units = { mover };
+  state.civilizations.player.units = ['mover'];
+  state.civilizations.player.diplomacy.atWarWith = ['ai-1'];
+  state.civilizations['ai-1'].diplomacy.atWarWith = ['player'];
+  for (const key of ['0,0', '1,0', '2,0', '3,0']) {
+    state.map.tiles[key] = { ...state.map.tiles[key]!, terrain: 'plains' };
+  }
+  const city = foundCity('ai-1', { q: 2, r: 0 }, state.map, state.idCounters);
+  city.id = 'undefended-city';
+  state.cities = { [city.id]: city };
+  state.civilizations['ai-1'].cities = [city.id];
+  return state;
+}
+
+describe('#843 getMovementRangeDetails vs undefended foreign city', () => {
+  it('marks an already-adjacent undefended enemy city reachable but does not walk past it', () => {
+    // Exactly 1 movement point -- just enough to step onto the city, with no budget left
+    // over to reach (3,0) by some unrelated route that never touches the city. This isolates
+    // "walked through the city" from "took a legal detour with leftover movement."
+    const state = undefendedCityRangeState({ q: 1, r: 0 }, 1); // adjacent to the city at (2,0)
+    const range = getMovementRangeDetails(state, 'mover');
+    const keys = range.reachable.map(hexKey);
+
+    expect(keys).toContain('2,0'); // the city itself, reachable for assault
+    expect(keys).not.toContain('3,0'); // BFS must not walk through the city
+  });
+
+  it('does NOT mark a 2+-hexes-away undefended city reachable, even with enough movement to approach it', () => {
+    // This is the exact reported scenario: 2 hexes from the city with 3 movement points --
+    // enough to reach adjacency this turn, but the city must not be shown/treated as
+    // reachable until the mover is actually standing next to it.
+    const state = undefendedCityRangeState({ q: 0, r: 0 });
+    const range = getMovementRangeDetails(state, 'mover');
+    const keys = range.reachable.map(hexKey);
+
+    expect(keys).toContain('1,0'); // the ordinary approach tile remains a normal move
+    expect(keys).not.toContain('2,0'); // the city itself must not be "reachable" yet
+    expect(keys).not.toContain('3,0'); // and definitely not anything beyond it
+  });
+
+  it('does not mark the city zoc-limited (it is blocked by the city, not ZOC)', () => {
+    const state = undefendedCityRangeState({ q: 1, r: 0 });
+    const range = getMovementRangeDetails(state, 'mover');
+    expect(range.zocLimited.map(hexKey)).not.toContain('2,0');
+  });
+
+  it('leaves an allied foreign city fully passable, matching validateUnitMove', () => {
+    const state = undefendedCityRangeState({ q: 0, r: 0 });
+    state.civilizations.player.diplomacy.treaties.push({
+      type: 'alliance', civA: 'player', civB: 'ai-1', turnsRemaining: 5,
+    });
+    const range = getMovementRangeDetails(state, 'mover');
+    const keys = range.reachable.map(hexKey);
+
+    expect(keys).toContain('2,0');
+    expect(keys).toContain('3,0'); // BFS walks straight through an allied city
+  });
+});
+
+describe('#843 getMovementRange vs undefended foreign city (blockingKeys param)', () => {
+  it('remains unfixed for callers that omit blockingKeys entirely (back-compat)', () => {
+    // Existing callers that never pass blockingKeys keep their old (buggy) behavior --
+    // this documents that omitting the param is a structural no-op, not a silent fix, so a
+    // future caller of getMovementRange must opt in via blockingKeys to get the #843 fix.
+    const state = undefendedCityRangeState({ q: 0, r: 0 });
+    const unit = state.units.mover;
+    const occupancy = { unitIdsByHex: {}, ownersByUnitId: {} };
+    const range = getMovementRange(unit, state.map, occupancy.unitIdsByHex, occupancy.ownersByUnitId, undefined, {});
+    expect(range.map(hexKey)).toContain('3,0');
+  });
+
+  it('includes the city only when the mover starts directly adjacent to it', () => {
+    const state = undefendedCityRangeState({ q: 1, r: 0 }, 1);
+    const unit = state.units.mover;
+    const occupancy = { unitIdsByHex: {}, ownersByUnitId: {} };
+    const blockingKeys = getBlockingMapEntityKeys(state, unit);
+    expect(blockingKeys.has('2,0')).toBe(true);
+
+    const range = getMovementRange(unit, state.map, occupancy.unitIdsByHex, occupancy.ownersByUnitId, undefined, {}, blockingKeys);
+    const keys = range.map(hexKey);
+    expect(keys).toContain('2,0');
+    expect(keys).not.toContain('3,0');
+  });
+
+  it('excludes the city entirely when the mover is 2+ hexes away, even with blockingKeys supplied', () => {
+    const state = undefendedCityRangeState({ q: 0, r: 0 });
+    const unit = state.units.mover;
+    const occupancy = { unitIdsByHex: {}, ownersByUnitId: {} };
+    const blockingKeys = getBlockingMapEntityKeys(state, unit);
+
+    const range = getMovementRange(unit, state.map, occupancy.unitIdsByHex, occupancy.ownersByUnitId, undefined, {}, blockingKeys);
+    const keys = range.map(hexKey);
+    expect(keys).not.toContain('2,0');
+    expect(keys).not.toContain('3,0');
+  });
+});
+
+describe('#843 getBlockingMapEntityAt', () => {
+  it('reports the foreign city at its own coordinate regardless of the mover\'s distance from it', () => {
+    // getBlockingMapEntityAt itself is a pure "is this coordinate blocking" lookup with no
+    // adjacency concept -- the distance gate lives in the BFS callers (getMovementRange/
+    // getMovementRangeDetails), not here, so this must return the same result regardless of
+    // where the mover currently stands.
+    const state = undefendedCityRangeState({ q: 0, r: 0 });
+    const unit = state.units.mover;
+    expect(getBlockingMapEntityAt(state, unit, { q: 2, r: 0 })).toEqual({
+      reason: 'foreign-city', entityId: 'undefended-city',
+    });
+  });
+
+  it('returns null for a coordinate with no city', () => {
+    const state = undefendedCityRangeState();
+    const unit = state.units.mover;
+    expect(getBlockingMapEntityAt(state, unit, { q: 1, r: 0 })).toBeNull();
+  });
+
+  it('returns null for an allied foreign city', () => {
+    const state = undefendedCityRangeState();
+    state.civilizations.player.diplomacy.treaties.push({
+      type: 'alliance', civA: 'player', civB: 'ai-1', turnsRemaining: 5,
+    });
+    const unit = state.units.mover;
+    expect(getBlockingMapEntityAt(state, unit, { q: 2, r: 0 })).toBeNull();
+  });
+
+  it('returns null for the unit\'s own city', () => {
+    const state = undefendedCityRangeState();
+    state.cities['undefended-city']!.owner = 'player';
+    const unit = state.units.mover;
+    expect(getBlockingMapEntityAt(state, unit, { q: 2, r: 0 })).toBeNull();
+  });
+
+  // #843 root-cause review: the bug applies identically to minor-civ (city-state) cities, not
+  // just major-civ ones -- resolveSelectedUnitTapIntent's cityAtTarget lookup is generic across
+  // state.cities regardless of owner kind, and so is getBlockingMapEntityAt. This was asserted
+  // in the root-cause writeup but never had its own automated proof; this closes that gap.
+  it('blocks an undefended minor-civ (city-state) city the same as a major-civ one', () => {
+    const state = undefendedCityRangeState({ q: 0, r: 0 });
+    state.cities['undefended-city']!.owner = 'mc-warriors';
+    const unit = state.units.mover;
+
+    expect(getBlockingMapEntityAt(state, unit, { q: 2, r: 0 })).toEqual({
+      reason: 'foreign-city', entityId: 'undefended-city',
+    });
+    expect(getMovementRangeDetails(state, 'mover').reachable.map(hexKey)).not.toContain('2,0');
+  });
+});
+
+// #843 hot-seat regression: blocking must key off the ACTING unit's owner, never
+// state.currentPlayer (CLAUDE.md's Hot Seat rule -- "NEVER hardcode ownership checks,
+// always use the acting unit's owner"). Two human-controlled civs share the device and
+// take turns; state.currentPlayer flips between their turns. Civ B's undefended city must
+// block civ A's unit identically regardless of which civ's seat happens to be active when
+// the check runs.
+function hotSeatCityBlockState(activePlayer: 'civ-a' | 'civ-b'): GameState {
+  const state = createNewGame(undefined, 'hot-seat-city-block', 'small');
+  state.hotSeat = {
+    playerCount: 2,
+    mapSize: 'small',
+    players: [
+      { name: 'Player One', slotId: 'civ-a', civType: 'rome', isHuman: true },
+      { name: 'Player Two', slotId: 'civ-b', civType: 'egypt', isHuman: true },
+    ],
+  };
+  state.currentPlayer = activePlayer;
+  for (const key of ['0,0', '1,0', '2,0']) {
+    state.map.tiles[key] = { ...state.map.tiles[key]!, terrain: 'plains' };
+  }
+  const mover = { ...createUnit('scout', 'civ-a', { q: 0, r: 0 }, mkC()), id: 'mover', movementPointsLeft: 1 };
+  state.units = { mover };
+  state.civilizations['civ-a'] = {
+    ...state.civilizations.player, id: 'civ-a', name: 'Civ A', isHuman: true, units: ['mover'], cities: [],
+  };
+  state.civilizations['civ-b'] = {
+    ...state.civilizations['ai-1'], id: 'civ-b', name: 'Civ B', isHuman: true, units: [], cities: [],
+  };
+  delete state.civilizations.player;
+  delete state.civilizations['ai-1'];
+  state.civilizations['civ-a'].diplomacy.atWarWith = ['civ-b'];
+  state.civilizations['civ-b'].diplomacy.atWarWith = ['civ-a'];
+  const city = foundCity('civ-b', { q: 1, r: 0 }, state.map, state.idCounters);
+  city.id = 'civ-b-city';
+  state.cities = { [city.id]: city };
+  state.civilizations['civ-b'].cities = [city.id];
+  return state;
+}
+
+describe('#843 hot-seat: blocking follows the acting unit\'s owner, not state.currentPlayer', () => {
+  it('blocks civ A\'s unit from civ B\'s undefended city while civ A\'s seat is active', () => {
+    const state = hotSeatCityBlockState('civ-a');
+    const unit = state.units.mover;
+    expect(getBlockingMapEntityAt(state, unit, { q: 1, r: 0 })).toEqual({
+      reason: 'foreign-city', entityId: 'civ-b-city',
+    });
+    expect(getMovementRangeDetails(state, 'mover').reachable.map(hexKey)).toContain('1,0');
+  });
+
+  it('gives the identical result once civ B\'s seat becomes active, for the same civ-A unit', () => {
+    // Only state.currentPlayer changes between these two states -- the acting unit (civ A's
+    // scout) and its owner are identical. A currentPlayer-keyed implementation would (wrongly)
+    // change its answer here; an owner-keyed one must not.
+    const stillCivAsTurn = hotSeatCityBlockState('civ-a');
+    const nowCivBsTurn = hotSeatCityBlockState('civ-b');
+    const unitDuringA = stillCivAsTurn.units.mover;
+    const unitDuringB = nowCivBsTurn.units.mover;
+
+    expect(getBlockingMapEntityAt(nowCivBsTurn, unitDuringB, { q: 1, r: 0 }))
+      .toEqual(getBlockingMapEntityAt(stillCivAsTurn, unitDuringA, { q: 1, r: 0 }));
+    expect(getMovementRangeDetails(nowCivBsTurn, 'mover').reachable.map(hexKey))
+      .toEqual(getMovementRangeDetails(stillCivAsTurn, 'mover').reachable.map(hexKey));
+  });
+});
+
+// #845: the same hot-seat requirement, but for barbarian camps -- both hot-seat civs
+// (neither of which is 'barbarian') must be blocked identically by the same undefended camp
+// regardless of which civ's seat is currently active.
+function hotSeatCampBlockState(activePlayer: 'civ-a' | 'civ-b'): GameState {
+  const state = createNewGame(undefined, 'hot-seat-camp-block', 'small');
+  state.hotSeat = {
+    playerCount: 2,
+    mapSize: 'small',
+    players: [
+      { name: 'Player One', slotId: 'civ-a', civType: 'rome', isHuman: true },
+      { name: 'Player Two', slotId: 'civ-b', civType: 'egypt', isHuman: true },
+    ],
+  };
+  state.currentPlayer = activePlayer;
+  for (const key of ['0,0', '1,0', '2,0']) {
+    state.map.tiles[key] = { ...state.map.tiles[key]!, terrain: 'plains' };
+  }
+  const mover = { ...createUnit('scout', 'civ-a', { q: 0, r: 0 }, mkC()), id: 'mover', movementPointsLeft: 1 };
+  state.units = { mover };
+  state.civilizations['civ-a'] = {
+    ...state.civilizations.player, id: 'civ-a', name: 'Civ A', isHuman: true, units: ['mover'], cities: [],
+  };
+  state.civilizations['civ-b'] = {
+    ...state.civilizations['ai-1'], id: 'civ-b', name: 'Civ B', isHuman: true, units: [], cities: [],
+  };
+  delete state.civilizations.player;
+  delete state.civilizations['ai-1'];
+  // Clear the procedurally-generated cities from createNewGame's default 'player'/'ai-1'
+  // civs -- otherwise one may sit at/near (1,0) and shadow the camp this test cares about.
+  state.cities = {};
+  state.barbarianCamps = {
+    'camp-1': { id: 'camp-1', position: { q: 1, r: 0 }, strength: 10, spawnCooldown: 3 },
+  };
+  return state;
+}
+
+describe('#845 hot-seat: camp blocking follows the acting unit\'s owner, not state.currentPlayer', () => {
+  it('blocks civ A\'s unit from an undefended camp while civ A\'s seat is active', () => {
+    const state = hotSeatCampBlockState('civ-a');
+    const unit = state.units.mover;
+    expect(getBlockingMapEntityAt(state, unit, { q: 1, r: 0 })).toEqual({
+      reason: 'barbarian-camp', entityId: 'camp-1',
+    });
+  });
+
+  it('gives the identical result once civ B\'s seat becomes active, for the same civ-A unit', () => {
+    const stillCivAsTurn = hotSeatCampBlockState('civ-a');
+    const nowCivBsTurn = hotSeatCampBlockState('civ-b');
+    const unitDuringA = stillCivAsTurn.units.mover;
+    const unitDuringB = nowCivBsTurn.units.mover;
+
+    expect(getBlockingMapEntityAt(nowCivBsTurn, unitDuringB, { q: 1, r: 0 }))
+      .toEqual(getBlockingMapEntityAt(stillCivAsTurn, unitDuringA, { q: 1, r: 0 }));
+    expect(getMovementRangeDetails(nowCivBsTurn, 'mover').reachable.map(hexKey))
+      .toEqual(getMovementRangeDetails(stillCivAsTurn, 'mover').reachable.map(hexKey));
   });
 });
 
@@ -478,6 +775,39 @@ describe('getMovementBlockerReason', () => {
     expect(
       getMovementBlockerReason(transport, { q: 2, r: 0 }, map, { completedTechs: ['galleys', 'celestial-navigation'] })?.code,
     ).toBe('requires-ocean-hull');
+  });
+
+  // #843: before this, getMovementBlockerReason had no 'foreign-city' code at all, even
+  // though UnitMoveValidationResult's reason type did -- masked because canMove was
+  // wrongly true for these tiles pre-fix, so this branch was never reached. Now that Task 1
+  // correctly excludes far-away city tiles from movementRange, a tap on one falls into the
+  // blocked-movement path and must get the same message validateUnitMove would give.
+  it('reports the foreign-city reason when the caller supplies a blocking entity', () => {
+    const map = createWrappedGrasslandMap(5, 5);
+    const scout = createUnit('scout', 'player', { q: 0, r: 0 }, mkC());
+
+    expect(getMovementBlockerReason(scout, { q: 2, r: 0 }, map, {
+      blockingEntity: { reason: 'foreign-city', entityId: 'some-city' },
+    })).toEqual({
+      code: 'foreign-city',
+      message: 'Move adjacent, then use the city assault action.',
+    });
+  });
+
+  it('takes the blocking-entity reason over an otherwise-passable tile', () => {
+    const map = createWrappedGrasslandMap(5, 5);
+    const scout = createUnit('scout', 'player', { q: 0, r: 0 }, mkC());
+    // Adjacent + passable would otherwise return null (forced march) -- the blocking entity
+    // must still win.
+    expect(getMovementBlockerReason(scout, { q: 1, r: 0 }, map, {
+      blockingEntity: { reason: 'foreign-city', entityId: 'some-city' },
+    })?.code).toBe('foreign-city');
+  });
+
+  it('falls through to normal terrain logic when no blocking entity is supplied', () => {
+    const map = createWrappedGrasslandMap(5, 5);
+    const scout = createUnit('scout', 'player', { q: 0, r: 0 }, mkC());
+    expect(getMovementBlockerReason(scout, { q: 1, r: 0 }, map, { blockingEntity: null })).toBeNull();
   });
 });
 

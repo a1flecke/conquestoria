@@ -98,6 +98,7 @@ export interface MapInteractionControllerDeps {
     precedingCombat?: CombatResult,
     embarkedAssault?: boolean,
   ) => 'pending' | 'resolved';
+  readonly beginPlayerCampAssault: (attackerId: string, campId: string) => void;
   readonly finalizePendingCityCaptureChoice: (disposition: 'occupy' | 'raze', attackerBonus?: CivBonusEffect) => void;
 }
 
@@ -573,6 +574,56 @@ export function createMapInteractionController(deps: MapInteractionControllerDep
             if (assaultStatus === 'resolved') {
               setTimeout(() => selectionController.selectNextUnit(), 400);
             }
+          });
+        }
+        return;
+      }
+
+      case 'assault-camp-preview': {
+        const attackerUnit = session.getState().units[intent.attackerId];
+        const camp = session.getState().barbarianCamps[intent.campId];
+        if (!attackerUnit || !camp) return;
+
+        const panel = deps.getElementById('info-panel');
+        if (panel) {
+          panel.style.display = 'block';
+          const previewDiv = document.createElement('div');
+          previewDiv.style.cssText = 'background:rgba(100,0,0,0.9);border-radius:12px;padding:12px 16px;';
+
+          const title = document.createElement('div');
+          title.style.cssText = 'font-size:13px;color:#e8c170;margin-bottom:6px;';
+          title.textContent = camp.banditLordName ? `Assault ${camp.banditLordName}'s Camp` : 'Assault Barbarian Camp';
+          previewDiv.appendChild(title);
+
+          const info = document.createElement('div');
+          info.style.cssText = 'font-size:11px;opacity:0.8;margin-bottom:8px;';
+          info.textContent = `${UNIT_DEFINITIONS[attackerUnit.type].name} destroys the camp for +${15 + camp.strength * 2} gold. No garrison to fight.`;
+          previewDiv.appendChild(info);
+
+          const btnRow = document.createElement('div');
+          btnRow.style.cssText = 'display:flex;gap:8px;';
+          const attackBtn = document.createElement('button');
+          attackBtn.id = 'btn-assault-camp-confirm';
+          attackBtn.textContent = 'Attack';
+          attackBtn.style.cssText = 'flex:1;padding:8px;border-radius:8px;background:#d94a4a;border:none;color:white;font-weight:bold;cursor:pointer;';
+          const cancelBtn = document.createElement('button');
+          cancelBtn.id = 'btn-cancel-assault-camp';
+          cancelBtn.textContent = 'Cancel';
+          cancelBtn.style.cssText = 'flex:1;padding:8px;border-radius:8px;background:rgba(255,255,255,0.15);border:none;color:white;cursor:pointer;';
+          btnRow.appendChild(attackBtn);
+          btnRow.appendChild(cancelBtn);
+          previewDiv.appendChild(btnRow);
+
+          panel.innerHTML = '';
+          panel.appendChild(previewDiv);
+
+          cancelBtn.addEventListener('click', selectionController.deselectUnit);
+          attackBtn.addEventListener('click', () => {
+            // Read live, as the assault-preview branch above does.
+            deps.beginPlayerCampAssault(selection.getSelectedUnitId()!, intent.campId);
+            renderLoop.setGameState(session.getState());
+            deps.updateHUD();
+            setTimeout(() => selectionController.selectNextUnit(), 400);
           });
         }
         return;

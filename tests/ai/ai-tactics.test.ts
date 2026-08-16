@@ -272,6 +272,50 @@ describe('AI tactical action ranking', () => {
     }));
   });
 
+  // #845 regression: before the DEFAULT_ATTACK_PROFILE fix, this exact scenario silently
+  // produced zero attack candidates for the Galley -- not because of tribute protection or any
+  // other AI-specific gate, but because canAttackUnitDomain rejected ANY naval-vs-naval attack
+  // for a unit lacking its own attackProfile. This is civ-vs-civ (not pirate-hunting, which
+  // routes through a separate bespoke path and never hit the bug), so it proves the fix applies
+  // to ordinary AI-vs-player and AI-vs-AI naval combat, not just the pirate special case.
+  it('offers a Galley an attack against an adjacent hostile naval unit (civ-vs-civ, not pirates)', () => {
+    const state = makeState('veteran');
+    state.map.tiles['0,0'].terrain = 'ocean';
+    state.map.tiles['1,0'].terrain = 'ocean';
+    const warship = addUnit(state, 'warship', 'galley', AI, { q: 0, r: 0 });
+    const enemyShip = addUnit(state, 'enemy-ship', 'trireme', HUMAN, { q: 1, r: 0 });
+    const plan = makePlan(
+      { kind: 'unit', id: enemyShip.id, lastKnownPosition: enemyShip.position },
+      [warship.id],
+      { objective: 'repel' },
+    );
+
+    const actions = rankUnitTacticalActions(context(state, plan), warship.id);
+
+    expect(actions).toContainEqual(expect.objectContaining({
+      action: { kind: 'attack', unitId: 'warship', targetUnitId: 'enemy-ship' },
+    }));
+  });
+
+  it('offers the same attack at a lower opponent-challenge (difficulty) setting too', () => {
+    const state = makeState('standard');
+    state.map.tiles['0,0'].terrain = 'ocean';
+    state.map.tiles['1,0'].terrain = 'ocean';
+    const warship = addUnit(state, 'warship', 'trireme', AI, { q: 0, r: 0 });
+    const enemyShip = addUnit(state, 'enemy-ship', 'galley', HUMAN, { q: 1, r: 0 });
+    const plan = makePlan(
+      { kind: 'unit', id: enemyShip.id, lastKnownPosition: enemyShip.position },
+      [warship.id],
+      { objective: 'repel' },
+    );
+
+    const actions = rankUnitTacticalActions(context(state, plan), warship.id);
+
+    expect(actions).toContainEqual(expect.objectContaining({
+      action: { kind: 'attack', unitId: 'warship', targetUnitId: 'enemy-ship' },
+    }));
+  });
+
   it('does not attack a pirate faction while tribute protection is active', () => {
     const state = makeState('veteran');
     state.map.tiles['0,0'].terrain = 'ocean';
@@ -545,6 +589,58 @@ describe('AI tactical action ranking', () => {
       .some(candidate =>
         candidate.action.kind === 'move'
         && hexKey(candidate.action.destination) === hexKey(city.position))).toBe(false);
+  });
+
+  // #843: getMovementRangeDetails no longer treats an undefended enemy city as a
+  // walk-through tile -- this proves the AI's own move candidates never include a
+  // destination on the far side of one, matching the fix in unit-system.ts. Before the
+  // fix, an undefended city radiated no Zone of Control (unlike a hostile unit), so the
+  // BFS walked straight through it; isForeignCityDestination only ever filtered the
+  // city's own coordinate, never tiles beyond it, so this scenario was unprotected.
+  it('does not path an AI unit through an undefended enemy city toward a target beyond it (#843)', () => {
+    const state = makeState('veteran');
+    // 3 movement points is exactly the cost of the straight line (0,0)->(1,0)->(2,0)->(3,0)
+    // on uniform-cost grassland -- the ONLY length-3 path between those two hexes given this
+    // codebase's 6 hex directions (any detour costs 4+), so this isolates "walked through the
+    // city" from "took a legal detour around it" (the latter is fine and not what's under test).
+    const mover = addUnit(state, 'mover', 'warrior', AI, { q: 0, r: 0 }, { movementPointsLeft: 3 });
+    const city = addCity(state, 'undefended-city', HUMAN, { q: 2, r: 0 });
+    const beyondCity = { q: 3, r: 0 };
+    const plan = makePlan(
+      { kind: 'region', id: 'far-front', anchor: beyondCity },
+      [mover.id],
+    );
+
+    const moveDestinations = rankUnitTacticalActions(context(state, plan), mover.id)
+      .filter(candidate => candidate.action.kind === 'move')
+      .map(candidate => (candidate.action as { destination: HexCoord }).destination);
+
+    expect(moveDestinations.some(destination => hexKey(destination) === hexKey(city.position))).toBe(false);
+    expect(moveDestinations.some(destination => hexKey(destination) === hexKey(beyondCity))).toBe(false);
+    // Sanity check the fixture is actually exercising movement at all.
+    expect(moveDestinations.length).toBeGreaterThan(0);
+  });
+
+  // #845: before rankCampAssault existed, an AI unit adjacent to an undefended camp with a
+  // camp-targeting plan had no action for it at all -- movementRange() (post-#843) correctly
+  // stopped offering the camp's own tile as an ordinary move destination, but nothing offered
+  // the dedicated assault instead, so the plan stalled indefinitely with the unit sitting idle
+  // next to a camp it could never destroy without accidental combat against a garrison.
+  it('offers an AI unit an assault-camp action against an adjacent undefended camp', () => {
+    const state = makeState('veteran');
+    const mover = addUnit(state, 'mover', 'warrior', AI, { q: 0, r: 0 }, { movementPointsLeft: 2 });
+    state.barbarianCamps.camp = { id: 'camp', position: { q: 1, r: 0 }, strength: 4, spawnCooldown: 3 };
+    const plan = makePlan(
+      { kind: 'camp', id: 'camp', lastKnownPosition: { q: 1, r: 0 } },
+      [mover.id],
+      { objective: 'repel' },
+    );
+
+    const actions = rankUnitTacticalActions(context(state, plan), mover.id);
+
+    expect(actions).toContainEqual(expect.objectContaining({
+      action: { kind: 'assault-camp', unitId: 'mover', campId: 'camp' },
+    }));
   });
 
   it('pursues a visible ranged attacker before advancing toward an unrelated strategic target', () => {

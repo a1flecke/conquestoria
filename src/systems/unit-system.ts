@@ -1,6 +1,7 @@
-import type { UnitDefinition, UnitType, Unit, HexCoord, GameMap, GameState, CivBonusEffect, VisibilityState, IdCounters } from '@/core/types';
+import type { UnitDefinition, UnitType, Unit, City, HexCoord, GameMap, GameState, CivBonusEffect, VisibilityState, IdCounters } from '@/core/types';
 import { getZoneOfControlAt } from './zone-of-control-system';
 import { isHostileOwnerTo } from './owner-hostility';
+import { hasAllianceTreaty } from './diplomacy-system';
 import {
   hexKey,
   hexNeighbors,
@@ -428,6 +429,16 @@ const UNIT_DEFINITION_BASES: Record<UnitType, UnitDefinitionBase> = {
     movementPoints: 1, visionRange: 4, strength: 6,
     canFoundCity: false, canBuildImprovements: false, productionCost: 144,
     domain: 'air',
+    // #845 review: this unit has no explicit attackProfile, so before the DEFAULT_ATTACK_PROFILE
+    // fix it accidentally inherited a land-only restriction; after the fix, an air-domain
+    // attacker with no profile of its own falls back to the fully permissive
+    // ['land','naval','air'] set (see canAttackUnitDomain). strength: 6 is nonzero (used
+    // defensively when the balloon itself is attacked), so without this explicit empty-targets
+    // profile it would newly become able to declare attacks -- directly contradicting its own
+    // "Cannot attack" description (UNIT_DESCRIPTIONS.observation_balloon). targets: [] makes
+    // canAttackByProfileOnMap/canUnitAttackTarget structurally always reject it as an attacker,
+    // regardless of domain, matching the description without touching its defensive strength.
+    attackProfile: { kind: 'melee', range: 1, targets: [] },
   },
   biplane: {
     type: 'biplane', name: 'Biplane',
@@ -941,6 +952,7 @@ export type UnitMovementBlockerCode =
   | 'requires-ocean-hull'
   | 'occupied'
   | 'foreign-city'
+  | 'barbarian-camp'
   | 'unreachable'
   | 'insufficient-movement';
 
@@ -1033,6 +1045,8 @@ export interface MovementBlockerReason {
     | 'impassable-terrain'
     | 'requires-ocean-hull'
     | 'occupied'
+    | 'foreign-city'
+    | 'barbarian-camp'
     | 'unreachable'
     | 'insufficient-movement';
   message: string;
@@ -1042,7 +1056,7 @@ export function getMovementBlockerReason(
   unit: Unit,
   to: HexCoord,
   map: GameMap,
-  options: { visibilityState?: VisibilityState; completedTechs?: string[] } = {},
+  options: { visibilityState?: VisibilityState; completedTechs?: string[]; blockingEntity?: BlockingMapEntity | null } = {},
 ): MovementBlockerReason | null {
   if (options.visibilityState === 'unexplored') {
     return { code: 'unexplored', message: 'Too far away to spot.' };
@@ -1052,6 +1066,16 @@ export function getMovementBlockerReason(
   const tile = map.tiles[hexKey(target)];
   if (!tile) {
     return { code: 'unknown-tile', message: 'Too far away to spot.' };
+  }
+
+  // A blocking map entity (e.g. a foreign, unallied city) takes priority over terrain --
+  // the caller supplies it (via getBlockingMapEntityAt) rather than this function taking a
+  // full GameState, matching its existing decoupled-from-state signature (#843).
+  if (options.blockingEntity) {
+    return {
+      code: options.blockingEntity.reason,
+      message: BLOCKING_MAP_ENTITY_MESSAGES[options.blockingEntity.reason],
+    };
   }
 
   const domain = UNIT_DEFINITIONS[unit.type]?.domain ?? 'land';
@@ -1105,6 +1129,74 @@ function normalizeOccupants(value: string | string[] | undefined): string[] {
   return Array.isArray(value) ? value : [value];
 }
 
+export interface BlockingMapEntity {
+  reason: 'foreign-city' | 'barbarian-camp';
+  entityId: string;
+}
+
+function isBlockingCityFor(state: GameState, unit: Unit, city: City): boolean {
+  return city.owner !== unit.owner && !hasAllianceTreaty(state, unit.owner, city.owner);
+}
+
+// Camps have no owner field -- they're always barbarian-hostile to every civ (#845), the same
+// way `isAlwaysHostilePair` treats the 'barbarian' owner class elsewhere. The one exception is
+// a barbarian-owned mover itself (e.g. a raider that spawned on/near its own camp), which must
+// not be blocked from its own camp the same way a city never blocks its own owner.
+function isBlockingCampFor(unit: Unit): boolean {
+  return unit.owner !== 'barbarian';
+}
+
+/**
+ * A foreign, unallied city -- or a barbarian camp -- blocks ordinary movement onto its tile
+ * exactly like `validateUnitMove`'s rejection checks: this is the single source of truth both
+ * that executor and the movement-range preview BFS (`getMovementRange`/
+ * `getMovementRangeDetails`) consult, so the two layers can never drift out of sync the way
+ * they did before this predicate existed (#843). Returns `null` when `coord` has no blocking
+ * entity.
+ */
+export function getBlockingMapEntityAt(
+  state: GameState,
+  unit: Unit,
+  coord: HexCoord,
+): BlockingMapEntity | null {
+  const key = hexKey(coord);
+  const city = Object.values(state.cities).find(c => hexKey(c.position) === key);
+  if (city && isBlockingCityFor(state, unit, city)) {
+    return { reason: 'foreign-city', entityId: city.id };
+  }
+  const camp = Object.values(state.barbarianCamps ?? {}).find(c => hexKey(c.position) === key);
+  if (camp && isBlockingCampFor(unit)) {
+    return { reason: 'barbarian-camp', entityId: camp.id };
+  }
+  return null;
+}
+
+export const BLOCKING_MAP_ENTITY_MESSAGES: Record<BlockingMapEntity['reason'], string> = {
+  'foreign-city': 'Move adjacent, then use the city assault action.',
+  'barbarian-camp': 'Move adjacent, then attack to destroy the camp.',
+};
+
+/**
+ * Every hex `unit` cannot enter via ordinary movement due to a blocking map entity
+ * (see `getBlockingMapEntityAt`). Callers that only have decomposed occupancy data
+ * (not a full `GameState`) -- `getMovementRange`'s two live callers -- compute this set
+ * once up front and pass it in, rather than threading `GameState` through the BFS.
+ */
+export function getBlockingMapEntityKeys(state: GameState, unit: Unit): Set<string> {
+  const keys = new Set<string>();
+  for (const city of Object.values(state.cities)) {
+    if (isBlockingCityFor(state, unit, city)) {
+      keys.add(hexKey(city.position));
+    }
+  }
+  if (isBlockingCampFor(unit)) {
+    for (const camp of Object.values(state.barbarianCamps ?? {})) {
+      keys.add(hexKey(camp.position));
+    }
+  }
+  return keys;
+}
+
 export function getMovementRange(
   unit: Unit,
   map: GameMap,
@@ -1112,6 +1204,7 @@ export function getMovementRange(
   unitOwners?: Record<string, string>,
   hostileOwners?: Set<string>,
   options: UnitMovementContext = {},
+  blockingKeys?: ReadonlySet<string>,
 ): HexCoord[] {
   const reachable: HexCoord[] = [];
   const visited = new Map<string, number>();
@@ -1167,6 +1260,23 @@ export function getMovementRange(
           }
           continue;
         }
+      }
+
+      // A blocking map entity (e.g. a foreign, unallied city -- see
+      // `getBlockingMapEntityAt`/`getBlockingMapEntityKeys`) is only ever reachable (for
+      // adjacent tap-to-assault highlighting) when the unit is ALREADY directly adjacent to
+      // it before this action, exactly like how Zone of Control already restricts a hostile
+      // unit's own tile to direct-adjacency-only. Without the `isFromStartPosition` gate this
+      // would be "reachable" from arbitrarily far away, which is the #843 bug.
+      if (blockingKeys?.has(key)) {
+        if (isFromStartPosition) {
+          const prevRemaining = visited.get(key) ?? -1;
+          if (effectiveRemaining > prevRemaining) {
+            visited.set(key, effectiveRemaining);
+            reachable.push(neighbor);
+          }
+        }
+        continue;
       }
 
       const prevRemaining = visited.get(key) ?? -1;
@@ -1242,8 +1352,19 @@ export function getMovementRangeDetails(
         const owner = unitOwners[id];
         return Boolean(owner) && owner !== unit.owner && hostileOwners.has(owner);
       });
-      const zoc = !hostileOccupant && getZoneOfControlAt(state, unit, neighbor).limited;
-      const terminal = hostileOccupant || zoc;
+      const blockingEntity = getBlockingMapEntityAt(state, unit, neighbor);
+      // A blocking map entity's own tile is only ever "reachable" (for tap-to-assault) when
+      // the unit is ALREADY directly adjacent to it before this action -- never via a
+      // multi-hop approach. This matches how Zone of Control already prevents a hostile
+      // unit's own tile from being added except from direct adjacency (any multi-hop
+      // approach must first cross a ZOC-limited tile one hex short, which is terminal and
+      // never enqueued). Cities/camps radiate no ZOC of their own, so without this explicit
+      // fromStart gate they would be "reachable" from arbitrarily far away whenever movement
+      // points allowed -- exactly the #843 bug (a distant city looked tap-able, but tapping
+      // it while not yet adjacent produced a confusing rejection instead of a move).
+      if (blockingEntity && !fromStart) continue;
+      const zoc = !hostileOccupant && !blockingEntity && getZoneOfControlAt(state, unit, neighbor).limited;
+      const terminal = hostileOccupant || Boolean(blockingEntity) || zoc;
       const previous = visited.get(key) ?? -1;
       if (effectiveRemaining <= previous) continue;
       visited.set(key, effectiveRemaining);

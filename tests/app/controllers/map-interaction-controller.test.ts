@@ -169,6 +169,7 @@ function baseDeps(state: GameState, overrides: Partial<MapInteractionControllerD
     executeAttack: vi.fn(),
     executeMinorCivConquest: vi.fn(),
     beginPlayerCityAssault: vi.fn(() => 'resolved' as const),
+    beginPlayerCampAssault: vi.fn(),
     finalizePendingCityCaptureChoice: vi.fn(),
     ...overrides,
   };

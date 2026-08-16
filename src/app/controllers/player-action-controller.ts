@@ -69,13 +69,13 @@ import { removeRouteForUnit } from '@/systems/trade-system';
 import { applyWorkerAction } from '@/systems/worker-action-system';
 import { preach } from '@/systems/religion-system';
 import { createUnitDeleteConfirmationPanel } from '@/ui/unit-delete-confirmation-panel';
-import { UNIT_DEFINITIONS, canHeal, restUnit, createUnit } from '@/systems/unit-system';
+import { UNIT_DEFINITIONS, canHeal, restUnit, createUnit, getBlockingMapEntityAt } from '@/systems/unit-system';
 import { isMajorCivOwner } from '@/core/owner-kind';
 import { declareWar, modifyRelationship, resolveOpponentKind } from '@/systems/diplomacy-system';
 import { applyOpportunisticWarPenaltyIfCrisisStruck } from '@/systems/crisis-interaction-system';
 import { getSpyCaptureRelationshipPenalty, expelSpy, executeSpy, startInterrogation } from '@/systems/espionage-system';
 import { getCapitalCity } from '@/systems/capital-system';
-import { hexKey, parseHexKey } from '@/systems/hex-utils';
+import { hexKey, parseHexKey, hexDistance, wrappedHexDistance } from '@/systems/hex-utils';
 import { foundCityInState } from '@/systems/city-founding-system';
 import { formatCityFoundingBlockerMessage, getCityFoundingBlockers } from '@/systems/city-territory-system';
 import { createCityCapturePanel } from '@/ui/city-capture-panel';
@@ -120,6 +120,7 @@ export interface PlayerActionController {
     precedingCombat?: CombatResult,
     embarkedAssault?: boolean,
   ): 'pending' | 'resolved';
+  beginPlayerCampAssault(attackerId: string, campId: string): void;
   executeMinorCivConquest(unitId: string, target: HexCoord, minorCivId: string, cityId: string): void;
 }
 
@@ -577,6 +578,75 @@ export function createPlayerActionController(deps: PlayerActionControllerDeps): 
     return 'pending';
   }
 
+  /**
+   * Destroys an undefended barbarian camp the attacker is directly adjacent to (#845).
+   * Unlike `beginPlayerCityAssault`, a camp has no capture/raze choice -- `destroyCamp`
+   * always produces the same flat-gold outcome, so this consumes the unit's action and
+   * calls `applyCampDestructionAtTarget` in one step, mirroring the exact notification/
+   * quest-transition/advisor/diplomatic-reaction sequence `executeAttack` already runs
+   * when a camp's last defender dies (see below) -- this is just that same sequence
+   * reached without a defending unit to fight first.
+   */
+  function beginPlayerCampAssault(attackerId: string, campId: string): void {
+    const state = deps.session.getState();
+    const attacker = state.units[attackerId];
+    const camp = state.barbarianCamps[campId];
+    if (!attacker || !camp) return;
+
+    const blockingEntity = getBlockingMapEntityAt(state, attacker, camp.position);
+    const distance = state.map.wrapsHorizontally
+      ? wrappedHexDistance(attacker.position, camp.position, state.map.width)
+      : hexDistance(attacker.position, camp.position);
+    // Defense-in-depth (matching executeAttack's own hasActed re-check comment): a garrisoned
+    // camp must go through ordinary combat against its defender instead, not this direct
+    // one-step destroy path. The normal tap-intent flow already routes a garrisoned camp to
+    // combat-preview before it ever reaches resolveSelectedUnitTapIntent's camp check, but this
+    // execution-layer check must not trust that UI precedence alone.
+    const occupancy = buildUnitOccupancy(state.units);
+    const hasDefender = hasHostileUnitAtCoord(occupancy, camp.position, attacker.owner);
+    if (
+      attacker.hasActed
+      || blockingEntity?.reason !== 'barbarian-camp'
+      || blockingEntity.entityId !== campId
+      || distance !== 1
+      || hasDefender
+    ) {
+      deps.showNotification('That camp is no longer within reach.', 'warning');
+      return;
+    }
+
+    const banditLordName = camp.banditLordName;
+    deps.session.setStateWithoutRefresh({
+      ...state,
+      units: {
+        ...state.units,
+        [attackerId]: { ...attacker, hasActed: true, hasMoved: true, movementPointsLeft: 0 },
+      },
+    });
+
+    const destroyedCamp = applyCampDestructionAtTarget(
+      deps.session.getState(),
+      deps.session.getState().currentPlayer,
+      camp.position,
+      deps.session.getState().turn,
+    );
+    if (destroyedCamp.campId) {
+      deps.session.setStateWithoutRefresh(destroyedCamp.state);
+      emitMinorCivQuestTransitions(deps.bus, destroyedCamp.questTransitions, deps.session.getState());
+      const label = banditLordName ? `${banditLordName}'s camp` : 'Barbarian camp';
+      deps.showNotification(`${label} destroyed! +${destroyedCamp.reward} gold`, 'success');
+      deps.advisorSystem.resetMessage('treasurer_camp_reward');
+      deps.advisorSystem.check(deps.session.getState());
+      for (const mcId of Object.keys(deps.session.getState().minorCivs)) {
+        applyDiplomaticReaction(deps.session.getState(), 'camp_destroyed_nearby', deps.session.getState().currentPlayer, mcId);
+      }
+    }
+
+    SFX.combat();
+    deps.renderLoop.setGameState(deps.session.getState());
+    deps.hud.update();
+  }
+
   function executeAttack(attackerId: string, targetKey: string): void {
     const initialAttacker = deps.session.getState().units[attackerId];
     const targetCoord = parseHexKey(targetKey);
@@ -770,6 +840,7 @@ export function createPlayerActionController(deps: PlayerActionControllerDeps): 
     foundCityAction,
     executeUpgrade,
     beginPlayerCityAssault,
+    beginPlayerCampAssault,
     executeMinorCivConquest,
   };
 }

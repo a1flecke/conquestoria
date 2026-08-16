@@ -16,6 +16,7 @@ import {
   decayEvents,
   getAvailableActions,
   isAtWar,
+  hasAllianceTreaty,
   rejectDiplomaticRequest,
   enqueueTreatyProposal,
   pruneExpiredDiplomaticRequests,
@@ -169,6 +170,37 @@ describe('diplomacy-system', () => {
       state = breakTreaty(state, 'ai-egypt', 'non_aggression_pact', 20);
       expect(state.treaties).toHaveLength(0);
       expect(getRelationship(state, 'ai-egypt')).toBe(-25); // +5 from propose, -30 from break
+    });
+  });
+
+  describe('hasAllianceTreaty', () => {
+    it('returns true when civA has an alliance treaty with civB', () => {
+      const state = makeWarState();
+      state.civilizations.player.diplomacy.treaties.push({
+        type: 'alliance', civA: 'player', civB: 'ai-1', turnsRemaining: 5,
+      });
+      expect(hasAllianceTreaty(state, 'player', 'ai-1')).toBe(true);
+    });
+
+    it('is symmetric regardless of which civ is passed first', () => {
+      const state = makeWarState();
+      state.civilizations.player.diplomacy.treaties.push({
+        type: 'alliance', civA: 'player', civB: 'ai-1', turnsRemaining: 5,
+      });
+      expect(hasAllianceTreaty(state, 'ai-1', 'player')).toBe(true);
+    });
+
+    it('returns false when no alliance treaty exists', () => {
+      const state = makeWarState();
+      expect(hasAllianceTreaty(state, 'player', 'ai-1')).toBe(false);
+    });
+
+    it('returns false for a non-alliance treaty type', () => {
+      const state = makeWarState();
+      state.civilizations.player.diplomacy.treaties.push({
+        type: 'non_aggression_pact', civA: 'player', civB: 'ai-1', turnsRemaining: 5,
+      });
+      expect(hasAllianceTreaty(state, 'player', 'ai-1')).toBe(false);
     });
   });
 
