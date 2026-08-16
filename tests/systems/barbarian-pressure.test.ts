@@ -4,6 +4,7 @@ import { createUnit } from '@/systems/unit-system';
 import {
   getActiveCampPressure,
   observeCampPressureFromSensedUnits,
+  recordCampPressureFromCombatOutcome,
   recordCampPressure,
 } from '@/systems/barbarian-pressure';
 
@@ -63,6 +64,23 @@ describe('barbarian camp pressure', () => {
       .toEqual(['air']);
     state.cities.airfield.position = { q: 20, r: 5 };
     expect(getActiveCampPressure(observeCampPressureFromSensedUnits(state, 'camp-a', [aircraft]), 'camp-a', state.turn))
+      .toEqual([]);
+  });
+
+  it('records armor only when an armored attacker hits a camp-assigned barbarian', () => {
+    const state = pressureState();
+    const tank = createUnit('tank', 'player', { q: 6, r: 5 }, state.idCounters);
+    const raider = createUnit('warrior', 'barbarian', { q: 5, r: 5 }, state.idCounters);
+    state.units = { [tank.id]: tank, [raider.id]: raider };
+    state.opponentAI = {
+      version: 1, migrationGraceRoundsRemaining: 0, majorCivs: {}, barbarianCamps: {},
+      barbarianHomeCampByUnitId: { [raider.id]: 'camp-a' }, minorCivs: {}, pressureByCiv: {},
+      lastPlannedRound: null, lastProcessedRound: null, lastFinalizedRound: null,
+    };
+
+    expect(getActiveCampPressure(recordCampPressureFromCombatOutcome(state, tank, raider), 'camp-a', state.turn))
+      .toEqual(['armor']);
+    expect(getActiveCampPressure(recordCampPressureFromCombatOutcome(state, { ...tank, type: 'warrior' }, raider), 'camp-a', state.turn))
       .toEqual([]);
   });
 });

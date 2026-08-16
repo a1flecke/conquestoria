@@ -326,6 +326,27 @@ describe('air bases', () => {
     expect(resolveAirStrike(missionState, 'striker', { q: 5, r: 2 }).state.cities['enemy-city']!.hp).toBeLessThan(100);
   });
 
+  it('#698 records only a successful air strike within six hexes of a camp', () => {
+    const missionState = {
+      ...state,
+      turn: 9,
+      map: { width: 12, height: 12, wrapsHorizontally: false, tiles: {} },
+      units: { striker: { ...biplane, id: 'striker', position: { q: 2, r: 2 } } },
+      cities: {
+        'city-1': { id: 'city-1', owner: 'player', position: { q: 2, r: 2 }, buildings: ['airfield'] },
+        'enemy-city': { id: 'enemy-city', owner: 'enemy', position: { q: 5, r: 2 }, buildings: [] },
+      },
+      civilizations: {
+        player: { units: ['striker'], cities: ['city-1'], techState: { completed: [] }, visibility: { tiles: { '5,2': 'visible' } }, diplomacy: { atWarWith: ['enemy'], events: [] } },
+        enemy: { units: [], cities: ['enemy-city'], techState: { completed: [] }, diplomacy: { atWarWith: ['player'], events: [] } },
+      },
+      barbarianCamps: { 'camp-a': { id: 'camp-a', position: { q: 5, r: 5 }, strength: 5, spawnCooldown: 3 } },
+    } as unknown as GameState;
+
+    expect(resolveAirStrike(missionState, 'striker', { q: 5, r: 2 }).state.barbarianCampPressure)
+      .toEqual({ 'camp-a': { airLastObservedTurn: 9 } });
+  });
+
   it('lists only actual hostile, map-present aircraft strike targets for the mission UI', () => {
     const missionState = {
       ...state,
