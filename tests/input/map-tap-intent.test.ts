@@ -326,6 +326,76 @@ describe('resolveMapTapIntent', () => {
       expect(intent).toEqual({ kind: 'assault-preview', attackerId: 'unit-1', cityId: 'enemyCity', embarkedAssault: false });
     });
 
+    // #845: an undefended barbarian camp previously had no dedicated intent at all -- a tap
+    // resolved as an ordinary 'move' and the unit walked onto it. This proves the tap now
+    // routes to a dedicated preview, and that a non-adjacent camp correctly stays a plain
+    // 'blocked-movement' rather than a silent move/deselect.
+    it('previews a camp assault when resolveSelectedUnitTapIntent returns assault-camp', () => {
+      const state = makeFixture();
+      placePlayerUnit(state, 'unit-1', { position: { q: 0, r: 0 } });
+      state.barbarianCamps['camp-1'] = { id: 'camp-1', position: { q: 1, r: 0 }, strength: 10, spawnCooldown: 3 };
+
+      const intent = resolveMapTapIntent(
+        state,
+        snapshot({ selectedUnitId: 'unit-1', movementRange: [{ q: 1, r: 0 }] }),
+        { q: 1, r: 0 },
+        false,
+      );
+
+      expect(intent).toEqual({ kind: 'assault-camp-preview', attackerId: 'unit-1', campId: 'camp-1' });
+    });
+
+    it('reports a clear barbarian-camp blocker when tapping a non-adjacent undefended camp', () => {
+      const state = makeFixture();
+      placePlayerUnit(state, 'unit-1', { position: { q: 0, r: 0 } });
+      const campCoord = { q: 2, r: 0 };
+      state.barbarianCamps['camp-1'] = { id: 'camp-1', position: campCoord, strength: 10, spawnCooldown: 3 };
+
+      const intent = resolveMapTapIntent(
+        state,
+        snapshot({ selectedUnitId: 'unit-1', movementRange: [{ q: 1, r: 0 }] }),
+        campCoord,
+        false,
+      );
+
+      expect(intent).toEqual({
+        kind: 'blocked-movement',
+        unitId: 'unit-1',
+        reason: { code: 'barbarian-camp', message: 'Move adjacent, then attack to destroy the camp.' },
+      });
+    });
+
+    // #843: a non-adjacent undefended enemy city is correctly excluded from movementRange by
+    // buildSelectedUnitHighlights post-fix (see selected-unit-highlights.test.ts), so tapping
+    // it falls into this !canMove && !canAttack branch. It must resolve to a clear
+    // 'blocked-movement' with the 'foreign-city' reason -- not a silent 'deselect', and not a
+    // 'move' that would then fail downstream at execution.
+    it('reports a clear foreign-city blocker when tapping a non-adjacent undefended enemy city', () => {
+      const state = makeFixture();
+      placePlayerUnit(state, 'unit-1', { position: { q: 0, r: 0 } });
+      const cityCoord = { q: 2, r: 0 };
+      state.cities.enemyCity = { ...foundCity('ai-1', cityCoord, state.map, mkC()), id: 'enemyCity', owner: 'ai-1', position: cityCoord };
+      state.civilizations['ai-1'].cities.push('enemyCity');
+      state.civilizations.player.diplomacy.atWarWith = ['ai-1'];
+      state.civilizations['ai-1'].diplomacy.atWarWith = ['player'];
+      makeVisible(state, cityCoord);
+
+      const intent = resolveMapTapIntent(
+        state,
+        // Deliberately does NOT include the city coordinate -- matching the corrected,
+        // adjacency-gated output of buildSelectedUnitHighlights for a non-adjacent city.
+        snapshot({ selectedUnitId: 'unit-1', movementRange: [{ q: 1, r: 0 }] }),
+        cityCoord,
+        false,
+      );
+
+      expect(intent).toEqual({
+        kind: 'blocked-movement',
+        unitId: 'unit-1',
+        reason: { code: 'foreign-city', message: 'Move adjacent, then use the city assault action.' },
+      });
+    });
+
     it('asks for war confirmation when resolveSelectedUnitTapIntent returns confirm-war-city', () => {
       const state = makeFixture();
       placePlayerUnit(state, 'unit-1', { position: { q: 0, r: 0 } });

@@ -430,6 +430,7 @@ export function createAppComposition(deps: AppCompositionDeps): AppComposition {
     executeAttack: playerActions.executeAttack,
     executeMinorCivConquest: playerActions.executeMinorCivConquest,
     beginPlayerCityAssault: playerActions.beginPlayerCityAssault,
+    beginPlayerCampAssault: playerActions.beginPlayerCampAssault,
     finalizePendingCityCaptureChoice: turnFlow.finalizePendingCityCaptureChoice,
   });
 

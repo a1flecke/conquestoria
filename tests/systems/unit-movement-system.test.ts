@@ -357,6 +357,65 @@ describe('unit-movement-system', () => {
     expect(state.units.mover.position).toEqual(city.position);
   });
 
+  // #845: an undefended barbarian camp had ZERO representation anywhere in the movement
+  // system before this -- not even a rejection, unlike a foreign city. A unit could walk
+  // straight onto (and through) one as if it were empty terrain. These tests prove
+  // validateUnitMove now rejects it via the same getBlockingMapEntityAt predicate #843 built
+  // for cities, extended with a `state.barbarianCamps` case.
+  it('rejects ordinary movement onto an undefended barbarian camp', () => {
+    const mover = createUnit('warrior', 'player', { q: 0, r: 0 }, mkC());
+    mover.id = 'mover';
+    const state = movementState(mover, [
+      tile({ q: 0, r: 0 }),
+      tile({ q: 1, r: 0 }),
+    ]);
+    state.barbarianCamps['camp-1'] = {
+      id: 'camp-1', position: { q: 1, r: 0 }, strength: 10, spawnCooldown: 3,
+    };
+
+    const result = executeUnitMove(state, 'mover', { q: 1, r: 0 }, { actor: 'player', civId: 'player' });
+
+    expect(result).toMatchObject({ ok: false, reason: 'barbarian-camp' });
+    expect(state.units.mover.position).toEqual({ q: 0, r: 0 });
+  });
+
+  it('does not path through an undefended barbarian camp toward a tile beyond it', () => {
+    const mover = createUnit('warrior', 'player', { q: 0, r: 0 }, mkC());
+    mover.id = 'mover';
+    mover.movementPointsLeft = 3;
+    const state = movementState(mover, [
+      tile({ q: 0, r: 0 }), tile({ q: 1, r: 0 }), tile({ q: 2, r: 0 }),
+    ]);
+    state.barbarianCamps['camp-1'] = {
+      id: 'camp-1', position: { q: 1, r: 0 }, strength: 10, spawnCooldown: 3,
+    };
+
+    const result = executeUnitMove(state, 'mover', { q: 2, r: 0 }, { actor: 'player', civId: 'player' });
+
+    expect(result).toMatchObject({ ok: false, reason: 'barbarian-camp' });
+    expect(state.units.mover.position).toEqual({ q: 0, r: 0 });
+  });
+
+  it('does not block a barbarian unit from its own camp', () => {
+    const mover = createUnit('warrior', 'barbarian', { q: 0, r: 0 }, mkC());
+    mover.id = 'raider';
+    // movementState derives its civilizations map from the units passed in, so a
+    // barbarian-owned mover already gets a valid `state.civilizations.barbarian` entry --
+    // no manual civ construction needed here.
+    const state = movementState(mover, [
+      tile({ q: 0, r: 0 }),
+      tile({ q: 1, r: 0 }),
+    ]);
+    state.barbarianCamps['camp-1'] = {
+      id: 'camp-1', position: { q: 1, r: 0 }, strength: 10, spawnCooldown: 3,
+    };
+
+    const result = executeUnitMove(state, 'raider', { q: 1, r: 0 }, { actor: 'automation', civId: 'barbarian' });
+
+    expect(result.ok).toBe(true);
+    expect(state.units.raider.position).toEqual({ q: 1, r: 0 });
+  });
+
   it('refuses to execute movement onto an occupied foreign unit tile', () => {
     const mover = createUnit('warrior', 'player', { q: 0, r: 0 }, mkC());
     mover.id = 'mover';

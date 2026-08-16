@@ -107,6 +107,17 @@ export function isAtWar(state: DiplomacyState, civId: string): boolean {
   return state.atWarWith.includes(civId);
 }
 
+function hasAllianceTreatyFromSide(state: GameState, viewerId: string, otherId: string): boolean {
+  const treaties = state.civilizations[viewerId]?.diplomacy?.treaties ?? [];
+  return treaties.some(treaty =>
+    treaty.type === 'alliance'
+    && ((treaty.civA === viewerId && treaty.civB === otherId) || (treaty.civA === otherId && treaty.civB === viewerId)));
+}
+
+export function hasAllianceTreaty(state: GameState, civA: string, civB: string): boolean {
+  return hasAllianceTreatyFromSide(state, civA, civB) || hasAllianceTreatyFromSide(state, civB, civA);
+}
+
 export function declareWar(
   state: DiplomacyState,
   targetCivId: string,

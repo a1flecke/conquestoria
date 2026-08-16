@@ -14,7 +14,10 @@ import {
   findPathToCity,
   UNIT_DEFINITIONS,
   canHullEnterOcean,
+  getBlockingMapEntityAt,
+  BLOCKING_MAP_ENTITY_MESSAGES,
   type UnitMovementBlockerCode,
+  type BlockingMapEntity,
 } from '@/systems/unit-system';
 import { visitVillage } from '@/systems/village-system';
 import { processWonderDiscovery } from '@/systems/wonder-system';
@@ -280,19 +283,6 @@ function getOwnerCompletedTechs(state: GameState, owner: string): string[] {
   return state.civilizations[owner]?.techState.completed ?? [];
 }
 
-function hasAlliance(
-  state: GameState,
-  civId: string,
-  otherCivId: string,
-): boolean {
-  return state.civilizations[civId]?.diplomacy.treaties.some(treaty =>
-    treaty.type === 'alliance'
-    && (
-      treaty.civA === civId && treaty.civB === otherCivId
-      || treaty.civA === otherCivId && treaty.civB === civId
-    )) ?? false;
-}
-
 function getImpassableReason(
   unitType: UnitType,
   terrain: string,
@@ -333,20 +323,17 @@ export function validateUnitMove(
   const tile = state.map.tiles[hexKey(target)];
   if (!tile) return movementFailure(from, target, [from], 'unknown-tile', 'Too far away to spot.');
 
-  const foreignCity = Object.values(state.cities).find(city =>
-    city.owner !== unit.owner
-    && hexKey(city.position) === hexKey(target));
+  const blockingEntity = getBlockingMapEntityAt(state, unit, target);
   if (
-    foreignCity
-    && (options.actor === 'world' || options.foreignCityEntryId !== foreignCity.id)
-    && !hasAlliance(state, unit.owner, foreignCity.owner)
+    blockingEntity
+    && (options.actor === 'world' || options.foreignCityEntryId !== blockingEntity.entityId)
   ) {
     return movementFailure(
       from,
       target,
       [from, target],
-      'foreign-city',
-      'Move adjacent, then use the city assault action.',
+      blockingEntity.reason,
+      BLOCKING_MAP_ENTITY_MESSAGES[blockingEntity.reason],
     );
   }
 
@@ -379,23 +366,25 @@ export function validateUnitMove(
       'An enemy unit is blocking the way.',
     );
   }
-  const pathCrossesBlockedForeignCity = path.slice(1).some(coord =>
-    Object.values(state.cities).some(city =>
-      city.owner !== unit.owner
-      && hexKey(city.position) === hexKey(coord)
-      && !hasAlliance(state, unit.owner, city.owner)
-      && (
-        options.actor === 'world'
-        || options.foreignCityEntryId !== city.id
-        || hexKey(coord) !== hexKey(target)
-      )));
-  if (pathCrossesBlockedForeignCity) {
+  let blockedPathEntity: BlockingMapEntity | undefined;
+  for (const coord of path.slice(1)) {
+    const entity = getBlockingMapEntityAt(state, unit, coord);
+    if (!entity) continue;
+    const isExplicitEntryToThisEntity = options.actor !== 'world'
+      && options.foreignCityEntryId === entity.entityId
+      && hexKey(coord) === hexKey(target);
+    if (!isExplicitEntryToThisEntity) {
+      blockedPathEntity = entity;
+      break;
+    }
+  }
+  if (blockedPathEntity) {
     return movementFailure(
       from,
       target,
       path,
-      'foreign-city',
-      'Move adjacent, then use the city assault action.',
+      blockedPathEntity.reason,
+      BLOCKING_MAP_ENTITY_MESSAGES[blockedPathEntity.reason],
     );
   }
 

@@ -2,26 +2,20 @@ import type { GameState, HexCoord } from '@/core/types';
 import { getUnitAttackProfile } from '@/systems/attack-targeting';
 import { hexDistance, hexKey, wrappedHexDistance } from '@/systems/hex-utils';
 import { buildUnitOccupancy, getStackRelationship } from '@/systems/unit-occupancy';
-import { getMovementRange } from '@/systems/unit-system';
+import { getMovementRange, getBlockingMapEntityKeys, UNIT_DEFINITIONS } from '@/systems/unit-system';
 import { getEmbarkedAssaultTarget } from '@/systems/transport-system';
+import { hasAllianceTreaty } from '@/systems/diplomacy-system';
 
 export type SelectedUnitTapIntent =
   | { kind: 'move' }
   | { kind: 'assault-city'; cityId: string; embarkedAssault?: boolean }
   | { kind: 'assault-minor-civ'; cityId: string; minorCivId: string }
   | { kind: 'confirm-war-minor-civ'; cityId: string; minorCivId: string }
-  | { kind: 'confirm-war-city'; cityId: string; defenderId: string };
-
-function hasTreaty(state: GameState, civA: string, civB: string, type: string): boolean {
-  const treaties = state.civilizations[civA]?.diplomacy?.treaties ?? [];
-  return treaties.some(treaty =>
-    treaty.type === type
-    && ((treaty.civA === civA && treaty.civB === civB) || (treaty.civA === civB && treaty.civB === civA)),
-  );
-}
+  | { kind: 'confirm-war-city'; cityId: string; defenderId: string }
+  | { kind: 'assault-camp'; campId: string };
 
 function canEnterForeignCityPeacefully(state: GameState, owner: string, targetOwner: string): boolean {
-  return hasTreaty(state, owner, targetOwner, 'alliance');
+  return hasAllianceTreaty(state, owner, targetOwner);
 }
 
 function canReachCityAssault(state: GameState, unitId: string, targetCoord: HexCoord): boolean {
@@ -33,6 +27,22 @@ function canReachCityAssault(state: GameState, unitId: string, targetCoord: HexC
     ? wrappedHexDistance(unit.position, targetCoord, state.map.width)
     : hexDistance(unit.position, targetCoord);
   return distance > 0 && distance <= profile.range;
+}
+
+// #845: camps aren't part of attack-targeting.ts's target/profile system (they have no
+// defender to fight when undefended -- see beginPlayerCampAssault), so this doesn't reuse
+// canReachCityAssault's profile.targets gate. Any strength-capable land unit that is
+// literally adjacent can assault a camp, mirroring how any land combat unit can already
+// destroy one by killing its garrison.
+function canReachCampAssault(state: GameState, unitId: string, targetCoord: HexCoord): boolean {
+  const unit = state.units[unitId];
+  if (!unit) return false;
+  const definition = UNIT_DEFINITIONS[unit.type];
+  if (definition.strength <= 0 || (definition.domain ?? 'land') !== 'land') return false;
+  const distance = state.map.wrapsHorizontally
+    ? wrappedHexDistance(unit.position, targetCoord, state.map.width)
+    : hexDistance(unit.position, targetCoord);
+  return distance === 1;
 }
 
 export function resolveSelectedUnitTapIntent(
@@ -60,6 +70,7 @@ export function resolveSelectedUnitTapIntent(
       occupancy.ownersByUnitId,
       hostileOwners,
       { completedTechs: civ?.techState.completed ?? [] },
+      getBlockingMapEntityKeys(state, unit),
     );
   })();
 
@@ -76,6 +87,13 @@ export function resolveSelectedUnitTapIntent(
   const relationship = getStackRelationship(occupancy, unit, targetCoord);
   if (!isEmbarkedCityAssault && relationship.hasHostileBlocker) {
     return { kind: 'move' };
+  }
+
+  const campAtTarget = Object.values(state.barbarianCamps ?? {}).find(camp => hexKey(camp.position) === targetKey);
+  if (campAtTarget && unit.owner !== 'barbarian') {
+    return canReachCampAssault(state, unitId, targetCoord)
+      ? { kind: 'assault-camp', campId: campAtTarget.id }
+      : { kind: 'move' };
   }
 
   const cityAtTarget = Object.values(state.cities).find(city =>

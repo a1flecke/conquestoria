@@ -34,8 +34,14 @@ export interface AttackTarget {
   result: Extract<AttackTargetResult, { ok: true }>;
 }
 
+// Deliberately no `targetDomains` here (#845): it must stay `undefined` so
+// `canAttackUnitDomain`'s per-attacker-domain fallback runs for every unit that falls back to
+// this shared default -- a hardcoded `['land']` here previously made ANY unit lacking its own
+// `attackProfile` (not just land melee units) silently land-only, including naval units like
+// Galley/Trireme, which could then never attack another ship. Units that need a narrower,
+// explicit restriction (e.g. land melee) declare their own `attackProfile.targetDomains`.
 const DEFAULT_ATTACK_PROFILE: UnitAttackProfile = {
-  kind: 'melee', range: 1, targets: ['unit', 'city'], targetDomains: ['land'],
+  kind: 'melee', range: 1, targets: ['unit', 'city'],
 };
 
 export function getUnitAttackProfile(type: UnitType): UnitAttackProfile {

@@ -1,6 +1,6 @@
 import type { GameState, HexCoord } from '@/core/types';
 import type { PendingMapIntent, SelectionSnapshot } from '@/app/ports';
-import { getMovementBlockerReason, type MovementBlockerReason } from '@/systems/unit-system';
+import { getMovementBlockerReason, getBlockingMapEntityAt, type MovementBlockerReason } from '@/systems/unit-system';
 import { isWorkerBusy } from '@/systems/unit-movement-system';
 import { hexKey } from '@/systems/hex-utils';
 import { canUnitAttackBeast } from '@/systems/beast-system';
@@ -52,6 +52,7 @@ export type MapTapIntent =
   | { readonly kind: 'enemy-unit-info'; readonly unitId: string }
   | { readonly kind: 'combat-preview'; readonly attackerId: string; readonly defenderId: string; readonly targetCoord: HexCoord }
   | { readonly kind: 'assault-preview'; readonly attackerId: string; readonly cityId: string; readonly embarkedAssault: boolean }
+  | { readonly kind: 'assault-camp-preview'; readonly attackerId: string; readonly campId: string }
   | { readonly kind: 'confirm-war-city'; readonly attackerId: string; readonly cityId: string; readonly defenderId: string }
   | { readonly kind: 'confirm-war-minor-civ'; readonly attackerId: string; readonly cityId: string; readonly minorCivId: string }
   | { readonly kind: 'assault-minor-civ'; readonly attackerId: string; readonly coord: HexCoord; readonly cityId: string; readonly minorCivId: string }
@@ -146,6 +147,7 @@ export function resolveMapTapIntent(
       }
       const reason = getMovementBlockerReason(selectedUnit, coord, state.map, {
         completedTechs: state.civilizations[selectedUnit.owner]?.techState.completed ?? [],
+        blockingEntity: getBlockingMapEntityAt(state, selectedUnit, coord),
       });
       if (reason) {
         return { kind: 'blocked-movement', unitId: selectedUnitId, reason };
@@ -186,6 +188,9 @@ export function resolveMapTapIntent(
     const tapIntent = resolveSelectedUnitTapIntent(state, selectedUnitId, coord, selection.movementRange);
     if (tapIntent.kind === 'assault-city') {
       return { kind: 'assault-preview', attackerId: selectedUnitId, cityId: tapIntent.cityId, embarkedAssault: Boolean(tapIntent.embarkedAssault) };
+    }
+    if (tapIntent.kind === 'assault-camp') {
+      return { kind: 'assault-camp-preview', attackerId: selectedUnitId, campId: tapIntent.campId };
     }
     if (tapIntent.kind === 'confirm-war-city') {
       return { kind: 'confirm-war-city', attackerId: selectedUnitId, cityId: tapIntent.cityId, defenderId: tapIntent.defenderId };

@@ -442,6 +442,46 @@ describe('processMajorCivStrategicTurn', () => {
       .not.toBe('abandoned');
   });
 
+  // #845: before rankCampAssault/executeAction's 'assault-camp' case existed, the AI had
+  // no way to destroy an undefended camp at all -- only the post-combat follow-up above
+  // (which only fires when the AI kills a garrisoning unit first) existed. An AI adjacent to
+  // an undefended camp would move toward it (now correctly stopping at adjacency, not walking
+  // onto it, per #843's isBlockedMoveDestination) and then have no action, stalling
+  // indefinitely. This proves the AI now destroys an undefended camp exactly like it already
+  // destroys a defended one above -- same events, same reward mechanism, no combat step needed.
+  it('destroys an undefended camp directly, mirroring the defended-camp destruction path', () => {
+    const state = makeState();
+    addUnit(state, 'attacker', 'swordsman', AI, { q: 0, r: 0 });
+    state.barbarianCamps.camp = {
+      id: 'camp',
+      position: { q: 1, r: 0 },
+      strength: 1,
+      spawnCooldown: 2,
+    };
+    const plan = makePlan(
+      { kind: 'camp', id: 'camp', lastKnownPosition: { q: 1, r: 0 } },
+      ['attacker'],
+      { objective: 'repel', requiredRoles: { frontline: 1 } },
+    );
+    const bus = new EventBus();
+    const destroyed = vi.fn();
+    bus.on('barbarian:camp-destroyed', destroyed);
+    const goldBefore = state.civilizations[AI].gold;
+
+    const result = processMajorCivStrategicTurn(
+      state,
+      prepared(state, plan),
+      bus,
+    );
+
+    expect(result.state.barbarianCamps.camp).toBeUndefined();
+    expect(result.state.civilizations[AI].gold).toBe(goldBefore + (15 + 1 * 2));
+    expect(result.state.legendaryWonderHistory?.destroyedStrongholds)
+      .toContainEqual(expect.objectContaining({ civId: AI, campId: 'camp' }));
+    expect(destroyed).toHaveBeenCalledOnce();
+    expect(result.state.units.attacker).toMatchObject({ hasActed: true, position: { q: 0, r: 0 } });
+  });
+
   it('founds a city through the shared whole-state helper', () => {
     const state = makeState();
     addUnit(state, 'settler', 'settler', AI, { q: 2, r: 2 });

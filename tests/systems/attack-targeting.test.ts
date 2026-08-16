@@ -24,7 +24,12 @@ function stateWithUnits(units: Record<string, Unit>, visibility: Record<string, 
 
 describe('attack-targeting', () => {
   it('gives warriors the default melee profile and archers an explicit ranged profile', () => {
-    expect(getUnitAttackProfile('warrior')).toEqual({ kind: 'melee', range: 1, targets: ['unit', 'city'], targetDomains: ['land'] });
+    // #845: DEFAULT_ATTACK_PROFILE no longer carries `targetDomains` itself -- a land unit
+    // like Warrior is still behaviorally restricted to land targets, but that restriction now
+    // comes from canAttackUnitDomain's per-attacker-domain fallback at call time, not from a
+    // static value baked into the profile object. See the naval-attack tests below for the
+    // behavioral (not just shape) coverage this split enables.
+    expect(getUnitAttackProfile('warrior')).toEqual({ kind: 'melee', range: 1, targets: ['unit', 'city'] });
     expect(getUnitAttackProfile('archer')).toEqual({ kind: 'ranged', range: 2, targets: ['unit'] });
   });
 
@@ -66,6 +71,68 @@ describe('attack-targeting', () => {
     });
     expect(canAttackByProfileOnMap(archer, pirate, state.map)).toBe(true);
     expect(canAttackByProfileOnMap(frigate, pirate, state.map)).toBe(true);
+  });
+
+  // #845 regression: commit 1f8ac7fee2 (fixing #826, "land melee cannot attack naval") added
+  // `targetDomains: ['land']` directly onto the shared DEFAULT_ATTACK_PROFILE object. Any unit
+  // with no attackProfile of its own -- including naval units like Galley/Trireme -- resolves
+  // to that same shared object via getUnitAttackProfile, so canAttackUnitDomain's
+  // per-attacker-domain fallback (`profile.targetDomains ?? (attackerDomain === 'land' ...)`)
+  // never ran for them: they silently inherited the land-only restriction regardless of their
+  // own domain, making them unable to attack ANY naval unit -- pirates included. Confirmed
+  // directly: pre-fix, getUnitAttackProfile('galley').targetDomains was ['land'].
+  it('lets a Galley (naval, no explicit attackProfile) attack an adjacent naval unit', () => {
+    const galley = unit('galley', 'galley', 'player', { q: 0, r: 0 });
+    const pirateGalley = unit('pirate-galley', 'pirate_galley', 'pirate-1', { q: 1, r: 0 });
+    const state = stateWithUnits({ galley, 'pirate-galley': pirateGalley }, { '1,0': 'visible' });
+
+    expect(canAttackByProfileOnMap(galley, pirateGalley, state.map)).toBe(true);
+    expect(canUnitAttackTarget(state, galley, pirateGalley.position, { viewerId: 'player' })).toMatchObject({
+      ok: true, targetType: 'unit', targetUnitId: 'pirate-galley',
+    });
+  });
+
+  it('lets a Trireme (naval, no explicit attackProfile) attack an adjacent naval unit', () => {
+    const trireme = unit('trireme', 'trireme', 'player', { q: 0, r: 0 });
+    const enemyTrireme = unit('enemy-trireme', 'trireme', 'ai-1', { q: 1, r: 0 });
+    const state = stateWithUnits({ trireme, 'enemy-trireme': enemyTrireme }, { '1,0': 'visible' });
+
+    expect(canAttackByProfileOnMap(trireme, enemyTrireme, state.map)).toBe(true);
+    expect(canUnitAttackTarget(state, trireme, enemyTrireme.position, { viewerId: 'player' })).toMatchObject({
+      ok: true, targetType: 'unit', targetUnitId: 'enemy-trireme',
+    });
+  });
+
+  it('still blocks a land melee unit with the default profile from attacking naval (control, unchanged by the naval fix)', () => {
+    // Same shared DEFAULT_ATTACK_PROFILE object, but attackerDomain is 'land' here, so
+    // canAttackUnitDomain's fallback must still compute ['land'] and block this -- proving the
+    // #826 fix for land-vs-naval survives removing the hardcoded default.
+    const warrior = unit('warrior', 'warrior', 'player', { q: 0, r: 0 });
+    const pirateGalley = unit('pirate-galley', 'pirate_galley', 'pirate-1', { q: 1, r: 0 });
+    const state = stateWithUnits({ warrior, 'pirate-galley': pirateGalley }, { '1,0': 'visible' });
+
+    expect(canAttackByProfileOnMap(warrior, pirateGalley, state.map)).toBe(false);
+    expect(canUnitAttackTarget(state, warrior, pirateGalley.position, { viewerId: 'player' })).toEqual({
+      ok: false, reason: 'unsupported-target',
+    });
+  });
+
+  // #845 review finding: observation_balloon has no explicit attackProfile and nonzero
+  // strength (used defensively). Before the naval fix it was accidentally land-only-restricted
+  // by the same DEFAULT_ATTACK_PROFILE bug that broke Galley/Trireme; after removing the
+  // hardcoded default, an air-domain attacker with no profile of its own falls back to the
+  // fully permissive domain set, which would have newly let it attack anything -- directly
+  // contradicting its own "Cannot attack" description. Fixed with an explicit
+  // `targets: []` profile; this is the regression test proving that holds.
+  it('keeps the Observation Balloon unable to attack anything, matching its "Cannot attack" description', () => {
+    const balloon = unit('balloon', 'observation_balloon', 'player', { q: 0, r: 0 });
+    const groundTarget = unit('ground-target', 'warrior', 'ai-1', { q: 1, r: 0 });
+    const state = stateWithUnits({ balloon, 'ground-target': groundTarget }, { '1,0': 'visible' });
+
+    expect(canAttackByProfileOnMap(balloon, groundTarget, state.map)).toBe(false);
+    expect(canUnitAttackTarget(state, balloon, groundTarget.position, { viewerId: 'player' })).toEqual({
+      ok: false, reason: 'unsupported-target',
+    });
   });
 
   it('does not expose an aircraft that is based at an airfield as a map target', () => {

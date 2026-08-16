@@ -668,4 +668,66 @@ describe('PlayerActionController', () => {
       expect(deps.turnFlow.finalizePendingCityCaptureChoice).toHaveBeenCalledWith('raze', undefined);
     });
   });
+
+  // #845: an undefended barbarian camp previously could not be assaulted at all -- a unit
+  // could only destroy one by first killing a garrisoning unit. This is the new one-step
+  // destroy action for the undefended case.
+  describe('beginPlayerCampAssault', () => {
+    it('destroys an adjacent undefended camp, awards gold, and consumes the unit action', () => {
+      const { state } = makeFixture('camp-assault-basic');
+      placeUnit(state, 'warrior', 'attacker-1', { q: 0, r: 0 }, { movementPointsLeft: 2 });
+      state.barbarianCamps['camp-1'] = { id: 'camp-1', position: { q: 1, r: 0 }, strength: 10, spawnCooldown: 3 };
+      const goldBefore = state.civilizations.player.gold;
+      const { deps, controller } = build(state);
+
+      controller.beginPlayerCampAssault('attacker-1', 'camp-1');
+
+      const after = deps.session.getState();
+      expect(after.barbarianCamps['camp-1']).toBeUndefined();
+      expect(after.civilizations.player.gold).toBe(goldBefore + (15 + 10 * 2));
+      expect(after.units['attacker-1']).toMatchObject({ hasActed: true, hasMoved: true, movementPointsLeft: 0 });
+      expect(deps.showNotification).toHaveBeenCalledWith('Barbarian camp destroyed! +35 gold', 'success');
+      expect(deps.hud.update).toHaveBeenCalled();
+    });
+
+    it('includes the bandit lord name in the notification when present', () => {
+      const { state } = makeFixture('camp-assault-named');
+      placeUnit(state, 'warrior', 'attacker-1', { q: 0, r: 0 }, { movementPointsLeft: 2 });
+      state.barbarianCamps['camp-1'] = {
+        id: 'camp-1', position: { q: 1, r: 0 }, strength: 10, spawnCooldown: 3,
+        resurgent: true, banditLordName: 'Kestrix the Cruel',
+      };
+      const { deps, controller } = build(state);
+
+      controller.beginPlayerCampAssault('attacker-1', 'camp-1');
+
+      expect(deps.showNotification).toHaveBeenCalledWith("Kestrix the Cruel's camp destroyed! +35 gold", 'success');
+    });
+
+    it('refuses to assault a camp the attacker is not adjacent to', () => {
+      const { state } = makeFixture('camp-assault-too-far');
+      placeUnit(state, 'warrior', 'attacker-1', { q: 0, r: 0 }, { movementPointsLeft: 3 });
+      state.barbarianCamps['camp-1'] = { id: 'camp-1', position: { q: 2, r: 0 }, strength: 10, spawnCooldown: 3 };
+      const { deps, controller } = build(state);
+
+      controller.beginPlayerCampAssault('attacker-1', 'camp-1');
+
+      expect(deps.session.getState().barbarianCamps['camp-1']).toBeDefined();
+      expect(deps.showNotification).toHaveBeenCalledWith('That camp is no longer within reach.', 'warning');
+    });
+
+    it('refuses to assault a camp that already has a defender (ordinary combat handles that case)', () => {
+      const { state } = makeFixture('camp-assault-defended');
+      placeUnit(state, 'warrior', 'attacker-1', { q: 0, r: 0 }, { movementPointsLeft: 2 });
+      state.barbarianCamps['camp-1'] = { id: 'camp-1', position: { q: 1, r: 0 }, strength: 10, spawnCooldown: 3 };
+      const raider = createUnit('warrior', 'barbarian', { q: 1, r: 0 }, { nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
+      state.units[raider.id] = raider;
+      const { deps, controller } = build(state);
+
+      controller.beginPlayerCampAssault('attacker-1', 'camp-1');
+
+      expect(deps.session.getState().barbarianCamps['camp-1']).toBeDefined();
+      expect(deps.showNotification).toHaveBeenCalledWith('That camp is no longer within reach.', 'warning');
+    });
+  });
 });

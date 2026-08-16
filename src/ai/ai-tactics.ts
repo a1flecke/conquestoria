@@ -54,6 +54,7 @@ import {
 import {
   findPath,
   getMovementRangeDetails,
+  getBlockingMapEntityAt,
   UNIT_DEFINITIONS,
 } from '@/systems/unit-system';
 import {
@@ -72,6 +73,7 @@ import { isAIHostileOwner } from './ai-hostility';
 import { getLegalRebaseDestinations, resolveAirStrike, resolveReconMission, rebaseAircraft, startIntercept } from '@/systems/air-operations-system';
 import { resolveCombatEra } from '@/systems/era-resolution';
 import { resolveNavalCityBombardment } from '@/systems/naval-city-bombardment-system';
+import { applyCampDestructionAtTarget } from '@/systems/barbarian-system';
 
 export type AITacticalAction =
   | { kind: 'attack'; unitId: string; targetUnitId: string }
@@ -82,6 +84,7 @@ export type AITacticalAction =
   | { kind: 'air-intercept'; unitId: string }
   | { kind: 'air-rebase'; unitId: string; base: import('@/core/types').AirBaseRef }
   | { kind: 'capture-city'; unitId: string; cityId: string }
+  | { kind: 'assault-camp'; unitId: string; campId: string }
   | { kind: 'move'; unitId: string; destination: HexCoord }
   | { kind: 'withdraw'; unitId: string; destination: HexCoord }
   | { kind: 'found-city'; unitId: string; destination: HexCoord }
@@ -148,6 +151,8 @@ function actionId(action: AITacticalAction): string {
       return `air-rebase:${action.unitId}:${action.base.kind === 'city' ? action.base.cityId : action.base.unitId}`;
     case 'capture-city':
       return `capture-city:${action.unitId}:${action.cityId}`;
+    case 'assault-camp':
+      return `assault-camp:${action.unitId}:${action.campId}`;
     case 'move':
     case 'withdraw':
     case 'found-city':
@@ -219,14 +224,17 @@ function movementRange(state: GameState, actorId: string, unit: Unit): HexCoord[
       .length === 0);
 }
 
-function isForeignCityDestination(
+// #845: renamed from isForeignCityDestination and rebuilt on the shared getBlockingMapEntityAt
+// predicate (originally #843, extended for camps in #845) instead of a city-only reimplementation
+// -- movementRange() keeps a blocking entity's own tile "reachable" (for adjacent
+// assault-action purposes, see unit-system.ts), so every ordinary-move candidate list in this
+// file must still filter it back out here, the same way it always needed to for cities alone.
+function isBlockedMoveDestination(
   state: GameState,
-  actorId: string,
+  unit: Unit,
   destination: HexCoord,
 ): boolean {
-  return Object.values(state.cities).some(city =>
-    city.owner !== actorId
-    && hexKey(city.position) === hexKey(destination));
+  return getBlockingMapEntityAt(state, unit, destination) !== null;
 }
 
 function supportRemainsCohesive(
@@ -287,7 +295,7 @@ function rankWithdrawals(
   const destination = movementRange(context.state, context.actorId, unit)
     .filter(coord =>
       healingDistance(coord) < currentDistance
-      && !isForeignCityDestination(context.state, context.actorId, coord))
+      && !isBlockedMoveDestination(context.state, unit, coord))
     .sort((left, right) =>
       healingDistance(left) - healingDistance(right)
       || distance(context.state, unit.position, right)
@@ -485,6 +493,49 @@ function rankCapture(
   return [ranked({ kind: 'capture-city', unitId: unit.id, cityId: city.id }, Math.round(winProbability * 600))];
 }
 
+// #845: the AI previously had no way to destroy an undefended barbarian camp at all -- only
+// applyCampDestructionAtTarget's post-combat follow-up (ai-major-turn.ts) existed, which only
+// fires when the AI kills a garrisoning unit first. An AI with `plan.target.kind === 'camp'`
+// would move adjacent (via rankMoves, now correctly excluding the camp's own tile per
+// isBlockedMoveDestination) and then have no action at all for an undefended camp, stalling the
+// plan indefinitely. Mirrors rankCapture's structure; unlike a city there's no win-probability
+// variance to score by (destroyCamp is a guaranteed flat-gold outcome), so this uses the same
+// flat 600 rankCapture uses as its ceiling.
+function rankCampAssault(
+  context: AITacticalContext,
+  unit: Unit,
+): RankedAITacticalAction[] {
+  if (
+    context.allowOffensiveActions === false
+    || context.plan.target.kind !== 'camp'
+    || unit.hasActed
+    || unit.movementPointsLeft <= 0
+    || UNIT_DEFINITIONS[unit.type].strength <= 0
+    || (UNIT_DEFINITIONS[unit.type].domain ?? 'land') !== 'land'
+  ) {
+    return [];
+  }
+  const camp = context.state.barbarianCamps[context.plan.target.id];
+  if (!camp) return [];
+  if (getVisibility(
+    context.state.civilizations[context.actorId].visibility,
+    camp.position,
+  ) !== 'visible') {
+    return [];
+  }
+  if (distance(context.state, unit.position, camp.position) !== 1) return [];
+  const occupancy = buildUnitOccupancy(context.state.units);
+  if (getUnitIdsAtCoord(occupancy, camp.position).some(unitId =>
+    context.state.units[unitId]?.owner !== context.actorId)) {
+    return [];
+  }
+  const reachable = movementRange(context.state, context.actorId, unit)
+    .some(coord => hexKey(coord) === hexKey(camp.position));
+  if (!reachable) return [];
+
+  return [ranked({ kind: 'assault-camp', unitId: unit.id, campId: camp.id }, 600)];
+}
+
 function rankCivilianAndTransportActions(
   context: AITacticalContext,
   unit: Unit,
@@ -649,7 +700,7 @@ function rankMoves(
     .filter(destination =>
       distance(context.state, destination, target) < currentTargetDistance
       && supportRemainsCohesive(context, unit, destination)
-      && !isForeignCityDestination(context.state, context.actorId, destination))
+      && !isBlockedMoveDestination(context.state, unit, destination))
     .sort((left, right) =>
       distance(context.state, left, target) - distance(context.state, right, target)
       || distance(context.state, unit.position, right)
@@ -699,7 +750,7 @@ function rankReactivePursuitMoves(
   return movementRange(context.state, context.actorId, unit)
     .filter(destination =>
       distance(context.state, destination, threat.position) < currentDistance
-      && !isForeignCityDestination(context.state, context.actorId, destination))
+      && !isBlockedMoveDestination(context.state, unit, destination))
     .sort((left, right) =>
       distance(context.state, left, threat.position) - distance(context.state, right, threat.position)
       || hexKey(left).localeCompare(hexKey(right)))
@@ -729,7 +780,7 @@ function rankMobileAirDefenseEscortMoves(
   return movementRange(context.state, context.actorId, unit).flatMap(destination => {
     const target = targets.filter(candidate => distance(context.state, destination, candidate.position) <= capability.radius)
       .sort((left, right) => UNIT_DEFINITIONS[right.type].productionCost - UNIT_DEFINITIONS[left.type].productionCost || left.id.localeCompare(right.id))[0];
-    return target && !isForeignCityDestination(context.state, context.actorId, destination)
+    return target && !isBlockedMoveDestination(context.state, unit, destination)
       ? [ranked({ kind: 'move', unitId: unit.id, destination }, 550 + UNIT_DEFINITIONS[target.type].productionCost / 10)] : [];
   });
 }
@@ -758,6 +809,7 @@ export function rankUnitTacticalActions(
     ...rankAirSupport(context, unit),
     ...rankAttacks(context, unit),
     ...rankCapture(context, unit),
+    ...rankCampAssault(context, unit),
     ...rankMobileAirDefenseEscortMoves(context, unit),
     ...rankReactivePursuitMoves(context, unit),
     ...rankMoves(context, unit),
@@ -929,6 +981,12 @@ function applyPredictedAction(
         'occupy',
         next.turn,
       ).state;
+    }
+    case 'assault-camp': {
+      const camp = next.barbarianCamps[action.campId];
+      if (!camp) return next;
+      next.units[unit.id] = { ...unit, hasMoved: true, hasActed: true, movementPointsLeft: 0 };
+      return applyCampDestructionAtTarget(next, context.actorId, camp.position, next.turn).state;
     }
     case 'load': {
       const result = loadUnitOntoTransport(next, action.unitId, action.transportId);
