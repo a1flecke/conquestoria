@@ -46,6 +46,18 @@ const capital = civ.cities[0];
 EOF
 expect_allow "$tmp/src/ai/basic-ai.ts" "cities[0] allowed in src/ai"
 
+# --- block: direct mutation through session.getState() in src/app ---
+cat > "$tmp/src/ui/panel.ts" <<'EOF'
+session.getState().cities[cityId] = enqueueCityProduction(city, itemId);
+EOF
+expect_block "$tmp/src/ui/panel.ts" "getState() mutation in src/ui"
+
+# --- allow: reading getState() without mutating it ---
+cat > "$tmp/src/ui/reader.ts" <<'EOF'
+const city = session.getState().cities[cityId];
+EOF
+expect_allow "$tmp/src/ui/reader.ts" "getState() read-only in src/ui"
+
 # --- block: Math.random in src ---
 cat > "$tmp/src/systems/rng-bug.ts" <<'EOF'
 const x = Math.random();
