@@ -487,7 +487,7 @@ export function createPanelActionsController(deps: PanelActionsControllerDeps): 
         deps.getElementById('council-panel')?.remove();
       },
       onTalkLevelChange: (level) => {
-        deps.session.getState().settings.councilTalkLevel = level;
+        deps.session.commit({ ...deps.session.getState(), settings: { ...deps.session.getState().settings, councilTalkLevel: level } });
         void saveSettings(deps.session.getState().settings);
       },
     });
