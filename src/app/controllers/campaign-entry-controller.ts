@@ -31,7 +31,7 @@ import {
   loadSaveEntry,
   rewriteLoadedSaveEntry,
 } from '@/storage/save-manager';
-import { applyPersistedUserSettings } from '@/storage/settings-merge';
+import { applyPersistedUserSettings, applyCouncilTalkLevelOverride } from '@/storage/settings-merge';
 import { createSavePanel } from '@/ui/save-panel';
 import { showGameModeSelect } from '@/ui/game-mode-select';
 import { showCampaignSetup } from '@/ui/campaign-setup';
@@ -233,11 +233,7 @@ export function createCampaignEntryController(deps: CampaignEntryControllerDeps)
               startPlacementMode: config.startPlacementMode,
               opponentChallenge: config.opponentChallenge,
             });
-            deps.session.setStateWithoutRefresh(
-              currentSettings.councilTalkLevel
-                ? { ...newGame, settings: { ...newGame.settings, councilTalkLevel: currentSettings.councilTalkLevel } }
-                : newGame,
-            );
+            deps.session.setStateWithoutRefresh(applyCouncilTalkLevelOverride(newGame, currentSettings.councilTalkLevel));
             deps.startGame();
           },
           onCustomCivilizationsChanged: (customCivilizations) => {
@@ -255,11 +251,7 @@ export function createCampaignEntryController(deps: CampaignEntryControllerDeps)
         showHotSeatSetup(deps.uiLayer, {
           onComplete: (config, opponentChallenge) => {
             const newGame = createHotSeatGame(config, undefined, title, opponentChallenge ?? 'standard');
-            deps.session.setStateWithoutRefresh(
-              currentSettings.councilTalkLevel
-                ? { ...newGame, settings: { ...newGame.settings, councilTalkLevel: currentSettings.councilTalkLevel } }
-                : newGame,
-            );
+            deps.session.setStateWithoutRefresh(applyCouncilTalkLevelOverride(newGame, currentSettings.councilTalkLevel));
             enterCampaign(
               deps.session.getState(),
               `Hot seat game started! ${config.players.filter(p => p.isHuman).length} players`,
