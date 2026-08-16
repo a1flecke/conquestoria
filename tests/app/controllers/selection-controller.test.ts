@@ -46,6 +46,39 @@ function findButtonByText(container: HTMLElement, text: string): HTMLButtonEleme
   return button as HTMLButtonElement;
 }
 
+function tryUntilInfiltrate(
+  unitType: Unit['type'],
+  predicate: (state: GameState, uid: string) => boolean,
+): { deps: SelectionControllerDeps; uid: string } | null {
+  for (let i = 0; i < 200; i++) {
+    const uid = `infiltrator-${i}`;
+    const state = makeFixture();
+    const template = Object.values(state.cities)[0]!;
+    state.cities['enemy-city'] = { ...template, id: 'enemy-city', owner: 'ai-1', position: { q: 0, r: 0 } };
+    placePlayerUnit(state, uid, { type: unitType, position: { q: 0, r: 0 } });
+    state.espionage = { player: createEspionageCivState() };
+    state.espionage.player.spies[uid] = {
+      id: uid, owner: 'player', name: 'Agent', unitType,
+      targetCivId: null, targetCityId: null, position: null,
+      status: 'idle', experience: 0, currentMission: null,
+      cooldownTurns: 0, promotion: undefined, promotionAvailable: false, feedsFalseIntel: false,
+    };
+    document.body.innerHTML = '<div id="info-panel"></div>';
+    const deps = baseDeps(state);
+    const controller = createSelectionController(deps);
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+
+    controller.selectUnit(uid);
+    const panel = document.getElementById('info-panel')!;
+    findButtonByText(panel, 'Infiltrate City').click();
+
+    if (predicate(deps.session.getState(), uid)) {
+      return { deps, uid };
+    }
+  }
+  return null;
+}
+
 function fakeRenderer(overrides: Partial<SelectionControllerRenderer> = {}): SelectionControllerRenderer {
   return {
     hasMovingUnit: () => false,
@@ -409,6 +442,39 @@ describe('SelectionController', () => {
       expect(updated.espionage!.player.spies['spy-1'].disguiseAs).toBe('warrior');
       expect(updated.units['spy-1'].hasActed).toBe(true);
       expect(listener).toHaveBeenCalled();
+    });
+  });
+
+  describe('onInfiltrate', () => {
+    it('era-2+ unit types remove the unit from the map and station the spy (removeUnitFromMap branch)', () => {
+      const found = tryUntilInfiltrate('spy_informant', (state, uid) => state.units[uid] === undefined);
+      expect(found).not.toBeNull();
+      const state = found!.deps.session.getState();
+      expect(state.civilizations.player.units).not.toContain(found!.uid);
+      expect(state.espionage!.player.spies[found!.uid].status).toBe('stationed');
+    });
+
+    it('era-1 scout infiltration reveals tiles and marks the unit acted without removing it (era1ScoutResult branch)', () => {
+      const found = tryUntilInfiltrate('spy_scout', (state, uid) => state.units[uid]?.hasActed === true && state.units[uid] !== undefined);
+      expect(found).not.toBeNull();
+      const state = found!.deps.session.getState();
+      expect(state.units[found!.uid].hasActed).toBe(true);
+      expect(state.espionage!.player.spies[found!.uid].infiltrationCityId).toBe('enemy-city');
+    });
+
+    it('a caught spy is removed from the map (caught branch)', () => {
+      const found = tryUntilInfiltrate('spy_scout', (state, uid) => state.espionage!.player.spies[uid]?.status === 'captured');
+      expect(found).not.toBeNull();
+      expect(found!.deps.session.getState().units[found!.uid]).toBeUndefined();
+    });
+
+    it('a failed-but-not-caught attempt marks the unit acted and keeps it on the map (default branch)', () => {
+      const found = tryUntilInfiltrate(
+        'spy_scout',
+        (state, uid) => state.units[uid] !== undefined && state.espionage!.player.spies[uid]?.status === 'cooldown',
+      );
+      expect(found).not.toBeNull();
+      expect(found!.deps.session.getState().units[found!.uid].hasActed).toBe(true);
     });
   });
 });
