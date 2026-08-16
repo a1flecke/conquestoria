@@ -13,6 +13,24 @@ import { applyUnitUpgradeToState } from '@/systems/unit-upgrade-system';
 import { foundCity } from '@/systems/city-system';
 
 describe('save migrations', () => {
+  it('#698 migrates camp pressure, rejects malformed facts, and remains idempotent', () => {
+    const save = createNewGame('rome', 'camp-pressure-migration', 'small');
+    save.turn = 9;
+    save.barbarianCamps = {
+      'camp-a': { id: 'camp-a', position: { q: 2, r: 2 }, strength: 5, spawnCooldown: 3 },
+    };
+    save.saveSchemaVersion = 13;
+    save.barbarianCampPressure = {
+      'camp-a': { armorLastObservedTurn: 4, airLastObservedTurn: -1 },
+      missing: { armorLastObservedTurn: 4 },
+    };
+
+    const migrated = migrateSaveToCurrent(save);
+
+    expect(migrated.saveSchemaVersion).toBe(14);
+    expect(migrated.barbarianCampPressure).toEqual({ 'camp-a': { armorLastObservedTurn: 4 } });
+    expect(migrateSaveToCurrent(migrated)).toEqual(migrated);
+  });
   it('preserves Fort saves, clamps invalid build timers, and clears unknown improvements idempotently', () => {
     const savedGame = createNewGame('rome', 'fort-save-normalization', 'small');
     const [fortKey, invalidKey] = Object.keys(savedGame.map.tiles);

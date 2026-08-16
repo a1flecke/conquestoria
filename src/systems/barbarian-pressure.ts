@@ -48,7 +48,7 @@ export function getActiveCampPressure(
 
 export function normalizeBarbarianCampPressure(state: GameState): GameState {
   const normalized: Record<string, BarbarianCampPressure> = {};
-  for (const campId of Object.keys(state.barbarianCamps).sort()) {
+  for (const campId of Object.keys(state.barbarianCamps ?? {}).sort()) {
     const pressure = state.barbarianCampPressure?.[campId];
     if (!pressure) continue;
     const next: BarbarianCampPressure = {};

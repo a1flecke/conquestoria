@@ -15,8 +15,9 @@ import { appendNotification } from '@/core/notification-log';
 import { syncTransportCargoPositions } from '@/systems/transport-system';
 import { IMPROVEMENT_BUILD_TURNS } from '@/systems/improvement-system';
 import type { ImprovementType } from '@/core/types';
+import { normalizeBarbarianCampPressure } from '@/systems/barbarian-pressure';
 
-export const CURRENT_SAVE_SCHEMA_VERSION = 13;
+export const CURRENT_SAVE_SCHEMA_VERSION = 14;
 
 export type SaveMigration = (state: GameState) => GameState;
 
@@ -316,6 +317,10 @@ function normalizeCityFaithConversionProgress(state: GameState): GameState {
 function migrateDualEraWorldAge(state: GameState): GameState {
   const withAircraft = migrateLegacyBasedAircraft(state);
   return { ...withAircraft, era: resolveWorldAge(withAircraft.civilizations) };
+}
+
+function migrateBarbarianCampPressure(state: GameState): GameState {
+  return normalizeBarbarianCampPressure({ ...state, barbarianCampPressure: state.barbarianCampPressure ?? {} });
 }
 
 function migrateAutonomyNetworkPostures(state: GameState): GameState {
@@ -718,6 +723,7 @@ export const SAVE_MIGRATIONS: Readonly<Record<number, SaveMigration>> = {
   11: migrateRetimedKnight,
   12: migrateLegacyMainFixups,
   13: normalizeCoastalBatteryCounterfireTurns,
+  14: migrateBarbarianCampPressure,
 };
 
 function readSchemaVersion(raw: Record<string, unknown>): number {
@@ -788,7 +794,7 @@ export function migrateSaveToCurrent(raw: unknown): GameState {
   const techGrace = normalizeLegacyTechGrace(manufacturing);
   const crises = normalizeCrisisArchetypes(techGrace);
   const religions = withReligionDefaults(crises);
-  return normalizeImprovementValues(normalizeCoastalBatteryCounterfireTurns(
+  return normalizeBarbarianCampPressure(normalizeImprovementValues(normalizeCoastalBatteryCounterfireTurns(
     normalizeRetimedBiplaneQueues(normalizeCityFaithConversionProgress(religions)),
-  ));
+  )));
 }
