@@ -872,10 +872,56 @@ describe('PanelActionsController', () => {
       const options = mockedCallArg<{ onRecall: (spyId: string) => void }>(createEspionagePanel, 0, 1);
       options.onRecall('spy-1');
 
-      expect(state.espionage!.player.spies['spy-1'].status).not.toBe('stationed');
+      expect(deps.session.getState().espionage!.player.spies['spy-1'].status).not.toBe('stationed');
       expect(deps.renderLoop.setGameState).toHaveBeenCalled();
       expect(deps.router.open).toHaveBeenCalledWith('espionage');
       expect(deps.showNotification).toHaveBeenCalledWith(expect.stringContaining('recalled'), 'info');
+    });
+
+    it('onStartMission commits the started mission and publishes through session subscribers', () => {
+      const { state } = makeFixture('espionage-start-mission-publish');
+      state.civilizations.player.techState.completed = ['espionage-scouting'];
+      placeSpy(state, 'spy-1', { status: 'stationed', targetCivId: 'ai-1', targetCityId: 'foreign-city' });
+      const { deps, controller } = build(state);
+      const listener = vi.fn();
+      deps.session.subscribe(listener);
+      vi.spyOn(window, 'prompt').mockImplementation((_msg, defaultValue) => defaultValue ?? null);
+
+      controller.openEspionagePanel();
+      const options = mockedCallArg<{ onStartMission: (spyId: string) => void }>(createEspionagePanel, 0, 1);
+      options.onStartMission('spy-1');
+
+      expect(deps.session.getState().espionage!.player.spies['spy-1'].status).not.toBe('stationed');
+      expect(listener).toHaveBeenCalled();
+    });
+
+    it('onRecall commits the recalled spy and publishes through session subscribers', () => {
+      const { state } = makeFixture('espionage-recall-publish');
+      placeSpy(state, 'spy-1', { status: 'on_mission' });
+      const { deps, controller } = build(state);
+      const listener = vi.fn();
+      deps.session.subscribe(listener);
+
+      controller.openEspionagePanel();
+      const options = mockedCallArg<{ onRecall: (spyId: string) => void }>(createEspionagePanel, 0, 1);
+      options.onRecall('spy-1');
+
+      expect(listener).toHaveBeenCalled();
+    });
+
+    it('onVerifyAgent commits the cleared agent and publishes through session subscribers', () => {
+      const { state } = makeFixture('espionage-verify-publish');
+      placeSpy(state, 'spy-1', { status: 'embedded', turnedBy: 'ai-1' });
+      const { deps, controller } = build(state);
+      const listener = vi.fn();
+      deps.session.subscribe(listener);
+
+      controller.openEspionagePanel();
+      const options = mockedCallArg<{ onVerifyAgent: (spyId: string) => void }>(createEspionagePanel, 0, 1);
+      options.onVerifyAgent('spy-1');
+
+      expect(deps.session.getState().espionage!.player.spies['spy-1'].turnedBy).toBeUndefined();
+      expect(listener).toHaveBeenCalled();
     });
 
     it('verifies a captured-then-cleared agent via the real system call', () => {
