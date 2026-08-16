@@ -662,9 +662,10 @@ export function createPanelActionsController(deps: PanelActionsControllerDeps): 
         const targetCity = deps.session.getState().cities[cityId];
         if (targetCity) {
           try {
-            deps.session.getState().cities[cityId] = enqueueCityProduction(targetCity, itemId);
+            deps.session.commit({ ...deps.session.getState(), cities: { ...deps.session.getState().cities, [cityId]: enqueueCityProduction(targetCity, itemId) } });
             deps.renderLoop.setGameState(deps.session.getState());
             deps.showNotification(`${targetCity.name}: queued ${getProductionDisplayName(itemId)}`, 'info');
+            return deps.session.getState();
           } catch (error) {
             const message = error instanceof Error ? error.message : 'Queue limit reached';
             deps.showNotification(`${targetCity.name}: ${message}`, 'warning');
@@ -674,18 +675,26 @@ export function createPanelActionsController(deps: PanelActionsControllerDeps): 
       onMoveQueueItem: (cityId, fromIndex, toIndex) => {
         const targetCity = deps.session.getState().cities[cityId];
         if (!targetCity) return;
-        deps.session.getState().cities[cityId] = reorderCityProduction(targetCity, fromIndex, toIndex);
+        deps.session.commit({ ...deps.session.getState(), cities: { ...deps.session.getState().cities, [cityId]: reorderCityProduction(targetCity, fromIndex, toIndex) } });
         deps.renderLoop.setGameState(deps.session.getState());
+        return deps.session.getState();
       },
       onRemoveQueueItem: (cityId, index) => {
         const targetCity = deps.session.getState().cities[cityId];
         if (!targetCity) return;
-        deps.session.getState().cities[cityId] = {
-          ...targetCity,
-          productionQueue: removeQueuedId(targetCity.productionQueue, index),
-          productionProgress: index === 0 ? 0 : targetCity.productionProgress,
-        };
+        deps.session.commit({
+          ...deps.session.getState(),
+          cities: {
+            ...deps.session.getState().cities,
+            [cityId]: {
+              ...targetCity,
+              productionQueue: removeQueuedId(targetCity.productionQueue, index),
+              productionProgress: index === 0 ? 0 : targetCity.productionProgress,
+            },
+          },
+        });
         deps.renderLoop.setGameState(deps.session.getState());
+        return deps.session.getState();
       },
       onOpenWonderPanel: (selectedCityId) => {
         openWonderPanelForCityId(selectedCityId);
@@ -738,8 +747,9 @@ export function createPanelActionsController(deps: PanelActionsControllerDeps): 
       onSetIdleProduction: (cityId, mode) => {
         const targetCity = deps.session.getState().cities[cityId];
         if (!targetCity) return;
-        deps.session.getState().cities[cityId] = setIdleProduction(targetCity, mode);
+        deps.session.commit({ ...deps.session.getState(), cities: { ...deps.session.getState().cities, [cityId]: setIdleProduction(targetCity, mode) } });
         deps.renderLoop.setGameState(deps.session.getState());
+        return deps.session.getState();
       },
       onRushBuyActiveProduction: (cityId) => {
         const targetCity = deps.session.getState().cities[cityId];

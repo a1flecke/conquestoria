@@ -691,17 +691,21 @@ describe('PanelActionsController', () => {
       expect(createCityPanel).toHaveBeenCalledWith(deps.uiLayer, state.cities['test-city'], deps.session.getState(), expect.anything());
     });
 
-    it('queues real production via the live city state and refreshes the renderer', () => {
+    it('queues real production via session.commit, publishes to subscribers, and returns the fresh state for the panel to re-render', () => {
       const { state } = makeFixture('city-panel-build');
       state.cities['test-city'] = makeCity('test-city');
       const { deps, controller } = build(state);
+      const listener = vi.fn();
+      deps.session.subscribe(listener);
 
       controller.openCityPanelForCity(state.cities['test-city']);
-      const options = mockedCallArg<{ onBuild: (cityId: string, itemId: string) => void }>(createCityPanel, 0, 3);
-      options.onBuild('test-city', 'warrior');
+      const options = mockedCallArg<{ onBuild: (cityId: string, itemId: string) => GameState | void }>(createCityPanel, 0, 3);
+      const returned = options.onBuild('test-city', 'warrior');
 
-      expect(state.cities['test-city'].productionQueue).toContain('warrior');
+      expect(deps.session.getState().cities['test-city'].productionQueue).toContain('warrior');
+      expect(returned).toBe(deps.session.getState());
       expect(deps.renderLoop.setGameState).toHaveBeenCalled();
+      expect(listener).toHaveBeenCalled();
       expect(deps.showNotification).toHaveBeenCalledWith(expect.stringContaining('Warrior'), 'info');
     });
 
