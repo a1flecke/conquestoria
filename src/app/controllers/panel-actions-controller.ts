@@ -933,33 +933,38 @@ export function createPanelActionsController(deps: PanelActionsControllerDeps): 
           targetCivId = target.civId;
           targetCityId = target.cityId;
         }
-        deps.session.getState().espionage![deps.session.getState().currentPlayer] = startMission(
-          deps.session.getState().espionage![deps.session.getState().currentPlayer],
-          spyId,
-          mission,
-          deps.currentCivDef()?.bonusEffect,
-          targetCivId,
-          targetCityId,
-        );
+        const currentPlayer = deps.session.getState().currentPlayer;
+        deps.session.commit({
+          ...deps.session.getState(),
+          espionage: {
+            ...deps.session.getState().espionage,
+            [currentPlayer]: startMission(deps.session.getState().espionage![currentPlayer], spyId, mission, deps.currentCivDef()?.bonusEffect, targetCivId, targetCityId),
+          },
+        });
         deps.renderLoop.setGameState(deps.session.getState());
+        deps.hud.update();
         deps.router.open('espionage');
         deps.showNotification(`Mission ${mission} started.`, 'info');
       },
       onRecall: (spyId) => {
-        deps.session.getState().espionage![deps.session.getState().currentPlayer] = recallSpy(
-          deps.session.getState().espionage![deps.session.getState().currentPlayer],
-          spyId,
-        );
+        const currentPlayer = deps.session.getState().currentPlayer;
+        deps.session.commit({
+          ...deps.session.getState(),
+          espionage: { ...deps.session.getState().espionage, [currentPlayer]: recallSpy(deps.session.getState().espionage![currentPlayer], spyId) },
+        });
         deps.renderLoop.setGameState(deps.session.getState());
+        deps.hud.update();
         deps.router.open('espionage');
         deps.showNotification('Spy recalled.', 'info');
       },
       onVerifyAgent: (spyId) => {
-        deps.session.getState().espionage![deps.session.getState().currentPlayer] = verifyAgent(
-          deps.session.getState().espionage![deps.session.getState().currentPlayer],
-          spyId,
-        );
+        const currentPlayer = deps.session.getState().currentPlayer;
+        deps.session.commit({
+          ...deps.session.getState(),
+          espionage: { ...deps.session.getState().espionage, [currentPlayer]: verifyAgent(deps.session.getState().espionage![currentPlayer], spyId) },
+        });
         deps.renderLoop.setGameState(deps.session.getState());
+        deps.hud.update();
         deps.router.open('espionage');
         deps.showNotification('Agent verified and cleared.', 'success');
       },
