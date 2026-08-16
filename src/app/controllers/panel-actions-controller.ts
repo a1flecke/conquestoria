@@ -497,30 +497,50 @@ export function createPanelActionsController(deps: PanelActionsControllerDeps): 
     deps.hud.closeDrawer();
     createTechPanel(deps.uiLayer, deps.session.getState(), {
       onQueueResearch: (techId) => {
+        const civ = deps.currentCiv();
+        let nextTechState;
         try {
-          deps.currentCiv().techState = enqueueResearch(deps.currentCiv().techState, techId);
+          nextTechState = enqueueResearch(civ.techState, techId);
         } catch (error) {
           const message = error instanceof Error ? error.message : 'Queue limit reached';
           deps.showNotification(message, 'warning');
           return;
         }
+        deps.session.commit({
+          ...deps.session.getState(),
+          civilizations: { ...deps.session.getState().civilizations, [deps.session.getState().currentPlayer]: { ...civ, techState: nextTechState } },
+        });
         deps.renderLoop.setGameState(deps.session.getState());
         deps.hud.update();
         deps.showNotification(`Queued research: ${techId}`, 'info');
       },
       onMoveQueuedResearch: (fromIndex, toIndex) => {
-        deps.currentCiv().techState = {
-          ...deps.currentCiv().techState,
-          researchQueue: moveQueuedId(deps.currentCiv().techState.researchQueue, fromIndex, toIndex),
-        };
+        const civ = deps.currentCiv();
+        deps.session.commit({
+          ...deps.session.getState(),
+          civilizations: {
+            ...deps.session.getState().civilizations,
+            [deps.session.getState().currentPlayer]: {
+              ...civ,
+              techState: { ...civ.techState, researchQueue: moveQueuedId(civ.techState.researchQueue, fromIndex, toIndex) },
+            },
+          },
+        });
         deps.renderLoop.setGameState(deps.session.getState());
         deps.hud.update();
       },
       onRemoveQueuedResearch: (index) => {
-        deps.currentCiv().techState = {
-          ...deps.currentCiv().techState,
-          researchQueue: removeQueuedId(deps.currentCiv().techState.researchQueue, index),
-        };
+        const civ = deps.currentCiv();
+        deps.session.commit({
+          ...deps.session.getState(),
+          civilizations: {
+            ...deps.session.getState().civilizations,
+            [deps.session.getState().currentPlayer]: {
+              ...civ,
+              techState: { ...civ.techState, researchQueue: removeQueuedId(civ.techState.researchQueue, index) },
+            },
+          },
+        });
         deps.renderLoop.setGameState(deps.session.getState());
         deps.hud.update();
       },

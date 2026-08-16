@@ -130,8 +130,9 @@ function addPirateFixture(state: GameState, hqPosition: HexCoord, unitPosition: 
 }
 
 function makeDeps(state: GameState, overrides: Partial<PanelActionsControllerDeps> = {}) {
+  const session = createGameSession(state);
   return {
-    session: createGameSession(state),
+    session,
     bus: new EventBus(),
     uiLayer: document.createElement('div'),
     getElementById: vi.fn((id: string) => document.getElementById(id)),
@@ -154,7 +155,7 @@ function makeDeps(state: GameState, overrides: Partial<PanelActionsControllerDep
     focusNotificationTarget: vi.fn(),
     focusPirateTarget: vi.fn(),
     applyPirateActionResult: vi.fn(),
-    currentCiv: vi.fn(() => state.civilizations[state.currentPlayer]),
+    currentCiv: vi.fn(() => session.getState().civilizations[session.getState().currentPlayer]),
     currentCivDef: vi.fn(() => undefined),
     diplomacyActions: {
       handleDiplomaticAction: vi.fn(),
@@ -544,17 +545,32 @@ describe('PanelActionsController', () => {
       const options = mockedCallArg<{ onQueueResearch: (techId: string) => void }>(createTechPanel, 0, 2);
       options.onQueueResearch('fire');
 
-      expect(state.civilizations.player.techState.currentResearch).toBe('fire');
+      expect(deps.session.getState().civilizations.player.techState.currentResearch).toBe('fire');
       expect(deps.renderLoop.setGameState).toHaveBeenCalled();
       expect(deps.hud.update).toHaveBeenCalled();
       expect(deps.showNotification).toHaveBeenCalledWith(expect.stringContaining('fire'), 'info');
+    });
+
+    it('onQueueResearch publishes the queued tech through session subscribers', () => {
+      const { state } = makeFixture('tech-panel-queue-publish');
+      state.civilizations.player.techState.currentResearch = 'fire';
+      const { deps, controller } = build(state);
+      const listener = vi.fn();
+      deps.session.subscribe(listener);
+
+      controller.openTechPanel();
+      const options = mockedCallArg<{ onQueueResearch: (techId: string) => void }>(createTechPanel, 0, 2);
+      options.onQueueResearch('writing');
+
+      expect(deps.session.getState().civilizations.player.techState.researchQueue).toContain('writing');
+      expect(listener).toHaveBeenCalled();
     });
 
     it('reorders and removes queued research via the real planning-system helpers', () => {
       const { state } = makeFixture('tech-panel-reorder');
       state.civilizations.player.techState.currentResearch = 'fire';
       state.civilizations.player.techState.researchQueue = ['writing', 'wheel'];
-      const { controller } = build(state);
+      const { deps, controller } = build(state);
 
       controller.openTechPanel();
       const options = mockedCallArg<{
@@ -563,10 +579,10 @@ describe('PanelActionsController', () => {
       }>(createTechPanel, 0, 2);
 
       options.onMoveQueuedResearch(0, 1);
-      expect(state.civilizations.player.techState.researchQueue).toEqual(['wheel', 'writing']);
+      expect(deps.session.getState().civilizations.player.techState.researchQueue).toEqual(['wheel', 'writing']);
 
       options.onRemoveQueuedResearch(0);
-      expect(state.civilizations.player.techState.researchQueue).toEqual(['writing']);
+      expect(deps.session.getState().civilizations.player.techState.researchQueue).toEqual(['writing']);
     });
   });
 
