@@ -97,3 +97,28 @@ export function observeCampPressureFromSensedUnits(
   }
   return nextState;
 }
+
+export function recordCampPressureFromCombatOutcome(
+  state: GameState,
+  attacker: Unit,
+  defender: Unit,
+): GameState {
+  if (attacker.owner === 'barbarian' || defender.owner !== 'barbarian' || !isArmoredUnit(attacker)) return state;
+  const campId = state.opponentAI?.barbarianHomeCampByUnitId[defender.id];
+  return campId ? recordCampPressure(state, campId, 'armor', state.turn) : state;
+}
+
+export function recordCampPressureFromAirStrike(
+  state: GameState,
+  striker: Unit,
+  target: { q: number; r: number },
+): GameState {
+  if (!airBasePosition(state, striker)) return state;
+  let nextState = state;
+  for (const camp of Object.values(state.barbarianCamps ?? {})) {
+    if (mapDistance(state.map, camp.position, target) <= 6) {
+      nextState = recordCampPressure(nextState, camp.id, 'air', state.turn);
+    }
+  }
+  return nextState;
+}

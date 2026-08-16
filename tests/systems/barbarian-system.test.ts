@@ -60,6 +60,19 @@ describe('spawnBarbarianCamp', () => {
   });
 });
 
+describe('camp pressure cleanup', () => {
+  it('removes a camp pressure record when the camp is destroyed', () => {
+    const state = createNewGame('rome', 'camp-pressure-cleanup', 'small');
+    state.barbarianCamps = {
+      'camp-a': { id: 'camp-a', position: { q: 3, r: 3 }, strength: 5, spawnCooldown: 3 },
+    };
+    state.barbarianCampPressure = { 'camp-a': { armorLastObservedTurn: state.turn } };
+
+    expect(applyCampDestruction(state, 'player', 'camp-a', state.turn).state.barbarianCampPressure)
+      .toEqual({});
+  });
+});
+
 describe('destroyCamp', () => {
   it('returns gold reward', () => {
     const camp: BarbarianCamp = {

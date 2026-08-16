@@ -95,6 +95,7 @@ export function applyCampDestruction(
   const reward = destroyCamp(camp);
   const nextState = structuredClone(state);
   delete nextState.barbarianCamps[campId];
+  if (nextState.barbarianCampPressure) delete nextState.barbarianCampPressure[campId];
   nextState.legendaryWonderHistory = {
     discoveredSites: nextState.legendaryWonderHistory?.discoveredSites ?? [],
     destroyedStrongholds: [

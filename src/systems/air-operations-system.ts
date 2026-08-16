@@ -11,6 +11,7 @@ import { resolveChallengeForCiv } from '@/core/opponent-challenge';
 import { resolveCombatEra } from './era-resolution';
 import { resolveCivilizationEra } from './tech-definitions';
 import { appendNotification } from '@/core/notification-log';
+import { recordCampPressureFromAirStrike } from './barbarian-pressure';
 
 export type AirOperationResult =
   | { ok: true; state: GameState }
@@ -282,14 +283,14 @@ export function resolveAirStrike(state: GameState, unitId: string, target: HexCo
     });
     nextState = applyCitySiegeOutcome(nextState, currentCity.id, cityResult);
     if (nextState.units[unitId]) nextState = { ...nextState, units: { ...nextState.units, [unitId]: { ...nextState.units[unitId]!, movementPointsLeft: 0, hasMoved: true, hasActed: true } } };
-    return { ok: true, state: nextState, interception, cityResult: { cityId: currentCity.id, result: cityResult } };
+    return { ok: true, state: recordCampPressureFromAirStrike(nextState, striker, target), interception, cityResult: { cityId: currentCity.id, result: cityResult } };
   }
   const currentTarget = targetUnit && nextState.units[targetUnit.id];
   if (!currentTarget) return { ok: true, state: { ...nextState, units: { ...nextState.units, [unitId]: { ...currentStriker, movementPointsLeft: 0, hasMoved: true, hasActed: true } } }, interception };
   const targetResult = resolveCombat(currentStriker, currentTarget, nextState.map, deterministicCombatSeed(nextState.gameId, nextState.turn, currentStriker.id, currentTarget.id), buildCombatContextForDefender(nextState, currentStriker, currentTarget), resolveCombatEra(nextState, currentStriker, currentTarget));
   nextState = applyAirCombatResult(nextState, targetResult, deterministicCombatSeed(nextState.gameId, nextState.turn, currentStriker.id, currentTarget.id));
   if (nextState.units[unitId]) nextState = { ...nextState, units: { ...nextState.units, [unitId]: { ...nextState.units[unitId]!, movementPointsLeft: 0, hasMoved: true, hasActed: true } } };
-  return { ok: true, state: nextState, interception, targetResult };
+  return { ok: true, state: recordCampPressureFromAirStrike(nextState, striker, target), interception, targetResult };
 }
 
 export function resolveAirBaseLoss(
