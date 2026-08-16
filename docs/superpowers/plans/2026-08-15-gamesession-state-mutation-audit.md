@@ -1302,7 +1302,7 @@ Current code, verified against the real file (`panel-actions-controller.ts:483-4
 
 The real callback is `onTalkLevelChange` (typed `(level: CouncilTalkLevel) => void` in `src/ui/council-panel.ts:7`), not a guessed name — verified by reading the file directly before writing this task, per this repo's `spec-fidelity.md` convention of not carrying an unverified claim into an implementation step. `CouncilTalkLevel` (`src/core/types.ts:1540`) is `'quiet' | 'normal' | 'chatty' | 'chaos'`.
 
-- [ ] **Step 1: Write the failing test.**
+- [x] **Step 1: Write the failing test.**
 
 ```ts
     it('onTalkLevelChange publishes the new council talk level through session subscribers', () => {
@@ -1322,12 +1322,12 @@ The real callback is `onTalkLevelChange` (typed `(level: CouncilTalkLevel) => vo
 
 Import `CouncilTalkLevel` from `@/core/types` at the top of the test file if not already imported.
 
-- [ ] **Step 2: Run test to verify it fails.**
+- [x] **Step 2: Run test to verify it fails.**
 
 Run: `bash scripts/run-with-mise.sh yarn vitest run tests/app/controllers/panel-actions-controller.test.ts -t "onTalkLevelChange"`
 Expected: FAIL on `expect(listener).toHaveBeenCalled()`.
 
-- [ ] **Step 3: Write minimal implementation.**
+- [x] **Step 3: Write minimal implementation.**
 
 ```ts
       onTalkLevelChange: (level) => {
@@ -1336,12 +1336,12 @@ Expected: FAIL on `expect(listener).toHaveBeenCalled()`.
       },
 ```
 
-- [ ] **Step 4: Run test to verify it passes.**
+- [x] **Step 4: Run test to verify it passes.**
 
 Run: `bash scripts/run-with-mise.sh yarn vitest run tests/app/controllers/panel-actions-controller.test.ts -t "onTalkLevelChange"`
 Expected: PASS.
 
-- [ ] **Step 5: Commit.**
+- [x] **Step 5: Commit.**
 
 ```bash
 git add src/app/controllers/panel-actions-controller.ts tests/app/controllers/panel-actions-controller.test.ts
@@ -1445,7 +1445,7 @@ Current call sites:
   });
 ```
 
-- [ ] **Step 1: Update the interface.** In `CityPanelCallbacks`:
+- [x] **Step 1: Update the interface.** In `CityPanelCallbacks`:
 
 ```ts
   onBuild: (cityId: string, itemId: string) => GameState | void;
@@ -1455,7 +1455,7 @@ Current call sites:
   onSetIdleProduction?: (cityId: string, mode: 'gold' | 'science' | null) => GameState | void;
 ```
 
-- [ ] **Step 2: Update the 3 call sites to pass the return value to `rerenderPanel`.**
+- [x] **Step 2: Update the 3 call sites to pass the return value to `rerenderPanel`.**
 
 ```ts
   panel.querySelectorAll('.build-item').forEach(el => {
@@ -1497,7 +1497,7 @@ Current call sites:
   });
 ```
 
-- [ ] **Step 3: Do not commit this task alone.** Continue directly to Task 5.3 — the two land in one commit together (Task 5.3's Step 5 covers both).
+- [x] **Step 3: Do not commit this task alone.** Continue directly to Task 5.3 — the two land in one commit together (Task 5.3's Step 5 covers both).
 
 ### Task 5.3: `panel-actions-controller.ts`'s 4 city-production handlers
 
@@ -1552,7 +1552,7 @@ Current code:
       },
 ```
 
-- [ ] **Step 1: Write the failing test** (this replaces the coupled test — full content in Task 5.4; write it now as this task's Step 1 since it's the same edit):
+- [x] **Step 1: Write the failing test** (this replaces the coupled test — full content in Task 5.4; write it now as this task's Step 1 since it's the same edit):
 
 ```ts
     it('queues real production via session.commit, publishes to subscribers, and returns the fresh state for the panel to re-render', () => {
@@ -1574,12 +1574,12 @@ Current code:
     });
 ```
 
-- [ ] **Step 2: Run test to verify it fails.**
+- [x] **Step 2: Run test to verify it fails.**
 
 Run: `bash scripts/run-with-mise.sh yarn vitest run tests/app/controllers/panel-actions-controller.test.ts -t "queues real production via session.commit"`
 Expected: FAIL — `returned` is `undefined` (current `onBuild` returns `void`), and `listener` was never called.
 
-- [ ] **Step 3: Write minimal implementation.**
+- [x] **Step 3: Write minimal implementation.**
 
 ```ts
       onBuild: (cityId, itemId) => {
@@ -1634,9 +1634,9 @@ Expected: FAIL — `returned` is `undefined` (current `onBuild` returns `void`),
 
 Note the `onBuild` catch-block path (queue-limit-reached error) deliberately still returns `undefined` — no state changed, so `rerenderPanel(undefined)` correctly falls back to `nextState ?? state`. That fallback is now stale-by-design only in the sense that nothing changed to make it stale; this is the one case where the closure-default behavior was never wrong.
 
-- [ ] **Step 4: Apply Task 5.2's `city-panel.ts` changes now** (Steps 1-2 from that task), since both files must land together.
+- [x] **Step 4: Apply Task 5.2's `city-panel.ts` changes now** (Steps 1-2 from that task), since both files must land together.
 
-- [ ] **Step 5: Run tests to verify they pass.**
+- [x] **Step 5: Run tests to verify they pass.**
 
 Run: `bash scripts/run-with-mise.sh yarn vitest run tests/app/controllers/panel-actions-controller.test.ts -t "city-panel"`
 Expected: PASS.
@@ -1644,7 +1644,7 @@ Expected: PASS.
 Run: `bash scripts/run-with-mise.sh yarn vitest run tests/ui/city-panel.test.ts` (and any other `tests/ui/city-panel-*.test.ts` files — list them with `find tests/ui -iname "city-panel*"` first)
 Expected: PASS — the widened callback types are backward compatible (`GameState | void` accepts a `void`-returning mock), so pre-existing city-panel UI tests that pass plain `() => {}` callbacks should be unaffected.
 
-- [ ] **Step 6: Commit both files together.**
+- [x] **Step 6: Commit both files together.**
 
 ```bash
 git add src/app/controllers/panel-actions-controller.ts src/ui/city-panel.ts tests/app/controllers/panel-actions-controller.test.ts
@@ -1665,9 +1665,9 @@ change would have regressed the panel to stale -- both land together."
 
 This task is verification, not new code — Task 5.3's Step 1 already wrote the replacement test. Use this task to confirm the old assertion pattern is gone, not still present alongside the new one.
 
-- [ ] **Step 1:** `grep -n "queues real production" tests/app/controllers/panel-actions-controller.test.ts` — expect exactly one match (the rewritten test from Task 5.3), not two.
-- [ ] **Step 2:** Confirm no other test in this file still asserts `state.cities[...]` (the outer fixture variable) instead of `deps.session.getState().cities[...]` for any of the 4 converted handlers: `grep -n "^\s*expect(state\.cities" tests/app/controllers/panel-actions-controller.test.ts`. Fix any remaining ones the same way.
-- [ ] **Step 3: Commit if Step 2 found anything to fix; otherwise this task is a no-op check, fold its confirmation into Task 5.3's PR description.**
+- [x] **Step 1:** `grep -n "queues real production" tests/app/controllers/panel-actions-controller.test.ts` — expect exactly one match (the rewritten test from Task 5.3), not two.
+- [x] **Step 2:** Confirm no other test in this file still asserts `state.cities[...]` (the outer fixture variable) instead of `deps.session.getState().cities[...]` for any of the 4 converted handlers: `grep -n "^\s*expect(state\.cities" tests/app/controllers/panel-actions-controller.test.ts`. Fix any remaining ones the same way.
+- [x] **Step 3: Commit if Step 2 found anything to fix; otherwise this task is a no-op check, fold its confirmation into Task 5.3's PR description.**
 
 ### Task 5.5: tech-queue handlers (`onQueueResearch`, `onMoveQueuedResearch`, `onRemoveQueuedResearch`)
 
@@ -1713,7 +1713,7 @@ Current code:
 
 Verified against the real file (`panel-actions-controller.ts:498-527`) — all 3 handlers call `deps.hud.update()` manually, confirming the spec's severity note: architecture-debt only, not a currently-observable HUD bug.
 
-- [ ] **Step 1: Write the failing test.**
+- [x] **Step 1: Write the failing test.**
 
 ```ts
     it('onQueueResearch publishes the queued tech through session subscribers', () => {
@@ -1733,12 +1733,12 @@ Verified against the real file (`panel-actions-controller.ts:498-527`) — all 3
 
 Confirm `controller.openTechPanel` is the real public method name and `createTechPanel`'s callback argument index by reading the file — this codebase's convention (seen in Tasks 1.1-5.3) is consistent, but verify rather than assume for this specific panel.
 
-- [ ] **Step 2: Run test to verify it fails.**
+- [x] **Step 2: Run test to verify it fails.**
 
 Run: `bash scripts/run-with-mise.sh yarn vitest run tests/app/controllers/panel-actions-controller.test.ts -t "onQueueResearch"`
 Expected: FAIL on `expect(listener).toHaveBeenCalled()`.
 
-- [ ] **Step 3: Write minimal implementation.**
+- [x] **Step 3: Write minimal implementation.**
 
 ```ts
       onQueueResearch: (techId) => {
@@ -1791,12 +1791,12 @@ Expected: FAIL on `expect(listener).toHaveBeenCalled()`.
       },
 ```
 
-- [ ] **Step 4: Run test to verify it passes.**
+- [x] **Step 4: Run test to verify it passes.**
 
 Run: `bash scripts/run-with-mise.sh yarn vitest run tests/app/controllers/panel-actions-controller.test.ts -t "onQueueResearch"`
 Expected: PASS.
 
-- [ ] **Step 5: Commit.**
+- [x] **Step 5: Commit.**
 
 ```bash
 git add src/app/controllers/panel-actions-controller.ts tests/app/controllers/panel-actions-controller.test.ts
@@ -1838,7 +1838,7 @@ This handler closes+reopens the espionage panel via `deps.router.open('espionage
 
 **Verified target-picker mechanism:** `chooseFriendlyCityTarget()` (`panel-actions-controller.ts:820-839`, a closure inside the same registrar as this handler) calls `window.prompt(message, choices[0].id)` — jsdom's `window.prompt` returns `null` unless stubbed, so the test must stub it. Since the prompt's second argument is always the first valid choice's id, a generic stub that echoes the suggested default resolves this deterministically without hardcoding a specific city id: `vi.spyOn(window, 'prompt').mockImplementation((_msg, defaultValue) => defaultValue ?? null);`. The same stub covers `chooseForeignCityTarget` (Task 5.7) and `chooseMission` (Task 5.7) too, since both follow the identical `window.prompt(msg, choices[0])` pattern — add it once per test that reaches any of these three pickers.
 
-- [ ] **Step 1: Write the failing test.**
+- [x] **Step 1: Write the failing test.**
 
 ```ts
     it('onAssignDefensive embeds the spy, removes the unit, and publishes through session subscribers', () => {
@@ -1866,12 +1866,12 @@ This handler closes+reopens the espionage panel via `deps.router.open('espionage
 
 `controller.openEspionagePanel` is confirmed public on `PanelActionsController` (`panel-actions-controller.ts:125`).
 
-- [ ] **Step 2: Run test to verify it fails.**
+- [x] **Step 2: Run test to verify it fails.**
 
 Run: `bash scripts/run-with-mise.sh yarn vitest run tests/app/controllers/panel-actions-controller.test.ts -t "onAssignDefensive"`
 Expected: FAIL on `expect(listener).toHaveBeenCalled()` (and likely `expect(deps.hud.update).toHaveBeenCalled()` too, since it's currently never called for this handler).
 
-- [ ] **Step 3: Write minimal implementation.**
+- [x] **Step 3: Write minimal implementation.**
 
 ```ts
       onAssignDefensive: (spyId) => {
@@ -1902,12 +1902,12 @@ Expected: FAIL on `expect(listener).toHaveBeenCalled()` (and likely `expect(deps
       },
 ```
 
-- [ ] **Step 4: Run test to verify it passes.**
+- [x] **Step 4: Run test to verify it passes.**
 
 Run: `bash scripts/run-with-mise.sh yarn vitest run tests/app/controllers/panel-actions-controller.test.ts -t "onAssignDefensive"`
 Expected: PASS.
 
-- [ ] **Step 5: Commit.**
+- [x] **Step 5: Commit.**
 
 ```bash
 git add src/app/controllers/panel-actions-controller.ts tests/app/controllers/panel-actions-controller.test.ts
@@ -1970,7 +1970,7 @@ Current code (all 3, same shape):
 
 None of these 3 currently call `hud.update()` — all live bugs per the spec's severity table.
 
-- [ ] **Step 1: Write the failing tests.**
+- [x] **Step 1: Write the failing tests.**
 
 ```ts
     it('onStartMission commits the started mission and publishes through session subscribers', () => {
@@ -2019,12 +2019,12 @@ None of these 3 currently call `hud.update()` — all live bugs per the spec's s
     });
 ```
 
-- [ ] **Step 2: Run tests to verify they fail.**
+- [x] **Step 2: Run tests to verify they fail.**
 
 Run: `bash scripts/run-with-mise.sh yarn vitest run tests/app/controllers/panel-actions-controller.test.ts -t "onStartMission|onRecall|onVerifyAgent"`
 Expected: FAIL, all 3, on `expect(listener).toHaveBeenCalled()`.
 
-- [ ] **Step 3: Write minimal implementation.**
+- [x] **Step 3: Write minimal implementation.**
 
 ```ts
       onStartMission: (spyId) => {
@@ -2077,12 +2077,12 @@ Expected: FAIL, all 3, on `expect(listener).toHaveBeenCalled()`.
       },
 ```
 
-- [ ] **Step 4: Run tests to verify they pass.**
+- [x] **Step 4: Run tests to verify they pass.**
 
 Run: `bash scripts/run-with-mise.sh yarn vitest run tests/app/controllers/panel-actions-controller.test.ts -t "onStartMission|onRecall|onVerifyAgent"`
 Expected: PASS, all 3.
 
-- [ ] **Step 5: Commit.**
+- [x] **Step 5: Commit.**
 
 ```bash
 git add src/app/controllers/panel-actions-controller.ts tests/app/controllers/panel-actions-controller.test.ts
@@ -2162,7 +2162,7 @@ Current code, `onUnembed`:
       },
 ```
 
-- [ ] **Step 1: Write the failing tests.**
+- [x] **Step 1: Write the failing tests.**
 
 ```ts
     it('onExfiltrate spawns a fresh unit at the capital, updates espionage state, and publishes', () => {
@@ -2202,12 +2202,12 @@ Current code, `onUnembed`:
     });
 ```
 
-- [ ] **Step 2: Run tests to verify they fail.**
+- [x] **Step 2: Run tests to verify they fail.**
 
 Run: `bash scripts/run-with-mise.sh yarn vitest run tests/app/controllers/panel-actions-controller.test.ts -t "onExfiltrate|onUnembed"`
 Expected: FAIL, both, on `expect(listener).toHaveBeenCalled()`.
 
-- [ ] **Step 3: Write minimal implementation.**
+- [x] **Step 3: Write minimal implementation.**
 
 ```ts
       onExfiltrate: (spyId) => {
@@ -2285,12 +2285,12 @@ Expected: FAIL, both, on `expect(listener).toHaveBeenCalled()`.
       },
 ```
 
-- [ ] **Step 4: Run tests to verify they pass.**
+- [x] **Step 4: Run tests to verify they pass.**
 
 Run: `bash scripts/run-with-mise.sh yarn vitest run tests/app/controllers/panel-actions-controller.test.ts -t "onExfiltrate|onUnembed"`
 Expected: PASS, both.
 
-- [ ] **Step 5: Commit.**
+- [x] **Step 5: Commit.**
 
 ```bash
 git add src/app/controllers/panel-actions-controller.ts tests/app/controllers/panel-actions-controller.test.ts
@@ -2321,7 +2321,7 @@ Current code:
       },
 ```
 
-- [ ] **Step 1: Write the failing test.**
+- [x] **Step 1: Write the failing test.**
 
 ```ts
     it('onSweep commits the sweep result and publishes through session subscribers', () => {
@@ -2340,12 +2340,12 @@ Current code:
     });
 ```
 
-- [ ] **Step 2: Run test to verify it fails.**
+- [x] **Step 2: Run test to verify it fails.**
 
 Run: `bash scripts/run-with-mise.sh yarn vitest run tests/app/controllers/panel-actions-controller.test.ts -t "onSweep"`
 Expected: FAIL on `expect(listener).toHaveBeenCalled()`.
 
-- [ ] **Step 3: Write minimal implementation.**
+- [x] **Step 3: Write minimal implementation.**
 
 ```ts
       onSweep: (spyId) => {
@@ -2363,12 +2363,12 @@ Expected: FAIL on `expect(listener).toHaveBeenCalled()`.
       },
 ```
 
-- [ ] **Step 4: Run test to verify it passes.**
+- [x] **Step 4: Run test to verify it passes.**
 
 Run: `bash scripts/run-with-mise.sh yarn vitest run tests/app/controllers/panel-actions-controller.test.ts -t "onSweep"`
 Expected: PASS.
 
-- [ ] **Step 5: Commit.**
+- [x] **Step 5: Commit.**
 
 ```bash
 git add src/app/controllers/panel-actions-controller.ts tests/app/controllers/panel-actions-controller.test.ts
@@ -2377,11 +2377,11 @@ git commit -m "fix(panel-actions-controller): route onSweep's espionage-state co
 
 ### Phase 5 close-out
 
-- [ ] Run `bash scripts/run-with-mise.sh yarn build` — expect exit 0.
-- [ ] Run `bash scripts/run-with-mise.sh yarn test` — expect exit 0 (this includes `tests/ui/city-panel*.test.ts`).
-- [ ] Re-run the inventory grep against `panel-actions-controller.ts` — confirm 0 remaining matches. Expected breakdown (verified 21 = 1 + 4 + 3 + 3 + 3 + 6 + 1): Task 5.1=1 (settings), Task 5.3=4 (onBuild/onMoveQueueItem/onRemoveQueueItem/onSetIdleProduction), Task 5.5=3 (onQueueResearch/onMoveQueuedResearch/onRemoveQueuedResearch), Task 5.6=3 (onAssignDefensive's espionage-assign/delete-unit/civ-units-filter), Task 5.7=3 (onStartMission/onRecall/onVerifyAgent, one site each), Task 5.8=6 (onExfiltrate's units/civ-units/espionage-assign ×3 + onUnembed's units/civ-units/espionage-assign ×3), Task 5.9=1 (onSweep). If the re-run grep finds a residual site not covered by Tasks 5.1-5.9, add one more task before closing this phase rather than closing with a known gap.
-- [ ] Confirm `src/ui/city-panel.ts` has zero remaining `void`-only queue callbacks (Task 5.2/5.3 covered all 4).
-- [ ] Open the PR. Title: `fix(787): GameSession state-mutation audit — Phase 5 (panel-actions-controller.ts + city-panel.ts)`. Body must explicitly call out the `city-panel.ts` companion change and the test rewrite (Task 5.4) as its own line items, per Global Constraints.
+- [x] Run `bash scripts/run-with-mise.sh yarn build` — expect exit 0.
+- [x] Run `bash scripts/run-with-mise.sh yarn test` — expect exit 0 (this includes `tests/ui/city-panel*.test.ts`).
+- [x] Re-run the inventory grep against `panel-actions-controller.ts` — confirm 0 remaining matches. Expected breakdown (verified 21 = 1 + 4 + 3 + 3 + 3 + 6 + 1): Task 5.1=1 (settings), Task 5.3=4 (onBuild/onMoveQueueItem/onRemoveQueueItem/onSetIdleProduction), Task 5.5=3 (onQueueResearch/onMoveQueuedResearch/onRemoveQueuedResearch), Task 5.6=3 (onAssignDefensive's espionage-assign/delete-unit/civ-units-filter), Task 5.7=3 (onStartMission/onRecall/onVerifyAgent, one site each), Task 5.8=6 (onExfiltrate's units/civ-units/espionage-assign ×3 + onUnembed's units/civ-units/espionage-assign ×3), Task 5.9=1 (onSweep). If the re-run grep finds a residual site not covered by Tasks 5.1-5.9, add one more task before closing this phase rather than closing with a known gap.
+- [x] Confirm `src/ui/city-panel.ts` has zero remaining `void`-only queue callbacks (Task 5.2/5.3 covered all 4).
+- [x] Open the PR. Title: `fix(787): GameSession state-mutation audit — Phase 5 (panel-actions-controller.ts + city-panel.ts)`. Body must explicitly call out the `city-panel.ts` companion change and the test rewrite (Task 5.4) as its own line items, per Global Constraints.
 
 ---
 
