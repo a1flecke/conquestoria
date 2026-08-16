@@ -26,6 +26,7 @@ import { recordHuntCampKillerIfApplicable } from './hunt-crisis-linkage';
 import { resolveCivilizationEra } from './tech-definitions';
 import { classifyOwner } from '@/core/owner-kind';
 import { resolveNeutralPressureEra } from './era-resolution';
+import { observeCampPressureFromSensedUnits } from './barbarian-pressure';
 
 // Seeded LCG — avoids Math.random() per project rules
 function lcg(seed: number): () => number {
@@ -201,6 +202,7 @@ export function canBarbarianPressureEngage(
 
 export interface PurposefulBarbarianProcessResult extends BarbarianProcessResult {
   opponentAI: OpponentAIState;
+  barbarianCampPressure: NonNullable<GameState['barbarianCampPressure']>;
 }
 
 const BARBARIAN_SENSE_RADIUS = 7;
@@ -342,6 +344,7 @@ export function processPurposefulBarbarians(state: GameState): PurposefulBarbari
   const attackOrders: BarbarianAttackOrder[] = [];
   const cityAttackOrders: BarbarianCityAttackOrder[] = [];
   const pillageOrders: BarbarianPillageOrder[] = [];
+  let observationState = state;
   const profile = OPPONENT_CHALLENGE_PROFILES[resolveOpponentChallenge(state)];
 
   for (const camp of camps) {
@@ -376,6 +379,7 @@ export function processPurposefulBarbarians(state: GameState): PurposefulBarbari
       .sort((a, b) =>
         barbarianDistance(state, camp.position, a.position) - barbarianDistance(state, camp.position, b.position)
         || a.id.localeCompare(b.id));
+    observationState = observeCampPressureFromSensedUnits(observationState, camp.id, sensedUnits);
     const campThreat = sensedUnits.find(unit =>
       UNIT_DEFINITIONS[unit.type].strength > 0
       && barbarianDistance(state, camp.position, unit.position) <= BARBARIAN_DEFENSE_RADIUS);
@@ -570,6 +574,7 @@ export function processPurposefulBarbarians(state: GameState): PurposefulBarbari
     cityAttackOrders,
     pillageOrders,
     opponentAI,
+    barbarianCampPressure: observationState.barbarianCampPressure ?? {},
   };
 }
 

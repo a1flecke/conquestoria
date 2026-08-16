@@ -879,6 +879,7 @@ export function processTurn(
   const barbSeed = newState.turn * 31337 + Object.keys(newState.barbarianCamps).length;
   const barbResult = processPurposefulBarbarians(newState);
   newState.opponentAI = barbResult.opponentAI;
+  newState.barbarianCampPressure = barbResult.barbarianCampPressure;
   newState.barbarianCamps = {};
   for (const camp of barbResult.updatedCamps) {
     newState.barbarianCamps[camp.id] = camp;
