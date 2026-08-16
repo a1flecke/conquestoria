@@ -23,6 +23,12 @@ export interface BarbarianReinforcementCandidateContext {
   observedThreats?: readonly BarbarianObservationRequirement[];
 }
 
+export interface BarbarianReinforcementContext extends BarbarianReinforcementCandidateContext {
+  assignedUnitTypes: readonly UnitType[];
+  escalated: boolean;
+  seed: number;
+}
+
 interface Candidate {
   unitType: UnitType;
   eligibility: EligibleBarbarianUnit;
@@ -55,6 +61,11 @@ function candidateForContext(
   return { unitType, eligibility };
 }
 
+function candidateFromEligibility(unitType: UnitType): Candidate | null {
+  const eligibility = BARBARIAN_ELIGIBILITY_BY_UNIT[unitType];
+  return eligibility.status === 'eligible' ? { unitType, eligibility } : null;
+}
+
 function candidatesFor(context: BarbarianForceCompositionContext): Candidate[] {
   const candidates: Candidate[] = [];
   for (const unitType of Object.keys(BARBARIAN_ELIGIBILITY_BY_UNIT) as UnitType[]) {
@@ -74,6 +85,28 @@ export function getBarbarianReinforcementCandidates(
     escalated: false,
     seed: 0,
   }).map(candidate => candidate.unitType);
+}
+
+export function selectBarbarianReinforcement(
+  context: BarbarianReinforcementContext,
+): UnitType | undefined {
+  const era = normalizeEra(context.era);
+  const forceSize = context.assignedUnitTypes.length + 1;
+  const selectionContext: BarbarianForceCompositionContext = {
+    era,
+    forceSize,
+    escalated: context.escalated,
+    seed: context.seed,
+    observedThreats: context.observedThreats,
+  };
+  const force = context.assignedUnitTypes
+    .map(candidateFromEligibility)
+    .filter((candidate): candidate is Candidate => candidate !== null);
+  const legal = candidatesFor(selectionContext)
+    .filter(candidate => canAddCandidate(candidate, force, selectionContext));
+  return legal.length === 0
+    ? undefined
+    : weightedPick(legal, legal.map(candidate => candidate.eligibility.weight), seededLcg(context.seed)).unitType;
 }
 
 function countRole(force: readonly Candidate[], role: EligibleBarbarianUnit['roleSlot']): number {

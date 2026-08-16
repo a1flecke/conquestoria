@@ -1,5 +1,9 @@
 import { getBarbarianEligibility } from '@/systems/barbarian-roster';
-import { composeBarbarianForce } from '@/systems/barbarian-force-composer';
+import {
+  composeBarbarianForce,
+  getBarbarianReinforcementCandidates,
+  selectBarbarianReinforcement,
+} from '@/systems/barbarian-force-composer';
 
 function countByRole(force: ReturnType<typeof composeBarbarianForce>) {
   return force.reduce<Record<string, number>>((counts, unitType) => {
@@ -123,5 +127,28 @@ describe('composeBarbarianForce', () => {
 
   it('returns no members when no force is requested', () => {
     expect(composeBarbarianForce({ era: 6, forceSize: 0, escalated: false, seed: 1 })).toEqual([]);
+  });
+
+  it('selects only a legal catalog candidate for the existing camp force', () => {
+    const context = {
+      era: 10, escalated: false, seed: 429,
+      assignedUnitTypes: ['tank', 'rifleman'], observedThreats: ['armor', 'air'],
+    } as const;
+    const selected = selectBarbarianReinforcement(context);
+
+    expect(selected).toBeDefined();
+    expect(getBarbarianReinforcementCandidates(context)).toContain(selected);
+    expect(selectBarbarianReinforcement(context)).toBe(selected);
+  });
+
+  it('counts existing units for per-camp and mutual-exclusion caps after their spawn window', () => {
+    expect(selectBarbarianReinforcement({
+      era: 10, escalated: false, seed: 1,
+      assignedUnitTypes: ['mobile_aa'], observedThreats: ['air'],
+    })).not.toBe('mobile_aa');
+    expect(selectBarbarianReinforcement({
+      era: 9, escalated: false, seed: 1,
+      assignedUnitTypes: ['cavalry'], observedThreats: [],
+    })).not.toBe('cuirassier');
   });
 });
