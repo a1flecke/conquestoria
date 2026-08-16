@@ -951,6 +951,23 @@ describe('PanelActionsController', () => {
       expect(deps.router.open).toHaveBeenCalledWith('espionage');
     });
 
+    it('onSweep commits the sweep result, publishes through session subscribers, and still refreshes the panel', () => {
+      const { state } = makeFixture('espionage-sweep-publish');
+      placeSpy(state, 'sweeper-1', { status: 'embedded' });
+      const { deps, controller } = build(state);
+      const listener = vi.fn();
+      deps.session.subscribe(listener);
+
+      controller.openEspionagePanel();
+      const options = mockedCallArg<{ onSweep: (spyId: string) => void }>(createEspionagePanel, 0, 1);
+      options.onSweep('sweeper-1');
+
+      expect(deps.showNotification).toHaveBeenCalled();
+      expect(listener).toHaveBeenCalled();
+      expect(deps.getElementById).toHaveBeenCalledWith('espionage-panel');
+      expect(deps.router.open).toHaveBeenCalledWith('espionage');
+    });
+
     it('toggles cooldown mode for a real spy on cooldown', () => {
       const { state } = makeFixture('espionage-cooldown');
       placeSpy(state, 'spy-1', { status: 'cooldown', cooldownMode: 'stay_low' });

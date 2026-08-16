@@ -1064,7 +1064,7 @@ export function createPanelActionsController(deps: PanelActionsControllerDeps): 
         if (!ownerEsp) return;
         const seed = `sweep-${spyId}-${deps.session.getState().turn}`;
         const { detectedSpyIds, state: updatedEsp } = attemptSweep(ownerEsp, spyId, seed, deps.session.getState());
-        deps.session.getState().espionage![deps.session.getState().currentPlayer] = updatedEsp;
+        deps.session.commit({ ...deps.session.getState(), espionage: { ...deps.session.getState().espionage, [deps.session.getState().currentPlayer]: updatedEsp } });
         if (detectedSpyIds.length > 0) {
           deps.showNotification(`Sweep detected ${detectedSpyIds.length} enemy spy(ies) in the city!`, 'warning');
         } else {
