@@ -442,6 +442,11 @@ export function createSelectionController(deps: SelectionControllerDeps): Select
           const currentPlayer = session.getState().currentPlayer;
           let nextUnits = session.getState().units;
           let nextCivilizations = session.getState().civilizations;
+          // Deferred until after session.commit() below so that any bus listener reading
+          // session.getState() synchronously (e.g. register-espionage-presentation.ts's
+          // 'espionage:spy-caught-infiltrating' handler) observes the post-mutation state,
+          // not the state as it stood before this action published.
+          let runSideEffects: () => void;
 
           if (result.removeUnitFromMap) {
             // Era 2+: spy removed from map, stationed inside city
@@ -451,8 +456,11 @@ export function createSelectionController(deps: SelectionControllerDeps): Select
             nextCivilizations = civUnits
               ? { ...nextCivilizations, [currentPlayer]: { ...nextCivilizations[currentPlayer], units: civUnits.filter(id => id !== uid) } }
               : nextCivilizations;
-            deps.showNotification(`Spy successfully infiltrated ${targetCity.name}. Open Intel panel to issue orders.`, 'success');
-            bus.emit('espionage:spy-infiltrated', { civId: currentPlayer, spyId: uid, cityId: targetCity.id });
+            runSideEffects = () => {
+              deps.showNotification(`Spy successfully infiltrated ${targetCity.name}. Open Intel panel to issue orders.`, 'success');
+              bus.emit('espionage:spy-infiltrated', { civId: currentPlayer, spyId: uid, cityId: targetCity.id });
+              deselectUnit();
+            };
           } else if (result.era1ScoutResult !== undefined) {
             // Era 1 (spy_scout): spy stays on map, infiltrationCityId + 5-turn city vision already set
             const missionResult = resolveMissionResult('scout_area', targetCity.owner, targetCity.id, session.getState(), currentPlayer, uid);
@@ -468,7 +476,10 @@ export function createSelectionController(deps: SelectionControllerDeps): Select
               };
             }
             nextUnits = { ...nextUnits, [uid]: { ...unit, hasActed: true, movementPointsLeft: 0 } };
-            deps.showNotification(`Scout revealed ${tilesToReveal.length} tile${tilesToReveal.length !== 1 ? 's' : ''} around ${targetCity.name}.`, 'success');
+            runSideEffects = () => {
+              deps.showNotification(`Scout revealed ${tilesToReveal.length} tile${tilesToReveal.length !== 1 ? 's' : ''} around ${targetCity.name}.`, 'success');
+              selectUnit(uid);
+            };
           } else if (result.caught) {
             // Caught: remove unit from map (spy lost)
             const { [uid]: _removed, ...remainingUnits } = nextUnits;
@@ -477,11 +488,17 @@ export function createSelectionController(deps: SelectionControllerDeps): Select
             nextCivilizations = civUnits
               ? { ...nextCivilizations, [currentPlayer]: { ...nextCivilizations[currentPlayer], units: civUnits.filter(id => id !== uid) } }
               : nextCivilizations;
-            bus.emit('espionage:spy-caught-infiltrating', { capturingCivId: targetCity.owner, spyOwner: currentPlayer, spyId: uid, cityId: targetCity.id });
+            runSideEffects = () => {
+              bus.emit('espionage:spy-caught-infiltrating', { capturingCivId: targetCity.owner, spyOwner: currentPlayer, spyId: uid, cityId: targetCity.id });
+              deselectUnit();
+            };
           } else {
             const cooldown = result.civEsp.spies[uid]?.cooldownTurns ?? 3;
-            deps.showNotification(`Spy failed to infiltrate ${targetCity.name}. Lying low for ${cooldown} turns.`, 'info');
             nextUnits = { ...nextUnits, [uid]: { ...unit, hasActed: true, movementPointsLeft: 0 } };
+            runSideEffects = () => {
+              deps.showNotification(`Spy failed to infiltrate ${targetCity.name}. Lying low for ${cooldown} turns.`, 'info');
+              selectUnit(uid);
+            };
           }
 
           session.commit({
@@ -491,11 +508,7 @@ export function createSelectionController(deps: SelectionControllerDeps): Select
             civilizations: nextCivilizations,
           });
 
-          if (result.removeUnitFromMap || result.caught) {
-            deselectUnit();
-          } else {
-            selectUnit(uid);
-          }
+          runSideEffects();
 
           renderLoop.setGameState(session.getState());
           deps.updateHUD();
