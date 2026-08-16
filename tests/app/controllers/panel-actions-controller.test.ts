@@ -1015,5 +1015,41 @@ describe('PanelActionsController', () => {
       expect(deps.session.getState().units[exfiltrated!.id].position).toEqual(state.cities['capital-city'].position);
       expect(deps.showNotification).toHaveBeenCalledWith(expect.stringContaining('exfiltrated'), 'info');
     });
+
+    it('onExfiltrate spawns a fresh unit at the capital, updates espionage state, and publishes', () => {
+      const { state } = makeFixture('espionage-exfiltrate-publish');
+      state.cities['capital'] = makeCity('capital', { owner: 'player', position: { q: 5, r: 5 } });
+      state.civilizations.player.cities = ['capital'];
+      placeSpy(state, 'spy-1', { status: 'stationed' });
+      const { deps, controller } = build(state);
+      const listener = vi.fn();
+      deps.session.subscribe(listener);
+
+      controller.openEspionagePanel();
+      const options = mockedCallArg<{ onExfiltrate: (spyId: string) => void }>(createEspionagePanel, 0, 1);
+      options.onExfiltrate('spy-1');
+
+      const updated = deps.session.getState();
+      expect(Object.values(updated.units).some(u => u.type === 'spy_scout')).toBe(true);
+      expect(updated.espionage!.player.spies['spy-1']).toBeUndefined();
+      expect(listener).toHaveBeenCalled();
+    });
+
+    it('onUnembed spawns a fresh unit at the target city, updates espionage state, and publishes', () => {
+      const { state } = makeFixture('espionage-unembed');
+      state.cities['target-city'] = makeCity('target-city', { owner: 'ai-1', position: { q: 3, r: 3 } });
+      placeSpy(state, 'spy-1', { status: 'embedded', targetCityId: 'target-city' });
+      const { deps, controller } = build(state);
+      const listener = vi.fn();
+      deps.session.subscribe(listener);
+
+      controller.openEspionagePanel();
+      const options = mockedCallArg<{ onUnembed: (spyId: string) => void }>(createEspionagePanel, 0, 1);
+      options.onUnembed('spy-1');
+
+      const updated = deps.session.getState();
+      expect(Object.values(updated.units).some(u => u.type === 'spy_scout')).toBe(true);
+      expect(listener).toHaveBeenCalled();
+    });
   });
 });
