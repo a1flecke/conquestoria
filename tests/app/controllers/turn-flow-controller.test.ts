@@ -157,6 +157,24 @@ async function flushMicrotasks(times = 5): Promise<void> {
   }
 }
 
+/**
+ * `required-choice-panel.ts` gives no id/data-* attribute to individual
+ * research/build buttons -- only each section's `<h3>` heading text is a
+ * stable anchor. Within "Choose Research", index 0 is always the first
+ * available tech choice (it's appended before "Open Tech Panel"); within
+ * "Choose Production", index 0 is always the first idle city's build choice
+ * (appended before that row's "Open City" button) -- both hold regardless of
+ * how many techs/cities are on offer.
+ */
+function findSectionButton(container: HTMLElement, sectionTitle: string, buttonIndex = 0): HTMLButtonElement {
+  const heading = Array.from(container.querySelectorAll('h3')).find(h => h.textContent === sectionTitle);
+  const section = heading?.closest('section');
+  const buttons = section ? Array.from(section.querySelectorAll('button')) : [];
+  const button = buttons[buttonIndex];
+  if (!button) throw new Error(`No button at index ${buttonIndex} in section "${sectionTitle}"`);
+  return button as HTMLButtonElement;
+}
+
 describe('createTurnFlowController', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -574,6 +592,55 @@ describe('createTurnFlowController', () => {
       turnFlow.refreshRequiredChoicesAfterAction();
       expect(host.isInteractionBlocked()).toBe(false);
       expect(deps.uiLayer.querySelector('#required-choice-panel')).toBeFalsy();
+    });
+  });
+
+  describe('showRequiredChoicesIfNeeded callbacks (#787 phase 3 -- single-owner commit)', () => {
+    it('onChooseResearch publishes the queued tech through session subscribers', () => {
+      const state = makeFixture();
+      state.civilizations['player']!.techState.currentResearch = null;
+      const testUiLayer = document.createElement('div');
+      const deps = baseDeps(state, {
+        uiLayer: testUiLayer,
+        getElementById: id => testUiLayer.querySelector(`#${id}`),
+      });
+      const turnFlow = createTurnFlowController(deps);
+      const listener = vi.fn();
+      deps.session.subscribe(listener);
+
+      turnFlow.showRequiredChoicesIfNeeded();
+      const panel = deps.uiLayer.querySelector('#required-choice-panel') as HTMLElement;
+      expect(panel).toBeTruthy();
+      findSectionButton(panel, 'Choose Research', 0).click();
+
+      // currentResearch started null (needsResearchChoice's precondition), so
+      // enqueueResearch sets currentResearch directly rather than appending to
+      // researchQueue -- see enqueueResearch's `!state.currentResearch` branch.
+      expect(deps.session.getState().civilizations['player']!.techState.currentResearch).not.toBeNull();
+      expect(listener).toHaveBeenCalled();
+    });
+
+    it('onChooseCityBuild publishes the queued production through session subscribers', () => {
+      const state = makeFixture();
+      const template = Object.values(state.cities)[0]!;
+      state.cities['idle-city'] = { ...template, id: 'idle-city', owner: 'player', name: 'Idle City', productionQueue: [] };
+      state.civilizations['player']!.cities = ['idle-city'];
+      const testUiLayer = document.createElement('div');
+      const deps = baseDeps(state, {
+        uiLayer: testUiLayer,
+        getElementById: id => testUiLayer.querySelector(`#${id}`),
+      });
+      const turnFlow = createTurnFlowController(deps);
+      const listener = vi.fn();
+      deps.session.subscribe(listener);
+
+      turnFlow.showRequiredChoicesIfNeeded();
+      const panel = deps.uiLayer.querySelector('#required-choice-panel') as HTMLElement;
+      expect(panel).toBeTruthy();
+      findSectionButton(panel, 'Choose Production', 0).click();
+
+      expect(deps.session.getState().cities['idle-city']!.productionQueue.length).toBe(1);
+      expect(listener).toHaveBeenCalled();
     });
   });
 
