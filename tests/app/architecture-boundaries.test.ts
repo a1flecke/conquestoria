@@ -51,3 +51,41 @@ it('controllers depend on ports, not on RenderLoop/AudioSystem/document', () => 
     expect(stripComments(source), file).not.toMatch(/\bdocument\.getElementById\(/);
   }
 });
+
+it('no app/presentation/ui file mutates the object returned by session.getState() directly', () => {
+  // GameSession.commit()/update() are the only sanctioned publish path (see
+  // src/app/ports.ts's GameSession doc comment). Mutating getState()'s return
+  // value in place bypasses both subscribers (renderLoop, hud) that only fire
+  // through commit/update -- see docs/superpowers/specs/2026-08-15-gamesession-state-mutation-audit-design.md.
+  const dirs = [
+    resolve(__dirname, '../../src/app'),
+    resolve(__dirname, '../../src/presentation'),
+    resolve(__dirname, '../../src/ui'),
+  ];
+  const excluded = new Set(['game-session.ts', 'ports.ts']);
+  const mutationPatterns = [
+    /getState\(\)(\.[A-Za-z0-9_]+[!]?|\[[^\]]+\])+\s*=[^=]/,
+    /delete [A-Za-z0-9_.]*getState\(\)/,
+    /getState\(\)(\.[A-Za-z0-9_]+|\[[^\]]+\])+\.(push|splice|pop|shift|unshift|sort|reverse)\(/,
+  ];
+
+  function walk(dir: string): string[] {
+    const entries = readdirSync(dir, { withFileTypes: true });
+    return entries.flatMap(entry => {
+      const full = resolve(dir, entry.name);
+      if (entry.isDirectory()) return walk(full);
+      return entry.name.endsWith('.ts') && !excluded.has(entry.name) ? [full] : [];
+    });
+  }
+
+  for (const dir of dirs) {
+    for (const file of walk(dir)) {
+      const source = readFileSync(file, 'utf8');
+      for (const line of source.split('\n')) {
+        for (const pattern of mutationPatterns) {
+          expect(pattern.test(line), `${file}: ${line}`).toBe(false);
+        }
+      }
+    }
+  }
+});
