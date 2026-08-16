@@ -26,3 +26,22 @@ export function applyPersistedUserSettings(
     },
   };
 }
+
+/**
+ * Overrides a freshly constructed game's councilTalkLevel with the player's
+ * persisted preference.
+ *
+ * Distinct from `applyPersistedUserSettings` above: that function preserves an
+ * *existing save's own* councilTalkLevel and only fills in the persisted
+ * default when the save has none. A brand-new game from `createNewGame`/
+ * `createHotSeatGame` always has some default already (`'normal'`), so that
+ * guard would never fire here -- this helper must override it unconditionally
+ * whenever a persisted preference exists.
+ */
+export function applyCouncilTalkLevelOverride(
+  state: GameState,
+  councilTalkLevel: GameState['settings']['councilTalkLevel'] | undefined,
+): GameState {
+  if (!councilTalkLevel) return state;
+  return { ...state, settings: { ...state.settings, councilTalkLevel } };
+}
