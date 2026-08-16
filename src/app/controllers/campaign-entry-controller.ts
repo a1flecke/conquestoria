@@ -220,7 +220,7 @@ export function createCampaignEntryController(deps: CampaignEntryControllerDeps)
         showCampaignSetup(deps.uiLayer, {
           initialTitle: title,
           onStartSolo: (config) => {
-            deps.session.setStateWithoutRefresh(createNewGame({
+            const newGame = createNewGame({
               civType: config.civType,
               mapSize: config.mapSize,
               opponentCount: config.opponentCount,
@@ -232,10 +232,12 @@ export function createCampaignEntryController(deps: CampaignEntryControllerDeps)
               mapScript: config.mapScript,
               startPlacementMode: config.startPlacementMode,
               opponentChallenge: config.opponentChallenge,
-            }));
-            if (currentSettings.councilTalkLevel) {
-              deps.session.getState().settings.councilTalkLevel = currentSettings.councilTalkLevel;
-            }
+            });
+            deps.session.setStateWithoutRefresh(
+              currentSettings.councilTalkLevel
+                ? { ...newGame, settings: { ...newGame.settings, councilTalkLevel: currentSettings.councilTalkLevel } }
+                : newGame,
+            );
             deps.startGame();
           },
           onCustomCivilizationsChanged: (customCivilizations) => {
@@ -252,10 +254,12 @@ export function createCampaignEntryController(deps: CampaignEntryControllerDeps)
         modePanel.remove();
         showHotSeatSetup(deps.uiLayer, {
           onComplete: (config, opponentChallenge) => {
-            deps.session.setStateWithoutRefresh(createHotSeatGame(config, undefined, title, opponentChallenge ?? 'standard'));
-            if (currentSettings.councilTalkLevel) {
-              deps.session.getState().settings.councilTalkLevel = currentSettings.councilTalkLevel;
-            }
+            const newGame = createHotSeatGame(config, undefined, title, opponentChallenge ?? 'standard');
+            deps.session.setStateWithoutRefresh(
+              currentSettings.councilTalkLevel
+                ? { ...newGame, settings: { ...newGame.settings, councilTalkLevel: currentSettings.councilTalkLevel } }
+                : newGame,
+            );
             enterCampaign(
               deps.session.getState(),
               `Hot seat game started! ${config.players.filter(p => p.isHuman).length} players`,
