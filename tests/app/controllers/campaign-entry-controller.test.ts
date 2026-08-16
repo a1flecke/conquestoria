@@ -305,6 +305,41 @@ describe('CampaignEntryController', () => {
       expect(deps.startGame).toHaveBeenCalledTimes(1);
     });
 
+    it('the solo path applies a persisted councilTalkLevel to the freshly constructed game', async () => {
+      const state = makeFixture();
+      const deps = baseDeps(state, {
+        userSettingsStore: {
+          getPersisted: () => undefined,
+          refresh: vi.fn().mockResolvedValue({ customCivilizations: [], councilTalkLevel: 'chatty' }),
+          getMasterVolume: () => 0.8,
+          setCustomCivilizations: vi.fn(),
+          getOverrides: () => ({}),
+        },
+      });
+      const campaignEntry = createCampaignEntryController(deps);
+      const callbacks = captureModeSelectCallbacks();
+      let capturedSoloCallbacks: campaignSetupModule.CampaignSetupCallbacks | undefined;
+      vi.mocked(campaignSetupModule.showCampaignSetup).mockImplementation((_layer, cb) => {
+        capturedSoloCallbacks = cb;
+        return document.createElement('div');
+      });
+
+      campaignEntry.showGameModeSelection();
+      await callbacks.onChooseSolo('Talkative Council Game');
+      expect(capturedSoloCallbacks).toBeDefined();
+
+      const beforeState = deps.session.getState();
+      const soloConfig: SoloSetupConfig = {
+        civType: beforeState.civilizations['player'].civType,
+        mapSize: 'small',
+        opponentCount: 1,
+        gameTitle: 'Talkative Council Game',
+      };
+      capturedSoloCallbacks!.onStartSolo(soloConfig);
+
+      expect(deps.session.getState().settings.councilTalkLevel).toBe('chatty');
+    });
+
     it('the hot-seat path constructs a new game via createHotSeatGame and persists before entering', async () => {
       const state = makeFixture();
       const deps = baseDeps(state);
