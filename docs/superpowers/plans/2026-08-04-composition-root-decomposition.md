@@ -1972,7 +1972,7 @@ Found during #787 Phase 8d's review. Phase 8's original Step 5 (pre-split form) 
 
 ---
 
-### Phase 11 — Lock the composition-root boundary
+### Phase 11 — Lock the composition-root boundary ✅ merged (#822)
 
 **Replanned 2026-08-14**, after Phase 13 shipped and a full drift check (prompted by `main.ts` landing at 168 lines, not comfortably under the original `<150` target) found the section below unreachable as originally written. See Part VIII's "Post-hoc replan (Phase 11/14)" note for the specific gaps this rewrite closes; the short version: the original Phase 11 assumed most `setStateWithoutRefresh` debt and all `setBlockingOverlay` call sites still lived in `main.ts`. They don't — extraction phases 5 through 10b-g/13 moved essentially all of it into `src/app/controllers/`. That audit is now **Phase 14**, decoupled from this phase: the boundary test below does not depend on `setStateWithoutRefresh` at all (that was only ever `refresh-bypass-ratchet.test.ts`'s job, and this phase deletes that test rather than extending its scope). This phase is now just: get `main.ts` under 150 lines and lock it there, plus the two small pieces of cleanup that were always scoped here.
 
@@ -2059,9 +2059,13 @@ bash scripts/run-with-mise.sh yarn test:ai-playability
 
 ---
 
-### Phase 14 — `setStateWithoutRefresh` debt audit across the controller layer
+### Phase 14 — `setStateWithoutRefresh` debt audit across the controller layer 🟡 Phase 14a merged (#830); remaining sub-phases not started
 
 **Added 2026-08-14**, split out of the original Phase 11 Step 1 during the same drift check that reshaped Phase 11 above. The original text audited "surviving `setStateWithoutRefresh` sites" as if they were still concentrated in `main.ts` (the plan's Part VII risk table still says "46 sites do not refresh today"). They aren't, and it isn't 46 anymore: verified via `grep -rn "setStateWithoutRefresh(" src/ --include="*.ts"` during the replan, there are **66 call sites across 12 files** — `player-action-controller.ts` alone has 23 (Phase 13's own move), `diplomacy-actions-controller.ts` 9, `turn-flow-controller.ts` 8, `selection-controller.ts` 6, `panel-actions-controller.ts` 5, `campaign-entry-controller.ts` 4, `game-session-controller.ts` 4, `cross-cutting-helpers.ts` 2, `map-interaction-controller.ts` 2, `ports.ts`/`game-session.ts`/`main.ts` 1 each. This is not a Phase 11 Step — it's comparable in size to the entire 10b sub-arc, and deserves the same sub-phase treatment (11's own text already anticipated a "each conversion is a bug fix needing its own test" cost per site; 66 sites at that cost is not a single afternoon).
+
+**Status as of 2026-08-16:** Phase 14a (#830) landed 5 of the ~66 sites (`bootstrap.ts`, `cross-cutting-helpers.ts`, `map-interaction-controller.ts`), fixing one real bug (`map-interaction-controller.ts`'s `confirm-war-minor-civ` case) along the way. The remaining ~61 sites across the other 9 files have no sub-phase PR yet — re-run the Step 1 inventory before starting the next sub-phase, since ordinary feature work will have added and removed sites since this count was taken.
+
+**Related but separate effort:** [issue #841](https://github.com/a1flecke/conquestoria/issues/841) opened a second, independent audit on 2026-08-15 — `docs/superpowers/plans/2026-08-15-gamesession-state-mutation-audit.md` — after finding a bug class this phase does not cover. This phase audits sites that go *through* `GameSession`'s API but pass `setStateWithoutRefresh` to intentionally skip the publish step (a legitimate, sometimes-correct choice this phase evaluates case by case). The 2026-08-15 audit instead covers sites that bypass the API's write path *entirely* — a direct assignment, `delete`, or mutating array method on the object `session.getState()` returns, which skips both subscribers unconditionally and is never legitimate. That audit (its own Phases 1-6) is now fully merged, independent of this phase's remaining sub-phases.
 
 **No ordering dependency on Phase 11.** The boundary test Phase 11 writes does not check `setStateWithoutRefresh` at all — only `refresh-bypass-ratchet.test.ts` did, and Phase 11 deletes that test outright rather than widening its scope. This phase can run before, after, or interleaved with Phase 11, and can itself be split into sub-phases by controller file the same way Phase 8 split into 8a–8d and Phase 10b split into 10b-a–g, once Step 1's fresh inventory is in hand — do not assume the grouping above is the right PR boundary without re-running the audit first, since more `setStateWithoutRefresh` calls will likely have been added by ordinary feature work between when this was written and when this phase starts.
 
@@ -2075,7 +2079,7 @@ bash scripts/run-with-mise.sh yarn test:ai-playability
 
 ---
 
-### Phase 12 — Blocking-overlay reference counting (`PanelHost`)
+### Phase 12 — Blocking-overlay reference counting (`PanelHost`) ✅ merged (#828)
 
 Found during #787 Phase 6's inline review, filed as [#794](https://github.com/a1flecke/conquestoria/issues/794), after Phases 1–11 above were already written — not part of the original six-controller/`CeremonyCoordinator`/`MapInteractionController` inventory in Part II, so it gets its own phase rather than being folded into Phase 5's or Phase 11's scope after the fact.
 
