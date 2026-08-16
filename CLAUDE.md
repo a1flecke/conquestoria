@@ -40,7 +40,7 @@ Detailed rules live in `.claude/rules/` and auto-apply based on the files you ed
 - `.claude/rules/ui-panels.md` — hot-seat `currentPlayer`, **cities[0] is never the answer**, **privacy and discovery**, **no silent destructive UI**, **panel rerender after interaction**, XSS-safe rendering, **no bare buttons**
 - `.claude/rules/strategy-game-mechanics.md` — combat, tech gating, victory
 - `.claude/rules/end-to-end-wiring.md` — computed-data-must-render
-- `.claude/rules/spec-fidelity.md` — spec conjunctions, gating preservation, and visible-UI contract preservation
+- `.claude/rules/spec-fidelity.md` — spec conjunctions, gating preservation, visible-UI contract preservation, and **keeping `docs/superpowers/plans/*.md` phase-status annotations synced with merged PRs in the same PR that completes the phase**
 - `.claude/rules/incremental-mr-completion.md` — partial-MR PR title/body requirements and dead-end UX prevention
 - `.claude/rules/hooks-and-tooling.md` — hook stdin/jq contract, exit codes, and required smoke tests
 - `.claude/rules/sprites.md` — unit/building/terrain/improvement extension recipes, FactionPalette contract, catalog coverage, animation class reference, terrain tile contracts
