@@ -1,6 +1,6 @@
 // src/ui/espionage-panel.ts
 import type { AdvisorType, GameState, Spy, SpyMissionType, SpyPromotion, InterrogationIntel } from '../core/types';
-import { getAvailableMissions, getEspionageModifierBreakdown, getSpySuccessChance, missionRequiresPlacedSpy } from '../systems/espionage-system';
+import { getAvailableMissions, getEspionageModifierBreakdown, getMissionDuration, getSpySuccessChance, missionRequiresPlacedSpy } from '../systems/espionage-system';
 import { getProductionLabel } from '../systems/economy-system';
 
 export interface MissionCatalogEntry {
@@ -8,6 +8,8 @@ export interface MissionCatalogEntry {
   label: string;
   stage: 1 | 2 | 3 | 4 | 5;
   accessLabel: string;
+  description: string;
+  durationTurns: number;
 }
 
 export interface SpySummary {
@@ -88,6 +90,39 @@ const MISSION_LABELS: Record<SpyMissionType, string> = {
   election_interference: 'Election Interference',
   satellite_surveillance: 'Satellite Surveillance',
   sabotage_relief: 'Sabotage Relief',
+  intercept_courier: 'Intercept Courier',
+  bribe_official: 'Bribe Official',
+};
+
+// #442 MR1 review: the mission catalog previously showed only a label, stage tag, and
+// access tag — no plain-language effect text anywhere, for any mission (not just the two
+// added here). That fails CLAUDE.md's "all UI elements must be self-explanatory" rule and
+// the precedent set by world-pressure interactions ("cost, effect, and risk inline at the
+// point of choice" — docs/superpowers/specs/2026-07-11-world-pressure-symmetry-design.md).
+// Fixed for the whole catalog rather than just the two new missions, so descriptions don't
+// appear inconsistently between old and new entries.
+const MISSION_DESCRIPTIONS: Record<SpyMissionType, string> = {
+  scout_area: 'Reveals the fog of war around the target city.',
+  monitor_troops: 'Reveals enemy unit positions and strength near the target city.',
+  gather_intel: "Reveals the target's tech progress, treasury, and treaties.",
+  identify_resources: "Reveals strategic resources in the target city's territory.",
+  monitor_diplomacy: "Reveals the target's relationships and trade partners.",
+  steal_tech: "Copies one technology the target has that you don't.",
+  sabotage_production: "Destroys several turns of the target city's production progress.",
+  incite_unrest: 'Increases unrest in the target city.',
+  counter_espionage: 'Passively strengthens counter-intelligence in the defending city.',
+  assassinate_advisor: 'Disables one of the target empire\'s advisors for 10 turns.',
+  forge_documents: 'Frames the target, damaging their relationship with another civilization.',
+  fund_rebels: 'Escalates unrest further in an already-unstable city.',
+  arms_smuggling: 'Spawns a hostile armed group near the target city.',
+  flip_loyalty: 'Peacefully defects a non-capital foreign city to your empire.',
+  cyber_attack: "Disables the target city's production for several turns.",
+  misinformation_campaign: "Slows the target empire's research for several turns.",
+  election_interference: 'Injects unrest and political instability into the target city.',
+  satellite_surveillance: "Grants ongoing vision of the target empire's territory.",
+  sabotage_relief: "Delays a rival's crisis relief; witnessed civilizations notice if discovered.",
+  intercept_courier: "Severs the target city's most valuable active trade route.",
+  bribe_official: "Steals a capped share of the target empire's treasury.",
 };
 
 const MISSION_STAGE: Record<SpyMissionType, 1 | 2 | 3 | 4 | 5> = {
@@ -110,6 +145,8 @@ const MISSION_STAGE: Record<SpyMissionType, 1 | 2 | 3 | 4 | 5> = {
   election_interference: 5,
   satellite_surveillance: 5,
   sabotage_relief: 5, // covert-operations is era 7, same UI bucket as the other era 5-7 missions
+  intercept_courier: 4, // #442 MR1: black-chambers is era 5, same "Shadow Operations" UI bucket as flip_loyalty/other era 5-6 Stage 4 missions
+  bribe_official: 4, // #442 MR1: diplomatic-networks is era 5, same UI bucket as above
 };
 
 function toMissionCatalog(missions: SpyMissionType[]): MissionCatalogEntry[] {
@@ -118,6 +155,8 @@ function toMissionCatalog(missions: SpyMissionType[]): MissionCatalogEntry[] {
     label: MISSION_LABELS[mission],
     stage: MISSION_STAGE[mission],
     accessLabel: missionRequiresPlacedSpy(mission) ? 'Requires placed spy' : 'Remote-capable',
+    description: MISSION_DESCRIPTIONS[mission],
+    durationTurns: getMissionDuration(mission),
   }));
 }
 
@@ -212,26 +251,39 @@ function appendMissionStage(
     section.appendChild(empty);
   } else {
     const list = createEl('div');
-    list.style.cssText = 'display:flex;flex-wrap:wrap;gap:6px;';
+    list.style.cssText = 'display:flex;flex-direction:column;gap:6px;';
     for (const mission of group.missions) {
       const item = createEl('div');
       item.dataset.missionId = mission.id;
-      item.style.cssText = 'display:flex;align-items:center;gap:6px;padding:6px 10px;border-radius:8px;background:rgba(255,255,255,0.06);font-size:11px;';
-      item.appendChild(createEl('span', mission.label));
+      item.style.cssText = 'display:flex;flex-direction:column;gap:3px;padding:6px 10px;border-radius:8px;background:rgba(255,255,255,0.06);font-size:11px;';
+
+      const topRow = createEl('div');
+      topRow.style.cssText = 'display:flex;align-items:center;flex-wrap:wrap;gap:6px;';
+      topRow.appendChild(createEl('span', mission.label));
       const stageTag = createEl('span', `S${mission.stage}`);
       stageTag.style.cssText = 'color:#e8c170;font-size:10px;font-weight:700;';
-      item.appendChild(stageTag);
+      topRow.appendChild(stageTag);
       const accessTag = createEl('span', mission.accessLabel);
       accessTag.style.cssText = 'color:#9dd1ff;font-size:10px;';
-      item.appendChild(accessTag);
+      topRow.appendChild(accessTag);
+      const durationTag = createEl('span', `${mission.durationTurns} turn${mission.durationTurns === 1 ? '' : 's'}`);
+      durationTag.style.cssText = 'color:#b8bfd0;font-size:10px;';
+      topRow.appendChild(durationTag);
       if (successChances && successChances[mission.id] !== undefined) {
         const pct = Math.round((successChances[mission.id] as number) * 100);
         const pctTag = createEl('span', `${pct}%`);
         pctTag.style.cssText = 'color:#7cff8a;font-size:10px;font-weight:700;';
         const breakdown = successBreakdown?.[mission.id];
         if (breakdown) pctTag.title = `Modifiers: ${breakdown}`;
-        item.appendChild(pctTag);
+        topRow.appendChild(pctTag);
       }
+      item.appendChild(topRow);
+
+      const descriptionEl = createEl('div', mission.description);
+      descriptionEl.dataset.missionDescription = 'true';
+      descriptionEl.style.cssText = 'font-size:10px;opacity:0.75;line-height:1.3;';
+      item.appendChild(descriptionEl);
+
       list.appendChild(item);
     }
     section.appendChild(list);

@@ -56,6 +56,8 @@ const MISSION_BASE_SUCCESS = {
   satellite_surveillance: 0.70,
   sabotage_relief: 0.60, // #526 MR7: reuses sabotage_production's detection parameters
   flip_loyalty: 0.40, // #524 MR2a: lowest tier alongside election_interference — outright city transfer, not a temporary effect
+  intercept_courier: 0.55, // #442 MR1: mid-stakes, comparable to forge_documents
+  bribe_official: 0.45, // #442 MR1: harder than intercept_courier — direct treasury theft, comparable to assassinate_advisor
 } as Record<SpyMissionType, number>;
 
 const MISSION_DURATIONS = {
@@ -77,6 +79,8 @@ const MISSION_DURATIONS = {
   satellite_surveillance: 1,
   sabotage_relief: 4, // #526 MR7: reuses sabotage_production's duration
   flip_loyalty: 8, // #524 MR2a: longest duration in the game, above fund_rebels/assassinate_advisor (6) — matches the stakes
+  intercept_courier: 4, // #442 MR1: matches sabotage_relief's setup window
+  bribe_official: 5, // #442 MR1: matches forge_documents — a slow social build, not a snap action
 } as Record<SpyMissionType, number>;
 
 // --- State creation ---
@@ -361,6 +365,12 @@ const STAGE_7_TECHS = ['cyber-intelligence'];        // era 12 — cyber operati
 // gating techs (cryptography/counter-intelligence) and gates only this one mission.
 const SABOTAGE_RELIEF_TECHS = ['covert-operations'];
 const PROPAGANDA_TECHS = ['propaganda']; // era 6 — gates flip_loyalty specifically, not the shared Stage 4 set
+// #442 MR1: black-chambers/diplomatic-networks (era 5) each get their own single-mission
+// bucket, same pattern as SABOTAGE_RELIEF_TECHS/PROPAGANDA_TECHS above — neither tech is
+// one of Stage 4's gating techs (cryptography/counter-intelligence), and each gates only
+// one mission.
+const INTERCEPT_COURIER_TECHS = ['black-chambers'];
+const BRIBE_OFFICIAL_TECHS = ['diplomatic-networks'];
 
 const STAGE_1_MISSIONS: SpyMissionType[] = ['scout_area', 'monitor_troops'];
 const STAGE_2_MISSIONS: SpyMissionType[] = ['gather_intel', 'identify_resources', 'monitor_diplomacy'];
@@ -371,6 +381,8 @@ const STAGE_6_MISSIONS: SpyMissionType[] = ['satellite_surveillance'];
 const STAGE_7_MISSIONS: SpyMissionType[] = ['cyber_attack'];
 const SABOTAGE_RELIEF_MISSIONS: SpyMissionType[] = ['sabotage_relief'];
 const PROPAGANDA_MISSIONS: SpyMissionType[] = ['flip_loyalty'];
+const INTERCEPT_COURIER_MISSIONS: SpyMissionType[] = ['intercept_courier'];
+const BRIBE_OFFICIAL_MISSIONS: SpyMissionType[] = ['bribe_official'];
 
 export function getAvailableMissions(completedTechs: string[]): SpyMissionType[] {
   const missions: SpyMissionType[] = [];
@@ -383,6 +395,8 @@ export function getAvailableMissions(completedTechs: string[]): SpyMissionType[]
   if (STAGE_7_TECHS.some(t => completedTechs.includes(t))) missions.push(...STAGE_7_MISSIONS);
   if (SABOTAGE_RELIEF_TECHS.some(t => completedTechs.includes(t))) missions.push(...SABOTAGE_RELIEF_MISSIONS);
   if (PROPAGANDA_TECHS.some(t => completedTechs.includes(t))) missions.push(...PROPAGANDA_MISSIONS);
+  if (INTERCEPT_COURIER_TECHS.some(t => completedTechs.includes(t))) missions.push(...INTERCEPT_COURIER_MISSIONS);
+  if (BRIBE_OFFICIAL_TECHS.some(t => completedTechs.includes(t))) missions.push(...BRIBE_OFFICIAL_MISSIONS);
   return missions;
 }
 
@@ -455,9 +469,11 @@ const PROMOTION_XP_THRESHOLD = 60;
 // Mission categories for auto-promotion
 const INFILTRATOR_MISSIONS = new Set<SpyMissionType>([
   'steal_tech', 'sabotage_production', 'assassinate_advisor', 'arms_smuggling', 'sabotage_relief',
+  'intercept_courier', // #442 MR1: physical/sabotage-flavored, matches this bucket's other entries
 ]);
 const HANDLER_MISSIONS = new Set<SpyMissionType>([
   'incite_unrest', 'forge_documents', 'fund_rebels', 'monitor_diplomacy', 'flip_loyalty',
+  'bribe_official', // #442 MR1: social/manipulation-flavored, matches this bucket's other entries
 ]);
 // Sentinel: everything else (intel, scouting, defensive)
 
@@ -480,6 +496,8 @@ const XP_PER_MISSION = {
   satellite_surveillance: 8,
   sabotage_relief: 12, // #526 MR7: matches sabotage_production's xp
   flip_loyalty: 20, // #524 MR2a: highest xp in the game, above assassinate_advisor (18)
+  intercept_courier: 14, // #442 MR1: matches misinformation_campaign's tier
+  bribe_official: 16, // #442 MR1: matches election_interference's tier — high-value theft
 } as Record<SpyMissionType, number>;
 
 const EXPULSION_COOLDOWN = 5;
@@ -646,10 +664,22 @@ export interface MissionResult {
   // (non-capital, still owned by targetCivId).
   flippedCityId?: string;
   flippedFromCivId?: string;
+  // intercept_courier (#442 MR1): the trade route to sever, if the target city has one.
+  // Actual removal happens in turn-manager.ts — see 'espionage:courier-intercepted'.
+  interceptedRouteId?: string;
+  interceptedFromCityId?: string;
+  interceptedToCityId?: string;
+  // bribe_official (#442 MR1): capped gold transfer from the target's treasury.
+  bribedGoldAmount?: number;
 }
 
 const SCOUT_VISION_RADIUS = 3;
 const TROOP_MONITOR_RADIUS = 4;
+// #442 MR1 bribe_official: capped both as a fraction and an absolute amount so a single
+// mission can't cripple a civ's treasury in one hit (game-balance.md "never permanently
+// cripple a city/civ from one successful spy action").
+const BRIBE_GOLD_FRACTION = 0.15;
+const BRIBE_GOLD_CAP = 200;
 
 export function resolveMissionResult(
   missionType: SpyMissionType,
@@ -795,6 +825,38 @@ export function resolveMissionResult(
 
     case 'counter_espionage': {
       return {}; // passive — handled by assignSpyDefensive
+    }
+
+    // intercept_courier (#442 MR1): pick the highest-value route touching the target
+    // city (either endpoint) — deterministic so the UI's advertised effect ("severs a
+    // trade route") is predictable rather than random among several. No eligible route
+    // (city has no active trade) means no effect, same "not always optimal" shape as
+    // fund_rebels' unrestLevel guard above.
+    case 'intercept_courier': {
+      const targetCity = gameState.cities[targetCityId];
+      if (!targetCity || targetCity.owner !== targetCivId) return {};
+      const routes = (gameState.marketplace?.tradeRoutes ?? []).filter(
+        r => r.fromCityId === targetCityId || r.toCityId === targetCityId,
+      );
+      if (routes.length === 0) return {};
+      const route = [...routes].sort(
+        (a, b) => b.goldPerTrip - a.goldPerTrip || a.id.localeCompare(b.id),
+      )[0];
+      return {
+        interceptedRouteId: route.id,
+        interceptedFromCityId: route.fromCityId,
+        interceptedToCityId: route.toCityId,
+      };
+    }
+
+    // bribe_official (#442 MR1): a target with no gold has nothing to steal — no effect,
+    // matching fund_rebels' eligibility-guard shape.
+    case 'bribe_official': {
+      const targetCiv = gameState.civilizations[targetCivId];
+      if (!targetCiv || targetCiv.gold <= 0) return {};
+      const amount = Math.min(Math.round(targetCiv.gold * BRIBE_GOLD_FRACTION), BRIBE_GOLD_CAP);
+      if (amount <= 0) return {};
+      return { bribedGoldAmount: amount };
     }
 
     case 'assassinate_advisor': {
@@ -1509,6 +1571,52 @@ export function processEspionageTurn(state: GameState, bus: EventBus): GameState
               const hostileUnit = createUnit('warrior', 'rebels', pos, state.idCounters);
               state = { ...state, units: { ...state.units, [hostileUnit.id]: hostileUnit } };
               bus.emit('unit:created', { unit: hostileUnit });
+            }
+          }
+
+          // intercept_courier (#442 MR1): the actual route removal happens in
+          // turn-manager.ts (subscribed to 'espionage:courier-intercepted'), via
+          // trade-system.ts's existing removeRouteById -- espionage-system.ts cannot
+          // import trade-system.ts directly (trade-system -> city-system ->
+          // espionage-system is a real cycle, same reason flip_loyalty's transfer above
+          // is applied by the caller instead of here).
+          if (evt.missionType === 'intercept_courier' && result.interceptedRouteId) {
+            const originalSpy = civEspBefore.spies[evt.spyId];
+            const targetCivId = originalSpy?.targetCivId;
+            if (targetCivId) {
+              bus.emit('espionage:courier-intercepted', {
+                civId,
+                targetCivId,
+                routeId: result.interceptedRouteId,
+                fromCityId: result.interceptedFromCityId!,
+                toCityId: result.interceptedToCityId!,
+              });
+            }
+          }
+
+          // bribe_official (#442 MR1): direct bilateral gold transfer — no import-cycle
+          // concern (both civilizations are plain state already on GameState), so this
+          // applies inline like cyber_attack/misinformation_campaign above.
+          if (evt.missionType === 'bribe_official' && result.bribedGoldAmount) {
+            const originalSpy = civEspBefore.spies[evt.spyId];
+            const targetCivId = originalSpy?.targetCivId;
+            const amount = result.bribedGoldAmount as number;
+            if (targetCivId && state.civilizations[targetCivId] && state.civilizations[civId]) {
+              state = {
+                ...state,
+                civilizations: {
+                  ...state.civilizations,
+                  [targetCivId]: {
+                    ...state.civilizations[targetCivId],
+                    gold: Math.max(0, state.civilizations[targetCivId].gold - amount),
+                  },
+                  [civId]: {
+                    ...state.civilizations[civId],
+                    gold: state.civilizations[civId].gold + amount,
+                  },
+                },
+              };
+              bus.emit('espionage:official-bribed', { civId, targetCivId, amount });
             }
           }
 

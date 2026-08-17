@@ -377,7 +377,7 @@ export function removeRouteById(
   state: GameState,
   routeId: string,
   bus: EventBus | undefined,
-  reason: 'war-declared' | 'hostile-relations' | 'embargo',
+  reason: 'war-declared' | 'hostile-relations' | 'embargo' | 'espionage',
 ): GameState {
   const route = state.marketplace?.tradeRoutes.find(r => r.id === routeId);
   if (!route) return state;

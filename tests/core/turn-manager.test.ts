@@ -1516,6 +1516,62 @@ describe('espionage post-loop snapshot', () => {
   });
 });
 
+describe('intercept_courier turn-manager wiring (#442 MR1)', () => {
+  it('actually removes the intercepted trade route via processTurn, end to end', async () => {
+    const { startMission, createEspionageCivState } = await import('@/systems/espionage-system');
+
+    let succeeded = false;
+    for (let attempt = 1; attempt <= 200 && !succeeded; attempt++) {
+      let state = createNewGame(undefined, `intercept-courier-turnmgr-${attempt}`, 'small');
+      const targetCivId = Object.keys(state.civilizations).find(id => id !== 'player')!;
+      const startPos = state.units[state.civilizations[targetCivId].units[0]].position;
+      const city = foundCity(targetCivId, startPos, state.map, state.idCounters);
+      const otherCity = foundCity(targetCivId, { q: startPos.q + 6, r: startPos.r }, state.map, state.idCounters);
+
+      state = {
+        ...state,
+        turn: attempt,
+        cities: { ...state.cities, [city.id]: city, [otherCity.id]: otherCity },
+        civilizations: {
+          ...state.civilizations,
+          [targetCivId]: { ...state.civilizations[targetCivId], cities: [city.id, otherCity.id] },
+        },
+        marketplace: {
+          ...state.marketplace!,
+          tradeRoutes: [
+            { id: 'route-only', fromCityId: city.id, toCityId: otherCity.id, goldPerTrip: 40, turnsPerTrip: 4 },
+          ],
+        },
+        espionage: {
+          player: {
+            ...createEspionageCivState(),
+            spies: {
+              'spy-1': {
+                id: 'spy-1', owner: 'player', name: 'Agent Shadow', unitType: 'spy_scout' as UnitType,
+                targetCivId, targetCityId: city.id, position: city.position,
+                status: 'stationed', experience: 0, currentMission: null, cooldownTurns: 0,
+                promotionAvailable: false, feedsFalseIntel: false, stolenTechFrom: {},
+              },
+            },
+          },
+          [targetCivId]: createEspionageCivState(),
+        },
+      };
+      state.espionage!.player.spies['spy-1'] = startMission(state.espionage!.player, 'spy-1', 'intercept_courier').spies['spy-1'];
+      state.espionage!.player.spies['spy-1'].currentMission!.turnsRemaining = 1;
+
+      const bus = new EventBus();
+      const result = processTurn(state, bus);
+
+      if (result.marketplace!.tradeRoutes.find(r => r.id === 'route-only') === undefined
+          && result.marketplace!.tradeRoutes.length === 0) {
+        succeeded = true;
+      }
+    }
+    expect(succeeded).toBe(true);
+  });
+});
+
 describe('journey automation', () => {
   function makeJourneyFixture(start: HexCoord, destination: HexCoord): { state: GameState; unitId: string } {
     const map = createWrappedGrasslandMap(6, 3);

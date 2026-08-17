@@ -888,7 +888,11 @@ export type SpyMissionType =
   | 'election_interference'
   | 'satellite_surveillance'
   // covert-operations tech (#526 MR7): human-initiated only, see chooseAiMission
-  | 'sabotage_relief';     // pause a rival's outbreak remedy for 4 turns; witnessed on discovery
+  | 'sabotage_relief'     // pause a rival's outbreak remedy for 4 turns; witnessed on discovery
+  // #442 MR1: black-chambers tech (era 5) — its own bucket, not folded into Stage 4
+  | 'intercept_courier'   // severs one active trade route touching the target city
+  // #442 MR1: diplomatic-networks tech (era 5) — its own bucket, not folded into Stage 4
+  | 'bribe_official';     // steals a capped share of the target civ's treasury
 
 export interface SpyMission {
   type: SpyMissionType;
@@ -2010,7 +2014,7 @@ export interface GameEvents {
   'diplomacy:treaty-broken': { breakerId: string; otherCiv: string; treaty: TreatyType };
   'advisor:message': { advisor: AdvisorType; message: string; icon: string; tone?: CouncilCallbackTone; memoryKey?: string };
   'trade:route-created': { route: TradeRoute };
-  'trade:route-ended': { routeId: string; fromCityId: string; toCityId: string; reason: 'unit-died' | 'unit-disbanded' | 'war-declared' | 'hostile-relations' | 'embargo' | 'trips-exhausted' | 'unit-captured' };
+  'trade:route-ended': { routeId: string; fromCityId: string; toCityId: string; reason: 'unit-died' | 'unit-disbanded' | 'war-declared' | 'hostile-relations' | 'embargo' | 'trips-exhausted' | 'unit-captured' | 'espionage' };
   'trade:route-delivered': { unitId: string; routeId: string; toCityId: string };
   'trade:price-changed': { resource: ResourceType; oldPrice: number; newPrice: number };
   'wonder:discovered': { civId: string; wonderId: string; position: HexCoord; isFirstDiscoverer: boolean };
@@ -2116,6 +2120,12 @@ export interface GameEvents {
   // detection roll at mission-success time) -- an undiscovered sabotage fires nothing,
   // per spec §Interactions "Undiscovered: no penalty."
   'espionage:sabotage-relief-discovered': { crisisId: string; actorCivId: string; targetCivId: string };
+  // #442 MR1 intercept_courier: espionage-system.ts cannot import trade-system.ts's
+  // removeRouteById directly (import cycle through city-system.ts, same reason
+  // 'espionage:city-flipped' is applied in turn-manager.ts rather than inline) — the
+  // caller subscribes to this event and performs the actual route removal.
+  'espionage:courier-intercepted': { civId: string; targetCivId: string; routeId: string; fromCityId: string; toCityId: string };
+  'espionage:official-bribed': { civId: string; targetCivId: string; amount: number };
 }
 
 // --- Crisis Events & Revolutionary Movements ---

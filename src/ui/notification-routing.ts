@@ -752,6 +752,40 @@ export function routeSabotageReliefDiscovered(
 // processEspionageTurn returns, before any listener runs. Both sides must be told: the
 // victim especially, since losing a city with zero in-game feedback (the original gap
 // this router closes) is far worse than any other espionage consequence.
+// intercept_courier (#442 MR1): mirrors routeSabotageReliefDiscovered's shape — the
+// route is already gone by the time this fires (turn-manager.ts applies removeRouteById
+// right after processEspionageTurn returns, before any listener runs), so both sides
+// need telling: the victim especially, since a silently vanished trade route with zero
+// feedback is exactly the "invisible consequence" pattern the brief warns against.
+export function routeCourierIntercepted(
+  state: GameState,
+  event: GameEvents['espionage:courier-intercepted'],
+  sink: NotificationSink,
+): void {
+  const fromCity = state.cities[event.fromCityId];
+  const toCity = state.cities[event.toCityId];
+  const routeLabel = fromCity && toCity ? `${fromCity.name} – ${toCity.name}` : 'a trade route';
+  const actorName = state.civilizations[event.civId]?.name ?? 'A rival';
+  const targetName = state.civilizations[event.targetCivId]?.name ?? 'a rival';
+
+  sink(event.targetCivId, `${actorName}'s spies intercepted a courier, severing the ${routeLabel} trade route!`, 'warning');
+  sink(event.civId, `Your spy intercepted a courier, severing ${targetName}'s ${routeLabel} trade route.`, 'success');
+}
+
+// bribe_official (#442 MR1): same both-sides pattern — the victim needs to know their
+// treasury dropped, and the exact amount, so a sudden gold loss doesn't read as a bug.
+export function routeOfficialBribed(
+  state: GameState,
+  event: GameEvents['espionage:official-bribed'],
+  sink: NotificationSink,
+): void {
+  const actorName = state.civilizations[event.civId]?.name ?? 'A rival';
+  const targetName = state.civilizations[event.targetCivId]?.name ?? 'a rival';
+
+  sink(event.targetCivId, `${actorName}'s spies bribed an official and siphoned ${event.amount} gold from your treasury!`, 'warning');
+  sink(event.civId, `Your spy bribed an official in ${targetName}'s court, siphoning ${event.amount} gold into your treasury.`, 'success');
+}
+
 export function routeCityFlipped(
   state: GameState,
   event: GameEvents['espionage:city-flipped'],

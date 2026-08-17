@@ -210,6 +210,39 @@ describe('AI espionage decisions', () => {
       const mission = chooseAiMission(state, 'ai-egypt');
       expect(mission).not.toBe('flip_loyalty');
     });
+
+    // #442 MR1
+    it('aggressive civs choose intercept_courier once black-chambers is researched (no higher-priority mission available)', () => {
+      const state = makeAiTestState();
+      state.civilizations['ai-egypt'].civType = 'annuvin';
+      state.civilizations['ai-egypt'].techState.completed = ['espionage-scouting', 'black-chambers'];
+      const mission = chooseAiMission(state, 'ai-egypt');
+      expect(mission).toBe('intercept_courier');
+    });
+
+    it('aggressive civs choose bribe_official once diplomatic-networks is researched (no higher-priority mission available)', () => {
+      const state = makeAiTestState();
+      state.civilizations['ai-egypt'].civType = 'annuvin';
+      state.civilizations['ai-egypt'].techState.completed = ['espionage-scouting', 'diplomatic-networks'];
+      const mission = chooseAiMission(state, 'ai-egypt');
+      expect(mission).toBe('bribe_official');
+    });
+
+    it('intercept_courier/bribe_official are unavailable without their gating techs', () => {
+      const state = makeAiTestState();
+      state.civilizations['ai-egypt'].techState.completed = ['espionage-scouting'];
+      const mission = chooseAiMission(state, 'ai-egypt');
+      expect(mission).not.toBe('intercept_courier');
+      expect(mission).not.toBe('bribe_official');
+    });
+
+    it('diplomatic civs prefer bribe_official over intercept_courier when both are available', () => {
+      const state = makeAiTestState();
+      state.civilizations['ai-egypt'].civType = 'greece';
+      state.civilizations['ai-egypt'].techState.completed = ['espionage-scouting', 'black-chambers', 'diplomatic-networks'];
+      const mission = chooseAiMission(state, 'ai-egypt');
+      expect(mission).toBe('bribe_official');
+    });
   });
 
   // #526 MR7 review fix: infiltrated (embedded) spies pick their next mission via a

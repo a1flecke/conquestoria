@@ -28,6 +28,8 @@ import {
   routeOpportunisticWar,
   routeSabotageReliefDiscovered,
   routeCityFlipped,
+  routeCourierIntercepted,
+  routeOfficialBribed,
   type NotificationSink,
 } from '@/ui/notification-routing';
 
@@ -1072,6 +1074,74 @@ describe('espionage:city-flipped routing (#524 MR2a review fix)', () => {
     const { sink, calls } = makeSink();
     routeCityFlipped(flipState(), { civId: 'rome', victimCivId: 'unknown-civ', cityId: 'city-1' }, sink);
     expect(calls.every(c => typeof c.message === 'string' && c.message.length > 0)).toBe(true);
+  });
+});
+
+describe('espionage:courier-intercepted routing (#442 MR1)', () => {
+  function courierState(): GameState {
+    return makeState({
+      civilizations: {
+        rome: { id: 'rome', name: 'Rome', cities: [], units: [], diplomacy: { relationships: {} }, visibility: { tiles: {} } },
+        carthage: { id: 'carthage', name: 'Carthage', cities: [], units: [], diplomacy: { relationships: {} }, visibility: { tiles: {} } },
+      } as any,
+      cities: {
+        'city-1': { id: 'city-1', name: 'Utica', owner: 'carthage', position: { q: 0, r: 0 } },
+        'city-2': { id: 'city-2', name: 'Carthago Nova', owner: 'carthage', position: { q: 1, r: 0 } },
+      } as any,
+    });
+  }
+
+  it('notifies both the intercepting civ and the victim civ, with distinct messages naming the route', () => {
+    const { sink, calls } = makeSink();
+    routeCourierIntercepted(
+      courierState(),
+      { civId: 'rome', targetCivId: 'carthage', routeId: 'route-1', fromCityId: 'city-1', toCityId: 'city-2' },
+      sink,
+    );
+    expect(calls).toHaveLength(2);
+    const romeCall = calls.find(c => c.civId === 'rome')!;
+    const carthageCall = calls.find(c => c.civId === 'carthage')!;
+    expect(romeCall.message).toContain('Utica');
+    expect(romeCall.message).toContain('Carthage');
+    expect(romeCall.type).toBe('success');
+    expect(carthageCall.message).toContain('Utica');
+    expect(carthageCall.message).toContain('Rome');
+    expect(carthageCall.type).toBe('warning');
+  });
+
+  it('falls back to generic names when a civ or city record is missing', () => {
+    const { sink, calls } = makeSink();
+    routeCourierIntercepted(
+      courierState(),
+      { civId: 'rome', targetCivId: 'unknown-civ', routeId: 'route-1', fromCityId: 'missing-city', toCityId: 'city-2' },
+      sink,
+    );
+    expect(calls.every(c => typeof c.message === 'string' && c.message.length > 0)).toBe(true);
+  });
+});
+
+describe('espionage:official-bribed routing (#442 MR1)', () => {
+  function bribeState(): GameState {
+    return makeState({
+      civilizations: {
+        rome: { id: 'rome', name: 'Rome', cities: [], units: [], diplomacy: { relationships: {} }, visibility: { tiles: {} } },
+        carthage: { id: 'carthage', name: 'Carthage', cities: [], units: [], diplomacy: { relationships: {} }, visibility: { tiles: {} } },
+      } as any,
+      cities: {} as any,
+    });
+  }
+
+  it('notifies both civs and names the exact amount stolen', () => {
+    const { sink, calls } = makeSink();
+    routeOfficialBribed(bribeState(), { civId: 'rome', targetCivId: 'carthage', amount: 42 }, sink);
+    expect(calls).toHaveLength(2);
+    const romeCall = calls.find(c => c.civId === 'rome')!;
+    const carthageCall = calls.find(c => c.civId === 'carthage')!;
+    expect(romeCall.message).toContain('42');
+    expect(romeCall.type).toBe('success');
+    expect(carthageCall.message).toContain('42');
+    expect(carthageCall.message).toContain('Rome');
+    expect(carthageCall.type).toBe('warning');
   });
 });
 
