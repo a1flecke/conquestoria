@@ -265,8 +265,40 @@ text). Full test coverage added across `tests/systems/espionage-system.test.ts`,
 `tests/presentation/register-espionage-presentation.test.ts`, and `tests/ui/notification-routing.test.ts`.
 `yarn build` and `yarn test` both green (491 files / 8110 tests passing) at the time this phase closed.
 
-`expose_scandal` (era 8) and `signals_intercept` (era 9) are **designed above but not yet implemented** —
-planned as Phase 2, a separate PR, per the incremental-delivery preference confirmed with the user.
+`expose_scandal` (era 8) and `signals_intercept` (era 9) are **implemented on branch
+`claude/era-8-9-espionage-missions`** (Phase 2, off updated `main` after Phase 1 merged as `4ada9123`).
+
+## Phase 2 status (2026-08-17)
+
+Implemented in `src/systems/espionage-system.ts`, `src/ai/basic-ai.ts`, `src/ui/espionage-panel.ts`,
+`src/ui/notification-routing.ts` + `register-espionage-presentation.ts`, and
+`tech-definitions-eras8.ts`/`tech-definitions-eras9.ts` (unlock text — also fixed a pre-existing dishonest
+claim on `disinformation-bureau`, "state disinformation weakens foreign loyalty," which named a mechanic that
+never existed; replaced with the real `expose_scandal` effect it now gates).
+
+**One deviation worth flagging**: implementing `signals_intercept` surfaced a real, pre-existing "dead computed
+data" bug (`end-to-end-wiring.md`: "if you compute data ... it MUST be rendered") — `resolveMissionResult`'s
+per-mission result payload (`nearbyUnits`, `resources`, tech progress, etc.) for every purely-informational
+mission (`monitor_troops`, `gather_intel`, `identify_resources`, `monitor_diplomacy`) is returned in the
+`espionage:mission-succeeded` bus event, but that event has **no notification-registrar handler anywhere** —
+so none of those missions' results were ever actually shown to the player before this MR. `signals_intercept`
+would have shipped straight into the same dead end. Fixed for this new mission only (not retrofitted onto the
+four pre-existing ones, which is a separate, larger follow-up): added `EspionageCivState.signalsIntelligence`
+(a small persisted per-target snapshot, additive optional field, no schema bump) and a new "Signals
+Intelligence" panel section that actually renders it. Flagged the four pre-existing dead-end missions as a
+follow-up (see spawned task).
+
+`expose_scandal` is the first multilateral (non-bilateral) relationship-affecting mission — implemented as
+designed above (−10 per partner, capped at 4 partners, target's relationship with the *acting* civ untouched).
+`signals_intercept` is remote-capable as designed, with the non-digital-remote-mission justification recorded
+inline in `missionRequiresPlacedSpy`.
+
+Full test coverage mirrors Phase 1's structure: gating, `resolveMissionResult` unit tests (including the
+partner-cap and minor-civ-exclusion edge cases for `expose_scandal`), `processEspionageTurn` end-to-end
+resolution tests, AI preference tests, notification-routing tests (the first 4-recipient routing test in the
+file), hot-seat privacy (another civ's `signalsIntelligence` snapshot never leaks into the current player's
+panel data), and UI catalog coverage. `yarn build` and `yarn test` both green (491 files / 8135 tests) at the
+time this phase closed.
 
 **Post-implementation review (2026-08-16) found and fixed one real gap**: the mission catalog UI showed only a
 label, stage tag, and access tag for every mission — no plain-language effect description or duration anywhere,

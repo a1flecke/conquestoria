@@ -243,6 +243,31 @@ describe('AI espionage decisions', () => {
       const mission = chooseAiMission(state, 'ai-egypt');
       expect(mission).toBe('bribe_official');
     });
+
+    // #442 MR2
+    it('diplomatic civs choose expose_scandal once disinformation-bureau is researched (no higher-priority mission available)', () => {
+      const state = makeAiTestState();
+      state.civilizations['ai-egypt'].civType = 'greece';
+      state.civilizations['ai-egypt'].techState.completed = ['espionage-scouting', 'disinformation-bureau'];
+      const mission = chooseAiMission(state, 'ai-egypt');
+      expect(mission).toBe('expose_scandal');
+    });
+
+    it('aggressive civs choose signals_intercept once counterintelligence is researched (no higher-priority mission available)', () => {
+      const state = makeAiTestState();
+      state.civilizations['ai-egypt'].civType = 'annuvin';
+      state.civilizations['ai-egypt'].techState.completed = ['espionage-scouting', 'counterintelligence'];
+      const mission = chooseAiMission(state, 'ai-egypt');
+      expect(mission).toBe('signals_intercept');
+    });
+
+    it('expose_scandal/signals_intercept are unavailable without their gating techs', () => {
+      const state = makeAiTestState();
+      state.civilizations['ai-egypt'].techState.completed = ['espionage-scouting'];
+      const mission = chooseAiMission(state, 'ai-egypt');
+      expect(mission).not.toBe('expose_scandal');
+      expect(mission).not.toBe('signals_intercept');
+    });
   });
 
   // #526 MR7 review fix: infiltrated (embedded) spies pick their next mission via a

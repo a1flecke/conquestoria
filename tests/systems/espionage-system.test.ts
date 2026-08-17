@@ -1131,6 +1131,265 @@ describe('era 5 missions — intercept_courier and bribe_official (#442 MR1)', (
   });
 });
 
+describe('era 8-9 missions — expose_scandal and signals_intercept (#442 MR2)', () => {
+  it('disinformation-bureau gates expose_scandal (unavailable without the tech, available with it)', () => {
+    expect(getAvailableMissions([])).not.toContain('expose_scandal');
+    expect(getAvailableMissions(['disinformation-bureau'])).toContain('expose_scandal');
+  });
+
+  it('counterintelligence gates signals_intercept (unavailable without the tech, available with it)', () => {
+    expect(getAvailableMissions([])).not.toContain('signals_intercept');
+    expect(getAvailableMissions(['counterintelligence'])).toContain('signals_intercept');
+  });
+
+  it('expose_scandal requires a placed (stationed) spy; signals_intercept is remote-capable', () => {
+    expect(missionRequiresPlacedSpy('expose_scandal')).toBe(true);
+    expect(missionRequiresPlacedSpy('signals_intercept')).toBe(false);
+  });
+
+  describe('resolveMissionResult — expose_scandal', () => {
+    function makeTreatyState(): GameState {
+      return {
+        civilizations: {
+          rome: {
+            gold: 0,
+            diplomacy: {
+              treaties: [
+                { type: 'alliance', civA: 'rome', civB: 'carthage', turnsRemaining: -1 },
+                { type: 'trade_agreement', civA: 'egypt', civB: 'rome', turnsRemaining: -1 },
+                { type: 'non_aggression_pact', civA: 'rome', civB: 'player', turnsRemaining: -1 },
+              ],
+            },
+          },
+          carthage: {},
+          egypt: {},
+          player: {},
+        },
+        cities: {},
+      } as unknown as GameState;
+    }
+
+    it('exposes every other civ with an active treaty against the target', () => {
+      const state = makeTreatyState();
+      const result = resolveMissionResult('expose_scandal', 'rome', 'city-x', state, 'player', 'spy-1');
+      expect(result.exposedPartnerCivIds).toEqual(['carthage', 'egypt']);
+    });
+
+    it('excludes the spying civ itself from the exposed partner list', () => {
+      const state = makeTreatyState();
+      const result = resolveMissionResult('expose_scandal', 'rome', 'city-x', state, 'player', 'spy-1');
+      expect(result.exposedPartnerCivIds).not.toContain('player');
+    });
+
+    it('has no effect against a civ with no treaties (other than with the spying civ)', () => {
+      const state = makeTreatyState();
+      state.civilizations.rome.diplomacy.treaties = [
+        { type: 'non_aggression_pact', civA: 'rome', civB: 'player', turnsRemaining: -1 },
+      ];
+      const result = resolveMissionResult('expose_scandal', 'rome', 'city-x', state, 'player', 'spy-1');
+      expect(result.exposedPartnerCivIds).toBeUndefined();
+    });
+
+    it('caps the exposed partner list at 4', () => {
+      const state = makeTreatyState();
+      state.civilizations.rome.diplomacy.treaties = ['a', 'b', 'c', 'd', 'e', 'f'].map(id => ({
+        type: 'non_aggression_pact' as const, civA: 'rome', civB: id, turnsRemaining: -1,
+      }));
+      for (const id of ['a', 'b', 'c', 'd', 'e', 'f']) {
+        (state.civilizations as any)[id] = {};
+      }
+      const result = resolveMissionResult('expose_scandal', 'rome', 'city-x', state, 'player', 'spy-1');
+      expect(result.exposedPartnerCivIds).toHaveLength(4);
+    });
+
+    it('ignores treaty partners that are not real civilizations (e.g. minor civs)', () => {
+      const state = makeTreatyState();
+      state.civilizations.rome.diplomacy.treaties = [
+        { type: 'non_aggression_pact', civA: 'rome', civB: 'minor-nabatea', turnsRemaining: -1 },
+      ];
+      const result = resolveMissionResult('expose_scandal', 'rome', 'city-x', state, 'player', 'spy-1');
+      expect(result.exposedPartnerCivIds).toBeUndefined();
+    });
+  });
+
+  describe('resolveMissionResult — signals_intercept', () => {
+    it('reports every unit owned by the target civ, empire-wide, ignoring distance', () => {
+      const state = {
+        civilizations: { rome: {} },
+        units: {
+          'u1': { type: 'warrior', owner: 'rome', position: { q: 0, r: 0 }, health: 100 },
+          'u2': { type: 'archer', owner: 'rome', position: { q: 40, r: 40 }, health: 60 },
+          'u3': { type: 'warrior', owner: 'player', position: { q: 1, r: 1 }, health: 100 },
+        },
+        cities: {},
+      } as unknown as GameState;
+      const result = resolveMissionResult('signals_intercept', 'rome', 'city-x', state, 'player', 'spy-1');
+      expect(result.nearbyUnits).toHaveLength(2);
+      expect(result.nearbyUnits!.map(u => u.type).sort()).toEqual(['archer', 'warrior']);
+    });
+
+    it('has no effect against a civ that does not exist', () => {
+      const state = { civilizations: {}, units: {}, cities: {} } as unknown as GameState;
+      const result = resolveMissionResult('signals_intercept', 'nobody', 'city-x', state, 'player', 'spy-1');
+      expect(result.nearbyUnits).toBeUndefined();
+    });
+  });
+
+  describe('expose_scandal end-to-end resolution', () => {
+    function makeScandalFixture() {
+      let state = createNewGame(undefined, 'expose-scandal-e2e', 'small');
+      const targetCivId = Object.keys(state.civilizations).find(id => id !== 'player')!;
+      const startPos = state.units[state.civilizations[targetCivId].units[0]].position;
+      const city = foundCity(targetCivId, startPos, state.map, state.idCounters);
+      state = {
+        ...state,
+        cities: { ...state.cities, [city.id]: city },
+        civilizations: {
+          ...state.civilizations,
+          [targetCivId]: {
+            ...state.civilizations[targetCivId],
+            cities: [city.id],
+            diplomacy: {
+              ...state.civilizations[targetCivId].diplomacy,
+              treaties: [
+                { type: 'trade_agreement' as const, civA: targetCivId, civB: 'third-civ', turnsRemaining: -1 },
+              ],
+            },
+          },
+          'third-civ': {
+            ...state.civilizations.player,
+            id: 'third-civ',
+            name: 'Third Civ',
+            diplomacy: { ...createDiplomacyState([targetCivId, 'third-civ', 'player'], 'third-civ') },
+          },
+        },
+        espionage: {
+          player: {
+            ...createEspionageCivState(),
+            spies: {
+              'spy-1': makeTestSpy('spy-1', 'player', {
+                status: 'stationed', targetCivId, targetCityId: city.id, position: city.position,
+              }),
+            },
+          },
+          [targetCivId]: createEspionageCivState(),
+          'third-civ': createEspionageCivState(),
+        },
+      };
+      return { state, targetCivId };
+    }
+
+    it('applies the bilateral relationship penalty between the target and each exposed partner', () => {
+      const { state: baseState, targetCivId } = makeScandalFixture();
+      const beforeRelationship = baseState.civilizations[targetCivId].diplomacy.relationships['third-civ'] ?? 0;
+      let succeeded = false;
+      for (let turn = 1; turn <= 200 && !succeeded; turn++) {
+        const state: GameState = {
+          ...baseState,
+          turn,
+          espionage: {
+            ...baseState.espionage!,
+            player: {
+              ...baseState.espionage!.player,
+              spies: {
+                'spy-1': startMission(baseState.espionage!.player, 'spy-1', 'expose_scandal').spies['spy-1'],
+              },
+            },
+          },
+        };
+        state.espionage!.player.spies['spy-1'].currentMission!.turnsRemaining = 1;
+
+        const bus = new EventBus();
+        const pendingExposures: Array<{ civId: string; targetCivId: string; partnerCivIds: string[] }> = [];
+        bus.on('espionage:scandal-exposed', evt => pendingExposures.push(evt));
+        const result = processEspionageTurn(state, bus);
+
+        if (pendingExposures.length > 0) {
+          succeeded = true;
+          expect(pendingExposures[0].partnerCivIds).toContain('third-civ');
+          expect(result.civilizations[targetCivId].diplomacy.relationships['third-civ']).toBeLessThan(beforeRelationship);
+          expect(result.civilizations['third-civ'].diplomacy.relationships[targetCivId]).toBeLessThan(0);
+        }
+      }
+      expect(succeeded).toBe(true);
+    });
+  });
+
+  describe('signals_intercept end-to-end resolution', () => {
+    function makeSignalsFixture() {
+      let state = createNewGame(undefined, 'signals-intercept-e2e', 'small');
+      const targetCivId = Object.keys(state.civilizations).find(id => id !== 'player')!;
+      const targetUnitId = state.civilizations[targetCivId].units[0];
+      const startPos = state.units[targetUnitId].position;
+      const city = foundCity(targetCivId, startPos, state.map, state.idCounters);
+      state = {
+        ...state,
+        cities: { ...state.cities, [city.id]: city },
+        civilizations: {
+          ...state.civilizations,
+          [targetCivId]: { ...state.civilizations[targetCivId], cities: [city.id] },
+        },
+      };
+      return {
+        state: {
+          ...state,
+          espionage: {
+            player: {
+              ...createEspionageCivState(),
+              spies: {
+                'spy-1': makeTestSpy('spy-1', 'player', {
+                  status: 'idle', targetCivId, targetCityId: null,
+                }),
+              },
+            },
+            [targetCivId]: createEspionageCivState(),
+          },
+        },
+        targetCivId,
+        targetUnitId,
+      };
+    }
+
+    it('persists the latest snapshot on the acting civ\'s own EspionageCivState (so it can be rendered)', () => {
+      const { state: baseState, targetCivId } = makeSignalsFixture();
+      // signals_intercept is remote-capable, so 'stationed' isn't required — but
+      // startMission still needs an explicit target since spy.targetCivId/targetCityId
+      // are both null on this idle spy.
+      const capitalCityId = Object.keys(baseState.cities).find(id => baseState.cities[id].owner === targetCivId)!;
+      let succeeded = false;
+      for (let turn = 1; turn <= 200 && !succeeded; turn++) {
+        const state: GameState = {
+          ...baseState,
+          turn,
+          espionage: {
+            ...baseState.espionage!,
+            player: {
+              ...baseState.espionage!.player,
+              spies: {
+                'spy-1': startMission(
+                  baseState.espionage!.player, 'spy-1', 'signals_intercept', undefined, targetCivId, capitalCityId,
+                ).spies['spy-1'],
+              },
+            },
+          },
+        };
+        state.espionage!.player.spies['spy-1'].currentMission!.turnsRemaining = 1;
+
+        const bus = new EventBus();
+        const result = processEspionageTurn(state, bus);
+        const snapshot = result.espionage!.player.signalsIntelligence?.[targetCivId];
+
+        if (snapshot) {
+          succeeded = true;
+          expect(snapshot.turn).toBe(turn);
+          expect(snapshot.units.length).toBeGreaterThan(0);
+        }
+      }
+      expect(succeeded).toBe(true);
+    });
+  });
+});
+
 describe('espionage diplomatic consequences', () => {
   describe('handleSpyExpelled', () => {
     it('reduces relationship between spy owner and detecting civ', () => {

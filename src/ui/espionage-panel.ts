@@ -43,6 +43,10 @@ export interface EspionagePanelData {
   missionSuccessChances?: Partial<Record<SpyMissionType, number>>;
   missionSuccessBreakdown?: Partial<Record<SpyMissionType, string>>;
   currentTurn: number;
+  // #442 MR2 signals_intercept: the latest empire-wide troop snapshot per target civ this
+  // player has intercepted. Without this, the computed data would never be rendered
+  // (end-to-end-wiring.md "dead computed data is a bug").
+  signalsIntelligence: Array<{ targetCivId: string; targetCivName: string; turn: number; unitCount: number }>;
 }
 
 export interface MissionStageGroup {
@@ -92,6 +96,8 @@ const MISSION_LABELS: Record<SpyMissionType, string> = {
   sabotage_relief: 'Sabotage Relief',
   intercept_courier: 'Intercept Courier',
   bribe_official: 'Bribe Official',
+  expose_scandal: 'Expose Scandal',
+  signals_intercept: 'Signals Intercept',
 };
 
 // #442 MR1 review: the mission catalog previously showed only a label, stage tag, and
@@ -123,6 +129,8 @@ const MISSION_DESCRIPTIONS: Record<SpyMissionType, string> = {
   sabotage_relief: "Delays a rival's crisis relief; witnessed civilizations notice if discovered.",
   intercept_courier: "Severs the target city's most valuable active trade route.",
   bribe_official: "Steals a capped share of the target empire's treasury.",
+  expose_scandal: 'Exposes the target\'s secret dealings, damaging their relationship with up to 4 of their treaty partners.',
+  signals_intercept: "One-time snapshot of the target empire's unit positions and strength, empire-wide.",
 };
 
 const MISSION_STAGE: Record<SpyMissionType, 1 | 2 | 3 | 4 | 5> = {
@@ -147,6 +155,8 @@ const MISSION_STAGE: Record<SpyMissionType, 1 | 2 | 3 | 4 | 5> = {
   sabotage_relief: 5, // covert-operations is era 7, same UI bucket as the other era 5-7 missions
   intercept_courier: 4, // #442 MR1: black-chambers is era 5, same "Shadow Operations" UI bucket as flip_loyalty/other era 5-6 Stage 4 missions
   bribe_official: 4, // #442 MR1: diplomatic-networks is era 5, same UI bucket as above
+  expose_scandal: 5, // #442 MR2: disinformation-bureau is era 8, same "higher stakes" bucket as sabotage_relief (era 7)
+  signals_intercept: 5, // #442 MR2: counterintelligence is era 9, same bucket as above
 };
 
 function toMissionCatalog(missions: SpyMissionType[]): MissionCatalogEntry[] {
@@ -457,6 +467,40 @@ function appendRecentDetections(
   parent.appendChild(block);
 }
 
+// #442 MR2 signals_intercept: renders the persisted snapshot from
+// EspionagePanelData.signalsIntelligence — see that field's doc comment for why this
+// exists (dead-computed-data avoidance).
+function appendSignalsIntelligence(
+  parent: HTMLElement,
+  snapshots: Array<{ targetCivId: string; targetCivName: string; turn: number; unitCount: number }>,
+  currentTurn: number,
+): void {
+  const block = createEl('section');
+  block.dataset.section = 'signals-intelligence';
+  appendSectionHeader(block, 'Signals Intelligence', 'Latest intercepted troop snapshots. Ages fast — positions may have changed.');
+
+  if (snapshots.length === 0) {
+    const empty = createEl('div', 'No signals intelligence gathered yet.');
+    empty.style.cssText = 'font-size:11px;opacity:0.55;';
+    block.appendChild(empty);
+    parent.appendChild(block);
+    return;
+  }
+
+  for (const snapshot of [...snapshots].sort((a, b) => b.turn - a.turn)) {
+    const age = currentTurn - snapshot.turn;
+    const row = createEl(
+      'div',
+      `${snapshot.targetCivName}: ${snapshot.unitCount} unit${snapshot.unitCount === 1 ? '' : 's'} spotted (turn ${snapshot.turn}, ${age === 0 ? 'this turn' : `${age} turn${age === 1 ? '' : 's'} ago`})`,
+    );
+    row.dataset.signalsTarget = snapshot.targetCivId;
+    row.style.cssText = 'font-size:11px;opacity:0.8;padding:4px 0;';
+    block.appendChild(row);
+  }
+
+  parent.appendChild(block);
+}
+
 function formatIntelItem(item: InterrogationIntel): string {
   switch (item.type) {
     case 'spy_identity': return `Enemy spy ${item.data.spyName as string} is currently ${item.data.status as string}${item.data.location ? ` in ${item.data.location as string}` : ''}`;
@@ -594,6 +638,7 @@ export function createEspionagePanel(
 
   appendThreatBoard(panel, data.threatBoard);
   appendRecentDetections(panel, data.recentDetections);
+  appendSignalsIntelligence(panel, data.signalsIntelligence, data.currentTurn);
   appendInterrogationProgress(panel, state);
 
   return panel;
@@ -614,6 +659,7 @@ export function getEspionagePanelData(state: GameState): EspionagePanelData {
       threatBoard: [],
       recentDetections: [],
       currentTurn: state.turn,
+      signalsIntelligence: [],
     };
   }
 
@@ -695,6 +741,15 @@ export function getEspionagePanelData(state: GameState): EspionagePanelData {
     if (Object.keys(breakdowns).length > 0) missionSuccessBreakdown = breakdowns;
   }
 
+  const signalsIntelligence = Object.entries(civEsp.signalsIntelligence ?? {}).map(
+    ([targetCivId, snapshot]) => ({
+      targetCivId,
+      targetCivName: state.civilizations[targetCivId]?.name ?? targetCivId,
+      turn: snapshot.turn,
+      unitCount: snapshot.units.length,
+    }),
+  );
+
   return {
     spies,
     spySummaries,
@@ -707,6 +762,7 @@ export function getEspionagePanelData(state: GameState): EspionagePanelData {
     threatBoard,
     recentDetections: civEsp.recentDetections ?? [],
     currentTurn: state.turn,
+    signalsIntelligence,
     ...(missionSuccessChances !== undefined ? { missionSuccessChances } : {}),
     ...(missionSuccessBreakdown !== undefined ? { missionSuccessBreakdown } : {}),
   };

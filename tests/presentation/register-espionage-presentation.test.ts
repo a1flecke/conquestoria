@@ -134,6 +134,18 @@ describe('espionage presentation', () => {
     expect(ctx.deliver).toHaveBeenCalledWith('carthage', expect.stringContaining('42'), 'warning');
   });
 
+  it('notifies target, partners, and acting civ when a scandal is exposed (#442 MR2)', () => {
+    const bus = new EventBus();
+    const ctx = makePresentationContext();
+
+    registerEspionagePresentation(bus, ctx);
+    bus.emit('espionage:scandal-exposed', { civId: 'rome', targetCivId: 'carthage', partnerCivIds: ['egypt'] });
+
+    expect(ctx.deliver).toHaveBeenCalledWith('rome', expect.any(String), 'success');
+    expect(ctx.deliver).toHaveBeenCalledWith('carthage', expect.any(String), 'warning');
+    expect(ctx.deliver).toHaveBeenCalledWith('egypt', expect.any(String), 'warning');
+  });
+
   it('disposing removes every subscription this registrar added', () => {
     const bus = new EventBus();
     const ctx = makePresentationContext({
@@ -152,6 +164,7 @@ describe('espionage presentation', () => {
     bus.emit('espionage:city-flipped', { civId: 'rome', victimCivId: 'carthage', cityId: 'city-a' });
     bus.emit('espionage:courier-intercepted', { civId: 'rome', targetCivId: 'carthage', routeId: 'route-1', fromCityId: 'city-a', toCityId: 'city-a' });
     bus.emit('espionage:official-bribed', { civId: 'rome', targetCivId: 'carthage', amount: 42 });
+    bus.emit('espionage:scandal-exposed', { civId: 'rome', targetCivId: 'carthage', partnerCivIds: ['egypt'] });
 
     expect(ctx.deliver).not.toHaveBeenCalled();
     expect(ctx.showEspionageCaptureChoice).not.toHaveBeenCalled();

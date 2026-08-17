@@ -58,6 +58,8 @@ const MISSION_BASE_SUCCESS = {
   flip_loyalty: 0.40, // #524 MR2a: lowest tier alongside election_interference — outright city transfer, not a temporary effect
   intercept_courier: 0.55, // #442 MR1: mid-stakes, comparable to forge_documents
   bribe_official: 0.45, // #442 MR1: harder than intercept_courier — direct treasury theft, comparable to assassinate_advisor
+  expose_scandal: 0.50, // #442 MR2: comparable to steal_tech — mid-tier social/intel operation
+  signals_intercept: 0.60, // #442 MR2: comparable to satellite_surveillance — passive intel, no disruption
 } as Record<SpyMissionType, number>;
 
 const MISSION_DURATIONS = {
@@ -81,6 +83,8 @@ const MISSION_DURATIONS = {
   flip_loyalty: 8, // #524 MR2a: longest duration in the game, above fund_rebels/assassinate_advisor (6) — matches the stakes
   intercept_courier: 4, // #442 MR1: matches sabotage_relief's setup window
   bribe_official: 5, // #442 MR1: matches forge_documents — a slow social build, not a snap action
+  expose_scandal: 6, // #442 MR2: between forge_documents (5) and flip_loyalty (8) — more research/setup than a simple frame job
+  signals_intercept: 2, // #442 MR2: matches cyber_attack's tier — quick remote intel snapshot
 } as Record<SpyMissionType, number>;
 
 // --- State creation ---
@@ -93,6 +97,7 @@ export function createEspionageCivState(): EspionageCivState {
     detectedThreats: {},
     activeInterrogations: {},
     recentDetections: [],
+    signalsIntelligence: {},
   };
 }
 
@@ -371,6 +376,10 @@ const PROPAGANDA_TECHS = ['propaganda']; // era 6 — gates flip_loyalty specifi
 // one mission.
 const INTERCEPT_COURIER_TECHS = ['black-chambers'];
 const BRIBE_OFFICIAL_TECHS = ['diplomatic-networks'];
+// #442 MR2: disinformation-bureau/counterintelligence (era 8/9) get their own single-mission
+// buckets, same pattern as the era-5 pair above.
+const EXPOSE_SCANDAL_TECHS = ['disinformation-bureau'];
+const SIGNALS_INTERCEPT_TECHS = ['counterintelligence'];
 
 const STAGE_1_MISSIONS: SpyMissionType[] = ['scout_area', 'monitor_troops'];
 const STAGE_2_MISSIONS: SpyMissionType[] = ['gather_intel', 'identify_resources', 'monitor_diplomacy'];
@@ -383,6 +392,8 @@ const SABOTAGE_RELIEF_MISSIONS: SpyMissionType[] = ['sabotage_relief'];
 const PROPAGANDA_MISSIONS: SpyMissionType[] = ['flip_loyalty'];
 const INTERCEPT_COURIER_MISSIONS: SpyMissionType[] = ['intercept_courier'];
 const BRIBE_OFFICIAL_MISSIONS: SpyMissionType[] = ['bribe_official'];
+const EXPOSE_SCANDAL_MISSIONS: SpyMissionType[] = ['expose_scandal'];
+const SIGNALS_INTERCEPT_MISSIONS: SpyMissionType[] = ['signals_intercept'];
 
 export function getAvailableMissions(completedTechs: string[]): SpyMissionType[] {
   const missions: SpyMissionType[] = [];
@@ -397,11 +408,18 @@ export function getAvailableMissions(completedTechs: string[]): SpyMissionType[]
   if (PROPAGANDA_TECHS.some(t => completedTechs.includes(t))) missions.push(...PROPAGANDA_MISSIONS);
   if (INTERCEPT_COURIER_TECHS.some(t => completedTechs.includes(t))) missions.push(...INTERCEPT_COURIER_MISSIONS);
   if (BRIBE_OFFICIAL_TECHS.some(t => completedTechs.includes(t))) missions.push(...BRIBE_OFFICIAL_MISSIONS);
+  if (EXPOSE_SCANDAL_TECHS.some(t => completedTechs.includes(t))) missions.push(...EXPOSE_SCANDAL_MISSIONS);
+  if (SIGNALS_INTERCEPT_TECHS.some(t => completedTechs.includes(t))) missions.push(...SIGNALS_INTERCEPT_MISSIONS);
   return missions;
 }
 
+// #442 MR2: signals_intercept is the first remote-capable mission that isn't a
+// digital-era (cyber-warfare/digital-surveillance-family) effect — it's codebreaking, not
+// hacking, so it doesn't need a spy physically inside the target's territory the way
+// intercept_courier/bribe_official/expose_scandal do. Placed alongside the era-10+ remote
+// missions on that basis, not by proximity to their tech era.
 export function missionRequiresPlacedSpy(missionType: SpyMissionType): boolean {
-  return !['cyber_attack', 'misinformation_campaign', 'satellite_surveillance'].includes(missionType);
+  return !['cyber_attack', 'misinformation_campaign', 'satellite_surveillance', 'signals_intercept'].includes(missionType);
 }
 
 // --- Mission lifecycle ---
@@ -474,7 +492,10 @@ const INFILTRATOR_MISSIONS = new Set<SpyMissionType>([
 const HANDLER_MISSIONS = new Set<SpyMissionType>([
   'incite_unrest', 'forge_documents', 'fund_rebels', 'monitor_diplomacy', 'flip_loyalty',
   'bribe_official', // #442 MR1: social/manipulation-flavored, matches this bucket's other entries
+  'expose_scandal', // #442 MR2: social/manipulation-flavored, matches this bucket's other entries
 ]);
+// signals_intercept (#442 MR2) is intel-flavored, like monitor_troops/gather_intel — falls
+// through to Sentinel, the same as those, rather than joining either bucket above.
 // Sentinel: everything else (intel, scouting, defensive)
 
 const XP_PER_MISSION = {
@@ -498,6 +519,8 @@ const XP_PER_MISSION = {
   flip_loyalty: 20, // #524 MR2a: highest xp in the game, above assassinate_advisor (18)
   intercept_courier: 14, // #442 MR1: matches misinformation_campaign's tier
   bribe_official: 16, // #442 MR1: matches election_interference's tier — high-value theft
+  expose_scandal: 16, // #442 MR2: matches bribe_official's tier — high-value multilateral effect
+  signals_intercept: 10, // #442 MR2: matches gather_intel's tier — informational, not disruptive
 } as Record<SpyMissionType, number>;
 
 const EXPULSION_COOLDOWN = 5;
@@ -671,6 +694,11 @@ export interface MissionResult {
   interceptedToCityId?: string;
   // bribe_official (#442 MR1): capped gold transfer from the target's treasury.
   bribedGoldAmount?: number;
+  // expose_scandal (#442 MR2): every other civ whose relationship with the target sours,
+  // already capped/deduped.
+  exposedPartnerCivIds?: string[];
+  // signals_intercept (#442 MR2) reuses the nearbyUnits shape from monitor_troops above
+  // (same field, generalized from one city's radius to the whole target civ).
 }
 
 const SCOUT_VISION_RADIUS = 3;
@@ -680,6 +708,11 @@ const TROOP_MONITOR_RADIUS = 4;
 // cripple a city/civ from one successful spy action").
 const BRIBE_GOLD_FRACTION = 0.15;
 const BRIBE_GOLD_CAP = 200;
+// #442 MR2 expose_scandal: bounded per-partner penalty and a cap on affected partners so
+// a maximally-connected civ can't be devastated in one mission (game-balance.md "never
+// permanently cripple a city/civ from one successful spy action").
+const EXPOSE_SCANDAL_PENALTY = -10;
+const EXPOSE_SCANDAL_MAX_PARTNERS = 4;
 
 export function resolveMissionResult(
   missionType: SpyMissionType,
@@ -857,6 +890,42 @@ export function resolveMissionResult(
       const amount = Math.min(Math.round(targetCiv.gold * BRIBE_GOLD_FRACTION), BRIBE_GOLD_CAP);
       if (amount <= 0) return {};
       return { bribedGoldAmount: amount };
+    }
+
+    // expose_scandal (#442 MR2): the first multilateral (non-bilateral) relationship
+    // mission — every existing one touches exactly two civs. A target with no treaties
+    // (with civs other than the spying civ itself) is not a valid/valuable target, same
+    // "not always optimal" shape as fund_rebels' unrestLevel guard. Deterministic partner
+    // selection (sorted, capped) keeps the advertised "up to 4 partners" bound honest.
+    case 'expose_scandal': {
+      const targetCiv = gameState.civilizations[targetCivId];
+      if (!targetCiv) return {};
+      const partners = new Set<string>();
+      for (const treaty of targetCiv.diplomacy.treaties) {
+        const partner = treaty.civA === targetCivId ? treaty.civB : treaty.civA;
+        if (partner === targetCivId || partner === spyingCivId) continue;
+        if (!gameState.civilizations[partner]) continue; // major civs only
+        partners.add(partner);
+      }
+      if (partners.size === 0) return {};
+      const exposedPartnerCivIds = [...partners].sort().slice(0, EXPOSE_SCANDAL_MAX_PARTNERS);
+      return { exposedPartnerCivIds };
+    }
+
+    // signals_intercept (#442 MR2): generalizes monitor_troops from a single city's
+    // radius to the whole target civ — reuses its nearbyUnits shape. Remote-capable (see
+    // missionRequiresPlacedSpy), so targetCityId is unused here (same as
+    // satellite_surveillance ignoring it).
+    case 'signals_intercept': {
+      const targetCiv = gameState.civilizations[targetCivId];
+      if (!targetCiv) return {};
+      const nearbyUnits: Array<{ type: UnitType; position: HexCoord; health: number }> = [];
+      for (const unit of Object.values(gameState.units)) {
+        if (unit.owner === targetCivId) {
+          nearbyUnits.push({ type: unit.type, position: { ...unit.position }, health: unit.health });
+        }
+      }
+      return { nearbyUnits };
     }
 
     case 'assassinate_advisor': {
@@ -1617,6 +1686,56 @@ export function processEspionageTurn(state: GameState, bus: EventBus): GameState
                 },
               };
               bus.emit('espionage:official-bribed', { civId, targetCivId, amount });
+            }
+          }
+
+          // expose_scandal (#442 MR2): applies the bounded per-partner penalty
+          // bilaterally (target <-> each partner), then emits one event naming every
+          // affected partner — no import-cycle concern, everything here is plain
+          // civilizations/diplomacy state already on GameState.
+          if (evt.missionType === 'expose_scandal' && result.exposedPartnerCivIds) {
+            const originalSpy = civEspBefore.spies[evt.spyId];
+            const targetCivId = originalSpy?.targetCivId;
+            const partners = result.exposedPartnerCivIds as string[];
+            if (targetCivId && state.civilizations[targetCivId] && partners.length > 0) {
+              for (const partnerId of partners) {
+                if (!state.civilizations[partnerId]) continue;
+                state = {
+                  ...state,
+                  civilizations: {
+                    ...state.civilizations,
+                    [targetCivId]: {
+                      ...state.civilizations[targetCivId],
+                      diplomacy: modifyRelationship(state.civilizations[targetCivId].diplomacy, partnerId, EXPOSE_SCANDAL_PENALTY),
+                    },
+                    [partnerId]: {
+                      ...state.civilizations[partnerId],
+                      diplomacy: modifyRelationship(state.civilizations[partnerId].diplomacy, targetCivId, EXPOSE_SCANDAL_PENALTY),
+                    },
+                  },
+                };
+              }
+              bus.emit('espionage:scandal-exposed', { civId, targetCivId, partnerCivIds: partners });
+            }
+          }
+
+          // signals_intercept (#442 MR2): persist the snapshot on the acting civ's own
+          // EspionageCivState so it can actually be rendered (end-to-end-wiring.md
+          // "computed data ... MUST be rendered — dead computed data is a bug"). Latest
+          // snapshot per target civ only — a stale disposition list has no value once the
+          // target's units have moved, so this overwrites rather than appends.
+          if (evt.missionType === 'signals_intercept' && result.nearbyUnits) {
+            const originalSpy = civEspBefore.spies[evt.spyId];
+            const targetCivId = originalSpy?.targetCivId;
+            if (targetCivId) {
+              updatedEsp = {
+                ...updatedEsp,
+                signalsIntelligence: {
+                  ...(updatedEsp.signalsIntelligence ?? {}),
+                  [targetCivId]: { turn: state.turn, units: result.nearbyUnits },
+                },
+              };
+              state.espionage![civId] = updatedEsp;
             }
           }
 

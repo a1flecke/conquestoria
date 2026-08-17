@@ -30,6 +30,7 @@ import {
   routeCityFlipped,
   routeCourierIntercepted,
   routeOfficialBribed,
+  routeScandalExposed,
   type NotificationSink,
 } from '@/ui/notification-routing';
 
@@ -1142,6 +1143,58 @@ describe('espionage:official-bribed routing (#442 MR1)', () => {
     expect(carthageCall.message).toContain('42');
     expect(carthageCall.message).toContain('Rome');
     expect(carthageCall.type).toBe('warning');
+  });
+});
+
+describe('espionage:scandal-exposed routing (#442 MR2)', () => {
+  function scandalState(): GameState {
+    return makeState({
+      civilizations: {
+        rome: { id: 'rome', name: 'Rome', cities: [], units: [], diplomacy: { relationships: {} }, visibility: { tiles: {} } },
+        carthage: { id: 'carthage', name: 'Carthage', cities: [], units: [], diplomacy: { relationships: {} }, visibility: { tiles: {} } },
+        egypt: { id: 'egypt', name: 'Egypt', cities: [], units: [], diplomacy: { relationships: {} }, visibility: { tiles: {} } },
+        nubia: { id: 'nubia', name: 'Nubia', cities: [], units: [], diplomacy: { relationships: {} }, visibility: { tiles: {} } },
+      } as any,
+      cities: {} as any,
+    });
+  }
+
+  it('notifies the target, every exposed partner individually, and the acting civ', () => {
+    const { sink, calls } = makeSink();
+    routeScandalExposed(
+      scandalState(),
+      { civId: 'rome', targetCivId: 'carthage', partnerCivIds: ['egypt', 'nubia'] },
+      sink,
+    );
+    const civIds = calls.map(c => c.civId).sort();
+    expect(civIds).toEqual(['carthage', 'egypt', 'nubia', 'rome']);
+
+    const carthageCall = calls.find(c => c.civId === 'carthage')!;
+    expect(carthageCall.message).toContain('Egypt');
+    expect(carthageCall.message).toContain('Nubia');
+    expect(carthageCall.type).toBe('warning');
+
+    const egyptCall = calls.find(c => c.civId === 'egypt')!;
+    expect(egyptCall.message).toContain('Carthage');
+    expect(egyptCall.type).toBe('warning');
+
+    const nubiaCall = calls.find(c => c.civId === 'nubia')!;
+    expect(nubiaCall.message).toContain('Carthage');
+    expect(nubiaCall.type).toBe('warning');
+
+    const romeCall = calls.find(c => c.civId === 'rome')!;
+    expect(romeCall.message).toContain('2');
+    expect(romeCall.type).toBe('success');
+  });
+
+  it('falls back to generic names when a civ record is missing', () => {
+    const { sink, calls } = makeSink();
+    routeScandalExposed(
+      scandalState(),
+      { civId: 'rome', targetCivId: 'unknown-civ', partnerCivIds: ['also-unknown'] },
+      sink,
+    );
+    expect(calls.every(c => typeof c.message === 'string' && c.message.length > 0)).toBe(true);
   });
 });
 

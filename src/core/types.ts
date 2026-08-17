@@ -892,7 +892,12 @@ export type SpyMissionType =
   // #442 MR1: black-chambers tech (era 5) — its own bucket, not folded into Stage 4
   | 'intercept_courier'   // severs one active trade route touching the target city
   // #442 MR1: diplomatic-networks tech (era 5) — its own bucket, not folded into Stage 4
-  | 'bribe_official';     // steals a capped share of the target civ's treasury
+  | 'bribe_official'      // steals a capped share of the target civ's treasury
+  // #442 MR2: disinformation-bureau tech (era 8) — its own bucket, not folded into Stage 4
+  | 'expose_scandal'      // bounded relationship penalty between the target and each of its treaty partners
+  // #442 MR2: counterintelligence tech (era 9) — its own bucket. Remote-capable (see
+  // missionRequiresPlacedSpy) — the first non-digital remote mission, justified inline there.
+  | 'signals_intercept';  // one-time empire-wide snapshot of the target civ's unit positions/health
 
 export interface SpyMission {
   type: SpyMissionType;
@@ -962,6 +967,11 @@ export interface EspionageCivState {
   detectedThreats?: Record<string, DetectedSpyThreat>;
   activeInterrogations?: Record<string, InterrogationRecord>;
   recentDetections?: Array<{ position: HexCoord; turn: number; wasDisguised: boolean }>;
+  // #442 MR2 signals_intercept: latest empire-wide troop snapshot per target civ. A
+  // one-shot intel reveal, not an ongoing grant (unlike satellite_surveillance) — each
+  // new signals_intercept overwrites the previous snapshot for that target, since a
+  // stale disposition list has no value once the target's units have moved.
+  signalsIntelligence?: Record<string, { turn: number; units: Array<{ type: UnitType; position: HexCoord; health: number }> }>;
 }
 
 export type EspionageState = Record<string, EspionageCivState>;
@@ -2126,6 +2136,10 @@ export interface GameEvents {
   // caller subscribes to this event and performs the actual route removal.
   'espionage:courier-intercepted': { civId: string; targetCivId: string; routeId: string; fromCityId: string; toCityId: string };
   'espionage:official-bribed': { civId: string; targetCivId: string; amount: number };
+  // #442 MR2 expose_scandal: bounded multilateral reputation broadcast — fires once per
+  // successful mission, naming every partner civ whose relationship with the target
+  // soured (already capped/deduped by resolveMissionResult before this fires).
+  'espionage:scandal-exposed': { civId: string; targetCivId: string; partnerCivIds: string[] };
 }
 
 // --- Crisis Events & Revolutionary Movements ---
