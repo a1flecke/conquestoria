@@ -895,6 +895,242 @@ describe('flip_loyalty gating and end-to-end resolution (#524 MR2a)', () => {
   });
 });
 
+describe('era 5 missions — intercept_courier and bribe_official (#442 MR1)', () => {
+  it('black-chambers gates intercept_courier (unavailable without the tech, available with it)', () => {
+    expect(getAvailableMissions([])).not.toContain('intercept_courier');
+    expect(getAvailableMissions(['black-chambers'])).toContain('intercept_courier');
+  });
+
+  it('diplomatic-networks gates bribe_official (unavailable without the tech, available with it)', () => {
+    expect(getAvailableMissions([])).not.toContain('bribe_official');
+    expect(getAvailableMissions(['diplomatic-networks'])).toContain('bribe_official');
+  });
+
+  it('intercept_courier and bribe_official each require a placed (stationed) spy', () => {
+    expect(missionRequiresPlacedSpy('intercept_courier')).toBe(true);
+    expect(missionRequiresPlacedSpy('bribe_official')).toBe(true);
+  });
+
+  describe('resolveMissionResult — intercept_courier', () => {
+    function makeRouteState(): GameState {
+      let state = createNewGame(undefined, 'intercept-courier-fixture', 'small');
+      const targetCivId = Object.keys(state.civilizations).find(id => id !== 'player')!;
+      const startPos = state.units[state.civilizations[targetCivId].units[0]].position;
+      const city = foundCity(targetCivId, startPos, state.map, state.idCounters);
+      const otherCity = foundCity(targetCivId, { q: startPos.q + 6, r: startPos.r }, state.map, state.idCounters);
+      state = {
+        ...state,
+        cities: { ...state.cities, [city.id]: city, [otherCity.id]: otherCity },
+        civilizations: {
+          ...state.civilizations,
+          [targetCivId]: { ...state.civilizations[targetCivId], cities: [city.id, otherCity.id] },
+        },
+        marketplace: {
+          ...state.marketplace!,
+          tradeRoutes: [
+            { id: 'route-low', fromCityId: city.id, toCityId: otherCity.id, goldPerTrip: 20, turnsPerTrip: 4 },
+            { id: 'route-high', fromCityId: otherCity.id, toCityId: city.id, goldPerTrip: 80, turnsPerTrip: 4 },
+            { id: 'route-unrelated', fromCityId: otherCity.id, toCityId: otherCity.id, goldPerTrip: 999, turnsPerTrip: 4 },
+          ],
+        },
+      };
+      return { state, targetCivId, cityId: city.id, otherCityId: otherCity.id } as unknown as GameState & {
+        targetCivId: string; cityId: string; otherCityId: string;
+      };
+    }
+
+    it('picks the highest-value route touching the target city, ignoring unrelated routes', () => {
+      const fixture = makeRouteState() as any;
+      const result = resolveMissionResult(
+        'intercept_courier', fixture.targetCivId, fixture.cityId, fixture.state, 'player', 'spy-1',
+      );
+      expect(result.interceptedRouteId).toBe('route-high');
+      expect(result.interceptedFromCityId).toBe(fixture.otherCityId);
+      expect(result.interceptedToCityId).toBe(fixture.cityId);
+    });
+
+    it('has no effect when the target city has no active trade route', () => {
+      const fixture = makeRouteState() as any;
+      fixture.state.marketplace.tradeRoutes = [];
+      const result = resolveMissionResult(
+        'intercept_courier', fixture.targetCivId, fixture.cityId, fixture.state, 'player', 'spy-1',
+      );
+      expect(result.interceptedRouteId).toBeUndefined();
+    });
+
+    it('has no effect when the target city no longer belongs to the named target civ', () => {
+      const fixture = makeRouteState() as any;
+      const result = resolveMissionResult(
+        'intercept_courier', 'someone-else', fixture.cityId, fixture.state, 'player', 'spy-1',
+      );
+      expect(result.interceptedRouteId).toBeUndefined();
+    });
+  });
+
+  describe('resolveMissionResult — bribe_official', () => {
+    it('steals 15% of the target treasury, uncapped case', () => {
+      const state = { civilizations: { rival: { gold: 100 } }, cities: {} } as unknown as GameState;
+      const result = resolveMissionResult('bribe_official', 'rival', 'city-x', state, 'player', 'spy-1');
+      expect(result.bribedGoldAmount).toBe(15);
+    });
+
+    it('caps the theft at 200 gold regardless of a larger treasury', () => {
+      const state = { civilizations: { rival: { gold: 100000 } }, cities: {} } as unknown as GameState;
+      const result = resolveMissionResult('bribe_official', 'rival', 'city-x', state, 'player', 'spy-1');
+      expect(result.bribedGoldAmount).toBe(200);
+    });
+
+    it('has no effect against a civ with no gold', () => {
+      const state = { civilizations: { rival: { gold: 0 } }, cities: {} } as unknown as GameState;
+      const result = resolveMissionResult('bribe_official', 'rival', 'city-x', state, 'player', 'spy-1');
+      expect(result.bribedGoldAmount).toBeUndefined();
+    });
+  });
+
+  describe('intercept_courier end-to-end resolution', () => {
+    function makeCourierFixture() {
+      let state = createNewGame(undefined, 'intercept-courier-e2e', 'small');
+      const targetCivId = Object.keys(state.civilizations).find(id => id !== 'player')!;
+      const startPos = state.units[state.civilizations[targetCivId].units[0]].position;
+      const city = foundCity(targetCivId, startPos, state.map, state.idCounters);
+      const otherCity = foundCity(targetCivId, { q: startPos.q + 6, r: startPos.r }, state.map, state.idCounters);
+      state = {
+        ...state,
+        cities: { ...state.cities, [city.id]: city, [otherCity.id]: otherCity },
+        civilizations: {
+          ...state.civilizations,
+          [targetCivId]: { ...state.civilizations[targetCivId], cities: [city.id, otherCity.id] },
+        },
+        marketplace: {
+          ...state.marketplace!,
+          tradeRoutes: [
+            { id: 'route-only', fromCityId: city.id, toCityId: otherCity.id, goldPerTrip: 40, turnsPerTrip: 4 },
+          ],
+        },
+        espionage: {
+          player: {
+            ...createEspionageCivState(),
+            spies: {
+              'spy-1': makeTestSpy('spy-1', 'player', {
+                status: 'stationed', targetCivId, targetCityId: city.id, position: city.position,
+              }),
+            },
+          },
+          [targetCivId]: createEspionageCivState(),
+        },
+      };
+      return { state, targetCivId, cityId: city.id };
+    }
+
+    it('emits espionage:courier-intercepted with the severed route on success, mirroring the turn-manager removal glue', () => {
+      const { state: baseState, targetCivId } = makeCourierFixture();
+      let succeeded = false;
+      for (let turn = 1; turn <= 200 && !succeeded; turn++) {
+        const state: GameState = {
+          ...baseState,
+          turn,
+          espionage: {
+            ...baseState.espionage!,
+            player: {
+              ...baseState.espionage!.player,
+              spies: {
+                'spy-1': startMission(baseState.espionage!.player, 'spy-1', 'intercept_courier').spies['spy-1'],
+              },
+            },
+          },
+        };
+        state.espionage!.player.spies['spy-1'].currentMission!.turnsRemaining = 1;
+
+        const bus = new EventBus();
+        const pendingIntercepts: Array<{ civId: string; targetCivId: string; routeId: string }> = [];
+        bus.on('espionage:courier-intercepted', evt => pendingIntercepts.push(evt));
+        let result = processEspionageTurn(state, bus);
+        // Mirrors turn-manager.ts's removeRouteById glue (same import-cycle reason as
+        // flip_loyalty's transferCapturedCityOwnership above).
+        for (const intercept of pendingIntercepts) {
+          result = {
+            ...result,
+            marketplace: {
+              ...result.marketplace!,
+              tradeRoutes: result.marketplace!.tradeRoutes.filter(r => r.id !== intercept.routeId),
+            },
+          };
+        }
+
+        if (pendingIntercepts.length > 0) {
+          succeeded = true;
+          expect(pendingIntercepts).toHaveLength(1);
+          expect(pendingIntercepts[0].targetCivId).toBe(targetCivId);
+          expect(pendingIntercepts[0].civId).toBe('player');
+          expect(result.marketplace!.tradeRoutes.find(r => r.id === 'route-only')).toBeUndefined();
+        }
+      }
+      expect(succeeded).toBe(true);
+    });
+  });
+
+  describe('bribe_official end-to-end resolution', () => {
+    function makeBribeFixture() {
+      let state = createNewGame(undefined, 'bribe-official-e2e', 'small');
+      const targetCivId = Object.keys(state.civilizations).find(id => id !== 'player')!;
+      const startPos = state.units[state.civilizations[targetCivId].units[0]].position;
+      const city = foundCity(targetCivId, startPos, state.map, state.idCounters);
+      state = {
+        ...state,
+        cities: { ...state.cities, [city.id]: city },
+        civilizations: {
+          ...state.civilizations,
+          player: { ...state.civilizations.player, gold: 0 },
+          [targetCivId]: { ...state.civilizations[targetCivId], cities: [city.id], gold: 100 },
+        },
+        espionage: {
+          player: {
+            ...createEspionageCivState(),
+            spies: {
+              'spy-1': makeTestSpy('spy-1', 'player', {
+                status: 'stationed', targetCivId, targetCityId: city.id, position: city.position,
+              }),
+            },
+          },
+          [targetCivId]: createEspionageCivState(),
+        },
+      };
+      return { state, targetCivId };
+    }
+
+    it('transfers 15% of the target treasury to the acting civ on success', () => {
+      const { state: baseState, targetCivId } = makeBribeFixture();
+      let succeeded = false;
+      for (let turn = 1; turn <= 200 && !succeeded; turn++) {
+        const state: GameState = {
+          ...baseState,
+          turn,
+          espionage: {
+            ...baseState.espionage!,
+            player: {
+              ...baseState.espionage!.player,
+              spies: {
+                'spy-1': startMission(baseState.espionage!.player, 'spy-1', 'bribe_official').spies['spy-1'],
+              },
+            },
+          },
+        };
+        state.espionage!.player.spies['spy-1'].currentMission!.turnsRemaining = 1;
+
+        const bus = new EventBus();
+        const result = processEspionageTurn(state, bus);
+
+        if (result.civilizations.player.gold > 0) {
+          succeeded = true;
+          expect(result.civilizations.player.gold).toBe(15);
+          expect(result.civilizations[targetCivId].gold).toBe(85);
+        }
+      }
+      expect(succeeded).toBe(true);
+    });
+  });
+});
+
 describe('espionage diplomatic consequences', () => {
   describe('handleSpyExpelled', () => {
     it('reduces relationship between spy owner and detecting civ', () => {

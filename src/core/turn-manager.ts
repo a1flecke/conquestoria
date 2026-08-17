@@ -74,7 +74,7 @@ import {
   getLeagueForCiv,
   pruneExpiredDiplomaticRequests,
 } from '@/systems/diplomacy-system';
-import { processTradeRouteIncome, processFashionCycle, updatePrices, removeRouteForUnit, scrubStaleForeignRoutes, scrubEmbargoedRoutes } from '@/systems/trade-system';
+import { processTradeRouteIncome, processFashionCycle, updatePrices, removeRouteForUnit, scrubStaleForeignRoutes, scrubEmbargoedRoutes, removeRouteById } from '@/systems/trade-system';
 import { advanceRouteRunners } from '@/systems/unit-movement-system';
 import { processWonderEffects } from '@/systems/wonder-system';
 import { createRng } from '@/systems/map-generator';
@@ -1213,11 +1213,22 @@ export function processTurn(
   // using the events that turn just emitted.
   const pendingCityFlips: GameEvents['espionage:city-flipped'][] = [];
   const unsubscribeCityFlip = bus.on('espionage:city-flipped', (evt) => pendingCityFlips.push(evt));
+  // intercept_courier (#442 MR1): same import-cycle reason as the city-flip collection
+  // above — trade-system.ts's removeRouteById can't be called from inside
+  // espionage-system.ts, so it's applied here from the event it emits.
+  const pendingCourierIntercepts: GameEvents['espionage:courier-intercepted'][] = [];
+  const unsubscribeCourierIntercept = bus.on('espionage:courier-intercepted', (evt) => pendingCourierIntercepts.push(evt));
   newState = processEspionageTurn(newState, bus);
   unsubscribeCityFlip();
+  unsubscribeCourierIntercept();
   for (const flip of pendingCityFlips) {
     if (newState.cities[flip.cityId]?.owner === flip.victimCivId) {
       newState = transferCapturedCityOwnership(newState, flip.cityId, flip.civId, newState.turn);
+    }
+  }
+  for (const intercept of pendingCourierIntercepts) {
+    if (newState.marketplace?.tradeRoutes.some(r => r.id === intercept.routeId)) {
+      newState = removeRouteById(newState, intercept.routeId, bus, 'espionage');
     }
   }
   newState = processDetection(newState, bus);

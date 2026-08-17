@@ -126,10 +126,10 @@ const ERA_5_TECHS: Tech[] = [
   // ESPIONAGE (2)
   { id: 'black-chambers', name: 'Black Chambers', track: 'espionage', cost: 155,
     prerequisites: ['cryptography', 'counter-intelligence'],
-    unlocks: ['+1 spy slot empire-wide'], era: 5 },
+    unlocks: ['+1 spy slot empire-wide', 'Spy mission: intercept a courier and sever one of a rival city\'s trade routes'], era: 5 },
   { id: 'diplomatic-networks', name: 'Diplomatic Networks', track: 'espionage', cost: 100,
     prerequisites: ['counter-intelligence'],
-    unlocks: ['Spy missions in foreign capitals have +20% success rate', 'Reveal detailed crisis intelligence on civilizations you have met'], era: 5 },
+    unlocks: ['Spy missions in foreign capitals have +20% success rate', 'Reveal detailed crisis intelligence on civilizations you have met', 'Spy mission: bribe a foreign official to steal gold from their treasury'], era: 5 },
 
   // SPIRITUALITY (2)
   { id: 'reformation', name: 'Reformation', track: 'spirituality', cost: 100,

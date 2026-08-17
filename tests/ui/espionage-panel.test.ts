@@ -260,6 +260,80 @@ describe('espionage-panel', () => {
       expect(allMissionIds).not.toContain('flip_loyalty');
     });
 
+    // #442 MR1
+    it('shows intercept_courier in the Stage 4 group once black-chambers is researched', () => {
+      const state = makeEspUiState();
+      state.civilizations.player.techState.completed = ['black-chambers'];
+      const view = getEspionagePanelViewModel(state);
+      const stage4 = view.missionStages.find(s => s.stage === 4)!;
+      expect(stage4.missions.some(m => m.id === 'intercept_courier')).toBe(true);
+      expect(stage4.missions.find(m => m.id === 'intercept_courier')!.label).toBe('Intercept Courier');
+    });
+
+    it('shows bribe_official in the Stage 4 group once diplomatic-networks is researched', () => {
+      const state = makeEspUiState();
+      state.civilizations.player.techState.completed = ['diplomatic-networks'];
+      const view = getEspionagePanelViewModel(state);
+      const stage4 = view.missionStages.find(s => s.stage === 4)!;
+      expect(stage4.missions.some(m => m.id === 'bribe_official')).toBe(true);
+      expect(stage4.missions.find(m => m.id === 'bribe_official')!.label).toBe('Bribe Official');
+    });
+
+    // #442 MR1 review: the mission catalog must be self-explanatory (CLAUDE.md "all UI
+    // elements must be self-explanatory") — every entry needs a plain-language effect
+    // description and its duration, not just a label.
+    it('every mission in the catalog has a non-empty description and a positive duration', () => {
+      const state = makeEspUiState();
+      state.civilizations.player.techState.completed = [
+        'espionage-scouting', 'espionage-informants', 'spy-networks', 'cryptography',
+        'black-chambers', 'diplomatic-networks', 'propaganda', 'covert-operations',
+      ];
+      const view = getEspionagePanelViewModel(state);
+      const allMissions = view.missionStages.flatMap(s => s.missions);
+      expect(allMissions.length).toBeGreaterThan(0);
+      for (const mission of allMissions) {
+        expect(mission.description.length).toBeGreaterThan(0);
+        expect(mission.durationTurns).toBeGreaterThan(0);
+      }
+    });
+
+    it('intercept_courier and bribe_official describe their actual effect', () => {
+      const state = makeEspUiState();
+      state.civilizations.player.techState.completed = ['black-chambers', 'diplomatic-networks'];
+      const view = getEspionagePanelViewModel(state);
+      const allMissions = view.missionStages.flatMap(s => s.missions);
+      const courier = allMissions.find(m => m.id === 'intercept_courier')!;
+      const bribe = allMissions.find(m => m.id === 'bribe_official')!;
+      expect(courier.description.toLowerCase()).toContain('trade route');
+      expect(courier.durationTurns).toBe(4);
+      expect(bribe.description.toLowerCase()).toContain('treasury');
+      expect(bribe.durationTurns).toBe(5);
+    });
+
+    it('does not show intercept_courier or bribe_official before their gating techs', () => {
+      const state = makeEspUiState();
+      state.civilizations.player.techState.completed = [];
+      const view = getEspionagePanelViewModel(state);
+      const allMissionIds = view.missionStages.flatMap(s => s.missions.map(m => m.id));
+      expect(allMissionIds).not.toContain('intercept_courier');
+      expect(allMissionIds).not.toContain('bribe_official');
+    });
+
+    // #442 MR1: a same-shape hot-seat check for the two new missions — an in-progress
+    // intercept_courier/bribe_official mission belonging to another civ (e.g. an AI, or
+    // another human in the same hot-seat game) must not surface in this civ's panel data.
+    it('does not expose another civ\'s in-progress intercept_courier or bribe_official mission', () => {
+      const state = makeEspUiState();
+      const aiSpy = makeTestSpy('spy-ai-2', 'ai-egypt', {
+        status: 'on_mission',
+        currentMission: { type: 'bribe_official', turnsRemaining: 2, turnsTotal: 5, targetCivId: 'player', targetCityId: 'city-player-1' },
+      });
+      state.espionage!['ai-egypt'] = addSpy(state.espionage!['ai-egypt'], aiSpy);
+      const data = getEspionagePanelData(state);
+      expect(data.spySummaries.some(s => s.id === 'spy-ai-2')).toBe(false);
+      expect(data.spies.every(s => s.id !== 'spy-ai-2')).toBe(true);
+    });
+
     it('never exposes other players spy data', () => {
       const state = makeEspUiState();
       const aiSpy = makeTestSpy('spy-ai-1', 'ai-egypt');

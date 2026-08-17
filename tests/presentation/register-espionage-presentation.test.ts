@@ -108,6 +108,32 @@ describe('espionage presentation', () => {
     expect(ctx.deliver).toHaveBeenCalledWith('carthage', expect.any(String), 'warning');
   });
 
+  it('notifies both civs when a courier is intercepted (#442 MR1)', () => {
+    const bus = new EventBus();
+    const ctx = makePresentationContext({
+      state: { cities: { 'city-a': { name: 'Utica' }, 'city-b': { name: 'Carthago Nova' } } as never },
+    });
+
+    registerEspionagePresentation(bus, ctx);
+    bus.emit('espionage:courier-intercepted', {
+      civId: 'rome', targetCivId: 'carthage', routeId: 'route-1', fromCityId: 'city-a', toCityId: 'city-b',
+    });
+
+    expect(ctx.deliver).toHaveBeenCalledWith('rome', expect.any(String), 'success');
+    expect(ctx.deliver).toHaveBeenCalledWith('carthage', expect.any(String), 'warning');
+  });
+
+  it('notifies both civs of the exact amount when an official is bribed (#442 MR1)', () => {
+    const bus = new EventBus();
+    const ctx = makePresentationContext();
+
+    registerEspionagePresentation(bus, ctx);
+    bus.emit('espionage:official-bribed', { civId: 'rome', targetCivId: 'carthage', amount: 42 });
+
+    expect(ctx.deliver).toHaveBeenCalledWith('rome', expect.stringContaining('42'), 'success');
+    expect(ctx.deliver).toHaveBeenCalledWith('carthage', expect.stringContaining('42'), 'warning');
+  });
+
   it('disposing removes every subscription this registrar added', () => {
     const bus = new EventBus();
     const ctx = makePresentationContext({
@@ -124,6 +150,8 @@ describe('espionage presentation', () => {
     bus.emit('espionage:spy-expired', { civId: 'rome', spyId: 'spy-1', spyName: 'Agent X', unitType: 'spy' as never });
     bus.emit('espionage:spy-auto-exfiltrated', { civId: 'rome', spyId: 'spy-1', cityId: 'city-a' });
     bus.emit('espionage:city-flipped', { civId: 'rome', victimCivId: 'carthage', cityId: 'city-a' });
+    bus.emit('espionage:courier-intercepted', { civId: 'rome', targetCivId: 'carthage', routeId: 'route-1', fromCityId: 'city-a', toCityId: 'city-a' });
+    bus.emit('espionage:official-bribed', { civId: 'rome', targetCivId: 'carthage', amount: 42 });
 
     expect(ctx.deliver).not.toHaveBeenCalled();
     expect(ctx.showEspionageCaptureChoice).not.toHaveBeenCalled();
