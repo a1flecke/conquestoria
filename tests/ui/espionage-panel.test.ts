@@ -310,6 +310,35 @@ describe('espionage-panel', () => {
       expect(bribe.durationTurns).toBe(5);
     });
 
+    // #442 MR2
+    it('shows expose_scandal in the Stage 5 group once disinformation-bureau is researched', () => {
+      const state = makeEspUiState();
+      state.civilizations.player.techState.completed = ['disinformation-bureau'];
+      const view = getEspionagePanelViewModel(state);
+      const stage5 = view.missionStages.find(s => s.stage === 5)!;
+      expect(stage5.missions.some(m => m.id === 'expose_scandal')).toBe(true);
+      expect(stage5.missions.find(m => m.id === 'expose_scandal')!.label).toBe('Expose Scandal');
+    });
+
+    it('shows signals_intercept in the Stage 5 group once counterintelligence is researched, as remote-capable', () => {
+      const state = makeEspUiState();
+      state.civilizations.player.techState.completed = ['counterintelligence'];
+      const view = getEspionagePanelViewModel(state);
+      const stage5 = view.missionStages.find(s => s.stage === 5)!;
+      const signalsMission = stage5.missions.find(m => m.id === 'signals_intercept')!;
+      expect(signalsMission.label).toBe('Signals Intercept');
+      expect(signalsMission.accessLabel).toBe('Remote-capable');
+    });
+
+    it('does not show expose_scandal or signals_intercept before their gating techs', () => {
+      const state = makeEspUiState();
+      state.civilizations.player.techState.completed = [];
+      const view = getEspionagePanelViewModel(state);
+      const allMissionIds = view.missionStages.flatMap(s => s.missions.map(m => m.id));
+      expect(allMissionIds).not.toContain('expose_scandal');
+      expect(allMissionIds).not.toContain('signals_intercept');
+    });
+
     it('does not show intercept_courier or bribe_official before their gating techs', () => {
       const state = makeEspUiState();
       state.civilizations.player.techState.completed = [];
@@ -332,6 +361,29 @@ describe('espionage-panel', () => {
       const data = getEspionagePanelData(state);
       expect(data.spySummaries.some(s => s.id === 'spy-ai-2')).toBe(false);
       expect(data.spies.every(s => s.id !== 'spy-ai-2')).toBe(true);
+    });
+
+    // #442 MR2 signals_intercept
+    it('surfaces the current player\'s own signals_intercept snapshot with a resolved target civ name', () => {
+      const state = makeEspUiState();
+      state.espionage!.player.signalsIntelligence = {
+        'ai-egypt': { turn: 8, units: [{ type: 'warrior', position: { q: 1, r: 1 }, health: 100 }] },
+      };
+      state.turn = 10;
+      const data = getEspionagePanelData(state);
+      expect(data.signalsIntelligence).toEqual([
+        { targetCivId: 'ai-egypt', targetCivName: 'Egypt', turn: 8, unitCount: 1 },
+      ]);
+    });
+
+    it('does not expose another civ\'s signals_intercept snapshot in the current player\'s panel data', () => {
+      const state = makeEspUiState();
+      state.espionage!['ai-egypt'] = {
+        ...state.espionage!['ai-egypt'],
+        signalsIntelligence: { player: { turn: 5, units: [{ type: 'warrior', position: { q: 0, r: 0 }, health: 100 }] } },
+      };
+      const data = getEspionagePanelData(state);
+      expect(data.signalsIntelligence).toEqual([]);
     });
 
     it('never exposes other players spy data', () => {

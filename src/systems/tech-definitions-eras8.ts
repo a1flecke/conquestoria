@@ -129,7 +129,10 @@ const ERA_8_TECHS: Tech[] = [
     unlocks: ['+3 spy slots empire-wide; political intelligence networks improve spy mission success rates by 10%'], unlocksBuildings: ['intelligence-agency'], era: 8 },
   { id: 'disinformation-bureau', name: 'Disinformation Bureau', track: 'espionage', cost: 145,
     prerequisites: ['secret-police'],
-    unlocks: ['Enemy spy missions in your cities have -25% success rate; state disinformation weakens foreign loyalty'], era: 8 },
+    // #442 MR2: dropped "state disinformation weakens foreign loyalty" — no such
+    // mechanic exists (content-description-honesty.md); replaced with the actual new
+    // effect this tech now gates.
+    unlocks: ['Enemy spy missions in your cities have -25% success rate', 'Spy mission: expose a rival\'s secret treaties to their partners, damaging those relationships'], era: 8 },
 
   // SPIRITUALITY (2)
   { id: 'modernist-theology', name: 'Modernist Theology', track: 'spirituality', cost: 165,

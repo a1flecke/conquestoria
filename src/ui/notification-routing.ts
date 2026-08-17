@@ -786,6 +786,30 @@ export function routeOfficialBribed(
   sink(event.civId, `Your spy bribed an official in ${targetName}'s court, siphoning ${event.amount} gold into your treasury.`, 'success');
 }
 
+// expose_scandal (#442 MR2): the first multilateral espionage notification — unlike every
+// prior router (at most 2 parties), this tells the target AND every exposed partner
+// individually, plus the acting civ. Each recipient gets a message scoped to what
+// actually changed for them, not a shared broadcast string.
+export function routeScandalExposed(
+  state: GameState,
+  event: GameEvents['espionage:scandal-exposed'],
+  sink: NotificationSink,
+): void {
+  const actorName = state.civilizations[event.civId]?.name ?? 'A rival';
+  const targetName = state.civilizations[event.targetCivId]?.name ?? 'a rival';
+  const partnerNames = event.partnerCivIds.map(id => state.civilizations[id]?.name ?? id);
+
+  sink(
+    event.targetCivId,
+    `${actorName}'s spies exposed your secret dealings — ${partnerNames.join(', ')} now trust${partnerNames.length === 1 ? 's' : ''} you less.`,
+    'warning',
+  );
+  for (const partnerId of event.partnerCivIds) {
+    sink(partnerId, `${actorName}'s spies revealed ${targetName}'s secret dealings with you — your relationship has soured.`, 'warning');
+  }
+  sink(event.civId, `Your spy exposed ${targetName}'s secret dealings with ${partnerNames.length} other ${partnerNames.length === 1 ? 'civilization' : 'civilizations'}.`, 'success');
+}
+
 export function routeCityFlipped(
   state: GameState,
   event: GameEvents['espionage:city-flipped'],
