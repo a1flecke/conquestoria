@@ -578,6 +578,34 @@ describe('espionage-panel', () => {
       expect(collectText(threat)).toContain('No foreign spy activity detected.');
     });
 
+    // #442 MR2 signals_intercept — DOM-level proof the persisted snapshot actually
+    // renders (end-to-end-wiring.md), mirroring the threat-board test pair above.
+    it('renders a signals intelligence section with the intercepted snapshot', () => {
+      const state = makeEspUiState();
+      state.espionage!.player.signalsIntelligence = {
+        'ai-egypt': { turn: 8, units: [{ type: 'warrior', position: { q: 1, r: 1 }, health: 100 }] },
+      };
+
+      const panel = createEspionagePanel(state) as unknown;
+      const section = findAll(panel, el => el.dataset?.section === 'signals-intelligence')[0];
+      expect(collectText(section)).toContain('Egypt');
+      expect(collectText(section)).toContain('1 unit');
+      expect(collectText(section)).toContain('turn 8');
+    });
+
+    it('shows an empty state and never renders another civ\'s signals intelligence snapshot', () => {
+      const state = makeEspUiState();
+      state.espionage!['ai-egypt'] = {
+        ...state.espionage!['ai-egypt'],
+        signalsIntelligence: { player: { turn: 5, units: [{ type: 'warrior', position: { q: 0, r: 0 }, health: 100 }] } },
+      };
+
+      const panel = createEspionagePanel(state) as unknown;
+      const section = findAll(panel, el => el.dataset?.section === 'signals-intelligence')[0];
+      expect(collectText(section)).toContain('No signals intelligence gathered yet.');
+      expect(collectText(panel)).not.toContain('turn 5');
+    });
+
     it('renders a close button for the panel shell', () => {
       const state = makeEspUiState();
       const panel = createEspionagePanel(state) as unknown;
