@@ -26,6 +26,7 @@ import {
   turnCapturedSpy,
   verifyAgent,
   missionRequiresPlacedSpy,
+  MISSION_BASE_SUCCESS,
   } from '@/systems/espionage-system';
 import { createDiplomacyState } from '@/systems/diplomacy-system';
 import { createNewGame } from '@/core/game-state';
@@ -1600,6 +1601,44 @@ describe('informational mission report persistence (post-#442 audit fix)', () =>
       expect(found).toBeDefined();
     },
   );
+
+  // Stronger completeness guard, added after being pressed on "does this actually
+  // prevent a *future* mission from repeating this bug": the it.each above only proves
+  // the 5 currently-known informational missions stay wired — it says nothing about a
+  // brand-new 6th one, because it only iterates a manually-maintained list. This test
+  // closes that gap using a genuinely zero-maintenance enumeration: MISSION_BASE_SUCCESS
+  // is a real `: Record<OffensiveMissionType, number> =` type annotation (not an `as`
+  // cast, which does NOT force exhaustiveness -- converting these tables surfaced a real
+  // pre-existing gap, see that export's comment), so TypeScript itself refuses to compile
+  // if a new SpyMissionType is added without an entry there. Object.keys(...) is
+  // therefore guaranteed to include every mission that will ever exist, automatically,
+  // forever -- no one has to remember to update this test's inputs, only its
+  // classification. A new mission lands in neither list below until a human explicitly
+  // decides which one it belongs in.
+  const HANDLED_WITHOUT_A_REPORT: SpyMissionType[] = [
+    'scout_area', 'steal_tech', 'sabotage_production', 'incite_unrest',
+    'assassinate_advisor', 'forge_documents', 'fund_rebels', 'arms_smuggling',
+    'flip_loyalty', 'cyber_attack', 'misinformation_campaign', 'election_interference',
+    'satellite_surveillance', 'sabotage_relief', 'intercept_courier', 'bribe_official',
+    'expose_scandal',
+  ];
+
+  it('every mission that flows through the offensive resolution pipeline is explicitly classified', () => {
+    const allOffensiveMissions = Object.keys(MISSION_BASE_SUCCESS) as SpyMissionType[];
+    const persistsReport = Object.keys(INFORMATIONAL_MISSION_REPORT_FIELD) as SpyMissionType[];
+
+    const overlap = persistsReport.filter(m => HANDLED_WITHOUT_A_REPORT.includes(m));
+    expect(overlap).toEqual([]);
+
+    const classified = new Set([...persistsReport, ...HANDLED_WITHOUT_A_REPORT]);
+    const unclassified = allOffensiveMissions.filter(m => !classified.has(m));
+    expect(unclassified).toEqual([]);
+
+    // And the reverse: nothing in either list should be a name that no longer exists
+    // (e.g. after a mission is renamed or removed), which would silently hide a real gap.
+    const stale = [...classified].filter(m => !allOffensiveMissions.includes(m));
+    expect(stale).toEqual([]);
+  });
 });
 
 describe('espionage diplomatic consequences', () => {
