@@ -141,6 +141,19 @@ describe('city-panel national projects', () => {
     expect(facts).toContain('+1 combat strength for self-defense');
   });
 
+  it('renders Station Chief public tactical facts in the live production catalog', () => {
+    const { container, city, state } = makeWonderPanelFixture();
+    state.civilizations.player.techState.completed = ['counterintelligence'];
+    const panel = createCityPanel(container, city, state, {
+      onBuild: () => {}, onOpenWonderPanel: () => {}, onClose: () => {},
+    });
+
+    expect(panel.querySelector('[data-item-id="spy_station_chief"]')).toBeTruthy();
+    const facts = panel.querySelector('[data-unit-role-facts="spy_station_chief"]')?.textContent ?? '';
+    expect(facts).toContain('Better base infiltration odds than an Intelligence Officer');
+    expect(facts).toContain('+1 vision range and +1 combat strength');
+  });
+
   it('keeps a partially satisfied conjunctive unit gate visible with every ordered technology state', () => {
     const { container, city, state } = makeWonderPanelFixture();
     state.civilizations.player.techState.completed = ['archery'];
