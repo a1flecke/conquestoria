@@ -61,7 +61,7 @@
 
 ---
 
-# Phase 1: `spy_intelligence_officer`
+# Phase 1: `spy_intelligence_officer` ✅ merged (#856)
 
 ### Task 1: Core unit definition and chain restructuring
 
@@ -77,7 +77,7 @@
 **Interfaces:**
 - Produces: `UnitType` value `'spy_intelligence_officer'`, consumed by every later task in this phase.
 
-- [ ] **Step 1: Add `spy_intelligence_officer` to `UnitType` in `src/core/types.ts`**
+- [x] **Step 1: Add `spy_intelligence_officer` to `UnitType` in `src/core/types.ts`**
 
 Find the line (currently around line 367):
 ```ts
@@ -88,7 +88,7 @@ Change to:
   | 'spy_scout' | 'spy_informant' | 'spy_agent' | 'spy_operative' | 'spy_intelligence_officer' | 'spy_hacker'
 ```
 
-- [ ] **Step 2: Write the failing chain-integrity test**
+- [x] **Step 2: Write the failing chain-integrity test**
 
 Add to `tests/systems/unit-chain-integrity.test.ts`, inside a new `describe` block (place after the existing `'early-modern mounted upgrade chain'` block):
 
@@ -112,12 +112,12 @@ describe('spy plateau fix — era 7 Intelligence Officer', () => {
 });
 ```
 
-- [ ] **Step 3: Run test to verify it fails**
+- [x] **Step 3: Run test to verify it fails**
 
 Run: `bash scripts/run-with-mise.sh yarn test --run tests/systems/unit-chain-integrity.test.ts`
 Expected: FAIL — `operative` still has `obsoletedByTech: 'cyber-warfare'`, and `intelOfficer` is `undefined`.
 
-- [ ] **Step 4: Retarget `spy_operative` and add `spy_intelligence_officer` to `TRAINABLE_UNITS`**
+- [x] **Step 4: Retarget `spy_operative` and add `spy_intelligence_officer` to `TRAINABLE_UNITS`**
 
 In `src/systems/city-system.ts`, change line 1212 from:
 ```ts
@@ -159,14 +159,14 @@ field once `spy_intelligence_officer` gets a real `obsoletedByTech` (a sibling c
 `'TERMINAL_COMBAT_UNITS does not list a unit that already has obsoletedByTech'`, fails if it's
 left in place after that).
 
-- [ ] **Step 5: Add `PRODUCTION_ICONS` entry**
+- [x] **Step 5: Add `PRODUCTION_ICONS` entry**
 
 In `src/systems/city-system.ts`, near line 1524 (`spy_operative: '🎯',`), add:
 ```ts
   spy_intelligence_officer: '🗂️',
 ```
 
-- [ ] **Step 6: Add `UNIT_DEFINITIONS` entry**
+- [x] **Step 6: Add `UNIT_DEFINITIONS` entry**
 
 In `src/systems/unit-system.ts`, after the `spy_operative` block (~line 177), add:
 ```ts
@@ -177,14 +177,14 @@ In `src/systems/unit-system.ts`, after the `spy_operative` block (~line 177), ad
   },
 ```
 
-- [ ] **Step 7: Add `UNIT_DESCRIPTIONS` entry**
+- [x] **Step 7: Add `UNIT_DESCRIPTIONS` entry**
 
 In `src/systems/unit-system.ts`, after the `spy_operative` line (~line 800), add:
 ```ts
   spy_intelligence_officer: 'Senior field spy who runs covert operations against rival powers. Trained to sabotage, steal, and disrupt with greater success than an Operative.',
 ```
 
-- [ ] **Step 8: Add `unlocksUnits` to `covert-operations`, and rebalance its cost**
+- [x] **Step 8: Add `unlocksUnits` to `covert-operations`, and rebalance its cost**
 
 In `src/systems/tech-definitions-eras5-7.ts`, change:
 ```ts
@@ -211,17 +211,17 @@ for this exact tech shape, so that's the number to use, not something to hand-tu
 floor applies to any tech that unlocks a unit, regardless of whether it's a brand-new tech or an
 existing one being reused** — piggybacking doesn't avoid it.
 
-- [ ] **Step 9: Run the chain-integrity test again**
+- [x] **Step 9: Run the chain-integrity test again**
 
 Run: `bash scripts/run-with-mise.sh yarn test --run tests/systems/unit-chain-integrity.test.ts`
 Expected: PASS
 
-- [ ] **Step 10: Run tech-unlocks-consistency, city-system, and pacing-audit tests**
+- [x] **Step 10: Run tech-unlocks-consistency, city-system, and pacing-audit tests**
 
 Run: `bash scripts/run-with-mise.sh yarn test --run tests/systems/tech-unlocks-consistency.test.ts tests/systems/city-system.test.ts tests/systems/pacing-audit.test.ts`
 Expected: PASS (these are generic completeness/balance tests — Steps 5 and 8 are what makes them pass, including the cost 265 from Step 8's correction)
 
-- [ ] **Step 11: Commit**
+- [x] **Step 11: Commit**
 
 ```bash
 git add src/core/types.ts src/systems/city-system.ts src/systems/unit-system.ts src/systems/tech-definitions-eras5-7.ts src/systems/combat-role-definitions.ts tests/systems/unit-chain-integrity.test.ts
@@ -243,7 +243,7 @@ git commit -m "feat(espionage): add spy_intelligence_officer unit (era 7 plateau
 - Consumes: `UnitType` `'spy_intelligence_officer'` from Task 1.
 - Produces: `isSpyUnitType('spy_intelligence_officer')` returns `true`; the unit is barbarian-`unsupported` and minor-civ-`unsafe`.
 
-- [ ] **Step 1: Write the failing spy-record-creation test**
+- [x] **Step 1: Write the failing spy-record-creation test**
 
 Add to `tests/integration/spy-lifecycle.test.ts` (reuse the existing `makeBaseState` helper, just change the queued unit and required tech):
 
@@ -264,12 +264,12 @@ it('trains spy_intelligence_officer and creates matching Spy record with same id
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `bash scripts/run-with-mise.sh yarn test --run tests/integration/spy-lifecycle.test.ts`
 Expected: FAIL — `units` has length 1 (the plain `Unit` is created generically), but `spies` has length 0, because `isSpyUnitType('spy_intelligence_officer')` is currently `false`.
 
-- [ ] **Step 3: Add to `SPY_UNIT_TYPES`**
+- [x] **Step 3: Add to `SPY_UNIT_TYPES`**
 
 In `src/systems/espionage-system.ts`, change:
 ```ts
@@ -284,26 +284,26 @@ const SPY_UNIT_TYPES = new Set<UnitType>([
 ]);
 ```
 
-- [ ] **Step 4: Add to `UNIT_CLASS_BY_TYPE`**
+- [x] **Step 4: Add to `UNIT_CLASS_BY_TYPE`**
 
 In `src/systems/unit-modifier-definitions.ts`, after the `spy_operative: ['spy'],` line (~73), add:
 ```ts
   spy_intelligence_officer: ['spy'],
 ```
 
-- [ ] **Step 5: Run the spy-lifecycle test again**
+- [x] **Step 5: Run the spy-lifecycle test again**
 
 Run: `bash scripts/run-with-mise.sh yarn test --run tests/integration/spy-lifecycle.test.ts`
 Expected: PASS
 
-- [ ] **Step 6: Add to `UNSAFE_UNIT_TYPES`**
+- [x] **Step 6: Add to `UNSAFE_UNIT_TYPES`**
 
 In `src/systems/minor-civ-economy-system.ts`, inside the `UNSAFE_UNIT_TYPES` set (~line 70-80), after `'spy_operative',`, add:
 ```ts
   'spy_intelligence_officer',
 ```
 
-- [ ] **Step 7: Write the failing minor-civ exclusion test**
+- [x] **Step 7: Write the failing minor-civ exclusion test**
 
 Add to `tests/systems/minor-civ-economy-system.test.ts`:
 
@@ -318,12 +318,12 @@ it('never treats the new spy tier as a safe minor-civ defensive unit', () => {
 
 If `SAFE_MINOR_CIV_UNIT_TYPES` is not currently exported from `minor-civ-economy-system.ts`, add `export` to its declaration (it is a `const` derived from `TRAINABLE_UNITS` minus `UNSAFE_UNIT_TYPES` — exporting it does not change its value).
 
-- [ ] **Step 8: Run test to verify it passes** (Step 6 already makes this true — this step exists to prove it, not to fix a new failure)
+- [x] **Step 8: Run test to verify it passes** (Step 6 already makes this true — this step exists to prove it, not to fix a new failure)
 
 Run: `bash scripts/run-with-mise.sh yarn test --run tests/systems/minor-civ-economy-system.test.ts`
 Expected: PASS
 
-- [ ] **Step 9: Add to `BARBARIAN_ELIGIBILITY_BY_UNIT`**
+- [x] **Step 9: Add to `BARBARIAN_ELIGIBILITY_BY_UNIT`**
 
 In `src/systems/barbarian-roster.ts`, change line 52 from:
 ```ts
@@ -336,12 +336,12 @@ to:
 
 (This is also TypeScript-enforced — `BARBARIAN_ELIGIBILITY_BY_UNIT` is declared `satisfies Record<UnitType, BarbarianEligibility>`, so `yarn build` fails without this entry regardless of tests.)
 
-- [ ] **Step 10: Run barbarian-roster test**
+- [x] **Step 10: Run barbarian-roster test**
 
 Run: `bash scripts/run-with-mise.sh yarn test --run tests/systems/barbarian-roster.test.ts`
 Expected: PASS (the file's own generic test, `'classifies every current unit definition so future units fail closed'`, covers this automatically — no new test needed here, Step 9 alone satisfies it)
 
-- [ ] **Step 11: Commit**
+- [x] **Step 11: Commit**
 
 ```bash
 git add src/systems/espionage-system.ts src/systems/unit-modifier-definitions.ts src/systems/minor-civ-economy-system.ts src/systems/barbarian-roster.ts tests/integration/spy-lifecycle.test.ts tests/systems/minor-civ-economy-system.test.ts
@@ -360,7 +360,7 @@ git commit -m "feat(espionage): wire spy_intelligence_officer into spy-identity 
 - Consumes: `spy_intelligence_officer`'s `UNIT_DEFINITIONS` strength (7) from Task 1, and the `role()` helper (not `civilian()`) already defined in `combat-role-definitions.ts`.
 - Produces: `getUnitRolePresentation('spy_intelligence_officer', completedTechs)?.publicFacts` — consumed by `city-panel.ts` and `selected-unit-info.ts`, both already generic (no changes needed there).
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Add to `tests/ui/city-panel.test.ts`, modeled on the existing `'renders War Elephant public tactical facts'` test:
 
@@ -379,7 +379,7 @@ it('renders Intelligence Officer public tactical facts in the live production ca
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `bash scripts/run-with-mise.sh yarn test --run tests/ui/city-panel.test.ts`
 Expected: FAIL — `facts` is empty because `spy_intelligence_officer`'s `UNIT_ROLE_DEFINITIONS` entry
@@ -387,7 +387,7 @@ Expected: FAIL — `facts` is empty because `spy_intelligence_officer`'s `UNIT_R
 `terminalReason` only) has no `publicFacts` yet, so `getUnitRolePresentation(...)?.publicFacts`
 is an empty array.
 
-- [ ] **Step 3: Add `publicFacts` to the existing `UNIT_ROLE_DEFINITIONS` entry**
+- [x] **Step 3: Add `publicFacts` to the existing `UNIT_ROLE_DEFINITIONS` entry**
 
 In `src/systems/combat-role-definitions.ts`, the entry already exists from Task 1 — add `publicFacts` to it:
 ```ts
@@ -401,12 +401,12 @@ In `src/systems/combat-role-definitions.ts`, the entry already exists from Task 
 
 (Uses `role('civilian', ...)` directly, not the `civilian()` shorthand, because `civilian()`'s signature has no `publicFacts` parameter — see the design doc's "Visibility fix" section for why this fact set was chosen over stating the raw infiltration-base delta.)
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `bash scripts/run-with-mise.sh yarn test --run tests/ui/city-panel.test.ts`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/systems/combat-role-definitions.ts tests/ui/city-panel.test.ts
@@ -430,7 +430,7 @@ git commit -m "feat(espionage): surface Intelligence Officer's upgrade via publi
 
 **Note — corrects an assumption in the design doc:** `getUnitSpriteV2` (`v2/index.ts`) has a tested, permanent live-fallback for any unit type with no hand-authored pre-serialized `UNIT_SPRITES` entry (see `.claude/rules/sprites.md`, "DOM-Overlay Live Fallback For Uncovered Unit Sprites" — added after issue #755 specifically to make this safe). It calls `UNIT_SPRITE_CATALOG` live instead of returning `null`. This means Task 4 does **not** need to touch `v2/index.ts` or `tests/renderer/sprites/sprite-v2.test.ts` — those files import a real `.svg.ts` module by filename, and there isn't one for this new unit yet (generating pre-serialized art is a `generate-sprite-prompt` skill follow-up, not required for this MR to ship correctly). The existing generic test in `tests/renderer/sprites/v2/index.test.ts` that loops `UNIT_SPRITE_CATALOG` and asserts `getUnitSpriteV2` is never `null` will cover the new unit automatically once Step 4 below registers it.
 
-- [ ] **Step 1: Add the sprite component**
+- [x] **Step 1: Add the sprite component**
 
 In `src/renderer/sprites/units.tsx`, after `SpyOperativeSprite` (~line 874), add:
 ```tsx
@@ -454,14 +454,14 @@ export function SpyIntelligenceOfficerSprite({ palette, svgOnly = false }: UnitS
 
 (A dossier/folder gadget with a wax-seal-style accent dot, sitting between Operative's dagger-badge and Hacker's tablet — same `spyBase()` factory every other spy sprite uses, cloak darkened one step further than Operative's `#16161c`.)
 
-- [ ] **Step 2: Register in `UNIT_MOTION_STYLES`**
+- [x] **Step 2: Register in `UNIT_MOTION_STYLES`**
 
 In `src/renderer/sprites/sprite-catalog.ts`, after `spy_operative: 'humanoid',` (~line 133), add:
 ```ts
   spy_intelligence_officer: 'humanoid',
 ```
 
-- [ ] **Step 3: Register in `UNIT_SPRITE_CATALOG`**
+- [x] **Step 3: Register in `UNIT_SPRITE_CATALOG`**
 
 In `src/renderer/sprites/sprite-catalog.ts`, after `spy_operative: withMotion('spy_operative', SpyOperativeSprite),` (~line 276), add:
 ```ts
@@ -469,12 +469,12 @@ In `src/renderer/sprites/sprite-catalog.ts`, after `spy_operative: withMotion('s
 ```
 Add `SpyIntelligenceOfficerSprite` to the existing import from `./units` at the top of the file.
 
-- [ ] **Step 4: Run the v2 fallback coverage test**
+- [x] **Step 4: Run the v2 fallback coverage test**
 
 Run: `bash scripts/run-with-mise.sh yarn test --run tests/renderer/sprites/v2/index.test.ts`
 Expected: PASS — the generic loop over `UNIT_SPRITE_CATALOG` now includes `spy_intelligence_officer` and confirms `getUnitSpriteV2('spy_intelligence_officer', 'imperials')` is non-null via the live-fallback path.
 
-- [ ] **Step 5: Add `FALLBACK_ICONS` entry**
+- [x] **Step 5: Add `FALLBACK_ICONS` entry**
 
 **Correction found during execution:** `unit-renderer.ts` has no icon map of its own — it
 delegates entirely to `resolveUnitVisual` in `unit-visual-resolver.ts`. The original design doc
@@ -490,7 +490,7 @@ collapse to the same generic detective emoji here, unlike `PRODUCTION_ICONS`'s p
 
 (This map is `Record<UnitType, string>` — TypeScript will fail `yarn build` if this is skipped, so it is self-verifying; no dedicated test needed beyond the build step in Task 6.)
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/renderer/sprites/units.tsx src/renderer/sprites/sprite-catalog.ts src/renderer/unit-visual-resolver.ts
@@ -509,7 +509,7 @@ git commit -m "feat(espionage): add Intelligence Officer sprite and icon wiring"
 - Consumes: the existing `real()` helper and `spy_operative`'s death sound path, both already defined in `sfx-catalog.ts`.
 - Produces: `UNIT_SFX.spy_intelligence_officer.death`, checked by the file's own `'every spy type has a death entry'` test once `SPY_TYPES` is extended.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 In `tests/audio/sfx-catalog.test.ts`, change:
 ```ts
@@ -520,12 +520,12 @@ to:
 const SPY_TYPES: UnitType[] = ['spy_scout', 'spy_informant', 'spy_agent', 'spy_operative', 'spy_intelligence_officer', 'spy_hacker'];
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `bash scripts/run-with-mise.sh yarn test --run tests/audio/sfx-catalog.test.ts`
 Expected: FAIL on `'every spy type has a death entry'` — `UNIT_SFX['spy_intelligence_officer']` is `undefined`.
 
-- [ ] **Step 3: Add a temporary reused death SFX entry**
+- [x] **Step 3: Add a temporary reused death SFX entry**
 
 **Correction found during execution:** a fresh `real('sfx-spy_operative-death', ...)` call with
 the same id/file strings as `spy_operative`'s entry is a *different object* with matching string
@@ -554,19 +554,19 @@ Then in the spy-types block (~line 283), change `spy_operative`'s entry to use i
   spy_intelligence_officer: SPY_OPERATIVE_SFX,
 ```
 
-- [ ] **Step 4: Add the locomotion tag**
+- [x] **Step 4: Add the locomotion tag**
 
 In the same file's locomotion map, after `spy_operative: 'humanoid',` (~line 394), add:
 ```ts
   spy_intelligence_officer: 'humanoid',
 ```
 
-- [ ] **Step 5: Run test to verify it passes**
+- [x] **Step 5: Run test to verify it passes**
 
 Run: `bash scripts/run-with-mise.sh yarn test --run tests/audio/sfx-catalog.test.ts`
 Expected: PASS
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/audio/sfx-catalog.ts tests/audio/sfx-catalog.test.ts
@@ -584,7 +584,7 @@ git commit -m "feat(espionage): wire Intelligence Officer SFX (temporary reused 
 **Interfaces:**
 - Consumes: `canUpgradeUnit`/`getUpgradeCost` from `unit-upgrade-system.ts` (unchanged, fully generic), `processTurn` from `turn-manager.ts`.
 
-- [ ] **Step 1: Extend `espionage-system.test.ts`'s local `SPY_TYPES`**
+- [x] **Step 1: Extend `espionage-system.test.ts`'s local `SPY_TYPES`**
 
 Change:
 ```ts
@@ -595,12 +595,12 @@ to:
 const SPY_TYPES = ['spy_scout','spy_informant','spy_agent','spy_operative','spy_intelligence_officer','spy_hacker'] as const;
 ```
 
-- [ ] **Step 2: Run test to verify it still passes** (this list feeds a parametrized block — confirm nothing in it assumes exactly 5 tiers)
+- [x] **Step 2: Run test to verify it still passes** (this list feeds a parametrized block — confirm nothing in it assumes exactly 5 tiers)
 
 Run: `bash scripts/run-with-mise.sh yarn test --run tests/systems/espionage-system.test.ts`
 Expected: PASS. If any assertion in that parametrized block hard-codes tier count or ordering, fix the assertion to be tier-count-agnostic rather than skip the new entry.
 
-- [ ] **Step 3: Write the failing paid-upgrade test**
+- [x] **Step 3: Write the failing paid-upgrade test**
 
 The file already has a `makeUnit(type, position)` helper — use it, not `createUnit`/`mkC()` (that
 signature belongs to a different test file). Add after the existing `'reports canUpgrade:true when
@@ -650,14 +650,14 @@ it('#855: no longer leapfrogs cryptography+cyber-warfare straight to spy_hacker'
 (This replaces the old test's body and title in place — same `it(...)` block location, not an
 addition alongside it.)
 
-- [ ] **Step 4: Run test to verify it fails, then passes**
+- [x] **Step 4: Run test to verify it fails, then passes**
 
 Run: `bash scripts/run-with-mise.sh yarn test --run tests/systems/unit-upgrade.test.ts`
 Expected: before this step's edits, the new test FAILs (no upgrade path exists yet) and the
 existing `spy_hacker`-leapfrog test also FAILs (chain already changed by Tasks 1-2, but the test
 wasn't updated yet). After both edits above: PASS.
 
-- [ ] **Step 5: Write the failing hot-seat parity test**
+- [x] **Step 5: Write the failing hot-seat parity test**
 
 Add to `tests/integration/spy-lifecycle.test.ts`. Build a two-civ variant of `makeBaseState` inline (copy the existing fixture, add a second civ `'ai-1'` with its own city and empty `techState.completed`):
 
@@ -681,12 +681,12 @@ it('only the researching civ gets Intelligence Officer access — hot-seat parit
 });
 ```
 
-- [ ] **Step 6: Run test to verify it passes**
+- [x] **Step 6: Run test to verify it passes**
 
 Run: `bash scripts/run-with-mise.sh yarn test --run tests/integration/spy-lifecycle.test.ts`
 Expected: PASS (this proves `getTrainableUnitsForCiv` is keyed purely by the passed `completedTechs`, not any hardcoded player assumption — already true generically, this test locks it in)
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add tests/systems/espionage-system.test.ts tests/systems/unit-upgrade.test.ts tests/integration/spy-lifecycle.test.ts
@@ -699,17 +699,17 @@ git commit -m "test(espionage): lock Intelligence Officer paid-upgrade and hot-s
 
 **Files:** none (verification only)
 
-- [ ] **Step 1: Run the full test suite**
+- [x] **Step 1: Run the full test suite**
 
 Run: `bash scripts/run-with-mise.sh yarn test`
 Expected: exit 0. Pay particular attention to `tests/systems/pacing-audit.test.ts` — if it flags `spy_intelligence_officer`'s cost (140) as an era-7 outlier, adjust the cost in Task 1 Step 4 and re-run every test in this phase that asserts the cost value (Task 1 Step 2, Task 6 Step 3).
 
-- [ ] **Step 2: Run the production build (type-check)**
+- [x] **Step 2: Run the production build (type-check)**
 
 Run: `bash scripts/run-with-mise.sh yarn build`
 Expected: exit 0. This is the only path that runs `tsc` — confirms every `Record<UnitType, ...>` map (barbarian eligibility, unit classes, fallback icons, motion styles, sprite catalog) compiles with the new `UnitType` value.
 
-- [ ] **Step 3: Push and open the PR**
+- [x] **Step 3: Push and open the PR**
 
 ```bash
 git push -u origin HEAD
@@ -742,7 +742,7 @@ EOF
 )"
 ```
 
-- [ ] **Step 4: Poll CI and merge once green**
+- [x] **Step 4: Poll CI and merge once green**
 
 Follow the CI-watch pattern from #853/#854 only if the user has confirmed they want it for this issue too (per the design doc's process notes — it was given verbally in a prior session, not a standing repo policy). Otherwise, hand off to the user for manual review/merge.
 
