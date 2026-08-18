@@ -508,6 +508,36 @@ function appendSignalsIntelligence(
   parent.appendChild(block);
 }
 
+// UX review finding: the espionage panel already had 8 top-level sections before this
+// fix; appending 4 more independent top-level sections (5 counting Signals Intelligence)
+// would mean 12 stacked sections, most showing an empty placeholder in the common
+// early-game case -- real scroll fatigue on a mobile-first panel. Groups every intel
+// snapshot type under one coherent parent section instead (this is what fully commits
+// to "expand Signals Intelligence into a general Intelligence Reports section" rather
+// than leaving it as a sibling). Each sub-block keeps its own `data-section` for DOM
+// testability -- findAll() recurses through children regardless of nesting depth, so
+// existing signals-intelligence tests are unaffected by the move. The append* helpers
+// already accept any HTMLElement as their parent, so this only changes what gets passed
+// in -- no change to how any individual sub-block is built or styled.
+function appendIntelligenceReportsGroup(panel: HTMLElement, data: EspionagePanelData): void {
+  const group = createEl('section');
+  group.dataset.section = 'intelligence-reports';
+  group.style.cssText = 'display:flex;flex-direction:column;gap:10px;padding:10px 0;border-top:1px solid rgba(255,255,255,0.08);';
+  appendSectionHeader(
+    group,
+    'Intelligence Reports',
+    'Everything your spies have learned about rivals, grouped by source. Snapshots only — they age fast and do not track live enemy state.',
+  );
+
+  appendSignalsIntelligence(group, data.signalsIntelligence, data.currentTurn);
+  appendTroopReports(group, data.troopReports, data.currentTurn);
+  appendIntelReports(group, data.intelReports, data.currentTurn);
+  appendResourceReports(group, data.resourceReports, data.currentTurn);
+  appendDiplomacyReports(group, data.diplomacyReports, data.currentTurn);
+
+  panel.appendChild(group);
+}
+
 function formatAge(currentTurn: number, reportTurn: number): string {
   const age = currentTurn - reportTurn;
   return age === 0 ? 'this turn' : `${age} turn${age === 1 ? '' : 's'} ago`;
@@ -779,11 +809,7 @@ export function createEspionagePanel(
 
   appendThreatBoard(panel, data.threatBoard);
   appendRecentDetections(panel, data.recentDetections);
-  appendSignalsIntelligence(panel, data.signalsIntelligence, data.currentTurn);
-  appendTroopReports(panel, data.troopReports, data.currentTurn);
-  appendIntelReports(panel, data.intelReports, data.currentTurn);
-  appendResourceReports(panel, data.resourceReports, data.currentTurn);
-  appendDiplomacyReports(panel, data.diplomacyReports, data.currentTurn);
+  appendIntelligenceReportsGroup(panel, data);
   appendInterrogationProgress(panel, state);
 
   return panel;
