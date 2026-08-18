@@ -199,7 +199,7 @@ export function getMissionDuration(missionType: SpyMissionType): number {
 // --- Mutations ---
 
 const SPY_UNIT_TYPES = new Set<UnitType>([
-  'spy_scout', 'spy_informant', 'spy_agent', 'spy_operative', 'spy_hacker',
+  'spy_scout', 'spy_informant', 'spy_agent', 'spy_operative', 'spy_intelligence_officer', 'spy_hacker',
 ]);
 
 export function isSpyUnitType(type: UnitType): boolean {

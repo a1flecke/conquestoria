@@ -74,6 +74,7 @@ const UNSAFE_UNIT_TYPES = new Set<UnitType>([
   'spy_informant',
   'spy_agent',
   'spy_operative',
+  'spy_intelligence_officer',
   'spy_hacker',
   'caravan',
   'expedition',
@@ -81,7 +82,7 @@ const UNSAFE_UNIT_TYPES = new Set<UnitType>([
   'troop_transport',
 ]);
 
-const SAFE_MINOR_CIV_UNIT_TYPES = new Set<UnitType>(
+export const SAFE_MINOR_CIV_UNIT_TYPES = new Set<UnitType>(
   TRAINABLE_UNITS
     .map(unit => unit.type)
     .filter(unitType => !UNSAFE_UNIT_TYPES.has(unitType)),

@@ -9,6 +9,7 @@ import {
   getMinorCivUnitCap,
   normalizeMinorCivEconomyState,
   processMinorCivEconomyTurn,
+  SAFE_MINOR_CIV_UNIT_TYPES,
 } from '@/systems/minor-civ-economy-system';
 import { getCivAvailableResources } from '@/systems/resource-acquisition-system';
 import { getWrappedHexNeighbors, hexKey, hexNeighbors } from '@/systems/hex-utils';
@@ -299,5 +300,11 @@ describe('minor-civ hidden production', () => {
 
     expect(result.state.cities[city.id].productionQueue[0]).toBe(legalBuilding);
     expect(result.state.cities[city.id].productionProgress).toBeGreaterThan(1);
+  });
+});
+
+describe('#855 — spy unit exclusion from minor-civ defense catalog', () => {
+  it('never treats the new spy tier as a safe minor-civ defensive unit', () => {
+    expect(SAFE_MINOR_CIV_UNIT_TYPES.has('spy_intelligence_officer')).toBe(false);
   });
 });
