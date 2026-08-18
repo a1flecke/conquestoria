@@ -69,7 +69,10 @@
 - Modify: `src/systems/city-system.ts:1212` (`TRAINABLE_UNITS`), `PRODUCTION_ICONS` (~line 1524)
 - Modify: `src/systems/unit-system.ts:173-177` (`UNIT_DEFINITIONS`), `:800` (`UNIT_DESCRIPTIONS`)
 - Modify: `src/systems/tech-definitions-eras5-7.ts:389-391` (`covert-operations`)
-- Test: `tests/systems/unit-chain-integrity.test.ts`, `tests/systems/tech-unlocks-consistency.test.ts` (existing, must pass), `tests/systems/city-system.test.ts` (icon coverage, existing, must pass)
+- Modify: `src/systems/combat-role-definitions.ts` (minimal `UNIT_ROLE_DEFINITIONS` entry with
+  `terminalReason` only — see the correction note after Step 4; Task 3 later adds `publicFacts`
+  to this same entry)
+- Test: `tests/systems/unit-chain-integrity.test.ts`, `tests/systems/tech-unlocks-consistency.test.ts` (existing, must pass), `tests/systems/city-system.test.ts` (icon coverage + `'#429 — unit obsolescence completeness'`, existing, must pass)
 
 **Interfaces:**
 - Produces: `UnitType` value `'spy_intelligence_officer'`, consumed by every later task in this phase.
@@ -134,6 +137,28 @@ Since `spy_station_chief` won't exist until Phase 2, Phase 1 must ship `spy_inte
 ```
 (No `obsoletedByTech`/`upgradesTo` yet — Phase 2 Task 1 adds both when `spy_station_chief` is introduced.)
 
+**Correction found during execution:** a completeness test not identified while writing this plan —
+`tests/systems/city-system.test.ts`'s `'#429 — unit obsolescence completeness'` — requires every
+non-utility, positive-strength `TRAINABLE_UNITS` entry with no `obsoletedByTech` to have a
+`terminalReason` in its `UNIT_ROLE_DEFINITIONS` entry (`TERMINAL_COMBAT_UNITS` is derived
+automatically from that field). Since `spy_intelligence_officer` ships temporarily terminal in
+Phase 1, this step must also add a minimal `UNIT_ROLE_DEFINITIONS` entry now (pulled forward from
+Task 3, which adds `publicFacts` to the same entry later) — insert into
+`src/systems/combat-role-definitions.ts` after the `spy_operative: civilian(...)` line:
+```ts
+  spy_intelligence_officer: role('civilian', 'Senior spy that runs covert operations with better odds than an Operative.', ['espionage'], {
+    counters: [], vulnerableTo: [],
+    upgradeFamily: 'espionage',
+    terminalReason: 'No further upgrade currently available.',
+  }),
+```
+`terminalReason` is player-facing (rendered with a 🏁 icon by `unit-role-presentation.ts`), so
+phrase it as presently-true rather than permanent — unlike `spy_hacker`'s genuinely-permanent
+"Terminal tier of the espionage chain with no later replacement." Phase 2 Task 1 removes this
+field once `spy_intelligence_officer` gets a real `obsoletedByTech` (a sibling completeness test,
+`'TERMINAL_COMBAT_UNITS does not list a unit that already has obsoletedByTech'`, fails if it's
+left in place after that).
+
 - [ ] **Step 5: Add `PRODUCTION_ICONS` entry**
 
 In `src/systems/city-system.ts`, near line 1524 (`spy_operative: '🎯',`), add:
@@ -188,7 +213,7 @@ Expected: PASS (these are generic completeness tests — Steps 5 and 8 are what 
 - [ ] **Step 11: Commit**
 
 ```bash
-git add src/core/types.ts src/systems/city-system.ts src/systems/unit-system.ts src/systems/tech-definitions-eras5-7.ts tests/systems/unit-chain-integrity.test.ts
+git add src/core/types.ts src/systems/city-system.ts src/systems/unit-system.ts src/systems/tech-definitions-eras5-7.ts src/systems/combat-role-definitions.ts tests/systems/unit-chain-integrity.test.ts
 git commit -m "feat(espionage): add spy_intelligence_officer unit (era 7 plateau fix, part 1)"
 ```
 
@@ -346,15 +371,19 @@ it('renders Intelligence Officer public tactical facts in the live production ca
 - [ ] **Step 2: Run test to verify it fails**
 
 Run: `bash scripts/run-with-mise.sh yarn test --run tests/ui/city-panel.test.ts`
-Expected: FAIL — `facts` is empty because `spy_intelligence_officer` has no `UNIT_ROLE_DEFINITIONS` entry yet, so `getUnitRolePresentation` returns `undefined`.
+Expected: FAIL — `facts` is empty because `spy_intelligence_officer`'s `UNIT_ROLE_DEFINITIONS` entry
+(added in Task 1 to satisfy the `'#429 — unit obsolescence completeness'` test, with a
+`terminalReason` only) has no `publicFacts` yet, so `getUnitRolePresentation(...)?.publicFacts`
+is an empty array.
 
-- [ ] **Step 3: Add the `UNIT_ROLE_DEFINITIONS` entry**
+- [ ] **Step 3: Add `publicFacts` to the existing `UNIT_ROLE_DEFINITIONS` entry**
 
-In `src/systems/combat-role-definitions.ts`, after the `spy_operative: civilian(...)` line (~line 94), add:
+In `src/systems/combat-role-definitions.ts`, the entry already exists from Task 1 — add `publicFacts` to it:
 ```ts
   spy_intelligence_officer: role('civilian', 'Senior spy that runs covert operations with better odds than an Operative.', ['espionage'], {
     counters: [], vulnerableTo: [],
     upgradeFamily: 'espionage',
+    terminalReason: 'No further upgrade currently available.',
     publicFacts: ['Better base infiltration odds than an Operative', '+1 combat strength for self-defense'],
   }),
 ```
@@ -754,15 +783,32 @@ to:
     unlocksUnits: ['spy_station_chief'], era: 9 },
 ```
 
-- [ ] **Step 9: Run tests to verify they pass**
+- [ ] **Step 9: Remove `spy_intelligence_officer`'s now-stale `terminalReason`**
+
+Phase 1 added a `terminalReason: 'No further upgrade currently available.'` to
+`spy_intelligence_officer`'s `UNIT_ROLE_DEFINITIONS` entry in `src/systems/combat-role-definitions.ts`
+to satisfy `'#429 — unit obsolescence completeness'` while it had no real successor. Now that
+Step 4 above gives it `obsoletedByTech`, that field is both inaccurate (a real upgrade now exists)
+and will fail the sibling test `'TERMINAL_COMBAT_UNITS does not list a unit that already has
+obsoletedByTech (no contradictory entries)'`. Delete the `terminalReason` line, keeping
+`publicFacts` (added in Phase 1 Task 3) intact:
+```ts
+  spy_intelligence_officer: role('civilian', 'Senior spy that runs covert operations with better odds than an Operative.', ['espionage'], {
+    counters: [], vulnerableTo: [],
+    upgradeFamily: 'espionage',
+    publicFacts: ['Better base infiltration odds than an Operative', '+1 combat strength for self-defense'],
+  }),
+```
+
+- [ ] **Step 10: Run tests to verify they pass**
 
 Run: `bash scripts/run-with-mise.sh yarn test --run tests/systems/unit-chain-integrity.test.ts tests/systems/tech-unlocks-consistency.test.ts tests/systems/city-system.test.ts`
 Expected: PASS
 
-- [ ] **Step 10: Commit**
+- [ ] **Step 11: Commit**
 
 ```bash
-git add src/core/types.ts src/systems/city-system.ts src/systems/unit-system.ts src/systems/tech-definitions-eras9.ts tests/systems/unit-chain-integrity.test.ts
+git add src/core/types.ts src/systems/city-system.ts src/systems/unit-system.ts src/systems/tech-definitions-eras9.ts src/systems/combat-role-definitions.ts tests/systems/unit-chain-integrity.test.ts
 git commit -m "feat(espionage): add spy_station_chief unit (era 9 plateau fix, part 2)"
 ```
 
