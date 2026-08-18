@@ -7,7 +7,7 @@ import {
   getSpyActions,
 } from '@/ui/espionage-panel';
 import { createEspionageCivState } from '@/systems/espionage-system';
-import type { GameState, Spy } from '@/core/types';
+import type { EspionageCivState, GameState, Spy } from '@/core/types';
 
 // MR1: legacy fixture helper — spies are now created via city production, not recruitSpy
 function makeTestSpy(id: string, owner: string, overrides: Partial<Spy> = {}): Spy {
@@ -386,6 +386,178 @@ describe('espionage-panel', () => {
       expect(data.signalsIntelligence).toEqual([]);
     });
 
+    // Post-#442 audit fix: monitor_troops/gather_intel/identify_resources/
+    // monitor_diplomacy get the same persist-and-render treatment as signals_intercept
+    // above. Same hot-seat shape: current player's own report surfaces with a resolved
+    // name; another civ's report (e.g. an AI, or another human in the same hot-seat
+    // game) must never appear in this civ's panel data.
+    it('surfaces the current player\'s own monitor_troops report with resolved names', () => {
+      const state = makeEspUiState();
+      state.espionage!.player.troopObservations = {
+        'city-egypt-1': { turn: 7, targetCivId: 'ai-egypt', units: [{ type: 'warrior', position: { q: 5, r: 3 }, health: 80 }] },
+      };
+      const data = getEspionagePanelData(state);
+      expect(data.troopReports).toEqual([
+        { targetCivId: 'ai-egypt', targetCivName: 'Egypt', cityId: 'city-egypt-1', cityName: 'Thebes', turn: 7, unitCount: 1 },
+      ]);
+    });
+
+    it('does not expose another civ\'s monitor_troops report', () => {
+      const state = makeEspUiState();
+      state.espionage!['ai-egypt'] = {
+        ...state.espionage!['ai-egypt'],
+        troopObservations: { 'city-player-1': { turn: 5, targetCivId: 'player', units: [{ type: 'warrior', position: { q: 0, r: 0 }, health: 100 }] } },
+      };
+      const data = getEspionagePanelData(state);
+      expect(data.troopReports).toEqual([]);
+    });
+
+    it('surfaces the current player\'s own gather_intel report with resolved names', () => {
+      const state = makeEspUiState();
+      state.espionage!.player.intelReports = {
+        'ai-egypt': {
+          turn: 6, completedTechCount: 3, currentResearch: 'pottery', researchProgress: 0.5,
+          treasury: 200, treaties: [{ type: 'trade_agreement', civA: 'ai-egypt', civB: 'player', turnsRemaining: 5 }],
+        },
+      };
+      const data = getEspionagePanelData(state);
+      expect(data.intelReports).toEqual([
+        { targetCivId: 'ai-egypt', targetCivName: 'Egypt', turn: 6, completedTechCount: 3, currentResearch: 'pottery', treasury: 200, treatyCount: 1 },
+      ]);
+    });
+
+    it('does not expose another civ\'s gather_intel report', () => {
+      const state = makeEspUiState();
+      state.espionage!['ai-egypt'] = {
+        ...state.espionage!['ai-egypt'],
+        intelReports: { player: { turn: 5, completedTechCount: 1, currentResearch: null, researchProgress: 0, treasury: 10, treaties: [] } },
+      };
+      const data = getEspionagePanelData(state);
+      expect(data.intelReports).toEqual([]);
+    });
+
+    it('surfaces the current player\'s own identify_resources report with resolved names', () => {
+      const state = makeEspUiState();
+      state.espionage!.player.resourceReports = {
+        'city-egypt-1': { turn: 4, targetCivId: 'ai-egypt', resources: ['iron', 'horses'] },
+      };
+      const data = getEspionagePanelData(state);
+      expect(data.resourceReports).toEqual([
+        { targetCivId: 'ai-egypt', targetCivName: 'Egypt', cityId: 'city-egypt-1', cityName: 'Thebes', turn: 4, resources: ['iron', 'horses'] },
+      ]);
+    });
+
+    it('does not expose another civ\'s identify_resources report', () => {
+      const state = makeEspUiState();
+      state.espionage!['ai-egypt'] = {
+        ...state.espionage!['ai-egypt'],
+        resourceReports: { 'city-player-1': { turn: 5, targetCivId: 'player', resources: ['iron'] } },
+      };
+      const data = getEspionagePanelData(state);
+      expect(data.resourceReports).toEqual([]);
+    });
+
+    it('surfaces the current player\'s own monitor_diplomacy report with resolved names', () => {
+      const state = makeEspUiState();
+      state.espionage!.player.diplomacyReports = {
+        'ai-egypt': { turn: 3, relationships: { player: -10 }, tradePartners: [] },
+      };
+      const data = getEspionagePanelData(state);
+      expect(data.diplomacyReports).toEqual([
+        { targetCivId: 'ai-egypt', targetCivName: 'Egypt', turn: 3, relationships: [{ civId: 'player', civName: 'Player', value: -10 }], tradePartnerNames: [] },
+      ]);
+    });
+
+    it('does not expose another civ\'s monitor_diplomacy report', () => {
+      const state = makeEspUiState();
+      state.espionage!['ai-egypt'] = {
+        ...state.espionage!['ai-egypt'],
+        diplomacyReports: { player: { turn: 5, relationships: {}, tradePartners: [] } },
+      };
+      const data = getEspionagePanelData(state);
+      expect(data.diplomacyReports).toEqual([]);
+    });
+
+    // Freshness (#442 audit fix requirement): a persisted report is a snapshot taken at
+    // acquisition time -- it must not silently track the target's live state afterward.
+    it('renders the frozen troop-report snapshot, not the target unit\'s current live position/count', () => {
+      const state = makeEspUiState();
+      state.espionage!.player.troopObservations = {
+        'city-egypt-1': { turn: 7, targetCivId: 'ai-egypt', units: [{ type: 'warrior', position: { q: 5, r: 3 }, health: 80 }] },
+      };
+      // The target civ's unit roster changes after the report was captured -- three more
+      // units appear near the city. The stored snapshot must not reflect this.
+      state.units = {
+        'u1': { id: 'u1', type: 'warrior', owner: 'ai-egypt', position: { q: 5, r: 3 }, health: 80, experience: 0, hasMoved: false, hasActed: false, isResting: false } as any,
+        'u2': { id: 'u2', type: 'archer', owner: 'ai-egypt', position: { q: 5, r: 3 }, health: 100, experience: 0, hasMoved: false, hasActed: false, isResting: false } as any,
+        'u3': { id: 'u3', type: 'archer', owner: 'ai-egypt', position: { q: 5, r: 3 }, health: 100, experience: 0, hasMoved: false, hasActed: false, isResting: false } as any,
+      };
+      const data = getEspionagePanelData(state);
+      expect(data.troopReports).toEqual([
+        { targetCivId: 'ai-egypt', targetCivName: 'Egypt', cityId: 'city-egypt-1', cityName: 'Thebes', turn: 7, unitCount: 1 },
+      ]);
+    });
+
+    it('renders the frozen gather_intel snapshot, not the target civ\'s current live treasury/tech', () => {
+      const state = makeEspUiState();
+      state.espionage!.player.intelReports = {
+        'ai-egypt': { turn: 6, completedTechCount: 3, currentResearch: 'pottery', researchProgress: 0.5, treasury: 200, treaties: [] },
+      };
+      // The target civ's treasury and tech change after the report was captured.
+      state.civilizations['ai-egypt'].gold = 9999;
+      state.civilizations['ai-egypt'].techState.completed = ['a', 'b', 'c', 'd', 'e', 'f'];
+      const data = getEspionagePanelData(state);
+      expect(data.intelReports).toEqual([
+        { targetCivId: 'ai-egypt', targetCivName: 'Egypt', turn: 6, completedTechCount: 3, currentResearch: 'pottery', treasury: 200, treatyCount: 0 },
+      ]);
+    });
+
+    it('renders the frozen monitor_diplomacy snapshot, not the target civ\'s current live relationships', () => {
+      const state = makeEspUiState();
+      state.espionage!.player.diplomacyReports = {
+        'ai-egypt': { turn: 3, relationships: { player: -10 }, tradePartners: [] },
+      };
+      // The relationship changes after the report was captured (e.g. a later mission,
+      // treaty, or war). The stored snapshot must not reflect this.
+      state.civilizations['ai-egypt'].diplomacy.relationships = { player: 40 };
+      const data = getEspionagePanelData(state);
+      expect(data.diplomacyReports).toEqual([
+        { targetCivId: 'ai-egypt', targetCivName: 'Egypt', turn: 3, relationships: [{ civId: 'player', civName: 'Player', value: -10 }], tradePartnerNames: [] },
+      ]);
+    });
+
+    it('renders the frozen identify_resources snapshot, not the target city\'s current live tiles', () => {
+      const state = makeEspUiState();
+      state.espionage!.player.resourceReports = {
+        'city-egypt-1': { turn: 4, targetCivId: 'ai-egypt', resources: ['iron'] },
+      };
+      // A new resource is discovered in the city's territory after the report was
+      // captured -- the stored snapshot must not silently pick it up.
+      state.map.tiles['9,9'] = {
+        coord: { q: 9, r: 9 }, terrain: 'plains', elevation: 'lowland', resource: 'gold',
+        improvement: 'none', owner: 'ai-egypt', improvementTurnsLeft: 0, hasRiver: false, wonder: null,
+      };
+      state.cities['city-egypt-1'].ownedTiles = [{ q: 9, r: 9 }];
+      const data = getEspionagePanelData(state);
+      expect(data.resourceReports).toEqual([
+        { targetCivId: 'ai-egypt', targetCivName: 'Egypt', cityId: 'city-egypt-1', cityName: 'Thebes', turn: 4, resources: ['iron'] },
+      ]);
+    });
+
+    // Save-compatibility: an old save (or a state object normalized before this MR)
+    // predates these fields entirely. Reading it must never throw.
+    it('handles a legacy EspionageCivState missing the new report fields without throwing', () => {
+      const state = makeEspUiState();
+      const { troopObservations, intelReports, resourceReports, diplomacyReports, ...legacyEsp } = state.espionage!.player;
+      state.espionage!.player = legacyEsp as EspionageCivState;
+      expect(() => getEspionagePanelData(state)).not.toThrow();
+      const data = getEspionagePanelData(state);
+      expect(data.troopReports).toEqual([]);
+      expect(data.intelReports).toEqual([]);
+      expect(data.resourceReports).toEqual([]);
+      expect(data.diplomacyReports).toEqual([]);
+    });
+
     it('never exposes other players spy data', () => {
       const state = makeEspUiState();
       const aiSpy = makeTestSpy('spy-ai-1', 'ai-egypt');
@@ -604,6 +776,78 @@ describe('espionage-panel', () => {
       const section = findAll(panel, el => el.dataset?.section === 'signals-intelligence')[0];
       expect(collectText(section)).toContain('No signals intelligence gathered yet.');
       expect(collectText(panel)).not.toContain('turn 5');
+    });
+
+    // Post-#442 audit fix — DOM-level proof each persisted report actually renders
+    // (end-to-end-wiring.md), mirroring the signals-intelligence test pair above.
+    it('renders a troop reports section with the observed snapshot and never another civ\'s', () => {
+      const state = makeEspUiState();
+      state.espionage!.player.troopObservations = {
+        'city-egypt-1': { turn: 7, targetCivId: 'ai-egypt', units: [{ type: 'warrior', position: { q: 5, r: 3 }, health: 80 }] },
+      };
+      state.espionage!['ai-egypt'] = {
+        ...state.espionage!['ai-egypt'],
+        troopObservations: { 'city-player-1': { turn: 9, targetCivId: 'player', units: [] } },
+      };
+
+      const panel = createEspionagePanel(state) as unknown;
+      const section = findAll(panel, el => el.dataset?.section === 'troop-reports')[0];
+      expect(collectText(section)).toContain('Thebes');
+      expect(collectText(section)).toContain('Egypt');
+      expect(collectText(section)).toContain('1 unit');
+      expect(collectText(section)).toContain('turn 7');
+      expect(collectText(panel)).not.toContain('turn 9');
+    });
+
+    it('renders a civ intelligence section with the gathered snapshot', () => {
+      const state = makeEspUiState();
+      state.espionage!.player.intelReports = {
+        'ai-egypt': { turn: 6, completedTechCount: 3, currentResearch: 'pottery', researchProgress: 0.5, treasury: 200, treaties: [] },
+      };
+
+      const panel = createEspionagePanel(state) as unknown;
+      const section = findAll(panel, el => el.dataset?.section === 'intel-reports')[0];
+      expect(collectText(section)).toContain('Egypt');
+      expect(collectText(section)).toContain('3 techs completed');
+      expect(collectText(section)).toContain('pottery');
+      expect(collectText(section)).toContain('200');
+      expect(collectText(section)).toContain('turn 6');
+    });
+
+    it('renders a resource intelligence section with the identified resources', () => {
+      const state = makeEspUiState();
+      state.espionage!.player.resourceReports = {
+        'city-egypt-1': { turn: 4, targetCivId: 'ai-egypt', resources: ['iron', 'horses'] },
+      };
+
+      const panel = createEspionagePanel(state) as unknown;
+      const section = findAll(panel, el => el.dataset?.section === 'resource-reports')[0];
+      expect(collectText(section)).toContain('Thebes');
+      expect(collectText(section)).toContain('iron');
+      expect(collectText(section)).toContain('horses');
+      expect(collectText(section)).toContain('turn 4');
+    });
+
+    it('renders a diplomatic intelligence section with relationships and trade partners', () => {
+      const state = makeEspUiState();
+      state.espionage!.player.diplomacyReports = {
+        'ai-egypt': { turn: 3, relationships: { player: -10 }, tradePartners: [] },
+      };
+
+      const panel = createEspionagePanel(state) as unknown;
+      const section = findAll(panel, el => el.dataset?.section === 'diplomacy-reports')[0];
+      expect(collectText(section)).toContain('Egypt');
+      expect(collectText(section)).toContain('Player -10');
+      expect(collectText(section)).toContain('turn 3');
+    });
+
+    it('renders empty-state text for all four new intelligence report sections by default', () => {
+      const state = makeEspUiState();
+      const panel = createEspionagePanel(state) as unknown;
+      expect(collectText(findAll(panel, el => el.dataset?.section === 'troop-reports')[0])).toContain('No troop reports gathered yet.');
+      expect(collectText(findAll(panel, el => el.dataset?.section === 'intel-reports')[0])).toContain('No civ intelligence gathered yet.');
+      expect(collectText(findAll(panel, el => el.dataset?.section === 'resource-reports')[0])).toContain('No resource intelligence gathered yet.');
+      expect(collectText(findAll(panel, el => el.dataset?.section === 'diplomacy-reports')[0])).toContain('No diplomatic intelligence gathered yet.');
     });
 
     it('renders a close button for the panel shell', () => {

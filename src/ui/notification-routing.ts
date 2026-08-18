@@ -1,4 +1,4 @@
-import type { CombatModifierFact, CombatResult, CombatRewardNotification, GameEvents, GameState, ProductionDropReason, TreatyType } from '@/core/types';
+import type { CombatModifierFact, CombatResult, CombatRewardNotification, GameEvents, GameState, ProductionDropReason, SpyMissionType, TreatyType } from '@/core/types';
 import type { CombatNotificationDetails } from '@/core/notification-log';
 import { hexKey } from '@/systems/hex-utils';
 import { getImprovementDisplayName } from '@/systems/improvement-system';
@@ -808,6 +808,28 @@ export function routeScandalExposed(
     sink(partnerId, `${actorName}'s spies revealed ${targetName}'s secret dealings with you — your relationship has soured.`, 'warning');
   }
   sink(event.civId, `Your spy exposed ${targetName}'s secret dealings with ${partnerNames.length} other ${partnerNames.length === 1 ? 'civilization' : 'civilizations'}.`, 'success');
+}
+
+// Post-#442 audit fix: monitor_troops/gather_intel/identify_resources/monitor_diplomacy
+// resolve real intelligence but never told the player. Unlike every router above, this
+// is a single-recipient, non-disruptive acknowledgement (attacker only — passive
+// reconnaissance has no detection/attribution consequence today, so inventing a target
+// notification here would be new target awareness the mission doesn't actually grant).
+const INTEL_REPORT_LABELS: Partial<Record<SpyMissionType, string>> = {
+  monitor_troops: 'troop reports',
+  gather_intel: 'general intelligence',
+  identify_resources: 'resource intelligence',
+  monitor_diplomacy: 'diplomatic intelligence',
+};
+
+export function routeIntelReportAcquired(
+  state: GameState,
+  event: GameEvents['espionage:intel-report-acquired'],
+  sink: NotificationSink,
+): void {
+  const targetName = state.civilizations[event.targetCivId]?.name ?? 'a rival';
+  const label = INTEL_REPORT_LABELS[event.missionType] ?? 'intelligence';
+  sink(event.civId, `Your spy gathered ${label} on ${targetName}. View it in the Espionage panel.`, 'success');
 }
 
 export function routeCityFlipped(

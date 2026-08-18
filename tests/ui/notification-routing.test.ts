@@ -31,6 +31,7 @@ import {
   routeCourierIntercepted,
   routeOfficialBribed,
   routeScandalExposed,
+  routeIntelReportAcquired,
   type NotificationSink,
 } from '@/ui/notification-routing';
 
@@ -1195,6 +1196,53 @@ describe('espionage:scandal-exposed routing (#442 MR2)', () => {
       sink,
     );
     expect(calls.every(c => typeof c.message === 'string' && c.message.length > 0)).toBe(true);
+  });
+});
+
+// Post-#442 audit fix: monitor_troops/gather_intel/identify_resources/monitor_diplomacy
+// now emit a single attacker-only acknowledgement once their report is persisted.
+describe('espionage:intel-report-acquired routing (post-#442 audit fix)', () => {
+  function intelState(): GameState {
+    return makeState({
+      civilizations: {
+        rome: { id: 'rome', name: 'Rome', cities: [], units: [], diplomacy: { relationships: {} }, visibility: { tiles: {} } },
+        carthage: { id: 'carthage', name: 'Carthage', cities: [], units: [], diplomacy: { relationships: {} }, visibility: { tiles: {} } },
+      } as any,
+      cities: {} as any,
+    });
+  }
+
+  it('notifies only the attacker, never the target', () => {
+    const { sink, calls } = makeSink();
+    routeIntelReportAcquired(
+      intelState(),
+      { civId: 'rome', spyId: 'spy-1', missionType: 'monitor_troops', targetCivId: 'carthage' },
+      sink,
+    );
+    expect(calls).toHaveLength(1);
+    expect(calls[0].civId).toBe('rome');
+    expect(calls[0].message).toContain('Carthage');
+    expect(calls[0].type).toBe('success');
+  });
+
+  it('describes each mission type with its own plain-language label', () => {
+    const missionTypes = ['monitor_troops', 'gather_intel', 'identify_resources', 'monitor_diplomacy'] as const;
+    const labels = missionTypes.map((missionType) => {
+      const { sink, calls } = makeSink();
+      routeIntelReportAcquired(intelState(), { civId: 'rome', spyId: 'spy-1', missionType, targetCivId: 'carthage' }, sink);
+      return calls[0].message;
+    });
+    expect(new Set(labels).size).toBe(missionTypes.length);
+  });
+
+  it('falls back to a generic name when the target civ record is missing', () => {
+    const { sink, calls } = makeSink();
+    routeIntelReportAcquired(
+      intelState(),
+      { civId: 'rome', spyId: 'spy-1', missionType: 'gather_intel', targetCivId: 'unknown-civ' },
+      sink,
+    );
+    expect(calls[0].message.length).toBeGreaterThan(0);
   });
 });
 

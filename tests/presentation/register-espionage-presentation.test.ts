@@ -146,6 +146,17 @@ describe('espionage presentation', () => {
     expect(ctx.deliver).toHaveBeenCalledWith('egypt', expect.any(String), 'warning');
   });
 
+  it('notifies only the attacker when an intel report is acquired (post-#442 audit fix)', () => {
+    const bus = new EventBus();
+    const ctx = makePresentationContext();
+
+    registerEspionagePresentation(bus, ctx);
+    bus.emit('espionage:intel-report-acquired', { civId: 'rome', spyId: 'spy-1', missionType: 'monitor_troops', targetCivId: 'carthage' });
+
+    expect(ctx.deliver).toHaveBeenCalledWith('rome', expect.any(String), 'success');
+    expect(ctx.deliver).not.toHaveBeenCalledWith('carthage', expect.anything(), expect.anything());
+  });
+
   it('disposing removes every subscription this registrar added', () => {
     const bus = new EventBus();
     const ctx = makePresentationContext({
@@ -165,6 +176,7 @@ describe('espionage presentation', () => {
     bus.emit('espionage:courier-intercepted', { civId: 'rome', targetCivId: 'carthage', routeId: 'route-1', fromCityId: 'city-a', toCityId: 'city-a' });
     bus.emit('espionage:official-bribed', { civId: 'rome', targetCivId: 'carthage', amount: 42 });
     bus.emit('espionage:scandal-exposed', { civId: 'rome', targetCivId: 'carthage', partnerCivIds: ['egypt'] });
+    bus.emit('espionage:intel-report-acquired', { civId: 'rome', spyId: 'spy-1', missionType: 'monitor_troops', targetCivId: 'carthage' });
 
     expect(ctx.deliver).not.toHaveBeenCalled();
     expect(ctx.showEspionageCaptureChoice).not.toHaveBeenCalled();

@@ -98,6 +98,10 @@ export function createEspionageCivState(): EspionageCivState {
     activeInterrogations: {},
     recentDetections: [],
     signalsIntelligence: {},
+    troopObservations: {},
+    intelReports: {},
+    resourceReports: {},
+    diplomacyReports: {},
   };
 }
 
@@ -1736,6 +1740,99 @@ export function processEspionageTurn(state: GameState, bus: EventBus): GameState
                 },
               };
               state.espionage![civId] = updatedEsp;
+            }
+          }
+
+          // Post-#442 audit fix: monitor_troops/gather_intel/identify_resources/
+          // monitor_diplomacy compute a real MissionResult above but, before this fix,
+          // never persisted or notified it -- the generic espionage:mission-succeeded
+          // event has no handler anywhere (see EspionageCivState's matching field
+          // comments). Each block below mirrors signals_intercept's persist-then-notify
+          // shape: snapshot on the acting civ's own state (never the target's), overwrite
+          // per target rather than append (a stale report has no value once the target's
+          // state has moved on), then a single attacker-only notification.
+          if (evt.missionType === 'monitor_troops' && result.nearbyUnits) {
+            const originalSpy = civEspBefore.spies[evt.spyId];
+            const targetCivId = originalSpy?.targetCivId;
+            const targetCityId = originalSpy?.targetCityId;
+            if (targetCivId && targetCityId) {
+              updatedEsp = {
+                ...updatedEsp,
+                troopObservations: {
+                  ...(updatedEsp.troopObservations ?? {}),
+                  [targetCityId]: { turn: state.turn, targetCivId, units: result.nearbyUnits },
+                },
+              };
+              state.espionage![civId] = updatedEsp;
+              bus.emit('espionage:intel-report-acquired', {
+                civId, spyId: evt.spyId, missionType: evt.missionType, targetCivId,
+              });
+            }
+          }
+
+          if (evt.missionType === 'gather_intel' && result.techProgress) {
+            const originalSpy = civEspBefore.spies[evt.spyId];
+            const targetCivId = originalSpy?.targetCivId;
+            if (targetCivId) {
+              updatedEsp = {
+                ...updatedEsp,
+                intelReports: {
+                  ...(updatedEsp.intelReports ?? {}),
+                  [targetCivId]: {
+                    turn: state.turn,
+                    completedTechCount: result.techProgress.completed.length,
+                    currentResearch: result.techProgress.currentResearch,
+                    researchProgress: result.techProgress.researchProgress,
+                    treasury: result.treasury ?? 0,
+                    treaties: result.treaties ?? [],
+                  },
+                },
+              };
+              state.espionage![civId] = updatedEsp;
+              bus.emit('espionage:intel-report-acquired', {
+                civId, spyId: evt.spyId, missionType: evt.missionType, targetCivId,
+              });
+            }
+          }
+
+          if (evt.missionType === 'identify_resources' && result.resources) {
+            const originalSpy = civEspBefore.spies[evt.spyId];
+            const targetCivId = originalSpy?.targetCivId;
+            const targetCityId = originalSpy?.targetCityId;
+            if (targetCivId && targetCityId) {
+              updatedEsp = {
+                ...updatedEsp,
+                resourceReports: {
+                  ...(updatedEsp.resourceReports ?? {}),
+                  [targetCityId]: { turn: state.turn, targetCivId, resources: result.resources },
+                },
+              };
+              state.espionage![civId] = updatedEsp;
+              bus.emit('espionage:intel-report-acquired', {
+                civId, spyId: evt.spyId, missionType: evt.missionType, targetCivId,
+              });
+            }
+          }
+
+          if (evt.missionType === 'monitor_diplomacy' && result.relationships) {
+            const originalSpy = civEspBefore.spies[evt.spyId];
+            const targetCivId = originalSpy?.targetCivId;
+            if (targetCivId) {
+              updatedEsp = {
+                ...updatedEsp,
+                diplomacyReports: {
+                  ...(updatedEsp.diplomacyReports ?? {}),
+                  [targetCivId]: {
+                    turn: state.turn,
+                    relationships: result.relationships,
+                    tradePartners: result.tradePartners ?? [],
+                  },
+                },
+              };
+              state.espionage![civId] = updatedEsp;
+              bus.emit('espionage:intel-report-acquired', {
+                civId, spyId: evt.spyId, missionType: evt.missionType, targetCivId,
+              });
             }
           }
 
