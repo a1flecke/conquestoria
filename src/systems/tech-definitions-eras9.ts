@@ -131,9 +131,10 @@ const ERA_9_TECHS: Tech[] = [
     unlocks: ['Global broadcasts coordinate late-era cultural life'], era: 9, countsForEraAdvancement: false },
 
   // ESPIONAGE (2)
-  { id: 'counterintelligence', name: 'Counterintelligence', track: 'espionage', cost: 190,
+  { id: 'counterintelligence', name: 'Counterintelligence', track: 'espionage', cost: 350,
     prerequisites: ['political-intelligence', 'disinformation-bureau'],
-    unlocks: ['Enemy spy missions in your cities suffer -30% success rate; double-agent networks protect secrets', 'Spy mission: intercept a rival empire\'s troop dispositions, empire-wide'], era: 9 },
+    unlocks: ['Enemy spy missions in your cities suffer -30% success rate; double-agent networks protect secrets', 'Spy mission: intercept a rival empire\'s troop dispositions, empire-wide'],
+    unlocksUnits: ['spy_station_chief'], era: 9 },
   { id: 'propaganda-campaigns', name: 'Propaganda Campaigns', track: 'espionage', cost: 270,
     prerequisites: ['disinformation-bureau', 'radio-broadcast'],
     unlocks: ['+2 gold per city with a film studio or radio station; state media shapes public opinion'],

@@ -151,6 +151,28 @@ describe('spy plateau fix — era 7 Intelligence Officer', () => {
   });
 });
 
+describe('spy plateau fix — era 9 Station Chief', () => {
+  it('redirects Intelligence Officer through Station Chief before Hacker', () => {
+    const intelOfficer = TRAINABLE_UNITS.find(unit => unit.type === ('spy_intelligence_officer' as UnitType));
+    const stationChief = TRAINABLE_UNITS.find(unit => unit.type === ('spy_station_chief' as UnitType));
+    const hacker = TRAINABLE_UNITS.find(unit => unit.type === 'spy_hacker');
+
+    expect(intelOfficer).toMatchObject({ obsoletedByTech: 'counterintelligence', upgradesTo: 'spy_station_chief' });
+    expect(stationChief).toMatchObject({
+      cost: 185,
+      techRequired: 'counterintelligence',
+      obsoletedByTech: 'cyber-warfare',
+      upgradesTo: 'spy_hacker',
+    });
+    expect(hacker?.techRequired).toBe('cyber-warfare');
+    expect(UNIT_DEFINITIONS['spy_station_chief' as UnitType]).toMatchObject({
+      strength: 8,
+      movementPoints: 3,
+      visionRange: 4,
+    });
+  });
+});
+
 describe('Beast Handler Company balance envelope', () => {
   it('improves on its hound predecessors without overtaking the Horseman combat role', () => {
     expect(attackerWinRate('beast_handler', 'scout_hound')).toBeGreaterThan(0.9);
