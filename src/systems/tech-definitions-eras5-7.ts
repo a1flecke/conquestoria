@@ -386,7 +386,7 @@ const ERA_7_TECHS: Tech[] = [
     unlocks: ['+1 gold per city connected to your capital by road (max +8); allied civilizations share vision around their cities'], era: 7 },
 
   // ESPIONAGE (2)
-  { id: 'covert-operations', name: 'Covert Operations', track: 'espionage', cost: 145,
+  { id: 'covert-operations', name: 'Covert Operations', track: 'espionage', cost: 265,
     prerequisites: ['counter-espionage', 'propaganda'],
     unlocks: ['+2 spy slots empire-wide; covert missions have +15% success rate', "Spy mission: sabotage a rival's crisis relief"],
     unlocksUnits: ['spy_intelligence_officer'], era: 7 },
