@@ -78,6 +78,10 @@ const HORSEMAN_SFX = {
   death:           real('sfx-horseman-death',          'audio/sfx/horseman-death.ogg',          0.501, 'death'),
 };
 
+const SPY_OPERATIVE_SFX = {
+  death: real('sfx-spy_operative-death', 'audio/sfx/spy_operative-death.ogg', 0.530, 'death'),
+};
+
 const WAR_HOUND_SFX = {
   'attack-swing':  real('sfx-war_hound-attack-swing',  'audio/sfx/war_hound-attack-swing.ogg',  0.474),
   'attack-impact': real('sfx-war_hound-attack-impact', 'audio/sfx/war_hound-attack-impact.ogg', 0.536),
@@ -280,7 +284,12 @@ export const UNIT_SFX: Partial<Record<UnitType, Partial<Record<SfxClass, TrackEn
   spy_scout:     { death: real('sfx-spy_scout-death',     'audio/sfx/spy_scout-death.ogg',     0.600, 'death') },
   spy_informant: { death: real('sfx-spy_informant-death', 'audio/sfx/spy_informant-death.ogg', 0.572, 'death') },
   spy_agent:     { death: real('sfx-spy_agent-death',     'audio/sfx/spy_agent-death.ogg',     0.569, 'death') },
-  spy_operative: { death: real('sfx-spy_operative-death', 'audio/sfx/spy_operative-death.ogg', 0.530, 'death') },
+  spy_operative: SPY_OPERATIVE_SFX,
+  // Temporary reuse of the Operative death cue pending bespoke audio — follow-up issue TBD at
+  // implementation time (open a new issue and replace this comment with its number). Reuses the
+  // same object reference (not a fresh real() call with matching strings) so allSfxEntries()'s
+  // duplicate-id/duplicate-file checks see one shared entry, not two colliding ones.
+  spy_intelligence_officer: SPY_OPERATIVE_SFX,
   spy_hacker:    { death: real('sfx-spy_hacker-death',    'audio/sfx/spy_hacker-death.ogg',    0.183, 'death') },
 
   // === Legendary Beasts — synthesized roars (ffmpeg lavfi, see AUDIO-CREDITS.md) ===
@@ -392,6 +401,7 @@ const LOCOMOTION_CLASS: Record<UnitType, LocomotionClass> = {
   spy_informant: 'humanoid',
   spy_agent:     'humanoid',
   spy_operative: 'humanoid',
+  spy_intelligence_officer: 'humanoid',
   spy_hacker:    'humanoid',
   axeman:        'humanoid',
   spearman:      'humanoid',
