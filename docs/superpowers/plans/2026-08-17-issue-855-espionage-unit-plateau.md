@@ -184,7 +184,7 @@ In `src/systems/unit-system.ts`, after the `spy_operative` line (~line 800), add
   spy_intelligence_officer: 'Senior field spy who runs covert operations against rival powers. Trained to sabotage, steal, and disrupt with greater success than an Operative.',
 ```
 
-- [ ] **Step 8: Add `unlocksUnits` to `covert-operations`**
+- [ ] **Step 8: Add `unlocksUnits` to `covert-operations`, and rebalance its cost**
 
 In `src/systems/tech-definitions-eras5-7.ts`, change:
 ```ts
@@ -194,21 +194,32 @@ In `src/systems/tech-definitions-eras5-7.ts`, change:
 ```
 to:
 ```ts
-  { id: 'covert-operations', name: 'Covert Operations', track: 'espionage', cost: 145,
+  { id: 'covert-operations', name: 'Covert Operations', track: 'espionage', cost: 265,
     prerequisites: ['counter-espionage', 'propaganda'],
     unlocks: ['+2 spy slots empire-wide; covert missions have +15% success rate', "Spy mission: sabotage a rival's crisis relief"],
     unlocksUnits: ['spy_intelligence_officer'], era: 7 },
 ```
+
+**Real balance consequence, found at Task 7's full-suite run — do this cost change now, not as an
+afterthought.** `resolveEraRelativeCostBand`/`getRecommendedTechTurnWindow` in `pacing-model.ts`
+treat any tech with a non-empty `unlocksUnits` as `'marquee'` band, which expects a much longer
+research investment (era 7: 10-16 turns) than `covert-operations` previously needed as a
+modifier-only tech. At the old cost of 145, `tests/systems/pacing-audit.test.ts`'s full-catalog
+outlier gate correctly flags it as "Faster than target window" (completes in 8 turns). The fix is
+not a workaround — `getRecommendedTechCost(tech)` (the same function the audit uses) returns 265
+for this exact tech shape, so that's the number to use, not something to hand-tune. **This cost
+floor applies to any tech that unlocks a unit, regardless of whether it's a brand-new tech or an
+existing one being reused** — piggybacking doesn't avoid it.
 
 - [ ] **Step 9: Run the chain-integrity test again**
 
 Run: `bash scripts/run-with-mise.sh yarn test --run tests/systems/unit-chain-integrity.test.ts`
 Expected: PASS
 
-- [ ] **Step 10: Run tech-unlocks-consistency and city-system icon-coverage tests**
+- [ ] **Step 10: Run tech-unlocks-consistency, city-system, and pacing-audit tests**
 
-Run: `bash scripts/run-with-mise.sh yarn test --run tests/systems/tech-unlocks-consistency.test.ts tests/systems/city-system.test.ts`
-Expected: PASS (these are generic completeness tests — Steps 5 and 8 are what makes them pass)
+Run: `bash scripts/run-with-mise.sh yarn test --run tests/systems/tech-unlocks-consistency.test.ts tests/systems/city-system.test.ts tests/systems/pacing-audit.test.ts`
+Expected: PASS (these are generic completeness/balance tests — Steps 5 and 8 are what makes them pass, including the cost 265 from Step 8's correction)
 
 - [ ] **Step 11: Commit**
 
@@ -826,7 +837,7 @@ In `src/systems/unit-system.ts`, after the `spy_intelligence_officer` block, add
   spy_station_chief: 'Veteran spy commanding an intelligence network. Runs the most demanding covert operations with better odds than an Intelligence Officer.',
 ```
 
-- [ ] **Step 8: Add `unlocksUnits` to `counterintelligence`**
+- [ ] **Step 8: Add `unlocksUnits` to `counterintelligence`, and rebalance its cost**
 
 In `src/systems/tech-definitions-eras9.ts`, change:
 ```ts
@@ -836,11 +847,18 @@ In `src/systems/tech-definitions-eras9.ts`, change:
 ```
 to:
 ```ts
-  { id: 'counterintelligence', name: 'Counterintelligence', track: 'espionage', cost: 190,
+  { id: 'counterintelligence', name: 'Counterintelligence', track: 'espionage', cost: 350,
     prerequisites: ['political-intelligence', 'disinformation-bureau'],
     unlocks: ['Enemy spy missions in your cities suffer -30% success rate; double-agent networks protect secrets', 'Spy mission: intercept a rival empire\'s troop dispositions, empire-wide'],
     unlocksUnits: ['spy_station_chief'], era: 9 },
 ```
+
+**Same pacing consequence as Phase 1 Task 1 Step 8** — `unlocksUnits` reclassifies this tech to
+`'marquee'` band too. Verified directly against `getRecommendedTechCost` with a hypothetical
+`unlocksUnits: ['spy_station_chief']` shape before Phase 2 began: recommended cost is 350 (up
+from 190). Re-verify with the same method at execution time in case the tech tree has shifted
+since — don't trust this number blindly if other Phase 1/2-independent techs changed in between
+(`.claude/rules/spec-fidelity.md`).
 
 - [ ] **Step 9: Remove `spy_intelligence_officer`'s now-stale `terminalReason`**
 
@@ -861,7 +879,7 @@ obsoletedByTech (no contradictory entries)'`. Delete the `terminalReason` line, 
 
 - [ ] **Step 10: Run tests to verify they pass**
 
-Run: `bash scripts/run-with-mise.sh yarn test --run tests/systems/unit-chain-integrity.test.ts tests/systems/tech-unlocks-consistency.test.ts tests/systems/city-system.test.ts`
+Run: `bash scripts/run-with-mise.sh yarn test --run tests/systems/unit-chain-integrity.test.ts tests/systems/tech-unlocks-consistency.test.ts tests/systems/city-system.test.ts tests/systems/pacing-audit.test.ts`
 Expected: PASS
 
 - [ ] **Step 11: Commit**

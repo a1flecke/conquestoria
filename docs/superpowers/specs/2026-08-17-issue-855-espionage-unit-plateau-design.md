@@ -197,7 +197,14 @@ only one spy tier is ever visible in the build queue at a time.
 **Verification gates** (pre-existing tests that must pass, not new code)
 31. `unit-chain-integrity.test.ts` — era-ordering check
 32. `pacing-audit.test.ts` — full-catalog cost-outlier scan now includes the new costs
-    (140/185); adjust if flagged, per `.claude/rules/game-balance.md`
+    (140/185); adjust if flagged, per `.claude/rules/game-balance.md`. **Confirmed during Phase 1
+    implementation:** adding `unlocksUnits` to `covert-operations` and `counterintelligence`
+    reclassifies both to the `'marquee'` pacing band (`resolveEraRelativeCostBand` in
+    `pacing-model.ts`), which expects far more research investment than either tech needed as a
+    modifier-only tech. Both techs' costs had to be raised to the audit's own recommended values —
+    `covert-operations` 145→265, `counterintelligence` 190→350 — this is a required, non-optional
+    part of the change, not a follow-up. This cost floor applies to any tech that unlocks a unit,
+    whether reused or newly created, so gating on an existing tech never avoided this consequence.
 33. `tech-unlocks-consistency.test.ts`
 
 ## PR split
