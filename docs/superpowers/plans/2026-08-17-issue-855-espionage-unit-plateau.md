@@ -409,7 +409,8 @@ git commit -m "feat(espionage): surface Intelligence Officer's upgrade via publi
 **Files:**
 - Modify: `src/renderer/sprites/units.tsx` (new `SpyIntelligenceOfficerSprite`)
 - Modify: `src/renderer/sprites/sprite-catalog.ts` (`UNIT_MOTION_STYLES`, `UNIT_SPRITE_CATALOG`)
-- Modify: `src/renderer/unit-renderer.ts`, `src/renderer/unit-visual-resolver.ts` (`FALLBACK_ICONS`)
+- Modify: `src/renderer/unit-visual-resolver.ts` (`FALLBACK_ICONS` — `unit-renderer.ts` itself has no
+  icon map of its own, see the correction note at Step 5)
 - Test: `tests/renderer/sprites/v2/index.test.ts` (existing, must pass — no new test needed, see rationale below)
 
 **Interfaces:**
@@ -462,23 +463,26 @@ Add `SpyIntelligenceOfficerSprite` to the existing import from `./units` at the 
 Run: `bash scripts/run-with-mise.sh yarn test --run tests/renderer/sprites/v2/index.test.ts`
 Expected: PASS — the generic loop over `UNIT_SPRITE_CATALOG` now includes `spy_intelligence_officer` and confirms `getUnitSpriteV2('spy_intelligence_officer', 'imperials')` is non-null via the live-fallback path.
 
-- [ ] **Step 5: Add `unit-renderer.ts` icon**
+- [ ] **Step 5: Add `FALLBACK_ICONS` entry**
 
-In `src/renderer/unit-renderer.ts`, find the spy icon block (matches the pattern used for `spy_operative`) and add an entry for `spy_intelligence_officer` using the same emoji as `PRODUCTION_ICONS` (`'🗂️'`), following whatever local convention that file uses for existing spy entries (mirror the exact line shape already used for `spy_operative` in that file).
+**Correction found during execution:** `unit-renderer.ts` has no icon map of its own — it
+delegates entirely to `resolveUnitVisual` in `unit-visual-resolver.ts`. The original design doc
+(inherited from the hand-off doc) listed a separate `unit-renderer.ts` edit that doesn't exist;
+only `FALLBACK_ICONS` needs an entry.
 
-- [ ] **Step 6: Add `FALLBACK_ICONS` entry**
-
-In `src/renderer/unit-visual-resolver.ts`, after `spy_operative: '🎯',` (~line 82), add:
+In `src/renderer/unit-visual-resolver.ts`, after `spy_operative: '🕵️',` (~line 81), add:
 ```ts
-  spy_intelligence_officer: '🗂️',
+  spy_intelligence_officer: '🕵️',
 ```
+(Matches this map's own local convention — `spy_agent`/`spy_informant`/`spy_operative` all
+collapse to the same generic detective emoji here, unlike `PRODUCTION_ICONS`'s per-tier icons.)
 
 (This map is `Record<UnitType, string>` — TypeScript will fail `yarn build` if this is skipped, so it is self-verifying; no dedicated test needed beyond the build step in Task 6.)
 
-- [ ] **Step 7: Commit**
+- [ ] **Step 6: Commit**
 
 ```bash
-git add src/renderer/sprites/units.tsx src/renderer/sprites/sprite-catalog.ts src/renderer/unit-renderer.ts src/renderer/unit-visual-resolver.ts tests/renderer/sprites/v2/index.test.ts
+git add src/renderer/sprites/units.tsx src/renderer/sprites/sprite-catalog.ts src/renderer/unit-visual-resolver.ts
 git commit -m "feat(espionage): add Intelligence Officer sprite and icon wiring"
 ```
 
@@ -948,7 +952,7 @@ git commit -m "feat(espionage): surface Station Chief's upgrade via publicFacts"
 
 ### Task 4: Sprite and icon rendering
 
-**Files:** `src/renderer/sprites/units.tsx`, `src/renderer/sprites/sprite-catalog.ts`, `src/renderer/unit-renderer.ts`, `src/renderer/unit-visual-resolver.ts`
+**Files:** `src/renderer/sprites/units.tsx`, `src/renderer/sprites/sprite-catalog.ts`, `src/renderer/unit-visual-resolver.ts`
 
 - [ ] **Step 1: Add the sprite component**
 
@@ -990,19 +994,21 @@ Add `SpyStationChiefSprite` to the import from `./units`.
 Run: `bash scripts/run-with-mise.sh yarn test --run tests/renderer/sprites/v2/index.test.ts`
 Expected: PASS (same live-fallback rationale as Phase 1 Task 4 — no `.svg.ts` file or `v2/index.ts` edit needed)
 
-- [ ] **Step 4: Add `unit-renderer.ts` icon and `FALLBACK_ICONS` entry**
+- [ ] **Step 4: Add `FALLBACK_ICONS` entry**
 
-In `src/renderer/unit-renderer.ts`, mirror the `spy_intelligence_officer` entry with `'🧭'`.
-
-In `src/renderer/unit-visual-resolver.ts`:
+`unit-renderer.ts` has no icon map of its own (see Phase 1 Task 4's correction note) — only
+`unit-visual-resolver.ts` needs an entry:
 ```ts
-  spy_station_chief: '🧭',
+  spy_station_chief: '🕵️',
 ```
+(Matching `FALLBACK_ICONS`'s own local convention of collapsing spy tiers to one generic icon,
+same as Phase 1's `spy_intelligence_officer` entry — not `'🧭'`, which was this plan's original,
+uncorrected guess before Phase 1 execution found the actual convention.)
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add src/renderer/sprites/units.tsx src/renderer/sprites/sprite-catalog.ts src/renderer/unit-renderer.ts src/renderer/unit-visual-resolver.ts tests/renderer/sprites/v2/index.test.ts
+git add src/renderer/sprites/units.tsx src/renderer/sprites/sprite-catalog.ts src/renderer/unit-visual-resolver.ts
 git commit -m "feat(espionage): add Station Chief sprite and icon wiring"
 ```
 
