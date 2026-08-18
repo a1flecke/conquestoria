@@ -70,6 +70,7 @@ export const UNIT_CLASS_BY_TYPE: Record<UnitType, UnitClass[]> = {
   spy_informant: ['spy'],
   spy_agent: ['spy'],
   spy_operative: ['spy'],
+  spy_intelligence_officer: ['spy'],
   spy_hacker: ['spy'],
   scout_hound: ['recon'],
   shadow_warden: ['recon'],

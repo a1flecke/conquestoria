@@ -136,6 +136,21 @@ describe('spy lifecycle integration', () => {
     expect(spies[0].id).toBe(units[0].id);
   });
 
+  it('trains spy_intelligence_officer and creates matching Spy record with same id', () => {
+    const state = makeBaseState();
+    state.cities['city-player'].productionQueue = ['spy_intelligence_officer'];
+    state.civilizations.player.techState.completed = ['covert-operations'];
+    const bus = new EventBus();
+    const newState = processTurn(state, bus);
+
+    const units = Object.values(newState.units).filter(u => u.type === 'spy_intelligence_officer');
+    expect(units).toHaveLength(1);
+
+    const spies = Object.values(newState.espionage!['player'].spies);
+    expect(spies).toHaveLength(1);
+    expect(spies[0].id).toBe(units[0].id);
+  });
+
   it('new Spy record has status idle and owner player', () => {
     const state = makeBaseState();
     const bus = new EventBus();
