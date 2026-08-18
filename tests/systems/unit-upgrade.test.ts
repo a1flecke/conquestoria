@@ -66,6 +66,15 @@ describe('canUpgradeUnit', () => {
     expect(result.targetType).toBe('spy_intelligence_officer');
     expect(result.cost).toBe(70); // 50% of Intelligence Officer's 140 production cost
   });
+
+  it('allows upgrading an Intelligence Officer to a Station Chief once counterintelligence is researched', () => {
+    const unit = makeUnit('spy_intelligence_officer', { q: 0, r: 0 });
+    const city = { id: 'c1', owner: 'player', position: { q: 0, r: 0 } } as any;
+    const result = canUpgradeUnit(unit, 'c1', { 'c1': city }, ['covert-operations', 'counterintelligence'], 200);
+    expect(result.canUpgrade).toBe(true);
+    expect(result.targetType).toBe('spy_station_chief');
+    expect(result.cost).toBe(93); // ceil(50% of Station Chief's 185 production cost)
+  });
 });
 
 describe('explicit upgrade chains', () => {
