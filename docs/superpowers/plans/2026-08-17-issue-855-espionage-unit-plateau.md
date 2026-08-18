@@ -516,11 +516,31 @@ Expected: FAIL on `'every spy type has a death entry'` — `UNIT_SFX['spy_intell
 
 - [ ] **Step 3: Add a temporary reused death SFX entry**
 
-In `src/audio/sfx-catalog.ts`, after the `spy_operative` line in the spy-types block (~line 283), add:
+**Correction found during execution:** a fresh `real('sfx-spy_operative-death', ...)` call with
+the same id/file strings as `spy_operative`'s entry is a *different object* with matching string
+values — this passes `allSfxEntries()`'s reference-based dedup (`Set<TrackEntry>`, checked by
+identity) but then fails two separate completeness tests that check id/file **string** uniqueness
+across all entries (`'no two entries share the same ID'`, `'no two entries share the same file
+path'`), plus a hardcoded total-count test (`allSfxEntries()` returns exactly N entries — bump
+this by the delta if it doesn't already account for reused entries). The correct pattern, already
+used by `chariot: HORSEMAN_SFX` in this same file, is to reuse the *same object reference*: extract
+a small named const and point both unit-type keys at it.
+
+In `src/audio/sfx-catalog.ts`, add a new const near `HORSEMAN_SFX` (~line 75):
 ```ts
+const SPY_OPERATIVE_SFX = {
+  death: real('sfx-spy_operative-death', 'audio/sfx/spy_operative-death.ogg', 0.530, 'death'),
+};
+```
+Then in the spy-types block (~line 283), change `spy_operative`'s entry to use it and add
+`spy_intelligence_officer` pointing at the same reference:
+```ts
+  spy_operative: SPY_OPERATIVE_SFX,
   // Temporary reuse of the Operative death cue pending bespoke audio — follow-up issue TBD at
-  // implementation time (open a new issue and replace this comment with its number).
-  spy_intelligence_officer: { death: real('sfx-spy_operative-death', 'audio/sfx/spy_operative-death.ogg', 0.530, 'death') },
+  // implementation time (open a new issue and replace this comment with its number). Reuses the
+  // same object reference (not a fresh real() call with matching strings) so allSfxEntries()'s
+  // duplicate-id/duplicate-file checks see one shared entry, not two colliding ones.
+  spy_intelligence_officer: SPY_OPERATIVE_SFX,
 ```
 
 - [ ] **Step 4: Add the locomotion tag**
@@ -1030,10 +1050,15 @@ Run: `bash scripts/run-with-mise.sh yarn test --run tests/audio/sfx-catalog.test
 
 - [ ] **Step 3: Add the SFX and locomotion entries**
 
+Reuse the `SPY_OPERATIVE_SFX` object reference introduced in Phase 1 Task 5 — not a fresh `real()`
+call — for the same reason documented there (`allSfxEntries()`'s duplicate-id/duplicate-file
+checks are string-based across distinct object references):
 ```ts
-  // Temporary reuse of the Intelligence Officer death cue pending bespoke audio — same
-  // follow-up as spy_intelligence_officer's own temporary reuse comment above.
-  spy_station_chief: { death: real('sfx-spy_operative-death', 'audio/sfx/spy_operative-death.ogg', 0.530, 'death') },
+  spy_operative: SPY_OPERATIVE_SFX,
+  spy_intelligence_officer: SPY_OPERATIVE_SFX,
+  // Temporary reuse of the Operative death cue pending bespoke audio — same follow-up as
+  // spy_intelligence_officer's own temporary reuse comment above.
+  spy_station_chief: SPY_OPERATIVE_SFX,
 ```
 ```ts
   spy_station_chief: 'humanoid',
