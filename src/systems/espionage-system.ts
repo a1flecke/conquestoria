@@ -36,8 +36,34 @@ const SPY_NAMES = [
 
 // --- Mission difficulty config ---
 
-// counter_espionage is passive (assignSpyDefensive) and not a startable mission
-const MISSION_BASE_SUCCESS = {
+// Review finding (see "does this prevent future problems of this type"): the three
+// tables below were previously `const X = {...} as Record<SpyMissionType, number>` — an
+// `as` cast does NOT make TypeScript verify every union member is present (unlike a real
+// type annotation), so a new SpyMissionType could silently ship without an entry here and
+// nothing would fail to compile. Converting to real annotations immediately caught a
+// real, pre-existing gap: counter_espionage was missing from all three.
+//
+// counter_espionage genuinely does not belong in these tables — it is not a startable,
+// resolvable mission at all: getAvailableMissions()'s STAGE_3_MISSIONS list omits it, and
+// every real caller of startMission (the panel's mission catalog, and both AI
+// mission-selection paths in basic-ai.ts) draws exclusively from getAvailableMissions(),
+// so it can never reach getSpySuccessChance/getMissionDuration/the XP-award path at
+// runtime -- confirmed by tracing every call site, not assumed. Its own
+// `resolveMissionResult` case below just `return {}` (see that case's comment for what
+// the player-facing defensive-embed action actually does instead).
+// Rather than inventing a fictional success%/duration/XP value for a mission that has no
+// real one (which would look like tuned balance data to the next reader), the type itself
+// excludes it: these tables are typed over OffensiveMissionType, and
+// getSpySuccessChance/getMissionDuration guard counter_espionage explicitly at their
+// single call each, rather than indexing a table that was never meant to describe it.
+//
+// MISSION_BASE_SUCCESS is exported so Object.keys(...) is a guaranteed-complete,
+// zero-maintenance enumeration of every mission that actually flows through the
+// offensive mission_succeeded pipeline, for the completeness test below ("every current
+// mission type is explicitly classified").
+type OffensiveMissionType = Exclude<SpyMissionType, 'counter_espionage'>;
+
+export const MISSION_BASE_SUCCESS: Record<OffensiveMissionType, number> = {
   scout_area: 0.90,
   monitor_troops: 0.85,
   gather_intel: 0.70,
@@ -60,9 +86,9 @@ const MISSION_BASE_SUCCESS = {
   bribe_official: 0.45, // #442 MR1: harder than intercept_courier — direct treasury theft, comparable to assassinate_advisor
   expose_scandal: 0.50, // #442 MR2: comparable to steal_tech — mid-tier social/intel operation
   signals_intercept: 0.60, // #442 MR2: comparable to satellite_surveillance — passive intel, no disruption
-} as Record<SpyMissionType, number>;
+};
 
-const MISSION_DURATIONS = {
+const MISSION_DURATIONS: Record<OffensiveMissionType, number> = {
   scout_area: 1,
   monitor_troops: 2,
   gather_intel: 3,
@@ -85,7 +111,7 @@ const MISSION_DURATIONS = {
   bribe_official: 5, // #442 MR1: matches forge_documents — a slow social build, not a snap action
   expose_scandal: 6, // #442 MR2: between forge_documents (5) and flip_loyalty (8) — more research/setup than a simple frame job
   signals_intercept: 2, // #442 MR2: matches cyber_attack's tier — quick remote intel snapshot
-} as Record<SpyMissionType, number>;
+};
 
 // --- State creation ---
 
@@ -114,7 +140,14 @@ export function getSpySuccessChance(
   promotion?: SpyPromotion,
   modifierDelta: number = 0,
 ): number {
-  const base = MISSION_BASE_SUCCESS[missionType as keyof typeof MISSION_BASE_SUCCESS] ?? 0.5;
+  // counter_espionage is not a resolvable mission with a success roll -- see
+  // MISSION_BASE_SUCCESS's comment. This function's parameter stays the full
+  // SpyMissionType since real callers pass mission-type variables generically, but every
+  // one of them draws from getAvailableMissions(), which excludes counter_espionage, so
+  // this branch is never actually reached at runtime. 0 documents "not applicable"
+  // explicitly rather than silently falling back to a fabricated number.
+  if (missionType === 'counter_espionage') return 0;
+  const base = MISSION_BASE_SUCCESS[missionType];
   const expBonus = spyExperience * 0.003;     // +0.3% per XP point, max +30%
   const ciPenalty = counterIntel * 0.004;      // -0.4% per CI point, max -40%
 
@@ -197,6 +230,10 @@ export function getEspionageModifierBreakdown(
 }
 
 export function getMissionDuration(missionType: SpyMissionType): number {
+  // counter_espionage has no countdown to resolve -- see MISSION_BASE_SUCCESS's comment.
+  // Never actually reached (getAvailableMissions() excludes it from every real caller),
+  // but explicit rather than an unsafe table index.
+  if (missionType === 'counter_espionage') return 0;
   return MISSION_DURATIONS[missionType];
 }
 
@@ -502,7 +539,7 @@ const HANDLER_MISSIONS = new Set<SpyMissionType>([
 // through to Sentinel, the same as those, rather than joining either bucket above.
 // Sentinel: everything else (intel, scouting, defensive)
 
-const XP_PER_MISSION = {
+const XP_PER_MISSION: Record<OffensiveMissionType, number> = {
   scout_area: 5,
   monitor_troops: 5,
   gather_intel: 10,
@@ -525,7 +562,15 @@ const XP_PER_MISSION = {
   bribe_official: 16, // #442 MR1: matches election_interference's tier — high-value theft
   expose_scandal: 16, // #442 MR2: matches bribe_official's tier — high-value multilateral effect
   signals_intercept: 10, // #442 MR2: matches gather_intel's tier — informational, not disruptive
-} as Record<SpyMissionType, number>;
+};
+
+// counter_espionage never grants mission XP through this path -- see
+// MISSION_BASE_SUCCESS's comment. Never actually reached (getAvailableMissions()
+// excludes it from every real caller), but explicit rather than an unsafe table index.
+function getMissionXp(missionType: SpyMissionType): number {
+  if (missionType === 'counter_espionage') return 0;
+  return XP_PER_MISSION[missionType];
+}
 
 const EXPULSION_COOLDOWN = 5;
 
@@ -599,7 +644,7 @@ export function processSpyTurn(
 
         if (roll < successChance) {
           // Success
-          updated.experience = Math.min(100, updated.experience + Math.round(XP_PER_MISSION[mission.type] * xpMultiplier));
+          updated.experience = Math.min(100, updated.experience + Math.round(getMissionXp(mission.type) * xpMultiplier));
           updated.status = 'stationed';
           updated.currentMission = null;
           events.push({
@@ -860,8 +905,17 @@ export function resolveMissionResult(
       return { flippedCityId: targetCityId, flippedFromCivId: targetCivId };
     }
 
+    // Review finding: this comment previously read "handled by assignSpyDefensive" — no
+    // function by that name exists in this file. The actual player-facing defensive
+    // posture is embedSpy (raises counterIntelligence[cityId] directly, sets spy.status
+    // to 'embedded', never touches currentMission or this SpyMissionType at all). This
+    // case, resolveMissionResult itself being called for 'counter_espionage', and
+    // startMission accepting it are all currently unreachable: getAvailableMissions()'s
+    // STAGE_3_MISSIONS omits it from every catalog/AI-selection path (see
+    // MISSION_BASE_SUCCESS's comment). Left in place rather than removed as dead code —
+    // that cleanup is unrelated to this fix's scope.
     case 'counter_espionage': {
-      return {}; // passive — handled by assignSpyDefensive
+      return {};
     }
 
     // intercept_courier (#442 MR1): pick the highest-value route touching the target
