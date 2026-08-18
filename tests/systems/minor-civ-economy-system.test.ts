@@ -304,7 +304,8 @@ describe('minor-civ hidden production', () => {
 });
 
 describe('#855 — spy unit exclusion from minor-civ defense catalog', () => {
-  it('never treats the new spy tier as a safe minor-civ defensive unit', () => {
+  it('never treats either new spy tier as a safe minor-civ defensive unit', () => {
     expect(SAFE_MINOR_CIV_UNIT_TYPES.has('spy_intelligence_officer')).toBe(false);
+    expect(SAFE_MINOR_CIV_UNIT_TYPES.has('spy_station_chief')).toBe(false);
   });
 });
