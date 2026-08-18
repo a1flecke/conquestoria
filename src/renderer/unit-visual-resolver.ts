@@ -80,6 +80,7 @@ const FALLBACK_ICONS: Record<UnitType, string> = {
   spy_agent: '🕵️',
   spy_operative: '🕵️',
   spy_intelligence_officer: '🕵️',
+  spy_station_chief: '🕵️',
   spy_hacker: '💻',
   scout_hound: '🐕',
   shadow_warden: '🦅',
