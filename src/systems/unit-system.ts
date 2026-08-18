@@ -175,6 +175,11 @@ const UNIT_DEFINITION_BASES: Record<UnitType, UnitDefinitionBase> = {
     visionRange: 3, strength: 6, canFoundCity: false,
     canBuildImprovements: false, productionCost: 90,
   },
+  spy_intelligence_officer: {
+    type: 'spy_intelligence_officer', name: 'Intelligence Officer', movementPoints: 3,
+    visionRange: 3, strength: 7, canFoundCity: false,
+    canBuildImprovements: false, productionCost: 140,
+  },
   spy_hacker: {
     type: 'spy_hacker', name: 'Cyber Operative', movementPoints: 2,
     visionRange: 2, strength: 5, canFoundCity: false,
@@ -798,6 +803,7 @@ export const UNIT_DESCRIPTIONS: Record<UnitType, string> = {
   spy_informant: 'Experienced informant. Infiltrates cities for multi-turn intelligence operations. Unlocks disguise.',
   spy_agent: 'Skilled field operative. Conducts sabotage, tech theft, and disruption missions.',
   spy_operative: 'Elite spy. Capable of high-stakes operations — assassination, forgery, arms smuggling.',
+  spy_intelligence_officer: 'Senior field spy who runs covert operations against rival powers. Trained to sabotage, steal, and disrupt with greater success than an Operative.',
   spy_hacker: 'Cyber operative. Remote and digital warfare missions; hardest to detect.',
   scout_hound: 'Detection unit. Patrols territory and has a 35% chance per turn to reveal disguised or stealthed spy units within vision range.',
   shadow_warden: 'Elite detection unit. 50% chance per turn to reveal disguised spies within vision range. Favored by intelligence-focused civilizations.',

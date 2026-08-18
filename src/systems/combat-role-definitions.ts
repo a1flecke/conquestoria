@@ -92,6 +92,11 @@ export const UNIT_ROLE_DEFINITIONS = {
   spy_informant: civilian('Experienced spy that maintains intelligence operations in cities.', ['espionage'], 'espionage'),
   spy_agent: civilian('Field spy that sabotages, steals technology, and disrupts rivals.', ['espionage'], 'espionage'),
   spy_operative: civilian('Elite spy that performs high-stakes covert operations.', ['espionage'], 'espionage'),
+  spy_intelligence_officer: role('civilian', 'Senior spy that runs covert operations with better odds than an Operative.', ['espionage'], {
+    counters: [], vulnerableTo: [],
+    upgradeFamily: 'espionage',
+    terminalReason: 'No further upgrade currently available.',
+  }),
   spy_hacker: role('formation-support', 'Cyber spy that conducts remote operations against rival infrastructure.', ['espionage'], { counters: [], vulnerableTo: ['frontline', 'ranged'], upgradeFamily: 'espionage', terminalReason: 'Terminal tier of the espionage chain with no later replacement.' }),
   scout_hound: role('detection', 'Detection scout that reveals disguised spies while patrolling territory.', ['detection', 'frontline'], { counters: ['formation-support'], vulnerableTo: ['ranged'], upgradeFamily: 'detection' }),
   shadow_warden: role('detection', 'Elite detection scout that reveals disguised spies more reliably.', ['detection', 'frontline'], { counters: ['formation-support'], vulnerableTo: ['ranged'], upgradeFamily: 'detection', terminalReason: 'Persian detection replacement with no separate successor chain.' }),
