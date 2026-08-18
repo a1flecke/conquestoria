@@ -891,6 +891,22 @@ export function SpyIntelligenceOfficerSprite({ palette, svgOnly = false }: UnitS
   });
 }
 
+export function SpyStationChiefSprite({ palette, svgOnly = false }: UnitSpriteProps): string {
+  return spyBase({
+    palette,
+    svgOnly,
+    cloak: '#101014',
+    hat: <path d="M-12,-41 Q0,-47 12,-41 L12,-30 L-12,-30 Z M-15,-30 L15,-30 L15,-28 L-15,-28 Z" fill="#0a0a10" />,
+    gadget: (
+      <g transform="translate(81 57)">
+        <rect x="-6" y="-7" width="12" height="10" rx="1" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.6" />
+        <rect x="-6" y="-7" width="12" height="3" fill={palette.bright} opacity="0.7" />
+        <circle cx="0" cy="1" r="1.4" fill={P.metal.shine} stroke={P.ink.line} strokeWidth="0.4" />
+      </g>
+    ),
+  });
+}
+
 export function SpyHackerSprite({ palette, svgOnly = false }: UnitSpriteProps): string {
   return spyBase({
     palette,
