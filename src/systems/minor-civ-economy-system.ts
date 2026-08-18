@@ -75,6 +75,7 @@ const UNSAFE_UNIT_TYPES = new Set<UnitType>([
   'spy_agent',
   'spy_operative',
   'spy_intelligence_officer',
+  'spy_station_chief',
   'spy_hacker',
   'caravan',
   'expedition',
