@@ -1631,7 +1631,7 @@ describe('core type additions MR1', () => {
 });
 
 describe('spy unit definitions', () => {
-  const SPY_TYPES = ['spy_scout','spy_informant','spy_agent','spy_operative','spy_intelligence_officer','spy_hacker'] as const;
+  const SPY_TYPES = ['spy_scout','spy_informant','spy_agent','spy_operative','spy_intelligence_officer','spy_station_chief','spy_hacker'] as const;
 
   for (const t of SPY_TYPES) {
     it(`UNIT_DEFINITIONS has entry for ${t}`, async () => {

@@ -308,4 +308,22 @@ describe('spy lifecycle integration', () => {
     expect(playerTrainable.some(u => u.type === 'spy_intelligence_officer')).toBe(true);
     expect(aiTrainable.some(u => u.type === 'spy_intelligence_officer')).toBe(false);
   });
+
+  it('only the researching civ gets Station Chief access — hot-seat parity', () => {
+    const state = makeBaseState();
+    state.civilizations.player.techState.completed = ['counterintelligence'];
+    state.civilizations['ai-1'] = {
+      ...state.civilizations.player,
+      id: 'ai-1', name: 'AI', cities: ['city-ai'],
+      techState: { ...state.civilizations.player.techState, completed: [] },
+    };
+    state.cities['city-ai'] = { ...state.cities['city-player'], id: 'city-ai', owner: 'ai-1', productionQueue: [] };
+    state.espionage!['ai-1'] = { ...createEspionageCivState(), maxSpies: 2 };
+
+    const playerTrainable = getTrainableUnitsForCiv(state.civilizations.player.techState.completed);
+    const aiTrainable = getTrainableUnitsForCiv(state.civilizations['ai-1'].techState.completed);
+
+    expect(playerTrainable.some(u => u.type === 'spy_station_chief')).toBe(true);
+    expect(aiTrainable.some(u => u.type === 'spy_station_chief')).toBe(false);
+  });
 });
