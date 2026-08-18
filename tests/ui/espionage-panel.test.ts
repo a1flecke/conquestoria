@@ -850,6 +850,27 @@ describe('espionage-panel', () => {
       expect(collectText(findAll(panel, el => el.dataset?.section === 'diplomacy-reports')[0])).toContain('No diplomatic intelligence gathered yet.');
     });
 
+    // UX review finding: 5 independent top-level intel sections (signals + 4 new ones)
+    // would mean 12 stacked sections on an already-long panel, most showing an empty
+    // placeholder in the common early-game case. Locks in that all five nest under one
+    // "Intelligence Reports" parent instead of appearing as siblings of it.
+    it('nests all five intelligence-snapshot sections under one Intelligence Reports group', () => {
+      const state = makeEspUiState();
+      const panel = createEspionagePanel(state) as unknown;
+      const group = findAll(panel, el => el.dataset?.section === 'intelligence-reports')[0];
+      expect(group).toBeDefined();
+      expect(collectText(group)).toContain('Intelligence Reports');
+      for (const child of ['signals-intelligence', 'troop-reports', 'intel-reports', 'resource-reports', 'diplomacy-reports']) {
+        expect(findAll(group, el => el.dataset?.section === child)).toHaveLength(1);
+      }
+      // These five must NOT also appear as direct top-level siblings of the group.
+      const topLevelSections = (panel as { children: Array<{ dataset?: Record<string, string> }> }).children
+        .map(child => child.dataset?.section)
+        .filter(Boolean);
+      expect(topLevelSections).not.toContain('signals-intelligence');
+      expect(topLevelSections).not.toContain('troop-reports');
+    });
+
     it('renders a close button for the panel shell', () => {
       const state = makeEspUiState();
       const panel = createEspionagePanel(state) as unknown;
