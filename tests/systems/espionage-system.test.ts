@@ -1390,6 +1390,218 @@ describe('era 8-9 missions — expose_scandal and signals_intercept (#442 MR2)',
   });
 });
 
+// Post-#442 audit fix: monitor_troops/gather_intel/identify_resources/monitor_diplomacy
+// already computed a real MissionResult in resolveMissionResult (see the fixed-shape
+// unit tests above), but the result was discarded after espionage:mission-succeeded
+// fired — no handler anywhere ever read it. This block mirrors the "signals_intercept
+// end-to-end resolution" pattern above (same 200-turn success-hunting loop, since
+// success is a genuine probabilistic roll) for the four missions that were fixed to
+// match.
+describe('informational mission report persistence (post-#442 audit fix)', () => {
+  function makeInformationalMissionFixture() {
+    let state = createNewGame(undefined, 'informational-mission-e2e', 'small');
+    const targetCivId = Object.keys(state.civilizations).find(id => id !== 'player')!;
+    const targetUnitId = state.civilizations[targetCivId].units[0];
+    const startPos = state.units[targetUnitId].position;
+    const city = foundCity(targetCivId, startPos, state.map, state.idCounters);
+    const resourceTileKey = `${startPos.q},${startPos.r}`;
+    const existingTile = state.map.tiles[resourceTileKey];
+    state = {
+      ...state,
+      map: {
+        ...state.map,
+        tiles: {
+          ...state.map.tiles,
+          [resourceTileKey]: {
+            ...(existingTile ?? {
+              coord: startPos, terrain: 'plains', elevation: 'lowland', improvement: 'none',
+              owner: targetCivId, improvementTurnsLeft: 0, hasRiver: false, wonder: null,
+            }),
+            resource: 'iron',
+          },
+        },
+      },
+      cities: {
+        ...state.cities,
+        [city.id]: { ...city, ownedTiles: [startPos] },
+      },
+      civilizations: {
+        ...state.civilizations,
+        [targetCivId]: {
+          ...state.civilizations[targetCivId],
+          cities: [city.id],
+          gold: 250,
+          diplomacy: {
+            ...state.civilizations[targetCivId].diplomacy,
+            treaties: [
+              { type: 'trade_agreement' as const, civA: targetCivId, civB: 'third-civ', turnsRemaining: -1 },
+            ],
+          },
+        },
+        'third-civ': {
+          ...state.civilizations.player,
+          id: 'third-civ',
+          name: 'Third Civ',
+          diplomacy: { ...createDiplomacyState([targetCivId, 'third-civ', 'player'], 'third-civ') },
+        },
+      },
+      espionage: {
+        player: {
+          ...createEspionageCivState(),
+          spies: {
+            'spy-1': makeTestSpy('spy-1', 'player', {
+              status: 'stationed', targetCivId, targetCityId: city.id, position: city.position,
+            }),
+          },
+        },
+        [targetCivId]: createEspionageCivState(),
+        'third-civ': createEspionageCivState(),
+      },
+    };
+    return { state, targetCivId, cityId: city.id };
+  }
+
+  type Acquired = { civId: string; spyId: string; missionType: SpyMissionType; targetCivId: string };
+
+  function runUntil(
+    baseState: GameState,
+    missionType: SpyMissionType,
+    wants: (acquired: Acquired[], failed: boolean) => boolean,
+  ): { state: GameState; acquired: Acquired[]; failed: boolean } | null {
+    for (let turn = 1; turn <= 200; turn++) {
+      const state: GameState = {
+        ...baseState,
+        turn,
+        espionage: {
+          ...baseState.espionage!,
+          player: {
+            ...baseState.espionage!.player,
+            spies: {
+              'spy-1': startMission(baseState.espionage!.player, 'spy-1', missionType).spies['spy-1'],
+            },
+          },
+        },
+      };
+      state.espionage!.player.spies['spy-1'].currentMission!.turnsRemaining = 1;
+
+      const bus = new EventBus();
+      const acquired: Acquired[] = [];
+      let failed = false;
+      bus.on('espionage:intel-report-acquired', evt => acquired.push(evt));
+      // Failure resolves to spy_captured or spy_expelled, not a 'mission_failed' bus
+      // event (that SpyTurnEvent variant exists in the type union but is never actually
+      // pushed by processSpyTurn's failure branch — see the capture/expulsion roll).
+      bus.on('espionage:spy-captured', () => { failed = true; });
+      bus.on('espionage:spy-expelled', () => { failed = true; });
+      const result = processEspionageTurn(state, bus);
+      if (wants(acquired, failed)) return { state: result, acquired, failed };
+    }
+    return null;
+  }
+
+  it('monitor_troops persists a troop report on the attacker only and notifies the attacker', () => {
+    const { state: baseState, targetCivId, cityId } = makeInformationalMissionFixture();
+    const outcome = runUntil(baseState, 'monitor_troops', acquired => acquired.length > 0);
+    expect(outcome).not.toBeNull();
+    const report = outcome!.state.espionage!.player.troopObservations?.[cityId];
+    expect(report).toBeDefined();
+    expect(report!.targetCivId).toBe(targetCivId);
+    expect(report!.units.length).toBeGreaterThan(0);
+    expect(outcome!.acquired).toEqual([
+      { civId: 'player', spyId: 'spy-1', missionType: 'monitor_troops', targetCivId },
+    ]);
+    // Privacy: the target civ's own EspionageCivState must never receive a copy of the
+    // attacker's report -- it belongs exclusively to the spying civ.
+    expect(outcome!.state.espionage![targetCivId].troopObservations ?? {}).toEqual({});
+  });
+
+  it('gather_intel persists a civ intelligence report on the attacker only', () => {
+    const { state: baseState, targetCivId } = makeInformationalMissionFixture();
+    const outcome = runUntil(baseState, 'gather_intel', acquired => acquired.length > 0);
+    expect(outcome).not.toBeNull();
+    const report = outcome!.state.espionage!.player.intelReports?.[targetCivId];
+    expect(report).toBeDefined();
+    expect(report!.treasury).toBe(250);
+    expect(report!.treaties).toHaveLength(1);
+    expect(report!.completedTechCount).toBe(
+      outcome!.state.civilizations[targetCivId].techState.completed.length,
+    );
+    expect(outcome!.state.espionage![targetCivId].intelReports ?? {}).toEqual({});
+  });
+
+  it('identify_resources persists a resource report on the attacker only', () => {
+    const { state: baseState, targetCivId, cityId } = makeInformationalMissionFixture();
+    const outcome = runUntil(baseState, 'identify_resources', acquired => acquired.length > 0);
+    expect(outcome).not.toBeNull();
+    const report = outcome!.state.espionage!.player.resourceReports?.[cityId];
+    expect(report).toBeDefined();
+    expect(report!.targetCivId).toBe(targetCivId);
+    expect(report!.resources).toContain('iron');
+    expect(outcome!.state.espionage![targetCivId].resourceReports ?? {}).toEqual({});
+  });
+
+  it('monitor_diplomacy persists a diplomacy report on the attacker only', () => {
+    const { state: baseState, targetCivId } = makeInformationalMissionFixture();
+    const outcome = runUntil(baseState, 'monitor_diplomacy', acquired => acquired.length > 0);
+    expect(outcome).not.toBeNull();
+    const report = outcome!.state.espionage!.player.diplomacyReports?.[targetCivId];
+    expect(report).toBeDefined();
+    expect(report!.tradePartners).toContain('third-civ');
+    expect(outcome!.state.espionage![targetCivId].diplomacyReports ?? {}).toEqual({});
+  });
+
+  it('a failed mission never creates a report or fires the intel-acquired notification', () => {
+    const { state: baseState, cityId } = makeInformationalMissionFixture();
+    const outcome = runUntil(baseState, 'monitor_troops', (acquired, failed) => failed && acquired.length === 0);
+    expect(outcome).not.toBeNull();
+    expect(outcome!.state.espionage!.player.troopObservations?.[cityId]).toBeUndefined();
+    expect(outcome!.acquired).toHaveLength(0);
+  });
+
+  // Regression guard (see end-to-end-wiring.md "Espionage informational missions"): this
+  // is the exact bug class this MR fixed — resolveMissionResult computing a real payload
+  // that only ever reached the unlistened espionage:mission-succeeded event and was then
+  // discarded. Every currently-known informational mission must observably persist a
+  // report on the acting civ's own EspionageCivState. If a future mission is added to
+  // this list without wiring persistence, this test fails loudly instead of shipping a
+  // silent dead end.
+  const INFORMATIONAL_MISSION_REPORT_FIELD = {
+    monitor_troops: 'troopObservations',
+    gather_intel: 'intelReports',
+    identify_resources: 'resourceReports',
+    monitor_diplomacy: 'diplomacyReports',
+    signals_intercept: 'signalsIntelligence',
+  } as const satisfies Partial<Record<SpyMissionType, keyof EspionageCivState>>;
+
+  it.each(Object.entries(INFORMATIONAL_MISSION_REPORT_FIELD))(
+    '%s: a successful resolution is observably persisted on the acting civ\'s EspionageCivState (not silently discarded)',
+    (missionType, reportField) => {
+      const { state: baseState } = makeInformationalMissionFixture();
+      let found: Record<string, unknown> | undefined;
+      for (let turn = 1; turn <= 200 && !found; turn++) {
+        const state: GameState = {
+          ...baseState,
+          turn,
+          espionage: {
+            ...baseState.espionage!,
+            player: {
+              ...baseState.espionage!.player,
+              spies: {
+                'spy-1': startMission(baseState.espionage!.player, 'spy-1', missionType as SpyMissionType).spies['spy-1'],
+              },
+            },
+          },
+        };
+        state.espionage!.player.spies['spy-1'].currentMission!.turnsRemaining = 1;
+        const result = processEspionageTurn(state, new EventBus());
+        const report = result.espionage!.player[reportField as keyof EspionageCivState] as Record<string, unknown> | undefined;
+        if (report && Object.keys(report).length > 0) found = report;
+      }
+      expect(found).toBeDefined();
+    },
+  );
+});
+
 describe('espionage diplomatic consequences', () => {
   describe('handleSpyExpelled', () => {
     it('reduces relationship between spy owner and detecting civ', () => {

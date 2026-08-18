@@ -47,6 +47,13 @@ export interface EspionagePanelData {
   // player has intercepted. Without this, the computed data would never be rendered
   // (end-to-end-wiring.md "dead computed data is a bug").
   signalsIntelligence: Array<{ targetCivId: string; targetCivName: string; turn: number; unitCount: number }>;
+  // Post-#442 audit fix: monitor_troops/gather_intel/identify_resources/monitor_diplomacy
+  // reports, presented the same way as signalsIntelligence above — resolved to display
+  // names here so the panel never needs to re-read live target state.
+  troopReports: Array<{ targetCivId: string; targetCivName: string; cityId: string; cityName: string; turn: number; unitCount: number }>;
+  intelReports: Array<{ targetCivId: string; targetCivName: string; turn: number; completedTechCount: number; currentResearch: string | null; treasury: number; treatyCount: number }>;
+  resourceReports: Array<{ targetCivId: string; targetCivName: string; cityId: string; cityName: string; turn: number; resources: string[] }>;
+  diplomacyReports: Array<{ targetCivId: string; targetCivName: string; turn: number; relationships: Array<{ civId: string; civName: string; value: number }>; tradePartnerNames: string[] }>;
 }
 
 export interface MissionStageGroup {
@@ -501,6 +508,140 @@ function appendSignalsIntelligence(
   parent.appendChild(block);
 }
 
+function formatAge(currentTurn: number, reportTurn: number): string {
+  const age = currentTurn - reportTurn;
+  return age === 0 ? 'this turn' : `${age} turn${age === 1 ? '' : 's'} ago`;
+}
+
+// Post-#442 audit fix: monitor_troops was computing nearbyUnits (city-radius troop
+// observation) and discarding it — same dead-computed-data bug signals_intercept fixed
+// for the empire-wide case above, now fixed for the city-scoped case.
+function appendTroopReports(
+  parent: HTMLElement,
+  reports: EspionagePanelData['troopReports'],
+  currentTurn: number,
+): void {
+  const block = createEl('section');
+  block.dataset.section = 'troop-reports';
+  appendSectionHeader(block, 'Troop Reports', 'Latest observed enemy unit counts near watched cities. Ages fast.');
+
+  if (reports.length === 0) {
+    const empty = createEl('div', 'No troop reports gathered yet.');
+    empty.style.cssText = 'font-size:11px;opacity:0.55;';
+    block.appendChild(empty);
+    parent.appendChild(block);
+    return;
+  }
+
+  for (const report of [...reports].sort((a, b) => b.turn - a.turn)) {
+    const row = createEl(
+      'div',
+      `${report.cityName} (${report.targetCivName}): ${report.unitCount} unit${report.unitCount === 1 ? '' : 's'} observed (turn ${report.turn}, ${formatAge(currentTurn, report.turn)})`,
+    );
+    row.dataset.troopReportCity = report.cityId;
+    row.style.cssText = 'font-size:11px;opacity:0.8;padding:4px 0;';
+    block.appendChild(row);
+  }
+
+  parent.appendChild(block);
+}
+
+function appendIntelReports(
+  parent: HTMLElement,
+  reports: EspionagePanelData['intelReports'],
+  currentTurn: number,
+): void {
+  const block = createEl('section');
+  block.dataset.section = 'intel-reports';
+  appendSectionHeader(block, 'Civ Intelligence', 'Latest tech, treasury, and treaty snapshots gathered on rival civilizations.');
+
+  if (reports.length === 0) {
+    const empty = createEl('div', 'No civ intelligence gathered yet.');
+    empty.style.cssText = 'font-size:11px;opacity:0.55;';
+    block.appendChild(empty);
+    parent.appendChild(block);
+    return;
+  }
+
+  for (const report of [...reports].sort((a, b) => b.turn - a.turn)) {
+    const researchLabel = report.currentResearch ?? 'nothing';
+    const row = createEl(
+      'div',
+      `${report.targetCivName}: ${report.completedTechCount} techs completed, researching ${researchLabel}, ~${report.treasury}🪙 treasury, ${report.treatyCount} active treat${report.treatyCount === 1 ? 'y' : 'ies'} (turn ${report.turn}, ${formatAge(currentTurn, report.turn)})`,
+    );
+    row.dataset.intelReportTarget = report.targetCivId;
+    row.style.cssText = 'font-size:11px;opacity:0.8;padding:4px 0;';
+    block.appendChild(row);
+  }
+
+  parent.appendChild(block);
+}
+
+function appendResourceReports(
+  parent: HTMLElement,
+  reports: EspionagePanelData['resourceReports'],
+  currentTurn: number,
+): void {
+  const block = createEl('section');
+  block.dataset.section = 'resource-reports';
+  appendSectionHeader(block, 'Resource Intelligence', 'Latest strategic resources identified in watched cities\' territory.');
+
+  if (reports.length === 0) {
+    const empty = createEl('div', 'No resource intelligence gathered yet.');
+    empty.style.cssText = 'font-size:11px;opacity:0.55;';
+    block.appendChild(empty);
+    parent.appendChild(block);
+    return;
+  }
+
+  for (const report of [...reports].sort((a, b) => b.turn - a.turn)) {
+    const resourceLabel = report.resources.length > 0 ? report.resources.join(', ') : 'none found';
+    const row = createEl(
+      'div',
+      `${report.cityName} (${report.targetCivName}): ${resourceLabel} (turn ${report.turn}, ${formatAge(currentTurn, report.turn)})`,
+    );
+    row.dataset.resourceReportCity = report.cityId;
+    row.style.cssText = 'font-size:11px;opacity:0.8;padding:4px 0;';
+    block.appendChild(row);
+  }
+
+  parent.appendChild(block);
+}
+
+function appendDiplomacyReports(
+  parent: HTMLElement,
+  reports: EspionagePanelData['diplomacyReports'],
+  currentTurn: number,
+): void {
+  const block = createEl('section');
+  block.dataset.section = 'diplomacy-reports';
+  appendSectionHeader(block, 'Diplomatic Intelligence', 'Latest known relationships and trade partners for watched civilizations.');
+
+  if (reports.length === 0) {
+    const empty = createEl('div', 'No diplomatic intelligence gathered yet.');
+    empty.style.cssText = 'font-size:11px;opacity:0.55;';
+    block.appendChild(empty);
+    parent.appendChild(block);
+    return;
+  }
+
+  for (const report of [...reports].sort((a, b) => b.turn - a.turn)) {
+    const relLabel = report.relationships.length > 0
+      ? report.relationships.map(r => `${r.civName} ${r.value >= 0 ? '+' : ''}${r.value}`).join(', ')
+      : 'no known relationships';
+    const tradeLabel = report.tradePartnerNames.length > 0 ? report.tradePartnerNames.join(', ') : 'none';
+    const row = createEl(
+      'div',
+      `${report.targetCivName}: relations — ${relLabel}; trade partners — ${tradeLabel} (turn ${report.turn}, ${formatAge(currentTurn, report.turn)})`,
+    );
+    row.dataset.diplomacyReportTarget = report.targetCivId;
+    row.style.cssText = 'font-size:11px;opacity:0.8;padding:4px 0;';
+    block.appendChild(row);
+  }
+
+  parent.appendChild(block);
+}
+
 function formatIntelItem(item: InterrogationIntel): string {
   switch (item.type) {
     case 'spy_identity': return `Enemy spy ${item.data.spyName as string} is currently ${item.data.status as string}${item.data.location ? ` in ${item.data.location as string}` : ''}`;
@@ -639,6 +780,10 @@ export function createEspionagePanel(
   appendThreatBoard(panel, data.threatBoard);
   appendRecentDetections(panel, data.recentDetections);
   appendSignalsIntelligence(panel, data.signalsIntelligence, data.currentTurn);
+  appendTroopReports(panel, data.troopReports, data.currentTurn);
+  appendIntelReports(panel, data.intelReports, data.currentTurn);
+  appendResourceReports(panel, data.resourceReports, data.currentTurn);
+  appendDiplomacyReports(panel, data.diplomacyReports, data.currentTurn);
   appendInterrogationProgress(panel, state);
 
   return panel;
@@ -660,6 +805,10 @@ export function getEspionagePanelData(state: GameState): EspionagePanelData {
       recentDetections: [],
       currentTurn: state.turn,
       signalsIntelligence: [],
+      troopReports: [],
+      intelReports: [],
+      resourceReports: [],
+      diplomacyReports: [],
     };
   }
 
@@ -750,6 +899,58 @@ export function getEspionagePanelData(state: GameState): EspionagePanelData {
     }),
   );
 
+  // Post-#442 audit fix: resolve viewer-safe display names here, once, from the
+  // acting civ's own persisted reports — never from live target-civ state (ui-panels.md
+  // "Persistent intel UI must render from viewer-safe snapshots, not from the richer
+  // source object if the player did not earn that detail").
+  const troopReports = Object.entries(civEsp.troopObservations ?? {}).map(
+    ([cityId, snapshot]) => ({
+      targetCivId: snapshot.targetCivId,
+      targetCivName: state.civilizations[snapshot.targetCivId]?.name ?? snapshot.targetCivId,
+      cityId,
+      cityName: state.cities[cityId]?.name ?? cityId,
+      turn: snapshot.turn,
+      unitCount: snapshot.units.length,
+    }),
+  );
+
+  const intelReports = Object.entries(civEsp.intelReports ?? {}).map(
+    ([targetCivId, snapshot]) => ({
+      targetCivId,
+      targetCivName: state.civilizations[targetCivId]?.name ?? targetCivId,
+      turn: snapshot.turn,
+      completedTechCount: snapshot.completedTechCount,
+      currentResearch: snapshot.currentResearch,
+      treasury: snapshot.treasury,
+      treatyCount: snapshot.treaties.length,
+    }),
+  );
+
+  const resourceReports = Object.entries(civEsp.resourceReports ?? {}).map(
+    ([cityId, snapshot]) => ({
+      targetCivId: snapshot.targetCivId,
+      targetCivName: state.civilizations[snapshot.targetCivId]?.name ?? snapshot.targetCivId,
+      cityId,
+      cityName: state.cities[cityId]?.name ?? cityId,
+      turn: snapshot.turn,
+      resources: snapshot.resources,
+    }),
+  );
+
+  const diplomacyReports = Object.entries(civEsp.diplomacyReports ?? {}).map(
+    ([targetCivId, snapshot]) => ({
+      targetCivId,
+      targetCivName: state.civilizations[targetCivId]?.name ?? targetCivId,
+      turn: snapshot.turn,
+      relationships: Object.entries(snapshot.relationships).map(([relCivId, value]) => ({
+        civId: relCivId,
+        civName: state.civilizations[relCivId]?.name ?? relCivId,
+        value,
+      })),
+      tradePartnerNames: snapshot.tradePartners.map(id => state.civilizations[id]?.name ?? id),
+    }),
+  );
+
   return {
     spies,
     spySummaries,
@@ -763,6 +964,10 @@ export function getEspionagePanelData(state: GameState): EspionagePanelData {
     recentDetections: civEsp.recentDetections ?? [],
     currentTurn: state.turn,
     signalsIntelligence,
+    troopReports,
+    intelReports,
+    resourceReports,
+    diplomacyReports,
     ...(missionSuccessChances !== undefined ? { missionSuccessChances } : {}),
     ...(missionSuccessBreakdown !== undefined ? { missionSuccessBreakdown } : {}),
   };

@@ -972,6 +972,24 @@ export interface EspionageCivState {
   // new signals_intercept overwrites the previous snapshot for that target, since a
   // stale disposition list has no value once the target's units have moved.
   signalsIntelligence?: Record<string, { turn: number; units: Array<{ type: UnitType; position: HexCoord; health: number }> }>;
+  // Post-#442 audit fix: monitor_troops/gather_intel/identify_resources/monitor_diplomacy
+  // already computed a MissionResult in resolveMissionResult but never persisted or
+  // rendered it (dead computed data — see end-to-end-wiring.md). These four fields follow
+  // the exact same snapshot-and-overwrite convention signals_intercept established above:
+  // one-shot intel, latest report per target replaces the previous one, no ongoing grant.
+  //
+  // monitor_troops: city-scoped troop observation, keyed by the observed city (a civ can
+  // have multiple cities under separate observation).
+  troopObservations?: Record<string, { turn: number; targetCivId: string; units: Array<{ type: UnitType; position: HexCoord; health: number }> }>;
+  // gather_intel: civ-wide tech/treasury/treaty snapshot, keyed by target civ. Tech
+  // progress is summarized as a count + current research rather than the full completed
+  // list, to keep the stored payload a small bounded snapshot rather than an
+  // ever-growing raw dump of target-civ state.
+  intelReports?: Record<string, { turn: number; completedTechCount: number; currentResearch: string | null; researchProgress: number; treasury: number; treaties: Treaty[] }>;
+  // identify_resources: city-territory resource snapshot, keyed by the surveyed city.
+  resourceReports?: Record<string, { turn: number; targetCivId: string; resources: string[] }>;
+  // monitor_diplomacy: civ-wide relationship/trade-partner snapshot, keyed by target civ.
+  diplomacyReports?: Record<string, { turn: number; relationships: Record<string, number>; tradePartners: string[] }>;
 }
 
 export type EspionageState = Record<string, EspionageCivState>;
@@ -2140,6 +2158,13 @@ export interface GameEvents {
   // successful mission, naming every partner civ whose relationship with the target
   // soured (already capped/deduped by resolveMissionResult before this fires).
   'espionage:scandal-exposed': { civId: string; targetCivId: string; partnerCivIds: string[] };
+  // Post-#442 audit fix: immediate acknowledgement that a purely-informational mission
+  // (monitor_troops/gather_intel/identify_resources/monitor_diplomacy) produced a report
+  // now persisted on the acting civ's EspionageCivState — see the matching fields there.
+  // Attacker-only: this is passive reconnaissance with no attribution/detection
+  // consequence today, so the target is never notified (unlike courier-intercepted/
+  // official-bribed/scandal-exposed above, which are all detectable disruptive acts).
+  'espionage:intel-report-acquired': { civId: string; spyId: string; missionType: SpyMissionType; targetCivId: string };
 }
 
 // --- Crisis Events & Revolutionary Movements ---
