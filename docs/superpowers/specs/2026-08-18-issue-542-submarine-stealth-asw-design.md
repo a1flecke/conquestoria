@@ -19,14 +19,35 @@ violation this design fixes rather than creates).
 - `missile_submarine` — era 11 (`nuclear-submarines` + uranium), str 56, range 3,
   vision 3, same family, terminal.
 - `destroyer` — era 10 (`carrier-warfare`), str 55, range 2, vision 3, role `escort`,
-  already described as "hunts submarines."
+  already described as "hunts submarines." `obsoletedByTech: 'ocean-robotics'`,
+  `upgradesTo: 'autonomous_frigate'`.
+- `autonomous_frigate` — era 13 (`ocean-robotics`), str 60, range 3, role `escort`,
+  terminal successor of the surface-warship/escort family. Currently has no detection
+  capability of its own (none exists yet) — a real gap once wired, since
+  `UNIT_DEFINITIONS` fields never auto-propagate through `upgradesTo` chains, and
+  upgrading a destroyer would otherwise silently remove the player's only ASW specialist.
 - `pacing.role: 'naval-stealth'` is already tagged on submarine's pacing metadata —
-  content already anticipated this; it is currently just a label, not wired to any
-  mechanic.
+  content already anticipated this; currently just a label, not wired to any mechanic.
 - #547 (the parallel combat-roster arc, open, most of 63 items merged through #837)
   already fixed the "absurd `pre_dreadnought → submarine` upgrade" #542 flagged —
   submarine has no incoming/outgoing `upgradesTo` today. No open #547 work touches
   naval/detection files, so this feature is low-conflict with it as of this audit.
+
+**Coastal/detection-adjacent buildings and techs already in the tree:**
+- `coastal_battery` (era 8, `naval-armor` tech, `coastalRequired: true`) — "Naval defense
+  +8. First naval hit each turn returns 20% damage." Lands one tech tier before
+  submarines appear (era 9) — a natural, already-thematic gate for baseline city
+  detection.
+- `radar_station` (era 10, `radar-systems` tech) — description already says
+  *"Accelerates navigation and threat detection"*, but today does nothing
+  detection-related (+2 science only). This is an existing, unrelated
+  `content-description-honesty.md` gap this design also fixes by giving that claim a
+  real mechanic.
+- `signals_hub` (era 12, `cyber-intelligence` + `cyber_defense_center`) — deliberately
+  **not** reused for subs. It's 3 eras later than submarines, thematically an
+  espionage/cyber building for stealth bombers, and reusing it would be a content-honesty
+  stretch. No naval-specific detection building beyond `coastal_battery`/`radar_station`
+  exists, and none is being invented.
 
 **Concealment today:** two independent, hand-duplicated predicates, each re-implemented
 at the call site rather than through one canonical hook:
@@ -62,28 +83,40 @@ snapshotting, so a ghost never shows a currently-concealed unit as present. It d
 yet filter beast-concealed units (latent gap, harmless today since beasts rarely sit on a
 "visible" tile while concealed, but should close for symmetry when subs are added).
 
+**No per-turn "did this unit attack" tracking exists.** `Unit.hasActed` is generic (set by
+any action — build, found, attack, move-to-exhaustion) and resets each turn; there is no
+attack-specific flag and no persisted combat history in `GameState` to derive one from.
+This matters directly for reveal-on-fire (§2 below).
+
 **Difficulty knob precedent:** `OpponentChallengeProfile`
 (`core/opponent-challenge.ts`) has an existing `crisisDispatchWeight`-style per-difficulty
 multiplier (explorer 0.5 / standard 1.0 / veteran 1.5) consumed by
-`ai-crisis-response.ts`. No AI escort/formation logic exists yet at all.
+`ai-crisis-response.ts`. No AI escort/formation logic and no "avoid detection" tactical
+preference exist yet at all.
 
 **Typed-capability precedent:** `UnitDefinition.airDefenseProvider?:
 AirDefenseProviderCapability` (radius + modifier + stacking group) is the existing
 pattern for "this unit projects an area effect around itself" — the template for the new
 detection field below, instead of `if (unit.type === 'destroyer')` branches.
 
-**Buildings:** `signals_hub` (era 12, `cyber-intelligence` + `cyber_defense_center`) is an
-espionage/CDC building that already makes stealth bombers targetable within 2 hexes. It
-is 3 eras later than submarines and thematically an air/cyber building, not naval — not a
-good fit for ASW detection (would be a content-honesty stretch and confuses two unrelated
-stealth systems). No naval-specific detection building exists.
-
 ## Goals
 
 - Submarines/missile subs are concealed from an enemy civ unless detected.
-- Detection is adjacency-based for ordinary units/cities (matching the existing
-  beast/forest convention exactly) and extended (range 2) for the destroyer, via a
-  generic, extensible capability field.
+- Detection is adjacency-based (range 1) for ordinary naval and air units, and for cities
+  that have built `coastal_battery`; extended to range 2 for the destroyer and for a
+  `coastal_battery` city that has also built `radar_station`; extended to range 3 for
+  `autonomous_frigate` (destroyer's era-13 successor, keeping the ASW role alive through
+  the upgrade chain and matching `missile_submarine`'s attack range). **Land units never
+  detect submarines** — there is no real-world or in-game equipment/doctrine reason a
+  land garrison would spot a submerged submarine; only naval units, air units, and
+  properly-equipped cities can.
+- A submarine that fires while concealed reveals its own tile to the defending civ for
+  that turn only (a genuine, mechanically real return-fire window — not merely cosmetic),
+  re-concealing automatically once the attacker's owner's next turn resets it.
+- A first ordinary-proximity detection (not a fire-triggered reveal, which announces
+  itself via combat) fires a sighting notification, mirroring the existing
+  `beast:sighted` pattern, so detection is never silent or easy to miss — especially for
+  younger players.
 - Every consumer (fog, renderer, targeting, selection, AI perception, AI targeting,
   last-seen) agrees on concealment through one canonical predicate.
 - A concealed sub is illegal to target directly, for every attacker type, enforced at the
@@ -92,28 +125,45 @@ stealth systems). No naval-specific detection building exists.
   here" ghost, never a live position — reusing the existing mechanism.
 - Hot-seat visibility is strictly per-viewer; no presentation/selection/last-seen state
   leaks between human players.
-- No save schema change — visibility stays fully derived.
+- Combat notifications name the attacker plainly ("A Submarine attacked...") — no
+  mystery-flavor text substitution, since the reveal-on-fire mechanic already exposes the
+  attacker's tile that same turn, leaving nothing left to protect by being vague.
+- Existing `mass-surveillance` behavior (reveals fog tile visibility for at-war units, but
+  does not today defeat forest/beast concealment) is left exactly as-is — submarine
+  concealment is exempt from it too, matching current precedent rather than quietly
+  redefining an existing tech's scope as part of this feature.
 - AI never targets or "knows" a sub it hasn't detected; it may act on its own
   `remembered` last-seen intel like any other remembered unit.
-- Veteran AI escorts vulnerable naval civilians with a destroyer when it has sighted a
-  submarine threat; explorer AI does not. Difficulty changes decision quality only —
-  never detection range, visibility rules, or combat modifiers.
-- Destroyer and submarine descriptions plainly explain the mechanic and the counterplay.
+- AI-controlled submarines prefer ending a turn outside all known enemy detection ranges
+  when a position doing so is reachable without sacrificing a good attack.
+- Veteran AI both prioritizes building a destroyer when it has sighted a submarine threat
+  and lacks one, and routes an available destroyer to escort a vulnerable naval civilian
+  near that sighting; explorer AI does neither. Difficulty changes decision quality only
+  — never detection range, visibility rules, or combat modifiers.
+- Destroyer, submarine, `autonomous_frigate`, and `radar_station` descriptions plainly
+  explain the mechanic and the counterplay.
 
 ## Non-goals
 
 - No sonar simulation, no probabilistic detection, no submarine-vs-submarine special
   detection rule.
-- No new building or tech (`signals_hub` deliberately excluded; no new "sonar" tech).
+- No new buildings or techs — reuses `coastal_battery` and `radar_station` exactly as
+  they exist today, with no changes to either building's own gating (in particular,
+  `radar_station` is not given a new `requiresBuildings` entry, since it is also a
+  prerequisite for `sam_site` and touching its gating would ripple into the unrelated
+  AA/air-defense system).
 - No carrier detection role — nothing in current combat-role text, modifiers, or roster
   identity supports it; not assumed just because #542's design sketch parenthetically
   floated it.
-- No attack-from-stealth/first-strike bonus in v1. The existing commerce-raider,
+- No attack-from-stealth/first-strike *combat* bonus in v1, distinct from reveal-on-fire
+  (which is a visibility mechanic, not a damage multiplier). The existing commerce-raider,
   capital-ship-ambush, and Torpedo Warfare modifiers plus "the defender couldn't
   pre-target you" already give stealth attacks initiative. Explicitly deferred pending
   playtesting evidence, not silently dropped — see Balance section.
-- No AI restructuring beyond one new difficulty-scaled portfolio rule for escort
-  preference.
+- No change to `mass-surveillance`'s existing (arguably already-inconsistent) relationship
+  with concealment — out of scope for this feature, flagged but not touched.
+- No AI restructuring beyond: one new difficulty-scaled escort portfolio rule (production
+  + tactical routing) and one new tactical "avoid detector range" preference for AI subs.
 
 ## Design
 
@@ -150,18 +200,25 @@ behavior for targeting is unchanged except for the new submarine branch.
 ```ts
 function isSubmarineConcealedFrom(state, unit, viewerCivId): boolean {
   if (unit.type !== 'submarine' && unit.type !== 'missile_submarine') return false;
-  const detectionRange = (detectorUnitType) =>
-    UNIT_DEFINITIONS[detectorUnitType].detection?.concealedNavalRange ?? 1;
-  // true if no viewer unit or city is within its own detection range of `unit`
+  if (unit.revealedThisTurn) return false; // reveal-on-fire, see below
+  // concealed unless a viewer naval/air unit, or an eligible viewer city, is within
+  // ITS OWN detection range of `unit` (max across all such detectors)
 }
 ```
 
-- Ordinary units and cities detect at range 1 (adjacency) — identical convention to
-  beast/forest concealment, chosen deliberately for consistency and explainability over
-  a bespoke number.
-- Air units, civilian naval units, and cities all count as "ordinary detectors" at range
-  1 — no per-domain carve-out, since the existing beast rule already treats "any adjacent
-  unit" uniformly.
+- **Eligible detectors:** viewer-owned naval and air units (ordinary detection range 1
+  unless the unit has `UnitDefinition.detection`), plus viewer cities that have built
+  `coastal_battery` (range 1, or range 2 if the same city has also built
+  `radar_station`). **Land units are never detectors** — no submerged submarine can be
+  spotted by unaided visual observation, and there is no equipment/doctrine reason a land
+  garrison would detect one; only cities (representing harbor watch/coastal batteries) and
+  naval/air units (visual lookout, later sonar/radar) have a real basis for this.
+- `destroyer`: `detection: { concealedNavalRange: 2 }`.
+- `autonomous_frigate`: `detection: { concealedNavalRange: 3 }` — deliberately bumped
+  past the destroyer's range (not just carried forward unchanged), since by era 13
+  `missile_submarine` (era 11, attack range 3) already outranges a range-2 detector; this
+  keeps the dedicated ASW specialist role meaningfully ahead of the threat it's meant to
+  counter, not just parity with it.
 - Submarines do not get a special "detect other submarines" rule — they detect at the
   ordinary range-1 rule like everything else, avoiding a stealth-detects-stealth arms
   race the issue explicitly warned against simulating.
@@ -169,27 +226,33 @@ function isSubmarineConcealedFrom(state, unit, viewerCivId): boolean {
   consistent with `game-systems.md`'s transport-cargo rules).
 - Allied/shared-vision behavior falls out of `state.civilizations[viewerCivId].units`
   scoping exactly as today — no new alliance-vision behavior is introduced.
+- `mass-surveillance` is explicitly left unable to defeat this, matching existing
+  forest/beast precedent (see Non-goals).
 
-### 3. Destroyer as the ASW specialist
+**Reveal-on-fire.** A submarine's ranged attack profile (range 2/3) means, unlike beast/
+forest concealment (both effectively melee-range today), it can fire without ever
+becoming adjacent to a detector — an "invisible sniper" gap with no counterplay if left
+unaddressed. To close it: when a concealed submarine successfully attacks, the attack
+resolution path sets a new field, `Unit.revealedThisTurn?: boolean`, on the attacking
+unit (alongside the existing `hasActed` mutation in the same combat-resolution code).
+While set, `isSubmarineConcealedFrom` returns `false` unconditionally for every viewer —
+the submarine is genuinely visible and targetable that turn, not merely flashed
+cosmetically, satisfying "every consumer must agree." The field is cleared the same way
+`hasActed` already resets each turn (owning civ's next turn-start reset), so the window is
+exactly "the rest of the current round," giving the defending civ one real turn to react
+before concealment resumes. Combat notifications name the attacker plainly, since there is
+no remaining secrecy to protect once the tile is exposed. This is the one deliberate,
+minimal, justified addition to `GameState`'s shape in this feature (see §9 — every other
+piece stays fully derived).
 
-Add to `UnitDefinition` (`core/types.ts`):
+### 3. City detection (`coastal_battery` + `radar_station`)
 
-```ts
-export interface NavalDetectionCapability {
-  concealedNavalRange: number;
-}
-// on UnitDefinition:
-detection?: NavalDetectionCapability;
-```
-
-`destroyer: { ..., detection: { concealedNavalRange: 2 } }` in `unit-system.ts`. Generic
-and data-driven — a future sonar tech, ASW aircraft, or building adds another
-`{ concealedNavalRange }` source (taking the max across sources, same pattern as
-`getVisionBonus`) without touching `attack-targeting.ts`, the renderer, or AI code. Not
-implementing any of those future sources now — just leaving the shape open, per the
-task's explicit "don't build speculative future systems" instruction.
-
-No building or tech grants detection in v1 (see Non-goals).
+No city detects submarines by default. A city becomes a detector only once it has built
+`coastal_battery` (range 1); if that same city has also built `radar_station`, its range
+extends to 2. This is purely additive logic in the new detection resolver — **no change
+to either building's own `requiresBuildings`, `techRequired`, or other fields.** This
+also finally gives `radar_station`'s existing "Accelerates navigation and threat
+detection" description a real backing mechanic (§10).
 
 ### 4. Targeting
 
@@ -201,9 +264,10 @@ if (isUnitConcealedFrom(state, targetUnit[1], attacker.owner)) return { ok: fals
 
 This makes a concealed submarine illegal to target for every attacker (human, AI,
 pirate) by construction — no separate AI-side legality code needed, matching how beast
-concealment already works today.
+concealment already works today. A submarine with `revealedThisTurn` set is a normal,
+targetable unit for the rest of that round.
 
-### 5. Rendering / selection / last-seen / AI perception
+### 5. Rendering / selection / last-seen / AI perception / notifications
 
 All migrated to call `isUnitConcealedFrom` instead of the two-predicate AND:
 `unit-map-presentation.ts`, `hex-defender-selection.ts`, `viewer-event-presentation.ts`,
@@ -213,8 +277,20 @@ All migrated to call `isUnitConcealedFrom` instead of the two-predicate AND:
 `ai-perception.ts`'s `buildMajorCivPerception` unit loop (also closes its
 beast-concealment gap for symmetry).
 
+**Sighting notification.** A new function analogous to (but not merged with)
+`scanBeastSightings` — call it `scanSubmarineSightings` — fires a notification the first
+time an enemy submarine transitions from concealed to detected via ordinary proximity
+(not via reveal-on-fire, whose attack itself is already the notification). This is
+deliberately a *separate* function rather than a generalization of `scanBeastSightings`:
+beast sightings drive bespoke beast-specific consequences (quest/lore hooks via
+`recordBeastSightings`) that submarines have no equivalent of, and forest concealment has
+no sighting-notification precedent to preserve — merging all three into one generic
+"any concealment family, any consequence" function would be over-generalizing a
+one-off need into speculative shared infrastructure the task explicitly warned against.
+
 Net effect: concealed → not rendered, not selectable, not targetable, not present in AI's
-`visible` unit set. Detected → normal rendering/selection/targeting. No-longer-detected →
+`visible` unit set. Detected (proximity or reveal-on-fire) → normal rendering/selection/
+targeting, with a notification on first proximity detection. No-longer-detected →
 existing last-seen ghost only (last snapshot taken while the tile was `visible`), since
 `isUnitConcealedFrom` is folded into `visibleUnitsByTile` the same way as forest
 concealment already is — a concealed sub is never snapshotted as "present," so ghosts can
@@ -225,82 +301,166 @@ only ever show a stale prior position, never a live one.
 No new mechanism — `isUnitConcealedFrom` takes an explicit `viewerCivId`, and every
 consumer above already threads a per-viewer id (`state.currentPlayer` for the active
 seat, or `getLivingHumanViewerIds` for two-human presentation building in
-`viewer-event-presentation.ts`). Two-human regression tests (Phase 3) assert this
-directly: civ A detects, civ B (no detector nearby) does not, and switching the active
-seat does not leak A's detection into B's render/selection/last-seen state.
+`viewer-event-presentation.ts`). `Unit.revealedThisTurn` is a genuine `GameState` fact
+(not a per-viewer overlay), so it is visible to every civ equally once set — this is
+correct, since a submarine firing is not secret information relative to who saw it fire;
+it's the submarine's own concealment status that changed, symmetric to how a beast
+breaking cover by attacking is visible to whichever civs have fog visibility of that tile.
+Two-human regression tests (Phase 3) assert per-viewer isolation directly: civ A detects,
+civ B (no detector nearby) does not, and switching the active seat does not leak A's
+detection into B's render/selection/last-seen state; a separate test confirms
+`revealedThisTurn` is symmetric (any civ with fog visibility of that tile sees the reveal,
+not just the one that "caused" it).
 
-### 7. AI perception vs. targeting vs. escort
+### 7. AI: perception, targeting, piloting, and escort
 
 - **Targeting:** free correctness via §4 — AI cannot target a concealed sub, structurally.
 - **Perception:** AI's `MajorCivPerception.units` excludes submarine-concealed subs from
   the `visible` set (§5); it may still carry a `remembered` entry from
   `actor.visibility.lastSeen`, decayed by `decayRememberedConfidence`, exactly like any
   other remembered unit today. No special-casing for submarines in the decay model.
-- **Escort behavior (new):** one portfolio rule added to AI planning — when a civ has at
-  least one `remembered`-or-better submarine sighting (owner hostile to the AI) and an
-  un-escorted transport/naval-civilian unit within some radius of that sighting, prefer
-  building or routing a nearby destroyer to it. Gated by a new
+- **AI submarine piloting (new):** when choosing a final position for an AI-controlled
+  submarine, prefer a reachable end-of-turn tile outside all currently-known enemy
+  detection ranges, unless doing so would sacrifice a clearly better attack — a narrow
+  tactical preference, not a full stealth-planning system.
+- **AI escort behavior (new):** one portfolio rule with two parts, both gated by a new
   `OpponentChallengeProfile.submarineEscortWeight` field (explorer low/off, standard
-  modest, veteran strong), following the existing `crisisDispatchWeight` pattern exactly.
-  Difficulty changes only how eagerly this preference is applied — not detection range,
+  modest, veteran strong), following the existing `crisisDispatchWeight` pattern exactly:
+  1. *Production:* when a civ has at least one `remembered`-or-better hostile submarine
+     sighting and no available destroyer, prioritize training one — without this, the
+     tactical rule below would be a dead rule on any game where the AI hadn't already
+     built a destroyer for unrelated reasons.
+  2. *Tactical routing:* when a civ has an available destroyer and an un-escorted
+     transport/naval-civilian unit near a remembered submarine sighting, prefer routing
+     the destroyer to it.
+  Difficulty changes only how eagerly this preference is applied — never detection range,
   visibility, or combat modifiers, per the task's explicit constraint.
 
 ### 8. Save/load
 
-No schema change. Everything above is derived every turn from unit positions,
-`UNIT_DEFINITIONS[type].detection`, and per-civ unit/city rosters — identical in spirit
-to how beast and forest concealment already work with zero persisted "is concealed" flag.
-Verified by an explicit save→reload→re-derive test (Phase 3) rather than assumed.
+One deliberate, minimal schema addition: `Unit.revealedThisTurn?: boolean` (§2), optional
+and `undefined`-safe on old saves, requiring no migration — an absent value is simply
+"not currently revealed by fire," identical in effect to `false`. Every other piece of
+this feature (submarine concealment status, destroyer/frigate detection range, city
+`coastal_battery`/`radar_station` gating) is derived every turn from unit/city state and
+`UNIT_DEFINITIONS[type].detection` — identical in spirit to how beast and forest
+concealment already work with zero persisted "is concealed" flag. Verified by an explicit
+save→reload→re-derive test (Phase 3) rather than assumed.
 
 ### 9. Content honesty
 
 - `UNIT_DESCRIPTIONS.submarine`: state plainly that it's hidden from enemies unless they
-  get close or field a destroyer (fixes the existing unbacked "stealth approach" claim).
+  get close, field a destroyer, or a coastal city with the right buildings spots it —
+  fixes the existing unbacked "stealth approach" claim.
 - `UNIT_DESCRIPTIONS.destroyer`: state plainly that it reveals submarines at longer range
   than ordinary ships, with the exact range number.
+- `UNIT_DESCRIPTIONS.autonomous_frigate`: same, with its own (longer) range number.
+- `BUILDINGS.radar_station.description`: extend to mention the coastal detection-range
+  bonus it now actually grants (in combination with `coastal_battery`), finally backing
+  its existing "threat detection" claim.
 - No color-only or icon-only indicators — text explains the mechanic per
   `strategy-game-mechanics.md`'s unit-identity rule and the task's "no trial-and-error
   discovery" instruction.
 
-## Balance review (before adding any bonus)
+## SFX
+
+Deferred to the audio-arc backlog, per the issue's own addendum — an optional sonar ping
+on reveal is not required for correctness and is out of scope for this feature.
+
+## Balance review (before adding any combat bonus)
 
 Per the task's instruction, run the loop with current combat values before deciding on
-an ambush bonus:
+an ambush *combat* bonus (reveal-on-fire is a visibility mechanic already committed to,
+not a combat-strength bonus, and is not what this review is deciding):
 1. Lone submarine vs. unescorted naval civilian.
 2. Lone submarine vs. destroyer-escorted convoy.
-3. Wolfpack (2+ subs) vs. mixed fleet.
-4. Submarine operating near an enemy city (city itself detects at range 1).
-5. Missile submarine late-game (range 3 attack, era 11 stats).
-6. Island-heavy map — does adjacency detection make non-destroyer escorts meaningfully
-   useful, or does only destroyer coverage matter?
-7. AI convoy/escort behavior once Phase 4 lands.
+3. Wolfpack (2+ subs) vs. mixed fleet — does reveal-on-fire meaningfully cap how many
+   consecutive free attacks a wolfpack gets before some defender can respond?
+4. Submarine operating near an enemy city — with `coastal_battery`/`radar_station` city
+   gating now explicit, does an under-built coastline still feel fair, or does the
+   all-or-nothing building gate make early-game coastal cities too exposed?
+5. Missile submarine late-game (range 3 attack, era 11 stats) vs. `autonomous_frigate`
+   (era 13, range-3 detection) — confirm the era 11–13 window where missile subs outrange
+   every available detector except reveal-on-fire.
+6. Island-heavy map — does adjacency detection make non-destroyer naval escorts
+   meaningfully useful, or does only destroyer/frigate coverage matter?
+7. AI convoy/escort behavior once Phase 4 lands, including the new production trigger.
 8. Detection-heavy fleet (multiple destroyers) — does stealth still matter, or does
    coverage trivialize it?
 
-Decision to add or omit an attack-from-concealment bonus is made after this review, not
-before, and is reported explicitly either way — see Implementation Strategy.
+Decision to add or omit an attack-from-concealment *combat* bonus is made after this
+review, not before, and is reported explicitly either way — see Implementation Strategy.
 
 ## Implementation phases
 
 - **Phase 1:** `isUnitConcealedFrom` canonical contract + submarine stealth rule
-  (ordinary range-1 detection only) wired through targeting, rendering, selection,
-  last-seen, AI perception, hot-seat presentation. Fully deployable on its own — subs are
-  concealable and every consumer agrees, even before the destroyer specialization exists.
-- **Phase 2:** Destroyer `detection.concealedNavalRange: 2` + `UNIT_DESCRIPTIONS` updates
-  for submarine/destroyer.
-- **Phase 3:** Two-human hot-seat tests, scenario fixtures
-  (`submarine-undetected`, `destroyer-sonar-detection` — reusing #846 infrastructure),
-  full regression suite (beast/forest concealment unchanged, targeting, save/load,
-  AI target legality).
-- **Phase 4:** AI escort portfolio rule + `submarineEscortWeight` difficulty knob;
-  balance review against the 8 scenarios above; explicit decision on the ambush bonus.
+  (naval/air-unit range-1 detection, land units excluded, no city gating yet) +
+  reveal-on-fire (`Unit.revealedThisTurn` field, combat-resolution wiring, plain-text
+  notification) wired through targeting, rendering, selection, last-seen, AI perception,
+  hot-seat presentation. Fully deployable on its own — subs are concealable, attacking
+  from concealment has a real, mechanically-enforced return-fire window, and every
+  consumer agrees, even before the destroyer/city specialization exists.
+- **Phase 2:** Destroyer `detection.concealedNavalRange: 2`, `autonomous_frigate`
+  `detection.concealedNavalRange: 3`, `coastal_battery`/`radar_station` city detection
+  gating, sighting notification (`scanSubmarineSightings`), and all `UNIT_DESCRIPTIONS`/
+  `radar_station` description updates.
+- **Phase 3:** Two-human hot-seat tests (including `revealedThisTurn` symmetry), scenario
+  fixtures (`submarine-undetected`, `destroyer-sonar-detection` — reusing #846
+  infrastructure), full regression suite (beast/forest concealment unchanged, targeting,
+  save/load, AI target legality).
+- **Phase 4:** AI escort portfolio rule (production trigger + tactical routing) +
+  `submarineEscortWeight` difficulty knob + AI submarine "avoid detector range" piloting
+  preference; balance review against the 8 scenarios above; explicit decision on the
+  attack-from-concealment combat bonus.
 
 Each phase leaves the game in a valid, fully-wired state — no phase ships a renderer-only
 or targeting-only half of the concealment contract.
 
-## Test matrix (see task prompt's full matrix — summarized here as spec commitment)
+## Test matrix
 
-Concealment, targeting, movement, last-seen, hot-seat, AI, save, UI, and regression
-coverage as enumerated in the issue. Regression coverage for beast and forest concealment
-is mandatory given the shared-predicate refactor — both existing test suites must still
-pass unmodified in behavior, only in implementation path.
+**Concealment:** enemy submarine hidden outside detection; adjacent ordinary naval/air
+unit reveals it; land units adjacent do *not* reveal it; destroyer specialist detection
+works at range 2; `autonomous_frigate` at range 3; outside specialist range remains
+hidden; city with no `coastal_battery` never detects; city with only `coastal_battery`
+detects at range 1; city with `coastal_battery` + `radar_station` detects at range 2;
+owner always sees own submarine; unrelated distant civ cannot see it; `mass-surveillance`
+does not defeat submarine concealment (matching forest/beast precedent).
+
+**Reveal-on-fire:** a concealed submarine that attacks becomes targetable/visible that
+turn to every civ with fog visibility of its tile; `revealedThisTurn` clears at the
+attacking civ's next turn-start reset; combat notification names the attacker plainly;
+symmetric across hot-seat viewers (not scoped to "the civ that got attacked" only).
+
+**Targeting:** concealed submarine cannot be directly targeted; detected (proximity or
+reveal-on-fire) submarine can be targeted; human and AI use same legality; naval-domain
+restrictions still work.
+
+**Movement:** moving detector into range reveals; moving detector away conceals again;
+submarine movement updates detection correctly.
+
+**Last seen:** observed submarine creates appropriate last-seen information after
+disappearance; ghost remains at old position, not live position; rediscovery updates
+memory correctly.
+
+**Hot seat:** A detects, B does not; handoff does not leak; last-seen information remains
+viewer-specific; `revealedThisTurn` reveal is correctly symmetric, not leaked further than
+fog visibility already allows.
+
+**AI:** AI cannot target undetected submarine; AI can target detected submarine; AI
+production prioritizes a destroyer when a threat is sighted and none is available;
+AI routes an available destroyer to escort near a sighting at higher difficulty; AI
+submarines prefer ending turns outside detector range when it doesn't cost a good attack;
+AI does not use hidden current location when only last-seen data exists.
+
+**Save:** save/load preserves correct derived visibility; `revealedThisTurn` round-trips
+correctly (or is absent, which is equivalent to `false`) across save/reload.
+
+**UI:** submarine description explains stealth and its counters; destroyer and
+`autonomous_frigate` descriptions explain detection range; `radar_station` description
+explains its coastal detection bonus; sighting notification fires and is legible; combat
+notification names the attacker plainly.
+
+**Regression:** existing beast concealment still works; forest concealment still works;
+ordinary fog-of-war unchanged; missile cruiser/naval targeting regressions do not
+reappear; land units still cannot detect or improperly attack naval units; `sam_site`'s
+existing `radar_station` prerequisite is untouched.
