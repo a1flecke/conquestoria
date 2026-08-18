@@ -36,7 +36,7 @@
 - `src/renderer/sprites/sprite-catalog.ts` — `UNIT_MOTION_STYLES`, `UNIT_SPRITE_CATALOG`
 - `src/renderer/unit-renderer.ts`, `src/renderer/unit-visual-resolver.ts` — icons
 - `src/audio/sfx-catalog.ts` — `UNIT_SFX` (temporary reuse), locomotion map
-- Tests: `tests/systems/unit-chain-integrity.test.ts`, `tests/integration/spy-lifecycle.test.ts`, `tests/systems/barbarian-roster.test.ts`, `tests/systems/minor-civ-economy-system.test.ts`, `tests/ui/city-panel.test.ts`, `tests/audio/sfx-catalog.test.ts`, `tests/systems/espionage-system.test.ts`, `tests/systems/unit-upgrade-system.test.ts`
+- Tests: `tests/systems/unit-chain-integrity.test.ts`, `tests/integration/spy-lifecycle.test.ts`, `tests/systems/barbarian-roster.test.ts`, `tests/systems/minor-civ-economy-system.test.ts`, `tests/ui/city-panel.test.ts`, `tests/audio/sfx-catalog.test.ts`, `tests/systems/espionage-system.test.ts`, `tests/systems/unit-upgrade.test.ts`
 
 **Phase 2 — `spy_station_chief` (era 9, `counterintelligence`)**: same file set, plus retargeting `spy_intelligence_officer`'s `obsoletedByTech`/`upgradesTo` (set as terminal in Phase 1).
 
@@ -568,7 +568,7 @@ git commit -m "feat(espionage): wire Intelligence Officer SFX (temporary reused 
 
 **Files:**
 - Modify: `tests/systems/espionage-system.test.ts:1634` (local `SPY_TYPES`)
-- Test: `tests/systems/unit-upgrade-system.test.ts` (new test), `tests/integration/spy-lifecycle.test.ts` (new hot-seat test)
+- Test: `tests/systems/unit-upgrade.test.ts` (new test), `tests/integration/spy-lifecycle.test.ts` (new hot-seat test)
 
 **Interfaces:**
 - Consumes: `canUpgradeUnit`/`getUpgradeCost` from `unit-upgrade-system.ts` (unchanged, fully generic), `processTurn` from `turn-manager.ts`.
@@ -591,25 +591,60 @@ Expected: PASS. If any assertion in that parametrized block hard-codes tier coun
 
 - [ ] **Step 3: Write the failing paid-upgrade test**
 
-Add to `tests/systems/unit-upgrade-system.test.ts` (create the file if it doesn't already cover this unit — check first with `grep -n "spy_operative" tests/systems/unit-upgrade-system.test.ts`; if a similar existing test exists for another chain, follow its exact fixture shape):
+The file already has a `makeUnit(type, position)` helper — use it, not `createUnit`/`mkC()` (that
+signature belongs to a different test file). Add after the existing `'reports canUpgrade:true when
+civGold exactly meets cost'` test:
 
 ```ts
 it('allows upgrading an Operative to an Intelligence Officer once covert-operations is researched', () => {
-  const city = { /* ...matches an existing fixture city in this file, owner: 'player', buildings: [] */ } as City;
-  const unit = createUnit('spy_operative', 'player', city.position, mkC());
-  const result = canUpgradeUnit(unit, city.id, { [city.id]: city }, ['covert-operations'], 200);
+  const unit = makeUnit('spy_operative', { q: 0, r: 0 });
+  const city = { id: 'c1', owner: 'player', position: { q: 0, r: 0 } } as any;
+  const result = canUpgradeUnit(unit, 'c1', { 'c1': city }, ['cryptography', 'covert-operations'], 200);
   expect(result.canUpgrade).toBe(true);
   expect(result.targetType).toBe('spy_intelligence_officer');
   expect(result.cost).toBe(70); // 50% of Intelligence Officer's 140 production cost
 });
 ```
 
-(Match this file's existing fixture-building conventions exactly rather than inventing a new city shape — copy the nearest existing `canUpgradeUnit` test's setup and only change the unit type, tech, and expected cost.)
+**Correction found during execution — a pre-existing test needs updating, not just a new one
+added.** `tests/systems/unit-upgrade.test.ts` already had `'upgrades spy_operative to spy_hacker
+instead of the conventional cyber unit'`, asserting that `['cryptography', 'cyber-warfare']` alone
+(no intermediate techs) resolved `spy_operative`'s upgrade target to `spy_hacker`. That was correct
+under the *old* chain (`spy_operative.obsoletedByTech` was `'cyber-warfare'` directly). Under the
+new chain it correctly returns `null` now — the whole point of this MR is that `cryptography` +
+`cyber-warfare` alone should no longer leapfrog past `covert-operations`. This is the fix working
+as intended, not a regression, but the existing test must be updated to assert the new behavior
+(with a comment explaining why), not left to fail:
+
+```ts
+it('#855: no longer leapfrogs cryptography+cyber-warfare straight to spy_hacker', () => {
+  // Before the #855 plateau fix, spy_operative's obsoletedByTech was 'cyber-warfare'
+  // directly, so a civ with only cryptography+cyber-warfare (skipping every intermediate
+  // espionage tech) could upgrade straight to spy_hacker. The chain now routes through
+  // spy_intelligence_officer (gated on covert-operations) — this is the fix working as
+  // intended, not a regression. See 'allows upgrading an Operative to an Intelligence
+  // Officer...' above for the new intended path.
+  const unit = makeUnit('spy_operative');
+
+  const result = canUpgradeUnit(
+    unit,
+    'c1',
+    { c1: { id: 'c1', owner: 'player', position: unit.position } as any },
+    ['cryptography', 'cyber-warfare'],
+  );
+
+  expect(result.targetType).toBeNull();
+});
+```
+(This replaces the old test's body and title in place — same `it(...)` block location, not an
+addition alongside it.)
 
 - [ ] **Step 4: Run test to verify it fails, then passes**
 
-Run: `bash scripts/run-with-mise.sh yarn test --run tests/systems/unit-upgrade-system.test.ts`
-Expected: FAILs before Task 1/2 land, PASSes now (this task assumes Tasks 1-2 are already committed, which they are at this point in the plan) — this step is a regression lock, not new production code.
+Run: `bash scripts/run-with-mise.sh yarn test --run tests/systems/unit-upgrade.test.ts`
+Expected: before this step's edits, the new test FAILs (no upgrade path exists yet) and the
+existing `spy_hacker`-leapfrog test also FAILs (chain already changed by Tasks 1-2, but the test
+wasn't updated yet). After both edits above: PASS.
 
 - [ ] **Step 5: Write the failing hot-seat parity test**
 
@@ -643,7 +678,7 @@ Expected: PASS (this proves `getTrainableUnitsForCiv` is keyed purely by the pas
 - [ ] **Step 7: Commit**
 
 ```bash
-git add tests/systems/espionage-system.test.ts tests/systems/unit-upgrade-system.test.ts tests/integration/spy-lifecycle.test.ts
+git add tests/systems/espionage-system.test.ts tests/systems/unit-upgrade.test.ts tests/integration/spy-lifecycle.test.ts
 git commit -m "test(espionage): lock Intelligence Officer paid-upgrade and hot-seat parity"
 ```
 
@@ -1079,7 +1114,7 @@ git commit -m "feat(espionage): wire Station Chief SFX (temporary reused death c
 
 ### Task 6: Remaining test-roster lists, paid-upgrade test, hot-seat parity test
 
-**Files:** `tests/systems/espionage-system.test.ts`, `tests/systems/unit-upgrade-system.test.ts`, `tests/integration/spy-lifecycle.test.ts`
+**Files:** `tests/systems/espionage-system.test.ts`, `tests/systems/unit-upgrade.test.ts`, `tests/integration/spy-lifecycle.test.ts`
 
 - [ ] **Step 1: Extend `espionage-system.test.ts`'s local `SPY_TYPES`**
 
@@ -1093,20 +1128,27 @@ Run: `bash scripts/run-with-mise.sh yarn test --run tests/systems/espionage-syst
 
 - [ ] **Step 3: Write the failing paid-upgrade test for the second leg**
 
+Use the same `makeUnit` helper as the Phase 1 test (not `createUnit`/`mkC()`):
+
 ```ts
 it('allows upgrading an Intelligence Officer to a Station Chief once counterintelligence is researched', () => {
-  const city = { /* same fixture shape as the Phase 1 test */ } as City;
-  const unit = createUnit('spy_intelligence_officer', 'player', city.position, mkC());
-  const result = canUpgradeUnit(unit, city.id, { [city.id]: city }, ['counterintelligence'], 200);
+  const unit = makeUnit('spy_intelligence_officer', { q: 0, r: 0 });
+  const city = { id: 'c1', owner: 'player', position: { q: 0, r: 0 } } as any;
+  const result = canUpgradeUnit(unit, 'c1', { 'c1': city }, ['covert-operations', 'counterintelligence'], 200);
   expect(result.canUpgrade).toBe(true);
   expect(result.targetType).toBe('spy_station_chief');
   expect(result.cost).toBe(93); // ceil(50% of Station Chief's 185 production cost)
 });
 ```
 
+Also check whether any pre-existing test in this file asserts `spy_intelligence_officer`'s
+upgrade target directly resolving to `spy_hacker` or being terminal (mirroring the Phase 1
+`spy_operative`-leapfrog test this plan had to fix) — if the Phase 1 fix above didn't already
+cover it, update it the same way rather than leaving a stale assertion.
+
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `bash scripts/run-with-mise.sh yarn test --run tests/systems/unit-upgrade-system.test.ts` → PASS
+Run: `bash scripts/run-with-mise.sh yarn test --run tests/systems/unit-upgrade.test.ts` → PASS
 
 - [ ] **Step 5: Write the failing hot-seat parity test**
 
@@ -1137,7 +1179,7 @@ Run: `bash scripts/run-with-mise.sh yarn test --run tests/integration/spy-lifecy
 - [ ] **Step 7: Commit**
 
 ```bash
-git add tests/systems/espionage-system.test.ts tests/systems/unit-upgrade-system.test.ts tests/integration/spy-lifecycle.test.ts
+git add tests/systems/espionage-system.test.ts tests/systems/unit-upgrade.test.ts tests/integration/spy-lifecycle.test.ts
 git commit -m "test(espionage): lock Station Chief paid-upgrade and hot-seat parity"
 ```
 
