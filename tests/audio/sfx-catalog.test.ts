@@ -30,7 +30,7 @@ const COMBAT_MELEE_TYPES: UnitType[] = [
 const RANGED_TYPES: UnitType[] = ['archer', 'crossbowman', 'mobile_aa', 'mechanized_infantry', 'battleship'];
 const SIEGE_TYPES: UnitType[] = ['catapult', 'ballista'];
 const NON_COMBAT_TYPES: UnitType[] = ['settler', 'worker', 'caravan', 'scout', 'expedition', 'transport'];
-const SPY_TYPES: UnitType[] = ['spy_scout', 'spy_informant', 'spy_agent', 'spy_operative', 'spy_intelligence_officer', 'spy_hacker'];
+const SPY_TYPES: UnitType[] = ['spy_scout', 'spy_informant', 'spy_agent', 'spy_operative', 'spy_intelligence_officer', 'spy_station_chief', 'spy_hacker'];
 const ALL_LOCOMOTION_CLASSES: LocomotionClass[] = ['humanoid', 'animal', 'naval', 'air'];
 const PIRATE_TYPES: PirateUnitType[] = [
   'pirate_galley', 'pirate_corsair', 'pirate_frigate', 'pirate_ironclad',
