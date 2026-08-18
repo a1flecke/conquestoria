@@ -153,11 +153,16 @@ only one spy tier is ever visible in the build queue at a time.
 10. Unit-renderer icon in `unit-renderer.ts`
 11. `FALLBACK_ICONS` in `unit-visual-resolver.ts` — exhaustive/TS-enforced
 12. `UNIT_MOTION_STYLES` + `UNIT_SPRITE_CATALOG` in `sprite-catalog.ts` — both exhaustive/TS-enforced
-13. Two new `.svg.ts` files in `src/renderer/sprites/v2/`, following the `FactionPalette`
-    contract (`.claude/rules/sprites.md`)
-14. `UNIT_SPRITES` registration in `v2/index.ts` — **silent gap**, untyped `Record<string, ...>`,
-    not TS-enforced
-15. `UNIT_IDS` array in `tests/renderer/sprites/sprite-v2.test.ts` — the only real backstop for #14
+13. **Correction (found while writing the implementation plan):** items 13-15 as originally
+    written here were wrong. `getUnitSpriteV2` (`v2/index.ts`) has a tested, permanent
+    live-DOM-overlay fallback for any unit type with no hand-authored pre-serialized
+    `UNIT_SPRITES` entry (`.claude/rules/sprites.md`, "DOM-Overlay Live Fallback For Uncovered
+    Unit Sprites" — added after issue #755 specifically so a missing v2 entry never silently
+    fails to render). A `sprite-catalog.ts` JSX component + `UNIT_SPRITE_CATALOG` registration
+    is sufficient for correct rendering; hand-authored `.svg.ts` files, `v2/index.ts`
+    registration, and `tests/renderer/sprites/sprite-v2.test.ts`'s `UNIT_IDS` list are a
+    pre-serialization *performance* optimization, not a correctness requirement, and are
+    deferred to a `generate-sprite-prompt` skill follow-up rather than blocking this MR.
 
 **SFX**
 16. `UNIT_SFX` death entries in `sfx-catalog.ts` — reuse an existing spy death sound as a
