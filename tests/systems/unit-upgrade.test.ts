@@ -57,6 +57,15 @@ describe('canUpgradeUnit', () => {
     expect(result.canUpgrade).toBe(true);
     expect(result.cost).toBe(25);
   });
+
+  it('allows upgrading an Operative to an Intelligence Officer once covert-operations is researched', () => {
+    const unit = makeUnit('spy_operative', { q: 0, r: 0 });
+    const city = { id: 'c1', owner: 'player', position: { q: 0, r: 0 } } as any;
+    const result = canUpgradeUnit(unit, 'c1', { 'c1': city }, ['cryptography', 'covert-operations'], 200);
+    expect(result.canUpgrade).toBe(true);
+    expect(result.targetType).toBe('spy_intelligence_officer');
+    expect(result.cost).toBe(70); // 50% of Intelligence Officer's 140 production cost
+  });
 });
 
 describe('explicit upgrade chains', () => {
@@ -76,7 +85,13 @@ describe('explicit upgrade chains', () => {
     ).targetType).toBe('cuirassier');
   });
 
-  it('upgrades spy_operative to spy_hacker instead of the conventional cyber unit', () => {
+  it('#855: no longer leapfrogs cryptography+cyber-warfare straight to spy_hacker', () => {
+    // Before the #855 plateau fix, spy_operative's obsoletedByTech was 'cyber-warfare'
+    // directly, so a civ with only cryptography+cyber-warfare (skipping every intermediate
+    // espionage tech) could upgrade straight to spy_hacker. The chain now routes through
+    // spy_intelligence_officer (gated on covert-operations) — this is the fix working as
+    // intended, not a regression. See 'allows upgrading an Operative to an Intelligence
+    // Officer...' above for the new intended path.
     const unit = makeUnit('spy_operative');
 
     const result = canUpgradeUnit(
@@ -86,7 +101,7 @@ describe('explicit upgrade chains', () => {
       ['cryptography', 'cyber-warfare'],
     );
 
-    expect(result.targetType).toBe('spy_hacker');
+    expect(result.targetType).toBeNull();
   });
 
   it('does not infer cross-role upgrades merely because a tech ID matches', () => {
