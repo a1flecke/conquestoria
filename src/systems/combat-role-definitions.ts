@@ -96,6 +96,7 @@ export const UNIT_ROLE_DEFINITIONS = {
     counters: [], vulnerableTo: [],
     upgradeFamily: 'espionage',
     terminalReason: 'No further upgrade currently available.',
+    publicFacts: ['Better base infiltration odds than an Operative', '+1 combat strength for self-defense'],
   }),
   spy_hacker: role('formation-support', 'Cyber spy that conducts remote operations against rival infrastructure.', ['espionage'], { counters: [], vulnerableTo: ['frontline', 'ranged'], upgradeFamily: 'espionage', terminalReason: 'Terminal tier of the espionage chain with no later replacement.' }),
   scout_hound: role('detection', 'Detection scout that reveals disguised spies while patrolling territory.', ['detection', 'frontline'], { counters: ['formation-support'], vulnerableTo: ['ranged'], upgradeFamily: 'detection' }),
