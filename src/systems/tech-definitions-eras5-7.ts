@@ -388,7 +388,8 @@ const ERA_7_TECHS: Tech[] = [
   // ESPIONAGE (2)
   { id: 'covert-operations', name: 'Covert Operations', track: 'espionage', cost: 145,
     prerequisites: ['counter-espionage', 'propaganda'],
-    unlocks: ['+2 spy slots empire-wide; covert missions have +15% success rate', "Spy mission: sabotage a rival's crisis relief"], era: 7 },
+    unlocks: ['+2 spy slots empire-wide; covert missions have +15% success rate', "Spy mission: sabotage a rival's crisis relief"],
+    unlocksUnits: ['spy_intelligence_officer'], era: 7 },
   { id: 'secret-police', name: 'Secret Police', track: 'espionage', cost: 210,
     prerequisites: ['counter-espionage', 'separation-of-powers'],
     unlocks: ['Enemy spy missions in your cities have -30% success rate; spy detection bonus'], era: 7 },

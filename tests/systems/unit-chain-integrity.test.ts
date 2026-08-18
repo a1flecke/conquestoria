@@ -133,6 +133,24 @@ describe('early-modern mounted upgrade chain', () => {
   });
 });
 
+describe('spy plateau fix — era 7 Intelligence Officer', () => {
+  it('redirects Operative through Intelligence Officer before Hacker', () => {
+    const operative = TRAINABLE_UNITS.find(unit => unit.type === 'spy_operative');
+    const intelOfficer = TRAINABLE_UNITS.find(unit => unit.type === ('spy_intelligence_officer' as UnitType));
+
+    expect(operative).toMatchObject({ obsoletedByTech: 'covert-operations', upgradesTo: 'spy_intelligence_officer' });
+    expect(intelOfficer).toMatchObject({
+      cost: 140,
+      techRequired: 'covert-operations',
+    });
+    expect(UNIT_DEFINITIONS['spy_intelligence_officer' as UnitType]).toMatchObject({
+      strength: 7,
+      movementPoints: 3,
+      visionRange: 3,
+    });
+  });
+});
+
 describe('Beast Handler Company balance envelope', () => {
   it('improves on its hound predecessors without overtaking the Horseman combat role', () => {
     expect(attackerWinRate('beast_handler', 'scout_hound')).toBeGreaterThan(0.9);
