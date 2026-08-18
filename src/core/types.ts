@@ -364,7 +364,7 @@ export type UnitType =
   | 'observation_balloon' | 'biplane' | 'wwii_fighter' | 'jet_fighter' | 'bomber' | 'recon_aircraft'
   | 'tank' | 'main_battle_tank' | 'anti_tank_gun' | 'mobile_aa' | 'submarine' | 'carrier'
   | 'attack_helicopter' | 'missile_submarine'
-  | 'spy_scout' | 'spy_informant' | 'spy_agent' | 'spy_operative' | 'spy_intelligence_officer' | 'spy_hacker'
+  | 'spy_scout' | 'spy_informant' | 'spy_agent' | 'spy_operative' | 'spy_intelligence_officer' | 'spy_station_chief' | 'spy_hacker'
   | 'scout_hound' | 'shadow_warden' | 'war_hound' | 'beast_handler' | 'war_elephant'
   | 'caravan' | 'merchant_wagon' | 'freight_convoy'
   | 'naval_trader' | 'steamship_trader' | 'cargo_freighter' | 'container_ship'
