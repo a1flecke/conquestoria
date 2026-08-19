@@ -112,7 +112,17 @@ detection field below, instead of `if (unit.type === 'destroyer')` branches.
   properly-equipped cities can.
 - A submarine that fires while concealed reveals its own tile to the defending civ for
   that turn only (a genuine, mechanically real return-fire window — not merely cosmetic),
-  re-concealing automatically once the attacker's owner's next turn resets it.
+  re-concealing automatically once the attacker's owner's next turn resets it. This reveal
+  is a deliberate `GameState`-level fact, not a per-viewer overlay: **any** civ with fog
+  visibility of that tile — not just the one attacked — can see and, if hostile, target
+  the revealed submarine that turn ("an attack is loud"). It is also strictly per-unit:
+  if multiple submarines share a tile, only the one that fired is revealed — its stacked
+  packmates stay concealed, matching how concealment already coexists with visible units
+  on the same tile elsewhere (e.g. forest).
+- A submarine visible only because it just fired is presented distinctly from one visible
+  because it's actively within a detector's range (badge/wording difference — "spotted
+  momentarily" vs. "tracked") so the one-turn window reads as a deliberate mechanic, not a
+  disappearing-unit glitch.
 - A first ordinary-proximity detection (not a fire-triggered reveal, which announces
   itself via combat) fires a sighting notification, mirroring the existing
   `beast:sighted` pattern, so detection is never silent or easy to miss — especially for
@@ -195,6 +205,14 @@ imports. `attack-targeting.ts`'s check is not viewer-scoped by an explicit optio
 implicit-owner-as-viewer shape (`isUnitConcealedFrom(state, target, attacker.owner)`) so
 behavior for targeting is unchanged except for the new submarine branch.
 
+Note for implementation: the `viewerUnits` array shown above (all non-transport units,
+no domain filter) is what `isBeastConcealedFrom` expects — it is **not** passed through
+to `isSubmarineConcealedFrom`. The submarine predicate takes `(state, unit, viewerCivId)`
+and derives its own, differently-filtered detector set internally (naval/air units only,
+plus eligible cities — see §2), because its eligibility rules are not the generic
+"any owned unit" rule the other two families use. Do not reuse the generic filtered array
+for the submarine branch.
+
 ### 2. Submarine concealment rule
 
 ```ts
@@ -244,6 +262,16 @@ before concealment resumes. Combat notifications name the attacker plainly, sinc
 no remaining secrecy to protect once the tile is exposed. This is the one deliberate,
 minimal, justified addition to `GameState`'s shape in this feature (see §9 — every other
 piece stays fully derived).
+
+**Must be set in the shared combat-resolution helper, not per-caller.** Combat is
+executed from at least three places — human input, `ai-major-turn.ts`'s `executeAttack`,
+and pirate attacks via `pirate-system.ts`. Per `end-to-end-wiring.md`'s "Shared State
+Mutations must be actor-complete" rule, `revealedThisTurn` must be set inside the one
+canonical combat-resolution function all three paths call through (`combat-system.ts`),
+not duplicated at each call site — otherwise an AI- or pirate-triggered submarine attack
+could silently skip the reveal while a human-triggered one doesn't. Add a parity
+regression proving both a human-attack path and an AI-attack path set the field
+identically (per `end-to-end-wiring.md`'s existing convention for shared consequences).
 
 ### 3. City detection (`coastal_battery` + `radar_station`)
 
@@ -296,6 +324,13 @@ existing last-seen ghost only (last snapshot taken while the tile was `visible`)
 concealment already is — a concealed sub is never snapshotted as "present," so ghosts can
 only ever show a stale prior position, never a live one.
 
+**Reveal-state UI cue.** A submarine visible solely due to `revealedThisTurn` (fired,
+temporary) is presented distinctly from one visible because it's within a detector's
+persistent range (tracked, stays visible as long as the detector holds position) — a
+badge and differing status text ("Spotted momentarily" vs. "Tracked by [detector]"), not
+just identical rendering in both cases. Without this, a player could reasonably believe
+they've permanently found the submarine and be confused when it vanishes next turn.
+
 ### 6. Hot-seat
 
 No new mechanism — `isUnitConcealedFrom` takes an explicit `viewerCivId`, and every
@@ -329,7 +364,11 @@ not just the one that "caused" it).
   1. *Production:* when a civ has at least one `remembered`-or-better hostile submarine
      sighting and no available destroyer, prioritize training one — without this, the
      tactical rule below would be a dead rule on any game where the AI hadn't already
-     built a destroyer for unrelated reasons.
+     built a destroyer for unrelated reasons. Per `end-to-end-wiring.md`'s "AI content
+     catalogs must stay generic" rule, this must be a score boost within `ai-production.ts`'s
+     existing candidate-scoring mechanism (the same kind of weighting
+     `crisisDispatchWeight`-style knobs already apply elsewhere), not a special-cased
+     queue-jump or a new one-off production branch.
   2. *Tactical routing:* when a civ has an available destroyer and an un-escorted
      transport/naval-civilian unit near a remembered submarine sighting, prefer routing
      the destroyer to it.
@@ -429,7 +468,13 @@ does not defeat submarine concealment (matching forest/beast precedent).
 **Reveal-on-fire:** a concealed submarine that attacks becomes targetable/visible that
 turn to every civ with fog visibility of its tile; `revealedThisTurn` clears at the
 attacking civ's next turn-start reset; combat notification names the attacker plainly;
-symmetric across hot-seat viewers (not scoped to "the civ that got attacked" only).
+symmetric across hot-seat viewers (not scoped to "the civ that got attacked" only); a
+third civ (not the one attacked) with fog visibility and at war with the sub's owner can
+also target the revealed sub that turn; two stacked submarines where only one fires
+result in exactly one revealed/targetable unit, the other remaining concealed; a human
+attack path and an AI attack path both set `revealedThisTurn` identically (parity
+regression); the UI shows a distinct "spotted momentarily" cue for a fire-revealed
+submarine versus "tracked" for one within a detector's persistent range.
 
 **Targeting:** concealed submarine cannot be directly targeted; detected (proximity or
 reveal-on-fire) submarine can be targeted; human and AI use same legality; naval-domain
@@ -447,7 +492,8 @@ viewer-specific; `revealedThisTurn` reveal is correctly symmetric, not leaked fu
 fog visibility already allows.
 
 **AI:** AI cannot target undetected submarine; AI can target detected submarine; AI
-production prioritizes a destroyer when a threat is sighted and none is available;
+production prioritizes a destroyer when a threat is sighted and none is available, via a
+score boost in the existing candidate-scoring mechanism (not a special-cased queue-jump);
 AI routes an available destroyer to escort near a sighting at higher difficulty; AI
 submarines prefer ending turns outside detector range when it doesn't cost a good attack;
 AI does not use hidden current location when only last-seen data exists.
@@ -458,7 +504,8 @@ correctly (or is absent, which is equivalent to `false`) across save/reload.
 **UI:** submarine description explains stealth and its counters; destroyer and
 `autonomous_frigate` descriptions explain detection range; `radar_station` description
 explains its coastal detection bonus; sighting notification fires and is legible; combat
-notification names the attacker plainly.
+notification names the attacker plainly; a fire-revealed submarine shows the "spotted
+momentarily" cue and a detector-tracked submarine shows the "tracked" cue, distinctly.
 
 **Regression:** existing beast concealment still works; forest concealment still works;
 ordinary fog-of-war unchanged; missile cruiser/naval targeting regressions do not
