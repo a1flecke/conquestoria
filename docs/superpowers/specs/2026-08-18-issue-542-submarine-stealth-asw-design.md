@@ -135,9 +135,14 @@ detection field below, instead of `if (unit.type === 'destroyer')` branches.
   here" ghost, never a live position — reusing the existing mechanism.
 - Hot-seat visibility is strictly per-viewer; no presentation/selection/last-seen state
   leaks between human players.
-- Combat notifications name the attacker plainly ("A Submarine attacked...") — no
-  mystery-flavor text substitution, since the reveal-on-fire mechanic already exposes the
-  attacker's tile that same turn, leaving nothing left to protect by being vague.
+- No combat-notification text change. `routeCombatResolved` (`src/ui/notification-routing.ts`)
+  already names the attacking civilization (not unit type) to the defender for every attack
+  in the game today — verified by reading it, not assumed. Reveal-on-fire already makes the
+  submarine render normally on the map that turn, so the player learns it was a submarine
+  visually, the same way they'd learn any other unit's type; special-casing extra detail
+  into the toast copy for submarines only would be inconsistent with how every other unit's
+  attack is announced. (Earlier drafts of this spec assumed the notification needed a
+  wording change — corrected after reading the actual code.)
 - Existing `mass-surveillance` behavior (reveals fog tile visibility for at-war units, but
   does not today defeat forest/beast concealment) is left exactly as-is — submarine
   concealment is exempt from it too, matching current precedent rather than quietly
@@ -258,8 +263,10 @@ the submarine is genuinely visible and targetable that turn, not merely flashed
 cosmetically, satisfying "every consumer must agree." The field is cleared the same way
 `hasActed` already resets each turn (owning civ's next turn-start reset), so the window is
 exactly "the rest of the current round," giving the defending civ one real turn to react
-before concealment resumes. Combat notifications name the attacker plainly, since there is
-no remaining secrecy to protect once the tile is exposed. This is the one deliberate,
+before concealment resumes. No combat-notification copy change is needed or made — the
+existing generic notification (civ name, not unit type) plus the visual reveal on the map
+already communicate this; see Goals for why a unit-type-specific wording change was
+considered and rejected. This is the one deliberate,
 minimal, justified addition to `GameState`'s shape in this feature (see §9 — every other
 piece stays fully derived).
 
@@ -480,8 +487,9 @@ does not defeat submarine concealment (matching forest/beast precedent).
 
 **Reveal-on-fire:** a concealed submarine that attacks becomes targetable/visible that
 turn to every civ with fog visibility of its tile; `revealedThisTurn` clears at the
-attacking civ's next turn-start reset; combat notification names the attacker plainly;
-symmetric across hot-seat viewers (not scoped to "the civ that got attacked" only); a
+attacking civ's next turn-start reset; existing combat notification text is unchanged
+(no unit-type special-casing); symmetric across hot-seat viewers (not scoped to "the civ
+that got attacked" only); a
 third civ (not the one attacked) with fog visibility and at war with the sub's owner can
 also target the revealed sub that turn; two stacked submarines where only one fires
 result in exactly one revealed/targetable unit, the other remaining concealed; a human
@@ -516,9 +524,9 @@ correctly (or is absent, which is equivalent to `false`) across save/reload.
 
 **UI:** submarine description explains stealth and its counters; destroyer and
 `autonomous_frigate` descriptions explain detection range; `radar_station` description
-explains its coastal detection bonus; sighting notification fires and is legible; combat
-notification names the attacker plainly; a fire-revealed submarine shows the "spotted
-momentarily" cue and a detector-tracked submarine shows the "tracked" cue, distinctly.
+explains its coastal detection bonus; sighting notification fires and is legible; a
+fire-revealed submarine shows the "spotted momentarily" cue and a detector-tracked
+submarine shows the "tracked" cue, distinctly.
 
 **Regression:** existing beast concealment still works; forest concealment still works;
 ordinary fog-of-war unchanged; missile cruiser/naval targeting regressions do not
