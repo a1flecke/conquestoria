@@ -372,6 +372,12 @@ not just the one that "caused" it).
   2. *Tactical routing:* when a civ has an available destroyer and an un-escorted
      transport/naval-civilian unit near a remembered submarine sighting, prefer routing
      the destroyer to it.
+  Both parts source their "remembered submarine sighting" from `MajorCivPerception.units`
+  (`ai-perception.ts`), not raw `civ.visibility.lastSeen` — `buildMajorCivPerception`
+  already excludes any sighting once `decayRememberedConfidence(age) <= 0`, so staleness
+  is handled for free by the existing decay math. No new confidence/decay threshold is
+  invented for this feature; an occasional wasted response to an aging-but-not-yet-decayed
+  sighting is acceptable AI imperfection, not a bug.
   Difficulty changes only how eagerly this preference is applied — never detection range,
   visibility, or combat modifiers, per the task's explicit constraint.
 
@@ -414,7 +420,12 @@ not a combat-strength bonus, and is not what this review is deciding):
 1. Lone submarine vs. unescorted naval civilian.
 2. Lone submarine vs. destroyer-escorted convoy.
 3. Wolfpack (2+ subs) vs. mixed fleet — does reveal-on-fire meaningfully cap how many
-   consecutive free attacks a wolfpack gets before some defender can respond?
+   consecutive free attacks a wolfpack gets before some defender can respond? Specifically
+   check the "safety in numbers" case: since reveal-on-fire is strictly per-unit (§2),
+   stacking multiple submarines on one tile and rotating which one fires each turn means a
+   player never exposes more than one unit at a time — confirm this doesn't make stacked
+   wolfpacks trivially safer than the loop intends, and if it does, that's a stacking-policy
+   question, not a reason to revisit the per-unit reveal decision itself.
 4. Submarine operating near an enemy city — with `coastal_battery`/`radar_station` city
    gating now explicit, does an under-built coastline still feel fair, or does the
    all-or-nothing building gate make early-game coastal cities too exposed?
@@ -433,7 +444,9 @@ review, not before, and is reported explicitly either way — see Implementation
 ## Implementation phases
 
 - **Phase 1:** `isUnitConcealedFrom` canonical contract + submarine stealth rule
-  (naval/air-unit range-1 detection, land units excluded, no city gating yet) +
+  (naval/air-unit range-1 detection only; land units excluded; cities are not detectors
+  at all yet — not "cities detect without the building gate," but genuinely deferred to
+  Phase 2) +
   reveal-on-fire (`Unit.revealedThisTurn` field, combat-resolution wiring, plain-text
   notification) wired through targeting, rendering, selection, last-seen, AI perception,
   hot-seat presentation. Fully deployable on its own — subs are concealable, attacking
