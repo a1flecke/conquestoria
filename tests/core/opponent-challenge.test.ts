@@ -148,6 +148,13 @@ describe('crisis profile knobs', () => {
   it('getChallengeProfileForCiv resolves the per-civ profile', () => {
     expect(getChallengeProfileForCiv(stateWith('veteran', 'explorer'), 'c1').crisisCooldownTurns).toBe(5);
   });
+
+  it('submarineEscortWeight increases with difficulty, matching crisisDispatchWeight\'s shape (#542)', () => {
+    expect(OPPONENT_CHALLENGE_PROFILES.explorer.submarineEscortWeight).toBeLessThan(
+      OPPONENT_CHALLENGE_PROFILES.standard.submarineEscortWeight);
+    expect(OPPONENT_CHALLENGE_PROFILES.standard.submarineEscortWeight).toBeLessThan(
+      OPPONENT_CHALLENGE_PROFILES.veteran.submarineEscortWeight);
+  });
 });
 
 describe('city siege destruction era knob (#522)', () => {
