@@ -502,6 +502,7 @@ const UNIT_DEFINITION_BASES: Record<UnitType, UnitDefinitionBase> = {
     canFoundCity: false, canBuildImprovements: false, productionCost: 210,
     domain: 'naval', waterAccess: 'ocean',
     attackProfile: { kind: 'ranged', range: 2, targets: ['unit', 'city'] },
+    detection: { concealedNavalRange: 2 },
   },
   // Era 11 units
   attack_helicopter: {
@@ -520,7 +521,7 @@ const UNIT_DEFINITION_BASES: Record<UnitType, UnitDefinitionBase> = {
     attackProfile: { kind: 'ranged', range: 3, targets: ['unit', 'city'] },
   },
   combat_drone: { type: 'combat_drone', name: 'Combat Drone', movementPoints: 6, visionRange: 3, strength: 42, canFoundCity: false, canBuildImprovements: false, productionCost: 224, domain: 'air', attackProfile: { kind: 'ranged', range: 2, targets: ['unit', 'city'] }, airOperation: { baseKinds: ['airfield', 'helicopter_base', 'stealth_airbase', 'carrier'], operationalRange: 5, ferryRange: 8, missions: ['strike', 'rebase'], carrierEligible: true } },
-  autonomous_frigate: { type: 'autonomous_frigate', name: 'Autonomous Frigate', movementPoints: 5, visionRange: 3, strength: 60, canFoundCity: false, canBuildImprovements: false, productionCost: 336, domain: 'naval', waterAccess: 'ocean', attackProfile: { kind: 'ranged', range: 3, targets: ['unit', 'city'] } },
+  autonomous_frigate: { type: 'autonomous_frigate', name: 'Autonomous Frigate', movementPoints: 5, visionRange: 3, strength: 60, canFoundCity: false, canBuildImprovements: false, productionCost: 336, domain: 'naval', waterAccess: 'ocean', attackProfile: { kind: 'ranged', range: 3, targets: ['unit', 'city'] }, detection: { concealedNavalRange: 3 } },
   exosuit_infantry: { type: 'exosuit_infantry', name: 'Exosuit Infantry', movementPoints: 3, visionRange: 2, strength: 70, canFoundCity: false, canBuildImprovements: false, productionCost: 196, domain: 'land', attackProfile: { kind: 'ranged', range: 1, targets: ['unit', 'city'] }, combinedArms: { provides: ['line-infantry'] } },
   propagandist: { type: 'propagandist', name: 'Propagandist', movementPoints: 3, visionRange: 2, strength: 0, canFoundCity: false, canBuildImprovements: false, productionCost: 196, domain: 'land' },
   drone_controller: { type: 'drone_controller', name: 'Drone Controller', movementPoints: 3, visionRange: 3, strength: 0, canFoundCity: false, canBuildImprovements: false, productionCost: 196, domain: 'land' },
