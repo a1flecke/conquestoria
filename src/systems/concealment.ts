@@ -103,9 +103,13 @@ export function isUnitConcealedFrom(
   viewerCivId: string,
 ): boolean {
   if (unit.owner === viewerCivId) return false;
-  const viewerUnits = state.civilizations[viewerCivId]?.units
-    .map(id => state.units[id])
-    .filter((u): u is Unit => Boolean(u) && !u.transportId) ?? [];
+  // Scanned directly from state.units (matching how most pre-migration call sites
+  // built this list) rather than read from civilizations[id].units -- keeps this
+  // resilient to a civ roster that's momentarily out of sync, and requires no
+  // civilizations entry to exist at all for the beast-concealment sub-check.
+  const viewerUnits = Object.values(state.units).filter(
+    (u): u is Unit => u.owner === viewerCivId && !u.transportId,
+  );
   return isBeastConcealedFrom(unit, state.map, viewerUnits)
     || isForestConcealedUnit(state, viewerCivId, unit)
     || isSubmarineConcealedFrom(state, unit, viewerCivId);

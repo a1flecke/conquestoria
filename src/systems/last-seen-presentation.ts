@@ -7,7 +7,8 @@ import type {
   LastSeenUnitPresentation,
   Unit,
 } from '@/core/types';
-import { applyReconReveals, getVisibility, isForestConcealedUnit, updateVisibility } from '@/systems/fog-of-war';
+import { applyReconReveals, getVisibility, updateVisibility } from '@/systems/fog-of-war';
+import { isUnitConcealedFrom } from '@/systems/concealment';
 import { getActiveNationalProjectsForCiv } from '@/systems/national-project-system';
 import { getVisionBonus } from '@/systems/unit-modifier-system';
 import { resolveTileHasRail } from '@/systems/road-network';
@@ -59,7 +60,7 @@ function visibleUnitsByTile(
   for (const unit of Object.values(viewerFacingUnits)
     .filter(unit => !unit.transportId)
     .filter(unit => canInspectUnitForViewer(state, viewerId, unit.id))
-    .filter(unit => !isForestConcealedUnit(state, viewerId, unit))) {
+    .filter(unit => !isUnitConcealedFrom(state, unit, viewerId))) {
     const position = state.map.wrapsHorizontally
       ? wrapHexCoord(unit.position, state.map.width)
       : unit.position;

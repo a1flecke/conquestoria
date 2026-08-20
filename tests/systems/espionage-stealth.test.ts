@@ -157,7 +157,7 @@ describe('getVisibleUnitsForPlayer', () => {
 
     const basilisk = { id: 'basilisk', type: 'beast_basilisk', owner: 'beasts', position: { q: 5, r: 3 }, health: 100, movementPointsLeft: 2, hasActed: false } as any;
     const farViewer = { id: 'viewer',  type: 'warrior',        owner: 'player',  position: { q: 7, r: 3 }, health: 100, movementPointsLeft: 2, hasActed: false } as any;
-    const state = { map, units: { basilisk, viewer: farViewer }, espionage: {} } as any;
+    const state = { map, units: { basilisk, viewer: farViewer }, espionage: {}, civilizations: {} } as any;
 
     const visible = getVisibleUnitsForPlayer(state.units, state, 'player');
     expect(visible['basilisk']).toBeUndefined();
@@ -171,7 +171,7 @@ describe('getVisibleUnitsForPlayer', () => {
 
     const basilisk    = { id: 'basilisk', type: 'beast_basilisk', owner: 'beasts', position: { q: 5, r: 3 }, health: 100, movementPointsLeft: 2, hasActed: false } as any;
     const adjViewer   = { id: 'viewer',  type: 'warrior',        owner: 'player',  position: { q: 6, r: 3 }, health: 100, movementPointsLeft: 2, hasActed: false } as any;
-    const state = { map, units: { basilisk, viewer: adjViewer }, espionage: {} } as any;
+    const state = { map, units: { basilisk, viewer: adjViewer }, espionage: {}, civilizations: {} } as any;
 
     const visible = getVisibleUnitsForPlayer(state.units, state, 'player');
     expect(visible['basilisk']).toBeDefined();
@@ -192,7 +192,7 @@ describe('getVisibleUnitsForPlayer', () => {
     // and verify that cargo with transportId is excluded from the revealer list.
     const ship  = { id: 'ship',  type: 'galley',  owner: 'player', position: { q: 9, r: 3 }, health: 100, movementPointsLeft: 2, hasActed: false } as any;
     const cargo = { id: 'cargo', type: 'warrior', owner: 'player', position: { q: 6, r: 3 }, health: 100, movementPointsLeft: 2, hasActed: false, transportId: 'ship' } as any;
-    const state = { map, units: { basilisk, ship, cargo }, espionage: {} } as any;
+    const state = { map, units: { basilisk, ship, cargo }, espionage: {}, civilizations: {} } as any;
 
     const visible = getVisibleUnitsForPlayer(state.units, state, 'player');
     expect(visible['basilisk']).toBeUndefined();

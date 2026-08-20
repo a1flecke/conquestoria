@@ -55,7 +55,7 @@ import { resolveCivDefinition } from '@/systems/civ-registry';
 import { appendNotification } from '@/core/notification-log';
 import { getVisibility } from '@/systems/fog-of-war';
 import { formatNotificationTargetFocusMessage } from '@/ui/notification-targets';
-import { isBeastConcealedFrom } from '@/systems/beast-system';
+import { isUnitConcealedFrom } from '@/systems/concealment';
 import { recordBeastSightings } from '@/systems/beast-presentation';
 import { hexKey } from '@/systems/hex-utils';
 
@@ -86,22 +86,21 @@ export function prefersReducedMotion(): boolean {
 export function scanBeastSightings(session: GameSession, bus: EventBus): void {
   const visTiles = getCurrentCiv(session)?.visibility?.tiles;
   if (!visTiles) return;
-  const viewerUnits = Object.values(session.getState().units).filter(
-    u => u.owner === session.getState().currentPlayer && !u.transportId,
-  );
+  const state = session.getState();
   const visibleKeys = new Set(
     Object.entries(visTiles).filter(([, v]) => v === 'visible').map(([k]) => k),
   );
-  // A beast concealed in its habitat cannot be sighted even if the tile is visible
-  for (const unit of Object.values(session.getState().units)) {
-    if (isBeastConcealedFrom(unit, session.getState().map, viewerUnits)) {
+  // A concealed unit (beast habitat, forest guardian, or submarine) cannot be
+  // sighted even if the tile is visible.
+  for (const unit of Object.values(state.units)) {
+    if (isUnitConcealedFrom(state, unit, state.currentPlayer)) {
       visibleKeys.delete(hexKey(unit.position));
     }
   }
-  const sightingResult = recordBeastSightings(session.getState(), session.getState().currentPlayer, visibleKeys);
+  const sightingResult = recordBeastSightings(state, state.currentPlayer, visibleKeys);
   session.setStateWithoutRefresh(sightingResult.state);
   for (const beastId of sightingResult.newSightings) {
-    bus.emit('beast:sighted', { beastId, civId: session.getState().currentPlayer });
+    bus.emit('beast:sighted', { beastId, civId: state.currentPlayer });
   }
 }
 

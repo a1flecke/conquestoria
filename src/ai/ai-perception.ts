@@ -7,7 +7,8 @@ import type {
   Unit,
   UnitType,
 } from '@/core/types';
-import { getVisibility, isForestConcealedUnit } from '@/systems/fog-of-war';
+import { getVisibility } from '@/systems/fog-of-war';
+import { isUnitConcealedFrom } from '@/systems/concealment';
 import { hexKey } from '@/systems/hex-utils';
 import {
   isTrustedObservedLastSeenTile,
@@ -170,7 +171,7 @@ export function buildMajorCivPerception(
       !relevantOwner(unit.owner)
       || unit.transportId
       || !canInspectUnitForViewer(state, actorId, unit.id)
-      || isForestConcealedUnit(state, actorId, unit)
+      || isUnitConcealedFrom(state, unit, actorId)
     ) {
       continue;
     }
