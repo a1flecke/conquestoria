@@ -6,6 +6,7 @@ import { getBlockingMapEntityAt, getMovementRangeDetails } from '@/systems/unit-
 import { EventBus } from '@/core/event-bus';
 import { processTurn } from '@/core/turn-manager';
 import { normalizeLoadedState } from '@/storage/save-manager';
+import { isUnitConcealedFrom } from '@/systems/concealment';
 
 describe('undefended-enemy-city scenario (#843)', () => {
   it('reproduces a player scout 2 hexes from an undefended, at-war AI city', () => {
@@ -36,6 +37,26 @@ describe('undefended-barbarian-camp scenario (#845)', () => {
     expect(camp).toBeDefined();
     const blocking = getBlockingMapEntityAt(state, mover!, camp!.position);
     expect(blocking).toEqual({ reason: 'barbarian-camp', entityId: camp!.id });
+  });
+});
+
+describe('submarine-undetected scenario (#542)', () => {
+  it('reproduces an enemy submarine concealed from the player with no nearby detector', () => {
+    const state = buildScenario(SCENARIOS['submarine-undetected']);
+    const sub = Object.values(state.units).find(u => u.type === 'submarine' && u.owner === 'ai-1');
+    expect(sub).toBeDefined();
+    expect(isUnitConcealedFrom(state, sub!, 'player')).toBe(true);
+  });
+});
+
+describe('destroyer-sonar-detection scenario (#542)', () => {
+  it('reproduces an enemy submarine detected by a player destroyer at range 2', () => {
+    const state = buildScenario(SCENARIOS['destroyer-sonar-detection']);
+    const sub = Object.values(state.units).find(u => u.type === 'submarine' && u.owner === 'ai-1');
+    const destroyer = Object.values(state.units).find(u => u.type === 'destroyer' && u.owner === 'player');
+    expect(sub).toBeDefined();
+    expect(destroyer).toBeDefined();
+    expect(isUnitConcealedFrom(state, sub!, 'player')).toBe(false);
   });
 });
 
