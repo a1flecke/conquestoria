@@ -857,6 +857,70 @@ describe('AI tactical action ranking', () => {
       .toBeLessThanOrEqual(UNIT_DEFINITIONS.mobile_aa.airDefenseProvider!.radius);
   });
 
+  it('ranks a move toward an unescorted transport near a remembered submarine sighting (#542)', () => {
+    const state = makeState('veteran');
+    for (let q = 0; q <= 4; q++) {
+      const tile = state.map.tiles[hexKey({ q, r: 0 })];
+      if (tile) tile.terrain = 'ocean';
+    }
+    const destroyer = addUnit(state, 'destroyer-1', 'destroyer', AI, { q: 0, r: 0 });
+    const transport = addUnit(state, 'transport-1', 'transport', AI, { q: 3, r: 0 });
+    const observed = { q: 4, r: 0 };
+    state.civilizations[AI].visibility.tiles[hexKey(observed)] = 'fog';
+    const tile = state.map.tiles[hexKey(observed)];
+    state.civilizations[AI].visibility.lastSeen = {
+      [hexKey(observed)]: {
+        coord: { ...observed },
+        terrain: tile.terrain,
+        elevation: tile.elevation,
+        resource: tile.resource,
+        improvement: tile.improvement,
+        improvementTurnsLeft: tile.improvementTurnsLeft,
+        owner: tile.owner,
+        hasRiver: tile.hasRiver,
+        wonder: tile.wonder,
+        observedTurn: state.turn,
+        source: 'observed',
+        units: [{ id: 'rival-sub', type: 'submarine', owner: HUMAN, healthBand: 'healthy' }],
+      },
+    };
+    const plan = makePlan(
+      { kind: 'region', id: 'front', anchor: destroyer.position },
+      [destroyer.id],
+      { objective: 'repel' },
+    );
+
+    const actions = rankUnitTacticalActions(context(state, plan), destroyer.id);
+
+    const moveTowardTransport = actions.find(candidate =>
+      candidate.action.kind === 'move'
+      && hexDistance(candidate.action.destination, transport.position)
+        < hexDistance(destroyer.position, transport.position));
+    expect(moveTowardTransport).toBeDefined();
+  });
+
+  it('does not rank an escort move when there is no remembered submarine sighting (#542)', () => {
+    const state = makeState('veteran');
+    for (let q = 0; q <= 4; q++) {
+      const tile = state.map.tiles[hexKey({ q, r: 0 })];
+      if (tile) tile.terrain = 'ocean';
+    }
+    const destroyer = addUnit(state, 'destroyer-1', 'destroyer', AI, { q: 0, r: 0 });
+    addUnit(state, 'transport-1', 'transport', AI, { q: 3, r: 0 });
+    const plan = makePlan(
+      { kind: 'region', id: 'front', anchor: destroyer.position },
+      [destroyer.id],
+      { objective: 'repel' },
+    );
+
+    const actions = rankUnitTacticalActions(context(state, plan), destroyer.id);
+
+    // Every move action present should be ordinary positioning, not an escort move
+    // specifically scored above the baseline the plan's own rankMoves would produce.
+    expect(actions.filter(candidate => candidate.action.kind === 'move' && candidate.score >= 400 * 0.3))
+      .toEqual([]);
+  });
+
   it('does not escort against a strike aircraft hidden by fog', () => {
     const state = makeState('standard');
     const mobileAa = addUnit(state, 'mobile-aa', 'mobile_aa', AI, { q: 0, r: 0 });
