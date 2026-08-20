@@ -121,6 +121,7 @@ function makeRealSelectionController(session: ReturnType<typeof createGameSessio
     executeUpgrade: vi.fn(() => false),
     ensurePlayerWarState: vi.fn(),
     scanBeastSightings: vi.fn(),
+    scanSubmarineSightings: vi.fn(),
     currentCiv: () => session.getState().civilizations[session.getState().currentPlayer],
   };
   return createSelectionController(deps);

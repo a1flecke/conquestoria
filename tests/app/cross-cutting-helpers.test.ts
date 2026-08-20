@@ -11,11 +11,13 @@ import {
   clearUnloadState,
   prefersReducedMotion,
   scanBeastSightings,
+  scanSubmarineSightings,
   focusNotificationTarget,
   focusPirateTarget,
   notifyPlayer,
   applyPirateActionResult,
 } from '@/app/cross-cutting-helpers';
+import { createUnit } from '@/systems/unit-system';
 
 function makeFixture(seed = 'cross-cutting-helpers'): GameState {
   const state = createNewGame(undefined, seed, 'small');
@@ -160,6 +162,95 @@ describe('scanBeastSightings', () => {
     scanBeastSightings(session, bus);
 
     expect(emit).not.toHaveBeenCalled();
+  });
+});
+
+describe('scanSubmarineSightings', () => {
+  function stateWithSubmarine(gameId: string): GameState {
+    const state = createNewGame(undefined, `cross-cutting-submarine-${gameId}`, 'small');
+    state.gameId = gameId;
+    state.currentPlayer = 'player';
+    const aiCivId = Object.keys(state.civilizations).find(id => id !== 'player')!;
+    const sub = { ...createUnit('submarine', aiCivId, { q: 0, r: 0 }, state.idCounters), id: 'sub-1' };
+    state.map.tiles[hexKey({ q: 0, r: 0 })].terrain = 'ocean';
+    state.map.tiles[hexKey({ q: 1, r: 0 })].terrain = 'ocean';
+    state.units = { [sub.id]: sub };
+    state.civilizations[aiCivId].units = [sub.id];
+    return state;
+  }
+
+  it('emits submarine:sighted the first time an enemy submarine is detected', () => {
+    const state = stateWithSubmarine('scan-1');
+    const galley = { ...createUnit('galley', 'player', { q: 1, r: 0 }, state.idCounters), id: 'galley' };
+    state.units.galley = galley;
+    state.civilizations.player.units.push('galley');
+    const session = createGameSession(state);
+    const bus = new EventBus();
+    const emit = vi.spyOn(bus, 'emit');
+
+    scanSubmarineSightings(session, bus);
+
+    expect(emit).toHaveBeenCalledWith('submarine:sighted', { unitId: 'sub-1', civId: 'player' });
+  });
+
+  it('does not re-emit for a submarine already notified this game (steady-state scan)', () => {
+    const state = stateWithSubmarine('scan-2');
+    const galley = { ...createUnit('galley', 'player', { q: 1, r: 0 }, state.idCounters), id: 'galley' };
+    state.units.galley = galley;
+    state.civilizations.player.units.push('galley');
+    const session = createGameSession(state);
+    const bus = new EventBus();
+
+    scanSubmarineSightings(session, bus); // first scan: notifies
+    const emit = vi.spyOn(bus, 'emit');
+    scanSubmarineSightings(session, bus); // second scan: same game, same sighting
+
+    expect(emit).not.toHaveBeenCalled();
+  });
+
+  it('does not emit for a submarine with no detector nearby', () => {
+    const state = stateWithSubmarine('scan-3');
+    const session = createGameSession(state);
+    const bus = new EventBus();
+    const emit = vi.spyOn(bus, 'emit');
+
+    scanSubmarineSightings(session, bus);
+
+    expect(emit).not.toHaveBeenCalled();
+  });
+
+  it('does not emit for a reveal-on-fire submarine (combat notification already covers it)', () => {
+    const state = stateWithSubmarine('scan-4');
+    state.units['sub-1'].revealedThisTurn = true;
+    const session = createGameSession(state);
+    const bus = new EventBus();
+    const emit = vi.spyOn(bus, 'emit');
+
+    scanSubmarineSightings(session, bus);
+
+    expect(emit).not.toHaveBeenCalled();
+  });
+
+  it('re-emits after the submarine conceals again and is later re-detected', () => {
+    const state = stateWithSubmarine('scan-5');
+    const galley = { ...createUnit('galley', 'player', { q: 1, r: 0 }, state.idCounters), id: 'galley' };
+    state.units.galley = galley;
+    state.civilizations.player.units.push('galley');
+    const session = createGameSession(state);
+    const bus = new EventBus();
+
+    scanSubmarineSightings(session, bus); // detected, notifies
+
+    // detector leaves -- submarine conceals again
+    session.getState().units.galley.position = { q: 5, r: 5 };
+    scanSubmarineSightings(session, bus); // concealed: clears the "already notified" entry
+
+    // detector returns
+    session.getState().units.galley.position = { q: 1, r: 0 };
+    const emit = vi.spyOn(bus, 'emit');
+    scanSubmarineSightings(session, bus);
+
+    expect(emit).toHaveBeenCalledWith('submarine:sighted', { unitId: 'sub-1', civId: 'player' });
   });
 });
 

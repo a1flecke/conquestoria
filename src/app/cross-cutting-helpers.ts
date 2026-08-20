@@ -104,6 +104,38 @@ export function scanBeastSightings(session: GameSession, bus: EventBus): void {
   }
 }
 
+const SUBMARINE_TYPES = new Set(['submarine', 'missile_submarine']);
+
+// #542: derived, not persisted -- tracks which (game, viewer, submarine) triples have
+// already fired a sighting notification via ordinary proximity, so re-scanning a
+// still-detected submarine every turn doesn't spam the log. Cleared per-triple the
+// moment the submarine conceals again, so a later re-sighting fires a fresh
+// notification. Keyed by state.gameId (not just civId+unitId) so a fresh game whose
+// auto-incrementing unit/civ ids happen to collide with a prior playthrough's doesn't
+// inherit stale suppression from that earlier session.
+const notifiedSubmarineSightings = new Set<string>();
+
+export function scanSubmarineSightings(session: GameSession, bus: EventBus): void {
+  const state = session.getState();
+  const civId = state.currentPlayer;
+  const gameKey = state.gameId ?? 'no-game-id';
+  for (const unit of Object.values(state.units)) {
+    if (!SUBMARINE_TYPES.has(unit.type)) continue;
+    if (unit.owner === civId) continue;
+    const key = `${gameKey}:${civId}:${unit.id}`;
+    if (isUnitConcealedFrom(state, unit, civId)) {
+      notifiedSubmarineSightings.delete(key);
+      continue;
+    }
+    // Reveal-on-fire already announces itself via the combat notification/visual --
+    // only ordinary-proximity detection needs this dedicated sighting notification.
+    if (unit.revealedThisTurn) continue;
+    if (notifiedSubmarineSightings.has(key)) continue;
+    notifiedSubmarineSightings.add(key);
+    bus.emit('submarine:sighted', { unitId: unit.id, civId });
+  }
+}
+
 export function focusNotificationTarget(
   renderLoop: { readonly camera: Pick<RenderLoop['camera'], 'centerOn'> },
   notifier: Pick<Notifier, 'toast'>,

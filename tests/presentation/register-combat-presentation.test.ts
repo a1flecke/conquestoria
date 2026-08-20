@@ -93,6 +93,23 @@ describe('combat presentation', () => {
     expect(ctx.deliver).toHaveBeenCalledWith('p1', expect.stringContaining('obsolete'), 'info');
   });
 
+  it('notifies a civ it spotted an enemy submarine, targeted at its position', () => {
+    const bus = new EventBus();
+    const ctx = makePresentationContext({
+      state: { units: { 'sub-1': { type: 'submarine', position: { q: 3, r: 4 } } as never } },
+    });
+
+    registerCombatPresentation(bus, ctx);
+    bus.emit('submarine:sighted', { unitId: 'sub-1', civId: 'p1' });
+
+    expect(ctx.deliver).toHaveBeenCalledWith(
+      'p1',
+      expect.stringContaining('Submarine'),
+      'info',
+      { kind: 'map', coord: { q: 3, r: 4 }, label: 'Submarine' },
+    );
+  });
+
   it("notifies a unit's actual owner when its journey is blocked", () => {
     const bus = new EventBus();
     const ctx = makePresentationContext({

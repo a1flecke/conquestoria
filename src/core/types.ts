@@ -2003,6 +2003,7 @@ export interface GameEvents {
   'beast:awakened': { lairId: string; beastId: BeastId; position: HexCoord };
   'beast:slain': { lairId: string; beastId: BeastId; slayerCivId: string; slayerUnitId: string; goldAwarded: number };
   'beast:sighted': { beastId: BeastId; civId: string };
+  'submarine:sighted': { unitId: string; civId: string };
   'beast:hoard-claimed': { lairId: string; beastId: BeastId; civId: string; choice: BeastHoardChoice };
   'barbarian:camp-destroyed': { campId: string; reward: number };
   'threat:barbarian-resurgence': { civId: string; landmassId: string; campId: string; position: HexCoord; isBanditLord: boolean; banditLordName?: string };
