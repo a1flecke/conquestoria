@@ -180,6 +180,26 @@ describe('processMajorCivStrategicTurn', () => {
       .toBe(Math.max(0, defender.health - expected.defenderDamage));
   });
 
+  it('sets revealedThisTurn on an AI-controlled submarine that attacks (parity with human path)', () => {
+    // #542: revealedThisTurn is set inside applyCombatOutcomeToState, the one
+    // canonical function both this AI path and player-action-controller.ts's human
+    // path call -- this proves the AI path actually reaches it, not a second,
+    // parallel implementation. See tests/systems/combat-reward-system.test.ts for
+    // the equivalent direct-unit-test coverage of applyCombatOutcomeToState itself.
+    const state = makeState();
+    const attacker = addUnit(state, 'attacker', 'submarine', AI, { q: 0, r: 0 });
+    const defender = addUnit(state, 'defender', 'galley', HUMAN, { q: 1, r: 0 });
+    const plan = makePlan(
+      { kind: 'unit', id: defender.id, lastKnownPosition: defender.position },
+      [attacker.id],
+      { objective: 'raid', phase: 'advancing', requiredRoles: { 'naval-combat': 1 } },
+    );
+
+    const result = processMajorCivStrategicTurn(state, prepared(state, plan), new EventBus());
+
+    expect(result.state.units[attacker.id]?.revealedThisTurn).toBe(true);
+  });
+
   it('modernizes before tactics so an upgraded unit cannot act twice', () => {
     const state = makeState();
     const home = addCity(state, 'home-city', AI, { q: 0, r: 0 });

@@ -263,6 +263,51 @@ describe('applyCombatOutcomeToState', () => {
     });
   });
 
+  it('sets revealedThisTurn on a surviving submarine attacker', () => {
+    const state = makeRewardState();
+    state.units.attacker = { ...state.units.attacker, type: 'submarine', owner: 'ai-1' };
+    state.units.defender = { ...state.units.defender, type: 'galley', owner: 'player' };
+    const result: CombatResult = {
+      attackerId: 'attacker', defenderId: 'defender', attackerDamage: 0, defenderDamage: 20,
+      attackerSurvived: true, defenderSurvived: true, attackerStrength: 20, defenderStrength: 20,
+      attackerPosition: { q: 0, r: 0 }, defenderPosition: { q: 1, r: 0 },
+    };
+
+    const applied = applyCombatOutcomeToState(state, result, 64);
+
+    expect(applied.state.units.attacker?.revealedThisTurn).toBe(true);
+  });
+
+  it('sets revealedThisTurn on a missile_submarine attacker too', () => {
+    const state = makeRewardState();
+    state.units.attacker = { ...state.units.attacker, type: 'missile_submarine', owner: 'ai-1' };
+    state.units.defender = { ...state.units.defender, type: 'galley', owner: 'player' };
+    const result: CombatResult = {
+      attackerId: 'attacker', defenderId: 'defender', attackerDamage: 0, defenderDamage: 20,
+      attackerSurvived: true, defenderSurvived: true, attackerStrength: 20, defenderStrength: 20,
+      attackerPosition: { q: 0, r: 0 }, defenderPosition: { q: 1, r: 0 },
+    };
+
+    const applied = applyCombatOutcomeToState(state, result, 64);
+
+    expect(applied.state.units.attacker?.revealedThisTurn).toBe(true);
+  });
+
+  it('does not set revealedThisTurn on a non-submarine attacker', () => {
+    const state = makeRewardState();
+    state.units.attacker = { ...state.units.attacker, type: 'destroyer', owner: 'ai-1' };
+    state.units.defender = { ...state.units.defender, type: 'galley', owner: 'player' };
+    const result: CombatResult = {
+      attackerId: 'attacker', defenderId: 'defender', attackerDamage: 0, defenderDamage: 20,
+      attackerSurvived: true, defenderSurvived: true, attackerStrength: 20, defenderStrength: 20,
+      attackerPosition: { q: 0, r: 0 }, defenderPosition: { q: 1, r: 0 },
+    };
+
+    const applied = applyCombatOutcomeToState(state, result, 64);
+
+    expect(applied.state.units.attacker?.revealedThisTurn).toBeUndefined();
+  });
+
   it('does not create major-civilization attack history for world actors', () => {
     const state = makeRewardState();
     state.units.attacker.owner = 'barbarian';
