@@ -472,6 +472,13 @@ export interface UnitDefinition {
   combinedArms?: UnitCombinedArmsCapability;
   /** Portion of an improvement-derived Fort/Citadel multiplier that remains. */
   fortificationPenetration?: number;
+  /** ASW specialist radius: detects concealed submarines within this range instead of
+   * the ordinary adjacency-only rule. See src/systems/concealment.ts. */
+  detection?: NavalDetectionCapability;
+}
+
+export interface NavalDetectionCapability {
+  concealedNavalRange: number;
 }
 
 export interface UnitCombinedArmsCapability {
@@ -520,6 +527,10 @@ export interface Unit {
   airBase?: AirBaseRef;
   airMission?: 'intercept';
   interceptedTurn?: number;
+  /** Set true when a concealed submarine fires; makes it visible/targetable to every
+   * civ with fog visibility of its tile for the rest of this round. Cleared the same
+   * way hasActed resets at the owning civ's next turn-start. See concealment.ts. */
+  revealedThisTurn?: boolean;
 }
 
 // --- Cities ---
