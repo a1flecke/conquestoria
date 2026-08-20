@@ -22,6 +22,20 @@ const PRE_INDUSTRIAL_NAVAL_TYPES: readonly UnitType[] = [
   'pirate_galley', 'pirate_corsair', 'pirate_frigate',
 ];
 
+const SUBMARINE_TYPES: ReadonlySet<UnitType> = new Set(['submarine', 'missile_submarine']);
+
+/**
+ * Reveal-on-fire (#542): a concealed submarine's ranged attack profile means it can
+ * fire without ever becoming adjacent to a detector, unlike beast/forest concealment
+ * (both melee-range). This is the ONE place that sets revealedThisTurn -- both the
+ * human path (player-action-controller.ts) and the AI path (ai-major-turn.ts) call
+ * applyCombatOutcomeToState, so setting it here (not per-caller) satisfies
+ * end-to-end-wiring.md's "Shared State Mutations must be actor-complete" rule.
+ */
+function submarineRevealPatch(type: UnitType): { revealedThisTurn: true } | Record<string, never> {
+  return SUBMARINE_TYPES.has(type) ? { revealedThisTurn: true } : {};
+}
+
 export function isCapturableNavalMilitary(type: UnitType): boolean {
   if (type === 'beast_sea_serpent') return false;
   const classes = UNIT_CLASS_BY_TYPE[type];
@@ -323,6 +337,7 @@ export function applyCombatOutcomeToState(
       movementPointsLeft: 0,
       hasMoved: true,
       hasActed: true,
+      ...submarineRevealPatch(attackerBefore.type),
     };
   } else if (attackerBefore.geneTherapyReady === true) {
     // Gene therapy: survive lethal hit at 1 HP, enter cooldown
@@ -333,6 +348,7 @@ export function applyCombatOutcomeToState(
       hasMoved: true,
       hasActed: true,
       geneTherapyReady: false,
+      ...submarineRevealPatch(attackerBefore.type),
     };
     attackerActuallyDefeated = false;
   } else if (
