@@ -1,8 +1,8 @@
 import type { GameState, HexCoord, Unit, VisibilityMap } from '@/core/types';
 import { selectDefenderForAttack } from '@/systems/combat-system';
-import { isForestConcealedUnit } from '@/systems/fog-of-war';
 import { getVisibleUnitsForPlayer } from '@/systems/espionage-stealth';
 import { getVisibility } from '@/systems/fog-of-war';
+import { isUnitConcealedFrom } from '@/systems/concealment';
 import { sortUnitsForStackPicker } from '@/systems/unit-occupancy';
 import { UNIT_DEFINITIONS } from '@/systems/unit-system';
 import { civTypeToFaction } from './civilization-visual-family';
@@ -118,7 +118,7 @@ export function buildUnitMapPresentations(
     && !unit.transportId
     && !unit.airBase
     && getVisibility(viewerVisibility, unit.position) === 'visible'
-    && !isForestConcealedUnit(state, viewerId, unit),
+    && !isUnitConcealedFrom(state, unit, viewerId),
   );
   const groups = new Map<string, Unit[]>();
   for (const unit of visible) {

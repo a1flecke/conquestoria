@@ -1,8 +1,7 @@
 import type { GameState, Unit } from '@/core/types';
 import { hexKey } from '@/systems/hex-utils';
 import { canInspectUnitForViewer } from '@/systems/viewer-intel';
-import { isForestConcealedUnit } from '@/systems/fog-of-war';
-import { isBeastConcealedFrom } from '@/systems/beast-system';
+import { isUnitConcealedFrom } from '@/systems/concealment';
 import { selectDefenderForAttack } from '@/systems/combat-system';
 
 /**
@@ -13,12 +12,10 @@ import { selectDefenderForAttack } from '@/systems/combat-system';
  * switches it over to these -- phase 8a is scoped to zero `main.ts` changes.
  */
 export function visibleUnitEntriesAtKey(state: GameState, key: string): Array<[string, Unit]> {
-  const viewerUnits = Object.values(state.units).filter(u => u.owner === state.currentPlayer && !u.transportId);
   return Object.entries(state.units).filter(([, unit]) =>
     hexKey(unit.position) === key
     && canInspectUnitForViewer(state, state.currentPlayer, unit.id)
-    && (unit.owner === state.currentPlayer || !isForestConcealedUnit(state, state.currentPlayer, unit))
-    && !isBeastConcealedFrom(unit, state.map, viewerUnits),
+    && !isUnitConcealedFrom(state, unit, state.currentPlayer),
   );
 }
 

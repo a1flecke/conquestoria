@@ -1,6 +1,6 @@
 import type { CombatResult, GameState, HexCoord, Unit } from '@/core/types';
-import { isBeastConcealedFrom } from '@/systems/beast-system';
-import { getVisibility, isForestConcealedUnit } from '@/systems/fog-of-war';
+import { getVisibility } from '@/systems/fog-of-war';
+import { isUnitConcealedFrom } from '@/systems/concealment';
 
 export interface ViewerMovePresentation {
   unit: Unit;
@@ -29,11 +29,7 @@ function isUnitVisibleAt(
   const visibility = state.civilizations[viewerId]?.visibility;
   if (!visibility || getVisibility(visibility, position) !== 'visible') return false;
   const snapshot = { ...unit, position: { ...position } };
-  if (isForestConcealedUnit(state, viewerId, snapshot)) return false;
-  const viewerUnits = state.civilizations[viewerId].units
-    .map(id => state.units[id])
-    .filter((candidate): candidate is Unit => Boolean(candidate) && !candidate.transportId);
-  return !isBeastConcealedFrom(snapshot, state.map, viewerUnits);
+  return !isUnitConcealedFrom(state, snapshot, viewerId);
 }
 
 export function buildMovePresentationByViewer(
