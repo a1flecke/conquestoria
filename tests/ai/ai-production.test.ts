@@ -162,6 +162,71 @@ describe('AI strategic production', () => {
     expect(visibleThreat.score).toBeGreaterThan(hiddenThreat.score);
   });
 
+  it('boosts destroyer production score when a hostile submarine has been sighted (remembered) (#542)', () => {
+    const state = setupState(['carrier-warfare']);
+    makeCoastal(state);
+    const observed = { q: 8, r: 4 };
+    state.civilizations['ai-1']!.knownCivilizations = ['player'];
+    state.civilizations['ai-1']!.visibility.tiles[hexKey(observed)] = 'fog';
+    const tile = state.map.tiles[hexKey(observed)];
+    state.civilizations['ai-1']!.visibility.lastSeen = {
+      [hexKey(observed)]: {
+        coord: { ...observed },
+        terrain: tile.terrain,
+        elevation: tile.elevation,
+        resource: tile.resource,
+        improvement: tile.improvement,
+        improvementTurnsLeft: tile.improvementTurnsLeft,
+        owner: tile.owner,
+        hasRiver: tile.hasRiver,
+        wonder: tile.wonder,
+        observedTurn: state.turn,
+        source: 'observed',
+        units: [{ id: 'rival-sub', type: 'submarine', owner: 'player', healthBand: 'healthy' }],
+      },
+    };
+
+    const withThreat = generateAIProductionCandidates(state, 'ai-1', 'city-a', [demand('escort')], aggressive);
+    const destroyerWithThreat = withThreat.find(candidate => candidate.itemId === 'destroyer')!;
+    expect(destroyerWithThreat.submarineThreatScore).toBeGreaterThan(0);
+
+    const withoutThreatState = { ...state, civilizations: { ...state.civilizations, 'ai-1': { ...state.civilizations['ai-1']!, visibility: { ...state.civilizations['ai-1']!.visibility, lastSeen: {} } } } };
+    const withoutThreat = generateAIProductionCandidates(withoutThreatState, 'ai-1', 'city-a', [demand('escort')], aggressive);
+    const destroyerWithoutThreat = withoutThreat.find(candidate => candidate.itemId === 'destroyer')!;
+    expect(destroyerWithoutThreat.submarineThreatScore).toBe(0);
+
+    expect(destroyerWithThreat.score).toBeGreaterThan(destroyerWithoutThreat.score);
+  });
+
+  it('does not boost non-destroyer unit candidates from a submarine sighting (#542)', () => {
+    const state = setupState(['carrier-warfare']);
+    makeCoastal(state);
+    const observed = { q: 8, r: 4 };
+    state.civilizations['ai-1']!.knownCivilizations = ['player'];
+    state.civilizations['ai-1']!.visibility.tiles[hexKey(observed)] = 'fog';
+    const tile = state.map.tiles[hexKey(observed)];
+    state.civilizations['ai-1']!.visibility.lastSeen = {
+      [hexKey(observed)]: {
+        coord: { ...observed },
+        terrain: tile.terrain,
+        elevation: tile.elevation,
+        resource: tile.resource,
+        improvement: tile.improvement,
+        improvementTurnsLeft: tile.improvementTurnsLeft,
+        owner: tile.owner,
+        hasRiver: tile.hasRiver,
+        wonder: tile.wonder,
+        observedTurn: state.turn,
+        source: 'observed',
+        units: [{ id: 'rival-sub', type: 'submarine', owner: 'player', healthBand: 'healthy' }],
+      },
+    };
+
+    const candidates = generateAIProductionCandidates(state, 'ai-1', 'city-a', [demand('frontline')], aggressive);
+    const warrior = candidates.find(candidate => candidate.itemId === 'warrior');
+    expect(warrior?.submarineThreatScore ?? 0).toBe(0);
+  });
+
   it('offers Cuirassier for mobile demand only when the AI owns Horses and Iron', () => {
     const state = setupState([
       'animal-husbandry', 'bronze-working', 'rifle-tactics', 'professional-army',

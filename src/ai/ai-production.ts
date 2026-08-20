@@ -30,6 +30,8 @@ import { resolveCivilizationEra } from '@/systems/tech-definitions';
 import { getVisibility } from '@/systems/fog-of-war';
 import { hexDistance, wrappedHexDistance } from '@/systems/hex-utils';
 import { isAIHostileOwner } from './ai-hostility';
+import { buildMajorCivPerception } from './ai-perception';
+import { getChallengeProfileForCiv } from '@/core/opponent-challenge';
 
 export interface AIProductionCandidate {
   itemId: string;
@@ -45,6 +47,7 @@ export interface AIProductionCandidate {
   maintenanceRisk: number;
   defensiveEspionageScore: number;
   airDefenseThreatScore: number;
+  submarineThreatScore: number;
   fulfilledRole?: AIStrategicRole;
   score: number;
 }
@@ -301,6 +304,28 @@ function airDefenseThreatScore(
     : 0;
 }
 
+/**
+ * #542: does this civ have a still-remembered (not 'rumored') hostile submarine
+ * sighting? Sourced from buildMajorCivPerception, whose own decay math already
+ * excludes fully-stale memories -- no new confidence threshold is invented here.
+ */
+function hasRememberedHostileSubmarineSighting(state: GameState, civId: string): boolean {
+  const perception = buildMajorCivPerception(state, civId);
+  return perception.units.some(unit =>
+    (unit.type === 'submarine' || unit.type === 'missile_submarine')
+    && unit.confidence !== 'rumored');
+}
+
+function submarineThreatScore(
+  hasThreat: boolean,
+  civId: string,
+  state: GameState,
+  itemId: string,
+): number {
+  if (!hasThreat || itemId !== 'destroyer') return 0;
+  return 40 * getChallengeProfileForCiv(state, civId).submarineEscortWeight;
+}
+
 function generateWithResidual(
   state: GameState,
   civId: string,
@@ -332,6 +357,7 @@ function generateWithResidual(
   }) || validQueuedUnitRoles(state, civId).some(roles =>
     roles.includes('capture') || roles.includes('frontline'));
   const airDefenseThreatenedCityIds = getVisibleAirDefenseThreatenedCityIds(state, civId);
+  const hasSubmarineThreat = hasRememberedHostileSubmarineSighting(state, civId);
   const candidates: AIProductionCandidate[] = [];
 
   for (const unit of getTrainableUnitsForCity(
@@ -391,10 +417,12 @@ function generateWithResidual(
       ? 2
       : 0;
     const maintenanceRisk = maintenanceImpact;
+    const unitSubmarineThreatScore = submarineThreatScore(hasSubmarineThreat, civId, state, unit.type);
     const score = roleDemandScore * 4
       + emergencyDefenseScore * 3
       + personalityScore
       + citySpecializationScore
+      + unitSubmarineThreatScore
       - productionTurns * 1.5
       - maintenanceRisk * 3;
     candidates.push({
@@ -411,6 +439,7 @@ function generateWithResidual(
       maintenanceRisk,
       defensiveEspionageScore: 0,
       airDefenseThreatScore: 0,
+      submarineThreatScore: unitSubmarineThreatScore,
       fulfilledRole: fulfilled.role,
       score,
     });
@@ -465,6 +494,7 @@ function generateWithResidual(
           maintenanceRisk: maintenanceImpact,
           defensiveEspionageScore: 0,
           airDefenseThreatScore: 0,
+          submarineThreatScore: 0,
           score,
         });
       }
@@ -528,6 +558,7 @@ function generateWithResidual(
       maintenanceRisk,
       defensiveEspionageScore: buildingDefensiveScore,
       airDefenseThreatScore: buildingAirDefenseScore,
+      submarineThreatScore: 0,
       score,
     });
   }
