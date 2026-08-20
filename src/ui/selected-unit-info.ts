@@ -1,5 +1,6 @@
 import type { BuildableImprovementType, GameState, DisguiseType, HexCoord, Unit, WorkerActionType } from '@/core/types';
 import { UNIT_DEFINITIONS, UNIT_DESCRIPTIONS, canHeal } from '@/systems/unit-system';
+import { getSubmarineRevealState } from '@/systems/concealment';
 import { getExperienceToNextTier, getVeterancyCombatModifier, getVeterancyTier } from '@/systems/combat-reward-system';
 import { isSpyUnitType } from '@/systems/espionage-system';
 import { evaluateUnitUpgrade, type UpgradeMissingRequirement } from '@/systems/unit-upgrade-system';
@@ -246,6 +247,16 @@ export function renderSelectedUnitInfo(
 
   wrapper.appendChild(topRow);
   wrapper.appendChild(descDiv);
+
+  const revealState = getSubmarineRevealState(state, unit, state.currentPlayer);
+  if (revealState) {
+    const revealBadge = document.createElement('div');
+    revealBadge.style.cssText = 'font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;margin-top:4px;color:#f8d28a;';
+    revealBadge.textContent = revealState === 'tracked'
+      ? 'Tracked by your detector'
+      : 'Spotted momentarily — will vanish next turn unless still tracked';
+    wrapper.appendChild(revealBadge);
+  }
 
   const rolePresentation = getUnitRolePresentation(
     unit.type,

@@ -238,6 +238,57 @@ describe('selected-unit role presentation', () => {
     expect(collectAllText(container).join(' ')).toContain('Interception +20% strength');
   });
 
+  it('shows the "tracked" badge for a submarine detected by an adjacent viewer unit', () => {
+    const state = createNewGame(undefined, 'submarine-tracked-badge', 'small');
+    state.currentPlayer = 'player';
+    const sub = { ...createUnit('submarine' as any, 'ai-1', { q: 0, r: 0 }, state.idCounters), id: 'sub' };
+    const galley = { ...createUnit('galley' as any, 'player', { q: 1, r: 0 }, state.idCounters), id: 'galley' };
+    state.map.tiles[hexKey({ q: 0, r: 0 })].terrain = 'ocean';
+    state.map.tiles[hexKey({ q: 1, r: 0 })].terrain = 'ocean';
+    state.units = { sub, galley };
+    state.civilizations['ai-1'].units = ['sub'];
+    state.civilizations.player.units = ['galley'];
+    const container = new MockElement('div');
+
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, sub.id, {});
+
+    expect(collectAllText(container).join(' ')).toContain('Tracked by your detector');
+  });
+
+  it('shows the "spotted momentarily" badge for a fire-revealed submarine with no active detector', () => {
+    const state = createNewGame(undefined, 'submarine-spotted-badge', 'small');
+    state.currentPlayer = 'player';
+    const sub = {
+      ...createUnit('submarine' as any, 'ai-1', { q: 0, r: 0 }, state.idCounters),
+      id: 'sub',
+      revealedThisTurn: true,
+    };
+    state.map.tiles[hexKey({ q: 0, r: 0 })].terrain = 'ocean';
+    state.units = { sub };
+    state.civilizations['ai-1'].units = ['sub'];
+    const container = new MockElement('div');
+
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, sub.id, {});
+
+    expect(collectAllText(container).join(' ')).toContain('Spotted momentarily');
+  });
+
+  it('does not show a reveal badge for the viewer\'s own submarine', () => {
+    const state = createNewGame(undefined, 'submarine-own-no-badge', 'small');
+    state.currentPlayer = 'player';
+    const sub = { ...createUnit('submarine' as any, 'player', { q: 0, r: 0 }, state.idCounters), id: 'sub' };
+    state.map.tiles[hexKey({ q: 0, r: 0 })].terrain = 'ocean';
+    state.units = { sub };
+    state.civilizations.player.units = ['sub'];
+    const container = new MockElement('div');
+
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, sub.id, {});
+
+    const text = collectAllText(container).join(' ');
+    expect(text).not.toContain('Tracked by your detector');
+    expect(text).not.toContain('Spotted momentarily');
+  });
+
   it('keeps War Elephant tactical facts public without leaking its owner-only Tactics state in hot seat', () => {
     const state = createNewGame(undefined, 'war-elephant-hot-seat-role', 'small');
     state.civilizations['player-2'] = { ...structuredClone(state.civilizations.player), id: 'player-2', isHuman: true };
