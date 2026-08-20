@@ -9,6 +9,7 @@ import {
   OPPONENT_CHALLENGE_PROFILES,
   resolveOpponentChallenge,
 } from '@/core/opponent-challenge';
+import { buildMajorCivPerception } from './ai-perception';
 import {
   canAttackByProfileOnMap,
   getRangedAttackersThreateningUnit,
@@ -785,6 +786,47 @@ function rankMobileAirDefenseEscortMoves(
   });
 }
 
+/**
+ * #542: destroyer/autonomous_frigate escort routing. Structural analog of
+ * rankMobileAirDefenseEscortMoves above -- a unit with an area capability
+ * (detection, here, instead of airDefenseProvider) moves toward the highest-value
+ * threatened friendly unit in range. Sourced from buildMajorCivPerception (whose
+ * decay math already excludes fully-stale memories) rather than raw last-seen data,
+ * so an occasional response to an aging-but-not-yet-decayed sighting is acceptable
+ * AI imperfection, not a bug needing a new confidence threshold.
+ */
+function rankDestroyerEscortMoves(
+  context: AITacticalContext,
+  unit: Unit,
+): RankedAITacticalAction[] {
+  const capability = UNIT_DEFINITIONS[unit.type].detection;
+  if (!capability || unit.hasActed || unit.movementPointsLeft <= 0 || unit.transportId) return [];
+  const weight = OPPONENT_CHALLENGE_PROFILES[resolveOpponentChallenge(context.state)].submarineEscortWeight;
+  if (weight <= 0) return [];
+  const perception = buildMajorCivPerception(context.state, context.actorId);
+  const remembered = perception.units.filter(candidate =>
+    (candidate.type === 'submarine' || candidate.type === 'missile_submarine')
+    && candidate.confidence !== 'rumored'
+    && candidate.position !== null);
+  if (remembered.length === 0) return [];
+  const vulnerableCivilians = Object.values(context.state.units).filter(candidate =>
+    candidate.owner === context.actorId
+    && candidate.id !== unit.id
+    && !candidate.transportId
+    && UNIT_DEFINITIONS[candidate.type].domain === 'naval'
+    && UNIT_DEFINITIONS[candidate.type].strength === 0
+    && remembered.some(sighting => distance(context.state, sighting.position!, candidate.position) <= 4));
+  if (vulnerableCivilians.length === 0) return [];
+  return movementRange(context.state, context.actorId, unit).flatMap(destination => {
+    const target = vulnerableCivilians
+      .sort((left, right) => distance(context.state, destination, left.position)
+        - distance(context.state, destination, right.position))[0];
+    return target && !isBlockedMoveDestination(context.state, unit, destination)
+      ? [ranked({ kind: 'move', unitId: unit.id, destination }, 400 * weight)]
+      : [];
+  });
+}
+
 export function rankUnitTacticalActions(
   context: AITacticalContext,
   unitId: string,
@@ -811,6 +853,7 @@ export function rankUnitTacticalActions(
     ...rankCapture(context, unit),
     ...rankCampAssault(context, unit),
     ...rankMobileAirDefenseEscortMoves(context, unit),
+    ...rankDestroyerEscortMoves(context, unit),
     ...rankReactivePursuitMoves(context, unit),
     ...rankMoves(context, unit),
   ];
