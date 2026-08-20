@@ -3,7 +3,8 @@ import { getVisibility } from '@/systems/fog-of-war';
 import { hexDistance, hexKey, hexesInRange, getWrappedHexesInRange, wrappedHexDistance } from '@/systems/hex-utils';
 import { selectDefenderForAttack } from '@/systems/combat-system';
 import { UNIT_DEFINITIONS } from '@/systems/unit-system';
-import { isBeastConcealedFrom, canUnitAttackBeast } from '@/systems/beast-system';
+import { canUnitAttackBeast } from '@/systems/beast-system';
+import { isUnitConcealedFrom } from '@/systems/concealment';
 import { isPirateOwner } from '@/core/owner-kind';
 import { isBasedAirUnit } from './air-operations-system';
 import { isHostileOwnerTo } from './owner-hostility';
@@ -144,8 +145,7 @@ export function canUnitAttackTarget(
   const targetUnit = unitAt(state, attacker, coord);
   if (targetUnit) {
     if (targetUnit[1].owner === attacker.owner) return { ok: false, reason: 'friendly-target' };
-    const attackerOwnerUnits = Object.values(state.units).filter(u => u.owner === attacker.owner && !u.transportId);
-    if (isBeastConcealedFrom(targetUnit[1], state.map, attackerOwnerUnits)) return { ok: false, reason: 'not-visible' };
+    if (isUnitConcealedFrom(state, targetUnit[1], attacker.owner)) return { ok: false, reason: 'not-visible' };
     if (!canUnitAttackBeast(attacker, targetUnit[1]).allowed) return { ok: false, reason: 'unsupported-target' };
     if (!canAttackOwner(state, attacker.owner, targetUnit[1].owner)) return { ok: false, reason: 'not-hostile' };
     if (!profile.targets.includes('unit')) return { ok: false, reason: 'unsupported-target' };
