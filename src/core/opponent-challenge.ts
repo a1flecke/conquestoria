@@ -24,6 +24,12 @@ export interface OpponentChallengeProfile {
   crisisResponseDelayTurns: number;   // crisis age before the AI acts
   crisisRemedyGoldMultiplier: number; // treasury needed as multiple of remedy cost
   crisisDispatchWeight: number;       // multiplier on dispatch objective score
+  // #542: scales both the AI production priority boost for building a destroyer when a
+  // submarine threat has been sighted, and the tactical preference for routing an
+  // available destroyer to escort a vulnerable naval civilian near that sighting.
+  // Detection range, visibility rules, and combat modifiers are NEVER difficulty-scaled --
+  // only this eagerness knob is.
+  submarineEscortWeight: number;
   // #541: scales how eagerly a barbarian camp's raid plan (barbarian-system.ts)
   // prefers a pillage-capable resource-tile raid target over a plain unit-raid
   // target. Pirates use a separate plunder/blockade targeting model and don't
@@ -51,6 +57,7 @@ export const OPPONENT_CHALLENGE_PROFILES: Record<OpponentChallenge, OpponentChal
     crisisResponseDelayTurns: 4,
     crisisRemedyGoldMultiplier: 3.0,
     crisisDispatchWeight: 0.5,
+    submarineEscortWeight: 0.3,
     pillageAggressivenessMultiplier: 0.5,
   },
   standard: {
@@ -71,6 +78,7 @@ export const OPPONENT_CHALLENGE_PROFILES: Record<OpponentChallenge, OpponentChal
     crisisResponseDelayTurns: 2,
     crisisRemedyGoldMultiplier: 2.0,
     crisisDispatchWeight: 1.0,
+    submarineEscortWeight: 1.0,
     pillageAggressivenessMultiplier: 1.0,
   },
   veteran: {
@@ -91,6 +99,7 @@ export const OPPONENT_CHALLENGE_PROFILES: Record<OpponentChallenge, OpponentChal
     crisisResponseDelayTurns: 0,
     crisisRemedyGoldMultiplier: 1.2,
     crisisDispatchWeight: 1.5,
+    submarineEscortWeight: 1.6,
     pillageAggressivenessMultiplier: 1.3,
   },
 };
