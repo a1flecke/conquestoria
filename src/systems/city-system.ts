@@ -638,7 +638,7 @@ export const BUILDINGS: Record<string, Building> = {
   coastal_battery: {
     id: 'coastal_battery', name: 'Coastal Battery', category: 'military',
     yields: { food: 0, production: 0, gold: 0, science: 0 }, productionCost: 170,
-    description: 'Naval defense +8. First naval hit each turn returns 20% damage (max 12).',
+    description: 'Naval defense +8. First naval hit each turn returns 20% damage (max 12). Also lets this city detect hidden enemy submarines within 1 hex.',
     techRequired: 'naval-armor', coastalRequired: true,
   },
 
@@ -769,7 +769,7 @@ export const BUILDINGS: Record<string, Building> = {
   radar_station: {
     id: 'radar_station', name: 'Radar Station', category: 'military',
     yields: { food: 0, production: 0, gold: 0, science: 2 }, productionCost: 180,
-    description: 'Early-warning radar array. +2 science per turn. Accelerates navigation and threat detection.',
+    description: 'Early-warning radar array. +2 science per turn. Combined with a Coastal Battery, extends this city\'s hidden-submarine detection range from 1 to 2 hexes.',
     techRequired: 'radar-systems',
     pacing: { band: 'infrastructure', role: 'defense-science', impact: 1.2, scope: 'city', snowball: 1.2, urgency: 1.0, situationality: 1.2, unlockBreadth: 1 },
   },
