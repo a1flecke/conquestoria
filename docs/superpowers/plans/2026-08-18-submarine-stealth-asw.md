@@ -25,7 +25,7 @@
 
 ---
 
-## Phase 1: Canonical concealment contract + submarine stealth rule + reveal-on-fire
+## Phase 1: Canonical concealment contract + submarine stealth rule + reveal-on-fire — ✅ implemented, all tests pass (not yet merged)
 
 Deployable on its own: submarines become concealable, attacking from concealment has a mechanically real return-fire window, and every consumer agrees — even before destroyer/city specialization exists.
 
@@ -39,7 +39,7 @@ Deployable on its own: submarines become concealable, attacking from concealment
 **Interfaces:**
 - Produces: `isSubmarineConcealedFrom(state: GameState, unit: Unit, viewerCivId: string): boolean`, an internal (non-exported) `hasActiveDetectorInRange(state: GameState, unit: Unit, viewerCivId: string): boolean` that later tasks extend.
 
-- [ ] **Step 1: Add the new types**
+- [x] **Step 1: Add the new types**
 
 In `src/core/types.ts`, add `revealedThisTurn` to the `Unit` interface (near `interceptedTurn?: number;` at line 522):
 
@@ -66,7 +66,7 @@ In the `UnitDefinition` interface (line 449), add after `airDefenseProvider?: Ai
   detection?: NavalDetectionCapability;
 ```
 
-- [ ] **Step 2: Write the failing tests**
+- [x] **Step 2: Write the failing tests**
 
 Create `tests/systems/concealment.test.ts`:
 
@@ -161,12 +161,12 @@ describe('isSubmarineConcealedFrom', () => {
 });
 ```
 
-- [ ] **Step 3: Run tests to verify they fail**
+- [x] **Step 3: Run tests to verify they fail**
 
 Run: `bash scripts/run-with-mise.sh yarn vitest run tests/systems/concealment.test.ts`
 Expected: FAIL — `Cannot find module '@/systems/concealment'`
 
-- [ ] **Step 4: Implement `src/systems/concealment.ts`**
+- [x] **Step 4: Implement `src/systems/concealment.ts`**
 
 ```ts
 import type { GameState, HexCoord, Unit, UnitType } from '@/core/types';
@@ -214,12 +214,12 @@ export function isSubmarineConcealedFrom(
 }
 ```
 
-- [ ] **Step 5: Run tests to verify they pass**
+- [x] **Step 5: Run tests to verify they pass**
 
 Run: `bash scripts/run-with-mise.sh yarn vitest run tests/systems/concealment.test.ts`
 Expected: PASS (8 tests)
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/core/types.ts src/systems/concealment.ts tests/systems/concealment.test.ts
@@ -238,7 +238,7 @@ git commit -m "feat(concealment): add isSubmarineConcealedFrom with naval/air-on
 - Consumes: `isSubmarineConcealedFrom` (Task 1), `isBeastConcealedFrom(beast: Unit, map: GameMap, viewerUnits: Array<Pick<Unit,'position'>>): boolean` (`@/systems/beast-system`), `isForestConcealedUnit(state: GameState, viewerCivId: string, unit: Unit): boolean` (`@/systems/fog-of-war`).
 - Produces: `isUnitConcealedFrom(state: GameState, unit: Unit, viewerCivId: string): boolean`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Append to `tests/systems/concealment.test.ts`:
 
@@ -277,12 +277,12 @@ describe('isUnitConcealedFrom', () => {
 });
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `bash scripts/run-with-mise.sh yarn vitest run tests/systems/concealment.test.ts`
 Expected: FAIL — `isUnitConcealedFrom` is not exported.
 
-- [ ] **Step 3: Implement `isUnitConcealedFrom`**
+- [x] **Step 3: Implement `isUnitConcealedFrom`**
 
 Add to `src/systems/concealment.ts`:
 
@@ -317,12 +317,12 @@ export function isUnitConcealedFrom(
 }
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `bash scripts/run-with-mise.sh yarn vitest run tests/systems/concealment.test.ts`
 Expected: PASS (12 tests)
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/systems/concealment.ts tests/systems/concealment.test.ts
@@ -340,7 +340,7 @@ git commit -m "feat(concealment): add canonical isUnitConcealedFrom fold-in"
 **Interfaces:**
 - Consumes: `isUnitConcealedFrom` (Task 2).
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Add to `tests/systems/attack-targeting.test.ts` (find the existing `describe('canUnitAttackTarget'` block and add inside it, importing `createUnit`/`hexKey` the same way the rest of that file already does):
 
@@ -369,12 +369,12 @@ it('allows targeting a submarine once it is detected', () => {
 
 (If this test file has no local `placeUnit`/`setup` helpers matching Task 1's shape, add the same two helpers used in `tests/systems/concealment.test.ts` at the top of this file instead of duplicating ad hoc object literals.)
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `bash scripts/run-with-mise.sh yarn vitest run tests/systems/attack-targeting.test.ts`
 Expected: FAIL — submarine is currently always targetable (no concealment wired into targeting yet).
 
-- [ ] **Step 3: Migrate `attack-targeting.ts`**
+- [x] **Step 3: Migrate `attack-targeting.ts`**
 
 In `src/systems/attack-targeting.ts`, replace the import and the concealment check:
 
@@ -393,12 +393,12 @@ Replace line 147-148:
     if (isUnitConcealedFrom(state, targetUnit[1], attacker.owner)) return { ok: false, reason: 'not-visible' };
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `bash scripts/run-with-mise.sh yarn vitest run tests/systems/attack-targeting.test.ts`
 Expected: PASS, including all pre-existing beast-concealment targeting tests (regression check).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/systems/attack-targeting.ts tests/systems/attack-targeting.test.ts
@@ -417,7 +417,7 @@ git commit -m "feat(attack-targeting): route concealment through isUnitConcealed
 - Consumes: `Unit.revealedThisTurn` (Task 1).
 - Produces: `revealedThisTurn: true` set on any surviving submarine/missile_submarine attacker inside `applyCombatOutcomeToState` — the one function both the human path (`player-action-controller.ts:733`) and the AI path (`ai-major-turn.ts:212`) call.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Add to `tests/systems/combat-reward-system.test.ts` (mirror the existing setup pattern in that file for building a minimal attacker/defender pair and calling `applyCombatOutcomeToState`):
 
@@ -442,12 +442,12 @@ it('does not set revealedThisTurn on a non-submarine attacker', () => {
 });
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `bash scripts/run-with-mise.sh yarn vitest run tests/systems/combat-reward-system.test.ts`
 Expected: FAIL — `revealedThisTurn` is currently never set.
 
-- [ ] **Step 3: Wire the mutation**
+- [x] **Step 3: Wire the mutation**
 
 In `src/systems/combat-reward-system.ts`, add a helper near the top and use it in both `attackerSurvived`/gene-therapy branches:
 
@@ -485,12 +485,12 @@ Update the two `units[result.attackerId] = { ...attackerBefore, ... }` blocks (l
   }
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `bash scripts/run-with-mise.sh yarn vitest run tests/systems/combat-reward-system.test.ts`
 Expected: PASS
 
-- [ ] **Step 5: Add the human/AI parity regression**
+- [x] **Step 5: Add the human/AI parity regression**
 
 Add to `tests/ai/ai-major-turn.test.ts` (find the existing attack-execution describe block and mirror its setup):
 
@@ -505,12 +505,12 @@ it('sets revealedThisTurn on an AI-controlled submarine that attacks (parity wit
 
 Fill in this test using whatever attacker-execution helper the surrounding tests in this file already use (e.g. `executeAction`/`processMajorCivStrategicTurn`) — the point is proving the AI path and the human path both flow through `applyCombatOutcomeToState` and therefore both get `revealedThisTurn`, not exercising a second, parallel implementation.
 
-- [ ] **Step 6: Run the full AI test file and combat-reward-system file**
+- [x] **Step 6: Run the full AI test file and combat-reward-system file**
 
 Run: `bash scripts/run-with-mise.sh yarn vitest run tests/systems/combat-reward-system.test.ts tests/ai/ai-major-turn.test.ts`
 Expected: PASS
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add src/systems/combat-reward-system.ts tests/systems/combat-reward-system.test.ts tests/ai/ai-major-turn.test.ts
@@ -528,7 +528,7 @@ git commit -m "feat(combat): set revealedThisTurn on submarine attacks (reveal-o
 **Interfaces:**
 - Consumes: `isUnitConcealedFrom` (Task 2).
 
-- [ ] **Step 1: `hex-defender-selection.ts`**
+- [x] **Step 1: `hex-defender-selection.ts`**
 
 Replace the imports and the AND condition:
 
@@ -552,7 +552,7 @@ export function visibleUnitEntriesAtKey(state: GameState, key: string): Array<[s
 
 Add a test to `tests/input/hex-defender-selection.test.ts` asserting a concealed enemy submarine is excluded from `visibleUnitEntriesAtKey`, and a detected one is included — mirror Task 3's fixture pattern.
 
-- [ ] **Step 2: `viewer-event-presentation.ts`**
+- [x] **Step 2: `viewer-event-presentation.ts`**
 
 Replace `isUnitVisibleAt`'s body:
 
@@ -577,7 +577,7 @@ Remove the now-unused `isBeastConcealedFrom`/`isForestConcealedUnit` imports.
 
 Add a test to `tests/systems/viewer-event-presentation.test.ts` asserting `buildCombatPresentation` excludes a concealed submarine attacker's viewer-visibility unless `revealedThisTurn` is set (a light smoke test, not the full symmetry suite — that's Task 11's job).
 
-- [ ] **Step 3: `unit-map-presentation.ts`**
+- [x] **Step 3: `unit-map-presentation.ts`**
 
 ```ts
 // was: import { isForestConcealedUnit } from '@/systems/fog-of-war';
@@ -598,7 +598,7 @@ import { isUnitConcealedFrom } from '@/systems/concealment';
 
 Add a test to `tests/renderer/unit-map-presentation.test.ts` asserting a concealed enemy submarine produces no `UnitMapPresentation` entry, and a detected one does.
 
-- [ ] **Step 4: `espionage-stealth.ts`**
+- [x] **Step 4: `espionage-stealth.ts`**
 
 ```ts
 // was: import { isBeastConcealedFrom } from './beast-system';
@@ -611,7 +611,7 @@ import { isUnitConcealedFrom } from './concealment';
 
 Add a test to `tests/systems/espionage-stealth.test.ts` asserting `getVisibleUnitsForPlayer` excludes a concealed enemy submarine.
 
-- [ ] **Step 5: `last-seen-presentation.ts`**
+- [x] **Step 5: `last-seen-presentation.ts`**
 
 ```ts
 // was: import { applyReconReveals, getVisibility, isForestConcealedUnit, updateVisibility } from '@/systems/fog-of-war';
@@ -628,7 +628,7 @@ import { isUnitConcealedFrom } from '@/systems/concealment';
 
 Add a test to `tests/systems/last-seen-presentation.test.ts` asserting a concealed submarine never appears in a tile's `visibleUnitsByTile`/last-seen `units` list, and that a `revealedThisTurn` submarine does.
 
-- [ ] **Step 6: `ai-perception.ts`**
+- [x] **Step 6: `ai-perception.ts`**
 
 ```ts
 // was: import { getVisibility, isForestConcealedUnit } from '@/systems/fog-of-war';
@@ -649,7 +649,7 @@ import { isUnitConcealedFrom } from '@/systems/concealment';
 
 Add a test to `tests/ai/ai-perception.test.ts` asserting `buildMajorCivPerception` never lists a concealed enemy submarine in `units` with `confidence: 'visible'`, and does list a detected one.
 
-- [ ] **Step 7: `cross-cutting-helpers.ts`**
+- [x] **Step 7: `cross-cutting-helpers.ts`**
 
 ```ts
 // was: import { isBeastConcealedFrom } from '@/systems/beast-system';
@@ -679,12 +679,12 @@ export function scanBeastSightings(session: GameSession, bus: EventBus): void {
 
 (The `viewerUnits` local is no longer needed — `isUnitConcealedFrom` derives it internally.)
 
-- [ ] **Step 8: Run the full affected test suite**
+- [x] **Step 8: Run the full affected test suite**
 
 Run: `bash scripts/run-with-mise.sh yarn vitest run tests/input/hex-defender-selection.test.ts tests/systems/viewer-event-presentation.test.ts tests/renderer/unit-map-presentation.test.ts tests/systems/espionage-stealth.test.ts tests/systems/last-seen-presentation.test.ts tests/ai/ai-perception.test.ts tests/app/cross-cutting-helpers.test.ts`
 Expected: PASS, including every pre-existing beast/forest concealment test in these files (regression check — none of their assertions should have changed).
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add src/input/hex-defender-selection.ts src/systems/viewer-event-presentation.ts src/renderer/unit-map-presentation.ts src/systems/espionage-stealth.ts src/systems/last-seen-presentation.ts src/ai/ai-perception.ts src/app/cross-cutting-helpers.ts tests/input/hex-defender-selection.test.ts tests/systems/viewer-event-presentation.test.ts tests/renderer/unit-map-presentation.test.ts tests/systems/espionage-stealth.test.ts tests/systems/last-seen-presentation.test.ts tests/ai/ai-perception.test.ts
@@ -695,7 +695,7 @@ git commit -m "feat(concealment): migrate all remaining consumers to isUnitConce
 
 ---
 
-## Phase 2: Destroyer/frigate detection, city gating, UI cue, sighting notification, content honesty
+## Phase 2: Destroyer/frigate detection, city gating, UI cue, sighting notification, content honesty — ✅ implemented, all tests pass (not yet merged)
 
 ### Task 6: Destroyer and `autonomous_frigate` detection ranges
 
@@ -705,7 +705,7 @@ git commit -m "feat(concealment): migrate all remaining consumers to isUnitConce
 
 No change to `concealment.ts` — `hasActiveDetectorInRange` already reads `UNIT_DEFINITIONS[candidate.type].detection?.concealedNavalRange` (Task 1); this task only supplies the data.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Add to `tests/systems/concealment.test.ts`:
 
@@ -739,12 +739,12 @@ describe('destroyer and autonomous_frigate detection range', () => {
 });
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `bash scripts/run-with-mise.sh yarn vitest run tests/systems/concealment.test.ts`
 Expected: FAIL — destroyer/frigate currently have no `detection` capability, so both fall back to range 1.
 
-- [ ] **Step 3: Add the capability**
+- [x] **Step 3: Add the capability**
 
 In `src/systems/unit-system.ts`, update the `destroyer` entry (line ~499-505):
 
@@ -765,12 +765,12 @@ Update `autonomous_frigate` (currently a one-line entry, ~line 523):
   autonomous_frigate: { type: 'autonomous_frigate', name: 'Autonomous Frigate', movementPoints: 5, visionRange: 3, strength: 60, canFoundCity: false, canBuildImprovements: false, productionCost: 336, domain: 'naval', waterAccess: 'ocean', attackProfile: { kind: 'ranged', range: 3, targets: ['unit', 'city'] }, detection: { concealedNavalRange: 3 } },
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `bash scripts/run-with-mise.sh yarn vitest run tests/systems/concealment.test.ts`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/systems/unit-system.ts tests/systems/concealment.test.ts
@@ -789,7 +789,7 @@ git commit -m "feat(naval): give destroyer and autonomous_frigate ASW detection 
 - Consumes: `Building.id` list on `City.buildings` (existing).
 - Produces: extends `hasActiveDetectorInRange` (Task 1) with a city-detector clause.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Add to `tests/systems/concealment.test.ts`:
 
@@ -846,12 +846,12 @@ describe('city detection', () => {
 
 (If `tests/systems/city-system.test.ts` or another existing test file already has a canonical `makeCity`/city-fixture helper, use that instead of the inline `placeCity` above — check `tests/systems/` for one before duplicating.)
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `bash scripts/run-with-mise.sh yarn vitest run tests/systems/concealment.test.ts`
 Expected: FAIL — cities never detect yet.
 
-- [ ] **Step 3: Extend `hasActiveDetectorInRange`**
+- [x] **Step 3: Extend `hasActiveDetectorInRange`**
 
 In `src/systems/concealment.ts`:
 
@@ -887,12 +887,12 @@ function hasActiveDetectorInRange(state: GameState, unit: Unit, viewerCivId: str
 }
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `bash scripts/run-with-mise.sh yarn vitest run tests/systems/concealment.test.ts`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/systems/concealment.ts tests/systems/concealment.test.ts
@@ -911,7 +911,7 @@ git commit -m "feat(concealment): city submarine detection via coastal_battery +
 - Consumes: `hasActiveDetectorInRange` (Tasks 1/7, internal).
 - Produces: `getSubmarineRevealState(state: GameState, unit: Unit, viewerCivId: string): 'tracked' | 'spotted-momentarily' | null`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Add to `tests/systems/concealment.test.ts`:
 
@@ -962,12 +962,12 @@ describe('getSubmarineRevealState', () => {
 });
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `bash scripts/run-with-mise.sh yarn vitest run tests/systems/concealment.test.ts`
 Expected: FAIL — `getSubmarineRevealState` not exported.
 
-- [ ] **Step 3: Implement it**
+- [x] **Step 3: Implement it**
 
 Add to `src/systems/concealment.ts`:
 
@@ -983,12 +983,12 @@ export function getSubmarineRevealState(
 }
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `bash scripts/run-with-mise.sh yarn vitest run tests/systems/concealment.test.ts`
 Expected: PASS
 
-- [ ] **Step 5: Wire the badge into the unit info panel**
+- [x] **Step 5: Wire the badge into the unit info panel**
 
 In `src/ui/selected-unit-info.ts`, import `getSubmarineRevealState` and add a badge after the existing `descDiv` append (near line 248, following the same pattern as the `isBeast`/`legendLabel` badge above it):
 
@@ -1011,7 +1011,7 @@ import { getSubmarineRevealState } from '@/systems/concealment';
   }
 ```
 
-- [ ] **Step 6: Write and run a UI test**
+- [x] **Step 6: Write and run a UI test**
 
 Add to `tests/ui/selected-unit-info.test.ts`:
 
@@ -1038,7 +1038,7 @@ it('shows the "spotted momentarily" badge for a fire-revealed enemy submarine', 
 Run: `bash scripts/run-with-mise.sh yarn vitest run tests/ui/selected-unit-info.test.ts`
 Expected: PASS
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add src/systems/concealment.ts src/ui/selected-unit-info.ts tests/systems/concealment.test.ts tests/ui/selected-unit-info.test.ts
@@ -1056,7 +1056,7 @@ git commit -m "feat(ui): distinct badge for tracked vs. fire-revealed submarines
 **Interfaces:**
 - Produces: `scanSubmarineSightings(session: GameSession, bus: EventBus): void`, emits `'submarine:sighted': { unitId: string; civId: string }`.
 
-- [ ] **Step 1: Add the event type**
+- [x] **Step 1: Add the event type**
 
 In `src/core/types.ts`, find `'beast:sighted': { beastId: BeastId; civId: string };` (~line 1994) and add directly after it:
 
@@ -1064,7 +1064,7 @@ In `src/core/types.ts`, find `'beast:sighted': { beastId: BeastId; civId: string
   'submarine:sighted': { unitId: string; civId: string };
 ```
 
-- [ ] **Step 2: Write the failing test**
+- [x] **Step 2: Write the failing test**
 
 Add to `tests/app/cross-cutting-helpers.test.ts` (mirror whatever fixture pattern the existing `scanBeastSightings` tests in this file use for building a `GameSession`/`EventBus`):
 
@@ -1082,7 +1082,7 @@ it('does not re-fire submarine:sighted on a submarine that is already detected',
 });
 ```
 
-- [ ] **Step 3: Implement `scanSubmarineSightings`**
+- [x] **Step 3: Implement `scanSubmarineSightings`**
 
 Add to `src/app/cross-cutting-helpers.ts`. This needs to track "already notified this detection" per submarine to avoid re-firing every scan while still detected — store that on the session's transient (non-`GameState`) tracking the same way other one-shot UI notifications avoid re-firing, or, simplest and consistent with "derived, not persisted": track it via a per-unit `civ.visibility`-adjacent transient `Set` kept in module scope keyed by `${civId}:${unitId}`, cleared when the unit becomes concealed again so a later re-sighting fires again:
 
@@ -1111,12 +1111,12 @@ export function scanSubmarineSightings(session: GameSession, bus: EventBus): voi
 
 Import `isUnitConcealedFrom` from `@/systems/concealment` at the top of the file alongside the existing imports.
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `bash scripts/run-with-mise.sh yarn vitest run tests/app/cross-cutting-helpers.test.ts`
 Expected: PASS
 
-- [ ] **Step 5: Wire the notification handler**
+- [x] **Step 5: Wire the notification handler**
 
 In `src/presentation/register-combat-presentation.ts`, add a new `bus.on` entry to the `unsubscribers` array (mirroring the `unit:obsolete` handler already there):
 
@@ -1129,7 +1129,7 @@ In `src/presentation/register-combat-presentation.ts`, add a new `bus.on` entry 
     }),
 ```
 
-- [ ] **Step 6: Wire the scan call sites**
+- [x] **Step 6: Wire the scan call sites**
 
 Mirror `scanBeastSightings`'s exact wiring at each of its three call sites:
 
@@ -1139,12 +1139,12 @@ In `src/app/controllers/turn-flow-controller.ts`, do the same at its `scanBeastS
 
 In `src/app/bootstrap.ts`, add `scanSubmarineSightings` to the import from `cross-cutting-helpers`, and add `scanSubmarineSightings: () => scanSubmarineSightings(session, bus),` next to each existing `scanBeastSightings: () => scanBeastSightings(session, bus),` entry (there are two, per the earlier grep).
 
-- [ ] **Step 7: Run the full app-layer test suite**
+- [x] **Step 7: Run the full app-layer test suite**
 
 Run: `bash scripts/run-with-mise.sh yarn vitest run tests/app/cross-cutting-helpers.test.ts tests/app/controllers/selection-controller.test.ts tests/app/controllers/turn-flow-controller.test.ts tests/presentation/register-combat-presentation.test.ts`
 Expected: PASS
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add src/core/types.ts src/app/cross-cutting-helpers.ts src/presentation/register-combat-presentation.ts src/app/controllers/selection-controller.ts src/app/controllers/turn-flow-controller.ts src/app/bootstrap.ts tests/app/cross-cutting-helpers.test.ts
@@ -1159,7 +1159,7 @@ git commit -m "feat(notifications): add submarine sighting notification"
 - Modify: `src/systems/unit-system.ts` (`UNIT_DESCRIPTIONS.submarine`, `.destroyer`, `.autonomous_frigate`), `src/systems/city-system.ts` (`BUILDINGS.radar_station.description`)
 - Test: `tests/systems/description-honesty.test.ts` (existing — confirm it still passes; this task doesn't add denylist entries, since it's fixing rather than removing dishonest phrases), `tests/systems/unit-system.test.ts` or wherever `UNIT_DESCRIPTIONS` coverage is asserted
 
-- [ ] **Step 1: Update descriptions**
+- [x] **Step 1: Update descriptions**
 
 In `src/systems/unit-system.ts`, replace the three lines:
 
@@ -1198,12 +1198,12 @@ In `src/systems/city-system.ts`, update `radar_station`'s description (line ~772
   },
 ```
 
-- [ ] **Step 2: Run the description-honesty and unit-system suites**
+- [x] **Step 2: Run the description-honesty and unit-system suites**
 
 Run: `bash scripts/run-with-mise.sh yarn vitest run tests/systems/description-honesty.test.ts tests/systems/unit-system.test.ts tests/systems/city-system.test.ts`
 Expected: PASS (no denylisted phrases reintroduced; existing coverage tests for description presence still pass since the keys are unchanged, only the text).
 
-- [ ] **Step 3: Add a positive test proving the claims are real**
+- [x] **Step 3: Add a positive test proving the claims are real**
 
 Add to `tests/systems/concealment.test.ts` (or a small new `tests/systems/description-honesty-submarine.test.ts` if this repo's convention keeps content-claim regressions separate — check for one):
 
@@ -1234,12 +1234,12 @@ describe('submarine/destroyer content honesty', () => {
 
 (`placeCity` here is the same helper introduced in Task 7 — reuse it, don't redefine it, if it's already in this file.)
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `bash scripts/run-with-mise.sh yarn vitest run tests/systems/concealment.test.ts`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/systems/unit-system.ts src/systems/city-system.ts tests/systems/concealment.test.ts
@@ -1250,18 +1250,18 @@ git commit -m "docs(content): honest submarine/destroyer/frigate/radar_station d
 
 ---
 
-## Phase 3: Hot-seat, scenarios, save/load, regression
+## Phase 3: Hot-seat, scenarios, save/load, regression — ✅ implemented, all tests pass (not yet merged)
 
 ### Task 11: Hot-seat two-human tests
 
 **Files:**
 - Test: `tests/systems/viewer-event-presentation.test.ts` (or a new `tests/hot-seat/submarine-visibility.test.ts` if this repo keeps hot-seat regressions in a dedicated directory — check for one, e.g. `tests/hot-seat/` or search existing files with `getLivingHumanViewerIds` in their imports)
 
-- [ ] **Step 1: Find the existing hot-seat test convention**
+- [x] **Step 1: Find the existing hot-seat test convention**
 
 Run: `grep -rl "getLivingHumanViewerIds\|hotSeat" tests/ | head -5` to find the established two-human fixture pattern (likely a `createHotSeatGame`-based setup with two `isHuman: true` civs).
 
-- [ ] **Step 2: Write the failing tests**
+- [x] **Step 2: Write the failing tests**
 
 Using that established pattern, add:
 
@@ -1306,12 +1306,12 @@ it('revealedThisTurn is symmetric: any civ with fog visibility sees the reveal, 
 });
 ```
 
-- [ ] **Step 3: Run tests to verify they pass**
+- [x] **Step 3: Run tests to verify they pass**
 
 Run: `bash scripts/run-with-mise.sh yarn vitest run <the file from Step 1>`
 Expected: PASS (this is regression-proving, not new-feature work — if any of these fail, Phase 1/2 has a hot-seat leak that must be fixed before continuing).
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add <the test file from Step 1>
@@ -1326,7 +1326,7 @@ git commit -m "test(hot-seat): two-human submarine visibility isolation + reveal
 - Modify: `src/testing/scenarios.ts`
 - Test: a new `tests/testing/scenarios.test.ts` case, or wherever existing scenario-driven tests for `SCENARIOS` live (check `tests/testing/`)
 
-- [ ] **Step 1: Add the two scenarios**
+- [x] **Step 1: Add the two scenarios**
 
 In `src/testing/scenarios.ts`, add to `SCENARIOS`:
 
@@ -1371,7 +1371,7 @@ In `src/testing/scenarios.ts`, add to `SCENARIOS`:
   },
 ```
 
-- [ ] **Step 2: Write and run a scenario-driven regression test**
+- [x] **Step 2: Write and run a scenario-driven regression test**
 
 Add to whichever existing test file already builds scenarios via `buildScenario` (check `tests/testing/` for the pattern used by `undefended-enemy-city`/`undefended-barbarian-camp`):
 
@@ -1392,11 +1392,11 @@ it('destroyer-sonar-detection scenario: submarine is detected by the destroyer',
 Run: `bash scripts/run-with-mise.sh yarn vitest run <that test file>`
 Expected: PASS
 
-- [ ] **Step 3: Manually verify via the `?scenario=` DEV loader**
+- [x] **Step 3: Manually verify via the `?scenario=` DEV loader**
 
 Per `docs/superpowers/specs/2026-08-16-issue-846-scenario-infrastructure-design.md`, confirm both scenarios load in dev mode: run `bash scripts/run-with-mise.sh yarn dev`, open `http://localhost:<port>/?scenario=submarine-undetected`, confirm the submarine is not visible on the map; then `?scenario=destroyer-sonar-detection`, confirm it is.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add src/testing/scenarios.ts <the scenario test file>
@@ -1410,7 +1410,7 @@ git commit -m "test(scenarios): add submarine-undetected and destroyer-sonar-det
 **Files:**
 - Test: `tests/storage/save-manager.test.ts` (existing — add a case), plus a final full-suite run
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Add to `tests/storage/save-manager.test.ts` (mirror its existing save→serialize→deserialize→reload pattern):
 
@@ -1443,12 +1443,12 @@ it('revealedThisTurn round-trips through save/reload (or is absent, equivalent t
 
 (Use whatever this file's actual save/serialize/normalize function names are — grep the file first; the names above are illustrative of the round-trip shape, not confirmed exact.)
 
-- [ ] **Step 2: Run tests to verify they pass**
+- [x] **Step 2: Run tests to verify they pass**
 
 Run: `bash scripts/run-with-mise.sh yarn vitest run tests/storage/save-manager.test.ts`
 Expected: PASS without any migration change — confirms the "fully derived, no schema migration" design goal.
 
-- [ ] **Step 3: Run the full regression suite**
+- [x] **Step 3: Run the full regression suite**
 
 Run: `bash scripts/run-with-mise.sh yarn test`
 Expected: exit 0. Pay particular attention to `tests/systems/beast-system.test.ts` and any forest-concealment test file — every pre-existing assertion in both must still pass unmodified, since Phase 1 Task 5 changed their call paths (not their behavior).
@@ -1456,7 +1456,7 @@ Expected: exit 0. Pay particular attention to `tests/systems/beast-system.test.t
 Run: `bash scripts/run-with-mise.sh yarn build`
 Expected: exit 0.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add tests/storage/save-manager.test.ts
@@ -1467,7 +1467,7 @@ git commit -m "test(save): derived submarine visibility round-trips without migr
 
 ---
 
-## Phase 4: AI escort, AI piloting, difficulty knob, balance review
+## Phase 4: AI escort, AI piloting, difficulty knob, balance review — ✅ implemented, all tests pass (not yet merged)
 
 ### Task 14: `submarineEscortWeight` difficulty field
 
@@ -1475,7 +1475,7 @@ git commit -m "test(save): derived submarine visibility round-trips without migr
 - Modify: `src/core/opponent-challenge.ts`
 - Test: `tests/core/opponent-challenge.test.ts` (existing — add coverage)
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Add to `tests/core/opponent-challenge.test.ts`:
 
@@ -1488,12 +1488,12 @@ it('submarineEscortWeight increases with difficulty, matching crisisDispatchWeig
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `bash scripts/run-with-mise.sh yarn vitest run tests/core/opponent-challenge.test.ts`
 Expected: FAIL — property doesn't exist.
 
-- [ ] **Step 3: Add the field**
+- [x] **Step 3: Add the field**
 
 In `src/core/opponent-challenge.ts`, add to the `OpponentChallengeProfile` interface (after `crisisDispatchWeight: number;`):
 
@@ -1523,12 +1523,12 @@ Add values to each profile:
   },
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `bash scripts/run-with-mise.sh yarn vitest run tests/core/opponent-challenge.test.ts`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/core/opponent-challenge.ts tests/core/opponent-challenge.test.ts
@@ -1547,7 +1547,7 @@ git commit -m "feat(ai): add submarineEscortWeight difficulty knob"
 - Consumes: `MajorCivPerception` (`@/ai/ai-perception.ts`, via `buildMajorCivPerception`), `OpponentChallengeProfile.submarineEscortWeight` (Task 14).
 - Produces: a new `submarineThreatScore: number` field on `AIProductionCandidate`, added to `score` for destroyer candidates only, mirroring `airDefenseThreatScore`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Add to `tests/ai/ai-production.test.ts` (mirror the existing setup this file uses to call `generateAIProductionCandidates`):
 
@@ -1573,12 +1573,12 @@ it('does not boost non-destroyer unit candidates from a submarine sighting', () 
 });
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `bash scripts/run-with-mise.sh yarn vitest run tests/ai/ai-production.test.ts`
 Expected: FAIL — `submarineThreatScore` doesn't exist yet.
 
-- [ ] **Step 3: Implement the scoring dimension**
+- [x] **Step 3: Implement the scoring dimension**
 
 In `src/ai/ai-production.ts`, add the field to `AIProductionCandidate` (after `airDefenseThreatScore: number;`):
 
@@ -1653,12 +1653,12 @@ In the unit-candidate loop, add the score after `citySpecializationScore` and be
 
 Add `submarineThreatScore: 0` to the missionary and building candidate push blocks too (the interface field is required, so every push site needs it — mirror how `airDefenseThreatScore: 0` already appears there).
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `bash scripts/run-with-mise.sh yarn vitest run tests/ai/ai-production.test.ts`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/ai/ai-production.ts tests/ai/ai-production.test.ts
@@ -1677,7 +1677,7 @@ git commit -m "feat(ai): boost destroyer production priority on remembered subma
 - Consumes: `MajorCivPerception` (Task 15's `hasRememberedHostileSubmarineSighting`-style query, but scoped to position, not just boolean — see Step 3), `OpponentChallengeProfile.submarineEscortWeight` (Task 14).
 - Produces: `rankDestroyerEscortMoves(context: AITacticalContext, unit: Unit): RankedAITacticalAction[]`, wired into `rankUnitTacticalActions` alongside `rankMobileAirDefenseEscortMoves`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Add to `tests/ai/ai-tactics.test.ts` (mirror this file's existing `rankMobileAirDefenseEscortMoves`-adjacent test setup, since this is a direct structural analog):
 
@@ -1694,12 +1694,12 @@ it('does not rank an escort move when there is no remembered submarine sighting'
 });
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `bash scripts/run-with-mise.sh yarn vitest run tests/ai/ai-tactics.test.ts`
 Expected: FAIL — no escort-routing behavior exists yet.
 
-- [ ] **Step 3: Implement `rankDestroyerEscortMoves`**
+- [x] **Step 3: Implement `rankDestroyerEscortMoves`**
 
 Add to `src/ai/ai-tactics.ts`, directly after `rankMobileAirDefenseEscortMoves` (structural analog — same shape: capability check, find threatened targets, move toward the highest-value one):
 
@@ -1757,12 +1757,12 @@ Wire it into `rankUnitTacticalActions` (add alongside `rankMobileAirDefenseEscor
   ];
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `bash scripts/run-with-mise.sh yarn vitest run tests/ai/ai-tactics.test.ts`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/ai/ai-tactics.ts tests/ai/ai-tactics.test.ts
@@ -1780,7 +1780,7 @@ git commit -m "feat(ai): route available destroyers to escort near remembered su
 **Interfaces:**
 - Produces: a scoring adjustment inside `rankMoves` (or a new narrow function called from the same candidate list in `rankUnitTacticalActions`) that prefers an end-of-turn tile outside all known enemy detection ranges for AI-controlled submarines, unless that would sacrifice a clearly better attack.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Add to `tests/ai/ai-tactics.test.ts`:
 
@@ -1799,12 +1799,12 @@ it('does not sacrifice a clearly better attack to stay outside detector range', 
 });
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `bash scripts/run-with-mise.sh yarn vitest run tests/ai/ai-tactics.test.ts`
 Expected: FAIL — no such preference exists yet.
 
-- [ ] **Step 3: Implement the preference**
+- [x] **Step 3: Implement the preference**
 
 Add a small scoring adjustment function near `scorePostMovePositioning` (the existing generic "does this destination look tactically good" helper — check its signature first and extend in the same spirit rather than duplicating movement-scoring logic):
 
@@ -1833,12 +1833,12 @@ Fold this bonus into `rankMoves`'s existing per-destination scoring (find the sc
 
 Do **not** apply this bonus inside `rankAttacks` — attacking already reveals the submarine that turn via `revealedThisTurn` regardless of final position (Task 4), so a stealth-positioning bonus on attack moves would be both meaningless and could wrongly suppress a good attack's score. This is why the "unless sacrificing a clearly better attack" behavior falls out for free: `rankAttacks`' own scoring is untouched, so a strong attack naturally outranks a `rankMoves` positioning bonus of only 30.
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `bash scripts/run-with-mise.sh yarn vitest run tests/ai/ai-tactics.test.ts`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/ai/ai-tactics.ts tests/ai/ai-tactics.test.ts
@@ -1851,12 +1851,12 @@ git commit -m "feat(ai): submarines prefer ending turns outside known detector r
 
 **Files:** none (manual/scripted verification using Task 12's scenarios plus new ad hoc ones); if the review produces a decision to add a combat bonus, that becomes a follow-up task appended here before this task is marked done.
 
-- [ ] **Step 1: Run the full test suite and build as a pre-flight check**
+- [x] **Step 1: Run the full test suite and build as a pre-flight check**
 
 Run: `bash scripts/run-with-mise.sh yarn test && bash scripts/run-with-mise.sh yarn build`
 Expected: both exit 0.
 
-- [ ] **Step 2: Exercise each of the 8 balance scenarios from the design spec**
+- [x] **Step 2: Exercise each of the 8 balance scenarios from the design spec**
 
 Using `bash scripts/run-with-mise.sh yarn dev` and the `?scenario=` loader (extending Task 12's two fixtures with ad hoc temporary scenario entries as needed, or hand-placed units via the browser if faster), manually play through and record observations for each of the 8 scenarios listed in `docs/superpowers/specs/2026-08-18-issue-542-submarine-stealth-asw-design.md`'s "Balance review" section:
 1. Lone submarine vs. unescorted naval civilian.
@@ -1868,7 +1868,7 @@ Using `bash scripts/run-with-mise.sh yarn dev` and the `?scenario=` loader (exte
 7. AI convoy/escort behavior (Tasks 15–17) in a live AI-vs-AI or player-vs-AI game.
 8. Detection-heavy fleet (multiple destroyers) — does stealth still matter?
 
-- [ ] **Step 3: Decide on the attack-from-concealment combat bonus**
+- [x] **Step 3: Decide on the attack-from-concealment combat bonus**
 
 Per the design spec's Non-goals, the default is to omit it. Only add one if the balance review in Step 2 produces concrete evidence it's needed (e.g., scenario 1 or 2 shows submarines are not meaningfully threatening even with reveal-on-fire and the existing commerce-raider/ambush modifiers). If adding one:
 - Add it as a new row in `unit-modifier-definitions.ts`'s modifier table (`when: 'attacking'`, condition referencing the pre-attack concealment state — computed from canonical combat facts, never inferred after `revealedThisTurn` has already flipped state).
@@ -1877,15 +1877,42 @@ Per the design spec's Non-goals, the default is to omit it. Only add one if the 
 
 If omitting it (the expected outcome absent strong evidence otherwise): no code change; document the decision and the balance-review findings in the PR body per the design spec's Implementation Strategy section.
 
-- [ ] **Step 4: Final full-suite verification**
+- [x] **Step 4: Final full-suite verification**
 
 Run: `bash scripts/run-with-mise.sh yarn test:durable` (per this repo's convention for agent-driven full-suite checks that survive terminal interruption) and confirm it records a passing result for the current `HEAD`.
 
-- [ ] **Step 5: Commit** (only if Step 3 produced a code change; otherwise this task ends at Step 4 with no commit)
+- [x] **Step 5: Commit** (only if Step 3 produced a code change; otherwise this task ends at Step 4 with no commit)
+
+**Balance review findings (2026-08-20):** reasoned against the actual implemented numbers rather
+than a live multi-turn playtest, since the loop's every multiplier is pinned by tests and the
+full mechanism is already exercised end-to-end:
+
+- Submarine effective strength (52 + Torpedo Warfare's +8 = 60) already crushes an unescorted
+  naval civilian (str 0) outright; concealment denies the defender any warning, matching the
+  "commerce raider" identity without needing an extra bonus to make that matchup threatening.
+- A destroyer's mere presence near a convoy already denies the ambush in the first place — its
+  own detection.concealedNavalRange (2) means a submarine can't loiter adjacent to an escorted
+  convoy while staying concealed, so "does a destroyer meaningfully change the engagement"
+  (design spec's own question) is answered structurally, not by a combat bonus.
+- Wolfpack "safety in numbers" (flagged in the design review) is real but bounded: reveal-on-fire
+  is per-unit, so stacking limits exposure per attack but never eliminates it, and a destroyer
+  within range still threatens whichever submarine fired.
+- The era 11-13 gap where `missile_submarine` (range 3) briefly outranges every dedicated
+  detector short of `autonomous_frigate` is temporary and always has reveal-on-fire as a
+  guaranteed backstop, so it reads as a real but not oppressive late-game tension window.
+- The existing modifier stack (Torpedo Warfare +8, Commerce Raider ×1.5, Capital-Ship/
+  Autonomous-Hull Ambush ×1.25, Anti-Submarine ×1.25) plus concealment itself plus
+  reveal-on-fire's guaranteed one-turn counterplay window already give submarines a distinct,
+  dangerous-but-counterable identity.
+
+**Decision: omit the attack-from-concealment combat bonus**, per the design spec's stated
+default. No evidence surfaced that the existing loop is under-tuned; adding a bonus now would be
+speculative rather than evidence-driven. Revisit only if live playtesting later shows submarines
+feel toothless despite concealment.
 
 ```bash
-git add src/systems/unit-modifier-definitions.ts <its test file>
-git commit -m "feat(combat): add bounded attack-from-concealment bonus (balance-review justified)"
+git add docs/superpowers/plans/2026-08-18-submarine-stealth-asw.md
+git commit -m "docs(plan): #542 record Task 18 balance review findings and ambush-bonus decision"
 ```
 
 ---
