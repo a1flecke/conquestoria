@@ -391,4 +391,44 @@ describe('attack-targeting', () => {
       ok: true, targetUnitId: 'warrior',
     });
   });
+
+  it('rejects a concealed enemy submarine as a target', () => {
+    // Attacker is a player submarine (range-2 attack, but only ordinary range-1
+    // detection -- no `detection` capability of its own) so it can reach the enemy
+    // submarine with its weapon without also detecting it. A destroyer would defeat
+    // this test's premise: its own detection.concealedNavalRange is 2.
+    const sub = unit('sub', 'submarine', 'ai-1', { q: 0, r: 0 });
+    const attacker = unit('attacker', 'submarine', 'player', { q: 2, r: 0 });
+    const state = stateWithUnits({ sub, attacker }, { '0,0': 'visible' });
+    for (const key of ['0,0', '1,0', '2,0']) {
+      const tile = state.map.tiles[key];
+      if (tile) state.map.tiles[key] = { ...tile, terrain: 'ocean' };
+    }
+
+    expect(canUnitAttackTarget(state, attacker, sub.position, { viewerId: 'player' })).toEqual({
+      ok: false, reason: 'not-visible',
+    });
+  });
+
+  it('allows targeting a submarine once it is detected by an adjacent viewer unit', () => {
+    const sub = unit('sub', 'submarine', 'ai-1', { q: 0, r: 0 });
+    const galley = unit('galley', 'galley', 'player', { q: 1, r: 0 });
+    const state = stateWithUnits({ sub, galley }, { '0,0': 'visible', '1,0': 'visible' });
+    for (const key of ['0,0', '1,0']) {
+      const tile = state.map.tiles[key];
+      if (tile) state.map.tiles[key] = { ...tile, terrain: 'ocean' };
+    }
+    // galley is not a valid attacker here (range 1, submarine is adjacent) -- add a
+    // ranged attacker at range 2 so the legality check exercises a real ranged path.
+    const destroyer = unit('destroyer', 'destroyer', 'player', { q: 2, r: 0 });
+    state.units.destroyer = destroyer;
+    state.civilizations.player.units.push('destroyer');
+    const tile2 = state.map.tiles['2,0'];
+    if (tile2) state.map.tiles['2,0'] = { ...tile2, terrain: 'ocean' };
+    state.civilizations.player.visibility.tiles['2,0'] = 'visible';
+
+    expect(canUnitAttackTarget(state, destroyer, sub.position, { viewerId: 'player' })).toMatchObject({
+      ok: true, targetUnitId: 'sub',
+    });
+  });
 });
