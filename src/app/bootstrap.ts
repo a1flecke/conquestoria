@@ -56,6 +56,7 @@ import {
   clearUnloadState,
   prefersReducedMotion,
   scanBeastSightings,
+  scanSubmarineSightings,
   focusNotificationTarget,
   focusPirateTarget,
   applyPirateActionResult,
@@ -314,6 +315,7 @@ export function createAppComposition(deps: AppCompositionDeps): AppComposition {
     executeUpgrade: (unitId, targetType) => playerActions.executeUpgrade(unitId, targetType),
     ensurePlayerWarState: targetCivId => playerActions.ensurePlayerWarState(targetCivId),
     scanBeastSightings: () => scanBeastSightings(session, bus),
+    scanSubmarineSightings: () => scanSubmarineSightings(session, bus),
     currentCiv: () => getCurrentCiv(session),
   });
 
@@ -357,6 +359,7 @@ export function createAppComposition(deps: AppCompositionDeps): AppComposition {
     deselectUnit: selectionController.deselectUnit,
     selectNextUnit: selectionController.selectNextUnit,
     scanBeastSightings: () => scanBeastSightings(session, bus),
+    scanSubmarineSightings: () => scanSubmarineSightings(session, bus),
     maybeShowPendingHoardChoice,
     checkAdvisors: () => advisorSystem.check(session.getState()),
     // `campaignEntry` is declared after `turnFlow` (it needs `turnFlow` itself

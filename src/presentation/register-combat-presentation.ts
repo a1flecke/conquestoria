@@ -23,6 +23,17 @@ export const registerCombatPresentation: PresentationRegistrar = (bus, ctx) => {
       const name = UNIT_DEFINITIONS[unitType]?.name ?? unitType;
       ctx.notifier.deliver(civId, `Your ${name} is now obsolete — upgrade it in your home city.`, 'info');
     }),
+    bus.on('submarine:sighted', ({ unitId, civId }) => {
+      const state = ctx.session.getState();
+      const unit = state.units[unitId];
+      const name = unit ? (UNIT_DEFINITIONS[unit.type]?.name ?? unit.type) : 'submarine';
+      ctx.notifier.deliver(
+        civId,
+        `You spotted an enemy ${name}.`,
+        'info',
+        unit ? { kind: 'map', coord: unit.position, label: name } : undefined,
+      );
+    }),
     bus.on('unit:journey-blocked', ({ unitId, position }) => {
       // #551: recipient is the unit's actual owner, not whoever currentPlayer
       // happens to be at emit time -- the old showNotification call leaked this

@@ -108,6 +108,7 @@ export interface SelectionControllerDeps {
   readonly executeUpgrade: (unitId: string, targetType: UnitType) => boolean;
   readonly ensurePlayerWarState: (targetCivId: string) => void;
   readonly scanBeastSightings: () => void;
+  readonly scanSubmarineSightings: () => void;
   readonly currentCiv: () => Civilization;
 }
 
@@ -804,6 +805,7 @@ export function createSelectionController(deps: SelectionControllerDeps): Select
     }
 
     deps.scanBeastSightings();
+    deps.scanSubmarineSightings();
   }
 
   return {

@@ -142,6 +142,7 @@ function baseDeps(state: GameState, overrides: Partial<TurnFlowControllerDeps> =
     deselectUnit: vi.fn(),
     selectNextUnit: vi.fn(),
     scanBeastSightings: vi.fn(),
+    scanSubmarineSightings: vi.fn(),
     maybeShowPendingHoardChoice: vi.fn(),
     checkAdvisors: vi.fn(),
     showGameModeSelection: vi.fn(),
