@@ -10,6 +10,7 @@ import {
   resolveOpponentChallenge,
 } from '@/core/opponent-challenge';
 import { buildMajorCivPerception } from './ai-perception';
+import { isUnitConcealedFrom } from '@/systems/concealment';
 import {
   canAttackByProfileOnMap,
   getRangedAttackersThreateningUnit,
@@ -690,6 +691,30 @@ function scorePostMovePositioning(
   }, 0);
 }
 
+const SUBMARINE_TACTICAL_TYPES = new Set(['submarine', 'missile_submarine']);
+
+/**
+ * #542: AI-controlled submarines prefer a final position outside every hostile
+ * civ's detection range, when reachable. Deliberately NOT applied inside
+ * rankAttacks -- firing already reveals the submarine that turn via
+ * revealedThisTurn (combat-reward-system.ts) regardless of final position, so a
+ * stealth bonus there would be both meaningless and could wrongly suppress a good
+ * attack's score. This is why "unless sacrificing a clearly better attack" falls
+ * out for free: rankAttacks' own scoring is untouched, so a strong attack
+ * naturally outranks this bonus's modest weight.
+ */
+function submarineStealthPositioningBonus(
+  context: AITacticalContext,
+  unit: Unit,
+  destination: HexCoord,
+): number {
+  if (!SUBMARINE_TACTICAL_TYPES.has(unit.type)) return 0;
+  const projected = { ...unit, position: destination };
+  const remainsConcealedFromEveryHostile = [...hostileOwners(context.state, context.actorId)]
+    .every(hostileCivId => isUnitConcealedFrom(context.state, projected, hostileCivId));
+  return remainsConcealedFromEveryHostile ? 30 : 0;
+}
+
 function rankMoves(
   context: AITacticalContext,
   unit: Unit,
@@ -721,11 +746,12 @@ function rankMoves(
             / Math.max(1, UNIT_DEFINITIONS[candidate.type].movementPoints),
           ))) - 1);
     const positioningBonus = scorePostMovePositioning(context, unit, destination);
+    const stealthBonus = submarineStealthPositioningBonus(context, unit, destination);
     return ranked({
       kind: 'move',
       unitId: unit.id,
       destination,
-    }, 300 + planProgress * 30 - cohesionBreakTurns * 15 + positioningBonus);
+    }, 300 + planProgress * 30 - cohesionBreakTurns * 15 + positioningBonus + stealthBonus);
   });
 }
 

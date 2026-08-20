@@ -921,6 +921,61 @@ describe('AI tactical action ranking', () => {
       .toEqual([]);
   });
 
+  it('submarine positioning bonus rewards a destination outside every hostile detector range (#542)', () => {
+    const state = makeState('standard');
+    for (let q = 0; q <= 10; q++) {
+      const tile = state.map.tiles[hexKey({ q, r: 0 })];
+      if (tile) tile.terrain = 'ocean';
+    }
+    const sub = addUnit(state, 'sub-1', 'submarine', AI, { q: 0, r: 0 });
+    // autonomous_frigate detection range 3, positioned so q=4 (distance 3) is revealed
+    // and q=1 (distance 6) stays concealed -- both are outside the submarine's own
+    // attack range (2) from the frigate, so scorePostMovePositioning contributes 0 to
+    // both, isolating the stealth bonus as the only differentiator.
+    addUnit(state, 'frigate-1', 'autonomous_frigate', HUMAN, { q: 7, r: 0 });
+    const target = { q: 15, r: 0 };
+    const plan = makePlan(
+      { kind: 'region', id: 'front', anchor: target },
+      [sub.id],
+      { objective: 'expand' },
+    );
+
+    const actions = rankUnitTacticalActions(context(state, plan), sub.id);
+    const currentTargetDistance = hexDistance(sub.position, target);
+
+    const q1 = actions.find(a => a.action.kind === 'move' && a.action.destination.q === 1 && a.action.destination.r === 0);
+    expect(q1).toBeDefined();
+    const q1Progress = currentTargetDistance - hexDistance({ q: 1, r: 0 }, target);
+    expect(q1!.score).toBe(300 + q1Progress * 30 + 30); // concealed: +30 stealth bonus
+
+    const q4 = actions.find(a => a.action.kind === 'move' && a.action.destination.q === 4 && a.action.destination.r === 0);
+    expect(q4).toBeDefined();
+    const q4Progress = currentTargetDistance - hexDistance({ q: 4, r: 0 }, target);
+    expect(q4!.score).toBe(300 + q4Progress * 30); // revealed by the frigate: no stealth bonus
+  });
+
+  it('does not apply the stealth positioning bonus to non-submarine units', () => {
+    const state = makeState('standard');
+    for (let q = 0; q <= 10; q++) {
+      const tile = state.map.tiles[hexKey({ q, r: 0 })];
+      if (tile) tile.terrain = 'coast'; // galley cannot enter open ocean
+    }
+    const ship = addUnit(state, 'galley-1', 'galley', AI, { q: 0, r: 0 });
+    const target = { q: 15, r: 0 };
+    const plan = makePlan(
+      { kind: 'region', id: 'front', anchor: target },
+      [ship.id],
+      { objective: 'expand' },
+    );
+
+    const actions = rankUnitTacticalActions(context(state, plan), ship.id);
+    const currentTargetDistance = hexDistance(ship.position, target);
+    const q1 = actions.find(a => a.action.kind === 'move' && a.action.destination.q === 1 && a.action.destination.r === 0);
+    expect(q1).toBeDefined();
+    const q1Progress = currentTargetDistance - hexDistance({ q: 1, r: 0 }, target);
+    expect(q1!.score).toBe(300 + q1Progress * 30); // no stealth bonus for a non-submarine
+  });
+
   it('does not escort against a strike aircraft hidden by fog', () => {
     const state = makeState('standard');
     const mobileAa = addUnit(state, 'mobile-aa', 'mobile_aa', AI, { q: 0, r: 0 });
