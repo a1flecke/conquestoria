@@ -34,6 +34,8 @@ import { appendNotification } from '@/core/notification-log';
 import type { CustomCivDefinition } from '@/core/types';
 import { makeAutoExploreFixture } from '../systems/helpers/auto-explore-fixture';
 import { dbGet } from '@/storage/db';
+import { createUnit } from '@/systems/unit-system';
+import { isUnitConcealedFrom } from '@/systems/concealment';
 
 const customCiv: CustomCivDefinition = {
   id: 'custom-sunfolk',
@@ -144,6 +146,36 @@ describe('save-manager autosave listing', () => {
     const autoLoaded = await loadMostRecentAutoSave();
     expect(autoLoaded?.pirates).toEqual(state.pirates);
     expect(autoLoaded?.notificationLog).toEqual(state.notificationLog);
+  });
+
+  it('preserves correct derived submarine concealment across save/reload (#542)', async () => {
+    const state = createNewGame(undefined, 'submarine-concealment-round-trip', 'small');
+    state.map.tiles[hexKey({ q: 0, r: 0 })].terrain = 'ocean';
+    const idCounters = state.idCounters;
+    const sub = { ...createUnit('submarine', 'ai-1', { q: 0, r: 0 }, idCounters), id: 'sub-1' };
+    state.units[sub.id] = sub;
+    state.civilizations['ai-1'].units.push(sub.id);
+    expect(isUnitConcealedFrom(state, sub, 'player')).toBe(true);
+
+    await saveGame('submarine-slot', 'Submarine Save', state);
+    const loaded = await loadGame('submarine-slot');
+
+    const loadedSub = loaded?.units[sub.id];
+    expect(loadedSub).toBeDefined();
+    expect(isUnitConcealedFrom(loaded!, loadedSub!, 'player')).toBe(true);
+  });
+
+  it('round-trips revealedThisTurn (or leaves it absent, equivalent to false)', async () => {
+    const state = createNewGame(undefined, 'reveal-round-trip', 'small');
+    const idCounters = state.idCounters;
+    const sub = { ...createUnit('submarine', 'ai-1', { q: 0, r: 0 }, idCounters), id: 'sub-1', revealedThisTurn: true };
+    state.units[sub.id] = sub;
+    state.civilizations['ai-1'].units.push(sub.id);
+
+    await saveGame('reveal-slot', 'Reveal Save', state);
+    const loaded = await loadGame('reveal-slot');
+
+    expect(loaded?.units[sub.id]?.revealedThisTurn).toBe(true);
   });
 
   it('loads and rewrites an exact manual source without changing metadata', async () => {
