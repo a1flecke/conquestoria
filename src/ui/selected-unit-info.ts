@@ -1,5 +1,6 @@
 import type { BuildableImprovementType, GameState, DisguiseType, HexCoord, Unit, WorkerActionType } from '@/core/types';
 import { UNIT_DEFINITIONS, UNIT_DESCRIPTIONS, canHeal } from '@/systems/unit-system';
+import { getParadropLaunchState, PARADROP_FAILURE_MESSAGES } from '@/systems/airborne-system';
 import { getSubmarineRevealState } from '@/systems/concealment';
 import { getExperienceToNextTier, getVeterancyCombatModifier, getVeterancyTier } from '@/systems/combat-reward-system';
 import { isSpyUnitType } from '@/systems/espionage-system';
@@ -757,7 +758,17 @@ export function renderSelectedUnitInfo(
   if (presentation.paradropPending && callbacks.onCancelParadrop) {
     actionsDiv.appendChild(makeButton('Cancel Paradrop', '#6b7280', () => callbacks.onCancelParadrop!(unitId)));
   } else if (def.paradrop && !unit.hasActed && callbacks.onStartParadrop) {
-    actionsDiv.appendChild(makeButton('Paradrop', '#7c3aed', () => callbacks.onStartParadrop!(unitId)));
+    const launchState = getParadropLaunchState(state, unitId);
+    if (launchState.ok) {
+      actionsDiv.appendChild(makeButton('Paradrop', '#7c3aed', () => callbacks.onStartParadrop!(unitId)));
+    } else {
+      const btn = makeButton('Paradrop', '#7c3aed');
+      btn.disabled = true;
+      btn.style.opacity = '0.5';
+      btn.style.cursor = 'not-allowed';
+      btn.title = PARADROP_FAILURE_MESSAGES[launchState.reason];
+      actionsDiv.appendChild(btn);
+    }
   }
 
   const pirateAssault = callbacks.getPirateAssaultAction?.(unitId);

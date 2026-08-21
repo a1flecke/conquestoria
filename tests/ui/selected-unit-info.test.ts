@@ -2272,7 +2272,9 @@ function makeParatrooperState(overrides: { hasActed?: boolean } = {}): GameState
         experience: 0, hasMoved: false, hasActed: overrides.hasActed ?? false, isResting: false,
       },
     },
-    cities: {},
+    cities: {
+      'city-1': { id: 'city-1', owner: 'player', position: { q: 0, r: 0 }, buildings: ['airfield'] },
+    },
     civilizations: {
       player: {
         color: '#fff',
@@ -2308,6 +2310,18 @@ describe('renderSelectedUnitInfo — Paradrop button (#543)', () => {
 
     const button = findButtons(container).find(b => b.textContent === 'Paradrop');
     expect(button).toBeUndefined();
+  });
+
+  it('shows a disabled Paradrop button with a reason when the unit is not standing on a friendly airfield city', () => {
+    const state = makeParatrooperState();
+    state.units['para-1']!.position = { q: 9, r: 9 }; // no city there
+    const container = new MockElement('div');
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'para-1', { onStartParadrop: vi.fn() });
+
+    const button = findButtons(container).find(b => b.textContent === 'Paradrop');
+    expect(button).toBeDefined();
+    expect(button!.disabled).toBe(true);
+    expect(button!.title).toBeTruthy();
   });
 
   it('does not show a Paradrop button once the unit has already acted this turn', () => {
