@@ -113,12 +113,15 @@ export interface SelectedUnitInfoCallbacks {
   onRebaseAircraft?: (unitId: string, base: AirBaseRef) => void;
   onStartAirMission?: (unitId: string, mission: 'strike' | 'recon') => void;
   onCancelAirMission?: (unitId: string) => void;
+  onStartParadrop?: (unitId: string) => void;
+  onCancelParadrop?: (unitId: string) => void;
 }
 
 export interface SelectedUnitInfoPresentation {
   waterRecovery?: LandUnitWaterRecovery;
   hasZoneOfControlWarning?: boolean;
   airMissionPending?: 'strike' | 'recon';
+  paradropPending?: boolean;
 }
 
 function makeButton(label: string, color: string, onClick?: () => void): HTMLButtonElement {
@@ -749,6 +752,12 @@ export function renderSelectedUnitInfo(
     if (def.airOperation?.missions.includes('recon')) {
       actionsDiv.appendChild(makeButton('Recon', '#2563eb', () => callbacks.onStartAirMission!(unitId, 'recon')));
     }
+  }
+
+  if (presentation.paradropPending && callbacks.onCancelParadrop) {
+    actionsDiv.appendChild(makeButton('Cancel Paradrop', '#6b7280', () => callbacks.onCancelParadrop!(unitId)));
+  } else if (def.paradrop && !unit.hasActed && callbacks.onStartParadrop) {
+    actionsDiv.appendChild(makeButton('Paradrop', '#7c3aed', () => callbacks.onStartParadrop!(unitId)));
   }
 
   const pirateAssault = callbacks.getPirateAssaultAction?.(unitId);

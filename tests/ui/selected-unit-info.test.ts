@@ -2256,3 +2256,79 @@ describe('renderSelectedUnitInfo — Cyber Unit intent launcher', () => {
     expect(onUsePropagandistAction).toHaveBeenCalledWith('propagandist', 'rally', 'own');
   });
 });
+
+function makeParatrooperState(overrides: { hasActed?: boolean } = {}): GameState {
+  return {
+    turn: 20,
+    era: 9,
+    currentPlayer: 'player',
+    gameOver: false,
+    winner: null,
+    map: { width: 10, height: 10, tiles: {}, wrapsHorizontally: false, rivers: [] },
+    units: {
+      'para-1': {
+        id: 'para-1', type: 'paratrooper', owner: 'player',
+        position: { q: 0, r: 0 }, movementPointsLeft: 2, health: 100,
+        experience: 0, hasMoved: false, hasActed: overrides.hasActed ?? false, isResting: false,
+      },
+    },
+    cities: {},
+    civilizations: {
+      player: {
+        color: '#fff',
+        techState: { completed: [] },
+        diplomacy: { atWarWith: [] },
+        visibility: { tiles: {} },
+      },
+    },
+  } as unknown as GameState;
+}
+
+describe('renderSelectedUnitInfo — Paradrop button (#543)', () => {
+  beforeEach(installMockDocument);
+  afterEach(restoreMockDocument);
+
+  it('shows a Paradrop button for an eligible paratrooper and calls onStartParadrop on click', () => {
+    const state = makeParatrooperState();
+    const onStartParadrop = vi.fn();
+    const container = new MockElement('div');
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'para-1', { onStartParadrop });
+
+    const button = findButtons(container).find(b => b.textContent === 'Paradrop');
+    expect(button).toBeDefined();
+    button!.click();
+    expect(onStartParadrop).toHaveBeenCalledWith('para-1');
+  });
+
+  it('does not show a Paradrop button for a unit with no paradrop capability', () => {
+    const state = makeParatrooperState();
+    state.units['para-1']!.type = 'infantry';
+    const container = new MockElement('div');
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'para-1', { onStartParadrop: vi.fn() });
+
+    const button = findButtons(container).find(b => b.textContent === 'Paradrop');
+    expect(button).toBeUndefined();
+  });
+
+  it('does not show a Paradrop button once the unit has already acted this turn', () => {
+    const state = makeParatrooperState({ hasActed: true });
+    const container = new MockElement('div');
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'para-1', { onStartParadrop: vi.fn() });
+
+    const button = findButtons(container).find(b => b.textContent === 'Paradrop');
+    expect(button).toBeUndefined();
+  });
+
+  it('shows a Cancel Paradrop button instead of Paradrop while a paradrop is pending, and calls onCancelParadrop on click', () => {
+    const state = makeParatrooperState();
+    const onCancelParadrop = vi.fn();
+    const container = new MockElement('div');
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'para-1', { onStartParadrop: vi.fn(), onCancelParadrop }, { paradropPending: true });
+
+    expect(findButtons(container).find(b => b.textContent === 'Paradrop')).toBeUndefined();
+    const cancel = findButtons(container).find(b => b.textContent === 'Cancel Paradrop');
+    expect(cancel).toBeDefined();
+    cancel!.click();
+    expect(onCancelParadrop).toHaveBeenCalledWith('para-1');
+  });
+});
