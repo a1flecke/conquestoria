@@ -2,7 +2,7 @@ import type { CombatResult, CombatRewardNotification, GameState, Unit, UnitType 
 import { cleanupDeadSpyUnit } from '@/systems/espionage-system';
 import { UNIT_DEFINITIONS } from '@/systems/unit-system';
 import { applyQuestGameplayAction, type ChainTransition } from '@/systems/quest-chain-system';
-import { canReceiveCivilizationCombatRewards, isMajorCivOwner, isPirateOwner } from '@/core/owner-kind';
+import { canCaptureDefeatedUnits, canReceiveCivilizationCombatRewards, isMajorCivOwner, isPirateOwner } from '@/core/owner-kind';
 import { recordHuntKillerIfApplicable } from '@/systems/hunt-crisis-linkage';
 import {
   breakPirateTributeOnAttack,
@@ -355,7 +355,7 @@ export function applyCombatOutcomeToState(
   } else if (
     UNIT_CLASS_BY_TYPE[attackerBefore.type].includes('civilian')
     && !attackerBefore.cargoUnitIds?.length
-    && isMajorCivOwner(defenderBefore.owner)
+    && canCaptureDefeatedUnits(defenderBefore.owner)
   ) {
     // Civilian capture: transfer ownership instead of destroying. Covers cyber_unit
     // (already tagged 'civilian') and every other civilian type uniformly — settler
@@ -397,8 +397,8 @@ export function applyCombatOutcomeToState(
     // capture, naval military ships can legitimately be pirate-owned on either side —
     // e.g. a player's frigate vs. a pirate_frigate — so both the old and new owner must
     // be confirmed major civs, not just the new one).
-    && isMajorCivOwner(attackerBefore.owner)
-    && isMajorCivOwner(defenderBefore.owner)
+    && canCaptureDefeatedUnits(attackerBefore.owner)
+    && canCaptureDefeatedUnits(defenderBefore.owner)
     && meetsCaptureMargin(result.attackerStrength, result.defenderStrength, Math.max(1, defenderBefore.health - result.defenderDamage))
   ) {
     // Prize crew: a decisive naval defeat captures the hull instead of sinking it.
@@ -442,7 +442,7 @@ export function applyCombatOutcomeToState(
   } else if (
     UNIT_CLASS_BY_TYPE[defenderBefore.type].includes('civilian')
     && !defenderBefore.cargoUnitIds?.length
-    && isMajorCivOwner(attackerBefore.owner)
+    && canCaptureDefeatedUnits(attackerBefore.owner)
   ) {
     // Civilian capture: mirror of the attacker-side branch above (same cargo exclusion,
     // same major-civ-only capturing-side requirement).
@@ -467,8 +467,8 @@ export function applyCombatOutcomeToState(
     && !isPirateFlagship(state, defenderBefore)
     && !defenderBefore.cargoUnitIds?.length
     // Mirror of the attacker-side branch above — both old and new owner must be major civs.
-    && isMajorCivOwner(attackerBefore.owner)
-    && isMajorCivOwner(defenderBefore.owner)
+    && canCaptureDefeatedUnits(attackerBefore.owner)
+    && canCaptureDefeatedUnits(defenderBefore.owner)
     && meetsCaptureMargin(result.defenderStrength, result.attackerStrength, Math.max(1, attackerBefore.health - result.attackerDamage))
   ) {
     // Prize crew: mirror of the attacker-side branch above.
