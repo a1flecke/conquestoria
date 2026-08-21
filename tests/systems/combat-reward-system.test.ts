@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createUnit } from '@/systems/unit-system';
+import { CRISIS_FORCE_OWNER } from '@/core/owner-kind';
 import {
   applyCombatOutcomeToState,
   calculateDefeatReward,
@@ -214,6 +215,29 @@ function makeRewardState(): GameState {
 }
 
 describe('applyCombatOutcomeToState', () => {
+  it('cleans up a defeated crisis force through the shared human or AI combat path', () => {
+    const state = makeRewardState();
+    state.units.defender = { ...state.units.defender, owner: CRISIS_FORCE_OWNER };
+    state.civilizations['ai-1'].units = [];
+    state.crisisForces = {
+      'force-1': {
+        id: 'force-1', targetCivId: 'player', severity: 'standard', createdTurn: 1,
+        unitIds: ['defender'],
+      },
+    };
+    const result: CombatResult = {
+      attackerId: 'attacker', defenderId: 'defender', attackerDamage: 0, defenderDamage: 100,
+      attackerSurvived: true, defenderSurvived: false, attackerStrength: 30, defenderStrength: 20,
+      attackerPosition: { q: 0, r: 0 }, defenderPosition: { q: 1, r: 0 },
+    };
+
+    const applied = applyCombatOutcomeToState(state, result, 64);
+
+    expect(applied.defenderCaptured).toBe(false);
+    expect(applied.state.units.defender).toBeUndefined();
+    expect(applied.state.crisisForces).toEqual({});
+  });
+
   it('destroys aircraft based on a carrier that combat removes', () => {
     const state = makeRewardState();
     state.units.attacker = { ...state.units.attacker, type: 'warrior', owner: 'player' };

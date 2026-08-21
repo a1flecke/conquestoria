@@ -13,6 +13,7 @@ import { recordMilitaryAttack } from './diplomacy-system';
 import { UNIT_CLASS_BY_TYPE } from '@/systems/unit-modifier-definitions';
 import { resolveBoundedSplash } from '@/systems/combat-system';
 import { recordCampPressureFromCombatOutcome } from '@/systems/barbarian-pressure';
+import { normalizeCrisisForces } from '@/systems/crisis-force-system';
 
 /** Age-of-Sail through ironclad — boarding-action flavor. Everything else
  * (destroyer onward) uses modern "disabled and captured" phrasing. Same
@@ -605,7 +606,7 @@ export function applyCombatOutcomeToState(
   if (defenderActuallyDefeated && defenderBefore.type === 'carrier') {
     nextState = destroyCarrierBasedAircraft(nextState, defenderBefore.id);
   }
-  nextState = recordCampPressureFromCombatOutcome(nextState, attackerBefore, defenderBefore);
+  nextState = normalizeCrisisForces(recordCampPressureFromCombatOutcome(nextState, attackerBefore, defenderBefore));
 
   return {
     state: nextState,
