@@ -11,6 +11,7 @@ import { UNIT_DEFINITIONS } from '@/systems/unit-system';
 import { getTradeUnitTripBonus, canEstablishRoute } from '@/systems/trade-system';
 import { applyUnitUpgradeToState } from '@/systems/unit-upgrade-system';
 import { foundCity } from '@/systems/city-system';
+import { processPurposefulBarbarians } from '@/systems/barbarian-system';
 
 describe('save migrations', () => {
   it('#698 migrates camp pressure, rejects malformed facts, and remains idempotent', () => {
@@ -29,6 +30,27 @@ describe('save migrations', () => {
 
     expect(migrated.saveSchemaVersion).toBe(14);
     expect(migrated.barbarianCampPressure).toEqual({ 'camp-a': { armorLastObservedTurn: 4 } });
+    expect(migrateSaveToCurrent(migrated)).toEqual(migrated);
+  });
+
+  it("#700 preserves a due camp's normalized local pressure across a legacy save replay", () => {
+    const save = createNewGame('rome', 'camp-pressure-due-replay', 'small');
+    save.turn = 20;
+    save.saveSchemaVersion = 13;
+    save.barbarianCamps = {
+      'camp-a': { id: 'camp-a', position: { q: 2, r: 2 }, strength: 6, spawnCooldown: 1 },
+    };
+    save.barbarianCampPressure = {
+      'camp-a': { armorLastObservedTurn: 20, airLastObservedTurn: 9 },
+    };
+
+    const migrated = migrateSaveToCurrent(structuredClone(save));
+    const replay = processPurposefulBarbarians(migrated);
+    const replayAgain = processPurposefulBarbarians(migrateSaveToCurrent(structuredClone(migrated)));
+
+    expect(migrated.saveSchemaVersion).toBe(CURRENT_SAVE_SCHEMA_VERSION);
+    expect(replay.barbarianCampPressure).toEqual({ 'camp-a': { armorLastObservedTurn: 20, airLastObservedTurn: 9 } });
+    expect(replay.spawnedUnits).toEqual(replayAgain.spawnedUnits);
     expect(migrateSaveToCurrent(migrated)).toEqual(migrated);
   });
   it('preserves Fort saves, clamps invalid build timers, and clears unknown improvements idempotently', () => {
