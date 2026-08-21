@@ -1493,6 +1493,17 @@ describe('building intrinsic yield regression', () => {
   });
 });
 
+describe('Paratrooper trainable-unit contract (#543)', () => {
+  it('is trainable, tech-gated on Air Superiority + Armored Tactics, with a production icon', () => {
+    const entry = TRAINABLE_UNITS.find(u => u.type === 'paratrooper');
+    expect(entry).toBeDefined();
+    expect(entry!.techRequired).toBe('air-superiority');
+    expect(entry!.requiredTechs).toEqual(['armored-tactics']);
+    expect(entry!.upgradesTo).toBeUndefined();
+    expect(PRODUCTION_ICONS.paratrooper).toBeDefined();
+  });
+});
+
 describe('PRODUCTION_ICONS coverage', () => {
   it('has an entry for every building in BUILDINGS', () => {
     for (const buildingId of Object.keys(BUILDINGS)) {
