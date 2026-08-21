@@ -35,20 +35,19 @@
 | `src/systems/air-operations-system.ts` | Export `getAirBaseKind` (was private) |
 | `src/systems/unit-system.ts` | Export `isBlockingCityFor` (was private); add `paratrooper` to `UNIT_DEFINITIONS` + `UNIT_DESCRIPTIONS` |
 | `src/systems/air-defense-system.ts` | Add `providersForOwner` export (was private); add `getHostileAirDefenseThreat`, `getKnownHostileAirDefenseThreat` |
-| `src/systems/airborne-system.ts` | **New.** `ParadropFailureReason`, `getParadropLaunchState`, `getParadropTargets`, `canParadrop`, `executeParadrop` |
+| `src/systems/airborne-system.ts` | **New.** `ParadropFailureReason`, `getParadropLaunchState`, `getParadropTargets`, `canParadrop`, `executeParadrop`, `notifyParadropOutcome` (viewer-scoped `appendNotification` calls for both civs, so it fires for human- and AI-triggered drops alike) |
 | `src/systems/city-system.ts` | Add `paratrooper` to `TRAINABLE_UNITS` + `PRODUCTION_ICONS` |
 | `src/systems/tech-definitions-eras9.ts` | Add `'paratrooper'` to `air-superiority`'s `unlocksUnits` |
 | `src/systems/combat-role-definitions.ts` | Add `paratrooper` role entry |
 | `src/renderer/sprites/sprite-catalog.ts` | Add `paratrooper` to `UNIT_MOTION_STYLES` + `UNIT_SPRITE_CATALOG` (aliases `InfantrySprite`, matching the existing `mechanized_infantry` alias) |
-| `src/ai/ai-tactics.ts` | Add `'paradrop'` to `AITacticalAction`; add `rankParadrop`; add case to `applyPredictedAction` switch and to the tactical-action executor switch |
+| `src/ai/ai-tactics.ts` | Add `'paradrop'` to `AITacticalAction`; add private `rankParadrop`, spread into `rankUnitTacticalActions` (the sole exported aggregator); add case to `applyPredictedAction`'s lookahead switch |
 | `src/ai/ai-major-turn.ts` | Add case to `executeAction` switch |
-| `src/app/controllers/map-interaction-controller.ts` | Add `case 'paradrop':` to the `resolve-pending` switch |
-| `src/app/controllers/selection-controller.ts` | Wire `onStartParadrop`/`getParadropTargets` callbacks, `pendingIntent`, highlights |
+| `src/app/controllers/map-interaction-controller.ts` | Add `case 'paradrop':` to the `resolve-pending` switch (acting-player toast + SFX only — cross-civ notification lives in `airborne-system.ts`, not here) |
+| `src/app/controllers/selection-controller.ts` | Wire `onStartParadrop`/`getParadropTargets` callbacks, `pendingIntent`, highlights, range/flak preview text |
 | `src/ui/selected-unit-info.ts` | Add Paradrop button + accessible preview text |
-| `src/ui/notification-routing.ts` (or wherever paradrop's viewer-scoped notifications are appended — verify exact call site against `resolveAirStrike`'s notification pattern in the same layer) | Deliver viewer-scoped paradrop outcome notifications |
-| `tests/systems/airborne-system.test.ts` | **New.** Core legality/execution coverage |
+| `tests/systems/airborne-system.test.ts` | **New.** Core legality/execution/notification coverage |
 | `tests/systems/air-defense-system.test.ts` | Extend with hostile-threat coverage + regression |
-| `tests/ai/ai-tactics.test.ts` | Extend with `rankParadrop` coverage |
+| `tests/ai/ai-tactics.test.ts` | Extend `rankUnitTacticalActions` coverage for paradrop candidates |
 | `tests/systems/airborne-balance.test.ts` | **New.** Statistical/representative-situation coverage |
 | `tests/systems/airborne-hotseat.test.ts` | **New.** Two-civ discovery isolation, handoff |
 | `tests/systems/airborne-save.test.ts` | **New.** Save/load round-trip |
@@ -569,16 +568,16 @@ Expected: PASS, all tests in the file.
 
 - [ ] **Step 5: Add and pass the turn-reset lockout integration test**
 
-Add to `tests/systems/airborne-system.test.ts`, importing whatever the real turn-reset entry point is (grep `turn-manager.ts` for the function that clears `hasActed`/`hasMoved`/`movementPointsLeft` each turn — likely named something like `processTurnEnd`/`resetUnitsForNewTurn`; use the exact exported name, do not guess):
+Add to `tests/systems/airborne-system.test.ts`. The verified real turn-reset entry point is `processTurn`, exported from `src/core/turn-manager.ts` (confirmed: it resets `movementPointsLeft` and `hasMoved` for the acting civ's units around line 1100, and `movementPointsLeft`/`hasActed` around line 633 for a related path — read its full signature before writing this test, since it likely takes more than just `state` as an argument, matching how Task 4's other turn-processing call sites in this codebase invoke it):
 
 ```typescript
-import { /* the real turn-reset function name found in turn-manager.ts */ } from '@/core/turn-manager';
+import { processTurn } from '@/core/turn-manager';
 
 it('landing lockout clears via real next-turn processing, not a hand-set flag', () => {
   const { state, unitId } = makeParadropFixture();
   const dropped = executeParadrop(state, unitId, { q: 1, r: 1 });
   if (!dropped.ok) throw new Error('expected ok');
-  const nextTurnState = /* call the real turn-reset function on dropped.state */;
+  const nextTurnState = processTurn(dropped.state /* plus whatever other required arguments processTurn takes — check existing turn-manager.test.ts callers for the exact call shape */);
   const unit = nextTurnState.units[unitId]!;
   expect(unit.hasActed).toBe(false);
   expect(unit.hasMoved).toBe(false);
@@ -733,8 +732,8 @@ git commit -m "feat(#543): add hostile air-defense threat query for paradrop fla
 - Test: `tests/systems/airborne-system.test.ts`
 
 **Interfaces:**
-- Consumes: `getHostileAirDefenseThreat` (Task 5); `selectInterceptor`, `applyCombatOutcomeToState`-equivalent reuse pattern, `deterministicCombatSeed`, `resolveCombat`, `buildCombatContextForDefender`, `resolveCombatEra` — same imports `air-operations-system.ts`'s `resolveAirStrike` already uses (open that file's import block again and mirror it exactly).
-- Produces: `executeParadrop`'s `flak`/`interception` result fields are now populated.
+- Consumes: `getHostileAirDefenseThreat` (Task 5); `selectInterceptor`, `applyCombatOutcomeToState`, `deterministicCombatSeed`, `resolveCombat`, `buildCombatContextForDefender`, `resolveCombatEra` — same imports `air-operations-system.ts`'s `resolveAirStrike` already uses (open that file's import block again and mirror it exactly); `appendNotification` from `@/core/notification-log` (verified signature: `appendNotification(state: Pick<GameState, 'notificationLog' | 'idCounters'>, civId: string, draft): NotificationEntry` — it **mutates its `state` argument in place** and returns the created entry, not a new state; every existing caller in this codebase pre-copies `notificationLog`/`idCounters` onto a fresh object first, then calls it for the side effect, ignoring the return value — mirror `air-operations-system.ts`'s `appendAirBaseLossNotifications` exactly, do not treat it as a pure function); `isHostileOwnerTo` from `@/systems/owner-hostility`; `getVisibility` from `@/systems/fog-of-war`.
+- Produces: `executeParadrop`'s `flak`/`interception` result fields are now populated; landing/interception/flak outcomes are recorded via `appendNotification` for both the dropping civ (always) and a hostile civ that can currently see the landing tile (viewer-scoped) — this lives inside `executeParadrop` itself, not the UI controller, so it fires identically whether a human or the AI triggers the drop (see Task 10's note about why the controller does *not* duplicate this).
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -806,6 +805,43 @@ describe('executeParadrop — interception', () => {
     expect(first.ok ? first.state.units[unitId]?.health : 'destroyed')
       .toEqual(second.ok ? second.state.units[unitId]?.health : 'destroyed');
   });
+
+  it('does NOT apply the launch city\'s friendly-city combat bonus during interception (regression for the position-before-combat ordering bug)', () => {
+    // Launch city is heavily fortified/friendly; the landing tile is open,
+    // undefended ground near the interceptor. If the interceptor loses this
+    // fight against a full-strength paratrooper on open ground, but the
+    // fixture is built so it would WIN against a defender still standing in
+    // the friendly launch city, this test catches the bug where the combat
+    // context was built from the unit's stale pre-drop position.
+    const { state, unitId } = makeParadropFixtureWhereInterceptorBeatsOpenGroundButLosesToFriendlyCityDefender();
+    const result = executeParadrop(state, unitId, { q: 1, r: 1 });
+    if (!result.ok) throw new Error('expected ok');
+    expect(result.state.units[unitId]).toBeUndefined(); // interceptor wins on open ground, as it should
+  });
+});
+
+describe('executeParadrop — notifications', () => {
+  it('always logs an outcome notification for the dropping civ', () => {
+    const { state, unitId } = makeParadropFixture();
+    const result = executeParadrop(state, unitId, { q: 1, r: 1 });
+    if (!result.ok) throw new Error('expected ok');
+    const unit = state.units[unitId]!;
+    expect(result.state.notificationLog?.[unit.owner]?.some(n => /landed/i.test(n.message))).toBe(true);
+  });
+
+  it('notifies a hostile civ that can see the landing tile', () => {
+    const { state, unitId } = makeParadropFixtureNearVisibleHostileCiv(); // civ-b has visibility of { q: 1, r: 1 }
+    const result = executeParadrop(state, unitId, { q: 1, r: 1 });
+    if (!result.ok) throw new Error('expected ok');
+    expect(result.state.notificationLog?.['civ-b']?.some(n => /paratrooper/i.test(n.message))).toBe(true);
+  });
+
+  it('does NOT notify a hostile civ that cannot see the landing tile', () => {
+    const { state, unitId } = makeParadropFixtureNearHiddenHostileCiv(); // civ-b has no visibility of { q: 1, r: 1 }
+    const result = executeParadrop(state, unitId, { q: 1, r: 1 });
+    if (!result.ok) throw new Error('expected ok');
+    expect(result.state.notificationLog?.['civ-b'] ?? []).toEqual(state.notificationLog?.['civ-b'] ?? []); // unchanged
+  });
 });
 ```
 
@@ -822,17 +858,75 @@ Open `src/systems/air-operations-system.ts` and copy its exact import list for `
 Replace `executeParadrop`'s body:
 
 ```typescript
+import { appendNotification } from '@/core/notification-log';
+import { isHostileOwnerTo } from '@/systems/owner-hostility';
+
+type ParadropOutcome = {
+  flak?: { damage: number; providerId: string; providerLabel: string };
+  interception?: { interceptorId: string; result: import('@/core/types').CombatResult };
+  destroyed: boolean;
+};
+
+// Records the drop's outcome for both sides. Lives here (not in the UI
+// controller) so it fires identically for a human-triggered and an
+// AI-triggered drop -- see end-to-end-wiring.md's "shared state mutations
+// must be actor-complete" rule. Mirrors appendAirBaseLossNotifications's
+// exact pre-copy-then-mutate pattern in air-operations-system.ts: build a
+// state with fresh notificationLog/idCounters copies once, then call
+// appendNotification (which mutates that copy in place) per recipient.
+function notifyParadropOutcome(state: GameState, droppedUnit: Unit, destination: HexCoord, outcome: ParadropOutcome): GameState {
+  const nextState: GameState = {
+    ...state,
+    idCounters: { ...state.idCounters },
+    notificationLog: Object.fromEntries(Object.entries(state.notificationLog ?? {}).map(([civId, entries]) => [civId, [...entries]])),
+  };
+  const name = UNIT_DEFINITIONS[droppedUnit.type].name;
+  const parts: string[] = [];
+  if (outcome.flak) parts.push(`${outcome.flak.damage} flak damage from ${outcome.flak.providerLabel}`);
+  if (outcome.interception) parts.push('intercepted');
+  const suffix = parts.length ? ` (${parts.join(', ')})` : '';
+  appendNotification(nextState, droppedUnit.owner, {
+    message: outcome.destroyed ? `${name} was destroyed on the drop${suffix}.` : `${name} landed${suffix}. It cannot act again this turn.`,
+    type: outcome.destroyed || outcome.flak || outcome.interception ? 'warning' : 'info',
+    turn: state.turn,
+    target: { kind: 'map', coord: { ...destination }, label: name },
+  });
+
+  for (const civId of Object.keys(nextState.civilizations)) {
+    if (civId === droppedUnit.owner || !isHostileOwnerTo(nextState, droppedUnit.owner, civId)) continue;
+    const visibility = nextState.civilizations[civId]?.visibility;
+    if (!visibility || getVisibility(visibility, destination) !== 'visible') continue;
+    appendNotification(nextState, civId, {
+      message: 'An enemy Paratrooper has landed nearby.',
+      type: 'warning',
+      turn: state.turn,
+      target: { kind: 'map', coord: { ...destination }, label: 'Paratrooper' },
+    });
+  }
+  return nextState;
+}
+
 export function executeParadrop(state: GameState, unitId: string, destination: HexCoord): ParadropResult {
   const check = canParadrop(state, unitId, destination);
   if (!check.ok) return { ok: false, state, reason: check.reason };
   const unit = state.units[unitId]!;
 
+  // Relocate to the destination FIRST, before flak/interception resolve.
+  // This is not cosmetic: buildCombatContextForDefender reads the
+  // defender's *current position* to compute friendly-city and
+  // adjacent-support combat bonuses (combat-context.ts ~line 64-79). If
+  // the unit were still at its launch city when interception resolves, it
+  // would wrongly get that city's "defending in a friendly city" bonus
+  // during the interception fight -- exactly the opposite of "lands
+  // vulnerable". See the regression test added in Step 1 above.
+  let workingUnit: Unit = { ...unit, position: { ...destination } };
+
   // Flak first (deterministic chip damage from hostile ground AA covering the tile).
   const threat = getHostileAirDefenseThreat(state, unit, destination);
   const strongestProvider = threat.providers[0];
   let flak: { damage: number; providerId: string; providerLabel: string } | undefined;
-  let workingUnit: Unit = unit;
   if (strongestProvider && threat.flatDefenseModifier > 0) {
+    flak = { damage: threat.flatDefenseModifier, providerId: strongestProvider.id, providerLabel: strongestProvider.label };
     const health = workingUnit.health - threat.flatDefenseModifier;
     if (health <= 0) {
       const { [unitId]: _removed, ...remainingUnits } = state.units;
@@ -842,13 +936,13 @@ export function executeParadrop(state: GameState, unitId: string, destination: H
         units: remainingUnits,
         civilizations: owner ? { ...state.civilizations, [unit.owner]: { ...owner, units: owner.units.filter(id => id !== unitId) } } : state.civilizations,
       };
-      return { ok: true, state: strippedState, flak: { damage: threat.flatDefenseModifier, providerId: strongestProvider.id, providerLabel: strongestProvider.label } };
+      return { ok: true, state: notifyParadropOutcome(strippedState, unit, destination, { flak, destroyed: true }), flak };
     }
     workingUnit = { ...workingUnit, health };
-    flak = { damage: threat.flatDefenseModifier, providerId: strongestProvider.id, providerLabel: strongestProvider.label };
   }
 
-  // Interception second, against the (possibly flak-weakened) unit, reusing #539's mechanism unchanged.
+  // Interception second, against the (possibly flak-weakened) unit at its
+  // destination, reusing #539's mechanism unchanged.
   let nextState: GameState = { ...state, units: { ...state.units, [unitId]: workingUnit } };
   const interceptor = selectInterceptor(nextState, workingUnit, destination);
   let interception: { interceptorId: string; result: import('@/core/types').CombatResult } | undefined;
@@ -867,15 +961,17 @@ export function executeParadrop(state: GameState, unitId: string, destination: H
       nextState = { ...nextState, units: { ...nextState.units, [interceptor.id]: { ...nextState.units[interceptor.id]!, interceptedTurn: state.turn } } };
     }
     interception = { interceptorId: interceptor.id, result };
-    if (!nextState.units[unitId]) return { ok: true, state: nextState, flak, interception };
+    if (!nextState.units[unitId]) {
+      return { ok: true, state: notifyParadropOutcome(nextState, unit, destination, { flak, interception, destroyed: true }), flak, interception };
+    }
   }
 
   const survivor = nextState.units[unitId]!;
   const landedState: GameState = {
     ...nextState,
-    units: { ...nextState.units, [unitId]: { ...survivor, position: { ...destination }, movementPointsLeft: 0, hasMoved: true, hasActed: true } },
+    units: { ...nextState.units, [unitId]: { ...survivor, movementPointsLeft: 0, hasMoved: true, hasActed: true } },
   };
-  return { ok: true, state: landedState, flak, interception };
+  return { ok: true, state: notifyParadropOutcome(landedState, unit, destination, { flak, interception, destroyed: false }), flak, interception };
 }
 ```
 
@@ -1024,57 +1120,62 @@ git commit -m "feat(#543): add Paratrooper sprite catalog fallback (aliases Infa
 
 **Interfaces:**
 - Consumes: `getParadropTargets`, `canParadrop`, `executeParadrop` (Tasks 3-6); `getKnownHostileAirDefenseThreat` (Task 5); `selectInterceptor` (existing)
-- Produces: `AITacticalAction` includes `{ kind: 'paradrop'; unitId: string; destination: HexCoord }`; `rankParadrop(context: AITacticalContext, unit: Unit): RankedAITacticalAction[]`
+- Produces: `AITacticalAction` includes `{ kind: 'paradrop'; unitId: string; destination: HexCoord }`. `rankParadrop` stays **module-private**, matching every sibling ranker in this file (`rankAirStrikes`, `rankAirSupport`, `rankCapture` are all unexported — only the aggregator `rankUnitTacticalActions` at ~line 856 is `export`ed) — do not export it; test it through `rankUnitTacticalActions`, the same way this file's other rankers are already tested.
 
 - [ ] **Step 1: Write the failing tests**
 
-Add to `tests/ai/ai-tactics.test.ts` (reuse this file's existing `AITacticalContext` fixture builders):
+Add to `tests/ai/ai-tactics.test.ts` (reuse this file's existing `AITacticalContext` fixture builders and whatever it already imports from `@/ai/ai-tactics` — likely just `rankUnitTacticalActions`, confirm against the file's current imports):
 
 ```typescript
-import { rankParadrop } from '@/ai/ai-tactics'; // export it if not already exported — see Step 3
+import { rankUnitTacticalActions } from '@/ai/ai-tactics';
 
-describe('rankParadrop', () => {
-  it('produces no candidates for a unit with no paradrop capability', () => {
+describe('rankUnitTacticalActions — paradrop', () => {
+  it('produces no paradrop candidates for a unit with no paradrop capability', () => {
     const context = makeTacticalContext(); // reuse existing helper
     const infantry = Object.values(context.state.units).find(u => u.type === 'infantry')!;
-    expect(rankParadrop(context, infantry)).toEqual([]);
+    const actions = rankUnitTacticalActions(context, infantry);
+    expect(actions.some(a => a.action.kind === 'paradrop')).toBe(false);
   });
 
-  it('produces candidates only for tiles the AI civ can actually see', () => {
+  it('produces paradrop candidates only for tiles the AI civ can actually see', () => {
     const context = makeParadropTacticalContext(); // extend fixture with a paratrooper on an airfield city + a mix of visible/hidden in-range tiles
     const paratrooper = Object.values(context.state.units).find(u => u.type === 'paratrooper')!;
-    const actions = rankParadrop(context, paratrooper);
+    const actions = rankUnitTacticalActions(context, paratrooper).filter(a => a.action.kind === 'paradrop');
     const hiddenTile = { q: 3, r: 3 }; // fixture's unexplored in-range tile
     expect(actions.some(a => a.action.kind === 'paradrop' && a.action.destination.q === hiddenTile.q && a.action.destination.r === hiddenTile.r)).toBe(false);
   });
 
-  it('never scores a target the same civ could not legally drop onto (parity with canParadrop)', () => {
+  it('never scores a paradrop target the same civ could not legally drop onto (parity with canParadrop)', () => {
     const context = makeParadropTacticalContext();
     const paratrooper = Object.values(context.state.units).find(u => u.type === 'paratrooper')!;
-    const actions = rankParadrop(context, paratrooper);
+    const actions = rankUnitTacticalActions(context, paratrooper).filter(a => a.action.kind === 'paradrop');
     for (const ranked of actions) {
       if (ranked.action.kind !== 'paradrop') continue;
       expect(canParadrop(context.state, ranked.action.unitId, ranked.action.destination).ok).toBe(true);
     }
   });
-});
 
-describe('AI paradrop execution', () => {
-  it('executeAction resolves a paradrop action through the canonical executor', async () => {
-    const { executeAction } = await import('@/ai/ai-major-turn'); // exported for the executor switch — verify actual export name/visibility before writing this import
-    // Implementer: this function may not be exported; if not, test its effect
-    // indirectly through whatever public entry point ai-major-turn.ts exposes
-    // for running a full AI turn, asserting the paratrooper's position changed.
+  it('scores a reinforcement drop onto a threatened friendly city above an isolated low-value drop', () => {
+    const context = makeThreatenedCityReinforcementContext(); // extend fixture: a threatened friendly city plus a far, unsupported legal tile
+    const paratrooper = Object.values(context.state.units).find(u => u.type === 'paratrooper')!;
+    const actions = rankUnitTacticalActions(context, paratrooper).filter(a => a.action.kind === 'paradrop');
+    const reinforce = actions.find(a => a.action.kind === 'paradrop' /* && destination adjacent to the threatened city, per fixture */);
+    const isolated = actions.find(a => a.action.kind === 'paradrop' /* && destination far from any objective, per fixture */);
+    expect(reinforce).toBeDefined();
+    expect(isolated).toBeDefined();
+    expect(reinforce!.score).toBeGreaterThan(isolated!.score);
   });
 });
 ```
 
+Full end-to-end AI execution (a real AI turn actually moving a Paratrooper via `processMajorCivStrategicTurn`) is covered by Task 15's full-suite regression run and manual smoke test, not a narrow unit test here — `executeAction` in `ai-major-turn.ts` and `applyPredictedAction`'s switch in this file are both private, matching every other action kind's test coverage pattern in this codebase (verified: neither is imported by name in any existing test file).
+
 - [ ] **Step 2: Run tests to verify they fail**
 
-Run: `bash scripts/run-with-mise.sh yarn vitest run tests/ai/ai-tactics.test.ts -t "rankParadrop"`
-Expected: FAIL — `rankParadrop` doesn't exist.
+Run: `bash scripts/run-with-mise.sh yarn vitest run tests/ai/ai-tactics.test.ts -t "rankUnitTacticalActions — paradrop"`
+Expected: FAIL — no paradrop candidates are produced yet.
 
-- [ ] **Step 3: Implement `rankParadrop` and wire the action into both switches**
+- [ ] **Step 3: Implement `rankParadrop` and wire it into the aggregator and both execution switches**
 
 In `src/ai/ai-tactics.ts`:
 
@@ -1083,9 +1184,9 @@ In `src/ai/ai-tactics.ts`:
   | { kind: 'paradrop'; unitId: string; destination: HexCoord }
 ```
 
-2. Add near `rankAirSupport`/`rankCapture` (reuse this file's existing `ranked(action, score)` helper — grep for its definition and match its signature exactly):
+2. Add near `rankAirSupport`/`rankCapture` (reuse this file's existing `ranked(action, score)` helper at ~line 174 — match its signature exactly), **not exported**:
 ```typescript
-import { getParadropTargets, canParadrop } from '@/systems/airborne-system';
+import { getParadropTargets, canParadrop, executeParadrop } from '@/systems/airborne-system';
 import { getKnownHostileAirDefenseThreat } from '@/systems/air-defense-system';
 import { UNIT_DEFINITIONS } from '@/systems/unit-system';
 
@@ -1114,18 +1215,15 @@ function rankParadrop(
 
 (The trailing `.filter(canParadrop...)` is deliberately redundant with `getParadropTargets`'s own filtering — it's the same defense-in-depth pattern `rankCapture` already uses elsewhere in this file, protecting against the two functions drifting out of sync later.)
 
-3. Find wherever this file aggregates all `rank*` functions per unit into one candidate list (grep for where `rankAirSupport`/`rankCapture` are called together) and add `...rankParadrop(context, unit)` to that same list.
+3. In `rankUnitTacticalActions` (~line 856), find its spread list (~line 876-879: `...rankAirStrikes(context, unit), ...rankAirSupport(context, unit), ..., ...rankCapture(context, unit)`) and add `...rankParadrop(context, unit)` to that same list. This is the only place a new caller is needed — `rankUnitTacticalActions` is already the sole exported entry point every consumer (including this task's own tests) goes through.
 
-4. Add a case to `applyPredictedAction`'s switch (found in Task-audit at ~line 971):
+4. Add a case to `applyPredictedAction`'s switch (this file, ~line 971 — the lookahead-simulation applier used when the AI predicts a candidate action's consequences before committing to it):
 ```typescript
     case 'paradrop': {
       const result = executeParadrop(next, action.unitId, action.destination);
       return result.ok ? result.state : next;
     }
 ```
-(Import `executeParadrop` from `@/systems/airborne-system` alongside the other imports added above.)
-
-5. Find this file's OWN tactical-action executor switch (separate from `applyPredictedAction`, confirmed to exist at ~line 973-990 in the pre-implementation audit) and add the identical case there too.
 
 In `src/ai/ai-major-turn.ts`, add to `executeAction`'s switch (mirroring the `air-strike` case exactly):
 ```typescript
@@ -1139,7 +1237,7 @@ Import `executeParadrop` from `@/systems/airborne-system` in this file too.
 - [ ] **Step 4: Run tests to verify they pass**
 
 Run: `bash scripts/run-with-mise.sh yarn vitest run tests/ai/ai-tactics.test.ts`
-Expected: PASS. Adjust the "AI paradrop execution" test's import once the real exported entry point is confirmed by reading `ai-major-turn.ts`'s exports.
+Expected: PASS.
 
 - [ ] **Step 5: Add the difficulty-leak guard test**
 
@@ -1149,8 +1247,10 @@ it('Veteran and Explorer AI have identical legal paradrop target sets under iden
   const explorerContext = makeParadropTacticalContext({ difficulty: 'explorer' });
   const paratrooperV = Object.values(veteranContext.state.units).find(u => u.type === 'paratrooper')!;
   const paratrooperE = Object.values(explorerContext.state.units).find(u => u.type === 'paratrooper')!;
-  const veteranTargets = rankParadrop(veteranContext, paratrooperV).map(a => a.action.kind === 'paradrop' ? a.action.destination : null);
-  const explorerTargets = rankParadrop(explorerContext, paratrooperE).map(a => a.action.kind === 'paradrop' ? a.action.destination : null);
+  const veteranTargets = rankUnitTacticalActions(veteranContext, paratrooperV)
+    .filter(a => a.action.kind === 'paradrop').map(a => a.action.kind === 'paradrop' ? a.action.destination : null);
+  const explorerTargets = rankUnitTacticalActions(explorerContext, paratrooperE)
+    .filter(a => a.action.kind === 'paradrop').map(a => a.action.kind === 'paradrop' ? a.action.destination : null);
   expect(new Set(veteranTargets.map(t => `${t?.q},${t?.r}`))).toEqual(new Set(explorerTargets.map(t => `${t?.q},${t?.r}`)));
 });
 ```
@@ -1249,12 +1349,25 @@ In `src/app/controllers/map-interaction-controller.ts`, add a case to the `resol
               deps.showNotification(PARADROP_FAILURE_MESSAGES[result.reason], 'warning');
               return;
             }
+            // executeParadrop already logged both sides' notifications
+            // (dropping civ + any hostile civ that can see the landing
+            // tile) via appendNotification -- see Task 6. This case only
+            // needs the acting player's own immediate toast feedback,
+            // exactly like the 'air-mission' case above it does not
+            // duplicate cross-civ notification logic in the controller.
             selection.setPendingIntent({ kind: 'none' });
             session.commit(result.state);
             selectionController.refreshCurrentPlayerVisibility();
             deps.updateHUD();
-            if (result.interception) SFX.combat();
-            else SFX.unitMove(); // reuses the existing move/relocation SFX per spec §16 — confirm exact SFX.* name against src/audio/sfx.ts
+            // No dedicated "unit move" SFX exists in this codebase (grep
+            // confirmed src/audio/sfx.ts has no such entry — ordinary
+            // movement is silent by convention). transportUnload is the
+            // closest existing analog for "a unit newly arrives on a
+            // tile"; combat is reused for any HP-loss event (flak,
+            // interception, or both), matching spec §16's "reuse
+            // existing damage SFX" requirement.
+            if (result.flak || result.interception) SFX.combat();
+            else SFX.transportUnload();
             selectionController.selectUnit(pending.unitId);
             return;
           }
@@ -1400,71 +1513,9 @@ git commit -m "feat(#543): add Paradrop button, target highlighting, and flak-ri
 
 ---
 
-### Task 12: Viewer-scoped notifications
+### Task 12: Hot-seat isolation regression
 
-**Files:**
-- Modify: `src/app/controllers/map-interaction-controller.ts` (the `case 'paradrop':` block from Task 10)
-- Test: `tests/app/controllers/map-interaction-controller.test.ts`
-
-**Interfaces:**
-- Consumes: `deliver` from the existing `NotificationDelivery` (constructed via `createNotificationDelivery`, per `src/ui/notification-delivery.ts`)
-
-- [ ] **Step 1: Write the failing test**
-
-```typescript
-it('delivers a viewer-scoped notification to the landing civ only if they can see the tile', () => {
-  const { controller, session, selection, notifications } = makeControllerFixtureWithParatrooperNearVisibleEnemy();
-  selection.setPendingIntent({ kind: 'paradrop', unitId: 'paratrooper-1' });
-  controller.handleHexTap({ q: 1, r: 1 });
-  expect(notifications.deliveredTo('civ-b')).toContain(expect.stringMatching(/paratrooper|landed/i));
-});
-
-it('does not notify a hostile civ that cannot see the landing tile', () => {
-  const { controller, session, selection, notifications } = makeControllerFixtureWithParatrooperNearHiddenEnemy();
-  selection.setPendingIntent({ kind: 'paradrop', unitId: 'paratrooper-1' });
-  controller.handleHexTap({ q: 1, r: 1 });
-  expect(notifications.deliveredTo('civ-b')).toEqual([]);
-});
-```
-
-(If this controller-test fixture doesn't currently expose a way to inspect delivered notifications, check how an existing test — e.g. one covering `air-strike`'s notification — does it, and mirror that inspection mechanism exactly rather than inventing a new one.)
-
-- [ ] **Step 2: Run tests to verify they fail**
-
-Run: `bash scripts/run-with-mise.sh yarn vitest run tests/app/controllers/map-interaction-controller.test.ts -t "viewer-scoped"`
-Expected: FAIL — no notification is delivered to the landing civ yet.
-
-- [ ] **Step 3: Implement**
-
-Extend the `case 'paradrop':` block from Task 10 in `map-interaction-controller.ts`: after `session.commit(result.state)`, deliver a notification to the landing tile's owner civ (if hostile and different from the dropper) only when they can see the tile:
-
-```typescript
-            const landingCivId = /* determine the civ that owns/controls the landing tile's territory, or a hostile civ with a unit adjacent — match whichever convention resolveAirStrike's existing notification code already uses for "who gets told about this" */;
-            if (landingCivId && landingCivId !== unit.owner) {
-              const landerVisibility = session.getState().civilizations[landingCivId]?.visibility;
-              if (landerVisibility && getVisibility(landerVisibility, coord) === 'visible') {
-                deps.notificationDelivery.deliver(landingCivId, `An enemy Paratrooper has landed nearby.`, 'warning', { kind: 'map', coord, label: 'Paratrooper' });
-              }
-            }
-```
-
-Check `deps`'s exact shape for how `notificationDelivery`/`deliver` is already threaded into this controller (grep this file for `notificationDelivery` or `deliver(`) and match that access path exactly rather than assuming the field name above.
-
-- [ ] **Step 4: Run tests to verify they pass**
-
-Run: `bash scripts/run-with-mise.sh yarn vitest run tests/app/controllers/map-interaction-controller.test.ts`
-Expected: PASS
-
-- [ ] **Step 5: Commit**
-
-```bash
-git add src/app/controllers/map-interaction-controller.ts tests/app/controllers/map-interaction-controller.test.ts
-git commit -m "feat(#543): deliver viewer-scoped notification when a paradrop lands near a hostile civ"
-```
-
----
-
-### Task 13: Hot-seat isolation regression
+**Corrected during review (2026-08-21):** this slot originally planned a separate "viewer-scoped notifications" task that called a `deps.notificationDelivery.deliver(...)` field on the map-interaction controller. That field does not exist — grepping this controller and `air-operations-system.ts` for `notificationDelivery`/`deliver(` found no such call site anywhere in the existing air-mission code (`resolveAirStrike` never notifies the struck civ's owner through the controller either). Cross-civ notification for paradrops is instead handled directly inside `executeParadrop` (Task 6, via `appendNotification` mirroring `air-operations-system.ts`'s own `appendAirBaseLossNotifications` pattern) so it fires identically for both human- and AI-triggered drops, which a controller-only implementation could never do for AI turns. Task 6's own tests already cover the notification content and viewer-scoping; this renumbered task covers the hot-seat isolation property specifically.
 
 **Files:**
 - Create: `tests/systems/airborne-hotseat.test.ts`
@@ -1527,21 +1578,21 @@ git commit -m "test(#543): prove two-civ hot-seat discovery isolation for paradr
 
 ---
 
-### Task 14: Save/load round-trip regression
+### Task 13: Save/load round-trip regression
 
 **Files:**
 - Create: `tests/systems/airborne-save.test.ts`
 
 **Interfaces:**
-- Consumes: `executeParadrop` (Task 6); the existing save/load serialize/deserialize functions (grep `src/storage/` for the exact exported names — likely `serializeGameState`/`deserializeGameState` or similar; match whatever `tests/systems/save-load-mass-discovery.test.ts` or another existing save-round-trip test already imports).
+- Consumes: `executeParadrop` (Task 6); `serializeSaveFile`/`parseSaveFile` from `@/storage/save-file-transfer` (verified exports — `parseSaveFile` returns a `SaveFileParseResult`, check its shape in that file for the field holding the parsed `GameState` before writing the test); `processTurn` from `@/core/turn-manager` (verified export, the same real turn-processing entry point used in Task 4 Step 5 — confirm it resets `hasActed`/`movementPointsLeft`/`hasMoved` for the acting civ's units, which the pre-implementation audit found at `turn-manager.ts` around lines 633/1100).
 
 - [ ] **Step 1: Write the failing test**
 
 ```typescript
 import { describe, it, expect } from 'vitest';
 import { executeParadrop } from '@/systems/airborne-system';
-// Import the real serialize/deserialize pair — match the exact names used by
-// an existing save-round-trip test (e.g. tests/systems/save-load-mass-discovery.test.ts).
+import { serializeSaveFile, parseSaveFile } from '@/storage/save-file-transfer';
+import { processTurn } from '@/core/turn-manager';
 
 describe('paradrop save/load round-trip', () => {
   it('preserves landed position and lockout through a same-turn save/load, then clears correctly next turn', () => {
@@ -1549,15 +1600,22 @@ describe('paradrop save/load round-trip', () => {
     const dropped = executeParadrop(state, unitId, { q: 1, r: 1 });
     if (!dropped.ok) throw new Error('expected ok');
 
-    const serialized = /* serialize dropped.state */;
-    const loaded = /* deserialize serialized */;
+    const serialized = serializeSaveFile(dropped.state);
+    const parsed = parseSaveFile(serialized);
+    // Implementer: confirm the exact success-case field name on
+    // SaveFileParseResult (check src/storage/save-file-transfer.ts) —
+    // this assumes a discriminated `{ ok: true; state: GameState }` shape
+    // matching every other result type in this codebase; adjust if the
+    // real type differs.
+    if (!parsed.ok) throw new Error('expected successful parse');
+    const loaded = parsed.state;
 
     const unit = loaded.units[unitId]!;
     expect(unit.position).toEqual({ q: 1, r: 1 });
     expect(unit.hasActed).toBe(true);
     expect(unit.movementPointsLeft).toBe(0);
 
-    const nextTurn = /* call the real turn-reset function from turn-manager.ts, same one used in Task 4 Step 5 */;
+    const nextTurn = processTurn(loaded /* plus whatever other required arguments processTurn takes — match Task 4 Step 5's call exactly */);
     const resetUnit = nextTurn.units[unitId]!;
     expect(resetUnit.hasActed).toBe(false);
     expect(resetUnit.movementPointsLeft).toBeGreaterThan(0);
@@ -1588,7 +1646,7 @@ git commit -m "test(#543): prove paradrop state round-trips through save/load wi
 
 ---
 
-### Task 15: Balance and statistical validation
+### Task 14: Balance and statistical validation
 
 **Files:**
 - Create: `tests/systems/airborne-balance.test.ts`
@@ -1679,7 +1737,7 @@ git commit -m "test(#543): add statistical balance validation for paradrop range
 
 ---
 
-### Task 16: Full regression pass and PR readiness
+### Task 15: Full regression pass and PR readiness
 
 **Files:** None new — verification only.
 
