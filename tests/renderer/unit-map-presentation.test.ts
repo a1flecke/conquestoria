@@ -135,6 +135,15 @@ describe('unit map presentation', () => {
     expect(presentation.roleMarker).toBe('chevron');
   });
 
+  it('uses the neutral crisis faction for crisis-force units', () => {
+    const [presentation] = buildUnitMapPresentations(
+      state([unit('crisis', { owner: 'crisis-force' })]),
+      'player', { tiles: { '1,1': 'visible' } }, new Set(), null,
+    );
+
+    expect(presentation.faction).toBe('beasts');
+  });
+
   it('excludes moving and transported units before grouping', () => {
     const units = [
       unit('static'),

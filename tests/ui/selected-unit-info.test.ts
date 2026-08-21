@@ -657,6 +657,23 @@ describe('renderSelectedUnitInfo — hunt crisis foe label (MR3)', () => {
   });
 });
 
+describe('renderSelectedUnitInfo — crisis-force label', () => {
+  beforeEach(installMockDocument);
+  afterEach(restoreMockDocument);
+
+  it('shows the neutral crisis-force label and dedicated color', () => {
+    const state = createNewGame(undefined, 'crisis-force-label', 'small');
+    const unit = { ...createUnit('warrior', 'crisis-force', { q: 3, r: 0 }, state.idCounters), id: 'crisis-1' };
+    state.units = { 'crisis-1': unit };
+    const container = new MockElement('div');
+
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'crisis-1', {});
+
+    expect(collectAllText(container).join(' ')).toContain('Crisis Force');
+    expect(container.children[0]?.style.cssText).toContain('#b84a3a');
+  });
+});
+
 describe('renderSelectedUnitInfo — spy disguise buttons', () => {
   beforeEach(installMockDocument);
   afterEach(restoreMockDocument);
