@@ -219,7 +219,7 @@ export function positionMovingPirateHeadquarters(
 
 export interface HexHighlight {
   coord: HexCoord;
-  type: 'move' | 'attack' | 'air-strike' | 'air-recon' | 'air-intercept' | 'zoc-limited' | 'water-recovery' | 'worker-buildable' | 'worker-owned-blocked' | 'worker-foreign-blocked';
+  type: 'move' | 'attack' | 'air-strike' | 'air-recon' | 'air-intercept' | 'zoc-limited' | 'water-recovery' | 'worker-buildable' | 'worker-owned-blocked' | 'worker-foreign-blocked' | 'paradrop-target' | 'paradrop-flak-risk';
 }
 
 const HEX_HIGHLIGHT_COLORS: Record<HexHighlight['type'], string> = {
@@ -233,6 +233,17 @@ const HEX_HIGHLIGHT_COLORS: Record<HexHighlight['type'], string> = {
   'worker-buildable': 'rgba(80, 200, 120, 0.45)',
   'worker-owned-blocked': 'rgba(232, 193, 112, 0.40)',
   'worker-foreign-blocked': 'rgba(217, 74, 74, 0.35)',
+  // Deliberately hue-distinct (purple vs red) rather than a red/green pair,
+  // which is the classic colorblind-confusion case -- but this map is a
+  // flat color fill like every other highlight type in this file, with no
+  // per-hex icon/glyph overlay anywhere in this rendering system. The
+  // accompanying text notification (selection-controller.ts's
+  // onStartParadrop) spells out what each color means in words, which is
+  // the accommodation that's actually buildable here without adding a new
+  // icon-overlay rendering feature this file doesn't have for any
+  // highlight type today.
+  'paradrop-target': '#7c3aed',
+  'paradrop-flak-risk': '#dc2626',
 };
 
 const HEX_HIGHLIGHT_OUTLINES: Partial<Record<HexHighlight['type'], string>> = {

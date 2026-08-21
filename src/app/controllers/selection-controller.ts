@@ -40,6 +40,8 @@ import { createContextMenu } from '@/ui/context-menu';
 import { createWorkerReplacementConfirmPanel } from '@/ui/worker-task-warning-panel';
 import { handleFriendlyUnitStackTap } from '@/input/unit-stack-selection';
 import { startIntercept, getInterceptCoverage, getLegalRebaseDestinations, getAirBaseRoster, getAirBaseCapacity, rebaseAircraft, getLegalAirMissionTargets } from '@/systems/air-operations-system';
+import { getParadropTargets } from '@/systems/airborne-system';
+import { getKnownHostileAirDefenseThreat } from '@/systems/air-defense-system';
 import { usePropagandistAction } from '@/systems/propagandist-system';
 import { fortifyUnitInState, unfortifyUnitInState } from '@/systems/unit-lifecycle-system';
 import { canPillageTile, getPillageGoldReward, applyPillageToState } from '@/systems/pillage-system';
@@ -218,6 +220,47 @@ export function createSelectionController(deps: SelectionControllerDeps): Select
           selection.setPendingIntent({ kind: 'none' });
           selectUnit(uid);
           deps.showNotification('Air mission cancelled.', 'info');
+        },
+        onStartParadrop: uid => {
+          selection.setPendingIntent({ kind: 'paradrop', unitId: uid });
+          const state = session.getState();
+          const unit = state.units[uid]!;
+          const range = UNIT_DEFINITIONS[unit.type].paradrop!.range;
+          const targets = getParadropTargets(state, uid);
+          const flakByTile = new Map(targets.map(coord => [
+            hexKey(coord),
+            getKnownHostileAirDefenseThreat(state, unit, coord, unit.owner).flatDefenseModifier,
+          ]));
+          selection.setRanges([], []);
+          selectUnit(uid);
+          renderLoop.setHighlights(targets.map(coord => ({
+            coord,
+            type: (flakByTile.get(hexKey(coord)) ?? 0) > 0 ? 'paradrop-flak-risk' as const : 'paradrop-target' as const,
+          })));
+          // Spec requires the exact numbers before commit, not just a
+          // spatial highlight distinction: state the range and, if any
+          // legal tile carries known flak, the worst known figure among
+          // them. A per-tile hover tooltip with the exact number for the
+          // specific tile under the cursor would need new UI machinery
+          // this game doesn't have yet -- the flak-risk highlight color
+          // already marks exactly which tiles carry it, so this notice
+          // gives the worst-case number as a coarser-grained but still
+          // real "know the risk before you commit" guarantee.
+          const worstKnownFlak = Math.max(0, ...flakByTile.values());
+          const flakWarning = worstKnownFlak > 0
+            ? ` Highlighted red tiles have known anti-aircraft coverage — up to -${worstKnownFlak} HP on landing.`
+            : '';
+          deps.showNotification(
+            `Paradrop range: ${range}. Lands with no movement and cannot act again this turn.${flakWarning}`,
+            'info',
+          );
+        },
+        onCancelParadrop: uid => {
+          const intent = selection.getPendingIntent();
+          if (intent.kind !== 'paradrop' || intent.unitId !== uid) return;
+          selection.setPendingIntent({ kind: 'none' });
+          selectUnit(uid);
+          deps.showNotification('Paradrop cancelled.', 'info');
         },
         onOpenNetworkIntent: uid => deps.openNetworkIntentPanel(uid),
         onUsePropagandistAction: (uid, action, cityId) => {
@@ -613,6 +656,7 @@ export function createSelectionController(deps: SelectionControllerDeps): Select
         waterRecovery: highlightResult.waterRecovery,
         hasZoneOfControlWarning: highlightResult.zocLimitedRange.length > 0,
         airMissionPending: pendingIntent.kind === 'air-mission' && pendingIntent.unitId === unitId ? pendingIntent.mission : undefined,
+        paradropPending: pendingIntent.kind === 'paradrop' && pendingIntent.unitId === unitId,
       });
     }
 
