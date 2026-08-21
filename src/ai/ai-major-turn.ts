@@ -13,6 +13,7 @@ import type {
 } from '@/core/types';
 import { canUnitAttackTarget } from '@/systems/attack-targeting';
 import { rebaseAircraft, resolveAirStrike, resolveReconMission, startIntercept } from '@/systems/air-operations-system';
+import { executeParadrop } from '@/systems/airborne-system';
 import { applyCampDestructionAtTarget } from '@/systems/barbarian-system';
 import { applyCombatOutcomeToState } from '@/systems/combat-reward-system';
 import { deterministicCombatSeed, resolveCombat } from '@/systems/combat-system';
@@ -515,6 +516,10 @@ function executeAction(
         succeeded: result.ok,
         followUps: [],
       };
+    }
+    case 'paradrop': {
+      const result = executeParadrop(state, action.unitId, action.destination);
+      return { state: result.ok ? result.state : state, succeeded: result.ok, followUps: [] };
     }
     case 'rest': {
       const unit = state.units[action.unitId];

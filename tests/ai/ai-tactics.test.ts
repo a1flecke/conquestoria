@@ -19,6 +19,7 @@ import { foundCity } from '@/systems/city-system';
 import { hexDistance, hexKey } from '@/systems/hex-utils';
 import { createUnit, UNIT_DEFINITIONS } from '@/systems/unit-system';
 import * as combatSystem from '@/systems/combat-system';
+import { canParadrop } from '@/systems/airborne-system';
 
 const AI = 'ai-1';
 const HUMAN = 'player';
@@ -1190,5 +1191,81 @@ describe('AI worker restore_land (MR2 catastrophe)', () => {
 
     const actions = rankUnitTacticalActions(context(state, plan), worker.id);
     expect(actions.some(a => a.action.kind === 'worker-action' && a.action.action === 'restore_land')).toBe(true);
+  });
+});
+
+describe('rankUnitTacticalActions — paradrop (#543)', () => {
+  function makeParatrooperFixture() {
+    const state = makeState('veteran');
+    const capital = addCity(state, 'capital', AI, { q: 0, r: 0 });
+    capital.buildings = [...capital.buildings, 'airfield'];
+    const paratrooper = addUnit(state, 'para-1', 'paratrooper', AI, { q: 0, r: 0 });
+    return { state, capital, paratrooper };
+  }
+
+  it('produces no paradrop candidates for a unit with no paradrop capability', () => {
+    const { state, capital } = makeParatrooperFixture();
+    const infantry = addUnit(state, 'infantry-1', 'infantry', AI, capital.position);
+    const plan = makePlan({ kind: 'region', id: 'front', anchor: { q: 3, r: 0 } }, [infantry.id], { objective: 'expand', requiredRoles: {} });
+
+    const actions = rankUnitTacticalActions(context(state, plan), infantry.id);
+    expect(actions.some(a => a.action.kind === 'paradrop')).toBe(false);
+  });
+
+  it('produces paradrop candidates only for tiles the AI civ can actually see', () => {
+    const { state, paratrooper } = makeParatrooperFixture();
+    // makeState() marks every tile visible for the AI by default -- hide one in-range tile explicitly.
+    const hiddenKey = hexKey({ q: 2, r: 0 });
+    state.civilizations[AI].visibility.tiles[hiddenKey] = 'unexplored';
+    const plan = makePlan({ kind: 'region', id: 'front', anchor: { q: 3, r: 0 } }, [paratrooper.id], { objective: 'expand', requiredRoles: {} });
+
+    const actions = rankUnitTacticalActions(context(state, plan), paratrooper.id)
+      .filter(a => a.action.kind === 'paradrop');
+    expect(actions.some(a => a.action.kind === 'paradrop' && hexKey(a.action.destination) === hiddenKey)).toBe(false);
+    expect(actions.length).toBeGreaterThan(0); // still has legal candidates elsewhere in range
+  });
+
+  it('never scores a paradrop target the same civ could not legally drop onto (parity with canParadrop)', () => {
+    const { state, paratrooper } = makeParatrooperFixture();
+    const plan = makePlan({ kind: 'region', id: 'front', anchor: { q: 3, r: 0 } }, [paratrooper.id], { objective: 'expand', requiredRoles: {} });
+
+    const actions = rankUnitTacticalActions(context(state, plan), paratrooper.id)
+      .filter(a => a.action.kind === 'paradrop');
+    expect(actions.length).toBeGreaterThan(0);
+    for (const candidate of actions) {
+      if (candidate.action.kind !== 'paradrop') continue;
+      expect(canParadrop(state, candidate.action.unitId, candidate.action.destination).ok).toBe(true);
+    }
+  });
+
+  it('scores a drop closer to the strategic objective above a drop farther from it', () => {
+    const { state, paratrooper } = makeParatrooperFixture();
+    const plan = makePlan({ kind: 'region', id: 'front', anchor: { q: 4, r: 0 } }, [paratrooper.id], { objective: 'expand', requiredRoles: {} });
+
+    const actions = rankUnitTacticalActions(context(state, plan), paratrooper.id)
+      .filter((a): a is typeof a & { action: { kind: 'paradrop'; unitId: string; destination: HexCoord } } => a.action.kind === 'paradrop');
+    const near = actions.find(a => hexDistance(a.action.destination, { q: 4, r: 0 }) === 0 || hexDistance(a.action.destination, { q: 4, r: 0 }) === 1);
+    const far = actions.find(a => hexDistance(a.action.destination, { q: 4, r: 0 }) >= 3);
+    expect(near).toBeDefined();
+    expect(far).toBeDefined();
+    expect(near!.score).toBeGreaterThan(far!.score);
+  });
+
+  it('produces the identical legal paradrop target set across difficulty tiers under identical fog (no information leak by difficulty)', () => {
+    const veteran = makeState('veteran');
+    const explorer = makeState('explorer');
+    for (const state of [veteran, explorer]) {
+      const capital = addCity(state, 'capital', AI, { q: 0, r: 0 });
+      capital.buildings = [...capital.buildings, 'airfield'];
+      addUnit(state, 'para-1', 'paratrooper', AI, { q: 0, r: 0 });
+    }
+    const plan = makePlan({ kind: 'region', id: 'front', anchor: { q: 3, r: 0 } }, ['para-1'], { objective: 'expand', requiredRoles: {} });
+
+    const veteranTargets = rankUnitTacticalActions(context(veteran, plan), 'para-1')
+      .filter(a => a.action.kind === 'paradrop').map(a => a.action.kind === 'paradrop' ? hexKey(a.action.destination) : '');
+    const explorerTargets = rankUnitTacticalActions(context(explorer, plan), 'para-1')
+      .filter(a => a.action.kind === 'paradrop').map(a => a.action.kind === 'paradrop' ? hexKey(a.action.destination) : '');
+
+    expect(new Set(veteranTargets)).toEqual(new Set(explorerTargets));
   });
 });
