@@ -79,6 +79,15 @@ describe('resolveMapTapIntent', () => {
       expect(intent).toEqual({ kind: 'resolve-pending', pending, coord: { q: 2, r: 2 } });
     });
 
+    it('resolves a pending paradrop to the tapped coord (#543)', () => {
+      const state = makeFixture();
+      const pending: PendingMapIntent = { kind: 'paradrop', unitId: 'unit-1' };
+
+      const intent = resolveMapTapIntent(state, snapshot({ pendingIntent: pending }), { q: 2, r: 2 }, false);
+
+      expect(intent).toEqual({ kind: 'resolve-pending', pending, coord: { q: 2, r: 2 } });
+    });
+
     it('resolves a pending unload when the tap is inside the legal range', () => {
       const state = makeFixture();
       const pending: PendingMapIntent = { kind: 'unload', transportId: 't1', cargoUnitId: 'c1', range: [{ q: 2, r: 2 }] };

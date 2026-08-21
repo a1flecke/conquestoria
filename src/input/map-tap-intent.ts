@@ -30,7 +30,7 @@ import { selectDefenderEntryAtKey } from '@/input/hex-defender-selection';
  * lets a `switch (intent.pending.kind)` in the executor (#787 phase 8b) be
  * exhaustive without a dead defensive branch for two cases that can't occur.
  */
-export type ResolvablePendingIntent = Extract<PendingMapIntent, { kind: 'journey' | 'air-mission' | 'unload' }>;
+export type ResolvablePendingIntent = Extract<PendingMapIntent, { kind: 'journey' | 'air-mission' | 'unload' | 'paradrop' }>;
 
 export type MapTapIntent =
   /** A pending intent (journey/air-mission/unload) consumes this tap. */
@@ -90,7 +90,7 @@ export function resolveMapTapIntent(
     return { kind: 'ignore' };
   }
 
-  if (pending.kind === 'journey' || pending.kind === 'air-mission') {
+  if (pending.kind === 'journey' || pending.kind === 'air-mission' || pending.kind === 'paradrop') {
     return { kind: 'resolve-pending', pending, coord };
   }
 

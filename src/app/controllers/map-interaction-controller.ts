@@ -39,6 +39,7 @@ import { resolveMapTapIntent } from '@/input/map-tap-intent';
 import { visibleHostileUnitEntriesAtKey } from '@/input/hex-defender-selection';
 import { handleSelectedUnitMovementBlocker } from '@/input/selected-unit-movement-feedback';
 import { resolveAirStrike, resolveReconMission } from '@/systems/air-operations-system';
+import { executeParadrop, PARADROP_FAILURE_MESSAGES } from '@/systems/airborne-system';
 import { unloadUnitFromTransport } from '@/systems/transport-system';
 import { getMinorCivPresentationForPlayer } from '@/systems/minor-civ-presentation';
 import { calculateCombatStrengths } from '@/systems/combat-system';
@@ -166,6 +167,34 @@ export function createMapInteractionController(deps: MapInteractionControllerDep
             deps.updateHUD();
             if (pending.mission === 'recon') SFX.airRecon();
             else SFX.combat();
+            selectionController.selectUnit(pending.unitId);
+            return;
+          }
+
+          case 'paradrop': {
+            const pending = intent.pending;
+            const result = executeParadrop(session.getState(), pending.unitId, coord);
+            if (!result.ok) {
+              deps.showNotification(PARADROP_FAILURE_MESSAGES[result.reason], 'warning');
+              return;
+            }
+            // executeParadrop already logged both sides' notifications
+            // (dropping civ + any hostile civ that can see the landing
+            // tile) via appendNotification. This case only needs the
+            // acting player's own immediate toast feedback, exactly like
+            // the 'air-mission' case above -- it does not duplicate
+            // cross-civ notification logic in the controller.
+            selection.setPendingIntent({ kind: 'none' });
+            session.commit(result.state);
+            selectionController.refreshCurrentPlayerVisibility();
+            deps.updateHUD();
+            // No dedicated "unit move" SFX exists in this codebase --
+            // ordinary movement is silent by convention. transportUnload
+            // is the closest existing analog for "a unit newly arrives on
+            // a tile"; combat is reused for any HP-loss event (flak,
+            // interception, or both).
+            if (result.flak || result.interception) SFX.combat();
+            else SFX.transportUnload();
             selectionController.selectUnit(pending.unitId);
             return;
           }
