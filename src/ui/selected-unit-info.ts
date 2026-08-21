@@ -42,6 +42,8 @@ import type { AirBaseRef } from '@/core/types';
 import { canPillageTile } from '@/systems/pillage-system';
 import { getUnitRolePresentation } from '@/ui/unit-role-presentation';
 import { getFortificationCapacity, getFortificationPlacement, getFortificationTier } from '@/systems/fortification-system';
+import { isCrisisForceOwner } from '@/core/owner-kind';
+import { CRISIS_FORCE_PRESENTATION } from '@/systems/crisis-force-system';
 
 export interface TransportLoadOption {
   transportId: string;
@@ -211,8 +213,9 @@ export function renderSelectedUnitInfo(
 
   const def = UNIT_DEFINITIONS[unit.type];
   const isBeast = unit.owner === 'beasts';
+  const isCrisisForce = isCrisisForceOwner(unit.owner);
   // Beasts have no civilization entry — use their dedicated crimson color
-  const civColor = isBeast ? '#7a1f2b' : (state.civilizations[unit.owner]?.color ?? '#e8c170');
+  const civColor = isBeast ? '#7a1f2b' : (isCrisisForce ? CRISIS_FORCE_PRESENTATION.color : (state.civilizations[unit.owner]?.color ?? '#e8c170'));
   const tile = state.map.tiles[hexKey(unit.position)];
 
   container.style.display = 'block';
@@ -233,6 +236,11 @@ export function renderSelectedUnitInfo(
     legendLabel.style.cssText = `margin-left:8px;font-size:11px;font-weight:700;text-transform:uppercase;color:${civColor};letter-spacing:0.05em;`;
     legendLabel.textContent = '⚠ Legendary Beast';
     infoDiv.appendChild(legendLabel);
+  } else if (isCrisisForce) {
+    const crisisLabel = document.createElement('span');
+    crisisLabel.style.cssText = `margin-left:8px;font-size:11px;font-weight:700;text-transform:uppercase;color:${civColor};letter-spacing:0.05em;`;
+    crisisLabel.textContent = `⚠ ${CRISIS_FORCE_PRESENTATION.label}`;
+    infoDiv.appendChild(crisisLabel);
   }
   infoDiv.appendChild(document.createTextNode(` · HP: ${unit.health}/100 · Moves: ${unit.movementPointsLeft}/${def.movementPoints}`));
 

@@ -7,7 +7,7 @@ import { sortUnitsForStackPicker } from '@/systems/unit-occupancy';
 import { UNIT_DEFINITIONS } from '@/systems/unit-system';
 import { civTypeToFaction } from './civilization-visual-family';
 import { resolveUnitVisual, type UnitRoleMarker } from './unit-visual-resolver';
-import { isAlwaysHostilePair, isPirateOwner } from '@/core/owner-kind';
+import { isAlwaysHostilePair, isCrisisForceOwner, isPirateOwner } from '@/core/owner-kind';
 
 export const UNIT_DISPLAY_SIZE_FACTOR = 0.9;
 
@@ -94,6 +94,7 @@ function chooseLead(state: GameState, viewerId: string, stack: Unit[], selectedU
 
 function getFaction(state: GameState, ownerId: string): string {
   if (isPirateOwner(ownerId)) return 'pirates';
+  if (isCrisisForceOwner(ownerId)) return 'beasts';
   const civilization = state.civilizations?.[ownerId];
   return civilization ? civTypeToFaction(civilization.civType) : ownerId;
 }
