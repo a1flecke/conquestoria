@@ -280,6 +280,22 @@ describe('processPurposefulBarbarians', () => {
       .toMatchObject({ kind: 'unit', id: worker.id });
   });
 
+  it('uses Standard raid priority against an AI target regardless of the game-wide setting', () => {
+    const state = purposefulState();
+    state.opponentChallenge = 'veteran';
+    state.civilizations.player.isHuman = false;
+    const worker = createUnit('worker', 'player', { q: 7, r: 5 }, state.idCounters);
+    worker.id = 'ai-worker';
+    state.units = { [worker.id]: worker };
+    state.civilizations.player.units = [worker.id];
+    state.map.tiles['6,5'] = {
+      ...state.map.tiles['6,5']!, owner: 'player', resource: 'iron', improvement: 'mine', improvementTurnsLeft: 0,
+    };
+
+    expect(processPurposefulBarbarians(state).opponentAI.barbarianCamps['camp-a'].target)
+      .toMatchObject({ kind: 'unit', id: worker.id });
+  });
+
   it('preempts raids to defend a camp and never senses beyond radius seven', () => {
     const state = purposefulState();
     const raider = createUnit('warrior', 'barbarian', { q: 5, r: 5 }, state.idCounters);
@@ -353,6 +369,25 @@ describe('processPurposefulBarbarians', () => {
       id: 'camp-a', strength: 10, spawnCooldown: expect.any(Number),
     }));
     expect(result.updatedCamps[0]!.spawnCooldown).toBeGreaterThan(0);
+  });
+
+  it('enforces the cap per camp without suppressing another due camp', () => {
+    const state = purposefulState();
+    state.barbarianCamps = {
+      'camp-a': { id: 'camp-a', position: { q: 5, r: 5 }, strength: 10, spawnCooldown: 1 },
+      'camp-b': { id: 'camp-b', position: { q: 20, r: 5 }, strength: 6, spawnCooldown: 1 },
+    };
+    const raiders = Array.from({ length: 10 }, (_, index) => {
+      const raider = createUnit('warrior', 'barbarian', { q: 5, r: 5 }, state.idCounters);
+      raider.id = `camp-a-raider-${index}`;
+      return raider;
+    });
+    state.units = Object.fromEntries(raiders.map(raider => [raider.id, raider]));
+
+    const result = processPurposefulBarbarians(state);
+
+    expect(result.spawnedUnits.map(spawn => spawn.campId)).toEqual(['camp-b']);
+    expect(result.updatedCamps.find(camp => camp.id === 'camp-a')).toMatchObject({ strength: 10 });
   });
 
   it('uses the final roster band beyond its declared maximum era', () => {
