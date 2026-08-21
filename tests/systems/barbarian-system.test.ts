@@ -262,6 +262,24 @@ describe('processPurposefulBarbarians', () => {
     });
   });
 
+  it('uses the visible target owner challenge instead of the game-wide setting for raid priority', () => {
+    const state = purposefulState();
+    state.opponentChallenge = 'veteran';
+    state.civilizations.player.challenge = 'explorer';
+    const worker = createUnit('worker', 'player', { q: 7, r: 5 }, state.idCounters);
+    worker.id = 'visible-worker';
+    state.units = { [worker.id]: worker };
+    state.civilizations.player.units = [worker.id];
+    state.map.tiles['6,5'] = {
+      ...state.map.tiles['6,5']!, owner: 'player', resource: 'iron', improvement: 'mine', improvementTurnsLeft: 0,
+    };
+
+    const result = processPurposefulBarbarians(state);
+
+    expect(result.opponentAI.barbarianCamps['camp-a'].target)
+      .toMatchObject({ kind: 'unit', id: worker.id });
+  });
+
   it('preempts raids to defend a camp and never senses beyond radius seven', () => {
     const state = purposefulState();
     const raider = createUnit('warrior', 'barbarian', { q: 5, r: 5 }, state.idCounters);
@@ -314,6 +332,27 @@ describe('processPurposefulBarbarians', () => {
 
     expect(processPurposefulBarbarians(state).spawnedUnits)
       .toContainEqual(expect.objectContaining({ campId: 'camp-a', unitType: expected }));
+  });
+
+  it('caps a quiet camp at ten assigned raiders without bypassing its cooldown', () => {
+    const state = purposefulState();
+    state.barbarianCamps['camp-a'] = {
+      ...state.barbarianCamps['camp-a'], strength: 10, spawnCooldown: 1,
+    };
+    const raiders = Array.from({ length: 10 }, (_, index) => {
+      const raider = createUnit('warrior', 'barbarian', { q: 5, r: 5 }, state.idCounters);
+      raider.id = `raider-${index}`;
+      return raider;
+    });
+    state.units = Object.fromEntries(raiders.map(raider => [raider.id, raider]));
+
+    const result = processPurposefulBarbarians(state);
+
+    expect(result.spawnedUnits).toEqual([]);
+    expect(result.updatedCamps).toContainEqual(expect.objectContaining({
+      id: 'camp-a', strength: 10, spawnCooldown: expect.any(Number),
+    }));
+    expect(result.updatedCamps[0]!.spawnCooldown).toBeGreaterThan(0);
   });
 
   it('uses the final roster band beyond its declared maximum era', () => {
