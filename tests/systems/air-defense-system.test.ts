@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 import type { GameState, Unit } from '@/core/types';
 import {
   civHasAirDefenseCoverage,
+  getHostileAirDefenseThreat,
   getKnownAirDefenseProviders,
+  getKnownHostileAirDefenseThreat,
   resolveAirDefenseCoverage,
   selectStrongestAirDefenseProviders,
   type ResolvedAirDefenseProvider,
@@ -192,5 +194,63 @@ describe('selectStrongestAirDefenseProviders', () => {
     expect(result.flatDefenseModifier).toBe(10);
     expect(result.facts).toContainEqual(expect.objectContaining({ label: 'Mobile AA', outcome: 'applied', value: 10 }));
     expect(result.facts).toContainEqual(expect.objectContaining({ label: 'Anti-Air Battery', outcome: 'superseded', value: 8 }));
+  });
+});
+
+describe('getHostileAirDefenseThreat (#543 paradrop flak)', () => {
+  it("detects a hostile civ's Mobile AA covering a landing tile", () => {
+    const next = state();
+    // attacker is dropping; defender's Anti-Air Battery at alpha (1,0)
+    // covers the same tile the attacker is about to land on.
+    const droppingUnit = { id: 'para-1', owner: 'attacker', type: 'paratrooper', position: { q: 1, r: 0 } } as Unit;
+
+    const threat = getHostileAirDefenseThreat(next, droppingUnit, { q: 1, r: 0 });
+
+    expect(threat.flatDefenseModifier).toBe(8);
+  });
+
+  it('does not count a same-civ AA provider as a hostile threat', () => {
+    const next = state();
+    const droppingUnit = { id: 'para-1', owner: 'defender', type: 'paratrooper', position: { q: 1, r: 0 } } as Unit;
+
+    const threat = getHostileAirDefenseThreat(next, droppingUnit, { q: 1, r: 0 });
+
+    expect(threat.flatDefenseModifier).toBe(0);
+  });
+
+  it('applies stacking-group dedup: SAM Site (12) supersedes Mobile AA/Battery (8) covering the same tile, not additive', () => {
+    const next = state();
+    next.cities.alpha!.buildings = ['anti_air_battery', 'radar_station', 'sam_site'];
+    const droppingUnit = { id: 'para-1', owner: 'attacker', type: 'paratrooper', position: { q: 1, r: 0 } } as Unit;
+
+    const threat = getHostileAirDefenseThreat(next, droppingUnit, { q: 1, r: 0 });
+
+    expect(threat.flatDefenseModifier).toBe(12);
+  });
+
+  it('is a no-op change to existing own-civ resolveAirDefenseCoverage behavior (regression)', () => {
+    expect(resolveAirDefenseCoverage(state(), defender, 'defender').flatDefenseModifier).toBe(8);
+  });
+});
+
+describe('getKnownHostileAirDefenseThreat (#543 paradrop flak preview)', () => {
+  it('withholds an undiscovered hostile AA provider from the viewer-scoped preview', () => {
+    const unseen = state();
+    unseen.civilizations.attacker!.visibility.tiles = {};
+    const droppingUnit = { id: 'para-1', owner: 'attacker', type: 'paratrooper', position: { q: 1, r: 0 } } as Unit;
+
+    const known = getKnownHostileAirDefenseThreat(unseen, droppingUnit, { q: 1, r: 0 }, 'attacker');
+
+    expect(known.flatDefenseModifier).toBe(0);
+    expect(known.providers).toHaveLength(0);
+  });
+
+  it('surfaces a discovered hostile AA provider to the viewer-scoped preview', () => {
+    const next = state();
+    const droppingUnit = { id: 'para-1', owner: 'attacker', type: 'paratrooper', position: { q: 1, r: 0 } } as Unit;
+
+    const known = getKnownHostileAirDefenseThreat(next, droppingUnit, { q: 1, r: 0 }, 'attacker');
+
+    expect(known.flatDefenseModifier).toBe(8);
   });
 });

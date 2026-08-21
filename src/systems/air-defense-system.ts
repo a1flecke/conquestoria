@@ -1,8 +1,9 @@
-import type { AirDefenseCoverageProvider, AirDefenseCoverageResult, CombatModifierFact, GameState, Unit } from '@/core/types';
+import type { AirDefenseCoverageProvider, AirDefenseCoverageResult, CombatModifierFact, GameState, HexCoord, Unit } from '@/core/types';
 import { getVisibility } from './fog-of-war';
 import { hexDistance, wrappedHexDistance } from './hex-utils';
 import { BUILDINGS } from './city-system';
 import { UNIT_DEFINITIONS } from './unit-system';
+import { isHostileOwnerTo } from './owner-hostility';
 
 export interface ResolvedAirDefenseProvider extends AirDefenseCoverageProvider {}
 interface UnfilteredCoverage { flatDefenseModifier: number; facts: CombatModifierFact[]; providers: ResolvedAirDefenseProvider[]; }
@@ -23,7 +24,7 @@ function distance(state: GameState, left: Unit['position'], right: Unit['positio
 function known(state: GameState, provider: ResolvedAirDefenseProvider, viewerId: string): boolean {
   return provider.ownerId === viewerId || getVisibility(state.civilizations[viewerId]?.visibility ?? { tiles: {} }, provider.position) === 'visible';
 }
-function providersForOwner(state: GameState, ownerId: string): ResolvedAirDefenseProvider[] {
+export function providersForOwner(state: GameState, ownerId: string): ResolvedAirDefenseProvider[] {
   const cityProviders = Object.values(state.cities).flatMap(city => {
     if (city.owner !== ownerId) return [];
     // Render/presentation fixtures may deliberately use partial city records. A missing
@@ -75,4 +76,36 @@ export function resolveAirDefenseCoverage(state: GameState, defender: Unit, view
   let result = cache.values.get(key); if (!result) { result = selectStrongestAirDefenseProviders(providersFor(state, defender)); cache.values.set(key, result); }
   const visible = new Set(result.providers.filter(provider => known(state, provider, viewerId)).map(provider => provider.id));
   return { flatDefenseModifier: result.flatDefenseModifier, facts: result.facts.filter(fact => visible.has(fact.key.slice('air-defense:'.length))), providers: result.providers.filter(provider => visible.has(provider.id)).map(provider => ({ ...provider, position: { ...provider.position } })) };
+}
+
+/**
+ * #543 paradrop flak: the query direction flips relative to resolveAirDefenseCoverage
+ * above -- instead of "coverage protecting a defender's own civ", this is "coverage
+ * from any civ HOSTILE to the dropping unit that reaches a given point." Reuses
+ * providersForOwner/selectStrongestAirDefenseProviders unchanged; only the set of
+ * owner ids scanned, and the position compared against, differ.
+ */
+export function getHostileAirDefenseThreat(state: GameState, unit: Unit, position: HexCoord): UnfilteredCoverage {
+  const hostileProviders = Object.keys(state.civilizations)
+    .filter(civId => isHostileOwnerTo(state, unit.owner, civId))
+    .flatMap(civId => providersForOwner(state, civId))
+    .filter(provider => distance(state, provider.position, position) <= provider.radius
+      && (provider.protectedDomains === undefined || provider.protectedDomains.includes('land')));
+  return selectStrongestAirDefenseProviders(hostileProviders);
+}
+
+/** Viewer-scoped preview of getHostileAirDefenseThreat -- withholds undiscovered providers. */
+export function getKnownHostileAirDefenseThreat(
+  state: GameState,
+  unit: Unit,
+  position: HexCoord,
+  viewerId: string,
+): AirDefenseCoverageResult {
+  const result = getHostileAirDefenseThreat(state, unit, position);
+  const visible = new Set(result.providers.filter(provider => known(state, provider, viewerId)).map(provider => provider.id));
+  return {
+    flatDefenseModifier: result.providers.filter(p => visible.has(p.id)).reduce((total, p) => total + p.defenseModifier, 0),
+    facts: result.facts.filter(fact => visible.has(fact.key.slice('air-defense:'.length))),
+    providers: result.providers.filter(provider => visible.has(provider.id)).map(provider => ({ ...provider, position: { ...provider.position } })),
+  };
 }
