@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { UNIT_DEFINITIONS } from '@/systems/unit-system';
 import { TRAINABLE_UNITS } from '@/systems/city-system';
-import { baseNewAirUnit, canCompleteAirUnitProduction, getAirBaseCapacity, getAirBaseRoster, getInterceptCoverage, getLegalAirMissionTargets, getLegalRebaseDestinations, isBasedAirUnit, rebaseAircraft, resolveAirBaseLoss, resolveAirStrike, resolveReconMission, selectInterceptor, startIntercept, syncCarrierBasedAircraft } from '@/systems/air-operations-system';
+import { baseNewAirUnit, canCompleteAirUnitProduction, getAirBaseCapacity, getAirBaseKind, getAirBaseRoster, getInterceptCoverage, getLegalAirMissionTargets, getLegalRebaseDestinations, isBasedAirUnit, rebaseAircraft, resolveAirBaseLoss, resolveAirStrike, resolveReconMission, selectInterceptor, startIntercept, syncCarrierBasedAircraft } from '@/systems/air-operations-system';
 import { calculateCombatStrengths } from '@/systems/combat-system';
 import { buildCombatContextForDefender } from '@/systems/combat-context';
 import type { GameState, Unit } from '@/core/types';
@@ -68,6 +68,12 @@ describe('air bases', () => {
     expect(getAirBaseRoster(state, { kind: 'city', cityId: 'city-1' }).map(unit => unit.id)).toEqual(['air-1']);
     expect(getAirBaseCapacity(state, { kind: 'city', cityId: 'city-1' })).toBe(3);
     expect(getAirBaseCapacity({ ...state, builtNationalProjects: { 'player:air_force_command': { civId: 'player', cityId: 'city-1', eraBuilt: 9 } } }, { kind: 'city', cityId: 'city-1' })).toBe(4);
+  });
+
+  it('getAirBaseKind is exported for reuse (#543) and returns the building kind for a city base', () => {
+    expect(getAirBaseKind(state, { kind: 'city', cityId: 'city-1' })).toBe('airfield');
+    const noBaseState = { ...state, cities: { 'city-1': { ...state.cities['city-1'], buildings: [] } } } as unknown as GameState;
+    expect(getAirBaseKind(noBaseState, { kind: 'city', cityId: 'city-1' })).toBeUndefined();
   });
 
   it('lands a newly trained aircraft in the producing city only when its compatible base has capacity', () => {
