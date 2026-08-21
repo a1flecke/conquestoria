@@ -511,7 +511,7 @@ describe('notification routing', () => {
     const isVisible = (vis: any, pos: { q: number; r: number }) =>
       vis?.tiles?.[`${pos.q},${pos.r}`] === 'visible';
 
-    routeBarbarianSpawned(state, { q: 0, r: 0 }, 'camp-1', dedup, sink, isVisible);
+    routeBarbarianSpawned(state, { q: 0, r: 0 }, 'camp-1', undefined, dedup, sink, isVisible);
     expect(calls.map(c => c.civId)).toEqual(['p1']);
     expect(calls[0]!.target).toEqual({
       kind: 'map',
@@ -519,10 +519,10 @@ describe('notification routing', () => {
       label: 'Barbarian raiders',
     });
 
-    routeBarbarianSpawned(state, { q: 0, r: 0 }, 'camp-1', dedup, sink, isVisible);
+    routeBarbarianSpawned(state, { q: 0, r: 0 }, 'camp-1', undefined, dedup, sink, isVisible);
     expect(calls).toHaveLength(1);
 
-    routeBarbarianSpawned(state, { q: 0, r: 0 }, 'camp-2', dedup, sink, isVisible);
+    routeBarbarianSpawned(state, { q: 0, r: 0 }, 'camp-2', undefined, dedup, sink, isVisible);
     expect(calls.map(c => c.civId)).toEqual(['p1', 'p1']);
   });
 
