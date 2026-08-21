@@ -73,7 +73,7 @@ import { findFortificationCandidate } from '@/systems/fortification-system';
 import { getAIStrategicRoles, hasAICombatRole } from './ai-unit-roles';
 import { isAIHostileOwner } from './ai-hostility';
 import { getLegalRebaseDestinations, resolveAirStrike, resolveReconMission, rebaseAircraft, startIntercept } from '@/systems/air-operations-system';
-import { getParadropTargets, canParadrop, executeParadrop } from '@/systems/airborne-system';
+import { getParadropTargets, executeParadrop } from '@/systems/airborne-system';
 import { getKnownHostileAirDefenseThreat } from '@/systems/air-defense-system';
 import { resolveCombatEra } from '@/systems/era-resolution';
 import { resolveNavalCityBombardment } from '@/systems/naval-city-bombardment-system';
@@ -465,7 +465,16 @@ function rankParadrop(
     const riskDiscount = threat.flatDefenseModifier * 4;
     const objectiveBonus = Math.max(0, 40 - objectiveDistance * 5);
     return ranked({ kind: 'paradrop', unitId: unit.id, destination }, Math.max(0, 320 + objectiveBonus - riskDiscount));
-  }).filter(candidate => candidate.action.kind === 'paradrop' && canParadrop(context.state, unit.id, candidate.action.destination).ok);
+  });
+  // No canParadrop re-check here (unlike rankCapture's pattern this was
+  // originally modeled on): getParadropTargets IS canParadrop's own source
+  // of truth for every one of these tiles (canParadrop's cross-check calls
+  // this exact function), so re-validating each candidate individually is
+  // a provable no-op -- confirmed by the "parity with canParadrop" test --
+  // that costs O(targets) extra full target-list rebuilds (each an
+  // O(units in game) occupancy scan) in this AI hot path, called every
+  // turn per eligible unit per AI civ. canParadrop itself still exists and
+  // still guards the single-tile player/executor call sites.
 }
 
 function rankCapture(

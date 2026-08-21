@@ -180,14 +180,28 @@ export function createMapInteractionController(deps: MapInteractionControllerDep
             }
             // executeParadrop already logged both sides' notifications
             // (dropping civ + any hostile civ that can see the landing
-            // tile) via appendNotification. This case only needs the
-            // acting player's own immediate toast feedback, exactly like
-            // the 'air-mission' case above -- it does not duplicate
-            // cross-civ notification logic in the controller.
+            // tile) via appendNotification -- that's the persistent log,
+            // not immediate feedback. A flak/interception outcome is new
+            // information beyond "did the tap succeed" (unlike an air
+            // strike, where the target visibly takes the hit at the
+            // tapped tile) -- the player's own unit just relocated and
+            // may now be quietly missing HP, so it needs an explicit toast
+            // here rather than relying on the map alone.
             selection.setPendingIntent({ kind: 'none' });
             session.commit(result.state);
             selectionController.refreshCurrentPlayerVisibility();
             deps.updateHUD();
+            const outcomeParts: string[] = [];
+            if (result.flak) outcomeParts.push(`${result.flak.damage} flak damage from ${result.flak.providerLabel}`);
+            if (result.interception) outcomeParts.push('intercepted');
+            const survived = Boolean(result.state.units[pending.unitId]);
+            const outcomeSuffix = outcomeParts.length ? ` (${outcomeParts.join(', ')})` : '';
+            deps.showNotification(
+              survived
+                ? `Paratrooper landed${outcomeSuffix}. It cannot act again this turn.`
+                : `Paratrooper was destroyed on the drop${outcomeSuffix}.`,
+              survived && outcomeParts.length === 0 ? 'info' : 'warning',
+            );
             // No dedicated "unit move" SFX exists in this codebase --
             // ordinary movement is silent by convention. transportUnload
             // is the closest existing analog for "a unit newly arrives on
@@ -195,7 +209,7 @@ export function createMapInteractionController(deps: MapInteractionControllerDep
             // interception, or both).
             if (result.flak || result.interception) SFX.combat();
             else SFX.transportUnload();
-            selectionController.selectUnit(pending.unitId);
+            if (survived) selectionController.selectUnit(pending.unitId);
             return;
           }
 
