@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
   canReceiveCivilizationCombatRewards,
+  canCaptureDefeatedUnits,
   classifyOwner,
+  isCrisisForceOwner,
   isAlwaysHostilePair,
   isMajorCivOwner,
   isPirateOwner,
@@ -17,6 +19,7 @@ describe('owner-kind', () => {
     expect(classifyOwner('beasts')).toBe('beast');
     expect(classifyOwner('pirate')).toBe('pirate');
     expect(classifyOwner('pirate-7')).toBe('pirate');
+    expect(classifyOwner('crisis-force')).toBe('crisis');
   });
 
   it('keeps major-civilization and pirate predicates explicit', () => {
@@ -24,6 +27,8 @@ describe('owner-kind', () => {
     expect(isMajorCivOwner('pirate-7')).toBe(false);
     expect(isPirateOwner('pirate-7')).toBe(true);
     expect(isPirateOwner('pirates')).toBe(false);
+    expect(isCrisisForceOwner('crisis-force')).toBe(true);
+    expect(isCrisisForceOwner('beasts')).toBe(false);
   });
 
   it('makes pirates and major civilizations mutually hostile without making pirate factions fight each other', () => {
@@ -38,5 +43,14 @@ describe('owner-kind', () => {
     expect(canReceiveCivilizationCombatRewards('pirate-7')).toBe(false);
     expect(canReceiveCivilizationCombatRewards('barbarian')).toBe(false);
     expect(canReceiveCivilizationCombatRewards('mc-sparta')).toBe(false);
+    expect(canReceiveCivilizationCombatRewards('crisis-force')).toBe(false);
+    expect(canCaptureDefeatedUnits('player')).toBe(true);
+    expect(canCaptureDefeatedUnits('crisis-force')).toBe(false);
+  });
+
+  it('makes crisis forces hostile to every other owner but not to themselves', () => {
+    expect(isAlwaysHostilePair('player', 'crisis-force')).toBe(true);
+    expect(isAlwaysHostilePair('crisis-force', 'mc-sparta')).toBe(true);
+    expect(isAlwaysHostilePair('crisis-force', 'crisis-force')).toBe(false);
   });
 });

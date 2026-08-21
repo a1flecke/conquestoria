@@ -40,4 +40,23 @@ describe('movement-safety', () => {
 
     expect(isThreatenedByVisibleHostiles(state, 'player', { q: 2, r: 1 })).toBe(true);
   });
+
+  it('treats visible crisis-force units as hostile threats without diplomacy state', () => {
+    const { state } = makeAutoExploreFixture();
+    state.units['crisis-scout'] = {
+      id: 'crisis-scout',
+      type: 'warrior',
+      owner: 'crisis-force',
+      position: { q: 3, r: 1 },
+      movementPointsLeft: 2,
+      health: 100,
+      experience: 0,
+      hasMoved: false,
+      hasActed: false,
+      isResting: false,
+    };
+    state.civilizations.player.visibility.tiles['3,1'] = 'visible';
+
+    expect(isThreatenedByVisibleHostiles(state, 'player', { q: 2, r: 1 })).toBe(true);
+  });
 });
