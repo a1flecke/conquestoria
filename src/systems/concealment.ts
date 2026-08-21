@@ -22,11 +22,12 @@ function distanceFor(state: GameState, a: HexCoord, b: HexCoord): number {
  * what counts as "actively tracked."
  */
 function hasActiveDetectorInRange(state: GameState, unit: Unit, viewerCivId: string): boolean {
-  const viewer = state.civilizations[viewerCivId];
-  if (!viewer) return false;
-  const detectedByUnit = viewer.units
-    .map(id => state.units[id])
-    .filter((candidate): candidate is Unit => Boolean(candidate) && !candidate.transportId)
+  // Scanned directly from state.units/state.cities (not civilizations[id].units/
+  // .cities rosters) for the same robustness reason as isUnitConcealedFrom's own
+  // viewerUnits below -- resilient to a roster that's momentarily out of sync, and
+  // requires no civilizations entry to exist at all.
+  const detectedByUnit = Object.values(state.units)
+    .filter((candidate): candidate is Unit => candidate.owner === viewerCivId && !candidate.transportId)
     .some(candidate => {
       const domain = UNIT_DEFINITIONS[candidate.type].domain;
       if (domain !== 'naval' && domain !== 'air') return false;
@@ -35,9 +36,8 @@ function hasActiveDetectorInRange(state: GameState, unit: Unit, viewerCivId: str
     });
   if (detectedByUnit) return true;
 
-  return viewer.cities
-    .map(id => state.cities[id])
-    .filter((city): city is NonNullable<typeof city> => Boolean(city))
+  return Object.values(state.cities)
+    .filter((city): city is NonNullable<typeof city> => city.owner === viewerCivId)
     .some(city => {
       const range = cityDetectionRange(city.buildings);
       return range !== null && distanceFor(state, city.position, unit.position) <= range;
