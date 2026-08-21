@@ -1,5 +1,7 @@
 # Airborne Paratroopers Implementation Plan
 
+> ✅ **All 15 tasks merged (2026-08-21)** — executed inline, task-by-task, in this branch. Tasks 1-14 landed as originally scoped; a real regression surfaced only by the Task 15 full-suite run (pacing-audit's outlier gate, Paratrooper's `power-spike` vs `core` band) was fixed in a follow-up commit on the same branch. See `docs/superpowers/specs/2026-08-21-airborne-paratroopers-design.md` for the approved design this plan implements. Helicopter air assault (spec §18) and a transport plane (spec §19) remain deliberately deferred — not part of this phase.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking. **This repo's CLAUDE.md forbids subagents/parallel agents — execute inline, not via subagent-driven-development.**
 
 **Goal:** Add a Paratrooper land unit and a canonical `paradrop` action — relocate from a friendly airfield city to a visible, legal tile within range, landing vulnerable — plus a new flak-risk extension to the existing air-defense system, fully wired through UI, AI, saves, and hot-seat.
@@ -67,7 +69,7 @@
 
 Both functions already exist and are fully correct — this task only changes their visibility, with a regression test proving no existing caller's behavior changed.
 
-- [ ] **Step 1: Write the failing regression test for `getAirBaseKind`**
+- [x] **Step 1: Write the failing regression test for `getAirBaseKind`**
 
 Add to `tests/systems/air-operations-system.test.ts` (open the file first to match its existing fixture-building helpers — reuse whatever `makeState`/`makeCity` helpers it already has rather than inventing new ones):
 
@@ -81,12 +83,12 @@ it('getAirBaseKind is exported and returns the building kind for a city base', (
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `bash scripts/run-with-mise.sh yarn vitest run tests/systems/air-operations-system.test.ts -t "getAirBaseKind is exported"`
 Expected: FAIL — `getAirBaseKind` is not exported from the module.
 
-- [ ] **Step 3: Export the function**
+- [x] **Step 3: Export the function**
 
 In `src/systems/air-operations-system.ts`, change:
 ```typescript
@@ -98,12 +100,12 @@ export function getAirBaseKind(state: GameState, base: AirBaseRef): string | und
 ```
 (Add the explicit return type annotation since it's now part of the module's public surface.)
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `bash scripts/run-with-mise.sh yarn vitest run tests/systems/air-operations-system.test.ts -t "getAirBaseKind is exported"`
 Expected: PASS
 
-- [ ] **Step 5: Repeat Steps 1-4 for `isBlockingCityFor`**
+- [x] **Step 5: Repeat Steps 1-4 for `isBlockingCityFor`**
 
 Test (add to `tests/systems/unit-system.test.ts`, reusing its existing city/unit fixture helpers):
 ```typescript
@@ -118,12 +120,12 @@ it('isBlockingCityFor is exported and blocks a foreign unallied city', () => {
 ```
 Change `function isBlockingCityFor(...)` to `export function isBlockingCityFor(...): boolean` in `src/systems/unit-system.ts`.
 
-- [ ] **Step 6: Run both full test files to confirm zero regressions**
+- [x] **Step 6: Run both full test files to confirm zero regressions**
 
 Run: `bash scripts/run-with-mise.sh yarn vitest run tests/systems/air-operations-system.test.ts tests/systems/unit-system.test.ts`
 Expected: PASS, same pass count as before this task plus the 2 new tests.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add src/systems/air-operations-system.ts src/systems/unit-system.ts tests/systems/air-operations-system.test.ts tests/systems/unit-system.test.ts
@@ -144,7 +146,7 @@ git commit -m "refactor(#543): export getAirBaseKind and isBlockingCityFor for p
 - Produces: `ParadropCapability { range: number; baseKinds: Array<'airfield'> }` on `UnitDefinition.paradrop?`
 - Produces: `UNIT_DEFINITIONS.paratrooper: UnitDefinition`, `UNIT_DESCRIPTIONS.paratrooper: string`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Add to `tests/systems/unit-system.test.ts`:
 
@@ -170,12 +172,12 @@ describe('paratrooper unit definition', () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `bash scripts/run-with-mise.sh yarn vitest run tests/systems/unit-system.test.ts -t "paratrooper unit definition"`
 Expected: FAIL — `UNIT_DEFINITIONS.paratrooper` is undefined.
 
-- [ ] **Step 3: Add the type additions**
+- [x] **Step 3: Add the type additions**
 
 In `src/core/types.ts`, find the `UnitType` union (search for the string containing `'exosuit_infantry'`) and add `'paratrooper'` to it — insert it near `'infantry'`/`'mechanized_infantry'` for readability, exact position doesn't matter to the type system.
 
@@ -195,7 +197,7 @@ Find the `UnitDefinition` interface's `airOperation?: AirOperationDefinition;` l
   paradrop?: ParadropCapability;
 ```
 
-- [ ] **Step 4: Add the unit definition**
+- [x] **Step 4: Add the unit definition**
 
 In `src/systems/unit-system.ts`, add to `UNIT_DEFINITIONS` (place it near the other era-9 land units, e.g. right after the `mechanized_infantry` entry, to keep era-adjacent units grouped as the file already does):
 
@@ -216,17 +218,17 @@ Add to `UNIT_DESCRIPTIONS` (near the `infantry`/`mechanized_infantry` entries):
   paratrooper: 'Airborne infantry. Paradrops from a friendly Airfield city onto any visible tile within range, but lands with no movement and cannot act again that turn. Weaker in a stand-up fight than Infantry — its value is repositioning, not raw combat strength. Does not upgrade further.',
 ```
 
-- [ ] **Step 5: Run test to verify it passes**
+- [x] **Step 5: Run test to verify it passes**
 
 Run: `bash scripts/run-with-mise.sh yarn vitest run tests/systems/unit-system.test.ts -t "paratrooper unit definition"`
 Expected: PASS
 
-- [ ] **Step 6: Run `yarn build` to catch every `Record<UnitType, ...>` the compiler now requires an entry for**
+- [x] **Step 6: Run `yarn build` to catch every `Record<UnitType, ...>` the compiler now requires an entry for**
 
 Run: `bash scripts/run-with-mise.sh yarn build`
 Expected: FAILS with TypeScript errors listing every exhaustive `Record<UnitType, X>` map missing a `paratrooper` key (e.g. `UNIT_MOTION_STYLES`, `UNIT_SPRITE_CATALOG`, `PRODUCTION_ICONS`, `UNIT_ROLE_DEFINITIONS`, `combatRoleOf`-style maps). **This error list is the authoritative checklist for Tasks 6-8 below — record every file it names now**, since some may not already be listed in this plan's File Structure table if the current file layout has more exhaustive maps than this plan's audit found.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add src/core/types.ts src/systems/unit-system.ts tests/systems/unit-system.test.ts
@@ -257,7 +259,7 @@ git commit -m "feat(#543): add Paratrooper unit type and definition"
   export function canParadrop(state: GameState, unitId: string, destination: HexCoord): { ok: true } | { ok: false; reason: ParadropFailureReason };
   ```
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Create `tests/systems/airborne-system.test.ts`. Base the fixture helpers on the pattern already used in `tests/systems/air-operations-system.test.ts` (open it first and reuse its map/city/unit builder style — do not invent a divergent fixture shape). Cover every case below with a real state, not a mock:
 
@@ -362,12 +364,12 @@ describe('canParadrop', () => {
 
 Fill in `makeParadropFixture` with a real fixture before running — follow `tests/systems/air-operations-system.test.ts`'s existing map/city/unit construction helpers exactly rather than writing new ones from scratch, so the two test files share fixture conventions.
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `bash scripts/run-with-mise.sh yarn vitest run tests/systems/airborne-system.test.ts`
 Expected: FAIL — the module doesn't exist yet.
 
-- [ ] **Step 3: Implement `airborne-system.ts`**
+- [x] **Step 3: Implement `airborne-system.ts`**
 
 ```typescript
 import type { GameState, HexCoord, Unit } from '@/core/types';
@@ -464,12 +466,12 @@ export function canParadrop(state: GameState, unitId: string, destination: HexCo
 }
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `bash scripts/run-with-mise.sh yarn vitest run tests/systems/airborne-system.test.ts`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/systems/airborne-system.ts tests/systems/airborne-system.test.ts
@@ -495,7 +497,7 @@ git commit -m "feat(#543): add paradrop launch and target legality (airborne-sys
   ```
   (This task implements relocation + lockout only; `flak`/`interception` fields stay always-`undefined` until Task 6 wires them.)
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Add to `tests/systems/airborne-system.test.ts`:
 
@@ -530,12 +532,12 @@ describe('executeParadrop', () => {
 });
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `bash scripts/run-with-mise.sh yarn vitest run tests/systems/airborne-system.test.ts -t "executeParadrop"`
 Expected: FAIL — `executeParadrop` is not exported.
 
-- [ ] **Step 3: Implement the relocation-only version**
+- [x] **Step 3: Implement the relocation-only version**
 
 Append to `src/systems/airborne-system.ts`:
 
@@ -561,12 +563,12 @@ export function executeParadrop(state: GameState, unitId: string, destination: H
 }
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `bash scripts/run-with-mise.sh yarn vitest run tests/systems/airborne-system.test.ts`
 Expected: PASS, all tests in the file.
 
-- [ ] **Step 5: Add and pass the turn-reset lockout integration test**
+- [x] **Step 5: Add and pass the turn-reset lockout integration test**
 
 Add to `tests/systems/airborne-system.test.ts`. The verified real turn-reset entry point is `processTurn`, exported from `src/core/turn-manager.ts` (confirmed: it resets `movementPointsLeft` and `hasMoved` for the acting civ's units around line 1100, and `movementPointsLeft`/`hasActed` around line 633 for a related path — read its full signature before writing this test, since it likely takes more than just `state` as an argument, matching how Task 4's other turn-processing call sites in this codebase invoke it):
 
@@ -587,12 +589,12 @@ it('landing lockout clears via real next-turn processing, not a hand-set flag', 
 
 This is the explicit #542-lesson regression the spec requires (§7/§15) — it must call the real pipeline, not assert a manually-constructed state.
 
-- [ ] **Step 6: Run full test file**
+- [x] **Step 6: Run full test file**
 
 Run: `bash scripts/run-with-mise.sh yarn vitest run tests/systems/airborne-system.test.ts`
 Expected: PASS
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add src/systems/airborne-system.ts tests/systems/airborne-system.test.ts
@@ -615,7 +617,7 @@ git commit -m "feat(#543): implement executeParadrop relocation and landing lock
   export function getKnownHostileAirDefenseThreat(state: GameState, unit: Unit, position: HexCoord, viewerId: string): AirDefenseCoverageResult;
   ```
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Add to `tests/systems/air-defense-system.test.ts` (reuse this file's existing Mobile AA / SAM Site fixture builders — open the file first):
 
@@ -670,12 +672,12 @@ describe('getKnownHostileAirDefenseThreat', () => {
 });
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `bash scripts/run-with-mise.sh yarn vitest run tests/systems/air-defense-system.test.ts -t "HostileAirDefenseThreat"`
 Expected: FAIL — functions not exported.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 In `src/systems/air-defense-system.ts`:
 1. Change `function providersForOwner(` to `export function providersForOwner(` (needed by the new functions below).
@@ -711,12 +713,12 @@ export function getKnownHostileAirDefenseThreat(
 
 Note the `protectedDomains.includes('land')` filter — flak threatens a landing (land-domain) paratrooper, matching the same domain-filtering convention `providersFor` already uses for aircraft.
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `bash scripts/run-with-mise.sh yarn vitest run tests/systems/air-defense-system.test.ts`
 Expected: PASS, entire file (confirms the regression test too).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/systems/air-defense-system.ts tests/systems/air-defense-system.test.ts
@@ -735,7 +737,7 @@ git commit -m "feat(#543): add hostile air-defense threat query for paradrop fla
 - Consumes: `getHostileAirDefenseThreat` (Task 5); `selectInterceptor`, `applyCombatOutcomeToState`, `deterministicCombatSeed`, `resolveCombat`, `buildCombatContextForDefender`, `resolveCombatEra` — same imports `air-operations-system.ts`'s `resolveAirStrike` already uses (open that file's import block again and mirror it exactly); `appendNotification` from `@/core/notification-log` (verified signature: `appendNotification(state: Pick<GameState, 'notificationLog' | 'idCounters'>, civId: string, draft): NotificationEntry` — it **mutates its `state` argument in place** and returns the created entry, not a new state; every existing caller in this codebase pre-copies `notificationLog`/`idCounters` onto a fresh object first, then calls it for the side effect, ignoring the return value — mirror `air-operations-system.ts`'s `appendAirBaseLossNotifications` exactly, do not treat it as a pure function); `isHostileOwnerTo` from `@/systems/owner-hostility`; `getVisibility` from `@/systems/fog-of-war`.
 - Produces: `executeParadrop`'s `flak`/`interception` result fields are now populated; landing/interception/flak outcomes are recorded via `appendNotification` for both the dropping civ (always) and a hostile civ that can currently see the landing tile (viewer-scoped) — this lives inside `executeParadrop` itself, not the UI controller, so it fires identically whether a human or the AI triggers the drop (see Task 10's note about why the controller does *not* duplicate this).
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Add to `tests/systems/airborne-system.test.ts`:
 
@@ -845,13 +847,13 @@ describe('executeParadrop — notifications', () => {
 });
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `bash scripts/run-with-mise.sh yarn vitest run tests/systems/airborne-system.test.ts -t "executeParadrop — flak"`
 Run: `bash scripts/run-with-mise.sh yarn vitest run tests/systems/airborne-system.test.ts -t "executeParadrop — interception"`
 Expected: FAIL — `result.flak`/`result.interception` are always `undefined`.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 Open `src/systems/air-operations-system.ts` and copy its exact import list for `deterministicCombatSeed`, `resolveCombat`, `buildCombatContextForDefender`, `resolveCombatEra`, `applyCombatOutcomeToState`, `selectInterceptor` into `airborne-system.ts`'s imports (these are the same dependencies `resolveAirStrike`'s interception branch already uses — do not reimplement combat resolution, call the same functions).
 
@@ -975,12 +977,12 @@ export function executeParadrop(state: GameState, unitId: string, destination: H
 }
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `bash scripts/run-with-mise.sh yarn vitest run tests/systems/airborne-system.test.ts`
 Expected: PASS, entire file.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/systems/airborne-system.ts tests/systems/airborne-system.test.ts
@@ -1000,7 +1002,7 @@ git commit -m "feat(#543): wire flak damage and interception into executeParadro
 **Interfaces:**
 - Produces: `TRAINABLE_UNITS` includes a `paratrooper` entry; `PRODUCTION_ICONS.paratrooper`; `air-superiority` tech's `unlocksUnits` includes `'paratrooper'`; `UNIT_ROLE_DEFINITIONS.paratrooper`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Add to `tests/systems/city-system.test.ts`:
 
@@ -1025,12 +1027,12 @@ it('paratrooper has a combat role definition', () => {
 });
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `bash scripts/run-with-mise.sh yarn vitest run tests/systems/city-system.test.ts -t "paratrooper is trainable"`
 Expected: FAIL.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 In `src/systems/city-system.ts`, add to `TRAINABLE_UNITS` (near the `mechanized_infantry` entry, keeping era-adjacent units grouped):
 
@@ -1052,12 +1054,12 @@ In `src/systems/combat-role-definitions.ts`, add (near the `infantry`/`mechanize
   paratrooper: role('frontline', 'Airborne infantry that repositions via paradrop but fights below contemporary line-infantry strength.', ['frontline', 'capture'], { counters: ['civilian'], vulnerableTo: ['ranged', 'shock'], upgradeFamily: 'paratrooper' }),
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `bash scripts/run-with-mise.sh yarn vitest run tests/systems/city-system.test.ts tests/systems/tech-unlocks-consistency.test.ts`
 Expected: PASS. `tech-unlocks-consistency.test.ts` is an existing generic test — it will now also assert `paratrooper`'s `techRequired` matches an entry in `air-superiority`'s `unlocksUnits`; if it fails, the tech-file edit above is incomplete.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/systems/city-system.ts src/systems/tech-definitions-eras9.ts src/systems/combat-role-definitions.ts tests/systems/city-system.test.ts
@@ -1075,12 +1077,12 @@ git commit -m "feat(#543): wire Paratrooper into production, tech unlock, and co
 **Interfaces:**
 - Produces: `UNIT_MOTION_STYLES.paratrooper`, `UNIT_SPRITE_CATALOG.paratrooper`
 
-- [ ] **Step 1: Run the existing generic catalog test to see it fail**
+- [x] **Step 1: Run the existing generic catalog test to see it fail**
 
 Run: `bash scripts/run-with-mise.sh yarn vitest run tests/renderer/sprites/sprite-catalog.test.ts`
 Expected: FAIL — this test already loops over every `UnitType` and asserts catalog coverage (per `.claude/rules/sprites.md`), so it fails automatically now that `'paratrooper'` exists as a `UnitType` with no catalog entry. No new test needs to be written for this task — the existing generic test is the spec.
 
-- [ ] **Step 2: Add the catalog entries**
+- [x] **Step 2: Add the catalog entries**
 
 In `src/renderer/sprites/sprite-catalog.ts`, add to `UNIT_MOTION_STYLES` (near `mechanized_infantry`):
 ```typescript
@@ -1092,17 +1094,17 @@ Add to `UNIT_SPRITE_CATALOG` (near `mechanized_infantry`, which already aliases 
   paratrooper: withMotion('paratrooper', InfantrySprite),
 ```
 
-- [ ] **Step 3: Run the test to verify it passes**
+- [x] **Step 3: Run the test to verify it passes**
 
 Run: `bash scripts/run-with-mise.sh yarn vitest run tests/renderer/sprites/sprite-catalog.test.ts`
 Expected: PASS
 
-- [ ] **Step 4: Run `yarn build` again and address any remaining `Record<UnitType, ...>` gaps from Task 2's Step 6 checklist**
+- [x] **Step 4: Run `yarn build` again and address any remaining `Record<UnitType, ...>` gaps from Task 2's Step 6 checklist**
 
 Run: `bash scripts/run-with-mise.sh yarn build`
 Expected: Fewer or zero remaining `paratrooper`-related type errors. If any remain, add the missing entry to that map now, following the same "reuse the nearest infantry-family precedent" approach used above, and re-run the build until clean of `paratrooper`-specific errors (errors unrelated to this feature, if any, are out of scope for this task).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/renderer/sprites/sprite-catalog.ts
@@ -1122,7 +1124,7 @@ git commit -m "feat(#543): add Paratrooper sprite catalog fallback (aliases Infa
 - Consumes: `getParadropTargets`, `canParadrop`, `executeParadrop` (Tasks 3-6); `getKnownHostileAirDefenseThreat` (Task 5); `selectInterceptor` (existing)
 - Produces: `AITacticalAction` includes `{ kind: 'paradrop'; unitId: string; destination: HexCoord }`. `rankParadrop` stays **module-private**, matching every sibling ranker in this file (`rankAirStrikes`, `rankAirSupport`, `rankCapture` are all unexported — only the aggregator `rankUnitTacticalActions` at ~line 856 is `export`ed) — do not export it; test it through `rankUnitTacticalActions`, the same way this file's other rankers are already tested.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Add to `tests/ai/ai-tactics.test.ts` (reuse this file's existing `AITacticalContext` fixture builders and whatever it already imports from `@/ai/ai-tactics` — likely just `rankUnitTacticalActions`, confirm against the file's current imports):
 
@@ -1170,12 +1172,12 @@ describe('rankUnitTacticalActions — paradrop', () => {
 
 Full end-to-end AI execution (a real AI turn actually moving a Paratrooper via `processMajorCivStrategicTurn`) is covered by Task 15's full-suite regression run and manual smoke test, not a narrow unit test here — `executeAction` in `ai-major-turn.ts` and `applyPredictedAction`'s switch in this file are both private, matching every other action kind's test coverage pattern in this codebase (verified: neither is imported by name in any existing test file).
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `bash scripts/run-with-mise.sh yarn vitest run tests/ai/ai-tactics.test.ts -t "rankUnitTacticalActions — paradrop"`
 Expected: FAIL — no paradrop candidates are produced yet.
 
-- [ ] **Step 3: Implement `rankParadrop` and wire it into the aggregator and both execution switches**
+- [x] **Step 3: Implement `rankParadrop` and wire it into the aggregator and both execution switches**
 
 In `src/ai/ai-tactics.ts`:
 
@@ -1234,12 +1236,12 @@ In `src/ai/ai-major-turn.ts`, add to `executeAction`'s switch (mirroring the `ai
 ```
 Import `executeParadrop` from `@/systems/airborne-system` in this file too.
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `bash scripts/run-with-mise.sh yarn vitest run tests/ai/ai-tactics.test.ts`
 Expected: PASS.
 
-- [ ] **Step 5: Add the difficulty-leak guard test**
+- [x] **Step 5: Add the difficulty-leak guard test**
 
 ```typescript
 it('Veteran and Explorer AI have identical legal paradrop target sets under identical fog — only weighting differs', () => {
@@ -1257,12 +1259,12 @@ it('Veteran and Explorer AI have identical legal paradrop target sets under iden
 
 If `makeParadropTacticalContext` doesn't yet support a `difficulty` parameter, check how other AI tests already parameterize difficulty (grep `tests/ai/` for `difficulty:`) and match that convention rather than inventing a new one.
 
-- [ ] **Step 6: Run full AI test file**
+- [x] **Step 6: Run full AI test file**
 
 Run: `bash scripts/run-with-mise.sh yarn vitest run tests/ai/ai-tactics.test.ts`
 Expected: PASS
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add src/ai/ai-tactics.ts src/ai/ai-major-turn.ts tests/ai/ai-tactics.test.ts
@@ -1282,7 +1284,7 @@ git commit -m "feat(#543): add AI paradrop candidate ranking, lookahead, and exe
 **Interfaces:**
 - Produces: `PendingMapIntent` includes `{ kind: 'paradrop'; unitId: string }`; `resolveMapTapIntent` treats it as resolvable like `'air-mission'`; the controller executes it.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Add to `tests/input/map-tap-intent.test.ts` (reuse this file's existing `SelectionSnapshot` fixture helpers):
 
@@ -1315,12 +1317,12 @@ it('handleHexTap rejects an illegal paradrop tap without committing state', () =
 });
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `bash scripts/run-with-mise.sh yarn vitest run tests/input/map-tap-intent.test.ts tests/app/controllers/map-interaction-controller.test.ts -t "paradrop"`
 Expected: FAIL — `'paradrop'` isn't a recognized `PendingMapIntent` kind yet.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 In `src/app/ports.ts`, add to the `PendingMapIntent` union:
 ```typescript
@@ -1375,12 +1377,12 @@ In `src/app/controllers/map-interaction-controller.ts`, add a case to the `resol
 
 Add the imports this case needs at the top of the file: `import { executeParadrop, PARADROP_FAILURE_MESSAGES } from '@/systems/airborne-system';`.
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `bash scripts/run-with-mise.sh yarn vitest run tests/input/map-tap-intent.test.ts tests/app/controllers/map-interaction-controller.test.ts`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/app/ports.ts src/input/map-tap-intent.ts src/app/controllers/map-interaction-controller.ts tests/input/map-tap-intent.test.ts tests/app/controllers/map-interaction-controller.test.ts
@@ -1400,7 +1402,7 @@ git commit -m "feat(#543): wire paradrop into pending-intent tap resolution"
 - Consumes: `getParadropTargets`, `getParadropLaunchState`, `PARADROP_FAILURE_MESSAGES` (Task 3/10); `getKnownHostileAirDefenseThreat` (Task 5)
 - Produces: new callback fields `onStartParadrop?: (unitId: string) => void` and `getParadropPreview?: (unitId: string, destination: HexCoord) => { range: number; knownFlakDamage?: number; knownFlakLabel?: string }` on the selected-unit-info callbacks interface (open the file and match its existing callback-interface name exactly — it's the interface containing `onStartIntercept` etc., confirmed at line ~111 in the pre-implementation audit).
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Add to `tests/ui/selected-unit-info.test.ts` (reuse this file's existing DOM-fixture/render helpers):
 
@@ -1427,12 +1429,12 @@ it('does not render a Paradrop button for a unit with no paradrop capability', (
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `bash scripts/run-with-mise.sh yarn vitest run tests/ui/selected-unit-info.test.ts -t "Paradrop"`
 Expected: FAIL — no such button exists yet.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 In `src/ui/selected-unit-info.ts`:
 1. Add to the callbacks interface (the one containing `onStartIntercept?`):
@@ -1448,12 +1450,12 @@ In `src/ui/selected-unit-info.ts`:
 ```
 (Import `UNIT_DEFINITIONS` if not already imported in this file — `def` above assumes the existing local variable name this file already uses for `UNIT_DEFINITIONS[unit.type]`; match whatever it's actually called by reading the surrounding code.)
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `bash scripts/run-with-mise.sh yarn vitest run tests/ui/selected-unit-info.test.ts`
 Expected: PASS
 
-- [ ] **Step 5: Wire the callback and highlight flow in `selection-controller.ts`**
+- [x] **Step 5: Wire the callback and highlight flow in `selection-controller.ts`**
 
 Add to the `renderSelectedUnitInfo` call's callback object (found at ~line 174-214 in the pre-implementation audit, alongside `onStartAirMission`):
 
@@ -1495,16 +1497,16 @@ Add to the `renderSelectedUnitInfo` call's callback object (found at ~line 174-2
 
 Add `import { getParadropTargets } from '@/systems/airborne-system';` and `import { getKnownHostileAirDefenseThreat } from '@/systems/air-defense-system';` to this file's imports.
 
-- [ ] **Step 6: Add the highlight-type accessibility test**
+- [x] **Step 6: Add the highlight-type accessibility test**
 
 The `'paradrop-flak-risk'` vs `'paradrop-target'` highlight types must resolve to visually distinct treatments (icon/label, not color alone) in whatever renderer consumes `renderLoop.setHighlights` — grep the renderer for how `'air-strike'`/`'air-recon'` highlight types are drawn (icon vs. fill) and add `'paradrop-target'`/`'paradrop-flak-risk'` following the exact same pattern (not a new one-off color swatch). Add a render test asserting the two types produce different icon glyphs, not just different fill colors — match this file's existing highlight-type render test structure.
 
-- [ ] **Step 7: Run the selection-controller test file**
+- [x] **Step 7: Run the selection-controller test file**
 
 Run: `bash scripts/run-with-mise.sh yarn vitest run tests/app/controllers/selection-controller.test.ts`
 Expected: PASS
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add src/ui/selected-unit-info.ts src/app/controllers/selection-controller.ts tests/ui/selected-unit-info.test.ts tests/app/controllers/selection-controller.test.ts
@@ -1523,7 +1525,7 @@ git commit -m "feat(#543): add Paradrop button, target highlighting, and flak-ri
 **Interfaces:**
 - Consumes: `getKnownHostileAirDefenseThreat` (Task 5), `getParadropTargets` (Task 3)
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```typescript
 import { describe, it, expect } from 'vitest';
@@ -1555,21 +1557,21 @@ describe('hot-seat isolation — paradrop preview data', () => {
 });
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `bash scripts/run-with-mise.sh yarn vitest run tests/systems/airborne-hotseat.test.ts`
 Expected: FAIL until fixtures are built out (the underlying functions already exist from Tasks 3 and 5 — this task is pure test-writing to prove the isolation property explicitly, per spec §14).
 
-- [ ] **Step 3: Build the fixtures and confirm the tests pass against existing implementation**
+- [x] **Step 3: Build the fixtures and confirm the tests pass against existing implementation**
 
 No production code should need to change for this task — `getKnownHostileAirDefenseThreat` and `getParadropTargets` are already viewer-scoped by construction (Tasks 3/5). If either test fails once the fixture is correctly built, that indicates a real bug introduced in an earlier task — stop and fix the root cause in `airborne-system.ts`/`air-defense-system.ts` rather than adjusting the test to match broken behavior.
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `bash scripts/run-with-mise.sh yarn vitest run tests/systems/airborne-hotseat.test.ts`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add tests/systems/airborne-hotseat.test.ts
@@ -1586,7 +1588,7 @@ git commit -m "test(#543): prove two-civ hot-seat discovery isolation for paradr
 **Interfaces:**
 - Consumes: `executeParadrop` (Task 6); `serializeSaveFile`/`parseSaveFile` from `@/storage/save-file-transfer` (verified exports — `parseSaveFile` returns a `SaveFileParseResult`, check its shape in that file for the field holding the parsed `GameState` before writing the test); `processTurn` from `@/core/turn-manager` (verified export, the same real turn-processing entry point used in Task 4 Step 5 — confirm it resets `hasActed`/`movementPointsLeft`/`hasMoved` for the acting civ's units, which the pre-implementation audit found at `turn-manager.ts` around lines 633/1100).
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```typescript
 import { describe, it, expect } from 'vitest';
@@ -1623,21 +1625,21 @@ describe('paradrop save/load round-trip', () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `bash scripts/run-with-mise.sh yarn vitest run tests/systems/airborne-save.test.ts`
 Expected: FAIL until the serialize/deserialize/turn-reset imports are filled in correctly.
 
-- [ ] **Step 3: Fill in the real imports and confirm no production code changes are needed**
+- [x] **Step 3: Fill in the real imports and confirm no production code changes are needed**
 
 Per spec §15, no schema migration is expected — if this test fails against correctly-wired imports, it indicates a real serialization gap (e.g. `Unit`'s existing fields not round-tripping `paratrooper`-specific state), which would be a genuine bug to fix in `src/storage/`, not a reason to weaken the test.
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `bash scripts/run-with-mise.sh yarn vitest run tests/systems/airborne-save.test.ts`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add tests/systems/airborne-save.test.ts
@@ -1654,7 +1656,7 @@ git commit -m "test(#543): prove paradrop state round-trips through save/load wi
 **Interfaces:**
 - Consumes: `executeParadrop`, `getParadropTargets` (Tasks 3-6); `rankParadrop` (Task 9)
 
-- [ ] **Step 1: Write the tests**
+- [x] **Step 1: Write the tests**
 
 Implement each representative situation from spec §17 as a statistical/sampled assertion, following `strategy-game-mechanics.md`'s "run N trials, assert average is in expected range" convention (check an existing statistical test, e.g. in `tests/systems/combat-system.test.ts`, for this repo's exact sampling helper pattern and reuse it):
 
@@ -1713,22 +1715,22 @@ describe('paradrop balance — representative situations (#543 spec §17)', () =
 });
 ```
 
-- [ ] **Step 2: Run tests, fill in fixtures, observe actual numbers**
+- [x] **Step 2: Run tests, fill in fixtures, observe actual numbers**
 
 Run: `bash scripts/run-with-mise.sh yarn vitest run tests/systems/airborne-balance.test.ts`
 
 Build out each fixture using the map/AI-context conventions already established in earlier tasks' test files. Where a test asserts an unverified threshold (e.g. the `0.15` map-coverage fraction above), **replace it with the actual observed value from a real run once the fixture exists**, per spec §17's requirement that these are starting numbers to validate, not numbers to leave unverified in the plan.
 
-- [ ] **Step 3: If any assertion reveals range/stat/damage values are wrong, fix the spec and the definition together**
+- [x] **Step 3: If any assertion reveals range/stat/damage values are wrong, fix the spec and the definition together**
 
 If, e.g., range 4 turns out to cover an unreasonably large fraction of a standard map, change `paratrooper.paradrop.range` in `src/systems/unit-system.ts` (Task 2) and record the change with the observed data in a short note at the top of this test file — per spec §17, this is an expected, documented outcome of running the balance pass, not a plan failure.
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `bash scripts/run-with-mise.sh yarn vitest run tests/systems/airborne-balance.test.ts`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add tests/systems/airborne-balance.test.ts src/systems/unit-system.ts
@@ -1741,30 +1743,30 @@ git commit -m "test(#543): add statistical balance validation for paradrop range
 
 **Files:** None new — verification only.
 
-- [ ] **Step 1: Run the full fast test tier**
+- [x] **Step 1: Run the full fast test tier**
 
 Run: `bash scripts/run-with-mise.sh yarn test:fast`
 Expected: PASS, zero regressions in `#539` interception tests, `#540` transport/amphibious tests, movement/ZOC tests, or any other existing suite.
 
-- [ ] **Step 2: Run the full build**
+- [x] **Step 2: Run the full build**
 
 Run: `bash scripts/run-with-mise.sh yarn build`
 Expected: PASS, zero TypeScript errors.
 
-- [ ] **Step 3: Run the full test suite (not just fast tier) at least once before opening a PR**
+- [x] **Step 3: Run the full test suite (not just fast tier) at least once before opening a PR**
 
 Run: `bash scripts/run-with-mise.sh yarn test`
 Expected: PASS.
 
-- [ ] **Step 4: Manual smoke test in the browser**
+- [x] **Step 4: Manual smoke test in the browser**
 
 Start the dev server, start a new game or load a save at era 9+, research `armored-tactics` and `air-superiority`, build an Airfield, train a Paratrooper, select it, click Paradrop, confirm: range highlight appears, tapping a legal tile relocates the unit and shows it can't act again, tapping an illegal tile shows the correct rejection message, the unit's info panel reflects the lockout. Take a screenshot as proof per this project's UI-change verification convention.
 
-- [ ] **Step 5: Update the plan doc's phase-status annotation**
+- [x] **Step 5: Update the plan doc's phase-status annotation**
 
 Per `.claude/rules/spec-fidelity.md`'s "Plan Docs Must Stay Synced With Merged Phases" rule, once this plan's tasks are merged, add a status line to this file's header (e.g. `✅ Phase 1 merged (#PR-number)`) in the same PR that completes it.
 
-- [ ] **Step 6: Final commit and hand off for PR creation**
+- [x] **Step 6: Final commit and hand off for PR creation**
 
 ```bash
 git status
