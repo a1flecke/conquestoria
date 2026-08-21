@@ -54,6 +54,21 @@ describe('crisis-force-system', () => {
     expect(resolveCrisisForceSeverity(state, 'ai-1')).toBe('standard');
   });
 
+  it('keeps a hot-seat target severity after another player changes difficulty', () => {
+    const state = createNewGame('rome', 'crisis-force-hot-seat', 'small');
+    state.civilizations.player.challenge = 'explorer';
+    state.civilizations['player-2'] = { ...state.civilizations.player, isHuman: true, challenge: 'veteran' };
+    state.units['crisis-1'] = makeCrisisUnit('crisis-1');
+    const registered = registerCrisisForce(state, {
+      id: 'stampede-1', targetCivId: 'player', severity: resolveCrisisForceSeverity(state, 'player'),
+      createdTurn: state.turn, unitIds: ['crisis-1'],
+    });
+    registered.civilizations['player-2'].challenge = 'standard';
+
+    expect(registered.crisisForces?.['stampede-1']?.severity).toBe('explorer');
+    expect(resolveCrisisForceSeverity(registered, 'player-2')).toBe('standard');
+  });
+
   it('normalizes malformed records deterministically without changing ordinary units', () => {
     const state = createNewGame('rome', 'crisis-force-normalize', 'small');
     state.units['a-crisis'] = makeCrisisUnit('a-crisis');

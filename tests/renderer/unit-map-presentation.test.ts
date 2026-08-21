@@ -141,7 +141,7 @@ describe('unit map presentation', () => {
       'player', { tiles: { '1,1': 'visible' } }, new Set(), null,
     );
 
-    expect(presentation.faction).toBe('beasts');
+    expect(presentation.faction).toBe('crisis');
   });
 
   it('excludes moving and transported units before grouping', () => {
