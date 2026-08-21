@@ -166,6 +166,7 @@ raw stats with that line).
   constraint (§5), not a production-time one; these are deliberately
   independent gates.
 - `terminalReason: 'Airborne specialist — the paradrop capability stays relevant without a further upgrade tier.'` — no `upgradesTo`, no `obsoletedByTech`. Its value is the verb, not the stat curve, matching the precedent set by `mobile_aa`/`anti_tank_gun` as terminal specialists.
+- **Era-relevance risk, called out explicitly rather than left implicit**: `infantry` climbs to `mechanized_infantry` (61) then `exosuit_infantry` (70) as tech advances, while Paratrooper stays fixed at 50 forever. `mobile_aa`/`anti_tank_gun` stay relevant despite being terminal because their *role* (anti-armor, air-defense) is structurally needed at every era; a Paratrooper's role (the drop) is what stays relevant, not its stand-up-fight stats. Two concrete consequences, both required: (1) `UNIT_DESCRIPTIONS` copy must frame it as a situational specialist to deploy for a drop, not a standing-army pick — content-description-honesty applies here (don't oversell late-game combat viability); (2) AI production scoring (`ai-production.ts`) must weight it against a live paradrop opportunity (a reachable objective, a threatened city to reinforce), not train it as a generic frontline filler once eras have moved past it — see §12's AI section and the balance test in §20.
 - New capability field on `UnitDefinition`:
   ```ts
   paradrop?: { range: number; baseKinds: Array<'airfield'> };
@@ -175,6 +176,14 @@ raw stats with that line).
   aircraft, has no `airBase`, does not consume an airfield roster slot, and
   has no `ferryRange`/`missions`/`carrierEligible`. Reusing `airOperation`
   for a land unit would be a type-level lie about what it is.
+  `baseKinds` is deliberately array-shaped (not a single literal) even
+  though only `'airfield'` is valid today — this is the same extension
+  point `airOperation.baseKinds` already provides, so a future launch
+  point (e.g. a dedicated forward-operations building) is a data change,
+  not an architecture change.
+  `range: 4` is a **starting balance number, not a final one** — see §20
+  (Balance & Playtesting), which requires representative-situation testing
+  before this ships as fixed.
 - End-to-end wiring (per `.claude/rules/end-to-end-wiring.md`'s trainable-unit
   checklist, verified against the *current* file at implementation time, not
   assumed from this doc): `TRAINABLE_UNITS`, `UNIT_DEFINITIONS` +
@@ -204,6 +213,22 @@ every other verb in this codebase:
   relocates and applies the landing lockout (§7). Returns a structured
   result mirroring `AirStrikeResult`'s shape (`{ok, state, flak?, interception?}`)
   so callers can present what happened.
+- **Structured failure reasons, required.** `canParadrop` returns a typed
+  union mirroring `TransportFailureReason`/movement's blocker-code pattern —
+  not a bare boolean:
+  ```ts
+  type ParadropFailureReason =
+    | 'not-airborne-unit' | 'no-launch-base' | 'already-acted'
+    | 'out-of-range' | 'unexplored' | 'impassable-terrain'
+    | 'destination-occupied' | 'foreign-city';
+  ```
+  Each reason maps to a player-facing message the same way
+  `BLOCKING_MAP_ENTITY_MESSAGES` does for movement. This is not optional
+  polish: `end-to-end-wiring.md` requires movement-style failures to
+  return a structured reason so UI, AI, and automation callers can avoid
+  animating or treating a rejected drop as successful — a bare `ok:false`
+  with no reason would violate that rule the same way an unstructured
+  movement failure would.
 
 ### Launch requirement
 
@@ -269,7 +294,10 @@ enemy fighter on `intercept` stance in range of the landing tile,
 interceptor selection (matches existing behavior — a hidden fighter can
 ambush a drop with no preview warning, same as it already can against a
 striker). If the paratrooper doesn't survive, no relocation happens. No new
-airborne-defense system — this is a straight reuse.
+airborne-defense system — this is a straight reuse. Hostility is
+`isHostileOwnerTo` — the same predicate `selectInterceptor` already uses;
+§9's flak check uses the identical predicate rather than inventing a second
+hostility rule (see §9).
 
 Because `buildCombatContextForDefender`'s existing air-defense-coverage hook
 computes coverage for whichever unit is passed as `defender`, the
@@ -291,7 +319,15 @@ here so a future reader sees the decision was deliberate.
   scans **hostile** civs' Mobile AA / AA Battery / SAM Site coverage of the
   landing tile instead of the defender's own civ's coverage — the query
   direction flips, the provider/stacking-group-dedup machinery does not
-  change.
+  change. "Hostile" here is `isHostileOwnerTo(state, droppingUnit.owner, providerOwnerId)`
+  — the exact predicate `selectInterceptor` already uses (§8) — deliberately
+  the same rule, not a second hostility definition living in a different
+  file with different edge cases (e.g. barbarian handling).
+- **Regression requirement**: adding this function must not change
+  `resolveAirStrike`'s existing behavior. `providersFor` (the
+  own-civ-coverage path used today) is untouched by this addition — add an
+  explicit test asserting a friendly bomber's existing AA-coverage bonus
+  near its own SAM site is byte-identical before and after this change.
 - **Effect: deterministic chip damage, not a kill roll.** If the landing
   tile falls under hostile AA coverage, the paratrooper takes flat HP damage
   equal to the strongest applicable provider's `defenseModifier` (8 for
@@ -330,6 +366,22 @@ flow the existing `air-mission` intent already uses):
 - No leak of undiscovered interceptors or undiscovered AA — consistent with
   how `air-mission` targeting already withholds that information today.
 
+**Accessibility (players from ~7 to 43, per the game's stated mobile-first,
+all-ages audience):**
+- Plain-language copy alongside any jargon term. "Flak" and "SAM Site" are
+  not universally known vocabulary — the preview/notification text must
+  read like `"Anti-aircraft fire nearby (SAM Site) — expect -12 HP on
+  landing"`, not a bare `"Flak: -12"`. This is a content-description-honesty
+  concern as much as an accessibility one: the plain-language clause must
+  still be mechanically accurate, not simplified into something untrue.
+- Risk indicators (safe target / flak risk / interceptor risk / both) must
+  be distinguishable by icon or label text, not color alone — a color-only
+  highlight overlay fails colorblind players and isn't legible to a young
+  reader who hasn't learned "red means danger" conventions from other UI in
+  this game yet. Reuses the existing highlight-type pattern
+  (`'air-strike'`, `'air-recon'`) which already carries a `type` a renderer
+  can key an icon off of, not just a fill color.
+
 ## 11. UI
 
 Contextual button in `src/ui/selected-unit-info.ts` beside the existing
@@ -361,7 +413,28 @@ cutting off a retreat. Score should discount for known flak/interceptor
 risk at the destination (using the same discovered-only visibility the
 player preview uses — the AI must not use hidden information to route
 around undiscovered defenses) and for isolation (dropping far from any
-support).
+support). Production scoring (`ai-production.ts`) must weight the
+Paratrooper against a live drop opportunity rather than training it as
+generic frontline filler once its era has passed (§4's era-relevance note).
+
+**Explicit guard, because "make Veteran AI smarter" is an easy place to
+accidentally leak information**: no difficulty tier may grant `rankParadrop`
+or its flak/interceptor risk assessment any visibility beyond what
+`getParadropTargets`/`getKnownAirDefenseProviders` already expose for that
+civ. Difficulty may only change *weights* on already-legal, already-visible
+candidates — never the candidate set or the risk data itself. Add a test
+that asserts Veteran and Explorer AI produce the same *legal target set*
+for an identical fog state, differing only in which legal target scores
+highest.
+
+**Explicitly deferred, not silently absent**: proactive AI defense against
+*enemy* paradrops (e.g. stationing interceptors or building AA specifically
+because a hostile paratrooper was sighted, mirroring the existing
+remembered-submarine-sighting pattern in `ai-tactics.ts`/`ai-production.ts`)
+is out of scope for Phase 1. Existing air-defense/interceptor AI behavior
+already provides some incidental counterplay; a dedicated "remembered
+airborne threat" response is a reasonable Phase 2/3 follow-up once real
+games show whether it's needed.
 
 ## 13. Difficulty
 
@@ -369,7 +442,8 @@ Underlying mechanics (range, legal targets, flak, interception, lockout,
 combat modifiers) are identical across Explorer/Standard/Veteran. Only
 `rankParadrop`'s scoring weights vary by difficulty profile, matching how
 #539's air-mission scoring already varies — Explorer favors conservative,
-low-risk drops; Veteran evaluates flanks/objectives more aggressively.
+low-risk drops; Veteran evaluates flanks/objectives more aggressively. See
+§12's explicit guard against difficulty-based information leaks.
 
 ## 14. Hot-seat / fog / privacy
 
@@ -383,6 +457,14 @@ low-risk drops; Veteran evaluates flanks/objectives more aggressively.
   notified only if the landing tile is visible to them, following the
   existing `notification-delivery` viewer-scoped `deliver(civId, ...)`
   convention — never `showNotification`.
+- **Sharpest concrete case, required as its own test**: Civ A has scouted
+  and discovered a hostile SAM Site covering a tile; Civ B (a different
+  hostile civ, same match, has not discovered that SAM Site) previews the
+  same tile for its own paratrooper and must see *no* flak-risk data for
+  it. This isn't a generalization of the viewer-scoping claim above — it's
+  the literal hot-seat handoff scenario, and #543's fog rules only hold if
+  this specific case is asserted directly rather than inferred from a
+  same-civ test.
 
 ## 15. Save / load
 
@@ -394,7 +476,64 @@ for the remainder of that turn, and cleared correctly on the next real
 turn-reset — tested against the actual turn-reset pipeline, not a hand-set
 flag (§7, per the `#542` lesson).
 
-## 16. Helicopter air assault — deferred
+## 16. SFX
+
+Missing from the original issue's own addendum otherwise, so made explicit
+here: the addendum's stated plan is "reuse unit-move + a parachute flavor
+sting later (#427 pattern)" — i.e. ship on the existing move/relocation SFX
+first, add a dedicated parachute-deploy sting as a follow-up rather than
+blocking on new audio. Concretely:
+
+- Successful landing reuses the existing unit-relocation SFX (same as a
+  transport unload) — no new asset required to ship.
+- Interception reuses the existing air-combat SFX path (`resolveAirStrike`'s
+  interception branch already has one) — the paratrooper-as-defender case
+  is not a new sound, it's the same combat resolution.
+- Flak damage reuses the existing unit-damage SFX, not a bespoke one.
+- A dedicated parachute-deploy sting is a later polish pass, not a Phase 1
+  blocker — but the fallback path (playing the generic move SFX when the
+  dedicated one doesn't exist yet) must be the actual code path exercised
+  at launch, not a TODO, per the project's existing era 6-12 SFX-in-progress
+  convention (era-appropriate stings arrive incrementally; missing ones
+  fall back gracefully rather than playing nothing or throwing).
+
+## 17. Balance & Playtesting
+
+The numbers in this spec (`strength: 50`, `productionCost: 210`,
+`paradrop.range: 4`, flak damage `8`/`12`) are starting values, not
+pre-validated final ones — no statistical or representative-situation
+testing has been run yet, and `strategy-game-mechanics.md` requires balance
+tests with statistical sampling for core mechanics, not single hand-picked
+examples. Before this ships, exercise the representative situations #543
+itself lists (unmodified from the issue, since they're still the right
+list): reinforcing a threatened city, dropping behind a frontline, dropping
+near an enemy ranged/artillery unit, dropping near a defended enemy city,
+dropping into known interceptor/flak coverage, an island/chokepoint map, a
+hot-seat game, AI playing offense, AI playing defense. For each, confirm:
+
+- Range 4 is large enough to matter tactically but doesn't make frontlines
+  irrelevant on a typical-sized map (test against the actual map generator's
+  typical city spacing, not an assumption).
+- The landing lockout is real counterplay — a defender given one turn's
+  warning should be able to meaningfully respond in the majority of sampled
+  scenarios, not just occasionally.
+- Paratroopers can't cheaply leapfrog faster than a defender can react by
+  chaining drop → walk-to-city → drop again — this is already turn-gated by
+  the launch requirement (§5), but confirm it holds up under actual AI
+  offensive play, not just by inspection.
+- Flak+interception together meaningfully change drop-survival odds
+  relative to either alone, without making a covered zone effectively
+  undroppable (per §9, the intent is "costly," not "impossible").
+- At era 9 baseline (its own era, full HP, no flak/interception), Paratrooper
+  is neither strictly dominant over Infantry (same cost tier, better
+  utility) nor so weak it's never worth its production cost even for the
+  drop capability alone.
+
+If any of these come back wrong, the fix is a number change in this spec
+(documented with the observed data) before implementation, or a follow-up
+balance PR after — not a silent tuning decision buried in code.
+
+## 18. Helicopter air assault — deferred
 
 Not implemented in this pass. §2.2 and §2.6 give the concrete evidence:
 `isTransport`/`isCoastalLandDestination` are naval/coastal-specific, and
@@ -409,7 +548,7 @@ every purpose except the drop itself). Tracked as a Phase 2 follow-up under
 #543 once this Phase 1 ships and its interception/flak/AI patterns have
 proven out in practice.
 
-## 17. Transport plane — deferred
+## 19. Transport plane — deferred
 
 Not added. City/airfield-based drops (§5) cover the mechanic without a new
 unit, new escort logic, cargo lifecycle, AI basing logic, or sprite/SFX
@@ -417,11 +556,12 @@ work. Documented here as a future range-extender if a later audit shows
 airfield-only launch points are insufficiently flexible — no evidence for
 that exists today.
 
-## 18. Test matrix (see also #543's own exhaustive list — this is the subset with any Phase-1-specific nuance)
+## 20. Test matrix (see also #543's own exhaustive list — this is the subset with any Phase-1-specific nuance)
 
 - **Eligibility**: non-Paratrooper cannot paradrop; wrong-tech civ cannot
   train or use one; unit not standing in an airfield city is rejected; unit
-  that has already acted is rejected.
+  that has already acted is rejected. Each rejection asserts the specific
+  `ParadropFailureReason` (§5), not just `ok:false`.
 - **Range**: in-range legal, out-of-range rejected, map-wrap distance
   correct.
 - **Fog**: visible destination allowed; unseen destination rejected without
@@ -437,27 +577,43 @@ that exists today.
   applies at resolution with no preview leak; stacking-group dedup (SAM +
   Mobile AA in range applies only the SAM's 12, not both); flak+interception
   sequencing (damage first, then combat); friendly AA still helps the
-  paratrooper in the interception step unchanged from #539.
+  paratrooper in the interception step unchanged from #539; **existing
+  `resolveAirStrike` own-civ AA-coverage behavior is unchanged by adding
+  `getHostileAirDefenseThreat`** (regression, explicit — see §9).
 - **AI**: considers legal paradrops only; never targets hidden tiles; avoids
   drops into known-lethal flak+interceptor combinations at Standard/Veteran;
-  difficulty changes preference, not legality.
+  difficulty changes preference, not legality; **Veteran and Explorer AI
+  produce the identical legal-target set under identical fog, differing
+  only in which target scores highest** (§12's difficulty-leak guard,
+  explicit); production scoring doesn't train Paratroopers as generic
+  filler once no live drop opportunity exists.
 - **Hot-seat**: overlays/preview data isolated per seat; handoff clears
-  pending intent; notifications viewer-scoped.
+  pending intent; notifications viewer-scoped; **Civ A's discovered-SAM
+  flak preview is invisible to Civ B previewing the same tile** (§14,
+  explicit two-civ case, not inferred from a same-civ test).
 - **Save**: post-drop state round-trips; lockout persists correctly through
   a save/load inside the same turn; clears correctly the turn after.
+- **SFX**: landing/interception/flak play through existing move/combat/damage
+  SFX paths; missing dedicated parachute sting falls back to the generic
+  move SFX rather than silence or a thrown error (§16).
+- **Balance**: statistical/representative-situation coverage per §17 — not
+  a single hand-picked example.
 - **Regression**: ordinary movement, air rebase, #539 interception, #540
   transport/amphibious, ZOC/attack legality all unchanged.
 
-## 19. Phasing
+## 21. Phasing
 
 - **Phase 1** (this spec): Paratrooper unit end-to-end wiring, canonical
-  `airborne-system.ts` validator/executor, launch/range/fog/occupancy/
-  city-tile legality, landing lockout, interception reuse, flak (new,
-  §9), player UI, AI candidate + execution, difficulty scoring, hot-seat/
-  save regression coverage, content-description honesty pass on any new
-  tech/unit copy.
+  `airborne-system.ts` validator/executor with structured failure reasons,
+  launch/range/fog/occupancy/city-tile legality, landing lockout,
+  interception reuse, flak (new, §9), accessible player UI (plain-language
+  copy, icon/text risk indicators), SFX reuse with fallback (§16), AI
+  candidate + execution with the difficulty-leak guard (§12), hot-seat/
+  save regression coverage including the two-civ discovery-isolation case
+  (§14), balance/statistical validation (§17), content-description honesty
+  pass on any new tech/unit copy.
 - **Phase 2** (separate follow-up issue under #543, not started): helicopter
-  air assault, scoped per §16 once a fresh audit of the Phase 1 patterns
+  air assault, scoped per §18 once a fresh audit of the Phase 1 patterns
   (especially flak/interception sequencing) is available to build on.
 
 Nothing player-reachable ships until execution, UI, AI legality, fog, the
