@@ -11,7 +11,7 @@ import type {
   UnitType,
 } from '@/core/types';
 import { createEmptyOpponentAIState } from '@/core/opponent-ai-state';
-import { OPPONENT_CHALLENGE_PROFILES, resolveOpponentChallenge, resolvePressureSeverityForCiv } from '@/core/opponent-challenge';
+import { OPPONENT_CHALLENGE_PROFILES, resolvePressureSeverityForCiv } from '@/core/opponent-challenge';
 import { canAttackByProfileOnMap } from './attack-targeting';
 import {
   hexKey,
@@ -209,6 +209,7 @@ export interface PurposefulBarbarianProcessResult extends BarbarianProcessResult
 
 const BARBARIAN_SENSE_RADIUS = 7;
 const BARBARIAN_DEFENSE_RADIUS = 4;
+const MAX_BARBARIAN_CAMP_STRENGTH = 10;
 
 function barbarianDistance(state: GameState, a: HexCoord, b: HexCoord): number {
   return mapDistance(state.map, a, b);
@@ -267,6 +268,13 @@ function makeBarbarianPlan(
     requiredRoles: { frontline: 1 },
     assignedUnitIds,
   };
+}
+
+function planTargetOwnerId(state: GameState, plan: AIStrategicPlan): string | undefined {
+  if (plan.target.kind === 'unit') return state.units[plan.target.id]?.owner;
+  if (plan.target.kind === 'city') return state.cities[plan.target.id]?.owner;
+  if (plan.target.kind === 'resource') return state.map.tiles[hexKey(plan.target.position)]?.owner ?? undefined;
+  return undefined;
 }
 
 function chooseStepToward(
@@ -347,7 +355,6 @@ export function processPurposefulBarbarians(state: GameState): PurposefulBarbari
   const cityAttackOrders: BarbarianCityAttackOrder[] = [];
   const pillageOrders: BarbarianPillageOrder[] = [];
   let observationState = state;
-  const defaultProfile = OPPONENT_CHALLENGE_PROFILES[resolveOpponentChallenge(state)];
 
   for (const camp of camps) {
     const assigned = barbarianUnits.filter(unit =>
@@ -363,7 +370,7 @@ export function processPurposefulBarbarians(state: GameState): PurposefulBarbari
         || a.id.localeCompare(b.id));
     observationState = observeCampPressureFromSensedUnits(observationState, camp.id, sensedUnits);
     const spawn = campTick.spawnedUnits.find(candidate => candidate.campId === camp.id);
-    if (spawn) {
+    if (spawn && assigned.length < Math.min(camp.strength, MAX_BARBARIAN_CAMP_STRENGTH)) {
       const occupied = new Set(Object.values(state.units)
         .filter(unit => !unit.transportId)
         .map(unit => hexKey(unit.position)));
@@ -474,9 +481,15 @@ export function processPurposefulBarbarians(state: GameState): PurposefulBarbari
     // raids over chasing a lone worker/caravan; player-side pillage rules never
     // change by difficulty — only this raid-target preference does.
     if (!plan) {
-      plan = defaultProfile.pillageAggressivenessMultiplier > 1
-        ? (tryRaidResourcePlan() ?? tryRaidUnitPlan())
-        : (tryRaidUnitPlan() ?? tryRaidResourcePlan());
+      const unitRaidPlan = tryRaidUnitPlan();
+      const resourceRaidPlan = tryRaidResourcePlan();
+      const resourceOwnerId = resourceRaidPlan && planTargetOwnerId(state, resourceRaidPlan);
+      const resourceProfile = OPPONENT_CHALLENGE_PROFILES[resourceOwnerId
+        ? resolvePressureSeverityForCiv(state, resourceOwnerId)
+        : 'standard'];
+      plan = resourceProfile.pillageAggressivenessMultiplier > 1
+        ? (resourceRaidPlan ?? unitRaidPlan)
+        : (unitRaidPlan ?? resourceRaidPlan);
     }
 
     if (!plan) {
@@ -535,16 +548,10 @@ export function processPurposefulBarbarians(state: GameState): PurposefulBarbari
     plan = { ...plan, assignedUnitIds: assignedIds };
     opponentAI.barbarianCamps[camp.id] = plan;
 
-    const planTargetOwnerId = plan.target.kind === 'unit'
-      ? state.units[plan.target.id]?.owner
-      : plan.target.kind === 'city'
-        ? state.cities[plan.target.id]?.owner
-        : plan.target.kind === 'resource'
-          ? state.map.tiles[hexKey(plan.target.position)]?.owner
-          : undefined;
-    const profile = OPPONENT_CHALLENGE_PROFILES[planTargetOwnerId
-      ? resolvePressureSeverityForCiv(state, planTargetOwnerId)
-      : resolveOpponentChallenge(state)];
+    const targetOwnerIdForProfile = planTargetOwnerId(state, plan);
+    const profile = OPPONENT_CHALLENGE_PROFILES[targetOwnerIdForProfile
+      ? resolvePressureSeverityForCiv(state, targetOwnerIdForProfile)
+      : 'standard'];
 
     for (const unit of assigned) {
       if (unit.movementPointsLeft <= 0 || unit.hasActed) continue;
@@ -632,7 +639,7 @@ export function processBarbarians(
       updatedCamps.push({
         ...camp,
         spawnCooldown: 4 + Math.floor(rng() * 3),
-        strength: camp.strength + 1,
+        strength: Math.min(MAX_BARBARIAN_CAMP_STRENGTH, camp.strength + 1),
       });
     } else {
       updatedCamps.push({ ...camp, spawnCooldown: newCooldown });
