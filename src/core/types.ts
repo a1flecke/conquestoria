@@ -542,6 +542,14 @@ export interface Unit {
   revealedThisTurn?: boolean;
 }
 
+export interface CrisisForce {
+  id: string;
+  targetCivId: string;
+  unitIds: string[];
+  createdTurn: number;
+  severity: OpponentChallenge;
+}
+
 // --- Cities ---
 
 export type BuildingCategory = 'production' | 'food' | 'science' | 'economy' | 'military' | 'culture' | 'espionage';
@@ -1820,6 +1828,8 @@ export interface GameState {
   mapScript?: MapScript;  // undefined on old saves → treat as 'procedural'
   startPlacementMode?: StartPlacementMode;
   activeCrises?: Record<string, ActiveCrisis>;
+  /** Non-diplomatic world-pressure actors; normalized on load. */
+  crisisForces?: Record<string, CrisisForce>;
   reconReveals?: ReconReveal[];
   // #591 MR4: religion core. Optional -- absent on legacy saves and the many minimal
   // literal-GameState test fixtures across this codebase (same convention as
