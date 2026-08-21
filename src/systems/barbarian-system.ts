@@ -642,7 +642,11 @@ export function processBarbarians(
         strength: Math.min(MAX_BARBARIAN_CAMP_STRENGTH, camp.strength + 1),
       });
     } else {
-      updatedCamps.push({ ...camp, spawnCooldown: newCooldown });
+      updatedCamps.push({
+        ...camp,
+        strength: Math.min(MAX_BARBARIAN_CAMP_STRENGTH, camp.strength),
+        spawnCooldown: newCooldown,
+      });
     }
   }
 

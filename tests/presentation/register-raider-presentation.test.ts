@@ -16,7 +16,7 @@ describe('raider presentation', () => {
     const bus = new EventBus();
     const ctx = makePresentationContext({
       state: {
-        units: { 'unit-1': { position: { q: 0, r: 0 } } } as never,
+        units: { 'unit-1': { position: { q: 0, r: 0 }, type: 'mechanized_infantry' } } as never,
         civilizations: { p1: { visibility: { tiles: { '0,0': 'visible' } } } } as never,
       },
     });
@@ -26,7 +26,7 @@ describe('raider presentation', () => {
     bus.emit('barbarian:spawned', { campId: 'camp-1', unitId: 'unit-1' });
 
     expect(ctx.deliver).toHaveBeenCalledTimes(1);
-    expect(ctx.deliver).toHaveBeenCalledWith('p1', expect.stringContaining('spotted'), 'warning', expect.anything());
+    expect(ctx.deliver).toHaveBeenCalledWith('p1', expect.stringContaining('Mechanized Infantry'), 'warning', expect.anything());
   });
 
   it('warns a civ of ordinary barbarian resurgence', () => {

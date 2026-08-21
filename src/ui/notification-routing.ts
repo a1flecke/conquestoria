@@ -1,4 +1,4 @@
-import type { CombatModifierFact, CombatResult, CombatRewardNotification, GameEvents, GameState, ProductionDropReason, SpyMissionType, TreatyType } from '@/core/types';
+import type { CombatModifierFact, CombatResult, CombatRewardNotification, GameEvents, GameState, ProductionDropReason, SpyMissionType, TreatyType, UnitType } from '@/core/types';
 import type { CombatNotificationDetails } from '@/core/notification-log';
 import { hexKey } from '@/systems/hex-utils';
 import { getImprovementDisplayName } from '@/systems/improvement-system';
@@ -423,10 +423,12 @@ export function routeBarbarianSpawned(
   state: GameState,
   unitPosition: { q: number; r: number },
   campId: string,
+  unitType: UnitType | undefined,
   alreadyNotifiedPerCiv: Map<string, Set<string>>,
   sink: NotificationSink,
   isVisible: (vis: unknown, pos: { q: number; r: number }) => boolean,
 ): void {
+  const unitName = unitType ? UNIT_DEFINITIONS[unitType]?.name ?? 'raiders' : 'raiders';
   for (const [civId, civ] of Object.entries(state.civilizations)) {
     const vis = civ?.visibility;
     if (!vis) continue;
@@ -435,10 +437,10 @@ export function routeBarbarianSpawned(
     if (seen.has(campId)) continue;
     seen.add(campId);
     alreadyNotifiedPerCiv.set(civId, seen);
-    sink(civId, 'Barbarian raiders spotted!', 'warning', {
+    sink(civId, `Barbarian ${unitName} spotted!`, 'warning', {
       kind: 'map',
       coord: { ...unitPosition },
-      label: 'Barbarian raiders',
+      label: `Barbarian ${unitName}`,
     });
   }
 }

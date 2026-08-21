@@ -146,6 +146,20 @@ describe('destroyCamp', () => {
   });
 });
 
+describe('barbarian camp strength normalization', () => {
+  it('clamps a legacy camp above the active-force ceiling even when it is not due', () => {
+    const map = generateMap(12, 12, 'legacy-barbarian-strength');
+    const result = processBarbarians([
+      { id: 'legacy-camp', position: { q: 3, r: 3 }, strength: 13, spawnCooldown: 2 },
+    ], map, [], 17);
+
+    expect(result.spawnedUnits).toEqual([]);
+    expect(result.updatedCamps).toEqual([
+      expect.objectContaining({ id: 'legacy-camp', strength: 10, spawnCooldown: 1 }),
+    ]);
+  });
+});
+
 describe('processBarbarians', () => {
   it('decrements spawn cooldown', () => {
     const camp: BarbarianCamp = {

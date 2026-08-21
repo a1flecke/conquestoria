@@ -20,6 +20,7 @@ export const registerRaiderPresentation: PresentationRegistrar = (bus, ctx) => {
         ctx.session.getState(),
         unit.position,
         campId,
+        unit.type,
         notifiedBarbarianCampsPerCiv,
         ctx.notifier.deliver,
         (vis, pos) => isVisible(vis as Parameters<typeof isVisible>[0], pos),
