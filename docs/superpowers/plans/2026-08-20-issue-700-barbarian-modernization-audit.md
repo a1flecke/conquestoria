@@ -10,7 +10,7 @@
 
 ---
 
-### Task 1: Lock the bounded camp-force contract
+### Task 1: Lock the bounded camp-force contract — ✅ locally complete
 
 **Files:**
 - Modify: `tests/systems/barbarian-system.test.ts`
@@ -22,7 +22,7 @@
 - [ ] Add a two-camp fixture proving each camp independently respects its own cap and neither camp's units count toward the other's force.
 - [ ] Re-run the focused test and commit with `fix(700): bound barbarian camp force growth`.
 
-### Task 2: Make difficulty selection target-scoped
+### Task 2: Make difficulty selection target-scoped — ✅ locally complete
 
 **Files:**
 - Modify: `tests/systems/barbarian-system.test.ts`
@@ -35,7 +35,7 @@
 - [ ] Through `processTurn()`, prove spawned type legality is identical for Explorer, Standard, and Veteran while the expected raid-plan preference can differ.
 - [ ] Re-run focused tests and commit with `fix(700): scope barbarian decisions to target challenge`.
 
-### Task 3: Complete the deterministic balance matrix
+### Task 3: Complete the deterministic balance matrix — ✅ locally complete
 
 **Files:**
 - Modify: `tests/systems/barbarian-force-composer.test.ts`
@@ -47,7 +47,7 @@
 - [ ] Add lifecycle fixtures for due/non-due cooldowns, blocked spawn tiles, impassable tiles, strength cap, no legal candidate, and exact camp-home mapping after `processTurn()` creates the unit.
 - [ ] Run `scripts/check-src-rule-violations.sh src/systems/barbarian-system.ts` and `bash scripts/run-with-mise.sh yarn test --run tests/systems/barbarian-force-composer.test.ts tests/systems/barbarian-pressure.test.ts tests/systems/barbarian-system.test.ts tests/core/turn-manager.test.ts`; commit with `test(700): audit barbarian balance and parity`.
 
-### Task 4: Prove load and presentation safety
+### Task 4: Prove load and presentation safety — ✅ locally complete
 
 **Files:**
 - Modify: `tests/storage/save-migrations.test.ts`
@@ -60,7 +60,7 @@
 - [ ] Extend the existing notification-volume simulation only if barbarian spawn routing changes; preserve its three-notification-per-turn upper bound.
 - [ ] Run the storage, presentation, routing, and notification-volume tests; commit with `test(700): cover saves and safe barbarian presentation`.
 
-### Task 5: Sync the delivery record and verify
+### Task 5: Sync the delivery record and verify — ✅ locally complete
 
 **Files:**
 - Modify: `docs/superpowers/plans/2026-08-20-issue-700-barbarian-modernization-audit.md`
@@ -72,6 +72,8 @@
 - [ ] Commit plan-status synchronization with `docs(700): record barbarian audit completion`.
 
 ## Plan self-review
+
+**Status:** Tasks 1–5 are complete locally. The focused audit suite, production build, and durable full suite passed on this branch; PR publication remains outstanding.
 
 - The cap task owns the new bounded-force behavior; it does not change unit legality.
 - The target-profile task resolves the review finding without leaking target state into the composer.
