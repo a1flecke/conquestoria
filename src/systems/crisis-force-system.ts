@@ -21,6 +21,7 @@ function normalizeForce(
 ): CrisisForce | null {
   if (!candidate || typeof candidate !== 'object' || Array.isArray(candidate)) return null;
   const record = candidate as Partial<CrisisForce>;
+  const createdTurn = Number(record.createdTurn);
   if (
     record.id !== recordId
     || !recordId
@@ -29,7 +30,7 @@ function normalizeForce(
     || !state.civilizations[record.targetCivId]
     || state.civilizations[record.targetCivId].isEliminated
     || !isValidSeverity(record.severity)
-    || !Number.isInteger(record.createdTurn)
+    || !Number.isInteger(createdTurn)
     || !Array.isArray(record.unitIds)
   ) return null;
 
@@ -43,7 +44,7 @@ function normalizeForce(
     id: recordId,
     targetCivId: record.targetCivId,
     unitIds,
-    createdTurn: record.createdTurn,
+    createdTurn,
     severity: record.severity,
   };
 }

@@ -12,8 +12,26 @@ import { getTradeUnitTripBonus, canEstablishRoute } from '@/systems/trade-system
 import { applyUnitUpgradeToState } from '@/systems/unit-upgrade-system';
 import { foundCity } from '@/systems/city-system';
 import { processPurposefulBarbarians } from '@/systems/barbarian-system';
+import { CRISIS_FORCE_OWNER } from '@/core/owner-kind';
 
 describe('save migrations', () => {
+  it('#701 initializes and normalizes crisis-force records idempotently', () => {
+    const save = createNewGame('rome', 'crisis-force-migration', 'small');
+    save.saveSchemaVersion = 14;
+    const crisisUnit = { ...Object.values(save.units)[0]!, id: 'orphan-crisis', owner: CRISIS_FORCE_OWNER };
+    save.units['orphan-crisis'] = crisisUnit;
+    save.crisisForces = {
+      invalid: { id: 'invalid', targetCivId: 'missing', severity: 'standard', createdTurn: 1, unitIds: ['orphan-crisis'] },
+    };
+
+    const migrated = migrateSaveToCurrent(save);
+
+    expect(migrated.saveSchemaVersion).toBe(15);
+    expect(migrated.crisisForces).toEqual({});
+    expect(migrated.units['orphan-crisis']).toBeUndefined();
+    expect(migrateSaveToCurrent(migrated)).toEqual(migrated);
+  });
+
   it('#698 migrates camp pressure, rejects malformed facts, and remains idempotent', () => {
     const save = createNewGame('rome', 'camp-pressure-migration', 'small');
     save.turn = 9;
@@ -28,7 +46,7 @@ describe('save migrations', () => {
 
     const migrated = migrateSaveToCurrent(save);
 
-    expect(migrated.saveSchemaVersion).toBe(14);
+    expect(migrated.saveSchemaVersion).toBe(CURRENT_SAVE_SCHEMA_VERSION);
     expect(migrated.barbarianCampPressure).toEqual({ 'camp-a': { armorLastObservedTurn: 4 } });
     expect(migrateSaveToCurrent(migrated)).toEqual(migrated);
   });

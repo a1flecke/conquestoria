@@ -16,8 +16,9 @@ import { syncTransportCargoPositions } from '@/systems/transport-system';
 import { IMPROVEMENT_BUILD_TURNS } from '@/systems/improvement-system';
 import type { ImprovementType } from '@/core/types';
 import { normalizeBarbarianCampPressure } from '@/systems/barbarian-pressure';
+import { normalizeCrisisForces } from '@/systems/crisis-force-system';
 
-export const CURRENT_SAVE_SCHEMA_VERSION = 14;
+export const CURRENT_SAVE_SCHEMA_VERSION = 15;
 
 export type SaveMigration = (state: GameState) => GameState;
 
@@ -724,6 +725,7 @@ export const SAVE_MIGRATIONS: Readonly<Record<number, SaveMigration>> = {
   12: migrateLegacyMainFixups,
   13: normalizeCoastalBatteryCounterfireTurns,
   14: migrateBarbarianCampPressure,
+  15: state => normalizeCrisisForces({ ...state, crisisForces: state.crisisForces ?? {} }),
 };
 
 function readSchemaVersion(raw: Record<string, unknown>): number {
