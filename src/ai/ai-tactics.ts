@@ -73,6 +73,8 @@ import { findFortificationCandidate } from '@/systems/fortification-system';
 import { getAIStrategicRoles, hasAICombatRole } from './ai-unit-roles';
 import { isAIHostileOwner } from './ai-hostility';
 import { getLegalRebaseDestinations, resolveAirStrike, resolveReconMission, rebaseAircraft, startIntercept } from '@/systems/air-operations-system';
+import { getParadropTargets, canParadrop, executeParadrop } from '@/systems/airborne-system';
+import { getKnownHostileAirDefenseThreat } from '@/systems/air-defense-system';
 import { resolveCombatEra } from '@/systems/era-resolution';
 import { resolveNavalCityBombardment } from '@/systems/naval-city-bombardment-system';
 import { applyCampDestructionAtTarget } from '@/systems/barbarian-system';
@@ -94,6 +96,7 @@ export type AITacticalAction =
   | { kind: 'worker-action'; unitId: string; action: WorkerActionType }
   | { kind: 'load'; unitId: string; transportId: string }
   | { kind: 'unload'; unitId: string; destination: HexCoord }
+  | { kind: 'paradrop'; unitId: string; destination: HexCoord }
   | { kind: 'rest'; unitId: string }
   | { kind: 'hold'; unitId: string };
 
@@ -159,6 +162,7 @@ function actionId(action: AITacticalAction): string {
     case 'withdraw':
     case 'found-city':
     case 'unload':
+    case 'paradrop':
       return `${action.kind}:${action.unitId}:${hexKey(action.destination)}`;
     case 'worker-action':
       return `worker-action:${action.unitId}:${action.action}`;
@@ -442,6 +446,26 @@ function rankAirSupport(
     actions.push(ranked({ kind: 'air-rebase', unitId: unit.id, base: destination }, 300));
   }
   return actions;
+}
+
+function rankParadrop(
+  context: AITacticalContext,
+  unit: Unit,
+): RankedAITacticalAction[] {
+  if (!UNIT_DEFINITIONS[unit.type].paradrop || unit.hasActed) return [];
+  const targets = getParadropTargets(context.state, unit.id);
+  return targets.map(destination => {
+    const threat = getKnownHostileAirDefenseThreat(context.state, unit, destination, context.actorId);
+    const objectiveDistance = distance(context.state, destination, targetPosition(context.plan));
+    // Base score below the mandatory-tier attack/capture actions elsewhere in
+    // this file (those score 600+); paradrop is a repositioning tool, scored
+    // like rankAirSupport's 300-460 band, discounted by known flak risk and
+    // by distance from the current strategic objective so isolated drops with
+    // no supporting plan don't outscore a normal advance.
+    const riskDiscount = threat.flatDefenseModifier * 4;
+    const objectiveBonus = Math.max(0, 40 - objectiveDistance * 5);
+    return ranked({ kind: 'paradrop', unitId: unit.id, destination }, Math.max(0, 320 + objectiveBonus - riskDiscount));
+  }).filter(candidate => candidate.action.kind === 'paradrop' && canParadrop(context.state, unit.id, candidate.action.destination).ok);
 }
 
 function rankCapture(
@@ -875,6 +899,7 @@ export function rankUnitTacticalActions(
     ...rankCivilianAndTransportActions(context, unit),
     ...rankAirStrikes(context, unit),
     ...rankAirSupport(context, unit),
+    ...rankParadrop(context, unit),
     ...rankAttacks(context, unit),
     ...rankCapture(context, unit),
     ...rankCampAssault(context, unit),
@@ -1068,6 +1093,10 @@ function applyPredictedAction(
         action.unitId,
         action.destination,
       );
+      return result.ok ? result.state : next;
+    }
+    case 'paradrop': {
+      const result = executeParadrop(next, action.unitId, action.destination);
       return result.ok ? result.state : next;
     }
     case 'rest':
