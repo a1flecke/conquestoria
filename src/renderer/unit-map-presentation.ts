@@ -94,7 +94,7 @@ function chooseLead(state: GameState, viewerId: string, stack: Unit[], selectedU
 
 function getFaction(state: GameState, ownerId: string): string {
   if (isPirateOwner(ownerId)) return 'pirates';
-  if (isCrisisForceOwner(ownerId)) return 'beasts';
+  if (isCrisisForceOwner(ownerId)) return 'crisis';
   const civilization = state.civilizations?.[ownerId];
   return civilization ? civTypeToFaction(civilization.civType) : ownerId;
 }
