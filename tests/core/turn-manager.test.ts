@@ -108,6 +108,21 @@ describe('processTurn', () => {
     expect(isWithinRangeOfNeuralRehabilitationCenter(next, 'player', city.position, 1)).toBe(true);
     expect(next.units[unitId]!.health).toBe(75);
   });
+  it('clears a submarine\'s revealedThisTurn flag through a real processTurn cycle (#542)', () => {
+    const state = createNewGame('rome', 'submarine-reveal-turn-reset', 'small');
+    const civ = state.civilizations.player;
+    const unitId = civ.units[0]!;
+    state.units[unitId] = {
+      ...state.units[unitId]!,
+      type: 'submarine',
+      revealedThisTurn: true,
+    };
+
+    const next = processTurn(state, new EventBus());
+
+    expect(next.units[unitId]?.revealedThisTurn).toBeUndefined();
+  });
+
   it('heals qualifying armor only in each two-human hot-seat player’s own Tank Depot city', () => {
     const state = createNewGame('rome', 'tank-depot-healing', 'small');
     state.civilizations['ai-1']!.isHuman = true;

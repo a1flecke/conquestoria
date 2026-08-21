@@ -504,6 +504,20 @@ describe('createUnit', () => {
   });
 });
 
+describe('resetUnitTurn (#542 revealedThisTurn clearing)', () => {
+  it('clears revealedThisTurn, matching how skippedTurn and interceptedTurn already clear', () => {
+    const unit = { ...createUnit('submarine', 'p1', { q: 0, r: 0 }, mkC()), revealedThisTurn: true as const };
+
+    expect(resetUnitTurn(unit).revealedThisTurn).toBeUndefined();
+  });
+
+  it('leaves a submarine with no revealedThisTurn set unaffected', () => {
+    const unit = createUnit('submarine', 'p1', { q: 0, r: 0 }, mkC());
+
+    expect(resetUnitTurn(unit).revealedThisTurn).toBeUndefined();
+  });
+});
+
 describe('hostile-only unit definitions', () => {
   function unexpectedUntrainableTypes(
     definitions: Record<string, { productionCost: number }>,

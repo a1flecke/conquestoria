@@ -720,7 +720,10 @@ export function moveUnitWithZoneOfControl(
 }
 
 export function resetUnitTurn(unit: Unit): Unit {
-  const { skippedTurn: _skippedTurn, interceptedTurn: _interceptedTurn, ...rest } = unit;
+  // revealedThisTurn (#542 reveal-on-fire) must clear here alongside skippedTurn/
+  // interceptedTurn -- otherwise a submarine that ever fires once stays permanently
+  // revealed to every civ forever, since nothing else clears the flag.
+  const { skippedTurn: _skippedTurn, interceptedTurn: _interceptedTurn, revealedThisTurn: _revealedThisTurn, ...rest } = unit;
   const base: Unit = {
     ...rest,
     movementPointsLeft: UNIT_DEFINITIONS[unit.type].movementPoints + (unit.movementBonus ?? 0),
