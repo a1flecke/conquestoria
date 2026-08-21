@@ -13,6 +13,7 @@ import {
   healUnit,
   getMovementBlockerReason,
   getMovementCostForUnit,
+  isBlockingCityFor,
 } from '@/systems/unit-system';
 import type { GameMap, GameState } from '@/core/types';
 import { generateMap } from '@/systems/map-generator';
@@ -22,6 +23,36 @@ import { PIRATE_HULL_TYPES } from '@/systems/pirate-definitions';
 import { createNewGame } from '@/core/game-state';
 
 const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
+
+describe('isBlockingCityFor (#543 export for paradrop reuse)', () => {
+  it('blocks a foreign, unallied city', () => {
+    const state = {
+      civilizations: { 'civ-a': { diplomacy: {} }, 'civ-b': { diplomacy: {} } },
+    } as unknown as GameState;
+    const unit = { owner: 'civ-a' } as unknown as import('@/core/types').Unit;
+    const foreignCity = { owner: 'civ-b' } as unknown as import('@/core/types').City;
+    expect(isBlockingCityFor(state, unit, foreignCity)).toBe(true);
+  });
+
+  it('does not block the unit\'s own city', () => {
+    const state = { civilizations: { 'civ-a': { diplomacy: {} } } } as unknown as GameState;
+    const unit = { owner: 'civ-a' } as unknown as import('@/core/types').Unit;
+    const ownCity = { owner: 'civ-a' } as unknown as import('@/core/types').City;
+    expect(isBlockingCityFor(state, unit, ownCity)).toBe(false);
+  });
+
+  it('does not block a foreign city with an active alliance treaty', () => {
+    const state = {
+      civilizations: {
+        'civ-a': { diplomacy: { treaties: [{ type: 'alliance', civA: 'civ-a', civB: 'civ-b' }] } },
+        'civ-b': { diplomacy: {} },
+      },
+    } as unknown as GameState;
+    const unit = { owner: 'civ-a' } as unknown as import('@/core/types').Unit;
+    const alliedCity = { owner: 'civ-b' } as unknown as import('@/core/types').City;
+    expect(isBlockingCityFor(state, unit, alliedCity)).toBe(false);
+  });
+});
 
 describe('Trebuchet catalog contract (#684)', () => {
   it('defines the slow city-focused Era-4 bombard unit', () => {

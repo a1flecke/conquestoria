@@ -91,7 +91,7 @@ function getAirBasePosition(state: GameState, base: AirBaseRef) {
   return base.kind === 'city' ? state.cities[base.cityId]?.position : state.units[base.unitId]?.position;
 }
 
-function getAirBaseKind(state: GameState, base: AirBaseRef) {
+export function getAirBaseKind(state: GameState, base: AirBaseRef): string | undefined {
   if (base.kind === 'carrier') return state.units[base.unitId]?.type === 'carrier' ? 'carrier' : undefined;
   const buildings = state.cities[base.cityId]?.buildings ?? [];
   return ['airfield', 'helicopter_base', 'stealth_airbase'].find(kind => buildings.includes(kind));

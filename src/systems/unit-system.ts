@@ -1150,7 +1150,7 @@ export interface BlockingMapEntity {
   entityId: string;
 }
 
-function isBlockingCityFor(state: GameState, unit: Unit, city: City): boolean {
+export function isBlockingCityFor(state: GameState, unit: Unit, city: City): boolean {
   return city.owner !== unit.owner && !hasAllianceTreaty(state, unit.owner, city.owner);
 }
 
