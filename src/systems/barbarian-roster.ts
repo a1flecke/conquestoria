@@ -41,6 +41,11 @@ export const BARBARIAN_ELIGIBILITY_BY_UNIT = {
   ironclad: exclude('naval'), frigate: exclude('naval'), destroyer: exclude('naval'),
   artillery: exclude('unsupported'), rocket_artillery: exclude('unsupported'),
   infantry: exclude('unsupported'),
+  // Barbarian camps aren't state.cities and never have an Airfield, so a
+  // barbarian-owned Paratrooper would be a permanently-unusable special
+  // ability bolted onto a weaker-than-Infantry unit -- same reasoning as
+  // plain Infantry's exclusion above, not a "modern unit" exclusion.
+  paratrooper: exclude('unsupported'),
   mechanized_infantry: eligible({ min: 10 }, 'frontline', 'uncommon'),
   machine_gunner: eligible({ min: 10 }, 'ranged', 'common'),
   pre_dreadnought: exclude('naval'), battleship: exclude('naval'), missile_cruiser: exclude('naval'),

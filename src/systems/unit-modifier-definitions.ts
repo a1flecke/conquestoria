@@ -44,6 +44,7 @@ export const UNIT_CLASS_BY_TYPE: Record<UnitType, UnitClass[]> = {
   machine_gunner: ['gunpowder'],
   infantry: ['gunpowder'],
   mechanized_infantry: ['gunpowder'],
+  paratrooper: ['gunpowder'],
   pre_dreadnought: ['naval', 'gunpowder'],
   battleship: ['naval', 'ranged'],
   missile_cruiser: ['naval', 'ranged'],
