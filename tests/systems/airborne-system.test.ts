@@ -36,7 +36,9 @@ function makeParadropFixture(): { state: GameState; unitId: string; cityId: stri
     },
     civilizations: {
       'civ-a': {
-        diplomacy: { atWarWith: [] },
+        diplomacy: { atWarWith: [], events: [] },
+        units: ['para-1', 'blocker-1'],
+        techState: { completed: [], currentResearch: null, researchProgress: 0 },
         visibility: {
           tiles: {
             '0,0': 'visible', '1,1': 'visible', '1,0': 'visible',
@@ -45,7 +47,11 @@ function makeParadropFixture(): { state: GameState; unitId: string; cityId: stri
           },
         },
       },
-      'civ-b': { diplomacy: { atWarWith: [] }, visibility: { tiles: {} } },
+      'civ-b': {
+        diplomacy: { atWarWith: [], events: [] }, units: [],
+        techState: { completed: [], currentResearch: null, researchProgress: 0 },
+        visibility: { tiles: {} },
+      },
     },
     map: {
       width: 20, height: 20, wrapsHorizontally: false,
@@ -217,5 +223,175 @@ describe('executeParadrop', () => {
     const resetUnit = nextTurnState.units[paratrooperId]!;
     expect(resetUnit.hasActed).toBe(false);
     expect(resetUnit.movementPointsLeft).toBeGreaterThan(0);
+  });
+});
+
+/** civ-a/civ-b at war, so isHostileOwnerTo(civ-a, civ-b) is true for flak/interception. */
+function makeHostileParadropFixture() {
+  const base = makeParadropFixture();
+  return {
+    ...base,
+    state: {
+      ...base.state,
+      civilizations: {
+        ...base.state.civilizations,
+        'civ-a': { ...base.state.civilizations['civ-a'], diplomacy: { atWarWith: ['civ-b'], events: [] } },
+        'civ-b': { ...base.state.civilizations['civ-b'], diplomacy: { atWarWith: ['civ-a'], events: [] } },
+      },
+    } as unknown as GameState,
+  };
+}
+
+describe('executeParadrop — flak', () => {
+  it('applies deterministic flak damage from a hostile Mobile AA covering the landing tile', () => {
+    const { state, unitId } = makeHostileParadropFixture();
+    // Mobile AA (radius 1, defenseModifier 8) at (2,1) covers the (1,1) landing tile (distance 1).
+    const withAA = {
+      ...state,
+      units: { ...state.units, 'aa-1': { id: 'aa-1', type: 'mobile_aa', owner: 'civ-b', position: { q: 2, r: 1 }, movementPointsLeft: 2, health: 100, experience: 0, hasMoved: false, hasActed: false, isResting: false } },
+      map: { ...state.map, tiles: { ...state.map.tiles, '2,1': tile('grassland') } },
+    } as unknown as GameState;
+
+    const before = withAA.units[unitId]!.health;
+    const result = executeParadrop(withAA, unitId, { q: 1, r: 1 });
+    if (!result.ok) throw new Error('expected ok');
+    expect(result.flak).toEqual({ damage: 8, providerId: expect.any(String), providerLabel: expect.any(String) });
+    expect(result.state.units[unitId]!.health).toBe(before - 8);
+  });
+
+  it('applies no flak when the landing tile has no hostile coverage', () => {
+    const { state, unitId } = makeHostileParadropFixture();
+    const result = executeParadrop(state, unitId, { q: 1, r: 1 });
+    if (!result.ok) throw new Error('expected ok');
+    expect(result.flak).toBeUndefined();
+  });
+
+  it('applies flak from hostile AA the dropping civ has NOT discovered (real effect despite no preview)', () => {
+    const { state, unitId } = makeHostileParadropFixture();
+    const withUndiscoveredAA = {
+      ...state,
+      units: { ...state.units, 'aa-1': { id: 'aa-1', type: 'mobile_aa', owner: 'civ-b', position: { q: 2, r: 1 }, movementPointsLeft: 2, health: 100, experience: 0, hasMoved: false, hasActed: false, isResting: false } },
+      map: { ...state.map, tiles: { ...state.map.tiles, '2,1': tile('grassland') } },
+      civilizations: {
+        ...state.civilizations,
+        'civ-a': { ...(state.civilizations as any)['civ-a'], visibility: { tiles: { '0,0': 'visible', '1,1': 'visible' } } }, // (2,1) not visible -- AA undiscovered
+      },
+    } as unknown as GameState;
+
+    const result = executeParadrop(withUndiscoveredAA, unitId, { q: 1, r: 1 });
+    if (!result.ok) throw new Error('expected ok');
+    expect(result.flak?.damage).toBe(8);
+  });
+
+  it('destroys the paratrooper if flak damage alone reduces health to zero or below', () => {
+    const { state, unitId } = makeHostileParadropFixture();
+    const withAA = {
+      ...state,
+      units: {
+        ...state.units,
+        [unitId]: { ...state.units[unitId]!, health: 5 },
+        'aa-1': { id: 'aa-1', type: 'mobile_aa', owner: 'civ-b', position: { q: 2, r: 1 }, movementPointsLeft: 2, health: 100, experience: 0, hasMoved: false, hasActed: false, isResting: false },
+      },
+      map: { ...state.map, tiles: { ...state.map.tiles, '2,1': tile('grassland') } },
+    } as unknown as GameState;
+
+    const result = executeParadrop(withAA, unitId, { q: 1, r: 1 });
+    if (!result.ok) throw new Error('expected ok');
+    expect(result.state.units[unitId]).toBeUndefined();
+    expect(result.flak?.damage).toBe(8);
+  });
+});
+
+describe('executeParadrop — interception', () => {
+  function withInterceptor(state: GameState, health = 20) {
+    return {
+      ...state,
+      cities: {
+        ...state.cities,
+        'city-2': { ...(state.cities as any)['city-2'], buildings: ['airfield'] },
+      },
+      units: {
+        ...state.units,
+        'interceptor-1': {
+          id: 'interceptor-1', type: 'jet_fighter', owner: 'civ-b', position: { q: 2, r: 0 },
+          movementPointsLeft: 6, health, experience: 0, hasMoved: false, hasActed: false, isResting: false,
+          airBase: { kind: 'city', cityId: 'city-2' }, airMission: 'intercept',
+        },
+      },
+    } as unknown as GameState;
+  }
+
+  it('resolves combat against a known enemy interceptor in range of the landing tile', () => {
+    const { state, unitId } = makeHostileParadropFixture();
+    const result = executeParadrop(withInterceptor(state), unitId, { q: 1, r: 1 });
+    if (!result.ok) throw new Error('expected ok');
+    expect(result.interception).toBeDefined();
+    expect(result.interception!.interceptorId).toBe('interceptor-1');
+  });
+
+  it('resolves combat against a HIDDEN enemy interceptor too (no visibility filter, matches #539)', () => {
+    const { state, unitId } = makeHostileParadropFixture();
+    const hidden = {
+      ...withInterceptor(state),
+      civilizations: { ...state.civilizations, 'civ-a': { ...(state.civilizations as any)['civ-a'], visibility: { tiles: { '0,0': 'visible', '1,1': 'visible' } } } },
+    } as unknown as GameState;
+    const result = executeParadrop(hidden, unitId, { q: 1, r: 1 });
+    if (!result.ok) throw new Error('expected ok');
+    expect(result.interception).toBeDefined();
+  });
+
+  it('is deterministic under a fixed seed (same inputs, same outcome, run twice)', () => {
+    const { state, unitId } = makeHostileParadropFixture();
+    const fixture = withInterceptor(state);
+    const first = executeParadrop(fixture, unitId, { q: 1, r: 1 });
+    const second = executeParadrop(fixture, unitId, { q: 1, r: 1 });
+    expect(first.ok ? first.state.units[unitId]?.health : 'destroyed')
+      .toEqual(second.ok ? second.state.units[unitId]?.health : 'destroyed');
+  });
+
+  it('positions the unit at the destination (not the stale launch tile) before interception combat resolves', () => {
+    // Weak interceptor (20 HP) is heavily favored to lose against a
+    // full-health Paratrooper, so this reliably exercises the surviving
+    // path -- proving the unit's recorded position is the destination
+    // throughout, not the launch city it started at. This is the
+    // observable half of the fix described in executeParadrop's comment:
+    // combat-context.ts looks up "is the defender on a city tile" purely
+    // by defender.position, so if that were still the launch tile when
+    // interception resolves, the paratrooper would be incorrectly treated
+    // as defending inside its own friendly city.
+    const { state, unitId } = makeHostileParadropFixture();
+    const result = executeParadrop(withInterceptor(state, 20), unitId, { q: 1, r: 1 });
+    if (!result.ok) throw new Error('expected ok');
+    const survivor = result.state.units[unitId];
+    expect(survivor).toBeDefined();
+    expect(survivor!.position).toEqual({ q: 1, r: 1 });
+  });
+});
+
+describe('executeParadrop — notifications', () => {
+  it('always logs an outcome notification for the dropping civ', () => {
+    const { state, unitId } = makeParadropFixture();
+    const result = executeParadrop(state, unitId, { q: 1, r: 1 });
+    if (!result.ok) throw new Error('expected ok');
+    const unit = state.units[unitId]!;
+    expect(result.state.notificationLog?.[unit.owner]?.some(n => /landed/i.test(n.message))).toBe(true);
+  });
+
+  it('notifies a hostile civ that can see the landing tile', () => {
+    const { state, unitId } = makeHostileParadropFixture();
+    const withVisibility = {
+      ...state,
+      civilizations: { ...state.civilizations, 'civ-b': { ...(state.civilizations as any)['civ-b'], visibility: { tiles: { '1,1': 'visible' } } } },
+    } as unknown as GameState;
+    const result = executeParadrop(withVisibility, unitId, { q: 1, r: 1 });
+    if (!result.ok) throw new Error('expected ok');
+    expect(result.state.notificationLog?.['civ-b']?.some(n => /paratrooper/i.test(n.message))).toBe(true);
+  });
+
+  it('does NOT notify a hostile civ that cannot see the landing tile', () => {
+    const { state, unitId } = makeHostileParadropFixture();
+    const result = executeParadrop(state, unitId, { q: 1, r: 1 }); // civ-b's visibility.tiles is {} in the base fixture
+    if (!result.ok) throw new Error('expected ok');
+    expect(result.state.notificationLog?.['civ-b'] ?? []).toEqual([]);
   });
 });
