@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { getParadropLaunchState, getParadropTargets, canParadrop } from '@/systems/airborne-system';
+import { getParadropLaunchState, getParadropTargets, canParadrop, executeParadrop } from '@/systems/airborne-system';
+import { createNewGame } from '@/core/game-state';
+import { processTurn } from '@/core/turn-manager';
+import { EventBus } from '@/core/event-bus';
+import { foundCity } from '@/systems/city-system';
+import { hexKey } from '@/systems/hex-utils';
 import type { GameState, Unit } from '@/core/types';
 
 function tile(terrain: string) {
@@ -149,5 +154,68 @@ describe('canParadrop', () => {
   it('rejects the ocean tile with the impassable-terrain reason specifically', () => {
     const { state, unitId } = makeParadropFixture();
     expect(canParadrop(state, unitId, { q: -1, r: 2 })).toEqual({ ok: false, reason: 'impassable-terrain' });
+  });
+});
+
+describe('executeParadrop', () => {
+  it('rejects an illegal destination without mutating state', () => {
+    const { state, unitId } = makeParadropFixture();
+    const result = executeParadrop(state, unitId, { q: 99, r: 99 });
+    expect(result).toEqual({ ok: false, state, reason: 'out-of-range' });
+  });
+
+  it('relocates the unit and applies the landing lockout on success', () => {
+    const { state, unitId } = makeParadropFixture();
+    const result = executeParadrop(state, unitId, { q: 1, r: 1 });
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error('expected ok');
+    const landed = result.state.units[unitId]!;
+    expect(landed.position).toEqual({ q: 1, r: 1 });
+    expect(landed.movementPointsLeft).toBe(0);
+    expect(landed.hasMoved).toBe(true);
+    expect(landed.hasActed).toBe(true);
+  });
+
+  it('does not mutate the input state object', () => {
+    const { state, unitId } = makeParadropFixture();
+    const before = JSON.stringify(state);
+    executeParadrop(state, unitId, { q: 1, r: 1 });
+    expect(JSON.stringify(state)).toBe(before);
+  });
+
+  it('landing lockout clears via real next-turn processing, not a hand-set flag', () => {
+    let state = createNewGame('rome', 'paradrop-lockout-reset');
+    const playerCiv = state.civilizations.player!;
+    const startingUnitId = playerCiv.units[0]!;
+    const startingPosition = state.units[startingUnitId]!.position;
+
+    const city = foundCity('player', startingPosition, state.map, state.idCounters);
+    city.buildings = [...city.buildings, 'airfield'];
+    state.cities[city.id] = city;
+    playerCiv.cities = [city.id];
+    state.map.tiles[hexKey(city.position)]!.owner = 'player';
+    playerCiv.techState.completed = [...playerCiv.techState.completed, 'aviation'];
+
+    const paratrooperId = `unit-${state.idCounters.nextUnitId++}`;
+    state.units[paratrooperId] = {
+      id: paratrooperId, type: 'paratrooper', owner: 'player', position: { ...city.position },
+      movementPointsLeft: 2, health: 100, experience: 0, hasMoved: false, hasActed: false, isResting: false,
+    };
+    playerCiv.units = [...playerCiv.units, paratrooperId];
+
+    const destination = { q: city.position.q + 1, r: city.position.r };
+    state.map.tiles[hexKey(destination)] = { ...state.map.tiles[hexKey(city.position)]!, coord: destination };
+    state.civilizations.player!.visibility.tiles[hexKey(destination)] = 'visible';
+
+    const dropped = executeParadrop(state, paratrooperId, destination);
+    if (!dropped.ok) throw new Error(`expected ok, got reason: ${(dropped as { reason?: string }).reason}`);
+    const landedUnit = dropped.state.units[paratrooperId]!;
+    expect(landedUnit.hasActed).toBe(true);
+    expect(landedUnit.movementPointsLeft).toBe(0);
+
+    const nextTurnState = processTurn(dropped.state, new EventBus());
+    const resetUnit = nextTurnState.units[paratrooperId]!;
+    expect(resetUnit.hasActed).toBe(false);
+    expect(resetUnit.movementPointsLeft).toBeGreaterThan(0);
   });
 });
