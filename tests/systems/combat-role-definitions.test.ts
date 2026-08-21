@@ -18,6 +18,12 @@ describe('combat role definitions', () => {
     }
   });
 
+  it('classifies the Paratrooper as frontline, weaker in a fight than the infantry it deploys alongside (#543)', () => {
+    expect(getUnitRoleDefinition('paratrooper')).toMatchObject({
+      primaryRole: 'frontline',
+    });
+  });
+
   it('keeps counterplay distinct rather than treating every unit as a generalist', () => {
     expect(getUnitRoleDefinition('pikeman')).toMatchObject({
       primaryRole: 'anti-mounted',

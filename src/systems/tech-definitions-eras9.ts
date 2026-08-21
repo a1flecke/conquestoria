@@ -13,7 +13,7 @@ const ERA_9_TECHS: Tech[] = [
   { id: 'air-superiority', name: 'Air Superiority', track: 'military', cost: 275,
     prerequisites: ['aviation', 'general-mobilization'],
     unlocks: ['World War II fighters protect nearby forces and intercept enemy aircraft; anti-aircraft batteries and Mobile AA protect ground forces'],
-    unlocksUnits: ['wwii_fighter', 'mobile_aa', 'air_freighter'],
+    unlocksUnits: ['wwii_fighter', 'mobile_aa', 'air_freighter', 'paratrooper'],
     unlocksBuildings: ['anti_air_battery', 'air_force_command'], era: 9 },
 
   // ECONOMY (2)
