@@ -90,3 +90,21 @@ export function canParadrop(state: GameState, unitId: string, destination: HexCo
   if (!inTargets) return { ok: false, reason: 'out-of-range' };
   return { ok: true };
 }
+
+export type ParadropResult =
+  | { ok: true; state: GameState }
+  | { ok: false; state: GameState; reason: ParadropFailureReason };
+
+export function executeParadrop(state: GameState, unitId: string, destination: HexCoord): ParadropResult {
+  const check = canParadrop(state, unitId, destination);
+  if (!check.ok) return { ok: false, state, reason: check.reason };
+  const unit = state.units[unitId]!;
+  const landedState: GameState = {
+    ...state,
+    units: {
+      ...state.units,
+      [unitId]: { ...unit, position: { ...destination }, movementPointsLeft: 0, hasMoved: true, hasActed: true },
+    },
+  };
+  return { ok: true, state: landedState };
+}
