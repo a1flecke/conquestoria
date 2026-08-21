@@ -68,6 +68,7 @@ export type PendingMapIntent =
   | { readonly kind: 'journey'; readonly unitId: string }
   | { readonly kind: 'air-mission'; readonly unitId: string; readonly mission: 'strike' | 'recon' }
   | { readonly kind: 'unload'; readonly transportId: string; readonly cargoUnitId: string; readonly range: readonly HexCoord[] }
+  | { readonly kind: 'paradrop'; readonly unitId: string }
   | { readonly kind: 'city-capture'; readonly choice: PendingCityCaptureChoice };
 
 /**
