@@ -23,6 +23,12 @@ function makeCrisisUnit(id: string, owner = CRISIS_FORCE_OWNER) {
 }
 
 describe('crisis-force-system', () => {
+  it('leaves saves without crisis state unchanged', () => {
+    const state = createNewGame('rome', 'crisis-force-noop', 'small');
+
+    expect(normalizeCrisisForces(state)).toBe(state);
+  });
+
   it('registers a force with the target personal challenge snapshot', () => {
     const state = createNewGame('rome', 'crisis-force-register', 'small');
     state.civilizations.player.challenge = 'explorer';

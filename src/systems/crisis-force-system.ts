@@ -50,6 +50,10 @@ function normalizeForce(
 }
 
 export function normalizeCrisisForces(state: GameState): GameState {
+  if (
+    state.crisisForces === undefined
+    && !Object.values(state.units).some(unit => unit.owner === CRISIS_FORCE_OWNER)
+  ) return state;
   const claimedUnitIds = new Set<string>();
   const crisisForces: Record<string, CrisisForce> = {};
   const records = state.crisisForces && typeof state.crisisForces === 'object'
