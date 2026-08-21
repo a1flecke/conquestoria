@@ -377,7 +377,8 @@ export type UnitType =
   | 'beast_boar' | 'beast_wolf' | 'beast_basilisk' | 'beast_sea_serpent'
   | 'beast_wurm' | 'beast_roc' | 'beast_hydra' | 'beast_dragon'
   | 'cyber_unit' | 'stealth_bomber'
-  | 'combat_drone' | 'autonomous_frigate' | 'exosuit_infantry' | 'propagandist' | 'drone_controller';
+  | 'combat_drone' | 'autonomous_frigate' | 'exosuit_infantry' | 'propagandist' | 'drone_controller'
+  | 'paratrooper';
 
 /** Declarative composition slot for ordinary barbarian camps. */
 export type BarbarianRoleSlot = 'frontline' | 'ranged' | 'siege' | 'mobile' | 'specialist' | 'anti-air';
@@ -437,6 +438,13 @@ export interface AirOperationDefinition {
   interceptionStrengthMultiplier?: number;
 }
 
+export interface ParadropCapability {
+  /** Hex distance from the launch city, wrap-aware. Not airOperation's operationalRange/ferryRange — a Paratrooper is a land unit, not an aircraft, and doesn't occupy an air-base roster slot. */
+  range: number;
+  /** Building kinds on a friendly city that make it a valid launch point. Reuses AirBaseKind (not narrowed) so a future launch point is a data change, not a type change; only 'airfield' is populated today. */
+  baseKinds: AirBaseKind[];
+}
+
 export type AirDefenseProviderKind = 'building' | 'unit' | 'naval-unit';
 export interface AirDefenseProviderDefinition { id: string; kind: AirDefenseProviderKind; radius: number; defenseModifier: number; stackingGroup: string; label: string; protectedDomains?: Array<'land' | 'naval' | 'air'>; }
 export type AirDefenseProviderCapability = Omit<AirDefenseProviderDefinition, 'id' | 'kind' | 'label'> & {
@@ -464,6 +472,7 @@ export interface UnitDefinition {
   splash?: UnitSplashCapability;
   airInterceptionDefense?: AirInterceptionDefense;
   airOperation?: AirOperationDefinition;
+  paradrop?: ParadropCapability;
   airDefenseProvider?: AirDefenseProviderCapability;
   terrainCostOverrides?: Partial<Record<string, number>>;
   cargoCapacity?: number;

@@ -376,6 +376,14 @@ const UNIT_DEFINITION_BASES: Record<UnitType, UnitDefinitionBase> = {
     attackProfile: { kind: 'ranged', range: 1, targets: ['unit', 'city'] },
     combinedArms: { provides: ['line-infantry'] },
   },
+  paratrooper: {
+    type: 'paratrooper', name: 'Paratrooper', movementPoints: 2,
+    visionRange: 2, strength: 50, canFoundCity: false,
+    canBuildImprovements: false, productionCost: 210,
+    domain: 'land',
+    attackProfile: { kind: 'ranged', range: 1, targets: ['unit', 'city'] },
+    paradrop: { range: 4, baseKinds: ['airfield'] },
+  },
   pre_dreadnought: {
     type: 'pre_dreadnought', name: 'Pre-Dreadnought', movementPoints: 4,
     visionRange: 2, strength: 50, canFoundCity: false,
@@ -844,6 +852,7 @@ export const UNIT_DESCRIPTIONS: Record<UnitType, string> = {
   machine_gunner:  'Tripod-mounted machine gun crew. Suppressive fire from entrenched positions. High ranged strength; beats the rifleman it replaces. Upgrades into modern infantry.',
   infantry: 'Modern line infantry. Ranged attack (range 1) vs units and cities; beats the machine gunner it replaces. Upgrades into Mechanized Infantry.',
   mechanized_infantry: 'Mobile line infantry. Captures and holds ground faster than Infantry; upgrades into Exosuit Infantry.',
+  paratrooper: 'Airborne infantry. Paradrops from a friendly Airfield city onto any visible tile within range, but lands with no movement and cannot act again that turn. Weaker in a stand-up fight than Infantry — its value is repositioning, not raw combat strength. Does not upgrade further.',
   pre_dreadnought: 'Armored steam battleship. Long-range guns (range 2), powerful vs coastal cities and fleets. Replaces the ironclad era of naval warfare.',
   battleship: 'Heavy naval fire support. Deals 20% more attack strength against cities and coastal targets; submarines counter it.',
   missile_cruiser: 'Fast capital fire support that protects nearby ships from aircraft. Requires Carrier Warfare, Radar Systems, and Rocketry; submarines counter it.',

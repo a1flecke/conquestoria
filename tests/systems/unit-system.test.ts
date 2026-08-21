@@ -14,6 +14,7 @@ import {
   getMovementBlockerReason,
   getMovementCostForUnit,
   isBlockingCityFor,
+  UNIT_DESCRIPTIONS,
 } from '@/systems/unit-system';
 import type { GameMap, GameState } from '@/core/types';
 import { generateMap } from '@/systems/map-generator';
@@ -51,6 +52,24 @@ describe('isBlockingCityFor (#543 export for paradrop reuse)', () => {
     const unit = { owner: 'civ-a' } as unknown as import('@/core/types').Unit;
     const alliedCity = { owner: 'civ-b' } as unknown as import('@/core/types').City;
     expect(isBlockingCityFor(state, unit, alliedCity)).toBe(false);
+  });
+});
+
+describe('Paratrooper unit definition (#543)', () => {
+  it('is a land unit weaker than contemporary Infantry, with paradrop capability', () => {
+    // techRequired/requiredTechs/upgradesTo live on TrainableUnitEntry
+    // (city-system.ts TRAINABLE_UNITS), not UnitDefinition -- covered by
+    // the city-system.test.ts contract test instead (Task 7).
+    const paratrooper = UNIT_DEFINITIONS.paratrooper;
+    const infantry = UNIT_DEFINITIONS.infantry;
+    expect(paratrooper.domain).toBe('land');
+    expect(paratrooper.strength).toBeLessThan(infantry.strength);
+    expect(paratrooper.paradrop).toEqual({ range: 4, baseKinds: ['airfield'] });
+  });
+
+  it('has a plain-language, mechanically honest description', () => {
+    expect(UNIT_DESCRIPTIONS.paratrooper).toMatch(/paradrop/i);
+    expect(UNIT_DESCRIPTIONS.paratrooper).not.toMatch(/instant|guaranteed|unstoppable/i);
   });
 });
 

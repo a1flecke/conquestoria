@@ -431,6 +431,7 @@ const LOCOMOTION_CLASS: Record<UnitType, LocomotionClass> = {
   machine_gunner: 'humanoid',
   infantry:       'humanoid',
   mechanized_infantry: 'humanoid',
+  paratrooper:    'humanoid',
   pre_dreadnought: 'naval',
   battleship: 'naval',
   missile_cruiser: 'naval',

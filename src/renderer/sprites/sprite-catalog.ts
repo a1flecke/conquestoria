@@ -158,6 +158,7 @@ const UNIT_MOTION_STYLES: Record<UnitType, UnitMotionStyle> = {
   machine_gunner: 'humanoid',
   infantry: 'humanoid',
   mechanized_infantry: 'humanoid',
+  paratrooper: 'humanoid',
   pre_dreadnought: 'naval',
   battleship: 'naval',
   missile_cruiser: 'naval',
@@ -313,6 +314,8 @@ export const UNIT_SPRITE_CATALOG: Record<UnitType, UnitSpriteComponent> = {
   infantry:          withMotion('infantry', InfantrySprite),
   // Temporary Infantry silhouette; #709 owns Mechanized Infantry's distinct final sprite.
   mechanized_infantry: withMotion('mechanized_infantry', InfantrySprite),
+  // Temporary Infantry silhouette; bespoke Paratrooper art is a follow-up (#543).
+  paratrooper:       withMotion('paratrooper', InfantrySprite),
   pre_dreadnought:   withMotion('pre_dreadnought', PreDreadnoughtSprite),
   // Temporary silhouette; #711 owns Battleship's dedicated capital-ship art.
   battleship:        withMotion('battleship', PreDreadnoughtSprite),
