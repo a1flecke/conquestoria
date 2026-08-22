@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createNewGame } from '@/core/game-state';
 import { foundCity } from '@/systems/city-system';
-import { advanceStampedePressure, getStampedeProfile, normalizeStampedes, resolveStampedeOutcome, processStampedeTurn, startStampedeWarning } from '@/systems/stampede-system';
+import { applyStampedePillage, advanceStampedePressure, getStampedeProfile, normalizeStampedes, resolveStampedeOutcome, processStampedeTurn, startStampedeWarning } from '@/systems/stampede-system';
 
 describe('Stampede state', () => {
   it('defines recurring pressure profiles for every player challenge', () => {
@@ -64,7 +64,7 @@ describe('Stampede state', () => {
 
     for (let pass = 0; pass < 6; pass += 1) next = processStampedeTurn(next, 'player');
 
-    expect(next.stampedes?.player).toMatchObject({ phase: 'resolved', outcome: 'survived', activeTurns: 6 });
+    expect(next.stampedes?.player).toMatchObject({ phase: 'resolved', outcome: 'contained', activeTurns: 6 });
     expect(Object.values(next.units).filter(unit => unit.owner === 'crisis-force')).toEqual([]);
     expect(before).not.toEqual([]);
   });
@@ -78,6 +78,21 @@ describe('Stampede state', () => {
     expect(next.civilizations.player.gold).toBe(state.civilizations.player.gold + 40);
     expect(next.stampedes?.player).toMatchObject({ phase: 'resolved', outcome: 'defeated', rewardGranted: true, herdingInsight: { expiresTurn: state.turn + 10 } });
     expect(resolveStampedeOutcome(next, 'player', 'defeated').civilizations.player.gold).toBe(next.civilizations.player.gold);
+  });
+
+  it('pillages at most two landed improvements during one active herd pass without crisis loot', () => {
+    const state = createNewGame('rome', 'stampede-pillage', 'small');
+    state.stampedes = { player: { targetCivId: 'player', eligibleTurns: 0, activeTurns: 1, cityDamage: 0, civilianDeaths: 0, pillagedTileKeys: [] } };
+    const [first, second, third] = Object.values(state.map.tiles).filter(tile => tile.terrain !== 'ocean').slice(0, 3);
+    for (const tile of [first, second, third]) state.map.tiles[`${tile.coord.q},${tile.coord.r}`] = { ...tile, owner: 'player', improvement: 'farm', improvementTurnsLeft: 0 };
+    state.units.herd = { ...Object.values(state.units)[0]!, id: 'herd', owner: 'crisis-force', position: first.coord };
+    const firstPillage = applyStampedePillage(state, 'player', 'herd');
+    const secondPillage = applyStampedePillage({ ...firstPillage, units: { ...firstPillage.units, herd: { ...firstPillage.units.herd!, position: second.coord } } }, 'player', 'herd');
+    const capped = applyStampedePillage({ ...secondPillage, units: { ...secondPillage.units, herd: { ...secondPillage.units.herd!, position: third.coord } } }, 'player', 'herd');
+
+    expect(capped.stampedes?.player?.pillagedTileKeys).toHaveLength(2);
+    expect(capped.map.tiles[`${third.coord.q},${third.coord.r}`]?.improvement).toBe('farm');
+    expect(capped.civilizations.player.gold).toBe(state.civilizations.player.gold);
   });
 });
 

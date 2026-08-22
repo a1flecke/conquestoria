@@ -159,6 +159,21 @@ export function resolveStampedeOutcome(
   };
 }
 
+/** Crisis pillage is intentionally actor-neutral: it destroys an improvement only. */
+export function applyStampedePillage(state: GameState, targetCivId: string, unitId: string): GameState {
+  const stampede = state.stampedes?.[targetCivId];
+  const unit = state.units[unitId];
+  if (!stampede || stampede.phase === 'resolved' || !unit || unit.owner !== CRISIS_FORCE_OWNER || stampede.pillagedTileKeys.length >= 2) return state;
+  const key = hexKey(unit.position);
+  const tile = state.map.tiles[key];
+  if (!tile || tile.owner !== targetCivId || tile.improvement === 'none' || tile.improvementTurnsLeft !== 0 || stampede.pillagedTileKeys.includes(key)) return state;
+  return {
+    ...state,
+    map: { ...state.map, tiles: { ...state.map.tiles, [key]: { ...tile, improvement: 'none', improvementTurnsLeft: 0 } } },
+    stampedes: { ...state.stampedes, [targetCivId]: { ...stampede, pillagedTileKeys: [...stampede.pillagedTileKeys, key] } },
+  };
+}
+
 /** The warning-to-active boundary intentionally consumes no herd movement. */
 export function processStampedeTurn(state: GameState, targetCivId: string): GameState {
   const stampede = state.stampedes?.[targetCivId];
@@ -179,6 +194,7 @@ export function processStampedeTurn(state: GameState, targetCivId: string): Game
       const moved = executeUnitMove(next, unitId, step, { actor: 'world' });
       if (!moved.ok || moved.stopReason) break;
     }
+    next = applyStampedePillage(next, targetCivId, unitId);
   }
   const activeTurns = stampede.activeTurns + 1;
   if (activeTurns < 6) {
@@ -187,13 +203,17 @@ export function processStampedeTurn(state: GameState, targetCivId: string): Game
   const units = Object.fromEntries(Object.entries(next.units).filter(([unitId]) => !force.unitIds.includes(unitId)));
   const crisisForces = { ...next.crisisForces };
   delete crisisForces[force.id];
+  const currentStampede = next.stampedes?.[targetCivId] ?? stampede;
+  const outcome = currentStampede.cityDamage === 0 && currentStampede.civilianDeaths === 0 && currentStampede.pillagedTileKeys.length <= 2
+    ? 'contained'
+    : 'survived';
   return normalizeCrisisForces(resolveStampedeOutcome({
     ...next,
     units,
     crisisForces,
     stampedes: {
       ...next.stampedes,
-      [targetCivId]: { ...stampede, activeTurns },
+      [targetCivId]: { ...currentStampede, activeTurns },
     },
-  }, targetCivId, 'survived'));
+  }, targetCivId, outcome));
 }
