@@ -53,7 +53,10 @@ function isSameAirBase(left: AirBaseRef, right: AirBaseRef): boolean {
 }
 
 export function getAirBaseCapacity(state: GameState, base: AirBaseRef): number {
-  if (base.kind === 'carrier') return state.units[base.unitId]?.type === 'carrier' ? 2 : 0;
+  if (base.kind === 'carrier') {
+    const hostType = state.units[base.unitId]?.type;
+    return (hostType ? UNIT_DEFINITIONS[hostType].carrierDeckCapacity : undefined) ?? 0;
+  }
   const city = state.cities[base.cityId];
   if (!city) return 0;
   if (city.buildings.includes('airfield')) return hasAirForceCommand(state, city.owner) ? 4 : 3;
