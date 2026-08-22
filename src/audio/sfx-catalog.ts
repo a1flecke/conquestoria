@@ -255,6 +255,7 @@ export const UNIT_SFX: Partial<Record<UnitType, Partial<Record<SfxClass, TrackEn
   beast_handler: WAR_HOUND_SFX,
   // Temporary beast-combat cues; #714 owns War Elephant's bespoke audio.
   war_elephant: WAR_HOUND_SFX,
+  beast_stampede_herd: WAR_HOUND_SFX,
 
   // === Non-Combat (death only) ===
   settler:    { death: real('sfx-settler-death',    'audio/sfx/settler-death.ogg',    0.118, 'death') },
@@ -477,6 +478,7 @@ const LOCOMOTION_CLASS: Record<UnitType, LocomotionClass> = {
   beast_roc:     'animal',
   beast_hydra:   'animal',
   beast_dragon:  'animal',
+  beast_stampede_herd: 'animal',
   cyber_unit:    'humanoid',
   stealth_bomber: 'air',
 };

@@ -114,6 +114,7 @@ const FALLBACK_ICONS: Record<UnitType, string> = {
   beast_roc: '🦅',
   beast_hydra: '🐍',
   beast_dragon: '🐲',
+  beast_stampede_herd: '🐘',
   cyber_unit: '🖥️',
   stealth_bomber: '🛩️',
 };
