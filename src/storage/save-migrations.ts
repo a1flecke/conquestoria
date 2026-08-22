@@ -17,8 +17,9 @@ import { IMPROVEMENT_BUILD_TURNS } from '@/systems/improvement-system';
 import type { ImprovementType } from '@/core/types';
 import { normalizeBarbarianCampPressure } from '@/systems/barbarian-pressure';
 import { normalizeCrisisForces } from '@/systems/crisis-force-system';
+import { normalizeStampedes } from '@/systems/stampede-system';
 
-export const CURRENT_SAVE_SCHEMA_VERSION = 16;
+export const CURRENT_SAVE_SCHEMA_VERSION = 17;
 
 export type SaveMigration = (state: GameState) => GameState;
 
@@ -727,6 +728,7 @@ export const SAVE_MIGRATIONS: Readonly<Record<number, SaveMigration>> = {
   14: migrateBarbarianCampPressure,
   15: state => normalizeCrisisForces({ ...state, crisisForces: state.crisisForces ?? {} }),
   16: state => normalizeCrisisForces(state),
+  17: state => normalizeStampedes(normalizeCrisisForces({ ...state, stampedes: state.stampedes ?? {} })),
 };
 
 function readSchemaVersion(raw: Record<string, unknown>): number {

@@ -49,8 +49,20 @@ describe('save migrations', () => {
     };
 
     const migrated = migrateSaveToCurrent(save);
-    expect(migrated.saveSchemaVersion).toBe(16);
+    expect(migrated.saveSchemaVersion).toBe(CURRENT_SAVE_SCHEMA_VERSION);
     expect(migrated.crisisForces?.stampede.herdRoutes).toEqual({ [unit.id]: { unitId: unit.id, committedTurn: 1, steps: [] } });
+    expect(migrateSaveToCurrent(migrated)).toEqual(migrated);
+  });
+
+  it('#703 initializes malformed Stampede state at schema 17', () => {
+    const save = createNewGame('rome', 'stampede-schema-17', 'small');
+    save.saveSchemaVersion = 16;
+    save.stampedes = { player: { targetCivId: 'missing' } } as never;
+
+    const migrated = migrateSaveToCurrent(save);
+
+    expect(migrated.saveSchemaVersion).toBe(17);
+    expect(migrated.stampedes).toEqual({});
     expect(migrateSaveToCurrent(migrated)).toEqual(migrated);
   });
 

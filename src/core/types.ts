@@ -566,6 +566,27 @@ export interface HerdRoute {
   steps: HexCoord[];
 }
 
+export type StampedePhase = 'warning' | 'active' | 'resolved';
+export type StampedeOutcome = 'defeated' | 'contained' | 'survived';
+
+/** Target-scoped, serializable lifecycle and recurrence facts for Beast Stampedes. */
+export interface StampedeState {
+  targetCivId: string;
+  forceId?: string;
+  phase?: StampedePhase;
+  createdTurn?: number;
+  resolvedTurn?: number;
+  eligibleTurns: number;
+  activeTurns: number;
+  cityDamage: number;
+  civilianDeaths: number;
+  pillagedTileKeys: string[];
+  outcome?: StampedeOutcome;
+  rewardGranted?: boolean;
+  herdingInsight?: { expiresTurn: number; consumed?: boolean };
+  lastResolvedTurn?: number;
+}
+
 // --- Cities ---
 
 export type BuildingCategory = 'production' | 'food' | 'science' | 'economy' | 'military' | 'culture' | 'espionage';
@@ -1846,6 +1867,8 @@ export interface GameState {
   activeCrises?: Record<string, ActiveCrisis>;
   /** Non-diplomatic world-pressure actors; normalized on load. */
   crisisForces?: Record<string, CrisisForce>;
+  /** Target-scoped Beast Stampede recurrence and lifecycle state; normalized on load. */
+  stampedes?: Record<string, StampedeState>;
   reconReveals?: ReconReveal[];
   // #591 MR4: religion core. Optional -- absent on legacy saves and the many minimal
   // literal-GameState test fixtures across this codebase (same convention as
