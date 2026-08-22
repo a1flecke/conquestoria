@@ -202,6 +202,7 @@ const UNIT_MOTION_STYLES: Record<UnitType, UnitMotionStyle> = {
   beast_roc: 'animal',
   beast_hydra: 'animal',
   beast_dragon: 'animal',
+  beast_stampede_herd: 'animal',
   cyber_unit:   'humanoid',
   stealth_bomber: 'air',
 };
@@ -375,6 +376,7 @@ export const UNIT_SPRITE_CATALOG: Record<UnitType, UnitSpriteComponent> = {
   beast_roc:          withMotion('beast_roc', StormRocSprite),
   beast_hydra:        withMotion('beast_hydra', SwampHydraSprite),
   beast_dragon:       withMotion('beast_dragon', AncientDragonSprite),
+  beast_stampede_herd: withMotion('beast_stampede_herd', WarHoundSprite),
   // De-aliased in #769 batch 1.
   cyber_unit:         withMotion('cyber_unit', CyberUnitSprite),
   // De-aliased in #769 batch 4 — bespoke tailless faceted flying wing (bomb-bay, radar-cloak

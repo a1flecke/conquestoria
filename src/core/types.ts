@@ -375,7 +375,7 @@ export type UnitType =
   | 'pirate_galley' | 'pirate_corsair' | 'pirate_frigate'
   | 'pirate_ironclad' | 'pirate_fast_attack_craft' | 'pirate_mothership'
   | 'beast_boar' | 'beast_wolf' | 'beast_basilisk' | 'beast_sea_serpent'
-  | 'beast_wurm' | 'beast_roc' | 'beast_hydra' | 'beast_dragon'
+  | 'beast_wurm' | 'beast_roc' | 'beast_hydra' | 'beast_dragon' | 'beast_stampede_herd'
   | 'cyber_unit' | 'stealth_bomber'
   | 'combat_drone' | 'autonomous_frigate' | 'exosuit_infantry' | 'propagandist' | 'drone_controller'
   | 'paratrooper';

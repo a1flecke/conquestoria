@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createNewGame } from '@/core/game-state';
-import { getStampedeProfile, normalizeStampedes } from '@/systems/stampede-system';
+import { foundCity } from '@/systems/city-system';
+import { advanceStampedePressure, getStampedeProfile, normalizeStampedes, startStampedeWarning } from '@/systems/stampede-system';
 
 describe('Stampede state', () => {
   it('defines recurring pressure profiles for every player challenge', () => {
@@ -19,7 +20,42 @@ describe('Stampede state', () => {
     const state = createNewGame('rome', 'stampede-normalization', 'small');
     const malformed = { ...state, stampedes: { player: { targetCivId: 'missing' } } };
 
-    expect(normalizeStampedes(malformed).stampedes).toEqual({});
+    expect(normalizeStampedes(malformed as never).stampedes).toEqual({});
     expect(state.stampedes).toEqual({});
+  });
+
+  it('spawns the severity-sized herd force in a one-turn warning phase', () => {
+    const state = createNewGame('rome', 'stampede-warning', 'small');
+    const city = foundCity('player', { q: 0, r: 0 }, state.map, state.idCounters);
+    state.cities[city.id] = city;
+    state.civilizations.player.cities = [city.id];
+    for (const tile of Object.values(state.map.tiles)) tile.terrain = 'plains';
+
+    const next = startStampedeWarning(state, 'player', 'standard');
+
+    expect(next.stampedes?.player).toMatchObject({ phase: 'warning', activeTurns: 0 });
+    expect(Object.values(next.crisisForces ?? {})).toHaveLength(1);
+    expect(Object.values(next.crisisForces ?? {})[0]?.unitIds).toHaveLength(3);
+  });
+});
+
+describe('Stampede recurrence', () => {
+  it('accumulates eligible pressure but pauses it while the target has an active crisis', () => {
+    const state = createNewGame('rome', 'stampede-pressure', 'small');
+    const city = foundCity('player', { q: 0, r: 0 }, state.map, state.idCounters);
+    state.cities[city.id] = city;
+    state.civilizations.player.cities = [city.id];
+    state.era = 3;
+
+    const eligible = advanceStampedePressure(state, 'player');
+    const blocked = advanceStampedePressure({
+      ...eligible,
+      activeCrises: {
+        crisis: { id: 'crisis', flavorId: 'plague', archetype: 'outbreak', targetCivId: 'player', cityIds: [city.id], tileKeys: [], startedTurn: 1, stage: 'active', turnsInStage: 1 },
+      },
+    }, 'player');
+
+    expect(eligible.stampedes?.player?.eligibleTurns).toBe(1);
+    expect(blocked.stampedes?.player?.eligibleTurns).toBe(1);
   });
 });

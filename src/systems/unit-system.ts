@@ -220,6 +220,11 @@ const UNIT_DEFINITION_BASES: Record<UnitType, UnitDefinitionBase> = {
     visionRange: 2, strength: 43, canFoundCity: false,
     canBuildImprovements: false, productionCost: 110,
   },
+  beast_stampede_herd: {
+    type: 'beast_stampede_herd', name: 'Stampede Herd', movementPoints: 2,
+    visionRange: 2, strength: 28, canFoundCity: false,
+    canBuildImprovements: false, productionCost: 0,
+  },
   // S4b — new unit definitions
   axeman: {
     type: 'axeman', name: 'Axeman', movementPoints: 2,
@@ -937,6 +942,7 @@ export const UNIT_DESCRIPTIONS: Record<UnitType, string> = {
   beast_roc: 'The Storm Roc nests on the high peaks and dives on anything that crosses its skies. It flies over terrain that would stop an army.',
   beast_hydra: 'The Swamp Hydra regrows flesh as fast as you can cut it — 10 health every turn. Strike hard and finish it in one assault.',
   beast_dragon: 'The Ancient Dragon, terror of the volcanic peaks. Its fire breath strikes from 2 hexes away. Slaying it is the deed of a lifetime — the hoard contains everything.',
+  beast_stampede_herd: 'A frightened herd surges away from a threatened city. Screen it with forts and fortified soldiers, or defeat it before it tramples the countryside.',
   cyber_unit: 'A non-combat economic saboteur. Drains −2 gold per turn from adjacent enemy cities lacking a Cyber Defense Center. Strength 0: capturable by any enemy unit that enters its hex (transferred to that civ, not destroyed). Gene Therapy does not apply.',
   stealth_bomber: 'A long-range strategic bomber invisible to standard radar. Cannot be targeted by ranged attacks unless an enemy Signals Hub is within 2 hexes of the bomber; when intercepted, stealth reduces the damage it takes instead of returning fire. Must be trained at a Stealth Airbase. Range 3, strength 52.',
 };
