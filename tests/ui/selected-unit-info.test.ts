@@ -5,6 +5,7 @@ import type { GameState, HexCoord } from '@/core/types';
 import { hexKey } from '@/systems/hex-utils';
 import { createNewGame } from '@/core/game-state';
 import { createUnit } from '@/systems/unit-system';
+import { registerCrisisForce } from '@/systems/crisis-force-system';
 
 class MockElement {
   tagName: string;
@@ -671,6 +672,21 @@ describe('renderSelectedUnitInfo — crisis-force label', () => {
 
     expect(collectAllText(container).join(' ')).toContain('Crisis Force');
     expect(container.children[0]?.style.cssText).toContain('#b84a3a');
+  });
+
+  it('shows a committed herd path only to its visible target', () => {
+    let state = createNewGame(undefined, 'crisis-force-route-label', 'small');
+    const unit = { ...createUnit('warrior', 'crisis-force', { q: 3, r: 0 }, state.idCounters), id: 'crisis-1' };
+    state.units = { 'crisis-1': unit };
+    state.civilizations.player.visibility.tiles['3,0'] = 'visible';
+    state = registerCrisisForce(state, {
+      id: 'stampede', targetCivId: 'player', severity: 'standard', createdTurn: state.turn, unitIds: ['crisis-1'],
+      herdRoutes: { 'crisis-1': { unitId: 'crisis-1', committedTurn: state.turn, steps: [{ q: 4, r: 0 }] } },
+    });
+    const container = new MockElement('div');
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'crisis-1', {});
+
+    expect(collectAllText(container).join(' ')).toContain('Herd path: next 1 step.');
   });
 });
 
