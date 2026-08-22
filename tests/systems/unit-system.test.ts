@@ -94,6 +94,14 @@ describe('air assault capability wiring (#543 Phase 2)', () => {
   });
 });
 
+describe('attack_helicopter air assault description honesty (#543 Phase 2)', () => {
+  it('describes Air Assault as an action, not persistent cargo/embarkation', () => {
+    const description = UNIT_DESCRIPTIONS.attack_helicopter;
+    expect(description).toMatch(/air assault/i);
+    expect(description).not.toMatch(/load|carries|aboard|embark/i);
+  });
+});
+
 describe('Trebuchet catalog contract (#684)', () => {
   it('defines the slow city-focused Era-4 bombard unit', () => {
     expect(UNIT_DEFINITIONS.trebuchet).toMatchObject({
