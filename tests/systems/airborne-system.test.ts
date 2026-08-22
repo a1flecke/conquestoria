@@ -195,6 +195,19 @@ describe('executeParadrop', () => {
     expect(JSON.stringify(state)).toBe(before);
   });
 
+  it('produces byte-identical outcomes before and after the resolveAirborneLanding extraction (regression)', () => {
+    const { state, unitId } = makeParadropFixture();
+    const before = executeParadrop(state, unitId, { q: 1, r: 1 });
+    expect(before).toEqual({
+      ok: true,
+      state: expect.objectContaining({
+        units: expect.objectContaining({
+          [unitId]: expect.objectContaining({ position: { q: 1, r: 1 }, movementPointsLeft: 0, hasMoved: true, hasActed: true }),
+        }),
+      }),
+    });
+  });
+
   it('landing lockout clears via real next-turn processing, not a hand-set flag', () => {
     let state = createNewGame('rome', 'paradrop-lockout-reset');
     const playerCiv = state.civilizations.player!;
