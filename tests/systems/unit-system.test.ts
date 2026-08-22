@@ -122,6 +122,24 @@ describe('Naval Strike Aircraft (#582)', () => {
   });
 });
 
+describe('Maritime Patrol Aircraft (#582)', () => {
+  it('is a non-combat, carrier- and airfield-capable patrol aircraft, two-tech gated', () => {
+    const patrol = UNIT_DEFINITIONS.maritime_patrol_aircraft;
+    expect(patrol.strength).toBe(0);
+    expect(patrol.attackProfile).toBeUndefined();
+    expect(patrol.airOperation).toEqual({
+      baseKinds: ['airfield', 'carrier'], operationalRange: 5, ferryRange: 10,
+      missions: ['patrol', 'rebase'], carrierEligible: true,
+    });
+  });
+
+  it('has a plain-language description that does not claim passive/idle detection', () => {
+    const description = UNIT_DESCRIPTIONS.maritime_patrol_aircraft;
+    expect(description).toMatch(/searches|patrol/i);
+    expect(description).not.toMatch(/passively|automatically detects/i);
+  });
+});
+
 describe('Trebuchet catalog contract (#684)', () => {
   it('defines the slow city-focused Era-4 bombard unit', () => {
     expect(UNIT_DEFINITIONS.trebuchet).toMatchObject({
