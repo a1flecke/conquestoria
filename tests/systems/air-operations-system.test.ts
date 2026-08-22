@@ -117,6 +117,17 @@ describe('air bases', () => {
     expect(syncCarrierBasedAircraft(carrierState, 'carrier').units['air-1']?.position).toEqual({ q: 6, r: 2 });
   });
 
+  it('getAirBaseCapacity returns 2 for a Carrier (baseline, must stay true after the carrierDeckCapacity refactor)', () => {
+    const carrierState = {
+      ...state,
+      units: {
+        carrier: { ...biplane, id: 'carrier', type: 'carrier', airBase: undefined },
+      },
+    } as unknown as GameState;
+
+    expect(getAirBaseCapacity(carrierState, { kind: 'carrier', unitId: 'carrier' })).toBe(2);
+  });
+
   it('spends a fighter to intercept and selects the strongest eligible defender deterministically', () => {
     const missionState = {
       ...state,
