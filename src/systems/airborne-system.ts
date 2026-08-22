@@ -132,9 +132,14 @@ export function getAirAssaultLaunchState(state: GameState, unitId: string): { ok
   if (!unit || !UNIT_DEFINITIONS[unit.type].airAssaultPassengerEligible) return { ok: false, reason: 'not-eligible-passenger' };
   if (unit.hasActed || unit.movementPointsLeft <= 0) return { ok: false, reason: 'already-acted' };
   const launchCity = findLaunchCity(state, unit);
-  const baseKind = launchCity && getAirBaseKind(state, { kind: 'city', cityId: launchCity.id });
-  if (!launchCity || baseKind !== 'helicopter_base') return { ok: false, reason: 'no-launch-base' };
-  const helicopter = pickAirAssaultHelicopter(state, launchCity.id, baseKind);
+  // Deliberately NOT getAirBaseKind here: that helper returns only the
+  // single highest-priority kind for a city ('airfield' beats
+  // 'helicopter_base' when a city has both), which would incorrectly
+  // reject Air Assault from a dual-purpose Airfield + Helicopter Base
+  // city. Air Assault only cares whether 'helicopter_base' specifically
+  // is present, independent of whatever else the city also has.
+  if (!launchCity || !launchCity.buildings.includes('helicopter_base')) return { ok: false, reason: 'no-launch-base' };
+  const helicopter = pickAirAssaultHelicopter(state, launchCity.id, 'helicopter_base');
   if (!helicopter) return { ok: false, reason: 'no-launch-helicopter' };
   return { ok: true, helicopterId: helicopter.id };
 }
@@ -204,7 +209,7 @@ type ParadropOutcome = {
 // appendNotification mutates its `state` argument in place, so build a
 // state with fresh notificationLog/idCounters copies once, then call it
 // per recipient.
-function notifyParadropOutcome(state: GameState, droppedUnit: Unit, destination: HexCoord, outcome: ParadropOutcome): GameState {
+function notifyAirborneOutcome(state: GameState, droppedUnit: Unit, destination: HexCoord, outcome: ParadropOutcome, verb: string): GameState {
   const nextState: GameState = {
     ...state,
     idCounters: { ...state.idCounters },
@@ -216,7 +221,7 @@ function notifyParadropOutcome(state: GameState, droppedUnit: Unit, destination:
   if (outcome.interception) parts.push('intercepted');
   const suffix = parts.length ? ` (${parts.join(', ')})` : '';
   appendNotification(nextState, droppedUnit.owner, {
-    message: outcome.destroyed ? `${name} was destroyed on the drop${suffix}.` : `${name} landed${suffix}. It cannot act again this turn.`,
+    message: outcome.destroyed ? `${name} was destroyed ${verb}${suffix}.` : `${name} ${verb}${suffix}. It cannot act again this turn.`,
     type: outcome.destroyed || outcome.flak || outcome.interception ? 'warning' : 'info',
     turn: state.turn,
     target: { kind: 'map', coord: { ...destination }, label: name },
@@ -227,10 +232,10 @@ function notifyParadropOutcome(state: GameState, droppedUnit: Unit, destination:
     const visibility = nextState.civilizations[civId]?.visibility;
     if (!visibility || !isVisible(visibility, destination)) continue;
     appendNotification(nextState, civId, {
-      message: 'An enemy Paratrooper has landed nearby.',
+      message: `An enemy ${name} has landed nearby.`,
       type: 'warning',
       turn: state.turn,
-      target: { kind: 'map', coord: { ...destination }, label: 'Paratrooper' },
+      target: { kind: 'map', coord: { ...destination }, label: name },
     });
   }
   return nextState;
@@ -306,7 +311,7 @@ export function executeParadrop(state: GameState, unitId: string, destination: H
 
   const landing = resolveAirborneLanding(state, unit, destination);
   if (!landing.survived) {
-    return { ok: true, state: notifyParadropOutcome(landing.state, unit, destination, { flak: landing.flak, interception: landing.interception, destroyed: true }), flak: landing.flak, interception: landing.interception };
+    return { ok: true, state: notifyAirborneOutcome(landing.state, unit, destination, { flak: landing.flak, interception: landing.interception, destroyed: true }, 'landed'), flak: landing.flak, interception: landing.interception };
   }
 
   const survivor = landing.state.units[unitId]!;
@@ -314,5 +319,47 @@ export function executeParadrop(state: GameState, unitId: string, destination: H
     ...landing.state,
     units: { ...landing.state.units, [unitId]: { ...survivor, movementPointsLeft: 0, hasMoved: true, hasActed: true } },
   };
-  return { ok: true, state: notifyParadropOutcome(landedState, unit, destination, { flak: landing.flak, interception: landing.interception, destroyed: false }), flak: landing.flak, interception: landing.interception };
+  return { ok: true, state: notifyAirborneOutcome(landedState, unit, destination, { flak: landing.flak, interception: landing.interception, destroyed: false }, 'landed'), flak: landing.flak, interception: landing.interception };
+}
+
+export type AirAssaultResult =
+  | { ok: true; state: GameState; helicopterId: string; flak?: { damage: number; providerId: string; providerLabel: string }; interception?: { interceptorId: string; result: CombatResult } }
+  | { ok: false; state: GameState; reason: AirAssaultFailureReason };
+
+export function executeAirAssault(state: GameState, unitId: string, destination: HexCoord): AirAssaultResult {
+  const check = canAirAssault(state, unitId, destination);
+  if (!check.ok) return { ok: false, state, reason: check.reason };
+  const unit = state.units[unitId]!;
+  const helicopterId = check.helicopterId;
+
+  const landing = resolveAirborneLanding(state, unit, destination);
+  // The helicopter flew the mission regardless of the passenger's fate --
+  // lock it out unconditionally, on top of whatever resolveAirborneLanding
+  // already did to the passenger/interceptor.
+  const lockedHelicopterState: GameState = {
+    ...landing.state,
+    units: {
+      ...landing.state.units,
+      [helicopterId]: { ...landing.state.units[helicopterId]!, movementPointsLeft: 0, hasMoved: true, hasActed: true },
+    },
+  };
+
+  if (!landing.survived) {
+    return {
+      ok: true,
+      state: notifyAirborneOutcome(lockedHelicopterState, unit, destination, { flak: landing.flak, interception: landing.interception, destroyed: true }, 'was flown in by helicopter'),
+      helicopterId, flak: landing.flak, interception: landing.interception,
+    };
+  }
+
+  const survivor = lockedHelicopterState.units[unitId]!;
+  const landedState: GameState = {
+    ...lockedHelicopterState,
+    units: { ...lockedHelicopterState.units, [unitId]: { ...survivor, movementPointsLeft: 0, hasMoved: true, hasActed: true } },
+  };
+  return {
+    ok: true,
+    state: notifyAirborneOutcome(landedState, unit, destination, { flak: landing.flak, interception: landing.interception, destroyed: false }, 'was flown in by helicopter'),
+    helicopterId, flak: landing.flak, interception: landing.interception,
+  };
 }

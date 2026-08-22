@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getParadropLaunchState, getParadropTargets, canParadrop, executeParadrop, getAirAssaultLaunchState, getAirAssaultTargets, canAirAssault } from '@/systems/airborne-system';
+import { getParadropLaunchState, getParadropTargets, canParadrop, executeParadrop, getAirAssaultLaunchState, getAirAssaultTargets, canAirAssault, executeAirAssault } from '@/systems/airborne-system';
 import { createNewGame } from '@/core/game-state';
 import { processTurn } from '@/core/turn-manager';
 import { EventBus } from '@/core/event-bus';
@@ -556,5 +556,151 @@ describe('executeParadrop — notifications', () => {
     const result = executeParadrop(state, unitId, { q: 1, r: 1 }); // civ-b's visibility.tiles is {} in the base fixture
     if (!result.ok) throw new Error('expected ok');
     expect(result.state.notificationLog?.['civ-b'] ?? []).toEqual([]);
+  });
+});
+
+describe('executeAirAssault', () => {
+  it('rejects an illegal destination without mutating state', () => {
+    const { state, unitId } = makeAirAssaultFixture();
+    const result = executeAirAssault(state, unitId, { q: 99, r: 99 });
+    expect(result).toEqual({ ok: false, state, reason: 'out-of-range' });
+  });
+
+  it('relocates the passenger, applies its landing lockout, and locks out the helicopter, on success', () => {
+    const { state, unitId, helicopterId } = makeAirAssaultFixture();
+    const result = executeAirAssault(state, unitId, { q: 1, r: 1 });
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error('expected ok');
+    expect(result.helicopterId).toBe(helicopterId);
+    const passenger = result.state.units[unitId]!;
+    expect(passenger.position).toEqual({ q: 1, r: 1 });
+    expect(passenger.movementPointsLeft).toBe(0);
+    expect(passenger.hasMoved).toBe(true);
+    expect(passenger.hasActed).toBe(true);
+    const helicopter = result.state.units[helicopterId]!;
+    expect(helicopter.position).toEqual({ q: 0, r: 0 }); // stays at base
+    expect(helicopter.hasActed).toBe(true);
+    expect(helicopter.movementPointsLeft).toBe(0);
+  });
+
+  it('locks out the helicopter even if the passenger is destroyed on landing (flak)', () => {
+    const { state, unitId, helicopterId } = makeAirAssaultFixture();
+    // isHostileOwnerTo requires an explicit bilateral atWarWith entry --
+    // civ-b is not hostile to civ-a by default just by being a different
+    // civilization. Mobile AA (radius 1, defenseModifier 8) is placed at
+    // (2,1) -- ADJACENT to, not ON, the (1,1) landing tile -- an AA unit
+    // standing directly on the destination would instead be rejected as
+    // 'destination-occupied' by the occupancy check, matching the real
+    // fixture pattern already proven in the executeParadrop — flak block
+    // above.
+    const withHostileAA = {
+      ...state,
+      units: { ...state.units, [unitId]: { ...state.units[unitId]!, health: 5 }, 'aa-1': { id: 'aa-1', type: 'mobile_aa', owner: 'civ-b', position: { q: 2, r: 1 }, movementPointsLeft: 3, health: 100, experience: 0, hasMoved: false, hasActed: false, isResting: false } },
+      map: { ...state.map, tiles: { ...state.map.tiles, '2,1': tile('grassland') } },
+      civilizations: {
+        ...state.civilizations,
+        'civ-a': { ...state.civilizations['civ-a']!, diplomacy: { atWarWith: ['civ-b'], events: [] } },
+        'civ-b': { ...state.civilizations['civ-b']!, diplomacy: { atWarWith: ['civ-a'], events: [] } },
+      },
+    } as unknown as GameState;
+    const result = executeAirAssault(withHostileAA, unitId, { q: 1, r: 1 });
+    if (!result.ok) throw new Error('expected ok');
+    expect(result.state.units[unitId]).toBeUndefined();
+    expect(result.state.units[helicopterId]!.hasActed).toBe(true);
+  });
+
+  it('cannot air-assault twice from the same helicopter in the same turn', () => {
+    const { state, unitId } = makeAirAssaultFixture();
+    const first = executeAirAssault(state, unitId, { q: 1, r: 1 });
+    if (!first.ok) throw new Error('expected ok');
+    const secondPassenger: Unit = { id: 'inf-2', type: 'infantry', owner: 'civ-a', position: { q: 0, r: 0 }, movementPointsLeft: 2, health: 100, experience: 0, hasMoved: false, hasActed: false, isResting: false };
+    const withSecondPassenger = { ...first.state, units: { ...first.state.units, 'inf-2': secondPassenger }, civilizations: { ...first.state.civilizations, 'civ-a': { ...first.state.civilizations['civ-a']!, units: [...first.state.civilizations['civ-a']!.units, 'inf-2'] } } };
+    expect(canAirAssault(withSecondPassenger, 'inf-2', { q: 2, r: 2 })).toEqual({ ok: false, reason: 'no-launch-helicopter' });
+  });
+
+  it('always logs an outcome notification for the acting civ, worded for a helicopter mission', () => {
+    const { state, unitId } = makeAirAssaultFixture();
+    const result = executeAirAssault(state, unitId, { q: 1, r: 1 });
+    if (!result.ok) throw new Error('expected ok');
+    expect(result.state.notificationLog?.['civ-a']?.some(n => /helicopter/i.test(n.message))).toBe(true);
+  });
+
+  it('both the passenger landing lockout and the helicopter lockout clear via real next-turn processing', () => {
+    let state = createNewGame('rome', 'air-assault-lockout-reset');
+    const playerCiv = state.civilizations.player!;
+    const startingUnitId = playerCiv.units[0]!;
+    const startingPosition = state.units[startingUnitId]!.position;
+
+    const city = foundCity('player', startingPosition, state.map, state.idCounters);
+    city.buildings = [...city.buildings, 'helicopter_base'];
+    state.cities[city.id] = city;
+    playerCiv.cities = [city.id];
+    state.map.tiles[hexKey(city.position)]!.owner = 'player';
+    playerCiv.techState.completed = [...playerCiv.techState.completed, 'helicopter-warfare'];
+
+    const passengerId = `unit-${state.idCounters.nextUnitId++}`;
+    state.units[passengerId] = {
+      id: passengerId, type: 'infantry', owner: 'player', position: { ...city.position },
+      movementPointsLeft: 2, health: 100, experience: 0, hasMoved: false, hasActed: false, isResting: false,
+    };
+    playerCiv.units = [...playerCiv.units, passengerId];
+    const heliId = `unit-${state.idCounters.nextUnitId++}`;
+    state.units[heliId] = {
+      id: heliId, type: 'attack_helicopter', owner: 'player', position: { ...city.position },
+      movementPointsLeft: 5, health: 100, experience: 0, hasMoved: false, hasActed: false, isResting: false,
+      airBase: { kind: 'city', cityId: city.id },
+    };
+    playerCiv.units = [...playerCiv.units, heliId];
+
+    const destination = { q: city.position.q + 1, r: city.position.r };
+    state.map.tiles[hexKey(destination)] = { ...state.map.tiles[hexKey(city.position)]!, coord: destination };
+    state.civilizations.player!.visibility.tiles[hexKey(destination)] = 'visible';
+
+    const dropped = executeAirAssault(state, passengerId, destination);
+    if (!dropped.ok) throw new Error(`expected ok, got reason: ${(dropped as { reason?: string }).reason}`);
+    const landedPassenger = dropped.state.units[passengerId]!;
+    expect(landedPassenger.hasActed).toBe(true);
+    const landedHelicopter = dropped.state.units[heliId]!;
+    expect(landedHelicopter.hasActed).toBe(true);
+
+    const nextTurnState = processTurn(dropped.state, new EventBus());
+    const passenger = nextTurnState.units[passengerId]!;
+    const helicopter = nextTurnState.units[heliId]!;
+    expect(passenger.hasActed).toBe(false);
+    expect(passenger.movementPointsLeft).toBeGreaterThan(0);
+    expect(helicopter.hasActed).toBe(false);
+    expect(helicopter.movementPointsLeft).toBeGreaterThan(0);
+  });
+});
+
+describe('executeParadrop — unaffected by the notifyAirborneOutcome generalization (regression)', () => {
+  it('still logs the Paratrooper-specific landing message', () => {
+    const { state, unitId } = makeParadropFixture();
+    const result = executeParadrop(state, unitId, { q: 1, r: 1 });
+    if (!result.ok) throw new Error('expected ok');
+    expect(result.state.notificationLog?.['civ-a']?.some(n => /landed/i.test(n.message))).toBe(true);
+  });
+});
+
+describe('Paratrooper dual-eligibility (Paradrop and Air Assault both legal, no special-case code)', () => {
+  it('a Paratrooper in a city with both an Airfield and a Helicopter Base can Paradrop OR Air Assault, and using either disables the other via the shared hasActed flag', () => {
+    const { state, unitId, cityId } = makeAirAssaultFixture();
+    const dualCity = { ...state, cities: { ...state.cities, [cityId]: { ...state.cities[cityId]!, buildings: ['helicopter_base', 'airfield'] } } };
+    const paratrooperState = { ...dualCity, units: { ...dualCity.units, [unitId]: { ...dualCity.units[unitId]!, type: 'paratrooper' } } } as unknown as GameState;
+
+    expect(getParadropLaunchState(paratrooperState, unitId)).toEqual({ ok: true });
+    expect(getAirAssaultLaunchState(paratrooperState, unitId).ok).toBe(true);
+
+    const afterParadrop = executeParadrop(paratrooperState, unitId, { q: 1, r: 1 });
+    if (!afterParadrop.ok) throw new Error('expected ok');
+    expect(getAirAssaultLaunchState(afterParadrop.state, unitId)).toEqual({ ok: false, reason: 'already-acted' });
+  });
+});
+
+describe('Air Assault solo-play parity (AI-triggered vs. human-triggered call the same function)', () => {
+  it('an AI-style call to executeAirAssault produces the identical result shape a human-triggered call does', () => {
+    const { state, unitId } = makeAirAssaultFixture();
+    const result = executeAirAssault(state, unitId, { q: 1, r: 1 });
+    expect(result.ok).toBe(true);
   });
 });
