@@ -516,6 +516,15 @@ const UNIT_DEFINITION_BASES: Record<UnitType, UnitDefinitionBase> = {
     canFoundCity: false, canBuildImprovements: false, productionCost: 220,
     domain: 'naval', waterAccess: 'ocean',
     attackProfile: { kind: 'ranged', range: 1, targets: ['unit', 'city'] },
+    carrierDeckCapacity: 2,
+  },
+  supercarrier: {
+    type: 'supercarrier', name: 'Supercarrier',
+    movementPoints: 4, visionRange: 3, strength: 58,
+    canFoundCity: false, canBuildImprovements: false, productionCost: 340,
+    domain: 'naval', waterAccess: 'ocean',
+    attackProfile: { kind: 'ranged', range: 1, targets: ['unit', 'city'] },
+    carrierDeckCapacity: 3,
   },
   destroyer: {
     type: 'destroyer', name: 'Destroyer',
@@ -524,6 +533,25 @@ const UNIT_DEFINITION_BASES: Record<UnitType, UnitDefinitionBase> = {
     domain: 'naval', waterAccess: 'ocean',
     attackProfile: { kind: 'ranged', range: 2, targets: ['unit', 'city'] },
     detection: { concealedNavalRange: 2 },
+  },
+  naval_strike_aircraft: {
+    type: 'naval_strike_aircraft', name: 'Naval Strike Aircraft',
+    movementPoints: 5, visionRange: 3, strength: 38,
+    canFoundCity: false, canBuildImprovements: false, productionCost: 235,
+    domain: 'air',
+    attackProfile: { kind: 'ranged', range: 2, targets: ['unit', 'city'] },
+    // No 'intercept' mission -- fighters stay the fleet's sole air-defense
+    // answer (design spec §4). Range matches WWII Fighter's so the carrier
+    // deck-composition choice (spec §6) is about role, not reach.
+    airOperation: { baseKinds: ['airfield', 'carrier'], operationalRange: 4, ferryRange: 8, missions: ['strike', 'rebase'], carrierEligible: true },
+  },
+  maritime_patrol_aircraft: {
+    type: 'maritime_patrol_aircraft', name: 'Maritime Patrol Aircraft',
+    movementPoints: 5, visionRange: 4, strength: 0,
+    canFoundCity: false, canBuildImprovements: false, productionCost: 210,
+    domain: 'air',
+    // No attackProfile -- non-combat, matching Recon Aircraft's precedent.
+    airOperation: { baseKinds: ['airfield', 'carrier'], operationalRange: 5, ferryRange: 10, missions: ['patrol', 'rebase'], carrierEligible: true },
   },
   // Era 11 units
   attack_helicopter: {
@@ -887,8 +915,11 @@ export const UNIT_DESCRIPTIONS: Record<UnitType, string> = {
   recon_aircraft: 'Modern unarmed reconnaissance aircraft. Launches temporary area surveys from an Airfield; it cannot strike or move as an ordinary map unit.',
   jet_fighter: 'Postwar jet fighter. Faster and stronger than World War II fighters; dominates air-to-air and ground-attack roles, with a bonus vs bombers. Air-superiority apex — the bomber is the strike line instead of a fighter upgrade.',
   bomber: 'Long-range strategic bomber. Bombard range 3 vs cities and units — the era\'s dedicated city-buster. Its defensive gunners can return weak fire when intercepted. Requires no special building, unlike its stealth successor. Upgrades into the stealth bomber.',
-  carrier:     'Fleet carrier. Mobile base for up to two Biplanes, World War II Fighters, or Jet Fighters. Requires a coastal city to build. High vision range; strong naval strength.',
+  carrier:     'Fleet carrier. Mobile base for up to 2 aircraft — Fighters, a Naval Strike Aircraft, or a Maritime Patrol Aircraft. Requires a coastal city to build. High vision range; strong naval strength. Upgrades into the Supercarrier.',
   destroyer:   'Submarine hunter. Reveals hidden submarines up to 2 hexes away — farther than an ordinary ship. Fast surface escort with ranged attack (range 2) vs units and cities; +25% strength attacking submarines and missile submarines. Requires Carrier Warfare and a coastal city. Upgrades into the Autonomous Frigate.',
+  naval_strike_aircraft: 'Carrier aircraft built to attack ships. Hits naval targets hard, but has no special advantage against cities or land forces, and cannot intercept enemy aircraft — Fighters remain the fleet\'s air defense.',
+  maritime_patrol_aircraft: 'Searches the sea for ships and hidden submarines. Its Patrol mission reveals a wide area for the rest of the turn, but costs the aircraft\'s own turn to fly — it finds enemies, it doesn\'t fight them.',
+  supercarrier: 'A larger Carrier with room for a bigger air wing — enough deck space to run Fighters, Naval Strike Aircraft, and a Maritime Patrol Aircraft all at once.',
   attack_helicopter: 'Cold War attack helicopter. Combines close air support with anti-armour missiles; faster than jet fighters but more vulnerable to ground fire. Ranged air unit. Can also fly one Air Assault mission per turn from its Helicopter Base to reposition an eligible infantry unit — but cannot also attack that turn.',
   missile_submarine: 'Nuclear-powered ballistic missile submarine. Concealed the same way as a submarine — hidden until a naval/air unit gets close, a well-equipped coastal city spots it, or it fires. Long-range submarine-launched missiles threaten any city from the deep. Requires a coastal city to build. Longest range of any unit.',
   combat_drone: 'Autonomous air-support unit. Its strongest results come from a valid network formation; fast but not a standalone replacement for a mixed force.',

@@ -54,6 +54,7 @@ export const BARBARIAN_ELIGIBILITY_BY_UNIT = {
   anti_tank_gun: eligible({ min: 9 }, 'specialist', 'uncommon', { requiresObservation: 'armor' }),
   mobile_aa: eligible({ min: 10 }, 'anti-air', 'uncommon', { requiresObservation: 'air', maxPerCamp: 1 }),
   submarine: exclude('naval'), carrier: exclude('naval'), attack_helicopter: exclude('air'), missile_submarine: exclude('strategic-deterrence'),
+  naval_strike_aircraft: exclude('air'), maritime_patrol_aircraft: exclude('air'), supercarrier: exclude('strategic-deterrence'),
   spy_scout: exclude('unsupported'), spy_informant: exclude('unsupported'), spy_agent: exclude('unsupported'), spy_operative: exclude('unsupported'), spy_intelligence_officer: exclude('unsupported'), spy_station_chief: exclude('unsupported'), spy_hacker: exclude('unsupported'),
   scout_hound: exclude('crisis'), shadow_warden: exclude('crisis'), war_hound: exclude('crisis'), beast_handler: exclude('unique'), war_elephant: exclude('unique'),
   caravan: exclude('civilian'), merchant_wagon: exclude('civilian'), freight_convoy: exclude('civilian'),

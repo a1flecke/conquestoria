@@ -60,6 +60,9 @@ export const UNIT_CLASS_BY_TYPE: Record<UnitType, UnitClass[]> = {
   anti_tank_gun: ['gunpowder'],
   submarine: ['naval'],
   carrier: ['naval'],
+  naval_strike_aircraft: ['air'],
+  maritime_patrol_aircraft: ['air', 'recon'],
+  supercarrier: ['naval'],
   attack_helicopter: ['air'],
   missile_submarine: ['naval'],
   combat_drone: ['air'],
@@ -262,6 +265,7 @@ export const CLASS_COUNTERS: ClassCounter[] = [
   { attackerTypes: ['submarine', 'missile_submarine'], defenderClass: 'naval', defenderTypes: ['autonomous_frigate'], multiplier: 1.25, label: 'Autonomous-hull ambush' },
   { attackerTypes: ['submarine', 'missile_submarine'], defenderClass: 'naval', defenderTypes: ['battleship', 'missile_cruiser'], multiplier: 1.25, label: 'Capital-ship ambush' },
   { attackerTypes: ['tank'], defenderClass: 'gunpowder', defenderTypes: ['exosuit_infantry'], multiplier: 1.25, label: 'Armor breakthrough' },
+  { attackerTypes: ['naval_strike_aircraft'], defenderClass: 'naval', multiplier: 1.35, label: 'Naval strike' },
 ];
 
 export type CombatExchangeRule =

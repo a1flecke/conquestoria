@@ -102,6 +102,26 @@ describe('attack_helicopter air assault description honesty (#543 Phase 2)', () 
   });
 });
 
+describe('Naval Strike Aircraft (#582)', () => {
+  it('is a carrier-capable, non-intercepting strike aircraft weaker than the era-10 fighters', () => {
+    const strike = UNIT_DEFINITIONS.naval_strike_aircraft;
+    const jetFighter = UNIT_DEFINITIONS.jet_fighter;
+    expect(strike.domain).toBe('air');
+    expect(strike.strength).toBeLessThan(jetFighter.strength);
+    expect(strike.airOperation).toEqual({
+      baseKinds: ['airfield', 'carrier'], operationalRange: 4, ferryRange: 8,
+      missions: ['strike', 'rebase'], carrierEligible: true,
+    });
+  });
+
+  it('has a plain-language, mechanically honest description that clarifies it cannot intercept (not merely omits the word)', () => {
+    const description = UNIT_DESCRIPTIONS.naval_strike_aircraft;
+    expect(description).toMatch(/ships/i);
+    expect(description).not.toMatch(/\bcan intercept|able to intercept/i);
+    expect(description).toMatch(/cannot intercept/i);
+  });
+});
+
 describe('Trebuchet catalog contract (#684)', () => {
   it('defines the slow city-focused Era-4 bombard unit', () => {
     expect(UNIT_DEFINITIONS.trebuchet).toMatchObject({

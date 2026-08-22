@@ -441,6 +441,19 @@ describe('getClassCounterMultiplier — class counters', () => {
     expect(openField).toBeUndefined();
   });
 
+  it('naval_strike_aircraft vs a naval-class defender: ×1.35 (#582)', () => {
+    expect(getClassCounterMultiplier('naval_strike_aircraft', 'destroyer', false)).toEqual({
+      multiplier: 1.35,
+      label: 'Naval strike ×1.35',
+    });
+    expect(getClassCounterMultiplier('naval_strike_aircraft', 'carrier', false)?.multiplier).toBe(1.35);
+  });
+
+  it('naval_strike_aircraft vs a land unit or city gets no bonus (explicit negative test, #582)', () => {
+    expect(getClassCounterMultiplier('naval_strike_aircraft', 'warrior', false)).toBeUndefined();
+    expect(getClassCounterMultiplier('naval_strike_aircraft', 'infantry', false)).toBeUndefined();
+  });
+
   it('submarine vs naval civilian (transport): ×1.5 (negative: land civilian)', () => {
     const navalCivilian = getClassCounterMultiplier('submarine', 'transport', false);
     const landCivilian = getClassCounterMultiplier('submarine', 'settler', false);
