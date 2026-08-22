@@ -1360,4 +1360,24 @@ describe('rankUnitTacticalActions — air assault (#543 Phase 2)', () => {
 
     expect(withThreatScore).toBeLessThan(withoutThreatScore);
   });
+
+  it('does NOT discount score for a hostile armor unit the acting civ cannot see (no hidden-information leak)', () => {
+    const withVisibleThreat = makeAirAssaultAIFixture();
+    addUnit(withVisibleThreat.state, 'tank-hostile-1', 'tank', HUMAN, { q: 1, r: 0 });
+
+    const withHiddenThreat = makeAirAssaultAIFixture();
+    addUnit(withHiddenThreat.state, 'tank-hostile-1', 'tank', HUMAN, { q: 1, r: 0 });
+    // makeState() marks every tile visible by default -- explicitly hide
+    // the tank's tile from the AI civ to prove the discount doesn't fire
+    // on information the civ doesn't actually have.
+    withHiddenThreat.state.civilizations[AI].visibility.tiles[hexKey({ q: 1, r: 0 })] = 'unexplored';
+
+    const planVisible = makePlan({ kind: 'region', id: 'front', anchor: { q: 3, r: 0 } }, [withVisibleThreat.infantry.id], { objective: 'expand', requiredRoles: {} });
+    const planHidden = makePlan({ kind: 'region', id: 'front', anchor: { q: 3, r: 0 } }, [withHiddenThreat.infantry.id], { objective: 'expand', requiredRoles: {} });
+
+    const visibleThreatScore = Math.max(0, ...rankUnitTacticalActions(context(withVisibleThreat.state, planVisible), withVisibleThreat.infantry.id).filter(a => a.action.kind === 'air-assault').map(a => a.score));
+    const hiddenThreatScore = Math.max(0, ...rankUnitTacticalActions(context(withHiddenThreat.state, planHidden), withHiddenThreat.infantry.id).filter(a => a.action.kind === 'air-assault').map(a => a.score));
+
+    expect(hiddenThreatScore).toBeGreaterThan(visibleThreatScore);
+  });
 });
