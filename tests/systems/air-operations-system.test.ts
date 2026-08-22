@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { UNIT_DEFINITIONS } from '@/systems/unit-system';
 import { TRAINABLE_UNITS } from '@/systems/city-system';
-import { baseNewAirUnit, canCompleteAirUnitProduction, getAirBaseCapacity, getAirBaseKind, getAirBaseRoster, getInterceptCoverage, getLegalAirMissionTargets, getLegalRebaseDestinations, isBasedAirUnit, rebaseAircraft, resolveAirBaseLoss, resolveAirStrike, resolveReconMission, selectInterceptor, startIntercept, syncCarrierBasedAircraft } from '@/systems/air-operations-system';
+import { baseNewAirUnit, canCompleteAirUnitProduction, getAirBaseCapacity, getAirBaseKind, getAirBaseRoster, getInterceptCoverage, getLegalAirMissionTargets, getLegalRebaseDestinations, isBasedAirUnit, rebaseAircraft, resolveAirBaseLoss, resolveAirStrike, resolvePatrolMission, resolveReconMission, selectInterceptor, startIntercept, syncCarrierBasedAircraft } from '@/systems/air-operations-system';
 import { calculateCombatStrengths } from '@/systems/combat-system';
 import { buildCombatContextForDefender } from '@/systems/combat-context';
 import type { GameState, Unit } from '@/core/types';
@@ -221,6 +221,44 @@ describe('air bases', () => {
         units: { recon: { hasActed: true } },
         reconReveals: [{ ownerCivId: 'player', center: { q: 4, r: 2 }, range: 3, expiresAtTurn: 8 }],
       },
+    });
+  });
+
+  function makePatrolAircraftFixture(): { state: GameState; unitId: string } {
+    const patrol = { ...biplane, id: 'patrol', type: 'maritime_patrol_aircraft' as const };
+    const patrolState = {
+      ...state,
+      turn: 8,
+      map: { width: 10, height: 10, wrapsHorizontally: false },
+      units: { patrol },
+      civilizations: { player: { visibility: { tiles: {} } } },
+    } as unknown as GameState;
+    return { state: patrolState, unitId: 'patrol' };
+  }
+
+  describe('resolvePatrolMission (#582)', () => {
+    it('rejects an out-of-range or illegal center', () => {
+      const { state: patrolState, unitId } = makePatrolAircraftFixture();
+      const result = resolvePatrolMission(patrolState, unitId, { q: 99, r: 99 });
+      expect(result.ok).toBe(false);
+    });
+
+    it('consumes the aircraft action and writes both a reconReveals and a patrolReveals entry with matching center/range', () => {
+      const { state: patrolState, unitId } = makePatrolAircraftFixture();
+      const targets = getLegalAirMissionTargets(patrolState, unitId, 'patrol');
+      expect(targets.length).toBeGreaterThan(0);
+      const center = targets[0]!;
+      const result = resolvePatrolMission(patrolState, unitId, center);
+      if (!result.ok) throw new Error('expected ok');
+      const unit = result.state.units[unitId]!;
+      expect(unit.hasActed).toBe(true);
+      expect(unit.movementPointsLeft).toBe(0);
+      const reconEntry = result.state.reconReveals?.find(r => r.ownerCivId === unit.owner && r.expiresAtTurn === patrolState.turn);
+      const patrolEntry = result.state.patrolReveals?.find(r => r.ownerCivId === unit.owner && r.expiresAtTurn === patrolState.turn);
+      expect(reconEntry).toBeDefined();
+      expect(patrolEntry).toBeDefined();
+      expect(reconEntry!.center).toEqual(patrolEntry!.center);
+      expect(reconEntry!.range).toBe(patrolEntry!.range);
     });
   });
 

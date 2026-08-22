@@ -194,7 +194,7 @@ function getInterceptionStrength(unit: Unit): number {
   return definition.strength * unit.health / 100 * multiplier;
 }
 
-export function getLegalAirMissionTargets(state: GameState, unitId: string, mission: Extract<AirMission, 'recon' | 'strike'>): HexCoord[] {
+export function getLegalAirMissionTargets(state: GameState, unitId: string, mission: Extract<AirMission, 'recon' | 'strike' | 'patrol'>): HexCoord[] {
   const unit = state.units[unitId];
   const definition = unit && UNIT_DEFINITIONS[unit.type].airOperation;
   if (!unit || !definition?.missions.includes(mission) || !unit.airBase || unit.hasActed) return [];
@@ -234,6 +234,37 @@ export function resolveReconMission(state: GameState, unitId: string, center: He
       reconReveals: [
         ...(state.reconReveals ?? []).filter(reveal => reveal.expiresAtTurn >= state.turn),
         { ownerCivId: unit.owner, center: { ...center }, range: 3, expiresAtTurn: state.turn },
+      ],
+    },
+  };
+}
+
+export function resolvePatrolMission(state: GameState, unitId: string, center: HexCoord): AirOperationResult {
+  const unit = state.units[unitId];
+  if (!unit || !getLegalAirMissionTargets(state, unitId, 'patrol')
+    .some(target => target.q === center.q && target.r === center.r)) {
+    return { ok: false, state, reason: 'invalid-patrol-target' };
+  }
+  const range = 6;
+  return {
+    ok: true,
+    state: {
+      ...state,
+      units: {
+        ...state.units,
+        [unitId]: { ...unit, movementPointsLeft: 0, hasMoved: true, hasActed: true },
+      },
+      // Ordinary reconnaissance half -- reused verbatim, same array and
+      // consumer (applyReconReveals) 'recon' missions already use.
+      reconReveals: [
+        ...(state.reconReveals ?? []).filter(reveal => reveal.expiresAtTurn >= state.turn),
+        { ownerCivId: unit.owner, center: { ...center }, range, expiresAtTurn: state.turn },
+      ],
+      // Submarine-detection half -- separate array, consumed by
+      // concealment.ts's hasActiveDetectorInRange.
+      patrolReveals: [
+        ...(state.patrolReveals ?? []).filter(reveal => reveal.expiresAtTurn >= state.turn),
+        { ownerCivId: unit.owner, center: { ...center }, range, expiresAtTurn: state.turn },
       ],
     },
   };
