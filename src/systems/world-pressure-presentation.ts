@@ -4,6 +4,7 @@ import { getCrisisFlavor, getCrisisDisplayName } from './crisis-flavor-definitio
 import { resolveCivilizationEra } from './tech-definitions';
 import { resolveWorldPressureFlags } from './world-pressure-flags';
 import { resolvePressureSeverityForCiv } from '@/core/opponent-challenge';
+import { getStampedeStatusForViewer } from './stampede-system';
 
 export interface WorldPressureCityBadge {
   cityId: string;
@@ -26,6 +27,8 @@ export interface WorldPressureStatusLine {
 export interface WorldPressurePresentation {
   cityBadges: WorldPressureCityBadge[];
   statusLinesByCivId: Record<string, WorldPressureStatusLine>;
+  /** The current viewer's own Stampede only; never opponent pressure intel. */
+  ownStampedeStatus?: string;
 }
 
 const EMPTY_PRESENTATION: WorldPressurePresentation = { cityBadges: [], statusLinesByCivId: {} };
@@ -53,10 +56,12 @@ export function getWorldPressurePresentationForViewer(
   viewerCivId: string,
 ): WorldPressurePresentation {
   const flags = resolveWorldPressureFlags(state.settings);
-  if (!flags.aiPressureVisibility) return EMPTY_PRESENTATION;
-
   const viewer = state.civilizations[viewerCivId];
   if (!viewer) return EMPTY_PRESENTATION;
+  const ownStampedeStatus = getStampedeStatusForViewer(state, viewerCivId)?.text;
+  if (!flags.aiPressureVisibility) {
+    return ownStampedeStatus ? { ...EMPTY_PRESENTATION, ownStampedeStatus } : EMPTY_PRESENTATION;
+  }
   const known = new Set(viewer.knownCivilizations ?? []);
 
   const cityBadges: WorldPressureCityBadge[] = [];
@@ -93,5 +98,5 @@ export function getWorldPressurePresentationForViewer(
     }
   }
 
-  return { cityBadges, statusLinesByCivId };
+  return { cityBadges, statusLinesByCivId, ...(ownStampedeStatus ? { ownStampedeStatus } : {}) };
 }

@@ -35,6 +35,32 @@ describe('stampede route system', () => {
     expect(hexDistance(route.steps[0]!, { q: 0, r: 0 })).toBeGreaterThan(1);
   });
 
+  it('can commit an outward step occupied by a hostile defender for canonical trample combat', () => {
+    const state = routeState();
+    for (const tile of Object.values(state.map.tiles)) tile.terrain = 'ocean';
+    state.map.tiles['1,0'] = { ...state.map.tiles['1,0']!, terrain: 'plains' };
+    state.map.tiles['2,0'] = { ...state.map.tiles['2,0']!, terrain: 'plains' };
+    state.units.screen = {
+      ...Object.values(state.units).find(unit => unit.type === 'warrior')!,
+      id: 'screen', owner: 'player', position: { q: 2, r: 0 },
+    };
+
+    expect(planHerdRoute(state, 'stampede-1', 'herd-1').steps[0]).toEqual({ q: 2, r: 0 });
+  });
+
+  it('never plans a second occupied step after a possible trample', () => {
+    const state = routeState();
+    for (const tile of Object.values(state.map.tiles)) tile.terrain = 'ocean';
+    for (const key of ['1,0', '2,0', '3,0']) state.map.tiles[key] = { ...state.map.tiles[key]!, terrain: 'plains' };
+    const template = Object.values(state.units).find(unit => unit.type === 'warrior')!;
+    state.units.first = { ...template, id: 'first', owner: 'player', position: { q: 2, r: 0 } };
+    state.units.second = { ...template, id: 'second', owner: 'player', position: { q: 3, r: 0 } };
+
+    const route = planHerdRoute(state, 'stampede-1', 'herd-1');
+    expect(route.steps[0]).toEqual({ q: 2, r: 0 });
+    expect(route.steps[1]).not.toEqual({ q: 3, r: 0 });
+  });
+
   it('caps Fort, Citadel, and fortified-screen avoidance at six', () => {
     const state = routeState();
     state.map.tiles['2,0'] = { ...state.map.tiles['2,0']!, improvement: 'fort', improvementTurnsLeft: 0 };

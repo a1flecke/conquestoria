@@ -55,9 +55,14 @@ export function getTerrainDefenseBonus(terrain: string): number {
   return bonuses[terrain] ?? 0;
 }
 
+/** Scenario units can carry a save-safe strength override without mutating the global catalog. */
+export function getUnitCombatStrength(unit: Unit): number {
+  return unit.combatStrengthOverride ?? UNIT_DEFINITIONS[unit.type].strength;
+}
+
 export function getEffectiveDefenseStrength(defender: Unit, map: GameMap): number {
   const def = UNIT_DEFINITIONS[defender.type];
-  let strength = def.strength * (defender.health / 100);
+  let strength = getUnitCombatStrength(defender) * (defender.health / 100);
   const tile = map.tiles[hexKey(defender.position)];
   if (tile) {
     strength *= (1 + getTerrainDefenseBonus(tile.terrain));
@@ -285,11 +290,11 @@ export function calculateCombatStrengths(
   const riverAttackPenalty = getRiverDefensePenalty(
     isRiverBetween(map, attacker.position, defender.position),
   );
-  let attackerStrength = attackerDefinition.strength
+  let attackerStrength = getUnitCombatStrength(attacker)
     * (attacker.health / 100)
     * (1 + getVeterancyCombatModifier(attacker))
     * (1 + riverAttackPenalty);
-  let defenderStrength = defenderDefinition.strength
+  let defenderStrength = getUnitCombatStrength(defender)
     * (defender.health / 100)
     * (1 + getVeterancyCombatModifier(defender));
 

@@ -26,6 +26,25 @@ function withPlagueCrisis(overrides: Partial<ActiveCrisis> = {}) {
 }
 
 describe('city-panel crisis chip', () => {
+  it('shows only the current hot-seat player their Stampede warning and containment status', () => {
+    const { container, city, state } = makeWonderPanelFixture();
+    state.stampedes = {
+      player: {
+        targetCivId: 'player', phase: 'active', eligibleTurns: 0, activeTurns: 2,
+        cityDamage: 0, civilianDeaths: 0, pillagedTileKeys: ['1,1'],
+      },
+    };
+    const own = createCityPanel(container, city, state, { onBuild: () => {}, onOpenWonderPanel: () => {}, onClose: () => {} });
+    expect(own.textContent).toContain('Stampede active: 4 turns remain');
+    expect(own.textContent).toContain('improvements 1/2');
+
+    state.civilizations['player-2'] = { ...structuredClone(state.civilizations.player), id: 'player-2', isHuman: true };
+    city.owner = 'player-2';
+    state.currentPlayer = 'player-2';
+    const other = createCityPanel(container, city, state, { onBuild: () => {}, onOpenWonderPanel: () => {}, onClose: () => {} });
+    expect(other.textContent).not.toContain('Stampede active');
+  });
+
   it('shows the era display name, yield penalty, and advisor line on an afflicted city', () => {
     const { container, city, state } = withPlagueCrisis();
     state.civilizations[city.owner].gold = 1000;

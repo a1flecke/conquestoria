@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createNewGame } from '@/core/game-state';
 import { foundCity } from '@/systems/city-system';
-import { applyStampedePillage, advanceStampedePressure, getStampedeProfile, normalizeStampedes, resolveStampedeOutcome, processStampedeTurn, startStampedeWarning } from '@/systems/stampede-system';
+import { applyStampedePillage, advanceStampedePressure, consumeHerdingInsight, getStampedeProfile, hasActiveHerdingInsight, normalizeStampedes, processHerdingInsight, resolveStampedeOutcome, processStampedeTurn, startStampedeWarning } from '@/systems/stampede-system';
 
 describe('Stampede state', () => {
   it('defines recurring pressure profiles for every player challenge', () => {
@@ -36,6 +36,7 @@ describe('Stampede state', () => {
     expect(next.stampedes?.player).toMatchObject({ phase: 'warning', activeTurns: 0 });
     expect(Object.values(next.crisisForces ?? {})).toHaveLength(1);
     expect(Object.values(next.crisisForces ?? {})[0]?.unitIds).toHaveLength(3);
+    expect(Object.values(next.units).find(unit => unit.owner === 'crisis-force')?.combatStrengthOverride).toBe(28);
   });
 
   it('activates a warning without moving its herds on the first Stampede turn', () => {
@@ -69,13 +70,26 @@ describe('Stampede state', () => {
     expect(before).not.toEqual([]);
   });
 
+  it('classifies a force whose herds were defeated before its next target turn', () => {
+    const state = createNewGame('rome', 'stampede-defeated', 'small');
+    const city = foundCity('player', { q: 0, r: 0 }, state.map, state.idCounters);
+    state.cities[city.id] = city;
+    state.civilizations.player.cities = [city.id];
+    for (const tile of Object.values(state.map.tiles)) tile.terrain = 'plains';
+    const warning = startStampedeWarning(state, 'player', 'explorer');
+    const active = processStampedeTurn(warning, 'player');
+    const defeated = { ...active, units: {} };
+
+    expect(processStampedeTurn(defeated, 'player').stampedes?.player).toMatchObject({ phase: 'resolved', outcome: 'defeated', rewardGranted: true });
+  });
+
   it('rewards a defeated Stampede once with gold and Herding Insight', () => {
     const state = createNewGame('rome', 'stampede-reward', 'small');
-    state.era = 4;
+    state.era = 4; // Global era must not affect a target-civilization reward.
     state.stampedes = { player: { targetCivId: 'player', eligibleTurns: 0, activeTurns: 1, cityDamage: 0, civilianDeaths: 0, pillagedTileKeys: [] } };
     const next = resolveStampedeOutcome(state, 'player', 'defeated');
 
-    expect(next.civilizations.player.gold).toBe(state.civilizations.player.gold + 40);
+    expect(next.civilizations.player.gold).toBe(state.civilizations.player.gold + 10);
     expect(next.stampedes?.player).toMatchObject({ phase: 'resolved', outcome: 'defeated', rewardGranted: true, herdingInsight: { expiresTurn: state.turn + 10 } });
     expect(resolveStampedeOutcome(next, 'player', 'defeated').civilizations.player.gold).toBe(next.civilizations.player.gold);
   });
@@ -93,6 +107,59 @@ describe('Stampede state', () => {
     expect(capped.stampedes?.player?.pillagedTileKeys).toHaveLength(2);
     expect(capped.map.tiles[`${third.coord.q},${third.coord.r}`]?.improvement).toBe('farm');
     expect(capped.civilizations.player.gold).toBe(state.civilizations.player.gold);
+  });
+
+  it('uses the target civilization era for its reward and exposes an unspent charge only before expiry', () => {
+    const state = createNewGame('rome', 'stampede-target-era', 'small');
+    state.era = 8;
+    state.stampedes = { player: { targetCivId: 'player', eligibleTurns: 0, activeTurns: 1, cityDamage: 0, civilianDeaths: 0, pillagedTileKeys: [] } };
+    const rewarded = resolveStampedeOutcome(state, 'player', 'defeated');
+
+    expect(rewarded.civilizations.player.gold).toBe(state.civilizations.player.gold + 10);
+    expect(hasActiveHerdingInsight(rewarded, 'player')).toBe(true);
+    expect(hasActiveHerdingInsight({ ...rewarded, turn: rewarded.turn + 10 }, 'player')).toBe(false);
+  });
+
+  it('consumes a valid charge only for its intended unit types', () => {
+    const state = createNewGame('rome', 'stampede-consume-insight', 'small');
+    const rewarded = resolveStampedeOutcome({
+      ...state,
+      stampedes: { player: { targetCivId: 'player', eligibleTurns: 0, activeTurns: 1, cityDamage: 0, civilianDeaths: 0, pillagedTileKeys: [] } },
+    }, 'player', 'defeated');
+
+    expect(consumeHerdingInsight(rewarded, 'player', 'warrior')).toEqual(rewarded);
+    expect(consumeHerdingInsight(rewarded, 'player', 'beast_handler').stampedes?.player.herdingInsight?.consumed).toBe(true);
+  });
+
+  it('limits pillage to two improvements per active Stampede pass without making that a whole-event cap', () => {
+    const state = createNewGame('rome', 'stampede-pillage-pass-cap', 'small');
+    const city = foundCity('player', { q: 0, r: 0 }, state.map, state.idCounters);
+    state.cities[city.id] = city;
+    state.civilizations.player.cities = [city.id];
+    for (const tile of Object.values(state.map.tiles)) tile.terrain = 'plains';
+    const warning = startStampedeWarning(state, 'player', 'explorer');
+    const herd = Object.values(warning.units).find(unit => unit.owner === 'crisis-force')!;
+    const tile = warning.map.tiles[`${herd.position.q},${herd.position.r}`]!;
+    const active = {
+      ...warning,
+      map: { ...warning.map, tiles: { ...warning.map.tiles, [`${herd.position.q},${herd.position.r}`]: { ...tile, owner: 'player', improvement: 'farm' as const, improvementTurnsLeft: 0 } } },
+      stampedes: { player: { ...warning.stampedes!.player!, phase: 'active' as const, pillagesThisTurn: 2 } },
+    };
+
+    expect(applyStampedePillage(active, 'player', herd.id).map.tiles[`${herd.position.q},${herd.position.r}`]?.improvement).toBe('farm');
+  });
+
+  it('converts an expired unreachable charge to gold exactly once', () => {
+    const state = createNewGame('rome', 'stampede-expire-insight', 'small');
+    const rewarded = resolveStampedeOutcome({
+      ...state,
+      stampedes: { player: { targetCivId: 'player', eligibleTurns: 0, activeTurns: 1, cityDamage: 0, civilianDeaths: 0, pillagedTileKeys: [] } },
+    }, 'player', 'defeated');
+    const expired = { ...rewarded, turn: rewarded.turn + 10 };
+
+    const converted = processHerdingInsight(expired, 'player');
+    expect(converted.civilizations.player.gold).toBe(expired.civilizations.player.gold + 20);
+    expect(processHerdingInsight(converted, 'player').civilizations.player.gold).toBe(converted.civilizations.player.gold);
   });
 });
 

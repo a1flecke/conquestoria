@@ -1428,6 +1428,8 @@ export function getProductionCostForItem(
     availableResources?: ReadonlySet<ResourceType>;
     /** One empire-selected soft material supplied by Circular Manufacturing Network. */
     materialSubstitution?: ResourceType;
+    /** One pending Stampede reward discounts the next Beast Handler or War Elephant. */
+    herdingInsight?: boolean;
   } = {},
 ): number {
   const baseCost = getCatalogProductionCost(itemId, options.era);
@@ -1458,7 +1460,8 @@ export function getProductionCostForItem(
     options.availableResources ?? new Set<ResourceType>(),
     options.materialSubstitution,
   );
-  const discountMultiplier = buildingDiscountMultiplier * techDiscountMultiplier * npDiscountMultiplier * resourceAdvantageMultiplier;
+  const herdingInsightMultiplier = options.herdingInsight && (itemId === 'beast_handler' || itemId === 'war_elephant') ? 0.8 : 1;
+  const discountMultiplier = buildingDiscountMultiplier * techDiscountMultiplier * npDiscountMultiplier * resourceAdvantageMultiplier * herdingInsightMultiplier;
   const effective = baseCost * civMultiplier * discountMultiplier;
   return discountMultiplier < 1 ? Math.ceil(effective) : Math.round(effective);
 }
@@ -2017,6 +2020,8 @@ export function processCity(
   builtNationalProjectKeys?: Set<string>,
   unitCompletionBlocker?: (type: UnitType) => ProductionDropReason | null,
   materialSubstitution?: ResourceType,
+  /** Applies one active Stampede reward to a qualifying unit currently being produced. */
+  herdingInsight: boolean = false,
 ): CityProcessResult {
   let grew = false;
   let completedBuilding: string | null = null;
@@ -2179,6 +2184,7 @@ export function processCity(
       completedTechs,
       availableResources,
       materialSubstitution,
+      herdingInsight,
     });
     if ((BUILDINGS[currentItem] || unitDef) && newProgress >= currentItemCost) {
       const completion = completeCityProductionItem(
