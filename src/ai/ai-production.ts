@@ -2,6 +2,7 @@ import type {
   AIStrategicRole,
   GameState,
   PersonalityTraits,
+  TrainableUnitEntry,
 } from '@/core/types';
 import {
   BUILDINGS,
@@ -20,7 +21,7 @@ import {
 import { getCivAvailableResources } from '@/systems/resource-acquisition-system';
 import { resolveCivDefinition } from '@/systems/civ-registry';
 import { createUnit, UNIT_DEFINITIONS } from '@/systems/unit-system';
-import { canCompleteAirUnitProduction } from '@/systems/air-operations-system';
+import { canCompleteAirUnitProduction, getAirBaseRoster } from '@/systems/air-operations-system';
 import { enqueueCityProduction } from '@/systems/planning-system';
 import { getActiveNationalProjectsForCiv, getCircularManufacturingMaterial, getReservedNationalProjectKeys } from '@/systems/national-project-system';
 import type { AIForceDemand } from './ai-unit-assignment';
@@ -48,6 +49,7 @@ export interface AIProductionCandidate {
   defensiveEspionageScore: number;
   airDefenseThreatScore: number;
   submarineThreatScore: number;
+  carrierCompositionScore: number;
   fulfilledRole?: AIStrategicRole;
   score: number;
 }
@@ -326,6 +328,50 @@ function submarineThreatScore(
   return 40 * getChallengeProfileForCiv(state, civId).submarineEscortWeight;
 }
 
+/**
+ * #582: nudges carrier-air-wing composition toward diversity and toward
+ * Patrol specifically when a real (perceived, not omniscient) submarine
+ * threat exists. Reuses hasRememberedHostileSubmarineSighting unchanged --
+ * no new confidence threshold, no raw GameState submarine read.
+ *
+ * Only considers carriers with at least one open deck slot (a full carrier
+ * isn't a real destination for a new aircraft yet); "how stacked would this
+ * role be" uses the LEAST-stacked such carrier (the best-case destination
+ * for a new unit of this type), not a sum across every carrier the civ
+ * owns -- an unrelated carrier's composition shouldn't discourage building
+ * a role this specific decision has nothing to do with. The submarine-
+ * threat bonus applies once (not once per open carrier) -- it answers "is
+ * there a real reason to want a patrol aircraft at all," not "how many
+ * carriers could it go to."
+ */
+function carrierCompositionScore(
+  state: GameState,
+  civId: string,
+  unit: TrainableUnitEntry,
+): number {
+  const definition = UNIT_DEFINITIONS[unit.type];
+  if (!definition.airOperation?.carrierEligible) return 0;
+  const openCarriers = Object.values(state.units)
+    .filter(candidate => candidate.owner === civId && UNIT_DEFINITIONS[candidate.type].carrierDeckCapacity !== undefined)
+    .map(carrier => ({
+      roster: getAirBaseRoster(state, { kind: 'carrier', unitId: carrier.id }),
+      capacity: UNIT_DEFINITIONS[carrier.type].carrierDeckCapacity ?? 0,
+    }))
+    .filter(({ roster, capacity }) => roster.length < capacity);
+  if (openCarriers.length === 0) return 0;
+
+  const leastStackedSameRoleCount = Math.min(...openCarriers.map(({ roster }) =>
+    roster.filter(aboard => aboard.type === unit.type).length));
+  // discourage stacking one role on one deck; the `> 0` guard avoids
+  // producing -0 (Math.min/negation of 0 -> -0) when nothing is stacked.
+  let score = leastStackedSameRoleCount > 0 ? -leastStackedSameRoleCount * 15 : 0;
+
+  if (definition.airOperation.missions.includes('patrol') && hasRememberedHostileSubmarineSighting(state, civId)) {
+    score += 40;
+  }
+  return score;
+}
+
 function generateWithResidual(
   state: GameState,
   civId: string,
@@ -418,11 +464,13 @@ function generateWithResidual(
       : 0;
     const maintenanceRisk = maintenanceImpact;
     const unitSubmarineThreatScore = submarineThreatScore(hasSubmarineThreat, civId, state, unit.type);
+    const unitCarrierCompositionScore = carrierCompositionScore(state, civId, unit);
     const score = roleDemandScore * 4
       + emergencyDefenseScore * 3
       + personalityScore
       + citySpecializationScore
       + unitSubmarineThreatScore
+      + unitCarrierCompositionScore
       - productionTurns * 1.5
       - maintenanceRisk * 3;
     candidates.push({
@@ -440,6 +488,7 @@ function generateWithResidual(
       defensiveEspionageScore: 0,
       airDefenseThreatScore: 0,
       submarineThreatScore: unitSubmarineThreatScore,
+      carrierCompositionScore: unitCarrierCompositionScore,
       fulfilledRole: fulfilled.role,
       score,
     });
@@ -495,6 +544,7 @@ function generateWithResidual(
           defensiveEspionageScore: 0,
           airDefenseThreatScore: 0,
           submarineThreatScore: 0,
+          carrierCompositionScore: 0,
           score,
         });
       }
@@ -559,6 +609,7 @@ function generateWithResidual(
       defensiveEspionageScore: buildingDefensiveScore,
       airDefenseThreatScore: buildingAirDefenseScore,
       submarineThreatScore: 0,
+      carrierCompositionScore: 0,
       score,
     });
   }

@@ -769,3 +769,93 @@ describe('#592 MR5 — missionary production scoring', () => {
     }
   });
 });
+
+describe('AI carrier deck composition nudging (#582)', () => {
+  it('discounts a candidate role already well-represented on a specific carrier\'s current air wing', () => {
+    const stackedState = setupState(['jet-aviation', 'carrier-warfare']);
+    const stackedCity = stackedState.cities['city-a']!;
+    stackedCity.buildings = ['airfield'];
+    const carrier = { ...createUnit('carrier', 'ai-1', stackedCity.position, stackedState.idCounters), id: 'carrier-1' };
+    stackedState.units[carrier.id] = carrier;
+    stackedState.civilizations['ai-1']!.units.push(carrier.id);
+    const aboardFighter = { ...createUnit('jet_fighter', 'ai-1', stackedCity.position, stackedState.idCounters), id: 'fighter-aboard', airBase: { kind: 'carrier' as const, unitId: carrier.id } };
+    stackedState.units[aboardFighter.id] = aboardFighter;
+    stackedState.civilizations['ai-1']!.units.push(aboardFighter.id);
+
+    const stackedCandidate = generateAIProductionCandidates(stackedState, 'ai-1', 'city-a', [demand('air-combat')], aggressive)
+      .find(c => c.itemId === 'jet_fighter')!;
+
+    const emptyState = setupState(['jet-aviation', 'carrier-warfare']);
+    const emptyCity = emptyState.cities['city-a']!;
+    emptyCity.buildings = ['airfield'];
+    const emptyCarrier = { ...createUnit('carrier', 'ai-1', emptyCity.position, emptyState.idCounters), id: 'carrier-1' };
+    emptyState.units[emptyCarrier.id] = emptyCarrier;
+    emptyState.civilizations['ai-1']!.units.push(emptyCarrier.id);
+
+    const emptyCandidate = generateAIProductionCandidates(emptyState, 'ai-1', 'city-a', [demand('air-combat')], aggressive)
+      .find(c => c.itemId === 'jet_fighter')!;
+
+    expect(stackedCandidate.carrierCompositionScore).toBeLessThan(emptyCandidate.carrierCompositionScore);
+    expect(stackedCandidate.score).toBeLessThan(emptyCandidate.score);
+  });
+
+  it('boosts patrol-aircraft candidate scoring when a remembered hostile submarine sighting exists near a civ-owned carrier', () => {
+    const state = setupState(['carrier-warfare', 'radar-systems']);
+    const city = state.cities['city-a']!;
+    city.buildings = ['airfield'];
+    const carrier = { ...createUnit('carrier', 'ai-1', city.position, state.idCounters), id: 'carrier-1' };
+    state.units[carrier.id] = carrier;
+    state.civilizations['ai-1']!.units.push(carrier.id);
+
+    const observed = { q: 8, r: 4 };
+    state.civilizations['ai-1']!.knownCivilizations = ['player'];
+    state.civilizations['ai-1']!.visibility.tiles[hexKey(observed)] = 'fog';
+    const tile = state.map.tiles[hexKey(observed)];
+    state.civilizations['ai-1']!.visibility.lastSeen = {
+      [hexKey(observed)]: {
+        coord: { ...observed },
+        terrain: tile.terrain,
+        elevation: tile.elevation,
+        resource: tile.resource,
+        improvement: tile.improvement,
+        improvementTurnsLeft: tile.improvementTurnsLeft,
+        owner: tile.owner,
+        hasRiver: tile.hasRiver,
+        wonder: tile.wonder,
+        observedTurn: state.turn,
+        source: 'observed',
+        units: [{ id: 'rival-sub', type: 'submarine', owner: 'player', healthBand: 'healthy' }],
+      },
+    };
+
+    const withThreat = generateAIProductionCandidates(state, 'ai-1', 'city-a', [demand('recon')], aggressive)
+      .find(c => c.itemId === 'maritime_patrol_aircraft')!;
+    expect(withThreat.carrierCompositionScore).toBeGreaterThan(0);
+
+    const withoutThreatState = { ...state, civilizations: { ...state.civilizations, 'ai-1': { ...state.civilizations['ai-1']!, visibility: { ...state.civilizations['ai-1']!.visibility, lastSeen: {} } } } };
+    const withoutThreat = generateAIProductionCandidates(withoutThreatState, 'ai-1', 'city-a', [demand('recon')], aggressive)
+      .find(c => c.itemId === 'maritime_patrol_aircraft')!;
+    expect(withoutThreat.carrierCompositionScore).toBe(0);
+
+    expect(withThreat.score).toBeGreaterThan(withoutThreat.score);
+  });
+
+  it('does not boost patrol scoring when no submarine has actually been perceived by this civ (no hidden information)', () => {
+    const state = setupState(['carrier-warfare', 'radar-systems']);
+    const city = state.cities['city-a']!;
+    city.buildings = ['airfield'];
+    const carrier = { ...createUnit('carrier', 'ai-1', city.position, state.idCounters), id: 'carrier-1' };
+    state.units[carrier.id] = carrier;
+    state.civilizations['ai-1']!.units.push(carrier.id);
+
+    // A real hostile submarine exists in raw GameState, far from any AI
+    // detector, with no visibility.lastSeen entry -- genuinely unscouted.
+    const hiddenSub = { ...createUnit('submarine', 'player', { q: 20, r: 20 }, state.idCounters), id: 'unseen-sub' };
+    state.units[hiddenSub.id] = hiddenSub;
+    state.civilizations.player.units.push(hiddenSub.id);
+
+    const candidate = generateAIProductionCandidates(state, 'ai-1', 'city-a', [demand('recon')], aggressive)
+      .find(c => c.itemId === 'maritime_patrol_aircraft')!;
+    expect(candidate.carrierCompositionScore).toBe(0);
+  });
+});
