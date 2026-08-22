@@ -1,9 +1,11 @@
 import type { GameState, OpponentChallenge, StampedeState } from '@/core/types';
 import { countActiveCrisesForCiv } from '@/systems/crisis-system';
 import { CRISIS_FORCE_OWNER } from '@/core/owner-kind';
-import { registerCrisisForce } from '@/systems/crisis-force-system';
+import { normalizeCrisisForces, registerCrisisForce } from '@/systems/crisis-force-system';
 import { createUnit } from '@/systems/unit-system';
 import { hexKey, mapNeighbors } from '@/systems/hex-utils';
+import { commitHerdRouteForTurn } from '@/systems/stampede-route-system';
+import { executeUnitMove } from '@/systems/unit-movement-system';
 
 export interface StampedeProfile {
   cooldownTurns: number;
@@ -107,9 +109,38 @@ export function startStampedeWarning(state: GameState, targetCivId: string, seve
 /** The warning-to-active boundary intentionally consumes no herd movement. */
 export function processStampedeTurn(state: GameState, targetCivId: string): GameState {
   const stampede = state.stampedes?.[targetCivId];
-  if (!stampede || stampede.phase !== 'warning') return state;
-  return {
-    ...state,
-    stampedes: { ...state.stampedes, [targetCivId]: { ...stampede, phase: 'active', activeTurns: 0 } },
-  };
+  if (!stampede) return state;
+  if (stampede.phase === 'warning') {
+    return {
+      ...state,
+      stampedes: { ...state.stampedes, [targetCivId]: { ...stampede, phase: 'active', activeTurns: 0 } },
+    };
+  }
+  if (stampede.phase !== 'active' || !stampede.forceId) return state;
+  let next = structuredClone(state);
+  const force = next.crisisForces?.[stampede.forceId];
+  if (!force) return next;
+  for (const unitId of [...force.unitIds].sort()) {
+    next = commitHerdRouteForTurn(next, force.id, unitId);
+    for (const step of next.crisisForces?.[force.id]?.herdRoutes?.[unitId]?.steps ?? []) {
+      const moved = executeUnitMove(next, unitId, step, { actor: 'world' });
+      if (!moved.ok || moved.stopReason) break;
+    }
+  }
+  const activeTurns = stampede.activeTurns + 1;
+  if (activeTurns < 6) {
+    return { ...next, stampedes: { ...next.stampedes, [targetCivId]: { ...stampede, activeTurns } } };
+  }
+  const units = Object.fromEntries(Object.entries(next.units).filter(([unitId]) => !force.unitIds.includes(unitId)));
+  const crisisForces = { ...next.crisisForces };
+  delete crisisForces[force.id];
+  return normalizeCrisisForces({
+    ...next,
+    units,
+    crisisForces,
+    stampedes: {
+      ...next.stampedes,
+      [targetCivId]: { ...stampede, activeTurns, phase: 'resolved', outcome: 'survived', resolvedTurn: next.turn, lastResolvedTurn: next.turn },
+    },
+  });
 }
