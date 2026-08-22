@@ -68,12 +68,21 @@ describe('isSubmarineConcealedFrom', () => {
     expect(isSubmarineConcealedFrom(state, sub, 'player')).toBe(false);
   });
 
-  it('reveals an enemy submarine adjacent to a viewer air unit', () => {
+  it('does NOT reveal an enemy submarine adjacent to a viewer air unit merely by existing (#582 correction: aircraft only detect via an active Patrol mission, not by being parked nearby)', () => {
     const state = setup();
     setTerrain(state, { q: 0, r: 0 }, 'ocean');
     setTerrain(state, { q: 1, r: 0 }, 'ocean');
     const sub = placeUnit(state, 'ai-1', 'submarine', { q: 0, r: 0 });
     placeUnit(state, 'player', 'biplane', { q: 1, r: 0 });
+    expect(isSubmarineConcealedFrom(state, sub, 'player')).toBe(true);
+  });
+
+  it('still reveals an enemy submarine adjacent to a viewer NAVAL unit (regression -- only the air-domain default changed)', () => {
+    const state = setup();
+    setTerrain(state, { q: 0, r: 0 }, 'ocean');
+    setTerrain(state, { q: 1, r: 0 }, 'ocean');
+    const sub = placeUnit(state, 'ai-1', 'submarine', { q: 0, r: 0 });
+    placeUnit(state, 'player', 'galley', { q: 1, r: 0 });
     expect(isSubmarineConcealedFrom(state, sub, 'player')).toBe(false);
   });
 
