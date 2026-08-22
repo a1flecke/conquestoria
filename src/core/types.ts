@@ -548,6 +548,13 @@ export interface CrisisForce {
   unitIds: string[];
   createdTurn: number;
   severity: OpponentChallenge;
+  herdRoutes?: Record<string, HerdRoute>;
+}
+
+export interface HerdRoute {
+  unitId: string;
+  committedTurn: number;
+  steps: HexCoord[];
 }
 
 // --- Cities ---
