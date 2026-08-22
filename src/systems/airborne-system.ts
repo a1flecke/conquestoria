@@ -150,11 +150,12 @@ function notifyParadropOutcome(state: GameState, droppedUnit: Unit, destination:
   return nextState;
 }
 
-export function executeParadrop(state: GameState, unitId: string, destination: HexCoord): ParadropResult {
-  const check = canParadrop(state, unitId, destination);
-  if (!check.ok) return { ok: false, state, reason: check.reason };
-  const unit = state.units[unitId]!;
-
+function resolveAirborneLanding(state: GameState, unit: Unit, destination: HexCoord): {
+  state: GameState;
+  flak?: { damage: number; providerId: string; providerLabel: string };
+  interception?: { interceptorId: string; result: CombatResult };
+  survived: boolean;
+} {
   // Relocate to the destination FIRST, before flak/interception resolve.
   // This is not cosmetic: buildCombatContextForDefender reads the
   // defender's *current position* to decide whether it's standing on a
@@ -172,21 +173,21 @@ export function executeParadrop(state: GameState, unitId: string, destination: H
     flak = { damage: threat.flatDefenseModifier, providerId: strongestProvider.id, providerLabel: strongestProvider.label };
     const health = workingUnit.health - threat.flatDefenseModifier;
     if (health <= 0) {
-      const { [unitId]: _removed, ...remainingUnits } = state.units;
+      const { [unit.id]: _removed, ...remainingUnits } = state.units;
       const owner = state.civilizations[unit.owner];
       const strippedState: GameState = {
         ...state,
         units: remainingUnits,
-        civilizations: owner ? { ...state.civilizations, [unit.owner]: { ...owner, units: owner.units.filter(id => id !== unitId) } } : state.civilizations,
+        civilizations: owner ? { ...state.civilizations, [unit.owner]: { ...owner, units: owner.units.filter(id => id !== unit.id) } } : state.civilizations,
       };
-      return { ok: true, state: notifyParadropOutcome(strippedState, unit, destination, { flak, destroyed: true }), flak };
+      return { state: strippedState, flak, survived: false };
     }
     workingUnit = { ...workingUnit, health };
   }
 
   // Interception second, against the (possibly flak-weakened) unit at its
   // destination, reusing #539's mechanism unchanged.
-  let nextState: GameState = { ...state, units: { ...state.units, [unitId]: workingUnit } };
+  let nextState: GameState = { ...state, units: { ...state.units, [unit.id]: workingUnit } };
   const interceptor = selectInterceptor(nextState, workingUnit, destination);
   let interception: { interceptorId: string; result: CombatResult } | undefined;
   if (interceptor) {
@@ -204,15 +205,28 @@ export function executeParadrop(state: GameState, unitId: string, destination: H
       nextState = { ...nextState, units: { ...nextState.units, [interceptor.id]: { ...nextState.units[interceptor.id]!, interceptedTurn: state.turn } } };
     }
     interception = { interceptorId: interceptor.id, result };
-    if (!nextState.units[unitId]) {
-      return { ok: true, state: notifyParadropOutcome(nextState, unit, destination, { flak, interception, destroyed: true }), flak, interception };
+    if (!nextState.units[unit.id]) {
+      return { state: nextState, flak, interception, survived: false };
     }
   }
 
-  const survivor = nextState.units[unitId]!;
+  return { state: nextState, flak, interception, survived: true };
+}
+
+export function executeParadrop(state: GameState, unitId: string, destination: HexCoord): ParadropResult {
+  const check = canParadrop(state, unitId, destination);
+  if (!check.ok) return { ok: false, state, reason: check.reason };
+  const unit = state.units[unitId]!;
+
+  const landing = resolveAirborneLanding(state, unit, destination);
+  if (!landing.survived) {
+    return { ok: true, state: notifyParadropOutcome(landing.state, unit, destination, { flak: landing.flak, interception: landing.interception, destroyed: true }), flak: landing.flak, interception: landing.interception };
+  }
+
+  const survivor = landing.state.units[unitId]!;
   const landedState: GameState = {
-    ...nextState,
-    units: { ...nextState.units, [unitId]: { ...survivor, movementPointsLeft: 0, hasMoved: true, hasActed: true } },
+    ...landing.state,
+    units: { ...landing.state.units, [unitId]: { ...survivor, movementPointsLeft: 0, hasMoved: true, hasActed: true } },
   };
-  return { ok: true, state: notifyParadropOutcome(landedState, unit, destination, { flak, interception, destroyed: false }), flak, interception };
+  return { ok: true, state: notifyParadropOutcome(landedState, unit, destination, { flak: landing.flak, interception: landing.interception, destroyed: false }), flak: landing.flak, interception: landing.interception };
 }
