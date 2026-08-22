@@ -12,7 +12,7 @@ import type {
   Unit,
 } from '@/core/types';
 import { canUnitAttackTarget } from '@/systems/attack-targeting';
-import { rebaseAircraft, resolveAirStrike, resolveReconMission, startIntercept } from '@/systems/air-operations-system';
+import { rebaseAircraft, resolveAirStrike, resolveReconMission, resolvePatrolMission, startIntercept } from '@/systems/air-operations-system';
 import { executeParadrop, executeAirAssault } from '@/systems/airborne-system';
 import { applyCampDestructionAtTarget } from '@/systems/barbarian-system';
 import { applyCombatOutcomeToState } from '@/systems/combat-reward-system';
@@ -523,6 +523,10 @@ function executeAction(
     }
     case 'air-assault': {
       const result = executeAirAssault(state, action.unitId, action.destination);
+      return { state: result.ok ? result.state : state, succeeded: result.ok, followUps: [] };
+    }
+    case 'patrol': {
+      const result = resolvePatrolMission(state, action.unitId, action.center);
       return { state: result.ok ? result.state : state, succeeded: result.ok, followUps: [] };
     }
     case 'rest': {

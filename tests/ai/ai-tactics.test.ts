@@ -20,6 +20,7 @@ import { hexDistance, hexKey } from '@/systems/hex-utils';
 import { createUnit, UNIT_DEFINITIONS } from '@/systems/unit-system';
 import * as combatSystem from '@/systems/combat-system';
 import { canParadrop, getAirAssaultTargets } from '@/systems/airborne-system';
+import { getLegalAirMissionTargets } from '@/systems/air-operations-system';
 
 const AI = 'ai-1';
 const HUMAN = 'player';
@@ -1379,5 +1380,76 @@ describe('rankUnitTacticalActions — air assault (#543 Phase 2)', () => {
     const hiddenThreatScore = Math.max(0, ...rankUnitTacticalActions(context(withHiddenThreat.state, planHidden), withHiddenThreat.infantry.id).filter(a => a.action.kind === 'air-assault').map(a => a.score));
 
     expect(hiddenThreatScore).toBeGreaterThan(visibleThreatScore);
+  });
+});
+
+describe('rankUnitTacticalActions — patrol (#582)', () => {
+  function makePatrolAIFixture() {
+    const state = makeState('veteran');
+    const capital = addCity(state, 'capital', AI, { q: 0, r: 0 });
+    capital.buildings = [...capital.buildings, 'airfield'];
+    const patrol = addUnit(state, 'patrol-1', 'maritime_patrol_aircraft', AI, { q: 0, r: 0 }, { airBase: { kind: 'city', cityId: capital.id } });
+    return { state, capital, patrol };
+  }
+
+  it('produces no patrol candidates for a unit with no patrol capability', () => {
+    const { state, capital } = makePatrolAIFixture();
+    const jet = addUnit(state, 'jet-1', 'jet_fighter', AI, capital.position, { airBase: { kind: 'city', cityId: capital.id } });
+    const plan = makePlan({ kind: 'region', id: 'front', anchor: { q: 3, r: 0 } }, [jet.id], { objective: 'expand', requiredRoles: {} });
+    const actions = rankUnitTacticalActions(context(state, plan), jet.id);
+    expect(actions.some(a => a.action.kind === 'patrol')).toBe(false);
+  });
+
+  it('produces at least one legal patrol candidate for an eligible, based, un-acted patrol aircraft', () => {
+    const { state, patrol } = makePatrolAIFixture();
+    const plan = makePlan({ kind: 'region', id: 'front', anchor: { q: 3, r: 0 } }, [patrol.id], { objective: 'expand', requiredRoles: {} });
+    const actions = rankUnitTacticalActions(context(state, plan), patrol.id).filter(a => a.action.kind === 'patrol');
+    expect(actions.length).toBeGreaterThan(0);
+  });
+
+  it('never proposes a patrol center outside getLegalAirMissionTargets (fog-safe by construction)', () => {
+    const { state, patrol } = makePatrolAIFixture();
+    const plan = makePlan({ kind: 'region', id: 'front', anchor: { q: 3, r: 0 } }, [patrol.id], { objective: 'expand', requiredRoles: {} });
+    const legal = new Set(getLegalAirMissionTargets(state, patrol.id, 'patrol').map(hexKey));
+    const actions = rankUnitTacticalActions(context(state, plan), patrol.id).filter((a): a is typeof a & { action: { kind: 'patrol'; unitId: string; center: HexCoord } } => a.action.kind === 'patrol');
+    for (const action of actions) expect(legal.has(hexKey(action.action.center))).toBe(true);
+  });
+
+  it('produces a bounded candidate set, not one per legal tile (performance guard, #543-style)', () => {
+    const { state, patrol } = makePatrolAIFixture();
+    const plan = makePlan({ kind: 'region', id: 'front', anchor: { q: 3, r: 0 } }, [patrol.id], { objective: 'expand', requiredRoles: {} });
+    const legalCount = getLegalAirMissionTargets(state, patrol.id, 'patrol').length;
+    const actions = rankUnitTacticalActions(context(state, plan), patrol.id).filter(a => a.action.kind === 'patrol');
+    expect(legalCount).toBeGreaterThan(5); // sanity: operationalRange 5 covers well more than 5 tiles
+    expect(actions.length).toBeLessThanOrEqual(2); // own position, plus at most one remembered-submarine center
+  });
+
+  it('produces the identical legal candidate set across difficulty tiers under identical fog', () => {
+    const veteran = makeState('veteran');
+    const explorer = makeState('explorer');
+    for (const state of [veteran, explorer]) {
+      const capital = addCity(state, 'capital', AI, { q: 0, r: 0 });
+      capital.buildings = [...capital.buildings, 'airfield'];
+      addUnit(state, 'patrol-1', 'maritime_patrol_aircraft', AI, { q: 0, r: 0 }, { airBase: { kind: 'city', cityId: capital.id } });
+    }
+    const plan = makePlan({ kind: 'region', id: 'front', anchor: { q: 3, r: 0 } }, ['patrol-1'], { objective: 'expand', requiredRoles: {} });
+    const veteranCenters = rankUnitTacticalActions(context(veteran, plan), 'patrol-1').filter(a => a.action.kind === 'patrol').map(a => a.action.kind === 'patrol' ? hexKey(a.action.center) : '');
+    const explorerCenters = rankUnitTacticalActions(context(explorer, plan), 'patrol-1').filter(a => a.action.kind === 'patrol').map(a => a.action.kind === 'patrol' ? hexKey(a.action.center) : '');
+    expect(new Set(veteranCenters)).toEqual(new Set(explorerCenters));
+  });
+
+  it('never targets a hidden remembered-submarine position the civ has not actually perceived (no hidden information)', () => {
+    const { state, patrol } = makePatrolAIFixture();
+    const hiddenPosition = { q: 3, r: 0 };
+    addUnit(state, 'sub-hostile-1', 'submarine', HUMAN, hiddenPosition);
+    // makeState() marks every tile visible by default -- explicitly hide the
+    // submarine's tile from the AI civ so buildMajorCivPerception genuinely
+    // has no entry for it (same "no hidden information" pattern as the
+    // air-assault armor-threat tests above).
+    state.civilizations[AI].visibility.tiles[hexKey(hiddenPosition)] = 'unexplored';
+
+    const plan = makePlan({ kind: 'region', id: 'front', anchor: { q: 3, r: 0 } }, [patrol.id], { objective: 'expand', requiredRoles: {} });
+    const actions = rankUnitTacticalActions(context(state, plan), patrol.id).filter((a): a is typeof a & { action: { kind: 'patrol'; unitId: string; center: HexCoord } } => a.action.kind === 'patrol');
+    expect(actions.some(a => hexKey(a.action.center) === hexKey(hiddenPosition))).toBe(false);
   });
 });
