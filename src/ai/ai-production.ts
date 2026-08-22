@@ -342,7 +342,12 @@ function submarineThreatScore(
  * a role this specific decision has nothing to do with. The submarine-
  * threat bonus applies once (not once per open carrier) -- it answers "is
  * there a real reason to want a patrol aircraft at all," not "how many
- * carriers could it go to."
+ * carriers could it go to." Scaled by the same submarineEscortWeight
+ * challenge-profile term submarineThreatScore already uses, so Patrol
+ * urgency scales with difficulty the same way Destroyer urgency does --
+ * without this, an Explorer-tier AI would react to a sighting exactly as
+ * strongly as a Veteran-tier one, unlike every other submarine-threat
+ * response in this file.
  */
 function carrierCompositionScore(
   state: GameState,
@@ -367,7 +372,7 @@ function carrierCompositionScore(
   let score = leastStackedSameRoleCount > 0 ? -leastStackedSameRoleCount * 15 : 0;
 
   if (definition.airOperation.missions.includes('patrol') && hasRememberedHostileSubmarineSighting(state, civId)) {
-    score += 40;
+    score += 40 * getChallengeProfileForCiv(state, civId).submarineEscortWeight;
   }
   return score;
 }
