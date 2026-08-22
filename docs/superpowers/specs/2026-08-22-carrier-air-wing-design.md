@@ -47,10 +47,12 @@ New `UnitType: 'naval_strike_aircraft'`, carrier-capable, era 10 (`techRequired:
 New entry in `unit-modifier-definitions.ts`'s counter table:
 
 ```ts
-{ attackerTypes: ['naval_strike_aircraft'], defenderClass: 'naval', multiplier: 1.5, label: 'Naval strike' },
+{ attackerTypes: ['naval_strike_aircraft'], defenderClass: 'naval', multiplier: 1.35, label: 'Naval strike' },
 ```
 
-`defenderClass: 'naval'` (not `defenderTypes`) deliberately covers **every** current and future naval unit type generically — carriers, destroyers, battleships, submarines-on-the-surface, transports — matching the issue's "effective against naval combat ships, carriers, transports" requirement without a per-type list. No bonus applies against land units or cities (the modifier table only fires when the defender matches `defenderClass`/`defenderTypes`; against a city or land unit, Naval Strike Aircraft resolves at its plain `strength: 38`, which is deliberately unremarkable there). `1.5` matches the existing "Commerce raider" modifier's magnitude (submarine→civilian) as a reference point for "a dedicated anti-X specialist's bonus," scaled down slightly from that outlier case since Naval Strike Aircraft's targets aren't undefended civilians.
+`defenderClass: 'naval'` (not `defenderTypes`) deliberately covers **every** current and future naval unit type generically — carriers, destroyers, battleships, submarines-on-the-surface, transports — matching the issue's "effective against naval combat ships, carriers, transports" requirement without a per-type list. No bonus applies against land units or cities (the modifier table only fires when the defender matches `defenderClass`/`defenderTypes`; against a city or land unit, Naval Strike Aircraft resolves at its plain `strength: 38`, which is deliberately unremarkable there).
+
+**Magnitude, checked against both existing precedents rather than the first one found.** The table has two different kinds of counter today: a "beats a real combat peer" tier at `+25%` (`destroyer→submarine`, `submarine→capital-ship` "ambush", `submarine→autonomous_frigate`), and one outlier "raids a defenseless target" tier at `+50%` (`submarine→civilian`, where the target's own combat strength is near zero, so the multiplier's exact size barely matters). Naval Strike Aircraft's targets are real warships, not undefended civilians, so `+50%` is the wrong precedent to anchor on — but a straight `+25%` undershoots the unit's intended identity: `38 × 1.25 = 47.5`, which is *worse* than a plain Jet Fighter's unmodified `50` against the same Destroyer, meaning the "dedicated specialist" would lose to the generalist at its own specialty. `1.35` (`38 × 1.35 = 51.3`) is the number that actually delivers on the identity: a real, if modest, edge over a generalist fighter specifically against ships (`51.3` vs Jet Fighter's `50`), clearly favors the attacker against a Carrier (`51.3` vs `45`, matching the historical/thematic "carriers are vulnerable to dedicated anti-ship air power" beat the issue itself invokes), while staying well short of the civilian-raiding outlier's magnitude. Verify this against real `resolveCombat` math (terrain/veterancy/era modifiers all stack on top of the base multiplier) during the balance-test pass (§16) rather than trusting the raw strength arithmetic alone.
 
 ### 4.2 Interception
 
@@ -73,11 +75,18 @@ New `UnitType: 'maritime_patrol_aircraft'`, carrier-capable, era 10. Two-tech ga
 export type AirMission = 'strike' | 'intercept' | 'rebase' | 'recon' | 'patrol';
 ```
 
-### 5.2 Legality and execution — mirrors `resolveReconMission` exactly, wired to submarine detection instead of fog
+### 5.2 Legality and execution — reconnaissance AND submarine detection in one mission
+
+The issue explicitly asks whether patrol should provide reconnaissance (visible ships, coastal tiles), ASW, or both — this design answers **both**, cleanly composed from two already-proven mechanisms rather than picking one and losing the other. A maritime patrol flight scanning open water would plausibly spot ordinary surface ships and coastline the same way `recon_aircraft`'s land recon already spots terrain and units; there's no principled reason to give it only the submarine half.
 
 `getLegalAirMissionTargets`'s signature widens from `Extract<AirMission, 'recon' | 'strike'>` to `Extract<AirMission, 'recon' | 'strike' | 'patrol'>`; `'patrol'` falls into the same no-terrain-filter, plain-range-scan branch `'recon'` already uses (`hexesInRange`/`getWrappedHexesInRange` from the unit's current position, out to `operationalRange`) — no water-only restriction, matching the exact reasoning `'recon'` already uses (submarines can only ever be on water tiles anyway per their own `waterAccess`, so a terrain filter would be redundant complexity for zero practical benefit).
 
-New `resolvePatrolMission(state, unitId, center): AirOperationResult`, structurally identical to `resolveReconMission`: validates via `getLegalAirMissionTargets(..., 'patrol')`, consumes the aircraft's action (`movementPointsLeft: 0, hasMoved: true, hasActed: true`), and appends a new temporary record:
+New `resolvePatrolMission(state, unitId, center): AirOperationResult`, structurally identical to `resolveReconMission` but writing to **two** temporary structures instead of one, both using the same `range` and `center` so the mission reads as one consistent "how far can this flight see" radius rather than two different magic numbers:
+
+1. Appends to `state.reconReveals` — reused **verbatim**, unchanged shape (`{ownerCivId, center, range, expiresAtTurn: state.turn}`) — for the ordinary-fog half (ships, coastal tiles, terrain). This is the same array and the same `applyReconReveals` consumer `'recon'` missions already use; a patrol reveal and a recon reveal are indistinguishable to `fog-of-war.ts` by design, since they grant the identical kind of thing.
+2. Appends to the new `state.patrolReveals` (below) for the submarine-detection half, which `reconReveals`/`applyReconReveals` structurally cannot grant (submarine concealment is deliberately independent of ordinary fog visibility — see #542's `isSubmarineConcealedFrom`, unchanged by this design except for the new detector branch in §5.3).
+
+Consumes the aircraft's action (`movementPointsLeft: 0, hasMoved: true, hasActed: true`) exactly once, for both effects together — this is one mission, not two.
 
 ```ts
 export interface PatrolReveal {
@@ -88,7 +97,7 @@ export interface PatrolReveal {
 }
 ```
 
-to a new `state.patrolReveals?: PatrolReveal[]` array — **not** reused into `reconReveals`, because the two are consumed by different systems for different purposes (fog-of-war.ts vs. concealment.ts) and conflating them under one type/flag would make a future change to either mission's semantics need to reason about the other. Same lifecycle convention as `ReconReveal`: `expiresAtTurn: state.turn` (visible for the remainder of the turn it was flown, filtered out — not proactively pruned — on the next write to the same civ's entries, exactly matching `resolveReconMission`'s existing pattern).
+`state.patrolReveals?: PatrolReveal[]` is a **separate** array from `reconReveals`, not a flag on the same type — `reconReveals`/`applyReconReveals` (fog-of-war.ts) and submarine concealment (concealment.ts) are consumed by different systems for different purposes, and conflating them under one type would make a future change to either mission's semantics need to reason about the other. Patrol writes to both arrays in the same call because it grants both effects at once; the arrays themselves stay independent. Same lifecycle convention as `ReconReveal`: `expiresAtTurn: state.turn` (visible for the remainder of the turn it was flown, filtered out — not proactively pruned — on the next write to the same civ's entries, exactly matching `resolveReconMission`'s existing pattern).
 
 `range` for the patrol reveal: **6** — deliberately larger than Destroyer's persistent range-2/Autonomous Frigate's range-3, since this is a one-turn, action-consuming, opt-in commitment (the aircraft can do nothing else that turn and the coverage vanishes immediately after), not a standing threat the way a Destroyer's presence is. This asymmetry (bigger but temporary vs. smaller but permanent) is the intended tension between the two ASW tools — see §5.4.
 
@@ -109,6 +118,8 @@ Plus the §2 correction: the existing implicit-default branch's domain check nar
 ### 5.4 ASW role boundary — patrol finds, destroyer finds *and kills*
 
 Maritime Patrol Aircraft **only detects** — it has no attack profile and gets no combat modifier of any kind against submarines. This directly answers the issue's "Anti-submarine attack" question with option A (detect only): giving it an ASW attack bonus on top of being the single best-range detector in the game would make it strictly better than Destroyer at Destroyer's own job, which is exactly the erosion #582's own "Do Not Invalidate Destroyers" section forbids. Destroyer keeps its unique value on every axis the issue names: persistent (no action cost, covers every turn including the enemy's), mobile while covering (a Destroyer's range-2 aura moves with it, unlike a patrol reveal which is a fixed-center snapshot the instant it's flown), and lethal (`destroyer→submarine +25%` combat modifier, which Patrol Aircraft never gets).
+
+The §5.2 reconnaissance half (ordinary ships/coastal fog) doesn't change this boundary at all — Destroyer's role is specifically submarine detection/kill, and Patrol's fog-reveal component is just `recon_aircraft`'s existing, already-shipped capability extended to a carrier-capable hull. It competes with nothing Destroyer does.
 
 ## 6. Carrier deck composition
 
@@ -161,7 +172,7 @@ or, on an empty slot: `• Empty slot`. Reuses `getAirBaseRoster`/`getAirBaseCap
 
 ### 8.2 Patrol mission button
 
-Contextual button in `selected-unit-info.ts`, next to the existing Air Strike/Recon buttons, `createGameButton('Patrol', ...)`, wired through `selection-controller.ts`'s existing `onStartAirMission`-style flow — widen that callback's `mission` parameter type from `'strike' | 'recon'` to `'strike' | 'recon' | 'patrol'` (the existing dispatch already branches on `mission`, so this is an additive case, not a new callback). Preview text follows the plain-language-gloss convention #543 established: `"Patrol here — reveals ships and hidden submarines in a wide area for the rest of this turn. Uses this aircraft's turn."` — spells out "hidden submarines," not "ASW," per the issue's explicit accessibility guidance (players 7-43; jargon needs a plain-language companion, not a replacement).
+Contextual button in `selected-unit-info.ts`, next to the existing Air Strike/Recon buttons, `createGameButton('Patrol', ...)`, wired through `selection-controller.ts`'s existing `onStartAirMission`-style flow — widen that callback's `mission` parameter type from `'strike' | 'recon'` to `'strike' | 'recon' | 'patrol'` (the existing dispatch already branches on `mission`, so this is an additive case, not a new callback). Preview text follows the plain-language-gloss convention #543 established, and names both effects the mission actually grants (§5.2) rather than only the submarine half: `"Patrol here — reveals ships and hidden submarines in a wide area for the rest of this turn. Uses this aircraft's turn."` — spells out "hidden submarines," not "ASW," per the issue's explicit accessibility guidance (players 7-43; jargon needs a plain-language companion, not a replacement).
 
 ### 8.3 Disabled-state honesty
 
@@ -217,20 +228,40 @@ No new persisted field on `Unit` or `City`. New top-level `GameState.patrolRevea
 - **Escort-mission bookkeeping** — the issue itself asks this be skipped unless current air-mission architecture already supports it cleanly; it does not, and the simpler "interception already applies to unescorted strikes" model (§4.2) is confirmed sufficient without it.
 - **Any further deck-capacity tier beyond Supercarrier** — no evidence yet that a third tier is needed; §7.1's generalized `carrierDeckCapacity` field means adding one later is a data change, not an architecture change.
 
-## 14. Test matrix (see also #582's own exhaustive list — this is the subset with Phase-1-specific nuance)
+## 14. Content honesty — descriptions
+
+Missing from the first draft of this spec; added explicitly rather than left to be improvised at implementation time. Every new `UNIT_DESCRIPTIONS` entry leads with a plain-language sentence naming the role before any mechanic-specific detail, per the issue's own accessibility guidance (players 7-43; spell out "Anti-Submarine Warfare"/jargon rather than assuming it):
+
+- `naval_strike_aircraft`: *"Carrier aircraft built to attack ships. Hits naval targets hard, but has no special advantage against cities or land forces, and cannot intercept enemy aircraft — Fighters remain the fleet's air defense."* Must not claim it can attack land targets more effectively than any other aircraft (it can't — see §4.1) or that it can intercept (it can't — see §4).
+- `maritime_patrol_aircraft`: *"Searches the sea for ships and hidden submarines. Its Patrol mission reveals a wide area for the rest of the turn, but costs the aircraft's own turn to fly — it finds enemies, it doesn't fight them."* Must not imply it detects anything while merely sitting on deck (the exact misconception this design corrects, §2) or that it can attack (`strength: 0`, no `attackProfile`).
+- `supercarrier`: *"A larger Carrier with room for a bigger air wing — enough deck space to run fighters, strike aircraft, and patrol aircraft all at once."* Must not claim a movement, armor, or speed advantage it doesn't have (§7 keeps `movementPoints` unchanged from Carrier deliberately).
+- `carrier`'s existing description and its `combat-role-definitions.ts` entry (§2's "projects fighters and bombers" finding) both get corrected in the same change: Carrier never hosted bombers and still doesn't; the corrected copy should name what it now actually can host (fighters, naval strike, and patrol aircraft) without over-claiming Supercarrier-only capacity.
+
+## 15. SFX
+
+No new bespoke audio required to ship, matching #543's precedent — reuse existing paths with the existing fallback discipline (a missing dedicated sound must fall back to a generic one, never silence or a thrown error):
+
+- Naval Strike Aircraft's attack resolution reuses the existing air-combat SFX path (`resolveAirStrike`'s existing combat SFX) — it's an ordinary strike mission mechanically, no new sound needed.
+- The Patrol mission reuses the existing recon-mission SFX cue (the same one `'recon'` missions already trigger, e.g. `SFX.airRecon()`) — patrol and recon are the same *kind* of action (a non-combat area-reveal mission consuming the aircraft's turn) and should sound like it.
+- A submarine discovered by patrol reuses whatever notification/reveal SFX already plays when a submarine becomes visible via any other detector (Destroyer, city radar) — no new "found you" sting.
+- Supercarrier's own production/movement/combat sounds reuse Carrier's existing set, matching how every other same-role upgrade-family unit in this roster (e.g. Destroyer→Autonomous Frigate) already does before any bespoke audio pass, if one ever happens.
+
+## 16. Test matrix (see also #582's own exhaustive list — this is the subset with Phase-1-specific nuance)
 
 - **Carrier eligibility**: Naval Strike/Patrol aircraft can base on a carrier; Bomber remains ineligible (regression); full 2-slot deck rejects a third aircraft; rebase legality uses the unchanged #539 shared rules.
-- **Naval strike**: `naval_strike_aircraft → naval`-class target gets the 1.5x modifier; a land-unit/city target gets no bonus (explicit negative test, not just absence of a positive one); interception applies identically to any other striking aircraft; AI selects a naval target when one and a land target are both in range (parity with the modifier actually mattering to score, if scoring is threaded through — see §9.1's note that no new scoring exists, so this may just confirm `rankAirStrikes`' existing target-cost sort still produces a legal, sane choice).
+- **Naval strike**: `naval_strike_aircraft → naval`-class target gets the 1.35x modifier; a land-unit/city target gets no bonus (explicit negative test, not just absence of a positive one); interception applies identically to any other striking aircraft; AI selects a naval target when one and a land target are both in range (parity with the modifier actually mattering to score, if scoring is threaded through — see §9.1's note that no new scoring exists, so this may just confirm `rankAirStrikes`' existing target-cost sort still produces a legal, sane choice).
 - **Detection correction (#542 regression, explicit)**: an idle, based air unit (fighter, strike aircraft, or patrol aircraft) does **not** detect an adjacent submarine merely by existing — flips the existing Biplane-adjacency test's expectation with a documented justification comment. Naval unit adjacency detection (Destroyer, Galley, etc.) is unchanged (explicit regression).
-- **Patrol mission**: legal target set matches `hexesInRange`/wrap-aware range from the aircraft's position (parity with `'recon'`'s own tested shape); `resolvePatrolMission` consumes the aircraft's action; a submarine within the patrol's radius is detected for the rest of that turn only, via `patrolReveals`, not `reconReveals`; a submarine outside the radius, or checked the following turn, remains concealed; `reconReveals`'s own fog behavior is unchanged (explicit regression proving the two arrays don't cross-contaminate).
+- **Patrol mission — submarine detection**: legal target set matches `hexesInRange`/wrap-aware range from the aircraft's position (parity with `'recon'`'s own tested shape); `resolvePatrolMission` consumes the aircraft's action; a submarine within the patrol's radius is detected for the rest of that turn only, via `patrolReveals`, not `reconReveals`; a submarine outside the radius, or checked the following turn, remains concealed; `reconReveals`'s own fog behavior is unchanged (explicit regression proving the two arrays don't cross-contaminate).
+- **Patrol mission — reconnaissance**: the same `resolvePatrolMission` call also writes a `reconReveals` entry with the identical center/range, so an ordinary hostile surface ship (not a submarine) within the patrol radius becomes fog-visible for that turn too — explicit test that a patrol reveals *both* kinds of target from one action, not submarine detection alone.
 - **Destroyer role preserved**: submarine vs. carrier-with-patrol-that-flew-last-turn is concealed again this turn (proves patrol's snapshot nature); submarine vs. Destroyer is detected every turn regardless of any action (proves persistence); Destroyer's `+25%` anti-submarine combat modifier is unchanged.
 - **Deck capacity**: `getAirBaseCapacity` returns byte-identical `2` for Carrier before/after the §7.1 refactor (regression, proven before Supercarrier is added); Supercarrier returns `3`; a 3rd aircraft based at a Supercarrier with 2 already aboard succeeds where it would fail at a base Carrier.
 - **AI**: `rankPatrol` never targets a tile the civ can't see; opportunity-cost/composition nudging is viewer-scoped only (no hidden-information leak, mirroring #543's explicit test pattern); identical legal candidate sets across difficulty tiers.
+- **Solo play** (AI-vs-human, distinct from the hot-seat human-vs-human case above): an AI-triggered `resolvePatrolMission`/naval-strike attack call produces the identical state/notification shape a human-triggered call does — same function, no parallel AI-only path (parity regression per `end-to-end-wiring.md`'s "shared state mutations must be actor-complete" rule, matching the pattern #543 used for `executeAirAssault`).
 - **Hot-seat**: the explicit two-civ patrol-reveal isolation case (§11).
 - **Save**: a pre-feature save (no `patrolReveals` field at all) loads and behaves correctly; a save taken mid-turn with an active patrol reveal round-trips and expires correctly on the next real turn via `processTurn`.
 - **Regression**: #539 carrier basing/interception, #540 amphibious warfare, #543 airborne actions all unchanged; ordinary Bomber remains land-only; Recon Aircraft's own `'recon'`/fog behavior unchanged.
 
-## 15. Phasing
+## 17. Phasing
 
 Given the strong architectural reuse found in §2 (naval strike's modifier and patrol's mission machinery are both near-zero-new-code extensions of already-shipped systems), a single coherent phase covering Naval Strike + Patrol + the deck-capacity generalization + Supercarrier is the right size — each piece is small on its own, and splitting them would mean an intermediate PR where "carrier air wing" is only partially true (e.g., strike aircraft shipped but patrol not, leaving Destroyer's future role commentary premature). Suggested task breakdown for the implementation plan:
 
