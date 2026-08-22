@@ -52,6 +52,22 @@ describe('Stampede state', () => {
     expect(active.stampedes?.player).toMatchObject({ phase: 'active', activeTurns: 0 });
     expect(Object.values(active.units).filter(unit => unit.owner === 'crisis-force').map(unit => unit.position)).toEqual(positions);
   });
+
+  it('moves active herds for six passes then removes surviving actors', () => {
+    const state = createNewGame('rome', 'stampede-expiry', 'small');
+    const city = foundCity('player', { q: 0, r: 0 }, state.map, state.idCounters);
+    state.cities[city.id] = city;
+    state.civilizations.player.cities = [city.id];
+    for (const tile of Object.values(state.map.tiles)) tile.terrain = 'plains';
+    let next = processStampedeTurn(startStampedeWarning(state, 'player', 'explorer'), 'player');
+    const before = Object.values(next.units).filter(unit => unit.owner === 'crisis-force').map(unit => ({ ...unit.position }));
+
+    for (let pass = 0; pass < 6; pass += 1) next = processStampedeTurn(next, 'player');
+
+    expect(next.stampedes?.player).toMatchObject({ phase: 'resolved', outcome: 'survived', activeTurns: 6 });
+    expect(Object.values(next.units).filter(unit => unit.owner === 'crisis-force')).toEqual([]);
+    expect(before).not.toEqual([]);
+  });
 });
 
 describe('Stampede recurrence', () => {
