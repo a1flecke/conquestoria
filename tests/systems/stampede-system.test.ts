@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createNewGame } from '@/core/game-state';
 import { foundCity } from '@/systems/city-system';
+import { mapNeighbors } from '@/systems/hex-utils';
 import { applyStampedePillage, advanceStampedePressure, consumeHerdingInsight, getStampedeProfile, hasActiveHerdingInsight, normalizeStampedes, processHerdingInsight, resolveStampedeOutcome, processStampedeTurn, startStampedeWarning } from '@/systems/stampede-system';
 
 describe('Stampede state', () => {
@@ -39,7 +40,25 @@ describe('Stampede state', () => {
     expect(Object.values(next.units).find(unit => unit.owner === 'crisis-force')?.combatStrengthOverride).toBe(28);
   });
 
-  it('activates a warning without moving its herds on the first Stampede turn', () => {
+  it('uses a later eligible target city when the first city has no legal herd spawns', () => {
+    const state = createNewGame('rome', 'stampede-later-city', 'small');
+    const first = foundCity('player', { q: 0, r: 0 }, state.map, state.idCounters);
+    const second = foundCity('player', { q: 5, r: 0 }, state.map, state.idCounters);
+    state.cities[first.id] = first;
+    state.cities[second.id] = second;
+    state.civilizations.player.cities = [first.id, second.id];
+    for (const tile of Object.values(state.map.tiles)) tile.terrain = 'plains';
+    for (const position of mapNeighbors(state.map, first.position)) {
+      const unit = { ...Object.values(state.units)[0]!, id: `block-${position.q}-${position.r}`, owner: 'player', position };
+      state.units[unit.id] = unit;
+    }
+
+    const next = startStampedeWarning(state, 'player', 'explorer');
+    expect(next.stampedes?.player?.phase).toBe('warning');
+    expect(Object.values(next.units).filter(unit => unit.owner === 'crisis-force').every(unit => unit.position.q >= 4)).toBe(true);
+  });
+
+  it('ends the one-target-turn warning by activating and running the first herd pass', () => {
     const state = createNewGame('rome', 'stampede-activation', 'small');
     const city = foundCity('player', { q: 0, r: 0 }, state.map, state.idCounters);
     state.cities[city.id] = city;
@@ -50,8 +69,8 @@ describe('Stampede state', () => {
 
     const active = processStampedeTurn(warning, 'player');
 
-    expect(active.stampedes?.player).toMatchObject({ phase: 'active', activeTurns: 0 });
-    expect(Object.values(active.units).filter(unit => unit.owner === 'crisis-force').map(unit => unit.position)).toEqual(positions);
+    expect(active.stampedes?.player).toMatchObject({ phase: 'active', activeTurns: 1 });
+    expect(Object.values(active.units).filter(unit => unit.owner === 'crisis-force').map(unit => unit.position)).not.toEqual(positions);
   });
 
   it('moves active herds for six passes then removes surviving actors', () => {
