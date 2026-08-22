@@ -157,7 +157,9 @@ export function executeUnitMove(
     const synced = syncTransportCargoPositions(state, unitId);
     state.units = synced.units;
   }
-  if (unit.type === 'carrier') {
+  // #582: any carrier-family hull, not just plain 'carrier' -- a moving
+  // Supercarrier must also carry its based aircraft along with it.
+  if (UNIT_DEFINITIONS[unit.type].carrierDeckCapacity != null) {
     const synced = syncCarrierBasedAircraft(state, unitId);
     state.units = synced.units;
   }

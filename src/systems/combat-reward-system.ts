@@ -600,10 +600,13 @@ export function applyCombatOutcomeToState(
     nextState = recordHuntKillerIfApplicable(nextState, attackerBefore.id, attackerBefore.owner, defenderBefore.owner);
   }
 
-  if (attackerActuallyDefeated && attackerBefore.type === 'carrier') {
+  // #582: any carrier-family hull, not just plain 'carrier' -- a destroyed
+  // Supercarrier must also lose (or evacuate) its based aircraft, or they
+  // become zombie units referencing a dead airBase.
+  if (attackerActuallyDefeated && UNIT_DEFINITIONS[attackerBefore.type].carrierDeckCapacity != null) {
     nextState = destroyCarrierBasedAircraft(nextState, attackerBefore.id);
   }
-  if (defenderActuallyDefeated && defenderBefore.type === 'carrier') {
+  if (defenderActuallyDefeated && UNIT_DEFINITIONS[defenderBefore.type].carrierDeckCapacity != null) {
     nextState = destroyCarrierBasedAircraft(nextState, defenderBefore.id);
   }
   nextState = normalizeCrisisForces(recordCampPressureFromCombatOutcome(nextState, attackerBefore, defenderBefore));

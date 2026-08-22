@@ -95,7 +95,13 @@ function getAirBasePosition(state: GameState, base: AirBaseRef) {
 }
 
 export function getAirBaseKind(state: GameState, base: AirBaseRef): string | undefined {
-  if (base.kind === 'carrier') return state.units[base.unitId]?.type === 'carrier' ? 'carrier' : undefined;
+  if (base.kind === 'carrier') {
+    const hostType = state.units[base.unitId]?.type;
+    // #582: any carrier-family hull (Carrier, Supercarrier, ...) reports
+    // 'carrier' -- driven by carrierDeckCapacity, not a hardcoded type name,
+    // so a new carrier-family hull needs no change here.
+    return hostType && UNIT_DEFINITIONS[hostType].carrierDeckCapacity != null ? 'carrier' : undefined;
+  }
   const buildings = state.cities[base.cityId]?.buildings ?? [];
   return ['airfield', 'helicopter_base', 'stealth_airbase'].find(kind => buildings.includes(kind));
 }
@@ -117,7 +123,9 @@ export function getLegalRebaseDestinations(state: GameState, unitId: string): Ai
   if (!unit || !definition || !source) return [];
   const candidates: AirBaseRef[] = [
     ...Object.keys(state.cities).map(cityId => ({ kind: 'city' as const, cityId })),
-    ...Object.values(state.units).filter(candidate => candidate.type === 'carrier').map(candidate => ({ kind: 'carrier' as const, unitId: candidate.id })),
+    // #582: any carrier-family hull, not just plain 'carrier' -- same
+    // carrierDeckCapacity-driven check as getAirBaseKind above.
+    ...Object.values(state.units).filter(candidate => UNIT_DEFINITIONS[candidate.type].carrierDeckCapacity != null).map(candidate => ({ kind: 'carrier' as const, unitId: candidate.id })),
   ];
   return candidates.filter(base => {
     if (unit.airBase && isSameAirBase(base, unit.airBase)) return false;
@@ -454,7 +462,9 @@ function removeAirUnits(state: GameState, removedIds: ReadonlySet<string>): Game
 
 export function syncCarrierBasedAircraft(state: GameState, carrierId: string): GameState {
   const carrier = state.units[carrierId];
-  if (!carrier || carrier.type !== 'carrier') return state;
+  // #582: any carrier-family hull, not just plain 'carrier' -- same
+  // carrierDeckCapacity-driven check as getAirBaseKind above.
+  if (!carrier || UNIT_DEFINITIONS[carrier.type].carrierDeckCapacity == null) return state;
   let changed = false;
   const units = { ...state.units };
   for (const unit of Object.values(units)) {

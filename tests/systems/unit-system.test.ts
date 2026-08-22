@@ -140,6 +140,23 @@ describe('Maritime Patrol Aircraft (#582)', () => {
   });
 });
 
+describe('Supercarrier (#582)', () => {
+  it('is a bigger-deck naval hull with no speed advantage over Carrier', () => {
+    const supercarrier = UNIT_DEFINITIONS.supercarrier;
+    const carrier = UNIT_DEFINITIONS.carrier;
+    expect(supercarrier.carrierDeckCapacity).toBe(3);
+    expect(carrier.carrierDeckCapacity).toBe(2);
+    expect(supercarrier.movementPoints).toBe(carrier.movementPoints);
+    expect(supercarrier.strength).toBeGreaterThan(carrier.strength);
+  });
+
+  it('Carrier upgrades into Supercarrier and is no longer terminal', () => {
+    const entry = TRAINABLE_UNITS.find(u => u.type === 'carrier')!;
+    expect(entry.upgradesTo).toBe('supercarrier');
+    expect(entry.obsoletedByTech).toBeDefined();
+  });
+});
+
 describe('Trebuchet catalog contract (#684)', () => {
   it('defines the slow city-focused Era-4 bombard unit', () => {
     expect(UNIT_DEFINITIONS.trebuchet).toMatchObject({
