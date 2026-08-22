@@ -19,7 +19,7 @@ import {
   applyHoardChoice, getClaimedTrophyGoldPerTurn,
 } from '@/systems/beast-system';
 import { BEAST_DEFINITIONS } from '@/systems/beast-definitions';
-import { deterministicCombatSeed, resolveCombat } from '@/systems/combat-system';
+import { deterministicCombatSeed, getUnitCombatStrength, resolveCombat } from '@/systems/combat-system';
 import { buildCombatContextForDefender } from '@/systems/combat-context';
 import { canUnitAttackTarget } from '@/systems/attack-targeting';
 import { applyCombatOutcomeToState } from '@/systems/combat-reward-system';
@@ -124,7 +124,7 @@ import {
 import type { PirateEconomyModifiers } from '@/systems/economy-system';
 import { processPiratesForCompletedRound } from '@/systems/pirate-system';
 import { classifyOwner } from './owner-kind';
-import { processStampedeScheduling, processStampedeTurn } from '@/systems/stampede-system';
+import { consumeHerdingInsight, hasActiveHerdingInsight, processStampedeScheduling, processStampedeTurn } from '@/systems/stampede-system';
 
 export function finalizeOpponentRoundState(state: GameState): GameState {
   const normalized = normalizeOpponentAIState(state);
@@ -315,6 +315,7 @@ export function processTurn(
           return canCompleteAirUnitProduction(newState, cityId, type).ok ? null : 'air-base-unavailable';
         },
         getCircularManufacturingMaterial(newState, civId),
+        hasActiveHerdingInsight(newState, civId),
       );
       totalGold += result.idleGoldBonus;
       totalScience += result.idleScienceBonus;
@@ -388,6 +389,7 @@ export function processTurn(
         });
       }
       if (result.completedUnit) {
+        newState = consumeHerdingInsight(newState, civId, result.completedUnit);
         bus.emit('city:unit-trained', { cityId, unitType: result.completedUnit });
         const newUnit = createUnit(result.completedUnit, civId, city.position, newState.idCounters, civDef?.bonusEffect);
         if (result.completedUnit === 'missionary') {
@@ -991,7 +993,7 @@ export function processTurn(
     // that's damaging it. Reuses barbSeed the same way real barbarian combat above does.
     const attackerUnit = newState.units[order.attackerUnitId];
     if (attackerUnit) {
-      const attackerStrength = UNIT_DEFINITIONS[attackerUnit.type].strength * (attackerUnit.health / 100);
+      const attackerStrength = getUnitCombatStrength(attackerUnit) * (attackerUnit.health / 100);
       const counterFireSeed = barbSeed ^ order.attackerUnitId.charCodeAt(0) ^ 0x5a5a;
       const counterFireDamage = getCityCounterFireDamage(
         city, ownerCiv, 'land', attackerStrength, false, counterFireSeed,

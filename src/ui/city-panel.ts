@@ -50,6 +50,8 @@ import { getStrongestPressure } from '@/systems/religion-system';
 import { CONVERSION_THRESHOLD } from '@/systems/religion-definitions';
 import { getLoyaltyThreshold, getLoyaltyTickAmount, isLoyaltyTrackEligible } from '@/systems/religion-loyalty-system';
 import { resolvePressureSeverityForCiv } from '@/core/opponent-challenge';
+import { hasActiveHerdingInsight } from '@/systems/stampede-system';
+import { getWorldPressurePresentationForViewer } from '@/systems/world-pressure-presentation';
 import { getCityIntrinsicStrength, isCityHpRegenerating } from '@/systems/city-siege-system';
 import { getOccupiedCityMood, getOccupiedCityYieldMultiplier } from '@/systems/city-occupation-system';
 import { calculateProjectedCityYields } from '@/systems/city-work-system';
@@ -241,6 +243,7 @@ export function createCityPanel(
     activeNationalProjects,
     availableResources: playerResources,
     materialSubstitution: getCircularManufacturingMaterial(state, city.owner),
+    herdingInsight: city.owner === state.currentPlayer && hasActiveHerdingInsight(state, city.owner),
   });
   const resourceRequirementLine = (itemId: string, required: readonly ResourceType[] = []): string => {
     const requiredNames = required.map(id => RESOURCE_DEFINITIONS.find(def => def.id === id)?.name ?? id);
@@ -335,6 +338,13 @@ export function createCityPanel(
   const resilienceSectionHtml = resilienceTurnsLeft > 0 ? `
     <div style="background:rgba(107,155,75,0.12);border:1px solid rgba(107,155,75,0.35);border-radius:8px;padding:10px 12px;margin-bottom:16px;font-size:12px;">
       <div style="font-weight:bold;color:#9bd97b;">🌱 Rebuilding — +1 🌾 +1 ⚒️ for ${resilienceTurnsLeft} more turn${resilienceTurnsLeft === 1 ? '' : 's'}</div>
+    </div>` : '';
+  const stampedeStatus = city.owner === state.currentPlayer
+    ? getWorldPressurePresentationForViewer(state, state.currentPlayer).ownStampedeStatus
+    : undefined;
+  const stampedeSectionHtml = stampedeStatus ? `
+    <div style="background:rgba(193,137,68,0.14);border:1px solid rgba(224,172,87,0.45);border-radius:8px;padding:10px 12px;margin-bottom:16px;font-size:12px;">
+      <div style="font-weight:bold;color:#e8c170;" data-text="stampede-status"></div>
     </div>` : '';
   const cityCrises = Object.values(state.activeCrises ?? {})
     .filter(c => c.archetype === 'outbreak' && c.cityIds.includes(city.id));
@@ -1014,6 +1024,7 @@ export function createCityPanel(
     ${catastropheSectionHtml}
     ${faithSectionHtml}
     ${resilienceSectionHtml}
+    ${stampedeSectionHtml}
 
     <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
       <div id="tab-list" style="padding:6px 16px;background:rgba(255,255,255,0.15);border-radius:6px;cursor:pointer;font-size:12px;font-weight:bold;">Queue</div>
@@ -1059,6 +1070,7 @@ export function createCityPanel(
   setText('yield-prod', String(yields.production));
   setText('yield-gold', String(yields.gold));
   setText('yield-science', String(yields.science));
+  if (stampedeStatus) setText('stampede-status', stampedeStatus);
 
   if (showSpreadWarning && contagionSourceCity) {
     setText(

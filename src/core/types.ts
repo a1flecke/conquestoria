@@ -524,6 +524,8 @@ export interface Unit {
   movementBonus?: number;    // civ-specific persistent bonus applied on turn reset
   health: number;            // 0-100
   experience: number;
+  /** Scenario-owned combat value; absent units use their catalog definition. */
+  combatStrengthOverride?: number;
   hasMoved: boolean;
   hasActed: boolean;         // used action this turn (build, found, etc.)
   chargesRemaining?: number; // workers default to 2; omitted on legacy saves
@@ -581,9 +583,13 @@ export interface StampedeState {
   cityDamage: number;
   civilianDeaths: number;
   pillagedTileKeys: string[];
+  /** Reset at the start of each active pass; total history stays in pillagedTileKeys. */
+  pillagesThisTurn?: number;
   outcome?: StampedeOutcome;
   rewardGranted?: boolean;
   herdingInsight?: { expiresTurn: number; consumed?: boolean };
+  /** Persisted so an expired charge only converts when its unit never became trainable. */
+  herdingInsightEligibleUnitSeen?: boolean;
   lastResolvedTurn?: number;
 }
 

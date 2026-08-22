@@ -4,6 +4,7 @@ import { getFortificationTier } from './fortification-system';
 import { hexKey, mapDistance, mapNeighbors } from './hex-utils';
 import { UNIT_DEFINITIONS } from './unit-system';
 import { getVisibility } from './fog-of-war';
+import { isHostileOwnerTo } from './owner-hostility';
 
 export interface HerdRoutePresentationItem { unitId: string; steps: HexCoord[]; stopsAtFort: boolean; }
 export interface HerdRoutePresentation { routes: HerdRoutePresentationItem[]; }
@@ -55,15 +56,17 @@ export function getHerdAvoidanceScore(state: GameState, coord: HexCoord): number
   return Math.min(6, score);
 }
 
-function legal(state: GameState, unit: Unit, coord: HexCoord): boolean {
+function legal(state: GameState, unit: Unit, coord: HexCoord, allowHostileBlocker: boolean): boolean {
   const tile = state.map.tiles[hexKey(coord)];
-  return Boolean(tile && LAND_TERRAINS.has(tile.terrain) && !isCityCenter(state, coord) && !isOccupied(state, coord, unit.id));
+  const blocker = Object.values(state.units).find(candidate => candidate.id !== unit.id && !candidate.transportId && hexKey(candidate.position) === hexKey(coord));
+  return Boolean(tile && LAND_TERRAINS.has(tile.terrain) && !isCityCenter(state, coord)
+    && (!blocker || (allowHostileBlocker && isHostileOwnerTo(state, unit.owner, blocker.owner))));
 }
 
-function nextStep(state: GameState, record: CrisisForce, unit: Unit, center: HexCoord, from: HexCoord): HexCoord | undefined {
+function nextStep(state: GameState, record: CrisisForce, unit: Unit, center: HexCoord, from: HexCoord, allowHostileBlocker: boolean): HexCoord | undefined {
   const currentDistance = mapDistance(state.map, from, center);
   return mapNeighbors(state.map, from)
-    .filter(coord => legal(state, unit, coord))
+    .filter(coord => legal(state, unit, coord, allowHostileBlocker))
     .sort((left, right) => {
       const leftOutward = mapDistance(state.map, left, center) > currentDistance ? 0 : 1;
       const rightOutward = mapDistance(state.map, right, center) > currentDistance ? 0 : 1;
@@ -79,9 +82,9 @@ export function planHerdRoute(state: GameState, forceId: string, unitId: string)
   if (!record || !unit || unit.owner !== CRISIS_FORCE_OWNER || !record.unitIds.includes(unitId)) return { unitId, committedTurn: state.turn, steps: [] };
   const center = targetCenter(state, record, unit.position);
   if (!center) return { unitId, committedTurn: state.turn, steps: [] };
-  const first = nextStep(state, record, unit, center, unit.position);
+  const first = nextStep(state, record, unit, center, unit.position, true);
   if (!first || isFort(state, first)) return { unitId, committedTurn: state.turn, steps: first ? [first] : [] };
-  const second = nextStep(state, record, unit, center, first);
+  const second = nextStep(state, record, unit, center, first, false);
   return { unitId, committedTurn: state.turn, steps: second ? [first, second] : [first] };
 }
 

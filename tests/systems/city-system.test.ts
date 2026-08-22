@@ -2398,3 +2398,21 @@ describe('Chariot production contract', () => {
     expect(legal.some(unit => unit.type === 'chariot')).toBe(true);
   });
 });
+describe('Herding Insight production', () => {
+  it('discounts only the next eligible beast unit', async () => {
+    const { getProductionCostForItem } = await import('@/systems/city-system');
+    expect(getProductionCostForItem('beast_handler', { herdingInsight: true })).toBe(Math.ceil(getProductionCostForItem('beast_handler') * 0.8));
+    expect(getProductionCostForItem('warrior', { herdingInsight: true })).toBe(getProductionCostForItem('warrior'));
+  });
+
+  it('applies the charge to production completion, not only the displayed price', () => {
+    const city: City = {
+      ...foundCity('player', { q: 0, r: 0 }, generateMap(30, 30, 'herding-insight-production'), mkC()),
+      productionQueue: ['beast_handler'],
+      productionProgress: 58,
+    };
+    const map = generateMap(30, 30, 'herding-insight-production');
+
+    expect(processCity(city, map, 0, 0, undefined, ['horseback-riding'], undefined, 3, undefined, undefined, undefined, undefined, true).completedUnit).toBe('beast_handler');
+  });
+});

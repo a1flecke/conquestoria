@@ -32,6 +32,20 @@ function baseCrisisState(): GameState {
 }
 
 describe('getWorldPressurePresentationForViewer', () => {
+  it('includes a Stampede status only for the target viewer, even when rival-pressure visibility is disabled', () => {
+    const state = baseCrisisState();
+    state.settings = { aiPressureVisibility: false } as GameState['settings'];
+    state.stampedes = {
+      viewer: {
+        targetCivId: 'viewer', phase: 'warning', eligibleTurns: 0, activeTurns: 0,
+        cityDamage: 0, civilianDeaths: 0, pillagedTileKeys: [],
+      },
+    };
+
+    expect(getWorldPressurePresentationForViewer(state, 'viewer').ownStampedeStatus).toContain('Herds are approaching');
+    expect(getWorldPressurePresentationForViewer(state, 'viewer-b').ownStampedeStatus).toBeUndefined();
+  });
+
   it('gates on the flag: aiPressureVisibility false yields nothing', () => {
     const state = baseCrisisState();
     state.settings = { aiPressureVisibility: false } as GameState['settings'];
