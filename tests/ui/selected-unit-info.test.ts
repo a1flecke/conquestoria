@@ -2380,3 +2380,98 @@ describe('renderSelectedUnitInfo — Paradrop button (#543)', () => {
     expect(onCancelParadrop).toHaveBeenCalledWith('para-1');
   });
 });
+
+function makeAirAssaultInfantryState(overrides: { hasActed?: boolean; helicopterHasActed?: boolean } = {}): GameState {
+  return {
+    turn: 20,
+    era: 11,
+    currentPlayer: 'player',
+    gameOver: false,
+    winner: null,
+    map: { width: 10, height: 10, tiles: {}, wrapsHorizontally: false, rivers: [] },
+    units: {
+      'inf-1': {
+        id: 'inf-1', type: 'infantry', owner: 'player',
+        position: { q: 0, r: 0 }, movementPointsLeft: 2, health: 100,
+        experience: 0, hasMoved: false, hasActed: overrides.hasActed ?? false, isResting: false,
+      },
+      'heli-1': {
+        id: 'heli-1', type: 'attack_helicopter', owner: 'player',
+        position: { q: 0, r: 0 }, movementPointsLeft: 5, health: 100,
+        experience: 0, hasMoved: false, hasActed: overrides.helicopterHasActed ?? false, isResting: false,
+        airBase: { kind: 'city', cityId: 'city-1' },
+      },
+    },
+    cities: {
+      'city-1': { id: 'city-1', owner: 'player', position: { q: 0, r: 0 }, buildings: ['helicopter_base'] },
+    },
+    civilizations: {
+      player: {
+        color: '#fff',
+        techState: { completed: [] },
+        diplomacy: { atWarWith: [] },
+        visibility: { tiles: {} },
+      },
+    },
+  } as unknown as GameState;
+}
+
+describe('renderSelectedUnitInfo — Air Assault button (#543 Phase 2)', () => {
+  beforeEach(installMockDocument);
+  afterEach(restoreMockDocument);
+
+  it('shows an Air Assault button for an eligible infantry unit and calls onStartAirAssault on click', () => {
+    const state = makeAirAssaultInfantryState();
+    const onStartAirAssault = vi.fn();
+    const container = new MockElement('div');
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'inf-1', { onStartAirAssault });
+
+    const button = findButtons(container).find(b => b.textContent === 'Air Assault');
+    expect(button).toBeDefined();
+    button!.click();
+    expect(onStartAirAssault).toHaveBeenCalledWith('inf-1');
+  });
+
+  it('does not show an Air Assault button for a unit with no airAssaultPassengerEligible flag', () => {
+    const state = makeAirAssaultInfantryState();
+    state.units['inf-1']!.type = 'tank';
+    const container = new MockElement('div');
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'inf-1', { onStartAirAssault: vi.fn() });
+
+    const button = findButtons(container).find(b => b.textContent === 'Air Assault');
+    expect(button).toBeUndefined();
+  });
+
+  it('shows a disabled Air Assault button with a reason when no roster helicopter is available', () => {
+    const state = makeAirAssaultInfantryState({ helicopterHasActed: true });
+    const container = new MockElement('div');
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'inf-1', { onStartAirAssault: vi.fn() });
+
+    const button = findButtons(container).find(b => b.textContent === 'Air Assault');
+    expect(button).toBeDefined();
+    expect(button!.disabled).toBe(true);
+    expect(button!.title).toBeTruthy();
+  });
+
+  it('does not show an Air Assault button once the unit has already acted this turn', () => {
+    const state = makeAirAssaultInfantryState({ hasActed: true });
+    const container = new MockElement('div');
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'inf-1', { onStartAirAssault: vi.fn() });
+
+    const button = findButtons(container).find(b => b.textContent === 'Air Assault');
+    expect(button).toBeUndefined();
+  });
+
+  it('shows a Cancel Air Assault button instead of Air Assault while an air assault is pending, and calls onCancelAirAssault on click', () => {
+    const state = makeAirAssaultInfantryState();
+    const onCancelAirAssault = vi.fn();
+    const container = new MockElement('div');
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'inf-1', { onStartAirAssault: vi.fn(), onCancelAirAssault }, { airAssaultPending: true });
+
+    expect(findButtons(container).find(b => b.textContent === 'Air Assault')).toBeUndefined();
+    const cancel = findButtons(container).find(b => b.textContent === 'Cancel Air Assault');
+    expect(cancel).toBeDefined();
+    cancel!.click();
+    expect(onCancelAirAssault).toHaveBeenCalledWith('inf-1');
+  });
+});
