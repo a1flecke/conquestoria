@@ -72,9 +72,10 @@ import { canBuildRoad } from '@/systems/road-system';
 import { findFortificationCandidate } from '@/systems/fortification-system';
 import { getAIStrategicRoles, hasAICombatRole } from './ai-unit-roles';
 import { isAIHostileOwner } from './ai-hostility';
-import { getLegalRebaseDestinations, resolveAirStrike, resolveReconMission, rebaseAircraft, startIntercept } from '@/systems/air-operations-system';
-import { getParadropTargets, executeParadrop } from '@/systems/airborne-system';
+import { getLegalRebaseDestinations, resolveAirStrike, resolveReconMission, rebaseAircraft, startIntercept, getAirBaseRoster } from '@/systems/air-operations-system';
+import { getParadropTargets, executeParadrop, getAirAssaultLaunchState, getAirAssaultTargets, executeAirAssault } from '@/systems/airborne-system';
 import { getKnownHostileAirDefenseThreat } from '@/systems/air-defense-system';
+import { UNIT_CLASS_BY_TYPE } from '@/systems/unit-modifier-definitions';
 import { resolveCombatEra } from '@/systems/era-resolution';
 import { resolveNavalCityBombardment } from '@/systems/naval-city-bombardment-system';
 import { applyCampDestructionAtTarget } from '@/systems/barbarian-system';
@@ -97,6 +98,7 @@ export type AITacticalAction =
   | { kind: 'load'; unitId: string; transportId: string }
   | { kind: 'unload'; unitId: string; destination: HexCoord }
   | { kind: 'paradrop'; unitId: string; destination: HexCoord }
+  | { kind: 'air-assault'; unitId: string; destination: HexCoord }
   | { kind: 'rest'; unitId: string }
   | { kind: 'hold'; unitId: string };
 
@@ -163,6 +165,7 @@ function actionId(action: AITacticalAction): string {
     case 'found-city':
     case 'unload':
     case 'paradrop':
+    case 'air-assault':
       return `${action.kind}:${action.unitId}:${hexKey(action.destination)}`;
     case 'worker-action':
       return `worker-action:${action.unitId}:${action.action}`;
@@ -475,6 +478,45 @@ function rankParadrop(
   // O(units in game) occupancy scan) in this AI hot path, called every
   // turn per eligible unit per AI civ. canParadrop itself still exists and
   // still guards the single-tile player/executor call sites.
+}
+
+function rankAirAssault(
+  context: AITacticalContext,
+  unit: Unit,
+): RankedAITacticalAction[] {
+  if (!UNIT_DEFINITIONS[unit.type].airAssaultPassengerEligible || unit.hasActed) return [];
+  const launchState = getAirAssaultLaunchState(context.state, unit.id);
+  if (!launchState.ok) return [];
+  const targets = getAirAssaultTargets(context.state, unit.id);
+  if (targets.length === 0) return [];
+
+  // Opportunity-cost discount: Paradrop has no equivalent because a
+  // Paratrooper's only job is the drop. This spends a real combat piece's
+  // turn, so discount when it's the base's only available helicopter and
+  // a known hostile armor unit sits within its own operational range
+  // (i.e. something it could otherwise strike, or that threatens the
+  // launch city it's defending by sitting there).
+  const helicopter = context.state.units[launchState.helicopterId]!;
+  const helicopterDef = UNIT_DEFINITIONS[helicopter.type];
+  const roster = getAirBaseRoster(context.state, helicopter.airBase!);
+  const isOnlyHelicopter = roster.filter(candidate => UNIT_DEFINITIONS[candidate.type].airAssault !== undefined).length <= 1;
+  const range = helicopterDef.airOperation!.operationalRange;
+  const nearbyKnownArmorThreat = isOnlyHelicopter && Object.values(context.state.units).some(candidate =>
+    UNIT_CLASS_BY_TYPE[candidate.type].includes('armor')
+    && isAIHostileOwner(context.state, context.actorId, candidate.owner)
+    && distance(context.state, candidate.position, helicopter.position) <= range);
+  const opportunityCostPenalty = nearbyKnownArmorThreat ? 150 : 0;
+
+  return targets.map(destination => {
+    const threat = getKnownHostileAirDefenseThreat(context.state, unit, destination, context.actorId);
+    const objectiveDistance = distance(context.state, destination, targetPosition(context.plan));
+    const riskDiscount = threat.flatDefenseModifier * 4;
+    const objectiveBonus = Math.max(0, 40 - objectiveDistance * 5);
+    return ranked({ kind: 'air-assault', unitId: unit.id, destination }, Math.max(0, 320 + objectiveBonus - riskDiscount - opportunityCostPenalty));
+  });
+  // No canAirAssault re-check here, same reasoning as rankParadrop's
+  // comment above it: getAirAssaultTargets IS canAirAssault's own source
+  // of truth for these tiles.
 }
 
 function rankCapture(
@@ -909,6 +951,7 @@ export function rankUnitTacticalActions(
     ...rankAirStrikes(context, unit),
     ...rankAirSupport(context, unit),
     ...rankParadrop(context, unit),
+    ...rankAirAssault(context, unit),
     ...rankAttacks(context, unit),
     ...rankCapture(context, unit),
     ...rankCampAssault(context, unit),
@@ -1106,6 +1149,10 @@ function applyPredictedAction(
     }
     case 'paradrop': {
       const result = executeParadrop(next, action.unitId, action.destination);
+      return result.ok ? result.state : next;
+    }
+    case 'air-assault': {
+      const result = executeAirAssault(next, action.unitId, action.destination);
       return result.ok ? result.state : next;
     }
     case 'rest':

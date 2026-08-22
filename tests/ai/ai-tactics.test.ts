@@ -19,7 +19,7 @@ import { foundCity } from '@/systems/city-system';
 import { hexDistance, hexKey } from '@/systems/hex-utils';
 import { createUnit, UNIT_DEFINITIONS } from '@/systems/unit-system';
 import * as combatSystem from '@/systems/combat-system';
-import { canParadrop } from '@/systems/airborne-system';
+import { canParadrop, getAirAssaultTargets } from '@/systems/airborne-system';
 
 const AI = 'ai-1';
 const HUMAN = 'player';
@@ -1267,5 +1267,97 @@ describe('rankUnitTacticalActions — paradrop (#543)', () => {
       .filter(a => a.action.kind === 'paradrop').map(a => a.action.kind === 'paradrop' ? hexKey(a.action.destination) : '');
 
     expect(new Set(veteranTargets)).toEqual(new Set(explorerTargets));
+  });
+});
+
+describe('rankUnitTacticalActions — air assault (#543 Phase 2)', () => {
+  function makeAirAssaultAIFixture() {
+    const state = makeState('veteran');
+    const capital = addCity(state, 'capital', AI, { q: 0, r: 0 });
+    capital.buildings = [...capital.buildings, 'helicopter_base'];
+    const helicopter = addUnit(state, 'heli-1', 'attack_helicopter', AI, { q: 0, r: 0 }, { airBase: { kind: 'city', cityId: capital.id } });
+    const infantry = addUnit(state, 'infantry-1', 'infantry', AI, { q: 0, r: 0 });
+    return { state, capital, helicopter, infantry };
+  }
+
+  it('produces no air-assault candidates for a unit with no airAssaultPassengerEligible flag', () => {
+    const { state, capital } = makeAirAssaultAIFixture();
+    const tank = addUnit(state, 'tank-1', 'tank', AI, capital.position);
+    const plan = makePlan({ kind: 'region', id: 'front', anchor: { q: 3, r: 0 } }, [tank.id], { objective: 'expand', requiredRoles: {} });
+
+    const actions = rankUnitTacticalActions(context(state, plan), tank.id);
+    expect(actions.some(a => a.action.kind === 'air-assault')).toBe(false);
+  });
+
+  it('produces air-assault candidates only for tiles the AI civ can actually see', () => {
+    const { state, infantry } = makeAirAssaultAIFixture();
+    const hiddenKey = hexKey({ q: 2, r: 0 });
+    state.civilizations[AI].visibility.tiles[hiddenKey] = 'unexplored';
+    const plan = makePlan({ kind: 'region', id: 'front', anchor: { q: 3, r: 0 } }, [infantry.id], { objective: 'expand', requiredRoles: {} });
+
+    const actions = rankUnitTacticalActions(context(state, plan), infantry.id)
+      .filter(a => a.action.kind === 'air-assault');
+    expect(actions.some(a => a.action.kind === 'air-assault' && hexKey(a.action.destination) === hiddenKey)).toBe(false);
+    expect(actions.length).toBeGreaterThan(0);
+  });
+
+  it('never scores an air-assault target the same civ could not legally reach (parity with getAirAssaultTargets)', () => {
+    const { state, infantry } = makeAirAssaultAIFixture();
+    const plan = makePlan({ kind: 'region', id: 'front', anchor: { q: 3, r: 0 } }, [infantry.id], { objective: 'expand', requiredRoles: {} });
+
+    const actions = rankUnitTacticalActions(context(state, plan), infantry.id)
+      .filter(a => a.action.kind === 'air-assault');
+    expect(actions.length).toBeGreaterThan(0);
+    const legalTargets = new Set(getAirAssaultTargets(state, infantry.id).map(hexKey));
+    for (const candidate of actions) {
+      if (candidate.action.kind !== 'air-assault') continue;
+      expect(legalTargets.has(hexKey(candidate.action.destination))).toBe(true);
+    }
+  });
+
+  it('scores a reinforcement closer to the strategic objective above one farther from it', () => {
+    const { state, infantry } = makeAirAssaultAIFixture();
+    const plan = makePlan({ kind: 'region', id: 'front', anchor: { q: 4, r: 0 } }, [infantry.id], { objective: 'expand', requiredRoles: {} });
+
+    const actions = rankUnitTacticalActions(context(state, plan), infantry.id)
+      .filter((a): a is typeof a & { action: { kind: 'air-assault'; unitId: string; destination: HexCoord } } => a.action.kind === 'air-assault');
+    const near = actions.find(a => hexDistance(a.action.destination, { q: 4, r: 0 }) === 0 || hexDistance(a.action.destination, { q: 4, r: 0 }) === 1);
+    const far = actions.find(a => hexDistance(a.action.destination, { q: 4, r: 0 }) >= 3);
+    expect(near).toBeDefined();
+    expect(far).toBeDefined();
+    expect(near!.score).toBeGreaterThan(far!.score);
+  });
+
+  it('produces the identical legal air-assault target set across difficulty tiers under identical fog (no information leak by difficulty)', () => {
+    const veteran = makeState('veteran');
+    const explorer = makeState('explorer');
+    for (const state of [veteran, explorer]) {
+      const capital = addCity(state, 'capital', AI, { q: 0, r: 0 });
+      capital.buildings = [...capital.buildings, 'helicopter_base'];
+      addUnit(state, 'heli-1', 'attack_helicopter', AI, { q: 0, r: 0 }, { airBase: { kind: 'city', cityId: capital.id } });
+      addUnit(state, 'infantry-1', 'infantry', AI, { q: 0, r: 0 });
+    }
+    const plan = makePlan({ kind: 'region', id: 'front', anchor: { q: 3, r: 0 } }, ['infantry-1'], { objective: 'expand', requiredRoles: {} });
+
+    const veteranTargets = rankUnitTacticalActions(context(veteran, plan), 'infantry-1')
+      .filter(a => a.action.kind === 'air-assault').map(a => a.action.kind === 'air-assault' ? hexKey(a.action.destination) : '');
+    const explorerTargets = rankUnitTacticalActions(context(explorer, plan), 'infantry-1')
+      .filter(a => a.action.kind === 'air-assault').map(a => a.action.kind === 'air-assault' ? hexKey(a.action.destination) : '');
+
+    expect(new Set(veteranTargets)).toEqual(new Set(explorerTargets));
+  });
+
+  it('discounts score when the only roster helicopter would otherwise defend against a known nearby enemy armor unit', () => {
+    const withoutThreat = makeAirAssaultAIFixture();
+    const withThreat = makeAirAssaultAIFixture();
+    addUnit(withThreat.state, 'tank-hostile-1', 'tank', HUMAN, { q: 1, r: 0 });
+
+    const planWithout = makePlan({ kind: 'region', id: 'front', anchor: { q: 3, r: 0 } }, [withoutThreat.infantry.id], { objective: 'expand', requiredRoles: {} });
+    const planWith = makePlan({ kind: 'region', id: 'front', anchor: { q: 3, r: 0 } }, [withThreat.infantry.id], { objective: 'expand', requiredRoles: {} });
+
+    const withoutThreatScore = Math.max(0, ...rankUnitTacticalActions(context(withoutThreat.state, planWithout), withoutThreat.infantry.id).filter(a => a.action.kind === 'air-assault').map(a => a.score));
+    const withThreatScore = Math.max(0, ...rankUnitTacticalActions(context(withThreat.state, planWith), withThreat.infantry.id).filter(a => a.action.kind === 'air-assault').map(a => a.score));
+
+    expect(withThreatScore).toBeLessThan(withoutThreatScore);
   });
 });
