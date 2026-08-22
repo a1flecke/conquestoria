@@ -1,0 +1,89 @@
+import { CRISIS_FORCE_OWNER } from '@/core/owner-kind';
+import type { CrisisForce, GameState, HerdRoute, HexCoord, Unit } from '@/core/types';
+import { getFortificationTier } from './fortification-system';
+import { hexKey, mapDistance, mapNeighbors } from './hex-utils';
+import { UNIT_DEFINITIONS } from './unit-system';
+
+const LAND_TERRAINS = new Set(['grassland', 'plains', 'desert', 'tundra', 'snow', 'forest', 'hills', 'jungle', 'swamp', 'volcanic']);
+
+function seededRank(seed: string): number {
+  let hash = 2166136261;
+  for (let index = 0; index < seed.length; index++) hash = Math.imul(hash ^ seed.charCodeAt(index), 16777619);
+  return hash >>> 0;
+}
+
+function force(state: GameState, forceId: string): CrisisForce | undefined {
+  return state.crisisForces?.[forceId];
+}
+
+function targetCenter(state: GameState, record: CrisisForce): HexCoord | undefined {
+  return Object.values(state.cities)
+    .filter(city => city.owner === record.targetCivId)
+    .sort((left, right) => left.id.localeCompare(right.id))[0]?.position;
+}
+
+function isCityCenter(state: GameState, coord: HexCoord): boolean {
+  return Object.values(state.cities).some(city => hexKey(city.position) === hexKey(coord));
+}
+
+function isOccupied(state: GameState, coord: HexCoord, ignoredUnitId: string): boolean {
+  return Object.values(state.units).some(unit => unit.id !== ignoredUnitId && !unit.transportId && hexKey(unit.position) === hexKey(coord));
+}
+
+function isFort(state: GameState, coord: HexCoord): boolean {
+  const tile = state.map.tiles[hexKey(coord)];
+  return tile?.improvement === 'fort' && tile.improvementTurnsLeft === 0;
+}
+
+export function getHerdAvoidanceScore(state: GameState, coord: HexCoord): number {
+  const tile = state.map.tiles[hexKey(coord)];
+  if (!tile) return 0;
+  let score = 0;
+  if (isFort(state, coord)) {
+    score += getFortificationTier(state.civilizations[tile.owner ?? '']?.techState.completed ?? []).id === 'citadel' ? 4 : 3;
+  }
+  for (const neighbor of mapNeighbors(state.map, coord)) {
+    const unit = Object.values(state.units).find(candidate => hexKey(candidate.position) === hexKey(neighbor));
+    const domain = UNIT_DEFINITIONS[unit?.type ?? 'warrior']?.domain;
+    if (!unit?.isFortified || unit.transportId || domain === 'naval' || domain === 'air' || UNIT_DEFINITIONS[unit.type]?.strength <= 0) continue;
+    score += 2;
+  }
+  return Math.min(6, score);
+}
+
+function legal(state: GameState, unit: Unit, coord: HexCoord): boolean {
+  const tile = state.map.tiles[hexKey(coord)];
+  return Boolean(tile && LAND_TERRAINS.has(tile.terrain) && !isCityCenter(state, coord) && !isOccupied(state, coord, unit.id));
+}
+
+function nextStep(state: GameState, record: CrisisForce, unit: Unit, center: HexCoord, from: HexCoord): HexCoord | undefined {
+  const currentDistance = mapDistance(state.map, from, center);
+  return mapNeighbors(state.map, from)
+    .filter(coord => legal(state, unit, coord))
+    .sort((left, right) => {
+      const leftOutward = mapDistance(state.map, left, center) > currentDistance ? 0 : 1;
+      const rightOutward = mapDistance(state.map, right, center) > currentDistance ? 0 : 1;
+      return leftOutward - rightOutward
+        || getHerdAvoidanceScore(state, left) - getHerdAvoidanceScore(state, right)
+        || seededRank(`${state.gameId}:${record.id}:${unit.id}:${state.turn}:${hexKey(left)}`) - seededRank(`${state.gameId}:${record.id}:${unit.id}:${state.turn}:${hexKey(right)}`);
+    })[0];
+}
+
+export function planHerdRoute(state: GameState, forceId: string, unitId: string): HerdRoute {
+  const record = force(state, forceId);
+  const unit = state.units[unitId];
+  if (!record || !unit || unit.owner !== CRISIS_FORCE_OWNER || !record.unitIds.includes(unitId)) return { unitId, committedTurn: state.turn, steps: [] };
+  const center = targetCenter(state, record);
+  if (!center) return { unitId, committedTurn: state.turn, steps: [] };
+  const first = nextStep(state, record, unit, center, unit.position);
+  if (!first || isFort(state, first)) return { unitId, committedTurn: state.turn, steps: first ? [first] : [] };
+  const second = nextStep(state, record, unit, center, first);
+  return { unitId, committedTurn: state.turn, steps: second ? [first, second] : [first] };
+}
+
+export function commitHerdRouteForTurn(state: GameState, forceId: string, unitId: string): GameState {
+  const record = force(state, forceId);
+  if (!record) return state;
+  const route = planHerdRoute(state, forceId, unitId);
+  return { ...state, crisisForces: { ...state.crisisForces, [forceId]: { ...record, herdRoutes: { ...record.herdRoutes, [unitId]: route } } } };
+}
