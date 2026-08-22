@@ -129,6 +129,12 @@ describe('getParadropTargets', () => {
     const targets = getParadropTargets(state, unitId);
     expect(targets.some(t => t.q === 1 && t.r === 1)).toBe(true);
   });
+
+  it('produces the exact same target set before and after the isLegalAirborneLandingTile extraction (regression)', () => {
+    const { state, unitId } = makeParadropFixture();
+    const targets = getParadropTargets(state, unitId).map(hexKey).sort();
+    expect(targets).toEqual(['1,1']);
+  });
 });
 
 describe('canParadrop', () => {

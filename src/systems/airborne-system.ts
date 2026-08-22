@@ -50,26 +50,28 @@ export function getParadropLaunchState(state: GameState, unitId: string): Paradr
   return { ok: true };
 }
 
+function isLegalAirborneLandingTile(state: GameState, unit: Unit, coord: HexCoord, occupancy: ReturnType<typeof buildUnitOccupancy>): boolean {
+  const visibility = state.civilizations[unit.owner]?.visibility;
+  if (visibility && !isVisible(visibility, coord)) return false;
+  const tile = state.map.tiles[hexKey(coord)];
+  if (!tile || getMovementCostForUnit(tile.terrain, 'land', UNIT_DEFINITIONS[unit.type].terrainCostOverrides) === Infinity) return false;
+  if (getUnitIdsAtCoord(occupancy, coord).length > 0) return false;
+  const city = Object.values(state.cities).find(c => hexKey(c.position) === hexKey(coord));
+  if (city && isBlockingCityFor(state, unit, city)) return false;
+  return true;
+}
+
 export function getParadropTargets(state: GameState, unitId: string): HexCoord[] {
   const launchState = getParadropLaunchState(state, unitId);
   if (!launchState.ok) return [];
   const unit = state.units[unitId]!;
   const capability = UNIT_DEFINITIONS[unit.type].paradrop!;
-  const visibility = state.civilizations[unit.owner]?.visibility;
   const occupancy = buildUnitOccupancy(state.units);
   const candidates = state.map.wrapsHorizontally
     ? getWrappedHexesInRange(unit.position, capability.range, state.map.width)
     : hexesInRange(unit.position, capability.range);
 
-  return candidates.filter(coord => {
-    if (visibility && !isVisible(visibility, coord)) return false;
-    const tile = state.map.tiles[hexKey(coord)];
-    if (!tile || getMovementCostForUnit(tile.terrain, 'land', UNIT_DEFINITIONS[unit.type].terrainCostOverrides) === Infinity) return false;
-    if (getUnitIdsAtCoord(occupancy, coord).length > 0) return false;
-    const city = Object.values(state.cities).find(c => hexKey(c.position) === hexKey(coord));
-    if (city && isBlockingCityFor(state, unit, city)) return false;
-    return true;
-  });
+  return candidates.filter(coord => isLegalAirborneLandingTile(state, unit, coord, occupancy));
 }
 
 export function canParadrop(state: GameState, unitId: string, destination: HexCoord): { ok: true } | { ok: false; reason: ParadropFailureReason } {
