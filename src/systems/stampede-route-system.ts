@@ -20,10 +20,10 @@ function force(state: GameState, forceId: string): CrisisForce | undefined {
   return state.crisisForces?.[forceId];
 }
 
-function targetCenter(state: GameState, record: CrisisForce): HexCoord | undefined {
+function targetCenter(state: GameState, record: CrisisForce, origin: HexCoord): HexCoord | undefined {
   return Object.values(state.cities)
     .filter(city => city.owner === record.targetCivId)
-    .sort((left, right) => left.id.localeCompare(right.id))[0]?.position;
+    .sort((left, right) => mapDistance(state.map, left.position, origin) - mapDistance(state.map, right.position, origin) || left.id.localeCompare(right.id))[0]?.position;
 }
 
 function isCityCenter(state: GameState, coord: HexCoord): boolean {
@@ -77,7 +77,7 @@ export function planHerdRoute(state: GameState, forceId: string, unitId: string)
   const record = force(state, forceId);
   const unit = state.units[unitId];
   if (!record || !unit || unit.owner !== CRISIS_FORCE_OWNER || !record.unitIds.includes(unitId)) return { unitId, committedTurn: state.turn, steps: [] };
-  const center = targetCenter(state, record);
+  const center = targetCenter(state, record, unit.position);
   if (!center) return { unitId, committedTurn: state.turn, steps: [] };
   const first = nextStep(state, record, unit, center, unit.position);
   if (!first || isFort(state, first)) return { unitId, committedTurn: state.turn, steps: first ? [first] : [] };
@@ -100,7 +100,9 @@ export function getHerdRoutePresentationForViewer(state: GameState, viewerId: st
     return Object.values(record.herdRoutes ?? {}).flatMap(route => {
       const unit = state.units[route.unitId];
       if (!unit || getVisibility(viewer.visibility, unit.position) !== 'visible') return [];
-      return [{ unitId: route.unitId, steps: route.steps.map(step => ({ ...step })), stopsAtFort: route.steps.length === 1 && isFort(state, route.steps[0]!) }];
+      const visibleSteps = route.steps.filter(step => getVisibility(viewer.visibility, step) === 'visible').map(step => ({ ...step }));
+      if (visibleSteps.length !== route.steps.length) return [];
+      return [{ unitId: route.unitId, steps: visibleSteps, stopsAtFort: route.steps.length === 1 && isFort(state, route.steps[0]!) }];
     });
   });
   return { routes };

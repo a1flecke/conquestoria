@@ -43,6 +43,7 @@ describe('save migrations', () => {
         herdRoutes: {
           [unit.id]: { unitId: unit.id, committedTurn: 1, steps: [] },
           invalid: { unitId: 'missing', committedTurn: 1, steps: [{ q: 1.5, r: 1 }] },
+          'herd-1-off-map': { unitId: unit.id, committedTurn: 1, steps: [{ q: 999, r: 999 }] },
         },
       },
     };
