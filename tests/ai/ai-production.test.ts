@@ -840,6 +840,48 @@ describe('AI carrier deck composition nudging (#582)', () => {
     expect(withThreat.score).toBeGreaterThan(withoutThreat.score);
   });
 
+  it('scales the patrol submarine-threat bonus by difficulty, matching submarineThreatScore\'s own submarineEscortWeight convention', () => {
+    function makeThreatenedState(challenge: 'explorer' | 'veteran') {
+      const state = setupState(['carrier-warfare', 'radar-systems']);
+      state.opponentChallenge = challenge;
+      const city = state.cities['city-a']!;
+      city.buildings = ['airfield'];
+      const carrier = { ...createUnit('carrier', 'ai-1', city.position, state.idCounters), id: 'carrier-1' };
+      state.units[carrier.id] = carrier;
+      state.civilizations['ai-1']!.units.push(carrier.id);
+
+      const observed = { q: 8, r: 4 };
+      state.civilizations['ai-1']!.knownCivilizations = ['player'];
+      state.civilizations['ai-1']!.visibility.tiles[hexKey(observed)] = 'fog';
+      const tile = state.map.tiles[hexKey(observed)];
+      state.civilizations['ai-1']!.visibility.lastSeen = {
+        [hexKey(observed)]: {
+          coord: { ...observed },
+          terrain: tile.terrain,
+          elevation: tile.elevation,
+          resource: tile.resource,
+          improvement: tile.improvement,
+          improvementTurnsLeft: tile.improvementTurnsLeft,
+          owner: tile.owner,
+          hasRiver: tile.hasRiver,
+          wonder: tile.wonder,
+          observedTurn: state.turn,
+          source: 'observed',
+          units: [{ id: 'rival-sub', type: 'submarine', owner: 'player', healthBand: 'healthy' }],
+        },
+      };
+      return state;
+    }
+
+    const explorerScore = generateAIProductionCandidates(makeThreatenedState('explorer'), 'ai-1', 'city-a', [demand('recon')], aggressive)
+      .find(c => c.itemId === 'maritime_patrol_aircraft')!.carrierCompositionScore;
+    const veteranScore = generateAIProductionCandidates(makeThreatenedState('veteran'), 'ai-1', 'city-a', [demand('recon')], aggressive)
+      .find(c => c.itemId === 'maritime_patrol_aircraft')!.carrierCompositionScore;
+
+    expect(explorerScore).toBeGreaterThan(0);
+    expect(veteranScore).toBeGreaterThan(explorerScore);
+  });
+
   it('does not boost patrol scoring when no submarine has actually been perceived by this civ (no hidden information)', () => {
     const state = setupState(['carrier-warfare', 'radar-systems']);
     const city = state.cities['city-a']!;
