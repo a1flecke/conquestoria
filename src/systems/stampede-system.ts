@@ -106,6 +106,31 @@ export function startStampedeWarning(state: GameState, targetCivId: string, seve
   };
 }
 
+export function resolveStampedeOutcome(
+  state: GameState,
+  targetCivId: string,
+  outcome: 'defeated' | 'contained' | 'survived',
+): GameState {
+  const stampede = state.stampedes?.[targetCivId];
+  const civ = state.civilizations[targetCivId];
+  if (!stampede || !civ || stampede.rewardGranted) return state;
+  const rewardGranted = outcome !== 'survived';
+  const rewardGold = rewardGranted ? Math.min(10 * state.era, 80) : 0;
+  return {
+    ...state,
+    civilizations: rewardGold > 0 ? { ...state.civilizations, [targetCivId]: { ...civ, gold: civ.gold + rewardGold } } : state.civilizations,
+    stampedes: {
+      ...state.stampedes,
+      [targetCivId]: {
+        ...stampede,
+        phase: 'resolved', outcome, resolvedTurn: state.turn, lastResolvedTurn: state.turn,
+        rewardGranted,
+        ...(rewardGranted ? { herdingInsight: { expiresTurn: state.turn + 10 } } : {}),
+      },
+    },
+  };
+}
+
 /** The warning-to-active boundary intentionally consumes no herd movement. */
 export function processStampedeTurn(state: GameState, targetCivId: string): GameState {
   const stampede = state.stampedes?.[targetCivId];
@@ -134,13 +159,13 @@ export function processStampedeTurn(state: GameState, targetCivId: string): Game
   const units = Object.fromEntries(Object.entries(next.units).filter(([unitId]) => !force.unitIds.includes(unitId)));
   const crisisForces = { ...next.crisisForces };
   delete crisisForces[force.id];
-  return normalizeCrisisForces({
+  return normalizeCrisisForces(resolveStampedeOutcome({
     ...next,
     units,
     crisisForces,
     stampedes: {
       ...next.stampedes,
-      [targetCivId]: { ...stampede, activeTurns, phase: 'resolved', outcome: 'survived', resolvedTurn: next.turn, lastResolvedTurn: next.turn },
+      [targetCivId]: { ...stampede, activeTurns },
     },
-  });
+  }, targetCivId, 'survived'));
 }
