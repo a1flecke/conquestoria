@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createNewGame } from '@/core/game-state';
 import { foundCity } from '@/systems/city-system';
-import { advanceStampedePressure, getStampedeProfile, normalizeStampedes, processStampedeTurn, startStampedeWarning } from '@/systems/stampede-system';
+import { advanceStampedePressure, getStampedeProfile, normalizeStampedes, resolveStampedeOutcome, processStampedeTurn, startStampedeWarning } from '@/systems/stampede-system';
 
 describe('Stampede state', () => {
   it('defines recurring pressure profiles for every player challenge', () => {
@@ -67,6 +67,17 @@ describe('Stampede state', () => {
     expect(next.stampedes?.player).toMatchObject({ phase: 'resolved', outcome: 'survived', activeTurns: 6 });
     expect(Object.values(next.units).filter(unit => unit.owner === 'crisis-force')).toEqual([]);
     expect(before).not.toEqual([]);
+  });
+
+  it('rewards a defeated Stampede once with gold and Herding Insight', () => {
+    const state = createNewGame('rome', 'stampede-reward', 'small');
+    state.era = 4;
+    state.stampedes = { player: { targetCivId: 'player', eligibleTurns: 0, activeTurns: 1, cityDamage: 0, civilianDeaths: 0, pillagedTileKeys: [] } };
+    const next = resolveStampedeOutcome(state, 'player', 'defeated');
+
+    expect(next.civilizations.player.gold).toBe(state.civilizations.player.gold + 40);
+    expect(next.stampedes?.player).toMatchObject({ phase: 'resolved', outcome: 'defeated', rewardGranted: true, herdingInsight: { expiresTurn: state.turn + 10 } });
+    expect(resolveStampedeOutcome(next, 'player', 'defeated').civilizations.player.gold).toBe(next.civilizations.player.gold);
   });
 });
 
