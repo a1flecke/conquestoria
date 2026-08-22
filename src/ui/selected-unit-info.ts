@@ -115,7 +115,7 @@ export interface SelectedUnitInfoCallbacks {
   onStartIntercept?: (unitId: string) => void;
   getAirRebaseDestinations?: (unitId: string) => Array<{ base: AirBaseRef; label: string }>;
   onRebaseAircraft?: (unitId: string, base: AirBaseRef) => void;
-  onStartAirMission?: (unitId: string, mission: 'strike' | 'recon') => void;
+  onStartAirMission?: (unitId: string, mission: 'strike' | 'recon' | 'patrol') => void;
   onCancelAirMission?: (unitId: string) => void;
   onStartParadrop?: (unitId: string) => void;
   onCancelParadrop?: (unitId: string) => void;
@@ -126,7 +126,7 @@ export interface SelectedUnitInfoCallbacks {
 export interface SelectedUnitInfoPresentation {
   waterRecovery?: LandUnitWaterRecovery;
   hasZoneOfControlWarning?: boolean;
-  airMissionPending?: 'strike' | 'recon';
+  airMissionPending?: 'strike' | 'recon' | 'patrol';
   paradropPending?: boolean;
   airAssaultPending?: boolean;
 }
@@ -749,6 +749,32 @@ export function renderSelectedUnitInfo(
     }
   }
 
+  // ── Carrier air-wing roster panel (#582) ──────────────────────────────────
+  if (def.carrierDeckCapacity !== undefined) {
+    const base: AirBaseRef = { kind: 'carrier', unitId };
+    const roster = getAirBaseRoster(state, base);
+    const capacity = def.carrierDeckCapacity;
+
+    const wingHeader = document.createElement('div');
+    wingHeader.style.cssText = 'margin-top:8px;font-size:11px;opacity:0.7;';
+    wingHeader.textContent = `Air Wing: ${roster.length}/${capacity} slots`;
+    actionsDiv.appendChild(wingHeader);
+
+    for (const aircraft of roster) {
+      const row = document.createElement('div');
+      row.style.cssText = 'margin-top:4px;font-size:12px;';
+      const status = aircraft.hasActed ? 'Used' : 'Ready';
+      row.textContent = `• ${UNIT_DEFINITIONS[aircraft.type].name} — ${status}`;
+      actionsDiv.appendChild(row);
+    }
+    for (let i = roster.length; i < capacity; i++) {
+      const emptyRow = document.createElement('div');
+      emptyRow.style.cssText = 'margin-top:4px;font-size:12px;opacity:0.5;font-style:italic;';
+      emptyRow.textContent = '• Empty slot';
+      actionsDiv.appendChild(emptyRow);
+    }
+  }
+
   if (canHeal(unit) && !unit.hasMoved && !unit.hasActed && unit.movementPointsLeft > 0 && callbacks.onRest) {
     actionsDiv.appendChild(makeButton('Rest (+15 HP)', '#4a90d9', callbacks.onRest));
   }
@@ -764,13 +790,16 @@ export function renderSelectedUnitInfo(
   }
 
   if (presentation.airMissionPending && callbacks.onCancelAirMission) {
-    actionsDiv.appendChild(makeButton(`Cancel ${presentation.airMissionPending === 'strike' ? 'Air Strike' : 'Recon'}`, '#6b7280', () => callbacks.onCancelAirMission!(unitId)));
+    actionsDiv.appendChild(makeButton(`Cancel ${presentation.airMissionPending === 'strike' ? 'Air Strike' : presentation.airMissionPending === 'recon' ? 'Recon' : 'Patrol'}`, '#6b7280', () => callbacks.onCancelAirMission!(unitId)));
   } else if (unit.airBase && !unit.hasActed && callbacks.onStartAirMission) {
     if (def.airOperation?.missions.includes('strike')) {
       actionsDiv.appendChild(makeButton('Air Strike', '#b45309', () => callbacks.onStartAirMission!(unitId, 'strike')));
     }
     if (def.airOperation?.missions.includes('recon')) {
       actionsDiv.appendChild(makeButton('Recon', '#2563eb', () => callbacks.onStartAirMission!(unitId, 'recon')));
+    }
+    if (def.airOperation?.missions.includes('patrol')) {
+      actionsDiv.appendChild(makeButton('Patrol', '#0891b2', () => callbacks.onStartAirMission!(unitId, 'patrol')));
     }
   }
 

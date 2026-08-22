@@ -106,4 +106,32 @@ export const SCENARIOS: Record<string, ScenarioDefinition> = {
       { kind: 'unit', civId: 'ai-1', type: 'submarine', position: { q: 0, r: 0 } },
     ],
   },
+  'carrier-air-wing-basic': {
+    name: 'carrier-air-wing-basic',
+    description:
+      'Player Carrier hosting a mixed air wing (a ready Maritime Patrol Aircraft and an '
+      + 'already-acted Naval Strike Aircraft), plus a hostile submarine within Patrol '
+      + 'range but not adjacent -- opens directly into a state where the Air Wing roster '
+      + 'panel, the Patrol button, and a live patrol reveal can all be exercised manually '
+      + '(#582).',
+    seed: 'scenario-carrier-air-wing-basic',
+    base: {
+      kind: 'solo',
+      config: { civType: 'generic', mapSize: 'small', opponentCount: 1, gameTitle: 'Carrier Air Wing' },
+    },
+    steps: [
+      { kind: 'terrain', position: { q: 0, r: 0 }, terrain: 'ocean' },
+      { kind: 'terrain', position: { q: 4, r: 0 }, terrain: 'ocean' },
+      { kind: 'tech', civId: 'player', techIds: ['carrier-warfare', 'radar-systems'] },
+      { kind: 'diplomacy', civA: 'player', civB: 'ai-1', status: 'war' },
+      { kind: 'unit', civId: 'player', type: 'carrier', position: { q: 0, r: 0 }, overrides: { id: 'carrier-1' } },
+      // Based air units don't occupy ground stacking slots in the real game
+      // (unit-occupancy.ts skips isBasedAirUnit units) -- same exemption as
+      // helicopter-air-assault-basic's own comment; this builder's plain
+      // per-tile occupancy guard needs unsafe: true for both.
+      { kind: 'unit', civId: 'player', type: 'maritime_patrol_aircraft', position: { q: 0, r: 0 }, unsafe: true, overrides: { id: 'patrol-1', airBase: { kind: 'carrier', unitId: 'carrier-1' } } },
+      { kind: 'unit', civId: 'player', type: 'naval_strike_aircraft', position: { q: 0, r: 0 }, unsafe: true, overrides: { id: 'strike-1', airBase: { kind: 'carrier', unitId: 'carrier-1' }, hasActed: true } },
+      { kind: 'unit', civId: 'ai-1', type: 'submarine', position: { q: 4, r: 0 } },
+    ],
+  },
 };

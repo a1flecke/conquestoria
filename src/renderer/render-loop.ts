@@ -223,7 +223,7 @@ export function positionMovingPirateHeadquarters(
 
 export interface HexHighlight {
   coord: HexCoord;
-  type: 'move' | 'attack' | 'air-strike' | 'air-recon' | 'air-intercept' | 'zoc-limited' | 'water-recovery' | 'worker-buildable' | 'worker-owned-blocked' | 'worker-foreign-blocked' | 'paradrop-target' | 'paradrop-flak-risk' | 'air-assault-target' | 'air-assault-flak-risk';
+  type: 'move' | 'attack' | 'air-strike' | 'air-recon' | 'air-patrol' | 'air-intercept' | 'zoc-limited' | 'water-recovery' | 'worker-buildable' | 'worker-owned-blocked' | 'worker-foreign-blocked' | 'paradrop-target' | 'paradrop-flak-risk' | 'air-assault-target' | 'air-assault-flak-risk';
 }
 
 const HEX_HIGHLIGHT_COLORS: Record<HexHighlight['type'], string> = {
@@ -231,6 +231,11 @@ const HEX_HIGHLIGHT_COLORS: Record<HexHighlight['type'], string> = {
   attack: 'rgba(217, 74, 74, 0.45)',
   'air-strike': '#f97316',
   'air-recon': '#38bdf8',
+  // Distinct hue from air-recon (cyan-teal vs sky-blue) and air-strike
+  // (orange) -- cyan-teal reads as "search/scan," matching Air Assault's
+  // own teal-for-a-support-verb precedent (#543) rather than reusing
+  // air-recon's color for a mission that does more than plain recon.
+  'air-patrol': '#0891b2',
   'air-intercept': '#eab308',
   'zoc-limited': 'rgba(245, 184, 73, 0.55)',
   'water-recovery': 'rgba(245, 184, 73, 0.55)',

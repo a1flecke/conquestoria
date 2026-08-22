@@ -38,7 +38,7 @@ import { classifyOwner, isAlwaysHostilePair } from '@/core/owner-kind';
 import { resolveMapTapIntent } from '@/input/map-tap-intent';
 import { visibleHostileUnitEntriesAtKey } from '@/input/hex-defender-selection';
 import { handleSelectedUnitMovementBlocker } from '@/input/selected-unit-movement-feedback';
-import { resolveAirStrike, resolveReconMission } from '@/systems/air-operations-system';
+import { resolveAirStrike, resolveReconMission, resolvePatrolMission } from '@/systems/air-operations-system';
 import { executeParadrop, PARADROP_FAILURE_MESSAGES, executeAirAssault, AIR_ASSAULT_FAILURE_MESSAGES } from '@/systems/airborne-system';
 import { unloadUnitFromTransport } from '@/systems/transport-system';
 import { getMinorCivPresentationForPlayer } from '@/systems/minor-civ-presentation';
@@ -156,7 +156,9 @@ export function createMapInteractionController(deps: MapInteractionControllerDep
             const pending = intent.pending;
             const result = pending.mission === 'strike'
               ? resolveAirStrike(session.getState(), pending.unitId, coord)
-              : resolveReconMission(session.getState(), pending.unitId, coord);
+              : pending.mission === 'recon'
+                ? resolveReconMission(session.getState(), pending.unitId, coord)
+                : resolvePatrolMission(session.getState(), pending.unitId, coord);
             if (!result.ok) {
               deps.showNotification('That air mission target is no longer legal.', 'warning');
               return;
@@ -165,7 +167,7 @@ export function createMapInteractionController(deps: MapInteractionControllerDep
             session.commit(result.state);
             selectionController.refreshCurrentPlayerVisibility();
             deps.updateHUD();
-            if (pending.mission === 'recon') SFX.airRecon();
+            if (pending.mission === 'recon' || pending.mission === 'patrol') SFX.airRecon();
             else SFX.combat();
             selectionController.selectUnit(pending.unitId);
             return;

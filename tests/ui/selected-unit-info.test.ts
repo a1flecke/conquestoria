@@ -1448,6 +1448,88 @@ describe('renderSelectedUnitInfo - based aircraft', () => {
   });
 });
 
+describe('renderSelectedUnitInfo — Patrol button (#582)', () => {
+  beforeEach(installMockDocument);
+  afterEach(restoreMockDocument);
+
+  it('shows a Patrol button for a based maritime patrol aircraft and calls onStartAirMission with "patrol"', () => {
+    const state = createNewGame(undefined, 'patrol-button-panel', 'small');
+    const patrol = { ...createUnit('maritime_patrol_aircraft', 'player', { q: 3, r: 3 }, { nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 }), id: 'patrol', airBase: { kind: 'city' as const, cityId: 'origin' } };
+    state.units = { patrol };
+    const container = new MockElement('div');
+    const onMission = vi.fn();
+
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'patrol', { onStartAirMission: onMission });
+
+    const button = findButtons(container).find(candidate => candidate.textContent === 'Patrol');
+    expect(button).toBeDefined();
+    button!.click();
+    expect(onMission).toHaveBeenCalledWith('patrol', 'patrol');
+  });
+
+  it('does not show a Patrol button for a unit with no patrol capability', () => {
+    const state = createNewGame(undefined, 'no-patrol-button-panel', 'small');
+    const bomber = { ...createUnit('bomber', 'player', { q: 3, r: 3 }, { nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 }), id: 'bomber', airBase: { kind: 'city' as const, cityId: 'origin' } };
+    state.units = { bomber };
+    const container = new MockElement('div');
+
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'bomber', { onStartAirMission: vi.fn() });
+
+    expect(findButtons(container).some(candidate => candidate.textContent === 'Patrol')).toBe(false);
+  });
+
+  it('shows a Cancel Patrol button instead of Patrol while a patrol is pending, and calls onCancelAirMission on click', () => {
+    const state = createNewGame(undefined, 'cancel-patrol-panel', 'small');
+    const patrol = { ...createUnit('maritime_patrol_aircraft', 'player', { q: 3, r: 3 }, { nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 }), id: 'patrol', airBase: { kind: 'city' as const, cityId: 'origin' } };
+    state.units = { patrol };
+    const container = new MockElement('div');
+    const onCancel = vi.fn();
+
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'patrol', { onStartAirMission: vi.fn(), onCancelAirMission: onCancel }, { airMissionPending: 'patrol' });
+
+    expect(findButtons(container).map(button => button.textContent)).toContain('Cancel Patrol');
+    expect(findButtons(container).map(button => button.textContent)).not.toContain('Patrol');
+    findButtons(container).find(button => button.textContent === 'Cancel Patrol')!.click();
+    expect(onCancel).toHaveBeenCalledWith('patrol');
+  });
+});
+
+describe('renderSelectedUnitInfo — air wing roster (#582)', () => {
+  beforeEach(installMockDocument);
+  afterEach(restoreMockDocument);
+
+  it('shows "Air Wing N/capacity" and each based aircraft\'s name and Ready/Used status for a selected Carrier', () => {
+    const state = createNewGame(undefined, 'air-wing-roster-panel', 'small');
+    const idCounters = { nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 };
+    const carrier = { ...createUnit('carrier', 'player', { q: 3, r: 3 }, idCounters), id: 'carrier' };
+    const fighter = { ...createUnit('jet_fighter', 'player', { q: 3, r: 3 }, idCounters), id: 'fighter', airBase: { kind: 'carrier' as const, unitId: 'carrier' }, hasActed: false };
+    const strike = { ...createUnit('naval_strike_aircraft', 'player', { q: 3, r: 3 }, idCounters), id: 'strike', airBase: { kind: 'carrier' as const, unitId: 'carrier' }, hasActed: true };
+    state.units = { carrier, fighter, strike };
+    const container = new MockElement('div');
+
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'carrier', {});
+
+    const text = collectAllText(container).join(' ');
+    expect(text).toContain('Air Wing: 2/2 slots');
+    expect(text).toContain('Jet Fighter — Ready');
+    expect(text).toContain('Naval Strike Aircraft — Used');
+  });
+
+  it('shows an empty-slot line for each unused deck slot', () => {
+    const state = createNewGame(undefined, 'air-wing-empty-panel', 'small');
+    const idCounters = { nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 };
+    const carrier = { ...createUnit('carrier', 'player', { q: 3, r: 3 }, idCounters), id: 'carrier' };
+    state.units = { carrier };
+    const container = new MockElement('div');
+
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'carrier', {});
+
+    const text = collectAllText(container).join(' ');
+    expect(text).toContain('Air Wing: 0/2 slots');
+    expect((text.match(/Empty slot/g) ?? []).length).toBe(2);
+  });
+});
+
 describe('renderSelectedUnitInfo - found city button', () => {
   beforeEach(installMockDocument);
   afterEach(restoreMockDocument);
