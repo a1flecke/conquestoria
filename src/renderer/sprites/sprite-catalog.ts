@@ -174,6 +174,9 @@ const UNIT_MOTION_STYLES: Record<UnitType, UnitMotionStyle> = {
   jet_fighter: 'air',
   bomber:     'air',
   carrier:    'naval',
+  naval_strike_aircraft: 'air',
+  maritime_patrol_aircraft: 'air',
+  supercarrier: 'naval',
   attack_helicopter: 'air',
   missile_submarine: 'naval',
   combat_drone: 'air',
@@ -341,6 +344,12 @@ export const UNIT_SPRITE_CATALOG: Record<UnitType, UnitSpriteComponent> = {
   // De-aliased in #769 batch 3 — bespoke 4-engine strategic bomber (bomb-bay, big span).
   bomber:            withMotion('bomber', BomberSprite),
   carrier:           withMotion('carrier', CarrierSprite),
+  // Temporary Jet Fighter silhouette; bespoke Naval Strike Aircraft art is a follow-up (#582).
+  naval_strike_aircraft: withMotion('naval_strike_aircraft', JetFighterSprite),
+  // Temporary Recon Aircraft silhouette (both non-combat, camera-pod recon-style jets); bespoke Maritime Patrol art is a follow-up (#582).
+  maritime_patrol_aircraft: withMotion('maritime_patrol_aircraft', ReconAircraftSprite),
+  // Temporary Carrier silhouette; bespoke Supercarrier art is a follow-up (#582).
+  supercarrier:      withMotion('supercarrier', CarrierSprite),
   attack_helicopter: withMotion('attack_helicopter', AttackHelicopterSprite),
   missile_submarine: withMotion('missile_submarine', MissileSubmarineSprite),
   // Era 13 (#652), batch A — bespoke sprites landed 2026-07-26.

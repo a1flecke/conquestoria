@@ -34,7 +34,7 @@ const ERA_10_TECHS: Tech[] = [
   { id: 'radar-systems', name: 'Radar Systems', track: 'science', cost: 1310,
     prerequisites: ['radio-broadcast', 'aviation'],
     unlocks: ['+2 science empire-wide; radar coverage accelerates navigation and early-warning networks', 'Surface-to-air missile sites also require Rocketry and local anti-aircraft infrastructure'],
-    unlocksBuildings: ['radar_station', 'sam_site'], era: 10 },
+    unlocksBuildings: ['radar_station', 'sam_site'], unlocksUnits: ['maritime_patrol_aircraft'], era: 10 },
 
   // CIVICS (2)
   { id: 'decolonization', name: 'Decolonization', track: 'civics', cost: 1310,
@@ -91,7 +91,7 @@ const ERA_10_TECHS: Tech[] = [
   { id: 'carrier-warfare', name: 'Carrier Warfare', track: 'maritime', cost: 1895,
     prerequisites: ['submarine-warfare', 'air-superiority'],
     unlocks: ['Mobile airfields project naval power across oceans; sea control no longer requires fixed shore bases'],
-    unlocksUnits: ['carrier', 'destroyer', 'missile_cruiser'], era: 10 },
+    unlocksUnits: ['carrier', 'destroyer', 'missile_cruiser', 'naval_strike_aircraft'], era: 10 },
   { id: 'amphibious-assault', name: 'Amphibious Assault', track: 'maritime', cost: 945,
     prerequisites: ['convoy-system', 'tank-warfare'],
     unlocks: ['+3 attack strength for all naval units against coastal cities; coordinated sea-to-land operations rewrite grand strategy'], era: 10 },

@@ -363,6 +363,7 @@ export type UnitType =
   | 'machine_gunner' | 'pre_dreadnought' | 'battleship' | 'missile_cruiser'
   | 'observation_balloon' | 'biplane' | 'wwii_fighter' | 'jet_fighter' | 'bomber' | 'recon_aircraft'
   | 'tank' | 'main_battle_tank' | 'anti_tank_gun' | 'mobile_aa' | 'submarine' | 'carrier'
+  | 'naval_strike_aircraft' | 'maritime_patrol_aircraft' | 'supercarrier'
   | 'attack_helicopter' | 'missile_submarine'
   | 'spy_scout' | 'spy_informant' | 'spy_agent' | 'spy_operative' | 'spy_intelligence_officer' | 'spy_station_chief' | 'spy_hacker'
   | 'scout_hound' | 'shadow_warden' | 'war_hound' | 'beast_handler' | 'war_elephant'
@@ -426,7 +427,7 @@ export type AirInterceptionDefense =
   | { kind: 'evasion'; incomingDamageMultiplier: number };
 
 export type AirBaseKind = 'airfield' | 'helicopter_base' | 'stealth_airbase' | 'carrier';
-export type AirMission = 'strike' | 'intercept' | 'rebase' | 'recon';
+export type AirMission = 'strike' | 'intercept' | 'rebase' | 'recon' | 'patrol';
 export type AirBaseRef = { kind: 'city'; cityId: string } | { kind: 'carrier'; unitId: string };
 
 export interface AirOperationDefinition {
@@ -493,6 +494,8 @@ export interface UnitDefinition {
   /** ASW specialist radius: detects concealed submarines within this range instead of
    * the ordinary adjacency-only rule. See src/systems/concealment.ts. */
   detection?: NavalDetectionCapability;
+  /** Air-base roster slots this naval unit's own deck provides when hosting an AirBaseRef{kind:'carrier'}. Only meaningful on carrier-capable naval hulls. */
+  carrierDeckCapacity?: number;
 }
 
 export interface NavalDetectionCapability {
@@ -1110,6 +1113,7 @@ export type UpgradeFamily =
   | 'submarine'
   | 'fighter'
   | 'bomber'
+  | 'naval-strike'
   | 'air-support'
   | 'transport'
   | 'trade'
