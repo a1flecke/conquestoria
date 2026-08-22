@@ -501,10 +501,16 @@ function rankAirAssault(
   const roster = getAirBaseRoster(context.state, helicopter.airBase!);
   const isOnlyHelicopter = roster.filter(candidate => UNIT_DEFINITIONS[candidate.type].airAssault !== undefined).length <= 1;
   const range = helicopterDef.airOperation!.operationalRange;
+  const actorVisibility = context.state.civilizations[context.actorId]?.visibility;
+  // Visibility-scoped, matching every other AI threat-awareness scan in this
+  // file (e.g. getKnownHostileAirDefenseThreat below) -- an unseen enemy
+  // tank must never discount this score, or the AI would be reasoning from
+  // information its civ doesn't actually have.
   const nearbyKnownArmorThreat = isOnlyHelicopter && Object.values(context.state.units).some(candidate =>
     UNIT_CLASS_BY_TYPE[candidate.type].includes('armor')
     && isAIHostileOwner(context.state, context.actorId, candidate.owner)
-    && distance(context.state, candidate.position, helicopter.position) <= range);
+    && distance(context.state, candidate.position, helicopter.position) <= range
+    && (!actorVisibility || getVisibility(actorVisibility, candidate.position) === 'visible'));
   const opportunityCostPenalty = nearbyKnownArmorThreat ? 150 : 0;
 
   return targets.map(destination => {

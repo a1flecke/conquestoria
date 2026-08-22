@@ -2408,7 +2408,7 @@ function makeAirAssaultInfantryState(overrides: { hasActed?: boolean; helicopter
     civilizations: {
       player: {
         color: '#fff',
-        techState: { completed: [] },
+        techState: { completed: ['helicopter-warfare'] },
         diplomacy: { atWarWith: [] },
         visibility: { tiles: {} },
       },
@@ -2473,5 +2473,14 @@ describe('renderSelectedUnitInfo — Air Assault button (#543 Phase 2)', () => {
     expect(cancel).toBeDefined();
     cancel!.click();
     expect(onCancelAirAssault).toHaveBeenCalledWith('inf-1');
+  });
+
+  it('does not show an Air Assault button (enabled or disabled) before the owner has researched Helicopter Warfare, even for an otherwise-eligible unit', () => {
+    const state = makeAirAssaultInfantryState();
+    state.civilizations['player']!.techState.completed = [];
+    const container = new MockElement('div');
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'inf-1', { onStartAirAssault: vi.fn() });
+
+    expect(findButtons(container).find(b => b.textContent === 'Air Assault')).toBeUndefined();
   });
 });

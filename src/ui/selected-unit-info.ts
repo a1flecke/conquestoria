@@ -792,7 +792,22 @@ export function renderSelectedUnitInfo(
 
   if (presentation.airAssaultPending && callbacks.onCancelAirAssault) {
     actionsDiv.appendChild(makeButton('Cancel Air Assault', '#6b7280', () => callbacks.onCancelAirAssault!(unitId)));
-  } else if (def.airAssaultPassengerEligible && !unit.hasActed && callbacks.onStartAirAssault) {
+  } else if (
+    def.airAssaultPassengerEligible && !unit.hasActed && callbacks.onStartAirAssault
+    // Unlike Paradrop (whose only carrier, Paratrooper, cannot exist before
+    // its own tech), Air Assault's passenger pool includes ordinary
+    // infantry types available many eras before Helicopter Warfare -- a
+    // Musketeer selected at era 5 would otherwise show a permanently
+    // disabled button for ~6 eras with a message ("Stand in a friendly
+    // city with a Helicopter Base") that misleadingly implies the player
+    // could act on it right now by building one. Gate visibility on the
+    // owner having researched the tech so the button only appears once
+    // the mechanic is actually reachable. Derived from Attack Helicopter's
+    // own TRAINABLE_UNITS entry rather than a hardcoded tech id, so this
+    // gate can't silently drift if that unit's prerequisite ever changes.
+    && (state.civilizations[unit.owner]?.techState.completed ?? [])
+      .includes(TRAINABLE_UNITS.find(entry => entry.type === 'attack_helicopter')!.techRequired!)
+  ) {
     const launchState = getAirAssaultLaunchState(state, unitId);
     if (launchState.ok) {
       actionsDiv.appendChild(makeButton('Air Assault', '#0d9488', () => callbacks.onStartAirAssault!(unitId)));
