@@ -1,6 +1,7 @@
 import { CRISIS_FORCE_OWNER, isMajorCivOwner } from '@/core/owner-kind';
 import type { CrisisForce, GameState, OpponentChallenge } from '@/core/types';
 import { resolvePressureSeverityForCiv } from '@/core/opponent-challenge';
+import type { HerdRoute } from '@/core/types';
 
 export { CRISIS_FORCE_OWNER } from '@/core/owner-kind';
 
@@ -40,12 +41,20 @@ function normalizeForce(
     .sort();
   if (unitIds.length === 0) return null;
 
+  const herdRoutes = Object.fromEntries(Object.entries(record.herdRoutes ?? {}).flatMap(([unitId, route]) => {
+    if (!unitIds.includes(unitId) || !route || typeof route !== 'object') return [];
+    const candidate = route as Partial<HerdRoute>;
+    if (candidate.unitId !== unitId || !Number.isInteger(candidate.committedTurn) || !Array.isArray(candidate.steps) || candidate.steps.length > 2) return [];
+    const steps = candidate.steps.filter(step => Number.isInteger(step?.q) && Number.isInteger(step?.r));
+    return steps.length === candidate.steps.length ? [[unitId, { unitId, committedTurn: Number(candidate.committedTurn), steps }]] : [];
+  }));
   return {
     id: recordId,
     targetCivId: record.targetCivId,
     unitIds,
     createdTurn,
     severity: record.severity,
+    ...(Object.keys(herdRoutes).length > 0 ? { herdRoutes } : {}),
   };
 }
 

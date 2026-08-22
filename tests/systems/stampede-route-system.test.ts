@@ -3,7 +3,7 @@ import { createNewGame } from '@/core/game-state';
 import { CRISIS_FORCE_OWNER } from '@/core/owner-kind';
 import { foundCity } from '@/systems/city-system';
 import { registerCrisisForce } from '@/systems/crisis-force-system';
-import { getHerdAvoidanceScore, planHerdRoute } from '@/systems/stampede-route-system';
+import { getHerdAvoidanceScore, getHerdRoutePresentationForViewer, planHerdRoute, commitHerdRouteForTurn } from '@/systems/stampede-route-system';
 import { hexDistance } from '@/systems/hex-utils';
 
 function routeState() {
@@ -42,5 +42,15 @@ describe('stampede route system', () => {
     state.units.screen2 = { ...state.units.screen, id: 'screen2', position: { q: 1, r: 1 } };
 
     expect(getHerdAvoidanceScore(state, { q: 2, r: 0 })).toBe(6);
+  });
+
+  it('exposes committed routes only to the visible target viewer', () => {
+    const state = routeState();
+    state.civilizations.player.visibility.tiles['1,0'] = 'visible';
+    state.civilizations['player-2'] = { ...state.civilizations.player, id: 'player-2', visibility: { tiles: {} } };
+    const committed = commitHerdRouteForTurn(state, 'stampede-1', 'herd-1');
+
+    expect(getHerdRoutePresentationForViewer(committed, 'player').routes).toHaveLength(1);
+    expect(getHerdRoutePresentationForViewer(committed, 'player-2').routes).toEqual([]);
   });
 });

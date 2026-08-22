@@ -46,6 +46,8 @@ import {
   type ReligionBadgePresentation,
 } from '@/systems/religion-badge-presentation';
 import { drawAirDefenseOverlay } from './air-defense-overlay';
+import { drawStampedeRouteOverlay } from './stampede-route-overlay';
+import { getHerdRoutePresentationForViewer, type HerdRoutePresentation } from '@/systems/stampede-route-system';
 import {
   getKnownAirDefenseProviders,
   type ResolvedAirDefenseProvider,
@@ -268,6 +270,7 @@ export class RenderLoop {
   // Computed once per setGameState (not per animation frame) -- see
   // getWorldPressurePresentationForViewer's own doc comment for the cost this avoids.
   private worldPressurePresentation: WorldPressurePresentation = { cityBadges: [], statusLinesByCivId: {} };
+  private herdRoutePresentation: HerdRoutePresentation = { routes: [] };
   // #593 MR6: same per-setGameState caching convention as worldPressurePresentation above.
   private loyaltyPressurePresentation: LoyaltyPressurePresentation = { cityBadges: [] };
   // #594 MR7: same per-setGameState caching convention as worldPressurePresentation above.
@@ -466,6 +469,7 @@ export class RenderLoop {
   setGameState(state: GameState): void {
     this.state = state;
     this.worldPressurePresentation = getWorldPressurePresentationForViewer(state, state.currentPlayer);
+    this.herdRoutePresentation = getHerdRoutePresentationForViewer(state, state.currentPlayer);
     this.loyaltyPressurePresentation = getLoyaltyPressurePresentationForViewer(state, state.currentPlayer);
     this.religionBadgePresentation = getReligionBadgePresentationForViewer(state, state.currentPlayer);
     this.airDefenseOverlayProviders = getKnownAirDefenseProviders(state, state.currentPlayer);
@@ -577,6 +581,7 @@ export class RenderLoop {
     if (this.isAirDefenseOverlayEnabled(viewerId)) {
       drawAirDefenseOverlay(this.ctx, this.camera, this.state.map, this.airDefenseOverlayProviders);
     }
+    drawStampedeRouteOverlay(this.ctx, this.camera, this.herdRoutePresentation.routes);
 
     // Draw minor civ territory
     if (this.state.minorCivs) {

@@ -3,6 +3,10 @@ import type { CrisisForce, GameState, HerdRoute, HexCoord, Unit } from '@/core/t
 import { getFortificationTier } from './fortification-system';
 import { hexKey, mapDistance, mapNeighbors } from './hex-utils';
 import { UNIT_DEFINITIONS } from './unit-system';
+import { getVisibility } from './fog-of-war';
+
+export interface HerdRoutePresentationItem { unitId: string; steps: HexCoord[]; stopsAtFort: boolean; }
+export interface HerdRoutePresentation { routes: HerdRoutePresentationItem[]; }
 
 const LAND_TERRAINS = new Set(['grassland', 'plains', 'desert', 'tundra', 'snow', 'forest', 'hills', 'jungle', 'swamp', 'volcanic']);
 
@@ -86,4 +90,18 @@ export function commitHerdRouteForTurn(state: GameState, forceId: string, unitId
   if (!record) return state;
   const route = planHerdRoute(state, forceId, unitId);
   return { ...state, crisisForces: { ...state.crisisForces, [forceId]: { ...record, herdRoutes: { ...record.herdRoutes, [unitId]: route } } } };
+}
+
+export function getHerdRoutePresentationForViewer(state: GameState, viewerId: string): HerdRoutePresentation {
+  const viewer = state.civilizations[viewerId];
+  if (!viewer) return { routes: [] };
+  const routes = Object.values(state.crisisForces ?? {}).flatMap(record => {
+    if (record.targetCivId !== viewerId) return [];
+    return Object.values(record.herdRoutes ?? {}).flatMap(route => {
+      const unit = state.units[route.unitId];
+      if (!unit || getVisibility(viewer.visibility, unit.position) !== 'visible') return [];
+      return [{ unitId: route.unitId, steps: route.steps.map(step => ({ ...step })), stopsAtFort: route.steps.length === 1 && isFort(state, route.steps[0]!) }];
+    });
+  });
+  return { routes };
 }
