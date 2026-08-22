@@ -29,8 +29,14 @@ function hasActiveDetectorInRange(state: GameState, unit: Unit, viewerCivId: str
   const detectedByUnit = Object.values(state.units)
     .filter((candidate): candidate is Unit => candidate.owner === viewerCivId && !candidate.transportId)
     .some(candidate => {
+      // #582: air units are no longer implicit adjacency-range detectors
+      // merely by existing/being based -- a parked aircraft has no more
+      // ability to spot a submerged submarine than the ship carrying it.
+      // Naval units keep the implicit range-1 default (a ship's basic
+      // lookout is plausible regardless of where it's docked). Aircraft
+      // detect submarines only through the active Patrol mission.
       const domain = UNIT_DEFINITIONS[candidate.type].domain;
-      if (domain !== 'naval' && domain !== 'air') return false;
+      if (domain !== 'naval') return false;
       const range = UNIT_DEFINITIONS[candidate.type].detection?.concealedNavalRange ?? 1;
       return distanceFor(state, candidate.position, unit.position) <= range;
     });
