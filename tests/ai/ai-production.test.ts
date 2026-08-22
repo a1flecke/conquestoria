@@ -23,7 +23,7 @@ import type { AIForceDemand } from '@/ai/ai-unit-assignment';
 import { getAIStrategicRoles } from '@/ai/ai-unit-roles';
 import { hexKey, hexNeighbors } from '@/systems/hex-utils';
 import { createEspionageCivState } from '@/systems/espionage-system';
-import { createUnit } from '@/systems/unit-system';
+import { createUnit, UNIT_DEFINITIONS } from '@/systems/unit-system';
 
 const aggressive: PersonalityTraits = {
   traits: ['aggressive'],
@@ -747,5 +747,25 @@ describe('#592 MR5 — missionary production scoring', () => {
     const baseScore = generateAIProductionCandidates(stateNoBoon, 'ai-1', 'city-a', [], aggressive)
       .find(c => c.itemId === 'missionary')?.score ?? -Infinity;
     expect(fervorScore).toBeGreaterThan(baseScore);
+  });
+
+  it('Attack Helicopter production candidate is byte-identical whether or not its airAssault capability field is present (regression for the "no production reweighting" design decision, #543 Phase 2)', () => {
+    const state = setupState(['helicopter-warfare']);
+    state.cities['city-a']!.buildings = ['helicopter_base'];
+    const demands = [demand('ranged')];
+
+    const withCapability = generateAIProductionCandidates(state, 'ai-1', 'city-a', demands, aggressive)
+      .find(c => c.itemId === 'attack_helicopter');
+    expect(withCapability).toBeDefined();
+
+    const originalAirAssault = UNIT_DEFINITIONS.attack_helicopter.airAssault;
+    delete UNIT_DEFINITIONS.attack_helicopter.airAssault;
+    try {
+      const withoutCapability = generateAIProductionCandidates(state, 'ai-1', 'city-a', demands, aggressive)
+        .find(c => c.itemId === 'attack_helicopter');
+      expect(withoutCapability).toEqual(withCapability);
+    } finally {
+      UNIT_DEFINITIONS.attack_helicopter.airAssault = originalAirAssault;
+    }
   });
 });
