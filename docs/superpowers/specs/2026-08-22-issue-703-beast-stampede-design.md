@@ -28,22 +28,30 @@ future schedule to the player.
 
 The clock is eligible only when all ordinary Stampede gates hold: era 3--8, a qualifying
 plains or grassland region near a target city, and a legal unoccupied spawn location. It
-is additionally blocked while the target has any active target-scoped pressure event,
-including a conventional active crisis, unrest counted by the independent-crisis cap, an
-active Stampede, or a Rogue Elephant Host. Blocked turns neither roll nor advance the
-Stampede chance; they preserve the accumulated eligible-turn count. This avoids stacked
-emergencies without converting recovery into a predictable cycle.
+is additionally blocked when the canonical per-civilization pressure helper reports an
+active conventional crisis or unrest group, or when `crisisForces` has an active force
+targeting that civilization (including a Stampede or Rogue Elephant Host). That helper
+uses only target-scoped persisted state; it must not inspect hidden rival units or infer
+pressure from map scans. Blocked turns neither roll nor advance the Stampede chance; they
+preserve the accumulated eligible-turn count. This avoids stacked emergencies without
+converting recovery into a predictable cycle.
 
-The existing independent-crisis cap remains authoritative. AI targets always use Standard
-cooldown and chance values. Each human in hot seat resolves their own challenge and
+The existing independent-crisis cap remains authoritative, selected with the same
+pressure-severity resolver as the recurrence profile so AI targets always use Standard
+cooldown, chance, and cap values. Each human in hot seat resolves their own challenge and
 history; no player's event state affects another human's clock.
 
 ## Stampede lifecycle
 
 When a roll succeeds, create one `stampede` crisis force for the target and enter a
 one-target-turn warning phase. The warning is plain language: "Herds are approaching;
-use screens or defeat them before they damage the countryside." Herds neither move nor
-attack during that phase.
+use screens or defeat them before they damage the countryside." #703 adds a compact
+current-player Stampede status line to the existing world-pressure surface and refreshes
+it immediately; #704 owns the dedicated alert, notification, and richer presentation
+experience. Herds neither move nor attack during that phase. At the start
+of that same target's following turn, the canonical turn-flow helper changes the force
+to active and processes exactly one ordered herd pass; it is never triggered by a UI
+handler or by a different civilization's turn.
 
 On activation, spawn 2 / 3 / 4 herds for Explorer / Standard / Veteran. Each herd has
 100 health, movement two, and strength `28 + 4 * (era - 3)`, giving 28--48 from era 3 to
@@ -53,9 +61,17 @@ the repository's seeded deterministic rules and always reject invalid or occupie
 
 For each of six active herd turns, reuse #702's canonical route commit and its visible
 next-two-step presentation. Herds do not deliberately pursue units or capture cities.
-Crossing an occupied legal tile invokes shared trample combat. A crisis-wide counter
-permits no more than two improvement pillages per active turn. At expiry, remaining herd
-units leave the map through the crisis-force cleanup path.
+The route extension must distinguish an invalid occupied tile from a visible hostile
+blocker: water, mountains, city centers, cargo, friendly crisis units, and a second map
+unit remain illegal, while a single hostile map unit may be selected as the first route
+step. The shared movement/combat path resolves trample before movement; the herd enters
+only if the defender is removed and movement remains legal. This corrects #702's
+non-occupancy route rule without allowing unit stacking or bypassing shared combat.
+
+Herds are processed by stable force/unit ID order. After each completed landing, one
+canonical helper may pillage the landed improvement only while the force-wide per-pass
+counter is below two; it records the actual tile key and never chooses a hidden target.
+At expiry, remaining herd units leave the map through the crisis-force cleanup path.
 
 ## Outcomes and rewards
 
@@ -75,8 +91,11 @@ capture, or duplicate combat-reward payouts.
 The core player-facing facts are always understandable: current phase, remaining active
 turns, containment limits (city damage, civilian loss, and pillage budget), currently
 earned-visible route steps, outcome, and pending charge. They refresh at the same state
-transition that changes them. Details may disclose exact values, but no surface reveals
-hidden route tiles or another hot-seat player's warning, route, status, or reward.
+transition that changes them. The existing production catalog shows the discounted next
+eligible Beast Handler or War Elephant cost, remaining charge duration, and an explicit
+"next eligible unit" label; it never hides other legal production choices. Details may
+disclose exact values, but no surface reveals hidden route tiles or another hot-seat
+player's warning, route, status, or reward.
 
 ## Architecture, data, and saves
 
@@ -84,15 +103,23 @@ A focused Stampede system owns eligibility, deterministic roll, spawn, warning-t
 transition, active-turn resolution, terminal classification, and charge expiry. It
 consumes `CrisisForce`, `resolvePressureSeverityForCiv`, #702 route helpers, canonical
 combat outcomes, and existing pressure-cap helpers. UI and turn flow call it; they do not
-recompute outcomes by scanning final state or duplicate ID-specific rules.
+recompute outcomes by scanning final state or duplicate ID-specific rules. The initial
+AI behavior is the existing legal hostile-combat behavior shared with crisis forces;
+#704 owns new AI prioritization, dispatch, and response recommendations.
 
-Persist only plain, stable data required to resume an exact mid-event state: phase,
-target, creation/resolution turns, active-turn count, pillage and casualty/city-damage
-counters, herd membership, terminal outcome, reward claim state, pending charge, and
-the per-target recurrence history (last resolved turn and eligible-turn count). Add the
-next schema migration only after rebasing confirms the current version. Normalization is
-idempotent, rejects malformed references, removes orphan crisis units through the shared
-owner cleanup, and preserves valid legacy saves.
+Persist a typed `StampedeState` registry keyed by target civilization ID, plus the
+generic `CrisisForce` membership record. `StampedeState` contains only plain data needed
+to resume the exact event: force ID, phase, creation/resolution turns, active-turn count,
+pillage and casualty/city-damage counters, terminal outcome, reward claim state, pending
+charge, last resolved turn, and accumulated eligible-turn count. City damage, civilian
+loss, and herd death are recorded at their respective combat/city mutation sources and
+fed into this state; terminal classification never reconstructs them from a final map.
+
+The rebased current schema is 16, so this change adds schema 17. Its migration defaults
+the optional registry to `{}`, normalizes malformed records idempotently, removes orphan
+crisis units through the shared owner cleanup, and preserves valid legacy saves. Tests
+cover schema 0, 16, 17, malformed values, and round trips in warning, active, resolved,
+and charge states.
 
 ## Balance, accessibility, and test contract
 
@@ -107,9 +134,12 @@ and resumption; AI Standard severity; warning non-action; spawn count/formula/le
 trample parity through human and non-human callers; the two-pillage active-turn cap;
 all terminal boundaries; no duplicate reward; Herding Insight use and expiry; and
 save/load during warning, active, resolved, and charge states. Viewer-scoped DOM and
-renderer tests prove immediate refresh and two-human hot-seat isolation. Balance fixtures
-exercise intended screens, a combat response, a builder containment response, and
-Explorer/Standard/Veteran pressure without changing common rules.
+renderer tests prove immediate warning/status and production-cost refresh, full catalog
+reachability, reduced-motion information parity, and two-human hot-seat isolation.
+Balance fixtures exercise intended screens, a combat response, a builder containment
+response, and Explorer/Standard/Veteran pressure without changing common rules.
 
-Temporary route marker/sprite fallbacks already registered by #702 remain valid. #703
-does not add bespoke art or sound; #713 and #719 own final visual and audio treatment.
+Temporary route marker/sprite fallbacks already registered by #702 remain valid. Existing
+combat and pillage audio continues through its normal visible actions; #703 emits no new
+hidden-event audio and does not claim a bespoke Stampede sound. #713 and #719 own final
+visual and audio treatment, including warning, movement, and outcome coalescing.
