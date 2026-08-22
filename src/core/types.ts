@@ -445,6 +445,11 @@ export interface ParadropCapability {
   baseKinds: AirBaseKind[];
 }
 
+export interface AirAssaultCapability {
+  /** Building kinds this unit's air-base roster can launch an Air Assault from. Reuses AirBaseKind like ParadropCapability does, for the same reason — a future launch point is a data change, not a type change; only 'helicopter_base' is populated today. */
+  baseKinds: AirBaseKind[];
+}
+
 export type AirDefenseProviderKind = 'building' | 'unit' | 'naval-unit';
 export interface AirDefenseProviderDefinition { id: string; kind: AirDefenseProviderKind; radius: number; defenseModifier: number; stackingGroup: string; label: string; protectedDomains?: Array<'land' | 'naval' | 'air'>; }
 export type AirDefenseProviderCapability = Omit<AirDefenseProviderDefinition, 'id' | 'kind' | 'label'> & {
@@ -473,6 +478,10 @@ export interface UnitDefinition {
   airInterceptionDefense?: AirInterceptionDefense;
   airOperation?: AirOperationDefinition;
   paradrop?: ParadropCapability;
+  /** Air-base-roster-driven troop insertion (see airborne-system.ts's executeAirAssault). Range is read from this same unit's airOperation.operationalRange, not stored here — the two must never drift apart by editing one and not the other (see the code comment at attack_helicopter's operationalRange definition). */
+  airAssault?: AirAssaultCapability;
+  /** True on units eligible to be carried by another unit's Air Assault action. Not derived from UnitClass — 'gunpowder' is too broad (also covers artillery/AA/anti-tank). */
+  airAssaultPassengerEligible?: true;
   airDefenseProvider?: AirDefenseProviderCapability;
   terrainCostOverrides?: Partial<Record<string, number>>;
   cargoCapacity?: number;
