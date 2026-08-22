@@ -54,15 +54,24 @@ describe('save migrations', () => {
     expect(migrateSaveToCurrent(migrated)).toEqual(migrated);
   });
 
-  it('#703 initializes malformed Stampede state at schema 17', () => {
+  it('#703 initializes malformed Stampede state and removes its orphaned force at schema 17', () => {
     const save = createNewGame('rome', 'stampede-schema-17', 'small');
     save.saveSchemaVersion = 16;
+    const herd = { ...Object.values(save.units)[0]!, id: 'stampede-orphan-herd', owner: CRISIS_FORCE_OWNER };
+    save.units[herd.id] = herd;
+    save.crisisForces = {
+      'stampede-player-1': {
+        id: 'stampede-player-1', targetCivId: 'player', severity: 'standard', createdTurn: 1, unitIds: [herd.id],
+      },
+    };
     save.stampedes = { player: { targetCivId: 'missing' } } as never;
 
     const migrated = migrateSaveToCurrent(save);
 
     expect(migrated.saveSchemaVersion).toBe(17);
     expect(migrated.stampedes).toEqual({});
+    expect(migrated.crisisForces).toEqual({});
+    expect(migrated.units[herd.id]).toBeUndefined();
     expect(migrateSaveToCurrent(migrated)).toEqual(migrated);
   });
 
