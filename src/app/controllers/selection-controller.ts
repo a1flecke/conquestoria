@@ -210,9 +210,14 @@ export function createSelectionController(deps: SelectionControllerDeps): Select
           selectUnit(uid);
           renderLoop.setHighlights(targets.map(coord => ({
             coord,
-            type: mission === 'strike' ? 'air-strike' as const : 'air-recon' as const,
+            type: mission === 'strike' ? 'air-strike' as const : mission === 'recon' ? 'air-recon' as const : 'air-patrol' as const,
           })));
-          deps.showNotification(mission === 'strike' ? 'Tap a hostile target within operational range, or cancel.' : 'Tap a recon center within operational range, or cancel.', 'info');
+          const noticeText = mission === 'strike'
+            ? 'Tap a hostile target within operational range, or cancel.'
+            : mission === 'recon'
+              ? 'Tap a recon center within operational range, or cancel.'
+              : 'Tap a patrol center — reveals ships and hidden submarines in a wide area for the rest of this turn. Uses this aircraft\'s turn, or cancel.';
+          deps.showNotification(noticeText, 'info');
         },
         onCancelAirMission: uid => {
           const intent = selection.getPendingIntent();
