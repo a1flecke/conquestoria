@@ -82,6 +82,7 @@ const UNIT_DEFINITION_BASES: Record<UnitType, UnitDefinitionBase> = {
     type: 'musketeer', name: 'Musketeer', movementPoints: 2,
     visionRange: 2, strength: 34, canFoundCity: false,
     canBuildImprovements: false, productionCost: 90,
+    airAssaultPassengerEligible: true,
   },
   galley: {
     type: 'galley', name: 'Galley', movementPoints: 3,
@@ -325,6 +326,7 @@ const UNIT_DEFINITION_BASES: Record<UnitType, UnitDefinitionBase> = {
     domain: 'land',
     attackProfile: { kind: 'bombard', range: 1, targets: ['unit', 'city'] },
     fortificationPenetration: 0.5,
+    airAssaultPassengerEligible: true,
   },
   marine: {
     type: 'marine', name: 'Marine', movementPoints: 2,
@@ -332,6 +334,7 @@ const UNIT_DEFINITION_BASES: Record<UnitType, UnitDefinitionBase> = {
     canBuildImprovements: false, productionCost: 125,
     domain: 'land',
     attackProfile: { kind: 'melee', range: 1, targets: ['unit', 'city'], targetDomains: ['land'] },
+    airAssaultPassengerEligible: true,
   },
   rifleman: {
     type: 'rifleman', name: 'Rifleman', movementPoints: 2,
@@ -339,6 +342,7 @@ const UNIT_DEFINITION_BASES: Record<UnitType, UnitDefinitionBase> = {
     canBuildImprovements: false, productionCost: 145,
     domain: 'land',
     attackProfile: { kind: 'ranged', range: 1, targets: ['unit', 'city'] },
+    airAssaultPassengerEligible: true,
   },
   frigate: {
     type: 'frigate', name: 'Frigate', movementPoints: 4,
@@ -360,6 +364,7 @@ const UNIT_DEFINITION_BASES: Record<UnitType, UnitDefinitionBase> = {
     canBuildImprovements: false, productionCost: 145,
     domain: 'land',
     attackProfile: { kind: 'ranged', range: 1, targets: ['unit', 'city'] },
+    airAssaultPassengerEligible: true,
   },
   infantry: {
     type: 'infantry', name: 'Infantry', movementPoints: 2,
@@ -367,6 +372,7 @@ const UNIT_DEFINITION_BASES: Record<UnitType, UnitDefinitionBase> = {
     canBuildImprovements: false, productionCost: 195,
     domain: 'land',
     attackProfile: { kind: 'ranged', range: 1, targets: ['unit', 'city'] },
+    airAssaultPassengerEligible: true,
   },
   mechanized_infantry: {
     type: 'mechanized_infantry', name: 'Mechanized Infantry', movementPoints: 3,
@@ -375,6 +381,7 @@ const UNIT_DEFINITION_BASES: Record<UnitType, UnitDefinitionBase> = {
     domain: 'land',
     attackProfile: { kind: 'ranged', range: 1, targets: ['unit', 'city'] },
     combinedArms: { provides: ['line-infantry'] },
+    airAssaultPassengerEligible: true,
   },
   paratrooper: {
     type: 'paratrooper', name: 'Paratrooper', movementPoints: 2,
@@ -383,6 +390,7 @@ const UNIT_DEFINITION_BASES: Record<UnitType, UnitDefinitionBase> = {
     domain: 'land',
     attackProfile: { kind: 'ranged', range: 1, targets: ['unit', 'city'] },
     paradrop: { range: 4, baseKinds: ['airfield'] },
+    airAssaultPassengerEligible: true,
   },
   pre_dreadnought: {
     type: 'pre_dreadnought', name: 'Pre-Dreadnought', movementPoints: 4,
@@ -519,7 +527,14 @@ const UNIT_DEFINITION_BASES: Record<UnitType, UnitDefinitionBase> = {
     canFoundCity: false, canBuildImprovements: false, productionCost: 230,
     domain: 'air',
     attackProfile: { kind: 'ranged', range: 2, targets: ['unit', 'city'] },
+    // operationalRange also doubles as Air Assault's range (see
+    // airborne-system.ts's getAirAssaultTargets, which reads this field
+    // directly rather than storing a separate number). A future combat
+    // rebalance of this value retunes Air Assault range too -- re-run
+    // tests/systems/airborne-balance.test.ts's dominance check if you
+    // change it.
     airOperation: { baseKinds: ['helicopter_base'], operationalRange: 4, ferryRange: 8, missions: ['strike', 'rebase'], carrierEligible: false },
+    airAssault: { baseKinds: ['helicopter_base'] },
   },
   missile_submarine: {
     type: 'missile_submarine', name: 'Missile Submarine',
@@ -530,7 +545,7 @@ const UNIT_DEFINITION_BASES: Record<UnitType, UnitDefinitionBase> = {
   },
   combat_drone: { type: 'combat_drone', name: 'Combat Drone', movementPoints: 6, visionRange: 3, strength: 42, canFoundCity: false, canBuildImprovements: false, productionCost: 224, domain: 'air', attackProfile: { kind: 'ranged', range: 2, targets: ['unit', 'city'] }, airOperation: { baseKinds: ['airfield', 'helicopter_base', 'stealth_airbase', 'carrier'], operationalRange: 5, ferryRange: 8, missions: ['strike', 'rebase'], carrierEligible: true } },
   autonomous_frigate: { type: 'autonomous_frigate', name: 'Autonomous Frigate', movementPoints: 5, visionRange: 3, strength: 60, canFoundCity: false, canBuildImprovements: false, productionCost: 336, domain: 'naval', waterAccess: 'ocean', attackProfile: { kind: 'ranged', range: 3, targets: ['unit', 'city'] }, detection: { concealedNavalRange: 3 } },
-  exosuit_infantry: { type: 'exosuit_infantry', name: 'Exosuit Infantry', movementPoints: 3, visionRange: 2, strength: 70, canFoundCity: false, canBuildImprovements: false, productionCost: 196, domain: 'land', attackProfile: { kind: 'ranged', range: 1, targets: ['unit', 'city'] }, combinedArms: { provides: ['line-infantry'] } },
+  exosuit_infantry: { type: 'exosuit_infantry', name: 'Exosuit Infantry', movementPoints: 3, visionRange: 2, strength: 70, canFoundCity: false, canBuildImprovements: false, productionCost: 196, domain: 'land', attackProfile: { kind: 'ranged', range: 1, targets: ['unit', 'city'] }, combinedArms: { provides: ['line-infantry'] }, airAssaultPassengerEligible: true },
   propagandist: { type: 'propagandist', name: 'Propagandist', movementPoints: 3, visionRange: 2, strength: 0, canFoundCity: false, canBuildImprovements: false, productionCost: 196, domain: 'land' },
   drone_controller: { type: 'drone_controller', name: 'Drone Controller', movementPoints: 3, visionRange: 3, strength: 0, canFoundCity: false, canBuildImprovements: false, productionCost: 196, domain: 'land' },
   // S5 — trade unit

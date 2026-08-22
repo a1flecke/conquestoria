@@ -73,6 +73,27 @@ describe('Paratrooper unit definition (#543)', () => {
   });
 });
 
+describe('air assault capability wiring (#543 Phase 2)', () => {
+  it('Attack Helicopter has the airAssault capability, keyed to helicopter_base', () => {
+    expect(UNIT_DEFINITIONS.attack_helicopter.airAssault).toEqual({ baseKinds: ['helicopter_base'] });
+  });
+
+  it('Combat Drone (also helicopter_base-eligible) does NOT have the airAssault capability', () => {
+    expect(UNIT_DEFINITIONS.combat_drone.airAssault).toBeUndefined();
+  });
+
+  it('marks exactly the historical infantry lineage as airAssaultPassengerEligible', () => {
+    const eligible = ['musketeer', 'grenadier', 'rifleman', 'machine_gunner', 'infantry', 'mechanized_infantry', 'exosuit_infantry', 'marine', 'paratrooper'] as const;
+    for (const type of eligible) {
+      expect(UNIT_DEFINITIONS[type].airAssaultPassengerEligible).toBe(true);
+    }
+    const excluded = ['mobile_aa', 'anti_tank_gun', 'cannon', 'artillery', 'rocket_artillery', 'tank', 'main_battle_tank', 'cavalry', 'settler', 'worker', 'attack_helicopter'] as const;
+    for (const type of excluded) {
+      expect(UNIT_DEFINITIONS[type].airAssaultPassengerEligible).toBeUndefined();
+    }
+  });
+});
+
 describe('Trebuchet catalog contract (#684)', () => {
   it('defines the slow city-focused Era-4 bombard unit', () => {
     expect(UNIT_DEFINITIONS.trebuchet).toMatchObject({
