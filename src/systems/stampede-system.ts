@@ -6,6 +6,8 @@ import { createUnit } from '@/systems/unit-system';
 import { hexKey, mapNeighbors } from '@/systems/hex-utils';
 import { commitHerdRouteForTurn } from '@/systems/stampede-route-system';
 import { executeUnitMove } from '@/systems/unit-movement-system';
+import { resolvePressureSeverityForCiv } from '@/core/opponent-challenge';
+import { resolveCivilizationEra } from '@/systems/tech-definitions';
 
 export interface StampedeProfile {
   cooldownTurns: number;
@@ -74,6 +76,32 @@ export function advanceStampedePressure(state: GameState, targetCivId: string): 
     ? { ...previous, eligibleTurns: previous.eligibleTurns + 1 }
     : { targetCivId, eligibleTurns: 1, activeTurns: 0, cityDamage: 0, civilianDeaths: 0, pillagedTileKeys: [] };
   return { ...state, stampedes: { ...(state.stampedes ?? {}), [targetCivId]: next } };
+}
+
+function deterministicPercent(seed: string): number {
+  let hash = 2166136261;
+  for (let index = 0; index < seed.length; index += 1) hash = Math.imul(hash ^ seed.charCodeAt(index), 16777619);
+  return (hash >>> 0) % 100;
+}
+
+/** Schedules independent, target-scoped warnings after the pressure cooldown. */
+export function processStampedeScheduling(state: GameState): GameState {
+  let next = state;
+  for (const civId of Object.keys(state.civilizations).sort()) {
+    const civ = next.civilizations[civId];
+    if (!civ || civ.isEliminated) continue;
+    const era = resolveCivilizationEra(civ.techState.completed);
+    const existing = next.stampedes?.[civId];
+    if (era < 3 || era > 8 || existing?.phase === 'warning' || existing?.phase === 'active') continue;
+    const severity = resolvePressureSeverityForCiv(next, civId);
+    const profile = getStampedeProfile(severity);
+    if (existing?.lastResolvedTurn !== undefined && next.turn - existing.lastResolvedTurn < profile.cooldownTurns) continue;
+    next = advanceStampedePressure(next, civId);
+    const eligibleTurns = next.stampedes?.[civId]?.eligibleTurns ?? 0;
+    const chance = Math.min(profile.capPercent, profile.initialChancePercent + Math.max(0, eligibleTurns - 1) * profile.growthPercent);
+    if (deterministicPercent(`${next.gameId}:${civId}:${next.turn}`) < chance) next = startStampedeWarning(next, civId, severity);
+  }
+  return next;
 }
 
 export function startStampedeWarning(state: GameState, targetCivId: string, severity: OpponentChallenge): GameState {
