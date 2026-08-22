@@ -62,6 +62,30 @@ export const SCENARIOS: Record<string, ScenarioDefinition> = {
       { kind: 'unit', civId: 'ai-1', type: 'submarine', position: { q: 0, r: 0 } },
     ],
   },
+  'helicopter-air-assault-basic': {
+    name: 'helicopter-air-assault-basic',
+    description:
+      'Player Infantry standing in a Helicopter Base city with an available Attack '
+      + 'Helicopter, plus a legal in-range landing tile -- opens directly into a state '
+      + 'where the Air Assault action can be exercised manually (#543 Phase 2).',
+    seed: 'scenario-helicopter-air-assault-basic',
+    base: {
+      kind: 'solo',
+      config: { civType: 'generic', mapSize: 'small', opponentCount: 1, gameTitle: 'Helicopter Air Assault' },
+    },
+    steps: [
+      { kind: 'terrain', position: { q: 0, r: 0 }, terrain: 'plains' },
+      { kind: 'terrain', position: { q: 1, r: 1 }, terrain: 'plains' },
+      { kind: 'tech', civId: 'player', techIds: ['helicopter-warfare'] },
+      { kind: 'city', civId: 'player', position: { q: 0, r: 0 }, overrides: { id: 'heli-city', buildings: ['helicopter_base'] } },
+      { kind: 'unit', civId: 'player', type: 'attack_helicopter', position: { q: 0, r: 0 }, overrides: { airBase: { kind: 'city', cityId: 'heli-city' } } },
+      // Based air units don't occupy ground stacking slots in the real game
+      // (unit-occupancy.ts skips isBasedAirUnit units) -- this scenario
+      // builder's plain per-tile occupancy guard doesn't know that
+      // exemption, so the second unit on this tile needs `unsafe: true`.
+      { kind: 'unit', civId: 'player', type: 'infantry', position: { q: 0, r: 0 }, unsafe: true },
+    ],
+  },
   'destroyer-sonar-detection': {
     name: 'destroyer-sonar-detection',
     description:

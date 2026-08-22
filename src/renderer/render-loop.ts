@@ -223,7 +223,7 @@ export function positionMovingPirateHeadquarters(
 
 export interface HexHighlight {
   coord: HexCoord;
-  type: 'move' | 'attack' | 'air-strike' | 'air-recon' | 'air-intercept' | 'zoc-limited' | 'water-recovery' | 'worker-buildable' | 'worker-owned-blocked' | 'worker-foreign-blocked' | 'paradrop-target' | 'paradrop-flak-risk';
+  type: 'move' | 'attack' | 'air-strike' | 'air-recon' | 'air-intercept' | 'zoc-limited' | 'water-recovery' | 'worker-buildable' | 'worker-owned-blocked' | 'worker-foreign-blocked' | 'paradrop-target' | 'paradrop-flak-risk' | 'air-assault-target' | 'air-assault-flak-risk';
 }
 
 const HEX_HIGHLIGHT_COLORS: Record<HexHighlight['type'], string> = {
@@ -248,6 +248,13 @@ const HEX_HIGHLIGHT_COLORS: Record<HexHighlight['type'], string> = {
   // highlight type today.
   'paradrop-target': '#7c3aed',
   'paradrop-flak-risk': '#dc2626',
+  // Distinct hue from paradrop-target (teal vs purple) so the two verbs
+  // read as different highlight types when a Paratrooper (eligible for
+  // both) is selected in a city with both an Airfield and a Helicopter
+  // Base -- same color-plus-text-notification convention as above, not a
+  // new icon-overlay system.
+  'air-assault-target': '#0d9488',
+  'air-assault-flak-risk': '#dc2626',
 };
 
 const HEX_HIGHLIGHT_OUTLINES: Partial<Record<HexHighlight['type'], string>> = {

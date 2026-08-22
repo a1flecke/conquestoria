@@ -39,7 +39,7 @@ import { resolveMapTapIntent } from '@/input/map-tap-intent';
 import { visibleHostileUnitEntriesAtKey } from '@/input/hex-defender-selection';
 import { handleSelectedUnitMovementBlocker } from '@/input/selected-unit-movement-feedback';
 import { resolveAirStrike, resolveReconMission } from '@/systems/air-operations-system';
-import { executeParadrop, PARADROP_FAILURE_MESSAGES } from '@/systems/airborne-system';
+import { executeParadrop, PARADROP_FAILURE_MESSAGES, executeAirAssault, AIR_ASSAULT_FAILURE_MESSAGES } from '@/systems/airborne-system';
 import { unloadUnitFromTransport } from '@/systems/transport-system';
 import { getMinorCivPresentationForPlayer } from '@/systems/minor-civ-presentation';
 import { calculateCombatStrengths } from '@/systems/combat-system';
@@ -207,6 +207,37 @@ export function createMapInteractionController(deps: MapInteractionControllerDep
             // is the closest existing analog for "a unit newly arrives on
             // a tile"; combat is reused for any HP-loss event (flak,
             // interception, or both).
+            if (result.flak || result.interception) SFX.combat();
+            else SFX.transportUnload();
+            if (survived) selectionController.selectUnit(pending.unitId);
+            return;
+          }
+
+          case 'air-assault': {
+            const pending = intent.pending;
+            const result = executeAirAssault(session.getState(), pending.unitId, coord);
+            if (!result.ok) {
+              deps.showNotification(AIR_ASSAULT_FAILURE_MESSAGES[result.reason], 'warning');
+              return;
+            }
+            // executeAirAssault already logged both sides' notifications
+            // via appendNotification, same as executeParadrop above --
+            // this toast is the acting player's own immediate feedback.
+            selection.setPendingIntent({ kind: 'none' });
+            session.commit(result.state);
+            selectionController.refreshCurrentPlayerVisibility();
+            deps.updateHUD();
+            const outcomeParts: string[] = [];
+            if (result.flak) outcomeParts.push(`${result.flak.damage} flak damage from ${result.flak.providerLabel}`);
+            if (result.interception) outcomeParts.push('intercepted');
+            const survived = Boolean(result.state.units[pending.unitId]);
+            const outcomeSuffix = outcomeParts.length ? ` (${outcomeParts.join(', ')})` : '';
+            deps.showNotification(
+              survived
+                ? `Unit was flown in by helicopter${outcomeSuffix}. It cannot act again this turn.`
+                : `Unit was destroyed on the air assault${outcomeSuffix}.`,
+              survived && outcomeParts.length === 0 ? 'info' : 'warning',
+            );
             if (result.flak || result.interception) SFX.combat();
             else SFX.transportUnload();
             if (survived) selectionController.selectUnit(pending.unitId);
