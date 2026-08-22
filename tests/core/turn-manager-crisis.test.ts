@@ -9,7 +9,8 @@ import { tagLandmassRegions } from '@/systems/landmass-tagger';
 import { calculateProjectedCityYields } from '@/systems/city-work-system';
 import { TECH_TREE } from '@/systems/tech-definitions';
 import { hexKey } from '@/systems/hex-utils';
-import type { ActiveCrisis, GameState, HexCoord } from '@/core/types';
+import { startStampedeWarning } from '@/systems/stampede-system';
+import type { ActiveCrisis, GameEvents, GameState, HexCoord } from '@/core/types';
 
 function findLandCoord(state: GameState): HexCoord {
   const tile = Object.values(state.map.tiles).find(t => t.terrain !== 'ocean' && t.terrain !== 'coast');
@@ -33,6 +34,22 @@ function stateWithActiveCrisis(): { state: GameState; civId: string; cityId: str
 }
 
 describe('turn-manager crisis wiring', () => {
+  it('emits one target-scoped Stampede activation from the owner-turn transition', () => {
+    const state = createNewGame('rome', 'stampede-turn-event', 'small');
+    const city = foundCity('player', findLandCoord(state), state.map, state.idCounters);
+    state.cities[city.id] = city;
+    state.civilizations.player.cities = [city.id];
+    for (const tile of Object.values(state.map.tiles)) tile.terrain = 'plains';
+    const warning = startStampedeWarning(state, 'player', 'explorer');
+    const bus = new EventBus();
+    const events: GameEvents['stampede:lifecycle'][] = [];
+    bus.on('stampede:lifecycle', event => events.push(event));
+
+    processTurn(warning, bus);
+
+    expect(events).toEqual([{ kind: 'activated', targetCivId: 'player', activeTurns: 1 }]);
+  });
+
   it('ticks an active outbreak and reduces city yields via processTurn', () => {
     const { state, cityId } = stateWithActiveCrisis();
     const cityBefore = state.cities[cityId];

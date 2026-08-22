@@ -7,10 +7,11 @@ import { getCityAppeaseCost } from '@/systems/faction-system';
 import { canRestoreLand } from '@/systems/improvement-system';
 import { getWorkerChargesRemaining } from '@/systems/worker-action-system';
 import { findPath } from '@/systems/unit-system';
-import { hexKey } from '@/systems/hex-utils';
+import { hexDistance, hexKey } from '@/systems/hex-utils';
+import { getHerdAvoidanceScore, getHerdRoutePresentationForViewer } from '@/systems/stampede-route-system';
 
 export interface CrisisDispatchCandidate {
-  kind: 'pirate-fleet' | 'hunt-foe';
+  kind: 'pirate-fleet' | 'hunt-foe' | 'stampede';
   sourceId: string;        // fleetId or crisisId — used for expiry checks
   targetUnitId: string;    // the pirate ship / hunt foe unit
   score: number;           // base score × profile.crisisDispatchWeight
@@ -40,6 +41,45 @@ export function getCrisisDispatchCandidates(state: GameState, civId: string): Cr
       targetUnitId: leader.id,
       score: PIRATE_FLEET_DISPATCH_BASE_SCORE * profile.crisisDispatchWeight,
     });
+  }
+  const stampede = state.stampedes?.[civId];
+  const force = stampede?.phase === 'active' && stampede.forceId
+    ? state.crisisForces?.[stampede.forceId]
+    : undefined;
+  if (force?.targetCivId === civId) {
+    // The route presentation is the canonical earned-visibility boundary for
+    // screens and Fort/Citadel stops. Requiring it keeps the tactical plan
+    // grounded in the same facts the targeted player can inspect.
+    const visibleRoutes = new Map(
+      getHerdRoutePresentationForViewer(state, civId).routes.map(route => [route.unitId, route]),
+    );
+    for (const unitId of [...force.unitIds].sort()) {
+      const herd = state.units[unitId];
+      // A crisis target is still an exact tactical target: AI may use only a herd
+      // it currently sees, never a hidden force record or future route coordinate.
+      const route = visibleRoutes.get(unitId);
+      if (!herd || !route || !civ?.visibility || !isVisible(civ.visibility, herd.position)) continue;
+      const routeEnd = route.steps[route.steps.length - 1] ?? herd.position;
+      const nearestCityDistance = Math.min(
+        ...Object.values(state.cities)
+          .filter(city => city.owner === civId)
+          .map(city => hexDistance(routeEnd, city.position)),
+      );
+      const cityApproachPressure = Number.isFinite(nearestCityDistance)
+        ? Math.max(0, 4 - nearestCityDistance) * 10
+        : 0;
+      const visibleScreenCost = route.steps.reduce(
+        (total, step) => total + getHerdAvoidanceScore(state, step),
+        0,
+      );
+      candidates.push({
+        kind: 'stampede', sourceId: force.id, targetUnitId: herd.id,
+        // Attack the nearest unscreened approach first. A visible fort stop and
+        // fortified screen lower urgency, while a route nearing a city raises it.
+        score: (PIRATE_FLEET_DISPATCH_BASE_SCORE + cityApproachPressure
+          - visibleScreenCost * 5 - (route.stopsAtFort ? 25 : 0)) * profile.crisisDispatchWeight,
+      });
+    }
   }
   return candidates;
 }

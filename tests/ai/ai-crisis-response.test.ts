@@ -31,6 +31,7 @@ function baseState(challenge: string): GameState {
         visibility: { tiles: { '2,1': 'visible' } },
       },
     },
+    map: { tiles: {} },
     units: { 'ship-1': { id: 'ship-1', type: 'pirate_frigate', owner: 'pirate-1', position: { q: 2, r: 1 } } },
     pirates: { factions: { 'pirate-1': faction() } },
   } as unknown as GameState;
@@ -75,6 +76,55 @@ describe('getCrisisDispatchCandidates', () => {
     const state = baseState('standard');
     (state.civilizations['ai-1'] as { visibility: { tiles: Record<string, string> } })
       .visibility.tiles = {};
+    expect(getCrisisDispatchCandidates(state, 'ai-1')).toEqual([]);
+  });
+
+  it('dispatches only against a visible herd threatening the AI civilization', () => {
+    const state = baseState('standard');
+    state.pirates = { factions: {} } as GameState['pirates'];
+    state.units = {
+      herd: {
+        id: 'herd', type: 'beast_stampede_herd', owner: 'crisis-force', position: { q: 2, r: 1 },
+        movementPointsLeft: 2, health: 100, experience: 0, hasMoved: false, hasActed: false, isResting: false,
+      },
+      'herd-screened': {
+        id: 'herd-screened', type: 'beast_stampede_herd', owner: 'crisis-force', position: { q: 2, r: 2 },
+        movementPointsLeft: 2, health: 100, experience: 0, hasMoved: false, hasActed: false, isResting: false,
+      },
+    };
+    state.cities = { 'ai-city': { id: 'ai-city', owner: 'ai-1', position: { q: 4, r: 1 } } } as unknown as GameState['cities'];
+    state.map.tiles = { '3,2': { coord: { q: 3, r: 2 }, improvement: 'fort', improvementTurnsLeft: 0 } } as unknown as GameState['map']['tiles'];
+    state.stampedes = {
+      'ai-1': {
+        targetCivId: 'ai-1', forceId: 'stampede-ai-1-4', phase: 'active', eligibleTurns: 0,
+        activeTurns: 1, cityDamage: 0, civilianDeaths: 0, pillagedTileKeys: [],
+      },
+    };
+    state.crisisForces = {
+      'stampede-ai-1-4': {
+        id: 'stampede-ai-1-4', targetCivId: 'ai-1', severity: 'standard', createdTurn: 4, unitIds: ['herd', 'herd-screened'],
+        herdRoutes: {
+          herd: { unitId: 'herd', committedTurn: 4, steps: [{ q: 3, r: 1 }] },
+          'herd-screened': { unitId: 'herd-screened', committedTurn: 4, steps: [{ q: 3, r: 2 }] },
+        },
+      },
+    };
+
+    // A visible herd alone is insufficient for the AI to infer its next move:
+    // the committed route must also be earned-visible to the targeted civ.
+    expect(getCrisisDispatchCandidates(state, 'ai-1')).toEqual([]);
+    state.civilizations['ai-1'].visibility.tiles['3,1'] = 'visible';
+    state.civilizations['ai-1'].visibility.tiles['2,2'] = 'visible';
+    state.civilizations['ai-1'].visibility.tiles['3,2'] = 'visible';
+    const visibleCandidates = getCrisisDispatchCandidates(state, 'ai-1');
+    expect(visibleCandidates).toEqual(expect.arrayContaining([
+      expect.objectContaining({ kind: 'stampede', sourceId: 'stampede-ai-1-4', targetUnitId: 'herd' }),
+      expect.objectContaining({ kind: 'stampede', sourceId: 'stampede-ai-1-4', targetUnitId: 'herd-screened' }),
+    ]));
+    expect(visibleCandidates.find(candidate => candidate.targetUnitId === 'herd')!.score)
+      .toBeGreaterThan(visibleCandidates.find(candidate => candidate.targetUnitId === 'herd-screened')!.score);
+
+    state.civilizations['ai-1'].visibility.tiles = {};
     expect(getCrisisDispatchCandidates(state, 'ai-1')).toEqual([]);
   });
 });

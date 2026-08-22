@@ -2,10 +2,26 @@ import { describe, expect, it } from 'vitest';
 import { createNewGame } from '@/core/game-state';
 import { foundCity } from '@/systems/city-system';
 import { mapNeighbors } from '@/systems/hex-utils';
-import { applyStampedePillage, advanceStampedePressure, consumeHerdingInsight, getStampedeProfile, hasActiveHerdingInsight, normalizeStampedes, processHerdingInsight, processStampedeScheduling, resolveStampedeOutcome, processStampedeTurn, startStampedeWarning } from '@/systems/stampede-system';
+import { applyStampedePillage, advanceStampedePressure, consumeHerdingInsight, getStampedeLifecycleTransition, getStampedeProfile, hasActiveHerdingInsight, normalizeStampedes, processHerdingInsight, processStampedeScheduling, resolveStampedeOutcome, processStampedeTurn, startStampedeWarning } from '@/systems/stampede-system';
 import { getEraAdvancementTechs } from '@/systems/tech-definitions';
 
 describe('Stampede state', () => {
+  it('reports a single target-scoped lifecycle transition from the mutation boundary', () => {
+    const before = {
+      targetCivId: 'player', phase: 'warning' as const, eligibleTurns: 0, activeTurns: 0,
+      cityDamage: 0, civilianDeaths: 0, pillagedTileKeys: [],
+    };
+    const after = { ...before, phase: 'active' as const, activeTurns: 1 };
+
+    expect(getStampedeLifecycleTransition(before, after)).toEqual({
+      kind: 'activated', targetCivId: 'player', activeTurns: 1,
+    });
+    expect(getStampedeLifecycleTransition(undefined, before)).toEqual({
+      kind: 'warning', targetCivId: 'player',
+    });
+    expect(getStampedeLifecycleTransition(after, after)).toBeUndefined();
+  });
+
   it('defines recurring pressure profiles for every player challenge', () => {
     expect(getStampedeProfile('explorer')).toEqual({
       cooldownTurns: 12, initialChancePercent: 3, growthPercent: 1, capPercent: 12, herdCount: 2,
