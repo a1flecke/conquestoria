@@ -49,8 +49,19 @@ describe('stampede route system', () => {
     state.civilizations.player.visibility.tiles['1,0'] = 'visible';
     state.civilizations['player-2'] = { ...state.civilizations.player, id: 'player-2', visibility: { tiles: {} } };
     const committed = commitHerdRouteForTurn(state, 'stampede-1', 'herd-1');
+    for (const step of committed.crisisForces!['stampede-1']!.herdRoutes!['herd-1']!.steps) {
+      state.civilizations.player.visibility.tiles[`${step.q},${step.r}`] = 'visible';
+    }
 
     expect(getHerdRoutePresentationForViewer(committed, 'player').routes).toHaveLength(1);
     expect(getHerdRoutePresentationForViewer(committed, 'player-2').routes).toEqual([]);
+  });
+
+  it('does not reveal a committed route tile the target has not earned vision of', () => {
+    const state = routeState();
+    state.civilizations.player.visibility.tiles['1,0'] = 'visible';
+    const committed = commitHerdRouteForTurn(state, 'stampede-1', 'herd-1');
+
+    expect(getHerdRoutePresentationForViewer(committed, 'player').routes).toEqual([]);
   });
 });

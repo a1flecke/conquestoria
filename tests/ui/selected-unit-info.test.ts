@@ -679,6 +679,7 @@ describe('renderSelectedUnitInfo — crisis-force label', () => {
     const unit = { ...createUnit('warrior', 'crisis-force', { q: 3, r: 0 }, state.idCounters), id: 'crisis-1' };
     state.units = { 'crisis-1': unit };
     state.civilizations.player.visibility.tiles['3,0'] = 'visible';
+    state.civilizations.player.visibility.tiles['4,0'] = 'visible';
     state = registerCrisisForce(state, {
       id: 'stampede', targetCivId: 'player', severity: 'standard', createdTurn: state.turn, unitIds: ['crisis-1'],
       herdRoutes: { 'crisis-1': { unitId: 'crisis-1', committedTurn: state.turn, steps: [{ q: 4, r: 0 }] } },
