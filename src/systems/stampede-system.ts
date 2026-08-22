@@ -103,3 +103,13 @@ export function startStampedeWarning(state: GameState, targetCivId: string, seve
     },
   };
 }
+
+/** The warning-to-active boundary intentionally consumes no herd movement. */
+export function processStampedeTurn(state: GameState, targetCivId: string): GameState {
+  const stampede = state.stampedes?.[targetCivId];
+  if (!stampede || stampede.phase !== 'warning') return state;
+  return {
+    ...state,
+    stampedes: { ...state.stampedes, [targetCivId]: { ...stampede, phase: 'active', activeTurns: 0 } },
+  };
+}
