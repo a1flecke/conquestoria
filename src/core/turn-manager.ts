@@ -124,7 +124,7 @@ import {
 import type { PirateEconomyModifiers } from '@/systems/economy-system';
 import { processPiratesForCompletedRound } from '@/systems/pirate-system';
 import { classifyOwner } from './owner-kind';
-import { processStampedeTurn } from '@/systems/stampede-system';
+import { processStampedeScheduling, processStampedeTurn } from '@/systems/stampede-system';
 
 export function finalizeOpponentRoundState(state: GameState): GameState {
   const normalized = normalizeOpponentAIState(state);
@@ -1206,6 +1206,7 @@ export function processTurn(
   // --- Threat pressure (spawn phase: land resurgence + pirate spawn) ---
   newState = processIndependentThreatPressure(newState, bus);
   newState = processCrisisScheduler(newState, bus);
+  newState = processStampedeScheduling(newState);
 
   // --- Process espionage ---
   // flip_loyalty (#524 MR2a): espionage-system.ts cannot import
