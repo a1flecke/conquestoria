@@ -1,5 +1,5 @@
 import type { CombatResult, GameState, HexCoord, Unit } from '@/core/types';
-import { getAirBaseKind, selectInterceptor } from '@/systems/air-operations-system';
+import { getAirBaseKind, getAirBaseRoster, selectInterceptor } from '@/systems/air-operations-system';
 import { isBlockingCityFor, UNIT_DEFINITIONS, getMovementCostForUnit } from '@/systems/unit-system';
 import { isVisible } from '@/systems/fog-of-war';
 import { buildUnitOccupancy, getUnitIdsAtCoord } from '@/systems/unit-occupancy';
@@ -98,6 +98,92 @@ export function canParadrop(state: GameState, unitId: string, destination: HexCo
   const inTargets = getParadropTargets(state, unitId).some(t => hexKey(t) === hexKey(destination));
   if (!inTargets) return { ok: false, reason: 'out-of-range' };
   return { ok: true };
+}
+
+export type AirAssaultFailureReason =
+  | 'not-eligible-passenger' | 'no-launch-base' | 'no-launch-helicopter' | 'already-acted'
+  | 'out-of-range' | 'unexplored' | 'impassable-terrain'
+  | 'destination-occupied' | 'foreign-city';
+
+export const AIR_ASSAULT_FAILURE_MESSAGES: Record<AirAssaultFailureReason, string> = {
+  'not-eligible-passenger': 'This unit cannot be air-assaulted.',
+  'no-launch-base': 'Stand in a friendly city with a Helicopter Base to Air Assault.',
+  'no-launch-helicopter': 'Your helicopters here have already acted this turn.',
+  'already-acted': 'This unit has already acted this turn.',
+  'out-of-range': "That tile is outside the helicopter's operational range.",
+  'unexplored': 'You have not explored that tile.',
+  'impassable-terrain': 'A unit cannot land there.',
+  'destination-occupied': 'That tile is occupied.',
+  'foreign-city': 'Move adjacent, then use the city assault action.',
+};
+
+function findLaunchCity(state: GameState, unit: Unit) {
+  return Object.values(state.cities).find(city =>
+    city.owner === unit.owner && hexKey(city.position) === hexKey(unit.position));
+}
+
+function pickAirAssaultHelicopter(state: GameState, cityId: string, baseKind: string): Unit | undefined {
+  return getAirBaseRoster(state, { kind: 'city', cityId })
+    .find(candidate => !candidate.hasActed && UNIT_DEFINITIONS[candidate.type].airAssault?.baseKinds.includes(baseKind as never));
+}
+
+export function getAirAssaultLaunchState(state: GameState, unitId: string): { ok: true; helicopterId: string } | { ok: false; reason: AirAssaultFailureReason } {
+  const unit = state.units[unitId];
+  if (!unit || !UNIT_DEFINITIONS[unit.type].airAssaultPassengerEligible) return { ok: false, reason: 'not-eligible-passenger' };
+  if (unit.hasActed || unit.movementPointsLeft <= 0) return { ok: false, reason: 'already-acted' };
+  const launchCity = findLaunchCity(state, unit);
+  const baseKind = launchCity && getAirBaseKind(state, { kind: 'city', cityId: launchCity.id });
+  if (!launchCity || baseKind !== 'helicopter_base') return { ok: false, reason: 'no-launch-base' };
+  const helicopter = pickAirAssaultHelicopter(state, launchCity.id, baseKind);
+  if (!helicopter) return { ok: false, reason: 'no-launch-helicopter' };
+  return { ok: true, helicopterId: helicopter.id };
+}
+
+function airAssaultRange(state: GameState, launchCityId: string): number {
+  // Callers of this function have already passed through
+  // getAirAssaultLaunchState, which only returns ok:true once baseKind is
+  // confirmed 'helicopter_base' -- safe to pass the literal directly here
+  // rather than re-deriving it from getAirBaseKind a second time.
+  const helicopter = pickAirAssaultHelicopter(state, launchCityId, 'helicopter_base');
+  return helicopter ? UNIT_DEFINITIONS[helicopter.type].airOperation!.operationalRange : 0;
+}
+
+export function getAirAssaultTargets(state: GameState, unitId: string): HexCoord[] {
+  const launchState = getAirAssaultLaunchState(state, unitId);
+  if (!launchState.ok) return [];
+  const unit = state.units[unitId]!;
+  const launchCity = findLaunchCity(state, unit)!;
+  const range = airAssaultRange(state, launchCity.id);
+  const occupancy = buildUnitOccupancy(state.units);
+  const candidates = state.map.wrapsHorizontally
+    ? getWrappedHexesInRange(unit.position, range, state.map.width)
+    : hexesInRange(unit.position, range);
+
+  return candidates.filter(coord => isLegalAirborneLandingTile(state, unit, coord, occupancy));
+}
+
+export function canAirAssault(state: GameState, unitId: string, destination: HexCoord): { ok: true; helicopterId: string } | { ok: false; reason: AirAssaultFailureReason } {
+  const launchState = getAirAssaultLaunchState(state, unitId);
+  if (!launchState.ok) return launchState;
+  const unit = state.units[unitId]!;
+  const launchCity = findLaunchCity(state, unit)!;
+  const range = airAssaultRange(state, launchCity.id);
+  const visibility = state.civilizations[unit.owner]?.visibility;
+
+  if (paradropDistance(state, unit.position, destination) > range) return { ok: false, reason: 'out-of-range' };
+  if (visibility && !isVisible(visibility, destination)) return { ok: false, reason: 'unexplored' };
+  const tile = state.map.tiles[hexKey(destination)];
+  if (!tile || getMovementCostForUnit(tile.terrain, 'land', UNIT_DEFINITIONS[unit.type].terrainCostOverrides) === Infinity) {
+    return { ok: false, reason: 'impassable-terrain' };
+  }
+  const occupancy = buildUnitOccupancy(state.units);
+  if (getUnitIdsAtCoord(occupancy, destination).length > 0) return { ok: false, reason: 'destination-occupied' };
+  const city = Object.values(state.cities).find(c => hexKey(c.position) === hexKey(destination));
+  if (city && isBlockingCityFor(state, unit, city)) return { ok: false, reason: 'foreign-city' };
+
+  const inTargets = getAirAssaultTargets(state, unitId).some(t => hexKey(t) === hexKey(destination));
+  if (!inTargets) return { ok: false, reason: 'out-of-range' };
+  return { ok: true, helicopterId: launchState.helicopterId };
 }
 
 export type ParadropResult =

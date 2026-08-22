@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getParadropLaunchState, getParadropTargets, canParadrop, executeParadrop } from '@/systems/airborne-system';
+import { getParadropLaunchState, getParadropTargets, canParadrop, executeParadrop, getAirAssaultLaunchState, getAirAssaultTargets, canAirAssault } from '@/systems/airborne-system';
 import { createNewGame } from '@/core/game-state';
 import { processTurn } from '@/core/turn-manager';
 import { EventBus } from '@/core/event-bus';
@@ -63,6 +63,71 @@ function makeParadropFixture(): { state: GameState; unitId: string; cityId: stri
   } as unknown as GameState;
 
   return { state, unitId: 'para-1', cityId: 'city-1' };
+}
+
+/**
+ * A minimal deterministic fixture for Air Assault: civ-a's infantry stands
+ * on city-1 (a Helicopter Base city at the origin), with an attack_helicopter
+ * ('heli-1') and a combat_drone ('drone-1', which shares the same roster but
+ * has no airAssault capability) both based there. Same map geometry as
+ * makeParadropFixture: legal target at (1,1); occupied-by-a-friendly-unit at
+ * (1,0); a foreign, unallied city at (2,0); impassable ocean at (-1,2).
+ */
+function makeAirAssaultFixture(): { state: GameState; unitId: string; cityId: string; helicopterId: string } {
+  const passenger: Unit = {
+    id: 'inf-1', type: 'infantry', owner: 'civ-a', position: { q: 0, r: 0 },
+    movementPointsLeft: 2, health: 100, experience: 0, hasMoved: false, hasActed: false,
+    isResting: false,
+  };
+  const helicopter: Unit = {
+    id: 'heli-1', type: 'attack_helicopter', owner: 'civ-a', position: { q: 0, r: 0 },
+    movementPointsLeft: 5, health: 100, experience: 0, hasMoved: false, hasActed: false,
+    isResting: false, airBase: { kind: 'city', cityId: 'city-1' },
+  };
+  const drone: Unit = {
+    id: 'drone-1', type: 'combat_drone', owner: 'civ-a', position: { q: 0, r: 0 },
+    movementPointsLeft: 6, health: 100, experience: 0, hasMoved: false, hasActed: false,
+    isResting: false, airBase: { kind: 'city', cityId: 'city-1' },
+  };
+  const friendlyBlocker: Unit = {
+    id: 'blocker-1', type: 'warrior', owner: 'civ-a', position: { q: 1, r: 0 },
+    movementPointsLeft: 1, health: 100, experience: 0, hasMoved: false, hasActed: false,
+    isResting: false,
+  };
+  const state = {
+    units: { 'inf-1': passenger, 'heli-1': helicopter, 'drone-1': drone, 'blocker-1': friendlyBlocker },
+    cities: {
+      'city-1': { id: 'city-1', owner: 'civ-a', position: { q: 0, r: 0 }, buildings: ['helicopter_base'] },
+      'city-2': { id: 'city-2', owner: 'civ-b', position: { q: 2, r: 0 }, buildings: [] },
+    },
+    civilizations: {
+      'civ-a': {
+        diplomacy: { atWarWith: [], events: [] },
+        units: ['inf-1', 'heli-1', 'drone-1', 'blocker-1'],
+        techState: { completed: [], currentResearch: null, researchProgress: 0 },
+        visibility: {
+          tiles: {
+            '0,0': 'visible', '1,1': 'visible', '1,0': 'visible',
+            '2,0': 'visible', '-1,2': 'visible',
+          },
+        },
+      },
+      'civ-b': {
+        diplomacy: { atWarWith: [], events: [] }, units: [],
+        techState: { completed: [], currentResearch: null, researchProgress: 0 },
+        visibility: { tiles: {} },
+      },
+    },
+    map: {
+      width: 20, height: 20, wrapsHorizontally: false,
+      tiles: {
+        '0,0': tile('grassland'), '1,1': tile('grassland'), '1,0': tile('grassland'),
+        '2,0': tile('grassland'), '2,2': tile('grassland'), '-1,2': tile('ocean'),
+      },
+    },
+  } as unknown as GameState;
+
+  return { state, unitId: 'inf-1', cityId: 'city-1', helicopterId: 'heli-1' };
 }
 
 describe('getParadropLaunchState', () => {
@@ -166,6 +231,85 @@ describe('canParadrop', () => {
   it('rejects the ocean tile with the impassable-terrain reason specifically', () => {
     const { state, unitId } = makeParadropFixture();
     expect(canParadrop(state, unitId, { q: -1, r: 2 })).toEqual({ ok: false, reason: 'impassable-terrain' });
+  });
+});
+
+describe('getAirAssaultLaunchState', () => {
+  it('rejects a unit with no airAssaultPassengerEligible flag', () => {
+    const { state } = makeAirAssaultFixture();
+    const tankState = { ...state, units: { ...state.units, 'inf-1': { ...state.units['inf-1']!, type: 'tank' } } } as unknown as GameState;
+    expect(getAirAssaultLaunchState(tankState, 'inf-1')).toEqual({ ok: false, reason: 'not-eligible-passenger' });
+  });
+
+  it('rejects a passenger not standing on a helicopter_base city', () => {
+    const { state, unitId } = makeAirAssaultFixture();
+    const moved = { ...state, units: { ...state.units, [unitId]: { ...state.units[unitId]!, position: { q: 9, r: 9 } } } };
+    expect(getAirAssaultLaunchState(moved, unitId)).toEqual({ ok: false, reason: 'no-launch-base' });
+  });
+
+  it('rejects when the base has no airAssault-capable roster unit (both roster members are Combat Drones)', () => {
+    const { state, unitId, helicopterId } = makeAirAssaultFixture();
+    // City is still a valid helicopter_base -- the failure here is
+    // capability absence, not the base itself, so the expected reason is
+    // 'no-launch-helicopter', not 'no-launch-base'.
+    const noHeli = { ...state, units: { ...state.units, [helicopterId]: { ...state.units[helicopterId]!, type: 'combat_drone' } } } as unknown as GameState;
+    expect(getAirAssaultLaunchState(noHeli, unitId)).toEqual({ ok: false, reason: 'no-launch-helicopter' });
+  });
+
+  it('rejects when the only airAssault-capable roster helicopter has already acted, even though the Combat Drone sharing the roster has not (never falls back to picking it)', () => {
+    const { state, unitId, helicopterId } = makeAirAssaultFixture();
+    // 'drone-1' from the fixture remains hasActed: false throughout --
+    // this asserts the picker doesn't fall back to it.
+    const acted = { ...state, units: { ...state.units, [helicopterId]: { ...state.units[helicopterId]!, hasActed: true } } };
+    expect(getAirAssaultLaunchState(acted, unitId)).toEqual({ ok: false, reason: 'no-launch-helicopter' });
+  });
+
+  it('excludes an intercept-stance helicopter from the picker (already hasActed via startIntercept)', () => {
+    const { state, unitId, helicopterId } = makeAirAssaultFixture();
+    const intercepting = { ...state, units: { ...state.units, [helicopterId]: { ...state.units[helicopterId]!, airMission: 'intercept' as const, hasActed: true, movementPointsLeft: 0, hasMoved: true } } };
+    expect(getAirAssaultLaunchState(intercepting, unitId)).toEqual({ ok: false, reason: 'no-launch-helicopter' });
+  });
+
+  it('accepts an eligible passenger with an available roster helicopter, returning its id', () => {
+    const { state, unitId, helicopterId } = makeAirAssaultFixture();
+    expect(getAirAssaultLaunchState(state, unitId)).toEqual({ ok: true, helicopterId });
+  });
+
+  it('picks the lowest-id available helicopter when two are based at the city', () => {
+    const { state, unitId } = makeAirAssaultFixture();
+    const secondHeli: Unit = { id: 'heli-0', type: 'attack_helicopter', owner: 'civ-a', position: { q: 0, r: 0 }, movementPointsLeft: 5, health: 100, experience: 0, hasMoved: false, hasActed: false, isResting: false, airBase: { kind: 'city', cityId: 'city-1' } };
+    const twoHeli = { ...state, units: { ...state.units, 'heli-0': secondHeli } };
+    expect(getAirAssaultLaunchState(twoHeli, unitId)).toEqual({ ok: true, helicopterId: 'heli-0' });
+  });
+});
+
+describe('getAirAssaultTargets / canAirAssault', () => {
+  it('includes a plain visible, passable, unoccupied in-range tile', () => {
+    const { state, unitId } = makeAirAssaultFixture();
+    const targets = getAirAssaultTargets(state, unitId);
+    expect(targets.some(t => t.q === 1 && t.r === 1)).toBe(true);
+  });
+
+  it('excludes an occupied tile, matching Paradrop\'s legality rules via the shared helper', () => {
+    const { state, unitId } = makeAirAssaultFixture();
+    const targets = getAirAssaultTargets(state, unitId);
+    expect(targets.some(t => t.q === 1 && t.r === 0)).toBe(false);
+  });
+
+  it('excludes a foreign unallied city tile', () => {
+    const { state, unitId } = makeAirAssaultFixture();
+    const targets = getAirAssaultTargets(state, unitId);
+    expect(targets.some(t => t.q === 2 && t.r === 0)).toBe(false);
+  });
+
+  it('canAirAssault accepts a legal tile and returns the picked helicopterId', () => {
+    const { state, unitId, helicopterId } = makeAirAssaultFixture();
+    expect(canAirAssault(state, unitId, { q: 1, r: 1 })).toEqual({ ok: true, helicopterId });
+  });
+
+  it('canAirAssault rejects a tile outside getAirAssaultTargets', () => {
+    const { state, unitId } = makeAirAssaultFixture();
+    expect(canAirAssault(state, unitId, { q: 99, r: 99 })).toEqual({ ok: false, reason: 'out-of-range' });
   });
 });
 
