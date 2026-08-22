@@ -1880,6 +1880,7 @@ export interface GameState {
   /** Target-scoped Beast Stampede recurrence and lifecycle state; normalized on load. */
   stampedes?: Record<string, StampedeState>;
   reconReveals?: ReconReveal[];
+  patrolReveals?: PatrolReveal[];
   // #591 MR4: religion core. Optional -- absent on legacy saves and the many minimal
   // literal-GameState test fixtures across this codebase (same convention as
   // activeCrises/pirates/espionage). Defaulted to {} in createNewGame for new games and
@@ -1929,6 +1930,18 @@ export interface CityFaith {
 }
 
 export interface ReconReveal {
+  ownerCivId: string;
+  center: HexCoord;
+  range: number;
+  expiresAtTurn: number;
+}
+
+// #582: submarine-detection half of the Patrol mission. Written alongside a
+// ReconReveal by the same resolvePatrolMission call, but consumed separately
+// by concealment.ts's hasActiveDetectorInRange -- ordinary terrain/unit
+// reconnaissance and submarine detection are different consumers even though
+// they share one player action.
+export interface PatrolReveal {
   ownerCivId: string;
   center: HexCoord;
   range: number;

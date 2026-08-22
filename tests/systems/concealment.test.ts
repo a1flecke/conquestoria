@@ -292,3 +292,37 @@ describe('submarine/destroyer content honesty', () => {
     expect(BUILDINGS.radar_station).toBeDefined();
   });
 });
+
+describe('patrolReveals detection (#582)', () => {
+  it('reveals a submarine within an active patrol radius for the flying civ, for that turn only', () => {
+    const state = setup();
+    setTerrain(state, { q: 0, r: 0 }, 'ocean');
+    const sub = placeUnit(state, 'ai-1', 'submarine', { q: 0, r: 0 });
+    state.patrolReveals = [{ ownerCivId: 'player', center: { q: 0, r: 0 }, range: 6, expiresAtTurn: state.turn }];
+    expect(isSubmarineConcealedFrom(state, sub, 'player')).toBe(false);
+  });
+
+  it('does not reveal to a different civ (viewer-scoped)', () => {
+    const state = setup();
+    setTerrain(state, { q: 0, r: 0 }, 'ocean');
+    const sub = placeUnit(state, 'ai-1', 'submarine', { q: 0, r: 0 });
+    state.patrolReveals = [{ ownerCivId: 'someone-else', center: { q: 0, r: 0 }, range: 6, expiresAtTurn: state.turn }];
+    expect(isSubmarineConcealedFrom(state, sub, 'player')).toBe(true);
+  });
+
+  it('does not reveal once the reveal has expired (previous turn)', () => {
+    const state = setup();
+    setTerrain(state, { q: 0, r: 0 }, 'ocean');
+    const sub = placeUnit(state, 'ai-1', 'submarine', { q: 0, r: 0 });
+    state.patrolReveals = [{ ownerCivId: 'player', center: { q: 0, r: 0 }, range: 6, expiresAtTurn: state.turn - 1 }];
+    expect(isSubmarineConcealedFrom(state, sub, 'player')).toBe(true);
+  });
+
+  it('does not reveal a submarine outside the patrol radius', () => {
+    const state = setup();
+    setTerrain(state, { q: 0, r: 0 }, 'ocean');
+    const sub = placeUnit(state, 'ai-1', 'submarine', { q: 0, r: 0 });
+    state.patrolReveals = [{ ownerCivId: 'player', center: { q: 10, r: 10 }, range: 2, expiresAtTurn: state.turn }];
+    expect(isSubmarineConcealedFrom(state, sub, 'player')).toBe(true);
+  });
+});

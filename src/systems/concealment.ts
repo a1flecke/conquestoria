@@ -42,6 +42,15 @@ function hasActiveDetectorInRange(state: GameState, unit: Unit, viewerCivId: str
     });
   if (detectedByUnit) return true;
 
+  // #582: active Maritime Patrol missions grant submarine detection for the
+  // rest of the turn they were flown, independent of where the aircraft
+  // itself ends up parked afterward.
+  const patrolledByOwner = (state.patrolReveals ?? []).some(reveal =>
+    reveal.ownerCivId === viewerCivId
+    && reveal.expiresAtTurn === state.turn
+    && distanceFor(state, reveal.center, unit.position) <= reveal.range);
+  if (patrolledByOwner) return true;
+
   return Object.values(state.cities)
     .filter((city): city is NonNullable<typeof city> => city.owner === viewerCivId)
     .some(city => {
