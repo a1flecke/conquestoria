@@ -80,8 +80,7 @@ export const UNIT_ROLE_DEFINITIONS = {
   bomber: role('siege', 'Long-range bomber that damages cities and distant enemy formations.', ['air-combat', 'ranged'], { counters: ['frontline', 'capital-ship'], vulnerableTo: ['air-superiority', 'ground-air-defense'], upgradeFamily: 'bomber' }),
   // #582: description corrected -- Bomber was never carrier-capable; the
   // carrier's real air wing is Fighters, Naval Strike Aircraft, and a
-  // Maritime Patrol Aircraft. terminalReason removed: Carrier now upgrades
-  // into Supercarrier (see that entry below).
+  // Maritime Patrol Aircraft.
   carrier: role('capital-ship', 'Mobile airbase that projects fighters, naval strike aircraft, and patrol aircraft across seas.', ['naval-combat', 'escort'], { counters: ['capital-ship'], vulnerableTo: ['capital-ship'], upgradeFamily: 'surface-warship' }),
   supercarrier: role('capital-ship', 'Larger carrier with room for a bigger, more varied air wing.', ['naval-combat', 'escort'], { counters: ['capital-ship'], vulnerableTo: ['capital-ship'], upgradeFamily: 'surface-warship', terminalReason: 'Current top-tier naval air projection with no later roster replacement.' }),
   destroyer: role('escort', 'Fast surface escort that hunts submarines and protects fleets.', ['naval-combat', 'escort'], { counters: ['capital-ship'], vulnerableTo: ['capital-ship'], upgradeFamily: 'surface-warship' }),
