@@ -72,7 +72,7 @@ import { canBuildRoad } from '@/systems/road-system';
 import { findFortificationCandidate } from '@/systems/fortification-system';
 import { getAIStrategicRoles, hasAICombatRole } from './ai-unit-roles';
 import { isAIHostileOwner } from './ai-hostility';
-import { getLegalRebaseDestinations, resolveAirStrike, resolveReconMission, rebaseAircraft, startIntercept, getAirBaseRoster } from '@/systems/air-operations-system';
+import { getLegalRebaseDestinations, resolveAirStrike, resolveReconMission, resolvePatrolMission, getLegalAirMissionTargets, rebaseAircraft, startIntercept, getAirBaseRoster } from '@/systems/air-operations-system';
 import { getParadropTargets, executeParadrop, getAirAssaultLaunchState, getAirAssaultTargets, executeAirAssault } from '@/systems/airborne-system';
 import { getKnownHostileAirDefenseThreat } from '@/systems/air-defense-system';
 import { UNIT_CLASS_BY_TYPE } from '@/systems/unit-modifier-definitions';
@@ -99,6 +99,7 @@ export type AITacticalAction =
   | { kind: 'unload'; unitId: string; destination: HexCoord }
   | { kind: 'paradrop'; unitId: string; destination: HexCoord }
   | { kind: 'air-assault'; unitId: string; destination: HexCoord }
+  | { kind: 'patrol'; unitId: string; center: HexCoord }
   | { kind: 'rest'; unitId: string }
   | { kind: 'hold'; unitId: string };
 
@@ -167,6 +168,8 @@ function actionId(action: AITacticalAction): string {
     case 'paradrop':
     case 'air-assault':
       return `${action.kind}:${action.unitId}:${hexKey(action.destination)}`;
+    case 'patrol':
+      return `patrol:${action.unitId}:${hexKey(action.center)}`;
     case 'worker-action':
       return `worker-action:${action.unitId}:${action.action}`;
     case 'load':
@@ -523,6 +526,41 @@ function rankAirAssault(
   // No canAirAssault re-check here, same reasoning as rankParadrop's
   // comment above it: getAirAssaultTargets IS canAirAssault's own source
   // of truth for these tiles.
+}
+
+function rankPatrol(
+  context: AITacticalContext,
+  unit: Unit,
+): RankedAITacticalAction[] {
+  const operation = UNIT_DEFINITIONS[unit.type].airOperation;
+  if (!operation?.missions.includes('patrol') || !unit.airBase || unit.hasActed) return [];
+  const legalTargets = getLegalAirMissionTargets(context.state, unit.id, 'patrol');
+  if (legalTargets.length === 0) return [];
+  const legalTargetKeys = new Set(legalTargets.map(hexKey));
+
+  // Bounded candidate set, not one per legal tile -- avoids an O(legal
+  // targets) scan on top of Paradrop/Air Assault's own (#543's own
+  // performance lesson, explicitly re-checked per #582's review
+  // instruction). Mirrors rankDestroyerEscortMoves' own
+  // buildMajorCivPerception usage exactly -- same viewer-scoped,
+  // decay-aware "remembered" pattern, not raw GameState positions.
+  const perception = buildMajorCivPerception(context.state, context.actorId);
+  const remembered = perception.units.find(candidate =>
+    (candidate.type === 'submarine' || candidate.type === 'missile_submarine')
+    && candidate.confidence !== 'rumored'
+    && candidate.position !== null
+    && legalTargetKeys.has(hexKey(candidate.position)));
+
+  const candidateCenters = [remembered?.position, unit.position]
+    .filter((coord): coord is HexCoord => coord != null && legalTargetKeys.has(hexKey(coord)));
+  const uniqueCenters = [...new Map(candidateCenters.map(c => [hexKey(c), c])).values()];
+
+  return uniqueCenters.map(center => {
+    const objectiveDistance = distance(context.state, center, targetPosition(context.plan));
+    const objectiveBonus = Math.max(0, 40 - objectiveDistance * 5);
+    const submarineBonus = remembered && hexKey(center) === hexKey(remembered.position!) ? 80 : 0;
+    return ranked({ kind: 'patrol', unitId: unit.id, center }, Math.max(0, 320 + objectiveBonus + submarineBonus));
+  });
 }
 
 function rankCapture(
@@ -958,6 +996,7 @@ export function rankUnitTacticalActions(
     ...rankAirSupport(context, unit),
     ...rankParadrop(context, unit),
     ...rankAirAssault(context, unit),
+    ...rankPatrol(context, unit),
     ...rankAttacks(context, unit),
     ...rankCapture(context, unit),
     ...rankCampAssault(context, unit),
@@ -1159,6 +1198,10 @@ function applyPredictedAction(
     }
     case 'air-assault': {
       const result = executeAirAssault(next, action.unitId, action.destination);
+      return result.ok ? result.state : next;
+    }
+    case 'patrol': {
+      const result = resolvePatrolMission(next, action.unitId, action.center);
       return result.ok ? result.state : next;
     }
     case 'rest':
