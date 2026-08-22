@@ -44,6 +44,7 @@ import { getUnitRolePresentation } from '@/ui/unit-role-presentation';
 import { getFortificationCapacity, getFortificationPlacement, getFortificationTier } from '@/systems/fortification-system';
 import { isCrisisForceOwner } from '@/core/owner-kind';
 import { CRISIS_FORCE_PRESENTATION } from '@/systems/crisis-force-system';
+import { getHerdRoutePresentationForViewer } from '@/systems/stampede-route-system';
 
 export interface TransportLoadOption {
   transportId: string;
@@ -241,6 +242,13 @@ export function renderSelectedUnitInfo(
     crisisLabel.style.cssText = `margin-left:8px;font-size:11px;font-weight:700;text-transform:uppercase;color:${civColor};letter-spacing:0.05em;`;
     crisisLabel.textContent = `⚠ ${CRISIS_FORCE_PRESENTATION.label}`;
     infoDiv.appendChild(crisisLabel);
+    const route = getHerdRoutePresentationForViewer(state, state.currentPlayer).routes.find(candidate => candidate.unitId === unit.id);
+    if (route) {
+      const routeLabel = document.createElement('div');
+      routeLabel.style.cssText = 'margin-top:6px;font-size:12px;color:#f6d365;';
+      routeLabel.textContent = route.stopsAtFort ? 'Herd path: stops at Fort/Citadel.' : `Herd path: next ${route.steps.length} step${route.steps.length === 1 ? '' : 's'}.`;
+      infoDiv.appendChild(routeLabel);
+    }
   }
   infoDiv.appendChild(document.createTextNode(` · HP: ${unit.health}/100 · Moves: ${unit.movementPointsLeft}/${def.movementPoints}`));
 

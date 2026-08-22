@@ -26,9 +26,30 @@ describe('save migrations', () => {
 
     const migrated = migrateSaveToCurrent(save);
 
-    expect(migrated.saveSchemaVersion).toBe(15);
+    expect(migrated.saveSchemaVersion).toBe(CURRENT_SAVE_SCHEMA_VERSION);
     expect(migrated.crisisForces).toEqual({});
     expect(migrated.units['orphan-crisis']).toBeUndefined();
+    expect(migrateSaveToCurrent(migrated)).toEqual(migrated);
+  });
+
+  it('#702 retains a valid committed herd route and removes malformed routes', () => {
+    const save = createNewGame('rome', 'herd-route-migration', 'small');
+    save.saveSchemaVersion = 15;
+    const unit = { ...Object.values(save.units)[0]!, id: 'herd-1', owner: CRISIS_FORCE_OWNER, position: { q: 1, r: 1 } };
+    save.units[unit.id] = unit;
+    save.crisisForces = {
+      stampede: {
+        id: 'stampede', targetCivId: 'player', severity: 'standard', createdTurn: 1, unitIds: [unit.id],
+        herdRoutes: {
+          [unit.id]: { unitId: unit.id, committedTurn: 1, steps: [] },
+          invalid: { unitId: 'missing', committedTurn: 1, steps: [{ q: 1.5, r: 1 }] },
+        },
+      },
+    };
+
+    const migrated = migrateSaveToCurrent(save);
+    expect(migrated.saveSchemaVersion).toBe(16);
+    expect(migrated.crisisForces?.stampede.herdRoutes).toEqual({ [unit.id]: { unitId: unit.id, committedTurn: 1, steps: [] } });
     expect(migrateSaveToCurrent(migrated)).toEqual(migrated);
   });
 
