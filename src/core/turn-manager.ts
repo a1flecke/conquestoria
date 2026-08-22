@@ -124,7 +124,7 @@ import {
 import type { PirateEconomyModifiers } from '@/systems/economy-system';
 import { processPiratesForCompletedRound } from '@/systems/pirate-system';
 import { classifyOwner } from './owner-kind';
-import { consumeHerdingInsight, hasActiveHerdingInsight, processStampedeScheduling, processStampedeTurn } from '@/systems/stampede-system';
+import { consumeHerdingInsight, getStampedeLifecycleTransition, hasActiveHerdingInsight, processStampedeScheduling, processStampedeTurn } from '@/systems/stampede-system';
 
 export function finalizeOpponentRoundState(state: GameState): GameState {
   const normalized = normalizeOpponentAIState(state);
@@ -182,7 +182,13 @@ export function processTurn(
 
   // --- Process each civilization ---
   for (const [civId, civ] of Object.entries(newState.civilizations)) {
+    const stampedeBefore = newState.stampedes?.[civId];
     newState = processStampedeTurn(newState, civId);
+    const stampedeTransition = getStampedeLifecycleTransition(
+      stampedeBefore,
+      newState.stampedes?.[civId],
+    );
+    if (stampedeTransition) bus.emit('stampede:lifecycle', stampedeTransition);
     const recoveringBeforeAdvance = newState.autonomyByCiv?.[civId]?.surgeRecoveryUntilTurn;
     newState = applyPendingAutonomyPosture(newState, civId);
     newState = advanceAutonomySurge(newState, civId);
@@ -1208,7 +1214,15 @@ export function processTurn(
   // --- Threat pressure (spawn phase: land resurgence + pirate spawn) ---
   newState = processIndependentThreatPressure(newState, bus);
   newState = processCrisisScheduler(newState, bus);
+  const stampedesBeforeScheduling = newState.stampedes;
   newState = processStampedeScheduling(newState);
+  for (const civId of Object.keys(newState.stampedes ?? {}).sort()) {
+    const transition = getStampedeLifecycleTransition(
+      stampedesBeforeScheduling?.[civId],
+      newState.stampedes?.[civId],
+    );
+    if (transition) bus.emit('stampede:lifecycle', transition);
+  }
 
   // --- Process espionage ---
   // flip_loyalty (#524 MR2a): espionage-system.ts cannot import

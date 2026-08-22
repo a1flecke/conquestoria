@@ -45,7 +45,7 @@ import {
   resolveOpponentChallenge,
 } from '@/core/opponent-challenge';
 import { getCrisisDispatchCandidates } from './ai-crisis-response';
-import { isPiratePressureEligible } from '@/systems/world-pressure-eligibility';
+import { isCrisisPressureEligible, isPiratePressureEligible } from '@/systems/world-pressure-eligibility';
 
 export interface PreparedMajorCivPlan {
   civId: string;
@@ -357,8 +357,11 @@ function planCandidates(
 // for primaryPlan through the existing selectPrimaryPlan scoring in
 // ai-plan-portfolio.ts rather than a parallel decision path.
 function crisisDispatchPlanCandidates(state: GameState, civId: string): AIPlanCandidate[] {
-  if (!isPiratePressureEligible(state, civId)) return [];
   return getCrisisDispatchCandidates(state, civId).flatMap(candidate => {
+    const eligible = candidate.kind === 'stampede'
+      ? isCrisisPressureEligible(state, civId)
+      : isPiratePressureEligible(state, civId);
+    if (!eligible) return [];
     const unit = state.units[candidate.targetUnitId];
     if (!unit) return [];
     return [{
@@ -366,8 +369,8 @@ function crisisDispatchPlanCandidates(state: GameState, civId: string): AIPlanCa
       target: { kind: 'unit', id: candidate.targetUnitId, lastKnownPosition: { ...unit.position } },
       theaterId: `local:${unit.position.q},${unit.position.r}`,
       score: candidate.score,
-      reasonCodes: ['urgent-defense'],
-      requiredRoles: { 'naval-combat': 1 },
+      reasonCodes: [candidate.kind === 'stampede' ? 'visible-stampede' : 'urgent-defense'],
+      requiredRoles: { [candidate.kind === 'stampede' ? 'frontline' : 'naval-combat']: 1 },
       commitment: 0.25,
       targetValid: true,
       reasonValid: true,

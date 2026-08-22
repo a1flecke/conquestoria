@@ -1572,6 +1572,7 @@ export type AIPlanReason =
   | 'recover-damaged-force'
   | 'modernization-gap'
   | 'camp-defense'
+  | 'visible-stampede'
   | 'opportunistic-raid';
 
 export type AIPlanPhase =
@@ -2237,6 +2238,11 @@ export interface GameEvents {
   'crisis:foe-hunted-by-ally': { crisisId: string; killerCivId: string; targetCivId: string; foeName?: string };
   // #526 MR6 send_aid interaction.
   'crisis:aid-sent': { crisisId: string; actorCivId: string; targetCivId: string; goldCost: number };
+  /** One-time, target-scoped Beast Stampede presentation transition. */
+  'stampede:lifecycle':
+    | { kind: 'warning'; targetCivId: string }
+    | { kind: 'activated'; targetCivId: string; activeTurns: number }
+    | { kind: 'resolved'; targetCivId: string; outcome: StampedeOutcome; rewardGranted: boolean };
   // #526 MR7 sabotage_relief: fired only when the covert sabotage is discovered (the
   // detection roll at mission-success time) -- an undiscovered sabotage fires nothing,
   // per spec §Interactions "Undiscovered: no penalty."

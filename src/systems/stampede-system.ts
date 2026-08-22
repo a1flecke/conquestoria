@@ -25,6 +25,11 @@ export interface StampedeProfile {
 
 export interface StampedeStatusPresentation { text: string; }
 
+export type StampedeLifecycleTransition =
+  | { kind: 'warning'; targetCivId: string }
+  | { kind: 'activated'; targetCivId: string; activeTurns: number }
+  | { kind: 'resolved'; targetCivId: string; outcome: NonNullable<StampedeState['outcome']>; rewardGranted: boolean };
+
 const STAMPEDE_PROFILES: Record<OpponentChallenge, StampedeProfile> = {
   explorer: { cooldownTurns: 12, initialChancePercent: 3, growthPercent: 1, capPercent: 12, herdCount: 2 },
   standard: { cooldownTurns: 8, initialChancePercent: 4, growthPercent: 2, capPercent: 18, herdCount: 3 },
@@ -33,6 +38,29 @@ const STAMPEDE_PROFILES: Record<OpponentChallenge, StampedeProfile> = {
 
 export function getStampedeProfile(challenge: OpponentChallenge): StampedeProfile {
   return STAMPEDE_PROFILES[challenge];
+}
+
+/**
+ * Derives one presentation event from the exact before/after state at a Stampede
+ * mutation boundary. Callers must retain the pre-mutation record rather than scan
+ * final game state, so repeated turns cannot replay an old warning or resolution.
+ */
+export function getStampedeLifecycleTransition(
+  before: StampedeState | undefined,
+  after: StampedeState | undefined,
+): StampedeLifecycleTransition | undefined {
+  if (!after) return undefined;
+  if (!before && after.phase === 'warning') return { kind: 'warning', targetCivId: after.targetCivId };
+  if (before?.phase === 'warning' && after.phase === 'active') {
+    return { kind: 'activated', targetCivId: after.targetCivId, activeTurns: after.activeTurns };
+  }
+  if (before?.phase !== 'resolved' && after.phase === 'resolved' && after.outcome) {
+    return {
+      kind: 'resolved', targetCivId: after.targetCivId, outcome: after.outcome,
+      rewardGranted: after.rewardGranted === true,
+    };
+  }
+  return undefined;
 }
 
 function normalizeStampede(targetCivId: string, value: unknown, state: GameState): StampedeState | undefined {
