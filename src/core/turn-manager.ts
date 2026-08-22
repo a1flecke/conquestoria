@@ -124,6 +124,7 @@ import {
 import type { PirateEconomyModifiers } from '@/systems/economy-system';
 import { processPiratesForCompletedRound } from '@/systems/pirate-system';
 import { classifyOwner } from './owner-kind';
+import { processStampedeTurn } from '@/systems/stampede-system';
 
 export function finalizeOpponentRoundState(state: GameState): GameState {
   const normalized = normalizeOpponentAIState(state);
@@ -181,6 +182,7 @@ export function processTurn(
 
   // --- Process each civilization ---
   for (const [civId, civ] of Object.entries(newState.civilizations)) {
+    newState = processStampedeTurn(newState, civId);
     const recoveringBeforeAdvance = newState.autonomyByCiv?.[civId]?.surgeRecoveryUntilTurn;
     newState = applyPendingAutonomyPosture(newState, civId);
     newState = advanceAutonomySurge(newState, civId);

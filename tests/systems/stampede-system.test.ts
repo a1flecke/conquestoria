@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createNewGame } from '@/core/game-state';
 import { foundCity } from '@/systems/city-system';
-import { advanceStampedePressure, getStampedeProfile, normalizeStampedes, startStampedeWarning } from '@/systems/stampede-system';
+import { advanceStampedePressure, getStampedeProfile, normalizeStampedes, processStampedeTurn, startStampedeWarning } from '@/systems/stampede-system';
 
 describe('Stampede state', () => {
   it('defines recurring pressure profiles for every player challenge', () => {
@@ -36,6 +36,21 @@ describe('Stampede state', () => {
     expect(next.stampedes?.player).toMatchObject({ phase: 'warning', activeTurns: 0 });
     expect(Object.values(next.crisisForces ?? {})).toHaveLength(1);
     expect(Object.values(next.crisisForces ?? {})[0]?.unitIds).toHaveLength(3);
+  });
+
+  it('activates a warning without moving its herds on the first Stampede turn', () => {
+    const state = createNewGame('rome', 'stampede-activation', 'small');
+    const city = foundCity('player', { q: 0, r: 0 }, state.map, state.idCounters);
+    state.cities[city.id] = city;
+    state.civilizations.player.cities = [city.id];
+    for (const tile of Object.values(state.map.tiles)) tile.terrain = 'plains';
+    const warning = startStampedeWarning(state, 'player', 'explorer');
+    const positions = Object.values(warning.units).filter(unit => unit.owner === 'crisis-force').map(unit => unit.position);
+
+    const active = processStampedeTurn(warning, 'player');
+
+    expect(active.stampedes?.player).toMatchObject({ phase: 'active', activeTurns: 0 });
+    expect(Object.values(active.units).filter(unit => unit.owner === 'crisis-force').map(unit => unit.position)).toEqual(positions);
   });
 });
 
