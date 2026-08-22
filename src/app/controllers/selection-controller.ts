@@ -40,7 +40,7 @@ import { createContextMenu } from '@/ui/context-menu';
 import { createWorkerReplacementConfirmPanel } from '@/ui/worker-task-warning-panel';
 import { handleFriendlyUnitStackTap } from '@/input/unit-stack-selection';
 import { startIntercept, getInterceptCoverage, getLegalRebaseDestinations, getAirBaseRoster, getAirBaseCapacity, rebaseAircraft, getLegalAirMissionTargets } from '@/systems/air-operations-system';
-import { getParadropTargets } from '@/systems/airborne-system';
+import { getParadropTargets, getAirAssaultTargets, getAirAssaultLaunchState, AIR_ASSAULT_FAILURE_MESSAGES } from '@/systems/airborne-system';
 import { getKnownHostileAirDefenseThreat } from '@/systems/air-defense-system';
 import { usePropagandistAction } from '@/systems/propagandist-system';
 import { fortifyUnitInState, unfortifyUnitInState } from '@/systems/unit-lifecycle-system';
@@ -261,6 +261,42 @@ export function createSelectionController(deps: SelectionControllerDeps): Select
           selection.setPendingIntent({ kind: 'none' });
           selectUnit(uid);
           deps.showNotification('Paradrop cancelled.', 'info');
+        },
+        onStartAirAssault: uid => {
+          selection.setPendingIntent({ kind: 'air-assault', unitId: uid });
+          const state = session.getState();
+          const unit = state.units[uid]!;
+          const launchState = getAirAssaultLaunchState(state, uid);
+          const targets = getAirAssaultTargets(state, uid);
+          const flakByTile = new Map(targets.map(coord => [
+            hexKey(coord),
+            getKnownHostileAirDefenseThreat(state, unit, coord, unit.owner).flatDefenseModifier,
+          ]));
+          selection.setRanges([], []);
+          selectUnit(uid);
+          renderLoop.setHighlights(targets.map(coord => ({
+            coord,
+            type: (flakByTile.get(hexKey(coord)) ?? 0) > 0 ? 'air-assault-flak-risk' as const : 'air-assault-target' as const,
+          })));
+          const worstKnownFlak = Math.max(0, ...flakByTile.values());
+          const flakWarning = worstKnownFlak > 0
+            ? ` Highlighted red tiles have known anti-aircraft coverage — up to -${worstKnownFlak} HP on landing.`
+            : '';
+          const helicopterName = launchState.ok ? UNIT_DEFINITIONS[state.units[launchState.helicopterId]!.type].name : 'an Attack Helicopter';
+          const rangeText = launchState.ok
+            ? `Air Assault range: ${UNIT_DEFINITIONS[state.units[launchState.helicopterId]!.type].airOperation!.operationalRange}.`
+            : AIR_ASSAULT_FAILURE_MESSAGES[launchState.reason];
+          deps.showNotification(
+            `${rangeText} This will use ${helicopterName} — it won't be able to attack this turn. Lands with no movement and cannot act again this turn.${flakWarning}`,
+            'info',
+          );
+        },
+        onCancelAirAssault: uid => {
+          const intent = selection.getPendingIntent();
+          if (intent.kind !== 'air-assault' || intent.unitId !== uid) return;
+          selection.setPendingIntent({ kind: 'none' });
+          selectUnit(uid);
+          deps.showNotification('Air Assault cancelled.', 'info');
         },
         onOpenNetworkIntent: uid => deps.openNetworkIntentPanel(uid),
         onUsePropagandistAction: (uid, action, cityId) => {
@@ -657,6 +693,7 @@ export function createSelectionController(deps: SelectionControllerDeps): Select
         hasZoneOfControlWarning: highlightResult.zocLimitedRange.length > 0,
         airMissionPending: pendingIntent.kind === 'air-mission' && pendingIntent.unitId === unitId ? pendingIntent.mission : undefined,
         paradropPending: pendingIntent.kind === 'paradrop' && pendingIntent.unitId === unitId,
+        airAssaultPending: pendingIntent.kind === 'air-assault' && pendingIntent.unitId === unitId,
       });
     }
 

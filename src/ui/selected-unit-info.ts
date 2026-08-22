@@ -1,6 +1,6 @@
 import type { BuildableImprovementType, GameState, DisguiseType, HexCoord, Unit, WorkerActionType } from '@/core/types';
 import { UNIT_DEFINITIONS, UNIT_DESCRIPTIONS, canHeal } from '@/systems/unit-system';
-import { getParadropLaunchState, PARADROP_FAILURE_MESSAGES } from '@/systems/airborne-system';
+import { getParadropLaunchState, PARADROP_FAILURE_MESSAGES, getAirAssaultLaunchState, AIR_ASSAULT_FAILURE_MESSAGES } from '@/systems/airborne-system';
 import { getSubmarineRevealState } from '@/systems/concealment';
 import { getExperienceToNextTier, getVeterancyCombatModifier, getVeterancyTier } from '@/systems/combat-reward-system';
 import { isSpyUnitType } from '@/systems/espionage-system';
@@ -119,6 +119,8 @@ export interface SelectedUnitInfoCallbacks {
   onCancelAirMission?: (unitId: string) => void;
   onStartParadrop?: (unitId: string) => void;
   onCancelParadrop?: (unitId: string) => void;
+  onStartAirAssault?: (unitId: string) => void;
+  onCancelAirAssault?: (unitId: string) => void;
 }
 
 export interface SelectedUnitInfoPresentation {
@@ -126,6 +128,7 @@ export interface SelectedUnitInfoPresentation {
   hasZoneOfControlWarning?: boolean;
   airMissionPending?: 'strike' | 'recon';
   paradropPending?: boolean;
+  airAssaultPending?: boolean;
 }
 
 function makeButton(label: string, color: string, onClick?: () => void): HTMLButtonElement {
@@ -783,6 +786,22 @@ export function renderSelectedUnitInfo(
       btn.style.opacity = '0.5';
       btn.style.cursor = 'not-allowed';
       btn.title = PARADROP_FAILURE_MESSAGES[launchState.reason];
+      actionsDiv.appendChild(btn);
+    }
+  }
+
+  if (presentation.airAssaultPending && callbacks.onCancelAirAssault) {
+    actionsDiv.appendChild(makeButton('Cancel Air Assault', '#6b7280', () => callbacks.onCancelAirAssault!(unitId)));
+  } else if (def.airAssaultPassengerEligible && !unit.hasActed && callbacks.onStartAirAssault) {
+    const launchState = getAirAssaultLaunchState(state, unitId);
+    if (launchState.ok) {
+      actionsDiv.appendChild(makeButton('Air Assault', '#0d9488', () => callbacks.onStartAirAssault!(unitId)));
+    } else {
+      const btn = makeButton('Air Assault', '#0d9488');
+      btn.disabled = true;
+      btn.style.opacity = '0.5';
+      btn.style.cursor = 'not-allowed';
+      btn.title = AIR_ASSAULT_FAILURE_MESSAGES[launchState.reason];
       actionsDiv.appendChild(btn);
     }
   }
