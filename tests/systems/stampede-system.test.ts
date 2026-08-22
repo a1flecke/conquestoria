@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { createNewGame } from '@/core/game-state';
 import { foundCity } from '@/systems/city-system';
 import { mapNeighbors } from '@/systems/hex-utils';
-import { applyStampedePillage, advanceStampedePressure, consumeHerdingInsight, getStampedeProfile, hasActiveHerdingInsight, normalizeStampedes, processHerdingInsight, resolveStampedeOutcome, processStampedeTurn, startStampedeWarning } from '@/systems/stampede-system';
+import { applyStampedePillage, advanceStampedePressure, consumeHerdingInsight, getStampedeProfile, hasActiveHerdingInsight, normalizeStampedes, processHerdingInsight, processStampedeScheduling, resolveStampedeOutcome, processStampedeTurn, startStampedeWarning } from '@/systems/stampede-system';
+import { getEraAdvancementTechs } from '@/systems/tech-definitions';
 
 describe('Stampede state', () => {
   it('defines recurring pressure profiles for every player challenge', () => {
@@ -56,6 +57,21 @@ describe('Stampede state', () => {
     const next = startStampedeWarning(state, 'player', 'explorer');
     expect(next.stampedes?.player?.phase).toBe('warning');
     expect(Object.values(next.units).filter(unit => unit.owner === 'crisis-force').every(unit => unit.position.q >= 4)).toBe(true);
+  });
+
+  it('does not use another city center as a herd spawn tile', () => {
+    const state = createNewGame('rome', 'stampede-no-city-spawn', 'small');
+    const first = foundCity('player', { q: 0, r: 0 }, state.map, state.idCounters);
+    const second = foundCity('player', { q: 1, r: 0 }, state.map, state.idCounters);
+    state.cities[first.id] = first;
+    state.cities[second.id] = second;
+    state.civilizations.player.cities = [first.id, second.id];
+    for (const tile of Object.values(state.map.tiles)) tile.terrain = 'ocean';
+    for (const position of [first.position, second.position, { q: -1, r: 0 }]) {
+      state.map.tiles[`${position.q},${position.r}`] = { ...state.map.tiles[`${position.q},${position.r}`]!, terrain: 'plains' };
+    }
+
+    expect(startStampedeWarning(state, 'player', 'explorer').stampedes?.player).toBeUndefined();
   });
 
   it('ends the one-target-turn warning by activating and running the first herd pass', () => {
@@ -113,6 +129,18 @@ describe('Stampede state', () => {
     expect(resolveStampedeOutcome(next, 'player', 'defeated').civilizations.player.gold).toBe(next.civilizations.player.gold);
   });
 
+  it('keeps a resolved survived outcome terminal when a lifecycle caller retries', () => {
+    const state = createNewGame('rome', 'stampede-terminal-outcome', 'small');
+    state.stampedes = {
+      player: {
+        targetCivId: 'player', eligibleTurns: 0, activeTurns: 6, cityDamage: 0, civilianDeaths: 0,
+        pillagedTileKeys: ['0,0', '1,0', '2,0'], phase: 'resolved', outcome: 'survived', rewardGranted: false,
+      },
+    };
+
+    expect(resolveStampedeOutcome(state, 'player', 'defeated')).toEqual(state);
+  });
+
   it('pillages at most two landed improvements during one active herd pass without crisis loot', () => {
     const state = createNewGame('rome', 'stampede-pillage', 'small');
     state.stampedes = { player: { targetCivId: 'player', eligibleTurns: 0, activeTurns: 1, cityDamage: 0, civilianDeaths: 0, pillagedTileKeys: [] } };
@@ -168,6 +196,25 @@ describe('Stampede state', () => {
     expect(applyStampedePillage(active, 'player', herd.id).map.tiles[`${herd.position.q},${herd.position.r}`]?.improvement).toBe('farm');
   });
 
+  it('never pillages a herd start tile when no legal landing was completed', () => {
+    const state = createNewGame('rome', 'stampede-no-free-pillage', 'small');
+    const city = foundCity('player', { q: 0, r: 0 }, state.map, state.idCounters);
+    state.cities[city.id] = city;
+    state.civilizations.player.cities = [city.id];
+    for (const tile of Object.values(state.map.tiles)) tile.terrain = 'plains';
+    const warning = startStampedeWarning(state, 'player', 'explorer');
+    const herd = Object.values(warning.units).find(unit => unit.owner === 'crisis-force')!;
+    for (const neighbor of mapNeighbors(warning.map, herd.position)) {
+      warning.map.tiles[`${neighbor.q},${neighbor.r}`] = { ...warning.map.tiles[`${neighbor.q},${neighbor.r}`]!, terrain: 'ocean' };
+    }
+    warning.map.tiles[`${herd.position.q},${herd.position.r}`] = {
+      ...warning.map.tiles[`${herd.position.q},${herd.position.r}`]!, owner: 'player', improvement: 'farm', improvementTurnsLeft: 0,
+    };
+    const active = { ...warning, stampedes: { player: { ...warning.stampedes!.player!, phase: 'active' as const } } };
+
+    expect(processStampedeTurn(active, 'player').map.tiles[`${herd.position.q},${herd.position.r}`]?.improvement).toBe('farm');
+  });
+
   it('converts an expired unreachable charge to gold exactly once', () => {
     const state = createNewGame('rome', 'stampede-expire-insight', 'small');
     const rewarded = resolveStampedeOutcome({
@@ -200,5 +247,16 @@ describe('Stampede recurrence', () => {
 
     expect(eligible.stampedes?.player?.eligibleTurns).toBe(1);
     expect(blocked.stampedes?.player?.eligibleTurns).toBe(1);
+  });
+
+  it('does not advance hidden pressure when the target has no legal spawn opportunity', () => {
+    const state = createNewGame('rome', 'stampede-no-spawn-pressure', 'small');
+    const completed = [2, 3].flatMap(era => {
+      const techs = getEraAdvancementTechs(era);
+      return techs.slice(0, Math.ceil(techs.length * 0.6)).map(tech => tech.id);
+    });
+    state.civilizations.player.techState.completed = completed;
+
+    expect(processStampedeScheduling(state).stampedes?.player).toBeUndefined();
   });
 });

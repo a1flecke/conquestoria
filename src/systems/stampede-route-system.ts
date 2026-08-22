@@ -58,9 +58,10 @@ export function getHerdAvoidanceScore(state: GameState, coord: HexCoord): number
 
 function legal(state: GameState, unit: Unit, coord: HexCoord, allowHostileBlocker: boolean): boolean {
   const tile = state.map.tiles[hexKey(coord)];
-  const blocker = Object.values(state.units).find(candidate => candidate.id !== unit.id && !candidate.transportId && hexKey(candidate.position) === hexKey(coord));
+  const blockers = Object.values(state.units)
+    .filter(candidate => candidate.id !== unit.id && !candidate.transportId && hexKey(candidate.position) === hexKey(coord));
   return Boolean(tile && LAND_TERRAINS.has(tile.terrain) && !isCityCenter(state, coord)
-    && (!blocker || (allowHostileBlocker && isHostileOwnerTo(state, unit.owner, blocker.owner))));
+    && (blockers.length === 0 || (blockers.length === 1 && allowHostileBlocker && isHostileOwnerTo(state, unit.owner, blockers[0]!.owner))));
 }
 
 function nextStep(state: GameState, record: CrisisForce, unit: Unit, center: HexCoord, from: HexCoord, allowHostileBlocker: boolean): HexCoord | undefined {

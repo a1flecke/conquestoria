@@ -48,6 +48,18 @@ describe('stampede route system', () => {
     expect(planHerdRoute(state, 'stampede-1', 'herd-1').steps[0]).toEqual({ q: 2, r: 0 });
   });
 
+  it('does not route into a legacy stack even when one blocker is hostile', () => {
+    const state = routeState();
+    for (const tile of Object.values(state.map.tiles)) tile.terrain = 'ocean';
+    state.map.tiles['1,0'] = { ...state.map.tiles['1,0']!, terrain: 'plains' };
+    state.map.tiles['2,0'] = { ...state.map.tiles['2,0']!, terrain: 'plains' };
+    const template = Object.values(state.units).find(unit => unit.type === 'warrior')!;
+    state.units.hostile = { ...template, id: 'hostile', owner: 'player', position: { q: 2, r: 0 } };
+    state.units.stacked = { ...template, id: 'stacked', owner: 'player-2', position: { q: 2, r: 0 } };
+
+    expect(planHerdRoute(state, 'stampede-1', 'herd-1').steps).toEqual([]);
+  });
+
   it('never plans a second occupied step after a possible trample', () => {
     const state = routeState();
     for (const tile of Object.values(state.map.tiles)) tile.terrain = 'ocean';

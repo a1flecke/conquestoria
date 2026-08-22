@@ -73,7 +73,13 @@ export function normalizeStampedes(state: GameState): GameState {
     const normalized = normalizeStampede(targetCivId, value, state);
     return normalized ? [[targetCivId, normalized]] : [];
   }));
-  return { ...state, stampedes };
+  const referencedForceIds = new Set(Object.values(stampedes).flatMap(stampede => stampede.forceId ? [stampede.forceId] : []));
+  const orphanedForceIds = Object.keys(state.crisisForces ?? {})
+    .filter(forceId => forceId.startsWith('stampede-') && !referencedForceIds.has(forceId));
+  if (orphanedForceIds.length === 0) return { ...state, stampedes };
+  const crisisForces = { ...state.crisisForces };
+  for (const forceId of orphanedForceIds) delete crisisForces[forceId];
+  return normalizeCrisisForces({ ...state, stampedes, crisisForces });
 }
 
 /** Advances only the persisted uncertainty clock; spawning remains a later lifecycle step. */
@@ -106,6 +112,7 @@ export function processStampedeScheduling(state: GameState): GameState {
     const severity = resolvePressureSeverityForCiv(next, civId);
     const profile = getStampedeProfile(severity);
     if (existing?.lastResolvedTurn !== undefined && next.turn - existing.lastResolvedTurn < profile.cooldownTurns) continue;
+    if (!findStampedeSpawnPositions(next, civId, profile.herdCount)) continue;
     next = advanceStampedePressure(next, civId);
     const eligibleTurns = next.stampedes?.[civId]?.eligibleTurns ?? 0;
     const chance = Math.min(profile.capPercent, profile.initialChancePercent + Math.max(0, eligibleTurns - 1) * profile.growthPercent);
@@ -114,24 +121,27 @@ export function processStampedeScheduling(state: GameState): GameState {
   return next;
 }
 
-export function startStampedeWarning(state: GameState, targetCivId: string, severity: OpponentChallenge): GameState {
-  if (state.stampedes?.[targetCivId]?.phase === 'warning' || state.stampedes?.[targetCivId]?.phase === 'active') return state;
+function findStampedeSpawnPositions(state: GameState, targetCivId: string, herdCount: number) {
   const occupied = new Set(Object.values(state.units).filter(unit => !unit.transportId).map(unit => hexKey(unit.position)));
-  const profile = getStampedeProfile(severity);
-  const spawn = Object.values(state.cities)
+  const cityCenters = new Set(Object.values(state.cities).map(city => hexKey(city.position)));
+  return Object.values(state.cities)
     .filter(candidate => candidate.owner === targetCivId)
     .sort((a, b) => a.id.localeCompare(b.id))
-    .map(city => ({
-      positions: mapNeighbors(state.map, city.position)
-        .filter(position => state.map.tiles[hexKey(position)]?.terrain === 'plains' || state.map.tiles[hexKey(position)]?.terrain === 'grassland')
-        .filter(position => !occupied.has(hexKey(position)))
-        .sort((a, b) => hexKey(a).localeCompare(hexKey(b))),
-    }))
-    .find(candidate => candidate.positions.length >= profile.herdCount);
-  if (!spawn) return state;
+    .map(city => mapNeighbors(state.map, city.position)
+      .filter(position => state.map.tiles[hexKey(position)]?.terrain === 'plains' || state.map.tiles[hexKey(position)]?.terrain === 'grassland')
+      .filter(position => !occupied.has(hexKey(position)) && !cityCenters.has(hexKey(position)))
+      .sort((a, b) => hexKey(a).localeCompare(hexKey(b))))
+    .find(positions => positions.length >= herdCount);
+}
+
+export function startStampedeWarning(state: GameState, targetCivId: string, severity: OpponentChallenge): GameState {
+  if (state.stampedes?.[targetCivId]?.phase === 'warning' || state.stampedes?.[targetCivId]?.phase === 'active') return state;
+  const profile = getStampedeProfile(severity);
+  const positions = findStampedeSpawnPositions(state, targetCivId, profile.herdCount);
+  if (!positions) return state;
   let next = { ...state, units: { ...state.units } };
   const forceId = `stampede-${targetCivId}-${state.turn}`;
-  const unitIds = spawn.positions.slice(0, profile.herdCount).map(position => {
+  const unitIds = positions.slice(0, profile.herdCount).map(position => {
     const herd = createUnit('beast_stampede_herd', CRISIS_FORCE_OWNER, position, next.idCounters);
     herd.combatStrengthOverride = 28 + 4 * (Math.max(3, resolveCivilizationEra(state.civilizations[targetCivId]!.techState.completed)) - 3);
     next.units[herd.id] = herd;
@@ -157,7 +167,7 @@ export function resolveStampedeOutcome(
 ): GameState {
   const stampede = state.stampedes?.[targetCivId];
   const civ = state.civilizations[targetCivId];
-  if (!stampede || !civ || stampede.rewardGranted) return state;
+  if (!stampede || !civ || stampede.phase === 'resolved' || stampede.rewardGranted) return state;
   const rewardGranted = outcome !== 'survived';
   const rewardGold = rewardGranted ? Math.min(10 * resolveCivilizationEra(civ.techState.completed), 80) : 0;
   return {
@@ -318,9 +328,10 @@ export function processStampedeTurn(state: GameState, targetCivId: string): Game
         if (!next.units[unitId] || next.units[blocker.id]) break;
       }
       const moved = executeUnitMove(next, unitId, step, { actor: 'world' });
-      if (!moved.ok || moved.stopReason) break;
+      if (!moved.ok) break;
+      next = applyStampedePillage(next, targetCivId, unitId);
+      if (moved.stopReason) break;
     }
-    next = applyStampedePillage(next, targetCivId, unitId);
   }
   const currentStampede = next.stampedes?.[targetCivId] ?? stampede;
   const activeTurns = currentStampede.activeTurns + 1;
