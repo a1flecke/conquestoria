@@ -128,6 +128,28 @@ describe('air bases', () => {
     expect(getAirBaseCapacity(carrierState, { kind: 'carrier', unitId: 'carrier' })).toBe(2);
   });
 
+  it('getAirBaseCapacity returns 3 for a Supercarrier, and a 3rd aircraft can base there where it would fail at a 2-slot Carrier', () => {
+    const makeFullDeckState = (hostType: 'carrier' | 'supercarrier') => ({
+      ...state,
+      map: { width: 10, height: 10, wrapsHorizontally: false },
+      units: {
+        host: { ...biplane, id: 'host', type: hostType, airBase: undefined },
+        'air-a': { ...biplane, id: 'air-a', airBase: { kind: 'carrier', unitId: 'host' } },
+        'air-b': { ...biplane, id: 'air-b', airBase: { kind: 'carrier', unitId: 'host' } },
+        incoming: { ...biplane, id: 'incoming', airBase: { kind: 'city', cityId: 'city-1' } },
+      },
+    }) as unknown as GameState;
+
+    const supercarrierState = makeFullDeckState('supercarrier');
+    const carrierState = makeFullDeckState('carrier');
+
+    expect(getAirBaseCapacity(supercarrierState, { kind: 'carrier', unitId: 'host' })).toBe(3);
+    expect(getAirBaseCapacity(carrierState, { kind: 'carrier', unitId: 'host' })).toBe(2);
+
+    expect(getLegalRebaseDestinations(supercarrierState, 'incoming')).toContainEqual({ kind: 'carrier', unitId: 'host' });
+    expect(getLegalRebaseDestinations(carrierState, 'incoming')).not.toContainEqual({ kind: 'carrier', unitId: 'host' });
+  });
+
   it('spends a fighter to intercept and selects the strongest eligible defender deterministically', () => {
     const missionState = {
       ...state,
