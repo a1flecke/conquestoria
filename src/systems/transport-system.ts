@@ -61,6 +61,16 @@ function isLandUnit(unit: Unit): boolean {
   return (UNIT_DEFINITIONS[unit.type]?.domain ?? 'land') === 'land';
 }
 
+/**
+ * Shared type-compatibility check between a land unit and a ship, factored
+ * out of `canLoadUnitOntoTransport` so naval shore supply (#544,
+ * supply-naval.ts) reuses exactly this ownership/domain logic instead of
+ * duplicating it — the two call sites can never drift apart.
+ */
+export function isLandUnitCompatibleWithShip(unit: Unit, ship: Unit): boolean {
+  return isTransport(ship) && isLandUnit(unit) && unit.owner === ship.owner;
+}
+
 function isCoastalCityShortcut(state: GameState, unit: Unit, transport: Unit): boolean {
   const unitKey = hexKey(unit.position);
   const city = Object.values(state.cities).find(candidate =>
