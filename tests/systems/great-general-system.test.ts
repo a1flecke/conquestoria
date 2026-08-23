@@ -5,7 +5,10 @@ import {
   hasCrossedGeneralThreshold,
   awardGeneralProgress,
   GENERAL_PROGRESS_AWARDS,
+  generateGeneralCandidates,
 } from '@/systems/great-general-system';
+import { GENERAL_DEFINITIONS } from '@/systems/great-general-definitions';
+import { createNewGame } from '@/core/game-state';
 
 describe('getGeneralThreshold', () => {
   it('the first General costs less than the second', () => {
@@ -83,5 +86,67 @@ describe('GENERAL_PROGRESS_AWARDS', () => {
       expect(value).toBeGreaterThan(0);
       expect(value).toBeLessThan(getGeneralThreshold(0));
     }
+  });
+});
+
+function makeGeneralsTestState(seed: string) {
+  return createNewGame({ civType: 'rome', mapSize: 'small', opponentCount: 1, gameTitle: 'Generals Test', seed });
+}
+
+describe('generateGeneralCandidates', () => {
+  it('returns 2-3 unique candidates', () => {
+    const state = makeGeneralsTestState('gen-candidates-1');
+    const candidates = generateGeneralCandidates(state, 'player', 1);
+    expect(candidates.length).toBeGreaterThanOrEqual(2);
+    expect(candidates.length).toBeLessThanOrEqual(3);
+    expect(new Set(candidates.map(c => c.id)).size).toBe(candidates.length);
+  });
+
+  it('is deterministic for the same seed', () => {
+    const state = makeGeneralsTestState('gen-candidates-2');
+    const first = generateGeneralCandidates(state, 'player', 42).map(c => c.id);
+    const second = generateGeneralCandidates(state, 'player', 42).map(c => c.id);
+    expect(first).toEqual(second);
+  });
+
+  it('never includes a General already in this civ\'s history (used-forever exclusion)', () => {
+    const state = makeGeneralsTestState('gen-candidates-3');
+    const romeCandidate = GENERAL_DEFINITIONS.find(g => g.civTypeEligibility.includes('rome'))!;
+    state.civilizations.player = {
+      ...state.civilizations.player,
+      generalHistory: [{ unitId: 'gen1', generalDefinitionId: romeCandidate.id, spawnedTurn: 1, diedTurn: 3 }],
+    };
+    for (let seed = 1; seed <= 20; seed++) {
+      const candidates = generateGeneralCandidates(state, 'player', seed);
+      expect(candidates.some(c => c.id === romeCandidate.id)).toBe(false);
+    }
+  });
+
+  it('falls back to the universal pool when a civ\'s own roster is exhausted', () => {
+    const state = makeGeneralsTestState('gen-candidates-4');
+    const allRomeIds = GENERAL_DEFINITIONS.filter(g => g.civTypeEligibility.includes('rome')).map(g => g.id);
+    state.civilizations.player = {
+      ...state.civilizations.player,
+      generalHistory: allRomeIds.map((id, i) => ({ unitId: `used${i}`, generalDefinitionId: id, spawnedTurn: 1, diedTurn: 2 })),
+    };
+    const candidates = generateGeneralCandidates(state, 'player', 7);
+    expect(candidates.length).toBeGreaterThanOrEqual(2);
+    expect(candidates.every(c => c.civTypeEligibility.length === 0)).toBe(true);
+  });
+
+  it('weights candidates toward the civ\'s current era over many draws', () => {
+    // Rome starts era 1; over many seeds, era-1-adjacent entries should be
+    // drawn far more often than the era-8 universal-pool entry.
+    const state = makeGeneralsTestState('gen-candidates-5');
+    let era8Count = 0;
+    let era1Count = 0;
+    for (let seed = 1; seed <= 200; seed++) {
+      const candidates = generateGeneralCandidates(state, 'player', seed);
+      for (const c of candidates) {
+        if (c.era === 8) era8Count++;
+        if (c.era === 1) era1Count++;
+      }
+    }
+    expect(era1Count).toBeGreaterThan(era8Count);
   });
 });

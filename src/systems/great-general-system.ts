@@ -1,4 +1,7 @@
-import type { Civilization, GeneralProgressState } from '@/core/types';
+import type { Civilization, GameState, GeneralProgressState } from '@/core/types';
+import { GENERAL_DEFINITIONS, type GeneralDefinition } from '@/systems/great-general-definitions';
+import { seededLcg, weightedPick } from '@/systems/seeded-lcg';
+import { resolveCivilizationEra } from '@/systems/tech-definitions';
 
 /**
  * Threshold formula (contract §13 — "data-driven and not yet locked", this
@@ -62,4 +65,47 @@ export function awardGeneralProgress(
   points: number,
 ): NonNullable<Civilization['generalProgress']> {
   return addGeneralProgress(civ.generalProgress, points);
+}
+
+const CANDIDATE_COUNT = 3;
+
+function eraWeight(candidateEra: number, currentEra: number): number {
+  const distance = Math.abs(candidateEra - currentEra);
+  if (distance === 0) return 100;
+  if (distance === 1) return 40; // adjacent-era, lower weight
+  return 5; // farther era: fallback-only weight, still possible, rarely picked
+}
+
+/**
+ * 2-3 weighted candidates for `civId` (contract §13). Deterministic for a
+ * given `seed` — callers pass a per-round, per-civ-derived seed; this
+ * function only draws from the shared seeded RNG (never the browser's
+ * unseeded random source). Excludes every General already in this civ's
+ * `generalHistory` forever (contract: "a used General never appears
+ * again... never resurrect").
+ */
+export function generateGeneralCandidates(
+  state: GameState,
+  civId: string,
+  seed: number,
+): GeneralDefinition[] {
+  const civ = state.civilizations[civId];
+  const civType = civ?.civType ?? '';
+  const usedIds = new Set((civ?.generalHistory ?? []).map(entry => entry.generalDefinitionId));
+  const currentEra = resolveCivilizationEra(civ?.techState.completed ?? []);
+
+  const eligible = GENERAL_DEFINITIONS.filter(g =>
+    !usedIds.has(g.id) && (g.civTypeEligibility.length === 0 || g.civTypeEligibility.includes(civType)),
+  );
+
+  const rng = seededLcg(seed);
+  const picked: GeneralDefinition[] = [];
+  const pool = [...eligible];
+  while (picked.length < CANDIDATE_COUNT && pool.length > 0) {
+    const weights = pool.map(g => eraWeight(g.era, currentEra));
+    const choice = weightedPick(pool, weights, rng);
+    picked.push(choice);
+    pool.splice(pool.indexOf(choice), 1);
+  }
+  return picked;
 }
