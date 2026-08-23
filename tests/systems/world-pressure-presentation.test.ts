@@ -46,6 +46,15 @@ describe('getWorldPressurePresentationForViewer', () => {
     expect(getWorldPressurePresentationForViewer(state, 'viewer-b').ownStampedeStatus).toBeUndefined();
   });
 
+  it('includes Rogue Elephant Host warning only for its target viewer', () => {
+    const state = baseCrisisState();
+    state.settings = { aiPressureVisibility: false } as GameState['settings'];
+    state.rogueElephantHosts = { viewer: { targetCivId: 'viewer', phase: 'warning' } };
+
+    expect(getWorldPressurePresentationForViewer(state, 'viewer').ownRogueElephantHostStatus).toContain('Rogue Elephant Host is approaching');
+    expect(getWorldPressurePresentationForViewer(state, 'viewer-b').ownRogueElephantHostStatus).toBeUndefined();
+  });
+
   it('gates on the flag: aiPressureVisibility false yields nothing', () => {
     const state = baseCrisisState();
     state.settings = { aiPressureVisibility: false } as GameState['settings'];
