@@ -139,6 +139,29 @@ describe('getCrisisDispatchCandidates', () => {
     state.civilizations['ai-1'].visibility.tiles = {};
     expect(getCrisisDispatchCandidates(state, 'ai-1')).toEqual([]);
   });
+
+  it('dispatches only against visible active Rogue Host actors', () => {
+    const state = baseState('veteran');
+    state.pirates = { factions: {} } as GameState['pirates'];
+    state.units = {
+      elephant: {
+        id: 'elephant', type: 'rogue_elephant', owner: 'crisis-force', position: { q: 2, r: 1 },
+        movementPointsLeft: 2, health: 100, experience: 0, hasMoved: false, hasActed: false, isResting: false,
+      },
+    };
+    state.crisisForces = {
+      host: { id: 'host', targetCivId: 'ai-1', severity: 'standard', createdTurn: 4, unitIds: ['elephant'] },
+    };
+    state.rogueElephantHosts = {
+      'ai-1': { targetCivId: 'ai-1', forceId: 'host', phase: 'active', createdTurn: 4 },
+    };
+
+    expect(getCrisisDispatchCandidates(state, 'ai-1')).toContainEqual(
+      expect.objectContaining({ kind: 'rogue-elephant-host', sourceId: 'host', targetUnitId: 'elephant' }),
+    );
+    state.civilizations['ai-1'].visibility.tiles = {};
+    expect(getCrisisDispatchCandidates(state, 'ai-1')).toEqual([]);
+  });
 });
 
 // #529 MR3 Task 3.2 — quarantine + fund-remedy response policy.
