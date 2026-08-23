@@ -109,3 +109,34 @@ export function generateGeneralCandidates(
   }
   return picked;
 }
+
+/**
+ * Queues a candidate-choice prompt once `civId` crosses its next threshold
+ * (contract §13: "Queue candidate choice to a natural break; do not
+ * interrupt action resolution or allow indefinite deferral"). A no-op if
+ * the civ has no progress, hasn't crossed the threshold, or already has a
+ * pending choice queued — the queue is cleared only by spawnGeneralForCiv
+ * actually resolving it, which structurally prevents indefinite deferral
+ * (the entry stays queued, visible, and blocking until chosen).
+ */
+export function checkAndQueueGeneralCandidateChoice(
+  state: GameState,
+  civId: string,
+  triggerEventLabel: string,
+  seed: number,
+): GameState {
+  const civ = state.civilizations[civId];
+  if (!civ?.generalProgress || !hasCrossedGeneralThreshold(civ.generalProgress)) return state;
+  if ((state.pendingGeneralCandidateChoices ?? []).some(choice => choice.civId === civId)) return state;
+
+  const candidates = generateGeneralCandidates(state, civId, seed);
+  if (candidates.length === 0) return state; // roster fully exhausted, nothing to offer
+
+  return {
+    ...state,
+    pendingGeneralCandidateChoices: [
+      ...(state.pendingGeneralCandidateChoices ?? []),
+      { civId, candidateDefinitionIds: candidates.map(c => c.id), triggerEventLabel },
+    ],
+  };
+}

@@ -1850,4 +1850,34 @@ describe('journey automation', () => {
     expect(next.religions?.[religionId]).toMatchObject({ ownerCivId: civId });
     expect(next.cityFaith?.[city.id]).toMatchObject({ religionId, isHolyCity: true });
   });
+
+  describe('Great General candidate queueing (#544 MR3)', () => {
+    it('queues a candidate choice for a human civ that has crossed its threshold by round end', () => {
+      const state = createNewGame('rome', 'great-general-queue-1', 'small');
+      state.civilizations.player.generalProgress = { points: 999, generalsEarned: 0 };
+
+      const next = processTurn(state, new EventBus());
+
+      expect(next.pendingGeneralCandidateChoices).toHaveLength(1);
+      expect(next.pendingGeneralCandidateChoices![0]!.civId).toBe('player');
+    });
+
+    it('does NOT queue a candidate choice for an AI civ, even if it has crossed its threshold', () => {
+      const state = createNewGame('rome', 'great-general-queue-2', 'small');
+      state.civilizations['ai-1']!.generalProgress = { points: 999, generalsEarned: 0 };
+
+      const next = processTurn(state, new EventBus());
+
+      expect(next.pendingGeneralCandidateChoices ?? []).toHaveLength(0);
+    });
+
+    it('does not queue below the threshold', () => {
+      const state = createNewGame('rome', 'great-general-queue-3', 'small');
+      state.civilizations.player.generalProgress = { points: 5, generalsEarned: 0 };
+
+      const next = processTurn(state, new EventBus());
+
+      expect(next.pendingGeneralCandidateChoices ?? []).toHaveLength(0);
+    });
+  });
 });

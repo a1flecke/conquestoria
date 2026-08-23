@@ -128,6 +128,19 @@ import { processPiratesForCompletedRound } from '@/systems/pirate-system';
 import { classifyOwner } from './owner-kind';
 import { consumeHerdingInsight, getStampedeLifecycleTransition, hasActiveHerdingInsight, processStampedeScheduling, processStampedeTurn } from '@/systems/stampede-system';
 import { consumeRecoveredHarnesses, getRogueElephantHostLifecycleTransition, hasActiveRecoveredHarnesses, processRogueElephantHostScheduling, processRogueElephantHostTurn } from '@/systems/rogue-elephant-host-system';
+import { checkAndQueueGeneralCandidateChoice } from '@/systems/great-general-system';
+
+// #544 MR3: same char-folding convention combat-reward-system.ts's seededRoll and
+// city-capture-system.ts's assault seed already use -- turns a (turn, civId) pair into
+// a deterministic numeric seed without a shared cross-file seed-hashing utility (several
+// systems in this codebase each keep their own small local variant of this fold).
+function deriveGeneralCandidateSeed(turn: number, civId: string): number {
+  let seed = Math.abs(turn * 7919);
+  for (const char of civId) {
+    seed = (seed * 48271 + char.charCodeAt(0)) % 2147483647;
+  }
+  return seed;
+}
 
 export function finalizeOpponentRoundState(state: GameState): GameState {
   const normalized = normalizeOpponentAIState(state);
@@ -816,6 +829,19 @@ export function processTurn(
     }
     newState.civilizations[civId].satelliteSurveillanceTargets =
       Object.keys(updatedTargets).length > 0 ? updatedTargets : undefined;
+
+    // #544 MR3: queue a Great General candidate choice once this civ has crossed its
+    // next threshold. Human-only -- AI eligibility/spawning is MR5's scope, not MR3's;
+    // an AI civ accumulating generalProgress here is harmless (no threshold check runs
+    // for it, so it never queues a prompt no human will ever see).
+    if (civ.isHuman) {
+      newState = checkAndQueueGeneralCandidateChoice(
+        newState,
+        civId,
+        'round-end',
+        deriveGeneralCandidateSeed(newState.turn, civId),
+      );
+    }
   }
 
   // #554: expire stale peace requests / treaty proposals once per turn (not
