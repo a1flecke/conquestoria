@@ -247,6 +247,15 @@ describe('transport system', () => {
     expect(result).toEqual({ ok: false, reason: 'no-capacity', message: 'No room on this Transport' });
   });
 
+  it('a great_general can load onto a transport like any other land unit (#544 MR3)', () => {
+    const start = state();
+    start.units['general-1'] = unit({ id: 'general-1', type: 'great_general', position: { q: 0, r: 0 } });
+
+    const result = canLoadUnitOntoTransport(start, 'general-1', 'transport-1');
+
+    expect(result).toEqual({ ok: true });
+  });
+
   it('rejects loading a land unit that has no action left', () => {
     const start = state();
     start.units['warrior-1'] = {

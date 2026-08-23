@@ -16,6 +16,7 @@ import { resolveBoundedSplash } from '@/systems/combat-system';
 import { recordCampPressureFromCombatOutcome } from '@/systems/barbarian-pressure';
 import { normalizeCrisisForces } from '@/systems/crisis-force-system';
 import { resolveRogueElephantHostHandlerDeaths } from '@/systems/rogue-elephant-host-system';
+import { hexKey } from '@/systems/hex-utils';
 
 /** Age-of-Sail through ironclad — boarding-action flavor. Everything else
  * (destroyer onward) uses modern "disabled and captured" phrasing. Same
@@ -287,6 +288,60 @@ function removeUnitFromCopies(
   return { units: remainingUnits, civilizations: nextCivilizations, espionage: nextEspionage };
 }
 
+/**
+ * #544 MR3: "if escort is destroyed, General dies too. No escape" (contract
+ * §15). A General may share a tile with exactly one friendly combat unit;
+ * when that unit is destroyed (by direct combat or splash), any co-located
+ * friendly great_general goes down with it. Transport-destroyed-kills-
+ * General is handled separately and automatically: a General loaded as
+ * transport cargo has its id in the transport's cargoUnitIds, which
+ * removeUnitFromCopies already cascades on transport destruction — no
+ * extra call needed for that case.
+ */
+function destroyEscortedGeneralAtPosition(
+  units: Record<string, Unit>,
+  civilizations: GameState['civilizations'],
+  espionage: NonNullable<GameState['espionage']> | undefined,
+  position: Unit['position'],
+  ownerId: string,
+): { units: Record<string, Unit>; civilizations: GameState['civilizations']; espionage: NonNullable<GameState['espionage']> | undefined } {
+  const general = Object.values(units).find(
+    u => u.type === 'great_general' && u.owner === ownerId && hexKey(u.position) === hexKey(position),
+  );
+  if (!general) return { units, civilizations, espionage };
+  return removeUnitFromCopies(units, civilizations, espionage, general.id);
+}
+
+/**
+ * #544 MR3: records diedTurn on any great_general whose id existed in
+ * `beforeUnits` but is gone from `state.units` by the time this state is
+ * final — a single generic pass that catches every removal path uniformly
+ * (escort cascade above, transport-cargo cascade, or a direct kill),
+ * instead of bespoke bookkeeping at each call site.
+ */
+function recordGeneralDeaths(beforeUnits: Record<string, Unit>, state: GameState): GameState {
+  const deadGenerals = Object.values(beforeUnits).filter(
+    u => u.type === 'great_general' && !state.units[u.id],
+  );
+  if (deadGenerals.length === 0) return state;
+
+  let civilizations = state.civilizations;
+  for (const general of deadGenerals) {
+    const civ = civilizations[general.owner];
+    if (!civ?.generalHistory) continue;
+    civilizations = {
+      ...civilizations,
+      [general.owner]: {
+        ...civ,
+        generalHistory: civ.generalHistory.map(entry =>
+          entry.unitId === general.id ? { ...entry, diedTurn: state.turn } : entry,
+        ),
+      },
+    };
+  }
+  return { ...state, civilizations };
+}
+
 export function applyCombatOutcomeToState(
   state: GameState,
   result: CombatResult,
@@ -427,6 +482,10 @@ export function applyCombatOutcomeToState(
     units = removed.units;
     civilizations = removed.civilizations;
     espionage = removed.espionage;
+    const escortCascade = destroyEscortedGeneralAtPosition(units, civilizations, espionage, attackerBefore.position, attackerBefore.owner);
+    units = escortCascade.units;
+    civilizations = escortCascade.civilizations;
+    espionage = escortCascade.espionage;
   }
 
   if (result.defenderSurvived) {
@@ -498,6 +557,10 @@ export function applyCombatOutcomeToState(
     units = removed.units;
     civilizations = removed.civilizations;
     espionage = removed.espionage;
+    const escortCascade = destroyEscortedGeneralAtPosition(units, civilizations, espionage, defenderBefore.position, defenderBefore.owner);
+    units = escortCascade.units;
+    civilizations = escortCascade.civilizations;
+    espionage = escortCascade.espionage;
   }
 
   const splashHits = result.splashHits ?? resolveBoundedSplash(state, attackerBefore, defenderBefore, result.defenderDamage);
@@ -513,6 +576,10 @@ export function applyCombatOutcomeToState(
     units = removed.units;
     civilizations = removed.civilizations;
     espionage = removed.espionage;
+    const escortCascade = destroyEscortedGeneralAtPosition(units, civilizations, espionage, target.position, target.owner);
+    units = escortCascade.units;
+    civilizations = escortCascade.civilizations;
+    espionage = escortCascade.espionage;
   }
 
   const rewards = collectCombatRewards(result, attackerBefore, defenderBefore, seed);
@@ -641,6 +708,7 @@ export function applyCombatOutcomeToState(
     recordCampPressureFromCombatOutcome(nextState, attackerBefore, defenderBefore),
     defeatedUnitIds,
   ));
+  nextState = recordGeneralDeaths(state.units, nextState);
 
   return {
     state: nextState,
