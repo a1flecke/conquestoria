@@ -113,6 +113,30 @@ describe('save migrations', () => {
     expect(migrateSaveToCurrent(migrated)).toEqual(migrated);
   });
 
+  it('#707 preserves a current-schema Stampede warning and its committed route idempotently', () => {
+    const save = createNewGame('rome', 'stampede-current-round-trip', 'small');
+    const herd = { ...Object.values(save.units)[0]!, id: 'stampede-herd', type: 'beast_stampede_herd' as const, owner: CRISIS_FORCE_OWNER };
+    save.units[herd.id] = herd;
+    save.crisisForces = {
+      stampede: {
+        id: 'stampede', targetCivId: 'player', severity: 'standard', createdTurn: 1, unitIds: [herd.id],
+        herdRoutes: { [herd.id]: { unitId: herd.id, committedTurn: 1, steps: [] } },
+      },
+    };
+    save.stampedes = {
+      player: {
+        targetCivId: 'player', forceId: 'stampede', phase: 'warning', createdTurn: 1,
+        eligibleTurns: 2, activeTurns: 0, cityDamage: 0, civilianDeaths: 0, pillagedTileKeys: [],
+      },
+    };
+
+    const loaded = migrateSaveToCurrent(structuredClone(save));
+
+    expect(loaded.stampedes?.player).toMatchObject({ forceId: 'stampede', phase: 'warning', eligibleTurns: 2 });
+    expect(loaded.crisisForces?.stampede.herdRoutes?.[herd.id]).toEqual({ unitId: herd.id, committedTurn: 1, steps: [] });
+    expect(migrateSaveToCurrent(structuredClone(loaded))).toEqual(loaded);
+  });
+
   it('#698 migrates camp pressure, rejects malformed facts, and remains idempotent', () => {
     const save = createNewGame('rome', 'camp-pressure-migration', 'small');
     save.turn = 9;
