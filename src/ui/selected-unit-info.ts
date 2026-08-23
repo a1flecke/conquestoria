@@ -76,6 +76,8 @@ export interface CargoBoardItem {
 
 export interface SelectedUnitInfoCallbacks {
   onClose?: () => void;
+  /** #544 MR2: reopens the first-time supply tutorial message on demand. */
+  onReopenSupplyTutorial?: () => void;
   onFoundCity?: () => void;
   onWorkerAction?: (action: WorkerActionType) => void;
   onPreach?: (unitId: string, cityId: string) => void;
@@ -340,6 +342,14 @@ export function renderSelectedUnitInfo(
       supplyLine.style.cssText = `font-size:11px;margin-top:${index === 0 ? 4 : 2}px;color:#c9d6e3;`;
       supplyLine.textContent = line;
       wrapper.appendChild(supplyLine);
+    }
+    if (callbacks.onReopenSupplyTutorial) {
+      const helpLink = document.createElement('button');
+      helpLink.type = 'button';
+      helpLink.textContent = 'ℹ️ How supply works';
+      helpLink.style.cssText = 'margin-top:2px;background:none;border:none;color:#8fe8b0;font-size:10px;text-decoration:underline;cursor:pointer;padding:0;';
+      helpLink.addEventListener('click', () => callbacks.onReopenSupplyTutorial!());
+      wrapper.appendChild(helpLink);
     }
   }
 

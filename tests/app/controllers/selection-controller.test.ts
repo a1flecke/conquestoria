@@ -148,6 +148,7 @@ function baseDeps(state: GameState, overrides: Partial<SelectionControllerDeps> 
     scanBeastSightings: vi.fn(),
     scanSubmarineSightings: vi.fn(),
     currentCiv: () => session.getState().civilizations[session.getState().currentPlayer],
+    advisorSystem: { resetMessage: vi.fn(), check: vi.fn() },
     ...overrides,
   };
 }

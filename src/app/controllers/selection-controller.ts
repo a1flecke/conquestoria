@@ -26,6 +26,7 @@ import type { RenderLoop } from '@/renderer/render-loop';
 import type { GameState, HexCoord, Unit, UnitType, WorkerActionType, Civilization } from '@/core/types';
 import type { GameSession, SelectionStore } from '@/app/ports';
 import type { PanelHost } from '@/app/panel-host';
+import type { AdvisorSystem } from '@/ui/advisor-system';
 import type { CeremonyCoordinator } from '@/app/controllers/ceremony-coordinator';
 import type { UnitTurnFlow } from '@/ui/unit-turn-flow';
 import type { ExecuteUnitMoveResult } from '@/systems/unit-movement-system';
@@ -112,6 +113,13 @@ export interface SelectionControllerDeps {
   readonly scanBeastSightings: () => void;
   readonly scanSubmarineSightings: () => void;
   readonly currentCiv: () => Civilization;
+  /**
+   * #544 MR2: `resetMessage`/`check` together are this codebase's existing
+   * "show this advisor tip again on demand" idiom (already used by
+   * `village:visited` outcomes via `ctx.resetAdvisorMessage`) -- reused here
+   * rather than adding a bespoke reopen method.
+   */
+  readonly advisorSystem: Pick<AdvisorSystem, 'resetMessage' | 'check'>;
 }
 
 export interface SelectionController {
@@ -175,6 +183,10 @@ export function createSelectionController(deps: SelectionControllerDeps): Select
       const pendingIntent = selection.getPendingIntent();
       renderSelectedUnitInfo(panel, session.getState(), unitId, {
         onClose: () => deselectUnit(),
+        onReopenSupplyTutorial: () => {
+          deps.advisorSystem.resetMessage('supply_intro');
+          deps.advisorSystem.check(session.getState());
+        },
         onStartIntercept: uid => {
           const result = startIntercept(session.getState(), uid);
           if (!result.ok) {

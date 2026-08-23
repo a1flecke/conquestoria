@@ -225,6 +225,17 @@ describe('land-supply status line (#544)', () => {
     expect(collectAllText(container).join(' ')).toContain('No supply source in range');
   });
 
+  it('shows a "How supply works" link that calls onReopenSupplyTutorial when supply status is shown', () => {
+    const state = makeUnitState('supply-status-help-link', 'warrior', { state: 'grace', hostileUnsupportedTurns: 1, suppliedTurnsSinceRecovery: 0 });
+    const container = new MockElement('div');
+    const onReopenSupplyTutorial = vi.fn();
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'u1', { onReopenSupplyTutorial });
+    const helpButton = findButtons(container).find(b => b.textContent.includes('How supply works'));
+    expect(helpButton).toBeTruthy();
+    helpButton!.listeners.click?.[0]?.();
+    expect(onReopenSupplyTutorial).toHaveBeenCalledTimes(1);
+  });
+
   it('shows no supply line at all for a foreign (enemy) unit — never leaks their supply source or status to the viewer', () => {
     const state = createNewGame(undefined, 'supply-status-foreign-unit', 'small');
     const enemyUnit = {

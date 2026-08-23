@@ -123,6 +123,7 @@ function makeRealSelectionController(session: ReturnType<typeof createGameSessio
     scanBeastSightings: vi.fn(),
     scanSubmarineSightings: vi.fn(),
     currentCiv: () => session.getState().civilizations[session.getState().currentPlayer],
+    advisorSystem: { resetMessage: vi.fn(), check: vi.fn() },
   };
   return createSelectionController(deps);
 }

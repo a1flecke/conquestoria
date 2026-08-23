@@ -2034,6 +2034,15 @@ git commit -m "feat(#544): add All/Critical/Off supply warning preference contro
 
 ### Task 12: First-time supply tutorial
 
+> **Corrected during implementation — read the Self-Review Notes' "Task 12"
+> entry before following this task literally.** `src/ui/tutorial.ts`'s
+> `TutorialSystem` turned out to be dead code (never instantiated in
+> production); the real target is `ADVISOR_MESSAGES`/`AdvisorSystem` in
+> `src/ui/advisor-system.ts`, and the reopen affordance reuses
+> `AdvisorSystem.resetMessage(id)` + `check(state)` instead of a new
+> `reopen()` method. The steps below are kept as originally planned for
+> historical record; the actual diff differs as described in Self-Review.
+
 **Files:**
 - Modify: `src/core/types.ts` (`TutorialStep` union)
 - Modify: `src/ui/tutorial.ts`
@@ -2411,6 +2420,33 @@ git commit -m "docs(#544): MR2 self-review against contract §12/§30, confirm f
   "No Placeholders" sense (the *behavior* to test and the *real* production
   code changes are fully specified) — it is an explicit instruction to match
   existing test infrastructure rather than duplicate or diverge from it.
+- **Implementation-time deviation (Task 12, correcting a real bug the original
+  plan would have shipped):** `src/ui/tutorial.ts`'s `TutorialSystem`/
+  `TUTORIAL_MESSAGES` is **dead code** — grep confirms zero production
+  `new TutorialSystem(...)` call sites; the actually-wired, live tutorial-step
+  emitter is `AdvisorSystem` (`src/ui/advisor-system.ts`, instantiated once in
+  `main.ts`), whose `ADVISOR_MESSAGES` entries carry the same `tutorialStep`
+  field and drive `state.tutorial`-gated `'tutorial:step'` events for real.
+  This plan's original Task 12 draft (and its first implementation pass)
+  added `supply_intro` to the dead `TUTORIAL_MESSAGES` array — it would have
+  compiled, passed its own isolated unit tests, and then never fired for a
+  single real player, exactly the "dead helper" class of bug
+  `.claude/rules/game-systems.md` and `end-to-end-wiring.md` exist to catch.
+  Caught by checking `grep -rn "new TutorialSystem(" src/` before trusting
+  the plan's file target. Corrected: the `supply_intro` entry (with its
+  `tutorialStep: 'supply_intro'` tag) was added to `ADVISOR_MESSAGES` instead;
+  the reopen affordance was implemented by reusing `AdvisorSystem.resetMessage(id)`
+  + a follow-up `check(state)` call — this codebase's own existing "show this
+  advisor tip again on demand" idiom (`ctx.resetAdvisorMessage`, already used
+  and tested for `village:visited` outcomes) — rather than adding a bespoke
+  `reopen()` method to either class. `SelectionControllerDeps` gained
+  `advisorSystem: Pick<AdvisorSystem, 'resetMessage' | 'check'>` (wired from
+  the already-constructed `advisorSystem` already in scope at
+  `bootstrap.ts`'s `createSelectionController(...)` call site) instead of a
+  `tutorial: Pick<TutorialSystem, 'reopen'>` dependency. The pre-existing
+  `TutorialSystem` dead code itself was left untouched — reverted this MR's
+  additions to it rather than fixing or deleting the class, since that's a
+  separate, out-of-scope cleanup.
 - **Implementation-time deviation (Task 6, superseding the plan's original
   primary-action-bar design):** while implementing Task 6, `src/ui/game-shell.ts`
   turned out to already have a `#utility-toolbar` (top-right, wrapping flex
