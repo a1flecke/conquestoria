@@ -23,6 +23,7 @@ import { deterministicCombatSeed, getUnitCombatStrength, resolveCombat } from '@
 import { buildCombatContextForDefender } from '@/systems/combat-context';
 import { canUnitAttackTarget } from '@/systems/attack-targeting';
 import { applyCombatOutcomeToState } from '@/systems/combat-reward-system';
+import { resolveLandSupplyForCiv } from '@/systems/supply-system';
 import { applyPillageToState } from '@/systems/pillage-system';
 import {
   PIRATE_OWNER,
@@ -182,6 +183,7 @@ export function processTurn(
 
   // --- Process each civilization ---
   for (const [civId, civ] of Object.entries(newState.civilizations)) {
+    newState = resolveLandSupplyForCiv(newState, civId);
     const stampedeBefore = newState.stampedes?.[civId];
     newState = processStampedeTurn(newState, civId);
     const stampedeTransition = getStampedeLifecycleTransition(
