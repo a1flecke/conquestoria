@@ -1,5 +1,6 @@
 import type { BuildableImprovementType, GameState, DisguiseType, HexCoord, Unit, WorkerActionType } from '@/core/types';
 import { UNIT_DEFINITIONS, UNIT_DESCRIPTIONS, canHeal } from '@/systems/unit-system';
+import { GENERAL_DEFINITIONS } from '@/systems/great-general-definitions';
 import { unitParticipatesInLandSupply } from '@/systems/supply-participation';
 import { getPrimarySupplySource } from '@/systems/supply-sources';
 import { getTurnsUntilNextSupplyStage } from '@/systems/supply-progression';
@@ -334,6 +335,23 @@ export function renderSelectedUnitInfo(
 
   wrapper.appendChild(topRow);
   wrapper.appendChild(descDiv);
+
+  // #544 MR3: show the specific commander this unit represents, layered under
+  // the generic "Great General" def.name/description above -- mirrors this
+  // function's existing pattern of additional info blocks beneath descDiv.
+  if (unit.type === 'great_general' && unit.generalDefinitionId) {
+    const generalDef = GENERAL_DEFINITIONS.find(g => g.id === unit.generalDefinitionId);
+    if (generalDef) {
+      const generalLine = document.createElement('div');
+      generalLine.style.cssText = 'font-size:12px;margin-top:4px;color:#e8c170;font-weight:600;';
+      generalLine.textContent = `${generalDef.portraitIcon} ${generalDef.name} — Era ${generalDef.era}`;
+      wrapper.appendChild(generalLine);
+      const descriptorLine = document.createElement('div');
+      descriptorLine.style.cssText = 'font-size:11px;opacity:0.8;margin-top:2px;';
+      descriptorLine.textContent = generalDef.descriptor;
+      wrapper.appendChild(descriptorLine);
+    }
+  }
 
   const landSupplyStatusLines = getLandSupplyStatusLines(state, unit);
   if (landSupplyStatusLines) {
