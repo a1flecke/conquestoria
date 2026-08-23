@@ -50,7 +50,7 @@ export function getStampedeLifecycleTransition(
   after: StampedeState | undefined,
 ): StampedeLifecycleTransition | undefined {
   if (!after) return undefined;
-  if (!before && after.phase === 'warning') return { kind: 'warning', targetCivId: after.targetCivId };
+  if (before?.phase !== 'warning' && after.phase === 'warning') return { kind: 'warning', targetCivId: after.targetCivId };
   if (before?.phase === 'warning' && after.phase === 'active') {
     return { kind: 'activated', targetCivId: after.targetCivId, activeTurns: after.activeTurns };
   }

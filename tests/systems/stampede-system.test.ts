@@ -19,6 +19,9 @@ describe('Stampede state', () => {
     expect(getStampedeLifecycleTransition(undefined, before)).toEqual({
       kind: 'warning', targetCivId: 'player',
     });
+    expect(getStampedeLifecycleTransition({ ...before, phase: undefined }, before)).toEqual({
+      kind: 'warning', targetCivId: 'player',
+    });
     expect(getStampedeLifecycleTransition(after, after)).toBeUndefined();
   });
 
