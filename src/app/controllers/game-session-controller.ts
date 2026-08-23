@@ -197,6 +197,15 @@ export function createGameSessionController(deps: GameSessionControllerDeps): Ga
             // Persist all non-master settings to GameSettings (saved on next save)
             (deps.session.getState().settings as unknown as Record<string, number | boolean>)[key] = value;
           },
+          // #544 MR2: end-turn supply-warning delivery filter
+          supplyWarningPreference: deps.session.getState().settings.supplyWarningPreference ?? 'all',
+          onChangeSupplyWarningPreference: (preference) => {
+            const state = deps.session.getState();
+            deps.session.setStateWithoutRefresh({
+              ...state,
+              settings: { ...state.settings, supplyWarningPreference: preference },
+            });
+          },
         });
       },
     });
