@@ -6,6 +6,7 @@ import { hexKey } from '@/systems/hex-utils';
 import { createNewGame } from '@/core/game-state';
 import { createUnit } from '@/systems/unit-system';
 import { registerCrisisForce } from '@/systems/crisis-force-system';
+import { GENERAL_DEFINITIONS } from '@/systems/great-general-definitions';
 
 class MockElement {
   tagName: string;
@@ -252,6 +253,47 @@ describe('land-supply status line (#544)', () => {
     expect(text).not.toContain('Full Supply');
     expect(text).not.toContain('Overextended');
     expect(text).not.toContain('Stable but Unsupported');
+  });
+});
+
+describe('Great General identity display (#544 MR3)', () => {
+  beforeEach(installMockDocument);
+  afterEach(restoreMockDocument);
+
+  it('shows the specific commander\'s name, era, and descriptor when a great_general with a resolvable generalDefinitionId is selected', () => {
+    const state = createNewGame(undefined, 'general-identity-1', 'small');
+    const romeGeneral = GENERAL_DEFINITIONS.find(g => g.civTypeEligibility.includes('rome'))!;
+    const unit = {
+      ...createUnit('great_general', 'player', { q: 15, r: 15 }, { nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 }),
+      id: 'u1',
+      generalDefinitionId: romeGeneral.id,
+    };
+    state.currentPlayer = 'player';
+    state.units = { u1: unit };
+    state.civilizations.player.units = ['u1'];
+    const container = new MockElement('div');
+
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'u1', {});
+
+    const text = collectAllText(container).join(' ');
+    expect(text).toContain(romeGeneral.name);
+    expect(text).toContain(`Era ${romeGeneral.era}`);
+    expect(text).toContain(romeGeneral.descriptor);
+  });
+
+  it('falls back gracefully (no crash, no extra text) when generalDefinitionId does not resolve', () => {
+    const state = createNewGame(undefined, 'general-identity-2', 'small');
+    const unit = {
+      ...createUnit('great_general', 'player', { q: 15, r: 15 }, { nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 }),
+      id: 'u1',
+      generalDefinitionId: 'not-a-real-id',
+    };
+    state.currentPlayer = 'player';
+    state.units = { u1: unit };
+    state.civilizations.player.units = ['u1'];
+    const container = new MockElement('div');
+
+    expect(() => renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'u1', {})).not.toThrow();
   });
 });
 
