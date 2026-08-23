@@ -155,7 +155,9 @@ export function getRogueElephantCommandFact(
 /** Ends the warning boundary. #706 will add command-break conversion and terminal resolution. */
 export function processRogueElephantHostTurn(state: GameState, targetCivId: string): GameState {
   const host = state.rogueElephantHosts?.[targetCivId];
-  if (!host || host.phase !== 'warning' || host.createdTurn === state.turn) return state;
+  if (!host) return state;
+  if (host.phase === 'active') return processActiveRogueElephantHost(state, targetCivId);
+  if (host.phase !== 'warning' || host.createdTurn === state.turn) return state;
   const activated: GameState = {
     ...state,
     rogueElephantHosts: { ...state.rogueElephantHosts, [targetCivId]: { ...host, phase: 'active' } },
