@@ -24,6 +24,7 @@ running="$prefix.running"
 log="$prefix.log"
 status="$prefix.status"
 status_tmp="$status.tmp.$$"
+failure_kind_file="$prefix.failure-kind"
 head_sha="$(git -C "$repo_root" rev-parse HEAD)"
 started_at="$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
 
@@ -71,7 +72,7 @@ fi
 
 # Finished and abandoned artifacts cannot be evidence for the run about to
 # start. A live marker is handled above before anything is removed.
-rm -f "$running" "$log" "$status" "$status_tmp"
+rm -f "$running" "$log" "$status" "$status_tmp" "$failure_kind_file"
 initial_worktree_state="$(worktree_state)"
 printf 'pid=%s\nworktree=%s\nhead=%s\nstarted_at=%s\n' \
   "$$" "$repo_root" "$head_sha" "$started_at" > "$running"
@@ -79,6 +80,14 @@ printf 'pid=%s\nworktree=%s\nhead=%s\nstarted_at=%s\n' \
 finish() {
   exit_code="$1"
   completed_at="$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
+  failure_kind='none'
+  if [ "$exit_code" -ne 0 ]; then
+    failure_kind="$(sed -n '1p' "$failure_kind_file" 2>/dev/null || true)"
+    case "$failure_kind" in
+      product-test|hook-test|build|timeout|runner-infrastructure|cancelled) ;;
+      *) failure_kind='command-failed' ;;
+    esac
+  fi
   {
     printf 'scope=%s\n' "$scope"
     printf 'worktree=%s\n' "$repo_root"
@@ -87,6 +96,7 @@ finish() {
     printf 'started_at=%s\n' "$started_at"
     printf 'completed_at=%s\n' "$completed_at"
     printf 'exit_code=%s\n' "$exit_code"
+    printf 'failure_kind=%s\n' "$failure_kind"
   } > "$status_tmp"
   mv "$status_tmp" "$status"
   rm -f "$running"
@@ -99,7 +109,7 @@ on_exit() {
 }
 trap on_exit EXIT
 
-if "$@" > "$log" 2>&1; then
+if DURABLE_FAILURE_KIND_FILE="$failure_kind_file" "$@" > "$log" 2>&1; then
   test_exit_code=0
 else
   test_exit_code=$?

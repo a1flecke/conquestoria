@@ -51,6 +51,10 @@ grep -Fxq 'exit_code=0' "$repo/.verification/full-suite.status" || {
   echo "durable runner did not persist a successful status" >&2
   exit 1
 }
+grep -Fxq 'failure_kind=none' "$repo/.verification/full-suite.status" || {
+  echo "durable runner did not classify a successful run" >&2
+  exit 1
+}
 [ ! -d "$repo/.verification/full-suite.lock" ] || {
   echo "durable runner did not clean a stale lock" >&2
   exit 1
@@ -73,6 +77,10 @@ set -e
 }
 grep -Fxq 'exit_code=7' "$repo/.verification/full-suite.status" || {
   echo "durable runner did not persist a failing status" >&2
+  exit 1
+}
+grep -Fxq 'failure_kind=command-failed' "$repo/.verification/full-suite.status" || {
+  echo "durable runner did not classify a generic command failure" >&2
   exit 1
 }
 set +e

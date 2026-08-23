@@ -1,52 +1,49 @@
 #!/usr/bin/env bash
-# Smoke test: block-commit-on-main.sh must exit 2 on git commit/merge when on main, exit 0 otherwise.
-set -u
-HOOK="$(cd "$(dirname "$0")/../.." && pwd)/.claude/hooks/block-commit-on-main.sh"
+# Smoke test the hook in a disposable repository; never mutate this worktree.
+set -euo pipefail
 
-# Skip if working tree is dirty (branch checkout would fail or leave confusing state)
-if [ -n "$(git status --porcelain)" ]; then
-  echo "skip: dirty working tree — skipping branch-switching smoke test"
-  exit 0
-fi
+ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+HOOK="$ROOT/.claude/hooks/block-commit-on-main.sh"
 
-# Skip if main is already checked out in another worktree (git worktree checkout would fail)
-if git worktree list 2>/dev/null | grep -q '\[main\]'; then
-  echo "skip: main branch checked out in another worktree — skipping branch-switching smoke test"
-  exit 0
-fi
+before_head="$(git -C "$ROOT" rev-parse HEAD)"
+before_branch="$(git -C "$ROOT" branch --show-current)"
+before_status="$(git -C "$ROOT" status --porcelain=v1 --untracked-files=all)"
+before_refs="$(git -C "$ROOT" for-each-ref --format='%(refname) %(objectname)' refs/heads)"
 
-fail=0
-ORIG_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+tmpdir="$(mktemp -d)"
+trap 'rm -rf "$tmpdir"' EXIT
+fixture="$tmpdir/hook-fixture"
+git init -q -b main "$fixture"
+git -C "$fixture" config user.email hook-test@example.invalid
+git -C "$fixture" config user.name hook-test
+touch "$fixture/initial"
+git -C "$fixture" add initial
+git -C "$fixture" commit -qm initial
+git -C "$fixture" switch -qc feature/hook-test
 
-trap 'git checkout -q "$ORIG_BRANCH" 2>/dev/null || true' EXIT
-
-# Helper: run hook in a synthetic branch context
-run_with_branch() {
+run_hook() {
   local branch="$1" payload="$2"
-  if git show-ref --verify --quiet "refs/heads/$branch"; then :; else
-    git branch -q "$branch" 2>/dev/null || true
-  fi
-  git checkout -q "$branch"
-  echo "$payload" | bash "$HOOK" 2>&1
-  echo "rc=$?"
+  git -C "$fixture" switch -q "$branch"
+  set +e
+  output="$(cd "$fixture" && printf '%s' "$payload" | bash "$HOOK" 2>&1)"
+  status=$?
+  set -e
+  printf '%s\nrc=%s\n' "$output" "$status"
 }
 
-# On main with git commit: must block
-out=$(run_with_branch main '{"tool_name":"Bash","tool_input":{"command":"git commit -m foo"}}')
-echo "$out" | grep -q 'rc=2' || { echo "expected block on main+commit, got: $out"; fail=1; }
+out="$(run_hook main '{"tool_name":"Bash","tool_input":{"command":"git commit -m foo"}}')"
+grep -q 'rc=2' <<<"$out" || { echo "expected main commit block, got: $out" >&2; exit 1; }
 
-# On main with git merge: must block
-out=$(run_with_branch main '{"tool_name":"Bash","tool_input":{"command":"git merge feature"}}')
-echo "$out" | grep -q 'rc=2' || { echo "expected block on main+merge, got: $out"; fail=1; }
+out="$(run_hook main '{"tool_name":"Bash","tool_input":{"command":"git merge feature"}}')"
+grep -q 'rc=2' <<<"$out" || { echo "expected main merge block, got: $out" >&2; exit 1; }
 
-# On main with non-git command: must pass
-out=$(run_with_branch main '{"tool_name":"Bash","tool_input":{"command":"ls -la"}}')
-echo "$out" | grep -q 'rc=0' || { echo "expected allow on main+ls, got: $out"; fail=1; }
+out="$(run_hook main '{"tool_name":"Bash","tool_input":{"command":"ls -la"}}')"
+grep -q 'rc=0' <<<"$out" || { echo "expected main non-git command allow, got: $out" >&2; exit 1; }
 
-# On a feature branch with git commit: must pass
-git branch -q test-feat 2>/dev/null || true
-out=$(run_with_branch test-feat '{"tool_name":"Bash","tool_input":{"command":"git commit -m foo"}}')
-echo "$out" | grep -q 'rc=0' || { echo "expected allow on feat+commit, got: $out"; fail=1; }
-git branch -qD test-feat 2>/dev/null || true
+out="$(run_hook feature/hook-test '{"tool_name":"Bash","tool_input":{"command":"git commit -m foo"}}')"
+grep -q 'rc=0' <<<"$out" || { echo "expected feature commit allow, got: $out" >&2; exit 1; }
 
-exit "$fail"
+[ "$(git -C "$ROOT" rev-parse HEAD)" = "$before_head" ] || { echo "hook test changed HEAD" >&2; exit 1; }
+[ "$(git -C "$ROOT" branch --show-current)" = "$before_branch" ] || { echo "hook test changed branch" >&2; exit 1; }
+[ "$(git -C "$ROOT" status --porcelain=v1 --untracked-files=all)" = "$before_status" ] || { echo "hook test changed worktree state" >&2; exit 1; }
+[ "$(git -C "$ROOT" for-each-ref --format='%(refname) %(objectname)' refs/heads)" = "$before_refs" ] || { echo "hook test changed local refs" >&2; exit 1; }
