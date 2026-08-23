@@ -33,6 +33,8 @@ function fakeRenderer(overrides: Partial<GameSessionRenderer> = {}): GameSession
     setTouchHandler: vi.fn(),
     start: vi.fn(),
     resizeCanvas: vi.fn(),
+    toggleSupplyOverlay: vi.fn(() => false),
+    isSupplyOverlayEnabled: vi.fn(() => false),
     camera: {
       centerOn: vi.fn(), setMinZoomForMap: vi.fn(), hexSize: 32,
       screenToHex: vi.fn(() => ({ q: 0, r: 0 })),

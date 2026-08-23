@@ -10,6 +10,10 @@ export interface GameShellCallbacks extends PrimaryActionBarCallbacks {
   /** Keeps the canvas viewport above the bottom action bar as its height changes. */
   onBottomBarHeightChange?: (height: number) => void;
   iconLegendOverlay?: HTMLElement;
+  /** #544 MR2: initial paint state, read from RenderLoop at shell-construction time. */
+  supplyOverlayEnabled: boolean;
+  /** #544 MR2: toggles the overlay and returns the new enabled state, for repainting the button. */
+  onToggleSupplyOverlay: () => boolean;
 }
 
 let stopBottomBarLayoutTracking: (() => void) | undefined;
@@ -66,6 +70,12 @@ function createFloatingButton(id: string, text: string, title: string, onClick: 
   return button;
 }
 
+/** #544 MR2: visually distinguishes the Supply overlay toggle's on/off state. */
+function paintSupplyOverlayButton(button: HTMLButtonElement, enabled: boolean): void {
+  button.style.background = enabled ? 'rgba(80,200,120,0.55)' : 'rgba(0,0,0,0.6)';
+  button.setAttribute('aria-pressed', String(enabled));
+}
+
 export function createGameShell(container: HTMLElement, callbacks: GameShellCallbacks): HTMLDivElement {
   removeExistingShell(container);
 
@@ -88,6 +98,11 @@ export function createGameShell(container: HTMLElement, callbacks: GameShellCall
   utilityToolbar.appendChild(createFloatingButton('btn-notif-log', '📜', 'View message log', callbacks.onOpenNotificationLog));
   utilityToolbar.appendChild(createFloatingButton('btn-icon-legend', '🗺️', 'Toggle icon legend', callbacks.onToggleIconLegend));
   utilityToolbar.appendChild(createFloatingButton('btn-wonder-atlas', '✦', 'Open Wonder Atlas', callbacks.onOpenWonderAtlas));
+  const supplyOverlayButton = createFloatingButton('btn-supply-overlay', '🚚', 'Toggle supply overlay', () => {
+    paintSupplyOverlayButton(supplyOverlayButton, callbacks.onToggleSupplyOverlay());
+  });
+  paintSupplyOverlayButton(supplyOverlayButton, callbacks.supplyOverlayEnabled);
+  utilityToolbar.appendChild(supplyOverlayButton);
   const pirateWatersButton = createFloatingButton('btn-pirate-waters', 'Pirates', 'Open Pirate Waters', () => callbacks.onOpenPirateWaters?.());
   pirateWatersButton.hidden = true;
   utilityToolbar.appendChild(pirateWatersButton);

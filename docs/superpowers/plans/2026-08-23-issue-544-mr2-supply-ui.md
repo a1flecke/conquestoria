@@ -2411,6 +2411,22 @@ git commit -m "docs(#544): MR2 self-review against contract §12/§30, confirm f
   "No Placeholders" sense (the *behavior* to test and the *real* production
   code changes are fully specified) — it is an explicit instruction to match
   existing test infrastructure rather than duplicate or diverge from it.
+- **Implementation-time deviation (Task 6, superseding the plan's original
+  primary-action-bar design):** while implementing Task 6, `src/ui/game-shell.ts`
+  turned out to already have a `#utility-toolbar` (top-right, wrapping flex
+  layout) holding exactly this class of action — "🗺️ Toggle icon legend" is a
+  near-identical existing precedent for "toggle a map-related overlay." The
+  plan's original design added an 8th icon+label button to the already-full
+  7-button bottom `primary-action-bar.ts` bar, which this session's own
+  inline review had flagged as a mobile-crowding risk without a concrete fix.
+  Implemented in `game-shell.ts`/`game-session-controller.ts` instead:
+  `GameShellCallbacks` gained `supplyOverlayEnabled: boolean` (initial paint)
+  and `onToggleSupplyOverlay: () => boolean` (toggles and returns the new
+  state for repainting), wired through `GameSessionRenderer`'s `Pick<RenderLoop,
+  ...>` to the real `toggleSupplyOverlay()`/`isSupplyOverlayEnabled()` from
+  Task 5. `primary-action-bar.ts` was not touched at all — smaller diff, no
+  crowding risk, and a better fit with an existing pattern than the plan's
+  original sketch.
 - **Implementation-time deviation (Task 5/6):** while implementing Task 5, a
   better existing precedent was found than this plan's original flat
   `supplyOverlayEnabled: boolean` + `setSupplyOverlayEnabled(enabled)`

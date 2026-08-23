@@ -22,6 +22,8 @@ describe('game-shell', () => {
       onToggleIconLegend: () => {},
       onOpenWonderAtlas: () => {},
       onOpenMenu: () => {},
+      supplyOverlayEnabled: false,
+      onToggleSupplyOverlay: () => false,
     });
 
     const shell = createGameShell(document.body, {
@@ -37,6 +39,8 @@ describe('game-shell', () => {
       onToggleIconLegend: () => {},
       onOpenWonderAtlas: () => {},
       onOpenMenu: () => {},
+      supplyOverlayEnabled: false,
+      onToggleSupplyOverlay: () => false,
     });
 
     expect(document.querySelectorAll('#bottom-bar')).toHaveLength(1);
@@ -61,6 +65,8 @@ describe('game-shell', () => {
       onToggleIconLegend: () => {},
       onOpenWonderAtlas: () => { opened = true; },
       onOpenMenu: () => {},
+      supplyOverlayEnabled: false,
+      onToggleSupplyOverlay: () => false,
     });
 
     const button = shell.querySelector<HTMLButtonElement>('#btn-wonder-atlas');
@@ -88,6 +94,8 @@ describe('game-shell', () => {
       onOpenWonderAtlas: () => {},
       onOpenPirateWaters: () => { opened = true; },
       onOpenMenu: () => {},
+      supplyOverlayEnabled: false,
+      onToggleSupplyOverlay: () => false,
     });
 
     const button = shell.querySelector<HTMLButtonElement>('#btn-pirate-waters');
@@ -106,6 +114,8 @@ describe('game-shell', () => {
       onOpenEspionage: () => {}, onOpenDiplomacy: () => {}, onOpenMarketplace: () => {},
       onEndTurn: () => {}, onNextUnit: () => {}, onOpenNotificationLog: () => {},
       onToggleIconLegend: () => {}, onOpenWonderAtlas: () => {}, onOpenMenu: () => {},
+      supplyOverlayEnabled: false,
+      onToggleSupplyOverlay: () => false,
     });
 
     const toolbar = shell.querySelector<HTMLElement>('#utility-toolbar');
@@ -116,7 +126,7 @@ describe('game-shell', () => {
     expect(toolbar?.style.maxWidth).toBe('calc(100% - 24px)');
     expect([...toolbar?.querySelectorAll('button') ?? []].map(button => button.id)).toEqual([
       'btn-next-unit', 'btn-notif-log', 'btn-icon-legend', 'btn-wonder-atlas',
-      'btn-pirate-waters', 'btn-pause-menu',
+      'btn-supply-overlay', 'btn-pirate-waters', 'btn-pause-menu',
     ]);
     expect(toolbar?.querySelectorAll('[style*="right:"]')).toHaveLength(0);
   });
@@ -127,6 +137,8 @@ describe('game-shell', () => {
       onOpenEspionage: () => {}, onOpenDiplomacy: () => {}, onOpenMarketplace: () => {},
       onEndTurn: () => {}, onNextUnit: () => {}, onOpenNotificationLog: () => {},
       onToggleIconLegend: () => {}, onOpenWonderAtlas: () => {}, onOpenMenu: () => {},
+      supplyOverlayEnabled: false,
+      onToggleSupplyOverlay: () => false,
     });
 
     const panel = shell.querySelector<HTMLElement>('#info-panel');
@@ -141,6 +153,8 @@ describe('game-shell', () => {
       onOpenEspionage: () => {}, onOpenDiplomacy: () => {}, onOpenMarketplace: () => {},
       onEndTurn: () => {}, onNextUnit: () => {}, onOpenNotificationLog: () => {},
       onToggleIconLegend: () => {}, onOpenWonderAtlas: () => {}, onOpenMenu: () => {},
+      supplyOverlayEnabled: false,
+      onToggleSupplyOverlay: () => false,
       onBottomBarHeightChange,
     });
     const bottomBar = shell.querySelector<HTMLElement>('#bottom-bar')!;
@@ -157,5 +171,40 @@ describe('game-shell', () => {
     expect(panel?.style.maxHeight).toBe('calc(100% - 84px - var(--bottom-ui-height))');
     expect(panel?.style.overflowY).toBe('auto');
     expect(panel?.getAttribute('aria-label')).toBe('Selected unit details and actions (scroll for more)');
+  });
+
+  it('renders the Supply overlay toggle, paints its initial state, and repaints on click (#544 MR2)', () => {
+    const onToggleSupplyOverlay = vi.fn(() => true);
+    const shell = createGameShell(document.body, {
+      onOpenCouncil: () => {}, onOpenTech: () => {}, onOpenCity: () => {},
+      onOpenEspionage: () => {}, onOpenDiplomacy: () => {}, onOpenMarketplace: () => {},
+      onEndTurn: () => {}, onNextUnit: () => {}, onOpenNotificationLog: () => {},
+      onToggleIconLegend: () => {}, onOpenWonderAtlas: () => {}, onOpenMenu: () => {},
+      supplyOverlayEnabled: false,
+      onToggleSupplyOverlay,
+    });
+
+    const button = shell.querySelector<HTMLButtonElement>('#btn-supply-overlay')!;
+    expect(button).toBeTruthy();
+    expect(button.getAttribute('aria-pressed')).toBe('false');
+
+    button.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+
+    expect(onToggleSupplyOverlay).toHaveBeenCalledTimes(1);
+    expect(button.getAttribute('aria-pressed')).toBe('true');
+  });
+
+  it('paints the Supply overlay toggle as already-active when the initial state is enabled', () => {
+    const shell = createGameShell(document.body, {
+      onOpenCouncil: () => {}, onOpenTech: () => {}, onOpenCity: () => {},
+      onOpenEspionage: () => {}, onOpenDiplomacy: () => {}, onOpenMarketplace: () => {},
+      onEndTurn: () => {}, onNextUnit: () => {}, onOpenNotificationLog: () => {},
+      onToggleIconLegend: () => {}, onOpenWonderAtlas: () => {}, onOpenMenu: () => {},
+      supplyOverlayEnabled: true,
+      onToggleSupplyOverlay: () => true,
+    });
+
+    const button = shell.querySelector<HTMLButtonElement>('#btn-supply-overlay')!;
+    expect(button.getAttribute('aria-pressed')).toBe('true');
   });
 });
