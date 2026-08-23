@@ -46,6 +46,8 @@ import {
   type ReligionBadgePresentation,
 } from '@/systems/religion-badge-presentation';
 import { drawAirDefenseOverlay } from './air-defense-overlay';
+import { drawSupplyOverlay } from './supply-overlay-renderer';
+import { getSupplyOverlayPresentationForViewer, type SupplyOverlayPresentation } from '@/systems/supply-overlay-presentation';
 import { drawStampedeRouteOverlay } from './stampede-route-overlay';
 import { getHerdRoutePresentationForViewer, type HerdRoutePresentation } from '@/systems/stampede-route-system';
 import {
@@ -316,6 +318,27 @@ export class RenderLoop {
   isAirDefenseOverlayEnabled(viewerId = this.state?.currentPlayer): boolean {
     return viewerId !== undefined && this.airDefenseOverlayEnabledByViewer.get(viewerId) === true;
   }
+
+  // #544 MR2: same per-viewer toggle convention as airDefenseOverlayEnabledByViewer
+  // above -- each hot-seat player's overlay preference persists independently
+  // across handoffs instead of one flag leaking between players.
+  private supplyOverlayEnabledByViewer = new Map<string, boolean>();
+  private supplyOverlayPresentation: SupplyOverlayPresentation = { tiles: [], sources: [] };
+
+  toggleSupplyOverlay(): boolean {
+    const viewerId = this.state?.currentPlayer;
+    if (!viewerId) return false;
+    const enabled = !this.supplyOverlayEnabledByViewer.get(viewerId);
+    this.supplyOverlayEnabledByViewer.set(viewerId, enabled);
+    if (enabled && this.state) {
+      this.supplyOverlayPresentation = getSupplyOverlayPresentationForViewer(this.state, viewerId);
+    }
+    return enabled;
+  }
+
+  isSupplyOverlayEnabled(viewerId = this.state?.currentPlayer): boolean {
+    return viewerId !== undefined && this.supplyOverlayEnabledByViewer.get(viewerId) === true;
+  }
   private pirateSpriteState = new PirateSpriteStateController();
   private pirateUnitDeathSnapshots = new Map<string, { unit: Unit; expiresAtMs: number }>();
   private pirateLandmarkDeathSnapshots = new Map<string, {
@@ -485,6 +508,12 @@ export class RenderLoop {
     this.loyaltyPressurePresentation = getLoyaltyPressurePresentationForViewer(state, state.currentPlayer);
     this.religionBadgePresentation = getReligionBadgePresentationForViewer(state, state.currentPlayer);
     this.airDefenseOverlayProviders = getKnownAirDefenseProviders(state, state.currentPlayer);
+    // #544 MR2: unlike the unconditional presentations above, this one can be
+    // a full-territory-tile scan, so it's only recomputed when the current
+    // viewer actually has the overlay toggled on.
+    if (this.isSupplyOverlayEnabled(state.currentPlayer)) {
+      this.supplyOverlayPresentation = getSupplyOverlayPresentationForViewer(state, state.currentPlayer);
+    }
   }
 
   start(): void {
@@ -791,6 +820,19 @@ export class RenderLoop {
         [],
         { width: this.state.map.width, wrapsHorizontally: this.state.map.wrapsHorizontally },
         { isPinching: false, reducedMotion: prefersReducedMotion() },
+      );
+    }
+
+    // Draw the toggleable supply overlay (#544 MR2), before fog so fog's own
+    // dimming still reads correctly over any tile the overlay covers.
+    if (this.isSupplyOverlayEnabled(viewerId)) {
+      drawSupplyOverlay(
+        this.ctx,
+        this.supplyOverlayPresentation,
+        this.state.map.width,
+        this.state.map.height,
+        this.camera,
+        this.state.map.wrapsHorizontally,
       );
     }
 

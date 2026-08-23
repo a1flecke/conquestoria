@@ -2411,6 +2411,22 @@ git commit -m "docs(#544): MR2 self-review against contract §12/§30, confirm f
   "No Placeholders" sense (the *behavior* to test and the *real* production
   code changes are fully specified) — it is an explicit instruction to match
   existing test infrastructure rather than duplicate or diverge from it.
+- **Implementation-time deviation (Task 5/6):** while implementing Task 5, a
+  better existing precedent was found than this plan's original flat
+  `supplyOverlayEnabled: boolean` + `setSupplyOverlayEnabled(enabled)`
+  sketch: `RenderLoop` already has `airDefenseOverlayEnabledByViewer` (a
+  per-viewer `Map<string, boolean>`) with `toggleAirDefenseOverlay(): boolean`
+  / `isAirDefenseOverlayEnabled(viewerId?)`. Implemented supply's toggle the
+  same way (`supplyOverlayEnabledByViewer`, `toggleSupplyOverlay()`,
+  `isSupplyOverlayEnabled(viewerId?)`) instead of the plan's flat boolean —
+  this is strictly better for hot-seat (each player's preference persists
+  independently across handoffs, rather than one shared flag leaking between
+  players) and follows "reuse before you build" more faithfully than the
+  original draft did. Task 6's button was adjusted to call
+  `renderLoop.toggleSupplyOverlay()` and repaint from its returned value
+  (rather than tracking its own local `active` boolean and calling
+  `onToggle(enabled)`), which also removes the toggle-target computation from
+  the button entirely — one less place a bug could hide.
 - **Every helper this plan adds has exactly one real caller by the end of its
   task** (`getTurnsUntilNextSupplyStage` ← unit panel; overlay presentation ←
   renderer; projected highlights ← selection controller; warning
