@@ -26,6 +26,7 @@ import { registerRogueElephantHostPresentation } from '@/presentation/register-r
 import { registerRaiderPresentation } from '@/presentation/register-raider-presentation';
 import { registerCombatPresentation } from '@/presentation/register-combat-presentation';
 import { registerGeneralPresentation } from '@/presentation/register-general-presentation';
+import { registerSupplyPresentation } from '@/presentation/register-supply-presentation';
 
 export interface PresentationContext {
   readonly session: GameSession;
@@ -108,10 +109,11 @@ const ALL_REGISTRARS: readonly PresentationRegistrar[] = [
   registerRaiderPresentation,
   registerCombatPresentation,
   registerGeneralPresentation,
+  registerSupplyPresentation,
 ];
 
 /**
- * Installs all thirteen domain registrars and returns one disposer that
+ * Installs all fourteen domain registrars and returns one disposer that
  * removes every subscription all of them added. The guard against
  * double-registration matters concretely: it is what stops AI move replay
  * and the notification log from firing twice if this were ever installed

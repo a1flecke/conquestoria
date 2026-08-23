@@ -283,6 +283,20 @@ export class AudioSystem {
         this.playStrategicWarning(event.viewerId, event.turn);
       }),
 
+      // #544 MR2: reuses the strategic-warning stinger/dedup path rather than
+      // commissioning a new audio asset. Unlike strategic warnings, supply
+      // warnings have a player-configurable delivery preference -- honor
+      // "Off" here too so muting warnings also mutes their sound.
+      bus.on('supply:warning', warning => {
+        if (!warning.playAudio) return;
+        const state = this.stateProvider?.();
+        if (!state) return;
+        if ((state.settings.supplyWarningPreference ?? 'all') === 'off') return;
+        const turn = state.turn;
+        if (!Number.isFinite(turn)) return;
+        this.playStrategicWarning(warning.viewerId, turn);
+      }),
+
       bus.on('era:advanced', p => {
         void this.preloadForEra(p.era, this.currentCivType);
         this.director.handleEraAdvanced({ era: p.era, civType: this.currentCivType });
