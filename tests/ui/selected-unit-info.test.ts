@@ -138,6 +138,62 @@ function findScrollCue(node: unknown): MockElement | undefined {
   return undefined;
 }
 
+describe('land-supply status line (#544)', () => {
+  beforeEach(installMockDocument);
+  afterEach(restoreMockDocument);
+
+  function makeUnitState(seed: string, unitType: string, landSupply?: GameState['units'][string]['landSupply']) {
+    const state = createNewGame(undefined, seed, 'small');
+    const unit = {
+      ...createUnit(unitType, 'player', { q: 15, r: 15 }, { nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 }),
+      id: 'u1',
+      landSupply,
+    };
+    state.currentPlayer = 'player';
+    state.units = { u1: unit };
+    state.civilizations.player.units = ['u1'];
+    return state;
+  }
+
+  it('shows Full Supply with a territory fallback label when no source is in range', () => {
+    const state = makeUnitState('supply-status-full', 'warrior');
+    const container = new MockElement('div');
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'u1', {});
+    expect(collectAllText(container).join(' ')).toContain('Full Supply — territory');
+  });
+
+  it('shows Stable but Unsupported — no healing', () => {
+    const state = makeUnitState('supply-status-stable', 'warrior', { state: 'stable-unsupported', hostileUnsupportedTurns: 0, suppliedTurnsSinceRecovery: 0 });
+    const container = new MockElement('div');
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'u1', {});
+    expect(collectAllText(container).join(' ')).toContain('Stable but Unsupported — no healing');
+  });
+
+  it('shows the active combat penalty text when degraded', () => {
+    const state = makeUnitState('supply-status-degraded', 'warrior', { state: 'degraded', hostileUnsupportedTurns: 3, suppliedTurnsSinceRecovery: 0 });
+    const container = new MockElement('div');
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'u1', {});
+    expect(collectAllText(container).join(' ')).toContain('Overextended — Stage 2 of 3 · -10% Combat');
+  });
+
+  it('shows the movement penalty text when severe', () => {
+    const state = makeUnitState('supply-status-severe', 'warrior', { state: 'severe', hostileUnsupportedTurns: 6, suppliedTurnsSinceRecovery: 0 });
+    const container = new MockElement('div');
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'u1', {});
+    expect(collectAllText(container).join(' ')).toContain('Overextended — Stage 3 of 3 · -10% Combat, -1 Movement');
+  });
+
+  it('shows no supply line at all for a unit that does not participate in land supply', () => {
+    const state = makeUnitState('supply-status-naval', 'trireme');
+    const container = new MockElement('div');
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'u1', {});
+    const text = collectAllText(container).join(' ');
+    expect(text).not.toContain('Full Supply');
+    expect(text).not.toContain('Overextended');
+    expect(text).not.toContain('Stable but Unsupported');
+  });
+});
+
 describe('selected-unit scroll affordance', () => {
   beforeEach(installMockDocument);
   afterEach(restoreMockDocument);
