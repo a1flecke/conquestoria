@@ -14,6 +14,7 @@ import { RoundPresentationGate } from '@/presentation/round-presentation-gate';
 import * as saveManager from '@/storage/save-manager';
 import * as aiRoundScheduler from '@/ai/ai-round-scheduler';
 import * as strategicWarningSystem from '@/systems/strategic-warning-system';
+import * as supplyWarningSystem from '@/systems/supply-warning-system';
 import * as cityCaptureSystem from '@/systems/city-capture-system';
 import * as hotseatOutcome from '@/core/hotseat-outcome';
 import { finalizePlayerCityAssaultChoice, type PendingCityCaptureChoice } from '@/input/city-assault-flow';
@@ -37,6 +38,11 @@ vi.mock('@/ai/ai-round-scheduler', async () => {
 vi.mock('@/systems/strategic-warning-system', async () => {
   const actual = await vi.importActual<typeof strategicWarningSystem>('@/systems/strategic-warning-system');
   return { ...actual, applyStrategicWarningTransitions: vi.fn(actual.applyStrategicWarningTransitions) };
+});
+
+vi.mock('@/systems/supply-warning-system', async () => {
+  const actual = await vi.importActual<typeof supplyWarningSystem>('@/systems/supply-warning-system');
+  return { ...actual, applySupplyWarningTransitions: vi.fn(actual.applySupplyWarningTransitions) };
 });
 
 vi.mock('@/systems/city-capture-system', async () => {
@@ -412,6 +418,18 @@ describe('createTurnFlowController', () => {
       const deps = baseDeps(state);
       const turnFlow = createTurnFlowController(deps);
       const postprocess = vi.mocked(strategicWarningSystem.applyStrategicWarningTransitions);
+      postprocess.mockClear();
+
+      turnFlow.runCurrentCompletedRound(state);
+
+      expect(postprocess).toHaveBeenCalledTimes(1);
+    });
+
+    it('wires the supply-warning postprocess into every completed round (#544 MR2)', () => {
+      const state = makeFixture();
+      const deps = baseDeps(state);
+      const turnFlow = createTurnFlowController(deps);
+      const postprocess = vi.mocked(supplyWarningSystem.applySupplyWarningTransitions);
       postprocess.mockClear();
 
       turnFlow.runCurrentCompletedRound(state);
