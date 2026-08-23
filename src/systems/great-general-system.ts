@@ -146,10 +146,18 @@ export function checkAndQueueGeneralCandidateChoice(
  * Spawns the chosen General at `civId`'s capital (contract §13: "safe
  * capital fallback" -- `cities[0]` by convention, matching this codebase's
  * established capital-shorthand exception, see .claude/rules/ui-panels.md).
- * A no-op if the civ has no capital to spawn at. Sets
- * `generalNoCommandThisTurn: true` (contract: "no heroic command on spawn
- * turn... operational next owner turn") and resolves the pending choice
- * entry, if any, for this civ only.
+ * Sets `generalNoCommandThisTurn: true` (contract: "no heroic command on
+ * spawn turn... operational next owner turn") and always resolves the
+ * pending choice entry, if any, for this civ.
+ *
+ * If the civ has no capital (e.g. its last city was captured between the
+ * choice being queued and being resolved -- reachable in hot-seat, where
+ * several other civs' turns can pass in between), the choice still clears
+ * rather than silently no-opping: leaving a pending entry an impossible
+ * spawn can never resolve would make maybeShowPendingGeneralChoice's panel
+ * (deliberately dismiss-less, matching the hoard-choice precedent) reopen
+ * forever every time it's checked -- an unrecoverable soft-lock. No General
+ * is created in that case; the candidate is simply forfeited.
  */
 export function spawnGeneralForCiv(
   state: GameState,
@@ -159,7 +167,14 @@ export function spawnGeneralForCiv(
   const civ = state.civilizations[civId];
   const capitalId = civ?.cities.at(0); // capital = first city by convention
   const capital = capitalId ? state.cities[capitalId] : undefined;
-  if (!civ || !capital) return state;
+  if (!civ) return state;
+  if (!capital) {
+    return {
+      ...state,
+      pendingGeneralCandidateChoices: (state.pendingGeneralCandidateChoices ?? [])
+        .filter(choice => choice.civId !== civId),
+    };
+  }
 
   const idCounters = { ...state.idCounters };
   const newUnit = {
