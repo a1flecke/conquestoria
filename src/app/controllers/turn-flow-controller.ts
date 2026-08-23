@@ -70,6 +70,7 @@ import { processImprovementTurns } from '@/systems/improvement-turn-system';
 import { processNonHumanMajorRound } from '@/ai/ai-round-scheduler';
 import { processTurn } from '@/core/turn-manager';
 import { applyStrategicWarningTransitions } from '@/systems/strategic-warning-system';
+import { applySupplyWarningTransitions } from '@/systems/supply-warning-system';
 
 /** The narrow slice of `RenderLoop` this controller needs. */
 export type TurnFlowRenderer = Pick<RenderLoop, 'setGameState' | 'animateUnitMove' | 'setSelectedPirateFactionId'> & {
@@ -414,8 +415,11 @@ export function createTurnFlowController(deps: TurnFlowControllerDeps): TurnFlow
       improvements: (current, eventBus) => processImprovementTurns(current, eventBus),
       majors: (current, eventBus) => processNonHumanMajorRound(current, eventBus).state,
       world: (current, eventBus) => processTurn(current, eventBus),
-      postprocess: (beforeRound, current, eventBus) =>
-        applyStrategicWarningTransitions(beforeRound, current, eventBus),
+      postprocess: (beforeRound, current, eventBus) => {
+        const afterStrategic = applyStrategicWarningTransitions(beforeRound, current, eventBus);
+        applySupplyWarningTransitions(beforeRound, afterStrategic, eventBus);
+        return afterStrategic;
+      },
     });
   }
 
