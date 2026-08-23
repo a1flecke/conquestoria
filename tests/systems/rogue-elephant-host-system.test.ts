@@ -5,6 +5,7 @@ import {
   getRogueElephantStrength,
   getRogueHandlerStrength,
   getRogueElephantCommandFact,
+  getRogueElephantHostLifecycleTransition,
   getRogueElephantHostTarget,
   processRogueElephantHostTurn,
   startRogueElephantHostWarning,
@@ -16,6 +17,12 @@ import { foundCity } from '@/systems/city-system';
 import { createUnit } from '@/systems/unit-system';
 
 describe('Rogue Elephant Host definitions', () => {
+  it('emits one target-scoped warning transition when a Host is first scheduled', () => {
+    expect(getRogueElephantHostLifecycleTransition(undefined, {
+      targetCivId: 'player', phase: 'warning', createdTurn: 8,
+    })).toEqual({ kind: 'warning', targetCivId: 'player' });
+  });
+
   it.each([
     [4, 22, 40],
     [6, 28, 48],

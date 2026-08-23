@@ -3,6 +3,10 @@ import type { PresentationRegistrar } from '@/presentation/register-all';
 /** Delivers only the target civilization's Host result, including hot-seat handoff. */
 export const registerRogueElephantHostPresentation: PresentationRegistrar = (bus, ctx) => {
   const unsubscribe = bus.on('rogue-elephant-host:lifecycle', event => {
+    if (event.kind === 'warning') {
+      ctx.notifier.deliver(event.targetCivId, 'Rogue Elephant Host warning: prepare defenses before the Handler coordinates an attack.', 'warning');
+      return;
+    }
     if (event.kind === 'command-broken') {
       ctx.notifier.deliver(event.targetCivId, `Handler defeated: the remaining herds will disperse in ${event.dispersalTurnsRemaining} turns.`, 'success');
       return;
