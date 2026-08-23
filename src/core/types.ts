@@ -192,6 +192,26 @@ export interface LegendaryWonderHistory {
   networkPlanResolutions?: LegendaryWonderNetworkPlanResolutionRecord[];
 }
 
+// --- Great Generals (#544 MR3) ---
+
+export interface GeneralProgressState {
+  points: number;
+  generalsEarned: number; // count of thresholds crossed so far, this game
+}
+
+export interface GeneralHistoryEntry {
+  unitId: string;
+  generalDefinitionId: string;
+  spawnedTurn: number;
+  diedTurn?: number;
+}
+
+export interface PendingGeneralCandidateChoice {
+  civId: string;             // slayer civ; only this civ may resolve it
+  candidateDefinitionIds: string[]; // 2-3 GENERAL_DEFINITIONS ids, already generated
+  triggerEventLabel: string; // e.g. "city:captured" -- context text for the panel
+}
+
 export type LegendaryWonderIntelKind = 'started' | 'completed' | 'host-location-known';
 
 export interface LegacyLegendaryWonderStartedIntelEntry {
@@ -1251,6 +1271,12 @@ export interface Civilization {
   recentCrisisHistory?: string[]; // last 4 crisis flavor ids, for anti-repeat weighting
   lastCrisisOnsetTurn?: number;
   feastUntilTurn?: number; // beast-slayer's feast (hunt crisis): +2 happiness while active
+  /** #544 MR3: civ-wide Great General earn progress. Absent = no progress yet. */
+  generalProgress?: GeneralProgressState;
+  /** #544 MR3: every General this civ has ever spawned, alive or dead. A
+   * generalDefinitionId in here is never redrawn as a candidate again
+   * (contract §13: "a used General never appears again"). */
+  generalHistory?: GeneralHistoryEntry[];
 }
 
 export interface BreakawayMetadata {
@@ -1967,6 +1993,10 @@ export interface GameState {
   // in migrateSaveToCurrent for old saves; every other reader must use `?? {}`.
   religions?: Record<string, Religion>;
   cityFaith?: Record<string, CityFaith>;
+  /** #544 MR3: queued General candidate choices, one per civ that has
+   * crossed a threshold and not yet chosen. Mirrors BeastsState's
+   * pendingHoardChoices shape/convention. */
+  pendingGeneralCandidateChoices?: PendingGeneralCandidateChoice[];
 }
 
 // --- Religion (#591 MR4) ---
