@@ -260,6 +260,20 @@ describe('pause-menu-panel', () => {
       expect(callbacks.onChangeSupplyWarningPreference).toHaveBeenCalledWith('critical');
     });
 
+    it('repaints the pressed option immediately after a click, without waiting for the panel to re-render (#544 MR2 fix)', () => {
+      const callbacks = makeCallbacks({ supplyWarningPreference: 'all' });
+      showPauseMenu(document.body, callbacks);
+      const allOption = document.querySelector<HTMLElement>('[data-supply-warning-option="all"]');
+      const criticalOption = document.querySelector<HTMLElement>('[data-supply-warning-option="critical"]');
+      if (!allOption || !criticalOption) throw new Error('Supply warning options not found');
+      expect(allOption.getAttribute('aria-pressed')).toBe('true');
+
+      criticalOption.click();
+
+      expect(criticalOption.getAttribute('aria-pressed')).toBe('true');
+      expect(allOption.getAttribute('aria-pressed')).toBe('false');
+    });
+
     it('marks the currently active preference option', () => {
       showPauseMenu(document.body, makeCallbacks({ supplyWarningPreference: 'off' }));
       const offOption = document.querySelector<HTMLElement>('[data-supply-warning-option="off"]');

@@ -2535,6 +2535,39 @@ and fixed in the plan itself (not deferred to the post-implementation pass):
    warnings now reuse the *existing* strategic-warning stinger/dedup path
    (no new audio asset commissioned) gated by the "Off" preference.
 
+### Findings from live browser verification (post-implementation)
+
+Per this repo's UI-change convention, the finished branch was smoke-tested in
+a real browser (not just jsdom unit tests) before finishing. This caught one
+real bug jsdom testing had missed:
+
+- **Task 11's Supply Warnings control didn't visually repaint after a
+  click** — the pause menu computed each button's active/inactive style once
+  at build time from `callbacks.supplyWarningPreference`, so clicking
+  "Critical only" correctly called `onChangeSupplyWarningPreference` (the
+  underlying preference genuinely changed) but the button itself stayed
+  visually stuck on "All" until the whole pause menu was closed and reopened
+  — a direct instance of `.claude/rules/ui-panels.md`'s "panel must refresh
+  immediately" rule. The existing Task 11 tests only asserted the callback
+  fired, never that the panel's own DOM updated after the click, so they
+  passed throughout. Fixed by giving the control the same self-repainting
+  closure `createOpponentChallengeSelector` (this same file) already uses —
+  track `selected` locally, repaint on click, then call the callback — and
+  exporting `VARIANT_STYLES` from `ui-kit.ts` so the repaint reuses the exact
+  same style values `createGameButton` applies rather than duplicating them.
+  A new regression test (`pause-menu-panel.test.ts`) asserts `aria-pressed`
+  actually flips on the clicked and previously-active buttons after a click,
+  not just that the callback was invoked.
+- Also confirmed via the browser (not just an assumption): an active Service
+  Worker from an earlier build in this same worktree was intercepting
+  requests and serving a stale bundle on first load, initially making it
+  look like Task 6's toggle button was entirely missing from the DOM. Once
+  unregistered, the real button, its green active-state repaint on click,
+  the overlay tint on the map, the unit panel's "Full Supply — Carthage" /
+  "How supply works" reopen link, and the reopen mechanism's real
+  `AdvisorSystem` event were all confirmed working end-to-end in the actual
+  running app.
+
 Two dimensions were reviewed and found to need no change, documented rather
 than silently passed over: **colorblind accessibility** of the overlay's two
 fill colors (Task 5 — relies on the same "text carries the distinction"
