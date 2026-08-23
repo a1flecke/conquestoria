@@ -2,6 +2,7 @@ import type { BuildableImprovementType, GameState, DisguiseType, HexCoord, Unit,
 import { UNIT_DEFINITIONS, UNIT_DESCRIPTIONS, canHeal } from '@/systems/unit-system';
 import { unitParticipatesInLandSupply } from '@/systems/supply-participation';
 import { getPrimarySupplySource } from '@/systems/supply-sources';
+import { getTurnsUntilNextSupplyStage } from '@/systems/supply-progression';
 import { getParadropLaunchState, PARADROP_FAILURE_MESSAGES, getAirAssaultLaunchState, AIR_ASSAULT_FAILURE_MESSAGES } from '@/systems/airborne-system';
 import { getSubmarineRevealState } from '@/systems/concealment';
 import { getExperienceToNextTier, getVeterancyCombatModifier, getVeterancyTier } from '@/systems/combat-reward-system';
@@ -161,13 +162,16 @@ function findEligiblePreachTargetCityId(state: GameState, unit: Unit): string | 
 }
 
 /**
- * One truthful line for the unit's #544 land-supply status. Vocabulary
- * matches contract §12 exactly (`Full Supply — Memphis`, `Stable but
- * Unsupported — no healing`, `Overextended — Stage 2 of 3`) so MR2's fuller
- * overlay/tutorial can reuse the same wording without introducing a second,
+ * Truthful lines for the unit's #544 land-supply status. Vocabulary matches
+ * contract §12 exactly (`Full Supply — Memphis`, `Stable but Unsupported —
+ * no healing`, `Overextended — Stage 2 of 3`) so MR2's fuller overlay/
+ * tutorial can reuse the same wording without introducing a second,
  * inconsistent set of labels. Returns `null` when the unit doesn't
  * participate in land supply at all (naval/air/beast/etc.) — no line is
- * rendered in that case.
+ * rendered in that case. MR2 (#544 Task 2) extends the single MR1 status
+ * line with a turns-until-next-stage countdown and recovery guidance; an
+ * array of lines (rather than one concatenated string) matches this panel's
+ * existing convention of one fact per `<div>`.
  *
  * Only ever computed for the viewer's own units — the same
  * `unit.owner === state.currentPlayer` gate this file already uses for
@@ -175,9 +179,9 @@ function findEligiblePreachTargetCityId(state: GameState, unit: Unit): string | 
  * City/Fort, which could otherwise leak an enemy's undiscovered
  * infrastructure to the viewer when inspecting a foreign unit; contract §26
  * is explicit that "supply overlay never leaks enemy coverage," and this
- * per-unit status line is architecturally a miniature overlay for one unit.
+ * per-unit status block is architecturally a miniature overlay for one unit.
  */
-function getLandSupplyStatusText(state: GameState, unit: Unit): string | null {
+function getLandSupplyStatusLines(state: GameState, unit: Unit): string[] | null {
   if (unit.owner !== state.currentPlayer) return null;
   if (!unitParticipatesInLandSupply(unit)) return null;
   const status = unit.landSupply;
@@ -186,12 +190,26 @@ function getLandSupplyStatusText(state: GameState, unit: Unit): string | null {
     const sourceLabel = source
       ? (source.kind === 'city' ? state.cities[source.id]?.name ?? 'a city' : 'a Fort')
       : 'territory';
-    return `Full Supply — ${sourceLabel}`;
+    return [`Full Supply — ${sourceLabel}`];
   }
-  if (status.state === 'stable-unsupported') return 'Stable but Unsupported — no healing';
-  if (status.state === 'grace') return 'Overextended — Stage 1 of 3';
-  if (status.state === 'degraded') return 'Overextended — Stage 2 of 3 · -10% Combat';
-  return 'Overextended — Stage 3 of 3 · -10% Combat, -1 Movement';
+
+  const lines: string[] = [];
+  if (status.state === 'stable-unsupported') lines.push('Stable but Unsupported — no healing');
+  else if (status.state === 'grace') lines.push('Overextended — Stage 1 of 3');
+  else if (status.state === 'degraded') lines.push('Overextended — Stage 2 of 3 · -10% Combat');
+  else lines.push('Overextended — Stage 3 of 3 · -10% Combat, -1 Movement');
+
+  const turnsUntilNext = getTurnsUntilNextSupplyStage(status);
+  if (turnsUntilNext !== null) {
+    const nextPenalty = status.state === 'grace' ? '-10% Combat' : '-1 Movement';
+    lines.push(`${nextPenalty} in ${turnsUntilNext} turn${turnsUntilNext === 1 ? '' : 's'}`);
+  }
+
+  const recoverySource = getPrimarySupplySource(state, unit.owner, unit.position);
+  lines.push(recoverySource
+    ? `Move toward ${recoverySource.kind === 'city' ? state.cities[recoverySource.id]?.name ?? 'your city' : 'your Fort'} to recover`
+    : 'No supply source in range — retreat toward friendly territory');
+  return lines;
 }
 
 function nextTierLabel(currentLabel: string): string | null {
@@ -315,12 +333,14 @@ export function renderSelectedUnitInfo(
   wrapper.appendChild(topRow);
   wrapper.appendChild(descDiv);
 
-  const landSupplyStatusText = getLandSupplyStatusText(state, unit);
-  if (landSupplyStatusText) {
-    const supplyLine = document.createElement('div');
-    supplyLine.style.cssText = 'font-size:11px;margin-top:4px;color:#c9d6e3;';
-    supplyLine.textContent = landSupplyStatusText;
-    wrapper.appendChild(supplyLine);
+  const landSupplyStatusLines = getLandSupplyStatusLines(state, unit);
+  if (landSupplyStatusLines) {
+    for (const [index, line] of landSupplyStatusLines.entries()) {
+      const supplyLine = document.createElement('div');
+      supplyLine.style.cssText = `font-size:11px;margin-top:${index === 0 ? 4 : 2}px;color:#c9d6e3;`;
+      supplyLine.textContent = line;
+      wrapper.appendChild(supplyLine);
+    }
   }
 
   const revealState = getSubmarineRevealState(state, unit, state.currentPlayer);

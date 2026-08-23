@@ -193,6 +193,38 @@ describe('land-supply status line (#544)', () => {
     expect(text).not.toContain('Stable but Unsupported');
   });
 
+  it('shows turns-until-next-stage naming the correct upcoming penalty in the grace stage', () => {
+    const state = makeUnitState('supply-status-grace-countdown', 'warrior', { state: 'grace', hostileUnsupportedTurns: 2, suppliedTurnsSinceRecovery: 0 });
+    const container = new MockElement('div');
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'u1', {});
+    expect(collectAllText(container).join(' ')).toContain('-10% Combat in 1 turn');
+  });
+
+  it('shows turns-until-next-stage naming the correct upcoming penalty in the degraded stage', () => {
+    const state = makeUnitState('supply-status-degraded-countdown', 'warrior', { state: 'degraded', hostileUnsupportedTurns: 4, suppliedTurnsSinceRecovery: 0 });
+    const container = new MockElement('div');
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'u1', {});
+    expect(collectAllText(container).join(' ')).toContain('-1 Movement in 1 turn');
+  });
+
+  it('shows recovery guidance naming the nearest source when stable-unsupported and one is in range', () => {
+    const state = makeUnitState('supply-status-recovery-guidance', 'warrior', { state: 'stable-unsupported', hostileUnsupportedTurns: 0, suppliedTurnsSinceRecovery: 0 });
+    state.cities = {
+      c1: { id: 'c1', owner: 'player', name: 'Memphis', position: { q: 16, r: 15 } } as GameState['cities'][string],
+    };
+    const container = new MockElement('div');
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'u1', {});
+    expect(collectAllText(container).join(' ')).toContain('Move toward Memphis to recover');
+  });
+
+  it('shows "no supply source in range" recovery guidance when nothing covers the unit', () => {
+    const state = makeUnitState('supply-status-no-source', 'warrior', { state: 'severe', hostileUnsupportedTurns: 6, suppliedTurnsSinceRecovery: 0 });
+    state.cities = {};
+    const container = new MockElement('div');
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'u1', {});
+    expect(collectAllText(container).join(' ')).toContain('No supply source in range');
+  });
+
   it('shows no supply line at all for a foreign (enemy) unit — never leaks their supply source or status to the viewer', () => {
     const state = createNewGame(undefined, 'supply-status-foreign-unit', 'small');
     const enemyUnit = {
