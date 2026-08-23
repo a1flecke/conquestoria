@@ -127,6 +127,9 @@ describe('Rogue Elephant Host definitions', () => {
     expect(converted.rogueElephantHosts?.[targetCivId]).toMatchObject({ phase: 'dispersing', dispersalTurnsRemaining: 3 });
 
     const first = processRogueElephantHostTurn(converted, targetCivId);
+    const herd = Object.values(converted.units).find(unit => unit.type === 'beast_stampede_herd')!;
+    expect(first.crisisForces?.[converted.rogueElephantHosts![targetCivId]!.forceId!]?.herdRoutes?.[herd.id]?.steps.length).toBeGreaterThan(0);
+    expect(first.units[herd.id]?.position).not.toEqual(herd.position);
     const second = processRogueElephantHostTurn(first, targetCivId);
     const resolved = processRogueElephantHostTurn(second, targetCivId);
     expect(resolved.rogueElephantHosts?.[targetCivId]).toMatchObject({ phase: 'resolved', outcome: 'dispersed', rewardGranted: true, recoveredHarnesses: { expiresTurn: resolved.turn + 10 } });

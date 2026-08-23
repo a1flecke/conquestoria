@@ -258,6 +258,7 @@ describe('applyCombatOutcomeToState', () => {
     expect(applied.state.units.elephant?.type).toBe('beast_stampede_herd');
     expect(applied.state.rogueElephantHosts?.player).toMatchObject({ phase: 'dispersing', dispersalTurnsRemaining: 3 });
     expect(applied.state.stampedes?.player).toBeUndefined();
+    expect(applied.rewards).toEqual([]);
   });
 
   it('destroys aircraft based on a carrier that combat removes', () => {

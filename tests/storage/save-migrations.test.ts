@@ -89,6 +89,30 @@ describe('save migrations', () => {
     expect(migrateSaveToCurrent(migrated)).toEqual(migrated);
   });
 
+  it('#706 preserves an in-progress Host dispersal and Recovered Harnesses through schema 19', () => {
+    const save = createNewGame('rome', 'rogue-host-schema-19', 'small');
+    save.saveSchemaVersion = 18;
+    const herd = { ...Object.values(save.units)[0]!, id: 'host-herd', type: 'beast_stampede_herd' as const, owner: CRISIS_FORCE_OWNER };
+    save.units[herd.id] = herd;
+    save.crisisForces = {
+      'rogue-host': { id: 'rogue-host', targetCivId: 'player', severity: 'standard', createdTurn: 3, unitIds: [herd.id] },
+    };
+    save.rogueElephantHosts = {
+      player: {
+        targetCivId: 'player', forceId: 'rogue-host', phase: 'dispersing', dispersalTurnsRemaining: 2,
+        recoveredHarnesses: { expiresTurn: 14 }, recoveredHarnessesEligibleUnitSeen: true,
+      },
+    };
+
+    const migrated = migrateSaveToCurrent(save);
+
+    expect(migrated.rogueElephantHosts?.player).toMatchObject({
+      phase: 'dispersing', forceId: 'rogue-host', dispersalTurnsRemaining: 2,
+      recoveredHarnesses: { expiresTurn: 14 }, recoveredHarnessesEligibleUnitSeen: true,
+    });
+    expect(migrateSaveToCurrent(migrated)).toEqual(migrated);
+  });
+
   it('#698 migrates camp pressure, rejects malformed facts, and remains idempotent', () => {
     const save = createNewGame('rome', 'camp-pressure-migration', 'small');
     save.turn = 9;
