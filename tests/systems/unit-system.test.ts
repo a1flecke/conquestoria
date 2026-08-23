@@ -654,6 +654,10 @@ describe('resetUnitTurn (#542 revealedThisTurn clearing)', () => {
 
 describe('hostile-only unit definitions', () => {
   const HOSTILE_ONLY_UNIT_TYPES = new Set(['rogue_handler', 'rogue_elephant']);
+  // #544 MR3: great_general is civ-owned (not hostile) but shares the same
+  // "spawned exclusively by a dedicated system, never city-trained" shape —
+  // see .claude/rules/game-systems.md's beast-unit exception.
+  const SYSTEM_SPAWNED_ONLY_UNIT_TYPES = new Set(['great_general']);
   function unexpectedUntrainableTypes(
     definitions: Record<string, { productionCost: number }>,
     trainableTypes: Set<string>,
@@ -662,7 +666,8 @@ describe('hostile-only unit definitions', () => {
       .filter(([type]) => !trainableTypes.has(type))
       .filter(([type, definition]) =>
         definition.productionCost !== 0
-          || (!type.startsWith('beast_') && !type.startsWith('pirate_') && !HOSTILE_ONLY_UNIT_TYPES.has(type)),
+          || (!type.startsWith('beast_') && !type.startsWith('pirate_')
+            && !HOSTILE_ONLY_UNIT_TYPES.has(type) && !SYSTEM_SPAWNED_ONLY_UNIT_TYPES.has(type)),
       )
       .map(([type]) => type)
       .sort();

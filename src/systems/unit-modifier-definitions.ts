@@ -70,6 +70,7 @@ export const UNIT_CLASS_BY_TYPE: Record<UnitType, UnitClass[]> = {
   exosuit_infantry: ['gunpowder'],
   propagandist: ['civilian'],
   drone_controller: ['civilian'],
+  great_general: ['civilian'],
   spy_scout: ['spy'],
   spy_informant: ['spy'],
   spy_agent: ['spy'],

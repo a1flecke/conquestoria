@@ -596,6 +596,10 @@ const UNIT_DEFINITION_BASES: Record<UnitType, UnitDefinitionBase> = {
   exosuit_infantry: { type: 'exosuit_infantry', name: 'Exosuit Infantry', movementPoints: 3, visionRange: 2, strength: 70, canFoundCity: false, canBuildImprovements: false, productionCost: 196, domain: 'land', attackProfile: { kind: 'ranged', range: 1, targets: ['unit', 'city'] }, combinedArms: { provides: ['line-infantry'] }, airAssaultPassengerEligible: true },
   propagandist: { type: 'propagandist', name: 'Propagandist', movementPoints: 3, visionRange: 2, strength: 0, canFoundCity: false, canBuildImprovements: false, productionCost: 196, domain: 'land' },
   drone_controller: { type: 'drone_controller', name: 'Drone Controller', movementPoints: 3, visionRange: 3, strength: 0, canFoundCity: false, canBuildImprovements: false, productionCost: 196, domain: 'land' },
+  // #544 MR3 — noncombat commander, spawned only by great-general-system.ts (never trainable, productionCost 0).
+  // participatesInLandSupply is an explicit override: UNIT_CLASS_BY_TYPE tags it 'civilian', which would
+  // otherwise default it out of land supply via unitParticipatesInLandSupply's derivation.
+  great_general: { type: 'great_general', name: 'Great General', movementPoints: 3, visionRange: 2, strength: 0, canFoundCity: false, canBuildImprovements: false, productionCost: 0, domain: 'land', participatesInLandSupply: true },
   // S5 — trade unit
   caravan: {
     type: 'caravan', name: 'Caravan', movementPoints: 3,
@@ -945,6 +949,7 @@ export const UNIT_DESCRIPTIONS: Record<UnitType, string> = {
   combat_drone: 'Autonomous air-support unit. Its strongest results come from a valid network formation; fast but not a standalone replacement for a mixed force.',
   autonomous_frigate: 'Autonomous submarine hunter. Reveals hidden submarines up to 3 hexes away — the longest detection range of any ship. Long-range autonomous surface warship. Requires a coastal robotics yard and remains vulnerable to efficient mixed naval counters.',
   exosuit_infantry: 'Advanced line infantry with powered protection. Stronger than Mechanized Infantry and built for holding contested ground.',
+  great_general: 'A noncombat commander earned through military achievement. Cannot fight directly but can share a tile with one escorting unit — if that escort is destroyed, the General is destroyed too.',
   propagandist: 'Capturable civic specialist. Uses visible Rally and Undermine actions instead of direct weapon attacks.',
   drone_controller: 'Capturable coordination specialist. Assigns valid drone formations through the Network panel; may safely Hold when no plan is needed.',
   // S5 — trade unit

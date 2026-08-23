@@ -462,6 +462,7 @@ const LOCOMOTION_CLASS: Record<UnitType, LocomotionClass> = {
   exosuit_infantry: 'humanoid',
   propagandist: 'humanoid',
   drone_controller: 'humanoid',
+  great_general:  'humanoid',
   caravan:        'humanoid',
   // Trade Routes Overhaul (#553 MR2/4) — Land trade line successors to Caravan
   merchant_wagon: 'humanoid',
