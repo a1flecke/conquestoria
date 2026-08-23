@@ -3,6 +3,7 @@ import { cleanupDeadSpyUnit } from '@/systems/espionage-system';
 import { UNIT_DEFINITIONS } from '@/systems/unit-system';
 import { applyQuestGameplayAction, type ChainTransition } from '@/systems/quest-chain-system';
 import { canCaptureDefeatedUnits, canReceiveCivilizationCombatRewards, CRISIS_FORCE_OWNER, isMajorCivOwner, isPirateOwner } from '@/core/owner-kind';
+import { awardGeneralProgress, GENERAL_PROGRESS_AWARDS, GENERAL_PROGRESS_XP_RATIO, STRONGER_FORCE_MARGIN } from '@/systems/great-general-system';
 import { recordHuntKillerIfApplicable } from '@/systems/hunt-crisis-linkage';
 import {
   breakPirateTributeOnAttack,
@@ -526,12 +527,30 @@ export function applyCombatOutcomeToState(
     }
 
     const rewardedCiv = civilizations[reward.recipientCivId];
-    if (rewardedCiv && reward.goldAwarded > 0) {
+    if (rewardedCiv) {
+      // #544 MR3: Great General progress -- a small fixed ratio of the unit's
+      // own veterancy XP gain (already scaled down for weak/beast/barbarian
+      // targets by calculateDefeatReward, so trivial kills barely move the
+      // needle), plus a bounded stronger-force-victory bonus when the
+      // defeated unit belonged to another MAJOR civ and was materially
+      // stronger. Barbarian/pirate/beast/crisis/minor-civ kills never earn
+      // the stronger-force bonus (none of those concepts meaningfully apply
+      // to a barbarian camp raid), but still earn the ordinary XP-ratio
+      // progress like any other kill.
+      const isDefeatedAttacker = reward.defeatedUnitId === attackerBefore.id;
+      const defeatedOwner = isDefeatedAttacker ? attackerBefore.owner : defenderBefore.owner;
+      const defeatedStrength = isDefeatedAttacker ? result.attackerStrength : result.defenderStrength;
+      const victorStrength = isDefeatedAttacker ? result.defenderStrength : result.attackerStrength;
+      let generalProgressPoints = Math.round(reward.experienceAwarded * GENERAL_PROGRESS_XP_RATIO);
+      if (isMajorCivOwner(defeatedOwner) && victorStrength > 0 && defeatedStrength >= victorStrength * STRONGER_FORCE_MARGIN) {
+        generalProgressPoints += GENERAL_PROGRESS_AWARDS.strongerForceVictory;
+      }
       civilizations = {
         ...civilizations,
         [reward.recipientCivId]: {
           ...rewardedCiv,
           gold: rewardedCiv.gold + reward.goldAwarded,
+          generalProgress: awardGeneralProgress(rewardedCiv, generalProgressPoints),
         },
       };
     }
