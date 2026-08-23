@@ -52,6 +52,17 @@ describe('Stampede state', () => {
     state.civilizations.player.cities = [city.id];
     for (const tile of Object.values(state.map.tiles)) tile.terrain = 'plains';
 
+    const blocked = {
+      ...state,
+      rogueElephantHosts: {
+        player: { targetCivId: 'player', forceId: 'host', phase: 'active' as const, createdTurn: state.turn },
+      },
+      crisisForces: {
+        host: { id: 'host', targetCivId: 'player', severity: 'standard' as const, createdTurn: state.turn, unitIds: [] },
+      },
+    };
+    expect(startStampedeWarning(blocked, 'player', 'standard')).toEqual(blocked);
+
     const next = startStampedeWarning(state, 'player', 'standard');
 
     expect(next.stampedes?.player).toMatchObject({ phase: 'warning', activeTurns: 0 });

@@ -60,6 +60,17 @@ describe('Rogue Elephant Host definitions', () => {
       !mapNeighbors(state.map, city.position).some(position => hexKey(position) === hexKey(unit.position)),
     ));
 
+    const blocked = {
+      ...state,
+      stampedes: {
+        [targetCivId]: {
+          targetCivId, phase: 'active' as const, eligibleTurns: 0, activeTurns: 1,
+          cityDamage: 0, civilianDeaths: 0, pillagedTileKeys: [],
+        },
+      },
+    };
+    expect(startRogueElephantHostWarning(blocked, targetCivId, 'standard')).toEqual(blocked);
+
     const warning = startRogueElephantHostWarning(state, targetCivId, 'standard');
     const forceId = warning.rogueElephantHosts?.[targetCivId]?.forceId;
 

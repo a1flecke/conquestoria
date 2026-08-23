@@ -164,6 +164,8 @@ function findStampedeSpawnPositions(state: GameState, targetCivId: string, herdC
 
 export function startStampedeWarning(state: GameState, targetCivId: string, severity: OpponentChallenge): GameState {
   if (state.stampedes?.[targetCivId]?.phase === 'warning' || state.stampedes?.[targetCivId]?.phase === 'active') return state;
+  const hostPhase = state.rogueElephantHosts?.[targetCivId]?.phase;
+  if (hostPhase === 'warning' || hostPhase === 'active' || hostPhase === 'dispersing') return state;
   const profile = getStampedeProfile(severity);
   const positions = findStampedeSpawnPositions(state, targetCivId, profile.herdCount);
   if (!positions) return state;
