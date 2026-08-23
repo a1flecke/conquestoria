@@ -427,8 +427,28 @@ export function resolveCombat(
   };
   const strengths = calculateCombatStrengths(attacker, defender, map, context);
   // Host coordination is a state-scoped crisis fact, not a unit-ID multiplier in callers.
-  if (state && getRogueElephantCommandFact(state, attacker.id)) strengths.attackerStrength *= 1.2;
-  if (state && getRogueElephantCommandFact(state, defender.id)) strengths.defenderStrength *= 1.2;
+  if (state && getRogueElephantCommandFact(state, attacker.id)) {
+    strengths.attackerStrength *= 1.2;
+    strengths.attackerModifierFacts = [...(strengths.attackerModifierFacts ?? []), {
+      key: 'rogue-elephant-host:handler-command',
+      label: 'Handler command ×1.20',
+      sourceVisibility: 'public',
+      operation: 'multiplier',
+      value: 1.2,
+      outcome: 'applied',
+    }];
+  }
+  if (state && getRogueElephantCommandFact(state, defender.id)) {
+    strengths.defenderStrength *= 1.2;
+    strengths.defenderModifierFacts = [...(strengths.defenderModifierFacts ?? []), {
+      key: 'rogue-elephant-host:handler-command',
+      label: 'Handler command ×1.20',
+      sourceVisibility: 'public',
+      operation: 'multiplier',
+      value: 1.2,
+      outcome: 'applied',
+    }];
+  }
   const atkStrength = strengths.attackerStrength;
   const defStrength = strengths.defenderStrength;
 
