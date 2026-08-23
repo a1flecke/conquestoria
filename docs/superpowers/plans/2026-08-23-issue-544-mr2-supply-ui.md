@@ -2535,6 +2535,36 @@ and fixed in the plan itself (not deferred to the post-implementation pass):
    warnings now reuse the *existing* strategic-warning stinger/dedup path
    (no new audio asset commissioned) gated by the "Off" preference.
 
+### Second inline review pass (post-implementation, reviewing the actual diff)
+
+Per this MR's own process convention ("two inline review passes... before
+implementing and after"), the full diff (41 files, ~2078 lines against
+`origin/main`) was read end-to-end after rebasing, checking the same
+dimensions the pre-implementation review used. One finding:
+
+- **Self-contradicting comment in `advisor-system.ts`'s `supply_intro` entry**
+  — an earlier version's comment opened with "viewerScoped so each hot-seat
+  player gets their own first-encounter" and then, two sentences later,
+  explained why `viewerScoped` was deliberately *not* set — reading like a
+  leftover from an earlier draft rather than a coherent explanation. The
+  underlying behavior was always correct and consistent with every other
+  tutorial-tagged entry (all share one session-wide `shownIds` set, so in
+  hot-seat the first human player to trigger any tutorial step "spends" it
+  for the whole session — a pre-existing characteristic of all 8 prior
+  entries, not a regression this one introduces). Reworded the comment to
+  state that plainly instead of implying the opposite of what the code does.
+
+Everything else held up: no difficulty branches anywhere in the diff
+(confirmed by reading every changed file, not just grepping); AI civs never
+interact with any MR2 code path (overlay/warnings/tutorial are all gated on
+`isHuman`/`state.currentPlayer`); the `undefined` → `'all'` legacy-save
+fallback is applied consistently across all three read sites
+(`register-supply-presentation.ts`, `audio-system.ts`,
+`game-session-controller.ts`'s initial paint); dependency direction stays
+acyclic (systems never import UI); and `paintSupplyOverlayButton`'s style
+mutation correctly overrides only `background` without clobbering the rest
+of `createFloatingButton`'s inline `cssText`.
+
 ### Findings from live browser verification (post-implementation)
 
 Per this repo's UI-change convention, the finished branch was smoke-tested in
