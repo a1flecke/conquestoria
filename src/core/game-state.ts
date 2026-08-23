@@ -115,6 +115,7 @@ export function createDefaultSettings(
       artisan: true,
     },
     councilTalkLevel: 'normal',
+    supplyWarningPreference: 'all',
     ...overrides,
   };
 }
