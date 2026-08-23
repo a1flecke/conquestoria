@@ -15,11 +15,21 @@ export const LAND_SUPPLY_RADII = {
   city: 3,
 } as const;
 
-// Task 5 replaces both of these with real captured-source-stabilization
-// checks. Stubbed here (always mature) only so Task 4's tests are green in
-// isolation before Task 5 lands in the same file.
-function isCityStabilized(_state: Pick<GameState, 'turn'>, _city: Pick<City, 'conquestTurn'>): boolean { return true; }
-function isFortStabilized(_state: GameState, _coord: HexCoord): boolean { return true; }
+export const CAPTURED_SOURCE_STABILIZATION_TURNS = {
+  city: 5,
+  fort: 2,
+} as const;
+
+export function isCityStabilized(state: Pick<GameState, 'turn'>, city: Pick<City, 'conquestTurn'>): boolean {
+  if (city.conquestTurn === undefined) return true;
+  return state.turn - city.conquestTurn >= CAPTURED_SOURCE_STABILIZATION_TURNS.city;
+}
+
+export function isFortStabilized(state: GameState, coord: HexCoord): boolean {
+  const tile = state.map.tiles[hexKey(coord)];
+  if (!tile || tile.fortStabilizationSinceTurn === undefined) return true;
+  return state.turn - tile.fortStabilizationSinceTurn >= CAPTURED_SOURCE_STABILIZATION_TURNS.fort;
+}
 
 function isMatureFortAt(state: GameState, ownerId: string, coord: HexCoord): boolean {
   const tile = state.map.tiles[hexKey(coord)];

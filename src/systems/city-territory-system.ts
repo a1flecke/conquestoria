@@ -272,6 +272,12 @@ export function recalculateTerritory(
         nextTile = { ...nextTile, improvement: 'none', improvementTurnsLeft: 0 };
         nextUnits = clearWorkerTasksForCoord(nextUnits, tile.coord);
       }
+      // #544: a completed Fort survives ownership change (unlike an
+      // in-progress improvement, cleared above) but must restart
+      // stabilization under its new owner.
+      if (previousOwner !== winner.civId && tile.improvement === 'fort' && tile.improvementTurnsLeft === 0) {
+        nextTile = { ...nextTile, fortStabilizationSinceTurn: state.turn };
+      }
       nextTiles[key] = nextTile;
       ownedByCity.set(winner.cityId, [...(ownedByCity.get(winner.cityId) ?? []), winner.coord]);
     } else if (!options.preserveForeignHolders || !previousOwner) {

@@ -290,6 +290,13 @@ export interface HexTile {
   roadTurnsLeft?: number;          // turns remaining to complete an in-progress road
   roadOwner?: string;              // civ that started the in-progress road
   devastatedUntilTurn?: number;    // catastrophe crisis: tile yields zero until this turn
+  /**
+   * Turn a completed Fort improvement most recently changed owner (#544).
+   * `undefined` means "never captured" — always stabilized. Reset on every
+   * ownership change (contract §7), mirroring `City.conquestTurn`'s
+   * existing pattern for cities.
+   */
+  fortStabilizationSinceTurn?: number;
 }
 
 export interface GameMap {
