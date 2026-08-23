@@ -7,6 +7,7 @@ import { createUnit } from '@/systems/unit-system';
 import { hexDistance } from '@/systems/hex-utils';
 import { findPath } from '@/systems/unit-system';
 import { executeUnitMove } from '@/systems/unit-movement-system';
+import { resolvePressureSeverityForCiv } from '@/core/opponent-challenge';
 
 export interface RogueElephantHostProfile {
   elephantCount: number;
@@ -90,6 +91,27 @@ export function startRogueElephantHostWarning(
       [targetCivId]: { targetCivId, forceId, phase: 'warning', createdTurn: state.turn, target: getRogueElephantHostTarget(next, targetCivId) },
     },
   };
+}
+
+function deterministicPercent(seed: string): number {
+  let hash = 2166136261;
+  for (let index = 0; index < seed.length; index += 1) hash = Math.imul(hash ^ seed.charCodeAt(index), 16777619);
+  return (hash >>> 0) % 100;
+}
+
+/** Schedules a bounded once-per-target Host without competing with an active Stampede. */
+export function processRogueElephantHostScheduling(state: GameState): GameState {
+  let next = state;
+  for (const targetCivId of Object.keys(state.civilizations).sort()) {
+    const civ = next.civilizations[targetCivId];
+    if (!civ || civ.isEliminated || next.rogueElephantHosts?.[targetCivId]?.completed || next.rogueElephantHosts?.[targetCivId]?.phase) continue;
+    const era = resolveCivilizationEra(civ.techState.completed);
+    if (era < 4 || era > 9 || hasActiveTargetedWorldPressure(next, targetCivId)) continue;
+    // Stable 4% per eligible completed round: visible warning prevents surprise attacks.
+    if (deterministicPercent(`${next.gameId}:rogue-host:${targetCivId}:${next.turn}`) >= 4) continue;
+    next = startRogueElephantHostWarning(next, targetCivId, resolvePressureSeverityForCiv(next, targetCivId));
+  }
+  return next;
 }
 
 /** Stable, player-legible priority: improved land, Fort/Citadel, then city approach. */
