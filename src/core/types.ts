@@ -527,6 +527,16 @@ export interface UnitDefinition {
   projectsLandSupplyRange?: number;
 }
 
+export type LandSupplyState = 'full' | 'stable-unsupported' | 'grace' | 'degraded' | 'severe';
+
+export interface UnitLandSupplyStatus {
+  state: LandSupplyState;
+  /** Consecutive owner-turns ending in hostile territory with no covering source. Resets to 0 the instant either condition is false. */
+  hostileUnsupportedTurns: number;
+  /** Consecutive owner-turns at Full Supply without attacking — drives field-recovery clearing. */
+  suppliedTurnsSinceRecovery: number;
+}
+
 export interface NavalDetectionCapability {
   concealedNavalRange: number;
 }
@@ -568,6 +578,8 @@ export interface Unit {
   isFortified?: boolean;    // unit is in defensive stance; excluded from unmoved-unit cycling, +25% defense
   geneTherapyReady?: boolean;
   // undefined = tech never researched; true = charged and ready; false = cooldown (must rest in city to reset)
+  /** #544 land-supply progression. Absent means "never resolved" — treated identically to Full Supply. */
+  landSupply?: UnitLandSupplyStatus;
   automation?:
     | { mode: 'auto-explore'; lastTargets: string[]; startedTurn: number }
     | { mode: 'journey'; destination: HexCoord };
