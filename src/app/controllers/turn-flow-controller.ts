@@ -121,6 +121,7 @@ export interface TurnFlowControllerDeps {
   readonly scanBeastSightings: () => void;
   readonly scanSubmarineSightings: () => void;
   readonly maybeShowPendingHoardChoice: () => void;
+  readonly maybeShowPendingGeneralChoice: () => void;
   readonly checkAdvisors: () => void;
   readonly showGameModeSelection: () => void;
   readonly reloadPage: () => void;
@@ -471,6 +472,7 @@ export function createTurnFlowController(deps: TurnFlowControllerDeps): TurnFlow
     deps.scanBeastSightings();
     deps.scanSubmarineSightings();
     deps.maybeShowPendingHoardChoice();
+    deps.maybeShowPendingGeneralChoice();
     roundPresentationGate.resume();
     audio.setMasterVolume(userSettingsStore.getMasterVolume());
     deps.setBlockingOverlay(null);

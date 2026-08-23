@@ -64,6 +64,9 @@ import {
 } from '@/app/cross-cutting-helpers';
 import { applyHoardChoice, getHoardChoicePreview } from '@/systems/beast-system';
 import { createBeastHoardPanel } from '@/ui/beast-hoard-panel';
+import { GENERAL_DEFINITIONS, type GeneralDefinition } from '@/systems/great-general-definitions';
+import { spawnGeneralForCiv } from '@/systems/great-general-system';
+import { createGeneralCandidatePanel } from '@/ui/general-candidate-panel';
 
 export interface AppServices {
   readonly bus: EventBus;
@@ -154,6 +157,29 @@ export function createAppComposition(deps: AppCompositionDeps): AppComposition {
       bus.emit('beast:hoard-claimed', { lairId: pending.lairId, beastId: lair.beastId, civId: pending.civId, choice });
       hud.update();
       maybeShowPendingHoardChoice();
+    });
+  }
+
+  /**
+   * #544 MR3: mirrors maybeShowPendingHoardChoice's shape exactly -- see that
+   * function's docblock for why this lives here rather than in a dedicated
+   * controller. spawnGeneralForCiv's own state update also needs a hud.update()
+   * (the new General's XP/history bookkeeping doesn't affect any HUD-visible
+   * field today, but session.commit already triggers a full refresh via the
+   * normal render path, so no explicit hud.update() call is needed here the
+   * way the hoard-choice panel needs one for its gold/tech-name side effects).
+   */
+  function maybeShowPendingGeneralChoice(): void {
+    const pending = (session.getState().pendingGeneralCandidateChoices ?? [])
+      .find(p => p.civId === session.getState().currentPlayer);
+    if (!pending) return;
+    const candidates = pending.candidateDefinitionIds
+      .map(id => GENERAL_DEFINITIONS.find(g => g.id === id))
+      .filter((g): g is GeneralDefinition => g !== undefined);
+    if (candidates.length === 0) return;
+    createGeneralCandidatePanel(uiLayer, candidates, generalDefinitionId => {
+      session.commit(spawnGeneralForCiv(session.getState(), pending.civId, generalDefinitionId));
+      maybeShowPendingGeneralChoice();
     });
   }
 
@@ -362,6 +388,7 @@ export function createAppComposition(deps: AppCompositionDeps): AppComposition {
     scanBeastSightings: () => scanBeastSightings(session, bus),
     scanSubmarineSightings: () => scanSubmarineSightings(session, bus),
     maybeShowPendingHoardChoice,
+    maybeShowPendingGeneralChoice,
     checkAdvisors: () => advisorSystem.check(session.getState()),
     // `campaignEntry` is declared after `turnFlow` (it needs `turnFlow` itself
     // as a dep) -- same deferred-but-eager forward reference `router`/`notifier`
@@ -515,6 +542,7 @@ export function createAppComposition(deps: AppCompositionDeps): AppComposition {
     showNotification,
     foundCityAction: playerActions.foundCityAction,
     maybeShowPendingHoardChoice,
+    maybeShowPendingGeneralChoice,
     setNotifier,
     focusNotificationTarget: target => focusNotificationTarget(renderLoop, getNotifier(), session, target),
   });
