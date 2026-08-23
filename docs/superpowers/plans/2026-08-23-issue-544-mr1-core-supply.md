@@ -2202,3 +2202,38 @@ git commit -m "docs(#544): file deferred issues C/H, confirm MR1 full-suite gree
   of the feature: the original bug (unrestricted passive healing) would have
   stayed broken, and a brand-new combat/movement penalty would have gone
   live invisibly. Do not skip or defer either task to "a later cleanup pass."
+
+## Third-pass code review (post-implementation, all 12 MR1 commits)
+
+Requested and performed after every task above was implemented and
+committed — reviewing the real diff, not the plan. Four real defects
+confirmed and fixed, one naming/edge-case cleanup:
+
+1. **Performance regression risk** — `getLandSupplySourceCoverage` re-scanned
+   the entire map on every call; `resolveLandSupplyForCiv` called it once
+   per unit. Fixed with `getCivSupplySourceCandidates` (new, in
+   `supply-sources.ts`), computed once per civ per round.
+2. **Dead-parameter bug** — `resolveSupplyRecoveryForUnit` ignored
+   `suppliedTurnsSinceRecovery` when deciding whether to clear the stage;
+   it always cleared to `'full'`, which only matched contract §8's "after
+   one full supplied turn" rule by coincidence at `FIELD_RECOVERY_OWNER_TURNS
+   = 1`. Fixed to gate on the real threshold; two existing tests'
+   assertions were corrected to match the (now-principled) behavior.
+3. **Hot-seat privacy leak** — the unit-panel status line computed and
+   showed a named primary supply source for *any* selected unit, including
+   enemy units, inconsistent with this file's own existing
+   `unit.owner === state.currentPlayer` convention. Fixed; regression test
+   added.
+4. **Reinvented-instead-of-reused check** — `unitParticipatesInLandSupply`
+   excluded only `'civilian'`-classed units, missing the existing
+   `isMilitaryUnitType` helper's additional `'spy'` exclusion. All 7 spy
+   unit types were incorrectly participating. Fixed to reuse
+   `isMilitaryUnitType`.
+5. **Misleading name + related edge case** — `justEnteredBaseTile` didn't
+   actually check "just entered," and didn't check the base tile was
+   *stabilized*. Renamed to `isOnStabilizedBaseTile` and fixed to check
+   against the same stabilized candidate lists as the coverage check.
+
+Full suite and build re-verified green after each fix. See the mirrored
+write-up in `docs/superpowers/specs/2026-08-23-issue-544-supply-generals-design.md`
+§11.3 for the full reasoning behind each finding.
