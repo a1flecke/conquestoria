@@ -35,6 +35,9 @@ export interface PauseMenuCallbacks {
   personalChallenge: OpponentChallenge;
   pendingPersonalChallenge?: OpponentChallenge;
   onPersonalChallengeChange: (challenge: OpponentChallenge) => void;
+  // #544 MR2: end-turn supply-warning delivery filter.
+  supplyWarningPreference: 'all' | 'critical' | 'off';
+  onChangeSupplyWarningPreference: (preference: 'all' | 'critical' | 'off') => void;
 }
 
 interface PauseMenuViewState {
@@ -73,6 +76,48 @@ const DEFAULT_AUDIO_SETTINGS: AudioSettingsSnapshot = {
   masterVolume: 1.0, musicVolume: 0.5, sfxVolume: 0.7, stingerVolume: 1.0,
   musicEnabled: true, soundEnabled: true, stingerEnabled: true,
 };
+
+/** #544 MR2: All/Critical only/Off end-turn supply-warning delivery filter. */
+function buildSupplyWarningSettings(callbacks: PauseMenuCallbacks): HTMLElement {
+  const section = document.createElement('div');
+  Object.assign(section.style, {
+    borderTop: '1px solid rgba(255,255,255,0.1)',
+    paddingTop: '12px',
+    marginTop: '12px',
+  });
+
+  const heading = document.createElement('p');
+  heading.textContent = 'Supply Warnings';
+  Object.assign(heading.style, {
+    margin: '0 0 8px',
+    fontSize: '11px',
+    textTransform: 'uppercase',
+    letterSpacing: '0.08em',
+    opacity: '0.5',
+    color: '#fff',
+  });
+  section.appendChild(heading);
+
+  const row = document.createElement('div');
+  Object.assign(row.style, { display: 'flex', gap: '6px' });
+
+  const options: Array<{ value: 'all' | 'critical' | 'off'; label: string }> = [
+    { value: 'all', label: 'All' },
+    { value: 'critical', label: 'Critical only' },
+    { value: 'off', label: 'Off' },
+  ];
+  for (const option of options) {
+    const isActive = option.value === callbacks.supplyWarningPreference;
+    const button = createGameButton(option.label, isActive ? 'primary' : 'secondary');
+    button.dataset.supplyWarningOption = option.value;
+    button.setAttribute('aria-pressed', String(isActive));
+    button.addEventListener('click', () => callbacks.onChangeSupplyWarningPreference(option.value));
+    row.appendChild(button);
+  }
+  section.appendChild(row);
+
+  return section;
+}
 
 function buildAudioSettings(callbacks: PauseMenuCallbacks): HTMLElement {
   const s = callbacks.audioSettings;
@@ -350,6 +395,9 @@ function buildMainView(
 
   // Spec 3: per-channel audio settings at bottom of pause menu
   body.appendChild(buildAudioSettings(callbacks));
+
+  // #544 MR2: supply warning delivery preference, below audio settings
+  body.appendChild(buildSupplyWarningSettings(callbacks));
 }
 
 function buildConfirmView(

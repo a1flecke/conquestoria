@@ -25,6 +25,8 @@ function makeCallbacks(overrides: Partial<Parameters<typeof showPauseMenu>[1]> =
     onPersonalChallengeChange: vi.fn(),
     audioSettings: { ...DEFAULT_TEST_AUDIO },
     onAudioSettingChange: vi.fn(),
+    supplyWarningPreference: 'all',
+    onChangeSupplyWarningPreference: vi.fn(),
     ...overrides,
   };
 }
@@ -245,6 +247,25 @@ describe('pause-menu-panel', () => {
       showPauseMenu(document.body, makeCallbacks());
       expect(document.querySelector('input[aria-label="Voice volume"]')).toBeNull();
       expect(document.querySelector('input[aria-label="Voice enabled"]')).toBeNull();
+    });
+  });
+
+  describe('#544 MR2 — supply warning preference', () => {
+    it('renders the All/Critical only/Off control and calls onChangeSupplyWarningPreference on selection', () => {
+      const callbacks = makeCallbacks({ supplyWarningPreference: 'all' });
+      showPauseMenu(document.body, callbacks);
+      const criticalOption = document.querySelector<HTMLElement>('[data-supply-warning-option="critical"]');
+      if (!criticalOption) throw new Error('Critical only option not found');
+      criticalOption.click();
+      expect(callbacks.onChangeSupplyWarningPreference).toHaveBeenCalledWith('critical');
+    });
+
+    it('marks the currently active preference option', () => {
+      showPauseMenu(document.body, makeCallbacks({ supplyWarningPreference: 'off' }));
+      const offOption = document.querySelector<HTMLElement>('[data-supply-warning-option="off"]');
+      const allOption = document.querySelector<HTMLElement>('[data-supply-warning-option="all"]');
+      expect(offOption?.getAttribute('aria-pressed')).toBe('true');
+      expect(allOption?.getAttribute('aria-pressed')).toBe('false');
     });
   });
 });
