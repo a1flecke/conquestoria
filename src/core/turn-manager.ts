@@ -127,6 +127,7 @@ import type { PirateEconomyModifiers } from '@/systems/economy-system';
 import { processPiratesForCompletedRound } from '@/systems/pirate-system';
 import { classifyOwner } from './owner-kind';
 import { consumeHerdingInsight, getStampedeLifecycleTransition, hasActiveHerdingInsight, processStampedeScheduling, processStampedeTurn } from '@/systems/stampede-system';
+import { processRogueElephantHostTurn } from '@/systems/rogue-elephant-host-system';
 
 export function finalizeOpponentRoundState(state: GameState): GameState {
   const normalized = normalizeOpponentAIState(state);
@@ -187,6 +188,7 @@ export function processTurn(
     newState = resolveLandSupplyForCiv(newState, civId);
     const stampedeBefore = newState.stampedes?.[civId];
     newState = processStampedeTurn(newState, civId);
+    newState = processRogueElephantHostTurn(newState, civId);
     const stampedeTransition = getStampedeLifecycleTransition(
       stampedeBefore,
       newState.stampedes?.[civId],

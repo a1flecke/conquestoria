@@ -230,6 +230,16 @@ const UNIT_DEFINITION_BASES: Record<UnitType, UnitDefinitionBase> = {
     visionRange: 2, strength: 28, canFoundCity: false,
     canBuildImprovements: false, productionCost: 0,
   },
+  rogue_handler: {
+    type: 'rogue_handler', name: 'Rogue Handler', movementPoints: 3,
+    visionRange: 2, strength: 22, canFoundCity: false,
+    canBuildImprovements: false, productionCost: 0,
+  },
+  rogue_elephant: {
+    type: 'rogue_elephant', name: 'Rogue Elephant', movementPoints: 2,
+    visionRange: 2, strength: 40, canFoundCity: false,
+    canBuildImprovements: false, productionCost: 0,
+  },
   // S4b — new unit definitions
   axeman: {
     type: 'axeman', name: 'Axeman', movementPoints: 2,
@@ -984,6 +994,8 @@ export const UNIT_DESCRIPTIONS: Record<UnitType, string> = {
   beast_hydra: 'The Swamp Hydra regrows flesh as fast as you can cut it — 10 health every turn. Strike hard and finish it in one assault.',
   beast_dragon: 'The Ancient Dragon, terror of the volcanic peaks. Its fire breath strikes from 2 hexes away. Slaying it is the deed of a lifetime — the hoard contains everything.',
   beast_stampede_herd: 'A frightened herd surges away from a threatened city. Screen it with forts and fortified soldiers, or defeat it before it tramples the countryside.',
+  rogue_handler: 'A Rogue Handler commands nearby Rogue Elephants. Defeat the Handler to break the Host’s coordination.',
+  rogue_elephant: 'A Rogue Elephant follows its Handler toward valuable improvements, forts, and weak city approaches. While commanded within 2 hexes, it gains +20% attack and defense.',
   cyber_unit: 'A non-combat economic saboteur. Drains −2 gold per turn from adjacent enemy cities lacking a Cyber Defense Center. Strength 0: capturable by any enemy unit that enters its hex (transferred to that civ, not destroyed). Gene Therapy does not apply.',
   stealth_bomber: 'A long-range strategic bomber invisible to standard radar. Cannot be targeted by ranged attacks unless an enemy Signals Hub is within 2 hexes of the bomber; when intercepted, stealth reduces the damage it takes instead of returning fire. Must be trained at a Stealth Airbase. Range 3, strength 52.',
 };

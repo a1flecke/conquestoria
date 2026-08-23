@@ -653,6 +653,7 @@ describe('resetUnitTurn (#542 revealedThisTurn clearing)', () => {
 });
 
 describe('hostile-only unit definitions', () => {
+  const HOSTILE_ONLY_UNIT_TYPES = new Set(['rogue_handler', 'rogue_elephant']);
   function unexpectedUntrainableTypes(
     definitions: Record<string, { productionCost: number }>,
     trainableTypes: Set<string>,
@@ -660,7 +661,8 @@ describe('hostile-only unit definitions', () => {
     return Object.entries(definitions)
       .filter(([type]) => !trainableTypes.has(type))
       .filter(([type, definition]) =>
-        definition.productionCost !== 0 || (!type.startsWith('beast_') && !type.startsWith('pirate_')),
+        definition.productionCost !== 0
+          || (!type.startsWith('beast_') && !type.startsWith('pirate_') && !HOSTILE_ONLY_UNIT_TYPES.has(type)),
       )
       .map(([type]) => type)
       .sort();
@@ -669,7 +671,7 @@ describe('hostile-only unit definitions', () => {
   // era-12 units: both cyber_unit and stealth_bomber are now in TRAINABLE_UNITS (Task 3)
   const ERA_12_PENDING_TRAINABLE: Set<string> = new Set([]);
 
-  it('permits only explicit beast and pirate zero-cost units outside city training', () => {
+  it('permits only explicit beast, pirate, and crisis zero-cost units outside city training', () => {
     const trainableTypes = new Set([
       ...TRAINABLE_UNITS.map(unit => unit.type),
       ...ERA_12_PENDING_TRAINABLE,

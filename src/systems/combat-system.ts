@@ -9,6 +9,7 @@ import type {
   GameState,
   CombatSplashHit,
 } from '@/core/types';
+import { getRogueElephantCommandFact } from '@/systems/rogue-elephant-host-system';
 import { hexDistance, hexKey } from './hex-utils';
 import { UNIT_DEFINITIONS } from './unit-system';
 import { getWonderCombatBonus } from './wonder-system';
@@ -425,6 +426,9 @@ export function resolveCombat(
     return rngState / 2147483647;
   };
   const strengths = calculateCombatStrengths(attacker, defender, map, context);
+  // Host coordination is a state-scoped crisis fact, not a unit-ID multiplier in callers.
+  if (state && getRogueElephantCommandFact(state, attacker.id)) strengths.attackerStrength *= 1.2;
+  if (state && getRogueElephantCommandFact(state, defender.id)) strengths.defenderStrength *= 1.2;
   const atkStrength = strengths.attackerStrength;
   const defStrength = strengths.defenderStrength;
 

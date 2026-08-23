@@ -206,6 +206,8 @@ const UNIT_MOTION_STYLES: Record<UnitType, UnitMotionStyle> = {
   beast_hydra: 'animal',
   beast_dragon: 'animal',
   beast_stampede_herd: 'animal',
+  rogue_handler: 'humanoid',
+  rogue_elephant: 'animal',
   cyber_unit:   'humanoid',
   stealth_bomber: 'air',
 };
@@ -386,6 +388,9 @@ export const UNIT_SPRITE_CATALOG: Record<UnitType, UnitSpriteComponent> = {
   beast_hydra:        withMotion('beast_hydra', SwampHydraSprite),
   beast_dragon:       withMotion('beast_dragon', AncientDragonSprite),
   beast_stampede_herd: withMotion('beast_stampede_herd', WarHoundSprite),
+  // Temporary mechanics-release fallbacks; #713 owns bespoke Host art.
+  rogue_handler:       withMotion('rogue_handler', ScoutSprite),
+  rogue_elephant:      withMotion('rogue_elephant', ChariotSprite),
   // De-aliased in #769 batch 1.
   cyber_unit:         withMotion('cyber_unit', CyberUnitSprite),
   // De-aliased in #769 batch 4 — bespoke tailless faceted flying wing (bomb-bay, radar-cloak
