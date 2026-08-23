@@ -3,7 +3,7 @@ import { CRISIS_FORCE_OWNER } from '@/core/owner-kind';
 import { registerCrisisForce } from '@/systems/crisis-force-system';
 import { hexKey, mapNeighbors } from '@/systems/hex-utils';
 import { resolveCivilizationEra } from '@/systems/tech-definitions';
-import { createUnit } from '@/systems/unit-system';
+import { createUnit, UNIT_DEFINITIONS } from '@/systems/unit-system';
 import { hexDistance } from '@/systems/hex-utils';
 import { findPath } from '@/systems/unit-system';
 import { executeUnitMove } from '@/systems/unit-movement-system';
@@ -123,15 +123,23 @@ export function getRogueElephantHostTarget(state: GameState, targetCivId: string
   if (valuable) return { kind: 'valuable-improvement', tileKey: valuable[0] };
   const fort = ownedTiles.find(([, tile]) => tile.improvement === 'fort' && tile.improvementTurnsLeft === 0);
   if (fort) return { kind: 'fort', tileKey: fort[0] };
-  const city = Object.values(state.cities).filter(candidate => candidate.owner === targetCivId)
-    .sort((left, right) => left.id.localeCompare(right.id))[0];
-  if (!city) return undefined;
-  const approach = mapNeighbors(state.map, city.position)
-    .map(position => ({ position, tile: state.map.tiles[hexKey(position)] }))
-    .filter((candidate): candidate is { position: typeof city.position; tile: NonNullable<typeof candidate.tile> } => Boolean(candidate.tile))
-    .filter(candidate => candidate.tile.terrain !== 'ocean' && candidate.tile.terrain !== 'coast' && candidate.tile.terrain !== 'mountain')
-    .sort((left, right) => hexKey(left.position).localeCompare(hexKey(right.position)))[0];
-  return approach ? { kind: 'city-approach', cityId: city.id, tileKey: hexKey(approach.position) } : undefined;
+  const approaches = Object.values(state.cities)
+    .filter(city => city.owner === targetCivId)
+    .flatMap(city => mapNeighbors(state.map, city.position)
+      .map(position => ({ city, position, tile: state.map.tiles[hexKey(position)] }))
+      .filter((candidate): candidate is { city: typeof city; position: typeof city.position; tile: NonNullable<typeof candidate.tile> } => Boolean(candidate.tile))
+      .filter(candidate => candidate.tile.terrain !== 'ocean' && candidate.tile.terrain !== 'coast' && candidate.tile.terrain !== 'mountain'))
+    .map(candidate => ({
+      ...candidate,
+      defense: Object.values(state.units)
+        .filter(unit => unit.owner === targetCivId && unit.health > 0 && hexDistance(unit.position, candidate.position) === 0)
+        .reduce((total, unit) => total + (unit.combatStrengthOverride ?? UNIT_DEFINITIONS[unit.type].strength) * unit.health / 100, 0),
+    }))
+    .sort((left, right) => left.defense - right.defense
+      || left.city.id.localeCompare(right.city.id)
+      || hexKey(left.position).localeCompare(hexKey(right.position)));
+  const approach = approaches[0];
+  return approach ? { kind: 'city-approach', cityId: approach.city.id, tileKey: hexKey(approach.position) } : undefined;
 }
 
 export function getRogueElephantHostStatusForViewer(state: GameState, viewerId: string): { text: string } | undefined {
@@ -170,7 +178,8 @@ export function processRogueElephantHostTurn(state: GameState, targetCivId: stri
     ...state,
     rogueElephantHosts: { ...state.rogueElephantHosts, [targetCivId]: { ...host, phase: 'active' } },
   };
-  return processActiveRogueElephantHost(activated, targetCivId);
+  // Activation consumes the warning boundary; the Host's first movement happens on its next turn.
+  return activated;
 }
 
 /** Moves each active Host actor one legal step toward the persisted shared target. */

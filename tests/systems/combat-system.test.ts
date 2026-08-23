@@ -12,7 +12,10 @@ import type { GameMap, GameState } from '@/core/types';
 import { createUnit, UNIT_DEFINITIONS } from '@/systems/unit-system';
 import { generateMap } from '@/systems/map-generator';
 import { buildCombatContextForDefender } from '@/systems/combat-context';
-import { hexKey } from '@/systems/hex-utils';
+import { hexKey, mapNeighbors } from '@/systems/hex-utils';
+import { processRogueElephantHostTurn, startRogueElephantHostWarning } from '@/systems/rogue-elephant-host-system';
+import { TECH_TREE } from '@/systems/tech-definitions';
+import { foundCity } from '@/systems/city-system';
 
 const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
 
@@ -204,6 +207,34 @@ describe('resolveCombat', () => {
     }));
     expect(result.modifierFacts?.attacker).toContainEqual(expect.objectContaining({
       key: 'unit:cuirassier:open-ground', outcome: 'applied', value: 1.15,
+    }));
+  });
+
+  it('records the active Handler command bonus as a named combat fact', () => {
+    const state = createNewGame('rome', 'rogue-command-combat-fact', 'small');
+    const targetCivId = state.currentPlayer;
+    state.civilizations[targetCivId]!.techState.completed = TECH_TREE.filter(tech => tech.era <= 4).map(tech => tech.id);
+    const settler = Object.values(state.units).find(unit => unit.owner === targetCivId && unit.type === 'settler')!;
+    const city = foundCity(targetCivId, settler.position, state.map, state.idCounters);
+    state.cities[city.id] = city;
+    for (const position of mapNeighbors(state.map, city.position)) {
+      const key = hexKey(position);
+      if (state.map.tiles[key]) state.map.tiles[key] = { ...state.map.tiles[key], terrain: 'plains' };
+    }
+    state.units = Object.fromEntries(Object.entries(state.units).filter(([, unit]) =>
+      !mapNeighbors(state.map, city.position).some(position => hexKey(position) === hexKey(unit.position)),
+    ));
+    const warning = startRogueElephantHostWarning(state, targetCivId, 'explorer');
+    const active = processRogueElephantHostTurn({ ...warning, turn: warning.turn + 1 }, targetCivId);
+    const elephant = Object.values(active.units).find(unit => unit.type === 'rogue_elephant')!;
+    const defenderPosition = mapNeighbors(active.map, elephant.position).find(position => active.map.tiles[hexKey(position)])!;
+    const defender = createUnit('warrior', 'ai-1', defenderPosition, active.idCounters);
+    active.units[defender.id] = defender;
+
+    const result = resolveCombat(elephant, defender, active.map, 42, undefined, undefined, active);
+
+    expect(result.modifierFacts?.attacker).toContainEqual(expect.objectContaining({
+      key: 'rogue-elephant-host:handler-command', outcome: 'applied', value: 1.2,
     }));
   });
 
