@@ -1047,6 +1047,28 @@ describe('resetUnitTurn', () => {
     expect(reset.hasActed).toBe(false);
   });
 
+  it('reduces movement by 1 (never below 1) when severely overextended (#544)', () => {
+    let unit = createUnit('warrior', 'p1', { q: 5, r: 5 }, mkC());
+    unit = { ...unit, landSupply: { state: 'severe', hostileUnsupportedTurns: 6, suppliedTurnsSinceRecovery: 0 } };
+    const reset = resetUnitTurn(unit);
+    expect(reset.movementPointsLeft).toBe(UNIT_DEFINITIONS.warrior.movementPoints - 1);
+  });
+
+  it('floors severe-overextension movement at 1 even for an already-1-movement unit', () => {
+    expect(UNIT_DEFINITIONS.catapult.movementPoints).toBe(1);
+    let unit = createUnit('catapult', 'p1', { q: 5, r: 5 }, mkC());
+    unit = { ...unit, landSupply: { state: 'severe', hostileUnsupportedTurns: 6, suppliedTurnsSinceRecovery: 0 } };
+    const reset = resetUnitTurn(unit);
+    expect(reset.movementPointsLeft).toBe(1); // would be 0 without the floor
+  });
+
+  it('does not reduce movement for degraded (only severe applies the movement penalty)', () => {
+    let unit = createUnit('warrior', 'p1', { q: 5, r: 5 }, mkC());
+    unit = { ...unit, landSupply: { state: 'degraded', hostileUnsupportedTurns: 3, suppliedTurnsSinceRecovery: 0 } };
+    const reset = resetUnitTurn(unit);
+    expect(reset.movementPointsLeft).toBe(UNIT_DEFINITIONS.warrior.movementPoints);
+  });
+
   it('keeps worker acted and immobile when it has an active workerTask', () => {
     const worker = createUnit('worker', 'p1', { q: 0, r: 0 }, mkC());
     const workerWithTask = {

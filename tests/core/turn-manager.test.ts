@@ -108,6 +108,34 @@ describe('processTurn', () => {
     expect(isWithinRangeOfNeuralRehabilitationCenter(next, 'player', city.position, 1)).toBe(true);
     expect(next.units[unitId]!.health).toBe(75);
   });
+  it('a degraded unit does not receive passive healing even when idle (#544)', () => {
+    const state = createNewGame('rome', 'land-supply-heal-gate', 'small');
+    const civ = state.civilizations.player;
+    const unitId = civ.units[0]!;
+    state.units[unitId] = {
+      ...state.units[unitId]!,
+      health: 50,
+      hasMoved: false,
+      hasActed: false,
+      landSupply: { state: 'degraded', hostileUnsupportedTurns: 3, suppliedTurnsSinceRecovery: 0 },
+    };
+
+    const next = processTurn(state, new EventBus());
+
+    expect(next.units[unitId]!.health).toBe(50);
+  });
+
+  it('a fully-supplied idle unit still receives normal passive healing (no regression from the #544 gate)', () => {
+    const state = createNewGame('rome', 'land-supply-heal-gate-control', 'small');
+    const civ = state.civilizations.player;
+    const unitId = civ.units[0]!;
+    state.units[unitId] = { ...state.units[unitId]!, health: 50, hasMoved: false, hasActed: false };
+
+    const next = processTurn(state, new EventBus());
+
+    expect(next.units[unitId]!.health).toBeGreaterThan(50);
+  });
+
   it('clears a submarine\'s revealedThisTurn flag through a real processTurn cycle (#542)', () => {
     const state = createNewGame('rome', 'submarine-reveal-turn-reset', 'small');
     const civ = state.civilizations.player;
