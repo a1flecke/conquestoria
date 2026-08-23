@@ -496,6 +496,28 @@ export interface UnitDefinition {
   detection?: NavalDetectionCapability;
   /** Air-base roster slots this naval unit's own deck provides when hosting an AirBaseRef{kind:'carrier'}. Only meaningful on carrier-capable naval hulls. */
   carrierDeckCapacity?: number;
+  /**
+   * Whether this unit type is modeled by the land-supply system (#544).
+   * Absent means "derive from domain + unit class" (see
+   * `unitParticipatesInLandSupply` in supply-participation.ts) — explicit
+   * `true`/`false` here always wins over that derivation, so a future
+   * non-civ organized force (or the Great General unit, MR3) can opt in
+   * without changing engine logic, and a land-military unit can opt out if
+   * a future design needs an exception.
+   */
+  participatesInLandSupply?: boolean;
+  /**
+   * How many land-supply "slots" a participating land unit consumes from a
+   * naval logistics source (#544 §10). Initialized to the same number as
+   * `cargoSize` where applicable, but read independently — never derived
+   * from `cargoSize` at runtime, so the two can diverge in a future balance
+   * pass without a code change.
+   */
+  landSupplyCost?: number;
+  /** Naval only: total land-supply slots this ship can project (#544 §10). */
+  landSupplyCapacity?: number;
+  /** Naval only: hex range within which it can shore-supply (#544 §10). */
+  projectsLandSupplyRange?: number;
 }
 
 export interface NavalDetectionCapability {

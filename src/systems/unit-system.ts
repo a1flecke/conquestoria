@@ -102,6 +102,7 @@ const UNIT_DEFINITION_BASES: Record<UnitType, UnitDefinitionBase> = {
     canBuildImprovements: false, productionCost: 45,
     domain: 'naval', waterAccess: 'coastal',
     cargoCapacity: 2,
+    landSupplyCapacity: 2, projectsLandSupplyRange: 1,
   },
   carrack: {
     type: 'carrack', name: 'Carrack', movementPoints: 3,
@@ -109,6 +110,7 @@ const UNIT_DEFINITION_BASES: Record<UnitType, UnitDefinitionBase> = {
     canBuildImprovements: false, productionCost: 48,
     domain: 'naval', waterAccess: 'ocean',
     cargoCapacity: 3,
+    landSupplyCapacity: 3, projectsLandSupplyRange: 1,
   },
   galleon: {
     type: 'galleon', name: 'Galleon', movementPoints: 3,
@@ -116,6 +118,7 @@ const UNIT_DEFINITION_BASES: Record<UnitType, UnitDefinitionBase> = {
     canBuildImprovements: false, productionCost: 80,
     domain: 'naval', waterAccess: 'ocean',
     cargoCapacity: 4,
+    landSupplyCapacity: 4, projectsLandSupplyRange: 1,
   },
   steamship: {
     type: 'steamship', name: 'Steamship', movementPoints: 3,
@@ -123,6 +126,7 @@ const UNIT_DEFINITION_BASES: Record<UnitType, UnitDefinitionBase> = {
     canBuildImprovements: false, productionCost: 100,
     domain: 'naval', waterAccess: 'ocean',
     cargoCapacity: 5,
+    landSupplyCapacity: 5, projectsLandSupplyRange: 2,
   },
   troop_transport: {
     type: 'troop_transport', name: 'Troop Transport', movementPoints: 3,
@@ -130,6 +134,7 @@ const UNIT_DEFINITION_BASES: Record<UnitType, UnitDefinitionBase> = {
     canBuildImprovements: false, productionCost: 120,
     domain: 'naval', waterAccess: 'ocean',
     cargoCapacity: 6,
+    landSupplyCapacity: 6, projectsLandSupplyRange: 2,
   },
   // Pirate hulls are spawned by pirate ecology and can never be city-trained.
   pirate_galley: createPirateUnitDefinition(
