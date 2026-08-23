@@ -1,5 +1,7 @@
 import type { BuildableImprovementType, GameState, DisguiseType, HexCoord, Unit, WorkerActionType } from '@/core/types';
 import { UNIT_DEFINITIONS, UNIT_DESCRIPTIONS, canHeal } from '@/systems/unit-system';
+import { unitParticipatesInLandSupply } from '@/systems/supply-participation';
+import { getPrimarySupplySource } from '@/systems/supply-sources';
 import { getParadropLaunchState, PARADROP_FAILURE_MESSAGES, getAirAssaultLaunchState, AIR_ASSAULT_FAILURE_MESSAGES } from '@/systems/airborne-system';
 import { getSubmarineRevealState } from '@/systems/concealment';
 import { getExperienceToNextTier, getVeterancyCombatModifier, getVeterancyTier } from '@/systems/combat-reward-system';
@@ -157,6 +159,31 @@ function findEligiblePreachTargetCityId(state: GameState, unit: Unit): string | 
   return null;
 }
 
+/**
+ * One truthful line for the unit's #544 land-supply status. Vocabulary
+ * matches contract §12 exactly (`Full Supply — Memphis`, `Stable but
+ * Unsupported — no healing`, `Overextended — Stage 2 of 3`) so MR2's fuller
+ * overlay/tutorial can reuse the same wording without introducing a second,
+ * inconsistent set of labels. Returns `null` when the unit doesn't
+ * participate in land supply at all (naval/air/beast/etc.) — no line is
+ * rendered in that case.
+ */
+function getLandSupplyStatusText(state: GameState, unit: Unit): string | null {
+  if (!unitParticipatesInLandSupply(unit)) return null;
+  const status = unit.landSupply;
+  if (status === undefined || status.state === 'full') {
+    const source = getPrimarySupplySource(state, unit.owner, unit.position);
+    const sourceLabel = source
+      ? (source.kind === 'city' ? state.cities[source.id]?.name ?? 'a city' : 'a Fort')
+      : 'territory';
+    return `Full Supply — ${sourceLabel}`;
+  }
+  if (status.state === 'stable-unsupported') return 'Stable but Unsupported — no healing';
+  if (status.state === 'grace') return 'Overextended — Stage 1 of 3';
+  if (status.state === 'degraded') return 'Overextended — Stage 2 of 3 · -10% Combat';
+  return 'Overextended — Stage 3 of 3 · -10% Combat, -1 Movement';
+}
+
 function nextTierLabel(currentLabel: string): string | null {
   if (currentLabel === 'Recruit') return 'Seasoned';
   if (currentLabel === 'Seasoned') return 'Veteran';
@@ -270,6 +297,14 @@ export function renderSelectedUnitInfo(
 
   wrapper.appendChild(topRow);
   wrapper.appendChild(descDiv);
+
+  const landSupplyStatusText = getLandSupplyStatusText(state, unit);
+  if (landSupplyStatusText) {
+    const supplyLine = document.createElement('div');
+    supplyLine.style.cssText = 'font-size:11px;margin-top:4px;color:#c9d6e3;';
+    supplyLine.textContent = landSupplyStatusText;
+    wrapper.appendChild(supplyLine);
+  }
 
   const revealState = getSubmarineRevealState(state, unit, state.currentPlayer);
   if (revealState) {
