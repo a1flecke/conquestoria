@@ -26,7 +26,7 @@
 - `src/ai/ai-crisis-response.ts`, `src/systems/world-pressure-presentation.ts`, `src/ui/selected-unit-info.ts`, `src/renderer/render-loop.ts`: viewer-safe consumers.
 - `tests/systems/rogue-elephant-host-system.test.ts` plus mirrored combat, turn, AI, presentation, and UI tests.
 
-## Task 1: Typed Host lifecycle and spawn
+## Task 1: Typed Host lifecycle and spawn — 🟡 implemented foundation; comprehensive boundary/save fixtures remain
 
 - [ ] Write failing `tests/systems/rogue-elephant-host-system.test.ts` tests proving an Era-6 human target Host has exactly one Handler plus 1/2/3 elephants for Explorer/Standard/Veteran after its warning turn; an AI target always uses Standard’s two elephants; all Host units have 100 health and no spawn-turn action; Era 9 uses Handler 37 and Elephant 60; eras 3 and 10, an active Stampede, and prior Host all reject scheduling.
 - [ ] Run `bash scripts/run-with-mise.sh yarn test --run tests/systems/rogue-elephant-host-system.test.ts`; confirm it fails because Host types/APIs do not exist.
@@ -35,7 +35,7 @@
 - [ ] Run `bash scripts/run-with-mise.sh yarn test --run tests/systems/rogue-elephant-host-system.test.ts tests/systems/unit-system.test.ts tests/core/turn-manager.test.ts`; expect PASS.
 - [ ] Commit: `git add src/core/types.ts src/systems/rogue-elephant-host-system.ts src/systems/stampede-system.ts src/core/turn-manager.ts src/systems/unit-system.ts src/renderer/sprites tests/systems/rogue-elephant-host-system.test.ts tests/systems/unit-system.test.ts tests/core/turn-manager.test.ts && git commit -m "feat(705): spawn rogue elephant hosts"`.
 
-## Task 2: Target priority and canonical Handler command fact
+## Task 2: Target priority and canonical Handler command fact — 🟡 implemented; adversarial target-priority and combat-history coverage remain
 
 - [ ] Write failing Host and combat tests proving target order is: target-owned valuable improvement, then Fort/Citadel, then the least-defended legal city approach; ties are stable. Prove the active Host’s canonical pass moves/attacks only toward that selected legal target, never uses hidden rival state, and uses shared world move/combat helpers. Prove exactly +20% attack and defense with a Handler within two hexes, no bonus at three hexes, and no stacking from two nearby Handlers.
 - [ ] Run `bash scripts/run-with-mise.sh yarn test --run tests/systems/rogue-elephant-host-system.test.ts tests/systems/combat-system.test.ts`; confirm RED for missing facts, not unrelated regression.
@@ -43,7 +43,7 @@
 - [ ] Feed the returned fact through the existing named combat-fact/modifier seam for attack and defense. Process Host units in stable force/unit order through shared move/combat helpers toward the persisted target, stopping when movement or combat ends. Do not implement strength changes in AI, renderer, or bare `unit.type` branches.
 - [ ] Run the same focused command; expect PASS. Commit with `git add src/systems/rogue-elephant-host-system.ts src/systems/combat-system.ts tests/systems/rogue-elephant-host-system.test.ts tests/systems/combat-system.test.ts && git commit -m "feat(705): coordinate rogue elephant host attacks"`.
 
-## Task 3: Viewer-safe presentation and AI use
+## Task 3: Viewer-safe presentation and AI use — 🟡 selected-unit and visible-AI paths implemented; world-pressure presentation coverage remains
 
 ### Player Truth Table
 
