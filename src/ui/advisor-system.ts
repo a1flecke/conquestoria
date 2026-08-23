@@ -12,6 +12,7 @@ import { RESOURCE_DEFINITIONS } from '@/systems/trade-system';
 import { getPirateWatersPresentation } from '@/systems/pirate-presentation';
 import { getPirateTributeQuote } from '@/systems/pirate-actions';
 import { resolveCivilizationEra } from '@/systems/tech-definitions';
+import { unitParticipatesInLandSupply } from '@/systems/supply-participation';
 
 /**
  * Session-scoped tip suppression. Cleared on page load (module re-init).
@@ -102,6 +103,25 @@ const ADVISOR_MESSAGES: AdvisorMessage[] = [
     message: "You're doing great! You now know the basics. Explore, expand, research, and conquer. The world is yours to shape!",
     trigger: (state) => state.turn >= 10,
     tutorialStep: 'complete',
+  },
+  {
+    // #544 MR2: first-time supply tutorial. viewerScoped so each hot-seat
+    // player gets their own first-encounter, matching the other tutorial
+    // entries' viewer-agnostic-but-currentPlayer-gated trigger convention
+    // (none of them set viewerScoped either, since `shownIds` here is a
+    // single session-wide set -- kept consistent with that, not introduced
+    // as a one-off).
+    id: 'supply_intro',
+    advisor: 'builder',
+    icon: '🏗️',
+    message: 'Units far from home lose supply over time: Full Supply, then Stable but Unsupported, then Overextended (worsening combat and movement penalties). Toggle the Supply overlay (top-right) to see your coverage, and watch the unit panel for stage and recovery guidance.',
+    trigger: (state) => Object.values(state.units).some(
+      unit => unit.owner === state.currentPlayer
+        && unitParticipatesInLandSupply(unit)
+        && unit.landSupply !== undefined
+        && unit.landSupply.state !== 'full',
+    ),
+    tutorialStep: 'supply_intro',
   },
 
   // --- Pirate Waters ---

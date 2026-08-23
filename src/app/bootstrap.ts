@@ -317,6 +317,7 @@ export function createAppComposition(deps: AppCompositionDeps): AppComposition {
     scanBeastSightings: () => scanBeastSightings(session, bus),
     scanSubmarineSightings: () => scanSubmarineSightings(session, bus),
     currentCiv: () => getCurrentCiv(session),
+    advisorSystem,
   });
 
   /**

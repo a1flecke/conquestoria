@@ -738,3 +738,62 @@ describe('fireResourceDiscoveredTip', () => {
     expect(messages).toHaveLength(1);
   });
 });
+
+describe('#544 MR2 — first-time supply tutorial', () => {
+  function stateWithAllPriorTutorialStepsDone(): GameState {
+    const state = stateWithCity();
+    state.tutorial.active = true;
+    state.tutorial.completedSteps = ['welcome', 'found_city', 'explore', 'build_improvement', 'research_tech', 'build_unit', 'combat', 'complete'];
+    return state;
+  }
+
+  it('fires supply_intro the first time a participating unit is not full supply', () => {
+    const bus = new EventBus();
+    const advisor = new AdvisorSystem(bus);
+    const state = stateWithAllPriorTutorialStepsDone();
+    const warrior = Object.values(state.units).find((u): u is Unit => u.owner === 'player' && u.type === 'warrior');
+    state.units[warrior!.id] = { ...warrior!, landSupply: { state: 'grace', hostileUnsupportedTurns: 1, suppliedTurnsSinceRecovery: 0 } };
+
+    const stepEvents: any[] = [];
+    bus.on('tutorial:step', event => stepEvents.push(event));
+
+    advisor.check(state);
+
+    expect(stepEvents.some(e => e.step === 'supply_intro')).toBe(true);
+  });
+
+  it('does not fire supply_intro while every participating unit is at full supply', () => {
+    const bus = new EventBus();
+    const advisor = new AdvisorSystem(bus);
+    const state = stateWithAllPriorTutorialStepsDone();
+
+    const stepEvents: any[] = [];
+    bus.on('tutorial:step', event => stepEvents.push(event));
+
+    advisor.check(state);
+
+    expect(stepEvents.some(e => e.step === 'supply_intro')).toBe(false);
+  });
+
+  it('resetMessage + check re-shows supply_intro on demand (the reopen affordance)', () => {
+    const bus = new EventBus();
+    const advisor = new AdvisorSystem(bus);
+    const state = stateWithAllPriorTutorialStepsDone();
+    const warrior = Object.values(state.units).find((u): u is Unit => u.owner === 'player' && u.type === 'warrior');
+    state.units[warrior!.id] = { ...warrior!, landSupply: { state: 'grace', hostileUnsupportedTurns: 1, suppliedTurnsSinceRecovery: 0 } };
+
+    const stepEvents: any[] = [];
+    bus.on('tutorial:step', event => stepEvents.push(event));
+
+    advisor.check(state);
+    expect(stepEvents.filter(e => e.step === 'supply_intro')).toHaveLength(1);
+
+    // Without reopening, a second check() does not re-fire it.
+    advisor.check(state);
+    expect(stepEvents.filter(e => e.step === 'supply_intro')).toHaveLength(1);
+
+    advisor.resetMessage('supply_intro');
+    advisor.check(state);
+    expect(stepEvents.filter(e => e.step === 'supply_intro')).toHaveLength(2);
+  });
+});

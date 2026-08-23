@@ -1861,7 +1861,8 @@ export type TutorialStep =
   | 'research_tech'
   | 'build_unit'
   | 'combat'
-  | 'complete';
+  | 'complete'
+  | 'supply_intro';
 
 export interface TutorialState {
   active: boolean;
