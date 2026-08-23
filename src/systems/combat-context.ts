@@ -11,6 +11,7 @@ import { getNetworkCombatCoordination } from './network-combat-coordination';
 import { resolveAirDefenseCoverage } from './air-defense-system';
 import { resolveCombinedArms } from './combined-arms-system';
 import { resolveFortificationDefense } from './fortification-system';
+import { resolveLandSupplyCombatPenalty } from './supply-combat';
 
 export interface CombatContextOptions {
   amphibiousAssault?: boolean;
@@ -89,6 +90,8 @@ export function buildCombatContextForDefender(
   const attackerCombinedArms = resolveCombinedArms(state, attacker);
   const defenderCombinedArms = resolveCombinedArms(state, defender);
   const fortification = resolveFortificationDefense(state, defender, attacker);
+  const attackerSupplyPenalty = resolveLandSupplyCombatPenalty(attacker);
+  const defenderSupplyPenalty = resolveLandSupplyCombatPenalty(defender);
 
   return {
     attackerBonus: resolveCivDefinition(
@@ -146,6 +149,14 @@ export function buildCombatContextForDefender(
     defenderCombinedArmsFact: defenderCombinedArms.fact,
     defenderFortificationMultiplier: fortification.multiplier,
     defenderFortificationFact: fortification.label ? { key: 'fortification', label: fortification.label, sourceVisibility: 'public', operation: 'multiplier', value: fortification.multiplier, outcome: 'applied' } : undefined,
+    attackerLandSupplyMultiplier: attackerSupplyPenalty.multiplier,
+    attackerLandSupplyFact: attackerSupplyPenalty.label
+      ? { key: 'land-supply', label: attackerSupplyPenalty.label, sourceVisibility: 'owner', operation: 'multiplier', value: attackerSupplyPenalty.multiplier, outcome: 'applied' }
+      : undefined,
+    defenderLandSupplyMultiplier: defenderSupplyPenalty.multiplier,
+    defenderLandSupplyFact: defenderSupplyPenalty.label
+      ? { key: 'land-supply', label: defenderSupplyPenalty.label, sourceVisibility: 'owner', operation: 'multiplier', value: defenderSupplyPenalty.multiplier, outcome: 'applied' }
+      : undefined,
     attackerPositioningPart: flankingTiles > 0 ? { label: `Flanked +${flankingTiles * 10}%`, kind: 'mult' } : undefined,
     defenderPositioningPart: supportTiles > 0 ? { label: `Supported +${supportTiles * 10}%`, kind: 'mult' } : undefined,
     attackerNetworkStrengthBonus: getNetworkCombatCoordination(state, attacker, 'attack').strengthBonus,

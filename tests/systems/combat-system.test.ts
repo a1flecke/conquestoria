@@ -464,6 +464,35 @@ describe('Fortification combat context', () => {
   });
 });
 
+describe('land-supply combat context (#544)', () => {
+  it('applies a separate land-supply multiplier supplied by the shared context, symmetric on both sides', () => {
+    const map = generateMap(30, 30, 'land-supply-context');
+    const attacker = createUnit('warrior', 'p1', { q: 10, r: 10 }, mkC());
+    const defender = createUnit('warrior', 'p2', { q: 11, r: 10 }, mkC());
+    const base = calculateCombatStrengths(attacker, defender, map);
+    const attackerPenalized = calculateCombatStrengths(attacker, defender, map, { attackerLandSupplyMultiplier: 0.9 });
+    const defenderPenalized = calculateCombatStrengths(attacker, defender, map, { defenderLandSupplyMultiplier: 0.9 });
+    expect(attackerPenalized.attackerStrength).toBeCloseTo(base.attackerStrength * 0.9, 5);
+    expect(defenderPenalized.defenderStrength).toBeCloseTo(base.defenderStrength * 0.9, 5);
+  });
+
+  it('buildCombatContextForDefender computes the penalty from each unit\'s own landSupply state', () => {
+    const state = createNewGame(undefined, 'land-supply-hot-seat-context', 'small');
+    const attacker = { ...createUnit('warrior', 'player', { q: 4, r: 4 }, mkC()), id: 'attacker', landSupply: { state: 'severe' as const, hostileUnsupportedTurns: 6, suppliedTurnsSinceRecovery: 0 } };
+    const defender = { ...createUnit('warrior', 'ai-1', { q: 5, r: 4 }, mkC()), id: 'defender' };
+    state.currentPlayer = 'player';
+    state.units = { attacker, defender };
+    state.civilizations.player.units = [attacker.id];
+    state.civilizations['ai-1'].units = [defender.id];
+
+    const context = buildCombatContextForDefender(state, attacker, defender);
+
+    expect(context.attackerLandSupplyMultiplier).toBeCloseTo(0.9);
+    expect(context.defenderLandSupplyMultiplier).toBe(1);
+    expect(context.attackerLandSupplyFact).toMatchObject({ label: 'Overextended -10%', outcome: 'applied' });
+  });
+});
+
 describe('bombard-kind defense penalty (MR: counter-attack rule fix, #537)', () => {
   let map: GameMap;
 

@@ -785,9 +785,14 @@ export function resetUnitTurn(unit: Unit): Unit {
   // interceptedTurn -- otherwise a submarine that ever fires once stays permanently
   // revealed to every civ forever, since nothing else clears the flag.
   const { skippedTurn: _skippedTurn, interceptedTurn: _interceptedTurn, revealedThisTurn: _revealedThisTurn, ...rest } = unit;
+  // #544: severe overextension reduces movement by 1, never below 1 (contract §3.3/§29).
+  const severeSupplyPenalty = unit.landSupply?.state === 'severe' ? 1 : 0;
   const base: Unit = {
     ...rest,
-    movementPointsLeft: UNIT_DEFINITIONS[unit.type].movementPoints + (unit.movementBonus ?? 0),
+    movementPointsLeft: Math.max(
+      1,
+      UNIT_DEFINITIONS[unit.type].movementPoints + (unit.movementBonus ?? 0) - severeSupplyPenalty,
+    ),
     hasMoved: false,
     hasActed: false,
     isResting: false,

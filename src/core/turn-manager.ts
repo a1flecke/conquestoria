@@ -24,6 +24,7 @@ import { buildCombatContextForDefender } from '@/systems/combat-context';
 import { canUnitAttackTarget } from '@/systems/attack-targeting';
 import { applyCombatOutcomeToState } from '@/systems/combat-reward-system';
 import { resolveLandSupplyForCiv } from '@/systems/supply-system';
+import { getRestAvailability } from '@/systems/supply-combat';
 import { applyPillageToState } from '@/systems/pillage-system';
 import {
   PIRATE_OWNER,
@@ -629,7 +630,9 @@ export function processTurn(
           ? getLocalCityHealingBonus(unit.type, friendlyCity.buildings)
           : 0,
       });
-      newState.units[unitId] = healUnit(unit, inFriendlyCity, inFriendlyTerritory, healingBonus);
+      if (getRestAvailability(unit.landSupply).canRest) {
+        newState.units[unitId] = healUnit(unit, inFriendlyCity, inFriendlyTerritory, healingBonus);
+      }
     }
 
     // Reset geneTherapyReady cooldown for units that rested a full turn in a friendly city
