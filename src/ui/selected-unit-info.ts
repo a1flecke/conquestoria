@@ -47,6 +47,7 @@ import { getFortificationCapacity, getFortificationPlacement, getFortificationTi
 import { isCrisisForceOwner } from '@/core/owner-kind';
 import { CRISIS_FORCE_PRESENTATION } from '@/systems/crisis-force-system';
 import { getHerdRoutePresentationForViewer } from '@/systems/stampede-route-system';
+import { getRogueElephantCommandFact } from '@/systems/rogue-elephant-host-system';
 
 export interface TransportLoadOption {
   transportId: string;
@@ -287,6 +288,13 @@ export function renderSelectedUnitInfo(
       routeLabel.style.cssText = 'margin-top:6px;font-size:12px;color:#f6d365;';
       routeLabel.textContent = route.stopsAtFort ? 'Herd path: stops at Fort/Citadel.' : `Herd path: next ${route.steps.length} step${route.steps.length === 1 ? '' : 's'}.`;
       infoDiv.appendChild(routeLabel);
+    }
+    const command = getRogueElephantCommandFact(state, unit.id);
+    if (command && state.civilizations[state.currentPlayer]?.visibility?.tiles[`${unit.position.q},${unit.position.r}`] === 'visible') {
+      const commandLabel = document.createElement('div');
+      commandLabel.style.cssText = 'margin-top:6px;font-size:12px;color:#f6d365;';
+      commandLabel.textContent = 'Handler command: +20% attack and defense within 2 hexes.';
+      infoDiv.appendChild(commandLabel);
     }
   }
   infoDiv.appendChild(document.createTextNode(` · HP: ${unit.health}/100 · Moves: ${unit.movementPointsLeft}/${def.movementPoints}`));

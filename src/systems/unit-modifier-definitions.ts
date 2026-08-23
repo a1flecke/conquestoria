@@ -116,6 +116,8 @@ export const UNIT_CLASS_BY_TYPE: Record<UnitType, UnitClass[]> = {
   beast_hydra: ['melee'],
   beast_dragon: ['air', 'ranged'],
   beast_stampede_herd: ['mounted'],
+  rogue_handler: ['recon'],
+  rogue_elephant: ['mounted'],
   cyber_unit: ['civilian'],
   stealth_bomber: ['air'],
 };

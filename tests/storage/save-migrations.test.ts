@@ -68,10 +68,24 @@ describe('save migrations', () => {
 
     const migrated = migrateSaveToCurrent(save);
 
-    expect(migrated.saveSchemaVersion).toBe(17);
+    expect(migrated.saveSchemaVersion).toBe(CURRENT_SAVE_SCHEMA_VERSION);
     expect(migrated.stampedes).toEqual({});
     expect(migrated.crisisForces).toEqual({});
     expect(migrated.units[herd.id]).toBeUndefined();
+    expect(migrateSaveToCurrent(migrated)).toEqual(migrated);
+  });
+
+  it('#705 initializes Host state at schema 18, removes malformed records, and is idempotent', () => {
+    const save = createNewGame('rome', 'rogue-host-schema-18', 'small');
+    save.saveSchemaVersion = 17;
+    save.rogueElephantHosts = {
+      player: { targetCivId: 'missing', phase: 'active', forceId: 'missing-force' },
+    } as never;
+
+    const migrated = migrateSaveToCurrent(save);
+
+    expect(migrated.saveSchemaVersion).toBe(CURRENT_SAVE_SCHEMA_VERSION);
+    expect(migrated.rogueElephantHosts).toEqual({});
     expect(migrateSaveToCurrent(migrated)).toEqual(migrated);
   });
 

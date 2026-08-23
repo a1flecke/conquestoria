@@ -118,6 +118,8 @@ const FALLBACK_ICONS: Record<UnitType, string> = {
   beast_hydra: '🐍',
   beast_dragon: '🐲',
   beast_stampede_herd: '🐘',
+  rogue_handler: '🐾',
+  rogue_elephant: '🐘',
   cyber_unit: '🖥️',
   stealth_bomber: '🛩️',
 };

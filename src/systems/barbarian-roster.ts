@@ -62,7 +62,7 @@ export const BARBARIAN_ELIGIBILITY_BY_UNIT = {
   air_freighter: exclude('civilian'), jet_freighter: exclude('civilian'), global_air_cargo: exclude('civilian'), expedition: exclude('civilian'),
   transport: exclude('naval'), carrack: exclude('naval'), galleon: exclude('naval'), steamship: exclude('naval'), troop_transport: exclude('naval'),
   pirate_galley: exclude('crisis'), pirate_corsair: exclude('crisis'), pirate_frigate: exclude('crisis'), pirate_ironclad: exclude('crisis'), pirate_fast_attack_craft: exclude('crisis'), pirate_mothership: exclude('crisis'),
-  beast_boar: exclude('crisis'), beast_wolf: exclude('crisis'), beast_basilisk: exclude('crisis'), beast_sea_serpent: exclude('crisis'), beast_wurm: exclude('crisis'), beast_roc: exclude('crisis'), beast_hydra: exclude('crisis'), beast_dragon: exclude('crisis'), beast_stampede_herd: exclude('crisis'),
+  beast_boar: exclude('crisis'), beast_wolf: exclude('crisis'), beast_basilisk: exclude('crisis'), beast_sea_serpent: exclude('crisis'), beast_wurm: exclude('crisis'), beast_roc: exclude('crisis'), beast_hydra: exclude('crisis'), beast_dragon: exclude('crisis'), beast_stampede_herd: exclude('crisis'), rogue_handler: exclude('crisis'), rogue_elephant: exclude('crisis'),
   cyber_unit: exclude('strategic-deterrence'), stealth_bomber: exclude('strategic-deterrence'), combat_drone: exclude('strategic-deterrence'), autonomous_frigate: exclude('strategic-deterrence'), exosuit_infantry: exclude('strategic-deterrence'), propagandist: exclude('strategic-deterrence'), drone_controller: exclude('strategic-deterrence'),
 } satisfies Record<UnitType, BarbarianEligibility>;
 
