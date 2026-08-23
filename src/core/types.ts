@@ -637,7 +637,8 @@ export interface StampedeState {
   lastResolvedTurn?: number;
 }
 
-export type RogueElephantHostPhase = 'warning' | 'active' | 'resolved';
+export type RogueElephantHostPhase = 'warning' | 'active' | 'dispersing' | 'resolved';
+export type RogueElephantHostOutcome = 'defeated' | 'dispersed' | 'escaped';
 export type RogueHostTarget =
   | { kind: 'valuable-improvement'; tileKey: string }
   | { kind: 'fort'; tileKey: string }
@@ -652,6 +653,14 @@ export interface RogueElephantHostState {
   /** Retained after #706 resolution so the Host can occur at most once per game. */
   completed?: boolean;
   target?: RogueHostTarget;
+  /** A broken command keeps its own short lifecycle; it is not an ordinary Stampede. */
+  dispersalTurnsRemaining?: number;
+  outcome?: RogueElephantHostOutcome;
+  resolvedTurn?: number;
+  rewardGranted?: boolean;
+  recoveredHarnesses?: { expiresTurn: number; consumed?: boolean };
+  /** Persisted so expiry converts only if War Elephant never became trainable. */
+  recoveredHarnessesEligibleUnitSeen?: boolean;
 }
 
 // --- Cities ---
@@ -2303,6 +2312,10 @@ export interface GameEvents {
     | { kind: 'warning'; targetCivId: string }
     | { kind: 'activated'; targetCivId: string; activeTurns: number }
     | { kind: 'resolved'; targetCivId: string; outcome: StampedeOutcome; rewardGranted: boolean };
+  /** Target-scoped Rogue Host conversion and terminal result. */
+  'rogue-elephant-host:lifecycle':
+    | { kind: 'command-broken'; targetCivId: string; dispersalTurnsRemaining: number }
+    | { kind: 'resolved'; targetCivId: string; outcome: RogueElephantHostOutcome; rewardGranted: boolean };
   // #526 MR7 sabotage_relief: fired only when the covert sabotage is discovered (the
   // detection roll at mission-success time) -- an undiscovered sabotage fires nothing,
   // per spec §Interactions "Undiscovered: no penalty."

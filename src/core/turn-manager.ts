@@ -127,7 +127,7 @@ import type { PirateEconomyModifiers } from '@/systems/economy-system';
 import { processPiratesForCompletedRound } from '@/systems/pirate-system';
 import { classifyOwner } from './owner-kind';
 import { consumeHerdingInsight, getStampedeLifecycleTransition, hasActiveHerdingInsight, processStampedeScheduling, processStampedeTurn } from '@/systems/stampede-system';
-import { processRogueElephantHostScheduling, processRogueElephantHostTurn } from '@/systems/rogue-elephant-host-system';
+import { consumeRecoveredHarnesses, getRogueElephantHostLifecycleTransition, hasActiveRecoveredHarnesses, processRogueElephantHostScheduling, processRogueElephantHostTurn } from '@/systems/rogue-elephant-host-system';
 
 export function finalizeOpponentRoundState(state: GameState): GameState {
   const normalized = normalizeOpponentAIState(state);
@@ -188,12 +188,15 @@ export function processTurn(
     newState = resolveLandSupplyForCiv(newState, civId);
     const stampedeBefore = newState.stampedes?.[civId];
     newState = processStampedeTurn(newState, civId);
+    const hostBefore = newState.rogueElephantHosts?.[civId];
     newState = processRogueElephantHostTurn(newState, civId);
     const stampedeTransition = getStampedeLifecycleTransition(
       stampedeBefore,
       newState.stampedes?.[civId],
     );
     if (stampedeTransition) bus.emit('stampede:lifecycle', stampedeTransition);
+    const hostTransition = getRogueElephantHostLifecycleTransition(hostBefore, newState.rogueElephantHosts?.[civId]);
+    if (hostTransition) bus.emit('rogue-elephant-host:lifecycle', hostTransition);
     const recoveringBeforeAdvance = newState.autonomyByCiv?.[civId]?.surgeRecoveryUntilTurn;
     newState = applyPendingAutonomyPosture(newState, civId);
     newState = advanceAutonomySurge(newState, civId);
@@ -327,6 +330,7 @@ export function processTurn(
         },
         getCircularManufacturingMaterial(newState, civId),
         hasActiveHerdingInsight(newState, civId),
+        hasActiveRecoveredHarnesses(newState, civId),
       );
       totalGold += result.idleGoldBonus;
       totalScience += result.idleScienceBonus;
@@ -401,6 +405,7 @@ export function processTurn(
       }
       if (result.completedUnit) {
         newState = consumeHerdingInsight(newState, civId, result.completedUnit);
+        newState = consumeRecoveredHarnesses(newState, civId, result.completedUnit);
         bus.emit('city:unit-trained', { cityId, unitType: result.completedUnit });
         const newUnit = createUnit(result.completedUnit, civId, city.position, newState.idCounters, civDef?.bonusEffect);
         if (result.completedUnit === 'missionary') {

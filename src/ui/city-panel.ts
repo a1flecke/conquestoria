@@ -51,6 +51,7 @@ import { CONVERSION_THRESHOLD } from '@/systems/religion-definitions';
 import { getLoyaltyThreshold, getLoyaltyTickAmount, isLoyaltyTrackEligible } from '@/systems/religion-loyalty-system';
 import { resolvePressureSeverityForCiv } from '@/core/opponent-challenge';
 import { hasActiveHerdingInsight } from '@/systems/stampede-system';
+import { hasActiveRecoveredHarnesses } from '@/systems/rogue-elephant-host-system';
 import { getWorldPressurePresentationForViewer } from '@/systems/world-pressure-presentation';
 import { getCityIntrinsicStrength, isCityHpRegenerating } from '@/systems/city-siege-system';
 import { getOccupiedCityMood, getOccupiedCityYieldMultiplier } from '@/systems/city-occupation-system';
@@ -244,6 +245,7 @@ export function createCityPanel(
     availableResources: playerResources,
     materialSubstitution: getCircularManufacturingMaterial(state, city.owner),
     herdingInsight: city.owner === state.currentPlayer && hasActiveHerdingInsight(state, city.owner),
+    recoveredHarnesses: city.owner === state.currentPlayer && hasActiveRecoveredHarnesses(state, city.owner),
   });
   const resourceRequirementLine = (itemId: string, required: readonly ResourceType[] = []): string => {
     const requiredNames = required.map(id => RESOURCE_DEFINITIONS.find(def => def.id === id)?.name ?? id);

@@ -1919,6 +1919,14 @@ describe('S4b — new buildings', () => {
 describe('S4b — building production discounts', () => {
   const noBuildings = { buildings: [] };
 
+  it('applies Recovered Harnesses only to War Elephant production', () => {
+    const elephantBase = getProductionCostForItem('war_elephant', { city: noBuildings });
+    expect(getProductionCostForItem('war_elephant', { city: noBuildings, recoveredHarnesses: true }))
+      .toBe(Math.ceil(elephantBase * 0.75));
+    expect(getProductionCostForItem('beast_handler', { city: noBuildings, recoveredHarnesses: true }))
+      .toBe(getProductionCostForItem('beast_handler', { city: noBuildings }));
+  });
+
   it('describes Tank Depot armored production and city healing in plain language', () => {
     expect(BUILDINGS.tank_depot.description).toContain('10%');
     expect(BUILDINGS.tank_depot.description).toContain('+5');

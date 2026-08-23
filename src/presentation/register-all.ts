@@ -22,6 +22,7 @@ import { registerFactionCrisisPresentation } from '@/presentation/register-facti
 import { registerEspionagePresentation } from '@/presentation/register-espionage-presentation';
 import { registerBeastPresentation } from '@/presentation/register-beast-presentation';
 import { registerStampedePresentation } from '@/presentation/register-stampede-presentation';
+import { registerRogueElephantHostPresentation } from '@/presentation/register-rogue-elephant-host-presentation';
 import { registerRaiderPresentation } from '@/presentation/register-raider-presentation';
 import { registerCombatPresentation } from '@/presentation/register-combat-presentation';
 import { registerGeneralPresentation } from '@/presentation/register-general-presentation';
@@ -103,6 +104,7 @@ const ALL_REGISTRARS: readonly PresentationRegistrar[] = [
   registerEspionagePresentation,
   registerBeastPresentation,
   registerStampedePresentation,
+  registerRogueElephantHostPresentation,
   registerRaiderPresentation,
   registerCombatPresentation,
   registerGeneralPresentation,

@@ -137,6 +137,25 @@ describe('city-panel national projects', () => {
     expect(facts).toContain('Live Ivory reduces new city production cost by 15%');
   });
 
+  it('shows the current player’s Recovered Harnesses status and discounted War Elephant cost', () => {
+    const { container, city, state } = makeWonderPanelFixture();
+    state.civilizations.player.techState.completed = ['tactics'];
+    state.rogueElephantHosts = {
+      player: {
+        targetCivId: 'player', phase: 'resolved', completed: true, outcome: 'dispersed',
+        recoveredHarnesses: { expiresTurn: state.turn + 10 },
+      },
+    };
+    const panel = createCityPanel(container, city, state, {
+      onBuild: () => {}, onOpenWonderPanel: () => {}, onClose: () => {},
+    });
+
+    expect(collectText(panel)).toContain('Recovered Harnesses: next War Elephant −25% (10 turns).');
+    // The fixture owns Ivory, so the live 15% resource advantage composes with
+    // the 25% recovered-harness discount: ceil(130 × .85 × .75) = 83.
+    expect(panel.querySelector('[data-item-id="war_elephant"]')?.textContent).toContain('Cost: 83');
+  });
+
   it('renders Intelligence Officer public tactical facts in the live production catalog', () => {
     const { container, city, state } = makeWonderPanelFixture();
     state.civilizations.player.techState.completed = ['covert-operations'];

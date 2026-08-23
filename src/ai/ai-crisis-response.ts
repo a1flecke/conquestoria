@@ -92,7 +92,11 @@ export function getCrisisDispatchCandidates(state: GameState, civId: string): Cr
     }
   }
   const host = state.rogueElephantHosts?.[civId];
-  const hostForce = host?.phase === 'active' && host.forceId ? state.crisisForces?.[host.forceId] : undefined;
+  // A broken Host remains a visible, local tactical threat for its three-turn
+  // dispersal window; do not make the computer player forget it at conversion.
+  const hostForce = (host?.phase === 'active' || host?.phase === 'dispersing') && host.forceId
+    ? state.crisisForces?.[host.forceId]
+    : undefined;
   if (hostForce?.targetCivId === civId && civ?.visibility) {
     for (const unitId of [...hostForce.unitIds].sort()) {
       const unit = state.units[unitId];

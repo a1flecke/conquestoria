@@ -238,6 +238,28 @@ describe('applyCombatOutcomeToState', () => {
     expect(applied.state.crisisForces).toEqual({});
   });
 
+  it('breaks a Rogue Host immediately when the shared combat path removes its Handler', () => {
+    const state = makeRewardState();
+    const handler = { ...state.units.defender, id: 'handler', type: 'rogue_handler' as const, owner: CRISIS_FORCE_OWNER };
+    const elephant = { ...state.units.defender, id: 'elephant', type: 'rogue_elephant' as const, owner: CRISIS_FORCE_OWNER, position: { q: 2, r: 0 } };
+    state.units = { attacker: state.units.attacker, handler, elephant };
+    state.civilizations['ai-1'].units = [];
+    state.crisisForces = { host: { id: 'host', targetCivId: 'player', severity: 'standard', createdTurn: 1, unitIds: ['handler', 'elephant'] } };
+    state.rogueElephantHosts = { player: { targetCivId: 'player', forceId: 'host', phase: 'active', createdTurn: 1 } };
+    const result: CombatResult = {
+      attackerId: 'attacker', defenderId: 'handler', attackerDamage: 0, defenderDamage: 100,
+      attackerSurvived: true, defenderSurvived: false, attackerStrength: 30, defenderStrength: 20,
+      attackerPosition: { q: 0, r: 0 }, defenderPosition: { q: 1, r: 0 },
+    };
+
+    const applied = applyCombatOutcomeToState(state, result, 64);
+
+    expect(applied.state.units.handler).toBeUndefined();
+    expect(applied.state.units.elephant?.type).toBe('beast_stampede_herd');
+    expect(applied.state.rogueElephantHosts?.player).toMatchObject({ phase: 'dispersing', dispersalTurnsRemaining: 3 });
+    expect(applied.state.stampedes?.player).toBeUndefined();
+  });
+
   it('destroys aircraft based on a carrier that combat removes', () => {
     const state = makeRewardState();
     state.units.attacker = { ...state.units.attacker, type: 'warrior', owner: 'player' };
