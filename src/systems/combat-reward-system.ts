@@ -14,6 +14,7 @@ import { UNIT_CLASS_BY_TYPE } from '@/systems/unit-modifier-definitions';
 import { resolveBoundedSplash } from '@/systems/combat-system';
 import { recordCampPressureFromCombatOutcome } from '@/systems/barbarian-pressure';
 import { normalizeCrisisForces } from '@/systems/crisis-force-system';
+import { resolveRogueElephantHostHandlerDeaths } from '@/systems/rogue-elephant-host-system';
 
 /** Age-of-Sail through ironclad — boarding-action flavor. Everything else
  * (destroyer onward) uses modern "disabled and captured" phrasing. Same
@@ -330,6 +331,7 @@ export function applyCombatOutcomeToState(
   let defenderActuallyDefeated = !result.defenderSurvived;
   let attackerCaptured = false;
   let defenderCaptured = false;
+  const defeatedUnitIds = new Set<string>();
 
   if (result.attackerSurvived) {
     units[result.attackerId] = {
@@ -417,6 +419,7 @@ export function applyCombatOutcomeToState(
     attackerActuallyDefeated = false;
     attackerCaptured = true;
   } else {
+    defeatedUnitIds.add(result.attackerId);
     const removed = removeUnitFromCopies(units, civilizations, espionage, result.attackerId);
     units = removed.units;
     civilizations = removed.civilizations;
@@ -487,6 +490,7 @@ export function applyCombatOutcomeToState(
     defenderActuallyDefeated = false;
     defenderCaptured = true;
   } else {
+    defeatedUnitIds.add(result.defenderId);
     const removed = removeUnitFromCopies(units, civilizations, espionage, result.defenderId);
     units = removed.units;
     civilizations = removed.civilizations;
@@ -501,6 +505,7 @@ export function applyCombatOutcomeToState(
       units[hit.unitId] = { ...target, health: target.health - hit.damage };
       continue;
     }
+    defeatedUnitIds.add(hit.unitId);
     const removed = removeUnitFromCopies(units, civilizations, espionage, hit.unitId);
     units = removed.units;
     civilizations = removed.civilizations;
@@ -609,7 +614,12 @@ export function applyCombatOutcomeToState(
   if (defenderActuallyDefeated && UNIT_DEFINITIONS[defenderBefore.type].carrierDeckCapacity != null) {
     nextState = destroyCarrierBasedAircraft(nextState, defenderBefore.id);
   }
-  nextState = normalizeCrisisForces(recordCampPressureFromCombatOutcome(nextState, attackerBefore, defenderBefore));
+  // Resolve command breaks before force normalization removes the dead Handler
+  // from its force membership; the recorded death ids are the canonical trigger.
+  nextState = normalizeCrisisForces(resolveRogueElephantHostHandlerDeaths(
+    recordCampPressureFromCombatOutcome(nextState, attackerBefore, defenderBefore),
+    defeatedUnitIds,
+  ));
 
   return {
     state: nextState,

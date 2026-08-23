@@ -1433,6 +1433,8 @@ export function getProductionCostForItem(
     materialSubstitution?: ResourceType;
     /** One pending Stampede reward discounts the next Beast Handler or War Elephant. */
     herdingInsight?: boolean;
+    /** One Host reward discounts only the next War Elephant. */
+    recoveredHarnesses?: boolean;
   } = {},
 ): number {
   const baseCost = getCatalogProductionCost(itemId, options.era);
@@ -1464,7 +1466,8 @@ export function getProductionCostForItem(
     options.materialSubstitution,
   );
   const herdingInsightMultiplier = options.herdingInsight && (itemId === 'beast_handler' || itemId === 'war_elephant') ? 0.8 : 1;
-  const discountMultiplier = buildingDiscountMultiplier * techDiscountMultiplier * npDiscountMultiplier * resourceAdvantageMultiplier * herdingInsightMultiplier;
+  const recoveredHarnessesMultiplier = options.recoveredHarnesses && itemId === 'war_elephant' ? 0.75 : 1;
+  const discountMultiplier = buildingDiscountMultiplier * techDiscountMultiplier * npDiscountMultiplier * resourceAdvantageMultiplier * herdingInsightMultiplier * recoveredHarnessesMultiplier;
   const effective = baseCost * civMultiplier * discountMultiplier;
   return discountMultiplier < 1 ? Math.ceil(effective) : Math.round(effective);
 }
@@ -2028,6 +2031,8 @@ export function processCity(
   materialSubstitution?: ResourceType,
   /** Applies one active Stampede reward to a qualifying unit currently being produced. */
   herdingInsight: boolean = false,
+  /** Applies one active Host reward to a qualifying War Elephant currently being produced. */
+  recoveredHarnesses: boolean = false,
 ): CityProcessResult {
   let grew = false;
   let completedBuilding: string | null = null;
@@ -2191,6 +2196,7 @@ export function processCity(
       availableResources,
       materialSubstitution,
       herdingInsight,
+      recoveredHarnesses,
     });
     if ((BUILDINGS[currentItem] || unitDef) && newProgress >= currentItemCost) {
       const completion = completeCityProductionItem(

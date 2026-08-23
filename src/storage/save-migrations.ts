@@ -20,7 +20,7 @@ import { normalizeCrisisForces } from '@/systems/crisis-force-system';
 import { normalizeStampedes } from '@/systems/stampede-system';
 import { normalizeRogueElephantHosts } from '@/systems/rogue-elephant-host-system';
 
-export const CURRENT_SAVE_SCHEMA_VERSION = 18;
+export const CURRENT_SAVE_SCHEMA_VERSION = 19;
 
 export type SaveMigration = (state: GameState) => GameState;
 
@@ -731,6 +731,7 @@ export const SAVE_MIGRATIONS: Readonly<Record<number, SaveMigration>> = {
   16: state => normalizeCrisisForces(state),
   17: state => normalizeStampedes(normalizeCrisisForces({ ...state, stampedes: state.stampedes ?? {} })),
   18: state => normalizeRogueElephantHosts(normalizeStampedes(normalizeCrisisForces({ ...state, rogueElephantHosts: state.rogueElephantHosts ?? {} }))),
+  19: state => normalizeRogueElephantHosts(normalizeCrisisForces(state)),
 };
 
 function readSchemaVersion(raw: Record<string, unknown>): number {

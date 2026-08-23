@@ -1,4 +1,4 @@
-import type { GameState, OpponentChallenge, RogueElephantHostState, RogueHostTarget } from '@/core/types';
+import type { GameState, OpponentChallenge, RogueElephantHostOutcome, RogueElephantHostState, RogueHostTarget, UnitType } from '@/core/types';
 import { CRISIS_FORCE_OWNER } from '@/core/owner-kind';
 import { registerCrisisForce } from '@/systems/crisis-force-system';
 import { hexKey, mapNeighbors } from '@/systems/hex-utils';
@@ -8,9 +8,30 @@ import { hexDistance } from '@/systems/hex-utils';
 import { findPath } from '@/systems/unit-system';
 import { executeUnitMove } from '@/systems/unit-movement-system';
 import { resolvePressureSeverityForCiv } from '@/core/opponent-challenge';
+import { getCivAvailableResources } from '@/systems/resource-acquisition-system';
+import { getTrainableUnitsForCiv } from '@/systems/city-system';
 
 export interface RogueElephantHostProfile {
   elephantCount: number;
+}
+
+export type RogueElephantHostLifecycleTransition =
+  | { kind: 'command-broken'; targetCivId: string; dispersalTurnsRemaining: number }
+  | { kind: 'resolved'; targetCivId: string; outcome: RogueElephantHostOutcome; rewardGranted: boolean };
+
+/** Derives presentation strictly from this turn's before/after Host record. */
+export function getRogueElephantHostLifecycleTransition(
+  before: RogueElephantHostState | undefined,
+  after: RogueElephantHostState | undefined,
+): RogueElephantHostLifecycleTransition | undefined {
+  if (!after) return undefined;
+  if (before?.phase !== 'dispersing' && after.phase === 'dispersing') {
+    return { kind: 'command-broken', targetCivId: after.targetCivId, dispersalTurnsRemaining: after.dispersalTurnsRemaining ?? 3 };
+  }
+  if (before?.phase !== 'resolved' && after.phase === 'resolved' && after.outcome) {
+    return { kind: 'resolved', targetCivId: after.targetCivId, outcome: after.outcome, rewardGranted: after.rewardGranted === true };
+  }
+  return undefined;
 }
 
 const HUMAN_HOST_PROFILES: Record<OpponentChallenge, RogueElephantHostProfile> = {
@@ -145,8 +166,14 @@ export function getRogueElephantHostTarget(state: GameState, targetCivId: string
 export function getRogueElephantHostStatusForViewer(state: GameState, viewerId: string): { text: string } | undefined {
   const host = state.rogueElephantHosts?.[viewerId];
   if (!host || host.targetCivId !== viewerId) return undefined;
+  const chargeTurns = host.recoveredHarnesses && !host.recoveredHarnesses.consumed
+    ? Math.max(0, host.recoveredHarnesses.expiresTurn - state.turn)
+    : 0;
+  const charge = chargeTurns > 0 ? ` Recovered Harnesses: next War Elephant −25% (${chargeTurns} turns).` : '';
   if (host.phase === 'warning') return { text: 'Rogue Elephant Host is approaching; prepare defenses before it attacks.' };
   if (host.phase === 'active') return { text: 'Rogue Elephant Host is active. Defeat the nearby Handler to break its coordination.' };
+  if (host.phase === 'dispersing') return { text: `Handler defeated: the scattered herds disperse in ${host.dispersalTurnsRemaining ?? 0} turns.${charge}` };
+  if (host.phase === 'resolved') return { text: `Rogue Elephant Host ${host.outcome ?? 'resolved'}.${charge}` };
   return undefined;
 }
 
@@ -168,15 +195,127 @@ export function getRogueElephantCommandFact(
   return undefined;
 }
 
+/** Converts a broken Host into a three-turn dispersal state without invoking Stampede recurrence or rewards. */
+export function breakRogueElephantHostCommand(state: GameState, handlerUnitId: string): GameState {
+  const host = Object.values(state.rogueElephantHosts ?? {}).find(candidate => candidate.phase === 'active'
+    && candidate.forceId && state.crisisForces?.[candidate.forceId]?.unitIds.includes(handlerUnitId));
+  const force = host?.forceId ? state.crisisForces?.[host.forceId] : undefined;
+  if (!host || !force) return state;
+  const herdIds = force.unitIds.filter(unitId => unitId !== handlerUnitId && state.units[unitId]?.type === 'rogue_elephant');
+  const units = Object.fromEntries(Object.entries(state.units).flatMap(([unitId, unit]) => {
+    if (unitId === handlerUnitId) return [];
+    return [[unitId, unit.type === 'rogue_elephant' ? { ...unit, type: 'beast_stampede_herd' as const } : unit]];
+  }));
+  const crisisForces = { ...state.crisisForces, [force.id]: { ...force, unitIds: herdIds } };
+  return {
+    ...state,
+    units,
+    crisisForces,
+    rogueElephantHosts: {
+      ...state.rogueElephantHosts,
+      [host.targetCivId]: { ...host, phase: 'dispersing', dispersalTurnsRemaining: 3 },
+    },
+  };
+}
+
+/**
+ * Combat passes the exact units it removed at the mutation boundary. This avoids
+ * reconstructing a historical death from final state and correctly handles splash
+ * damage that kills more than one Handler in the same combat resolution.
+ */
+export function resolveRogueElephantHostHandlerDeaths(state: GameState, defeatedUnitIds: ReadonlySet<string>): GameState {
+  let next = state;
+  for (const handlerUnitId of [...defeatedUnitIds].sort()) next = breakRogueElephantHostCommand(next, handlerUnitId);
+  return next;
+}
+
+function removeHostForce(state: GameState, forceId: string): GameState {
+  const force = state.crisisForces?.[forceId];
+  if (!force) return state;
+  return {
+    ...state,
+    units: Object.fromEntries(Object.entries(state.units).filter(([unitId]) => !force.unitIds.includes(unitId))),
+    crisisForces: Object.fromEntries(Object.entries(state.crisisForces ?? {}).filter(([candidateId]) => candidateId !== forceId)),
+  };
+}
+
+/** Applies the one bounded Host reward; only terminal Host outcomes may call this. */
+export function resolveRogueElephantHostOutcome(
+  state: GameState,
+  targetCivId: string,
+  outcome: RogueElephantHostOutcome,
+): GameState {
+  const host = state.rogueElephantHosts?.[targetCivId];
+  const civ = state.civilizations[targetCivId];
+  if (!host || !civ || host.completed) return state;
+  const rewardGranted = outcome !== 'escaped';
+  const gold = rewardGranted ? Math.min(12 * resolveCivilizationEra(civ.techState.completed), 100) : 0;
+  return {
+    ...state,
+    civilizations: gold > 0 ? { ...state.civilizations, [targetCivId]: { ...civ, gold: civ.gold + gold } } : state.civilizations,
+    rogueElephantHosts: {
+      ...state.rogueElephantHosts,
+      [targetCivId]: {
+        ...host, phase: 'resolved', completed: true, outcome, resolvedTurn: state.turn, rewardGranted,
+        ...(rewardGranted ? { recoveredHarnesses: { expiresTurn: state.turn + 10 } } : {}),
+      },
+    },
+  };
+}
+
+export function hasActiveRecoveredHarnesses(state: GameState, targetCivId: string): boolean {
+  const charge = state.rogueElephantHosts?.[targetCivId]?.recoveredHarnesses;
+  return Boolean(charge && !charge.consumed && state.turn < charge.expiresTurn);
+}
+
+export function consumeRecoveredHarnesses(state: GameState, targetCivId: string, unitType: UnitType): GameState {
+  if (unitType !== 'war_elephant' || !hasActiveRecoveredHarnesses(state, targetCivId)) return state;
+  const host = state.rogueElephantHosts![targetCivId]!;
+  return {
+    ...state,
+    rogueElephantHosts: { ...state.rogueElephantHosts, [targetCivId]: { ...host, recoveredHarnesses: { ...host.recoveredHarnesses!, consumed: true } } },
+  };
+}
+
+/** Expiry pays 25 gold only if the discounted War Elephant was never trainable. */
+export function processRecoveredHarnesses(state: GameState, targetCivId: string): GameState {
+  const host = state.rogueElephantHosts?.[targetCivId];
+  const civ = state.civilizations[targetCivId];
+  const charge = host?.recoveredHarnesses;
+  if (!host || !civ || !charge || charge.consumed) return state;
+  if (state.turn < charge.expiresTurn) {
+    const eligible = getTrainableUnitsForCiv(civ.techState.completed, civ.civType, getCivAvailableResources(state, targetCivId))
+      .some(unit => unit.type === 'war_elephant');
+    if (!eligible || host.recoveredHarnessesEligibleUnitSeen) return state;
+    return { ...state, rogueElephantHosts: { ...state.rogueElephantHosts, [targetCivId]: { ...host, recoveredHarnessesEligibleUnitSeen: true } } };
+  }
+  const gold = host.recoveredHarnessesEligibleUnitSeen ? 0 : 25;
+  return {
+    ...state,
+    civilizations: gold > 0 ? { ...state.civilizations, [targetCivId]: { ...civ, gold: civ.gold + gold } } : state.civilizations,
+    rogueElephantHosts: { ...state.rogueElephantHosts, [targetCivId]: { ...host, recoveredHarnesses: { ...charge, consumed: true } } },
+  };
+}
+
 /** Ends the warning boundary. #706 will add command-break conversion and terminal resolution. */
 export function processRogueElephantHostTurn(state: GameState, targetCivId: string): GameState {
-  const host = state.rogueElephantHosts?.[targetCivId];
+  let next = processRecoveredHarnesses(state, targetCivId);
+  const host = next.rogueElephantHosts?.[targetCivId];
   if (!host) return state;
-  if (host.phase === 'active') return processActiveRogueElephantHost(state, targetCivId);
-  if (host.phase !== 'warning' || host.createdTurn === state.turn) return state;
+  const force = host.forceId ? next.crisisForces?.[host.forceId] : undefined;
+  if ((host.phase === 'active' || host.phase === 'dispersing') && (!force || !force.unitIds.some(unitId => next.units[unitId]))) {
+    return resolveRogueElephantHostOutcome(next, targetCivId, 'defeated');
+  }
+  if (host.phase === 'dispersing') {
+    const remaining = Math.max(0, (host.dispersalTurnsRemaining ?? 0) - 1);
+    if (remaining > 0) return { ...next, rogueElephantHosts: { ...next.rogueElephantHosts, [targetCivId]: { ...host, dispersalTurnsRemaining: remaining } } };
+    return resolveRogueElephantHostOutcome(removeHostForce(next, host.forceId!), targetCivId, 'dispersed');
+  }
+  if (host.phase === 'active') return processActiveRogueElephantHost(next, targetCivId);
+  if (host.phase !== 'warning' || host.createdTurn === next.turn) return next;
   const activated: GameState = {
-    ...state,
-    rogueElephantHosts: { ...state.rogueElephantHosts, [targetCivId]: { ...host, phase: 'active' } },
+    ...next,
+    rogueElephantHosts: { ...next.rogueElephantHosts, [targetCivId]: { ...host, phase: 'active' } },
   };
   // Activation consumes the warning boundary; the Host's first movement happens on its next turn.
   return activated;
@@ -217,9 +356,9 @@ export function normalizeRogueElephantHosts(state: GameState): GameState {
     const candidate = value as Partial<RogueElephantHostState>;
     if (candidate.targetCivId !== targetCivId) return [];
     const force = typeof candidate.forceId === 'string' ? state.crisisForces?.[candidate.forceId] : undefined;
-    const phase = candidate.phase === 'warning' || candidate.phase === 'active' || candidate.phase === 'resolved'
+    const phase = candidate.phase === 'warning' || candidate.phase === 'active' || candidate.phase === 'dispersing' || candidate.phase === 'resolved'
       ? candidate.phase : undefined;
-    if ((phase === 'warning' || phase === 'active') && (!force || force.targetCivId !== targetCivId)) return [];
+    if ((phase === 'warning' || phase === 'active' || phase === 'dispersing') && (!force || force.targetCivId !== targetCivId)) return [];
     const normalized: RogueElephantHostState = {
       targetCivId,
       ...(force ? { forceId: force.id } : {}),
@@ -227,6 +366,14 @@ export function normalizeRogueElephantHosts(state: GameState): GameState {
       ...(Number.isInteger(candidate.createdTurn) ? { createdTurn: Number(candidate.createdTurn) } : {}),
       ...(candidate.completed === true ? { completed: true } : {}),
       ...(normalizeTarget(candidate.target) ? { target: normalizeTarget(candidate.target)! } : {}),
+      ...(Number.isInteger(candidate.dispersalTurnsRemaining) ? { dispersalTurnsRemaining: Math.max(0, Number(candidate.dispersalTurnsRemaining)) } : {}),
+      ...(candidate.outcome === 'defeated' || candidate.outcome === 'dispersed' || candidate.outcome === 'escaped' ? { outcome: candidate.outcome } : {}),
+      ...(Number.isInteger(candidate.resolvedTurn) ? { resolvedTurn: Number(candidate.resolvedTurn) } : {}),
+      ...(typeof candidate.rewardGranted === 'boolean' ? { rewardGranted: candidate.rewardGranted } : {}),
+      ...(candidate.recoveredHarnesses && Number.isInteger(candidate.recoveredHarnesses.expiresTurn)
+        ? { recoveredHarnesses: { expiresTurn: Number(candidate.recoveredHarnesses.expiresTurn), ...(typeof candidate.recoveredHarnesses.consumed === 'boolean' ? { consumed: candidate.recoveredHarnesses.consumed } : {}) } }
+        : {}),
+      ...(typeof candidate.recoveredHarnessesEligibleUnitSeen === 'boolean' ? { recoveredHarnessesEligibleUnitSeen: candidate.recoveredHarnessesEligibleUnitSeen } : {}),
     };
     return [[targetCivId, normalized]];
   }));

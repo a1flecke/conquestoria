@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  breakRogueElephantHostCommand,
   getRogueElephantHostProfile,
   getRogueElephantStrength,
   getRogueHandlerStrength,
@@ -99,5 +100,37 @@ describe('Rogue Elephant Host definitions', () => {
     expect(getRogueElephantHostTarget(state, targetCivId)).toEqual({
       kind: 'city-approach', cityId: city.id, tileKey: hexKey(weak),
     });
+  });
+
+  it('converts surviving elephants to a three-turn dispersal force when its Handler dies', () => {
+    const state = createNewGame('rome', 'rogue-host-break', 'small');
+    const targetCivId = state.currentPlayer;
+    state.civilizations[targetCivId]!.techState.completed = TECH_TREE.filter(tech => tech.era <= 4).map(tech => tech.id);
+    const settler = Object.values(state.units).find(unit => unit.owner === targetCivId && unit.type === 'settler')!;
+    const city = foundCity(targetCivId, settler.position, state.map, state.idCounters);
+    state.cities = { [city.id]: city };
+    for (const position of mapNeighbors(state.map, city.position)) {
+      const key = hexKey(position);
+      if (state.map.tiles[key]) state.map.tiles[key] = { ...state.map.tiles[key], terrain: 'plains' };
+    }
+    state.units = Object.fromEntries(Object.entries(state.units).filter(([, unit]) =>
+      !mapNeighbors(state.map, city.position).some(position => hexKey(position) === hexKey(unit.position)),
+    ));
+    const warning = startRogueElephantHostWarning(state, targetCivId, 'standard');
+    const active = processRogueElephantHostTurn({ ...warning, turn: warning.turn + 1 }, targetCivId);
+    const handler = Object.values(active.units).find(unit => unit.type === 'rogue_handler')!;
+
+    const converted = breakRogueElephantHostCommand(active, handler.id);
+
+    expect(Object.values(converted.units).filter(unit => unit.type === 'rogue_elephant')).toHaveLength(0);
+    expect(converted.stampedes?.[targetCivId]).toBeUndefined();
+    expect(converted.rogueElephantHosts?.[targetCivId]).toMatchObject({ phase: 'dispersing', dispersalTurnsRemaining: 3 });
+
+    const first = processRogueElephantHostTurn(converted, targetCivId);
+    const second = processRogueElephantHostTurn(first, targetCivId);
+    const resolved = processRogueElephantHostTurn(second, targetCivId);
+    expect(resolved.rogueElephantHosts?.[targetCivId]).toMatchObject({ phase: 'resolved', outcome: 'dispersed', rewardGranted: true, recoveredHarnesses: { expiresTurn: resolved.turn + 10 } });
+    expect(resolved.civilizations[targetCivId]!.gold).toBe(state.civilizations[targetCivId]!.gold + 48);
+    expect(Object.values(resolved.units).some(unit => unit.type === 'beast_stampede_herd')).toBe(false);
   });
 });
