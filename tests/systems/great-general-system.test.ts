@@ -8,6 +8,7 @@ import {
   generateGeneralCandidates,
   checkAndQueueGeneralCandidateChoice,
   spawnGeneralForCiv,
+  getEffectiveCommandStats,
 } from '@/systems/great-general-system';
 import { GENERAL_DEFINITIONS } from '@/systems/great-general-definitions';
 import { createNewGame } from '@/core/game-state';
@@ -262,5 +263,44 @@ describe('spawnGeneralForCiv', () => {
     const result = spawnGeneralForCiv(state, 'player', 'gen_caesar');
 
     expect(result).toBe(state);
+  });
+});
+
+describe('getEffectiveCommandStats', () => {
+  const baseDefinition = GENERAL_DEFINITIONS[0]!; // commandRange 2, commandCapacity 3 for all V1 entries
+
+  it('full supply leaves command stats unchanged', () => {
+    const result = getEffectiveCommandStats({ landSupply: undefined }, baseDefinition);
+    expect(result).toEqual({ commandRange: baseDefinition.commandRange, commandCapacity: baseDefinition.commandCapacity });
+  });
+
+  it('stable-unsupported and grace stages leave command stats unchanged ("early stage: command unchanged")', () => {
+    for (const state of ['stable-unsupported', 'grace'] as const) {
+      const result = getEffectiveCommandStats(
+        { landSupply: { state, hostileUnsupportedTurns: 1, suppliedTurnsSinceRecovery: 0 } },
+        baseDefinition,
+      );
+      expect(result).toEqual({ commandRange: baseDefinition.commandRange, commandCapacity: baseDefinition.commandCapacity });
+    }
+  });
+
+  it('degraded stage reduces commandCapacity but not commandRange', () => {
+    const result = getEffectiveCommandStats(
+      { landSupply: { state: 'degraded', hostileUnsupportedTurns: 3, suppliedTurnsSinceRecovery: 0 } },
+      baseDefinition,
+    );
+    expect(result.commandCapacity).toBeLessThan(baseDefinition.commandCapacity);
+    expect(result.commandRange).toBe(baseDefinition.commandRange);
+  });
+
+  it('severe stage reduces both commandCapacity and commandRange, never below 1', () => {
+    const result = getEffectiveCommandStats(
+      { landSupply: { state: 'severe', hostileUnsupportedTurns: 6, suppliedTurnsSinceRecovery: 0 } },
+      baseDefinition,
+    );
+    expect(result.commandCapacity).toBeLessThan(baseDefinition.commandCapacity);
+    expect(result.commandRange).toBeLessThan(baseDefinition.commandRange);
+    expect(result.commandRange).toBeGreaterThanOrEqual(1);
+    expect(result.commandCapacity).toBeGreaterThanOrEqual(1);
   });
 });

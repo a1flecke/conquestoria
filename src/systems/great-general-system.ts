@@ -1,4 +1,4 @@
-import type { Civilization, GameState, GeneralProgressState } from '@/core/types';
+import type { Civilization, GameState, GeneralProgressState, Unit } from '@/core/types';
 import { GENERAL_DEFINITIONS, type GeneralDefinition } from '@/systems/great-general-definitions';
 import { seededLcg, weightedPick } from '@/systems/seeded-lcg';
 import { resolveCivilizationEra } from '@/systems/tech-definitions';
@@ -190,4 +190,29 @@ export function spawnGeneralForCiv(
     pendingGeneralCandidateChoices: (state.pendingGeneralCandidateChoices ?? [])
       .filter(choice => choice.civId !== civId),
   };
+}
+
+/**
+ * Supply-based command-stat degradation (contract §15 "General supply"):
+ * early stages leave command unchanged, `degraded` shrinks commandCapacity,
+ * `severe` also shrinks commandRange. Nothing in MR3 consumes this yet (no
+ * ability exists to read it) -- MR4's heroic-command machinery will be its
+ * first real caller. This function and its test coverage exist now so MR4
+ * only has to wire a caller, not design the degradation curve.
+ */
+export function getEffectiveCommandStats(
+  unit: Pick<Unit, 'landSupply'>,
+  definition: Pick<GeneralDefinition, 'commandRange' | 'commandCapacity'>,
+): { commandRange: number; commandCapacity: number } {
+  const state = unit.landSupply?.state ?? 'full';
+  if (state === 'degraded') {
+    return { commandRange: definition.commandRange, commandCapacity: Math.max(1, definition.commandCapacity - 1) };
+  }
+  if (state === 'severe') {
+    return {
+      commandRange: Math.max(1, definition.commandRange - 1),
+      commandCapacity: Math.max(1, definition.commandCapacity - 1),
+    };
+  }
+  return { commandRange: definition.commandRange, commandCapacity: definition.commandCapacity };
 }
