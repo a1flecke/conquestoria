@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { renderSelectedUnitInfo } from '@/ui/selected-unit-info';
 import { createEspionageCivState, createSpyFromUnit, setDisguise } from '@/systems/espionage-system';
-import type { GameState, HexCoord } from '@/core/types';
+import type { GameState, HexCoord, UnitType } from '@/core/types';
 import { hexKey } from '@/systems/hex-utils';
 import { createNewGame } from '@/core/game-state';
 import { createUnit } from '@/systems/unit-system';
@@ -142,7 +142,7 @@ describe('land-supply status line (#544)', () => {
   beforeEach(installMockDocument);
   afterEach(restoreMockDocument);
 
-  function makeUnitState(seed: string, unitType: string, landSupply?: GameState['units'][string]['landSupply']) {
+  function makeUnitState(seed: string, unitType: UnitType, landSupply?: GameState['units'][string]['landSupply']) {
     const state = createNewGame(undefined, seed, 'small');
     const unit = {
       ...createUnit(unitType, 'player', { q: 15, r: 15 }, { nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 }),
