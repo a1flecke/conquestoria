@@ -256,13 +256,23 @@ describe('spawnGeneralForCiv', () => {
     expect(result.civilizations.player.generalProgress!.points).toBe(50); // points carry over unchanged
   });
 
-  it('is a no-op when the civ has no capital', () => {
+  it('is a total no-op when the civ itself does not exist', () => {
     const state = makeGeneralsTestState('gen-spawn-5');
+
+    const result = spawnGeneralForCiv(state, 'nonexistent-civ', 'gen_caesar');
+
+    expect(result).toBe(state);
+  });
+
+  it('spawns no unit but still clears the pending choice when the civ has no capital (prevents an unresolvable soft-lock panel)', () => {
+    const state = makeGeneralsTestState('gen-spawn-6');
     state.civilizations.player = { ...state.civilizations.player, cities: [] };
+    state.pendingGeneralCandidateChoices = [{ civId: 'player', candidateDefinitionIds: ['gen_caesar'], triggerEventLabel: 'x' }];
 
     const result = spawnGeneralForCiv(state, 'player', 'gen_caesar');
 
-    expect(result).toBe(state);
+    expect(Object.values(result.units).some(u => u.type === 'great_general')).toBe(false);
+    expect(result.pendingGeneralCandidateChoices ?? []).toHaveLength(0);
   });
 });
 
