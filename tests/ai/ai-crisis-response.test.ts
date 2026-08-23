@@ -93,7 +93,10 @@ describe('getCrisisDispatchCandidates', () => {
       },
     };
     state.cities = { 'ai-city': { id: 'ai-city', owner: 'ai-1', position: { q: 4, r: 1 } } } as unknown as GameState['cities'];
-    state.map.tiles = { '3,2': { coord: { q: 3, r: 2 }, improvement: 'fort', improvementTurnsLeft: 0 } } as unknown as GameState['map']['tiles'];
+    state.map.tiles = {
+      '3,1': { coord: { q: 3, r: 1 }, improvement: 'none', improvementTurnsLeft: 0 },
+      '3,2': { coord: { q: 3, r: 2 }, improvement: 'fort', improvementTurnsLeft: 0 },
+    } as unknown as GameState['map']['tiles'];
     state.stampedes = {
       'ai-1': {
         targetCivId: 'ai-1', forceId: 'stampede-ai-1-4', phase: 'active', eligibleTurns: 0,
@@ -123,6 +126,15 @@ describe('getCrisisDispatchCandidates', () => {
     ]));
     expect(visibleCandidates.find(candidate => candidate.targetUnitId === 'herd')!.score)
       .toBeGreaterThan(visibleCandidates.find(candidate => candidate.targetUnitId === 'herd-screened')!.score);
+
+    const scoreBeforeHiddenUnit = visibleCandidates.find(candidate => candidate.targetUnitId === 'herd')!.score;
+    state.units['hidden-rival'] = {
+      id: 'hidden-rival', type: 'warrior', owner: 'rival', position: { q: 3, r: 0 },
+      movementPointsLeft: 0, health: 100, experience: 0, hasMoved: true, hasActed: true,
+      isResting: false, isFortified: true,
+    };
+    expect(getCrisisDispatchCandidates(state, 'ai-1').find(candidate => candidate.targetUnitId === 'herd')!.score)
+      .toBe(scoreBeforeHiddenUnit);
 
     state.civilizations['ai-1'].visibility.tiles = {};
     expect(getCrisisDispatchCandidates(state, 'ai-1')).toEqual([]);

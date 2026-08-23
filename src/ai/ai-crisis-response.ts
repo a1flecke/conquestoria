@@ -6,9 +6,9 @@ import { applyQuarantine, applyRemedy } from '@/systems/crisis-system';
 import { getCityAppeaseCost } from '@/systems/faction-system';
 import { canRestoreLand } from '@/systems/improvement-system';
 import { getWorkerChargesRemaining } from '@/systems/worker-action-system';
-import { findPath } from '@/systems/unit-system';
-import { hexDistance, hexKey } from '@/systems/hex-utils';
-import { getHerdAvoidanceScore, getHerdRoutePresentationForViewer } from '@/systems/stampede-route-system';
+import { findPath, UNIT_DEFINITIONS } from '@/systems/unit-system';
+import { hexDistance, hexKey, mapNeighbors } from '@/systems/hex-utils';
+import { getHerdRoutePresentationForViewer } from '@/systems/stampede-route-system';
 
 export interface CrisisDispatchCandidate {
   kind: 'pirate-fleet' | 'hunt-foe' | 'stampede';
@@ -53,6 +53,11 @@ export function getCrisisDispatchCandidates(state: GameState, civId: string): Cr
     const visibleRoutes = new Map(
       getHerdRoutePresentationForViewer(state, civId).routes.map(route => [route.unitId, route]),
     );
+    const visibleUnitsByPosition = new Map(
+      Object.values(state.units)
+        .filter(unit => civ?.visibility && isVisible(civ.visibility, unit.position))
+        .map(unit => [hexKey(unit.position), unit]),
+    );
     for (const unitId of [...force.unitIds].sort()) {
       const herd = state.units[unitId];
       // A crisis target is still an exact tactical target: AI may use only a herd
@@ -68,10 +73,15 @@ export function getCrisisDispatchCandidates(state: GameState, civId: string): Cr
       const cityApproachPressure = Number.isFinite(nearestCityDistance)
         ? Math.max(0, 4 - nearestCityDistance) * 10
         : 0;
-      const visibleScreenCost = route.steps.reduce(
-        (total, step) => total + getHerdAvoidanceScore(state, step),
-        0,
-      );
+      const visibleScreenCost = route.steps.reduce((total, step) => total + mapNeighbors(state.map, step)
+        .reduce((screenCost, neighbor) => {
+          const screen = visibleUnitsByPosition.get(hexKey(neighbor));
+          const domain = screen ? UNIT_DEFINITIONS[screen.type]?.domain : undefined;
+          return screen?.isFortified && !screen.transportId && domain !== 'naval' && domain !== 'air'
+            && UNIT_DEFINITIONS[screen.type]?.strength > 0
+            ? screenCost + 2
+            : screenCost;
+        }, 0), 0);
       candidates.push({
         kind: 'stampede', sourceId: force.id, targetUnitId: herd.id,
         // Attack the nearest unscreened approach first. A visible fort stop and

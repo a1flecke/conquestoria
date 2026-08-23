@@ -17,6 +17,8 @@ root instead of adding the obsolete `src/ui/stampede-presentation.ts` path.
   fort or fortified screen, then enter the existing prepared-plan and tactical-execution
   pipeline as a `repel` plan; they do not use hidden route records or a separate combat
   resolver.
+- A warning emitted after accumulated, phase-less pressure is still a one-time lifecycle
+  transition. Screen cost is derived only from units visible to the threatened AI.
 - Existing target-scoped city-panel containment status, route visibility filtering,
   unit SFX fallback, and notification queueing remain the player-facing and
   accessibility paths for this mechanics delivery. Bespoke Stampede audio remains
