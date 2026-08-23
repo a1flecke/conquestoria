@@ -71,3 +71,21 @@ export function resolveSupplyRecoveryForUnit(
   // recovery threshold above is actually met.
   return { state: current.state, hostileUnsupportedTurns: 0, suppliedTurnsSinceRecovery };
 }
+
+/**
+ * Turns remaining before `status` crosses into the next worse stage (contract
+ * §12: "Movement penalty in 2 turns"). `null` when there is no countdown to
+ * show: `full` and `stable-unsupported` have no active hostile-turn counter,
+ * and `severe` is already the worst stage. Reads the same
+ * `OVEREXTENSION_STAGE_TURNS` thresholds `advanceOverextensionStage` uses —
+ * never hardcode the `2`/`4` boundary separately here.
+ */
+export function getTurnsUntilNextSupplyStage(status: UnitLandSupplyStatus): number | null {
+  if (status.state === 'grace') {
+    return OVEREXTENSION_STAGE_TURNS.graceEndsAfter - status.hostileUnsupportedTurns + 1;
+  }
+  if (status.state === 'degraded') {
+    return OVEREXTENSION_STAGE_TURNS.degradedEndsAfter - status.hostileUnsupportedTurns + 1;
+  }
+  return null;
+}
