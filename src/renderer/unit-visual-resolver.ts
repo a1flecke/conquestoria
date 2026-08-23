@@ -66,6 +66,7 @@ const FALLBACK_ICONS: Record<UnitType, string> = {
   exosuit_infantry: '🦾',
   propagandist: '📣',
   drone_controller: '🎮',
+  great_general: '🎖️',
   galley: '⛵',
   trireme: '🚢',
   transport: '🛶',

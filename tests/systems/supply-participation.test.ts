@@ -73,3 +73,11 @@ describe('getShoreSupplyCapability', () => {
     expect(getShoreSupplyCapability('warrior')).toBeNull();
   });
 });
+
+describe('great_general supply participation (#544 MR3)', () => {
+  it('a great_general unit participates in land supply via its own definition override, not the civilian default', () => {
+    expect(UNIT_DEFINITIONS.great_general.participatesInLandSupply).toBe(true);
+    expect(UNIT_CLASS_BY_TYPE.great_general).toEqual(['civilian']);
+    expect(unitParticipatesInLandSupply({ type: 'great_general', owner: 'rome' })).toBe(true);
+  });
+});

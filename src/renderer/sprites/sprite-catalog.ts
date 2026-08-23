@@ -184,6 +184,7 @@ const UNIT_MOTION_STYLES: Record<UnitType, UnitMotionStyle> = {
   exosuit_infantry: 'humanoid',
   propagandist: 'humanoid',
   drone_controller: 'humanoid',
+  great_general: 'humanoid',
   caravan: 'humanoid',
   merchant_wagon: 'humanoid',
   freight_convoy: 'humanoid',
@@ -360,6 +361,8 @@ export const UNIT_SPRITE_CATALOG: Record<UnitType, UnitSpriteComponent> = {
   exosuit_infantry: withMotion('exosuit_infantry', ExosuitInfantrySprite),
   propagandist: withMotion('propagandist', PropagandistSprite),
   drone_controller: withMotion('drone_controller', DroneControllerSprite),
+  // #544 MR3: placeholder silhouette pending bespoke art (generate-sprite-prompt follow-up).
+  great_general: withMotion('great_general', WarriorSprite),
   caravan:           withMotion('caravan', CaravanSprite),
   // Trade Routes Overhaul (#553 MR2/4) — Land trade line successors to Caravan.
   // merchant_wagon de-aliased in #769 batch 2.

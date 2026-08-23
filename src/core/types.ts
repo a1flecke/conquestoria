@@ -386,7 +386,8 @@ export type UnitType =
   | 'beast_wurm' | 'beast_roc' | 'beast_hydra' | 'beast_dragon' | 'beast_stampede_herd' | 'rogue_handler' | 'rogue_elephant'
   | 'cyber_unit' | 'stealth_bomber'
   | 'combat_drone' | 'autonomous_frigate' | 'exosuit_infantry' | 'propagandist' | 'drone_controller'
-  | 'paratrooper';
+  | 'paratrooper'
+  | 'great_general';
 
 /** Declarative composition slot for ordinary barbarian camps. */
 export type BarbarianRoleSlot = 'frontline' | 'ranged' | 'siege' | 'mobile' | 'specialist' | 'anti-air';
@@ -595,6 +596,14 @@ export interface Unit {
    * civ with fog visibility of its tile for the rest of this round. Cleared the same
    * way hasActed resets at the owning civ's next turn-start. See concealment.ts. */
   revealedThisTurn?: boolean;
+  /** #544 MR3: which GENERAL_DEFINITIONS entry this specific great_general
+   * instance is. Absent for every other unit type. */
+  generalDefinitionId?: string;
+  /** #544 MR3: true only on the turn a General spawns (contract §13: "no
+   * heroic command on spawn turn, no passive stabilization on spawn turn,
+   * operational next owner turn"). Cleared at the start of this unit's
+   * owner's next turn. */
+  generalNoCommandThisTurn?: boolean;
 }
 
 export interface CrisisForce {
