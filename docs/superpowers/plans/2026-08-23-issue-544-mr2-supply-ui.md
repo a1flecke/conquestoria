@@ -104,11 +104,10 @@ new dependencies.
   mirrors `fog-renderer.ts`. Task 5.
 - **Modify** `src/renderer/render-loop.ts` — `supplyOverlayEnabled` field +
   `setSupplyOverlayEnabled` setter + draw-loop call site. Task 5.
-- **Modify** `src/ui/primary-action-bar.ts` — Supply overlay toggle button.
-  Task 6.
-- **Modify** `src/app/controllers/*` composition wiring (exact controller
-  identified in Task 6) — wires the toggle button to
-  `renderLoop.setSupplyOverlayEnabled`.
+- **Modify** `src/ui/game-shell.ts`, `src/app/controllers/game-session-controller.ts`
+  — Supply overlay toggle button in the utility toolbar (superseded the
+  original primary-action-bar design during implementation — see Self-Review
+  Notes' Task 6 entry), wired to `renderLoop.toggleSupplyOverlay()`. Task 6.
 - **Modify** `src/renderer/render-loop.ts` — extend `HexHighlight['type']`
   union with `'supply-projected'`; add its color/outline. Task 7.
 - **Modify** `src/input/selected-unit-highlights.ts` — projected-coverage
@@ -131,8 +130,13 @@ new dependencies.
   control. Task 11.
 - **Modify** `src/core/types.ts` — add `'supply_intro'` to `TutorialStep`.
   Task 12.
-- **Modify** `src/ui/tutorial.ts` — new `TUTORIAL_MESSAGES` entry + reopen
-  affordance. Task 12.
+- **Modify** `src/ui/advisor-system.ts` — new `ADVISOR_MESSAGES` entry with
+  `tutorialStep: 'supply_intro'`; reopen affordance reuses the existing
+  `resetMessage`/`check` idiom (corrected from the original `tutorial.ts`
+  target during implementation — see Self-Review Notes). Task 12.
+- **Modify** `src/app/controllers/selection-controller.ts`,
+  `src/app/bootstrap.ts` — thread `advisorSystem` through
+  `SelectionControllerDeps` for the reopen callback. Task 12.
 - **Create** `tests/systems/supply-overlay-presentation.test.ts`,
   `tests/renderer/supply-overlay-renderer.test.ts`,
   `tests/systems/supply-warning-system.test.ts`,
@@ -141,10 +145,15 @@ new dependencies.
   Task 10), `tests/systems/supply-mr2-privacy.test.ts`. **Modify**
   `tests/systems/supply-progression.test.ts`, `tests/ui/selected-unit-info.test.ts`,
   `tests/input/selected-unit-highlights.test.ts`, `tests/ui/pause-menu-panel.test.ts`,
-  `tests/ui/tutorial.test.ts`, `tests/ui/primary-action-bar.test.ts`,
-  `tests/audio/audio-system.test.ts` (path confirmed in Task 10),
+  `tests/ui/advisor-system.test.ts`, `tests/ui/game-shell.test.ts`,
+  `tests/audio/audio-system.integration.test.ts` (path confirmed in Task 10),
   `tests/app/controllers/turn-flow-controller.test.ts` (path confirmed in
-  Task 9), `tests/core/game-state.test.ts` (path confirmed in Task 3).
+  Task 9), `tests/core/game-state.test.ts` (path confirmed in Task 3),
+  `tests/app/controllers/selection-controller.test.ts`,
+  `tests/app/controllers/selection-controller-establish-outpost.test.ts`,
+  `tests/app/controllers/map-interaction-controller.test.ts`,
+  `tests/app/controllers/game-session-controller.test.ts` (all four picked up
+  the new `SelectionControllerDeps`/`GameSessionRenderer` fields).
 
 ---
 
