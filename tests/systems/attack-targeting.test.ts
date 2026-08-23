@@ -33,6 +33,18 @@ describe('attack-targeting', () => {
     expect(getUnitAttackProfile('archer')).toEqual({ kind: 'ranged', range: 2, targets: ['unit'] });
   });
 
+  it('#544 MR3: a great_general has no attack targets and cannot attack (strength 0, matching every other support unit)', () => {
+    const attacker = unit('attacker', 'great_general', 'player', { q: 0, r: 0 });
+    const defender = unit('defender', 'warrior', 'ai-1', { q: 1, r: 0 });
+    const state = stateWithUnits({ attacker, defender }, { '1,0': 'visible' });
+
+    expect(canUnitAttackTarget(state, attacker, { q: 1, r: 0 }, { viewerId: 'player' })).toEqual({
+      ok: false,
+      reason: 'no-combat-strength',
+    });
+    expect(getAttackTargets(state, attacker, { viewerId: 'player' })).toEqual([]);
+  });
+
   it('rejects non-adjacent melee attacks even when the enemy is inside movement range', () => {
     const attacker = unit('attacker', 'warrior', 'player', { q: 0, r: 0 });
     const defender = unit('defender', 'warrior', 'ai-1', { q: 2, r: 0 });
