@@ -57,8 +57,8 @@ describe('#544 MR2 privacy safeguard (design spec §8)', () => {
   it('deriving warnings "as" the human viewer never surfaces the AI civ\'s own unit transitions', () => {
     const state = makeTwoCivState();
     const aiUnit = { id: 'aiUnit1', owner: 'carthage', type: 'warrior', position: { q: 8, r: 5 }, health: 100, movementPointsLeft: 1 } as GameState['units'][string];
-    const before = { ...state, units: { aiUnit1: { ...aiUnit, landSupply: { state: 'full', hostileUnsupportedTurns: 0, suppliedTurnsSinceRecovery: 0 } } } };
-    const after = { ...before, units: { aiUnit1: { ...aiUnit, landSupply: { state: 'grace', hostileUnsupportedTurns: 1, suppliedTurnsSinceRecovery: 0 } } } };
+    const before: GameState = { ...state, units: { aiUnit1: { ...aiUnit, landSupply: { state: 'full', hostileUnsupportedTurns: 0, suppliedTurnsSinceRecovery: 0 } } } };
+    const after: GameState = { ...before, units: { aiUnit1: { ...aiUnit, landSupply: { state: 'grace', hostileUnsupportedTurns: 1, suppliedTurnsSinceRecovery: 0 } } } };
     expect(deriveSupplyWarningTransitions(before, after, 'rome')).toEqual([]);
   });
 });
