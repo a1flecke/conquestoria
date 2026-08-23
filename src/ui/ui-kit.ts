@@ -1,6 +1,9 @@
 export type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'close';
 
-const VARIANT_STYLES: Record<ButtonVariant, Partial<CSSStyleDeclaration>> = {
+/** Exported so callers that need to repaint a button's variant after
+ * creation (e.g. a self-repainting selection control) can reuse the exact
+ * same style values instead of duplicating them. */
+export const VARIANT_STYLES: Record<ButtonVariant, Partial<CSSStyleDeclaration>> = {
   primary: {
     background: '#e8c170',
     color: '#1f1a12',

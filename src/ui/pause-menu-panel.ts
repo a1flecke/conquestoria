@@ -1,5 +1,5 @@
 import { createSavePanel } from '@/ui/save-panel';
-import { createGameButton } from '@/ui/ui-kit';
+import { createGameButton, VARIANT_STYLES } from '@/ui/ui-kit';
 import type { OpponentChallenge } from '@/core/types';
 import {
   OPPONENT_CHALLENGE_COPY,
@@ -106,14 +106,36 @@ function buildSupplyWarningSettings(callbacks: PauseMenuCallbacks): HTMLElement 
     { value: 'critical', label: 'Critical only' },
     { value: 'off', label: 'Off' },
   ];
+  let selected = callbacks.supplyWarningPreference;
+  const buttons = new Map<'all' | 'critical' | 'off', HTMLButtonElement>();
+
+  // Repaints locally on click rather than waiting for the pause menu to
+  // re-render from the top, matching this file's own `createOpponentChallengeSelector`
+  // precedent (`refreshSelection`) -- an earlier draft only computed
+  // `isActive` once at build time, so the button visibly never updated after
+  // a click (`.claude/rules/ui-panels.md`'s "panel must refresh immediately"
+  // rule), even though the underlying preference change itself worked.
+  const refreshSelection = (): void => {
+    for (const [value, button] of buttons) {
+      const isActive = value === selected;
+      const style = isActive ? VARIANT_STYLES.primary : VARIANT_STYLES.secondary;
+      Object.assign(button.style, style);
+      button.setAttribute('aria-pressed', String(isActive));
+    }
+  };
+
   for (const option of options) {
-    const isActive = option.value === callbacks.supplyWarningPreference;
-    const button = createGameButton(option.label, isActive ? 'primary' : 'secondary');
+    const button = createGameButton(option.label, option.value === selected ? 'primary' : 'secondary');
     button.dataset.supplyWarningOption = option.value;
-    button.setAttribute('aria-pressed', String(isActive));
-    button.addEventListener('click', () => callbacks.onChangeSupplyWarningPreference(option.value));
+    button.addEventListener('click', () => {
+      selected = option.value;
+      refreshSelection();
+      callbacks.onChangeSupplyWarningPreference(option.value);
+    });
+    buttons.set(option.value, button);
     row.appendChild(button);
   }
+  refreshSelection();
   section.appendChild(row);
 
   return section;
