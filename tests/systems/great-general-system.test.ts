@@ -3,6 +3,8 @@ import {
   getGeneralThreshold,
   addGeneralProgress,
   hasCrossedGeneralThreshold,
+  awardGeneralProgress,
+  GENERAL_PROGRESS_AWARDS,
 } from '@/systems/great-general-system';
 
 describe('getGeneralThreshold', () => {
@@ -58,5 +60,28 @@ describe('hasCrossedGeneralThreshold', () => {
     const progress = { points: firstThreshold + 1, generalsEarned: 1 };
     expect(progress.points).toBeLessThan(secondThreshold);
     expect(hasCrossedGeneralThreshold(progress)).toBe(false);
+  });
+});
+
+describe('awardGeneralProgress', () => {
+  it('adds the given points onto existing (or absent) progress', () => {
+    expect(awardGeneralProgress({ generalProgress: undefined }, GENERAL_PROGRESS_AWARDS.cityCapture)).toEqual({
+      points: GENERAL_PROGRESS_AWARDS.cityCapture, generalsEarned: 0,
+    });
+  });
+
+  it('accumulates onto an existing civ\'s progress', () => {
+    expect(awardGeneralProgress({ generalProgress: { points: 10, generalsEarned: 0 } }, 5)).toEqual({
+      points: 15, generalsEarned: 0,
+    });
+  });
+});
+
+describe('GENERAL_PROGRESS_AWARDS', () => {
+  it('every named bonus award is a positive number smaller than the base threshold (no single bonus insta-earns a General)', () => {
+    for (const value of Object.values(GENERAL_PROGRESS_AWARDS)) {
+      expect(value).toBeGreaterThan(0);
+      expect(value).toBeLessThan(getGeneralThreshold(0));
+    }
   });
 });

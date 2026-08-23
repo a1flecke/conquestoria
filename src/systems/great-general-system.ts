@@ -1,4 +1,4 @@
-import type { GeneralProgressState } from '@/core/types';
+import type { Civilization, GeneralProgressState } from '@/core/types';
 
 /**
  * Threshold formula (contract §13 — "data-driven and not yet locked", this
@@ -34,4 +34,32 @@ export function addGeneralProgress(
 
 export function hasCrossedGeneralThreshold(progress: GeneralProgressState): boolean {
   return progress.points >= getGeneralThreshold(progress.generalsEarned);
+}
+
+/**
+ * Bounded bonus awards (contract §13). Ordinary combat-XP progress is
+ * handled separately in combat-reward-system.ts, scaled off the unit's own
+ * veterancy XP gain rather than a flat award here — see
+ * GENERAL_PROGRESS_XP_RATIO. Every value here is well under
+ * getGeneralThreshold(0), so no single bonus insta-earns a General.
+ */
+export const GENERAL_PROGRESS_AWARDS = {
+  cityCapture: 30,
+  successfulDefense: 25,
+  strongerForceVictory: 20,
+} as const;
+
+/** Fraction of a kill's own veterancy XP award that also becomes General
+ * progress — small on purpose so trivial kills barely move the needle. */
+export const GENERAL_PROGRESS_XP_RATIO = 0.5;
+
+/** A defeated force counts as "materially stronger" once it exceeds the
+ * victor's strength by at least this factor (contract §13). */
+export const STRONGER_FORCE_MARGIN = 1.25;
+
+export function awardGeneralProgress(
+  civ: Pick<Civilization, 'generalProgress'>,
+  points: number,
+): NonNullable<Civilization['generalProgress']> {
+  return addGeneralProgress(civ.generalProgress, points);
 }

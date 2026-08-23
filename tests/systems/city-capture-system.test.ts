@@ -340,6 +340,41 @@ describe('city-capture-system', () => {
     expect(result.state.cities[cityId].occupation).toBeUndefined();
   });
 
+  describe('Great General progress from city capture (#544 MR3)', () => {
+    it('awards the capturing civ General progress when occupying an enemy city', () => {
+      const state = makeExposedCityCaptureState({ population: 6, buildings: ['granary'] });
+
+      const result = resolveMajorCityCapture(state, 'athens', 'player', 'occupy', state.turn);
+
+      expect(result.state.civilizations.player.generalProgress).toEqual({ points: 30, generalsEarned: 0 });
+    });
+
+    it('awards the capturing civ General progress when razing an enemy city', () => {
+      const state = makeExposedCityCaptureState({ population: 4, buildings: ['granary'] });
+
+      const result = resolveMajorCityCapture(state, 'athens', 'player', 'raze', state.turn);
+
+      expect(result.state.civilizations.player.generalProgress).toEqual({ points: 30, generalsEarned: 0 });
+    });
+
+    it('accumulates onto existing General progress rather than overwriting it', () => {
+      const state = makeExposedCityCaptureState({ population: 6, buildings: ['granary'] });
+      state.civilizations.player.generalProgress = { points: 50, generalsEarned: 1 };
+
+      const result = resolveMajorCityCapture(state, 'athens', 'player', 'occupy', state.turn);
+
+      expect(result.state.civilizations.player.generalProgress).toEqual({ points: 80, generalsEarned: 1 });
+    });
+
+    it('does NOT award General progress when a former owner reconquers its own breakaway city', () => {
+      const { state, cityId } = makeBreakawayFixture({ breakawayStartedTurn: 12 });
+
+      const result = resolveMajorCityCapture(state, cityId, 'player', 'occupy', state.turn);
+
+      expect(result.state.civilizations.player.generalProgress).toBeUndefined();
+    });
+  });
+
   it('occupies a captured city by halving population and transferring all owned tiles', () => {
     const state = makeExposedCityCaptureState({ population: 6, buildings: ['granary', 'library'] });
 
@@ -648,6 +683,34 @@ describe('city-capture-system', () => {
       expect(result.ok).toBe(true);
       if (!result.ok) return;
       expect(result.state.units.attacker!.health).toBeLessThan(before);
+    });
+
+    it('#544 MR3: awards the defending civ Great General progress when an assault is repelled', () => {
+      const state = makeUndefendedWalledCityState({ population: 30, buildings: ['walls', 'star_fort'] });
+
+      const result = beginMajorCityAssault(state, 'attacker', 'athens', { actor: 'player', civId: 'player' });
+
+      expect(result.ok).toBe(false);
+      expect(result.state.civilizations['ai-1'].generalProgress).toEqual({ points: 25, generalsEarned: 0 });
+    });
+
+    it('#544 MR3: does NOT award the attacking civ Great General progress on a repelled assault', () => {
+      const state = makeUndefendedWalledCityState({ population: 30, buildings: ['walls', 'star_fort'] });
+
+      const result = beginMajorCityAssault(state, 'attacker', 'athens', { actor: 'player', civId: 'player' });
+
+      expect(result.ok).toBe(false);
+      expect(result.state.civilizations.player.generalProgress).toBeUndefined();
+    });
+
+    it('#544 MR3: does NOT award defense progress when the assault SUCCEEDS', () => {
+      const state = makeUndefendedWalledCityState({ population: 1, buildings: [], attackerType: 'tank' });
+
+      const result = beginMajorCityAssault(state, 'attacker', 'athens', { actor: 'player', civId: 'player' });
+
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      expect(result.state.civilizations['ai-1'].generalProgress).toBeUndefined();
     });
 
     it('takes no counter-fire against an unwalled city even on repel (population alone can still repel)', () => {

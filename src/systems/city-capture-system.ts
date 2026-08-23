@@ -9,6 +9,7 @@ import type {
 } from '@/core/types';
 import { getUnitAttackProfile } from '@/systems/attack-targeting';
 import { reconquerBreakawayCity } from '@/systems/breakaway-system';
+import { awardGeneralProgress, GENERAL_PROGRESS_AWARDS } from '@/systems/great-general-system';
 import { BUILDINGS } from '@/systems/city-system';
 import {
   buildTerritoryTileFlippedEvents,
@@ -162,6 +163,30 @@ function assaultFailure(
   return { ok: false, state, reason };
 }
 
+/**
+ * #544 MR3: "successful city defense" General progress bonus. Scoped to the
+ * intrinsic-strength defense path only (a city with no garrison surviving an
+ * assault via walls/population strength) -- a garrisoned city that kills its
+ * attacker already earns ordinary combat-XP progress (plus the
+ * stronger-force-victory bonus if applicable) through the normal
+ * applyCombatOutcomeToState kill-reward hook, so awarding it again here
+ * would double-count the same successful defense.
+ */
+function awardDefenseProgress(state: GameState, defenderCivId: string): GameState {
+  const defenderCiv = state.civilizations[defenderCivId];
+  if (!defenderCiv) return state;
+  return {
+    ...state,
+    civilizations: {
+      ...state.civilizations,
+      [defenderCivId]: {
+        ...defenderCiv,
+        generalProgress: awardGeneralProgress(defenderCiv, GENERAL_PROGRESS_AWARDS.successfulDefense),
+      },
+    },
+  };
+}
+
 export function beginMajorCityAssault(
   state: GameState,
   attackerId: string,
@@ -287,9 +312,13 @@ export function beginMajorCityAssault(
             ...civilizations[attacker.owner],
             units: civilizations[attacker.owner].units.filter(id => id !== attackerId),
           };
+          nextState = awardDefenseProgress(
+            { ...nextState, civilizations },
+            city.owner,
+          );
           const units = { ...nextState.units };
           delete units[attackerId];
-          nextState = { ...nextState, units, civilizations };
+          nextState = { ...nextState, units };
           return assaultFailure(nextState, 'repelled-by-city-defense');
         }
         nextState.units[attackerId] = {
@@ -305,6 +334,7 @@ export function beginMajorCityAssault(
           hasActed: true,
           movementPointsLeft: 0,
         };
+        nextState = awardDefenseProgress(nextState, city.owner);
         return assaultFailure(nextState, 'repelled-by-city-defense');
       }
     }
@@ -503,6 +533,11 @@ export function resolveMajorCityCapture(
           cities: capturingCiv.cities.includes(cityId) ? capturingCiv.cities : [...capturingCiv.cities, cityId],
           // Clear nearDefeat flag when gaining a city
           nearDefeat: capturingCiv.cities.includes(cityId) ? capturingCiv.nearDefeat : false,
+          // #544 MR3: city capture is a Great General progress bonus. This branch is
+          // reached only for a genuine capture-from-another-civ (the breakaway
+          // reconquest branch above already returned early), so no anti-farming
+          // exclusion is needed here beyond that early return.
+          generalProgress: awardGeneralProgress(capturingCiv, GENERAL_PROGRESS_AWARDS.cityCapture),
         },
       },
       legendaryWonderProjects: transferLegendaryWonderProjectsForCity(
@@ -554,6 +589,10 @@ export function resolveMajorCityCapture(
     [newOwnerId]: {
       ...capturingCiv,
       gold: capturingCiv.gold + goldAwarded,
+      // #544 MR3: razing is still a genuine capture-from-another-civ (the
+      // reconquest branch already returned early above), so it earns the
+      // same city-capture General progress bonus as occupying.
+      generalProgress: awardGeneralProgress(capturingCiv, GENERAL_PROGRESS_AWARDS.cityCapture),
     },
   };
 

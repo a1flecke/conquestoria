@@ -1165,6 +1165,91 @@ describe('applyCombatOutcomeToState', () => {
   });
 });
 
+describe('applyCombatOutcomeToState — Great General progress (#544 MR3)', () => {
+  it('awards the victor civ a small fraction of the kill\'s own XP as General progress', () => {
+    const state = makeRewardState();
+    const result: CombatResult = {
+      attackerId: 'attacker', defenderId: 'defender', attackerDamage: 0, defenderDamage: 100,
+      attackerSurvived: true, defenderSurvived: false, attackerStrength: 20, defenderStrength: 20,
+      attackerPosition: { q: 0, r: 0 }, defenderPosition: { q: 1, r: 0 },
+    };
+
+    const applied = applyCombatOutcomeToState(state, result, 64);
+
+    const reward = applied.rewards[0];
+    expect(reward.experienceAwarded).toBeGreaterThan(0);
+    expect(applied.state.civilizations.player.generalProgress).toEqual({
+      points: Math.round(reward.experienceAwarded * 0.5),
+      generalsEarned: 0,
+    });
+  });
+
+  it('adds a stronger-force-victory bonus when the defeated unit belonged to another major civ and was materially stronger', () => {
+    const state = makeRewardState();
+    const result: CombatResult = {
+      attackerId: 'attacker', defenderId: 'defender', attackerDamage: 0, defenderDamage: 100,
+      attackerSurvived: true, defenderSurvived: false,
+      attackerStrength: 10, defenderStrength: 20, // defender (defeated) is 2x the victor's strength
+      attackerPosition: { q: 0, r: 0 }, defenderPosition: { q: 1, r: 0 },
+    };
+
+    const applied = applyCombatOutcomeToState(state, result, 64);
+
+    const reward = applied.rewards[0];
+    const baseProgress = Math.round(reward.experienceAwarded * 0.5);
+    expect(applied.state.civilizations.player.generalProgress!.points).toBe(baseProgress + 20);
+  });
+
+  it('does NOT add the stronger-force-victory bonus when the margin is under the threshold', () => {
+    const state = makeRewardState();
+    const result: CombatResult = {
+      attackerId: 'attacker', defenderId: 'defender', attackerDamage: 0, defenderDamage: 100,
+      attackerSurvived: true, defenderSurvived: false,
+      attackerStrength: 20, defenderStrength: 22, // only marginally stronger, under the 1.25x threshold
+      attackerPosition: { q: 0, r: 0 }, defenderPosition: { q: 1, r: 0 },
+    };
+
+    const applied = applyCombatOutcomeToState(state, result, 64);
+
+    const reward = applied.rewards[0];
+    const baseProgress = Math.round(reward.experienceAwarded * 0.5);
+    expect(applied.state.civilizations.player.generalProgress!.points).toBe(baseProgress);
+  });
+
+  it('does NOT add the stronger-force-victory bonus for a barbarian kill, even when materially stronger', () => {
+    const state = makeRewardState();
+    state.units.defender = { ...state.units.defender, owner: 'barbarian' };
+    delete (state.civilizations as any)['ai-1']; // barbarians are not a keyed civ
+    const result: CombatResult = {
+      attackerId: 'attacker', defenderId: 'defender', attackerDamage: 0, defenderDamage: 100,
+      attackerSurvived: true, defenderSurvived: false,
+      attackerStrength: 10, defenderStrength: 20,
+      attackerPosition: { q: 0, r: 0 }, defenderPosition: { q: 1, r: 0 },
+    };
+
+    const applied = applyCombatOutcomeToState(state, result, 64);
+
+    const reward = applied.rewards[0];
+    const baseProgress = Math.round(reward.experienceAwarded * 0.5);
+    expect(applied.state.civilizations.player.generalProgress!.points).toBe(baseProgress);
+  });
+
+  it('accumulates onto existing General progress rather than overwriting it', () => {
+    const state = makeRewardState();
+    state.civilizations.player.generalProgress = { points: 50, generalsEarned: 1 };
+    const result: CombatResult = {
+      attackerId: 'attacker', defenderId: 'defender', attackerDamage: 0, defenderDamage: 100,
+      attackerSurvived: true, defenderSurvived: false, attackerStrength: 20, defenderStrength: 20,
+      attackerPosition: { q: 0, r: 0 }, defenderPosition: { q: 1, r: 0 },
+    };
+
+    const applied = applyCombatOutcomeToState(state, result, 64);
+
+    expect(applied.state.civilizations.player.generalProgress!.points).toBeGreaterThan(50);
+    expect(applied.state.civilizations.player.generalProgress!.generalsEarned).toBe(1);
+  });
+});
+
 describe('prize-crew helpers', () => {
   it('meetsCaptureMargin requires both a decisive strength ratio and winner health >= 50', () => {
     expect(meetsCaptureMargin(8, 20, 60)).toBe(true);
