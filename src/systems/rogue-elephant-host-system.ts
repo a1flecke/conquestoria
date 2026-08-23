@@ -10,6 +10,7 @@ import { executeUnitMove } from '@/systems/unit-movement-system';
 import { resolvePressureSeverityForCiv } from '@/core/opponent-challenge';
 import { getCivAvailableResources } from '@/systems/resource-acquisition-system';
 import { getTrainableUnitsForCiv } from '@/systems/city-system';
+import { commitHerdRouteForTurn } from '@/systems/stampede-route-system';
 
 export interface RogueElephantHostProfile {
   elephantCount: number;
@@ -307,6 +308,7 @@ export function processRogueElephantHostTurn(state: GameState, targetCivId: stri
     return resolveRogueElephantHostOutcome(next, targetCivId, 'defeated');
   }
   if (host.phase === 'dispersing') {
+    next = advanceDispersingHerds(next, host.forceId!);
     const remaining = Math.max(0, (host.dispersalTurnsRemaining ?? 0) - 1);
     if (remaining > 0) return { ...next, rogueElephantHosts: { ...next.rogueElephantHosts, [targetCivId]: { ...host, dispersalTurnsRemaining: remaining } } };
     return resolveRogueElephantHostOutcome(removeHostForce(next, host.forceId!), targetCivId, 'dispersed');
@@ -319,6 +321,22 @@ export function processRogueElephantHostTurn(state: GameState, targetCivId: stri
   };
   // Activation consumes the warning boundary; the Host's first movement happens on its next turn.
   return activated;
+}
+
+/** Broken-command herds retain the same visible two-step Stampede route during dispersal. */
+function advanceDispersingHerds(state: GameState, forceId: string): GameState {
+  const force = state.crisisForces?.[forceId];
+  if (!force) return state;
+  let next: GameState = { ...state, units: { ...state.units } };
+  for (const unitId of [...force.unitIds].sort()) {
+    if (!next.units[unitId]) continue;
+    next = commitHerdRouteForTurn(next, forceId, unitId);
+    for (const step of next.crisisForces?.[forceId]?.herdRoutes?.[unitId]?.steps ?? []) {
+      const moved = executeUnitMove(next, unitId, step, { actor: 'world' });
+      if (!moved.ok || moved.stopReason) break;
+    }
+  }
+  return next;
 }
 
 /** Moves each active Host actor one legal step toward the persisted shared target. */

@@ -2,7 +2,7 @@ import type { CombatResult, CombatRewardNotification, GameState, Unit, UnitType 
 import { cleanupDeadSpyUnit } from '@/systems/espionage-system';
 import { UNIT_DEFINITIONS } from '@/systems/unit-system';
 import { applyQuestGameplayAction, type ChainTransition } from '@/systems/quest-chain-system';
-import { canCaptureDefeatedUnits, canReceiveCivilizationCombatRewards, isMajorCivOwner, isPirateOwner } from '@/core/owner-kind';
+import { canCaptureDefeatedUnits, canReceiveCivilizationCombatRewards, CRISIS_FORCE_OWNER, isMajorCivOwner, isPirateOwner } from '@/core/owner-kind';
 import { recordHuntKillerIfApplicable } from '@/systems/hunt-crisis-linkage';
 import {
   breakPirateTributeOnAttack,
@@ -206,7 +206,9 @@ export function collectCombatRewards(
 ): CombatReward[] {
   const rewards: CombatReward[] = [];
   if (!result.defenderSurvived && result.attackerSurvived) {
-    if (isPirateOwner(attackerBefore.owner)) return rewards;
+    // Crisis-force removals settle through their own bounded resolution reward;
+    // never layer generic kill loot on top of a Stampede or Rogue Host outcome.
+    if (isPirateOwner(attackerBefore.owner) || defenderBefore.owner === CRISIS_FORCE_OWNER) return rewards;
     const victorHealthAfterCombat = Math.max(1, attackerBefore.health - result.attackerDamage);
     const values = calculateDefeatReward({ victor: attackerBefore, defeated: defenderBefore, seed, victorHealthAfterCombat });
     const reward = {
@@ -219,7 +221,7 @@ export function collectCombatRewards(
     rewards.push({ ...reward, message: formatCombatRewardMessage(reward) });
   }
   if (!result.attackerSurvived && result.defenderSurvived) {
-    if (isPirateOwner(defenderBefore.owner)) return rewards;
+    if (isPirateOwner(defenderBefore.owner) || attackerBefore.owner === CRISIS_FORCE_OWNER) return rewards;
     const victorHealthAfterCombat = Math.max(1, defenderBefore.health - result.defenderDamage);
     const values = calculateDefeatReward({ victor: defenderBefore, defeated: attackerBefore, seed, victorHealthAfterCombat });
     const reward = {
