@@ -1253,6 +1253,7 @@ export function processTurn(
   newState = processIndependentThreatPressure(newState, bus);
   newState = processCrisisScheduler(newState, bus);
   const stampedesBeforeScheduling = newState.stampedes;
+  const hostsBeforeScheduling = newState.rogueElephantHosts;
   newState = processStampedeScheduling(newState);
   newState = processRogueElephantHostScheduling(newState);
   for (const civId of Object.keys(newState.stampedes ?? {}).sort()) {
@@ -1261,6 +1262,13 @@ export function processTurn(
       newState.stampedes?.[civId],
     );
     if (transition) bus.emit('stampede:lifecycle', transition);
+  }
+  for (const civId of Object.keys(newState.rogueElephantHosts ?? {}).sort()) {
+    const transition = getRogueElephantHostLifecycleTransition(
+      hostsBeforeScheduling?.[civId],
+      newState.rogueElephantHosts?.[civId],
+    );
+    if (transition) bus.emit('rogue-elephant-host:lifecycle', transition);
   }
 
   // --- Process espionage ---

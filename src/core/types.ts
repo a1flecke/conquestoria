@@ -2368,6 +2368,7 @@ export interface GameEvents {
     | { kind: 'resolved'; targetCivId: string; outcome: StampedeOutcome; rewardGranted: boolean };
   /** Target-scoped Rogue Host conversion and terminal result. */
   'rogue-elephant-host:lifecycle':
+    | { kind: 'warning'; targetCivId: string }
     | { kind: 'command-broken'; targetCivId: string; dispersalTurnsRemaining: number }
     | { kind: 'resolved'; targetCivId: string; outcome: RogueElephantHostOutcome; rewardGranted: boolean };
   // #526 MR7 sabotage_relief: fired only when the covert sabotage is discovered (the

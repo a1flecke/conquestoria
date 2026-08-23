@@ -17,6 +17,7 @@ export interface RogueElephantHostProfile {
 }
 
 export type RogueElephantHostLifecycleTransition =
+  | { kind: 'warning'; targetCivId: string }
   | { kind: 'command-broken'; targetCivId: string; dispersalTurnsRemaining: number }
   | { kind: 'resolved'; targetCivId: string; outcome: RogueElephantHostOutcome; rewardGranted: boolean };
 
@@ -26,6 +27,9 @@ export function getRogueElephantHostLifecycleTransition(
   after: RogueElephantHostState | undefined,
 ): RogueElephantHostLifecycleTransition | undefined {
   if (!after) return undefined;
+  if (before?.phase !== 'warning' && after.phase === 'warning') {
+    return { kind: 'warning', targetCivId: after.targetCivId };
+  }
   if (before?.phase !== 'dispersing' && after.phase === 'dispersing') {
     return { kind: 'command-broken', targetCivId: after.targetCivId, dispersalTurnsRemaining: after.dispersalTurnsRemaining ?? 3 };
   }

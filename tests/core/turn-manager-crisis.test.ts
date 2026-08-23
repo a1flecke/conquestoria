@@ -10,6 +10,7 @@ import { calculateProjectedCityYields } from '@/systems/city-work-system';
 import { TECH_TREE } from '@/systems/tech-definitions';
 import { hexKey } from '@/systems/hex-utils';
 import { startStampedeWarning } from '@/systems/stampede-system';
+import { processRogueElephantHostScheduling } from '@/systems/rogue-elephant-host-system';
 import type { ActiveCrisis, GameEvents, GameState, HexCoord } from '@/core/types';
 
 function findLandCoord(state: GameState): HexCoord {
@@ -34,6 +35,29 @@ function stateWithActiveCrisis(): { state: GameState; civId: string; cityId: str
 }
 
 describe('turn-manager crisis wiring', () => {
+  it('emits one target-scoped Rogue Host warning from the scheduler transition', () => {
+    let state: GameState | undefined;
+    for (let attempt = 0; attempt < 100 && !state; attempt += 1) {
+      const candidate = createNewGame('rome', `rogue-host-turn-event-${attempt}`, 'small');
+      const city = foundCity('player', findLandCoord(candidate), candidate.map, candidate.idCounters);
+      candidate.cities[city.id] = city;
+      candidate.civilizations.player.cities = [city.id];
+      candidate.civilizations.player.techState.completed = TECH_TREE.filter(tech => tech.era <= 4).map(tech => tech.id);
+      for (const tile of Object.values(candidate.map.tiles)) tile.terrain = 'plains';
+      if (processRogueElephantHostScheduling(candidate).rogueElephantHosts?.player?.phase === 'warning') state = candidate;
+    }
+    expect(state).toBeDefined();
+    const bus = new EventBus();
+    const events: GameEvents['rogue-elephant-host:lifecycle'][] = [];
+    bus.on('rogue-elephant-host:lifecycle', event => events.push(event));
+
+    const afterWarning = processTurn(state!, bus);
+
+    expect(events).toEqual([{ kind: 'warning', targetCivId: 'player' }]);
+    processTurn(afterWarning, bus);
+    expect(events).toHaveLength(1);
+  });
+
   it('emits one target-scoped Stampede activation from the owner-turn transition', () => {
     const state = createNewGame('rome', 'stampede-turn-event', 'small');
     const city = foundCity('player', findLandCoord(state), state.map, state.idCounters);
