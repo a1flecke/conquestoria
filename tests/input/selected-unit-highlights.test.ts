@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { createNewGame } from '@/core/game-state';
 import { buildSelectedUnitHighlights } from '@/input/selected-unit-highlights';
 import { foundCity } from '@/systems/city-system';
-import { hexKey } from '@/systems/hex-utils';
+import { hexDistance, hexKey } from '@/systems/hex-utils';
 import { createUnit } from '@/systems/unit-system';
 
 const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
@@ -551,5 +551,74 @@ describe('selected-unit-highlights', () => {
     // Ocean is never highlighted for a coastal-only hull, even with every relevant tech completed.
     state.civilizations.player.techState.completed = ['galleys', 'celestial-navigation'];
     expect(buildSelectedUnitHighlights(state, 'transport').movementRange.map(hexKey)).not.toContain('2,0');
+  });
+
+  describe('#544 MR2 — live projected supply coverage', () => {
+    it('a selected naval transport shows projected supply highlights within its projectsLandSupplyRange', () => {
+      const state = createNewGame(undefined, 'supply-projection-ship', 'small');
+      state.currentPlayer = 'player';
+      state.units = {
+        ship: { ...createUnit('transport', 'player', { q: 5, r: 5 }, mkC()), id: 'ship', movementPointsLeft: 3 },
+      };
+      state.civilizations.player.units = ['ship'];
+
+      const result = buildSelectedUnitHighlights(state, 'ship');
+      const projected = result.highlights.filter(h => h.type === 'supply-projected');
+      expect(projected.length).toBeGreaterThan(0);
+      expect(projected.every(h => hexDistance(h.coord, { q: 5, r: 5 }) <= 1)).toBe(true); // transport's projectsLandSupplyRange is 1
+    });
+
+    it('a selected Warrior (non-logistics, non-Worker) shows no projected supply highlights', () => {
+      const state = createNewGame(undefined, 'supply-projection-warrior', 'small');
+      state.currentPlayer = 'player';
+      state.units = {
+        soldier: { ...createUnit('warrior', 'player', { q: 5, r: 5 }, mkC()), id: 'soldier', movementPointsLeft: 2 },
+      };
+      state.civilizations.player.units = ['soldier'];
+
+      const result = buildSelectedUnitHighlights(state, 'soldier');
+      expect(result.highlights.some(h => h.type === 'supply-projected')).toBe(false);
+    });
+
+    it('a selected Worker standing on a tile eligible to build a Fort shows the Fort-tier projected radius', () => {
+      const state = createNewGame(undefined, 'supply-projection-worker', 'small');
+      state.currentPlayer = 'player';
+      // Fort capacity is derived from owned city count (getFortificationCapacity) --
+      // a fresh createNewGame() has no founded city yet (just a starting settler),
+      // so cityCount would be 0 and every placement would fail on 'empire-cap'
+      // without founding one first, same as this file's own naval-bombardment
+      // fixture already does for the opposing civ.
+      const city = foundCity('player', { q: 2, r: 2 }, state.map, state.idCounters);
+      state.cities[city.id] = city;
+      state.civilizations.player.cities = [city.id];
+      state.map.tiles['5,5'] = {
+        coord: { q: 5, r: 5 }, terrain: 'plains', elevation: 'lowland', resource: null,
+        owner: 'player', improvement: 'none', improvementTurnsLeft: 0, hasRiver: false, wonder: null,
+      };
+      state.units = {
+        worker: { ...createUnit('worker', 'player', { q: 5, r: 5 }, mkC()), id: 'worker', movementPointsLeft: 2 },
+      };
+      state.civilizations.player.units = ['worker'];
+
+      const result = buildSelectedUnitHighlights(state, 'worker');
+      const projected = result.highlights.filter(h => h.type === 'supply-projected');
+      expect(projected.length).toBeGreaterThan(0);
+    });
+
+    it('a selected Worker NOT eligible to build a Fort here (e.g. outside territory) shows no projected supply highlights', () => {
+      const state = createNewGame(undefined, 'supply-projection-worker-ineligible', 'small');
+      state.currentPlayer = 'player';
+      state.map.tiles['5,5'] = {
+        coord: { q: 5, r: 5 }, terrain: 'plains', elevation: 'lowland', resource: null,
+        owner: null, improvement: 'none', improvementTurnsLeft: 0, hasRiver: false, wonder: null,
+      };
+      state.units = {
+        worker: { ...createUnit('worker', 'player', { q: 5, r: 5 }, mkC()), id: 'worker', movementPointsLeft: 2 },
+      };
+      state.civilizations.player.units = ['worker'];
+
+      const result = buildSelectedUnitHighlights(state, 'worker');
+      expect(result.highlights.some(h => h.type === 'supply-projected')).toBe(false);
+    });
   });
 });

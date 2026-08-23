@@ -13,6 +13,10 @@ import {
 } from '@/systems/unit-water-recovery';
 import { getEmbarkedAssaultTargets } from '@/systems/transport-system';
 import { UNIT_DEFINITIONS } from '@/systems/unit-system';
+import { getShoreSupplyCapability } from '@/systems/supply-participation';
+import { LAND_SUPPLY_RADII } from '@/systems/supply-sources';
+import { getFortificationPlacement, getFortificationTier } from '@/systems/fortification-system';
+import { mapHexesInRange } from '@/systems/hex-utils';
 
 export interface SelectedUnitHighlightResult {
   movementRange: HexCoord[];
@@ -154,12 +158,44 @@ export function buildSelectedUnitHighlights(state: GameState, unitId: string): S
   const attackHighlights = attackTargets.map(target => ({ coord: target.coord, type: 'attack' as const }));
   const workerHighlights = buildWorkerGuidanceHighlights(state, unitId, movementRange)
     .filter(highlight => !recoveryKeys.has(hexKey(highlight.coord)));
+  const supplyProjectionHighlights = buildSupplyProjectionHighlights(state, unit);
 
   return {
     movementRange,
     zocLimitedRange,
     attackTargets,
-    highlights: [...moveHighlights, ...attackHighlights, ...workerHighlights],
+    highlights: [...moveHighlights, ...attackHighlights, ...workerHighlights, ...supplyProjectionHighlights],
     waterRecovery,
   };
+}
+
+/**
+ * Live projected supply coverage (#544 MR2, contract §12) while a friendly
+ * naval logistics-capable unit or a fort-eligible Worker is selected. This
+ * codebase is mobile-first/tap-based with no hover/drag concept for ship
+ * placement (no `hoveredHex`/drag state exists anywhere in the renderer or
+ * controllers) -- selection is the closest analog to "hovering" this
+ * codebase already uses for every other preview-before-you-commit surface
+ * (movement range, attack targets, water recovery), so that's what this
+ * reuses rather than inventing a new interaction. `unit.owner ===
+ * state.currentPlayer` is already guaranteed by `buildSelectedUnitHighlights`'s
+ * own early-return gate before this is ever called.
+ */
+function buildSupplyProjectionHighlights(state: GameState, unit: GameState['units'][string]): HexHighlight[] {
+  const shoreCapability = getShoreSupplyCapability(unit.type);
+  if (shoreCapability) {
+    return mapHexesInRange(state.map, unit.position, shoreCapability.projectsLandSupplyRange)
+      .map(coord => ({ coord, type: 'supply-projected' as const }));
+  }
+
+  if (unit.type === 'worker') {
+    const placement = getFortificationPlacement(state, unit.owner, unit.position);
+    if (placement.ok) {
+      const tier = getFortificationTier(state.civilizations[unit.owner]?.techState.completed ?? []);
+      return mapHexesInRange(state.map, unit.position, LAND_SUPPLY_RADII[tier.id])
+        .map(coord => ({ coord, type: 'supply-projected' as const }));
+    }
+  }
+
+  return [];
 }

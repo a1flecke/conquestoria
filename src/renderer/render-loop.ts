@@ -225,7 +225,7 @@ export function positionMovingPirateHeadquarters(
 
 export interface HexHighlight {
   coord: HexCoord;
-  type: 'move' | 'attack' | 'air-strike' | 'air-recon' | 'air-patrol' | 'air-intercept' | 'zoc-limited' | 'water-recovery' | 'worker-buildable' | 'worker-owned-blocked' | 'worker-foreign-blocked' | 'paradrop-target' | 'paradrop-flak-risk' | 'air-assault-target' | 'air-assault-flak-risk';
+  type: 'move' | 'attack' | 'air-strike' | 'air-recon' | 'air-patrol' | 'air-intercept' | 'zoc-limited' | 'water-recovery' | 'worker-buildable' | 'worker-owned-blocked' | 'worker-foreign-blocked' | 'paradrop-target' | 'paradrop-flak-risk' | 'air-assault-target' | 'air-assault-flak-risk' | 'supply-projected';
 }
 
 const HEX_HIGHLIGHT_COLORS: Record<HexHighlight['type'], string> = {
@@ -262,11 +262,18 @@ const HEX_HIGHLIGHT_COLORS: Record<HexHighlight['type'], string> = {
   // new icon-overlay system.
   'air-assault-target': '#0d9488',
   'air-assault-flak-risk': '#dc2626',
+  // Live projected supply coverage (#544 MR2) while a naval logistics unit or
+  // fort-eligible Worker is selected -- distinct hue and lower opacity from
+  // the persistent overlay's own 'full' fill, and paired with a solid
+  // outline (below) since a selection highlight and the persistent overlay
+  // never render the exact same tile indistinguishably.
+  'supply-projected': 'rgba(80, 200, 120, 0.18)',
 };
 
 const HEX_HIGHLIGHT_OUTLINES: Partial<Record<HexHighlight['type'], string>> = {
   'zoc-limited': '#fff0a8',
   'water-recovery': '#fff0a8',
+  'supply-projected': '#8fe8b0',
 };
 
 function prefersReducedMotion(): boolean {
