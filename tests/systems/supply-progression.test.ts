@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   FIELD_RECOVERY_OWNER_TURNS,
   advanceOverextensionStage,
+  getTurnsUntilNextSupplyStage,
   resolveSupplyRecoveryForUnit,
 } from '@/systems/supply-progression';
 import type { UnitLandSupplyStatus } from '@/core/types';
@@ -98,5 +99,35 @@ describe('resolveSupplyRecoveryForUnit', () => {
   it('losing supply while not on a base tile does not clear penalties', () => {
     const result = resolveSupplyRecoveryForUnit(degraded, false, false, false);
     expect(result).toBe(degraded);
+  });
+});
+
+describe('getTurnsUntilNextSupplyStage', () => {
+  it('returns null for full supply', () => {
+    expect(getTurnsUntilNextSupplyStage({ state: 'full', hostileUnsupportedTurns: 0, suppliedTurnsSinceRecovery: 0 })).toBeNull();
+  });
+
+  it('returns null for stable-unsupported (no counter driving a transition)', () => {
+    expect(getTurnsUntilNextSupplyStage({ state: 'stable-unsupported', hostileUnsupportedTurns: 0, suppliedTurnsSinceRecovery: 0 })).toBeNull();
+  });
+
+  it('returns null once severe (worst stage, nothing further to count toward)', () => {
+    expect(getTurnsUntilNextSupplyStage({ state: 'severe', hostileUnsupportedTurns: 5, suppliedTurnsSinceRecovery: 0 })).toBeNull();
+  });
+
+  it('in grace turn 1, degraded starts 2 turns from now (turn 2 is still grace, turn 3 is degraded)', () => {
+    expect(getTurnsUntilNextSupplyStage({ state: 'grace', hostileUnsupportedTurns: 1, suppliedTurnsSinceRecovery: 0 })).toBe(2);
+  });
+
+  it('in grace turn 2 (the last grace turn), 1 turn remains until degraded next turn', () => {
+    expect(getTurnsUntilNextSupplyStage({ state: 'grace', hostileUnsupportedTurns: 2, suppliedTurnsSinceRecovery: 0 })).toBe(1);
+  });
+
+  it('in degraded turn 3, severe (movement penalty) starts 2 turns from now -- matches contract\'s own "in 2 turns" example', () => {
+    expect(getTurnsUntilNextSupplyStage({ state: 'degraded', hostileUnsupportedTurns: 3, suppliedTurnsSinceRecovery: 0 })).toBe(2);
+  });
+
+  it('in degraded turn 4 (the last degraded turn), 1 turn remains until severe next turn', () => {
+    expect(getTurnsUntilNextSupplyStage({ state: 'degraded', hostileUnsupportedTurns: 4, suppliedTurnsSinceRecovery: 0 })).toBe(1);
   });
 });
