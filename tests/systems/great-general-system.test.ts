@@ -6,6 +6,7 @@ import {
   awardGeneralProgress,
   GENERAL_PROGRESS_AWARDS,
   generateGeneralCandidates,
+  checkAndQueueGeneralCandidateChoice,
 } from '@/systems/great-general-system';
 import { GENERAL_DEFINITIONS } from '@/systems/great-general-definitions';
 import { createNewGame } from '@/core/game-state';
@@ -148,5 +149,47 @@ describe('generateGeneralCandidates', () => {
       }
     }
     expect(era1Count).toBeGreaterThan(era8Count);
+  });
+});
+
+describe('checkAndQueueGeneralCandidateChoice', () => {
+  it('queues a pending choice once points cross the next threshold', () => {
+    const state = makeGeneralsTestState('gen-queue-1');
+    state.civilizations.player = { ...state.civilizations.player, generalProgress: { points: 999, generalsEarned: 0 } };
+
+    const result = checkAndQueueGeneralCandidateChoice(state, 'player', 'combat:xp', 1);
+
+    expect(result.pendingGeneralCandidateChoices).toHaveLength(1);
+    expect(result.pendingGeneralCandidateChoices![0]!.civId).toBe('player');
+    expect(result.pendingGeneralCandidateChoices![0]!.candidateDefinitionIds.length).toBeGreaterThanOrEqual(2);
+    expect(result.pendingGeneralCandidateChoices![0]!.triggerEventLabel).toBe('combat:xp');
+  });
+
+  it('does not queue below the threshold', () => {
+    const state = makeGeneralsTestState('gen-queue-2');
+    state.civilizations.player = { ...state.civilizations.player, generalProgress: { points: 5, generalsEarned: 0 } };
+
+    const result = checkAndQueueGeneralCandidateChoice(state, 'player', 'combat:xp', 1);
+
+    expect(result.pendingGeneralCandidateChoices ?? []).toHaveLength(0);
+  });
+
+  it('does not queue a second pending choice for a civ that already has one queued', () => {
+    const state = makeGeneralsTestState('gen-queue-3');
+    state.civilizations.player = { ...state.civilizations.player, generalProgress: { points: 999, generalsEarned: 0 } };
+    state.pendingGeneralCandidateChoices = [{ civId: 'player', candidateDefinitionIds: ['x', 'y'], triggerEventLabel: 'earlier' }];
+
+    const result = checkAndQueueGeneralCandidateChoice(state, 'player', 'combat:xp', 1);
+
+    expect(result.pendingGeneralCandidateChoices).toHaveLength(1);
+    expect(result.pendingGeneralCandidateChoices![0]!.triggerEventLabel).toBe('earlier');
+  });
+
+  it('does nothing when the civ has no progress at all', () => {
+    const state = makeGeneralsTestState('gen-queue-4');
+
+    const result = checkAndQueueGeneralCandidateChoice(state, 'player', 'combat:xp', 1);
+
+    expect(result).toBe(state);
   });
 });
