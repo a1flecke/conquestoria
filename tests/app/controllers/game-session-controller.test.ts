@@ -108,6 +108,7 @@ function baseDeps(state: GameState, overrides: Partial<GameSessionControllerDeps
     showNotification: vi.fn(),
     foundCityAction: vi.fn(),
     maybeShowPendingHoardChoice: vi.fn(),
+    maybeShowPendingGeneralChoice: vi.fn(),
     setNotifier: vi.fn(),
     focusNotificationTarget: vi.fn(),
     ...overrides,
@@ -164,6 +165,7 @@ describe('GameSessionController', () => {
       expect(deps.hud.update).toHaveBeenCalledTimes(1);
       expect(deps.turnFlow.maybeShowCouncilInterrupt).toHaveBeenCalledTimes(1);
       expect(deps.maybeShowPendingHoardChoice).toHaveBeenCalledTimes(1);
+      expect(deps.maybeShowPendingGeneralChoice).toHaveBeenCalledTimes(1);
       expect(saveManager.autoSave).toHaveBeenCalled();
       expect(deps.audio.start).toHaveBeenCalledTimes(1);
       expect(deps.advisorSystem.check).toHaveBeenCalledTimes(1);

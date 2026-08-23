@@ -150,6 +150,7 @@ function baseDeps(state: GameState, overrides: Partial<TurnFlowControllerDeps> =
     scanBeastSightings: vi.fn(),
     scanSubmarineSightings: vi.fn(),
     maybeShowPendingHoardChoice: vi.fn(),
+    maybeShowPendingGeneralChoice: vi.fn(),
     checkAdvisors: vi.fn(),
     showGameModeSelection: vi.fn(),
     reloadPage: vi.fn(),
@@ -366,6 +367,15 @@ describe('createTurnFlowController', () => {
       expect(order.indexOf('setGameState')).toBeGreaterThanOrEqual(0);
       expect(updateHUDIndex).toBeGreaterThan(order.indexOf('setGameState'));
       expect(order.indexOf('showRequiredChoicesIfNeeded')).toBeGreaterThan(updateHUDIndex);
+    });
+
+    it('#544 MR3: enterViewerTurn checks for a pending Great General candidate choice', () => {
+      const state = makeFixture();
+      const deps = baseDeps(state);
+
+      createTurnFlowController(deps).enterViewerTurn('player');
+
+      expect(deps.maybeShowPendingGeneralChoice).toHaveBeenCalledTimes(1);
     });
 
     it('enterViewerTurn reports the passed nextSlotId, not session.currentPlayer, in the audio snapshot', () => {

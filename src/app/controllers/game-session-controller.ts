@@ -109,6 +109,8 @@ export interface GameSessionControllerDeps {
   readonly foundCityAction: () => void;
   /** Phase 10b's future home -- passed as a dep until it gets a controller. */
   readonly maybeShowPendingHoardChoice: () => void;
+  /** #544 MR3: mirrors maybeShowPendingHoardChoice's shape/call site exactly. */
+  readonly maybeShowPendingGeneralChoice: () => void;
   /** Publishes the `Notifier` `init()` constructs back to main.ts's own `let notifier`. */
   readonly setNotifier: (notifier: Notifier) => void;
   readonly focusNotificationTarget: (target: Parameters<Notifier['toast']>[2]) => void;
@@ -237,6 +239,7 @@ export function createGameSessionController(deps: GameSessionControllerDeps): Ga
     deps.hud.update();
     deps.turnFlow.maybeShowCouncilInterrupt();
     deps.maybeShowPendingHoardChoice();
+    deps.maybeShowPendingGeneralChoice();
 
     // Auto-save immediately so closing before turn 1 doesn't lose the game
     autoSave(deps.session.getState()).catch(() => {});
