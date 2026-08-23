@@ -5,6 +5,7 @@ import {
   CAPTURED_SOURCE_STABILIZATION_TURNS,
   LAND_SUPPLY_RADII,
   getLandSupplySourceCoverage,
+  getPrimarySupplySource,
   isCityStabilized,
   isFortStabilized,
 } from '@/systems/supply-sources';
@@ -102,5 +103,27 @@ describe('isFortStabilized', () => {
   it('a fort with no stabilization timestamp (never captured) is always stabilized', () => {
     const state = { turn: 1, map: { tiles: { k: { coord: { q: 0, r: 0 } } } } } as unknown as GameState;
     expect(isFortStabilized(state, { q: 0, r: 0 })).toBe(true);
+  });
+});
+
+describe('getPrimarySupplySource', () => {
+  it('picks the nearer of two in-range sources', () => {
+    const state = makeStateWithSource({ sourceCoord: { q: 10, r: 10 }, sourceKind: 'city' });
+    state.cities.c2 = { id: 'c2', owner: 'rome', position: { q: 11, r: 10 } } as City;
+    const result = getPrimarySupplySource(state, 'rome', { q: 11, r: 11 });
+    expect(result?.id).toBe('c2');
+  });
+
+  it('breaks ties deterministically by sorted hex key when two sources are genuinely equidistant', () => {
+    const state = makeStateWithSource({ sourceCoord: { q: 5, r: 6 }, sourceKind: 'city' }); // c1, hexKey "5,6"
+    state.cities.c2 = { id: 'c2', owner: 'rome', position: { q: 6, r: 5 } } as City; // hexKey "6,5"
+    const target = { q: 5, r: 5 }; // distance 1 from both c1 and c2 — a genuine tie
+    const result = getPrimarySupplySource(state, 'rome', target);
+    expect(result?.id).toBe('c1'); // "5,6" sorts before "6,5"
+  });
+
+  it('returns null when nothing covers the tile', () => {
+    const state = makeStateWithSource({ sourceCoord: { q: 0, r: 0 }, sourceKind: 'city' });
+    expect(getPrimarySupplySource(state, 'rome', { q: 19, r: 19 })).toBeNull();
   });
 });
