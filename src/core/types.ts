@@ -2077,6 +2077,13 @@ export interface GameEvents {
     viewerIds: string[];
   };
   'pirate:headquarters-destroyed': { factionId: string; viewerIds: string[] };
+  'supply:warning': {
+    viewerId: string;
+    unitIds: string[];
+    kind: 'losing-full' | 'entering-combat-penalty' | 'entering-movement-penalty';
+    /** At most one `true` per `deriveSupplyWarningTransitions` call. */
+    playAudio: boolean;
+  };
   'ai:strategic-warning': {
     viewerId: string;
     actorId: string;
