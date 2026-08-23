@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import type { City, GameMap, GameState, HexCoord } from '@/core/types';
 import { hexKey } from '@/systems/hex-utils';
-import { LAND_SUPPLY_RADII, getLandSupplySourceCoverage } from '@/systems/supply-sources';
+import {
+  CAPTURED_SOURCE_STABILIZATION_TURNS,
+  LAND_SUPPLY_RADII,
+  getLandSupplySourceCoverage,
+  isCityStabilized,
+  isFortStabilized,
+} from '@/systems/supply-sources';
 
 function makeStateWithSource(opts: {
   sourceCoord: HexCoord;
@@ -60,5 +66,41 @@ describe('getLandSupplySourceCoverage', () => {
   it('an enemy-owned Fort does not cover the viewer, even if in range', () => {
     const state = makeStateWithSource({ sourceCoord: { q: 10, r: 10 }, sourceKind: 'fort', ownerId: 'carthage' });
     expect(getLandSupplySourceCoverage(state, 'rome', { q: 10, r: 10 })).toBe(false);
+  });
+});
+
+describe('isCityStabilized', () => {
+  it('a freshly captured city (conquestTurn === current turn) is not yet stabilized', () => {
+    const state = { turn: 10 } as GameState;
+    const city = { conquestTurn: 10 } as City;
+    expect(isCityStabilized(state, city)).toBe(false);
+  });
+
+  it('a city becomes stabilized after CAPTURED_SOURCE_STABILIZATION_TURNS.city owner-turns', () => {
+    const state = { turn: 10 + CAPTURED_SOURCE_STABILIZATION_TURNS.city } as GameState;
+    const city = { conquestTurn: 10 } as City;
+    expect(isCityStabilized(state, city)).toBe(true);
+  });
+
+  it('a city that was never captured (no conquestTurn) is always stabilized', () => {
+    const state = { turn: 1 } as GameState;
+    const city = {} as City;
+    expect(isCityStabilized(state, city)).toBe(true);
+  });
+});
+
+describe('isFortStabilized', () => {
+  it('a freshly captured fort is not yet stabilized, and matures faster than a city', () => {
+    const state = {
+      turn: 5 + CAPTURED_SOURCE_STABILIZATION_TURNS.fort,
+      map: { tiles: { [hexKey({ q: 1, r: 1 })]: { coord: { q: 1, r: 1 }, fortStabilizationSinceTurn: 5 } } },
+    } as unknown as GameState;
+    expect(isFortStabilized(state, { q: 1, r: 1 })).toBe(true);
+    expect(CAPTURED_SOURCE_STABILIZATION_TURNS.fort).toBeLessThan(CAPTURED_SOURCE_STABILIZATION_TURNS.city);
+  });
+
+  it('a fort with no stabilization timestamp (never captured) is always stabilized', () => {
+    const state = { turn: 1, map: { tiles: { k: { coord: { q: 0, r: 0 } } } } } as unknown as GameState;
+    expect(isFortStabilized(state, { q: 0, r: 0 })).toBe(true);
   });
 });
