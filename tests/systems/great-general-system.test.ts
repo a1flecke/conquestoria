@@ -7,9 +7,11 @@ import {
   GENERAL_PROGRESS_AWARDS,
   generateGeneralCandidates,
   checkAndQueueGeneralCandidateChoice,
+  spawnGeneralForCiv,
 } from '@/systems/great-general-system';
 import { GENERAL_DEFINITIONS } from '@/systems/great-general-definitions';
 import { createNewGame } from '@/core/game-state';
+import { foundCity } from '@/systems/city-system';
 
 describe('getGeneralThreshold', () => {
   it('the first General costs less than the second', () => {
@@ -189,6 +191,75 @@ describe('checkAndQueueGeneralCandidateChoice', () => {
     const state = makeGeneralsTestState('gen-queue-4');
 
     const result = checkAndQueueGeneralCandidateChoice(state, 'player', 'combat:xp', 1);
+
+    expect(result).toBe(state);
+  });
+});
+
+function makeStateWithCapital(seed: string) {
+  const state = makeGeneralsTestState(seed);
+  const capital = foundCity('player', { q: 0, r: 0 }, state.map, state.idCounters);
+  state.cities = { [capital.id]: capital };
+  state.civilizations.player = { ...state.civilizations.player, cities: [capital.id] };
+  return { state, capital };
+}
+
+describe('spawnGeneralForCiv', () => {
+  it('spawns a new great_general unit at the capital, owned by the civ, with the chosen definition', () => {
+    const { state, capital } = makeStateWithCapital('gen-spawn-1');
+    const romeGeneral = GENERAL_DEFINITIONS.find(g => g.civTypeEligibility.includes('rome'))!;
+
+    const result = spawnGeneralForCiv(state, 'player', romeGeneral.id);
+
+    const spawned = Object.values(result.units).find(u => u.type === 'great_general' && u.owner === 'player');
+    expect(spawned).toBeDefined();
+    expect(spawned!.generalDefinitionId).toBe(romeGeneral.id);
+    expect(spawned!.generalNoCommandThisTurn).toBe(true);
+    expect(spawned!.position).toEqual(capital.position);
+    expect(result.civilizations.player.units).toContain(spawned!.id);
+  });
+
+  it('removes the resolved choice from pendingGeneralCandidateChoices', () => {
+    const { state } = makeStateWithCapital('gen-spawn-2');
+    state.pendingGeneralCandidateChoices = [{ civId: 'player', candidateDefinitionIds: ['gen_caesar'], triggerEventLabel: 'x' }];
+
+    const result = spawnGeneralForCiv(state, 'player', 'gen_caesar');
+
+    expect(result.pendingGeneralCandidateChoices ?? []).toHaveLength(0);
+  });
+
+  it('leaves other civs\' pending choices untouched', () => {
+    const { state } = makeStateWithCapital('gen-spawn-3');
+    state.pendingGeneralCandidateChoices = [
+      { civId: 'player', candidateDefinitionIds: ['gen_caesar'], triggerEventLabel: 'x' },
+      { civId: 'ai-1', candidateDefinitionIds: ['gen_ramesses'], triggerEventLabel: 'y' },
+    ];
+
+    const result = spawnGeneralForCiv(state, 'player', 'gen_caesar');
+
+    expect(result.pendingGeneralCandidateChoices).toEqual([
+      { civId: 'ai-1', candidateDefinitionIds: ['gen_ramesses'], triggerEventLabel: 'y' },
+    ]);
+  });
+
+  it('records the spawn in generalHistory and increments generalsEarned', () => {
+    const { state } = makeStateWithCapital('gen-spawn-4');
+    state.civilizations.player = { ...state.civilizations.player, generalProgress: { points: 50, generalsEarned: 0 } };
+
+    const result = spawnGeneralForCiv(state, 'player', 'gen_caesar');
+
+    expect(result.civilizations.player.generalHistory).toHaveLength(1);
+    expect(result.civilizations.player.generalHistory![0]!.generalDefinitionId).toBe('gen_caesar');
+    expect(result.civilizations.player.generalHistory![0]!.spawnedTurn).toBe(state.turn);
+    expect(result.civilizations.player.generalProgress!.generalsEarned).toBe(1);
+    expect(result.civilizations.player.generalProgress!.points).toBe(50); // points carry over unchanged
+  });
+
+  it('is a no-op when the civ has no capital', () => {
+    const state = makeGeneralsTestState('gen-spawn-5');
+    state.civilizations.player = { ...state.civilizations.player, cities: [] };
+
+    const result = spawnGeneralForCiv(state, 'player', 'gen_caesar');
 
     expect(result).toBe(state);
   });

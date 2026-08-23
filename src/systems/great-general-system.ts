@@ -2,6 +2,7 @@ import type { Civilization, GameState, GeneralProgressState } from '@/core/types
 import { GENERAL_DEFINITIONS, type GeneralDefinition } from '@/systems/great-general-definitions';
 import { seededLcg, weightedPick } from '@/systems/seeded-lcg';
 import { resolveCivilizationEra } from '@/systems/tech-definitions';
+import { createUnit } from '@/systems/unit-system';
 
 /**
  * Threshold formula (contract §13 — "data-driven and not yet locked", this
@@ -138,5 +139,55 @@ export function checkAndQueueGeneralCandidateChoice(
       ...(state.pendingGeneralCandidateChoices ?? []),
       { civId, candidateDefinitionIds: candidates.map(c => c.id), triggerEventLabel },
     ],
+  };
+}
+
+/**
+ * Spawns the chosen General at `civId`'s capital (contract §13: "safe
+ * capital fallback" -- `cities[0]` by convention, matching this codebase's
+ * established capital-shorthand exception, see .claude/rules/ui-panels.md).
+ * A no-op if the civ has no capital to spawn at. Sets
+ * `generalNoCommandThisTurn: true` (contract: "no heroic command on spawn
+ * turn... operational next owner turn") and resolves the pending choice
+ * entry, if any, for this civ only.
+ */
+export function spawnGeneralForCiv(
+  state: GameState,
+  civId: string,
+  generalDefinitionId: string,
+): GameState {
+  const civ = state.civilizations[civId];
+  const capitalId = civ?.cities.at(0); // capital = first city by convention
+  const capital = capitalId ? state.cities[capitalId] : undefined;
+  if (!civ || !capital) return state;
+
+  const idCounters = { ...state.idCounters };
+  const newUnit = {
+    ...createUnit('great_general', civId, capital.position, idCounters),
+    generalDefinitionId,
+    generalNoCommandThisTurn: true as const,
+  };
+
+  return {
+    ...state,
+    idCounters,
+    units: { ...state.units, [newUnit.id]: newUnit },
+    civilizations: {
+      ...state.civilizations,
+      [civId]: {
+        ...civ,
+        units: [...civ.units, newUnit.id],
+        generalProgress: {
+          points: civ.generalProgress?.points ?? 0,
+          generalsEarned: (civ.generalProgress?.generalsEarned ?? 0) + 1,
+        },
+        generalHistory: [
+          ...(civ.generalHistory ?? []),
+          { unitId: newUnit.id, generalDefinitionId, spawnedTurn: state.turn },
+        ],
+      },
+    },
+    pendingGeneralCandidateChoices: (state.pendingGeneralCandidateChoices ?? [])
+      .filter(choice => choice.civId !== civId),
   };
 }
