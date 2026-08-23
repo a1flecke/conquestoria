@@ -358,7 +358,7 @@ function planCandidates(
 // ai-plan-portfolio.ts rather than a parallel decision path.
 function crisisDispatchPlanCandidates(state: GameState, civId: string): AIPlanCandidate[] {
   return getCrisisDispatchCandidates(state, civId).flatMap(candidate => {
-    const eligible = candidate.kind === 'stampede'
+    const eligible = candidate.kind === 'stampede' || candidate.kind === 'rogue-elephant-host'
       ? isCrisisPressureEligible(state, civId)
       : isPiratePressureEligible(state, civId);
     if (!eligible) return [];
@@ -370,7 +370,7 @@ function crisisDispatchPlanCandidates(state: GameState, civId: string): AIPlanCa
       theaterId: `local:${unit.position.q},${unit.position.r}`,
       score: candidate.score,
       reasonCodes: [candidate.kind === 'stampede' ? 'visible-stampede' : 'urgent-defense'],
-      requiredRoles: { [candidate.kind === 'stampede' ? 'frontline' : 'naval-combat']: 1 },
+      requiredRoles: { [candidate.kind === 'stampede' || candidate.kind === 'rogue-elephant-host' ? 'frontline' : 'naval-combat']: 1 },
       commitment: 0.25,
       targetValid: true,
       reasonValid: true,

@@ -5,6 +5,8 @@ import { hexKey, mapNeighbors } from '@/systems/hex-utils';
 import { resolveCivilizationEra } from '@/systems/tech-definitions';
 import { createUnit } from '@/systems/unit-system';
 import { hexDistance } from '@/systems/hex-utils';
+import { findPath } from '@/systems/unit-system';
+import { executeUnitMove } from '@/systems/unit-movement-system';
 
 export interface RogueElephantHostProfile {
   elephantCount: number;
@@ -132,10 +134,28 @@ export function getRogueElephantCommandFact(
 export function processRogueElephantHostTurn(state: GameState, targetCivId: string): GameState {
   const host = state.rogueElephantHosts?.[targetCivId];
   if (!host || host.phase !== 'warning' || host.createdTurn === state.turn) return state;
-  return {
+  const activated: GameState = {
     ...state,
     rogueElephantHosts: { ...state.rogueElephantHosts, [targetCivId]: { ...host, phase: 'active' } },
   };
+  return processActiveRogueElephantHost(activated, targetCivId);
+}
+
+/** Moves each active Host actor one legal step toward the persisted shared target. */
+export function processActiveRogueElephantHost(state: GameState, targetCivId: string): GameState {
+  const host = state.rogueElephantHosts?.[targetCivId];
+  const force = host?.phase === 'active' && host.forceId ? state.crisisForces?.[host.forceId] : undefined;
+  const target = host?.target?.tileKey ? state.map.tiles[host.target.tileKey]?.coord : undefined;
+  if (!force || !target) return state;
+  const next: GameState = { ...state, units: { ...state.units } };
+  for (const unitId of [...force.unitIds].sort()) {
+    const unit = next.units[unitId];
+    if (!unit || unit.health <= 0) continue;
+    const path = findPath(unit.position, target, next.map, 'land', { unit });
+    const step = path?.[1];
+    if (step) executeUnitMove(next, unit.id, step, { actor: 'world' });
+  }
+  return next;
 }
 
 function normalizeTarget(value: unknown): RogueHostTarget | undefined {

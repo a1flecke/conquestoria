@@ -11,7 +11,7 @@ import { hexDistance, hexKey, mapNeighbors } from '@/systems/hex-utils';
 import { getHerdRoutePresentationForViewer } from '@/systems/stampede-route-system';
 
 export interface CrisisDispatchCandidate {
-  kind: 'pirate-fleet' | 'hunt-foe' | 'stampede';
+  kind: 'pirate-fleet' | 'hunt-foe' | 'stampede' | 'rogue-elephant-host';
   sourceId: string;        // fleetId or crisisId — used for expiry checks
   targetUnitId: string;    // the pirate ship / hunt foe unit
   score: number;           // base score × profile.crisisDispatchWeight
@@ -89,6 +89,16 @@ export function getCrisisDispatchCandidates(state: GameState, civId: string): Cr
         score: (PIRATE_FLEET_DISPATCH_BASE_SCORE + cityApproachPressure
           - visibleScreenCost * 5 - (route.stopsAtFort ? 25 : 0)) * profile.crisisDispatchWeight,
       });
+    }
+  }
+  const host = state.rogueElephantHosts?.[civId];
+  const hostForce = host?.phase === 'active' && host.forceId ? state.crisisForces?.[host.forceId] : undefined;
+  if (hostForce?.targetCivId === civId && civ?.visibility) {
+    for (const unitId of [...hostForce.unitIds].sort()) {
+      const unit = state.units[unitId];
+      if (!unit || !isVisible(civ.visibility, unit.position)) continue;
+      candidates.push({ kind: 'rogue-elephant-host', sourceId: hostForce.id, targetUnitId: unitId,
+        score: PIRATE_FLEET_DISPATCH_BASE_SCORE * profile.crisisDispatchWeight });
     }
   }
   return candidates;
