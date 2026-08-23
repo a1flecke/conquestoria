@@ -2023,3 +2023,69 @@ git commit -m "docs(#544): MR3 self-review against contract §13-15, confirm ful
   Task 9 and documented as awaiting its second (MR4) caller, the same
   "extension seam" pattern MR1's `stabilizedByGeneral` parameter already
   established for this exact arc.
+
+## Execution Record (all 16 tasks completed)
+
+**Deviations from the plan as written, discovered during execution:**
+
+- **CIV_DEFINITIONS has 29 civs, not the ~13 the plan's Task 2 draft
+  sketched** — 18 historical + 11 fantasy/lore civs (`gondor`, `rohan`,
+  `shire`, `isengard`, `prydain`, `annuvin`, `wakanda`, `avalon`,
+  `lothlorien`, `narnia`, `atlantis`), confirmed by grep before writing the
+  real roster. The shipped `GENERAL_DEFINITIONS` covers all 29 with one
+  commander each (historical civs get real commanders; fantasy civs get
+  culturally-coherent fictional ones drawn from their own established lore,
+  matching this codebase's existing convention of using real IP names for
+  civ/city content). `carthage` has no matching playable civ id (it's
+  minor-civ-only) — Hannibal Barca lives in the universal pool instead.
+- **Task 5's successful-defense hook did not need the turn-manager.ts
+  round-end diff the plan sketched.** `city-capture-system.ts`'s
+  `beginMajorCityAssault` already has two `'repelled-by-city-defense'`
+  failure branches (intrinsic no-garrison city defense) — a strictly
+  better hook site, since it fires at the moment of the triggering action
+  like the other two bonuses, not batched at round end. Deliberately scoped
+  to the no-garrison path only (a garrisoned city that kills its attacker
+  already earns ordinary combat-XP progress through the shared kill-reward
+  hook, so awarding this bonus there too would double-count).
+- **A real bug was found and fixed during the second review pass** (not
+  anticipated by the plan): `spawnGeneralForCiv`'s original "no capital →
+  no-op" branch left a civ's pending choice permanently unresolvable if
+  their capital was lost between the choice being queued and being opened
+  (reachable in hot-seat, where several other civs' turns can pass in
+  between) — since `maybeShowPendingGeneralChoice`'s panel is deliberately
+  dismiss-less, this was an unrecoverable soft-lock. Fixed: the pending
+  choice now always clears, even when no capital exists to spawn at (the
+  candidate is simply forfeited, no General spawns).
+- **User asked mid-implementation whether MR1.1 (road/rail bounded supply
+  extension, contract §9) should have landed first.** Confirmed via spec
+  grep that MR1.1 is real, documented, and still unimplemented, but
+  verified it is not a functional dependency of MR3 — Generals only read
+  the already-complete `unit.landSupply.state`, never the coverage-radius
+  computation MR1.1 would extend. User chose to continue MR3 as planned;
+  MR1.1 remains tracked as its own unchecked item on issue #544.
+
+**Verification performed:**
+- Full test suite: 524 files / 8716 tests passed, 3 skipped, 0 failed.
+- Full production build: clean, no TypeScript errors.
+- Pacing gates (`pacing-audit.test.ts`, `pacing-reference-economy.test.ts`):
+  unchanged, both pass — Generals add no yields, only bounded non-economic
+  progress points and occasional gold-tier city-capture/raze rewards that
+  already existed before this MR.
+- Second inline review pass across the full `origin/main..HEAD` diff (source
+  files only) — found and fixed the soft-lock bug above; everything else
+  checked out (reward-loop civilizations-update correctness, escort-cascade
+  idempotency across combat/splash paths, generic before/after death-diff
+  correctness for both escort-cascade and direct-target cases, hot-seat
+  pending-choice civ-scoping).
+- UI verification: relied on the jsdom test suite (5 tests asserting real
+  rendered text/button structure/click behavior, mirroring
+  `createBeastHoardPanel`'s already-shipped, already-visually-verified
+  pattern exactly) rather than a live browser session — the pre-existing
+  campaign-setup flow proved slow to navigate via automated clicks for a
+  screen this MR does not touch, and the panel itself is plain DOM
+  manipulation with no canvas/WebGL/complex-layout surface that jsdom
+  assertions could plausibly miss.
+
+**Contract §13-15 coverage:** confirmed against the table in Task 16 Step 3
+above — every row has a corresponding implemented task. Passive
+command/heroic abilities/AI are explicitly out of scope (MR4/MR5).
