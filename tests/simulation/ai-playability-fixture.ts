@@ -24,6 +24,7 @@ import { TECH_TREE, resolveCivilizationEra } from '@/systems/tech-definitions';
 import { getAvailableTechs } from '@/systems/tech-system';
 import { processTurn } from '@/core/turn-manager';
 import { createUnit, UNIT_DEFINITIONS } from '@/systems/unit-system';
+import { CRISIS_FORCE_OWNER } from '@/core/owner-kind';
 
 export type AIPersonality =
   | 'aggressive'
@@ -68,7 +69,7 @@ const PERSONALITY_CIV: Record<AIPersonality, string> = {
   trader: 'persia',
 };
 
-const WORLD_OWNERS = new Set(['barbarian', 'pirate', 'rebels', 'beasts']);
+const WORLD_OWNERS = new Set(['barbarian', 'pirate', 'rebels', 'beasts', CRISIS_FORCE_OWNER]);
 
 function plansForState(state: GameState): Map<string, AIStrategicPlan> {
   const plans = new Map<string, AIStrategicPlan>();
