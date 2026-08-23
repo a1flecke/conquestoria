@@ -243,6 +243,11 @@ describe('createNewGame', () => {
     expect(state.settings.councilTalkLevel).toBe('quiet');
   });
 
+  it('new games default supplyWarningPreference to all (#544 MR2)', () => {
+    const state = createNewGame({ civType: 'rome', mapSize: 'small', opponentCount: 1, gameTitle: 'Settings Test', seed: 'supply-warning-default' });
+    expect(state.settings.supplyWarningPreference).toBe('all');
+  });
+
   it('initializes pending diplomacy requests for new solo games', () => {
     const state = createNewGame(undefined, 'pending-diplomacy-seed');
 

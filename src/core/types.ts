@@ -2037,6 +2037,13 @@ export interface GameSettings {
   advisorsEnabled: Record<AdvisorType, boolean>;
   councilTalkLevel: CouncilTalkLevel;
   customCivilizations?: CustomCivDefinition[];
+  /**
+   * End-turn supply-warning delivery filter (#544 MR2, contract §12).
+   * Presentation-only: never gates `deriveSupplyWarningTransitions`'s own
+   * computation, only which already-derived warnings reach the player.
+   * `undefined` (legacy saves) is treated identically to `'all'`.
+   */
+  supplyWarningPreference?: 'all' | 'critical' | 'off';
 }
 
 // --- Events ---
