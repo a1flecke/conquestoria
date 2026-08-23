@@ -340,7 +340,8 @@ export function createCityPanel(
       <div style="font-weight:bold;color:#9bd97b;">🌱 Rebuilding — +1 🌾 +1 ⚒️ for ${resilienceTurnsLeft} more turn${resilienceTurnsLeft === 1 ? '' : 's'}</div>
     </div>` : '';
   const stampedeStatus = city.owner === state.currentPlayer
-    ? getWorldPressurePresentationForViewer(state, state.currentPlayer).ownStampedeStatus
+    ? (getWorldPressurePresentationForViewer(state, state.currentPlayer).ownStampedeStatus
+      ?? getWorldPressurePresentationForViewer(state, state.currentPlayer).ownRogueElephantHostStatus)
     : undefined;
   const stampedeSectionHtml = stampedeStatus ? `
     <div style="background:rgba(193,137,68,0.14);border:1px solid rgba(224,172,87,0.45);border-radius:8px;padding:10px 12px;margin-bottom:16px;font-size:12px;">

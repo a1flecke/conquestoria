@@ -134,6 +134,14 @@ export function getRogueElephantHostTarget(state: GameState, targetCivId: string
   return approach ? { kind: 'city-approach', cityId: city.id, tileKey: hexKey(approach.position) } : undefined;
 }
 
+export function getRogueElephantHostStatusForViewer(state: GameState, viewerId: string): { text: string } | undefined {
+  const host = state.rogueElephantHosts?.[viewerId];
+  if (!host || host.targetCivId !== viewerId) return undefined;
+  if (host.phase === 'warning') return { text: 'Rogue Elephant Host is approaching; prepare defenses before it attacks.' };
+  if (host.phase === 'active') return { text: 'Rogue Elephant Host is active. Defeat the nearby Handler to break its coordination.' };
+  return undefined;
+}
+
 /** One viewer-independent combat fact; callers may present it only after visibility checks. */
 export function getRogueElephantCommandFact(
   state: GameState,

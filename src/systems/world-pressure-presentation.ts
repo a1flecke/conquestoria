@@ -5,6 +5,7 @@ import { resolveCivilizationEra } from './tech-definitions';
 import { resolveWorldPressureFlags } from './world-pressure-flags';
 import { resolvePressureSeverityForCiv } from '@/core/opponent-challenge';
 import { getStampedeStatusForViewer } from './stampede-system';
+import { getRogueElephantHostStatusForViewer } from './rogue-elephant-host-system';
 
 export interface WorldPressureCityBadge {
   cityId: string;
@@ -29,6 +30,8 @@ export interface WorldPressurePresentation {
   statusLinesByCivId: Record<string, WorldPressureStatusLine>;
   /** The current viewer's own Stampede only; never opponent pressure intel. */
   ownStampedeStatus?: string;
+  /** The current viewer's own Rogue Elephant Host only. */
+  ownRogueElephantHostStatus?: string;
 }
 
 const EMPTY_PRESENTATION: WorldPressurePresentation = { cityBadges: [], statusLinesByCivId: {} };
@@ -59,8 +62,11 @@ export function getWorldPressurePresentationForViewer(
   const viewer = state.civilizations[viewerCivId];
   if (!viewer) return EMPTY_PRESENTATION;
   const ownStampedeStatus = getStampedeStatusForViewer(state, viewerCivId)?.text;
+  const ownRogueElephantHostStatus = getRogueElephantHostStatusForViewer(state, viewerCivId)?.text;
   if (!flags.aiPressureVisibility) {
-    return ownStampedeStatus ? { ...EMPTY_PRESENTATION, ownStampedeStatus } : EMPTY_PRESENTATION;
+    return ownStampedeStatus || ownRogueElephantHostStatus
+      ? { ...EMPTY_PRESENTATION, ...(ownStampedeStatus ? { ownStampedeStatus } : {}), ...(ownRogueElephantHostStatus ? { ownRogueElephantHostStatus } : {}) }
+      : EMPTY_PRESENTATION;
   }
   const known = new Set(viewer.knownCivilizations ?? []);
 
@@ -98,5 +104,5 @@ export function getWorldPressurePresentationForViewer(
     }
   }
 
-  return { cityBadges, statusLinesByCivId, ...(ownStampedeStatus ? { ownStampedeStatus } : {}) };
+  return { cityBadges, statusLinesByCivId, ...(ownStampedeStatus ? { ownStampedeStatus } : {}), ...(ownRogueElephantHostStatus ? { ownRogueElephantHostStatus } : {}) };
 }

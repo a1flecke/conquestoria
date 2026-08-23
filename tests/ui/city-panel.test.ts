@@ -25,6 +25,15 @@ function clickElement(element: Element | null | undefined): void {
 }
 
 describe('city-panel national projects', () => {
+  it('renders the current player’s Rogue Elephant Host warning in the open city panel', () => {
+    const { container, city, state } = makeWonderPanelFixture();
+    state.rogueElephantHosts = { player: { targetCivId: 'player', phase: 'warning' } };
+
+    const panel = createCityPanel(container, city, state, { onBuild: () => {}, onOpenWonderPanel: () => {}, onClose: () => {} });
+
+    expect(collectText(panel)).toContain('Rogue Elephant Host is approaching; prepare defenses before it attacks.');
+  });
+
   it('renders Bunker only after Reinforced Concrete and Walls, with its full defensive rule', () => {
     const { container, city, state } = makeWonderPanelFixture();
     state.civilizations.player.techState.completed.push('reinforced-concrete');
