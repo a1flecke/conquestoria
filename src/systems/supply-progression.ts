@@ -43,8 +43,13 @@ export const FIELD_RECOVERY_OWNER_TURNS = 1;
  * Called only when `isSupplied` is true (caller: `resolveLandSupplyForCiv`)
  * — `advanceOverextensionStage` already handles the "still not supplied"
  * branch. Physically occupying a base tile clears immediately; otherwise
- * penalties clear only after `FIELD_RECOVERY_OWNER_TURNS` consecutive
- * supplied owner-turns without attacking (contract §8).
+ * penalties clear only once `FIELD_RECOVERY_OWNER_TURNS` consecutive
+ * supplied owner-turns without attacking have actually elapsed (contract
+ * §8) — the transition is gated on the real counter rather than assumed,
+ * so a future balance change to `FIELD_RECOVERY_OWNER_TURNS` is honored
+ * instead of silently ignored (an earlier draft always cleared to `'full'`
+ * the moment `isSupplied` was true, which only *looked* correct because
+ * the constant happens to currently be 1).
  */
 export function resolveSupplyRecoveryForUnit(
   current: UnitLandSupplyStatus,
@@ -57,5 +62,12 @@ export function resolveSupplyRecoveryForUnit(
     return { state: 'full', hostileUnsupportedTurns: 0, suppliedTurnsSinceRecovery: 0 };
   }
   const suppliedTurnsSinceRecovery = attackedThisTurn ? 0 : current.suppliedTurnsSinceRecovery + 1;
-  return { state: 'full', hostileUnsupportedTurns: 0, suppliedTurnsSinceRecovery };
+  if (suppliedTurnsSinceRecovery >= FIELD_RECOVERY_OWNER_TURNS) {
+    return { state: 'full', hostileUnsupportedTurns: 0, suppliedTurnsSinceRecovery: 0 };
+  }
+  // Deterioration stops immediately (contract §8: "stops immediately") —
+  // freeze the current stage/penalty and the hostile counter rather than
+  // continuing to worsen, but don't clear the stage until the field-
+  // recovery threshold above is actually met.
+  return { state: current.state, hostileUnsupportedTurns: 0, suppliedTurnsSinceRecovery };
 }

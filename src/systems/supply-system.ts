@@ -2,7 +2,7 @@ import type { GameState, UnitLandSupplyStatus } from '@/core/types';
 import { hexKey } from './hex-utils';
 import { unitParticipatesInLandSupply } from './supply-participation';
 import { classifyLandSupplyTerritory } from './supply-territory';
-import { getLandSupplySourceCoverage } from './supply-sources';
+import { getCivSupplySourceCandidates, getLandSupplySourceCoverage } from './supply-sources';
 import { getNavalShoreSupplyAssignments } from './supply-naval';
 import { advanceOverextensionStage, resolveSupplyRecoveryForUnit } from './supply-progression';
 
@@ -14,6 +14,11 @@ import { advanceOverextensionStage, resolveSupplyRecoveryForUnit } from './suppl
  */
 export function resolveLandSupplyForCiv(state: GameState, civId: string): GameState {
   const shoreAssignments = getNavalShoreSupplyAssignments(state, civId);
+  // Computed once per civ per round (not once per unit) — contract §35's
+  // "avoid unbounded AI tile scans." An earlier draft called
+  // getLandSupplySourceCoverage per unit with no precomputed candidates,
+  // turning a full-map tile scan into O(units × map size) per civ.
+  const sourceCandidates = getCivSupplySourceCandidates(state, civId);
   let units = state.units;
   let changed = false;
 
@@ -23,18 +28,23 @@ export function resolveLandSupplyForCiv(state: GameState, civId: string): GameSt
 
     const tile = state.map.tiles[hexKey(unit.position)];
     const territoryClass = classifyLandSupplyTerritory(state, civId, tile?.owner ?? null);
-    const coveredByLandSource = getLandSupplySourceCoverage(state, civId, unit.position);
+    const coveredByLandSource = getLandSupplySourceCoverage(state, civId, unit.position, sourceCandidates);
     const isSupplied = coveredByLandSource || shoreAssignments.has(unit.id);
 
     const current: UnitLandSupplyStatus = unit.landSupply ?? { state: 'full', hostileUnsupportedTurns: 0, suppliedTurnsSinceRecovery: 0 };
-    const justEnteredBaseTile = tile?.owner === civId && (tile.improvement === 'fort' || Object.values(state.cities).some(city => city.owner === civId && hexKey(city.position) === hexKey(unit.position)));
+    // Only a *stabilized* city/fort grants the instant same-tile clear
+    // (contract §7/§8) — an unstabilized freshly-captured source must not,
+    // even if the unit happens to be supplied via a different, stabilized
+    // source that also covers this position.
+    const isOnStabilizedBaseTile = sourceCandidates.cities.some(city => hexKey(city.position) === hexKey(unit.position))
+      || sourceCandidates.fortCoords.some(fortCoord => hexKey(fortCoord) === hexKey(unit.position));
     // Conservative proxy for MR1: true for any completed action, not only
     // attacking, so it can over-reset field-recovery progress but never
     // under-reset (never lets a unit recover early). See MR1 plan Task 10.
     const attackedThisTurn = unit.hasActed === true;
 
     const next = isSupplied
-      ? resolveSupplyRecoveryForUnit(current, true, justEnteredBaseTile, attackedThisTurn)
+      ? resolveSupplyRecoveryForUnit(current, true, isOnStabilizedBaseTile, attackedThisTurn)
       : advanceOverextensionStage(current, territoryClass, false);
 
     if (next !== current || unit.landSupply === undefined) {

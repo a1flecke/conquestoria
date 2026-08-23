@@ -192,6 +192,24 @@ describe('land-supply status line (#544)', () => {
     expect(text).not.toContain('Overextended');
     expect(text).not.toContain('Stable but Unsupported');
   });
+
+  it('shows no supply line at all for a foreign (enemy) unit — never leaks their supply source or status to the viewer', () => {
+    const state = createNewGame(undefined, 'supply-status-foreign-unit', 'small');
+    const enemyUnit = {
+      ...createUnit('warrior', 'ai-1', { q: 15, r: 15 }, { nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 }),
+      id: 'enemy1',
+      landSupply: { state: 'degraded' as const, hostileUnsupportedTurns: 3, suppliedTurnsSinceRecovery: 0 },
+    };
+    state.currentPlayer = 'player';
+    state.units = { enemy1: enemyUnit };
+    state.civilizations['ai-1'].units = ['enemy1'];
+    const container = new MockElement('div');
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'enemy1', {});
+    const text = collectAllText(container).join(' ');
+    expect(text).not.toContain('Full Supply');
+    expect(text).not.toContain('Overextended');
+    expect(text).not.toContain('Stable but Unsupported');
+  });
 });
 
 describe('selected-unit scroll affordance', () => {
