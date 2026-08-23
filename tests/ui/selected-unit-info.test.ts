@@ -780,6 +780,23 @@ describe('renderSelectedUnitInfo — crisis-force label', () => {
 
     expect(collectAllText(container).join(' ')).toContain('Handler command: +20% attack and defense within 2 hexes.');
   });
+
+  it('does not leak a Host command after a hot-seat handoff to an unseen viewer', () => {
+    let state = createNewGame(undefined, 'rogue-command-handoff', 'small');
+    state.civilizations['player-2'] = { ...state.civilizations.player, id: 'player-2', visibility: { tiles: {} } };
+    const handler = { ...createUnit('rogue_handler', 'crisis-force', { q: 3, r: 0 }, state.idCounters), id: 'handler-1' };
+    const elephant = { ...createUnit('rogue_elephant', 'crisis-force', { q: 4, r: 0 }, state.idCounters), id: 'elephant-1' };
+    state.units = { [handler.id]: handler, [elephant.id]: elephant };
+    state.civilizations.player.visibility.tiles['4,0'] = 'visible';
+    state = registerCrisisForce(state, { id: 'rogue-host', targetCivId: 'player', severity: 'standard', createdTurn: state.turn, unitIds: [handler.id, elephant.id] });
+    state.rogueElephantHosts = { player: { targetCivId: 'player', forceId: 'rogue-host', phase: 'active' } };
+    state.currentPlayer = 'player-2';
+    const container = new MockElement('div');
+
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, elephant.id, {});
+
+    expect(collectAllText(container).join(' ')).not.toContain('Handler command');
+  });
 });
 
 describe('renderSelectedUnitInfo — spy disguise buttons', () => {
