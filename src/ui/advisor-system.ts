@@ -105,12 +105,14 @@ const ADVISOR_MESSAGES: AdvisorMessage[] = [
     tutorialStep: 'complete',
   },
   {
-    // #544 MR2: first-time supply tutorial. viewerScoped so each hot-seat
-    // player gets their own first-encounter, matching the other tutorial
-    // entries' viewer-agnostic-but-currentPlayer-gated trigger convention
-    // (none of them set viewerScoped either, since `shownIds` here is a
-    // single session-wide set -- kept consistent with that, not introduced
-    // as a one-off).
+    // #544 MR2: first-time supply tutorial. Not `viewerScoped` -- matches
+    // every other tutorial-tagged entry above, all of which share one
+    // session-wide `shownIds` set rather than a per-viewer one. In hot-seat,
+    // this means the first human player to trigger it "spends" it for every
+    // player sharing the session, the same pre-existing characteristic
+    // 'welcome'/'found_city'/etc. already have; not a regression this entry
+    // introduces, so left consistent with the established pattern rather
+    // than special-cased.
     id: 'supply_intro',
     advisor: 'builder',
     icon: '🏗️',
