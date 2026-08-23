@@ -542,6 +542,70 @@ just noted:
   feature is established honestly from its first player-visible moment
   rather than introduced piecemeal with inconsistent wording later.
 
+### 11.3 Third pass — inline code review of the shipped MR1 implementation
+
+Requested explicitly, after MR1's 12 implementation commits landed, across
+the same wide dimension list applied to the earlier passes but now against
+the real committed diff rather than the plan. Four real, confirmed defects
+were found and fixed (not just noted), plus one naming clarity fix:
+
+- **Performance (found & fixed):** `getLandSupplySourceCoverage` did a full
+  `Object.values(state.map.tiles)` scan on every call, and
+  `resolveLandSupplyForCiv` called it once *per participating unit* —
+  turning one civ's per-round resolution into O(units × map size) instead
+  of O(map size), directly contradicting contract §35's "avoid unbounded
+  AI tile scans." Fixed: `getCivSupplySourceCandidates` precomputes a
+  civ's stabilized cities and mature Fort coordinates once per round;
+  `resolveLandSupplyForCiv` computes it once and threads it through both
+  `getLandSupplySourceCoverage` and (for consistency, though it was never
+  on the hot path) `getPrimarySupplySource`.
+- **Correctness — dead-parameter bug (found & fixed):**
+  `resolveSupplyRecoveryForUnit` tracked `suppliedTurnsSinceRecovery` but
+  never actually gated the `'full'` state transition on it — it
+  unconditionally cleared to `'full'` the instant `isSupplied` was true
+  (outside a base tile), which only *looked* correct because
+  `FIELD_RECOVERY_OWNER_TURNS` happens to currently equal 1. A future
+  balance change to that constant would have been silently ignored. Fixed
+  to gate on the real `>=` comparison; current behavior is unchanged at
+  today's constant value, but the mechanism now actually depends on it.
+- **Hot-seat/privacy (found & fixed):** the unit-panel status line
+  (`getLandSupplyStatusText`) computed and rendered supply info — including
+  a *named* primary source via `getPrimarySupplySource` — for **any**
+  selected unit, friendly or enemy, with no ownership gate. This is
+  inconsistent with the same file's own established convention a few lines
+  below (`rolePresentation` is explicitly gated by
+  `unit.owner === state.currentPlayer`) and could reveal an enemy's
+  undiscovered Fort via the primary-source name. Fixed: the same ownership
+  gate now applies, matching contract §26's "supply overlay never leaks
+  enemy coverage" — this per-unit line is architecturally a
+  miniature overlay for one unit.
+- **Correctness — reinvented instead of reused (found & fixed):**
+  `unitParticipatesInLandSupply`'s fallback derivation excluded only the
+  `'civilian'` `UnitClass`, missing this codebase's own existing
+  `isMilitaryUnitType` helper (`unit-modifier-definitions.ts`), which
+  explicitly excludes both `'civilian'` *and* `'spy'`. All seven land-domain
+  spy unit types (spy_scout through spy_hacker) were incorrectly treated as
+  land-supply participants — accumulating overextension penalties and
+  losing healing eligibility like line infantry, contradicting the
+  codebase's own military/civilian/spy taxonomy. Fixed to reuse
+  `isMilitaryUnitType` directly.
+- **Naming clarity + a related edge case (found & fixed):** the resolver's
+  `justEnteredBaseTile` variable was misleadingly named (it means "is
+  currently on a base tile," true every turn while resident, not just the
+  turn of arrival) and — more substantively — didn't check that the base
+  tile was actually *stabilized*, so a unit standing on a freshly-captured,
+  unstabilized city/fort could get the instant same-tile clear if a
+  *different*, already-stabilized source also happened to cover that
+  position. Renamed to `isOnStabilizedBaseTile` and now checks against the
+  same precomputed, stabilization-filtered candidate lists the coverage
+  check uses.
+
+All four functional fixes are covered by new or corrected tests; the full
+suite (8546+ tests) and production build were re-verified green after every
+fix. See the "Third-pass code review" notes in
+`docs/superpowers/plans/2026-08-23-issue-544-mr1-core-supply.md`'s
+Self-Review Notes section for the exact commits.
+
 ## 12. Definition of done for this spec doc
 
 This doc is complete when a reader with zero prior context on #544 can:
