@@ -167,8 +167,17 @@ function findEligiblePreachTargetCityId(state: GameState, unit: Unit): string | 
  * inconsistent set of labels. Returns `null` when the unit doesn't
  * participate in land supply at all (naval/air/beast/etc.) — no line is
  * rendered in that case.
+ *
+ * Only ever computed for the viewer's own units — the same
+ * `unit.owner === state.currentPlayer` gate this file already uses for
+ * `rolePresentation` below. `getPrimarySupplySource` names a specific
+ * City/Fort, which could otherwise leak an enemy's undiscovered
+ * infrastructure to the viewer when inspecting a foreign unit; contract §26
+ * is explicit that "supply overlay never leaks enemy coverage," and this
+ * per-unit status line is architecturally a miniature overlay for one unit.
  */
 function getLandSupplyStatusText(state: GameState, unit: Unit): string | null {
+  if (unit.owner !== state.currentPlayer) return null;
   if (!unitParticipatesInLandSupply(unit)) return null;
   const status = unit.landSupply;
   if (status === undefined || status.state === 'full') {

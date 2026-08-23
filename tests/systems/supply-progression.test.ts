@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  FIELD_RECOVERY_OWNER_TURNS,
   advanceOverextensionStage,
   resolveSupplyRecoveryForUnit,
 } from '@/systems/supply-progression';
@@ -63,22 +64,35 @@ describe('resolveSupplyRecoveryForUnit', () => {
     expect(result).toEqual({ state: 'full', hostileUnsupportedTurns: 0, suppliedTurnsSinceRecovery: 0 });
   });
 
-  it('gaining Full Supply in the field (not on a base tile) does not clear penalties the same turn', () => {
-    const result = resolveSupplyRecoveryForUnit(degraded, true, false, false);
-    expect(result.state).toBe('full');
-    expect(result.suppliedTurnsSinceRecovery).toBe(1);
+  it('freezes the current stage (does not clear it) until FIELD_RECOVERY_OWNER_TURNS consecutive supplied turns have elapsed', () => {
+    // With the real FIELD_RECOVERY_OWNER_TURNS = 1, a single supplied turn
+    // already meets the threshold (see the next test), so there is no
+    // realistic "not yet met" game state to construct with today's value.
+    // This probes the gating *mechanism* directly (a real >= comparison
+    // against the exported constant) using a starting counter one step
+    // below the threshold, so a future balance change to
+    // FIELD_RECOVERY_OWNER_TURNS is honored instead of silently ignored —
+    // an earlier draft always cleared to 'full' unconditionally, which
+    // only looked correct by coincidence at the current constant value.
+    const oneStepBelowThreshold: UnitLandSupplyStatus = { ...degraded, suppliedTurnsSinceRecovery: FIELD_RECOVERY_OWNER_TURNS - 2 };
+    const result = resolveSupplyRecoveryForUnit(oneStepBelowThreshold, true, false, false);
+    expect(result.suppliedTurnsSinceRecovery).toBe(FIELD_RECOVERY_OWNER_TURNS - 1);
+    expect(result.state).toBe('degraded'); // frozen, not yet cleared
+    expect(result.hostileUnsupportedTurns).toBe(0); // deterioration stops immediately, even though the stage hasn't cleared
   });
 
-  it('a second consecutive full-supply owner-turn in the field, without attacking, clears remaining penalties', () => {
-    const oneturn: UnitLandSupplyStatus = { state: 'full', hostileUnsupportedTurns: 0, suppliedTurnsSinceRecovery: 1 };
-    const result = resolveSupplyRecoveryForUnit(oneturn, true, false, false);
-    expect(result.suppliedTurnsSinceRecovery).toBe(2);
+  it('gaining Full Supply in the field for FIELD_RECOVERY_OWNER_TURNS consecutive turns clears the stage, and resets the counter since recovery is complete', () => {
+    const oneStepFromThreshold: UnitLandSupplyStatus = { ...degraded, suppliedTurnsSinceRecovery: FIELD_RECOVERY_OWNER_TURNS - 1 };
+    const result = resolveSupplyRecoveryForUnit(oneStepFromThreshold, true, false, false);
+    expect(result.state).toBe('full');
+    expect(result.suppliedTurnsSinceRecovery).toBe(0);
   });
 
   it('attacking resets the field-recovery counter even while supplied', () => {
-    const oneturn: UnitLandSupplyStatus = { state: 'full', hostileUnsupportedTurns: 0, suppliedTurnsSinceRecovery: 1 };
+    const oneturn: UnitLandSupplyStatus = { state: 'degraded', hostileUnsupportedTurns: 3, suppliedTurnsSinceRecovery: FIELD_RECOVERY_OWNER_TURNS - 1 };
     const result = resolveSupplyRecoveryForUnit(oneturn, true, false, true);
     expect(result.suppliedTurnsSinceRecovery).toBe(0);
+    expect(result.state).toBe('degraded'); // attacking reset progress, so the stage has not cleared
   });
 
   it('losing supply while not on a base tile does not clear penalties', () => {

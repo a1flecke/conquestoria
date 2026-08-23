@@ -29,6 +29,12 @@ describe('unitParticipatesInLandSupply', () => {
     expect(unitParticipatesInLandSupply({ type: 'warrior', owner: BEAST_OWNER })).toBe(false);
   });
 
+  it('a land-domain spy unit does not participate (matches isMilitaryUnitType, which excludes spy as well as civilian)', () => {
+    expect(UNIT_DEFINITIONS.spy_agent.domain ?? 'land').toBe('land');
+    expect(UNIT_CLASS_BY_TYPE.spy_agent).toEqual(['spy']);
+    expect(unitParticipatesInLandSupply({ type: 'spy_agent', owner: 'rome' })).toBe(false);
+  });
+
   it('an explicit participatesInLandSupply: true override wins even for a civilian-classed type', () => {
     expect(UNIT_CLASS_BY_TYPE.worker).toContain('civilian');
     const explicit = { ...UNIT_DEFINITIONS.worker, participatesInLandSupply: true };
