@@ -62,7 +62,7 @@ import { initializeDesktopMenu } from '@/platform/desktop-menu';
 import { resolveOpponentChallenge, setPendingOpponentChallenge, resolveChallengeForCiv, setPendingChallengeForCiv } from '@/core/opponent-challenge';
 
 /** The narrow slice of `RenderLoop` this controller needs. */
-export type GameSessionRenderer = Pick<RenderLoop, 'setGameState' | 'setTouchHandler' | 'start' | 'resizeCanvas'> & {
+export type GameSessionRenderer = Pick<RenderLoop, 'setGameState' | 'setTouchHandler' | 'start' | 'resizeCanvas' | 'toggleSupplyOverlay' | 'isSupplyOverlayEnabled'> & {
   readonly camera: RenderLoop['camera'];
 };
 
@@ -145,6 +145,8 @@ export function createGameSessionController(deps: GameSessionControllerDeps): Ga
         deps.uiLayer.appendChild(overlay);
       },
       onOpenWonderAtlas: () => deps.router.open('wonder-atlas'),
+      supplyOverlayEnabled: deps.renderLoop.isSupplyOverlayEnabled(),
+      onToggleSupplyOverlay: () => deps.renderLoop.toggleSupplyOverlay(),
       onBottomBarHeightChange: height => deps.hud.setMapViewportBottomInset(height),
       onOpenMenu: () => {
         showPauseMenu(deps.uiLayer, {
