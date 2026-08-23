@@ -1250,6 +1250,98 @@ describe('applyCombatOutcomeToState — Great General progress (#544 MR3)', () =
   });
 });
 
+describe('applyCombatOutcomeToState — Great General escort/transport/death rules (#544 MR3)', () => {
+  it('destroys a co-located friendly General when its escort is destroyed in combat (no escape)', () => {
+    const state = makeRewardState();
+    const general = { ...createUnit('great_general', 'ai-1', { q: 1, r: 0 }, mkC()), id: 'general-1', generalDefinitionId: 'gen_ramesses' };
+    state.units['general-1'] = general;
+    state.civilizations['ai-1'].units = ['defender', 'general-1'];
+    state.civilizations['ai-1'].generalHistory = [{ unitId: 'general-1', generalDefinitionId: 'gen_ramesses', spawnedTurn: 1 }];
+    const result: CombatResult = {
+      attackerId: 'attacker', defenderId: 'defender', attackerDamage: 0, defenderDamage: 100,
+      attackerSurvived: true, defenderSurvived: false, attackerStrength: 20, defenderStrength: 20,
+      attackerPosition: { q: 0, r: 0 }, defenderPosition: { q: 1, r: 0 },
+    };
+
+    const applied = applyCombatOutcomeToState(state, result, 64);
+
+    expect(applied.state.units['general-1']).toBeUndefined();
+    expect(applied.state.civilizations['ai-1'].units).not.toContain('general-1');
+  });
+
+  it('records diedTurn in generalHistory when an escorted General is destroyed', () => {
+    const state = makeRewardState();
+    state.turn = 7;
+    const general = { ...createUnit('great_general', 'ai-1', { q: 1, r: 0 }, mkC()), id: 'general-1', generalDefinitionId: 'gen_ramesses' };
+    state.units['general-1'] = general;
+    state.civilizations['ai-1'].units = ['defender', 'general-1'];
+    state.civilizations['ai-1'].generalHistory = [{ unitId: 'general-1', generalDefinitionId: 'gen_ramesses', spawnedTurn: 1 }];
+    const result: CombatResult = {
+      attackerId: 'attacker', defenderId: 'defender', attackerDamage: 0, defenderDamage: 100,
+      attackerSurvived: true, defenderSurvived: false, attackerStrength: 20, defenderStrength: 20,
+      attackerPosition: { q: 0, r: 0 }, defenderPosition: { q: 1, r: 0 },
+    };
+
+    const applied = applyCombatOutcomeToState(state, result, 64);
+
+    expect(applied.state.civilizations['ai-1'].generalHistory).toEqual([
+      { unitId: 'general-1', generalDefinitionId: 'gen_ramesses', spawnedTurn: 1, diedTurn: 7 },
+    ]);
+  });
+
+  it('does NOT destroy a General at a different tile from the destroyed unit', () => {
+    const state = makeRewardState();
+    const general = { ...createUnit('great_general', 'ai-1', { q: 9, r: 9 }, mkC()), id: 'general-1', generalDefinitionId: 'gen_ramesses' };
+    state.units['general-1'] = general;
+    state.civilizations['ai-1'].units = ['defender', 'general-1'];
+    const result: CombatResult = {
+      attackerId: 'attacker', defenderId: 'defender', attackerDamage: 0, defenderDamage: 100,
+      attackerSurvived: true, defenderSurvived: false, attackerStrength: 20, defenderStrength: 20,
+      attackerPosition: { q: 0, r: 0 }, defenderPosition: { q: 1, r: 0 },
+    };
+
+    const applied = applyCombatOutcomeToState(state, result, 64);
+
+    expect(applied.state.units['general-1']).toBeDefined();
+  });
+
+  it('does NOT destroy an enemy-owned General co-located with the destroyed unit\'s tile', () => {
+    const state = makeRewardState();
+    // General belongs to a DIFFERENT civ than the destroyed defender -- should never happen
+    // in practice (two civs' units can't share a tile), but the owner check must hold anyway.
+    const general = { ...createUnit('great_general', 'player', { q: 1, r: 0 }, mkC()), id: 'general-1', generalDefinitionId: 'gen_ramesses' };
+    state.units['general-1'] = general;
+    const result: CombatResult = {
+      attackerId: 'attacker', defenderId: 'defender', attackerDamage: 0, defenderDamage: 100,
+      attackerSurvived: true, defenderSurvived: false, attackerStrength: 20, defenderStrength: 20,
+      attackerPosition: { q: 0, r: 0 }, defenderPosition: { q: 1, r: 0 },
+    };
+
+    const applied = applyCombatOutcomeToState(state, result, 64);
+
+    expect(applied.state.units['general-1']).toBeDefined();
+  });
+
+  it('a General loaded as cargo is destroyed automatically when its transport is destroyed (transport-cargo cascade)', () => {
+    const state = makeRewardState();
+    const general = { ...createUnit('great_general', 'ai-1', { q: 1, r: 0 }, mkC()), id: 'general-1', generalDefinitionId: 'gen_ramesses', transportId: 'defender' };
+    state.units['general-1'] = general;
+    state.units.defender = { ...state.units.defender, type: 'transport', cargoUnitIds: ['general-1'] };
+    state.civilizations['ai-1'].units = ['defender', 'general-1'];
+    state.civilizations['ai-1'].generalHistory = [{ unitId: 'general-1', generalDefinitionId: 'gen_ramesses', spawnedTurn: 1 }];
+    const result: CombatResult = {
+      attackerId: 'attacker', defenderId: 'defender', attackerDamage: 0, defenderDamage: 100,
+      attackerSurvived: true, defenderSurvived: false, attackerStrength: 20, defenderStrength: 20,
+      attackerPosition: { q: 0, r: 0 }, defenderPosition: { q: 1, r: 0 },
+    };
+
+    const applied = applyCombatOutcomeToState(state, result, 64);
+
+    expect(applied.state.units['general-1']).toBeUndefined();
+    expect(applied.state.civilizations['ai-1'].generalHistory![0]!.diedTurn).toBe(state.turn);
+  });
+});
+
 describe('prize-crew helpers', () => {
   it('meetsCaptureMargin requires both a decisive strength ratio and winner health >= 50', () => {
     expect(meetsCaptureMargin(8, 20, 60)).toBe(true);
