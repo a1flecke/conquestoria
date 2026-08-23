@@ -37,6 +37,38 @@ function isMatureFortAt(state: GameState, ownerId: string, coord: HexCoord): boo
   return isFortStabilized(state, coord);
 }
 
+export interface SupplySourceRef {
+  kind: 'city' | 'fort';
+  id: string;
+  coord: HexCoord;
+}
+
+export function getPrimarySupplySource(
+  state: GameState,
+  civId: string,
+  coord: HexCoord,
+): SupplySourceRef | null {
+  const tier = getFortificationTier(state.civilizations[civId]?.techState.completed ?? []);
+  const fortRadius = LAND_SUPPLY_RADII[tier.id];
+  const candidates: Array<SupplySourceRef & { distance: number }> = [];
+
+  for (const city of Object.values(state.cities)) {
+    if (city.owner !== civId || !isCityStabilized(state, city)) continue;
+    const distance = mapDistance(state.map, city.position, coord);
+    if (distance <= LAND_SUPPLY_RADII.city) candidates.push({ kind: 'city', id: city.id, coord: city.position, distance });
+  }
+  for (const tile of Object.values(state.map.tiles)) {
+    if (tile.improvement !== 'fort' || tile.owner !== civId || !isFortStabilized(state, tile.coord)) continue;
+    const distance = mapDistance(state.map, tile.coord, coord);
+    if (distance <= fortRadius) candidates.push({ kind: 'fort', id: hexKey(tile.coord), coord: tile.coord, distance });
+  }
+
+  if (candidates.length === 0) return null;
+  candidates.sort((a, b) => a.distance - b.distance || hexKey(a.coord).localeCompare(hexKey(b.coord)));
+  const { distance: _distance, ...ref } = candidates[0]!;
+  return ref;
+}
+
 /** True if `coord` is within Full Supply range of any friendly City or Fort/Citadel. */
 export function getLandSupplySourceCoverage(
   state: GameState,
