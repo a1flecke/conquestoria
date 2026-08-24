@@ -131,10 +131,10 @@ targeting, Last Stand area) is a deterministic sort, not a random draw.
 - **Modify** `src/systems/supply-system.ts` — `resolveLandSupplyForCiv`
   computes passive-stabilization targets once per civ per round and passes
   the combined (General-stabilized OR Rally-protected) boolean through. Task 4.
-- **Modify** `src/systems/city-capture-system.ts` and `src/ai/ai-tactics.ts`
-  — `hasCapturedCityThisTurn` guard preventing multi-capture in one turn
-  (contract §19), on both of this codebase's two independent city-capture
-  entry points. Task 6.
+- **Modify** `src/systems/city-capture-system.ts` — `hasCapturedCityThisTurn`
+  guard preventing multi-capture in one turn (contract §19), on
+  `beginMajorCityAssault`, the single real per-unit city-occupation entry
+  point every real caller (player, AI) routes through. Task 6.
 - **Modify** `src/systems/combat-context.ts` — `buildCombatContextForDefender`
   wires `resolveLastStandDefenseBonus` the same way it already wires
   `resolveLandSupplyCombatPenalty`. Task 7.
@@ -1257,10 +1257,7 @@ git commit -m "feat(#544): MR4 Task 5 — Rally"
 **Files:**
 - Modify: `src/systems/great-general-abilities.ts`
 - Modify: `src/systems/city-capture-system.ts:103-115,190-375` (`MajorCityAssaultFailureReason`, `beginMajorCityAssault`)
-- Modify: `src/ai/ai-tactics.ts` (`'capture-city'` action case — second,
-  separate capture path that bypasses `beginMajorCityAssault`; see review
-  fix in Step 7)
-- Test: `tests/systems/great-general-abilities.test.ts`, `tests/systems/city-capture-system.test.ts`, `tests/ai/ai-tactics.test.ts`
+- Test: `tests/systems/great-general-abilities.test.ts`, `tests/systems/city-capture-system.test.ts`
 
 **Interfaces:**
 - Consumes: `getHeroicCommandEligibility`/`spendHeroicCommandCharge` (Task 3);
@@ -1581,74 +1578,35 @@ reason other than `'repelled-by-city-defense'`, so `'already-captured-city-this-
 gets a reasonable default message for free with zero UI changes required —
 confirm this is still true before skipping a UI change).
 
-**Review fix — the guard has a second gap.** `resolveMajorCityCapture` has
-exactly three call sites (`grep -rn "resolveMajorCityCapture(" src/` to
-re-confirm): `city-assault-flow.ts`'s `beginPlayerCityAssaultChoice` (which
-calls `beginMajorCityAssault` first — covered), `ai-major-turn.ts` (which
-also calls `beginMajorCityAssault` first — covered), and
-`ai-tactics.ts`'s `'capture-city'` action case, which does **not** go
-through `beginMajorCityAssault` at all — it moves the unit and calls
-`resolveMajorCityCapture` directly. The guard as written only covers two of
-three paths, so the plan's own claim above ("covers every caller uniformly")
-is false until this third path is also guarded. AI doesn't get Seize the
-Moment until MR5, so this gap can't be exploited by AI *today* — but leaving
-it unguarded means the first MR5 AI-Seize evaluator that happens to route
-through `ai-tactics.ts`'s action executor silently reintroduces the exact
-bug this task exists to prevent. Fix it now while it's cheap and the
-context is still fresh, per `.claude/rules/game-systems.md`'s "no dead
-guarantees" spirit — a guard that's documented as universal but isn't
-should either be made universal or have its claim corrected; making it
-universal is a two-line fix here.
-
-```ts
-// src/ai/ai-tactics.ts, inside the 'capture-city' case (~line 1157-1168)
-case 'capture-city': {
-  const city = next.cities[action.cityId];
-  if (!city) return next;
-  // #544 MR4: same guard as beginMajorCityAssault -- this action executor
-  // is a second, separate path to city capture that bypasses that function
-  // entirely, so the "no chained captures in one turn" invariant has to be
-  // enforced here too, not just there.
-  if (unit.hasCapturedCityThisTurn) return next;
-  next.units[unit.id] = {
-    ...unit,
-    position: { ...city.position },
-    hasMoved: true,
-    hasActed: true,
-    movementPointsLeft: 0,
-    hasCapturedCityThisTurn: true,
-  };
-  return resolveMajorCityCapture(
-    next,
-    city.id,
-    context.actorId,
-    'occupy',
-    next.turn,
-  ).state;
-}
-```
-
-Add a matching test:
-
-```ts
-// tests/ai/ai-tactics.test.ts (append, using this file's existing
-// 'capture-city' action fixture convention)
-it('#544 MR4: a unit that already captured a city this turn is skipped by the capture-city action', () => {
-  const { state, unit, action } = /* existing capture-city fixture */;
-  state.units[unit.id] = { ...unit, hasCapturedCityThisTurn: true };
-  const result = executeAiAction(state, action, /* existing context arg */);
-  // unit does not move/capture a second time -- position and ownership unchanged
-  expect(result.units[unit.id].position).toEqual(unit.position);
-});
-```
-
-(Function/context names above are illustrative — confirm the exact executor
-function name and its test's existing fixture shape for `'capture-city'`
-actions in `tests/ai/ai-tactics.test.ts` before writing this for real.)
+**Correction to the earlier "review fix" (2026-08-24, during implementation)
+— the second gap does not actually exist.** The pre-implementation review
+pass flagged `ai-tactics.ts`'s `'capture-city'` case (inside
+`applyPredictedAction`) as a second real capture path bypassing
+`beginMajorCityAssault`, based on a plain grep for `resolveMajorCityCapture(`
+call sites. On closer reading at implementation time, that function's own
+name and its one caller — `scratch = applyPredictedAction(scratch,
+scratchContext, selected.action)` inside `chooseTacticalSequence`
+(`ai-tactics.ts:1276`) — show it is a **scratch/lookahead simulation** used
+only to *score* candidate multi-action sequences; its returned state is
+discarded, never committed as real game state. The actual AI execution path
+for a chosen `'capture-city'` action is `executeAction`
+(`ai-major-turn.ts:342`) → `occupyMajorCity` (`ai-major-turn.ts:122`), which
+already calls `beginMajorCityAssault` directly (confirmed by reading
+`occupyMajorCity`'s body) — so it was already covered by this task's guard
+before this correction, and the "covers every caller uniformly" claim
+earlier in this task holds. **No change to `ai-tactics.ts` is needed.**
+Left in the plan as a recorded correction, not deleted, so a future reader
+doesn't wonder whether the same grep-only mistake needs re-checking — it
+doesn't; the distinction (real execution vs. discarded scoring scratch) is
+now verified, not assumed. If MR5 ever makes `applyPredictedAction`'s
+*scoring* of a hypothetical Seize-enabled sequence over/under-value a second
+capture it can't actually get, that's a legitimate AI-planning-quality
+question for MR5 to pick up on its own merits — not a game-state-correctness
+bug this task needs to guard against speculatively today.
 
 - [ ] **Step 8: Run test to verify it passes**
 
-Run: `bash scripts/run-with-mise.sh yarn test tests/systems/city-capture-system.test.ts tests/ai/ai-tactics.test.ts`
+Run: `bash scripts/run-with-mise.sh yarn test tests/systems/city-capture-system.test.ts`
 Expected: PASS
 
 - [ ] **Step 9: Verify `hasCapturedCityThisTurn` is cleared by `resetUnitTurn`**
@@ -1678,7 +1636,7 @@ Expected: PASS
 - [ ] **Step 10: Commit**
 
 ```bash
-git add src/systems/great-general-abilities.ts src/systems/city-capture-system.ts src/systems/unit-system.ts src/ai/ai-tactics.ts tests/systems/great-general-abilities.test.ts tests/systems/city-capture-system.test.ts tests/systems/unit-system.test.ts tests/ai/ai-tactics.test.ts
+git add src/systems/great-general-abilities.ts src/systems/city-capture-system.ts src/systems/unit-system.ts tests/systems/great-general-abilities.test.ts tests/systems/city-capture-system.test.ts tests/systems/unit-system.test.ts
 git commit -m "feat(#544): MR4 Task 6 — Seize the Moment and no-chained-capture guard"
 ```
 
@@ -3913,9 +3871,13 @@ were found and fixed directly in this document (not deferred to Task 16):
 4. None of the three ability panels disabled Confirm when there was nothing
    to confirm — added UI-layer defense-in-depth alongside the charge-spend
    guards from #1 (Tasks 11, 12).
-5. The no-chained-capture guard only covered `beginMajorCityAssault`,
-   missing `ai-tactics.ts`'s separate `'capture-city'` action path entirely
-   (Task 6).
+5. ~~The no-chained-capture guard only covered `beginMajorCityAssault`,
+   missing `ai-tactics.ts`'s separate `'capture-city'` action path entirely~~
+   — **corrected during implementation (Task 6):** that second path is a
+   discarded lookahead-scoring scratch state, never real game state; the
+   real AI execution path already routed through the guarded function.
+   No code change was needed after all — see Task 6's implementation-time
+   correction note for the verification trail.
 6. General retirement was completely silent — no notification when a
    General vanishes at end of turn, unlike death (visible via combat). Added
    a `general:retired` event through this codebase's established

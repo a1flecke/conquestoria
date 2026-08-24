@@ -1,5 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
-import { getHeroicCommandEligibility, spendHeroicCommandCharge, getRallyPreview, issueRally } from '@/systems/great-general-abilities';
+import {
+  getHeroicCommandEligibility, spendHeroicCommandCharge, getRallyPreview, issueRally,
+  getSeizeTheMomentEligibleUnits, issueSeizeTheMoment,
+} from '@/systems/great-general-abilities';
 import { createNewGame } from '@/core/game-state';
 import type { Unit } from '@/core/types';
 
@@ -176,5 +179,79 @@ describe('getRallyPreview / issueRally', () => {
     // unit-4 has the most missing HP (60) -- must be included over unit-1 (least missing HP, 90)
     expect(preview.targets.map(t => t.unitId)).toContain('unit-4');
     expect(preview.targets.map(t => t.unitId)).not.toContain('unit-1');
+  });
+});
+
+describe('getSeizeTheMomentEligibleUnits / issueSeizeTheMoment', () => {
+  function setup() {
+    const state = createNewGame({ civType: 'rome', mapSize: 'small', opponentCount: 1, gameTitle: 't', seed: 'seize-1' });
+    state.units['gen-1'] = makeGeneral();
+    state.units['unit-1'] = makeUnit({ id: 'unit-1', position: { q: 1, r: 0 }, hasActed: true, hasMoved: true, movementPointsLeft: 0 });
+    state.units['unit-2'] = makeUnit({ id: 'unit-2', position: { q: 1, r: 1 }, hasActed: false, hasMoved: false, movementPointsLeft: 2 });
+    state.civilizations.player.units = ['gen-1', 'unit-1', 'unit-2'];
+    return state;
+  }
+
+  it('lists only units that have already acted this turn (contract §19: "must have already used normal action")', () => {
+    const { eligible } = getSeizeTheMomentEligibleUnits(setup(), 'gen-1');
+    expect(eligible.map(e => e.unitId)).toEqual(['unit-1']);
+  });
+
+  it('labels each eligible unit with its real display name and HP, not the raw internal type string (review fix)', () => {
+    const { eligible } = getSeizeTheMomentEligibleUnits(setup(), 'gen-1');
+    expect(eligible[0].label).not.toBe('warrior'); // not the bare UnitType string
+    expect(eligible[0].label).toMatch(/warrior/i); // UNIT_DEFINITIONS.warrior.name contains "Warrior"
+    expect(eligible[0].label).toContain('HP');
+  });
+
+  it('resets hasActed on selected units so they can act again', () => {
+    const result = issueSeizeTheMoment(setup(), 'gen-1', ['unit-1']);
+    expect(result.units['unit-1'].hasActed).toBe(false);
+  });
+
+  it('does NOT restore movementPointsLeft (contract §19: "no full movement refresh")', () => {
+    const state = setup();
+    state.units['unit-1'] = { ...state.units['unit-1'], movementPointsLeft: 0 };
+    const result = issueSeizeTheMoment(state, 'gen-1', ['unit-1']);
+    expect(result.units['unit-1'].movementPointsLeft).toBe(0);
+  });
+
+  it('leaves an unselected eligible unit untouched', () => {
+    const result = issueSeizeTheMoment(setup(), 'gen-1', ['unit-1']);
+    expect(result.units['unit-2'].hasActed).toBe(false); // was already false, unchanged
+    expect(result.units['unit-2'].hasMoved).toBe(false);
+  });
+
+  it('ignores a selected id that is not actually eligible, and does not spend a charge if that leaves zero valid activations', () => {
+    const state = setup();
+    const result = issueSeizeTheMoment(state, 'gen-1', ['unit-2']); // unit-2 has NOT acted -- ineligible, so toActivate ends up empty
+    expect(result.units['unit-2'].hasActed).toBe(false); // unchanged from its already-false starting value
+    expect(result).toBe(state); // review fix: no valid activation -> no charge spent
+    expect(result.units['gen-1'].generalCommandChargesUsed).toBeUndefined();
+  });
+
+  it('spends exactly one charge regardless of how many units were selected', () => {
+    const state = { ...setup(), turn: 2 };
+    const result = issueSeizeTheMoment(state, 'gen-1', ['unit-1']);
+    expect(result.units['gen-1'].generalCommandChargesUsed).toBe(1);
+  });
+
+  it('does NOT spend a charge when confirmed with an empty selection', () => {
+    const state = setup();
+    const result = issueSeizeTheMoment(state, 'gen-1', []);
+    expect(result).toBe(state); // referential no-op
+    expect(result.units['gen-1'].generalCommandChargesUsed).toBeUndefined();
+  });
+
+  it('caps eligible-unit selection at commandCapacity when previewing', () => {
+    const state = createNewGame({ civType: 'rome', mapSize: 'small', opponentCount: 1, gameTitle: 't', seed: 'seize-2' });
+    state.units['gen-1'] = makeGeneral(); // V1 commandCapacity = 3
+    for (let i = 1; i <= 4; i++) {
+      state.units[`unit-${i}`] = makeUnit({ id: `unit-${i}`, position: { q: 1, r: 0 }, hasActed: true });
+    }
+    state.civilizations.player.units = ['gen-1', 'unit-1', 'unit-2', 'unit-3', 'unit-4'];
+    const result = issueSeizeTheMoment(state, 'gen-1', ['unit-1', 'unit-2', 'unit-3', 'unit-4']);
+    const resetCount = ['unit-1', 'unit-2', 'unit-3', 'unit-4'].filter(id => result.units[id].hasActed === false).length;
+    expect(resetCount).toBe(3);
   });
 });

@@ -759,5 +759,48 @@ describe('city-capture-system', () => {
       // regardless of the 'actor' field, which is purely for event/bookkeeping purposes.
       expect(playerResult.ok).toBe(aiResult.ok);
     });
+
+    describe('#544 MR4 — no chained city captures in one turn', () => {
+      it('a unit that already captured a city this turn cannot begin a second assault', () => {
+        const state = makeUndefendedWalledCityState({ population: 1, buildings: [], attackerType: 'tank' });
+        state.units.attacker = { ...state.units.attacker!, hasCapturedCityThisTurn: true };
+
+        const result = beginMajorCityAssault(state, 'attacker', 'athens', { actor: 'player', civId: 'player' });
+
+        expect(result.ok).toBe(false);
+        if (!result.ok) expect(result.reason).toBe('already-captured-city-this-turn');
+      });
+
+      it('sets hasCapturedCityThisTurn on the attacker after a successful undefended-city occupation', () => {
+        const state = makeUndefendedWalledCityState({ population: 1, buildings: [], attackerType: 'tank' });
+
+        const result = beginMajorCityAssault(state, 'attacker', 'athens', { actor: 'player', civId: 'player' });
+
+        expect(result.ok).toBe(true);
+        if (result.ok) expect(result.state.units.attacker!.hasCapturedCityThisTurn).toBe(true);
+      });
+
+      it('sets hasCapturedCityThisTurn on the attacker after a post-combat advance into a cleared city', () => {
+        const state = makeMajorAssaultState();
+        const defender = createUnit('warrior', 'ai-1', { q: 1, r: 0 }, state.idCounters);
+        defender.id = 'city-defender';
+        defender.health = 1;
+        state.units[defender.id] = defender;
+        state.civilizations['ai-1'].units.push(defender.id);
+        const combat = resolveCombat(state.units.attacker!, defender, state.map, 42, undefined, state.era);
+        const afterCombat = applyCombatOutcomeToState(state, combat, 42).state;
+        expect(combat.attackerSurvived).toBe(true);
+        expect(combat.defenderSurvived).toBe(false); // sanity: precondition for advancing into the city
+
+        const result = beginMajorCityAssault(afterCombat, 'attacker', 'athens', {
+          actor: 'player',
+          civId: 'player',
+          precedingCombat: combat,
+        });
+
+        expect(result.ok).toBe(true);
+        if (result.ok) expect(result.state.units.attacker!.hasCapturedCityThisTurn).toBe(true);
+      });
+    });
   });
 });
