@@ -162,4 +162,32 @@ export const SCENARIOS: Record<string, ScenarioDefinition> = {
       },
     ],
   },
+  'great-general-ai-command': {
+    name: 'great-general-ai-command',
+    description:
+      'AI civ (ai-1) owns a Great General with a battered, out-of-supply ally within command '
+      + 'range -- ending the human turn should show the AI Rally that ally during its own round '
+      + '(#544 MR5). Manual verification: end turn, then inspect ally-1 via the unit panel or '
+      + 'decision-trace UI for a health/supply-stage improvement.',
+    seed: 'scenario-great-general-ai-command',
+    base: {
+      kind: 'solo',
+      config: { civType: 'rome', mapSize: 'small', opponentCount: 1, gameTitle: 'Great General AI Command' },
+    },
+    steps: [
+      { kind: 'terrain', position: { q: 10, r: 10 }, terrain: 'plains' },
+      { kind: 'terrain', position: { q: 11, r: 10 }, terrain: 'plains' },
+      {
+        kind: 'unit', civId: 'ai-1', type: 'great_general', position: { q: 10, r: 10 },
+        overrides: { id: 'ai-demo-general', generalDefinitionId: 'gen_ramesses' },
+      },
+      {
+        kind: 'unit', civId: 'ai-1', type: 'warrior', position: { q: 11, r: 10 },
+        overrides: {
+          id: 'ai-demo-ally', health: 40,
+          landSupply: { state: 'severe', hostileUnsupportedTurns: 5, suppliedTurnsSinceRecovery: 0 },
+        },
+      },
+    ],
+  },
 };
