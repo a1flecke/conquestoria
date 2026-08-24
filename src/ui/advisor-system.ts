@@ -1,4 +1,7 @@
-import type { GameState, TutorialStep, AdvisorType } from '@/core/types';
+import type { GameState, TutorialStep, AdvisorType, Unit } from '@/core/types';
+import { UNIT_CLASS_BY_TYPE } from '@/systems/unit-modifier-definitions';
+import { GENERAL_DEFINITIONS } from '@/systems/great-general-definitions';
+import { mapDistance } from '@/systems/hex-utils';
 import { EventBus } from '@/core/event-bus';
 import { isAtWar, getRelationship } from '@/systems/diplomacy-system';
 import { NEW_WORLD_START_POSITIONS } from '@/systems/new-world-map-data';
@@ -124,6 +127,50 @@ const ADVISOR_MESSAGES: AdvisorMessage[] = [
         && unit.landSupply.state !== 'full',
     ),
     tutorialStep: 'supply_intro',
+  },
+  {
+    // #544 MR4: first-General command tutorial. Same session-wide shownIds
+    // convention as supply_intro -- see that entry's comment for why.
+    id: 'general_command_intro',
+    advisor: 'builder',
+    icon: '⚔️',
+    message: 'Your Great General can pause supply degradation for nearby units automatically, and holds 3 lifetime Command Charges shared across Rally (heal and steady a battered unit), Seize the Moment (one more action for a unit that already acted), and Last Stand (hold a position with a defense bonus and a one-time survival save). All three share one cooldown — the 3rd charge retires the General at the end of that turn.',
+    // #544 MR4 review fix: scope through the current player's own unit
+    // roster (civ.units), not a global Object.values(state.units) scan --
+    // every other trigger/eligibility function in this arc (Rally, Seize,
+    // Last Stand, passive stabilization, the crisis hint below) already
+    // scopes this way.
+    trigger: (state) => (state.civilizations[state.currentPlayer]?.units ?? []).some(id => {
+      const unit = state.units[id];
+      return unit?.type === 'great_general' && unit.generalNoCommandThisTurn !== true;
+    }),
+    tutorialStep: 'general_command_intro',
+  },
+  {
+    // #544 MR4 contract §24: "optional hints only for obvious crises... never
+    // nag just because an ability is ready." No tutorialStep -- this is a
+    // recurring contextual hint, not a one-time tutorial step.
+    id: 'general_last_stand_crisis_hint',
+    advisor: 'warchief',
+    icon: '⚔️',
+    message: 'One of our units is badly wounded near an active General. Last Stand could hold the line if the position matters.',
+    viewerScoped: true,
+    trigger: (state) => {
+      const civ = state.civilizations[state.currentPlayer];
+      if (!civ) return false;
+      const generals = civ.units
+        .map(id => state.units[id])
+        .filter((u): u is Unit => Boolean(u) && u.type === 'great_general' && !u.generalNoCommandThisTurn);
+      if (generals.length === 0) return false;
+      const woundedNearby = civ.units
+        .map(id => state.units[id])
+        .filter((u): u is Unit => Boolean(u) && u.health <= 25 && !UNIT_CLASS_BY_TYPE[u.type]?.includes('civilian'));
+      return woundedNearby.some(unit => generals.some(general => {
+        const definition = GENERAL_DEFINITIONS.find(g => g.id === general.generalDefinitionId);
+        if (!definition) return false;
+        return mapDistance(state.map, general.position, unit.position) <= definition.commandRange;
+      }));
+    },
   },
 
   // --- Pirate Waters ---

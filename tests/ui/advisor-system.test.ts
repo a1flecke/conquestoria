@@ -797,3 +797,159 @@ describe('#544 MR2 — first-time supply tutorial', () => {
     expect(stepEvents.filter(e => e.step === 'supply_intro')).toHaveLength(2);
   });
 });
+
+describe('#544 MR4 — general_command_intro tutorial', () => {
+  function stateWithAllPriorTutorialStepsDoneMR4(): GameState {
+    const state = stateWithCity();
+    state.tutorial.active = true;
+    state.tutorial.completedSteps = ['welcome', 'found_city', 'explore', 'build_improvement', 'research_tech', 'build_unit', 'combat', 'complete', 'supply_intro'];
+    return state;
+  }
+
+  function makeGeneralUnit(overrides: Partial<Unit> = {}): Unit {
+    return {
+      id: 'gen-1', type: 'great_general', owner: 'player', position: { q: 0, r: 0 },
+      movementPointsLeft: 3, health: 100, experience: 0, hasMoved: false, hasActed: false, isResting: false,
+      generalDefinitionId: 'gen_caesar', ...overrides,
+    } as Unit;
+  }
+
+  it('triggers once the player owns an operational (non-spawn-turn) General', () => {
+    const bus = new EventBus();
+    const advisor = new AdvisorSystem(bus);
+    const state = stateWithAllPriorTutorialStepsDoneMR4();
+    state.units['gen-1'] = makeGeneralUnit();
+    state.civilizations.player.units.push('gen-1');
+
+    const stepEvents: any[] = [];
+    bus.on('tutorial:step', event => stepEvents.push(event));
+
+    advisor.check(state);
+
+    expect(stepEvents.some(e => e.step === 'general_command_intro')).toBe(true);
+  });
+
+  it('does not trigger on the General\'s own spawn turn', () => {
+    const bus = new EventBus();
+    const advisor = new AdvisorSystem(bus);
+    const state = stateWithAllPriorTutorialStepsDoneMR4();
+    state.units['gen-1'] = makeGeneralUnit({ generalNoCommandThisTurn: true });
+    state.civilizations.player.units.push('gen-1');
+
+    const stepEvents: any[] = [];
+    bus.on('tutorial:step', event => stepEvents.push(event));
+
+    advisor.check(state);
+
+    expect(stepEvents.some(e => e.step === 'general_command_intro')).toBe(false);
+  });
+
+  it('does not trigger when the player has no General at all', () => {
+    const bus = new EventBus();
+    const advisor = new AdvisorSystem(bus);
+    const state = stateWithAllPriorTutorialStepsDoneMR4();
+
+    const stepEvents: any[] = [];
+    bus.on('tutorial:step', event => stepEvents.push(event));
+
+    advisor.check(state);
+
+    expect(stepEvents.some(e => e.step === 'general_command_intro')).toBe(false);
+  });
+
+  it('resetMessage + check re-shows general_command_intro on demand (the reopen affordance)', () => {
+    const bus = new EventBus();
+    const advisor = new AdvisorSystem(bus);
+    const state = stateWithAllPriorTutorialStepsDoneMR4();
+    state.units['gen-1'] = makeGeneralUnit();
+    state.civilizations.player.units.push('gen-1');
+
+    const stepEvents: any[] = [];
+    bus.on('tutorial:step', event => stepEvents.push(event));
+
+    advisor.check(state);
+    advisor.check(state);
+    expect(stepEvents.filter(e => e.step === 'general_command_intro')).toHaveLength(1);
+
+    advisor.resetMessage('general_command_intro');
+    advisor.check(state);
+    expect(stepEvents.filter(e => e.step === 'general_command_intro')).toHaveLength(2);
+  });
+});
+
+describe('#544 MR4 — general_last_stand_crisis_hint', () => {
+  function makeGeneralUnit(overrides: Partial<Unit> = {}): Unit {
+    return {
+      id: 'gen-1', type: 'great_general', owner: 'player', position: { q: 0, r: 0 },
+      movementPointsLeft: 3, health: 100, experience: 0, hasMoved: false, hasActed: false, isResting: false,
+      generalDefinitionId: 'gen_caesar', ...overrides,
+    } as Unit;
+  }
+
+  function makeWoundedUnit(overrides: Partial<Unit> = {}): Unit {
+    return {
+      id: 'unit-1', type: 'warrior', owner: 'player', position: { q: 1, r: 0 },
+      movementPointsLeft: 1, health: 20, experience: 0, hasMoved: false, hasActed: false, isResting: false,
+      ...overrides,
+    } as Unit;
+  }
+
+  function fires(state: GameState): boolean {
+    // check() only fires one message per call ("one message at a time") --
+    // isolate this specific hint by disabling every other advisor (so an
+    // unrelated always-eligible non-tutorial entry can't win the race) and
+    // turning tutorials off entirely (state.tutorial.active defaults to true
+    // with no steps completed, so the trivially-true 'welcome' step would
+    // otherwise win the race every time on a fresh fixture).
+    state.settings.advisorsEnabled = {
+      builder: false, explorer: false, chancellor: false, warchief: true,
+      treasurer: false, scholar: false, spymaster: false, artisan: false,
+    };
+    state.tutorial.active = false;
+    const bus = new EventBus();
+    const advisor = new AdvisorSystem(bus);
+    const messages: any[] = [];
+    bus.on('advisor:message', msg => messages.push(msg));
+    advisor.check(state);
+    return messages.some(m => m.message.includes('Last Stand'));
+  }
+
+  it('fires when a low-HP combat unit is within an eligible General\'s command range', () => {
+    const state = stateWithCity();
+    state.units['gen-1'] = makeGeneralUnit();
+    state.units['unit-1'] = makeWoundedUnit();
+    state.civilizations.player.units.push('gen-1', 'unit-1');
+    expect(fires(state)).toBe(true);
+  });
+
+  it('does not fire when a General exists but no unit nearby is wounded', () => {
+    const state = stateWithCity();
+    state.units['gen-1'] = makeGeneralUnit();
+    state.units['unit-1'] = makeWoundedUnit({ health: 100 });
+    state.civilizations.player.units.push('gen-1', 'unit-1');
+    expect(fires(state)).toBe(false);
+  });
+
+  it('does not fire when the wounded unit is outside the General\'s command range', () => {
+    const state = stateWithCity();
+    state.units['gen-1'] = makeGeneralUnit();
+    state.units['unit-1'] = makeWoundedUnit({ position: { q: 10, r: 10 } });
+    state.civilizations.player.units.push('gen-1', 'unit-1');
+    expect(fires(state)).toBe(false);
+  });
+
+  it('does not fire when the only nearby low-HP unit is a civilian', () => {
+    const state = stateWithCity();
+    state.units['gen-1'] = makeGeneralUnit();
+    state.units['unit-1'] = { ...makeWoundedUnit(), type: 'worker' };
+    state.civilizations.player.units.push('gen-1', 'unit-1');
+    expect(fires(state)).toBe(false);
+  });
+
+  it('does not fire when the civ has no operational General at all', () => {
+    const state = stateWithCity();
+    state.units['unit-1'] = makeWoundedUnit();
+    state.civilizations.player.units.push('unit-1');
+    expect(fires(state)).toBe(false);
+  });
+});
