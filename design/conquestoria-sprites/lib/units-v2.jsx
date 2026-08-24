@@ -901,18 +901,25 @@ function WarElephantV2Sprite({ faction = 'imperials', state = 'idle', phase }) {
     <SpriteFrameV2 state={state} kind="animal" variant="elephant" phase={phase}>
       <ellipse className="cq-shadow" cx="66" cy="99" rx="43" ry="8" fill="#000" opacity="0.35" />
       <g transform="translate(68 74)">
-        <ellipse cx="2" cy="2" rx="35" ry="20" fill="#8a8b80" stroke={_P2.ink.line} strokeWidth="1.2" />
-        <path d="M-26,-11 Q2,-25 29,-10 L26,1 L-25,1 Z" fill={f.mid} stroke={_P2.ink.line} strokeWidth="0.8" />
+        <path d="M-30,-4 Q-6,-25 28,-13 Q42,-4 31,17 Q4,29 -29,15 Z" fill="#8a8b80" stroke={_P2.ink.line} strokeWidth="1.2" />
+        <path d="M-22,-8 Q4,-22 29,-10 L26,1 Q1,7 -25,1 Z" fill={f.dark} stroke={_P2.ink.line} strokeWidth="0.8" />
+        <path d="M-16,-5 Q3,-15 20,-7" stroke={f.bright} strokeWidth="1.4" fill="none" opacity="0.8" />
         <rect className="cq-howdah" x="-10" y="-25" width="26" height="17" rx="2" fill={_P2.wood.mid} stroke={_P2.ink.line} strokeWidth="1" />
         <rect x="-7" y="-22" width="20" height="4" fill={f.bright} />
+        <path d="M-6,-24 L-6,-31 L13,-31 L13,-24" fill="none" stroke={_P2.wood.dark} strokeWidth="2" />
+        <circle cx="-2" cy="-28" r="3" fill={_P2.skin.deep} stroke={_P2.ink.line} strokeWidth="0.5" />
+        <circle cx="8" cy="-28" r="3" fill={_P2.skin.warm} stroke={_P2.ink.line} strokeWidth="0.5" />
         <g transform="translate(-20 13)"><g className="cq-leg-fl"><rect x="-5" y="0" width="10" height="20" rx="2" fill="#68695f" /></g></g>
         <g transform="translate(-3 14)"><g className="cq-leg-fr"><rect x="-5" y="0" width="10" height="20" rx="2" fill="#68695f" /></g></g>
         <g transform="translate(19 14)"><g className="cq-leg-bl"><rect x="-5" y="0" width="10" height="20" rx="2" fill="#68695f" /></g></g>
         <g transform="translate(32 13)"><g className="cq-leg-br"><rect x="-5" y="0" width="10" height="20" rx="2" fill="#68695f" /></g></g>
+        <path d="M-25,-5 Q-37,-26 -45,-13 Q-44,4 -31,7 Z" fill="#73746d" stroke={_P2.ink.line} strokeWidth="0.8" />
         <ellipse cx="-31" cy="-4" rx="15" ry="14" fill="#8a8b80" stroke={_P2.ink.line} strokeWidth="1" />
+        <path d="M-45,-14 L-34,-25 L-30,-9 Z" fill="#68695f" stroke={_P2.ink.line} strokeWidth="0.7" />
+        <path d="M-43,-9 L-28,-13 L-24,-3 L-42,0 Z" fill={_P2.metal.iron} stroke={_P2.ink.line} strokeWidth="0.7" />
         <path className="cq-elephant-trunk" d="M-42,-2 Q-53,10 -45,23" stroke="#68695f" strokeWidth="8" fill="none" strokeLinecap="round" />
-        <path d="M-40,4 Q-51,7 -49,15" stroke={_P2.metal.shine} strokeWidth="3" fill="none" strokeLinecap="round" />
-        <path d="M-31,-15 L-23,-23 L-22,-10 Z" fill="#68695f" /><circle cx="-37" cy="-6" r="1.5" fill={_P2.ink.line} />
+        <path d="M-39,4 Q-52,4 -51,14" stroke={_P2.cloth.linen} strokeWidth="3" fill="none" strokeLinecap="round" />
+        <path d="M-30,-17 L-23,-25 L-20,-10 Z" fill="#68695f" /><circle cx="-37" cy="-6" r="1.5" fill={f.bright} />
       </g>
       <HumanoidV2 cx={67} cy={45} scale={0.48} cloth={f.mid} pants={_P2.cloth.wool} accent={f.bright} arms="locked" />
       <g transform="translate(84 35)"><g className="cq-rune-standard"><path d="M0,0 L0,36" stroke={_P2.wood.dark} strokeWidth="2" /><path d="M0,2 L15,7 L0,14 Z" fill={f.mid} stroke={_P2.ink.line} strokeWidth="0.6" /><circle cx="7" cy="8" r="2" fill={f.bright} /></g></g>
@@ -925,19 +932,24 @@ function CuirassierV2Sprite({ faction = 'imperials', state = 'idle', phase }) {
   return (
     <SpriteFrameV2 state={state} kind="animal" variant="mount" phase={phase}>
       <ellipse className="cq-shadow" cx="64" cy="97" rx="32" ry="7" fill="#000" opacity="0.35" />
-      <g transform="translate(65 79)">
-        <ellipse cx="1" cy="0" rx="31" ry="16" fill="#5a3a1a" stroke={_P2.ink.line} strokeWidth="1" />
-        <path d="M-23,-8 Q1,-15 23,-8 L20,-3 L-21,-3 Z" fill={f.dark} stroke={_P2.ink.line} strokeWidth="0.6" />
-        <g transform="translate(-18 7)"><g className="cq-leg-fl"><rect x="-3" y="0" width="6" height="17" fill="#3a2010" /></g></g>
-        <g transform="translate(-2 7)"><g className="cq-leg-fr"><rect x="-3" y="0" width="6" height="17" fill="#3a2010" /></g></g>
-        <g transform="translate(15 7)"><g className="cq-leg-bl"><rect x="-3" y="0" width="6" height="17" fill="#3a2010" /></g></g>
-        <g transform="translate(24 7)"><g className="cq-leg-br"><rect x="-3" y="0" width="6" height="17" fill="#3a2010" /></g></g>
-        <ellipse cx="-25" cy="-6" rx="12" ry="10" fill="#5a3a1a" stroke={_P2.ink.line} strokeWidth="1" />
-        <path d="M-34,-3 L-39,4 L-31,5 Z" fill="#5a3a1a" /><circle cx="-30" cy="-7" r="1" fill={_P2.ink.line} />
+      <g transform="translate(66 79)">
+        <path d="M-26,-4 Q-4,-23 26,-11 Q39,-1 29,15 Q2,25 -28,12 Z" fill="#5e3f24" stroke={_P2.ink.line} strokeWidth="1.1" />
+        <path d="M-18,-10 Q1,-18 22,-9 L19,-2 Q1,3 -20,-2 Z" fill={f.dark} stroke={_P2.ink.line} strokeWidth="0.6" />
+        <path d="M-28,-7 Q-39,-28 -49,-10 L-43,4 L-26,4 Z" fill="#5a3a1a" stroke={_P2.ink.line} strokeWidth="0.9" />
+        <path d="M-43,-13 L-36,-25 L-31,-9 M-34,-14 L-26,-23 L-25,-7" stroke="#2a1a10" strokeWidth="2.5" fill="none" strokeLinecap="round" />
+        <path d="M-50,-8 L-37,-13 L-29,-2 L-45,2 Z" fill={_P2.metal.iron} stroke={_P2.ink.line} strokeWidth="0.7" />
+        <circle cx="-41" cy="-7" r="1.2" fill={_P2.metal.shine} />
+        <g transform="translate(-19 6)"><g className="cq-leg-fl"><path d="M-4,0 L4,0 L1,18 L-6,18 Z" fill="#3a2010" stroke={_P2.ink.line} strokeWidth="0.6" /></g></g>
+        <g transform="translate(-3 7)"><g className="cq-leg-fr"><path d="M-4,0 L4,0 L1,18 L-6,18 Z" fill="#3a2010" stroke={_P2.ink.line} strokeWidth="0.6" /></g></g>
+        <g transform="translate(15 6)"><g className="cq-leg-bl"><path d="M-4,0 L4,0 L1,18 L-6,18 Z" fill="#3a2010" stroke={_P2.ink.line} strokeWidth="0.6" /></g></g>
+        <g transform="translate(27 5)"><g className="cq-leg-br"><path d="M-4,0 L4,0 L1,18 L-6,18 Z" fill="#3a2010" stroke={_P2.ink.line} strokeWidth="0.6" /></g></g>
+        <path d="M-17,-12 L2,-16 L12,-10 L7,-5 L-13,-6 Z" fill={_P2.metal.steel} stroke={_P2.ink.line} strokeWidth="0.7" />
+        <path d="M23,-5 Q38,-11 34,-23" stroke="#2a1a10" strokeWidth="4" fill="none" strokeLinecap="round" />
       </g>
       <HumanoidV2 cx={64} cy={57} scale={0.82} cloth={_P2.metal.steel} pants={_P2.metal.iron} accent={f.mid} arms="locked"
         hat={<path d="M-10,-37 Q0,-44 10,-37 L8,-29 L-8,-29 Z" fill={_P2.metal.iron} stroke={_P2.ink.line} strokeWidth="0.7" />} />
       <path className="cq-moonsteel-inlay" d="M56,57 Q64,51 72,57" stroke={_P2.metal.shine} strokeWidth="1.4" fill="none" />
+      <path d="M55,64 L72,64 L70,70 L57,70 Z" fill={f.mid} stroke={_P2.ink.line} strokeWidth="0.5" />
       <g className="cq-weapon" style={{ '--pivot-x': '79px', '--pivot-y': '58px' }}>
         <g transform="translate(79 58) rotate(32)"><rect x="-1.2" y="-34" width="2.4" height="34" fill={_P2.metal.shine} stroke={_P2.ink.line} strokeWidth="0.5" /><rect x="-6" y="-2" width="12" height="2.5" fill={_P2.metal.gold} /></g>
         <g transform="translate(98 29)"><g className="cq-hit-spark"><path d="M0,-7 L2,-2 L7,0 L2,2 L0,7 L-2,2 L-7,0 L-2,-2 Z" fill="#fff5cc" /></g></g>
