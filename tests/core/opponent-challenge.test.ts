@@ -209,3 +209,17 @@ describe('per-civ pending challenge', () => {
     expect(applyPendingChallengeForCiv(state, 'c1')).toBe(state);
   });
 });
+
+describe('#544 MR5 — General-command difficulty knobs', () => {
+  it('every profile defines heroicCommandEagernessWeight and generalSafetyWeight as positive numbers', () => {
+    for (const profile of Object.values(OPPONENT_CHALLENGE_PROFILES)) {
+      expect(profile.heroicCommandEagernessWeight).toBeGreaterThan(0);
+      expect(profile.generalSafetyWeight).toBeGreaterThan(0);
+    }
+  });
+
+  it('veteran is at least as eager to use heroic commands as explorer (harder AI plays Generals better, not differently)', () => {
+    expect(OPPONENT_CHALLENGE_PROFILES.veteran.heroicCommandEagernessWeight)
+      .toBeGreaterThanOrEqual(OPPONENT_CHALLENGE_PROFILES.explorer.heroicCommandEagernessWeight);
+  });
+});
