@@ -95,3 +95,26 @@ describe('sprite-animations-v2.css ambient classes are not silently inert', () =
     expect(missing, `these classes are assigned by real sprites but have no working animation rule: ${missing.join(', ')}`).toEqual([]);
   });
 });
+
+describe('#708 mounted animal animation contract', () => {
+  it('defines an animated animal body plan with both required variants', () => {
+    for (const selector of [
+      '.cq-v2[data-kind="animal"][data-state="idle"] .cq-sprite-figure',
+      '.cq-v2[data-kind="animal"][data-state="walk"] .cq-sprite-figure',
+      '.cq-v2[data-kind="animal"][data-state="attack"] .cq-sprite-figure',
+      '.cq-v2[data-kind="animal"][data-state="attack"] .cq-weapon',
+      '.cq-v2[data-kind="animal"][data-kind-variant="mount"]',
+      '.cq-v2[data-kind="animal"][data-kind-variant="elephant"]',
+    ]) {
+      expect(css, `missing ${selector}`).toContain(selector);
+    }
+    expect(css).toContain('@keyframes cq2-animal-walk-body');
+    expect(css).toContain('@keyframes cq2-animal-attack-body');
+  });
+
+  it('uses all four leg hooks for a diagonal-pair animal gait', () => {
+    for (const hook of ['cq-leg-fl', 'cq-leg-fr', 'cq-leg-bl', 'cq-leg-br']) {
+      expect(css, `missing animal ${hook} selector`).toContain(`.cq-v2[data-kind="animal"] .${hook}`);
+    }
+  });
+});
