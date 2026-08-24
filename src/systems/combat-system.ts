@@ -202,6 +202,8 @@ export interface CombatContext {
   attackerLandSupplyFact?: CombatModifierFact;
   defenderLandSupplyMultiplier?: number;
   defenderLandSupplyFact?: CombatModifierFact;
+  defenderLastStandMultiplier?: number;
+  defenderLastStandFact?: CombatModifierFact;
   attackerNetworkStrengthBonus?: number;
   defenderNetworkStrengthBonus?: number;
 }
@@ -311,6 +313,7 @@ export function calculateCombatStrengths(
   defenderStrength *= context?.defenderPositioningMultiplier ?? 1;
   defenderStrength *= context?.defenderCombinedArmsMultiplier ?? 1;
   defenderStrength *= context?.defenderLandSupplyMultiplier ?? 1;
+  defenderStrength *= context?.defenderLastStandMultiplier ?? 1;
   attackerStrength += context?.attackerNetworkStrengthBonus ?? 0;
   defenderStrength += context?.defenderNetworkStrengthBonus ?? 0;
 

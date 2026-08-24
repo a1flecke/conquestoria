@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   getHeroicCommandEligibility, spendHeroicCommandCharge, getRallyPreview, issueRally,
   getSeizeTheMomentEligibleUnits, issueSeizeTheMoment,
+  getLastStandPreview, issueLastStand, resolveLastStandDefenseBonus,
 } from '@/systems/great-general-abilities';
 import { createNewGame } from '@/core/game-state';
 import type { Unit } from '@/core/types';
@@ -253,5 +254,90 @@ describe('getSeizeTheMomentEligibleUnits / issueSeizeTheMoment', () => {
     const result = issueSeizeTheMoment(state, 'gen-1', ['unit-1', 'unit-2', 'unit-3', 'unit-4']);
     const resetCount = ['unit-1', 'unit-2', 'unit-3', 'unit-4'].filter(id => result.units[id].hasActed === false).length;
     expect(resetCount).toBe(3);
+  });
+});
+
+describe('getLastStandPreview / issueLastStand', () => {
+  function setup() {
+    const state = createNewGame({ civType: 'rome', mapSize: 'small', opponentCount: 1, gameTitle: 't', seed: 'ls-1' });
+    state.units['gen-1'] = makeGeneral(); // position { q:0, r:0 }, V1 commandRange=2, commandCapacity=3
+    state.units['unit-1'] = makeUnit({ id: 'unit-1', position: { q: 1, r: 0 } }); // in the target area
+    state.units['worker-1'] = { ...makeUnit({ id: 'worker-1', position: { q: 1, r: 0 } }), type: 'worker' }; // civilian -- must be excluded
+    state.civilizations.player.units = ['gen-1', 'unit-1', 'worker-1'];
+    return state;
+  }
+
+  it('rejects a target hex outside commandRange', () => {
+    const state = setup();
+    const preview = getLastStandPreview(state, 'gen-1', { q: 10, r: 10 });
+    expect(preview.targets).toHaveLength(0);
+  });
+
+  it('includes combat units in the target area but excludes civilians', () => {
+    const preview = getLastStandPreview(setup(), 'gen-1', { q: 1, r: 0 });
+    const ids = preview.targets.map(t => t.unitId);
+    expect(ids).toContain('unit-1');
+    expect(ids).not.toContain('worker-1');
+  });
+
+  it('caps affected units at commandCapacity', () => {
+    const state = createNewGame({ civType: 'rome', mapSize: 'small', opponentCount: 1, gameTitle: 't', seed: 'ls-2' });
+    state.units['gen-1'] = makeGeneral();
+    for (let i = 1; i <= 4; i++) {
+      state.units[`unit-${i}`] = makeUnit({ id: `unit-${i}`, position: { q: 1, r: 0 } });
+    }
+    state.civilizations.player.units = ['gen-1', 'unit-1', 'unit-2', 'unit-3', 'unit-4'];
+    const preview = getLastStandPreview(state, 'gen-1', { q: 1, r: 0 });
+    expect(preview.targets).toHaveLength(3);
+  });
+
+  it('issuing sets lastStandHold on every affected unit, sharing one formationId', () => {
+    const result = issueLastStand(setup(), 'gen-1', { q: 1, r: 0 });
+    const hold = result.units['unit-1'].lastStandHold;
+    expect(hold).toBeDefined();
+    expect(hold!.formationId).toBeTruthy();
+    expect(hold!.defenseBonusMultiplier).toBeGreaterThan(1);
+  });
+
+  it('spends exactly one charge on issuance', () => {
+    const state = { ...setup(), turn: 4 };
+    const result = issueLastStand(state, 'gen-1', { q: 1, r: 0 });
+    expect(result.units['gen-1'].generalCommandChargesUsed).toBe(1);
+  });
+
+  it('persists even conceptually after the General dies -- issuance does not reference the General again', () => {
+    const state = { ...setup(), turn: 4 };
+    const result = issueLastStand(state, 'gen-1', { q: 1, r: 0 });
+    const withoutGeneral = { ...result, units: { ...result.units } };
+    delete withoutGeneral.units['gen-1'];
+    // resolveLastStandDefenseBonus reads only the unit's own lastStandHold, never the General
+    expect(resolveLastStandDefenseBonus(withoutGeneral.units['unit-1'], withoutGeneral.turn).multiplier).toBeGreaterThan(1);
+  });
+
+  it('does NOT spend a charge when there are zero eligible targets in the area', () => {
+    const state = createNewGame({ civType: 'rome', mapSize: 'small', opponentCount: 1, gameTitle: 't', seed: 'ls-3' });
+    state.units['gen-1'] = makeGeneral();
+    state.civilizations.player.units = ['gen-1'];
+    const result = issueLastStand(state, 'gen-1', { q: 1, r: 0 });
+    expect(result).toBe(state);
+    expect(result.units['gen-1'].generalCommandChargesUsed).toBeUndefined();
+  });
+});
+
+describe('resolveLastStandDefenseBonus', () => {
+  it('returns multiplier 1 for a unit with no lastStandHold', () => {
+    expect(resolveLastStandDefenseBonus(makeUnit(), 5).multiplier).toBe(1);
+  });
+
+  it('returns the bonus multiplier while unexpired', () => {
+    const unit = makeUnit({ lastStandHold: { formationId: 'f1', defenseBonusMultiplier: 1.15, expiresTurn: 10 } });
+    const result = resolveLastStandDefenseBonus(unit, 8);
+    expect(result.multiplier).toBe(1.15);
+    expect(result.label).toBeTruthy();
+  });
+
+  it('returns multiplier 1 once expired', () => {
+    const unit = makeUnit({ lastStandHold: { formationId: 'f1', defenseBonusMultiplier: 1.15, expiresTurn: 10 } });
+    expect(resolveLastStandDefenseBonus(unit, 11).multiplier).toBe(1);
   });
 });

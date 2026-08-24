@@ -1,8 +1,9 @@
-import type { GameState, LandSupplyState, Unit } from '@/core/types';
+import type { GameState, HexCoord, LandSupplyState, LastStandHoldState, Unit } from '@/core/types';
 import { GENERAL_DEFINITIONS } from '@/systems/great-general-definitions';
 import { getEffectiveCommandStats } from '@/systems/great-general-system';
-import { mapDistance } from '@/systems/hex-utils';
+import { mapDistance, mapHexesInRange } from '@/systems/hex-utils';
 import { UNIT_DEFINITIONS } from '@/systems/unit-system';
+import { UNIT_CLASS_BY_TYPE } from '@/systems/unit-modifier-definitions';
 
 export interface HeroicCommandEligibility {
   eligible: boolean;
@@ -176,6 +177,124 @@ export function issueRally(state: GameState, generalUnitId: string): GameState {
   }
 
   return spendHeroicCommandCharge({ ...state, units }, generalUnitId);
+}
+
+// contract §20: "moderate defensive bonus... exact defense/area/duration are
+// data-driven and not locked." +15% sits between positioning's +10%/flanking
+// tile and fortification's tier multipliers -- a deliberately "moderate,"
+// not dominant, bonus for a rare 1-of-3-lifetime-uses ability.
+const LAST_STAND_DEFENSE_MULTIPLIER = 1.15;
+const LAST_STAND_AREA_RADIUS = 1; // target hex plus its immediate neighbors
+const LAST_STAND_DURATION_TURNS = 2; // owner-turns the Hold save + bonus remain active
+
+export interface LastStandTarget {
+  unitId: string;
+}
+
+export interface LastStandPreview {
+  eligibility: HeroicCommandEligibility;
+  targetHex: HexCoord;
+  area: HexCoord[];
+  targets: LastStandTarget[];
+  defenseBonusPercent: number;
+  durationTurns: number;
+}
+
+function isLastStandEligibleUnitType(type: Unit['type']): boolean {
+  return !UNIT_CLASS_BY_TYPE[type]?.includes('civilian');
+}
+
+function getLastStandArea(state: GameState, general: Unit, targetHex: HexCoord, commandRange: number): HexCoord[] | null {
+  if (mapDistance(state.map, general.position, targetHex) > commandRange) return null;
+  return mapHexesInRange(state.map, targetHex, LAST_STAND_AREA_RADIUS);
+}
+
+export function getLastStandPreview(state: GameState, generalUnitId: string, targetHex: HexCoord): LastStandPreview {
+  const general = state.units[generalUnitId];
+  const eligibility = general
+    ? getHeroicCommandEligibility(state, general)
+    : { eligible: false, reason: 'General not found.', chargesRemaining: 0, isFinalCharge: false, cooldownTurnsRemaining: 0 };
+  const empty: LastStandPreview = {
+    eligibility, targetHex, area: [], targets: [],
+    defenseBonusPercent: Math.round((LAST_STAND_DEFENSE_MULTIPLIER - 1) * 100),
+    durationTurns: LAST_STAND_DURATION_TURNS,
+  };
+  if (!general || !eligibility.eligible) return empty;
+
+  const definition = GENERAL_DEFINITIONS.find(g => g.id === general.generalDefinitionId);
+  const civ = state.civilizations[general.owner];
+  if (!definition || !civ) return empty;
+  const { commandRange, commandCapacity } = getEffectiveCommandStats(general, definition);
+
+  const area = getLastStandArea(state, general, targetHex, commandRange);
+  if (!area) return empty;
+  const areaKeys = new Set(area.map(h => `${h.q},${h.r}`));
+
+  const targets = civ.units
+    .map(id => state.units[id])
+    .filter((u): u is Unit => Boolean(u))
+    .filter(u => u.id !== general.id)
+    .filter(u => isLastStandEligibleUnitType(u.type))
+    .filter(u => areaKeys.has(`${u.position.q},${u.position.r}`))
+    .sort((a, b) => mapDistance(state.map, targetHex, a.position) - mapDistance(state.map, targetHex, b.position) || a.id.localeCompare(b.id))
+    .slice(0, commandCapacity)
+    .map(u => ({ unitId: u.id }));
+
+  return { ...empty, area, targets };
+}
+
+/** #544 MR4 review fix: mirrors issueRally's zero-target guard. */
+export function issueLastStand(state: GameState, generalUnitId: string, targetHex: HexCoord): GameState {
+  const preview = getLastStandPreview(state, generalUnitId, targetHex);
+  if (!preview.eligibility.eligible || preview.targets.length === 0) return state;
+
+  // Deterministic, unique-enough-per-issuance id -- no RNG needed (Global
+  // Constraints: this MR never needs Math.random or seededLcg).
+  const formationId = `${generalUnitId}-${state.turn}-${targetHex.q},${targetHex.r}`;
+  const hold: LastStandHoldState = {
+    formationId,
+    defenseBonusMultiplier: LAST_STAND_DEFENSE_MULTIPLIER,
+    expiresTurn: state.turn + LAST_STAND_DURATION_TURNS,
+  };
+
+  let units = { ...state.units };
+  for (const target of preview.targets) {
+    const unit = units[target.unitId];
+    if (!unit) continue;
+    units[target.unitId] = { ...unit, lastStandHold: hold };
+  }
+
+  return spendHeroicCommandCharge({ ...state, units }, generalUnitId);
+}
+
+/** Mirrors resolveLandSupplyCombatPenalty's { multiplier, label? } shape
+ * (supply-combat.ts) so combat-context.ts wires both identically. */
+export function resolveLastStandDefenseBonus(
+  unit: Pick<Unit, 'lastStandHold'>,
+  currentTurn: number,
+): { multiplier: number; label?: string } {
+  const hold = unit.lastStandHold;
+  if (!hold || currentTurn > hold.expiresTurn) return { multiplier: 1 };
+  return { multiplier: hold.defenseBonusMultiplier, label: `Last Stand +${Math.round((hold.defenseBonusMultiplier - 1) * 100)}%` };
+}
+
+/** #544 MR4 contract §20: "one shared formation-wide Hold! survival save."
+ * Consumed exactly once per formation -- called by applyCombatOutcomeToState
+ * (Task 8) the first time any member's Hold save actually triggers, clearing
+ * lastStandHold from every unit sharing that formationId so no other member
+ * can also be saved by the same one-time save. The passive defense bonus
+ * this formation was granting also ends at that moment, which is intended:
+ * once the formation has taken its one lethal hit, the "hold this ground"
+ * moment is over. */
+export function consumeLastStandHoldFormationWide(units: Record<string, Unit>, formationId: string): Record<string, Unit> {
+  const next = { ...units };
+  for (const [id, unit] of Object.entries(units)) {
+    if (unit.lastStandHold?.formationId === formationId) {
+      const { lastStandHold: _lastStandHold, ...rest } = unit;
+      next[id] = rest as Unit;
+    }
+  }
+  return next;
 }
 
 export interface SeizeEligibleUnit {
