@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createNewGame } from '@/core/game-state';
-import { evaluateRallyOpportunity, evaluateSeizeOpportunity, getEraGenerals, isGeneralInDanger } from '@/ai/ai-general-command';
+import { evaluateLastStandOpportunity, evaluateRallyOpportunity, evaluateSeizeOpportunity, getEraGenerals, isGeneralInDanger } from '@/ai/ai-general-command';
 import { issueRally } from '@/systems/great-general-abilities';
 import type { Unit } from '@/core/types';
 
@@ -139,5 +139,72 @@ describe('#544 MR5 — evaluateSeizeOpportunity', () => {
     const opportunity = evaluateSeizeOpportunity(state, 'gen-1');
     const executed = opportunity!.execute(state);
     expect(executed.units['warrior-1']!.hasActed).toBe(false);
+  });
+});
+
+describe('#544 MR5 — evaluateLastStandOpportunity', () => {
+  it('returns null when no own combat unit is within command range', () => {
+    const state = createNewGame({ civType: 'rome', mapSize: 'small', opponentCount: 1, gameTitle: 't', seed: 'ls-1' });
+    state.units['gen-1'] = makeGeneral();
+    state.civilizations.player!.units = ['gen-1'];
+    expect(evaluateLastStandOpportunity(state, 'gen-1')).toBeNull();
+  });
+
+  it('returns a positive-score opportunity when an own unit is in range, even with zero visible threat', () => {
+    const state = createNewGame({ civType: 'rome', mapSize: 'small', opponentCount: 1, gameTitle: 't', seed: 'ls-2' });
+    const aiId = Object.keys(state.civilizations).find(id => id !== 'player')!;
+    state.units['gen-1'] = makeGeneral({ owner: aiId, position: { q: 0, r: 0 } });
+    state.units['defender-1'] = {
+      id: 'defender-1', type: 'warrior', owner: aiId, position: { q: 1, r: 0 },
+      movementPointsLeft: 1, health: 100, experience: 0, hasMoved: false, hasActed: false, isResting: false,
+    } as Unit;
+    state.civilizations[aiId]!.units = ['gen-1', 'defender-1'];
+
+    const opportunity = evaluateLastStandOpportunity(state, 'gen-1');
+    expect(opportunity).not.toBeNull();
+    expect(opportunity!.ability).toBe('last_stand');
+    expect(opportunity!.score).toBeGreaterThan(0);
+  });
+
+  it('scores a hex with more nearby visible hostile threat higher than one with none', () => {
+    const state = createNewGame({ civType: 'rome', mapSize: 'small', opponentCount: 1, gameTitle: 't', seed: 'ls-3' });
+    const aiId = Object.keys(state.civilizations).find(id => id !== 'player')!;
+    state.units['gen-1'] = makeGeneral({ owner: aiId, position: { q: 0, r: 0 } });
+    state.units['defender-1'] = {
+      id: 'defender-1', type: 'warrior', owner: aiId, position: { q: 1, r: 0 },
+      movementPointsLeft: 1, health: 100, experience: 0, hasMoved: false, hasActed: false, isResting: false,
+    } as Unit;
+    state.civilizations[aiId]!.units = ['gen-1', 'defender-1'];
+    const noThreat = evaluateLastStandOpportunity(state, 'gen-1');
+
+    const withThreat = structuredClone(state);
+    withThreat.civilizations[aiId]!.diplomacy.atWarWith = ['player'];
+    withThreat.civilizations.player!.diplomacy.atWarWith = [aiId];
+    withThreat.units['enemy-1'] = {
+      id: 'enemy-1', type: 'warrior', owner: 'player', position: { q: 2, r: 0 },
+      movementPointsLeft: 1, health: 100, experience: 0, hasMoved: false, hasActed: false, isResting: false,
+    } as Unit;
+    withThreat.civilizations.player!.units = [...withThreat.civilizations.player!.units, 'enemy-1'];
+    withThreat.civilizations[aiId]!.visibility.tiles = Object.fromEntries(
+      Object.keys(withThreat.map.tiles).map(key => [key, 'visible' as const]),
+    );
+    const threatOpportunity = evaluateLastStandOpportunity(withThreat, 'gen-1');
+
+    expect(threatOpportunity).not.toBeNull();
+    expect(threatOpportunity!.score).toBeGreaterThan(noThreat!.score);
+  });
+
+  it('execute matches issueLastStand directly for the chosen hex', () => {
+    const state = createNewGame({ civType: 'rome', mapSize: 'small', opponentCount: 1, gameTitle: 't', seed: 'ls-4' });
+    const aiId = Object.keys(state.civilizations).find(id => id !== 'player')!;
+    state.units['gen-1'] = makeGeneral({ owner: aiId, position: { q: 0, r: 0 } });
+    state.units['defender-1'] = {
+      id: 'defender-1', type: 'warrior', owner: aiId, position: { q: 1, r: 0 },
+      movementPointsLeft: 1, health: 100, experience: 0, hasMoved: false, hasActed: false, isResting: false,
+    } as Unit;
+    state.civilizations[aiId]!.units = ['gen-1', 'defender-1'];
+    const opportunity = evaluateLastStandOpportunity(state, 'gen-1');
+    const executed = opportunity!.execute(state);
+    expect(executed.units['defender-1']!.lastStandHold).toBeDefined();
   });
 });

@@ -3,7 +3,16 @@ import { GENERAL_DEFINITIONS } from '@/systems/great-general-definitions';
 import { mapDistance } from '@/systems/hex-utils';
 import { getVisibility } from '@/systems/fog-of-war';
 import { isAIHostileOwner } from '@/ai/ai-hostility';
-import { getHeroicCommandEligibility, getRallyPreview, getSeizeTheMomentEligibleUnits, issueRally, issueSeizeTheMoment } from '@/systems/great-general-abilities';
+import {
+  getHeroicCommandEligibility,
+  getLastStandPreview,
+  getRallyPreview,
+  getSeizeTheMomentEligibleUnits,
+  issueLastStand,
+  issueRally,
+  issueSeizeTheMoment,
+} from '@/systems/great-general-abilities';
+import { getEffectiveCommandStats } from '@/systems/great-general-system';
 import { hasAICombatRole } from '@/ai/ai-unit-roles';
 
 /**
@@ -109,5 +118,67 @@ export function evaluateSeizeOpportunity(state: GameState, generalUnitId: string
     ability: 'seize_the_moment',
     score,
     execute: s => issueSeizeTheMoment(s, generalUnitId, eligible.map(e => e.unitId)),
+  };
+}
+
+const LAST_STAND_THREAT_SCAN_RADIUS = 2;
+
+function nearbyVisibleThreatScore(state: GameState, civId: string, hex: { q: number; r: number }): number {
+  const visibility = state.civilizations[civId]?.visibility;
+  if (!visibility) return 0;
+  return Object.values(state.units).filter(candidate =>
+    candidate.owner !== civId
+    && isAIHostileOwner(state, civId, candidate.owner)
+    && getVisibility(visibility, candidate.position) === 'visible'
+    && mapDistance(state.map, hex, candidate.position) <= LAST_STAND_THREAT_SCAN_RADIUS,
+  ).length;
+}
+
+/**
+ * contract §"AI / hot-seat / saves": "Last Stand evaluator: strategic
+ * position, incoming threat, value of units, expected Hold save value,
+ * city/Fort/Citadel/chokepoint defense." Candidate hexes are every distinct
+ * position occupied by one of the General's own eligible units within
+ * commandRange (Last Stand's own area is centered on a hex, not a specific
+ * unit -- see getLastStandPreview) -- for each, score = (own unit count
+ * at/near that hex, from the preview's own targets) * (1 + threat at that
+ * hex, fog-of-war-safe per contract item 84). A hex with a real formation
+ * under real incoming threat outscores an empty or safe one; ties broken by
+ * hex key for determinism.
+ */
+export function evaluateLastStandOpportunity(state: GameState, generalUnitId: string): GeneralCommandOpportunity | null {
+  const general = state.units[generalUnitId];
+  if (!general) return null;
+  const eligibility = getHeroicCommandEligibility(state, general);
+  if (!eligibility.eligible) return null;
+  const definition = GENERAL_DEFINITIONS.find(g => g.id === general.generalDefinitionId);
+  const civ = state.civilizations[general.owner];
+  if (!definition || !civ) return null;
+  const { commandRange } = getEffectiveCommandStats(general, definition);
+
+  const candidateHexes = civ.units
+    .map(id => state.units[id])
+    .filter((u): u is Unit => Boolean(u))
+    .filter(u => u.id !== general.id)
+    .filter(u => mapDistance(state.map, general.position, u.position) <= commandRange)
+    .map(u => u.position);
+
+  let best: { hex: { q: number; r: number }; score: number } | null = null;
+  for (const hex of candidateHexes) {
+    const preview = getLastStandPreview(state, generalUnitId, hex);
+    if (preview.targets.length === 0) continue;
+    const score = preview.targets.length * (1 + nearbyVisibleThreatScore(state, general.owner, hex));
+    if (!best || score > best.score
+      || (score === best.score && `${hex.q},${hex.r}`.localeCompare(`${best.hex.q},${best.hex.r}`) < 0)) {
+      best = { hex, score };
+    }
+  }
+  if (!best) return null;
+
+  const chosenHex = best.hex;
+  return {
+    ability: 'last_stand',
+    score: best.score,
+    execute: s => issueLastStand(s, generalUnitId, chosenHex),
   };
 }
