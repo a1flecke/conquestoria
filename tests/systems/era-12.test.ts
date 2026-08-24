@@ -218,6 +218,177 @@ describe('geneTherapyReady — combat survival', () => {
   });
 });
 
+describe('#544 MR4 — Last Stand Hold save', () => {
+  it('an attacker with an unexpired lastStandHold survives a lethal result at 1 HP and consumes the hold', () => {
+    const state = makeCombatState(
+      {
+        a1: {
+          owner: 'p1', health: 80, position: { q: 0, r: 0 },
+          lastStandHold: { formationId: 'f1', defenseBonusMultiplier: 1.15, expiresTurn: 2 },
+        },
+        d1: { owner: 'p2', health: 100, position: { q: 1, r: 0 } },
+      },
+      { p1: ['a1'], p2: ['d1'] },
+    );
+    const result = {
+      attackerId: 'a1', defenderId: 'd1',
+      attackerDamage: 80, defenderDamage: 30,
+      attackerSurvived: false, defenderSurvived: true,
+      attackerStrength: 20, defenderStrength: 20,
+      attackerPosition: { q: 0, r: 0 }, defenderPosition: { q: 1, r: 0 },
+    };
+    const applied = applyCombatOutcomeToState(state, result, 42);
+    expect(applied.attackerDefeated).toBe(false);
+    expect(applied.state.units['a1'].health).toBe(1);
+    expect(applied.state.units['a1'].lastStandHold).toBeUndefined();
+  });
+
+  it('a defender with an unexpired lastStandHold survives a lethal result at 1 HP and consumes the hold', () => {
+    const state = makeCombatState(
+      {
+        a2: { owner: 'p1', health: 100, position: { q: 0, r: 0 } },
+        d2: {
+          owner: 'p2', health: 80, position: { q: 1, r: 0 },
+          lastStandHold: { formationId: 'f2', defenseBonusMultiplier: 1.15, expiresTurn: 2 },
+        },
+      },
+      { p1: ['a2'], p2: ['d2'] },
+    );
+    const result = {
+      attackerId: 'a2', defenderId: 'd2',
+      attackerDamage: 30, defenderDamage: 80,
+      attackerSurvived: true, defenderSurvived: false,
+      attackerStrength: 20, defenderStrength: 20,
+      attackerPosition: { q: 0, r: 0 }, defenderPosition: { q: 1, r: 0 },
+    };
+    const applied = applyCombatOutcomeToState(state, result, 42);
+    expect(applied.defenderDefeated).toBe(false);
+    expect(applied.state.units['d2'].health).toBe(1);
+  });
+
+  it('an EXPIRED lastStandHold does not save the unit', () => {
+    const state = makeCombatState(
+      {
+        a3: {
+          owner: 'p1', health: 80, position: { q: 0, r: 0 },
+          lastStandHold: { formationId: 'f3', defenseBonusMultiplier: 1.15, expiresTurn: 0 },
+        },
+        d3: { owner: 'p2', health: 100, position: { q: 1, r: 0 } },
+      },
+      { p1: ['a3'], p2: ['d3'] },
+    );
+    const result = {
+      attackerId: 'a3', defenderId: 'd3',
+      attackerDamage: 80, defenderDamage: 30,
+      attackerSurvived: false, defenderSurvived: true,
+      attackerStrength: 20, defenderStrength: 20,
+      attackerPosition: { q: 0, r: 0 }, defenderPosition: { q: 1, r: 0 },
+    };
+    const applied = applyCombatOutcomeToState(state, result, 42);
+    expect(applied.attackerDefeated).toBe(true);
+  });
+
+  it('the save is consumed formation-wide: a second unit sharing the formationId loses its hold too, even though it was not the one hit', () => {
+    const state = makeCombatState(
+      {
+        a4: {
+          owner: 'p1', health: 80, position: { q: 0, r: 0 },
+          lastStandHold: { formationId: 'shared-formation', defenseBonusMultiplier: 1.15, expiresTurn: 2 },
+        },
+        d4: { owner: 'p2', health: 100, position: { q: 1, r: 0 } },
+        'bystander-1': {
+          owner: 'p1', health: 50, position: { q: 0, r: 1 },
+          lastStandHold: { formationId: 'shared-formation', defenseBonusMultiplier: 1.15, expiresTurn: 2 },
+        },
+      },
+      { p1: ['a4', 'bystander-1'], p2: ['d4'] },
+    );
+    const result = {
+      attackerId: 'a4', defenderId: 'd4',
+      attackerDamage: 80, defenderDamage: 30,
+      attackerSurvived: false, defenderSurvived: true,
+      attackerStrength: 20, defenderStrength: 20,
+      attackerPosition: { q: 0, r: 0 }, defenderPosition: { q: 1, r: 0 },
+    };
+    const applied = applyCombatOutcomeToState(state, result, 42);
+    expect(applied.state.units['bystander-1'].lastStandHold).toBeUndefined();
+  });
+
+  it('splash damage also honors an unexpired lastStandHold (contract §27: protects against bombardment)', () => {
+    const state = makeCombatState(
+      {
+        a5: { owner: 'p1', health: 100, position: { q: 0, r: 0 } },
+        d5: { owner: 'p2', health: 100, position: { q: 1, r: 0 } },
+        'splash-target': {
+          owner: 'p2', health: 50, position: { q: 2, r: 0 },
+          lastStandHold: { formationId: 'f4', defenseBonusMultiplier: 1.15, expiresTurn: 2 },
+        },
+      },
+      { p1: ['a5'], p2: ['d5', 'splash-target'] },
+    );
+    const result = {
+      attackerId: 'a5', defenderId: 'd5',
+      attackerDamage: 0, defenderDamage: 100,
+      attackerSurvived: true, defenderSurvived: false,
+      attackerStrength: 20, defenderStrength: 20,
+      attackerPosition: { q: 0, r: 0 }, defenderPosition: { q: 1, r: 0 },
+      splashHits: [{ unitId: 'splash-target', damage: 999 }],
+    };
+    const applied = applyCombatOutcomeToState(state, result, 42);
+    expect(applied.state.units['splash-target']).toBeDefined();
+    expect(applied.state.units['splash-target'].health).toBe(1);
+  });
+
+  it('geneTherapyReady still takes precedence when both flags are somehow present (pre-existing mechanism checked first, unchanged ordering)', () => {
+    const state = makeCombatState(
+      {
+        a6: {
+          owner: 'p1', health: 80, position: { q: 0, r: 0 },
+          geneTherapyReady: true,
+          lastStandHold: { formationId: 'f5', defenseBonusMultiplier: 1.15, expiresTurn: 2 },
+        },
+        d6: { owner: 'p2', health: 100, position: { q: 1, r: 0 } },
+      },
+      { p1: ['a6'], p2: ['d6'] },
+    );
+    const result = {
+      attackerId: 'a6', defenderId: 'd6',
+      attackerDamage: 80, defenderDamage: 30,
+      attackerSurvived: false, defenderSurvived: true,
+      attackerStrength: 20, defenderStrength: 20,
+      attackerPosition: { q: 0, r: 0 }, defenderPosition: { q: 1, r: 0 },
+    };
+    const applied = applyCombatOutcomeToState(state, result, 42);
+    expect(applied.state.units['a6'].geneTherapyReady).toBe(false);
+    expect(applied.state.units['a6'].lastStandHold).toBeDefined();
+  });
+
+  it('review addition: the Hold save also pre-empts naval prize-capture -- a defeated attacker under Last Stand survives at 1 HP under its ORIGINAL owner instead of being captured by the enemy', () => {
+    const state = makeCombatState(
+      {
+        a7: {
+          type: 'frigate', owner: 'p1', health: 30, position: { q: 0, r: 0 },
+          lastStandHold: { formationId: 'f6', defenseBonusMultiplier: 1.15, expiresTurn: 2 },
+        },
+        d7: { type: 'frigate', owner: 'p2', health: 100, position: { q: 1, r: 0 } },
+      },
+      { p1: ['a7'], p2: ['d7'] },
+    );
+    const result = {
+      attackerId: 'a7', defenderId: 'd7',
+      attackerDamage: 30, defenderDamage: 5,
+      attackerSurvived: false, defenderSurvived: true,
+      attackerStrength: 10, defenderStrength: 40,
+      attackerPosition: { q: 0, r: 0 }, defenderPosition: { q: 1, r: 0 },
+    };
+    const applied = applyCombatOutcomeToState(state, result, 42);
+    expect(applied.attackerCaptured).toBe(false);
+    expect(applied.attackerDefeated).toBe(false);
+    expect(applied.state.units['a7'].owner).toBe('p1');
+    expect(applied.state.units['a7'].health).toBe(1);
+  });
+});
+
 describe('cyber_unit capture', () => {
   it('cyber_unit defender is captured (ownership transferred) not destroyed', () => {
     const state = makeCombatState(

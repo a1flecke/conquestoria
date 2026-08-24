@@ -4,6 +4,7 @@ import { UNIT_DEFINITIONS } from '@/systems/unit-system';
 import { applyQuestGameplayAction, type ChainTransition } from '@/systems/quest-chain-system';
 import { canCaptureDefeatedUnits, canReceiveCivilizationCombatRewards, CRISIS_FORCE_OWNER, isMajorCivOwner, isPirateOwner } from '@/core/owner-kind';
 import { awardGeneralProgress, GENERAL_PROGRESS_AWARDS, GENERAL_PROGRESS_XP_RATIO, STRONGER_FORCE_MARGIN } from '@/systems/great-general-system';
+import { consumeLastStandHoldFormationWide } from '@/systems/great-general-abilities';
 import { recordHuntKillerIfApplicable } from '@/systems/hunt-crisis-linkage';
 import {
   breakPirateTributeOnAttack,
@@ -289,6 +290,20 @@ function removeUnitFromCopies(
 }
 
 /**
+ * #544 MR4 contract §20/§27: the canonical Last Stand Hold-save check,
+ * shared by all three lethal-resolution sites in this function (attacker
+ * branch, defender branch, splash loop) so "one canonical resolution hook"
+ * is literally true rather than three hand-rolled copies. Mirrors
+ * geneTherapyReady's existing shape: check flag (and expiry) -> survive at
+ * 1 HP -> consume. The one difference from geneTherapyReady is that
+ * consumption is formation-wide, not just on the saved unit itself.
+ */
+function checkLastStandHold(unitBefore: Unit, currentTurn: number): boolean {
+  const hold = unitBefore.lastStandHold;
+  return hold !== undefined && currentTurn <= hold.expiresTurn;
+}
+
+/**
  * #544 MR3: "if escort is destroyed, General dies too. No escape" (contract
  * §15). A General may share a tile with exactly one friendly combat unit;
  * when that unit is destroyed (by direct combat or splash), any co-located
@@ -412,6 +427,24 @@ export function applyCombatOutcomeToState(
       ...submarineRevealPatch(attackerBefore.type),
     };
     attackerActuallyDefeated = false;
+  } else if (checkLastStandHold(attackerBefore, state.turn)) {
+    // #544 MR4: Last Stand Hold save. Placement note: this branch runs
+    // before civilian-capture and naval-prize-capture below, so a defeated
+    // unit that would otherwise be *captured* by the enemy instead survives
+    // at 1 HP under its own original owner if it also holds an unexpired
+    // Last Stand -- the Hold save wins over capture. Deliberate: a captured
+    // unit doesn't die, but losing it to the enemy is arguably worse for the
+    // player than surviving battered but still theirs.
+    units[result.attackerId] = {
+      ...attackerBefore,
+      health: 1,
+      movementPointsLeft: 0,
+      hasMoved: true,
+      hasActed: true,
+      ...submarineRevealPatch(attackerBefore.type),
+    };
+    units = consumeLastStandHoldFormationWide(units, attackerBefore.lastStandHold!.formationId);
+    attackerActuallyDefeated = false;
   } else if (
     UNIT_CLASS_BY_TYPE[attackerBefore.type].includes('civilian')
     && !attackerBefore.cargoUnitIds?.length
@@ -504,6 +537,18 @@ export function applyCombatOutcomeToState(
       geneTherapyReady: false,
     };
     defenderActuallyDefeated = false;
+  } else if (checkLastStandHold(defenderBefore, state.turn)) {
+    // #544 MR4: Last Stand Hold save, defender side -- exact mirror of the
+    // attacker branch above.
+    units[result.defenderId] = {
+      ...defenderBefore,
+      health: 1,
+      movementPointsLeft: 0,
+      hasMoved: true,
+      hasActed: true,
+    };
+    units = consumeLastStandHoldFormationWide(units, defenderBefore.lastStandHold!.formationId);
+    defenderActuallyDefeated = false;
   } else if (
     UNIT_CLASS_BY_TYPE[defenderBefore.type].includes('civilian')
     && !defenderBefore.cargoUnitIds?.length
@@ -569,6 +614,15 @@ export function applyCombatOutcomeToState(
     if (!target || hit.damage <= 0) continue;
     if (target.health > hit.damage) {
       units[hit.unitId] = { ...target, health: target.health - hit.damage };
+      continue;
+    }
+    // #544 MR4 contract §27: Last Stand protects against "bombardment" --
+    // splash is this codebase's bombardment-adjacent lethal-damage path, so
+    // it must honor the hold too, even though geneTherapyReady historically
+    // never did (that's a separate, pre-existing gap, not extended here).
+    if (checkLastStandHold(target, state.turn)) {
+      units[hit.unitId] = { ...target, health: 1 };
+      units = consumeLastStandHoldFormationWide(units, target.lastStandHold!.formationId);
       continue;
     }
     defeatedUnitIds.add(hit.unitId);
