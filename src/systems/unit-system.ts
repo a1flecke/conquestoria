@@ -795,10 +795,21 @@ export function moveUnitWithZoneOfControl(
 }
 
 export function resetUnitTurn(unit: Unit): Unit {
-  // revealedThisTurn (#542 reveal-on-fire) must clear here alongside skippedTurn/
-  // interceptedTurn -- otherwise a submarine that ever fires once stays permanently
-  // revealed to every civ forever, since nothing else clears the flag.
-  const { skippedTurn: _skippedTurn, interceptedTurn: _interceptedTurn, revealedThisTurn: _revealedThisTurn, ...rest } = unit;
+  // revealedThisTurn (#542 reveal-on-fire), generalNoCommandThisTurn (#544
+  // MR3: "operational next owner turn"), rallyProtectedThisRound (#544 MR4:
+  // "prevent worsening again until next owner turn"), and
+  // hasCapturedCityThisTurn (#544 MR4: "no chained captures in one turn")
+  // must all clear here alongside skippedTurn/interceptedTurn -- this is the
+  // one place every other per-owner-turn transient flag already resets.
+  const {
+    skippedTurn: _skippedTurn,
+    interceptedTurn: _interceptedTurn,
+    revealedThisTurn: _revealedThisTurn,
+    generalNoCommandThisTurn: _generalNoCommandThisTurn,
+    rallyProtectedThisRound: _rallyProtectedThisRound,
+    hasCapturedCityThisTurn: _hasCapturedCityThisTurn,
+    ...rest
+  } = unit;
   // #544: severe overextension reduces movement by 1, never below 1 (contract §3.3/§29).
   const severeSupplyPenalty = unit.landSupply?.state === 'severe' ? 1 : 0;
   const base: Unit = {
