@@ -126,6 +126,27 @@ describe('sync() LOD gate', () => {
   });
 });
 
+describe('#708 mounted and beast overlay accessibility', () => {
+  it.each([
+    ['beast_handler', 'hound'],
+    ['war_elephant', 'hound'],
+    ['cuirassier', 'melee'],
+  ])('%s keeps its native body plan and player information layers under reduced motion', (subtype, kind) => {
+    const { overlay, mount } = mountOverlay();
+    overlay.sync(cam({ zoom: 1 }), [entity({ subtype, damage: 2, selected: true })], MAP, {
+      ...OPTS,
+      reducedMotion: true,
+    });
+
+    const sprite = mount.querySelector('.cq-sprite-wrap') as HTMLElement | null;
+    expect(sprite).not.toBeNull();
+    expect(sprite?.dataset.kind).toBe(kind);
+    expect(mount.querySelector('.cq-unit-selected')).not.toBeNull();
+    expect(mount.querySelector('.cq-unit-health-fill')).not.toBeNull();
+    expect((mount.querySelector('#sprite-overlay') as HTMLElement).dataset.reducedMotion).toBe('true');
+  });
+});
+
 // ── Camera transform ──────────────────────────────────────────────────────────
 
 describe('sync() camera transform', () => {

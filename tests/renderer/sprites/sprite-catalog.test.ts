@@ -10,7 +10,7 @@ import { UNIT_DEFINITIONS } from '@/systems/unit-system';
 import { PIRATE_HULL_TYPES } from '@/systems/pirate-definitions';
 import {
   JetFighterSprite, IroncladSprite, MachineGunnerSprite, MissionarySprite, SpyHackerSprite,
-  HorsemanSprite, CannonSprite, RiflemanSprite,
+  HorsemanSprite, CannonSprite, RiflemanSprite, KnightSprite, WarHoundSprite,
   TriremeSprite, CaravanSprite, WorkerSprite, BiplaneSprite,
   TankSprite, ArtillerySprite,
 } from '@/renderer/sprites/units';
@@ -177,6 +177,28 @@ describe('#769 batch 1 sprites are not aliases of their donors', () => {
       const donor = donorFn({ palette, svgOnly: true });
       expect(actual, `${type} still renders identically to its old donor sprite`).not.toBe(donor);
     }
+  });
+});
+
+describe('#708 mounted and beast sprites are not temporary aliases', () => {
+  const palette = derivePalette('#4a90d9');
+
+  it('keeps the three remaining issue-708 units distinct from their former donors', () => {
+    const replacements: Array<[keyof typeof UNIT_SPRITE_CATALOG, (props: { palette: typeof palette; svgOnly: boolean }) => string]> = [
+      ['beast_handler', WarHoundSprite],
+      ['war_elephant', WarHoundSprite],
+      ['cuirassier', KnightSprite],
+    ];
+    for (const [type, donorFn] of replacements) {
+      const actual = UNIT_SPRITE_CATALOG[type]({ palette, svgOnly: true });
+      const donor = donorFn({ palette, svgOnly: true });
+      expect(actual, `${type} still renders identically to its former donor`).not.toBe(donor);
+    }
+  });
+
+  it('leaves Chariot on its already-shipped distinct sprite', () => {
+    expect(UNIT_SPRITE_CATALOG.chariot({ palette, svgOnly: true }))
+      .not.toBe(HorsemanSprite({ palette, svgOnly: true }));
   });
 });
 
