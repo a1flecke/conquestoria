@@ -48,11 +48,25 @@ describe('#544 MR5 — contract items 80-82: AI uses Rally, Seize, and Last Stan
       id: 'defender-2', type: 'archer', owner: aiId, position: { q: 1, r: 0 },
       movementPointsLeft: 1, health: 100, experience: 0, hasMoved: false, hasActed: false, isResting: false,
     } as Unit;
-    // Two stacked, full-health, not-yet-acted defenders: no eligible Rally
-    // target (no landSupply set), no acted unit for Seize -- Last Stand
-    // should win by elimination even with zero visible threat, since it's
-    // the only opportunity with any eligible targets at all.
     state.civilizations[aiId]!.units = ['gen-1', 'defender-1', 'defender-2'];
+    // A visible incoming attacker gives this formation real, non-marginal
+    // Last Stand value (contract's "incoming threat" scoring factor) --
+    // without one, a bare 2-unit/zero-threat brace falls under the shared
+    // spend layer's MINIMUM_OPPORTUNITY_VALUE floor and correctly gets
+    // skipped as too marginal to spend a scarce charge on.
+    state.civilizations[aiId]!.diplomacy.atWarWith = ['player'];
+    state.civilizations.player!.diplomacy.atWarWith = [aiId];
+    state.units['attacker-1'] = {
+      id: 'attacker-1', type: 'warrior', owner: 'player', position: { q: 2, r: 0 },
+      movementPointsLeft: 1, health: 100, experience: 0, hasMoved: false, hasActed: false, isResting: false,
+    } as Unit;
+    state.civilizations.player!.units = [...state.civilizations.player!.units, 'attacker-1'];
+    state.civilizations[aiId]!.visibility.tiles = Object.fromEntries(
+      Object.keys(state.map.tiles).map(key => [key, 'visible' as const]),
+    );
+    // No eligible Rally target (no landSupply set), no acted unit for
+    // Seize -- Last Stand wins by elimination among the three abilities,
+    // and now clears the marginal-value floor because of the real threat.
     expect(chooseGeneralCommandAction(state, 'gen-1')?.ability).toBe('last_stand');
   });
 });
