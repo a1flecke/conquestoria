@@ -297,6 +297,73 @@ describe('Great General identity display (#544 MR3)', () => {
   });
 });
 
+describe('#544 MR4 — General command panel', () => {
+  beforeEach(installMockDocument);
+  afterEach(restoreMockDocument);
+
+  function makeGeneralState(overrides: Partial<{ generalCommandChargesUsed: number; generalNoCommandThisTurn: boolean }> = {}) {
+    const state = createNewGame(undefined, 'general-command-panel-1', 'small');
+    const romeGeneral = GENERAL_DEFINITIONS.find(g => g.civTypeEligibility.includes('rome'))!;
+    const unit = {
+      ...createUnit('great_general', 'player', { q: 15, r: 15 }, { nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 }),
+      id: 'u1',
+      generalDefinitionId: romeGeneral.id,
+      ...overrides,
+    };
+    state.currentPlayer = 'player';
+    state.units = { u1: unit };
+    state.civilizations.player.units = ['u1'];
+    return state;
+  }
+
+  it('shows exact command range, capacity, charges, and cooldown', () => {
+    const state = makeGeneralState({ generalCommandChargesUsed: 1 });
+    const container = new MockElement('div');
+
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'u1', {});
+
+    const text = collectAllText(container).join(' ');
+    expect(text).toMatch(/2\s*\/\s*3/); // 2 charges remaining of 3
+    expect(text).toMatch(/command range/i);
+    expect(text).toMatch(/command capacity/i);
+  });
+
+  it('renders three ability buttons: Rally, Seize the Moment, Last Stand', () => {
+    const state = makeGeneralState();
+    const container = new MockElement('div');
+
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'u1', {});
+
+    const text = collectAllText(container).join(' ');
+    expect(text).toMatch(/Rally/);
+    expect(text).toMatch(/Seize the Moment/);
+    expect(text).toMatch(/Last Stand/);
+  });
+
+  it('disables ability buttons when the General is ineligible (e.g. spawn-turn restriction)', () => {
+    const state = makeGeneralState({ generalNoCommandThisTurn: true });
+    const container = new MockElement('div');
+
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'u1', {});
+
+    const buttons = findButtons(container).filter(b => /Rally|Seize the Moment|Last Stand/.test(b.textContent ?? ''));
+    expect(buttons.length).toBeGreaterThan(0);
+    for (const button of buttons) expect(button.disabled).toBe(true);
+  });
+
+  it('clicking Rally invokes onOpenRally with the General\'s unit id', () => {
+    const state = makeGeneralState();
+    const container = new MockElement('div');
+    const onOpenRally = vi.fn();
+
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'u1', { onOpenRally });
+
+    const rallyButton = findButtons(container).find(b => /^Rally/.test(b.textContent ?? ''))!;
+    rallyButton.click();
+    expect(onOpenRally).toHaveBeenCalledWith('u1');
+  });
+});
+
 describe('selected-unit scroll affordance', () => {
   beforeEach(installMockDocument);
   afterEach(restoreMockDocument);
