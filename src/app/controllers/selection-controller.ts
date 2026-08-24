@@ -191,6 +191,10 @@ export function createSelectionController(deps: SelectionControllerDeps): Select
           deps.advisorSystem.resetMessage('supply_intro');
           deps.advisorSystem.check(session.getState());
         },
+        onReopenGeneralTutorial: () => {
+          deps.advisorSystem.resetMessage('general_command_intro');
+          deps.advisorSystem.check(session.getState());
+        },
         onOpenRally: (generalUnitId: string) => {
           const preview = getRallyPreview(session.getState(), generalUnitId);
           createRallyPanel(

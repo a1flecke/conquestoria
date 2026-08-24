@@ -1939,7 +1939,8 @@ export type TutorialStep =
   | 'build_unit'
   | 'combat'
   | 'complete'
-  | 'supply_intro';
+  | 'supply_intro'
+  | 'general_command_intro';
 
 export interface TutorialState {
   active: boolean;
