@@ -384,7 +384,7 @@ history).
 - **MR3 — Great General data/lifecycle**: `GENERAL_DEFINITIONS`, XP/threshold
   progression, candidate generation, spawn, escort/transport/death rules,
   history ledger, save fields.
-- **MR4 — Passive command + heroic abilities** 🟡 implemented, pending PR/merge
+- **MR4 — Passive command + heroic abilities** ✅ merged (#879)
   (see `docs/superpowers/plans/2026-08-24-issue-544-mr4-passive-command-heroic-abilities.md`):
   stabilization aura, Rally, Seize the Moment, Last Stand (including the
   `applyCombatOutcomeToState` integration from §7), Final Command/retirement.
