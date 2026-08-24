@@ -13,6 +13,7 @@ import { applyUnitUpgradeToState } from '@/systems/unit-upgrade-system';
 import { foundCity } from '@/systems/city-system';
 import { processPurposefulBarbarians } from '@/systems/barbarian-system';
 import { CRISIS_FORCE_OWNER } from '@/core/owner-kind';
+import { getHeroicCommandEligibility } from '@/systems/great-general-abilities';
 
 describe('save migrations', () => {
   it('#701 initializes and normalizes crisis-force records idempotently', () => {
@@ -946,5 +947,42 @@ describe('#751 — migrateCoastalHullsOffOcean (schema 9)', () => {
     const posA = migrated.units[galleyA.id]!.position;
     const posB = migrated.units[galleyB.id]!.position;
     expect(`${posA.q},${posA.r}`).not.toBe(`${posB.q},${posB.r}`);
+  });
+});
+
+describe('#544 MR4 — legacy save load with no General heroic-command fields', () => {
+  function makeLegacyGeneralSave(): GameState {
+    const save = createNewGame('rome', 'mr4-legacy-general-save', 'small');
+    save.saveSchemaVersion = CURRENT_SAVE_SCHEMA_VERSION;
+    const civ = save.civilizations.player!;
+    const general = {
+      ...Object.values(save.units)[0]!,
+      id: 'legacy-general', type: 'great_general' as const, owner: civ.id,
+      generalDefinitionId: 'gen_caesar',
+      // Deliberately no generalCommandChargesUsed/generalCommandCooldownUntilTurn/
+      // lastStandHold/rallyProtectedThisRound/hasCapturedCityThisTurn -- exactly
+      // what an MR3-era save (predating this MR) would have persisted.
+    };
+    delete (general as any).generalCommandChargesUsed;
+    save.units = { [general.id]: general };
+    civ.units = [general.id];
+    civ.generalHistory = [{ unitId: general.id, generalDefinitionId: 'gen_caesar', spawnedTurn: 1 }];
+    return save;
+  }
+
+  it('a save with a great_general unit but no generalCommandChargesUsed/cooldown/lastStandHold fields loads without error, defaulting to full charges', () => {
+    const migrated = migrateSaveToCurrent(makeLegacyGeneralSave());
+    const general = migrated.units['legacy-general']!;
+    expect(general.generalCommandChargesUsed).toBeUndefined();
+    expect(general.generalCommandCooldownUntilTurn).toBeUndefined();
+    expect(general.lastStandHold).toBeUndefined();
+  });
+
+  it('getHeroicCommandEligibility on that legacy-loaded General reports full charges and no cooldown', () => {
+    const migrated = migrateSaveToCurrent(makeLegacyGeneralSave());
+    const general = migrated.units['legacy-general']!;
+    const eligibility = getHeroicCommandEligibility(migrated, general);
+    expect(eligibility.chargesRemaining).toBe(3);
+    expect(eligibility.cooldownTurnsRemaining).toBe(0);
   });
 });
