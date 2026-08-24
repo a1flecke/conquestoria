@@ -20,7 +20,7 @@
 | SFX | No source or event change. The review board explicitly labels this batch silent. |
 | Visual system | Preserve the 128×128 wrapper, palette-derived identity, ink outlines, mobile legibility, native `data-kind` semantics, state hooks, phase desynchronization, and reduced-motion suppression. |
 
-### Task 1: Lock the exact visual-only contract with failing regressions
+### Task 1: Lock the exact visual-only contract with failing regressions ✅ completed (2026-08-24)
 
 **Files:**
 - Modify: `tests/renderer/sprites/v2/index.test.ts`
@@ -47,7 +47,7 @@
 
   Run: `git add tests/renderer/sprites/v2/index.test.ts tests/renderer/sprites/sprite-catalog.test.ts tests/renderer/sprite-overlay.test.ts && git commit -m "test(708): cover mounted and beast native sprites"`
 
-### Task 2: Author source art and replace the low-zoom aliases
+### Task 2: Author source art and replace the low-zoom aliases ✅ completed (2026-08-24)
 
 **Files:**
 - Modify: `design/conquestoria-sprites/lib/units-v2.jsx`
@@ -91,7 +91,7 @@
 
   Run: `git add design/conquestoria-sprites/lib/units-v2.jsx scripts/serialize-sprites.mjs src/renderer/sprites/units.tsx src/renderer/sprites/sprite-catalog.ts src/renderer/sprites/v2/beast_handler.svg.ts src/renderer/sprites/v2/war_elephant.svg.ts src/renderer/sprites/v2/cuirassier.svg.ts src/renderer/sprites/v2/index.ts && git commit -m "feat(708): add mounted and beast native sprites"`
 
-### Task 3: Create the remote visual review
+### Task 3: Create the remote visual review ✅ completed (2026-08-24)
 
 **Files:**
 - Create: `docs/reviews/assets/issue-708/mounted-beast-review.svg`
@@ -111,18 +111,18 @@
 
   Run: `git add docs/reviews/assets/issue-708/mounted-beast-review.svg docs/reviews/issue-708-mounted-beast-visual-review.md && git commit -m "docs(708): add mounted beast visual review"`
 
-### Task 4: Verify and deliver the draft PR
+### Task 4: Verify and deliver the draft PR 🟡 verification completed; draft PR pending creation
 
 **Files:**
 - Modify: `docs/superpowers/plans/2026-07-24-issue-547-visual-and-audio-polish.md` only if that plan is present on the rebased base; annotate Task 44 as partial or merged truthfully.
 
-- [ ] **Step 1: Inspect both committed and working-tree deltas.**
+- [x] **Step 1: Inspect both committed and working-tree deltas.**
 
   Run: `git diff --check && git diff --stat origin/main...HEAD && git diff --stat && git diff origin/main...HEAD`
 
   Expected: source changes are only sprite-pipeline, tests, and review documentation; no systems, AI, saves, audio, or UI action changes.
 
-- [ ] **Step 2: Run final verification.**
+- [x] **Step 2: Run final verification.**
 
   Run separately: `bash scripts/run-with-mise.sh yarn build`; then `bash scripts/run-with-mise.sh yarn test:durable`; then `bash scripts/run-with-mise.sh yarn test:durable:status`.
 
