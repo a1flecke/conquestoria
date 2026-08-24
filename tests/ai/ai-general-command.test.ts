@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createNewGame } from '@/core/game-state';
-import { getEraGenerals, isGeneralInDanger } from '@/ai/ai-general-command';
+import { evaluateRallyOpportunity, getEraGenerals, isGeneralInDanger } from '@/ai/ai-general-command';
+import { issueRally } from '@/systems/great-general-abilities';
 import type { Unit } from '@/core/types';
 
 function makeGeneral(overrides: Partial<Unit> = {}): Unit {
@@ -58,5 +59,45 @@ describe('#544 MR5 — ai-general-command scaffolding', () => {
     );
 
     expect(isGeneralInDanger(state, general)).toBe(true);
+  });
+});
+
+describe('#544 MR5 — evaluateRallyOpportunity', () => {
+  it('returns null when no unit is eligible for Rally (nothing to heal nearby)', () => {
+    const state = createNewGame({ civType: 'rome', mapSize: 'small', opponentCount: 1, gameTitle: 't', seed: 'rally-1' });
+    state.units['gen-1'] = makeGeneral();
+    state.civilizations.player!.units = ['gen-1'];
+    expect(evaluateRallyOpportunity(state, 'gen-1')).toBeNull();
+  });
+
+  it('returns a positive-score opportunity that, when executed, matches issueRally directly', () => {
+    const state = createNewGame({ civType: 'rome', mapSize: 'small', opponentCount: 1, gameTitle: 't', seed: 'rally-2' });
+    state.units['gen-1'] = makeGeneral();
+    state.units['unit-1'] = {
+      id: 'unit-1', type: 'warrior', owner: 'player', position: { q: 1, r: 0 },
+      movementPointsLeft: 1, health: 40, experience: 0, hasMoved: false, hasActed: false, isResting: false,
+      landSupply: { state: 'severe', hostileUnsupportedTurns: 5, suppliedTurnsSinceRecovery: 0 },
+    } as Unit;
+    state.civilizations.player!.units = ['gen-1', 'unit-1'];
+
+    const opportunity = evaluateRallyOpportunity(state, 'gen-1');
+    expect(opportunity).not.toBeNull();
+    expect(opportunity!.ability).toBe('rally');
+    expect(opportunity!.score).toBeGreaterThan(0);
+    const executed = opportunity!.execute(state);
+    const direct = issueRally(state, 'gen-1');
+    expect(executed.units['unit-1']!.health).toBe(direct.units['unit-1']!.health);
+  });
+
+  it('returns null when the General is not eligible (already used all charges)', () => {
+    const state = createNewGame({ civType: 'rome', mapSize: 'small', opponentCount: 1, gameTitle: 't', seed: 'rally-3' });
+    state.units['gen-1'] = makeGeneral({ generalCommandChargesUsed: 3 });
+    state.units['unit-1'] = {
+      id: 'unit-1', type: 'warrior', owner: 'player', position: { q: 1, r: 0 },
+      movementPointsLeft: 1, health: 40, experience: 0, hasMoved: false, hasActed: false, isResting: false,
+      landSupply: { state: 'severe', hostileUnsupportedTurns: 5, suppliedTurnsSinceRecovery: 0 },
+    } as Unit;
+    state.civilizations.player!.units = ['gen-1', 'unit-1'];
+    expect(evaluateRallyOpportunity(state, 'gen-1')).toBeNull();
   });
 });
