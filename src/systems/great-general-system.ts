@@ -3,6 +3,7 @@ import { GENERAL_DEFINITIONS, type GeneralDefinition } from '@/systems/great-gen
 import { seededLcg, weightedPick } from '@/systems/seeded-lcg';
 import { resolveCivilizationEra } from '@/systems/tech-definitions';
 import { createUnit } from '@/systems/unit-system';
+import { mapDistance } from '@/systems/hex-utils';
 
 /**
  * Threshold formula (contract §13 — "data-driven and not yet locked", this
@@ -230,4 +231,50 @@ export function getEffectiveCommandStats(
     };
   }
   return { commandRange: definition.commandRange, commandCapacity: definition.commandCapacity };
+}
+
+/**
+ * #544 MR4 contract §16: "within commandRange, up to commandCapacity
+ * eligible out-of-supply units can have degradation paused... automatic
+ * every turn... priority: closest eligible, then stable tie-breaker."
+ * "Eligible" here means the unit would otherwise advance its overextension
+ * stage this round (owned by civId, out of supply, in hostile territory) --
+ * pausing a unit with no active degradation clock (full/stable-unsupported)
+ * is a no-op, so those are excluded rather than wastefully "stabilized."
+ * Computed once per civ per round by resolveLandSupplyForCiv, mirroring
+ * that function's existing per-civ precompute discipline (contract §35).
+ * Each eligible General independently fills its own capacity from the full
+ * eligible pool -- overlapping General ranges do not compete for the same
+ * capacity budget, they simply produce a redundant (harmless) stabilization
+ * of the same unit.
+ */
+export function getPassiveStabilizationTargets(state: GameState, civId: string): Set<string> {
+  const civ = state.civilizations[civId];
+  if (!civ) return new Set();
+
+  const civUnits = civ.units.map(id => state.units[id]).filter((u): u is Unit => Boolean(u));
+  const generals = civUnits.filter(
+    u => u.type === 'great_general' && u.generalDefinitionId && !u.generalNoCommandThisTurn,
+  );
+  const degradingUnits = civUnits.filter(
+    u => u.landSupply !== undefined
+      && (u.landSupply.state === 'grace' || u.landSupply.state === 'degraded' || u.landSupply.state === 'severe'),
+  );
+
+  const stabilized = new Set<string>();
+  for (const general of generals) {
+    const definition = GENERAL_DEFINITIONS.find(g => g.id === general.generalDefinitionId);
+    if (!definition) continue;
+    const { commandRange, commandCapacity } = getEffectiveCommandStats(general, definition);
+
+    const inRange = degradingUnits
+      .map(u => ({ unit: u, distance: mapDistance(state.map, general.position, u.position) }))
+      .filter(entry => entry.distance <= commandRange)
+      .sort((a, b) => a.distance - b.distance || a.unit.id.localeCompare(b.unit.id));
+
+    for (const entry of inRange.slice(0, commandCapacity)) {
+      stabilized.add(entry.unit.id);
+    }
+  }
+  return stabilized;
 }

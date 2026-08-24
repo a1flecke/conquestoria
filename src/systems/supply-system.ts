@@ -5,6 +5,7 @@ import { classifyLandSupplyTerritory } from './supply-territory';
 import { getCivSupplySourceCandidates, getLandSupplySourceCoverage } from './supply-sources';
 import { getNavalShoreSupplyAssignments } from './supply-naval';
 import { advanceOverextensionStage, resolveSupplyRecoveryForUnit } from './supply-progression';
+import { getPassiveStabilizationTargets } from './great-general-system';
 
 /**
  * Thin composition root — the only supply module `turn-manager.ts` imports
@@ -19,6 +20,9 @@ export function resolveLandSupplyForCiv(state: GameState, civId: string): GameSt
   // getLandSupplySourceCoverage per unit with no precomputed candidates,
   // turning a full-map tile scan into O(units × map size) per civ.
   const sourceCandidates = getCivSupplySourceCandidates(state, civId);
+  // #544 MR4: computed once per civ per round, same discipline as
+  // sourceCandidates above (contract §35 -- avoid unbounded per-unit scans).
+  const passiveStabilizationTargets = getPassiveStabilizationTargets(state, civId);
   let units = state.units;
   let changed = false;
 
@@ -30,6 +34,12 @@ export function resolveLandSupplyForCiv(state: GameState, civId: string): GameSt
     const territoryClass = classifyLandSupplyTerritory(state, civId, tile?.owner ?? null);
     const coveredByLandSource = getLandSupplySourceCoverage(state, civId, unit.position, sourceCandidates);
     const isSupplied = coveredByLandSource || shoreAssignments.has(unit.id);
+    // #544 MR4: a General's passive stabilization aura AND Rally's one-round
+    // protection both feed the same stabilizedByGeneral input -- Rally is
+    // itself a General intervention, so folding it into the same boolean
+    // matches supply-progression.ts's single documented extension point
+    // instead of adding a second parameter.
+    const stabilizedByGeneral = passiveStabilizationTargets.has(unit.id) || unit.rallyProtectedThisRound === true;
 
     const current: UnitLandSupplyStatus = unit.landSupply ?? { state: 'full', hostileUnsupportedTurns: 0, suppliedTurnsSinceRecovery: 0 };
     // Only a *stabilized* city/fort grants the instant same-tile clear
@@ -45,7 +55,7 @@ export function resolveLandSupplyForCiv(state: GameState, civId: string): GameSt
 
     const next = isSupplied
       ? resolveSupplyRecoveryForUnit(current, true, isOnStabilizedBaseTile, attackedThisTurn)
-      : advanceOverextensionStage(current, territoryClass, false);
+      : advanceOverextensionStage(current, territoryClass, false, stabilizedByGeneral);
 
     if (next !== current || unit.landSupply === undefined) {
       units = units === state.units ? { ...state.units } : units;

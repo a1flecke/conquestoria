@@ -9,10 +9,12 @@ import {
   checkAndQueueGeneralCandidateChoice,
   spawnGeneralForCiv,
   getEffectiveCommandStats,
+  getPassiveStabilizationTargets,
 } from '@/systems/great-general-system';
 import { GENERAL_DEFINITIONS } from '@/systems/great-general-definitions';
 import { createNewGame } from '@/core/game-state';
 import { foundCity } from '@/systems/city-system';
+import type { Unit } from '@/core/types';
 
 describe('getGeneralThreshold', () => {
   it('the first General costs less than the second', () => {
@@ -312,5 +314,101 @@ describe('getEffectiveCommandStats', () => {
     expect(result.commandRange).toBeLessThan(baseDefinition.commandRange);
     expect(result.commandRange).toBeGreaterThanOrEqual(1);
     expect(result.commandCapacity).toBeGreaterThanOrEqual(1);
+  });
+});
+
+describe('#544 MR4 — getPassiveStabilizationTargets', () => {
+  function baseState() {
+    return createNewGame({ civType: 'rome', mapSize: 'small', opponentCount: 1, gameTitle: 't', seed: 'stab-1' });
+  }
+
+  it('stabilizes an eligible out-of-supply unit within commandRange of an operational General', () => {
+    const state = baseState();
+    state.units['gen-1'] = {
+      id: 'gen-1', type: 'great_general', owner: 'player', position: { q: 0, r: 0 },
+      movementPointsLeft: 3, health: 100, experience: 0, hasMoved: false, hasActed: false, isResting: false,
+      generalDefinitionId: 'gen_caesar',
+    } as Unit;
+    state.units['unit-1'] = {
+      id: 'unit-1', type: 'warrior', owner: 'player', position: { q: 1, r: 0 },
+      movementPointsLeft: 1, health: 60, experience: 0, hasMoved: false, hasActed: false, isResting: false,
+      landSupply: { state: 'degraded', hostileUnsupportedTurns: 3, suppliedTurnsSinceRecovery: 0 },
+    } as Unit;
+    state.civilizations.player.units = ['gen-1', 'unit-1'];
+
+    const targets = getPassiveStabilizationTargets(state, 'player');
+    expect(targets.has('unit-1')).toBe(true);
+  });
+
+  it('does not stabilize a unit outside commandRange', () => {
+    const state = baseState();
+    state.units['gen-1'] = {
+      id: 'gen-1', type: 'great_general', owner: 'player', position: { q: 0, r: 0 },
+      movementPointsLeft: 3, health: 100, experience: 0, hasMoved: false, hasActed: false, isResting: false,
+      generalDefinitionId: 'gen_caesar', // V1 commandRange = 2
+    } as Unit;
+    state.units['unit-1'] = {
+      id: 'unit-1', type: 'warrior', owner: 'player', position: { q: 5, r: 0 },
+      movementPointsLeft: 1, health: 60, experience: 0, hasMoved: false, hasActed: false, isResting: false,
+      landSupply: { state: 'degraded', hostileUnsupportedTurns: 3, suppliedTurnsSinceRecovery: 0 },
+    } as Unit;
+    state.civilizations.player.units = ['gen-1', 'unit-1'];
+
+    expect(getPassiveStabilizationTargets(state, 'player').has('unit-1')).toBe(false);
+  });
+
+  it('never stabilizes a unit that is already full supply or stable-unsupported (nothing to pause)', () => {
+    const state = baseState();
+    state.units['gen-1'] = {
+      id: 'gen-1', type: 'great_general', owner: 'player', position: { q: 0, r: 0 },
+      movementPointsLeft: 3, health: 100, experience: 0, hasMoved: false, hasActed: false, isResting: false,
+      generalDefinitionId: 'gen_caesar',
+    } as Unit;
+    state.units['unit-1'] = {
+      id: 'unit-1', type: 'warrior', owner: 'player', position: { q: 1, r: 0 },
+      movementPointsLeft: 1, health: 60, experience: 0, hasMoved: false, hasActed: false, isResting: false,
+      landSupply: { state: 'full', hostileUnsupportedTurns: 0, suppliedTurnsSinceRecovery: 0 },
+    } as Unit;
+    state.civilizations.player.units = ['gen-1', 'unit-1'];
+
+    expect(getPassiveStabilizationTargets(state, 'player').has('unit-1')).toBe(false);
+  });
+
+  it('respects commandCapacity — closest-eligible-first, stable tie-breaker beyond capacity', () => {
+    const state = baseState();
+    state.units['gen-1'] = {
+      id: 'gen-1', type: 'great_general', owner: 'player', position: { q: 0, r: 0 },
+      movementPointsLeft: 3, health: 100, experience: 0, hasMoved: false, hasActed: false, isResting: false,
+      generalDefinitionId: 'gen_caesar', // V1 commandCapacity = 3
+    } as Unit;
+    const degraded = { state: 'degraded' as const, hostileUnsupportedTurns: 3, suppliedTurnsSinceRecovery: 0 };
+    for (let i = 1; i <= 4; i++) {
+      state.units[`unit-${i}`] = {
+        id: `unit-${i}`, type: 'warrior', owner: 'player', position: { q: i === 4 ? 2 : 1, r: 0 },
+        movementPointsLeft: 1, health: 60, experience: 0, hasMoved: false, hasActed: false, isResting: false,
+        landSupply: degraded,
+      } as Unit;
+    }
+    state.civilizations.player.units = ['gen-1', 'unit-1', 'unit-2', 'unit-3', 'unit-4'];
+
+    const targets = getPassiveStabilizationTargets(state, 'player');
+    expect(targets.size).toBe(3); // capacity-capped
+  });
+
+  it('a General on its spawn turn (generalNoCommandThisTurn) stabilizes nothing', () => {
+    const state = baseState();
+    state.units['gen-1'] = {
+      id: 'gen-1', type: 'great_general', owner: 'player', position: { q: 0, r: 0 },
+      movementPointsLeft: 3, health: 100, experience: 0, hasMoved: false, hasActed: false, isResting: false,
+      generalDefinitionId: 'gen_caesar', generalNoCommandThisTurn: true,
+    } as Unit;
+    state.units['unit-1'] = {
+      id: 'unit-1', type: 'warrior', owner: 'player', position: { q: 1, r: 0 },
+      movementPointsLeft: 1, health: 60, experience: 0, hasMoved: false, hasActed: false, isResting: false,
+      landSupply: { state: 'degraded', hostileUnsupportedTurns: 3, suppliedTurnsSinceRecovery: 0 },
+    } as Unit;
+    state.civilizations.player.units = ['gen-1', 'unit-1'];
+
+    expect(getPassiveStabilizationTargets(state, 'player').size).toBe(0);
   });
 });

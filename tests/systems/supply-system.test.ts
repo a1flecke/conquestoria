@@ -31,7 +31,11 @@ function makeStateWithSource(opts: {
   }
   return {
     map, cities, units: {}, turn: 1,
-    civilizations: { [owner]: { techState: { completed: opts.citadelTech ? ['fortification-engineering'] : [] } } as any },
+    // #544 MR4: units: [] is required here now that resolveLandSupplyForCiv
+    // unconditionally calls getPassiveStabilizationTargets, which reads
+    // civ.units (a real, non-optional Civilization field) -- a bare
+    // techState-only object satisfied the old code path but not this one.
+    civilizations: { [owner]: { techState: { completed: opts.citadelTech ? ['fortification-engineering'] : [] }, units: [] } as any },
   } as unknown as GameState;
 }
 
@@ -53,6 +57,31 @@ describe('resolveLandSupplyForCiv (integration)', () => {
     state.units = { s1: { id: 's1', type: 'settler', owner: 'rome', position: { q: 19, r: 19 }, health: 100, movementPointsLeft: 1, hasMoved: false, hasActed: false } as Unit };
     const next = resolveLandSupplyForCiv(state, 'rome');
     expect(next.units.s1!.landSupply).toBeUndefined();
+  });
+});
+
+describe('#544 MR4 — passive command stabilization integration', () => {
+  it('a unit within an operational General\'s command range does not advance its overextension stage', () => {
+    const state = makeStateWithSource({ sourceCoord: { q: 0, r: 0 }, sourceKind: 'city', ownerId: 'rome' });
+    state.map.tiles[hexKey({ q: 19, r: 19 })] = { ...state.map.tiles[hexKey({ q: 19, r: 19 })]!, owner: 'carthage' };
+    state.map.tiles[hexKey({ q: 18, r: 19 })] = { ...state.map.tiles[hexKey({ q: 18, r: 19 })]!, owner: 'carthage' };
+    state.units = {
+      u1: {
+        id: 'u1', type: 'warrior', owner: 'rome', position: { q: 19, r: 19 }, health: 100,
+        movementPointsLeft: 1, hasMoved: false, hasActed: false,
+        landSupply: { state: 'degraded', hostileUnsupportedTurns: 3, suppliedTurnsSinceRecovery: 0 },
+      } as Unit,
+      gen1: {
+        id: 'gen1', type: 'great_general', owner: 'rome', position: { q: 18, r: 19 }, health: 100,
+        movementPointsLeft: 3, hasMoved: false, hasActed: false,
+        generalDefinitionId: 'gen_caesar', // V1 commandRange = 2, distance to u1 = 1
+      } as Unit,
+    };
+    (state.civilizations.rome as any).units = ['u1', 'gen1'];
+
+    const next = resolveLandSupplyForCiv(state, 'rome');
+    expect(next.units.u1!.landSupply!.state).toBe('degraded'); // not 'severe'
+    expect(next.units.u1!.landSupply!.hostileUnsupportedTurns).toBe(3); // frozen
   });
 });
 

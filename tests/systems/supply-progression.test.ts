@@ -55,6 +55,20 @@ describe('advanceOverextensionStage', () => {
     const result = advanceOverextensionStage(degraded, 'unclaimed', false);
     expect(result).toEqual({ state: 'stable-unsupported', hostileUnsupportedTurns: 0, suppliedTurnsSinceRecovery: 0 });
   });
+
+  it('#544 MR4: stabilizedByGeneral freezes the current stage instead of advancing it', () => {
+    const current: UnitLandSupplyStatus = { state: 'degraded', hostileUnsupportedTurns: 3, suppliedTurnsSinceRecovery: 0 };
+    const result = advanceOverextensionStage(current, 'hostile', false, true);
+    expect(result.state).toBe('degraded');
+    expect(result.hostileUnsupportedTurns).toBe(3); // frozen, not incremented to 4
+  });
+
+  it('#544 MR4: stabilizedByGeneral defaults to false, preserving MR1-MR3 behavior', () => {
+    const current: UnitLandSupplyStatus = { state: 'degraded', hostileUnsupportedTurns: 4, suppliedTurnsSinceRecovery: 0 };
+    const result = advanceOverextensionStage(current, 'hostile', false);
+    expect(result.state).toBe('severe');
+    expect(result.hostileUnsupportedTurns).toBe(5);
+  });
 });
 
 describe('resolveSupplyRecoveryForUnit', () => {

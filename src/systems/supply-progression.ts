@@ -14,24 +14,26 @@ function stageForHostileTurns(turns: number): LandSupplyState {
   return 'severe';
 }
 
-/**
- * Extensibility seam, not implemented now: MR4's Great General passive
- * command stabilization (contract §16) "pauses degradation" for nearby
- * units without making them Full Supply — a third input this function
- * doesn't accept yet. It will gain a `stabilizedByGeneral: boolean`
- * parameter in MR4 (defaulting to `false` so MR1-MR3 callers are
- * unaffected).
- */
+/** #544 MR4: stabilizedByGeneral is fed by
+ * great-general-system.ts's getPassiveStabilizationTargets, composed once
+ * per civ per round in supply-system.ts's resolveLandSupplyForCiv. */
 export function advanceOverextensionStage(
   current: UnitLandSupplyStatus,
   territoryClass: LandSupplyTerritoryClass,
   isSupplied: boolean,
+  stabilizedByGeneral: boolean = false,
 ): UnitLandSupplyStatus {
   if (isSupplied) {
     return { state: 'full', hostileUnsupportedTurns: 0, suppliedTurnsSinceRecovery: current.suppliedTurnsSinceRecovery };
   }
   if (territoryClass !== 'hostile') {
     return { state: 'stable-unsupported', hostileUnsupportedTurns: 0, suppliedTurnsSinceRecovery: 0 };
+  }
+  // #544 MR4 contract §16: passive command stabilization "pauses" degradation
+  // -- it does not clear the current stage/counter, only prevents the next
+  // worsening step this round.
+  if (stabilizedByGeneral) {
+    return current;
   }
   const hostileUnsupportedTurns = current.hostileUnsupportedTurns + 1;
   return { state: stageForHostileTurns(hostileUnsupportedTurns), hostileUnsupportedTurns, suppliedTurnsSinceRecovery: 0 };
