@@ -216,6 +216,40 @@ describe('isV2NativeUnit', () => {
   });
 });
 
+describe('#708 mounted and beast native sprites', () => {
+  const ISSUE_708_NATIVE = {
+    beast_handler: 'hound',
+    war_elephant: 'hound',
+    cuirassier: 'melee',
+  } as const;
+  const FACTIONS = ['imperials', 'vikings', 'pharaohs', 'hellenes', 'khanate', 'shogunate'];
+
+  it.each(Object.entries(ISSUE_708_NATIVE))('%s is native v2 art with the documented body plan', (type, kind) => {
+    expect(isV2NativeUnit(type)).toBe(true);
+    for (const faction of FACTIONS) {
+      const result = getUnitSpriteV2(type, faction)!;
+      expect(result, `${type}/${faction}`).toContain('cq-sprite-wrap');
+      expect(result, `${type}/${faction}`).toContain('cq-v2');
+      expect(result, `${type}/${faction}`).toContain(`data-kind="${kind}"`);
+    }
+  });
+
+  it.each(['beast_handler', 'war_elephant'])('%s uses the supported quadruped gait hooks', (type) => {
+    const result = getUnitSpriteV2(type, 'imperials')!;
+    expect(result).toContain('data-kind-variant="war"');
+    expect(result).toContain('cq-leg-fl');
+    expect(result).toContain('cq-leg-fr');
+    expect(result).toContain('cq-leg-bl');
+    expect(result).toContain('cq-leg-br');
+  });
+
+  it('cuirassier has the melee attack-feedback hooks', () => {
+    const result = getUnitSpriteV2('cuirassier', 'imperials')!;
+    expect(result).toContain('cq-weapon');
+    expect(result).toContain('cq-hit-spark');
+  });
+});
+
 describe('#759 batch 1 — v2-native migration', () => {
   const MIGRATED = ['combat_drone', 'autonomous_frigate', 'exosuit_infantry', 'propagandist', 'drone_controller'];
   const EXPECTED_KIND: Record<string, string> = {
