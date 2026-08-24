@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { EventBus } from '@/core/event-bus';
+import { EventBus } from '@/core/event-bus';
+import { processTurn } from '@/core/turn-manager';
 import {
   getGeneralThreshold,
   addGeneralProgress,
@@ -13,6 +14,7 @@ import {
   getPassiveStabilizationTargets,
   describeGeneralCareerEnd,
   retireGeneralsAtTurnEnd,
+  chooseBestGeneralCandidate,
 } from '@/systems/great-general-system';
 import { GENERAL_DEFINITIONS } from '@/systems/great-general-definitions';
 import { createNewGame } from '@/core/game-state';
@@ -477,5 +479,56 @@ describe('#544 MR4 — retireGeneralsAtTurnEnd', () => {
   it('#544 MR4 review fix: is safe to call with no bus at all (bus is optional)', () => {
     const state = { ...setup(3), turn: 7 };
     expect(() => retireGeneralsAtTurnEnd(state, 'player')).not.toThrow();
+  });
+});
+
+describe('#544 MR5 — chooseBestGeneralCandidate', () => {
+  it('picks the candidate with the highest commandRange + commandCapacity + maxCommandCharges, tie-broken by id', () => {
+    const candidates = [
+      { ...GENERAL_DEFINITIONS[0]!, id: 'z-weak', commandRange: 1, commandCapacity: 1, maxCommandCharges: 1 },
+      { ...GENERAL_DEFINITIONS[0]!, id: 'a-strong', commandRange: 3, commandCapacity: 3, maxCommandCharges: 3 },
+      { ...GENERAL_DEFINITIONS[0]!, id: 'b-strong', commandRange: 3, commandCapacity: 3, maxCommandCharges: 3 },
+    ];
+    const picked = chooseBestGeneralCandidate(candidates);
+    expect(picked.id).toBe('a-strong');
+  });
+
+  it('returns the single candidate when only one is offered', () => {
+    const candidates = [{ ...GENERAL_DEFINITIONS[0]! }];
+    expect(chooseBestGeneralCandidate(candidates).id).toBe(candidates[0]!.id);
+  });
+});
+
+describe('#544 MR5 — AI civs acquire Generals automatically', () => {
+  it('an AI civ that crosses the General threshold spawns a General without any human interaction', () => {
+    const state = createNewGame({ civType: 'rome', mapSize: 'small', opponentCount: 1, gameTitle: 't', seed: 'ai-gen-1' });
+    const aiId = Object.keys(state.civilizations).find(id => id !== 'player')!;
+    const capital = foundCity(aiId, { q: 5, r: 5 }, state.map, state.idCounters);
+    state.cities = { ...state.cities, [capital.id]: capital };
+    state.civilizations[aiId] = {
+      ...state.civilizations[aiId]!,
+      cities: [capital.id],
+      generalProgress: { points: 999, generalsEarned: 0 },
+    };
+    const result = processTurn(state, new EventBus());
+    const aiUnits = result.civilizations[aiId]!.units.map(id => result.units[id]);
+    expect(aiUnits.some(u => u?.type === 'great_general')).toBe(true);
+    expect(result.pendingGeneralCandidateChoices ?? []).not.toContainEqual(
+      expect.objectContaining({ civId: aiId }),
+    );
+  });
+
+  it('a human civ that crosses the threshold still only queues a pending choice (does not auto-spawn)', () => {
+    const state = createNewGame({ civType: 'rome', mapSize: 'small', opponentCount: 1, gameTitle: 't', seed: 'ai-gen-2' });
+    state.civilizations.player = {
+      ...state.civilizations.player!,
+      generalProgress: { points: 999, generalsEarned: 0 },
+    };
+    const result = processTurn(state, new EventBus());
+    const playerUnits = result.civilizations.player!.units.map(id => result.units[id]);
+    expect(playerUnits.some(u => u?.type === 'great_general')).toBe(false);
+    expect(result.pendingGeneralCandidateChoices ?? []).toContainEqual(
+      expect.objectContaining({ civId: 'player' }),
+    );
   });
 });

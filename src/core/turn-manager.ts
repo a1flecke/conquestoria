@@ -128,7 +128,8 @@ import { processPiratesForCompletedRound } from '@/systems/pirate-system';
 import { classifyOwner } from './owner-kind';
 import { consumeHerdingInsight, getStampedeLifecycleTransition, hasActiveHerdingInsight, processStampedeScheduling, processStampedeTurn } from '@/systems/stampede-system';
 import { consumeRecoveredHarnesses, getRogueElephantHostLifecycleTransition, hasActiveRecoveredHarnesses, processRogueElephantHostScheduling, processRogueElephantHostTurn } from '@/systems/rogue-elephant-host-system';
-import { checkAndQueueGeneralCandidateChoice, retireGeneralsAtTurnEnd } from '@/systems/great-general-system';
+import { checkAndQueueGeneralCandidateChoice, chooseBestGeneralCandidate, retireGeneralsAtTurnEnd, spawnGeneralForCiv } from '@/systems/great-general-system';
+import { GENERAL_DEFINITIONS, type GeneralDefinition } from '@/systems/great-general-definitions';
 
 // #544 MR3: same char-folding convention combat-reward-system.ts's seededRoll and
 // city-capture-system.ts's assault seed already use -- turns a (turn, civId) pair into
@@ -838,17 +839,30 @@ export function processTurn(
     newState.civilizations[civId].satelliteSurveillanceTargets =
       Object.keys(updatedTargets).length > 0 ? updatedTargets : undefined;
 
-    // #544 MR3: queue a Great General candidate choice once this civ has crossed its
-    // next threshold. Human-only -- AI eligibility/spawning is MR5's scope, not MR3's;
-    // an AI civ accumulating generalProgress here is harmless (no threshold check runs
-    // for it, so it never queues a prompt no human will ever see).
-    if (civ.isHuman) {
-      newState = checkAndQueueGeneralCandidateChoice(
-        newState,
-        civId,
-        'round-end',
-        deriveGeneralCandidateSeed(newState.turn, civId),
-      );
+    // #544 MR3/MR5: queue a Great General candidate choice once this civ has
+    // crossed its next threshold -- now for every civ, human or AI (MR3
+    // originally gated this to humans only; MR5 is the AI-parity follow-up
+    // that comment named). Human choices are resolved by the player via
+    // maybeShowPendingGeneralChoice (bootstrap.ts); AI choices are resolved
+    // immediately below via a deterministic best-stat pick -- no RNG, no
+    // difficulty scaling (Global Constraints).
+    newState = checkAndQueueGeneralCandidateChoice(
+      newState,
+      civId,
+      'round-end',
+      deriveGeneralCandidateSeed(newState.turn, civId),
+    );
+    if (!civ.isHuman) {
+      const pending = (newState.pendingGeneralCandidateChoices ?? [])
+        .find(choice => choice.civId === civId);
+      if (pending) {
+        const candidates = pending.candidateDefinitionIds
+          .map(id => GENERAL_DEFINITIONS.find(g => g.id === id))
+          .filter((g): g is GeneralDefinition => g !== undefined);
+        if (candidates.length > 0) {
+          newState = spawnGeneralForCiv(newState, civId, chooseBestGeneralCandidate(candidates).id);
+        }
+      }
     }
   }
 

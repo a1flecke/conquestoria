@@ -210,6 +210,21 @@ export function spawnGeneralForCiv(
 }
 
 /**
+ * #544 MR5: deterministic AI candidate pick among the 2-3 offered
+ * `GeneralDefinition`s. No RNG (Global Constraints) -- a simple best-stat
+ * sum, tie-broken by id for determinism. Difficulty-invariant: this never
+ * reads `state.opponentChallenge` (contract item 83 -- candidate acquisition
+ * is not a "judgment" call worth scaling, it's a one-time pick among
+ * roughly-equal options).
+ */
+export function chooseBestGeneralCandidate(candidates: GeneralDefinition[]): GeneralDefinition {
+  return [...candidates].sort((a, b) =>
+    (b.commandRange + b.commandCapacity + b.maxCommandCharges)
+    - (a.commandRange + a.commandCapacity + a.maxCommandCharges)
+    || a.id.localeCompare(b.id))[0]!;
+}
+
+/**
  * Supply-based command-stat degradation (contract §15 "General supply"):
  * early stages leave command unchanged, `degraded` shrinks commandCapacity,
  * `severe` also shrinks commandRange. Nothing in MR3 consumes this yet (no
