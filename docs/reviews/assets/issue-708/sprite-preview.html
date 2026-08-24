@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Issue 708 — actual animated sprite output</title>
+    <style>
+      :root { color: #211b15; background: #f4ead5; font-family: Inter, ui-sans-serif, system-ui, sans-serif; }
+      body { max-width: 1040px; margin: 0 auto; padding: 32px 20px 56px; }
+      h1 { margin: 0; font-size: clamp(1.75rem, 4vw, 2.75rem); }
+      .lede { max-width: 72ch; line-height: 1.55; }
+      .controls { display: flex; gap: 8px; flex-wrap: wrap; margin: 24px 0; }
+      button { border: 2px solid #5e3f24; border-radius: 999px; background: #fff9ec; color: #211b15; cursor: pointer; font: inherit; font-weight: 700; padding: 8px 14px; }
+      button[aria-pressed="true"] { background: #b53026; border-color: #7a1a18; color: #fff9ec; }
+      .grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); }
+      .card { background: #fff9ec; border: 2px solid #8a6a3a; border-radius: 16px; box-shadow: 0 3px 0 #d5c39f; overflow: hidden; }
+      .card h2 { font-size: 1.1rem; margin: 0; padding: 12px 14px; border-bottom: 1px solid #d5c39f; }
+      .sprite-stage { align-items: center; background: radial-gradient(ellipse at center, #ead8b4 0%, #f8f0df 64%); display: flex; height: 236px; justify-content: center; }
+      .sprite-stage .cq-sprite-wrap { height: 128px; width: 128px; }
+      .card p { color: #5e3f24; font-size: .88rem; line-height: 1.4; margin: 0; padding: 10px 14px 14px; }
+      code { background: #eee0c5; border-radius: 3px; padding: 1px 4px; }
+    </style>
+  </head>
+  <body>
+    <h1>Issue 708 — actual animated sprite output</h1>
+    <p class="lede">This page mounts the committed, generated v2 renderer modules directly. It is not a silhouette guide or a mockup. Choose an action state to inspect the same <code>data-state</code> transitions used by the DOM overlay.</p>
+    <div class="controls" role="group" aria-label="Sprite animation state">
+      <button type="button" data-state="idle" aria-pressed="true">Idle</button>
+      <button type="button" data-state="walk" aria-pressed="false">Walk</button>
+      <button type="button" data-state="attack" aria-pressed="false">Attack</button>
+    </div>
+    <main class="grid" id="sprite-grid" aria-live="polite"></main>
+    <script type="module">
+      import '../../../../src/assets/sprite-animations-v2.css';
+      import { svg as beastHandler } from '../../../../src/renderer/sprites/v2/beast_handler.svg.ts';
+      import { svg as warElephant } from '../../../../src/renderer/sprites/v2/war_elephant.svg.ts';
+      import { svg as cuirassier } from '../../../../src/renderer/sprites/v2/cuirassier.svg.ts';
+
+      const units = [
+        ['Beast Handler', beastHandler, 'Hound gait, command staff, leash, and targeting sigil.'],
+        ['War Elephant', warElephant, 'Heavy animal gait, trunk, howdah, standard, and tusk lunge.'],
+        ['Cuirassier', cuirassier, 'Mounted gait, armoured horse, sabre pivot, and hit spark.'],
+      ];
+      const grid = document.querySelector('#sprite-grid');
+      const buttons = [...document.querySelectorAll('button[data-state]')];
+
+      function setState(state) {
+        for (const button of buttons) button.setAttribute('aria-pressed', String(button.dataset.state === state));
+        for (const sprite of grid.querySelectorAll('.cq-sprite-wrap, .cq-sprite-wrap svg')) sprite.dataset.state = state;
+      }
+
+      for (const [name, sprites, description] of units) {
+        const card = document.createElement('article');
+        card.className = 'card';
+        const heading = document.createElement('h2');
+        heading.textContent = name;
+        const stage = document.createElement('div');
+        stage.className = 'sprite-stage';
+        const template = document.createElement('template');
+        template.innerHTML = sprites.imperials;
+        stage.append(template.content);
+        const note = document.createElement('p');
+        note.textContent = description;
+        card.append(heading, stage, note);
+        grid.append(card);
+      }
+
+      for (const button of buttons) button.addEventListener('click', () => setState(button.dataset.state));
+    </script>
+  </body>
+</html>

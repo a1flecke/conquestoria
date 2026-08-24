@@ -1,8 +1,10 @@
 # Issue 708 visual review — mounted and beast formations
 
-![Silhouette guide for the final native sprites](assets/issue-708/mounted-beast-silhouettes.svg)
+> The previous silhouette illustration was a review placeholder, not renderer output, and has been removed from this review. Do not use it to judge this MR.
 
-This draft-PR review covers the native source currently rendered by the map DOM overlay. The committed native SVG modules are the source of truth; this guide highlights the map-scale cues reviewers should verify.
+For an actual interactive review, open [`sprite-preview.html`](assets/issue-708/sprite-preview.html) through the repository's Vite server. It mounts the committed generated modules directly and provides idle, walk, and attack state controls.
+
+This draft-PR review covers the native source currently rendered by the map DOM overlay. The committed native SVG modules are the source of truth.
 
 | Unit | Player-readable identity | Replaces | Animation/accessibility contract |
 | --- | --- | --- | --- |
