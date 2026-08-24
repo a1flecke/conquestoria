@@ -1,6 +1,9 @@
 import type { BuildableImprovementType, GameState, DisguiseType, HexCoord, Unit, WorkerActionType } from '@/core/types';
 import { UNIT_DEFINITIONS, UNIT_DESCRIPTIONS, canHeal } from '@/systems/unit-system';
 import { GENERAL_DEFINITIONS } from '@/systems/great-general-definitions';
+import { getHeroicCommandEligibility } from '@/systems/great-general-abilities';
+import { getEffectiveCommandStats } from '@/systems/great-general-system';
+import { createGameButton } from '@/ui/ui-kit';
 import { unitParticipatesInLandSupply } from '@/systems/supply-participation';
 import { getPrimarySupplySource } from '@/systems/supply-sources';
 import { getTurnsUntilNextSupplyStage } from '@/systems/supply-progression';
@@ -79,6 +82,14 @@ export interface SelectedUnitInfoCallbacks {
   onClose?: () => void;
   /** #544 MR2: reopens the first-time supply tutorial message on demand. */
   onReopenSupplyTutorial?: () => void;
+  /** #544 MR4: opens the Rally auto-preview/confirm panel. */
+  onOpenRally?: (generalUnitId: string) => void;
+  /** #544 MR4: opens the Seize the Moment eligible-unit picker. */
+  onOpenSeize?: (generalUnitId: string) => void;
+  /** #544 MR4: begins Last Stand's hex-targeting mode. */
+  onStartLastStandTargeting?: (generalUnitId: string) => void;
+  /** #544 MR4: reopens the first-time General command tutorial on demand. */
+  onReopenGeneralTutorial?: () => void;
   onFoundCity?: () => void;
   onWorkerAction?: (action: WorkerActionType) => void;
   onPreach?: (unitId: string, cityId: string) => void;
@@ -350,6 +361,63 @@ export function renderSelectedUnitInfo(
       descriptorLine.style.cssText = 'font-size:11px;opacity:0.8;margin-top:2px;';
       descriptorLine.textContent = generalDef.descriptor;
       wrapper.appendChild(descriptorLine);
+
+      // #544 MR4: exact command stats, ability buttons, and reopenable tutorial.
+      const eligibility = getHeroicCommandEligibility(state, unit);
+      const { commandRange, commandCapacity } = getEffectiveCommandStats(unit, generalDef);
+
+      const statsLine = document.createElement('div');
+      statsLine.style.cssText = 'font-size:12px;opacity:0.85;margin:6px 0;';
+      statsLine.textContent =
+        `Command range ${commandRange} · Command capacity ${commandCapacity} · `
+        + `Charges ${eligibility.chargesRemaining}/${generalDef.maxCommandCharges}`
+        + (eligibility.cooldownTurnsRemaining > 0 ? ` · Cooldown ${eligibility.cooldownTurnsRemaining} turn(s)` : '');
+      wrapper.appendChild(statsLine);
+
+      if (!eligibility.eligible && eligibility.reason) {
+        const reasonLine = document.createElement('div');
+        reasonLine.textContent = eligibility.reason;
+        reasonLine.style.cssText = 'font-size:11px;opacity:0.7;margin-bottom:6px;';
+        wrapper.appendChild(reasonLine);
+      }
+
+      const abilityRow = document.createElement('div');
+      abilityRow.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;';
+
+      const rallyButton = createGameButton(
+        eligibility.isFinalCharge ? 'Rally (Final Command)' : 'Rally',
+        'secondary',
+        { disabled: !eligibility.eligible },
+      );
+      rallyButton.addEventListener('click', () => callbacks.onOpenRally?.(unit.id));
+      abilityRow.appendChild(rallyButton);
+
+      const seizeButton = createGameButton(
+        eligibility.isFinalCharge ? 'Seize the Moment (Final Command)' : 'Seize the Moment',
+        'secondary',
+        { disabled: !eligibility.eligible },
+      );
+      seizeButton.addEventListener('click', () => callbacks.onOpenSeize?.(unit.id));
+      abilityRow.appendChild(seizeButton);
+
+      const lastStandButton = createGameButton(
+        eligibility.isFinalCharge ? 'Last Stand (Final Command)' : 'Last Stand',
+        'secondary',
+        { disabled: !eligibility.eligible },
+      );
+      lastStandButton.addEventListener('click', () => callbacks.onStartLastStandTargeting?.(unit.id));
+      abilityRow.appendChild(lastStandButton);
+
+      wrapper.appendChild(abilityRow);
+
+      if (callbacks.onReopenGeneralTutorial) {
+        const helpLink = document.createElement('button');
+        helpLink.type = 'button';
+        helpLink.textContent = 'ℹ️ How does command work?';
+        helpLink.style.cssText = 'margin-top:4px;background:none;border:none;color:#8fe8b0;font-size:10px;text-decoration:underline;cursor:pointer;padding:0;';
+        helpLink.addEventListener('click', () => callbacks.onReopenGeneralTutorial!());
+        wrapper.appendChild(helpLink);
+      }
     }
   }
 
