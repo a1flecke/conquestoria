@@ -1101,6 +1101,33 @@ describe('resetUnitTurn', () => {
   });
 });
 
+describe('#544 MR4 — resetUnitTurn clears General per-turn flags', () => {
+  it('clears generalNoCommandThisTurn at the owner\'s next turn', () => {
+    const unit = { ...createUnit('great_general', 'p1', { q: 0, r: 0 }, mkC()), generalNoCommandThisTurn: true };
+    const reset = resetUnitTurn(unit);
+    expect(reset.generalNoCommandThisTurn).toBeUndefined();
+  });
+
+  it('clears rallyProtectedThisRound at the owner\'s next turn', () => {
+    const unit = { ...createUnit('warrior', 'p1', { q: 0, r: 0 }, mkC()), rallyProtectedThisRound: true };
+    const reset = resetUnitTurn(unit);
+    expect(reset.rallyProtectedThisRound).toBeUndefined();
+  });
+
+  it('clears hasCapturedCityThisTurn at the owner\'s next turn', () => {
+    const unit = { ...createUnit('warrior', 'p1', { q: 0, r: 0 }, mkC()), hasCapturedCityThisTurn: true };
+    const reset = resetUnitTurn(unit);
+    expect(reset.hasCapturedCityThisTurn).toBeUndefined();
+  });
+
+  it('does not disturb lastStandHold, which must persist across turns until it expires or is consumed', () => {
+    const hold = { formationId: 'gen1-5', defenseBonusMultiplier: 1.15, expiresTurn: 9 };
+    const unit = { ...createUnit('warrior', 'p1', { q: 0, r: 0 }, mkC()), lastStandHold: hold };
+    const reset = resetUnitTurn(unit);
+    expect(reset.lastStandHold).toEqual(hold);
+  });
+});
+
 describe('skippedTurn cycling flag', () => {
   it('excludes skipped units from unmoved cycling without treating skip as movement or action', () => {
     const skipped = {
