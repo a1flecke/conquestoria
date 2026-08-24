@@ -26,12 +26,14 @@
  *
  * data-kind  — body-plan axis. Determines which fundamental walk/idle/attack
  *              animations apply. Values: civilian | melee | ranged | naval |
- *              hound | spy | building. "hound" is the quadruped body-plan slot.
+ *              hound | animal | spy | building. "hound" is a small quadruped;
+ *              "animal" owns mounted and large-animal locomotion.
  *              Rule of thumb: if it changes how the BODY itself moves, new kind.
  *
  * data-kind-variant — specialization axis. Same body plan, different sub-element
  *                     animation (weapon style, gait tempo, etc.).
- *                     Values introduced here: pike (melee), scout (hound), war (hound).
+ *                     Values introduced here: pike (melee), scout/war (hound),
+ *                     mount/elephant (animal).
  *                     Rule of thumb: if it only changes ONE sub-element while the
  *                     body stays the same, use variant instead.
  */
@@ -627,6 +629,87 @@
   --quad-attack-cycle:  1.6s;
   --quad-lunge:         6px;
   --quad-leg-scale:     0.85;
+}
+
+/* ─────────────────────────── ANIMAL (MOUNTED + LARGE QUADRUPED) ─────────────────────────── */
+
+/* Horses and elephants share a four-legged body plan but not a dog's cadence. Their
+   rider/harness art lives inside cq-sprite-figure, so it follows this body motion. */
+@keyframes cq2-animal-breathe {
+  0%, 100% { transform: translateY(0); }
+  48% { transform: translateY(-1px); }
+}
+.cq-v2[data-kind="animal"][data-state="idle"] .cq-sprite-figure {
+  animation: cq2-animal-breathe 3.4s ease-in-out infinite;
+  animation-delay: calc(var(--phase, 0) * -3.4s);
+}
+
+@keyframes cq2-animal-walk-body {
+  0%, 100% { transform: translateY(0); }
+  25% { transform: translateY(var(--animal-bob, -1.6px)); }
+  50% { transform: translateY(-0.3px); }
+  75% { transform: translateY(var(--animal-bob, -1.6px)); }
+}
+.cq-v2[data-kind="animal"][data-state="walk"] .cq-sprite-figure {
+  animation: cq2-animal-walk-body var(--animal-walk-cycle, 0.64s) ease-in-out infinite;
+  animation-delay: calc(var(--phase, 0) * -1 * var(--animal-walk-cycle, 0.64s));
+}
+
+.cq-v2[data-kind="animal"] .cq-leg-fl,
+.cq-v2[data-kind="animal"] .cq-leg-fr,
+.cq-v2[data-kind="animal"] .cq-leg-bl,
+.cq-v2[data-kind="animal"] .cq-leg-br {
+  transform-box: fill-box;
+  transform-origin: 50% 0%;
+}
+@keyframes cq2-animal-leg-a {
+  0%, 100% { transform: rotate(calc(-12deg * var(--animal-leg-scale, 1))); }
+  50% { transform: rotate(calc(16deg * var(--animal-leg-scale, 1))); }
+}
+@keyframes cq2-animal-leg-b {
+  0%, 100% { transform: rotate(calc(16deg * var(--animal-leg-scale, 1))); }
+  50% { transform: rotate(calc(-12deg * var(--animal-leg-scale, 1))); }
+}
+.cq-v2[data-kind="animal"][data-state="walk"] .cq-leg-fl,
+.cq-v2[data-kind="animal"][data-state="walk"] .cq-leg-br {
+  animation: cq2-animal-leg-a var(--animal-walk-cycle, 0.64s) cubic-bezier(.4,0,.6,1) infinite;
+  animation-delay: calc(var(--phase, 0) * -1 * var(--animal-walk-cycle, 0.64s));
+}
+.cq-v2[data-kind="animal"][data-state="walk"] .cq-leg-fr,
+.cq-v2[data-kind="animal"][data-state="walk"] .cq-leg-bl {
+  animation: cq2-animal-leg-b var(--animal-walk-cycle, 0.64s) cubic-bezier(.4,0,.6,1) infinite;
+  animation-delay: calc(var(--phase, 0) * -1 * var(--animal-walk-cycle, 0.64s));
+}
+
+@keyframes cq2-animal-attack-body {
+  0% { transform: translate(0, 0); }
+  18% { transform: translate(-3px, 1px); }
+  34%, 50% { transform: translate(var(--animal-lunge, 8px), -1px); }
+  75% { transform: translate(1px, 0); }
+  100% { transform: translate(0, 0); }
+}
+.cq-v2[data-kind="animal"][data-state="attack"] .cq-sprite-figure {
+  animation: cq2-animal-attack-body var(--animal-attack-cycle, 1.4s) cubic-bezier(.3,.7,.4,1) infinite;
+  animation-delay: calc(var(--phase, 0) * -1 * var(--animal-attack-cycle, 1.4s));
+}
+.cq-v2[data-kind="animal"][data-state="attack"] .cq-weapon {
+  animation: cq2-attack-swing var(--animal-attack-cycle, 1.4s) cubic-bezier(.45,-.2,.3,1.25) infinite;
+  animation-delay: calc(var(--phase, 0) * -1 * var(--animal-attack-cycle, 1.4s));
+}
+
+.cq-v2[data-kind="animal"][data-kind-variant="mount"] {
+  --animal-walk-cycle: 0.58s;
+  --animal-bob: -1.8px;
+  --animal-attack-cycle: 1.3s;
+  --animal-lunge: 9px;
+  --animal-leg-scale: 1;
+}
+.cq-v2[data-kind="animal"][data-kind-variant="elephant"] {
+  --animal-walk-cycle: 0.9s;
+  --animal-bob: -1.2px;
+  --animal-attack-cycle: 1.7s;
+  --animal-lunge: 5px;
+  --animal-leg-scale: 0.55;
 }
 
 /* ─────────────────────────── NAVAL — ship rock + sail billow ─────────────────────────── */
