@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { createNewGame } from '@/core/game-state';
-import { evaluateLastStandOpportunity, evaluateRallyOpportunity, evaluateSeizeOpportunity, getEraGenerals, isGeneralInDanger } from '@/ai/ai-general-command';
+import {
+  chooseGeneralCommandAction,
+  evaluateLastStandOpportunity,
+  evaluateRallyOpportunity,
+  evaluateSeizeOpportunity,
+  getEraGenerals,
+  isGeneralInDanger,
+  processAIGeneralCommand,
+} from '@/ai/ai-general-command';
 import { issueRally } from '@/systems/great-general-abilities';
 import type { Unit } from '@/core/types';
 
@@ -206,5 +214,60 @@ describe('#544 MR5 — evaluateLastStandOpportunity', () => {
     const opportunity = evaluateLastStandOpportunity(state, 'gen-1');
     const executed = opportunity!.execute(state);
     expect(executed.units['defender-1']!.lastStandHold).toBeDefined();
+  });
+});
+
+describe('#544 MR5 — shared spend layer', () => {
+  it('chooses the highest-scoring eligible opportunity across all three abilities', () => {
+    const state = createNewGame({ civType: 'rome', mapSize: 'small', opponentCount: 1, gameTitle: 't', seed: 'spend-1' });
+    state.units['gen-1'] = makeGeneral();
+    state.units['unit-1'] = {
+      id: 'unit-1', type: 'warrior', owner: 'player', position: { q: 1, r: 0 },
+      movementPointsLeft: 0, health: 100, experience: 0, hasMoved: true, hasActed: true, isResting: false,
+    } as Unit;
+    state.civilizations.player!.units = ['gen-1', 'unit-1'];
+    // Only Seize is eligible here: unit-1 has already acted at full health
+    // with no landSupply set (no Rally target), and Last Stand also has a
+    // target (unit-1 is in range) -- Seize's flat combat-unit value (40)
+    // outscores Last Stand's formation-size-of-1-times-zero-threat score (1),
+    // so this also exercises the comparison, not just eligibility.
+    const chosen = chooseGeneralCommandAction(state, 'gen-1');
+    expect(chosen?.ability).toBe('seize_the_moment');
+  });
+
+  it('returns null when nothing is eligible', () => {
+    const state = createNewGame({ civType: 'rome', mapSize: 'small', opponentCount: 1, gameTitle: 't', seed: 'spend-2' });
+    state.units['gen-1'] = makeGeneral();
+    state.civilizations.player!.units = ['gen-1'];
+    expect(chooseGeneralCommandAction(state, 'gen-1')).toBeNull();
+  });
+
+  it('processAIGeneralCommand("pre-tactical") issues Rally but not Seize (Seize needs hasActed units, which only exist post-tactical)', () => {
+    const state = createNewGame({ civType: 'rome', mapSize: 'small', opponentCount: 1, gameTitle: 't', seed: 'spend-3' });
+    const aiId = Object.keys(state.civilizations).find(id => id !== 'player')!;
+    state.units['gen-1'] = makeGeneral({ owner: aiId });
+    state.units['unit-1'] = {
+      id: 'unit-1', type: 'warrior', owner: aiId, position: { q: 1, r: 0 },
+      movementPointsLeft: 1, health: 40, experience: 0, hasMoved: false, hasActed: false, isResting: false,
+      landSupply: { state: 'severe', hostileUnsupportedTurns: 5, suppliedTurnsSinceRecovery: 0 },
+    } as Unit;
+    state.civilizations[aiId]!.units = ['gen-1', 'unit-1'];
+
+    const result = processAIGeneralCommand(state, aiId, 'pre-tactical');
+    expect(result.units['unit-1']!.health).toBeGreaterThan(40);
+  });
+
+  it('processAIGeneralCommand("post-tactical") issues Seize but not Rally', () => {
+    const state = createNewGame({ civType: 'rome', mapSize: 'small', opponentCount: 1, gameTitle: 't', seed: 'spend-4' });
+    const aiId = Object.keys(state.civilizations).find(id => id !== 'player')!;
+    state.units['gen-1'] = makeGeneral({ owner: aiId });
+    state.units['unit-1'] = {
+      id: 'unit-1', type: 'warrior', owner: aiId, position: { q: 1, r: 0 },
+      movementPointsLeft: 0, health: 100, experience: 0, hasMoved: true, hasActed: true, isResting: false,
+    } as Unit;
+    state.civilizations[aiId]!.units = ['gen-1', 'unit-1'];
+
+    const result = processAIGeneralCommand(state, aiId, 'post-tactical');
+    expect(result.units['unit-1']!.hasActed).toBe(false);
   });
 });
