@@ -4,6 +4,7 @@ import { seededLcg, weightedPick } from '@/systems/seeded-lcg';
 import { resolveCivilizationEra } from '@/systems/tech-definitions';
 import { createUnit } from '@/systems/unit-system';
 import { mapDistance } from '@/systems/hex-utils';
+import type { EventBus } from '@/core/event-bus';
 
 /**
  * Threshold formula (contract §13 — "data-driven and not yet locked", this
@@ -277,4 +278,81 @@ export function getPassiveStabilizationTargets(state: GameState, civId: string):
     }
   }
   return stabilized;
+}
+
+/**
+ * #544 MR4 contract §23: "one concise end-of-career line." V1 deliberately
+ * uses a generic, definition-name-flavored line rather than reconstructing
+ * battle/city context -- the contract's own examples ("Fell defending
+ * Athens") imply richer narrative context this MR has no cheap access to at
+ * either call site (mid-combat-resolution for death, end-of-round for
+ * retirement). Documented scope reduction: contract §33's "rich Great
+ * General biographies" (issue E) is the explicit deferred richer-narrative
+ * follow-up this defers to.
+ */
+export function describeGeneralCareerEnd(definition: Pick<GeneralDefinition, 'name'>, outcome: 'retired' | 'died'): string {
+  return outcome === 'died'
+    ? `${definition.name} fell in battle.`
+    : `${definition.name} retired after a distinguished career.`;
+}
+
+/**
+ * #544 MR4 contract §21: the 3rd lifetime charge "resolves normally... no
+ * mechanical bonus... General remains for rest of owner turn... retires at
+ * end of turn." No transient flag is needed -- generalCommandChargesUsed
+ * reaching maxCommandCharges IS the retirement condition, checked once per
+ * civ per round in turn-manager.ts's existing end-of-round per-civ loop,
+ * after the General has already acted normally for the whole turn.
+ */
+export function retireGeneralsAtTurnEnd(state: GameState, civId: string, bus?: EventBus): GameState {
+  const civ = state.civilizations[civId];
+  if (!civ) return state;
+
+  const retiring = civ.units
+    .map(id => state.units[id])
+    .filter((u): u is Unit => Boolean(u) && u.type === 'great_general')
+    .filter(u => {
+      const definition = GENERAL_DEFINITIONS.find(g => g.id === u.generalDefinitionId);
+      return definition && (u.generalCommandChargesUsed ?? 0) >= definition.maxCommandCharges;
+    });
+  if (retiring.length === 0) return state;
+
+  let units = { ...state.units };
+  let civUnits = civ.units;
+  let generalHistory = civ.generalHistory ?? [];
+  for (const general of retiring) {
+    const definition = GENERAL_DEFINITIONS.find(g => g.id === general.generalDefinitionId)!;
+    const endOfCareerLine = describeGeneralCareerEnd(definition, 'retired');
+    delete units[general.id];
+    civUnits = civUnits.filter(id => id !== general.id);
+    generalHistory = generalHistory.map(entry =>
+      entry.unitId === general.id
+        ? {
+            ...entry,
+            outcome: 'retired' as const,
+            retiredTurn: state.turn,
+            endOfCareerLine,
+            heroicCommandsUsed: general.generalCommandChargesUsed ?? 0,
+          }
+        : entry,
+    );
+    // #544 MR4 review fix: unlike death (visible through the combat flow
+    // that caused it), retirement happens silently during end-of-round
+    // processing -- the player confirmed Final Command earlier in their own
+    // turn, but the General doesn't actually vanish until this later,
+    // asynchronous point. Without this, a player would open their unit list
+    // next turn and find a General simply gone with no explanation. Mirrors
+    // the optional-bus, emit-if-present convention already used by
+    // beginConfirmedForeignCityEntry's diplomacy:war-declared emit.
+    bus?.emit('general:retired', { civId, generalName: definition.name, message: endOfCareerLine });
+  }
+
+  return {
+    ...state,
+    units,
+    civilizations: {
+      ...state.civilizations,
+      [civId]: { ...civ, units: civUnits, generalHistory },
+    },
+  };
 }

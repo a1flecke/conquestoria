@@ -3,7 +3,8 @@ import { cleanupDeadSpyUnit } from '@/systems/espionage-system';
 import { UNIT_DEFINITIONS } from '@/systems/unit-system';
 import { applyQuestGameplayAction, type ChainTransition } from '@/systems/quest-chain-system';
 import { canCaptureDefeatedUnits, canReceiveCivilizationCombatRewards, CRISIS_FORCE_OWNER, isMajorCivOwner, isPirateOwner } from '@/core/owner-kind';
-import { awardGeneralProgress, GENERAL_PROGRESS_AWARDS, GENERAL_PROGRESS_XP_RATIO, STRONGER_FORCE_MARGIN } from '@/systems/great-general-system';
+import { awardGeneralProgress, GENERAL_PROGRESS_AWARDS, GENERAL_PROGRESS_XP_RATIO, STRONGER_FORCE_MARGIN, describeGeneralCareerEnd } from '@/systems/great-general-system';
+import { GENERAL_DEFINITIONS } from '@/systems/great-general-definitions';
 import { consumeLastStandHoldFormationWide } from '@/systems/great-general-abilities';
 import { recordHuntKillerIfApplicable } from '@/systems/hunt-crisis-linkage';
 import {
@@ -344,12 +345,21 @@ function recordGeneralDeaths(beforeUnits: Record<string, Unit>, state: GameState
   for (const general of deadGenerals) {
     const civ = civilizations[general.owner];
     if (!civ?.generalHistory) continue;
+    const definition = GENERAL_DEFINITIONS.find(g => g.id === general.generalDefinitionId);
     civilizations = {
       ...civilizations,
       [general.owner]: {
         ...civ,
         generalHistory: civ.generalHistory.map(entry =>
-          entry.unitId === general.id ? { ...entry, diedTurn: state.turn } : entry,
+          entry.unitId === general.id
+            ? {
+                ...entry,
+                diedTurn: state.turn,
+                outcome: 'died' as const,
+                endOfCareerLine: definition ? describeGeneralCareerEnd(definition, 'died') : undefined,
+                heroicCommandsUsed: general.generalCommandChargesUsed ?? 0,
+              }
+            : entry,
         ),
       },
     };

@@ -49,6 +49,16 @@ describe('general presentation', () => {
     expect(ctx.deliver).toHaveBeenCalledWith('p1', expect.any(String), 'success', undefined);
   });
 
+  it('#544 MR4: delivers a retirement notification to the owning civ', () => {
+    const bus = new EventBus();
+    const ctx = makePresentationContext();
+
+    registerGeneralPresentation(bus, ctx);
+    bus.emit('general:retired', { civId: 'p1', generalName: 'Julius Caesar', message: 'Julius Caesar retired after a distinguished career.' });
+
+    expect(ctx.deliver).toHaveBeenCalledWith('p1', expect.stringContaining('Julius Caesar'), 'info');
+  });
+
   it('disposing removes every subscription this registrar added', () => {
     const bus = new EventBus();
     const ctx = makePresentationContext();
@@ -61,6 +71,7 @@ describe('general presentation', () => {
       viewerId: 'p1', actorId: 'ai-1', actorName: 'Carthage', warningKey: 'w1',
       kind: 'recovery', evidence: 'visible', playAudio: false,
     });
+    bus.emit('general:retired', { civId: 'p1', generalName: 'Julius Caesar', message: 'Retired.' });
 
     expect(ctx.deliver).not.toHaveBeenCalled();
     expect(ctx.showNotification).not.toHaveBeenCalled();

@@ -128,7 +128,7 @@ import { processPiratesForCompletedRound } from '@/systems/pirate-system';
 import { classifyOwner } from './owner-kind';
 import { consumeHerdingInsight, getStampedeLifecycleTransition, hasActiveHerdingInsight, processStampedeScheduling, processStampedeTurn } from '@/systems/stampede-system';
 import { consumeRecoveredHarnesses, getRogueElephantHostLifecycleTransition, hasActiveRecoveredHarnesses, processRogueElephantHostScheduling, processRogueElephantHostTurn } from '@/systems/rogue-elephant-host-system';
-import { checkAndQueueGeneralCandidateChoice } from '@/systems/great-general-system';
+import { checkAndQueueGeneralCandidateChoice, retireGeneralsAtTurnEnd } from '@/systems/great-general-system';
 
 // #544 MR3: same char-folding convention combat-reward-system.ts's seededRoll and
 // city-capture-system.ts's assault seed already use -- turns a (turn, civId) pair into
@@ -657,6 +657,14 @@ export function processTurn(
 
     // Reset geneTherapyReady cooldown for units that rested a full turn in a friendly city
     newState = applyGeneTherapyRecharge(newState, civId, unitIdsAtTurnStart);
+
+    // #544 MR4 contract §21: retire any General who has spent all 3
+    // Command Charges, before resetting movement for this civ's remaining
+    // units -- the General "remains for rest of owner turn" (already true,
+    // nothing removed it earlier this round) and "retires at end of turn"
+    // (this is that end-of-turn point). bus is passed through so the
+    // retirement notification actually reaches the player.
+    newState = retireGeneralsAtTurnEnd(newState, civId, bus);
 
     // Reset unit movement
     for (const unitId of civ.units) {
