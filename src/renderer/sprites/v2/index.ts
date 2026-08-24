@@ -18,6 +18,8 @@ import { svg as spyScoutSvg }      from './spy_scout.svg';
 import { svg as swordsmanSvg }     from './swordsman.svg';
 import { svg as triremeSvg }       from './trireme.svg';
 import { svg as warHoundSvg }      from './war_hound.svg';
+import { svg as beastHandlerSvg }  from './beast_handler.svg';
+import { svg as warElephantSvg }   from './war_elephant.svg';
 import { svg as warriorSvg }       from './warrior.svg';
 import { svg as workerSvg }        from './worker.svg';
 // MR 2 — ground melee
@@ -27,6 +29,7 @@ import { svg as spearmanSvg }      from './spearman.svg';
 import { svg as horsemanSvg }      from './horseman.svg';
 import { svg as cavalrySvg }       from './cavalry.svg';
 import { svg as knightSvg }        from './knight.svg';
+import { svg as cuirassierSvg }    from './cuirassier.svg';
 // MR 2 — ranged
 import { svg as crossbowmanSvg }   from './crossbowman.svg';
 // MR 2 — siege
@@ -127,6 +130,8 @@ const UNIT_SPRITES: Record<string, Record<string, string>> = {
   swordsman:     swordsmanSvg,
   trireme:       triremeSvg,
   war_hound:     warHoundSvg,
+  beast_handler: beastHandlerSvg,
+  war_elephant:  warElephantSvg,
   warrior:       warriorSvg,
   worker:        workerSvg,
   // MR 2
@@ -135,6 +140,7 @@ const UNIT_SPRITES: Record<string, Record<string, string>> = {
   horseman:      horsemanSvg,
   cavalry:       cavalrySvg,
   knight:        knightSvg,
+  cuirassier:    cuirassierSvg,
   crossbowman:   crossbowmanSvg,
   catapult:      catapultSvg,
   ballista:      ballistaSvg,

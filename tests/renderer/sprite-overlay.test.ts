@@ -133,7 +133,7 @@ describe('#708 mounted and beast overlay accessibility', () => {
     ['cuirassier', 'melee'],
   ])('%s keeps its native body plan and player information layers under reduced motion', (subtype, kind) => {
     const { overlay, mount } = mountOverlay();
-    overlay.sync(cam({ zoom: 1 }), [entity({ subtype, damage: 2, selected: true })], MAP, {
+    overlay.sync(cam({ zoom: 1 }), [entity({ subtype, damage: 2, health: 50, selected: true })], MAP, {
       ...OPTS,
       reducedMotion: true,
     });
