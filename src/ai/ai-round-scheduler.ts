@@ -16,6 +16,7 @@ import type {
 } from './ai-prepared-turn';
 import { prepareMajorCivStrategicPlan } from './ai-prepared-turn';
 import type { AIDecisionTrace } from './ai-decision-trace';
+import { processAIGeneralCommand } from './ai-general-command';
 
 export function getLivingNonHumanMajorIds(state: GameState): string[] {
   return Object.values(state.civilizations)
@@ -264,7 +265,13 @@ export function processNonHumanMajorRound(
     }
     const revalidated = revalidatePreparedPlan(working, prepared);
     working = withMajorPortfolio(working, civId, revalidated.portfolio);
+    // #544 MR5: Rally/Last Stand should be active before this civ's own
+    // tactical actions resolve (healing before combat, bracing before
+    // incoming attacks); Seize the Moment needs hasActed units, which only
+    // exist after the tactical plan below has actually moved/attacked.
+    working = processAIGeneralCommand(working, civId, 'pre-tactical');
     working = executePrepared(working, revalidated, bus).state;
+    working = processAIGeneralCommand(working, civId, 'post-tactical');
     working = normalizeOpponentAIState(working);
     const executedPortfolio = working.opponentAI!.majorCivs[civId]
       ?? createEmptyMajorCivPlanPortfolio();

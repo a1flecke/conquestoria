@@ -10,6 +10,7 @@ import type { PreparedMajorCivPlan } from '@/ai/ai-prepared-turn';
 import { buildMajorCivPerception } from '@/ai/ai-perception';
 import { createEmptyMajorCivPortfolio } from '@/ai/ai-plan-portfolio';
 import { foundCity } from '@/systems/city-system';
+import type { Unit } from '@/core/types';
 
 function prepared(state: ReturnType<typeof createNewGame>, civId: string): PreparedMajorCivPlan {
   const portfolio = createEmptyMajorCivPortfolio();
@@ -548,5 +549,36 @@ describe('AI round scheduler', () => {
 
     expect(preparedIds).toEqual(['ai-1']);
     expect(executedIds).toEqual(['ai-1']);
+  });
+});
+
+describe('#544 MR5 — General command runs during the AI round', () => {
+  it('an AI General with a low-health, out-of-supply ally nearby has Rallied it by the end of the round', () => {
+    const state = createNewGame({
+      civType: 'egypt',
+      mapSize: 'medium',
+      opponentCount: 1,
+      gameTitle: 'General command',
+      seed: 'scheduler-general-1',
+    });
+    state.units['gen-1'] = {
+      id: 'gen-1', type: 'great_general', owner: 'ai-1', position: { q: 0, r: 0 },
+      movementPointsLeft: 3, health: 100, experience: 0, hasMoved: false, hasActed: false, isResting: false,
+      generalDefinitionId: 'gen_ramesses',
+    } as Unit;
+    state.units['ally-1'] = {
+      id: 'ally-1', type: 'warrior', owner: 'ai-1', position: { q: 1, r: 0 },
+      movementPointsLeft: 1, health: 40, experience: 0, hasMoved: false, hasActed: false, isResting: false,
+      landSupply: { state: 'severe', hostileUnsupportedTurns: 5, suppliedTurnsSinceRecovery: 0 },
+    } as Unit;
+    state.civilizations['ai-1']!.units = [...state.civilizations['ai-1']!.units, 'gen-1', 'ally-1'];
+
+    const result = processNonHumanMajorRound(state, new EventBus(), {
+      prepare: (snapshot, civId) => prepared(snapshot as typeof state, civId),
+      executePrepared: (current) => ({ state: current }),
+    });
+
+    expect(result.state.units['ally-1']!.health).toBeGreaterThan(40);
+    expect(result.state.units['ally-1']!.landSupply?.state).not.toBe('severe');
   });
 });
