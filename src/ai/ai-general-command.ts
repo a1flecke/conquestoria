@@ -49,9 +49,13 @@ const GENERAL_DANGER_RADIUS = 1;
 /**
  * contract item 84 (no hidden-info AI): only ever checks units the owning
  * civ can actually see (`getVisibility(...) === 'visible'`), never a raw
- * scan of `state.units`. A General adjacent to a visible hostile unit is
- * "in danger" -- the shared spend layer uses this to discourage (but not
- * forbid) spending a scarce charge while exposed.
+ * scan of `state.units`. A General adjacent to a visible, combat-capable
+ * hostile unit is "in danger" -- the shared spend layer uses this to
+ * discourage (but not forbid) spending a scarce charge while exposed.
+ * `hasAICombatRole` excludes non-combat hostiles (workers, settlers,
+ * scouts) that cannot actually attack the General, matching MR4's own
+ * `isLastStandEligibleUnitType`-style "can this unit fight" convention
+ * rather than treating every nearby enemy unit as a threat.
  */
 export function isGeneralInDanger(state: GameState, general: Pick<Unit, 'owner' | 'position'>): boolean {
   const visibility = state.civilizations[general.owner]?.visibility;
@@ -59,6 +63,7 @@ export function isGeneralInDanger(state: GameState, general: Pick<Unit, 'owner' 
   return Object.values(state.units).some(candidate =>
     candidate.owner !== general.owner
     && isAIHostileOwner(state, general.owner, candidate.owner)
+    && hasAICombatRole(candidate.type)
     && getVisibility(visibility, candidate.position) === 'visible'
     && mapDistance(state.map, general.position, candidate.position) <= GENERAL_DANGER_RADIUS);
 }
@@ -185,6 +190,18 @@ export function evaluateLastStandOpportunity(state: GameState, generalUnitId: st
 }
 
 const GENERAL_DANGER_SCORE_PENALTY = 15;
+// #544 MR5 review fix: the raw floor an opportunity's own (unweighted)
+// score must clear before difficulty eagerness is even consulted. Without
+// this, heroicCommandEagernessWeight was nearly inert -- multiplying an
+// already-positive score by any positive weight is still positive, so
+// every difficulty accepted every non-null opportunity regardless of how
+// marginal it was (e.g. a Last Stand bracing a single unit with zero
+// visible threat). Divided by eagerness below so low-eagerness (explorer)
+// requires a clearly-worthwhile opportunity while high-eagerness (veteran)
+// acts on thinner margins -- this is what actually makes "how eagerly the
+// AI spends a scarce Command Charge" (opponent-challenge.ts's doc comment
+// for this field) true, rather than only affecting the danger-penalty case.
+const MINIMUM_OPPORTUNITY_VALUE = 3;
 
 /**
  * contract §"AI / hot-seat / saves": "shared layer considers: charges left,
@@ -203,7 +220,8 @@ const GENERAL_DANGER_SCORE_PENALTY = 15;
  * evaluator's own score (Rally's healing total, Seize's unit-value sum,
  * Last Stand's formation-size*threat product) -- this function's only job
  * is comparing those already-computed scores, weighted by difficulty
- * eagerness, and picking the best.
+ * eagerness, and picking the best past both the danger penalty and the
+ * MINIMUM_OPPORTUNITY_VALUE floor.
  */
 export function chooseGeneralCommandAction(state: GameState, generalUnitId: string): GeneralCommandOpportunity | null {
   const general = state.units[generalUnitId];
@@ -225,7 +243,9 @@ export function chooseGeneralCommandAction(state: GameState, generalUnitId: stri
     .sort((a, b) => b.adjustedScore - a.adjustedScore || a.opportunity.ability.localeCompare(b.opportunity.ability));
 
   const winner = scored[0]!;
-  return winner.adjustedScore > 0 ? winner.opportunity : null;
+  if (winner.adjustedScore <= 0) return null;
+  const requiredScore = MINIMUM_OPPORTUNITY_VALUE / profile.heroicCommandEagernessWeight;
+  return winner.opportunity.score >= requiredScore ? winner.opportunity : null;
 }
 
 /**

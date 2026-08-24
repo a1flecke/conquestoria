@@ -68,6 +68,27 @@ describe('#544 MR5 — ai-general-command scaffolding', () => {
 
     expect(isGeneralInDanger(state, general)).toBe(true);
   });
+
+  it('#544 MR5 review: isGeneralInDanger ignores an adjacent hostile non-combat unit (a worker cannot threaten the General)', () => {
+    const state = createNewGame({ civType: 'rome', mapSize: 'small', opponentCount: 1, gameTitle: 't', seed: 'scaffold-4' });
+    const aiId = Object.keys(state.civilizations).find(id => id !== 'player')!;
+    const general = makeGeneral({ owner: aiId, position: { q: 5, r: 5 } });
+    state.units['gen-1'] = general;
+    state.civilizations[aiId]!.units = ['gen-1'];
+    state.civilizations[aiId]!.diplomacy.atWarWith = ['player'];
+    state.civilizations.player!.diplomacy.atWarWith = [aiId];
+
+    state.units['enemy-worker'] = {
+      id: 'enemy-worker', type: 'worker', owner: 'player', position: { q: 6, r: 5 },
+      movementPointsLeft: 1, health: 100, experience: 0, hasMoved: false, hasActed: false, isResting: false,
+    } as Unit;
+    state.civilizations.player!.units = [...state.civilizations.player!.units, 'enemy-worker'];
+    state.civilizations[aiId]!.visibility.tiles = Object.fromEntries(
+      Object.keys(state.map.tiles).map(key => [key, 'visible' as const]),
+    );
+
+    expect(isGeneralInDanger(state, general)).toBe(false);
+  });
 });
 
 describe('#544 MR5 — evaluateRallyOpportunity', () => {
@@ -240,6 +261,39 @@ describe('#544 MR5 — shared spend layer', () => {
     state.units['gen-1'] = makeGeneral();
     state.civilizations.player!.units = ['gen-1'];
     expect(chooseGeneralCommandAction(state, 'gen-1')).toBeNull();
+  });
+
+  it('#544 MR5 review: a marginal opportunity is skipped at low difficulty eagerness but taken at high (MINIMUM_OPPORTUNITY_VALUE floor scales with heroicCommandEagernessWeight)', () => {
+    const state = createNewGame({ civType: 'rome', mapSize: 'small', opponentCount: 1, gameTitle: 't', seed: 'spend-5' });
+    const aiId = Object.keys(state.civilizations).find(id => id !== 'player')!;
+    state.units['gen-1'] = makeGeneral({ owner: aiId, position: { q: 0, r: 0 } });
+    state.units['defender-1'] = {
+      id: 'defender-1', type: 'warrior', owner: aiId, position: { q: 1, r: 0 },
+      movementPointsLeft: 1, health: 100, experience: 0, hasMoved: false, hasActed: false, isResting: false,
+    } as Unit;
+    state.units['defender-2'] = {
+      id: 'defender-2', type: 'archer', owner: aiId, position: { q: 1, r: 0 },
+      movementPointsLeft: 1, health: 100, experience: 0, hasMoved: false, hasActed: false, isResting: false,
+    } as Unit;
+    state.civilizations[aiId]!.diplomacy.atWarWith = ['player'];
+    state.civilizations.player!.diplomacy.atWarWith = [aiId];
+    state.units['attacker-1'] = {
+      id: 'attacker-1', type: 'warrior', owner: 'player', position: { q: 3, r: 0 },
+      movementPointsLeft: 1, health: 100, experience: 0, hasMoved: false, hasActed: false, isResting: false,
+    } as Unit;
+    state.civilizations.player!.units = [...state.civilizations.player!.units, 'attacker-1'];
+    state.civilizations[aiId]!.units = ['gen-1', 'defender-1', 'defender-2'];
+    state.civilizations[aiId]!.visibility.tiles = Object.fromEntries(
+      Object.keys(state.map.tiles).map(key => [key, 'visible' as const]),
+    );
+    // 2-unit formation, 1 nearby visible threat -> raw score 4 (2 * (1+1)).
+    expect(evaluateLastStandOpportunity(state, 'gen-1')!.score).toBe(4);
+
+    const explorerState = { ...state, opponentChallenge: 'explorer' as const };
+    expect(chooseGeneralCommandAction(explorerState, 'gen-1')).toBeNull();
+
+    const veteranState = { ...state, opponentChallenge: 'veteran' as const };
+    expect(chooseGeneralCommandAction(veteranState, 'gen-1')?.ability).toBe('last_stand');
   });
 
   it('processAIGeneralCommand("pre-tactical") issues Rally but not Seize (Seize needs hasActed units, which only exist post-tactical)', () => {
