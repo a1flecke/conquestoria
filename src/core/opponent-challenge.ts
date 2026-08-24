@@ -36,6 +36,17 @@ export interface OpponentChallengeProfile {
   // consume this field. Player-side pillage rules are identical at every
   // difficulty — only barbarian raid-target frequency changes.
   pillageAggressivenessMultiplier: number;
+  // #544 MR5: how eagerly the AI spends a scarce Command Charge once an
+  // ability opportunity clears the shared spend layer's bar (higher = more
+  // willing to act on a marginal opportunity). Eligibility, cooldown, and
+  // charge count are NEVER difficulty-scaled -- only this weight, matching
+  // submarineEscortWeight/pillageAggressivenessMultiplier's existing
+  // eagerness-knob convention above.
+  heroicCommandEagernessWeight: number;
+  // #544 MR5: how heavily the shared spend layer penalizes issuing an
+  // ability while the General itself is in danger (adjacent to a visible
+  // hostile unit). Higher = more risk-averse with the General's safety.
+  generalSafetyWeight: number;
 }
 
 export const OPPONENT_CHALLENGE_PROFILES: Record<OpponentChallenge, OpponentChallengeProfile> = {
@@ -59,6 +70,8 @@ export const OPPONENT_CHALLENGE_PROFILES: Record<OpponentChallenge, OpponentChal
     crisisDispatchWeight: 0.5,
     submarineEscortWeight: 0.3,
     pillageAggressivenessMultiplier: 0.5,
+    heroicCommandEagernessWeight: 0.6,
+    generalSafetyWeight: 1.5,
   },
   standard: {
     mobilizationRounds: 1,
@@ -80,6 +93,8 @@ export const OPPONENT_CHALLENGE_PROFILES: Record<OpponentChallenge, OpponentChal
     crisisDispatchWeight: 1.0,
     submarineEscortWeight: 1.0,
     pillageAggressivenessMultiplier: 1.0,
+    heroicCommandEagernessWeight: 1.0,
+    generalSafetyWeight: 1.0,
   },
   veteran: {
     mobilizationRounds: 0,
@@ -101,6 +116,8 @@ export const OPPONENT_CHALLENGE_PROFILES: Record<OpponentChallenge, OpponentChal
     crisisDispatchWeight: 1.5,
     submarineEscortWeight: 1.6,
     pillageAggressivenessMultiplier: 1.3,
+    heroicCommandEagernessWeight: 1.4,
+    generalSafetyWeight: 0.7,
   },
 };
 
