@@ -192,7 +192,19 @@ export interface LegendaryWonderHistory {
   networkPlanResolutions?: LegendaryWonderNetworkPlanResolutionRecord[];
 }
 
-// --- Great Generals (#544 MR3) ---
+// --- Great Generals (#544 MR3, heroic commands #544 MR4) ---
+
+export type HeroicAbilityId = 'rally' | 'seize_the_moment' | 'last_stand';
+
+/** #544 MR4: Last Stand's shared formation state — one object drives both
+ * the ongoing defense multiplier (read every combat while unexpired) and
+ * the one-time "Hold!" survival save (consumed formation-wide on first
+ * trigger, see consumeLastStandHoldFormationWide). */
+export interface LastStandHoldState {
+  formationId: string;
+  defenseBonusMultiplier: number;
+  expiresTurn: number; // inclusive: still active while state.turn <= expiresTurn
+}
 
 export interface GeneralProgressState {
   points: number;
@@ -204,6 +216,16 @@ export interface GeneralHistoryEntry {
   generalDefinitionId: string;
   spawnedTurn: number;
   diedTurn?: number;
+  /** #544 MR4: set once the General's career ends by either path. Absent
+   * means still active. */
+  outcome?: 'retired' | 'died';
+  retiredTurn?: number;
+  /** #544 MR4 contract §23: "one concise end-of-career line." */
+  endOfCareerLine?: string;
+  /** #544 MR4 contract §23: "heroic commands used/counts." Snapshotted from
+   * the unit's own generalCommandChargesUsed at the moment its career ends,
+   * since the live Unit record is gone after removal. */
+  heroicCommandsUsed?: number;
 }
 
 export interface PendingGeneralCandidateChoice {
@@ -624,6 +646,26 @@ export interface Unit {
    * operational next owner turn"). Cleared at the start of this unit's
    * owner's next turn. */
   generalNoCommandThisTurn?: boolean;
+  /** #544 MR4: charges spent out of GeneralDefinition.maxCommandCharges.
+   * Absent = 0 used (full charges) — legacy-save-safe by construction, same
+   * convention as chargesRemaining. */
+  generalCommandChargesUsed?: number;
+  /** #544 MR4: unit can't issue another heroic command until
+   * state.turn >= this. Absent = no active cooldown. Mirrors
+   * missionaryCooldownUntilTurn exactly. */
+  generalCommandCooldownUntilTurn?: number;
+  /** #544 MR4 contract §18: Rally "prevents worsening again until next
+   * owner turn." Consumed by advanceOverextensionStage's stabilizedByGeneral
+   * input for the remainder of this round, then cleared by resetUnitTurn at
+   * this unit's owner's next turn. */
+  rallyProtectedThisRound?: boolean;
+  /** #544 MR4 contract §20: Last Stand's defense bonus + one-time Hold save
+   * for this unit's formation. Absent = not under Last Stand. */
+  lastStandHold?: LastStandHoldState;
+  /** #544 MR4 contract §19: "a unit may not chain multiple captures in the
+   * same turn." Set by beginMajorCityAssault on the capturing unit;
+   * cleared by resetUnitTurn. */
+  hasCapturedCityThisTurn?: boolean;
 }
 
 export interface CrisisForce {

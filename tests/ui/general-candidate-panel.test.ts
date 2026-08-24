@@ -13,8 +13,8 @@ describe('general candidate panel', () => {
   });
 
   const candidates: GeneralDefinition[] = [
-    { id: 'gen_a', name: 'General A', civTypeEligibility: [], era: 3, descriptor: 'Test descriptor A', portraitIcon: '⚔️', commandRange: 2, commandCapacity: 3 },
-    { id: 'gen_b', name: 'General B', civTypeEligibility: [], era: 4, descriptor: 'Test descriptor B', portraitIcon: '🛡️', commandRange: 2, commandCapacity: 3 },
+    { id: 'gen_a', name: 'General A', civTypeEligibility: [], era: 3, descriptor: 'Test descriptor A', portraitIcon: '⚔️', commandRange: 2, commandCapacity: 3, abilityIds: ['rally', 'seize_the_moment', 'last_stand'], maxCommandCharges: 3, cooldownTurns: 10 },
+    { id: 'gen_b', name: 'General B', civTypeEligibility: [], era: 4, descriptor: 'Test descriptor B', portraitIcon: '🛡️', commandRange: 2, commandCapacity: 3, abilityIds: ['rally', 'seize_the_moment', 'last_stand'], maxCommandCharges: 3, cooldownTurns: 10 },
   ];
 
   it('shows every candidate\'s name, era, and descriptor', () => {
