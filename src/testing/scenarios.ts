@@ -134,4 +134,32 @@ export const SCENARIOS: Record<string, ScenarioDefinition> = {
       { kind: 'unit', civId: 'ai-1', type: 'submarine', position: { q: 4, r: 0 } },
     ],
   },
+  'great-general-abilities-basic': {
+    name: 'great-general-abilities-basic',
+    description:
+      'Player Great General with full command charges, a battered escort warrior within '
+      + 'command range (degraded supply, low HP -- eligible for Rally, and already acted so '
+      + 'eligible for Seize the Moment) -- opens directly into a state where the command '
+      + 'panel, Rally, Seize the Moment, and Last Stand can all be exercised manually (#544 MR4).',
+    seed: 'scenario-great-general-abilities-basic',
+    base: {
+      kind: 'solo',
+      config: { civType: 'rome', mapSize: 'small', opponentCount: 1, gameTitle: 'Great General Abilities' },
+    },
+    steps: [
+      { kind: 'terrain', position: { q: 0, r: 0 }, terrain: 'plains' },
+      { kind: 'terrain', position: { q: 1, r: 0 }, terrain: 'plains' },
+      {
+        kind: 'unit', civId: 'player', type: 'great_general', position: { q: 0, r: 0 },
+        overrides: { id: 'demo-general', generalDefinitionId: 'gen_caesar' },
+      },
+      {
+        kind: 'unit', civId: 'player', type: 'warrior', position: { q: 1, r: 0 },
+        overrides: {
+          id: 'demo-escort', health: 45, hasActed: true, hasMoved: true, movementPointsLeft: 0,
+          landSupply: { state: 'degraded', hostileUnsupportedTurns: 3, suppliedTurnsSinceRecovery: 0 },
+        },
+      },
+    ],
+  },
 };
