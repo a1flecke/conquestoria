@@ -61,3 +61,27 @@ describe('GENERAL_DEFINITIONS', () => {
     }
   });
 });
+
+describe('#544 MR4 — heroic command fields', () => {
+  it('every General definition has a positive maxCommandCharges, positive cooldownTurns, and non-empty abilityIds', () => {
+    for (const def of GENERAL_DEFINITIONS) {
+      expect(def.maxCommandCharges).toBeGreaterThan(0);
+      expect(def.cooldownTurns).toBeGreaterThan(0);
+      expect(def.abilityIds.length).toBeGreaterThan(0);
+    }
+  });
+
+  it('every definition includes all three V1 abilities (contract §17: no per-definition ability variance yet)', () => {
+    for (const def of GENERAL_DEFINITIONS) {
+      expect(def.abilityIds).toEqual(
+        expect.arrayContaining(['rally', 'seize_the_moment', 'last_stand']),
+      );
+    }
+  });
+
+  it('V1 charge count is 3 lifetime charges (contract §17)', () => {
+    for (const def of GENERAL_DEFINITIONS) {
+      expect(def.maxCommandCharges).toBe(3);
+    }
+  });
+});
