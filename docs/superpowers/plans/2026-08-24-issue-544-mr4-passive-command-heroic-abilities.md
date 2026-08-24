@@ -3971,11 +3971,15 @@ anything found before commit:
   first real `abilityIds`-gated check — note this honestly rather than
   claiming false generality)?
 - **Data:** re-run the roster `replace_all` from Task 1 mentally — did all
-  25 `GENERAL_DEFINITIONS` entries actually get the three new fields, or did
+  `GENERAL_DEFINITIONS` entries actually get the three new fields, or did
   a differently-formatted line (e.g. `gen_hannibal`'s or the fantasy-civ
   block) slip through the exact-substring match? Grep
   `grep -c "maxCommandCharges: V1_MAX_COMMAND_CHARGES" src/systems/great-general-definitions.ts`
-  and confirm the count is 25.
+  and confirm the count matches the roster's real total — 34 as of this MR
+  (verified during implementation; the plan's original draft mis-stated this
+  as 25, a manual miscount when the plan was first written, not a real defect
+  in the `replace_all` step itself, which is exact-substring-based and
+  therefore count-agnostic).
 - **SFX:** no new SFX cue exists for Rally/Seize/Last Stand issuance or the
   Hold-save trigger — this MR intentionally ships without one (contract
   doesn't mandate audio, and this repo's audio curation is tracked
@@ -3997,7 +4001,7 @@ anything found before commit:
 - [ ] **Step 4: Confirm `GENERAL_DEFINITIONS` roster coverage**
 
 Run: `grep -c "maxCommandCharges: V1_MAX_COMMAND_CHARGES" src/systems/great-general-definitions.ts`
-Expected: `25` (every existing roster entry).
+Expected: `34` (every existing roster entry, confirmed during implementation).
 
 - [ ] **Step 5: Update the design-spec phasing table**
 
