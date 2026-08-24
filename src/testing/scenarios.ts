@@ -168,13 +168,17 @@ export const SCENARIOS: Record<string, ScenarioDefinition> = {
       'AI civ (ai-1) owns a Great General with a battered, out-of-supply ally within command '
       + 'range -- ending the human turn should show the AI Rally that ally during its own round '
       + '(#544 MR5). Manual verification: end turn, then inspect ally-1 via the unit panel or '
-      + 'decision-trace UI for a health/supply-stage improvement.',
+      + 'decision-trace UI for a health/supply-stage improvement. Includes a player capital so '
+      + 'ending the turn does not trigger an immediate domination win/loss for either side '
+      + '(checkDominationVictory: the civ founds nothing until its settler acts, so a scenario '
+      + 'with only one founded city hands the other civ an instant, unrelated win).',
     seed: 'scenario-great-general-ai-command',
     base: {
       kind: 'solo',
       config: { civType: 'rome', mapSize: 'small', opponentCount: 1, gameTitle: 'Great General AI Command' },
     },
     steps: [
+      { kind: 'city', civId: 'player', position: { q: 0, r: 0 } },
       { kind: 'terrain', position: { q: 10, r: 10 }, terrain: 'plains' },
       { kind: 'terrain', position: { q: 11, r: 10 }, terrain: 'plains' },
       {
