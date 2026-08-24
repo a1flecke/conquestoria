@@ -30,7 +30,7 @@ import { selectDefenderEntryAtKey } from '@/input/hex-defender-selection';
  * lets a `switch (intent.pending.kind)` in the executor (#787 phase 8b) be
  * exhaustive without a dead defensive branch for two cases that can't occur.
  */
-export type ResolvablePendingIntent = Extract<PendingMapIntent, { kind: 'journey' | 'air-mission' | 'unload' | 'paradrop' | 'air-assault' }>;
+export type ResolvablePendingIntent = Extract<PendingMapIntent, { kind: 'journey' | 'air-mission' | 'unload' | 'paradrop' | 'air-assault' | 'last-stand-target' }>;
 
 export type MapTapIntent =
   /** A pending intent (journey/air-mission/unload) consumes this tap. */
@@ -115,6 +115,12 @@ export function resolveMapTapIntent(
   // above -- matching handleHexTap's real order exactly (main.ts checks
   // isUnitAnimationLocked before ever reading the pending-unload intent).
   if (pending.kind === 'unload') {
+    const inRange = pending.range.some(h => hexKey(h) === key);
+    return inRange ? { kind: 'resolve-pending', pending, coord } : { kind: 'mistap', pending };
+  }
+
+  // #544 MR4: same precomputed-range convention as `unload` above.
+  if (pending.kind === 'last-stand-target') {
     const inRange = pending.range.some(h => hexKey(h) === key);
     return inRange ? { kind: 'resolve-pending', pending, coord } : { kind: 'mistap', pending };
   }

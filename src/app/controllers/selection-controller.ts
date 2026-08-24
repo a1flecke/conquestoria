@@ -32,7 +32,7 @@ import type { UnitTurnFlow } from '@/ui/unit-turn-flow';
 import type { ExecuteUnitMoveResult } from '@/systems/unit-movement-system';
 import { UNIT_DEFINITIONS, findPath } from '@/systems/unit-system';
 import { TRAINABLE_UNITS } from '@/systems/city-system';
-import { hexKey } from '@/systems/hex-utils';
+import { hexKey, mapHexesInRange } from '@/systems/hex-utils';
 import { isMajorCivOwner } from '@/core/owner-kind';
 import { SFX } from '@/audio/sfx';
 import { buildSelectedUnitHighlights } from '@/input/selected-unit-highlights';
@@ -63,6 +63,8 @@ import { fireResourceDiscoveredTip } from '@/ui/advisor-system';
 import { syncCivilizationContactsFromVisibility } from '@/systems/discovery-system';
 import { getRallyPreview, issueRally, getSeizeTheMomentEligibleUnits, issueSeizeTheMoment } from '@/systems/great-general-abilities';
 import { createRallyPanel, createSeizeThePanelMoment } from '@/ui/general-command-panel';
+import { GENERAL_DEFINITIONS } from '@/systems/great-general-definitions';
+import { getEffectiveCommandStats } from '@/systems/great-general-system';
 
 /** The narrow slice of `RenderLoop` this controller needs. */
 export type SelectionControllerRenderer = Pick<
@@ -213,6 +215,16 @@ export function createSelectionController(deps: SelectionControllerDeps): Select
             },
             () => {},
           );
+        },
+        onStartLastStandTargeting: (generalUnitId: string) => {
+          const state = session.getState();
+          const general = state.units[generalUnitId];
+          const definition = general ? GENERAL_DEFINITIONS.find(g => g.id === general.generalDefinitionId) : undefined;
+          if (!general || !definition) return;
+          const { commandRange } = getEffectiveCommandStats(general, definition);
+          const range = mapHexesInRange(state.map, general.position, commandRange);
+          selection.setPendingIntent({ kind: 'last-stand-target', unitId: generalUnitId, range });
+          deps.showNotification('Choose a hex to hold, within your General\'s command range.', 'info');
         },
         onStartIntercept: uid => {
           const result = startIntercept(session.getState(), uid);

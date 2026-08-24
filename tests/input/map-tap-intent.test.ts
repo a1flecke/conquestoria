@@ -106,6 +106,24 @@ describe('resolveMapTapIntent', () => {
       expect(intent).toEqual({ kind: 'mistap', pending });
     });
 
+    it('#544 MR4: resolves a pending Last Stand target when the tap is inside the precomputed range', () => {
+      const state = makeFixture();
+      const pending: PendingMapIntent = { kind: 'last-stand-target', unitId: 'gen-1', range: [{ q: 1, r: 0 }] };
+
+      const intent = resolveMapTapIntent(state, snapshot({ pendingIntent: pending }), { q: 1, r: 0 }, false);
+
+      expect(intent).toEqual({ kind: 'resolve-pending', pending, coord: { q: 1, r: 0 } });
+    });
+
+    it('#544 MR4: mis-taps a pending Last Stand target when the tap is outside the precomputed range', () => {
+      const state = makeFixture();
+      const pending: PendingMapIntent = { kind: 'last-stand-target', unitId: 'gen-1', range: [{ q: 1, r: 0 }] };
+
+      const intent = resolveMapTapIntent(state, snapshot({ pendingIntent: pending }), { q: 9, r: 9 }, false);
+
+      expect(intent).toEqual({ kind: 'mistap', pending });
+    });
+
     it('journey and air-mission take precedence over animation-lock and every other check', () => {
       const state = makeFixture();
       const pending: PendingMapIntent = { kind: 'journey', unitId: 'unit-1' };

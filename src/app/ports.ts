@@ -70,7 +70,11 @@ export type PendingMapIntent =
   | { readonly kind: 'unload'; readonly transportId: string; readonly cargoUnitId: string; readonly range: readonly HexCoord[] }
   | { readonly kind: 'paradrop'; readonly unitId: string }
   | { readonly kind: 'air-assault'; readonly unitId: string }
-  | { readonly kind: 'city-capture'; readonly choice: PendingCityCaptureChoice };
+  | { readonly kind: 'city-capture'; readonly choice: PendingCityCaptureChoice }
+  /** #544 MR4: Last Stand's target-hex selection. `range` is precomputed at
+   * pending-intent-set time from getEffectiveCommandStats(general).commandRange,
+   * mirroring `unload`'s own precomputed-range convention exactly. */
+  | { readonly kind: 'last-stand-target'; readonly unitId: string; readonly range: readonly HexCoord[] };
 
 /**
  * A plain-value read of `SelectionStore` at one instant.
