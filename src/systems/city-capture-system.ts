@@ -112,7 +112,13 @@ export type MajorCityAssaultFailureReason =
   | 'city-defended'
   | 'illegal-movement'
   | 'invalid-post-combat-advance'
-  | 'repelled-by-city-defense';
+  | 'repelled-by-city-defense'
+  /** #544 MR4 contract §19: "a unit may not chain multiple captures in the
+   * same turn." Seize the Moment is the mechanism that can put a second
+   * capture opportunity in front of the same unit in one turn -- this guard
+   * is generic (not Seize-specific), gating the single per-unit city-
+   * occupation entry point uniformly for every caller (player, AI, Seize). */
+  | 'already-captured-city-this-turn';
 
 export type BeginMajorCityAssaultResult =
   | {
@@ -195,6 +201,7 @@ export function beginMajorCityAssault(
 ): BeginMajorCityAssaultResult {
   const attacker = state.units[attackerId];
   if (!attacker) return assaultFailure(state, 'missing-attacker');
+  if (attacker.hasCapturedCityThisTurn) return assaultFailure(state, 'already-captured-city-this-turn');
   if (attacker.owner !== options.civId) {
     return assaultFailure(state, 'wrong-owner');
   }
@@ -245,6 +252,7 @@ export function beginMajorCityAssault(
       movementPointsLeft: 0,
       hasMoved: true,
       hasActed: true,
+      hasCapturedCityThisTurn: true,
     };
     options.bus?.emit('unit:move', {
       unitId: attackerId,
@@ -358,6 +366,7 @@ export function beginMajorCityAssault(
       movementPointsLeft: 0,
       hasMoved: true,
       hasActed: true,
+      hasCapturedCityThisTurn: true,
     };
   }
 
