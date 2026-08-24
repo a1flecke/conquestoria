@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import type { EventBus } from '@/core/event-bus';
 import {
   getGeneralThreshold,
   addGeneralProgress,
@@ -10,6 +11,8 @@ import {
   spawnGeneralForCiv,
   getEffectiveCommandStats,
   getPassiveStabilizationTargets,
+  describeGeneralCareerEnd,
+  retireGeneralsAtTurnEnd,
 } from '@/systems/great-general-system';
 import { GENERAL_DEFINITIONS } from '@/systems/great-general-definitions';
 import { createNewGame } from '@/core/game-state';
@@ -410,5 +413,69 @@ describe('#544 MR4 — getPassiveStabilizationTargets', () => {
     state.civilizations.player.units = ['gen-1', 'unit-1'];
 
     expect(getPassiveStabilizationTargets(state, 'player').size).toBe(0);
+  });
+});
+
+describe('describeGeneralCareerEnd', () => {
+  it('returns a non-empty line naming the General for each outcome', () => {
+    const def = GENERAL_DEFINITIONS[0];
+    expect(describeGeneralCareerEnd(def, 'died')).toContain(def.name);
+    expect(describeGeneralCareerEnd(def, 'retired')).toContain(def.name);
+    expect(describeGeneralCareerEnd(def, 'died')).not.toBe(describeGeneralCareerEnd(def, 'retired'));
+  });
+});
+
+describe('#544 MR4 — retireGeneralsAtTurnEnd', () => {
+  function setup(chargesUsed: number) {
+    const state = createNewGame({ civType: 'rome', mapSize: 'small', opponentCount: 1, gameTitle: 't', seed: 'retire-1' });
+    state.units['gen-1'] = {
+      id: 'gen-1', type: 'great_general', owner: 'player', position: { q: 0, r: 0 },
+      movementPointsLeft: 3, health: 100, experience: 0, hasMoved: false, hasActed: false, isResting: false,
+      generalDefinitionId: 'gen_caesar', generalCommandChargesUsed: chargesUsed,
+    } as Unit;
+    state.civilizations.player.units = ['gen-1'];
+    state.civilizations.player.generalHistory = [{ unitId: 'gen-1', generalDefinitionId: 'gen_caesar', spawnedTurn: 1 }];
+    return state;
+  }
+
+  it('removes the General once all charges are used', () => {
+    const result = retireGeneralsAtTurnEnd(setup(3), 'player');
+    expect(result.units['gen-1']).toBeUndefined();
+    expect(result.civilizations.player.units).not.toContain('gen-1');
+  });
+
+  it('leaves a General with charges remaining untouched', () => {
+    const result = retireGeneralsAtTurnEnd(setup(2), 'player');
+    expect(result.units['gen-1']).toBeDefined();
+  });
+
+  it('writes outcome, retiredTurn, endOfCareerLine, and heroicCommandsUsed to generalHistory', () => {
+    const state = { ...setup(3), turn: 7 };
+    const result = retireGeneralsAtTurnEnd(state, 'player');
+    const entry = result.civilizations.player.generalHistory!.find(e => e.unitId === 'gen-1')!;
+    expect(entry.outcome).toBe('retired');
+    expect(entry.retiredTurn).toBe(7);
+    expect(entry.endOfCareerLine).toBeTruthy();
+    expect(entry.heroicCommandsUsed).toBe(3);
+  });
+
+  it('is a no-op for a civ with no Generals', () => {
+    const state = createNewGame({ civType: 'rome', mapSize: 'small', opponentCount: 1, gameTitle: 't', seed: 'retire-2' });
+    expect(retireGeneralsAtTurnEnd(state, 'player')).toBe(state);
+  });
+
+  it('#544 MR4 review fix: emits general:retired with the General\'s name when bus is provided', () => {
+    const state = { ...setup(3), turn: 7 };
+    const emit = vi.fn();
+    retireGeneralsAtTurnEnd(state, 'player', { emit } as unknown as EventBus);
+    expect(emit).toHaveBeenCalledWith('general:retired', expect.objectContaining({
+      civId: 'player',
+      generalName: expect.any(String),
+    }));
+  });
+
+  it('#544 MR4 review fix: is safe to call with no bus at all (bus is optional)', () => {
+    const state = { ...setup(3), turn: 7 };
+    expect(() => retireGeneralsAtTurnEnd(state, 'player')).not.toThrow();
   });
 });

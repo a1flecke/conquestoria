@@ -1284,9 +1284,36 @@ describe('applyCombatOutcomeToState — Great General escort/transport/death rul
 
     const applied = applyCombatOutcomeToState(state, result, 64);
 
-    expect(applied.state.civilizations['ai-1'].generalHistory).toEqual([
+    // #544 MR4: recordGeneralDeaths now also writes outcome/endOfCareerLine/
+    // heroicCommandsUsed alongside diedTurn -- see the dedicated MR4 test
+    // below for those fields; this test just confirms diedTurn still lands.
+    expect(applied.state.civilizations['ai-1'].generalHistory![0]).toMatchObject(
       { unitId: 'general-1', generalDefinitionId: 'gen_ramesses', spawnedTurn: 1, diedTurn: 7 },
-    ]);
+    );
+  });
+
+  it('#544 MR4: a General killed in combat gets outcome, endOfCareerLine, and heroicCommandsUsed recorded', () => {
+    const state = makeRewardState();
+    state.turn = 7;
+    const general = {
+      ...createUnit('great_general', 'ai-1', { q: 1, r: 0 }, mkC()),
+      id: 'general-1', generalDefinitionId: 'gen_ramesses', generalCommandChargesUsed: 1,
+    };
+    state.units['general-1'] = general;
+    state.civilizations['ai-1'].units = ['defender', 'general-1'];
+    state.civilizations['ai-1'].generalHistory = [{ unitId: 'general-1', generalDefinitionId: 'gen_ramesses', spawnedTurn: 1 }];
+    const result: CombatResult = {
+      attackerId: 'attacker', defenderId: 'defender', attackerDamage: 0, defenderDamage: 100,
+      attackerSurvived: true, defenderSurvived: false, attackerStrength: 20, defenderStrength: 20,
+      attackerPosition: { q: 0, r: 0 }, defenderPosition: { q: 1, r: 0 },
+    };
+
+    const applied = applyCombatOutcomeToState(state, result, 64);
+
+    const entry = applied.state.civilizations['ai-1'].generalHistory!.find(e => e.unitId === 'general-1')!;
+    expect(entry.outcome).toBe('died');
+    expect(entry.endOfCareerLine).toBeTruthy();
+    expect(entry.heroicCommandsUsed).toBe(1);
   });
 
   it('does NOT destroy a General at a different tile from the destroyed unit', () => {

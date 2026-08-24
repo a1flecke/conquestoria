@@ -1880,4 +1880,39 @@ describe('journey automation', () => {
       expect(next.pendingGeneralCandidateChoices ?? []).toHaveLength(0);
     });
   });
+
+  describe('#544 MR4 — General retirement (Final Command)', () => {
+    it('a General who spent all 3 charges is retired during end-of-round processing', () => {
+      const state = createNewGame('rome', 'general-retire-1', 'small');
+      state.units['gen-1'] = {
+        id: 'gen-1', type: 'great_general', owner: 'player', position: { q: 0, r: 0 },
+        movementPointsLeft: 3, health: 100, experience: 0, hasMoved: false, hasActed: false, isResting: false,
+        generalDefinitionId: 'gen_caesar', generalCommandChargesUsed: 3,
+      } as Unit;
+      state.civilizations.player.units.push('gen-1');
+      state.civilizations.player.generalHistory = [{ unitId: 'gen-1', generalDefinitionId: 'gen_caesar', spawnedTurn: 1 }];
+
+      const result = processTurn(state, new EventBus());
+
+      expect(result.units['gen-1']).toBeUndefined();
+    });
+
+    it('emits general:retired through the bus when a General retires during a real round', () => {
+      const state = createNewGame('rome', 'general-retire-2', 'small');
+      state.units['gen-1'] = {
+        id: 'gen-1', type: 'great_general', owner: 'player', position: { q: 0, r: 0 },
+        movementPointsLeft: 3, health: 100, experience: 0, hasMoved: false, hasActed: false, isResting: false,
+        generalDefinitionId: 'gen_caesar', generalCommandChargesUsed: 3,
+      } as Unit;
+      state.civilizations.player.units.push('gen-1');
+      state.civilizations.player.generalHistory = [{ unitId: 'gen-1', generalDefinitionId: 'gen_caesar', spawnedTurn: 1 }];
+      const bus = new EventBus();
+      const onRetired = vi.fn();
+      bus.on('general:retired', onRetired);
+
+      processTurn(state, bus);
+
+      expect(onRetired).toHaveBeenCalledWith(expect.objectContaining({ civId: 'player' }));
+    });
+  });
 });

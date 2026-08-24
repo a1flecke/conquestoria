@@ -2279,6 +2279,12 @@ export interface GameEvents {
   'game:loaded': { turn: number };
   'game:over': { winnerId: string };
   'diplomacy:war-declared': { attackerId: string; defenderId: string; opponentKind: 'major' | 'minor' | 'barbarian' };
+  /** #544 MR4: fired when a Great General retires after spending all 3
+   * Command Charges (Final Command). Retirement happens silently during
+   * end-of-round processing, well after the player confirmed spending the
+   * final charge -- this is the player's only feedback that it actually
+   * happened. */
+  'general:retired': { civId: string; generalName: string; message: string };
   // #526 MR7 Task 7.1: fired alongside diplomacy:war-declared whenever the declared-upon
   // civ has an active crisis -- applyOpportunisticWarPenaltyIfCrisisStruck already applied
   // the reputation deltas by the time this fires.

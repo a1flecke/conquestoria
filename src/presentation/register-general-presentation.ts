@@ -25,6 +25,14 @@ export const registerGeneralPresentation: PresentationRegistrar = (bus, ctx) => 
       // queueStrategicWarningPendingEvent call needed here.
       routeStrategicWarning(event, ctx.notifier.deliver);
     }),
+    // #544 MR4: first genuine Great-General event in this file -- the
+    // "General-notification bucket" name is a naming coincidence with the
+    // Great General game feature, not a dedicated home for it; this event
+    // just happens to fit "doesn't cleanly belong to any other domain
+    // registrar" as well as everything else already here.
+    bus.on('general:retired', ({ civId, generalName, message }) => {
+      ctx.notifier.deliver(civId, `${generalName} has retired. ${message}`, 'info');
+    }),
   ];
 
   return () => {
