@@ -274,7 +274,16 @@ function rankWithdrawals(
   unit: Unit,
 ): RankedAITacticalAction[] {
   const profile = OPPONENT_CHALLENGE_PROFILES[resolveOpponentChallenge(context.state)];
-  if (unit.health >= profile.retreatHealthPercent || unit.hasActed) return [];
+  // #544 MR5: a unit can need to fall back for two independent reasons --
+  // low health (pre-existing) or severe overextension (out of supply, in
+  // hostile territory long enough to be taking the -10%/-1-move combat
+  // penalty). Both checks are difficulty-invariant in what they trigger on
+  // (the mechanic: "severe supply state also withdraws" is identical at
+  // every difficulty) -- only retreatHealthPercent itself was ever
+  // difficulty-scaled, unchanged here.
+  const healthTrigger = unit.health < profile.retreatHealthPercent;
+  const supplyTrigger = unit.landSupply?.state === 'severe';
+  if ((!healthTrigger && !supplyTrigger) || unit.hasActed) return [];
   const ownCities = Object.values(context.state.cities)
     .filter(city => city.owner === context.actorId);
   const isOnlyImmediateDefender = context.plan.objective === 'defend'

@@ -419,6 +419,44 @@ describe('AI tactical action ranking', () => {
       .toBeLessThan(hexDistance({ q: 2, r: 0 }, city.position));
   });
 
+  it('#544 MR5: withdraws a full-health unit with severe landSupply (not just low-health units)', () => {
+    const state = makeState('standard');
+    const city = addCity(state, 'home', AI, { q: 0, r: 0 });
+    addUnit(state, 'overextended', 'warrior', AI, { q: 2, r: 0 }, {
+      health: 100,
+      movementPointsLeft: 1,
+      landSupply: { state: 'severe', hostileUnsupportedTurns: 5, suppliedTurnsSinceRecovery: 0 },
+    });
+    const plan = makePlan(
+      { kind: 'region', id: 'frontier', anchor: { q: 7, r: 0 } },
+      ['overextended'],
+    );
+
+    const action = chooseUnitTacticalAction(context(state, plan), 'overextended');
+
+    expect(action).toMatchObject({ kind: 'withdraw', unitId: 'overextended' });
+    expect(hexDistance(action.kind === 'withdraw' ? action.destination : { q: 9, r: 9 }, city.position))
+      .toBeLessThan(hexDistance({ q: 2, r: 0 }, city.position));
+  });
+
+  it('#544 MR5: does not withdraw a full-health unit with full landSupply', () => {
+    const state = makeState('standard');
+    addCity(state, 'home', AI, { q: 0, r: 0 });
+    addUnit(state, 'supplied', 'warrior', AI, { q: 2, r: 0 }, {
+      health: 100,
+      movementPointsLeft: 1,
+      landSupply: { state: 'full', hostileUnsupportedTurns: 0, suppliedTurnsSinceRecovery: 0 },
+    });
+    const plan = makePlan(
+      { kind: 'region', id: 'frontier', anchor: { q: 7, r: 0 } },
+      ['supplied'],
+    );
+
+    const action = chooseUnitTacticalAction(context(state, plan), 'supplied');
+
+    expect(action.kind).not.toBe('withdraw');
+  });
+
   it('does not withdraw into a peaceful foreign city', () => {
     const state = makeState('standard');
     addCity(state, 'home', AI, { q: 0, r: 0 });
