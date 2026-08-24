@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 
 import { describe, expect, it, vi } from 'vitest';
-import { createRallyPanel, createSeizeThePanelMoment } from '@/ui/general-command-panel';
-import type { RallyPreview } from '@/systems/great-general-abilities';
+import { createRallyPanel, createSeizeThePanelMoment, createLastStandPanel } from '@/ui/general-command-panel';
+import type { LastStandPreview, RallyPreview } from '@/systems/great-general-abilities';
 
 describe('createRallyPanel', () => {
   function makePreview(): RallyPreview {
@@ -100,5 +100,52 @@ describe('createSeizeThePanelMoment', () => {
     checkbox.checked = true;
     checkbox.dispatchEvent(new Event('change'));
     expect(confirmButton.disabled).toBe(false);
+  });
+});
+
+describe('createLastStandPanel', () => {
+  function makePreview(): LastStandPreview {
+    return {
+      eligibility: { eligible: true, chargesRemaining: 1, isFinalCharge: true, cooldownTurnsRemaining: 0 },
+      targetHex: { q: 1, r: 0 },
+      area: [{ q: 1, r: 0 }],
+      targets: [{ unitId: 'unit-1' }],
+      defenseBonusPercent: 15,
+      durationTurns: 2,
+    };
+  }
+
+  it('shows affected units, defense bonus, and duration', () => {
+    const container = document.createElement('div');
+    createLastStandPanel(container, makePreview(), () => {}, () => {});
+    const text = container.textContent ?? '';
+    expect(text).toMatch(/unit-1/);
+    expect(text).toMatch(/15%/);
+    expect(text).toMatch(/2/);
+  });
+
+  it('shows the Final Command notice when eligibility.isFinalCharge is true', () => {
+    const container = document.createElement('div');
+    createLastStandPanel(container, makePreview(), () => {}, () => {});
+    expect(container.textContent).toMatch(/final command/i);
+  });
+
+  it('confirm invokes onConfirm exactly once', () => {
+    const container = document.createElement('div');
+    const onConfirm = vi.fn();
+    createLastStandPanel(container, makePreview(), onConfirm, () => {});
+    const confirmButton = Array.from(container.querySelectorAll('button')).find(b => /confirm/i.test(b.textContent ?? ''))!;
+    confirmButton.click();
+    expect(onConfirm).toHaveBeenCalledTimes(1);
+  });
+
+  it('review fix: disables Confirm when there are zero targets in the area', () => {
+    const container = document.createElement('div');
+    const onConfirm = vi.fn();
+    createLastStandPanel(container, { ...makePreview(), targets: [] }, onConfirm, () => {});
+    const confirmButton = Array.from(container.querySelectorAll('button')).find(b => /confirm/i.test(b.textContent ?? '')) as HTMLButtonElement;
+    expect(confirmButton.disabled).toBe(true);
+    confirmButton.click();
+    expect(onConfirm).not.toHaveBeenCalled();
   });
 });

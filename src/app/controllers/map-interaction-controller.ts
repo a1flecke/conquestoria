@@ -62,6 +62,8 @@ import { confirmBusyWorkerMove } from '@/input/worker-movement-flow';
 import { resolveNaturalWonderAudioFocus } from '@/input/natural-wonder-audio-focus';
 import { createTerritoryInspectionPanel } from '@/ui/territory-inspection-panel';
 import { getVisibility } from '@/systems/fog-of-war';
+import { getLastStandPreview, issueLastStand } from '@/systems/great-general-abilities';
+import { createLastStandPanel } from '@/ui/general-command-panel';
 
 /** The narrow slice of `RenderLoop` this controller needs. */
 export type MapInteractionRenderer = Pick<RenderLoop, 'setGameState' | 'animateUnitAppear'> & {
@@ -271,6 +273,22 @@ export function createMapInteractionController(deps: MapInteractionControllerDep
             return;
           }
 
+          case 'last-stand-target': {
+            const generalUnitId = intent.pending.unitId;
+            const preview = getLastStandPreview(session.getState(), generalUnitId, coord);
+            selection.setPendingIntent({ kind: 'none' });
+            createLastStandPanel(
+              uiLayer,
+              preview,
+              () => {
+                session.commit(issueLastStand(session.getState(), generalUnitId, coord));
+                selectionController.selectUnit(generalUnitId);
+              },
+              () => {},
+            );
+            return;
+          }
+
           default: {
             const _exhaustive: never = intent.pending;
             throw new Error(`Unhandled pending map intent: ${JSON.stringify(_exhaustive)}`);
@@ -279,9 +297,16 @@ export function createMapInteractionController(deps: MapInteractionControllerDep
       }
 
       case 'mistap': {
-        // Mis-tap: block the tap; first occurrence shows an error notification
+        // Mis-tap: block the tap; first occurrence shows an error notification.
+        // #544 MR4: 'last-stand-target' is a second real source of 'mistap'
+        // (range-checked, same as 'unload') -- the message must distinguish
+        // them or a Last Stand mistap would misleadingly tell the player to
+        // "disembark."
         if (selection.shouldWarnOnMistap()) {
-          deps.showNotification('Tap a highlighted hex to disembark, or Cancel in the panel.', 'warning');
+          const message = intent.pending.kind === 'last-stand-target'
+            ? 'Tap a highlighted hex within command range to hold, or Cancel in the panel.'
+            : 'Tap a highlighted hex to disembark, or Cancel in the panel.';
+          deps.showNotification(message, 'warning');
           SFX.error();
         }
         return;
