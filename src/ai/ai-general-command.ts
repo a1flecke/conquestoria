@@ -3,7 +3,8 @@ import { GENERAL_DEFINITIONS } from '@/systems/great-general-definitions';
 import { mapDistance } from '@/systems/hex-utils';
 import { getVisibility } from '@/systems/fog-of-war';
 import { isAIHostileOwner } from '@/ai/ai-hostility';
-import { getHeroicCommandEligibility, getRallyPreview, issueRally } from '@/systems/great-general-abilities';
+import { getHeroicCommandEligibility, getRallyPreview, getSeizeTheMomentEligibleUnits, issueRally, issueSeizeTheMoment } from '@/systems/great-general-abilities';
+import { hasAICombatRole } from '@/ai/ai-unit-roles';
 
 /**
  * #544 MR5: one candidate action a General could take this turn, already
@@ -79,4 +80,34 @@ export function evaluateRallyOpportunity(state: GameState, generalUnitId: string
   }, 0);
 
   return { ability: 'rally', score, execute: s => issueRally(s, generalUnitId) };
+}
+
+/**
+ * contract §"AI / hot-seat / saves": "Seize evaluator: extra attack, kill
+ * potential, capture/denial, reposition, breakthrough." A full
+ * kill-probability simulation is out of scope for v1 (YAGNI) --
+ * combat-capable acted units get a flat high per-unit value (an extra
+ * attack from a real attacker is almost always worth a charge), non-combat
+ * acted units (already-moved workers/settlers/etc, repositioning value
+ * only) get a much smaller flat value. This is intentionally coarse;
+ * contract's "extra attack" and "reposition" cases are exactly the two
+ * buckets modeled.
+ */
+const SEIZE_COMBAT_UNIT_VALUE = 40;
+const SEIZE_NONCOMBAT_UNIT_VALUE = 8;
+
+export function evaluateSeizeOpportunity(state: GameState, generalUnitId: string): GeneralCommandOpportunity | null {
+  const { eligibility, eligible } = getSeizeTheMomentEligibleUnits(state, generalUnitId);
+  if (!eligibility.eligible || eligible.length === 0) return null;
+
+  const score = eligible.reduce((sum, entry) => {
+    const unit = state.units[entry.unitId];
+    return sum + (unit && hasAICombatRole(unit.type) ? SEIZE_COMBAT_UNIT_VALUE : SEIZE_NONCOMBAT_UNIT_VALUE);
+  }, 0);
+
+  return {
+    ability: 'seize_the_moment',
+    score,
+    execute: s => issueSeizeTheMoment(s, generalUnitId, eligible.map(e => e.unitId)),
+  };
 }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createNewGame } from '@/core/game-state';
-import { evaluateRallyOpportunity, getEraGenerals, isGeneralInDanger } from '@/ai/ai-general-command';
+import { evaluateRallyOpportunity, evaluateSeizeOpportunity, getEraGenerals, isGeneralInDanger } from '@/ai/ai-general-command';
 import { issueRally } from '@/systems/great-general-abilities';
 import type { Unit } from '@/core/types';
 
@@ -99,5 +99,45 @@ describe('#544 MR5 — evaluateRallyOpportunity', () => {
     } as Unit;
     state.civilizations.player!.units = ['gen-1', 'unit-1'];
     expect(evaluateRallyOpportunity(state, 'gen-1')).toBeNull();
+  });
+});
+
+describe('#544 MR5 — evaluateSeizeOpportunity', () => {
+  it('returns null when no unit has already acted nearby', () => {
+    const state = createNewGame({ civType: 'rome', mapSize: 'small', opponentCount: 1, gameTitle: 't', seed: 'seize-1' });
+    state.units['gen-1'] = makeGeneral();
+    state.civilizations.player!.units = ['gen-1'];
+    expect(evaluateSeizeOpportunity(state, 'gen-1')).toBeNull();
+  });
+
+  it('scores higher when a combat-capable acted unit is in range than when only a civilian is', () => {
+    const state = createNewGame({ civType: 'rome', mapSize: 'small', opponentCount: 1, gameTitle: 't', seed: 'seize-2' });
+    state.units['gen-1'] = makeGeneral();
+    state.units['warrior-1'] = {
+      id: 'warrior-1', type: 'warrior', owner: 'player', position: { q: 1, r: 0 },
+      movementPointsLeft: 0, health: 100, experience: 0, hasMoved: true, hasActed: true, isResting: false,
+    } as Unit;
+    state.civilizations.player!.units = ['gen-1', 'warrior-1'];
+    const combatOpportunity = evaluateSeizeOpportunity(state, 'gen-1');
+    expect(combatOpportunity).not.toBeNull();
+    expect(combatOpportunity!.score).toBeGreaterThan(0);
+
+    const workerState = structuredClone(state);
+    workerState.units['warrior-1'] = { ...workerState.units['warrior-1']!, type: 'worker' };
+    const workerOpportunity = evaluateSeizeOpportunity(workerState, 'gen-1');
+    expect(workerOpportunity?.score ?? 0).toBeLessThan(combatOpportunity!.score);
+  });
+
+  it('execute matches issueSeizeTheMoment directly', () => {
+    const state = createNewGame({ civType: 'rome', mapSize: 'small', opponentCount: 1, gameTitle: 't', seed: 'seize-3' });
+    state.units['gen-1'] = makeGeneral();
+    state.units['warrior-1'] = {
+      id: 'warrior-1', type: 'warrior', owner: 'player', position: { q: 1, r: 0 },
+      movementPointsLeft: 0, health: 100, experience: 0, hasMoved: true, hasActed: true, isResting: false,
+    } as Unit;
+    state.civilizations.player!.units = ['gen-1', 'warrior-1'];
+    const opportunity = evaluateSeizeOpportunity(state, 'gen-1');
+    const executed = opportunity!.execute(state);
+    expect(executed.units['warrior-1']!.hasActed).toBe(false);
   });
 });
