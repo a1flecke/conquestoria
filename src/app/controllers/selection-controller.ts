@@ -61,6 +61,8 @@ import { getUnmovedUnits } from '@/systems/unit-system';
 import { updateAndRefreshVisibility } from '@/systems/last-seen-presentation';
 import { fireResourceDiscoveredTip } from '@/ui/advisor-system';
 import { syncCivilizationContactsFromVisibility } from '@/systems/discovery-system';
+import { getRallyPreview, issueRally, getSeizeTheMomentEligibleUnits, issueSeizeTheMoment } from '@/systems/great-general-abilities';
+import { createRallyPanel, createSeizeThePanelMoment } from '@/ui/general-command-panel';
 
 /** The narrow slice of `RenderLoop` this controller needs. */
 export type SelectionControllerRenderer = Pick<
@@ -186,6 +188,31 @@ export function createSelectionController(deps: SelectionControllerDeps): Select
         onReopenSupplyTutorial: () => {
           deps.advisorSystem.resetMessage('supply_intro');
           deps.advisorSystem.check(session.getState());
+        },
+        onOpenRally: (generalUnitId: string) => {
+          const preview = getRallyPreview(session.getState(), generalUnitId);
+          createRallyPanel(
+            deps.uiLayer,
+            preview,
+            () => {
+              session.commit(issueRally(session.getState(), generalUnitId));
+              selectUnit(generalUnitId); // refresh the panel so charges/cooldown reflect immediately
+            },
+            () => {},
+          );
+        },
+        onOpenSeize: (generalUnitId: string) => {
+          const { eligible } = getSeizeTheMomentEligibleUnits(session.getState(), generalUnitId);
+          createSeizeThePanelMoment(
+            deps.uiLayer,
+            generalUnitId,
+            eligible,
+            (selectedUnitIds) => {
+              session.commit(issueSeizeTheMoment(session.getState(), generalUnitId, selectedUnitIds));
+              selectUnit(generalUnitId);
+            },
+            () => {},
+          );
         },
         onStartIntercept: uid => {
           const result = startIntercept(session.getState(), uid);
