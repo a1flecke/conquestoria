@@ -433,3 +433,21 @@
 - Human/AI, difficulty, hot-seat, fog, muted/reduced-motion, panel refresh, and notification requirements map to Tasks 1 and 4.
 - The only new user-facing behavior is the already-promised Host warning delivery, implemented once at the canonical before/after event boundary in Task 1.
 - No new schema, dark code, private test hook, duplicate ID branch, visual/audio asset, or broad refactor is planned.
+
+## Audit Evidence
+
+| Seed | Era | Difficulty | Target | Crisis state | Regression test | Result |
+| --- | --- | --- | --- | --- | --- | --- |
+| `rogue-host-turn-event-0…99` | 4 | Standard | human | scheduled warning | `turn-manager-crisis.test.ts` | warning event is emitted once at the scheduler boundary |
+| `stampede-current-round-trip` | 3 | Standard | human | warning + committed route | `save-migrations.test.ts` | current-schema state and route survive idempotent normalization |
+| `rogue-host-command` | 4 | Standard | human | active command link | `rogue-elephant-host-system.test.ts` | Handler’s +20% fact is limited to active range-two command |
+| `rogue-host-break` | 4 | Standard | human | broken command/dispersal | `rogue-elephant-host-system.test.ts` | conversion, three-turn dispersal, cleanup, and one reward complete |
+| `ai-1` visible/hidden Host | 9 | Veteran setting | AI | active Host | `ai-crisis-response.test.ts` | AI sees only visible crisis actors; Host force remains Standard severity |
+| hot-seat `p1`/`p2` | 4 | Standard | human | warning/notification | `register-rogue-elephant-host-presentation.test.ts`, `city-panel.test.ts` | only the target receives a queued warning and panel status |
+
+Production defects fixed during the audit:
+
+- Host scheduling previously created a warning state without a target-scoped lifecycle event. `src/core/turn-manager.ts` now emits the canonical before/after transition and the Host registrar delivers it only to `targetCivId`.
+- `startStampedeWarning` previously allowed a new Stampede while a Host was warning, active, or dispersing. The canonical Stampede entry point now preserves mutual exclusion for every caller.
+
+Schema remains 19: the audit added no persisted fields and valid current-schema records normalize idempotently.
