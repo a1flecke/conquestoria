@@ -3,6 +3,7 @@ import { GENERAL_DEFINITIONS } from '@/systems/great-general-definitions';
 import { mapDistance } from '@/systems/hex-utils';
 import { getVisibility } from '@/systems/fog-of-war';
 import { isAIHostileOwner } from '@/ai/ai-hostility';
+import { getHeroicCommandEligibility, getRallyPreview, issueRally } from '@/systems/great-general-abilities';
 
 /**
  * #544 MR5: one candidate action a General could take this turn, already
@@ -49,4 +50,33 @@ export function isGeneralInDanger(state: GameState, general: Pick<Unit, 'owner' 
     && isAIHostileOwner(state, general.owner, candidate.owner)
     && getVisibility(visibility, candidate.position) === 'visible'
     && mapDistance(state.map, general.position, candidate.position) <= GENERAL_DANGER_RADIUS);
+}
+
+/**
+ * contract §"AI / hot-seat / saves": "Rally evaluator: missing HP,
+ * degradation cleanup, survival, future usefulness." getRallyPreview
+ * already ranks/selects its own targets by (missing HP + supply-stage
+ * severity) -- this evaluator's score is simply the sum of each target's
+ * improvement, so a Rally that heals many badly-hurt, badly-supplied units
+ * outscores one that barely helps a single near-full-health unit. Returns
+ * null (not a zero-score opportunity) when there is genuinely nothing to
+ * do, so the shared spend layer never has to special-case "eligible but
+ * pointless."
+ */
+export function evaluateRallyOpportunity(state: GameState, generalUnitId: string): GeneralCommandOpportunity | null {
+  const general = state.units[generalUnitId];
+  if (!general) return null;
+  const eligibility = getHeroicCommandEligibility(state, general);
+  if (!eligibility.eligible) return null;
+
+  const preview = getRallyPreview(state, generalUnitId);
+  if (preview.targets.length === 0) return null;
+
+  const score = preview.targets.reduce((sum, target) => {
+    const healthGain = target.healthAfter - target.healthBefore;
+    const stageRelief = target.stageBefore !== target.stageAfter ? 20 : 0;
+    return sum + healthGain + stageRelief;
+  }, 0);
+
+  return { ability: 'rally', score, execute: s => issueRally(s, generalUnitId) };
 }
