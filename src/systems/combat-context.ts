@@ -12,6 +12,7 @@ import { resolveAirDefenseCoverage } from './air-defense-system';
 import { resolveCombinedArms } from './combined-arms-system';
 import { resolveFortificationDefense } from './fortification-system';
 import { resolveLandSupplyCombatPenalty } from './supply-combat';
+import { resolveLastStandDefenseBonus } from './great-general-abilities';
 
 export interface CombatContextOptions {
   amphibiousAssault?: boolean;
@@ -92,6 +93,7 @@ export function buildCombatContextForDefender(
   const fortification = resolveFortificationDefense(state, defender, attacker);
   const attackerSupplyPenalty = resolveLandSupplyCombatPenalty(attacker);
   const defenderSupplyPenalty = resolveLandSupplyCombatPenalty(defender);
+  const defenderLastStand = resolveLastStandDefenseBonus(defender, state.turn);
 
   return {
     attackerBonus: resolveCivDefinition(
@@ -156,6 +158,13 @@ export function buildCombatContextForDefender(
     defenderLandSupplyMultiplier: defenderSupplyPenalty.multiplier,
     defenderLandSupplyFact: defenderSupplyPenalty.label
       ? { key: 'land-supply', label: defenderSupplyPenalty.label, sourceVisibility: 'owner', operation: 'multiplier', value: defenderSupplyPenalty.multiplier, outcome: 'applied' }
+      : undefined,
+    // #544 MR4: 'public' (not 'owner' like land-supply) -- Last Stand's
+    // defense bonus is a visible battlefield effect the attacker should see
+    // forming up, same reasoning as fortification being public.
+    defenderLastStandMultiplier: defenderLastStand.multiplier,
+    defenderLastStandFact: defenderLastStand.label
+      ? { key: 'last-stand', label: defenderLastStand.label, sourceVisibility: 'public', operation: 'multiplier', value: defenderLastStand.multiplier, outcome: 'applied' }
       : undefined,
     attackerPositioningPart: flankingTiles > 0 ? { label: `Flanked +${flankingTiles * 10}%`, kind: 'mult' } : undefined,
     defenderPositioningPart: supportTiles > 0 ? { label: `Supported +${supportTiles * 10}%`, kind: 'mult' } : undefined,

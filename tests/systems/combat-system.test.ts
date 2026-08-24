@@ -522,6 +522,39 @@ describe('land-supply combat context (#544)', () => {
     expect(context.defenderLandSupplyMultiplier).toBe(1);
     expect(context.attackerLandSupplyFact).toMatchObject({ label: 'Overextended -10%', outcome: 'applied' });
   });
+
+  it('#544 MR4: an unexpired lastStandHold on the defender contributes defenderLastStandMultiplier', () => {
+    const state = createNewGame(undefined, 'last-stand-context', 'small');
+    const attacker = { ...createUnit('warrior', 'player', { q: 4, r: 4 }, mkC()), id: 'attacker' };
+    const defender = {
+      ...createUnit('warrior', 'ai-1', { q: 5, r: 4 }, mkC()), id: 'defender',
+      lastStandHold: { formationId: 'f1', defenseBonusMultiplier: 1.15, expiresTurn: state.turn + 1 },
+    };
+    state.currentPlayer = 'player';
+    state.units = { attacker, defender };
+    state.civilizations.player.units = [attacker.id];
+    state.civilizations['ai-1'].units = [defender.id];
+
+    const context = buildCombatContextForDefender(state, attacker, defender);
+
+    expect(context.defenderLastStandMultiplier).toBe(1.15);
+    expect(context.defenderLastStandFact?.label).toContain('Last Stand');
+  });
+
+  it('#544 MR4: no lastStandHold contributes a neutral defenderLastStandMultiplier', () => {
+    const state = createNewGame(undefined, 'last-stand-context-neutral', 'small');
+    const attacker = { ...createUnit('warrior', 'player', { q: 4, r: 4 }, mkC()), id: 'attacker' };
+    const defender = { ...createUnit('warrior', 'ai-1', { q: 5, r: 4 }, mkC()), id: 'defender' };
+    state.currentPlayer = 'player';
+    state.units = { attacker, defender };
+    state.civilizations.player.units = [attacker.id];
+    state.civilizations['ai-1'].units = [defender.id];
+
+    const context = buildCombatContextForDefender(state, attacker, defender);
+
+    expect(context.defenderLastStandMultiplier).toBe(1);
+    expect(context.defenderLastStandFact).toBeUndefined();
+  });
 });
 
 describe('bombard-kind defense penalty (MR: counter-attack rule fix, #537)', () => {
