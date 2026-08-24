@@ -859,6 +859,81 @@ function WarHoundV2Sprite({ faction = 'imperials', state = 'idle', phase }) {
   );
 }
 
+/* ─────────────────────────── #708 mounted and beast formations ─────────────────────────── */
+function BeastHandlerV2Sprite({ faction = 'imperials', state = 'idle', phase }) {
+  const f = _fa2(faction);
+  return (
+    <SpriteFrameV2 state={state} kind="hound" variant="war" phase={phase}>
+      <ellipse className="cq-shadow" cx="64" cy="96" rx="34" ry="7" fill="#000" opacity="0.35" />
+      <g transform="translate(68 76)">
+        <ellipse cx="5" cy="0" rx="24" ry="12" fill="#9a7448" stroke={_P2.ink.line} strokeWidth="1" />
+        <path d="M-11,-8 L13,-8 L10,-3 L-10,-3 Z" fill={f.mid} stroke={_P2.ink.line} strokeWidth="0.6" />
+        <g transform="translate(-10 6)"><g className="cq-leg-fl"><rect x="-3" y="0" width="6" height="15" fill="#5e3f24" /></g></g>
+        <g transform="translate(1 6)"><g className="cq-leg-fr"><rect x="-3" y="0" width="6" height="15" fill="#5e3f24" /></g></g>
+        <g transform="translate(17 6)"><g className="cq-leg-bl"><rect x="-3" y="0" width="6" height="15" fill="#5e3f24" /></g></g>
+        <g transform="translate(25 6)"><g className="cq-leg-br"><rect x="-3" y="0" width="6" height="15" fill="#5e3f24" /></g></g>
+        <ellipse cx="-19" cy="-4" rx="11" ry="9" fill="#9a7448" stroke={_P2.ink.line} strokeWidth="1" />
+        <path d="M-29,-3 L-35,3 L-27,5 Z" fill="#9a7448" stroke={_P2.ink.line} strokeWidth="0.7" />
+        <path d="M20,-4 Q32,-12 29,-22" stroke="#5e3f24" strokeWidth="4" fill="none" strokeLinecap="round" />
+        <circle cx="-23" cy="-5" r="1" fill={_P2.ink.line} />
+      </g>
+      <HumanoidV2 cx={40} cy={68} scale={0.72} cloth={_P2.cloth.linen} pants={_P2.cloth.wool} accent={f.mid} arms="locked"
+        hat={<path d="M-9,-38 Q0,-46 9,-38 L8,-33 L-8,-33 Z" fill={f.dark} stroke={_P2.ink.line} strokeWidth="0.6" />} />
+      <g transform="translate(48 48)"><rect x="-1.2" y="0" width="2.4" height="43" fill={_P2.wood.dark} /><path d="M0,32 Q15,35 20,23" stroke={f.mid} strokeWidth="1.4" fill="none" /></g>
+      <path d="M36,88 Q48,96 56,82" stroke={f.bright} strokeWidth="1.4" fill="none" />
+    </SpriteFrameV2>
+  );
+}
+
+function WarElephantV2Sprite({ faction = 'imperials', state = 'idle', phase }) {
+  const f = _fa2(faction);
+  return (
+    <SpriteFrameV2 state={state} kind="hound" variant="war" phase={phase}>
+      <ellipse className="cq-shadow" cx="66" cy="99" rx="43" ry="8" fill="#000" opacity="0.35" />
+      <g transform="translate(68 74)">
+        <ellipse cx="2" cy="2" rx="35" ry="20" fill="#8a8b80" stroke={_P2.ink.line} strokeWidth="1.2" />
+        <path d="M-26,-11 Q2,-25 29,-10 L26,1 L-25,1 Z" fill={f.mid} stroke={_P2.ink.line} strokeWidth="0.8" />
+        <rect x="-10" y="-25" width="26" height="17" rx="2" fill={_P2.wood.mid} stroke={_P2.ink.line} strokeWidth="1" />
+        <rect x="-7" y="-22" width="20" height="4" fill={f.bright} />
+        <g transform="translate(-20 13)"><g className="cq-leg-fl"><rect x="-5" y="0" width="10" height="20" rx="2" fill="#68695f" /></g></g>
+        <g transform="translate(-3 14)"><g className="cq-leg-fr"><rect x="-5" y="0" width="10" height="20" rx="2" fill="#68695f" /></g></g>
+        <g transform="translate(19 14)"><g className="cq-leg-bl"><rect x="-5" y="0" width="10" height="20" rx="2" fill="#68695f" /></g></g>
+        <g transform="translate(32 13)"><g className="cq-leg-br"><rect x="-5" y="0" width="10" height="20" rx="2" fill="#68695f" /></g></g>
+        <ellipse cx="-31" cy="-4" rx="15" ry="14" fill="#8a8b80" stroke={_P2.ink.line} strokeWidth="1" />
+        <path d="M-42,-2 Q-53,10 -45,23" stroke="#68695f" strokeWidth="8" fill="none" strokeLinecap="round" />
+        <path d="M-40,4 Q-51,7 -49,15" stroke={_P2.metal.shine} strokeWidth="3" fill="none" strokeLinecap="round" />
+        <path d="M-31,-15 L-23,-23 L-22,-10 Z" fill="#68695f" /><circle cx="-37" cy="-6" r="1.5" fill={_P2.ink.line} />
+      </g>
+      <HumanoidV2 cx={67} cy={45} scale={0.48} cloth={f.mid} pants={_P2.cloth.wool} accent={f.bright} arms="locked" />
+    </SpriteFrameV2>
+  );
+}
+
+function CuirassierV2Sprite({ faction = 'imperials', state = 'idle', phase }) {
+  const f = _fa2(faction);
+  return (
+    <SpriteFrameV2 state={state} kind="melee" phase={phase}>
+      <ellipse className="cq-shadow" cx="64" cy="97" rx="32" ry="7" fill="#000" opacity="0.35" />
+      <g transform="translate(65 79)">
+        <ellipse cx="1" cy="0" rx="31" ry="16" fill="#5a3a1a" stroke={_P2.ink.line} strokeWidth="1" />
+        <path d="M-23,-8 Q1,-15 23,-8 L20,-3 L-21,-3 Z" fill={f.dark} stroke={_P2.ink.line} strokeWidth="0.6" />
+        <g transform="translate(-18 7)"><g className="cq-leg-fl"><rect x="-3" y="0" width="6" height="17" fill="#3a2010" /></g></g>
+        <g transform="translate(-2 7)"><g className="cq-leg-fr"><rect x="-3" y="0" width="6" height="17" fill="#3a2010" /></g></g>
+        <g transform="translate(15 7)"><g className="cq-leg-bl"><rect x="-3" y="0" width="6" height="17" fill="#3a2010" /></g></g>
+        <g transform="translate(24 7)"><g className="cq-leg-br"><rect x="-3" y="0" width="6" height="17" fill="#3a2010" /></g></g>
+        <ellipse cx="-25" cy="-6" rx="12" ry="10" fill="#5a3a1a" stroke={_P2.ink.line} strokeWidth="1" />
+        <path d="M-34,-3 L-39,4 L-31,5 Z" fill="#5a3a1a" /><circle cx="-30" cy="-7" r="1" fill={_P2.ink.line} />
+      </g>
+      <HumanoidV2 cx={64} cy={57} scale={0.82} cloth={_P2.metal.steel} pants={_P2.metal.iron} accent={f.mid} arms="locked"
+        hat={<path d="M-10,-37 Q0,-44 10,-37 L8,-29 L-8,-29 Z" fill={_P2.metal.iron} stroke={_P2.ink.line} strokeWidth="0.7" />} />
+      <g className="cq-weapon" style={{ '--pivot-x': '79px', '--pivot-y': '58px' }}>
+        <g transform="translate(79 58) rotate(32)"><rect x="-1.2" y="-34" width="2.4" height="34" fill={_P2.metal.shine} stroke={_P2.ink.line} strokeWidth="0.5" /><rect x="-6" y="-2" width="12" height="2.5" fill={_P2.metal.gold} /></g>
+        <g transform="translate(98 29)"><g className="cq-hit-spark"><path d="M0,-7 L2,-2 L7,0 L2,2 L0,7 L-2,2 L-7,0 L-2,-2 Z" fill="#fff5cc" /></g></g>
+      </g>
+    </SpriteFrameV2>
+  );
+}
+
 /* ─────────────────────────── Galley (naval — auto-phase only) ─────────────────────────── */
 function GalleyV2Sprite({ faction = 'imperials', state = 'idle', phase }) {
   const f = _fa2(faction);
@@ -1681,10 +1756,10 @@ Object.assign(window, {
   MusketeerV2Sprite,
   WarriorV2Sprite, PikemanV2Sprite,
   SpyScoutV2Sprite, SpyInformantV2Sprite, SpyAgentV2Sprite, SpyHackerV2Sprite, ShadowWardenV2Sprite,
-  ScoutHoundV2Sprite, WarHoundV2Sprite,
+  ScoutHoundV2Sprite, WarHoundV2Sprite, BeastHandlerV2Sprite, WarElephantV2Sprite,
   GalleyV2Sprite, TriremeV2Sprite,
   AxemanV2Sprite, SpearmanV2Sprite,
-  HorsemanV2Sprite, CavalryV2Sprite, KnightV2Sprite,
+  HorsemanV2Sprite, CavalryV2Sprite, KnightV2Sprite, CuirassierV2Sprite,
   CrossbowmanV2Sprite,
   CatapultV2Sprite, BallistaV2Sprite,
   CaravanV2Sprite, ExpeditionV2Sprite, TransportV2Sprite,

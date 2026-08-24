@@ -3,11 +3,11 @@ import type { UnitSpriteMotion, UnitSpriteProps } from './units';
 import type { BuildingSpriteProps } from './buildings';
 import {
   SettlerSprite, WorkerSprite, MissionarySprite, ScoutSprite, ScoutHoundSprite,
-  WarHoundSprite, ShadowWardenSprite, WarriorSprite, SwordsmanSprite,
+  WarHoundSprite, BeastHandlerSprite, WarElephantSprite, ShadowWardenSprite, WarriorSprite, SwordsmanSprite,
   PikemanSprite, ArcherSprite, MusketeerSprite, GalleySprite,
   TriremeSprite, TransportSprite, SpyScoutSprite, SpyInformantSprite, SpyAgentSprite,
   SpyOperativeSprite, SpyIntelligenceOfficerSprite, SpyStationChiefSprite, SpyHackerSprite, CyberUnitSprite,
-  AxemanSprite, SpearmanSprite, HorsemanSprite, ChariotSprite, CavalrySprite, KnightSprite,
+  AxemanSprite, SpearmanSprite, HorsemanSprite, ChariotSprite, CavalrySprite, KnightSprite, CuirassierSprite,
   CrossbowmanSprite, CatapultSprite, BallistaSprite, CannonSprite, ArtillerySprite, GrenadierSprite,
   RiflemanSprite, MarineSprite, IroncladSprite,
   MachineGunnerSprite, InfantrySprite, PreDreadnoughtSprite, TankSprite, SubmarineSprite,
@@ -257,10 +257,8 @@ export const UNIT_SPRITE_CATALOG: Record<UnitType, UnitSpriteComponent> = {
   scout:          withMotion('scout', ScoutSprite),
   scout_hound:    withMotion('scout_hound', ScoutHoundSprite),
   war_hound:      withMotion('war_hound', WarHoundSprite),
-  // Temporary War Hound silhouette; #708 owns Beast Handler's bespoke sprite.
-  beast_handler:  withMotion('beast_handler', WarHoundSprite),
-  // Temporary animal silhouette; #708 owns War Elephant's bespoke sprite.
-  war_elephant:   withMotion('war_elephant', WarHoundSprite),
+  beast_handler:  withMotion('beast_handler', BeastHandlerSprite),
+  war_elephant:   withMotion('war_elephant', WarElephantSprite),
   shadow_warden:  withMotion('shadow_warden', ShadowWardenSprite),
   warrior:        withMotion('warrior', WarriorSprite),
   swordsman:      withMotion('swordsman', SwordsmanSprite),
@@ -297,8 +295,7 @@ export const UNIT_SPRITE_CATALOG: Record<UnitType, UnitSpriteComponent> = {
   // Temporary Tank silhouette; #709 owns Armored Car's distinct final sprite.
   armored_car:    withMotion('armored_car', TankSprite),
   knight:         withMotion('knight', KnightSprite),
-  // Temporary Knight silhouette; #708 owns Cuirassier's distinct final sprite.
-  cuirassier:     withMotion('cuirassier', KnightSprite),
+  cuirassier:     withMotion('cuirassier', CuirassierSprite),
   crossbowman:    withMotion('crossbowman', CrossbowmanSprite),
   catapult:       withMotion('catapult', CatapultSprite),
   // Temporary Catapult silhouette; the heavy-siege art batch owns Trebuchet's bespoke sprite.

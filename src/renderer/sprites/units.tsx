@@ -150,6 +150,47 @@ export function WarHoundSprite({ palette, svgOnly = false }: UnitSpriteProps): s
   );
 }
 
+// #708: handler and hound are a command/support silhouette, not an armored war hound.
+export function BeastHandlerSprite({ palette, svgOnly = false }: UnitSpriteProps): string {
+  return (
+    <SpriteFrame svgOnly={svgOnly}>
+      <Shadow cx={66} cy={96} rx={34} />
+      <g transform="translate(70 77)">
+        <ellipse cx="2" cy="0" rx="24" ry="12" fill="#9a7448" stroke={P.ink.line} strokeWidth="1" />
+        <rect x="-11" y="-8" width="23" height="5" fill={palette.mid} stroke={P.ink.line} strokeWidth="0.6" />
+        <rect x="-10" y="6" width="6" height="15" fill={P.wood.dark} /><rect x="0" y="6" width="6" height="15" fill={P.wood.dark} />
+        <rect x="16" y="6" width="6" height="15" fill={P.wood.dark} /><rect x="23" y="6" width="6" height="15" fill={P.wood.dark} />
+        <ellipse cx="-19" cy="-4" rx="11" ry="9" fill="#9a7448" stroke={P.ink.line} strokeWidth="1" />
+        <path d="M-29,-3 L-35,3 L-27,5 Z" fill="#9a7448" stroke={P.ink.line} strokeWidth="0.7" />
+      </g>
+      <Humanoid cx={40} cy={68} scale={0.72} cloth={P.cloth.linen} pants={P.cloth.wool} accent={palette.mid} hair={P.ink.soft} />
+      <line x1="48" y1="48" x2="48" y2="90" stroke={P.wood.dark} strokeWidth="2.4" strokeLinecap="round" />
+      <path d="M42,87 Q50,96 58,83" stroke={palette.bright} strokeWidth="1.4" fill="none" />
+    </SpriteFrame>
+  );
+}
+
+// #708: broad tusks, howdah, and rider make the heavy shock role readable at map scale.
+export function WarElephantSprite({ palette, svgOnly = false }: UnitSpriteProps): string {
+  return (
+    <SpriteFrame svgOnly={svgOnly}>
+      <Shadow cx={67} cy={99} rx={43} ry={8} />
+      <g transform="translate(68 75)">
+        <ellipse cx="2" cy="1" rx="35" ry="20" fill="#8a8b80" stroke={P.ink.line} strokeWidth="1.2" />
+        <path d="M-26,-11 Q2,-25 29,-10 L26,1 L-25,1 Z" fill={palette.mid} stroke={P.ink.line} strokeWidth="0.8" />
+        <rect x="-10" y="-25" width="26" height="17" rx="2" fill={P.wood.mid} stroke={P.ink.line} strokeWidth="1" />
+        <rect x="-7" y="-22" width="20" height="4" fill={palette.bright} />
+        <rect x="-25" y="13" width="10" height="20" rx="2" fill="#68695f" /><rect x="-8" y="14" width="10" height="20" rx="2" fill="#68695f" />
+        <rect x="14" y="14" width="10" height="20" rx="2" fill="#68695f" /><rect x="27" y="13" width="10" height="20" rx="2" fill="#68695f" />
+        <ellipse cx="-31" cy="-4" rx="15" ry="14" fill="#8a8b80" stroke={P.ink.line} strokeWidth="1" />
+        <path d="M-42,-2 Q-53,10 -45,23" stroke="#68695f" strokeWidth="8" fill="none" strokeLinecap="round" />
+        <path d="M-40,4 Q-51,7 -49,15" stroke={P.metal.shine} strokeWidth="3" fill="none" strokeLinecap="round" />
+      </g>
+      <Humanoid cx={67} cy={45} scale={0.48} cloth={palette.mid} pants={P.cloth.wool} accent={palette.bright} hair={P.ink.soft} />
+    </SpriteFrame>
+  );
+}
+
 export function ShadowWardenSprite({ palette, svgOnly = false }: UnitSpriteProps): string {
   return (
     <SpriteFrame svgOnly={svgOnly} hexTint="#3a2858">
@@ -1307,6 +1348,34 @@ export function KnightSprite({ palette, svgOnly = false }: UnitSpriteProps): str
         <rect x="-1.4" y="-9" width="2.8" height="20" fill={palette.dark} />
         <rect x="-8" y="-3" width="16" height="2.8" fill={palette.dark} />
       </g>
+    </SpriteFrame>
+  );
+}
+
+// #708: an early-modern breastplate and sabre distinguish Cuirassier from the lance-bearing Knight.
+export function CuirassierSprite({ palette, svgOnly = false }: UnitSpriteProps): string {
+  return (
+    <SpriteFrame svgOnly={svgOnly}>
+      <Shadow cx={64} cy={97} rx={32} />
+      <g transform="translate(65 79)">
+        <ellipse cx="1" cy="0" rx="31" ry="16" fill="#5a3a1a" stroke={P.ink.line} strokeWidth="1" />
+        <path d="M-23,-8 Q1,-15 23,-8 L20,-3 L-21,-3 Z" fill={palette.dark} stroke={P.ink.line} strokeWidth="0.6" />
+        <rect x="-21" y="7" width="6" height="17" fill="#3a2010" /><rect x="-5" y="7" width="6" height="17" fill="#3a2010" />
+        <rect x="12" y="7" width="6" height="17" fill="#3a2010" /><rect x="21" y="7" width="6" height="17" fill="#3a2010" />
+        <ellipse cx="-25" cy="-6" rx="12" ry="10" fill="#5a3a1a" stroke={P.ink.line} strokeWidth="1" />
+        <path d="M-34,-3 L-39,4 L-31,5 Z" fill="#5a3a1a" />
+      </g>
+      {mountedRider({
+        cx: 64, cy: 57, scale: 0.82, cloth: P.metal.steel, accent: palette.mid, hair: '#2a1a10',
+        hat: <path d="M-10,-37 Q0,-44 10,-37 L8,-29 L-8,-29 Z" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.7" />,
+      })}
+      <g transform="translate(79 58) rotate(32)">
+        <g className="cq-weapon" style="transform-origin: 79px 58px; transform-box: view-box;">
+          <rect x="-1.2" y="-34" width="2.4" height="34" fill={P.metal.shine} stroke={P.ink.line} strokeWidth="0.5" />
+          <rect x="-6" y="-2" width="12" height="2.5" fill={P.metal.gold} />
+        </g>
+      </g>
+      <Banner x={42} y={30} palette={palette} scale={0.7} />
     </SpriteFrame>
   );
 }
