@@ -14,6 +14,7 @@ import {
 } from '@/systems/great-general-abilities';
 import { getEffectiveCommandStats } from '@/systems/great-general-system';
 import { hasAICombatRole } from '@/ai/ai-unit-roles';
+import { OPPONENT_CHALLENGE_PROFILES, resolveOpponentChallenge } from '@/core/opponent-challenge';
 
 /**
  * #544 MR5: one candidate action a General could take this turn, already
@@ -181,4 +182,75 @@ export function evaluateLastStandOpportunity(state: GameState, generalUnitId: st
     score: best.score,
     execute: s => issueLastStand(s, generalUnitId, chosenHex),
   };
+}
+
+const GENERAL_DANGER_SCORE_PENALTY = 15;
+
+/**
+ * contract §"AI / hot-seat / saves": "shared layer considers: charges left,
+ * cooldown, General safety, objective importance, tactical swing." Charges/
+ * cooldown are already the eligibility gate each evaluator checks via
+ * getHeroicCommandEligibility (an ineligible ability simply returns null and
+ * is never a candidate here -- this function only ever compares
+ * opportunities that already passed that gate, so "charges left"/"cooldown"
+ * are satisfied structurally, not by extra logic in this function).
+ * "General safety" is applied here as a flat score penalty (scaled by
+ * profile.generalSafetyWeight) when isGeneralInDanger is true -- discourages
+ * (but does not forbid) spending a charge while exposed, rather than
+ * hard-blocking it, since sometimes using the charge anyway (e.g. Last
+ * Stand to brace against the very threat endangering the General) is
+ * correct. "Objective importance"/"tactical swing" are represented by each
+ * evaluator's own score (Rally's healing total, Seize's unit-value sum,
+ * Last Stand's formation-size*threat product) -- this function's only job
+ * is comparing those already-computed scores, weighted by difficulty
+ * eagerness, and picking the best.
+ */
+export function chooseGeneralCommandAction(state: GameState, generalUnitId: string): GeneralCommandOpportunity | null {
+  const general = state.units[generalUnitId];
+  if (!general) return null;
+  const profile = OPPONENT_CHALLENGE_PROFILES[resolveOpponentChallenge(state)];
+  const dangerPenalty = isGeneralInDanger(state, general)
+    ? GENERAL_DANGER_SCORE_PENALTY * profile.generalSafetyWeight
+    : 0;
+
+  const opportunities = [
+    evaluateRallyOpportunity(state, generalUnitId),
+    evaluateSeizeOpportunity(state, generalUnitId),
+    evaluateLastStandOpportunity(state, generalUnitId),
+  ].filter((o): o is GeneralCommandOpportunity => o !== null);
+  if (opportunities.length === 0) return null;
+
+  const scored = opportunities
+    .map(o => ({ opportunity: o, adjustedScore: o.score * profile.heroicCommandEagernessWeight - dangerPenalty }))
+    .sort((a, b) => b.adjustedScore - a.adjustedScore || a.opportunity.ability.localeCompare(b.opportunity.ability));
+
+  const winner = scored[0]!;
+  return winner.adjustedScore > 0 ? winner.opportunity : null;
+}
+
+/**
+ * Per-civ dispatch entry (called twice per round by the AI round
+ * scheduler). 'pre-tactical' runs Rally and Last Stand (both should be
+ * active before this civ's own combat and before the next turn's incoming
+ * attacks); 'post-tactical' runs only Seize the Moment (requires hasActed
+ * units, which only exist after this civ's tactical plan has actually
+ * moved/attacked). A General that issues nothing this phase is left in
+ * place -- Generals are civilian-classed and are never assigned into the
+ * plan/role tactical system, so a General with nothing useful to do simply
+ * holds rather than being repositioned.
+ */
+export function processAIGeneralCommand(
+  state: GameState,
+  civId: string,
+  phase: 'pre-tactical' | 'post-tactical',
+): GameState {
+  let working = state;
+  for (const general of getEraGenerals(working, civId)) {
+    const chosen = chooseGeneralCommandAction(working, general.id);
+    if (!chosen) continue;
+    if (phase === 'pre-tactical' && chosen.ability === 'seize_the_moment') continue;
+    if (phase === 'post-tactical' && chosen.ability !== 'seize_the_moment') continue;
+    working = chosen.execute(working);
+  }
+  return working;
 }
