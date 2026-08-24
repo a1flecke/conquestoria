@@ -87,3 +87,49 @@ terrain tiles, naval transports, legendary beasts, rail segments, both Era 13 ba
 before removal — the history is in git, not preserved here. #769 itself is fully shipped as of
 batch 5 (2026-08-04) — its own scope is complete, though its "Durable note" above stays as a
 process lesson for any future sprite-alias issue.
+
+---
+
+## 2026-08-24 — Issue 708 grounded-mythic mounted and beast reference brief
+
+<role>
+You are a senior SVG sprite artist and TypeScript developer. Produce editable, flat geometric SVG/JSX source; this is not a raster-art task.
+</role>
+
+<context>
+Project: Conquestoria, a family-friendly strategy game. Units appear at 40–120 px on a hex map. The final source is one 128×128 right-facing 2.5D silhouette per unit with animation hooks, not a detailed illustration.
+</context>
+
+<reference_files>
+1. https://raw.githubusercontent.com/a1flecke/conquestoria/main/src/renderer/sprites/sprite-system.tsx
+2. https://raw.githubusercontent.com/a1flecke/conquestoria/main/src/renderer/sprites/units.tsx
+3. https://raw.githubusercontent.com/a1flecke/conquestoria/main/src/assets/sprite-animations-v2.css
+4. https://raw.githubusercontent.com/a1flecke/conquestoria/main/docs/sprite-design-system.md
+</reference_files>
+
+<design_system>
+Use flat geometric shapes, warm ancient/medieval fantasy, right-facing 2.5D composition, `#1f1a14` major outlines, no gradients, blur, photorealism, text, or logos. Use materials only from: skin `#d4a373/#b08968/#8a5a3c`; cloth `#c19a6b/#e6dcc6/#7a6e5b/#5b4a7a`; metal `#5a6068/#8a929b/#b8895a/#d4a13c/#e8edf2`; wood `#c19a6b/#8a6a3a/#5e3f24`. Faction identity must use `f.dark`, `f.mid`, `f.bright`, and `f.trim`, never a hard-coded civilisation colour.
+</design_system>
+
+<sprites>
+## BeastHandlerV2Sprite
+Insert in `design/conquestoria-sprites/lib/units-v2.jsx`; use `SpriteFrameV2`, `kind="hound"`, `variant="war"`. A masked woodland handler on foot holds a short forked command staff beside a lean rune-collared hound. The 40px silhouette must read as staff + person + dog. Include four hound leg hooks, `cq-shadow`, and a small static `cq-command-sigil`; the leash must visually connect handler and collar without filling the tile.
+
+## WarElephantV2Sprite
+Insert in `design/conquestoria-sprites/lib/units-v2.jsx`; use `SpriteFrameV2`, `kind="animal"`, `variant="elephant"`. Make the trunk, two tusks, wide ears, plated head, broad body, wooden howdah, two crew silhouettes, and a small rune standard readable before surface decoration. Each leg must use one of `cq-leg-fl`, `cq-leg-fr`, `cq-leg-bl`, `cq-leg-br` in a wrapper-separated group. Include `cq-elephant-trunk`, `cq-howdah`, `cq-rune-standard`, and `cq-shadow`. No more than one rune glow and no more than three armour plate groups.
+
+## CuirassierV2Sprite
+Insert in `design/conquestoria-sprites/lib/units-v2.jsx`; use `SpriteFrameV2`, `kind="animal"`, `variant="mount"`. Make a horse’s head, mane, saddle, rider breastplate, closed helm, bright diagonal sabre, and a small faction sash read at 40px. Use four animal leg hooks in wrapper-separated groups. Add a restrained `cq-moonsteel-inlay` on the breastplate, plus `cq-weapon` with a correct viewBox pivot and `cq-hit-spark`. The sabre is the attack focal point; do not turn the rider into a generic knight.
+</sprites>
+
+<output_format>
+Output one source component at a time with no prose. Preserve `SpriteFrameV2` and the existing JSX runtime. Use `_P2` for material fills and `_fa2(faction)` for faction colours. Do not create raster assets or new animation kinds.
+</output_format>
+
+<style_checklist>
+- 128×128 native wrapper; 40px silhouette passes before details.
+- Static forms carry SVG transforms; CSS-animation hooks are in untransformed inner wrappers.
+- Four-legged units use diagonal gait hooks and retain a visible ground shadow.
+- Idle, walk, attack, hurt, death, and reduced-motion states preserve meaningful information.
+- No gradients, blur, text, hard-coded faction colours, or duplicated donor art.
+</style_checklist>

@@ -864,24 +864,33 @@ function BeastHandlerV2Sprite({ faction = 'imperials', state = 'idle', phase }) 
   const f = _fa2(faction);
   return (
     <SpriteFrameV2 state={state} kind="hound" variant="war" phase={phase}>
-      <ellipse className="cq-shadow" cx="64" cy="96" rx="34" ry="7" fill="#000" opacity="0.35" />
-      <g transform="translate(68 76)">
-        <ellipse cx="5" cy="0" rx="24" ry="12" fill="#9a7448" stroke={_P2.ink.line} strokeWidth="1" />
-        <path d="M-11,-8 L13,-8 L10,-3 L-10,-3 Z" fill={f.mid} stroke={_P2.ink.line} strokeWidth="0.6" />
-        <g transform="translate(-10 6)"><g className="cq-leg-fl"><rect x="-3" y="0" width="6" height="15" fill="#5e3f24" /></g></g>
-        <g transform="translate(1 6)"><g className="cq-leg-fr"><rect x="-3" y="0" width="6" height="15" fill="#5e3f24" /></g></g>
-        <g transform="translate(17 6)"><g className="cq-leg-bl"><rect x="-3" y="0" width="6" height="15" fill="#5e3f24" /></g></g>
-        <g transform="translate(25 6)"><g className="cq-leg-br"><rect x="-3" y="0" width="6" height="15" fill="#5e3f24" /></g></g>
-        <ellipse cx="-19" cy="-4" rx="11" ry="9" fill="#9a7448" stroke={_P2.ink.line} strokeWidth="1" />
-        <path d="M-29,-3 L-35,3 L-27,5 Z" fill="#9a7448" stroke={_P2.ink.line} strokeWidth="0.7" />
-        <path d="M20,-4 Q32,-12 29,-22" stroke="#5e3f24" strokeWidth="4" fill="none" strokeLinecap="round" />
-        <circle cx="-23" cy="-5" r="1" fill={_P2.ink.line} />
+      <ellipse className="cq-shadow" cx="66" cy="97" rx="39" ry="7" fill="#000" opacity="0.35" />
+      {/* Rune-collared hound: head leads the silhouette, handler remains behind it. */}
+      <g transform="translate(75 78)">
+        <path d="M18,-3 Q30,-12 25,-25" stroke={_P2.wood.dark} strokeWidth="4" fill="none" strokeLinecap="round" />
+        <path d="M-17,-5 Q2,-20 28,-7 L25,7 Q3,16 -18,8 Z" fill="#7b5737" stroke={_P2.ink.line} strokeWidth="1" />
+        <path d="M-12,-5 Q4,-15 21,-6" stroke="#b8895a" strokeWidth="2" fill="none" opacity="0.55" />
+        <g transform="translate(-10 6)"><g className="cq-leg-fl"><path d="M-3,0 L3,0 L2,15 L-4,15 Z" fill="#4a3020" stroke={_P2.ink.line} strokeWidth="0.6" /></g></g>
+        <g transform="translate(2 7)"><g className="cq-leg-fr"><path d="M-3,0 L3,0 L2,15 L-4,15 Z" fill="#4a3020" stroke={_P2.ink.line} strokeWidth="0.6" /></g></g>
+        <g transform="translate(17 6)"><g className="cq-leg-bl"><path d="M-3,0 L3,0 L2,15 L-4,15 Z" fill="#4a3020" stroke={_P2.ink.line} strokeWidth="0.6" /></g></g>
+        <g transform="translate(28 5)"><g className="cq-leg-br"><path d="M-3,0 L3,0 L2,15 L-4,15 Z" fill="#4a3020" stroke={_P2.ink.line} strokeWidth="0.6" /></g></g>
+        <path d="M-20,-4 Q-34,-16 -39,-4 L-33,7 L-20,7 Z" fill="#8a5a3c" stroke={_P2.ink.line} strokeWidth="0.9" />
+        <path d="M-31,-10 L-27,-22 L-22,-9 M-24,-11 L-17,-20 L-16,-6" fill="#5e3f24" stroke={_P2.ink.line} strokeWidth="0.8" />
+        <circle cx="-31" cy="-3" r="1.3" fill={f.bright} />
+        <path d="M-25,1 L-10,-3" stroke={_P2.cloth.linen} strokeWidth="0.8" />
+        <path d="M-22,-8 L-13,-7 L-12,-2 L-22,-3 Z" fill={f.dark} stroke={_P2.ink.line} strokeWidth="0.6" />
       </g>
-      <HumanoidV2 cx={40} cy={68} scale={0.72} cloth={_P2.cloth.linen} pants={_P2.cloth.wool} accent={f.mid} arms="locked"
-        hat={<path d="M-9,-38 Q0,-46 9,-38 L8,-33 L-8,-33 Z" fill={f.dark} stroke={_P2.ink.line} strokeWidth="0.6" />} />
-      <g transform="translate(48 48)"><rect x="-1.2" y="0" width="2.4" height="43" fill={_P2.wood.dark} /><path d="M0,32 Q15,35 20,23" stroke={f.mid} strokeWidth="1.4" fill="none" /></g>
-      {/* The command sigil is a readable magic cue, not a screen-filling effect. */}
-      <g transform="translate(48 86)"><g className="cq-command-sigil"><circle r="5" fill="none" stroke={f.bright} strokeWidth="1.2" /><path d="M-7,0 L7,0 M0,-7 L0,7" stroke={f.trim} strokeWidth="1" /></g></g>
+      {/* Masked handler and forked staff create the second, distinct silhouette. */}
+      <g transform="translate(40 56)">
+        <path d="M0,-8 Q11,-5 13,19 L8,33 L-10,33 L-13,17 Q-10,-4 0,-8 Z" fill={_P2.cloth.linen} stroke={_P2.ink.line} strokeWidth="1" />
+        <path d="M-9,6 L9,6 L8,27 L-8,27 Z" fill={f.mid} opacity="0.82" />
+        <path d="M-8,31 L-3,31 L-4,43 L-11,43 Z M3,31 L8,31 L12,43 L5,43 Z" fill={_P2.cloth.wool} stroke={_P2.ink.line} strokeWidth="0.6" />
+        <path d="M-9,-10 Q0,-20 9,-10 L7,-1 L-7,-1 Z" fill={_P2.metal.iron} stroke={_P2.ink.line} strokeWidth="0.8" />
+        <path d="M-5,-9 L0,-14 L5,-9 L4,-4 L-4,-4 Z" fill={_P2.cloth.linen} stroke={_P2.ink.line} strokeWidth="0.5" />
+      </g>
+      <g transform="translate(26 38)"><path d="M0,0 L0,55" stroke={_P2.wood.dark} strokeWidth="3" /><path d="M0,0 L-7,-8 M0,0 L7,-8" stroke={_P2.metal.bronze} strokeWidth="2" fill="none" /></g>
+      <path d="M47,72 Q60,80 64,76" stroke={f.bright} strokeWidth="1.5" fill="none" />
+      <g transform="translate(59 77)"><g className="cq-command-sigil"><circle r="5" fill="none" stroke={f.bright} strokeWidth="1.2" /><path d="M-6,0 L6,0 M0,-6 L0,6" stroke={f.trim} strokeWidth="1" /></g></g>
     </SpriteFrameV2>
   );
 }
