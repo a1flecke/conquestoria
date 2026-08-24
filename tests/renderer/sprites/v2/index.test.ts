@@ -219,8 +219,8 @@ describe('isV2NativeUnit', () => {
 describe('#708 mounted and beast native sprites', () => {
   const ISSUE_708_NATIVE = {
     beast_handler: 'hound',
-    war_elephant: 'hound',
-    cuirassier: 'melee',
+    war_elephant: 'animal',
+    cuirassier: 'animal',
   } as const;
   const FACTIONS = ['imperials', 'vikings', 'pharaohs', 'hellenes', 'khanate', 'shogunate'];
 
@@ -234,19 +234,37 @@ describe('#708 mounted and beast native sprites', () => {
     }
   });
 
-  it.each(['beast_handler', 'war_elephant'])('%s uses the supported quadruped gait hooks', (type) => {
-    const result = getUnitSpriteV2(type, 'imperials')!;
-    expect(result).toContain('data-kind-variant="war"');
+  it('beast handler combines a hound gait with a visible command sigil', () => {
+    const result = getUnitSpriteV2('beast_handler', 'imperials')!;
+    expect(result).toContain('cq-command-sigil');
     expect(result).toContain('cq-leg-fl');
     expect(result).toContain('cq-leg-fr');
     expect(result).toContain('cq-leg-bl');
     expect(result).toContain('cq-leg-br');
   });
 
-  it('cuirassier has the melee attack-feedback hooks', () => {
+  it('war elephant has its own animal plan and readable siege-beast details', () => {
+    const result = getUnitSpriteV2('war_elephant', 'imperials')!;
+    expect(result).toContain('data-kind-variant="elephant"');
+    expect(result).toContain('cq-elephant-trunk');
+    expect(result).toContain('cq-howdah');
+    expect(result).toContain('cq-rune-standard');
+    expect(result).toContain('cq-leg-fl');
+    expect(result).toContain('cq-leg-fr');
+    expect(result).toContain('cq-leg-bl');
+    expect(result).toContain('cq-leg-br');
+  });
+
+  it('cuirassier has a mounted animal plan and moonsteel attack-feedback hooks', () => {
     const result = getUnitSpriteV2('cuirassier', 'imperials')!;
+    expect(result).toContain('data-kind-variant="mount"');
+    expect(result).toContain('cq-moonsteel-inlay');
     expect(result).toContain('cq-weapon');
     expect(result).toContain('cq-hit-spark');
+    expect(result).toContain('cq-leg-fl');
+    expect(result).toContain('cq-leg-fr');
+    expect(result).toContain('cq-leg-bl');
+    expect(result).toContain('cq-leg-br');
   });
 });
 

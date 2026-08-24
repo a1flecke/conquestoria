@@ -129,8 +129,8 @@ describe('sync() LOD gate', () => {
 describe('#708 mounted and beast overlay accessibility', () => {
   it.each([
     ['beast_handler', 'hound'],
-    ['war_elephant', 'hound'],
-    ['cuirassier', 'melee'],
+    ['war_elephant', 'animal'],
+    ['cuirassier', 'animal'],
   ])('%s keeps its native body plan and player information layers under reduced motion', (subtype, kind) => {
     const { overlay, mount } = mountOverlay();
     overlay.sync(cam({ zoom: 1 }), [entity({ subtype, damage: 2, health: 50, selected: true })], MAP, {
