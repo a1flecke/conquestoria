@@ -138,14 +138,14 @@
   git commit -m "art(709): author industrial vehicle silhouettes"
   ```
 
-### Task 3: Serialize and register the reviewed native path
+### Task 3: Serialize a review-only native payload
 
 **Files:**
 - Modify: `scripts/serialize-sprites.mjs`
+- Create: `docs/reviews/assets/issue-709/sprite-preview.html`
 - Create: `src/renderer/sprites/v2/armored_car.svg.ts`
 - Create: `src/renderer/sprites/v2/mechanized_infantry.svg.ts`
 - Create: `src/renderer/sprites/v2/main_battle_tank.svg.ts`
-- Modify: `src/renderer/sprites/v2/index.ts`
 
 - [ ] **Step 1: Add the serializer unit pairs.**
 
@@ -159,11 +159,11 @@
 
   Add a dedicated `writeIssue709PreviewData` parallel to the existing Issue-708 writer. It must replace only `<!-- ISSUE_709_SPRITES_START -->` through `<!-- ISSUE_709_SPRITES_END -->` in the Issue-709 preview and JSON-escape `<` before embedding.
 
-- [ ] **Step 2: Register generated modules.**
+- [ ] **Step 2: Create the file-safe preview shell before serialization.**
 
-  Import the three generated `svg` records in `v2/index.ts` and add each to `UNIT_SPRITES` under its stable unit ID. Do not change live fallback behavior for other types or any faction key resolution.
+  Create `docs/reviews/assets/issue-709/sprite-preview.html` with the Issue-709 marker pair, a local relative link to `src/assets/sprite-animations-v2.css`, an empty mount grid, and no module script, import, network request, or sidecar payload. The serializer owns only the marker-delimited data block; later preview UI work must preserve those markers.
 
-- [ ] **Step 3: Generate artifacts.**
+- [ ] **Step 3: Generate review artifacts without native registration.**
 
   Run:
 
@@ -171,17 +171,17 @@
   bash scripts/run-with-mise.sh yarn node scripts/serialize-sprites.mjs
   ```
 
-  Expected: three new auto-generated modules contain all six faction keys; the Issue-709 preview payload is replaced between its markers.
+  Expected: three new auto-generated modules contain all six faction keys; the Issue-709 preview payload is replaced between its markers. Do not import these modules in `v2/index.ts` yet: this preserves the hard visual gate.
 
-- [ ] **Step 4: Run native and catalog tests.**
+- [ ] **Step 4: Run serializer and catalog tests.**
 
-  Run the Task-1 command. Expected: all native lookup, six-faction hook, and non-alias tests pass; only CSS/review assertions may remain.
+  Run the Task-1 command. Expected: catalog non-alias tests pass; native lookup and preview assertions still fail because the visual gate has not accepted registration.
 
-- [ ] **Step 5: Commit generated and lookup artifacts.**
+- [ ] **Step 5: Commit generated review artifacts.**
 
   ```bash
-  git add scripts/serialize-sprites.mjs src/renderer/sprites/v2/armored_car.svg.ts src/renderer/sprites/v2/mechanized_infantry.svg.ts src/renderer/sprites/v2/main_battle_tank.svg.ts src/renderer/sprites/v2/index.ts
-  git commit -m "feat(709): register native industrial vehicle sprites"
+  git add scripts/serialize-sprites.mjs docs/reviews/assets/issue-709/sprite-preview.html src/renderer/sprites/v2/armored_car.svg.ts src/renderer/sprites/v2/mechanized_infantry.svg.ts src/renderer/sprites/v2/main_battle_tank.svg.ts
+  git commit -m "art(709): serialize industrial vehicle review payload"
   ```
 
 ### Task 4: Implement physically attached variant motion
@@ -216,7 +216,7 @@
 ### Task 5: Build phase-sampled review evidence and complete the visual gate
 
 **Files:**
-- Create: `docs/reviews/assets/issue-709/sprite-preview.html`
+- Modify: `docs/reviews/assets/issue-709/sprite-preview.html`
 - Create: `scripts/capture-issue-709-sprite-review.mjs`
 - Create: `docs/reviews/issue-709-industrial-visual-review.md`
 - Create: `docs/reviews/assets/issue-709/{armored-car,mechanized-infantry,main-battle-tank}-identity-sheet.png`
@@ -225,11 +225,11 @@
 
 - [ ] **Step 1: Create the file-safe preview.**
 
-  Base it on the committed Issue-708 preview, replacing only the unit metadata and marker names. Embed serialized data between `ISSUE_709_SPRITES_START` and `ISSUE_709_SPRITES_END`; load only the local animation stylesheet; expose all six factions, five states, reduced motion, and a paused phase control with 0/25/50/75 percent options.
+  Complete the Task-3 shell using the committed Issue-708 preview’s file-safe rendering pattern. Preserve the serializer-owned marker block; load only the local animation stylesheet; expose all six factions, five states, reduced motion, and a paused phase control with 0/25/50/75 percent options.
 
 - [ ] **Step 2: Create reproducible identity and contact capture.**
 
-  Adapt the #708 capture script. Identity sheets render 40/64/128px zero-phase `idle`, `walk`, `attack`, `hurt`, and `death`. Contact sheets render paused `walk` and `attack` at 0%, 25%, 50%, and 75%; they use the preview’s committed serialized payload and stylesheet, not copied SVG artwork. The script fails when any expected unit/faction/state payload is absent.
+  Keep #708's `rsvg-convert` identity-sheet path for static source anatomy. Add a second Playwright capture path, using the already-installed `@playwright/test`, for phase sheets: open the local file-safe preview, select each `data-state`, pause `document.getAnimations()`, set `currentTime` to 0%, 25%, 50%, and 75% of each animation duration, then screenshot the rendered DOM. Contact sheets therefore evaluate the same CSS motion the player sees; `rsvg-convert` is never used as evidence for animated attachment. Fail if a unit, faction, state button, animation, or screenshot target is absent.
 
 - [ ] **Step 3: Generate review images.**
 
@@ -245,9 +245,9 @@
 
   Link all six images. Record the target-specific identity checks, the 40px readability check, all phase attachment checks, palette/banner checks, reduced-motion review, and the file-safe interactive timing review. State that this is visual-only and does not claim gameplay or SFX changes.
 
-- [ ] **Step 5: Complete the human visual gate.**
+- [ ] **Step 5: Complete the human visual gate before native registration.**
 
-  Open `docs/reviews/assets/issue-709/sprite-preview.html` through Vite and directly as `file://`. Review all three identities at 40px, every captured phase, all factions, and reduced motion. If any wheel/track, rifle/hand, turret/cannon, or banner detaches, return to Task 2 or 4 before live registration/push.
+  Open `docs/reviews/assets/issue-709/sprite-preview.html` through Vite and directly as `file://`. Review all three identities at 40px, every captured phase, all factions, and reduced motion. Confirm that the scout pennant/periscope, protective carrier-and-soldier composition, and broad heroic MBT stance are warm and readable without clutter. If any wheel/track, rifle/hand, turret/cannon, or banner detaches—or any silhouette becomes grim, anonymous, or visually noisy—return to Task 2 or 4 before live registration.
 
 - [ ] **Step 6: Run focused proof.**
 
@@ -266,7 +266,27 @@
   git commit -m "docs(709): record industrial vehicle sprite review"
   ```
 
-### Task 6: Verify and prepare the focused PR
+### Task 6: Register the human-approved native path
+
+**Files:**
+- Modify: `src/renderer/sprites/v2/index.ts`
+
+- [ ] **Step 1: Add the generated imports and stable lookup entries.**
+
+  Import `armoredCarSvg`, `mechanizedInfantrySvg`, and `mainBattleTankSvg` from their generated modules. Add them to `UNIT_SPRITES` under `armored_car`, `mechanized_infantry`, and `main_battle_tank`. Preserve all other entries and the live-fallback behavior for minor-civ faction keys.
+
+- [ ] **Step 2: Run the complete focused proof.**
+
+  Run the Task-5 focused command. Expected: native lookup, all six faction outputs, required hooks, CSS contracts, review-preview checks, and overlay/combat-state rendering all pass.
+
+- [ ] **Step 3: Commit the approved registration.**
+
+  ```bash
+  git add src/renderer/sprites/v2/index.ts
+  git commit -m "feat(709): register approved industrial vehicle sprites"
+  ```
+
+### Task 7: Verify and prepare the focused PR
 
 **Files:**
 - Modify: `docs/superpowers/plans/2026-08-25-issue-709-industrial-visuals.md`
@@ -296,4 +316,4 @@
 
 - [ ] **Step 4: Sync plan status in the delivery PR.**
 
-  Once the PR number exists and all six tasks are complete, mark Tasks 1–6 complete and add `✅ merged (#PR)` to this plan in the final documentation commit on that same PR, so the merged branch records the completed phase rather than leaving a stale unchecked plan.
+  Once the PR number exists and all seven tasks are complete, mark Tasks 1–7 complete and add `✅ merged (#PR)` to this plan in the final documentation commit on that same PR, so the merged branch records the completed phase rather than leaving a stale unchecked plan.
