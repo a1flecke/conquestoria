@@ -48,6 +48,8 @@ import {
 import { drawAirDefenseOverlay } from './air-defense-overlay';
 import { drawSupplyOverlay } from './supply-overlay-renderer';
 import { getSupplyOverlayPresentationForViewer, type SupplyOverlayPresentation } from '@/systems/supply-overlay-presentation';
+import { drawStrategicLaunchPreviewOverlay } from './strategic-launch-overlay-renderer';
+import type { StrategicLaunchPreviewPresentation } from '@/systems/strategic-launch-preview-presentation';
 import { drawStampedeRouteOverlay } from './stampede-route-overlay';
 import { getHerdRoutePresentationForViewer, type HerdRoutePresentation } from '@/systems/stampede-route-system';
 import {
@@ -345,6 +347,14 @@ export class RenderLoop {
 
   isSupplyOverlayEnabled(viewerId = this.state?.currentPlayer): boolean {
     return viewerId !== undefined && this.supplyOverlayEnabledByViewer.get(viewerId) === true;
+  }
+
+  private strategicLaunchPreview: StrategicLaunchPreviewPresentation | null = null;
+
+  /** #545 MR4: set by strategic-launch-flow.ts on stage-2 entry, cleared on
+   * stage-2 exit (cancel, back, or advancing to stage 3) and on flow close. */
+  setStrategicLaunchPreview(presentation: StrategicLaunchPreviewPresentation | null): void {
+    this.strategicLaunchPreview = presentation;
   }
   private pirateSpriteState = new PirateSpriteStateController();
   private pirateUnitDeathSnapshots = new Map<string, { unit: Unit; expiresAtMs: number }>();
@@ -836,6 +846,19 @@ export class RenderLoop {
       drawSupplyOverlay(
         this.ctx,
         this.supplyOverlayPresentation,
+        this.state.map.width,
+        this.state.map.height,
+        this.camera,
+        this.state.map.wrapsHorizontally,
+      );
+    }
+
+    // #545 MR4: the strategic-launch stage-2 target/preview overlay, same
+    // before-fog placement as the supply overlay above.
+    if (this.strategicLaunchPreview) {
+      drawStrategicLaunchPreviewOverlay(
+        this.ctx,
+        this.strategicLaunchPreview,
         this.state.map.width,
         this.state.map.height,
         this.camera,
