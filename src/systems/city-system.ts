@@ -834,13 +834,16 @@ export const BUILDINGS: Record<string, Building> = {
   /* === ERA 10 NATIONAL PROJECTS === */
   manhattan_project: {
     id: 'manhattan_project', name: 'Atomic Weapons Program', category: 'military',
-    // Single key: production 6 ≤ 9 (era 7+ ceiling) ✓
-    yields: { food: 0, production: 6, gold: 0, science: 0 }, productionCost: 310,
-    description: 'Total war weapons programme. +6 production empire-wide.',
+    // #545: milestone NP (permanent, one-time trigger) — no civYieldBonus per
+    // .claude/rules/game-balance.md's "Milestone National Projects" (matches
+    // sacred_council's exact pattern). The +6 production this building used to
+    // carry moved to nuclear_arsenal (see that definition below) so era-10's
+    // combined production total across the two buildings is unchanged.
+    yields: { food: 0, production: 0, gold: 0, science: 0 }, productionCost: 310,
+    description: 'One-time atomic weapons program. Permanent effect, never fades — establishes your empire\'s capacity to develop a strategic arsenal.',
     techRequired: 'nuclear-weapons', resourceRequired: ['uranium'],
     pacing: { band: 'marquee', role: 'national-project', impact: 1.6, scope: 'empire', snowball: 1.5, urgency: 1.2, situationality: 1.3, unlockBreadth: 1 },
-    uniquePerEmpire: true, nationalProject: { homeEra: 10 },
-    civYieldBonus: { production: 6 },
+    uniquePerEmpire: true, nationalProject: { homeEra: 10, milestone: true },
   },
   postwar_reconstruction: {
     id: 'postwar_reconstruction', name: 'Postwar Reconstruction', category: 'economy',

@@ -99,9 +99,10 @@ describe('era 10 national project coverage', () => {
     expect(era10NPs).toHaveLength(3);
   });
 
-  it('manhattan_project has single production civYieldBonus', () => {
+  it('manhattan_project is a milestone NP with no civYieldBonus (#545)', () => {
     const np = era10NPs.find(np => np.id === 'manhattan_project');
-    expect(np?.civYieldBonus).toEqual({ production: 6 });
+    expect(np?.nationalProject?.milestone).toBe(true);
+    expect(np?.civYieldBonus).toBeUndefined();
   });
 
   it('postwar_reconstruction has dual gold+food civYieldBonus within era-10 ceiling', () => {
