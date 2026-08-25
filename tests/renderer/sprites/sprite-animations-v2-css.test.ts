@@ -121,18 +121,31 @@ describe('#708 mounted animal animation contract', () => {
   it('gives every named #708 secondary-motion hook a real state-scoped animation', () => {
     const hookSelectors = [
       '.cq-v2[data-kind="hound"][data-kind-variant="handler"][data-state="idle"] .cq-hound-tail',
+      '.cq-v2[data-kind="hound"][data-kind-variant="handler"][data-state="walk"] .cq-handler-leg-l',
+      '.cq-v2[data-kind="hound"][data-kind-variant="handler"][data-state="walk"] .cq-handler-leg-r',
       '.cq-v2[data-kind="hound"][data-kind-variant="handler"][data-state="attack"] .cq-command-staff',
       '.cq-v2[data-kind="hound"][data-kind-variant="handler"][data-state="attack"] .cq-command-leash',
-      '.cq-v2[data-kind="hound"][data-kind-variant="handler"][data-state="attack"] .cq-command-sigil',
+      '.cq-v2[data-kind="hound"][data-kind-variant="handler"][data-state="attack"] .cq-handler-arm-l',
+      '.cq-v2[data-kind="hound"][data-kind-variant="handler"][data-state="attack"] .cq-handler-arm-r',
       '.cq-v2[data-kind="animal"][data-kind-variant="elephant"][data-state="walk"] .cq-elephant-ear',
       '.cq-v2[data-kind="animal"][data-kind-variant="elephant"][data-state="walk"] .cq-elephant-trunk',
       '.cq-v2[data-kind="animal"][data-kind-variant="elephant"][data-state="walk"] .cq-howdah',
-      '.cq-v2[data-kind="animal"][data-kind-variant="elephant"][data-state="walk"] .cq-rune-standard',
+      '.cq-v2[data-kind="animal"][data-kind-variant="elephant"][data-state="walk"] .cq-howdah-standard',
       '.cq-v2[data-kind="animal"][data-kind-variant="elephant"][data-state="attack"] .cq-elephant-tusks',
+      '.cq-v2[data-kind="animal"][data-kind-variant="elephant"][data-state="attack"] .cq-leg-fl',
+      '.cq-v2[data-kind="animal"][data-kind-variant="elephant"][data-state="attack"] .cq-leg-fr',
+      '.cq-v2[data-kind="animal"][data-kind-variant="elephant"][data-state="attack"] .cq-leg-bl',
+      '.cq-v2[data-kind="animal"][data-kind-variant="elephant"][data-state="attack"] .cq-leg-br',
       '.cq-v2[data-kind="animal"][data-kind-variant="mount"][data-state="walk"] .cq-horse-mane',
       '.cq-v2[data-kind="animal"][data-kind-variant="mount"][data-state="walk"] .cq-horse-tail',
       '.cq-v2[data-kind="animal"][data-kind-variant="mount"][data-state="walk"] .cq-rider',
       '.cq-v2[data-kind="animal"][data-kind-variant="mount"][data-state="attack"] .cq-saddle',
+      '.cq-v2[data-kind="animal"][data-kind-variant="mount"][data-state="attack"] .cq-rider-arm-rein',
+      '.cq-v2[data-kind="animal"][data-kind-variant="mount"][data-state="attack"] .cq-rider-arm-sabre',
+      '.cq-v2[data-kind="animal"][data-kind-variant="mount"][data-state="attack"] .cq-leg-fl',
+      '.cq-v2[data-kind="animal"][data-kind-variant="mount"][data-state="attack"] .cq-leg-fr',
+      '.cq-v2[data-kind="animal"][data-kind-variant="mount"][data-state="attack"] .cq-leg-bl',
+      '.cq-v2[data-kind="animal"][data-kind-variant="mount"][data-state="attack"] .cq-leg-br',
     ];
     for (const selector of hookSelectors) {
       expect(css, `missing animated selector ${selector}`).toContain(selector);
@@ -152,5 +165,18 @@ describe('#708 mounted animal animation contract', () => {
     ]) {
       expect(css, `missing four-beat override ${selector}`).toContain(selector);
     }
+  });
+
+  it('pivots the command staff from the handler hand rather than the ground', () => {
+    const selector = '.cq-v2[data-kind="hound"][data-kind-variant="handler"][data-state="attack"] .cq-command-staff';
+    const ruleStart = css.indexOf(selector);
+    const rule = css.slice(ruleStart, css.indexOf('}', ruleStart));
+
+    expect(rule).toContain('transform-origin: 50% 42%');
+  });
+
+  it('does not retain the rejected sigil or a detached elephant-standard selector', () => {
+    expect(css).not.toContain('cq-command-sigil');
+    expect(css).not.toContain('cq-rune-standard');
   });
 });

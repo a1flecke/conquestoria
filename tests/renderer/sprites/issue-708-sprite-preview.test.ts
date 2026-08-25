@@ -14,4 +14,19 @@ describe('#708 file-safe sprite preview', () => {
     expect(preview).not.toContain('<script src="./sprite-preview-data.js"></script>');
     expect(preview).toContain('globalThis.__ISSUE_708_SPRITES__');
   });
+
+  it('offers every review state, faction treatment, and reduced-motion mode without stale descriptions', () => {
+    const preview = readFileSync(previewPath, 'utf8');
+
+    for (const state of ['idle', 'walk', 'attack', 'hurt', 'death']) {
+      expect(preview).toContain(`data-state="${state}"`);
+    }
+    expect(preview).toContain('id="reduced-motion"');
+    expect(preview).toContain('data-unit="beast_handler"');
+    expect(preview).toContain('data-unit="war_elephant"');
+    expect(preview).toContain('data-unit="cuirassier"');
+    expect(preview).toContain('forward-straddling rider');
+    expect(preview).not.toContain('targeting sigil');
+    expect(preview).not.toContain('cq-command-sigil');
+  });
 });
