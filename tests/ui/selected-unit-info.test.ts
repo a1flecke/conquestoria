@@ -364,6 +364,63 @@ describe('#544 MR4 — General command panel', () => {
   });
 });
 
+describe('Prepare Strategic Launch action (#545 MR4 §14 stage 1)', () => {
+  beforeEach(installMockDocument);
+  afterEach(restoreMockDocument);
+
+  function makeSubmarineState(strategicArsenal: number) {
+    const state = createNewGame(undefined, 'strategic-launch-sub-action', 'small');
+    const unit = { ...createUnit('missile_submarine', 'player', { q: 15, r: 15 }, { nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 }), id: 'u1' };
+    state.currentPlayer = 'player';
+    state.units = { u1: unit };
+    state.civilizations.player.units = ['u1'];
+    state.civilizations.player.strategicArsenal = strategicArsenal;
+    return state;
+  }
+
+  it('shows the action for a missile_submarine with arsenal available', () => {
+    const onPrepareStrategicLaunch = vi.fn();
+    const state = makeSubmarineState(1);
+    const container = new MockElement('div');
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'u1', { onPrepareStrategicLaunch });
+
+    const launchButton = findButtons(container).find(b => /^Prepare Strategic Launch/.test(b.textContent ?? ''))!;
+    expect(launchButton).toBeTruthy();
+    expect(launchButton.disabled).toBe(false);
+    launchButton.click();
+    expect(onPrepareStrategicLaunch).toHaveBeenCalledWith('u1');
+  });
+
+  it('is disabled with a visible reason when arsenal is 0', () => {
+    const state = makeSubmarineState(0);
+    const container = new MockElement('div');
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'u1', {});
+    const launchButton = findButtons(container).find(b => /^Prepare Strategic Launch/.test(b.textContent ?? ''))!;
+    expect(launchButton.disabled).toBe(true);
+    expect(collectAllText(container).join(' ')).toContain('No warheads in arsenal.');
+  });
+
+  it('is absent for a non-launch-platform unit (e.g. a plain warrior)', () => {
+    const state = createNewGame(undefined, 'strategic-launch-warrior', 'small');
+    const unit = { ...createUnit('warrior', 'player', { q: 15, r: 15 }, { nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 }), id: 'u1' };
+    state.currentPlayer = 'player';
+    state.units = { u1: unit };
+    state.civilizations.player.units = ['u1'];
+    const container = new MockElement('div');
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'u1', {});
+    expect(findButtons(container).find(b => /^Prepare Strategic Launch/.test(b.textContent ?? ''))).toBeUndefined();
+  });
+
+  it('is absent on an enemy-owned missile_submarine, even in range with arsenal available (hot-seat/ownership regression)', () => {
+    const state = makeSubmarineState(1);
+    state.units.u1 = { ...state.units.u1, owner: 'rival' };
+    state.currentPlayer = 'player'; // the viewing player does NOT own this submarine
+    const container = new MockElement('div');
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'u1', {});
+    expect(findButtons(container).find(b => /^Prepare Strategic Launch/.test(b.textContent ?? ''))).toBeUndefined();
+  });
+});
+
 describe('selected-unit scroll affordance', () => {
   beforeEach(installMockDocument);
   afterEach(restoreMockDocument);

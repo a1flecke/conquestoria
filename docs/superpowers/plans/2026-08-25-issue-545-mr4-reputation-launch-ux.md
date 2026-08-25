@@ -1068,10 +1068,10 @@ Expected: FAIL.
 
 In `src/ui/selected-unit-info.ts`, add `onPrepareStrategicLaunch?: (unitId: string) => void;` to the callbacks interface (near `onFortify`).
 
-Add a conditional block inside the function that builds `actionsDiv` (near the other unit-type-conditional blocks, e.g. after the worker-actions block around line 738), reusing the exact button-with-inline-reason pattern from the Rally/Seize/Last Stand block (lines 387-403). **This placement matters, not just for tidiness:** line 553's `if (unit.owner === state.currentPlayer) { ... }` is the block that owns `actionsDiv` construction, and every existing action in this file (worker actions, auto-explore, fortify, upgrade, etc.) is gated by sitting inside it — this is how the file prevents a hot-seat player from ever seeing (let alone triggering) an action button on a unit they don't own, e.g. an enemy `missile_submarine` spotted on the map. Placing this block anywhere outside that gate would let a player launch a strike using an opponent's platform. Do not add a second, redundant `unit.owner === state.currentPlayer` check inside the new block — rely on the existing enclosing gate, matching every sibling action in this file:
+Add a conditional block inside the function that builds `actionsDiv` (near the other unit-type-conditional blocks, e.g. after the Fortify block). **Correction found during execution:** `actionsDiv` has no single shared ownership gate — line 553's `if (unit.owner === state.currentPlayer)` closes well before `actionsDiv` is even declared (line 614); each individual action inside `actionsDiv` re-checks `unit.owner === state.currentPlayer` itself (e.g. the auto-explore block: `if (unit.owner === state.currentPlayer && !unit.automation && callbacks.onStartAutoExplore)`). A hot-seat/ownership regression test caught this: placing the new block without its own explicit check let it render (and crash, since an enemy civ record wasn't in the minimal fixture) on a unit the viewer didn't own. **Add the ownership check explicitly to this block's own condition**, matching the auto-explore pattern, not the Fortify block's caller-side-only gating:
 
 ```ts
-  if (unit.type === 'missile_submarine') {
+  if (unit.type === 'missile_submarine' && unit.owner === state.currentPlayer) {
     // No single reusable owner-civ local exists in this file (verified this
     // session) -- every other block reads state.civilizations[unit.owner]
     // inline (e.g. line 488, 698, 1005); match that idiom here.
