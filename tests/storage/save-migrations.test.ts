@@ -14,6 +14,7 @@ import { foundCity } from '@/systems/city-system';
 import { processPurposefulBarbarians } from '@/systems/barbarian-system';
 import { CRISIS_FORCE_OWNER } from '@/core/owner-kind';
 import { getHeroicCommandEligibility } from '@/systems/great-general-abilities';
+import { checkAndQueueGeneralCandidateChoice } from '@/systems/great-general-system';
 
 describe('save migrations', () => {
   it('#701 initializes and normalizes crisis-force records idempotently', () => {
@@ -984,5 +985,25 @@ describe('#544 MR4 — legacy save load with no General heroic-command fields', 
     const eligibility = getHeroicCommandEligibility(migrated, general);
     expect(eligibility.chargesRemaining).toBe(3);
     expect(eligibility.cooldownTurnsRemaining).toBe(0);
+  });
+
+  it('#544 MR5 — an MR4-era save with no AI-queued pendingGeneralCandidateChoices entry loads cleanly, and AI General acquisition works normally from that point on', () => {
+    const save = createNewGame('rome', 'mr5-legacy-ai-general-save', 'small');
+    save.saveSchemaVersion = CURRENT_SAVE_SCHEMA_VERSION;
+    // Deliberately no pendingGeneralCandidateChoices entry for any AI civ --
+    // exactly what an MR4-era save looks like, since AI civs never queued one
+    // before MR5.
+    delete (save as Partial<GameState>).pendingGeneralCandidateChoices;
+    const aiCivId = Object.keys(save.civilizations).find(id => id !== 'player')!;
+    save.civilizations[aiCivId] = {
+      ...save.civilizations[aiCivId]!,
+      generalProgress: { points: 999, generalsEarned: 0 },
+    };
+
+    const migrated = migrateSaveToCurrent(save);
+
+    expect(migrated.pendingGeneralCandidateChoices ?? []).toEqual([]);
+    const afterCheck = checkAndQueueGeneralCandidateChoice(migrated, aiCivId, 'city:captured', 1);
+    expect(afterCheck.pendingGeneralCandidateChoices?.some(c => c.civId === aiCivId)).toBe(true);
   });
 });

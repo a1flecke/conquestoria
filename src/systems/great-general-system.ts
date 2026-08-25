@@ -1,4 +1,4 @@
-import type { Civilization, GameState, GeneralProgressState, Unit } from '@/core/types';
+import type { Civilization, GameState, GeneralProgressState, PendingGeneralCandidateChoice, Unit } from '@/core/types';
 import { GENERAL_DEFINITIONS, type GeneralDefinition } from '@/systems/great-general-definitions';
 import { seededLcg, weightedPick } from '@/systems/seeded-lcg';
 import { resolveCivilizationEra } from '@/systems/tech-definitions';
@@ -142,6 +142,21 @@ export function checkAndQueueGeneralCandidateChoice(
       { civId, candidateDefinitionIds: candidates.map(c => c.id), triggerEventLabel },
     ],
   };
+}
+
+/**
+ * #544 MR6: the read-side counterpart to checkAndQueueGeneralCandidateChoice
+ * above -- extracted from bootstrap.ts's maybeShowPendingGeneralChoice so the
+ * viewer-safety filter (an AI civ's or an inactive hot-seat player's pending
+ * choice must never surface) has a direct unit-test seam, matching this
+ * codebase's established *ForViewer presentation-helper convention. No
+ * behavior change from the inline version it replaces.
+ */
+export function getPendingGeneralChoiceForViewer(
+  state: GameState,
+  viewerId: string,
+): PendingGeneralCandidateChoice | undefined {
+  return (state.pendingGeneralCandidateChoices ?? []).find(choice => choice.civId === viewerId);
 }
 
 /**

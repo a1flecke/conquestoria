@@ -280,6 +280,31 @@ describe('createTurnFlowController', () => {
       expect(deps.audio.setMasterVolume).toHaveBeenCalledWith(0.6);
       expect(deps.roundPresentationGate.isSuppressed()).toBe(false);
     });
+
+    it('clears a pending last-stand-target intent before the next hot-seat player can act (#544 MR6 item 87)', async () => {
+      const state = makeHotSeatFixture();
+      const selection = createSelectionStore();
+      selection.setPendingIntent({ kind: 'last-stand-target', unitId: 'some-general', range: [] });
+      const deps = baseDeps(state, {
+        selection,
+        // Wire the REAL deselectUnit -> selection.clear() contract instead of
+        // baseDeps's default vi.fn() -- this test exists specifically to
+        // prove that wiring runs before handoff, not just that some mock was
+        // called.
+        deselectUnit: () => selection.clear(),
+      });
+      const turnFlow = createTurnFlowController(deps);
+
+      const endTurnPromise = turnFlow.endTurn();
+      await flushMicrotasks();
+      document.querySelector<HTMLButtonElement>('#handoff-confirm')?.click();
+      await flushMicrotasks();
+      document.querySelector<HTMLButtonElement>('#handoff-start')?.click();
+      await flushMicrotasks();
+      await endTurnPromise;
+
+      expect(selection.getPendingIntent()).toEqual({ kind: 'none' });
+    });
   });
 
   describe('difficulty — pending challenge applied at handoff', () => {

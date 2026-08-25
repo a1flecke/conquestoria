@@ -91,6 +91,16 @@ describe('createSelectionStore', () => {
     expect(store.getPendingIntent()).toEqual({ kind: 'city-capture', choice: captureChoice });
   });
 
+  it('clear() resets a pending last-stand-target intent, unlike the city-capture exception (#544 MR6 item 87)', () => {
+    const store = createSelectionStore();
+    store.setSelectedUnitId('general-1');
+    store.setPendingIntent({ kind: 'last-stand-target', unitId: 'general-1', range: [{ q: 0, r: 0 }] });
+
+    store.clear();
+
+    expect(store.getPendingIntent()).toEqual({ kind: 'none' });
+  });
+
   it('setRanges copies its inputs so later caller mutation cannot corrupt the store', () => {
     const store = createSelectionStore();
     const movement = [{ q: 0, r: 0 }];

@@ -15,6 +15,7 @@ import {
   describeGeneralCareerEnd,
   retireGeneralsAtTurnEnd,
   chooseBestGeneralCandidate,
+  getPendingGeneralChoiceForViewer,
 } from '@/systems/great-general-system';
 import { GENERAL_DEFINITIONS } from '@/systems/great-general-definitions';
 import { createNewGame } from '@/core/game-state';
@@ -530,5 +531,33 @@ describe('#544 MR5 — AI civs acquire Generals automatically', () => {
     expect(result.pendingGeneralCandidateChoices ?? []).toContainEqual(
       expect.objectContaining({ civId: 'player' }),
     );
+  });
+});
+
+describe('getPendingGeneralChoiceForViewer (#544 MR6 item 86)', () => {
+  it('returns the pending choice queued for the current viewer', () => {
+    const state = createNewGame('rome', 'mr6-viewer-choice-match', 'small');
+    state.pendingGeneralCandidateChoices = [
+      { civId: 'player', candidateDefinitionIds: ['gen_caesar'], triggerEventLabel: 'city:captured' },
+    ];
+
+    const result = getPendingGeneralChoiceForViewer(state, 'player');
+
+    expect(result?.civId).toBe('player');
+  });
+
+  it('returns undefined for a pending choice queued for a different civ (AI or inactive hot-seat player)', () => {
+    const state = createNewGame('rome', 'mr6-viewer-choice-mismatch', 'small');
+    state.pendingGeneralCandidateChoices = [
+      { civId: 'ai-1', candidateDefinitionIds: ['gen_hannibal'], triggerEventLabel: 'city:captured' },
+    ];
+
+    expect(getPendingGeneralChoiceForViewer(state, 'player')).toBeUndefined();
+  });
+
+  it('returns undefined when nothing is pending', () => {
+    const state = createNewGame('rome', 'mr6-viewer-choice-empty', 'small');
+
+    expect(getPendingGeneralChoiceForViewer(state, 'player')).toBeUndefined();
   });
 });
