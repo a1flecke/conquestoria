@@ -398,9 +398,18 @@ history).
   `ai-round-scheduler.ts` (pre-tactical for Rally/Last Stand, post-tactical
   for Seize); difficulty-scaled judgment only, via two new eagerness/safety
   knobs on `OpponentChallengeProfile` — never a mechanical exception.
-- **MR6 — Hot-seat + save validation**: viewer-safe overlay/candidate
-  selection, pending-intent cleanup on handoff, legacy-save load tests,
-  same-turn save/load exactness.
+- **MR6 — Hot-seat + save validation** ✅ merged (#881)
+  (see `docs/superpowers/plans/2026-08-24-issue-544-mr6-hot-seat-saves.md`):
+  items 85-87 (viewer-safe overlay, viewer-safe candidate selection,
+  pending-intent cleanup on handoff) were already correct on `main` and got
+  regression tests plus one behavior-preserving extraction
+  (`getPendingGeneralChoiceForViewer`) for testability; item 88 (same-turn
+  save/load exactness) was genuinely investigated and confirmed correct;
+  item 89 (legacy save compatibility) extends the MR4 legacy-save test with
+  an MR5-era AI-acquisition case. Also fixed the long-standing
+  `turn-manager-crisis.test.ts` full-suite flake (MR4/MR5/here), and flagged
+  (not fixed) a separate `gameId`/`Date.now()` RNG-seed-vs-save-identity
+  determinism issue found while diagnosing it.
 - **MR7 — Balance/scenario pass + remaining deferred issues**: full
   90-scenario matrix closure, pacing-audit re-run (per
   `.claude/rules/game-balance.md`'s "Pacing Regression Prevention" — this
