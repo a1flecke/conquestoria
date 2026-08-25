@@ -114,10 +114,10 @@ describe('era 10 national projects', () => {
     expect(np.nationalProject?.homeEra).toBe(10);
   });
 
-  it('manhattan_project total civYieldBonus <= 9', () => {
+  it('manhattan_project is a milestone NP: buildable with no upper era window, no civYieldBonus (#545)', () => {
     const np = BUILDINGS.manhattan_project;
-    const total = Object.values(np.civYieldBonus ?? {}).reduce((a, b) => a + (b ?? 0), 0);
-    expect(total).toBeLessThanOrEqual(9);
+    expect(np.nationalProject?.milestone).toBe(true);
+    expect(np.civYieldBonus).toBeUndefined();
   });
 
   it('postwar_reconstruction exists with homeEra 10', () => {
