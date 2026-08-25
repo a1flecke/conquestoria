@@ -2,7 +2,7 @@
 
 > The previous silhouette illustration was a review placeholder, not renderer output, and has been removed from this review. Do not use it to judge this MR.
 
-For an actual interactive review, open [`sprite-preview.html`](assets/issue-708/sprite-preview.html) through the repository's Vite server. It mounts the committed generated modules directly and provides faction, idle, walk, and attack controls.
+For an actual interactive review, open [`sprite-preview.html`](assets/issue-708/sprite-preview.html) directly from the working copy or through the repository's Vite server. Its generated embedded payload mounts the committed native output and provides faction, idle, walk, and attack controls.
 
 This draft-PR review covers the native source currently rendered by the map DOM overlay. The committed native SVG modules are the source of truth.
 
