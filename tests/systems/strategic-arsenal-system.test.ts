@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { GameState } from '@/core/types';
-import { hasManhattanProject, getStrategicArsenalCapacity, getStrategicArsenal, addWarheadToArsenal } from '@/systems/strategic-arsenal-system';
+import { hasManhattanProject, getStrategicArsenalCapacity, getStrategicArsenal, addWarheadToArsenal, spendStrategicArsenal } from '@/systems/strategic-arsenal-system';
 
 function makeState(overrides: Partial<GameState> = {}): GameState {
   return {
@@ -180,5 +180,36 @@ describe('addWarheadToArsenal', () => {
     const state = makeState({ civilizations: { p1: makeCiv({ strategicArsenal: 1 }) } });
     addWarheadToArsenal(state, 'p1');
     expect(state.civilizations.p1.strategicArsenal).toBe(1);
+  });
+});
+
+describe('spendStrategicArsenal', () => {
+  it('decrements strategicArsenal by 1', () => {
+    const state = makeState({ civilizations: { p1: makeCiv({ strategicArsenal: 3 }) } });
+    const next = spendStrategicArsenal(state, 'p1');
+    expect(next.civilizations.p1.strategicArsenal).toBe(2);
+  });
+
+  it('floors at 0 rather than going negative', () => {
+    const state = makeState({ civilizations: { p1: makeCiv({ strategicArsenal: 0 }) } });
+    const next = spendStrategicArsenal(state, 'p1');
+    expect(next.civilizations.p1.strategicArsenal).toBe(0);
+  });
+
+  it('floors at 0 when strategicArsenal is absent (legacy save)', () => {
+    const state = makeState({ civilizations: { p1: makeCiv() } });
+    const next = spendStrategicArsenal(state, 'p1');
+    expect(next.civilizations.p1.strategicArsenal).toBe(0);
+  });
+
+  it('is a no-op (returns the same state) for an unknown civ', () => {
+    const state = makeState();
+    expect(spendStrategicArsenal(state, 'nobody')).toBe(state);
+  });
+
+  it('does not mutate the input state', () => {
+    const state = makeState({ civilizations: { p1: makeCiv({ strategicArsenal: 2 }) } });
+    spendStrategicArsenal(state, 'p1');
+    expect(state.civilizations.p1.strategicArsenal).toBe(2);
   });
 });

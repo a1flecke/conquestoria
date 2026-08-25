@@ -76,3 +76,22 @@ export function addWarheadToArsenal(state: GameState, civId: string): GameState 
     },
   };
 }
+
+/**
+ * Spend one warhead on a successful strategic strike (#545 MR3, strategic-strike-system.ts
+ * calls this only after getStrategicLaunchLegality confirms strategicArsenal >= 1).
+ * Floors at 0 defensively -- callers are expected to have already checked legality,
+ * but this must never go negative, matching getStrategicArsenal's "absent means zero"
+ * convention. Immutable, no-op for an unknown civ, same shape as addWarheadToArsenal.
+ */
+export function spendStrategicArsenal(state: GameState, civId: string): GameState {
+  const civ = state.civilizations[civId];
+  if (!civ) return state;
+  return {
+    ...state,
+    civilizations: {
+      ...state.civilizations,
+      [civId]: { ...civ, strategicArsenal: Math.max(0, getStrategicArsenal(civ) - 1) },
+    },
+  };
+}
