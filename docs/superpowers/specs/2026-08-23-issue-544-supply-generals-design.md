@@ -372,12 +372,21 @@ history).
   tile type) and is small enough to be its own quick follow-up MR rather
   than growing MR1 further. Do not consider #544 complete until MR1.1 lands
   or this deferral is revisited.
-- **MR1.1 — Road/rail bounded supply extension** (contract §9, scenarios
-  11-14): extend `getLandSupplySourceCoverage`'s radius by a small,
-  tech-gated bonus for units on/adjacent to a `hasRoad` tile, following the
-  same "one flag, owner-tech-derived tier" convention MR1 established for
-  Fort/Citadel. Not yet planned in detail — write its own
-  `docs/superpowers/plans/` doc before starting, same as every other MR.
+- **MR1.1 — Road/rail bounded supply extension** ✅ merged (#893)
+  (see `docs/superpowers/plans/2026-08-25-issue-544-mr1.1-road-rail-supply.md`):
+  `getRoadSupplyExtension` mirrors `getFortificationTier`'s "one flag,
+  owner-tech-derived tier" convention exactly -- `military-logistics` → +1,
+  `railway-expansion` → +2 (never stacking, same two techs the movement-cost
+  discount already uses), applied when a coord is on/adjacent to an owned
+  `hasRoad` tile. Deliberately not a network trace (contract: "do not trace
+  unlimited networks") -- checks only the coord and its immediate wrap-aware
+  neighbors via `mapNeighbors`. Hooked into the two canonical resolution
+  functions (`getLandSupplySourceCoverage`, `getPrimarySupplySource`) every
+  real caller already uses, so the supply overlay and unit-panel status line
+  reflect it with zero additional UI code -- verified with a dedicated
+  end-to-end regression, not just assumed architecturally. This was #544's
+  last remaining open item; the issue's own "Definition of done" (contract
+  §36) is now fully satisfied.
 - **MR2 — Supply UI**: the *full* toggleable overlay, live projected-vs-
   resolved preview, end-turn warnings, and first-time tutorial (the unit-panel
   status line itself ships with MR1, not here).
