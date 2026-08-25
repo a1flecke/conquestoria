@@ -218,10 +218,36 @@ building, so no new state is needed — `hasManhattanProject(state, civId)` is a
 existing-data query, not a new field). Nuclear Arsenal, Missile Silo, and the Build
 Warhead production item all gate on this same query.
 
+**Correction found while drafting the implementation plan** (verified against
+`national-project-system.ts`/`city-system.ts`, not assumed): `manhattan_project` is
+defined today as a **regular** national project (`uniquePerEmpire: true, nationalProject:
+{ homeEra: 10 }`, no `milestone` flag) — which means it is currently subject to the
+existing fade/expiry contract (`.claude/rules/game-balance.md`'s National Project
+Lifecycle: era 10+2 fades to 0.5×, era 10+3 (era 13) **expires — the building is removed
+from `city.buildings` and `city:national-project-expired` fires**). Left as-is, a civ's
+warhead-production unlock would silently vanish in era 13, directly contradicting this
+section's "one-time program, the unlock persists" framing and Goal 1 ("owning one should
+matter before firing it" presumes the capability doesn't evaporate on its own). **Fix:**
+`manhattan_project` gains `nationalProject: { homeEra: 10, milestone: true }`, the same
+one-time-permanent-trigger pattern `.claude/rules/game-balance.md`'s "Milestone National
+Projects" section already establishes for Sacred Council — buildable from era 10 onward
+with no upper window, never expires, stays in `city.buildings` forever. Its existing
+`civYieldBonus: { production: 6 }` becomes disallowed once it's a milestone NP (that
+section is explicit: milestone NPs get "No `civYieldBonus`/`cityYieldBonus`" — a one-time
+state-mutating trigger only, not an ongoing yield). This does change the Balance review's
+"zero net yield change" claim below for this one building — the fix there is to move that
++6 production onto Nuclear Arsenal (`yields: { production: 3 }` → `{ production: 9 }`)
+so the *era-10 total* production output between the two buildings is unchanged even
+though it's now concentrated differently; §3's Nuclear Arsenal bullet and the Balance
+review section are both updated to reflect this.
+
 ### 3. Building roles — differentiated, not redundant
 
-- **Nuclear Arsenal**: unchanged `yields: { production: 3 }`; adds `+2` arsenal capacity
-  (additive field, §1). "More bombs."
+- **Nuclear Arsenal**: `yields: { production: 9 }` (raised from 3 — absorbs the +6
+  Manhattan Project can no longer carry once it becomes a milestone NP, §2 — total era-10
+  production between the two buildings is unchanged, just concentrated on the one that's
+  still allowed to have a yield); adds `+2` arsenal capacity (additive field, §1). "More
+  bombs."
 - **Missile Silo**: unchanged `yields: { production: 4 }`; adds `+1` arsenal capacity
   *and* becomes a launch platform via `strategicLaunchPlatform: { range: 'unlimited' }`
   (§4; the typed field's `range` is `number | 'unlimited'`, not a sentinel number, so a
@@ -559,15 +585,23 @@ fires it or the outcome.
 
 ## Balance review
 
-The building-role design (§3) deliberately preserves every currently-live `yields`/
-`civYieldBonus` value on Manhattan Project, Nuclear Arsenal, Missile Silo, Strategic Air
-Command, and Arms Control Treaty unchanged — new mechanical fields (capacity, platform,
-readiness, cap-unlock) are added as orthogonal properties, the same way
+The building-role design (§3) preserves every currently-live `yields`/`civYieldBonus`
+**total** unchanged, with one required redistribution: Manhattan Project's existing +6
+production must move to Nuclear Arsenal once Manhattan Project becomes a milestone NP
+(§2's correction — milestone NPs cannot carry a `civYieldBonus` at all), so era-10's
+combined production output across the two buildings is identical to today, just sourced
+from one building instead of two. Missile Silo, Strategic Air Command, and Arms Control
+Treaty are untouched. Every other new mechanical field (capacity, platform, readiness,
+cap-unlock) is added as an orthogonal property, the same way
 `coastalRequired`/`resourceRequired`/`nationalProject` already coexist with a building's
-yields. This is a deliberate choice to avoid triggering `pacing-reference-economy.test.ts`
-snapshot churn: the implementation MR must confirm (not merely assert) that
-`pacing-audit.test.ts`'s full-catalog outlier gate and the reference-economy snapshot
-produce **zero** diffs from this change, proving the additive approach actually worked.
+yields. Because the Manhattan Project/Nuclear Arsenal redistribution changes *which*
+building produces the yield (not the era-10 total), this should still be net-zero for
+`pacing-reference-economy.test.ts` at the aggregate level, but — unlike the other four
+buildings — it is not a pure no-op for that one snapshot's per-building composition, so
+the implementation MR must confirm (not merely assert) that `pacing-audit.test.ts`'s
+full-catalog outlier gate and the reference-economy snapshot produce **zero** diffs from
+this change, and treat any non-zero diff here as a real signal to investigate rather than
+an expected consequence to wave through.
 Arsenal isn't meant to be obviously dominant over conventional military — its scarcity
 (capacity ceiling + per-item production cost) and lack of interception counter-play are
 balanced against its one-shot, ruin-not-delete effect and the severe reputation/treaty
