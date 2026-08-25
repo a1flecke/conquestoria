@@ -305,7 +305,7 @@ describe('#709 industrial vehicle native sprites', () => {
   const FACTIONS = ['imperials', 'vikings', 'pharaohs', 'hellenes', 'khanate', 'shogunate'];
   const REQUIRED_HOOKS: Record<keyof typeof ISSUE_709_NATIVE, readonly string[]> = {
     armored_car: ['cq-armored-car-body', 'cq-wheel', 'cq-armored-car-turret', 'cq-armored-car-cannon', 'cq-weapon'],
-    mechanized_infantry: ['cq-mech-soldier', 'cq-arm-l', 'cq-arm-r', 'cq-leg-l', 'cq-leg-r', 'cq-mech-carrier', 'cq-wheel', 'cq-weapon'],
+    mechanized_infantry: ['cq-mech-soldier', 'cq-mech-rider', 'cq-arm-l', 'cq-arm-r', 'cq-mech-carrier', 'cq-wheel', 'cq-weapon'],
     main_battle_tank: ['cq-mbt-body', 'cq-mbt-tracks', 'cq-mbt-turret', 'cq-mbt-cannon', 'cq-weapon'],
   };
 

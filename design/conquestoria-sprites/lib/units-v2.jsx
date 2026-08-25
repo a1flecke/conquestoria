@@ -1779,6 +1779,38 @@ function DroneControllerV2Sprite({ faction = 'imperials', state = 'idle', phase 
   );
 }
 
+/* #709 — industrial visual batch. Vehicle weapon groups are deliberately nested
+   beneath a turret and explicitly cancel the generic melee swing in CSS: the #708
+   review showed that a broad parent transform can detach an otherwise rigid prop. */
+function ArmoredCarV2Sprite({ faction = 'imperials', state = 'idle', phase }) {
+  const f = _fa2(faction);
+  return <SpriteFrameV2 state={state} kind="melee" variant="armored-car" phase={phase}>
+    <ellipse className="cq-shadow" cx="64" cy="103" rx="42" ry="6" fill="#000" opacity=".35" />
+    <g className="cq-sprite-figure"><g className="cq-armored-car-body">
+      <path d="M18,86 L31,70 L83,70 L104,84 L101,96 L23,96 Z" fill={_P2.metal.iron} stroke={_P2.ink.line} strokeWidth="1.3" />
+      <path d="M36,72 L51,57 L76,57 L88,72 Z" fill={_P2.metal.steel} stroke={_P2.ink.line} strokeWidth="1.1" /><path d="M43,69 L53,59 L65,59 L62,69 Z" fill={f.mid} opacity=".78" />
+      <g className="cq-armored-car-turret"><ellipse cx="70" cy="61" rx="13" ry="7" fill={_P2.metal.iron} stroke={_P2.ink.line} strokeWidth="1" /><g className="cq-weapon cq-armored-car-cannon"><rect x="68" y="58" width="35" height="5" rx="1.5" fill={_P2.metal.steel} stroke={_P2.ink.line} strokeWidth=".8" /><g transform="translate(105 60)"><g className="cq-muzzle-flash"><circle r="3.5" fill="#ffd966" /><circle r="1.6" fill="#fff" /></g></g></g><path d="M70,55V45" stroke={_P2.metal.iron} strokeWidth="1.4" /><path d="M71,45 L80,48 L71,51 Z" fill={f.bright} stroke={_P2.ink.line} strokeWidth=".5" /></g>
+    </g>{[36,82].map(x => <g key={x} transform={`translate(${x} 96)`}><circle r="12" fill={_P2.wood.dark} stroke={_P2.ink.line} strokeWidth="1.2" /><g className="cq-wheel"><circle r="8" fill="none" stroke={_P2.metal.steel} strokeWidth="2" /><path d="M-8,0H8M0,-8V8" stroke={_P2.metal.steel} strokeWidth="1" /></g><circle r="3" fill={_P2.metal.iron} /></g>)}</g>
+  </SpriteFrameV2>;
+}
+
+function MechanizedInfantryV2Sprite({ faction = 'imperials', state = 'idle', phase }) {
+  const f = _fa2(faction);
+  return <SpriteFrameV2 state={state} kind="melee" variant="mechanized-infantry" phase={phase}>
+    <ellipse className="cq-shadow" cx="69" cy="104" rx="53" ry="7" fill="#000" opacity=".35" />
+    <g className="cq-sprite-figure"><g className="cq-mech-carrier"><path d="M15,87 L31,68 L96,68 L116,82 L113,101 L19,101 Z" fill={_P2.metal.iron} stroke={_P2.ink.line} strokeWidth="1.3" /><path d="M34,72 L50,56 L87,56 L102,72 Z" fill={_P2.metal.steel} stroke={_P2.ink.line} strokeWidth="1" /><rect x="43" y="80" width="54" height="7" rx="2" fill={f.mid} opacity=".72" /><ellipse cx="70" cy="61" rx="13" ry="6" fill={_P2.wood.dark} stroke={_P2.ink.line} strokeWidth=".8" />{[31,54,84,105].map(x => <g key={x} transform={`translate(${x} 101)`}><circle r="10" fill={_P2.wood.dark} stroke={_P2.ink.line} strokeWidth="1" /><g className="cq-wheel"><circle r="6" fill="none" stroke={_P2.metal.steel} strokeWidth="1.7" /><path d="M-6,0H6M0,-6V6" stroke={_P2.metal.steel} strokeWidth=".8" /></g></g>)}</g>
+      <g className="cq-mech-soldier cq-mech-rider"><path d="M62,56 Q70,49 78,56 L80,68 L61,68 Z" fill={f.dark} stroke={_P2.ink.line} strokeWidth=".8" /><circle cx="70" cy="47" r="7" fill={_P2.skin.warm} stroke={_P2.ink.line} strokeWidth=".7" /><path d="M62,47 Q63,37 70,37 Q77,37 78,47 L77,51 L63,51 Z" fill={_P2.metal.iron} stroke={_P2.ink.line} strokeWidth=".7" /><g className="cq-arm-l"><path d="M64,58 Q72,66 79,68" fill="none" stroke={f.dark} strokeWidth="4" strokeLinecap="round" /></g><g className="cq-arm-r"><path d="M77,57 Q83,62 88,66" fill="none" stroke={f.dark} strokeWidth="4" strokeLinecap="round" /></g><g className="cq-weapon"><g transform="translate(79 68) rotate(-12)"><rect x="-8" y="-2.5" width="30" height="5" rx="1" fill={_P2.metal.iron} stroke={_P2.ink.line} strokeWidth=".6" /><rect x="19" y="-1.5" width="18" height="3" fill={_P2.metal.steel} /><g transform="translate(39 0)"><g className="cq-muzzle-flash"><circle r="3.2" fill="#ffd966" /><circle r="1.4" fill="#fff" /></g></g></g></g></g></g>
+  </SpriteFrameV2>;
+}
+
+function MainBattleTankV2Sprite({ faction = 'imperials', state = 'idle', phase }) {
+  const f = _fa2(faction);
+  return <SpriteFrameV2 state={state} kind="melee" variant="main-battle-tank" phase={phase}>
+    <ellipse className="cq-shadow" cx="64" cy="104" rx="51" ry="7" fill="#000" opacity=".35" />
+    <g className="cq-sprite-figure"><g className="cq-mbt-body"><path d="M12,87 L30,74 L96,75 L115,87 L110,101 L17,101 Z" fill={_P2.metal.iron} stroke={_P2.ink.line} strokeWidth="1.4" /><path d="M29,80 L98,80 L105,91 L23,91 Z" fill={f.mid} opacity=".56" /><g className="cq-mbt-tracks"><path d="M18,91 Q23,83 40,84 L99,84 Q110,85 112,96 Q107,106 96,106 L31,106 Q18,104 18,91 Z" fill={_P2.wood.dark} stroke={_P2.ink.line} strokeWidth="1.2" />{[34,51,69,87,102].map(x => <circle key={x} cx={x} cy="96" r="6" fill={_P2.metal.iron} stroke={_P2.metal.steel} strokeWidth="1" />)}</g><g className="cq-mbt-turret"><path d="M46,77 Q48,60 69,57 Q88,58 94,76 L87,83 L52,83 Z" fill={_P2.metal.steel} stroke={_P2.ink.line} strokeWidth="1.2" /><ellipse cx="68" cy="63" rx="8" ry="5" fill={f.dark} stroke={_P2.ink.line} strokeWidth=".7" /><g className="cq-weapon cq-mbt-cannon"><rect x="73" y="67" width="42" height="6" rx="2" fill={_P2.metal.iron} stroke={_P2.ink.line} strokeWidth=".9" /><rect x="108" y="68" width="10" height="4" fill={_P2.metal.steel} /><g transform="translate(120 70)"><g className="cq-muzzle-flash"><circle r="4" fill="#ffd966" /><circle r="1.8" fill="#fff" /></g></g></g></g></g></g>
+  </SpriteFrameV2>;
+}
+
 Object.assign(window, {
   SpriteFrameV2, HumanoidV2,
   SwordsmanV2Sprite, WorkerV2Sprite, ArcherV2Sprite, SpyOperativeV2Sprite,
@@ -1797,4 +1829,5 @@ Object.assign(window, {
   // #759 batch 1
   CombatDroneV2Sprite, AutonomousFrigateV2Sprite, ExosuitInfantryV2Sprite,
   PropagandistV2Sprite, DroneControllerV2Sprite,
+  ArmoredCarV2Sprite, MechanizedInfantryV2Sprite, MainBattleTankV2Sprite,
 });

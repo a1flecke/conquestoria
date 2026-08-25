@@ -351,6 +351,61 @@
    bob in v2, no separate rotation needed. */
 .cq-v2[data-state="walk"] .cq-weapon { animation: none; }
 
+/* #709 industrial batch — rigid guns recoil from their local mount, never from the
+   generic melee shoulder swing. This keeps cannon-to-turret and rifle-to-hand contact
+   stable at every sampled phase (the #708 visual-review regression). */
+@keyframes cq-industrial-turret-recoil {
+  0%, 18%, 100% { transform: translateX(0); }
+  32%, 48% { transform: translateX(-5px); }
+  66% { transform: translateX(1px); }
+}
+@keyframes cq-industrial-rifle-recoil {
+  0%, 18%, 100% { transform: translateX(0) rotate(0); }
+  32%, 48% { transform: translateX(-3px) rotate(2deg); }
+  66% { transform: translateX(1px) rotate(0); }
+}
+@keyframes cq-industrial-track-roll { from { transform: translateX(0); } to { transform: translateX(-8px); } }
+.cq-v2[data-kind="melee"][data-kind-variant="armored-car"][data-state="walk"] .cq-sprite-figure { animation: none; }
+.cq-v2[data-kind="melee"][data-kind-variant="mechanized-infantry"][data-state="walk"] .cq-sprite-figure { animation: none; }
+.cq-v2[data-kind="melee"][data-kind-variant="main-battle-tank"][data-state="walk"] .cq-sprite-figure { animation: none; }
+.cq-v2[data-kind="melee"][data-kind-variant="armored-car"][data-state="attack"] .cq-sprite-figure { animation: none; }
+.cq-v2[data-kind="melee"][data-kind-variant="mechanized-infantry"][data-state="attack"] .cq-sprite-figure { animation: none; }
+.cq-v2[data-kind="melee"][data-kind-variant="main-battle-tank"][data-state="attack"] .cq-sprite-figure { animation: none; }
+.cq-v2[data-kind="melee"][data-kind-variant="armored-car"][data-state="walk"] .cq-wheel { animation: cq2-wheel-spin .7s linear infinite; }
+.cq-v2[data-kind="melee"][data-kind-variant="mechanized-infantry"][data-state="walk"] .cq-wheel { animation: cq2-wheel-spin .7s linear infinite; }
+.cq-v2[data-kind="melee"][data-kind-variant="main-battle-tank"][data-state="walk"] .cq-mbt-tracks { animation: cq-industrial-track-roll .42s linear infinite; }
+.cq-v2[data-kind="melee"][data-kind-variant="armored-car"] .cq-wheel,
+.cq-v2[data-kind="melee"][data-kind-variant="mechanized-infantry"] .cq-wheel { transform-box: fill-box; transform-origin: center; }
+.cq-v2[data-kind="melee"][data-kind-variant="armored-car"][data-state="attack"] .cq-armored-car-turret {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: cq-industrial-turret-recoil 1.4s cubic-bezier(.3,.7,.4,1) infinite;
+  animation-delay: calc(var(--phase, 0) * -1.4s);
+}
+.cq-v2[data-kind="melee"][data-kind-variant="main-battle-tank"][data-state="attack"] .cq-mbt-turret {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: cq-industrial-turret-recoil 1.4s cubic-bezier(.3,.7,.4,1) infinite;
+  animation-delay: calc(var(--phase, 0) * -1.4s);
+}
+.cq-v2[data-kind="melee"][data-kind-variant="mechanized-infantry"][data-state="attack"] .cq-weapon {
+  transform-box: fill-box;
+  transform-origin: left center;
+  animation: none;
+  animation: cq-industrial-rifle-recoil 1.4s cubic-bezier(.3,.7,.4,1) infinite;
+  animation-delay: calc(var(--phase, 0) * -1.4s);
+}
+.cq-v2[data-kind="melee"][data-kind-variant="armored-car"][data-state="attack"] .cq-weapon { animation: none; }
+.cq-v2[data-kind="melee"][data-kind-variant="main-battle-tank"][data-state="attack"] .cq-weapon { animation: none; }
+.cq-v2[data-kind="melee"][data-kind-variant="armored-car"] .cq-weapon { animation: none; }
+.cq-v2[data-kind="melee"][data-kind-variant="main-battle-tank"] .cq-weapon { animation: none; }
+/* Named component hooks are intentionally animated rather than inert labels. */
+.cq-v2[data-kind="melee"][data-kind-variant="armored-car"] .cq-armored-car-body,
+.cq-v2[data-kind="melee"][data-kind-variant="main-battle-tank"] .cq-mbt-body { animation: cq2-breathe 3.2s ease-in-out infinite; }
+.cq-v2[data-kind="melee"][data-kind-variant="mechanized-infantry"] .cq-mech-soldier { animation: cq2-breathe 3.2s ease-in-out infinite; }
+.cq-v2[data-kind="melee"][data-kind-variant="mechanized-infantry"] .cq-mech-carrier,
+.cq-v2[data-kind="melee"][data-kind-variant="main-battle-tank"] .cq-mbt-tracks { animation: cq2-breathe 3.8s ease-in-out infinite; }
+
 /* Off-hand arm + shield brace inward during the wind-back, then back to neutral */
 @keyframes cq2-attack-offhand {
   0%, 100% { transform: rotate(0deg) translateX(0); }
