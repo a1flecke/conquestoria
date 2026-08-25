@@ -212,7 +212,10 @@ describe('save-manager autosave listing', () => {
 
   it('returns the concrete newest autosave source for Continue', async () => {
     const state = createNewGame(undefined, 'source-aware-auto', 'small');
-    state.gameId = 'game-source-aware';
+    // autoSave's entry id is keyed by playthroughId (not gameId, which is now
+    // a pure seed hash and no longer identity-purpose) -- see GameState field
+    // docs in core/types.ts.
+    state.playthroughId = 'game-source-aware';
     state.turn = 7;
     await autoSave(state);
 
@@ -226,7 +229,7 @@ describe('save-manager autosave listing', () => {
 
   it('loads the concrete Continue payload before retiring the legacy fallback', async () => {
     const concrete = createNewGame(undefined, 'concurrent-concrete', 'small');
-    concrete.gameId = 'concurrent';
+    concrete.playthroughId = 'concurrent';
     concrete.turn = 7;
     await autoSave(concrete);
     const legacy = createNewGame(undefined, 'concurrent-legacy', 'small');
@@ -253,11 +256,27 @@ describe('save-manager autosave listing', () => {
         id: 'autosave:concurrent:7',
         kind: 'autosave',
       });
-      expect(loaded?.state.gameId).toBe('concurrent');
+      expect(loaded?.state.playthroughId).toBe('concurrent');
       expect(dbState.has('autosave')).toBe(true);
     } finally {
       vi.mocked(dbGet).mockImplementation(originalDbGet);
     }
+  });
+
+  it('two games sharing the same explicit seed autosave to distinct entries, not colliding on gameId (#544 gameId/playthroughId split)', async () => {
+    const stateA = createNewGame(undefined, 'shared-seed-collision-check', 'small');
+    const stateB = createNewGame(undefined, 'shared-seed-collision-check', 'small');
+    expect(stateA.gameId).toBe(stateB.gameId); // same seed -- correctly identical now
+    stateA.turn = 5;
+    stateB.turn = 5;
+
+    await autoSave(stateA);
+    await autoSave(stateB);
+
+    const epics = await listSaveEpics();
+    const matchingEpics = epics.filter(epic => epic.saves.some(save =>
+      save.id === `autosave:${stateA.playthroughId}:5` || save.id === `autosave:${stateB.playthroughId}:5`));
+    expect(matchingEpics).toHaveLength(2);
   });
 
   it('rewrites the legacy autosave payload and localStorage backup', async () => {

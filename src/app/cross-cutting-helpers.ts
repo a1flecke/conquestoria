@@ -110,15 +110,20 @@ const SUBMARINE_TYPES = new Set(['submarine', 'missile_submarine']);
 // already fired a sighting notification via ordinary proximity, so re-scanning a
 // still-detected submarine every turn doesn't spam the log. Cleared per-triple the
 // moment the submarine conceals again, so a later re-sighting fires a fresh
-// notification. Keyed by state.gameId (not just civId+unitId) so a fresh game whose
-// auto-incrementing unit/civ ids happen to collide with a prior playthrough's doesn't
-// inherit stale suppression from that earlier session.
+// notification. Keyed by state.playthroughId (not just civId+unitId) so a fresh game
+// whose auto-incrementing unit/civ ids happen to collide with a prior playthrough's
+// doesn't inherit stale suppression from that earlier session -- gameId alone
+// wouldn't work here since two playthroughs sharing the same seed share the same
+// gameId by design (see the field docs on GameState in core/types.ts).
 const notifiedSubmarineSightings = new Set<string>();
 
 export function scanSubmarineSightings(session: GameSession, bus: EventBus): void {
   const state = session.getState();
   const civId = state.currentPlayer;
-  const gameKey = state.gameId ?? 'no-game-id';
+  // playthroughId, not gameId -- two playthroughs sharing the same seed
+  // share the same gameId by design (see game-state.ts), which would
+  // wrongly let one playthrough inherit stale suppression from another.
+  const gameKey = state.playthroughId ?? state.gameId ?? 'no-game-id';
   for (const unit of Object.values(state.units)) {
     if (!SUBMARINE_TYPES.has(unit.type)) continue;
     if (unit.owner === civId) continue;

@@ -4,8 +4,14 @@ import { ScenarioError, type ScenarioDefinition, type ScenarioStep } from '@/tes
 import { hexKey } from '@/systems/hex-utils';
 import { getBlockingMapEntityAt, getMovementRangeDetails } from '@/systems/unit-system';
 
-function withoutGameId(state: ReturnType<typeof buildScenario>) {
-  const { gameId, ...rest } = state;
+// playthroughId is deliberately unique per build (see GameState field docs in
+// core/types.ts -- it disambiguates separate playthroughs sharing the same
+// seed for save-slot bookkeeping) and so must stay excluded here. gameId is
+// no longer excluded: it's now a pure function of the seed string, so two
+// buildScenario calls with the same seed must produce the same gameId too --
+// asserted directly below as a determinism regression, not just tolerated.
+function withoutPlaythroughId(state: ReturnType<typeof buildScenario>) {
+  const { playthroughId, ...rest } = state;
   return rest;
 }
 
@@ -15,7 +21,7 @@ const soloBase: ScenarioDefinition['base'] = {
 };
 
 describe('buildScenario', () => {
-  it('is deterministic for a given seed (excluding gameId)', () => {
+  it('is deterministic for a given seed (excluding playthroughId)', () => {
     const definition: ScenarioDefinition = {
       name: 'determinism-check',
       description: 'test only',
@@ -25,7 +31,8 @@ describe('buildScenario', () => {
     };
     const first = buildScenario(definition);
     const second = buildScenario(definition);
-    expect(withoutGameId(first)).toEqual(withoutGameId(second));
+    expect(withoutPlaythroughId(first)).toEqual(withoutPlaythroughId(second));
+    expect(first.gameId).toBe(second.gameId);
   });
 
   it('derives everything not named in base/steps from createNewGame', () => {

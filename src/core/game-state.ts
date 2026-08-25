@@ -120,8 +120,35 @@ export function createDefaultSettings(
   };
 }
 
+/**
+ * Pure function of the seed string -- deliberately no Date.now(). `gameId` is
+ * the base for every deterministic hash/RNG seed in the codebase
+ * (deterministicCombatSeed and ~30 other call sites across combat, AI,
+ * pirates, barbarians, and crisis systems all key off state.gameId), so it
+ * must reproduce identically across separate createNewGame calls given the
+ * same seed string -- that's the whole point of accepting an explicit seed.
+ * Before this function stopped embedding Date.now(), two games created with
+ * the identical seed at different wall-clock times diverged in every
+ * "random" outcome, silently breaking the seed-reproducibility guarantee
+ * CLAUDE.md's game-systems rule promises. See createPlaythroughId below for
+ * the separate, intentionally wall-clock-salted identity save/autosave
+ * bookkeeping needs.
+ */
 function createGameId(seed: string): string {
-  return `game-${hashSeed(seed)}-${Date.now()}`;
+  return `game-${hashSeed(seed)}`;
+}
+
+/**
+ * Unique per playthrough *instance*, even when two playthroughs share the
+ * same seed string -- this is the field save-slot bookkeeping needs
+ * (grouping saves into "epics", autosave key/pruning, cross-playthrough
+ * notification-suppression cache keys), which is a genuinely different
+ * requirement from gameId's determinism above and must not be conflated
+ * with it again. Deliberately keeps the old createGameId's Date.now()-salted
+ * shape for this identity purpose.
+ */
+function createPlaythroughId(seed: string): string {
+  return `playthrough-${hashSeed(seed)}-${Date.now()}`;
 }
 
 function getDiplomacyStartBonus(settings: GameSettings, civType: string | undefined): number {
@@ -333,6 +360,7 @@ export function createNewGame(
     turn: 1,
     era: 1,
     gameId: createGameId(gameSeed),
+    playthroughId: createPlaythroughId(gameSeed),
     gameTitle: resolvedGameTitle,
     opponentChallenge: config.opponentChallenge ?? 'standard',
     opponentAI: createEmptyOpponentAIState(),
@@ -505,6 +533,7 @@ export function createHotSeatGame(
     turn: 1,
     era: 1,
     gameId: createGameId(gameSeed),
+    playthroughId: createPlaythroughId(gameSeed),
     gameTitle: resolvedGameTitle,
     opponentChallenge,
     opponentAI: createEmptyOpponentAIState(),

@@ -1968,7 +1968,25 @@ export interface GameState {
   era: number;
   /** Incremented only by ordered, deterministic save migrations. */
   saveSchemaVersion?: number;
+  /**
+   * Pure function of the seed string (see createGameId in game-state.ts) --
+   * the base for every deterministic combat/AI/pirate/crisis RNG seed in the
+   * codebase. NOT unique per playthrough instance -- two games created with
+   * the same seed share the same gameId by design, since reproducibility
+   * from a seed is the point. Never use this for save-slot/autosave/epic
+   * identity or cross-playthrough cache-key purposes; use playthroughId.
+   */
   gameId?: string;
+  /**
+   * Unique per playthrough instance, even across two games sharing the same
+   * seed (and therefore the same gameId above). Salted with the real
+   * creation timestamp (see createPlaythroughId in game-state.ts) --
+   * deliberately NOT reproducible, since its only job is disambiguating
+   * separate playthroughs for save-slot grouping/autosave keys/pruning and
+   * cross-playthrough notification-suppression caches. Absent on saves
+   * created before this field existed; callers must fall back to gameId.
+   */
+  playthroughId?: string;
   gameTitle?: string;
   opponentChallenge?: OpponentChallenge;
   pendingOpponentChallenge?: OpponentChallenge;
