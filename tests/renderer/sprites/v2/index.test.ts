@@ -296,6 +296,38 @@ describe('#708 mounted and beast native sprites', () => {
   });
 });
 
+describe('#709 industrial vehicle native sprites', () => {
+  const ISSUE_709_NATIVE = {
+    armored_car: 'armored-car',
+    mechanized_infantry: 'mechanized-infantry',
+    main_battle_tank: 'main-battle-tank',
+  } as const;
+  const FACTIONS = ['imperials', 'vikings', 'pharaohs', 'hellenes', 'khanate', 'shogunate'];
+  const REQUIRED_HOOKS: Record<keyof typeof ISSUE_709_NATIVE, readonly string[]> = {
+    armored_car: ['cq-armored-car-body', 'cq-wheel', 'cq-armored-car-turret', 'cq-armored-car-cannon', 'cq-weapon'],
+    mechanized_infantry: ['cq-mech-soldier', 'cq-arm-l', 'cq-arm-r', 'cq-leg-l', 'cq-leg-r', 'cq-mech-carrier', 'cq-wheel', 'cq-weapon'],
+    main_battle_tank: ['cq-mbt-body', 'cq-mbt-tracks', 'cq-mbt-turret', 'cq-mbt-cannon', 'cq-weapon'],
+  };
+
+  it.each(Object.entries(ISSUE_709_NATIVE))('%s is native v2 art with its approved vehicle variant', (type, variant) => {
+    expect(isV2NativeUnit(type)).toBe(true);
+    for (const faction of FACTIONS) {
+      const result = getUnitSpriteV2(type, faction)!;
+      expect(result, `${type}/${faction}`).toContain('data-kind="melee"');
+      expect(result, `${type}/${faction}`).toContain(`data-kind-variant="${variant}"`);
+    }
+  });
+
+  it.each(Object.keys(ISSUE_709_NATIVE) as Array<keyof typeof ISSUE_709_NATIVE>)('%s exposes every role-defining motion hook for every faction', (type) => {
+    for (const faction of FACTIONS) {
+      const result = getUnitSpriteV2(type, faction)!;
+      for (const hook of REQUIRED_HOOKS[type]) {
+        expect(result, `${type}/${faction} missing ${hook}`).toContain(hook);
+      }
+    }
+  });
+});
+
 describe('#759 batch 1 — v2-native migration', () => {
   const MIGRATED = ['combat_drone', 'autonomous_frigate', 'exosuit_infantry', 'propagandist', 'drone_controller'];
   const EXPECTED_KIND: Record<string, string> = {

@@ -191,3 +191,25 @@ describe('#708 mounted animal animation contract', () => {
     expect(css).not.toContain('cq-rune-standard');
   });
 });
+
+describe('#709 industrial vehicle animation contract', () => {
+  const attackSelectors = [
+    '.cq-v2[data-kind="melee"][data-kind-variant="armored-car"][data-state="attack"] .cq-armored-car-turret',
+    '.cq-v2[data-kind="melee"][data-kind-variant="mechanized-infantry"][data-state="attack"] .cq-weapon',
+    '.cq-v2[data-kind="melee"][data-kind-variant="main-battle-tank"][data-state="attack"] .cq-mbt-turret',
+  ];
+
+  it('defines variant-owned attack motion instead of the generic melee weapon swing', () => {
+    for (const selector of attackSelectors) {
+      expect(css, `missing ${selector}`).toContain(selector);
+      const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      expect(css, `${selector} must declare animation`).toMatch(new RegExp(`${escaped}\\s*\\{[^}]*animation:`));
+    }
+    for (const variant of ['armored-car', 'mechanized-infantry', 'main-battle-tank']) {
+      const selector = `.cq-v2[data-kind="melee"][data-kind-variant="${variant}"][data-state="attack"] .cq-weapon`;
+      const start = css.indexOf(selector);
+      const rule = css.slice(start, css.indexOf('}', start));
+      expect(rule, `${variant} must disable generic weapon swing`).toContain('animation: none');
+    }
+  });
+});
