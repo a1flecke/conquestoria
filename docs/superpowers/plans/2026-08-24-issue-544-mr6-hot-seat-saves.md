@@ -393,7 +393,22 @@ starting at line 258):
       });
       const turnFlow = createTurnFlowController(deps);
 
-      await turnFlow.endTurn();
+      const endTurnPromise = turnFlow.endTurn();
+      // deselectUnit() runs synchronously before the first await inside
+      // endTurn (turn-flow-controller.ts:696, ahead of the awaited
+      // beginHotSeatHandoff at :701) -- check this immediately, before the
+      // handoff UI even appears, not just "eventually true" once the whole
+      // promise settles. (Added in post-implementation review -- the
+      // original draft only checked the end state, which would also pass if
+      // clearing happened for an unrelated reason after handoff.)
+      expect(selection.getPendingIntent()).toEqual({ kind: 'none' });
+
+      await flushMicrotasks();
+      document.querySelector<HTMLButtonElement>('#handoff-confirm')?.click();
+      await flushMicrotasks();
+      document.querySelector<HTMLButtonElement>('#handoff-start')?.click();
+      await flushMicrotasks();
+      await endTurnPromise;
 
       expect(selection.getPendingIntent()).toEqual({ kind: 'none' });
     });
@@ -473,3 +488,54 @@ block already imports from the same module).
 5. Present `finishing-a-development-branch` options and wait for explicit
    user authorization before merging — do not merge or tick the checklist
    unilaterally.
+
+## Post-implementation review (requested pass across all dimensions)
+
+MR6 adds no gameplay mechanic, no new UI surface, no new SFX, and no data/save
+schema change — most dimensions below are correctly "N/A," not overlooked.
+One real gap was found and fixed during this pass.
+
+- **Balance / fun / new mechanics / play styles / age accessibility (7-43) /
+  difficulty modes**: N/A — no mechanic, yield, cost, UI text, or difficulty
+  branch was added or changed. Difficulty-mechanical-identity constraint
+  reconfirmed: neither the extraction (Task 3) nor any test touches
+  `opponentChallenge`/`challenge`.
+- **Computer players (AI)**: Task 5's test exercises the real
+  `checkAndQueueGeneralCandidateChoice` (unmodified) against an AI civ to
+  prove MR5's AI General-acquisition path still works from a migrated
+  MR4-era save. No AI decision logic changed.
+- **UI/UX**: Task 3's extraction is behaviorally identical to the code it
+  replaces — verified line-by-line (both versions call `session.getState()`
+  twice, filter by the same predicate, same short-circuit on no match).
+- **Architecture / extensibility**: `getPendingGeneralChoiceForViewer` lives
+  in `great-general-system.ts` next to the write-side
+  `checkAndQueueGeneralCandidateChoice` it mirrors, matching this codebase's
+  established `*ForViewer` presentation-helper convention rather than
+  introducing a new one.
+- **Data / save-schema**: `CURRENT_SAVE_SCHEMA_VERSION` unchanged (19); no
+  migration added, none needed.
+- **SFX**: N/A — no new SFX-triggering code path.
+- **Updating saved games (items 88-89)**: both new tests pass; Task 2's
+  mid-round exactness test found no bug (confirms, doesn't just assume).
+  Testing-infrastructure note (not a regression, not fixed here): every
+  `saveGame`/`loadGame` test in `save-persistence.test.ts`, including this
+  MR's, round-trips through a mocked in-memory `Map` (`vi.mock('@/storage/db')`
+  at the top of the file) rather than real IndexedDB structured-clone
+  serialization, so a field that silently fails to survive real storage
+  serialization (e.g. `undefined`, a class instance) wouldn't necessarily be
+  caught by this convention. This is pre-existing across the whole file, not
+  introduced by MR6, and fixing the mock's fidelity is out of scope here.
+- **Proper testing / regressions, solo vs. hot-seat**: found one real gap in
+  the first draft: Task 4b's item-87 test originally only asserted the
+  pending intent was gone *after* `endTurn()`'s promise fully resolved, which
+  would also pass if clearing happened for an unrelated reason after handoff
+  rather than via the `deselectUnit()` call the test claims to prove. Fixed
+  by asserting immediately after calling `endTurn()` (before any await),
+  since `deselectUnit()` runs synchronously ahead of the awaited
+  `beginHotSeatHandoff` call (`turn-flow-controller.ts:696` vs `:701`) — now
+  proves the actual ordering claim, not just eventual truth. Solo mode is
+  unaffected by any change in this MR (the extraction and all five new/
+  extended tests are hot-seat- or save-path-specific).
+- **Proper implementation**: full suite (8883 tests) and production build
+  both green after the fix above; no `check-src-edit` hook feedback on any
+  edited `src/` file.
