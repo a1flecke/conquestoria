@@ -24,6 +24,8 @@ import { getAIStrategicRoles } from '@/ai/ai-unit-roles';
 import { hexKey, hexNeighbors } from '@/systems/hex-utils';
 import { createEspionageCivState } from '@/systems/espionage-system';
 import { createUnit, UNIT_DEFINITIONS } from '@/systems/unit-system';
+import { getReservedNationalProjectKeys } from '@/systems/national-project-system';
+import { getStrategicArsenal, getStrategicArsenalCapacity, hasManhattanProject } from '@/systems/strategic-arsenal-system';
 
 const aggressive: PersonalityTraits = {
   traits: ['aggressive'],
@@ -546,6 +548,14 @@ describe('AI strategic production', () => {
       state,
       RESOURCE_DEFINITIONS.map(definition => definition.id as ResourceType),
     );
+    // #545: warhead is arsenalCapacityGated -- researching nuclear-weapons alone
+    // isn't enough, Manhattan Project must actually be built (this fixture grants
+    // every tech but doesn't build anything), or it's correctly excluded from AI
+    // candidates even though this maximal-availability fixture expects everything
+    // researchable to also be a real candidate.
+    state.builtNationalProjects = {
+      'ai-1:manhattan_project': { civId: 'ai-1', cityId: 'city-a', eraBuilt: 10 },
+    };
 
     const candidates = generateAIProductionCandidates(
       state,
@@ -565,8 +575,12 @@ describe('AI strategic production', () => {
       state.map,
       new Set(RESOURCE_DEFINITIONS.map(definition => definition.id as ResourceType)),
       resolveCivilizationEra(state.civilizations['ai-1'].techState.completed),
-      new Set(),
+      getReservedNationalProjectKeys(state, 'ai-1'),
       'ai-1',
+      {
+        hasManhattanProject: hasManhattanProject(state, 'ai-1'),
+        atCapacity: getStrategicArsenal(state.civilizations['ai-1']) >= getStrategicArsenalCapacity(state, 'ai-1'),
+      },
     );
 
     for (const building of available) {

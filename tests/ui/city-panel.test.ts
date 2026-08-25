@@ -2653,3 +2653,30 @@ describe('city-panel building icons — #665', () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 });
+
+describe('city-panel warhead arsenal visibility (#545)', () => {
+  it('available warhead item shows an always-visible Arsenal: N/M line', () => {
+    const { container, city, state } = makeWonderPanelFixture();
+    const civId = state.currentPlayer;
+    // nuclear-weapons gates warhead's own techRequired; nuclear-physics gates the
+    // uranium resource definition itself (RESOURCE_DEFINITIONS).
+    state.civilizations[civId].techState.completed.push('nuclear-weapons', 'nuclear-physics');
+    state.marketplace = { ...createMarketplaceState(), purchasedResources: [
+      { civId, resource: 'uranium', expiresOnTurn: state.turn + 1 },
+    ] };
+    // Base capacity (1, from Manhattan Project) + nuclear_arsenal (+2) + missile_silo
+    // (+1) = 4; arsenal at 2 -- comfortably under capacity, so warhead is available
+    // (not locked), and the count must still be visible per this review's Goal 7 fix.
+    city.buildings.push('nuclear_arsenal', 'missile_silo');
+    state.builtNationalProjects = {
+      [`${civId}:manhattan_project`]: { civId, cityId: city.id, eraBuilt: 10 },
+    };
+    state.civilizations[civId].strategicArsenal = 2;
+
+    const panel = createCityPanel(container, city, state, {
+      onBuild: () => {}, onOpenWonderPanel: () => {}, onClose: () => {},
+    });
+
+    expect(collectText(panel)).toContain('Arsenal: 2/4');
+  });
+});
