@@ -51,6 +51,11 @@ describe('diplomacy-system', () => {
       expect(getRelationship(state, 'ai-egypt')).toBe(20);
       expect(getRelationship(state, 'ai-rome')).toBe(20);
     });
+
+    it('initializes strategicStrikesReceivedFrom empty (#545 MR4)', () => {
+      const state = createDiplomacyState(civIds, 'player');
+      expect(state.strategicStrikesReceivedFrom).toEqual([]);
+    });
   });
 
   describe('modifyRelationship', () => {

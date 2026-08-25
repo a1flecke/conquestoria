@@ -1055,6 +1055,12 @@ export interface DiplomacyState {
   atWarWith: string[];
   treacheryScore: number;
   vassalage: VassalageState;
+  /** #545 MR4 spec §11: ids of every civ that has ever struck this civ with a
+   * strategic strike. Append-only, never pruned or decayed -- unlike the
+   * capped rolling `events` log, a nuclear strike must never be "forgotten"
+   * for retaliation-classification purposes. See strategic-launch-system.ts's
+   * isStrategicStrikeRetaliation for the read side. */
+  strategicStrikesReceivedFrom: string[];
 }
 
 export interface Embargo {
