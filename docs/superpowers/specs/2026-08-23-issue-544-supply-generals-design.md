@@ -410,12 +410,19 @@ history).
   `turn-manager-crisis.test.ts` full-suite flake (MR4/MR5/here), and flagged
   (not fixed) a separate `gameId`/`Date.now()` RNG-seed-vs-save-identity
   determinism issue found while diagnosing it.
-- **MR7 — Balance/scenario pass + remaining deferred issues**: full
-  90-scenario matrix closure, pacing-audit re-run (per
-  `.claude/rules/game-balance.md`'s "Pacing Regression Prevention" — this
-  work does not add yields, but the -10%/-1-move combat penalty and General
-  presence both plausibly shift war-length pacing, so the outlier gate must
-  be re-run), file remaining deferred issues (D, E, F, G, I, A, B).
+- **MR7 — Balance/scenario pass + remaining deferred issues** ✅ merged (#890)
+  (see `docs/superpowers/plans/2026-08-25-issue-544-mr7-balance-scenarios.md`):
+  audited the contract's 89-item scenario matrix against real code/tests
+  rather than re-verifying what MR1-MR6 already covered; found and closed
+  two real gaps -- `landSupplyCost` was declared and correctly consumed by
+  the naval shore-supply resolver but never initialized on any unit
+  definition despite contract §10 requiring it (fixed for the 8 units with
+  `cargoSize`), and Last Stand's lethal-save mechanic
+  (`checkLastStandHold`/`consumeLastStandHoldFormationWide`) had zero test
+  coverage despite being fully implemented (added, items 74-76; item 77
+  documented as currently vacuous -- no self-sacrifice mechanic exists yet).
+  Pacing-audit re-run clean, no snapshot drift. Filed the 7 remaining
+  deferred issues (#883-#889, A/B/D/E/F/G/I).
 
 Each MR after MR1 gets its own dedicated design-spec-addendum-or-plan pair
 written just before that MR starts, following this same
