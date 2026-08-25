@@ -12,7 +12,7 @@ import {
   JetFighterSprite, IroncladSprite, MachineGunnerSprite, MissionarySprite, SpyHackerSprite,
   HorsemanSprite, CannonSprite, RiflemanSprite, KnightSprite, WarHoundSprite,
   TriremeSprite, CaravanSprite, WorkerSprite, BiplaneSprite,
-  TankSprite, ArtillerySprite,
+  TankSprite, ArtillerySprite, InfantrySprite,
 } from '@/renderer/sprites/units';
 import {
   DataCenterSprite, CyberDefenseCenterSprite, AutomatedPortSprite, SignalsHubSprite,
@@ -327,6 +327,20 @@ describe('#769 batch 5 sprites are not aliases of their donors', () => {
       const svg = UNIT_SPRITE_CATALOG[type]({ palette, svgOnly: true });
       expect(svg, `${type} is missing the faction <Banner>`).toContain(bannerFingerprint);
     }
+  });
+});
+
+describe('#709 industrial vehicle sprites are not aliases of their former donors', () => {
+  const palette = derivePalette('#4a90d9');
+
+  it.each([
+    ['armored_car', TankSprite, 'cq-armored-car-body'],
+    ['mechanized_infantry', InfantrySprite, 'cq-mech-carrier'],
+    ['main_battle_tank', TankSprite, 'cq-mbt-turret'],
+  ] as const)('%s is bespoke and carries its role marker', (type, donor, marker) => {
+    const actual = UNIT_SPRITE_CATALOG[type]({ palette, svgOnly: true });
+    expect(actual).not.toBe(donor({ palette, svgOnly: true }));
+    expect(actual).toContain(marker);
   });
 });
 
