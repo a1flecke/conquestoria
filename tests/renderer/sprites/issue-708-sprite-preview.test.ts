@@ -28,7 +28,8 @@ describe('#708 file-safe sprite preview', () => {
     expect(preview).toContain("['cuirassier', 'Cuirassier'");
     expect(preview).toContain('card.dataset.unit = unit');
     expect(preview).toContain('grid.dataset.reducedMotion = String(reducedMotion.checked)');
-    expect(preview).toContain('forward-straddling rider');
+    expect(preview).toContain('one visible near rider leg');
+    expect(preview).not.toContain('forward-straddling rider');
     expect(preview).not.toContain('targeting sigil');
     expect(preview).not.toContain('cq-command-sigil');
   });

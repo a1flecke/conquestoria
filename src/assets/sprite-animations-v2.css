@@ -719,8 +719,8 @@
   transform-box: fill-box;
   transform-origin: center;
 }
-.cq-v2[data-kind="hound"][data-kind-variant="handler"] .cq-handler-leg-l,
-.cq-v2[data-kind="hound"][data-kind-variant="handler"] .cq-handler-leg-r,
+.cq-v2[data-kind="hound"][data-kind-variant="handler"] .cq-handler-leg-l-joint,
+.cq-v2[data-kind="hound"][data-kind-variant="handler"] .cq-handler-leg-r-joint,
 .cq-v2[data-kind="hound"][data-kind-variant="handler"] .cq-handler-arm-l,
 .cq-v2[data-kind="hound"][data-kind-variant="handler"] .cq-handler-arm-r,
 .cq-v2[data-kind="hound"][data-kind-variant="handler"] .cq-command-staff,
@@ -756,12 +756,12 @@
   36% { transform: rotate(13deg) translateY(-1px); }
   62% { transform: rotate(4deg) translateY(0); }
 }
-.cq-v2[data-kind="hound"][data-kind-variant="handler"][data-state="walk"] .cq-handler-leg-l {
+.cq-v2[data-kind="hound"][data-kind-variant="handler"][data-state="walk"] .cq-handler-leg-l-joint {
   transform-origin: 50% 0%;
   animation: cq2-handler-step .72s ease-in-out infinite;
   animation-delay: calc(var(--phase, 0) * -.72s);
 }
-.cq-v2[data-kind="hound"][data-kind-variant="handler"][data-state="walk"] .cq-handler-leg-r {
+.cq-v2[data-kind="hound"][data-kind-variant="handler"][data-state="walk"] .cq-handler-leg-r-joint {
   transform-origin: 50% 0%;
   animation: cq2-handler-step .72s ease-in-out infinite;
   animation-delay: calc(var(--phase, 0) * -.72s - .36s);
@@ -804,12 +804,12 @@
   38%, 50% { transform: rotate(9deg) translateY(-1px); }
   72% { transform: rotate(2deg); }
 }
-.cq-v2[data-kind="hound"][data-kind-variant="handler"][data-state="attack"] .cq-handler-leg-l {
+.cq-v2[data-kind="hound"][data-kind-variant="handler"][data-state="attack"] .cq-handler-leg-l-joint {
   transform-origin: 50% 0%;
   animation: cq2-handler-plant 1.3s cubic-bezier(.3,.7,.4,1) infinite;
   animation-delay: calc(var(--phase, 0) * -1.3s);
 }
-.cq-v2[data-kind="hound"][data-kind-variant="handler"][data-state="attack"] .cq-handler-leg-r {
+.cq-v2[data-kind="hound"][data-kind-variant="handler"][data-state="attack"] .cq-handler-leg-r-joint {
   transform-origin: 50% 0%;
   animation: cq2-handler-plant 1.3s cubic-bezier(.3,.7,.4,1) infinite;
   animation-delay: calc(var(--phase, 0) * -1.3s - .08s);

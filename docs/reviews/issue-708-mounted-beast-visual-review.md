@@ -8,7 +8,7 @@ The sheets below are generated from that same committed Imperials payload at 40,
 
 ![Beast Handler anatomy review](assets/issue-708/beast-handler-state-sheet.png)
 
-The handler has two visible arms, two planted legs, and a forked staff held at hand height. The collared hound has a distinct head, ears, tail, and four independently animated legs; the leash joins the handler hand to the collar. The former target/sigil effect is gone.
+The handler has two visible arms, two planted legs, and a forked staff held at hand height. The leg roots retain their authored placement while nested joints animate, so feet stay attached rather than floating. The collared hound has a distinct head, ears, tail, and four independently animated legs; the leash joins the handler hand to the collar. The former target/sigil effect is gone.
 
 ## War Elephant
 
@@ -20,7 +20,7 @@ The elephant has a separate head, ear, forehead plate, trunk, tusks, and four le
 
 ![Cuirassier anatomy review](assets/issue-708/cuirassier-state-sheet.png)
 
-The horse has a readable head, muzzle, ears, mane, saddle, downward tail, and four gait legs. The cuirassier faces forward, straddles the saddle, holds reins with one hand, and carries the sabre with the other; the attack is a rider-led sabre action with a small impact spark.
+The horse has a readable head, muzzle, ears, mane, saddle, downward horse tail, and four gait legs. The cuirassier sits into the saddle: one visible near rider leg follows the near flank, while the far leg is naturally occluded behind the horse. The rider holds reins with one hand and carries the sabre with the other; the attack is a rider-led sabre action with a small impact spark.
 
 ## Review checklist
 

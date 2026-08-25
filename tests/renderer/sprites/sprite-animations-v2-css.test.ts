@@ -121,8 +121,8 @@ describe('#708 mounted animal animation contract', () => {
   it('gives every named #708 secondary-motion hook a real state-scoped animation', () => {
     const hookSelectors = [
       '.cq-v2[data-kind="hound"][data-kind-variant="handler"][data-state="idle"] .cq-hound-tail',
-      '.cq-v2[data-kind="hound"][data-kind-variant="handler"][data-state="walk"] .cq-handler-leg-l',
-      '.cq-v2[data-kind="hound"][data-kind-variant="handler"][data-state="walk"] .cq-handler-leg-r',
+      '.cq-v2[data-kind="hound"][data-kind-variant="handler"][data-state="walk"] .cq-handler-leg-l-joint',
+      '.cq-v2[data-kind="hound"][data-kind-variant="handler"][data-state="walk"] .cq-handler-leg-r-joint',
       '.cq-v2[data-kind="hound"][data-kind-variant="handler"][data-state="attack"] .cq-command-staff',
       '.cq-v2[data-kind="hound"][data-kind-variant="handler"][data-state="attack"] .cq-command-leash',
       '.cq-v2[data-kind="hound"][data-kind-variant="handler"][data-state="attack"] .cq-handler-arm-l',
@@ -174,6 +174,16 @@ describe('#708 mounted animal animation contract', () => {
 
     expect(rule).toContain('animation: cq2-handler-staff-hold');
     expect(rule).not.toContain('transform-origin: 50% 100%');
+  });
+
+  it('rotates Handler inner joints without replacing their positioned outer groups', () => {
+    for (const state of ['walk', 'attack']) {
+      for (const joint of ['cq-handler-leg-l-joint', 'cq-handler-leg-r-joint']) {
+        expect(css).toContain(`[data-state="${state}"] .${joint}`);
+      }
+    }
+    expect(css).not.toContain('[data-state="walk"] .cq-handler-leg-l {');
+    expect(css).not.toContain('[data-state="attack"] .cq-handler-leg-r {');
   });
 
   it('does not retain the rejected sigil or a detached elephant-standard selector', () => {

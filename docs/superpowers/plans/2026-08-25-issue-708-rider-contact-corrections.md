@@ -52,7 +52,7 @@
 - Modify: `tests/renderer/sprites/v2/index.test.ts`
 - Modify: `tests/renderer/sprites/sprite-animations-v2-css.test.ts`
 
-- [ ] **Step 1: Add failing serialized-anatomy assertions.**
+- [x] **Step 1: Add failing serialized-anatomy assertions.**
 
   Add this test inside `#708 mounted and beast native sprites`:
 
@@ -72,7 +72,7 @@
   });
   ```
 
-- [ ] **Step 2: Add the failing CSS target assertion.**
+- [x] **Step 2: Add the failing CSS target assertion.**
 
   Add this focused expectation to the `#708 mounted animal animation contract` describe block:
 
@@ -88,7 +88,7 @@
   });
   ```
 
-- [ ] **Step 3: Run the focused tests and confirm RED.**
+- [x] **Step 3: Run the focused tests and confirm RED.**
 
   Run:
 
@@ -107,7 +107,7 @@
 - Regenerate: `src/renderer/sprites/v2/cuirassier.svg.ts`
 - Regenerate: `docs/reviews/assets/issue-708/sprite-preview.html`
 
-- [ ] **Step 1: Nest Handler leg joints.**
+- [x] **Step 1: Nest Handler leg joints.**
 
   Keep the outer placement groups, but place the leg paths inside new animated joints:
 
@@ -122,7 +122,7 @@
 
   Repeat for the right leg. Change every Handler Walk/Attack selector from `.cq-handler-leg-l`/`.cq-handler-leg-r` to the corresponding `-joint` class, preserving current duration, delay, and transform origin.
 
-- [ ] **Step 2: Re-layer and seat the Cuirassier.**
+- [x] **Step 2: Re-layer and seat the Cuirassier.**
 
   Draw `cq-rider-leg-r` immediately before the horse group, with its complete path confined to the horse flank. Draw the horse group next. Keep the rider torso after the horse, but replace the current two dangling legs with one near `cq-rider-leg-l` beginning inside the lowered rider seat and bending across the near flank. Preserve the named far-leg hook for catalog/anatomy compatibility, but do not let it emerge beyond the horse silhouette.
 
@@ -135,7 +135,7 @@
   </g>
   ```
 
-- [ ] **Step 3: Regenerate only from the source of truth.**
+- [x] **Step 3: Regenerate only from the source of truth.**
 
   Run:
 
@@ -145,7 +145,7 @@
 
   Restore any unrelated generated building files that receive serializer phase-only churn; retain only the Handler/Cuirassier generated modules and preview payload changes.
 
-- [ ] **Step 4: Run the correction regressions and source rule check.**
+- [x] **Step 4: Run the correction regressions and source rule check.**
 
   Run separately:
 
@@ -165,11 +165,11 @@
 - Generate: `docs/reviews/assets/issue-708/cuirassier-state-sheet.png`
 - Modify: draft PR #878 body
 
-- [ ] **Step 1: Update the review wording and preview regression.**
+- [x] **Step 1: Update the review wording and preview regression.**
 
   State that Handler feet remain attached by nested joints and that the Cuirassier has one visible near rider leg, a naturally occluded far leg, a seated saddle contact, and a downward tail. Extend the preview test to reject the stale phrase `forward-straddling rider` and require `one visible near rider leg`.
 
-- [ ] **Step 2: Regenerate and inspect visual evidence.**
+- [x] **Step 2: Regenerate and inspect visual evidence.**
 
   Run:
 
