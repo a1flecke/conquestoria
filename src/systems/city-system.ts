@@ -748,7 +748,7 @@ export const BUILDINGS: Record<string, Building> = {
   nuclear_arsenal: {
     id: 'nuclear_arsenal', name: 'Nuclear Arsenal', category: 'military',
     // #545: raised 3 -> 9, absorbing the +6 Manhattan Project can no longer
-    // carry now that it's a milestone NP (see that definition above) —
+    // carry now that it's a milestone NP (see that definition below) —
     // era-10's combined production total across the two buildings is
     // unchanged, just sourced from this one building instead of two.
     yields: { food: 0, production: 9, gold: 0, science: 0 }, productionCost: 195,
@@ -841,7 +841,7 @@ export const BUILDINGS: Record<string, Building> = {
     // #545: milestone NP (permanent, one-time trigger) — no civYieldBonus per
     // .claude/rules/game-balance.md's "Milestone National Projects" (matches
     // sacred_council's exact pattern). The +6 production this building used to
-    // carry moved to nuclear_arsenal (see that definition below) so era-10's
+    // carry moved to nuclear_arsenal (see that definition above) so era-10's
     // combined production total across the two buildings is unchanged.
     yields: { food: 0, production: 0, gold: 0, science: 0 }, productionCost: 310,
     description: 'One-time atomic weapons program. Permanent effect, never fades — establishes your empire\'s capacity to develop a strategic arsenal.',
