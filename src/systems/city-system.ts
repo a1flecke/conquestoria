@@ -849,6 +849,23 @@ export const BUILDINGS: Record<string, Building> = {
     pacing: { band: 'marquee', role: 'national-project', impact: 1.6, scope: 'empire', snowball: 1.5, urgency: 1.2, situationality: 1.3, unlockBreadth: 1 },
     uniquePerEmpire: true, nationalProject: { homeEra: 10, milestone: true },
   },
+  warhead: {
+    id: 'warhead', name: 'Warhead', category: 'military',
+    yields: { food: 0, production: 0, gold: 0, science: 0 }, productionCost: 260,
+    // #545: illustrative cost, tunable in the balance-pass MR per spec §1. Repeatable
+    // (consumedOnCompletion) -- producing it adds 1 warhead to the empire-wide
+    // strategicArsenal (turn-manager.ts's completion hook), capped by
+    // getStrategicArsenalCapacity (arsenalCapacityGated). No launch capability is
+    // implied by this description yet -- that's MR3 (strike) + MR4 (launch UX).
+    description: 'A live nuclear warhead added to your empire\'s strategic arsenal. Requires Manhattan Project and available capacity (Nuclear Arsenal, Missile Silo). Not a per-city stockpile -- any eligible platform can draw from your empire\'s shared pool.',
+    techRequired: 'nuclear-weapons', resourceRequired: ['uranium'],
+    // marquee (not power-spike): a rare, momentous production choice per spec Goal 1
+    // ("never tactical spam"), matching manhattan_project's own band -- power-spike's
+    // narrower turn window doesn't fit this item's 260 cost at era 10 (pacing-audit.test.ts
+    // flagged it as a slow outlier under power-spike during MR2 execution).
+    pacing: { band: 'marquee', role: 'strategic-arsenal', impact: 1.5, scope: 'city', snowball: 1.3, urgency: 1.1, situationality: 1.4, unlockBreadth: 1 },
+    consumedOnCompletion: true, arsenalCapacityGated: true,
+  },
   postwar_reconstruction: {
     id: 'postwar_reconstruction', name: 'Postwar Reconstruction', category: 'economy',
     // Two keys: gold 3 ≤ 3, food 3 ≤ 3; total 6 ≤ 9 ✓
@@ -1721,6 +1738,7 @@ export const PRODUCTION_ICONS: Record<string, string> = {
   // era 10 national projects
   manhattan_project: '💣',
   postwar_reconstruction: '🏗️',
+  warhead: '☢️',
   space_program_initiative: '🚀',
   // era 11 regular buildings
   helicopter_base: '🚁',
@@ -1926,10 +1944,15 @@ export function getAvailableBuildings(
   era?: number,
   builtNationalProjectKeys?: Set<string>,
   civId?: string,
+  /** #545: omit to skip this gate entirely (matches every other optional filter
+   * here) -- callers that intentionally want the pre-gate "tech unlocked" set for a
+   * locked-item-reason diff (see city-panel.ts) rely on omitting this. */
+  arsenalStatus?: { hasManhattanProject: boolean; atCapacity: boolean },
 ): Building[] {
   const coastal = isCityCoastal(city, map);
   return Object.values(BUILDINGS).filter(b => {
     if (city.buildings.includes(b.id)) return false;
+    if (b.arsenalCapacityGated && arsenalStatus && (!arsenalStatus.hasManhattanProject || arsenalStatus.atCapacity)) return false;
     if (evaluateProductionPrerequisites(b, completedTechs).missing.length > 0) return false;
     if (isBuildingObsolete(b, completedTechs)) return false;
     if (b.coastalRequired && !coastal) return false;
@@ -1994,7 +2017,12 @@ export function completeCityProductionItem(
 
   const building = BUILDINGS[itemId];
   if (building) {
-    if (!newBuildings.includes(building.id)) {
+    // #545: a consumedOnCompletion building (e.g. warhead) fires completedBuilding
+    // for turn-manager.ts's completion hook every time, but is never persisted --
+    // that's what makes it immediately re-buildable instead of a one-time addition.
+    if (building.consumedOnCompletion) {
+      completedBuilding = building.id;
+    } else if (!newBuildings.includes(building.id)) {
       newBuildings.push(building.id);
       completedBuilding = building.id;
     }

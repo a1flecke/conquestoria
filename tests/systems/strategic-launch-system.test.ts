@@ -197,6 +197,76 @@ describe('getStrategicLaunchLegality', () => {
   });
 });
 
+import { BUILDINGS as CityBuildings, foundCity, getAvailableBuildings, completeCityProductionItem } from '@/systems/city-system';
+import { generateMap } from '@/systems/map-generator';
+
+const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
+
+function makeTestCity(seed: string) {
+  const map = generateMap(30, 30, seed);
+  const landTile = Object.values(map.tiles).find(tile => tile.terrain === 'grassland')!;
+  const city = foundCity('p1', landTile.coord, map, mkC());
+  return { map, city };
+}
+
+describe('warhead production item (#545)', () => {
+  it('is gated by nuclear-weapons + uranium, repeatable, arsenal-capacity gated, zero yields', () => {
+    const warhead = CityBuildings.warhead;
+    expect(warhead).toBeDefined();
+    expect(warhead.techRequired).toBe('nuclear-weapons');
+    expect(warhead.resourceRequired).toEqual(['uranium']);
+    expect(warhead.consumedOnCompletion).toBe(true);
+    expect(warhead.arsenalCapacityGated).toBe(true);
+    expect(warhead.uniquePerEmpire).toBeUndefined();
+    expect(warhead.nationalProject).toBeUndefined();
+    expect(warhead.yields).toEqual({ food: 0, production: 0, gold: 0, science: 0 });
+  });
+
+  it('getAvailableBuildings: warhead is available when arsenalStatus is omitted (skips the gate)', () => {
+    const { map, city } = makeTestCity('warhead-gate-omitted');
+    const available = getAvailableBuildings(city, ['nuclear-weapons'], map);
+    expect(available.some(b => b.id === 'warhead')).toBe(true);
+  });
+
+  it('getAvailableBuildings: warhead is hidden when Manhattan Project is unbuilt', () => {
+    const { map, city } = makeTestCity('warhead-no-manhattan');
+    const available = getAvailableBuildings(city, ['nuclear-weapons'], map, undefined, undefined, undefined, undefined, { hasManhattanProject: false, atCapacity: false });
+    expect(available.some(b => b.id === 'warhead')).toBe(false);
+  });
+
+  it('getAvailableBuildings: warhead is hidden when at arsenal capacity', () => {
+    const { map, city } = makeTestCity('warhead-at-capacity');
+    const available = getAvailableBuildings(city, ['nuclear-weapons'], map, undefined, undefined, undefined, undefined, { hasManhattanProject: true, atCapacity: true });
+    expect(available.some(b => b.id === 'warhead')).toBe(false);
+  });
+
+  it('getAvailableBuildings: warhead is available when Manhattan Project is done and under capacity', () => {
+    const { map, city } = makeTestCity('warhead-under-capacity');
+    const available = getAvailableBuildings(city, ['nuclear-weapons'], map, undefined, undefined, undefined, undefined, { hasManhattanProject: true, atCapacity: false });
+    expect(available.some(b => b.id === 'warhead')).toBe(true);
+  });
+
+  it('completeCityProductionItem: completing warhead fires completedBuilding but never persists into city.buildings', () => {
+    const { city } = makeTestCity('warhead-complete');
+    city.productionQueue = ['warhead'];
+    city.productionProgress = 260;
+    const result = completeCityProductionItem(city, 'warhead');
+    expect(result.completedBuilding).toBe('warhead');
+    expect(result.city.buildings).not.toContain('warhead');
+  });
+
+  it('completeCityProductionItem: warhead is immediately re-completable (queue it twice in a row)', () => {
+    const { city } = makeTestCity('warhead-complete-twice');
+    city.productionQueue = ['warhead', 'warhead'];
+    city.productionProgress = 260;
+    const first = completeCityProductionItem(city, 'warhead');
+    const second = completeCityProductionItem(first.city, 'warhead');
+    expect(first.completedBuilding).toBe('warhead');
+    expect(second.completedBuilding).toBe('warhead');
+    expect(second.city.buildings).not.toContain('warhead');
+  });
+});
+
 describe('strategic launch platform wiring (#545)', () => {
   it('missile_silo has unlimited-range strategicLaunchPlatform', () => {
     expect(BUILDINGS.missile_silo.strategicLaunchPlatform).toEqual({ range: 'unlimited' });
