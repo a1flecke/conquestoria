@@ -868,3 +868,55 @@ describe('save persistence (#38)', () => {
     expect(loaded.cities['city-10'].name).not.toBe('Rome');
   });
 });
+
+describe('#544 MR6 item 88 — same-turn save/load exactness', () => {
+  it('round-trips mid-round General-command and supply state exactly, not just at a clean turn boundary', async () => {
+    const state = createHotSeatGame({
+      playerCount: 2,
+      mapSize: 'small',
+      players: [
+        { name: 'Alice', slotId: 'player-1', civType: 'egypt', isHuman: true },
+        { name: 'Bob', slotId: 'player-2', civType: 'rome', isHuman: true },
+      ],
+    }, 'mr6-mid-round-save');
+    state.currentPlayer = 'player-1';
+
+    const civ1 = state.civilizations['player-1']!;
+    const capital = { ...foundCity('player-1', { q: 2, r: 2 }, state.map, mkC()), id: 'mr6-capital' };
+    state.cities = { ...state.cities, [capital.id]: capital };
+    civ1.cities = [capital.id];
+    const general = {
+      ...createUnit('great_general', 'player-1', capital.position, mkC()),
+      id: 'mid-round-general',
+      generalDefinitionId: 'gen_caesar',
+      generalCommandChargesUsed: 1,
+      generalCommandCooldownUntilTurn: state.turn + 2,
+      rallyProtectedThisRound: true,
+    };
+    const strainedUnit = {
+      ...createUnit('warrior', 'player-1', capital.position, mkC()),
+      id: 'mid-round-strained',
+      landSupply: { state: 'severe' as const, hostileUnsupportedTurns: 3, suppliedTurnsSinceRecovery: 0 },
+    };
+    state.units = { ...state.units, [general.id]: general, [strainedUnit.id]: strainedUnit };
+    state.civilizations['player-1']!.units = [...civ1.units, general.id, strainedUnit.id];
+    state.civilizations['player-1']!.generalHistory = [
+      { unitId: general.id, generalDefinitionId: 'gen_caesar', spawnedTurn: state.turn },
+    ];
+    // player-2 hasn't acted yet this round -- exactly the "not a clean turn
+    // boundary" shape a manual mid-round save can capture.
+    state.pendingGeneralCandidateChoices = [
+      { civId: 'player-2', candidateDefinitionIds: ['gen_hannibal', 'gen_boudica'], triggerEventLabel: 'city:captured' },
+    ];
+
+    const before = structuredClone(state);
+
+    await saveGame('slot-mr6-mid-round', 'Mid Round Save', state);
+    const loaded = await loadGame('slot-mr6-mid-round');
+
+    expect(loaded?.units[general.id]).toEqual(before.units[general.id]);
+    expect(loaded?.units[strainedUnit.id]?.landSupply).toEqual(before.units[strainedUnit.id]!.landSupply);
+    expect(loaded?.pendingGeneralCandidateChoices).toEqual(before.pendingGeneralCandidateChoices);
+    expect(loaded?.currentPlayer).toBe('player-1');
+  });
+});

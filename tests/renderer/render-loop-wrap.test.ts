@@ -204,6 +204,65 @@ describe('render-loop wrap parity', () => {
       .toHaveLength(0);
   });
 
+  it('scopes the supply overlay to the current viewer across a hot-seat handoff (#544 MR6 item 85)', () => {
+    const loop = new RenderLoop(createCanvas());
+    const state = {
+      turn: 1,
+      currentPlayer: 'human-a',
+      map: { width: 5, height: 3, wrapsHorizontally: false, tiles: {}, rivers: [] },
+      tribalVillages: {}, minorCivs: {}, units: {},
+      cities: {
+        'human-a-city': {
+          id: 'human-a-city', owner: 'human-a', position: { q: 1, r: 1 },
+          buildings: [], maturity: 'town', foundedTurn: 1,
+        },
+        'human-b-city': {
+          id: 'human-b-city', owner: 'human-b', position: { q: 3, r: 1 },
+          buildings: [], maturity: 'town', foundedTurn: 1,
+        },
+      },
+      civilizations: {
+        'human-a': {
+          color: '#4a90d9', techState: { completed: [] },
+          visibility: { tiles: { '1,1': 'visible' } },
+        },
+        'human-b': {
+          color: '#ef4444', techState: { completed: [] },
+          visibility: { tiles: { '3,1': 'visible' } },
+        },
+      },
+    } as unknown as GameState;
+
+    loop.setGameState(state);
+    expect(loop.toggleSupplyOverlay()).toBe(true);
+    expect(loop.isSupplyOverlayEnabled('human-a')).toBe(true);
+    // SupplyOverlaySource has no owner field (src/systems/supply-overlay-presentation.ts:16-18)
+    // -- the presentation function itself already guarantees viewer-only sources
+    // (tests/systems/supply-overlay-presentation.test.ts covers that). This
+    // RenderLoop-level test's job is narrower: prove the *coordinate* set
+    // reflects human-a's own city, not a stale/hardcoded viewer.
+    const presentationForA = (loop as unknown as {
+      supplyOverlayPresentation: { sources: Array<{ coord: { q: number; r: number } }> };
+    }).supplyOverlayPresentation;
+    expect(presentationForA.sources.some(s => s.coord.q === 1 && s.coord.r === 1)).toBe(true);
+    expect(presentationForA.sources.some(s => s.coord.q === 3 && s.coord.r === 1)).toBe(false);
+
+    loop.setGameState({ ...state, currentPlayer: 'human-b' });
+
+    // human-b never toggled the overlay on -- their own per-viewer flag must
+    // start disabled, not inherit human-a's enabled state.
+    expect(loop.isSupplyOverlayEnabled('human-b')).toBe(false);
+    // setGameState only recomputes supplyOverlayPresentation when the *current*
+    // viewer has it enabled (render-loop.ts:521) -- human-b doesn't, so the
+    // stale human-a presentation must not still be attached as human-b's view.
+    expect(loop.toggleSupplyOverlay()).toBe(true);
+    const presentationForB = (loop as unknown as {
+      supplyOverlayPresentation: { sources: Array<{ coord: { q: number; r: number } }> };
+    }).supplyOverlayPresentation;
+    expect(presentationForB.sources.some(s => s.coord.q === 3 && s.coord.r === 1)).toBe(true);
+    expect(presentationForB.sources.some(s => s.coord.q === 1 && s.coord.r === 1)).toBe(false);
+  });
+
   it('draws air-mission highlights with distinct strike and recon colors', () => {
     rendererMocks.drawHexHighlight.mockReset();
     const loop = new RenderLoop(createCanvas());

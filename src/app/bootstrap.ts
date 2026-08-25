@@ -65,7 +65,7 @@ import {
 import { applyHoardChoice, getHoardChoicePreview } from '@/systems/beast-system';
 import { createBeastHoardPanel } from '@/ui/beast-hoard-panel';
 import { GENERAL_DEFINITIONS, type GeneralDefinition } from '@/systems/great-general-definitions';
-import { spawnGeneralForCiv } from '@/systems/great-general-system';
+import { getPendingGeneralChoiceForViewer, spawnGeneralForCiv } from '@/systems/great-general-system';
 import { createGeneralCandidatePanel } from '@/ui/general-candidate-panel';
 
 export interface AppServices {
@@ -170,8 +170,7 @@ export function createAppComposition(deps: AppCompositionDeps): AppComposition {
    * way the hoard-choice panel needs one for its gold/tech-name side effects).
    */
   function maybeShowPendingGeneralChoice(): void {
-    const pending = (session.getState().pendingGeneralCandidateChoices ?? [])
-      .find(p => p.civId === session.getState().currentPlayer);
+    const pending = getPendingGeneralChoiceForViewer(session.getState(), session.getState().currentPlayer);
     if (!pending) return;
     const candidates = pending.candidateDefinitionIds
       .map(id => GENERAL_DEFINITIONS.find(g => g.id === id))
