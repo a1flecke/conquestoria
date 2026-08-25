@@ -234,56 +234,38 @@ describe('#708 mounted and beast native sprites', () => {
     }
   });
 
-  it('beast handler combines a hound gait with a visible command sigil', () => {
-    const result = getUnitSpriteV2('beast_handler', 'imperials')!;
-    expect(result).toContain('data-kind-variant="handler"');
-    expect(result).toContain('data-facing="right"');
-    expect(result).toContain('cq-hound-body');
-    expect(result).toContain('cq-hound-tail');
-    expect(result).toContain('cq-hound-ears');
-    expect(result).toContain('cq-command-staff');
-    expect(result).toContain('cq-command-leash');
-    expect(result).toContain('cq-command-sigil');
-    expect(result).toContain('cq-leg-fl');
-    expect(result).toContain('cq-leg-fr');
-    expect(result).toContain('cq-leg-bl');
-    expect(result).toContain('cq-leg-br');
+  const REQUIRED_READABLE_HOOKS: Record<string, readonly string[]> = {
+    beast_handler: [
+      'cq-handler-body', 'cq-handler-arm-l', 'cq-handler-arm-r', 'cq-handler-leg-l', 'cq-handler-leg-r',
+      'cq-command-staff', 'cq-command-leash', 'cq-hound-body', 'cq-hound-head', 'cq-hound-tail',
+      'cq-hound-ears', 'cq-leg-fl', 'cq-leg-fr', 'cq-leg-bl', 'cq-leg-br',
+    ],
+    war_elephant: [
+      'cq-elephant-body', 'cq-elephant-head', 'cq-elephant-ear', 'cq-elephant-trunk', 'cq-elephant-tusks',
+      'cq-howdah', 'cq-howdah-crew', 'cq-howdah-standard', 'cq-leg-fl', 'cq-leg-fr', 'cq-leg-bl', 'cq-leg-br',
+    ],
+    cuirassier: [
+      'cq-horse-body', 'cq-horse-head', 'cq-horse-ears', 'cq-horse-mane', 'cq-horse-tail', 'cq-saddle',
+      'cq-rider', 'cq-rider-arm-rein', 'cq-rider-arm-sabre', 'cq-rider-leg-l', 'cq-rider-leg-r', 'cq-weapon',
+      'cq-hit-spark', 'cq-leg-fl', 'cq-leg-fr', 'cq-leg-bl', 'cq-leg-br',
+    ],
+  };
+
+  it.each(Object.entries(REQUIRED_READABLE_HOOKS))('%s exposes every readable-anatomy hook for every faction', (type, hooks) => {
+    for (const faction of FACTIONS) {
+      const result = getUnitSpriteV2(type, faction)!;
+      for (const hook of hooks) {
+        expect(result, `${type}/${faction} missing ${hook}`).toContain(hook);
+      }
+    }
   });
 
-  it('war elephant has its own animal plan and readable siege-beast details', () => {
-    const result = getUnitSpriteV2('war_elephant', 'imperials')!;
-    expect(result).toContain('data-kind-variant="elephant"');
-    expect(result).toContain('data-facing="right"');
-    expect(result).toContain('cq-elephant-body');
-    expect(result).toContain('cq-elephant-head');
-    expect(result).toContain('cq-elephant-ear');
-    expect(result).toContain('cq-elephant-trunk');
-    expect(result).toContain('cq-elephant-tusks');
-    expect(result).toContain('cq-howdah');
-    expect(result).toContain('cq-rune-standard');
-    expect(result).toContain('cq-leg-fl');
-    expect(result).toContain('cq-leg-fr');
-    expect(result).toContain('cq-leg-bl');
-    expect(result).toContain('cq-leg-br');
-  });
+  it('removes the arbitrary handler targeting sigil and the detached elephant standard', () => {
+    const handler = getUnitSpriteV2('beast_handler', 'imperials')!;
+    const elephant = getUnitSpriteV2('war_elephant', 'imperials')!;
 
-  it('cuirassier has a mounted animal plan and moonsteel attack-feedback hooks', () => {
-    const result = getUnitSpriteV2('cuirassier', 'imperials')!;
-    expect(result).toContain('data-kind-variant="mount"');
-    expect(result).toContain('data-facing="right"');
-    expect(result).toContain('cq-horse-body');
-    expect(result).toContain('cq-horse-head');
-    expect(result).toContain('cq-horse-mane');
-    expect(result).toContain('cq-horse-tail');
-    expect(result).toContain('cq-saddle');
-    expect(result).toContain('cq-rider');
-    expect(result).toContain('cq-moonsteel-inlay');
-    expect(result).toContain('cq-weapon');
-    expect(result).toContain('cq-hit-spark');
-    expect(result).toContain('cq-leg-fl');
-    expect(result).toContain('cq-leg-fr');
-    expect(result).toContain('cq-leg-bl');
-    expect(result).toContain('cq-leg-br');
+    expect(handler).not.toContain('cq-command-sigil');
+    expect(elephant).not.toContain('cq-rune-standard');
   });
 
   it('ships a distinct palette-derived native illustration for every supported faction', () => {
