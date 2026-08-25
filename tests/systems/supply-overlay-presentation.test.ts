@@ -94,4 +94,18 @@ describe('getSupplyOverlayPresentationForViewer', () => {
     expect(entry?.coverage).toBe('full');
     spy.mockRestore();
   });
+
+  it('a tile made full coverage only by the road extension (#544 MR1.1) is presented as full through the real overlay pipeline, not just at the lower-level resolver', () => {
+    const state = makeOverlayState();
+    state.civilizations.rome!.techState.completed = ['military-logistics'];
+    // City at (5,5), radius 3 -- (5,9) is distance 4, outside base radius,
+    // reachable only via the road-tier (+1) extension.
+    state.map.tiles[hexKey({ q: 5, r: 9 })]!.hasRoad = true;
+    const withoutRoad = getSupplyOverlayPresentationForViewer(makeOverlayState(), 'rome');
+    expect(withoutRoad.tiles.find(t => t.coord.q === 5 && t.coord.r === 9)?.coverage).toBe('stable-unsupported');
+
+    const result = getSupplyOverlayPresentationForViewer(state, 'rome');
+    const tile = result.tiles.find(t => t.coord.q === 5 && t.coord.r === 9);
+    expect(tile?.coverage).toBe('full');
+  });
 });

@@ -4,8 +4,10 @@ import { hexKey } from '@/systems/hex-utils';
 import {
   CAPTURED_SOURCE_STABILIZATION_TURNS,
   LAND_SUPPLY_RADII,
+  ROAD_SUPPLY_EXTENSION,
   getLandSupplySourceCoverage,
   getPrimarySupplySource,
+  getRoadSupplyExtension,
   isCityStabilized,
   isFortStabilized,
 } from '@/systems/supply-sources';
@@ -15,6 +17,8 @@ function makeStateWithSource(opts: {
   sourceKind: 'city' | 'fort';
   citadelTech?: boolean;
   ownerId?: string;
+  techs?: string[];
+  roadTiles?: Array<{ coord: HexCoord; ownerId?: string }>;
 }): GameState {
   const owner = opts.ownerId ?? 'rome';
   const map: GameMap = { width: 20, height: 20, wrapsHorizontally: false, rivers: [], tiles: {} };
@@ -36,9 +40,16 @@ function makeStateWithSource(opts: {
       improvement: 'fort', improvementTurnsLeft: 0,
     };
   }
+  for (const road of opts.roadTiles ?? []) {
+    map.tiles[hexKey(road.coord)] = {
+      ...map.tiles[hexKey(road.coord)]!,
+      hasRoad: true,
+      owner: road.ownerId ?? owner,
+    };
+  }
   return {
     map, cities,
-    civilizations: { [owner]: { techState: { completed: opts.citadelTech ? ['fortification-engineering'] : [] } } as any },
+    civilizations: { [owner]: { techState: { completed: opts.techs ?? (opts.citadelTech ? ['fortification-engineering'] : []) } } as any },
   } as unknown as GameState;
 }
 
@@ -138,5 +149,81 @@ describe('getPrimarySupplySource', () => {
   it('returns null when nothing covers the tile', () => {
     const state = makeStateWithSource({ sourceCoord: { q: 0, r: 0 }, sourceKind: 'city' });
     expect(getPrimarySupplySource(state, 'rome', { q: 19, r: 19 })).toBeNull();
+  });
+});
+
+describe('getRoadSupplyExtension / road-rail bounded coverage extension (#544 MR1.1, contract §30 items 11-14)', () => {
+  it('item 11: a unit on an owned road tile with military-logistics gets the road-tier (+1) bonus, extending coverage', () => {
+    const state = makeStateWithSource({
+      sourceCoord: { q: 0, r: 0 }, sourceKind: 'city',
+      techs: ['military-logistics'],
+      roadTiles: [{ coord: { q: 4, r: 0 } }], // distance 4: base radius 3 + road-tier 1 = 4, exactly reachable
+    });
+    expect(getRoadSupplyExtension(state, 'rome', { q: 4, r: 0 })).toBe(ROAD_SUPPLY_EXTENSION.road);
+    expect(getLandSupplySourceCoverage(state, 'rome', { q: 4, r: 0 })).toBe(true);
+    expect(getPrimarySupplySource(state, 'rome', { q: 4, r: 0 })?.id).toBe('c1');
+  });
+
+  it('item 11: a unit adjacent to (not on) an owned road tile also gets the bonus', () => {
+    const state = makeStateWithSource({
+      sourceCoord: { q: 0, r: 0 }, sourceKind: 'city',
+      techs: ['military-logistics'],
+      roadTiles: [{ coord: { q: 4, r: 0 } }],
+    });
+    const adjacentToRoad = { q: 3, r: 1 }; // a neighbor of (4,0), also distance 4 from source
+    expect(getRoadSupplyExtension(state, 'rome', adjacentToRoad)).toBe(ROAD_SUPPLY_EXTENSION.road);
+    expect(getLandSupplySourceCoverage(state, 'rome', adjacentToRoad)).toBe(true);
+  });
+
+  it('item 12: railway-expansion gets the larger rail-tier (+2) bonus, not additive with military-logistics', () => {
+    const state = makeStateWithSource({
+      sourceCoord: { q: 0, r: 0 }, sourceKind: 'city',
+      techs: ['military-logistics', 'railway-expansion'],
+      roadTiles: [{ coord: { q: 5, r: 0 } }], // distance 5: base radius 3 + rail-tier 2 = 5
+    });
+    expect(getRoadSupplyExtension(state, 'rome', { q: 5, r: 0 })).toBe(ROAD_SUPPLY_EXTENSION.rail);
+    expect(getRoadSupplyExtension(state, 'rome', { q: 5, r: 0 })).not.toBe(ROAD_SUPPLY_EXTENSION.road + ROAD_SUPPLY_EXTENSION.rail);
+    expect(getLandSupplySourceCoverage(state, 'rome', { q: 5, r: 0 })).toBe(true);
+  });
+
+  it('item 13a: a road tile whose owner has neither logistics tech gives zero bonus', () => {
+    const state = makeStateWithSource({
+      sourceCoord: { q: 0, r: 0 }, sourceKind: 'city',
+      techs: [],
+      roadTiles: [{ coord: { q: 4, r: 0 } }],
+    });
+    expect(getRoadSupplyExtension(state, 'rome', { q: 4, r: 0 })).toBe(0);
+    expect(getLandSupplySourceCoverage(state, 'rome', { q: 4, r: 0 })).toBe(false);
+  });
+
+  it('item 13b: having both logistics techs with no nearby road tile gives zero bonus -- infrastructure required, tech alone creates nothing', () => {
+    const state = makeStateWithSource({
+      sourceCoord: { q: 0, r: 0 }, sourceKind: 'city',
+      techs: ['military-logistics', 'railway-expansion'],
+    });
+    expect(getRoadSupplyExtension(state, 'rome', { q: 4, r: 0 })).toBe(0);
+    expect(getLandSupplySourceCoverage(state, 'rome', { q: 4, r: 0 })).toBe(false);
+  });
+
+  it('item 13c: an enemy-owned road tile does not extend the viewer\'s coverage', () => {
+    const state = makeStateWithSource({
+      sourceCoord: { q: 0, r: 0 }, sourceKind: 'city',
+      techs: ['military-logistics'],
+      roadTiles: [{ coord: { q: 4, r: 0 }, ownerId: 'carthage' }],
+    });
+    expect(getRoadSupplyExtension(state, 'rome', { q: 4, r: 0 })).toBe(0);
+    expect(getLandSupplySourceCoverage(state, 'rome', { q: 4, r: 0 })).toBe(false);
+  });
+
+  it('item 14: a long chain of connected owned road tiles does not extend coverage beyond the immediate on/adjacent bonus -- no network propagation', () => {
+    const chain = Array.from({ length: 10 }, (_, i) => ({ coord: { q: i + 1, r: 0 } }));
+    const state = makeStateWithSource({
+      sourceCoord: { q: 0, r: 0 }, sourceKind: 'city',
+      techs: ['military-logistics', 'railway-expansion'], // max possible extension: +2
+      roadTiles: chain,
+    });
+    const farEndOfChain = { q: 10, r: 0 }; // itself on a road tile, but distance 10 from source -- far beyond 3+2=5
+    expect(getRoadSupplyExtension(state, 'rome', farEndOfChain)).toBe(ROAD_SUPPLY_EXTENSION.rail); // locally eligible...
+    expect(getLandSupplySourceCoverage(state, 'rome', farEndOfChain)).toBe(false); // ...but still far too distant from any real source -- the chain does not help it "hop" back
   });
 });
