@@ -685,6 +685,28 @@ describe('save migrations', () => {
     });
     expect(migrated.idCounters.nextNetworkPlanId).toBe(2);
   });
+
+  it('#545 MR4 defaults strategicStrikesReceivedFrom to [] at schema 20 and is idempotent', () => {
+    const save = createNewGame('rome', 'strategic-strikes-received-schema-20', 'small');
+    save.saveSchemaVersion = 19;
+    delete (save.civilizations.player.diplomacy as { strategicStrikesReceivedFrom?: string[] }).strategicStrikesReceivedFrom;
+
+    const migrated = migrateSaveToCurrent(save);
+
+    expect(migrated.saveSchemaVersion).toBe(CURRENT_SAVE_SCHEMA_VERSION);
+    expect(migrated.civilizations.player.diplomacy.strategicStrikesReceivedFrom).toEqual([]);
+    expect(migrateSaveToCurrent(migrated)).toEqual(migrated);
+  });
+
+  it('#545 MR4 preserves an existing strategicStrikesReceivedFrom value through migration', () => {
+    const save = createNewGame('rome', 'strategic-strikes-received-preserved', 'small');
+    save.saveSchemaVersion = 19;
+    save.civilizations.player.diplomacy.strategicStrikesReceivedFrom = ['ai-1'];
+
+    const migrated = migrateSaveToCurrent(save);
+
+    expect(migrated.civilizations.player.diplomacy.strategicStrikesReceivedFrom).toEqual(['ai-1']);
+  });
 });
 
 describe('#590 MR3 — defensive crisis archetype normalization', () => {

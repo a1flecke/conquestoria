@@ -20,7 +20,7 @@ import { normalizeCrisisForces } from '@/systems/crisis-force-system';
 import { normalizeStampedes } from '@/systems/stampede-system';
 import { normalizeRogueElephantHosts } from '@/systems/rogue-elephant-host-system';
 
-export const CURRENT_SAVE_SCHEMA_VERSION = 19;
+export const CURRENT_SAVE_SCHEMA_VERSION = 20;
 
 export type SaveMigration = (state: GameState) => GameState;
 
@@ -732,6 +732,22 @@ export const SAVE_MIGRATIONS: Readonly<Record<number, SaveMigration>> = {
   17: state => normalizeStampedes(normalizeCrisisForces({ ...state, stampedes: state.stampedes ?? {} })),
   18: state => normalizeRogueElephantHosts(normalizeStampedes(normalizeCrisisForces({ ...state, rogueElephantHosts: state.rogueElephantHosts ?? {} }))),
   19: state => normalizeRogueElephantHosts(normalizeCrisisForces(state)),
+  // #545 MR4: strategicStrikesReceivedFrom is a new required DiplomacyState
+  // field -- default every civ's diplomacy state to [] rather than leaving it
+  // undefined on old saves.
+  20: state => ({
+    ...state,
+    civilizations: Object.fromEntries(Object.entries(state.civilizations).map(([civId, civ]) => [
+      civId,
+      {
+        ...civ,
+        diplomacy: {
+          ...civ.diplomacy,
+          strategicStrikesReceivedFrom: civ.diplomacy.strategicStrikesReceivedFrom ?? [],
+        },
+      },
+    ])),
+  }),
 };
 
 function readSchemaVersion(raw: Record<string, unknown>): number {

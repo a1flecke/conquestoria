@@ -43,6 +43,7 @@ export function createDiplomacyState(
     events: [],
     atWarWith: [],
     treacheryScore: 0,
+    strategicStrikesReceivedFrom: [],
     vassalage: {
       overlord: null,
       vassals: [],
