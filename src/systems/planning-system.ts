@@ -14,7 +14,11 @@ const MAX_CITY_QUEUE_ITEMS = 4;
 const MAX_RESEARCH_QUEUE_ITEMS = 3;
 
 export function enqueueCityProduction(city: City, itemId: string): City {
-  const isUniqueItem = Boolean(BUILDINGS[itemId]) || itemId.startsWith('legendary:');
+  // #545: a consumedOnCompletion building (e.g. warhead) never persists into
+  // city.buildings on completion, so it's repeatable like a unit -- the dedup rule
+  // below exists to stop double-queuing a genuinely one-time building.
+  const isUniqueItem = (Boolean(BUILDINGS[itemId]) && !BUILDINGS[itemId]?.consumedOnCompletion)
+    || itemId.startsWith('legendary:');
   if (isUniqueItem && city.productionQueue.includes(itemId)) {
     return city;
   }
