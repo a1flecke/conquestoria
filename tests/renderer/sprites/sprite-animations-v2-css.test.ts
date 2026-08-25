@@ -167,12 +167,13 @@ describe('#708 mounted animal animation contract', () => {
     }
   });
 
-  it('pivots the command staff from the handler hand rather than the ground', () => {
+  it('keeps the command staff in the handler attack sequence without a ground-pivot transform', () => {
     const selector = '.cq-v2[data-kind="hound"][data-kind-variant="handler"][data-state="attack"] .cq-command-staff';
     const ruleStart = css.indexOf(selector);
     const rule = css.slice(ruleStart, css.indexOf('}', ruleStart));
 
-    expect(rule).toContain('transform-origin: 50% 42%');
+    expect(rule).toContain('animation: cq2-handler-staff-hold');
+    expect(rule).not.toContain('transform-origin: 50% 100%');
   });
 
   it('does not retain the rejected sigil or a detached elephant-standard selector', () => {
