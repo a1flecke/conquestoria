@@ -186,9 +186,27 @@ completed (0 otherwise — capacity-granting buildings are inert without it), `+
 Strategic Air Command grants **no** capacity (see §3). A new city production item, "Build
 Warhead" (illustrative cost 260, comparable to a marquee-band era-10/11 item — tunable in
 the balance-pass MR), is available once Manhattan Project is complete and `uranium` is
-available to the city; producing it increments `strategicArsenal` by 1, clamped at
-capacity (cannot overproduce). Launching decrements it by 1. No per-platform assignment —
-any eligible platform draws from the same pool.
+available to the city; producing it increments `strategicArsenal` by 1. Launching
+decrements it by 1. No per-platform assignment — any eligible platform draws from the
+same pool.
+
+**Capacity is a production-eligibility gate, not a live clamp on the stored count** — two
+distinct rules, not one, to avoid two different failure modes:
+- **At-capacity UX**: "Build Warhead" is removed from the available-production list the
+  same way any other already-satisfied gate removes an item (`getAvailableBuildings`'s
+  existing filter pattern), with the disabled/absent reason surfaced as "Arsenal at
+  capacity (`N`/`N`) — build Nuclear Arsenal or Missile Silo to expand" wherever the
+  production catalog explains unavailable items. It is never silently queueable and then
+  rejected or refunded on completion — that would be exactly the dead-end/silent-mechanic
+  failure `.claude/rules/ui-panels.md` and `.claude/rules/incremental-mr-completion.md`
+  warn against.
+- **Capacity-loss edge case**: if a capacity-granting building is later lost (captured by
+  a rival, or a hypothetical future removal path), `strategicArsenal` is **not** forcibly
+  reduced to fit the new, lower capacity — existing warheads are grandfathered above cap.
+  Only *new* production is blocked while `strategicArsenal >= capacity`. This mirrors the
+  arms-control cap's own enforcement rule (§12: blocks new production, never destroys
+  existing stock) so the two "over a ceiling" cases behave identically instead of one
+  silently deleting player-invested production and the other not.
 
 ### 2. Manhattan Project — one-time program unlock
 
@@ -206,8 +224,11 @@ Warhead production item all gate on this same query.
   (additive field, §1). "More bombs."
 - **Missile Silo**: unchanged `yields: { production: 4 }`; adds `+1` arsenal capacity
   *and* becomes a launch platform via `strategicLaunchPlatform: { range: 'unlimited' }`
-  (§4). Fixed, discoverable location — redundancy against elimination comes from building
-  more than one, in more than one city, not from hiding any single one. "Reach."
+  (§4; the typed field's `range` is `number | 'unlimited'`, not a sentinel number, so a
+  future limited-range land platform and today's unlimited-range Silo share one honest
+  type rather than one of them lying with `Infinity` or a magic constant). Fixed,
+  discoverable location — redundancy against elimination comes from building more than
+  one, in more than one city, not from hiding any single one. "Reach."
 - **Strategic Air Command**: unchanged `civYieldBonus: { production: 6 }`; adds **no**
   capacity. Its additive effect is empire-wide launch *readiness*: while built, it raises
   the owning civ's own `strategicLaunchWillingness` retaliation knob (§10) by one step
@@ -296,6 +317,18 @@ hidden once a civ is met; a detected Missile Submarine via #542's concealment ru
 `strategicArsenal`'s exact count is **never** exposed to any other civ, at any
 difficulty, anywhere (not diplomacy panel, not AI perception, not intel reports).
 
+**Own-empire visibility gap this review caught**: Goal 7 requires arsenal capacity and
+platform status to always be visible to their owner, but nothing in the design so far
+gives the player a single place to *see* their own empire-wide total — only per-city
+Silo panels and per-unit sub panels, which forces piecing together scattered numbers to
+answer "how many warheads do I actually have and where." Fix: a "Strategic Arsenal"
+section is added to the `warchief` advisor panel (the existing per-advisor panel
+pattern, `AdvisorType`) — always visible once Manhattan Project is built, showing current
+count/capacity, every platform (Silo cities by name, subs by name/last-known-status), and
+any active arms-control cap. This is the one authoritative summary surface; per-city/
+per-unit panels keep their own local detail but are no longer the only way to see the
+totals.
+
 **AI conventional-behavior effect (the "deterrence must be real" requirement):** a new
 bounded `strategicDeterrenceCaution` scoring factor is applied wherever the AI currently
 scores "declare war on"/"invade further into" a civ, keyed *only* off the same boolean
@@ -333,6 +366,17 @@ Locked as the issue's draft, made concrete:
   willingness/threshold knobs differ, per Goal 8.
 - AI target evaluation is bounded: only civs currently `atWarWith`, only their already-
   discovered cities (§6) — no unbounded all-map scan.
+- **Module boundary**: this doctrine (willingness knobs, the existential-threat gate, and
+  the deterrence-caution factor from §9) lives in a new leaf module,
+  `ai-strategic-doctrine.ts`, consumed by the existing AI turn/war-decision pipeline
+  (`basic-ai.ts`/`ai-diplomacy.ts`) — not bolted directly into either of those
+  already-large files, matching the SRP separation `city-siege-system.ts` already
+  demonstrates for player-facing siege logic.
+- **Production scoring**: Build Warhead and the capacity-granting buildings are scored by
+  the existing `ai-production.ts` pipeline like any other item — no special-cased
+  "nuclear eagerness" branch. The willingness/doctrine knobs above govern *launch*
+  decisions only; how eagerly an AI chooses to build toward a warhead in the first place
+  is the same bounded scoring every other production candidate already goes through.
 
 ### 11. Reputation / witness consequences
 
@@ -362,7 +406,19 @@ prerequisite-gated production item — no separate enforcement pass needed. Brea
 pact (either by an explicit "withdraw" action, i.e., choosing to build past the cap after
 withdrawing) fires the same witness/reputation pipeline as any other treaty violation,
 using the existing treaty-break severity precedent already in `diplomacy-system.ts`
-(distinct from, and generally smaller than, a launch's own reputation hit).
+(`breakTreaty`'s existing -30 relationship delta — confirmed present, distinct from, and
+smaller than, a launch's own -60/-20 reputation hits from §11).
+
+**AI acceptance (a real gap in the first pass — proposing a treaty type nobody ever signs
+isn't a mechanic):** extends `ai-diplomacy.ts`'s existing relationship-threshold +
+`personality.diplomacyFocus` pattern that already governs `non_aggression_pact`/
+`alliance`/`trade_agreement` decisions (`relationship > 0 && personality.diplomacyFocus >
+0.4` is `non_aggression_pact`'s exact existing gate) — `arms_control_pact` adds one more
+condition on top of a similar relationship/diplomacy-focus bar: the AI only proposes or
+accepts a cap when it can see (§9's visibility rule) that **both** sides have known
+nuclear capability. Capping an unarmed civ, or a civ capping itself against a rival it
+doesn't know is armed, isn't a coherent AI decision and would read as arbitrary to a
+player watching AI diplomacy.
 
 ### 13. Superweapons setting & off-mode
 
@@ -534,8 +590,13 @@ strategic verb from production/AI/UI while keeping buildings buildable; legacy s
 new game would default to; save/load round-trips the setting.
 
 **Production**: Manhattan Project gates Build Warhead and capacity-granting buildings'
-effective capacity; uranium required; capacity computed live, never stored; cannot
-overproduce past capacity; AI produces under the same rules as the player.
+effective capacity; uranium required; capacity computed live, never stored; Build Warhead
+is absent/disabled from the production catalog at capacity with an explanatory reason —
+never queueable-then-rejected; losing a capacity-granting building mid-game does not
+retroactively delete already-produced warheads above the new lower capacity, it only
+blocks further production while over cap (mirrors §12's cap-violation rule exactly); AI
+produces under the same rules as the player, scored by the existing `ai-production.ts`
+pipeline with no special-cased branch.
 
 **Platforms**: Silo range is unlimited game-wide; sub range is 4 from current position;
 destroying a Silo city removes that platform's contribution immediately; a concealed sub
@@ -567,18 +628,26 @@ its own production scoring; legacy saves with no treaty of this kind behave as i
 exists (no retroactive cap).
 
 **AI**: explorer never first-strikes across a large seeded-scenario sweep; standard only
-ever launches after being struck; veteran's existential-threat gate requires all three
-computable conditions simultaneously, verified individually (each condition alone is
-insufficient); AI never launches with zero justification at any difficulty; identical
-mechanics/legality/information boundaries verified byte-for-byte across all three
-difficulties (only scoring/threshold constants differ); AI target scan is bounded to
-already-discovered cities of at-war civs only, verified against a large map to catch an
-accidental unbounded scan.
+ever launches after being struck; veteran's existential-threat gate is a 3-way
+conjunction (capital HP below threshold, hostile land unit adjacent, no relief within
+range) — per `.claude/rules/spec-fidelity.md`'s conjunctive-resolution testing rule, this
+needs pairwise coverage, not just "each condition alone is insufficient": all three
+present (fires), and each of the three 2-of-3 combinations with exactly one condition
+missing (does not fire), proving every condition is independently load-bearing rather
+than two of them already being sufficient in practice; AI never launches with zero
+justification at any difficulty; identical mechanics/legality/information boundaries
+verified byte-for-byte across all three difficulties (only scoring/threshold constants
+differ); AI target scan is bounded to already-discovered cities of at-war civs only,
+verified against a large map to catch an accidental unbounded scan; AI proposes/accepts
+`arms_control_pact` only when it can see both sides have known capability, never against
+an unarmed civ.
 
 **Hot-seat**: hidden arsenal/platform never leaks through overlay, target-range preview,
 disabled-action reason text, notification, or audio cue to a non-witnessing sibling;
 pending launch-flow state clears on handoff; cap-treaty availability never reveals a
-rival's hidden count.
+rival's hidden count; the new `warchief` "Strategic Arsenal" panel section shows only
+`state.currentPlayer`'s own totals/platforms on every handoff, never a stale render of
+the previous player's data.
 
 **Determinism**: identical seed produces identical AI launch/retaliation/target choices
 across runs; save/load mid-decision does not alter the eventual AI choice; no
@@ -596,13 +665,27 @@ complete, non-truncated late-game tech tree.
 2. `strategicLaunchPlatform` capability + Missile Silo/Missile Submarine wiring +
    targeting legality (§6) with no strike effect yet (dry-run/preview only).
 3. Strike resolution reusing `city-siege-system.ts` (§7) + fallout (§8).
-4. Reputation/witness wiring (§11) + launch UX flow (§14).
+4. Reputation/witness wiring (§11) + launch UX flow (§14) + the `warchief` "Strategic
+   Arsenal" summary panel.
 5. AI doctrine (§10) + deterrence-caution conventional-behavior factor (§9).
-6. Arms control treaty type + cap enforcement (§12).
+6. Arms control treaty type + cap enforcement (§12) + AI acceptance scoring.
 7. `superweapons` setting + off-mode filtering + content-honesty text pass (§13, all
    descriptions).
 8. Hot-seat privacy pass (§15) + save/migration verification (§16) + full balance/pacing
    re-audit + full test-matrix closure.
+
+**Incremental-delivery constraint (`.claude/rules/incremental-mr-completion.md`) —
+caught in this review's second pass:** Phase 1 alone would ship a player-visible "Build
+Warhead" production item with no way to ever use what it produces until Phase 3–4 land —
+not a broken button, but an indefinitely-inert one, which the rule treats the same way.
+Phases 1–4 (data model through launch UX + the summary panel) must therefore either (a)
+land as a single PR/merged unit, or (b) if split into separate PRs for review size, every
+PR before the last one in that range keeps "Build Warhead" and the arsenal panel behind a
+feature flag (`superweapons`-style settings flag defaulting off in an intermediate,
+not-yet-player-facing state) until Phase 4 completes the full path — never shipped
+player-visible with no consumer. The formal implementation plan (next) must encode
+whichever of (a)/(b) it chooses explicitly per MR, per that rule's PR-title/body
+requirements.
 
 ## Follow-ups (deliberately deferred, to be filed as separate issues at implementation
 time, not buried as TODOs)
