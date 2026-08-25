@@ -57,7 +57,7 @@
 - Modify: `tests/renderer/sprites/sprite-animations-v2-css.test.ts`
 - Modify: `tests/renderer/sprites/issue-708-sprite-preview.test.ts`
 
-- [ ] **Step 1: Write the failing serialized-anatomy assertions.**
+- [x] **Step 1: Write the failing serialized-anatomy assertions.**
 
   Replace the current Handler assertion that requires `cq-command-sigil` with explicit required and forbidden hooks. Add the following helper and cases inside the existing `#708 mounted and beast native sprites` describe block:
 
@@ -97,7 +97,7 @@
   });
   ```
 
-- [ ] **Step 2: Write the failing CSS motion assertions.**
+- [x] **Step 2: Write the failing CSS motion assertions.**
 
   Add text-level assertions that require (a) Handler walk selectors for both `cq-handler-leg-l` and `cq-handler-leg-r`, (b) Handler attack selectors for both handler legs, both handler arms, staff, leash, and all hound legs, (c) Elephant and mount attack selectors for all four `cq-leg-*` classes, and (d) `cq-howdah-standard` rather than `cq-rune-standard`. Require the Handler staff selector to declare a hand-level transform origin and reject the old ground-pivot literal.
 
@@ -117,7 +117,7 @@
   expect(handlerCss).not.toContain('transform-origin: 50% 100%');
   ```
 
-- [ ] **Step 3: Write the failing review-surface assertions.**
+- [x] **Step 3: Write the failing review-surface assertions.**
 
   Extend `issue-708-sprite-preview.test.ts` to require the five explicit state controls, a reduced-motion control, corrected unit descriptions, and a generated data block that no longer contains `cq-command-sigil`.
 
@@ -131,7 +131,7 @@
   expect(preview).not.toContain('cq-command-sigil');
   ```
 
-- [ ] **Step 4: Run the three tests to verify RED.**
+- [x] **Step 4: Run the three tests to verify RED.**
 
   Run:
 
@@ -141,7 +141,7 @@
 
   Expected: the new approved-hook, old-sigil, attack-leg, staff-origin, and preview-control assertions fail; unrelated sprite tests stay green.
 
-- [ ] **Step 5: Commit the regression contract.**
+- [x] **Step 5: Commit the regression contract.**
 
   ```bash
   git add tests/renderer/sprites/v2/index.test.ts tests/renderer/sprites/sprite-animations-v2-css.test.ts tests/renderer/sprites/issue-708-sprite-preview.test.ts
@@ -158,13 +158,13 @@
 - Test: `tests/renderer/sprites/v2/index.test.ts`
 - Test: `tests/renderer/sprites/sprite-animations-v2-css.test.ts`
 
-- [ ] **Step 1: Replace the Handler SVG with an explicit two-arm/two-leg pose.**
+- [x] **Step 1: Replace the Handler SVG with an explicit two-arm/two-leg pose.**
 
   In `BeastHandlerV2Sprite`, keep `kind="hound"`, `variant="handler"`, `SpriteFrameV2`, the right-facing hound, `_P2` material fills, and `_fa2(faction)` cloth/leash identity. Replace the old torso-only handler and detached ground staff with a `cq-handler-body` group (head, helmet, tunic, and belt), `cq-handler-arm-l` and `cq-handler-arm-r` groups (the rear hand grips the lower staff and the forward hand controls the leash), and `cq-handler-leg-l`/`cq-handler-leg-r` groups (forward and trailing walking legs). Place `cq-command-staff` between the two visible hands and draw `cq-command-leash` continuously from the forward hand to the hound collar.
 
   Keep all four hound legs in their own `cq-leg-fl/fr/bl/br` wrappers. Delete `cq-command-sigil` completely. The static pose must show the handler beside—not sitting on or floating behind—the hound.
 
-- [ ] **Step 2: Replace the Handler motion with a causal walk and command.**
+- [x] **Step 2: Replace the Handler motion with a causal walk and command.**
 
   Remove the rule that disables `.cq-sprite-figure` for all Handler states and remove the sigil keyframes/selectors. Add alternating Handler leg animation in walk and attack, modest arm follow-through, and a staff pivot anchored at the visible hand grip. Attack timing must read: Handler step → plant → arm/staff drive; Hound compress → pounce; leash tightens between the hand and collar. Apply the hound's four leg hooks in both walk and attack; do not animate an unrelated target effect.
 
@@ -174,7 +174,7 @@
   .cq-v2[data-kind="hound"][data-kind-variant="handler"][data-state="attack"] .cq-command-staff { transform-origin: 50% 42%; animation: cq2-handler-staff-thrust 1.3s cubic-bezier(.3,.7,.4,1) infinite; }
   ```
 
-- [ ] **Step 3: Regenerate only from the source of truth.**
+- [x] **Step 3: Regenerate only from the source of truth.**
 
   Run:
 
@@ -184,7 +184,7 @@
 
   Inspect `git diff -- src/renderer/sprites/v2/beast_handler.svg.ts docs/reviews/assets/issue-708/sprite-preview.html`; do not hand-edit either generated file.
 
-- [ ] **Step 4: Run Handler-focused GREEN tests.**
+- [x] **Step 4: Run Handler-focused GREEN tests.**
 
   Run:
 
@@ -194,7 +194,7 @@
 
   Expected: Handler anatomy/forbidden-sigil assertions pass. The command still exits nonzero because the deliberately prewritten Elephant and Cuirassier assertions remain red until Tasks 3 and 4.
 
-- [ ] **Step 5: Commit the Handler rebuild.**
+- [x] **Step 5: Commit the Handler rebuild.**
 
   ```bash
   git add design/conquestoria-sprites/lib/units-v2.jsx src/assets/sprite-animations-v2.css src/renderer/sprites/v2/beast_handler.svg.ts docs/reviews/assets/issue-708/sprite-preview.html
@@ -211,13 +211,13 @@
 - Test: `tests/renderer/sprites/v2/index.test.ts`
 - Test: `tests/renderer/sprites/sprite-animations-v2-css.test.ts`
 
-- [ ] **Step 1: Replace the elephant head and top structure.**
+- [x] **Step 1: Replace the elephant head and top structure.**
 
   Keep the `animal/elephant` contract and the four separate leg hooks. Rebuild the head as non-overlapping ear, forehead plate, eye, head, trunk, and two tusks; use a clear gap/outline hierarchy so the plate cannot read as the face. Put a two-figure crew group inside `cq-howdah-crew`, and nest `cq-howdah-standard` inside the `cq-howdah` group at a visible rail socket.
 
   The `cq-howdah` group must contain a visible `cq-howdah-rail`, `cq-howdah-crew` with two compact head-and-torso silhouettes, and `cq-howdah-standard` whose pole begins at the rail socket and whose flag uses `f.mid`. The head group must contain a separate `cq-elephant-ear`, forehead plate, eye, `cq-elephant-trunk`, and two-tusk `cq-elephant-tusks` group. Delete `cq-rune-standard`; no flag may be a sibling visually detached from the howdah.
 
-- [ ] **Step 2: Implement all-leg elephant walk and attack phases.**
+- [x] **Step 2: Implement all-leg elephant walk and attack phases.**
 
   Preserve the slow four-beat walk cadence, then add a separate attack cycle in which rear legs push, front legs extend/plant, body shifts, and head/trunk/tusks follow. Standard flex must originate from the howdah rail; howdah/crew follow body weight, never the trunk.
 
@@ -229,7 +229,7 @@
   .cq-v2[data-kind="animal"][data-kind-variant="elephant"][data-state="walk"] .cq-howdah-standard { transform-origin: left bottom; animation: cq2-howdah-standard 1.1s ease-in-out infinite; }
   ```
 
-- [ ] **Step 3: Regenerate the native module and preview payload.**
+- [x] **Step 3: Regenerate the native module and preview payload.**
 
   Run:
 
@@ -239,7 +239,7 @@
 
   Inspect that `war_elephant.svg.ts` contains `cq-howdah-standard`, `cq-howdah-crew`, four leg hooks, and no `cq-rune-standard`.
 
-- [ ] **Step 4: Run Elephant-focused GREEN tests.**
+- [x] **Step 4: Run Elephant-focused GREEN tests.**
 
   Run:
 
@@ -249,7 +249,7 @@
 
   Expected: Elephant anatomy and all attack-leg selectors pass. The command still exits nonzero only because the deliberately prewritten Cuirassier assertions remain red until Task 4.
 
-- [ ] **Step 5: Commit the Elephant rebuild.**
+- [x] **Step 5: Commit the Elephant rebuild.**
 
   ```bash
   git add design/conquestoria-sprites/lib/units-v2.jsx src/assets/sprite-animations-v2.css src/renderer/sprites/v2/war_elephant.svg.ts docs/reviews/assets/issue-708/sprite-preview.html
@@ -266,13 +266,13 @@
 - Test: `tests/renderer/sprites/v2/index.test.ts`
 - Test: `tests/renderer/sprites/sprite-animations-v2-css.test.ts`
 
-- [ ] **Step 1: Replace the mount and rider anatomy.**
+- [x] **Step 1: Replace the mount and rider anatomy.**
 
   Retain `animal/mount`, the four horse leg hooks, `cq-weapon`, and `cq-hit-spark`. Create a distinctly horse-like tapering neck, muzzle, two ears, mane, and a downward-flowing tail. Make the rider face right and straddle the saddle: both thighs and calves bend along the horse; one arm holds reins; one arm holds the sabre; the sabre has an explicit hand/shoulder pivot.
 
   The source must expose `cq-horse-body`, `cq-horse-head`, `cq-horse-ears`, `cq-horse-mane`, and `cq-horse-tail`; the tail must fall downward behind the hindquarters. The `cq-rider` group must contain `cq-rider-arm-rein`, `cq-rider-arm-sabre`, `cq-rider-leg-l`, and `cq-rider-leg-r`. Both rider leg groups terminate at the saddle/horse flank rather than below the body. Do not add a horn, lion tuft, or a rider pose that visually separates the legs from the saddle.
 
-- [ ] **Step 2: Implement the horse-powered attack.**
+- [x] **Step 2: Implement the horse-powered attack.**
 
   Leave the deliberate four-leg travel cadence intact, then add attack selectors for all four legs. Time the attack as hind-leg push → front-leg extension/plant → rider brace/forward shift → sabre cut. Pivot the sabre from `cq-rider-arm-sabre`/the hand, not the ground or the horse body. The impact spark may appear only at the sabre's forward end.
 
@@ -284,7 +284,7 @@
   .cq-v2[data-kind="animal"][data-kind-variant="mount"][data-state="attack"] .cq-rider-arm-sabre { transform-origin: right center; animation: cq2-rider-sabre-cut 1.3s cubic-bezier(.3,.7,.4,1) infinite; }
   ```
 
-- [ ] **Step 3: Regenerate the native module and preview payload.**
+- [x] **Step 3: Regenerate the native module and preview payload.**
 
   Run:
 
@@ -294,7 +294,7 @@
 
   Inspect that the generated Cuirassier contains all rider anatomy hooks, horse-ear hooks, all four legs, `cq-weapon`, and the attack spark.
 
-- [ ] **Step 4: Run the completed anatomy and motion suite.**
+- [x] **Step 4: Run the completed anatomy and motion suite.**
 
   Run:
 
@@ -304,7 +304,7 @@
 
   Expected: all #708 anatomy/motion assertions, reduced-motion overlay coverage, and combat state propagation pass.
 
-- [ ] **Step 5: Run the renderer source-rule check.**
+- [x] **Step 5: Run the renderer source-rule check.**
 
   Run:
 
@@ -314,7 +314,7 @@
 
   Expected: no rule violations. Do not hand-edit the generated modules merely to satisfy a check; fix the JSX source and regenerate.
 
-- [ ] **Step 6: Commit the Cuirassier rebuild.**
+- [x] **Step 6: Commit the Cuirassier rebuild.**
 
   ```bash
   git add design/conquestoria-sprites/lib/units-v2.jsx src/assets/sprite-animations-v2.css src/renderer/sprites/v2/cuirassier.svg.ts docs/reviews/assets/issue-708/sprite-preview.html
@@ -332,7 +332,7 @@
 - Modify: `docs/reviews/issue-708-mounted-beast-visual-review.md`
 - Modify: `tests/renderer/sprites/issue-708-sprite-preview.test.ts`
 
-- [ ] **Step 1: Complete the review preview controls.**
+- [x] **Step 1: Complete the review preview controls.**
 
   Add `hurt` and `death` buttons to the existing state group and an accessible `#reduced-motion` checkbox. When toggled, set/remove `data-reduced-motion="true"` on the document root and give the sprite grid the same reduced-motion data attribute. The controls must preserve `currentState` when factions rerender. Replace old card text with the approved reads: “walking handler and hound,” “elephant head, howdah, crew, and rail-mounted standard,” and “horse with a forward rider, reins, and sabre.”
 
@@ -350,7 +350,7 @@
   [data-reduced-motion="true"] .cq-v2 .cq-sprite-figure { animation: none !important; }
   ```
 
-- [ ] **Step 2: Add the deterministic capture script.**
+- [x] **Step 2: Add the deterministic capture script.**
 
   Implement `scripts/capture-issue-708-sprite-review.mjs` using the repository's installed Playwright Chromium and `pathToFileURL(previewPath)`, so the capture proves the direct-file surface without starting a competing Vite process. It must wait for `#sprite-grid .cq-sprite-wrap`, select Imperials, set every captured wrapper's `--phase` to `0`, and produce one 5-state × 3-size PNG per unit under `docs/reviews/assets/issue-708/`.
 
@@ -385,7 +385,7 @@
   }
   ```
 
-- [ ] **Step 3: Extend preview tests and run RED/GREEN.**
+- [x] **Step 3: Extend preview tests and run RED/GREEN.**
 
   Update `issue-708-sprite-preview.test.ts` to assert the five state buttons, reduced-motion control, the absence of stale descriptions/hooks, and the three generated PNG paths in the Markdown review. Run:
 
@@ -395,7 +395,7 @@
 
   Expected: RED before controls/Markdown assets exist; GREEN after preview, capture, and review changes are complete.
 
-- [ ] **Step 4: Generate and visually inspect the evidence.**
+- [x] **Step 4: Generate and visually inspect the evidence.**
 
   Run:
 
@@ -406,11 +406,11 @@
 
   Open the preview through Vite and directly via `file://`. Review every state sheet at 40px first, then 64px and 128px. Reject and revise any sprite that fails the approved silhouette, arm, leg, howdah, horse-tail, or attack-weight criteria before updating Markdown.
 
-- [ ] **Step 5: Rewrite the Markdown visual review.**
+- [x] **Step 5: Rewrite the Markdown visual review.**
 
   Embed the three generated PNGs and link the interactive preview. Add a seven-item checklist copied from the approved spec: silhouette identity, human arms/poses, elephant head/howdah connection, horse/rider anatomy, walk/attack force order, removed target sigil, and palette readability. State only the verified visual/animation scope and retain the existing reduced-motion/overlay safety claims.
 
-- [ ] **Step 6: Commit review evidence.**
+- [x] **Step 6: Commit review evidence.**
 
   ```bash
   git add scripts/capture-issue-708-sprite-review.mjs docs/reviews/assets/issue-708/sprite-preview.html docs/reviews/assets/issue-708/beast-handler-state-sheet.png docs/reviews/assets/issue-708/war-elephant-state-sheet.png docs/reviews/assets/issue-708/cuirassier-state-sheet.png docs/reviews/issue-708-mounted-beast-visual-review.md tests/renderer/sprites/issue-708-sprite-preview.test.ts
@@ -423,7 +423,13 @@
 - Modify: `docs/superpowers/plans/2026-08-25-issue-708-readable-mounted-sprites.md`
 - Modify: draft PR #878 body
 
-- [ ] **Step 1: Mark completed plan steps and record the outcome.**
+- [x] **Step 1: Mark completed plan steps and record the outcome.**
+
+#### Delivery status — 2026-08-25
+
+- `33061541` establishes the approved anatomy/motion regression contract; `d9e8790e` delivers all three source/animation/generated-sprite rebuilds in one atomic art commit; `cfac63ec` delivers the interactive review and three Markdown sheets.
+- Visual evidence: `beast-handler-state-sheet.png`, `war-elephant-state-sheet.png`, and `cuirassier-state-sheet.png`, each generated from the committed Imperials payload at 40, 64, and 128 px.
+- Intentional implementation-plan deviation: the capture script uses `rsvg-convert` to rasterize the committed zero-phase source SVG, rather than Chromium/Playwright. It adds no mock or alternate art path; interactive Vite review remains the timing evidence. This avoids making the static output depend on a browser runtime and is stated in the review Markdown/MR.
 
   Tick only steps actually completed and add a short status note below this task naming the final commit and the three visual-review assets. Do not alter the approved spec to disguise a deviation; document any intentional deviation in the MR body.
 
