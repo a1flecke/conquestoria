@@ -9,7 +9,7 @@ const ERA_10_TECHS: Tech[] = [
   { id: 'nuclear-weapons', name: 'Nuclear Weapons', track: 'military', cost: 1895,
     prerequisites: ['quantum-theory', 'petroleum-industry'],
     unlocks: ['Atomic deterrence reshapes grand strategy'],
-    unlocksUnits: ['bomber'], unlocksBuildings: ['nuclear_arsenal', 'manhattan_project'], era: 10 },
+    unlocksUnits: ['bomber'], unlocksBuildings: ['nuclear_arsenal', 'manhattan_project', 'warhead'], era: 10 },
 
   // ECONOMY (2)
   { id: 'keynesian-economics', name: 'Keynesian Economics', track: 'economy', cost: 1310,
