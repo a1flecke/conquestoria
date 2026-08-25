@@ -739,12 +739,32 @@ git commit -m "feat(#545): add getStrategicLaunchLegality, the §6 targeting-leg
 > and removes an artificial ordering problem (the old Task 6/7 had no real consumer
 > to test against yet, since `warhead` didn't exist until the old Task 8).
 
+> **Third review-pass finding:** the original draft of this task's tests used
+> inline `{ id: 'c1', owner: 'p1', ... } as any` city/map literals. Checking
+> `tests/systems/city-system.test.ts` (the file that owns `getAvailableBuildings`/
+> `completeCityProductionItem` and already has extensive real coverage of both)
+> shows its established convention is real fixtures: `generateMap(width, height,
+> seed)` (`@/systems/map-generator`) + `foundCity(civId, coord, map, idCounters)`
+> (`@/systems/city-system`, already exported) + a local `mkC()` idCounters helper
+> (`const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1
+> })`). The steps below use that same real-fixture pattern instead.
+
 - [ ] **Step 1: Write the failing tests**
 
 Append to `tests/systems/strategic-launch-system.test.ts`:
 
 ```typescript
-import { BUILDINGS as CityBuildings, getAvailableBuildings, completeCityProductionItem } from '@/systems/city-system';
+import { BUILDINGS as CityBuildings, foundCity, getAvailableBuildings, completeCityProductionItem } from '@/systems/city-system';
+import { generateMap } from '@/systems/map-generator';
+
+const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 });
+
+function makeTestCity(seed: string) {
+  const map = generateMap(30, 30, seed);
+  const landTile = Object.values(map.tiles).find(tile => tile.terrain === 'grassland')!;
+  const city = foundCity('p1', landTile.coord, map, mkC());
+  return { map, city };
+}
 
 describe('warhead production item (#545)', () => {
   it('is gated by nuclear-weapons + uranium, repeatable, arsenal-capacity gated, zero yields', () => {
@@ -763,42 +783,42 @@ describe('warhead production item (#545)', () => {
   });
 
   it('getAvailableBuildings: warhead is available when arsenalStatus is omitted (skips the gate)', () => {
-    const city = { id: 'c1', owner: 'p1', buildings: [], position: { q: 0, r: 0 } } as any;
-    const map = { width: 20, height: 20, tiles: {}, wrapsHorizontally: false, rivers: [] } as any;
+    const { map, city } = makeTestCity('warhead-gate-omitted');
     const available = getAvailableBuildings(city, ['nuclear-weapons'], map);
     expect(available.some(b => b.id === 'warhead')).toBe(true);
   });
 
   it('getAvailableBuildings: warhead is hidden when Manhattan Project is unbuilt', () => {
-    const city = { id: 'c1', owner: 'p1', buildings: [], position: { q: 0, r: 0 } } as any;
-    const map = { width: 20, height: 20, tiles: {}, wrapsHorizontally: false, rivers: [] } as any;
+    const { map, city } = makeTestCity('warhead-no-manhattan');
     const available = getAvailableBuildings(city, ['nuclear-weapons'], map, undefined, undefined, undefined, undefined, { hasManhattanProject: false, atCapacity: false });
     expect(available.some(b => b.id === 'warhead')).toBe(false);
   });
 
   it('getAvailableBuildings: warhead is hidden when at arsenal capacity', () => {
-    const city = { id: 'c1', owner: 'p1', buildings: [], position: { q: 0, r: 0 } } as any;
-    const map = { width: 20, height: 20, tiles: {}, wrapsHorizontally: false, rivers: [] } as any;
+    const { map, city } = makeTestCity('warhead-at-capacity');
     const available = getAvailableBuildings(city, ['nuclear-weapons'], map, undefined, undefined, undefined, undefined, { hasManhattanProject: true, atCapacity: true });
     expect(available.some(b => b.id === 'warhead')).toBe(false);
   });
 
   it('getAvailableBuildings: warhead is available when Manhattan Project is done and under capacity', () => {
-    const city = { id: 'c1', owner: 'p1', buildings: [], position: { q: 0, r: 0 } } as any;
-    const map = { width: 20, height: 20, tiles: {}, wrapsHorizontally: false, rivers: [] } as any;
+    const { map, city } = makeTestCity('warhead-under-capacity');
     const available = getAvailableBuildings(city, ['nuclear-weapons'], map, undefined, undefined, undefined, undefined, { hasManhattanProject: true, atCapacity: false });
     expect(available.some(b => b.id === 'warhead')).toBe(true);
   });
 
   it('completeCityProductionItem: completing warhead fires completedBuilding but never persists into city.buildings', () => {
-    const city = { id: 'c1', owner: 'p1', buildings: [], productionQueue: ['warhead'], productionProgress: 260 } as any;
+    const { city } = makeTestCity('warhead-complete');
+    city.productionQueue = ['warhead'];
+    city.productionProgress = 260;
     const result = completeCityProductionItem(city, 'warhead');
     expect(result.completedBuilding).toBe('warhead');
     expect(result.city.buildings).not.toContain('warhead');
   });
 
   it('completeCityProductionItem: warhead is immediately re-completable (queue it twice in a row)', () => {
-    const city = { id: 'c1', owner: 'p1', buildings: [], productionQueue: ['warhead', 'warhead'], productionProgress: 260 } as any;
+    const { city } = makeTestCity('warhead-complete-twice');
+    city.productionQueue = ['warhead', 'warhead'];
+    city.productionProgress = 260;
     const first = completeCityProductionItem(city, 'warhead');
     const second = completeCityProductionItem(first.city, 'warhead');
     expect(first.completedBuilding).toBe('warhead');
@@ -1150,12 +1170,34 @@ plus Task 7's own new test from Step 1.
 
 - [ ] **Step 6: Add a render test for the arsenal count line**
 
-Add to `tests/ui/city-panel.test.ts` (follow this file's existing pattern for
-rendering the panel and asserting on its output — the same harness Task 9's
-locked-item tests use): render the city panel for a civ with Manhattan Project built
-and `strategicArsenal: 2`, `getStrategicArsenalCapacity` resolving to 5 for that civ,
-and assert the rendered output contains `Arsenal: 2/5` somewhere in the available
-`warhead` item's card.
+Add to `tests/ui/city-panel.test.ts`, using the same `makeWonderPanelFixture()` +
+`createCityPanel` harness Task 9's locked-item tests use:
+
+```typescript
+  it('#545: available warhead item shows an always-visible Arsenal: N/M line', () => {
+    const { container, city, state } = makeWonderPanelFixture();
+    const civId = state.currentPlayer;
+    state.civilizations[civId].techState.completed.push('nuclear-weapons');
+    // Base capacity (1, from Manhattan Project) + nuclear_arsenal (+2) + missile_silo
+    // (+1) = 4; arsenal at 2 -- comfortably under capacity, so warhead is available
+    // (not locked), and the count must still be visible per this review's Goal 7 fix.
+    city.buildings.push('nuclear_arsenal', 'missile_silo');
+    state.builtNationalProjects = {
+      [`${civId}:manhattan_project`]: { civId, cityId: city.id, eraBuilt: 10 },
+    };
+    state.civilizations[civId].strategicArsenal = 2;
+
+    const panel = createCityPanel(container, city, state, {
+      onBuild: () => {}, onOpenWonderPanel: () => {}, onClose: () => {},
+    });
+
+    expect(collectText(panel)).toContain('Arsenal: 2/4');
+  });
+```
+
+(`collectText` is this file's existing helper, already imported at the top from
+`./helpers/wonder-panel-fixture`, used by other tests in this file for whole-panel
+text assertions.)
 
 - [ ] **Step 7: Commit**
 
@@ -1285,29 +1327,60 @@ Expected: PASS
 
 - [ ] **Step 5: Add an integration test proving the real completion path fires it**
 
-Add to `tests/core/turn-manager.test.ts` (or wherever this file's existing
-`city:building-complete`/production-completion integration tests live — search for
-an existing test that completes a building via the real turn-processing path and
-follow its exact setup pattern):
+**Third review-pass finding:** this step was originally left as an unwritten
+placeholder. `tests/core/turn-manager.test.ts` already has the exact analogous test
+for this MR to mirror — `"#591 MR4: completing Sacred Council founds a religion at
+the building city"` (~line 1829): `createNewGame` + a hand-placed tile + `foundCity`
++ queueing the item with `productionProgress` one short of cost + `processTurn`. The
+one addition warhead's version needs beyond that template: `resourceRequired:
+['uranium']` is enforced by `processCity`'s dequeue filter whenever
+`availableResources` is defined and doesn't contain the resource — this file's
+existing marketplace-purchase mechanism (`state.marketplace.purchasedResources`,
+same `{ civId, resource, expiresOnTurn }` shape used at ~line 1286 of this same
+file) is how to grant it, or the item would be silently dropped from the queue
+before ever completing.
+
+Add to `tests/core/turn-manager.test.ts`, near the Sacred Council test:
 
 ```typescript
-  it('completing a warhead increments the civ strategicArsenal via the real turn-processing path (#545)', () => {
-    // Arrange a city with warhead queued and enough accumulated production to
-    // complete it this turn, plus Manhattan Project already built (builtNationalProjects)
-    // and uranium available -- follow this file's existing pattern for constructing
-    // a minimal completable-production state.
-    // Act: run the same turn-processing function this file's other completion tests use.
-    // Assert: resulting civ.strategicArsenal increased by exactly 1, and 'warhead' is
-    // NOT present in the completing city's buildings array.
+  it('#545: completing a warhead increments strategicArsenal via the real turn-processing path, never persists into city.buildings', () => {
+    const state = createNewGame(undefined, 'warhead-completion', 'small');
+    const civId = 'player';
+    const pos = { q: 0, r: 0 };
+    state.map.tiles[hexKey(pos)] = {
+      coord: pos, terrain: 'grassland', elevation: 'lowland', resource: null,
+      improvement: 'none', owner: civId, improvementTurnsLeft: 0, hasRiver: false, wonder: null,
+    };
+    const city = foundCity(civId, pos, state.map, state.idCounters);
+    city.workedTiles = [];
+    city.productionQueue = ['warhead'];
+    city.productionProgress = 259; // 1 short of the 260 cost -- completes this turn
+    state.cities = { [city.id]: city };
+    state.civilizations[civId].cities = [city.id];
+    state.civilizations[civId].techState.completed = ['nuclear-weapons'];
+    state.builtNationalProjects = {
+      [`${civId}:manhattan_project`]: { civId, cityId: city.id, eraBuilt: 10 },
+    };
+    state.marketplace = {
+      ...(state.marketplace ?? { prices: {}, priceHistory: {}, fashionable: null, fashionTurnsLeft: 0, tradeRoutes: [] }),
+      purchasedResources: [{ civId, resource: 'uranium', expiresOnTurn: state.turn + 10 }],
+    };
+    state.units = {};
+    state.barbarianCamps = {};
+
+    const next = processTurn(state, new EventBus());
+
+    expect(next.civilizations[civId].strategicArsenal).toBe(1);
+    expect(next.cities[city.id]!.buildings).not.toContain('warhead');
   });
 ```
 
-(This step intentionally leaves the fixture construction to be written against
-whatever this file's real existing turn-processing test helper looks like — read
-`tests/core/turn-manager.test.ts`'s nearest existing production-completion test
-before writing this one, rather than guessing its shape here.)
+- [ ] **Step 6: Run the integration test**
 
-- [ ] **Step 6: Commit**
+Run: `bash scripts/run-with-mise.sh yarn test turn-manager -t "#545: completing a warhead"`
+Expected: PASS.
+
+- [ ] **Step 7: Commit**
 
 ```bash
 git add src/core/turn-manager.ts src/systems/strategic-arsenal-system.ts tests/systems/strategic-arsenal-system.test.ts tests/core/turn-manager.test.ts
@@ -1328,23 +1401,66 @@ git commit -m "feat(#545): wire warhead completion to increment strategicArsenal
   Manhattan Project yet) or "Arsenal at capacity (N/N) — build Nuclear Arsenal or
   Missile Silo to expand." (at capacity) — the exact reason text spec §1 specifies.
 
-- [ ] **Step 1: Write the failing test**
+> **Third review-pass finding, correctness bug:** the original draft's
+> `getLockedItemReason` special case for `warhead` returned unconditionally
+> whenever `item.id === 'warhead'` — meaning if Manhattan Project *is* built and
+> the civ is *under* capacity, but `warhead` is still locked for the ordinary reason
+> (missing `uranium`, already handled generically via `item.missingResources`), the
+> function would have wrongly reported `"Arsenal at capacity (0/1)"` even though
+> there is capacity to spare — actively misleading, not just uninformative. Fixed
+> below: the special case only returns early for the two conditions it actually
+> knows about; otherwise it falls through to the existing generic reason builder
+> (which already computes `missingResources` for every locked item generically, no
+> `warhead`-specific code needed there).
+>
+> This task's test also now uses the real fixture this file already has for exactly
+> this scenario class — `makeLockedMR4Fixture({ completedTechs })` (~line 2135,
+> returns `{ container, city, state, civId }`) — instead of an unwritten
+> placeholder, and queries `[data-locked-reason="warhead"]` specifically (the file's
+> existing locked-item tests query the bare `[data-locked-reason]` attribute, which
+> only works when there's exactly one locked item in the fixture — `warhead` may not
+> be the only one, so this test targets it by id to avoid an ambiguous match).
 
-Read `tests/ui/city-panel.test.ts`'s existing locked-item tests first (search for
-`getLockedItemReason` or `data-locked-reason` usage) to match this file's real
-city-panel-rendering test harness exactly, then add two tests following that same
-pattern:
-- Renders "Requires Manhattan Project..." for `warhead` when `nuclear-weapons` is
-  researched (so it's tech-unlocked) but Manhattan Project is not yet built.
-- Renders "Arsenal at capacity (N/N)..." for `warhead` when Manhattan Project is
-  built and `strategicArsenal >= getStrategicArsenalCapacity`.
+- [ ] **Step 1: Write the failing tests**
+
+Add to `tests/ui/city-panel.test.ts`, alongside the existing locked-item tests
+(~line 2261):
+
+```typescript
+  it('#545: locked warhead shows "Requires Manhattan Project..." when unbuilt', () => {
+    const { container, city, state, civId } = makeLockedMR4Fixture({
+      completedTechs: ['nuclear-weapons'],
+    });
+    const panel = createCityPanel(container, city, state, {
+      onBuild: () => {}, onOpenWonderPanel: () => {}, onClose: () => {},
+    });
+    const reasonEl = panel.querySelector('[data-locked-reason="warhead"]');
+    expect(reasonEl?.textContent).toContain('Requires Manhattan Project');
+  });
+
+  it('#545: locked warhead shows "Arsenal at capacity (N/N)..." when Manhattan Project is built and arsenal is full', () => {
+    const { container, city, state, civId } = makeLockedMR4Fixture({
+      completedTechs: ['nuclear-weapons'],
+    });
+    state.builtNationalProjects = {
+      [`${civId}:manhattan_project`]: { civId, cityId: city.id, eraBuilt: 10 },
+    };
+    state.civilizations[civId].strategicArsenal = 1; // base capacity with only Manhattan Project built is 1 -- exactly at cap
+    const panel = createCityPanel(container, city, state, {
+      onBuild: () => {}, onOpenWonderPanel: () => {}, onClose: () => {},
+    });
+    const reasonEl = panel.querySelector('[data-locked-reason="warhead"]');
+    expect(reasonEl?.textContent).toContain('Arsenal at capacity (1/1)');
+  });
+```
 
 - [ ] **Step 2: Run the tests to verify they fail**
 
-Run: `bash scripts/run-with-mise.sh yarn test city-panel -t "warhead"`
+Run: `bash scripts/run-with-mise.sh yarn test city-panel -t "#545: locked warhead"`
 Expected: FAIL — no special-case text exists yet; `warhead` falls through to the
-generic (empty, since it has no `requiredTechs`/`requiredBuildings`/missing-resource
-entries once uranium is available) reason.
+generic (empty, since it has no `requiredTechs`/`requiredBuildings` entries, and
+`missingResources` would be empty too since `makeLockedMR4Fixture` doesn't restrict
+resources) reason, so `reasonEl?.textContent` is empty or missing.
 
 - [ ] **Step 3: Update `getLockedItemReason`**
 
@@ -1365,7 +1481,11 @@ Replace with:
       }
       const capacity = getStrategicArsenalCapacity(state, city.owner);
       const current = getStrategicArsenal(currentCiv);
-      return `Arsenal at capacity (${current}/${capacity}) — build Nuclear Arsenal or Missile Silo to expand.`;
+      if (current >= capacity) {
+        return `Arsenal at capacity (${current}/${capacity}) — build Nuclear Arsenal or Missile Silo to expand.`;
+      }
+      // Manhattan Project built and under capacity -- if still locked, it's for an
+      // ordinary reason (e.g. missing uranium), handled generically below.
     }
     const requirements: string[] = [];
 ```
@@ -1376,10 +1496,38 @@ function per the surrounding code read during this MR's audit.)
 
 - [ ] **Step 4: Run the tests to verify they pass**
 
-Run: `bash scripts/run-with-mise.sh yarn test city-panel -t "warhead"`
+Run: `bash scripts/run-with-mise.sh yarn test city-panel -t "#545: locked warhead"`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 5: Add the always-under-capacity generic-fallthrough regression**
+
+Add one more test confirming the fallthrough (the exact bug this review pass found):
+
+```typescript
+  it('#545: locked warhead falls through to the generic missing-resource reason when Manhattan Project is built and under capacity', () => {
+    const { container, city, state, civId } = makeLockedMR4Fixture({
+      completedTechs: ['nuclear-weapons'],
+    });
+    state.builtNationalProjects = {
+      [`${civId}:manhattan_project`]: { civId, cityId: city.id, eraBuilt: 10 },
+    };
+    // strategicArsenal left undefined (0) -- well under the base capacity of 1, so
+    // the only real reason warhead could still be locked here is missing uranium.
+    const panel = createCityPanel(container, city, state, {
+      onBuild: () => {}, onOpenWonderPanel: () => {}, onClose: () => {},
+    });
+    const reasonEl = panel.querySelector('[data-locked-reason="warhead"]');
+    expect(reasonEl?.textContent).not.toContain('Arsenal at capacity');
+    expect(reasonEl?.textContent).not.toContain('Requires Manhattan Project');
+  });
+```
+
+- [ ] **Step 6: Run all three tests**
+
+Run: `bash scripts/run-with-mise.sh yarn test city-panel -t "#545: locked warhead"`
+Expected: PASS (all three)
+
+- [ ] **Step 7: Commit**
 
 ```bash
 git add src/ui/city-panel.ts tests/ui/city-panel.test.ts
@@ -1418,62 +1566,125 @@ git commit -m "feat(#545): surface Manhattan Project/capacity locked-item reason
 > existential-threat scoring; this is narrowly the production-eligibility nudge
 > needed so the feature's premise is reachable at all before MR5 lands.
 
+> **Second review-pass finding:** the original draft of this task invented
+> `makeState`/`makeCiv` test helpers that do not exist in
+> `tests/ai/ai-production.test.ts` — that file's real, established fixture is
+> `setupState(completedTechs, cityIds)` (built on the real `createNewGame`, with a
+> real civ id `'ai-1'`), and its existing threat-conditioned test for `sam_site`
+> (`'scores typed air defense only against a visible hostile strike threat...'`,
+> ~line 142) is the exact pattern to mirror. It was also wrong that
+> `AIProductionCandidate` "doesn't have a slot" for a new score — `airDefenseThreatScore`/
+> `submarineThreatScore`/`carrierCompositionScore` are all real, named, always-present
+> fields on that interface (`ai-production.ts:37-55`), each set at every one of the
+> **three** candidate-construction sites (`candidates.push(...)` at lines 481, 537,
+> and 602 — the general unit loop, the missionary branch, and the building loop). The
+> corrected steps below follow both of those real conventions instead.
+
 - [ ] **Step 1: Write the failing tests**
 
-Add to `tests/ai/ai-production.test.ts`:
+Add to `tests/ai/ai-production.test.ts`, in the `describe('AI strategic production', ...)`
+block, alongside the existing SAM Site threat-conditioned tests (~line 142):
 
 ```typescript
-import { strategicArsenalValueScore } from '@/ai/ai-production';
+  it('scores warhead 0 with no strategic arsenal signal at peace, positive once at war (#545)', () => {
+    const state = setupState(['nuclear-weapons']);
+    state.builtNationalProjects = {
+      'ai-1:manhattan_project': { civId: 'ai-1', cityId: 'city-a', eraBuilt: 10 },
+    };
+    grantResources(state, ['uranium']);
 
-describe('strategicArsenalValueScore (#545)', () => {
-  it('is 0 for a building with no arsenalCapacityGated capability, regardless of war state', () => {
-    const state = makeState({
-      civilizations: { p1: makeCiv({ diplomacy: { relationships: {}, treaties: [], events: [], atWarWith: ['p2'], treacheryScore: 0, vassalage: { overlord: null, vassals: [], protectionScore: 0, protectionTimers: [], peakCities: 0, peakMilitary: 0 } } }) },
-    });
-    expect(strategicArsenalValueScore(state, 'p1', 'nuclear_arsenal')).toBe(0);
+    const atPeace = generateAIProductionCandidates(state, 'ai-1', 'city-a', [], aggressive)
+      .find(candidate => candidate.itemId === 'warhead')!;
+    expect(atPeace.strategicArsenalValueScore).toBe(0);
+
+    state.civilizations['ai-1']!.diplomacy.atWarWith = ['player'];
+    const atWar = generateAIProductionCandidates(state, 'ai-1', 'city-a', [], aggressive)
+      .find(candidate => candidate.itemId === 'warhead')!;
+    expect(atWar.strategicArsenalValueScore).toBeGreaterThan(0);
+    expect(atWar.score).toBeGreaterThan(atPeace.score);
   });
 
-  it('is 0 for warhead when the civ is at peace (no credible threat context)', () => {
-    const state = makeState({ civilizations: { p1: makeCiv() } });
-    expect(strategicArsenalValueScore(state, 'p1', 'warhead')).toBe(0);
+  it('bounds strategicArsenalValueScore at 3 simultaneous wars', () => {
+    const state = setupState(['nuclear-weapons']);
+    state.builtNationalProjects = {
+      'ai-1:manhattan_project': { civId: 'ai-1', cityId: 'city-a', eraBuilt: 10 },
+    };
+    grantResources(state, ['uranium']);
+    state.civilizations['ai-1']!.diplomacy.atWarWith = ['player', 'civ-c', 'civ-d'];
+
+    const atThreeWars = generateAIProductionCandidates(state, 'ai-1', 'city-a', [], aggressive)
+      .find(candidate => candidate.itemId === 'warhead')!;
+
+    state.civilizations['ai-1']!.diplomacy.atWarWith = ['player', 'civ-c', 'civ-d', 'civ-e', 'civ-f'];
+    const atFiveWars = generateAIProductionCandidates(state, 'ai-1', 'city-a', [], aggressive)
+      .find(candidate => candidate.itemId === 'warhead')!;
+
+    expect(atFiveWars.strategicArsenalValueScore).toBe(atThreeWars.strategicArsenalValueScore);
   });
 
-  it('is positive for warhead when the civ is at war with at least one civ', () => {
-    const state = makeState({
-      civilizations: { p1: makeCiv({ diplomacy: { relationships: {}, treaties: [], events: [], atWarWith: ['p2'], treacheryScore: 0, vassalage: { overlord: null, vassals: [], protectionScore: 0, protectionTimers: [], peakCities: 0, peakMilitary: 0 } } }) },
-    });
-    expect(strategicArsenalValueScore(state, 'p1', 'warhead')).toBeGreaterThan(0);
+  it('is 0 for a building with no arsenalCapacityGated capability, even at war', () => {
+    const state = setupState(['nuclear-weapons']);
+    state.civilizations['ai-1']!.diplomacy.atWarWith = ['player'];
+    const nuclearArsenal = generateAIProductionCandidates(state, 'ai-1', 'city-a', [], aggressive)
+      .find(candidate => candidate.itemId === 'nuclear_arsenal')!;
+    expect(nuclearArsenal.strategicArsenalValueScore).toBe(0);
   });
 
-  it('is bounded: does not keep scaling past 3 simultaneous wars', () => {
-    const threeWars = makeCiv({ diplomacy: { relationships: {}, treaties: [], events: [], atWarWith: ['p2', 'p3', 'p4'], treacheryScore: 0, vassalage: { overlord: null, vassals: [], protectionScore: 0, protectionTimers: [], peakCities: 0, peakMilitary: 0 } } });
-    const fiveWars = makeCiv({ diplomacy: { relationships: {}, treaties: [], events: [], atWarWith: ['p2', 'p3', 'p4', 'p5', 'p6'], treacheryScore: 0, vassalage: { overlord: null, vassals: [], protectionScore: 0, protectionTimers: [], peakCities: 0, peakMilitary: 0 } } });
-    const scoreAtThree = strategicArsenalValueScore(makeState({ civilizations: { p1: threeWars } }), 'p1', 'warhead');
-    const scoreAtFive = strategicArsenalValueScore(makeState({ civilizations: { p1: fiveWars } }), 'p1', 'warhead');
-    expect(scoreAtFive).toBe(scoreAtThree);
-  });
+  it('nets a positive total score for warhead when at war, unlike the reliably-negative score it would get with no signal', () => {
+    const state = setupState(['nuclear-weapons']);
+    state.builtNationalProjects = {
+      'ai-1:manhattan_project': { civId: 'ai-1', cityId: 'city-a', eraBuilt: 10 },
+    };
+    grantResources(state, ['uranium']);
+    state.civilizations['ai-1']!.diplomacy.atWarWith = ['player'];
 
-  it('is high enough to outweigh a typical warhead build\'s productionTurns/maintenanceRisk penalty', () => {
-    // Regression against the actual formula in the building-scoring loop
-    // (score = economyScore*2 + ... - productionTurns*1.5 - maintenanceRisk*3):
-    // a warhead at productionCost 260 and a plausible era-10/11 production rate
-    // should net positive overall for an at-war civ, or this signal is too weak to
-    // matter in practice. Follow this file's existing pattern for constructing a
-    // full candidate-scoring call (not just this function in isolation) and assert
-    // the resulting warhead candidate's total score is > 0 for an at-war civ under
-    // capacity with Manhattan Project built.
+    const warhead = generateAIProductionCandidates(state, 'ai-1', 'city-a', [], aggressive)
+      .find(candidate => candidate.itemId === 'warhead')!;
+    // Regression against the real formula (score = economyScore*2 + ... +
+    // strategicArsenalValueScore - productionTurns*1.5 - maintenanceRisk*3): this is
+    // the whole point of Task 10 -- the net score must actually go positive for a
+    // real at-war civ, not just be "greater than the at-peace case."
+    expect(warhead.score).toBeGreaterThan(0);
   });
-});
 ```
 
 - [ ] **Step 2: Run the tests to verify they fail**
 
-Run: `bash scripts/run-with-mise.sh yarn test ai-production -t "strategicArsenalValueScore"`
-Expected: FAIL — function doesn't exist yet.
+Run: `bash scripts/run-with-mise.sh yarn test ai-production -t "strategic arsenal"`
+Expected: FAIL — `strategicArsenalValueScore` is `undefined` on every candidate (no
+such field exists on `AIProductionCandidate` yet).
 
-- [ ] **Step 3: Write the implementation**
+- [ ] **Step 3: Add the field to `AIProductionCandidate`**
 
-Open `src/ai/ai-production.ts`, add near `economyValue` (~line 205):
+Open `src/ai/ai-production.ts` (~line 37-55), add the new field next to its closest
+sibling:
+
+```typescript
+export interface AIProductionCandidate {
+  itemId: string;
+  kind: 'unit' | 'building';
+  roles: readonly AIStrategicRole[];
+  productionTurns: number;
+  maintenanceImpact: number;
+  roleDemandScore: number;
+  economyScore: number;
+  personalityScore: number;
+  emergencyDefenseScore: number;
+  citySpecializationScore: number;
+  maintenanceRisk: number;
+  defensiveEspionageScore: number;
+  airDefenseThreatScore: number;
+  submarineThreatScore: number;
+  carrierCompositionScore: number;
+  strategicArsenalValueScore: number;
+  fulfilledRole?: AIStrategicRole;
+  score: number;
+}
+```
+
+- [ ] **Step 4: Write `strategicArsenalValueScore` and set it at all three candidate sites**
+
+Add near `economyValue` (~line 205):
 
 ```typescript
 const STRATEGIC_ARSENAL_VALUE_PER_WAR = 12;
@@ -1488,9 +1699,10 @@ const STRATEGIC_ARSENAL_VALUE_MAX_WARS = 3;
  * the general principle (seen across other 4X AI design) that WMD-class production
  * eagerness should be driven by real strategic context, not a flat economic value.
  * Generic via Building.arsenalCapacityGated -- not an id branch; a future similar
- * item is covered automatically.
+ * item is covered automatically. Buildings only (units never carry
+ * arsenalCapacityGated), so the two unit-candidate call sites always pass 0.
  */
-export function strategicArsenalValueScore(state: GameState, civId: string, buildingId: string): number {
+function strategicArsenalValueScore(state: GameState, civId: string, buildingId: string): number {
   const building = BUILDINGS[buildingId];
   if (!building?.arsenalCapacityGated) return 0;
   const civ = state.civilizations[civId];
@@ -1499,8 +1711,57 @@ export function strategicArsenalValueScore(state: GameState, civId: string, buil
 }
 ```
 
-Fold it into the building-scoring loop (~line 589-601), alongside the existing
-`buildingDefensiveScore`/`buildingAirDefenseScore` calls:
+At the general unit-candidate site (~line 481-499), add the field with value `0`:
+
+```typescript
+    candidates.push({
+      itemId: unit.type,
+      kind: 'unit',
+      roles,
+      productionTurns,
+      maintenanceImpact,
+      roleDemandScore,
+      economyScore: 0,
+      personalityScore,
+      emergencyDefenseScore,
+      citySpecializationScore,
+      maintenanceRisk,
+      defensiveEspionageScore: 0,
+      airDefenseThreatScore: 0,
+      submarineThreatScore: unitSubmarineThreatScore,
+      carrierCompositionScore: unitCarrierCompositionScore,
+      strategicArsenalValueScore: 0,
+      fulfilledRole: fulfilled.role,
+      score,
+    });
+```
+
+At the missionary-candidate site (~line 537-554), same addition:
+
+```typescript
+        candidates.push({
+          itemId: 'missionary',
+          kind: 'unit',
+          roles: ['missionary'],
+          productionTurns,
+          maintenanceImpact,
+          roleDemandScore: 0,
+          economyScore: 0,
+          personalityScore,
+          emergencyDefenseScore: 0,
+          citySpecializationScore: 0,
+          maintenanceRisk: maintenanceImpact,
+          defensiveEspionageScore: 0,
+          airDefenseThreatScore: 0,
+          submarineThreatScore: 0,
+          carrierCompositionScore: 0,
+          strategicArsenalValueScore: 0,
+          score,
+        });
+```
+
+At the building-candidate site (~line 589-619), compute the real value and fold it
+into `score`:
 
 ```typescript
     const buildingDefensiveScore = defensiveEspionageScore(state, civId, cityId, building.id);
@@ -1518,24 +1779,48 @@ Fold it into the building-scoring loop (~line 589-601), alongside the existing
       + buildingStrategicArsenalScore
       - productionTurns * 1.5
       - maintenanceRisk * 3;
+    candidates.push({
+      itemId: building.id,
+      kind: 'building',
+      roles: [],
+      productionTurns,
+      maintenanceImpact,
+      roleDemandScore: 0,
+      economyScore,
+      personalityScore,
+      emergencyDefenseScore: 0,
+      citySpecializationScore,
+      maintenanceRisk,
+      defensiveEspionageScore: buildingDefensiveScore,
+      airDefenseThreatScore: buildingAirDefenseScore,
+      submarineThreatScore: 0,
+      carrierCompositionScore: 0,
+      strategicArsenalValueScore: buildingStrategicArsenalScore,
+      score,
 ```
 
-(This candidate object literal has a fixed field set per its existing type — do not
-add a new field to it for this score unless that type already has a slot for it;
-folding the value directly into `score` is sufficient and matches how
-`citySpecializationScore` already contributes without every intermediate always
-being independently exposed on the candidate.)
+(The closing of this literal and the rest of the loop are unchanged — only the two
+new lines shown above are added to it.)
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [ ] **Step 5: Run the tests to verify they pass**
 
-Run: `bash scripts/run-with-mise.sh yarn test ai-production -t "strategicArsenalValueScore"`
-Expected: PASS. If Step 1's last test (the outweigh-the-penalty regression) fails,
-tune `STRATEGIC_ARSENAL_VALUE_PER_WAR` up rather than deleting the test — the whole
-point of this task is that the net score must actually go positive for a real
-warhead build under realistic cost/turns numbers, not just be "greater than zero in
-isolation."
+Run: `bash scripts/run-with-mise.sh yarn test ai-production -t "strategic arsenal"`
+Expected: PASS. If the "nets a positive total score" test fails, tune
+`STRATEGIC_ARSENAL_VALUE_PER_WAR` up rather than deleting the test — the whole point
+of this task is that the net score must actually go positive for a real warhead
+build under realistic cost/turns numbers, not just be "greater than the at-peace
+case."
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 6: Run the full `ai-production` suite to confirm no regression**
+
+Run: `bash scripts/run-with-mise.sh yarn test ai-production`
+Expected: PASS — adding a required field to `AIProductionCandidate` touches every
+existing candidate assertion that does a full-object `toEqual`/`toMatchObject`
+comparison rather than checking individual fields; if any such test exists in this
+file, it needs `strategicArsenalValueScore: 0` (or `expect.objectContaining(...)`)
+added to its expected shape. Fix those in this same commit, not a follow-up one.
+
+- [ ] **Step 7: Commit**
 
 ```bash
 git add src/ai/ai-production.ts tests/ai/ai-production.test.ts
@@ -1559,15 +1844,23 @@ Task 10's generic signal is exactly that (generic), not a disguised id branch.
 
 - [ ] **Step 1: AI candidate-inclusion test**
 
-Add to `tests/ai/ai-production.test.ts` (follow this file's existing pattern for
-constructing a civ/city/state that's eligible for a given building candidate):
+Add to `tests/ai/ai-production.test.ts`, using the same real `setupState`/
+`generateAIProductionCandidates` harness Task 10 used (not a hand-rolled fixture):
 
 ```typescript
   it('warhead appears among AI building candidates once eligible, scored by the generic pipeline (#545)', () => {
-    // Arrange: civ with nuclear-weapons researched, Manhattan Project built, uranium
-    // available, under arsenal capacity.
-    // Act: call this file's real AI candidate-generation entry point.
-    // Assert: a candidate with itemId/id 'warhead' is present.
+    const state = setupState(['nuclear-weapons']);
+    state.builtNationalProjects = {
+      'ai-1:manhattan_project': { civId: 'ai-1', cityId: 'city-a', eraBuilt: 10 },
+    };
+    grantResources(state, ['uranium']);
+
+    expect(generateAIProductionCandidates(state, 'ai-1', 'city-a', [], aggressive)
+      .some(candidate => candidate.itemId === 'warhead')).toBe(true);
+
+    state.civilizations['ai-1']!.techState.completed = [];
+    expect(generateAIProductionCandidates(state, 'ai-1', 'city-a', [], aggressive)
+      .some(candidate => candidate.itemId === 'warhead')).toBe(false);
   });
 ```
 
@@ -1576,7 +1869,10 @@ constructing a civ/city/state that's eligible for a given building candidate):
 This confirms Task 10 followed the "generic, not a nuclear-specific branch" rule
 literally — it should still pass after Task 10's changes, since
 `strategicArsenalValueScore` is keyed off `Building.arsenalCapacityGated`, never off
-the literal string `'warhead'`:
+the literal string `'warhead'`. This repo already has precedent for a
+`readFileSync`-based source-grep structural test
+(`tests/app/architecture-boundaries.test.ts`), so this follows an established
+pattern, not a novel one:
 
 ```typescript
   it('ai-production.ts building-scoring loop has no warhead-id branch (#545 spec §10)', () => {
@@ -1586,11 +1882,8 @@ the literal string `'warhead'`:
   });
 ```
 
-(If this repo has no existing precedent for a source-grep structural test, check for
-one before adding a new pattern — if genuinely novel, a code comment on
-`strategicArsenalValueScore` itself already documents the same guarantee, and this
-step can be dropped in favor of that comment plus Task 10's own capability-driven
-implementation being self-evidently non-branching on read.)
+(Add `import { readFileSync } from 'node:fs';` and `import { resolve } from 'node:path';`
+to the top of `tests/ai/ai-production.test.ts` if not already present.)
 
 - [ ] **Step 3: Content-honesty positive tests**
 
@@ -1642,12 +1935,21 @@ Expected: all tests pass, including hook smoke tests.
 Run: `bash scripts/run-with-mise.sh yarn build`
 Expected: succeeds, no TypeScript errors.
 
-- [ ] **Step 3: Confirm architecture boundaries**
+- [ ] **Step 3: Confirm architecture boundaries (manual check — no automated test covers this)**
 
-Run: `bash scripts/run-with-mise.sh yarn test tests/app/architecture-boundaries.test.ts`
-Expected: PASS — `strategic-launch-system.ts` lives in `src/systems/`, imports only
-from other `src/systems/` modules and `src/core/types.ts`, nothing from `src/ui/`,
-`src/renderer/`, or `src/ai/`.
+**Third review-pass correction:** an earlier draft of this step claimed
+`tests/app/architecture-boundaries.test.ts` would verify this. It does not —
+that file (read in full during this review pass) only checks `main.ts` composition-root
+rules and `src/app/controllers`/`src/app/presentation` boundaries; it never inspects
+`src/systems/*.ts` at all, so running it proves nothing about this MR's new files.
+There is no automated test anywhere in this repo enforcing "`src/systems/*.ts` must
+not import `src/ui/`/`src/renderer/`/`src/ai/`" (confirmed by search during this
+review pass) — this is a convention this plan's Global Constraints commit to, checked
+by hand:
+
+Run: `grep -n "^import" src/systems/strategic-launch-system.ts`
+Expected: every import line targets `@/core/types`, `@/systems/*`, or `@/systems/hex-utils`
+— none from `@/ui/`, `@/renderer/`, or `@/ai/`.
 
 - [ ] **Step 4: Confirm zero pacing regression**
 
