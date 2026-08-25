@@ -1,27 +1,38 @@
-# Issue 708 visual review — mounted and beast formations
+# Issue 708 visual review — readable mounted and beast formations
 
-> The previous silhouette illustration was a review placeholder, not renderer output, and has been removed from this review. Do not use it to judge this MR.
+[Open the interactive sprite review](assets/issue-708/sprite-preview.html). It mounts the committed, generated native sprite output and provides all six faction palettes, idle/walk/attack/hurt/death states, and a reduced-motion toggle.
 
-For an actual interactive review, open [`sprite-preview.html`](assets/issue-708/sprite-preview.html) directly from the working copy or through the repository's Vite server. Its generated embedded payload mounts the committed native output and provides faction, idle, walk, and attack controls.
+The sheets below are generated from that same committed Imperials payload at 40, 64, and 128 px. They record the zero-phase artwork only; use the interactive preview to assess motion timing.
 
-This draft-PR review covers the native source currently rendered by the map DOM overlay. The committed native SVG modules are the source of truth.
+## Beast Handler
 
-| Unit | Player-readable identity | Replaces | Animation/accessibility contract |
-| --- | --- | --- | --- |
-| Beast Handler | Masked handler, forked staff, rune leash, and right-facing collared hound | War Hound | `hound/handler`: independent handler brace, four-beat hound walk, tail/ear secondary motion, forward pounce, staff command, leash tension, and sigil pulse. |
-| War Elephant | Right-facing plated head, ears, trunk, two tusks, howdah crew, and rune standard | War Hound | `animal/elephant`: slow four-beat weight transfer, ear/trunk/howdah/standard follow-through, and forward head-and-tusk charge. |
-| Cuirassier | Right-facing horse head/mane, saddle armour, breastplate rider, sash, and bright sabre | Knight | `animal/mount`: four-beat horse travel, mane/tail/rider secondary motion, forward lunge, rider-led pivoted sabre, and forward `cq-hit-spark`. |
+![Beast Handler anatomy review](assets/issue-708/beast-handler-state-sheet.png)
 
-## Implementation and safety review
+The handler has two visible arms, two planted legs, and a forked staff held at hand height. The collared hound has a distinct head, ears, tail, and four independently animated legs; the leash joins the handler hand to the collar. The former target/sigil effect is gone.
 
-- Gameplay balance, mechanics, production, AI, difficulty, data, saves, SFX, and solo/hot-seat rules are unchanged. This PR changes only the existing rendering paths.
-- The existing viewer-scoped fog filter remains upstream of sprite resolution. The new art cannot reveal an unseen unit or leak a previous hot-seat player's information.
-- The existing overlay preserves selected and health decorations, map/mobile sizing, and reduced-motion static presentation; focused regressions cover all three unit IDs.
-- The source-of-truth pipeline is `units-v2.jsx` → serializer → generated per-faction module → `v2/index.ts`. No generated module was hand edited.
-- Palette-driven faction identity, 128×128 view boxes, ink outlines, right-facing 2.5D silhouettes, `data-kind`, phase desynchronization, animation hook wrapping, and CSS reduced-motion suppression follow the sprite design system. The preview exposes all six supported faction palettes.
-- Animation proof is committed and tested: the v2-index regression checks all anatomy/secondary-motion hooks and six distinct faction serializations; the CSS regression checks state-scoped secondary motion and four-beat handler, elephant, and mount travel; the overlay regression checks combat and reduced-motion state propagation.
-- The standalone local review page is the visual-QA surface and renders the committed generated modules directly. Full game startup remains blocked by the unrelated `fortification-system.ts` import error (`mapNeighbors` is absent from `hex-utils.ts`); the production build and automated sprite/overlay tests remain the delivery evidence for this draft.
+## War Elephant
 
-## Out of scope
+![War Elephant anatomy review](assets/issue-708/war-elephant-state-sheet.png)
 
-Chariot was already de-aliased in #769 and remains unchanged. Cavalry already has native v2 art. This visual-only subset does not include Task 44's audio work or any later combat-program visual batch.
+The elephant has a separate head, ear, forehead plate, trunk, tusks, and four legs. Its crew ride within the howdah; the rail-mounted standard moves with that howdah, never independently from the animal.
+
+## Cuirassier
+
+![Cuirassier anatomy review](assets/issue-708/cuirassier-state-sheet.png)
+
+The horse has a readable head, muzzle, ears, mane, saddle, downward tail, and four gait legs. The cuirassier faces forward, straddles the saddle, holds reins with one hand, and carries the sabre with the other; the attack is a rider-led sabre action with a small impact spark.
+
+## Review checklist
+
+- The silhouettes remain identifiable at the 40 px map scale, without relying on labels.
+- Walk cycles use a four-leg gait: the handler also walks, the elephant transfers weight, and the horse travels as a horse rather than a generic beast.
+- Attack cycles animate the attacking body parts and legs: handler command/pounce, elephant charge, and mounted sabre strike.
+- Palette tokens supply each civilisation colour; outline, metal, skin, and animal materials stay distinct.
+- Selection, health, map/mobile scale, fog, and reduced motion continue to use the existing overlay contracts.
+- No gameplay values, new mechanics, difficulty rules, AI behaviour, SFX, save data, solo play, or hot-seat state changes are introduced by this visual-only slice.
+
+## Implementation notes
+
+- Source pipeline: `units-v2.jsx` → serializer → generated faction modules → `v2/index.ts`. Generated modules are not hand-edited.
+- The sprite design system remains the baseline: 128×128 view boxes, ink outlines, right-facing 2.5D silhouettes, palette-driven factions, named animation hooks, and static reduced-motion presentation.
+- The review capture utility intentionally rasterizes the source SVG at zero phase. It is evidence of shipped anatomy rather than a substitute for CSS timing; the interactive review above is the timing proof.
