@@ -535,6 +535,10 @@ export const BUILDING_SPRITE_CATALOG: Record<string, BuildingSpriteComponent> = 
   signals_bureau:                 SignalsBureauSprite,
   // era 10 national projects
   manhattan_project:              ManhattanProjectSprite,
+  // #545: temporary reuse of Manhattan Project's silhouette pending warhead's own
+  // dedicated art (generate-sprite-prompt skill) -- same "borrow the closest existing
+  // sprite, note it's temporary" pattern sam_site uses above with RadarStationSprite.
+  warhead:                        ManhattanProjectSprite,
   postwar_reconstruction:         PostwarReconstructionSprite,
   space_program_initiative:       SpaceProgramInitiativeSprite,
   // era 11 buildings
