@@ -1,8 +1,9 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 const previewPath = resolve(process.cwd(), 'docs/reviews/assets/issue-708/sprite-preview.html');
+const reviewPath = resolve(process.cwd(), 'docs/reviews/issue-708-mounted-beast-visual-review.md');
 describe('#708 file-safe sprite preview', () => {
   it('embeds its generated payload so file and Vite access use the same data', () => {
     const preview = readFileSync(previewPath, 'utf8');
@@ -22,11 +23,27 @@ describe('#708 file-safe sprite preview', () => {
       expect(preview).toContain(`data-state="${state}"`);
     }
     expect(preview).toContain('id="reduced-motion"');
-    expect(preview).toContain('data-unit="beast_handler"');
-    expect(preview).toContain('data-unit="war_elephant"');
-    expect(preview).toContain('data-unit="cuirassier"');
+    expect(preview).toContain("['beast_handler', 'Beast Handler'");
+    expect(preview).toContain("['war_elephant', 'War Elephant'");
+    expect(preview).toContain("['cuirassier', 'Cuirassier'");
+    expect(preview).toContain('card.dataset.unit = unit');
+    expect(preview).toContain('grid.dataset.reducedMotion = String(reducedMotion.checked)');
     expect(preview).toContain('forward-straddling rider');
     expect(preview).not.toContain('targeting sigil');
     expect(preview).not.toContain('cq-command-sigil');
+  });
+
+  it('ships Markdown-embeddable anatomy review sheets for all three rebuilt units', () => {
+    const review = readFileSync(reviewPath, 'utf8');
+    const sheets = [
+      ['beast-handler-state-sheet.png', 'Beast Handler anatomy review'],
+      ['war-elephant-state-sheet.png', 'War Elephant anatomy review'],
+      ['cuirassier-state-sheet.png', 'Cuirassier anatomy review'],
+    ];
+
+    for (const [filename, label] of sheets) {
+      expect(existsSync(resolve(process.cwd(), 'docs/reviews/assets/issue-708', filename)), `${filename} must be committed`).toBe(true);
+      expect(review).toContain(`![${label}](assets/issue-708/${filename})`);
+    }
   });
 });
