@@ -296,6 +296,13 @@ describe('createTurnFlowController', () => {
       const turnFlow = createTurnFlowController(deps);
 
       const endTurnPromise = turnFlow.endTurn();
+      // deselectUnit() runs synchronously before the first await inside
+      // endTurn (turn-flow-controller.ts:696, ahead of the awaited
+      // beginHotSeatHandoff at :701) -- so the real ordering claim is
+      // checkable immediately, before the handoff UI has even appeared, not
+      // just "eventually true" once the whole promise settles.
+      expect(selection.getPendingIntent()).toEqual({ kind: 'none' });
+
       await flushMicrotasks();
       document.querySelector<HTMLButtonElement>('#handoff-confirm')?.click();
       await flushMicrotasks();
