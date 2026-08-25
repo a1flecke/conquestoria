@@ -140,6 +140,12 @@ describe('planning-system city queues', () => {
     expect(result.productionQueue).toEqual(['legendary:colosseum']);
   });
 
+  it('#545: allows a consumedOnCompletion building (warhead) to be queued multiple times, unlike a normal building', () => {
+    const city = { productionQueue: ['warhead'] } as any;
+    const result = enqueueCityProduction(city, 'warhead');
+    expect(result.productionQueue).toEqual(['warhead', 'warhead']);
+  });
+
   it('recommends a truly fast opening option instead of the first registered building', () => {
     const state = createNewGame(undefined, 'idle-choice-seed', 'small');
     const playerId = state.currentPlayer;
