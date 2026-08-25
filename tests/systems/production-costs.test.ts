@@ -18,6 +18,10 @@ describe('production cost catalog', () => {
     expect(TRAINABLE_UNITS.find(unit => unit.type === 'missile_submarine')?.resourceRequired).toEqual(['uranium']);
   });
 
+  it('nuclear_arsenal absorbs the production Manhattan Project can no longer carry (#545)', () => {
+    expect(BUILDINGS.nuclear_arsenal.yields.production).toBe(9);
+  });
+
   it('applies generic resource advantages multiplicatively with a 25% cap', () => {
     expect(getResourceAdvantageMultiplier('tank', new Set(['oil']))).toBe(0.85);
     expect(getResourceAdvantageMultiplier('combat_drone', new Set(['aluminum', 'rare-earth-elements', 'battery-minerals']))).toBe(0.75);

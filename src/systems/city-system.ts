@@ -747,8 +747,12 @@ export const BUILDINGS: Record<string, Building> = {
   /* === ERA 10 REGULAR BUILDINGS === */
   nuclear_arsenal: {
     id: 'nuclear_arsenal', name: 'Nuclear Arsenal', category: 'military',
-    yields: { food: 0, production: 3, gold: 0, science: 0 }, productionCost: 195,
-    description: 'Atomic weapon stockpile. +3 production per turn.',
+    // #545: raised 3 -> 9, absorbing the +6 Manhattan Project can no longer
+    // carry now that it's a milestone NP (see that definition above) —
+    // era-10's combined production total across the two buildings is
+    // unchanged, just sourced from this one building instead of two.
+    yields: { food: 0, production: 9, gold: 0, science: 0 }, productionCost: 195,
+    description: 'Atomic weapon stockpile. +9 production per turn.',
     techRequired: 'nuclear-weapons', resourceRequired: ['uranium'],
     pacing: { band: 'power-spike', role: 'late-military-production', impact: 1.4, scope: 'city', snowball: 1.3, urgency: 1.1, situationality: 1.1, unlockBreadth: 1 },
   },
