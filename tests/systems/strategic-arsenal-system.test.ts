@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { GameState } from '@/core/types';
-import { hasManhattanProject, getStrategicArsenalCapacity } from '@/systems/strategic-arsenal-system';
+import { hasManhattanProject, getStrategicArsenalCapacity, getStrategicArsenal } from '@/systems/strategic-arsenal-system';
 
 function makeState(overrides: Partial<GameState> = {}): GameState {
   return {
@@ -141,5 +141,19 @@ describe('getStrategicArsenalCapacity', () => {
 
   it('is 0 for an unknown civ', () => {
     expect(getStrategicArsenalCapacity(makeState(), 'nobody')).toBe(0);
+  });
+});
+
+describe('getStrategicArsenal', () => {
+  it('is 0 when strategicArsenal is undefined (legacy save)', () => {
+    expect(getStrategicArsenal(makeCiv())).toBe(0);
+  });
+
+  it('returns the stored value when present', () => {
+    expect(getStrategicArsenal(makeCiv({ strategicArsenal: 3 }))).toBe(3);
+  });
+
+  it('returns 0 when explicitly 0', () => {
+    expect(getStrategicArsenal(makeCiv({ strategicArsenal: 0 }))).toBe(0);
   });
 });

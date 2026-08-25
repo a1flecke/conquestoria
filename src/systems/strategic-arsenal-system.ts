@@ -1,4 +1,4 @@
-import type { GameState } from '@/core/types';
+import type { Civilization, GameState } from '@/core/types';
 
 const MANHATTAN_PROJECT_ID = 'manhattan_project';
 
@@ -47,4 +47,13 @@ export function getStrategicArsenalCapacity(state: GameState, civId: string): nu
     }
   }
   return capacity;
+}
+
+/**
+ * The one canonical read of a civ's warhead count. Legacy saves (and any
+ * civ that has never produced a warhead) have no strategicArsenal field --
+ * absent means zero, never undefined-propagates to a caller.
+ */
+export function getStrategicArsenal(civ: Civilization): number {
+  return civ.strategicArsenal ?? 0;
 }
