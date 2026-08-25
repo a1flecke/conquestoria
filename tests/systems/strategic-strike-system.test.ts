@@ -176,6 +176,13 @@ describe('resolveStrategicStrike (#545 MR3 §7)', () => {
     expect(state.civilizations.defender.gold).toBe(1000);
     expect(state.civilizations.attacker.strategicArsenal).toBe(1);
   });
+
+  it('is deterministic -- identical input produces an identical result', () => {
+    const state = makeStrikeState();
+    const first = resolveStrategicStrike(state, 'attacker', 'target');
+    const second = resolveStrategicStrike(state, 'attacker', 'target');
+    expect(first).toEqual(second);
+  });
 });
 
 describe('resolveStrategicStrike fallout (#545 MR3 §8)', () => {
