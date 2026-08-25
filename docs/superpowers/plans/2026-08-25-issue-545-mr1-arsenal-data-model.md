@@ -47,6 +47,12 @@ setting is toggled.
 
 - No `Math.random()` anywhere in this MR — every function here is a pure,
   deterministic query over already-resolved state.
+- **This MR is difficulty-invariant by construction.** No function added here
+  takes an `OpponentChallenge`/difficulty parameter or reads
+  `GameState.opponentChallenge`/`Civilization.challenge` — capacity and the
+  Manhattan Project unlock are identical for every difficulty, per spec Goal
+  8. This is enforced structurally (the signatures below have no such
+  parameter to begin with), not by a separate runtime test.
 - All new fields are optional (`Civilization.strategicArsenal?: number`) —
   legacy saves load with **zero** migration writes. Absence means "no
   warheads produced yet," identical in behavior to an explicit `0`.
@@ -229,6 +235,15 @@ git add src/systems/city-system.ts tests/systems/national-project-balance.test.t
 git commit -m "fix(#545): correct Manhattan Project to a milestone national project"
 ```
 
+**Note on this commit in isolation:** this commit alone removes +6 production
+from Manhattan Project without yet restoring it anywhere — if you run the
+*full* `pacing-reference-economy.test.ts` suite against this commit by
+itself (rather than the scoped test command in Step 4), it will show a real
+diff. That is expected and does not need investigating at this point in the
+sequence; Task 3 restores the total in the very next commit, and Task 5 is
+where the full pacing gate actually gets verified. Do not treat a mid-sequence
+full-suite run as a signal something is wrong here.
+
 ---
 
 ### Task 3: Move Manhattan Project's yield onto Nuclear Arsenal
@@ -304,6 +319,18 @@ Expected: PASS
 git add src/systems/city-system.ts tests/systems/production-costs.test.ts
 git commit -m "feat(#545): move Manhattan Project's yield onto Nuclear Arsenal"
 ```
+
+**Known, accepted consequence for existing saves (not a bug to fix here):**
+the redistribution in Tasks 2+3 makes the *catalog's* era-10 production total
+unchanged, but an individual **existing save** that already has Manhattan
+Project built without also having built Nuclear Arsenal anywhere will see a
+net -6 production after this patch — the compensating +6 only reaches a civ
+that has actually built Nuclear Arsenal. This is an unavoidable property of
+redistributing a bonus between two independently-buildable buildings (no
+different in kind from any other yield-rebalance patch); it is called out
+here so it's a documented, deliberate tradeoff rather than a silent surprise
+discovered later. New games are unaffected in expectation — a player who
+wants the production simply builds Nuclear Arsenal, same as today.
 
 ---
 
@@ -635,12 +662,26 @@ Expected: FAIL — `getStrategicArsenalCapacity` doesn't exist yet.
 
 - [ ] **Step 3: Write the minimal implementation**
 
-Append to `src/systems/strategic-arsenal-system.ts`:
+Append to `src/systems/strategic-arsenal-system.ts`. This uses a data table
+rather than one `if` per building — the same "append a row, never add
+another branch" pattern this repo already established for
+`NP_PRODUCTION_DISCOUNTS` in `city-system.ts` (see
+`.claude/rules/game-balance.md`'s National Project Production Discounts
+section) — so a future capacity-granting building (MR2+, or a later
+follow-up) is a one-line table addition, not a new `if` in this function:
 
 ```typescript
 const MANHATTAN_PROJECT_BASE_CAPACITY = 1;
-const NUCLEAR_ARSENAL_CAPACITY = 2;
-const MISSILE_SILO_CAPACITY = 1;
+
+/**
+ * Every building that contributes to the shared arsenal capacity ceiling.
+ * Add a new capacity source by appending a row here -- never by adding
+ * another `if (city.buildings.includes(...))` branch to the resolver below.
+ */
+const ARSENAL_CAPACITY_SOURCES: ReadonlyArray<{ buildingId: string; capacity: number }> = [
+  { buildingId: 'nuclear_arsenal', capacity: 2 },
+  { buildingId: 'missile_silo', capacity: 1 },
+];
 
 /**
  * Shared empire-wide warhead capacity ceiling (#545 spec §1). Zero until
@@ -660,8 +701,9 @@ export function getStrategicArsenalCapacity(state: GameState, civId: string): nu
   for (const cityId of civ.cities) {
     const city = state.cities[cityId];
     if (!city) continue;
-    if (city.buildings.includes('nuclear_arsenal')) capacity += NUCLEAR_ARSENAL_CAPACITY;
-    if (city.buildings.includes('missile_silo')) capacity += MISSILE_SILO_CAPACITY;
+    for (const source of ARSENAL_CAPACITY_SOURCES) {
+      if (city.buildings.includes(source.buildingId)) capacity += source.capacity;
+    }
   }
   return capacity;
 }
