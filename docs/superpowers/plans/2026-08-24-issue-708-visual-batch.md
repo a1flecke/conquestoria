@@ -1,5 +1,7 @@
 # Issue 708 Grounded-Mythic Sprite Replacement Implementation Plan
 
+> **Superseded 2026-08-25:** Do not execute this plan. The approved anatomy-and-motion contract replaces its sigil, detached-standard, and inert-attack assumptions. Use [`2026-08-25-issue-708-readable-mounted-sprites.md`](2026-08-25-issue-708-readable-mounted-sprites.md).
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Replace the three placeholder-like issue-708 sprites with grounded-mythic native SVG art and a correct mounted/animal animation contract.
