@@ -510,6 +510,12 @@ export type AirDefenseProviderCapability = Omit<AirDefenseProviderDefinition, 'i
 export interface AirDefenseCoverageProvider { id: string; label: string; position: HexCoord; ownerId: string; radius: number; defenseModifier: number; stackingGroup: string; protectedDomains?: Array<'land' | 'naval' | 'air'>; }
 export interface AirDefenseCoverageResult { flatDefenseModifier: number; facts: CombatModifierFact[]; providers: AirDefenseCoverageProvider[]; }
 
+export interface StrategicLaunchCapability {
+  /** Hex range from the platform's position, wrap-aware; 'unlimited' for a fixed
+   * silo with no maximum reach (#545 spec §3/§4). Never a sentinel number. */
+  range: number | 'unlimited';
+}
+
 export interface UnitDefinition {
   type: UnitType;
   name: string;
@@ -534,6 +540,8 @@ export interface UnitDefinition {
   /** True on units eligible to be carried by another unit's Air Assault action. Not derived from UnitClass — 'gunpowder' is too broad (also covers artillery/AA/anti-tank). */
   airAssaultPassengerEligible?: true;
   airDefenseProvider?: AirDefenseProviderCapability;
+  /** #545: this unit is a strategic-launch platform once built (Missile Submarine). */
+  strategicLaunchPlatform?: StrategicLaunchCapability;
   terrainCostOverrides?: Partial<Record<string, number>>;
   cargoCapacity?: number;
   cargoSize?: number;
@@ -771,6 +779,17 @@ export interface Building {
   /** AI priority granted only when this city has a live detected hostile-spy threat. */
   defensiveEspionageAiValue?: number;
   airDefenseProvider?: AirDefenseProviderCapability;
+  /** #545: this building is a strategic-launch platform once built (Missile Silo). */
+  strategicLaunchPlatform?: StrategicLaunchCapability;
+  /** #545: completing this item does not persist into city.buildings — it fires
+   * completedBuilding for one turn (so turn-manager.ts's completion hook runs), then
+   * is immediately re-buildable. Generic primitive for any future repeatable,
+   * consumed-on-completion production item; only `warhead` uses it today. */
+  consumedOnCompletion?: true;
+  /** #545: getAvailableBuildings hides this item once the civ's strategicArsenal
+   * is at or above getStrategicArsenalCapacity, or Manhattan Project is unbuilt.
+   * Generic gate field; only `warhead` uses it today. */
+  arsenalCapacityGated?: true;
 }
 
 export interface OccupiedCityState {
