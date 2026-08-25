@@ -236,6 +236,13 @@ describe('#708 mounted and beast native sprites', () => {
 
   it('beast handler combines a hound gait with a visible command sigil', () => {
     const result = getUnitSpriteV2('beast_handler', 'imperials')!;
+    expect(result).toContain('data-kind-variant="handler"');
+    expect(result).toContain('data-facing="right"');
+    expect(result).toContain('cq-hound-body');
+    expect(result).toContain('cq-hound-tail');
+    expect(result).toContain('cq-hound-ears');
+    expect(result).toContain('cq-command-staff');
+    expect(result).toContain('cq-command-leash');
     expect(result).toContain('cq-command-sigil');
     expect(result).toContain('cq-leg-fl');
     expect(result).toContain('cq-leg-fr');
@@ -246,7 +253,12 @@ describe('#708 mounted and beast native sprites', () => {
   it('war elephant has its own animal plan and readable siege-beast details', () => {
     const result = getUnitSpriteV2('war_elephant', 'imperials')!;
     expect(result).toContain('data-kind-variant="elephant"');
+    expect(result).toContain('data-facing="right"');
+    expect(result).toContain('cq-elephant-body');
+    expect(result).toContain('cq-elephant-head');
+    expect(result).toContain('cq-elephant-ear');
     expect(result).toContain('cq-elephant-trunk');
+    expect(result).toContain('cq-elephant-tusks');
     expect(result).toContain('cq-howdah');
     expect(result).toContain('cq-rune-standard');
     expect(result).toContain('cq-leg-fl');
@@ -258,6 +270,13 @@ describe('#708 mounted and beast native sprites', () => {
   it('cuirassier has a mounted animal plan and moonsteel attack-feedback hooks', () => {
     const result = getUnitSpriteV2('cuirassier', 'imperials')!;
     expect(result).toContain('data-kind-variant="mount"');
+    expect(result).toContain('data-facing="right"');
+    expect(result).toContain('cq-horse-body');
+    expect(result).toContain('cq-horse-head');
+    expect(result).toContain('cq-horse-mane');
+    expect(result).toContain('cq-horse-tail');
+    expect(result).toContain('cq-saddle');
+    expect(result).toContain('cq-rider');
     expect(result).toContain('cq-moonsteel-inlay');
     expect(result).toContain('cq-weapon');
     expect(result).toContain('cq-hit-spark');
@@ -265,6 +284,13 @@ describe('#708 mounted and beast native sprites', () => {
     expect(result).toContain('cq-leg-fr');
     expect(result).toContain('cq-leg-bl');
     expect(result).toContain('cq-leg-br');
+  });
+
+  it('ships a distinct palette-derived native illustration for every supported faction', () => {
+    for (const type of Object.keys(ISSUE_708_NATIVE)) {
+      const illustrations = new Set(FACTIONS.map(faction => getUnitSpriteV2(type, faction)!));
+      expect(illustrations, `${type} must retain a distinct faction color treatment`).toHaveLength(FACTIONS.length);
+    }
   });
 });
 

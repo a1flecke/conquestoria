@@ -117,4 +117,40 @@ describe('#708 mounted animal animation contract', () => {
       expect(css, `missing animal ${hook} selector`).toContain(`.cq-v2[data-kind="animal"] .${hook}`);
     }
   });
+
+  it('gives every named #708 secondary-motion hook a real state-scoped animation', () => {
+    const hookSelectors = [
+      '.cq-v2[data-kind="hound"][data-kind-variant="handler"][data-state="idle"] .cq-hound-tail',
+      '.cq-v2[data-kind="hound"][data-kind-variant="handler"][data-state="attack"] .cq-command-staff',
+      '.cq-v2[data-kind="hound"][data-kind-variant="handler"][data-state="attack"] .cq-command-leash',
+      '.cq-v2[data-kind="hound"][data-kind-variant="handler"][data-state="attack"] .cq-command-sigil',
+      '.cq-v2[data-kind="animal"][data-kind-variant="elephant"][data-state="walk"] .cq-elephant-ear',
+      '.cq-v2[data-kind="animal"][data-kind-variant="elephant"][data-state="walk"] .cq-elephant-trunk',
+      '.cq-v2[data-kind="animal"][data-kind-variant="elephant"][data-state="walk"] .cq-howdah',
+      '.cq-v2[data-kind="animal"][data-kind-variant="elephant"][data-state="walk"] .cq-rune-standard',
+      '.cq-v2[data-kind="animal"][data-kind-variant="elephant"][data-state="attack"] .cq-elephant-tusks',
+      '.cq-v2[data-kind="animal"][data-kind-variant="mount"][data-state="walk"] .cq-horse-mane',
+      '.cq-v2[data-kind="animal"][data-kind-variant="mount"][data-state="walk"] .cq-horse-tail',
+      '.cq-v2[data-kind="animal"][data-kind-variant="mount"][data-state="walk"] .cq-rider',
+      '.cq-v2[data-kind="animal"][data-kind-variant="mount"][data-state="attack"] .cq-saddle',
+    ];
+    for (const selector of hookSelectors) {
+      expect(css, `missing animated selector ${selector}`).toContain(selector);
+      const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      expect(css, `${selector} must declare animation`).toMatch(new RegExp(`${escaped}\\s*\\{[^}]*animation:`));
+    }
+  });
+
+  it('uses four-beat overrides for elephant and mount travel instead of reusing a diagonal-pair walk', () => {
+    for (const selector of [
+      '.cq-v2[data-kind="hound"][data-kind-variant="handler"][data-state="walk"] .cq-leg-fl',
+      '.cq-v2[data-kind="hound"][data-kind-variant="handler"][data-state="walk"] .cq-leg-fr',
+      '.cq-v2[data-kind="animal"][data-kind-variant="elephant"][data-state="walk"] .cq-leg-fl',
+      '.cq-v2[data-kind="animal"][data-kind-variant="elephant"][data-state="walk"] .cq-leg-fr',
+      '.cq-v2[data-kind="animal"][data-kind-variant="mount"][data-state="walk"] .cq-leg-fl',
+      '.cq-v2[data-kind="animal"][data-kind-variant="mount"][data-state="walk"] .cq-leg-fr',
+    ]) {
+      expect(css, `missing four-beat override ${selector}`).toContain(selector);
+    }
+  });
 });
