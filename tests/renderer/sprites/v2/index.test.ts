@@ -268,6 +268,12 @@ describe('#708 mounted and beast native sprites', () => {
     expect(elephant).not.toContain('cq-rune-standard');
   });
 
+  it('anchors the handler staff at the visible hand rather than its ground tip', () => {
+    const handler = getUnitSpriteV2('beast_handler', 'imperials')!;
+
+    expect(handler).toContain('class="cq-command-staff" transform="translate(50 66)"');
+  });
+
   it('ships a distinct palette-derived native illustration for every supported faction', () => {
     for (const type of Object.keys(ISSUE_708_NATIVE)) {
       const illustrations = new Set(FACTIONS.map(faction => getUnitSpriteV2(type, faction)!));
