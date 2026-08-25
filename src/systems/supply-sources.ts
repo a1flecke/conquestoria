@@ -1,5 +1,5 @@
 import type { City, GameState, HexCoord } from '@/core/types';
-import { hexKey, mapDistance } from './hex-utils';
+import { hexKey, mapDistance, mapNeighbors } from './hex-utils';
 import { getFortificationTier } from './fortification-system';
 
 /**
@@ -13,6 +13,15 @@ export const LAND_SUPPLY_RADII = {
   fort: 1,
   citadel: 2,
   city: 3,
+} as const;
+
+/**
+ * Contract §9: "road/rail extension values" intentionally not locked --
+ * small relative to LAND_SUPPLY_RADII, easy to retune here.
+ */
+export const ROAD_SUPPLY_EXTENSION = {
+  road: 1, // owner has military-logistics
+  rail: 2, // owner has railway-expansion (tiered, not additive with road -- matches the movement-discount precedent's non-stacking rule)
 } as const;
 
 export const CAPTURED_SOURCE_STABILIZATION_TURNS = {
@@ -65,6 +74,38 @@ export function getCivSupplySourceCandidates(state: GameState, civId: string): C
   return { cities, fortCoords, fortRadius: LAND_SUPPLY_RADII[tier.id] };
 }
 
+/**
+ * Bounded, tech-gated coverage bonus for a coord on/adjacent to an owned
+ * road tile (contract §9: "extend a nearby valid source by a bounded
+ * amount... road/rail extension scales with technology, not source type").
+ * Mirrors getFortificationTier's "one flag, owner-tech-derived tier"
+ * convention: hasRoad is the single persisted flag (no separate rail tile,
+ * see road-network.ts's resolveTileHasRail for the identical precedent);
+ * which tier applies is derived purely from the checking civ's completed
+ * techs. Gates on military-logistics/railway-expansion -- the same two
+ * techs the movement-cost discount already uses, never both stacking
+ * (.claude/rules/game-balance.md's "Roads discount, they don't stack").
+ * Deliberately NOT a network trace: checks only coord and its immediate
+ * wrap-aware neighbors via mapNeighbors, so a long chain of connected road
+ * tiles cannot extend supply an unbounded distance (contract §9: "do not
+ * trace unlimited networks" -- see getCitiesConnectedToCapital in
+ * road-network.ts for what an actual road-network BFS looks like in this
+ * codebase; this function must never grow into that).
+ */
+export function getRoadSupplyExtension(state: GameState, civId: string, coord: HexCoord): number {
+  const completedTechs = state.civilizations[civId]?.techState.completed ?? [];
+  if (!completedTechs.includes('military-logistics')) return 0;
+
+  const isOwnedRoadTile = (candidate: HexCoord): boolean => {
+    const tile = state.map.tiles[hexKey(candidate)];
+    return tile?.hasRoad === true && tile.owner === civId;
+  };
+  const nearRoad = isOwnedRoadTile(coord) || mapNeighbors(state.map, coord).some(isOwnedRoadTile);
+  if (!nearRoad) return 0;
+
+  return completedTechs.includes('railway-expansion') ? ROAD_SUPPLY_EXTENSION.rail : ROAD_SUPPLY_EXTENSION.road;
+}
+
 export function getPrimarySupplySource(
   state: GameState,
   civId: string,
@@ -72,14 +113,15 @@ export function getPrimarySupplySource(
   candidates: CivSupplySourceCandidates = getCivSupplySourceCandidates(state, civId),
 ): SupplySourceRef | null {
   const ranked: Array<SupplySourceRef & { distance: number }> = [];
+  const roadExtension = getRoadSupplyExtension(state, civId, coord);
 
   for (const city of candidates.cities) {
     const distance = mapDistance(state.map, city.position, coord);
-    if (distance <= LAND_SUPPLY_RADII.city) ranked.push({ kind: 'city', id: city.id, coord: city.position, distance });
+    if (distance <= LAND_SUPPLY_RADII.city + roadExtension) ranked.push({ kind: 'city', id: city.id, coord: city.position, distance });
   }
   for (const fortCoord of candidates.fortCoords) {
     const distance = mapDistance(state.map, fortCoord, coord);
-    if (distance <= candidates.fortRadius) ranked.push({ kind: 'fort', id: hexKey(fortCoord), coord: fortCoord, distance });
+    if (distance <= candidates.fortRadius + roadExtension) ranked.push({ kind: 'fort', id: hexKey(fortCoord), coord: fortCoord, distance });
   }
 
   if (ranked.length === 0) return null;
@@ -95,11 +137,12 @@ export function getLandSupplySourceCoverage(
   coord: HexCoord,
   candidates: CivSupplySourceCandidates = getCivSupplySourceCandidates(state, civId),
 ): boolean {
+  const roadExtension = getRoadSupplyExtension(state, civId, coord);
   for (const city of candidates.cities) {
-    if (mapDistance(state.map, city.position, coord) <= LAND_SUPPLY_RADII.city) return true;
+    if (mapDistance(state.map, city.position, coord) <= LAND_SUPPLY_RADII.city + roadExtension) return true;
   }
   for (const fortCoord of candidates.fortCoords) {
-    if (mapDistance(state.map, fortCoord, coord) <= candidates.fortRadius) return true;
+    if (mapDistance(state.map, fortCoord, coord) <= candidates.fortRadius + roadExtension) return true;
   }
   return false;
 }
