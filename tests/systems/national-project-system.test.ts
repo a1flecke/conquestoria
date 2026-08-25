@@ -308,3 +308,25 @@ describe('expireNationalProjects', () => {
     expect(next.cities['city1'].buildings).toContain('sacred_council');
   });
 });
+
+describe('manhattan_project milestone permanence (#545)', () => {
+  it('is never expired by expireNationalProjects, even many eras after homeEra', () => {
+    // No `civilizations` entry for p1 -- matches the sacred_council test above's
+    // pattern exactly: with no civ, expireNationalProjects falls back to the
+    // explicit second argument for currentEra rather than resolving era from an
+    // empty techState.completed (which would derive era 1 and make this test
+    // pass for the wrong reason -- "not enough eras elapsed" rather than
+    // "milestone NPs are exempt from the delta>=3 expiry check").
+    const state = makeState({
+      era: 13, // homeEra (10) + 3 -- would expire a regular NP under the fade contract
+      builtNationalProjects: {
+        'p1:manhattan_project': { civId: 'p1', cityId: 'c1', eraBuilt: 10 },
+      },
+    });
+
+    const { state: nextState, expired } = expireNationalProjects(state, 13);
+
+    expect(expired).toHaveLength(0);
+    expect(nextState.builtNationalProjects?.['p1:manhattan_project']).toBeDefined();
+  });
+});
