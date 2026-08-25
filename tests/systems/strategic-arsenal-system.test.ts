@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { GameState } from '@/core/types';
-import { hasManhattanProject } from '@/systems/strategic-arsenal-system';
+import { hasManhattanProject, getStrategicArsenalCapacity } from '@/systems/strategic-arsenal-system';
 
 function makeState(overrides: Partial<GameState> = {}): GameState {
   return {
@@ -63,5 +63,83 @@ describe('hasManhattanProject', () => {
       },
     });
     expect(hasManhattanProject(state, 'p1')).toBe(false);
+  });
+});
+
+function makeCiv(overrides: Partial<import('@/core/types').Civilization> = {}) {
+  return {
+    id: 'p1', name: 'P1', color: '#fff', isHuman: true, civType: 'generic',
+    cities: [], units: [], gold: 0, visibility: {}, score: 0,
+    techState: { completed: [], currentResearch: null, researchQueue: [], researchProgress: 0, trackPriorities: {} as any },
+    diplomacy: { relationships: {}, treaties: [], events: [], atWarWith: [], treacheryScore: 0, vassalage: { overlord: null, vassals: [], protectionScore: 0, protectionTimers: [], peakCities: 0, peakMilitary: 0 } },
+    ...overrides,
+  } as import('@/core/types').Civilization;
+}
+
+function makeCity(id: string, buildings: string[]) {
+  return {
+    id, name: id, owner: 'p1', position: { q: 0, r: 0 }, population: 1,
+    food: 0, foodNeeded: 10, buildings, productionQueue: [], productionProgress: 0,
+    ownedTiles: [], workedTiles: [], focus: 'balanced', maturity: 'city',
+  } as any;
+}
+
+describe('getStrategicArsenalCapacity', () => {
+  it('is 0 without Manhattan Project, even with capacity-shaped buildings present', () => {
+    // Proves capacity-granting buildings are genuinely inert without the
+    // unlock -- not just "usually" gated -- per spec §2's conjunction.
+    const state = makeState({
+      civilizations: { p1: makeCiv({ cities: ['c1'] }) },
+      cities: { c1: makeCity('c1', ['nuclear_arsenal', 'missile_silo']) },
+    });
+    expect(getStrategicArsenalCapacity(state, 'p1')).toBe(0);
+  });
+
+  it('is 1 (base) with Manhattan Project and no other capacity buildings', () => {
+    const state = makeState({
+      civilizations: { p1: makeCiv({ cities: [] }) },
+      builtNationalProjects: { 'p1:manhattan_project': { civId: 'p1', cityId: 'c0', eraBuilt: 10 } },
+    });
+    expect(getStrategicArsenalCapacity(state, 'p1')).toBe(1);
+  });
+
+  it('adds +2 per nuclear_arsenal, summed across multiple cities', () => {
+    const state = makeState({
+      civilizations: { p1: makeCiv({ cities: ['c1', 'c2'] }) },
+      cities: {
+        c1: makeCity('c1', ['nuclear_arsenal']),
+        c2: makeCity('c2', ['nuclear_arsenal']),
+      },
+      builtNationalProjects: { 'p1:manhattan_project': { civId: 'p1', cityId: 'c1', eraBuilt: 10 } },
+    });
+    // base 1 + 2 + 2 = 5
+    expect(getStrategicArsenalCapacity(state, 'p1')).toBe(5);
+  });
+
+  it('adds +1 per missile_silo, summed across multiple cities', () => {
+    const state = makeState({
+      civilizations: { p1: makeCiv({ cities: ['c1', 'c2'] }) },
+      cities: {
+        c1: makeCity('c1', ['missile_silo']),
+        c2: makeCity('c2', ['missile_silo']),
+      },
+      builtNationalProjects: { 'p1:manhattan_project': { civId: 'p1', cityId: 'c1', eraBuilt: 10 } },
+    });
+    // base 1 + 1 + 1 = 3
+    expect(getStrategicArsenalCapacity(state, 'p1')).toBe(3);
+  });
+
+  it('combines base + nuclear_arsenal + missile_silo in one city', () => {
+    const state = makeState({
+      civilizations: { p1: makeCiv({ cities: ['c1'] }) },
+      cities: { c1: makeCity('c1', ['nuclear_arsenal', 'missile_silo']) },
+      builtNationalProjects: { 'p1:manhattan_project': { civId: 'p1', cityId: 'c1', eraBuilt: 10 } },
+    });
+    // base 1 + 2 + 1 = 4
+    expect(getStrategicArsenalCapacity(state, 'p1')).toBe(4);
+  });
+
+  it('is 0 for an unknown civ', () => {
+    expect(getStrategicArsenalCapacity(makeState(), 'nobody')).toBe(0);
   });
 });
