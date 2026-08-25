@@ -11,6 +11,7 @@ import { getParadropLaunchState, PARADROP_FAILURE_MESSAGES, getAirAssaultLaunchS
 import { getSubmarineRevealState } from '@/systems/concealment';
 import { getExperienceToNextTier, getVeterancyCombatModifier, getVeterancyTier } from '@/systems/combat-reward-system';
 import { isSpyUnitType } from '@/systems/espionage-system';
+import { getStrategicArsenal } from '@/systems/strategic-arsenal-system';
 import { evaluateUnitUpgrade, type UpgradeMissingRequirement } from '@/systems/unit-upgrade-system';
 import { TRAINABLE_UNITS } from '@/systems/city-system';
 import {
@@ -98,6 +99,8 @@ export interface SelectedUnitInfoCallbacks {
   onDeleteUnit?: (unitId: string) => void;
   onFortify?: (unitId: string) => void;
   onPillage?: (unitId: string) => void;
+  /** #545 MR4 §14 stage 1: opens the strategic-launch flow for this Missile Submarine. */
+  onPrepareStrategicLaunch?: (unitId: string) => void;
   onStartAutoExplore?: (unitId: string) => void;
   onCancelAutoExplore?: () => void;
   onCancelJourney?: () => void;
@@ -1044,6 +1047,23 @@ export function renderSelectedUnitInfo(
       actionsDiv.appendChild(makeButton('Unfortify', '#6b7a8a', () => callbacks.onFortify!(unitId)));
     } else if (!unit.hasMoved && !unit.hasActed && unit.movementPointsLeft > 0) {
       actionsDiv.appendChild(makeButton('Fortify', '#3b5268', () => callbacks.onFortify!(unitId)));
+    }
+  }
+
+  // #545 MR4 §14 stage 1: actionsDiv has no single shared ownership gate --
+  // each action re-checks `unit.owner === state.currentPlayer` itself (see
+  // the auto-explore block above), so this one must too.
+  if (unit.type === 'missile_submarine' && unit.owner === state.currentPlayer) {
+    const arsenal = getStrategicArsenal(state.civilizations[unit.owner]!);
+    const launchButton = createGameButton('Prepare Strategic Launch', 'danger', { disabled: arsenal < 1 });
+    launchButton.dataset.action = 'prepare-strategic-launch';
+    launchButton.addEventListener('click', () => callbacks.onPrepareStrategicLaunch?.(unit.id));
+    actionsDiv.appendChild(launchButton);
+    if (arsenal < 1) {
+      const reason = document.createElement('div');
+      reason.textContent = 'No warheads in arsenal.';
+      reason.style.cssText = 'font-size:11px;opacity:0.7;margin-top:4px;width:100%;';
+      actionsDiv.appendChild(reason);
     }
   }
 
