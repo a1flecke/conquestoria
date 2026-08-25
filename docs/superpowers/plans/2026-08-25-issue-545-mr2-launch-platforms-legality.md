@@ -1,6 +1,6 @@
 # #545 MR2 — Launch Platforms, Targeting Legality & Build Warhead Implementation Plan
 
-✅ executed 2026-08-25 (pre-merge; PR not yet opened). All 12 tasks complete, full
+✅ merged ([#897](https://github.com/a1flecke/conquestoria/pull/897)), 2026-08-25. All 12 tasks complete, full
 suite green (532 files / 8988 tests), `yarn build` clean. Execution surfaced and
 fixed several real gaps this plan's two review passes missed — see each task's
 commit message for specifics: broken test fixtures (wrong helper names, missing
