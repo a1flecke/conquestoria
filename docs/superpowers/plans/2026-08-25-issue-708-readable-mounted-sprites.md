@@ -433,7 +433,7 @@
 
   Tick only steps actually completed and add a short status note below this task naming the final commit and the three visual-review assets. Do not alter the approved spec to disguise a deviation; document any intentional deviation in the MR body.
 
-- [ ] **Step 2: Inspect both review deltas.**
+- [x] **Step 2: Inspect both review deltas.**
 
   Run each command separately:
 
@@ -446,7 +446,9 @@
 
   Expected: only #708 sprite source/generated output, CSS, focused tests, visual-review assets/docs, and this plan change. No game-system, AI, persistence, SFX, hot-seat, or balance code may appear.
 
-- [ ] **Step 3: Run complete verification.**
+- [x] **Step 3: Run complete verification.**
+
+Initial complete-verification evidence passed on `c8e4614f`: production build succeeded and `yarn test:durable:status` accepted the durable full-suite record. The same commands are rerun after this delivery-record commit so the evidence remains HEAD-bound for the push.
 
   Run separately:
 
