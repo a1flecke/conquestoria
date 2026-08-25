@@ -1,6 +1,10 @@
 import type { GameState, HexCoord, UnitType } from '@/core/types';
 import { BUILDINGS } from '@/systems/city-system';
 import { UNIT_DEFINITIONS } from '@/systems/unit-system';
+import { getStrategicArsenal } from '@/systems/strategic-arsenal-system';
+import { hasDiscoveredCity } from '@/systems/discovery-system';
+import { isAtWar } from '@/systems/diplomacy-system';
+import { mapDistance } from '@/systems/hex-utils';
 
 export type StrategicLaunchPlatform =
   | { kind: 'building'; cityId: string; buildingId: string; position: HexCoord; range: number | 'unlimited' }
@@ -34,4 +38,46 @@ export function getEligibleStrategicLaunchPlatforms(state: GameState, civId: str
   }
 
   return platforms;
+}
+
+export type StrategicLaunchLegalityFailure =
+  | 'unknown-target-city'
+  | 'no-arsenal'
+  | 'target-not-discovered'
+  | 'not-at-war'
+  | 'no-eligible-platform';
+
+export type StrategicLaunchLegalityResult =
+  | { ok: true; platform: StrategicLaunchPlatform }
+  | { ok: false; reason: StrategicLaunchLegalityFailure };
+
+/**
+ * #545 spec §6: a strike is legal iff the actor has strategicArsenal >= 1, has an
+ * eligible platform in range, the target city has already been discovered by the
+ * actor (closes the targeting-omniscience loophole), and the target civ is in the
+ * actor's atWarWith list (the primary hot-seat-accident guardrail -- an at-peace
+ * sibling literally cannot appear as a valid target). No strike effect is computed
+ * here -- this MR is legality/dry-run only; MR3 wires actual resolution.
+ */
+export function getStrategicLaunchLegality(
+  state: GameState,
+  actorCivId: string,
+  targetCityId: string,
+): StrategicLaunchLegalityResult {
+  const targetCity = state.cities[targetCityId];
+  if (!targetCity) return { ok: false, reason: 'unknown-target-city' };
+
+  const actorCiv = state.civilizations[actorCivId];
+  if (!actorCiv || getStrategicArsenal(actorCiv) < 1) return { ok: false, reason: 'no-arsenal' };
+
+  if (!hasDiscoveredCity(state, actorCivId, targetCityId)) return { ok: false, reason: 'target-not-discovered' };
+
+  if (!isAtWar(actorCiv.diplomacy, targetCity.owner)) return { ok: false, reason: 'not-at-war' };
+
+  const platform = getEligibleStrategicLaunchPlatforms(state, actorCivId).find(p =>
+    p.range === 'unlimited' || mapDistance(state.map, p.position, targetCity.position) <= p.range,
+  );
+  if (!platform) return { ok: false, reason: 'no-eligible-platform' };
+
+  return { ok: true, platform };
 }
