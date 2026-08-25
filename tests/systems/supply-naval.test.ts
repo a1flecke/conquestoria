@@ -53,4 +53,50 @@ describe('getNavalShoreSupplyAssignments', () => {
     const state = { units: { s1: ship, u1: embarked }, map: { width: 20, wrapsHorizontally: false } } as unknown as GameState;
     expect(getNavalShoreSupplyAssignments(state, 'rome').has('u1')).toBe(false);
   });
+
+  it('a unit whose landSupplyCost is 2 consumes 2 capacity, not 1 (#544 MR7 item 21)', () => {
+    const ship = makeUnit('s1', { type: 'transport', position: { q: 0, r: 0 } }); // capacity 2
+    const cavalry = makeUnit('u1', { type: 'cavalry', position: { q: 0, r: 1 } }); // landSupplyCost 2
+    const second = makeUnit('u2', { position: { q: 0, r: 1 } }); // cost 1, same distance
+    const state = { units: { s1: ship, u1: cavalry, u2: second }, map: { width: 20, wrapsHorizontally: false } } as unknown as GameState;
+    const result = getNavalShoreSupplyAssignments(state, 'rome');
+    expect(result.has('u1')).toBe(true);
+    // Cavalry alone consumed all 2 capacity -- if landSupplyCost were
+    // ignored (flat cost 1 assumed), the second unit would also fit and
+    // this assertion would wrongly pass either way. Cavalry's cost being
+    // correctly deducted is what makes u2 miss out.
+    expect(result.has('u2')).toBe(false);
+  });
+
+  it('a too-expensive unit is skipped (not stopped-on), and a cheaper unit at the same distance is still supplied (#544 MR7 item 22)', () => {
+    const ship = makeUnit('s1', { type: 'transport', position: { q: 0, r: 0 } }); // capacity 2
+    const expensive = makeUnit('u1', { type: 'catapult', position: { q: 0, r: 1 } }); // landSupplyCost 3 -- exceeds capacity 2 entirely
+    const cheap = makeUnit('u2', { position: { q: 0, r: 1 } }); // cost 1, same distance
+    const state = { units: { s1: ship, u1: expensive, u2: cheap }, map: { width: 20, wrapsHorizontally: false } } as unknown as GameState;
+    const result = getNavalShoreSupplyAssignments(state, 'rome');
+    expect(result.has('u1')).toBe(false); // costs 3, only 2 capacity -- skipped
+    expect(result.has('u2')).toBe(true); // cheaper unit still gets supplied despite the expensive one coming first in sort order (skip, don't stop)
+  });
+
+  it('recomputes assignments from scratch each call -- a ship that moves out of range stops supplying without any stored/carried state (#544 MR7 item 26)', () => {
+    const ship = makeUnit('s1', { type: 'transport', position: { q: 0, r: 0 } });
+    const unit = makeUnit('u1', { position: { q: 0, r: 1 } });
+    const inRangeState = { units: { s1: ship, u1: unit }, map: { width: 20, wrapsHorizontally: false } } as unknown as GameState;
+    expect(getNavalShoreSupplyAssignments(inRangeState, 'rome').has('u1')).toBe(true);
+
+    const movedShip = { ...ship, position: { q: 10, r: 10 } };
+    const outOfRangeState = { units: { s1: movedShip, u1: unit }, map: { width: 20, wrapsHorizontally: false } } as unknown as GameState;
+    expect(getNavalShoreSupplyAssignments(outOfRangeState, 'rome').has('u1')).toBe(false);
+  });
+
+  it('a ship that moves closer still supplies from its new position (#544 MR7 item 27)', () => {
+    const farShip = makeUnit('s1', { type: 'transport', position: { q: 10, r: 10 } });
+    const unit = makeUnit('u1', { position: { q: 0, r: 1 } });
+    const farState = { units: { s1: farShip, u1: unit }, map: { width: 20, wrapsHorizontally: false } } as unknown as GameState;
+    expect(getNavalShoreSupplyAssignments(farState, 'rome').has('u1')).toBe(false);
+
+    const nearShip = { ...farShip, position: { q: 0, r: 0 } };
+    const nearState = { units: { s1: nearShip, u1: unit }, map: { width: 20, wrapsHorizontally: false } } as unknown as GameState;
+    expect(getNavalShoreSupplyAssignments(nearState, 'rome').has('u1')).toBe(true);
+  });
 });
