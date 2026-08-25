@@ -1,6 +1,6 @@
 # #545 MR3 — Strategic Strike Resolution & Fallout Implementation Plan
 
-✅ executed 2026-08-25 (pre-merge; PR not yet opened). All 4 tasks complete, full
+✅ merged (#898). All 4 tasks complete, full
 suite green (534 files / 9025 tests), `yarn build` clean, zero pacing-audit diff.
 Two review passes ran before execution (per the MR2 hand-off's own guidance to
 repeat that process): the first caught two missing legality-passthrough test cases
