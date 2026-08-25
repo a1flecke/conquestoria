@@ -30,7 +30,7 @@ const STRATEGIC_STRIKE_RAW_DAMAGE = 9999;
 // catastrophe's 4/8/10 -- reflecting deliberate-act severity over natural-disaster
 // severity." Spec-locked exact values, distinct from crisis-flavor-definitions.ts's
 // own catastrophe table.
-const STRIKE_BLAST_RADIUS = 3;
+export const STRIKE_BLAST_RADIUS = 3;
 const STRIKE_DEVASTATION_TURNS_BY_CHALLENGE: Record<OpponentChallenge, number> = {
   explorer: 8,
   standard: 14,
@@ -131,6 +131,44 @@ export function resolveStrategicStrike(
     goldLost,
     devastatedTileKeys: fallout.affectedKeys,
   };
+}
+
+/**
+ * #545 MR4: read-only preview of exactly which tiles a strike against
+ * `targetCityId` would devastate, for the stage-2 launch-flow map overlay.
+ * Mirrors applyStrategicFallout's own tile selection exactly (same
+ * STRIKE_BLAST_RADIUS constant, same defending-civ ownership filter) so the
+ * preview can never drift from what a real strike actually does -- but never
+ * mutates state, since no strike has been committed yet.
+ */
+export function getStrategicStrikeBlastRadiusPreview(state: GameState, targetCityId: string): string[] {
+  const targetCity = state.cities[targetCityId];
+  if (!targetCity) return [];
+  return mapHexesInRange(state.map, targetCity.position, STRIKE_BLAST_RADIUS)
+    .map(hexKey)
+    .filter(key => state.map.tiles[key]?.owner === targetCity.owner);
+}
+
+/**
+ * #545 MR4 spec §14 stage 2: predicts the exact HP/gold outcome a real
+ * strike would produce, without executing one. hasGarrison alone decides
+ * both branches, mirroring resolveStrategicStrike's own gold-loss gate
+ * exactly (see that function's docblock) -- HP always floors to 1 when
+ * undefended; a garrisoned city's HP outcome is resolveCitySiegeDamage's own
+ * internal defense math, which this preview does not attempt to predict
+ * exactly (only the gold/garrison fact, which IS exactly reproducible).
+ */
+export function getStrategicStrikePreviewEffect(
+  state: GameState,
+  targetCityId: string,
+): { hasGarrison: boolean; goldLost: number } | null {
+  const targetCity = state.cities[targetCityId];
+  if (!targetCity) return null;
+  const targetCiv = state.civilizations[targetCity.owner];
+  if (!targetCiv) return null;
+  const hasGarrison = getCityGarrisonUnit(state.units, targetCity) !== undefined;
+  const goldLost = hasGarrison ? 0 : Math.round(targetCiv.gold * SACK_GOLD_LOSS_FRACTION);
+  return { hasGarrison, goldLost };
 }
 
 // #545 spec §8: mirrors crisis-system.ts's applyCatastropheShock in spirit (same

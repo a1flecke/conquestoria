@@ -1,6 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import type { City, Civilization, GameState, HexCoord, HexTile } from '@/core/types';
-import { resolveStrategicStrike } from '@/systems/strategic-strike-system';
+import {
+  resolveStrategicStrike,
+  getStrategicStrikeBlastRadiusPreview,
+  getStrategicStrikePreviewEffect,
+  STRIKE_BLAST_RADIUS,
+} from '@/systems/strategic-strike-system';
 import { hexKey, hexesInRange } from '@/systems/hex-utils';
 
 const ACTOR_CITY_POS: HexCoord = { q: -10, r: -10 };
@@ -269,5 +274,51 @@ describe('resolveStrategicStrike fallout (#545 MR3 §8)', () => {
     const state = makeStrikeState();
     resolveStrategicStrike(state, 'attacker', 'target');
     expect(state.map.tiles[hexKey(TARGET_POS)].devastatedUntilTurn).toBeUndefined();
+  });
+});
+
+describe('getStrategicStrikeBlastRadiusPreview (#545 MR4 stage-2 preview)', () => {
+  it('matches the exact tile set a real strike would devastate, without mutating state', () => {
+    const state = makeStrikeState();
+    const preview = getStrategicStrikeBlastRadiusPreview(state, 'target');
+    const real = resolveStrategicStrike(state, 'attacker', 'target');
+    if (!real.ok) throw new Error(`expected ok, got reason=${real.reason}`);
+    expect(new Set(preview)).toEqual(new Set(real.devastatedTileKeys));
+  });
+
+  it('does not mutate the input state', () => {
+    const state = makeStrikeState();
+    const before = JSON.stringify(state.map.tiles);
+    getStrategicStrikeBlastRadiusPreview(state, 'target');
+    expect(JSON.stringify(state.map.tiles)).toBe(before);
+  });
+
+  it('exports STRIKE_BLAST_RADIUS as 3', () => {
+    expect(STRIKE_BLAST_RADIUS).toBe(3);
+  });
+
+  it('is empty for an unknown city', () => {
+    expect(getStrategicStrikeBlastRadiusPreview(makeStrikeState(), 'nope')).toEqual([]);
+  });
+});
+
+describe('getStrategicStrikePreviewEffect (#545 MR4 stage-2 preview)', () => {
+  it('predicts the exact gold loss for an undefended target, matching a real strike', () => {
+    const state = makeStrikeState();
+    const preview = getStrategicStrikePreviewEffect(state, 'target');
+    const real = resolveStrategicStrike(state, 'attacker', 'target');
+    if (!real.ok) throw new Error(`expected ok, got reason=${real.reason}`);
+    expect(preview).toEqual({ hasGarrison: false, goldLost: real.goldLost });
+  });
+
+  it('predicts hasGarrison true and zero gold loss for a garrisoned target', () => {
+    const state = makeStrikeState({
+      units: { garrison: { id: 'garrison', type: 'warrior', owner: 'defender', position: TARGET_POS } as any },
+    });
+    expect(getStrategicStrikePreviewEffect(state, 'target')).toEqual({ hasGarrison: true, goldLost: 0 });
+  });
+
+  it('is null for an unknown city', () => {
+    expect(getStrategicStrikePreviewEffect(makeStrikeState(), 'nope')).toBeNull();
   });
 });

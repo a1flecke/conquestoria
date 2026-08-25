@@ -22,6 +22,7 @@ export {
   getActiveCrisisForCiv,
   getWitnessCivIds,
   applyInteractionReputation,
+  applyBilateralRelationshipDelta,
   applyOpportunisticWarPenaltyIfCrisisStruck,
 } from './crisis-interaction-definitions';
 
