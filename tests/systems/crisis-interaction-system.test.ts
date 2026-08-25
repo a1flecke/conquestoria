@@ -9,6 +9,7 @@ import {
   resolveInteractionTechRequired,
   getWitnessCivIds,
   applyInteractionReputation,
+  applyBilateralRelationshipDelta,
   applyOpportunisticWarPenaltyIfCrisisStruck,
   getActiveCrisisForCiv,
   canSendAid,
@@ -123,6 +124,21 @@ describe('applyInteractionReputation', () => {
     const next = applyInteractionReputation(state, 'civA', 'civB', def);
     expect(next.civilizations.civA.diplomacy.relationships.civB).toBe(100);
     expect(next.civilizations.civB.diplomacy.relationships.civA).toBe(100);
+  });
+});
+
+describe('applyBilateralRelationshipDelta (#545 MR4: exported for strike-reputation reuse)', () => {
+  it('is directly callable and applies a symmetric bilateral delta', () => {
+    const state = threeCivState();
+    const next = applyBilateralRelationshipDelta(state, 'civA', 'civB', -10);
+    expect(next.civilizations.civA.diplomacy.relationships.civB).toBe(-10);
+    expect(next.civilizations.civB.diplomacy.relationships.civA).toBe(-10);
+  });
+
+  it('is a no-op for an unknown civ id', () => {
+    const state = threeCivState();
+    const next = applyBilateralRelationshipDelta(state, 'civA', 'nobody', -10);
+    expect(next).toBe(state);
   });
 });
 

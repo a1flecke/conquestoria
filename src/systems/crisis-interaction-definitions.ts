@@ -84,7 +84,7 @@ export function getWitnessCivIds(state: GameState, actorId: string, targetId: st
     .sort();
 }
 
-function applyBilateralRelationshipDelta(
+export function applyBilateralRelationshipDelta(
   state: GameState,
   civAId: string,
   civBId: string,
