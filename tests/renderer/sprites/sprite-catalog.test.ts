@@ -18,6 +18,7 @@ import {
   DataCenterSprite, CyberDefenseCenterSprite, AutomatedPortSprite, SignalsHubSprite,
   BroadcastTowerSprite, PrecisionFarmSprite, TelemedicineHubSprite, SmartGridSprite,
   RocketProgramSprite,
+  RadarStationSprite,
 } from '@/renderer/sprites/buildings';
 
 // Derive the authoritative unit-type list from UNIT_DEFINITIONS so this test
@@ -341,6 +342,31 @@ describe('#709 industrial vehicle sprites are not aliases of their former donors
     const actual = UNIT_SPRITE_CATALOG[type]({ palette, svgOnly: true });
     expect(actual).not.toBe(donor({ palette, svgOnly: true }));
     expect(actual).toContain(marker);
+  });
+});
+
+describe('#710 air-defense and orphaned sprites are not aliases of their former donors', () => {
+  const palette = derivePalette('#4a90d9');
+
+  it.each([
+    ['paratrooper', 'infantry', 'cq-paratrooper-pack'],
+    ['naval_strike_aircraft', 'jet_fighter', 'cq-naval-strike-torpedo'],
+    ['maritime_patrol_aircraft', 'recon_aircraft', 'cq-patrol-radar'],
+    ['supercarrier', 'carrier', 'cq-supercarrier-island'],
+    ['great_general', 'warrior', 'cq-general-map'],
+  ] as const)('%s is bespoke and carries its role marker', (type, donor, marker) => {
+    const actual = UNIT_SPRITE_CATALOG[type]({ palette, svgOnly: true });
+    const former = UNIT_SPRITE_CATALOG[donor]({ palette, svgOnly: true });
+    expect(actual).not.toBe(former);
+    expect(actual).toContain(marker);
+  });
+
+  it('renders SAM Site as a protected launcher instead of the Radar Station tower', () => {
+    const samSite = BUILDING_SPRITE_CATALOG.sam_site({ palette, svgOnly: true });
+    const radarStation = RadarStationSprite({ palette, svgOnly: true });
+    expect(samSite).not.toBe(radarStation);
+    expect(samSite).toContain('cq-sam-launcher');
+    expect(samSite).not.toContain('cq-radar-tower');
   });
 });
 
