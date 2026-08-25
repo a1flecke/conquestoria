@@ -114,15 +114,23 @@ surface a scenario would exercise.
   uniqueness) and is reused as the base RNG seed for combat/AI/pirate/crisis
   systems throughout the codebase — so which candidate the search loop lands
   on, and whether some *other* `processTurn`-internal system also rolls true
-  for that specific gameId+turn, varies with real time. Fixed by making the
-  search predicate `processTurn` itself (see the in-file comment on the fix
-  for the full explanation) — the deeper `gameId`/`Date.now()` non-
-  determinism issue is confirmed real and wide-reaching (dozens of call
-  sites depend on it, including all combat resolution via
-  `deterministicCombatSeed`) but is a separate, carefully-scoped design
-  question (splitting save-slot identity from RNG-seed identity) explicitly
-  left out of this PR — see the PR body / final chat summary for the
-  standalone finding.
+  for that specific gameId+turn, varies with real time. First fix attempt
+  (making the search predicate `processTurn` itself, matching the real
+  assertion) reduced but did not eliminate the flake — the search can still
+  fail to find *any* matching candidate in 100 tries under different real-
+  time conditions, since the underlying wall-clock dependency was still
+  present. Real fix: `vi.useFakeTimers()` + `vi.setSystemTime(...)` for the
+  duration of the test, restored in a `finally`. Freezing `Date.now()` makes
+  `gameId` (and therefore the whole pipeline) a pure function of the seed
+  string alone, so the search outcome is 100% reproducible across runs —
+  eliminating the flake at its root, entirely inside the test file, zero
+  production risk. Verified: 3 isolated runs plus 2 full-suite runs, all
+  green. The deeper `gameId`/`Date.now()` non-determinism issue itself is
+  confirmed real and wide-reaching (dozens of call sites depend on it,
+  including all combat resolution via `deterministicCombatSeed`) but is a
+  separate, carefully-scoped design question (splitting save-slot identity
+  from RNG-seed identity) explicitly left out of this PR — flagged as a
+  standalone follow-up task instead.
 - Inline review before *and* after implementing (balance, fun, accessibility,
   play styles, difficulty fairness, AI usage, UI/UX, architecture,
   extensibility, data, SFX, save-migration impact, test coverage, solo vs.

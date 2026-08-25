@@ -35,48 +35,55 @@ function stateWithActiveCrisis(): { state: GameState; civId: string; cityId: str
 
 describe('turn-manager crisis wiring', () => {
   it('emits one target-scoped Rogue Host warning from the scheduler transition', () => {
-    // The search predicate must be the exact function under test (processTurn),
-    // not the narrower processRogueElephantHostScheduling in isolation.
-    // gameId embeds a real Date.now() component (createGameId in
-    // src/core/game-state.ts -- reused as the base RNG seed for combat/AI/
-    // pirate/crisis systems throughout the codebase, a separate pre-existing
-    // determinism issue outside this test's scope), so the wall-clock-
-    // dependent candidate this loop discovers can, via other processTurn-
-    // internal systems that also key off gameId+turn, occasionally trip
-    // hasActiveTargetedWorldPressure and suppress the warning -- a case the
-    // old predicate (processRogueElephantHostScheduling alone) could never
-    // see, since it doesn't run the systems that create that competing
-    // pressure. Probing with processTurn itself on a throwaway bus closes
-    // that gap: whatever candidate is kept is guaranteed to reproduce the
-    // warning when processTurn is called on it again below, because both
-    // calls run the identical deterministic pipeline against the identical
-    // (unmutated) candidate object.
-    let state: GameState | undefined;
-    for (let attempt = 0; attempt < 100 && !state; attempt += 1) {
-      const candidate = createNewGame('rome', `rogue-host-turn-event-${attempt}`, 'small');
-      const city = foundCity('player', findLandCoord(candidate), candidate.map, candidate.idCounters);
-      candidate.cities[city.id] = city;
-      candidate.civilizations.player.cities = [city.id];
-      candidate.civilizations.player.techState.completed = TECH_TREE.filter(tech => tech.era <= 4).map(tech => tech.id);
-      for (const tile of Object.values(candidate.map.tiles)) tile.terrain = 'plains';
-      const probeBus = new EventBus();
-      const probeEvents: GameEvents['rogue-elephant-host:lifecycle'][] = [];
-      probeBus.on('rogue-elephant-host:lifecycle', event => probeEvents.push(event));
-      processTurn(candidate, probeBus);
-      if (probeEvents.length === 1 && probeEvents[0].kind === 'warning' && probeEvents[0].targetCivId === 'player') {
-        state = candidate;
+    // Root cause of this test's long-standing full-suite flake (MR4, MR5,
+    // and once more before this fix): state.gameId embeds a real Date.now()
+    // component (createGameId in src/core/game-state.ts -- added for
+    // autosave-slot uniqueness) and is *also* reused as the base RNG seed
+    // for combat/AI/pirate/crisis systems throughout the codebase (a
+    // separate, wide-reaching determinism issue tracked outside this test,
+    // not fixed here). That makes which candidate this search loop finds --
+    // and whether some other processTurn-internal system independently
+    // trips hasActiveTargetedWorldPressure for that gameId+turn and
+    // suppresses the warning -- vary with real wall-clock time. Freezing
+    // Date.now() for the duration of this test makes gameId (and therefore
+    // the entire pipeline) a pure function of the seed string alone, so the
+    // search outcome becomes 100% reproducible across runs -- eliminating
+    // the flake at its root without touching any production code. (The
+    // search predicate is also processTurn itself, not the narrower
+    // processRogueElephantHostScheduling used before this fix, so search
+    // and the real assertion below run the identical pipeline.)
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-01-01T00:00:00.000Z'));
+    try {
+      let state: GameState | undefined;
+      for (let attempt = 0; attempt < 100 && !state; attempt += 1) {
+        const candidate = createNewGame('rome', `rogue-host-turn-event-${attempt}`, 'small');
+        const city = foundCity('player', findLandCoord(candidate), candidate.map, candidate.idCounters);
+        candidate.cities[city.id] = city;
+        candidate.civilizations.player.cities = [city.id];
+        candidate.civilizations.player.techState.completed = TECH_TREE.filter(tech => tech.era <= 4).map(tech => tech.id);
+        for (const tile of Object.values(candidate.map.tiles)) tile.terrain = 'plains';
+        const probeBus = new EventBus();
+        const probeEvents: GameEvents['rogue-elephant-host:lifecycle'][] = [];
+        probeBus.on('rogue-elephant-host:lifecycle', event => probeEvents.push(event));
+        processTurn(candidate, probeBus);
+        if (probeEvents.length === 1 && probeEvents[0].kind === 'warning' && probeEvents[0].targetCivId === 'player') {
+          state = candidate;
+        }
       }
+      expect(state).toBeDefined();
+      const bus = new EventBus();
+      const events: GameEvents['rogue-elephant-host:lifecycle'][] = [];
+      bus.on('rogue-elephant-host:lifecycle', event => events.push(event));
+
+      const afterWarning = processTurn(state!, bus);
+
+      expect(events).toEqual([{ kind: 'warning', targetCivId: 'player' }]);
+      processTurn(afterWarning, bus);
+      expect(events).toHaveLength(1);
+    } finally {
+      vi.useRealTimers();
     }
-    expect(state).toBeDefined();
-    const bus = new EventBus();
-    const events: GameEvents['rogue-elephant-host:lifecycle'][] = [];
-    bus.on('rogue-elephant-host:lifecycle', event => events.push(event));
-
-    const afterWarning = processTurn(state!, bus);
-
-    expect(events).toEqual([{ kind: 'warning', targetCivId: 'player' }]);
-    processTurn(afterWarning, bus);
-    expect(events).toHaveLength(1);
   });
 
   it('emits one target-scoped Stampede activation from the owner-turn transition', () => {
