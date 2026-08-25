@@ -1,4 +1,4 @@
-import type { GameState } from '@/core/types';
+import type { GameState, HexCoord, OpponentChallenge } from '@/core/types';
 import {
   getStrategicLaunchLegality,
   type StrategicLaunchLegalityFailure,
@@ -12,8 +12,9 @@ import {
   SACK_GOLD_LOSS_FRACTION,
   type CitySiegeResult,
 } from '@/systems/city-siege-system';
-import { resolveChallengeForCiv } from '@/core/opponent-challenge';
+import { resolveChallengeForCiv, resolvePressureSeverityForCiv } from '@/core/opponent-challenge';
 import { resolveCivilizationEra } from '@/systems/tech-definitions';
+import { hexKey, mapHexesInRange } from '@/systems/hex-utils';
 
 // #545 spec §7: "an overwhelming, deterministic rawDamage value (large enough to
 // floor almost any target)". Worst realistic stacked city defense against an 'air'
@@ -24,6 +25,17 @@ import { resolveCivilizationEra } from '@/systems/tech-definitions';
 // round(rawDamage * 0.85 / 1.375) - 13 >= 100. 9999 is a wide, legible safety
 // margin -- not a tuned combat value, deliberately far from any realistic HP total.
 const STRATEGIC_STRIKE_RAW_DAMAGE = 9999;
+
+// #545 spec §8: "one more than catastrophe's worst tier of 2" and "roughly 1.8x
+// catastrophe's 4/8/10 -- reflecting deliberate-act severity over natural-disaster
+// severity." Spec-locked exact values, distinct from crisis-flavor-definitions.ts's
+// own catastrophe table.
+const STRIKE_BLAST_RADIUS = 3;
+const STRIKE_DEVASTATION_TURNS_BY_CHALLENGE: Record<OpponentChallenge, number> = {
+  explorer: 8,
+  standard: 14,
+  veteran: 18,
+};
 
 export type StrategicStrikeFailure = StrategicLaunchLegalityFailure;
 
@@ -36,6 +48,11 @@ export type StrategicStrikeResult =
     /** Gold lost by the defending civ, applied by this resolver -- see this file's
      * header comment on resolveStrategicStrike for why this is not cityResult.goldLost. */
     goldLost: number;
+    /** Every tile key this strike marked devastatedUntilTurn (#545 spec §8). Empty
+     * when the defending civ owned no tile within blast radius (shouldn't happen in
+     * practice -- the target city's own tile is always owned by its civ -- but never
+     * silently omitted). */
+    devastatedTileKeys: string[];
   }
   | { ok: false; reason: StrategicStrikeFailure };
 
@@ -101,7 +118,44 @@ export function resolveStrategicStrike(
     };
   }
 
+  const fallout = applyStrategicFallout(nextState, targetCity.position, targetCiv.id);
+  nextState = fallout.state;
+
   nextState = spendStrategicArsenal(nextState, actorCivId);
 
-  return { ok: true, state: nextState, platform: legality.platform, cityResult, goldLost };
+  return {
+    ok: true,
+    state: nextState,
+    platform: legality.platform,
+    cityResult,
+    goldLost,
+    devastatedTileKeys: fallout.affectedKeys,
+  };
+}
+
+// #545 spec §8: mirrors crisis-system.ts's applyCatastropheShock in spirit (same
+// devastatedUntilTurn primitive, same ownership guard, same
+// resolvePressureSeverityForCiv-driven turn count) but is simpler -- a strike's
+// blast center is the struck city's own fixed position, not a randomly chosen
+// epicenter within a candidate list, so every owned tile in radius is devastated
+// deterministically and no RNG is needed anywhere in this module.
+function applyStrategicFallout(
+  state: GameState,
+  epicenter: HexCoord,
+  defendingCivId: string,
+): { state: GameState; affectedKeys: string[] } {
+  const affectedKeys = mapHexesInRange(state.map, epicenter, STRIKE_BLAST_RADIUS)
+    .map(hexKey)
+    .filter(key => state.map.tiles[key]?.owner === defendingCivId);
+  if (affectedKeys.length === 0) return { state, affectedKeys };
+
+  const devastationTurns = STRIKE_DEVASTATION_TURNS_BY_CHALLENGE[resolvePressureSeverityForCiv(state, defendingCivId)];
+  const devastatedUntilTurn = state.turn + devastationTurns;
+
+  const tiles = { ...state.map.tiles };
+  for (const key of affectedKeys) {
+    tiles[key] = { ...tiles[key]!, devastatedUntilTurn };
+  }
+
+  return { state: { ...state, map: { ...state.map, tiles } }, affectedKeys };
 }
