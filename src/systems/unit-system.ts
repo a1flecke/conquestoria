@@ -598,6 +598,11 @@ const UNIT_DEFINITION_BASES: Record<UnitType, UnitDefinitionBase> = {
     canFoundCity: false, canBuildImprovements: false, productionCost: 250,
     domain: 'naval', waterAccess: 'ocean',
     attackProfile: { kind: 'ranged', range: 3, targets: ['unit', 'city'] },
+    // #545: strategic-launch range (4) is deliberately one hex more than the
+    // conventional attack range (3) but far short of Missile Silo's unlimited
+    // reach -- survivability via concealment (#542's existing SUBMARINE_TYPES
+    // machinery, unchanged), not range, is this platform's second-strike value.
+    strategicLaunchPlatform: { range: 4 },
   },
   combat_drone: { type: 'combat_drone', name: 'Combat Drone', movementPoints: 6, visionRange: 3, strength: 42, canFoundCity: false, canBuildImprovements: false, productionCost: 224, domain: 'air', attackProfile: { kind: 'ranged', range: 2, targets: ['unit', 'city'] }, airOperation: { baseKinds: ['airfield', 'helicopter_base', 'stealth_airbase', 'carrier'], operationalRange: 5, ferryRange: 8, missions: ['strike', 'rebase'], carrierEligible: true } },
   autonomous_frigate: { type: 'autonomous_frigate', name: 'Autonomous Frigate', movementPoints: 5, visionRange: 3, strength: 60, canFoundCity: false, canBuildImprovements: false, productionCost: 336, domain: 'naval', waterAccess: 'ocean', attackProfile: { kind: 'ranged', range: 3, targets: ['unit', 'city'] }, detection: { concealedNavalRange: 3 } },
@@ -964,7 +969,7 @@ export const UNIT_DESCRIPTIONS: Record<UnitType, string> = {
   maritime_patrol_aircraft: 'Searches the sea for ships and hidden submarines. Its Patrol mission reveals a wide area for the rest of the turn, but costs the aircraft\'s own turn to fly — it finds enemies, it doesn\'t fight them.',
   supercarrier: 'A larger Carrier with room for a bigger air wing — enough deck space to run Fighters, Naval Strike Aircraft, and a Maritime Patrol Aircraft all at once.',
   attack_helicopter: 'Cold War attack helicopter. Combines close air support with anti-armour missiles; faster than jet fighters but more vulnerable to ground fire. Ranged air unit. Can also fly one Air Assault mission per turn from its Helicopter Base to reposition an eligible infantry unit — but cannot also attack that turn.',
-  missile_submarine: 'Nuclear-powered ballistic missile submarine. Concealed the same way as a submarine — hidden until a naval/air unit gets close, a well-equipped coastal city spots it, or it fires. Long-range submarine-launched missiles threaten any city from the deep. Requires a coastal city to build. Longest range of any unit.',
+  missile_submarine: 'Nuclear-powered ballistic missile submarine. Concealed the same way as a submarine — hidden until a naval/air unit gets close, a well-equipped coastal city spots it, or it fires. Once your empire has a warhead, this submarine can launch it at any discovered city you\'re at war with, within 4 hexes of its current position. Requires a coastal city to build.',
   combat_drone: 'Autonomous air-support unit. Its strongest results come from a valid network formation; fast but not a standalone replacement for a mixed force.',
   autonomous_frigate: 'Autonomous submarine hunter. Reveals hidden submarines up to 3 hexes away — the longest detection range of any ship. Long-range autonomous surface warship. Requires a coastal robotics yard and remains vulnerable to efficient mixed naval counters.',
   exosuit_infantry: 'Advanced line infantry with powered protection. Stronger than Mechanized Infantry and built for holding contested ground.',
