@@ -189,6 +189,22 @@ describe('createNewGame', () => {
     expect(state.gameId).toMatch(/^game-/);
   });
 
+  it('gameId is a pure function of the seed (reproducible across independent calls); playthroughId is not', () => {
+    const a = createNewGame('egypt', 'reproducible-seed', 'small');
+    const b = createNewGame('egypt', 'reproducible-seed', 'small');
+
+    expect(a.gameId).toBe(b.gameId);
+    expect(a.playthroughId).toMatch(/^playthrough-/);
+    expect(a.playthroughId).not.toBe(b.playthroughId);
+  });
+
+  it('a different seed produces a different gameId', () => {
+    const a = createNewGame('egypt', 'seed-one', 'small');
+    const b = createNewGame('egypt', 'seed-two', 'small');
+
+    expect(a.gameId).not.toBe(b.gameId);
+  });
+
   it('passes the chosen title into object-based createNewGame config', () => {
     const state = createNewGame({
       civType: 'rome',
@@ -389,6 +405,14 @@ describe('createHotSeatGame', () => {
     const state = createHotSeatGame(config, 'hs-title', 'Friends Campaign');
     expect(state.gameTitle).toBe('Friends Campaign');
     expect(state.gameId).toMatch(/^game-/);
+  });
+
+  it('gameId is a pure function of the seed for hot-seat games too; playthroughId is not', () => {
+    const a = createHotSeatGame(config, 'hs-reproducible-seed');
+    const b = createHotSeatGame(config, 'hs-reproducible-seed');
+
+    expect(a.gameId).toBe(b.gameId);
+    expect(a.playthroughId).not.toBe(b.playthroughId);
   });
 
   it('stores hot-seat challenge only at campaign level', () => {

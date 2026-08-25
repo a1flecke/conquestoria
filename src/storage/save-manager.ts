@@ -985,7 +985,10 @@ function buildSaveMeta(slotId: string, name: string, state: GameState, kind: 'ma
     gameMode: resolved.hotSeat ? 'hotseat' : 'solo',
     playerCount: resolved.hotSeat?.playerCount,
     playerNames: resolved.hotSeat?.players.filter(p => p.isHuman).map(p => p.name),
-    gameId: resolved.gameId,
+    // playthroughId, not gameId -- SaveSlotMeta.gameId is a save-identity/
+    // grouping key (see groupSaveEpics below), not a determinism seed.
+    // Falls back to gameId for saves predating the playthroughId field.
+    gameId: resolved.playthroughId ?? resolved.gameId,
     gameTitle: resolved.gameTitle,
   };
 }
@@ -1164,12 +1167,16 @@ async function retireLegacyAutosaveIfRealAutosavesExist(): Promise<boolean> {
 
 export async function autoSave(state: GameState): Promise<void> {
   const resolved = normalizeLoadedState(state);
-  const entryId = `${AUTO_SAVE_PREFIX}${resolved.gameId}:${resolved.turn}`;
+  // playthroughId (not gameId) disambiguates separate playthroughs sharing
+  // the same seed -- gameId alone would collide two same-seeded games'
+  // autosave slots into one.
+  const playthroughId = resolved.playthroughId ?? resolved.gameId!;
+  const entryId = `${AUTO_SAVE_PREFIX}${playthroughId}:${resolved.turn}`;
   const meta = buildSaveMeta(entryId, `Autosave Turn ${resolved.turn}`, resolved, 'autosave');
 
   await dbPut(getSaveStorageKey(entryId, 'autosave'), resolved);
   await dbPut(getMetaStorageKey(entryId), meta);
-  await pruneAutosavesForGame(resolved.gameId!);
+  await pruneAutosavesForGame(playthroughId);
   await retireLegacyAutosaveIfRealAutosavesExist();
   await syncLocalStorageBackup(resolved);
 }

@@ -35,14 +35,21 @@ const CONFIG: SoloSetupConfig = {
 const ROUNDS = 20;
 
 /**
- * gameId must be pinned, not left as createNewGame produced it.
+ * gameId is pinned here purely for test-run legibility (a fixed, readable
+ * id rather than a hash), not because it needs to be -- createGameId is now
+ * a pure function of the seed string (game-state.ts), with no Date.now()
+ * component, so two independent createNewGame(CONFIG) calls with this same
+ * explicit seed already produce an identical gameId on their own. See the
+ * "same explicit seed reproduces gameId across independent calls" test below
+ * for the direct regression proving that; this pin is now redundant-but-
+ * harmless defense in depth, not a required workaround.
  *
- * createGameId embeds Date.now() (game-state.ts:123), and pirate ecology seeds
- * its RNG from `${state.gameId}:${state.turn}` (pirate-ecology.ts:380). So two
- * games created at different wall-clock times diverge in unit count by design.
- * That is correct behaviour for real campaigns and fatal for a fixed baseline --
- * without this pin the second test below fails intermittently and looks exactly
- * like the gameplay regression it exists to detect.
+ * (Historical note: before that fix, createGameId embedded Date.now(), and
+ * pirate ecology seeds its RNG from `${state.gameId}:${state.turn}`
+ * (pirate-ecology.ts:380), so two games created at different wall-clock
+ * times diverged in unit count -- fatal for a fixed baseline without this
+ * pin. That was a real, separate determinism bug, fixed at its root rather
+ * than left for this pin to keep papering over.)
  */
 function pinnedStart(): GameState {
   return { ...createNewGame(CONFIG), gameId: 'determinism-guard-fixed-id' };
@@ -80,5 +87,29 @@ describe('determinism guard', () => {
     const b = advance(structuredClone(start), ROUNDS);
 
     expect(JSON.stringify(a)).toBe(JSON.stringify(b));
+  }, TWO_RUN_TIMEOUT_MS);
+
+  it(`two independent createNewGame calls with the same explicit seed reproduce gameId and, after ${ROUNDS} rounds, an identical trajectory`, () => {
+    // Unlike the test above (one createNewGame call, cloned twice), this
+    // calls createNewGame independently for each run -- the actual shape of
+    // the bug this guards against: createGameId used to embed a real
+    // Date.now() component, so two independent calls with the identical
+    // explicit seed produced different gameIds and therefore diverged in
+    // every gameId-seeded combat/AI/pirate/crisis roll, even though the
+    // seed itself was identical. playthroughId is excluded from the
+    // comparison -- it's deliberately unique per instance (see GameState
+    // field docs in core/types.ts), not a determinism regression if it
+    // differs.
+    const startA = createNewGame(CONFIG);
+    const startB = createNewGame(CONFIG);
+    expect(startA.gameId).toBe(startB.gameId);
+    expect(startA.playthroughId).not.toBe(startB.playthroughId);
+
+    const a = advance(startA, ROUNDS);
+    const b = advance(startB, ROUNDS);
+    const { playthroughId: _a, ...aWithoutPlaythroughId } = a;
+    const { playthroughId: _b, ...bWithoutPlaythroughId } = b;
+
+    expect(JSON.stringify(aWithoutPlaythroughId)).toBe(JSON.stringify(bWithoutPlaythroughId));
   }, TWO_RUN_TIMEOUT_MS);
 });

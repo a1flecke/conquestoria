@@ -168,7 +168,10 @@ describe('scanBeastSightings', () => {
 describe('scanSubmarineSightings', () => {
   function stateWithSubmarine(gameId: string): GameState {
     const state = createNewGame(undefined, `cross-cutting-submarine-${gameId}`, 'small');
-    state.gameId = gameId;
+    // scanSubmarineSightings keys its cross-test-persistent cache off
+    // playthroughId (not gameId, which is now a pure seed hash) -- see the
+    // GameState field docs in core/types.ts.
+    state.playthroughId = gameId;
     state.currentPlayer = 'player';
     const aiCivId = Object.keys(state.civilizations).find(id => id !== 'player')!;
     const sub = { ...createUnit('submarine', aiCivId, { q: 0, r: 0 }, state.idCounters), id: 'sub-1' };
