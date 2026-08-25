@@ -771,6 +771,18 @@ export function createCityPanel(
   }
 
   function getLockedItemReason(item: typeof lockedItems[number]): string {
+    if (item.id === 'warhead') {
+      if (!hasManhattanProject(state, city.owner)) {
+        return 'Requires Manhattan Project to be completed anywhere in your empire.';
+      }
+      const capacity = getStrategicArsenalCapacity(state, city.owner);
+      const current = getStrategicArsenal(currentCiv);
+      if (current >= capacity) {
+        return `Arsenal at capacity (${current}/${capacity}) — build Nuclear Arsenal or Missile Silo to expand.`;
+      }
+      // Manhattan Project built and under capacity -- if still locked, it's for an
+      // ordinary reason (e.g. missing uranium), handled generically below.
+    }
     const requirements: string[] = [];
     if (item.requiredTechs.length > 0) {
       requirements.push(prerequisiteChecklist(item.requiredTechs));

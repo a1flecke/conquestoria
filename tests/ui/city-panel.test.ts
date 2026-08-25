@@ -2284,6 +2284,49 @@ describe('locked section — MR4 Find Resources button', () => {
     expect(reasonEl?.textContent?.toLowerCase()).not.toContain('buy access');
   });
 
+  it('#545: locked warhead shows "Requires Manhattan Project..." when unbuilt', () => {
+    const { container, city, state } = makeLockedMR4Fixture({
+      completedTechs: ['nuclear-weapons'],
+    });
+    const panel = createCityPanel(container, city, state, {
+      onBuild: () => {}, onOpenWonderPanel: () => {}, onClose: () => {},
+    });
+    const reasonEl = panel.querySelector('[data-locked-reason="warhead"]');
+    expect(reasonEl?.textContent).toContain('Requires Manhattan Project');
+  });
+
+  it('#545: locked warhead shows "Arsenal at capacity (N/N)..." when Manhattan Project is built and arsenal is full', () => {
+    const { container, city, state, civId } = makeLockedMR4Fixture({
+      completedTechs: ['nuclear-weapons'],
+    });
+    state.builtNationalProjects = {
+      [`${civId}:manhattan_project`]: { civId, cityId: city.id, eraBuilt: 10 },
+    };
+    state.civilizations[civId].strategicArsenal = 1; // base capacity with only Manhattan Project built is 1 -- exactly at cap
+    const panel = createCityPanel(container, city, state, {
+      onBuild: () => {}, onOpenWonderPanel: () => {}, onClose: () => {},
+    });
+    const reasonEl = panel.querySelector('[data-locked-reason="warhead"]');
+    expect(reasonEl?.textContent).toContain('Arsenal at capacity (1/1)');
+  });
+
+  it('#545: locked warhead falls through to the generic missing-resource reason when Manhattan Project is built and under capacity', () => {
+    const { container, city, state, civId } = makeLockedMR4Fixture({
+      completedTechs: ['nuclear-weapons'],
+    });
+    state.builtNationalProjects = {
+      [`${civId}:manhattan_project`]: { civId, cityId: city.id, eraBuilt: 10 },
+    };
+    // strategicArsenal left undefined (0) -- well under the base capacity of 1, so
+    // the only real reason warhead could still be locked here is missing uranium.
+    const panel = createCityPanel(container, city, state, {
+      onBuild: () => {}, onOpenWonderPanel: () => {}, onClose: () => {},
+    });
+    const reasonEl = panel.querySelector('[data-locked-reason="warhead"]');
+    expect(reasonEl?.textContent).not.toContain('Arsenal at capacity');
+    expect(reasonEl?.textContent).not.toContain('Requires Manhattan Project');
+  });
+
   it('fog-visibility tile IS highlighted (not only "visible")', () => {
     const tileCoord: HexCoord = { q: 10, r: 10 };
     const { container, city, state } = makeLockedMR4Fixture({
