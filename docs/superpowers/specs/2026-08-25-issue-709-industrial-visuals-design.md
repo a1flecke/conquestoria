@@ -30,7 +30,10 @@ Use the repository's flat geometric, ink-outlined, right-facing 2.5D SVG languag
 anchors make each battlefield role immediately understandable; faction identity comes only
 from the supplied palette surfaces, never hardcoded civilisation colours. Metal, earth, skin,
 and cloth use existing material tokens so a faction accent never turns an entire vehicle into a
-solid team-colour block.
+solid team-colour block. The tone is warm and adventurous rather than grim: a jaunty scout
+pennant and periscope, a protective carrier panel with a confident infantry pose, and an MBT
+with a broad heroic stance add character without gore, toy-like distortion, floating magic, or
+clutter at 40px.
 
 | Unit | Role-visible silhouette | Mandatory readable details | Must not read as |
 | --- | --- | --- | --- |
@@ -43,6 +46,25 @@ Armored Car remains fast recon/pursuit, Mechanized Infantry remains a mobile lin
 MBT remains the heavy combined-arms breakthrough unit. The existing production icons and text
 remain authoritative for exact tactical rules.
 
+## Body plans, hooks, and parity
+
+All three native assets use the existing `data-kind="melee"` body plan, with an explicit
+`data-kind-variant` so their vehicle-specific CSS overrides the generic sword-swing behavior.
+The generic body plan keeps standard state propagation and reduced-motion coverage; variants
+provide physically credible recoil rather than treating a cannon as a hand weapon.
+
+| Unit | Variant | Required hooks | Motion ownership |
+| --- | --- | --- | --- |
+| Armored Car | `armored-car` | `cq-armored-car-body`, four `cq-wheel` groups, `cq-armored-car-turret`, `cq-armored-car-cannon`, `cq-weapon` | The body settles, wheels rotate, and turret/cannon recoil about the turret pivot. |
+| Mechanized Infantry | `mechanized-infantry` | `cq-mech-soldier`, `cq-arm-l`, `cq-arm-r`, `cq-leg-l`, `cq-leg-r`, `cq-mech-carrier`, at least two `cq-wheel` groups, `cq-weapon` | The soldier walks under their own power; hands retain the rifle while the carrier responds subtly behind them. |
+| Main Battle Tank | `main-battle-tank` | `cq-mbt-body`, `cq-mbt-tracks`, `cq-mbt-turret`, `cq-mbt-cannon`, `cq-weapon` | The heavy hull/track response stays restrained; turret/cannon recoil pivots at the turret and never detaches. |
+
+The dedicated `units.tsx` fallback sprite for each unit must expose the same role-defining
+silhouette and semantic hooks as its native counterpart. This is not duplicate artwork review
+for its own sake: minor-civ and unexpected-faction rendering must still communicate wheels,
+carrier-plus-soldier, or heavy tracks/turret. Tests compare required hook presence and the
+specified non-donor markers on both paths.
+
 ## Staged visual gate
 
 The predecessor #708 required several late correction rounds because animation integration
@@ -53,10 +75,15 @@ hard visual gate:
    semantic hooks.
 2. Author the three native-v2 sprites in the generator source and serialize them, but do not
    register them in the live native lookup yet.
-3. Generate deterministic 40px, 64px, and 128px static sheets from the committed serialized
-   Imperials output. Review all three together for silhouette, material separation, banner
-   placement, contact points, and layer order.
-4. Only after that review passes, register the generated modules in the native lookup, add
+3. Generate deterministic 40px, 64px, and 128px identity sheets from the committed serialized
+   Imperials output, plus paused `walk` and `attack` contact sheets sampled at 0%, 25%, 50%, and
+   75% of each animation cycle. The capture surface uses the same serialized payload and CSS as
+   the preview, pauses animation at the chosen negative-delay phase, and records layer order and
+   attachment rather than inferring them from source text.
+4. Conduct one explicit human review of all identity and contact sheets. It passes only when the
+   silhouette, material separation, faction surface, banner placement, pivots, attachment, and
+   layer order meet this specification for every target; a defect returns to source authoring.
+5. Only after that review passes, register the generated modules in the native lookup, add
    state-specific CSS motion, and publish a file-safe interactive preview.
 
 This gate is intentionally a visual review checkpoint rather than a new runtime feature. It
@@ -86,11 +113,13 @@ hooks compatible with the CSS state machine.
 Static anatomy is sufficient to identify every unit; motion only reinforces role:
 
 - Armored Car: gentle suspension/body movement and wheel motion; turret/cannon recoil originates
-  at the turret during attack.
+  at the turret during attack, with a visible periscope/pennant that remains attached.
 - Mechanized Infantry: an alternating human stride, small carrier response, and rifle recoil from
-  the hands/weapon rather than a disconnected effect.
+  the hands/weapon rather than a disconnected effect. At 40px, the soldier and carrier remain
+  two clean readable masses rather than a detailed crowd.
 - Main Battle Tank: track/body response, turret movement, and cannon recoil from the turret;
-  the long cannon stays visibly attached through attack and hurt states.
+  the long cannon stays visibly attached through attack and hurt states. Its broad stance and
+  restrained heraldic panel make it feel like a heroic formation anchor, not anonymous hardware.
 
 Every movable part uses a unit-specific class hook. The existing reduced-motion selector makes
 the full silhouette static while retaining faction palette, selection, health, fog, damage, and
@@ -98,11 +127,12 @@ state visibility. No visual state may rely solely on colour or animation.
 
 ## Review evidence
 
-The delivery includes an issue-specific review Markdown file, generated state-sheet PNGs, a
-capture script, and a file-safe HTML preview. The preview uses only committed serialized payloads
-and local CSS; it has no module import, network dependency, or generated sidecar requirement.
-It exposes all six factions, `idle`, `walk`, `attack`, `hurt`, and `death`, plus reduced motion.
-The review records both static-sheet evidence and the distinct interactive timing check.
+The delivery includes an issue-specific review Markdown file, identity and phase-sampled contact
+sheet PNGs, a capture script, and a file-safe HTML preview. The preview uses only committed
+serialized payloads and local CSS; it has no module import, network dependency, or generated
+sidecar requirement. It exposes all six factions, `idle`, `walk`, `attack`, `hurt`, and `death`,
+plus reduced motion. The review records both paused phase evidence and the distinct interactive
+timing check.
 
 The visual review must affirm at 40px, 64px, and 128px:
 
@@ -112,7 +142,7 @@ The visual review must affirm at 40px, 64px, and 128px:
    generic infantry silhouette.
 4. MBT reads as heavier and more modern than Tank through hull, tracks, turret, and cannon.
 5. Weapons, wheels/tracks, soldier limbs, turret, and faction banners stay visibly attached and
-   preserve sensible layer order across state changes.
+   preserve sensible layer order at every captured walk/attack phase.
 6. Palette variation affects only intended faction surfaces and does not harm material readability.
 7. Reduced motion preserves a complete static, selected/disabled/fog-compatible presentation.
 
@@ -124,12 +154,14 @@ Tests are written before the production behavior they specify. Focused coverage 
 - All six factions resolve to native-v2 output carrying the expected `data-kind` and semantic
   hooks; catalog fallback still renders each target for non-native faction keys.
 - The catalog functions render non-empty SVG for multiple palettes and retain a `Banner`.
-- CSS has each target's required motion hooks for walk and attack, and reduced motion disables the
-  new motion without deleting static anatomy.
+- CSS has each target's required motion hooks and variant-specific recoil rules for walk and
+  attack; generic melee weapon motion never overrides a cannon or rifle pivot. Reduced motion
+  disables the new motion without deleting static anatomy.
 - The serializer source list, generated modules, native imports/lookup, and review-preview payload
   stay synchronized.
 - The review preview works as Vite content and as direct `file://` content, exposes every review
-  state and faction, and references its committed state sheets.
+  state and faction, references committed identity and phase-sampled contact sheets, and supports
+  a paused phase inspection path.
 - Existing sprite-overlay and render-loop tests retain selection, health, fog, camera scale, and
   disabled-state behavior for all three native units.
 
