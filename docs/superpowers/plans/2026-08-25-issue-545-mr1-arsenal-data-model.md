@@ -1,5 +1,7 @@
 # #545 MR1 — Strategic Arsenal Data Model & Capacity Resolver Implementation Plan
 
+✅ merged ([#895](https://github.com/a1flecke/conquestoria/pull/895)), 2026-08-25
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to
 > implement this plan task-by-task. **Do not use subagent-driven-development or
 > any other subagent-dispatching approach for this repo** — this project's
@@ -86,7 +88,7 @@ setting is toggled.
 - Produces: `Civilization.strategicArsenal?: number` — read by Task 6's
   `getStrategicArsenal`.
 
-- [ ] **Step 1: Add the field**
+- [x] **Step 1: Add the field**
 
 Open `src/core/types.ts` and find the `Civilization` interface (currently
 ends with `generalHistory?: GeneralHistoryEntry[];` right before its closing
@@ -107,14 +109,14 @@ brace, around line 1321). Add the new field immediately after it:
 }
 ```
 
-- [ ] **Step 2: Typecheck**
+- [x] **Step 2: Typecheck**
 
 Run: `bash scripts/run-with-mise.sh yarn build`
 Expected: succeeds (an unused optional field cannot break any existing call
 site — nothing constructs a `Civilization` with exhaustive required fields
 via a type error for a new optional property).
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add src/core/types.ts
@@ -137,7 +139,7 @@ git commit -m "feat(#545): add Civilization.strategicArsenal field"
   skips any building with `nationalProject?.milestone` — see
   `src/systems/national-project-system.ts:170`).
 
-- [ ] **Step 1: Write the failing tests first**
+- [x] **Step 1: Write the failing tests first**
 
 Open `tests/systems/national-project-balance.test.ts` and find the existing
 test at (approximately) line 102:
@@ -180,14 +182,14 @@ Replace it with:
   });
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `bash scripts/run-with-mise.sh yarn test national-project-balance era-10`
 Expected: FAIL — `manhattan_project`'s `nationalProject.milestone` is
 currently `undefined`, not `true`, and `civYieldBonus` is currently
 `{ production: 6 }`, not `undefined`.
 
-- [ ] **Step 3: Fix the building definition**
+- [x] **Step 3: Fix the building definition**
 
 Open `src/systems/city-system.ts` and find the `manhattan_project` entry
 (around line 835):
@@ -223,12 +225,12 @@ Replace it with:
   },
 ```
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [x] **Step 4: Run the tests to verify they pass**
 
 Run: `bash scripts/run-with-mise.sh yarn test national-project-balance era-10`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/systems/city-system.ts tests/systems/national-project-balance.test.ts tests/systems/era-10.test.ts
@@ -259,7 +261,7 @@ full-suite run as a signal something is wrong here.
   the change must not shift `pacing-reference-economy.test.ts`'s snapshot at
   the aggregate level (see Task 5).
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Add a new test to `tests/systems/production-costs.test.ts` (the file that
 already asserts `nuclear_arsenal`'s `resourceRequired`, per its existing test
@@ -272,12 +274,12 @@ existing assertion:
   });
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `bash scripts/run-with-mise.sh yarn test production-costs`
 Expected: FAIL — current value is `3`, not `9`.
 
-- [ ] **Step 3: Update the building definition**
+- [x] **Step 3: Update the building definition**
 
 Open `src/systems/city-system.ts` and find the `nuclear_arsenal` entry
 (around line 748):
@@ -308,12 +310,12 @@ Replace it with:
   },
 ```
 
-- [ ] **Step 4: Run the test to verify it passes**
+- [x] **Step 4: Run the test to verify it passes**
 
 Run: `bash scripts/run-with-mise.sh yarn test production-costs`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/systems/city-system.ts tests/systems/production-costs.test.ts
@@ -343,7 +345,7 @@ wants the production simply builds Nuclear Arsenal, same as today.
 - Consumes: `expireNationalProjects` (existing, `src/systems/national-project-system.ts:163`),
   `BUILDINGS.manhattan_project` (Task 2's corrected definition).
 
-- [ ] **Step 1: Write the test**
+- [x] **Step 1: Write the test**
 
 Open `tests/systems/national-project-system.test.ts`. Using the file's
 existing `makeState` helper (top of the file), add a new `describe` block:
@@ -374,7 +376,7 @@ describe('manhattan_project milestone permanence (#545)', () => {
 });
 ```
 
-- [ ] **Step 2: Run the test**
+- [x] **Step 2: Run the test**
 
 Run: `bash scripts/run-with-mise.sh yarn test national-project-system`
 Expected: PASS immediately — Task 2 already made `manhattan_project` a
@@ -383,7 +385,7 @@ unconditionally (`src/systems/national-project-system.ts:170`, pre-existing
 code from #591 MR4). This step is a **regression lock**, not new behavior —
 if it fails, Task 2 was reverted or the milestone flag was lost.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add tests/systems/national-project-system.test.ts
@@ -400,7 +402,7 @@ git commit -m "test(#545): lock Manhattan Project's milestone permanence"
 
 **Interfaces:** none (verification task, no new code).
 
-- [ ] **Step 1: Run the full pacing gate**
+- [x] **Step 1: Run the full pacing gate**
 
 Run: `bash scripts/run-with-mise.sh yarn test pacing-audit pacing-reference-economy`
 Expected: PASS with no snapshot diff, per the design spec's Balance review
@@ -408,7 +410,7 @@ Expected: PASS with no snapshot diff, per the design spec's Balance review
 `pacing-audit.test.ts`'s full-catalog outlier gate and the reference-economy
 snapshot produce zero diffs from this change").
 
-- [ ] **Step 2: If it fails**
+- [x] **Step 2: If it fails**
 
 Do not "fix" a failure by editing the reference-economy snapshot without
 understanding why first — a diff here means the era-10 production total
@@ -421,7 +423,7 @@ justification `.claude/rules/game-balance.md`'s Pacing Regression Prevention
 section requires, and only after confirming the shift is the expected
 same-total redistribution, not a new bug.
 
-- [ ] **Step 3: Commit (only if a snapshot update was genuinely needed)**
+- [x] **Step 3: Commit (only if a snapshot update was genuinely needed)**
 
 ```bash
 git add tests/systems/pacing-reference-economy.test.ts
@@ -444,7 +446,7 @@ commit.
   consumed by Task 7's `getStrategicArsenalCapacity`, and by every later MR
   that gates arsenal-related production/UI on "can this civ build warheads."
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `tests/systems/strategic-arsenal-system.test.ts`:
 
@@ -518,12 +520,12 @@ describe('hasManhattanProject', () => {
 });
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `bash scripts/run-with-mise.sh yarn test strategic-arsenal-system`
 Expected: FAIL — `@/systems/strategic-arsenal-system` doesn't exist yet.
 
-- [ ] **Step 3: Write the minimal implementation**
+- [x] **Step 3: Write the minimal implementation**
 
 Create `src/systems/strategic-arsenal-system.ts`:
 
@@ -543,12 +545,12 @@ export function hasManhattanProject(state: GameState, civId: string): boolean {
 }
 ```
 
-- [ ] **Step 4: Run the test to verify it passes**
+- [x] **Step 4: Run the test to verify it passes**
 
 Run: `bash scripts/run-with-mise.sh yarn test strategic-arsenal-system`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/systems/strategic-arsenal-system.ts tests/systems/strategic-arsenal-system.test.ts
@@ -569,7 +571,7 @@ git commit -m "feat(#545): add hasManhattanProject capability query"
   number` — consumed by MR2's production-eligibility gate for "Build
   Warhead" and by the MR4 "Strategic Arsenal" advisor panel.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Append to `tests/systems/strategic-arsenal-system.test.ts`:
 
@@ -655,12 +657,12 @@ describe('getStrategicArsenalCapacity', () => {
 });
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `bash scripts/run-with-mise.sh yarn test strategic-arsenal-system`
 Expected: FAIL — `getStrategicArsenalCapacity` doesn't exist yet.
 
-- [ ] **Step 3: Write the minimal implementation**
+- [x] **Step 3: Write the minimal implementation**
 
 Append to `src/systems/strategic-arsenal-system.ts`. This uses a data table
 rather than one `if` per building — the same "append a row, never add
@@ -709,13 +711,13 @@ export function getStrategicArsenalCapacity(state: GameState, civId: string): nu
 }
 ```
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [x] **Step 4: Run the tests to verify they pass**
 
 Run: `bash scripts/run-with-mise.sh yarn test strategic-arsenal-system`
 Expected: PASS (all 4 `hasManhattanProject` tests + 6 `getStrategicArsenalCapacity`
 tests)
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/systems/strategic-arsenal-system.ts tests/systems/strategic-arsenal-system.test.ts
@@ -735,7 +737,7 @@ git commit -m "feat(#545): add getStrategicArsenalCapacity resolver"
   canonical read of `civ.strategicArsenal`, so no later caller reads the raw
   field directly and has to remember the `?? 0` fallback itself.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Append to `tests/systems/strategic-arsenal-system.test.ts`:
 
@@ -757,12 +759,12 @@ describe('getStrategicArsenal', () => {
 });
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `bash scripts/run-with-mise.sh yarn test strategic-arsenal-system`
 Expected: FAIL — `getStrategicArsenal` doesn't exist yet.
 
-- [ ] **Step 3: Write the minimal implementation**
+- [x] **Step 3: Write the minimal implementation**
 
 Append to `src/systems/strategic-arsenal-system.ts`:
 
@@ -784,12 +786,12 @@ file — combine the two type imports into one `import type { Civilization,
 GameState } from '@/core/types';` line rather than two separate import
 statements.)
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [x] **Step 4: Run the tests to verify they pass**
 
 Run: `bash scripts/run-with-mise.sh yarn test strategic-arsenal-system`
 Expected: PASS (all 13 tests in the file)
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/systems/strategic-arsenal-system.ts tests/systems/strategic-arsenal-system.test.ts
@@ -802,17 +804,17 @@ git commit -m "feat(#545): add getStrategicArsenal legacy-safe accessor"
 
 **Files:** none (verification only).
 
-- [ ] **Step 1: Run the full test suite**
+- [x] **Step 1: Run the full test suite**
 
 Run: `bash scripts/run-with-mise.sh yarn test`
 Expected: all tests pass, including the hook smoke tests.
 
-- [ ] **Step 2: Run the production build (includes typecheck)**
+- [x] **Step 2: Run the production build (includes typecheck)**
 
 Run: `bash scripts/run-with-mise.sh yarn build`
 Expected: succeeds with no TypeScript errors.
 
-- [ ] **Step 3: Confirm architecture boundaries**
+- [x] **Step 3: Confirm architecture boundaries**
 
 Run: `bash scripts/run-with-mise.sh yarn test tests/app/architecture-boundaries.test.ts`
 Expected: PASS — `strategic-arsenal-system.ts` lives in `src/systems/` and
@@ -820,7 +822,7 @@ imports nothing from `src/ui/`/`src/renderer/`/`src/app/`, so it should not
 trip any existing boundary rule. If it does, the failure message will name
 the violated rule directly — read it before changing anything.
 
-- [ ] **Step 4: No commit needed**
+- [x] **Step 4: No commit needed**
 
 This task is verification-only; nothing here should have produced new
 changes. If any of the above steps required a fix, that fix belongs in the
@@ -832,19 +834,19 @@ here.
 
 ## Definition of Done
 
-- [ ] `Civilization.strategicArsenal?: number` exists, optional, no migration.
-- [ ] `manhattan_project` is a milestone NP: `nationalProject: { homeEra: 10,
+- [x] `Civilization.strategicArsenal?: number` exists, optional, no migration.
+- [x] `manhattan_project` is a milestone NP: `nationalProject: { homeEra: 10,
   milestone: true }`, no `civYieldBonus`, honest zero-fades description.
-- [ ] `nuclear_arsenal` yields `production: 9` (era-10 total unchanged from
+- [x] `nuclear_arsenal` yields `production: 9` (era-10 total unchanged from
   before this MR).
-- [ ] `strategic-arsenal-system.ts` exports `hasManhattanProject`,
+- [x] `strategic-arsenal-system.ts` exports `hasManhattanProject`,
   `getStrategicArsenalCapacity`, `getStrategicArsenal` — all pure, all
   tested, all civ-scoped, all correctly return 0/false for an unknown or
   unlicensed civ.
-- [ ] `pacing-audit.test.ts` and `pacing-reference-economy.test.ts` pass with
+- [x] `pacing-audit.test.ts` and `pacing-reference-economy.test.ts` pass with
   no unexplained snapshot diff.
-- [ ] `yarn test` and `yarn build` both pass.
-- [ ] **No player-visible surface was added this MR** — no production catalog
+- [x] `yarn test` and `yarn build` both pass.
+- [x] **No player-visible surface was added this MR** — no production catalog
   entry, no new panel, no new button. This is intentional (see Goal above)
   and is what makes this MR safe to merge on its own without triggering
   `.claude/rules/incremental-mr-completion.md`'s dead-end-UX concern: there
