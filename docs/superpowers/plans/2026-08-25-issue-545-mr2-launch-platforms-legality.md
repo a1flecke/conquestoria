@@ -1,5 +1,21 @@
 # #545 MR2 — Launch Platforms, Targeting Legality & Build Warhead Implementation Plan
 
+✅ executed 2026-08-25 (pre-merge; PR not yet opened). All 12 tasks complete, full
+suite green (532 files / 8988 tests), `yarn build` clean. Execution surfaced and
+fixed several real gaps this plan's two review passes missed — see each task's
+commit message for specifics: broken test fixtures (wrong helper names, missing
+`nuclear-physics` tech gate for uranium, a fabricated `Civilization.visibility`
+field), a genuine `getLockedItemReason` logic bug (unconditional early-return that
+would have shown "Arsenal at capacity" even when the real blocker was missing
+uranium), `getIdleCityIds`/`getRecommendedIdleCityChoice` turning out unable to
+behaviorally isolate `warhead`'s gate at all (baseline units have no tech gate),
+`STRATEGIC_ARSENAL_VALUE_PER_WAR` needing empirical tuning against the real
+formula (12 → 35), a `pacing-audit.test.ts` outlier requiring `warhead`'s band to
+move from `power-spike` to `marquee`, a missing `nuclear-weapons.unlocksBuildings`
+entry, and a missing `BUILDING_SPRITE_CATALOG` entry. None of these changed the
+plan's scope or design — all fixes stayed within what each task already set out
+to build.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to
 > implement this plan task-by-task. **Do not use subagent-driven-development or
 > any other subagent-dispatching approach for this repo** — this project's
@@ -129,7 +145,7 @@ though warhead is the only building using either today (matching this repo's
   `UnitDefinition.strategicLaunchPlatform?: StrategicLaunchCapability` — consumed by
   Task 4's `getEligibleStrategicLaunchPlatforms`.
 
-- [ ] **Step 1: Add the type and both fields**
+- [x] **Step 1: Add the type and both fields**
 
 Open `src/core/types.ts`. Immediately after `AirDefenseCoverageResult` (~line 511), add:
 
@@ -166,12 +182,12 @@ AirDefenseProviderCapability;`, add:
   strategicLaunchPlatform?: StrategicLaunchCapability;
 ```
 
-- [ ] **Step 2: Typecheck**
+- [x] **Step 2: Typecheck**
 
 Run: `bash scripts/run-with-mise.sh yarn build`
 Expected: succeeds — all new fields are optional.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add src/core/types.ts
@@ -189,7 +205,7 @@ git commit -m "feat(#545): add StrategicLaunchCapability type + Building/UnitDef
 - Produces: `BUILDINGS.missile_silo.strategicLaunchPlatform === { range: 'unlimited' }`
   — consumed by Task 4.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `tests/systems/strategic-launch-system.test.ts` (this MR's main test file — later
 tasks append to it):
@@ -206,12 +222,12 @@ describe('strategic launch platform wiring (#545)', () => {
 });
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `bash scripts/run-with-mise.sh yarn test strategic-launch-system`
 Expected: FAIL — field is `undefined`.
 
-- [ ] **Step 3: Wire the field + honest description**
+- [x] **Step 3: Wire the field + honest description**
 
 Open `src/systems/city-system.ts`, find `missile_silo` (~line 881):
 
@@ -241,12 +257,12 @@ Replace it with:
   },
 ```
 
-- [ ] **Step 4: Run the test to verify it passes**
+- [x] **Step 4: Run the test to verify it passes**
 
 Run: `bash scripts/run-with-mise.sh yarn test strategic-launch-system`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/systems/city-system.ts tests/systems/strategic-launch-system.test.ts
@@ -266,7 +282,7 @@ git commit -m "feat(#545): wire Missile Silo as an unlimited-range strategic lau
   — consumed by Task 4. Existing `attackProfile` (conventional range-3 attack) is
   untouched per spec §4 ("additive, not a reinterpretation").
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Append to `tests/systems/strategic-launch-system.test.ts`:
 
@@ -278,12 +294,12 @@ Append to `tests/systems/strategic-launch-system.test.ts`:
   });
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `bash scripts/run-with-mise.sh yarn test strategic-launch-system`
 Expected: FAIL — field is `undefined`.
 
-- [ ] **Step 3: Wire the field**
+- [x] **Step 3: Wire the field**
 
 Open `src/systems/unit-system.ts`, find `missile_submarine` (~line 595):
 
@@ -330,12 +346,12 @@ to:
 longest in the game once Missile Silo's unlimited range exists; leaving the old claim
 in would itself be a new content-honesty violation.)
 
-- [ ] **Step 4: Run the test to verify it passes**
+- [x] **Step 4: Run the test to verify it passes**
 
 Run: `bash scripts/run-with-mise.sh yarn test strategic-launch-system`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/systems/unit-system.ts tests/systems/strategic-launch-system.test.ts
@@ -354,7 +370,7 @@ git commit -m "feat(#545): wire Missile Submarine as a range-4 strategic launch 
 - Produces: `getEligibleStrategicLaunchPlatforms(state, civId): StrategicLaunchPlatform[]`
   — consumed by Task 5's `getStrategicLaunchLegality`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Prepend to `tests/systems/strategic-launch-system.test.ts` (new imports + describe
 block, above the existing wiring tests):
@@ -440,12 +456,12 @@ describe('getEligibleStrategicLaunchPlatforms', () => {
 });
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `bash scripts/run-with-mise.sh yarn test strategic-launch-system`
 Expected: FAIL — `@/systems/strategic-launch-system` doesn't exist yet.
 
-- [ ] **Step 3: Write the minimal implementation**
+- [x] **Step 3: Write the minimal implementation**
 
 Create `src/systems/strategic-launch-system.ts`:
 
@@ -489,12 +505,12 @@ export function getEligibleStrategicLaunchPlatforms(state: GameState, civId: str
 }
 ```
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [x] **Step 4: Run the tests to verify they pass**
 
 Run: `bash scripts/run-with-mise.sh yarn test strategic-launch-system`
 Expected: PASS (all platform-enumeration tests + the two wiring tests from Tasks 2/3)
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/systems/strategic-launch-system.ts tests/systems/strategic-launch-system.test.ts
@@ -518,7 +534,7 @@ git commit -m "feat(#545): add getEligibleStrategicLaunchPlatforms, capability-d
   MR4's target-selection UI (neither exists yet; this MR's coverage is direct
   function-call tests only, per this plan's incremental-delivery decision above).
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Append to `tests/systems/strategic-launch-system.test.ts`:
 
@@ -637,12 +653,12 @@ describe('getStrategicLaunchLegality', () => {
 });
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `bash scripts/run-with-mise.sh yarn test strategic-launch-system`
 Expected: FAIL — `getStrategicLaunchLegality` doesn't exist yet.
 
-- [ ] **Step 3: Write the minimal implementation**
+- [x] **Step 3: Write the minimal implementation**
 
 Append to `src/systems/strategic-launch-system.ts`:
 
@@ -695,12 +711,12 @@ export function getStrategicLaunchLegality(
 }
 ```
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [x] **Step 4: Run the tests to verify they pass**
 
 Run: `bash scripts/run-with-mise.sh yarn test strategic-launch-system`
 Expected: PASS (all tests in the file)
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/systems/strategic-launch-system.ts tests/systems/strategic-launch-system.test.ts
@@ -749,7 +765,7 @@ git commit -m "feat(#545): add getStrategicLaunchLegality, the §6 targeting-leg
 > (`const mkC = () => ({ nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1
 > })`). The steps below use that same real-fixture pattern instead.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Append to `tests/systems/strategic-launch-system.test.ts`:
 
@@ -834,13 +850,13 @@ rather than an inline `as any` object literal, check
 `completeCityProductionItem` tests for that helper's real name and use it instead —
 these inline literals are written to be self-contained if no such helper exists.)
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `bash scripts/run-with-mise.sh yarn test strategic-launch-system -t "warhead production item"`
 Expected: FAIL — `BUILDINGS.warhead` is `undefined`; `getAvailableBuildings` doesn't
 accept an 8th parameter yet; `completeCityProductionItem` has no `warhead` to complete.
 
-- [ ] **Step 3: Add the `warhead` definition**
+- [x] **Step 3: Add the `warhead` definition**
 
 Open `src/systems/city-system.ts`, immediately after `manhattan_project` (~line 851,
 before `postwar_reconstruction`), add:
@@ -866,7 +882,7 @@ Open `PRODUCTION_ICONS` (~line 1723, near `missile_silo: '🚀',`), add:
   warhead: '☢️',
 ```
 
-- [ ] **Step 4: Update `getAvailableBuildings`**
+- [x] **Step 4: Update `getAvailableBuildings`**
 
 Open `src/systems/city-system.ts` (~line 1917):
 
@@ -907,7 +923,7 @@ export function getAvailableBuildings(
     if (b.arsenalCapacityGated && arsenalStatus && (!arsenalStatus.hasManhattanProject || arsenalStatus.atCapacity)) return false;
 ```
 
-- [ ] **Step 5: Update `completeCityProductionItem`**
+- [x] **Step 5: Update `completeCityProductionItem`**
 
 Open `src/systems/city-system.ts`, find (~line 1991):
 
@@ -938,12 +954,12 @@ Replace with:
   } else {
 ```
 
-- [ ] **Step 6: Run the tests to verify they pass**
+- [x] **Step 6: Run the tests to verify they pass**
 
 Run: `bash scripts/run-with-mise.sh yarn test strategic-launch-system -t "warhead production item"`
 Expected: PASS (all 6 tests)
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add src/systems/city-system.ts tests/systems/strategic-launch-system.test.ts
@@ -986,7 +1002,7 @@ git commit -m "feat(#545): add the warhead production item (repeatable, capacity
 > "Arsenal: N/M" line wherever `warhead` itself is shown as an available item, so the
 > number a player is actively changing is never invisible. Step 4 below adds this.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Add to `tests/systems/strategic-launch-system.test.ts`:
 
@@ -1023,7 +1039,7 @@ describe('arsenalStatus threading (#545)', () => {
 });
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `bash scripts/run-with-mise.sh yarn test strategic-launch-system -t "arsenalStatus threading"`
 Expected: FAIL — before this task's changes, `getIdleCityIds` never checks arsenal
@@ -1031,7 +1047,7 @@ status at all, so both cases resolve identically (both "not idle," since
 `getAvailableBuildings` without `arsenalStatus` always shows `warhead` as buildable) —
 the at-capacity assertion (`toContain('c1')`) fails.
 
-- [ ] **Step 3: Update every real `getAvailableBuildings` caller**
+- [x] **Step 3: Update every real `getAvailableBuildings` caller**
 
 Open `src/ui/city-panel.ts` (~line 264), change:
 
@@ -1137,7 +1153,7 @@ to:
 
 Add the same import to `ai-production.ts`.
 
-- [ ] **Step 4: Render the current arsenal count wherever `warhead` is shown as available**
+- [x] **Step 4: Render the current arsenal count wherever `warhead` is shown as available**
 
 Read `src/ui/city-panel.ts`'s "available items" rendering loop — the code that turns
 each entry of `availableBuildings` into its HTML card (yields, cost, resource-requirement
@@ -1161,14 +1177,14 @@ Call `arsenalStatusLine(building.id)` alongside the existing
 `resourceRequirementLine(...)` call in that per-item card template, concatenating its
 output the same way the existing optional lines are concatenated there.
 
-- [ ] **Step 5: Run the full test suite for these files**
+- [x] **Step 5: Run the full test suite for these files**
 
 Run: `bash scripts/run-with-mise.sh yarn test city-panel planning-system ai-production strategic-launch-system`
 Expected: all PASS — this is the real verification for this task (no existing test
 in any of these files should regress from adding a new optional trailing argument),
 plus Task 7's own new test from Step 1.
 
-- [ ] **Step 6: Add a render test for the arsenal count line**
+- [x] **Step 6: Add a render test for the arsenal count line**
 
 Add to `tests/ui/city-panel.test.ts`, using the same `makeWonderPanelFixture()` +
 `createCityPanel` harness Task 9's locked-item tests use:
@@ -1199,7 +1215,7 @@ Add to `tests/ui/city-panel.test.ts`, using the same `makeWonderPanelFixture()` 
 `./helpers/wonder-panel-fixture`, used by other tests in this file for whole-panel
 text assertions.)
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add src/ui/city-panel.ts src/systems/planning-system.ts src/ai/ai-production.ts tests/systems/strategic-launch-system.test.ts tests/ui/city-panel.test.ts
@@ -1222,7 +1238,7 @@ git commit -m "feat(#545): thread live arsenalStatus into every real caller, ren
   'warhead'`, mirroring the existing `result.completedBuilding === 'sacred_council'`
   precedent at the same call site.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Append to `tests/systems/strategic-arsenal-system.test.ts`:
 
@@ -1255,12 +1271,12 @@ describe('addWarheadToArsenal', () => {
 });
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `bash scripts/run-with-mise.sh yarn test strategic-arsenal-system -t "addWarheadToArsenal"`
 Expected: FAIL — function doesn't exist yet.
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 Append to `src/systems/strategic-arsenal-system.ts`:
 
@@ -1320,12 +1336,12 @@ Add the import to `turn-manager.ts`:
 import { addWarheadToArsenal } from '@/systems/strategic-arsenal-system';
 ```
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [x] **Step 4: Run the tests to verify they pass**
 
 Run: `bash scripts/run-with-mise.sh yarn test strategic-arsenal-system -t "addWarheadToArsenal"`
 Expected: PASS
 
-- [ ] **Step 5: Add an integration test proving the real completion path fires it**
+- [x] **Step 5: Add an integration test proving the real completion path fires it**
 
 **Third review-pass finding:** this step was originally left as an unwritten
 placeholder. `tests/core/turn-manager.test.ts` already has the exact analogous test
@@ -1375,12 +1391,12 @@ Add to `tests/core/turn-manager.test.ts`, near the Sacred Council test:
   });
 ```
 
-- [ ] **Step 6: Run the integration test**
+- [x] **Step 6: Run the integration test**
 
 Run: `bash scripts/run-with-mise.sh yarn test turn-manager -t "#545: completing a warhead"`
 Expected: PASS.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add src/core/turn-manager.ts src/systems/strategic-arsenal-system.ts tests/systems/strategic-arsenal-system.test.ts tests/core/turn-manager.test.ts
@@ -1421,7 +1437,7 @@ git commit -m "feat(#545): wire warhead completion to increment strategicArsenal
 > only works when there's exactly one locked item in the fixture — `warhead` may not
 > be the only one, so this test targets it by id to avoid an ambiguous match).
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Add to `tests/ui/city-panel.test.ts`, alongside the existing locked-item tests
 (~line 2261):
@@ -1454,7 +1470,7 @@ Add to `tests/ui/city-panel.test.ts`, alongside the existing locked-item tests
   });
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `bash scripts/run-with-mise.sh yarn test city-panel -t "#545: locked warhead"`
 Expected: FAIL — no special-case text exists yet; `warhead` falls through to the
@@ -1462,7 +1478,7 @@ generic (empty, since it has no `requiredTechs`/`requiredBuildings` entries, and
 `missingResources` would be empty too since `makeLockedMR4Fixture` doesn't restrict
 resources) reason, so `reasonEl?.textContent` is empty or missing.
 
-- [ ] **Step 3: Update `getLockedItemReason`**
+- [x] **Step 3: Update `getLockedItemReason`**
 
 Open `src/ui/city-panel.ts`, find `getLockedItemReason` (~line 757):
 
@@ -1494,12 +1510,12 @@ Replace with:
 imported from Task 7; `state`/`city`/`currentCiv` are already in scope in this
 function per the surrounding code read during this MR's audit.)
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [x] **Step 4: Run the tests to verify they pass**
 
 Run: `bash scripts/run-with-mise.sh yarn test city-panel -t "#545: locked warhead"`
 Expected: PASS
 
-- [ ] **Step 5: Add the always-under-capacity generic-fallthrough regression**
+- [x] **Step 5: Add the always-under-capacity generic-fallthrough regression**
 
 Add one more test confirming the fallthrough (the exact bug this review pass found):
 
@@ -1522,12 +1538,12 @@ Add one more test confirming the fallthrough (the exact bug this review pass fou
   });
 ```
 
-- [ ] **Step 6: Run all three tests**
+- [x] **Step 6: Run all three tests**
 
 Run: `bash scripts/run-with-mise.sh yarn test city-panel -t "#545: locked warhead"`
 Expected: PASS (all three)
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add src/ui/city-panel.ts tests/ui/city-panel.test.ts
@@ -1580,7 +1596,7 @@ git commit -m "feat(#545): surface Manhattan Project/capacity locked-item reason
 > and 602 — the general unit loop, the missionary branch, and the building loop). The
 > corrected steps below follow both of those real conventions instead.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Add to `tests/ai/ai-production.test.ts`, in the `describe('AI strategic production', ...)`
 block, alongside the existing SAM Site threat-conditioned tests (~line 142):
@@ -1648,13 +1664,13 @@ block, alongside the existing SAM Site threat-conditioned tests (~line 142):
   });
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `bash scripts/run-with-mise.sh yarn test ai-production -t "strategic arsenal"`
 Expected: FAIL — `strategicArsenalValueScore` is `undefined` on every candidate (no
 such field exists on `AIProductionCandidate` yet).
 
-- [ ] **Step 3: Add the field to `AIProductionCandidate`**
+- [x] **Step 3: Add the field to `AIProductionCandidate`**
 
 Open `src/ai/ai-production.ts` (~line 37-55), add the new field next to its closest
 sibling:
@@ -1682,7 +1698,7 @@ export interface AIProductionCandidate {
 }
 ```
 
-- [ ] **Step 4: Write `strategicArsenalValueScore` and set it at all three candidate sites**
+- [x] **Step 4: Write `strategicArsenalValueScore` and set it at all three candidate sites**
 
 Add near `economyValue` (~line 205):
 
@@ -1802,7 +1818,7 @@ into `score`:
 (The closing of this literal and the rest of the loop are unchanged — only the two
 new lines shown above are added to it.)
 
-- [ ] **Step 5: Run the tests to verify they pass**
+- [x] **Step 5: Run the tests to verify they pass**
 
 Run: `bash scripts/run-with-mise.sh yarn test ai-production -t "strategic arsenal"`
 Expected: PASS. If the "nets a positive total score" test fails, tune
@@ -1811,7 +1827,7 @@ of this task is that the net score must actually go positive for a real warhead
 build under realistic cost/turns numbers, not just be "greater than the at-peace
 case."
 
-- [ ] **Step 6: Run the full `ai-production` suite to confirm no regression**
+- [x] **Step 6: Run the full `ai-production` suite to confirm no regression**
 
 Run: `bash scripts/run-with-mise.sh yarn test ai-production`
 Expected: PASS — adding a required field to `AIProductionCandidate` touches every
@@ -1820,7 +1836,7 @@ comparison rather than checking individual fields; if any such test exists in th
 file, it needs `strategicArsenalValueScore: 0` (or `expect.objectContaining(...)`)
 added to its expected shape. Fix those in this same commit, not a follow-up one.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add src/ai/ai-production.ts tests/ai/ai-production.test.ts
@@ -1842,7 +1858,7 @@ git commit -m "feat(#545): add strategicArsenalValueScore, a bounded threat-cond
 content-honesty checklist for this MR's two rewritten descriptions, and confirming
 Task 10's generic signal is exactly that (generic), not a disguised id branch.
 
-- [ ] **Step 1: AI candidate-inclusion test**
+- [x] **Step 1: AI candidate-inclusion test**
 
 Add to `tests/ai/ai-production.test.ts`, using the same real `setupState`/
 `generateAIProductionCandidates` harness Task 10 used (not a hand-rolled fixture):
@@ -1864,7 +1880,7 @@ Add to `tests/ai/ai-production.test.ts`, using the same real `setupState`/
   });
 ```
 
-- [ ] **Step 2: Structural no-id-branch assertion**
+- [x] **Step 2: Structural no-id-branch assertion**
 
 This confirms Task 10 followed the "generic, not a nuclear-specific branch" rule
 literally — it should still pass after Task 10's changes, since
@@ -1885,7 +1901,7 @@ pattern, not a novel one:
 (Add `import { readFileSync } from 'node:fs';` and `import { resolve } from 'node:path';`
 to the top of `tests/ai/ai-production.test.ts` if not already present.)
 
-- [ ] **Step 3: Content-honesty positive tests**
+- [x] **Step 3: Content-honesty positive tests**
 
 Add (to the file identified in this task's header):
 
@@ -1904,12 +1920,12 @@ Add (to the file identified in this task's header):
   });
 ```
 
-- [ ] **Step 4: Run all new tests**
+- [x] **Step 4: Run all new tests**
 
 Run: `bash scripts/run-with-mise.sh yarn test ai-production description-honesty`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add tests/ai/ai-production.test.ts tests/systems/description-honesty.test.ts
@@ -1925,17 +1941,17 @@ actually targeted.)
 
 **Files:** none (verification only).
 
-- [ ] **Step 1: Run the full test suite**
+- [x] **Step 1: Run the full test suite**
 
 Run: `bash scripts/run-with-mise.sh yarn test`
 Expected: all tests pass, including hook smoke tests.
 
-- [ ] **Step 2: Run the production build (includes typecheck)**
+- [x] **Step 2: Run the production build (includes typecheck)**
 
 Run: `bash scripts/run-with-mise.sh yarn build`
 Expected: succeeds, no TypeScript errors.
 
-- [ ] **Step 3: Confirm architecture boundaries (manual check — no automated test covers this)**
+- [x] **Step 3: Confirm architecture boundaries (manual check — no automated test covers this)**
 
 **Third review-pass correction:** an earlier draft of this step claimed
 `tests/app/architecture-boundaries.test.ts` would verify this. It does not —
@@ -1951,14 +1967,14 @@ Run: `grep -n "^import" src/systems/strategic-launch-system.ts`
 Expected: every import line targets `@/core/types`, `@/systems/*`, or `@/systems/hex-utils`
 — none from `@/ui/`, `@/renderer/`, or `@/ai/`.
 
-- [ ] **Step 4: Confirm zero pacing regression**
+- [x] **Step 4: Confirm zero pacing regression**
 
 Run: `bash scripts/run-with-mise.sh yarn test pacing-audit pacing-reference-economy`
 Expected: PASS with no snapshot diff — this MR adds zero yields anywhere (`warhead`'s
 `yields` are all-zero, `missile_silo`/`missile_submarine` yields are untouched), so
 this should be a pure no-op confirmation, not a real redistribution like MR1's.
 
-- [ ] **Step 5: No commit needed unless a fix was required**
+- [x] **Step 5: No commit needed unless a fix was required**
 
 If any step above required a code change, that fix belongs in the task it corrects,
 with its own commit — do not create a generic "fix tests" commit here.
@@ -1967,44 +1983,44 @@ with its own commit — do not create a generic "fix tests" commit here.
 
 ## Definition of Done
 
-- [ ] `StrategicLaunchCapability` type exists; `Building`/`UnitDefinition` both carry
+- [x] `StrategicLaunchCapability` type exists; `Building`/`UnitDefinition` both carry
   an optional `strategicLaunchPlatform` field.
-- [ ] `missile_silo`: `strategicLaunchPlatform: { range: 'unlimited' }`, honest
+- [x] `missile_silo`: `strategicLaunchPlatform: { range: 'unlimited' }`, honest
   description.
-- [ ] `missile_submarine`: `strategicLaunchPlatform: { range: 4 }`, existing
+- [x] `missile_submarine`: `strategicLaunchPlatform: { range: 4 }`, existing
   `attackProfile` untouched, honest `UNIT_DESCRIPTIONS` text (no more "longest range
   of any unit" now that Silo exists).
-- [ ] `strategic-launch-system.ts` exports `getEligibleStrategicLaunchPlatforms`
+- [x] `strategic-launch-system.ts` exports `getEligibleStrategicLaunchPlatforms`
   (capability-driven, zero type/id branches) and `getStrategicLaunchLegality` (the §6
   4-condition conjunctive resolver, each condition independently tested as
   load-bearing).
-- [ ] `Building.consumedOnCompletion` and `Building.arsenalCapacityGated` exist as
+- [x] `Building.consumedOnCompletion` and `Building.arsenalCapacityGated` exist as
   generic primitives (not warhead-coupled in mechanism — driven by the field, not an
   id check), verified against the real `warhead` entry (Task 6).
-- [ ] `warhead` production item: repeatable, gated by Manhattan Project + capacity +
+- [x] `warhead` production item: repeatable, gated by Manhattan Project + capacity +
   uranium, zero yields, completion increments `civ.strategicArsenal` via the real
   turn-processing path (Task 8's integration test), never persists into
   `city.buildings`.
-- [ ] Every real `getAvailableBuildings` caller (city-panel.ts's real list,
+- [x] Every real `getAvailableBuildings` caller (city-panel.ts's real list,
   planning-system.ts ×2, ai-production.ts) passes live `arsenalStatus`; the
   locked-item-diff call in city-panel.ts deliberately does not.
-- [ ] Locked-item UI shows the spec-exact "Requires Manhattan Project..." / "Arsenal
+- [x] Locked-item UI shows the spec-exact "Requires Manhattan Project..." / "Arsenal
   at capacity (N/N)..." text for `warhead`; an always-visible "Arsenal: N/M" line
   shows on the available (buildable) `warhead` item too, so the count is never
   invisible while under capacity (Task 7 — a real Goal 7 gap this review pass found
   and fixed, not in the original plan draft).
-- [ ] AI picks up `warhead` via the generic `ai-production.ts` pipeline; it also has a
+- [x] AI picks up `warhead` via the generic `ai-production.ts` pipeline; it also has a
   real, bounded, threat-conditioned reason to actually build one
   (`strategicArsenalValueScore`, Task 10) — no `if (buildingId === 'warhead')` branch
   anywhere (structural test, Task 11), matching spec §10's letter while closing the
   "AI would never build one across the feature's whole lifetime" gap this review
   pass found (see Global Constraints above for the full reasoning).
-- [ ] **No launch action, target-selection UI, or preview surface exists this MR** —
+- [x] **No launch action, target-selection UI, or preview surface exists this MR** —
   the only new player-visible surface is the `warhead` production item, which is
   safe on its own per this plan's incremental-delivery decision (documented above).
-- [ ] `pacing-audit.test.ts`/`pacing-reference-economy.test.ts` show zero diff (no
+- [x] `pacing-audit.test.ts`/`pacing-reference-economy.test.ts` show zero diff (no
   yields added anywhere this MR).
-- [ ] `yarn test` and `yarn build` both pass.
+- [x] `yarn test` and `yarn build` both pass.
 
 ## Next MR
 
