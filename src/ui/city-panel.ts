@@ -61,6 +61,7 @@ import { getCityTechYields } from '@/systems/tech-yield-system';
 import { resolveCivDefinition } from '@/systems/civ-registry';
 import { TECH_TREE, resolveCivilizationEra } from '@/systems/tech-definitions';
 import { evaluateProductionPrerequisites } from '@/systems/production-prerequisites';
+import { getStrategicArsenal, getStrategicArsenalCapacity, hasManhattanProject } from '@/systems/strategic-arsenal-system';
 import { createCityWorkSection } from './city-grid';
 import { createCityDistrictsTab } from './city-districts';
 import {
@@ -260,6 +261,16 @@ export function createCityPanel(
     }
     return parts.length ? `<div style="font-size:10px;opacity:0.72;">${parts.join(' · ')}</div>` : '';
   };
+  // #545: always-visible arsenal count on the available warhead item -- the
+  // locked-item reason (below) only shows once at capacity; while under capacity,
+  // this is the only place a player can see their current count/capacity (Goal 7 —
+  // the full "Strategic Arsenal" summary panel is MR4's job, not this one).
+  const arsenalStatusLine = (itemId: string): string => {
+    if (itemId !== 'warhead') return '';
+    const current = getStrategicArsenal(currentCiv);
+    const capacity = getStrategicArsenalCapacity(state, city.owner);
+    return `<div style="font-size:10px;opacity:0.72;">Arsenal: ${current}/${capacity}</div>`;
+  };
   const builtNPKeys = getReservedNationalProjectKeys(state, city.owner);
   const availableBuildings = getAvailableBuildings(
     city,
@@ -269,6 +280,10 @@ export function createCityPanel(
     currentCivEra,
     builtNPKeys,
     city.owner,
+    {
+      hasManhattanProject: hasManhattanProject(state, city.owner),
+      atCapacity: getStrategicArsenal(currentCiv) >= getStrategicArsenalCapacity(state, city.owner),
+    },
   );
   const cityWonderEntries = getLegendaryWonderPresentationForCity(state, state.currentPlayer, city.id);
   const compactWonderEntries = getCompactLegendaryWonderEntriesForCity(state, state.currentPlayer, city.id, 4);
@@ -603,6 +618,7 @@ export function createCityPanel(
       <div style="font-weight:bold;font-size:13px;">${getProductionIconForItem(b.id)} <span data-text="build-name-${idx}"></span></div>
       <div style="font-size:11px;opacity:0.7;">${yieldStr}${turns} turns${upkeepStr}${deadline}</div>
       ${resourceRequirementLine(b.id, b.resourceRequired)}
+      ${arsenalStatusLine(b.id)}
       <div style="font-size:10px;opacity:0.5;" data-text="build-desc-${idx}"></div>
     </div>`;
   }

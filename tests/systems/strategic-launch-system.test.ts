@@ -267,6 +267,37 @@ describe('warhead production item (#545)', () => {
   });
 });
 
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+
+describe('arsenalStatus threading into planning-system.ts (#545)', () => {
+  // Fourth review-pass finding, during execution: getIdleCityIds's real semantics
+  // are "empty queue AND has *any* buildable option" (a recommendation signal, not
+  // "literally nothing to build") -- since baseline units like warrior/scout/worker
+  // carry no tech gate at all, a city always has *something* buildable regardless of
+  // warhead's gate state, so this function (and getRecommendedIdleCityChoice, which
+  // picks the single lowest-turns/cost candidate -- warhead's 260 cost never wins
+  // against a starter unit) can never behaviorally isolate warhead's gate. Verified
+  // empirically while writing this test: an under-capacity scenario and an
+  // at-capacity scenario produced identical getIdleCityIds output either way. The
+  // underlying gate logic itself is already exhaustively covered by Task 6's direct
+  // getAvailableBuildings tests; what's left to verify here is narrower and honest:
+  // that these two call sites actually pass arsenalStatus through at all, checked
+  // structurally (this repo already has precedent for a readFileSync source-grep
+  // test, tests/app/architecture-boundaries.test.ts).
+  it('getIdleCityIds and getRecommendedIdleCityChoice both compute and pass arsenalStatus to getAvailableBuildings', () => {
+    const source = readFileSync(resolve(__dirname, '../../src/systems/planning-system.ts'), 'utf-8');
+    const callSites = source.split('getAvailableBuildings(').slice(1);
+    expect(callSites.length).toBe(2);
+    for (const callSite of callSites) {
+      const argsBlock = callSite.slice(0, callSite.indexOf(')'));
+      expect(argsBlock).toMatch(/arsenalStatus/);
+    }
+    expect(source).toMatch(/hasManhattanProject/);
+    expect(source).toMatch(/getStrategicArsenalCapacity/);
+  });
+});
+
 describe('strategic launch platform wiring (#545)', () => {
   it('missile_silo has unlimited-range strategicLaunchPlatform', () => {
     expect(BUILDINGS.missile_silo.strategicLaunchPlatform).toEqual({ range: 'unlimited' });
