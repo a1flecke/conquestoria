@@ -1319,6 +1319,13 @@ export interface Civilization {
    * generalDefinitionId in here is never redrawn as a candidate again
    * (contract §13: "a used General never appears again"). */
   generalHistory?: GeneralHistoryEntry[];
+  /** #545: shared empire-wide warhead count. Absent (legacy saves, or a
+   * civ that has never produced one) means zero — see
+   * strategic-arsenal-system.ts's getStrategicArsenal. Never exceeds
+   * getStrategicArsenalCapacity in normal play; MR1's capacity resolver
+   * intentionally does not clamp this field itself (see spec §1's
+   * "capacity is a production-eligibility gate, not a live clamp"). */
+  strategicArsenal?: number;
 }
 
 export interface BreakawayMetadata {
