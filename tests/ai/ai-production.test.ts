@@ -106,6 +106,70 @@ function makeCoastal(state: GameState, cityId = 'city-a'): void {
   if (state.map.tiles[key]) state.map.tiles[key].terrain = 'coast';
 }
 
+describe('strategicArsenalValueScore (#545)', () => {
+  it('scores warhead 0 with no strategic arsenal signal at peace, positive once at war', () => {
+    const state = setupState(['nuclear-weapons', 'nuclear-physics']);
+    state.builtNationalProjects = {
+      'ai-1:manhattan_project': { civId: 'ai-1', cityId: 'city-a', eraBuilt: 10 },
+    };
+    grantResources(state, ['uranium']);
+
+    const atPeace = generateAIProductionCandidates(state, 'ai-1', 'city-a', [], aggressive)
+      .find(candidate => candidate.itemId === 'warhead')!;
+    expect(atPeace.strategicArsenalValueScore).toBe(0);
+
+    state.civilizations['ai-1']!.diplomacy.atWarWith = ['player'];
+    const atWar = generateAIProductionCandidates(state, 'ai-1', 'city-a', [], aggressive)
+      .find(candidate => candidate.itemId === 'warhead')!;
+    expect(atWar.strategicArsenalValueScore).toBeGreaterThan(0);
+    expect(atWar.score).toBeGreaterThan(atPeace.score);
+  });
+
+  it('bounds strategicArsenalValueScore at 3 simultaneous wars', () => {
+    const state = setupState(['nuclear-weapons', 'nuclear-physics']);
+    state.builtNationalProjects = {
+      'ai-1:manhattan_project': { civId: 'ai-1', cityId: 'city-a', eraBuilt: 10 },
+    };
+    grantResources(state, ['uranium']);
+    state.civilizations['ai-1']!.diplomacy.atWarWith = ['player', 'civ-c', 'civ-d'];
+
+    const atThreeWars = generateAIProductionCandidates(state, 'ai-1', 'city-a', [], aggressive)
+      .find(candidate => candidate.itemId === 'warhead')!;
+
+    state.civilizations['ai-1']!.diplomacy.atWarWith = ['player', 'civ-c', 'civ-d', 'civ-e', 'civ-f'];
+    const atFiveWars = generateAIProductionCandidates(state, 'ai-1', 'city-a', [], aggressive)
+      .find(candidate => candidate.itemId === 'warhead')!;
+
+    expect(atFiveWars.strategicArsenalValueScore).toBe(atThreeWars.strategicArsenalValueScore);
+  });
+
+  it('is 0 for a building with no arsenalCapacityGated capability, even at war', () => {
+    const state = setupState(['nuclear-weapons', 'nuclear-physics']);
+    grantResources(state, ['uranium']);
+    state.civilizations['ai-1']!.diplomacy.atWarWith = ['player'];
+    const nuclearArsenal = generateAIProductionCandidates(state, 'ai-1', 'city-a', [], aggressive)
+      .find(candidate => candidate.itemId === 'nuclear_arsenal')!;
+    expect(nuclearArsenal.strategicArsenalValueScore).toBe(0);
+  });
+
+  it('nets a positive total score for warhead when at war, unlike the reliably-negative score it would get with no signal', () => {
+    const state = setupState(['nuclear-weapons', 'nuclear-physics']);
+    state.builtNationalProjects = {
+      'ai-1:manhattan_project': { civId: 'ai-1', cityId: 'city-a', eraBuilt: 10 },
+    };
+    grantResources(state, ['uranium']);
+    state.civilizations['ai-1']!.diplomacy.atWarWith = ['player'];
+    // A believable era-10/11 production city, not this fixture's bare freshly-founded
+    // default (near-zero yields) -- matches the ~22/turn baseline
+    // era-pacing-profiles.ts calibrates marquee-band items like warhead against.
+    state.cities['city-a']!.buildings.push('nuclear_arsenal', 'workshop');
+
+    const warhead = generateAIProductionCandidates(state, 'ai-1', 'city-a', [], aggressive)
+      .find(candidate => candidate.itemId === 'warhead')!;
+    expect(warhead.score).toBeGreaterThan(0);
+  });
+});
+
 describe('AI strategic production', () => {
   it('generates SAM Site only from the AI city with both research and local prerequisites', () => {
     const state = setupState(['radar-systems', 'rocketry']);

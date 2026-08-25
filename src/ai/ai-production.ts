@@ -51,6 +51,7 @@ export interface AIProductionCandidate {
   airDefenseThreatScore: number;
   submarineThreatScore: number;
   carrierCompositionScore: number;
+  strategicArsenalValueScore: number;
   fulfilledRole?: AIStrategicRole;
   score: number;
 }
@@ -222,6 +223,29 @@ export function economyValue(buildingId: string): number {
   // without inventing a new signal path. Revisit if a future MR adds one.
   const happinessScore = (building?.happiness ?? 0) * 1.5;
   return yieldScore + happinessScore;
+}
+
+const STRATEGIC_ARSENAL_VALUE_PER_WAR = 35;
+const STRATEGIC_ARSENAL_VALUE_MAX_WARS = 3;
+
+/**
+ * #545: bounded, capability-driven value signal for any arsenalCapacityGated item
+ * (only `warhead` today) -- without this, such an item nets a reliably negative
+ * score under generic economyValue scoring (zero yields), and the AI would never
+ * build one. Threat-conditioned (scales with current war count, capped) rather than
+ * a flat bonus, matching this file's existing airDefenseThreatScore precedent and
+ * the general principle (seen across other 4X AI design) that WMD-class production
+ * eagerness should be driven by real strategic context, not a flat economic value.
+ * Generic via Building.arsenalCapacityGated -- not an id branch; a future similar
+ * item is covered automatically. Buildings only (units never carry
+ * arsenalCapacityGated), so the two unit-candidate call sites always pass 0.
+ */
+function strategicArsenalValueScore(state: GameState, civId: string, buildingId: string): number {
+  const building = BUILDINGS[buildingId];
+  if (!building?.arsenalCapacityGated) return 0;
+  const civ = state.civilizations[civId];
+  const warCount = Math.min(civ?.diplomacy.atWarWith.length ?? 0, STRATEGIC_ARSENAL_VALUE_MAX_WARS);
+  return warCount * STRATEGIC_ARSENAL_VALUE_PER_WAR;
 }
 
 function reserveAllows(
@@ -495,6 +519,7 @@ function generateWithResidual(
       airDefenseThreatScore: 0,
       submarineThreatScore: unitSubmarineThreatScore,
       carrierCompositionScore: unitCarrierCompositionScore,
+      strategicArsenalValueScore: 0,
       fulfilledRole: fulfilled.role,
       score,
     });
@@ -551,6 +576,7 @@ function generateWithResidual(
           airDefenseThreatScore: 0,
           submarineThreatScore: 0,
           carrierCompositionScore: 0,
+          strategicArsenalValueScore: 0,
           score,
         });
       }
@@ -598,11 +624,13 @@ function generateWithResidual(
       cityId,
       building.id,
     );
+    const buildingStrategicArsenalScore = strategicArsenalValueScore(state, civId, building.id);
     const score = economyScore * 2
       + personalityScore
       + citySpecializationScore
       + buildingDefensiveScore
       + buildingAirDefenseScore
+      + buildingStrategicArsenalScore
       - productionTurns * 1.5
       - maintenanceRisk * 3;
     candidates.push({
@@ -621,6 +649,7 @@ function generateWithResidual(
       airDefenseThreatScore: buildingAirDefenseScore,
       submarineThreatScore: 0,
       carrierCompositionScore: 0,
+      strategicArsenalValueScore: buildingStrategicArsenalScore,
       score,
     });
   }
