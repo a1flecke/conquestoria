@@ -388,8 +388,16 @@ history).
   (see `docs/superpowers/plans/2026-08-24-issue-544-mr4-passive-command-heroic-abilities.md`):
   stabilization aura, Rally, Seize the Moment, Last Stand (including the
   `applyCombatOutcomeToState` integration from §7), Final Command/retirement.
-- **MR5 — AI**: supply-aware AI unit-safety scoring, General ability
-  evaluators (Rally/Seize/Last Stand), difficulty-scaled judgment only.
+- **MR5 — AI** ✅ merged (#880)
+  (see `docs/superpowers/plans/2026-08-24-issue-544-mr5-ai.md`): AI civs
+  now automatically acquire Generals (deterministic best-stat pick, no RNG);
+  supply-aware AI unit-safety scoring (`rankWithdrawals` now also triggers
+  on severe `landSupply`, not just low health); General ability evaluators
+  (Rally/Seize/Last Stand) feeding a shared spend layer in the new
+  `src/ai/ai-general-command.ts`, dispatched twice per AI civ per round from
+  `ai-round-scheduler.ts` (pre-tactical for Rally/Last Stand, post-tactical
+  for Seize); difficulty-scaled judgment only, via two new eagerness/safety
+  knobs on `OpponentChallengeProfile` — never a mechanical exception.
 - **MR6 — Hot-seat + save validation**: viewer-safe overlay/candidate
   selection, pending-intent cleanup on handoff, legacy-save load tests,
   same-turn save/load exactness.
