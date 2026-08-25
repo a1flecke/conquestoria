@@ -154,18 +154,16 @@ export function WarHoundSprite({ palette, svgOnly = false }: UnitSpriteProps): s
 export function BeastHandlerSprite({ palette, svgOnly = false }: UnitSpriteProps): string {
   return (
     <SpriteFrame svgOnly={svgOnly}>
-      <Shadow cx={66} cy={96} rx={34} />
-      <g transform="translate(70 77)">
-        <ellipse cx="2" cy="0" rx="24" ry="12" fill="#9a7448" stroke={P.ink.line} strokeWidth="1" />
-        <rect x="-11" y="-8" width="23" height="5" fill={palette.mid} stroke={P.ink.line} strokeWidth="0.6" />
-        <rect x="-10" y="6" width="6" height="15" fill={P.wood.dark} /><rect x="0" y="6" width="6" height="15" fill={P.wood.dark} />
-        <rect x="16" y="6" width="6" height="15" fill={P.wood.dark} /><rect x="23" y="6" width="6" height="15" fill={P.wood.dark} />
-        <ellipse cx="-19" cy="-4" rx="11" ry="9" fill="#9a7448" stroke={P.ink.line} strokeWidth="1" />
-        <path d="M-29,-3 L-35,3 L-27,5 Z" fill="#9a7448" stroke={P.ink.line} strokeWidth="0.7" />
+      <Shadow cx={66} cy={98} rx={42} />
+      <g transform="translate(70 78)">
+        <path d="M-21,-5 Q1,-21 24,-8 Q34,0 26,12 Q0,20 -23,9 Z" fill="#7b5737" stroke={P.ink.line} strokeWidth="1.1" />
+        <path d="M-15,-4 Q0,-12 18,-5" stroke={palette.mid} strokeWidth="3.8" fill="none" />
+        <rect x="-18" y="7" width="7" height="16" fill="#4a3020" /><rect x="-3" y="8" width="7" height="16" fill="#4a3020" /><rect x="13" y="7" width="7" height="16" fill="#4a3020" /><rect x="24" y="5" width="7" height="16" fill="#4a3020" />
+        <path d="M-20,-4 Q-33,-14 -38,-25" stroke={P.wood.dark} strokeWidth="4" fill="none" strokeLinecap="round" />
+        <path d="M23,-12 Q36,-23 45,-9 L42,5 L29,8 L21,1 Z" fill="#8a5a3c" stroke={P.ink.line} strokeWidth="0.9" /><path d="M27,-13 L31,-25 L37,-13 M36,-14 L43,-22 L42,-8" stroke={P.wood.dark} strokeWidth="1.8" fill="none" /><circle cx="37" cy="-5" r="1.4" fill={palette.bright} /><path d="M42,1 L50,4 L42,5 Z" fill={P.ink.soft} />
       </g>
-      <Humanoid cx={40} cy={68} scale={0.72} cloth={P.cloth.linen} pants={P.cloth.wool} accent={palette.mid} hair={P.ink.soft} />
-      <line x1="48" y1="48" x2="48" y2="90" stroke={P.wood.dark} strokeWidth="2.4" strokeLinecap="round" />
-      <path d="M42,87 Q50,96 58,83" stroke={palette.bright} strokeWidth="1.4" fill="none" />
+      <Humanoid cx={35} cy={70} scale={0.75} cloth={P.cloth.linen} pants={P.cloth.wool} accent={palette.mid} hair={P.ink.soft} />
+      <line x1="47" y1="42" x2="47" y2="94" stroke={P.wood.dark} strokeWidth="2.8" strokeLinecap="round" /><path d="M47,43 L40,35 M47,43 L54,35" stroke={P.metal.bronze} strokeWidth="1.8" /><path d="M48,75 Q60,88 71,78" stroke={palette.bright} strokeWidth="1.8" fill="none" /><circle cx="62" cy="80" r="5" fill="none" stroke={palette.bright} strokeWidth="1.2" /><path d="M56,80h12M62,74v12" stroke={palette.trim} strokeWidth="0.9" />
     </SpriteFrame>
   );
 }
@@ -174,19 +172,14 @@ export function BeastHandlerSprite({ palette, svgOnly = false }: UnitSpriteProps
 export function WarElephantSprite({ palette, svgOnly = false }: UnitSpriteProps): string {
   return (
     <SpriteFrame svgOnly={svgOnly}>
-      <Shadow cx={67} cy={99} rx={43} ry={8} />
-      <g transform="translate(68 75)">
-        <ellipse cx="2" cy="1" rx="35" ry="20" fill="#8a8b80" stroke={P.ink.line} strokeWidth="1.2" />
-        <path d="M-26,-11 Q2,-25 29,-10 L26,1 L-25,1 Z" fill={palette.mid} stroke={P.ink.line} strokeWidth="0.8" />
-        <rect x="-10" y="-25" width="26" height="17" rx="2" fill={P.wood.mid} stroke={P.ink.line} strokeWidth="1" />
-        <rect x="-7" y="-22" width="20" height="4" fill={palette.bright} />
-        <rect x="-25" y="13" width="10" height="20" rx="2" fill="#68695f" /><rect x="-8" y="14" width="10" height="20" rx="2" fill="#68695f" />
-        <rect x="14" y="14" width="10" height="20" rx="2" fill="#68695f" /><rect x="27" y="13" width="10" height="20" rx="2" fill="#68695f" />
-        <ellipse cx="-31" cy="-4" rx="15" ry="14" fill="#8a8b80" stroke={P.ink.line} strokeWidth="1" />
-        <path d="M-42,-2 Q-53,10 -45,23" stroke="#68695f" strokeWidth="8" fill="none" strokeLinecap="round" />
-        <path d="M-40,4 Q-51,7 -49,15" stroke={P.metal.shine} strokeWidth="3" fill="none" strokeLinecap="round" />
+      <Shadow cx={65} cy={100} rx={46} ry={8} />
+      <g transform="translate(58 75)">
+        <path d="M-30,-5 Q-3,-27 31,-13 Q43,-4 33,18 Q3,31 -31,15 Z" fill="#8a8b80" stroke={P.ink.line} strokeWidth="1.25" /><path d="M-22,-9 Q2,-22 29,-10 L27,2 Q2,9 -25,1 Z" fill={palette.dark} stroke={P.ink.line} strokeWidth="0.8" /><path d="M-18,-5 Q3,-15 24,-7" stroke={palette.bright} strokeWidth="1.6" fill="none" />
+        <rect x="-9" y="-30" width="29" height="20" rx="2" fill={P.wood.mid} stroke={P.ink.line} strokeWidth="1" /><rect x="-6" y="-27" width="23" height="4" fill={palette.mid} /><circle cx="0" cy="-34" r="3" fill={P.skin.deep} /><circle cx="10" cy="-34" r="3" fill={P.skin.warm} />
+        <rect x="-25" y="13" width="10" height="22" rx="2" fill="#68695f" /><rect x="-8" y="14" width="10" height="22" rx="2" fill="#68695f" /><rect x="14" y="14" width="10" height="22" rx="2" fill="#68695f" /><rect x="27" y="13" width="10" height="22" rx="2" fill="#68695f" />
+        <path d="M33,-23 Q11,-25 11,-6 Q14,9 30,7 Z" fill="#73746d" stroke={P.ink.line} strokeWidth="0.8" /><ellipse cx="33" cy="-5" rx="16" ry="15" fill="#8a8b80" stroke={P.ink.line} strokeWidth="1" /><path d="M37,-12 L48,-21 L51,-5 Z" fill="#68695f" /><path d="M37,-8 L51,-12 L55,-2 L38,2 Z" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.7" /><path d="M46,1 Q60,12 53,27" stroke="#68695f" strokeWidth="8" fill="none" strokeLinecap="round" /><path d="M42,7 Q58,8 61,19 M48,4 Q64,2 68,12" stroke={P.cloth.linen} strokeWidth="3" fill="none" strokeLinecap="round" />
       </g>
-      <Humanoid cx={67} cy={45} scale={0.48} cloth={palette.mid} pants={P.cloth.wool} accent={palette.bright} hair={P.ink.soft} />
+      <g transform="translate(76 34)"><line x1="0" y1="0" x2="0" y2="39" stroke={P.wood.dark} strokeWidth="2.2" /><path d="M0,2 L18,8 L0,16 Z" fill={palette.mid} stroke={P.ink.line} strokeWidth="0.6" /><circle cx="8" cy="9" r="2.3" fill={palette.bright} /></g>
     </SpriteFrame>
   );
 }
@@ -1356,26 +1349,14 @@ export function KnightSprite({ palette, svgOnly = false }: UnitSpriteProps): str
 export function CuirassierSprite({ palette, svgOnly = false }: UnitSpriteProps): string {
   return (
     <SpriteFrame svgOnly={svgOnly}>
-      <Shadow cx={64} cy={97} rx={32} />
-      <g transform="translate(65 79)">
-        <ellipse cx="1" cy="0" rx="31" ry="16" fill="#5a3a1a" stroke={P.ink.line} strokeWidth="1" />
-        <path d="M-23,-8 Q1,-15 23,-8 L20,-3 L-21,-3 Z" fill={palette.dark} stroke={P.ink.line} strokeWidth="0.6" />
-        <rect x="-21" y="7" width="6" height="17" fill="#3a2010" /><rect x="-5" y="7" width="6" height="17" fill="#3a2010" />
-        <rect x="12" y="7" width="6" height="17" fill="#3a2010" /><rect x="21" y="7" width="6" height="17" fill="#3a2010" />
-        <ellipse cx="-25" cy="-6" rx="12" ry="10" fill="#5a3a1a" stroke={P.ink.line} strokeWidth="1" />
-        <path d="M-34,-3 L-39,4 L-31,5 Z" fill="#5a3a1a" />
+      <Shadow cx={64} cy={98} rx={37} />
+      <g transform="translate(58 80)">
+        <path d="M-28,-4 Q-3,-24 28,-11 Q42,-1 31,16 Q2,27 -30,12 Z" fill="#5e3f24" stroke={P.ink.line} strokeWidth="1.1" /><path d="M-18,-12 Q1,-20 24,-10 L21,-2 Q2,4 -20,-3 Z" fill={palette.dark} stroke={P.ink.line} strokeWidth="0.7" /><path d="M-14,-8 Q2,-14 19,-7" stroke={palette.mid} strokeWidth="2" fill="none" />
+        <rect x="-23" y="6" width="8" height="19" fill="#3a2010" /><rect x="-7" y="7" width="8" height="19" fill="#3a2010" /><rect x="11" y="6" width="8" height="19" fill="#3a2010" /><rect x="24" y="5" width="8" height="19" fill="#3a2010" />
+        <path d="M30,-14 Q42,-28 54,-10 L50,6 L36,8 L28,0 Z" fill="#5a3a1a" stroke={P.ink.line} strokeWidth="0.9" /><path d="M40,-14 L45,-26 L49,-12 M48,-13 L56,-21 L54,-7" stroke="#2a1a10" strokeWidth="2.5" fill="none" /><path d="M46,-8 L60,-11 L63,-2 L49,3 Z" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.7" /><path d="M20,-7 Q30,-20 39,-25 Q35,-10 45,1" stroke="#2a1a10" strokeWidth="4" fill="none" strokeLinecap="round" /><path d="M-26,-3 Q-39,-12 -43,-27" stroke="#2a1a10" strokeWidth="4.5" fill="none" strokeLinecap="round" /><path d="M-13,-15 L7,-19 L17,-11 L9,-5 L-14,-7 Z" fill={P.metal.steel} stroke={P.ink.line} strokeWidth="0.8" />
       </g>
-      {mountedRider({
-        cx: 64, cy: 57, scale: 0.82, cloth: P.metal.steel, accent: palette.mid, hair: '#2a1a10',
-        hat: <path d="M-10,-37 Q0,-44 10,-37 L8,-29 L-8,-29 Z" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.7" />,
-      })}
-      <g transform="translate(79 58) rotate(32)">
-        <g className="cq-weapon" style="transform-origin: 79px 58px; transform-box: view-box;">
-          <rect x="-1.2" y="-34" width="2.4" height="34" fill={P.metal.shine} stroke={P.ink.line} strokeWidth="0.5" />
-          <rect x="-6" y="-2" width="12" height="2.5" fill={P.metal.gold} />
-        </g>
-      </g>
-      <Banner x={42} y={30} palette={palette} scale={0.7} />
+      <g transform="translate(62 58)"><path d="M0,-16 Q12,-12 13,9 L8,22 L-10,22 L-13,7 Q-10,-10 0,-16 Z" fill={P.metal.steel} stroke={P.ink.line} strokeWidth="1" /><path d="M-10,5 L10,5 L8,16 L-8,16 Z" fill={palette.mid} stroke={palette.dark} strokeWidth="0.6" /><circle cx="0" cy="-23" r="8" fill={P.skin.warm} stroke={P.ink.line} strokeWidth="0.8" /><path d="M-10,-25 Q0,-35 10,-25 L8,-17 L-8,-17 Z" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.8" /><path d="M4,0 L17,1" stroke={P.skin.warm} strokeWidth="2.3" strokeLinecap="round" /></g>
+      <g transform="translate(79 59) rotate(-32)"><rect x="-1.3" y="-37" width="2.6" height="37" fill={P.metal.shine} stroke={P.ink.line} strokeWidth="0.5" /><rect x="-7" y="-2" width="14" height="2.8" fill={P.metal.gold} /><circle cx="0" cy="2" r="2" fill={palette.bright} /></g>
     </SpriteFrame>
   );
 }

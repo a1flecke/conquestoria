@@ -712,6 +712,277 @@
   --animal-leg-scale: 0.55;
 }
 
+/* ─────────────────────────── #708: CHARACTER-SPECIFIC MOTION ─────────────────────────── */
+
+/* Beast Handler: only the hound travels. The handler plants their feet, braces the staff,
+   and pulls the rune leash taut rather than floating alongside the animal. */
+.cq-v2[data-kind="hound"][data-kind-variant="handler"][data-state="idle"] .cq-sprite-figure,
+.cq-v2[data-kind="hound"][data-kind-variant="handler"][data-state="walk"] .cq-sprite-figure,
+.cq-v2[data-kind="hound"][data-kind-variant="handler"][data-state="attack"] .cq-sprite-figure {
+  animation: none;
+}
+.cq-v2[data-kind="hound"][data-kind-variant="handler"] .cq-hound-body {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+@keyframes cq2-handler-hound-idle {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-1px); }
+}
+.cq-v2[data-kind="hound"][data-kind-variant="handler"][data-state="idle"] .cq-hound-body {
+  animation: cq2-handler-hound-idle 2.4s ease-in-out infinite;
+  animation-delay: calc(var(--phase, 0) * -2.4s);
+}
+@keyframes cq2-handler-hound-walk {
+  0%, 100% { transform: translateY(0); }
+  25% { transform: translateY(-1.2px); }
+  50% { transform: translateY(-.2px); }
+  75% { transform: translateY(-1.1px); }
+}
+.cq-v2[data-kind="hound"][data-kind-variant="handler"][data-state="walk"] .cq-hound-body {
+  animation: cq2-handler-hound-walk .72s ease-in-out infinite;
+  animation-delay: calc(var(--phase, 0) * -.72s);
+}
+@keyframes cq2-handler-hound-step {
+  0%, 100% { transform: rotate(-13deg) translateY(0); }
+  32% { transform: rotate(16deg) translateY(-1px); }
+  60% { transform: rotate(6deg) translateY(0); }
+}
+.cq-v2[data-kind="hound"][data-kind-variant="handler"][data-state="walk"] .cq-leg-fl {
+  animation: cq2-handler-hound-step .72s ease-in-out infinite;
+  animation-delay: calc(var(--phase, 0) * -.72s);
+}
+.cq-v2[data-kind="hound"][data-kind-variant="handler"][data-state="walk"] .cq-leg-fr {
+  animation: cq2-handler-hound-step .72s ease-in-out infinite;
+  animation-delay: calc(var(--phase, 0) * -.72s - .18s);
+}
+.cq-v2[data-kind="hound"][data-kind-variant="handler"][data-state="walk"] .cq-leg-bl {
+  animation: cq2-handler-hound-step .72s ease-in-out infinite;
+  animation-delay: calc(var(--phase, 0) * -.72s - .36s);
+}
+.cq-v2[data-kind="hound"][data-kind-variant="handler"][data-state="walk"] .cq-leg-br {
+  animation: cq2-handler-hound-step .72s ease-in-out infinite;
+  animation-delay: calc(var(--phase, 0) * -.72s - .54s);
+}
+@keyframes cq2-handler-hound-pounce {
+  0% { transform: translateX(0) translateY(0); }
+  18% { transform: translateX(-2px) translateY(1px); }
+  38%, 50% { transform: translateX(9px) translateY(-2px); }
+  76% { transform: translateX(2px) translateY(0); }
+  100% { transform: translateX(0) translateY(0); }
+}
+.cq-v2[data-kind="hound"][data-kind-variant="handler"][data-state="attack"] .cq-hound-body {
+  animation: cq2-handler-hound-pounce 1.3s cubic-bezier(.3,.7,.4,1) infinite;
+  animation-delay: calc(var(--phase, 0) * -1.3s);
+}
+.cq-v2[data-kind="hound"][data-kind-variant="handler"] .cq-hound-tail,
+.cq-v2[data-kind="hound"][data-kind-variant="handler"] .cq-hound-ears,
+.cq-v2[data-kind="hound"][data-kind-variant="handler"] .cq-command-staff,
+.cq-v2[data-kind="hound"][data-kind-variant="handler"] .cq-command-leash,
+.cq-v2[data-kind="hound"][data-kind-variant="handler"] .cq-command-sigil {
+  transform-box: fill-box;
+}
+@keyframes cq2-hound-tail-wag {
+  0%, 100% { transform: rotate(-11deg); }
+  50% { transform: rotate(15deg); }
+}
+.cq-v2[data-kind="hound"][data-kind-variant="handler"][data-state="idle"] .cq-hound-tail {
+  transform-origin: left center;
+  animation: cq2-hound-tail-wag 1.15s ease-in-out infinite;
+  animation-delay: calc(var(--phase, 0) * -1.15s);
+}
+@keyframes cq2-hound-ears-alert {
+  0%, 100% { transform: rotate(0); }
+  42% { transform: rotate(-7deg) translateY(-1px); }
+}
+.cq-v2[data-kind="hound"][data-kind-variant="handler"][data-state="attack"] .cq-hound-ears {
+  transform-origin: center bottom;
+  animation: cq2-hound-ears-alert 1.3s ease-out infinite;
+  animation-delay: calc(var(--phase, 0) * -1.3s);
+}
+@keyframes cq2-command-staff {
+  0%, 100% { transform: rotate(0); }
+  18% { transform: rotate(-8deg); }
+  40%, 50% { transform: rotate(12deg) translateY(-2px); }
+  74% { transform: rotate(2deg); }
+}
+.cq-v2[data-kind="hound"][data-kind-variant="handler"][data-state="attack"] .cq-command-staff {
+  transform-origin: 50% 100%;
+  animation: cq2-command-staff 1.3s cubic-bezier(.3,.7,.4,1) infinite;
+  animation-delay: calc(var(--phase, 0) * -1.3s);
+}
+@keyframes cq2-command-leash {
+  0%, 100% { stroke-dashoffset: 0; transform: scaleX(1); }
+  38%, 50% { stroke-dashoffset: -8px; transform: scaleX(1.16); }
+}
+.cq-v2[data-kind="hound"][data-kind-variant="handler"][data-state="attack"] .cq-command-leash {
+  transform-origin: left center;
+  stroke-dasharray: 3 2;
+  animation: cq2-command-leash 1.3s ease-out infinite;
+  animation-delay: calc(var(--phase, 0) * -1.3s);
+}
+@keyframes cq2-command-sigil {
+  0%, 22%, 100% { opacity: .3; transform: scale(.68) rotate(0); }
+  40%, 52% { opacity: 1; transform: scale(1.35) rotate(45deg); }
+  70% { opacity: .55; transform: scale(1); }
+}
+.cq-v2[data-kind="hound"][data-kind-variant="handler"][data-state="attack"] .cq-command-sigil {
+  transform-origin: center;
+  animation: cq2-command-sigil 1.3s ease-out infinite;
+  animation-delay: calc(var(--phase, 0) * -1.3s);
+}
+
+/* Large animals and mounts travel in four beats. A diagonal-pair cycle looks like a trot;
+   these map-move states read as a heavy elephant walk and deliberate armoured-horse walk. */
+@keyframes cq2-elephant-step {
+  0%, 100% { transform: rotate(-5deg) translateY(0); }
+  35% { transform: rotate(7deg) translateY(-1px); }
+  55% { transform: rotate(4deg) translateY(0); }
+}
+.cq-v2[data-kind="animal"][data-kind-variant="elephant"][data-state="walk"] .cq-leg-fl {
+  animation: cq2-elephant-step .9s ease-in-out infinite;
+  animation-delay: calc(var(--phase, 0) * -.9s);
+}
+.cq-v2[data-kind="animal"][data-kind-variant="elephant"][data-state="walk"] .cq-leg-fr {
+  animation: cq2-elephant-step .9s ease-in-out infinite;
+  animation-delay: calc(var(--phase, 0) * -.9s - .225s);
+}
+.cq-v2[data-kind="animal"][data-kind-variant="elephant"][data-state="walk"] .cq-leg-bl {
+  animation: cq2-elephant-step .9s ease-in-out infinite;
+  animation-delay: calc(var(--phase, 0) * -.9s - .45s);
+}
+.cq-v2[data-kind="animal"][data-kind-variant="elephant"][data-state="walk"] .cq-leg-br {
+  animation: cq2-elephant-step .9s ease-in-out infinite;
+  animation-delay: calc(var(--phase, 0) * -.9s - .675s);
+}
+.cq-v2[data-kind="animal"][data-kind-variant="elephant"] .cq-elephant-ear,
+.cq-v2[data-kind="animal"][data-kind-variant="elephant"] .cq-elephant-trunk,
+.cq-v2[data-kind="animal"][data-kind-variant="elephant"] .cq-howdah,
+.cq-v2[data-kind="animal"][data-kind-variant="elephant"] .cq-rune-standard,
+.cq-v2[data-kind="animal"][data-kind-variant="elephant"] .cq-elephant-tusks,
+.cq-v2[data-kind="animal"][data-kind-variant="elephant"] .cq-elephant-head {
+  transform-box: fill-box;
+}
+@keyframes cq2-elephant-ear {
+  0%, 100% { transform: rotate(-2deg); }
+  50% { transform: rotate(5deg) scaleY(1.05); }
+}
+.cq-v2[data-kind="animal"][data-kind-variant="elephant"][data-state="walk"] .cq-elephant-ear {
+  transform-origin: right center;
+  animation: cq2-elephant-ear 1.15s ease-in-out infinite;
+  animation-delay: calc(var(--phase, 0) * -1.15s);
+}
+@keyframes cq2-elephant-trunk {
+  0%, 100% { transform: rotate(4deg) translateY(0); }
+  50% { transform: rotate(-7deg) translateY(2px); }
+}
+.cq-v2[data-kind="animal"][data-kind-variant="elephant"][data-state="walk"] .cq-elephant-trunk {
+  transform-origin: left top;
+  animation: cq2-elephant-trunk .9s ease-in-out infinite;
+  animation-delay: calc(var(--phase, 0) * -.9s - .1s);
+}
+@keyframes cq2-howdah-rock {
+  0%, 100% { transform: rotate(-1.5deg) translateY(0); }
+  50% { transform: rotate(2.5deg) translateY(-1px); }
+}
+.cq-v2[data-kind="animal"][data-kind-variant="elephant"][data-state="walk"] .cq-howdah {
+  transform-origin: center bottom;
+  animation: cq2-howdah-rock .9s ease-in-out infinite;
+  animation-delay: calc(var(--phase, 0) * -.9s - .12s);
+}
+@keyframes cq2-rune-standard {
+  0%, 100% { transform: rotate(-3deg); }
+  50% { transform: rotate(5deg); }
+}
+.cq-v2[data-kind="animal"][data-kind-variant="elephant"][data-state="walk"] .cq-rune-standard {
+  transform-origin: left bottom;
+  animation: cq2-rune-standard 1.1s ease-in-out infinite;
+  animation-delay: calc(var(--phase, 0) * -1.1s - .16s);
+}
+@keyframes cq2-elephant-charge-head {
+  0%, 100% { transform: translateX(0) rotate(0); }
+  34%, 50% { transform: translateX(5px) rotate(4deg); }
+}
+.cq-v2[data-kind="animal"][data-kind-variant="elephant"][data-state="attack"] .cq-elephant-head {
+  transform-origin: left center;
+  animation: cq2-elephant-charge-head 1.7s cubic-bezier(.3,.7,.4,1) infinite;
+  animation-delay: calc(var(--phase, 0) * -1.7s);
+}
+@keyframes cq2-elephant-tusks {
+  0%, 100% { transform: translateX(0); opacity: .7; }
+  34%, 50% { transform: translateX(8px) scaleX(1.08); opacity: 1; }
+}
+.cq-v2[data-kind="animal"][data-kind-variant="elephant"][data-state="attack"] .cq-elephant-tusks {
+  transform-origin: left center;
+  animation: cq2-elephant-tusks 1.7s cubic-bezier(.3,.7,.4,1) infinite;
+  animation-delay: calc(var(--phase, 0) * -1.7s);
+}
+
+@keyframes cq2-mount-step {
+  0%, 100% { transform: rotate(-12deg) translateY(0); }
+  30% { transform: rotate(16deg) translateY(-1px); }
+  58% { transform: rotate(7deg) translateY(0); }
+}
+.cq-v2[data-kind="animal"][data-kind-variant="mount"][data-state="walk"] .cq-leg-fl {
+  animation: cq2-mount-step .58s cubic-bezier(.4,0,.6,1) infinite;
+  animation-delay: calc(var(--phase, 0) * -.58s);
+}
+.cq-v2[data-kind="animal"][data-kind-variant="mount"][data-state="walk"] .cq-leg-fr {
+  animation: cq2-mount-step .58s cubic-bezier(.4,0,.6,1) infinite;
+  animation-delay: calc(var(--phase, 0) * -.58s - .145s);
+}
+.cq-v2[data-kind="animal"][data-kind-variant="mount"][data-state="walk"] .cq-leg-bl {
+  animation: cq2-mount-step .58s cubic-bezier(.4,0,.6,1) infinite;
+  animation-delay: calc(var(--phase, 0) * -.58s - .29s);
+}
+.cq-v2[data-kind="animal"][data-kind-variant="mount"][data-state="walk"] .cq-leg-br {
+  animation: cq2-mount-step .58s cubic-bezier(.4,0,.6,1) infinite;
+  animation-delay: calc(var(--phase, 0) * -.58s - .435s);
+}
+.cq-v2[data-kind="animal"][data-kind-variant="mount"] .cq-horse-mane,
+.cq-v2[data-kind="animal"][data-kind-variant="mount"] .cq-horse-tail,
+.cq-v2[data-kind="animal"][data-kind-variant="mount"] .cq-rider,
+.cq-v2[data-kind="animal"][data-kind-variant="mount"] .cq-saddle {
+  transform-box: fill-box;
+}
+@keyframes cq2-horse-mane {
+  0%, 100% { transform: rotate(-4deg) translateY(0); }
+  50% { transform: rotate(7deg) translateY(-1px); }
+}
+.cq-v2[data-kind="animal"][data-kind-variant="mount"][data-state="walk"] .cq-horse-mane {
+  transform-origin: left bottom;
+  animation: cq2-horse-mane .58s ease-in-out infinite;
+  animation-delay: calc(var(--phase, 0) * -.58s - .08s);
+}
+@keyframes cq2-horse-tail {
+  0%, 100% { transform: rotate(-9deg); }
+  50% { transform: rotate(13deg) translateY(-1px); }
+}
+.cq-v2[data-kind="animal"][data-kind-variant="mount"][data-state="walk"] .cq-horse-tail {
+  transform-origin: right top;
+  animation: cq2-horse-tail .72s ease-in-out infinite;
+  animation-delay: calc(var(--phase, 0) * -.72s - .18s);
+}
+@keyframes cq2-rider-settle {
+  0%, 100% { transform: translateY(0) rotate(0); }
+  50% { transform: translateY(-2px) rotate(-1.5deg); }
+}
+.cq-v2[data-kind="animal"][data-kind-variant="mount"][data-state="walk"] .cq-rider {
+  transform-origin: center bottom;
+  animation: cq2-rider-settle .58s ease-in-out infinite;
+  animation-delay: calc(var(--phase, 0) * -.58s - .08s);
+}
+@keyframes cq2-saddle-brace {
+  0%, 100% { transform: translateX(0) scaleX(1); }
+  18% { transform: translateX(-2px) scaleX(.96); }
+  34%, 50% { transform: translateX(4px) scaleX(1.06); }
+}
+.cq-v2[data-kind="animal"][data-kind-variant="mount"][data-state="attack"] .cq-saddle {
+  transform-origin: center;
+  animation: cq2-saddle-brace 1.3s cubic-bezier(.3,.7,.4,1) infinite;
+  animation-delay: calc(var(--phase, 0) * -1.3s);
+}
+
 /* ─────────────────────────── NAVAL — ship rock + sail billow ─────────────────────────── */
 
 /* Naval body override: replace humanoid breathe with a slow side-to-side rock.
