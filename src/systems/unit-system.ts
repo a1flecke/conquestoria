@@ -256,18 +256,21 @@ const UNIT_DEFINITION_BASES: Record<UnitType, UnitDefinitionBase> = {
     visionRange: 2, strength: 25, canFoundCity: false,
     canBuildImprovements: false, productionCost: 55,
     cargoSize: 2,
+    landSupplyCost: 2, // #544 MR7: contract §10 -- initialized to match cargoSize
   },
   chariot: {
     type: 'chariot', name: 'Chariot', movementPoints: 3,
     visionRange: 2, strength: 30, canFoundCity: false,
     canBuildImprovements: false, productionCost: 65,
     cargoSize: 2,
+    landSupplyCost: 2, // #544 MR7: contract §10 -- initialized to match cargoSize
   },
   cavalry: {
     type: 'cavalry', name: 'Cavalry', movementPoints: 4,
     visionRange: 2, strength: 44, canFoundCity: false,
     canBuildImprovements: false, productionCost: 140,
     cargoSize: 2,
+    landSupplyCost: 2, // #544 MR7: contract §10 -- initialized to match cargoSize
   },
   armored_car: {
     type: 'armored_car', name: 'Armored Car', movementPoints: 4,
@@ -279,12 +282,14 @@ const UNIT_DEFINITION_BASES: Record<UnitType, UnitDefinitionBase> = {
     visionRange: 2, strength: 45, canFoundCity: false,
     canBuildImprovements: false, productionCost: 80,
     cargoSize: 2,
+    landSupplyCost: 2, // #544 MR7: contract §10 -- initialized to match cargoSize
   },
   cuirassier: {
     type: 'cuirassier', name: 'Cuirassier', movementPoints: 3,
     visionRange: 2, strength: 52, canFoundCity: false,
     canBuildImprovements: false, productionCost: 150,
     cargoSize: 2,
+    landSupplyCost: 2, // #544 MR7: contract §10 -- initialized to match cargoSize
   },
   crossbowman: {
     type: 'crossbowman', name: 'Crossbowman', movementPoints: 2,
@@ -298,6 +303,7 @@ const UNIT_DEFINITION_BASES: Record<UnitType, UnitDefinitionBase> = {
     canBuildImprovements: false, productionCost: 110,
     attackProfile: { kind: 'bombard', range: 2, targets: ['unit', 'city'] },
     cargoSize: 3,
+    landSupplyCost: 3, // #544 MR7: contract §10 -- initialized to match cargoSize
   },
   trebuchet: {
     type: 'trebuchet', name: 'Trebuchet', movementPoints: 1,
@@ -305,6 +311,7 @@ const UNIT_DEFINITION_BASES: Record<UnitType, UnitDefinitionBase> = {
     canBuildImprovements: false, productionCost: 125,
     attackProfile: { kind: 'bombard', range: 2, targets: ['unit', 'city'] },
     cargoSize: 3,
+    landSupplyCost: 3, // #544 MR7: contract §10 -- initialized to match cargoSize
     fortificationPenetration: 0.5,
     cityAssaultMultiplier: 1.25,
   },
@@ -314,6 +321,7 @@ const UNIT_DEFINITION_BASES: Record<UnitType, UnitDefinitionBase> = {
     canBuildImprovements: false, productionCost: 100,
     attackProfile: { kind: 'ranged', range: 3, targets: ['unit'] },
     cargoSize: 3,
+    landSupplyCost: 3, // #544 MR7: contract §10 -- initialized to match cargoSize
   },
   cannon: {
     type: 'cannon', name: 'Cannon', movementPoints: 2,

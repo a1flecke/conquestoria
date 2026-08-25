@@ -304,6 +304,16 @@ function checkLastStandHold(unitBefore: Unit, currentTurn: number): boolean {
   return hold !== undefined && currentTurn <= hold.expiresTurn;
 }
 
+// #544 MR7: contract §20 says the Hold save "does not protect explicit
+// self-sacrifice/self-destruct costs" -- item 77 of the required scenario
+// matrix. As of MR7's audit, no self-destruct or self-sacrifice unit
+// mechanic exists anywhere in this codebase, so this distinction is
+// currently vacuous: every call site above (attacker branch, defender
+// branch, splash loop) only ever reaches an *involuntary* lethal outcome. If
+// a future mechanic adds a voluntary self-sacrifice/self-destruct cost,
+// route it around checkLastStandHold explicitly -- don't assume this gap was
+// an oversight just because nothing here currently excludes it.
+
 /**
  * #544 MR3: "if escort is destroyed, General dies too. No escape" (contract
  * §15). A General may share a tile with exactly one friendly combat unit;

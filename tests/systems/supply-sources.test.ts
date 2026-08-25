@@ -88,6 +88,19 @@ describe('isCityStabilized', () => {
     const city = {} as City;
     expect(isCityStabilized(state, city)).toBe(true);
   });
+
+  it('recapturing a previously-stabilized city resets the stabilization clock (#544 MR7 item 17)', () => {
+    // City conquered at turn 10, long enough ago (by CAPTURED_SOURCE_STABILIZATION_TURNS.city)
+    // that it was fully stabilized by turn 30 -- then recaptured at turn 30
+    // (city-capture-system.ts sets conquestTurn: turn unconditionally on
+    // every capture, including a recapture, matching this).
+    const stabilizedBeforeRecapture = { turn: 10 + CAPTURED_SOURCE_STABILIZATION_TURNS.city } as GameState;
+    const cityBeforeRecapture = { conquestTurn: 10 } as City;
+    expect(isCityStabilized(stabilizedBeforeRecapture, cityBeforeRecapture)).toBe(true);
+
+    const recapturedCity = { conquestTurn: stabilizedBeforeRecapture.turn } as City;
+    expect(isCityStabilized(stabilizedBeforeRecapture, recapturedCity)).toBe(false);
+  });
 });
 
 describe('isFortStabilized', () => {

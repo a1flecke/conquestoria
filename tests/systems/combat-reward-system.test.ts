@@ -1391,6 +1391,117 @@ describe('prize-crew helpers', () => {
   });
 });
 
+describe('#544 MR7 — Last Stand lethal-save (contract §20, items 74-76)', () => {
+  it('item 74: an unexpired lastStandHold saves the defender from an otherwise-lethal hit, leaving it at 1 HP', () => {
+    const state = makeRewardState();
+    state.units.defender = {
+      ...state.units.defender,
+      lastStandHold: { formationId: 'formation-1', defenseBonusMultiplier: 1.15, expiresTurn: state.turn },
+    };
+    const result: CombatResult = {
+      attackerId: 'attacker', defenderId: 'defender', attackerDamage: 0, defenderDamage: 100,
+      attackerSurvived: true, defenderSurvived: false, attackerStrength: 30, defenderStrength: 20,
+      attackerPosition: { q: 0, r: 0 }, defenderPosition: { q: 1, r: 0 },
+    };
+
+    const applied = applyCombatOutcomeToState(state, result, 64);
+
+    expect(applied.defenderDefeated).toBe(false);
+    expect(applied.state.units.defender).toBeDefined();
+    expect(applied.state.units.defender.health).toBe(1);
+  });
+
+  it('item 75: the hold is consumed after one save -- a second lethal hit on the same unit is not saved again', () => {
+    const state = makeRewardState();
+    state.units.defender = {
+      ...state.units.defender,
+      lastStandHold: { formationId: 'formation-1', defenseBonusMultiplier: 1.15, expiresTurn: state.turn },
+    };
+    const result: CombatResult = {
+      attackerId: 'attacker', defenderId: 'defender', attackerDamage: 0, defenderDamage: 100,
+      attackerSurvived: true, defenderSurvived: false, attackerStrength: 30, defenderStrength: 20,
+      attackerPosition: { q: 0, r: 0 }, defenderPosition: { q: 1, r: 0 },
+    };
+    const firstHit = applyCombatOutcomeToState(state, result, 64);
+    expect(firstHit.state.units.defender.lastStandHold).toBeUndefined(); // consumed
+
+    const secondHit = applyCombatOutcomeToState(firstHit.state, result, 65);
+
+    expect(secondHit.defenderDefeated).toBe(true);
+    expect(secondHit.state.units.defender).toBeUndefined();
+  });
+
+  it('item 75: the hold is consumed formation-wide -- a different unit sharing the same formationId is also no longer saved', () => {
+    const state = makeRewardState();
+    const held = {
+      ...state.units.defender,
+      lastStandHold: { formationId: 'formation-1', defenseBonusMultiplier: 1.15, expiresTurn: state.turn },
+    };
+    const formationMate = {
+      ...state.units.defender,
+      id: 'formation-mate',
+      lastStandHold: { formationId: 'formation-1', defenseBonusMultiplier: 1.15, expiresTurn: state.turn },
+    };
+    state.units = { attacker: state.units.attacker, defender: held, 'formation-mate': formationMate };
+    const firstResult: CombatResult = {
+      attackerId: 'attacker', defenderId: 'defender', attackerDamage: 0, defenderDamage: 100,
+      attackerSurvived: true, defenderSurvived: false, attackerStrength: 30, defenderStrength: 20,
+      attackerPosition: { q: 0, r: 0 }, defenderPosition: { q: 1, r: 0 },
+    };
+    const afterFirst = applyCombatOutcomeToState(state, firstResult, 64);
+    expect(afterFirst.state.units['formation-mate']!.lastStandHold).toBeUndefined(); // cleared formation-wide, not just on 'defender'
+
+    const secondResult: CombatResult = {
+      attackerId: 'attacker', defenderId: 'formation-mate', attackerDamage: 0, defenderDamage: 100,
+      attackerSurvived: true, defenderSurvived: false, attackerStrength: 30, defenderStrength: 20,
+      attackerPosition: { q: 0, r: 0 }, defenderPosition: { q: 1, r: 0 },
+    };
+    const afterSecond = applyCombatOutcomeToState(afterFirst.state, secondResult, 65);
+
+    expect(afterSecond.defenderDefeated).toBe(true);
+    expect(afterSecond.state.units['formation-mate']).toBeUndefined();
+  });
+
+  it('item 76: the save applies uniformly regardless of caller, not just player-initiated attacks -- proven at the shared entry point stampede-system.ts:349 and every other environmental/scripted combat source call into', () => {
+    // stampede-system.ts's processStampedeTurn resolves herd-vs-blocker
+    // combat through this exact applyCombatOutcomeToState call
+    // (stampede-system.ts:349-350) with no special-casing of the involved
+    // units -- herd and blocker are read directly from state.units and
+    // passed straight through, so a blocker with an unexpired lastStandHold
+    // is saved the same way a player-combat defender is. This test proves
+    // the save fires for a unit playing the "defender" role in a combat
+    // whose "attacker" is a non-player-owned force (mirroring a stampede
+    // herd's owner), rather than re-deriving the full herd-route/crisis-
+    // force fixture stampede-system.test.ts would need to invoke
+    // processStampedeTurn directly.
+    const state = makeRewardState();
+    state.units.attacker = { ...state.units.attacker, owner: 'beasts' };
+    state.units.defender = {
+      ...state.units.defender,
+      lastStandHold: { formationId: 'formation-1', defenseBonusMultiplier: 1.15, expiresTurn: state.turn },
+    };
+    const result: CombatResult = {
+      attackerId: 'attacker', defenderId: 'defender', attackerDamage: 0, defenderDamage: 100,
+      attackerSurvived: true, defenderSurvived: false, attackerStrength: 30, defenderStrength: 20,
+      attackerPosition: { q: 0, r: 0 }, defenderPosition: { q: 1, r: 0 },
+    };
+
+    const applied = applyCombatOutcomeToState(state, result, 64);
+
+    expect(applied.defenderDefeated).toBe(false);
+    expect(applied.state.units.defender.health).toBe(1);
+  });
+});
+
+// #544 MR7 item 77 (contract §20: "does not protect explicit self-
+// sacrifice/self-destruct costs") is currently vacuous: no self-destruct or
+// self-sacrifice unit mechanic exists anywhere in this codebase (confirmed
+// via repo-wide grep during MR7's audit), so there is no real scenario for
+// checkLastStandHold's three call sites (combat-reward-system.ts:440, 550,
+// 633) to need to distinguish "involuntary lethal" from "voluntary
+// sacrifice" against. If a future mechanic adds such a cost, route it
+// around checkLastStandHold rather than assuming this gap was an oversight.
+
 describe('escort protection (civilian capture precondition)', () => {
   it("never selects an unescorted civilian's escort — the combat unit always defends the stack", () => {
     const civilian = { ...createUnit('worker', 'ai-1', { q: 1, r: 0 }, mkC()), id: 'civilian' };
