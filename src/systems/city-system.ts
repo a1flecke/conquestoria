@@ -881,9 +881,13 @@ export const BUILDINGS: Record<string, Building> = {
   missile_silo: {
     id: 'missile_silo', name: 'Missile Silo', category: 'military',
     yields: { food: 0, production: 4, gold: 0, science: 0 }, productionCost: 215,
-    description: 'Hardened underground silo housing intercontinental ballistic missiles. +4 production per turn.',
+    // #545: +1 arsenal capacity already wired in MR1's ARSENAL_CAPACITY_SOURCES.
+    // strategicLaunchPlatform is new this MR -- fixed, unlimited-range, discoverable
+    // location (spec §3's "Reach" role; redundancy comes from building more than one).
+    description: 'Hardened underground silo housing intercontinental ballistic missiles. +4 production per turn, +1 arsenal capacity. Once your empire has a warhead, this silo can launch it at any discovered city you\'re at war with, at unlimited range.',
     techRequired: 'icbm-development',
     pacing: { band: 'power-spike', role: 'strategic-deterrent', impact: 1.5, scope: 'city', snowball: 1.4, urgency: 1.2, situationality: 1.2, unlockBreadth: 1 },
+    strategicLaunchPlatform: { range: 'unlimited' },
   },
   semiconductor_fab: {
     id: 'semiconductor_fab', name: 'Semiconductor Fabricator', category: 'science',
