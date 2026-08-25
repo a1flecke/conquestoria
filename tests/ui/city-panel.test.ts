@@ -2723,3 +2723,44 @@ describe('city-panel warhead arsenal visibility (#545)', () => {
     expect(collectText(panel)).toContain('Arsenal: 2/4');
   });
 });
+
+describe('Prepare Strategic Launch action (#545 MR4 §14 stage 1)', () => {
+  it('shows the action with current arsenal count when the city has a missile_silo', () => {
+    const { container, city, state } = makeWonderPanelFixture();
+    city.buildings.push('missile_silo');
+    state.civilizations.player.strategicArsenal = 2;
+    const onPrepareStrategicLaunch = vi.fn();
+
+    const panel = createCityPanel(container, city, state, {
+      onBuild: () => {}, onOpenWonderPanel: () => {}, onClose: () => {},
+      onPrepareStrategicLaunch,
+    });
+
+    expect(collectText(panel)).toContain('Strategic Arsenal: 2 / ');
+    clickElement(panel.querySelector('[data-action="prepare-strategic-launch"]'));
+    expect(onPrepareStrategicLaunch).toHaveBeenCalledWith(city.id);
+  });
+
+  it('is absent without a missile_silo', () => {
+    const { container, city, state } = makeWonderPanelFixture();
+    const panel = createCityPanel(container, city, state, { onBuild: () => {}, onOpenWonderPanel: () => {}, onClose: () => {} });
+    expect(panel.querySelector('[data-action="prepare-strategic-launch"]')).toBeNull();
+  });
+
+  it('is disabled with a reason when arsenal is 0', () => {
+    const { container, city, state } = makeWonderPanelFixture();
+    city.buildings.push('missile_silo');
+    const panel = createCityPanel(container, city, state, { onBuild: () => {}, onOpenWonderPanel: () => {}, onClose: () => {} });
+    const button = panel.querySelector('[data-action="prepare-strategic-launch"]') as HTMLButtonElement;
+    expect(button.disabled).toBe(true);
+    expect(collectText(panel)).toContain('No warheads in arsenal.');
+  });
+
+  it('is absent for another player\'s city in hot-seat (currentPlayer gate)', () => {
+    const { container, city, state } = makeWonderPanelFixture();
+    city.buildings.push('missile_silo');
+    state.currentPlayer = 'player-2';
+    const panel = createCityPanel(container, city, state, { onBuild: () => {}, onOpenWonderPanel: () => {}, onClose: () => {} });
+    expect(panel.querySelector('[data-action="prepare-strategic-launch"]')).toBeNull();
+  });
+});

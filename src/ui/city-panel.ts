@@ -103,6 +103,8 @@ export interface CityPanelCallbacks {
   ) => void;
   /** Resolves the current human empire's pending Circular Manufacturing choice. */
   onChooseCircularManufacturingMaterial?: (material: ResourceType) => void;
+  /** #545 MR4 §14 stage 1: opens the strategic-launch flow for this city's Missile Silo. */
+  onPrepareStrategicLaunch?: (cityId: string) => void;
 }
 
 type CityPanelTab = 'list' | 'districts' | 'citizens' | 'wonders';
@@ -1338,6 +1340,31 @@ export function createCityPanel(
       choiceSection.appendChild(button);
     }
     panel.insertBefore(choiceSection, panel.firstChild);
+  }
+
+  // #545 MR4 §14 stage 1: Prepare Strategic Launch action for a Missile Silo,
+  // same hot-seat scoping as the Circular Manufacturing choice above.
+  if (city.buildings.includes('missile_silo') && city.owner === state.currentPlayer && currentCiv.isHuman) {
+    const arsenal = getStrategicArsenal(currentCiv);
+    const capacity = getStrategicArsenalCapacity(state, currentCiv.id);
+    const launchSection = document.createElement('section');
+    launchSection.dataset.role = 'strategic-launch-action';
+    launchSection.style.cssText = 'background:rgba(200,60,40,0.10);border:1px solid rgba(200,60,40,0.4);border-radius:8px;padding:10px 12px;margin:0 0 16px;font-size:12px;';
+    const launchTitle = document.createElement('div');
+    launchTitle.textContent = `Strategic Arsenal: ${arsenal} / ${capacity} warheads`;
+    launchTitle.style.cssText = 'font-weight:bold;color:#e8917a;margin-bottom:4px;';
+    launchSection.appendChild(launchTitle);
+    const launchButton = createGameButton('Prepare Strategic Launch', 'danger', { disabled: arsenal < 1 });
+    launchButton.dataset.action = 'prepare-strategic-launch';
+    launchButton.addEventListener('click', () => callbacks.onPrepareStrategicLaunch?.(city.id));
+    launchSection.appendChild(launchButton);
+    if (arsenal < 1) {
+      const launchReason = document.createElement('div');
+      launchReason.textContent = 'No warheads in arsenal.';
+      launchReason.style.cssText = 'opacity:0.7;margin-top:6px;';
+      launchSection.appendChild(launchReason);
+    }
+    panel.insertBefore(launchSection, panel.firstChild);
   }
 
   // Trade Routes Overhaul (#553 MR4/4) — populate the Trade Routes section placeholder.
