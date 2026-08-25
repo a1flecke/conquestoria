@@ -163,7 +163,7 @@ export interface CitySiegeResult {
   goldLost: number;
 }
 
-const SACK_GOLD_LOSS_FRACTION = 0.15;
+export const SACK_GOLD_LOSS_FRACTION = 0.15;
 
 // A garrisoned defender fully blocks city-HP damage — the barbarian/pirate equivalent
 // of beginMajorCityAssault's "city-defended" gate for player-vs-player capture. This
