@@ -274,6 +274,20 @@ describe('#708 mounted and beast native sprites', () => {
     expect(handler).toContain('class="cq-command-staff" transform="translate(50 66)"');
   });
 
+  it('keeps Handler placement outside animated joints and layers the Cuirassier rider correctly', () => {
+    const handler = getUnitSpriteV2('beast_handler', 'imperials')!;
+    const cuirassier = getUnitSpriteV2('cuirassier', 'imperials')!;
+
+    expect(handler).toContain('class="cq-handler-leg-l" transform="translate(35 78)"');
+    expect(handler).toContain('class="cq-handler-leg-r" transform="translate(44 78)"');
+    expect(handler).toContain('cq-handler-leg-l-joint');
+    expect(handler).toContain('cq-handler-leg-r-joint');
+    expect(cuirassier.indexOf('cq-rider-leg-r')).toBeLessThan(cuirassier.indexOf('cq-horse-body'));
+    expect(cuirassier.indexOf('cq-rider-leg-l')).toBeGreaterThan(cuirassier.indexOf('cq-horse-body'));
+    expect(cuirassier).toContain('M-27,-7 C-40,-9 -45,2 -42,15');
+    expect(cuirassier).not.toContain('Q-39,-1 -40,13');
+  });
+
   it('ships a distinct palette-derived native illustration for every supported faction', () => {
     for (const type of Object.keys(ISSUE_708_NATIVE)) {
       const illustrations = new Set(FACTIONS.map(faction => getUnitSpriteV2(type, faction)!));
