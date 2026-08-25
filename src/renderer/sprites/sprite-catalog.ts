@@ -21,7 +21,7 @@ import {
   FrigateSprite, DestroyerSprite, MerchantWagonSprite,
   FreightConvoySprite, AirFreighterSprite, ReconAircraftSprite, BomberSprite, JetFreighterSprite,
   GlobalAirCargoSprite, StealthBomberSprite,
-  AntiTankGunSprite, MobileAaSprite, WwiiFighterSprite,
+  AntiTankGunSprite, MobileAaSprite, WwiiFighterSprite, ParatrooperSprite, NavalStrikeAircraftSprite, MaritimePatrolAircraftSprite, SupercarrierSprite, GreatGeneralSprite,
 } from './units';
 import {
   GranarySprite, HerbalistSprite, AqueductSprite,
@@ -48,7 +48,7 @@ import {
   ResearchInstituteSprite, TankDepotSprite, AntiAirBatterySprite,
   MobilizationActSprite, StateBroadcastingSprite, NationalCensusSprite, AirForceCommandSprite,
   // era 10
-  NuclearArsenalSprite, CentralBankSprite, AtomicLaboratorySprite, RadarStationSprite,
+  NuclearArsenalSprite, CentralBankSprite, AtomicLaboratorySprite, RadarStationSprite, SamSiteSprite,
   UnDelegationSprite, RocketProgramSprite, PublicHospitalSprite, ChemicalPlantSprite,
   NuclearPowerPlantSprite, TelevisionStationSprite, SignalsBureauSprite,
   ManhattanProjectSprite, PostwarReconstructionSprite, SpaceProgramInitiativeSprite,
@@ -318,7 +318,7 @@ export const UNIT_SPRITE_CATALOG: Record<UnitType, UnitSpriteComponent> = {
   infantry:          withMotion('infantry', InfantrySprite),
   mechanized_infantry: withMotion('mechanized_infantry', MechanizedInfantrySprite),
   // Temporary Infantry silhouette; bespoke Paratrooper art is a follow-up (#543).
-  paratrooper:       withMotion('paratrooper', InfantrySprite),
+  paratrooper:       withMotion('paratrooper', ParatrooperSprite),
   pre_dreadnought:   withMotion('pre_dreadnought', PreDreadnoughtSprite),
   // Temporary silhouette; #711 owns Battleship's dedicated capital-ship art.
   battleship:        withMotion('battleship', PreDreadnoughtSprite),
@@ -344,11 +344,11 @@ export const UNIT_SPRITE_CATALOG: Record<UnitType, UnitSpriteComponent> = {
   bomber:            withMotion('bomber', BomberSprite),
   carrier:           withMotion('carrier', CarrierSprite),
   // Temporary Jet Fighter silhouette; bespoke Naval Strike Aircraft art is a follow-up (#582).
-  naval_strike_aircraft: withMotion('naval_strike_aircraft', JetFighterSprite),
+  naval_strike_aircraft: withMotion('naval_strike_aircraft', NavalStrikeAircraftSprite),
   // Temporary Recon Aircraft silhouette (both non-combat, camera-pod recon-style jets); bespoke Maritime Patrol art is a follow-up (#582).
-  maritime_patrol_aircraft: withMotion('maritime_patrol_aircraft', ReconAircraftSprite),
+  maritime_patrol_aircraft: withMotion('maritime_patrol_aircraft', MaritimePatrolAircraftSprite),
   // Temporary Carrier silhouette; bespoke Supercarrier art is a follow-up (#582).
-  supercarrier:      withMotion('supercarrier', CarrierSprite),
+  supercarrier:      withMotion('supercarrier', SupercarrierSprite),
   attack_helicopter: withMotion('attack_helicopter', AttackHelicopterSprite),
   missile_submarine: withMotion('missile_submarine', MissileSubmarineSprite),
   // Era 13 (#652), batch A — bespoke sprites landed 2026-07-26.
@@ -358,7 +358,7 @@ export const UNIT_SPRITE_CATALOG: Record<UnitType, UnitSpriteComponent> = {
   propagandist: withMotion('propagandist', PropagandistSprite),
   drone_controller: withMotion('drone_controller', DroneControllerSprite),
   // #544 MR3: placeholder silhouette pending bespoke art (generate-sprite-prompt follow-up).
-  great_general: withMotion('great_general', WarriorSprite),
+  great_general: withMotion('great_general', GreatGeneralSprite),
   caravan:           withMotion('caravan', CaravanSprite),
   // Trade Routes Overhaul (#553 MR2/4) — Land trade line successors to Caravan.
   // merchant_wagon de-aliased in #769 batch 2.
@@ -525,7 +525,7 @@ export const BUILDING_SPRITE_CATALOG: Record<string, BuildingSpriteComponent> = 
   atomic_laboratory:              AtomicLaboratorySprite,
   radar_station:                  RadarStationSprite,
   // Temporary Radar Station silhouette; #710 owns SAM Site's dedicated air-defense art.
-  sam_site:                       RadarStationSprite,
+  sam_site:                       SamSiteSprite,
   un_delegation:                  UnDelegationSprite,
   rocket_program:                 RocketProgramSprite,
   public_hospital:                PublicHospitalSprite,

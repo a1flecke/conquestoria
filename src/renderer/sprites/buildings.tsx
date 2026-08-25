@@ -2340,6 +2340,18 @@ export function RadarStationSprite({ palette, svgOnly = false }: BuildingSpriteP
   );
 }
 
+export function SamSiteSprite({ palette, svgOnly = false }: BuildingSpriteProps): string {
+  return (
+    <BuildingFrame label="SAM Site" category="military" svgOnly={svgOnly}>
+      <BuildingPlinth w={132} />
+      <g className="cq-sam-bunker"><path d="M35,132 L49,90 L133,90 L153,132 Z" fill={P.stone.mid} stroke={P.ink.line} strokeWidth="1.2" /><rect x="62" y="108" width="32" height="24" fill={P.stone.dark} stroke={P.ink.line} strokeWidth=".8" /></g>
+      <g className="cq-sam-launcher" transform="translate(106 92) rotate(-28)"><rect x="-12" y="0" width="46" height="12" rx="3" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="1" /><g className="cq-sam-missiles" fill={P.metal.steel} stroke={P.ink.line} strokeWidth=".5"><path d="M0,2h30l6,4 -6,4H0z" /><path d="M0,8h30l6,4 -6,4H0z" /></g></g>
+      <g className="cq-sam-dish" transform="translate(55 88)"><path d="M-16,0h32q0,16 -16,20Q-16,16 -16,0Z" fill={palette.mid} stroke={P.ink.line} strokeWidth="1" /><line x1="0" y1="0" x2="0" y2="12" stroke={P.metal.steel} strokeWidth="1.2" /></g>
+      <Banner x={146} y={30} palette={palette} scale={.66} />
+    </BuildingFrame>
+  );
+}
+
 export function UnDelegationSprite({ palette, svgOnly = false }: BuildingSpriteProps): string {
   return (
     <BuildingFrame label="UN Delegation" category="economy" svgOnly={svgOnly}>
