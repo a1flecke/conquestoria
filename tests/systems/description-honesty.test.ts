@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { TECH_TREE } from '@/systems/tech-definitions';
 import { BUILDINGS } from '@/systems/city-system';
-import { UNIT_DESCRIPTIONS } from '@/systems/unit-system';
+import { UNIT_DEFINITIONS, UNIT_DESCRIPTIONS } from '@/systems/unit-system';
 
 // Tripwire for MR12 (issue #471) — a curated denylist of phrases that named a
 // nonexistent mechanic and were removed/rewritten in this MR. This is not a general
@@ -64,5 +64,20 @@ describe('description honesty tripwire', () => {
     }
 
     expect(failures).toEqual([]);
+  });
+});
+
+describe('description honesty positive assertions (#545)', () => {
+  it('missile_silo description honestly reflects its wired strategicLaunchPlatform + capacity effects', () => {
+    const silo = BUILDINGS.missile_silo;
+    expect(silo.strategicLaunchPlatform).toEqual({ range: 'unlimited' });
+    expect(silo.description).toContain('unlimited range');
+  });
+
+  it('missile_submarine description honestly reflects its wired strategicLaunchPlatform range', () => {
+    const def = UNIT_DEFINITIONS.missile_submarine;
+    expect(def.strategicLaunchPlatform).toEqual({ range: 4 });
+    expect(UNIT_DESCRIPTIONS.missile_submarine).toContain('4 hexes');
+    expect(UNIT_DESCRIPTIONS.missile_submarine).not.toContain('Longest range of any unit');
   });
 });

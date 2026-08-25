@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import {
   applyAIProduction,
   economyValue,
@@ -167,6 +169,27 @@ describe('strategicArsenalValueScore (#545)', () => {
     const warhead = generateAIProductionCandidates(state, 'ai-1', 'city-a', [], aggressive)
       .find(candidate => candidate.itemId === 'warhead')!;
     expect(warhead.score).toBeGreaterThan(0);
+  });
+
+  it('warhead appears among AI building candidates once eligible, scored by the generic pipeline', () => {
+    const state = setupState(['nuclear-weapons', 'nuclear-physics']);
+    state.builtNationalProjects = {
+      'ai-1:manhattan_project': { civId: 'ai-1', cityId: 'city-a', eraBuilt: 10 },
+    };
+    grantResources(state, ['uranium']);
+
+    expect(generateAIProductionCandidates(state, 'ai-1', 'city-a', [], aggressive)
+      .some(candidate => candidate.itemId === 'warhead')).toBe(true);
+
+    state.civilizations['ai-1']!.techState.completed = [];
+    expect(generateAIProductionCandidates(state, 'ai-1', 'city-a', [], aggressive)
+      .some(candidate => candidate.itemId === 'warhead')).toBe(false);
+  });
+
+  it('ai-production.ts building-scoring loop has no warhead-id branch', () => {
+    const source = readFileSync(resolve(__dirname, '../../src/ai/ai-production.ts'), 'utf-8');
+    expect(source).not.toMatch(/buildingId\s*===\s*['"]warhead['"]/);
+    expect(source).not.toMatch(/\.id\s*===\s*['"]warhead['"]/);
   });
 });
 
