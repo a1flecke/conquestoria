@@ -1058,9 +1058,13 @@ export interface DiplomacyState {
   /** #545 MR4 spec §11: ids of every civ that has ever struck this civ with a
    * strategic strike. Append-only, never pruned or decayed -- unlike the
    * capped rolling `events` log, a nuclear strike must never be "forgotten"
-   * for retaliation-classification purposes. See strategic-launch-system.ts's
-   * isStrategicStrikeRetaliation for the read side. */
-  strategicStrikesReceivedFrom: string[];
+   * for retaliation-classification purposes. Optional (absent means never
+   * struck), matching this codebase's convention for new fields on widely
+   * hand-constructed types (e.g. `Civilization.strategicArsenal?`) -- a
+   * required field here would break every test file that builds a
+   * `DiplomacyState` literal without it. Always read via `?? []`; see
+   * strategic-launch-system.ts's isStrategicStrikeRetaliation. */
+  strategicStrikesReceivedFrom?: string[];
 }
 
 export interface Embargo {
