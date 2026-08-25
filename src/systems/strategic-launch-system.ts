@@ -1,4 +1,4 @@
-import type { GameState, HexCoord, UnitType } from '@/core/types';
+import type { City, GameState, HexCoord, UnitType } from '@/core/types';
 import { BUILDINGS } from '@/systems/city-system';
 import { UNIT_DEFINITIONS } from '@/systems/unit-system';
 import { getStrategicArsenal } from '@/systems/strategic-arsenal-system';
@@ -80,4 +80,32 @@ export function getStrategicLaunchLegality(
   if (!platform) return { ok: false, reason: 'no-eligible-platform' };
 
   return { ok: true, platform };
+}
+
+/**
+ * #545 MR4 spec §11: classifies a strike by actorCivId against targetCivId as
+ * retaliation iff targetCivId has struck actorCivId at least once before.
+ * Pure read of DiplomacyState.strategicStrikesReceivedFrom (MR4, optional --
+ * absent means never struck) -- safe to call with either pre- or post-strike
+ * state, since resolveStrategicStrike (MR3) never touches this field itself.
+ */
+export function isStrategicStrikeRetaliation(
+  state: GameState,
+  actorCivId: string,
+  targetCivId: string,
+): boolean {
+  const actorCiv = state.civilizations[actorCivId];
+  if (!actorCiv) return false;
+  return (actorCiv.diplomacy.strategicStrikesReceivedFrom ?? []).includes(targetCivId);
+}
+
+/**
+ * #545 MR4 spec §14 stage 2: every city that is currently a legal strike
+ * target for actorCivId, reusing getStrategicLaunchLegality per-candidate --
+ * never a separate reimplementation of any of its four conditions.
+ */
+export function getLegalStrategicLaunchTargets(state: GameState, actorCivId: string): City[] {
+  return Object.values(state.cities).filter(
+    city => getStrategicLaunchLegality(state, actorCivId, city.id).ok,
+  );
 }

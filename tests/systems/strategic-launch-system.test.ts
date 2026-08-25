@@ -85,7 +85,11 @@ describe('getEligibleStrategicLaunchPlatforms', () => {
   });
 });
 
-import { getStrategicLaunchLegality } from '@/systems/strategic-launch-system';
+import {
+  getStrategicLaunchLegality,
+  isStrategicStrikeRetaliation,
+  getLegalStrategicLaunchTargets,
+} from '@/systems/strategic-launch-system';
 import type { Civilization } from '@/core/types';
 
 const AT_WAR_WITH_P2 = { relationships: {}, treaties: [], events: [], atWarWith: ['p2'], treacheryScore: 0, vassalage: { overlord: null, vassals: [], protectionScore: 0, protectionTimers: [], peakCities: 0, peakMilitary: 0 } };
@@ -194,6 +198,65 @@ describe('getStrategicLaunchLegality', () => {
       },
     });
     expect(getStrategicLaunchLegality(state, 'p1', 'target')).toEqual({ ok: false, reason: 'no-eligible-platform' });
+  });
+});
+
+describe('isStrategicStrikeRetaliation (#545 MR4 §11)', () => {
+  it('is false when the actor has never been struck by the target', () => {
+    const state = makeLegalityState({
+      civilizations: {
+        p1: makeCiv({ diplomacy: AT_PEACE }),
+        p2: makeCiv({ id: 'p2' }),
+      },
+    });
+    expect(isStrategicStrikeRetaliation(state, 'p1', 'p2')).toBe(false);
+  });
+
+  it('is true when the target previously struck the actor', () => {
+    const state = makeLegalityState({
+      civilizations: {
+        p1: makeCiv({ diplomacy: { ...AT_PEACE, strategicStrikesReceivedFrom: ['p2'] } }),
+        p2: makeCiv({ id: 'p2' }),
+      },
+    });
+    expect(isStrategicStrikeRetaliation(state, 'p1', 'p2')).toBe(true);
+  });
+
+  it('is false for an unknown actor civ', () => {
+    expect(isStrategicStrikeRetaliation(makeLegalityState(), 'nobody', 'p2')).toBe(false);
+  });
+});
+
+describe('getLegalStrategicLaunchTargets (#545 MR4 §14 stage 2)', () => {
+  it('is empty when the actor has no eligible platform', () => {
+    const state = makeLegalityState({
+      civilizations: {
+        p1: makeCiv({ cities: [] }),
+        p2: makeCiv({ id: 'p2' }),
+      },
+      cities: {
+        target: { id: 'target', name: 'Target', owner: 'p2', position: TARGET_POS } as any,
+      },
+    });
+    expect(getLegalStrategicLaunchTargets(state, 'p1')).toEqual([]);
+  });
+
+  it('includes only cities that pass getStrategicLaunchLegality, excluding an at-peace civ', () => {
+    const atPeacePos = { q: 10, r: 10 };
+    const state = makeLegalityState({
+      civilizations: {
+        p1: makeCiv({ cities: ['c1'], visibility: { tiles: { ...visibleAt(TARGET_POS).tiles, ...visibleAt(atPeacePos).tiles }, lastSeen: {} }, strategicArsenal: 1, diplomacy: AT_WAR_WITH_P2 }),
+        p2: makeCiv({ id: 'p2', cities: [] }),
+        p3: makeCiv({ id: 'p3', cities: [] }),
+      },
+      cities: {
+        c1: { id: 'c1', name: 'C1', owner: 'p1', position: { q: 0, r: 0 }, buildings: ['missile_silo'] } as any,
+        target: { id: 'target', name: 'Target', owner: 'p2', position: TARGET_POS } as any,
+        atPeaceCity: { id: 'atPeaceCity', name: 'AtPeace', owner: 'p3', position: atPeacePos } as any,
+      },
+    });
+    const targets = getLegalStrategicLaunchTargets(state, 'p1');
+    expect(targets.map(c => c.id)).toEqual(['target']);
   });
 });
 
