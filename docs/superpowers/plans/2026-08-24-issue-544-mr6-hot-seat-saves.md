@@ -100,9 +100,29 @@ surface a scenario would exercise.
 - Run `bash scripts/run-with-mise.sh yarn test` and
   `bash scripts/run-with-mise.sh yarn build` after every task; both must exit
   0 before moving to the next task.
-- Known pre-existing flake, not ours to fix: `tests/core/turn-manager-crisis.test.ts`
-  → "emits one target-scoped Rogue Host warning from the scheduler
-  transition". Re-run in isolation before concluding a failure is real.
+- ~~Known pre-existing flake, not ours to fix~~ — **fixed in this PR** at the
+  user's explicit request: `tests/core/turn-manager-crisis.test.ts` → "emits
+  one target-scoped Rogue Host warning from the scheduler transition" was
+  intermittently failing in full-suite runs (MR4, MR5, and once here). Root
+  cause: the test's candidate-search loop used
+  `processRogueElephantHostScheduling` as its search predicate but
+  `processTurn` (which runs strictly more systems, including ones that can
+  independently trip `hasActiveTargetedWorldPressure` and suppress the
+  warning) as its assertion — a predicate/assertion mismatch that surfaces
+  because `state.gameId` embeds a real `Date.now()` component
+  (`createGameId` in `src/core/game-state.ts`, added for autosave-slot
+  uniqueness) and is reused as the base RNG seed for combat/AI/pirate/crisis
+  systems throughout the codebase — so which candidate the search loop lands
+  on, and whether some *other* `processTurn`-internal system also rolls true
+  for that specific gameId+turn, varies with real time. Fixed by making the
+  search predicate `processTurn` itself (see the in-file comment on the fix
+  for the full explanation) — the deeper `gameId`/`Date.now()` non-
+  determinism issue is confirmed real and wide-reaching (dozens of call
+  sites depend on it, including all combat resolution via
+  `deterministicCombatSeed`) but is a separate, carefully-scoped design
+  question (splitting save-slot identity from RNG-seed identity) explicitly
+  left out of this PR — see the PR body / final chat summary for the
+  standalone finding.
 - Inline review before *and* after implementing (balance, fun, accessibility,
   play styles, difficulty fairness, AI usage, UI/UX, architecture,
   extensibility, data, SFX, save-migration impact, test coverage, solo vs.

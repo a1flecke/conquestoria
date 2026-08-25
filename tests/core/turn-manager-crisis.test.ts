@@ -10,7 +10,6 @@ import { calculateProjectedCityYields } from '@/systems/city-work-system';
 import { TECH_TREE } from '@/systems/tech-definitions';
 import { hexKey } from '@/systems/hex-utils';
 import { startStampedeWarning } from '@/systems/stampede-system';
-import { processRogueElephantHostScheduling } from '@/systems/rogue-elephant-host-system';
 import type { ActiveCrisis, GameEvents, GameState, HexCoord } from '@/core/types';
 
 function findLandCoord(state: GameState): HexCoord {
@@ -36,6 +35,22 @@ function stateWithActiveCrisis(): { state: GameState; civId: string; cityId: str
 
 describe('turn-manager crisis wiring', () => {
   it('emits one target-scoped Rogue Host warning from the scheduler transition', () => {
+    // The search predicate must be the exact function under test (processTurn),
+    // not the narrower processRogueElephantHostScheduling in isolation.
+    // gameId embeds a real Date.now() component (createGameId in
+    // src/core/game-state.ts -- reused as the base RNG seed for combat/AI/
+    // pirate/crisis systems throughout the codebase, a separate pre-existing
+    // determinism issue outside this test's scope), so the wall-clock-
+    // dependent candidate this loop discovers can, via other processTurn-
+    // internal systems that also key off gameId+turn, occasionally trip
+    // hasActiveTargetedWorldPressure and suppress the warning -- a case the
+    // old predicate (processRogueElephantHostScheduling alone) could never
+    // see, since it doesn't run the systems that create that competing
+    // pressure. Probing with processTurn itself on a throwaway bus closes
+    // that gap: whatever candidate is kept is guaranteed to reproduce the
+    // warning when processTurn is called on it again below, because both
+    // calls run the identical deterministic pipeline against the identical
+    // (unmutated) candidate object.
     let state: GameState | undefined;
     for (let attempt = 0; attempt < 100 && !state; attempt += 1) {
       const candidate = createNewGame('rome', `rogue-host-turn-event-${attempt}`, 'small');
@@ -44,7 +59,13 @@ describe('turn-manager crisis wiring', () => {
       candidate.civilizations.player.cities = [city.id];
       candidate.civilizations.player.techState.completed = TECH_TREE.filter(tech => tech.era <= 4).map(tech => tech.id);
       for (const tile of Object.values(candidate.map.tiles)) tile.terrain = 'plains';
-      if (processRogueElephantHostScheduling(candidate).rogueElephantHosts?.player?.phase === 'warning') state = candidate;
+      const probeBus = new EventBus();
+      const probeEvents: GameEvents['rogue-elephant-host:lifecycle'][] = [];
+      probeBus.on('rogue-elephant-host:lifecycle', event => probeEvents.push(event));
+      processTurn(candidate, probeBus);
+      if (probeEvents.length === 1 && probeEvents[0].kind === 'warning' && probeEvents[0].targetCivId === 'player') {
+        state = candidate;
+      }
     }
     expect(state).toBeDefined();
     const bus = new EventBus();
