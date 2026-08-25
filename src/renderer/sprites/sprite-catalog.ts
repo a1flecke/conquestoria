@@ -10,7 +10,7 @@ import {
   AxemanSprite, SpearmanSprite, HorsemanSprite, ChariotSprite, CavalrySprite, KnightSprite, CuirassierSprite,
   CrossbowmanSprite, CatapultSprite, BallistaSprite, CannonSprite, ArtillerySprite, GrenadierSprite,
   RiflemanSprite, MarineSprite, IroncladSprite,
-  MachineGunnerSprite, InfantrySprite, PreDreadnoughtSprite, TankSprite, SubmarineSprite,
+  MachineGunnerSprite, InfantrySprite, MechanizedInfantrySprite, PreDreadnoughtSprite, TankSprite, ArmoredCarSprite, MainBattleTankSprite, SubmarineSprite,
   ObservationBalloonSprite, BiplaneSprite, JetFighterSprite, CarrierSprite,
   AttackHelicopterSprite, MissileSubmarineSprite,
   CombatDroneSprite, AutonomousFrigateSprite, ExosuitInfantrySprite,
@@ -293,7 +293,7 @@ export const UNIT_SPRITE_CATALOG: Record<UnitType, UnitSpriteComponent> = {
   chariot:        withMotion('chariot', ChariotSprite),
   cavalry:        withMotion('cavalry', CavalrySprite),
   // Temporary Tank silhouette; #709 owns Armored Car's distinct final sprite.
-  armored_car:    withMotion('armored_car', TankSprite),
+  armored_car:    withMotion('armored_car', ArmoredCarSprite),
   knight:         withMotion('knight', KnightSprite),
   cuirassier:     withMotion('cuirassier', CuirassierSprite),
   crossbowman:    withMotion('crossbowman', CrossbowmanSprite),
@@ -316,8 +316,7 @@ export const UNIT_SPRITE_CATALOG: Record<UnitType, UnitSpriteComponent> = {
   destroyer:         withMotion('destroyer', DestroyerSprite),
   machine_gunner:    withMotion('machine_gunner', MachineGunnerSprite),
   infantry:          withMotion('infantry', InfantrySprite),
-  // Temporary Infantry silhouette; #709 owns Mechanized Infantry's distinct final sprite.
-  mechanized_infantry: withMotion('mechanized_infantry', InfantrySprite),
+  mechanized_infantry: withMotion('mechanized_infantry', MechanizedInfantrySprite),
   // Temporary Infantry silhouette; bespoke Paratrooper art is a follow-up (#543).
   paratrooper:       withMotion('paratrooper', InfantrySprite),
   pre_dreadnought:   withMotion('pre_dreadnought', PreDreadnoughtSprite),
@@ -325,7 +324,7 @@ export const UNIT_SPRITE_CATALOG: Record<UnitType, UnitSpriteComponent> = {
   battleship:        withMotion('battleship', PreDreadnoughtSprite),
   missile_cruiser:   withMotion('missile_cruiser', PreDreadnoughtSprite),
   tank:              withMotion('tank', TankSprite),
-  main_battle_tank:  withMotion('main_battle_tank', TankSprite),
+  main_battle_tank:  withMotion('main_battle_tank', MainBattleTankSprite),
   // De-aliased in #769 batch 5 — bespoke towed anti-tank gun (wheeled carriage, gun
   // shield, split trail, crouched crew, low direct-fire barrel); no longer a Tank clone.
   anti_tank_gun:     withMotion('anti_tank_gun', AntiTankGunSprite),

@@ -2213,6 +2213,65 @@ export function TankSprite({ palette, svgOnly = false }: UnitSpriteProps): strin
   );
 }
 
+// #709 industrial visual batch: four-wheel reconnaissance car, deliberately distinct
+// from TankSprite's WWI rhomboid tracks. The small turret and pennant retain the
+// faction read without turning a scouting vehicle into a second main battle tank.
+export function ArmoredCarSprite({ palette, svgOnly = false }: UnitSpriteProps): string {
+  return (
+    <SpriteFrame svgOnly={svgOnly}>
+      <Shadow cx={64} cy={103} rx={42} ry={6} />
+      <g className="cq-armored-car-body">
+        <path d="M18,86 L31,70 L83,70 L104,84 L101,96 L23,96 Z" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="1.3" />
+        <path d="M36,72 L51,57 L76,57 L88,72 Z" fill={P.metal.steel} stroke={P.ink.line} strokeWidth="1.1" />
+        <path d="M43,69 L53,59 L65,59 L62,69 Z" fill={palette.mid} opacity="0.78" />
+        <path d="M65,69 L68,59 L76,59 L84,70 Z" fill={P.metal.shine} opacity="0.45" />
+        <rect x="50" y="78" width="32" height="7" rx="2" fill={palette.dark} opacity="0.68" />
+        <g className="cq-armored-car-turret" style="transform-origin: 72px 60px; transform-box: view-box;">
+          <ellipse cx="70" cy="61" rx="13" ry="7" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="1" />
+          <g className="cq-weapon" style="--pivot-x:70px;--pivot-y:61px">
+            <rect x="68" y="58" width="35" height="5" rx="1.5" fill={P.metal.steel} stroke={P.ink.line} strokeWidth="0.8" />
+            <g transform="translate(105 60)"><g className="cq-muzzle-flash"><circle r="3.5" fill="#ffd966" /><circle r="1.6" fill="#fff" /></g></g>
+          </g>
+          <path d="M70,55 L70,45" stroke={P.metal.iron} strokeWidth="1.4" />
+          <path d="M71,45 L80,48 L71,51 Z" fill={palette.bright} stroke={P.ink.line} strokeWidth="0.5" />
+        </g>
+      </g>
+      {[36, 82].map(x => <g key={x} transform={`translate(${x} 96)`}><circle r="12" fill={P.wood.dark} stroke={P.ink.line} strokeWidth="1.2" /><g className="cq-wheel"><circle r="8" fill="none" stroke={P.metal.steel} strokeWidth="2" /><path d="M-8,0H8M0,-8V8" stroke={P.metal.steel} strokeWidth="1" /></g><circle r="3" fill={P.metal.iron} /></g>).join('')}
+      <Banner x={28} y={63} palette={palette} scale={0.5} />
+    </SpriteFrame>
+  );
+}
+
+// #709: infantry ride inside a carrier; the vehicle is deliberately larger than the
+// hatch-mounted rider so fallback/minor-civ rendering keeps the approved visual story.
+export function MechanizedInfantrySprite({ palette, svgOnly = false }: UnitSpriteProps): string {
+  return (
+    <SpriteFrame svgOnly={svgOnly}>
+      <Shadow cx={69} cy={104} rx={53} ry={7} />
+      <g className="cq-mech-carrier"><path d="M15,87 L31,68 L96,68 L116,82 L113,101 L19,101 Z" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="1.3" /><path d="M34,72 L50,56 L87,56 L102,72 Z" fill={P.metal.steel} stroke={P.ink.line} strokeWidth="1" /><rect x="43" y="80" width="54" height="7" rx="2" fill={palette.mid} opacity="0.72" /><ellipse cx="70" cy="61" rx="13" ry="6" fill={P.wood.dark} stroke={P.ink.line} strokeWidth="0.8" />{[31, 54, 84, 105].map(x => <g key={x} transform={`translate(${x} 101)`}><circle r="10" fill={P.wood.dark} stroke={P.ink.line} strokeWidth="1" /><g className="cq-wheel"><circle r="6" fill="none" stroke={P.metal.steel} strokeWidth="1.7" /><path d="M-6,0H6M0,-6V6" stroke={P.metal.steel} strokeWidth="0.8" /></g></g>).join('')}</g>
+      <g className="cq-mech-soldier cq-mech-rider"><path d="M62,56 Q70,49 78,56 L80,68 L61,68 Z" fill={palette.dark} stroke={P.ink.line} strokeWidth="0.8" /><circle cx="70" cy="47" r="7" fill={P.skin.warm} stroke={P.ink.line} strokeWidth="0.7" /><path d="M62,47 Q63,37 70,37 Q77,37 78,47 L77,51 L63,51 Z" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.7" /><g className="cq-arm-l"><path d="M64,58 Q72,66 79,68" fill="none" stroke={palette.dark} strokeWidth="4" strokeLinecap="round" /></g><g className="cq-arm-r"><path d="M77,57 Q83,62 88,66" fill="none" stroke={palette.dark} strokeWidth="4" strokeLinecap="round" /></g><g className="cq-weapon"><g transform="translate(79 68) rotate(-12)"><rect x="-8" y="-2.5" width="30" height="5" rx="1" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.6" /><rect x="19" y="-1.5" width="18" height="3" fill={P.metal.steel} /><g transform="translate(39 0)"><g className="cq-muzzle-flash"><circle r="3.2" fill="#ffd966" /><circle r="1.4" fill="#fff" /></g></g></g></g></g>
+      <Banner x={28} y={60} palette={palette} scale={0.44} />
+    </SpriteFrame>
+  );
+}
+
+// #709: late-era main battle tank — low hull, broad continuous tracks, turret and a
+// long cannon. This intentionally advances beyond the WWI TankSprite's rhomboid hull.
+export function MainBattleTankSprite({ palette, svgOnly = false }: UnitSpriteProps): string {
+  return (
+    <SpriteFrame svgOnly={svgOnly}>
+      <Shadow cx={64} cy={104} rx={51} ry={7} />
+      <g className="cq-mbt-body">
+        <path d="M12,87 L30,74 L96,75 L115,87 L110,101 L17,101 Z" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="1.4" />
+        <path d="M29,80 L98,80 L105,91 L23,91 Z" fill={palette.mid} opacity="0.56" />
+        <g className="cq-mbt-tracks"><path d="M18,91 Q23,83 40,84 L99,84 Q110,85 112,96 Q107,106 96,106 L31,106 Q18,104 18,91 Z" fill={P.wood.dark} stroke={P.ink.line} strokeWidth="1.2" />{[34, 51, 69, 87, 102].map(x => <circle key={x} cx={x} cy="96" r="6" fill={P.metal.iron} stroke={P.metal.steel} strokeWidth="1" />).join('')}</g>
+        <g className="cq-mbt-turret" style="transform-origin: 71px 70px; transform-box: view-box;"><path d="M46,77 Q48,60 69,57 Q88,58 94,76 L87,83 L52,83 Z" fill={P.metal.steel} stroke={P.ink.line} strokeWidth="1.2" /><ellipse cx="68" cy="63" rx="8" ry="5" fill={palette.dark} stroke={P.ink.line} strokeWidth="0.7" /><g className="cq-weapon" style="--pivot-x:74px;--pivot-y:70px"><rect x="73" y="67" width="42" height="6" rx="2" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.9" /><rect x="108" y="68" width="10" height="4" fill={P.metal.steel} /><g transform="translate(120 70)"><g className="cq-muzzle-flash"><circle r="4" fill="#ffd966" /><circle r="1.8" fill="#fff" /></g></g></g></g>
+      </g>
+      <Banner x={38} y={65} palette={palette} scale={0.52} />
+    </SpriteFrame>
+  );
+}
+
 // #769 de-alias (batch 5): anti_tank_gun previously reused TankSprite verbatim — a
 // tracked, armored rhomboid hull. An anti-tank gun is a TOWED emplaced gun, so this
 // draws in the CannonSprite/ArtillerySprite wheeled-carriage family (no tracks, no

@@ -212,4 +212,16 @@ describe('#709 industrial vehicle animation contract', () => {
       expect(rule, `${variant} must disable generic weapon swing`).toContain('animation: none');
     }
   });
+
+  it('uses rolling movement and local recoil instead of a humanoid gait or attack lunge', () => {
+    for (const variant of ['armored-car', 'mechanized-infantry', 'main-battle-tank']) {
+      const walkFigure = `.cq-v2[data-kind="melee"][data-kind-variant="${variant}"][data-state="walk"] .cq-sprite-figure`;
+      const attackFigure = `.cq-v2[data-kind="melee"][data-kind-variant="${variant}"][data-state="attack"] .cq-sprite-figure`;
+      expect(css, `${variant} must suppress generic gait motion`).toContain(`${walkFigure} { animation: none; }`);
+      expect(css, `${variant} must suppress generic attack lunge`).toContain(`${attackFigure} { animation: none; }`);
+    }
+    expect(css).toContain('.cq-v2[data-kind="melee"][data-kind-variant="armored-car"][data-state="walk"] .cq-wheel');
+    expect(css).toContain('.cq-v2[data-kind="melee"][data-kind-variant="mechanized-infantry"][data-state="walk"] .cq-wheel');
+    expect(css).toContain('.cq-v2[data-kind="melee"][data-kind-variant="main-battle-tank"][data-state="walk"] .cq-mbt-tracks');
+  });
 });

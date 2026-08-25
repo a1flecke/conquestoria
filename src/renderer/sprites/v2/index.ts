@@ -45,6 +45,10 @@ import { svg as autonomousFrigateSvg } from './autonomous_frigate.svg';
 import { svg as exosuitInfantrySvg }   from './exosuit_infantry.svg';
 import { svg as propagandistSvg }      from './propagandist.svg';
 import { svg as droneControllerSvg }   from './drone_controller.svg';
+// #709 industrial vehicles — registered after visual-gate approval.
+import { svg as armoredCarSvg }        from './armored_car.svg';
+import { svg as mechanizedInfantrySvg } from './mechanized_infantry.svg';
+import { svg as mainBattleTankSvg }    from './main_battle_tank.svg';
 // Legendary beasts — faction-neutral, keyed under 'beast'
 import { svg as beastBoarSvg }     from './beast_boar.svg';
 import { svg as beastWolfSvg }     from './beast_wolf.svg';
@@ -153,6 +157,9 @@ const UNIT_SPRITES: Record<string, Record<string, string>> = {
   exosuit_infantry:   exosuitInfantrySvg,
   propagandist:       propagandistSvg,
   drone_controller:   droneControllerSvg,
+  armored_car:        armoredCarSvg,
+  mechanized_infantry: mechanizedInfantrySvg,
+  main_battle_tank:   mainBattleTankSvg,
   // Legendary beasts
   beast_boar:     beastBoarSvg,
   beast_wolf:     beastWolfSvg,
