@@ -57,3 +57,22 @@ export function getStrategicArsenalCapacity(state: GameState, civId: string): nu
 export function getStrategicArsenal(civ: Civilization): number {
   return civ.strategicArsenal ?? 0;
 }
+
+/**
+ * Completion side-effect for the `warhead` production item (turn-manager.ts calls
+ * this when result.completedBuilding === 'warhead', mirroring the existing
+ * sacred_council/circular_manufacturing_network completion-hook precedent at that
+ * same call site). Immutable per .claude/rules/game-systems.md; a no-op for an
+ * unknown civ id rather than throwing, matching this file's other defensive reads.
+ */
+export function addWarheadToArsenal(state: GameState, civId: string): GameState {
+  const civ = state.civilizations[civId];
+  if (!civ) return state;
+  return {
+    ...state,
+    civilizations: {
+      ...state.civilizations,
+      [civId]: { ...civ, strategicArsenal: getStrategicArsenal(civ) + 1 },
+    },
+  };
+}

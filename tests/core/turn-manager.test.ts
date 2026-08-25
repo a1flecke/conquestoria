@@ -1851,6 +1851,39 @@ describe('journey automation', () => {
     expect(next.cityFaith?.[city.id]).toMatchObject({ religionId, isHolyCity: true });
   });
 
+  it('#545: completing a warhead increments strategicArsenal via the real turn-processing path, never persists into city.buildings', () => {
+    const state = createNewGame(undefined, 'warhead-completion', 'small');
+    const civId = 'player';
+    const pos = { q: 0, r: 0 };
+    state.map.tiles[hexKey(pos)] = {
+      coord: pos, terrain: 'grassland', elevation: 'lowland', resource: null,
+      improvement: 'none', owner: civId, improvementTurnsLeft: 0, hasRiver: false, wonder: null,
+    };
+    const city = foundCity(civId, pos, state.map, state.idCounters);
+    city.workedTiles = [];
+    city.productionQueue = ['warhead'];
+    city.productionProgress = 259; // 1 short of the 260 cost -- completes this turn
+    state.cities = { [city.id]: city };
+    state.civilizations[civId].cities = [city.id];
+    // nuclear-physics gates the uranium resource definition itself
+    // (RESOURCE_DEFINITIONS) -- needed for the marketplace purchase below to count.
+    state.civilizations[civId].techState.completed = ['nuclear-weapons', 'nuclear-physics'];
+    state.builtNationalProjects = {
+      [`${civId}:manhattan_project`]: { civId, cityId: city.id, eraBuilt: 10 },
+    };
+    state.marketplace = {
+      ...(state.marketplace ?? { prices: {}, priceHistory: {}, fashionable: null, fashionTurnsLeft: 0, tradeRoutes: [] }),
+      purchasedResources: [{ civId, resource: 'uranium', expiresOnTurn: state.turn + 10 }],
+    };
+    state.units = {};
+    state.barbarianCamps = {};
+
+    const next = processTurn(state, new EventBus());
+
+    expect(next.civilizations[civId].strategicArsenal).toBe(1);
+    expect(next.cities[city.id]!.buildings).not.toContain('warhead');
+  });
+
   describe('Great General candidate queueing (#544 MR3)', () => {
     it('queues a candidate choice for a human civ that has crossed its threshold by round end', () => {
       const state = createNewGame('rome', 'great-general-queue-1', 'small');

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { GameState } from '@/core/types';
-import { hasManhattanProject, getStrategicArsenalCapacity, getStrategicArsenal } from '@/systems/strategic-arsenal-system';
+import { hasManhattanProject, getStrategicArsenalCapacity, getStrategicArsenal, addWarheadToArsenal } from '@/systems/strategic-arsenal-system';
 
 function makeState(overrides: Partial<GameState> = {}): GameState {
   return {
@@ -155,5 +155,30 @@ describe('getStrategicArsenal', () => {
 
   it('returns 0 when explicitly 0', () => {
     expect(getStrategicArsenal(makeCiv({ strategicArsenal: 0 }))).toBe(0);
+  });
+});
+
+describe('addWarheadToArsenal', () => {
+  it('increments strategicArsenal from absent to 1', () => {
+    const state = makeState({ civilizations: { p1: makeCiv() } });
+    const next = addWarheadToArsenal(state, 'p1');
+    expect(next.civilizations.p1.strategicArsenal).toBe(1);
+  });
+
+  it('increments an existing count', () => {
+    const state = makeState({ civilizations: { p1: makeCiv({ strategicArsenal: 3 }) } });
+    const next = addWarheadToArsenal(state, 'p1');
+    expect(next.civilizations.p1.strategicArsenal).toBe(4);
+  });
+
+  it('is a no-op (returns the same state) for an unknown civ', () => {
+    const state = makeState();
+    expect(addWarheadToArsenal(state, 'nobody')).toBe(state);
+  });
+
+  it('does not mutate the input state', () => {
+    const state = makeState({ civilizations: { p1: makeCiv({ strategicArsenal: 1 }) } });
+    addWarheadToArsenal(state, 'p1');
+    expect(state.civilizations.p1.strategicArsenal).toBe(1);
   });
 });

@@ -103,6 +103,7 @@ import { getOccupiedCityYieldMultiplier, tickOccupiedCities } from '@/systems/ci
 import { processBreakawayTurn } from '@/systems/breakaway-system';
 import { processCrisisTurn, processCrisisScheduler, getCrisisYieldMultiplier } from '@/systems/crisis-system';
 import { processReligionTurn, foundReligion } from '@/systems/religion-system';
+import { addWarheadToArsenal } from '@/systems/strategic-arsenal-system';
 import { processLoyaltyTurn } from '@/systems/religion-loyalty-system';
 import { applyCrisisResponses } from '@/ai/ai-crisis-response';
 import { resolveWorldPressureFlags } from '@/systems/world-pressure-flags';
@@ -407,6 +408,9 @@ export function processTurn(
           if (result.completedBuilding === 'sacred_council') {
             newState = foundReligion(newState, civId, cityId, bus);
           }
+        }
+        if (result.completedBuilding === 'warhead') {
+          newState = addWarheadToArsenal(newState, civId);
         }
       }
       for (const item of result.droppedProductionItems) {
