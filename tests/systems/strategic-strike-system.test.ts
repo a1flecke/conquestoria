@@ -177,3 +177,90 @@ describe('resolveStrategicStrike (#545 MR3 §7)', () => {
     expect(state.civilizations.attacker.strategicArsenal).toBe(1);
   });
 });
+
+describe('resolveStrategicStrike fallout (#545 MR3 §8)', () => {
+  it('devastates the defender\'s owned tiles within blast radius 3, using standard devastationTurns (14)', () => {
+    const state = makeStrikeState();
+    const result = resolveStrategicStrike(state, 'attacker', 'target');
+    if (!result.ok) throw new Error(`expected ok, got reason=${result.reason}`);
+
+    const withinRadius3 = hexesInRange(TARGET_POS, 3).map(hexKey);
+    expect(result.devastatedTileKeys.sort()).toEqual(withinRadius3.sort());
+    for (const key of withinRadius3) {
+      expect(result.state.map.tiles[key].devastatedUntilTurn).toBe(state.turn + 14);
+    }
+  });
+
+  it('does not devastate tiles beyond blast radius 3 (boundary check)', () => {
+    const state = makeStrikeState();
+    const result = resolveStrategicStrike(state, 'attacker', 'target');
+    if (!result.ok) throw new Error(`expected ok, got reason=${result.reason}`);
+
+    const beyondRadius3 = hexesInRange(TARGET_POS, 4)
+      .map(hexKey)
+      .filter(key => !hexesInRange(TARGET_POS, 3).map(hexKey).includes(key));
+    expect(beyondRadius3.length).toBeGreaterThan(0);
+    for (const key of beyondRadius3) {
+      expect(result.state.map.tiles[key].devastatedUntilTurn).toBeUndefined();
+    }
+  });
+
+  it('never devastates a tile owned by another civ or unowned land, even within blast radius', () => {
+    const enemyTilePos = hexesInRange(TARGET_POS, 2)[0]!;
+    const state = makeStrikeState({
+      map: {
+        width: 60, height: 60, wrapsHorizontally: false, rivers: [],
+        tiles: (() => {
+          const base = makeStrikeState().map.tiles;
+          const key = hexKey(enemyTilePos);
+          return { ...base, [key]: { ...base[key]!, owner: 'someone-else' } };
+        })(),
+      },
+    });
+    const result = resolveStrategicStrike(state, 'attacker', 'target');
+    if (!result.ok) throw new Error(`expected ok, got reason=${result.reason}`);
+    expect(result.devastatedTileKeys).not.toContain(hexKey(enemyTilePos));
+    expect(result.state.map.tiles[hexKey(enemyTilePos)].devastatedUntilTurn).toBeUndefined();
+  });
+
+  it('applies fallout unconditionally on a legal strike, even when a garrison blocks HP/gold effects', () => {
+    const state = makeStrikeState({
+      units: { garrison: { id: 'garrison', type: 'warrior', owner: 'defender', position: TARGET_POS } as any },
+    });
+    const result = resolveStrategicStrike(state, 'attacker', 'target');
+    if (!result.ok) throw new Error(`expected ok, got reason=${result.reason}`);
+    expect(result.cityResult.outcome).toBe('blocked');
+    expect(result.devastatedTileKeys.length).toBeGreaterThan(0);
+    expect(result.state.map.tiles[hexKey(TARGET_POS)].devastatedUntilTurn).toBe(state.turn + 14);
+  });
+
+  it('resolves devastation turns from the defending civ\'s own challenge, not the attacker\'s', () => {
+    const state = makeStrikeState({
+      civilizations: {
+        ...makeStrikeState().civilizations,
+        defender: makeCiv({ id: 'defender', name: 'Defender', gold: 1000, cities: ['target'], diplomacy: defenderAtWar, isHuman: true, challenge: 'veteran' as any }),
+      },
+    });
+    const result = resolveStrategicStrike(state, 'attacker', 'target');
+    if (!result.ok) throw new Error(`expected ok, got reason=${result.reason}`);
+    expect(result.state.map.tiles[hexKey(TARGET_POS)].devastatedUntilTurn).toBe(state.turn + 18); // veteran
+  });
+
+  it('devastates nothing when the defending civ owns no tile in blast radius (mirrors crisis-system.ts\'s identical epicenter-ownership edge case)', () => {
+    const base = makeStrikeState();
+    const tiles = Object.fromEntries(
+      Object.entries(base.map.tiles).map(([key, tile]) => [key, tile.owner === 'defender' ? { ...tile, owner: null } : tile]),
+    );
+    const state = makeStrikeState({ map: { ...base.map, tiles } });
+    const result = resolveStrategicStrike(state, 'attacker', 'target');
+    if (!result.ok) throw new Error(`expected ok, got reason=${result.reason}`);
+    expect(result.devastatedTileKeys).toEqual([]);
+    expect(result.state.map.tiles[hexKey(TARGET_POS)].devastatedUntilTurn).toBeUndefined();
+  });
+
+  it('does not mutate the input state\'s map tiles on a successful strike', () => {
+    const state = makeStrikeState();
+    resolveStrategicStrike(state, 'attacker', 'target');
+    expect(state.map.tiles[hexKey(TARGET_POS)].devastatedUntilTurn).toBeUndefined();
+  });
+});
