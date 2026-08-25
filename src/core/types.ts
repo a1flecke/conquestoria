@@ -2328,6 +2328,11 @@ export interface GameEvents {
   'city:naval-bombarded': {
     cityId: string; recipientCivId: string; source: 'player' | 'ai'; hpLost: number;
   };
+  /** #545 MR4: fired by the strategic-launch flow's onConfirmLaunch handlers
+   * after a successful executeStrategicLaunch commit, so the defending civ
+   * gets a delivered notification -- same pattern as city:naval-bombarded
+   * above (the resolver itself is pure and emits nothing). */
+  'city:strategic-strike': { cityId: string; recipientCivId: string; goldLost: number };
   'tutorial:step': { step: TutorialStep; message: string; advisor: 'builder' | 'explorer' | 'scholar' };
   'notification:show': { message: string; type: 'info' | 'warning' | 'success' };
   'game:saved': { turn: number };
