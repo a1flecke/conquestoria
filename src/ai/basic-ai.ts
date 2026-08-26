@@ -26,6 +26,8 @@ import { resolveCombatEra } from '@/systems/era-resolution';
 import { updateAndRefreshVisibility } from '@/systems/last-seen-presentation';
 import { resolveCivDefinition } from '@/systems/civ-registry';
 import { hasMetCivilization, syncCivilizationContactsFromVisibility } from '@/systems/discovery-system';
+import { OPPONENT_CHALLENGE_PROFILES, resolveOpponentChallenge } from '@/core/opponent-challenge';
+import { hasKnownStrategicCapability } from '@/systems/strategic-arsenal-system';
 
 import { chooseProduction } from './ai-strategy';
 import { evaluateDiplomacy, evaluateMinorCivDiplomacy, evaluateVassalage, evaluateEmbargoResponse, evaluateLeagueResponse } from './ai-diplomacy';
@@ -971,7 +973,7 @@ function processAITurnInternal(
       perception,
       resolveCivilizationEra(civ.techState.completed),
     );
-    const diplomacyContext: Record<string, { hasMet: boolean; hasBorderPressure: boolean }> = {};
+    const diplomacyContext: Record<string, { hasMet: boolean; hasBorderPressure: boolean; targetHasKnownStrategicCapability: boolean }> = {};
     for (const otherId of perception.knownCivIds) {
       const otherCities = perception.knownCities
         .filter(city => city.owner === otherId && city.position !== null);
@@ -1003,8 +1005,12 @@ function processAITurnInternal(
       diplomacyContext[otherId] = {
         hasMet: hasMetCivilization(newState, civId, otherId),
         hasBorderPressure,
+        targetHasKnownStrategicCapability: hasKnownStrategicCapability(newState, civId, otherId),
       };
     }
+
+    const strategicDeterrenceCautionWeight =
+      OPPONENT_CHALLENGE_PROFILES[resolveOpponentChallenge(newState)].strategicDeterrenceCautionWeight;
 
     let decisions = evaluateDiplomacy(
       personality,
@@ -1015,6 +1021,7 @@ function processAITurnInternal(
       selfStrength,
       newState.turn,
       diplomacyContext,
+      strategicDeterrenceCautionWeight,
     );
     {
       const plannedWarTarget = preparedForTurn.perception.knownCivIds
