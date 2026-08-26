@@ -28,6 +28,9 @@ import { resolveCivDefinition } from '@/systems/civ-registry';
 import { hasMetCivilization, syncCivilizationContactsFromVisibility } from '@/systems/discovery-system';
 import { OPPONENT_CHALLENGE_PROFILES, resolveOpponentChallenge } from '@/core/opponent-challenge';
 import { hasKnownStrategicCapability } from '@/systems/strategic-arsenal-system';
+import { getEligibleStrategicLaunchPlatforms } from '@/systems/strategic-launch-system';
+import { executeStrategicLaunch } from '@/systems/strategic-launch-execution-system';
+import { evaluateStrategicLaunchDecision } from './ai-strategic-doctrine';
 
 import { chooseProduction } from './ai-strategy';
 import { evaluateDiplomacy, evaluateMinorCivDiplomacy, evaluateVassalage, evaluateEmbargoResponse, evaluateLeagueResponse } from './ai-diplomacy';
@@ -1164,6 +1167,31 @@ function processAITurnInternal(
         if (shouldJoin) {
           newState.defensiveLeagues = inviteToLeague(newState.defensiveLeagues, league.id, civId);
           bus.emit('diplomacy:league-joined', { leagueId: league.id, civId });
+        }
+      }
+    }
+
+    // #545 MR5: AI strategic-launch doctrine. evaluateStrategicLaunchDecision
+    // is the only decision function; executeStrategicLaunch (MR4) is the
+    // only execution entry point -- never resolveStrategicStrike directly.
+    // Cheap guard first: skip doctrine work entirely for the many civs with
+    // no launch platform.
+    if (getEligibleStrategicLaunchPlatforms(newState, civId).length > 0) {
+      const launchRng = createRng(`ai-strategic-launch-${civId}-${newState.turn}`);
+      const targetCityId = evaluateStrategicLaunchDecision(
+        newState, civId, resolveOpponentChallenge(newState), launchRng,
+      );
+      if (targetCityId) {
+        const targetCivId = newState.cities[targetCityId]?.owner;
+        const result = executeStrategicLaunch(newState, civId, targetCityId);
+        if (result.ok && targetCivId) {
+          newState = result.state;
+          bus.emit('city:strategic-strike', {
+            cityId: targetCityId,
+            recipientCivId: targetCivId,
+            actorCivId: civId,
+            goldLost: result.goldLost,
+          });
         }
       }
     }
