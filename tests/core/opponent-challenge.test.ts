@@ -223,3 +223,35 @@ describe('#544 MR5 — General-command difficulty knobs', () => {
       .toBeGreaterThanOrEqual(OPPONENT_CHALLENGE_PROFILES.explorer.heroicCommandEagernessWeight);
   });
 });
+
+describe('#545 MR5 — strategic deterrence and launch-doctrine knobs', () => {
+  it('strategicDeterrenceCautionWeight increases with difficulty and never reaches or exceeds 1', () => {
+    expect(OPPONENT_CHALLENGE_PROFILES.explorer.strategicDeterrenceCautionWeight).toBeLessThan(
+      OPPONENT_CHALLENGE_PROFILES.standard.strategicDeterrenceCautionWeight);
+    expect(OPPONENT_CHALLENGE_PROFILES.standard.strategicDeterrenceCautionWeight).toBeLessThan(
+      OPPONENT_CHALLENGE_PROFILES.veteran.strategicDeterrenceCautionWeight);
+    for (const profile of Object.values(OPPONENT_CHALLENGE_PROFILES)) {
+      expect(profile.strategicDeterrenceCautionWeight).toBeGreaterThan(0);
+      expect(profile.strategicDeterrenceCautionWeight).toBeLessThan(1);
+    }
+  });
+
+  it('strategicLaunchRetaliationWillingness increases with difficulty and is hard-capped below 1 (never automatic/scripted retaliation)', () => {
+    expect(OPPONENT_CHALLENGE_PROFILES.explorer.strategicLaunchRetaliationWillingness).toBeLessThan(
+      OPPONENT_CHALLENGE_PROFILES.standard.strategicLaunchRetaliationWillingness);
+    expect(OPPONENT_CHALLENGE_PROFILES.standard.strategicLaunchRetaliationWillingness).toBeLessThan(
+      OPPONENT_CHALLENGE_PROFILES.veteran.strategicLaunchRetaliationWillingness);
+    for (const profile of Object.values(OPPONENT_CHALLENGE_PROFILES)) {
+      expect(profile.strategicLaunchRetaliationWillingness).toBeLessThan(1);
+    }
+  });
+
+  it('carries the exact spec values', () => {
+    expect(OPPONENT_CHALLENGE_PROFILES.explorer).toMatchObject({
+      strategicDeterrenceCautionWeight: 0.05, strategicLaunchRetaliationWillingness: 0.15 });
+    expect(OPPONENT_CHALLENGE_PROFILES.standard).toMatchObject({
+      strategicDeterrenceCautionWeight: 0.1, strategicLaunchRetaliationWillingness: 0.5 });
+    expect(OPPONENT_CHALLENGE_PROFILES.veteran).toMatchObject({
+      strategicDeterrenceCautionWeight: 0.15, strategicLaunchRetaliationWillingness: 0.85 });
+  });
+});

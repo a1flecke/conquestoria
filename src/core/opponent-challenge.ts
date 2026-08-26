@@ -47,6 +47,24 @@ export interface OpponentChallengeProfile {
   // ability while the General itself is in danger (adjacent to a visible
   // hostile unit). Higher = more risk-averse with the General's safety.
   generalSafetyWeight: number;
+  // #545 MR5: how strongly known strategic (nuclear) capability on a potential
+  // war target raises the war-declaration threshold in shouldDeclareWar.
+  // Deterrence, not immunity -- see the "never grants immunity" invariant
+  // test in tests/ai/ai-personality.test.ts. Veteran gets the LARGEST value
+  // here (opposite polarity from an eagerness knob like submarineEscortWeight)
+  // because veteran is the "smartest" difficulty and should respect a
+  // demonstrated deterrent the most -- same explorer < standard < veteran
+  // direction as every other knob, different effect.
+  strategicDeterrenceCautionWeight: number;
+  // #545 MR5: probability-of-launching-this-turn once an AI is
+  // retaliation-eligible (isStrategicStrikeRetaliation true for some legal
+  // target). Explorer lowest ("heavily suppressed"), veteran highest
+  // ("maximally willing"). Hard-capped below 1.0 -- retaliation is never
+  // automatic/scripted. First-use willingness is NOT a probability knob
+  // (Explorer/Standard never authorize it; Veteran's gate is the
+  // deterministic existential-threat check in ai-strategic-doctrine.ts) --
+  // this knob governs retaliation only.
+  strategicLaunchRetaliationWillingness: number;
 }
 
 export const OPPONENT_CHALLENGE_PROFILES: Record<OpponentChallenge, OpponentChallengeProfile> = {
@@ -72,6 +90,8 @@ export const OPPONENT_CHALLENGE_PROFILES: Record<OpponentChallenge, OpponentChal
     pillageAggressivenessMultiplier: 0.5,
     heroicCommandEagernessWeight: 0.6,
     generalSafetyWeight: 1.5,
+    strategicDeterrenceCautionWeight: 0.05,
+    strategicLaunchRetaliationWillingness: 0.15,
   },
   standard: {
     mobilizationRounds: 1,
@@ -95,6 +115,8 @@ export const OPPONENT_CHALLENGE_PROFILES: Record<OpponentChallenge, OpponentChal
     pillageAggressivenessMultiplier: 1.0,
     heroicCommandEagernessWeight: 1.0,
     generalSafetyWeight: 1.0,
+    strategicDeterrenceCautionWeight: 0.1,
+    strategicLaunchRetaliationWillingness: 0.5,
   },
   veteran: {
     mobilizationRounds: 0,
@@ -118,6 +140,8 @@ export const OPPONENT_CHALLENGE_PROFILES: Record<OpponentChallenge, OpponentChal
     pillageAggressivenessMultiplier: 1.3,
     heroicCommandEagernessWeight: 1.4,
     generalSafetyWeight: 0.7,
+    strategicDeterrenceCautionWeight: 0.15,
+    strategicLaunchRetaliationWillingness: 0.85,
   },
 };
 
