@@ -2834,3 +2834,45 @@ describe('#592 MR5 — AI missionary dispatch', () => {
     expect(next.cityFaith?.[minor.cityId]?.conversionProgress).toBeUndefined();
   });
 });
+
+describe('AI strategic launch doctrine (#545 MR5)', () => {
+  it('a veteran AI under existential threat launches a real strike via processAITurn', () => {
+    const state = createNewGame(undefined, 'mr5-veteran-first-use', 'small');
+    state.opponentChallenge = 'veteran';
+    const aiId = 'ai-1';
+    const enemyId = 'ai-2';
+    state.civilizations[aiId].cities = ['ai-1-capital', 'ai-1-silo'];
+    state.civilizations[aiId].strategicArsenal = 1;
+    state.civilizations[aiId].diplomacy.atWarWith = [enemyId];
+    state.civilizations[enemyId] = {
+      ...state.civilizations[aiId],
+      id: enemyId, name: 'Enemy', cities: ['enemy-capital'], strategicArsenal: 0,
+      diplomacy: { ...state.civilizations[aiId].diplomacy, atWarWith: [aiId] },
+    };
+    const mkCity = (id: string, owner: string, position: { q: number; r: number }, overrides: Record<string, unknown> = {}) => ({
+      id, name: id, owner, position,
+      population: 5, food: 0, foodNeeded: 20, buildings: [],
+      productionQueue: [], productionProgress: 0,
+      ownedTiles: [position], workedTiles: [],
+      focus: 'balanced', maturity: 'outpost',
+      unrestLevel: 0, unrestTurns: 0, spyUnrestBonus: 0,
+      ...overrides,
+    }) as any;
+    state.cities['ai-1-capital'] = mkCity('ai-1-capital', aiId, { q: 0, r: 0 }, { name: 'Capital', hp: 10 });
+    state.cities['ai-1-silo'] = mkCity('ai-1-silo', aiId, { q: 0, r: 1 }, { name: 'Silo', buildings: ['missile_silo'] });
+    state.cities['enemy-capital'] = mkCity('enemy-capital', enemyId, { q: 5, r: 5 }, { name: 'EnemyCapital' });
+    state.civilizations[aiId].visibility.tiles[hexKey({ q: 5, r: 5 })] = 'visible';
+    state.units['hostile-adjacent'] = createUnit('warrior', enemyId, { q: 1, r: 0 }, state.idCounters);
+
+    const bus = new EventBus();
+    const events: unknown[] = [];
+    bus.on('city:strategic-strike', payload => events.push(payload));
+
+    const result = processAITurn(state, aiId, bus);
+
+    expect(result.cities['enemy-capital'].hp).toBe(1);
+    expect(result.civilizations[aiId].strategicArsenal).toBe(0);
+    expect(events).toHaveLength(1);
+    expect(events[0]).toMatchObject({ cityId: 'enemy-capital', recipientCivId: enemyId, actorCivId: aiId });
+  });
+});
