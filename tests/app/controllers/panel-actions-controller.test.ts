@@ -56,6 +56,7 @@ import { createNetworkPanel } from '@/ui/network-panel';
 import { saveSettings } from '@/storage/save-manager';
 import { createCityPanel } from '@/ui/city-panel';
 import { createStrategicLaunchFlow } from '@/ui/strategic-launch-flow';
+import { SFX } from '@/audio/sfx';
 import { hexKey } from '@/systems/hex-utils';
 import { createEspionagePanel } from '@/ui/espionage-panel';
 
@@ -711,7 +712,7 @@ describe('PanelActionsController', () => {
       expect(createCityPanel).toHaveBeenCalledWith(deps.uiLayer, state.cities['test-city'], deps.session.getState(), expect.anything());
     });
 
-    it('Prepare Strategic Launch (#545 MR4): opens the flow, and a confirmed launch commits a real strike', () => {
+    it('Prepare Strategic Launch (#545 MR4/MR5): opens the flow, and a confirmed launch commits a real strike without calling SFX directly', () => {
       const { state, aiCivId } = makeFixture('city-panel-strategic-launch');
       const targetPos = { q: 1, r: 1 };
       state.cities['silo'] = makeCity('silo', { buildings: ['missile_silo'] });
@@ -721,6 +722,9 @@ describe('PanelActionsController', () => {
       state.civilizations.player.diplomacy.atWarWith = [aiCivId];
       state.civilizations.player.visibility = { tiles: { [hexKey(targetPos)]: 'visible' }, lastSeen: {} };
       const { deps, controller } = build(state);
+      const strategicStrikeSpy = vi.spyOn(SFX, 'strategicStrike').mockImplementation(() => {});
+      const emitted: unknown[] = [];
+      deps.bus.on('city:strategic-strike', payload => emitted.push(payload));
 
       controller.openCityPanelForCity(state.cities['silo']);
       const cityPanelOptions = mockedCallArg<{ onPrepareStrategicLaunch: (cityId: string) => void }>(createCityPanel, 0, 3);
@@ -735,6 +739,10 @@ describe('PanelActionsController', () => {
       expect(deps.session.getState().civilizations.player.strategicArsenal).toBe(0);
       expect(deps.session.getState().civilizations.player.diplomacy.relationships[aiCivId]).toBe(-60);
       expect(deps.showNotification).toHaveBeenCalledWith('Strategic strike launched.', 'warning');
+      // #545 MR5: SFX now fires from the registrar, never directly from the controller.
+      expect(strategicStrikeSpy).not.toHaveBeenCalled();
+      expect(emitted).toEqual([{ cityId: 'target', recipientCivId: aiCivId, actorCivId: 'player', goldLost: expect.any(Number) }]);
+      strategicStrikeSpy.mockRestore();
     });
 
     it('queues real production via session.commit, publishes to subscribers, and returns the fresh state for the panel to re-render', () => {
