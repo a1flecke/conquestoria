@@ -185,4 +185,34 @@ describe('HudController', () => {
     expect(deps.canvas.style.height).toBe('auto');
     expect((deps.renderLoop.resizeCanvas as ReturnType<typeof vi.fn>)).toHaveBeenCalledTimes(1);
   });
+
+  describe('Strategic Arsenal button (#545 MR4)', () => {
+    function withManhattanProject(state: GameState, arsenal: number): void {
+      state.builtNationalProjects = { 'player:manhattan_project': { civId: 'player', cityId: 'city-1', eraBuilt: 10 } as any };
+      state.civilizations.player.strategicArsenal = arsenal;
+    }
+
+    it('is absent without Manhattan Project (capacity 0)', () => {
+      const state = makeFixture();
+      const deps = baseDeps(state);
+      const hud = createHudController(deps);
+      hud.update();
+      expect(document.getElementById('hud')!.textContent).not.toContain('☢');
+    });
+
+    it('shows the arsenal count/capacity and opens the strategic-arsenal panel on click', () => {
+      const state = makeFixture();
+      withManhattanProject(state, 2);
+      const deps = baseDeps(state);
+      const hud = createHudController(deps);
+      hud.update();
+
+      const hudEl = document.getElementById('hud')!;
+      expect(hudEl.textContent).toContain('☢');
+      const arsenalButton = Array.from(hudEl.querySelectorAll('button')).find(b => b.textContent?.includes('☢'))!;
+      expect(arsenalButton).toBeTruthy();
+      arsenalButton.click();
+      expect(deps.router.open).toHaveBeenCalledWith('strategic-arsenal');
+    });
+  });
 });

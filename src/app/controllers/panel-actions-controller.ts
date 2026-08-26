@@ -92,6 +92,8 @@ import { createNetworkPanel, getNetworkPanelModel } from '@/ui/network-panel';
 import { createCityPanel } from '@/ui/city-panel';
 import { createStrategicLaunchFlow } from '@/ui/strategic-launch-flow';
 import { executeStrategicLaunch } from '@/systems/strategic-launch-execution-system';
+import { createStrategicArsenalPanel } from '@/ui/strategic-arsenal-panel';
+import { getStrategicArsenalSummaryPresentation } from '@/systems/strategic-arsenal-summary-presentation';
 import { createEspionagePanel } from '@/ui/espionage-panel';
 import { assignCityFocus, setCityWorkedTile } from '@/systems/city-work-system';
 import { chooseCircularManufacturingMaterial } from '@/systems/national-project-system';
@@ -125,6 +127,7 @@ export interface PanelActionsController {
   openNetworkPanel(): void;
   openCityPanelForCity(city: City): void;
   openEspionagePanel(): void;
+  openStrategicArsenalPanel(): void;
 }
 
 /** The narrow slice of `RenderLoop` this controller needs. */
@@ -188,6 +191,11 @@ export function createPanelActionsController(deps: PanelActionsControllerDeps): 
       onClose: () => {},
       slayerNameFor: (civId) => deps.session.getState().civilizations[civId]?.name ?? civId,
     });
+  }
+
+  function openStrategicArsenalPanel(): void {
+    const presentation = getStrategicArsenalSummaryPresentation(deps.session.getState(), deps.session.getState().currentPlayer);
+    createStrategicArsenalPanel(deps.uiLayer, presentation, () => {});
   }
 
   function openWonderAtlas(initialWonderId?: string): void {
@@ -1115,5 +1123,6 @@ export function createPanelActionsController(deps: PanelActionsControllerDeps): 
     openNetworkPanel,
     openCityPanelForCity,
     openEspionagePanel,
+    openStrategicArsenalPanel,
   };
 }
