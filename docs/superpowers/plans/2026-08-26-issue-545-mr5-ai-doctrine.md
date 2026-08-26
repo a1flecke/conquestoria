@@ -1369,9 +1369,25 @@ describe('AI strategic launch doctrine (#545 MR5)', () => {
       id: enemyId, name: 'Enemy', cities: ['enemy-capital'], strategicArsenal: 0,
       diplomacy: { ...state.civilizations[aiId].diplomacy, atWarWith: [aiId] },
     };
-    state.cities['ai-1-capital'] = { id: 'ai-1-capital', name: 'Capital', owner: aiId, position: { q: 0, r: 0 }, buildings: [], hp: 10 } as any;
-    state.cities['ai-1-silo'] = { id: 'ai-1-silo', name: 'Silo', owner: aiId, position: { q: 0, r: 1 }, buildings: ['missile_silo'] } as any;
-    state.cities['enemy-capital'] = { id: 'enemy-capital', name: 'EnemyCapital', owner: enemyId, position: { q: 5, r: 5 } } as any;
+    // Found during execution: initializeLegendaryWonderProjectsForAllCities
+    // and processAIResourceMarketplace (both run early in
+    // processAITurnInternal, before this task's own new code) touch
+    // city.buildings.length and city.productionQueue.length unconditionally
+    // for EVERY city in state.cities -- a bare {id, name, owner, position}
+    // stub crashes. Use a fully-shaped city (same fields as
+    // tests/systems/helpers/breakaway-fixture.ts's makeCity).
+    const mkCity = (id: string, owner: string, position: { q: number; r: number }, overrides: Record<string, unknown> = {}) => ({
+      id, name: id, owner, position,
+      population: 5, food: 0, foodNeeded: 20, buildings: [],
+      productionQueue: [], productionProgress: 0,
+      ownedTiles: [position], workedTiles: [],
+      focus: 'balanced', maturity: 'outpost',
+      unrestLevel: 0, unrestTurns: 0, spyUnrestBonus: 0,
+      ...overrides,
+    }) as any;
+    state.cities['ai-1-capital'] = mkCity('ai-1-capital', aiId, { q: 0, r: 0 }, { name: 'Capital', hp: 10 });
+    state.cities['ai-1-silo'] = mkCity('ai-1-silo', aiId, { q: 0, r: 1 }, { name: 'Silo', buildings: ['missile_silo'] });
+    state.cities['enemy-capital'] = mkCity('enemy-capital', enemyId, { q: 5, r: 5 }, { name: 'EnemyCapital' });
     state.civilizations[aiId].visibility.tiles[hexKey({ q: 5, r: 5 })] = 'visible';
     state.units['hostile-adjacent'] = createUnit('warrior', enemyId, { q: 1, r: 0 }, state.idCounters);
 
