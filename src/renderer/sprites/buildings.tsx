@@ -2316,7 +2316,7 @@ export function RadarStationSprite({ palette, svgOnly = false }: BuildingSpriteP
     <BuildingFrame label="Radar Station" category="military" svgOnly={svgOnly}>
       <BuildingPlinth w={96} />
       {/* lattice tower — wider base tapers to top */}
-      <path d="M82,136 L110,136 L101,30 L91,30 Z" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="1" />
+      <path className="cq-radar-tower" d="M82,136 L110,136 L101,30 L91,30 Z" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="1" />
       {/* cross-braces both diagonals */}
       {[50, 70, 90, 110].map(y =>
         <>
@@ -2325,13 +2325,13 @@ export function RadarStationSprite({ palette, svgOnly = false }: BuildingSpriteP
         </>
       ).join('')}
       {/* parabolic dish */}
-      <path d="M68,30 L124,30 Q124,58 96,66 Q68,58 68,30 Z" fill={palette.mid} stroke={P.ink.line} strokeWidth="1.4" />
+      <path className="cq-radar-dish" d="M68,30 L124,30 Q124,58 96,66 Q68,58 68,30 Z" fill={palette.mid} stroke={P.ink.line} strokeWidth="1.4" />
       {/* dish feed arm */}
       <line x1="96" y1="30" x2="96" y2="48" stroke={P.metal.steel} strokeWidth="1.5" />
       <circle cx="96" cy="30" r="5" fill={P.metal.steel} stroke={P.ink.line} strokeWidth="1" />
       {/* pulse arcs from dish */}
-      <path d="M56,20 Q96,-6 136,20" fill="none" stroke={palette.bright} strokeWidth="1" opacity="0.8" />
-      <path d="M62,10 Q96,-18 130,10" fill="none" stroke={palette.bright} strokeWidth="0.7" opacity="0.5" />
+      <path className="cq-radar-pulse" d="M56,20 Q96,-6 136,20" fill="none" stroke={palette.bright} strokeWidth="1" opacity="0.8" />
+      <path className="cq-radar-pulse" d="M62,10 Q96,-18 130,10" fill="none" stroke={palette.bright} strokeWidth="0.7" opacity="0.5" />
       {/* operator hut */}
       <rect x="50" y="104" width="52" height="32" rx="2" fill={P.stone.mid} stroke={P.ink.line} strokeWidth="1" />
       <rect x="62" y="112" width="20" height="16" rx="2" fill={palette.bright} stroke={P.ink.line} strokeWidth="0.8" />
