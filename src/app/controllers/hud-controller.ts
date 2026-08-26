@@ -25,6 +25,7 @@ import { calculateCivEconomy, formatGoldHudText } from '@/systems/economy-system
 import { resolveCivilizationEra } from '@/systems/tech-definitions';
 import { getCivHappinessFromResources } from '@/systems/resource-acquisition-system';
 import { isAutonomyActivated } from '@/systems/network-plan-system';
+import { getStrategicArsenal, getStrategicArsenalCapacity } from '@/systems/strategic-arsenal-system';
 import { getNetworkPanelModel } from '@/ui/network-panel';
 import { getPirateWatersPresentation } from '@/systems/pirate-presentation';
 import { getUnmovedUnits } from '@/systems/unit-system';
@@ -138,6 +139,18 @@ export function createHudController(deps: HudControllerDeps): HudController {
         networkButton.textContent = getNetworkPanelModel(state, civ.id).statusText;
         networkButton.addEventListener('click', () => deps.router.open('network'));
         yieldsRow.appendChild(networkButton);
+      }
+
+      // #545 MR4: only shown once Manhattan Project gives the civ a real
+      // (non-zero) arsenal capacity -- never a dead button on a civ with no
+      // strategic-weapons content built yet.
+      if (getStrategicArsenalCapacity(state, civ.id) > 0) {
+        const arsenalButton = document.createElement('button');
+        arsenalButton.type = 'button';
+        arsenalButton.style.cssText = 'background:transparent;color:inherit;border:1px solid rgba(200,60,40,0.45);border-radius:6px;font:inherit;padding:4px 8px;min-height:44px;';
+        arsenalButton.textContent = `☢ ${getStrategicArsenal(civ)}/${getStrategicArsenalCapacity(state, civ.id)}`;
+        arsenalButton.addEventListener('click', () => deps.router.open('strategic-arsenal'));
+        yieldsRow.appendChild(arsenalButton);
       }
 
       const happiness = getCivHappinessFromResources(state, civ.id);

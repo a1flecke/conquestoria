@@ -618,6 +618,7 @@ export function createAppComposition(deps: AppCompositionDeps): AppComposition {
       },
     },
     'pacing-debug': { domId: 'pacing-debug-panel', group: 'transient', open: () => panelActions.openPacingDebugPanel() },
+    'strategic-arsenal': { domId: 'strategic-arsenal-panel', group: 'transient', open: () => panelActions.openStrategicArsenalPanel() },
   } satisfies PanelRegistry;
 
   router = createPanelRouter({ host, registry: panelRegistry, context: panelContext });

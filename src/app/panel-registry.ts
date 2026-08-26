@@ -12,7 +12,8 @@ import type { PanelRouter } from '@/app/panel-router';
 export type PanelId =
   | 'council' | 'tech' | 'city' | 'espionage' | 'diplomacy' | 'marketplace'
   | 'network' | 'wonder' | 'wonder-atlas' | 'bestiary' | 'pirate-waters'
-  | 'notification-log' | 'city-overview' | 'territory-inspection' | 'pacing-debug';
+  | 'notification-log' | 'city-overview' | 'territory-inspection' | 'pacing-debug'
+  | 'strategic-arsenal';
 
 /**
  * Panels in the same group close each other. 'main' is the mutually-exclusive
