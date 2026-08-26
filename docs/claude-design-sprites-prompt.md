@@ -1,6 +1,6 @@
 # Claude Design Prompt: Conquestoria Sprites
 
-**This file has no active prompt right now.** The last one — #769 batch 5, the FINAL batch (real,
+**The active Issue #710 corrective prompt is at the end of this file.** The last shipped one — #769 batch 5, the FINAL batch (real,
 distinct live-catalog sprites for `anti_tank_gun`, `mobile_aa`, `wwii_fighter`) — shipped
 2026-08-04. All three now render their own bespoke `units.tsx` sprite function instead of aliasing
 another unit's exact art. With this batch merged, **#769's own scope is fully complete** — the
@@ -132,4 +132,59 @@ Output one source component at a time with no prose. Preserve `SpriteFrameV2` an
 - Four-legged units use diagonal gait hooks and retain a visible ground shadow.
 - Idle, walk, attack, hurt, death, and reduced-motion states preserve meaningful information.
 - No gradients, blur, text, hard-coded faction colours, or duplicated donor art.
+</style_checklist>
+
+---
+
+## 2026-08-25 — Issue 710 corrective native-v2 reference brief
+
+<role>
+You are a senior SVG sprite artist and TypeScript developer. Produce editable flat geometric SVG/JSX source for an existing strategy game; do not produce raster art, a mockup, or generic icons.
+</role>
+
+<context>
+Project: Conquestoria. These sprites appear at 40–120px on a hex map. Each needs a readable right-facing 2.5D silhouette at 40px before detail. A prior review rejected arrow-shaped aircraft, a paratrooper with no parachute, a board-shaped carrier, and a limbless General. Those outcomes are prohibited.
+</context>
+
+<reference_files>
+1. https://raw.githubusercontent.com/a1flecke/conquestoria/main/src/renderer/sprites/sprite-system.tsx
+2. https://raw.githubusercontent.com/a1flecke/conquestoria/main/src/renderer/sprites/units.tsx
+3. https://raw.githubusercontent.com/a1flecke/conquestoria/main/src/assets/sprite-animations-v2.css
+4. https://raw.githubusercontent.com/a1flecke/conquestoria/main/docs/sprite-design-system.md
+5. https://raw.githubusercontent.com/a1flecke/conquestoria/main/design/conquestoria-sprites/lib/units-v2.jsx
+</reference_files>
+
+<design_system>
+Use flat geometric forms, warm hand-made 2.5D composition, and major outlines in `#1f1a14`. No gradients, blur, photorealism, text, logos, hard-coded faction colors, donor reuse, or a single-polygon icon in place of anatomy. Use only: skin `#d4a373/#b08968/#8a5a3c`; cloth `#c19a6b/#e6dcc6/#7a6e5b/#5b4a7a`; metal `#5a6068/#8a929b/#b8895a/#d4a13c/#e8edf2`; wood `#c19a6b/#8a6a3a/#5e3f24`; stone `#c4b8a4/#9a8e78/#6a5e4a`; ground `#7ea860/#a08260/#d8c896/#3a6e94`; ink `#1f1a14/#3a3228`. Faction treatment uses only `f.dark`, `f.mid`, `f.bright`, and `f.trim` on limited identifier surfaces.
+
+Use `SpriteFrameV2`, `_P2`, and `_fa2(faction)`. Static placement wrappers never animate. Every animated detail is nested beneath its visible owner and uses an untransformed child hook. Use existing kinds only: `ranged` for Paratrooper, `civilian` for both aircraft and General, and `naval` for Supercarrier. Do not create an `air` kind. Aircraft do not receive a generic weapon swing or a forward body thrust.
+</design_system>
+
+<sprites>
+## ParatrooperV2Sprite
+Use `kind="ranged"` and variant `paratrooper`. The top half is a round segmented olive-and-linen parachute canopy. At least six visible suspension lines converge into a shoulder harness around a complete helmeted soldier with rucksack, two arms, two legs, and compact rifle. Add `cq-parachute-canopy`, `cq-parachute-lines`, `cq-paratrooper-harness`, `cq-paratrooper-pack`, `cq-paratrooper-rifle`, arm, leg, and shadow hooks. Attack is local rifle recoil; never a lunge.
+
+## NavalStrikeAircraftV2Sprite
+Use `kind="civilian"` and variant `naval-strike-aircraft`. Draw a carrier strike jet, not an arrow: pointed nose, shaded canopy, substantial fuselage, broad swept wings, twin tail fins, tailhook, and a finned torpedo nested below the fuselage. Include `cq-strike-fuselage`, `cq-strike-cockpit`, `cq-strike-wing`, `cq-strike-tail`, `cq-strike-tailhook`, and `cq-naval-strike-torpedo`. Shared attack is a short belly-mount torpedo release; the aircraft glides or banks lightly and never thrusts like a spear.
+
+## MaritimePatrolAircraftV2Sprite
+Use `kind="civilian"` and variant `maritime-patrol-aircraft`. This differs from the strike jet: a longer, straight-wing twin-engine patrol aircraft with glazed cockpit, two nacelles, two propeller discs, tailplane, and clear radar dome or belly pod. Include `cq-patrol-fuselage`, `cq-patrol-wing`, `cq-patrol-nacelle-l`, `cq-patrol-nacelle-r`, `cq-patrol-prop-l`, `cq-patrol-prop-r`, and `cq-patrol-radar-dome`. Active state is a small radar scan only. Do not include `cq-weapon`, muzzle flash, torpedo, or gun.
+
+## SupercarrierV2Sprite
+Use `kind="naval"` and variant `supercarrier`. Draw a real ship: dark lower hull with distinct right-facing bow and stern, waterline and wake, tapered/foreshortened flight deck, runway stripe, island with mast, and three small parked aircraft with body-plus-wing shapes rather than chevrons. Include `cq-supercarrier-hull`, `cq-supercarrier-bow`, `cq-supercarrier-deck`, `cq-supercarrier-island`, `cq-supercarrier-mast`, `cq-supercarrier-aircraft`, and `cq-supercarrier-wake`. Active state launches one deck aircraft; it stays visually tied to the deck until clear. Do not reduce the ship to a rectangle or board.
+
+## GreatGeneralV2Sprite
+Use `kind="civilian"` and variant `great-general`. Use a complete standing officer: head, coat, cap, epaulettes, two bent arms holding an unfolded map, and two planted legs beside a command standard. Add `cq-general-body`, `cq-general-arm-l`, `cq-general-arm-r`, `cq-general-leg-l`, `cq-general-leg-r`, `cq-general-map`, and `cq-general-standard`. A restrained command/map gesture is allowed; weapon, muzzle-flash, and combat attack effects are forbidden.
+</sprites>
+
+<output_format>
+Output one native source component at a time. Preserve `SpriteFrameV2`, the current JSX runtime, and `Object.assign(window, ...)` export registration. Do not register generated modules in the live native lookup: review evidence must approve them first.
+</output_format>
+
+<style_checklist>
+- 128×128 native wrapper; each target passes a 40px silhouette check before detail.
+- Every physical joint stays attached at idle, walk, active, hurt, death, and reduced motion.
+- Local variant motion replaces generic ground weapon/thrust motion where inappropriate.
+- Faction color is a small identifier; ink and materials remain readable.
+- No gradients, blur, text, hard-coded faction colors, reused donor art, or arrow/board icons.
 </style_checklist>
