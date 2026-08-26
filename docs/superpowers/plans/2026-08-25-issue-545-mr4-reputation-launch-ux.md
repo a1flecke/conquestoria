@@ -1,5 +1,25 @@
 # #545 MR4 — Reputation/Witness Wiring + Launch UX Flow + Warchief Panel Implementation Plan
 
+✅ executed 2026-08-25 (pre-merge; PR not yet opened). All 13 tasks complete, full
+suite green (541 files / 9084 tests, 3 pre-existing skips), `yarn build` clean, zero
+pacing-audit diff. One 18-dimension review pass ran before execution (gameplay,
+ages 7-43, play styles, difficulty, AI, UI/UX, architecture, extensibility, data,
+SFX, saved games, testing, regressions solo+hot-seat, proper implementation),
+catching a circular-import risk, a DRY violation, a missing exact-numbers preview
+requirement, a missing progressive-disclosure section, and a missing
+defender-notification path -- all fixed in the plan before execution began.
+Execution itself surfaced three further corrections not caught by review: (1) the
+new `strategicStrikesReceivedFrom` field had to become optional, not required, to
+avoid breaking ~15 pre-existing test fixtures; (2) `selected-unit-info.ts` has no
+single shared ownership gate around its actions (each one re-checks
+`unit.owner === state.currentPlayer` itself) -- caught by the hot-seat/ownership
+regression test written alongside the change; (3) `EventBus.emit` is strictly typed
+against `GameEvents`, forcing Task 11 (the notification registrar) to execute
+before Task 9 (its emit call sites) rather than after, as originally planned. One
+known non-blocking follow-up flagged separately: strategic strikes currently play
+no sound effect (see the Definition of Done section for why this doesn't violate
+mute-safe).
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 >
 > **This repo's own CLAUDE.md forbids subagents/parallel agents in this repo.** Execute this plan via `superpowers:executing-plans` (inline, single session), never `subagent-driven-development`.
@@ -37,7 +57,7 @@
 **Interfaces:**
 - Produces: `DiplomacyState.strategicStrikesReceivedFrom: string[]` — the ids of every civ that has ever struck this civ with a strategic strike (deduplicated, append-only, never pruned). Task 3's `isStrategicStrikeRetaliation` and Task 4's `executeStrategicLaunch` both read/write this field.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 In `tests/systems/diplomacy-system.test.ts`, find the existing test(s) that assert `createDiplomacyState(...)`'s returned shape (search for `atWarWith: []`) and add:
 
@@ -72,12 +92,12 @@ describe('migration 20 -- strategicStrikesReceivedFrom default (#545 MR4)', () =
 
 Before writing these, open `tests/storage/save-migrations.test.ts` and confirm the actual names of its civ/state fixture helpers (do not assume `makeMinimalCiv`/`makeMinimalState` are the real names — copy whatever the file already uses for a similar "one field defaulted" migration test, e.g. migration 15's or 17's own test).
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `bash scripts/run-with-mise.sh yarn vitest run tests/systems/diplomacy-system.test.ts tests/storage/save-migrations.test.ts`
 Expected: FAIL — `strategicStrikesReceivedFrom` does not exist on the type, and `SAVE_MIGRATIONS[20]` is undefined.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 In `src/core/types.ts`, extend `DiplomacyState`:
 
@@ -144,12 +164,12 @@ export const SAVE_MIGRATIONS: Readonly<Record<number, SaveMigration>> = {
 };
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `bash scripts/run-with-mise.sh yarn vitest run tests/systems/diplomacy-system.test.ts tests/storage/save-migrations.test.ts`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/core/types.ts src/systems/diplomacy-system.ts src/storage/save-migrations.ts tests/systems/diplomacy-system.test.ts tests/storage/save-migrations.test.ts
@@ -170,7 +190,7 @@ git commit -m "feat(#545): add strategicStrikesReceivedFrom retaliation-tracking
 - Consumes: `mapHexesInRange`, `hexKey` from `@/systems/hex-utils` (already imported in `strategic-strike-system.ts`); `getCityGarrisonUnit`, `SACK_GOLD_LOSS_FRACTION` (already imported in `strategic-strike-system.ts`).
 - Produces: `applyBilateralRelationshipDelta(state, civAId, civBId, delta): GameState` (now exported, unchanged behavior). `STRIKE_BLAST_RADIUS: number` (now exported, value `3`, unchanged). `getStrategicStrikeBlastRadiusPreview(state: GameState, targetCityId: string): string[]` — the exact same tile-key set `applyStrategicFallout` would devastate, computed read-only with zero state mutation. `getStrategicStrikePreviewEffect(state: GameState, targetCityId: string): { hasGarrison: boolean; goldLost: number } | null` — the exact HP/gold outcome a real strike would produce, computed read-only, for the stage-2 preview's "expected city-HP/gold effect" requirement (spec §14). Task 4, Task 5, and Task 8 all depend on these exports.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 In `tests/systems/crisis-interaction-definitions.test.ts`, add (this function was previously untested because it was module-private and only reached through `applyInteractionReputation`; it already has full behavioral coverage indirectly, so this new test only needs to confirm the export exists and is directly callable):
 
@@ -244,12 +264,12 @@ describe('getStrategicStrikePreviewEffect (#545 MR4 stage-2 preview)', () => {
 
 Before finalizing the garrisoned-target test, confirm the exact fixture shape `getCityGarrisonUnit` expects for "this unit garrisons this city" against its real implementation in `city-siege-system.ts` (it may key off unit position matching city position, a dedicated `garrisonedCityId` field, or something else) — adjust the `g1` fixture unit above to actually satisfy it rather than assuming position-matching is sufficient.
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `bash scripts/run-with-mise.sh yarn vitest run tests/systems/crisis-interaction-definitions.test.ts tests/systems/strategic-strike-system.test.ts`
 Expected: FAIL — `applyBilateralRelationshipDelta` is not exported, `getStrategicStrikeBlastRadiusPreview`/`STRIKE_BLAST_RADIUS` are not exported.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 In `src/systems/crisis-interaction-definitions.ts`, remove the leading nothing and just add `export` (no logic change):
 
@@ -310,12 +330,12 @@ export function getStrategicStrikePreviewEffect(
 }
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `bash scripts/run-with-mise.sh yarn vitest run tests/systems/crisis-interaction-definitions.test.ts tests/systems/strategic-strike-system.test.ts`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/systems/crisis-interaction-definitions.ts src/systems/strategic-strike-system.ts tests/systems/crisis-interaction-definitions.test.ts tests/systems/strategic-strike-system.test.ts
@@ -334,7 +354,7 @@ git commit -m "feat(#545): export applyBilateralRelationshipDelta and add blast-
 - Consumes: `DiplomacyState.strategicStrikesReceivedFrom` (Task 1), `getStrategicLaunchLegality` (existing, same file).
 - Produces: `isStrategicStrikeRetaliation(state, actorCivId, targetCivId): boolean` and `getLegalStrategicLaunchTargets(state, actorCivId): City[]`. Task 4 (`executeStrategicLaunch`) and Task 8 (stage-2 target list + reputation-magnitude preview text) both call these directly.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Add to `tests/systems/strategic-launch-system.test.ts` (reuse the file's existing `makeState` helper):
 
@@ -390,12 +410,12 @@ describe('getLegalStrategicLaunchTargets (#545 MR4 §14 stage 2)', () => {
 
 Verify against the real `getStrategicLaunchLegality` fixture shape used earlier in this same file (`visibleAt`, `BUILDINGS`) — adjust the `visibility`/`diplomacy` shape above to match whatever this file's existing tests already use for `hasDiscoveredCity`/`isAtWar`, rather than guessing a new shape.
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `bash scripts/run-with-mise.sh yarn vitest run tests/systems/strategic-launch-system.test.ts`
 Expected: FAIL — both functions undefined.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 Append to `src/systems/strategic-launch-system.ts` (after `getStrategicLaunchLegality`):
 
@@ -431,12 +451,12 @@ export function getLegalStrategicLaunchTargets(state: GameState, actorCivId: str
 
 Add `City` to this file's existing `import type { GameState, HexCoord, UnitType } from '@/core/types';` line.
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `bash scripts/run-with-mise.sh yarn vitest run tests/systems/strategic-launch-system.test.ts`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/systems/strategic-launch-system.ts tests/systems/strategic-launch-system.test.ts
@@ -457,7 +477,7 @@ git commit -m "feat(#545): add isStrategicStrikeRetaliation and getLegalStrategi
 
 **Design note (why this is a new file, not added to `strategic-launch-system.ts`):** `strategic-strike-system.ts` already imports `getStrategicLaunchLegality` from `strategic-launch-system.ts`. If `executeStrategicLaunch` (which must call `resolveStrategicStrike`) lived in `strategic-launch-system.ts`, that file would need to import back from `strategic-strike-system.ts`, creating a circular import. A new file that only *consumes* both existing files avoids this entirely.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Create `tests/systems/strategic-launch-execution-system.test.ts`:
 
@@ -592,12 +612,12 @@ describe('executeStrategicLaunch (#545 MR4 §11)', () => {
 
 Note: `getWitnessCivIds` requires both civs to have "met" both parties (`hasMetCivilization`) — before finalizing this step, open `discovery-system.ts`'s `hasMetCivilization` and confirm what state shape satisfies it for the `witness` fixture above (it may need an explicit `metCivilizations`/`discoveredCivs`-style field rather than just existing in `state.civilizations`) and adjust the witness test's fixture accordingly so it actually exercises the witness path rather than silently asserting `-25` against a witness the function would have excluded anyway.
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `bash scripts/run-with-mise.sh yarn vitest run tests/systems/strategic-launch-execution-system.test.ts`
 Expected: FAIL — module does not exist.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 Create `src/systems/strategic-launch-execution-system.ts`:
 
@@ -680,12 +700,12 @@ export function executeStrategicLaunch(
 }
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `bash scripts/run-with-mise.sh yarn vitest run tests/systems/strategic-launch-execution-system.test.ts`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/systems/strategic-launch-execution-system.ts tests/systems/strategic-launch-execution-system.test.ts
@@ -707,7 +727,7 @@ git commit -m "feat(#545): add executeStrategicLaunch -- reputation/witness cons
 - Consumes: `getStrategicStrikeBlastRadiusPreview` (Task 2).
 - Produces: `StrategicLaunchPreviewPresentation` type + `getStrategicLaunchPreviewPresentation(state, targetCityId)`; `drawStrategicLaunchPreviewOverlay(ctx, presentation, mapWidth, mapHeight, camera, wrapsHorizontally)`; `RenderLoop.setStrategicLaunchPreview(presentation | null)`. Task 8 (the 3-stage flow) calls `setStrategicLaunchPreview` on stage-2 entry/exit.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Create `tests/systems/strategic-launch-preview-presentation.test.ts`:
 
@@ -743,12 +763,12 @@ describe('getStrategicLaunchPreviewPresentation (#545 MR4 §14 stage 2 map overl
 });
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `bash scripts/run-with-mise.sh yarn vitest run tests/systems/strategic-launch-preview-presentation.test.ts`
 Expected: FAIL — module does not exist.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 Create `src/systems/strategic-launch-preview-presentation.ts`:
 
@@ -861,12 +881,12 @@ Add the draw call right after the existing supply-overlay draw call (around line
     }
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `bash scripts/run-with-mise.sh yarn vitest run tests/systems/strategic-launch-preview-presentation.test.ts`
 Expected: PASS. (The renderer file has no meaningful pure-logic branch to unit test beyond "does it run without throwing" — check whether `tests/renderer/supply-overlay-renderer.test.ts` exists and, if so, mirror its exact test shape for the new renderer; if it doesn't exist, skip a dedicated renderer test file and rely on `yarn build`'s typecheck plus a manual smoke check in Task 8's browser verification.)
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/systems/strategic-launch-preview-presentation.ts src/renderer/strategic-launch-overlay-renderer.ts src/renderer/render-loop.ts tests/systems/strategic-launch-preview-presentation.test.ts
@@ -885,7 +905,7 @@ git commit -m "feat(#545): add strategic-launch blast-radius map overlay (MR4 §
 - Consumes: `getStrategicArsenal`, `getStrategicArsenalCapacity` (`@/systems/strategic-arsenal-system`).
 - Produces: `CityPanelCallbacks.onPrepareStrategicLaunch?: (cityId: string) => void`. Task 9 wires this to actually open the flow.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 `tests/ui/city-panel.test.ts` (verified this session) calls `createCityPanel(container, city, state, callbacks)` directly, using the shared `makeWonderPanelFixture()` helper (from `./helpers/wonder-panel-fixture`) for `{ container, city, state }`, and this file's own `clickElement(el)` helper (`el!.dispatchEvent(new MouseEvent('click', { bubbles: true }))`) for interaction — mirror the existing Circular Manufacturing Network describe block (search `data-circular-material` in this file) exactly, since that is the closest existing precedent for a `city.buildings`-gated conditional action section. Add:
 
@@ -934,12 +954,12 @@ describe('Prepare Strategic Launch action (#545 MR4 §14 stage 1)', () => {
 
 Verified this session: `makeWonderPanelFixture()` delegates to `makeLegendaryWonderFixture` (`tests/systems/helpers/legendary-wonder-fixture.ts`), whose civ id is `'player'`, `currentPlayer` is `'player'`, `isHuman: true`, and `strategicArsenal` is unset (so `getStrategicArsenal` correctly reads `0` by default) — the fixture code above matches this exactly, no adjustment needed.
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `bash scripts/run-with-mise.sh yarn vitest run tests/ui/city-panel.test.ts`
 Expected: FAIL — no such button exists yet.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 In `src/ui/city-panel.ts`, add `onPrepareStrategicLaunch?: (cityId: string) => void;` to the `CityPanelCallbacks` interface (wherever `onChooseCircularManufacturingMaterial` is declared).
 
@@ -972,12 +992,12 @@ Add a new conditional section, modeled directly on the Circular Manufacturing Ne
 
 Add the import: `import { getStrategicArsenal, getStrategicArsenalCapacity } from '@/systems/strategic-arsenal-system';`.
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `bash scripts/run-with-mise.sh yarn vitest run tests/ui/city-panel.test.ts`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/ui/city-panel.ts tests/ui/city-panel.test.ts
@@ -996,7 +1016,7 @@ git commit -m "feat(#545): add Prepare Strategic Launch action to Missile Silo c
 **Interfaces:**
 - Produces: `SelectedUnitInfoCallbacks.onPrepareStrategicLaunch?: (unitId: string) => void`, wired in `selection-controller.ts`'s `renderSelectedUnitInfo(...)` call.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 `tests/ui/selected-unit-info.test.ts` (verified this session) uses its own lightweight `MockElement`/`MockDocument` (not jsdom) plus `findButtons(node)` (recursively collects `MockElement`s with `tagName === 'BUTTON'`), `collectAllText(node)`, and calls `renderSelectedUnitInfo(container as unknown as HTMLElement, state, unitId, callbacks)` directly, with `container = new MockElement('div')`. The closest existing precedent is the General Rally-button block (`describe('#544 MR4 — General command panel', ...)`, line 300-364) — mirror it exactly:
 
@@ -1059,12 +1079,12 @@ describe('Prepare Strategic Launch action (#545 MR4 §14 stage 1)', () => {
 });
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `bash scripts/run-with-mise.sh yarn vitest run tests/ui/selected-unit-info.test.ts`
 Expected: FAIL.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 In `src/ui/selected-unit-info.ts`, add `onPrepareStrategicLaunch?: (unitId: string) => void;` to the callbacks interface (near `onFortify`).
 
@@ -1101,12 +1121,12 @@ In `src/app/controllers/selection-controller.ts`, add to the `renderSelectedUnit
         },
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `bash scripts/run-with-mise.sh yarn vitest run tests/ui/selected-unit-info.test.ts`
 Expected: PASS (Task 9 has not yet defined `openStrategicLaunchFlow` — if `yarn build`'s typecheck fails on this reference before Task 9 lands, stub it as a local no-op function in this task's own commit and replace it in Task 9's commit, rather than leaving the repo in a non-building state between tasks.)
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/ui/selected-unit-info.ts src/app/controllers/selection-controller.ts tests/ui/selected-unit-info.test.ts
@@ -1125,7 +1145,7 @@ git commit -m "feat(#545): add Prepare Strategic Launch action to Missile Submar
 - Consumes: `getLegalStrategicLaunchTargets`, `isStrategicStrikeRetaliation` (Task 3); `getStrategicStrikePreviewEffect`, `STRIKE_BLAST_RADIUS` (Task 2); `getStrategicLaunchPreviewPresentation` (Task 5); `SACK_GOLD_LOSS_FRACTION` (`@/systems/city-siege-system`, already exported per MR3); `getStrategicArsenal` (`@/systems/strategic-arsenal-system`).
 - Produces: `createStrategicLaunchFlow(container, state, actorCivId, callbacks): HTMLElement`, `StrategicLaunchFlowCallbacks { onSetPreview: (presentation | null) => void; onConfirmLaunch: (targetCityId: string) => void; onClose: () => void }`. Task 9 wires `onSetPreview` to `RenderLoop.setStrategicLaunchPreview` and `onConfirmLaunch` to `executeStrategicLaunch` + `session.commit`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Create `tests/ui/strategic-launch-flow.test.ts`:
 
@@ -1229,12 +1249,12 @@ describe('createStrategicLaunchFlow (#545 MR4 §14 stages 2-3)', () => {
 
 This test suite calls `getLegalStrategicLaunchTargets` (via the component) against a fixture that doesn't fully satisfy `getStrategicLaunchLegality`'s real conditions (discovery, platform range) — before finalizing, verify the `makeState` fixture actually produces a `legal` result for `target` and an `ok:false` for `peaceful` by checking it against Task 3's own fixture requirements (visibility, `atWarWith`, an eligible platform). Adjust the fixture, not the component, if a test doesn't reflect real legality.
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `bash scripts/run-with-mise.sh yarn vitest run tests/ui/strategic-launch-flow.test.ts`
 Expected: FAIL — module does not exist.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 Create `src/ui/strategic-launch-flow.ts`:
 
@@ -1455,12 +1475,12 @@ export function createStrategicLaunchFlow(
 
 This component only ever consumes `getStrategicLaunchPreviewPresentation` (Task 5) for tile data — it never parses hex keys itself, so Task 5's own resolution of the `keyToHex`/`HexCoord[]` open question is the only place that matters.
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `bash scripts/run-with-mise.sh yarn vitest run tests/ui/strategic-launch-flow.test.ts`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/ui/strategic-launch-flow.ts tests/ui/strategic-launch-flow.test.ts
@@ -1480,7 +1500,7 @@ git commit -m "feat(#545): add 3-stage strategic launch flow -- target select, i
 - Consumes: `createStrategicLaunchFlow` (Task 8), `executeStrategicLaunch` (Task 4), `RenderLoop.setStrategicLaunchPreview` (Task 5).
 - Produces: a fully working end-to-end flow from both trigger points to a committed state change.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Add to whichever of the two controller test files already covers `openCityPanelForCity`'s or `selectUnit`'s callback wiring (open both files first and pick the one with an existing pattern for asserting a callback triggers a `session.commit` with a specific shape):
 
@@ -1501,12 +1521,12 @@ it('Prepare Strategic Launch (submarine) commits executeStrategicLaunch\'s resul
 
 Write these two tests for real using whichever of the two files' existing controller-construction helpers already exists (both files necessarily have one, since every other callback in them is tested this way) — do not skip this step or leave it as a comment; a fresh implementer must have real assertions here before touching implementation code.
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `bash scripts/run-with-mise.sh yarn vitest run tests/app/controllers/selection-controller.test.ts tests/app/controllers/panel-actions-controller.test.ts`
 Expected: FAIL — Task 7's stub `openStrategicLaunchFlow` is a no-op; the silo path has no wiring yet.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 In `src/app/controllers/selection-controller.ts`, replace Task 7's stub with the real implementation (add near the top of the file, as a local function, or inline in the callback):
 
@@ -1560,12 +1580,12 @@ In `src/app/controllers/panel-actions-controller.ts`, add to `openCityPanelForCi
 
 Add the same two imports, and add `'setStrategicLaunchPreview'` to `PanelActionsRenderer`'s `Pick<RenderLoop, ...>` list (line 129-132).
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `bash scripts/run-with-mise.sh yarn vitest run tests/app/controllers/selection-controller.test.ts tests/app/controllers/panel-actions-controller.test.ts`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/app/controllers/selection-controller.ts src/app/controllers/panel-actions-controller.ts tests/app/controllers/selection-controller.test.ts tests/app/controllers/panel-actions-controller.test.ts
@@ -1589,7 +1609,7 @@ git commit -m "feat(#545): wire strategic launch flow end-to-end from silo and s
 **Interfaces:**
 - Produces: `getStrategicArsenalSummaryPresentation(state, civId): StrategicArsenalSummaryPresentation` (real data only: arsenal count/capacity, eligible platforms, civs that have struck this civ -- no MR5/MR6 stub content); `createStrategicArsenalPanel(container, presentation, onClose): HTMLElement`; new `PanelId: 'strategic-arsenal'`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Create `tests/systems/strategic-arsenal-summary-presentation.test.ts`:
 
@@ -1654,12 +1674,12 @@ describe('createStrategicArsenalPanel (#545 MR4)', () => {
 });
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `bash scripts/run-with-mise.sh yarn vitest run tests/systems/strategic-arsenal-summary-presentation.test.ts tests/ui/strategic-arsenal-panel.test.ts`
 Expected: FAIL — modules do not exist.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 Create `src/systems/strategic-arsenal-summary-presentation.ts`:
 
@@ -1797,12 +1817,12 @@ In `src/app/controllers/hud-controller.ts`, add a conditional trigger button mir
 
 Add the import: `import { getStrategicArsenal, getStrategicArsenalCapacity } from '@/systems/strategic-arsenal-system';` (add to hud-controller.ts's existing import list, or a new one if that module isn't already imported there).
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `bash scripts/run-with-mise.sh yarn vitest run tests/systems/strategic-arsenal-summary-presentation.test.ts tests/ui/strategic-arsenal-panel.test.ts`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/ui/strategic-arsenal-panel.ts src/systems/strategic-arsenal-summary-presentation.ts src/app/panel-registry.ts src/app/controllers/panel-actions-controller.ts src/app/bootstrap.ts src/app/controllers/hud-controller.ts tests/systems/strategic-arsenal-summary-presentation.test.ts tests/ui/strategic-arsenal-panel.test.ts
@@ -1825,7 +1845,7 @@ git commit -m "feat(#545): add warchief Strategic Arsenal summary panel (MR4)"
 - Consumes: `EventBus` (`@/core/event-bus`), `PresentationRegistrar` type and `makePresentationContext` test helper (`tests/helpers/presentation-context`).
 - Produces: the defending civ receives a delivered notification the moment a strategic strike lands against one of their cities.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Create `tests/presentation/register-strategic-strike-presentation.test.ts`, mirroring `tests/presentation/register-raider-presentation.test.ts`'s exact fixture shape:
 
@@ -1863,12 +1883,12 @@ describe('strategic strike presentation (#545 MR4)', () => {
 
 Before finalizing, open `tests/helpers/presentation-context.ts` and confirm `makePresentationContext`'s real option shape and whether `ctx.deliver` is genuinely a top-level alias for `ctx.notifier.deliver` (both spellings appear used across the existing raider test/registrar pair) — use whichever this file's own convention actually is.
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `bash scripts/run-with-mise.sh yarn vitest run tests/presentation/register-strategic-strike-presentation.test.ts`
 Expected: FAIL — module does not exist, `'city:strategic-strike'` is not a known event.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 In `src/core/types.ts`, add to the event-map interface (near `'city:naval-bombarded'`, line 2318):
 
@@ -1914,12 +1934,12 @@ import { registerStrategicStrikePresentation } from '@/presentation/register-str
 
 (added to the `ALL_REGISTRARS` array, same list `registerRaiderPresentation` is in.)
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `bash scripts/run-with-mise.sh yarn vitest run tests/presentation/register-strategic-strike-presentation.test.ts tests/presentation/register-all.test.ts`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/core/types.ts src/presentation/register-strategic-strike-presentation.ts src/presentation/register-all.ts tests/presentation/register-strategic-strike-presentation.test.ts
@@ -1932,39 +1952,39 @@ git commit -m "feat(#545): notify the defending civ when struck (MR4 event bus +
 
 **Files:** none (verification only)
 
-- [ ] **Step 1: Confirm zero RNG in every new module**
+- [x] **Step 1: Confirm zero RNG in every new module**
 
 Run: `grep -rn "Math.random" src/systems/strategic-launch-execution-system.ts src/systems/strategic-launch-preview-presentation.ts src/systems/strategic-arsenal-summary-presentation.ts src/ui/strategic-launch-flow.ts src/ui/strategic-arsenal-panel.ts`
 Expected: no matches.
 
-- [ ] **Step 2: Confirm architecture boundaries**
+- [x] **Step 2: Confirm architecture boundaries**
 
 Run: `bash scripts/run-with-mise.sh yarn vitest run tests/app/architecture-boundaries.test.ts`
 Expected: PASS — new app-layer wiring in this MR follows the existing controller pattern (no new logic added directly to `main.ts`).
 
-- [ ] **Step 3: Confirm zero pacing regression**
+- [x] **Step 3: Confirm zero pacing regression**
 
 This MR adds no new yield, discount, or economy-affecting bonus (only a reputation/retaliation mechanic and UI) — confirm this is still true by re-reading the final diff's `civYieldBonus`/`cityYieldBonus`/production-cost touches (there should be none), then run:
 
 Run: `bash scripts/run-with-mise.sh yarn vitest run tests/systems/pacing-audit.test.ts`
 Expected: PASS with zero diff, confirming the "no economy change" assumption held.
 
-- [ ] **Step 4: Confirm sprite-catalog coverage is unaffected**
+- [x] **Step 4: Confirm sprite-catalog coverage is unaffected**
 
 This MR adds no new `BUILDINGS`/`TRAINABLE_UNITS` entry (it adds a UI action to the existing `missile_silo`/`missile_submarine`) — confirm by running:
 
 Run: `bash scripts/run-with-mise.sh yarn vitest run tests/systems/city-system.test.ts -t "icon"`
 Expected: PASS, no new coverage gap.
 
-- [ ] **Step 5: Confirm the SFX/mute-safe requirement**
+- [x] **Step 5: Confirm the SFX/mute-safe requirement**
 
 `resolveStrategicStrike` (MR3) already routes through the shared `resolveCitySiegeDamage`/`applyCitySiegeOutcome` pipeline, which drives the existing `siege-fire`/`siege-impact` SFX generically. Confirm this by grepping for where those SFX keys are triggered (`grep -rn "siege-fire\|siege-impact" src/audio/ src/renderer/`) and checking that trigger is keyed off the siege-outcome data path, not a specific unit type — if so, a strategic strike already gets SFX for free and this MR adds no new sound-only cue (satisfying "mute-safe" trivially, since the launch-flow itself is text/visual only). If the trigger turns out to be unit-type-gated and would NOT fire for a strategic strike, stop and flag this as a gap for a follow-up rather than silently shipping a silent strike.
 
-- [ ] **Step 6: Confirm no dead production item remains (incremental-mr-completion.md)**
+- [x] **Step 6: Confirm no dead production item remains (incremental-mr-completion.md)**
 
 Per the arc's incremental-delivery argument: after MR1 (arsenal data model), MR2 (legality), MR3 (resolution, no UI), the `warhead` production item and `manhattan_project`/`nuclear_arsenal`/`missile_silo` buildings had a real resource effect (arsenal count) but zero way for a player to ever consume that resource. This MR's Tasks 6, 7, 8, 9 give `executeStrategicLaunch` — and therefore the entire arsenal — its first real consumer. Confirm explicitly: grep `grep -rn "executeStrategicLaunch" src/` and verify it is called from both Task 9 call sites (silo and submarine), not just its own test file. State this confirmation in the PR body's "Why this is safe to merge" section if this MR ships partially (it should not, per the user's single-PR decision — but confirm the full task list lands together regardless).
 
-- [ ] **Step 7: Run the full suite and production build**
+- [x] **Step 7: Run the full suite and production build**
 
 Run: `bash scripts/run-with-mise.sh yarn test`
 Expected: PASS (full suite, all tiers).
@@ -1972,7 +1992,7 @@ Expected: PASS (full suite, all tiers).
 Run: `bash scripts/run-with-mise.sh yarn build`
 Expected: PASS (typecheck + production build).
 
-- [ ] **Step 8: Commit (only if any step above required a fix)**
+- [x] **Step 8: Commit (only if any step above required a fix)**
 
 ```bash
 git add -A
@@ -1981,18 +2001,20 @@ git commit -m "fix(#545): MR4 final verification fixes"
 
 ## Definition of Done
 
-- [ ] `strategicStrikesReceivedFrom` exists on `DiplomacyState`, defaulted for new games and migrated (schema v20) for old saves.
-- [ ] `executeStrategicLaunch` is the only strike entry point UI code calls; `resolveStrategicStrike` has no caller outside its own MR3 test file and `executeStrategicLaunch`'s implementation.
-- [ ] Reputation deltas match spec exactly: unprovoked -60/-25, retaliation -20/-5, applied actor<->target then actor<->every witness.
-- [ ] The 3-stage flow (target+preview, confirm) is reachable from both a Missile Silo city panel and a Missile Submarine unit panel, gated on `state.currentPlayer`/`isHuman`, and every button uses `createGameButton` with visible arsenal count (no bare buttons).
-- [ ] The map overlay shows the exact blast-radius tile set during stage 2 only, cleared on advance/cancel/close.
-- [ ] Stage-3 copy is exactly the locked text, no casualty counts, no gore.
-- [ ] The preview omits (never stubs) the arms-control-cap and retaliation-risk-visibility lines.
-- [ ] The warchief Strategic Arsenal panel shows only real data (arsenal, platforms, who has struck this civ) with zero MR5/MR6 stub content.
-- [ ] The defending civ receives a delivered notification (`notifier.deliver`, never a bare `showNotification`) the moment its city is struck — verified via the `city:strategic-strike` event and its registrar, not left to the attacker's own toast.
-- [ ] The Missile Submarine action is verified absent on a unit the viewing player does not own (hot-seat/ownership regression, hand-off's General/other-actions gate reused, not reimplemented).
-- [ ] AI does not call `executeStrategicLaunch` anywhere in this MR's diff.
-- [ ] `bash scripts/run-with-mise.sh yarn test` passes (full suite).
-- [ ] `bash scripts/run-with-mise.sh yarn build` passes (typecheck + production build).
-- [ ] No dead production item remains: `warhead`'s arsenal now has a real consumer.
-- [ ] PR body states "Part of #545" (never "Closes #545").
+- [x] `strategicStrikesReceivedFrom` exists on `DiplomacyState`, defaulted for new games and migrated (schema v20) for old saves. **Corrected during execution: made optional, not required** — a required field broke `yarn build` across ~15 pre-existing test files; matches the codebase's established `Civilization.strategicArsenal?` convention instead.
+- [x] `executeStrategicLaunch` is the only strike entry point UI code calls; `resolveStrategicStrike` has no caller outside its own MR3 test file and `executeStrategicLaunch`'s implementation. Verified via grep at the end of execution.
+- [x] Reputation deltas match spec exactly: unprovoked -60/-25, retaliation -20/-5, applied actor<->target then actor<->every witness.
+- [x] The 3-stage flow (target+preview, confirm) is reachable from both a Missile Silo city panel and a Missile Submarine unit panel, gated on `state.currentPlayer`/`isHuman`, and every button uses `createGameButton` with visible arsenal count (no bare buttons).
+- [x] The map overlay shows the exact blast-radius tile set during stage 2 only, cleared on advance/cancel/close.
+- [x] Stage-3 copy is exactly the locked text, no casualty counts, no gore.
+- [x] The preview omits (never stubs) the arms-control-cap and retaliation-risk-visibility lines.
+- [x] The warchief Strategic Arsenal panel shows only real data (arsenal, platforms, who has struck this civ) with zero MR5/MR6 stub content.
+- [x] The defending civ receives a delivered notification (`notifier.deliver`, never a bare `showNotification`) the moment its city is struck — verified via the `city:strategic-strike` event and its registrar, not left to the attacker's own toast.
+- [x] The Missile Submarine action is verified absent on a unit the viewing player does not own (hot-seat/ownership regression). **Corrected during execution: `selected-unit-info.ts` has no single shared ownership gate** — each action re-checks `unit.owner === state.currentPlayer` itself; this block does too now, matching the auto-explore pattern, not a reused enclosing gate.
+- [x] AI does not call `executeStrategicLaunch` anywhere in this MR's diff. Verified via grep.
+- [x] `bash scripts/run-with-mise.sh yarn test` passes (full suite: 541 files, 9084 tests, 3 pre-existing skips).
+- [x] `bash scripts/run-with-mise.sh yarn build` passes (typecheck + production build).
+- [x] No dead production item remains: `warhead`'s arsenal now has a real consumer at both silo and submarine call sites.
+- [ ] PR body states "Part of #545" (never "Closes #545") — pending PR creation.
+
+**Known follow-up (flagged, not blocking):** a strategic strike currently plays no sound effect — `sfx-director.ts`'s siege-fire/siege-impact trigger is keyed to the generic unit-combat `CombatResult` event, which `executeStrategicLaunch` never emits (it calls `resolveCitySiegeDamage` directly). This does not violate mute-safe (the launch-flow confirmation is already fully text/visual), but it is a missed sensory-feedback opportunity. Flagged as a separate follow-up task rather than blocking this MR, since adding real audio assets is outside this session's tooling.
