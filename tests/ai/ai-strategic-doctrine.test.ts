@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { GameState, Civilization, Unit, City, HexCoord } from '@/core/types';
-import { canAuthorizeVeteranFirstUse } from '@/ai/ai-strategic-doctrine';
+import { canAuthorizeVeteranFirstUse, evaluateStrategicLaunchDecision } from '@/ai/ai-strategic-doctrine';
 
 const CAPITAL_POS: HexCoord = { q: 0, r: 0 };
 
@@ -198,5 +198,122 @@ describe('canAuthorizeVeteranFirstUse (#545 MR5 §10)', () => {
     });
     state.cities['ai-1-silo'] = { ...state.cities['ai-1-silo'], buildings: ['missile_silo'] } as City;
     expect(canAuthorizeVeteranFirstUse(state, 'ai-1')).toBe('ai-2-capital');
+  });
+});
+
+// A civ struck by ai-2 before, currently at war with ai-2, with a legal
+// target and no existential threat of its own (so first-use never fires) --
+// isolates the retaliation path.
+function makeRetaliationEligibleState(): GameState {
+  return makeState({
+    civilizations: {
+      'ai-1': makeCiv('ai-1', {
+        cities: ['ai-1-capital', 'ai-1-silo'],
+        diplomacy: { ...makeDiplomacy(['ai-2']), strategicStrikesReceivedFrom: ['ai-2'] },
+        strategicArsenal: 1,
+        visibility: { tiles: { '5,5': 'visible' }, lastSeen: {} },
+      }),
+      'ai-2': makeCiv('ai-2', { cities: ['ai-2-capital'] }),
+    },
+    cities: {
+      'ai-1-capital': makeCity('ai-1-capital', 'ai-1', CAPITAL_POS, 100),
+      'ai-1-silo': { ...makeCity('ai-1-silo', 'ai-1', { q: 0, r: 1 }, 100), buildings: ['missile_silo'] } as City,
+      'ai-2-capital': makeCity('ai-2-capital', 'ai-2', { q: 5, r: 5 }, 100),
+    },
+  });
+}
+
+describe('evaluateStrategicLaunchDecision (#545 MR5 §10)', () => {
+  it('explorer/standard never authorize first use, even under existential-threat conditions', () => {
+    const state = makeExistentialThreatState();
+    state.cities['ai-1-silo'] = { ...state.cities['ai-1-silo'], buildings: ['missile_silo'] } as City;
+    const rng = () => 1; // never wins a probability roll
+    expect(evaluateStrategicLaunchDecision(state, 'ai-1', 'explorer', rng)).toBeNull();
+    expect(evaluateStrategicLaunchDecision(state, 'ai-1', 'standard', rng)).toBeNull();
+  });
+
+  it('veteran authorizes first use via the existential gate, independent of the retaliation roll', () => {
+    const state = makeExistentialThreatState();
+    state.cities['ai-1-silo'] = { ...state.cities['ai-1-silo'], buildings: ['missile_silo'] } as City;
+    const rng = () => 1; // would fail any retaliation roll -- proves this path is the gate, not RNG
+    expect(evaluateStrategicLaunchDecision(state, 'ai-1', 'veteran', rng))
+      .toBe(canAuthorizeVeteranFirstUse(state, 'ai-1'));
+  });
+
+  it('retaliation-eligible civ launches when the willingness roll succeeds', () => {
+    const state = makeRetaliationEligibleState();
+    const rng = () => 0; // always "wins" (0 < any positive willingness)
+    expect(evaluateStrategicLaunchDecision(state, 'ai-1', 'standard', rng)).toBe('ai-2-capital');
+  });
+
+  it('retaliation-eligible civ does not launch when the willingness roll fails', () => {
+    const state = makeRetaliationEligibleState();
+    const rng = () => 0.999999; // above every difficulty's willingness (all < 1)
+    expect(evaluateStrategicLaunchDecision(state, 'ai-1', 'standard', rng)).toBeNull();
+  });
+
+  it('a civ that was never struck by its war opponent is not retaliation-eligible, regardless of RNG', () => {
+    const state = makeExistentialThreatState(); // atWarWith ai-2, but no strategicStrikesReceivedFrom
+    state.cities['ai-1-silo'] = { ...state.cities['ai-1-silo'], buildings: ['missile_silo'] } as City;
+    const rng = () => 0; // would always "win" if eligibility were ignored
+    expect(evaluateStrategicLaunchDecision(state, 'ai-1', 'standard', rng)).toBeNull();
+  });
+
+  it('bounded correctly across multiple war opponents -- only the retaliation-eligible one is ever struck, even when a non-eligible opponent is checked first', () => {
+    // A naive review of the first draft found this test's original form
+    // (a third civ with a legal target but NOT in atWarWith) doesn't
+    // actually prove anything: getStrategicLaunchLegality's own isAtWar
+    // check already makes a non-warred civ's city illegal, so a target on
+    // it can never exist in the first place -- the assertion passed
+    // trivially, without ever exercising code this task added. This
+    // version instead puts ai-3 IN atWarWith (so it has a genuinely legal
+    // target) and iterates it BEFORE the actually-eligible ai-2, so the
+    // only way the test can pass is if isStrategicStrikeRetaliation's gate
+    // is actually being checked per-opponent, not just "first legal
+    // target wins."
+    const state = makeRetaliationEligibleState(); // ai-1 struck by ai-2 before -> ai-2 is retaliation-eligible
+    state.civilizations['ai-1'].diplomacy.atWarWith = ['ai-3', 'ai-2']; // ai-3 iterated first
+    state.civilizations['ai-3'] = makeCiv('ai-3', { cities: ['ai-3-capital'] }); // never struck ai-1
+    state.cities['ai-3-capital'] = makeCity('ai-3-capital', 'ai-3', { q: 6, r: 6 }, 100);
+    (state.civilizations['ai-1'].visibility as { tiles: Record<string, string> }).tiles['6,6'] = 'visible';
+    const rng = () => 0; // always "wins" if reached -- proves ai-3 is skipped on eligibility, not luck
+    const result = evaluateStrategicLaunchDecision(state, 'ai-1', 'standard', rng);
+    expect(result).toBe('ai-2-capital');
+  });
+
+  it('play-styles invariant (#545 MR5 design doc finding #7): a civ that never built arsenal and never struck first is never targeted, at any difficulty', () => {
+    // ai-9 is at war with ai-1 (so it has a genuinely legal target -- a
+    // discovered city, in range, with ai-1 at war with it) but has zero
+    // strategicArsenal, has never appeared in any civ's
+    // strategicStrikesReceivedFrom, and poses no adjacency threat to
+    // ai-1's capital (which also isn't critically damaged). Deliberately
+    // NOT reusing makeRetaliationEligibleState's ai-2 alongside ai-9 --
+    // an earlier draft of this test did that, and ai-2 (genuinely
+    // retaliation-eligible) was always returned first regardless of
+    // whether ai-9's exclusion logic worked at all, making the assertion
+    // vacuous. Here ai-9 is the ONLY war opponent, so a null result is
+    // the only way this test can pass, and only if eligibility is
+    // actually being checked.
+    const state = makeState({
+      civilizations: {
+        'ai-1': makeCiv('ai-1', {
+          cities: ['ai-1-capital', 'ai-1-silo'],
+          diplomacy: makeDiplomacy(['ai-9']),
+          strategicArsenal: 1,
+          visibility: { tiles: { '7,7': 'visible' }, lastSeen: {} },
+        }),
+        'ai-9': makeCiv('ai-9', { cities: ['ai-9-capital'], strategicArsenal: 0 }),
+      },
+      cities: {
+        'ai-1-capital': makeCity('ai-1-capital', 'ai-1', CAPITAL_POS, 100),
+        'ai-1-silo': { ...makeCity('ai-1-silo', 'ai-1', { q: 0, r: 1 }, 100), buildings: ['missile_silo'] } as City,
+        'ai-9-capital': makeCity('ai-9-capital', 'ai-9', { q: 7, r: 7 }, 100),
+      },
+    });
+
+    const alwaysWinRng = () => 0; // maximizes the chance a bug would surface
+    for (const challenge of ['explorer', 'standard', 'veteran'] as const) {
+      expect(evaluateStrategicLaunchDecision(state, 'ai-1', challenge, alwaysWinRng)).toBeNull();
+    }
   });
 });

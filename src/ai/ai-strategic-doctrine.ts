@@ -1,9 +1,10 @@
-import type { City, GameState, Unit } from '@/core/types';
+import type { City, GameState, OpponentChallenge, Unit } from '@/core/types';
 import { getCapitalCity } from '@/systems/capital-system';
-import { getLegalStrategicLaunchTargets } from '@/systems/strategic-launch-system';
+import { getLegalStrategicLaunchTargets, isStrategicStrikeRetaliation } from '@/systems/strategic-launch-system';
 import { UNIT_DEFINITIONS } from '@/systems/unit-system';
 import { mapDistance } from '@/systems/hex-utils';
 import { isHostileOwnerTo } from '@/systems/owner-hostility';
+import { OPPONENT_CHALLENGE_PROFILES } from '@/core/opponent-challenge';
 
 // #545 MR5 spec §10: illustrative values made concrete during MR5 planning.
 const VETERAN_FIRST_USE_CAPITAL_HP_THRESHOLD = 20;
@@ -102,6 +103,43 @@ export function canAuthorizeVeteranFirstUse(state: GameState, civId: string): st
     if (!threateningOwnerIds.has(opponentId)) continue;
     const targets = targetsByOwner.get(opponentId);
     if (targets && targets.length > 0) {
+      return pickPreferredTarget(state, targets, opponentId).id;
+    }
+  }
+  return null;
+}
+
+/**
+ * #545 MR5 spec §10: the ONLY entry point basic-ai.ts should call for an AI
+ * launch decision -- never resolveStrategicStrike, never
+ * canAuthorizeVeteranFirstUse directly from outside this module. Veteran
+ * tries the deterministic existential-threat gate first; every difficulty
+ * (including veteran, if the gate didn't authorize) then checks retaliation:
+ * bounded to atWarWith major civs with a legal target, gated by
+ * isStrategicStrikeRetaliation, resolved by a deterministic per-turn roll
+ * against the difficulty's strategicLaunchRetaliationWillingness.
+ */
+export function evaluateStrategicLaunchDecision(
+  state: GameState,
+  civId: string,
+  challenge: OpponentChallenge,
+  rng: () => number,
+): string | null {
+  const civ = state.civilizations[civId];
+  if (!civ) return null;
+
+  if (challenge === 'veteran') {
+    const firstUseTarget = canAuthorizeVeteranFirstUse(state, civId);
+    if (firstUseTarget) return firstUseTarget;
+  }
+
+  const profile = OPPONENT_CHALLENGE_PROFILES[challenge];
+  const targetsByOwner = getMajorCivLegalTargetsByOwner(state, civId);
+  for (const opponentId of civ.diplomacy.atWarWith) {
+    const targets = targetsByOwner.get(opponentId);
+    if (!targets || targets.length === 0) continue;
+    if (!isStrategicStrikeRetaliation(state, civId, opponentId)) continue;
+    if (rng() < profile.strategicLaunchRetaliationWillingness) {
       return pickPreferredTarget(state, targets, opponentId).id;
     }
   }
