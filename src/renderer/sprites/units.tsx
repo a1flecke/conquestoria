@@ -12,24 +12,103 @@ export type UnitSpriteProps = { palette: FactionPalette; svgOnly?: boolean; moti
 
 // #710 fallback silhouettes. Native-v2 counterparts are registered only after the
 // committed review gate; these remain the durable minor-civ/unknown-faction path.
+//
+// These use the same role anatomy as the review-only v2 art.  Do not turn the
+// aircraft into single-path arrows, or the carrier into a deck rectangle: the
+// fallback is player-visible for minor civilizations and deserves the full read.
 export function ParatrooperSprite({ palette, svgOnly = false }: UnitSpriteProps): string {
-  return <SpriteFrame svgOnly={svgOnly}><Shadow /><g className="cq-paratrooper-body"><Humanoid cx={60} cy={70} scale={.92} cloth={P.cloth.wool} pants={P.cloth.wool} accent={palette.mid} hair={P.ink.soft} /><rect className="cq-paratrooper-pack" x="38" y="47" width="17" height="25" rx="3" fill={P.cloth.linen} stroke={P.ink.line} strokeWidth="1" /><path d="M40,51h13M40,57h13" stroke={palette.mid} strokeWidth="2" /><g className="cq-weapon" transform="translate(72 58) rotate(-18)"><rect x="-3" y="0" width="31" height="4" fill={P.wood.dark} stroke={P.ink.line} strokeWidth=".7" /><rect x="24" y="-2" width="8" height="3" fill={P.metal.iron} /></g></g><Banner x={44} y={30} palette={palette} scale={.56} /></SpriteFrame>;
+  return (
+    <SpriteFrame svgOnly={svgOnly}>
+      <Shadow />
+      {/* Open canopy, suspension lines, harness, pack, then a complete body: the
+          silhouette must read as an airborne paratrooper at a glance. */}
+      <g className="cq-parachute-canopy">
+        <path d="M25,38 Q64,8 103,38 L96,44 Q64,33 32,44 Z" fill={P.cloth.linen} stroke={P.ink.line} strokeWidth="1.2" />
+        <path d="M32,39 Q43,20 53,37 M53,37 Q64,17 75,37 M75,37 Q85,20 96,39" fill="none" stroke={palette.mid} strokeWidth="2.3" />
+      </g>
+      <g className="cq-parachute-lines" fill="none" stroke={P.ink.soft} strokeWidth="1">
+        <line x1="32" y1="43" x2="52" y2="63" /><line x1="45" y1="40" x2="57" y2="63" />
+        <line x1="58" y1="38" x2="61" y2="63" /><line x1="70" y1="38" x2="67" y2="63" />
+        <line x1="83" y1="40" x2="72" y2="63" /><line x1="96" y1="43" x2="77" y2="63" />
+      </g>
+      <g className="cq-paratrooper-body">
+        <g className="cq-paratrooper-pack"><rect x="44" y="59" width="17" height="24" rx="3" fill={P.cloth.linen} stroke={P.ink.line} strokeWidth="1" /><path d="M47,65h11M47,72h11" stroke={palette.mid} strokeWidth="1.6" /></g>
+        <g className="cq-paratrooper-harness"><path d="M54,62 L64,77 L75,62 M54,62 L75,62" fill="none" stroke={P.metal.iron} strokeWidth="2.2" /><circle cx="64" cy="77" r="2" fill={palette.bright} stroke={P.ink.line} strokeWidth=".6" /></g>
+        <path d="M64,58 Q76,60 76,78 L71,87 L56,87 L51,78 Q51,60 64,58 Z" fill={P.cloth.wool} stroke={P.ink.line} strokeWidth="1" />
+        <g className="cq-leg-l"><path d="M57,84 L63,84 L61,103 L53,103 Z" fill={P.cloth.wool} stroke={P.ink.line} strokeWidth=".8" /><ellipse cx="56" cy="103" rx="5" ry="2.5" fill={P.wood.dark} /></g>
+        <g className="cq-leg-r"><path d="M65,84 L71,84 L76,101 L68,103 Z" fill={P.cloth.wool} stroke={P.ink.line} strokeWidth=".8" /><ellipse cx="72" cy="103" rx="5" ry="2.5" fill={P.wood.dark} /></g>
+        <g className="cq-arm-l"><path d="M55,66 Q45,74 49,84" fill="none" stroke={P.cloth.wool} strokeWidth="6" strokeLinecap="round" /><circle cx="49" cy="84" r="2.6" fill={P.skin.warm} /></g>
+        <g className="cq-arm-r"><path d="M73,66 Q83,71 81,81" fill="none" stroke={P.cloth.wool} strokeWidth="6" strokeLinecap="round" /><circle cx="81" cy="81" r="2.6" fill={P.skin.warm} /></g>
+        <circle cx="64" cy="52" r="9" fill={P.skin.warm} stroke={P.ink.line} strokeWidth="1" /><path d="M54,52 Q55,41 64,41 Q73,41 74,52 L71,55 L57,55 Z" fill={P.metal.iron} stroke={P.ink.line} strokeWidth=".8" />
+        <g className="cq-paratrooper-rifle"><path d="M75,79 L103,71" stroke={P.wood.dark} strokeWidth="4" strokeLinecap="round" /><path d="M96,70 L109,67" stroke={P.metal.steel} strokeWidth="2.4" strokeLinecap="round" /><path d="M83,76 L80,87" stroke={P.wood.dark} strokeWidth="3" strokeLinecap="round" /></g>
+      </g>
+      <Banner x={35} y={30} palette={palette} scale={.46} />
+    </SpriteFrame>
+  );
 }
 
 export function NavalStrikeAircraftSprite({ palette, svgOnly = false }: UnitSpriteProps): string {
-  return <SpriteFrame svgOnly={svgOnly}><Shadow cx={64} cy={108} rx={42} ry={4} /><g className="cq-naval-strike-body"><path d="M112,64 L48,38 L66,58 L26,60 L26,68 L66,70 L48,90 Z" fill={P.metal.steel} stroke={P.ink.line} strokeWidth="1.2" /><path d="M72,58 L99,58 L108,64 L99,70 L72,70 Z" fill={palette.mid} stroke={P.ink.line} strokeWidth=".8" /><g className="cq-naval-strike-prop" transform="translate(113 64)"><ellipse rx="2" ry="17" fill={P.ink.soft} opacity=".45" /></g><g className="cq-naval-strike-torpedo" transform="translate(69 78)"><rect width="31" height="6" rx="3" fill={P.metal.iron} stroke={P.ink.line} strokeWidth=".7" /><path d="M31,0l6,3 -6,3z" fill={palette.bright} /></g></g><Banner x={42} y={35} palette={palette} scale={.48} /></SpriteFrame>;
+  return (
+    <SpriteFrame svgOnly={svgOnly}>
+      <Shadow cx={64} cy={105} rx={42} ry={4} />
+      <g className="cq-strike-fuselage"><path d="M22,69 Q50,54 98,57 L112,64 L98,71 Q50,74 22,69 Z" fill={P.metal.steel} stroke={P.ink.line} strokeWidth="1.2" /><path d="M26,67 Q55,61 99,63" fill="none" stroke={P.metal.shine} strokeWidth="1.4" opacity=".75" /></g>
+      <g className="cq-strike-wing"><path d="M55,62 L42,42 L77,57 L91,42 L88,64 L91,86 L77,71 L42,86 L55,66 Z" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="1" /><path d="M48,49 L72,60 M48,79 L72,68" stroke={palette.mid} strokeWidth="2.2" /></g>
+      <g className="cq-strike-cockpit"><path d="M70,58 Q84,56 91,63 Q84,68 70,67 Z" fill={palette.bright} stroke={P.ink.line} strokeWidth=".8" opacity=".8" /></g>
+      <g className="cq-strike-tail"><path d="M27,64 L16,49 L31,58 L31,70 L16,79 L27,64 Z" fill={P.metal.iron} stroke={P.ink.line} strokeWidth=".9" /></g>
+      <g className="cq-strike-tailhook"><path d="M30,70 Q20,78 26,86 Q31,89 34,84" fill="none" stroke={P.metal.steel} strokeWidth="2" strokeLinecap="round" /></g>
+      <g className="cq-naval-strike-torpedo"><path d="M56,79 L91,79 L99,83 L91,87 L56,87 Z" fill={P.metal.iron} stroke={P.ink.line} strokeWidth=".7" /><path d="M62,80h24" stroke={P.metal.shine} strokeWidth="1" /><path d="M97,81 L104,83 L97,85 Z" fill={palette.bright} /></g>
+      <Banner x={38} y={34} palette={palette} scale={.44} />
+    </SpriteFrame>
+  );
 }
 
 export function MaritimePatrolAircraftSprite({ palette, svgOnly = false }: UnitSpriteProps): string {
-  return <SpriteFrame svgOnly={svgOnly}><Shadow cx={64} cy={108} rx={46} ry={4} /><g className="cq-patrol-body"><path d="M108,64 L35,43 L56,58 L18,60 L18,68 L56,70 L35,85 Z" fill={P.metal.steel} stroke={P.ink.line} strokeWidth="1.2" /><path d="M57,56h30v16H57z" fill={P.metal.iron} stroke={P.ink.line} strokeWidth=".7" /><g className="cq-patrol-prop-l" transform="translate(52 50)"><ellipse rx="2" ry="12" fill={P.ink.soft} opacity=".45" /></g><g className="cq-patrol-prop-r" transform="translate(52 78)"><ellipse rx="2" ry="12" fill={P.ink.soft} opacity=".45" /></g><path className="cq-patrol-radar" d="M71,74q7,12 14,0" fill="none" stroke={palette.bright} strokeWidth="2" /></g><Banner x={32} y={40} palette={palette} scale={.45} /></SpriteFrame>;
+  return (
+    <SpriteFrame svgOnly={svgOnly}>
+      <Shadow cx={64} cy={105} rx={47} ry={4} />
+      <g className="cq-patrol-fuselage"><path d="M17,64 Q41,53 100,57 L114,64 L100,71 Q41,75 17,64 Z" fill={P.metal.steel} stroke={P.ink.line} strokeWidth="1.2" /><path d="M23,63 Q60,59 101,62" fill="none" stroke={P.metal.shine} strokeWidth="1.3" opacity=".7" /></g>
+      <g className="cq-patrol-wing"><path d="M46,61 L34,41 L84,56 L101,45 L96,64 L101,83 L84,72 L34,87 L46,67 Z" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="1" /><path d="M42,48 L78,61 M42,80 L78,67" stroke={palette.mid} strokeWidth="2" /></g>
+      <g className="cq-patrol-nacelle-l"><ellipse cx="55" cy="50" rx="12" ry="5" fill={P.metal.iron} stroke={P.ink.line} strokeWidth=".8" /><circle cx="44" cy="50" r="4" fill={P.metal.steel} stroke={P.ink.line} strokeWidth=".6" /></g>
+      <g className="cq-patrol-nacelle-r"><ellipse cx="55" cy="78" rx="12" ry="5" fill={P.metal.iron} stroke={P.ink.line} strokeWidth=".8" /><circle cx="44" cy="78" r="4" fill={P.metal.steel} stroke={P.ink.line} strokeWidth=".6" /></g>
+      <g className="cq-patrol-prop-l"><path d="M42,39v22M31,50h22" stroke={P.ink.soft} strokeWidth="1.6" strokeLinecap="round" /></g><g className="cq-patrol-prop-r"><path d="M42,67v22M31,78h22" stroke={P.ink.soft} strokeWidth="1.6" strokeLinecap="round" /></g>
+      <g className="cq-patrol-radar-dome"><path d="M72,72 Q82,63 92,72 Z" fill={palette.bright} stroke={P.ink.line} strokeWidth=".8" /><path d="M76,73 Q82,81 88,73" fill="none" stroke={P.metal.steel} strokeWidth="1.2" /></g>
+      <Banner x={27} y={39} palette={palette} scale={.42} />
+    </SpriteFrame>
+  );
 }
 
 export function SupercarrierSprite({ palette, svgOnly = false }: UnitSpriteProps): string {
-  return <SpriteFrame svgOnly={svgOnly}><Shadow cx={64} cy={108} rx={58} ry={7} /><g className="cq-supercarrier-hull"><path d="M7,91 L17,78 L116,78 L123,91 L112,106 L18,106 Z" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="1.3" /><g className="cq-supercarrier-deck"><rect x="5" y="56" width="118" height="25" rx="2" fill={P.metal.steel} stroke={P.ink.line} strokeWidth="1.2" /><path d="M17,69h72" stroke={palette.bright} strokeWidth="1.5" /><g className="cq-supercarrier-parked-aircraft" fill={palette.mid} stroke={P.ink.line} strokeWidth=".5"><path d="M29,62l8,3 -8,3zM50,71l8,3 -8,3zM71,62l8,3 -8,3z" /></g></g><g className="cq-supercarrier-island"><rect x="84" y="39" width="21" height="29" rx="2" fill={P.stone.mid} stroke={P.ink.line} strokeWidth="1" /><line x1="95" y1="39" x2="95" y2="23" stroke={P.metal.iron} strokeWidth="2" /></g></g><Banner x={110} y={26} palette={palette} scale={.52} /></SpriteFrame>;
+  return (
+    <SpriteFrame svgOnly={svgOnly}>
+      <Shadow cx={64} cy={106} rx={57} ry={7} />
+      <g className="cq-supercarrier-wake"><path d="M12,101 Q64,115 116,101 M18,107 Q64,119 110,107" fill="none" stroke={P.ground.water} strokeWidth="2.4" opacity=".8" /></g>
+      <g className="cq-supercarrier-hull"><path d="M10,84 L21,73 L106,73 L121,84 L111,102 Q64,111 18,102 Z" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="1.3" /><path d="M18,91 Q64,101 113,91" fill="none" stroke={P.metal.steel} strokeWidth="2" /></g>
+      <g className="cq-supercarrier-bow"><path d="M106,73 L121,84 L111,102 L98,91 Z" fill={P.metal.steel} stroke={P.ink.line} strokeWidth=".8" /></g>
+      <g className="cq-supercarrier-deck"><path d="M15,72 L35,55 L110,60 L116,75 L98,87 L28,84 Z" fill={P.metal.steel} stroke={P.ink.line} strokeWidth="1.2" /><path d="M28,75 L87,70 L99,73" fill="none" stroke={palette.bright} strokeWidth="1.8" strokeDasharray="5 3" /></g>
+      <g className="cq-supercarrier-aircraft" fill={palette.mid} stroke={P.ink.line} strokeWidth=".5"><path d="M38,64 L47,67 L38,70 L41,67 Z" /><path d="M57,68 L66,70 L57,73 L60,70 Z" /><path d="M76,62 L85,65 L76,68 L79,65 Z" /></g>
+      <g className="cq-supercarrier-island"><path d="M82,60 L87,39 L103,43 L106,70 L91,72 Z" fill={P.stone.mid} stroke={P.ink.line} strokeWidth="1" /><path d="M89,50h10M88,57h11" stroke={palette.bright} strokeWidth="1.4" /></g>
+      <g className="cq-supercarrier-mast"><line x1="94" y1="41" x2="94" y2="22" stroke={P.metal.iron} strokeWidth="2" /><path d="M95,24 L110,29 L95,34 Z" fill={palette.mid} stroke={P.ink.line} strokeWidth=".6" /></g>
+      <Banner x={110} y={28} palette={palette} scale={.48} />
+    </SpriteFrame>
+  );
 }
 
 export function GreatGeneralSprite({ palette, svgOnly = false }: UnitSpriteProps): string {
-  return <SpriteFrame svgOnly={svgOnly}><Shadow /><g className="cq-general-body"><Humanoid cx={59} cy={70} scale={.94} cloth={P.cloth.linen} pants={P.cloth.wool} accent={palette.mid} hair={P.ink.soft} /><g className="cq-general-map" transform="translate(72 63)"><rect x="0" y="0" width="19" height="13" rx="1" fill={P.cloth.linen} stroke={P.ink.line} strokeWidth=".8" /><path d="M6,1v11M13,1v11" stroke={palette.mid} strokeWidth=".8" /></g><g className="cq-general-flag" transform="translate(40 30)"><line y1="0" y2="52" stroke={P.wood.dark} strokeWidth="2" /><path d="M1,2h18l-6,7 6,7H1z" fill={palette.mid} stroke={P.ink.line} strokeWidth=".6" /></g><g className="cq-general-glasses" transform="translate(68 44)"><circle r="4" fill="none" stroke={P.metal.gold} strokeWidth="1" /><circle cx="9" r="4" fill="none" stroke={P.metal.gold} strokeWidth="1" /></g></g><Banner x={35} y={22} palette={palette} scale={.48} /></SpriteFrame>;
+  return (
+    <SpriteFrame svgOnly={svgOnly}>
+      <Shadow />
+      <g className="cq-general-standard"><line x1="37" y1="27" x2="37" y2="93" stroke={P.wood.dark} strokeWidth="2.4" /><path d="M38,29 H61 L53,37 L61,45 H38 Z" fill={palette.mid} stroke={P.ink.line} strokeWidth=".7" /><circle cx="37" cy="25" r="3" fill={P.metal.gold} stroke={P.ink.line} strokeWidth=".5" /></g>
+      <g className="cq-general-body">
+        <g className="cq-general-leg-l"><path d="M56,82 L63,82 L61,103 L53,103 Z" fill={P.cloth.wool} stroke={P.ink.line} strokeWidth=".8" /><ellipse cx="56" cy="103" rx="5" ry="2.5" fill={P.wood.dark} /></g>
+        <g className="cq-general-leg-r"><path d="M65,82 L72,82 L77,101 L68,103 Z" fill={P.cloth.wool} stroke={P.ink.line} strokeWidth=".8" /><ellipse cx="73" cy="103" rx="5" ry="2.5" fill={P.wood.dark} /></g>
+        <path d="M64,56 Q77,58 77,80 L72,88 L55,88 L50,80 Q50,58 64,56 Z" fill={P.cloth.linen} stroke={P.ink.line} strokeWidth="1" /><path d="M53,74h22" stroke={palette.mid} strokeWidth="2.4" /><circle cx="64" cy="51" r="9" fill={P.skin.warm} stroke={P.ink.line} strokeWidth="1" /><path d="M55,51 Q56,39 64,39 Q73,39 74,51 L71,54 L57,54 Z" fill={P.ink.soft} />
+        <g className="cq-general-arm-l"><path d="M54,65 Q46,69 48,76 Q52,81 58,78" fill="none" stroke={P.cloth.linen} strokeWidth="6" strokeLinecap="round" /><circle cx="58" cy="78" r="2.5" fill={P.skin.warm} /></g>
+        <g className="cq-general-arm-r"><path d="M74,65 Q82,69 80,76 Q76,81 70,78" fill="none" stroke={P.cloth.linen} strokeWidth="6" strokeLinecap="round" /><circle cx="70" cy="78" r="2.5" fill={P.skin.warm} /></g>
+        <g className="cq-general-map"><path d="M55,75 L64,72 L73,75 L73,85 L64,82 L55,85 Z" fill={P.cloth.linen} stroke={P.ink.line} strokeWidth=".8" /><path d="M61,74v9M67,74v9" stroke={palette.mid} strokeWidth=".8" /></g>
+      </g>
+      <Banner x={30} y={25} palette={palette} scale={.42} />
+    </SpriteFrame>
+  );
 }
 
 /* === CIVILIAN === */

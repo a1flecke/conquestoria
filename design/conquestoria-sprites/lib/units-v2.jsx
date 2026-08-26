@@ -1811,6 +1811,102 @@ function MainBattleTankV2Sprite({ faction = 'imperials', state = 'idle', phase }
   </SpriteFrameV2>;
 }
 
+/* #710 — air-defense and command visual correction.
+ *
+ * These are intentionally review-only until the captured contact sheets are accepted.
+ * Each class marks a visibly separate part, not a speculative semantic label: this keeps
+ * motion local and lets the visual contract prove the silhouette at every state. */
+function ParatrooperV2Sprite({ faction = 'imperials', state = 'idle', phase }) {
+  const f = _fa2(faction);
+  return <SpriteFrameV2 state={state} kind="ranged" variant="paratrooper" phase={phase}>
+    <ellipse className="cq-shadow" cx="64" cy="103" rx="20" ry="5" fill="#000" opacity=".3" />
+    {/* The canopy is a complete open arc; its lines terminate at a real chest harness. */}
+    <g className="cq-parachute-canopy">
+      <path d="M25,38 Q64,8 103,38 L96,44 Q64,33 32,44 Z" fill={_P2.cloth.linen} stroke={_P2.ink.line} strokeWidth="1.2" />
+      <path d="M32,39 Q43,20 53,37 M53,37 Q64,17 75,37 M75,37 Q85,20 96,39" fill="none" stroke={f.mid} strokeWidth="2.3" />
+    </g>
+    <g className="cq-parachute-lines" fill="none" stroke={_P2.ink.soft} strokeWidth="1">
+      <line x1="32" y1="43" x2="52" y2="63" /><line x1="45" y1="40" x2="57" y2="63" />
+      <line x1="58" y1="38" x2="61" y2="63" /><line x1="70" y1="38" x2="67" y2="63" />
+      <line x1="83" y1="40" x2="72" y2="63" /><line x1="96" y1="43" x2="77" y2="63" />
+    </g>
+    <g className="cq-paratrooper-body">
+      <g className="cq-paratrooper-pack"><rect x="44" y="59" width="17" height="24" rx="3" fill={_P2.cloth.linen} stroke={_P2.ink.line} strokeWidth="1" /><path d="M47,65h11M47,72h11" stroke={f.mid} strokeWidth="1.6" /></g>
+      <g className="cq-paratrooper-harness"><path d="M54,62 L64,77 L75,62 M54,62 L75,62" fill="none" stroke={_P2.metal.iron} strokeWidth="2.2" /><circle cx="64" cy="77" r="2" fill={f.bright} stroke={_P2.ink.line} strokeWidth=".6" /></g>
+      <path d="M64,58 Q76,60 76,78 L71,87 L56,87 L51,78 Q51,60 64,58 Z" fill={_P2.cloth.wool} stroke={_P2.ink.line} strokeWidth="1" />
+      <g className="cq-leg-l"><path d="M57,84 L63,84 L61,103 L53,103 Z" fill={_P2.cloth.wool} stroke={_P2.ink.line} strokeWidth=".8" /><ellipse cx="56" cy="103" rx="5" ry="2.5" fill={_P2.wood.dark} /></g>
+      <g className="cq-leg-r"><path d="M65,84 L71,84 L76,101 L68,103 Z" fill={_P2.cloth.wool} stroke={_P2.ink.line} strokeWidth=".8" /><ellipse cx="72" cy="103" rx="5" ry="2.5" fill={_P2.wood.dark} /></g>
+      <g className="cq-arm-l"><path d="M55,66 Q45,74 49,84" fill="none" stroke={_P2.cloth.wool} strokeWidth="6" strokeLinecap="round" /><circle cx="49" cy="84" r="2.6" fill={_P2.skin.warm} /></g>
+      <g className="cq-arm-r"><path d="M73,66 Q83,71 81,81" fill="none" stroke={_P2.cloth.wool} strokeWidth="6" strokeLinecap="round" /><circle cx="81" cy="81" r="2.6" fill={_P2.skin.warm} /></g>
+      <circle cx="64" cy="52" r="9" fill={_P2.skin.warm} stroke={_P2.ink.line} strokeWidth="1" /><path d="M54,52 Q55,41 64,41 Q73,41 74,52 L71,55 L57,55 Z" fill={_P2.metal.iron} stroke={_P2.ink.line} strokeWidth=".8" />
+      <g className="cq-paratrooper-rifle"><path d="M75,79 L103,71" stroke={_P2.wood.dark} strokeWidth="4" strokeLinecap="round" /><path d="M96,70 L109,67" stroke={_P2.metal.steel} strokeWidth="2.4" strokeLinecap="round" /><path d="M83,76 L80,87" stroke={_P2.wood.dark} strokeWidth="3" strokeLinecap="round" /></g>
+    </g>
+    <g transform="translate(35 30) scale(.46)"><rect x="-.6" y="-12" width="1.4" height="18" fill={_P2.wood.dark} /><path d="M0,-12 L14,-9 L8,-5 L14,-1 L0,-2 Z" fill={f.mid} stroke={f.dark} strokeWidth=".6" /><circle cx="5" cy="-7" r="1.6" fill={f.trim} /></g>
+  </SpriteFrameV2>;
+}
+
+function NavalStrikeAircraftV2Sprite({ faction = 'imperials', state = 'idle', phase }) {
+  const f = _fa2(faction);
+  return <SpriteFrameV2 state={state} kind="civilian" variant="naval-strike-aircraft" phase={phase}>
+    <ellipse className="cq-shadow" cx="64" cy="105" rx="42" ry="4" fill="#000" opacity=".28" />
+    {/* Separate fuselage, swept wings, cockpit, tail and payload prevent the old arrow read. */}
+    <g className="cq-strike-fuselage"><path d="M22,69 Q50,54 98,57 L112,64 L98,71 Q50,74 22,69 Z" fill={_P2.metal.steel} stroke={_P2.ink.line} strokeWidth="1.2" /><path d="M26,67 Q55,61 99,63" fill="none" stroke={_P2.metal.shine} strokeWidth="1.4" opacity=".75" /></g>
+    <g className="cq-strike-wing"><path d="M55,62 L42,42 L77,57 L91,42 L88,64 L91,86 L77,71 L42,86 L55,66 Z" fill={_P2.metal.iron} stroke={_P2.ink.line} strokeWidth="1" /><path d="M48,49 L72,60 M48,79 L72,68" stroke={f.mid} strokeWidth="2.2" /></g>
+    <g className="cq-strike-cockpit"><path d="M70,58 Q84,56 91,63 Q84,68 70,67 Z" fill={f.bright} stroke={_P2.ink.line} strokeWidth=".8" opacity=".8" /></g>
+    <g className="cq-strike-tail"><path d="M27,64 L16,49 L31,58 L31,70 L16,79 L27,64 Z" fill={_P2.metal.iron} stroke={_P2.ink.line} strokeWidth=".9" /></g>
+    <g className="cq-strike-tailhook"><path d="M30,70 Q20,78 26,86 Q31,89 34,84" fill="none" stroke={_P2.metal.steel} strokeWidth="2" strokeLinecap="round" /></g>
+    <g className="cq-naval-strike-torpedo"><path d="M56,79 L91,79 L99,83 L91,87 L56,87 Z" fill={_P2.metal.iron} stroke={_P2.ink.line} strokeWidth=".7" /><path d="M62,80h24" stroke={_P2.metal.shine} strokeWidth="1" /><path d="M97,81 L104,83 L97,85 Z" fill={f.bright} /></g>
+    <g transform="translate(38 34) scale(.44)"><rect x="-.6" y="-12" width="1.4" height="18" fill={_P2.wood.dark} /><path d="M0,-12 L14,-9 L8,-5 L14,-1 L0,-2 Z" fill={f.mid} stroke={f.dark} strokeWidth=".6" /></g>
+  </SpriteFrameV2>;
+}
+
+function MaritimePatrolAircraftV2Sprite({ faction = 'imperials', state = 'idle', phase }) {
+  const f = _fa2(faction);
+  return <SpriteFrameV2 state={state} kind="civilian" variant="maritime-patrol-aircraft" phase={phase}>
+    <ellipse className="cq-shadow" cx="64" cy="105" rx="47" ry="4" fill="#000" opacity=".28" />
+    {/* A patrol plane is unarmed: twin engines, props, high wing and a radar dome are its role cues. */}
+    <g className="cq-patrol-fuselage"><path d="M17,64 Q41,53 100,57 L114,64 L100,71 Q41,75 17,64 Z" fill={_P2.metal.steel} stroke={_P2.ink.line} strokeWidth="1.2" /><path d="M23,63 Q60,59 101,62" fill="none" stroke={_P2.metal.shine} strokeWidth="1.3" opacity=".7" /></g>
+    <g className="cq-patrol-wing"><path d="M46,61 L34,41 L84,56 L101,45 L96,64 L101,83 L84,72 L34,87 L46,67 Z" fill={_P2.metal.iron} stroke={_P2.ink.line} strokeWidth="1" /><path d="M42,48 L78,61 M42,80 L78,67" stroke={f.mid} strokeWidth="2" /></g>
+    <g className="cq-patrol-nacelle-l"><ellipse cx="55" cy="50" rx="12" ry="5" fill={_P2.metal.iron} stroke={_P2.ink.line} strokeWidth=".8" /><circle cx="44" cy="50" r="4" fill={_P2.metal.steel} stroke={_P2.ink.line} strokeWidth=".6" /></g>
+    <g className="cq-patrol-nacelle-r"><ellipse cx="55" cy="78" rx="12" ry="5" fill={_P2.metal.iron} stroke={_P2.ink.line} strokeWidth=".8" /><circle cx="44" cy="78" r="4" fill={_P2.metal.steel} stroke={_P2.ink.line} strokeWidth=".6" /></g>
+    <g className="cq-patrol-prop-l"><path d="M42,39v22M31,50h22" stroke={_P2.ink.soft} strokeWidth="1.6" strokeLinecap="round" /></g><g className="cq-patrol-prop-r"><path d="M42,67v22M31,78h22" stroke={_P2.ink.soft} strokeWidth="1.6" strokeLinecap="round" /></g>
+    <g className="cq-patrol-radar-dome"><path d="M72,72 Q82,63 92,72 Z" fill={f.bright} stroke={_P2.ink.line} strokeWidth=".8" /><path d="M76,73 Q82,81 88,73" fill="none" stroke={_P2.metal.steel} strokeWidth="1.2" /></g>
+    <g transform="translate(27 39) scale(.42)"><rect x="-.6" y="-12" width="1.4" height="18" fill={_P2.wood.dark} /><path d="M0,-12 L14,-9 L8,-5 L14,-1 L0,-2 Z" fill={f.mid} stroke={f.dark} strokeWidth=".6" /></g>
+  </SpriteFrameV2>;
+}
+
+function SupercarrierV2Sprite({ faction = 'imperials', state = 'idle', phase }) {
+  const f = _fa2(faction);
+  return <SpriteFrameV2 state={state} kind="naval" variant="supercarrier" hexTint={_P2.ground.water} phase={phase}>
+    <ellipse className="cq-shadow" cx="64" cy="106" rx="57" ry="7" fill="#000" opacity=".3" />
+    {/* Hull, bow, angled deck, island, mast and planes each get their own visual read. */}
+    <g className="cq-supercarrier-wake"><path d="M12,101 Q64,115 116,101 M18,107 Q64,119 110,107" fill="none" stroke={_P2.ground.water} strokeWidth="2.4" opacity=".8" /></g>
+    <g className="cq-supercarrier-hull"><path d="M10,84 L21,73 L106,73 L121,84 L111,102 Q64,111 18,102 Z" fill={_P2.metal.iron} stroke={_P2.ink.line} strokeWidth="1.3" /><path d="M18,91 Q64,101 113,91" fill="none" stroke={_P2.metal.steel} strokeWidth="2" /></g>
+    <g className="cq-supercarrier-bow"><path d="M106,73 L121,84 L111,102 L98,91 Z" fill={_P2.metal.steel} stroke={_P2.ink.line} strokeWidth=".8" /></g>
+    <g className="cq-supercarrier-deck"><path d="M15,72 L35,55 L110,60 L116,75 L98,87 L28,84 Z" fill={_P2.metal.steel} stroke={_P2.ink.line} strokeWidth="1.2" /><path d="M28,75 L87,70 L99,73" fill="none" stroke={f.bright} strokeWidth="1.8" strokeDasharray="5 3" /></g>
+    <g className="cq-supercarrier-aircraft" fill={f.mid} stroke={_P2.ink.line} strokeWidth=".5"><path d="M38,64 L47,67 L38,70 L41,67 Z" /><path d="M57,68 L66,70 L57,73 L60,70 Z" /><path d="M76,62 L85,65 L76,68 L79,65 Z" /></g>
+    <g className="cq-supercarrier-island"><path d="M82,60 L87,39 L103,43 L106,70 L91,72 Z" fill={_P2.stone.mid} stroke={_P2.ink.line} strokeWidth="1" /><path d="M89,50h10M88,57h11" stroke={f.bright} strokeWidth="1.4" /></g>
+    <g className="cq-supercarrier-mast"><line x1="94" y1="41" x2="94" y2="22" stroke={_P2.metal.iron} strokeWidth="2" /><path d="M95,24 L110,29 L95,34 Z" fill={f.mid} stroke={_P2.ink.line} strokeWidth=".6" /></g>
+  </SpriteFrameV2>;
+}
+
+function GreatGeneralV2Sprite({ faction = 'imperials', state = 'idle', phase }) {
+  const f = _fa2(faction);
+  return <SpriteFrameV2 state={state} kind="civilian" variant="great-general" phase={phase}>
+    <ellipse className="cq-shadow" cx="64" cy="103" rx="20" ry="5" fill="#000" opacity=".3" />
+    {/* This is a complete standing figure—both arms visibly hold the unfolded map. */}
+    <g className="cq-general-standard"><line x1="37" y1="27" x2="37" y2="93" stroke={_P2.wood.dark} strokeWidth="2.4" /><path d="M38,29 H61 L53,37 L61,45 H38 Z" fill={f.mid} stroke={_P2.ink.line} strokeWidth=".7" /><circle cx="37" cy="25" r="3" fill={_P2.metal.gold} stroke={_P2.ink.line} strokeWidth=".5" /></g>
+    <g className="cq-general-body">
+      <g className="cq-general-leg-l"><path d="M56,82 L63,82 L61,103 L53,103 Z" fill={_P2.cloth.wool} stroke={_P2.ink.line} strokeWidth=".8" /><ellipse cx="56" cy="103" rx="5" ry="2.5" fill={_P2.wood.dark} /></g>
+      <g className="cq-general-leg-r"><path d="M65,82 L72,82 L77,101 L68,103 Z" fill={_P2.cloth.wool} stroke={_P2.ink.line} strokeWidth=".8" /><ellipse cx="73" cy="103" rx="5" ry="2.5" fill={_P2.wood.dark} /></g>
+      <path d="M64,56 Q77,58 77,80 L72,88 L55,88 L50,80 Q50,58 64,56 Z" fill={_P2.cloth.linen} stroke={_P2.ink.line} strokeWidth="1" /><path d="M53,74h22" stroke={f.mid} strokeWidth="2.4" /><circle cx="64" cy="51" r="9" fill={_P2.skin.warm} stroke={_P2.ink.line} strokeWidth="1" /><path d="M55,51 Q56,39 64,39 Q73,39 74,51 L71,54 L57,54 Z" fill={_P2.ink.soft} />
+      <g className="cq-general-arm-l"><path d="M54,65 Q46,69 48,76 Q52,81 58,78" fill="none" stroke={_P2.cloth.linen} strokeWidth="6" strokeLinecap="round" /><circle cx="58" cy="78" r="2.5" fill={_P2.skin.warm} /></g>
+      <g className="cq-general-arm-r"><path d="M74,65 Q82,69 80,76 Q76,81 70,78" fill="none" stroke={_P2.cloth.linen} strokeWidth="6" strokeLinecap="round" /><circle cx="70" cy="78" r="2.5" fill={_P2.skin.warm} /></g>
+      <g className="cq-general-map"><path d="M55,75 L64,72 L73,75 L73,85 L64,82 L55,85 Z" fill={_P2.cloth.linen} stroke={_P2.ink.line} strokeWidth=".8" /><path d="M61,74v9M67,74v9" stroke={f.mid} strokeWidth=".8" /></g>
+    </g>
+  </SpriteFrameV2>;
+}
+
 Object.assign(window, {
   SpriteFrameV2, HumanoidV2,
   SwordsmanV2Sprite, WorkerV2Sprite, ArcherV2Sprite, SpyOperativeV2Sprite,
@@ -1830,4 +1926,7 @@ Object.assign(window, {
   CombatDroneV2Sprite, AutonomousFrigateV2Sprite, ExosuitInfantryV2Sprite,
   PropagandistV2Sprite, DroneControllerV2Sprite,
   ArmoredCarV2Sprite, MechanizedInfantryV2Sprite, MainBattleTankV2Sprite,
+  // #710 review-only exports; v2/index registration waits for captured visual approval.
+  ParatrooperV2Sprite, NavalStrikeAircraftV2Sprite, MaritimePatrolAircraftV2Sprite,
+  SupercarrierV2Sprite, GreatGeneralV2Sprite,
 });
