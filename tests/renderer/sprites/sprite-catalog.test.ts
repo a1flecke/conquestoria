@@ -349,16 +349,16 @@ describe('#710 air-defense and orphaned sprites are not aliases of their former 
   const palette = derivePalette('#4a90d9');
 
   it.each([
-    ['paratrooper', 'infantry', 'cq-paratrooper-pack'],
-    ['naval_strike_aircraft', 'jet_fighter', 'cq-naval-strike-torpedo'],
-    ['maritime_patrol_aircraft', 'recon_aircraft', 'cq-patrol-radar'],
-    ['supercarrier', 'carrier', 'cq-supercarrier-island'],
-    ['great_general', 'warrior', 'cq-general-map'],
-  ] as const)('%s is bespoke and carries its role marker', (type, donor, marker) => {
+    ['paratrooper', 'infantry', ['cq-parachute-canopy', 'cq-parachute-lines', 'cq-paratrooper-harness', 'cq-paratrooper-rifle']],
+    ['naval_strike_aircraft', 'jet_fighter', ['cq-strike-fuselage', 'cq-strike-cockpit', 'cq-strike-tailhook', 'cq-naval-strike-torpedo']],
+    ['maritime_patrol_aircraft', 'recon_aircraft', ['cq-patrol-fuselage', 'cq-patrol-nacelle-l', 'cq-patrol-nacelle-r', 'cq-patrol-radar-dome']],
+    ['supercarrier', 'carrier', ['cq-supercarrier-hull', 'cq-supercarrier-bow', 'cq-supercarrier-deck', 'cq-supercarrier-island', 'cq-supercarrier-wake']],
+    ['great_general', 'warrior', ['cq-general-arm-l', 'cq-general-arm-r', 'cq-general-leg-l', 'cq-general-leg-r', 'cq-general-map', 'cq-general-standard']],
+  ] as const)('%s is bespoke and carries its approved role markers', (type, donor, markers) => {
     const actual = UNIT_SPRITE_CATALOG[type]({ palette, svgOnly: true });
     const former = UNIT_SPRITE_CATALOG[donor]({ palette, svgOnly: true });
     expect(actual).not.toBe(former);
-    expect(actual).toContain(marker);
+    for (const marker of markers) expect(actual, `${type} missing ${marker}`).toContain(marker);
   });
 
   it('renders SAM Site as a protected launcher instead of the Radar Station tower', () => {
@@ -367,6 +367,8 @@ describe('#710 air-defense and orphaned sprites are not aliases of their former 
     expect(samSite).not.toBe(radarStation);
     expect(samSite).toContain('cq-sam-launcher');
     expect(samSite).not.toContain('cq-radar-tower');
+    expect(radarStation).toContain('cq-radar-tower');
+    expect(radarStation).not.toContain('cq-sam-launcher');
   });
 });
 
