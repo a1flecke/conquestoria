@@ -713,9 +713,8 @@ export function createPanelActionsController(deps: PanelActionsControllerDeps): 
             if (result.ok && targetCivId) {
               deps.session.commit(result.state);
               deps.renderLoop.setGameState(deps.session.getState());
-              SFX.strategicStrike();
               deps.showNotification('Strategic strike launched.', 'warning');
-              deps.bus.emit('city:strategic-strike', { cityId: targetCityId, recipientCivId: targetCivId, goldLost: result.goldLost });
+              deps.bus.emit('city:strategic-strike', { cityId: targetCityId, recipientCivId: targetCivId, actorCivId: launchingCity.owner, goldLost: result.goldLost });
             }
           },
           onClose: () => {},
