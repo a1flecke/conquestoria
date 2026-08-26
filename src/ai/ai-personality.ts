@@ -97,6 +97,8 @@ export function shouldDeclareWar(
   currentTurn: number,
   hasMetTarget: boolean,
   hasBorderPressure: boolean,
+  targetHasKnownStrategicCapability: boolean,
+  strategicDeterrenceCautionWeight: number,
 ): boolean {
   if (!hasMetTarget) return false;
   if (relationship > 30) return false;
@@ -108,5 +110,9 @@ export function shouldDeclareWar(
   }
   const warScore = personality.warLikelihood * militaryAdvantage;
   const peacePressure = Math.max(0, relationship) / 100;
-  return warScore > (0.8 + peacePressure);
+  // #545 MR5 spec §9: known strategic capability raises the bar, it never
+  // blocks war outright -- caller passes 0 when the target's capability is
+  // unknown, so this is a strict no-op for every pre-MR5 call site.
+  const cautionPenalty = targetHasKnownStrategicCapability ? strategicDeterrenceCautionWeight : 0;
+  return warScore > (0.8 + peacePressure + cautionPenalty);
 }
