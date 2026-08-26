@@ -1461,6 +1461,137 @@
   animation-delay: calc(var(--phase, 0) * -2.2s);
 }
 
+/* ──────────────────────── #710 · corrective role motion ────────────────────────
+ *
+ * These five variants deliberately own their motion.  The rejected draft let broad
+ * body transforms turn aircraft into thrusting arrows and detach command props.
+ * Every animated class is an anatomical part with a local transform origin instead.
+ */
+@keyframes cq710-canopy-sway {
+  0%, 100% { transform: rotate(-1.5deg) translateY(0); }
+  50% { transform: rotate(1.8deg) translateY(-1px); }
+}
+@keyframes cq710-rifle-recoil {
+  0%, 18%, 100% { transform: translate(0, 0); }
+  32%, 48% { transform: translate(-3px, 1px); }
+  66% { transform: translate(1px, 0); }
+}
+@keyframes cq710-air-glide {
+  0%, 100% { transform: translateY(0) rotate(-.4deg); }
+  50% { transform: translateY(-2px) rotate(.5deg); }
+}
+@keyframes cq710-torpedo-release {
+  0%, 20%, 100% { transform: translate(0, 0); opacity: 1; }
+  34%, 52% { transform: translate(7px, 9px); opacity: .82; }
+  70% { transform: translate(3px, 4px); opacity: .94; }
+}
+@keyframes cq710-prop-spin { to { transform: rotate(360deg); } }
+@keyframes cq710-radar-scan {
+  0%, 100% { transform: scale(.92); opacity: .6; }
+  50% { transform: scale(1.14); opacity: 1; }
+}
+@keyframes cq710-carrier-launch {
+  0%, 18%, 100% { transform: translate(0, 0); opacity: 1; }
+  34%, 52% { transform: translate(18px, -10px); opacity: .9; }
+  72% { transform: translate(5px, -3px); opacity: 1; }
+}
+@keyframes cq710-general-map {
+  0%, 18%, 100% { transform: rotate(0) translateY(0); }
+  34%, 50% { transform: rotate(-5deg) translateY(-2px); }
+  70% { transform: rotate(-1deg) translateY(-1px); }
+}
+@keyframes cq710-standard-wave {
+  0%, 100% { transform: skewY(-1deg); }
+  50% { transform: skewY(3deg); }
+}
+@keyframes cq710-static-settle {
+  0%, 100% { opacity: 1; }
+  50% { opacity: .96; }
+}
+
+/* Each named #710 surface has a real timeline; this also protects the minor-civ
+   fallback classes from becoming inert if a future native migration is delayed. */
+.cq-v2 .cq-radar-tower, .cq-v2 .cq-radar-dish, .cq-v2 .cq-radar-pulse,
+.cq-v2 .cq-sam-bunker, .cq-v2 .cq-sam-launcher, .cq-v2 .cq-sam-missiles, .cq-v2 .cq-sam-dish,
+.cq-v2 .cq-parachute-lines, .cq-v2 .cq-paratrooper-body, .cq-v2 .cq-paratrooper-pack, .cq-v2 .cq-paratrooper-harness,
+.cq-v2 .cq-strike-fuselage, .cq-v2 .cq-strike-wing, .cq-v2 .cq-strike-cockpit, .cq-v2 .cq-strike-tail, .cq-v2 .cq-strike-tailhook,
+.cq-v2 .cq-patrol-fuselage, .cq-v2 .cq-patrol-wing, .cq-v2 .cq-patrol-nacelle-l, .cq-v2 .cq-patrol-nacelle-r,
+.cq-v2 .cq-supercarrier-wake, .cq-v2 .cq-supercarrier-hull, .cq-v2 .cq-supercarrier-bow, .cq-v2 .cq-supercarrier-deck, .cq-v2 .cq-supercarrier-aircraft, .cq-v2 .cq-supercarrier-island, .cq-v2 .cq-supercarrier-mast,
+.cq-v2 .cq-general-body, .cq-v2 .cq-general-leg-l, .cq-v2 .cq-general-leg-r, .cq-v2 .cq-general-arm-l, .cq-v2 .cq-general-arm-r {
+  animation: cq710-static-settle 3.2s ease-in-out infinite;
+  animation-delay: calc(var(--phase, 0) * -3.2s);
+}
+.cq-v2 .cq-radar-pulse, .cq-v2 .cq-parachute-lines, .cq-v2 .cq-supercarrier-wake { transform-box: fill-box; transform-origin: center; }
+
+/* Paratrooper: canopy and lines remain a single connected assembly; only the rifle reacts. */
+.cq-v2[data-kind="ranged"][data-kind-variant="paratrooper"][data-state="attack"] .cq-sprite-figure { animation: none; }
+.cq-v2[data-kind="ranged"][data-kind-variant="paratrooper"] .cq-parachute-canopy,
+.cq-v2[data-kind="ranged"][data-kind-variant="paratrooper"] .cq-paratrooper-rifle {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+.cq-v2[data-kind="ranged"][data-kind-variant="paratrooper"][data-state="idle"] .cq-parachute-canopy {
+  animation: cq710-canopy-sway 3.1s ease-in-out infinite;
+  animation-delay: calc(var(--phase, 0) * -3.1s);
+}
+.cq-v2[data-kind="ranged"][data-kind-variant="paratrooper"][data-state="attack"] .cq-paratrooper-rifle {
+  animation: cq710-rifle-recoil 1.4s cubic-bezier(.3,.7,.4,1) infinite;
+  animation-delay: calc(var(--phase, 0) * -1.4s);
+}
+
+/* Aircraft: suppress the generic attack lunge first, then show a local release or scan. */
+.cq-v2[data-kind="civilian"][data-kind-variant="naval-strike-aircraft"][data-state="walk"] .cq-sprite-figure { animation: cq710-air-glide 1.5s ease-in-out infinite; }
+.cq-v2[data-kind="civilian"][data-kind-variant="naval-strike-aircraft"][data-state="attack"] .cq-sprite-figure { animation: none; }
+.cq-v2[data-kind="civilian"][data-kind-variant="naval-strike-aircraft"] .cq-naval-strike-torpedo {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+.cq-v2[data-kind="civilian"][data-kind-variant="naval-strike-aircraft"][data-state="attack"] .cq-naval-strike-torpedo {
+  animation: cq710-torpedo-release 1.4s cubic-bezier(.3,.7,.4,1) infinite;
+  animation-delay: calc(var(--phase, 0) * -1.4s);
+}
+.cq-v2[data-kind="civilian"][data-kind-variant="maritime-patrol-aircraft"][data-state="walk"] .cq-sprite-figure { animation: cq710-air-glide 1.9s ease-in-out infinite; }
+.cq-v2[data-kind="civilian"][data-kind-variant="maritime-patrol-aircraft"][data-state="attack"] .cq-sprite-figure { animation: none; }
+.cq-v2[data-kind="civilian"][data-kind-variant="maritime-patrol-aircraft"] .cq-patrol-prop-l,
+.cq-v2[data-kind="civilian"][data-kind-variant="maritime-patrol-aircraft"] .cq-patrol-prop-r,
+.cq-v2[data-kind="civilian"][data-kind-variant="maritime-patrol-aircraft"] .cq-patrol-radar-dome {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+.cq-v2[data-kind="civilian"][data-kind-variant="maritime-patrol-aircraft"] .cq-patrol-prop-l,
+.cq-v2[data-kind="civilian"][data-kind-variant="maritime-patrol-aircraft"] .cq-patrol-prop-r {
+  animation: cq710-prop-spin .75s linear infinite;
+  animation-delay: calc(var(--phase, 0) * -.75s);
+}
+.cq-v2[data-kind="civilian"][data-kind-variant="maritime-patrol-aircraft"][data-state="attack"] .cq-patrol-radar-dome {
+  animation: cq710-radar-scan 1.4s ease-in-out infinite;
+  animation-delay: calc(var(--phase, 0) * -1.4s);
+}
+
+/* Carrier: naval rocking owns the hull; only the deck aircraft moves on launch. */
+.cq-v2[data-kind="naval"][data-kind-variant="supercarrier"][data-state="attack"] .cq-sprite-figure { animation: none; }
+.cq-v2[data-kind="naval"][data-kind-variant="supercarrier"] .cq-supercarrier-launch-aircraft { transform-box: fill-box; transform-origin: center; }
+.cq-v2[data-kind="naval"][data-kind-variant="supercarrier"][data-state="attack"] .cq-supercarrier-launch-aircraft {
+  animation: cq710-carrier-launch 1.6s cubic-bezier(.3,.7,.4,1) infinite;
+  animation-delay: calc(var(--phase, 0) * -1.6s);
+}
+
+/* General: no charge or strike—just a map indication and a quietly living standard. */
+.cq-v2[data-kind="civilian"][data-kind-variant="great-general"][data-state="attack"] .cq-sprite-figure { animation: none; }
+.cq-v2[data-kind="civilian"][data-kind-variant="great-general"] .cq-general-map,
+.cq-v2[data-kind="civilian"][data-kind-variant="great-general"] .cq-general-standard {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+.cq-v2[data-kind="civilian"][data-kind-variant="great-general"][data-state="attack"] .cq-general-map {
+  animation: cq710-general-map 1.4s cubic-bezier(.3,.7,.4,1) infinite;
+  animation-delay: calc(var(--phase, 0) * -1.4s);
+}
+.cq-v2[data-kind="civilian"][data-kind-variant="great-general"][data-state="attack"] .cq-general-standard {
+  animation: cq710-standard-wave 1.4s ease-in-out infinite;
+  animation-delay: calc(var(--phase, 0) * -1.4s);
+}
+
 /* Pause everything when prefers-reduced-motion */
 @media (prefers-reduced-motion: reduce) {
   .cq-sprite-figure, .cq-weapon, .cq-tool, .cq-smoke, .cq-dust, .cq-work-dust,
@@ -1471,6 +1602,13 @@
   .cq-segment-1, .cq-segment-2, .cq-segment-3, .cq-segment-4 {
     animation: none !important;
   }
+  .cq-radar-tower, .cq-radar-dish, .cq-radar-pulse,
+  .cq-sam-bunker, .cq-sam-launcher, .cq-sam-missiles, .cq-sam-dish,
+  .cq-parachute-canopy, .cq-parachute-lines, .cq-paratrooper-body, .cq-paratrooper-pack, .cq-paratrooper-harness, .cq-paratrooper-rifle,
+  .cq-strike-fuselage, .cq-strike-wing, .cq-strike-cockpit, .cq-strike-tail, .cq-strike-tailhook, .cq-naval-strike-torpedo,
+  .cq-patrol-fuselage, .cq-patrol-wing, .cq-patrol-nacelle-l, .cq-patrol-nacelle-r, .cq-patrol-prop-l, .cq-patrol-prop-r, .cq-patrol-radar-dome,
+  .cq-supercarrier-wake, .cq-supercarrier-hull, .cq-supercarrier-bow, .cq-supercarrier-deck, .cq-supercarrier-aircraft, .cq-supercarrier-launch-aircraft, .cq-supercarrier-island, .cq-supercarrier-mast,
+  .cq-general-standard, .cq-general-body, .cq-general-leg-l, .cq-general-leg-r, .cq-general-arm-l, .cq-general-arm-r, .cq-general-map { animation: none !important; }
 }
 
 /* Pause when the sprite is offscreen (set by IntersectionObserver in the runtime) */
