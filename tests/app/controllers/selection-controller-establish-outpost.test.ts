@@ -62,6 +62,7 @@ function fakeRenderer(): SelectionControllerRenderer {
     animateUnitMove: vi.fn(),
     animateUnitSlide: vi.fn(),
     animateUnitAppear: vi.fn(),
+    setStrategicLaunchPreview: vi.fn(),
     camera: { centerOn: vi.fn() },
   };
 }

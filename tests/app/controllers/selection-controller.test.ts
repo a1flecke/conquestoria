@@ -12,6 +12,7 @@ import type { CeremonyCoordinator } from '@/app/controllers/ceremony-coordinator
 import type { UnitTurnFlow } from '@/ui/unit-turn-flow';
 import type { ExecuteUnitMoveResult } from '@/systems/unit-movement-system';
 import { buildSelectedUnitHighlights } from '@/input/selected-unit-highlights';
+import { hexKey } from '@/systems/hex-utils';
 import {
   createSelectionController,
   type SelectionControllerDeps,
@@ -92,6 +93,7 @@ function fakeRenderer(overrides: Partial<SelectionControllerRenderer> = {}): Sel
     animateUnitMove: vi.fn(),
     animateUnitSlide: vi.fn(),
     animateUnitAppear: vi.fn(),
+    setStrategicLaunchPreview: vi.fn(),
     camera: { centerOn: vi.fn() },
     ...overrides,
   };
@@ -425,6 +427,36 @@ describe('SelectionController', () => {
 
     expect(() => controller.refreshCurrentPlayerVisibility()).not.toThrow();
     expect(deps.scanBeastSightings).toHaveBeenCalledTimes(1);
+  });
+
+  describe('Prepare Strategic Launch (#545 MR4)', () => {
+    it('drives the full flow from the submarine action button to a committed strike', () => {
+      const state = makeFixture();
+      const targetPos = { q: 1, r: 1 };
+      placePlayerUnit(state, 'sub-1', { type: 'missile_submarine', position: { q: 0, r: 0 } });
+      state.cities.target = { ...Object.values(state.cities)[0]!, id: 'target', name: 'Target City', owner: 'ai-1', position: targetPos };
+      state.civilizations['ai-1'].cities = ['target'];
+      state.civilizations.player.strategicArsenal = 1;
+      state.civilizations.player.diplomacy.atWarWith = ['ai-1'];
+      state.civilizations.player.visibility = { tiles: { [hexKey(targetPos)]: 'visible' }, lastSeen: {} };
+      document.body.innerHTML = '<div id="info-panel"></div>';
+      const deps = baseDeps(state);
+      const controller = createSelectionController(deps);
+
+      controller.selectUnit('sub-1');
+      findButtonByText(document.getElementById('info-panel')!, 'Prepare Strategic Launch').click();
+
+      const targetRow = deps.uiLayer.querySelector('[data-target-city-id="target"]') as HTMLElement;
+      expect(targetRow).toBeTruthy();
+      targetRow.click();
+      (deps.uiLayer.querySelector('[data-action="advance-to-confirm"]') as HTMLElement).click();
+      (deps.uiLayer.querySelector('[data-action="confirm-launch"]') as HTMLElement).click();
+
+      expect(deps.session.getState().cities.target.hp).toBe(1);
+      expect(deps.session.getState().civilizations.player.strategicArsenal).toBe(0);
+      expect(deps.session.getState().civilizations.player.diplomacy.relationships['ai-1']).toBe(-60);
+      expect(deps.showNotification).toHaveBeenCalledWith('Strategic strike launched.', 'warning');
+    });
   });
 
   describe('onSetDisguise', () => {

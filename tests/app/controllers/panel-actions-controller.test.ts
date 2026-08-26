@@ -35,6 +35,7 @@ vi.mock('@/ui/network-panel', async () => {
 });
 vi.mock('@/storage/save-manager', () => ({ saveSettings: vi.fn(() => Promise.resolve()) }));
 vi.mock('@/ui/city-panel', () => ({ createCityPanel: vi.fn() }));
+vi.mock('@/ui/strategic-launch-flow', () => ({ createStrategicLaunchFlow: vi.fn() }));
 vi.mock('@/ui/espionage-panel', () => ({ createEspionagePanel: vi.fn(() => document.createElement('div')) }));
 
 import { createPacingDebugPanel } from '@/ui/pacing-debug-panel';
@@ -54,6 +55,8 @@ import { createNetworkIntentPanel } from '@/ui/network-intent-panel';
 import { createNetworkPanel } from '@/ui/network-panel';
 import { saveSettings } from '@/storage/save-manager';
 import { createCityPanel } from '@/ui/city-panel';
+import { createStrategicLaunchFlow } from '@/ui/strategic-launch-flow';
+import { hexKey } from '@/systems/hex-utils';
 import { createEspionagePanel } from '@/ui/espionage-panel';
 
 function mockedCallArg<T = unknown>(mockFn: unknown, callIndex: number, argIndex: number): T {
@@ -150,6 +153,7 @@ function makeDeps(state: GameState, overrides: Partial<PanelActionsControllerDep
     renderLoop: {
       camera: { centerOn: vi.fn() }, setSelectedPirateFactionId: vi.fn(),
       applyPirateHeadquartersAssaultVisual: vi.fn(), setGameState: vi.fn(), setHighlights: vi.fn(),
+      setStrategicLaunchPreview: vi.fn(),
     },
     showNotification: vi.fn(),
     focusNotificationTarget: vi.fn(),
@@ -705,6 +709,32 @@ describe('PanelActionsController', () => {
       controller.openCityPanelForCity(state.cities['test-city']);
 
       expect(createCityPanel).toHaveBeenCalledWith(deps.uiLayer, state.cities['test-city'], deps.session.getState(), expect.anything());
+    });
+
+    it('Prepare Strategic Launch (#545 MR4): opens the flow, and a confirmed launch commits a real strike', () => {
+      const { state, aiCivId } = makeFixture('city-panel-strategic-launch');
+      const targetPos = { q: 1, r: 1 };
+      state.cities['silo'] = makeCity('silo', { buildings: ['missile_silo'] });
+      state.cities['target'] = makeCity('target', { owner: aiCivId, position: targetPos });
+      state.civilizations[aiCivId].cities = ['target'];
+      state.civilizations.player.strategicArsenal = 1;
+      state.civilizations.player.diplomacy.atWarWith = [aiCivId];
+      state.civilizations.player.visibility = { tiles: { [hexKey(targetPos)]: 'visible' }, lastSeen: {} };
+      const { deps, controller } = build(state);
+
+      controller.openCityPanelForCity(state.cities['silo']);
+      const cityPanelOptions = mockedCallArg<{ onPrepareStrategicLaunch: (cityId: string) => void }>(createCityPanel, 0, 3);
+      cityPanelOptions.onPrepareStrategicLaunch('silo');
+
+      expect(createStrategicLaunchFlow).toHaveBeenCalledWith(deps.uiLayer, deps.session.getState(), 'player', expect.anything());
+      const flowOptions = mockedCallArg<{ onConfirmLaunch: (targetCityId: string) => void }>(createStrategicLaunchFlow, 0, 3);
+
+      flowOptions.onConfirmLaunch('target');
+
+      expect(deps.session.getState().cities.target.hp).toBe(1);
+      expect(deps.session.getState().civilizations.player.strategicArsenal).toBe(0);
+      expect(deps.session.getState().civilizations.player.diplomacy.relationships[aiCivId]).toBe(-60);
+      expect(deps.showNotification).toHaveBeenCalledWith('Strategic strike launched.', 'warning');
     });
 
     it('queues real production via session.commit, publishes to subscribers, and returns the fresh state for the panel to re-render', () => {
