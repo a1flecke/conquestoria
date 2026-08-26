@@ -909,29 +909,41 @@ describe('canAuthorizeVeteranFirstUse (#545 MR5 §10)', () => {
     expect(canAuthorizeVeteranFirstUse(state, 'ai-1')).toBeNull();
   });
 
-  it('excludes a minor civ from AI-authorized targets, even if it is the only atWarWith entry', () => {
-    const state = makeExistentialThreatState({
+  it('excludes a minor civ from AI-authorized targets, even when the minor civ itself is the besieger', () => {
+    // Deliberately does NOT reuse makeExistentialThreatState's default
+    // units (an ai-2-owned unit) -- if it did, ai-1 would no longer be at
+    // war with ai-2 in this test's overridden diplomacy, so
+    // isHostileOwnerTo would already return false for that leftover unit
+    // and this test would pass for the wrong reason (no threat detected at
+    // all) without ever reaching the minor-civ exclusion this test is
+    // named for. Instead, the besieger here is mc-1 itself -- a minor civ
+    // unit adjacent to the capital -- which must still authorize nothing
+    // because minor civs are never legal AI-authorized targets, not
+    // because no threat was detected.
+    const state = makeState({
       civilizations: {
         'ai-1': makeCiv('ai-1', {
           cities: ['ai-1-capital', 'ai-1-silo'], diplomacy: makeDiplomacy(['mc-1']), strategicArsenal: 1,
-          visibility: { tiles: { '5,5': 'visible', '0,1': 'visible' }, lastSeen: {} },
+          visibility: { tiles: { '2,2': 'visible' }, lastSeen: {} },
         }),
       },
       cities: {
         'ai-1-capital': makeCity('ai-1-capital', 'ai-1', CAPITAL_POS, 10),
-        'ai-1-silo': makeCity('ai-1-silo', 'ai-1', { q: 0, r: 1 }, 100),
-        'mc-1-city': makeCity('mc-1-city', 'mc-1', { q: 0, r: 1 }, 100),
+        'ai-1-silo': { ...makeCity('ai-1-silo', 'ai-1', { q: 0, r: 1 }, 100), buildings: ['missile_silo'] } as City,
+        'mc-1-city': makeCity('mc-1-city', 'mc-1', { q: 2, r: 2 }, 100),
       },
       minorCivs: {
         'mc-1': {
-          id: 'mc-1', definitionId: 'mc-1', cityId: 'mc-1-city', units: [],
+          id: 'mc-1', definitionId: 'mc-1', cityId: 'mc-1-city', units: ['mc-hostile-1'],
           diplomacy: makeDiplomacy(['ai-1']), activeQuests: {}, chainStatusByCiv: {},
           questCooldownUntilByCiv: {}, lastNotifiedStatusByCiv: {}, isDestroyed: false,
           garrisonCooldown: 0, lastEraUpgrade: 0,
         },
       },
+      units: {
+        'mc-hostile-1': makeUnit('mc-hostile-1', 'mc-1', 'warrior', { q: 1, r: 0 }),
+      },
     });
-    state.cities['ai-1-silo'] = { ...state.cities['ai-1-silo'], buildings: ['missile_silo'] } as City;
     expect(canAuthorizeVeteranFirstUse(state, 'ai-1')).toBeNull();
   });
 
@@ -1182,38 +1194,61 @@ describe('evaluateStrategicLaunchDecision (#545 MR5 §10)', () => {
     expect(evaluateStrategicLaunchDecision(state, 'ai-1', 'standard', rng)).toBeNull();
   });
 
-  it('only atWarWith civs are ever considered -- a legal target on a non-warred civ is never struck', () => {
-    const state = makeRetaliationEligibleState();
-    // ai-3 has a legal target too (silo in range, discovered) but is not in atWarWith.
-    state.civilizations['ai-3'] = makeCiv('ai-3', { cities: ['ai-3-capital'] });
+  it('bounded correctly across multiple war opponents -- only the retaliation-eligible one is ever struck, even when a non-eligible opponent is checked first', () => {
+    // A naive review of the first draft found this test's original form
+    // (a third civ with a legal target but NOT in atWarWith) doesn't
+    // actually prove anything: getStrategicLaunchLegality's own isAtWar
+    // check already makes a non-warred civ's city illegal, so a target on
+    // it can never exist in the first place -- the assertion passed
+    // trivially, without ever exercising code this task added. This
+    // version instead puts ai-3 IN atWarWith (so it has a genuinely legal
+    // target) and iterates it BEFORE the actually-eligible ai-2, so the
+    // only way the test can pass is if isStrategicStrikeRetaliation's gate
+    // is actually being checked per-opponent, not just "first legal
+    // target wins."
+    const state = makeRetaliationEligibleState(); // ai-1 struck by ai-2 before -> ai-2 is retaliation-eligible
+    state.civilizations['ai-1'].diplomacy.atWarWith = ['ai-3', 'ai-2']; // ai-3 iterated first
+    state.civilizations['ai-3'] = makeCiv('ai-3', { cities: ['ai-3-capital'] }); // never struck ai-1
     state.cities['ai-3-capital'] = makeCity('ai-3-capital', 'ai-3', { q: 6, r: 6 }, 100);
     (state.civilizations['ai-1'].visibility as { tiles: Record<string, string> }).tiles['6,6'] = 'visible';
-    const rng = () => 0;
+    const rng = () => 0; // always "wins" if reached -- proves ai-3 is skipped on eligibility, not luck
     const result = evaluateStrategicLaunchDecision(state, 'ai-1', 'standard', rng);
-    expect(result).not.toBe('ai-3-capital');
+    expect(result).toBe('ai-2-capital');
   });
 
   it('play-styles invariant (#545 MR5 design doc finding #7): a civ that never built arsenal and never struck first is never targeted, at any difficulty', () => {
-    // ai-9 is at war with ai-1 (so it's a legal atWarWith target and, being
-    // a major civ with a discovered city, would be a legal strike target if
-    // reachable) but has zero strategicArsenal, has never appeared in any
-    // other civ's strategicStrikesReceivedFrom, and poses no adjacency
-    // threat to ai-1's capital. It must never be struck by any difficulty's
-    // decision, whether via first-use (not retaliation-eligible, and if
-    // ai-9 isn't the besieger the gate's own threateningOwnerIds filter
-    // already excludes it per the previous describe block) or via
-    // retaliation (isStrategicStrikeRetaliation is false -- ai-9 never
-    // struck ai-1).
-    const state = makeRetaliationEligibleState(); // ai-1 struck by ai-2, at war with ai-2 only
-    state.civilizations['ai-1'].diplomacy.atWarWith = ['ai-2', 'ai-9'];
-    state.civilizations['ai-9'] = makeCiv('ai-9', { cities: ['ai-9-capital'], strategicArsenal: 0 });
-    state.cities['ai-9-capital'] = makeCity('ai-9-capital', 'ai-9', { q: 7, r: 7 }, 100);
-    (state.civilizations['ai-1'].visibility as { tiles: Record<string, string> }).tiles['7,7'] = 'visible';
+    // ai-9 is at war with ai-1 (so it has a genuinely legal target -- a
+    // discovered city, in range, with ai-1 at war with it) but has zero
+    // strategicArsenal, has never appeared in any civ's
+    // strategicStrikesReceivedFrom, and poses no adjacency threat to
+    // ai-1's capital (which also isn't critically damaged). Deliberately
+    // NOT reusing makeRetaliationEligibleState's ai-2 alongside ai-9 --
+    // an earlier draft of this test did that, and ai-2 (genuinely
+    // retaliation-eligible) was always returned first regardless of
+    // whether ai-9's exclusion logic worked at all, making the assertion
+    // vacuous. Here ai-9 is the ONLY war opponent, so a null result is
+    // the only way this test can pass, and only if eligibility is
+    // actually being checked.
+    const state = makeState({
+      civilizations: {
+        'ai-1': makeCiv('ai-1', {
+          cities: ['ai-1-capital', 'ai-1-silo'],
+          diplomacy: makeDiplomacy(['ai-9']),
+          strategicArsenal: 1,
+          visibility: { tiles: { '7,7': 'visible' }, lastSeen: {} },
+        }),
+        'ai-9': makeCiv('ai-9', { cities: ['ai-9-capital'], strategicArsenal: 0 }),
+      },
+      cities: {
+        'ai-1-capital': makeCity('ai-1-capital', 'ai-1', CAPITAL_POS, 100),
+        'ai-1-silo': { ...makeCity('ai-1-silo', 'ai-1', { q: 0, r: 1 }, 100), buildings: ['missile_silo'] } as City,
+        'ai-9-capital': makeCity('ai-9-capital', 'ai-9', { q: 7, r: 7 }, 100),
+      },
+    });
 
     const alwaysWinRng = () => 0; // maximizes the chance a bug would surface
     for (const challenge of ['explorer', 'standard', 'veteran'] as const) {
-      const result = evaluateStrategicLaunchDecision(state, 'ai-1', challenge, alwaysWinRng);
-      expect(result).not.toBe('ai-9-capital');
+      expect(evaluateStrategicLaunchDecision(state, 'ai-1', challenge, alwaysWinRng)).toBeNull();
     }
   });
 });
@@ -1569,14 +1604,32 @@ export const registerStrategicStrikePresentation: PresentationRegistrar = (bus, 
 
 - [ ] **Step 5: Rewrite the registrar's test file**
 
+**A note on fixture safety, found during plan review**: `hasMetCivilization`'s fallback, `hasMetCivilizationByCurrentEvidence`, unconditionally reads `viewer.diplomacy.atWarWith`, `viewer.diplomacy.treaties`, `target.cities`, `target.units`, and `state.map.tiles` whenever neither side's `knownCivilizations` already proves contact. A civ fixture with only `{ isHuman, knownCivilizations }` and no `diplomacy`/`cities`/`units`, or a state with no `map`, **throws** (not just fails) the moment that fallback is reached — e.g. in the "hasn't met" test below, where neither side's `knownCivilizations` overlaps. Every fixture in this file uses a shared `makeCiv` helper and every state override includes `map: { tiles: {} }` specifically to keep that fallback path crash-safe, even in tests where the fast path (matching `knownCivilizations`) makes it unreachable — consistency here matters more than minimalism, since a future edit could easily shift which path a given test exercises.
+
 Replace `tests/presentation/register-strategic-strike-presentation.test.ts` entirely:
 
 ```ts
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { EventBus } from '@/core/event-bus';
+import type { Civilization } from '@/core/types';
 import { SFX } from '@/audio/sfx';
 import { registerStrategicStrikePresentation } from '@/presentation/register-strategic-strike-presentation';
 import { makePresentationContext } from '../helpers/presentation-context';
+
+// Crash-safe against hasMetCivilizationByCurrentEvidence's fallback (see
+// this task's fixture-safety note) -- diplomacy/cities/units are always
+// present, even when a given test only ever exercises the knownCivilizations
+// fast path.
+function makeCiv(id: string, overrides: Partial<Civilization> = {}): Civilization {
+  return {
+    id, name: id, color: '#fff', isHuman: false, civType: 'generic',
+    cities: [], units: [], gold: 0, visibility: { tiles: {}, lastSeen: {} }, score: 0,
+    techState: { completed: [], currentResearch: null, researchQueue: [], researchProgress: 0, trackPriorities: {} as any },
+    diplomacy: { relationships: {}, treaties: [], events: [], atWarWith: [], treacheryScore: 0, vassalage: { overlord: null, vassals: [], protectionScore: 0, protectionTimers: [], peakCities: 0, peakMilitary: 0 } },
+    knownCivilizations: [],
+    ...overrides,
+  } as Civilization;
+}
 
 describe('strategic strike presentation (#545 MR4/MR5)', () => {
   afterEach(() => {
@@ -1586,7 +1639,12 @@ describe('strategic strike presentation (#545 MR4/MR5)', () => {
   it('notifies the defending civ that its city was struck, including the gold lost', () => {
     const bus = new EventBus();
     const ctx = makePresentationContext({
-      state: { currentPlayer: 'p1', cities: { target: { name: 'Rome', owner: 'p2' } } as never, civilizations: { p1: { isHuman: true } as never, p2: { isHuman: false } as never } },
+      state: {
+        currentPlayer: 'p1',
+        map: { tiles: {} } as never,
+        cities: { target: { name: 'Rome', owner: 'p2' } } as never,
+        civilizations: { p1: makeCiv('p1', { isHuman: true }), p2: makeCiv('p2') },
+      },
     });
 
     registerStrategicStrikePresentation(bus, ctx);
@@ -1599,7 +1657,12 @@ describe('strategic strike presentation (#545 MR4/MR5)', () => {
   it('omits the gold-loss clause when nothing was lost (garrisoned target)', () => {
     const bus = new EventBus();
     const ctx = makePresentationContext({
-      state: { currentPlayer: 'p1', cities: { target: { name: 'Rome', owner: 'p2' } } as never, civilizations: { p1: { isHuman: true } as never, p2: { isHuman: false } as never } },
+      state: {
+        currentPlayer: 'p1',
+        map: { tiles: {} } as never,
+        cities: { target: { name: 'Rome', owner: 'p2' } } as never,
+        civilizations: { p1: makeCiv('p1', { isHuman: true }), p2: makeCiv('p2') },
+      },
     });
 
     registerStrategicStrikePresentation(bus, ctx);
@@ -1612,7 +1675,12 @@ describe('strategic strike presentation (#545 MR4/MR5)', () => {
   it('handles an unknown city name gracefully', () => {
     const bus = new EventBus();
     const ctx = makePresentationContext({
-      state: { currentPlayer: 'p1', cities: {} as never, civilizations: { p1: { isHuman: true } as never, p2: { isHuman: false } as never } },
+      state: {
+        currentPlayer: 'p1',
+        map: { tiles: {} } as never,
+        cities: {} as never,
+        civilizations: { p1: makeCiv('p1', { isHuman: true }), p2: makeCiv('p2') },
+      },
     });
 
     registerStrategicStrikePresentation(bus, ctx);
@@ -1625,7 +1693,12 @@ describe('strategic strike presentation (#545 MR4/MR5)', () => {
     const spy = vi.spyOn(SFX, 'strategicStrike').mockImplementation(() => {});
     const bus = new EventBus();
     const ctx = makePresentationContext({
-      state: { currentPlayer: 'p1', cities: { target: { name: 'Rome', owner: 'p2' } } as never, civilizations: { p1: { isHuman: true } as never, p2: { isHuman: false } as never } },
+      state: {
+        currentPlayer: 'p1',
+        map: { tiles: {} } as never,
+        cities: { target: { name: 'Rome', owner: 'p2' } } as never,
+        civilizations: { p1: makeCiv('p1', { isHuman: true }), p2: makeCiv('p2') },
+      },
     });
 
     registerStrategicStrikePresentation(bus, ctx);
@@ -1638,7 +1711,12 @@ describe('strategic strike presentation (#545 MR4/MR5)', () => {
     const spy = vi.spyOn(SFX, 'strategicStrike').mockImplementation(() => {});
     const bus = new EventBus();
     const ctx = makePresentationContext({
-      state: { currentPlayer: 'p1', cities: { target: { name: 'Rome', owner: 'p1' } } as never, civilizations: { p1: { isHuman: true } as never, 'ai-1': { isHuman: false } as never } },
+      state: {
+        currentPlayer: 'p1',
+        map: { tiles: {} } as never,
+        cities: { target: { name: 'Rome', owner: 'p1' } } as never,
+        civilizations: { p1: makeCiv('p1', { isHuman: true }), 'ai-1': makeCiv('ai-1') },
+      },
     });
 
     registerStrategicStrikePresentation(bus, ctx);
@@ -1654,11 +1732,12 @@ describe('strategic strike presentation (#545 MR4/MR5)', () => {
     const ctx = makePresentationContext({
       state: {
         currentPlayer: 'p1',
+        map: { tiles: {} } as never,
         cities: { target: { name: 'Rome', owner: 'ai-2' } } as never,
         civilizations: {
-          p1: { isHuman: true, knownCivilizations: ['ai-1', 'ai-2'] } as never,
-          'ai-1': { isHuman: false, name: 'Attacker', knownCivilizations: [] } as never,
-          'ai-2': { isHuman: false, knownCivilizations: [] } as never,
+          p1: makeCiv('p1', { isHuman: true, knownCivilizations: ['ai-1', 'ai-2'] }),
+          'ai-1': makeCiv('ai-1', { name: 'Attacker' }),
+          'ai-2': makeCiv('ai-2'),
         },
       },
     });
@@ -1676,11 +1755,12 @@ describe('strategic strike presentation (#545 MR4/MR5)', () => {
     const ctx = makePresentationContext({
       state: {
         currentPlayer: 'p1',
+        map: { tiles: {} } as never,
         cities: { target: { name: 'Rome', owner: 'ai-2' } } as never,
         civilizations: {
-          p1: { isHuman: true, knownCivilizations: [] } as never,
-          'ai-1': { isHuman: false, knownCivilizations: [] } as never,
-          'ai-2': { isHuman: false, knownCivilizations: [] } as never,
+          p1: makeCiv('p1', { isHuman: true }),
+          'ai-1': makeCiv('ai-1'),
+          'ai-2': makeCiv('ai-2'),
         },
       },
     });
@@ -1699,12 +1779,13 @@ describe('strategic strike presentation (#545 MR4/MR5)', () => {
     const ctx = makePresentationContext({
       state: {
         currentPlayer: 'p1', // p1 is active; p2 is the OTHER human, not currently viewing
+        map: { tiles: {} } as never,
         cities: { target: { name: 'Rome', owner: 'ai-2' } } as never,
         civilizations: {
-          p1: { isHuman: true, knownCivilizations: [] } as never,
-          p2: { isHuman: true, knownCivilizations: ['ai-1', 'ai-2'] } as never,
-          'ai-1': { isHuman: false, name: 'Attacker', knownCivilizations: [] } as never,
-          'ai-2': { isHuman: false, knownCivilizations: [] } as never,
+          p1: makeCiv('p1', { isHuman: true }),
+          p2: makeCiv('p2', { isHuman: true, knownCivilizations: ['ai-1', 'ai-2'] }),
+          'ai-1': makeCiv('ai-1', { name: 'Attacker' }),
+          'ai-2': makeCiv('ai-2'),
         },
       },
     });
