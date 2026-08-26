@@ -96,6 +96,37 @@ describe('sprite-animations-v2.css ambient classes are not silently inert', () =
   });
 });
 
+describe('#710 corrective sprite motion contract', () => {
+  const selectors = [
+    '.cq-v2[data-kind="ranged"][data-kind-variant="paratrooper"][data-state="attack"] .cq-paratrooper-rifle',
+    '.cq-v2[data-kind="ranged"][data-kind-variant="paratrooper"][data-state="idle"] .cq-parachute-canopy',
+    '.cq-v2[data-kind="civilian"][data-kind-variant="naval-strike-aircraft"][data-state="attack"] .cq-naval-strike-torpedo',
+    '.cq-v2[data-kind="civilian"][data-kind-variant="maritime-patrol-aircraft"][data-state="attack"] .cq-patrol-radar-dome',
+    '.cq-v2[data-kind="naval"][data-kind-variant="supercarrier"][data-state="attack"] .cq-supercarrier-launch-aircraft',
+    '.cq-v2[data-kind="civilian"][data-kind-variant="great-general"][data-state="attack"] .cq-general-map',
+    '.cq-v2[data-kind="civilian"][data-kind-variant="great-general"][data-state="attack"] .cq-general-standard',
+  ];
+
+  it('uses local variant motion for every approved moving part', () => {
+    for (const selector of selectors) {
+      expect(css, `missing ${selector}`).toContain(selector);
+      const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      expect(css, `${selector} must declare animation`).toMatch(new RegExp(`${escaped}\\s*\\{[^}]*animation:`));
+    }
+  });
+
+  it('cancels inappropriate generic action movement before aircraft-specific action motion', () => {
+    for (const selector of [
+      '.cq-v2[data-kind="civilian"][data-kind-variant="naval-strike-aircraft"][data-state="attack"] .cq-sprite-figure',
+      '.cq-v2[data-kind="civilian"][data-kind-variant="maritime-patrol-aircraft"][data-state="attack"] .cq-sprite-figure',
+    ]) {
+      expect(css, `missing ${selector}`).toContain(selector);
+      const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      expect(css, `${selector} must cancel inherited movement`).toMatch(new RegExp(`${escaped}\\s*\\{[^}]*animation:\\s*none`));
+    }
+  });
+});
+
 describe('#708 mounted animal animation contract', () => {
   it('defines an animated animal body plan with both required variants', () => {
     for (const selector of [

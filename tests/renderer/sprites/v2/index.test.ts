@@ -328,6 +328,38 @@ describe('#709 industrial vehicle native sprites', () => {
   });
 });
 
+describe('#710 corrective native sprite contract', () => {
+  const ISSUE_710_NATIVE = {
+    paratrooper: ['ranged', 'paratrooper', ['cq-parachute-canopy', 'cq-parachute-lines', 'cq-paratrooper-harness', 'cq-paratrooper-pack', 'cq-paratrooper-rifle', 'cq-arm-l', 'cq-arm-r', 'cq-leg-l', 'cq-leg-r']],
+    naval_strike_aircraft: ['civilian', 'naval-strike-aircraft', ['cq-strike-fuselage', 'cq-strike-cockpit', 'cq-strike-wing', 'cq-strike-tail', 'cq-strike-tailhook', 'cq-naval-strike-torpedo']],
+    maritime_patrol_aircraft: ['civilian', 'maritime-patrol-aircraft', ['cq-patrol-fuselage', 'cq-patrol-wing', 'cq-patrol-nacelle-l', 'cq-patrol-nacelle-r', 'cq-patrol-prop-l', 'cq-patrol-prop-r', 'cq-patrol-radar-dome']],
+    supercarrier: ['naval', 'supercarrier', ['cq-supercarrier-hull', 'cq-supercarrier-bow', 'cq-supercarrier-deck', 'cq-supercarrier-island', 'cq-supercarrier-mast', 'cq-supercarrier-aircraft', 'cq-supercarrier-wake']],
+    great_general: ['civilian', 'great-general', ['cq-general-body', 'cq-general-arm-l', 'cq-general-arm-r', 'cq-general-leg-l', 'cq-general-leg-r', 'cq-general-map', 'cq-general-standard']],
+  } as const;
+  const FACTIONS = ['imperials', 'vikings', 'pharaohs', 'hellenes', 'khanate', 'shogunate'];
+
+  for (const [type, [kind, variant, hooks]] of Object.entries(ISSUE_710_NATIVE)) {
+    it(`${type} is native v2 art with its approved body plan and anatomy`, () => {
+      expect(isV2NativeUnit(type)).toBe(true);
+      for (const faction of FACTIONS) {
+        const result = getUnitSpriteV2(type, faction)!;
+        expect(result, `${type}/${faction}`).toContain(`data-kind="${kind}"`);
+        expect(result, `${type}/${faction}`).toContain(`data-kind-variant="${variant}"`);
+        for (const hook of hooks) expect(result, `${type}/${faction} missing ${hook}`).toContain(hook);
+      }
+    });
+  }
+
+  for (const type of ['maritime_patrol_aircraft', 'great_general']) {
+    it(`${type} has no combat weapon, flash, or impact hook`, () => {
+      const result = getUnitSpriteV2(type, 'imperials')!;
+      for (const forbidden of ['cq-weapon', 'cq-muzzle-flash', 'cq-hit-spark']) {
+        expect(result, `${type} must not render ${forbidden}`).not.toContain(forbidden);
+      }
+    });
+  }
+});
+
 describe('#759 batch 1 — v2-native migration', () => {
   const MIGRATED = ['combat_drone', 'autonomous_frigate', 'exosuit_infantry', 'propagandist', 'drone_controller'];
   const EXPECTED_KIND: Record<string, string> = {
