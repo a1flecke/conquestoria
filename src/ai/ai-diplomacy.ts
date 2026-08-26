@@ -16,6 +16,9 @@ export interface DiplomaticDecision {
 export interface DiplomaticContext {
   hasMet: boolean;
   hasBorderPressure: boolean;
+  // #545 MR5: does this civ know the potential war target has strategic
+  // (nuclear) capability -- see hasKnownStrategicCapability.
+  targetHasKnownStrategicCapability: boolean;
 }
 
 export function evaluateDiplomacy(
@@ -27,6 +30,7 @@ export function evaluateDiplomacy(
   selfStrength: MilitaryStrengthEstimate,
   currentTurn: number,
   contextByCiv: Record<string, DiplomaticContext>,
+  strategicDeterrenceCautionWeight: number,
 ): DiplomaticDecision[] {
   const decisions: DiplomaticDecision[] = [];
 
@@ -44,7 +48,8 @@ export function evaluateDiplomacy(
         decisions.push({ action: 'request_peace', targetCiv: civId });
       }
     } else {
-      const context = contextByCiv[civId] ?? { hasMet: false, hasBorderPressure: false };
+      const context = contextByCiv[civId]
+        ?? { hasMet: false, hasBorderPressure: false, targetHasKnownStrategicCapability: false };
       if (!context.hasMet) continue;
       if (actions.includes('declare_war') && shouldDeclareWar(
         personality,
@@ -53,6 +58,8 @@ export function evaluateDiplomacy(
         currentTurn,
         context.hasMet,
         context.hasBorderPressure,
+        context.targetHasKnownStrategicCapability,
+        strategicDeterrenceCautionWeight,
       )) {
         decisions.push({ action: 'declare_war', targetCiv: civId });
         continue;

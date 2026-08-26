@@ -116,7 +116,8 @@ describe('evaluateDiplomacy', () => {
       { player: strength(10) },
       strength(100),
       1,
-      { player: { hasMet: false, hasBorderPressure: false } },
+      { player: { hasMet: false, hasBorderPressure: false, targetHasKnownStrategicCapability: false } },
+      0,
     );
 
     expect(decisions.find(d => d.action === 'declare_war')).toBeUndefined();
@@ -132,6 +133,7 @@ describe('evaluateDiplomacy', () => {
       strength(100),
       20,
       {},
+      0,
     );
 
     expect(decisions.find(decision => decision.action === 'declare_war')).toBeUndefined();
@@ -146,7 +148,8 @@ describe('evaluateDiplomacy', () => {
       { player: strength(40) },
       strength(40),
       20,
-      { player: { hasMet: false, hasBorderPressure: false } },
+      { player: { hasMet: false, hasBorderPressure: false, targetHasKnownStrategicCapability: false } },
+      0,
     );
 
     expect(decisions).toEqual([]);
@@ -161,9 +164,38 @@ describe('evaluateDiplomacy', () => {
       { player: strength(120) },
       strength(40),
       20,
-      { player: { hasMet: true, hasBorderPressure: true } },
+      { player: { hasMet: true, hasBorderPressure: true, targetHasKnownStrategicCapability: false } },
+      0,
     );
 
     expect(decisions.find(decision => decision.action === 'declare_war')).toBeUndefined();
+  });
+
+  it('known strategic capability on the target suppresses a war that would otherwise trigger (#545 MR5)', () => {
+    const noCaution = evaluateDiplomacy(
+      aggressivePersonality,
+      makeDiplomacy({ relationships: { player: -60 } }),
+      [],
+      4,
+      { player: strength(105) },
+      strength(100),
+      20,
+      { player: { hasMet: true, hasBorderPressure: true, targetHasKnownStrategicCapability: false } },
+      0,
+    );
+    expect(noCaution.find(d => d.action === 'declare_war')).toBeDefined();
+
+    const withCaution = evaluateDiplomacy(
+      aggressivePersonality,
+      makeDiplomacy({ relationships: { player: -60 } }),
+      [],
+      4,
+      { player: strength(105) },
+      strength(100),
+      20,
+      { player: { hasMet: true, hasBorderPressure: true, targetHasKnownStrategicCapability: true } },
+      0.15,
+    );
+    expect(withCaution.find(d => d.action === 'declare_war')).toBeUndefined();
   });
 });
