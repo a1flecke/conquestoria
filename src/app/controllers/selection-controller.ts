@@ -63,6 +63,8 @@ import { fireResourceDiscoveredTip } from '@/ui/advisor-system';
 import { syncCivilizationContactsFromVisibility } from '@/systems/discovery-system';
 import { getRallyPreview, issueRally, getSeizeTheMomentEligibleUnits, issueSeizeTheMoment } from '@/systems/great-general-abilities';
 import { createRallyPanel, createSeizeThePanelMoment } from '@/ui/general-command-panel';
+import { createStrategicLaunchFlow } from '@/ui/strategic-launch-flow';
+import { executeStrategicLaunch } from '@/systems/strategic-launch-execution-system';
 import { GENERAL_DEFINITIONS } from '@/systems/great-general-definitions';
 import { getEffectiveCommandStats } from '@/systems/great-general-system';
 
@@ -78,6 +80,7 @@ export type SelectionControllerRenderer = Pick<
   | 'animateUnitMove'
   | 'animateUnitSlide'
   | 'animateUnitAppear'
+  | 'setStrategicLaunchPreview'
 > & {
   readonly camera: Pick<RenderLoop['camera'], 'centerOn'>;
 };
@@ -206,6 +209,24 @@ export function createSelectionController(deps: SelectionControllerDeps): Select
             },
             () => {},
           );
+        },
+        onPrepareStrategicLaunch: (subUnitId: string) => {
+          const unit = session.getState().units[subUnitId];
+          if (!unit) return;
+          createStrategicLaunchFlow(deps.uiLayer, session.getState(), unit.owner, {
+            onSetPreview: preview => deps.renderLoop.setStrategicLaunchPreview(preview),
+            onConfirmLaunch: targetCityId => {
+              const targetCivId = session.getState().cities[targetCityId]?.owner;
+              const result = executeStrategicLaunch(session.getState(), unit.owner, targetCityId);
+              if (result.ok && targetCivId) {
+                session.commit(result.state);
+                deps.renderLoop.setGameState(session.getState());
+                deps.showNotification('Strategic strike launched.', 'warning');
+                deps.bus.emit('city:strategic-strike', { cityId: targetCityId, recipientCivId: targetCivId, goldLost: result.goldLost });
+              }
+            },
+            onClose: () => {},
+          });
         },
         onOpenSeize: (generalUnitId: string) => {
           const { eligible } = getSeizeTheMomentEligibleUnits(session.getState(), generalUnitId);

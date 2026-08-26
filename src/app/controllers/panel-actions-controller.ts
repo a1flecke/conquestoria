@@ -90,6 +90,8 @@ import { renderUnitStackPanel } from '@/ui/unit-stack-panel';
 import { createNetworkIntentPanel } from '@/ui/network-intent-panel';
 import { createNetworkPanel, getNetworkPanelModel } from '@/ui/network-panel';
 import { createCityPanel } from '@/ui/city-panel';
+import { createStrategicLaunchFlow } from '@/ui/strategic-launch-flow';
+import { executeStrategicLaunch } from '@/systems/strategic-launch-execution-system';
 import { createEspionagePanel } from '@/ui/espionage-panel';
 import { assignCityFocus, setCityWorkedTile } from '@/systems/city-work-system';
 import { chooseCircularManufacturingMaterial } from '@/systems/national-project-system';
@@ -128,7 +130,7 @@ export interface PanelActionsController {
 /** The narrow slice of `RenderLoop` this controller needs. */
 export type PanelActionsRenderer = Pick<
   RenderLoop,
-  'setSelectedPirateFactionId' | 'applyPirateHeadquartersAssaultVisual' | 'setGameState' | 'setHighlights'
+  'setSelectedPirateFactionId' | 'applyPirateHeadquartersAssaultVisual' | 'setGameState' | 'setHighlights' | 'setStrategicLaunchPreview'
 > & { readonly camera: Pick<RenderLoop['camera'], 'centerOn'> };
 
 /** The narrow slice of `AudioSystem` this controller needs. */
@@ -691,6 +693,24 @@ export function createPanelActionsController(deps: PanelActionsControllerDeps): 
             deps.showNotification(`${targetCity.name}: ${message}`, 'warning');
           }
         }
+      },
+      onPrepareStrategicLaunch: (cityId: string) => {
+        const launchingCity = deps.session.getState().cities[cityId];
+        if (!launchingCity) return;
+        createStrategicLaunchFlow(deps.uiLayer, deps.session.getState(), launchingCity.owner, {
+          onSetPreview: preview => deps.renderLoop.setStrategicLaunchPreview(preview),
+          onConfirmLaunch: targetCityId => {
+            const targetCivId = deps.session.getState().cities[targetCityId]?.owner;
+            const result = executeStrategicLaunch(deps.session.getState(), launchingCity.owner, targetCityId);
+            if (result.ok && targetCivId) {
+              deps.session.commit(result.state);
+              deps.renderLoop.setGameState(deps.session.getState());
+              deps.showNotification('Strategic strike launched.', 'warning');
+              deps.bus.emit('city:strategic-strike', { cityId: targetCityId, recipientCivId: targetCivId, goldLost: result.goldLost });
+            }
+          },
+          onClose: () => {},
+        });
       },
       onMoveQueueItem: (cityId, fromIndex, toIndex) => {
         const targetCity = deps.session.getState().cities[cityId];
