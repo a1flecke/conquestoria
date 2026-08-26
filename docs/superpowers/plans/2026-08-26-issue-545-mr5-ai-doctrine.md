@@ -1,5 +1,25 @@
 # #545 MR5 — AI Deterrence Visibility & Launch Doctrine Implementation Plan
 
+✅ executed 2026-08-26 (pre-merge; PR not yet opened). All 11 tasks complete, full
+suite green (542 files / 9121 tests, 3 pre-existing skips), `yarn build` clean.
+Two review passes ran before execution: a design-doc review (7 findings, most
+significantly that the first-drafted SFX/notification design was architecturally
+broken for the exact new case MR5 exists to add) and a plan review (4 test-
+correctness bugs — two tests that would have crashed with a TypeError on fixtures
+missing required fields, and two tests that passed for the wrong reason without
+exercising the code they claimed to test). All fixed before execution began.
+Execution itself surfaced two further corrections not caught by either review
+pass: (1) a diplomacy-panel test's "at war" assertion was confounded by the
+breakaway civ's row independently qualifying for the same caution note (fixed by
+also putting the breakaway civ at war in that fixture); (2) the Task 8 integration
+test's minimal city stubs crashed two early-running AI subsystems
+(`initializeLegendaryWonderProjectsForAllCities`, `processAIResourceMarketplace`)
+that touch every city in `state.cities` unconditionally — fixed with a fully-shaped
+city fixture. Manual browser verification of the two new UI notes (diplomacy panel
+caution note, launch-preview retaliation-risk note) was skipped — port 5173 was
+occupied by another session's process, and both notes are already covered by
+jsdom-based tests asserting exact rendered text under precise state conditions.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. **Do not use superpowers:subagent-driven-development or any other multi-agent workflow — this repository's CLAUDE.md forbids subagents/parallel agents for all work; execute every task inline in the current session.** Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Give the AI a bounded, reviewable ability to know about and use strategic weapons — a visibility rule + conventional-war caution factor (§9), and a first-use/retaliation launch doctrine (§10) — without ever bypassing MR4's `executeStrategicLaunch` entry point or MR1–3's legality/resolution/reputation machinery.
@@ -50,7 +70,7 @@
 **Interfaces:**
 - Produces: `hasKnownStrategicCapability(state: GameState, viewerCivId: string, ownerCivId: string): boolean` — true iff the viewer has met the owner AND the owner has completed Manhattan Project. Consumed by Tasks 4, 5, 6/7, and 10.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Add to `tests/systems/strategic-arsenal-system.test.ts`, after the existing `describe('hasManhattanProject', ...)` block (which ends around line 67) and before the `makeCiv` helper:
 
@@ -105,12 +125,12 @@ describe('hasKnownStrategicCapability (#545 MR5)', () => {
 
 Note: `makeCiv` in this file (defined below the `hasManhattanProject` block, around line 69) does not currently accept a `knownCivilizations` override in its default object — it's an `Omit`-free literal with `...overrides` spread last, so `knownCivilizations: [...]` passed via `overrides` works without any change to the helper itself.
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `bash scripts/run-with-mise.sh yarn test tests/systems/strategic-arsenal-system.test.ts`
 Expected: FAIL with "hasKnownStrategicCapability is not exported" / "is not a function"
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 In `src/systems/strategic-arsenal-system.ts`, change the top import and add the function after `hasManhattanProject`:
 
@@ -137,12 +157,12 @@ export function hasKnownStrategicCapability(
 }
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `bash scripts/run-with-mise.sh yarn test tests/systems/strategic-arsenal-system.test.ts`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/systems/strategic-arsenal-system.ts tests/systems/strategic-arsenal-system.test.ts
@@ -160,7 +180,7 @@ git commit -m "feat(#545): add hasKnownStrategicCapability visibility predicate 
 **Interfaces:**
 - Produces: `OpponentChallengeProfile.strategicDeterrenceCautionWeight: number`, `OpponentChallengeProfile.strategicLaunchRetaliationWillingness: number`. Consumed by Tasks 3/4 (caution weight) and 6/7 (retaliation willingness).
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Add to `tests/core/opponent-challenge.test.ts`, after the existing `describe('#544 MR5 — General-command difficulty knobs', ...)` block:
 
@@ -198,12 +218,12 @@ describe('#545 MR5 — strategic deterrence and launch-doctrine knobs', () => {
 });
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `bash scripts/run-with-mise.sh yarn test tests/core/opponent-challenge.test.ts`
 Expected: FAIL (TypeScript error / undefined property on `OPPONENT_CHALLENGE_PROFILES.explorer.strategicDeterrenceCautionWeight`)
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 In `src/core/opponent-challenge.ts`, add to the `OpponentChallengeProfile` interface, after `generalSafetyWeight`:
 
@@ -251,12 +271,12 @@ Add the corresponding field to each of the three profile objects, immediately af
   },
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `bash scripts/run-with-mise.sh yarn test tests/core/opponent-challenge.test.ts`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/core/opponent-challenge.ts tests/core/opponent-challenge.test.ts
@@ -277,7 +297,7 @@ git commit -m "feat(#545): add strategic deterrence/retaliation difficulty knobs
 
 **⚠️ This changes an existing exported function's signature — its only caller today is `evaluateDiplomacy` in `ai-diplomacy.ts` (updated in Task 4) and its only direct test caller is `tests/ai/ai-personality.test.ts` (updated in this task). Run `bash scripts/run-with-mise.sh yarn build` after this task, not just the test file, since `yarn test` does not type-check.**
 
-- [ ] **Step 1: Update the existing tests and write the new failing tests**
+- [x] **Step 1: Update the existing tests and write the new failing tests**
 
 In `tests/ai/ai-personality.test.ts`, update all 4 existing `shouldDeclareWar(...)` calls inside `describe('shouldDeclareWar', ...)` to append `, false, 0` (no known capability, zero caution weight — preserves their original meaning exactly):
 
@@ -316,12 +336,12 @@ In `tests/ai/ai-personality.test.ts`, update all 4 existing `shouldDeclareWar(..
   });
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `bash scripts/run-with-mise.sh yarn test tests/ai/ai-personality.test.ts`
 Expected: FAIL (too many arguments passed to a 6-param function, or wrong boolean results since the extra args are currently ignored/erroring)
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 In `src/ai/ai-personality.ts`, replace `shouldDeclareWar`:
 
@@ -354,7 +374,7 @@ export function shouldDeclareWar(
 }
 ```
 
-- [ ] **Step 4: Run tests to verify they pass, then type-check**
+- [x] **Step 4: Run tests to verify they pass, then type-check**
 
 Run: `bash scripts/run-with-mise.sh yarn test tests/ai/ai-personality.test.ts`
 Expected: PASS
@@ -362,7 +382,7 @@ Expected: PASS
 Run: `bash scripts/run-with-mise.sh yarn build`
 Expected: FAILS at this point — `ai-diplomacy.ts`'s call to `shouldDeclareWar` still passes only 6 arguments. This is expected; Task 4 fixes it. Confirm the *only* build errors are in `ai-diplomacy.ts` (no other stray callers) before moving on — this is the "grep every caller" check from the Global Constraints section, now verified by the compiler itself.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/ai/ai-personality.ts tests/ai/ai-personality.test.ts
@@ -384,7 +404,7 @@ git commit -m "feat(#545): shouldDeclareWar deterrence-caution term (MR5 Task 3)
 
 **This completes the build fix Task 3 left dangling — run `yarn build` again at the end of this task.**
 
-- [ ] **Step 1: Update the existing tests and write the new failing test**
+- [x] **Step 1: Update the existing tests and write the new failing test**
 
 In `tests/ai/ai-diplomacy.test.ts`, every `contextByCiv` object literal in the 4 existing `describe('evaluateDiplomacy', ...)` tests needs `targetHasKnownStrategicCapability: false` added, and every `evaluateDiplomacy(...)` call needs a trailing `0` argument:
 
@@ -486,12 +506,12 @@ describe('evaluateDiplomacy', () => {
 
 Verify the new test's numbers: `advantage = 100/105 ≈ 0.952`, `warScore = 0.9 * 0.952 ≈ 0.857` (aggressivePersonality.warLikelihood is `0.9`), `relationship -60` so `peacePressure = 0`. `0.857 > 0.8` → declares war with no caution. `0.857 > 0.95` → false with caution. Matches the assertions above.
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `bash scripts/run-with-mise.sh yarn test tests/ai/ai-diplomacy.test.ts`
 Expected: FAIL (wrong argument count / TS error)
 
-- [ ] **Step 3: Implement `ai-diplomacy.ts`**
+- [x] **Step 3: Implement `ai-diplomacy.ts`**
 
 ```ts
 export interface DiplomaticContext {
@@ -560,7 +580,7 @@ export function evaluateDiplomacy(
 }
 ```
 
-- [ ] **Step 4: Update `basic-ai.ts`**
+- [x] **Step 4: Update `basic-ai.ts`**
 
 Add two imports near the top (with the other `@/core` / `@/systems` imports):
 
@@ -624,7 +644,7 @@ In the diplomacy block (around line 974 in the current file), change the `diplom
     );
 ```
 
-- [ ] **Step 5: Run tests, then full build**
+- [x] **Step 5: Run tests, then full build**
 
 Run: `bash scripts/run-with-mise.sh yarn test tests/ai/ai-diplomacy.test.ts`
 Expected: PASS
@@ -635,7 +655,7 @@ Expected: PASS (this clears the build failure Task 3 left open)
 Run: `bash scripts/run-with-mise.sh yarn test`
 Expected: PASS (full suite — this is the first point where every existing caller of the changed signatures has been updated)
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/ai/ai-diplomacy.ts src/ai/basic-ai.ts tests/ai/ai-diplomacy.test.ts
@@ -655,7 +675,7 @@ git commit -m "feat(#545): thread strategic deterrence caution through AI war sc
 
 **`tests/ui/diplomacy-panel.test.ts` already imports `makeDiplomacyFixture` from `./helpers/diplomacy-fixture`**, which wraps `makeBreakawayFixture` (`tests/systems/helpers/breakaway-fixture.ts`). Passing `includeThirdCiv: true` adds a third major civ, `outsider` (name `'Outsider'`), owning `city-outsider` at `{ q: 6, r: 0 }` — already proven to render correctly by the existing `'omits unmet major civs from the panel'` test in this same file, which asserts `'Outsider'` is *absent* by default (the fixture grants it no visibility/contact evidence on its own). This task's new tests explicitly grant contact evidence via `knownCivilizations` — the same mechanism used throughout this plan — rather than relying on the fixture's own (unrelated, visibility-based) default.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Add a new `describe` block to `tests/ui/diplomacy-panel.test.ts`:
 
@@ -707,12 +727,12 @@ describe('strategic deterrence caution note (#545 MR5)', () => {
 });
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `bash scripts/run-with-mise.sh yarn test tests/ui/diplomacy-panel.test.ts`
 Expected: FAIL (text not found)
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 Add the import, near the other `@/systems/*` imports at the top of `src/ui/diplomacy-panel.ts`:
 
@@ -757,12 +777,12 @@ In the `setText` block, alongside the other conditional `setText` calls:
     }
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `bash scripts/run-with-mise.sh yarn test tests/ui/diplomacy-panel.test.ts`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/ui/diplomacy-panel.ts tests/ui/diplomacy-panel.test.ts
@@ -781,7 +801,7 @@ git commit -m "feat(#545): diplomacy panel strategic-caution note (MR5 Task 5)"
 - Consumes: `getCapitalCity` (`@/systems/capital-system`), `getLegalStrategicLaunchTargets` (`@/systems/strategic-launch-system`), `UNIT_DEFINITIONS` (`@/systems/unit-system`), `mapDistance` (`@/systems/hex-utils`), `isHostileOwnerTo` (`@/systems/owner-hostility`).
 - Produces: `canAuthorizeVeteranFirstUse(state: GameState, civId: string): string | null`. Consumed by Task 7 (same file) and Task 8 (`basic-ai.ts`, indirectly via Task 7's `evaluateStrategicLaunchDecision`).
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Create `tests/ai/ai-strategic-doctrine.test.ts`:
 
@@ -990,12 +1010,12 @@ describe('canAuthorizeVeteranFirstUse (#545 MR5 §10)', () => {
 });
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `bash scripts/run-with-mise.sh yarn test tests/ai/ai-strategic-doctrine.test.ts`
 Expected: FAIL (module not found)
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 Create `src/ai/ai-strategic-doctrine.ts`:
 
@@ -1111,12 +1131,12 @@ export function canAuthorizeVeteranFirstUse(state: GameState, civId: string): st
 }
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `bash scripts/run-with-mise.sh yarn test tests/ai/ai-strategic-doctrine.test.ts`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/ai/ai-strategic-doctrine.ts tests/ai/ai-strategic-doctrine.test.ts
@@ -1135,7 +1155,7 @@ git commit -m "feat(#545): veteran existential-threat first-use gate (MR5 Task 6
 - Consumes: `canAuthorizeVeteranFirstUse` (Task 6, same file), `isStrategicStrikeRetaliation` (`@/systems/strategic-launch-system`), `OPPONENT_CHALLENGE_PROFILES` (Task 2), `getMajorCivLegalTargetsByOwner`/`pickPreferredTarget` (Task 6, same file, not exported — internal reuse).
 - Produces: `evaluateStrategicLaunchDecision(state: GameState, civId: string, challenge: OpponentChallenge, rng: () => number): string | null`. Consumed by Task 8 (`basic-ai.ts`).
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Add to `tests/ai/ai-strategic-doctrine.test.ts` (extend the existing import line to add `evaluateStrategicLaunchDecision`, and add `OpponentChallenge` to the type import):
 
@@ -1265,12 +1285,12 @@ describe('evaluateStrategicLaunchDecision (#545 MR5 §10)', () => {
 
 Note: `hasDiscoveredCity` (used internally by `getStrategicLaunchLegality`) reads `civ.visibility` keyed by `hexKey(position)`; the fixtures above use the literal `'q,r'` string form directly as a shorthand matching this suite's sibling file (`strategic-launch-system.test.ts`) convention. Confirm the exact `hexKey` format against `src/systems/hex-utils.ts` before running — if it differs from `'q,r'`, use the real `hexKey({ q, r })` helper in the fixture instead of a hardcoded string.
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `bash scripts/run-with-mise.sh yarn test tests/ai/ai-strategic-doctrine.test.ts`
 Expected: FAIL (`evaluateStrategicLaunchDecision` not exported)
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 Add to `src/ai/ai-strategic-doctrine.ts` (new imports at top, new function at bottom):
 
@@ -1323,12 +1343,12 @@ export function evaluateStrategicLaunchDecision(
 }
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `bash scripts/run-with-mise.sh yarn test tests/ai/ai-strategic-doctrine.test.ts`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/ai/ai-strategic-doctrine.ts tests/ai/ai-strategic-doctrine.test.ts
@@ -1347,7 +1367,7 @@ git commit -m "feat(#545): evaluateStrategicLaunchDecision retaliation path (MR5
 - Consumes: `evaluateStrategicLaunchDecision` (Task 7), `executeStrategicLaunch` (`@/systems/strategic-launch-execution-system`, MR4), `getEligibleStrategicLaunchPlatforms` (`@/systems/strategic-launch-system`, MR2), `createRng` (already imported), `resolveOpponentChallenge` (already imported from Task 4).
 - Produces: the AI's own strikes now flow through `bus.emit('city:strategic-strike', ...)` with a third field, `actorCivId` — Task 9 extends the event type to accept it; until Task 9 lands, this task's own emit call will show a TS error for the extra property, which is expected and resolved by Task 9. (Both tasks touch `basic-ai.ts`'s same block; doing Task 8 first, accepting a transient build error, keeps each task's diff minimal and focused on one concern.)
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Add to `tests/ai/basic-ai.test.ts`:
 
@@ -1405,12 +1425,12 @@ describe('AI strategic launch doctrine (#545 MR5)', () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `bash scripts/run-with-mise.sh yarn test tests/ai/basic-ai.test.ts -t "veteran AI under existential threat"`
 Expected: FAIL (`enemy-capital.hp` still 100 / no strike happened — the call site doesn't exist yet)
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 Add two imports to `src/ai/basic-ai.ts` (alongside the Task 4 imports):
 
@@ -1449,12 +1469,12 @@ Insert, immediately before the closing `}` of the `if (civ.diplomacy) { ... }` b
     }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `bash scripts/run-with-mise.sh yarn test tests/ai/basic-ai.test.ts -t "veteran AI under existential threat"`
 Expected: PASS *once Task 9's `actorCivId` field exists on `GameEvents['city:strategic-strike']`* — until then this shows a TypeScript error on the `bus.emit` call's extra property (`actorCivId` not assignable). This is the expected, intentional transient state described in this task's Interfaces section. Confirm the *test's runtime assertions* pass (vitest doesn't type-check) even though `yarn build` will fail until Task 9 lands — do not attempt to work around this by skipping the field; Task 9 is next.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/ai/basic-ai.ts tests/ai/basic-ai.test.ts
@@ -1479,7 +1499,7 @@ git commit -m "feat(#545): wire AI strategic launch doctrine into basic-ai.ts tu
 
 **This closes the build gap Task 8 intentionally left open — run `yarn build` at the end of this task and confirm it passes clean.**
 
-- [ ] **Step 1: Update the event type**
+- [x] **Step 1: Update the event type**
 
 In `src/core/types.ts`, find `'city:strategic-strike': { cityId: string; recipientCivId: string; goldLost: number };` and change it to:
 
@@ -1487,7 +1507,7 @@ In `src/core/types.ts`, find `'city:strategic-strike': { cityId: string; recipie
   'city:strategic-strike': { cityId: string; recipientCivId: string; actorCivId: string; goldLost: number };
 ```
 
-- [ ] **Step 2: Update both controllers**
+- [x] **Step 2: Update both controllers**
 
 In `src/app/controllers/panel-actions-controller.ts`, inside `onPrepareStrategicLaunch`'s `onConfirmLaunch` callback, remove the direct `SFX.strategicStrike()` line and add `actorCivId` to the emit call:
 
@@ -1523,7 +1543,7 @@ Apply the identical change in `src/app/controllers/selection-controller.ts`'s `o
 
 Check whether either file's `SFX` import becomes unused after removing these calls — if `SFX.strategicStrike()` was the only `SFX.*` usage in that file, remove the now-unused import; if the file calls other `SFX.*` methods elsewhere (e.g. `SFX.combat()`), keep the import.
 
-- [ ] **Step 3: Write the failing/updated tests for the controllers**
+- [x] **Step 3: Write the failing/updated tests for the controllers**
 
 In `tests/app/controllers/panel-actions-controller.test.ts`, extend the existing `'Prepare Strategic Launch (#545 MR4)...'` test (do not add a new test — this is the same scenario, just asserting more):
 
@@ -1562,7 +1582,7 @@ In `tests/app/controllers/panel-actions-controller.test.ts`, extend the existing
 
 `SFX` is not currently imported in this test file — add `import { SFX } from '@/audio/sfx';` to its import block at the top.
 
-- [ ] **Step 4: Rewrite the registrar**
+- [x] **Step 4: Rewrite the registrar**
 
 Replace `src/presentation/register-strategic-strike-presentation.ts` entirely:
 
@@ -1627,7 +1647,7 @@ export const registerStrategicStrikePresentation: PresentationRegistrar = (bus, 
 };
 ```
 
-- [ ] **Step 5: Rewrite the registrar's test file**
+- [x] **Step 5: Rewrite the registrar's test file**
 
 **A note on fixture safety, found during plan review**: `hasMetCivilization`'s fallback, `hasMetCivilizationByCurrentEvidence`, unconditionally reads `viewer.diplomacy.atWarWith`, `viewer.diplomacy.treaties`, `target.cities`, `target.units`, and `state.map.tiles` whenever neither side's `knownCivilizations` already proves contact. A civ fixture with only `{ isHuman, knownCivilizations }` and no `diplomacy`/`cities`/`units`, or a state with no `map`, **throws** (not just fails) the moment that fallback is reached — e.g. in the "hasn't met" test below, where neither side's `knownCivilizations` overlaps. Every fixture in this file uses a shared `makeCiv` helper and every state override includes `map: { tiles: {} }` specifically to keep that fallback path crash-safe, even in tests where the fast path (matching `knownCivilizations`) makes it unreachable — consistency here matters more than minimalism, since a future edit could easily shift which path a given test exercises.
 
@@ -1824,7 +1844,7 @@ describe('strategic strike presentation (#545 MR4/MR5)', () => {
 });
 ```
 
-- [ ] **Step 6: Run tests, then full build**
+- [x] **Step 6: Run tests, then full build**
 
 Run: `bash scripts/run-with-mise.sh yarn test tests/presentation/register-strategic-strike-presentation.test.ts tests/app/controllers/panel-actions-controller.test.ts tests/app/controllers/selection-controller.test.ts`
 Expected: PASS
@@ -1835,7 +1855,7 @@ Expected: PASS — this is the point where Task 8's `actorCivId` field on the `b
 Run: `bash scripts/run-with-mise.sh yarn test`
 Expected: PASS (full suite)
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add src/core/types.ts src/app/controllers/panel-actions-controller.ts src/app/controllers/selection-controller.ts src/presentation/register-strategic-strike-presentation.ts tests/presentation/register-strategic-strike-presentation.test.ts tests/app/controllers/panel-actions-controller.test.ts
@@ -1855,7 +1875,7 @@ git commit -m "feat(#545): consolidate strategic-strike SFX/notification into on
 
 The existing `makeState()` helper in `tests/ui/strategic-launch-flow.test.ts` already sets `p1.diplomacy = { ...AT_WAR_WITH_P2, strategicStrikesReceivedFrom: [] }`, i.e. `atWarWith: ['p2']`. Since `hasMetCivilization`'s fallback (`hasMetCivilizationByCurrentEvidence`) treats being at war as contact evidence, `hasMetCivilization(state, 'p1', 'p2')` is already `true` under the default fixture with no extra setup — the only thing the new tests need to add is `builtNationalProjects` for the "has capability" case (present) vs. omitted (absent).
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Add to `tests/ui/strategic-launch-flow.test.ts`, after the existing `'labels reputation-magnitude preview correctly...'` test:
 
@@ -1880,12 +1900,12 @@ describe('retaliation-risk preview note (#545 MR5)', () => {
 });
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `bash scripts/run-with-mise.sh yarn test tests/ui/strategic-launch-flow.test.ts`
 Expected: FAIL (text not found)
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 Add the import to `src/ui/strategic-launch-flow.ts`:
 
@@ -1913,12 +1933,12 @@ In `renderImpactPreview`, add a line to the `lines` array, right after the reput
     ];
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `bash scripts/run-with-mise.sh yarn test tests/ui/strategic-launch-flow.test.ts`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/ui/strategic-launch-flow.ts tests/ui/strategic-launch-flow.test.ts
@@ -1931,7 +1951,7 @@ git commit -m "feat(#545): retaliation-risk note in the strategic launch preview
 
 **Files:** none (verification only)
 
-- [ ] **Step 1: Run the full test suite**
+- [x] **Step 1: Run the full test suite**
 
 Run: `bash scripts/run-with-mise.sh yarn test`
 Expected: PASS — full suite (~541 files / 9000+ tests) plus the hook smoke tests. Pay particular attention to:
@@ -1939,12 +1959,12 @@ Expected: PASS — full suite (~541 files / 9000+ tests) plus the hook smoke tes
 - `tests/systems/pacing-audit.test.ts` and `tests/systems/pacing-reference-economy.test.ts` (unaffected — no yield/economy change in this MR)
 - `tests/app/architecture-boundaries.test.ts` (the new `src/ai/ai-strategic-doctrine.ts` leaf module and its one `basic-ai.ts` call site should not trip any composition-root boundary rule, since AI logic living in `src/ai/` and being called from `basic-ai.ts` matches the existing pattern every other AI module already follows)
 
-- [ ] **Step 2: Run the production build**
+- [x] **Step 2: Run the production build**
 
 Run: `bash scripts/run-with-mise.sh yarn build`
 Expected: PASS clean, zero TypeScript errors.
 
-- [ ] **Step 3: Manual sanity pass on the two most important dimensions this MR affects**
+- [x] **Step 3: Manual sanity pass on the two most important dimensions this MR affects**
 
 If a browser preview is available for this project, load a save (or start a new game), and:
 - Open the diplomacy panel against an AI civ that has Manhattan Project built and is not at war — confirm the "wary of your strategic capability" note appears.
@@ -1952,11 +1972,11 @@ If a browser preview is available for this project, load a save (or start a new 
 
 If no browser preview is practical for this change (it's primarily AI-internal turn-processing logic), skip this step and say so explicitly rather than claiming visual verification that didn't happen.
 
-- [ ] **Step 4: Tick every checkbox in this plan document**
+- [x] **Step 4: Tick every checkbox in this plan document**
 
 Go back through every task above and mark its checkboxes complete, matching the pattern MR1–4's plan docs used (`docs/superpowers/plans/2026-08-25-issue-545-mr4-reputation-launch-ux.md` is the template — read its header to see the "plan doc executed" convention this arc follows).
 
-- [ ] **Step 5: Final commit**
+- [x] **Step 5: Final commit**
 
 ```bash
 git add docs/superpowers/plans/2026-08-26-issue-545-mr5-ai-doctrine.md
