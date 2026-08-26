@@ -687,8 +687,17 @@ describe('strategic deterrence caution note (#545 MR5)', () => {
     const { container, state } = makeDiplomacyFixture({ currentPlayer: 'player', includeBreakaway: true, includeThirdCiv: true });
     state.civilizations.outsider.knownCivilizations = ['player'];
     state.builtNationalProjects = { 'player:manhattan_project': { civId: 'player', cityId: 'city-capital', eraBuilt: 10 } };
-    state.civilizations.player.diplomacy.atWarWith = ['outsider'];
+    state.civilizations.player.diplomacy.atWarWith = ['outsider', 'breakaway-city-border'];
     state.civilizations.outsider.diplomacy.atWarWith = ['player'];
+    // The breakaway civ is always "met" via its own origin relation
+    // (hasMetCivilizationByCurrentEvidence's breakaway.originOwnerId check),
+    // so once player has Manhattan Project it independently qualifies for
+    // the caution note too -- put it at war as well so this test's
+    // whole-panel assertion isn't confounded by that unrelated row.
+    // (Found and fixed during execution -- the first draft only put
+    // `outsider` at war and the assertion failed because the breakaway
+    // row's note was still showing.)
+    state.civilizations['breakaway-city-border'].diplomacy.atWarWith = ['player'];
 
     const panel = createDiplomacyPanel(container, state, { onAction: () => {}, onClose: () => {} });
 

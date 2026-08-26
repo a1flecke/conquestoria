@@ -29,6 +29,7 @@ import { createGameButton } from '@/ui/ui-kit';
 import { getWorldPressurePresentationForViewer } from '@/systems/world-pressure-presentation';
 import { canSendAid, type SendAidFailureReason } from '@/systems/crisis-interaction-system';
 import { TECH_TREE, resolveCivilizationEra } from '@/systems/tech-definitions';
+import { hasKnownStrategicCapability } from '@/systems/strategic-arsenal-system';
 
 export interface DiplomacyPanelCallbacks {
   onAction: (targetCivId: string, action: DiplomaticAction) => void;
@@ -92,6 +93,7 @@ interface CivRowData {
   sendAidHelpText: string | null;
   sendAidDisabled: boolean;
   sendAidDisabledReason: string | null;
+  strategicCautionNoteText: string | null;
 }
 
 interface MinorCivRowData {
@@ -274,6 +276,13 @@ export function createDiplomacyPanel(
       sendAidDisabledReason = check.ok ? null : describeSendAidDisabledReason(check.reason, goldCost, check.techId ?? null);
     }
 
+    // #545 MR5 spec §9: player-readable surfacing of the AI's own
+    // deterrence-caution factor -- "no invisible number." Only meaningful
+    // pre-war; a civ already at war has already crossed that threshold.
+    const strategicCautionNoteText = (!atWar && hasKnownStrategicCapability(state, civId, state.currentPlayer))
+      ? `${civ.name} is wary of your strategic capability.`
+      : null;
+
     civRows.push({
       civId,
       civIdx,
@@ -301,6 +310,7 @@ export function createDiplomacyPanel(
       sendAidHelpText,
       sendAidDisabled,
       sendAidDisabledReason,
+      strategicCautionNoteText,
     });
     civIdx++;
   }
@@ -429,6 +439,10 @@ export function createDiplomacyPanel(
         </div>`
       : '';
 
+    const strategicCautionNoteHtml = row.strategicCautionNoteText
+      ? `<div style="font-size:11px;color:#e8c170;margin-bottom:8px;" data-text="strategic-caution-${row.civIdx}"></div>`
+      : '';
+
     let actionsHtml = '<div style="display:flex;flex-wrap:wrap;gap:6px;">';
     if (row.peaceRequestState === 'incoming' && row.peaceRequestId) {
       actionsHtml += `<button class="diplo-accept-peace" data-request-id="${row.peaceRequestId}" data-action="accept-peace-request" style="padding:6px 12px;background:rgba(74,155,74,0.3);border:1px solid #4a9b4a;border-radius:6px;color:white;cursor:pointer;font-size:11px;">Accept Peace</button>`;
@@ -453,6 +467,7 @@ export function createDiplomacyPanel(
             ${warSinceHtml}
             ${worldPressureHtml}
             ${worldPressureDetailHtml}
+            ${strategicCautionNoteHtml}
             ${treatyProposalsHtml}
           </div>
         </div>
@@ -543,6 +558,9 @@ export function createDiplomacyPanel(
     }
     if (row.worldPressureDetailText) {
       setText(`world-pressure-detail-${row.civIdx}`, row.worldPressureDetailText);
+    }
+    if (row.strategicCautionNoteText) {
+      setText(`strategic-caution-${row.civIdx}`, row.strategicCautionNoteText);
     }
     if (row.sendAidCrisisId) {
       setText(`send-aid-help-${row.civIdx}`, row.sendAidHelpText ?? '');

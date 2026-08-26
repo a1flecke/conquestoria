@@ -960,3 +960,46 @@ describe('#591 MR4 — diplomacy panel religion summary', () => {
     expect(panel.textContent).not.toContain('Rival Faith');
   });
 });
+
+describe('strategic deterrence caution note (#545 MR5)', () => {
+  it('shows a caution note for a not-at-war civ with known strategic capability', () => {
+    const { container, state } = makeDiplomacyFixture({ currentPlayer: 'player', includeBreakaway: true, includeThirdCiv: true });
+    state.civilizations.outsider.knownCivilizations = ['player'];
+    state.builtNationalProjects = { 'player:manhattan_project': { civId: 'player', cityId: 'city-capital', eraBuilt: 10 } };
+
+    const panel = createDiplomacyPanel(container, state, { onAction: () => {}, onClose: () => {} });
+
+    const rendered = (panel as unknown as { innerHTML?: string; textContent?: string }).innerHTML ?? panel.textContent ?? '';
+    expect(rendered).toContain('wary of your strategic capability');
+  });
+
+  it('omits the note when the civ has no known strategic capability', () => {
+    const { container, state } = makeDiplomacyFixture({ currentPlayer: 'player', includeBreakaway: true, includeThirdCiv: true });
+    state.civilizations.outsider.knownCivilizations = ['player'];
+    // No builtNationalProjects -- Manhattan Project not built.
+
+    const panel = createDiplomacyPanel(container, state, { onAction: () => {}, onClose: () => {} });
+
+    const rendered = (panel as unknown as { innerHTML?: string; textContent?: string }).innerHTML ?? panel.textContent ?? '';
+    expect(rendered).not.toContain('wary of your strategic capability');
+  });
+
+  it('omits the note for a civ currently at war (the caution factor only matters pre-war)', () => {
+    const { container, state } = makeDiplomacyFixture({ currentPlayer: 'player', includeBreakaway: true, includeThirdCiv: true });
+    state.civilizations.outsider.knownCivilizations = ['player'];
+    state.builtNationalProjects = { 'player:manhattan_project': { civId: 'player', cityId: 'city-capital', eraBuilt: 10 } };
+    state.civilizations.player.diplomacy.atWarWith = ['outsider', 'breakaway-city-border'];
+    state.civilizations.outsider.diplomacy.atWarWith = ['player'];
+    // The breakaway civ is always "met" via its own origin relation
+    // (hasMetCivilizationByCurrentEvidence's breakaway.originOwnerId check),
+    // so once player has Manhattan Project it independently qualifies for
+    // the caution note too -- put it at war as well so this test's
+    // whole-panel assertion isn't confounded by that unrelated row.
+    state.civilizations['breakaway-city-border'].diplomacy.atWarWith = ['player'];
+
+    const panel = createDiplomacyPanel(container, state, { onAction: () => {}, onClose: () => {} });
+
+    const rendered = (panel as unknown as { innerHTML?: string; textContent?: string }).innerHTML ?? panel.textContent ?? '';
+    expect(rendered).not.toContain('wary of your strategic capability');
+  });
+});
