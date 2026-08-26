@@ -221,6 +221,7 @@ export function createSelectionController(deps: SelectionControllerDeps): Select
               if (result.ok && targetCivId) {
                 session.commit(result.state);
                 deps.renderLoop.setGameState(session.getState());
+                SFX.strategicStrike();
                 deps.showNotification('Strategic strike launched.', 'warning');
                 deps.bus.emit('city:strategic-strike', { cityId: targetCityId, recipientCivId: targetCivId, goldLost: result.goldLost });
               }

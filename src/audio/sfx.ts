@@ -73,6 +73,17 @@ export const SFX = {
     playTone(200, 0.1, 0.3, 'sawtooth');
     setTimeout(() => playTone(150, 0.15, 0.25, 'sawtooth'), 100);
   },
+  // #545 MR4: a strategic strike is the most consequential single action in
+  // the game -- deliberately deeper, longer, and more layered than `combat`
+  // above (three descending, overlapping low tones rather than two quick
+  // ones) so it reads as a distinct, weightier event. Pure oscillator
+  // synthesis, same as every other entry here -- no asset file, no
+  // licensing surface.
+  strategicStrike: () => {
+    playTone(90, 0.6, 0.35, 'square');
+    setTimeout(() => playTone(65, 0.8, 0.3, 'sawtooth'), 90);
+    setTimeout(() => playTone(45, 1.1, 0.28, 'square'), 220);
+  },
   research: () => {
     playTone(880, 0.1, 0.15);
     setTimeout(() => playTone(1100, 0.1, 0.15), 80);
