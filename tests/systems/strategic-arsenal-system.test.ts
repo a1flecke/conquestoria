@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { GameState } from '@/core/types';
-import { hasManhattanProject, getStrategicArsenalCapacity, getStrategicArsenal, addWarheadToArsenal, spendStrategicArsenal } from '@/systems/strategic-arsenal-system';
+import { hasManhattanProject, hasKnownStrategicCapability, getStrategicArsenalCapacity, getStrategicArsenal, addWarheadToArsenal, spendStrategicArsenal } from '@/systems/strategic-arsenal-system';
 
 function makeState(overrides: Partial<GameState> = {}): GameState {
   return {
@@ -63,6 +63,51 @@ describe('hasManhattanProject', () => {
       },
     });
     expect(hasManhattanProject(state, 'p1')).toBe(false);
+  });
+});
+
+describe('hasKnownStrategicCapability (#545 MR5)', () => {
+  it('is false when the viewer has not met the owner, even with Manhattan Project built', () => {
+    const state = makeState({
+      civilizations: {
+        viewer: makeCiv({ id: 'viewer', knownCivilizations: [] }),
+        owner: makeCiv({ id: 'owner', knownCivilizations: [] }),
+      },
+      builtNationalProjects: { 'owner:manhattan_project': { civId: 'owner', cityId: 'c1', eraBuilt: 10 } },
+    });
+    expect(hasKnownStrategicCapability(state, 'viewer', 'owner')).toBe(false);
+  });
+
+  it('is false when met but Manhattan Project is not built', () => {
+    const state = makeState({
+      civilizations: {
+        viewer: makeCiv({ id: 'viewer', knownCivilizations: ['owner'] }),
+        owner: makeCiv({ id: 'owner', knownCivilizations: [] }),
+      },
+    });
+    expect(hasKnownStrategicCapability(state, 'viewer', 'owner')).toBe(false);
+  });
+
+  it('is true when met and Manhattan Project is built', () => {
+    const state = makeState({
+      civilizations: {
+        viewer: makeCiv({ id: 'viewer', knownCivilizations: ['owner'] }),
+        owner: makeCiv({ id: 'owner', knownCivilizations: [] }),
+      },
+      builtNationalProjects: { 'owner:manhattan_project': { civId: 'owner', cityId: 'c1', eraBuilt: 10 } },
+    });
+    expect(hasKnownStrategicCapability(state, 'viewer', 'owner')).toBe(true);
+  });
+
+  it('meeting can be evidenced from either side (target knows viewer)', () => {
+    const state = makeState({
+      civilizations: {
+        viewer: makeCiv({ id: 'viewer', knownCivilizations: [] }),
+        owner: makeCiv({ id: 'owner', knownCivilizations: ['viewer'] }),
+      },
+      builtNationalProjects: { 'owner:manhattan_project': { civId: 'owner', cityId: 'c1', eraBuilt: 10 } },
+    });
+    expect(hasKnownStrategicCapability(state, 'viewer', 'owner')).toBe(true);
   });
 });
 

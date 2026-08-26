@@ -1,4 +1,5 @@
 import type { Civilization, GameState } from '@/core/types';
+import { hasMetCivilization } from '@/systems/discovery-system';
 
 const MANHATTAN_PROJECT_ID = 'manhattan_project';
 
@@ -10,6 +11,22 @@ const MANHATTAN_PROJECT_ID = 'manhattan_project';
  */
 export function hasManhattanProject(state: GameState, civId: string): boolean {
   return state.builtNationalProjects?.[`${civId}:${MANHATTAN_PROJECT_ID}`] !== undefined;
+}
+
+/**
+ * #545 MR5 spec §9: one source of truth for "does viewerCivId know ownerCivId
+ * has nuclear capability" -- shared verbatim by AI war-scoring
+ * (shouldDeclareWar), the diplomacy panel's caution note, and the launch-
+ * preview's retaliation-risk note. Never exposes the exact arsenal count --
+ * only this boolean.
+ */
+export function hasKnownStrategicCapability(
+  state: GameState,
+  viewerCivId: string,
+  ownerCivId: string,
+): boolean {
+  return hasMetCivilization(state, viewerCivId, ownerCivId)
+    && hasManhattanProject(state, ownerCivId);
 }
 
 const MANHATTAN_PROJECT_BASE_CAPACITY = 1;
