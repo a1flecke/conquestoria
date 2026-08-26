@@ -120,3 +120,22 @@ describe('createStrategicLaunchFlow (#545 MR4 §14 stages 2-3)', () => {
     expect(onClose).toHaveBeenCalled();
   });
 });
+
+describe('retaliation-risk preview note (#545 MR5)', () => {
+  it('shows the retaliation-risk note when the target civ has known strategic capability', () => {
+    const container = document.createElement('div');
+    const state = makeState({
+      builtNationalProjects: { 'p2:manhattan_project': { civId: 'p2', cityId: 'target', eraBuilt: 10 } } as never,
+    });
+    createStrategicLaunchFlow(container, state, 'p1', { onSetPreview: vi.fn(), onConfirmLaunch: vi.fn(), onClose: vi.fn() });
+    (container.querySelector('[data-target-city-id="target"]') as HTMLElement).click();
+    expect(container.textContent).toContain('their own strategic capability');
+  });
+
+  it('omits the note when the target civ has no known strategic capability', () => {
+    const container = document.createElement('div');
+    createStrategicLaunchFlow(container, makeState(), 'p1', { onSetPreview: vi.fn(), onConfirmLaunch: vi.fn(), onClose: vi.fn() });
+    (container.querySelector('[data-target-city-id="target"]') as HTMLElement).click();
+    expect(container.textContent).not.toContain('their own strategic capability');
+  });
+});

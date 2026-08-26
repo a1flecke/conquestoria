@@ -3,7 +3,7 @@ import { createGameButton } from '@/ui/ui-kit';
 import { getLegalStrategicLaunchTargets, isStrategicStrikeRetaliation } from '@/systems/strategic-launch-system';
 import { getStrategicStrikePreviewEffect, STRIKE_BLAST_RADIUS } from '@/systems/strategic-strike-system';
 import { SACK_GOLD_LOSS_FRACTION } from '@/systems/city-siege-system';
-import { getStrategicArsenal } from '@/systems/strategic-arsenal-system';
+import { getStrategicArsenal, hasKnownStrategicCapability } from '@/systems/strategic-arsenal-system';
 import {
   getStrategicLaunchPreviewPresentation,
   type StrategicLaunchPreviewPresentation,
@@ -125,6 +125,9 @@ export function createStrategicLaunchFlow(
       isRetaliation
         ? `Relations with this civ will fall by ${deltas.target} (retaliation). Witnesses will react by ${deltas.witness}.`
         : `Relations with this civ will fall sharply by ${deltas.target} (unprovoked first use). Witnesses will react by ${deltas.witness}.`,
+      ...(hasKnownStrategicCapability(state, actorCivId, city.owner)
+        ? ['This civilization has their own strategic capability -- they may be willing to retaliate.']
+        : []),
       `Arsenal after launch: ${arsenalAfter}.`,
     ];
     for (const line of lines) {
