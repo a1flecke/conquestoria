@@ -8,7 +8,10 @@ function makeState(overrides: Partial<GameState> = {}): GameState {
     civilizations: {
       p1: {
         id: 'p1', cities: [], units: [], strategicArsenal: 2,
-        diplomacy: { strategicStrikesReceivedFrom: ['p2'] },
+        // treaties: [] must be present -- getActiveArmsControlCap (#545 MR6)
+        // reads civ.diplomacy.treaties unconditionally, same convention as
+        // every other diplomacy helper in this codebase.
+        diplomacy: { strategicStrikesReceivedFrom: ['p2'], treaties: [] },
       } as any,
     },
     cities: {}, units: {},
@@ -34,5 +37,22 @@ describe('getStrategicArsenalSummaryPresentation (#545 MR4 warchief panel)', () 
     const presentation = getStrategicArsenalSummaryPresentation(makeState(), 'nobody');
     expect(presentation.arsenalCount).toBe(0);
     expect(presentation.strikesReceivedFromCivIds).toEqual([]);
+  });
+
+  it('activeArmsControlCap is null with no active pact', () => {
+    const presentation = getStrategicArsenalSummaryPresentation(makeState(), 'p1');
+    expect(presentation.activeArmsControlCap).toBeNull();
+  });
+
+  it('activeArmsControlCap surfaces the active pact cap', () => {
+    const state = makeState({
+      civilizations: {
+        p1: {
+          id: 'p1', cities: [], units: [], strategicArsenal: 2,
+          diplomacy: { strategicStrikesReceivedFrom: ['p2'], treaties: [{ type: 'arms_control_pact', civA: 'p1', civB: 'p2', turnsRemaining: -1, arsenalCap: 4 }] },
+        } as any,
+      },
+    });
+    expect(getStrategicArsenalSummaryPresentation(state, 'p1').activeArmsControlCap).toBe(4);
   });
 });
