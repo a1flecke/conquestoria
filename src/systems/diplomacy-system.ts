@@ -190,6 +190,7 @@ export function signTreaty(
   type: TreatyType,
   turnsRemaining: number,
   turn: number,
+  arsenalCap?: number,
 ): DiplomacyState {
   const treaty: Treaty = {
     type,
@@ -199,6 +200,9 @@ export function signTreaty(
   };
   if (type === 'trade_agreement') {
     treaty.goldPerTurn = 2;
+  }
+  if (type === 'arms_control_pact' && arsenalCap !== undefined) {
+    treaty.arsenalCap = arsenalCap;
   }
   const newState = {
     ...state,
@@ -288,6 +292,7 @@ export function getAvailableActions(
   targetCivId: string,
   completedTechs: string[],
   era: number,
+  hasArmsControlTreaty: boolean,
 ): DiplomaticAction[] {
   const actions: DiplomaticAction[] = [];
   const atWar = isAtWar(state, targetCivId);
@@ -323,6 +328,10 @@ export function getAvailableActions(
       }
     }
 
+    if (hasArmsControlTreaty) {
+      actions.push('arms_control_pact');
+    }
+
     // Vassalage (only when weakened, era >= 2, not already a vassal)
     if (era >= 2 && !state.vassalage?.overlord) {
       actions.push('offer_vassalage');
@@ -342,6 +351,16 @@ export function getAvailableActions(
   }
 
   return actions;
+}
+
+/**
+ * #545 MR6 spec §12: "available to propose once the proposing civ has
+ * completed the Arms Control Treaty national project" -- the only human-
+ * facing gate for this action (unlike every other treaty type, there is no
+ * relationship/era/tech condition here; see getAvailableActions above).
+ */
+export function hasArmsControlTreaty(state: GameState, civId: string): boolean {
+  return state.builtNationalProjects?.[`${civId}:arms_control_treaty`] !== undefined;
 }
 
 export function canReabsorbBreakaway(

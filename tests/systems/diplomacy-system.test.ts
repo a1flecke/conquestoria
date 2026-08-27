@@ -17,6 +17,7 @@ import {
   getAvailableActions,
   isAtWar,
   hasAllianceTreaty,
+  hasArmsControlTreaty,
   rejectDiplomaticRequest,
   enqueueTreatyProposal,
   pruneExpiredDiplomaticRequests,
@@ -176,6 +177,16 @@ describe('diplomacy-system', () => {
       expect(state.treaties).toHaveLength(0);
       expect(getRelationship(state, 'ai-egypt')).toBe(-25); // +5 from propose, -30 from break
     });
+
+    it('arsenalCap is set only for arms_control_pact, ignored for every other type (#545 MR6)', () => {
+      let state = createDiplomacyState(civIds, 'player');
+      state = signTreaty(state, 'player', 'ai-egypt', 'arms_control_pact', -1, 15, 4);
+      expect(state.treaties[0].arsenalCap).toBe(4);
+
+      let other = createDiplomacyState(civIds, 'player');
+      other = signTreaty(other, 'player', 'ai-egypt', 'alliance', -1, 15, 4); // stray cap value must not leak
+      expect(other.treaties[0].arsenalCap).toBeUndefined();
+    });
   });
 
   describe('hasAllianceTreaty', () => {
@@ -240,29 +251,61 @@ describe('diplomacy-system', () => {
   describe('getAvailableActions', () => {
     it('always includes declare_war when not at war', () => {
       const state = createDiplomacyState(civIds, 'player');
-      const actions = getAvailableActions(state, 'ai-egypt', [], 1);
+      const actions = getAvailableActions(state, 'ai-egypt', [], 1, false);
       expect(actions).toContain('declare_war');
     });
 
     it('includes request_peace when at war', () => {
       let state = createDiplomacyState(civIds, 'player');
       state = declareWar(state, 'ai-egypt', 1);
-      const actions = getAvailableActions(state, 'ai-egypt', [], 1);
+      const actions = getAvailableActions(state, 'ai-egypt', [], 1, false);
       expect(actions).toContain('request_peace');
       expect(actions).not.toContain('declare_war');
     });
 
     it('includes non_aggression_pact with diplomacy-tech', () => {
       const state = createDiplomacyState(civIds, 'player');
-      const actions = getAvailableActions(state, 'ai-egypt', ['diplomacy-tech'], 1);
+      const actions = getAvailableActions(state, 'ai-egypt', ['diplomacy-tech'], 1, false);
       expect(actions).toContain('non_aggression_pact');
     });
 
     it('includes trade_agreement with trade-routes tech and positive relationship', () => {
       let state = createDiplomacyState(civIds, 'player');
       state = modifyRelationship(state, 'ai-egypt', 10);
-      const actions = getAvailableActions(state, 'ai-egypt', ['trade-routes'], 1);
+      const actions = getAvailableActions(state, 'ai-egypt', ['trade-routes'], 1, false);
       expect(actions).toContain('trade_agreement');
+    });
+
+    it('offers arms_control_pact once the proposer has hasArmsControlTreaty', () => {
+      const state = createDiplomacyState(civIds, 'player');
+      const actions = getAvailableActions(state, 'ai-egypt', [], 1, true);
+      expect(actions).toContain('arms_control_pact');
+    });
+
+    it('omits arms_control_pact without the national project, regardless of relationship/era/tech', () => {
+      let state = createDiplomacyState(civIds, 'player');
+      state = modifyRelationship(state, 'ai-egypt', 90);
+      const actions = getAvailableActions(state, 'ai-egypt', ['diplomacy-tech', 'trade-routes'], 12, false);
+      expect(actions).not.toContain('arms_control_pact');
+    });
+  });
+
+  describe('hasArmsControlTreaty (#545 MR6)', () => {
+    it('is false when the Arms Control Treaty national project has not been built', () => {
+      const state = createNewGame(undefined, 'arms-control-np-test', 'small');
+      expect(hasArmsControlTreaty(state, 'player')).toBe(false);
+    });
+
+    it('is true once player:arms_control_treaty is in builtNationalProjects', () => {
+      const state = createNewGame(undefined, 'arms-control-np-test-2', 'small');
+      state.builtNationalProjects = { 'player:arms_control_treaty': { civId: 'player', cityId: 'c1', eraBuilt: 11 } };
+      expect(hasArmsControlTreaty(state, 'player')).toBe(true);
+    });
+
+    it('is civ-scoped', () => {
+      const state = createNewGame(undefined, 'arms-control-np-test-3', 'small');
+      state.builtNationalProjects = { 'ai-1:arms_control_treaty': { civId: 'ai-1', cityId: 'c1', eraBuilt: 11 } };
+      expect(hasArmsControlTreaty(state, 'player')).toBe(false);
     });
   });
 

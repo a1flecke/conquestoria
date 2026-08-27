@@ -1017,7 +1017,8 @@ export type DiplomaticAction =
   | 'invite_to_league'
   | 'petition_league'
   | 'leave_league'
-  | 'reabsorb_breakaway';
+  | 'reabsorb_breakaway'
+  | 'arms_control_pact';
 
 export type TreatyType = 'non_aggression_pact' | 'trade_agreement' | 'open_borders' | 'alliance' | 'vassalage' | 'arms_control_pact';
 
