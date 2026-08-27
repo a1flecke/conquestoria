@@ -136,11 +136,18 @@ export function computeArmsControlCap(state: GameState, civAId: string, civBId: 
  * Most-restrictive (minimum) cap across every active arms_control_pact this
  * civ is a party to -- a civ can sign multiple pacts with different
  * partners at different caps; each is independently binding.
+ *
+ * `civ.diplomacy.treaties` is defensively defaulted to `[]` -- this is now
+ * called unconditionally from getArsenalStatus, which itself is threaded
+ * through getAvailableBuildings' many call sites (production candidates,
+ * planning, city panel). Numerous pre-existing test fixtures across the
+ * codebase construct partial Civilization/DiplomacyState objects that omit
+ * `treaties` entirely; without this guard every one of them throws here.
  */
 export function getActiveArmsControlCap(state: GameState, civId: string): number | null {
   const civ = state.civilizations[civId];
   if (!civ) return null;
-  const caps = civ.diplomacy.treaties
+  const caps = (civ.diplomacy.treaties ?? [])
     .filter(t => t.type === 'arms_control_pact' && (t.civA === civId || t.civB === civId))
     .map(t => t.arsenalCap)
     .filter((cap): cap is number => cap !== undefined);
