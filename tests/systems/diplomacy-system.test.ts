@@ -609,5 +609,31 @@ describe('diplomacy-system', () => {
       const pruned = pruneExpiredDiplomaticRequests({ ...state, turn: state.turn + 11 });
       expect(pruned.pendingDiplomacyRequests).toHaveLength(0);
     });
+
+    it('accepting a pending arms_control_pact computes the cap at accept time, not propose time (#545 MR6)', () => {
+      const state = makeTreatyState();
+      state.civilizations['ai-1'].strategicArsenal = 2;
+      state.civilizations.player.strategicArsenal = 1;
+      const proposed = enqueueTreatyProposal(state, 'ai-1', 'player', 'arms_control_pact', -1);
+      const requestId = proposed.pendingDiplomacyRequests![0].id;
+
+      // Arsenal changes between proposal and accept -- the cap must reflect
+      // the CURRENT counts at accept time.
+      const grown = {
+        ...proposed,
+        civilizations: {
+          ...proposed.civilizations,
+          player: { ...proposed.civilizations.player, strategicArsenal: 5 },
+        },
+      };
+
+      const accepted = acceptDiplomaticRequest(grown, 'player', requestId, new EventBus());
+      expect(accepted.civilizations.player.diplomacy.treaties).toContainEqual(
+        expect.objectContaining({ type: 'arms_control_pact', arsenalCap: 5 }),
+      );
+      expect(accepted.civilizations['ai-1'].diplomacy.treaties).toContainEqual(
+        expect.objectContaining({ type: 'arms_control_pact', arsenalCap: 5 }),
+      );
+    });
   });
 });
