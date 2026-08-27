@@ -31,11 +31,13 @@ export function evaluateDiplomacy(
   currentTurn: number,
   contextByCiv: Record<string, DiplomaticContext>,
   strategicDeterrenceCautionWeight: number,
+  hasArmsControlTreaty: boolean,
+  actorHasKnownCapability: boolean,
 ): DiplomaticDecision[] {
   const decisions: DiplomaticDecision[] = [];
 
   for (const civId of Object.keys(diplomacy.relationships)) {
-    const actions = getAvailableActions(diplomacy, civId, completedTechs, era);
+    const actions = getAvailableActions(diplomacy, civId, completedTechs, era, hasArmsControlTreaty);
     const relationship = getRelationship(diplomacy, civId);
     const theirStrength = militaryStrengths[civId]?.midpoint ?? 0;
     const ownStrength = selfStrength.midpoint;
@@ -71,6 +73,23 @@ export function evaluateDiplomacy(
         decisions.push({ action: 'trade_agreement', targetCiv: civId });
       } else if (actions.includes('non_aggression_pact') && relationship > 0 && personality.diplomacyFocus > 0.4) {
         decisions.push({ action: 'non_aggression_pact', targetCiv: civId });
+      }
+
+      // #545 MR6 spec §12: a separate, independent condition -- not part of
+      // the else-if chain above, since a civ can reasonably want both an
+      // alliance and an arms-control pact with the same target. Same
+      // relationship/diplomacyFocus bar as non_aggression_pact (spec's own
+      // "a similar...bar" framing), plus two capability checks: the actor's
+      // own known capability (self-evident, no visibility gate) and the
+      // target's known capability (MR5's hasKnownStrategicCapability, via
+      // the already-threaded DiplomaticContext field).
+      if (
+        actions.includes('arms_control_pact')
+        && relationship > 0 && personality.diplomacyFocus > 0.4
+        && actorHasKnownCapability
+        && context.targetHasKnownStrategicCapability
+      ) {
+        decisions.push({ action: 'arms_control_pact', targetCiv: civId });
       }
     }
   }

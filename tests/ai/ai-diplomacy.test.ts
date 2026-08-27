@@ -118,6 +118,8 @@ describe('evaluateDiplomacy', () => {
       1,
       { player: { hasMet: false, hasBorderPressure: false, targetHasKnownStrategicCapability: false } },
       0,
+      false,
+      false,
     );
 
     expect(decisions.find(d => d.action === 'declare_war')).toBeUndefined();
@@ -134,6 +136,8 @@ describe('evaluateDiplomacy', () => {
       20,
       {},
       0,
+      false,
+      false,
     );
 
     expect(decisions.find(decision => decision.action === 'declare_war')).toBeUndefined();
@@ -150,6 +154,8 @@ describe('evaluateDiplomacy', () => {
       20,
       { player: { hasMet: false, hasBorderPressure: false, targetHasKnownStrategicCapability: false } },
       0,
+      false,
+      false,
     );
 
     expect(decisions).toEqual([]);
@@ -166,6 +172,8 @@ describe('evaluateDiplomacy', () => {
       20,
       { player: { hasMet: true, hasBorderPressure: true, targetHasKnownStrategicCapability: false } },
       0,
+      false,
+      false,
     );
 
     expect(decisions.find(decision => decision.action === 'declare_war')).toBeUndefined();
@@ -182,6 +190,8 @@ describe('evaluateDiplomacy', () => {
       20,
       { player: { hasMet: true, hasBorderPressure: true, targetHasKnownStrategicCapability: false } },
       0,
+      false,
+      false,
     );
     expect(noCaution.find(d => d.action === 'declare_war')).toBeDefined();
 
@@ -195,7 +205,95 @@ describe('evaluateDiplomacy', () => {
       20,
       { player: { hasMet: true, hasBorderPressure: true, targetHasKnownStrategicCapability: true } },
       0.15,
+      false,
+      false,
     );
     expect(withCaution.find(d => d.action === 'declare_war')).toBeUndefined();
+  });
+
+  it('proposes arms_control_pact when both capability checks and the relationship/diplomacyFocus bar are met (#545 MR6)', () => {
+    const decisions = evaluateDiplomacy(
+      diplomaticPersonality, // diplomacyFocus: 0.8, well above the 0.4 bar
+      makeDiplomacy({ relationships: { player: 10 } }), // above the >0 bar
+      [],
+      12,
+      { player: strength(50) },
+      strength(50),
+      20,
+      { player: { hasMet: true, hasBorderPressure: false, targetHasKnownStrategicCapability: true } },
+      0,
+      true,  // hasArmsControlTreaty
+      true,  // actorHasKnownCapability
+    );
+    expect(decisions.find(d => d.action === 'arms_control_pact')).toBeDefined();
+  });
+
+  it('omits arms_control_pact when the actor itself has no known capability, even if everything else qualifies', () => {
+    const decisions = evaluateDiplomacy(
+      diplomaticPersonality,
+      makeDiplomacy({ relationships: { player: 10 } }),
+      [],
+      12,
+      { player: strength(50) },
+      strength(50),
+      20,
+      { player: { hasMet: true, hasBorderPressure: false, targetHasKnownStrategicCapability: true } },
+      0,
+      true,
+      false, // actorHasKnownCapability
+    );
+    expect(decisions.find(d => d.action === 'arms_control_pact')).toBeUndefined();
+  });
+
+  it('omits arms_control_pact when the actor does not know the target has capability, even if everything else qualifies', () => {
+    const decisions = evaluateDiplomacy(
+      diplomaticPersonality,
+      makeDiplomacy({ relationships: { player: 10 } }),
+      [],
+      12,
+      { player: strength(50) },
+      strength(50),
+      20,
+      { player: { hasMet: true, hasBorderPressure: false, targetHasKnownStrategicCapability: false } },
+      0,
+      true,
+      true,
+    );
+    expect(decisions.find(d => d.action === 'arms_control_pact')).toBeUndefined();
+  });
+
+  it('play-styles invariant: a civ with no known capability is never proposed an arms-control pact, regardless of relationship (#545 MR6)', () => {
+    const decisions = evaluateDiplomacy(
+      diplomaticPersonality,
+      makeDiplomacy({ relationships: { player: 90 } }), // maximally friendly
+      [],
+      12,
+      { player: strength(50) },
+      strength(50),
+      20,
+      { player: { hasMet: true, hasBorderPressure: false, targetHasKnownStrategicCapability: false } },
+      0,
+      true,
+      true,
+    );
+    expect(decisions.find(d => d.action === 'arms_control_pact')).toBeUndefined();
+  });
+
+  it('arms_control_pact can coexist with an alliance decision for the same target in the same call', () => {
+    const decisions = evaluateDiplomacy(
+      diplomaticPersonality,
+      makeDiplomacy({ relationships: { player: 60 } }), // clears alliance's own >50 bar too
+      [],
+      12,
+      { player: strength(50) },
+      strength(50),
+      20,
+      { player: { hasMet: true, hasBorderPressure: false, targetHasKnownStrategicCapability: true } },
+      0,
+      true,
+      true,
+    );
+    expect(decisions.find(d => d.action === 'alliance')).toBeDefined();
+    expect(decisions.find(d => d.action === 'arms_control_pact')).toBeDefined();
   });
 });
