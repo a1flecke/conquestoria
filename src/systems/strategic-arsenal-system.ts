@@ -112,3 +112,56 @@ export function spendStrategicArsenal(state: GameState, civId: string): GameStat
     },
   };
 }
+
+/**
+ * #545 MR6 spec §12: both signatories are capped at the higher of their two
+ * current arsenals, floored at 1 -- never 0. A floor of exactly 0
+ * (legitimately reachable: hasKnownStrategicCapability only requires
+ * Manhattan Project, not any built warhead) would permanently ban either
+ * signatory from ever building one without first breaking the pact, and
+ * would leave a Veteran AI with zero possible existential-threat response
+ * (ai-strategic-doctrine.ts's gate requires strategicArsenal >= 1).
+ */
+export function computeArmsControlCap(state: GameState, civAId: string, civBId: string): number {
+  const civA = state.civilizations[civAId];
+  const civB = state.civilizations[civBId];
+  return Math.max(
+    civA ? getStrategicArsenal(civA) : 0,
+    civB ? getStrategicArsenal(civB) : 0,
+    1,
+  );
+}
+
+/**
+ * Most-restrictive (minimum) cap across every active arms_control_pact this
+ * civ is a party to -- a civ can sign multiple pacts with different
+ * partners at different caps; each is independently binding.
+ */
+export function getActiveArmsControlCap(state: GameState, civId: string): number | null {
+  const civ = state.civilizations[civId];
+  if (!civ) return null;
+  const caps = civ.diplomacy.treaties
+    .filter(t => t.type === 'arms_control_pact' && (t.civA === civId || t.civB === civId))
+    .map(t => t.arsenalCap)
+    .filter((cap): cap is number => cap !== undefined);
+  return caps.length > 0 ? Math.min(...caps) : null;
+}
+
+/**
+ * #545 MR6: single shared computation, replacing four previously-duplicated
+ * inline { hasManhattanProject, atCapacity } object literals (city-panel.ts,
+ * ai-production.ts, planning-system.ts x2). Folds the arms-control treaty
+ * cap into the same atCapacity boolean getAvailableBuildings already uses to
+ * gate warhead production -- no separate enforcement pass needed.
+ */
+export function getArsenalStatus(state: GameState, civId: string): { hasManhattanProject: boolean; atCapacity: boolean } {
+  const civ = state.civilizations[civId];
+  const current = civ ? getStrategicArsenal(civ) : 0;
+  const physicalCap = getStrategicArsenalCapacity(state, civId);
+  const treatyCap = getActiveArmsControlCap(state, civId);
+  const effectiveCap = treatyCap !== null ? Math.min(physicalCap, treatyCap) : physicalCap;
+  return {
+    hasManhattanProject: hasManhattanProject(state, civId),
+    atCapacity: current >= effectiveCap,
+  };
+}

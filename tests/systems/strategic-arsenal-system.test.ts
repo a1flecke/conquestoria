@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { GameState } from '@/core/types';
-import { hasManhattanProject, hasKnownStrategicCapability, getStrategicArsenalCapacity, getStrategicArsenal, addWarheadToArsenal, spendStrategicArsenal } from '@/systems/strategic-arsenal-system';
+import { hasManhattanProject, hasKnownStrategicCapability, getStrategicArsenalCapacity, getStrategicArsenal, addWarheadToArsenal, spendStrategicArsenal, computeArmsControlCap, getActiveArmsControlCap, getArsenalStatus } from '@/systems/strategic-arsenal-system';
 
 function makeState(overrides: Partial<GameState> = {}): GameState {
   return {
@@ -256,5 +256,124 @@ describe('spendStrategicArsenal', () => {
     const state = makeState({ civilizations: { p1: makeCiv({ strategicArsenal: 2 }) } });
     spendStrategicArsenal(state, 'p1');
     expect(state.civilizations.p1.strategicArsenal).toBe(2);
+  });
+});
+
+describe('computeArmsControlCap (#545 MR6)', () => {
+  it('is the higher of the two arsenals', () => {
+    const state = makeState({
+      civilizations: { p1: makeCiv({ strategicArsenal: 5 }), p2: makeCiv({ id: 'p2', strategicArsenal: 2 }) },
+    });
+    expect(computeArmsControlCap(state, 'p1', 'p2')).toBe(5);
+    expect(computeArmsControlCap(state, 'p2', 'p1')).toBe(5); // symmetric regardless of argument order
+  });
+
+  it('floors at 1 even when both arsenals are 0', () => {
+    const state = makeState({
+      civilizations: { p1: makeCiv({ strategicArsenal: 0 }), p2: makeCiv({ id: 'p2', strategicArsenal: 0 }) },
+    });
+    expect(computeArmsControlCap(state, 'p1', 'p2')).toBe(1);
+  });
+
+  it('floors at 1 when arsenal is absent (never built a warhead)', () => {
+    const state = makeState({
+      civilizations: { p1: makeCiv({}), p2: makeCiv({ id: 'p2' }) },
+    });
+    expect(computeArmsControlCap(state, 'p1', 'p2')).toBe(1);
+  });
+
+  it('treats an unknown civ as arsenal 0', () => {
+    const state = makeState({
+      civilizations: { p1: makeCiv({ strategicArsenal: 3 }) },
+    });
+    expect(computeArmsControlCap(state, 'p1', 'nobody')).toBe(3);
+  });
+});
+
+describe('getActiveArmsControlCap (#545 MR6)', () => {
+  it('is null with no active pact', () => {
+    const state = makeState({ civilizations: { p1: makeCiv({}) } });
+    expect(getActiveArmsControlCap(state, 'p1')).toBeNull();
+  });
+
+  it('returns the single active pact cap', () => {
+    const state = makeState({
+      civilizations: {
+        p1: makeCiv({
+          diplomacy: { relationships: {}, treaties: [{ type: 'arms_control_pact', civA: 'p1', civB: 'p2', turnsRemaining: -1, arsenalCap: 4 }], events: [], atWarWith: [], treacheryScore: 0, vassalage: { overlord: null, vassals: [], protectionScore: 0, protectionTimers: [], peakCities: 0, peakMilitary: 0 } },
+        }),
+      },
+    });
+    expect(getActiveArmsControlCap(state, 'p1')).toBe(4);
+  });
+
+  it('returns the MINIMUM (most restrictive) across multiple active pacts', () => {
+    const state = makeState({
+      civilizations: {
+        p1: makeCiv({
+          diplomacy: {
+            relationships: {}, events: [], atWarWith: [], treacheryScore: 0,
+            vassalage: { overlord: null, vassals: [], protectionScore: 0, protectionTimers: [], peakCities: 0, peakMilitary: 0 },
+            treaties: [
+              { type: 'arms_control_pact', civA: 'p1', civB: 'p2', turnsRemaining: -1, arsenalCap: 6 },
+              { type: 'arms_control_pact', civA: 'p3', civB: 'p1', turnsRemaining: -1, arsenalCap: 2 },
+            ],
+          },
+        }),
+      },
+    });
+    expect(getActiveArmsControlCap(state, 'p1')).toBe(2);
+  });
+
+  it('ignores non-arms-control treaties', () => {
+    const state = makeState({
+      civilizations: {
+        p1: makeCiv({
+          diplomacy: { relationships: {}, events: [], atWarWith: [], treacheryScore: 0, vassalage: { overlord: null, vassals: [], protectionScore: 0, protectionTimers: [], peakCities: 0, peakMilitary: 0 }, treaties: [{ type: 'alliance', civA: 'p1', civB: 'p2', turnsRemaining: -1 }] },
+        }),
+      },
+    });
+    expect(getActiveArmsControlCap(state, 'p1')).toBeNull();
+  });
+});
+
+describe('getArsenalStatus (#545 MR6)', () => {
+  it('atCapacity reflects physical capacity when no treaty cap is active', () => {
+    const state = makeState({
+      civilizations: { p1: makeCiv({ cities: [], strategicArsenal: 1 }) },
+      builtNationalProjects: { 'p1:manhattan_project': { civId: 'p1', cityId: 'c1', eraBuilt: 10 } },
+    });
+    // base capacity 1, arsenal 1 -> at capacity
+    expect(getArsenalStatus(state, 'p1').atCapacity).toBe(true);
+    expect(getArsenalStatus(state, 'p1').hasManhattanProject).toBe(true);
+  });
+
+  it('atCapacity becomes true from a treaty cap even with physical capacity remaining', () => {
+    const state = makeState({
+      civilizations: {
+        p1: makeCiv({
+          cities: ['c1'], strategicArsenal: 1,
+          diplomacy: { relationships: {}, events: [], atWarWith: [], treacheryScore: 0, vassalage: { overlord: null, vassals: [], protectionScore: 0, protectionTimers: [], peakCities: 0, peakMilitary: 0 }, treaties: [{ type: 'arms_control_pact', civA: 'p1', civB: 'p2', turnsRemaining: -1, arsenalCap: 1 }] },
+        }),
+      },
+      builtNationalProjects: {
+        'p1:manhattan_project': { civId: 'p1', cityId: 'c1', eraBuilt: 10 },
+      },
+      // civ.cities must include 'c1' for getStrategicArsenalCapacity to count
+      // its buildings -- base 1 + missile_silo 1 = physical capacity 2, so
+      // this genuinely proves the treaty cap (1) is the binding constraint,
+      // not just physical capacity coincidentally also being 1.
+      cities: { c1: makeCity('c1', ['missile_silo']) }, // physical capacity 2, but treaty cap is 1
+    });
+    expect(getArsenalStatus(state, 'p1').atCapacity).toBe(true);
+  });
+
+  it('atCapacity is false when physical capacity exceeds arsenal and no treaty cap applies', () => {
+    const state = makeState({
+      civilizations: { p1: makeCiv({ cities: ['c1'], strategicArsenal: 1 }) },
+      builtNationalProjects: { 'p1:manhattan_project': { civId: 'p1', cityId: 'c1', eraBuilt: 10 } },
+      cities: { c1: makeCity('c1', ['missile_silo']) }, // physical capacity 2, arsenal 1 -> not at capacity
+    });
+    expect(getArsenalStatus(state, 'p1').atCapacity).toBe(false);
   });
 });
