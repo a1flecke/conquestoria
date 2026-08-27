@@ -2917,4 +2917,34 @@ describe('AI arms-control-pact proposing (#545 MR6)', () => {
       expect.objectContaining({ type: 'arms_control_pact', civA: neighborId, civB: aiId }),
     );
   });
+
+  it('does not re-sign a duplicate pact on a second consecutive turn once already signed (#545 MR6 review finding)', () => {
+    const state = createNewGame(undefined, 'mr6-arms-control-no-duplicate', 'small');
+    const aiId = 'ai-1';
+    const neighborId = 'ai-2';
+    state.builtNationalProjects = { [`${aiId}:arms_control_treaty`]: { civId: aiId, cityId: 'c1', eraBuilt: 11 } };
+    state.builtNationalProjects[`${aiId}:manhattan_project`] = { civId: aiId, cityId: 'c1', eraBuilt: 10 };
+    state.builtNationalProjects[`${neighborId}:manhattan_project`] = { civId: neighborId, cityId: 'c2', eraBuilt: 10 };
+    state.civilizations[aiId].civType = '__mr6_test_neutral_personality__';
+    state.civilizations[aiId].knownCivilizations = [neighborId];
+    state.civilizations[neighborId] = {
+      ...state.civilizations[aiId],
+      id: neighborId, name: 'Neighbor', knownCivilizations: [aiId],
+      cities: [], units: [],
+    };
+    state.civilizations[aiId].diplomacy.relationships[neighborId] = 20;
+    state.civilizations[neighborId].diplomacy.relationships[aiId] = 20;
+
+    // Every condition that made the first turn sign a pact (relationship,
+    // personality, both national projects/capabilities) still holds on the
+    // second turn -- without the getAvailableActions not-already-signed
+    // guard, evaluateDiplomacy would re-decide to propose and basic-ai.ts's
+    // AI<->AI branch would immediately sign a second duplicate treaty entry.
+    const afterFirstTurn = processAITurn(state, aiId, new EventBus());
+    const afterSecondTurn = processAITurn({ ...afterFirstTurn, turn: afterFirstTurn.turn + 1 }, aiId, new EventBus());
+
+    const armsControlTreaties = afterSecondTurn.civilizations[aiId].diplomacy.treaties
+      .filter(t => t.type === 'arms_control_pact' && t.civB === neighborId);
+    expect(armsControlTreaties).toHaveLength(1);
+  });
 });

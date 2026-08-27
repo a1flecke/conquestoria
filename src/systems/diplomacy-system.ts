@@ -329,7 +329,18 @@ export function getAvailableActions(
       }
     }
 
-    if (hasArmsControlTreaty) {
+    // #545 MR6 review finding: without the not-already-signed check (matching
+    // every other treaty type above), this action -- and the AI's own
+    // evaluateDiplomacy decision to propose it, gated on the same
+    // getAvailableActions() call -- would keep re-firing every turn for a
+    // civ pair that already has an active pact, signing (AI<->AI: immediate,
+    // per basic-ai.ts) a new duplicate arms_control_pact treaty entry each
+    // time. Unguarded, this grows the treaties array unboundedly turn over
+    // turn and duplicates rows in the diplomacy panel.
+    if (
+      hasArmsControlTreaty
+      && !state.treaties.some(t => t.type === 'arms_control_pact' && (t.civB === targetCivId || t.civA === targetCivId))
+    ) {
       actions.push('arms_control_pact');
     }
 
