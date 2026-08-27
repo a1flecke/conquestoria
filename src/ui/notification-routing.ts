@@ -236,6 +236,7 @@ export const TREATY_LABELS: Record<TreatyType, string> = {
   open_borders: 'Open Borders',
   alliance: 'Alliance',
   vassalage: 'Vassalage',
+  arms_control_pact: 'Arms Control Pact',
 };
 
 export function routeTreatyProposed(
