@@ -61,7 +61,7 @@ import { getCityTechYields } from '@/systems/tech-yield-system';
 import { resolveCivDefinition } from '@/systems/civ-registry';
 import { TECH_TREE, resolveCivilizationEra } from '@/systems/tech-definitions';
 import { evaluateProductionPrerequisites } from '@/systems/production-prerequisites';
-import { getStrategicArsenal, getStrategicArsenalCapacity, hasManhattanProject } from '@/systems/strategic-arsenal-system';
+import { getStrategicArsenal, getStrategicArsenalCapacity, hasManhattanProject, getArsenalStatus, getActiveArmsControlCap } from '@/systems/strategic-arsenal-system';
 import { createCityWorkSection } from './city-grid';
 import { createCityDistrictsTab } from './city-districts';
 import {
@@ -282,10 +282,7 @@ export function createCityPanel(
     currentCivEra,
     builtNPKeys,
     city.owner,
-    {
-      hasManhattanProject: hasManhattanProject(state, city.owner),
-      atCapacity: getStrategicArsenal(currentCiv) >= getStrategicArsenalCapacity(state, city.owner),
-    },
+    getArsenalStatus(state, city.owner),
   );
   const cityWonderEntries = getLegendaryWonderPresentationForCity(state, state.currentPlayer, city.id);
   const compactWonderEntries = getCompactLegendaryWonderEntriesForCity(state, state.currentPlayer, city.id, 4);

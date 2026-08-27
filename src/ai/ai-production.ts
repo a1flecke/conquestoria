@@ -24,7 +24,7 @@ import { createUnit, UNIT_DEFINITIONS } from '@/systems/unit-system';
 import { canCompleteAirUnitProduction, getAirBaseRoster } from '@/systems/air-operations-system';
 import { enqueueCityProduction } from '@/systems/planning-system';
 import { getActiveNationalProjectsForCiv, getCircularManufacturingMaterial, getReservedNationalProjectKeys } from '@/systems/national-project-system';
-import { getStrategicArsenal, getStrategicArsenalCapacity, hasManhattanProject } from '@/systems/strategic-arsenal-system';
+import { getArsenalStatus } from '@/systems/strategic-arsenal-system';
 import type { AIForceDemand } from './ai-unit-assignment';
 import { getAIStrategicRoles } from './ai-unit-roles';
 import { weightProductionRoles } from './ai-personality';
@@ -583,10 +583,7 @@ function generateWithResidual(
     }
   }
 
-  const arsenalStatus = {
-    hasManhattanProject: hasManhattanProject(state, civId),
-    atCapacity: getStrategicArsenal(civ) >= getStrategicArsenalCapacity(state, civId),
-  };
+  const arsenalStatus = getArsenalStatus(state, civId);
   for (const building of getAvailableBuildings(
     city,
     civ.techState.completed,
