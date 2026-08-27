@@ -101,7 +101,12 @@ export type LegendaryWonderStandardQuestStep =
   | (LegendaryWonderQuestStepBase & {
     type: 'buildings-in-multiple-cities'; targetCount?: number; cityScope?: 'host-city' | 'empire'; minimumBuildingsPerCity?: number;
   })
-  | (LegendaryWonderQuestStepBase & { type: 'map-discoveries'; targetCount?: number; discoveryTypes?: Array<'natural-wonder' | 'tribal-village'> });
+  | (LegendaryWonderQuestStepBase & { type: 'map-discoveries'; targetCount?: number; discoveryTypes?: Array<'natural-wonder' | 'tribal-village'> })
+  | (LegendaryWonderQuestStepBase & { type: 'field-combat-roles'; targetUnitCount: number; targetRoleCount: number; allowedRoles?: CombatRole[] })
+  | (LegendaryWonderQuestStepBase & { type: 'surviving-combat-wins'; targetCount: number; allowedRoles?: CombatRole[] })
+  | (LegendaryWonderQuestStepBase & { type: 'fort-completions'; targetCount: number; distinctCityTerritories?: boolean })
+  | (LegendaryWonderQuestStepBase & { type: 'fortification-repels'; targetCount: number; tiers?: Array<'fort' | 'citadel'> })
+  | (LegendaryWonderQuestStepBase & { type: 'successful-interceptions'; targetCount: number });
 
 export type LegendaryWonderQuestStepDefinition =
   | LegendaryWonderStandardQuestStep
@@ -186,10 +191,44 @@ export interface LegendaryWonderNetworkPlanResolutionRecord {
   turn: number;
 }
 
+export type LegendaryWonderMilitaryFact =
+  | {
+    id: string;
+    kind: 'surviving-combat-win';
+    civId: string;
+    unitId: string;
+    role: CombatRole;
+    turn: number;
+  }
+  | {
+    id: string;
+    kind: 'fort-completed';
+    civId: string;
+    cityId: string;
+    position: HexCoord;
+    turn: number;
+  }
+  | {
+    id: string;
+    kind: 'fortification-repel';
+    civId: string;
+    unitId: string;
+    tier: 'fort' | 'citadel';
+    turn: number;
+  }
+  | {
+    id: string;
+    kind: 'successful-interception';
+    civId: string;
+    interceptorId: string;
+    turn: number;
+  };
+
 export interface LegendaryWonderHistory {
   destroyedStrongholds: DestroyedStrongholdRecord[];
   discoveredSites: LegendaryWonderDiscoveredSiteRecord[];
   networkPlanResolutions?: LegendaryWonderNetworkPlanResolutionRecord[];
+  militaryFacts?: LegendaryWonderMilitaryFact[];
 }
 
 // --- Great Generals (#544 MR3, heroic commands #544 MR4) ---

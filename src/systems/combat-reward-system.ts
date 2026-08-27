@@ -19,6 +19,9 @@ import { recordCampPressureFromCombatOutcome } from '@/systems/barbarian-pressur
 import { normalizeCrisisForces } from '@/systems/crisis-force-system';
 import { resolveRogueElephantHostHandlerDeaths } from '@/systems/rogue-elephant-host-system';
 import { hexKey } from '@/systems/hex-utils';
+import { getUnitRoleDefinition } from '@/systems/combat-role-definitions';
+import { appendLegendaryWonderMilitaryFacts } from '@/systems/legendary-wonder-history';
+import { getFortificationTier } from '@/systems/fortification-system';
 
 /** Age-of-Sail through ironclad — boarding-action flavor. Everything else
  * (destroyer onward) uses modern "disabled and captured" phrasing. Same
@@ -783,6 +786,56 @@ export function applyCombatOutcomeToState(
     defeatedUnitIds,
   ));
   nextState = recordGeneralDeaths(state.units, nextState);
+  const militaryFacts = [];
+  if ((defenderActuallyDefeated || defenderCaptured)
+    && nextState.units[attackerBefore.id]
+    && (UNIT_DEFINITIONS[defenderBefore.type]?.strength ?? 0) > 0) {
+    const role = getUnitRoleDefinition(attackerBefore.type)?.primaryRole;
+    if (role && (UNIT_DEFINITIONS[attackerBefore.type]?.strength ?? 0) > 0) {
+      militaryFacts.push({
+        id: `combat-win:${state.turn}:${attackerBefore.id}:${defenderBefore.id}:${attackerBefore.id}`,
+        kind: 'surviving-combat-win' as const,
+        civId: attackerBefore.owner,
+        unitId: attackerBefore.id,
+        role,
+        turn: state.turn,
+      });
+    }
+  }
+  if ((attackerActuallyDefeated || attackerCaptured)
+    && nextState.units[defenderBefore.id]
+    && (UNIT_DEFINITIONS[attackerBefore.type]?.strength ?? 0) > 0) {
+    const role = getUnitRoleDefinition(defenderBefore.type)?.primaryRole;
+    if (role && (UNIT_DEFINITIONS[defenderBefore.type]?.strength ?? 0) > 0) {
+      militaryFacts.push({
+        id: `combat-win:${state.turn}:${attackerBefore.id}:${defenderBefore.id}:${defenderBefore.id}`,
+        kind: 'surviving-combat-win' as const,
+        civId: defenderBefore.owner,
+        unitId: defenderBefore.id,
+        role,
+        turn: state.turn,
+      });
+    }
+    const tile = state.map?.tiles?.[hexKey(defenderBefore.position)];
+    if (
+      attackerActuallyDefeated
+      &&
+      tile?.improvement === 'fort'
+      && tile.improvementTurnsLeft === 0
+      && tile.owner === defenderBefore.owner
+      && (UNIT_DEFINITIONS[defenderBefore.type]?.strength ?? 0) > 0
+    ) {
+      militaryFacts.push({
+        id: `fortification-repel:${state.turn}:${attackerBefore.id}:${defenderBefore.id}:${defenderBefore.id}`,
+        kind: 'fortification-repel' as const,
+        civId: defenderBefore.owner,
+        unitId: defenderBefore.id,
+        tier: getFortificationTier(state.civilizations[defenderBefore.owner]?.techState.completed ?? []).id,
+        turn: state.turn,
+      });
+    }
+  }
+  nextState = appendLegendaryWonderMilitaryFacts(nextState, militaryFacts);
 
   return {
     state: nextState,

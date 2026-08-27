@@ -6,6 +6,7 @@ import { buildCombatContextForDefender } from './combat-context';
 import { getVisibility } from './fog-of-war';
 import { isHostileOwnerTo } from './owner-hostility';
 import { applyCombatOutcomeToState } from './combat-reward-system';
+import { appendLegendaryWonderMilitaryFacts } from './legendary-wonder-history';
 import { applyCitySiegeOutcome, getCityGarrisonUnit, resolveCitySiegeDamage, type CitySiegeResult } from './city-siege-system';
 import { resolveChallengeForCiv } from '@/core/opponent-challenge';
 import { resolveCombatEra } from './era-resolution';
@@ -305,6 +306,15 @@ export function resolveAirStrike(state: GameState, unitId: string, target: HexCo
     const result = resolveCombat(interceptor, striker, state.map, deterministicCombatSeed(state.gameId, state.turn, interceptor.id, striker.id), buildCombatContextForDefender(state, interceptor, striker, { isIntercepting: true }), resolveCombatEra(state, interceptor, striker));
     nextState = applyAirCombatResult(nextState, result, deterministicCombatSeed(state.gameId, state.turn, interceptor.id, striker.id));
     if (nextState.units[interceptor.id]) nextState = { ...nextState, units: { ...nextState.units, [interceptor.id]: { ...nextState.units[interceptor.id]!, interceptedTurn: state.turn } } };
+    if (nextState.units[interceptor.id] && !nextState.units[striker.id]) {
+      nextState = appendLegendaryWonderMilitaryFacts(nextState, [{
+        id: `interception:${state.turn}:${interceptor.id}:${striker.id}`,
+        kind: 'successful-interception',
+        civId: interceptor.owner,
+        interceptorId: interceptor.id,
+        turn: state.turn,
+      }]);
+    }
     interception = { interceptorId: interceptor.id, result };
     if (!nextState.units[striker.id]) return { ok: true, state: nextState, interception };
   }

@@ -1,4 +1,4 @@
-import type { ActiveCrisis, AirBaseRef, GameState, HexCoord, TradeRoute, Unit } from '@/core/types';
+import type { ActiveCrisis, AirBaseRef, GameState, HexCoord, LegendaryWonderMilitaryFact, TradeRoute, Unit } from '@/core/types';
 import { createRng } from '@/systems/map-generator';
 import { placeLateResources } from '@/systems/late-resource-placement';
 import { createMarketplaceState } from '@/systems/trade-system';
@@ -19,8 +19,9 @@ import { normalizeBarbarianCampPressure } from '@/systems/barbarian-pressure';
 import { normalizeCrisisForces } from '@/systems/crisis-force-system';
 import { normalizeStampedes } from '@/systems/stampede-system';
 import { normalizeRogueElephantHosts } from '@/systems/rogue-elephant-host-system';
+import { UNIT_ROLE_DEFINITIONS } from '@/systems/combat-role-definitions';
 
-export const CURRENT_SAVE_SCHEMA_VERSION = 20;
+export const CURRENT_SAVE_SCHEMA_VERSION = 21;
 
 export type SaveMigration = (state: GameState) => GameState;
 
@@ -712,6 +713,61 @@ function migrateLegacyMainFixups(state: GameState): GameState {
   return next;
 }
 
+const MILITARY_ROLES = new Set(Object.values(UNIT_ROLE_DEFINITIONS).map(definition => definition.primaryRole));
+
+function isNonEmptyString(value: unknown): value is string {
+  return typeof value === 'string' && value.length > 0;
+}
+
+function isTurn(value: unknown): value is number {
+  return typeof value === 'number' && Number.isInteger(value) && value >= 0;
+}
+
+function isMilitaryQuestFact(value: unknown): value is LegendaryWonderMilitaryFact {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  const fact = value as Record<string, unknown>;
+  if (!isNonEmptyString(fact.id) || !isNonEmptyString(fact.civId) || !isTurn(fact.turn)) return false;
+  switch (fact.kind) {
+    case 'surviving-combat-win':
+      return isNonEmptyString(fact.unitId) && typeof fact.role === 'string' && MILITARY_ROLES.has(fact.role as never);
+    case 'fort-completed':
+      return isNonEmptyString(fact.cityId)
+        && Boolean(fact.position && typeof fact.position === 'object'
+          && Number.isInteger((fact.position as Record<string, unknown>).q)
+          && Number.isInteger((fact.position as Record<string, unknown>).r));
+    case 'fortification-repel':
+      return isNonEmptyString(fact.unitId) && (fact.tier === 'fort' || fact.tier === 'citadel');
+    case 'successful-interception':
+      return isNonEmptyString(fact.interceptorId);
+    default:
+      return false;
+  }
+}
+
+export function normalizeLegendaryWonderMilitaryFacts(state: GameState): GameState {
+  const history = state.legendaryWonderHistory;
+  const rawFacts: unknown[] = Array.isArray(history?.militaryFacts) ? history.militaryFacts : [];
+  const seen = new Set<string>();
+  const militaryFacts = rawFacts.filter(isMilitaryQuestFact).filter(fact => {
+    if (seen.has(fact.id)) return false;
+    seen.add(fact.id);
+    return true;
+  });
+  const unchanged = Array.isArray(history?.militaryFacts)
+    && history!.militaryFacts!.length === militaryFacts.length
+    && history!.militaryFacts!.every((fact, index) => fact === militaryFacts[index]);
+  if (unchanged) return state;
+  return {
+    ...state,
+    legendaryWonderHistory: {
+      destroyedStrongholds: history?.destroyedStrongholds ?? [],
+      discoveredSites: history?.discoveredSites ?? [],
+      ...(history?.networkPlanResolutions ? { networkPlanResolutions: history.networkPlanResolutions } : {}),
+      militaryFacts,
+    },
+  };
+}
+
 export const SAVE_MIGRATIONS: Readonly<Record<number, SaveMigration>> = {
   1: migrateToEra13Foundation,
   2: migrateLateResources,
@@ -748,6 +804,7 @@ export const SAVE_MIGRATIONS: Readonly<Record<number, SaveMigration>> = {
       },
     ])),
   }),
+  21: normalizeLegendaryWonderMilitaryFacts,
 };
 
 function readSchemaVersion(raw: Record<string, unknown>): number {
@@ -818,7 +875,7 @@ export function migrateSaveToCurrent(raw: unknown): GameState {
   const techGrace = normalizeLegacyTechGrace(manufacturing);
   const crises = normalizeCrisisArchetypes(techGrace);
   const religions = withReligionDefaults(crises);
-  return normalizeBarbarianCampPressure(normalizeImprovementValues(normalizeCoastalBatteryCounterfireTurns(
+  return normalizeLegendaryWonderMilitaryFacts(normalizeBarbarianCampPressure(normalizeImprovementValues(normalizeCoastalBatteryCounterfireTurns(
     normalizeRetimedBiplaneQueues(normalizeCityFaithConversionProgress(religions)),
-  )));
+  ))));
 }
