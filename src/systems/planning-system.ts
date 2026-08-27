@@ -8,7 +8,7 @@ import { getQueueableResearchIds } from '@/systems/tech-progression';
 import { getActiveNationalProjectsForCiv, getCircularManufacturingMaterial, getReservedNationalProjectKeys } from '@/systems/national-project-system';
 import { getCivAvailableResources } from '@/systems/resource-acquisition-system';
 import { resolveCivilizationEra } from '@/systems/tech-definitions';
-import { getStrategicArsenal, getStrategicArsenalCapacity, hasManhattanProject } from '@/systems/strategic-arsenal-system';
+import { getArsenalStatus } from '@/systems/strategic-arsenal-system';
 
 const MAX_CITY_QUEUE_ITEMS = 4;
 const MAX_RESEARCH_QUEUE_ITEMS = 3;
@@ -136,10 +136,7 @@ export function getIdleCityIds(state: GameState, civId: string): string[] {
   const civEra = resolveCivilizationEra(completedTechs);
   const reservedNationalProjects = getReservedNationalProjectKeys(state, civId);
   const availableResources = getCivAvailableResources(state, civId);
-  const arsenalStatus = {
-    hasManhattanProject: hasManhattanProject(state, civId),
-    atCapacity: getStrategicArsenal(civ) >= getStrategicArsenalCapacity(state, civId),
-  };
+  const arsenalStatus = getArsenalStatus(state, civId);
   return Object.values(state.cities)
     .filter(city => city.owner === civId)
     .filter(city => city.productionQueue.length === 0)
@@ -190,10 +187,7 @@ export function getRecommendedIdleCityChoice(
   const availableResources = getCivAvailableResources(state, civId);
   const bonusEffect = resolveCivDefinition(state, civ.civType)?.bonusEffect;
   const productionPerTurn = Math.max(1, calculateProjectedCityYields(state, cityId, bonusEffect).production);
-  const arsenalStatus = {
-    hasManhattanProject: hasManhattanProject(state, civId),
-    atCapacity: getStrategicArsenal(civ) >= getStrategicArsenalCapacity(state, civId),
-  };
+  const arsenalStatus = getArsenalStatus(state, civId);
   const candidates = [
     ...(state.map ? getAvailableBuildings(
       city,

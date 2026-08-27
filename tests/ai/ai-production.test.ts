@@ -186,6 +186,26 @@ describe('strategicArsenalValueScore (#545)', () => {
       .some(candidate => candidate.itemId === 'warhead')).toBe(false);
   });
 
+  it('warhead drops out of AI building candidates once an arms-control pact caps the arsenal, even with physical capacity remaining (#545 MR6)', () => {
+    const state = setupState(['nuclear-weapons', 'nuclear-physics']);
+    state.builtNationalProjects = {
+      'ai-1:manhattan_project': { civId: 'ai-1', cityId: 'city-a', eraBuilt: 10 },
+    };
+    grantResources(state, ['uranium']);
+    // Give physical capacity real headroom (base 1 + nuclear_arsenal 2 = 3) so
+    // this genuinely proves the treaty cap (1) is the binding constraint --
+    // without this, physical capacity alone (base 1) would already equal
+    // strategicArsenal (1) and the test would pass for the wrong reason.
+    state.cities['city-a']!.buildings.push('nuclear_arsenal');
+    state.civilizations['ai-1']!.strategicArsenal = 1;
+    state.civilizations['ai-1']!.diplomacy.treaties = [
+      { type: 'arms_control_pact', civA: 'ai-1', civB: 'ai-2', turnsRemaining: -1, arsenalCap: 1 },
+    ];
+
+    expect(generateAIProductionCandidates(state, 'ai-1', 'city-a', [], aggressive)
+      .some(candidate => candidate.itemId === 'warhead')).toBe(false);
+  });
+
   it('ai-production.ts building-scoring loop has no warhead-id branch', () => {
     const source = readFileSync(resolve(__dirname, '../../src/ai/ai-production.ts'), 'utf-8');
     expect(source).not.toMatch(/buildingId\s*===\s*['"]warhead['"]/);
