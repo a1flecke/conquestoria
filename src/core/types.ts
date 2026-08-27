@@ -1019,7 +1019,7 @@ export type DiplomaticAction =
   | 'leave_league'
   | 'reabsorb_breakaway';
 
-export type TreatyType = 'non_aggression_pact' | 'trade_agreement' | 'open_borders' | 'alliance' | 'vassalage';
+export type TreatyType = 'non_aggression_pact' | 'trade_agreement' | 'open_borders' | 'alliance' | 'vassalage' | 'arms_control_pact';
 
 export interface Treaty {
   type: TreatyType;
@@ -1027,6 +1027,9 @@ export interface Treaty {
   civB: string;
   turnsRemaining: number;     // -1 = permanent until broken
   goldPerTurn?: number;       // for trade agreements
+  // #545 MR6: only set for arms_control_pact -- see computeArmsControlCap in
+  // strategic-arsenal-system.ts. Absent on every other treaty type.
+  arsenalCap?: number;
 }
 
 export interface DiplomaticEvent {
