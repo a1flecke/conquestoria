@@ -6,6 +6,7 @@ import {
   getAvailableActions,
   getPendingPeaceRequestForPair,
   getPendingTreatyProposalsFor,
+  hasArmsControlTreaty,
 } from '@/systems/diplomacy-system';
 import { TREATY_LABELS, describeWarReason } from '@/ui/notification-routing';
 import { resolveCivDefinition } from '@/systems/civ-registry';
@@ -177,6 +178,7 @@ export function createDiplomacyPanel(
       : 'none';
     const actions = getAvailableActions(
       playerDiplomacy, civId, playerCiv.techState.completed, resolveCivilizationEra(playerCiv.techState.completed),
+      hasArmsControlTreaty(state, state.currentPlayer),
     );
 
     let barColor = '#888';
@@ -210,7 +212,13 @@ export function createDiplomacyPanel(
 
     const treaties = playerDiplomacy.treaties
       .filter(t => t.civB === civId || t.civA === civId)
-      .map(t => ({ label: t.type.replace(/_/g, ' '), turns: t.turnsRemaining, type: t.type }));
+      .map(t => ({
+        label: t.type === 'arms_control_pact'
+          ? `Arms Control Pact (cap: ${t.arsenalCap})`
+          : t.type.replace(/_/g, ' '),
+        turns: t.turnsRemaining,
+        type: t.type,
+      }));
 
     // #554: incoming treaty proposals FROM this civ TO the viewer only --
     // never surface the viewer's own outgoing proposals or third-party ones.
