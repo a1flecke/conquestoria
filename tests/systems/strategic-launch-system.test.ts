@@ -348,6 +348,11 @@ describe('arsenalStatus threading into planning-system.ts (#545)', () => {
   // that these two call sites actually pass arsenalStatus through at all, checked
   // structurally (this repo already has precedent for a readFileSync source-grep
   // test, tests/app/architecture-boundaries.test.ts).
+  //
+  // #545 MR6 Task 9: the two inline { hasManhattanProject, atCapacity } literals
+  // this test used to assert by name were consolidated into a single shared
+  // getArsenalStatus(state, civId) call (also now treaty-cap-aware) -- updated
+  // to assert the new, better structure instead of the old duplicated pattern.
   it('getIdleCityIds and getRecommendedIdleCityChoice both compute and pass arsenalStatus to getAvailableBuildings', () => {
     const source = readFileSync(resolve(__dirname, '../../src/systems/planning-system.ts'), 'utf-8');
     const callSites = source.split('getAvailableBuildings(').slice(1);
@@ -356,8 +361,7 @@ describe('arsenalStatus threading into planning-system.ts (#545)', () => {
       const argsBlock = callSite.slice(0, callSite.indexOf(')'));
       expect(argsBlock).toMatch(/arsenalStatus/);
     }
-    expect(source).toMatch(/hasManhattanProject/);
-    expect(source).toMatch(/getStrategicArsenalCapacity/);
+    expect(source).toMatch(/getArsenalStatus/);
   });
 });
 
