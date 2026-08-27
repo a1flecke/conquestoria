@@ -267,11 +267,23 @@ export function createCityPanel(
   // locked-item reason (below) only shows once at capacity; while under capacity,
   // this is the only place a player can see their current count/capacity (Goal 7 —
   // the full "Strategic Arsenal" summary panel is MR4's job, not this one).
+  // #545 MR5/MR6: always-visible arsenal count on the available warhead item --
+  // the locked-item reason (below) only shows once at capacity, while under
+  // capacity this is the only place a player can see their current
+  // count/capacity. MR6: shows the EFFECTIVE cap (min of physical and any
+  // active arms-control treaty cap), never just the physical number, so the
+  // displayed count never contradicts why production is blocked -- plus a
+  // distinct note when a treaty is the binding constraint.
   const arsenalStatusLine = (itemId: string): string => {
     if (itemId !== 'warhead') return '';
     const current = getStrategicArsenal(currentCiv);
-    const capacity = getStrategicArsenalCapacity(state, city.owner);
-    return `<div style="font-size:10px;opacity:0.72;">Arsenal: ${current}/${capacity}</div>`;
+    const physicalCapacity = getStrategicArsenalCapacity(state, city.owner);
+    const treatyCap = getActiveArmsControlCap(state, city.owner);
+    const effectiveCapacity = treatyCap !== null ? Math.min(physicalCapacity, treatyCap) : physicalCapacity;
+    const treatyNote = treatyCap !== null && treatyCap < physicalCapacity
+      ? '<div style="font-size:10px;opacity:0.72;color:#e8c170;">Limited by an active arms control pact.</div>'
+      : '';
+    return `<div style="font-size:10px;opacity:0.72;">Arsenal: ${current}/${effectiveCapacity}</div>${treatyNote}`;
   };
   const builtNPKeys = getReservedNationalProjectKeys(state, city.owner);
   const availableBuildings = getAvailableBuildings(
@@ -774,10 +786,19 @@ export function createCityPanel(
       if (!hasManhattanProject(state, city.owner)) {
         return 'Requires Manhattan Project to be completed anywhere in your empire.';
       }
-      const capacity = getStrategicArsenalCapacity(state, city.owner);
+      // #545 MR6: use the EFFECTIVE cap (min of physical and any active
+      // arms-control treaty cap) -- otherwise a civ locked out by a treaty
+      // but under physical capacity would see no lock reason at all here,
+      // even though arsenalStatusLine's own effective-cap math is why the
+      // item moved into the locked list to begin with.
+      const physicalCapacity = getStrategicArsenalCapacity(state, city.owner);
+      const treatyCap = getActiveArmsControlCap(state, city.owner);
+      const capacity = treatyCap !== null ? Math.min(physicalCapacity, treatyCap) : physicalCapacity;
       const current = getStrategicArsenal(currentCiv);
       if (current >= capacity) {
-        return `Arsenal at capacity (${current}/${capacity}) — build Nuclear Arsenal or Missile Silo to expand.`;
+        return treatyCap !== null && treatyCap < physicalCapacity
+          ? `Limited by an active arms control pact. Arsenal at ${current}/${capacity}.`
+          : `Arsenal at capacity (${current}/${capacity}) — build Nuclear Arsenal or Missile Silo to expand.`;
       }
       // Manhattan Project built and under capacity -- if still locked, it's for an
       // ordinary reason (e.g. missing uranium), handled generically below.

@@ -1,5 +1,5 @@
 import type { GameState } from '@/core/types';
-import { getStrategicArsenal, getStrategicArsenalCapacity } from '@/systems/strategic-arsenal-system';
+import { getStrategicArsenal, getStrategicArsenalCapacity, getActiveArmsControlCap } from '@/systems/strategic-arsenal-system';
 import { getEligibleStrategicLaunchPlatforms, type StrategicLaunchPlatform } from '@/systems/strategic-launch-system';
 
 export interface StrategicArsenalSummaryPresentation {
@@ -10,6 +10,8 @@ export interface StrategicArsenalSummaryPresentation {
    * retaliation-tracking field, surfaced directly -- no MR5 AI-doctrine or
    * MR9 visibility gating exists yet to filter this further). */
   strikesReceivedFromCivIds: string[];
+  // #545 MR6: the most-restrictive active arms-control pact cap, or null.
+  activeArmsControlCap: number | null;
 }
 
 export function getStrategicArsenalSummaryPresentation(
@@ -22,5 +24,6 @@ export function getStrategicArsenalSummaryPresentation(
     arsenalCapacity: getStrategicArsenalCapacity(state, civId),
     platforms: getEligibleStrategicLaunchPlatforms(state, civId),
     strikesReceivedFromCivIds: civ?.diplomacy.strategicStrikesReceivedFrom ?? [],
+    activeArmsControlCap: getActiveArmsControlCap(state, civId),
   };
 }

@@ -2722,6 +2722,64 @@ describe('city-panel warhead arsenal visibility (#545)', () => {
 
     expect(collectText(panel)).toContain('Arsenal: 2/4');
   });
+
+  it('the warhead arsenal line reflects the effective (treaty, not just physical) cap (#545 MR6)', () => {
+    const { container, city, state } = makeWonderPanelFixture();
+    const civId = state.currentPlayer;
+    state.civilizations[civId].techState.completed.push('nuclear-weapons', 'nuclear-physics');
+    state.marketplace = { ...createMarketplaceState(), purchasedResources: [
+      { civId, resource: 'uranium', expiresOnTurn: state.turn + 1 },
+    ] };
+    // Physical capacity: base 1 + nuclear_arsenal (+2) + missile_silo (+1) = 4.
+    // An active arms-control pact caps at 3 -- stricter than physical capacity
+    // but still above the current count (2), so the item stays in the
+    // AVAILABLE list (atCapacity is only true at/above the effective cap) and
+    // the displayed line must show the EFFECTIVE cap (3), not the physical 4.
+    city.buildings.push('nuclear_arsenal', 'missile_silo');
+    state.builtNationalProjects = {
+      [`${civId}:manhattan_project`]: { civId, cityId: city.id, eraBuilt: 10 },
+    };
+    state.civilizations[civId].strategicArsenal = 2;
+    state.civilizations[civId].diplomacy.treaties = [
+      { type: 'arms_control_pact', civA: civId, civB: 'ai-1', turnsRemaining: -1, arsenalCap: 3 },
+    ];
+
+    const panel = createCityPanel(container, city, state, {
+      onBuild: () => {}, onOpenWonderPanel: () => {}, onClose: () => {},
+    });
+
+    expect(collectText(panel)).toContain('Arsenal: 2/3');
+    expect(collectText(panel)).not.toContain('Arsenal: 2/4');
+    expect(collectText(panel)).toContain('Limited by an active arms control pact.');
+  });
+
+  it('the locked-item reason for warhead reflects the effective (treaty) cap once actually at capacity (#545 MR6)', () => {
+    const { container, city, state } = makeWonderPanelFixture();
+    const civId = state.currentPlayer;
+    state.civilizations[civId].techState.completed.push('nuclear-weapons', 'nuclear-physics');
+    state.marketplace = { ...createMarketplaceState(), purchasedResources: [
+      { civId, resource: 'uranium', expiresOnTurn: state.turn + 1 },
+    ] };
+    // Physical capacity 4 (base 1 + nuclear_arsenal 2 + missile_silo 1), but a
+    // treaty cap of 2 is stricter and already reached -- the item must appear
+    // in the LOCKED list (not available) with a treaty-specific reason, not
+    // the generic "Arsenal at capacity" physical-only message.
+    city.buildings.push('nuclear_arsenal', 'missile_silo');
+    state.builtNationalProjects = {
+      [`${civId}:manhattan_project`]: { civId, cityId: city.id, eraBuilt: 10 },
+    };
+    state.civilizations[civId].strategicArsenal = 2;
+    state.civilizations[civId].diplomacy.treaties = [
+      { type: 'arms_control_pact', civA: civId, civB: 'ai-1', turnsRemaining: -1, arsenalCap: 2 },
+    ];
+
+    const panel = createCityPanel(container, city, state, {
+      onBuild: () => {}, onOpenWonderPanel: () => {}, onClose: () => {},
+    });
+
+    expect(collectText(panel)).toContain('Limited by an active arms control pact.');
+    expect(collectText(panel)).not.toContain('Arsenal at capacity (2/4)');
+  });
 });
 
 describe('Prepare Strategic Launch action (#545 MR4 §14 stage 1)', () => {

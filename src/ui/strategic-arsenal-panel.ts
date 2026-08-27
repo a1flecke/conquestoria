@@ -35,6 +35,13 @@ export function createStrategicArsenalPanel(
   arsenalLine.style.cssText = 'margin-bottom:10px;font-size:14px;';
   card.appendChild(arsenalLine);
 
+  if (presentation.activeArmsControlCap !== null) {
+    const capLine = document.createElement('div');
+    capLine.textContent = `Arms control cap: ${presentation.activeArmsControlCap}`;
+    capLine.style.cssText = 'margin-bottom:10px;font-size:13px;opacity:0.85;';
+    card.appendChild(capLine);
+  }
+
   const platformsTitle = document.createElement('div');
   platformsTitle.textContent = 'Launch platforms:';
   platformsTitle.style.cssText = 'font-weight:bold;margin:12px 0 6px;';
