@@ -1003,3 +1003,30 @@ describe('strategic deterrence caution note (#545 MR5)', () => {
     expect(rendered).not.toContain('wary of your strategic capability');
   });
 });
+
+describe('arms control pact (#545 MR6)', () => {
+  it('shows the cap number in the treaty label', () => {
+    const { container, state } = makeDiplomacyFixture({ currentPlayer: 'player', includeBreakaway: true, includeThirdCiv: true });
+    state.civilizations.outsider.knownCivilizations = ['player'];
+    state.civilizations.player.diplomacy.treaties = [
+      { type: 'arms_control_pact', civA: 'player', civB: 'outsider', turnsRemaining: -1, arsenalCap: 3 },
+    ];
+
+    const panel = createDiplomacyPanel(container, state, { onAction: () => {}, onClose: () => {} });
+
+    const rendered = (panel as unknown as { innerHTML?: string; textContent?: string }).innerHTML ?? panel.textContent ?? '';
+    expect(rendered).toContain('Arms Control Pact');
+    expect(rendered).toContain('cap: 3');
+  });
+
+  it('the propose action appears once the viewer has the national project', () => {
+    const { container, state } = makeDiplomacyFixture({ currentPlayer: 'player', includeBreakaway: true, includeThirdCiv: true });
+    state.civilizations.outsider.knownCivilizations = ['player'];
+    state.builtNationalProjects = { 'player:arms_control_treaty': { civId: 'player', cityId: 'city-capital', eraBuilt: 11 } };
+
+    const panel = createDiplomacyPanel(container, state, { onAction: () => {}, onClose: () => {} });
+
+    const rendered = (panel as unknown as { innerHTML?: string; textContent?: string }).innerHTML ?? panel.textContent ?? '';
+    expect(rendered.toLowerCase()).toContain('arms control pact');
+  });
+});
