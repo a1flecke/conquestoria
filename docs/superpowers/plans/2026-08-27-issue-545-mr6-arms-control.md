@@ -1,5 +1,7 @@
 # #545 MR6 — Arms Control Treaty Implementation Plan
 
+> **Status: ✅ executed.** All 11 tasks completed inline; full test suite (9155 tests) and `yarn build` pass clean. Task 11 Step 3 (manual browser sanity pass) was explicitly skipped per its own stated allowance — reaching the "Arms Control Treaty NP built" state via console/save-edit was not practical in this session, and the jsdom-based tests in Tasks 8 and 10 already assert the exact rendered DOM text under precise state conditions. Two gaps not caught by the design/plan review passes were found and fixed during execution: `DiplomaticAction` (core/types.ts) was missing `'arms_control_pact'`, and `getActiveArmsControlCap` needed a defensive `?? []` fallback for `civ.diplomacy.treaties` once it was threaded into widely-shared call sites (`ai-production.ts`, `planning-system.ts`) that many pre-existing test fixtures build without a full `treaties` array.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. **Do not use superpowers:subagent-driven-development or any other multi-agent workflow — this repository's CLAUDE.md forbids subagents/parallel agents for all work; execute every task inline in the current session.** Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Add the arc's one v1 arms-control mechanic (spec §12) — a bilateral, auto-computed arsenal cap treaty that blocks further warhead production while it holds, breakable through the existing generic treaty-break UI.
@@ -47,7 +49,7 @@
 **Interfaces:**
 - Produces: `TreatyType` includes `'arms_control_pact'`; `Treaty.arsenalCap?: number`. Consumed by every later task.
 
-- [ ] **Step 1: Make the type changes**
+- [x] **Step 1: Make the type changes**
 
 In `src/core/types.ts`, find `export type TreatyType = 'non_aggression_pact' | 'trade_agreement' | 'open_borders' | 'alliance' | 'vassalage';` and change it to:
 
@@ -70,7 +72,7 @@ export interface Treaty {
 }
 ```
 
-- [ ] **Step 2: Add the required `TREATY_LABELS` entry**
+- [x] **Step 2: Add the required `TREATY_LABELS` entry**
 
 In `src/ui/notification-routing.ts`, find:
 
@@ -97,12 +99,12 @@ export const TREATY_LABELS: Record<TreatyType, string> = {
 };
 ```
 
-- [ ] **Step 3: Run the build to confirm it compiles**
+- [x] **Step 3: Run the build to confirm it compiles**
 
 Run: `bash scripts/run-with-mise.sh yarn build`
 Expected: PASS. If it fails with "Property 'arms_control_pact' is missing" on any other `Record<TreatyType, ...>` mapping, that mapping needs the same treatment — re-run `grep -rn "Record<TreatyType" src` to find it (only `TREATY_LABELS` was found during design/plan-writing, but re-verify against the live tree since files can drift).
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add src/core/types.ts src/ui/notification-routing.ts
@@ -121,7 +123,7 @@ git commit -m "feat(#545): add arms_control_pact TreatyType + arsenalCap field (
 - Consumes: `Treaty.arsenalCap` (Task 1).
 - Produces: `computeArmsControlCap(state: GameState, civAId: string, civBId: string): number`; `getActiveArmsControlCap(state: GameState, civId: string): number | null`; `getArsenalStatus(state: GameState, civId: string): { hasManhattanProject: boolean; atCapacity: boolean }`. Consumed by Tasks 3, 4, 5, 8.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Add to `tests/systems/strategic-arsenal-system.test.ts`, after the existing `describe('spendStrategicArsenal', ...)` block (end of file):
 
@@ -235,12 +237,12 @@ describe('getArsenalStatus (#545 MR6)', () => {
 });
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `bash scripts/run-with-mise.sh yarn test tests/systems/strategic-arsenal-system.test.ts`
 Expected: FAIL (`computeArmsControlCap`/`getActiveArmsControlCap`/`getArsenalStatus` not exported)
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 In `src/systems/strategic-arsenal-system.ts`, add after `hasKnownStrategicCapability` (from MR5):
 
@@ -299,12 +301,12 @@ export function getArsenalStatus(state: GameState, civId: string): { hasManhatta
 }
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `bash scripts/run-with-mise.sh yarn test tests/systems/strategic-arsenal-system.test.ts`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/systems/strategic-arsenal-system.ts tests/systems/strategic-arsenal-system.test.ts
@@ -323,7 +325,7 @@ git commit -m "feat(#545): computeArmsControlCap + getArsenalStatus helpers (MR6
 - Consumes: nothing new from Task 2 in this task specifically (cap values are passed in by callers in Tasks 4/5/6, not computed here).
 - Produces: `signTreaty(..., arsenalCap?: number)`; `hasArmsControlTreaty(state: GameState, civId: string): boolean`; `getAvailableActions(state, targetCivId, completedTechs, era, hasArmsControlTreaty: boolean)`. Consumed by Tasks 4, 5, 6.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Add to `tests/systems/diplomacy-system.test.ts`, inside the existing `describe('treaties', ...)` block (after the `'breakTreaty removes treaty and penalizes -30'` test):
 
@@ -412,12 +414,12 @@ Update the 4 existing `getAvailableActions(...)` calls already in that `describe
 
 Update the import block at the top of the test file to add `hasArmsControlTreaty`.
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `bash scripts/run-with-mise.sh yarn test tests/systems/diplomacy-system.test.ts`
 Expected: FAIL (wrong argument count / `hasArmsControlTreaty` not exported)
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 In `src/systems/diplomacy-system.ts`, extend `signTreaty`:
 
@@ -492,7 +494,7 @@ export function getAvailableActions(
     // ...unchanged below
 ```
 
-- [ ] **Step 4: Run tests to verify they pass, then type-check**
+- [x] **Step 4: Run tests to verify they pass, then type-check**
 
 Run: `bash scripts/run-with-mise.sh yarn test tests/systems/diplomacy-system.test.ts`
 Expected: PASS
@@ -500,7 +502,7 @@ Expected: PASS
 Run: `bash scripts/run-with-mise.sh yarn build`
 Expected: FAILS at this point — the 3 real call sites of `getAvailableActions` (`diplomacy-panel.ts`, `ai-diplomacy.ts`, `basic-ai.ts`'s direct call) still pass only 4 arguments. This is expected; Task 6 fixes the `ai-diplomacy.ts`/`basic-ai.ts` side, Task 8 fixes `diplomacy-panel.ts`. Confirm the *only* build errors are at those 3 call sites (grep `getAvailableActions(` across `src` to enumerate them, matching the design doc's Architecture §5 list) before moving on.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/systems/diplomacy-system.ts tests/systems/diplomacy-system.test.ts
@@ -519,7 +521,7 @@ git commit -m "feat(#545): signTreaty arsenalCap + hasArmsControlTreaty gate (MR
 - Consumes: `computeArmsControlCap` (Task 2), `signTreaty`'s new signature (Task 3).
 - Produces: `applyDiplomaticAction(state, actorId, targetCivId, 'arms_control_pact', bus)` signs both sides with the computed cap.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Add to `tests/systems/diplomacy-system.test.ts`'s `describe('applyDiplomaticAction', ...)` block:
 
@@ -550,12 +552,12 @@ Add to `tests/systems/diplomacy-system.test.ts`'s `describe('applyDiplomaticActi
     });
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `bash scripts/run-with-mise.sh yarn test tests/systems/diplomacy-system.test.ts`
 Expected: FAIL (`arms_control_pact` falls through to `default: return state;` in the switch, and the `#435` guard test may already accidentally pass since the default case also no-ops — verify the *first* new test fails specifically on the treaty-content assertion, confirming the case doesn't exist yet)
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 In `src/systems/diplomacy-system.ts`, add `'arms_control_pact'` to the `requiresContact` array (the #435 guard) inside `applyDiplomaticAction`:
 
@@ -590,12 +592,12 @@ Add the import for `computeArmsControlCap` at the top of the file:
 import { computeArmsControlCap } from '@/systems/strategic-arsenal-system';
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `bash scripts/run-with-mise.sh yarn test tests/systems/diplomacy-system.test.ts`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/systems/diplomacy-system.ts tests/systems/diplomacy-system.test.ts
@@ -614,7 +616,7 @@ git commit -m "feat(#545): human-initiated arms_control_pact signing (MR6 Task 4
 - Consumes: `computeArmsControlCap` (Task 2, already imported by Task 4).
 - Produces: `acceptDiplomaticRequest` signs an `arms_control_pact` pending request with the cap computed from *current* (accept-time) arsenals.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Add to `tests/systems/diplomacy-system.test.ts`'s treaty-proposal `describe` block (the one containing `makeTreatyState`):
 
@@ -646,12 +648,12 @@ Add to `tests/systems/diplomacy-system.test.ts`'s treaty-proposal `describe` blo
     });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `bash scripts/run-with-mise.sh yarn test tests/systems/diplomacy-system.test.ts`
 Expected: FAIL (`arsenalCap` undefined — `signTreaty` called without the cap argument today)
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 In `acceptDiplomaticRequest`, inside the `if (request.type === 'treaty') { ... }` block, compute the cap conditionally before building `next`:
 
@@ -681,12 +683,12 @@ In `acceptDiplomaticRequest`, inside the `if (request.type === 'treaty') { ... }
   }
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `bash scripts/run-with-mise.sh yarn test tests/systems/diplomacy-system.test.ts`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/systems/diplomacy-system.ts tests/systems/diplomacy-system.test.ts
@@ -707,7 +709,7 @@ git commit -m "feat(#545): compute arms-control cap at accept time (MR6 Task 5)"
 
 **⚠️ This changes `evaluateDiplomacy`'s signature again (MR5 already added one param; this adds two more). Its only caller is `basic-ai.ts` (Task 7). Run `yarn build` after this task and confirm the only error is in `basic-ai.ts`.**
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Update every existing `evaluateDiplomacy(...)` call in `tests/ai/ai-diplomacy.test.ts` (there are 5 after MR5) to append `, false, false` (no national project, actor's own capability unknown — preserves original meaning exactly, since none of those tests care about arms control):
 
@@ -905,12 +907,12 @@ describe('evaluateDiplomacy', () => {
 });
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `bash scripts/run-with-mise.sh yarn test tests/ai/ai-diplomacy.test.ts`
 Expected: FAIL (wrong argument count / TS error)
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 In `src/ai/ai-diplomacy.ts`, extend `evaluateDiplomacy`'s signature and `getAvailableActions` call, and add the new branch after the existing `alliance`/`trade_agreement`/`non_aggression_pact` `else-if` chain (still inside the `else` block, same indentation level — a separate `if`, not another `else if`, per the design's "not competing for the same slot" decision):
 
@@ -992,7 +994,7 @@ export function evaluateDiplomacy(
 }
 ```
 
-- [ ] **Step 4: Run tests to verify they pass, then type-check**
+- [x] **Step 4: Run tests to verify they pass, then type-check**
 
 Run: `bash scripts/run-with-mise.sh yarn test tests/ai/ai-diplomacy.test.ts`
 Expected: PASS
@@ -1000,7 +1002,7 @@ Expected: PASS
 Run: `bash scripts/run-with-mise.sh yarn build`
 Expected: FAILS — `basic-ai.ts`'s call to `evaluateDiplomacy` still passes only 9 arguments. Expected; Task 7 fixes it. Confirm the *only* build errors are in `basic-ai.ts`.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/ai/ai-diplomacy.ts tests/ai/ai-diplomacy.test.ts
@@ -1020,7 +1022,7 @@ git commit -m "feat(#545): AI arms-control-pact proposing decision (MR6 Task 6)"
 
 **This completes the build fix Task 6 left dangling — run `yarn build` again at the end of this task.**
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Add to `tests/ai/basic-ai.test.ts`, after the existing `describe('AI strategic launch doctrine (#545 MR5)', ...)` block:
 
@@ -1068,12 +1070,12 @@ describe('AI arms-control-pact proposing (#545 MR6)', () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `bash scripts/run-with-mise.sh yarn test tests/ai/basic-ai.test.ts -t "arms-control-pact proposing"`
 Expected: FAIL (no treaty signed — the decision is computed but never executed, matching the design review's finding #3)
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 In `src/ai/basic-ai.ts`, update the `diplomacyContext` construction block to compute the two new values and pass them into `evaluateDiplomacy`:
 
@@ -1147,7 +1149,7 @@ Add a new case to the decision-execution switch, right after the closing `}` of 
         }
 ```
 
-- [ ] **Step 4: Run tests to verify they pass, then full build**
+- [x] **Step 4: Run tests to verify they pass, then full build**
 
 Run: `bash scripts/run-with-mise.sh yarn test tests/ai/basic-ai.test.ts -t "arms-control-pact proposing"`
 Expected: PASS
@@ -1155,7 +1157,7 @@ Expected: PASS
 Run: `bash scripts/run-with-mise.sh yarn build`
 Expected: FAILS at `diplomacy-panel.ts`'s `getAvailableActions` call (Task 3's other dangling gap) — expected; Task 8 fixes it.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/ai/basic-ai.ts tests/ai/basic-ai.test.ts
@@ -1175,7 +1177,7 @@ git commit -m "feat(#545): wire arms-control-pact proposal into basic-ai.ts exec
 
 **This closes the last build gap Task 3 left open — run `yarn build` at the end of this task and confirm it passes clean.**
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Add to `tests/ui/diplomacy-panel.test.ts`, in a new `describe` block near the end of the file (after the existing `describe('strategic deterrence caution note (#545 MR5)', ...)` block):
 
@@ -1208,12 +1210,12 @@ describe('arms control pact (#545 MR6)', () => {
 });
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `bash scripts/run-with-mise.sh yarn test tests/ui/diplomacy-panel.test.ts`
 Expected: FAIL (build error from the missing 5th argument to `getAvailableActions`, or the cap text not found)
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 In `src/ui/diplomacy-panel.ts`, find the `getAvailableActions` call (around where `actions` is computed in the row-building loop) and add the new argument:
 
@@ -1254,7 +1256,7 @@ Change it to include the cap for `arms_control_pact`:
       }));
 ```
 
-- [ ] **Step 4: Run tests to verify they pass, then full build**
+- [x] **Step 4: Run tests to verify they pass, then full build**
 
 Run: `bash scripts/run-with-mise.sh yarn test tests/ui/diplomacy-panel.test.ts`
 Expected: PASS
@@ -1265,7 +1267,7 @@ Expected: PASS — this is the point where every `getAvailableActions`/`evaluate
 Run: `bash scripts/run-with-mise.sh yarn test`
 Expected: PASS (full suite — first point where every caller of every changed signature has been updated)
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/ui/diplomacy-panel.ts tests/ui/diplomacy-panel.test.ts
@@ -1287,7 +1289,7 @@ git commit -m "feat(#545): diplomacy panel arms-control-pact action + cap label 
 
 **Why only one new test, not three**: `getArsenalStatus`'s own correctness (including the treaty-cap case) is already fully covered by Task 2's tests, in isolation. What Task 9 changes at each of the 4 call sites is a purely mechanical replacement — an inline `{ hasManhattanProject: ..., atCapacity: ... }` object literal becomes a call to the same-shaped shared helper — carrying low regression risk, and `city-panel.ts`'s/`planning-system.ts`'s own pre-existing test suites (unchanged by this task) already exercise `getAvailableBuildings` through those call sites and would fail if a replacement were wrong. Writing three near-identical integration tests here would be disproportionate to the actual risk. `ai-production.ts` gets a dedicated new test below because it already has an established, exact-fit test pattern for this precise scenario (`'warhead appears among AI building candidates once eligible'`) that's cheap to extend and directly proves the wiring.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Add to `tests/ai/ai-production.test.ts`'s `describe('strategicArsenalValueScore (#545)', ...)` block, right after the existing `'warhead appears among AI building candidates once eligible, scored by the generic pipeline'` test (which already establishes the exact `setupState`/`grantResources`/`aggressive` fixture pattern reused here verbatim):
 
@@ -1308,12 +1310,12 @@ Add to `tests/ai/ai-production.test.ts`'s `describe('strategicArsenalValueScore 
   });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `bash scripts/run-with-mise.sh yarn test tests/ai/ai-production.test.ts -t "arms-control pact caps"`
 Expected: FAIL (`warhead` still appears — the inline `atCapacity` computation in `ai-production.ts` doesn't know about treaty caps yet)
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 In `src/ui/city-panel.ts`, replace the inline `arsenalStatus` object (around the `getAvailableBuildings` call) with:
 
@@ -1358,12 +1360,12 @@ Update its import from `strategic-arsenal-system` to add `getArsenalStatus` (kee
 
 In `src/systems/planning-system.ts`, apply the identical replacement at **both** of its two `arsenalStatus` computations — one inside `getIdleCityIds`, one inside `getRecommendedIdleCityChoice` — same import adjustment.
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `bash scripts/run-with-mise.sh yarn test tests/systems/planning-system.test.ts tests/ai/ai-production.test.ts tests/ui/city-panel.test.ts`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/ui/city-panel.ts src/ai/ai-production.ts src/systems/planning-system.ts tests/ai/ai-production.test.ts
@@ -1383,7 +1385,7 @@ git commit -m "feat(#545): consolidate arsenalStatus computation into getArsenal
 **Interfaces:**
 - Consumes: `getActiveArmsControlCap` (Task 2, already imported into `city-panel.ts` in Task 9).
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Add to `tests/systems/strategic-arsenal-summary-presentation.test.ts`. **This file's `makeState` inlines the civ object directly (no separate `makeCiv` helper exists here) and uses loose `as any` typing** — match that exactly, don't reuse `strategic-arsenal-system.test.ts`'s stricter `makeCiv` pattern, they're different files with different conventions:
 
@@ -1473,12 +1475,12 @@ Add to `tests/ui/city-panel.test.ts`'s existing `describe('city-panel warhead ar
   });
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `bash scripts/run-with-mise.sh yarn test tests/systems/strategic-arsenal-summary-presentation.test.ts tests/ui/strategic-arsenal-panel.test.ts`
 Expected: FAIL (`activeArmsControlCap` undefined / not read)
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 In `src/systems/strategic-arsenal-summary-presentation.ts`:
 
@@ -1545,12 +1547,12 @@ In `src/ui/city-panel.ts`, replace the `arsenalStatusLine` function:
   };
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `bash scripts/run-with-mise.sh yarn test tests/systems/strategic-arsenal-summary-presentation.test.ts tests/ui/strategic-arsenal-panel.test.ts tests/ui/city-panel.test.ts`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/systems/strategic-arsenal-summary-presentation.ts src/ui/strategic-arsenal-panel.ts src/ui/city-panel.ts tests/systems/strategic-arsenal-summary-presentation.test.ts tests/ui/strategic-arsenal-panel.test.ts tests/ui/city-panel.test.ts
@@ -1563,7 +1565,7 @@ git commit -m "feat(#545): surface active arms-control cap in Strategic Arsenal 
 
 **Files:** none (verification only)
 
-- [ ] **Step 1: Run the full test suite**
+- [x] **Step 1: Run the full test suite**
 
 Run: `bash scripts/run-with-mise.sh yarn test`
 Expected: PASS — full suite. Pay particular attention to:
@@ -1571,20 +1573,20 @@ Expected: PASS — full suite. Pay particular attention to:
 - `tests/systems/pacing-audit.test.ts` (unaffected — no yield/economy change)
 - `tests/app/architecture-boundaries.test.ts` (no new composition-root surface; all new logic lives in existing `src/systems/`/`src/ai/`/`src/ui/` files, matching established patterns)
 
-- [ ] **Step 2: Run the production build**
+- [x] **Step 2: Run the production build**
 
 Run: `bash scripts/run-with-mise.sh yarn build`
 Expected: PASS clean, zero TypeScript errors.
 
-- [ ] **Step 3: Manual sanity pass**
+- [x] **Step 3: Manual sanity pass**
 
 If a browser preview is practical (check port availability first — do not kill a process you don't own), start a new game, complete Arms Control Treaty NP on the player's civ via console/save-edit if needed, and confirm the "Arms Control Pact" action appears in the diplomacy panel once available. If not practical, skip this step and say so explicitly rather than claiming visual verification that didn't happen — the jsdom-based tests in Tasks 8 and 10 already assert the exact rendered text under precise state conditions.
 
-- [ ] **Step 4: Tick every checkbox in this plan document**
+- [x] **Step 4: Tick every checkbox in this plan document**
 
 Go back through every task above and mark its checkboxes complete.
 
-- [ ] **Step 5: Final commit**
+- [x] **Step 5: Final commit**
 
 ```bash
 git add docs/superpowers/plans/2026-08-27-issue-545-mr6-arms-control.md
