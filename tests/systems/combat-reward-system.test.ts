@@ -157,6 +157,42 @@ describe('combat-reward-system', () => {
 
     expect(collectCombatRewards(result, attacker, defender, 64)).toEqual([]);
   });
+
+  it('records one surviving combat win at the shared settled-outcome source', () => {
+    const state = makeRewardState();
+    const result: CombatResult = {
+      attackerId: 'attacker', defenderId: 'defender', attackerDamage: 0, defenderDamage: 100,
+      attackerSurvived: true, defenderSurvived: false, attackerStrength: 20, defenderStrength: 20,
+      attackerPosition: { q: 0, r: 0 }, defenderPosition: { q: 1, r: 0 },
+    };
+
+    const applied = applyCombatOutcomeToState(state, result, 64);
+
+    expect(applied.state.legendaryWonderHistory?.militaryFacts).toContainEqual({
+      id: 'combat-win:3:attacker:defender:attacker',
+      kind: 'surviving-combat-win', civId: 'player', unitId: 'attacker', role: 'frontline', turn: 3,
+    });
+  });
+
+  it('records a Fort repel only when the settled defender survives on its own completed Fort', () => {
+    const state = makeRewardState();
+    state.map.tiles['1,0'] = {
+      coord: { q: 1, r: 0 }, terrain: 'plains', elevation: 'lowland', resource: null,
+      improvement: 'fort', improvementTurnsLeft: 0, owner: 'ai-1', hasRiver: false, wonder: null,
+    };
+    const result: CombatResult = {
+      attackerId: 'attacker', defenderId: 'defender', attackerDamage: 100, defenderDamage: 0,
+      attackerSurvived: false, defenderSurvived: true, attackerStrength: 20, defenderStrength: 20,
+      attackerPosition: { q: 0, r: 0 }, defenderPosition: { q: 1, r: 0 },
+    };
+
+    const applied = applyCombatOutcomeToState(state, result, 64);
+
+    expect(applied.state.legendaryWonderHistory?.militaryFacts).toContainEqual({
+      id: 'fortification-repel:3:attacker:defender:defender',
+      kind: 'fortification-repel', civId: 'ai-1', unitId: 'defender', tier: 'fort', turn: 3,
+    });
+  });
 });
 
 function makeRewardState(): GameState {
@@ -1015,6 +1051,9 @@ describe('applyCombatOutcomeToState', () => {
     expect(applied.defenderCaptured).toBe(true);
     expect(applied.state.units.defender.owner).toBe('player');
     expect(applied.state.units.defender.type).toBe('galley');
+    expect(applied.state.legendaryWonderHistory?.militaryFacts).toContainEqual(expect.objectContaining({
+      kind: 'surviving-combat-win', civId: 'player', unitId: 'attacker', role: 'escort',
+    }));
   });
 
   it('sinks (never captures) a pirate ship defeated in a decisive win — pirates have no civilizations[] entry (#541 second-pass review)', () => {

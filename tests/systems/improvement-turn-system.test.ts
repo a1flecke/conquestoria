@@ -45,4 +45,21 @@ describe('processImprovementTurns', () => {
     expect(next.notificationLog?.[worker.owner]?.at(-1)?.message).toBe('Fort completed!');
     expect(next.notificationLog?.player ?? []).toHaveLength(worker.owner === 'player' ? 1 : 0);
   });
+
+  it('records a completed Fort against the territory that owned it at the completion transition', () => {
+    const state = createNewGame(undefined, 'fort-history-completion', 'small');
+    const city = Object.values(state.cities)[0]!;
+    const worker = Object.values(state.units).find(unit => unit.owner === city.owner)!;
+    const tile = state.map.tiles[hexKey(city.ownedTiles[1] ?? city.ownedTiles[0]!)]!;
+    tile.improvement = 'fort';
+    tile.improvementTurnsLeft = 1;
+    tile.improvementOwner = worker.owner;
+
+    const next = processImprovementTurns(state, new EventBus());
+
+    expect(next.legendaryWonderHistory?.militaryFacts).toContainEqual({
+      id: `fort-completed:${state.turn}:${worker.owner}:${tile.coord.q},${tile.coord.r}`,
+      kind: 'fort-completed', civId: worker.owner, cityId: city.id, position: tile.coord, turn: state.turn,
+    });
+  });
 });

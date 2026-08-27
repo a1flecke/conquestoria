@@ -376,6 +376,32 @@ describe('air bases', () => {
     expect(result.state.units.interceptor?.interceptedTurn).toBe(9);
   });
 
+  it('records a successful interception only after the interceptor survives and destroys the striker', () => {
+    const missionState = {
+      ...state,
+      gameId: 'air-interception-history', turn: 11,
+      map: { width: 10, height: 10, wrapsHorizontally: false, tiles: {} },
+      units: {
+        striker: { ...biplane, id: 'striker', type: 'bomber', health: 1, position: { q: 2, r: 2 } },
+        interceptor: { ...biplane, id: 'interceptor', type: 'jet_fighter', owner: 'enemy', position: { q: 4, r: 2 }, airBase: { kind: 'city', cityId: 'enemy-city' }, airMission: 'intercept' },
+        target: { ...biplane, id: 'target', type: 'warrior', owner: 'enemy', position: { q: 5, r: 2 }, airBase: undefined },
+      },
+      cities: { ...state.cities, 'enemy-city': { id: 'enemy-city', owner: 'enemy', position: { q: 4, r: 2 }, buildings: ['airfield'] } },
+      civilizations: {
+        player: { units: ['striker'], techState: { completed: [] }, diplomacy: { atWarWith: ['enemy'], events: [] } },
+        enemy: { units: ['interceptor', 'target'], techState: { completed: [] }, diplomacy: { atWarWith: ['player'], events: [] } },
+      },
+    } as unknown as GameState;
+
+    const result = resolveAirStrike(missionState, 'striker', { q: 5, r: 2 });
+
+    expect(result.state.units.striker).toBeUndefined();
+    expect(result.state.legendaryWonderHistory?.militaryFacts).toContainEqual({
+      id: 'interception:11:interceptor:striker', kind: 'successful-interception',
+      civId: 'enemy', interceptorId: 'interceptor', turn: 11,
+    });
+  });
+
   it('offers visible hostile cities as strike targets and applies city siege damage', () => {
     const missionState = {
       ...state,

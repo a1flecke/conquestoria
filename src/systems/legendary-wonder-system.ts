@@ -19,7 +19,7 @@ import {
   recordLegendaryWonderIntel,
   sanitizeLegendaryWonderIntel,
 } from '@/systems/legendary-wonder-intel';
-import { countLegendaryWonderDiscoverySites } from '@/systems/legendary-wonder-history';
+import { countLegendaryWonderDiscoverySites, getLegendaryWonderMilitaryQuestProgress } from '@/systems/legendary-wonder-history';
 import { resolveCivDefinition } from '@/systems/civ-registry';
 import { getCivAvailableResources } from '@/systems/resource-acquisition-system';
 import { getActiveResourceSourceCount } from '@/systems/resource-acquisition-system';
@@ -179,6 +179,16 @@ function getDefaultQuestStepDescription(step: NonNullable<ReturnType<typeof getL
     }
     case 'resource-count':
       return `Secure ${step.target} active ${step.resource} source${step.target === 1 ? '' : 's'}.`;
+    case 'field-combat-roles':
+      return `Field ${step.targetUnitCount} combat units across ${step.targetRoleCount} roles.`;
+    case 'surviving-combat-wins':
+      return `Win ${step.targetCount} battles while your unit survives.`;
+    case 'fort-completions':
+      return `Complete ${step.targetCount} Forts${step.distinctCityTerritories ? ' in distinct city territories' : ''}.`;
+    case 'fortification-repels':
+      return `Repel ${step.targetCount} attacks from a Fort or Citadel.`;
+    case 'successful-interceptions':
+      return `Complete ${step.targetCount} successful interceptions.`;
   }
 }
 
@@ -295,6 +305,17 @@ function evaluateLegendaryWonderStep(state: GameState, project: LegendaryWonderP
       && (!step.hostCityOnly || record.cityId === project.cityId),
     ).length >= step.targetCount;
   }
+  if (
+    step.type === 'field-combat-roles'
+    || step.type === 'surviving-combat-wins'
+    || step.type === 'fort-completions'
+    || step.type === 'fortification-repels'
+    || step.type === 'successful-interceptions'
+  ) {
+    const progress = getLegendaryWonderMilitaryQuestProgress(state, project.ownerId, step);
+    return progress.current >= progress.target
+      && (progress.secondaryCurrent === undefined || progress.secondaryCurrent >= (progress.secondaryTarget ?? 0));
+  }
 
   const discoveredWonderCount = Object.values(state.wonderDiscoverers ?? {})
     .filter(discoverers => discoverers.includes(project.ownerId))
@@ -349,9 +370,21 @@ function describeLegendaryWonderStep(
   fallback: string,
 ): string {
   const baseDescription = definitionStep?.description ?? fallback;
-  if (!definitionStep || definitionStep.type !== 'research_count') {
+  if (!definitionStep) {
     return baseDescription;
   }
+  if (
+    definitionStep.type === 'field-combat-roles'
+    || definitionStep.type === 'surviving-combat-wins'
+    || definitionStep.type === 'fort-completions'
+    || definitionStep.type === 'fortification-repels'
+    || definitionStep.type === 'successful-interceptions'
+  ) {
+    const progress = getLegendaryWonderMilitaryQuestProgress(state, project.ownerId, definitionStep);
+    const secondary = progress.secondaryCurrent === undefined ? '' : `; ${progress.secondaryCurrent}/${progress.secondaryTarget} roles`;
+    return `${baseDescription} (${Math.min(progress.current, progress.target)}/${progress.target}${secondary})`;
+  }
+  if (definitionStep.type !== 'research_count') return baseDescription;
   const civ = state.civilizations[project.ownerId];
   if (!civ) return baseDescription;
   const progress = getResearchCountProgress(project, definitionStep, civ);

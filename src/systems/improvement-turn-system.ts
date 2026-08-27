@@ -6,6 +6,8 @@ import {
   clearCompletedWorkerTasksForImprovement,
   clearCompletedWorkerTasksForRoad,
 } from '@/systems/worker-action-system';
+import { appendLegendaryWonderMilitaryFacts } from '@/systems/legendary-wonder-history';
+import { hexKey } from '@/systems/hex-utils';
 
 export function processImprovementTurns(state: GameState, bus: EventBus): GameState {
   let next = structuredClone(state);
@@ -22,6 +24,22 @@ export function processImprovementTurns(state: GameState, bus: EventBus): GameSt
     });
     next = clearCompletedWorkerTasksForImprovement(next, tile.coord);
     const completedTile = next.map.tiles[key]!;
+    if (owner && completedTile.improvement === 'fort') {
+      const city = Object.values(next.cities).find(candidate =>
+        candidate.owner === owner
+        && candidate.ownedTiles.some(coord => hexKey(coord) === hexKey(completedTile.coord)),
+      );
+      if (city) {
+        next = appendLegendaryWonderMilitaryFacts(next, [{
+          id: `fort-completed:${next.turn}:${owner}:${completedTile.coord.q},${completedTile.coord.r}`,
+          kind: 'fort-completed',
+          civId: owner,
+          cityId: city.id,
+          position: { ...completedTile.coord },
+          turn: next.turn,
+        }]);
+      }
+    }
     if (owner) {
       appendNotification(next, owner, {
         message: `${label} completed!`,

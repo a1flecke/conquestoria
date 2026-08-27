@@ -707,6 +707,28 @@ describe('save migrations', () => {
 
     expect(migrated.civilizations.player.diplomacy.strategicStrikesReceivedFrom).toEqual(['ai-1']);
   });
+
+  it('#720 normalizes military quest facts at schema 21 without reconstructing missing history', () => {
+    const save = createNewGame('rome', 'military-quest-fact-schema-21', 'small');
+    save.saveSchemaVersion = 20;
+    save.legendaryWonderHistory = {
+      destroyedStrongholds: [],
+      discoveredSites: [],
+      militaryFacts: [
+        { id: 'combat-win:4:a:b:a', kind: 'surviving-combat-win', civId: 'player', unitId: 'a', role: 'frontline', turn: 4 },
+        { id: 'combat-win:4:a:b:a', kind: 'surviving-combat-win', civId: 'player', unitId: 'a', role: 'frontline', turn: 4 },
+        { id: '', kind: 'successful-interception', civId: 'player', interceptorId: 'fighter', turn: 4 },
+      ] as any,
+    };
+
+    const migrated = migrateSaveToCurrent(save);
+
+    expect(migrated.saveSchemaVersion).toBe(CURRENT_SAVE_SCHEMA_VERSION);
+    expect(migrated.legendaryWonderHistory?.militaryFacts).toEqual([
+      { id: 'combat-win:4:a:b:a', kind: 'surviving-combat-win', civId: 'player', unitId: 'a', role: 'frontline', turn: 4 },
+    ]);
+    expect(migrateSaveToCurrent(migrated)).toEqual(migrated);
+  });
 });
 
 describe('#590 MR3 — defensive crisis archetype normalization', () => {
