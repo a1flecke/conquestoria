@@ -2876,3 +2876,45 @@ describe('AI strategic launch doctrine (#545 MR5)', () => {
     expect(events[0]).toMatchObject({ cityId: 'enemy-capital', recipientCivId: enemyId, actorCivId: aiId });
   });
 });
+
+describe('AI arms-control-pact proposing (#545 MR6)', () => {
+  it('an AI with the national project, known capability, and a friendly known-capable neighbor signs a pact via processAITurn', () => {
+    const state = createNewGame(undefined, 'mr6-arms-control-propose', 'small');
+    const aiId = 'ai-1';
+    const neighborId = 'ai-2';
+    state.builtNationalProjects = { [`${aiId}:arms_control_treaty`]: { civId: aiId, cityId: 'c1', eraBuilt: 11 } };
+    state.builtNationalProjects[`${aiId}:manhattan_project`] = { civId: aiId, cityId: 'c1', eraBuilt: 10 };
+    state.builtNationalProjects[`${neighborId}:manhattan_project`] = { civId: neighborId, cityId: 'c2', eraBuilt: 10 };
+    // getPersonality falls back to { diplomacyFocus: 0.5, ... } when
+    // resolveCivDefinition finds no match for civType -- an unknown civType
+    // deterministically clears this test's >0.4 bar, regardless of which
+    // real civ createNewGame's seeded roster happened to assign to 'ai-1'.
+    // Using whatever real civType 'ai-1' got by default would make this test
+    // depend on an unrelated civ-selection seed's specific personality data.
+    state.civilizations[aiId].civType = '__mr6_test_neutral_personality__';
+    state.civilizations[aiId].knownCivilizations = [neighborId];
+    // Spread aiId's own shape to get a full, valid Civilization object cheaply
+    // (matching MR5 Task 8's proven pattern) -- but cities/units MUST be reset
+    // to [], not inherited, or neighborId would silently claim ownership of
+    // cities/units it doesn't actually control in state.cities/state.units,
+    // confusing unrelated systems (production/military-strength scoring) that
+    // this test doesn't otherwise touch. builtNationalProjects lives on
+    // GameState, never on Civilization -- nothing to reset there.
+    state.civilizations[neighborId] = {
+      ...state.civilizations[aiId],
+      id: neighborId, name: 'Neighbor', knownCivilizations: [aiId],
+      cities: [], units: [],
+    };
+    state.civilizations[aiId].diplomacy.relationships[neighborId] = 20; // clears the >0 bar
+    state.civilizations[neighborId].diplomacy.relationships[aiId] = 20;
+
+    const result = processAITurn(state, aiId, new EventBus());
+
+    expect(result.civilizations[aiId].diplomacy.treaties).toContainEqual(
+      expect.objectContaining({ type: 'arms_control_pact', civA: aiId, civB: neighborId }),
+    );
+    expect(result.civilizations[neighborId].diplomacy.treaties).toContainEqual(
+      expect.objectContaining({ type: 'arms_control_pact', civA: neighborId, civB: aiId }),
+    );
+  });
+});
