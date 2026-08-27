@@ -27,7 +27,7 @@ import { updateAndRefreshVisibility } from '@/systems/last-seen-presentation';
 import { resolveCivDefinition } from '@/systems/civ-registry';
 import { hasMetCivilization, syncCivilizationContactsFromVisibility } from '@/systems/discovery-system';
 import { OPPONENT_CHALLENGE_PROFILES, resolveOpponentChallenge } from '@/core/opponent-challenge';
-import { hasKnownStrategicCapability } from '@/systems/strategic-arsenal-system';
+import { hasKnownStrategicCapability, hasManhattanProject, computeArmsControlCap } from '@/systems/strategic-arsenal-system';
 import { getEligibleStrategicLaunchPlatforms } from '@/systems/strategic-launch-system';
 import { executeStrategicLaunch } from '@/systems/strategic-launch-execution-system';
 import { evaluateStrategicLaunchDecision } from './ai-strategic-doctrine';
@@ -45,6 +45,7 @@ import {
   inviteToLeague,
   getAvailableActions,
   resolveOpponentKind,
+  hasArmsControlTreaty,
 } from '@/systems/diplomacy-system';
 import {
   getAvailableMissions,
@@ -1014,6 +1015,8 @@ function processAITurnInternal(
 
     const strategicDeterrenceCautionWeight =
       OPPONENT_CHALLENGE_PROFILES[resolveOpponentChallenge(newState)].strategicDeterrenceCautionWeight;
+    const civHasArmsControlTreaty = hasArmsControlTreaty(newState, civId);
+    const actorHasKnownCapability = hasManhattanProject(newState, civId);
 
     let decisions = evaluateDiplomacy(
       personality,
@@ -1025,6 +1028,8 @@ function processAITurnInternal(
       newState.turn,
       diplomacyContext,
       strategicDeterrenceCautionWeight,
+      civHasArmsControlTreaty,
+      actorHasKnownCapability,
     );
     {
       const plannedWarTarget = preparedForTurn.perception.knownCivIds
@@ -1050,6 +1055,7 @@ function processAITurnInternal(
           plannedWarTarget,
           civ.techState.completed,
           newState.era,
+          civHasArmsControlTreaty,
         ).includes('declare_war')
       ) {
         decisions.push({
@@ -1116,6 +1122,28 @@ function processAITurnInternal(
             newState.civilizations[decision.targetCiv].diplomacy = signTreaty(
               newState.civilizations[decision.targetCiv].diplomacy, decision.targetCiv, civId, decision.action,
               duration, newState.turn,
+            );
+          }
+          bus.emit('diplomacy:treaty-accepted', { civA: civId, civB: decision.targetCiv, treaty: decision.action });
+          break;
+        }
+        case 'arms_control_pact': {
+          const cap = computeArmsControlCap(newState, civId, decision.targetCiv);
+          // #554: humans must consent -- enqueue a proposal instead of signing.
+          if (newState.civilizations[decision.targetCiv]?.isHuman) {
+            newState = enqueueTreatyProposal(
+              newState, civId, decision.targetCiv, decision.action, -1, bus,
+            );
+            break;
+          }
+          // AI<->AI: sign both sides immediately (existing behavior for every other treaty type).
+          newState.civilizations[civId].diplomacy = signTreaty(
+            currentDiplomacy, civId, decision.targetCiv, decision.action, -1, newState.turn, cap,
+          );
+          if (newState.civilizations[decision.targetCiv]?.diplomacy) {
+            newState.civilizations[decision.targetCiv].diplomacy = signTreaty(
+              newState.civilizations[decision.targetCiv].diplomacy, decision.targetCiv, civId, decision.action,
+              -1, newState.turn, cap,
             );
           }
           bus.emit('diplomacy:treaty-accepted', { civA: civId, civB: decision.targetCiv, treaty: decision.action });
