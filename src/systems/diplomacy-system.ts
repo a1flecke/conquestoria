@@ -19,6 +19,7 @@ import {
 import { resolveCivDefinition } from '@/systems/civ-registry';
 import { hasMetCivilization } from '@/systems/discovery-system';
 import { MINOR_CIV_DEFINITIONS } from '@/systems/minor-civ-definitions';
+import { computeArmsControlCap } from '@/systems/strategic-arsenal-system';
 
 export function resolveOpponentKind(civId: string): 'major' | 'minor' | 'barbarian' {
   if (civId.startsWith('barbarian')) return 'barbarian';
@@ -397,7 +398,7 @@ export function applyDiplomaticAction(
   // Issue #435 guard: a treaty (or war record) between unmet civs becomes contact
   // "evidence" and cascades into mass discovery on the next visibility sync.
   const requiresContact: DiplomaticAction[] = [
-    'declare_war', 'non_aggression_pact', 'trade_agreement', 'open_borders', 'alliance',
+    'declare_war', 'non_aggression_pact', 'trade_agreement', 'open_borders', 'alliance', 'arms_control_pact',
   ];
   if (requiresContact.includes(action) && !hasMetCivilization(state, actorId, targetCivId)) {
     return state;
@@ -464,6 +465,20 @@ export function applyDiplomaticAction(
               ? modifyRelationship(targetTreatyState, actorId, relationshipBonus)
               : targetTreatyState,
           },
+        },
+      };
+    }
+    case 'arms_control_pact': {
+      const cap = computeArmsControlCap(state, actorId, targetCivId);
+      bus.emit('diplomacy:treaty-accepted', { civA: actorId, civB: targetCivId, treaty: action });
+      const actorTreatyState = signTreaty(actor.diplomacy, actorId, targetCivId, action, -1, state.turn, cap);
+      const targetTreatyState = signTreaty(target.diplomacy, targetCivId, actorId, action, -1, state.turn, cap);
+      return {
+        ...state,
+        civilizations: {
+          ...state.civilizations,
+          [actorId]: { ...actor, diplomacy: actorTreatyState },
+          [targetCivId]: { ...target, diplomacy: targetTreatyState },
         },
       };
     }
