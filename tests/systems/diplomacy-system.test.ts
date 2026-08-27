@@ -288,6 +288,20 @@ describe('diplomacy-system', () => {
       const actions = getAvailableActions(state, 'ai-egypt', ['diplomacy-tech', 'trade-routes'], 12, false);
       expect(actions).not.toContain('arms_control_pact');
     });
+
+    it('omits arms_control_pact once already signed with that specific civ, matching every other treaty type\'s not-already-signed guard (#545 MR6)', () => {
+      let state = createDiplomacyState(civIds, 'player');
+      state = signTreaty(state, 'player', 'ai-egypt', 'arms_control_pact', -1, 1, 4);
+      const actions = getAvailableActions(state, 'ai-egypt', [], 1, true);
+      expect(actions).not.toContain('arms_control_pact');
+    });
+
+    it('still offers arms_control_pact to a DIFFERENT civ even after signing one with another', () => {
+      let state = createDiplomacyState(civIds, 'player');
+      state = signTreaty(state, 'player', 'ai-egypt', 'arms_control_pact', -1, 1, 4);
+      const actions = getAvailableActions(state, 'ai-rome', [], 1, true);
+      expect(actions).toContain('arms_control_pact');
+    });
   });
 
   describe('hasArmsControlTreaty (#545 MR6)', () => {
