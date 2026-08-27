@@ -497,6 +497,31 @@ describe('diplomacy-system', () => {
       expect(() => applyDiplomaticAction(state, 'outsider', breakawayId, 'reabsorb_breakaway', bus))
         .toThrow(/origin owner/i);
     });
+
+    it('arms_control_pact signs both sides immediately with the computed cap (#545 MR6)', () => {
+      const state = createNewGame(undefined, 'arms-control-sign-test', 'small');
+      state.civilizations.player.knownCivilizations = ['ai-1'];
+      state.civilizations['ai-1'].knownCivilizations = ['player'];
+      state.civilizations.player.strategicArsenal = 3;
+      state.civilizations['ai-1'].strategicArsenal = 1;
+
+      const result = applyDiplomaticAction(state, 'player', 'ai-1', 'arms_control_pact', new EventBus());
+
+      expect(result.civilizations.player.diplomacy.treaties).toContainEqual(
+        expect.objectContaining({ type: 'arms_control_pact', civA: 'player', civB: 'ai-1', arsenalCap: 3 }),
+      );
+      expect(result.civilizations['ai-1'].diplomacy.treaties).toContainEqual(
+        expect.objectContaining({ type: 'arms_control_pact', civA: 'ai-1', civB: 'player', arsenalCap: 3 }),
+      );
+    });
+
+    it('arms_control_pact requires prior contact, same #435 guard as every other treaty type', () => {
+      const state = createNewGame(undefined, 'arms-control-no-contact-test', 'small');
+      // No knownCivilizations set on either side -- unmet.
+      const result = applyDiplomaticAction(state, 'player', 'ai-1', 'arms_control_pact', new EventBus());
+      expect(result).toBe(state); // unchanged -- guard returns the input state verbatim
+      expect(result.civilizations.player.diplomacy.treaties).toHaveLength(0);
+    });
   });
 
   describe('treaty proposals (#554)', () => {
