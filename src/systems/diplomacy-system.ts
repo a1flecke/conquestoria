@@ -659,6 +659,9 @@ export function acceptDiplomaticRequest(
 
   if (request.type === 'treaty') {
     const turns = request.turnsRemaining ?? -1;
+    const cap = request.treatyType === 'arms_control_pact'
+      ? computeArmsControlCap(state, request.fromCivId, request.toCivId)
+      : undefined;
     const next = {
       ...state,
       pendingDiplomacyRequests: (state.pendingDiplomacyRequests ?? []).filter(candidate => candidate.id !== requestId),
@@ -666,11 +669,11 @@ export function acceptDiplomaticRequest(
         ...state.civilizations,
         [request.fromCivId]: {
           ...actor,
-          diplomacy: signTreaty(actor.diplomacy, request.fromCivId, request.toCivId, request.treatyType!, turns, state.turn),
+          diplomacy: signTreaty(actor.diplomacy, request.fromCivId, request.toCivId, request.treatyType!, turns, state.turn, cap),
         },
         [request.toCivId]: {
           ...target,
-          diplomacy: signTreaty(target.diplomacy, request.toCivId, request.fromCivId, request.treatyType!, turns, state.turn),
+          diplomacy: signTreaty(target.diplomacy, request.toCivId, request.fromCivId, request.treatyType!, turns, state.turn, cap),
         },
       },
     };
