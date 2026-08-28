@@ -1,4 +1,5 @@
-import type { GameState, LegendaryWonderDefinition, LegendaryWonderTacticalEffect } from '@/core/types';
+import type { GameState, LegendaryWonderDefinition, LegendaryWonderTacticalEffect, UnitType } from '@/core/types';
+import { getUnitRoleDefinition } from '@/systems/combat-role-definitions';
 import { getLegendaryWonderDefinitions } from '@/systems/legendary-wonder-definitions';
 
 export function getCompletedLegendaryWonderTacticalEffects(
@@ -21,4 +22,64 @@ export function getTacticalWonderAiValue(
 ): number {
   return getCompletedLegendaryWonderTacticalEffects(state, civId, definitions)
     .reduce((total, effect) => total + effect.aiValue, 0);
+}
+
+export interface LegendaryWonderTrainingEffectInput {
+  civId: string;
+  unitType: UnitType;
+  era: number;
+  isEligibleLandCombatUnit: boolean;
+  definitions?: readonly LegendaryWonderDefinition[];
+}
+
+export interface LegendaryWonderTrainingEffectResult {
+  state: GameState;
+  experienceBonus: number;
+  grantedRole?: string;
+}
+
+/**
+ * Claims all matching definition-driven role-training effects exactly once for a
+ * newly trained eligible unit. This is intentionally called only from the city
+ * production completion path; upgrades, captures, and spawned actors never reach it.
+ */
+export function applyLegendaryWonderTrainingEffects(
+  state: GameState,
+  input: LegendaryWonderTrainingEffectInput,
+): LegendaryWonderTrainingEffectResult {
+  if (!input.isEligibleLandCombatUnit) return { state, experienceBonus: 0 };
+
+  const role = getUnitRoleDefinition(input.unitType)?.primaryRole;
+  if (!role) return { state, experienceBonus: 0 };
+
+  const matchingEffects = getCompletedLegendaryWonderTacticalEffects(state, input.civId, input.definitions)
+    .filter((effect): effect is Extract<LegendaryWonderTacticalEffect, { kind: 'per-era-role-training-xp' }> =>
+      effect.kind === 'per-era-role-training-xp' && effect.roles.includes(role));
+  if (matchingEffects.length === 0) return { state, experienceBonus: 0 };
+
+  const tacticalState = state.legendaryWonderTacticalEffects ?? {
+    trainingGrantsByCiv: {},
+    interceptionClaimTurnByCiv: {},
+  };
+  const previousGrant = tacticalState.trainingGrantsByCiv[input.civId];
+  const grantedRoles = previousGrant?.era === input.era ? previousGrant.grantedRoles : [];
+  const maxGrants = Math.min(...matchingEffects.map(effect => effect.maxGrantsPerEra));
+  if (grantedRoles.includes(role) || grantedRoles.length >= maxGrants) {
+    return { state, experienceBonus: 0 };
+  }
+
+  return {
+    state: {
+      ...state,
+      legendaryWonderTacticalEffects: {
+        ...tacticalState,
+        trainingGrantsByCiv: {
+          ...tacticalState.trainingGrantsByCiv,
+          [input.civId]: { era: input.era, grantedRoles: [...grantedRoles, role] },
+        },
+      },
+    },
+    experienceBonus: matchingEffects.reduce((total, effect) => total + effect.experience, 0),
+    grantedRole: role,
+  };
 }
