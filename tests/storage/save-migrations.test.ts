@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createNewGame } from '@/core/game-state';
-import type { City, GameState, Unit } from '@/core/types';
+import type { City, CombatRole, GameState, Unit } from '@/core/types';
 import {
   CURRENT_SAVE_SCHEMA_VERSION,
   migrateSaveToCurrent,
@@ -741,7 +741,7 @@ describe('save migrations', () => {
     save.saveSchemaVersion = 21;
     save.legendaryWonderTacticalEffects = {
       trainingGrantsByCiv: {
-        player: { era: 3, grantedRoles: ['frontline', 'ranged', 'frontline', 'not-a-role'] },
+        player: { era: 3, grantedRoles: ['frontline', 'ranged', 'frontline', 'not-a-role' as unknown as CombatRole] },
         missing: { era: 3, grantedRoles: ['siege'] },
         malformed: { era: -1, grantedRoles: ['frontline'] },
       },
