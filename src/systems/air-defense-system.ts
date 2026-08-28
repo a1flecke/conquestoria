@@ -62,6 +62,15 @@ export function providersForOwner(state: GameState, ownerId: string): ResolvedAi
 export function civHasAirDefenseCoverage(state: GameState, civId: string): boolean {
   return providersForOwner(state, civId).length > 0;
 }
+
+/** True only at a point protected by a completed-wonder-expanded SAM source. */
+export function isWithinTacticalSamCoverage(state: GameState, ownerId: string, position: HexCoord): boolean {
+  return providersForOwner(state, ownerId).some(provider => {
+    if (!provider.id.startsWith('city:') || !provider.id.endsWith(':sam_site')) return false;
+    const baseRadius = BUILDINGS.sam_site?.airDefenseProvider?.radius;
+    return baseRadius !== undefined && provider.radius > baseRadius && distance(state, provider.position, position) <= provider.radius;
+  });
+}
 function providersFor(state: GameState, defender: Unit): ResolvedAirDefenseProvider[] {
   const defenderDomain = UNIT_DEFINITIONS[defender.type].domain ?? 'land';
   return providersForOwner(state, defender.owner).filter(provider =>
