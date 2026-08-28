@@ -1490,6 +1490,21 @@
   0%, 100% { transform: scale(.92); opacity: .6; }
   50% { transform: scale(1.14); opacity: 1; }
 }
+@keyframes cq710-radar-pulse {
+  0%, 100% { transform: scale(.82); opacity: .2; }
+  48% { transform: scale(1.08); opacity: .9; }
+  72% { transform: scale(1.22); opacity: 0; }
+}
+@keyframes cq710-sam-launch {
+  0%, 16% { transform: translateX(0); opacity: 1; }
+  34% { transform: translateX(28px); opacity: 1; }
+  66% { transform: translateX(80px); opacity: .9; }
+  100% { transform: translateX(104px); opacity: 0; }
+}
+@keyframes cq710-sam-launch-flash {
+  0%, 16%, 54%, 100% { transform: scaleX(.15); opacity: 0; }
+  24%, 34% { transform: scaleX(1.15); opacity: .95; }
+}
 @keyframes cq710-carrier-launch {
   0%, 18%, 100% { transform: translate(0, 0); opacity: 1; }
   34%, 52% { transform: translate(18px, -10px); opacity: .9; }
@@ -1512,7 +1527,7 @@
 /* Each named #710 surface has a real timeline; this also protects the minor-civ
    fallback classes from becoming inert if a future native migration is delayed. */
 .cq-v2 .cq-radar-tower, .cq-v2 .cq-radar-dish, .cq-v2 .cq-radar-pulse,
-.cq-v2 .cq-sam-bunker, .cq-v2 .cq-sam-launcher, .cq-v2 .cq-sam-missiles, .cq-v2 .cq-sam-dish,
+.cq-v2 .cq-sam-ground, .cq-v2 .cq-sam-platform, .cq-v2 .cq-sam-bunker, .cq-v2 .cq-sam-launcher, .cq-v2 .cq-sam-missiles, .cq-v2 .cq-sam-dish, .cq-v2 .cq-sam-standard,
 .cq-v2 .cq-parachute-lines, .cq-v2 .cq-paratrooper-body, .cq-v2 .cq-paratrooper-pack, .cq-v2 .cq-paratrooper-harness,
 .cq-v2 .cq-strike-fuselage, .cq-v2 .cq-strike-wing, .cq-v2 .cq-strike-cockpit, .cq-v2 .cq-strike-tail, .cq-v2 .cq-strike-tailhook,
 .cq-v2 .cq-patrol-fuselage, .cq-v2 .cq-patrol-wing, .cq-v2 .cq-patrol-nacelle-l, .cq-v2 .cq-patrol-nacelle-r,
@@ -1522,6 +1537,34 @@
   animation-delay: calc(var(--phase, 0) * -3.2s);
 }
 .cq-v2 .cq-radar-pulse, .cq-v2 .cq-parachute-lines, .cq-v2 .cq-supercarrier-wake { transform-box: fill-box; transform-origin: center; }
+
+/* Static sites never inherit the humanoid attack lunge; their attack motion belongs only to local hardware. */
+.cq-v2[data-kind="building"][data-state="attack"] .cq-sprite-figure { animation: none; }
+
+/* Static sites get state metadata in the preview and runtime wrapper, so their motion stays local to the hardware. */
+.cq-v2[data-kind="building"][data-kind-variant="radar-station"][data-state="attack"] .cq-radar-pulse {
+  animation: cq710-radar-pulse 2.2s ease-out infinite;
+  animation-delay: calc(var(--phase, 0) * -2.2s);
+}
+.cq-v2[data-kind="building"][data-kind-variant="radar-station"][data-state="attack"] .cq-radar-pulse--outer {
+  animation-delay: calc(var(--phase, 0) * -2.2s - 1.1s);
+}
+.cq-v2[data-kind="building"][data-kind-variant="sam-site"] .cq-sam-missile-launch {
+  transform-box: fill-box;
+  transform-origin: 0% 50%;
+}
+.cq-v2[data-kind="building"][data-kind-variant="sam-site"] .cq-sam-launch-flash {
+  transform-box: fill-box;
+  transform-origin: 100% 50%;
+}
+.cq-v2[data-kind="building"][data-kind-variant="sam-site"][data-state="attack"] .cq-sam-missile-launch {
+  animation: cq710-sam-launch 1.4s cubic-bezier(.3,.7,.4,1) infinite;
+  animation-delay: calc(var(--phase, 0) * -1.4s);
+}
+.cq-v2[data-kind="building"][data-kind-variant="sam-site"][data-state="attack"] .cq-sam-launch-flash {
+  animation: cq710-sam-launch-flash 1.4s ease-out infinite;
+  animation-delay: calc(var(--phase, 0) * -1.4s);
+}
 
 /* Paratrooper: canopy and lines remain a single connected assembly; only the rifle reacts. */
 .cq-v2[data-kind="ranged"][data-kind-variant="paratrooper"][data-state="attack"] .cq-sprite-figure { animation: none; }
@@ -1583,6 +1626,19 @@
   transform-box: fill-box;
   transform-origin: center;
 }
+.cq-v2[data-kind="civilian"][data-kind-variant="great-general"] .cq-general-leg-l,
+.cq-v2[data-kind="civilian"][data-kind-variant="great-general"] .cq-general-leg-r {
+  transform-box: fill-box;
+  transform-origin: 50% 0%;
+}
+.cq-v2[data-kind="civilian"][data-kind-variant="great-general"][data-state="walk"] .cq-general-leg-l {
+  animation: cq2-leg-fwd .72s cubic-bezier(.5,0,.5,1) infinite;
+  animation-delay: calc(var(--phase, 0) * -.72s);
+}
+.cq-v2[data-kind="civilian"][data-kind-variant="great-general"][data-state="walk"] .cq-general-leg-r {
+  animation: cq2-leg-back .72s cubic-bezier(.5,0,.5,1) infinite;
+  animation-delay: calc(var(--phase, 0) * -.72s - .36s);
+}
 .cq-v2[data-kind="civilian"][data-kind-variant="great-general"][data-state="attack"] .cq-general-map {
   animation: cq710-general-map 1.4s cubic-bezier(.3,.7,.4,1) infinite;
   animation-delay: calc(var(--phase, 0) * -1.4s);
@@ -1603,7 +1659,7 @@
     animation: none !important;
   }
   .cq-radar-tower, .cq-radar-dish, .cq-radar-pulse,
-  .cq-sam-bunker, .cq-sam-launcher, .cq-sam-missiles, .cq-sam-dish,
+  .cq-sam-ground, .cq-sam-platform, .cq-sam-bunker, .cq-sam-launcher, .cq-sam-missiles, .cq-sam-missile-launch, .cq-sam-launch-flash, .cq-sam-dish, .cq-sam-standard,
   .cq-parachute-canopy, .cq-parachute-lines, .cq-paratrooper-body, .cq-paratrooper-pack, .cq-paratrooper-harness, .cq-paratrooper-rifle,
   .cq-strike-fuselage, .cq-strike-wing, .cq-strike-cockpit, .cq-strike-tail, .cq-strike-tailhook, .cq-naval-strike-torpedo,
   .cq-patrol-fuselage, .cq-patrol-wing, .cq-patrol-nacelle-l, .cq-patrol-nacelle-r, .cq-patrol-prop-l, .cq-patrol-prop-r, .cq-patrol-radar-dome,

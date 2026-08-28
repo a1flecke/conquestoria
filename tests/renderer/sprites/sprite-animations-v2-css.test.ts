@@ -127,6 +127,31 @@ describe('#710 corrective sprite motion contract', () => {
   });
 });
 
+describe('#710 static-site and command gait regression', () => {
+  const selectors = [
+    '.cq-v2[data-kind="building"][data-kind-variant="sam-site"][data-state="attack"] .cq-sam-missile-launch',
+    '.cq-v2[data-kind="building"][data-kind-variant="sam-site"][data-state="attack"] .cq-sam-launch-flash',
+    '.cq-v2[data-kind="building"][data-kind-variant="radar-station"][data-state="attack"] .cq-radar-pulse',
+    '.cq-v2[data-kind="civilian"][data-kind-variant="great-general"][data-state="walk"] .cq-general-leg-l',
+    '.cq-v2[data-kind="civilian"][data-kind-variant="great-general"][data-state="walk"] .cq-general-leg-r',
+  ];
+
+  it('gives the SAM, radar, and General state-owned motion instead of inert decorative hooks', () => {
+    for (const selector of selectors) {
+      expect(css, `missing ${selector}`).toContain(selector);
+      const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      expect(css, `${selector} must declare animation`).toMatch(new RegExp(`${escaped}\\s*\\{[^}]*animation:`));
+    }
+  });
+
+  it('keeps site bodies fixed while their local attack effects run', () => {
+    const selector = '.cq-v2[data-kind="building"][data-state="attack"] .cq-sprite-figure';
+    expect(css, `missing ${selector}`).toContain(selector);
+    const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    expect(css, `${selector} must cancel the inherited attack lunge`).toMatch(new RegExp(`${escaped}\\s*\\{[^}]*animation:\\s*none`));
+  });
+});
+
 describe('#708 mounted animal animation contract', () => {
   it('defines an animated animal body plan with both required variants', () => {
     for (const selector of [

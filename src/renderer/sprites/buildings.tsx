@@ -23,9 +23,9 @@ function TileRoof({ d, color }: { d: string; color: string }): string {
 }
 
 function BuildingFrame({
-  children, label, sub, category, svgOnly,
+  children, label, sub, category, svgOnly, animate,
 }: {
-  children: string | string[]; label?: string; sub?: string; category?: string; svgOnly?: boolean;
+  children: string | string[]; label?: string; sub?: string; category?: string; svgOnly?: boolean; animate?: string;
 }): string {
   const defs = `<defs>
     <pattern id="thatchPattern" width="6" height="4" patternUnits="userSpaceOnUse">
@@ -42,7 +42,7 @@ function BuildingFrame({
     ? `<circle cx="96" cy="166" r="80" fill="none" stroke="${CATEGORY_TINTS[category] ?? '#888'}" stroke-width="2" opacity="0.18"/>`
     : '';
   const childStr = Array.isArray(children) ? children.join('') : (children ?? '');
-  return SpriteFrame({ size: 192, svgOnly, label, sub, hexTint: '#000', children: defs + ring + childStr });
+  return SpriteFrame({ size: 192, svgOnly, label, sub, animate, hexTint: '#000', children: defs + ring + childStr });
 }
 
 /* === FOOD === */
@@ -2331,7 +2331,7 @@ export function RadarStationSprite({ palette, svgOnly = false }: BuildingSpriteP
       <circle cx="96" cy="30" r="5" fill={P.metal.steel} stroke={P.ink.line} strokeWidth="1" />
       {/* pulse arcs from dish */}
       <path className="cq-radar-pulse" d="M56,20 Q96,-6 136,20" fill="none" stroke={palette.bright} strokeWidth="1" opacity="0.8" />
-      <path className="cq-radar-pulse" d="M62,10 Q96,-18 130,10" fill="none" stroke={palette.bright} strokeWidth="0.7" opacity="0.5" />
+      <path className="cq-radar-pulse cq-radar-pulse--outer" d="M62,10 Q96,-18 130,10" fill="none" stroke={palette.bright} strokeWidth="0.7" opacity="0.5" />
       {/* operator hut */}
       <rect x="50" y="104" width="52" height="32" rx="2" fill={P.stone.mid} stroke={P.ink.line} strokeWidth="1" />
       <rect x="62" y="112" width="20" height="16" rx="2" fill={palette.bright} stroke={P.ink.line} strokeWidth="0.8" />
@@ -2342,12 +2342,23 @@ export function RadarStationSprite({ palette, svgOnly = false }: BuildingSpriteP
 
 export function SamSiteSprite({ palette, svgOnly = false }: BuildingSpriteProps): string {
   return (
-    <BuildingFrame label="SAM Site" category="military" svgOnly={svgOnly}>
-      <BuildingPlinth w={132} />
+    <BuildingFrame label="SAM Site" category="military" svgOnly={svgOnly} animate="">
+      {/* Unlike a generic building plinth, this is terrain: the emplacement finishes inside soil. */}
+      <g className="cq-sam-ground">
+        <path d="M18,152 Q40,143 60,150 Q82,142 104,150 Q128,143 150,150 Q170,144 178,152 L172,164 H22 Z" fill={P.ground.grass} stroke={P.ink.line} strokeWidth=".7" />
+        <path d="M26,151 Q52,145 78,151 T130,151 T168,151" fill="none" stroke={P.ground.dirt} strokeWidth="3" opacity=".8" />
+      </g>
+      {/* A flush concrete slab overlaps the berm instead of reading as a suspended hull. */}
+      <g className="cq-sam-platform">
+        <path d="M39,132 H153 V150 H39 Z" fill={P.stone.light} stroke={P.ink.line} strokeWidth="1" />
+        <path d="M39,142 H153 M51,142 V150 M141,142 V150" stroke={P.stone.dark} strokeWidth=".9" opacity=".7" />
+      </g>
       <g className="cq-sam-bunker"><path d="M35,132 L49,90 L133,90 L153,132 Z" fill={P.stone.mid} stroke={P.ink.line} strokeWidth="1.2" /><rect x="62" y="108" width="32" height="24" fill={P.stone.dark} stroke={P.ink.line} strokeWidth=".8" /></g>
-      <g className="cq-sam-launcher" transform="translate(106 92) rotate(-28)"><rect x="-12" y="0" width="46" height="12" rx="3" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="1" /><g className="cq-sam-missiles" fill={P.metal.steel} stroke={P.ink.line} strokeWidth=".5"><path d="M0,2h30l6,4 -6,4H0z" /><path d="M0,8h30l6,4 -6,4H0z" /></g></g>
+      {/* Keep static placement outside the animated hooks so a launched missile inherits the rail's angle. */}
+      <g transform="translate(106 92) rotate(-28)"><g className="cq-sam-launcher"><rect x="-12" y="0" width="46" height="12" rx="3" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="1" /><g className="cq-sam-missiles" fill={P.metal.steel} stroke={P.ink.line} strokeWidth=".5"><g className="cq-sam-missile-launch"><path d="M0,2h30l6,4 -6,4H0z" /></g><path d="M0,8h30l6,4 -6,4H0z" /></g><path className="cq-sam-launch-flash" d="M-18,6 L0,1 L0,11 Z" fill={P.hud.prod} stroke={P.metal.gold} strokeWidth=".6" /></g></g>
       <g className="cq-sam-dish" transform="translate(55 88)"><path d="M-16,0h32q0,16 -16,20Q-16,16 -16,0Z" fill={palette.mid} stroke={P.ink.line} strokeWidth="1" /><line x1="0" y1="0" x2="0" y2="12" stroke={P.metal.steel} strokeWidth="1.2" /></g>
-      <Banner x={146} y={30} palette={palette} scale={.66} />
+      {/* The deliberately heavy mast disappears into the slab at map scale. */}
+      <g className="cq-sam-standard"><line x1="140" y1="76" x2="140" y2="148" stroke={P.wood.dark} strokeWidth="3.4" /><path d="M141,79 H169 L158,88 L169,98 H141 Z" fill={palette.mid} stroke={P.ink.line} strokeWidth=".8" /><circle cx="140" cy="75" r="3.4" fill={palette.bright} stroke={P.ink.line} strokeWidth=".6" /></g>
     </BuildingFrame>
   );
 }
