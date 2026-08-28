@@ -1061,10 +1061,10 @@ describe('#544 MR4 — legacy save load with no General heroic-command fields', 
     // Simulate a save from before #545 MR1 shipped -- delete every optional
     // field this arc introduced, even though createNewGame already sets
     // some of them (superweapons: 'on') for a brand-new game.
-    delete (save.settings as Record<string, unknown>).superweapons;
+    delete (save.settings as Partial<GameState['settings']>).superweapons;
     const civId = Object.keys(save.civilizations)[0]!;
-    delete (save.civilizations[civId] as Record<string, unknown>).strategicArsenal;
-    delete (save as Record<string, unknown>).builtNationalProjects;
+    delete (save.civilizations[civId] as Partial<GameState['civilizations'][string]>).strategicArsenal;
+    delete (save as Partial<GameState>).builtNationalProjects;
     // Treaty.arsenalCap's optionality is already covered directly by MR6's
     // own 'arsenalCap is set only for arms_control_pact...' test
     // (diplomacy-system.test.ts) -- not re-tested here, since a freshly
