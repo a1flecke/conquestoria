@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 >
-> **Status (2026-08-27):** Superseded by the corrective plan after human visual review found readability and attachment defects in the first candidate set. The accepted scope, evidence, and delivery status are tracked in `2026-08-25-issue-710-native-sprite-correction.md`; retain this document as the historical original contract.
+> **Status (2026-08-27):** Superseded by the corrective plan after human visual review found readability and attachment defects in the first candidate set. The accepted scope, evidence, and delivery status are tracked in `2026-08-25-issue-710-native-sprite-correction.md` and [MR #904](https://github.com/a1flecke/conquestoria/pull/904); retain this document as the historical original contract.
 
 **Goal:** Replace #710's SAM Site fallback and five orphaned unit aliases with distinct, reviewed, native-v2-backed visual identities.
 

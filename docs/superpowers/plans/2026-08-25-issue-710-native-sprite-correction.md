@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 >
-> **Status (2026-08-27):** Tasks 1–4 and Task 5 are complete. The user accepted the visual gate after the corrected local review; the five approved native payloads are registered. Build and durable-suite verification passed; the single MR remains.
+> **Status (2026-08-27):** Tasks 1–4 and Task 5 are complete. The user accepted the visual gate after the corrected local review; the five approved native payloads are registered. Build and durable-suite verification passed. Delivery is tracked in [MR #904](https://github.com/a1flecke/conquestoria/pull/904).
 
 **Goal:** Rebuild five rejected native-v2 candidates into readable animated unit sprites and supply #709-quality evidence before their live registration.
 
