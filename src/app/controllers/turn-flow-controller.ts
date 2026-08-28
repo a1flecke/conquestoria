@@ -62,6 +62,7 @@ import {
 import { resolveHotSeatPostSimulation } from '@/core/hotseat-outcome';
 import { acknowledgeTurnHandoffSummary, showTurnHandoff } from '@/ui/turn-handoff';
 import { closePirateWatersPanels } from '@/ui/pirate-waters-panel';
+import { closeStrategicLaunchFlow } from '@/ui/strategic-launch-flow';
 import { beginNetworkPlansForVictimTurn } from '@/systems/network-plan-system';
 import { applyPendingChallengeForCiv } from '@/core/opponent-challenge';
 import { runCompletedRound, type CompletedRoundResult } from '@/core/completed-round-orchestrator';
@@ -73,7 +74,7 @@ import { applyStrategicWarningTransitions } from '@/systems/strategic-warning-sy
 import { applySupplyWarningTransitions } from '@/systems/supply-warning-system';
 
 /** The narrow slice of `RenderLoop` this controller needs. */
-export type TurnFlowRenderer = Pick<RenderLoop, 'setGameState' | 'animateUnitMove' | 'setSelectedPirateFactionId'> & {
+export type TurnFlowRenderer = Pick<RenderLoop, 'setGameState' | 'animateUnitMove' | 'setSelectedPirateFactionId' | 'setStrategicLaunchPreview'> & {
   readonly camera: Pick<RenderLoop['camera'], 'centerOn'>;
 };
 
@@ -504,6 +505,12 @@ export function createTurnFlowController(deps: TurnFlowControllerDeps): TurnFlow
     // screen once enterViewerTurn's setBlockingOverlay(null) pumps the queues.
     ceremonies.clearForHandoff();
     renderLoop.setSelectedPirateFactionId(null);
+    // #545 MR8: the strike-target picker (panel + blast-radius map overlay)
+    // is exactly the same class of "player-owned surface that may contain
+    // strategic targets" the comment above already warns about -- it was
+    // missing from this list.
+    closeStrategicLaunchFlow(uiLayer);
+    renderLoop.setStrategicLaunchPreview(null);
     audio.stopPirateAmbience('player-changed');
     audio.setMasterVolume(0);
     deps.setBlockingOverlay('turn-handoff');

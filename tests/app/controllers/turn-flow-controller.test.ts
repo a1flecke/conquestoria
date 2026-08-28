@@ -110,6 +110,7 @@ function fakeRenderer(overrides: Partial<TurnFlowRenderer> = {}): TurnFlowRender
     setGameState: vi.fn(),
     animateUnitMove: vi.fn((_unit, _path, done) => done()),
     setSelectedPirateFactionId: vi.fn(),
+    setStrategicLaunchPreview: vi.fn(),
     camera: { centerOn: vi.fn() },
     ...overrides,
   };
@@ -279,6 +280,35 @@ describe('createTurnFlowController', () => {
       expect(saveManager.autoSave).toHaveBeenCalled();
       expect(deps.audio.setMasterVolume).toHaveBeenCalledWith(0.6);
       expect(deps.roundPresentationGate.isSuppressed()).toBe(false);
+    });
+
+    it('closes the strategic-launch flow panel and clears its map preview on handoff (#545 MR8)', async () => {
+      const state = makeHotSeatFixture();
+      const setStrategicLaunchPreview = vi.fn();
+      const testUiLayer = document.createElement('div');
+      const launchPanel = document.createElement('div');
+      launchPanel.id = 'strategic-launch-flow';
+      testUiLayer.appendChild(launchPanel);
+      const deps = baseDeps(state, {
+        uiLayer: testUiLayer,
+        renderLoop: fakeRenderer({ setStrategicLaunchPreview }),
+      });
+      const turnFlow = createTurnFlowController(deps);
+
+      const endTurnPromise = turnFlow.endTurn();
+      // beginHotSeatHandoff's cleanup block (closePirateWatersPanels etc.,
+      // now including this) runs synchronously before the handoff UI mounts
+      // -- same timing as the roundPresentationGate assertion in the test
+      // above.
+      expect(testUiLayer.querySelector('#strategic-launch-flow')).toBeNull();
+      expect(setStrategicLaunchPreview).toHaveBeenCalledWith(null);
+
+      await flushMicrotasks();
+      document.querySelector<HTMLButtonElement>('#handoff-confirm')?.click();
+      await flushMicrotasks();
+      document.querySelector<HTMLButtonElement>('#handoff-start')?.click();
+      await flushMicrotasks();
+      await endTurnPromise;
     });
 
     it('clears a pending last-stand-target intent before the next hot-seat player can act (#544 MR6 item 87)', async () => {
