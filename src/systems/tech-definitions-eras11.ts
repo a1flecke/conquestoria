@@ -32,7 +32,7 @@ const ERA_11_TECHS: Tech[] = [
   // CIVICS (2)
   { id: 'arms-control-negotiations', name: 'Arms Control Negotiations', track: 'civics', cost: 1650,
     prerequisites: ['decolonization', 'international-institutions'],
-    unlocks: ['+2 gold empire-wide; superpowers agree to arsenal limits, opening a decade of diplomatic thaw'],
+    unlocks: ['+5 gold empire-wide; superpowers agree to arsenal limits, opening a decade of diplomatic thaw'],
     unlocksBuildings: ['arms_control_treaty'], era: 11 },
   { id: 'civil-rights-legislation', name: 'Civil Rights Legislation', track: 'civics', cost: 1650,
     prerequisites: ['human-rights-framework', 'universal-healthcare'],
