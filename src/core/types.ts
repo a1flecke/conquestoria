@@ -151,6 +151,19 @@ export interface LegendaryWonderReward {
   instantResearch?: number;
   civYieldBonus?: Partial<ResourceYield>;
   cityYieldBonus?: Partial<ResourceYield>;
+  tacticalEffects?: LegendaryWonderTacticalEffect[];
+}
+
+export type LegendaryWonderTacticalEffect =
+  | { kind: 'per-era-role-training-xp'; roles: CombatRole[]; experience: number; maxGrantsPerEra: number; aiValue: number }
+  | { kind: 'fort-occupant-healing'; amount: number; aiValue: number }
+  | { kind: 'adjacent-citadel-defense'; multiplier: number; stackingGroup: string; excludedRoles: CombatRole[]; aiValue: number }
+  | { kind: 'aa-radius-extension'; providerKind: 'sam-site'; radius: number; aiValue: number }
+  | { kind: 'first-owner-turn-interception-modifier'; multiplier: number; stackingGroup: string; aiValue: number };
+
+export interface LegendaryWonderTacticalEffectState {
+  trainingGrantsByCiv: Record<string, { era: number; grantedRoles: CombatRole[] }>;
+  interceptionClaimTurnByCiv: Record<string, number>;
 }
 
 export interface CompletedLegendaryWonder {
@@ -2107,6 +2120,7 @@ export interface GameState {
   legendaryWonderProjects?: Record<string, LegendaryWonderProject>;
   legendaryWonderAvailability?: Record<string, LegendaryWonderAvailabilityRecord>;
   completedLegendaryWonders?: Record<string, CompletedLegendaryWonder>;
+  legendaryWonderTacticalEffects?: LegendaryWonderTacticalEffectState;
   builtNationalProjects?: Record<string, BuiltNationalProjectRecord>; // key: `${civId}:${buildingId}`
   /** Player-authored, empire-scoped choices made by national projects. */
   nationalProjectChoices?: Record<string, ResourceType>;

@@ -363,6 +363,18 @@ describe('createDefaultSettings', () => {
 });
 
 describe('createHotSeatGame', () => {
+  it('initializes empty tactical wonder effect state for solo and hot-seat games', () => {
+    const solo = createNewGame('rome', 'tactical-wonder-solo', 'small') as GameState & {
+      legendaryWonderTacticalEffects?: unknown;
+    };
+    const hotSeat = createHotSeatGame({ players: [{ civilization: 'rome' }, { civilization: 'zulu' }], mapSize: 'small' }, 'tactical-wonder-hot-seat') as GameState & {
+      legendaryWonderTacticalEffects?: unknown;
+    };
+
+    expect(solo.legendaryWonderTacticalEffects).toEqual({ trainingGrantsByCiv: {}, interceptionClaimTurnByCiv: {} });
+    expect(hotSeat.legendaryWonderTacticalEffects).toEqual({ trainingGrantsByCiv: {}, interceptionClaimTurnByCiv: {} });
+  });
+
   const config: HotSeatConfig = {
     playerCount: 3,
     mapSize: 'medium',
