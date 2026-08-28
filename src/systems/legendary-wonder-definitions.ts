@@ -912,8 +912,8 @@ export const LEGENDARY_WONDER_DEFINITIONS: LegendaryWonderDefinition[] = getAppr
   return definition;
 });
 
-export function getLegendaryWonderDefinitions(): LegendaryWonderDefinition[] {
-  return LEGENDARY_WONDER_DEFINITIONS.map(definition => ({
+export function cloneLegendaryWonderDefinition(definition: LegendaryWonderDefinition): LegendaryWonderDefinition {
+  return {
     ...definition,
     requiredTechs: [...definition.requiredTechs],
     requiredResources: [...definition.requiredResources],
@@ -928,7 +928,11 @@ export function getLegendaryWonderDefinitions(): LegendaryWonderDefinition[] {
         ...(effect.kind === 'adjacent-citadel-defense' ? { excludedRoles: [...effect.excludedRoles] } : {}),
       })),
     },
-  }));
+  };
+}
+
+export function getLegendaryWonderDefinitions(): LegendaryWonderDefinition[] {
+  return LEGENDARY_WONDER_DEFINITIONS.map(cloneLegendaryWonderDefinition);
 }
 
 export function getLegendaryWonderDefinition(wonderId: string): LegendaryWonderDefinition | undefined {

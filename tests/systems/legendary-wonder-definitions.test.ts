@@ -1,13 +1,50 @@
 import { describe, expect, it } from 'vitest';
 import { getApprovedM4LegendaryWonderRoster } from '@/systems/approved-legendary-wonder-roster';
 import {
+  cloneLegendaryWonderDefinition,
   getLateEraWonderTechRequirements,
   getLegendaryWonderDefinitions,
 } from '@/systems/legendary-wonder-definitions';
+import type { LegendaryWonderDefinition } from '@/core/types';
 import { RESOURCE_DEFINITIONS } from '@/systems/trade-system';
 import { TECH_TREE } from '@/systems/tech-definitions';
 
 describe('legendary-wonder-definitions', () => {
+  it('clones tactical effect arrays and their nested role lists', () => {
+    const definition: LegendaryWonderDefinition = {
+      id: 'tactical-clone-test',
+      name: 'Tactical Clone Test',
+      era: 3,
+      productionCost: 1,
+      requiredTechs: [],
+      requiredResources: [],
+      cityRequirement: 'any',
+      questSteps: [],
+      reward: {
+        summary: 'Test only.',
+        tacticalEffects: [{
+          kind: 'per-era-role-training-xp',
+          roles: ['frontline'],
+          experience: 10,
+          maxGrantsPerEra: 4,
+          aiValue: 10,
+        }],
+      },
+    };
+
+    const clone = cloneLegendaryWonderDefinition(definition);
+    const effect = clone.reward.tacticalEffects?.[0];
+    if (!effect || effect.kind !== 'per-era-role-training-xp') {
+      throw new Error('Expected role-training tactical effect.');
+    }
+    effect.roles.push('ranged');
+
+    expect(definition.reward.tacticalEffects?.[0]).toMatchObject({
+      kind: 'per-era-role-training-xp',
+      roles: ['frontline'],
+    });
+  });
+
   it('matches the full approved M4 legendary wonder roster exactly', () => {
     const approved = getApprovedM4LegendaryWonderRoster().map(w => w.id);
     const shipped = getLegendaryWonderDefinitions().map(w => w.id);
