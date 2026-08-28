@@ -1,6 +1,7 @@
 import type { BuildableImprovementType, GameState, DisguiseType, HexCoord, Unit, WorkerActionType } from '@/core/types';
 import { UNIT_DEFINITIONS, UNIT_DESCRIPTIONS, canHeal } from '@/systems/unit-system';
 import { resolveSuperweaponContentDescription } from '@/systems/superweapon-content-honesty';
+import { isSuperweaponsEnabled } from '@/systems/superweapons-flag';
 import { GENERAL_DEFINITIONS } from '@/systems/great-general-definitions';
 import { getHeroicCommandEligibility } from '@/systems/great-general-abilities';
 import { getEffectiveCommandStats } from '@/systems/great-general-system';
@@ -1054,7 +1055,7 @@ export function renderSelectedUnitInfo(
   // #545 MR4 §14 stage 1: actionsDiv has no single shared ownership gate --
   // each action re-checks `unit.owner === state.currentPlayer` itself (see
   // the auto-explore block above), so this one must too.
-  if (unit.type === 'missile_submarine' && unit.owner === state.currentPlayer) {
+  if (isSuperweaponsEnabled(state) && unit.type === 'missile_submarine' && unit.owner === state.currentPlayer) {
     const arsenal = getStrategicArsenal(state.civilizations[unit.owner]!);
     const launchButton = createGameButton('Prepare Strategic Launch', 'danger', { disabled: arsenal < 1 });
     launchButton.dataset.action = 'prepare-strategic-launch';

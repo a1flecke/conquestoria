@@ -419,6 +419,24 @@ describe('Prepare Strategic Launch action (#545 MR4 §14 stage 1)', () => {
     renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'u1', {});
     expect(findButtons(container).find(b => /^Prepare Strategic Launch/.test(b.textContent ?? ''))).toBeUndefined();
   });
+
+  it('is absent when superweapons is off, even with real banked arsenal (#545 MR7)', () => {
+    const state = makeSubmarineState(1);
+    state.settings.superweapons = 'off';
+    const container = new MockElement('div');
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'u1', {});
+    expect(findButtons(container).find(b => /^Prepare Strategic Launch/.test(b.textContent ?? ''))).toBeUndefined();
+  });
+
+  it('description drops the launch claim when superweapons is off, but keeps the coastal-city requirement (#545 MR7)', () => {
+    const state = makeSubmarineState(0);
+    state.settings.superweapons = 'off';
+    const container = new MockElement('div');
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'u1', {});
+    const text = collectAllText(container).join(' ');
+    expect(text).not.toMatch(/launch|warhead|4 hexes/i);
+    expect(text).toContain('coastal city');
+  });
 });
 
 describe('selected-unit scroll affordance', () => {
