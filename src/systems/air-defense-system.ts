@@ -4,6 +4,7 @@ import { hexDistance, wrappedHexDistance } from './hex-utils';
 import { BUILDINGS } from './city-system';
 import { UNIT_DEFINITIONS } from './unit-system';
 import { isHostileOwnerTo } from './owner-hostility';
+import { getTacticalSamRadius } from './legendary-wonder-tactical-effects';
 
 export interface ResolvedAirDefenseProvider extends AirDefenseCoverageProvider {}
 interface UnfilteredCoverage { flatDefenseModifier: number; facts: CombatModifierFact[]; providers: ResolvedAirDefenseProvider[]; }
@@ -15,7 +16,10 @@ function coverageRevision(state: GameState): string {
     .map(city => `${city.id}:${city.owner}:${city.position.q},${city.position.r}:${[...(city.buildings ?? [])].sort().join(',')}`)
     .sort();
   const units = Object.values(state.units).map(unit => `${unit.id}:${unit.owner}:${unit.type}:${unit.position.q},${unit.position.r}:${unit.transportId ?? ''}`).sort();
-  return `${state.map.width}:${state.map.wrapsHorizontally}:${cities.join('|')}:${units.join('|')}`;
+  const completedWonders = Object.entries(state.completedLegendaryWonders ?? {})
+    .map(([id, completion]) => `${id}:${completion.ownerId}`)
+    .sort();
+  return `${state.map.width}:${state.map.wrapsHorizontally}:${cities.join('|')}:${units.join('|')}:${completedWonders.join('|')}`;
 }
 
 function distance(state: GameState, left: Unit['position'], right: Unit['position']): number {
@@ -33,7 +37,14 @@ export function providersForOwner(state: GameState, ownerId: string): ResolvedAi
     return buildingIds.flatMap(buildingId => {
     const building = BUILDINGS[buildingId]; const capability = building?.airDefenseProvider;
     const requirementsMet = capability?.requiresCompletedBuildingIds?.every(id => buildingIds.includes(id)) ?? true;
-    return capability && requirementsMet ? [{ id: `city:${city.id}:${building.id}`, label: building.name, position: { ...city.position }, ownerId, ...capability }] : [];
+    return capability && requirementsMet ? [{
+      id: `city:${city.id}:${building.id}`,
+      label: building.name,
+      position: { ...city.position },
+      ownerId,
+      ...capability,
+      radius: buildingId === 'sam_site' ? getTacticalSamRadius(state, ownerId, capability.radius) : capability.radius,
+    }] : [];
     });
   });
   const unitProviders = Object.values(state.units).flatMap(unit => {

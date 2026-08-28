@@ -134,3 +134,15 @@ export function getTacticalAdjacentCitadelDefense(
     label: `Legendary Citadel +${Math.round((strongest.multiplier - 1) * 100)}%`,
   };
 }
+
+export function getTacticalSamRadius(
+  state: GameState,
+  civId: string,
+  baseRadius: number,
+  definitions?: readonly LegendaryWonderDefinition[],
+): number {
+  return getCompletedLegendaryWonderTacticalEffects(state, civId, definitions)
+    .reduce((radius, effect) => effect.kind === 'aa-radius-extension' && effect.providerKind === 'sam-site'
+      ? Math.max(radius, effect.radius)
+      : radius, baseRadius);
+}

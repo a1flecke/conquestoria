@@ -8,6 +8,7 @@ import {
   applyLegendaryWonderTrainingEffects,
   getTacticalFortOccupantHealingBonus,
   getTacticalAdjacentCitadelDefense,
+  getTacticalSamRadius,
   getCompletedLegendaryWonderTacticalEffects,
   getTacticalWonderAiValue,
 } from '@/systems/legendary-wonder-tactical-effects';
@@ -156,5 +157,19 @@ describe('legendary wonder tactical effects', () => {
     });
     sourceTile.improvementTurnsLeft = 1;
     expect(getTacticalAdjacentCitadelDefense(state, defender, citadelDefinitions).multiplier).toBe(1);
+  });
+
+  it('extends only a completed owner’s declared SAM radius', () => {
+    const state = createNewGame('rome', 'tactical-sam-radius', 'small');
+    state.completedLegendaryWonders = {
+      'test-wonder': { ownerId: 'player', cityId: Object.keys(state.cities)[0]!, turnCompleted: 1 },
+    };
+    const samDefinitions: LegendaryWonderDefinition[] = [{
+      ...definitions[0]!,
+      reward: { summary: 'SAM test', tacticalEffects: [{ kind: 'aa-radius-extension', providerKind: 'sam-site', radius: 3, aiValue: 14 }] },
+    }];
+
+    expect(getTacticalSamRadius(state, 'player', 2, samDefinitions)).toBe(3);
+    expect(getTacticalSamRadius(state, 'ai-1', 2, samDefinitions)).toBe(2);
   });
 });
