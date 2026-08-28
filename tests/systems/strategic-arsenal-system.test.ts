@@ -24,7 +24,7 @@ function makeState(overrides: Partial<GameState> = {}): GameState {
     defensiveLeagues: [],
     gameOver: false,
     winner: null,
-    settings: {} as any,
+    settings: { superweapons: 'on' } as any,
     tribalVillages: {},
     discoveredWonders: {},
     wonderDiscoverers: {},
@@ -108,6 +108,20 @@ describe('hasKnownStrategicCapability (#545 MR5)', () => {
       builtNationalProjects: { 'owner:manhattan_project': { civId: 'owner', cityId: 'c1', eraBuilt: 10 } },
     });
     expect(hasKnownStrategicCapability(state, 'viewer', 'owner')).toBe(true);
+  });
+});
+
+describe('hasKnownStrategicCapability off-mode (#545 MR7)', () => {
+  it('is false when superweapons is off, even with contact and a real Manhattan Project', () => {
+    const state = makeState({
+      civilizations: {
+        viewer: makeCiv({ id: 'viewer', knownCivilizations: ['owner'] }),
+        owner: makeCiv({ id: 'owner', knownCivilizations: ['viewer'] }),
+      },
+      builtNationalProjects: { 'owner:manhattan_project': { civId: 'owner', cityId: 'c1', eraBuilt: 10 } },
+      settings: { superweapons: 'off' } as any,
+    });
+    expect(hasKnownStrategicCapability(state, 'viewer', 'owner')).toBe(false);
   });
 });
 
@@ -375,5 +389,15 @@ describe('getArsenalStatus (#545 MR6)', () => {
       cities: { c1: makeCity('c1', ['missile_silo']) }, // physical capacity 2, arsenal 1 -> not at capacity
     });
     expect(getArsenalStatus(state, 'p1').atCapacity).toBe(false);
+  });
+
+  it('atCapacity is true when superweapons is off, even with real physical capacity and zero arsenal (#545 MR7)', () => {
+    const state = makeState({
+      civilizations: { p1: makeCiv({ cities: ['c1'], strategicArsenal: 0 }) },
+      builtNationalProjects: { 'p1:manhattan_project': { civId: 'p1', cityId: 'c1', eraBuilt: 10 } },
+      cities: { c1: makeCity('c1', ['nuclear_arsenal']) },
+      settings: { superweapons: 'off' } as any,
+    });
+    expect(getArsenalStatus(state, 'p1').atCapacity).toBe(true);
   });
 });

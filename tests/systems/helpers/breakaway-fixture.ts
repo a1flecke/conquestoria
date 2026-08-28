@@ -187,6 +187,10 @@ export function makeBreakawayFixture({
       tutorialEnabled: false,
       advisorsEnabled: {} as any,
       councilTalkLevel: 'normal',
+      // #545 MR7: this shared fixture is used by pre-existing strategic-
+      // deterrence tests that implicitly assume on-mode behavior -- default
+      // to 'on' here rather than in each individual test.
+      superweapons: 'on',
     },
     tribalVillages: {},
     discoveredWonders: {},

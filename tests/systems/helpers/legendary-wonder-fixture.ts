@@ -160,6 +160,10 @@ export function makeLegendaryWonderFixture({
       tutorialEnabled: false,
       advisorsEnabled: {} as any,
       councilTalkLevel: 'normal',
+      // #545 MR7: this shared fixture is used by many pre-existing warhead/
+      // arsenal tests that implicitly assume on-mode behavior -- default to
+      // 'on' here rather than in each individual test.
+      superweapons: 'on',
     },
     tribalVillages: {},
     discoveredWonders: {},
