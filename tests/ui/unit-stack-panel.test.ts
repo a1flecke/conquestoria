@@ -130,4 +130,18 @@ describe('unit stack panel', () => {
     expect(container.textContent).toContain('Transport');
     expect(container.textContent).not.toContain('Warrior');
   });
+
+  it('missile_submarine description drops the launch claim when superweapons is off (#545 MR7)', () => {
+    const state = stateWithStack();
+    state.units.sub = unit('sub', 'missile_submarine', { movementPointsLeft: 3 });
+    (state as any).settings = { superweapons: 'off' };
+    const container = document.createElement('div');
+
+    renderUnitStackPanel(container, state, { q: 2, r: 1 }, ['sub'], {
+      onSelectUnit: () => {},
+    });
+
+    expect(container.textContent).not.toMatch(/launch|warhead|4 hexes/i);
+    expect(container.textContent).toContain('coastal city');
+  });
 });

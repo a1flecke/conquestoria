@@ -2803,6 +2803,19 @@ describe('city-panel warhead arsenal visibility (#545)', () => {
     expect(collectText(panel)).not.toMatch(/Arsenal at \d+\/\d+/);
     expect(collectText(panel).toLowerCase()).toContain('superweapons');
   });
+
+  it('an already-built missile_silo\'s description drops the launch/capacity claim when superweapons is off (#545 MR7)', () => {
+    const { container, city, state } = makeWonderPanelFixture();
+    city.buildings.push('missile_silo');
+    state.settings.superweapons = 'off';
+
+    const panel = createCityPanel(container, city, state, {
+      onBuild: () => {}, onOpenWonderPanel: () => {}, onClose: () => {},
+    });
+
+    expect(collectText(panel)).not.toMatch(/launch|ICBM|intercontinental|arsenal capacity/i);
+    expect(collectText(panel)).toContain('command bunker');
+  });
 });
 
 describe('Prepare Strategic Launch action (#545 MR4 §14 stage 1)', () => {
