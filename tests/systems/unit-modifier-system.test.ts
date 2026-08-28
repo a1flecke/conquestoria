@@ -540,6 +540,13 @@ describe('getHealingBonus — stacking order and conditions', () => {
     expect(getHealingBonus(baseHealCtx({ inFriendlyCity: false, localCityHealingBonus: 5 } as HealingModifierContext)).flat).toBe(0);
   });
 
+  it('includes tactical Fort healing as an ordinary flat healing contribution', () => {
+    const bonus = getHealingBonus(baseHealCtx({ tacticalFortHealingBonus: 5 }));
+
+    expect(bonus.flat).toBe(5);
+    expect(bonus.parts).toContainEqual({ label: 'Legendary Fort +5', kind: 'flat' });
+  });
+
   it('inFriendlyTerritory-gated techs contribute nothing outside friendly territory (negative test)', () => {
     const bonus = getHealingBonus(baseHealCtx({
       completedTechs: ['advanced-anatomy', 'germ-theory', 'penicillin'],

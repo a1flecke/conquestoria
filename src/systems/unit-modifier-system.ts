@@ -197,6 +197,7 @@ export interface HealingModifierContext {
   withinRangeOfFriendlyCity3: boolean;
   withinRangeOfNeuralRehabilitationCenter: boolean;
   localCityHealingBonus?: number;
+  tacticalFortHealingBonus?: number;
 }
 
 export interface HealingModifierResult {
@@ -213,6 +214,11 @@ export function getHealingBonus(ctx: HealingModifierContext): HealingModifierRes
   if (ctx.inFriendlyCity && ctx.localCityHealingBonus) {
     flat += ctx.localCityHealingBonus;
     parts.push({ label: formatPart('Local infrastructure', 'flat', ctx.localCityHealingBonus), kind: 'flat' });
+  }
+
+  if (ctx.tacticalFortHealingBonus) {
+    flat += ctx.tacticalFortHealingBonus;
+    parts.push({ label: formatPart('Legendary Fort', 'flat', ctx.tacticalFortHealingBonus), kind: 'flat' });
   }
 
   for (const modifier of UNIT_MODIFIERS) {

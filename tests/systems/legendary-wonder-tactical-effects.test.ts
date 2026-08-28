@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { createNewGame } from '@/core/game-state';
 import type { LegendaryWonderDefinition } from '@/core/types';
+import { hexKey } from '@/systems/hex-utils';
+import { createUnit } from '@/systems/unit-system';
 import {
   applyLegendaryWonderTrainingEffects,
+  getTacticalFortOccupantHealingBonus,
   getCompletedLegendaryWonderTacticalEffects,
   getTacticalWonderAiValue,
 } from '@/systems/legendary-wonder-tactical-effects';
@@ -97,5 +100,26 @@ describe('legendary wonder tactical effects', () => {
     expect(capped.state.legendaryWonderTacticalEffects?.trainingGrantsByCiv.player).toEqual({
       era: 3, grantedRoles: ['frontline'],
     });
+  });
+
+  it('returns Fort healing only for an owned completed land-combat occupant', () => {
+    const state = createNewGame('rome', 'tactical-fort-healing', 'small');
+    const startPosition = state.units[state.civilizations.player.units[0]!].position;
+    const unit = createUnit('warrior', 'player', startPosition, state.idCounters);
+    const tile = state.map.tiles[hexKey(unit.position)]!;
+    tile.owner = 'player';
+    tile.improvement = 'fort';
+    tile.improvementTurnsLeft = 0;
+    state.completedLegendaryWonders = {
+      'test-wonder': { ownerId: 'player', cityId: Object.keys(state.cities)[0]!, turnCompleted: 1 },
+    };
+    const healingDefinitions: LegendaryWonderDefinition[] = [{
+      ...definitions[0]!,
+      reward: { summary: 'Healing test', tacticalEffects: [{ kind: 'fort-occupant-healing', amount: 5, aiValue: 14 }] },
+    }];
+
+    expect(getTacticalFortOccupantHealingBonus(state, unit, healingDefinitions)).toBe(5);
+    tile.improvementTurnsLeft = 1;
+    expect(getTacticalFortOccupantHealingBonus(state, unit, healingDefinitions)).toBe(0);
   });
 });

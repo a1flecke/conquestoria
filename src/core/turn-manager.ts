@@ -119,7 +119,7 @@ import {
   reconcileLegendaryWonderAvailability,
   tickLegendaryWonderProjects,
 } from '@/systems/legendary-wonder-system';
-import { applyLegendaryWonderTrainingEffects } from '@/systems/legendary-wonder-tactical-effects';
+import { applyLegendaryWonderTrainingEffects, getTacticalFortOccupantHealingBonus } from '@/systems/legendary-wonder-tactical-effects';
 import { applyEconomyTurn, emitEconomyStrainIfNeeded } from '@/systems/economy-system';
 import {
   getNationalProjectCivYieldBonus,
@@ -663,6 +663,7 @@ export function processTurn(
         localCityHealingBonus: inFriendlyCity && friendlyCity
           ? getLocalCityHealingBonus(unit.type, friendlyCity.buildings)
           : 0,
+        tacticalFortHealingBonus: getTacticalFortOccupantHealingBonus(newState, unit),
       });
       if (getRestAvailability(unit.landSupply).canRest) {
         newState.units[unitId] = healUnit(unit, inFriendlyCity, inFriendlyTerritory, healingBonus);
