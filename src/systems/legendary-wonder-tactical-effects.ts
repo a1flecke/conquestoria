@@ -146,3 +146,41 @@ export function getTacticalSamRadius(
       ? Math.max(radius, effect.radius)
       : radius, baseRadius);
 }
+
+export interface TacticalInterceptionClaimResult {
+  state: GameState;
+  multiplier: number;
+}
+
+export function claimTacticalFirstOwnerTurnInterception(
+  state: GameState,
+  civId: string,
+  isEligible: boolean,
+  definitions?: readonly LegendaryWonderDefinition[],
+): TacticalInterceptionClaimResult {
+  if (!isEligible || state.legendaryWonderTacticalEffects?.interceptionClaimTurnByCiv[civId] === state.turn) {
+    return { state, multiplier: 1 };
+  }
+  const effects = getCompletedLegendaryWonderTacticalEffects(state, civId, definitions)
+    .filter((effect): effect is Extract<LegendaryWonderTacticalEffect, { kind: 'first-owner-turn-interception-modifier' }> =>
+      effect.kind === 'first-owner-turn-interception-modifier');
+  if (effects.length === 0) return { state, multiplier: 1 };
+  const multiplier = Math.max(...effects.map(effect => effect.multiplier));
+  const tacticalState = state.legendaryWonderTacticalEffects ?? {
+    trainingGrantsByCiv: {},
+    interceptionClaimTurnByCiv: {},
+  };
+  return {
+    state: {
+      ...state,
+      legendaryWonderTacticalEffects: {
+        ...tacticalState,
+        interceptionClaimTurnByCiv: {
+          ...tacticalState.interceptionClaimTurnByCiv,
+          [civId]: state.turn,
+        },
+      },
+    },
+    multiplier,
+  };
+}

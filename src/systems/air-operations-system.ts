@@ -13,6 +13,8 @@ import { resolveCombatEra } from './era-resolution';
 import { resolveCivilizationEra } from './tech-definitions';
 import { appendNotification } from '@/core/notification-log';
 import { recordCampPressureFromAirStrike } from './barbarian-pressure';
+import { isWithinTacticalSamCoverage } from './air-defense-system';
+import { claimTacticalFirstOwnerTurnInterception } from './legendary-wonder-tactical-effects';
 
 export type AirOperationResult =
   | { ok: true; state: GameState }
@@ -303,7 +305,16 @@ export function resolveAirStrike(state: GameState, unitId: string, target: HexCo
   const interceptor = selectInterceptor(state, striker, target);
   let interception: { interceptorId: string; result: CombatResult } | undefined;
   if (interceptor) {
-    const result = resolveCombat(interceptor, striker, state.map, deterministicCombatSeed(state.gameId, state.turn, interceptor.id, striker.id), buildCombatContextForDefender(state, interceptor, striker, { isIntercepting: true }), resolveCombatEra(state, interceptor, striker));
+    const tacticalClaim = claimTacticalFirstOwnerTurnInterception(
+      nextState,
+      interceptor.owner,
+      isWithinTacticalSamCoverage(nextState, interceptor.owner, interceptor.position),
+    );
+    nextState = tacticalClaim.state;
+    const result = resolveCombat(interceptor, striker, state.map, deterministicCombatSeed(state.gameId, state.turn, interceptor.id, striker.id), buildCombatContextForDefender(nextState, interceptor, striker, {
+      isIntercepting: true,
+      tacticalInterceptionMultiplier: tacticalClaim.multiplier,
+    }), resolveCombatEra(state, interceptor, striker));
     nextState = applyAirCombatResult(nextState, result, deterministicCombatSeed(state.gameId, state.turn, interceptor.id, striker.id));
     if (nextState.units[interceptor.id]) nextState = { ...nextState, units: { ...nextState.units, [interceptor.id]: { ...nextState.units[interceptor.id]!, interceptedTurn: state.turn } } };
     if (nextState.units[interceptor.id] && !nextState.units[striker.id]) {

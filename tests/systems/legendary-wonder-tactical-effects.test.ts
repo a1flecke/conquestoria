@@ -9,6 +9,7 @@ import {
   getTacticalFortOccupantHealingBonus,
   getTacticalAdjacentCitadelDefense,
   getTacticalSamRadius,
+  claimTacticalFirstOwnerTurnInterception,
   getCompletedLegendaryWonderTacticalEffects,
   getTacticalWonderAiValue,
 } from '@/systems/legendary-wonder-tactical-effects';
@@ -171,5 +172,23 @@ describe('legendary wonder tactical effects', () => {
 
     expect(getTacticalSamRadius(state, 'player', 2, samDefinitions)).toBe(3);
     expect(getTacticalSamRadius(state, 'ai-1', 2, samDefinitions)).toBe(2);
+  });
+
+  it('claims the first eligible owner-turn interception before combat', () => {
+    const state = createNewGame('rome', 'tactical-interception', 'small');
+    state.completedLegendaryWonders = {
+      'test-wonder': { ownerId: 'player', cityId: Object.keys(state.cities)[0]!, turnCompleted: 1 },
+    };
+    const interceptionDefinitions: LegendaryWonderDefinition[] = [{
+      ...definitions[0]!,
+      reward: { summary: 'Interception test', tacticalEffects: [{ kind: 'first-owner-turn-interception-modifier', multiplier: 1.1, stackingGroup: 'first', aiValue: 14 }] },
+    }];
+
+    const first = claimTacticalFirstOwnerTurnInterception(state, 'player', true, interceptionDefinitions);
+    const second = claimTacticalFirstOwnerTurnInterception(first.state, 'player', true, interceptionDefinitions);
+
+    expect(first.multiplier).toBe(1.1);
+    expect(first.state.legendaryWonderTacticalEffects?.interceptionClaimTurnByCiv.player).toBe(state.turn);
+    expect(second.multiplier).toBe(1);
   });
 });

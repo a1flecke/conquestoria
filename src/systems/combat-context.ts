@@ -18,6 +18,7 @@ import { getTacticalAdjacentCitadelDefense } from './legendary-wonder-tactical-e
 export interface CombatContextOptions {
   amphibiousAssault?: boolean;
   isIntercepting?: boolean;
+  tacticalInterceptionMultiplier?: number;
 }
 
 function hasAdjacentShoreBombardment(state: GameState, owner: string, target: HexCoord): boolean {
@@ -87,7 +88,8 @@ export function buildCombatContextForDefender(
       ]
     : [];
   const interceptionStrengthMultiplier = options.isIntercepting
-    ? UNIT_DEFINITIONS[attacker.type].airOperation?.interceptionStrengthMultiplier
+    ? (UNIT_DEFINITIONS[attacker.type].airOperation?.interceptionStrengthMultiplier ?? 1)
+      * (options.tacticalInterceptionMultiplier ?? 1)
     : undefined;
   const attackerCombinedArms = resolveCombinedArms(state, attacker);
   const defenderCombinedArms = resolveCombinedArms(state, defender);
