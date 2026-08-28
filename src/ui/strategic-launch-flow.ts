@@ -23,6 +23,13 @@ const REPUTATION_DELTAS_BY_KIND = {
   retaliation: { target: -20, witness: -5 },
 } as const;
 
+/** #545 MR8: hot-seat handoff must not carry a previous player's in-progress
+ * strike-targeting UI onto the next player's screen -- mirrors
+ * closePirateWatersPanels's exact shape. */
+export function closeStrategicLaunchFlow(container: ParentNode = document): void {
+  container.querySelector('#strategic-launch-flow')?.remove();
+}
+
 export function createStrategicLaunchFlow(
   container: HTMLElement,
   state: GameState,
