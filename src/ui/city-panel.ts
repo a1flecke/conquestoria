@@ -62,6 +62,7 @@ import { resolveCivDefinition } from '@/systems/civ-registry';
 import { TECH_TREE, resolveCivilizationEra } from '@/systems/tech-definitions';
 import { evaluateProductionPrerequisites } from '@/systems/production-prerequisites';
 import { getStrategicArsenal, getStrategicArsenalCapacity, hasManhattanProject, getArsenalStatus, getActiveArmsControlCap } from '@/systems/strategic-arsenal-system';
+import { isSuperweaponsEnabled } from '@/systems/superweapons-flag';
 import { createCityWorkSection } from './city-grid';
 import { createCityDistrictsTab } from './city-districts';
 import {
@@ -783,6 +784,9 @@ export function createCityPanel(
 
   function getLockedItemReason(item: typeof lockedItems[number]): string {
     if (item.id === 'warhead') {
+      if (!isSuperweaponsEnabled(state)) {
+        return 'Superweapons are turned off for this game. Enable them from the pause menu Settings to build this.';
+      }
       if (!hasManhattanProject(state, city.owner)) {
         return 'Requires Manhattan Project to be completed anywhere in your empire.';
       }
@@ -1362,7 +1366,7 @@ export function createCityPanel(
 
   // #545 MR4 §14 stage 1: Prepare Strategic Launch action for a Missile Silo,
   // same hot-seat scoping as the Circular Manufacturing choice above.
-  if (city.buildings.includes('missile_silo') && city.owner === state.currentPlayer && currentCiv.isHuman) {
+  if (isSuperweaponsEnabled(state) && city.buildings.includes('missile_silo') && city.owner === state.currentPlayer && currentCiv.isHuman) {
     const arsenal = getStrategicArsenal(currentCiv);
     const capacity = getStrategicArsenalCapacity(state, currentCiv.id);
     const launchSection = document.createElement('section');
