@@ -20,6 +20,7 @@ import { resolveCivDefinition } from '@/systems/civ-registry';
 import { hasMetCivilization } from '@/systems/discovery-system';
 import { MINOR_CIV_DEFINITIONS } from '@/systems/minor-civ-definitions';
 import { computeArmsControlCap } from '@/systems/strategic-arsenal-system';
+import { isSuperweaponsEnabled } from '@/systems/superweapons-flag';
 
 export function resolveOpponentKind(civId: string): 'major' | 'minor' | 'barbarian' {
   if (civId.startsWith('barbarian')) return 'barbarian';
@@ -372,6 +373,7 @@ export function getAvailableActions(
  * relationship/era/tech condition here; see getAvailableActions above).
  */
 export function hasArmsControlTreaty(state: GameState, civId: string): boolean {
+  if (!isSuperweaponsEnabled(state)) return false;
   return state.builtNationalProjects?.[`${civId}:arms_control_treaty`] !== undefined;
 }
 
