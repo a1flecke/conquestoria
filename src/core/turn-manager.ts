@@ -119,6 +119,7 @@ import {
   reconcileLegendaryWonderAvailability,
   tickLegendaryWonderProjects,
 } from '@/systems/legendary-wonder-system';
+import { applyLegendaryWonderTrainingEffects } from '@/systems/legendary-wonder-tactical-effects';
 import { applyEconomyTurn, emitEconomyStrainIfNeeded } from '@/systems/economy-system';
 import {
   getNationalProjectCivYieldBonus,
@@ -457,6 +458,14 @@ export function processTurn(
         if (isLandCombatUnit && city.buildings.includes('barracks')) {
           newUnit.experience += 10;
         }
+        const tacticalTraining = applyLegendaryWonderTrainingEffects(newState, {
+          civId,
+          unitType: result.completedUnit,
+          era: resolveCivilizationEra(civ.techState.completed),
+          isEligibleLandCombatUnit: isLandCombatUnit,
+        });
+        newState = tacticalTraining.state;
+        newUnit.experience += tacticalTraining.experienceBonus;
         if (unitDef?.airOperation) {
           const based = baseNewAirUnit(newState, cityId, newUnit);
           if (!based.ok) {
