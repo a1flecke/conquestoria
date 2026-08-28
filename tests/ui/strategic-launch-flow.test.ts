@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi } from 'vitest';
 import type { GameState } from '@/core/types';
-import { createStrategicLaunchFlow } from '@/ui/strategic-launch-flow';
+import { createStrategicLaunchFlow, closeStrategicLaunchFlow } from '@/ui/strategic-launch-flow';
 
 const TARGET_POS = { q: 0, r: 0 };
 const AT_PEACE = { relationships: {}, treaties: [], events: [], atWarWith: [], treacheryScore: 0, vassalage: { overlord: null, vassals: [], protectionScore: 0, protectionTimers: [], peakCities: 0, peakMilitary: 0 } };
@@ -140,5 +140,15 @@ describe('retaliation-risk preview note (#545 MR5)', () => {
     createStrategicLaunchFlow(container, makeState(), 'p1', { onSetPreview: vi.fn(), onConfirmLaunch: vi.fn(), onClose: vi.fn() });
     (container.querySelector('[data-target-city-id="target"]') as HTMLElement).click();
     expect(container.textContent).not.toContain('their own strategic capability');
+  });
+});
+
+describe('closeStrategicLaunchFlow (#545 MR8 hot-seat handoff)', () => {
+  it('removes the panel', () => {
+    const container = document.createElement('div');
+    createStrategicLaunchFlow(container, makeState(), 'p1', { onSetPreview: vi.fn(), onConfirmLaunch: vi.fn(), onClose: vi.fn() });
+    expect(container.querySelector('#strategic-launch-flow')).not.toBeNull();
+    closeStrategicLaunchFlow(container);
+    expect(container.querySelector('#strategic-launch-flow')).toBeNull();
   });
 });
