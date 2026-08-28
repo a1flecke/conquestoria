@@ -452,11 +452,13 @@ git commit -m "feat(#545): gate hasArmsControlTreaty on superweapons setting (MR
 
 ---
 
-### Task 6: Gate `strategicArsenalValueScore` (AI scoring)
+### Task 6: ~~Gate `strategicArsenalValueScore` (AI scoring)~~ — SKIPPED, verified unreachable during execution
 
-**Files:**
-- Modify: `src/ai/ai-production.ts`
-- Test: `tests/ai/ai-production.test.ts`
+**Found during execution:** the original design review claimed `strategicArsenalValueScore` scores `nuclear_arsenal`/`missile_silo` by war count, creating a "phantom AI incentive" when off. Verified directly against `BUILDINGS` in `city-system.ts`: `arsenalCapacityGated: true` is set on `warhead` **only** — `nuclear_arsenal`/`missile_silo` never carry it, so `strategicArsenalValueScore` returns 0 for them unconditionally regardless of this setting (confirmed by this file's own pre-existing `'is 0 for a building with no arsenalCapacityGated capability, even at war'` test). Since `strategicArsenalValueScore` is only ever invoked on items already returned by `getAvailableBuildings`, and Task 3's `getArsenalStatus` gate already excludes `warhead` from that list whenever off (`atCapacity: true`), there is no reachable code path left for a phantom incentive to leak through `strategicArsenalValueScore` at all — the original design-review finding was factually wrong. No gate was added to `strategicArsenalValueScore`; a regression test instead confirms `warhead` never reaches the candidate list when off (added to `tests/ai/ai-production.test.ts`'s `describe('strategicArsenalValueScore (#545)', ...)` block), proving Task 3 alone is sufficient here.
+
+~~**Files:**~~
+~~- Modify: `src/ai/ai-production.ts`~~
+~~- Test: `tests/ai/ai-production.test.ts`~~
 
 **Interfaces:**
 - Consumes: `isSuperweaponsEnabled` (Task 1), relies on Task 2 having landed.
