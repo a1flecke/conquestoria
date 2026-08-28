@@ -1,5 +1,7 @@
 # #545 MR7 — Superweapons Setting & Off-Mode Implementation Plan
 
+> **Status: ✅ executed.** 11 of 12 tasks completed inline (Task 6 was skipped — see its header — after execution proved the original design-review premise factually wrong: `strategicArsenalValueScore` only ever applies to `warhead`, which Task 3's gate already excludes upstream, making a separate gate on that function unreachable/redundant). Full test suite (9189 tests) and `yarn build` pass clean. Beyond the planned gating work, execution surfaced and fixed: two mistaken plan premises (a `HotSeatConfig.settingsOverrides` field that never existed, misattributed from the neighboring `SoloSetupConfig`; and a `review.config` staleness bug in the hot-seat card's click handler), and two additional player-visible dead-end-button gaps beyond the plan's original scope (`city-panel.ts`'s building-based and `selected-unit-info.ts`'s unit-based "Prepare Strategic Launch" sections both bypassed the gate entirely via a raw building/unit-type check). One unrelated pre-existing content bug (arms-control-negotiations tech text says "+2 gold," real yield is "+5 gold") was found and flagged as a separate task rather than fixed here.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. **Do not use superpowers:subagent-driven-development or any other multi-agent workflow — this repository's CLAUDE.md forbids subagents/parallel agents for all work; execute every task inline in the current session.** Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Add `GameSettings.superweapons?: 'off' | 'on'`, gate every strategic-deterrence verb behind it at the functions whose own existing contract is already "is this available right now" (never the historical-fact functions), wire solo/hot-seat/mid-game setting resolution, and rewrite the 6 affected entity descriptions to stay honest when off.
@@ -28,7 +30,7 @@
 **Interfaces:**
 - Produces: `resolveSuperweaponsFlag(settings: GameSettings | undefined): 'off' | 'on'`; `isSuperweaponsEnabled(state: GameState): boolean`. Consumed by Tasks 4–8, 11.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Create `tests/systems/superweapons-flag.test.ts`:
 
@@ -70,12 +72,12 @@ describe('isSuperweaponsEnabled (#545 MR7)', () => {
 });
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `bash scripts/run-with-mise.sh yarn test tests/systems/superweapons-flag.test.ts`
 Expected: FAIL (module `@/systems/superweapons-flag` does not exist)
 
-- [ ] **Step 3: Add the field to `GameSettings`**
+- [x] **Step 3: Add the field to `GameSettings`**
 
 In `src/core/types.ts`, find:
 
@@ -97,7 +99,7 @@ Add immediately after it:
   superweapons?: 'off' | 'on';
 ```
 
-- [ ] **Step 4: Implement the resolver**
+- [x] **Step 4: Implement the resolver**
 
 Create `src/systems/superweapons-flag.ts`:
 
@@ -130,12 +132,12 @@ export function isSuperweaponsEnabled(state: GameState): boolean {
 }
 ```
 
-- [ ] **Step 5: Run tests to verify they pass**
+- [x] **Step 5: Run tests to verify they pass**
 
 Run: `bash scripts/run-with-mise.sh yarn test tests/systems/superweapons-flag.test.ts`
 Expected: PASS
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/core/types.ts src/systems/superweapons-flag.ts tests/systems/superweapons-flag.test.ts
@@ -155,7 +157,7 @@ git commit -m "feat(#545): superweapons setting data model + resolver (MR7 Task 
 
 **This task MUST land before Tasks 4–8 (see the plan-level ordering note above) — it is what keeps the large majority of this codebase's existing `createNewGame`-based tests passing unchanged once the gating tasks land.**
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Add to the test file covering `createDefaultSettings`:
 
@@ -171,12 +173,12 @@ Add to the test file covering `createDefaultSettings`:
   });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `bash scripts/run-with-mise.sh yarn test tests/core/game-state.test.ts -t "superweapons"`
 Expected: FAIL (`settings.superweapons` is `undefined`)
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 In `src/core/game-state.ts`, find `createDefaultSettings`'s returned object (the one containing `beastsMode: 'wild'`) and add a new line directly after it:
 
@@ -187,12 +189,12 @@ In `src/core/game-state.ts`, find `createDefaultSettings`'s returned object (the
 
 (The `overrides` spread that follows later in the same function already lets any caller, including `settingsOverrides`, replace this default, matching `beastsMode`'s own override precedent.)
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `bash scripts/run-with-mise.sh yarn test tests/core/game-state.test.ts`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/core/game-state.ts tests/core/game-state.test.ts
@@ -212,7 +214,7 @@ git commit -m "feat(#545): default new solo games to superweapons on (MR7 Task 2
 
 **This file's `makeState()` helper builds a raw `GameState` literal (`settings: {} as any`) that does NOT go through `createDefaultSettings` — it will resolve to `'off'` by default regardless of Task 2. Since the large majority of this file's ~40 existing tests call `hasKnownStrategicCapability`/`getArsenalStatus` and clearly intend on-mode behavior (none of them are testing the superweapons setting itself), Step 3 below fixes the ONE shared `makeState()` default rather than editing dozens of individual tests — same pattern MR6 Task 11 used for `strategic-arsenal-summary-presentation.test.ts`'s `treaties` fallback.**
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Add to `tests/systems/strategic-arsenal-system.test.ts`, inside the existing `describe('getArsenalStatus (#545 MR6)', ...)` block (after its existing tests):
 
@@ -246,12 +248,12 @@ describe('hasKnownStrategicCapability off-mode (#545 MR7)', () => {
 });
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `bash scripts/run-with-mise.sh yarn test tests/systems/strategic-arsenal-system.test.ts`
 Expected: FAIL (off-mode still returns the on-mode answer — the gate doesn't exist yet)
 
-- [ ] **Step 3: Fix the shared `makeState()` default, then implement**
+- [x] **Step 3: Fix the shared `makeState()` default, then implement**
 
 In `tests/systems/strategic-arsenal-system.test.ts`, find `makeState()`'s returned literal (`settings: {} as any,`) and change it to:
 
@@ -300,7 +302,7 @@ export function getArsenalStatus(state: GameState, civId: string): { hasManhatta
 }
 ```
 
-- [ ] **Step 4: Run the full file's tests to verify they pass, then run the full suite**
+- [x] **Step 4: Run the full file's tests to verify they pass, then run the full suite**
 
 Run: `bash scripts/run-with-mise.sh yarn test tests/systems/strategic-arsenal-system.test.ts`
 Expected: PASS — all ~40+ tests, both new and pre-existing.
@@ -308,7 +310,7 @@ Expected: PASS — all ~40+ tests, both new and pre-existing.
 Run: `bash scripts/run-with-mise.sh yarn test`
 Expected: PASS. If any *other* file's pre-existing test now fails because it builds a raw `GameState`/`Civilization` fixture that reaches `hasKnownStrategicCapability` or `getArsenalStatus` without going through `createNewGame` and without setting `settings.superweapons`, apply the same fix there: find that file's ONE shared fixture helper and default it to `settings: { superweapons: 'on' } as any }`, not each individual test. Do not skip this full-suite run — Task 3's blast radius is not fully knowable from this file alone.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/systems/strategic-arsenal-system.ts tests/systems/strategic-arsenal-system.test.ts
@@ -328,7 +330,7 @@ git commit -m "feat(#545): gate getArsenalStatus + hasKnownStrategicCapability o
 **Interfaces:**
 - Consumes: `isSuperweaponsEnabled` (Task 1), relies on Task 2 having landed.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 First, read this file's existing `makeState`/`makeCiv`/`makeCity` (or equivalent) fixture helpers in full — grep `grep -n "^function make" tests/systems/strategic-launch-system.test.ts` — and confirm whether they build via `createNewGame` (already covered by Task 2) or a raw literal (needs the same `settings: { superweapons: 'on' } as any` default fix Task 3 applied, in its own shared helper here). Do not assume; this file may differ from `strategic-arsenal-system.test.ts`'s convention.
 
@@ -347,12 +349,12 @@ describe('getEligibleStrategicLaunchPlatforms off-mode (#545 MR7)', () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `bash scripts/run-with-mise.sh yarn test tests/systems/strategic-launch-system.test.ts`
 Expected: FAIL (off-mode still returns a real platform)
 
-- [ ] **Step 3: Fix the shared fixture default if needed, then implement**
+- [x] **Step 3: Fix the shared fixture default if needed, then implement**
 
 If Step 1 found a raw (non-`createNewGame`) fixture helper without a `settings.superweapons` default, fix it the same way Task 3 did, in this file, before proceeding.
 
@@ -372,7 +374,7 @@ export function getEligibleStrategicLaunchPlatforms(state: GameState, civId: str
   // ...rest of the function body unchanged
 ```
 
-- [ ] **Step 4: Run tests to verify they pass, then run the full suite**
+- [x] **Step 4: Run tests to verify they pass, then run the full suite**
 
 Run: `bash scripts/run-with-mise.sh yarn test tests/systems/strategic-launch-system.test.ts`
 Expected: PASS
@@ -380,7 +382,7 @@ Expected: PASS
 Run: `bash scripts/run-with-mise.sh yarn test`
 Expected: PASS — same reactive-fixture-fix caveat as Task 3 Step 4 applies here too (basic-ai.ts's cheap `if (getEligibleStrategicLaunchPlatforms(...).length > 0)` guard before calling AI launch doctrine is a likely place a pre-existing MR5 test could be affected if its fixture never set `settings.superweapons`).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/systems/strategic-launch-system.ts tests/systems/strategic-launch-system.test.ts
@@ -400,7 +402,7 @@ git commit -m "feat(#545): gate getEligibleStrategicLaunchPlatforms on superweap
 
 **This file's tests predominantly use `createNewGame`/`createDiplomacyState`, already covered by Task 2 — verify with `grep -n "^function makeWarState\|createDiplomacyState(civIds" tests/systems/diplomacy-system.test.ts` before assuming no fixture fix is needed here.**
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Add to `tests/systems/diplomacy-system.test.ts`'s existing `describe('hasArmsControlTreaty (#545 MR6)', ...)` block:
 
@@ -413,12 +415,12 @@ Add to `tests/systems/diplomacy-system.test.ts`'s existing `describe('hasArmsCon
     });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `bash scripts/run-with-mise.sh yarn test tests/systems/diplomacy-system.test.ts`
 Expected: FAIL (off-mode still returns true)
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 In `src/systems/diplomacy-system.ts`, add the import:
 
@@ -435,7 +437,7 @@ export function hasArmsControlTreaty(state: GameState, civId: string): boolean {
 }
 ```
 
-- [ ] **Step 4: Run tests to verify they pass, then run the full suite**
+- [x] **Step 4: Run tests to verify they pass, then run the full suite**
 
 Run: `bash scripts/run-with-mise.sh yarn test tests/systems/diplomacy-system.test.ts`
 Expected: PASS
@@ -443,7 +445,7 @@ Expected: PASS
 Run: `bash scripts/run-with-mise.sh yarn test`
 Expected: PASS. `getAvailableActions`'s `arms_control_pact` gate, `evaluateDiplomacy`'s AI proposing branch, and `basic-ai.ts`'s execution case all consume this function's result indirectly through the `hasArmsControlTreaty: boolean` parameter already threaded by MR6 — none of their own tests call the real `hasArmsControlTreaty` function directly (they pass the boolean explicitly), so this gate should have zero blast radius beyond this file. If the full-suite run disagrees, investigate before assuming a fixture fix is the answer here.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/systems/diplomacy-system.ts tests/systems/diplomacy-system.test.ts
@@ -540,7 +542,7 @@ git commit -m "feat(#545): gate strategicArsenalValueScore AI signal on superwea
 
 **`makeFixture()` in this test file is built on `createNewGame`, already covered by Task 2 — the existing `'shows the arsenal count/capacity and opens the strategic-arsenal panel on click'` test should keep passing unchanged once Task 2 has landed, since its fixture now resolves to `'on'` by default.**
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Add to the existing `describe('Strategic Arsenal button (#545 MR4)', ...)` block in `tests/app/controllers/hud-controller.test.ts`, using its own `makeFixture`/`withManhattanProject`/`baseDeps` helpers verbatim:
 
@@ -556,12 +558,12 @@ Add to the existing `describe('Strategic Arsenal button (#545 MR4)', ...)` block
     });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `bash scripts/run-with-mise.sh yarn test tests/app/controllers/hud-controller.test.ts -t "superweapons is off"`
 Expected: FAIL (button still renders)
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 In `src/app/controllers/hud-controller.ts`, add the import:
 
@@ -581,7 +583,7 @@ Change to:
       if (isSuperweaponsEnabled(state) && getStrategicArsenalCapacity(state, civ.id) > 0) {
 ```
 
-- [ ] **Step 4: Run tests to verify they pass, then run the full suite**
+- [x] **Step 4: Run tests to verify they pass, then run the full suite**
 
 Run: `bash scripts/run-with-mise.sh yarn test tests/app/controllers/hud-controller.test.ts`
 Expected: PASS — both the new off-mode test and the pre-existing on-mode test (which now needs `makeFixture()`'s `createNewGame`-derived default `'on'` to still show the button; confirm it does).
@@ -589,7 +591,7 @@ Expected: PASS — both the new off-mode test and the pre-existing on-mode test 
 Run: `bash scripts/run-with-mise.sh yarn test`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/app/controllers/hud-controller.ts tests/app/controllers/hud-controller.test.ts
@@ -611,7 +613,7 @@ git commit -m "feat(#545): gate arsenal HUD button on superweapons setting (MR7 
 
 **Found during execution: a second, adjacent gap.** The "Prepare Strategic Launch" section (§14 stage 1, a separate block from the build queue) gates its own visibility purely on `city.buildings.includes('missile_silo')` — a raw building check that completely bypasses `getEligibleStrategicLaunchPlatforms` (Task 4's gate). When off, this left a real "Strategic Arsenal: N/M warheads" count and a clickable `Prepare Strategic Launch` button visible — a dead-end action per `.claude/rules/end-to-end-wiring.md`'s "every user action needs visible feedback" and `.claude/rules/incremental-mr-completion.md`'s "a button that does nothing is a bug" (the deeper `getStrategicLaunchLegality` check would still block an actual launch since it depends on the already-gated platform list, but the button and count themselves stayed misleadingly present). Fixed by adding `isSuperweaponsEnabled(state) &&` to this section's own visibility condition, with a matching regression test.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Add to `tests/ui/city-panel.test.ts`'s `describe('city-panel warhead arsenal visibility (#545)', ...)` block:
 
@@ -640,12 +642,12 @@ Add to `tests/ui/city-panel.test.ts`'s `describe('city-panel warhead arsenal vis
   });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `bash scripts/run-with-mise.sh yarn test tests/ui/city-panel.test.ts -t "superweapons is off"`
 Expected: FAIL (falls through to the physical-capacity message, since `hasManhattanProject` is real-true and `getStrategicArsenalCapacity`/`getActiveArmsControlCap` are unaffected by this setting)
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 In `src/ui/city-panel.ts`, add the import:
 
@@ -672,7 +674,7 @@ Change to:
       if (!hasManhattanProject(state, city.owner)) {
 ```
 
-- [ ] **Step 4: Run tests to verify they pass, then run the full suite**
+- [x] **Step 4: Run tests to verify they pass, then run the full suite**
 
 Run: `bash scripts/run-with-mise.sh yarn test tests/ui/city-panel.test.ts`
 Expected: PASS
@@ -680,7 +682,7 @@ Expected: PASS
 Run: `bash scripts/run-with-mise.sh yarn test`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/ui/city-panel.ts tests/ui/city-panel.test.ts
@@ -704,7 +706,7 @@ git commit -m "feat(#545): gate warhead locked-item reason on superweapons setti
 
 **Second correction found during execution:** `review.config` (the object passed to `callbacks.onComplete`) is built once by `buildFinalConfig()` at the top of `showFinalReview()`, *before* the card below renders. A naive card that only updates a local `superweaponsSelected` variable would have its choice silently lost — the click handler must mutate `review.config.settingsOverrides` directly, not just the local variable, or a later click on Start would still send the value `review.config` was frozen with. See the click handler below.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Add to `tests/core/game-state.test.ts`'s existing `describe('createHotSeatGame', ...)` block (which already has a shared `config: HotSeatConfig` fixture at the top of the block — reuse it via spread, do not redeclare):
 
@@ -718,12 +720,12 @@ Add to `tests/core/game-state.test.ts`'s existing `describe('createHotSeatGame',
   });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `bash scripts/run-with-mise.sh yarn test tests/core/game-state.test.ts -t "settingsOverrides"`
 Expected: FAIL (`state.settings.superweapons` is `'on'`, the plain default, not the override)
 
-- [ ] **Step 3: Implement the `createHotSeatGame` fix**
+- [x] **Step 3: Implement the `createHotSeatGame` fix**
 
 In `src/core/game-state.ts`, find:
 
@@ -746,7 +748,7 @@ Change to:
 
 (`customCivilizations` stays last so it always wins over anything accidentally present in `settingsOverrides`, matching the solo `createNewGame` path's own ordering.)
 
-- [ ] **Step 4: Run tests to verify they pass, then add the UI card**
+- [x] **Step 4: Run tests to verify they pass, then add the UI card**
 
 Run: `bash scripts/run-with-mise.sh yarn test tests/core/game-state.test.ts`
 Expected: PASS
@@ -811,7 +813,7 @@ Wire the selection into `buildFinalConfig()`'s returned config — find:
 
 Add `settingsOverrides: { superweapons: superweaponsSelected },` to that inner object, directly after `customCivilizations,`.
 
-- [ ] **Step 5: Write and run the hot-seat setup card test**
+- [x] **Step 5: Write and run the hot-seat setup card test**
 
 Add to `tests/ui/hotseat-setup.test.ts`, reusing the exact navigation sequence the existing `'chooses AI count independently and previews exactly that many roster-aware opponents'` test already uses to reach `#hs-review-start`:
 
@@ -844,12 +846,12 @@ Add to `tests/ui/hotseat-setup.test.ts`, reusing the exact navigation sequence t
 Run: `bash scripts/run-with-mise.sh yarn test tests/ui/hotseat-setup.test.ts`
 Expected: PASS
 
-- [ ] **Step 6: Run the full suite**
+- [x] **Step 6: Run the full suite**
 
 Run: `bash scripts/run-with-mise.sh yarn test`
 Expected: PASS.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add src/core/game-state.ts src/ui/hotseat-setup.ts tests/core/game-state.test.ts tests/ui/hotseat-setup.test.ts
@@ -871,7 +873,7 @@ git commit -m "fix(#545): wire HotSeatConfig.settingsOverrides + add hot-seat su
 
 **This is the concrete mechanism behind the design doc's "a settings screen lets the player explicitly opt in afterward" for legacy saves, and lets anyone (solo or hot-seat) change their mind mid-game. `PauseMenuCallbacks` gains two new required fields — `makeCallbacks()` in the test file MUST get matching defaults in the same step, or every pre-existing test in this file fails to type-check.**
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Add to `tests/ui/pause-menu-panel.test.ts`'s `makeCallbacks()` helper (find it via `grep -n "^function makeCallbacks" tests/ui/pause-menu-panel.test.ts`), inside its returned object, directly after the existing `onChangeSupplyWarningPreference: vi.fn(),` line:
 
@@ -903,12 +905,12 @@ describe('superweapons setting (#545 MR7)', () => {
 });
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `bash scripts/run-with-mise.sh yarn test tests/ui/pause-menu-panel.test.ts`
 Expected: FAIL — either a TypeScript error (missing required `PauseMenuCallbacks` fields, if `makeCallbacks()` wasn't updated) or the new tests failing to find `[data-superweapons-option]` elements. Confirm `makeCallbacks()` was updated as instructed in Step 1 before proceeding.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 In `src/ui/pause-menu-panel.ts`, add to `PauseMenuCallbacks`:
 
@@ -1006,7 +1008,7 @@ Find the existing `supplyWarningPreference`/`onChangeSupplyWarningPreference` bl
           },
 ```
 
-- [ ] **Step 4: Run tests to verify they pass, then run the full suite**
+- [x] **Step 4: Run tests to verify they pass, then run the full suite**
 
 Run: `bash scripts/run-with-mise.sh yarn test tests/ui/pause-menu-panel.test.ts`
 Expected: PASS — both new tests and every pre-existing test in this file (now that `makeCallbacks()` supplies the two new required fields).
@@ -1014,7 +1016,7 @@ Expected: PASS — both new tests and every pre-existing test in this file (now 
 Run: `bash scripts/run-with-mise.sh yarn test`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/ui/pause-menu-panel.ts src/app/controllers/game-session-controller.ts tests/ui/pause-menu-panel.test.ts
@@ -1046,7 +1048,7 @@ git commit -m "feat(#545): mid-game pause-menu superweapons toggle (MR7 Task 10)
 - **Unrelated bug found and NOT fixed here (flagged as a separate task instead):** `arms-control-negotiations`'s `unlocks` text says "+2 gold empire-wide," but the real `arms_control_treaty` building it gates has `civYieldBonus: { gold: 5 }`. This is a plain number mismatch, unconditionally wrong regardless of the superweapons setting — out of scope for an on/off-mode honesty pass.
 - **A third instance of Task 8's "Prepare Strategic Launch" gap, found while adding a direct UI regression test for the resolver:** `selected-unit-info.ts` has its own unit-based "Prepare Strategic Launch" action (for a selected `missile_submarine`, mirroring `city-panel.ts`'s building-based one from Task 8) gated purely on `unit.type === 'missile_submarine' && unit.owner === state.currentPlayer` — no `isSuperweaponsEnabled` check, same class of dead-end-button gap. Fixed with the same one-line `isSuperweaponsEnabled(state) &&` addition, plus regression tests for both the button's absence and the description text change.
 
-- [ ] **Step 1: Capture the real current text (baseline) and confirm exact read sites**
+- [x] **Step 1: Capture the real current text (baseline) and confirm exact read sites**
 
 Run and record the output:
 
@@ -1058,7 +1060,7 @@ grep -rn "nuclear-weapons\|icbm-development\|nuclear-submarines\|arms-control-ne
 
 Confirm each entity's exact current `description`/`unlocks` string matches what's quoted in the design doc's "Content honesty" section (they may have drifted since the design doc was written) — treat the design doc's quoted text as a starting point, not ground truth, per `.claude/rules/spec-fidelity.md`. Note which of the 6 actually make a launch/capacity/ICBM claim beyond a plain yield — only those need an off-mode variant.
 
-- [ ] **Step 2: Write the failing test for the resolver itself**
+- [x] **Step 2: Write the failing test for the resolver itself**
 
 Create `tests/systems/superweapon-content-honesty.test.ts`:
 
@@ -1091,12 +1093,12 @@ describe('resolveSuperweaponContentDescription (#545 MR7)', () => {
 });
 ```
 
-- [ ] **Step 3: Run test to verify it fails**
+- [x] **Step 3: Run test to verify it fails**
 
 Run: `bash scripts/run-with-mise.sh yarn test tests/systems/superweapon-content-honesty.test.ts`
 Expected: FAIL (module doesn't exist)
 
-- [ ] **Step 4: Implement the resolver**
+- [x] **Step 4: Implement the resolver**
 
 Create `src/systems/superweapon-content-honesty.ts`:
 
@@ -1136,19 +1138,19 @@ export function resolveSuperweaponContentDescription(
 }
 ```
 
-- [ ] **Step 5: Run test to verify it passes, then wire the resolver into real UI read sites**
+- [x] **Step 5: Run test to verify it passes, then wire the resolver into real UI read sites**
 
 Run: `bash scripts/run-with-mise.sh yarn test tests/systems/superweapon-content-honesty.test.ts`
 Expected: PASS
 
 Using Step 1's grep results, replace each direct `building.description` / `unit.description` / tech `unlocks` string read for these 6 entities with a call to `resolveSuperweaponContentDescription(entityId, realText, state)`. For each UI file touched, add a targeted test proving the off-mode text renders (extend `tests/systems/description-honesty.test.ts` with the same on/off pair pattern as Step 2's resolver test, but asserting against the actual rendered panel text, matching that file's existing conventions).
 
-- [ ] **Step 6: Run the full suite**
+- [x] **Step 6: Run the full suite**
 
 Run: `bash scripts/run-with-mise.sh yarn test`
 Expected: PASS.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add src/systems/superweapon-content-honesty.ts tests/systems/superweapon-content-honesty.test.ts tests/systems/description-honesty.test.ts
@@ -1162,7 +1164,7 @@ git commit -m "feat(#545): off-mode content-honesty descriptions for superweapon
 
 **Files:** none (verification only)
 
-- [ ] **Step 1: Run the full test suite**
+- [x] **Step 1: Run the full test suite**
 
 Run: `bash scripts/run-with-mise.sh yarn test`
 Expected: PASS — full suite. Pay particular attention to:
@@ -1170,16 +1172,16 @@ Expected: PASS — full suite. Pay particular attention to:
 - `tests/systems/national-project-balance.test.ts` (unaffected — Manhattan Project/Arms Control Treaty's `civYieldBonus`/milestone shape untouched)
 - Every existing MR1–MR6 test for `hasManhattanProject`, `getStrategicArsenalCapacity`, `getStrategicArsenal`, `addWarheadToArsenal`, `spendStrategicArsenal`, `computeArmsControlCap`, `getActiveArmsControlCap` — these must all still pass **unchanged**, since none of them were touched; if any regress, a gate was added somewhere it shouldn't have been (an SRP violation this plan was specifically designed to avoid).
 
-- [ ] **Step 2: Run the production build**
+- [x] **Step 2: Run the production build**
 
 Run: `bash scripts/run-with-mise.sh yarn build`
 Expected: PASS clean, zero TypeScript errors.
 
-- [ ] **Step 3: Tick every checkbox in this plan document**
+- [x] **Step 3: Tick every checkbox in this plan document**
 
 Go back through every task above and mark its checkboxes complete.
 
-- [ ] **Step 4: Final commit**
+- [x] **Step 4: Final commit**
 
 ```bash
 git add docs/superpowers/plans/2026-08-27-issue-545-mr7-superweapons-toggle.md
