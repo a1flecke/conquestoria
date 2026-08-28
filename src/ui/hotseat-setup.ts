@@ -637,6 +637,17 @@ export function showHotSeatSetup(
       { value: 'on', label: 'On' },
       { value: 'off', label: 'Off' },
     ];
+    const SUPERWEAPONS_DESCRIPTIONS: Record<'on' | 'off', string> = {
+      on: 'Nuclear weapons research, arsenals, and launches are available this game.',
+      off: 'No nuclear weapons this game -- the buildings and units stay in the tech tree for their ordinary yields, but capacity and launch are disabled. Changeable later from the pause menu Settings.',
+    };
+    const superweaponsHelpText = document.createElement('p');
+    Object.assign(superweaponsHelpText.style, {
+      margin: '6px 0 0',
+      fontSize: '11px',
+      opacity: '0.65',
+      lineHeight: '1.4',
+    });
     const superweaponsButtons = new Map<'on' | 'off', HTMLButtonElement>();
     const refreshSuperweaponsButtons = (): void => {
       for (const [value, button] of superweaponsButtons) {
@@ -644,6 +655,7 @@ export function showHotSeatSetup(
         Object.assign(button.style, style);
         button.setAttribute('aria-pressed', String(value === superweaponsSelected));
       }
+      superweaponsHelpText.textContent = SUPERWEAPONS_DESCRIPTIONS[superweaponsSelected];
     };
     for (const option of superweaponsOptions) {
       const button = createGameButton(option.label, option.value === superweaponsSelected ? 'primary' : 'secondary');
@@ -661,6 +673,7 @@ export function showHotSeatSetup(
     }
     refreshSuperweaponsButtons();
     superweaponsSection.appendChild(superweaponsRow);
+    superweaponsSection.appendChild(superweaponsHelpText);
     panel.appendChild(superweaponsSection);
 
     const start = createGameButton(

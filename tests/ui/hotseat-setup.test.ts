@@ -143,8 +143,10 @@ describe('hotseat-setup', () => {
     click('#hs-personal-challenge-next');
 
     expect(document.querySelector('[data-superweapons-option="on"]')?.getAttribute('aria-pressed')).toBe('true');
+    expect(document.body.textContent).toContain('research, arsenals, and launches are available');
     click('[data-superweapons-option="off"]');
     expect(document.querySelector('[data-superweapons-option="off"]')?.getAttribute('aria-pressed')).toBe('true');
+    expect(document.body.textContent).toContain('No nuclear weapons this game');
     click('#hs-review-start');
 
     const config = onComplete.mock.calls[0]![0];
