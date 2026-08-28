@@ -128,10 +128,17 @@ export function getTacticalAdjacentCitadelDefense(
     .filter((effect): effect is Extract<LegendaryWonderTacticalEffect, { kind: 'adjacent-citadel-defense' }> =>
       effect.kind === 'adjacent-citadel-defense' && !effect.excludedRoles.includes(role));
   if (effects.length === 0) return { multiplier: 1 };
-  const strongest = effects.sort((left, right) => right.multiplier - left.multiplier || left.stackingGroup.localeCompare(right.stackingGroup))[0]!;
+  const strongestByGroup = new Map<string, Extract<LegendaryWonderTacticalEffect, { kind: 'adjacent-citadel-defense' }>>();
+  for (const effect of effects) {
+    const current = strongestByGroup.get(effect.stackingGroup);
+    if (!current || effect.multiplier > current.multiplier) strongestByGroup.set(effect.stackingGroup, effect);
+  }
+  const selected = [...strongestByGroup.values()]
+    .sort((left, right) => left.stackingGroup.localeCompare(right.stackingGroup));
+  const multiplier = selected.reduce((total, effect) => total * effect.multiplier, 1);
   return {
-    multiplier: strongest.multiplier,
-    label: `Legendary Citadel +${Math.round((strongest.multiplier - 1) * 100)}%`,
+    multiplier,
+    label: `Legendary Citadel +${Math.round((multiplier - 1) * 100)}%`,
   };
 }
 

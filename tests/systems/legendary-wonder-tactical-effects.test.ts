@@ -160,6 +160,28 @@ describe('legendary wonder tactical effects', () => {
     expect(getTacticalAdjacentCitadelDefense(state, defender, citadelDefinitions).multiplier).toBe(1);
   });
 
+  it('selects the strongest Citadel effect in each stacking group deterministically', () => {
+    const state = createNewGame('rome', 'tactical-citadel-stacking', 'small');
+    const defenderPosition = state.units[state.civilizations.player.units[0]!].position;
+    const defender = createUnit('warrior', 'player', defenderPosition, state.idCounters);
+    const sourcePosition = mapNeighbors(state.map, defenderPosition)[0]!;
+    const source = createUnit('warrior', 'player', sourcePosition, state.idCounters);
+    state.units[source.id] = source;
+    const sourceTile = state.map.tiles[hexKey(sourcePosition)]!;
+    sourceTile.owner = 'player'; sourceTile.improvement = 'fort'; sourceTile.improvementTurnsLeft = 0;
+    state.civilizations.player.techState.completed.push('fortification-engineering');
+    state.completedLegendaryWonders = { 'test-wonder': { ownerId: 'player', cityId: Object.keys(state.cities)[0]!, turnCompleted: 1 } };
+    const definitionsWithGroups: LegendaryWonderDefinition[] = [{
+      ...definitions[0]!, reward: { summary: 'Stacking test', tacticalEffects: [
+        { kind: 'adjacent-citadel-defense', multiplier: 1.05, stackingGroup: 'citadel', excludedRoles: ['siege'], aiValue: 1 },
+        { kind: 'adjacent-citadel-defense', multiplier: 1.1, stackingGroup: 'citadel', excludedRoles: ['siege'], aiValue: 1 },
+        { kind: 'adjacent-citadel-defense', multiplier: 1.05, stackingGroup: 'alliance', excludedRoles: ['siege'], aiValue: 1 },
+      ] },
+    }];
+
+    expect(getTacticalAdjacentCitadelDefense(state, defender, definitionsWithGroups).multiplier).toBeCloseTo(1.155);
+  });
+
   it('extends only a completed owner’s declared SAM radius', () => {
     const state = createNewGame('rome', 'tactical-sam-radius', 'small');
     state.completedLegendaryWonders = {
