@@ -32,4 +32,4 @@ Native lookup is active for the five user-accepted Issue 710 payloads; minor-civ
 
 ## Gate status
 
-Evidence was generated and reviewed interactively. The user approved the corrected batch on 2026-08-27; the five generated payloads are registered in `src/renderer/sprites/v2/index.ts`.
+Evidence was generated and reviewed interactively. The user approved the corrected batch on 2026-08-27; the five generated payloads are registered in `src/renderer/sprites/v2/index.ts`. Delivery is tracked in [MR #904](https://github.com/a1flecke/conquestoria/pull/904).
