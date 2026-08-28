@@ -1,5 +1,7 @@
 # #545 MR8 — Hot-Seat Privacy Pass, Save/Migration Verification, Final Balance Audit Implementation Plan
 
+> **Status: ✅ executed — this is the final MR of the #545 arc.** All 5 tasks completed inline; full test suite (9202 tests) and `yarn build` pass clean. Task 1 found and fixed the one real bug the design review predicted: `turn-flow-controller.ts`'s hot-seat handoff cleanup was missing `closeStrategicLaunchFlow`/`renderLoop.setStrategicLaunchPreview(null)`, both now added alongside the existing `closePirateWatersPanels`/`setSelectedPirateFactionId(null)` precedent. Tasks 2–4 confirmed (with direct regression tests, not just re-reading code) that the other 4 hot-seat-privacy claims, every optional save field, and the arc's cumulative balance/pacing impact were all already correct — no additional bugs found. One build-only type error (vitest doesn't type-check; `yarn build` does) was caught and fixed in Task 3's test before the final verification.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. **Do not use superpowers:subagent-driven-development or any other multi-agent workflow — this repository's CLAUDE.md forbids subagents/parallel agents for all work; execute every task inline in the current session.** Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Fix the one confirmed hot-seat privacy leak (strategic-launch flow surviving a turn handoff), add the one genuinely-missing regression test from §15's 5 claims (the other 4 already have adequate coverage — verified directly, see the design doc), add explicit save/migration regression coverage for every optional field this arc introduced, and record a final balance/pacing audit confirmation.
@@ -27,7 +29,7 @@
 **Interfaces:**
 - Produces: `closeStrategicLaunchFlow(container?: ParentNode): void`, matching `closePirateWatersPanels`'s exact signature (`src/ui/pirate-waters-panel.ts:24`). Consumed by `turn-flow-controller.ts`'s `beginHotSeatHandoff`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Add to `tests/ui/strategic-launch-flow.test.ts` (verify the exact existing `describe`/import block first — this file already has a `makeState` helper and `createStrategicLaunchFlow` import from MR4/MR7 work):
 
@@ -68,12 +70,12 @@ Add to `tests/app/controllers/turn-flow-controller.test.ts`'s `describe('endTurn
 
 Before writing this, confirm `makeHotSeatFixture`'s exact name/signature and `baseDeps`'s exact `uiLayer`/`renderLoop` override shape by reading the file directly (`grep -n "function makeHotSeatFixture\|function baseDeps\|function fakeRenderer" tests/app/controllers/turn-flow-controller.test.ts`) — match them verbatim rather than guessing.
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `bash scripts/run-with-mise.sh yarn test tests/ui/strategic-launch-flow.test.ts tests/app/controllers/turn-flow-controller.test.ts`
 Expected: FAIL — `closeStrategicLaunchFlow` doesn't exist (TypeScript/import error) and the handoff test finds the panel/preview untouched.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 In `src/ui/strategic-launch-flow.ts`, add a new export near `createStrategicLaunchFlow` (after it, matching `pirate-waters-panel.ts`'s ordering where `closePirateWatersPanels` precedes `createPirateWatersPanel` — either ordering is fine, prefer appending after `createStrategicLaunchFlow` to avoid an unrelated diff to existing lines):
 
@@ -134,12 +136,12 @@ Change to:
     renderLoop.setStrategicLaunchPreview(null);
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `bash scripts/run-with-mise.sh yarn test tests/ui/strategic-launch-flow.test.ts tests/app/controllers/turn-flow-controller.test.ts`
 Expected: PASS
 
-- [ ] **Step 5: Run the full suite and build**
+- [x] **Step 5: Run the full suite and build**
 
 Run: `bash scripts/run-with-mise.sh yarn test`
 Expected: PASS — `fakeRenderer()`'s default mock object in `turn-flow-controller.test.ts` needs `setStrategicLaunchPreview: vi.fn()` added to its defaults (mirroring `setSelectedPirateFactionId: vi.fn()` immediately above it in that function), or every *other* pre-existing test in this file that doesn't override `renderLoop` will fail once `TurnFlowRenderer` requires this method. Add it there if the run reveals this.
@@ -147,7 +149,7 @@ Expected: PASS — `fakeRenderer()`'s default mock object in `turn-flow-controll
 Run: `bash scripts/run-with-mise.sh yarn build`
 Expected: PASS clean.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/ui/strategic-launch-flow.ts src/app/controllers/turn-flow-controller.ts tests/ui/strategic-launch-flow.test.ts tests/app/controllers/turn-flow-controller.test.ts
@@ -166,7 +168,7 @@ git commit -m "fix(#545): close strategic-launch flow + clear its preview on hot
 
 **This file's `makeState()` helper has no `settings` field at all — `resolveSuperweaponsFlag(undefined)` resolves to `'off'`, so `platforms` (gated via `getEligibleStrategicLaunchPlatforms`, MR7) would be `[]` regardless of real building state unless the test explicitly sets `settings: { superweapons: 'on' }`. None of this file's pre-existing tests are affected (none have real platforms to begin with), but this new test does, so it must set this explicitly.**
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Add to `tests/systems/strategic-arsenal-summary-presentation.test.ts`'s existing `describe` block, after its last test:
 
@@ -210,17 +212,17 @@ Add to `tests/systems/strategic-arsenal-summary-presentation.test.ts`'s existing
   });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `bash scripts/run-with-mise.sh yarn test tests/systems/strategic-arsenal-summary-presentation.test.ts -t "hot-seat privacy"`
 Expected: This test should actually PASS immediately if the underlying function is already correct (per the design doc's finding that this property already holds) — the point of this step is to confirm the assertions are meaningful, not to find a bug. If it fails, investigate whether the fixture itself is wrong (e.g., an arithmetic mistake in the expected capacity numbers) before assuming the production code is broken — re-derive `arsenalCapacity` from `ARSENAL_CAPACITY_SOURCES` in `strategic-arsenal-system.ts` (base 1 + `missile_silo` 1 + `nuclear_arsenal` 2) rather than guessing.
 
-- [ ] **Step 3: Run the full suite**
+- [x] **Step 3: Run the full suite**
 
 Run: `bash scripts/run-with-mise.sh yarn test tests/systems/strategic-arsenal-summary-presentation.test.ts`
 Expected: PASS — all tests in this file, both new and pre-existing.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add tests/systems/strategic-arsenal-summary-presentation.test.ts
@@ -239,7 +241,7 @@ git commit -m "test(#545): Strategic Arsenal panel hot-seat civ-scoping regressi
 
 **This task adds no new migration code — per the design doc, every field is already optional with a correct fallback. The point is a regression test proving a save missing all of them still loads and behaves correctly, so a future change can't silently break this without a test noticing.**
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 First, confirm the current exact value of `CURRENT_SAVE_SCHEMA_VERSION` (it has changed across recent MRs, including an unrelated #547 change already on `main`): `grep -n "CURRENT_SAVE_SCHEMA_VERSION = " src/storage/save-migrations.ts`.
 
@@ -287,17 +289,17 @@ import { hasArmsControlTreaty } from '@/systems/diplomacy-system';
 
 Merge with this file's existing import lines where a module is already partially imported (e.g. if `@/systems/strategic-arsenal-system` or `@/systems/diplomacy-system` already appear) rather than adding a duplicate import statement — check first.
 
-- [ ] **Step 2: Run test to verify it fails or passes meaningfully**
+- [x] **Step 2: Run test to verify it fails or passes meaningfully**
 
 Run: `bash scripts/run-with-mise.sh yarn test tests/storage/save-migrations.test.ts -t "no strategic-deterrence fields"`
 Expected: PASS, since no migration code needs to change (the design doc's claim is that this already works by construction) — same "confirm the assertions are meaningful, don't assume a failure means broken code" caveat as Task 2. If any assertion fails, investigate whether it's the fixture or a genuine gap before changing production code.
 
-- [ ] **Step 3: Run the full suite**
+- [x] **Step 3: Run the full suite**
 
 Run: `bash scripts/run-with-mise.sh yarn test tests/storage/save-migrations.test.ts`
 Expected: PASS — all tests, both new and pre-existing.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add tests/storage/save-migrations.test.ts
@@ -312,12 +314,12 @@ git commit -m "test(#545): legacy-save regression for every strategic-deterrence
 
 **No new test code — the design doc already confirmed via a baseline run that `pacing-audit.test.ts`, `pacing-reference-economy.test.ts`, `national-project-balance.test.ts`, and `wonder-definitions.test.ts` all pass (323/323) with the whole arc's changes in place. This task re-confirms that hasn't regressed since, as the very last check before the final full-suite task.**
 
-- [ ] **Step 1: Re-run the balance/pacing audit suite**
+- [x] **Step 1: Re-run the balance/pacing audit suite**
 
 Run: `bash scripts/run-with-mise.sh yarn test tests/systems/pacing-audit.test.ts tests/systems/pacing-reference-economy.test.ts tests/systems/national-project-balance.test.ts tests/systems/wonder-definitions.test.ts`
 Expected: PASS, matching the design doc's baseline. If anything fails, STOP and report — this plan does not include a balance retune; a failure here means something outside this plan's scope changed and needs a human decision, not a fix folded into this task.
 
-- [ ] **Step 2: Commit a plan-doc note recording the confirmation**
+- [x] **Step 2: Commit a plan-doc note recording the confirmation**
 
 (This step's "commit" is folded into Task 5's final plan-doc-status commit — no separate commit needed here. Proceed directly to Task 5.)
 
@@ -327,21 +329,21 @@ Expected: PASS, matching the design doc's baseline. If anything fails, STOP and 
 
 **Files:** none (verification only)
 
-- [ ] **Step 1: Run the full test suite**
+- [x] **Step 1: Run the full test suite**
 
 Run: `bash scripts/run-with-mise.sh yarn test`
 Expected: PASS — full suite.
 
-- [ ] **Step 2: Run the production build**
+- [x] **Step 2: Run the production build**
 
 Run: `bash scripts/run-with-mise.sh yarn build`
 Expected: PASS clean, zero TypeScript errors.
 
-- [ ] **Step 3: Tick every checkbox in this plan document**
+- [x] **Step 3: Tick every checkbox in this plan document**
 
 Go back through every task above and mark its checkboxes complete.
 
-- [ ] **Step 4: Final commit**
+- [x] **Step 4: Final commit**
 
 ```bash
 git add docs/superpowers/plans/2026-08-28-issue-545-mr8-hotseat-privacy-final-audit.md
