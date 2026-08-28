@@ -38,6 +38,10 @@ export interface PauseMenuCallbacks {
   // #544 MR2: end-turn supply-warning delivery filter.
   supplyWarningPreference: 'all' | 'critical' | 'off';
   onChangeSupplyWarningPreference: (preference: 'all' | 'critical' | 'off') => void;
+  // #545 MR7: superweapons (nukes) on/off, changeable mid-game -- the
+  // concrete mechanism behind a legacy save's "opt in afterward."
+  superweaponsPreference: 'off' | 'on';
+  onChangeSuperweaponsPreference: (preference: 'off' | 'on') => void;
 }
 
 interface PauseMenuViewState {
@@ -131,6 +135,63 @@ function buildSupplyWarningSettings(callbacks: PauseMenuCallbacks): HTMLElement 
       selected = option.value;
       refreshSelection();
       callbacks.onChangeSupplyWarningPreference(option.value);
+    });
+    buttons.set(option.value, button);
+    row.appendChild(button);
+  }
+  refreshSelection();
+  section.appendChild(row);
+
+  return section;
+}
+
+/** #545 MR7: mid-game superweapons on/off toggle. */
+function buildSuperweaponsSettings(callbacks: PauseMenuCallbacks): HTMLElement {
+  const section = document.createElement('div');
+  Object.assign(section.style, {
+    borderTop: '1px solid rgba(255,255,255,0.1)',
+    paddingTop: '12px',
+    marginTop: '12px',
+  });
+
+  const heading = document.createElement('p');
+  heading.textContent = 'Superweapons';
+  Object.assign(heading.style, {
+    margin: '0 0 8px',
+    fontSize: '11px',
+    textTransform: 'uppercase',
+    letterSpacing: '0.08em',
+    opacity: '0.5',
+    color: '#fff',
+  });
+  section.appendChild(heading);
+
+  const row = document.createElement('div');
+  Object.assign(row.style, { display: 'flex', gap: '6px' });
+
+  const options: Array<{ value: 'off' | 'on'; label: string }> = [
+    { value: 'on', label: 'On' },
+    { value: 'off', label: 'Off' },
+  ];
+  let selected = callbacks.superweaponsPreference;
+  const buttons = new Map<'off' | 'on', HTMLButtonElement>();
+
+  const refreshSelection = (): void => {
+    for (const [value, button] of buttons) {
+      const isActive = value === selected;
+      const style = isActive ? VARIANT_STYLES.primary : VARIANT_STYLES.secondary;
+      Object.assign(button.style, style);
+      button.setAttribute('aria-pressed', String(isActive));
+    }
+  };
+
+  for (const option of options) {
+    const button = createGameButton(option.label, option.value === selected ? 'primary' : 'secondary');
+    button.dataset.superweaponsOption = option.value;
+    button.addEventListener('click', () => {
+      selected = option.value;
+      refreshSelection();
+      callbacks.onChangeSuperweaponsPreference(option.value);
     });
     buttons.set(option.value, button);
     row.appendChild(button);
@@ -420,6 +481,7 @@ function buildMainView(
 
   // #544 MR2: supply warning delivery preference, below audio settings
   body.appendChild(buildSupplyWarningSettings(callbacks));
+  body.appendChild(buildSuperweaponsSettings(callbacks));
 }
 
 function buildConfirmView(

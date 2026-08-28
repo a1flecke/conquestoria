@@ -27,6 +27,8 @@ function makeCallbacks(overrides: Partial<Parameters<typeof showPauseMenu>[1]> =
     onAudioSettingChange: vi.fn(),
     supplyWarningPreference: 'all',
     onChangeSupplyWarningPreference: vi.fn(),
+    superweaponsPreference: 'on',
+    onChangeSuperweaponsPreference: vi.fn(),
     ...overrides,
   };
 }
@@ -280,6 +282,25 @@ describe('pause-menu-panel', () => {
       const allOption = document.querySelector<HTMLElement>('[data-supply-warning-option="all"]');
       expect(offOption?.getAttribute('aria-pressed')).toBe('true');
       expect(allOption?.getAttribute('aria-pressed')).toBe('false');
+    });
+  });
+
+  describe('superweapons setting (#545 MR7)', () => {
+    it('renders the On/Off control and calls onChangeSuperweaponsPreference on selection', () => {
+      const callbacks = makeCallbacks({ superweaponsPreference: 'on' });
+      showPauseMenu(document.body, callbacks);
+      const offOption = document.querySelector<HTMLElement>('[data-superweapons-option="off"]');
+      if (!offOption) throw new Error('Off option not found');
+      offOption.click();
+      expect(callbacks.onChangeSuperweaponsPreference).toHaveBeenCalledWith('off');
+    });
+
+    it('marks the currently active preference option', () => {
+      showPauseMenu(document.body, makeCallbacks({ superweaponsPreference: 'off' }));
+      const offOption = document.querySelector<HTMLElement>('[data-superweapons-option="off"]');
+      const onOption = document.querySelector<HTMLElement>('[data-superweapons-option="on"]');
+      expect(offOption?.getAttribute('aria-pressed')).toBe('true');
+      expect(onOption?.getAttribute('aria-pressed')).toBe('false');
     });
   });
 });
