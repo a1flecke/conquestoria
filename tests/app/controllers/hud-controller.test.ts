@@ -214,5 +214,15 @@ describe('HudController', () => {
       arsenalButton.click();
       expect(deps.router.open).toHaveBeenCalledWith('strategic-arsenal');
     });
+
+    it('is absent when superweapons is off, even with real physical capacity (#545 MR7)', () => {
+      const state = makeFixture();
+      withManhattanProject(state, 2);
+      state.settings.superweapons = 'off';
+      const deps = baseDeps(state);
+      const hud = createHudController(deps);
+      hud.update();
+      expect(document.getElementById('hud')!.textContent).not.toContain('☢');
+    });
   });
 });
