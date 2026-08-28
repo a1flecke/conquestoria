@@ -1038,6 +1038,13 @@ git commit -m "feat(#545): mid-game pause-menu superweapons toggle (MR7 Task 10)
 
 **This task is scoped by the design doc's explicit requirement, not the earlier tasks' gameplay-gating pattern: it is a text-substitution concern at UI read time, not a new gameplay chokepoint.**
 
+**Findings from execution:**
+- Of the 5 buildings, only `manhattan_project` and `missile_silo` made a false claim when off (a capacity/launch claim); `nuclear_arsenal`, `strategic_air_command`, and `arms_control_treaty` were already honest flat-yield text with no capacity/launch/deterrence claim beyond the real yield, per the plan's own "do not add an entry for text that's already honest" guidance — verified directly, not assumed.
+- `missile_submarine` (the 1 unit) did make a false launch claim, fixed.
+- The description resolver's real UI read sites turned out to be `city-panel.ts` (2 sites: currently-built buildings list, build-queue list) and, for the unit, `unit-stack-panel.ts` and `selected-unit-info.ts` (both render `UNIT_DESCRIPTIONS` for an already-selected/stacked unit) — `city-panel.ts` itself never reads `UNIT_DESCRIPTIONS` directly for trainable units (it uses `getUnitRolePresentation`'s role summary instead), so no fourth site existed there.
+- **The 4 gating techs' `unlocks` text was deliberately NOT wired in.** `getUnlockLines` (tech-panel.ts) doesn't currently take a `GameState`/settings parameter — wiring it in would mean threading a new parameter through that function and its callers, a larger change than this task's actual text-substitution scope. The text itself ("Atomic deterrence reshapes grand strategy," etc.) is also genuinely vaguer flavor prose, not a specific falsifiable capacity/launch claim the way the buildings/unit's real text was. Deferred as a documented scope decision, not a silent omission.
+- **Unrelated bug found and NOT fixed here (flagged as a separate task instead):** `arms-control-negotiations`'s `unlocks` text says "+2 gold empire-wide," but the real `arms_control_treaty` building it gates has `civYieldBonus: { gold: 5 }`. This is a plain number mismatch, unconditionally wrong regardless of the superweapons setting — out of scope for an on/off-mode honesty pass.
+
 - [ ] **Step 1: Capture the real current text (baseline) and confirm exact read sites**
 
 Run and record the output:

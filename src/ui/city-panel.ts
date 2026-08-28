@@ -63,6 +63,7 @@ import { TECH_TREE, resolveCivilizationEra } from '@/systems/tech-definitions';
 import { evaluateProductionPrerequisites } from '@/systems/production-prerequisites';
 import { getStrategicArsenal, getStrategicArsenalCapacity, hasManhattanProject, getArsenalStatus, getActiveArmsControlCap } from '@/systems/strategic-arsenal-system';
 import { isSuperweaponsEnabled } from '@/systems/superweapons-flag';
+import { resolveSuperweaponContentDescription } from '@/systems/superweapon-content-honesty';
 import { createCityWorkSection } from './city-grid';
 import { createCityDistrictsTab } from './city-districts';
 import {
@@ -1274,14 +1275,14 @@ export function createCityPanel(
     const b = BUILDINGS[bid];
     if (b) {
       setText(`bldg-name-${bldgIdx}`, b.name);
-      setText(`bldg-desc-${bldgIdx}`, b.description);
+      setText(`bldg-desc-${bldgIdx}`, resolveSuperweaponContentDescription(b.id, b.description, state));
       bldgIdx++;
     }
   }
 
   orderedBuildings.forEach((b, i) => {
     setText(`build-name-${i}`, b.name);
-    setText(`build-desc-${i}`, b.description);
+    setText(`build-desc-${i}`, resolveSuperweaponContentDescription(b.id, b.description, state));
   });
 
   availableUnits.forEach((u, i) => {
