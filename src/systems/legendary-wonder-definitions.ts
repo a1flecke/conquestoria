@@ -922,6 +922,11 @@ export function getLegendaryWonderDefinitions(): LegendaryWonderDefinition[] {
       ...definition.reward,
       civYieldBonus: definition.reward.civYieldBonus ? { ...definition.reward.civYieldBonus } : undefined,
       cityYieldBonus: definition.reward.cityYieldBonus ? { ...definition.reward.cityYieldBonus } : undefined,
+      tacticalEffects: definition.reward.tacticalEffects?.map(effect => ({
+        ...effect,
+        ...(effect.kind === 'per-era-role-training-xp' ? { roles: [...effect.roles] } : {}),
+        ...(effect.kind === 'adjacent-citadel-defense' ? { excludedRoles: [...effect.excludedRoles] } : {}),
+      })),
     },
   }));
 }
