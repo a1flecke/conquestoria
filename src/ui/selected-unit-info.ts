@@ -1,5 +1,6 @@
 import type { BuildableImprovementType, GameState, DisguiseType, HexCoord, Unit, WorkerActionType } from '@/core/types';
 import { UNIT_DEFINITIONS, UNIT_DESCRIPTIONS, canHeal } from '@/systems/unit-system';
+import { resolveSuperweaponContentDescription } from '@/systems/superweapon-content-honesty';
 import { GENERAL_DEFINITIONS } from '@/systems/great-general-definitions';
 import { getHeroicCommandEligibility } from '@/systems/great-general-abilities';
 import { getEffectiveCommandStats } from '@/systems/great-general-system';
@@ -345,7 +346,7 @@ export function renderSelectedUnitInfo(
 
   const descDiv = document.createElement('div');
   descDiv.style.cssText = 'font-size:10px;opacity:0.6;margin-top:2px;';
-  descDiv.textContent = UNIT_DESCRIPTIONS[unit.type] ?? '';
+  descDiv.textContent = resolveSuperweaponContentDescription(unit.type, UNIT_DESCRIPTIONS[unit.type] ?? '', state);
 
   wrapper.appendChild(topRow);
   wrapper.appendChild(descDiv);

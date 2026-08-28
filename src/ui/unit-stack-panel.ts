@@ -3,6 +3,7 @@ import { getVeterancyTier } from '@/systems/combat-reward-system';
 import { hexKey } from '@/systems/hex-utils';
 import { sortUnitsForStackPicker } from '@/systems/unit-occupancy';
 import { canHeal, UNIT_DEFINITIONS, UNIT_DESCRIPTIONS } from '@/systems/unit-system';
+import { resolveSuperweaponContentDescription } from '@/systems/superweapon-content-honesty';
 
 export interface UnitStackPanelCallbacks {
   onSelectUnit: (unitId: string) => void;
@@ -107,7 +108,7 @@ export function renderUnitStackPanel(
     const statusLine = document.createElement('div');
     statusLine.style.cssText = 'font-size:10px;opacity:0.72;margin-top:3px;';
     const tier = getVeterancyTier(unit);
-    statusLine.textContent = `${unitStatus(unit)} · ${tier.label} · XP ${unit.experience ?? 0} · ${UNIT_DESCRIPTIONS[unit.type] ?? ''}`;
+    statusLine.textContent = `${unitStatus(unit)} · ${tier.label} · XP ${unit.experience ?? 0} · ${resolveSuperweaponContentDescription(unit.type, UNIT_DESCRIPTIONS[unit.type] ?? '', state)}`;
 
     row.appendChild(nameLine);
     row.appendChild(statusLine);
