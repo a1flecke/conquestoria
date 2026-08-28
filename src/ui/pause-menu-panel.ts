@@ -176,6 +176,18 @@ function buildSuperweaponsSettings(callbacks: PauseMenuCallbacks): HTMLElement {
   let selected = callbacks.superweaponsPreference;
   const buttons = new Map<'off' | 'on', HTMLButtonElement>();
 
+  const SUPERWEAPONS_DESCRIPTIONS: Record<'on' | 'off', string> = {
+    on: 'Nuclear weapons research, arsenals, and launches are available this game.',
+    off: 'No nuclear weapons this game -- the buildings and units stay in the tech tree for their ordinary yields, but capacity and launch are disabled.',
+  };
+  const helpText = document.createElement('p');
+  Object.assign(helpText.style, {
+    margin: '6px 0 0',
+    fontSize: '11px',
+    opacity: '0.65',
+    lineHeight: '1.4',
+  });
+
   const refreshSelection = (): void => {
     for (const [value, button] of buttons) {
       const isActive = value === selected;
@@ -183,6 +195,7 @@ function buildSuperweaponsSettings(callbacks: PauseMenuCallbacks): HTMLElement {
       Object.assign(button.style, style);
       button.setAttribute('aria-pressed', String(isActive));
     }
+    helpText.textContent = SUPERWEAPONS_DESCRIPTIONS[selected];
   };
 
   for (const option of options) {
@@ -198,6 +211,7 @@ function buildSuperweaponsSettings(callbacks: PauseMenuCallbacks): HTMLElement {
   }
   refreshSelection();
   section.appendChild(row);
+  section.appendChild(helpText);
 
   return section;
 }

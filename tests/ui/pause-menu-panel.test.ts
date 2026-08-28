@@ -302,5 +302,13 @@ describe('pause-menu-panel', () => {
       expect(offOption?.getAttribute('aria-pressed')).toBe('true');
       expect(onOption?.getAttribute('aria-pressed')).toBe('false');
     });
+
+    it('shows help text describing the current selection and updates it on click', () => {
+      showPauseMenu(document.body, makeCallbacks({ superweaponsPreference: 'on' }));
+      expect(document.body.textContent).toContain('research, arsenals, and launches are available');
+      const offOption = document.querySelector<HTMLElement>('[data-superweapons-option="off"]');
+      offOption?.click();
+      expect(document.body.textContent).toContain('No nuclear weapons this game');
+    });
   });
 });
