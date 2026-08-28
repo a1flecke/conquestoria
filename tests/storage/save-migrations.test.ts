@@ -15,6 +15,10 @@ import { processPurposefulBarbarians } from '@/systems/barbarian-system';
 import { CRISIS_FORCE_OWNER } from '@/core/owner-kind';
 import { getHeroicCommandEligibility } from '@/systems/great-general-abilities';
 import { checkAndQueueGeneralCandidateChoice } from '@/systems/great-general-system';
+import { getStrategicArsenal, getStrategicArsenalCapacity } from '@/systems/strategic-arsenal-system';
+import { isSuperweaponsEnabled } from '@/systems/superweapons-flag';
+import { getEligibleStrategicLaunchPlatforms } from '@/systems/strategic-launch-system';
+import { hasArmsControlTreaty } from '@/systems/diplomacy-system';
 
 describe('save migrations', () => {
   it('#701 initializes and normalizes crisis-force records idempotently', () => {
@@ -1049,5 +1053,34 @@ describe('#544 MR4 — legacy save load with no General heroic-command fields', 
     expect(migrated.pendingGeneralCandidateChoices ?? []).toEqual([]);
     const afterCheck = checkAndQueueGeneralCandidateChoice(migrated, aiCivId, 'city:captured', 1);
     expect(afterCheck.pendingGeneralCandidateChoices?.some(c => c.civId === aiCivId)).toBe(true);
+  });
+
+  it('#545 legacy save with no strategic-deterrence fields at all loads and behaves correctly', () => {
+    const save = createNewGame('rome', 'strategic-deterrence-legacy-migration', 'small');
+    save.saveSchemaVersion = 1; // predates every #545 MR
+    // Simulate a save from before #545 MR1 shipped -- delete every optional
+    // field this arc introduced, even though createNewGame already sets
+    // some of them (superweapons: 'on') for a brand-new game.
+    delete (save.settings as Record<string, unknown>).superweapons;
+    const civId = Object.keys(save.civilizations)[0]!;
+    delete (save.civilizations[civId] as Record<string, unknown>).strategicArsenal;
+    delete (save as Record<string, unknown>).builtNationalProjects;
+    // Treaty.arsenalCap's optionality is already covered directly by MR6's
+    // own 'arsenalCap is set only for arms_control_pact...' test
+    // (diplomacy-system.test.ts) -- not re-tested here, since a freshly
+    // created game has zero treaties to begin with (nothing to delete the
+    // field from) and inventing one would test signTreaty, not migration.
+
+    const migrated = migrateSaveToCurrent(save);
+
+    expect(migrated.saveSchemaVersion).toBe(CURRENT_SAVE_SCHEMA_VERSION);
+    // Legacy defaults: arsenal reads 0, capacity/platforms/capability all
+    // resolve to their "nothing" answer, superweapons resolves 'off'.
+    expect(getStrategicArsenal(migrated.civilizations[civId]!)).toBe(0);
+    expect(getStrategicArsenalCapacity(migrated, civId)).toBe(0);
+    expect(isSuperweaponsEnabled(migrated)).toBe(false);
+    expect(getEligibleStrategicLaunchPlatforms(migrated, civId)).toEqual([]);
+    expect(hasArmsControlTreaty(migrated, civId)).toBe(false);
+    expect(migrateSaveToCurrent(migrated)).toEqual(migrated);
   });
 });
