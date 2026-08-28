@@ -211,6 +211,27 @@ describe('strategicArsenalValueScore (#545)', () => {
     expect(source).not.toMatch(/buildingId\s*===\s*['"]warhead['"]/);
     expect(source).not.toMatch(/\.id\s*===\s*['"]warhead['"]/);
   });
+
+  it('warhead never reaches strategicArsenalValueScore when superweapons is off (#545 MR7) -- confirms Task 3\'s getArsenalStatus gate alone is sufficient here', () => {
+    // arsenalCapacityGated is set on warhead ONLY (verified directly against
+    // BUILDINGS in city-system.ts -- nuclear_arsenal/missile_silo do not
+    // carry it, contrary to an earlier design-review assumption). Since
+    // getArsenalStatus (Task 3) already forces atCapacity: true when off,
+    // getAvailableBuildings excludes warhead before this file's scoring loop
+    // ever computes strategicArsenalValueScore for it -- there is no
+    // reachable path left for a phantom AI incentive to leak through, so no
+    // separate gate was added to strategicArsenalValueScore itself.
+    const state = setupState(['nuclear-weapons', 'nuclear-physics']);
+    grantResources(state, ['uranium']);
+    state.settings.superweapons = 'off';
+    state.civilizations['ai-1']!.diplomacy.atWarWith = ['player', 'ai-2', 'ai-3'];
+    state.builtNationalProjects = {
+      'ai-1:manhattan_project': { civId: 'ai-1', cityId: 'city-a', eraBuilt: 10 },
+    };
+
+    const candidates = generateAIProductionCandidates(state, 'ai-1', 'city-a', [], aggressive);
+    expect(candidates.find(c => c.itemId === 'warhead')).toBeUndefined();
+  });
 });
 
 describe('AI strategic production', () => {
