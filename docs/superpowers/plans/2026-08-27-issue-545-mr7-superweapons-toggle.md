@@ -698,9 +698,11 @@ git commit -m "feat(#545): gate warhead locked-item reason on superweapons setti
 - Test: `tests/ui/hotseat-setup.test.ts`
 
 **Interfaces:**
-- Consumes: `HotSeatConfig.settingsOverrides` (already exists on the type, per `src/core/types.ts:1699` — currently unused by `createHotSeatGame`, a pre-existing bug independent of this MR but required to make this task's UI card actually take effect).
+- Produces: `HotSeatConfig.settingsOverrides?: Partial<GameSettings>` (new field, mirroring `SoloSetupConfig`'s own field of the same name), consumed by `createHotSeatGame`.
 
-**This task first fixes a real pre-existing gap found during plan-writing: `createHotSeatGame`'s final settings construction never spreads `config.settingsOverrides`, even though the field exists on `HotSeatConfig` and is threaded through elsewhere in this same function (an earlier, unrelated `hotSeatSettings = createDefaultSettings(config.mapSize)` call, used only for beast-lair placement, uses a *different*, un-overridden settings object entirely — do not confuse the two). Without this fix, the hot-seat setup card added below would silently do nothing.**
+**Correction found during execution: the plan's premise here was wrong.** Plan-writing research grepped `settingsOverrides` in `types.ts` and found it at what's now line 1699 — but that field belongs to `SoloSetupConfig`, a *different*, neighboring interface, not `HotSeatConfig`. `HotSeatConfig` never had this field at all; it wasn't a "dead field `createHotSeatGame` forgot to consume," it simply didn't exist yet. The actual Step 3 fix below is therefore two changes, not one: (1) add `settingsOverrides?: Partial<GameSettings>` to `HotSeatConfig` itself in `src/core/types.ts`, then (2) spread it into `createHotSeatGame`'s settings construction (an earlier, unrelated `hotSeatSettings = createDefaultSettings(config.mapSize)` call in the same function, used only for beast-lair placement, uses a *different*, un-overridden settings object entirely — do not confuse the two). Without both, the hot-seat setup card added below would fail to compile, not just silently do nothing.
+
+**Second correction found during execution:** `review.config` (the object passed to `callbacks.onComplete`) is built once by `buildFinalConfig()` at the top of `showFinalReview()`, *before* the card below renders. A naive card that only updates a local `superweaponsSelected` variable would have its choice silently lost — the click handler must mutate `review.config.settingsOverrides` directly, not just the local variable, or a later click on Start would still send the value `review.config` was frozen with. See the click handler below.
 
 - [ ] **Step 1: Write the failing test**
 

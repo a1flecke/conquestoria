@@ -7,7 +7,7 @@ import { getPlayableCivDefinitions } from '@/systems/civ-registry';
 import { buildCustomCivId, customCivDefinitionsEqual, mergeCustomCivDefinitions } from '@/systems/custom-civ-system';
 import { loadSettings, saveSettings } from '@/storage/save-manager';
 import { createOpponentChallengeSelector } from '@/ui/opponent-challenge-selector';
-import { createGameButton } from '@/ui/ui-kit';
+import { createGameButton, VARIANT_STYLES } from '@/ui/ui-kit';
 import { selectAIRoster } from '@/systems/ai-roster-selection';
 
 export interface HotSeatSetupCallbacks {
@@ -36,6 +36,7 @@ export function showHotSeatSetup(
   let selectedMapScript: MapScript = 'earth';
   let selectedPlacementMode: StartPlacementMode = 'balanced';
   let selectedOpponentChallenge: OpponentChallenge = 'standard';
+  let superweaponsSelected: 'off' | 'on' = 'on';
   let playerCount = 0;
   let aiCount = 1;
   const players: HotSeatPlayer[] = [];
@@ -575,6 +576,7 @@ export function showHotSeatSetup(
       startPlacementMode: selectedPlacementMode,
       players: [...humanPlayers, ...aiPlayers],
       customCivilizations,
+      settingsOverrides: { superweapons: superweaponsSelected },
       },
       minimumHistoricalDistance: selection.minimumHistoricalDistance,
       fallbackCivilizationTypeIds: selection.fallbackCivilizationTypeIds,
@@ -622,6 +624,44 @@ export function showHotSeatSetup(
       summary.appendChild(warning);
     }
     panel.appendChild(summary);
+
+    const superweaponsSection = document.createElement('div');
+    superweaponsSection.style.cssText = 'max-width:520px;width:100%;margin-top:12px;';
+    const superweaponsLabel = document.createElement('p');
+    superweaponsLabel.textContent = 'Superweapons (nukes)';
+    superweaponsLabel.style.cssText = 'margin:0 0 6px;font-size:12px;opacity:0.7;';
+    superweaponsSection.appendChild(superweaponsLabel);
+    const superweaponsRow = document.createElement('div');
+    superweaponsRow.style.cssText = 'display:flex;gap:6px;';
+    const superweaponsOptions: Array<{ value: 'on' | 'off'; label: string }> = [
+      { value: 'on', label: 'On' },
+      { value: 'off', label: 'Off' },
+    ];
+    const superweaponsButtons = new Map<'on' | 'off', HTMLButtonElement>();
+    const refreshSuperweaponsButtons = (): void => {
+      for (const [value, button] of superweaponsButtons) {
+        const style = value === superweaponsSelected ? VARIANT_STYLES.primary : VARIANT_STYLES.secondary;
+        Object.assign(button.style, style);
+        button.setAttribute('aria-pressed', String(value === superweaponsSelected));
+      }
+    };
+    for (const option of superweaponsOptions) {
+      const button = createGameButton(option.label, option.value === superweaponsSelected ? 'primary' : 'secondary');
+      button.dataset.superweaponsOption = option.value;
+      button.addEventListener('click', () => {
+        superweaponsSelected = option.value;
+        refreshSuperweaponsButtons();
+        // review.config was already built by the time this card renders --
+        // mutate it directly so a later click on Start picks up the change,
+        // rather than the value frozen at buildFinalConfig() time.
+        review.config.settingsOverrides = { superweapons: superweaponsSelected };
+      });
+      superweaponsButtons.set(option.value, button);
+      superweaponsRow.appendChild(button);
+    }
+    refreshSuperweaponsButtons();
+    superweaponsSection.appendChild(superweaponsRow);
+    panel.appendChild(superweaponsSection);
 
     const start = createGameButton(
       crowded ? 'Review Crowding Risk' : 'Start Game',

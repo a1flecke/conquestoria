@@ -483,6 +483,7 @@ export function createHotSeatGame(
   const allSlotIds = config.players.map(p => p.slotId);
   const settings = createDefaultSettings(config.mapSize, {
     tutorialEnabled: false,
+    ...config.settingsOverrides,
     customCivilizations: config.customCivilizations,
   });
 
