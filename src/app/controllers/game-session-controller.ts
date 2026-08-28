@@ -60,6 +60,7 @@ import { installGlobalShortcuts } from '@/app/global-shortcuts';
 import { registerConquestoriaServiceWorker } from '@/platform/service-worker';
 import { initializeDesktopMenu } from '@/platform/desktop-menu';
 import { resolveOpponentChallenge, setPendingOpponentChallenge, resolveChallengeForCiv, setPendingChallengeForCiv } from '@/core/opponent-challenge';
+import { resolveSuperweaponsFlag } from '@/systems/superweapons-flag';
 
 /** The narrow slice of `RenderLoop` this controller needs. */
 export type GameSessionRenderer = Pick<RenderLoop, 'setGameState' | 'setTouchHandler' | 'start' | 'resizeCanvas' | 'toggleSupplyOverlay' | 'isSupplyOverlayEnabled'> & {
@@ -206,6 +207,15 @@ export function createGameSessionController(deps: GameSessionControllerDeps): Ga
             deps.session.setStateWithoutRefresh({
               ...state,
               settings: { ...state.settings, supplyWarningPreference: preference },
+            });
+          },
+          // #545 MR7: mid-game superweapons toggle
+          superweaponsPreference: resolveSuperweaponsFlag(deps.session.getState().settings),
+          onChangeSuperweaponsPreference: (preference) => {
+            const state = deps.session.getState();
+            deps.session.setStateWithoutRefresh({
+              ...state,
+              settings: { ...state.settings, superweapons: preference },
             });
           },
         });
