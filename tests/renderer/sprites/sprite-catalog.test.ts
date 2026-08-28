@@ -366,6 +366,12 @@ describe('#710 air-defense and orphaned sprites are not aliases of their former 
     const radarStation = RadarStationSprite({ palette, svgOnly: true });
     expect(samSite).not.toBe(radarStation);
     expect(samSite).toContain('cq-sam-launcher');
+    expect(samSite).toContain('cq-sam-platform');
+    expect(samSite).toContain('cq-sam-ground');
+    expect(samSite).toContain('cq-sam-standard');
+    expect(samSite).toContain('cq-sam-missile-launch');
+    expect(samSite).toContain('cq-sam-launch-flash');
+    expect(samSite).not.toContain('cq-anim-idle');
     expect(samSite).not.toContain('cq-radar-tower');
     expect(radarStation).toContain('cq-radar-tower');
     expect(radarStation).not.toContain('cq-sam-launcher');

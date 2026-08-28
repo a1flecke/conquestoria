@@ -49,6 +49,12 @@ import { svg as droneControllerSvg }   from './drone_controller.svg';
 import { svg as armoredCarSvg }        from './armored_car.svg';
 import { svg as mechanizedInfantrySvg } from './mechanized_infantry.svg';
 import { svg as mainBattleTankSvg }    from './main_battle_tank.svg';
+// #710 air-defense and orphaned visual batch — registered after visual-gate approval.
+import { svg as paratrooperSvg }       from './paratrooper.svg';
+import { svg as navalStrikeAircraftSvg } from './naval_strike_aircraft.svg';
+import { svg as maritimePatrolAircraftSvg } from './maritime_patrol_aircraft.svg';
+import { svg as supercarrierSvg }      from './supercarrier.svg';
+import { svg as greatGeneralSvg }      from './great_general.svg';
 // Legendary beasts — faction-neutral, keyed under 'beast'
 import { svg as beastBoarSvg }     from './beast_boar.svg';
 import { svg as beastWolfSvg }     from './beast_wolf.svg';
@@ -160,6 +166,12 @@ const UNIT_SPRITES: Record<string, Record<string, string>> = {
   armored_car:        armoredCarSvg,
   mechanized_infantry: mechanizedInfantrySvg,
   main_battle_tank:   mainBattleTankSvg,
+  // #710 air-defense and orphaned visual batch
+  paratrooper:              paratrooperSvg,
+  naval_strike_aircraft:    navalStrikeAircraftSvg,
+  maritime_patrol_aircraft: maritimePatrolAircraftSvg,
+  supercarrier:             supercarrierSvg,
+  great_general:            greatGeneralSvg,
   // Legendary beasts
   beast_boar:     beastBoarSvg,
   beast_wolf:     beastWolfSvg,

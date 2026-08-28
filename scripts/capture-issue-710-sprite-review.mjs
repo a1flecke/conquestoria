@@ -23,7 +23,7 @@ function applyPausedState(root, state, phase) {
     sprite.style.setProperty('--phase', String(phase));
     for (const animation of sprite.getAnimations?.() ?? []) {
       animation.pause();
-      animation.currentTime = phase * 1400;
+      animation.currentTime = phase * Number(animation.effect?.getTiming().duration ?? 0);
     }
   }
 }
@@ -63,7 +63,7 @@ try {
           sprite.style.setProperty('--phase', String(phase));
           for (const animation of sprite.getAnimations?.() ?? []) {
             animation.pause();
-            animation.currentTime = phase * 1400;
+            animation.currentTime = phase * Number(animation.effect?.getTiming().duration ?? 0);
           }
         }
         return card;
@@ -90,26 +90,59 @@ try {
   });
   await page.locator('#sprite-grid').screenshot({ path: resolve(output, 'sam-radar-comparison.png') });
 
+  await page.goto(preview); await page.waitForSelector('.building-card');
+  await page.evaluate((phaseList) => {
+    const grid = document.querySelector('#sprite-grid');
+    const rows = [
+      ['sam_site', 'attack', 'SAM Site · attack'],
+      ['radar_station', 'attack', 'Radar Station · attack pulse'],
+    ];
+    const cards = rows.flatMap(([unitId, state, label]) => phaseList.map((phase) => {
+      const source = document.querySelector(`.card[data-unit="${unitId}"]`);
+      if (!source) throw new Error(`Missing review card: ${unitId}`);
+      const card = source.cloneNode(true);
+      card.querySelector('h2').textContent = `${label} ${Math.round(phase * 100)}%`;
+      card.querySelector('.stage').style.height = '156px';
+      for (const sprite of card.querySelectorAll('.cq-sprite-wrap, .cq-sprite-wrap svg')) {
+        sprite.dataset.state = state;
+        sprite.style.setProperty('--phase', String(phase));
+        for (const animation of sprite.getAnimations?.() ?? []) {
+          animation.pause();
+          animation.currentTime = phase * Number(animation.effect?.getTiming().duration ?? 0);
+        }
+      }
+      return card;
+    }));
+    grid.style.gridTemplateColumns = 'repeat(4, 1fr)'; grid.replaceChildren(...cards);
+  }, phases);
+  await page.locator('#sprite-grid').screenshot({ path: resolve(output, 'sam-radar-motion-sheet.png') });
+
   await page.goto(preview); await page.waitForSelector('.card[data-unit="paratrooper"]');
   const validation = await page.evaluate(() => {
     const data = globalThis.__ISSUE_710_SPRITES__;
     const buildings = globalThis.__ISSUE_710_BUILDINGS__;
     const spriteIds = ['paratrooper', 'naval_strike_aircraft', 'maritime_patrol_aircraft', 'supercarrier', 'great_general'];
-    const animationFor = (unitId, hook) => {
+    const animationFor = (unitId, hook, state = 'attack') => {
       const card = document.querySelector(`.card[data-unit="${unitId}"]`);
-      for (const sprite of card.querySelectorAll('.cq-sprite-wrap, .cq-sprite-wrap svg')) sprite.dataset.state = 'attack';
+      for (const sprite of card.querySelectorAll('.cq-sprite-wrap, .cq-sprite-wrap svg')) sprite.dataset.state = state;
       return getComputedStyle(card.querySelector(hook)).animationName;
     };
     return {
       hasAllSprites: spriteIds.every((id) => data?.[id]?.imperials?.includes('cq-v2')),
-      hasBuildings: Boolean(buildings?.sam_site?.includes('cq-sam-launcher') && buildings?.radar_station?.includes('cq-radar-tower')),
+      hasBuildings: Boolean(buildings?.sam_site?.includes('cq-sam-launcher') && buildings?.sam_site?.includes('cq-sam-platform') && buildings?.sam_site?.includes('cq-sam-standard') && buildings?.radar_station?.includes('cq-radar-tower')),
       hasStateControl: document.querySelectorAll('button[data-state]').length === 5,
       hasPhaseControl: document.querySelectorAll('button[data-phase]').length === 4,
       // file:// pages cannot always enumerate an external stylesheet's cssRules; computed
       // animation names prove the actual loaded CSS is reaching each local hook instead.
       hasLocalMotion: animationFor('naval_strike_aircraft', '.cq-naval-strike-torpedo').includes('cq710-torpedo-release')
         && animationFor('supercarrier', '.cq-supercarrier-launch-aircraft').includes('cq710-carrier-launch')
-        && animationFor('great_general', '.cq-general-map').includes('cq710-general-map'),
+        && animationFor('great_general', '.cq-general-map').includes('cq710-general-map')
+        && animationFor('great_general', '.cq-general-leg-l', 'walk').includes('cq2-leg-fwd')
+        && animationFor('great_general', '.cq-general-leg-r', 'walk').includes('cq2-leg-back')
+        && animationFor('sam_site', '.cq-sprite-figure') === 'none'
+        && animationFor('sam_site', '.cq-sam-missile-launch').includes('cq710-sam-launch')
+        && animationFor('radar_station', '.cq-sprite-figure') === 'none'
+        && animationFor('radar_station', '.cq-radar-pulse').includes('cq710-radar-pulse'),
     };
   });
   if (!Object.values(validation).every(Boolean)) throw new Error(`Incomplete #710 review surface: ${JSON.stringify(validation)}`);
@@ -117,4 +150,4 @@ try {
   await browser.close();
 }
 
-console.log('✓ Captured #710 identity, full-state contact, and SAM/Radar review sheets');
+console.log('✓ Captured #710 identity, full-state contact, and SAM/Radar motion review sheets');

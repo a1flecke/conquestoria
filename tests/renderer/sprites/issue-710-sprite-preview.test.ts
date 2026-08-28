@@ -31,7 +31,19 @@ describe('#710 corrective file-safe sprite preview', () => {
     expect(preview).toContain('id="reduced-motion"');
   });
 
-  it('links committed identity, contact, and SAM/Radar comparison evidence', () => {
+  it('mounts static building art through the same lifecycle wrapper as native sprites', () => {
+    expect(existsSync(previewPath), 'Issue-710 preview must exist before it can exercise static building motion').toBe(true);
+    if (!existsSync(previewPath)) return;
+    const preview = readFileSync(previewPath, 'utf8');
+    expect(preview).toContain('function createBuildingSpriteFrame(id, markup)');
+    expect(preview).toContain("wrapper.className = 'cq-sprite-wrap cq-v2 building-sprite-wrap'");
+    expect(preview).toContain("wrapper.dataset.kind = 'building'");
+    expect(preview).toContain("wrapper.dataset.kindVariant = id === 'sam_site' ? 'sam-site' : 'radar-station'");
+    expect(preview).toContain('stage.append(createBuildingSpriteFrame(id, globalThis.__ISSUE_710_BUILDINGS__[id]))');
+    expect(preview).toContain('animation.currentTime = phase * Number(animation.effect?.getTiming().duration ?? 0)');
+  });
+
+  it('links committed identity, contact, and stateful SAM/Radar evidence', () => {
     expect(existsSync(reviewPath), 'Issue-710 visual review must exist before evidence can be linked').toBe(true);
     if (!existsSync(reviewPath)) return;
     const review = readFileSync(reviewPath, 'utf8');
@@ -42,6 +54,7 @@ describe('#710 corrective file-safe sprite preview', () => {
       'supercarrier-identity-sheet.png', 'supercarrier-contact-sheet.png',
       'great-general-identity-sheet.png', 'great-general-contact-sheet.png',
       'sam-radar-comparison.png',
+      'sam-radar-motion-sheet.png',
     ]) {
       expect(existsSync(resolve(assetPath, filename)), filename).toBe(true);
       expect(review).toContain(filename);
