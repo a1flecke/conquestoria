@@ -788,7 +788,9 @@ export function normalizeLegendaryWonderTacticalEffects(state: GameState): GameS
     if (!validCivIds.has(civId) || !value || typeof value !== 'object' || Array.isArray(value)) continue;
     const record = value as Record<string, unknown>;
     if (!Number.isInteger(record.era) || Number(record.era) < 1) continue;
-    trainingGrantsByCiv[civId] = { era: Number(record.era), grantedRoles: normalizeTacticalGrantedRoles(record.grantedRoles) };
+    const grantedRoles = normalizeTacticalGrantedRoles(record.grantedRoles);
+    if (grantedRoles.length === 0) continue;
+    trainingGrantsByCiv[civId] = { era: Number(record.era), grantedRoles };
   }
   const rawClaims = candidate.interceptionClaimTurnByCiv && typeof candidate.interceptionClaimTurnByCiv === 'object' && !Array.isArray(candidate.interceptionClaimTurnByCiv)
     ? candidate.interceptionClaimTurnByCiv as Record<string, unknown>
