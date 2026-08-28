@@ -733,6 +733,32 @@ describe('save migrations', () => {
     ]);
     expect(migrateSaveToCurrent(migrated)).toEqual(migrated);
   });
+
+  it('#721 normalizes owner-scoped tactical wonder effect state at schema 22', () => {
+    const save = createNewGame('rome', 'tactical-wonder-effect-schema-22', 'small') as GameState & {
+      legendaryWonderTacticalEffects?: unknown;
+    };
+    save.saveSchemaVersion = 21;
+    save.legendaryWonderTacticalEffects = {
+      trainingGrantsByCiv: {
+        player: { era: 3, grantedRoles: ['frontline', 'ranged', 'frontline', 'not-a-role'] },
+        missing: { era: 3, grantedRoles: ['siege'] },
+        malformed: { era: -1, grantedRoles: ['frontline'] },
+      },
+      interceptionClaimTurnByCiv: { player: 12, missing: 12, malformed: -1 },
+    };
+
+    const migrated = migrateSaveToCurrent(save) as GameState & {
+      legendaryWonderTacticalEffects?: unknown;
+    };
+
+    expect(migrated.saveSchemaVersion).toBe(22);
+    expect(migrated.legendaryWonderTacticalEffects).toEqual({
+      trainingGrantsByCiv: { player: { era: 3, grantedRoles: ['frontline', 'ranged'] } },
+      interceptionClaimTurnByCiv: { player: 12 },
+    });
+    expect(migrateSaveToCurrent(migrated)).toEqual(migrated);
+  });
 });
 
 describe('#590 MR3 — defensive crisis archetype normalization', () => {

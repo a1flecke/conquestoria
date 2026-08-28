@@ -1,4 +1,4 @@
-import type { ActiveCrisis, AirBaseRef, GameState, HexCoord, LegendaryWonderMilitaryFact, TradeRoute, Unit } from '@/core/types';
+import type { ActiveCrisis, AirBaseRef, CombatRole, GameState, HexCoord, LegendaryWonderMilitaryFact, LegendaryWonderTacticalEffectState, TradeRoute, Unit } from '@/core/types';
 import { createRng } from '@/systems/map-generator';
 import { placeLateResources } from '@/systems/late-resource-placement';
 import { createMarketplaceState } from '@/systems/trade-system';
@@ -21,7 +21,7 @@ import { normalizeStampedes } from '@/systems/stampede-system';
 import { normalizeRogueElephantHosts } from '@/systems/rogue-elephant-host-system';
 import { UNIT_ROLE_DEFINITIONS } from '@/systems/combat-role-definitions';
 
-export const CURRENT_SAVE_SCHEMA_VERSION = 21;
+export const CURRENT_SAVE_SCHEMA_VERSION = 22;
 
 export type SaveMigration = (state: GameState) => GameState;
 
@@ -768,6 +768,41 @@ export function normalizeLegendaryWonderMilitaryFacts(state: GameState): GameSta
   };
 }
 
+function normalizeTacticalGrantedRoles(value: unknown): CombatRole[] {
+  if (!Array.isArray(value)) return [];
+  const seen = new Set<CombatRole>();
+  return value.filter((role): role is CombatRole =>
+    typeof role === 'string' && MILITARY_ROLES.has(role as never) && !seen.has(role as CombatRole) && Boolean(seen.add(role as CombatRole)),
+  );
+}
+
+export function normalizeLegendaryWonderTacticalEffects(state: GameState): GameState {
+  const raw = state.legendaryWonderTacticalEffects as unknown;
+  const candidate = raw && typeof raw === 'object' && !Array.isArray(raw) ? raw as Record<string, unknown> : {};
+  const validCivIds = new Set(Object.keys(state.civilizations));
+  const rawGrants = candidate.trainingGrantsByCiv && typeof candidate.trainingGrantsByCiv === 'object' && !Array.isArray(candidate.trainingGrantsByCiv)
+    ? candidate.trainingGrantsByCiv as Record<string, unknown>
+    : {};
+  const trainingGrantsByCiv: LegendaryWonderTacticalEffectState['trainingGrantsByCiv'] = {};
+  for (const [civId, value] of Object.entries(rawGrants)) {
+    if (!validCivIds.has(civId) || !value || typeof value !== 'object' || Array.isArray(value)) continue;
+    const record = value as Record<string, unknown>;
+    if (!Number.isInteger(record.era) || Number(record.era) < 1) continue;
+    trainingGrantsByCiv[civId] = { era: Number(record.era), grantedRoles: normalizeTacticalGrantedRoles(record.grantedRoles) };
+  }
+  const rawClaims = candidate.interceptionClaimTurnByCiv && typeof candidate.interceptionClaimTurnByCiv === 'object' && !Array.isArray(candidate.interceptionClaimTurnByCiv)
+    ? candidate.interceptionClaimTurnByCiv as Record<string, unknown>
+    : {};
+  const interceptionClaimTurnByCiv: Record<string, number> = {};
+  for (const [civId, turn] of Object.entries(rawClaims)) {
+    if (validCivIds.has(civId) && isTurn(turn)) interceptionClaimTurnByCiv[civId] = turn;
+  }
+  const legendaryWonderTacticalEffects = { trainingGrantsByCiv, interceptionClaimTurnByCiv };
+  const previous = state.legendaryWonderTacticalEffects;
+  if (JSON.stringify(previous) === JSON.stringify(legendaryWonderTacticalEffects)) return state;
+  return { ...state, legendaryWonderTacticalEffects };
+}
+
 export const SAVE_MIGRATIONS: Readonly<Record<number, SaveMigration>> = {
   1: migrateToEra13Foundation,
   2: migrateLateResources,
@@ -805,6 +840,7 @@ export const SAVE_MIGRATIONS: Readonly<Record<number, SaveMigration>> = {
     ])),
   }),
   21: normalizeLegendaryWonderMilitaryFacts,
+  22: normalizeLegendaryWonderTacticalEffects,
 };
 
 function readSchemaVersion(raw: Record<string, unknown>): number {
@@ -875,7 +911,7 @@ export function migrateSaveToCurrent(raw: unknown): GameState {
   const techGrace = normalizeLegacyTechGrace(manufacturing);
   const crises = normalizeCrisisArchetypes(techGrace);
   const religions = withReligionDefaults(crises);
-  return normalizeLegendaryWonderMilitaryFacts(normalizeBarbarianCampPressure(normalizeImprovementValues(normalizeCoastalBatteryCounterfireTurns(
+  return normalizeLegendaryWonderTacticalEffects(normalizeLegendaryWonderMilitaryFacts(normalizeBarbarianCampPressure(normalizeImprovementValues(normalizeCoastalBatteryCounterfireTurns(
     normalizeRetimedBiplaneQueues(normalizeCityFaithConversionProgress(religions)),
-  ))));
+  )))));
 }
