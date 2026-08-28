@@ -367,7 +367,14 @@ describe('createHotSeatGame', () => {
     const solo = createNewGame('rome', 'tactical-wonder-solo', 'small') as GameState & {
       legendaryWonderTacticalEffects?: unknown;
     };
-    const hotSeat = createHotSeatGame({ players: [{ civilization: 'rome' }, { civilization: 'zulu' }], mapSize: 'small' }, 'tactical-wonder-hot-seat') as GameState & {
+    const hotSeat = createHotSeatGame({
+      playerCount: 2,
+      mapSize: 'small',
+      players: [
+        { name: 'Player One', slotId: 'slot-0', civType: 'rome', isHuman: true },
+        { name: 'Player Two', slotId: 'slot-1', civType: 'zulu', isHuman: true },
+      ],
+    }, 'tactical-wonder-hot-seat') as GameState & {
       legendaryWonderTacticalEffects?: unknown;
     };
 
