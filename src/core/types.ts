@@ -2214,6 +2214,15 @@ export interface GameSettings {
   aiPressure?: 'off' | 'pirates' | 'full';
   aiPressureVisibility?: boolean;
   aiCrisisInteractions?: 'off' | 'benign' | 'full';
+  // #545 MR7: superweapons (nukes) toggle. Optional: legacy saves resolve to
+  // 'off' via resolveSuperweaponsFlag -- deliberately NOT the same
+  // "undefined inherits the live default" convention beastsMode/aiPressure
+  // use, since retroactively arming an existing save with no opt-in would
+  // defeat the toggle's purpose. New games set this explicitly at creation
+  // time (createDefaultSettings for solo, hot-seat setup's own card) --
+  // never read this field directly, always go through
+  // resolveSuperweaponsFlag/isSuperweaponsEnabled.
+  superweapons?: 'off' | 'on';
   advisorsEnabled: Record<AdvisorType, boolean>;
   councilTalkLevel: CouncilTalkLevel;
   customCivilizations?: CustomCivDefinition[];
