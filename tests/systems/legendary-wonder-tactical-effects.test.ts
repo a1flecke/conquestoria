@@ -2,10 +2,12 @@ import { describe, expect, it } from 'vitest';
 import { createNewGame } from '@/core/game-state';
 import type { LegendaryWonderDefinition } from '@/core/types';
 import { hexKey } from '@/systems/hex-utils';
+import { mapNeighbors } from '@/systems/hex-utils';
 import { createUnit } from '@/systems/unit-system';
 import {
   applyLegendaryWonderTrainingEffects,
   getTacticalFortOccupantHealingBonus,
+  getTacticalAdjacentCitadelDefense,
   getCompletedLegendaryWonderTacticalEffects,
   getTacticalWonderAiValue,
 } from '@/systems/legendary-wonder-tactical-effects';
@@ -121,5 +123,38 @@ describe('legendary wonder tactical effects', () => {
     expect(getTacticalFortOccupantHealingBonus(state, unit, healingDefinitions)).toBe(5);
     tile.improvementTurnsLeft = 1;
     expect(getTacticalFortOccupantHealingBonus(state, unit, healingDefinitions)).toBe(0);
+  });
+
+  it('returns one non-stacking Citadel defense bonus for an eligible adjacent defender', () => {
+    const state = createNewGame('rome', 'tactical-citadel-defense', 'small');
+    const defenderPosition = state.units[state.civilizations.player.units[0]!].position;
+    const defender = createUnit('warrior', 'player', defenderPosition, state.idCounters);
+    const sourcePosition = mapNeighbors(state.map, defenderPosition)[0]!;
+    const source = createUnit('warrior', 'player', sourcePosition, state.idCounters);
+    state.units[source.id] = source;
+    const sourceTile = state.map.tiles[hexKey(sourcePosition)]!;
+    sourceTile.owner = 'player';
+    sourceTile.improvement = 'fort';
+    sourceTile.improvementTurnsLeft = 0;
+    state.civilizations.player.techState.completed.push('fortification-engineering');
+    state.completedLegendaryWonders = {
+      'test-wonder': { ownerId: 'player', cityId: Object.keys(state.cities)[0]!, turnCompleted: 1 },
+    };
+    const citadelDefinitions: LegendaryWonderDefinition[] = [{
+      ...definitions[0]!,
+      reward: {
+        summary: 'Citadel test',
+        tacticalEffects: [{
+          kind: 'adjacent-citadel-defense', multiplier: 1.05, stackingGroup: 'citadel', excludedRoles: ['siege'], aiValue: 14,
+        }],
+      },
+    }];
+
+    expect(getTacticalAdjacentCitadelDefense(state, defender, citadelDefinitions)).toMatchObject({
+      multiplier: 1.05,
+      label: 'Legendary Citadel +5%',
+    });
+    sourceTile.improvementTurnsLeft = 1;
+    expect(getTacticalAdjacentCitadelDefense(state, defender, citadelDefinitions).multiplier).toBe(1);
   });
 });

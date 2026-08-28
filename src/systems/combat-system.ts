@@ -198,6 +198,8 @@ export interface CombatContext {
   defenderCombinedArmsFact?: CombatModifierFact;
   defenderFortificationMultiplier?: number;
   defenderFortificationFact?: CombatModifierFact;
+  defenderTacticalCitadelMultiplier?: number;
+  defenderTacticalCitadelFact?: CombatModifierFact;
   attackerLandSupplyMultiplier?: number;
   attackerLandSupplyFact?: CombatModifierFact;
   defenderLandSupplyMultiplier?: number;
@@ -346,6 +348,7 @@ export function calculateCombatStrengths(
     defenderStrength *= 1.25;
   }
   defenderStrength *= context?.defenderFortificationMultiplier ?? 1;
+  defenderStrength *= context?.defenderTacticalCitadelMultiplier ?? 1;
 
   // Unit-modifier engine (MR4): tech/national-project combat modifiers + class counters.
   // Order: after terrain/fortify/civ-bonus multipliers above, before MR3 city-defense below.
