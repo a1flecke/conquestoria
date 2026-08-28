@@ -936,7 +936,8 @@ export function getLegendaryWonderDefinitions(): LegendaryWonderDefinition[] {
 }
 
 export function getLegendaryWonderDefinition(wonderId: string): LegendaryWonderDefinition | undefined {
-  return LEGENDARY_WONDER_DEFINITIONS_BY_ID[wonderId];
+  const definition = LEGENDARY_WONDER_DEFINITIONS_BY_ID[wonderId];
+  return definition ? cloneLegendaryWonderDefinition(definition) : undefined;
 }
 
 export function getLateEraWonderTechRequirements(): LateEraWonderTechRequirement[] {
