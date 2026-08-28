@@ -23,6 +23,9 @@ function makeState(overrides: Partial<GameState> = {}): GameState {
     },
     units: {},
     map: { width: 10, height: 10, tiles: {}, wrapsHorizontally: false, rivers: [] },
+    // #545 MR7: default to 'on' -- this file's pre-existing tests all
+    // implicitly assume on-mode behavior.
+    settings: { superweapons: 'on' } as any,
     ...overrides,
   } as GameState;
 }

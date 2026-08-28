@@ -1,5 +1,6 @@
 import type { Civilization, GameState } from '@/core/types';
 import { hasMetCivilization } from '@/systems/discovery-system';
+import { isSuperweaponsEnabled } from '@/systems/superweapons-flag';
 
 const MANHATTAN_PROJECT_ID = 'manhattan_project';
 
@@ -25,6 +26,7 @@ export function hasKnownStrategicCapability(
   viewerCivId: string,
   ownerCivId: string,
 ): boolean {
+  if (!isSuperweaponsEnabled(state)) return false;
   return hasMetCivilization(state, viewerCivId, ownerCivId)
     && hasManhattanProject(state, ownerCivId);
 }
@@ -162,6 +164,9 @@ export function getActiveArmsControlCap(state: GameState, civId: string): number
  * gate warhead production -- no separate enforcement pass needed.
  */
 export function getArsenalStatus(state: GameState, civId: string): { hasManhattanProject: boolean; atCapacity: boolean } {
+  if (!isSuperweaponsEnabled(state)) {
+    return { hasManhattanProject: hasManhattanProject(state, civId), atCapacity: true };
+  }
   const civ = state.civilizations[civId];
   const current = civ ? getStrategicArsenal(civ) : 0;
   const physicalCap = getStrategicArsenalCapacity(state, civId);
