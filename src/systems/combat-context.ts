@@ -13,6 +13,7 @@ import { resolveCombinedArms } from './combined-arms-system';
 import { resolveFortificationDefense } from './fortification-system';
 import { resolveLandSupplyCombatPenalty } from './supply-combat';
 import { resolveLastStandDefenseBonus } from './great-general-abilities';
+import { getTacticalAdjacentCitadelDefense } from './legendary-wonder-tactical-effects';
 
 export interface CombatContextOptions {
   amphibiousAssault?: boolean;
@@ -94,6 +95,7 @@ export function buildCombatContextForDefender(
   const attackerSupplyPenalty = resolveLandSupplyCombatPenalty(attacker);
   const defenderSupplyPenalty = resolveLandSupplyCombatPenalty(defender);
   const defenderLastStand = resolveLastStandDefenseBonus(defender, state.turn);
+  const tacticalCitadel = getTacticalAdjacentCitadelDefense(state, defender);
 
   return {
     attackerBonus: resolveCivDefinition(
@@ -151,6 +153,10 @@ export function buildCombatContextForDefender(
     defenderCombinedArmsFact: defenderCombinedArms.fact,
     defenderFortificationMultiplier: fortification.multiplier,
     defenderFortificationFact: fortification.label ? { key: 'fortification', label: fortification.label, sourceVisibility: 'public', operation: 'multiplier', value: fortification.multiplier, outcome: 'applied' } : undefined,
+    defenderTacticalCitadelMultiplier: tacticalCitadel.multiplier,
+    defenderTacticalCitadelFact: tacticalCitadel.label
+      ? { key: 'legendary-citadel', label: tacticalCitadel.label, sourceVisibility: 'public', operation: 'multiplier', value: tacticalCitadel.multiplier, outcome: 'applied' }
+      : undefined,
     attackerLandSupplyMultiplier: attackerSupplyPenalty.multiplier,
     attackerLandSupplyFact: attackerSupplyPenalty.label
       ? { key: 'land-supply', label: attackerSupplyPenalty.label, sourceVisibility: 'owner', operation: 'multiplier', value: attackerSupplyPenalty.multiplier, outcome: 'applied' }

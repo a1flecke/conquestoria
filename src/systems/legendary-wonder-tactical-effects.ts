@@ -1,7 +1,8 @@
 import type { GameState, LegendaryWonderDefinition, LegendaryWonderTacticalEffect, Unit, UnitType } from '@/core/types';
 import { getUnitRoleDefinition } from '@/systems/combat-role-definitions';
 import { getLegendaryWonderDefinitions } from '@/systems/legendary-wonder-definitions';
-import { hexKey } from '@/systems/hex-utils';
+import { hexKey, mapNeighbors } from '@/systems/hex-utils';
+import { getFortificationTier } from '@/systems/fortification-system';
 import { UNIT_DEFINITIONS } from '@/systems/unit-system';
 
 export function getCompletedLegendaryWonderTacticalEffects(
@@ -99,4 +100,37 @@ export function getTacticalFortOccupantHealingBonus(
   }
   return getCompletedLegendaryWonderTacticalEffects(state, unit.owner, definitions)
     .reduce((total, effect) => total + (effect.kind === 'fort-occupant-healing' ? effect.amount : 0), 0);
+}
+
+export interface TacticalCitadelDefenseResult {
+  multiplier: number;
+  label?: string;
+}
+
+export function getTacticalAdjacentCitadelDefense(
+  state: GameState,
+  defender: Unit,
+  definitions?: readonly LegendaryWonderDefinition[],
+): TacticalCitadelDefenseResult {
+  const defenderDefinition = UNIT_DEFINITIONS[defender.type];
+  const role = getUnitRoleDefinition(defender.type)?.primaryRole;
+  if (defender.transportId || defenderDefinition.domain === 'naval' || defenderDefinition.domain === 'air'
+    || defenderDefinition.strength <= 0 || !role) return { multiplier: 1 };
+  const hasOccupiedCitadel = mapNeighbors(state.map, defender.position).some(position => {
+    const tile = state.map.tiles[hexKey(position)];
+    if (!tile || tile.owner !== defender.owner || tile.improvement !== 'fort' || tile.improvementTurnsLeft > 0) return false;
+    if (getFortificationTier(state.civilizations[defender.owner]?.techState.completed ?? []).id !== 'citadel') return false;
+    return Object.values(state.units).some(unit => unit.owner === defender.owner && !unit.transportId && hexKey(unit.position) === hexKey(position));
+  });
+  if (!hasOccupiedCitadel) return { multiplier: 1 };
+
+  const effects = getCompletedLegendaryWonderTacticalEffects(state, defender.owner, definitions)
+    .filter((effect): effect is Extract<LegendaryWonderTacticalEffect, { kind: 'adjacent-citadel-defense' }> =>
+      effect.kind === 'adjacent-citadel-defense' && !effect.excludedRoles.includes(role));
+  if (effects.length === 0) return { multiplier: 1 };
+  const strongest = effects.sort((left, right) => right.multiplier - left.multiplier || left.stackingGroup.localeCompare(right.stackingGroup))[0]!;
+  return {
+    multiplier: strongest.multiplier,
+    label: `Legendary Citadel +${Math.round((strongest.multiplier - 1) * 100)}%`,
+  };
 }
