@@ -127,6 +127,30 @@ describe('hotseat-setup', () => {
     expect(config.startPlacementMode).toBe('balanced');
   });
 
+  it('defaults superweapons to on and threads the choice into settingsOverrides (#545 MR7)', () => {
+    const onComplete = vi.fn();
+    showHotSeatSetup(document.body, { onComplete, onCancel: vi.fn() });
+
+    click('[data-size="medium"]');
+    advanceThroughMapType();
+    click('[data-count="2"]');
+    click('[data-ai-count="2"]');
+    click('#hs-names-next');
+    chooseCiv('england');
+    click('#hs-civ-ready');
+    click('.civ-card[data-civ-id="germany"]');
+    click('#civ-start');
+    click('#hs-personal-challenge-next');
+
+    expect(document.querySelector('[data-superweapons-option="on"]')?.getAttribute('aria-pressed')).toBe('true');
+    click('[data-superweapons-option="off"]');
+    expect(document.querySelector('[data-superweapons-option="off"]')?.getAttribute('aria-pressed')).toBe('true');
+    click('#hs-review-start');
+
+    const config = onComplete.mock.calls[0]![0];
+    expect(config.settingsOverrides).toEqual({ superweapons: 'off' });
+  });
+
   it('reserves capacity for an explicitly chosen AI instead of offering every seat to humans', () => {
     showHotSeatSetup(document.body, { onComplete: vi.fn(), onCancel: vi.fn() });
     click('[data-size="large"]');

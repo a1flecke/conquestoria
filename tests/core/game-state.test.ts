@@ -469,6 +469,14 @@ describe('createHotSeatGame', () => {
 
     expectAllMajorStartsHaveGuaranteedResources(state);
   });
+
+  it('respects settingsOverrides (#545 MR7 -- pre-existing dead field, fixed here)', () => {
+    const state = createHotSeatGame(
+      { ...config, settingsOverrides: { superweapons: 'off' } },
+      'hs-settings-overrides-test',
+    );
+    expect(state.settings.superweapons).toBe('off');
+  });
 });
 
 describe('createHotSeatGame — mapScript', () => {

@@ -1727,6 +1727,10 @@ export interface HotSeatConfig {
   startPlacementMode?: StartPlacementMode;
   players: HotSeatPlayer[];
   customCivilizations?: CustomCivDefinition[];
+  // #545 MR7: mirrors SoloSetupConfig.settingsOverrides -- lets hot-seat
+  // setup (e.g. the superweapons card) pass an explicit settings override
+  // through to createHotSeatGame's createDefaultSettings call.
+  settingsOverrides?: Partial<GameSettings>;
 }
 
 export interface SoloSetupConfig {
