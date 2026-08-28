@@ -29,7 +29,7 @@ The initial effect kinds are:
 | `fort-occupant-healing` | canonical turn-end healing | Eligible friendly, supplied land combat occupant of a completed owned Fort/Citadel receives +5 HP through the normal healing path. It never bypasses existing healing/rest/supply gates, caps, or pillage/ownership checks. |
 | `adjacent-citadel-defense` | combat context/preview | An eligible friendly defender adjacent to one or more occupied, unpillaged, owned Citadels receives +5% defense. One stacking group means it never stacks; siege specialists are excluded. |
 | `aa-radius-extension` | canonical ground AA coverage | An eligible Radar-supported owned SAM source expands radius 2 to radius 3; all other AA sources retain current radius and strongest-source semantics. |
-| `first-owner-turn-interception-modifier` | interception combat context | The first eligible interception per owner turn under the declaring radius-3 coverage gets +10%; later interceptions do not. Reset state is owner-turn scoped and serializable only if existing owner-turn state cannot express it. |
+| `first-owner-turn-interception-modifier` | interception combat context | The first eligible interception attempt per owner turn under the declaring radius-3 coverage gets +10%; later attempts do not. The claim occurs atomically when canonical interception resolution selects that eligible interceptor, before combat is resolved; a preview and an intercepted striker's destruction never consume it. Reset state is owner-turn scoped and serializable only if existing owner-turn state cannot express it. |
 
 No effect is active merely because a wonder definition contains it. It is active only after canonical legendary-wonder completion confirms the owner has completed that wonder.
 
@@ -39,17 +39,18 @@ No effect is active merely because a wonder definition contains it. It is active
 - Effects must have explicit eligibility predicates. No consumer branches on a wonder ID.
 - Additive XP and healing use their explicit amounts; defense and interception use one named non-stacking group, selecting the strongest applicable amount deterministically.
 - The training cap is independently enforced by role and era. It resets on era transition by comparing current era to persisted grant era; it never carries unused roles forward.
-- The interception claim is atomic at its canonical resolution source, so previews cannot consume it and multiple callers cannot grant it twice.
+- The interception claim is atomic at its canonical resolution source, so previews cannot consume it and multiple callers cannot grant it twice. A failed first eligible interception still consumes the owner-turn grant; quest facts remain separately tied to successful interceptions.
+- An adjacent Citadel source is an owned, completed, unpillaged Fort tile whose owner's current tier is Citadel and which contains a friendly eligible land combat unit. A recipient must be an adjacent friendly land-combat defender that is not a siege specialist. Source and recipient use the same owner; several sources select one deterministic non-stacking bonus.
 
 ## Player and AI experience
 
 Player-facing reward text will describe exact values, roles, caps, reset timing, prerequisites, exclusions, and non-stacking behavior. Existing owner-scoped wonder presentation must show the same definition text. No UI control, visual effect, or sound is added in #721, so existing 44px/reduced-motion requirements do not gain a new interactive surface.
 
-AI uses the same completed-wonder effects and visible, owned state. This issue adds no difficulty differences, hidden-information access, or AI-only modifier. Future wonder selection can value effect metadata through the same generic definition data rather than ID checks.
+AI uses the same completed-wonder effects and visible, owned state. This issue adds no difficulty differences, hidden-information access, or AI-only modifier. The vocabulary includes generic AI-value metadata and a resolver testable with supplied effects; because #721 adds no real wonder definitions, it does not fabricate a player-reachable AI choice. Future wonder selection can value that metadata rather than an ID check.
 
 ## Save, privacy, and determinism
 
-Definitions are static code. Only consumed training grants and first-interception-per-owner-turn claims require runtime state, and only if current owner-turn fields cannot safely encode them. Any new persisted state receives the next current schema version, idempotent malformed-input normalization, and no history reconstruction. State is keyed by owner and current era/turn, never by viewer; presentation is calculated only for the project owner, preserving hot-seat privacy.
+Definitions are static code. Only consumed training grants and first-interception-per-owner-turn claims require runtime state, and only if current owner-turn fields cannot safely encode them. Any new persisted state receives the next current schema version, idempotent malformed-input normalization, and no history reconstruction. State is keyed by owner and current era/turn, never by viewer; presentation is calculated only for the project owner, preserving hot-seat privacy. Definition retrieval deep-clones tactical-effect arrays and nested role lists so callers cannot mutate the catalog.
 
 ## Verification and review contract
 
