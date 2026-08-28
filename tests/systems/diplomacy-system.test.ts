@@ -321,6 +321,13 @@ describe('diplomacy-system', () => {
       state.builtNationalProjects = { 'ai-1:arms_control_treaty': { civId: 'ai-1', cityId: 'c1', eraBuilt: 11 } };
       expect(hasArmsControlTreaty(state, 'player')).toBe(false);
     });
+
+    it('is false when superweapons is off, even with the national project built (#545 MR7)', () => {
+      const state = createNewGame(undefined, 'arms-control-np-test-off', 'small');
+      state.builtNationalProjects = { 'player:arms_control_treaty': { civId: 'player', cityId: 'c1', eraBuilt: 11 } };
+      state.settings.superweapons = 'off';
+      expect(hasArmsControlTreaty(state, 'player')).toBe(false);
+    });
   });
 
   describe('applyDiplomaticAction', () => {
