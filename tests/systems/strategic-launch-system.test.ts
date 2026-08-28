@@ -18,7 +18,7 @@ function makeState(overrides: Partial<GameState> = {}): GameState {
     legendaryWonderProjects: {}, legendaryWonderHistory: { races: {}, completions: {} },
     diplomacyState: { relationships: {} }, pirateState: null, tradeRoutes: {},
     espionage: {}, embargoes: [], defensiveLeagues: [], gameOver: false, winner: null,
-    settings: {} as any, tribalVillages: {}, discoveredWonders: {}, wonderDiscoverers: {},
+    settings: { superweapons: 'on' } as any, tribalVillages: {}, discoveredWonders: {}, wonderDiscoverers: {},
     idCounters: { nextUnitId: 0, nextCityId: 0, nextRouteId: 0 },
     ...overrides,
   } as GameState;
@@ -82,6 +82,14 @@ describe('getEligibleStrategicLaunchPlatforms', () => {
       units: { u1: { id: 'u1', type: 'missile_submarine', owner: 'p1', position: { q: 5, r: 5 } } as any },
     });
     expect(getEligibleStrategicLaunchPlatforms(state, 'p1')).toHaveLength(2);
+  });
+
+  it('returns empty when superweapons is off, even with a real missile_silo (#545 MR7)', () => {
+    const state = makeState({
+      cities: { c1: { id: 'c1', name: 'C1', owner: 'p1', position: { q: 2, r: 3 }, buildings: ['missile_silo'] } as any },
+      settings: { superweapons: 'off' } as any,
+    });
+    expect(getEligibleStrategicLaunchPlatforms(state, 'p1')).toEqual([]);
   });
 });
 

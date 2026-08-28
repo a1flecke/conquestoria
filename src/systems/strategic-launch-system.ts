@@ -5,6 +5,7 @@ import { getStrategicArsenal } from '@/systems/strategic-arsenal-system';
 import { hasDiscoveredCity } from '@/systems/discovery-system';
 import { isAtWar } from '@/systems/diplomacy-system';
 import { mapDistance } from '@/systems/hex-utils';
+import { isSuperweaponsEnabled } from '@/systems/superweapons-flag';
 
 export type StrategicLaunchPlatform =
   | { kind: 'building'; cityId: string; buildingId: string; position: HexCoord; range: number | 'unlimited' }
@@ -17,6 +18,8 @@ export type StrategicLaunchPlatform =
  * building or unit gaining the same capability field) needs zero changes here.
  */
 export function getEligibleStrategicLaunchPlatforms(state: GameState, civId: string): StrategicLaunchPlatform[] {
+  if (!isSuperweaponsEnabled(state)) return [];
+
   const platforms: StrategicLaunchPlatform[] = [];
 
   for (const city of Object.values(state.cities)) {

@@ -42,7 +42,7 @@ function makeState(overrides: Partial<GameState> = {}): GameState {
     legendaryWonderProjects: {}, legendaryWonderHistory: { races: {}, completions: {} },
     diplomacyState: { relationships: {} }, pirateState: null, tradeRoutes: {},
     espionage: {}, embargoes: [], defensiveLeagues: [], gameOver: false, winner: null,
-    settings: {} as any, tribalVillages: {}, discoveredWonders: {}, wonderDiscoverers: {},
+    settings: { superweapons: 'on' } as any, tribalVillages: {}, discoveredWonders: {}, wonderDiscoverers: {},
     idCounters: { nextUnitId: 0, nextCityId: 0, nextRouteId: 0 },
     ...overrides,
   } as GameState;
