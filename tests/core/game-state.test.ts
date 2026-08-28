@@ -1,4 +1,4 @@
-import { createNewGame, createHotSeatGame, MAP_DIMENSIONS } from '@/core/game-state';
+import { createNewGame, createHotSeatGame, createDefaultSettings, MAP_DIMENSIONS } from '@/core/game-state';
 import type { CustomCivDefinition, GameState, HexCoord, HotSeatConfig, MapScript, ResourceType } from '@/core/types';
 import { getMinimumStartDistance, getStartPositionDistance } from '@/systems/map-generator';
 import { RESOURCE_DEFINITIONS } from '@/systems/trade-system';
@@ -347,6 +347,18 @@ describe('minor civ integration', () => {
     };
     const state = createHotSeatGame(config, 'mc-hotseat');
     expect(Object.keys(state.minorCivs).length).toBeGreaterThanOrEqual(2);
+  });
+});
+
+describe('createDefaultSettings', () => {
+  it('defaults superweapons to "on" for new games (#545 MR7)', () => {
+    const settings = createDefaultSettings('small');
+    expect(settings.superweapons).toBe('on');
+  });
+
+  it('respects an explicit override', () => {
+    const settings = createDefaultSettings('small', { superweapons: 'off' });
+    expect(settings.superweapons).toBe('off');
   });
 });
 

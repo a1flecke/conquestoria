@@ -104,6 +104,7 @@ export function createDefaultSettings(
     stingerEnabled: true,
     tutorialEnabled: true,
     beastsMode: 'wild',
+    superweapons: 'on',
     advisorsEnabled: {
       builder: true,
       explorer: true,
