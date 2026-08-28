@@ -2780,6 +2780,29 @@ describe('city-panel warhead arsenal visibility (#545)', () => {
     expect(collectText(panel)).toContain('Limited by an active arms control pact.');
     expect(collectText(panel)).not.toContain('Arsenal at capacity (2/4)');
   });
+
+  it('the locked-item reason for warhead reflects the setting, not a stale capacity number, when superweapons is off (#545 MR7)', () => {
+    const { container, city, state } = makeWonderPanelFixture();
+    const civId = state.currentPlayer;
+    state.civilizations[civId].techState.completed.push('nuclear-weapons', 'nuclear-physics');
+    state.marketplace = { ...createMarketplaceState(), purchasedResources: [
+      { civId, resource: 'uranium', expiresOnTurn: state.turn + 1 },
+    ] };
+    city.buildings.push('nuclear_arsenal', 'missile_silo');
+    state.builtNationalProjects = {
+      [`${civId}:manhattan_project`]: { civId, cityId: city.id, eraBuilt: 10 },
+    };
+    state.civilizations[civId].strategicArsenal = 0;
+    state.settings.superweapons = 'off';
+
+    const panel = createCityPanel(container, city, state, {
+      onBuild: () => {}, onOpenWonderPanel: () => {}, onClose: () => {},
+    });
+
+    expect(collectText(panel)).not.toContain('Arsenal at capacity');
+    expect(collectText(panel)).not.toMatch(/Arsenal at \d+\/\d+/);
+    expect(collectText(panel).toLowerCase()).toContain('superweapons');
+  });
 });
 
 describe('Prepare Strategic Launch action (#545 MR4 §14 stage 1)', () => {
@@ -2820,5 +2843,15 @@ describe('Prepare Strategic Launch action (#545 MR4 §14 stage 1)', () => {
     state.currentPlayer = 'player-2';
     const panel = createCityPanel(container, city, state, { onBuild: () => {}, onOpenWonderPanel: () => {}, onClose: () => {} });
     expect(panel.querySelector('[data-action="prepare-strategic-launch"]')).toBeNull();
+  });
+
+  it('is absent when superweapons is off, even with a real missile_silo and banked warheads (#545 MR7)', () => {
+    const { container, city, state } = makeWonderPanelFixture();
+    city.buildings.push('missile_silo');
+    state.civilizations.player.strategicArsenal = 2;
+    state.settings.superweapons = 'off';
+    const panel = createCityPanel(container, city, state, { onBuild: () => {}, onOpenWonderPanel: () => {}, onClose: () => {} });
+    expect(panel.querySelector('[data-action="prepare-strategic-launch"]')).toBeNull();
+    expect(collectText(panel)).not.toContain('Strategic Arsenal:');
   });
 });
