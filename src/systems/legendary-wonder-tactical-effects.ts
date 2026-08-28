@@ -1,6 +1,8 @@
-import type { GameState, LegendaryWonderDefinition, LegendaryWonderTacticalEffect, UnitType } from '@/core/types';
+import type { GameState, LegendaryWonderDefinition, LegendaryWonderTacticalEffect, Unit, UnitType } from '@/core/types';
 import { getUnitRoleDefinition } from '@/systems/combat-role-definitions';
 import { getLegendaryWonderDefinitions } from '@/systems/legendary-wonder-definitions';
+import { hexKey } from '@/systems/hex-utils';
+import { UNIT_DEFINITIONS } from '@/systems/unit-system';
 
 export function getCompletedLegendaryWonderTacticalEffects(
   state: GameState,
@@ -82,4 +84,19 @@ export function applyLegendaryWonderTrainingEffects(
     experienceBonus: matchingEffects.reduce((total, effect) => total + effect.experience, 0),
     grantedRole: role,
   };
+}
+
+export function getTacticalFortOccupantHealingBonus(
+  state: GameState,
+  unit: Unit,
+  definitions?: readonly LegendaryWonderDefinition[],
+): number {
+  const tile = state.map.tiles[hexKey(unit.position)];
+  const definition = UNIT_DEFINITIONS[unit.type];
+  if (!tile || tile.owner !== unit.owner || tile.improvement !== 'fort' || tile.improvementTurnsLeft > 0
+    || unit.transportId || definition.domain === 'naval' || definition.domain === 'air' || definition.strength <= 0) {
+    return 0;
+  }
+  return getCompletedLegendaryWonderTacticalEffects(state, unit.owner, definitions)
+    .reduce((total, effect) => total + (effect.kind === 'fort-occupant-healing' ? effect.amount : 0), 0);
 }
