@@ -37,7 +37,11 @@ understandable.
 
 This issue does not implement Open Borders movement/access, treaty bargaining,
 new economic payments, treaty duration redesign, or broad relationship-system
-changes.
+changes. Vassalage is a special `TreatyType`, but has no live player acceptance
+path or unilateral auto-sign caller today; its league, tribute, protection, and
+independence consequences require a dedicated lifecycle tracked in
+[#910](https://github.com/a1flecke/conquestoria/issues/910). #901 must not
+create a second vassalage path while correcting live treaty consent.
 
 ## Architecture
 
@@ -49,7 +53,10 @@ Introduce one domain-level lifecycle with three responsibilities:
 2. `evaluateAgreementConsent` is target-owned. Human targets return `pending`;
    AI targets use canonical deterministic treaty evaluation with only
    relationship, personality, final legality, and already-known strategic
-   capability inputs.
+   capability inputs. Peace uses an explicit target-side evaluator: it accepts
+   only while both sides remain at war and when the target's own visible
+   strength estimate is unfavorable or its relationship has recovered. It must
+   not inspect the proposer's hidden units, cities, or arsenal.
 3. `commitDiplomaticAgreement` revalidates the agreement immediately before it
    mutates state. It is the only helper allowed to make a bilateral agreement
    effective. Treaty commits sign each side once, apply the existing treaty
@@ -62,7 +69,8 @@ unilateral actions and the shared proposal lifecycle; it must never directly
 sign a bilateral treaty. AI turn processing also calls the shared lifecycle
 instead of mutating treaty arrays. UI/controllers request an action and render
 the returned outcome; they never determine consent or perform bilateral state
-mutation.
+mutation. Accepted and declined outcomes have recipient-scoped presentation
+events so state mutation is not coupled to a controller toast.
 
 ## Consent matrix
 
@@ -99,8 +107,9 @@ war-incompatible agreements before treaty-specific preference. It covers:
 - Arms Control Pact: existing #545 project/superweapons/capability gates,
   non-duplicate status, relationship and diplomacy focus, using only
   known—not hidden—strategic capability.
-- Peace: existing war-only legality and consent; its effect stays separate
-  inside the shared commit dispatcher.
+- Peace: existing war-only legality and consent; the target AI accepts only
+  when its own visible military estimate is unfavorable or relations have
+  recovered; its effect stays separate inside the shared commit dispatcher.
 
 Explorer, Standard, and Veteran use identical proposal legality, visibility,
 and consent thresholds in this issue. The existing project convention permits
@@ -114,15 +123,17 @@ less legible and is out of scope.
 |---|---|
 | Human proposes to AI | “Rome accepted/declined your Trade Agreement.” Declines use a short qualitative reason such as “Relations are too strained.” |
 | Human proposes to human | “Trade Agreement proposed to Rome.” No acceptance prediction or target-private detail. |
-| Human recipient opens Diplomacy | Incoming request describes its effect and offers Accept/Decline. Arms Control previews the cap calculated from current arsenals. |
+| Human recipient opens Diplomacy | Incoming request describes its effect, remaining response time, and Accept/Decline. Arms Control previews the cap calculated from current arsenals. |
 | Recipient accepts or declines | Panel rerenders; both involved players receive the outcome in their own notification logs. |
 | Hot-seat handoff | Diplomacy panel closes, proposal details do not survive the veil, and no proposal/response sound plays for the next player before their turn. |
 
-Use plain labels, effect text, and recognizable accept/decline actions; never
-show numeric AI scores. This supports both a child learning the system and an
-expert player who needs a fast, predictable decision. Existing notifications
-are adequate for #901; any future SFX must be delivered only to the active
-recipient and tested as non-leaking.
+Use plain labels, effect text, expiry text, and recognizable accept/decline
+actions; never show numeric AI scores. This supports both a child learning the
+system and an expert player who needs a fast, predictable decision. Accepted
+and declined events deliver to each involved human's own notification log.
+The existing generic notification sound is acceptable only through
+recipient-scoped delivery; tests must prove it never plays while a different
+hot-seat player is active. No dedicated treaty SFX is added.
 
 ## Data and persistence
 
@@ -131,7 +142,8 @@ score, hidden intelligence, or cap is persisted in a proposal. The Arms Control
 cap is recomputed by the canonical #545 helper only at commitment. Legacy saves
 with no `pendingDiplomacyRequests` still normalize to `[]`. Expired, malformed,
 eliminated-party, already-signed, or no-longer-legal requests are removed
-safely rather than signed.
+safely rather than signed. A stale acceptance returns a non-success outcome and
+delivers an explanation without exposing target-private evaluation details.
 
 ## Comparable-game review
 
@@ -157,7 +169,11 @@ and [TIME’s Civilization VI review](https://time.com/4542016/civilization-6-re
 - **Hot-seat leaks:** recipient-scoped request lookup, explicit panel close at
   handoff, recipient-scoped notification delivery, no early SFX.
 - **Stale state:** revalidate on acceptance and remove pair/type requests on a
-  successful commit.
+  successful commit; remove invalid pending requests without signing them.
+- **Undefined peace behavior:** use the target's own visible strength estimate
+  and relationship in the explicit peace evaluator.
+- **Incomplete vassalage expansion:** #901 has a regression guard only;
+  dedicated consent/UI work is tracked by #910.
 - **Arms Control regression:** compute the cap at commitment and retain current
   production-cap, superweapons, and project-gate coverage.
 - **AI cheating:** evaluator receives only target-owned relationship/personality
@@ -167,10 +183,12 @@ and [TIME’s Civilization VI review](https://time.com/4542016/civilization-6-re
 
 ## Test design
 
-System tests cover each treaty type for accepted, declined, duplicate,
+System tests cover each live treaty type for accepted, declined, duplicate,
 reciprocal, stale, war-invalidated, and exactly-once commit cases. They also
-cover peace through the shared lifecycle while proving its NetworkPlan cleanup
-and at-war requirements remain intact.
+cover peace through the shared lifecycle, including target-AI acceptance and
+rejection based on visible-strength/relationship inputs, while proving its
+NetworkPlan cleanup and at-war requirements remain intact. A regression proves
+#901 does not create a vassalage signing path.
 
 AI tests prove target-side evaluation for human-to-AI and AI-to-AI, stable
 results for an identical seed/state, all difficulty tiers sharing legality and
@@ -179,8 +197,9 @@ the Arms Control cap is calculated at actual acceptance and production
 enforcement remains intact.
 
 Controller and UI tests replay proposal, accept, decline, open-panel rerender,
-and precise notification text. Hot-seat tests prove only the recipient sees a
-request, a proposer cannot self-accept, the panel closes across handoff, and no
-private notification/audio leaks. Save tests prove a human-to-human pending
-proposal survives a round trip, accepts/declines after reload, and legacy saves
-still normalize. Focused solo tests preserve AI-to-human and human-to-AI flows.
+expiry text, and precise notification text. Hot-seat tests prove only the
+recipient sees a request, a proposer cannot self-accept, the Diplomacy panel
+closes across handoff, and no private notification/audio leaks. Save tests
+prove a human-to-human pending proposal survives a round trip,
+accepts/declines after reload, and legacy saves still normalize. Focused solo
+tests preserve AI-to-human and human-to-AI flows.
