@@ -327,7 +327,7 @@ for (const [id, ComponentName] of BUILDING_SPRITES) {
   const byFaction = {};
   let ok = true;
   for (const faction of FACTIONS) {
-    const html = renderSprite(ComponentName, { faction, state: 'idle' });
+    const html = renderSprite(ComponentName, { faction, state: 'idle', phase: 0 });
     if (!html) { ok = false; break; }
     byFaction[faction] = html;
   }
