@@ -27,6 +27,12 @@ export function getTacticalWonderAiValue(
     .reduce((total, effect) => total + effect.aiValue, 0);
 }
 
+export function getLegendaryWonderTacticalEffectAiValue(
+  effects: readonly LegendaryWonderTacticalEffect[] | undefined,
+): number {
+  return effects?.reduce((total, effect) => total + effect.aiValue, 0) ?? 0;
+}
+
 export interface LegendaryWonderTrainingEffectInput {
   civId: string;
   unitType: UnitType;

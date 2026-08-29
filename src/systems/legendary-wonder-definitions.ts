@@ -86,6 +86,40 @@ const LEGENDARY_WONDER_DEFINITIONS_BY_ID: Record<string, LegendaryWonderDefiniti
       cityYieldBonus: { science: 1 },
     },
   },
+  'terracotta-army': {
+    id: 'terracotta-army',
+    name: 'Terracotta Army',
+    era: 3,
+    productionCost: 125,
+    requiredTechs: ['iron-forging', 'masonry'],
+    requiredResources: ['stone'],
+    cityRequirement: 'any',
+    questSteps: [
+      {
+        id: 'muster-many-roles',
+        type: 'field-combat-roles',
+        targetUnitCount: 4,
+        targetRoleCount: 3,
+        description: 'Field 4 combat units across 3 different roles.',
+      },
+      {
+        id: 'earn-surviving-wins',
+        type: 'surviving-combat-wins',
+        targetCount: 3,
+        description: 'Win 3 combats while your victorious unit survives.',
+      },
+    ],
+    reward: {
+      summary: 'First trained frontline, ranged, shock, and siege units each era gain +10 experience.',
+      tacticalEffects: [{
+        kind: 'per-era-role-training-xp',
+        roles: ['frontline', 'ranged', 'shock', 'siege'],
+        experience: 10,
+        maxGrantsPerEra: 4,
+        aiValue: 24,
+      }],
+    },
+  },
   'grand-canal': {
     id: 'grand-canal',
     name: 'Grand Canal',

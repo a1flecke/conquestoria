@@ -72,6 +72,7 @@ import { BUILDINGS, getAvailableBuildings } from '@/systems/city-system';
 import { getReservedNationalProjectKeys } from '@/systems/national-project-system';
 import { calculateProjectedCityYields } from '@/systems/city-work-system';
 import { getLegendaryWonderDefinition } from '@/systems/legendary-wonder-definitions';
+import { getLegendaryWonderTacticalEffectAiValue } from '@/systems/legendary-wonder-tactical-effects';
 import { applyCampDestructionAtTarget } from '@/systems/barbarian-system';
 import { BEAST_OWNER, isBeastUnit, canUnitAttackBeast } from '@/systems/beast-system';
 import { applyDiplomaticReaction } from '@/systems/minor-civ-system';
@@ -522,9 +523,10 @@ function scoreLegendaryWonderOpportunity(state: GameState, civId: string, cityId
     + (definition.reward.civYieldBonus?.gold ?? 0) * 6
     + (definition.reward.cityYieldBonus?.production ?? 0) * 6
     + (definition.reward.cityYieldBonus?.food ?? 0) * 5;
+  const tacticalRewardBonus = getLegendaryWonderTacticalEffectAiValue(definition.reward.tacticalEffects);
   const techMomentum = civ.techState.completed.length;
 
-  return 100 + cityBonus + rewardBonus + techMomentum - costPenalty;
+  return 100 + cityBonus + rewardBonus + tacticalRewardBonus + techMomentum - costPenalty;
 }
 
 interface ProcessAITurnInternalOptions {
