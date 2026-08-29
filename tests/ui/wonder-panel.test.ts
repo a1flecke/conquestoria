@@ -90,6 +90,27 @@ describe('wonder-panel', () => {
     expect(rows.some(row => row.dataset.wonderQuestStep === 'blocked')).toBe(false);
   });
 
+  it('shows completed role-training wonder usage as text, not color-only state', () => {
+    const { container, city, state } = makeWonderPanelFixture();
+    state.completedLegendaryWonders = {
+      'terracotta-army': { ownerId: 'player', cityId: city.id, turnCompleted: state.turn },
+    };
+    state.legendaryWonderTacticalEffects = {
+      trainingGrantsByCiv: { player: { era: 1, grantedRoles: ['frontline', 'ranged'] } },
+      interceptionClaimTurnByCiv: {},
+    };
+
+    const panel = createWonderPanel(container, state, city.id, {
+      onStartBuild: () => {},
+      onClose: () => {},
+    });
+    const detail = panel.querySelector<HTMLElement>('[data-wonder-reward-detail="terracotta-army"]');
+
+    expect(detail?.textContent).toContain('2/4 roles used this era');
+    expect(detail?.textContent).toContain('Still eligible: shock, siege');
+    expect(detail?.textContent).toContain('Resets when you enter a new era');
+  });
+
   it('renders a labelled dialog with responsive phone and laptop layout invariants', () => {
     const { container, state } = makeWonderPanelFixture();
     const onClose = vi.fn();

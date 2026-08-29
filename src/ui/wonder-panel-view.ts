@@ -139,6 +139,10 @@ function appendQuestChecklist(
 function appendRewardRow(parent: HTMLElement, entry: LegendaryWonderPresentationEntry): void {
   const row = appendText(parent, 'p', `Reward: ${entry.rewardSummary}`, 'margin:8px 0;line-height:1.4;');
   row.dataset.wonderRewardSummary = entry.wonderId;
+  if (entry.rewardDetail) {
+    const detail = appendText(parent, 'p', entry.rewardDetail, 'margin:0 0 8px;line-height:1.4;font-size:13px;');
+    detail.dataset.wonderRewardDetail = entry.wonderId;
+  }
 }
 
 function appendRaceSummary(parent: HTMLElement, entry: LegendaryWonderPresentationEntry): void {

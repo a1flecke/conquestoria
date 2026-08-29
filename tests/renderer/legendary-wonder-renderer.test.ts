@@ -327,6 +327,15 @@ describe('legendary-wonder-renderer', () => {
     expect(ctx.operations.some(operation => operation.startsWith('fill:') || operation.startsWith('stroke:'))).toBe(true);
   });
 
+  it('uses the approved generic fallback for Terracotta Army while bespoke art is deferred', () => {
+    const metadata = getLegendaryWonderLandmarkMetadata('terracotta-army');
+    const ctx = drawCompletedGlyphForWonder('terracotta-army');
+
+    expect(metadata.assetKey).toBeUndefined();
+    expect(ctx.operations.some(operation => operation.startsWith('bespoke:'))).toBe(false);
+    expectNonblankCanvasGlyph(ctx, 'terracotta-army fallback');
+  });
+
   it('keeps generic silhouette fallback for completed landmarks with unsupported bespoke asset keys', () => {
     const ctx = new MockCanvasContext();
     const metadata = {

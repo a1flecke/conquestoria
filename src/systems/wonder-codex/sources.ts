@@ -114,6 +114,13 @@ export const WONDER_CODEX_FACT_SOURCES = [
     notes: 'Used for Great Pyramid historical context.',
   },
   {
+    id: 'unesco-first-qin-emperor',
+    title: 'Mausoleum of the First Qin Emperor',
+    publisher: 'UNESCO World Heritage Centre',
+    sourceUrl: 'https://whc.unesco.org/en/list/441/',
+    notes: 'Used for Terracotta Army historical context.',
+  },
+  {
     id: 'unesco-delphi',
     title: 'Archaeological Site of Delphi',
     publisher: 'UNESCO World Heritage Centre',

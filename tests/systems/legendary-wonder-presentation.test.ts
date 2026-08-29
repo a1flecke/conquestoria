@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import type { GameState } from '@/core/types';
 import {
   getCompactLegendaryWonderEntriesForCity,
   getLegendaryWonderDisplayName,
@@ -10,6 +11,47 @@ import {
 import { makeLegendaryWonderFixture } from './helpers/legendary-wonder-fixture';
 
 describe('legendary-wonder-presentation', () => {
+  it('shows current-era role-training usage only to the wonder owner', () => {
+    const state = makeLegendaryWonderFixture({ completedTechs: ['iron-forging', 'masonry'], resources: ['stone'] });
+    state.completedLegendaryWonders = {
+      'terracotta-army': { ownerId: 'player', cityId: 'city-river', turnCompleted: state.turn },
+    };
+    state.legendaryWonderTacticalEffects = {
+      trainingGrantsByCiv: { player: { era: 1, grantedRoles: ['frontline', 'ranged'] } },
+      interceptionClaimTurnByCiv: {},
+    };
+
+    const entry = getLegendaryWonderPresentationForCity(state, 'player', 'city-river')
+      .find(candidate => candidate.wonderId === 'terracotta-army');
+
+    expect(entry?.rewardDetail).toContain('2/4 roles used this era');
+    expect(entry?.rewardDetail).toContain('frontline, ranged');
+    expect(getLegendaryWonderPresentationForCity(state, 'rival', 'city-rival')
+      .find(candidate => candidate.wonderId === 'terracotta-army')?.rewardDetail).toBeUndefined();
+  });
+
+  it('renders exact typed military quest progress from the active state', () => {
+    const state = makeLegendaryWonderFixture({ completedTechs: ['iron-forging', 'masonry'], resources: ['stone'] });
+    state.units = {
+      warrior: {
+        id: 'warrior', owner: 'player', type: 'warrior', position: { q: 2, r: 2 }, health: 100,
+        movementPointsLeft: 2, experience: 0, hasMoved: false, hasActed: false, isResting: false,
+      },
+      archer: {
+        id: 'archer', owner: 'player', type: 'archer', position: { q: 2, r: 3 }, health: 100,
+        movementPointsLeft: 2, experience: 0, hasMoved: false, hasActed: false, isResting: false,
+      },
+    } satisfies GameState['units'];
+
+    const entry = getLegendaryWonderPresentationForCity(state, 'player', 'city-river')
+      .find(candidate => candidate.wonderId === 'terracotta-army');
+
+    expect(entry?.questSteps.find(step => step.id === 'muster-many-roles')?.description)
+      .toContain('(2/4; 2/3 roles)');
+    expect(entry?.questSteps.find(step => step.id === 'earn-surviving-wins')?.description)
+      .toContain('(0/3)');
+  });
+
   it('classifies selected-city wonder entries and exposes safe start labels', () => {
     const state = makeLegendaryWonderFixture({
       completedTechs: ['philosophy', 'sacred-sites', 'city-planning', 'printing'],

@@ -51,7 +51,7 @@ describe('legendary wonder landmark catalog', () => {
     })).toEqual([]);
   });
 
-  it('authors supported bespoke asset keys for every current legendary wonder', () => {
+  it('keeps existing bespoke asset keys and uses the supported catalog fallback for deferred wonder art', () => {
     expect(getLegendaryWonderLandmarkMetadata('standing-stones').assetKey).toBe('standing-stones-bespoke');
     expect(getLegendaryWonderLandmarkMetadata('great-pyramid').assetKey).toBe('great-pyramid-bespoke');
     expect(getLegendaryWonderLandmarkMetadata('tidemother-colossus').assetKey).toBe('tidemother-colossus-bespoke');
@@ -72,6 +72,7 @@ describe('legendary wonder landmark catalog', () => {
     expect(getLegendaryWonderLandmarkMetadata('manhattan-project').assetKey).toBe('manhattan-project-bespoke');
     expect(getLegendaryWonderLandmarkMetadata('open-intelligence-commons').assetKey).toBe('open-intelligence-commons-bespoke');
     expect(getLegendaryWonderLandmarkMetadata('lunar-gateway').assetKey).toBe('lunar-gateway-bespoke');
+    expect(getLegendaryWonderLandmarkMetadata('terracotta-army').assetKey).toBeUndefined();
 
     const definitionIds = getLegendaryWonderDefinitions().map(definition => definition.id).sort();
     const keyedWonderIds = getLegendaryWonderLandmarkMetadataCatalog()
@@ -79,7 +80,7 @@ describe('legendary wonder landmark catalog', () => {
       .map(entry => entry.wonderId)
       .sort();
 
-    expect(keyedWonderIds).toEqual(definitionIds);
+    expect(keyedWonderIds).toEqual(definitionIds.filter(id => id !== 'terracotta-army'));
 
     const keyed = getLegendaryWonderLandmarkMetadataCatalog()
       .filter(entry => entry.assetKey)
