@@ -553,6 +553,7 @@ describe('diplomacy-panel treaty proposals + war attribution (#554)', () => {
     const accept = panel.querySelector('[data-action="accept-treaty-proposal"]') as HTMLButtonElement;
     expect(accept).toBeTruthy();
     expect(panel.textContent).toContain('Non-Aggression Pact');
+    expect(panel.textContent).toContain('expires in 10 turns');
     accept.click();
     expect(onAccept).toHaveBeenCalledWith(expect.stringContaining('treaty'));
   });

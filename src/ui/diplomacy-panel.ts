@@ -82,7 +82,7 @@ interface CivRowData {
   actions: Array<{ action: DiplomaticAction; isHostile: boolean }>;
   peaceRequestState: 'none' | 'incoming' | 'outgoing';
   peaceRequestId: string | null;
-  incomingTreatyProposals: Array<{ id: string; label: string }>;
+  incomingTreatyProposals: Array<{ id: string; label: string; expiresInTurns: number }>;
   atWar: boolean;
   warSinceText: string | null;
   worldPressureStatusText: string | null;
@@ -224,7 +224,11 @@ export function createDiplomacyPanel(
     // never surface the viewer's own outgoing proposals or third-party ones.
     const incomingTreatyProposals = getPendingTreatyProposalsFor(state, state.currentPlayer)
       .filter(request => request.fromCivId === civId)
-      .map(request => ({ id: request.id, label: TREATY_LABELS[request.treatyType!] }));
+      .map(request => ({
+        id: request.id,
+        label: TREATY_LABELS[request.treatyType!],
+        expiresInTurns: Math.max(0, 10 - (state.turn - request.turnIssued)),
+      }));
 
     // #554: "at war since turn N -- reason" derived from the same
     // war_declared event + relationship-based reason the notification uses
@@ -420,7 +424,7 @@ export function createDiplomacyPanel(
     row.incomingTreatyProposals.forEach((proposal, pIdx) => {
       treatyProposalsHtml += `
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;background:rgba(232,193,112,0.12);border-radius:6px;padding:6px 8px;">
-          <span style="font-size:11px;flex:1;">Proposes: <strong data-text="treaty-proposal-label-${row.civIdx}-${pIdx}"></strong></span>
+          <span style="font-size:11px;flex:1;">Proposes: <strong data-text="treaty-proposal-label-${row.civIdx}-${pIdx}"></strong> <span data-text="treaty-proposal-expiry-${row.civIdx}-${pIdx}"></span></span>
           <button class="diplo-accept-treaty" data-request-id="${proposal.id}" data-action="accept-treaty-proposal" style="padding:5px 10px;background:rgba(74,155,74,0.3);border:1px solid #4a9b4a;border-radius:6px;color:white;cursor:pointer;font-size:11px;">Accept</button>
           <button class="diplo-decline-treaty" data-request-id="${proposal.id}" data-action="decline-treaty-proposal" style="padding:5px 10px;background:rgba(217,148,74,0.25);border:1px solid #d9944a;border-radius:6px;color:white;cursor:pointer;font-size:11px;">Decline</button>
         </div>`;
@@ -583,6 +587,7 @@ export function createDiplomacyPanel(
     }
     row.incomingTreatyProposals.forEach((proposal, pIdx) => {
       setText(`treaty-proposal-label-${row.civIdx}-${pIdx}`, proposal.label);
+      setText(`treaty-proposal-expiry-${row.civIdx}-${pIdx}`, `(expires in ${proposal.expiresInTurns} turns)`);
     });
   }
 

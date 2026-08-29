@@ -36,9 +36,7 @@ import { chooseProduction } from './ai-strategy';
 import { evaluateDiplomacy, evaluateMinorCivDiplomacy, evaluateVassalage, evaluateEmbargoResponse, evaluateLeagueResponse } from './ai-diplomacy';
 import {
   declareWar,
-  enqueuePeaceRequest,
-  enqueueTreatyProposal,
-  signTreaty,
+  proposeTreatyAgreement,
   modifyRelationship,
   offerVassalage,
   joinEmbargo,
@@ -1102,53 +1100,14 @@ function processAITurnInternal(
           newState = applyOpportunisticWarPenaltyIfCrisisStruck(newState, civId, decision.targetCiv, bus);
           break;
         case 'request_peace':
-          newState = enqueuePeaceRequest(newState, civId, decision.targetCiv, bus);
+          newState = proposeTreatyAgreement(newState, civId, decision.targetCiv, 'peace', bus);
           break;
         case 'non_aggression_pact':
         case 'trade_agreement':
         case 'open_borders':
-        case 'alliance': {
-          const duration = decision.action === 'non_aggression_pact' ? 10 : -1;
-          // #554: humans must consent -- enqueue a proposal instead of signing.
-          if (newState.civilizations[decision.targetCiv]?.isHuman) {
-            newState = enqueueTreatyProposal(
-              newState, civId, decision.targetCiv, decision.action, duration, bus,
-            );
-            break;
-          }
-          // AI<->AI: sign both sides immediately (existing behavior).
-          newState.civilizations[civId].diplomacy = signTreaty(
-            currentDiplomacy, civId, decision.targetCiv, decision.action, duration, newState.turn,
-          );
-          if (newState.civilizations[decision.targetCiv]?.diplomacy) {
-            newState.civilizations[decision.targetCiv].diplomacy = signTreaty(
-              newState.civilizations[decision.targetCiv].diplomacy, decision.targetCiv, civId, decision.action,
-              duration, newState.turn,
-            );
-          }
-          bus.emit('diplomacy:treaty-accepted', { civA: civId, civB: decision.targetCiv, treaty: decision.action });
-          break;
-        }
+        case 'alliance':
         case 'arms_control_pact': {
-          const cap = computeArmsControlCap(newState, civId, decision.targetCiv);
-          // #554: humans must consent -- enqueue a proposal instead of signing.
-          if (newState.civilizations[decision.targetCiv]?.isHuman) {
-            newState = enqueueTreatyProposal(
-              newState, civId, decision.targetCiv, decision.action, -1, bus,
-            );
-            break;
-          }
-          // AI<->AI: sign both sides immediately (existing behavior for every other treaty type).
-          newState.civilizations[civId].diplomacy = signTreaty(
-            currentDiplomacy, civId, decision.targetCiv, decision.action, -1, newState.turn, cap,
-          );
-          if (newState.civilizations[decision.targetCiv]?.diplomacy) {
-            newState.civilizations[decision.targetCiv].diplomacy = signTreaty(
-              newState.civilizations[decision.targetCiv].diplomacy, decision.targetCiv, civId, decision.action,
-              -1, newState.turn, cap,
-            );
-          }
-          bus.emit('diplomacy:treaty-accepted', { civA: civId, civB: decision.targetCiv, treaty: decision.action });
+          newState = proposeTreatyAgreement(newState, civId, decision.targetCiv, decision.action, bus);
           break;
         }
       }

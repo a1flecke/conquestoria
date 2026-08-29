@@ -39,6 +39,16 @@ describe('diplomacy presentation', () => {
     expect(ctx.deliver).toHaveBeenCalled();
   });
 
+  it('announces an accepted treaty to both signatories', () => {
+    const bus = new EventBus();
+    const ctx = makePresentationContext();
+
+    registerDiplomacyPresentation(bus, ctx);
+    bus.emit('diplomacy:treaty-accepted', { civA: 'ai-1', civB: 'player', treaty: 'trade_agreement' });
+
+    expect(ctx.deliver).toHaveBeenCalledTimes(2);
+  });
+
   it('announces first contact between two civs', () => {
     const bus = new EventBus();
     const ctx = makePresentationContext();
@@ -103,6 +113,7 @@ describe('diplomacy presentation', () => {
     dispose();
     bus.emit('diplomacy:war-declared', { attackerId: 'ai-1', defenderId: 'player', opponentKind: 'major' });
     bus.emit('diplomacy:treaty-proposed', { fromCiv: 'ai-1', toCiv: 'player', treaty: 'trade_agreement' });
+    bus.emit('diplomacy:treaty-accepted', { civA: 'ai-1', civB: 'player', treaty: 'trade_agreement' });
     bus.emit('civilization:first-contact', { civA: 'player', civB: 'ai-1' });
     bus.emit('diplomacy:peace-requested', { fromCivId: 'ai-1', toCivId: 'player' });
     bus.emit('diplomacy:peace-made', { civA: 'player', civB: 'ai-1' });
