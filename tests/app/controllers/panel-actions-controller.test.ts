@@ -589,6 +589,26 @@ describe('PanelActionsController', () => {
       options.onRemoveQueuedResearch(0);
       expect(deps.session.getState().civilizations.player.techState.researchQueue).toEqual(['writing']);
     });
+
+    it('#915: queue handlers return the freshly committed state for the panel to re-render', () => {
+      const { state } = makeFixture('tech-panel-fresh-state');
+      state.civilizations.player.techState.currentResearch = 'fire';
+      state.civilizations.player.techState.researchQueue = ['writing', 'wheel'];
+      const { deps, controller } = build(state);
+
+      controller.openTechPanel();
+      const options = mockedCallArg<{
+        onQueueResearch: (techId: string) => unknown;
+        onMoveQueuedResearch: (fromIndex: number, toIndex: number) => unknown;
+        onRemoveQueuedResearch: (index: number) => unknown;
+      }>(createTechPanel, 0, 2);
+
+      // Each handler must hand back the exact object session.commit() installed,
+      // never void — the panel reopens from it instead of its captured reference.
+      expect(options.onMoveQueuedResearch(0, 1)).toBe(deps.session.getState());
+      expect(options.onRemoveQueuedResearch(0)).toBe(deps.session.getState());
+      expect(options.onQueueResearch('pottery')).toBe(deps.session.getState());
+    });
   });
 
   describe('openUnitStackPicker', () => {

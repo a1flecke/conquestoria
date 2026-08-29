@@ -53,9 +53,16 @@ function getFirstUnlockHint(tech: Tech): string {
 }
 
 export interface TechPanelCallbacks {
-  onQueueResearch: (techId: string) => void;
-  onMoveQueuedResearch: (fromIndex: number, toIndex: number) => void;
-  onRemoveQueuedResearch: (index: number) => void;
+  /**
+   * Queue/reorder/remove handlers may return the post-commit {@link GameState}.
+   * The controller routes these through `session.commit()`, which installs a
+   * brand-new state object, so the panel must reopen from the returned value
+   * rather than the reference captured at creation time (#915). Returning
+   * nothing (e.g. a rejected queue-limit path) keeps the panel as-is.
+   */
+  onQueueResearch: (techId: string) => GameState | void;
+  onMoveQueuedResearch: (fromIndex: number, toIndex: number) => GameState | void;
+  onRemoveQueuedResearch: (index: number) => GameState | void;
   onClose: () => void;
 }
 
@@ -429,14 +436,13 @@ export function createTechPanel(
     ?? civ.techState.researchQueue[0]
     ?? (civ.techState.completed.length > 0 ? civ.techState.completed[civ.techState.completed.length - 1] : null);
 
-  const reopenPanel = () => {
+  const reopenPanel = (nextState: GameState | void = state) => {
     panel.remove();
-    createTechPanel(container, state, callbacks);
+    createTechPanel(container, nextState ?? state, callbacks);
   };
 
   const queueResearchAndReopen = (techId: string) => {
-    callbacks.onQueueResearch(techId);
-    reopenPanel();
+    reopenPanel(callbacks.onQueueResearch(techId));
   };
 
   const header = document.createElement('div');
@@ -902,14 +908,12 @@ export function createTechPanel(
       }
 
       if (action === 'remove') {
-        callbacks.onRemoveQueuedResearch(index);
-        reopenPanel();
+        reopenPanel(callbacks.onRemoveQueuedResearch(index));
         return;
       }
 
       if (action === 'up' && index > 0 && canMoveQueuedResearch(civ.techState, index, index - 1)) {
-        callbacks.onMoveQueuedResearch(index, index - 1);
-        reopenPanel();
+        reopenPanel(callbacks.onMoveQueuedResearch(index, index - 1));
         return;
       }
 
@@ -918,8 +922,7 @@ export function createTechPanel(
         && index < civ.techState.researchQueue.length - 1
         && canMoveQueuedResearch(civ.techState, index, index + 1)
       ) {
-        callbacks.onMoveQueuedResearch(index, index + 1);
-        reopenPanel();
+        reopenPanel(callbacks.onMoveQueuedResearch(index, index + 1));
       }
     });
   });

@@ -523,6 +523,9 @@ export function createPanelActionsController(deps: PanelActionsControllerDeps): 
         deps.renderLoop.setGameState(deps.session.getState());
         deps.hud.update();
         deps.showNotification(`Queued research: ${techId}`, 'info');
+        // Return fresh state so the open panel reopens from the committed object,
+        // not the pre-click reference it captured (#915).
+        return deps.session.getState();
       },
       onMoveQueuedResearch: (fromIndex, toIndex) => {
         const civ = deps.currentCiv();
@@ -538,6 +541,7 @@ export function createPanelActionsController(deps: PanelActionsControllerDeps): 
         });
         deps.renderLoop.setGameState(deps.session.getState());
         deps.hud.update();
+        return deps.session.getState();
       },
       onRemoveQueuedResearch: (index) => {
         const civ = deps.currentCiv();
@@ -553,6 +557,7 @@ export function createPanelActionsController(deps: PanelActionsControllerDeps): 
         });
         deps.renderLoop.setGameState(deps.session.getState());
         deps.hud.update();
+        return deps.session.getState();
       },
       onClose: () => {},
     });
