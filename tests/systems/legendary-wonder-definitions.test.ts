@@ -50,8 +50,33 @@ describe('legendary-wonder-definitions', () => {
     const shipped = getLegendaryWonderDefinitions().map(w => w.id);
 
     expect(shipped).toEqual(approved);
-    expect(approved).toHaveLength(38);
+    expect(approved).toHaveLength(39);
     expect(approved).toEqual(expect.arrayContaining(['standing-stones', 'great-pyramid', 'tidemother-colossus', 'manhattan-project', 'internet', 'sistine-vault', 'codex-eternal', 'navigators-compass', 'palace-of-the-sun', 'iron-arsenal', 'merchant-admiralty', 'crystal-palace', 'suez-canal', 'continental-congress', 'eiffel-tower', 'brooklyn-bridge', 'trans-siberian-railway', 'panama-canal', 'empire-state-building', 'hoover-dam', 'wright-flyer', 'united-nations', 'apollo-program', 'open-intelligence-commons', 'lunar-gateway']));
+  });
+
+  it('defines the Terracotta Army military quest and typed training reward', () => {
+    const terracotta = getLegendaryWonderDefinitions().find(wonder => wonder.id === 'terracotta-army');
+
+    expect(terracotta).toMatchObject({
+      id: 'terracotta-army',
+      name: 'Terracotta Army',
+      era: 3,
+      productionCost: 125,
+      requiredTechs: ['iron-forging', 'masonry'],
+      requiredResources: ['stone'],
+      questSteps: [
+        { type: 'field-combat-roles', targetUnitCount: 4, targetRoleCount: 3 },
+        { type: 'surviving-combat-wins', targetCount: 3 },
+      ],
+      reward: {
+        tacticalEffects: [{
+          kind: 'per-era-role-training-xp',
+          roles: ['frontline', 'ranged', 'shock', 'siege'],
+          experience: 10,
+          maxGrantsPerEra: 4,
+        }],
+      },
+    });
   });
 
   it('defines the two Era 13 autonomous-systems wonder contracts', () => {
