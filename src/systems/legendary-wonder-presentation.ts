@@ -10,6 +10,7 @@ import { calculateProjectedCityYields } from '@/systems/city-work-system';
 import { getUnrestYieldMultiplier } from '@/systems/faction-system';
 import { getOccupiedCityYieldMultiplier } from '@/systems/city-occupation-system';
 import { getLegendaryWonderQueueItemId } from '@/systems/legendary-wonder-production';
+import { resolveCivilizationEra } from '@/systems/tech-definitions';
 export {
   LEGENDARY_WONDER_PRODUCTION_ICON,
   LEGENDARY_WONDER_PRODUCTION_PREFIX,
@@ -50,6 +51,7 @@ export interface LegendaryWonderPresentationEntry {
   era: number;
   productionCost: number;
   rewardSummary: string;
+  rewardDetail?: string;
   visibleState: LegendaryWonderVisibleState;
   eligibilityState: LegendaryWonderEligibilityState;
   phase: LegendaryWonderProject['phase'] | 'unseeded';
@@ -195,6 +197,28 @@ function getDefaultQuestSteps(wonderId: string): LegendaryWonderProject['questSt
   })) ?? [];
 }
 
+function getRewardDetail(
+  state: GameState,
+  civId: string,
+  completedHere: boolean,
+  definitionId: string,
+): string | undefined {
+  if (!completedHere) return undefined;
+  const definition = getLegendaryWonderDefinition(definitionId);
+  const effect = definition?.reward.tacticalEffects?.find(candidate => candidate.kind === 'per-era-role-training-xp');
+  if (!effect) return undefined;
+
+  const currentEra = resolveCivilizationEra(state.civilizations[civId]?.techState.completed ?? []);
+  const grant = state.legendaryWonderTacticalEffects?.trainingGrantsByCiv[civId];
+  const grantedRoles = grant?.era === currentEra
+    ? grant.grantedRoles.filter(role => effect.roles.includes(role))
+    : [];
+  const unusedRoles = effect.roles.filter(role => !grantedRoles.includes(role));
+  const usedLabel = grantedRoles.length > 0 ? ` Used: ${grantedRoles.join(', ')}.` : '';
+  const unusedLabel = unusedRoles.length > 0 ? ` Still eligible: ${unusedRoles.join(', ')}.` : '';
+  return `${grantedRoles.length}/${effect.maxGrantsPerEra} roles used this era.${usedLabel}${unusedLabel} Resets when you enter a new era.`;
+}
+
 function progressPercent(investedProduction: number, productionCost: number): number {
   if (productionCost <= 0) return 0;
   return Math.max(0, Math.min(100, Math.floor((investedProduction / productionCost) * 100)));
@@ -259,6 +283,7 @@ export function getLegendaryWonderPresentationForCity(
       era: definition.era,
       productionCost: definition.productionCost,
       rewardSummary: definition.reward.summary,
+      rewardDetail: getRewardDetail(seededState, civId, completedHere, definition.id),
       visibleState,
       eligibilityState: getEligibilityState(visibleState, canStartBuild),
       phase: completedHere ? 'completed' : project?.phase ?? 'unseeded',

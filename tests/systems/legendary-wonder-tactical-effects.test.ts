@@ -11,6 +11,7 @@ import {
   getTacticalSamRadius,
   claimTacticalFirstOwnerTurnInterception,
   getCompletedLegendaryWonderTacticalEffects,
+  getLegendaryWonderTacticalEffectAiValue,
   getTacticalWonderAiValue,
 } from '@/systems/legendary-wonder-tactical-effects';
 
@@ -21,6 +22,12 @@ const definitions: LegendaryWonderDefinition[] = [{
 }];
 
 describe('legendary wonder tactical effects', () => {
+  it('exposes definition-declared tactical value for wonder opportunity scoring', () => {
+    expect(getLegendaryWonderTacticalEffectAiValue([
+      { kind: 'per-era-role-training-xp', roles: ['frontline'], experience: 10, maxGrantsPerEra: 1, aiValue: 24 },
+    ])).toBe(24);
+  });
+
   it('resolves only effects from wonders completed by the requesting owner', () => {
     const state = createNewGame('rome', 'tactical-effect-owner', 'small');
     state.completedLegendaryWonders = { 'test-wonder': { ownerId: 'player', cityId: Object.keys(state.cities)[0]!, turnCompleted: 1 } };

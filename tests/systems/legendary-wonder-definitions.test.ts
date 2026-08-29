@@ -74,6 +74,7 @@ describe('legendary-wonder-definitions', () => {
           roles: ['frontline', 'ranged', 'shock', 'siege'],
           experience: 10,
           maxGrantsPerEra: 4,
+          aiValue: 24,
         }],
       },
     });

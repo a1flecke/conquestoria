@@ -821,6 +821,27 @@ describe('processTurn', () => {
     expect(newState.units[newUnitId!].experience).toBe(10);
   });
 
+  it('applies Terracotta Army training once through the live city-production path', () => {
+    const state = createNewGame(undefined, 'terracotta-training-turn-loop', 'small');
+    const bus = new EventBus();
+    const startPos = state.units[state.civilizations.player.units[0]].position;
+    const city = foundCity('player', startPos, state.map, mkC());
+    state.cities[city.id] = city;
+    state.civilizations.player.cities.push(city.id);
+    state.completedLegendaryWonders = {
+      'terracotta-army': { ownerId: 'player', cityId: city.id, turnCompleted: state.turn },
+    };
+    city.productionQueue = ['warrior'];
+    city.productionProgress = 24;
+
+    const before = new Set(Object.keys(state.units));
+    const next = processTurn(state, bus);
+    const unitId = Object.keys(next.units).find(id => !before.has(id));
+
+    expect(next.units[unitId!]?.experience).toBe(10);
+    expect(next.legendaryWonderTacticalEffects?.trainingGrantsByCiv.player?.grantedRoles).toEqual(['frontline']);
+  });
+
   it('does not grant Barracks XP when the training city has no Barracks', () => {
     const state = createNewGame(undefined, 'no-barracks-xp-test', 'small');
     const bus = new EventBus();

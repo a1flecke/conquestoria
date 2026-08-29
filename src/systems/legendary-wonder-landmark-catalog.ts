@@ -15,6 +15,8 @@ const LEGENDARY_WONDER_LANDMARK_METADATA: Record<string, LegendaryWonderLandmark
   'great-pyramid': landmark('great-pyramid', 'spire', 'tall', 'sun', '#5e4a26', '#e0c068', '#fff0a0', 1.1, 'dedicationGlow', 'glint', 'scaffold', 'great-pyramid-bespoke'),
   'tidemother-colossus': landmark('tidemother-colossus', 'gateway', 'tall', 'tide', '#123448', '#5ec0d8', '#c8f0ff', 1.05, 'civicAura', 'pulse', 'foundation', 'tidemother-colossus-bespoke'),
   'oracle-of-delphi': landmark('oracle-of-delphi', 'oracle', 'tall', 'prophecy', '#2f2943', '#d8c47a', '#fff0b8', 1.02, 'dedicationGlow', 'glint', 'outline', 'oracle-of-delphi-bespoke'),
+  // #722 uses the renderer's supported hall silhouette until #725 supplies bespoke art.
+  'terracotta-army': landmark('terracotta-army', 'hall', 'wide', 'victory', '#4a3024', '#c96f3b', '#f2c08a', 1.02, 'dedicationGlow', 'glint', 'outline'),
   'grand-canal': landmark('grand-canal', 'waterworks', 'wide', 'canal', '#173c52', '#74d0ff', '#c8f3ff', 1.05, 'civicAura', 'pulse', 'foundation', 'grand-canal-bespoke'),
   'sun-spire': landmark('sun-spire', 'spire', 'tall', 'sun', '#46311f', '#f2c45d', '#fff1a6', 1.08, 'dedicationGlow', 'glint', 'scaffold', 'sun-spire-bespoke'),
   'world-archive': landmark('world-archive', 'archive', 'wide', 'knowledge', '#263044', '#b9c7ff', '#edf0ff', 1, 'civicAura', 'pulse', 'outline', 'world-archive-bespoke'),
