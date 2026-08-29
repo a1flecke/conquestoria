@@ -111,6 +111,22 @@ describe('wonder-panel', () => {
     expect(detail?.textContent).toContain('Resets when you enter a new era');
   });
 
+  it('explains Crac des Chevaliers Fort and Citadel scope on its completed card', () => {
+    const { container, city, state } = makeWonderPanelFixture();
+    state.completedLegendaryWonders = {
+      'crac-des-chevaliers': { ownerId: 'player', cityId: city.id, turnCompleted: state.turn },
+    };
+
+    const panel = createWonderPanel(container, state, city.id, {
+      onStartBuild: () => {},
+      onClose: () => {},
+    });
+    const summary = panel.querySelector<HTMLElement>('[data-wonder-reward-summary="crac-des-chevaliers"]');
+
+    expect(summary?.textContent).toContain('intact Forts heal +5 at turn end');
+    expect(summary?.textContent).toContain('occupied Citadel gives adjacent non-siege defenders +5% defense');
+  });
+
   it('renders a labelled dialog with responsive phone and laptop layout invariants', () => {
     const { container, state } = makeWonderPanelFixture();
     const onClose = vi.fn();

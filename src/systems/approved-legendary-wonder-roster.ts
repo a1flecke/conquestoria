@@ -28,6 +28,7 @@ export function getApprovedM4LegendaryWonderRoster(): ReadonlyArray<{ id: string
     { id: 'manhattan-project', name: 'Manhattan Project' },
     { id: 'internet', name: 'Internet' },
     // Era 5 wonders (Renaissance)
+    { id: 'crac-des-chevaliers', name: 'Crac des Chevaliers' },
     { id: 'sistine-vault', name: 'Sistine Vault' },
     { id: 'codex-eternal', name: 'Codex Eternal' },
     { id: 'navigators-compass', name: "Navigator's Compass" },

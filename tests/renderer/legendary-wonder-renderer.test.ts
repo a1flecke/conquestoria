@@ -336,6 +336,15 @@ describe('legendary-wonder-renderer', () => {
     expectNonblankCanvasGlyph(ctx, 'terracotta-army fallback');
   });
 
+  it('uses the approved generic fallback for Crac des Chevaliers while bespoke art is deferred', () => {
+    const metadata = getLegendaryWonderLandmarkMetadata('crac-des-chevaliers');
+    const ctx = drawCompletedGlyphForWonder('crac-des-chevaliers');
+
+    expect(metadata.assetKey).toBeUndefined();
+    expect(ctx.operations.some(operation => operation.startsWith('bespoke:'))).toBe(false);
+    expectNonblankCanvasGlyph(ctx, 'crac-des-chevaliers fallback');
+  });
+
   it('keeps generic silhouette fallback for completed landmarks with unsupported bespoke asset keys', () => {
     const ctx = new MockCanvasContext();
     const metadata = {

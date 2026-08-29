@@ -134,6 +134,44 @@ describe('legendary wonder tactical effects', () => {
     expect(getTacticalFortOccupantHealingBonus(state, unit, healingDefinitions)).toBe(0);
   });
 
+  it('applies Crac des Chevaliers only to intact Fort occupants and non-siege Citadel neighbors', () => {
+    const state = createNewGame('rome', 'crac-tactical-effects', 'small');
+    const defenderPosition = state.units[state.civilizations.player.units[0]!].position;
+    const defender = createUnit('warrior', 'player', defenderPosition, state.idCounters);
+    const citadelPosition = mapNeighbors(state.map, defenderPosition)[0]!;
+    const citadelOccupant = createUnit('warrior', 'player', citadelPosition, state.idCounters);
+    const siegeDefender = createUnit('catapult', 'player', defenderPosition, state.idCounters);
+    state.units[citadelOccupant.id] = citadelOccupant;
+    state.completedLegendaryWonders = {
+      'crac-des-chevaliers': { ownerId: 'player', cityId: Object.keys(state.cities)[0]!, turnCompleted: 1 },
+    };
+    const fortTile = state.map.tiles[hexKey(defenderPosition)]!;
+    fortTile.owner = 'player';
+    fortTile.improvement = 'fort';
+    fortTile.improvementTurnsLeft = 0;
+    const citadelTile = state.map.tiles[hexKey(citadelPosition)]!;
+    citadelTile.owner = 'player';
+    citadelTile.improvement = 'fort';
+    citadelTile.improvementTurnsLeft = 0;
+    state.civilizations.player.techState.completed.push('fortification-engineering');
+
+    expect(getTacticalFortOccupantHealingBonus(state, defender)).toBe(5);
+    expect(getTacticalAdjacentCitadelDefense(state, defender)).toMatchObject({
+      multiplier: 1.05,
+      label: 'Legendary Citadel +5%',
+    });
+    expect(getTacticalAdjacentCitadelDefense(state, siegeDefender).multiplier).toBe(1);
+
+    delete state.units[citadelOccupant.id];
+    expect(getTacticalAdjacentCitadelDefense(state, defender).multiplier).toBe(1);
+    state.units[citadelOccupant.id] = citadelOccupant;
+
+    fortTile.improvementTurnsLeft = 1;
+    citadelTile.improvementTurnsLeft = 1;
+    expect(getTacticalFortOccupantHealingBonus(state, defender)).toBe(0);
+    expect(getTacticalAdjacentCitadelDefense(state, defender).multiplier).toBe(1);
+  });
+
   it('returns one non-stacking Citadel defense bonus for an eligible adjacent defender', () => {
     const state = createNewGame('rome', 'tactical-citadel-defense', 'small');
     const defenderPosition = state.units[state.civilizations.player.units[0]!].position;

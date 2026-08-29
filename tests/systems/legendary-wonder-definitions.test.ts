@@ -50,7 +50,7 @@ describe('legendary-wonder-definitions', () => {
     const shipped = getLegendaryWonderDefinitions().map(w => w.id);
 
     expect(shipped).toEqual(approved);
-    expect(approved).toHaveLength(39);
+    expect(approved).toHaveLength(40);
     expect(approved).toEqual(expect.arrayContaining(['standing-stones', 'great-pyramid', 'tidemother-colossus', 'manhattan-project', 'internet', 'sistine-vault', 'codex-eternal', 'navigators-compass', 'palace-of-the-sun', 'iron-arsenal', 'merchant-admiralty', 'crystal-palace', 'suez-canal', 'continental-congress', 'eiffel-tower', 'brooklyn-bridge', 'trans-siberian-railway', 'panama-canal', 'empire-state-building', 'hoover-dam', 'wright-flyer', 'united-nations', 'apollo-program', 'open-intelligence-commons', 'lunar-gateway']));
   });
 
@@ -76,6 +76,32 @@ describe('legendary-wonder-definitions', () => {
           maxGrantsPerEra: 4,
           aiValue: 24,
         }],
+      },
+    });
+  });
+
+  it('defines Crac des Chevaliers with Fort and Citadel tactical rewards', () => {
+    const crac = getLegendaryWonderDefinitions().find(wonder => wonder.id === 'crac-des-chevaliers');
+
+    expect(crac).toMatchObject({
+      id: 'crac-des-chevaliers',
+      name: 'Crac des Chevaliers',
+      era: 5,
+      productionCost: 220,
+      requiredTechs: ['fortresses', 'professional-army'],
+      requiredResources: ['stone'],
+      questSteps: [
+        { type: 'fort-completions', targetCount: 3, distinctCityTerritories: true },
+        { type: 'fortification-repels', targetCount: 2, tiers: ['fort', 'citadel'] },
+      ],
+      reward: {
+        tacticalEffects: [
+          { kind: 'fort-occupant-healing', amount: 5, aiValue: 18 },
+          {
+            kind: 'adjacent-citadel-defense', multiplier: 1.05, stackingGroup: 'legendary-citadel-defense',
+            excludedRoles: ['siege'], aiValue: 18,
+          },
+        ],
       },
     });
   });

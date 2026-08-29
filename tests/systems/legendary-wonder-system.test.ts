@@ -236,7 +236,7 @@ describe('legendary-wonder-system', () => {
 
     const result = initializeLegendaryWonderProjectsForCity(state, 'player', 'city-river');
 
-    expect(Object.values(result.legendaryWonderProjects ?? {}).filter(project => project.cityId === 'city-river')).toHaveLength(39);
+    expect(Object.values(result.legendaryWonderProjects ?? {}).filter(project => project.cityId === 'city-river')).toHaveLength(40);
   });
 
   it('allows multiple civilizations to pursue the same legendary wonder in different cities', () => {
