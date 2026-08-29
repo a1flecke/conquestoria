@@ -448,6 +448,50 @@ describe('tech-panel', () => {
     expect(panelAfter?.textContent).toContain('Queue slot 1');
   });
 
+  it('#915: re-renders the queue from the fresh state a handler returns (immutable commit)', () => {
+    // panel-actions-controller routes queue edits through session.commit(), which
+    // installs a BRAND-NEW GameState object and leaves the previous one untouched.
+    // The panel's internal reopen must render from the state the handler returns,
+    // not the reference it captured when first created.
+    const original = createNewGame(undefined, 'tech-panel-915-immutable');
+    original.civilizations.player.techState.currentResearch = 'fire';
+    original.civilizations.player.techState.researchQueue = ['writing', 'wheel'];
+
+    let live = original;
+
+    createTechPanel(document.body, original, {
+      onQueueResearch: () => {},
+      onMoveQueuedResearch: () => {},
+      onRemoveQueuedResearch: (index) => {
+        live = {
+          ...live,
+          civilizations: {
+            ...live.civilizations,
+            player: {
+              ...live.civilizations.player,
+              techState: {
+                ...live.civilizations.player.techState,
+                researchQueue: live.civilizations.player.techState.researchQueue.filter((_, i) => i !== index),
+              },
+            },
+          },
+        };
+        return live;
+      },
+      onClose: () => {},
+    });
+
+    document.body.querySelector<HTMLButtonElement>('[data-queue-action="remove"][data-queue-index="0"]')!.click();
+
+    // Immutable commit: the captured object is never mutated.
+    expect(original.civilizations.player.techState.researchQueue).toEqual(['writing', 'wheel']);
+    // ...but the reopened panel must still reflect the removal.
+    const panelAfter = document.body.querySelector('#tech-panel');
+    expect(panelAfter?.querySelectorAll('[data-queue-action="remove"]').length).toBe(1);
+    expect(panelAfter?.textContent).toContain('Queue slot 1');
+    expect(panelAfter?.textContent).not.toContain('Queue slot 2');
+  });
+
   it('clicking ↓ on a queued follow-up moves it down in the rendered panel', () => {
     const state = createNewGame(undefined, 'tech-move-down-test');
     state.civilizations.player.techState.currentResearch = 'fire';
