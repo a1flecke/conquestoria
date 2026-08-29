@@ -32,6 +32,8 @@ const LEGENDARY_WONDER_LANDMARK_METADATA: Record<string, LegendaryWonderLandmark
   'manhattan-project': landmark('manhattan-project', 'laboratory', 'compact', 'atom', '#31313c', '#d2d8e8', '#ffffff', 1, 'foundationPulse', 'pulse', 'outline', 'manhattan-project-bespoke'),
   internet: landmark('internet', 'network', 'wide', 'network', '#202c3d', '#80d8ff', '#d9f8ff', 0.98, 'civicAura', 'spark', 'foundation', 'internet-bespoke'),
   // Era 5 wonders (Renaissance)
+  // #723 uses the renderer's supported bastion silhouette until #725 supplies bespoke art.
+  'crac-des-chevaliers': landmark('crac-des-chevaliers', 'bastion', 'wide', 'victory', '#3d322a', '#c18a52', '#f1d2a6', 1.06, 'dedicationGlow', 'glint', 'outline'),
   'sistine-vault': landmark('sistine-vault', 'archive', 'tall', 'knowledge', '#3d2c1e', '#d4a96a', '#fff0c8', 1.03, 'dedicationGlow', 'glint', 'scaffold', 'sistine-vault-bespoke'),
   'codex-eternal': landmark('codex-eternal', 'archive', 'wide', 'knowledge', '#242d4a', '#a0b0e8', '#e8eeff', 1.0, 'civicAura', 'pulse', 'outline', 'codex-eternal-bespoke'),
   'navigators-compass': landmark('navigators-compass', 'gateway', 'wide', 'horizon', '#1a3346', '#7ecae0', '#c4f0ff', 1.05, 'civicAura', 'glint', 'foundation', 'navigators-compass-bespoke'),

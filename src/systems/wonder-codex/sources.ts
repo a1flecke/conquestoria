@@ -121,6 +121,13 @@ export const WONDER_CODEX_FACT_SOURCES = [
     notes: 'Used for Terracotta Army historical context.',
   },
   {
+    id: 'unesco-crac-des-chevaliers',
+    title: 'Crac des Chevaliers and Qal’at Salah El-Din',
+    publisher: 'UNESCO World Heritage Centre',
+    sourceUrl: 'https://whc.unesco.org/en/list/1229/',
+    notes: 'Used for Crac des Chevaliers historical and fortification context.',
+  },
+  {
     id: 'unesco-delphi',
     title: 'Archaeological Site of Delphi',
     publisher: 'UNESCO World Heritage Centre',

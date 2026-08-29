@@ -369,6 +369,44 @@ const LEGENDARY_WONDER_DEFINITIONS_BY_ID: Record<string, LegendaryWonderDefiniti
   },
 
   // ERA 5 WONDERS
+  'crac-des-chevaliers': {
+    id: 'crac-des-chevaliers',
+    name: 'Crac des Chevaliers',
+    era: 5,
+    productionCost: 220,
+    requiredTechs: ['fortresses', 'professional-army'],
+    requiredResources: ['stone'],
+    cityRequirement: 'any',
+    questSteps: [
+      {
+        id: 'complete-territorial-forts',
+        type: 'fort-completions',
+        targetCount: 3,
+        distinctCityTerritories: true,
+        description: 'Complete 3 Forts in different city territories.',
+      },
+      {
+        id: 'repel-from-fortifications',
+        type: 'fortification-repels',
+        targetCount: 2,
+        tiers: ['fort', 'citadel'],
+        description: 'Repel 2 attacks while a friendly unit occupies a Fort or Citadel.',
+      },
+    ],
+    reward: {
+      summary: 'Friendly land combat units in your intact Forts heal +5 at turn end. An occupied Citadel gives adjacent non-siege defenders +5% defense.',
+      tacticalEffects: [
+        { kind: 'fort-occupant-healing', amount: 5, aiValue: 18 },
+        {
+          kind: 'adjacent-citadel-defense',
+          multiplier: 1.05,
+          stackingGroup: 'legendary-citadel-defense',
+          excludedRoles: ['siege'],
+          aiValue: 18,
+        },
+      ],
+    },
+  },
   'sistine-vault': {
     id: 'sistine-vault',
     name: 'Sistine Vault',
