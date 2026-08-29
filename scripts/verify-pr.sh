@@ -19,7 +19,12 @@ started_at="$(date +%s)"
 initial_worktree_state="$(worktree_state)"
 exit_code=0
 
-if yarn build; then :; else exit_code=$?; fi
+# The build runs under the host verification lease (#892) as its own
+# bounded acquisition, separate from `yarn test:durable` below (which
+# acquires the same lease again, internally, around just the suite run).
+# Two short sequential acquisitions rather than one held across both avoids
+# any risk of this process waiting on a lease it already holds.
+if sh "$repo_root/scripts/run-under-host-lease.sh" "verify-pr build" -- yarn build; then :; else exit_code=$?; fi
 if [ "$exit_code" -eq 0 ]; then
   if yarn test:durable; then :; else exit_code=$?; fi
 fi

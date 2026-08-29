@@ -6,6 +6,8 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 RUN="$REPO_ROOT/scripts/run-with-mise.sh"
 TIMEOUT_RUNNER="$REPO_ROOT/scripts/run-with-timeout.mjs"
+# shellcheck source=./host-verification-lease.sh
+. "$REPO_ROOT/scripts/host-verification-lease.sh"
 USE_MISE=1
 TEST_SCOPE=full
 
@@ -53,6 +55,19 @@ run_phase() {
     node "$TIMEOUT_RUNNER" "$timeout_seconds" "$label" -- "$@"
   fi
 }
+
+# This is the local, heavyweight test+build verification gate (#892): both
+# phases below run under one host-wide verification lease acquisition, so
+# an overlapping durable/pre-push run on another linked worktree on this
+# same machine waits rather than oversubscribing the host's Vitest worker
+# pools together with this one. In CI (yarn verify:push --no-mise, always
+# with CI=true) hvl_acquire is a no-op; ordinary `yarn test`/`yarn build`
+# run directly by a developer are unaffected -- only this orchestrated
+# verify-before-push.sh entrypoint acquires it.
+hvl_acquire "pre-push verification"
+trap hvl_release EXIT
+trap 'hvl_release; exit 130' INT
+trap 'hvl_release; exit 143' TERM
 
 echo "Running pre-push verification: tests"
 if [ "$USE_MISE" -eq 1 ]; then

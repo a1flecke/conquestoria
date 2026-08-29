@@ -117,8 +117,14 @@ separately, then use `yarn verify:pr` followed by `yarn verify:pr:status` for
 a bounded build-plus-durable-suite proof. The result is worktree/HEAD-bound,
 records elapsed time, and fails when verification exceeds 480 seconds.
 If a push terminal stream is incomplete after its process exits, verify the remote branch ref equals local `HEAD` before treating the push as successful; do not infer success from partial hook output.
-Do not point two worktrees at a shared durable-artifact directory or add a
-repository-wide verification lock.
+Do not point two worktrees at a shared durable-artifact directory. `yarn
+test:durable`, `verify-before-push.sh`'s test+build phases, and
+`verify-pr.sh`'s build step do coordinate through one host-wide verification
+lease (`.claude/rules/hooks-and-tooling.md` -> "Host verification lease") so
+suite-scale Vitest worker pools on different worktrees don't oversubscribe
+the same machine -- that lease never touches `.verification/` or any
+Vite/Vitest cache, and routine `yarn test`/`yarn build` run directly by a
+developer or agent are never gated by it.
 
 When `HEAD` is ahead of `origin/main`, also review both:
 
