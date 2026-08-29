@@ -56,6 +56,12 @@ it('declines a hostile alliance and accepts a friendly valid NAP', () => {
 it('uses only target-owned visible context for peace', () => {
   expect(evaluatePeaceConsent({ targetVisibleStrength: 4, proposerVisibleStrength: 10, relationship: -60 })).toEqual({ accepted: true });
 });
+
+it('does not change AI peace consent when an unseen rival unit is added', () => {
+  expect(buildTreatyConsentContext(withHiddenRivalUnit, 'ai-1', 'player')).toEqual(
+    buildTreatyConsentContext(withoutHiddenRivalUnit, 'ai-1', 'player'),
+  );
+});
 ```
 
 - [ ] **Step 2: Run the new tests**
@@ -70,12 +76,22 @@ Expected: FAIL because the module does not exist.
 export type AgreementKind = Exclude<TreatyType, 'vassalage'> | 'peace';
 export type TreatyDeclineReason = 'relations-too-strained' | 'strategic-caution' | 'peace-not-acceptable';
 export interface TreatyConsent { accepted: boolean; reason?: TreatyDeclineReason; }
+export interface TreatyConsentInput {
+  kind: AgreementKind;
+  relationship: number;
+  diplomacyFocus: number;
+  targetHasKnownStrategicCapability: boolean;
+  actorHasKnownStrategicCapability: boolean;
+  targetVisibleStrength: number;
+  proposerVisibleStrength: number;
+}
 
-export function evaluateTreatyConsent(input: TreatyConsentInput): TreatyConsent { /* relationship/personality policy */ }
-export function evaluatePeaceConsent(input: PeaceConsentInput): TreatyConsent { /* target-visible strength or recovered relationship */ }
+export function buildTreatyConsentContext(state: GameState, targetId: string, proposerId: string): TreatyConsentInput;
+export function evaluateTreatyConsent(input: TreatyConsentInput): TreatyConsent;
+export function evaluatePeaceConsent(input: TreatyConsentInput): TreatyConsent;
 ```
 
-`ai-diplomacy.ts` delegates its existing proposal policy to this module so no old dead evaluator remains. Add `diplomacy:treaty-declined` and enrich accepted/proposed events only with counterpart ids, agreement kind, and optional public reason; never add score or hidden state.
+`buildTreatyConsentContext` builds `buildMajorCivPerception(state, targetId)`, then uses `estimatePerceivedCivStrength` for the target and proposer. It uses `hasKnownStrategicCapability(state, targetId, proposerId)` only for the target's knowledge. `ai-diplomacy.ts` delegates its existing proposal policy to this module so no old dead evaluator remains. Add `diplomacy:agreement-declined`; retain `diplomacy:treaty-accepted` for treaties and existing `diplomacy:peace-made` for accepted peace. Events contain only counterpart ids, agreement kind, and optional public reason; never add score or hidden state.
 
 - [ ] **Step 4: Run focused AI tests**
 
@@ -210,6 +226,7 @@ git commit -m "fix(#901): require target consent for AI agreements"
 - Test: `tests/presentation/register-diplomacy-presentation.test.ts`
 - Test: `tests/app/controllers/diplomacy-actions-controller.test.ts`
 - Test: `tests/ui/diplomacy-panel.test.ts`
+- Test: `tests/ui/notification-delivery-regressions.test.ts`
 
 - [ ] **Step 1: Write failing presentation and DOM replay tests**
 
@@ -225,6 +242,11 @@ it('delivers an accepted treaty result to both human parties but never a third h
   expect(deliver).toHaveBeenCalledWith('player-b', expect.stringContaining('accepted'), 'success');
   expect(deliver).not.toHaveBeenCalledWith('player-c', expect.any(String), expect.anything());
 });
+
+it('does not play the generic notification sound for a queued recipient before their hot-seat turn', () => {
+  deliver('player-b', 'Rome proposes a Trade Agreement.', 'info');
+  expect(notificationSound).not.toHaveBeenCalled();
+});
 ```
 
 - [ ] **Step 2: Run the new presentation/UI tests**
@@ -235,18 +257,18 @@ Expected: FAIL because accepted/declined events are not routed and expiry text i
 
 - [ ] **Step 3: Add recipient-scoped presentation and truthful feedback**
 
-Register proposed, accepted, and declined agreement events through `notification-delivery`. The controller maps returned outcomes to immediate actor feedback and always rerenders the Diplomacy panel. Panel request rows show treaty/peace effect, recipient-owned controls, and computed remaining turns. For Arms Control, show the current `computeArmsControlCap` preview only to a recipient who can act.
+Register proposed, accepted, declined, and existing peace-made agreement outcomes through `notification-delivery`. The controller maps returned outcomes to immediate actor feedback and always rerenders the Diplomacy panel. Panel request rows show treaty/peace effect, recipient-owned controls, and computed remaining turns. For Arms Control, show the current `computeArmsControlCap` preview only to a recipient who can act. Use the existing notification delivery sound behavior; add no direct treaty SFX call.
 
 - [ ] **Step 4: Run focused presentation/UI tests**
 
-Run: `bash scripts/run-with-mise.sh yarn test --run tests/presentation/register-diplomacy-presentation.test.ts tests/app/controllers/diplomacy-actions-controller.test.ts tests/ui/diplomacy-panel.test.ts`
+Run: `bash scripts/run-with-mise.sh yarn test --run tests/presentation/register-diplomacy-presentation.test.ts tests/app/controllers/diplomacy-actions-controller.test.ts tests/ui/diplomacy-panel.test.ts tests/ui/notification-delivery-regressions.test.ts`
 
 Expected: PASS.
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add src/presentation/register-diplomacy-presentation.ts src/ui/notification-routing.ts src/app/controllers/diplomacy-actions-controller.ts src/ui/diplomacy-panel.ts tests/presentation/register-diplomacy-presentation.test.ts tests/app/controllers/diplomacy-actions-controller.test.ts tests/ui/diplomacy-panel.test.ts
+git add src/presentation/register-diplomacy-presentation.ts src/ui/notification-routing.ts src/app/controllers/diplomacy-actions-controller.ts src/ui/diplomacy-panel.ts tests/presentation/register-diplomacy-presentation.test.ts tests/app/controllers/diplomacy-actions-controller.test.ts tests/ui/diplomacy-panel.test.ts tests/ui/notification-delivery-regressions.test.ts
 git commit -m "feat(#901): present bilateral treaty consent outcomes"
 ```
 
@@ -310,7 +332,7 @@ Expected: exit 0.
 
 - [ ] **Step 2: Run the complete focused regression set**
 
-Run: `bash scripts/run-with-mise.sh yarn test --run tests/ai/ai-treaty-consent.test.ts tests/ai/ai-diplomacy.test.ts tests/ai/basic-ai.test.ts tests/ai/basic-ai-treaty-contact-guard.test.ts tests/systems/diplomatic-agreement-system.test.ts tests/systems/diplomacy-system.test.ts tests/systems/diplomacy-vassalage.test.ts tests/systems/strategic-arsenal-system.test.ts tests/app/controllers/diplomacy-actions-controller.test.ts tests/app/controllers/turn-flow-controller.test.ts tests/ui/diplomacy-panel.test.ts tests/presentation/register-diplomacy-presentation.test.ts tests/storage/save-persistence.test.ts`
+Run: `bash scripts/run-with-mise.sh yarn test --run tests/ai/ai-treaty-consent.test.ts tests/ai/ai-diplomacy.test.ts tests/ai/basic-ai.test.ts tests/ai/basic-ai-treaty-contact-guard.test.ts tests/systems/diplomatic-agreement-system.test.ts tests/systems/diplomacy-system.test.ts tests/systems/diplomacy-vassalage.test.ts tests/systems/strategic-arsenal-system.test.ts tests/app/controllers/diplomacy-actions-controller.test.ts tests/app/controllers/turn-flow-controller.test.ts tests/ui/diplomacy-panel.test.ts tests/ui/notification-delivery-regressions.test.ts tests/presentation/register-diplomacy-presentation.test.ts tests/storage/save-persistence.test.ts`
 
 Expected: PASS.
 
