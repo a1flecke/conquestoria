@@ -441,7 +441,7 @@ describe('diplomacy-system', () => {
       expect(result.civilizations.player.diplomacy.atWarWith).toEqual([]);
     });
 
-    it('still signs treaties between civs that have met', () => {
+    it('queues a treaty proposal when the recipient is human', () => {
       const state = createNewGame({
         civType: 'egypt',
         mapSize: 'medium',
@@ -457,12 +457,11 @@ describe('diplomacy-system', () => {
 
       const result = applyDiplomaticAction(state, 'ai-1', 'player', 'trade_agreement', new EventBus());
 
-      expect(result.civilizations['ai-1'].diplomacy.treaties).toContainEqual(
-        expect.objectContaining({ type: 'trade_agreement' }),
-      );
-      expect(result.civilizations.player.diplomacy.treaties).toContainEqual(
-        expect.objectContaining({ type: 'trade_agreement' }),
-      );
+      expect(result.civilizations['ai-1'].diplomacy.treaties).toHaveLength(0);
+      expect(result.civilizations.player.diplomacy.treaties).toHaveLength(0);
+      expect(result.pendingDiplomacyRequests).toContainEqual(expect.objectContaining({
+        type: 'treaty', treatyType: 'trade_agreement', fromCivId: 'ai-1', toCivId: 'player',
+      }));
     });
 
     it('applies Narnias treaty relationship bonus symmetrically when a treaty is signed', () => {
@@ -484,11 +483,13 @@ describe('diplomacy-system', () => {
           },
         },
       } as any;
+      state.civilizations.player.diplomacy.relationships['ai-egypt'] = 50;
+      state.civilizations['ai-egypt'].diplomacy.relationships.player = 50;
 
       const result = applyDiplomaticAction(state, 'player', 'ai-egypt', 'alliance', bus);
 
-      expect(getRelationship(result.civilizations.player.diplomacy, 'ai-egypt')).toBe(15);
-      expect(getRelationship(result.civilizations['ai-egypt'].diplomacy, 'player')).toBe(15);
+      expect(getRelationship(result.civilizations.player.diplomacy, 'ai-egypt')).toBe(65);
+      expect(getRelationship(result.civilizations['ai-egypt'].diplomacy, 'player')).toBe(65);
     });
 
     it('reabsorbs an eligible breakaway state instead of leaving the action as a no-op', () => {
@@ -519,7 +520,7 @@ describe('diplomacy-system', () => {
         .toThrow(/origin owner/i);
     });
 
-    it('arms_control_pact signs both sides immediately with the computed cap (#545 MR6)', () => {
+    it('does not bypass AI arms-control consent without known capability (#545 MR6)', () => {
       const state = createNewGame(undefined, 'arms-control-sign-test', 'small');
       state.civilizations.player.knownCivilizations = ['ai-1'];
       state.civilizations['ai-1'].knownCivilizations = ['player'];
@@ -528,12 +529,8 @@ describe('diplomacy-system', () => {
 
       const result = applyDiplomaticAction(state, 'player', 'ai-1', 'arms_control_pact', new EventBus());
 
-      expect(result.civilizations.player.diplomacy.treaties).toContainEqual(
-        expect.objectContaining({ type: 'arms_control_pact', civA: 'player', civB: 'ai-1', arsenalCap: 3 }),
-      );
-      expect(result.civilizations['ai-1'].diplomacy.treaties).toContainEqual(
-        expect.objectContaining({ type: 'arms_control_pact', civA: 'ai-1', civB: 'player', arsenalCap: 3 }),
-      );
+      expect(result.civilizations.player.diplomacy.treaties).toHaveLength(0);
+      expect(result.civilizations['ai-1'].diplomacy.treaties).toHaveLength(0);
     });
 
     it('arms_control_pact requires prior contact, same #435 guard as every other treaty type', () => {
@@ -548,6 +545,8 @@ describe('diplomacy-system', () => {
   describe('treaty proposals (#554)', () => {
     function makeTreatyState(): GameState {
       const state = createNewGame(undefined, 'treaty-proposal-test', 'small');
+      state.civilizations.player.knownCivilizations = ['ai-1'];
+      state.civilizations['ai-1'].knownCivilizations = ['player'];
       state.civilizations.player.diplomacy.relationships['ai-1'] = 40;
       state.civilizations['ai-1'].diplomacy.relationships.player = 40;
       state.pendingDiplomacyRequests = [];
@@ -569,7 +568,7 @@ describe('diplomacy-system', () => {
     it('dedupes: same pair+type proposal is not enqueued twice', () => {
       const state = makeTreatyState();
       let next = enqueueTreatyProposal(state, 'ai-1', 'player', 'open_borders', -1);
-      next = enqueueTreatyProposal(next, 'ai-1', 'player', 'open_borders', -1);
+      next = enqueueTreatyProposal(next, 'player', 'ai-1', 'open_borders', -1);
       expect(next.pendingDiplomacyRequests).toHaveLength(1);
     });
 
@@ -591,6 +590,19 @@ describe('diplomacy-system', () => {
       const requestId = next.pendingDiplomacyRequests![0].id;
       const after = acceptDiplomaticRequest(next, 'ai-1', requestId, bus); // proposer cannot self-accept
       expect(after.civilizations.player.diplomacy.treaties).toHaveLength(0);
+    });
+
+    it('drops a treaty proposal that becomes invalid before the recipient accepts it', () => {
+      const state = makeTreatyState();
+      const proposed = enqueueTreatyProposal(state, 'ai-1', 'player', 'trade_agreement', -1);
+      const requestId = proposed.pendingDiplomacyRequests![0].id;
+      proposed.civilizations.player.diplomacy.atWarWith = ['ai-1'];
+      proposed.civilizations['ai-1'].diplomacy.atWarWith = ['player'];
+
+      const accepted = acceptDiplomaticRequest(proposed, 'player', requestId, new EventBus());
+
+      expect(accepted.pendingDiplomacyRequests).toHaveLength(0);
+      expect(accepted.civilizations.player.diplomacy.treaties).toHaveLength(0);
     });
 
     it('reject clears the request with no relationship penalty', () => {

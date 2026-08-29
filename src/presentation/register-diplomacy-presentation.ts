@@ -8,6 +8,7 @@ import type { PresentationRegistrar } from '@/presentation/register-all';
 import {
   routeWarDeclared,
   routeTreatyProposed,
+  routeTreatyAccepted,
   routeFirstContact,
   routePeaceRequested,
   routePeaceMade,
@@ -21,6 +22,9 @@ export const registerDiplomacyPresentation: PresentationRegistrar = (bus, ctx) =
     }),
     bus.on('diplomacy:treaty-proposed', event => {
       routeTreatyProposed(ctx.session.getState(), event, ctx.notifier.deliver);
+    }),
+    bus.on('diplomacy:treaty-accepted', event => {
+      routeTreatyAccepted(ctx.session.getState(), event, ctx.notifier.deliver);
     }),
     bus.on('civilization:first-contact', ({ civA, civB }) => {
       // #551: routeFirstContact's sink is the delivery contract, which already

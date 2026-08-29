@@ -259,6 +259,18 @@ export function routeTreatyProposed(
   sink(event.toCiv, `${fromName} proposes a ${label}. Review it in the Diplomacy panel.`, 'info');
 }
 
+export function routeTreatyAccepted(
+  state: GameState,
+  event: GameEvents['diplomacy:treaty-accepted'],
+  sink: NotificationSink,
+): void {
+  const civA = state.civilizations[event.civA]?.name ?? 'Unknown';
+  const civB = state.civilizations[event.civB]?.name ?? 'Unknown';
+  const label = TREATY_LABELS[event.treaty];
+  sink(event.civA, `${civB} accepted the ${label}.`, 'success');
+  sink(event.civB, `You accepted the ${label} with ${civA}.`, 'success');
+}
+
 export function routeWarDeclared(
   state: GameState,
   attackerId: string,

@@ -15,6 +15,7 @@ import {
   routeFirstContact,
   routePeaceMade,
   routePeaceRequested,
+  routeTreatyAccepted,
   routeWarDeclared,
   routeStrategicWarning,
   routeCrisisStarted,
@@ -157,6 +158,17 @@ describe('notification routing', () => {
         type: 'info',
       }),
     ]);
+  });
+
+  it('treaty acceptance notifies both signatories and no third party', () => {
+    const state = makeState();
+    const { sink, calls } = makeSink();
+
+    routeTreatyAccepted(state, { civA: 'p1', civB: 'p2', treaty: 'trade_agreement' }, sink);
+
+    expect(calls.map(call => call.civId).sort()).toEqual(['p1', 'p2']);
+    expect(calls.every(call => call.type === 'success')).toBe(true);
+    expect(calls.find(call => call.civId === 'p3')).toBeUndefined();
   });
 
   it('routes treasury strain to the affected civilization with the rush-buy consequence', () => {

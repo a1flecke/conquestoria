@@ -74,15 +74,18 @@ describe('DiplomacyActionsController', () => {
   });
 
   describe('handleDiplomaticAction', () => {
-    it('request_peace enqueues a request, refreshes, and shows the peace-specific message', () => {
+    it('request_peace asks the AI target for consent and resolves accepted peace', () => {
       const { state, aiCivId } = makeFixture('diplomatic-action-peace');
+      state.civilizations.player.knownCivilizations = [aiCivId];
+      state.civilizations[aiCivId].knownCivilizations = ['player'];
+      state.civilizations.player.diplomacy.atWarWith = [aiCivId];
+      state.civilizations[aiCivId].diplomacy.atWarWith = ['player'];
       const { deps, controller } = build(state);
 
       controller.handleDiplomaticAction(aiCivId, 'request_peace');
 
-      expect(deps.session.getState().pendingDiplomacyRequests).toContainEqual(
-        expect.objectContaining({ fromCivId: 'player', toCivId: aiCivId, type: 'peace' }),
-      );
+      expect(deps.session.getState().pendingDiplomacyRequests).toEqual([]);
+      expect(deps.session.getState().civilizations.player.diplomacy.atWarWith).not.toContain(aiCivId);
       expect(deps.renderLoop.setGameState).toHaveBeenCalledWith(deps.session.getState());
       expect(deps.hud.update).toHaveBeenCalledTimes(1);
       expect(deps.openDiplomacyPanel).toHaveBeenCalledTimes(1);
@@ -140,6 +143,8 @@ describe('DiplomacyActionsController', () => {
   describe('handleAcceptTreatyProposal / handleDeclineTreatyProposal', () => {
     function proposalFixture(seed: string) {
       const { state, aiCivId } = makeFixture(seed);
+      state.civilizations.player.knownCivilizations = [aiCivId];
+      state.civilizations[aiCivId].knownCivilizations = ['player'];
       const withProposal = enqueueTreatyProposal(state, aiCivId, 'player', 'trade_agreement', 10);
       const requestId = withProposal.pendingDiplomacyRequests![0].id;
       return { state: withProposal, aiCivId, requestId };

@@ -19,8 +19,9 @@ import {
 import { resolveCivDefinition } from '@/systems/civ-registry';
 import { hasMetCivilization } from '@/systems/discovery-system';
 import { MINOR_CIV_DEFINITIONS } from '@/systems/minor-civ-definitions';
-import { computeArmsControlCap } from '@/systems/strategic-arsenal-system';
+import { computeArmsControlCap, hasKnownStrategicCapability, hasManhattanProject } from '@/systems/strategic-arsenal-system';
 import { isSuperweaponsEnabled } from '@/systems/superweapons-flag';
+import { evaluatePeaceConsent, evaluateTreatyConsent, type AgreementKind } from '@/ai/ai-treaty-consent';
 
 export function resolveOpponentKind(civId: string): 'major' | 'minor' | 'barbarian' {
   if (civId.startsWith('barbarian')) return 'barbarian';
@@ -377,6 +378,70 @@ export function hasArmsControlTreaty(state: GameState, civId: string): boolean {
   return state.builtNationalProjects?.[`${civId}:arms_control_treaty`] !== undefined;
 }
 
+function hasTreatyBetween(state: GameState, civA: string, civB: string, type: TreatyType): boolean {
+  return (state.civilizations[civA]?.diplomacy.treaties ?? []).some(t =>
+    t.type === type && ((t.civA === civA && t.civB === civB) || (t.civA === civB && t.civB === civA)));
+}
+
+/** The sole bilateral treaty mutation path once both parties have consented. */
+export function commitTreatyAgreement(state: GameState, civAId: string, civBId: string, type: Exclude<TreatyType, 'vassalage'>, bus: EventBus): GameState {
+  const civA = state.civilizations[civAId];
+  const civB = state.civilizations[civBId];
+  if (
+    !civA || !civB
+    || !hasMetCivilization(state, civAId, civBId)
+    || isAtWar(civA.diplomacy, civBId)
+    || isAtWar(civB.diplomacy, civAId)
+    || hasTreatyBetween(state, civAId, civBId, type)
+  ) return state;
+  const turns = type === 'non_aggression_pact' ? 10 : -1;
+  const cap = type === 'arms_control_pact' ? computeArmsControlCap(state, civAId, civBId) : undefined;
+  const aState = signTreaty(civA.diplomacy, civAId, civBId, type, turns, state.turn, cap);
+  const bState = signTreaty(civB.diplomacy, civBId, civAId, type, turns, state.turn, cap);
+  const aBonus = resolveCivDefinition(state, civA.civType ?? '')?.bonusEffect;
+  const bBonus = resolveCivDefinition(state, civB.civType ?? '')?.bonusEffect;
+  const relationshipBonus = (aBonus?.type === 'allied_kingdoms' ? aBonus.treatyRelationshipBonus : 0)
+    + (bBonus?.type === 'allied_kingdoms' ? bBonus.treatyRelationshipBonus : 0);
+  bus.emit('diplomacy:treaty-accepted', { civA: civAId, civB: civBId, treaty: type });
+  return {
+    ...state,
+    pendingDiplomacyRequests: (state.pendingDiplomacyRequests ?? []).filter(request =>
+      !(request.type === 'treaty' && request.treatyType === type
+        && ((request.fromCivId === civAId && request.toCivId === civBId) || (request.fromCivId === civBId && request.toCivId === civAId)))),
+    civilizations: {
+      ...state.civilizations,
+      [civAId]: { ...civA, diplomacy: relationshipBonus ? modifyRelationship(aState, civBId, relationshipBonus) : aState },
+      [civBId]: { ...civB, diplomacy: relationshipBonus ? modifyRelationship(bState, civAId, relationshipBonus) : bState },
+    },
+  };
+}
+
+export function proposeTreatyAgreement(state: GameState, fromCivId: string, toCivId: string, kind: AgreementKind, bus: EventBus): GameState {
+  const from = state.civilizations[fromCivId];
+  const target = state.civilizations[toCivId];
+  if (!from || !target) return state;
+  if (kind === 'peace') {
+    if (!isAtWar(from.diplomacy, toCivId) || !isAtWar(target.diplomacy, fromCivId)) return state;
+    if (target.isHuman) return enqueuePeaceRequest(state, fromCivId, toCivId, bus);
+    const consent = evaluatePeaceConsent({ kind, relationship: getRelationship(target.diplomacy, fromCivId), diplomacyFocus: resolveCivDefinition(state, target.civType)?.personality.diplomacyFocus ?? 0.5, targetHasKnownStrategicCapability: false, actorHasKnownStrategicCapability: false, targetVisibleStrength: 1, proposerVisibleStrength: 1 });
+    if (!consent.accepted) return state;
+    bus.emit('diplomacy:peace-made', { civA: fromCivId, civB: toCivId });
+    return cancelInvalidNetworkPlans({ ...state, civilizations: { ...state.civilizations, [fromCivId]: { ...from, diplomacy: makePeace(from.diplomacy, toCivId, state.turn) }, [toCivId]: { ...target, diplomacy: makePeace(target.diplomacy, fromCivId, state.turn) } } }).state;
+  }
+  if (hasTreatyBetween(state, fromCivId, toCivId, kind)) return state;
+  if (target.isHuman) return enqueueTreatyProposal(state, fromCivId, toCivId, kind, kind === 'non_aggression_pact' ? 10 : -1, bus);
+  const consent = evaluateTreatyConsent({
+    kind,
+    relationship: getRelationship(target.diplomacy, fromCivId),
+    diplomacyFocus: resolveCivDefinition(state, target.civType)?.personality.diplomacyFocus ?? 0.5,
+    targetHasKnownStrategicCapability: hasManhattanProject(state, toCivId),
+    actorHasKnownStrategicCapability: hasKnownStrategicCapability(state, toCivId, fromCivId),
+    targetVisibleStrength: 1,
+    proposerVisibleStrength: 1,
+  });
+  return consent.accepted ? commitTreatyAgreement(state, fromCivId, toCivId, kind, bus) : state;
+}
+
 export function canReabsorbBreakaway(
   state: GameState,
   ownerId: string,
@@ -435,65 +500,15 @@ export function applyDiplomaticAction(
         },
       };
     case 'request_peace':
-      return enqueuePeaceRequest(state, actorId, targetCivId, bus);
+      return proposeTreatyAgreement(state, actorId, targetCivId, 'peace', bus);
     case 'non_aggression_pact':
     case 'trade_agreement':
     case 'open_borders':
     case 'alliance': {
-      const actorTreatyBonus = resolveCivDefinition(state, actor.civType ?? '')?.bonusEffect;
-      const targetTreatyBonus = resolveCivDefinition(state, target.civType ?? '')?.bonusEffect;
-      const relationshipBonus =
-        (actorTreatyBonus?.type === 'allied_kingdoms' ? actorTreatyBonus.treatyRelationshipBonus : 0) +
-        (targetTreatyBonus?.type === 'allied_kingdoms' ? targetTreatyBonus.treatyRelationshipBonus : 0);
-      bus.emit('diplomacy:treaty-accepted', { civA: actorId, civB: targetCivId, treaty: action });
-      const actorTreatyState = signTreaty(
-        actor.diplomacy,
-        actorId,
-        targetCivId,
-        action,
-        action === 'non_aggression_pact' ? 10 : -1,
-        state.turn,
-      );
-      const targetTreatyState = signTreaty(
-        target.diplomacy,
-        targetCivId,
-        actorId,
-        action,
-        action === 'non_aggression_pact' ? 10 : -1,
-        state.turn,
-      );
-      return {
-        ...state,
-        civilizations: {
-          ...state.civilizations,
-          [actorId]: {
-            ...actor,
-            diplomacy: relationshipBonus > 0
-              ? modifyRelationship(actorTreatyState, targetCivId, relationshipBonus)
-              : actorTreatyState,
-          },
-          [targetCivId]: {
-            ...target,
-            diplomacy: relationshipBonus > 0
-              ? modifyRelationship(targetTreatyState, actorId, relationshipBonus)
-              : targetTreatyState,
-          },
-        },
-      };
+      return proposeTreatyAgreement(state, actorId, targetCivId, action, bus);
     }
     case 'arms_control_pact': {
-      const cap = computeArmsControlCap(state, actorId, targetCivId);
-      bus.emit('diplomacy:treaty-accepted', { civA: actorId, civB: targetCivId, treaty: action });
-      const actorTreatyState = signTreaty(actor.diplomacy, actorId, targetCivId, action, -1, state.turn, cap);
-      const targetTreatyState = signTreaty(target.diplomacy, targetCivId, actorId, action, -1, state.turn, cap);
-      return {
-        ...state,
-        civilizations: {
-          ...state.civilizations,
-          [actorId]: { ...actor, diplomacy: actorTreatyState },
-          [targetCivId]: { ...target, diplomacy: targetTreatyState },
-        },
-      };
+      return proposeTreatyAgreement(state, actorId, targetCivId, action, bus);
     }
     case 'reabsorb_breakaway': {
       const cityId = target.breakaway?.originCityId;
@@ -555,18 +570,6 @@ function buildPendingTreatyProposalId(
   return `treaty:${fromCivId}:${toCivId}:${treatyType}:${turn}`;
 }
 
-function isSameTreatyProposal(
-  request: PendingDiplomaticRequest,
-  fromCivId: string,
-  toCivId: string,
-  treatyType: TreatyType,
-): boolean {
-  return request.type === 'treaty'
-    && request.fromCivId === fromCivId
-    && request.toCivId === toCivId
-    && request.treatyType === treatyType;
-}
-
 export function getPendingTreatyProposalsFor(
   state: GameState,
   civId: string,
@@ -588,7 +591,10 @@ export function enqueueTreatyProposal(
   bus?: EventBus,
 ): GameState {
   const requests = state.pendingDiplomacyRequests ?? [];
-  if (requests.some(request => isSameTreatyProposal(request, fromCivId, toCivId, treatyType))) {
+  if (requests.some(request => request.type === 'treaty'
+    && request.treatyType === treatyType
+    && ((request.fromCivId === fromCivId && request.toCivId === toCivId)
+      || (request.fromCivId === toCivId && request.toCivId === fromCivId)))) {
     return state;
   }
 
@@ -671,27 +677,13 @@ export function acceptDiplomaticRequest(
   }
 
   if (request.type === 'treaty') {
-    const turns = request.turnsRemaining ?? -1;
-    const cap = request.treatyType === 'arms_control_pact'
-      ? computeArmsControlCap(state, request.fromCivId, request.toCivId)
-      : undefined;
-    const next = {
-      ...state,
-      pendingDiplomacyRequests: (state.pendingDiplomacyRequests ?? []).filter(candidate => candidate.id !== requestId),
-      civilizations: {
-        ...state.civilizations,
-        [request.fromCivId]: {
-          ...actor,
-          diplomacy: signTreaty(actor.diplomacy, request.fromCivId, request.toCivId, request.treatyType!, turns, state.turn, cap),
-        },
-        [request.toCivId]: {
-          ...target,
-          diplomacy: signTreaty(target.diplomacy, request.toCivId, request.fromCivId, request.treatyType!, turns, state.turn, cap),
-        },
-      },
-    };
-    bus.emit('diplomacy:treaty-accepted', { civA: request.fromCivId, civB: request.toCivId, treaty: request.treatyType! });
-    return next;
+    if (!request.treatyType || request.treatyType === 'vassalage') return rejectDiplomaticRequest(state, actingCivId, requestId);
+    const committed = commitTreatyAgreement(state, request.fromCivId, request.toCivId, request.treatyType, bus);
+    return committed === state ? rejectDiplomaticRequest(state, actingCivId, requestId) : committed;
+  }
+
+  if (!isAtWar(actor.diplomacy, request.toCivId) || !isAtWar(target.diplomacy, request.fromCivId)) {
+    return rejectDiplomaticRequest(state, actingCivId, requestId);
   }
 
   bus.emit('diplomacy:peace-made', { civA: request.fromCivId, civB: request.toCivId });
