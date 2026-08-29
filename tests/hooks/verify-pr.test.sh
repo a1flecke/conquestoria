@@ -39,6 +39,10 @@ esac
 EOF
 chmod +x "$tmp/bin/date"
 
+# Isolate the host-wide verification lease from the real one for this
+# machine (Phase 6 testability): verify-pr.sh's build call now acquires it.
+lease_root="$tmp/host-lease-root"
+
 call_log="$tmp/calls"
 date_state="$tmp/date-state"
 PATH="$tmp/bin:$PATH" \
@@ -47,6 +51,7 @@ PATH="$tmp/bin:$PATH" \
   VERIFY_PR_ARTIFACT_DIR="$tmp/artifacts" \
   VERIFY_PR_START_SECONDS=0 \
   VERIFY_PR_END_SECONDS=479 \
+  HOST_VERIFICATION_LEASE_ROOT="$lease_root" \
   sh "$VERIFY" > "$tmp/success.out"
 
 printf '%s\n' build test:durable test:durable:status > "$tmp/expected-calls"
@@ -73,6 +78,7 @@ PATH="$tmp/bin:$PATH" \
   VERIFY_PR_ARTIFACT_DIR="$tmp/artifacts" \
   VERIFY_PR_START_SECONDS=0 \
   VERIFY_PR_END_SECONDS=481 \
+  HOST_VERIFICATION_LEASE_ROOT="$lease_root" \
   sh "$VERIFY" > "$tmp/slow.out" 2>&1
 slow_status=$?
 set -e

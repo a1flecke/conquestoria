@@ -109,7 +109,17 @@ on_exit() {
 }
 trap on_exit EXIT
 
-if DURABLE_FAILURE_KIND_FILE="$failure_kind_file" "$@" > "$log" 2>&1; then
+# Lock order: the worktree-local durable lock above is always acquired
+# before the host-wide verification lease below -- this is the one
+# caller in the repo that acquires both, and it always does so in this
+# order, so there is no inversion risk with any other caller (see
+# ".claude/rules/hooks-and-tooling.md" -> "Host verification lease").
+# The host lease serializes actually running the heavyweight suite across
+# every worktree on this machine; it does not touch this worktree's
+# `.verification/` evidence directory or lock at all.
+if DURABLE_FAILURE_KIND_FILE="$failure_kind_file" \
+  sh "$repo_root/scripts/run-under-host-lease.sh" "durable $scope suite" -- "$@" \
+  > "$log" 2>&1; then
   test_exit_code=0
 else
   test_exit_code=$?

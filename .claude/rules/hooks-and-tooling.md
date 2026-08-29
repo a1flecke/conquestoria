@@ -54,9 +54,10 @@ paths:
 
 ## Concurrent local verification
 
-Routine `yarn test`, `test:fast`, `test:slow`, `build`, and `build:tauri` run
-concurrently across linked worktrees. Do not add a repository-wide lock around
-them: it turns unrelated agents into a queue and does not make a test suite
+Routine `yarn test`, `test:fast`, `test:slow`, `build`, and `build:tauri` --
+run directly by a developer or agent, not through the orchestrators below --
+stay fully concurrent across linked worktrees. Do not add a lock around
+those: it turns unrelated agents into a queue and does not make a test suite
 safer.
 
 When an agent needs a durable complete-suite result, use `yarn test:durable`.
@@ -65,14 +66,112 @@ cleans stale completed artifacts before starting, and refuses to overwrite a
 live run in that same worktree. Read it with `yarn test:durable:status`; a
 passing result is valid only when its recorded commit and working-tree state
 match the current worktree. Different worktrees keep independent durable
-evidence and must never share an artifact directory or a repository-wide
-verification lock.
+evidence and must never share an artifact directory.
 
 If the durable command's terminal stream is incomplete, first run
 `yarn test:durable:status`. Its completed result is authoritative even if the
 streamed output ended early. Inspect the process tree only when that command
 reports an active run; never report a completed durable run as still running
 solely because the terminal stream was truncated.
+
+### Host verification lease (#892)
+
+`yarn test:durable`, `scripts/verify-before-push.sh`'s test+build phases, and
+`scripts/verify-pr.sh`'s build step are the three *suite-scale* verification
+entrypoints in this repo -- each spawns a full Vitest worker pool (or a full
+`tsc`+Vite production build). Two of those overlapping on one machine across
+different worktrees can starve each other's workers: the incident that
+motivated this section was a "Timeout waiting for worker to respond" pool
+crash on one worktree while another worktree's durable run was mid-flight,
+which the durable runner then filed as a plain `product-test` failure because
+nothing inspected the log (see "Durable failure classification" below).
+
+`scripts/host-verification-lease.sh` (a sourceable library) and
+`scripts/run-under-host-lease.sh` (its `<label> -- <command>` CLI wrapper)
+provide ONE host-wide mutual-exclusion slot, implemented as an atomic `mkdir`
+lease under `<git-common-dir>/conquestoria-verification-lease` -- shared by
+every linked worktree of one clone (same host, by construction), and never
+shared across an unrelated clone or user. This is deliberately narrower than
+"a repository-wide verification lock": it does not touch `.verification/`,
+does not touch Vite/Vitest caches, and does not gate the routine commands
+listed above -- only the three orchestrators do:
+
+- `run-durable-test-suite.sh` acquires it around the test command it runs,
+  after its own worktree-local `.lock` (see "Lock order" below).
+- `verify-before-push.sh` acquires it around its test-phase-then-build-phase
+  sequence (both under one acquisition -- there is nothing else in that
+  script worth releasing the slot in between for).
+- `verify-pr.sh` acquires it, separately, around its own `yarn build` call
+  (its `yarn test:durable` call already acquires it again internally, so
+  this is two short sequential acquisitions rather than one held across
+  both, to avoid a process ever waiting on a lease it already holds).
+- Focused Vitest runs, watch mode, and CI (`CI` is checked and treated as an
+  immediate no-op) never acquire it.
+
+A waiting process reports the holder's pid, command label, worktree, and
+elapsed wait time every ~15s (not every second) until it can acquire, and is
+cleanly cancellable via SIGINT/SIGTERM without disturbing whichever process
+still legitimately holds the lease. Stale-lease recovery defends against a
+creator that crashed between `mkdir` and writing its metadata (short grace),
+PID reuse (a live pid whose recorded process-start marker no longer matches
+what `ps -o lstart=` reports for that pid now), and a lease whose liveness
+cannot be verified at all such as a hostname mismatch (long grace -- this
+lease root is chosen to be same-host-only, so this should not trigger in
+practice, but it exists so a corrupt lease cannot block development
+forever). See `tests/hooks/host-verification-lease.test.sh` for the full
+concurrency contract (acquire/wait/release, cancellation, all stale-recovery
+cases, and multi-worktree coordination through one injected lease root).
+
+### Lock order
+
+Two independent locking layers exist for local verification, and there is
+exactly one caller that acquires both:
+
+1. **Worktree-local durable lock** (`.verification/<scope>-suite.lock`,
+   `mkdir`-based) -- prevents two durable runs from racing in the *same*
+   worktree. Owned entirely by `run-durable-test-suite.sh`.
+2. **Host-wide verification lease** (above) -- prevents two suite-scale
+   verification runs from racing across *different* worktrees on the same
+   machine.
+
+`run-durable-test-suite.sh` acquires (1) first, then (2) around the actual
+test invocation, and releases in the reverse order (its `trap on_exit EXIT`
+always fires after the host lease's own `trap hvl_release EXIT` has already
+run, since the host lease is acquired and released entirely within the
+`"$@"` invocation nested inside the worktree lock's critical section). No
+other script in this repo acquires both locks, so there is no ordering
+inversion to guard against between callers -- `verify-before-push.sh` and
+`verify-pr.sh` only ever acquire (2).
+
+### Durable failure classification (#892)
+
+`run-test-suite.sh`'s `full` mode captures Vitest's combined stdout/stderr
+(still streamed live via `tee`, so interactive `yarn test` is unchanged) and
+classifies a non-zero exit before writing `DURABLE_FAILURE_KIND_FILE`,
+instead of assuming every non-zero exit is a product-test failure:
+
+- `Failed Tests <N>` in the log (Vitest's own reporter banner, only printed
+  when it actually collected failing assertions) -> `product-test`. This
+  check runs first and wins even if a pool error also appears in the same
+  log -- a real product failure must never be hidden by an unrelated runner
+  hiccup that happened alongside it.
+- Otherwise, `[vitest-pool-runner]:` (the tagged prefix Vitest 4's own
+  worker-pool runner uses for its internal errors, including "Timeout
+  waiting for worker to respond" -- verified against the installed
+  `vitest` package's `chunks/cli-api.*.js`), `Worker exited unexpectedly`,
+  or Node's own `FATAL ERROR` out-of-memory banner -> `runner-infrastructure`.
+- Anything else (an unrecognized crash shape) -> `product-test`, the same
+  safe default the classifier had before this existed. `if exit != 0 =>
+  infrastructure` is exactly the naive heuristic this replaces, not a
+  fallback to reach for: an unrecognized failure must never be classified
+  away as infrastructure.
+
+`read-durable-test-result.sh` includes the recorded `failure_kind` in its
+failure message when one was recorded. See
+`tests/hooks/run-test-suite-classification.test.sh` for the fixture-driven
+positive/negative cases (including the "mixed output" precedence case) plus
+one real Vitest invocation that keeps the fixture text honest against the
+actually-installed Vitest version.
 
 Vitest's worker limit applies to one process, not the whole machine. The config
 uses 25% of the available CPU locally, leaving capacity for four simultaneous

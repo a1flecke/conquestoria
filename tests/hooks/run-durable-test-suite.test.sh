@@ -18,9 +18,14 @@ READER="$ROOT/scripts/read-durable-test-result.sh"
 
 tmpdir="$(mktemp -d)"
 trap 'rm -rf "$tmpdir"' EXIT
+# Isolate the host-wide verification lease from the real one for this
+# machine (Phase 6 testability): every run-durable-test-suite.sh
+# invocation below now acquires it internally, so it must never touch real
+# host state.
+export HOST_VERIFICATION_LEASE_ROOT="$tmpdir/host-lease-root"
 repo="$tmpdir/worktree-a"
 mkdir -p "$repo/scripts"
-cp "$RUNNER" "$READER" "$repo/scripts/"
+cp "$RUNNER" "$READER" "$ROOT/scripts/host-verification-lease.sh" "$ROOT/scripts/run-under-host-lease.sh" "$repo/scripts/"
 cp "$ROOT/.gitignore" "$repo/.gitignore"
 
 git -C "$repo" init -q

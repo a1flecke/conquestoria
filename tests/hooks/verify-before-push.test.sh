@@ -17,7 +17,12 @@ fake_bin="$tmpdir/bin"
 command_log="$tmpdir/commands.log"
 mkdir -p "$fake_bin" "$tmpdir/scripts"
 cp "$VERIFIER" "$tmpdir/scripts/verify-before-push.sh"
+cp "$ROOT/scripts/host-verification-lease.sh" "$tmpdir/scripts/host-verification-lease.sh"
 printf 'export default {};\n' > "$tmpdir/scripts/run-with-timeout.mjs"
+# Isolate the host-wide verification lease from the real one for this
+# machine (Phase 6 testability): verify-before-push.sh now acquires it
+# around its test+build phases.
+export HOST_VERIFICATION_LEASE_ROOT="$tmpdir/host-lease-root"
 
 cat > "$fake_bin/node" <<'EOF'
 #!/bin/sh

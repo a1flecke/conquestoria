@@ -53,7 +53,12 @@ fi
 
 exit_code="$(field exit_code)"
 if [ "$exit_code" != '0' ]; then
-  echo "Durable $scope test run failed with exit code ${exit_code:-unknown}; inspect $status." >&2
+  failure_kind="$(field failure_kind)"
+  if [ -n "$failure_kind" ] && [ "$failure_kind" != 'none' ]; then
+    echo "Durable $scope test run failed with exit code ${exit_code:-unknown} (failure_kind=$failure_kind); inspect $status." >&2
+  else
+    echo "Durable $scope test run failed with exit code ${exit_code:-unknown}; inspect $status." >&2
+  fi
   exit 1
 fi
 
