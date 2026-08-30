@@ -144,6 +144,45 @@ describe('outbreak resolver', () => {
     }
   });
 
+  // #919 MR1: a city cured by a remedy cannot be re-infected by the same crisis for a
+  // short window, so a wide empire stops playing whack-a-mole.
+  it('records curedUntilTurn when a remedy completes, widened by epidemic-control', () => {
+    const { state } = withCrisis({ cityIds: ['c1', 'c2'], remedyCompletionByCity: { c1: 41 } });
+    const base = processCrisisTurn({ ...state, turn: 41 }, new EventBus());
+    expect(base.activeCrises?.['crisis-1'].curedUntilTurn).toEqual({ c1: 44 }); // 41 + 3
+
+    const civId = state.currentPlayer;
+    const withEc: GameState = {
+      ...state,
+      civilizations: {
+        ...state.civilizations,
+        [civId]: {
+          ...state.civilizations[civId],
+          techState: {
+            ...state.civilizations[civId].techState,
+            completed: [...state.civilizations[civId].techState.completed, 'epidemic-control'],
+          },
+        },
+      },
+    };
+    const ec = processCrisisTurn({ ...withEc, turn: 41 }, new EventBus());
+    expect(ec.activeCrises?.['crisis-1'].curedUntilTurn).toEqual({ c1: 47 }); // 41 + 6
+  });
+
+  it('does not re-infect a city while it is inside the post-cure immunity window', () => {
+    const { state } = withCrisis({ cityIds: ['c1', 'c2'], remedyCompletionByCity: { c1: 41 } });
+    let next: GameState = { ...state, turn: 41 };
+    const c1ReinfectedTurns: number[] = [];
+    for (let t = 41; t <= 90; t++) {
+      next = processCrisisTurn({ ...next, turn: t }, new EventBus());
+      const crisis = next.activeCrises?.['crisis-1'];
+      if (!crisis) break;
+      if (crisis.cityIds.includes('c1')) c1ReinfectedTurns.push(t);
+    }
+    // Cured turn 41, window 3 => curedUntilTurn 44 => earliest possible re-infection turn 45.
+    expect(c1ReinfectedTurns.every(t => t >= 45)).toBe(true);
+  });
+
   it('explorer auto-expiry resolves the crisis as expired', () => {
     const { state } = makeCrisisFixture({ era: 3, turn: 40, challenge: 'explorer' });
     const crisis: ActiveCrisis = {

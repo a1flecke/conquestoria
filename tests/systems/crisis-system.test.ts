@@ -1,10 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import { EventBus } from '@/core/event-bus';
-import { processCrisisScheduler, countActiveCrisesForCiv, countUnrestGroups, getCrisisYieldMultiplier, getFamineFragility } from '@/systems/crisis-system';
+import { processCrisisScheduler, processCrisisTurn, countActiveCrisesForCiv, countUnrestGroups, getCrisisYieldMultiplier, getFamineFragility } from '@/systems/crisis-system';
 import { getCrisisFlavor } from '@/systems/crisis-flavor-definitions';
 import { makeCrisisFixture } from './helpers/crisis-fixture';
 import { hexKey } from '@/systems/hex-utils';
-import type { GameState } from '@/core/types';
+import type { ActiveCrisis, GameState } from '@/core/types';
 
 describe('crisis scheduler', () => {
   it('fires a crisis for an idle human past grace', () => {
@@ -232,5 +232,21 @@ describe('#590 MR3 — famine fragility scheduler weighting', () => {
     const mixedShare = famineShare('mixed');
     expect(poorShare).toBeGreaterThan(mixedShare);
     expect(mixedShare).toBeGreaterThan(0); // "rarely", never "never" — floor keeps it reachable
+  });
+});
+
+describe('#919 MR1 — post-cure re-infection immunity bookkeeping', () => {
+  it('prunes expired curedUntilTurn entries so the map stays bounded', () => {
+    const { state } = makeCrisisFixture({ era: 3, turn: 40, challenge: 'standard' });
+    const crisis: ActiveCrisis = {
+      id: 'crisis-1', flavorId: 'plague', archetype: 'outbreak', targetCivId: 'p1',
+      cityIds: ['c1'], tileKeys: [], startedTurn: 38, stage: 'active', turnsInStage: 2,
+      curedUntilTurn: { cOld: 5, cRecent: 999 },
+    };
+    const next = processCrisisTurn(
+      { ...state, turn: 50, activeCrises: { 'crisis-1': crisis } },
+      new EventBus(),
+    );
+    expect(next.activeCrises?.['crisis-1'].curedUntilTurn).toEqual({ cRecent: 999 }); // cOld (5 < 50) pruned
   });
 });

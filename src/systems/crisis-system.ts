@@ -22,6 +22,19 @@ export const CRISIS_PRESSURE_FLOOR = 2.0;
 export const EXTERNAL_THREAT_RECENCY_TURNS = 5;
 export const CONTAGION_GROUP_RANGE = 3;
 
+// #919 MR1: after a remedy completes in a city it cannot be re-infected by the same
+// crisis for this many turns. Base window vs. the epidemic-control (era 6) window.
+export const OUTBREAK_CURE_IMMUNITY_TURNS = 3;
+export const OUTBREAK_CURE_IMMUNITY_TURNS_EPIDEMIC_CONTROL = 6;
+
+export function cureImmunityWindow(
+  civ: { techState: { completed: string[] } } | undefined,
+): number {
+  return civ?.techState.completed.includes('epidemic-control')
+    ? OUTBREAK_CURE_IMMUNITY_TURNS_EPIDEMIC_CONTROL
+    : OUTBREAK_CURE_IMMUNITY_TURNS;
+}
+
 export function countUnrestGroups(state: GameState, civId: string): number {
   const cities = (state.civilizations[civId]?.cities ?? [])
     .map(id => state.cities[id])
@@ -205,6 +218,15 @@ function hashString(s: string): number {
   return h;
 }
 
+// #919 MR1: drop expired re-infection-immunity entries so curedUntilTurn stays bounded.
+function pruneExpiredCureImmunity(crisis: ActiveCrisis, turn: number): ActiveCrisis {
+  if (!crisis.curedUntilTurn) return crisis;
+  const live = Object.fromEntries(
+    Object.entries(crisis.curedUntilTurn).filter(([, until]) => until >= turn),
+  );
+  return { ...crisis, curedUntilTurn: Object.keys(live).length > 0 ? live : undefined };
+}
+
 function tickOutbreakCrisis(
   state: GameState,
   crisis: ActiveCrisis,
@@ -224,20 +246,25 @@ function tickOutbreakCrisis(
   }
   const remedyPaused = working.sabotage !== undefined && working.sabotage.untilTurn > state.turn;
 
+  working = pruneExpiredCureImmunity(working, state.turn); // #919 MR1
+
   // Remedy completion
   if (working.remedyCompletionByCity && !remedyPaused) {
     const remaining: Record<string, number> = {};
     let cityIds = working.cityIds;
     let quarantinedCityIds = working.quarantinedCityIds;
+    const curedUntilTurn: Record<string, number> = { ...(working.curedUntilTurn ?? {}) };
+    const civ = nextState.civilizations[working.targetCivId];
     for (const [cityId, completionTurn] of Object.entries(working.remedyCompletionByCity)) {
       if (state.turn >= completionTurn) {
         cityIds = cityIds.filter(id => id !== cityId);
         quarantinedCityIds = quarantinedCityIds?.filter(id => id !== cityId);
+        curedUntilTurn[cityId] = state.turn + cureImmunityWindow(civ); // #919 MR1
       } else {
         remaining[cityId] = completionTurn;
       }
     }
-    working = { ...working, cityIds, quarantinedCityIds, remedyCompletionByCity: remaining };
+    working = { ...working, cityIds, quarantinedCityIds, remedyCompletionByCity: remaining, curedUntilTurn };
   }
 
   if (working.cityIds.length === 0) {
@@ -280,7 +307,10 @@ function tickOutbreakCrisis(
     const boost = flavor.spreadBoostPredicate?.(nextState, city) ? 0.15 : 0;
     if (rng() >= 0.20 + boost) continue;
     const candidates = Object.values(nextState.cities)
-      .filter(c => c.owner === owner && !working.cityIds.includes(c.id));
+      .filter(c =>
+        c.owner === owner &&
+        !working.cityIds.includes(c.id) &&
+        !(working.curedUntilTurn?.[c.id] !== undefined && working.curedUntilTurn[c.id] >= nextState.turn)); // #919 MR1
     if (candidates.length === 0) continue;
     const target = candidates.reduce((closest, c) =>
       mapDistance(nextState.map, c.position, city.position) < mapDistance(nextState.map, closest.position, city.position) ? c : closest);
@@ -317,6 +347,8 @@ function tickFamineCrisis(
   }
   const remedyPaused = working.sabotage !== undefined && working.sabotage.untilTurn > state.turn;
 
+  working = pruneExpiredCureImmunity(working, state.turn); // #919 MR1
+
   // Remedy completion — identical shape to tickOutbreakCrisis, plus clearing any
   // surplus-streak bookkeeping for a city that just left via remedy.
   if (working.remedyCompletionByCity && !remedyPaused) {
@@ -324,10 +356,13 @@ function tickFamineCrisis(
     let cityIds = working.cityIds;
     let quarantinedCityIds = working.quarantinedCityIds;
     let surplusStreak = working.famineSurplusStreakByCity;
+    const curedUntilTurn: Record<string, number> = { ...(working.curedUntilTurn ?? {}) };
+    const civ = nextState.civilizations[working.targetCivId];
     for (const [cityId, completionTurn] of Object.entries(working.remedyCompletionByCity)) {
       if (state.turn >= completionTurn) {
         cityIds = cityIds.filter(id => id !== cityId);
         quarantinedCityIds = quarantinedCityIds?.filter(id => id !== cityId);
+        curedUntilTurn[cityId] = state.turn + cureImmunityWindow(civ); // #919 MR1
         if (surplusStreak && cityId in surplusStreak) {
           const { [cityId]: _removed, ...rest } = surplusStreak;
           surplusStreak = rest;
@@ -336,7 +371,7 @@ function tickFamineCrisis(
         remaining[cityId] = completionTurn;
       }
     }
-    working = { ...working, cityIds, quarantinedCityIds, remedyCompletionByCity: remaining, famineSurplusStreakByCity: surplusStreak };
+    working = { ...working, cityIds, quarantinedCityIds, remedyCompletionByCity: remaining, famineSurplusStreakByCity: surplusStreak, curedUntilTurn };
   }
 
   if (working.cityIds.length === 0) {
@@ -387,7 +422,10 @@ function tickFamineCrisis(
     const boost = flavor.spreadBoostPredicate?.(nextState, city) ? 0.15 : 0;
     if (rng() >= 0.20 + boost) continue;
     const candidates = Object.values(nextState.cities)
-      .filter(c => c.owner === owner && !working.cityIds.includes(c.id));
+      .filter(c =>
+        c.owner === owner &&
+        !working.cityIds.includes(c.id) &&
+        !(working.curedUntilTurn?.[c.id] !== undefined && working.curedUntilTurn[c.id] >= nextState.turn)); // #919 MR1
     if (candidates.length === 0) continue;
     const target = candidates.reduce((closest, c) =>
       mapDistance(nextState.map, c.position, city.position) < mapDistance(nextState.map, closest.position, city.position) ? c : closest);
