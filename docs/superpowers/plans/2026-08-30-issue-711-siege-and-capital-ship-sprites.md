@@ -418,12 +418,12 @@ No player panel, queue, game rule, or renderer-control interaction changes. The 
   git commit -m "docs(711): capture siege and capital ship sprite review"
   ```
 
-### Task 7: Run the branch-level verification before delivery or publication
+### Task 7: Run the branch-level verification before delivery or publication — ✅ implemented locally; verification recorded
 
 **Files:**
 - Modify: `docs/superpowers/plans/2026-08-30-issue-711-siege-and-capital-ship-sprites.md` only to record completed verification status.
 
-- [ ] **Step 1: Run durable verification separately from the build.**
+- [x] **Step 1: Run durable verification separately from the build.**
 
   Run:
 
@@ -435,7 +435,7 @@ No player panel, queue, game rule, or renderer-control interaction changes. The 
 
   Expected: the durable status accepts a passed result for the current `HEAD` and working tree. If streamed durable output is incomplete, use `test:durable:status` as the authoritative result before inspecting a process.
 
-- [ ] **Step 2: Reinspect the exact final diff and working tree.**
+- [x] **Step 2: Reinspect the exact final diff and working tree.**
 
   Run:
 
@@ -449,7 +449,7 @@ No player panel, queue, game rule, or renderer-control interaction changes. The 
 
   Expected: no whitespace errors; only #711 sprite, serializer, review, test, and plan files are present; no unreviewed local delta remains.
 
-- [ ] **Step 3: Update the plan status and commit only the status update.**
+- [x] **Step 3: Update the plan status and commit only the status update.**
 
   Replace each locally completed checkbox with `- [x]` and add `✅ implemented locally; verification recorded` to each completed task heading. Do not write `merged` until a PR is merged.
 
