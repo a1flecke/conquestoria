@@ -126,4 +126,35 @@ describe('#590 MR3 — famine resolver', () => {
     working = processCrisisTurn(working, new EventBus());
     expect(working.activeCrises?.['crisis-1']).toBeUndefined();
   });
+
+  // #919 MR1: parity with tickOutbreakCrisis — a city importing grain (remedy underway)
+  // no longer contributes to famine spread.
+  it('a city with a remedy underway does not spread the famine', () => {
+    // Control: no remedy => at least one spread event fires over many turns.
+    {
+      const { state } = withFamineCrisis({}, { population: 50 });
+      const bus = new EventBus();
+      const spreadFrom: string[] = [];
+      bus.on('crisis:spread', e => spreadFrom.push(e.fromCityId));
+      let working = state;
+      for (let i = 0; i < 30; i++) {
+        working = processCrisisTurn({ ...working, turn: working.turn + 1 }, bus);
+        if (!working.activeCrises?.['crisis-1']) break;
+      }
+      expect(spreadFrom).toContain('c1');
+    }
+    // With a remedy pending forever, c1 never spreads.
+    {
+      const { state } = withFamineCrisis({ remedyCompletionByCity: { c1: 999 } }, { population: 50 });
+      const bus = new EventBus();
+      const spreadFrom: string[] = [];
+      bus.on('crisis:spread', e => spreadFrom.push(e.fromCityId));
+      let working = state;
+      for (let i = 0; i < 30; i++) {
+        working = processCrisisTurn({ ...working, turn: working.turn + 1 }, bus);
+        if (!working.activeCrises?.['crisis-1']) break;
+      }
+      expect(spreadFrom).not.toContain('c1');
+    }
+  });
 });

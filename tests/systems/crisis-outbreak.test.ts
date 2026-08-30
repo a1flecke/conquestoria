@@ -120,6 +120,30 @@ describe('outbreak resolver', () => {
     expect(s.activeCrises!['crisis-1'].cityIds.length).toBeGreaterThan(1);
   });
 
+  // #919 MR1: a city with a remedy underway must stop contributing to spread
+  // (previously only quarantine did).
+  it('a city with a remedy underway does not spread the outbreak', () => {
+    // Control: with no remedy, the single infected city spreads to c2 within a few turns.
+    {
+      let s: GameState = withCrisis({ cityIds: ['c1'] }).state;
+      for (let i = 0; i < 30; i++) {
+        s = processCrisisTurn({ ...s, turn: s.turn + 1 }, new EventBus());
+        if (!s.activeCrises?.['crisis-1']) break;
+      }
+      expect(s.activeCrises!['crisis-1'].cityIds.length).toBeGreaterThan(1);
+    }
+    // With a remedy pending forever, the infected city never spreads.
+    {
+      let s: GameState = withCrisis({ cityIds: ['c1'], remedyCompletionByCity: { c1: 999 } }).state;
+      for (let i = 0; i < 30; i++) {
+        s = processCrisisTurn({ ...s, turn: s.turn + 1 }, new EventBus());
+        const crisis = s.activeCrises?.['crisis-1'];
+        if (!crisis) break;
+        expect(crisis.cityIds).toEqual(['c1']);
+      }
+    }
+  });
+
   it('explorer auto-expiry resolves the crisis as expired', () => {
     const { state } = makeCrisisFixture({ era: 3, turn: 40, challenge: 'explorer' });
     const crisis: ActiveCrisis = {

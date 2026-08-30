@@ -273,6 +273,7 @@ function tickOutbreakCrisis(
   const owner = working.targetCivId;
   for (const cityId of [...working.cityIds]) {
     if (working.quarantinedCityIds?.includes(cityId)) continue;
+    if (working.remedyCompletionByCity?.[cityId] !== undefined) continue; // #919 MR1: a remedy-underway city no longer spreads
     const city = nextState.cities[cityId];
     if (!city) continue;
     const rng = seededLcg(nextState.turn * 104729 + hashString(working.id + cityId));
@@ -379,6 +380,7 @@ function tickFamineCrisis(
   const owner = working.targetCivId;
   for (const cityId of [...working.cityIds]) {
     if (working.quarantinedCityIds?.includes(cityId)) continue;
+    if (working.remedyCompletionByCity?.[cityId] !== undefined) continue; // #919 MR1: parity with tickOutbreakCrisis
     const city = nextState.cities[cityId];
     if (!city) continue;
     const rng = seededLcg(nextState.turn * 104729 + hashString(working.id + cityId));
