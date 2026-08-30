@@ -132,9 +132,9 @@ function makeState(opts: MakeStateOpts = {}): GameState {
   } as GameState;
 
   if (criticalEconomy) {
-    (state as GameState & { economyStatusByCiv: Record<string, unknown> }).economyStatusByCiv = {
-      player: { unpaidMaintenance: 999 },
-    };
+    // normalizeEconomyStatus() recomputes strainLevel from unpaidMaintenance, so a large
+    // unpaid figure is enough to force 'critical' regardless of the other fields.
+    state.economyStatusByCiv = { player: { unpaidMaintenance: 999 } as never };
   }
   return state;
 }
