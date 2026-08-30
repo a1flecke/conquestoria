@@ -2539,6 +2539,8 @@ export interface GameEvents {
   'crisis:foe-hunted-by-ally': { crisisId: string; killerCivId: string; targetCivId: string; foeName?: string };
   // #526 MR6 send_aid interaction.
   'crisis:aid-sent': { crisisId: string; actorCivId: string; targetCivId: string; goldCost: number };
+  // #919 MR1: fired once when a civ funds a nationwide remedy (applyEmpireContainment).
+  'crisis:contained': { crisisId: string; civId: string; cityCount: number; goldCost: number };
   /** One-time, target-scoped Beast Stampede presentation transition. */
   'stampede:lifecycle':
     | { kind: 'warning'; targetCivId: string }
