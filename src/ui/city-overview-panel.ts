@@ -128,9 +128,12 @@ export function createCityOverviewPanel(
         const { icon, text } = unrestRecommendationCopy(lever);
         const leverLine = document.createElement('div');
         leverLine.dataset.topLever = lever.kind;
+        leverLine.dataset.availability = lever.availability;
+        // Greyed when the lever isn't actionable this turn; the copy itself already
+        // says "first" / "later", so no extra marker is needed.
         const grey = lever.availability !== 'now';
         leverLine.style.cssText = `margin-top:8px;font-size:12px;line-height:1.4;color:${grey ? 'rgba(255,255,255,0.55)' : '#cfe6ff'};`;
-        leverLine.textContent = `${icon} ${text}${lever.availability === 'research-first' ? '  (research it first)' : ''}`;
+        leverLine.textContent = `${icon} ${text}`;
         row.appendChild(leverLine);
       }
 

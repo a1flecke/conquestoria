@@ -2672,6 +2672,24 @@ describe('city-panel unrest recommendations — #919 MR3', () => {
 
     expect(panel.querySelectorAll('[data-recommendation-row]')).toHaveLength(0);
   });
+
+  it('recommendations are computed from the panel city\'s owner, not currentPlayer (hot-seat)', () => {
+    const { container, state } = makeWonderPanelFixture();
+    // The fixture already has a second civ ('rival') with its own city ('city-rival').
+    // Make that civ the active human player and put its city in unrest + a war.
+    const rivalCity = state.cities['city-rival'];
+    rivalCity.unrestLevel = 1;
+    state.currentPlayer = 'rival';
+    state.civilizations.rival.isHuman = true;
+    state.civilizations.rival.diplomacy.atWarWith = ['player'];
+
+    const panel = createCityPanel(container, rivalCity, state, cb());
+
+    const joined = Array.from(panel.querySelectorAll('[data-recommendation-row]'))
+      .map(s => s.textContent).join(' ');
+    expect(joined).toMatch(/→/);
+    expect(joined).toMatch(/Make peace/); // War weariness row resolved for the rival civ
+  });
 });
 
 describe('concede vs appease copy (#552)', () => {

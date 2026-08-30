@@ -31,15 +31,17 @@ describe('unrestRecommendationCopy', () => {
     expect(text).toMatch(/1 empire\b/);
   });
 
-  it('await-conquest-settle states the turns left, and appends the Constitutional Law note only when flagged', () => {
-    const bare = unrestRecommendationCopy(rec({ kind: 'await-conquest-settle', params: { turnsLeft: 6 } })).text;
-    expect(bare).toMatch(/\b6\b/);
-    expect(bare).not.toMatch(/constitutional law/i);
+  it('await-conquest-settle states the turns left and is self-contained (no tech jargon)', () => {
+    const { text } = unrestRecommendationCopy(rec({ kind: 'await-conquest-settle', params: { turnsLeft: 6 } }));
+    expect(text).toMatch(/\b6\b/);
+    expect(text).not.toMatch(/constitutional law/i);
+  });
 
-    const withNote = unrestRecommendationCopy(rec({
-      kind: 'await-conquest-settle', params: { turnsLeft: 6, suggestConstitutionalLaw: true },
-    })).text;
-    expect(withNote).toMatch(/constitutional law/i);
+  it('research-constitutional-law is framed as a "later" secondary note, not a now-action', () => {
+    const { text } = unrestRecommendationCopy(rec({ kind: 'research-constitutional-law', availability: 'research-first' }));
+    expect(text).toMatch(/constitutional law/i);
+    expect(text).toMatch(/later/i);
+    expect(text).toMatch(/tech screen/i);
   });
 
   it('every kind returns a non-empty icon and text', () => {
