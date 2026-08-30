@@ -1144,3 +1144,87 @@ describe('unrest pressure breakdown (#552)', () => {
     });
   });
 });
+
+describe('#919 MR2 — Courthouse unrest relief row', () => {
+  // makeState: civ has (cityCount + 1) cities. city-1 at cityPosition, capital at capitalPosition.
+  // Post-nudge positive rows: overext = min(30, max(0, (cityCount + 1 - 6) * 3));
+  //                           dist   = min(20, max(0, (hexDistance(city, capital) - 5) * 2)).
+  // Courthouse row (from the already-built positive rows):
+  //   rawSprawl = distRow + overextRow
+  //   uncapped  = round(0.5 * distRow) + min(3, overextRow)
+  //   relief    = min(uncapped, max(0, rawSprawl - 2))
+  //   row       = { label: 'Courthouse', amount: -relief }  (omitted if relief === 0)
+
+  function courthouseRowAmount(state: GameState, cityId = 'city-1'): number | undefined {
+    const rows = getUnrestPressureBreakdown(cityId, addBuilding(state, cityId, 'courthouse'), 0);
+    return rows.find(r => r.label === 'Courthouse')?.amount;
+  }
+
+  it('8 cities, city 9 hexes out -> Courthouse -7', () => {
+    // cityCount 7 -> 8 civ cities -> overext (8-6)*3 = 6.
+    // hexDistance 9 from capital -> dist (9-5)*2 = 8. rawSprawl 14.
+    // uncapped round(4) + min(3,6) = 7. relief min(7, 14-2) = 7.
+    const state = makeState({ cityCount: 7, cityPosition: { q: 9, r: 0 }, capitalPosition: { q: 0, r: 0 } });
+    expect(courthouseRowAmount(state)).toBe(-7);
+  });
+
+  it('12 cities, city 6 hexes out -> Courthouse -4', () => {
+    // cityCount 11 -> 12 civ cities -> overext (12-6)*3 = 18.
+    // hexDistance 6 -> dist (6-5)*2 = 2. rawSprawl 20.
+    // uncapped round(1) + min(3,18) = 4. relief min(4, 18) = 4.
+    const state = makeState({ cityCount: 11, cityPosition: { q: 6, r: 0 }, capitalPosition: { q: 0, r: 0 } });
+    expect(courthouseRowAmount(state)).toBe(-4);
+  });
+
+  it('20 cities, city 12 hexes out -> Courthouse -10 (overext row capped at 30)', () => {
+    // cityCount 19 -> 20 civ cities -> overext min(30, (20-6)*3=42) = 30.
+    // hexDistance 12 -> dist min(20, (12-5)*2=14) = 14. rawSprawl 44.
+    // uncapped round(7) + min(3,30) = 10. relief min(10, 42) = 10.
+    const state = makeState({ cityCount: 19, cityPosition: { q: 12, r: 0 }, capitalPosition: { q: 0, r: 0 } });
+    expect(courthouseRowAmount(state)).toBe(-10);
+  });
+
+  it('7 cities, city <=5 hexes out -> Courthouse -1 (residual floor leaves net sprawl 2)', () => {
+    // cityCount 6 -> 7 civ cities -> overext (7-6)*3 = 3. dist row absent (<=5 hexes). rawSprawl 3.
+    // uncapped round(0) + min(3,3) = 3. relief min(3, max(0, 3-2)) = 1. net sprawl 3 - 1 = 2.
+    const state = makeState({ cityCount: 6, cityPosition: { q: 3, r: 0 }, capitalPosition: { q: 0, r: 0 } });
+    expect(courthouseRowAmount(state)).toBe(-1);
+  });
+
+  it('NEGATIVE: the same city without a courthouse gets no Courthouse row and full sprawl pressure', () => {
+    const state = makeState({ cityCount: 7, cityPosition: { q: 9, r: 0 }, capitalPosition: { q: 0, r: 0 } });
+    const rows = getUnrestPressureBreakdown('city-1', state, 0);
+    expect(rows.find(r => r.label === 'Courthouse')).toBeUndefined();
+    const sprawl = (rows.find(r => r.label === 'Empire overextension')?.amount ?? 0)
+      + (rows.find(r => r.label === 'Distance from capital')?.amount ?? 0);
+    expect(sprawl).toBe(14); // 6 + 8, unrelieved
+  });
+
+  it('NEGATIVE: a courthouse in a 6-city civ with no distance row emits no Courthouse row', () => {
+    // cityCount 5 -> 6 civ cities -> overext 0. city at capital -> no dist row. rawSprawl 0 -> relief 0 -> row omitted.
+    const state = makeState({ cityCount: 5, cityPosition: { q: 0, r: 0 }, capitalPosition: { q: 0, r: 0 } });
+    expect(courthouseRowAmount(state)).toBeUndefined();
+  });
+
+  it('residual floor: a courthoused city that had sprawl pressure never nets below 2, and relief never exceeds sprawl', () => {
+    for (let cityCount = 6; cityCount <= 25; cityCount++) {
+      for (const dist of [0, 6, 9, 12, 20]) {
+        const state = makeState({ cityCount, cityPosition: { q: dist, r: 0 }, capitalPosition: { q: 0, r: 0 } });
+        const rows = getUnrestPressureBreakdown('city-1', addBuilding(state, 'city-1', 'courthouse'), 0);
+        const overext = rows.find(r => r.label === 'Empire overextension')?.amount ?? 0;
+        const distRow = rows.find(r => r.label === 'Distance from capital')?.amount ?? 0;
+        const relief = -(rows.find(r => r.label === 'Courthouse')?.amount ?? 0);
+        const rawSprawl = overext + distRow;
+        if (rawSprawl > 0) expect(rawSprawl - relief).toBeGreaterThanOrEqual(2);
+        expect(relief).toBeLessThanOrEqual(rawSprawl);
+      }
+    }
+  });
+
+  it('computeUnrestPressure stays within [0,100] when the Courthouse row would otherwise drive a city negative', () => {
+    const state = makeState({ cityCount: 7, cityPosition: { q: 9, r: 0 }, capitalPosition: { q: 0, r: 0 } });
+    const p = computeUnrestPressure('city-1', addBuilding(state, 'city-1', 'courthouse'), 40);
+    expect(p).toBeGreaterThanOrEqual(0);
+    expect(p).toBeLessThanOrEqual(100);
+  });
+});

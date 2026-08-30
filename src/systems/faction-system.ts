@@ -47,6 +47,52 @@ export interface UnrestPressureRow {
   amount: number;
 }
 
+// #919 MR2 — administration ladder. Each entry emits zero or more NEGATIVE rows
+// from the positive pressure rows already computed for a city. Later ladder rungs
+// (roads-cut-distance, second seat of government, civil-service bureaucracy,
+// governors) append an entry here — never a branch in getUnrestPressureBreakdown.
+// `id` is the building id the source is gated on, so ai-production.ts can score it
+// generically. Keep every entry registered in .claude/rules/game-balance.md's
+// "Unrest Relief Inventory" table.
+export interface UnrestReliefSource {
+  id: string;
+  isActive(city: City, state: GameState): boolean;
+  reliefRows(city: City, state: GameState, positiveRows: UnrestPressureRow[]): UnrestPressureRow[];
+}
+
+// Civ IV Courthouse: halves the distance-to-capital row and shaves a flat slice off
+// the empire-overextension row, but a city that HAD sprawl pressure still pays at
+// least COURTHOUSE_SPRAWL_FLOOR ("scale always costs something"), and the relief
+// never exceeds the sprawl that actually exists.
+export const COURTHOUSE_DISTANCE_RELIEF_FRACTION = 0.5;
+export const COURTHOUSE_OVEREXTENSION_RELIEF = 3;
+export const COURTHOUSE_SPRAWL_FLOOR = 2;
+
+const COURTHOUSE_RELIEF: UnrestReliefSource = {
+  id: 'courthouse',
+  isActive: city => city.buildings.includes('courthouse'),
+  reliefRows: (_city, _state, positiveRows) => {
+    const distanceRow = positiveRows.find(r => r.label === 'Distance from capital')?.amount ?? 0;
+    const overextensionRow = positiveRows.find(r => r.label === 'Empire overextension')?.amount ?? 0;
+    const rawSprawl = distanceRow + overextensionRow;
+    const uncapped = Math.round(COURTHOUSE_DISTANCE_RELIEF_FRACTION * distanceRow)
+      + Math.min(COURTHOUSE_OVEREXTENSION_RELIEF, overextensionRow);
+    const relief = Math.min(uncapped, Math.max(0, rawSprawl - COURTHOUSE_SPRAWL_FLOOR));
+    return relief === 0 ? [] : [{ label: 'Courthouse', amount: -relief }];
+  },
+};
+
+export const UNREST_RELIEF_SOURCES: UnrestReliefSource[] = [COURTHOUSE_RELIEF];
+
+export function getUnrestReliefRows(
+  city: City,
+  state: GameState,
+  positiveRows: UnrestPressureRow[],
+): UnrestPressureRow[] {
+  return UNREST_RELIEF_SOURCES.flatMap(source =>
+    source.isActive(city, state) ? source.reliefRows(city, state, positiveRows) : []);
+}
+
 // Single source of truth for unrest pressure (#552): both computeUnrestPressure
 // (consumed by AI/turn processing) and the city panel breakdown UI build from
 // this row list, so they can never drift apart.
@@ -124,7 +170,9 @@ export function getUnrestPressureBreakdown(
     rows.push({ label: 'Foreign faith pressure', amount: 2 });
   }
 
-  return rows;
+  // #919 MR2: administration-ladder relief rows (Courthouse today) subtract from the
+  // positive rows built above. Table-driven — see UNREST_RELIEF_SOURCES.
+  return [...rows, ...getUnrestReliefRows(city, state, rows)];
 }
 
 export function computeUnrestPressure(cityId: string, state: GameState, ownerHappiness = 0): number {

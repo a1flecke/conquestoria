@@ -6,6 +6,14 @@ import {
   computeUnrestPressure,
   processFactionTurn,
 } from '@/systems/faction-system';
+
+function addBuilding(state: GameState, cityId: string, buildingId: string): GameState {
+  const city = state.cities[cityId];
+  return {
+    ...state,
+    cities: { ...state.cities, [cityId]: { ...city, buildings: [...city.buildings, buildingId] } },
+  };
+}
 import { getEraAdvancementTechs } from '@/systems/tech-definitions';
 
 function completedTechsForEra(era: number): string[] {
@@ -156,5 +164,22 @@ describe('processFactionTurn with happiness', () => {
     };
     const result = processFactionTurn(withFeast, bus);
     expect(result.cities['city-1'].unrestLevel).toBe(0);
+  });
+});
+
+describe('#919 MR2 — Courthouse row composes additively with happiness offsets', () => {
+  it('Courthouse relief and a temple offset stack without double-counting', () => {
+    // 8 civ cities (cityCount 7 + capital), city-1 9 hexes out: overext 6, dist 8,
+    // rawSprawl 14, courthouse relief round(0.5*8) + min(3,6) = 7.
+    const base = makeMinimalState({ cityCount: 7, cityPosition: { q: 9, r: 0 }, era: 2 });
+    const withCh = addBuilding(base, 'city-1', 'courthouse');
+    const withChTemple = addBuilding(withCh, 'city-1', 'temple');
+
+    const pBase = computeUnrestPressure('city-1', base, 2);       // 2 luxury happiness -> -4 row
+    const pCh = computeUnrestPressure('city-1', withCh, 2);
+    const pChTemple = computeUnrestPressure('city-1', withChTemple, 2);
+
+    expect(pBase - pCh).toBe(7);       // courthouse alone removes 7
+    expect(pCh - pChTemple).toBe(2);   // temple adds a further -2, independent of the courthouse row
   });
 });
