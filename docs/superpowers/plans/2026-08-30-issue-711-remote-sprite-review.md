@@ -22,7 +22,7 @@
 **Files:**
 - Create: `tests/renderer/sprites/issue-711-remote-review.test.ts`
 
-- [ ] **Step 1: Write the failing artifact test**
+- [x] **Step 1: Write the failing artifact test**
 
 ```ts
 import { readFileSync } from 'node:fs';
@@ -54,7 +54,7 @@ describe('Issue 711 remote sprite review', () => {
 });
 ```
 
-- [ ] **Step 2: Run the test and confirm it fails because the remote document and GIFs do not exist**
+- [x] **Step 2: Run the test and confirm it fails because the remote document and GIFs do not exist**
 
 Run: `bash scripts/run-with-mise.sh yarn test --run tests/renderer/sprites/issue-711-remote-review.test.ts`
 
@@ -69,7 +69,7 @@ Expected: FAIL with a missing `issue-711-remote-sprite-review.md` or animation G
 - Create: `docs/reviews/assets/issue-711/battleship-animation.gif`
 - Create: `docs/reviews/assets/issue-711/missile-cruiser-animation.gif`
 
-- [ ] **Step 1: Implement the capture script**
+- [x] **Step 1: Implement the capture script**
 
 Use `chromium` from `@playwright/test` to load the existing file-safe
 `docs/reviews/assets/issue-711/sprite-preview.html`. For each unit, clone its
@@ -97,7 +97,7 @@ spawnSync('ffmpeg', [
 Treat a nonzero `ffmpeg` status as an error, validate that the completed GIF
 begins with `GIF89a`, and remove the temporary frame directory in `finally`.
 
-- [ ] **Step 2: Run the capture script**
+- [x] **Step 2: Run the capture script**
 
 Run: `node scripts/capture-issue-711-remote-review.mjs`
 
@@ -108,7 +108,7 @@ Expected: exit 0 and one `*-animation.gif` asset for every unit.
 **Files:**
 - Create: `docs/reviews/issue-711-remote-sprite-review.md`
 
-- [ ] **Step 1: Create the Markdown review page**
+- [x] **Step 1: Create the Markdown review page**
 
 Write a short introduction stating that all remote evidence is generated from
 the production V2 payload and animation CSS. State that each GIF has five
@@ -127,7 +127,7 @@ Artillery, Battleship, and Missile Cruiser. End with an explicit instruction
 that the review remains unapproved until a remote reviewer gives visual
 approval; do not add a merge instruction or a live-preview dependency.
 
-- [ ] **Step 2: Run the artifact test and confirm it passes**
+- [x] **Step 2: Run the artifact test and confirm it passes**
 
 Run: `bash scripts/run-with-mise.sh yarn test --run tests/renderer/sprites/issue-711-remote-review.test.ts`
 
@@ -139,7 +139,7 @@ validated.
 **Files:**
 - Modify: `docs/superpowers/plans/2026-08-30-issue-711-remote-sprite-review.md`
 
-- [ ] **Step 1: Inspect the generated evidence**
+- [x] **Step 1: Inspect the generated evidence**
 
 Run:
 
