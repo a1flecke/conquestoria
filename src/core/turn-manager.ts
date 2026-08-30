@@ -181,7 +181,7 @@ export function processTurn(
   // AI civ turns run later via the AI round scheduler, so responses recorded
   // here (quarantine/fund-remedy) shape the same round's plans (#529 MR3 Task 3.2).
   if (resolveWorldPressureFlags(newState.settings).aiPressure === 'full') {
-    newState = applyCrisisResponses(newState);
+    newState = applyCrisisResponses(newState, bus);
   }
   newState = tickOccupiedCities(newState);
   const grossGoldByCiv: Record<string, number> = {};
