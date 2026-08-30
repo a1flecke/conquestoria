@@ -694,9 +694,11 @@ describe('faction-system constant exports and era-gating', () => {
 
   it('processFactionTurn does NOT clear unrest in era 2 (era-gating lifts)', () => {
     const bus = new EventBus();
-    // cityCount:10 → 11 total cities → empire pressure (11-5)*3=18; 3 wars → 24; total 42 > 40
+    // cityCount:12 → 13 total cities → empire pressure (13-6)*3=21; 3 wars → 24; total 45 > 40
+    // (#919 MR2 raised the overextension free-city allowance to 6, so cityCount was bumped
+    // 10 → 12 to keep this fixture above the trigger.)
     // City starts at unrestLevel 1, era 2 — processFactionTurn should NOT zero it out
-    const state = makeState({ era: 2, unrestLevel: 1, unrestTurns: 1, atWarCount: 3, cityCount: 10 });
+    const state = makeState({ era: 2, unrestLevel: 1, unrestTurns: 1, atWarCount: 3, cityCount: 12 });
     const result = processFactionTurn(state, bus);
     // With pressure > 40 and no garrison, city stays in unrest (not cleared by clearEraOneUnrest)
     expect(result.cities['city-1']?.unrestLevel).not.toBe(0);
@@ -1122,6 +1124,23 @@ describe('unrest pressure breakdown (#552)', () => {
       };
       const rows = getUnrestPressureBreakdown('city-1', withFaith, 0);
       expect(rows.find(r => r.label === 'Foreign faith pressure')).toBeUndefined();
+    });
+  });
+
+  describe('#919 MR2 — overextension free-city allowance', () => {
+    it('a 6-city civ has no overextension row (allowance is 6)', () => {
+      // makeState creates cityCount + 1 civ cities (capital + city-1..city-cityCount).
+      // cityCount: 5 -> 6 civ cities -> (6 - 6) * 3 = 0 -> no row.
+      const state = makeState({ cityCount: 5 });
+      const rows = getUnrestPressureBreakdown('city-1', state, 0);
+      expect(rows.find(r => r.label === 'Empire overextension')).toBeUndefined();
+    });
+
+    it('a 7-city civ pays exactly one extra-city slope of overextension', () => {
+      // cityCount: 6 -> 7 civ cities -> (7 - 6) * 3 = 3.
+      const state = makeState({ cityCount: 6 });
+      const rows = getUnrestPressureBreakdown('city-1', state, 0);
+      expect(rows.find(r => r.label === 'Empire overextension')?.amount).toBe(3);
     });
   });
 });
