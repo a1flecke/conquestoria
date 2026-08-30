@@ -7,11 +7,17 @@ import type {
 } from '@/core/types';
 import { TECH_TREE } from '@/systems/tech-definitions';
 import {
+  BUILDINGS,
   TRAINABLE_UNITS,
   isCityCoastal,
 } from '@/systems/city-system';
 import { calculateProjectedCityYields } from '@/systems/city-work-system';
-import { getCivAvailableResources } from '@/systems/resource-acquisition-system';
+import { getCivAvailableResources, getCivHappinessFromResources } from '@/systems/resource-acquisition-system';
+import {
+  UNREST_RELIEF_SOURCES,
+  UNREST_TRIGGER_PRESSURE,
+  computeUnrestPressure,
+} from '@/systems/faction-system';
 import {
   activateNextQueuedResearch,
   enqueueResearch,
@@ -29,6 +35,13 @@ export interface AIResearchPlanningContext {
   coastalEmpire: boolean;
   availableResources: ReadonlySet<ResourceType>;
   sciencePerTurn: number;
+  /**
+   * #919 MR2: count of this civ's cities whose current unrest pressure is at or
+   * above 0.6 * UNREST_TRIGGER_PRESSURE. When >= 2, a tech unlocking any
+   * UNREST_RELIEF_SOURCES building (Magistracy -> Courthouse today) gets a flat
+   * priority bonus, so a pressured wide empire actually beelines the counter.
+   */
+  pressuredReliefCityCount?: number;
   techs?: readonly Tech[];
 }
 
@@ -42,6 +55,33 @@ export interface AIResearchScoreComponents {
   estimatedResearchTurns: number;
   resourceMismatchPenalty: number;
   situationalityPenalty: number;
+  unrestReliefTechBonus: number;
+}
+
+// #919 MR2: pull toward a tech unlocking any UNREST_RELIEF_SOURCES building when the
+// empire is actually pressured. Generic — keyed off the relief-source table, not a
+// tech id. Scales with how many cities are pressured (a mildly-strained empire gets a
+// nudge; a wide empire with every city near revolt genuinely beelines the counter),
+// capped so it never wholly eclipses the rest of the research model. Applied to both
+// the preliminary search cut (so the tech survives the top-24 slice) and the final
+// score (so it then wins the ranking).
+const UNREST_RELIEF_TECH_AI_BASE_BONUS = 6;
+const UNREST_RELIEF_TECH_AI_PER_PRESSURED_CITY = 1.5;
+const UNREST_RELIEF_TECH_AI_BONUS_CAP = 18;
+const UNREST_RELIEF_PRESSURED_CITY_GATE = 2;
+
+function techUnlocksReliefBuilding(tech: Tech): boolean {
+  const reliefSourceIds = new Set(UNREST_RELIEF_SOURCES.map(source => source.id));
+  return (tech.unlocksBuildings ?? []).some(id => reliefSourceIds.has(id) && BUILDINGS[id]);
+}
+
+function unrestReliefTechBonus(pressuredReliefCityCount: number): number {
+  if (pressuredReliefCityCount < UNREST_RELIEF_PRESSURED_CITY_GATE) return 0;
+  return Math.min(
+    UNREST_RELIEF_TECH_AI_BONUS_CAP,
+    UNREST_RELIEF_TECH_AI_BASE_BONUS
+      + UNREST_RELIEF_TECH_AI_PER_PRESSURED_CITY * pressuredReliefCityCount,
+  );
 }
 
 export interface AIResearchDecision {
@@ -78,6 +118,7 @@ function descendantsWithinLimit(
   techs: readonly Tech[],
   completed: ReadonlySet<string>,
   knownTechIds: ReadonlySet<string>,
+  reliefBonus: number,
 ): SearchTarget[] {
   const byId = new Map(techs.map(tech => [tech.id, tech]));
   const targets: SearchTarget[] = [];
@@ -100,7 +141,8 @@ function descendantsWithinLimit(
       + capabilities.economicSupport
       + capabilities.eraProgress
       + Object.values(capabilities.rolesUnlocked)
-        .reduce((sum, value) => sum + (value ?? 0), 0);
+        .reduce((sum, value) => sum + (value ?? 0), 0)
+      + (techUnlocksReliefBuilding(current.tech) ? reliefBonus : 0);
     targets.push({
       frontier,
       target: current.tech,
@@ -159,8 +201,10 @@ export function planAIResearch(
     .sort((left, right) => left.id.localeCompare(right.id));
   if (frontier.length === 0) return null;
 
+  const reliefBonus = unrestReliefTechBonus(context.pressuredReliefCityCount ?? 0);
+
   const searchTargets = frontier
-    .flatMap(tech => descendantsWithinLimit(tech, techs, completed, knownTechIds))
+    .flatMap(tech => descendantsWithinLimit(tech, techs, completed, knownTechIds, reliefBonus))
     .sort((left, right) =>
       right.preliminary - left.preliminary
       || left.frontier.id.localeCompare(right.frontier.id)
@@ -206,6 +250,7 @@ export function planAIResearch(
         context.availableResources,
       ),
       situationalityPenalty: capabilities.situationality,
+      unrestReliefTechBonus: techUnlocksReliefBuilding(entry.target) ? reliefBonus : 0,
     };
     const score = modernizationFit * 4
       + activePlanFit * 3
@@ -213,6 +258,7 @@ export function planAIResearch(
       + personalityTrackWeight
       + capabilities.eraProgress
       + unlockBreadth
+      + scoreComponents.unrestReliefTechBonus
       - estimatedResearchTurns * 0.75
       - scoreComponents.resourceMismatchPenalty
       - scoreComponents.situationalityPenalty;
@@ -224,6 +270,7 @@ export function planAIResearch(
         ...(modernizationFit > 0 ? ['modernization'] : []),
         ...(activePlanFit > 0 ? ['active-plan'] : []),
         ...(capabilities.economicSupport > 0 ? ['economic-support'] : []),
+        ...(scoreComponents.unrestReliefTechBonus > 0 ? ['unrest-relief'] : []),
       ],
     };
   }).sort((left, right) =>
@@ -293,6 +340,11 @@ export function applyAIResearch(
     civ.cities.reduce((sum, cityId) =>
       sum + calculateProjectedCityYields(state, cityId).science, 0),
   );
+  // #919 MR2: how many of this civ's cities are meaningfully pressured right now.
+  const reliefPressureGate = 0.6 * UNREST_TRIGGER_PRESSURE;
+  const ownerHappiness = getCivHappinessFromResources(state, civId);
+  const pressuredReliefCityCount = civ.cities.reduce((count, cityId) =>
+    count + (computeUnrestPressure(cityId, state, ownerHappiness) >= reliefPressureGate ? 1 : 0), 0);
   const decision = planAIResearch({
     techState: activated,
     personality,
@@ -301,6 +353,7 @@ export function applyAIResearch(
     coastalEmpire,
     availableResources: resources,
     sciencePerTurn,
+    pressuredReliefCityCount,
   });
   if (!decision) {
     if (activated === civ.techState) return { state, startedTechId: null };
