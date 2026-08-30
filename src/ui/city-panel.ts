@@ -44,6 +44,8 @@ import {
   getUnrestPressureBreakdown,
   CONCESSION_IMMUNITY_TURNS,
 } from '@/systems/faction-system';
+import { getUnrestRecommendations } from '@/systems/unrest-guidance';
+import { unrestRecommendationCopy } from '@/ui/unrest-guidance-copy';
 import { getCrisisFlavor, getCrisisDisplayName } from '@/systems/crisis-flavor-definitions';
 import { getCrisisYieldMultiplier, getOutbreakSeverityMultiplier, getCatastropheRecoveryMultiplier, FAMINE_CONTAINMENT_SURPLUS_TURNS } from '@/systems/crisis-system';
 import { getStrongestPressure } from '@/systems/religion-system';
@@ -346,15 +348,33 @@ export function createCityPanel(
   const pressureBreakdownRows = city.unrestLevel > 0
     ? getUnrestPressureBreakdown(city.id, state, civHappinessForBreakdown(state, city.owner))
     : [];
+  // #919 MR3: actionable "→ do this" advice, one entry per matching pressure row (plus
+  // empty-state recs with rowLabel === '' rendered once beneath the list). Text/icons
+  // come from the UI copy layer; the systems helper is string-free.
+  const unrestRecommendations = city.unrestLevel > 0
+    ? getUnrestRecommendations(city.id, state)
+    : [];
+  const recSubHtml = (recIndex: number) =>
+    `<div style="font-size:11px;margin-left:12px;margin-top:2px;" data-recommendation-row="${recIndex}"></div>`;
   const pressureRowsHtml = pressureBreakdownRows
-    .map((row, idx) => `<div style="font-size:11px;opacity:0.85;" data-pressure-row="${idx}"></div>`)
+    .map((row, idx) => {
+      const subs = unrestRecommendations
+        .map((rec, ri) => ({ rec, ri }))
+        .filter(({ rec }) => rec.rowLabel === row.label)
+        .map(({ ri }) => recSubHtml(ri))
+        .join('');
+      return `<div style="font-size:11px;opacity:0.85;" data-pressure-row="${idx}"></div>${subs}`;
+    })
+    .join('');
+  const fallbackRecsHtml = unrestRecommendations
+    .map((rec, ri) => (rec.rowLabel === '' ? recSubHtml(ri) : ''))
     .join('');
   const unrestSectionHtml = city.unrestLevel > 0 ? `
     <div style="background:rgba(217,80,80,0.12);border:1px solid rgba(217,80,80,0.35);border-radius:8px;padding:10px 12px;margin-bottom:16px;font-size:12px;">
       <div style="font-weight:bold;color:#e88;margin-bottom:4px;">
         ${city.unrestLevel === 2 ? '⚠️ Revolt' : '⚠️ Unrest'} — yields reduced${isCityProductionLocked(city) ? ', production locked' : ''}
       </div>
-      <div style="margin-bottom:8px;">${pressureRowsHtml}</div>
+      <div style="margin-bottom:8px;">${pressureRowsHtml}${fallbackRecsHtml}</div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;">
         <button type="button" data-appease="${city.id}" ${appeaseDisabled ? 'disabled' : ''} title="${appeaseTooltip}" style="min-height:44px;padding:7px 12px;border-radius:6px;font-size:12px;font-weight:bold;cursor:${appeaseDisabled ? 'default' : 'pointer'};background:${appeaseDisabled ? 'rgba(255,255,255,0.08)' : '#d4aa2c'};color:${appeaseDisabled ? 'rgba(255,255,255,0.4)' : '#1a1a1a'};border:none;">${appeaseLabel}</button>
         <button type="button" data-concede="${city.id}" ${concedeDisabled ? 'disabled' : ''} title="${concedeTooltip}" style="min-height:44px;padding:7px 12px;border-radius:6px;font-size:12px;font-weight:bold;cursor:${concedeDisabled ? 'default' : 'pointer'};background:${concedeDisabled ? 'rgba(255,255,255,0.08)' : '#4a90d9'};color:${concedeDisabled ? 'rgba(255,255,255,0.4)' : '#fff'};border:none;">${concedeLabel}</button>
@@ -1251,6 +1271,17 @@ export function createCityPanel(
   pressureBreakdownRows.forEach((row, idx) => {
     const el = panel.querySelector(`[data-pressure-row="${idx}"]`);
     if (el) el.textContent = `${row.label}: ${row.amount > 0 ? '+' : ''}${Math.round(row.amount)}`;
+  });
+
+  // #919 MR3: populate the recommendation sub-lines via textContent (XSS-safe),
+  // greyed when the lever is not actionable right now.
+  unrestRecommendations.forEach((rec, ri) => {
+    const el = panel.querySelector<HTMLElement>(`[data-recommendation-row="${ri}"]`);
+    if (!el) return;
+    const { icon, text } = unrestRecommendationCopy(rec);
+    el.dataset.availability = rec.availability;
+    if (rec.availability !== 'now') el.style.opacity = '0.6';
+    el.textContent = `→ ${icon} ${text}`;
   });
 
   // Populate resource bonus rows via textContent (XSS-safe)
