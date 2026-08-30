@@ -1648,6 +1648,158 @@
   animation-delay: calc(var(--phase, 0) * -1.4s);
 }
 
+/* ─────────────────────────── #711: SIEGE + CAPITAL SHIPS ─────────────────────────── */
+
+/* These variants deliberately cancel the generic humanoid lunge. Siege stays planted
+   while a physical mechanism works; capital ships keep their travel rock but fire only
+   their mounted hardware. */
+.cq-v2[data-kind="ranged"][data-kind-variant="trebuchet"][data-state="walk"] .cq-sprite-figure { animation: none; }
+.cq-v2[data-kind="ranged"][data-kind-variant="trebuchet"][data-state="attack"] .cq-sprite-figure { animation: none; }
+.cq-v2[data-kind="ranged"][data-kind-variant="rocket-artillery"][data-state="walk"] .cq-sprite-figure { animation: none; }
+.cq-v2[data-kind="ranged"][data-kind-variant="rocket-artillery"][data-state="attack"] .cq-sprite-figure { animation: none; }
+.cq-v2[data-kind="naval"][data-kind-variant="battleship"][data-state="attack"] .cq-sprite-figure { animation: none; }
+.cq-v2[data-kind="naval"][data-kind-variant="missile-cruiser"][data-state="attack"] .cq-sprite-figure { animation: none; }
+
+.cq-v2[data-kind="ranged"][data-kind-variant="trebuchet"] .cq-trebuchet-wheel,
+.cq-v2[data-kind="ranged"][data-kind-variant="trebuchet"] .cq-trebuchet-beam,
+.cq-v2[data-kind="ranged"][data-kind-variant="trebuchet"] .cq-trebuchet-counterweight,
+.cq-v2[data-kind="ranged"][data-kind-variant="rocket-artillery"] .cq-rocket-artillery-wheel,
+.cq-v2[data-kind="ranged"][data-kind-variant="rocket-artillery"] .cq-rocket-artillery-rack,
+.cq-v2[data-kind="ranged"][data-kind-variant="rocket-artillery"] .cq-rocket-artillery-tubes,
+.cq-v2[data-kind="naval"][data-kind-variant="battleship"] .cq-battleship-turret-fore,
+.cq-v2[data-kind="naval"][data-kind-variant="battleship"] .cq-battleship-turret-mid,
+.cq-v2[data-kind="naval"][data-kind-variant="battleship"] .cq-battleship-turret-aft,
+.cq-v2[data-kind="naval"][data-kind-variant="missile-cruiser"] .cq-missile-cruiser-radar-forward,
+.cq-v2[data-kind="naval"][data-kind-variant="missile-cruiser"] .cq-missile-cruiser-radar-aft,
+.cq-v2[data-kind="naval"][data-kind-variant="missile-cruiser"] .cq-missile-cruiser-vls-lid,
+.cq-v2[data-kind="naval"][data-kind-variant="missile-cruiser"] .cq-missile-cruiser-launch {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+.cq-v2[data-kind="naval"][data-kind-variant="missile-cruiser"] .cq-missile-cruiser-launch { opacity: 0; }
+
+@keyframes cq711-wheel-roll { 0% { transform: rotate(0); } 100% { transform: rotate(360deg); } }
+@keyframes cq711-static-settle { 0%, 100% { opacity: 1; } 50% { opacity: .97; } }
+@keyframes cq711-trebuchet-beam {
+  0%, 18%, 100% { transform: rotate(0); }
+  31%, 47% { transform: rotate(-54deg); }
+  67% { transform: rotate(-9deg); }
+}
+@keyframes cq711-trebuchet-weight {
+  0%, 18%, 100% { transform: translateY(0); }
+  31%, 47% { transform: translateY(26px); }
+  67% { transform: translateY(5px); }
+}
+@keyframes cq711-rocket-recoil {
+  0%, 18%, 100% { transform: translateX(0); }
+  30%, 43% { transform: translateX(-6px); }
+  62% { transform: translateX(2px); }
+}
+@keyframes cq711-tube-flash {
+  0%, 22%, 54%, 100% { opacity: 1; filter: none; }
+  30%, 42% { opacity: .55; filter: brightness(1.75); }
+}
+@keyframes cq711-heavy-turret {
+  0%, 19%, 100% { transform: translateX(0) rotate(0); }
+  31%, 44% { transform: translateX(-5px) rotate(-1.5deg); }
+  62% { transform: translateX(1px) rotate(.4deg); }
+}
+@keyframes cq711-radar-scan {
+  0%, 100% { transform: rotate(-8deg); opacity: .78; }
+  50% { transform: rotate(8deg); opacity: 1; }
+}
+@keyframes cq711-vls-lid {
+  0%, 20%, 100% { transform: translateY(0) scaleY(1); opacity: 1; }
+  30%, 49% { transform: translateY(-5px) scaleY(.42); opacity: .45; }
+  68% { transform: translateY(-1px) scaleY(.9); opacity: .9; }
+}
+@keyframes cq711-vls-launch {
+  0%, 24%, 58%, 100% { opacity: 0; transform: translateY(0) scale(.65); }
+  32%, 44% { opacity: 1; transform: translateY(-4px) scale(1); }
+  52% { opacity: .2; transform: translateY(-9px) scale(.8); }
+}
+
+/* Named structural layers do not translate or pulse like characters; this nearly
+   imperceptible settling timeline keeps their animation ownership explicit without
+   making a carriage, hull, or bridge look gelatinous. */
+.cq-v2 .cq-trebuchet-carriage,
+.cq-v2 .cq-trebuchet-a-frame,
+.cq-v2 .cq-trebuchet-sling,
+.cq-v2 .cq-rocket-artillery-chassis,
+.cq-v2 .cq-rocket-artillery-stabilizer,
+.cq-v2 .cq-rocket-artillery-crate,
+.cq-v2 .cq-battleship-wake,
+.cq-v2 .cq-battleship-hull,
+.cq-v2 .cq-battleship-bridge,
+.cq-v2 .cq-battleship-rangefinder,
+.cq-v2 .cq-missile-cruiser-wake,
+.cq-v2 .cq-missile-cruiser-hull,
+.cq-v2 .cq-missile-cruiser-bridge {
+  animation: cq711-static-settle 3.2s ease-in-out infinite;
+  animation-delay: calc(var(--phase, 0) * -3.2s);
+}
+
+/* Locomotion is vehicle motion: rolling wheels, not a marching or charging chassis. */
+.cq-v2[data-kind="ranged"][data-kind-variant="trebuchet"][data-state="walk"] .cq-trebuchet-wheel {
+  animation: cq711-wheel-roll 1.15s linear infinite;
+  animation-delay: calc(var(--phase, 0) * -1.15s);
+}
+.cq-v2[data-kind="ranged"][data-kind-variant="rocket-artillery"][data-state="walk"] .cq-rocket-artillery-wheel {
+  animation: cq711-wheel-roll .72s linear infinite;
+  animation-delay: calc(var(--phase, 0) * -.72s);
+}
+
+/* Counterweight fall, beam swing, then reset: the sling rides the beam rather than
+   emitting a disconnected projectile. */
+.cq-v2[data-kind="ranged"][data-kind-variant="trebuchet"][data-state="attack"] .cq-trebuchet-beam {
+  transform-origin: 0% 50%;
+  animation: cq711-trebuchet-beam 1.65s cubic-bezier(.3,.7,.4,1) infinite;
+  animation-delay: calc(var(--phase, 0) * -1.65s);
+}
+.cq-v2[data-kind="ranged"][data-kind-variant="trebuchet"][data-state="attack"] .cq-trebuchet-counterweight {
+  animation: cq711-trebuchet-weight 1.65s cubic-bezier(.3,.7,.4,1) infinite;
+  animation-delay: calc(var(--phase, 0) * -1.65s);
+}
+.cq-v2[data-kind="ranged"][data-kind-variant="rocket-artillery"][data-state="attack"] .cq-rocket-artillery-rack {
+  animation: cq711-rocket-recoil 1.3s cubic-bezier(.3,.7,.4,1) infinite;
+  animation-delay: calc(var(--phase, 0) * -1.3s);
+}
+.cq-v2[data-kind="ranged"][data-kind-variant="rocket-artillery"][data-state="attack"] .cq-rocket-artillery-tubes {
+  animation: cq711-tube-flash 1.3s ease-out infinite;
+  animation-delay: calc(var(--phase, 0) * -1.3s);
+}
+
+/* A battleship fires three independently mounted turrets; a cruiser scans at idle,
+   opens VLS lids, briefly indicates launch, and closes them again. */
+.cq-v2[data-kind="naval"][data-kind-variant="battleship"][data-state="attack"] .cq-battleship-turret-fore {
+  animation: cq711-heavy-turret 1.45s cubic-bezier(.3,.7,.4,1) infinite;
+  animation-delay: calc(var(--phase, 0) * -1.45s);
+}
+.cq-v2[data-kind="naval"][data-kind-variant="battleship"][data-state="attack"] .cq-battleship-turret-mid {
+  animation: cq711-heavy-turret 1.45s cubic-bezier(.3,.7,.4,1) infinite;
+  animation-delay: calc(var(--phase, 0) * -1.45s - .08s);
+}
+.cq-v2[data-kind="naval"][data-kind-variant="battleship"][data-state="attack"] .cq-battleship-turret-aft {
+  animation: cq711-heavy-turret 1.45s cubic-bezier(.3,.7,.4,1) infinite;
+  animation-delay: calc(var(--phase, 0) * -1.45s - .16s);
+}
+.cq-v2[data-kind="naval"][data-kind-variant="missile-cruiser"][data-state="idle"] .cq-missile-cruiser-radar-forward {
+  animation: cq711-radar-scan 2.6s ease-in-out infinite;
+  animation-delay: calc(var(--phase, 0) * -2.6s);
+}
+.cq-v2[data-kind="naval"][data-kind-variant="missile-cruiser"][data-state="idle"] .cq-missile-cruiser-radar-aft {
+  animation: cq711-radar-scan 2.6s ease-in-out infinite;
+  animation-delay: calc(var(--phase, 0) * -2.6s - .65s);
+}
+.cq-v2[data-kind="naval"][data-kind-variant="missile-cruiser"][data-state="attack"] .cq-missile-cruiser-vls-lid {
+  animation: cq711-vls-lid 1.55s cubic-bezier(.3,.7,.4,1) infinite;
+  animation-delay: calc(var(--phase, 0) * -1.55s);
+}
+.cq-v2[data-kind="naval"][data-kind-variant="missile-cruiser"][data-state="attack"] .cq-missile-cruiser-launch {
+  animation: cq711-vls-launch 1.55s ease-out infinite;
+  animation-delay: calc(var(--phase, 0) * -1.55s);
+}
+
 /* Pause everything when prefers-reduced-motion */
 @media (prefers-reduced-motion: reduce) {
   .cq-sprite-figure, .cq-weapon, .cq-tool, .cq-smoke, .cq-dust, .cq-work-dust,
