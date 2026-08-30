@@ -628,6 +628,23 @@ export function routeCrisisSpread(
   );
 }
 
+export function routeCrisisContained(
+  state: GameState,
+  event: GameEvents['crisis:contained'],
+  sink: NotificationSink,
+): void {
+  const crisis = state.activeCrises?.[event.crisisId];
+  const flavor = crisis ? getCrisisFlavor(crisis.flavorId) : undefined;
+  const name = flavor
+    ? getCrisisDisplayName(flavor, resolveCivilizationEra(state.civilizations[event.civId]?.techState?.completed ?? []))
+    : 'the outbreak';
+  sink(
+    event.civId,
+    `Nationwide remedy funded against ${name} — ${event.cityCount} ${event.cityCount === 1 ? 'city' : 'cities'}, ${event.goldCost} gold.`,
+    'success',
+  );
+}
+
 export function routeCrisisResolved(
   state: GameState,
   event: GameEvents['crisis:resolved'],

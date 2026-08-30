@@ -10,6 +10,7 @@ import {
   routeCrisisStarted,
   routeCrisisSpread,
   routeCrisisEscalated,
+  routeCrisisContained,
   routeCrisisResolved,
   routeWorldPressureCrisisStarted,
   routeWorldPressureCrisisResolved,
@@ -62,6 +63,9 @@ export const registerFactionCrisisPresentation: PresentationRegistrar = (bus, ct
     }),
     bus.on('crisis:spread', event => {
       routeCrisisSpread(ctx.session.getState(), event, deliver);
+    }),
+    bus.on('crisis:contained', event => {
+      routeCrisisContained(ctx.session.getState(), event, deliver);
     }),
     bus.on('crisis:escalated', event => {
       routeCrisisEscalated(ctx.session.getState(), event, deliver);

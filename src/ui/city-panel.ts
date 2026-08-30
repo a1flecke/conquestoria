@@ -99,6 +99,7 @@ export interface CityPanelCallbacks {
   onConcedeToMovement?: (cityId: string) => GameState | void;
   onQuarantineCrisis?: (crisisId: string, cityId: string) => GameState | void;
   onRemedyCrisis?: (crisisId: string, cityId: string) => GameState | void;
+  onEmpireContainment?: (crisisId: string) => GameState | void; // #919 MR1: Medicine-gated nationwide remedy
   onFindResources?: (
     highlights: HexCoord[],
     toasts: Array<{ message: string; type: 'info' | 'warning' }>,
@@ -412,10 +413,31 @@ export function createCityPanel(
         ? `Not enough gold (needs ${remedyCost})`
         : `Remedy (${remedyCost} gold)`;
 
+    // #919 MR1: Nationwide Remedy — only for the owning player, only with Medicine,
+    // and only when the outbreak spans 2+ still-untreated cities.
+    const hasMedicine = civ?.techState.completed.includes('medicine') ?? false;
+    const unremediedCount = crisis.cityIds.filter(id => crisis.remedyCompletionByCity?.[id] === undefined).length;
+    const empireContainCost = crisis.cityIds
+      .filter(id => crisis.remedyCompletionByCity?.[id] === undefined)
+      .reduce((sum, id) => {
+        const c = state.cities[id];
+        return sum + (c ? getCityAppeaseCost(c) : 0);
+      }, 0);
+    const canAffordEmpireContain = (civ?.gold ?? 0) >= empireContainCost;
+    const showEmpireContain =
+      hasMedicine && unremediedCount >= 2 && crisis.targetCivId === state.currentPlayer && !!callbacks.onEmpireContainment;
+    const empireContainDisabled = !canAffordEmpireContain || sabotaged;
+    const empireContainLabel = sabotaged
+      ? 'Blocked by sabotage'
+      : !canAffordEmpireContain
+        ? `Nationwide Remedy — not enough gold (needs ${empireContainCost})`
+        : `Nationwide Remedy (${empireContainCost} gold)`;
+
     return {
       crisis, flavor, isQuarantined, remedyPending, remedyCompletionTurn, sabotaged, sabotageDiscoveredBy,
       yieldPenaltyPct, quarantinedPenaltyPct,
       quarantineDisabled, quarantineLabel, remedyDisabled, remedyLabel,
+      showEmpireContain, empireContainDisabled, empireContainLabel,
     };
   }).filter((c): c is NonNullable<typeof c> => c !== null);
   // Catastrophes respond via worker restore_land, not city-panel buttons — the chip is
@@ -491,6 +513,7 @@ export function createCityPanel(
       <div style="display:flex;gap:8px;flex-wrap:wrap;">
         <button type="button" data-quarantine-crisis="${chip.crisis.id}:${city.id}" ${chip.quarantineDisabled ? 'disabled' : ''} title="${chip.quarantineLabel}" style="min-height:44px;padding:7px 12px;border-radius:6px;font-size:12px;font-weight:bold;cursor:${chip.quarantineDisabled ? 'default' : 'pointer'};background:${chip.quarantineDisabled ? 'rgba(255,255,255,0.08)' : '#4a90d9'};color:${chip.quarantineDisabled ? 'rgba(255,255,255,0.4)' : '#fff'};border:none;">${chip.quarantineLabel}</button>
         <button type="button" data-remedy-crisis="${chip.crisis.id}:${city.id}" ${chip.remedyDisabled ? 'disabled' : ''} title="${chip.remedyLabel}" style="min-height:44px;padding:7px 12px;border-radius:6px;font-size:12px;font-weight:bold;cursor:${chip.remedyDisabled ? 'default' : 'pointer'};background:${chip.remedyDisabled ? 'rgba(255,255,255,0.08)' : '#d4aa2c'};color:${chip.remedyDisabled ? 'rgba(255,255,255,0.4)' : '#1a1a1a'};border:none;">${chip.remedyLabel}</button>
+        ${chip.showEmpireContain ? `<button type="button" data-empire-contain-crisis="${chip.crisis.id}" ${chip.empireContainDisabled ? 'disabled' : ''} title="Fund a remedy in every affected city at once (requires Medicine)" style="min-height:44px;padding:7px 12px;border-radius:6px;font-size:12px;font-weight:bold;cursor:${chip.empireContainDisabled ? 'default' : 'pointer'};background:${chip.empireContainDisabled ? 'rgba(255,255,255,0.08)' : '#3aa76d'};color:${chip.empireContainDisabled ? 'rgba(255,255,255,0.4)' : '#08130d'};border:none;">${chip.empireContainLabel}</button>` : ''}
       </div>
     </div>`).join('');
   // Faith row (#591 MR4): a city has at most one faith relationship at a time, so this
@@ -1709,6 +1732,15 @@ export function createCityPanel(
       if (btn.disabled) return;
       const [crisisId, cityId] = btn.dataset.remedyCrisis!.split(':');
       const nextState = callbacks.onRemedyCrisis?.(crisisId, cityId);
+      rerenderPanel(nextState);
+    });
+  });
+
+  panel.querySelectorAll<HTMLButtonElement>('[data-empire-contain-crisis]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (btn.disabled) return;
+      const crisisId = btn.dataset.empireContainCrisis!;
+      const nextState = callbacks.onEmpireContainment?.(crisisId);
       rerenderPanel(nextState);
     });
   });

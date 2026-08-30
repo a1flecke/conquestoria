@@ -437,3 +437,60 @@ describe('#590 MR3 — famine crisis chip', () => {
     expect(panel.textContent).toContain('Grain shipment underway');
   });
 });
+
+// #919 MR1: Medicine-gated one-action nationwide remedy.
+describe('city-panel crisis chip — Nationwide Remedy (#919 MR1)', () => {
+  // Adds a second player-owned city so the outbreak can legitimately span 2 cities.
+  function withWideOutbreak(overrides: Partial<ActiveCrisis> = {}) {
+    const { container, city, state } = withPlagueCrisis({ cityIds: ['city-river', 'city-river-2'], ...overrides });
+    const owner = city.owner;
+    const second = { ...structuredClone(city), id: 'city-river-2', name: 'Second City' };
+    state.cities['city-river-2'] = second;
+    state.civilizations[owner].cities = [...state.civilizations[owner].cities, 'city-river-2'];
+    state.civilizations[owner].gold = 100_000;
+    return { container, city, state };
+  }
+
+  const noopCbs = { onBuild: () => {}, onOpenWonderPanel: () => {}, onClose: () => {} };
+
+  it('shows the button for the owning player with Medicine and a 2+ city outbreak', () => {
+    const { container, city, state } = withWideOutbreak();
+    // era-4 fixture completes all era<=4 techs, which includes `medicine`.
+    expect(state.civilizations[city.owner].techState.completed).toContain('medicine');
+    const panel = createCityPanel(container, city, state, { ...noopCbs, onEmpireContainment: vi.fn(() => state) });
+    expect(panel.querySelector('[data-empire-contain-crisis]')).not.toBeNull();
+  });
+
+  it('hides the button without the Medicine tech', () => {
+    const { container, city, state } = withWideOutbreak();
+    state.civilizations[city.owner].techState.completed =
+      state.civilizations[city.owner].techState.completed.filter((t: string) => t !== 'medicine');
+    const panel = createCityPanel(container, city, state, { ...noopCbs, onEmpireContainment: vi.fn(() => state) });
+    expect(panel.querySelector('[data-empire-contain-crisis]')).toBeNull();
+  });
+
+  it('hides the button for a single-city outbreak', () => {
+    const { container, city, state } = withPlagueCrisis({ cityIds: ['city-river'] });
+    state.civilizations[city.owner].gold = 100_000;
+    const panel = createCityPanel(container, city, state, { ...noopCbs, onEmpireContainment: vi.fn(() => state) });
+    expect(panel.querySelector('[data-empire-contain-crisis]')).toBeNull();
+  });
+
+  it('hides the button when the viewer is not the crisis owner (hot-seat)', () => {
+    const { container, city, state } = withWideOutbreak();
+    state.civilizations['player-2'] = { ...structuredClone(state.civilizations[city.owner]), id: 'player-2', isHuman: true };
+    state.currentPlayer = 'player-2';
+    const panel = createCityPanel(container, city, state, { ...noopCbs, onEmpireContainment: vi.fn(() => state) });
+    expect(panel.querySelector('[data-empire-contain-crisis]')).toBeNull();
+  });
+
+  it('clicking it calls onEmpireContainment with the crisis id', () => {
+    const { container, city, state } = withWideOutbreak();
+    const onEmpireContainment = vi.fn(() => state);
+    const panel = createCityPanel(container, city, state, { ...noopCbs, onEmpireContainment });
+    const btn = panel.querySelector('[data-empire-contain-crisis]');
+    expect(btn).toBeTruthy();
+    btn!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    expect(onEmpireContainment).toHaveBeenCalledWith('crisis-1');
+  });
+});

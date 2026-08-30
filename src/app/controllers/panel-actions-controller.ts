@@ -98,7 +98,7 @@ import { createEspionagePanel } from '@/ui/espionage-panel';
 import { assignCityFocus, setCityWorkedTile } from '@/systems/city-work-system';
 import { chooseCircularManufacturingMaterial } from '@/systems/national-project-system';
 import { rushBuyActiveProduction } from '@/systems/economy-system';
-import { applyQuarantine, applyRemedy } from '@/systems/crisis-system';
+import { applyEmpireContainment, applyQuarantine, applyRemedy } from '@/systems/crisis-system';
 import { UNIT_DEFINITIONS, createUnit } from '@/systems/unit-system';
 import { evaluateUnitUpgrade } from '@/systems/unit-upgrade-system';
 import { hexKey, hexesInRange } from '@/systems/hex-utils';
@@ -830,6 +830,16 @@ export function createPanelActionsController(deps: PanelActionsControllerDeps): 
       },
       onRemedyCrisis: (crisisId, cityId) => {
         const result = applyRemedy(deps.session.getState(), crisisId, cityId);
+        if (!result.success) {
+          deps.showNotification(result.message, 'warning');
+          return deps.session.getState();
+        }
+        deps.session.commit(result.state);
+        deps.showNotification(result.message, 'success');
+        return deps.session.getState();
+      },
+      onEmpireContainment: (crisisId) => {
+        const result = applyEmpireContainment(deps.session.getState(), crisisId, deps.bus);
         if (!result.success) {
           deps.showNotification(result.message, 'warning');
           return deps.session.getState();
