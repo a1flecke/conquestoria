@@ -601,6 +601,35 @@ export function ForumSprite({ palette, svgOnly = false }: BuildingSpriteProps): 
   );
 }
 
+export function CourthouseSprite({ palette, svgOnly = false }: BuildingSpriteProps): string {
+  const columns = [0, 1, 2, 3, 4].map(i => (
+    <g transform={`translate(${44 + i * 27} 0)`}>
+      <rect x="-4" y="82" width="8" height="46" fill={P.stone.light} stroke={P.ink.line} strokeWidth="0.6" />
+      <rect x="-4" y="82" width="8" height="46" fill="url(#stoneTexture)" opacity="0.5" />
+      <rect x="-6" y="78" width="12" height="5" fill={P.stone.mid} stroke={P.ink.line} strokeWidth="0.5" />
+      <rect x="-6" y="128" width="12" height="5" fill={P.stone.mid} stroke={P.ink.line} strokeWidth="0.5" />
+    </g>
+  )).join('');
+  return (
+    <BuildingFrame label="Courthouse" sub="Culture" category="culture" svgOnly={svgOnly}>
+      <BuildingPlinth w={176} />
+      <rect x="18" y="128" width="156" height="12" fill={P.stone.mid} stroke={P.ink.line} strokeWidth="0.6" />
+      <rect x="28" y="118" width="136" height="10" fill={P.stone.light} stroke={P.ink.line} strokeWidth="0.5" />
+      {columns}
+      <rect x="30" y="70" width="132" height="10" fill={P.stone.light} stroke={P.ink.line} strokeWidth="0.8" />
+      <path d="M26,70 L96,36 L166,70 Z" fill={P.stone.mid} stroke={P.ink.line} strokeWidth="1" />
+      <path d="M26,70 L96,36 L166,70 Z" fill="url(#stoneTexture)" opacity="0.6" />
+      <g stroke={P.metal.gold} strokeWidth="1.4" fill="none">
+        <line x1="96" y1="50" x2="96" y2="64" />
+        <line x1="84" y1="52" x2="108" y2="52" />
+        <path d="M84,52 L80,60 L88,60 Z" fill={P.metal.gold} />
+        <path d="M108,52 L104,60 L112,60 Z" fill={P.metal.gold} />
+      </g>
+      <Banner x={96} y={30} palette={palette} scale={0.8} />
+    </BuildingFrame>
+  );
+}
+
 /* === ESPIONAGE === */
 
 export function SafehouseSprite({ palette, svgOnly = false }: BuildingSpriteProps): string {

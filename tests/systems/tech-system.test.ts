@@ -26,6 +26,7 @@ describe('TECH_TREE', () => {
       const techs = TECH_TREE.filter(t => t.track === track);
       // Era 13 adds two technologies to every track. Quantum Computing was the
       // previous boundary node in science, so science adds only one new node here.
+      // civics has a 3rd era-2 tech (magistracy, #919 MR2) → 27.
       const expectedCount = track === 'military'
         ? 28
         : track === 'maritime'
@@ -34,6 +35,8 @@ describe('TECH_TREE', () => {
           ? 27
           : track === 'science'
             ? 27
+          : track === 'civics'
+            ? 27
           : 26;
       expect(techs.length, `track ${track} should have ${expectedCount} techs`).toBe(expectedCount);
     }
@@ -41,8 +44,8 @@ describe('TECH_TREE', () => {
 });
 
 describe('expanded tech tree', () => {
-  it('has 399 techs after adding the optional Dreadnought bridge to the 30-node Era 13 catalog', () => {
-    expect(TECH_TREE.length).toBe(399);
+  it('has 400 techs (399 + magistracy, #919 MR2) after the optional Dreadnought bridge to the 30-node Era 13 catalog', () => {
+    expect(TECH_TREE.length).toBe(400);
   });
 
   it('supports cross-track prerequisites', () => {
