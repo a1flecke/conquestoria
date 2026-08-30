@@ -50,7 +50,7 @@ describe('legendary-wonder-definitions', () => {
     const shipped = getLegendaryWonderDefinitions().map(w => w.id);
 
     expect(shipped).toEqual(approved);
-    expect(approved).toHaveLength(40);
+    expect(approved).toHaveLength(41);
     expect(approved).toEqual(expect.arrayContaining(['standing-stones', 'great-pyramid', 'tidemother-colossus', 'manhattan-project', 'internet', 'sistine-vault', 'codex-eternal', 'navigators-compass', 'palace-of-the-sun', 'iron-arsenal', 'merchant-admiralty', 'crystal-palace', 'suez-canal', 'continental-congress', 'eiffel-tower', 'brooklyn-bridge', 'trans-siberian-railway', 'panama-canal', 'empire-state-building', 'hoover-dam', 'wright-flyer', 'united-nations', 'apollo-program', 'open-intelligence-commons', 'lunar-gateway']));
   });
 
@@ -101,6 +101,29 @@ describe('legendary-wonder-definitions', () => {
             kind: 'adjacent-citadel-defense', multiplier: 1.05, stackingGroup: 'legendary-citadel-defense',
             excludedRoles: ['siege'], aiValue: 18,
           },
+        ],
+      },
+    });
+  });
+
+  it('defines NORAD with distinct Radar and interception quests', () => {
+    const norad = getLegendaryWonderDefinitions().find(wonder => wonder.id === 'norad');
+
+    expect(norad).toMatchObject({
+      id: 'norad',
+      name: 'NORAD',
+      era: 11,
+      productionCost: 380,
+      requiredTechs: ['radar-systems', 'rocketry'],
+      requiredResources: [],
+      questSteps: [
+        { type: 'specific-buildings', buildingIds: ['radar_station'], cityScope: 'distinct-cities', targetCount: 3 },
+        { type: 'successful-interceptions', targetCount: 3 },
+      ],
+      reward: {
+        tacticalEffects: [
+          { kind: 'aa-radius-extension', providerKind: 'sam-site', radius: 3, aiValue: 18 },
+          { kind: 'first-owner-turn-interception-modifier', multiplier: 1.1, stackingGroup: 'norad-first-interception', aiValue: 18 },
         ],
       },
     });

@@ -128,6 +128,13 @@ export const WONDER_CODEX_FACT_SOURCES = [
     notes: 'Used for Crac des Chevaliers historical and fortification context.',
   },
   {
+    id: 'norad-agreement',
+    title: 'NORAD Agreement',
+    publisher: 'North American Aerospace Defense Command',
+    sourceUrl: 'https://www.norad.mil/About-NORAD/NORAD-Agreement/',
+    notes: 'Used for North American Aerospace Defense Command historical context.',
+  },
+  {
     id: 'unesco-delphi',
     title: 'Archaeological Site of Delphi',
     publisher: 'UNESCO World Heritage Centre',

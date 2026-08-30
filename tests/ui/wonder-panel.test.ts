@@ -127,6 +127,23 @@ describe('wonder-panel', () => {
     expect(summary?.textContent).toContain('occupied Citadel gives adjacent non-siege defenders +5% defense');
   });
 
+  it('explains NORAD with its expanded name and bounded air-defense reward', () => {
+    const { container, city, state } = makeWonderPanelFixture();
+    state.completedLegendaryWonders = {
+      norad: { ownerId: 'player', cityId: city.id, turnCompleted: state.turn },
+    };
+
+    const panel = createWonderPanel(container, state, city.id, {
+      onStartBuild: () => {},
+      onClose: () => {},
+    });
+    const summary = panel.querySelector<HTMLElement>('[data-wonder-reward-summary="norad"]');
+
+    expect(summary?.textContent).toContain('North American Aerospace Defense Command (NORAD)');
+    expect(summary?.textContent).toContain('SAM Sites reach radius 3');
+    expect(summary?.textContent).toContain('first eligible interception each owner turn gets +10%');
+  });
+
   it('renders a labelled dialog with responsive phone and laptop layout invariants', () => {
     const { container, state } = makeWonderPanelFixture();
     const onClose = vi.fn();

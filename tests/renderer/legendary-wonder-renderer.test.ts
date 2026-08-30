@@ -345,6 +345,15 @@ describe('legendary-wonder-renderer', () => {
     expectNonblankCanvasGlyph(ctx, 'crac-des-chevaliers fallback');
   });
 
+  it('uses the approved generic fallback for NORAD while bespoke art is deferred', () => {
+    const metadata = getLegendaryWonderLandmarkMetadata('norad');
+    const ctx = drawCompletedGlyphForWonder('norad');
+
+    expect(metadata.assetKey).toBeUndefined();
+    expect(ctx.operations.some(operation => operation.startsWith('bespoke:'))).toBe(false);
+    expectNonblankCanvasGlyph(ctx, 'norad fallback');
+  });
+
   it('keeps generic silhouette fallback for completed landmarks with unsupported bespoke asset keys', () => {
     const ctx = new MockCanvasContext();
     const metadata = {

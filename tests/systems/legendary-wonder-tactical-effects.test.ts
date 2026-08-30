@@ -241,6 +241,24 @@ describe('legendary wonder tactical effects', () => {
     expect(getTacticalSamRadius(state, 'ai-1', 2, samDefinitions)).toBe(2);
   });
 
+  it("applies NORAD's live SAM radius and first owner-turn interception effects only to its owner", () => {
+    const state = createNewGame('rome', 'norad-tactical-effects', 'small');
+    state.completedLegendaryWonders = {
+      norad: { ownerId: 'player', cityId: Object.keys(state.cities)[0]!, turnCompleted: 1 },
+    };
+
+    expect(getTacticalSamRadius(state, 'player', 2)).toBe(3);
+    expect(getTacticalSamRadius(state, 'ai-1', 2)).toBe(2);
+
+    const first = claimTacticalFirstOwnerTurnInterception(state, 'player', true);
+    const later = claimTacticalFirstOwnerTurnInterception(first.state, 'player', true);
+    const rival = claimTacticalFirstOwnerTurnInterception(later.state, 'ai-1', true);
+
+    expect(first.multiplier).toBe(1.1);
+    expect(later.multiplier).toBe(1);
+    expect(rival.multiplier).toBe(1);
+  });
+
   it('claims the first eligible owner-turn interception before combat', () => {
     const state = createNewGame('rome', 'tactical-interception', 'small');
     state.completedLegendaryWonders = {

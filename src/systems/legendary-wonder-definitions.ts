@@ -946,6 +946,38 @@ const LEGENDARY_WONDER_DEFINITIONS_BY_ID: Record<string, LegendaryWonderDefiniti
       civYieldBonus: { science: 6 },
     },
   },
+  norad: {
+    id: 'norad',
+    name: 'NORAD',
+    era: 11,
+    productionCost: 380,
+    requiredTechs: ['radar-systems', 'rocketry'],
+    requiredResources: [],
+    cityRequirement: 'any',
+    questSteps: [
+      {
+        id: 'operate-radar-stations',
+        type: 'specific-buildings',
+        buildingIds: ['radar_station'],
+        cityScope: 'distinct-cities',
+        targetCount: 3,
+        description: 'Operate Radar Stations in 3 different cities.',
+      },
+      {
+        id: 'complete-interceptions',
+        type: 'successful-interceptions',
+        targetCount: 3,
+        description: 'Complete 3 successful interceptions.',
+      },
+    ],
+    reward: {
+      summary: 'North American Aerospace Defense Command (NORAD) coordinates a stronger first response. Your operational Radar + SAM Sites reach radius 3; the first eligible interception each owner turn gets +10% strength.',
+      tacticalEffects: [
+        { kind: 'aa-radius-extension', providerKind: 'sam-site', radius: 3, aiValue: 18 },
+        { kind: 'first-owner-turn-interception-modifier', multiplier: 1.1, stackingGroup: 'norad-first-interception', aiValue: 18 },
+      ],
+    },
+  },
   'open-intelligence-commons': {
     id: 'open-intelligence-commons',
     name: 'Open Intelligence Commons',

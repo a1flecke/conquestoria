@@ -56,6 +56,8 @@ const LEGENDARY_WONDER_LANDMARK_METADATA: Record<string, LegendaryWonderLandmark
   'wright-flyer':          landmark('wright-flyer',          'bastion',    'wide', 'trade',     '#3a3828', '#c8b860', '#fff8d0', 1.04, 'dedicationGlow', 'glint','scaffold',   'wright-flyer-bespoke'),
   'united-nations':        landmark('united-nations',        'hall',       'wide', 'horizon',   '#1a2a3a', '#4080c0', '#c0d8f0', 1.06, 'civicAura',      'glint','scaffold',   'united-nations-bespoke'),
   'apollo-program':        landmark('apollo-program',        'spire',      'wide', 'cosmos',    '#0a0a1a', '#c0c8e0', '#ffffff', 1.12, 'dedicationGlow', 'glint','scaffold',   'apollo-program-bespoke'),
+  // #725 supplies NORAD bespoke art; this supported beacon silhouette is the approved mechanic fallback.
+  norad:                   landmark('norad',                 'signal',     'wide', 'network',   '#18283a', '#4ea6d8', '#d9f4ff', 1.06, 'civicAura',      'pulse','outline'),
   // Era 13 wonders (Autonomy Age)
   'open-intelligence-commons': landmark('open-intelligence-commons', 'network', 'wide', 'network', '#172a36', '#79d8d0', '#e4fff9', 1.06, 'civicAura', 'spark', 'foundation', 'open-intelligence-commons-bespoke'),
   'lunar-gateway': landmark('lunar-gateway', 'gateway', 'tall', 'cosmos', '#11182f', '#a9c4ff', '#f3f7ff', 1.10, 'dedicationGlow', 'glint', 'scaffold', 'lunar-gateway-bespoke'),
