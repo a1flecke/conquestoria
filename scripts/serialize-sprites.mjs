@@ -125,6 +125,11 @@ const UNIT_SPRITES = [
   ['crossbowman',   'CrossbowmanV2Sprite'],
   ['catapult',      'CatapultV2Sprite'],
   ['ballista',      'BallistaV2Sprite'],
+  // #711 siege and capital ships
+  ['trebuchet',     'TrebuchetV2Sprite'],
+  ['rocket_artillery', 'RocketArtilleryV2Sprite'],
+  ['battleship',    'BattleshipV2Sprite'],
+  ['missile_cruiser', 'MissileCruiserV2Sprite'],
   ['caravan',       'CaravanV2Sprite'],
   ['expedition',    'ExpeditionV2Sprite'],
   ['transport',     'TransportV2Sprite'],

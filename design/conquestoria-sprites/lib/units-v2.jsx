@@ -1890,6 +1890,64 @@ function SupercarrierV2Sprite({ faction = 'imperials', state = 'idle', phase }) 
   </SpriteFrameV2>;
 }
 
+/* #711 — purpose-built siege and capital-ship silhouettes.  Their hooks name
+ * physical subassemblies rather than abstract effects so animation reads as
+ * mechanism: wheel, beam, rack, turret, radar, and VLS lid. */
+function TrebuchetV2Sprite({ faction = 'imperials', state = 'idle', phase }) {
+  const f = _fa2(faction);
+  return <SpriteFrameV2 state={state} kind="ranged" variant="trebuchet" phase={phase}>
+    <ellipse className="cq-shadow" cx="64" cy="104" rx="42" ry="7" fill="#000" opacity=".28" />
+    <g transform="translate(12 35)">
+      <g className="cq-trebuchet-carriage"><path d="M7,54 L21,38 H91 L105,54 L96,66 H16 Z" fill={_P2.wood.dark} stroke={_P2.ink.line} strokeWidth="1.4" /><path d="M18,52 H96" stroke={_P2.wood.light} strokeWidth="3" /><path d="M31,40 H82" stroke={f.mid} strokeWidth="2.2" /></g>
+      {[22, 47, 76, 94].map((cx) => <g key={cx} transform={`translate(${cx} 62)`}><g className="cq-trebuchet-wheel"><circle r="9" fill={_P2.wood.dark} stroke={_P2.ink.line} strokeWidth="1.2" /><circle r="3" fill={_P2.metal.iron} /><path d="M0,-7V7M-7,0H7" stroke={_P2.wood.light} strokeWidth="1.2" /></g></g>)}
+      <g transform="translate(43 39)"><g className="cq-trebuchet-a-frame"><path d="M-17,15 L0,-30 L19,15 Z" fill={_P2.wood.light} stroke={_P2.ink.line} strokeWidth="1.3" /><path d="M-11,13 L0,-19 L12,13" fill="none" stroke={_P2.wood.dark} strokeWidth="2.3" /><circle cy="-30" r="4" fill={_P2.metal.iron} stroke={_P2.ink.line} strokeWidth=".8" /></g></g>
+      <g transform="translate(43 9)"><g className="cq-trebuchet-counterweight"><path d="M-15,-4 H-2 V18 H-17 Z" fill={_P2.stone.mid} stroke={_P2.ink.line} strokeWidth="1" /><path d="M-14,1 H-4M-14,7 H-4" stroke={_P2.stone.light} strokeWidth="1.5" /></g></g>
+      <g transform="translate(43 9)"><g className="cq-trebuchet-beam"><path d="M-8,1 L47,-20 L50,-14 L-6,8 Z" fill={_P2.wood.light} stroke={_P2.ink.line} strokeWidth="1.1" /><circle r="4" fill={_P2.metal.iron} stroke={_P2.ink.line} strokeWidth=".8" /><g className="cq-trebuchet-sling"><path d="M47,-17 Q56,-8 55,5 M51,-14 Q61,-7 61,1" fill="none" stroke={_P2.wood.dark} strokeWidth="1.4" /><path d="M54,5 Q58,8 62,4" fill="none" stroke={_P2.cloth.linen} strokeWidth="1.1" /></g></g></g>
+      <g transform="translate(91 27) scale(.48)"><rect x="-.6" y="-12" width="1.4" height="18" fill={_P2.wood.dark} /><path d="M0,-12 L14,-9 L8,-5 L14,-1 L0,-2 Z" fill={f.mid} stroke={f.dark} strokeWidth=".6" /></g>
+    </g>
+  </SpriteFrameV2>;
+}
+
+function RocketArtilleryV2Sprite({ faction = 'imperials', state = 'idle', phase }) {
+  const f = _fa2(faction);
+  return <SpriteFrameV2 state={state} kind="ranged" variant="rocket-artillery" phase={phase}>
+    <ellipse className="cq-shadow" cx="64" cy="104" rx="44" ry="7" fill="#000" opacity=".28" />
+    <g transform="translate(11 37)">
+      <g className="cq-rocket-artillery-chassis"><path d="M7,50 L19,37 H100 L111,50 L103,65 H14 Z" fill={_P2.metal.iron} stroke={_P2.ink.line} strokeWidth="1.4" /><path d="M17,51 H104" stroke={_P2.metal.shine} strokeWidth="2" /><path d="M25,42 H93" stroke={f.mid} strokeWidth="2.5" /></g>
+      {[17, 33, 49, 74, 90, 105].map((cx) => <g key={cx} transform={`translate(${cx} 63)`}><g className="cq-rocket-artillery-wheel"><circle r="7.2" fill={_P2.wood.dark} stroke={_P2.ink.line} strokeWidth="1" /><circle r="2.3" fill={_P2.metal.steel} /><path d="M0,-5V5M-5,0H5" stroke={_P2.metal.shine} strokeWidth="1" /></g></g>)}
+      <g transform="translate(62 39)"><g className="cq-rocket-artillery-rack"><path d="M-34,2 L-25,-21 H29 L38,2 Z" fill={_P2.metal.steel} stroke={_P2.ink.line} strokeWidth="1.2" /><path d="M-28,-3 H33" stroke={_P2.metal.iron} strokeWidth="2" /><g className="cq-rocket-artillery-tubes" fill={_P2.ink.soft} stroke={_P2.ink.line} strokeWidth=".7">{[-20,-8,4,16].map((x) => <rect key={x} x={x} y="-17" width="8" height="18" rx="1" />)}</g><path d="M-25,-20 H29" stroke={f.bright} strokeWidth="1.2" opacity=".85" /></g></g>
+      <g transform="translate(22 58)"><g className="cq-rocket-artillery-stabilizer"><path d="M0,0 L-10,13 M1,0 L13,13" stroke={_P2.metal.steel} strokeWidth="3" strokeLinecap="round" /><path d="M-13,13 H-7 M10,13 H16" stroke={_P2.ink.line} strokeWidth="2" /></g></g>
+      <g transform="translate(84 53)"><g className="cq-rocket-artillery-crate"><rect width="16" height="12" fill={_P2.wood.light} stroke={_P2.ink.line} strokeWidth=".8" /><path d="M2,2 L14,10M14,2 L2,10" stroke={f.mid} strokeWidth="1.1" /></g></g>
+    </g>
+  </SpriteFrameV2>;
+}
+
+function BattleshipV2Sprite({ faction = 'imperials', state = 'idle', phase }) {
+  const f = _fa2(faction);
+  const turret = (name, x, y, direction = 1) => <g key={name} transform={`translate(${x} ${y})`}><g className={`cq-battleship-turret-${name}`}><ellipse rx="11" ry="6" fill={_P2.metal.steel} stroke={_P2.ink.line} strokeWidth=".9" /><path d={`M0,-1 L${direction * 22},-4`} stroke={_P2.metal.iron} strokeWidth="4" strokeLinecap="round" /><path d={`M0,2 L${direction * 19},5`} stroke={_P2.metal.iron} strokeWidth="3" strokeLinecap="round" /><g className="cq-muzzle-flash" transform={`translate(${direction * 22} -4)`}><path d="M0,-5 L6,0 L0,5 L-4,0 Z" fill={_P2.metal.gold} stroke={_P2.ink.line} strokeWidth=".5" /></g></g></g>;
+  return <SpriteFrameV2 state={state} kind="naval" variant="battleship" hexTint={_P2.ground.water} phase={phase}>
+    <ellipse className="cq-shadow" cx="64" cy="105" rx="53" ry="7" fill="#000" opacity=".28" />
+    <g className="cq-battleship-wake"><path d="M10,100 Q64,115 118,100 M19,107 Q64,120 109,107" fill="none" stroke={_P2.ground.water} strokeWidth="2.6" opacity=".85" /></g>
+    <g className="cq-battleship-hull"><path d="M9,85 L27,67 H104 L120,84 L108,102 Q64,111 20,102 Z" fill={_P2.metal.iron} stroke={_P2.ink.line} strokeWidth="1.4" /><path d="M18,91 Q64,101 112,91" fill="none" stroke={_P2.metal.steel} strokeWidth="2.2" /><path d="M27,67 H104 L111,77 H18 Z" fill={_P2.metal.steel} stroke={_P2.ink.line} strokeWidth="1" /></g>
+    {turret('fore', 91, 73)}{turret('mid', 63, 70)}{turret('aft', 34, 75, -1)}
+    <g transform="translate(52 63)"><g className="cq-battleship-bridge"><path d="M-10,5 L-6,-16 H12 L16,5 Z" fill={_P2.stone.mid} stroke={_P2.ink.line} strokeWidth="1" /><path d="M-5,-7 H10" stroke={f.bright} strokeWidth="1.8" /><path d="M2,-16 V-29" stroke={_P2.metal.iron} strokeWidth="2" /></g></g>
+    <g transform="translate(54 33)"><g className="cq-battleship-rangefinder"><path d="M-10,0 H10" stroke={_P2.metal.steel} strokeWidth="3" /><circle cx="-10" r="2.5" fill={f.bright} /><circle cx="10" r="2.5" fill={f.bright} /></g></g>
+  </SpriteFrameV2>;
+}
+
+function MissileCruiserV2Sprite({ faction = 'imperials', state = 'idle', phase }) {
+  const f = _fa2(faction);
+  return <SpriteFrameV2 state={state} kind="naval" variant="missile-cruiser" hexTint={_P2.ground.water} phase={phase}>
+    <ellipse className="cq-shadow" cx="64" cy="105" rx="51" ry="7" fill="#000" opacity=".28" />
+    <g className="cq-missile-cruiser-wake"><path d="M11,100 Q64,116 117,100 M22,107 Q64,120 106,107" fill="none" stroke={_P2.ground.water} strokeWidth="2.5" opacity=".85" /></g>
+    <g className="cq-missile-cruiser-hull"><path d="M10,86 L31,68 H102 L118,85 L107,102 Q64,110 21,102 Z" fill={_P2.metal.iron} stroke={_P2.ink.line} strokeWidth="1.35" /><path d="M19,91 Q64,100 111,91" fill="none" stroke={_P2.metal.steel} strokeWidth="2.1" /><path d="M28,69 H102 L108,78 H19 Z" fill={_P2.metal.steel} stroke={_P2.ink.line} strokeWidth=".9" /></g>
+    <g transform="translate(36 72)"><g className="cq-missile-cruiser-vls"><rect x="-13" y="-8" width="26" height="16" rx="1" fill={_P2.metal.steel} stroke={_P2.ink.line} strokeWidth=".9" />{[-8,0,8].map((x) => <g key={x} transform={`translate(${x} -3)`}><g className="cq-missile-cruiser-vls-lid"><path d="M-3,-3 H3 V3 H-3 Z" fill={_P2.ink.soft} stroke={_P2.metal.shine} strokeWidth=".5" /></g><g className="cq-missile-cruiser-launch"><path d="M0,-5 V-17" stroke={f.bright} strokeWidth="1.8" /><path d="M-3,-15 L0,-21 L3,-15 Z" fill={_P2.metal.gold} /></g></g>)}</g></g>
+    <g transform="translate(68 63)"><g className="cq-missile-cruiser-bridge"><path d="M-10,7 L-5,-18 H14 L18,7 Z" fill={_P2.stone.mid} stroke={_P2.ink.line} strokeWidth="1" /><path d="M-4,-8 H12" stroke={f.bright} strokeWidth="1.8" /><path d="M4,-18 V-31" stroke={_P2.metal.iron} strokeWidth="2" /></g></g>
+    <g transform="translate(73 31)"><g className="cq-missile-cruiser-radar-forward"><ellipse rx="10" ry="2.5" fill={_P2.metal.steel} stroke={_P2.ink.line} strokeWidth=".7" /><path d="M0,2V11" stroke={_P2.metal.iron} strokeWidth="1.5" /></g></g>
+    <g transform="translate(57 40)"><g className="cq-missile-cruiser-radar-aft"><path d="M-8,0 H8 M0,-7 V7" stroke={_P2.metal.steel} strokeWidth="1.8" /><circle r="2" fill={f.bright} /></g></g>
+  </SpriteFrameV2>;
+}
+
 function GreatGeneralV2Sprite({ faction = 'imperials', state = 'idle', phase }) {
   const f = _fa2(faction);
   return <SpriteFrameV2 state={state} kind="civilian" variant="great-general" phase={phase}>
@@ -1929,4 +1987,6 @@ Object.assign(window, {
   // #710 review-only exports; v2/index registration waits for captured visual approval.
   ParatrooperV2Sprite, NavalStrikeAircraftV2Sprite, MaritimePatrolAircraftV2Sprite,
   SupercarrierV2Sprite, GreatGeneralV2Sprite,
+  // #711 siege and capital-ship visual batch.
+  TrebuchetV2Sprite, RocketArtilleryV2Sprite, BattleshipV2Sprite, MissileCruiserV2Sprite,
 });
