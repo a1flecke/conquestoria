@@ -72,6 +72,9 @@ const COURTHOUSE_RELIEF: UnrestReliefSource = {
   id: 'courthouse',
   isActive: city => city.buildings.includes('courthouse'),
   reliefRows: (_city, _state, positiveRows) => {
+    // Matched by the same row-label strings the positive rows are pushed with above.
+    // Coupling is intentional (mirrors the Happiness/Luxury offset rows) and guarded by
+    // the worked-example tests in faction-system.test.ts, which fail if a label changes.
     const distanceRow = positiveRows.find(r => r.label === 'Distance from capital')?.amount ?? 0;
     const overextensionRow = positiveRows.find(r => r.label === 'Empire overextension')?.amount ?? 0;
     const rawSprawl = distanceRow + overextensionRow;

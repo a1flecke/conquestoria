@@ -831,15 +831,19 @@ describe('#919 MR2 — AI values unrest relief (Courthouse)', () => {
   const era2Techs = TECH_TREE.filter(tech => tech.era <= 2 && tech.countsForEraAdvancement !== false)
     .map(tech => tech.id);
 
-  function wideEmpire(opts: { cityCount: number; targetFarHexes: number; warCount: number }): GameState {
+  // Twelve cities. `city-a` is placed far from `cap` (distance row) when `far` is set,
+  // else clustered (no sprawl on city-a). Same city count/cost/production in both, so a
+  // courthouse's productionTurns/maintenance terms are identical between them — only the
+  // pressure-conditioned relief term differs.
+  function empire(opts: { far: boolean; warCount: number }): GameState {
     const state = setupState([...era2Techs, 'magistracy'], ['cap', 'city-a']);
     const civ = state.civilizations['ai-1'];
     state.cities['cap'].position = { q: 0, r: 0 };
     state.cities['cap'].buildings = [];
-    state.cities['city-a'].position = { q: opts.targetFarHexes, r: 0 };
+    state.cities['city-a'].position = opts.far ? { q: 30, r: 0 } : { q: 1, r: 0 };
     state.cities['city-a'].buildings = [];
     state.cities['city-a'].population = 6;
-    for (let i = 3; i <= opts.cityCount; i++) {
+    for (let i = 3; i <= 12; i++) {
       const clone = { ...state.cities['city-a'], id: `c${i}`, position: { q: i, r: 6 }, buildings: [] as string[] };
       state.cities[`c${i}`] = clone;
       civ.cities.push(`c${i}`);
@@ -849,37 +853,46 @@ describe('#919 MR2 — AI values unrest relief (Courthouse)', () => {
     return state;
   }
 
-  it('a wide, high-pressure AI city scores courthouse relief as a real positive contributor to its final score', () => {
-    const state = wideEmpire({ cityCount: 12, targetFarHexes: 30, warCount: 2 });
-    // Sanity: city-a is genuinely over the unrest trigger before the courthouse.
-    const before = computeUnrestPressure('city-a', state, 0);
-    expect(before).toBeGreaterThan(40);
+  function candidate(state: GameState, id: string) {
+    return generateAIProductionCandidates(state, 'ai-1', 'city-a', [], aggressive)
+      .find(c => c.itemId === id)!;
+  }
 
-    const candidates = generateAIProductionCandidates(state, 'ai-1', 'city-a', [], aggressive);
-    const courthouse = candidates.find(c => c.itemId === 'courthouse');
-    const monument = candidates.find(c => c.itemId === 'monument');
-    expect(courthouse).toBeDefined();
-    expect(monument).toBeDefined();
-    // monument (also +1 gold, era 1, no relief-source entry) gets exactly zero relief —
-    // proves the term is keyed to UNREST_RELIEF_SOURCES, not to "cheap culture building".
-    expect(monument!.unrestReliefScore).toBe(0);
-    expect(courthouse!.unrestReliefScore).toBeGreaterThan(0);
+  it('scores courthouse relief only for a city a courthouse would actually help, and feeds it into .score', () => {
+    const pressured = empire({ far: true, warCount: 2 });   // city-a: overextension + distance
+    const calm = empire({ far: false, warCount: 0 });        // 12 cities but city-a clustered
 
-    // The published candidate fields must reconstruct .score, and dropping the relief
-    // term must make that reconstruction strictly smaller — i.e. relief genuinely lifts
-    // the final score rather than being computed and discarded.
-    const reconstruct = (c: typeof courthouse & object, includeRelief: boolean) =>
-      c.economyScore * 2
-      + c.personalityScore
-      + c.citySpecializationScore
-      + c.defensiveEspionageScore
-      + c.airDefenseThreatScore
-      + c.strategicArsenalValueScore
+    // city-a is genuinely over the unrest trigger in the pressured empire.
+    expect(computeUnrestPressure('city-a', pressured, 0)).toBeGreaterThan(40);
+
+    const chP = candidate(pressured, 'courthouse');
+    const monP = candidate(pressured, 'monument');
+    const chC = candidate(calm, 'courthouse');
+
+    // monument (+1 gold, era 1, not in UNREST_RELIEF_SOURCES) never gets relief — proves
+    // the term is keyed to the relief table, not to "cheap culture building".
+    expect(monP.unrestReliefScore).toBe(0);
+    // A courthouse in the clustered city still sees an empire-overextension row (12 cities),
+    // so it gets SOME relief — but strictly less than the far city that also pays distance.
+    expect(chP.unrestReliefScore).toBeGreaterThan(chC.unrestReliefScore);
+    expect(chC.unrestReliefScore).toBeGreaterThan(0);
+
+    // The relief term is a real positive contributor to the final score, not discarded.
+    const reconstruct = (c: typeof chP, includeRelief: boolean) =>
+      c.economyScore * 2 + c.personalityScore + c.citySpecializationScore
+      + c.defensiveEspionageScore + c.airDefenseThreatScore + c.strategicArsenalValueScore
       + (includeRelief ? c.unrestReliefScore : 0)
-      - c.productionTurns * 1.5
-      - c.maintenanceRisk * 3;
-    expect(reconstruct(courthouse!, true)).toBeCloseTo(courthouse!.score, 6);
-    expect(reconstruct(courthouse!, false)).toBeLessThan(courthouse!.score);
+      - c.productionTurns * 1.5 - c.maintenanceRisk * 3;
+    expect(reconstruct(chP, true)).toBeCloseTo(chP.score, 6);
+    expect(reconstruct(chP, false)).toBeLessThan(chP.score);
+
+    // Delta-of-deltas: courthouse-vs-monument gap is larger in the pressured empire, and
+    // the extra gap is exactly the pressured courthouse's relief score (monument relief is
+    // 0 both sides; productionTurns/maintenance are identical across the two fixtures).
+    const monC = candidate(calm, 'monument');
+    const gapPressured = chP.score - monP.score;
+    const gapCalm = chC.score - monC.score;
+    expect(gapPressured - gapCalm).toBeCloseTo(chP.unrestReliefScore - chC.unrestReliefScore, 4);
   });
 
   it('a tall, low-pressure AI city assigns courthouse zero relief score', () => {
