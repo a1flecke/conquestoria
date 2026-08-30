@@ -2,6 +2,8 @@ import type { GameState, City } from '@/core/types';
 import { getCityAppeaseCost, getConcessionCost, computeUnrestPressure, CONCESSION_IMMUNITY_TURNS } from '@/systems/faction-system';
 import { getCivHappinessFromResources } from '@/systems/resource-acquisition-system';
 import { calculateProjectedCityYields } from '@/systems/city-work-system';
+import { getTopUnrestLever } from '@/systems/unrest-guidance';
+import { unrestRecommendationCopy } from '@/ui/unrest-guidance-copy';
 import { createGameButton } from '@/ui/ui-kit';
 
 export interface CityOverviewPanelCallbacks {
@@ -119,6 +121,19 @@ export function createCityOverviewPanel(
     row.appendChild(yieldsLine);
 
     if (city.unrestLevel > 0) {
+      // #919 MR3: one plain-language "top lever" line — the single most useful thing
+      // the player can do about this city's unrest right now — above Appease/Concede.
+      const lever = getTopUnrestLever(city.id, state);
+      if (lever) {
+        const { icon, text } = unrestRecommendationCopy(lever);
+        const leverLine = document.createElement('div');
+        leverLine.dataset.topLever = lever.kind;
+        const grey = lever.availability !== 'now';
+        leverLine.style.cssText = `margin-top:8px;font-size:12px;line-height:1.4;color:${grey ? 'rgba(255,255,255,0.55)' : '#cfe6ff'};`;
+        leverLine.textContent = `${icon} ${text}${lever.availability === 'research-first' ? '  (research it first)' : ''}`;
+        row.appendChild(leverLine);
+      }
+
       const actions = document.createElement('div');
       actions.style.cssText = 'display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;';
 

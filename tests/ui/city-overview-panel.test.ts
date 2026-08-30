@@ -13,10 +13,12 @@ function makeFixtureState({
   cities = [],
   civGold,
   currentPlayer,
+  atWarWith,
 }: {
   cities?: FixtureCityInput[];
   civGold?: number;
   currentPlayer?: string;
+  atWarWith?: Record<string, string[]>;
 } = {}): GameState {
   const base = makeLegendaryWonderFixture();
   const stateCities: Record<string, City> = {};
@@ -58,6 +60,10 @@ function makeFixtureState({
       name: civId,
       cities: cityIds,
       gold: civGold ?? existing?.gold ?? templateCiv.gold,
+      diplomacy: {
+        ...(existing ?? templateCiv).diplomacy,
+        atWarWith: atWarWith?.[civId] ?? [],
+      },
     };
   }
 
@@ -218,5 +224,73 @@ describe('city overview panel hot-seat isolation (#552)', () => {
     createCityOverviewPanel(containerB, stateB, { onOpenCity: vi.fn(), onAppeaseFaction: vi.fn(), onConcedeToMovement: vi.fn(), onClose: vi.fn() });
     expect(containerB.textContent).toContain('BetaCity');
     expect(containerB.textContent).not.toContain('AlphaCity');
+  });
+});
+
+describe('city overview panel — #919 MR3 top-lever line', () => {
+  const cb = () => ({ onOpenCity: vi.fn(), onAppeaseFaction: vi.fn(), onConcedeToMovement: vi.fn(), onClose: vi.fn() });
+
+  it('an unrest city renders exactly one top-lever line whose copy matches its recommended kind', () => {
+    // At war → the War weariness row leads → getTopUnrestLever = make-peace.
+    const state = makeFixtureState({
+      currentPlayer: 'player',
+      atWarWith: { player: ['enemy-1', 'enemy-2'] },
+      cities: [
+        { id: 'city-1', owner: 'player', name: 'Restless', unrestLevel: 1 },
+        { id: 'capital', owner: 'player', name: 'Capital' },
+      ],
+    });
+    const container = document.createElement('div');
+    createCityOverviewPanel(container, state, cb());
+    const row = container.querySelector('[data-city-row="city-1"]')!;
+    const levers = row.querySelectorAll('[data-top-lever]');
+    expect(levers).toHaveLength(1);
+    expect(levers[0].getAttribute('data-top-lever')).toBe('make-peace');
+    expect(levers[0].textContent).toMatch(/Make peace/);
+    expect(levers[0].textContent).toMatch(/Diplomacy/);
+    expect(levers[0].textContent).toMatch(/\b2\b/);
+  });
+
+  it('a calm city renders no top-lever line', () => {
+    const state = makeFixtureState({
+      currentPlayer: 'player',
+      cities: [{ id: 'city-1', owner: 'player', name: 'Calm', unrestLevel: 0 }],
+    });
+    const container = document.createElement('div');
+    createCityOverviewPanel(container, state, cb());
+    expect(container.querySelectorAll('[data-top-lever]')).toHaveLength(0);
+  });
+
+  it('the top-lever line is computed for state.currentPlayer (hot-seat: correct when player 2 is active)', () => {
+    const state = makeFixtureState({
+      currentPlayer: 'player-2',
+      atWarWith: { 'player-2': ['x'] },
+      cities: [
+        { id: 'p2-city', owner: 'player-2', name: 'P2City', unrestLevel: 1 },
+        { id: 'p2-cap', owner: 'player-2', name: 'P2Cap' },
+        { id: 'p1-city', owner: 'player', name: 'P1City', unrestLevel: 1 },
+      ],
+    });
+    const container = document.createElement('div');
+    createCityOverviewPanel(container, state, cb());
+    expect(container.querySelector('[data-city-row="p1-city"]')).toBeNull();
+    const lever = container.querySelector('[data-city-row="p2-city"] [data-top-lever]');
+    expect(lever).not.toBeNull();
+    expect(lever!.textContent!.length).toBeGreaterThan(0);
+  });
+
+  it('renders the line as a plain text node (no child elements from interpolation)', () => {
+    const state = makeFixtureState({
+      currentPlayer: 'player',
+      atWarWith: { player: ['e'] },
+      cities: [
+        { id: 'city-1', owner: 'player', name: 'Restless', unrestLevel: 1 },
+        { id: 'capital', owner: 'player', name: 'Capital' },
+      ],
+    });
+    const container = document.createElement('div');
+    createCityOverviewPanel(container, state, cb());
+    const lever = container.querySelector('[data-top-lever]')!;
+    expect(lever.children).toHaveLength(0);
   });
 });
