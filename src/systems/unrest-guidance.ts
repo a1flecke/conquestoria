@@ -89,7 +89,11 @@ function anyHappinessBuildingAvailable(state: GameState, city: City): boolean {
 
 interface GuidanceResolver {
   matchesRow(label: string): boolean;
-  resolve(ctx: { city: City; state: GameState; row: UnrestPressureRow }): UnrestRecommendation | null;
+  // A row may map to more than one recommendation (e.g. a primary "do this now" lever
+  // plus a secondary "and research this later" note). Order matters: the first entry is
+  // the one getTopUnrestLever prefers when several are `now`.
+  resolve(ctx: { city: City; state: GameState; row: UnrestPressureRow }):
+    UnrestRecommendation | UnrestRecommendation[] | null;
 }
 
 const SPRAWL_RESOLVER: GuidanceResolver = {
@@ -122,21 +126,24 @@ const WAR_RESOLVER: GuidanceResolver = {
 const CONQUEST_RESOLVER: GuidanceResolver = {
   matchesRow: label => label === 'Recent conquest',
   resolve: ({ city, state, row }) => {
-    // The only thing a player can actually DO about recent-conquest unrest right now is
-    // wait it out (and garrison to speed nothing but blunt spread). Constitutional Law
-    // halves the row, but it is an Era 5-7 civics tech — a secondary note in the copy,
-    // never the primary "do this now" advice.
     const turnsLeft = city.conquestTurn !== undefined
       ? Math.max(0, CONQUEST_UNREST_DURATION - (state.turn - city.conquestTurn))
       : 0;
-    return {
-      rowLabel: row.label, amount: row.amount, kind: 'await-conquest-settle', availability: 'now',
-      params: {
-        turnsLeft,
-        canGarrison: canGarrisonCity(city.id, state),
-        suggestConstitutionalLaw: !techDone(state, city.owner, 'constitutional-law'),
+    const base = { rowLabel: row.label, amount: row.amount };
+    const recs: UnrestRecommendation[] = [
+      // Primary: the only thing a player can actually do right now is wait it out
+      // (a garrison blunts contagion spread from it, nothing more).
+      {
+        ...base, kind: 'await-conquest-settle', availability: 'now',
+        params: { turnsLeft, canGarrison: canGarrisonCity(city.id, state) },
       },
-    };
+    ];
+    // Secondary: Constitutional Law halves this row — worth a "research it later" note,
+    // never the top lever (it is an Era 5-7 civics tech).
+    if (!techDone(state, city.owner, 'constitutional-law')) {
+      recs.push({ ...base, kind: 'research-constitutional-law', availability: 'research-first', params: { techId: 'constitutional-law' } });
+    }
+    return recs;
   },
 };
 
@@ -180,11 +187,13 @@ const UNREST_GUIDANCE_RESOLVERS: GuidanceResolver[] = [
   ESPIONAGE_RESOLVER, CONTAGION_RESOLVER, FAITH_RESOLVER,
 ];
 
-function resolveRow(city: City, state: GameState, row: UnrestPressureRow): UnrestRecommendation | null {
+function resolveRow(city: City, state: GameState, row: UnrestPressureRow): UnrestRecommendation[] {
   for (const resolver of UNREST_GUIDANCE_RESOLVERS) {
-    if (resolver.matchesRow(row.label)) return resolver.resolve({ city, state, row });
+    if (!resolver.matchesRow(row.label)) continue;
+    const result = resolver.resolve({ city, state, row });
+    return result == null ? [] : Array.isArray(result) ? result : [result];
   }
-  return null;
+  return [];
 }
 
 // Opportunities keyed to empire state rather than a specific pressure row: acquire a
@@ -210,17 +219,22 @@ function positivePressureRows(cityId: string, state: GameState): UnrestPressureR
     .sort((a, b) => b.amount - a.amount);
 }
 
+// First-wins dedupe by `kind`: two pressure rows in the same family (e.g. Empire
+// overextension AND Distance from capital) resolve to the same lever, and the player
+// only needs to be told "build a Courthouse" once. Rows are amount-sorted, so the kept
+// entry is the one attached to the more impactful row.
+function dedupeByKind(recs: UnrestRecommendation[]): UnrestRecommendation[] {
+  const seen = new Set<UnrestRecommendationKind>();
+  return recs.filter(rec => (seen.has(rec.kind) ? false : (seen.add(rec.kind), true)));
+}
+
 export function getUnrestRecommendations(cityId: string, state: GameState): UnrestRecommendation[] {
   const city = state.cities[cityId];
   if (!city) return [];
-  const recs: UnrestRecommendation[] = [];
-  for (const row of positivePressureRows(cityId, state)) {
-    const rec = resolveRow(city, state, row);
-    if (rec) recs.push(rec);
-  }
+  const recs = positivePressureRows(cityId, state).flatMap(row => resolveRow(city, state, row));
   recs.push(...emptyStateRecommendations(city, state));
-  if (recs.length === 0) recs.push({ ...APPEASE_FALLBACK });
-  return recs;
+  const deduped = dedupeByKind(recs);
+  return deduped.length === 0 ? [{ ...APPEASE_FALLBACK }] : deduped;
 }
 
 export function getTopUnrestLever(cityId: string, state: GameState): UnrestRecommendation | null {
@@ -228,8 +242,6 @@ export function getTopUnrestLever(cityId: string, state: GameState): UnrestRecom
   if (!city) return null;
   const rows = positivePressureRows(cityId, state);
   if (rows.length === 0) return { ...APPEASE_FALLBACK };
-  const resolved = rows
-    .map(row => resolveRow(city, state, row))
-    .filter((r): r is UnrestRecommendation => r != null);
+  const resolved = rows.flatMap(row => resolveRow(city, state, row));
   return resolved.find(r => r.availability === 'now') ?? resolved[0] ?? { ...APPEASE_FALLBACK };
 }

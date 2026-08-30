@@ -246,9 +246,12 @@ describe('city overview panel — #919 MR3 top-lever line', () => {
     const levers = row.querySelectorAll('[data-top-lever]');
     expect(levers).toHaveLength(1);
     expect(levers[0].getAttribute('data-top-lever')).toBe('make-peace');
+    expect(levers[0].getAttribute('data-availability')).toBe('now');
     expect(levers[0].textContent).toMatch(/Make peace/);
     expect(levers[0].textContent).toMatch(/Diplomacy/);
     expect(levers[0].textContent).toMatch(/\b2\b/);
+    // The copy carries its own "first"/"later" framing — no extra suffix marker.
+    expect(levers[0].textContent).not.toMatch(/research it first/i);
   });
 
   it('a calm city renders no top-lever line', () => {

@@ -22,17 +22,14 @@ export function unrestRecommendationCopy(rec: UnrestRecommendation): { icon: str
     }
     case 'await-conquest-settle': {
       const t = typeof params.turnsLeft === 'number' ? params.turnsLeft : 0;
-      const claw = params.suggestConstitutionalLaw
-        ? ' Later, Constitutional Law softens this.'
-        : '';
-      return { icon: '⏳', text: `Newly taken city — it settles down on its own in ${t} turn${t === 1 ? '' : 's'}. A soldier inside helps.${claw}` };
+      return { icon: '⏳', text: `Newly taken city — it settles down on its own in ${t} turn${t === 1 ? '' : 's'}. A soldier inside helps.` };
     }
     case 'research-constitutional-law':
-      return { icon: '🔬', text: 'Research Constitutional Law (Tech screen) to soften unrest in newly conquered cities.' };
+      return { icon: '🔬', text: 'Later, Constitutional Law (Tech screen) will halve the unrest a fresh conquest brings.' };
     case 'fix-economy':
       return { icon: '💰', text: "Your treasury is in the red — cut unit upkeep or raise gold so buildings aren't shut off." };
     case 'counter-espionage':
-      return { icon: '🕵️', text: 'An enemy spy is stirring trouble here — station a spy or build counter-espionage to stop it.' };
+      return { icon: '🕵️', text: 'An enemy spy stirred up this city — the unrest it caused fades a little each turn. Station your own spies to catch theirs.' };
     case 'stabilise-contagion-source':
       return { icon: '🔥', text: 'A nearby city of yours is in revolt and the anger is spreading — calm that city first.' };
     case 'build-faith-building':

@@ -182,14 +182,28 @@ describe('unrest-guidance', () => {
     expect((rec?.params as { warCivIds: string[] }).warCivIds).toHaveLength(2);
   });
 
-  it('Recent conquest → await-conquest-settle (now), never a 3-eras-away tech as the primary lever', () => {
+  it('Recent conquest → await-conquest-settle (now) as the primary, with a research-constitutional-law note behind it', () => {
     const state = makeState({ cityCount: 1, era: 2, conquestTurn: 0 });
     state.turn = 5;
-    const rec = getUnrestRecommendations('city-1', state).find(r => r.rowLabel === 'Recent conquest');
-    expect(rec?.kind).toBe('await-conquest-settle');
-    expect(rec?.availability).toBe('now');
-    expect((rec?.params as { turnsLeft: number }).turnsLeft).toBe(10); // 15 - (5 - 0)
-    expect((rec?.params as { suggestConstitutionalLaw: boolean }).suggestConstitutionalLaw).toBe(true);
+    const conquestRecs = getUnrestRecommendations('city-1', state).filter(r => r.rowLabel === 'Recent conquest');
+    expect(conquestRecs.map(r => r.kind)).toEqual(['await-conquest-settle', 'research-constitutional-law']);
+    expect(conquestRecs[0].availability).toBe('now');
+    expect((conquestRecs[0].params as { turnsLeft: number }).turnsLeft).toBe(10); // 15 - (5 - 0)
+    expect(conquestRecs[1].availability).toBe('research-first');
+  });
+
+  it('Recent conquest omits the research-constitutional-law note once that tech is done', () => {
+    const state = makeState({ cityCount: 1, era: 2, conquestTurn: 0, completed: [...completedTechsForEra(6), 'constitutional-law'] });
+    state.turn = 5;
+    const conquestRecs = getUnrestRecommendations('city-1', state).filter(r => r.rowLabel === 'Recent conquest');
+    expect(conquestRecs.map(r => r.kind)).toEqual(['await-conquest-settle']);
+  });
+
+  it('a courthouse recommendation is not repeated when both sprawl rows are present (dedupe by kind)', () => {
+    // 20 cities (overextension row) + far from capital (distance row), magistracy done.
+    const state = makeState({ cityCount: 20, era: 2, cityPosition: { q: 15, r: 0 }, completed: ['tribal-council', 'code-of-laws', 'magistracy'] });
+    const rows = getUnrestRecommendations('city-1', state);
+    expect(rows.filter(r => r.kind === 'build-courthouse')).toHaveLength(1);
   });
 
   it('Economic strain → fix-economy (now); only appears at era ≥ 3', () => {
