@@ -37,8 +37,9 @@ describe('tech definitions', () => {
     }
   });
 
-  it('has exactly 399 techs after completing the Era 13 roster', () => {
-    expect(TECH_TREE.length).toBe(399);
+  it('has exactly 400 techs after completing the Era 13 roster', () => {
+    // 399 + magistracy (#919 MR2, a deliberate 3rd civics-era-2 tech — see below).
+    expect(TECH_TREE.length).toBe(400);
   });
 
   it('keeps 15 tracks while expanding through two Era 13 technologies per track', () => {
@@ -54,6 +55,7 @@ describe('tech definitions', () => {
       // Maritime also has the optional Dreadnought Construction bridge → 26.
       // Military gets +2 from balloon-corps (era 7) + air-superiority (era 9) → 26.
       // Other 8 tracks had 8 era1-4 + 16 = 24.
+      // civics has a 3rd era-2 tech (magistracy, #919 MR2) → 9 era1-4 + 16 = 25.
       const expectedBeforeEra13 = track === 'military'
         ? 26
         : track === 'maritime'
@@ -62,6 +64,8 @@ describe('tech definitions', () => {
           ? 25
           : track === 'science'
             ? 26
+          : track === 'civics'
+            ? 25
           : 24;
       // Quantum Computing was already the one-node Era 13 boundary in the old
       // science count; MR5 adds its science-track partner and two nodes elsewhere.
@@ -70,7 +74,7 @@ describe('tech definitions', () => {
     }
   });
 
-  it('keeps the 2-tech era rhythm through era 4, except exploration-era3 which has bridge-building as a 3rd', () => {
+  it('keeps the 2-tech era rhythm through era 4, except exploration-era3 (bridge-building) and civics-era2 (magistracy) which have a 3rd', () => {
     const trackEra = new Map<string, number>();
     for (const tech of TECH_TREE) {
       const key = `${tech.track}-${tech.era}`;
@@ -80,7 +84,11 @@ describe('tech definitions', () => {
     for (const track of tracks) {
       for (let era = 1; era <= 4; era++) {
         const key = `${track}-${era}`;
-        const expected = (track === 'exploration' && era === 3) ? 3 : 2;
+        // #919 MR2 added magistracy as a deliberate 3rd civics-era-2 tech, mirroring
+        // the pre-existing exploration-era-3 bridge-building exception.
+        const expected = (track === 'exploration' && era === 3) || (track === 'civics' && era === 2)
+          ? 3
+          : 2;
         expect(trackEra.get(key), `${key} should have ${expected} techs`).toBe(expected);
       }
     }
