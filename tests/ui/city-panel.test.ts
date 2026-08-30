@@ -2612,6 +2612,61 @@ describe('unrest pressure breakdown (#552)', () => {
   });
 });
 
+describe('city-panel unrest recommendations — #919 MR3', () => {
+  const cb = () => ({ onBuild: () => {}, onOpenWonderPanel: () => {}, onClose: () => {}, onAppeaseFaction: vi.fn(() => undefined) });
+
+  it('renders a "→" recommendation sub-line for each positive pressure row', () => {
+    const { container, city, state } = makeWonderPanelFixture();
+    city.unrestLevel = 1;
+    city.spyUnrestBonus = 10; // Enemy espionage row
+    state.civilizations[state.currentPlayer].diplomacy.atWarWith = ['rival']; // War weariness row
+
+    const panel = createCityPanel(container, city, state, cb());
+
+    const subs = Array.from(panel.querySelectorAll('[data-recommendation-row]'));
+    expect(subs.length).toBeGreaterThanOrEqual(2);
+    const joined = subs.map(s => s.textContent).join(' ');
+    expect(joined).toMatch(/→/);
+    expect(joined).toMatch(/Make peace/);
+    expect(joined).toMatch(/spy/i);
+  });
+
+  it('greys the sub-line and marks data-availability when the lever needs research first', () => {
+    const { container, city, state } = makeWonderPanelFixture();
+    city.unrestLevel = 1;
+    city.conquestTurn = state.turn - 2; // Recent conquest row; constitutional-law not researched → research-first
+
+    const panel = createCityPanel(container, city, state, cb());
+
+    const sub = Array.from(panel.querySelectorAll<HTMLElement>('[data-recommendation-row]'))
+      .find(s => /Constitutional Law/i.test(s.textContent ?? ''));
+    expect(sub).toBeDefined();
+    expect(sub!.dataset.availability).toBe('research-first');
+    expect(sub!.style.opacity).toBe('0.6');
+  });
+
+  it('sub-lines are plain text — no child elements from string interpolation', () => {
+    const { container, city, state } = makeWonderPanelFixture();
+    city.unrestLevel = 1;
+    state.civilizations[state.currentPlayer].diplomacy.atWarWith = ['rival'];
+
+    const panel = createCityPanel(container, city, state, cb());
+
+    for (const sub of panel.querySelectorAll('[data-recommendation-row]')) {
+      expect(sub.children).toHaveLength(0);
+    }
+  });
+
+  it('a calm city renders no recommendation sub-lines', () => {
+    const { container, city, state } = makeWonderPanelFixture();
+    city.unrestLevel = 0;
+
+    const panel = createCityPanel(container, city, state, cb());
+
+    expect(panel.querySelectorAll('[data-recommendation-row]')).toHaveLength(0);
+  });
+});
+
 describe('concede vs appease copy (#552)', () => {
   it('gives Appease and Concede distinct explanatory tooltips', () => {
     const { container, city, state } = makeWonderPanelFixture();
