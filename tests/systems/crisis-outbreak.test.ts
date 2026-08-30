@@ -5,6 +5,7 @@ import {
   processCrisisTurn,
   applyQuarantine,
   applyRemedy,
+  applyEmpireContainment,
   getCrisisYieldMultiplier,
   getOutbreakSeverityMultiplier,
   resolveCrisis,
@@ -248,5 +249,94 @@ describe('outbreak resolver', () => {
     const next = resolveCrisis(state, 'crisis-1', 'contained', bus);
     expect(next.activeCrises?.['crisis-1']).toBeUndefined();
     expect(events).toEqual([{ crisisId: 'crisis-1', flavorId: 'plague', civId: 'p1', outcome: 'contained' }]);
+  });
+});
+
+// #919 MR1: Medicine-gated one-action nationwide remedy for a wide outbreak.
+describe('applyEmpireContainment', () => {
+  function wideOutbreak(crisisOverrides: Partial<ActiveCrisis> = {}, extraTech: string[] = ['medicine']) {
+    const { state, civId } = makeCrisisFixture({ era: 3, turn: 40, unrestCityCount: 2 }); // c1,c2,c3 all owned by p1
+    const civ = state.civilizations[civId];
+    const crisis: ActiveCrisis = {
+      id: 'crisis-1', flavorId: 'plague', archetype: 'outbreak', targetCivId: civId,
+      cityIds: ['c1', 'c2', 'c3'], tileKeys: [], startedTurn: 38, stage: 'active', turnsInStage: 2,
+      ...crisisOverrides,
+    };
+    return {
+      civId, crisis,
+      state: {
+        ...state,
+        activeCrises: { 'crisis-1': crisis },
+        civilizations: {
+          ...state.civilizations,
+          [civId]: {
+            ...civ,
+            gold: 10_000,
+            techState: { ...civ.techState, completed: [...civ.techState.completed, ...extraTech] },
+          },
+        },
+      } as GameState,
+    };
+  }
+
+  it('refuses without the Medicine tech and does not touch state', () => {
+    const { state } = wideOutbreak({}, []); // no medicine
+    const res = applyEmpireContainment(state, 'crisis-1', new EventBus());
+    expect(res.success).toBe(false);
+    expect(res.state).toBe(state);
+  });
+
+  it('refuses while the crisis is sabotaged', () => {
+    const { state } = wideOutbreak({ sabotage: { byCivId: 'x', untilTurn: 999, discovered: false } });
+    const res = applyEmpireContainment(state, 'crisis-1', new EventBus());
+    expect(res.success).toBe(false);
+    expect(res.state).toBe(state);
+  });
+
+  it('refuses when every affected city already has a remedy underway', () => {
+    const { state } = wideOutbreak({ cityIds: ['c1'], remedyCompletionByCity: { c1: 999 } });
+    const res = applyEmpireContainment(state, 'crisis-1', new EventBus());
+    expect(res.success).toBe(false);
+  });
+
+  it('refuses on insufficient gold and leaves state untouched', () => {
+    const { state, civId } = wideOutbreak();
+    const broke = {
+      ...state,
+      civilizations: { ...state.civilizations, [civId]: { ...state.civilizations[civId], gold: 1 } },
+    };
+    const res = applyEmpireContainment(broke, 'crisis-1', new EventBus());
+    expect(res.success).toBe(false);
+    expect(res.state).toBe(broke);
+  });
+
+  it('starts a 2-turn remedy in every un-remedied city, charges the summed appease cost, and emits once', () => {
+    const { state, civId } = wideOutbreak({ remedyCompletionByCity: { c2: 999 } });
+    const bus = new EventBus();
+    const events: Array<{ cityCount: number; goldCost: number }> = [];
+    bus.on('crisis:contained', e => events.push({ cityCount: e.cityCount, goldCost: e.goldCost }));
+    const before = state.civilizations[civId].gold;
+
+    const res = applyEmpireContainment(state, 'crisis-1', bus);
+
+    expect(res.success).toBe(true);
+    const crisis = res.state.activeCrises!['crisis-1'];
+    expect(crisis.remedyCompletionByCity).toEqual({ c1: 42, c2: 999, c3: 42 });
+    const spent = before - res.state.civilizations[civId].gold;
+    expect(spent).toBe(75 + 30); // c1 pop5*15 + c3 pop2*15
+    expect(events).toEqual([{ cityCount: 2, goldCost: 105 }]);
+  });
+
+  it('with epidemic-control, pre-registers a re-infection immunity for the treated cities', () => {
+    const { state } = wideOutbreak({ cityIds: ['c1'] }, ['medicine', 'epidemic-control']);
+    const res = applyEmpireContainment(state, 'crisis-1', new EventBus());
+    expect(res.success).toBe(true);
+    expect(res.state.activeCrises!['crisis-1'].curedUntilTurn).toEqual({ c1: 40 + 2 + 6 });
+  });
+
+  it('refuses a non-outbreak crisis', () => {
+    const { state } = wideOutbreak({ archetype: 'famine', flavorId: 'crop-blight' });
+    const res = applyEmpireContainment(state, 'crisis-1', new EventBus());
+    expect(res.success).toBe(false);
   });
 });
