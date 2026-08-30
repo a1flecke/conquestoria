@@ -550,8 +550,13 @@ describe('routeCrisisContained (#919 MR1)', () => {
   it('delivers a success message to the crisis owner with the city count and gold cost', () => {
     const { sink, calls } = makeSink();
     const state = makeState({
-      activeCrises: { 'crisis-1': { id: 'crisis-1', flavorId: 'plague', archetype: 'outbreak', targetCivId: 'p1', cityIds: ['c1'] } },
-    } as Partial<GameState>);
+      activeCrises: {
+        'crisis-1': {
+          id: 'crisis-1', flavorId: 'plague', archetype: 'outbreak', targetCivId: 'p1',
+          cityIds: ['c1'], tileKeys: [], startedTurn: 3, stage: 'active', turnsInStage: 2,
+        },
+      },
+    } as unknown as Partial<GameState>);
     routeCrisisContained(state, { crisisId: 'crisis-1', civId: 'p1', cityCount: 3, goldCost: 210 }, sink);
     expect(calls).toHaveLength(1);
     expect(calls[0]!.civId).toBe('p1');
