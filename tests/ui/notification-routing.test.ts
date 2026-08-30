@@ -20,6 +20,7 @@ import {
   routeCrisisStarted,
   routeCrisisSpread,
   routeCrisisEscalated,
+  routeCrisisContained,
   routeCrisisResolved,
   routeWorldPressureCrisisStarted,
   routeWorldPressureCrisisResolved,
@@ -542,6 +543,22 @@ describe('notification routing', () => {
     });
 
     expect(targets.sort()).toEqual(['p1', 'p2', 'p3']);
+  });
+});
+
+describe('routeCrisisContained (#919 MR1)', () => {
+  it('delivers a success message to the crisis owner with the city count and gold cost', () => {
+    const { sink, calls } = makeSink();
+    const state = makeState({
+      activeCrises: { 'crisis-1': { id: 'crisis-1', flavorId: 'plague', archetype: 'outbreak', targetCivId: 'p1', cityIds: ['c1'] } },
+    } as Partial<GameState>);
+    routeCrisisContained(state, { crisisId: 'crisis-1', civId: 'p1', cityCount: 3, goldCost: 210 }, sink);
+    expect(calls).toHaveLength(1);
+    expect(calls[0]!.civId).toBe('p1');
+    expect(calls[0]!.type).toBe('success');
+    expect(calls[0]!.message).toContain('Nationwide remedy funded');
+    expect(calls[0]!.message).toContain('3 cities');
+    expect(calls[0]!.message).toContain('210 gold');
   });
 });
 
