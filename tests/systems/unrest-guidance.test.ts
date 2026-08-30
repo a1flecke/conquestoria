@@ -182,12 +182,14 @@ describe('unrest-guidance', () => {
     expect((rec?.params as { warCivIds: string[] }).warCivIds).toHaveLength(2);
   });
 
-  it('Recent conquest → a conquest recommendation with params.turnsLeft', () => {
+  it('Recent conquest → await-conquest-settle (now), never a 3-eras-away tech as the primary lever', () => {
     const state = makeState({ cityCount: 1, era: 2, conquestTurn: 0 });
     state.turn = 5;
     const rec = getUnrestRecommendations('city-1', state).find(r => r.rowLabel === 'Recent conquest');
-    expect(['await-conquest-settle', 'research-constitutional-law']).toContain(rec?.kind);
-    expect(typeof (rec?.params as { turnsLeft: number }).turnsLeft).toBe('number');
+    expect(rec?.kind).toBe('await-conquest-settle');
+    expect(rec?.availability).toBe('now');
+    expect((rec?.params as { turnsLeft: number }).turnsLeft).toBe(10); // 15 - (5 - 0)
+    expect((rec?.params as { suggestConstitutionalLaw: boolean }).suggestConstitutionalLaw).toBe(true);
   });
 
   it('Economic strain → fix-economy (now); only appears at era ≥ 3', () => {

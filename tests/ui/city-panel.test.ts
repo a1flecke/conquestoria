@@ -2634,12 +2634,19 @@ describe('city-panel unrest recommendations — #919 MR3', () => {
   it('greys the sub-line and marks data-availability when the lever needs research first', () => {
     const { container, city, state } = makeWonderPanelFixture();
     city.unrestLevel = 1;
-    city.conquestTurn = state.turn - 2; // Recent conquest row; constitutional-law not researched → research-first
+    // A wide empire without Magistracy → the sprawl rows resolve to research-magistracy (research-first).
+    const civ = state.civilizations[state.currentPlayer];
+    civ.techState.completed = ['tribal-council', 'code-of-laws'];
+    for (let i = 0; i < 12; i++) {
+      const id = `filler-${i}`;
+      state.cities[id] = { ...city, id, name: id, unrestLevel: 0, buildings: [] };
+      civ.cities.push(id);
+    }
 
     const panel = createCityPanel(container, city, state, cb());
 
     const sub = Array.from(panel.querySelectorAll<HTMLElement>('[data-recommendation-row]'))
-      .find(s => /Constitutional Law/i.test(s.textContent ?? ''));
+      .find(s => /Magistracy/i.test(s.textContent ?? ''));
     expect(sub).toBeDefined();
     expect(sub!.dataset.availability).toBe('research-first');
     expect(sub!.style.opacity).toBe('0.6');

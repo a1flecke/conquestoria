@@ -31,9 +31,15 @@ describe('unrestRecommendationCopy', () => {
     expect(text).toMatch(/1 empire\b/);
   });
 
-  it('await-conquest-settle states the turns left from params.turnsLeft', () => {
-    const { text } = unrestRecommendationCopy(rec({ kind: 'await-conquest-settle', params: { turnsLeft: 6 } }));
-    expect(text).toMatch(/\b6\b/);
+  it('await-conquest-settle states the turns left, and appends the Constitutional Law note only when flagged', () => {
+    const bare = unrestRecommendationCopy(rec({ kind: 'await-conquest-settle', params: { turnsLeft: 6 } })).text;
+    expect(bare).toMatch(/\b6\b/);
+    expect(bare).not.toMatch(/constitutional law/i);
+
+    const withNote = unrestRecommendationCopy(rec({
+      kind: 'await-conquest-settle', params: { turnsLeft: 6, suggestConstitutionalLaw: true },
+    })).text;
+    expect(withNote).toMatch(/constitutional law/i);
   });
 
   it('every kind returns a non-empty icon and text', () => {

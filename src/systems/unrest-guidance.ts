@@ -122,19 +122,20 @@ const WAR_RESOLVER: GuidanceResolver = {
 const CONQUEST_RESOLVER: GuidanceResolver = {
   matchesRow: label => label === 'Recent conquest',
   resolve: ({ city, state, row }) => {
+    // The only thing a player can actually DO about recent-conquest unrest right now is
+    // wait it out (and garrison to speed nothing but blunt spread). Constitutional Law
+    // halves the row, but it is an Era 5-7 civics tech — a secondary note in the copy,
+    // never the primary "do this now" advice.
     const turnsLeft = city.conquestTurn !== undefined
       ? Math.max(0, CONQUEST_UNREST_DURATION - (state.turn - city.conquestTurn))
       : 0;
-    const canGarrison = canGarrisonCity(city.id, state);
-    if (!techDone(state, city.owner, 'constitutional-law')) {
-      return {
-        rowLabel: row.label, amount: row.amount, kind: 'research-constitutional-law',
-        availability: 'research-first', params: { turnsLeft, canGarrison, techId: 'constitutional-law' },
-      };
-    }
     return {
-      rowLabel: row.label, amount: row.amount, kind: 'await-conquest-settle',
-      availability: 'now', params: { turnsLeft, canGarrison },
+      rowLabel: row.label, amount: row.amount, kind: 'await-conquest-settle', availability: 'now',
+      params: {
+        turnsLeft,
+        canGarrison: canGarrisonCity(city.id, state),
+        suggestConstitutionalLaw: !techDone(state, city.owner, 'constitutional-law'),
+      },
     };
   },
 };
