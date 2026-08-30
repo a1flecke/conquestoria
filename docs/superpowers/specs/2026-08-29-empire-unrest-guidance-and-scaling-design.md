@@ -299,9 +299,16 @@ Add an **"Unrest Relief Inventory"** table (parallel to the Happiness Inventory)
 
 ---
 
-## MR3 — Actionable unrest guidance
+## MR3 — Actionable unrest guidance — ✅ implemented (PR #925)
 
 Depends on MR2 (recommends the Courthouse / `magistracy`).
+
+> **Implementation note (PR #925):** `Recent conquest` resolves to `await-conquest-settle`
+> (actionable now) as the primary lever, not `research-constitutional-law` — that tech is
+> Era 5-7, so it is a secondary `params.suggestConstitutionalLaw` note in the copy layer, not
+> the top recommendation. The advisor `chancellor_unrest_warning` message was already free of
+> the "build happiness improvements" dead promise; the two real offenders were
+> `notification-routing.ts` lines 118 and 462, both fixed.
 
 ### 3.1 Shared helper: `src/systems/unrest-guidance.ts` — typed, string-free
 
