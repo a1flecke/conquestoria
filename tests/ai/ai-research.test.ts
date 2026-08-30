@@ -6,6 +6,7 @@ import {
 } from '@/ai/ai-research';
 import { createNewGame } from '@/core/game-state';
 import type {
+  GameState,
   PersonalityTraits,
   Tech,
   TechTrack,
