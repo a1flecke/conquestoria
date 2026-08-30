@@ -1228,3 +1228,65 @@ describe('#919 MR2 — Courthouse unrest relief row', () => {
     expect(p).toBeLessThanOrEqual(100);
   });
 });
+
+describe('#919 MR2 — save compatibility and hot-seat', () => {
+  let bus: EventBus;
+  beforeEach(() => { bus = new EventBus(); });
+
+  it('an existing city at unrestLevel 1 de-escalates after the retune with no migration', () => {
+    // Pre-retune: 11 civ cities -> overext (11-5)*3 = 18; +war 24 = 42 > 40 trigger.
+    // Post-retune: overext (11-6)*3 = 15; +24 = 39 <= 40 -> the city falls back to calm.
+    const state = makeState({
+      cityCount: 10, unrestLevel: 1, unrestTurns: 3, atWarCount: 3,
+      cityPosition: { q: 0, r: 0 }, capitalPosition: { q: 0, r: 0 }, era: 2,
+    });
+    const result = processFactionTurn(state, bus);
+    expect(result.cities['city-1'].unrestLevel).toBe(0);
+  });
+
+  it("'courthouse' is a plain new city.buildings value — no migration, processFactionTurn recomputes and de-escalates further", () => {
+    const state = makeState({
+      cityCount: 12, unrestLevel: 1, unrestTurns: 3,
+      cityPosition: { q: 9, r: 0 }, capitalPosition: { q: 0, r: 0 }, era: 2,
+    });
+    const withCh = addBuilding(state, 'city-1', 'courthouse');
+    expect(() => processFactionTurn(withCh, bus)).not.toThrow();
+    expect(computeUnrestPressure('city-1', withCh, 0))
+      .toBeLessThan(computeUnrestPressure('city-1', state, 0));
+  });
+
+  it('the Courthouse relief row is computed from city.owner, not state.currentPlayer (hot-seat)', () => {
+    // Re-home the whole fixture onto the second civ and make it the active player.
+    const base = makeState({
+      cityCount: 12, cityPosition: { q: 9, r: 0 }, capitalPosition: { q: 0, r: 0 }, era: 2,
+    });
+    const p2 = 'ai-1';
+    const cities = Object.fromEntries(
+      Object.entries(base.cities).map(([id, city]) => [id, { ...city, owner: p2 }]),
+    );
+    const player2Active: GameState = {
+      ...base,
+      currentPlayer: p2,
+      cities,
+      civilizations: {
+        ...base.civilizations,
+        player: { ...base.civilizations['player'], cities: [] },
+        [p2]: {
+          ...base.civilizations[p2],
+          isHuman: true,
+          cities: base.civilizations['player'].cities,
+          techState: base.civilizations['player'].techState,
+        },
+      },
+    };
+    const withCh = addBuilding(player2Active, 'city-1', 'courthouse');
+    const row = getUnrestPressureBreakdown('city-1', withCh, 0).find(r => r.label === 'Courthouse');
+    expect(row?.amount).toBeLessThan(0);
+
+    // Flipping currentPlayer back does not change the per-city, owner-driven breakdown.
+    const rowPlayer1Active = getUnrestPressureBreakdown(
+      'city-1', { ...withCh, currentPlayer: 'player' }, 0,
+    ).find(r => r.label === 'Courthouse');
+    expect(rowPlayer1Active).toEqual(row);
+  });
+});

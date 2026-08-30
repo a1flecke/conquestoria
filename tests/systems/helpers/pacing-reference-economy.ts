@@ -1,6 +1,7 @@
 import type { City, GameMap, HexCoord, HexTile, ResourceYield } from '@/core/types';
 import { TECH_TREE } from '@/systems/tech-definitions';
 import { BUILDINGS } from '@/systems/city-system';
+import { UNREST_RELIEF_SOURCES } from '@/systems/faction-system';
 import { calculateCityYields } from '@/systems/resource-system';
 import { getEmpireTechPercents, applyEmpireTechPercents, getEmpireFlatTechYields } from '@/systems/tech-yield-system';
 import {
@@ -22,9 +23,12 @@ import {
  * derivation from the actual game-content graph.
  *
  * Deliberately excluded from the pin (documented, not an oversight): trade routes, legendary
- * wonders, luxury resources, and multi-city empire effects. These are per-city/per-route/
- * per-wonder bonuses that a single-city reference fixture cannot represent without inventing
- * numbers.
+ * wonders, luxury resources, multi-city empire effects, and administration-ladder unrest-relief
+ * buildings (#919 — `UNREST_RELIEF_SOURCES`, e.g. Courthouse). The relief buildings contribute
+ * nothing to `calculateCityYields`' science/production output; their only pinned-yield footprint
+ * would be an artifact of the coarse `population = 2 + floor(buildings.length / 4)` proxy tipping
+ * a worked tile, which does not represent real economic growth from a stability building. They
+ * are a per-city stability effect, in the same "not economic output" bucket as the others here.
  *
  * Two profiles, not one (added post-MR13 review): a single city's building count depends
  * entirely on how thoroughly a player builds. Neither extreme is "wrong":
@@ -42,6 +46,10 @@ import {
 
 const REFERENCE_MAP_SIZE = 8;
 const BUILDING_ERA_WINDOW = 4;
+
+// #919: administration-ladder relief buildings (Courthouse, future rungs) are stability,
+// not economic output — excluded from the reference economy (see methodology note above).
+const UNREST_RELIEF_BUILDING_IDS = new Set(UNREST_RELIEF_SOURCES.map(source => source.id));
 
 export type ReferenceEconomyProfile = 'bounded' | 'maximal';
 
@@ -62,6 +70,7 @@ function eligibleBuildingIds(completedTechs: string[], era: number, profile: Ref
     added = false;
     for (const building of Object.values(BUILDINGS)) {
       if (built.has(building.id) || building.nationalProject || building.coastalRequired) continue;
+      if (UNREST_RELIEF_BUILDING_IDS.has(building.id)) continue;
       if (building.techRequired) {
         if (!techSet.has(building.techRequired)) continue;
         if (profile === 'bounded') {
