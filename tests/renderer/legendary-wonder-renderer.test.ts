@@ -327,31 +327,40 @@ describe('legendary-wonder-renderer', () => {
     expect(ctx.operations.some(operation => operation.startsWith('fill:') || operation.startsWith('stroke:'))).toBe(true);
   });
 
-  it('uses the approved generic fallback for Terracotta Army while bespoke art is deferred', () => {
-    const metadata = getLegendaryWonderLandmarkMetadata('terracotta-army');
-    const ctx = drawCompletedGlyphForWonder('terracotta-army');
+  it('draws the military wonder batch through three distinct bespoke landmark assets', () => {
+    const expected = [
+      ['terracotta-army', 'terracotta-army-bespoke'],
+      ['crac-des-chevaliers', 'crac-des-chevaliers-bespoke'],
+      ['norad', 'norad-bespoke'],
+    ] as const;
+    const profiles = new Set<string>();
 
-    expect(metadata.assetKey).toBeUndefined();
-    expect(ctx.operations.some(operation => operation.startsWith('bespoke:'))).toBe(false);
-    expectNonblankCanvasGlyph(ctx, 'terracotta-army fallback');
+    for (const [wonderId, assetKey] of expected) {
+      const ctx = drawCompletedGlyphForWonder(wonderId);
+      expect(ctx.operations, wonderId).toContain(`bespoke:${assetKey}`);
+      expectNonblankCanvasGlyph(ctx, wonderId);
+      profiles.add(getGlyphGeometryProfile(ctx));
+    }
+
+    expect(profiles.size).toBe(expected.length);
   });
 
-  it('uses the approved generic fallback for Crac des Chevaliers while bespoke art is deferred', () => {
-    const metadata = getLegendaryWonderLandmarkMetadata('crac-des-chevaliers');
-    const ctx = drawCompletedGlyphForWonder('crac-des-chevaliers');
-
-    expect(metadata.assetKey).toBeUndefined();
-    expect(ctx.operations.some(operation => operation.startsWith('bespoke:'))).toBe(false);
-    expectNonblankCanvasGlyph(ctx, 'crac-des-chevaliers fallback');
-  });
-
-  it('uses the approved generic fallback for NORAD while bespoke art is deferred', () => {
-    const metadata = getLegendaryWonderLandmarkMetadata('norad');
-    const ctx = drawCompletedGlyphForWonder('norad');
-
-    expect(metadata.assetKey).toBeUndefined();
-    expect(ctx.operations.some(operation => operation.startsWith('bespoke:'))).toBe(false);
-    expectNonblankCanvasGlyph(ctx, 'norad fallback');
+  it('keeps military wonder geometry static when reduced motion is enabled', () => {
+    for (const wonderId of ['terracotta-army', 'crac-des-chevaliers', 'norad']) {
+      const first = drawCompletedGlyphForWonder(wonderId, { reducedMotion: true });
+      const second = new MockCanvasContext();
+      drawLegendaryWonderLandmarkGlyph({
+        ctx: second as unknown as CanvasRenderingContext2D,
+        cx: 80,
+        cy: 80,
+        radius: 12,
+        metadata: getLegendaryWonderLandmarkMetadata(wonderId),
+        state: 'completed',
+        reducedMotion: true,
+        nowMs: 9000,
+      });
+      expect(getGlyphGeometryProfile(second), wonderId).toBe(getGlyphGeometryProfile(first));
+    }
   });
 
   it('keeps generic silhouette fallback for completed landmarks with unsupported bespoke asset keys', () => {
