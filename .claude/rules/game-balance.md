@@ -78,6 +78,35 @@ a row here and stay at +1 per single source unless a documented gameplay
 reason requires more (matching the spirit of the wonder/national-project yield
 ceilings above, applied to happiness).
 
+## Unrest Relief Inventory
+
+Distance-from-capital and empire-overextension unrest pressure
+(`getUnrestPressureBreakdown` in `faction-system.ts`) are deliberate,
+permanent pressures — a wide empire is *meant* to feel scale. Every era where
+they bite gets a **bought, deliberate** counter: the administration ladder
+(#919). Each counter emits its own negative breakdown row via an entry in
+`UNREST_RELIEF_SOURCES`; it never edits the positive-row formulas in place.
+
+| Source | Building id | Rows it relieves | Formula (per city) | Era active |
+|---|---|---|---|---|
+| Courthouse | `courthouse` | Distance from capital, Empire overextension | `relief = min( round(0.5·distRow) + min(3, overextRow),  max(0, (distRow + overextRow) − 2) )` | era 2+ (`magistracy`) |
+
+**Rule:** any new distance / overextension / unrest-relief source — a future
+ladder rung (roads-cut-distance, second seat of government, civil-service
+bureaucracy, federalism, governors) or anything else — MUST:
+
+1. add a row to this table, and
+2. register an `UnrestReliefSource` entry in `UNREST_RELIEF_SOURCES`
+   (`src/systems/faction-system.ts`), keyed to the building id so
+   `ai-production.ts` scores it generically with no new branch.
+
+It must keep a **residual floor** (the `COURTHOUSE_SPRAWL_FLOOR` pattern —
+scale always costs something) and must **never relieve more sprawl than the
+city actually has**. The AI production valuation
+(`unrestReliefScore` in `src/ai/ai-production.ts`) and the AI research pull
+(`unrestReliefTechBonus` in `src/ai/ai-research.ts`) both key off this table,
+so a new entry is valued automatically.
+
 ## National Project Lifecycle Contract
 
 - **Build window:** available during `homeEra` and `homeEra + 1` only. Hidden from production queue when `currentEra > homeEra + 1`.
