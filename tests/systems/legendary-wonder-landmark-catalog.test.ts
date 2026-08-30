@@ -72,9 +72,9 @@ describe('legendary wonder landmark catalog', () => {
     expect(getLegendaryWonderLandmarkMetadata('manhattan-project').assetKey).toBe('manhattan-project-bespoke');
     expect(getLegendaryWonderLandmarkMetadata('open-intelligence-commons').assetKey).toBe('open-intelligence-commons-bespoke');
     expect(getLegendaryWonderLandmarkMetadata('lunar-gateway').assetKey).toBe('lunar-gateway-bespoke');
-    expect(getLegendaryWonderLandmarkMetadata('terracotta-army').assetKey).toBeUndefined();
-    expect(getLegendaryWonderLandmarkMetadata('crac-des-chevaliers').assetKey).toBeUndefined();
-    expect(getLegendaryWonderLandmarkMetadata('norad').assetKey).toBeUndefined();
+    expect(getLegendaryWonderLandmarkMetadata('terracotta-army').assetKey).toBe('terracotta-army-bespoke');
+    expect(getLegendaryWonderLandmarkMetadata('crac-des-chevaliers').assetKey).toBe('crac-des-chevaliers-bespoke');
+    expect(getLegendaryWonderLandmarkMetadata('norad').assetKey).toBe('norad-bespoke');
 
     const definitionIds = getLegendaryWonderDefinitions().map(definition => definition.id).sort();
     const keyedWonderIds = getLegendaryWonderLandmarkMetadataCatalog()
@@ -82,7 +82,7 @@ describe('legendary wonder landmark catalog', () => {
       .map(entry => entry.wonderId)
       .sort();
 
-    expect(keyedWonderIds).toEqual(definitionIds.filter(id => id !== 'terracotta-army' && id !== 'crac-des-chevaliers' && id !== 'norad'));
+    expect(keyedWonderIds).toEqual(definitionIds);
 
     const keyed = getLegendaryWonderLandmarkMetadataCatalog()
       .filter(entry => entry.assetKey)
@@ -93,6 +93,7 @@ describe('legendary wonder landmark catalog', () => {
       ['great-pyramid', 'great-pyramid-bespoke'],
       ['tidemother-colossus', 'tidemother-colossus-bespoke'],
       ['oracle-of-delphi', 'oracle-of-delphi-bespoke'],
+      ['terracotta-army', 'terracotta-army-bespoke'],
       ['grand-canal', 'grand-canal-bespoke'],
       ['sun-spire', 'sun-spire-bespoke'],
       ['world-archive', 'world-archive-bespoke'],
@@ -107,6 +108,7 @@ describe('legendary wonder landmark catalog', () => {
       ['storm-signal-spire', 'storm-signal-spire-bespoke'],
       ['manhattan-project', 'manhattan-project-bespoke'],
       ['internet', 'internet-bespoke'],
+      ['crac-des-chevaliers', 'crac-des-chevaliers-bespoke'],
       ['sistine-vault', 'sistine-vault-bespoke'],
       ['codex-eternal', 'codex-eternal-bespoke'],
       ['navigators-compass', 'navigators-compass-bespoke'],
@@ -125,6 +127,7 @@ describe('legendary wonder landmark catalog', () => {
       ['wright-flyer', 'wright-flyer-bespoke'],
       ['united-nations', 'united-nations-bespoke'],
       ['apollo-program', 'apollo-program-bespoke'],
+      ['norad', 'norad-bespoke'],
       ['open-intelligence-commons', 'open-intelligence-commons-bespoke'],
       ['lunar-gateway', 'lunar-gateway-bespoke'],
     ]);
