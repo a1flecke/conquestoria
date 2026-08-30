@@ -949,15 +949,10 @@ export function applyEmpireContainment(
   const remedyCompletionByCity = { ...(crisis.remedyCompletionByCity ?? {}) };
   for (const id of targetCityIds) remedyCompletionByCity[id] = state.turn + 2;
 
-  let curedUntilTurn = crisis.curedUntilTurn;
-  if (civ.techState.completed.includes('epidemic-control')) {
-    curedUntilTurn = { ...(crisis.curedUntilTurn ?? {}) };
-    for (const id of targetCityIds) {
-      curedUntilTurn[id] = state.turn + 2 + OUTBREAK_CURE_IMMUNITY_TURNS_EPIDEMIC_CONTROL;
-    }
-  }
-
-  const updated: ActiveCrisis = { ...crisis, remedyCompletionByCity, curedUntilTurn };
+  // Post-cure re-infection immunity is NOT set here: each city gets it uniformly from
+  // the tick resolver's remedy-completion block (via cureImmunityWindow), the same as
+  // a per-city applyRemedy. Duplicating it here would only risk drift.
+  const updated: ActiveCrisis = { ...crisis, remedyCompletionByCity };
   bus.emit('crisis:contained', {
     crisisId, civId: crisis.targetCivId, cityCount: targetCityIds.length, goldCost,
   });

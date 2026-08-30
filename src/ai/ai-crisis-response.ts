@@ -210,9 +210,12 @@ export function getCrisisResponseActions(state: GameState, civId: string): Crisi
     if (candidate) actions.push({ kind: 'quarantine', crisisId: crisis.id, cityId: candidate.id });
   }
 
-  // #919 MR1: prefer a single nationwide remedy for a wide outbreak when affordable.
+  // #919 MR1: prefer a single nationwide remedy for the WIDEST affordable outbreak.
+  // Capped at one per civ per turn (like the single fund-remedy below) so a bad-luck
+  // multi-outbreak turn can't drain the AI's whole treasury in one pass.
   const empireContainedCrisisIds = new Set<string>();
   if (civ.techState?.completed?.includes('medicine')) {
+    let best: { crisisId: string; unremediedCount: number } | null = null;
     for (const crisis of crises) {
       if (crisis.archetype !== 'outbreak') continue;
       if (crisis.sabotage !== undefined && crisis.sabotage.untilTurn > state.turn) continue;
@@ -222,10 +225,15 @@ export function getCrisisResponseActions(state: GameState, civId: string): Crisi
         const c = state.cities[id];
         return sum + (c ? getCityAppeaseCost(c) : 0);
       }, 0);
-      if (civ.gold >= cost * profile.crisisRemedyGoldMultiplier) {
-        actions.push({ kind: 'empire-contain', crisisId: crisis.id });
-        empireContainedCrisisIds.add(crisis.id);
+      if (civ.gold < cost * profile.crisisRemedyGoldMultiplier) continue;
+      if (!best || unremedied.length > best.unremediedCount ||
+          (unremedied.length === best.unremediedCount && crisis.id < best.crisisId)) {
+        best = { crisisId: crisis.id, unremediedCount: unremedied.length };
       }
+    }
+    if (best) {
+      actions.push({ kind: 'empire-contain', crisisId: best.crisisId });
+      empireContainedCrisisIds.add(best.crisisId);
     }
   }
 
