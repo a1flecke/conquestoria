@@ -34,6 +34,7 @@ These sources are approved starting points. Implementation may add more sources,
 | `unesco-giza` | Great Pyramid factual source | https://whc.unesco.org/en/list/86/ | Official UNESCO World Heritage source for Memphis and its Necropolis – the Pyramid Fields from Giza to Dahshur. |
 | `unesco-first-qin-emperor` | Terracotta Army factual source | https://whc.unesco.org/en/list/441/ | Official UNESCO World Heritage source for the Mausoleum of the First Qin Emperor and its Terracotta Army. |
 | `unesco-crac-des-chevaliers` | Crac des Chevaliers factual source | https://whc.unesco.org/en/list/1229/ | Official UNESCO World Heritage source for Crac des Chevaliers and Qal’at Salah El-Din. |
+| `norad-agreement` | NORAD factual source | https://www.norad.mil/About-NORAD/NORAD-Agreement/ | Official NORAD source for its agreement and command history. |
 | `nps-grand-canyon` | Grand Canyon factual source | https://www.nps.gov/grca/learn/ | Official National Park Service education pages for Grand Canyon facts. |
 | `nps-manhattan-project` | Manhattan Project factual source | https://www.nps.gov/mapr/learn/manhattan-project.htm | Official National Park Service source for the Manhattan Project and its historical significance. |
 | `internet-society-history` | Internet factual source | https://www.internetsociety.org/internet/history-internet/brief-history-internet/ | Internet Society history source for origins and development of the Internet. |
@@ -169,6 +170,7 @@ During implementation, add a row for every codex entry using this shape:
 | `great-pyramid` | `unesco-giza` | `image-desert` | `/images/wonders/codex/desert.jpg` | public domain | NASA / public domain |
 | `terracotta-army` | `unesco-first-qin-emperor` | `image-olympia-stadium` | `/images/wonders/codex/olympia-stadium.jpg` | CC BY 2.0 | Existing generic historical fallback while bespoke Terracotta artwork remains deferred. |
 | `crac-des-chevaliers` | `unesco-crac-des-chevaliers` | `image-ruins` | `/images/wonders/codex/ruins.png` | public domain | Existing generic historical fallback while bespoke Crac artwork remains deferred. |
+| `norad` | `norad-agreement` | `image-archive` | `/images/wonders/codex/archive.jpg` | public domain | Existing generic historical fallback while bespoke NORAD artwork remains deferred. |
 | `tidemother-colossus` | `noaa-maritime-heritage` | `image-drydock` | `/images/wonders/codex/drydock.jpeg` | public domain | Asahel Curtis / public domain |
 
 The final implementation PR must include one completed row per codex entry. Contract tests must fail if a final codex entry references missing fact source IDs, missing image source IDs, missing local image paths, or placeholder attribution text.

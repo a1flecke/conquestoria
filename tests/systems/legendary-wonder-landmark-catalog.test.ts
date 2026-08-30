@@ -74,6 +74,7 @@ describe('legendary wonder landmark catalog', () => {
     expect(getLegendaryWonderLandmarkMetadata('lunar-gateway').assetKey).toBe('lunar-gateway-bespoke');
     expect(getLegendaryWonderLandmarkMetadata('terracotta-army').assetKey).toBeUndefined();
     expect(getLegendaryWonderLandmarkMetadata('crac-des-chevaliers').assetKey).toBeUndefined();
+    expect(getLegendaryWonderLandmarkMetadata('norad').assetKey).toBeUndefined();
 
     const definitionIds = getLegendaryWonderDefinitions().map(definition => definition.id).sort();
     const keyedWonderIds = getLegendaryWonderLandmarkMetadataCatalog()
@@ -81,7 +82,7 @@ describe('legendary wonder landmark catalog', () => {
       .map(entry => entry.wonderId)
       .sort();
 
-    expect(keyedWonderIds).toEqual(definitionIds.filter(id => id !== 'terracotta-army' && id !== 'crac-des-chevaliers'));
+    expect(keyedWonderIds).toEqual(definitionIds.filter(id => id !== 'terracotta-army' && id !== 'crac-des-chevaliers' && id !== 'norad'));
 
     const keyed = getLegendaryWonderLandmarkMetadataCatalog()
       .filter(entry => entry.assetKey)
