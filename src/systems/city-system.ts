@@ -77,6 +77,9 @@ export const BUILDINGS: Record<string, Building> = {
   amphitheater: { id: 'amphitheater', name: 'Amphitheater', category: 'culture', yields: { food: 0, production: 0, gold: 2, science: 1 }, productionCost: 85, description: 'Entertainment and culture. +1 happiness in this city (reduces unrest pressure).', techRequired: 'drama-poetry', happiness: 1 },
   shrine: { id: 'shrine', name: 'Shrine', category: 'culture', yields: { food: 0, production: 0, gold: 0, science: 1 }, productionCost: 8, description: 'Place of worship', techRequired: null, pacing: { band: 'starter', role: 'early-science', impact: 1, scope: 'city', snowball: 1.1, urgency: 1.1, situationality: 1, unlockBreadth: 1 } },
   forum: { id: 'forum', name: 'Forum', category: 'culture', yields: { food: 0, production: 0, gold: 2, science: 0 }, productionCost: 70, description: 'Public gathering place', techRequired: 'civil-service', pacing: { band: 'infrastructure', role: 'civic-economy', impact: 1.1, scope: 'city', snowball: 1.1, urgency: 1, situationality: 1, unlockBreadth: 1 } },
+  // #919 MR2 — administration ladder rung 1. Effect is a dedicated negative unrest
+  // row (UNREST_RELIEF_SOURCES in faction-system.ts), not a happiness field.
+  courthouse: { id: 'courthouse', name: 'Courthouse', category: 'culture', yields: { food: 0, production: 0, gold: 1, science: 0 }, productionCost: 55, techRequired: 'magistracy', description: "Seat of provincial law. Cuts this city's unrest pressure from distance to the capital and from empire overextension (a courthoused city still carries a little).", pacing: { band: 'infrastructure', role: 'stability', impact: 1.05, scope: 'city', snowball: 1.05, urgency: 1.1, situationality: 1.3, unlockBreadth: 1 } },
 
   // Espionage
   safehouse: {
@@ -1523,6 +1526,7 @@ export const PRODUCTION_ICONS: Record<string, string> = {
   amphitheater: '🎭',
   shrine: '⛩️',
   forum: '📢',
+  courthouse: '⚖️',
   safehouse: '🏠',
   'intelligence-agency': '🛡️',
   'security-bureau': '🔒',

@@ -1535,6 +1535,17 @@ describe('PRODUCTION_ICONS coverage', () => {
       expect(PRODUCTION_ICONS[id], `PRODUCTION_ICONS['${id}'] missing`).toBeDefined();
     }
   });
+
+  it('#919 MR2: courthouse is a well-formed culture building with an icon', () => {
+    const c = BUILDINGS['courthouse'];
+    expect(c).toBeDefined();
+    expect(c.category).toBe('culture');
+    expect(c.techRequired).toBe('magistracy');
+    expect(c.productionCost).toBe(55);
+    expect(c.yields).toEqual({ food: 0, production: 0, gold: 1, science: 0 });
+    expect(c.happiness ?? 0).toBe(0); // relief is a targeted row, not happiness
+    expect(PRODUCTION_ICONS['courthouse']).toBe('⚖️');
+  });
 });
 
 describe('legendary wonder production metadata', () => {

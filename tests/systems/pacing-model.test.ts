@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { PacingMetadata } from '@/core/types';
 import { TECH_TREE } from '@/systems/tech-definitions';
+import { BUILDINGS } from '@/systems/city-system';
 import {
   ERA_PACING_PROFILES,
   estimateTurnsToComplete,
@@ -195,5 +196,11 @@ describe('era-relative pacing bands (F1 regression)', () => {
     const era12Techs = TECH_TREE.filter(t => t.era === 12);
     const cheapestEra12 = era12Techs.reduce((min, t) => (t.cost < min.cost ? t : min));
     expect(['marquee', 'power-spike']).not.toContain(resolveEraRelativeCostBand(cheapestEra12, TECH_TREE));
+  });
+
+  it('#919 MR2: magistracy and courthouse resolve to the infrastructure band', () => {
+    const magistracy = tech('magistracy');
+    expect(resolveTechPacingBand(magistracy)).toBe('infrastructure');
+    expect(BUILDINGS['courthouse'].pacing?.band).toBe('infrastructure');
   });
 });

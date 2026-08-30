@@ -76,6 +76,19 @@ describe('tech structured unlock arrays', () => {
     expect(horsebackRiding?.unlocksUnits).toContain('beast_handler');
   });
 
+  it('#919 MR2: magistracy unlocks courthouse and its unlocks text names no bare entity', () => {
+    const magistracy = TECH_TREE.find(tech => tech.id === 'magistracy');
+    expect(magistracy?.unlocksBuildings).toContain('courthouse');
+    expect(magistracy?.era).toBe(2);
+    expect(magistracy?.prerequisites).toEqual(['code-of-laws']);
+    const buildingNames = new Set(Object.values(BUILDINGS).map(b => b.name));
+    const unitNames = new Set(TRAINABLE_UNITS.map(u => u.name));
+    for (const u of magistracy?.unlocks ?? []) {
+      expect(buildingNames.has(u)).toBe(false);
+      expect(unitNames.has(u)).toBe(false);
+    }
+  });
+
   it('has only known, non-duplicated production prerequisites across the full catalog', () => {
     const knownTechIds = new Set(TECH_TREE.map(tech => tech.id));
     const reachableTechIds = new Set(TECH_TREE
