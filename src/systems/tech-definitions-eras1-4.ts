@@ -35,10 +35,14 @@ export const TECH_TREE_ERAS_1_4: Tech[] = [
   { id: 'tribal-council', name: 'Tribal Council', track: 'civics', cost: 4, prerequisites: [], unlocks: ['Basic governance'], era: 1, pacing: { band: 'starter', role: 'foundational-civics', impact: 1, scope: 'empire', snowball: 1, urgency: 1, situationality: 1, unlockBreadth: 1.05 } },
   { id: 'code-of-laws', name: 'Code of Laws', track: 'civics', cost: 10, prerequisites: ['tribal-council'], unlocks: [], unlocksBuildings: ['monument'], era: 1 },
   { id: 'early-empire', name: 'Early Empire', track: 'civics', cost: 25, prerequisites: ['code-of-laws'], unlocks: ['Cities claim +1 tile radius'], era: 2 },
-  // #919 MR2 — administration ladder rung 1. Explicit `pacing` block (its Era-2 civics
-  // peers carry none) because the spec pins it to the `infrastructure` band; a cost-25
-  // era-2 tech would otherwise heuristically resolve to `core`.
-  { id: 'magistracy', name: 'Magistracy', track: 'civics', cost: 25, prerequisites: ['code-of-laws'], unlocks: ['Provincial courts reduce unrest from distance and overextension'], unlocksBuildings: ['courthouse'], era: 2, pacing: { band: 'infrastructure', role: 'stability-civics', impact: 1.05, scope: 'empire', snowball: 1.0, urgency: 1.1, situationality: 1.2, unlockBreadth: 1 } },
+  // #919 MR2 — administration ladder rung 1.
+  // - `countsForEraAdvancement: false`: an optional stability side-tech must not change
+  //   how many era-2 techs gate era 3 (`getEraAdvancementTechs` / `hasReachedEraThreshold`).
+  //   Leaving it counted would slow every game's era-2→3 pace by ~1 tech AND drop a loaded
+  //   save that sat at exactly the old threshold from era 3 back to era 2.
+  // - Explicit `pacing` block (its era-2 civics peers carry none) because the spec pins it
+  //   to the `infrastructure` band; a cost-25 era-2 tech would otherwise resolve to `core`.
+  { id: 'magistracy', name: 'Magistracy', track: 'civics', cost: 25, prerequisites: ['code-of-laws'], unlocks: ['Provincial courts reduce unrest from distance and overextension'], unlocksBuildings: ['courthouse'], era: 2, countsForEraAdvancement: false, pacing: { band: 'infrastructure', role: 'stability-civics', impact: 1.05, scope: 'empire', snowball: 1.0, urgency: 1.1, situationality: 1.2, unlockBreadth: 1 } },
   { id: 'state-workforce', name: 'State Workforce', track: 'civics', cost: 25, prerequisites: ['early-empire'], unlocks: [], unlocksBuildings: ['lumbermill', 'quarry-building', 'masonry-works'], era: 2 },
   { id: 'diplomacy-tech', name: 'Diplomacy', track: 'civics', cost: 55, prerequisites: ['early-empire', 'writing'], unlocks: ['Unlock Non-Aggression Pacts'], era: 3 },
   { id: 'civil-service', name: 'Civil Service', track: 'civics', cost: 60, prerequisites: ['state-workforce'], unlocks: [], unlocksBuildings: ['forum'], era: 3 },

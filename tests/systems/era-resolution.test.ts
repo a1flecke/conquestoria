@@ -2,7 +2,7 @@ import { expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { createNewGame } from '@/core/game-state';
-import { getEraAdvancementTechs } from '@/systems/tech-definitions';
+import { getEraAdvancementTechs, resolveCivilizationEra } from '@/systems/tech-definitions';
 import { resolveCombatEra, resolveNeutralPressureEra } from '@/systems/era-resolution';
 
 function advanceCivToEra(state: ReturnType<typeof createNewGame>, civId: string, era: number): void {
@@ -61,4 +61,18 @@ it('uses the safe lower median of nearby civilization eras when no neutral targe
 
   expect(resolveNeutralPressureEra(state, { q: 4, r: 5 })).toBe(1);
   expect(resolveNeutralPressureEra(state, { q: 30, r: 30 })).toBeNull();
+});
+
+it('#919 MR2: magistracy does not gate era advancement, so no save loses an era on load', () => {
+  // magistracy is an optional stability side-tech (countsForEraAdvancement: false),
+  // so the era-2 advancement pool and its threshold are exactly what they were pre-MR.
+  const era2 = getEraAdvancementTechs(2);
+  expect(era2.some(tech => tech.id === 'magistracy')).toBe(false);
+  expect(era2).toHaveLength(30); // ceil(30 * 0.5) = 15 techs still gate era 2
+
+  // A saved civ that sat at exactly the old era-2 threshold (15 era-2 techs) was era 2;
+  // it must still resolve to era 2 after this MR, with or without magistracy completed.
+  const fifteenEra2 = era2.slice(0, 15).map(tech => tech.id);
+  expect(resolveCivilizationEra(['tribal-council', 'code-of-laws', ...fifteenEra2])).toBe(2);
+  expect(resolveCivilizationEra(['tribal-council', 'code-of-laws', 'magistracy', ...fifteenEra2])).toBe(2);
 });

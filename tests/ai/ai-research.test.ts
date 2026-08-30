@@ -288,8 +288,8 @@ describe('#919 MR2 — unrest pressure lifts magistracy in AI research planning'
     researchQueue: [],
   });
 
-  it('applyAIResearch derives the count from real state: a 15-city revolt-empire beelines magistracy; a calm 3-city one never does', () => {
-    function buildEmpire(cityCount: number, seed: string): GameState {
+  it('applyAIResearch derives the count from real state: a wide revolt-empire beelines magistracy; a calm one and a war-only one never do', () => {
+    function buildEmpire(cityCount: number, seed: string, atWarCount = 0): GameState {
       const state = createNewGame(undefined, seed, 'small');
       const civ = state.civilizations['ai-1'];
       const settler = civ.units.map(id => state.units[id]).find(unit => unit?.type === 'settler')!;
@@ -303,12 +303,13 @@ describe('#919 MR2 — unrest pressure lifts magistracy in AI research planning'
         state.cities[city.id] = city;
         civ.cities.push(city.id);
       }
+      civ.diplomacy.atWarWith = Array.from({ length: atWarCount }, (_, i) => `enemy-${i}`);
       civ.techState = earlyGame();
       return state;
     }
 
-    function firstMagistracyTurn(cityCount: number, seed: string): number {
-      let state = buildEmpire(cityCount, seed);
+    function firstMagistracyTurn(state0: GameState): number {
+      let state = state0;
       for (let turn = 1; turn <= 8; turn++) {
         const before = state.civilizations['ai-1'];
         state = {
@@ -346,9 +347,12 @@ describe('#919 MR2 — unrest pressure lifts magistracy in AI research planning'
     }
 
     // 15 cities -> empire overextension (15-6)*3 = 27 on every city -> all 15 are above
-    // 0.6 * UNREST_TRIGGER_PRESSURE (24) -> pressuredReliefCityCount = 15.
-    expect(firstMagistracyTurn(15, 'mr2-research-wide')).toBeLessThanOrEqual(3);
-    // 3 cities -> no overextension row -> pressuredReliefCityCount = 0 -> no bonus.
-    expect(firstMagistracyTurn(3, 'mr2-research-tall')).toBe(Infinity);
+    // 0.6 * UNREST_TRIGGER_PRESSURE (24) AND carry an Empire-overextension row -> count = 15.
+    expect(firstMagistracyTurn(buildEmpire(15, 'mr2-research-wide'))).toBeLessThanOrEqual(3);
+    // 3 clustered cities, no wars -> no overextension / distance row -> count 0 -> no bonus.
+    expect(firstMagistracyTurn(buildEmpire(3, 'mr2-research-tall'))).toBe(Infinity);
+    // 3 clustered cities at war x3 -> every city IS pressured (war 24) but has NO
+    // distance/overextension row -> a courthouse would not help -> count 0 -> no bonus.
+    expect(firstMagistracyTurn(buildEmpire(3, 'mr2-research-waronly', 3))).toBe(Infinity);
   });
 });

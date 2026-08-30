@@ -16,8 +16,13 @@ import { getCivAvailableResources, getCivHappinessFromResources } from '@/system
 import {
   UNREST_RELIEF_SOURCES,
   UNREST_TRIGGER_PRESSURE,
-  computeUnrestPressure,
+  getUnrestPressureBreakdown,
 } from '@/systems/faction-system';
+
+// #919 MR2: the pressure rows a courthouse (or any current relief source) actually
+// addresses. A city pressured only by war / recent conquest / economy does NOT count
+// toward "this empire needs Magistracy" — that residual is a separate arc.
+const COURTHOUSE_ADDRESSABLE_ROWS = new Set(['Distance from capital', 'Empire overextension']);
 import {
   activateNextQueuedResearch,
   enqueueResearch,
@@ -69,10 +74,10 @@ const UNREST_RELIEF_TECH_AI_BASE_BONUS = 6;
 const UNREST_RELIEF_TECH_AI_PER_PRESSURED_CITY = 1.5;
 const UNREST_RELIEF_TECH_AI_BONUS_CAP = 18;
 const UNREST_RELIEF_PRESSURED_CITY_GATE = 2;
+const UNREST_RELIEF_BUILDING_IDS = new Set(UNREST_RELIEF_SOURCES.map(source => source.id));
 
 function techUnlocksReliefBuilding(tech: Tech): boolean {
-  const reliefSourceIds = new Set(UNREST_RELIEF_SOURCES.map(source => source.id));
-  return (tech.unlocksBuildings ?? []).some(id => reliefSourceIds.has(id) && BUILDINGS[id]);
+  return (tech.unlocksBuildings ?? []).some(id => UNREST_RELIEF_BUILDING_IDS.has(id) && BUILDINGS[id]);
 }
 
 function unrestReliefTechBonus(pressuredReliefCityCount: number): number {
@@ -340,11 +345,17 @@ export function applyAIResearch(
     civ.cities.reduce((sum, cityId) =>
       sum + calculateProjectedCityYields(state, cityId).science, 0),
   );
-  // #919 MR2: how many of this civ's cities are meaningfully pressured right now.
+  // #919 MR2: how many of this civ's cities are BOTH meaningfully pressured AND carry
+  // a pressure row a relief building would actually cut (distance / overextension).
   const reliefPressureGate = 0.6 * UNREST_TRIGGER_PRESSURE;
   const ownerHappiness = getCivHappinessFromResources(state, civId);
-  const pressuredReliefCityCount = civ.cities.reduce((count, cityId) =>
-    count + (computeUnrestPressure(cityId, state, ownerHappiness) >= reliefPressureGate ? 1 : 0), 0);
+  const pressuredReliefCityCount = civ.cities.reduce((count, cityId) => {
+    const rows = getUnrestPressureBreakdown(cityId, state, ownerHappiness);
+    const pressure = Math.min(100, Math.max(0, rows.reduce((total, row) => total + row.amount, 0)));
+    if (pressure < reliefPressureGate) return count;
+    const addressable = rows.some(row => COURTHOUSE_ADDRESSABLE_ROWS.has(row.label) && row.amount > 0);
+    return addressable ? count + 1 : count;
+  }, 0);
   const decision = planAIResearch({
     techState: activated,
     personality,
