@@ -4,6 +4,8 @@
 
 **Goal:** Turn the city-panel unrest pressure breakdown into specific, availability-checked "do this" advice — a shared string-free helper (`src/systems/unrest-guidance.ts`), one-line "top lever" in the cities overview, per-row recommendation sub-lines in the per-city panel, and an honesty fix to the two "build happiness improvements" dead promises.
 
+**Status:** ✅ all 6 tasks implemented on branch `claude/issue-919-mr3-guidance` (2026-08-30). Self-review fix: `CONQUEST_RESOLVER` now returns `await-conquest-settle` (now) as the primary lever instead of `research-constitutional-law` (an Era 5-7 tech). Full `yarn build` + `yarn test` green (549 files, 9347 tests).
+
 **Architecture:** A **table-driven** resolver in `unrest-guidance.ts` maps each positive pressure row to a typed `UnrestRecommendation` (no display strings) using the existing availability helpers. The UI layer owns all copy/icons/screen names in one shared module `src/ui/unrest-guidance-copy.ts` consumed by both panels. Recommendation sub-lines are **read-only text**, not new interactive controls.
 
 **Tech Stack:** TypeScript, Vitest (`jsdom` for UI tests), Vite. No new deps. Pure functions; `textContent` / `createTextNode` for all dynamic UI text.
