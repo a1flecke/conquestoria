@@ -82,6 +82,27 @@ describe('legendary-wonder-map-presentation', () => {
       .some(entry => entry.state === 'under-construction')).toBe(false);
   });
 
+  it('does not turn a lost Terracotta Army race into a map landmark from stale queue progress', () => {
+    const state = makeLegendaryWonderFixture({ completedTechs: [], resources: [] });
+    state.cities['city-river'].productionQueue = ['legendary:terracotta-army'];
+    state.cities['city-river'].productionProgress = 100;
+    state.civilizations.player.visibility.tiles[hexKey(state.cities['city-river'].position)] = 'visible';
+    state.legendaryWonderProjects = {
+      'terracotta-army:player:city-river': {
+        wonderId: 'terracotta-army',
+        ownerId: 'player',
+        cityId: 'city-river',
+        phase: 'lost_race',
+        investedProduction: 100,
+        transferableProduction: 0,
+        questSteps: [],
+      },
+    };
+
+    expect(getLegendaryWonderMapEntries(state, 'player')
+      .some(entry => entry.wonderId === 'terracotta-army')).toBe(false);
+  });
+
   it('uses live active city production for construction ghost progress when project investment lags', () => {
     const state = makeLegendaryWonderFixture({ completedTechs: [], resources: [] });
     state.cities['city-river'].productionQueue = ['legendary:oracle-of-delphi'];
