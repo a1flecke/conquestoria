@@ -557,18 +557,20 @@ describe('isLegendaryWonderVisibleToPlayer', () => {
     expect(isLegendaryWonderVisibleToPlayer(state, 'other-player', 'oracle-of-delphi')).toBe(false);
   });
 
-  it('returns true when the player project phase is lost_race', () => {
-    const state = baseState();
-    state.legendaryWonderProjects!['p1'] = {
-      wonderId: 'oracle-of-delphi',
-      ownerId: 'player',
-      cityId: 'c1',
-      phase: 'lost_race',
-      investedProduction: 0,
-      transferableProduction: 0,
-      questSteps: [],
-    };
-    expect(isLegendaryWonderVisibleToPlayer(state, 'player', 'oracle-of-delphi')).toBe(true);
+  it('keeps military wonder Codex pages visible when the player loses their race', () => {
+    for (const wonderId of ['terracotta-army', 'crac-des-chevaliers', 'norad']) {
+      const state = baseState();
+      state.legendaryWonderProjects!['p1'] = {
+        wonderId,
+        ownerId: 'player',
+        cityId: 'c1',
+        phase: 'lost_race',
+        investedProduction: 0,
+        transferableProduction: 0,
+        questSteps: [],
+      };
+      expect(isLegendaryWonderVisibleToPlayer(state, 'player', wonderId)).toBe(true);
+    }
   });
 });
 
