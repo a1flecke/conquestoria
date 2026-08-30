@@ -164,6 +164,11 @@ describe('#711 siege and capital-ship motion contract', () => {
     }
     expect(css).toContain('.cq-v2[data-state="walk"][data-kind="naval"] .cq-sprite-figure');
   });
+
+  it('keeps the missile-cruiser launch indicator hidden until its attack timeline runs', () => {
+    const selector = '.cq-v2[data-kind="naval"][data-kind-variant="missile-cruiser"] .cq-missile-cruiser-launch';
+    expect(css, 'the local VLS launch indicator must not persist outside attack').toContain(`${selector} { opacity: 0; }`);
+  });
 });
 
 describe('#710 static-site and command gait regression', () => {
