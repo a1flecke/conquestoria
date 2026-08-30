@@ -342,6 +342,22 @@ describe('diplomacy-system', () => {
       );
     });
 
+    it('clears a stale opposite-direction peace request when an AI consents to peace immediately', () => {
+      const state = makeWarState();
+      state.civilizations.player.diplomacy.relationships['ai-1'] = -10;
+      state.civilizations['ai-1'].diplomacy.relationships.player = -10;
+      // ai-1 had already asked the player for peace on an earlier turn.
+      const withPending = enqueuePeaceRequest(state, 'ai-1', 'player');
+      expect(withPending.pendingDiplomacyRequests).toHaveLength(1);
+
+      // The player proposes peace straight back; the AI target consents this turn.
+      const result = applyDiplomaticAction(withPending, 'player', 'ai-1', 'request_peace', new EventBus());
+
+      expect(result.civilizations.player.diplomacy.atWarWith).not.toContain('ai-1');
+      expect(result.civilizations['ai-1'].diplomacy.atWarWith).not.toContain('player');
+      expect(result.pendingDiplomacyRequests).toEqual([]);
+    });
+
     it('deduplicates pending peace requests across both directions for the same civ pair', () => {
       const state = makeWarState();
 

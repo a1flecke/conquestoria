@@ -426,7 +426,16 @@ export function proposeTreatyAgreement(state: GameState, fromCivId: string, toCi
     const consent = evaluatePeaceConsent({ kind, relationship: getRelationship(target.diplomacy, fromCivId), diplomacyFocus: resolveCivDefinition(state, target.civType)?.personality.diplomacyFocus ?? 0.5, targetHasKnownStrategicCapability: false, actorHasKnownStrategicCapability: false, targetVisibleStrength: 1, proposerVisibleStrength: 1 });
     if (!consent.accepted) return state;
     bus.emit('diplomacy:peace-made', { civA: fromCivId, civB: toCivId });
-    return cancelInvalidNetworkPlans({ ...state, civilizations: { ...state.civilizations, [fromCivId]: { ...from, diplomacy: makePeace(from.diplomacy, toCivId, state.turn) }, [toCivId]: { ...target, diplomacy: makePeace(target.diplomacy, fromCivId, state.turn) } } }).state;
+    return cancelInvalidNetworkPlans({
+      ...state,
+      // Same pair-level peace-request cleanup acceptDiplomaticRequest does on
+      // commit -- an immediate AI-consented peace must not leave the other
+      // side's now-moot "incoming peace request" rotting in the panel.
+      pendingDiplomacyRequests: (state.pendingDiplomacyRequests ?? []).filter(
+        candidate => !isPeaceRequestPair(candidate, fromCivId, toCivId),
+      ),
+      civilizations: { ...state.civilizations, [fromCivId]: { ...from, diplomacy: makePeace(from.diplomacy, toCivId, state.turn) }, [toCivId]: { ...target, diplomacy: makePeace(target.diplomacy, fromCivId, state.turn) } },
+    }).state;
   }
   if (hasTreatyBetween(state, fromCivId, toCivId, kind)) return state;
   if (target.isHuman) return enqueueTreatyProposal(state, fromCivId, toCivId, kind, kind === 'non_aggression_pact' ? 10 : -1, bus);
@@ -616,12 +625,18 @@ export function enqueueTreatyProposal(
   };
 }
 
-// 10-turn TTL on any pending peace request or treaty proposal (#554) -- a
+// TTL (in turns) on any pending peace request or treaty proposal (#554) -- a
 // proposal the recipient never opens the diplomacy panel to act on should not
-// rot forever. Call once per turn from the world turn processor.
+// rot forever. Shared with the diplomacy panel's "expires in N turns" label so
+// the two never drift.
+export const PENDING_DIPLOMATIC_REQUEST_TTL_TURNS = 10;
+
+// Call once per turn from the world turn processor.
 export function pruneExpiredDiplomaticRequests(state: GameState): GameState {
   const requests = state.pendingDiplomacyRequests ?? [];
-  const kept = requests.filter(request => state.turn - request.turnIssued < 10);
+  const kept = requests.filter(
+    request => state.turn - request.turnIssued < PENDING_DIPLOMATIC_REQUEST_TTL_TURNS,
+  );
   if (kept.length === requests.length) return state;
   return { ...state, pendingDiplomacyRequests: kept };
 }
