@@ -2599,4 +2599,7 @@ export interface ActiveCrisis {
   // #590 MR3: consecutive turns of positive food surplus per city, toward the famine
   // archetype's passive auto-contain path (independent of remedy/quarantine).
   famineSurplusStreakByCity?: Record<string, number>;
+  // #919 MR1: cityId -> turn through which a just-cured city is immune to re-infection
+  // by THIS crisis. Optional; absent on older saves. Pruned once entries expire.
+  curedUntilTurn?: Record<string, number>;
 }
