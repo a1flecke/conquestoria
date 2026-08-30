@@ -35,6 +35,11 @@ import { svg as crossbowmanSvg }   from './crossbowman.svg';
 // MR 2 — siege
 import { svg as catapultSvg }      from './catapult.svg';
 import { svg as ballistaSvg }      from './ballista.svg';
+// #711 siege and capital ships
+import { svg as trebuchetSvg }     from './trebuchet.svg';
+import { svg as rocketArtillerySvg } from './rocket_artillery.svg';
+import { svg as battleshipSvg }    from './battleship.svg';
+import { svg as missileCruiserSvg } from './missile_cruiser.svg';
 // MR 2 — civilian / naval
 import { svg as caravanSvg }       from './caravan.svg';
 import { svg as expeditionSvg }    from './expedition.svg';
@@ -154,6 +159,10 @@ const UNIT_SPRITES: Record<string, Record<string, string>> = {
   crossbowman:   crossbowmanSvg,
   catapult:      catapultSvg,
   ballista:      ballistaSvg,
+  trebuchet:     trebuchetSvg,
+  rocket_artillery: rocketArtillerySvg,
+  battleship:    battleshipSvg,
+  missile_cruiser: missileCruiserSvg,
   caravan:       caravanSvg,
   expedition:    expeditionSvg,
   transport:     transportSvg,

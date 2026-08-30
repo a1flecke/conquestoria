@@ -383,6 +383,11 @@ describe('#711 siege and capital-ship native sprite contract', () => {
       expect(renderings, `${type} must retain a distinct faction identifier`).toHaveLength(factions.length);
     });
   }
+
+  it('keeps the trebuchet sling empty outside its local beam motion', () => {
+    const result = getUnitSpriteV2('trebuchet', 'imperials')!;
+    expect(result).not.toMatch(/class="cq-trebuchet-sling"[^>]*>[\s\S]*?<circle/);
+  });
 });
 
 describe('#759 batch 1 — v2-native migration', () => {
