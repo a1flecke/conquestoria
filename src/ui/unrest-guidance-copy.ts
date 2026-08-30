@@ -22,7 +22,10 @@ export function unrestRecommendationCopy(rec: UnrestRecommendation): { icon: str
     }
     case 'await-conquest-settle': {
       const t = typeof params.turnsLeft === 'number' ? params.turnsLeft : 0;
-      return { icon: '⏳', text: `Newly taken city — it settles down on its own in ${t} turn${t === 1 ? '' : 's'}. A soldier inside helps.` };
+      const claw = params.suggestConstitutionalLaw
+        ? ' Later, Constitutional Law softens this.'
+        : '';
+      return { icon: '⏳', text: `Newly taken city — it settles down on its own in ${t} turn${t === 1 ? '' : 's'}. A soldier inside helps.${claw}` };
     }
     case 'research-constitutional-law':
       return { icon: '🔬', text: 'Research Constitutional Law (Tech screen) to soften unrest in newly conquered cities.' };
