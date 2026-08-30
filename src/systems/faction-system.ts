@@ -17,7 +17,7 @@ import { getForeignFaithPressure } from './religion-loyalty-system';
 export const UNREST_TRIGGER_PRESSURE = 40;
 export const REVOLT_UNREST_TURNS = 10;       // turns at unrest before revolt escalates (#552)
 export const BREAKAWAY_REVOLT_TURNS = 10;    // turns at revolt before breakaway
-const CONQUEST_UNREST_DURATION = 15;         // turns until conquestTurn is cleared
+export const CONQUEST_UNREST_DURATION = 15;  // turns until conquestTurn is cleared
 const GOLD_APPEASE_COST_PER_POP = 15;
 
 // #919 MR2: the Era-2 administration-ladder nudge. One extra "free" city before
