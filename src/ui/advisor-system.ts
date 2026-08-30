@@ -28,7 +28,8 @@ interface AdvisorMessage {
   id: string;
   advisor: AdvisorType;
   icon: string;
-  message: string;
+  /** A plain string, or a resolver for era/tech-aware copy (#919 MR3). */
+  message: string | ((state: GameState) => string);
   trigger: (state: GameState) => boolean;
   /** If set, maps to a tutorial step (for backward compat) */
   tutorialStep?: TutorialStep;
@@ -254,7 +255,15 @@ const ADVISOR_MESSAGES: AdvisorMessage[] = [
     id: 'chancellor_unrest_warning',
     advisor: 'chancellor',
     icon: '🎩',
-    message: 'Discontent is spreading through one of our cities. Garrison it, end the war, or reduce pressure before unrest hardens into revolt.',
+    // #919 MR3: era/tech-aware — only names the Courthouse once Magistracy is researched,
+    // so this never becomes a dead promise the way "build happiness improvements" was.
+    message: (state) => {
+      const hasMagistracy = state.civilizations[state.currentPlayer]?.techState.completed.includes('magistracy') ?? false;
+      const courthouseClause = hasMagistracy
+        ? ' Building a Courthouse in your largest or most distant cities eases the pressure that scale and distance create.'
+        : '';
+      return `Discontent is spreading through one of our cities. Garrison it, end a war, or ease the pressure before unrest hardens into revolt.${courthouseClause}`;
+    },
     trigger: (state) => Object.values(state.cities).some(
       c => c.owner === state.currentPlayer && c.unrestLevel === 1,
     ),
@@ -790,18 +799,19 @@ export class AdvisorSystem {
       if (msg.trigger(state)) {
         this.shownIds.add(shownKey);
         SESSION_SHOWN_TIPS.add(msg.id);
+        const resolvedMessage = typeof msg.message === 'function' ? msg.message(state) : msg.message;
 
         if (msg.tutorialStep) {
           this.bus.emit('tutorial:step', {
             step: msg.tutorialStep,
-            message: msg.message,
+            message: resolvedMessage,
             advisor: msg.advisor as 'builder' | 'explorer' | 'scholar',
           });
         }
 
         this.bus.emit('advisor:message', {
           advisor: msg.advisor,
-          message: msg.message,
+          message: resolvedMessage,
           icon: msg.icon,
         });
         emittedMessage = true;

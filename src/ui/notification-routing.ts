@@ -113,9 +113,19 @@ export function routeFactionTransition(
     const city = state.cities[event.cityId];
     if (!city) return;
     const appeaseCost = getCityAppeaseCost(city);
+    // #919 MR3: era/tech-aware option list — never suggest an action the civ cannot take
+    // in its current tech state (the old copy promised "happiness improvements" a full
+    // era before any happiness building exists).
+    const completedTechs = state.civilizations[event.owner]?.techState?.completed ?? [];
+    const options = [
+      'garrison a military unit',
+      `spend ${appeaseCost}🪙 to appease`,
+      ...(completedTechs.includes('magistracy') ? ['build a Courthouse'] : []),
+      ...(completedTechs.includes('philosophy') ? ['build a happiness building'] : []),
+    ];
     sink(
       event.owner,
-      `${city.name} is slipping into unrest. Stabilize within ${REVOLT_UNREST_TURNS} turns or rebels will spawn. Options: garrison a military unit, spend ${appeaseCost}🪙 to appease, or build happiness improvements.`,
+      `${city.name} is slipping into unrest. Stabilize within ${REVOLT_UNREST_TURNS} turns or rebels will spawn. Options: ${options.join(', ')}.`,
       'warning',
     );
     return;
@@ -459,7 +469,9 @@ export function routeEraAdvanced(
     if (era === 2) {
       sink(
         civId,
-        `Era 2 begins — cities can now experience unrest. High pressure (overcrowding, distance from capital, unhappiness) will trigger it. Garrison units, spend gold to appease, or build happiness improvements to keep order.`,
+        // #919 MR3: at Era-2 onset no civ has a happiness building yet — name only the
+        // levers that actually exist now, plus the real Era-2 answer (Magistracy → Courthouse).
+        `Era 2 begins — cities can now feel unrest. Overcrowding, distance from your capital, and war all add pressure. Garrison units, spend gold to appease, trade for luxuries, or research Magistracy to build Courthouses.`,
         'info',
       );
     }

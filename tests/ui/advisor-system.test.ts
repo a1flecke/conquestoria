@@ -223,6 +223,38 @@ describe('AdvisorSystem', () => {
     expect(messages[0].message).toContain('war');
   });
 
+  it('#919 MR3: chancellor unrest warning names the Courthouse only once magistracy is researched', () => {
+    function unrestState(withMagistracy: boolean): GameState {
+      const state = stateWithCity();
+      state.tutorial.active = false;
+      state.settings.advisorsEnabled = { builder: false, explorer: false, chancellor: true, warchief: false, treasurer: false, scholar: false, spymaster: false, artisan: false };
+      const cityId = state.civilizations.player.cities[0];
+      state.cities[cityId].unrestLevel = 1;
+      state.civilizations.player.diplomacy.atWarWith = []; // keep the unrest message ahead of the war one
+      if (withMagistracy) {
+        state.civilizations.player.techState.completed = [...state.civilizations.player.techState.completed, 'magistracy'];
+      }
+      return state;
+    }
+
+    const withMsg: any[] = [];
+    const busA = new EventBus();
+    busA.on('advisor:message', m => withMsg.push(m));
+    new AdvisorSystem(busA).check(unrestState(true));
+    const withText = withMsg.find(m => m.advisor === 'chancellor')?.message ?? '';
+    expect(withText).toMatch(/discontent|unrest/i);
+    expect(withText).toMatch(/courthouse/i);
+
+    const withoutMsg: any[] = [];
+    const busB = new EventBus();
+    busB.on('advisor:message', m => withoutMsg.push(m));
+    new AdvisorSystem(busB).check(unrestState(false));
+    const withoutText = withoutMsg.find(m => m.advisor === 'chancellor')?.message ?? '';
+    expect(withoutText).toMatch(/discontent|unrest/i);
+    expect(withoutText).not.toMatch(/courthouse/i);
+    expect(withoutText).not.toMatch(/happiness improvement/i);
+  });
+
   it('does nothing when all advisors are disabled and tutorial is off', () => {
     const bus = new EventBus();
     const advisor = new AdvisorSystem(bus);

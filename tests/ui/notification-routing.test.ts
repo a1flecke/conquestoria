@@ -669,6 +669,30 @@ describe('bus listener routing contract', () => {
       routeFactionTransition(state, { type: 'faction:unrest-started', cityId: 'c1', owner: 'p1' }, sink)
     ).not.toThrow();
   });
+
+  it('#919 MR3: faction:unrest-started does not promise happiness improvements before that tech exists', () => {
+    const state = makeState({
+      cities: { c1: { id: 'c1', name: 'Thebes', owner: 'p1', population: 3, position: { q: 0, r: 0 } } } as any,
+    });
+    state.civilizations.p1.techState = { completed: ['tribal-council'], currentResearch: null, researchProgress: 0, researchQueue: [], trackPriorities: {} } as any;
+    const { sink, calls } = makeSink();
+    routeFactionTransition(state, { type: 'faction:unrest-started', cityId: 'c1', owner: 'p1' }, sink);
+    expect(calls[0]!.message).not.toMatch(/happiness improvement/i);
+    expect(calls[0]!.message).toMatch(/garrison/i);
+    expect(calls[0]!.message).toMatch(/appease/i);
+    expect(calls[0]!.message).not.toMatch(/courthouse/i); // magistracy not researched
+  });
+
+  it('#919 MR3: faction:unrest-started names the Courthouse once magistracy is researched, and a happiness building once philosophy is', () => {
+    const state = makeState({
+      cities: { c1: { id: 'c1', name: 'Thebes', owner: 'p1', population: 3, position: { q: 0, r: 0 } } } as any,
+    });
+    state.civilizations.p1.techState = { completed: ['tribal-council', 'code-of-laws', 'magistracy', 'philosophy'], currentResearch: null, researchProgress: 0, researchQueue: [], trackPriorities: {} } as any;
+    const { sink, calls } = makeSink();
+    routeFactionTransition(state, { type: 'faction:unrest-started', cityId: 'c1', owner: 'p1' }, sink);
+    expect(calls[0]!.message).toMatch(/courthouse/i);
+    expect(calls[0]!.message).toMatch(/happiness building/i);
+  });
 });
 
 describe('crisis notification routing', () => {
@@ -1302,5 +1326,15 @@ describe('era:advanced routing', () => {
     routeEraAdvanced(2, [], sink);
 
     expect(calls).toHaveLength(0);
+  });
+
+  it('#919 MR3: the Era-2 onset primer names only era-appropriate levers (no happiness-building dead promise)', () => {
+    const { sink, calls } = makeSink();
+    routeEraAdvanced(2, ['p1'], sink);
+    const primer = calls.find(c => c.type === 'info')!.message;
+    expect(primer).not.toMatch(/happiness improvement/i);
+    expect(primer).toMatch(/garrison/i);
+    expect(primer).toMatch(/appease/i);
+    expect(primer).toMatch(/magistracy/i); // points at the real Era-2 answer
   });
 });
