@@ -11,7 +11,7 @@ import type {
   TechTrack,
 } from '@/core/types';
 import { createTechState } from '@/systems/tech-system';
-import { TRAINABLE_UNITS } from '@/systems/city-system';
+import { TRAINABLE_UNITS, foundCity } from '@/systems/city-system';
 import { prepareMajorCivStrategicPlan } from '@/ai/ai-prepared-turn';
 
 const neutral: PersonalityTraits = {
@@ -191,6 +191,38 @@ describe('AI strategic research planning', () => {
     expect(result?.scoreComponents.unlockBreadth).toBe(2);
   });
 
+  it('#919 MR2: the pressure-gated, pressure-scaled bonus lifts a relief-unlocking tech', () => {
+    const techs = [
+      // Equal unlock breadth on both sides (monument is not a UNREST_RELIEF_SOURCES
+      // building) so only the pressure-gated relief bonus can break the tie.
+      tech('aaa-plain', 'civics', [], { unlocksBuildings: ['monument'] }),
+      tech('zzz-courts', 'civics', [], { unlocksBuildings: ['courthouse'] }),
+    ];
+    const relief = (n: number) => {
+      const d = planAIResearch(context(techs, n === undefined ? {} : { pressuredReliefCityCount: n }));
+      return d?.scoreComponents.unrestReliefTechBonus ?? 0;
+    };
+
+    // Below the 2-pressured-city gate: no bonus, id tiebreak keeps 'aaa-plain'.
+    expect(planAIResearch(context(techs))?.frontierTechId).toBe('aaa-plain');
+    expect(relief(0)).toBe(0);
+    expect(relief(1)).toBe(0);
+    expect(planAIResearch(context(techs, { pressuredReliefCityCount: 1 }))?.frontierTechId)
+      .toBe('aaa-plain');
+
+    // At the gate: base bonus applies and the relief tech wins.
+    const gate = planAIResearch(context(techs, { pressuredReliefCityCount: 2 }));
+    expect(gate?.frontierTechId).toBe('zzz-courts');
+    expect(gate?.scoreComponents.unrestReliefTechBonus).toBeGreaterThanOrEqual(6);
+    expect(gate?.trace.candidates.find(c => c.id === 'zzz-courts')?.reasonCodes)
+      .toContain('unrest-relief');
+
+    // Scales with pressured-city count, capped.
+    expect(relief(8)).toBeGreaterThan(relief(2));
+    expect(relief(100)).toBe(relief(12)); // both clamp to the cap
+    expect(relief(100)).toBeLessThanOrEqual(18);
+  });
+
   it('bounds search to four edges and twenty-four downstream targets', () => {
     const techs = [tech('root', 'science')];
     for (let index = 1; index <= 30; index++) {
@@ -244,5 +276,78 @@ describe('AI strategic research planning', () => {
     const result = applyAIResearch(state, civ.id, prepared, neutral);
 
     expect(result.state.civilizations[civ.id].techState).toEqual(before);
+  });
+});
+
+describe('#919 MR2 — unrest pressure lifts magistracy in AI research planning', () => {
+  const earlyGame = () => ({
+    ...createTechState(),
+    completed: ['tribal-council', 'code-of-laws'],
+    currentResearch: null,
+    researchQueue: [],
+  });
+
+  it('applyAIResearch derives the count from real state: a 15-city revolt-empire beelines magistracy; a calm 3-city one never does', () => {
+    function buildEmpire(cityCount: number, seed: string): GameState {
+      const state = createNewGame(undefined, seed, 'small');
+      const civ = state.civilizations['ai-1'];
+      const settler = civ.units.map(id => state.units[id]).find(unit => unit?.type === 'settler')!;
+      civ.cities = [];
+      for (let i = 1; i <= cityCount; i++) {
+        const position = { q: settler.position.q + (i % 5), r: settler.position.r + Math.floor(i / 5) };
+        const city = foundCity(civ.id, position, state.map, state.idCounters);
+        city.id = i === 1 ? 'ai1-capital' : `ai1-city-${i}`;
+        city.buildings = [];
+        city.productionQueue = [];
+        state.cities[city.id] = city;
+        civ.cities.push(city.id);
+      }
+      civ.techState = earlyGame();
+      return state;
+    }
+
+    function firstMagistracyTurn(cityCount: number, seed: string): number {
+      let state = buildEmpire(cityCount, seed);
+      for (let turn = 1; turn <= 8; turn++) {
+        const before = state.civilizations['ai-1'];
+        state = {
+          ...state,
+          civilizations: {
+            ...state.civilizations,
+            'ai-1': { ...before, techState: { ...before.techState, currentResearch: null, researchProgress: 0 } },
+          },
+        };
+        const result = applyAIResearch(state, 'ai-1', prepareMajorCivStrategicPlan(state, 'ai-1'), neutral);
+        state = result.state;
+        const picked = state.civilizations['ai-1'].techState.currentResearch;
+        if (picked === 'magistracy') return turn;
+        if (picked) {
+          const civ = state.civilizations['ai-1'];
+          state = {
+            ...state,
+            civilizations: {
+              ...state.civilizations,
+              'ai-1': {
+                ...civ,
+                techState: {
+                  ...civ.techState,
+                  completed: [...civ.techState.completed, picked],
+                  currentResearch: null,
+                  researchProgress: 0,
+                  researchQueue: [],
+                },
+              },
+            },
+          };
+        }
+      }
+      return Infinity;
+    }
+
+    // 15 cities -> empire overextension (15-6)*3 = 27 on every city -> all 15 are above
+    // 0.6 * UNREST_TRIGGER_PRESSURE (24) -> pressuredReliefCityCount = 15.
+    expect(firstMagistracyTurn(15, 'mr2-research-wide')).toBeLessThanOrEqual(3);
+    // 3 cities -> no overextension row -> pressuredReliefCityCount = 0 -> no bonus.
+    expect(firstMagistracyTurn(3, 'mr2-research-tall')).toBe(Infinity);
   });
 });
