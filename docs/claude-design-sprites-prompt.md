@@ -1,6 +1,6 @@
 # Claude Design Prompt: Conquestoria Sprites
 
-**The active Issue #710 corrective prompt is at the end of this file.** The last shipped one — #769 batch 5, the FINAL batch (real,
+**The active Issue #711 corrective prompt is at the end of this file.** The last shipped one — #769 batch 5, the FINAL batch (real,
 distinct live-catalog sprites for `anti_tank_gun`, `mobile_aa`, `wwii_fighter`) — shipped
 2026-08-04. All three now render their own bespoke `units.tsx` sprite function instead of aliasing
 another unit's exact art. With this batch merged, **#769's own scope is fully complete** — the
@@ -245,72 +245,61 @@ Describe each landmark as Canvas primitives scaled exclusively from a supplied `
 ## 2026-08-30 — Issue 711 siege and capital-ship replacement prompt
 
 <role>
-You are a senior SVG sprite artist and TypeScript developer. Produce editable, flat geometric SVG/JSX source for existing strategy-game unit sprites. Do not produce raster art, a mockup, generic icons, or a new animation system.
+You are a senior SVG sprite artist and TypeScript developer. Produce editable, flat geometric native-v2 SVG/JSX source for existing strategy-game unit sprites. Do not produce raster art, a mockup, generic icons, or a new global animation system.
 </role>
 
 <context>
 Project: Conquestoria, a family-friendly HTML5 strategy game. Units appear at 40–120 pixels on a hex map. Each final sprite is one readable, right-facing, 2.5D 128 by 128 silhouette before interior decoration. This batch replaces four temporary donor sprites without changing game rules or renderer plumbing.
+
+The normal six-faction DOM map overlay uses native-v2 sprites. The old catalog fallback does not put `data-kind` on the outer `.cq-v2` wrapper, so an inner SVG marker cannot activate wrapper-scoped v2 animation selectors. These four components must therefore be native-v2 assets with an outer `SpriteFrameV2` `kind` and `variant`, their generated modules registered in the native lookup, and narrowly scoped CSS for their real locomotion and attacks. A matching catalog fallback is a separate implementation responsibility; do not substitute it for this work.
 </context>
 
 <reference_files>
-1. https://raw.githubusercontent.com/a1flecke/conquestoria/main/src/renderer/sprites/sprite-system.tsx
-2. https://raw.githubusercontent.com/a1flecke/conquestoria/main/src/renderer/sprites/units.tsx
-3. https://raw.githubusercontent.com/a1flecke/conquestoria/main/src/renderer/sprites/sprite-catalog.ts
-4. https://raw.githubusercontent.com/a1flecke/conquestoria/main/src/assets/sprite-animations-v2.css
-5. https://raw.githubusercontent.com/a1flecke/conquestoria/main/docs/sprite-design-system.md
+1. https://raw.githubusercontent.com/a1flecke/conquestoria/main/design/conquestoria-sprites/lib/units-v2.jsx
+2. https://raw.githubusercontent.com/a1flecke/conquestoria/main/src/renderer/sprites/v2/index.ts
+3. https://raw.githubusercontent.com/a1flecke/conquestoria/main/src/assets/sprite-animations-v2.css
+4. https://raw.githubusercontent.com/a1flecke/conquestoria/main/scripts/serialize-sprites.mjs
+5. https://raw.githubusercontent.com/a1flecke/conquestoria/main/src/renderer/sprites/units.tsx
+6. https://raw.githubusercontent.com/a1flecke/conquestoria/main/src/renderer/sprites/sprite-catalog.ts
+7. https://raw.githubusercontent.com/a1flecke/conquestoria/main/docs/sprite-design-system.md
 </reference_files>
 
 <design_system>
-Use `SpriteFrame`, `Shadow`, `Banner`, `UnitSpriteProps`, and `MATERIAL_PALETTE` (`P`) already present in `units.tsx`. Every export has the exact signature `export function FooSprite({ palette, svgOnly = false }: UnitSpriteProps): string`. The outer visible group must use an existing body-plan kind: `ranged` for the two siege pieces and `naval` for the two ships. Register the finished export as `foo: withMotion('foo', FooSprite),` in `UNIT_SPRITE_CATALOG`.
+Use `SpriteFrameV2`, `_P2`, and `_fa2(faction)` from `units-v2.jsx`. Add `TrebuchetV2Sprite`, `RocketArtilleryV2Sprite`, `BattleshipV2Sprite`, and `MissileCruiserV2Sprite`, each to `Object.assign(window, ...)`. Use only existing body-plan kinds: `kind="ranged"` with variants `trebuchet` and `rocket-artillery`, and `kind="naval"` with variants `battleship` and `missile-cruiser`. Then add each component to `UNIT_SPRITES` in `scripts/serialize-sprites.mjs`, serialize it, and register the generated module in `src/renderer/sprites/v2/index.ts`.
 
-Use flat geometric forms, warm hand-made 2.5D composition, and major outlines in `#1f1a14`. No gradients, blur, photorealism, text, logos, hard-coded faction colors, donor reuse, or a single-polygon icon in place of named physical forms. Use only: skin `#d4a373/#b08968/#8a5a3c`; cloth `#c19a6b/#e6dcc6/#7a6e5b/#5b4a7a`; metal `#5a6068/#8a929b/#b8895a/#d4a13c/#e8edf2`; wood `#c19a6b/#8a6a3a/#5e3f24`; stone `#c4b8a4/#9a8e78/#6a5e4a`; ground `#7ea860/#a08260/#d8c896/#3a6e94`; ink `#1f1a14/#3a3228`. Faction identity uses only `palette.dark`, `palette.mid`, `palette.bright`, and `palette.trim`, principally through `Banner`.
+Use flat geometric forms, warm hand-made 2.5D composition, and major outlines in `#1f1a14`. Render grounded historical/industrial realism through the project material palette: physical wood, stone, steel, water, wheels, hulls, and machinery should be clear at 40px. Do not add magic, fantasy runes, real-world flags, national markings, gradients, blur, photorealism, text, logos, hard-coded faction colors, donor reuse, or a single-polygon icon in place of named physical forms. Use `_P2` materials and only `f.dark`, `f.mid`, `f.bright`, and `f.trim` for a small faction pennant/identifier.
 
-Keep static placement outside motion hooks. The existing `withMotion` wrapper owns map movement; do not add CSS or a new body-plan kind. A `cq-muzzle-flash` is allowed only where an existing attack effect makes visual sense; do not depict projectiles, launched rockets, or launched missiles as persistent unit-state art.
+Place static geometry in static outer groups. Every moving part must be an untransformed child hook nested inside its physical owner, so motion never detaches a joint, wheel, turret, rack, or beam. Add local CSS under the exact v2 variant selectors: suppress generic ground gait and body-lunge behavior where it is anatomically wrong, retain generic naval rock for ships, and honour the existing reduced-motion rules. A temporary `cq-muzzle-flash` or launch indicator is permitted only in the attack frame; do not depict projectiles, launched rockets, shells, or missiles as persistent map-state art.
 </design_system>
 
 <sprites>
-## SPRITE 1 — TrebuchetSprite (Unit)
+## TrebuchetV2Sprite
 
-**Insert into**: `src/renderer/sprites/units.tsx`, after `CatapultSprite`
-**Catalog entry**: `trebuchet: withMotion('trebuchet', TrebuchetSprite),`
-**data-kind**: `ranged`
+Use `kind="ranged"` and `variant="trebuchet"`. A slow medieval counterweight siege engine. At 40px it reads as a tall triangular wooden A-frame with hanging stone counterweight and long throwing beam, not a low torsion catapult. Include `cq-trebuchet-a-frame`, `cq-trebuchet-counterweight`, `cq-trebuchet-beam`, `cq-trebuchet-sling`, `cq-trebuchet-carriage`, `cq-trebuchet-wheel`, and `cq-shadow`. Add four small wood-and-iron wheels under the carriage. The beam pivots above the frame and ends in an empty rope sling. Walk rolls the wheel hooks without a humanoid gait. Attack swings beam and sling through a local firing arc while the counterweight drops; the chassis stays planted. Do not show a thrown projectile.
 
-A slow medieval counterweight siege engine. At 40 pixels it reads as a tall triangular wooden A-frame with a hanging stone counterweight and long throwing beam, not CatapultSprite's low torsion rectangle. Include `cq-trebuchet-a-frame`, `cq-trebuchet-counterweight`, `cq-trebuchet-beam`, `cq-trebuchet-sling`, and `cq-trebuchet-carriage` class hooks. Add four small wood-and-iron wheels beneath the carriage; the beam pivots above the frame and ends in an empty rope sling. Use `P.wood.mid`, `P.wood.dark`, `P.stone.mid`, `P.metal.iron`, and the standard Banner. Do not show a thrown projectile. Tone: purposeful, heavy, hand-built.
+## RocketArtilleryV2Sprite
 
-## SPRITE 2 — RocketArtillerySprite (Unit)
+Use `kind="ranged"` and `variant="rocket-artillery"`. A mobile saturation-fire launcher. At 40px it reads as a low armored six-wheel chassis with an elevated rectangular bank of short rocket tubes, never a single long cannon barrel. Include `cq-rocket-artillery-chassis`, `cq-rocket-artillery-rack`, `cq-rocket-artillery-tubes`, `cq-rocket-artillery-stabilizer`, `cq-rocket-artillery-crate`, `cq-rocket-artillery-wheel`, and `cq-shadow`. The angled rack contains at least six visible circular tube mouths; keep cab/chassis visibly low and separate. Walk rolls the wheels while the rack remains attached. Attack uses local rack recoil and a brief tube-mouth flash, never generic body lunge or a persistent rocket.
 
-**Insert into**: `src/renderer/sprites/units.tsx`, after `ArtillerySprite`
-**Catalog entry**: `rocket_artillery: withMotion('rocket_artillery', RocketArtillerySprite),`
-**data-kind**: `ranged`
+## BattleshipV2Sprite
 
-A mobile saturation-fire launcher. At 40 pixels it reads as a low armored six-wheel chassis with an elevated rectangular bank of many short rocket tubes; it must never look like ArtillerySprite's single long gun barrel. Include `cq-rocket-artillery-chassis`, `cq-rocket-artillery-rack`, `cq-rocket-artillery-tubes`, `cq-rocket-artillery-stabilizer`, and `cq-rocket-artillery-crate` class hooks. The rack is angled upward and contains at least six circular tube mouths. Keep the cab/chassis visibly low and separate from the rack, add simple deployment stabilizers and a small crate. Use `P.metal.iron`, `P.metal.steel`, `P.wood.mid`, narrow `palette.mid` identification banding, and the standard Banner. Do not render an in-flight rocket, a single cannon barrel, or Artillery's wheel silhouette. Tone: compact, industrial, disciplined.
+Use `kind="naval"` and `variant="battleship"`. A mature gun capital ship: long armored hull, three separated heavy turrets, compact bridge, rangefinder mast, waterline, and wake. Include `cq-battleship-hull`, `cq-battleship-turret-fore`, `cq-battleship-turret-mid`, `cq-battleship-turret-aft`, `cq-battleship-bridge`, `cq-battleship-rangefinder`, `cq-battleship-wake`, and a local `cq-muzzle-flash` per turret. Each turret has distinct armored housing and paired barrels. The hull is longer and lower than the Pre-Dreadnought. Keep generic naval rock for idle/travel. Attack is local recoil from all three turret hooks and brief flashes; never a ground-unit lunge or a persistent shell.
 
-## SPRITE 3 — BattleshipSprite (Unit)
+## MissileCruiserV2Sprite
 
-**Insert into**: `src/renderer/sprites/units.tsx`, after `PreDreadnoughtSprite`
-**Catalog entry**: `battleship: withMotion('battleship', BattleshipSprite),`
-**data-kind**: `naval`
-
-A mature gun capital ship. It must read as a long armored hull with three separated heavy turrets, compact bridge, and rangefinder mast: a successor to, not a recolor of, the two-turret PreDreadnoughtSprite. Include `cq-battleship-hull`, `cq-battleship-turret-fore`, `cq-battleship-turret-mid`, `cq-battleship-turret-aft`, `cq-battleship-bridge`, `cq-battleship-rangefinder`, and `cq-battleship-wake` class hooks. Each turret has a distinct armored housing and paired barrels; the hull is longer/lower than the donor, with restrained waterline and wake. Use `P.metal.steel`, `P.metal.iron`, `P.metal.shine`, `P.ground.water`, and the standard Banner. No vertical-launch cells, radar-panel silhouette, launched shell, or copied donor component. Tone: formidable, stable, naval-industrial.
-
-## SPRITE 4 — MissileCruiserSprite (Unit)
-
-**Insert into**: `src/renderer/sprites/units.tsx`, after `BattleshipSprite`
-**Catalog entry**: `missile_cruiser: withMotion('missile_cruiser', MissileCruiserSprite),`
-**data-kind**: `naval`
-
-A modern fleet-air-defense cruiser. It must read as a slim low hull with grouped vertical-launch cells, angular enclosed bridge, and two radar-array panels—not a third gun-battleship turret profile. Include `cq-missile-cruiser-hull`, `cq-missile-cruiser-vls`, `cq-missile-cruiser-bridge`, `cq-missile-cruiser-radar-forward`, `cq-missile-cruiser-radar-aft`, and `cq-missile-cruiser-wake` class hooks. Render VLS as a compact grid of closed deck cells, never launched missiles or standing exposed rockets. The hull is more angular than BattleshipSprite while remaining more substantial than a generic destroyer. Use `P.metal.iron`, `P.metal.steel`, `P.metal.shine`, `P.ground.water`, and the standard Banner. Tone: calm, advanced, defensive.
+Use `kind="naval"` and `variant="missile-cruiser"`. A modern fleet-air-defense cruiser: slim angular low hull, grouped vertical-launch cells, enclosed bridge, two radar-array panels, waterline, wake, and a small faction pennant. Include `cq-missile-cruiser-hull`, `cq-missile-cruiser-vls`, `cq-missile-cruiser-bridge`, `cq-missile-cruiser-radar-forward`, `cq-missile-cruiser-radar-aft`, `cq-missile-cruiser-wake`, `cq-missile-cruiser-vls-lid`, and `cq-missile-cruiser-launch`. Render the VLS as a compact grid of closed cells, not standing exposed rockets. Generic naval rock remains correct for idle/travel and radar panels receive a subdued scan. Attack briefly opens lids and plays a short local launch indicator, then returns closed; do not render a standing or persistent missile.
 </sprites>
 
 <output_format>
-Output one complete TypeScript component at a time, with no prose. Preserve the custom JSX runtime and existing imports. After each component, output the exact catalog import and registration diff needed for that component. Do not create new files, CSS, types, renderer branches, or raster assets.
+Output one complete native-v2 JSX component at a time, with no prose. Preserve `SpriteFrameV2`, the custom JSX runtime, and `Object.assign(window, ...)` registration. Then output only the exact `UNIT_SPRITES` serialization entry, native-v2 module import/registration, and variant-scoped CSS selectors required for that component. Do not create raster assets, renderer/gameplay branches, types, a new body-plan kind, or a global animation rule.
 </output_format>
 
 <style_checklist>
-- 128 by 128 `SpriteFrame`; visible silhouette is legible at 40 pixels before details.
-- Every sprite has `Shadow` and `Banner`; faction color is supplied only by `palette`.
-- Major forms use `P.ink.line`; details use restrained 0.5–0.8-pixel ink lines.
-- Existing ranged/naval movement wrapper remains the only movement wiring.
+- 128 by 128 `SpriteFrameV2`; visible silhouette is legible at 40px before details.
+- Outer wrapper owns the exact `ranged`/`naval` kind and local variant; faction color is supplied only by `_fa2(faction)`.
+- Major forms use project ink; details use restrained 0.5–0.8px ink lines.
+- Every animated hook is an untransformed child of its static owner. Wheel, beam, sling, rack, turret, VLS, and radar motion stays physically connected in idle, walk, attack, hurt, death, and reduced-motion states.
+- Variant CSS replaces inappropriate generic ground gait/lunge with actual wheeled, siege, or naval motion while retaining generic naval rock for ships.
 - Trebuchet is not Catapult, Rocket Artillery is not Artillery, Battleship is not Pre-Dreadnought, and Missile Cruiser is neither Battleship nor Pre-Dreadnought.
-- No gradients, blur, text, logos, hard-coded faction colors, donor calls, new animation kinds, or persistent projectiles.
+- No gradients, blur, text, logos, real flags/national markings, magic/runes, hard-coded faction colors, donor calls, new animation kinds, or persistent projectiles.
 </style_checklist>
