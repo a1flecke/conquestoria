@@ -21,6 +21,7 @@ import {
   getTrainableUnitsForCity,
 } from '@/systems/city-system';
 import { RESOURCE_DEFINITIONS } from '@/systems/resource-definitions';
+import { computeUnrestPressure } from '@/systems/faction-system';
 import type { AIForceDemand } from '@/ai/ai-unit-assignment';
 import { getAIStrategicRoles } from '@/ai/ai-unit-roles';
 import { hexKey, hexNeighbors } from '@/systems/hex-utils';
@@ -823,6 +824,73 @@ describe('happiness building AI scoring (#552)', () => {
     const temple = candidates.find(c => c.itemId === 'temple');
     expect(temple).toBeDefined();
     expect(temple!.economyScore).toBe(economyValue('temple'));
+  });
+});
+
+describe('#919 MR2 — AI values unrest relief (Courthouse)', () => {
+  const era2Techs = TECH_TREE.filter(tech => tech.era <= 2 && tech.countsForEraAdvancement !== false)
+    .map(tech => tech.id);
+
+  function wideEmpire(opts: { cityCount: number; targetFarHexes: number; warCount: number }): GameState {
+    const state = setupState([...era2Techs, 'magistracy'], ['cap', 'city-a']);
+    const civ = state.civilizations['ai-1'];
+    state.cities['cap'].position = { q: 0, r: 0 };
+    state.cities['cap'].buildings = [];
+    state.cities['city-a'].position = { q: opts.targetFarHexes, r: 0 };
+    state.cities['city-a'].buildings = [];
+    state.cities['city-a'].population = 6;
+    for (let i = 3; i <= opts.cityCount; i++) {
+      const clone = { ...state.cities['city-a'], id: `c${i}`, position: { q: i, r: 6 }, buildings: [] as string[] };
+      state.cities[`c${i}`] = clone;
+      civ.cities.push(`c${i}`);
+    }
+    civ.diplomacy.atWarWith = Array.from({ length: opts.warCount }, (_, i) => `enemy-${i}`);
+    civ.gold = 5000;
+    return state;
+  }
+
+  it('a wide, high-pressure AI city scores courthouse relief as a real positive contributor to its final score', () => {
+    const state = wideEmpire({ cityCount: 12, targetFarHexes: 30, warCount: 2 });
+    // Sanity: city-a is genuinely over the unrest trigger before the courthouse.
+    const before = computeUnrestPressure('city-a', state, 0);
+    expect(before).toBeGreaterThan(40);
+
+    const candidates = generateAIProductionCandidates(state, 'ai-1', 'city-a', [], aggressive);
+    const courthouse = candidates.find(c => c.itemId === 'courthouse');
+    const monument = candidates.find(c => c.itemId === 'monument');
+    expect(courthouse).toBeDefined();
+    expect(monument).toBeDefined();
+    // monument (also +1 gold, era 1, no relief-source entry) gets exactly zero relief —
+    // proves the term is keyed to UNREST_RELIEF_SOURCES, not to "cheap culture building".
+    expect(monument!.unrestReliefScore).toBe(0);
+    expect(courthouse!.unrestReliefScore).toBeGreaterThan(0);
+
+    // The published candidate fields must reconstruct .score, and dropping the relief
+    // term must make that reconstruction strictly smaller — i.e. relief genuinely lifts
+    // the final score rather than being computed and discarded.
+    const reconstruct = (c: typeof courthouse & object, includeRelief: boolean) =>
+      c.economyScore * 2
+      + c.personalityScore
+      + c.citySpecializationScore
+      + c.defensiveEspionageScore
+      + c.airDefenseThreatScore
+      + c.strategicArsenalValueScore
+      + (includeRelief ? c.unrestReliefScore : 0)
+      - c.productionTurns * 1.5
+      - c.maintenanceRisk * 3;
+    expect(reconstruct(courthouse!, true)).toBeCloseTo(courthouse!.score, 6);
+    expect(reconstruct(courthouse!, false)).toBeLessThan(courthouse!.score);
+  });
+
+  it('a tall, low-pressure AI city assigns courthouse zero relief score', () => {
+    const state = setupState([...era2Techs, 'magistracy'], ['city-a', 'c2', 'c3']);
+    state.cities['city-a'].buildings = [];
+    // city-a is cities[0] => the capital => distance row 0; only 3 cities => no overextension row.
+    expect(computeUnrestPressure('city-a', state, 0)).toBe(0);
+
+    const candidates = generateAIProductionCandidates(state, 'ai-1', 'city-a', [], aggressive);
+    const courthouse = candidates.find(c => c.itemId === 'courthouse');
+    expect(courthouse?.unrestReliefScore ?? 0).toBe(0);
   });
 });
 

@@ -18,7 +18,12 @@ import {
   calculateMaintenance,
   getEconomyStatusForCiv,
 } from '@/systems/economy-system';
-import { getCivAvailableResources } from '@/systems/resource-acquisition-system';
+import { getCivAvailableResources, getCivHappinessFromResources } from '@/systems/resource-acquisition-system';
+import {
+  UNREST_RELIEF_SOURCES,
+  UNREST_TRIGGER_PRESSURE,
+  computeUnrestPressure,
+} from '@/systems/faction-system';
 import { resolveCivDefinition } from '@/systems/civ-registry';
 import { createUnit, UNIT_DEFINITIONS } from '@/systems/unit-system';
 import { canCompleteAirUnitProduction, getAirBaseRoster } from '@/systems/air-operations-system';
@@ -52,6 +57,7 @@ export interface AIProductionCandidate {
   submarineThreatScore: number;
   carrierCompositionScore: number;
   strategicArsenalValueScore: number;
+  unrestReliefScore: number;
   fulfilledRole?: AIStrategicRole;
   score: number;
 }
@@ -288,6 +294,47 @@ function defensiveEspionageScore(
   ) ? value : 0;
 }
 
+// #919 MR2: 2 unrest pressure ≈ 1 happiness in faction-system's maths; the happiness
+// AI scalar is 1.5, so 1.5 / 2 = 0.75 per point of simulated pressure drop.
+const UNREST_RELIEF_AI_WEIGHT = 0.75;
+// Scale the relief score up when the city is already meaningfully pressured — a
+// Courthouse in a calm tall empire genuinely is near-worthless. Conditioning on real
+// pressure here is defensible (unlike the deliberately-flat happiness term).
+const UNREST_RELIEF_AI_URGENCY_MULT = 2;
+
+// Pure: a copy of `state` with `buildingId` appended to that city's buildings.
+function withBuilding(state: GameState, cityId: string, buildingId: string): GameState {
+  const city = state.cities[cityId];
+  if (!city) return state;
+  return {
+    ...state,
+    cities: {
+      ...state.cities,
+      [cityId]: { ...city, buildings: [...city.buildings, buildingId] },
+    },
+  };
+}
+
+// #919 MR2: generic — scores any building registered in UNREST_RELIEF_SOURCES by the
+// unrest-pressure drop it would produce in THIS city, scaled up when the city is
+// already pressured. No courthouse id branch; a future ladder-rung building with a
+// UNREST_RELIEF_SOURCES entry is covered automatically.
+function unrestReliefScore(
+  state: GameState,
+  civId: string,
+  cityId: string,
+  buildingId: string,
+): number {
+  if (!UNREST_RELIEF_SOURCES.some(source => source.id === buildingId)) return 0;
+  const ownerHappiness = getCivHappinessFromResources(state, civId);
+  const before = computeUnrestPressure(cityId, state, ownerHappiness);
+  const after = computeUnrestPressure(cityId, withBuilding(state, cityId, buildingId), ownerHappiness);
+  const drop = Math.max(0, before - after);
+  if (drop === 0) return 0;
+  const urgent = before >= 0.6 * UNREST_TRIGGER_PRESSURE;
+  return drop * UNREST_RELIEF_AI_WEIGHT * (urgent ? UNREST_RELIEF_AI_URGENCY_MULT : 1);
+}
+
 function getVisibleAirDefenseThreatenedCityIds(
   state: GameState,
   civId: string,
@@ -520,6 +567,7 @@ function generateWithResidual(
       submarineThreatScore: unitSubmarineThreatScore,
       carrierCompositionScore: unitCarrierCompositionScore,
       strategicArsenalValueScore: 0,
+      unrestReliefScore: 0,
       fulfilledRole: fulfilled.role,
       score,
     });
@@ -577,6 +625,7 @@ function generateWithResidual(
           submarineThreatScore: 0,
           carrierCompositionScore: 0,
           strategicArsenalValueScore: 0,
+          unrestReliefScore: 0,
           score,
         });
       }
@@ -622,12 +671,14 @@ function generateWithResidual(
       building.id,
     );
     const buildingStrategicArsenalScore = strategicArsenalValueScore(state, civId, building.id);
+    const buildingUnrestReliefScore = unrestReliefScore(state, civId, cityId, building.id);
     const score = economyScore * 2
       + personalityScore
       + citySpecializationScore
       + buildingDefensiveScore
       + buildingAirDefenseScore
       + buildingStrategicArsenalScore
+      + buildingUnrestReliefScore
       - productionTurns * 1.5
       - maintenanceRisk * 3;
     candidates.push({
@@ -647,6 +698,7 @@ function generateWithResidual(
       submarineThreatScore: 0,
       carrierCompositionScore: 0,
       strategicArsenalValueScore: buildingStrategicArsenalScore,
+      unrestReliefScore: buildingUnrestReliefScore,
       score,
     });
   }

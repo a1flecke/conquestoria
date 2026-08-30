@@ -14,7 +14,7 @@ import { BUILDINGS } from './city-system';
 import { getForeignFaithPressure } from './religion-loyalty-system';
 
 // --- Thresholds ---
-const UNREST_TRIGGER_PRESSURE = 40;
+export const UNREST_TRIGGER_PRESSURE = 40;
 export const REVOLT_UNREST_TURNS = 10;       // turns at unrest before revolt escalates (#552)
 export const BREAKAWAY_REVOLT_TURNS = 10;    // turns at revolt before breakaway
 const CONQUEST_UNREST_DURATION = 15;         // turns until conquestTurn is cleared
