@@ -8,9 +8,9 @@ import {
   TriremeSprite, TransportSprite, SpyScoutSprite, SpyInformantSprite, SpyAgentSprite,
   SpyOperativeSprite, SpyIntelligenceOfficerSprite, SpyStationChiefSprite, SpyHackerSprite, CyberUnitSprite,
   AxemanSprite, SpearmanSprite, HorsemanSprite, ChariotSprite, CavalrySprite, KnightSprite, CuirassierSprite,
-  CrossbowmanSprite, CatapultSprite, BallistaSprite, CannonSprite, ArtillerySprite, GrenadierSprite,
+  CrossbowmanSprite, CatapultSprite, TrebuchetSprite, BallistaSprite, CannonSprite, ArtillerySprite, RocketArtillerySprite, GrenadierSprite,
   RiflemanSprite, MarineSprite, IroncladSprite,
-  MachineGunnerSprite, InfantrySprite, MechanizedInfantrySprite, PreDreadnoughtSprite, TankSprite, ArmoredCarSprite, MainBattleTankSprite, SubmarineSprite,
+  MachineGunnerSprite, InfantrySprite, MechanizedInfantrySprite, PreDreadnoughtSprite, BattleshipSprite, MissileCruiserSprite, TankSprite, ArmoredCarSprite, MainBattleTankSprite, SubmarineSprite,
   ObservationBalloonSprite, BiplaneSprite, JetFighterSprite, CarrierSprite,
   AttackHelicopterSprite, MissileSubmarineSprite,
   CombatDroneSprite, AutonomousFrigateSprite, ExosuitInfantrySprite,
@@ -298,15 +298,14 @@ export const UNIT_SPRITE_CATALOG: Record<UnitType, UnitSpriteComponent> = {
   cuirassier:     withMotion('cuirassier', CuirassierSprite),
   crossbowman:    withMotion('crossbowman', CrossbowmanSprite),
   catapult:       withMotion('catapult', CatapultSprite),
-  // Temporary Catapult silhouette; the heavy-siege art batch owns Trebuchet's bespoke sprite.
-  trebuchet:      withMotion('trebuchet', CatapultSprite),
+  trebuchet:      withMotion('trebuchet', TrebuchetSprite),
   ballista:       withMotion('ballista', BallistaSprite),
   cannon:         withMotion('cannon', CannonSprite),
   // stealth_bomber further down still reuses an existing sprite as a placeholder;
   // bespoke art is a generate-sprite-prompt follow-up.
   // artillery/infantry/marine de-aliased in #769 batch 1.
   artillery:      withMotion('artillery', ArtillerySprite),
-  rocket_artillery: withMotion('rocket_artillery', ArtillerySprite),
+  rocket_artillery: withMotion('rocket_artillery', RocketArtillerySprite),
   grenadier:      withMotion('grenadier', GrenadierSprite),
   marine:         withMotion('marine', MarineSprite),
   rifleman:       withMotion('rifleman', RiflemanSprite),
@@ -320,9 +319,8 @@ export const UNIT_SPRITE_CATALOG: Record<UnitType, UnitSpriteComponent> = {
   // Temporary Infantry silhouette; bespoke Paratrooper art is a follow-up (#543).
   paratrooper:       withMotion('paratrooper', ParatrooperSprite),
   pre_dreadnought:   withMotion('pre_dreadnought', PreDreadnoughtSprite),
-  // Temporary silhouette; #711 owns Battleship's dedicated capital-ship art.
-  battleship:        withMotion('battleship', PreDreadnoughtSprite),
-  missile_cruiser:   withMotion('missile_cruiser', PreDreadnoughtSprite),
+  battleship:        withMotion('battleship', BattleshipSprite),
+  missile_cruiser:   withMotion('missile_cruiser', MissileCruiserSprite),
   tank:              withMotion('tank', TankSprite),
   main_battle_tank:  withMotion('main_battle_tank', MainBattleTankSprite),
   // De-aliased in #769 batch 5 — bespoke towed anti-tank gun (wheeled carriage, gun

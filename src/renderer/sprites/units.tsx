@@ -1552,6 +1552,50 @@ export function CatapultSprite({ palette, svgOnly = false }: UnitSpriteProps): s
   );
 }
 
+// #711: Counterweight siege engine, intentionally tall and open-frame rather than the
+// Catapult's low torsion silhouette. Native V2 art owns stateful beam and wheel motion;
+// this remains the durable Canvas and unknown-faction fallback.
+export function TrebuchetSprite({ palette, svgOnly = false }: UnitSpriteProps): string {
+  return (
+    <SpriteFrame svgOnly={svgOnly}>
+      <g data-kind="ranged">
+        <Shadow cx={64} cy={102} rx={46} ry={6} />
+        <g className="cq-trebuchet-carriage">
+          <path d="M18,87 L102,87 L98,97 L23,97 Z" fill={P.wood.dark} stroke={P.ink.line} strokeWidth="1.2" />
+          <path d="M24,87 L97,87 L94,91 L27,91 Z" fill={P.wood.mid} />
+          {[31, 47, 79, 95].map(x => <g key={x} transform={`translate(${x} 98)`}>
+            <circle r="7.5" fill={P.wood.mid} stroke={P.ink.line} strokeWidth="1" />
+            <g className="cq-trebuchet-wheel">
+              <path d="M-6.5,0H6.5 M0,-6.5V6.5 M-4.7,-4.7L4.7,4.7 M4.7,-4.7L-4.7,4.7" stroke={P.metal.iron} strokeWidth="0.8" />
+            </g>
+            <circle r="2" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.5" />
+          </g>).join('')}
+        </g>
+        <g className="cq-trebuchet-a-frame">
+          <path d="M42,88 L57,43 L72,88 M47,74 H67" fill="none" stroke={P.wood.dark} strokeWidth="4.4" strokeLinecap="round" />
+          <path d="M45,88 L59,48 L69,88" fill="none" stroke={P.wood.mid} strokeWidth="1.1" />
+          <path d="M45,75 L68,62 M48,86 L70,75" stroke={P.wood.dark} strokeWidth="1.2" opacity="0.75" />
+        </g>
+        <g className="cq-trebuchet-counterweight">
+          <path d="M35,55 L52,52 L51,70 L39,73 Z" fill={P.stone.mid} stroke={P.ink.line} strokeWidth="1" />
+          <path d="M38,57 L49,55 M39,64 L50,62" stroke={P.stone.dark} strokeWidth="0.8" opacity="0.8" />
+          <line x1="45" y1="54" x2="58" y2="48" stroke={P.metal.iron} strokeWidth="1.2" />
+        </g>
+        <g className="cq-trebuchet-beam" transform="translate(58 48) rotate(-17)">
+          <rect x="-29" y="-2.8" width="66" height="5.6" rx="2" fill={P.wood.mid} stroke={P.ink.line} strokeWidth="0.8" />
+          <rect x="-28" y="-2.8" width="35" height="1.7" fill={P.wood.light} opacity="0.7" />
+          <circle r="4.3" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.7" />
+          <g className="cq-trebuchet-sling">
+            <path d="M33,0 Q40,9 43,17 M36,1 Q46,7 52,14" fill="none" stroke={P.cloth.linen} strokeWidth="1.25" />
+            <path d="M43,17 Q48,20 53,15 Q48,13 43,17 Z" fill={P.cloth.linen} stroke={P.ink.line} strokeWidth="0.45" />
+          </g>
+        </g>
+        <Banner x={31} y={50} palette={palette} scale={0.52} />
+      </g>
+    </SpriteFrame>
+  );
+}
+
 export function BallistaSprite({ palette, svgOnly = false }: UnitSpriteProps): string {
   return (
     <SpriteFrame svgOnly={svgOnly}>
@@ -1707,6 +1751,46 @@ export function ArtillerySprite({ palette, svgOnly = false }: UnitSpriteProps): 
           <rect x="-9" y="-7" width="18" height="2.4" fill={P.metal.bronze} opacity="0.7" />
         </g>
         <Banner x={40} y={60} palette={palette} scale={0.62} />
+      </g>
+    </SpriteFrame>
+  );
+}
+
+// #711: Saturation-fire truck. The rectangular tube bank and six-wheel chassis make it
+// unambiguously different from the towed, single-barrel ArtillerySprite.
+export function RocketArtillerySprite({ palette, svgOnly = false }: UnitSpriteProps): string {
+  return (
+    <SpriteFrame svgOnly={svgOnly}>
+      <g data-kind="ranged">
+        <Shadow cx={65} cy={103} rx={48} ry={6} />
+        <g className="cq-rocket-artillery-chassis">
+          <path d="M18,83 L32,70 L83,70 L105,83 L101,96 L22,96 Z" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="1.25" />
+          <path d="M34,72 L48,59 L70,59 L82,72 Z" fill={P.metal.steel} stroke={P.ink.line} strokeWidth="1" />
+          <path d="M40,69 L51,61 L63,61 L60,69 Z" fill={palette.mid} opacity="0.72" />
+          <rect x="30" y="85" width="66" height="4" rx="1.5" fill={palette.dark} opacity="0.62" />
+          {[29, 48, 76, 96].map(x => <g key={x} transform={`translate(${x} 97)`}>
+            <circle r="8.5" fill={P.wood.dark} stroke={P.ink.line} strokeWidth="1" />
+            <g className="cq-rocket-artillery-wheel"><circle r="5.5" fill="none" stroke={P.metal.steel} strokeWidth="1.5" /><path d="M-5.5,0H5.5 M0,-5.5V5.5" stroke={P.metal.steel} strokeWidth="0.8" /></g>
+            <circle r="2" fill={P.metal.iron} />
+          </g>).join('')}
+        </g>
+        <g className="cq-rocket-artillery-stabilizer">
+          <path d="M27,91 L17,103 M94,91 L105,103" stroke={P.metal.steel} strokeWidth="3" strokeLinecap="round" />
+          <path d="M13,103 H22 M101,103 H110" stroke={P.metal.iron} strokeWidth="2.4" strokeLinecap="round" />
+        </g>
+        <g className="cq-rocket-artillery-rack" transform="translate(62 60) rotate(-17)">
+          <rect x="-25" y="-17" width="58" height="31" rx="3" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="1.15" />
+          <rect x="-22" y="-14" width="52" height="5" fill={P.metal.steel} opacity="0.9" />
+          <g className="cq-rocket-artillery-tubes">
+            {[[-16, -8], [-4, -8], [8, -8], [20, -8], [-16, 4], [-4, 4], [8, 4], [20, 4]].map(([x, y]) => <g key={`${x}-${y}`} transform={`translate(${x} ${y})`}><ellipse rx="4.2" ry="3.1" fill={P.metal.steel} stroke={P.ink.line} strokeWidth="0.55" /><ellipse rx="2.1" ry="1.5" fill={P.ink.soft} /></g>).join('')}
+          </g>
+          <rect x="-27" y="14" width="11" height="4" fill={P.metal.steel} stroke={P.ink.line} strokeWidth="0.6" />
+        </g>
+        <g className="cq-rocket-artillery-crate" transform="translate(17 95)">
+          <rect x="-8" y="-8" width="16" height="10" fill={P.wood.mid} stroke={P.ink.line} strokeWidth="0.75" />
+          <path d="M-8,-4H8 M0,-8V2" stroke={P.wood.dark} strokeWidth="0.7" />
+        </g>
+        <Banner x={32} y={53} palette={palette} scale={0.47} />
       </g>
     </SpriteFrame>
   );
@@ -2282,6 +2366,90 @@ export function PreDreadnoughtSprite({ palette, svgOnly = false }: UnitSpritePro
       <line x1="64" y1="50" x2="54" y2="58" stroke={P.metal.iron} strokeWidth="1.2" />
       <line x1="64" y1="50" x2="74" y2="58" stroke={P.metal.iron} strokeWidth="1.2" />
       <Banner x={60} y={22} palette={palette} scale={0.7} />
+    </SpriteFrame>
+  );
+}
+
+// #711: Mature three-turret capital ship. The long hull, low bridge, and rangefinder
+// distinguish it from the two-turret pre-dreadnought while remaining map-readable.
+export function BattleshipSprite({ palette, svgOnly = false }: UnitSpriteProps): string {
+  return (
+    <SpriteFrame svgOnly={svgOnly}>
+      <g data-kind="naval">
+        <Shadow cx={64} cy={105} rx={53} ry={7} />
+        <g className="cq-battleship-wake">
+          <path d="M12,101 Q63,114 117,101 M19,107 Q65,118 110,107" fill="none" stroke={P.ground.water} strokeWidth="2.4" opacity="0.82" />
+        </g>
+        <g className="cq-battleship-hull">
+          <path d="M10,87 L25,74 L105,74 L119,87 L110,102 Q65,110 19,102 Z" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="1.35" />
+          <path d="M19,89 Q64,100 113,89 L110,96 Q64,106 20,96 Z" fill={P.metal.steel} stroke={P.ink.line} strokeWidth="0.65" />
+          <path d="M17,94 Q64,104 112,94" fill="none" stroke={palette.mid} strokeWidth="2.2" opacity="0.68" />
+          <path d="M106,75 L119,87 L110,102 L97,91 Z" fill={P.metal.shine} stroke={P.ink.line} strokeWidth="0.65" />
+        </g>
+        <g className="cq-battleship-turret-fore" transform="translate(40 72)">
+          <ellipse rx="12" ry="6.5" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.9" />
+          <path d="M4,-2 L25,-8 M4,2 L25,-3" stroke={P.metal.steel} strokeWidth="2.8" strokeLinecap="round" />
+          <g transform="translate(26 -5)"><g className="cq-muzzle-flash"><circle r="3.5" fill="#ffd966" /><circle r="1.5" fill="#fff" /></g></g>
+        </g>
+        <g className="cq-battleship-turret-mid" transform="translate(64 65)">
+          <ellipse rx="12" ry="6.5" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.9" />
+          <path d="M4,-2 L25,-8 M4,2 L25,-3" stroke={P.metal.steel} strokeWidth="2.8" strokeLinecap="round" />
+          <g transform="translate(26 -5)"><g className="cq-muzzle-flash"><circle r="3.5" fill="#ffd966" /><circle r="1.5" fill="#fff" /></g></g>
+        </g>
+        <g className="cq-battleship-turret-aft" transform="translate(85 72)">
+          <ellipse rx="12" ry="6.5" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.9" />
+          <path d="M4,-2 L25,-8 M4,2 L25,-3" stroke={P.metal.steel} strokeWidth="2.8" strokeLinecap="round" />
+          <g transform="translate(26 -5)"><g className="cq-muzzle-flash"><circle r="3.5" fill="#ffd966" /><circle r="1.5" fill="#fff" /></g></g>
+        </g>
+        <g className="cq-battleship-bridge">
+          <path d="M52,70 L57,48 L75,48 L80,70 Z" fill={P.metal.steel} stroke={P.ink.line} strokeWidth="1" />
+          <path d="M58,54 L72,54 L75,61 L55,61 Z" fill={palette.bright} opacity="0.75" />
+          <rect x="62" y="42" width="4" height="8" fill={P.metal.iron} />
+        </g>
+        <g className="cq-battleship-rangefinder">
+          <line x1="64" y1="47" x2="64" y2="27" stroke={P.metal.iron} strokeWidth="2" />
+          <path d="M55,30 H73 L70,34 H58 Z" fill={P.metal.steel} stroke={P.ink.line} strokeWidth="0.65" />
+          <path d="M65,29 L78,34 L65,39 Z" fill={palette.mid} stroke={P.ink.line} strokeWidth="0.5" />
+        </g>
+        <Banner x={65} y={25} palette={palette} scale={0.52} />
+      </g>
+    </SpriteFrame>
+  );
+}
+
+// #711: Fleet-air-defense cruiser. Closed VLS cells and paired radar arrays deliberately
+// replace the Battleship's heavy-turret profile; no missile is drawn as map-state art.
+export function MissileCruiserSprite({ palette, svgOnly = false }: UnitSpriteProps): string {
+  return (
+    <SpriteFrame svgOnly={svgOnly}>
+      <g data-kind="naval">
+        <Shadow cx={64} cy={105} rx={50} ry={6.5} />
+        <g className="cq-missile-cruiser-wake"><path d="M14,101 Q63,113 115,101 M23,107 Q65,117 108,107" fill="none" stroke={P.ground.water} strokeWidth="2.2" opacity="0.82" /></g>
+        <g className="cq-missile-cruiser-hull">
+          <path d="M12,88 L30,76 L102,76 L117,88 L108,102 Q64,109 20,102 Z" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="1.3" />
+          <path d="M18,91 Q64,100 112,90 L108,97 Q64,105 21,97 Z" fill={P.metal.steel} stroke={P.ink.line} strokeWidth="0.7" />
+          <path d="M19,95 Q64,104 109,95" fill="none" stroke={palette.mid} strokeWidth="2" opacity="0.65" />
+          <path d="M102,76 L117,88 L108,102 L97,91 Z" fill={P.metal.shine} stroke={P.ink.line} strokeWidth="0.65" />
+        </g>
+        <g className="cq-missile-cruiser-vls" transform="translate(38 71)">
+          <rect x="-17" y="-9" width="35" height="18" rx="2" fill={P.metal.steel} stroke={P.ink.line} strokeWidth="0.8" />
+          {[-10, 0, 10].map(x => [-4, 4].map(y => <g key={`${x}-${y}`} transform={`translate(${x} ${y})`}><rect x="-3.4" y="-2.4" width="6.8" height="4.8" rx="0.7" fill={P.metal.iron} stroke={P.ink.line} strokeWidth="0.4" /></g>).join('')).join('')}
+        </g>
+        <g className="cq-missile-cruiser-bridge">
+          <path d="M57,76 L64,51 L82,56 L88,76 Z" fill={P.metal.steel} stroke={P.ink.line} strokeWidth="1" />
+          <path d="M65,57 L78,60 L80,65 L62,64 Z" fill={palette.bright} opacity="0.78" />
+          <path d="M58,70 H87" stroke={P.metal.shine} strokeWidth="1" />
+        </g>
+        <g className="cq-missile-cruiser-radar-forward">
+          <line x1="69" y1="55" x2="69" y2="34" stroke={P.metal.iron} strokeWidth="1.8" />
+          <path d="M60,36 H77 L74,41 H62 Z" fill={P.metal.steel} stroke={P.ink.line} strokeWidth="0.55" />
+        </g>
+        <g className="cq-missile-cruiser-radar-aft">
+          <line x1="82" y1="63" x2="82" y2="43" stroke={P.metal.iron} strokeWidth="1.7" />
+          <path d="M75,45 H90 L88,50 H77 Z" fill={P.metal.steel} stroke={P.ink.line} strokeWidth="0.55" />
+        </g>
+        <Banner x={70} y={32} palette={palette} scale={0.48} />
+      </g>
     </SpriteFrame>
   );
 }
