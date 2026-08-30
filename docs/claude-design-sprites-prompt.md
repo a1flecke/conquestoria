@@ -134,6 +134,7 @@ Output one source component at a time with no prose. Preserve `SpriteFrameV2` an
 - No gradients, blur, text, hard-coded faction colours, or duplicated donor art.
 </style_checklist>
 
+
 ---
 
 ## 2026-08-25 — Issue 710 corrective native-v2 reference brief
@@ -187,4 +188,54 @@ Output one native source component at a time. Preserve `SpriteFrameV2`, the curr
 - Local variant motion replaces generic ground weapon/thrust motion where inappropriate.
 - Faction color is a small identifier; ink and materials remain readable.
 - No gradients, blur, text, hard-coded faction colors, reused donor art, or arrow/board icons.
+</style_checklist>
+
+---
+
+## 2026-08-30 — Issue 725 legendary-wonder map-landmarks reference brief
+
+<role>
+You are a senior strategy-game landmark artist. Produce an exact visual reference for three editable, flat geometric Canvas 2D landmarks; do not produce raster art, a UI mockup, or a unit sprite sheet.
+</role>
+
+<context>
+Project: Conquestoria. These are stationary legendary-wonder landmarks rendered as small Canvas glyphs beside their host city. They must read at mobile map scale through one strong silhouette and a few structural details. The established renderer already owns construction ghosts, fog, known-rival presentation, low zoom, and reduced motion. This brief supplies art direction for Canvas draw functions in `src/renderer/wonders/legendary-wonder-bespoke-assets.ts`; it does not create a parallel SVG loader or DOM sprite path.
+</context>
+
+<reference_files>
+1. https://raw.githubusercontent.com/a1flecke/conquestoria/main/docs/sprite-design-system.md
+2. https://raw.githubusercontent.com/a1flecke/conquestoria/main/src/renderer/sprites/sprite-system.tsx
+3. https://raw.githubusercontent.com/a1flecke/conquestoria/main/src/renderer/wonders/legendary-wonder-bespoke-assets.ts
+4. https://raw.githubusercontent.com/a1flecke/conquestoria/main/src/renderer/wonders/legendary-wonder-renderer.ts
+</reference_files>
+
+<design_system>
+Use flat geometric, layered map-landmark forms with a warm hand-made blend of history and restrained fantasy. Major edges use an ink-dark outline equivalent to `#1f1a14`; materials use stone `#c4b8a4/#9a8e78/#6a5e4a`, clay/wood `#c19a6b/#8a6a3a/#5e3f24`, metal `#5a6068/#8a929b/#b8895a/#e8edf2`, and signal highlights only where appropriate. No gradients, blur, photorealism, text, real-world logos, hard-coded faction colors, attack poses, recoil, walk, thrust, locomotion, or generic unit motion. Each static silhouette must retain all meaningful information. Optional ambient glint or radar sweep is permitted only when reduced motion is off; reduced motion must draw the same information without time variance.
+</design_system>
+
+<landmarks>
+## Terracotta Army — `terracotta-army-bespoke`
+
+Low, wide earthen mausoleum wall with three staggered ranks of clay soldier heads and upright spear tips. The silhouette must read as organized memorial ranks, never as a live combat formation. Use dark clay, terracotta, and pale earthen accents. A small completed-state glint is optional, but the wall and ranks remain complete without it.
+
+## Crac des Chevaliers — `crac-des-chevaliers-bespoke`
+
+Wide hilltop fortress with stepped curtain walls, twin gate towers, and a central keep. Show layers of light/mid/dark stone rather than a generic hall or active battlefield. A single tiny banner or torch glint may animate, but no assault, weapon, or moving character is allowed.
+
+## NORAD — `norad-bespoke`
+
+Compact command base with a radar dome or dish, antenna mast, and three bounded coverage arcs. It must communicate early warning and coordination without showing aircraft, missiles, text, or a real-world insignia. Use dark command surfaces, steel, and restrained cool signal highlights. A slow radar sweep is optional; fixed arcs must remain legible under reduced motion.
+</landmarks>
+
+<output_format>
+Describe each landmark as Canvas primitives scaled exclusively from a supplied `radius`, with colors supplied by landmark metadata. Output one landmark at a time. Do not use transforms, sprite animation hooks, unit state machines, faction palettes, a raster asset, or a new renderer path.
+</output_format>
+
+<style_checklist>
+- Every landmark has a unique silhouette at low zoom and mobile scale.
+- Material detail supports, rather than obscures, the first-read silhouette.
+- The completed static pose is meaningful without an animation frame.
+- Construction remains the shared generic ghost; completed bespoke art never leaks early.
+- Fog, unexplored rival locations, and lost races reveal no new map-art information.
+- No gradients, blur, text, logos, faction colors, attack animation, or locomotion.
 </style_checklist>
