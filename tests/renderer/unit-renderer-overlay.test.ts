@@ -102,6 +102,21 @@ describe('buildUnitEntities', () => {
   });
 });
 
+describe('#711 siege and capital-ship visibility', () => {
+  const unitTypes = ['trebuchet', 'rocket_artillery', 'battleship', 'missile_cruiser'] as const;
+
+  it.each(unitTypes.flatMap(type => ([
+    [type, 'visible'],
+    [type, 'fog'],
+    [type, 'unexplored'],
+  ] as const)))('%s is %s only through the expected renderer visibility path', (type, visibility) => {
+    const unit = makeUnit({ type });
+    const state = makeState([unit], makeVisMap([{ q: 2, r: 3 }], visibility));
+    const entities = buildUnitEntities(state, 'player1', state.civilizations.player1.visibility, new Set(), null, new PirateSpriteStateController(), 0);
+    expect(entities.some(entity => entity.id === unit.id)).toBe(visibility === 'visible');
+  });
+});
+
 // ── civTypeToFaction ───────────────────────────────────────────────────────────
 
 describe('civTypeToFaction', () => {

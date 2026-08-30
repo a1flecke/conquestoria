@@ -127,6 +127,45 @@ describe('#710 corrective sprite motion contract', () => {
   });
 });
 
+describe('#711 siege and capital-ship motion contract', () => {
+  const localSelectors = [
+    '.cq-v2[data-kind="ranged"][data-kind-variant="trebuchet"][data-state="walk"] .cq-trebuchet-wheel',
+    '.cq-v2[data-kind="ranged"][data-kind-variant="trebuchet"][data-state="attack"] .cq-trebuchet-beam',
+    '.cq-v2[data-kind="ranged"][data-kind-variant="trebuchet"][data-state="attack"] .cq-trebuchet-counterweight',
+    '.cq-v2[data-kind="ranged"][data-kind-variant="rocket-artillery"][data-state="walk"] .cq-rocket-artillery-wheel',
+    '.cq-v2[data-kind="ranged"][data-kind-variant="rocket-artillery"][data-state="attack"] .cq-rocket-artillery-rack',
+    '.cq-v2[data-kind="ranged"][data-kind-variant="rocket-artillery"][data-state="attack"] .cq-rocket-artillery-tubes',
+    '.cq-v2[data-kind="naval"][data-kind-variant="battleship"][data-state="attack"] .cq-battleship-turret-fore',
+    '.cq-v2[data-kind="naval"][data-kind-variant="battleship"][data-state="attack"] .cq-battleship-turret-mid',
+    '.cq-v2[data-kind="naval"][data-kind-variant="battleship"][data-state="attack"] .cq-battleship-turret-aft',
+    '.cq-v2[data-kind="naval"][data-kind-variant="missile-cruiser"][data-state="idle"] .cq-missile-cruiser-radar-forward',
+    '.cq-v2[data-kind="naval"][data-kind-variant="missile-cruiser"][data-state="attack"] .cq-missile-cruiser-vls-lid',
+    '.cq-v2[data-kind="naval"][data-kind-variant="missile-cruiser"][data-state="attack"] .cq-missile-cruiser-launch',
+  ];
+
+  it('gives every role-defining local mechanism a state-owned animation', () => {
+    for (const selector of localSelectors) {
+      expect(css, `missing ${selector}`).toContain(selector);
+      const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      expect(css, `${selector} must declare animation`).toMatch(new RegExp(`${escaped}\\s*\\{[^}]*animation:`));
+    }
+  });
+
+  it('keeps siege chassis fixed and ship travel on the naval body plan', () => {
+    for (const variant of ['trebuchet', 'rocket-artillery']) {
+      for (const state of ['walk', 'attack']) {
+        const selector = `.cq-v2[data-kind="ranged"][data-kind-variant="${variant}"][data-state="${state}"] .cq-sprite-figure`;
+        expect(css, `${variant}/${state} must suppress inherited body motion`).toContain(`${selector} { animation: none; }`);
+      }
+    }
+    for (const variant of ['battleship', 'missile-cruiser']) {
+      const selector = `.cq-v2[data-kind="naval"][data-kind-variant="${variant}"][data-state="attack"] .cq-sprite-figure`;
+      expect(css, `${variant} attack must suppress the inherited lunge`).toContain(`${selector} { animation: none; }`);
+    }
+    expect(css).toContain('.cq-v2[data-state="walk"][data-kind="naval"] .cq-sprite-figure');
+  });
+});
+
 describe('#710 static-site and command gait regression', () => {
   const selectors = [
     '.cq-v2[data-kind="building"][data-kind-variant="sam-site"][data-state="attack"] .cq-sam-missile-launch',
