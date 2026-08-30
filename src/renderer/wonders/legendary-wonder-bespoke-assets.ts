@@ -5,12 +5,14 @@ export const SUPPORTED_BESPOKE_LEGENDARY_LANDMARK_ASSET_KEYS = [
   'great-pyramid-bespoke',
   'tidemother-colossus-bespoke',
   'oracle-of-delphi-bespoke',
+  'terracotta-army-bespoke',
   'grand-canal-bespoke',
   'sun-spire-bespoke',
   'world-archive-bespoke',
   'starvault-observatory-bespoke',
   'storm-signal-spire-bespoke',
   'internet-bespoke',
+  'crac-des-chevaliers-bespoke',
   'moonwell-gardens-bespoke',
   'ironroot-foundry-bespoke',
   'tidecaller-bastion-bespoke',
@@ -37,6 +39,7 @@ export const SUPPORTED_BESPOKE_LEGENDARY_LANDMARK_ASSET_KEYS = [
   'wright-flyer-bespoke',
   'united-nations-bespoke',
   'apollo-program-bespoke',
+  'norad-bespoke',
   'open-intelligence-commons-bespoke',
   'lunar-gateway-bespoke',
 ] as const;
@@ -63,12 +66,14 @@ const BESPOKE_ASSETS: Record<LegendaryWonderBespokeAssetKey, LegendaryWonderBesp
   'great-pyramid-bespoke': { key: 'great-pyramid-bespoke', draw: drawGreatPyramid },
   'tidemother-colossus-bespoke': { key: 'tidemother-colossus-bespoke', draw: drawTidemotherColossus },
   'oracle-of-delphi-bespoke': { key: 'oracle-of-delphi-bespoke', draw: drawOracleOfDelphi },
+  'terracotta-army-bespoke': { key: 'terracotta-army-bespoke', draw: drawTerracottaArmy },
   'grand-canal-bespoke': { key: 'grand-canal-bespoke', draw: drawGrandCanal },
   'sun-spire-bespoke': { key: 'sun-spire-bespoke', draw: drawSunSpire },
   'world-archive-bespoke': { key: 'world-archive-bespoke', draw: drawWorldArchive },
   'starvault-observatory-bespoke': { key: 'starvault-observatory-bespoke', draw: drawStarvaultObservatory },
   'storm-signal-spire-bespoke': { key: 'storm-signal-spire-bespoke', draw: drawStormSignalSpire },
   'internet-bespoke': { key: 'internet-bespoke', draw: drawInternet },
+  'crac-des-chevaliers-bespoke': { key: 'crac-des-chevaliers-bespoke', draw: drawCracDesChevaliers },
   'moonwell-gardens-bespoke': { key: 'moonwell-gardens-bespoke', draw: drawMoonwellGardens },
   'ironroot-foundry-bespoke': { key: 'ironroot-foundry-bespoke', draw: drawIronrootFoundry },
   'tidecaller-bastion-bespoke': { key: 'tidecaller-bastion-bespoke', draw: drawTidecallerBastion },
@@ -95,6 +100,7 @@ const BESPOKE_ASSETS: Record<LegendaryWonderBespokeAssetKey, LegendaryWonderBesp
   'wright-flyer-bespoke':           { key: 'wright-flyer-bespoke',           draw: drawWrightFlyer },
   'united-nations-bespoke':         { key: 'united-nations-bespoke',         draw: drawUnitedNations },
   'apollo-program-bespoke':         { key: 'apollo-program-bespoke',         draw: drawApolloProgram },
+  'norad-bespoke':                  { key: 'norad-bespoke',                  draw: drawNorad },
   'open-intelligence-commons-bespoke': { key: 'open-intelligence-commons-bespoke', draw: drawOpenIntelligenceCommons },
   'lunar-gateway-bespoke': { key: 'lunar-gateway-bespoke', draw: drawLunarGateway },
 };
@@ -1646,4 +1652,135 @@ function drawLunarGateway(options: LegendaryWonderBespokeDrawOptions): void {
   ctx.beginPath();
   ctx.arc(cx - radius * 0.12, cy - radius * 0.2, radius * 0.09, 0, Math.PI * 2);
   ctx.fill();
+}
+
+function fillLandmarkRect(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  color: string,
+): void {
+  ctx.beginPath();
+  ctx.rect(x, y, width, height);
+  ctx.fillStyle = color;
+  ctx.fill();
+}
+
+function drawTerracottaArmy(options: LegendaryWonderBespokeDrawOptions): void {
+  const { ctx, cx, cy, radius, metadata, reducedMotion, nowMs } = options;
+  markBespoke(ctx, 'terracotta-army-bespoke');
+  const r = radius;
+  const wallY = cy + r * 0.2;
+
+  fillLandmarkRect(ctx, cx - r * 0.78, wallY, r * 1.56, r * 0.34, metadata.palette.base);
+  ctx.strokeStyle = metadata.palette.glow;
+  ctx.lineWidth = Math.max(1, r * 0.04);
+  ctx.beginPath();
+  ctx.moveTo(cx - r * 0.78, wallY);
+  ctx.lineTo(cx + r * 0.78, wallY);
+  ctx.stroke();
+
+  const ranks = [
+    { y: cy + r * 0.12, offset: -0.52, count: 4 },
+    { y: cy - r * 0.08, offset: -0.42, count: 5 },
+    { y: cy - r * 0.28, offset: -0.3, count: 4 },
+  ] as const;
+  for (const rank of ranks) {
+    for (let index = 0; index < rank.count; index += 1) {
+      const x = cx + r * (rank.offset + index * 0.28);
+      ctx.beginPath();
+      ctx.arc(x, rank.y, r * 0.075, 0, Math.PI * 2);
+      ctx.fillStyle = metadata.palette.accent;
+      ctx.fill();
+      ctx.strokeStyle = metadata.palette.glow;
+      ctx.lineWidth = Math.max(1, r * 0.025);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(x + r * 0.09, rank.y + r * 0.12);
+      ctx.lineTo(x + r * 0.09, rank.y - r * 0.16);
+      ctx.strokeStyle = metadata.palette.base;
+      ctx.stroke();
+    }
+  }
+
+  const glintX = cx + (reducedMotion ? r * 0.46 : Math.sin(nowMs / 700) * r * 0.46);
+  ctx.beginPath();
+  ctx.arc(glintX, cy - r * 0.44, r * 0.045, 0, Math.PI * 2);
+  ctx.fillStyle = metadata.palette.glow;
+  ctx.fill();
+}
+
+function drawCracDesChevaliers(options: LegendaryWonderBespokeDrawOptions): void {
+  const { ctx, cx, cy, radius, metadata, reducedMotion, nowMs } = options;
+  markBespoke(ctx, 'crac-des-chevaliers-bespoke');
+  const r = radius;
+
+  fillLandmarkRect(ctx, cx - r * 0.8, cy + r * 0.12, r * 1.6, r * 0.38, metadata.palette.base);
+  fillLandmarkRect(ctx, cx - r * 0.62, cy - r * 0.1, r * 1.24, r * 0.25, metadata.palette.accent);
+  fillLandmarkRect(ctx, cx - r * 0.72, cy - r * 0.34, r * 0.28, r * 0.48, metadata.palette.base);
+  fillLandmarkRect(ctx, cx + r * 0.44, cy - r * 0.34, r * 0.28, r * 0.48, metadata.palette.base);
+  fillLandmarkRect(ctx, cx - r * 0.2, cy - r * 0.46, r * 0.4, r * 0.38, metadata.palette.base);
+
+  ctx.strokeStyle = metadata.palette.glow;
+  ctx.lineWidth = Math.max(1, r * 0.04);
+  for (const y of [cy + r * 0.12, cy - r * 0.1]) {
+    ctx.beginPath();
+    ctx.moveTo(cx - r * 0.8, y);
+    ctx.lineTo(cx + r * 0.8, y);
+    ctx.stroke();
+  }
+
+  const flagY = cy - r * 0.57;
+  const flutter = reducedMotion ? r * 0.1 : r * (0.1 + Math.sin(nowMs / 600) * 0.04);
+  ctx.beginPath();
+  ctx.moveTo(cx, cy - r * 0.08);
+  ctx.lineTo(cx, flagY);
+  ctx.lineTo(cx + flutter, flagY + r * 0.06);
+  ctx.lineTo(cx, flagY + r * 0.12);
+  ctx.strokeStyle = metadata.palette.glow;
+  ctx.lineWidth = Math.max(1, r * 0.035);
+  ctx.stroke();
+}
+
+function drawNorad(options: LegendaryWonderBespokeDrawOptions): void {
+  const { ctx, cx, cy, radius, metadata, reducedMotion, nowMs } = options;
+  markBespoke(ctx, 'norad-bespoke');
+  const r = radius;
+  const dishX = cx - r * 0.12;
+  const dishY = cy - r * 0.06;
+
+  fillLandmarkRect(ctx, cx - r * 0.74, cy + r * 0.16, r * 1.48, r * 0.34, metadata.palette.base);
+  fillLandmarkRect(ctx, cx + r * 0.3, cy - r * 0.42, r * 0.08, r * 0.62, metadata.palette.accent);
+  ctx.beginPath();
+  ctx.arc(dishX, dishY, r * 0.34, Math.PI * 1.08, Math.PI * 1.92);
+  ctx.strokeStyle = metadata.palette.accent;
+  ctx.lineWidth = Math.max(1, r * 0.075);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(dishX, dishY + r * 0.1);
+  ctx.lineTo(dishX + r * 0.13, dishY + r * 0.36);
+  ctx.strokeStyle = metadata.palette.glow;
+  ctx.lineWidth = Math.max(1, r * 0.035);
+  ctx.stroke();
+
+  for (const radiusFactor of [0.42, 0.58, 0.74]) {
+    ctx.beginPath();
+    ctx.arc(dishX + r * 0.12, dishY - r * 0.1, r * radiusFactor, Math.PI * 1.56, Math.PI * 1.9);
+    ctx.strokeStyle = metadata.palette.glow;
+    ctx.lineWidth = Math.max(1, r * 0.025);
+    ctx.stroke();
+  }
+
+  const sweepAngle = reducedMotion ? Math.PI * 1.73 : Math.PI * (1.55 + ((nowMs / 1800) % 0.36));
+  ctx.beginPath();
+  ctx.moveTo(dishX + r * 0.12, dishY - r * 0.1);
+  ctx.lineTo(
+    dishX + r * 0.12 + Math.cos(sweepAngle) * r * 0.68,
+    dishY - r * 0.1 + Math.sin(sweepAngle) * r * 0.68,
+  );
+  ctx.strokeStyle = metadata.palette.accent;
+  ctx.lineWidth = Math.max(1, r * 0.035);
+  ctx.stroke();
 }

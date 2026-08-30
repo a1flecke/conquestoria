@@ -15,8 +15,7 @@ const LEGENDARY_WONDER_LANDMARK_METADATA: Record<string, LegendaryWonderLandmark
   'great-pyramid': landmark('great-pyramid', 'spire', 'tall', 'sun', '#5e4a26', '#e0c068', '#fff0a0', 1.1, 'dedicationGlow', 'glint', 'scaffold', 'great-pyramid-bespoke'),
   'tidemother-colossus': landmark('tidemother-colossus', 'gateway', 'tall', 'tide', '#123448', '#5ec0d8', '#c8f0ff', 1.05, 'civicAura', 'pulse', 'foundation', 'tidemother-colossus-bespoke'),
   'oracle-of-delphi': landmark('oracle-of-delphi', 'oracle', 'tall', 'prophecy', '#2f2943', '#d8c47a', '#fff0b8', 1.02, 'dedicationGlow', 'glint', 'outline', 'oracle-of-delphi-bespoke'),
-  // #722 uses the renderer's supported hall silhouette until #725 supplies bespoke art.
-  'terracotta-army': landmark('terracotta-army', 'hall', 'wide', 'victory', '#4a3024', '#c96f3b', '#f2c08a', 1.02, 'dedicationGlow', 'glint', 'outline'),
+  'terracotta-army': landmark('terracotta-army', 'hall', 'wide', 'victory', '#4a3024', '#c96f3b', '#f2c08a', 1.02, 'dedicationGlow', 'glint', 'outline', 'terracotta-army-bespoke'),
   'grand-canal': landmark('grand-canal', 'waterworks', 'wide', 'canal', '#173c52', '#74d0ff', '#c8f3ff', 1.05, 'civicAura', 'pulse', 'foundation', 'grand-canal-bespoke'),
   'sun-spire': landmark('sun-spire', 'spire', 'tall', 'sun', '#46311f', '#f2c45d', '#fff1a6', 1.08, 'dedicationGlow', 'glint', 'scaffold', 'sun-spire-bespoke'),
   'world-archive': landmark('world-archive', 'archive', 'wide', 'knowledge', '#263044', '#b9c7ff', '#edf0ff', 1, 'civicAura', 'pulse', 'outline', 'world-archive-bespoke'),
@@ -32,8 +31,7 @@ const LEGENDARY_WONDER_LANDMARK_METADATA: Record<string, LegendaryWonderLandmark
   'manhattan-project': landmark('manhattan-project', 'laboratory', 'compact', 'atom', '#31313c', '#d2d8e8', '#ffffff', 1, 'foundationPulse', 'pulse', 'outline', 'manhattan-project-bespoke'),
   internet: landmark('internet', 'network', 'wide', 'network', '#202c3d', '#80d8ff', '#d9f8ff', 0.98, 'civicAura', 'spark', 'foundation', 'internet-bespoke'),
   // Era 5 wonders (Renaissance)
-  // #723 uses the renderer's supported bastion silhouette until #725 supplies bespoke art.
-  'crac-des-chevaliers': landmark('crac-des-chevaliers', 'bastion', 'wide', 'victory', '#3d322a', '#c18a52', '#f1d2a6', 1.06, 'dedicationGlow', 'glint', 'outline'),
+  'crac-des-chevaliers': landmark('crac-des-chevaliers', 'bastion', 'wide', 'victory', '#3d322a', '#c18a52', '#f1d2a6', 1.06, 'dedicationGlow', 'glint', 'outline', 'crac-des-chevaliers-bespoke'),
   'sistine-vault': landmark('sistine-vault', 'archive', 'tall', 'knowledge', '#3d2c1e', '#d4a96a', '#fff0c8', 1.03, 'dedicationGlow', 'glint', 'scaffold', 'sistine-vault-bespoke'),
   'codex-eternal': landmark('codex-eternal', 'archive', 'wide', 'knowledge', '#242d4a', '#a0b0e8', '#e8eeff', 1.0, 'civicAura', 'pulse', 'outline', 'codex-eternal-bespoke'),
   'navigators-compass': landmark('navigators-compass', 'gateway', 'wide', 'horizon', '#1a3346', '#7ecae0', '#c4f0ff', 1.05, 'civicAura', 'glint', 'foundation', 'navigators-compass-bespoke'),
@@ -56,8 +54,7 @@ const LEGENDARY_WONDER_LANDMARK_METADATA: Record<string, LegendaryWonderLandmark
   'wright-flyer':          landmark('wright-flyer',          'bastion',    'wide', 'trade',     '#3a3828', '#c8b860', '#fff8d0', 1.04, 'dedicationGlow', 'glint','scaffold',   'wright-flyer-bespoke'),
   'united-nations':        landmark('united-nations',        'hall',       'wide', 'horizon',   '#1a2a3a', '#4080c0', '#c0d8f0', 1.06, 'civicAura',      'glint','scaffold',   'united-nations-bespoke'),
   'apollo-program':        landmark('apollo-program',        'spire',      'wide', 'cosmos',    '#0a0a1a', '#c0c8e0', '#ffffff', 1.12, 'dedicationGlow', 'glint','scaffold',   'apollo-program-bespoke'),
-  // #725 supplies NORAD bespoke art; this supported beacon silhouette is the approved mechanic fallback.
-  norad:                   landmark('norad',                 'signal',     'wide', 'network',   '#18283a', '#4ea6d8', '#d9f4ff', 1.06, 'civicAura',      'pulse','outline'),
+  norad:                   landmark('norad',                 'signal',     'wide', 'network',   '#18283a', '#4ea6d8', '#d9f4ff', 1.06, 'civicAura',      'pulse','outline', 'norad-bespoke'),
   // Era 13 wonders (Autonomy Age)
   'open-intelligence-commons': landmark('open-intelligence-commons', 'network', 'wide', 'network', '#172a36', '#79d8d0', '#e4fff9', 1.06, 'civicAura', 'spark', 'foundation', 'open-intelligence-commons-bespoke'),
   'lunar-gateway': landmark('lunar-gateway', 'gateway', 'tall', 'cosmos', '#11182f', '#a9c4ff', '#f3f7ff', 1.10, 'dedicationGlow', 'glint', 'scaffold', 'lunar-gateway-bespoke'),
