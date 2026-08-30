@@ -378,6 +378,24 @@ describe('#710 air-defense and orphaned sprites are not aliases of their former 
   });
 });
 
+describe('#711 siege and capital-ship sprites are not aliases of their former donors', () => {
+  const palette = derivePalette('#4a90d9');
+  const cases = [
+    ['trebuchet', 'catapult', ['cq-trebuchet-a-frame', 'cq-trebuchet-counterweight', 'cq-trebuchet-beam', 'cq-trebuchet-sling', 'cq-trebuchet-carriage']],
+    ['rocket_artillery', 'artillery', ['cq-rocket-artillery-chassis', 'cq-rocket-artillery-rack', 'cq-rocket-artillery-tubes', 'cq-rocket-artillery-stabilizer', 'cq-rocket-artillery-crate']],
+    ['battleship', 'pre_dreadnought', ['cq-battleship-hull', 'cq-battleship-turret-fore', 'cq-battleship-turret-mid', 'cq-battleship-turret-aft', 'cq-battleship-bridge', 'cq-battleship-rangefinder']],
+    ['missile_cruiser', 'pre_dreadnought', ['cq-missile-cruiser-hull', 'cq-missile-cruiser-vls', 'cq-missile-cruiser-bridge', 'cq-missile-cruiser-radar-forward', 'cq-missile-cruiser-radar-aft']],
+  ] as const;
+
+  it.each(cases)('%s is bespoke and carries its approved role markers', (type, donor, markers) => {
+    const actual = UNIT_SPRITE_CATALOG[type]({ palette, svgOnly: true });
+    const former = UNIT_SPRITE_CATALOG[donor]({ palette, svgOnly: true });
+
+    expect(actual).not.toBe(former);
+    for (const marker of markers) expect(actual, `${type} missing ${marker}`).toContain(marker);
+  });
+});
+
 // #769: full audit (2026-08-01, `scripts/audit-sprite-aliases.mjs`) of UNIT_SPRITE_CATALOG
 // originally found 17 units still rendering via another unit's exact sprite function — not
 // similar art, literally the same component (distinct from the Era 13 placeholders above,

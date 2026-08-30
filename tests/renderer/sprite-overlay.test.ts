@@ -147,6 +147,30 @@ describe('#708 mounted and beast overlay accessibility', () => {
   });
 });
 
+describe('#711 siege and capital-ship overlay state', () => {
+  it.each([
+    ['trebuchet', 'ranged', 'trebuchet'],
+    ['rocket_artillery', 'ranged', 'rocket-artillery'],
+    ['battleship', 'naval', 'battleship'],
+    ['missile_cruiser', 'naval', 'missile-cruiser'],
+  ])('%s keeps native identity while walk and attack update in place', (subtype, kind, variant) => {
+    const { overlay, mount } = mountOverlay();
+    overlay.sync(cam(), [entity({ subtype, state: 'idle' })], MAP, OPTS);
+    const original = mount.querySelector('#unit-sprites .cq-sprite-wrap') as HTMLElement | null;
+    expect(original).not.toBeNull();
+    expect(original?.dataset.kind).toBe(kind);
+    expect(original?.dataset.kindVariant).toBe(variant);
+
+    overlay.sync(cam(), [entity({ subtype, state: 'walk' })], MAP, OPTS);
+    expect(mount.querySelector('#unit-sprites .cq-sprite-wrap')).toBe(original);
+    expect(original?.dataset.state).toBe('walk');
+
+    overlay.sync(cam(), [entity({ subtype, state: 'attack' })], MAP, OPTS);
+    expect(mount.querySelector('#unit-sprites .cq-sprite-wrap')).toBe(original);
+    expect(original?.dataset.state).toBe('attack');
+  });
+});
+
 // ── Camera transform ──────────────────────────────────────────────────────────
 
 describe('sync() camera transform', () => {
