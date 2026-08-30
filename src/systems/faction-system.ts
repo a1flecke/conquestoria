@@ -19,6 +19,12 @@ export const REVOLT_UNREST_TURNS = 10;       // turns at unrest before revolt es
 export const BREAKAWAY_REVOLT_TURNS = 10;    // turns at revolt before breakaway
 const CONQUEST_UNREST_DURATION = 15;         // turns until conquestTurn is cleared
 const GOLD_APPEASE_COST_PER_POP = 15;
+
+// #919 MR2: the Era-2 administration-ladder nudge. One extra "free" city before
+// empire overextension pressure starts, so a modest early empire that has not yet
+// teched `magistracy` is not instantly in revolt. Slope (3) and cap
+// (MAX_PRESSURE_EMPIRE) are unchanged — the Courthouse does the real work.
+export const OVEREXTENSION_FREE_CITIES = 6;
 export const CONCESSION_IMMUNITY_TURNS = 15; // uprising: turns of no-new-unrest after conceding
 
 // Pressure caps per category
@@ -57,9 +63,9 @@ export function getUnrestPressureBreakdown(
 
   const rows: UnrestPressureRow[] = [];
 
-  // Empire overextension: each city over 5 adds 3 pressure
+  // Empire overextension: each city over OVEREXTENSION_FREE_CITIES adds 3 pressure
   const cityCount = civ.cities.length;
-  const overextension = Math.min(MAX_PRESSURE_EMPIRE, Math.max(0, (cityCount - 5) * 3));
+  const overextension = Math.min(MAX_PRESSURE_EMPIRE, Math.max(0, (cityCount - OVEREXTENSION_FREE_CITIES) * 3));
   if (overextension > 0) rows.push({ label: 'Empire overextension', amount: overextension });
 
   const capital = getCapitalCity(state, owner);
