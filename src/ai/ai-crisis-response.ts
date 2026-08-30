@@ -2,7 +2,8 @@ import type { ActiveCrisis, City, GameState, Unit } from '@/core/types';
 import { getChallengeProfileForCiv, resolveChallengeForCiv } from '@/core/opponent-challenge';
 import { getPirateFleetLeader } from '@/systems/pirate-behavior';
 import { isVisible } from '@/systems/fog-of-war';
-import { applyQuarantine, applyRemedy } from '@/systems/crisis-system';
+import type { EventBus } from '@/core/event-bus';
+import { applyEmpireContainment, applyQuarantine, applyRemedy } from '@/systems/crisis-system';
 import { getCityAppeaseCost } from '@/systems/faction-system';
 import { canRestoreLand } from '@/systems/improvement-system';
 import { getWorkerChargesRemaining } from '@/systems/worker-action-system';
@@ -116,6 +117,7 @@ export function getCrisisDispatchCandidates(state: GameState, civId: string): Cr
 export type CrisisResponseAction =
   | { kind: 'quarantine'; crisisId: string; cityId: string }
   | { kind: 'fund-remedy'; crisisId: string; cityId: string }
+  | { kind: 'empire-contain'; crisisId: string } // #919 MR1
   | { kind: 'restore'; crisisId: string; tileKey: string; workerUnitId: string };
 
 // ── Catastrophe restoration tasking (#526 MR4) ──────────────────────────────
@@ -208,10 +210,30 @@ export function getCrisisResponseActions(state: GameState, civId: string): Crisi
     if (candidate) actions.push({ kind: 'quarantine', crisisId: crisis.id, cityId: candidate.id });
   }
 
+  // #919 MR1: prefer a single nationwide remedy for a wide outbreak when affordable.
+  const empireContainedCrisisIds = new Set<string>();
+  if (civ.techState?.completed?.includes('medicine')) {
+    for (const crisis of crises) {
+      if (crisis.archetype !== 'outbreak') continue;
+      if (crisis.sabotage !== undefined && crisis.sabotage.untilTurn > state.turn) continue;
+      const unremedied = crisis.cityIds.filter(id => crisis.remedyCompletionByCity?.[id] === undefined);
+      if (unremedied.length < 2) continue;
+      const cost = unremedied.reduce((sum, id) => {
+        const c = state.cities[id];
+        return sum + (c ? getCityAppeaseCost(c) : 0);
+      }, 0);
+      if (civ.gold >= cost * profile.crisisRemedyGoldMultiplier) {
+        actions.push({ kind: 'empire-contain', crisisId: crisis.id });
+        empireContainedCrisisIds.add(crisis.id);
+      }
+    }
+  }
+
   // One remedy per civ per turn: the most-populous infected city across ALL of
   // this civ's outbreak crises that doesn't already have a remedy underway.
   let bestRemedy: { crisisId: string; city: City } | null = null;
   for (const crisis of crises) {
+    if (empireContainedCrisisIds.has(crisis.id)) continue; // #919 MR1
     for (const cityId of crisis.cityIds) {
       if (crisis.remedyCompletionByCity?.[cityId] !== undefined) continue;
       const city = state.cities[cityId];
@@ -234,7 +256,7 @@ export function getCrisisResponseActions(state: GameState, civId: string): Crisi
   return actions;
 }
 
-export function applyCrisisResponses(state: GameState): GameState {
+export function applyCrisisResponses(state: GameState, bus: EventBus): GameState {
   let next = state;
   for (const civId of Object.keys(next.civilizations).sort()) {
     for (const action of getCrisisResponseActions(next, civId)) {
@@ -242,6 +264,7 @@ export function applyCrisisResponses(state: GameState): GameState {
       // the AI tactical worker-assignment layer (ai-tactics.ts), not here.
       if (action.kind === 'quarantine') next = applyQuarantine(next, action.crisisId, action.cityId).state;
       else if (action.kind === 'fund-remedy') next = applyRemedy(next, action.crisisId, action.cityId).state;
+      else if (action.kind === 'empire-contain') next = applyEmpireContainment(next, action.crisisId, bus).state; // #919 MR1
     }
   }
   return next;

@@ -253,6 +253,36 @@ describe('getCrisisResponseActions', () => {
     expect(actions).toContainEqual({ kind: 'quarantine', crisisId: 'crisis-1', cityId: 'c1' });
     expect(actions).toContainEqual({ kind: 'fund-remedy', crisisId: 'crisis-1', cityId: 'c1' });
   });
+
+  // #919 MR1: prefer a single nationwide remedy for a wide outbreak once Medicine is in.
+  it('funds a nationwide remedy for a wide outbreak when the civ has Medicine and the gold', () => {
+    const state = responseState({
+      civilizations: { 'ai-1': { id: 'ai-1', isHuman: false, isEliminated: false, gold: 100_000, techState: { completed: ['medicine'] } } },
+      cities: {
+        c1: { id: 'c1', population: 5, owner: 'ai-1' },
+        c2: { id: 'c2', population: 4, owner: 'ai-1' },
+        c3: { id: 'c3', population: 3, owner: 'ai-1' },
+      },
+      activeCrises: { 'crisis-1': outbreakCrisis({ cityIds: ['c1', 'c2', 'c3'] }) },
+    });
+    const actions = getCrisisResponseActions(state, 'ai-1');
+    expect(actions.some(a => a.kind === 'empire-contain')).toBe(true);
+    expect(actions.filter(a => a.kind === 'fund-remedy').length).toBe(0); // not also a single-city remedy
+  });
+
+  it('does NOT fund a nationwide remedy without the Medicine tech', () => {
+    const state = responseState({
+      civilizations: { 'ai-1': { id: 'ai-1', isHuman: false, isEliminated: false, gold: 100_000, techState: { completed: [] } } },
+      cities: {
+        c1: { id: 'c1', population: 5, owner: 'ai-1' },
+        c2: { id: 'c2', population: 4, owner: 'ai-1' },
+        c3: { id: 'c3', population: 3, owner: 'ai-1' },
+      },
+      activeCrises: { 'crisis-1': outbreakCrisis({ cityIds: ['c1', 'c2', 'c3'] }) },
+    });
+    const actions = getCrisisResponseActions(state, 'ai-1');
+    expect(actions.some(a => a.kind === 'empire-contain')).toBe(false);
+  });
 });
 
 // #526 MR4 — AI catastrophe restoration: pair idle workers with the nearest
@@ -475,21 +505,21 @@ describe('AI catastrophe restoration — end to end (#526 MR4)', () => {
 describe('applyCrisisResponses', () => {
   it('applies a funded remedy via applyRemedy, deducting real gold', () => {
     const state = responseState({ civilizations: { 'ai-1': { id: 'ai-1', isHuman: false, gold: 200 } } });
-    const next = applyCrisisResponses(state);
+    const next = applyCrisisResponses(state, new EventBus());
     expect((next.civilizations['ai-1'] as { gold: number }).gold).toBe(200 - 75);
     expect(next.activeCrises!['crisis-1'].remedyCompletionByCity).toHaveProperty('c1');
   });
 
   it('does not deduct gold or start a remedy when treasury is short', () => {
     const state = responseState({ civilizations: { 'ai-1': { id: 'ai-1', isHuman: false, gold: 100 } } });
-    const next = applyCrisisResponses(state);
+    const next = applyCrisisResponses(state, new EventBus());
     expect((next.civilizations['ai-1'] as { gold: number }).gold).toBe(100);
     expect(next.activeCrises!['crisis-1'].remedyCompletionByCity ?? {}).not.toHaveProperty('c1');
   });
 
   it('applies a quarantine via applyQuarantine, marking the city quarantined', () => {
     const state = responseState({ turn: 0, opponentChallenge: 'veteran' });
-    const next = applyCrisisResponses(state);
+    const next = applyCrisisResponses(state, new EventBus());
     expect(next.activeCrises!['crisis-1'].quarantinedCityIds).toContain('c1');
   });
 
@@ -498,7 +528,7 @@ describe('applyCrisisResponses', () => {
       civilizations: { p1: { id: 'p1', isHuman: true, isEliminated: false, gold: 1000 } },
       activeCrises: { 'crisis-1': outbreakCrisis({ targetCivId: 'p1' }) },
     });
-    const next = applyCrisisResponses(state);
+    const next = applyCrisisResponses(state, new EventBus());
     expect(next.activeCrises!['crisis-1']).toEqual(state.activeCrises!['crisis-1']);
     expect((next.civilizations.p1 as { gold: number }).gold).toBe(1000);
   });
