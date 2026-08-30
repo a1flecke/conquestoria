@@ -79,18 +79,37 @@ export interface DiplomacyActionsControllerDeps {
   readonly openDiplomacyPanel: () => void;
 }
 
+// Bilateral treaty actions that route through the #901 propose -> consent ->
+// commit lifecycle; an AI recipient can refuse any of these outright.
+const CONSENT_TREATY_ACTIONS: DiplomaticAction[] = [
+  'non_aggression_pact', 'trade_agreement', 'open_borders', 'alliance', 'arms_control_pact',
+];
+
 export function createDiplomacyActionsController(deps: DiplomacyActionsControllerDeps): DiplomacyActionsController {
   function handleDiplomaticAction(targetCivId: string, action: DiplomaticAction): void {
     const cp = deps.session.getState().currentPlayer;
-    deps.session.setStateWithoutRefresh(applyDiplomaticAction(deps.session.getState(), cp, targetCivId, action, deps.bus));
+    const before = deps.session.getState();
+    deps.session.setStateWithoutRefresh(applyDiplomaticAction(before, cp, targetCivId, action, deps.bus));
     if (action === 'declare_war') {
       deps.session.setStateWithoutRefresh(applyOpportunisticWarPenaltyIfCrisisStruck(deps.session.getState(), cp, targetCivId, deps.bus));
     }
     deps.renderLoop.setGameState(deps.session.getState());
     deps.hud.update();
     deps.openDiplomacyPanel();
+
+    // #901: bilateral treaties/peace now need the recipient's consent, so a
+    // proposal to an AI resolves (or is refused) this turn. applyDiplomaticAction
+    // returns the same state object when nothing happened -- surface a refusal
+    // instead of an affirmative toast the player can't reconcile with the panel.
+    const resolved = deps.session.getState() !== before;
+    const targetName = deps.session.getState().civilizations[targetCivId]?.name ?? 'They';
     if (action === 'request_peace') {
-      deps.showNotification('Peace requested.', 'info');
+      deps.showNotification(
+        resolved ? 'Peace requested.' : `${targetName} is unwilling to make peace.`,
+        resolved ? 'info' : 'warning',
+      );
+    } else if (CONSENT_TREATY_ACTIONS.includes(action) && !resolved) {
+      deps.showNotification(`${targetName} declined the ${TREATY_LABELS[action as TreatyType]}.`, 'warning');
     } else {
       deps.showNotification(`Diplomatic action: ${action.replace(/_/g, ' ')}`, 'info');
     }

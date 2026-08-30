@@ -7,6 +7,7 @@ import {
   getPendingPeaceRequestForPair,
   getPendingTreatyProposalsFor,
   hasArmsControlTreaty,
+  PENDING_DIPLOMATIC_REQUEST_TTL_TURNS,
 } from '@/systems/diplomacy-system';
 import { TREATY_LABELS, describeWarReason } from '@/ui/notification-routing';
 import { resolveCivDefinition } from '@/systems/civ-registry';
@@ -227,7 +228,10 @@ export function createDiplomacyPanel(
       .map(request => ({
         id: request.id,
         label: TREATY_LABELS[request.treatyType!],
-        expiresInTurns: Math.max(0, 10 - (state.turn - request.turnIssued)),
+        expiresInTurns: Math.max(
+          0,
+          PENDING_DIPLOMATIC_REQUEST_TTL_TURNS - (state.turn - request.turnIssued),
+        ),
       }));
 
     // #554: "at war since turn N -- reason" derived from the same

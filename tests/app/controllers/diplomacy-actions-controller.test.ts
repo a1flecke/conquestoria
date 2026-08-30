@@ -103,6 +103,41 @@ describe('DiplomacyActionsController', () => {
       expect(deps.session.getState().civilizations.player.diplomacy.atWarWith).toContain(aiCivId);
       expect(deps.showNotification).toHaveBeenCalledWith('Diplomatic action: declare war', 'info');
     });
+
+    it('request_peace tells the player when the AI target refuses consent', () => {
+      const { state, aiCivId } = makeFixture('diplomatic-action-peace-refused');
+      state.civilizations.player.knownCivilizations = [aiCivId];
+      state.civilizations[aiCivId].knownCivilizations = ['player'];
+      state.civilizations.player.diplomacy.atWarWith = [aiCivId];
+      state.civilizations[aiCivId].diplomacy.atWarWith = ['player'];
+      state.civilizations[aiCivId].diplomacy.relationships.player = -50;
+      const { deps, controller } = build(state);
+
+      controller.handleDiplomaticAction(aiCivId, 'request_peace');
+
+      expect(deps.session.getState().civilizations.player.diplomacy.atWarWith).toContain(aiCivId);
+      expect(deps.showNotification).toHaveBeenCalledWith(
+        expect.stringContaining('unwilling to make peace'),
+        'warning',
+      );
+    });
+
+    it('surfaces an AI refusal of a bilateral treaty instead of a false affirmative', () => {
+      const { state, aiCivId } = makeFixture('diplomatic-action-treaty-declined');
+      state.civilizations.player.knownCivilizations = [aiCivId];
+      state.civilizations[aiCivId].knownCivilizations = ['player'];
+      state.civilizations.player.diplomacy.relationships[aiCivId] = 0;
+      state.civilizations[aiCivId].diplomacy.relationships.player = 0;
+      const { deps, controller } = build(state);
+
+      controller.handleDiplomaticAction(aiCivId, 'alliance');
+
+      expect(deps.session.getState().civilizations.player.diplomacy.treaties).toHaveLength(0);
+      expect(deps.showNotification).toHaveBeenCalledWith(
+        expect.stringContaining('declined'),
+        'warning',
+      );
+    });
   });
 
   describe('handleAcceptPeaceRequest / handleRejectPeaceRequest', () => {
