@@ -327,11 +327,13 @@ describe('applyEmpireContainment', () => {
     expect(events).toEqual([{ cityCount: 2, goldCost: 105 }]);
   });
 
-  it('with epidemic-control, pre-registers a re-infection immunity for the treated cities', () => {
-    const { state } = wideOutbreak({ cityIds: ['c1'] }, ['medicine', 'epidemic-control']);
+  it('does not set curedUntilTurn itself — immunity is applied by the tick when the remedy lands', () => {
+    const { state } = wideOutbreak({ cityIds: ['c1', 'c2', 'c3'] }, ['medicine', 'epidemic-control']);
     const res = applyEmpireContainment(state, 'crisis-1', new EventBus());
     expect(res.success).toBe(true);
-    expect(res.state.activeCrises!['crisis-1'].curedUntilTurn).toEqual({ c1: 40 + 2 + 6 });
+    // The function only schedules remedies; the shared tick path handles immunity
+    // (covered by "records curedUntilTurn when a remedy completes, widened by epidemic-control").
+    expect(res.state.activeCrises!['crisis-1'].curedUntilTurn).toBeUndefined();
   });
 
   it('refuses a non-outbreak crisis', () => {

@@ -532,4 +532,26 @@ describe('applyCrisisResponses', () => {
     expect(next.activeCrises!['crisis-1']).toEqual(state.activeCrises!['crisis-1']);
     expect((next.civilizations.p1 as { gold: number }).gold).toBe(1000);
   });
+
+  // #919 MR1: the empire-contain action is dispatched end-to-end, deducting gold,
+  // scheduling remedies in every un-treated city, and emitting crisis:contained once.
+  it('applies an empire-contain action: gold spent, remedies scheduled, event emitted', () => {
+    const bus = new EventBus();
+    const events: unknown[] = [];
+    bus.on('crisis:contained', e => events.push(e));
+    const state = responseState({
+      civilizations: { 'ai-1': { id: 'ai-1', isHuman: false, isEliminated: false, gold: 100_000, techState: { completed: ['medicine'] } } },
+      cities: {
+        c1: { id: 'c1', population: 5, owner: 'ai-1' },
+        c2: { id: 'c2', population: 4, owner: 'ai-1' },
+        c3: { id: 'c3', population: 3, owner: 'ai-1' },
+      },
+      activeCrises: { 'crisis-1': outbreakCrisis({ cityIds: ['c1', 'c2', 'c3'] }) },
+    });
+    const next = applyCrisisResponses(state, bus);
+    const crisis = next.activeCrises!['crisis-1'];
+    expect(Object.keys(crisis.remedyCompletionByCity ?? {}).sort()).toEqual(['c1', 'c2', 'c3']);
+    expect((next.civilizations['ai-1'] as { gold: number }).gold).toBe(100_000 - (5 + 4 + 3) * 15);
+    expect(events).toHaveLength(1);
+  });
 });

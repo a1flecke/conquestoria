@@ -844,8 +844,10 @@ export function createPanelActionsController(deps: PanelActionsControllerDeps): 
           deps.showNotification(result.message, 'warning');
           return deps.session.getState();
         }
+        // Success feedback comes from the crisis:contained event via routeCrisisContained
+        // (delivered immediately to the acting player, queued for a non-active hot-seat
+        // player) — a showNotification here would double it.
         deps.session.commit(result.state);
-        deps.showNotification(result.message, 'success');
         return deps.session.getState();
       },
       onFindResources: (highlights, toasts) => {
