@@ -1,9 +1,13 @@
 # Issue #917 Research Pacing and Empire Coordination Design
 
-**Date:** 2026-08-30  
-**Status:** Approved for implementation planning  
-**Issue:** [#917 — Bug: Something is off with tech calculations](https://github.com/a1flecke/conquestoria/issues/917)  
-**Supersedes:** The single-city research-output assumptions in the 2026-05-13 pacing design where they conflict with this document  
+**Date:** 2026-08-30
+
+**Status:** Approved for implementation planning
+
+**Issue:** [#917 — Bug: Something is off with tech calculations](https://github.com/a1flecke/conquestoria/issues/917)
+
+**Supersedes:** The single-city research-output assumptions in the 2026-05-13 pacing design where they conflict with this document
+
 **Goal:** Keep research legible, rewarding, and strategically paced from Era 1 through every future authored era while guaranteeing that every additional city is research-positive with diminishing returns.
 
 ## 1. Decision Summary
@@ -257,7 +261,7 @@ The migration stores a checked-in map of pre-retune base costs for every changed
 1. calculate the old effective cost, including the old Cloud Computing discount when applicable;
 2. calculate the new effective cost;
 3. preserve `oldProgress / oldEffectiveCost`, clamped to `[0, 1]`;
-4. write the equivalent integer progress against the new effective cost;
+4. round to the nearest equivalent integer progress against the new effective cost, clamping an unfinished legacy technology to at most `newEffectiveCost - 1` so rounding never completes it early;
 5. if the legacy state was already at or above completion, normalize the completion and advance the queue without emitting events or audio;
 6. leave queued follow-ups at their existing zero/unstarted progress semantics;
 7. remain idempotent after the save reaches the new schema version.
@@ -325,6 +329,7 @@ Each MR must update the implementation plan's status. MR3 must not be split into
 - solo and two-human hot-seat owner-turn parity;
 - queue add/reorder/remove/replay and DOM refresh;
 - schema migration, malformed legacy state, future-schema rejection, and idempotence;
+- displayed completion percentage changes by at most one percentage point across migration and an unfinished technology never becomes complete through rounding;
 - exactly-once completion events and viewer-scoped SFX;
 - source guard against direct `researchProgress` mutation.
 
