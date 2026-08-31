@@ -2434,6 +2434,10 @@ export interface GameEvents {
   };
   'diplomacy:treaty-proposed': { fromCiv: string; toCiv: string; treaty: TreatyType };
   'diplomacy:treaty-accepted': { civA: string; civB: string; treaty: TreatyType };
+  // #901: a queued treaty proposal the recipient explicitly declined -- so the
+  // original proposer (who may be an inactive hot-seat player) learns the
+  // outcome instead of the request silently vanishing from their panel.
+  'diplomacy:treaty-declined': { proposerCivId: string; targetCivId: string; treaty: TreatyType };
   'diplomacy:treaty-broken': { breakerId: string; otherCiv: string; treaty: TreatyType };
   'advisor:message': { advisor: AdvisorType; message: string; icon: string; tone?: CouncilCallbackTone; memoryKey?: string };
   'trade:route-created': { route: TradeRoute };

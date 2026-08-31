@@ -34,6 +34,9 @@ import {
   acceptDiplomaticRequest,
   applyDiplomaticAction,
   breakTreaty,
+  CONSENT_TREATY_TYPES,
+  hasPendingTreatyProposalBetween,
+  isAtWar,
   rejectDiplomaticRequest,
 } from '@/systems/diplomacy-system';
 import { TREATY_LABELS } from '@/ui/notification-routing';
@@ -80,36 +83,58 @@ export interface DiplomacyActionsControllerDeps {
 }
 
 // Bilateral treaty actions that route through the #901 propose -> consent ->
-// commit lifecycle; an AI recipient can refuse any of these outright.
-const CONSENT_TREATY_ACTIONS: DiplomaticAction[] = [
-  'non_aggression_pact', 'trade_agreement', 'open_borders', 'alliance', 'arms_control_pact',
-];
+// commit lifecycle; an AI recipient can refuse any of these outright. Shares
+// `CONSENT_TREATY_TYPES` with the diplomacy panel (same string values).
+const CONSENT_TREATY_ACTIONS = new Set<string>(CONSENT_TREATY_TYPES);
 
 export function createDiplomacyActionsController(deps: DiplomacyActionsControllerDeps): DiplomacyActionsController {
   function handleDiplomaticAction(targetCivId: string, action: DiplomaticAction): void {
     const cp = deps.session.getState().currentPlayer;
     const before = deps.session.getState();
+    const targetWasHuman = before.civilizations[targetCivId]?.isHuman === true;
     deps.session.setStateWithoutRefresh(applyDiplomaticAction(before, cp, targetCivId, action, deps.bus));
     if (action === 'declare_war') {
       deps.session.setStateWithoutRefresh(applyOpportunisticWarPenaltyIfCrisisStruck(deps.session.getState(), cp, targetCivId, deps.bus));
     }
-    deps.renderLoop.setGameState(deps.session.getState());
+    const after = deps.session.getState();
+    deps.renderLoop.setGameState(after);
     deps.hud.update();
     deps.openDiplomacyPanel();
 
-    // #901: bilateral treaties/peace now need the recipient's consent, so a
-    // proposal to an AI resolves (or is refused) this turn. applyDiplomaticAction
-    // returns the same state object when nothing happened -- surface a refusal
-    // instead of an affirmative toast the player can't reconcile with the panel.
-    const resolved = deps.session.getState() !== before;
-    const targetName = deps.session.getState().civilizations[targetCivId]?.name ?? 'They';
+    // #901: bilateral treaties/peace now route through propose -> consent ->
+    // commit. `applyDiplomaticAction` returns the same state object when nothing
+    // happened. The acting player's immediate feedback must match what the panel
+    // now shows: a proposal queued for a human, an AI's same-turn accept/decline,
+    // or "already pending" for a reciprocal proposal that no-ops. The *other*
+    // party's notification is delivered recipient-scoped from the routing events
+    // (treaty-proposed / treaty-accepted), never from here.
+    const resolved = after !== before;
+    const targetName = after.civilizations[targetCivId]?.name ?? 'They';
+
     if (action === 'request_peace') {
-      deps.showNotification(
-        resolved ? 'Peace requested.' : `${targetName} is unwilling to make peace.`,
-        resolved ? 'info' : 'warning',
-      );
-    } else if (CONSENT_TREATY_ACTIONS.includes(action) && !resolved) {
-      deps.showNotification(`${targetName} declined the ${TREATY_LABELS[action as TreatyType]}.`, 'warning');
+      const stillAtWar = isAtWar(after.civilizations[cp]?.diplomacy ?? before.civilizations[cp]!.diplomacy, targetCivId);
+      if (!resolved) {
+        deps.showNotification(`${targetName} is unwilling to make peace.`, 'warning');
+      } else if (!stillAtWar) {
+        deps.showNotification(`Peace made with ${targetName}.`, 'success');
+      } else {
+        deps.showNotification(`Peace requested from ${targetName}.`, 'info');
+      }
+    } else if (CONSENT_TREATY_ACTIONS.has(action)) {
+      const label = TREATY_LABELS[action as TreatyType];
+      if (resolved && targetWasHuman) {
+        deps.showNotification(`${label} proposed to ${targetName}.`, 'info');
+      } else if (resolved) {
+        // AI target accepted this turn -- the diplomacy:treaty-accepted routing
+        // event already tells the acting player "<Target> accepted the <label>."
+      } else if (hasPendingTreatyProposalBetween(after, cp, targetCivId, action as TreatyType)) {
+        deps.showNotification(
+          `${targetName} has already proposed a ${label} — accept or decline it in the Diplomacy panel.`,
+          'info',
+        );
+      } else {
+        deps.showNotification(`${targetName} declined the ${label}.`, 'warning');
+      }
     } else {
       deps.showNotification(`Diplomatic action: ${action.replace(/_/g, ' ')}`, 'info');
     }
@@ -134,7 +159,9 @@ export function createDiplomacyActionsController(deps: DiplomacyActionsControlle
   }
 
   function handleDeclineTreatyProposal(requestId: string): void {
-    deps.session.commit(rejectDiplomaticRequest(deps.session.getState(), deps.session.getState().currentPlayer, requestId));
+    // #901: pass the bus so the original proposer (possibly an inactive
+    // hot-seat player) is told via diplomacy:treaty-declined.
+    deps.session.commit(rejectDiplomaticRequest(deps.session.getState(), deps.session.getState().currentPlayer, requestId, deps.bus));
     deps.openDiplomacyPanel();
     deps.showNotification('Proposal declined.', 'info');
   }

@@ -271,6 +271,18 @@ export function routeTreatyAccepted(
   sink(event.civB, `You accepted the ${label} with ${civA}.`, 'success');
 }
 
+export function routeTreatyDeclined(
+  state: GameState,
+  event: GameEvents['diplomacy:treaty-declined'],
+  sink: NotificationSink,
+): void {
+  // #901: recipient-scoped to the *proposer* only -- so an inactive hot-seat
+  // player whose offer was declined learns why, without leaking the decision
+  // to any onlooker.
+  const targetName = state.civilizations[event.targetCivId]?.name ?? 'Unknown';
+  sink(event.proposerCivId, `${targetName} declined your ${TREATY_LABELS[event.treaty]}.`, 'warning');
+}
+
 export function routeWarDeclared(
   state: GameState,
   attackerId: string,

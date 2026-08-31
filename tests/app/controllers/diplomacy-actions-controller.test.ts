@@ -74,7 +74,7 @@ describe('DiplomacyActionsController', () => {
   });
 
   describe('handleDiplomaticAction', () => {
-    it('request_peace asks the AI target for consent and resolves accepted peace', () => {
+    it('request_peace to an AI that consents ends the war and tells the player peace was made', () => {
       const { state, aiCivId } = makeFixture('diplomatic-action-peace');
       state.civilizations.player.knownCivilizations = [aiCivId];
       state.civilizations[aiCivId].knownCivilizations = ['player'];
@@ -89,7 +89,9 @@ describe('DiplomacyActionsController', () => {
       expect(deps.renderLoop.setGameState).toHaveBeenCalledWith(deps.session.getState());
       expect(deps.hud.update).toHaveBeenCalledTimes(1);
       expect(deps.openDiplomacyPanel).toHaveBeenCalledTimes(1);
-      expect(deps.showNotification).toHaveBeenCalledWith('Peace requested.', 'info');
+      // #901 review: the war is already over -- an affirmative "peace made", not
+      // the misleading "Peace requested." the human->human queue path uses.
+      expect(deps.showNotification).toHaveBeenCalledWith(expect.stringContaining('Peace made with'), 'success');
     });
 
     it('declare_war applies the opportunistic-war-penalty check and shows the generic action message', () => {
@@ -137,6 +139,64 @@ describe('DiplomacyActionsController', () => {
         expect.stringContaining('declined'),
         'warning',
       );
+    });
+
+    it('#901 review: a bilateral treaty to a HUMAN co-player reports it as proposed, not signed', () => {
+      const { state, aiCivId } = makeFixture('diplomatic-action-treaty-human-target');
+      state.civilizations[aiCivId].isHuman = true; // hot-seat co-player
+      state.civilizations.player.knownCivilizations = [aiCivId];
+      state.civilizations[aiCivId].knownCivilizations = ['player'];
+      const { deps, controller } = build(state);
+
+      controller.handleDiplomaticAction(aiCivId, 'alliance');
+
+      // nothing signed -- a recipient-owned proposal is queued
+      expect(deps.session.getState().civilizations.player.diplomacy.treaties).toHaveLength(0);
+      expect(deps.session.getState().pendingDiplomacyRequests).toContainEqual(
+        expect.objectContaining({ type: 'treaty', treatyType: 'alliance', fromCivId: 'player', toCivId: aiCivId }),
+      );
+      expect(deps.showNotification).toHaveBeenCalledWith(expect.stringContaining('proposed to'), 'info');
+      expect(deps.showNotification).not.toHaveBeenCalledWith(expect.stringContaining('Diplomatic action'), expect.anything());
+    });
+
+    it('#901 review: a bilateral treaty an AI ACCEPTS this turn shows no generic controller toast (the treaty-accepted event owns that feedback)', () => {
+      const { state } = makeFixture('diplomatic-action-treaty-accepted');
+      // egypt has personality.diplomacyFocus 0.7 > 0.5, so an alliance at rel > 40 is accepted
+      state.civilizations['ai-egypt'] = {
+        ...state.civilizations[Object.keys(state.civilizations).find(id => id !== 'player')!],
+        id: 'ai-egypt', civType: 'egypt', isHuman: false,
+        knownCivilizations: ['player'],
+        diplomacy: { ...state.civilizations.player.diplomacy, relationships: { player: 50 }, atWarWith: [], treaties: [], events: [] },
+      };
+      state.civilizations.player.knownCivilizations = ['ai-egypt'];
+      state.civilizations.player.diplomacy.relationships['ai-egypt'] = 50;
+      const { deps, controller } = build(state);
+
+      controller.handleDiplomaticAction('ai-egypt', 'alliance');
+
+      expect(deps.session.getState().civilizations.player.diplomacy.treaties).toContainEqual(
+        expect.objectContaining({ type: 'alliance' }),
+      );
+      expect(deps.showNotification).not.toHaveBeenCalled();
+    });
+
+    it('#901 review: proposing a treaty a reciprocal pending proposal already covers points the player at the panel, not a false decline', () => {
+      const { state, aiCivId } = makeFixture('diplomatic-action-treaty-reciprocal');
+      state.civilizations[aiCivId].isHuman = true;
+      state.civilizations.player.knownCivilizations = [aiCivId];
+      state.civilizations[aiCivId].knownCivilizations = ['player'];
+      // the co-player already proposed an alliance to us
+      const seeded = enqueueTreatyProposal(state, aiCivId, 'player', 'alliance', -1);
+      const { deps, controller } = build(seeded);
+
+      controller.handleDiplomaticAction(aiCivId, 'alliance');
+
+      expect(deps.session.getState().pendingDiplomacyRequests).toHaveLength(1); // unchanged
+      expect(deps.showNotification).toHaveBeenCalledWith(
+        expect.stringContaining('already proposed'),
+        'info',
+      );
+      expect(deps.showNotification).not.toHaveBeenCalledWith(expect.stringContaining('declined'), expect.anything());
     });
   });
 
@@ -199,9 +259,11 @@ describe('DiplomacyActionsController', () => {
       expect(deps.showNotification).toHaveBeenCalledWith('Treaty signed.', 'success');
     });
 
-    it('declining clears the proposal without signing a treaty', () => {
+    it('declining clears the proposal without signing a treaty, and tells the proposer (#901)', () => {
       const { state, aiCivId, requestId } = proposalFixture('decline-treaty');
       const { deps, controller } = build(state);
+      const declined: unknown[] = [];
+      deps.bus.on('diplomacy:treaty-declined', e => declined.push(e));
 
       controller.handleDeclineTreatyProposal(requestId);
 
@@ -209,6 +271,7 @@ describe('DiplomacyActionsController', () => {
       expect(next.pendingDiplomacyRequests).toEqual([]);
       expect(next.civilizations.player.diplomacy.treaties.some(t => t.civB === aiCivId)).toBe(false);
       expect(deps.showNotification).toHaveBeenCalledWith('Proposal declined.', 'info');
+      expect(declined).toEqual([{ proposerCivId: aiCivId, targetCivId: 'player', treaty: 'trade_agreement' }]);
     });
   });
 

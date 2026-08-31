@@ -49,6 +49,17 @@ describe('diplomacy presentation', () => {
     expect(ctx.deliver).toHaveBeenCalledTimes(2);
   });
 
+  it('#901: announces a declined treaty to the proposer only', () => {
+    const bus = new EventBus();
+    const ctx = makePresentationContext();
+
+    registerDiplomacyPresentation(bus, ctx);
+    bus.emit('diplomacy:treaty-declined', { proposerCivId: 'ai-1', targetCivId: 'player', treaty: 'alliance' });
+
+    expect(ctx.deliver).toHaveBeenCalledTimes(1);
+    expect(ctx.deliver).toHaveBeenCalledWith('ai-1', expect.stringMatching(/declined your/i), 'warning');
+  });
+
   it('announces first contact between two civs', () => {
     const bus = new EventBus();
     const ctx = makePresentationContext();
@@ -114,6 +125,7 @@ describe('diplomacy presentation', () => {
     bus.emit('diplomacy:war-declared', { attackerId: 'ai-1', defenderId: 'player', opponentKind: 'major' });
     bus.emit('diplomacy:treaty-proposed', { fromCiv: 'ai-1', toCiv: 'player', treaty: 'trade_agreement' });
     bus.emit('diplomacy:treaty-accepted', { civA: 'ai-1', civB: 'player', treaty: 'trade_agreement' });
+    bus.emit('diplomacy:treaty-declined', { proposerCivId: 'ai-1', targetCivId: 'player', treaty: 'alliance' });
     bus.emit('civilization:first-contact', { civA: 'player', civB: 'ai-1' });
     bus.emit('diplomacy:peace-requested', { fromCivId: 'ai-1', toCivId: 'player' });
     bus.emit('diplomacy:peace-made', { civA: 'player', civB: 'ai-1' });
