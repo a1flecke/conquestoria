@@ -243,12 +243,17 @@ export function getCityAppeaseCost(city: City): number {
 }
 
 // Ideological concession (MR4, issue #354): a permanent resolution alongside gold
-// appeasement. 2x the appeasement cost, halved to 1x if the owner has researched
-// any civics-track tech of the *current* era (rewards civics investment without
-// requiring a specific tech id, so future civics techs qualify automatically).
+// appeasement. 2x the appeasement cost, discounted to 1.5x — but never to parity
+// with Appease (#918) — if the owner has researched any civics-track tech of the
+// *current* era (rewards civics investment without requiring a specific tech id,
+// so future civics techs qualify automatically). The 1.5x floor keeps Concede
+// strictly more expensive than Appease at every city size, so the two stay a real
+// choice: Appease is the cheap, repeatable, once-per-turn stopgap that only
+// suppresses; Concede is the pricier permanent fix (full clear +
+// CONCESSION_IMMUNITY_TURNS of immunity to new unrest, including contagion).
 export function getConcessionCost(state: GameState, city: City): number {
   const base = getCityAppeaseCost(city);
-  return hasCurrentEraCivicsTech(state, city.owner) ? base : base * 2;
+  return hasCurrentEraCivicsTech(state, city.owner) ? Math.round(base * 1.5) : base * 2;
 }
 
 function hasCurrentEraCivicsTech(state: GameState, civId: string): boolean {
