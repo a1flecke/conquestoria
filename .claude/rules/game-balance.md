@@ -215,3 +215,20 @@ When adding a new wonder, national project, or special building in any future er
   building-eligibility logic can silently produce runaway output that only becomes visible once
   it cascades into hundreds of tech-cost changes. If you touch `eligibleBuildingIds` or either
   profile's derivation, this test should be the first thing you check.
+
+### Future-era research pacing checklist (#917)
+
+Before adding an authored technology era, the change must add all of the following in the same
+delivery:
+
+- explicit tall, standard, and wide city-count plus infrastructure-share scenario data;
+- deterministic aggregate-output pins, including the research-arrival feedback path;
+- a complete all-era cost audit and continuity row from `yarn research:pacing-report`;
+- useful-lifetime coverage based only on explicit `upgradesTo` edges, with a typed terminal or
+  domain-transition reason for every deliberate exception; and
+- migration analysis whenever an existing persisted `Tech.cost` changes. A new era alone needs
+  no migration, but an old active technology whose cost changes must preserve its percentage
+  progress through a new schema migration.
+
+`requireResearchPacingScenario` must fail loudly for an authored era missing this data. Do not
+borrow the final known era's profile for a cost recommendation, audit, or report.

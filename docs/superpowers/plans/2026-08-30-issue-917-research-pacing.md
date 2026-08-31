@@ -430,7 +430,12 @@ Do not mark later MRs complete. Commit the status update in the same MR.
 
 ---
 
-## MR2 — All-Era Balance Laboratory
+## MR2 — All-Era Balance Laboratory 🟡 Tasks 7–11 complete locally; pending review and merge
+
+MR2 has isolated research calibration, added deterministic tall/standard/wide and #917
+feedback scenarios, report tooling, useful-lifetime/future-era gates, and proposed-only
+cost/migration data. It deliberately does not activate coordination, `Tech.cost` changes,
+schema migration, UI, AI, audio, or save behavior; those remain the MR3 atomic launch.
 
 ### Task 7: Separate research pacing from production pacing
 
