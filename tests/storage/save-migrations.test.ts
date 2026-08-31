@@ -1160,6 +1160,10 @@ describe('#888 — generated General identity persistence', () => {
       [goodId]: makeGeneratedIdentity(goodId) as never,
       'generated:rome:3:bad-era': makeGeneratedIdentity('generated:rome:3:bad-era', { era: 99 }) as never,
       'generated:rome:3:no-name': makeGeneratedIdentity('generated:rome:3:no-name', { name: '' }) as never,
+      'generated:rome:3:neg-range': makeGeneratedIdentity('generated:rome:3:neg-range', { commandRange: -2 }) as never,
+      'generated:rome:3:nan-cd': makeGeneratedIdentity('generated:rome:3:nan-cd', { cooldownTurns: Number.NaN }) as never,
+      'generated:rome:3:bad-abilities': makeGeneratedIdentity('generated:rome:3:bad-abilities', { abilityIds: [1, 2] }) as never,
+      'generated:rome:3:empty-abilities': makeGeneratedIdentity('generated:rome:3:empty-abilities', { abilityIds: [] }) as never,
       'key-id-mismatch': makeGeneratedIdentity('generated:rome:3:elsewhere') as never,
       'generated:rome:3:garbage': 'not-an-object' as never,
     };

@@ -5,23 +5,6 @@ import type { GeneralDefinition, GeneratedGeneralIdentity, HeroicAbilityId } fro
 // importers are unaffected.
 export type { GeneralDefinition, GeneratedGeneralIdentity } from '@/core/types';
 
-/**
- * #888: the standard V1 command profile every generated officer inherits
- * (Phase 9 — "mechanically ordinary"; unique mechanics are #885's scope).
- * Kept in sync with the `V1_*` constants below by
- * `great-general-definitions.test.ts`.
- */
-export const STANDARD_GENERAL_COMMAND_PROFILE: Pick<
-  GeneralDefinition,
-  'commandRange' | 'commandCapacity' | 'abilityIds' | 'maxCommandCharges' | 'cooldownTurns'
-> = {
-  commandRange: 2,
-  commandCapacity: 3,
-  abilityIds: ['rally', 'seize_the_moment', 'last_stand'],
-  maxCommandCharges: 3,
-  cooldownTurns: 10,
-};
-
 // V1 command stats are deliberately uniform across every entry (contract
 // §14: "V1 definitions may share identical values... that equality is data
 // coincidence only"). MR4 is free to differentiate per-definition later
@@ -33,6 +16,24 @@ const V1_COMMAND_CAPACITY = 3;
 const V1_MAX_COMMAND_CHARGES = 3;
 const V1_COOLDOWN_TURNS = 10;
 const V1_ABILITY_IDS: HeroicAbilityId[] = ['rally', 'seize_the_moment', 'last_stand'];
+
+/**
+ * #888: the standard command profile every generated officer inherits
+ * (Phase 9 — "mechanically ordinary"; unique mechanics are #885's scope).
+ * Derived from the `V1_*` constants above so there is a single source of
+ * truth — if MR4+ ever differentiates authored stats per-definition, revisit
+ * whether generated officers should still track the V1 baseline.
+ */
+export const STANDARD_GENERAL_COMMAND_PROFILE: Pick<
+  GeneralDefinition,
+  'commandRange' | 'commandCapacity' | 'abilityIds' | 'maxCommandCharges' | 'cooldownTurns'
+> = {
+  commandRange: V1_COMMAND_RANGE,
+  commandCapacity: V1_COMMAND_CAPACITY,
+  abilityIds: [...V1_ABILITY_IDS],
+  maxCommandCharges: V1_MAX_COMMAND_CHARGES,
+  cooldownTurns: V1_COOLDOWN_TURNS,
+};
 
 /**
  * Seed roster (#544 MR3): one real/lore-appropriate commander per civ
