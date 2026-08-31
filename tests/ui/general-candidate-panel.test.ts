@@ -57,4 +57,31 @@ describe('general candidate panel', () => {
       expect(el.style.color).toBeTruthy();
     }
   });
+
+  it('#888 — renders a mixed authored + generated candidate set through the same contract', () => {
+    const mixed: GeneralDefinition[] = [
+      candidates[0]!,
+      {
+        id: 'generated:rome:3:deadbeef',
+        name: 'Marcus Valerius, the Steadfast',
+        civTypeEligibility: ['rome'],
+        era: 3,
+        descriptor: 'Legatus. A Roman field commander, risen through the ranks of the host.',
+        portraitIcon: '🦅',
+        origin: 'generated',
+        commandRange: 2, commandCapacity: 3,
+        abilityIds: ['rally', 'seize_the_moment', 'last_stand'],
+        maxCommandCharges: 3, cooldownTurns: 10,
+      },
+    ];
+    const chosen: string[] = [];
+    createGeneralCandidatePanel(container, mixed, id => chosen.push(id));
+    const panel = container.querySelector('#general-candidate-panel')!;
+    expect(panel.textContent).toContain('Marcus Valerius, the Steadfast');
+    expect(panel.textContent).toContain('Legatus. A Roman field commander');
+    const genBtn = container.querySelector('button[data-choice="generated:rome:3:deadbeef"]') as HTMLButtonElement;
+    expect(genBtn).toBeTruthy();
+    genBtn.click();
+    expect(chosen).toEqual(['generated:rome:3:deadbeef']);
+  });
 });

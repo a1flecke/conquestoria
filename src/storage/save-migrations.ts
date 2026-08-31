@@ -1,4 +1,4 @@
-import type { ActiveCrisis, AirBaseRef, CombatRole, GameState, HexCoord, LegendaryWonderMilitaryFact, LegendaryWonderTacticalEffectState, TradeRoute, Unit } from '@/core/types';
+import type { ActiveCrisis, AirBaseRef, CombatRole, GameState, GeneratedGeneralIdentity, HexCoord, LegendaryWonderMilitaryFact, LegendaryWonderTacticalEffectState, TradeRoute, Unit } from '@/core/types';
 import { createRng } from '@/systems/map-generator';
 import { placeLateResources } from '@/systems/late-resource-placement';
 import { createMarketplaceState } from '@/systems/trade-system';
@@ -21,7 +21,7 @@ import { normalizeStampedes } from '@/systems/stampede-system';
 import { normalizeRogueElephantHosts } from '@/systems/rogue-elephant-host-system';
 import { UNIT_ROLE_DEFINITIONS } from '@/systems/combat-role-definitions';
 
-export const CURRENT_SAVE_SCHEMA_VERSION = 22;
+export const CURRENT_SAVE_SCHEMA_VERSION = 23;
 
 export type SaveMigration = (state: GameState) => GameState;
 
@@ -285,6 +285,51 @@ function withReligionDefaults(state: GameState): GameState {
     religions: state.religions ?? {},
     cityFaith: state.cityFaith ?? {},
   };
+}
+
+// #888: the #888 fallback-generated-officer registry. Legacy saves have no
+// `generatedGenerals` at all (-> {}); a save written by #888 keeps its records
+// verbatim (the persisted record is the authoritative identity). This pass only
+// drops structurally-malformed entries so a corrupt file can't crash resolution
+// or resurrect a garbage identity -- a *used* generated general stays excluded
+// from re-draw by its id in `generalHistory` even if its record is dropped here.
+// Unconditional + idempotent, same additive-safety rationale as
+// withReligionDefaults above; also wired as numbered migration 23 for saves
+// that predate the field.
+function isValidGeneratedGeneral(value: unknown): boolean {
+  if (!value || typeof value !== 'object') return false;
+  const g = value as Record<string, unknown>;
+  return typeof g.id === 'string' && g.id.length > 0
+    && typeof g.name === 'string' && g.name.length > 0
+    && typeof g.era === 'number' && Number.isInteger(g.era) && g.era >= 1 && g.era <= 12
+    && Array.isArray(g.civTypeEligibility)
+    && typeof g.descriptor === 'string'
+    && typeof g.portraitIcon === 'string'
+    && typeof g.commandRange === 'number'
+    && typeof g.commandCapacity === 'number'
+    && Array.isArray(g.abilityIds)
+    && typeof g.maxCommandCharges === 'number'
+    && typeof g.cooldownTurns === 'number';
+}
+
+export function normalizeGeneratedGenerals(state: GameState): GameState {
+  const raw = state.generatedGenerals;
+  if (raw === undefined) return { ...state, generatedGenerals: {} };
+  if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) {
+    return { ...state, generatedGenerals: {} };
+  }
+  let changed = false;
+  const next: Record<string, GeneratedGeneralIdentity> = {};
+  for (const [key, value] of Object.entries(raw)) {
+    if (isValidGeneratedGeneral(value) && (value as { id: string }).id === key) {
+      const entry = value as unknown as GeneratedGeneralIdentity;
+      next[key] = entry.origin === 'generated' ? entry : { ...entry, origin: 'generated' };
+      if (next[key] !== value) changed = true;
+    } else {
+      changed = true;
+    }
+  }
+  return changed ? { ...state, generatedGenerals: next } : state;
 }
 
 // #592 MR5: CityFaith.conversionProgress changed shape from a single
@@ -843,6 +888,9 @@ export const SAVE_MIGRATIONS: Readonly<Record<number, SaveMigration>> = {
   }),
   21: normalizeLegendaryWonderMilitaryFacts,
   22: normalizeLegendaryWonderTacticalEffects,
+  // #888: default the fallback-generated-officer registry to {} on saves that
+  // predate it, and scrub any malformed entries (see normalizeGeneratedGenerals).
+  23: normalizeGeneratedGenerals,
 };
 
 function readSchemaVersion(raw: Record<string, unknown>): number {
@@ -913,7 +961,8 @@ export function migrateSaveToCurrent(raw: unknown): GameState {
   const techGrace = normalizeLegacyTechGrace(manufacturing);
   const crises = normalizeCrisisArchetypes(techGrace);
   const religions = withReligionDefaults(crises);
+  const generatedGenerals = normalizeGeneratedGenerals(religions);
   return normalizeLegendaryWonderTacticalEffects(normalizeLegendaryWonderMilitaryFacts(normalizeBarbarianCampPressure(normalizeImprovementValues(normalizeCoastalBatteryCounterfireTurns(
-    normalizeRetimedBiplaneQueues(normalizeCityFaithConversionProgress(religions)),
+    normalizeRetimedBiplaneQueues(normalizeCityFaithConversionProgress(generatedGenerals)),
   )))));
 }

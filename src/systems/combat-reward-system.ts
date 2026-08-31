@@ -4,7 +4,7 @@ import { UNIT_DEFINITIONS } from '@/systems/unit-system';
 import { applyQuestGameplayAction, type ChainTransition } from '@/systems/quest-chain-system';
 import { canCaptureDefeatedUnits, canReceiveCivilizationCombatRewards, CRISIS_FORCE_OWNER, isMajorCivOwner, isPirateOwner } from '@/core/owner-kind';
 import { awardGeneralProgress, GENERAL_PROGRESS_AWARDS, GENERAL_PROGRESS_XP_RATIO, STRONGER_FORCE_MARGIN, describeGeneralCareerEnd } from '@/systems/great-general-system';
-import { GENERAL_DEFINITIONS } from '@/systems/great-general-definitions';
+import { resolveGeneralDefinition } from '@/systems/great-general-definitions';
 import { consumeLastStandHoldFormationWide } from '@/systems/great-general-abilities';
 import { recordHuntKillerIfApplicable } from '@/systems/hunt-crisis-linkage';
 import {
@@ -358,7 +358,7 @@ function recordGeneralDeaths(beforeUnits: Record<string, Unit>, state: GameState
   for (const general of deadGenerals) {
     const civ = civilizations[general.owner];
     if (!civ?.generalHistory) continue;
-    const definition = GENERAL_DEFINITIONS.find(g => g.id === general.generalDefinitionId);
+    const definition = resolveGeneralDefinition(state, general.generalDefinitionId);
     civilizations = {
       ...civilizations,
       [general.owner]: {

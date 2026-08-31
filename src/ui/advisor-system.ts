@@ -1,6 +1,6 @@
 import type { GameState, TutorialStep, AdvisorType, Unit } from '@/core/types';
 import { UNIT_CLASS_BY_TYPE } from '@/systems/unit-modifier-definitions';
-import { GENERAL_DEFINITIONS } from '@/systems/great-general-definitions';
+import { resolveGeneralDefinition } from '@/systems/great-general-definitions';
 import { mapDistance } from '@/systems/hex-utils';
 import { EventBus } from '@/core/event-bus';
 import { isAtWar, getRelationship } from '@/systems/diplomacy-system';
@@ -167,7 +167,7 @@ const ADVISOR_MESSAGES: AdvisorMessage[] = [
         .map(id => state.units[id])
         .filter((u): u is Unit => Boolean(u) && u.health <= 25 && !UNIT_CLASS_BY_TYPE[u.type]?.includes('civilian'));
       return woundedNearby.some(unit => generals.some(general => {
-        const definition = GENERAL_DEFINITIONS.find(g => g.id === general.generalDefinitionId);
+        const definition = resolveGeneralDefinition(state, general.generalDefinitionId);
         if (!definition) return false;
         return mapDistance(state.map, general.position, unit.position) <= definition.commandRange;
       }));

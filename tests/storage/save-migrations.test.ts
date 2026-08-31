@@ -752,7 +752,7 @@ describe('save migrations', () => {
       legendaryWonderTacticalEffects?: unknown;
     };
 
-    expect(migrated.saveSchemaVersion).toBe(22);
+    expect(migrated.saveSchemaVersion).toBe(CURRENT_SAVE_SCHEMA_VERSION);
     expect(migrated.legendaryWonderTacticalEffects).toEqual({
       trainingGrantsByCiv: { player: { era: 3, grantedRoles: ['frontline', 'ranged'] } },
       interceptionClaimTurnByCiv: { player: 12 },
@@ -1108,5 +1108,119 @@ describe('#544 MR4 — legacy save load with no General heroic-command fields', 
     expect(getEligibleStrategicLaunchPlatforms(migrated, civId)).toEqual([]);
     expect(hasArmsControlTreaty(migrated, civId)).toBe(false);
     expect(migrateSaveToCurrent(migrated)).toEqual(migrated);
+  });
+});
+
+describe('#888 — generated General identity persistence', () => {
+  function makeGeneratedIdentity(id: string, overrides: Record<string, unknown> = {}) {
+    return {
+      id,
+      name: 'Marcus Valerius, the Steadfast',
+      civTypeEligibility: ['rome'],
+      era: 3,
+      descriptor: 'Legatus. A Roman field commander, risen through the ranks of the host.',
+      portraitIcon: '🦅',
+      origin: 'generated' as const,
+      commandRange: 2,
+      commandCapacity: 3,
+      abilityIds: ['rally', 'seize_the_moment', 'last_stand'],
+      maxCommandCharges: 3,
+      cooldownTurns: 10,
+      ...overrides,
+    };
+  }
+
+  it('a legacy save with no generatedGenerals field migrates to an empty registry (idempotent)', () => {
+    const save = createNewGame('rome', '888-legacy-generated', 'small');
+    save.saveSchemaVersion = 1;
+    delete (save as Partial<GameState>).generatedGenerals;
+
+    const migrated = migrateSaveToCurrent(save);
+    expect(migrated.saveSchemaVersion).toBe(CURRENT_SAVE_SCHEMA_VERSION);
+    expect(migrated.generatedGenerals).toEqual({});
+    expect(migrateSaveToCurrent(migrated)).toEqual(migrated);
+  });
+
+  it('round-trips a valid generatedGenerals registry byte-for-byte', () => {
+    const save = createNewGame('rome', '888-roundtrip-registry', 'small');
+    save.saveSchemaVersion = CURRENT_SAVE_SCHEMA_VERSION;
+    const id = 'generated:rome:3:deadbeef';
+    (save as GameState).generatedGenerals = { [id]: makeGeneratedIdentity(id) as never };
+
+    const migrated = migrateSaveToCurrent(structuredClone(save));
+    expect(migrated.generatedGenerals?.[id]).toEqual(makeGeneratedIdentity(id));
+    expect(migrateSaveToCurrent(migrated)).toEqual(migrated);
+  });
+
+  it('drops structurally-malformed registry entries and key/id mismatches, keeps valid ones', () => {
+    const save = createNewGame('rome', '888-malformed-registry', 'small');
+    save.saveSchemaVersion = CURRENT_SAVE_SCHEMA_VERSION;
+    const goodId = 'generated:rome:3:0000aaaa';
+    (save as GameState).generatedGenerals = {
+      [goodId]: makeGeneratedIdentity(goodId) as never,
+      'generated:rome:3:bad-era': makeGeneratedIdentity('generated:rome:3:bad-era', { era: 99 }) as never,
+      'generated:rome:3:no-name': makeGeneratedIdentity('generated:rome:3:no-name', { name: '' }) as never,
+      'key-id-mismatch': makeGeneratedIdentity('generated:rome:3:elsewhere') as never,
+      'generated:rome:3:garbage': 'not-an-object' as never,
+    };
+
+    const migrated = migrateSaveToCurrent(save);
+    expect(Object.keys(migrated.generatedGenerals ?? {})).toEqual([goodId]);
+    // a normalized entry still gets its origin pinned
+    expect(migrated.generatedGenerals?.[goodId]?.origin).toBe('generated');
+    expect(migrateSaveToCurrent(migrated)).toEqual(migrated);
+  });
+
+  it('mid-choice save (mixed authored + generated candidates) reloads with identical ids, names and order', () => {
+    const save = createNewGame('rome', '888-midchoice-mixed', 'small');
+    save.saveSchemaVersion = CURRENT_SAVE_SCHEMA_VERSION;
+    const genA = 'generated:rome:3:aaaa1111';
+    const genB = 'generated:rome:3:bbbb2222';
+    (save as GameState).generatedGenerals = {
+      [genA]: makeGeneratedIdentity(genA, { name: 'Titus Aurelius' }) as never,
+      [genB]: makeGeneratedIdentity(genB, { name: 'Gaius Cornelius' }) as never,
+    };
+    save.pendingGeneralCandidateChoices = [
+      { civId: 'player', candidateDefinitionIds: ['gen_caesar', genA, genB], triggerEventLabel: 'round-end' },
+    ];
+
+    const migrated = migrateSaveToCurrent(structuredClone(save));
+    expect(migrated.pendingGeneralCandidateChoices).toEqual(save.pendingGeneralCandidateChoices);
+    expect(migrated.generatedGenerals?.[genA]?.name).toBe('Titus Aurelius');
+    expect(migrated.generatedGenerals?.[genB]?.name).toBe('Gaius Cornelius');
+  });
+
+  it('an all-generated pending choice round-trips without regeneration', () => {
+    const save = createNewGame('rome', '888-midchoice-allgen', 'small');
+    save.saveSchemaVersion = CURRENT_SAVE_SCHEMA_VERSION;
+    const ids = ['generated:rome:3:11110000', 'generated:rome:3:22220000', 'generated:rome:3:33330000'];
+    (save as GameState).generatedGenerals = Object.fromEntries(
+      ids.map(id => [id, makeGeneratedIdentity(id, { name: `Officer ${id.slice(-4)}` })]),
+    ) as never;
+    save.pendingGeneralCandidateChoices = [
+      { civId: 'player', candidateDefinitionIds: [...ids], triggerEventLabel: 'round-end' },
+    ];
+
+    const migrated = migrateSaveToCurrent(structuredClone(save));
+    expect(migrated.pendingGeneralCandidateChoices![0]!.candidateDefinitionIds).toEqual(ids);
+    for (const id of ids) {
+      expect(migrated.generatedGenerals?.[id]?.name).toBe(`Officer ${id.slice(-4)}`);
+    }
+  });
+
+  it('a selected generated General (in generalHistory + as a unit) survives reload with a stable identity', () => {
+    const save = createNewGame('rome', '888-selected-survives', 'small');
+    save.saveSchemaVersion = CURRENT_SAVE_SCHEMA_VERSION;
+    const id = 'generated:rome:3:5e1ec7ed';
+    (save as GameState).generatedGenerals = { [id]: makeGeneratedIdentity(id, { name: 'Servius Longinus' }) as never };
+    const general = { ...Object.values(save.units)[0]!, id: 'g-1', type: 'great_general' as const, owner: 'player', generalDefinitionId: id };
+    save.units = { 'g-1': general };
+    save.civilizations.player!.units = ['g-1'];
+    save.civilizations.player!.generalHistory = [{ unitId: 'g-1', generalDefinitionId: id, spawnedTurn: 4 }];
+
+    const migrated = migrateSaveToCurrent(structuredClone(save));
+    expect(migrated.units['g-1']!.generalDefinitionId).toBe(id);
+    expect(migrated.generatedGenerals?.[id]?.name).toBe('Servius Longinus');
+    expect(migrated.civilizations.player!.generalHistory).toEqual([{ unitId: 'g-1', generalDefinitionId: id, spawnedTurn: 4 }]);
   });
 });

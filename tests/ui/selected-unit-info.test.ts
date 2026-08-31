@@ -281,6 +281,35 @@ describe('Great General identity display (#544 MR3)', () => {
     expect(text).toContain(romeGeneral.descriptor);
   });
 
+  it('#888 — shows a generated officer\'s name, era and descriptor from the generatedGenerals registry', () => {
+    const state = createNewGame(undefined, 'general-identity-generated', 'small');
+    const id = 'generated:rome:3:deadbeef';
+    (state as any).generatedGenerals = {
+      [id]: {
+        id, name: 'Marcus Valerius, the Steadfast', civTypeEligibility: ['rome'], era: 3,
+        descriptor: 'Legatus. A Roman field commander, risen through the ranks of the host.',
+        portraitIcon: '🦅', origin: 'generated', commandRange: 2, commandCapacity: 3,
+        abilityIds: ['rally', 'seize_the_moment', 'last_stand'], maxCommandCharges: 3, cooldownTurns: 10,
+      },
+    };
+    const unit = {
+      ...createUnit('great_general', 'player', { q: 15, r: 15 }, { nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 }),
+      id: 'u1',
+      generalDefinitionId: id,
+    };
+    state.currentPlayer = 'player';
+    state.units = { u1: unit };
+    state.civilizations.player.units = ['u1'];
+    const container = new MockElement('div');
+
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'u1', {});
+
+    const text = collectAllText(container).join(' ');
+    expect(text).toContain('Marcus Valerius, the Steadfast');
+    expect(text).toContain('Era 3');
+    expect(text).toContain('Legatus. A Roman field commander');
+  });
+
   it('falls back gracefully (no crash, no extra text) when generalDefinitionId does not resolve', () => {
     const state = createNewGame(undefined, 'general-identity-2', 'small');
     const unit = {

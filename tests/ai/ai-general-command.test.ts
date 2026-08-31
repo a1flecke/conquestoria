@@ -39,6 +39,25 @@ describe('#544 MR5 — ai-general-command scaffolding', () => {
     expect(getEraGenerals(state, 'nonexistent-civ')).toEqual([]);
   });
 
+  it('#888 — getEraGenerals includes a General backed by a generated (registry) identity', () => {
+    const state = createNewGame({ civType: 'rome', mapSize: 'small', opponentCount: 1, gameTitle: 't', seed: 'scaffold-1c' });
+    const genId = 'generated:rome:3:feedface';
+    state.generatedGenerals = {
+      [genId]: {
+        id: genId, name: 'Titus Aurelius', civTypeEligibility: ['rome'], era: 3,
+        descriptor: 'Tribune. A Roman field commander, risen through the ranks of the host.',
+        portraitIcon: '🦅', origin: 'generated', commandRange: 2, commandCapacity: 3,
+        abilityIds: ['rally', 'seize_the_moment', 'last_stand'], maxCommandCharges: 3, cooldownTurns: 10,
+      },
+    };
+    state.units['gen-gen'] = makeGeneral({ id: 'gen-gen', generalDefinitionId: genId });
+    state.units['gen-unknown'] = makeGeneral({ id: 'gen-unknown', generalDefinitionId: 'generated:rome:3:00000000' });
+    state.civilizations.player!.units = ['gen-gen', 'gen-unknown'];
+
+    // the generated-backed General is returned; the one with no registry record is excluded (defensive filter)
+    expect(getEraGenerals(state, 'player').map(g => g.id)).toEqual(['gen-gen']);
+  });
+
   it('isGeneralInDanger is false when no hostile unit is visible nearby', () => {
     const state = createNewGame({ civType: 'rome', mapSize: 'small', opponentCount: 1, gameTitle: 't', seed: 'scaffold-2' });
     const aiId = Object.keys(state.civilizations).find(id => id !== 'player')!;

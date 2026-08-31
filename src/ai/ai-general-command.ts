@@ -1,5 +1,5 @@
 import type { GameState, HeroicAbilityId, Unit } from '@/core/types';
-import { GENERAL_DEFINITIONS } from '@/systems/great-general-definitions';
+import { resolveGeneralDefinition } from '@/systems/great-general-definitions';
 import { mapDistance } from '@/systems/hex-utils';
 import { getVisibility } from '@/systems/fog-of-war';
 import { isAIHostileOwner } from '@/ai/ai-hostility';
@@ -41,7 +41,7 @@ export function getEraGenerals(state: GameState, civId: string): Unit[] {
     .map(id => state.units[id])
     .filter((u): u is Unit => Boolean(u))
     .filter(u => u.type === 'great_general' && u.generalDefinitionId)
-    .filter(u => GENERAL_DEFINITIONS.some(g => g.id === u.generalDefinitionId));
+    .filter(u => resolveGeneralDefinition(state, u.generalDefinitionId) !== undefined);
 }
 
 const GENERAL_DANGER_RADIUS = 1;
@@ -157,7 +157,7 @@ export function evaluateLastStandOpportunity(state: GameState, generalUnitId: st
   if (!general) return null;
   const eligibility = getHeroicCommandEligibility(state, general);
   if (!eligibility.eligible) return null;
-  const definition = GENERAL_DEFINITIONS.find(g => g.id === general.generalDefinitionId);
+  const definition = resolveGeneralDefinition(state, general.generalDefinitionId);
   const civ = state.civilizations[general.owner];
   if (!definition || !civ) return null;
   const { commandRange } = getEffectiveCommandStats(general, definition);

@@ -1,7 +1,27 @@
 import { describe, expect, it } from 'vitest';
-import { GENERAL_DEFINITIONS } from '@/systems/great-general-definitions';
+import {
+  GENERAL_DEFINITIONS,
+  STANDARD_GENERAL_COMMAND_PROFILE,
+  resolveGeneralDefinition,
+} from '@/systems/great-general-definitions';
+import type { GeneratedGeneralIdentity } from '@/core/types';
 import { CIV_DEFINITIONS } from '@/systems/civ-definitions';
 import { BUILDINGS, TRAINABLE_UNITS } from '@/systems/city-system';
+
+function makeGeneratedIdentity(overrides: Partial<GeneratedGeneralIdentity> = {}): GeneratedGeneralIdentity {
+  return {
+    id: 'generated:rome:3:deadbeef',
+    name: 'Marcus Valerius',
+    civTypeEligibility: ['rome'],
+    era: 3,
+    descriptor: 'Legatus. A Roman field commander, risen through the ranks of the host.',
+    portraitIcon: '🦅',
+    origin: 'generated',
+    ...STANDARD_GENERAL_COMMAND_PROFILE,
+    abilityIds: [...STANDARD_GENERAL_COMMAND_PROFILE.abilityIds],
+    ...overrides,
+  };
+}
 
 describe('GENERAL_DEFINITIONS', () => {
   it('has at least one universal (civTypeEligibility: []) entry for custom/fantasy civs and adjacent-era fallback', () => {
@@ -83,5 +103,55 @@ describe('#544 MR4 — heroic command fields', () => {
     for (const def of GENERAL_DEFINITIONS) {
       expect(def.maxCommandCharges).toBe(3);
     }
+  });
+});
+
+describe('#888 — STANDARD_GENERAL_COMMAND_PROFILE', () => {
+  it('matches the uniform V1 authored profile (generated officers stay mechanically ordinary)', () => {
+    const sample = GENERAL_DEFINITIONS[0]!;
+    expect(STANDARD_GENERAL_COMMAND_PROFILE.commandRange).toBe(sample.commandRange);
+    expect(STANDARD_GENERAL_COMMAND_PROFILE.commandCapacity).toBe(sample.commandCapacity);
+    expect(STANDARD_GENERAL_COMMAND_PROFILE.maxCommandCharges).toBe(sample.maxCommandCharges);
+    expect(STANDARD_GENERAL_COMMAND_PROFILE.cooldownTurns).toBe(sample.cooldownTurns);
+    expect([...STANDARD_GENERAL_COMMAND_PROFILE.abilityIds].sort()).toEqual([...sample.abilityIds].sort());
+    // every authored entry shares it (V1 "data coincidence" — see the definitions file)
+    for (const def of GENERAL_DEFINITIONS) {
+      expect(def.commandRange).toBe(STANDARD_GENERAL_COMMAND_PROFILE.commandRange);
+      expect(def.commandCapacity).toBe(STANDARD_GENERAL_COMMAND_PROFILE.commandCapacity);
+      expect(def.cooldownTurns).toBe(STANDARD_GENERAL_COMMAND_PROFILE.cooldownTurns);
+    }
+  });
+
+  it('authored roster entries carry no `origin` flag', () => {
+    for (const def of GENERAL_DEFINITIONS) {
+      expect(def.origin).toBeUndefined();
+    }
+  });
+});
+
+describe('#888 — resolveGeneralDefinition', () => {
+  it('resolves an authored id from the roster', () => {
+    const resolved = resolveGeneralDefinition({}, 'gen_caesar');
+    expect(resolved?.name).toBe('Julius Caesar');
+  });
+
+  it('resolves a generated id from the caller\'s generatedGenerals registry', () => {
+    const identity = makeGeneratedIdentity();
+    const resolved = resolveGeneralDefinition({ generatedGenerals: { [identity.id]: identity } }, identity.id);
+    expect(resolved).toBe(identity);
+    expect(resolved?.origin).toBe('generated');
+  });
+
+  it('returns undefined for an unknown id, a missing registry, and an undefined id', () => {
+    expect(resolveGeneralDefinition({}, 'no-such-general')).toBeUndefined();
+    expect(resolveGeneralDefinition({}, 'generated:rome:3:deadbeef')).toBeUndefined();
+    expect(resolveGeneralDefinition(null, 'gen_caesar')?.name).toBe('Julius Caesar');
+    expect(resolveGeneralDefinition(undefined, undefined)).toBeUndefined();
+  });
+
+  it('authored roster always wins over a colliding registry entry', () => {
+    const impostor = makeGeneratedIdentity({ id: 'gen_caesar', name: 'Not Caesar' });
+    const resolved = resolveGeneralDefinition({ generatedGenerals: { gen_caesar: impostor } }, 'gen_caesar');
+    expect(resolved?.name).toBe('Julius Caesar');
   });
 });
