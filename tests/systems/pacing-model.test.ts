@@ -19,6 +19,11 @@ import {
   resolveTechPacingBand,
   requireEraPacingProfile,
 } from '@/systems/pacing-model';
+import {
+  getRecommendedTechCost as getRecommendedTechCostFromResearchModel,
+  getResearchOutputProfileForTech as getResearchOutputProfileForTechFromResearchModel,
+  validateAuthoredResearchPacing,
+} from '@/systems/research-pacing-model';
 
 function tech(id: string) {
   const found = TECH_TREE.find(candidate => candidate.id === id);
@@ -61,6 +66,18 @@ describe('pacing-model', () => {
 });
 
 describe('research pacing model', () => {
+  it('keeps legacy research exports compatible with the dedicated research module', () => {
+    const bronze = tech('bronze-working');
+
+    expect(getResearchOutputProfileForTech(bronze)).toEqual(getResearchOutputProfileForTechFromResearchModel(bronze));
+    expect(getRecommendedTechCost(bronze)).toBe(getRecommendedTechCostFromResearchModel(bronze));
+  });
+
+  it('rejects an authored technology without an explicit research scenario', () => {
+    expect(() => validateAuthoredResearchPacing([{ ...tech('fire'), id: 'future-fire', era: 14 }]))
+      .toThrow('Missing research pacing scenario for authored era 14');
+  });
+
   it('returns stable established-era research profiles', () => {
     expect(getResearchOutputProfileForEra(Number.NaN)).toEqual({ name: 'opening-baseline', outputPerTurn: 1 });
     expect(getResearchOutputProfileForEra(1)).toEqual({ name: 'opening-baseline', outputPerTurn: 1 });

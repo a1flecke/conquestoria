@@ -78,7 +78,9 @@ MR3 must not merge a cost-only, coordination-only, migration-only, AI-only, or U
 
 ---
 
-## MR1 — Canonical Truth Without Balance Changes
+## MR1 — Canonical Truth Without Balance Changes ✅ merged (#933)
+
+MR1 landed in PR #933. It established canonical recurring science/output and completion truth without activating coordination or retuning costs; the remaining MR2–MR4 work stays governed by the atomic launch boundary above.
 
 ### Task 1: Characterize every recurring research contributor
 
