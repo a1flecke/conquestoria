@@ -854,7 +854,7 @@ describe('faction-system — MR4 uprising contagion + concession', () => {
       expect(getConcessionCost(state, city)).toBe(getCityAppeaseCost(city) * 2);
     });
 
-    it('halves to 1x when the owner has completed a current-era civics tech', () => {
+    it('discounts toward — but never to parity with — Appease when the owner has a current-era civics tech (#918)', () => {
       let state = makeState({ era: 3, unrestLevel: 2 });
       state = {
         ...state,
@@ -867,7 +867,13 @@ describe('faction-system — MR4 uprising contagion + concession', () => {
         },
       };
       const city = state.cities['city-1'];
-      expect(getConcessionCost(state, city)).toBe(getCityAppeaseCost(city));
+      const appease = getCityAppeaseCost(city);
+      // 1.5x appease: civics investment is rewarded (25% off the 2x base) but
+      // Concede must still cost strictly more than Appease so the two stay a
+      // real choice — see #918.
+      expect(getConcessionCost(state, city)).toBe(Math.round(appease * 1.5));
+      expect(getConcessionCost(state, city)).toBeGreaterThan(appease);
+      expect(getConcessionCost(state, city)).toBeLessThan(appease * 2);
     });
 
     it('does not discount for a civics tech from a different era', () => {
@@ -885,6 +891,39 @@ describe('faction-system — MR4 uprising contagion + concession', () => {
       };
       const city = state.cities['city-1'];
       expect(getConcessionCost(state, city)).toBe(getCityAppeaseCost(city) * 2);
+    });
+
+    it('never costs the same as or less than Appease for any city size, discounted or not (#918)', () => {
+      const populations = [1, 2, 3, 5, 8];
+
+      // Undiscounted (no current-era civics tech): 2x appease.
+      for (const population of populations) {
+        let state = makeState({ era: 1, unrestLevel: 2 });
+        state = { ...state, cities: { ...state.cities, 'city-1': { ...state.cities['city-1'], population } } };
+        const city = state.cities['city-1'];
+        expect(getConcessionCost(state, city)).toBeGreaterThan(getCityAppeaseCost(city));
+      }
+
+      // Discounted (current-era civics tech): 1.5x appease — still strictly above parity.
+      for (const population of populations) {
+        let state = makeState({ era: 3, unrestLevel: 2 });
+        state = {
+          ...state,
+          civilizations: {
+            ...state.civilizations,
+            player: {
+              ...state.civilizations['player'],
+              techState: {
+                ...state.civilizations['player'].techState,
+                completed: [...completedTechsForEra(3), 'civil-service'],
+              },
+            },
+          },
+          cities: { ...state.cities, 'city-1': { ...state.cities['city-1'], population } },
+        };
+        const city = state.cities['city-1'];
+        expect(getConcessionCost(state, city)).toBeGreaterThan(getCityAppeaseCost(city));
+      }
     });
 
     it('fully clears unrest and sets immunity on success', () => {
