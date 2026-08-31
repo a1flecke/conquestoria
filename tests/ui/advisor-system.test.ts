@@ -970,6 +970,23 @@ describe('#544 MR4 — general_last_stand_crisis_hint', () => {
     expect(fires(state)).toBe(false);
   });
 
+  it('#888 — fires for a General whose command range comes from a generated (registry) identity', () => {
+    const state = stateWithCity();
+    const genId = 'generated:rome:3:abcd1234';
+    (state as any).generatedGenerals = {
+      [genId]: {
+        id: genId, name: 'Marcus Valerius', civTypeEligibility: ['rome'], era: 3,
+        descriptor: 'Legatus. A Roman field commander, risen through the ranks of the host.',
+        portraitIcon: '🦅', origin: 'generated', commandRange: 2, commandCapacity: 3,
+        abilityIds: ['rally', 'seize_the_moment', 'last_stand'], maxCommandCharges: 3, cooldownTurns: 10,
+      },
+    };
+    state.units['gen-1'] = makeGeneralUnit({ generalDefinitionId: genId });
+    state.units['unit-1'] = makeWoundedUnit();
+    state.civilizations.player.units.push('gen-1', 'unit-1');
+    expect(fires(state)).toBe(true);
+  });
+
   it('does not fire when the only nearby low-HP unit is a civilian', () => {
     const state = stateWithCity();
     state.units['gen-1'] = makeGeneralUnit();
