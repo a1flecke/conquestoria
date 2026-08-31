@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { buildPacingAudit } from '@/systems/pacing-audit';
 import { BUILDINGS, TRAINABLE_UNITS } from '@/systems/city-system';
+import { getUnitUsefulLifetimeWarnings } from '@/systems/research-pacing-model';
 
 describe('pacing-audit', () => {
   it('returns audit rows for current techs, units, and buildings', () => {
@@ -109,5 +110,63 @@ describe('full-catalog pacing outlier gate (Part D, fixes F4)', () => {
       .map(row => `${row.contentType}:${row.id} era ${row.era} — ${row.estimatedTurns}/${row.target.min}-${row.target.max} turns (${row.outlierReason})`);
 
     expect(outliers).toEqual([]);
+  });
+});
+
+describe('research unlock useful-lifetime gate', () => {
+  const longEraArrivals = new Map(Array.from({ length: 13 }, (_, index) => [index + 1, index * 100]));
+
+  it('derives lifetime only through explicit typed upgrades and leaves the current catalog usable', () => {
+    expect(getUnitUsefulLifetimeWarnings({ arrivalTurnByEra: longEraArrivals })).toEqual([]);
+  });
+
+  it('excludes only a typed terminal unit and rejects an unrelated same-era unit as a successor', () => {
+    const source = { type: 'source', name: 'Source', cost: 10, techRequired: 'era-one', upgradesTo: 'successor' } as any;
+    const successor = { type: 'successor', name: 'Successor', cost: 10, techRequired: 'era-three' } as any;
+    const unrelated = { type: 'unrelated', name: 'Unrelated', cost: 10, techRequired: 'era-three' } as any;
+    const terminal = { type: 'terminal', name: 'Terminal', cost: 10, techRequired: 'era-one', obsoletedByTech: 'era-three' } as any;
+    const techs = [
+      { id: 'era-one', era: 1 },
+      { id: 'era-three', era: 3 },
+    ] as any;
+
+    expect(getUnitUsefulLifetimeWarnings({
+      units: [source, successor, unrelated, terminal],
+      techs,
+      arrivalTurnByEra: new Map([[1, 0], [3, 8]]),
+      terminalReasons: { terminal: 'Intentional apex.' },
+    })).toEqual([]);
+
+    expect(getUnitUsefulLifetimeWarnings({
+      units: [source, successor, unrelated, terminal],
+      techs,
+      arrivalTurnByEra: new Map([[1, 0], [3, 8]]),
+    })).toContain('terminal has no explicit upgrade or terminal reason.');
+  });
+
+  it('requires a typed domain-transition reason for an explicitly exempt short lifetime', () => {
+    const source = { type: 'source', name: 'Source', cost: 40, techRequired: 'era-one', upgradesTo: 'successor' } as any;
+    const successor = { type: 'successor', name: 'Successor', cost: 40, techRequired: 'era-two' } as any;
+    const techs = [{ id: 'era-one', era: 1 }, { id: 'era-two', era: 2 }] as any;
+    const common = { units: [source, successor], techs, arrivalTurnByEra: new Map([[1, 0], [2, 1]]) };
+
+    expect(getUnitUsefulLifetimeWarnings(common)).toContain('source remains useful for 1 turns; needs 20.');
+    expect(getUnitUsefulLifetimeWarnings({ ...common, domainTransitionReasons: { source: 'Replaced by a different domain.' } }))
+      .toEqual([]);
+  });
+
+  it('uses the supplied technology catalog when classifying a source unit\'s pacing band', () => {
+    const source = { type: 'source', name: 'Source', cost: 10, techRequired: 'custom-era-one', upgradesTo: 'successor' } as any;
+    const successor = { type: 'successor', name: 'Successor', cost: 10, techRequired: 'custom-era-two' } as any;
+    const techs = [
+      { id: 'custom-era-one', era: 1, pacing: { band: 'marquee' } },
+      { id: 'custom-era-two', era: 2 },
+    ] as any;
+
+    expect(getUnitUsefulLifetimeWarnings({
+      units: [source, successor],
+      techs,
+      arrivalTurnByEra: new Map([[1, 0], [2, 5]]),
+    })).toContain('source remains useful for 5 turns; needs 9.');
   });
 });

@@ -24,7 +24,8 @@
     "verify:pr": "sh scripts/verify-pr.sh",
     "verify:pr:status": "sh scripts/read-pr-verification-result.sh",
     "verify:push": "sh scripts/verify-before-push.sh --no-mise",
-    "generate-maps": "tsx scripts/generate-earth-maps.ts"
+    "generate-maps": "tsx scripts/generate-earth-maps.ts",
+    "research:pacing-report": "tsx scripts/report-research-pacing.ts"
   },
   "devDependencies": {
     "@babel/core": "^7.29.0",

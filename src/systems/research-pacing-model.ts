@@ -1,10 +1,22 @@
-import type { PacingBand, PacingMetadata, Tech } from '@/core/types';
-import { BUILDINGS } from '@/systems/city-system';
+import type { PacingBand, PacingMetadata, Tech, TrainableUnitEntry } from '@/core/types';
+import { BUILDINGS, TRAINABLE_UNITS } from '@/systems/city-system';
+import { getTerminalCombatUnitReasons } from '@/systems/combat-role-definitions';
 import { TECH_TREE } from '@/systems/tech-definitions';
 import { getFrontierPacingProfile, requireEraPacingProfile, type EraPacingProfile } from '@/systems/era-pacing-profiles';
 
 export interface ResearchOutputProfile { name: string; outputPerTurn: number; }
 export interface MetadataComplexityOptions { min?: number; max?: number; }
+export interface ResearchCostScenario {
+  standardNetScience: number;
+  tallNetScience: number;
+  wideNetScience: number;
+}
+export interface ResearchCostRecommendation {
+  base: number;
+  wideMinimum: number;
+  tallMaximum: number;
+  recommendedCost: number;
+}
 export const OPENING_SCIENCE_INVESTED_PROFILE: ResearchOutputProfile = { name: 'opening-science-invested', outputPerTurn: 2 };
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
@@ -68,6 +80,101 @@ function roundRecommendedTechCost(cost: number): number { return cost < 20 ? Mat
 export function getRecommendedTechCost(tech: Tech, techs: Tech[] = TECH_TREE): number {
   const profile = getResearchOutputProfileForTech(tech, techs); const window = getRecommendedTechTurnWindow(tech, techs);
   return roundRecommendedTechCost(profile.outputPerTurn * Math.round((window.min + window.max) / 2) * getMetadataComplexityMultiplier(metadataForTech(tech)));
+}
+
+/** Rounds authored research costs without hiding an infeasible pacing policy. */
+export function roundReadableResearchCost(cost: number): number {
+  return roundRecommendedTechCost(cost);
+}
+
+export function recommendResearchCost(
+  tech: Tech,
+  scenario: ResearchCostScenario,
+  techs: Tech[] = TECH_TREE,
+): ResearchCostRecommendation {
+  const window = getRecommendedTechTurnWindow(tech, techs);
+  const multiplier = getMetadataComplexityMultiplier(metadataForTech(tech));
+  const base = roundReadableResearchCost(scenario.standardNetScience * ((window.min + window.max) / 2) * multiplier);
+  const wideMinimum = roundReadableResearchCost(
+    scenario.wideNetScience * (resolveTechPacingBand(tech) === 'power-spike' || resolveTechPacingBand(tech) === 'marquee' ? 2 : 1) + 1,
+  );
+  const tallMaximum = roundReadableResearchCost(
+    scenario.tallNetScience * Math.ceil(1.5 * window.max),
+  );
+  if (wideMinimum > tallMaximum) {
+    throw new Error(`Infeasible research pacing policy for era ${tech.era} ${resolveTechPacingBand(tech)}: wide minimum ${wideMinimum} exceeds tall maximum ${tallMaximum}.`);
+  }
+  return {
+    base,
+    wideMinimum,
+    tallMaximum,
+    recommendedCost: roundReadableResearchCost(Math.min(tallMaximum, Math.max(wideMinimum, base))),
+  };
+}
+
+export interface UnitUsefulLifetimeOptions {
+  units?: readonly TrainableUnitEntry[];
+  techs?: readonly Pick<Tech, 'id' | 'era' | 'pacing'>[];
+  arrivalTurnByEra: ReadonlyMap<number, number>;
+  terminalReasons?: Readonly<Record<string, string>>;
+  domainTransitionReasons?: Readonly<Record<string, string>>;
+}
+
+/**
+ * Reviews only declared successor edges. A same-era unit is never a substitute for a missing
+ * `upgradesTo`, which keeps future roster additions from silently changing this audit.
+ */
+export function getUnitUsefulLifetimeWarnings(options: UnitUsefulLifetimeOptions): string[] {
+  const units = options.units ?? TRAINABLE_UNITS;
+  const techs = options.techs ?? TECH_TREE;
+  const terminalReasons = options.terminalReasons ?? getTerminalCombatUnitReasons();
+  const techEraById = new Map(techs.map(tech => [tech.id, tech.era]));
+  const unitByType = new Map(units.map(unit => [unit.type, unit]));
+  const warnings: string[] = [];
+
+  for (const unit of units) {
+    const terminalReason = terminalReasons[unit.type];
+    if (!unit.upgradesTo) {
+      // A unit with no retirement trigger is the current end of its chain. A unit that is
+      // explicitly retired, however, must name its successor or a typed terminal exception.
+      if (unit.obsoletedByTech && !terminalReason) warnings.push(`${unit.type} has no explicit upgrade or terminal reason.`);
+      continue;
+    }
+    const successor = unitByType.get(unit.upgradesTo);
+    if (!successor) {
+      warnings.push(`${unit.type} upgradesTo missing unit ${unit.upgradesTo}.`);
+      continue;
+    }
+    const sourceEra = techEraById.get(unit.techRequired ?? '') ?? 1;
+    const successorEra = techEraById.get(successor.techRequired ?? '') ?? sourceEra;
+    const sourceArrival = options.arrivalTurnByEra.get(sourceEra);
+    const successorArrival = options.arrivalTurnByEra.get(successorEra);
+    if (sourceArrival === undefined || successorArrival === undefined) {
+      warnings.push(`${unit.type} is missing a scenario arrival for era ${sourceArrival === undefined ? sourceEra : successorEra}.`);
+      continue;
+    }
+    if (options.domainTransitionReasons?.[unit.type]) continue;
+    const sourceTech = techs.find(tech => tech.id === unit.techRequired);
+    const sourceBand = sourceTech?.pacing?.band
+      ?? (sourceTech && 'cost' in sourceTech && 'prerequisites' in sourceTech
+        ? resolveTechPacingBand(sourceTech as Tech)
+        : 'core');
+    const buildTurns = Math.ceil(unit.cost / requireEraPacingProfile(sourceEra).productionPerTurn);
+    const travelTurns = Math.max(1, Math.ceil(3 / Math.max(1, requireEraPacingProfile(sourceEra).productionPerTurn / 4)));
+    const requiredTurns = sourceBand === 'marquee'
+      ? Math.max(buildTurns * 3, buildTurns + travelTurns)
+      : buildTurns * 2;
+    const usefulTurns = successorArrival - sourceArrival;
+    // The scenario contract pins era arrivals, not the order of sibling technologies within an
+    // era. Treat a same-era upgrade as a separately reviewed intra-era pacing case instead of
+    // fabricating a zero-turn lifetime from insufficiently granular scenario data.
+    if (successorEra === sourceEra) continue;
+    if (usefulTurns < requiredTurns) {
+      warnings.push(`${unit.type} remains useful for ${usefulTurns} turns; needs ${requiredTurns}.`);
+    }
+  }
+
+  return warnings.sort();
 }
 let chainedBuildingIdsCache: Set<string> | null = null;
 function buildingChainsFrom(buildingId: string): boolean {
