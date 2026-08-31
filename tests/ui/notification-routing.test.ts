@@ -16,6 +16,7 @@ import {
   routePeaceMade,
   routePeaceRequested,
   routeTreatyAccepted,
+  routeTreatyDeclined,
   routeWarDeclared,
   routeStrategicWarning,
   routeCrisisStarted,
@@ -169,6 +170,18 @@ describe('notification routing', () => {
     expect(calls.map(call => call.civId).sort()).toEqual(['p1', 'p2']);
     expect(calls.every(call => call.type === 'success')).toBe(true);
     expect(calls.find(call => call.civId === 'p3')).toBeUndefined();
+  });
+
+  it('#901: treaty decline notifies only the proposer, with a warning', () => {
+    const state = makeState();
+    const { sink, calls } = makeSink();
+
+    routeTreatyDeclined(state, { proposerCivId: 'p1', targetCivId: 'p2', treaty: 'alliance' }, sink);
+
+    expect(calls).toHaveLength(1);
+    expect(calls[0].civId).toBe('p1');
+    expect(calls[0].type).toBe('warning');
+    expect(calls[0].message).toMatch(/declined your/i);
   });
 
   it('routes treasury strain to the affected civilization with the rush-buy consequence', () => {

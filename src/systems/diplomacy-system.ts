@@ -423,7 +423,16 @@ export function proposeTreatyAgreement(state: GameState, fromCivId: string, toCi
   if (kind === 'peace') {
     if (!isAtWar(from.diplomacy, toCivId) || !isAtWar(target.diplomacy, fromCivId)) return state;
     if (target.isHuman) return enqueuePeaceRequest(state, fromCivId, toCivId, bus);
-    const consent = evaluatePeaceConsent({ kind, relationship: getRelationship(target.diplomacy, fromCivId), diplomacyFocus: resolveCivDefinition(state, target.civType)?.personality.diplomacyFocus ?? 0.5, targetHasKnownStrategicCapability: false, actorHasKnownStrategicCapability: false, targetVisibleStrength: 1, proposerVisibleStrength: 1 });
+    // #901 follow-up: no perceived-strength estimate is threaded here yet (that
+    // is AI-perception-layer work), so peace consent is currently
+    // relationship-only -- see TreatyConsentInput.targetVisibleStrength.
+    const consent = evaluatePeaceConsent({
+      kind,
+      relationship: getRelationship(target.diplomacy, fromCivId),
+      diplomacyFocus: resolveCivDefinition(state, target.civType)?.personality.diplomacyFocus ?? 0.5,
+      targetHasKnownStrategicCapability: false,
+      actorHasKnownStrategicCapability: false,
+    });
     if (!consent.accepted) return state;
     bus.emit('diplomacy:peace-made', { civA: fromCivId, civB: toCivId });
     return cancelInvalidNetworkPlans({
@@ -445,8 +454,6 @@ export function proposeTreatyAgreement(state: GameState, fromCivId: string, toCi
     diplomacyFocus: resolveCivDefinition(state, target.civType)?.personality.diplomacyFocus ?? 0.5,
     targetHasKnownStrategicCapability: hasManhattanProject(state, toCivId),
     actorHasKnownStrategicCapability: hasKnownStrategicCapability(state, toCivId, fromCivId),
-    targetVisibleStrength: 1,
-    proposerVisibleStrength: 1,
   });
   return consent.accepted ? commitTreatyAgreement(state, fromCivId, toCivId, kind, bus) : state;
 }
@@ -588,6 +595,36 @@ export function getPendingTreatyProposalsFor(
   );
 }
 
+/**
+ * #901: the bilateral treaty types that route through propose -> consent ->
+ * commit (every `TreatyType` except `vassalage`, which #910 owns). Shared by
+ * the diplomacy panel (hide a redundant "propose" action) and the diplomacy
+ * actions controller (outcome-specific feedback) so the set never drifts.
+ */
+export const CONSENT_TREATY_TYPES: readonly Exclude<TreatyType, 'vassalage'>[] = [
+  'non_aggression_pact', 'trade_agreement', 'open_borders', 'alliance', 'arms_control_pact',
+];
+
+/**
+ * #901: is there already a pending treaty proposal of `treatyType` between
+ * this pair, in *either* direction? `enqueueTreatyProposal` dedupes
+ * reciprocally, so a second proposal for a pair that already has one is a
+ * silent no-op -- callers use this to avoid offering (or falsely reporting a
+ * decline for) an action that cannot do anything.
+ */
+export function hasPendingTreatyProposalBetween(
+  state: GameState,
+  civA: string,
+  civB: string,
+  treatyType: TreatyType,
+): boolean {
+  return (state.pendingDiplomacyRequests ?? []).some(request =>
+    request.type === 'treaty'
+    && request.treatyType === treatyType
+    && ((request.fromCivId === civA && request.toCivId === civB)
+      || (request.fromCivId === civB && request.toCivId === civA)));
+}
+
 // Enqueues a treaty offer for the recipient to accept/decline (#554) -- unlike
 // signTreaty, this never touches either side's diplomacy.treaties until the
 // recipient acts. Deduped on the same fromCivId+toCivId+treatyType triple.
@@ -725,10 +762,23 @@ export function rejectDiplomaticRequest(
   state: GameState,
   actingCivId: string,
   requestId: string,
+  bus?: EventBus,
 ): GameState {
   const request = (state.pendingDiplomacyRequests ?? []).find(candidate => candidate.id === requestId);
   if (!request || request.toCivId !== actingCivId) {
     return state;
+  }
+
+  // #901: an *explicit* decline (caller passed a bus) of a treaty proposal
+  // notifies the original proposer. Internal `acceptDiplomaticRequest`
+  // fall-throughs for a lapsed/invalid request pass no bus and stay silent --
+  // those did not "decline" anything.
+  if (bus && request.type === 'treaty' && request.treatyType && request.treatyType !== 'vassalage') {
+    bus.emit('diplomacy:treaty-declined', {
+      proposerCivId: request.fromCivId,
+      targetCivId: request.toCivId,
+      treaty: request.treatyType,
+    });
   }
 
   return {

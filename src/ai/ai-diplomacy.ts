@@ -1,4 +1,4 @@
-import type { PersonalityTraits, DiplomacyState, TreatyType, DiplomaticAction, MinorCivState } from '@/core/types';
+import type { PersonalityTraits, DiplomacyState, DiplomaticAction, MinorCivState } from '@/core/types';
 import {
   getRelationship,
   isAtWar,
@@ -125,27 +125,11 @@ export function evaluateMinorCivDiplomacy(
   return decisions;
 }
 
-export function evaluateProposal(
-  personality: PersonalityTraits,
-  diplomacy: DiplomacyState,
-  fromCiv: string,
-  proposedTreaty: TreatyType,
-): boolean {
-  const relationship = getRelationship(diplomacy, fromCiv);
-
-  switch (proposedTreaty) {
-    case 'non_aggression_pact':
-      return relationship > -20 && personality.diplomacyFocus > 0.3;
-    case 'trade_agreement':
-      return relationship > 0;
-    case 'open_borders':
-      return relationship > 20 && personality.diplomacyFocus > 0.4;
-    case 'alliance':
-      return relationship > 40 && personality.diplomacyFocus > 0.5;
-    default:
-      return false;
-  }
-}
+// #901: `evaluateProposal` used to live here -- a per-treaty acceptance policy
+// with zero callers anywhere in src/ (the bug this issue tracked). Its logic
+// now lives, wired in and extended to arms control + peace, in
+// `evaluateTreatyConsent` / `evaluatePeaceConsent`
+// (`src/ai/ai-treaty-consent.ts`), invoked by `proposeTreatyAgreement`.
 
 export function evaluateVassalage(
   personality: PersonalityTraits,

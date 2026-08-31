@@ -631,6 +631,34 @@ describe('diplomacy-system', () => {
       expect(next.civilizations.player.diplomacy.relationships['ai-1'] ?? 0).toBe(before);
     });
 
+    it('#901: an explicit decline (bus passed) tells the proposer via diplomacy:treaty-declined', () => {
+      const state = makeTreatyState();
+      const bus = new EventBus();
+      const declined: unknown[] = [];
+      bus.on('diplomacy:treaty-declined', e => declined.push(e));
+      let next = enqueueTreatyProposal(state, 'ai-1', 'player', 'alliance', -1);
+      const requestId = next.pendingDiplomacyRequests![0].id;
+
+      next = rejectDiplomaticRequest(next, 'player', requestId, bus);
+
+      expect(next.pendingDiplomacyRequests).toHaveLength(0);
+      expect(declined).toEqual([{ proposerCivId: 'ai-1', targetCivId: 'player', treaty: 'alliance' }]);
+    });
+
+    it('#901: a silent reject (no bus) -- the acceptDiplomaticRequest lapsed-request path -- emits nothing', () => {
+      const state = makeTreatyState();
+      const bus = new EventBus();
+      const declined: unknown[] = [];
+      bus.on('diplomacy:treaty-declined', e => declined.push(e));
+      let next = enqueueTreatyProposal(state, 'ai-1', 'player', 'alliance', -1);
+      const requestId = next.pendingDiplomacyRequests![0].id;
+
+      next = rejectDiplomaticRequest(next, 'player', requestId); // no bus
+
+      expect(next.pendingDiplomacyRequests).toHaveLength(0);
+      expect(declined).toEqual([]);
+    });
+
     it('proposals expire after 10 turns (pruned by the turn processor)', () => {
       const state = makeTreatyState();
       let next = enqueueTreatyProposal(state, 'ai-1', 'player', 'open_borders', -1);
