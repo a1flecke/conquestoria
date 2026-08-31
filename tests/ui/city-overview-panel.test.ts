@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi } from 'vitest';
 import { createCityOverviewPanel } from '@/ui/city-overview-panel';
+import { getCityAppeaseCost, getConcessionCost } from '@/systems/faction-system';
 import { makeLegendaryWonderFixture } from '../systems/helpers/legendary-wonder-fixture';
 import type { City, GameState } from '@/core/types';
 
@@ -157,6 +158,25 @@ describe('city overview panel (#552)', () => {
     concedeBtn.click();
     expect(onConcedeToMovement).toHaveBeenCalledWith('city-1');
     expect(onOpenCity).not.toHaveBeenCalled();
+  });
+
+  it('renders the canonical getConcessionCost on the Concede button, strictly above the Appease cost shown (#918)', () => {
+    const state = makeFixtureState({
+      cities: [{ id: 'city-1', owner: 'player', name: 'Alpha', unrestLevel: 1, population: 4 }],
+      civGold: 100000, // both actions affordable so the labels show the cost, not "Not enough gold"
+    });
+    const container = document.createElement('div');
+    createCityOverviewPanel(container, state, { onOpenCity: vi.fn(), onAppeaseFaction: vi.fn(), onConcedeToMovement: vi.fn(), onClose: vi.fn() });
+    const city = state.cities['city-1'];
+    const appeaseCost = getCityAppeaseCost(city);
+    const concessionCost = getConcessionCost(state, city);
+    // The bug in #918: these two rendered the same number. They must not.
+    expect(concessionCost).toBeGreaterThan(appeaseCost);
+    const appeaseBtn = Array.from(container.querySelectorAll('button')).find(b => b.textContent?.startsWith('Appease')) as HTMLButtonElement;
+    const concedeBtn = Array.from(container.querySelectorAll('button')).find(b => b.textContent?.startsWith('Concede')) as HTMLButtonElement;
+    expect(appeaseBtn.textContent).toContain(String(appeaseCost));
+    expect(concedeBtn.textContent).toContain(String(concessionCost));
+    expect(concedeBtn.textContent).not.toBe(appeaseBtn.textContent);
   });
 
   it('disables the Concede row button (and does not call the callback on click) when unaffordable', () => {

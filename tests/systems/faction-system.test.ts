@@ -6,6 +6,8 @@ import {
   REVOLT_UNREST_TURNS,
   BREAKAWAY_REVOLT_TURNS,
   CONCESSION_IMMUNITY_TURNS,
+  CONCESSION_COST_MULTIPLIER,
+  CONCESSION_COST_MULTIPLIER_CIVICS,
   appeaseFaction,
   canGarrisonCity,
   computeUnrestPressure,
@@ -851,7 +853,8 @@ describe('faction-system — MR4 uprising contagion + concession', () => {
     it('costs 2x the appeasement cost by default', () => {
       const state = makeState({ era: 1, unrestLevel: 2 });
       const city = state.cities['city-1'];
-      expect(getConcessionCost(state, city)).toBe(getCityAppeaseCost(city) * 2);
+      expect(CONCESSION_COST_MULTIPLIER).toBe(2);
+      expect(getConcessionCost(state, city)).toBe(getCityAppeaseCost(city) * CONCESSION_COST_MULTIPLIER);
     });
 
     it('discounts toward — but never to parity with — Appease when the owner has a current-era civics tech (#918)', () => {
@@ -871,9 +874,11 @@ describe('faction-system — MR4 uprising contagion + concession', () => {
       // 1.5x appease: civics investment is rewarded (25% off the 2x base) but
       // Concede must still cost strictly more than Appease so the two stay a
       // real choice — see #918.
-      expect(getConcessionCost(state, city)).toBe(Math.round(appease * 1.5));
+      expect(CONCESSION_COST_MULTIPLIER_CIVICS).toBeGreaterThan(1);
+      expect(CONCESSION_COST_MULTIPLIER_CIVICS).toBeLessThan(CONCESSION_COST_MULTIPLIER);
+      expect(getConcessionCost(state, city)).toBe(Math.round(appease * CONCESSION_COST_MULTIPLIER_CIVICS));
       expect(getConcessionCost(state, city)).toBeGreaterThan(appease);
-      expect(getConcessionCost(state, city)).toBeLessThan(appease * 2);
+      expect(getConcessionCost(state, city)).toBeLessThan(appease * CONCESSION_COST_MULTIPLIER);
     });
 
     it('does not discount for a civics tech from a different era', () => {
@@ -943,6 +948,37 @@ describe('faction-system — MR4 uprising contagion + concession', () => {
       const state = makeState({ unrestLevel: 0 });
       const result = concedeToMovement(state, 'city-1', 'player');
       expect(result.success).toBe(false);
+    });
+
+    it('charges exactly the civics-discounted cost when the owner has a current-era civics tech (#918)', () => {
+      let state = makeState({ era: 3, unrestLevel: 2 });
+      state = {
+        ...state,
+        civilizations: {
+          ...state.civilizations,
+          player: {
+            ...state.civilizations['player'],
+            gold: 1000,
+            techState: { ...state.civilizations['player'].techState, completed: [...completedTechsForEra(3), 'civil-service'] },
+          },
+        },
+      };
+      const discounted = getConcessionCost(state, state.cities['city-1']);
+      // Sanity: this really is the discounted path, strictly above the Appease cost.
+      expect(discounted).toBe(Math.round(getCityAppeaseCost(state.cities['city-1']) * CONCESSION_COST_MULTIPLIER_CIVICS));
+      expect(discounted).toBeGreaterThan(getCityAppeaseCost(state.cities['city-1']));
+
+      // Exactly affordable → succeeds and deducts exactly the discounted amount.
+      const exact = { ...state, civilizations: { ...state.civilizations, player: { ...state.civilizations['player'], gold: discounted } } };
+      const ok = concedeToMovement(exact, 'city-1', 'player');
+      expect(ok.success).toBe(true);
+      expect(ok.state.civilizations['player'].gold).toBe(0);
+
+      // One gold short → fails, no charge.
+      const short = { ...state, civilizations: { ...state.civilizations, player: { ...state.civilizations['player'], gold: discounted - 1 } } };
+      const fail = concedeToMovement(short, 'city-1', 'player');
+      expect(fail.success).toBe(false);
+      expect(fail.state.civilizations['player'].gold).toBe(discounted - 1);
     });
 
     it('fails when the civ cannot afford the cost', () => {

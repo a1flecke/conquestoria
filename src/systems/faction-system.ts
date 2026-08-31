@@ -20,6 +20,13 @@ export const BREAKAWAY_REVOLT_TURNS = 10;    // turns at revolt before breakaway
 export const CONQUEST_UNREST_DURATION = 15;  // turns until conquestTurn is cleared
 const GOLD_APPEASE_COST_PER_POP = 15;
 
+// Concede (ideological concession) is priced as a multiple of the Appease cost.
+// The civics-discounted multiplier MUST stay > 1 so Concede always costs strictly
+// more than Appease and the two stay a real choice (#918). See
+// .claude/rules/game-balance.md "Unrest Instant-Action Costs (Appease vs Concede)".
+export const CONCESSION_COST_MULTIPLIER = 2;
+export const CONCESSION_COST_MULTIPLIER_CIVICS = 1.5;
+
 // #919 MR2: the Era-2 administration-ladder nudge. One extra "free" city before
 // empire overextension pressure starts, so a modest early empire that has not yet
 // teched `magistracy` is not instantly in revolt. Slope (3) and cap
@@ -243,17 +250,21 @@ export function getCityAppeaseCost(city: City): number {
 }
 
 // Ideological concession (MR4, issue #354): a permanent resolution alongside gold
-// appeasement. 2x the appeasement cost, discounted to 1.5x — but never to parity
-// with Appease (#918) — if the owner has researched any civics-track tech of the
-// *current* era (rewards civics investment without requiring a specific tech id,
-// so future civics techs qualify automatically). The 1.5x floor keeps Concede
-// strictly more expensive than Appease at every city size, so the two stay a real
-// choice: Appease is the cheap, repeatable, once-per-turn stopgap that only
-// suppresses; Concede is the pricier permanent fix (full clear +
-// CONCESSION_IMMUNITY_TURNS of immunity to new unrest, including contagion).
+// appeasement. CONCESSION_COST_MULTIPLIER (2x) the appeasement cost, discounted to
+// CONCESSION_COST_MULTIPLIER_CIVICS (1.5x) — but never to parity with Appease
+// (#918) — if the owner has researched any civics-track tech of the *current* era
+// (rewards civics investment without requiring a specific tech id, so future
+// civics techs qualify automatically). The 1.5x floor keeps Concede strictly more
+// expensive than Appease at every city size, so the two stay a real choice:
+// Appease is the cheap, repeatable, once-per-turn stopgap that only suppresses;
+// Concede is the pricier permanent fix (full clear + CONCESSION_IMMUNITY_TURNS of
+// immunity to new unrest, including contagion).
 export function getConcessionCost(state: GameState, city: City): number {
   const base = getCityAppeaseCost(city);
-  return hasCurrentEraCivicsTech(state, city.owner) ? Math.round(base * 1.5) : base * 2;
+  const multiplier = hasCurrentEraCivicsTech(state, city.owner)
+    ? CONCESSION_COST_MULTIPLIER_CIVICS
+    : CONCESSION_COST_MULTIPLIER;
+  return Math.round(base * multiplier);
 }
 
 function hasCurrentEraCivicsTech(state: GameState, civId: string): boolean {

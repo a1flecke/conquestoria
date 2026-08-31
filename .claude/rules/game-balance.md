@@ -107,6 +107,31 @@ city actually has**. The AI production valuation
 (`unrestReliefTechBonus` in `src/ai/ai-research.ts`) both key off this table,
 so a new entry is valued automatically.
 
+## Unrest Instant-Action Costs (Appease vs Concede)
+
+Two gold-only instant actions clear/suppress a city's unrest
+(`src/systems/faction-system.ts`). They must stay a **real choice** — neither
+strictly dominates:
+
+| Action | Cost | Immediate effect | Persistent effect | Repeat limit |
+|---|---|---|---|---|
+| Appease (`appeaseFaction`) | `getCityAppeaseCost` = `population × 15` | partial: `-2` unrest turns, revolt→unrest, clears spy pressure — does **not** clear unrest | none | once per city per turn |
+| Concede (`concedeToMovement`) | `getConcessionCost` = `population × 15 × CONCESSION_COST_MULTIPLIER` (2), or `× CONCESSION_COST_MULTIPLIER_CIVICS` (1.5) with a current-era civics-track tech | full clear | `CONCESSION_IMMUNITY_TURNS` (15) of no new unrest, incl. contagion spread | none |
+
+**Invariant (#918):** `getConcessionCost(state, city) > getCityAppeaseCost(city)`
+for every city size, discounted or not. `CONCESSION_COST_MULTIPLIER_CIVICS` MUST
+stay `> 1` — collapsing the civics discount to `1` (exact parity with Appease)
+makes Concede strictly dominate and removes the decision. Enforced by
+`tests/systems/faction-system.test.ts` → "never costs the same as or less than
+Appease for any city size, discounted or not (#918)".
+
+**Difficulty / AI:** both costs and both effects are identical across Explorer /
+Standard / Veteran — no challenge-profile input to either cost helper (the
+challenge profile scales unrest *pressure* only, not action cost). The AI uses
+`appeaseFaction` via the shared helper and does not concede; that is intentional
+(a bot cannot value the 15-turn immunity payoff) and stays rational as long as
+the invariant above holds.
+
 ## National Project Lifecycle Contract
 
 - **Build window:** available during `homeEra` and `homeEra + 1` only. Hidden from production queue when `currentEra > homeEra + 1`.
