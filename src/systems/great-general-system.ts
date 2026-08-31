@@ -1,5 +1,6 @@
-import type { Civilization, GameState, GeneralProgressState, PendingGeneralCandidateChoice, Unit } from '@/core/types';
-import { GENERAL_DEFINITIONS, type GeneralDefinition } from '@/systems/great-general-definitions';
+import type { Civilization, GameState, GeneralProgressState, GeneratedGeneralIdentity, PendingGeneralCandidateChoice, Unit } from '@/core/types';
+import { GENERAL_DEFINITIONS, resolveGeneralDefinition, type GeneralDefinition } from '@/systems/great-general-definitions';
+import { generateFallbackGeneralCandidates } from '@/systems/great-general-fallback-content';
 import { seededLcg, weightedPick } from '@/systems/seeded-lcg';
 import { resolveCivilizationEra } from '@/systems/tech-definitions';
 import { createUnit } from '@/systems/unit-system';
@@ -80,12 +81,22 @@ function eraWeight(candidateEra: number, currentEra: number): number {
 }
 
 /**
- * 2-3 weighted candidates for `civId` (contract §13). Deterministic for a
- * given `seed` — callers pass a per-round, per-civ-derived seed; this
- * function only draws from the shared seeded RNG (never the browser's
- * unseeded random source). Excludes every General already in this civ's
- * `generalHistory` forever (contract: "a used General never appears
- * again... never resurrect").
+ * A full `CANDIDATE_COUNT`-entry weighted candidate set for `civId` (contract
+ * §13). Deterministic for a given `seed` — callers pass a per-round,
+ * per-civ-derived seed; this function only draws from the shared seeded RNG
+ * (never the browser's unseeded random source). Excludes every General already
+ * in this civ's `generalHistory` forever (contract: "a used General never
+ * appears again... never resurrect").
+ *
+ * #888: authored-first. Eligible unused authored entries fill the set first,
+ * weighted toward the civ's era. If the authored pool cannot fill every slot,
+ * the *remaining* slots (never an available authored one) are filled with
+ * deterministic, culturally-coherent generated officers via
+ * `generateFallbackGeneralCandidates`, minted at the civ's current era. Used
+ * exclusion applies uniformly to generated ids (they live in `generalHistory`
+ * just like authored ids). The persisting caller
+ * (`checkAndQueueGeneralCandidateChoice`) records any generated identity into
+ * `state.generatedGenerals`; direct callers still get deterministic output.
  */
 export function generateGeneralCandidates(
   state: GameState,
@@ -110,7 +121,36 @@ export function generateGeneralCandidates(
     picked.push(choice);
     pool.splice(pool.indexOf(choice), 1);
   }
+
+  if (picked.length < CANDIDATE_COUNT) {
+    const exclude = new Set<string>([...usedIds, ...picked.map(p => p.id)]);
+    // Clamp to the documented 1-12 era range so a generated identity always
+    // passes `normalizeGeneratedGenerals` validation and survives save/load.
+    const generatedEra = Math.max(1, Math.min(12, currentEra));
+    const generated = generateFallbackGeneralCandidates(
+      state.gameId,
+      civType,
+      generatedEra,
+      seed,
+      CANDIDATE_COUNT - picked.length,
+      exclude,
+    );
+    picked.push(...generated);
+  }
+
   return picked;
+}
+
+/** #888: the generated identities inside a freshly-drawn candidate set that
+ * are not already in the persisted registry — the persisting caller writes
+ * these into `state.generatedGenerals`. */
+function newlyGeneratedIdentities(
+  candidates: GeneralDefinition[],
+  existing: Record<string, GeneratedGeneralIdentity> | undefined,
+): GeneratedGeneralIdentity[] {
+  return candidates.filter(
+    (c): c is GeneratedGeneralIdentity => c.origin === 'generated' && !existing?.[c.id],
+  );
 }
 
 /**
@@ -133,14 +173,29 @@ export function checkAndQueueGeneralCandidateChoice(
   if ((state.pendingGeneralCandidateChoices ?? []).some(choice => choice.civId === civId)) return state;
 
   const candidates = generateGeneralCandidates(state, civId, seed);
-  if (candidates.length === 0) return state; // roster fully exhausted, nothing to offer
+  if (candidates.length === 0) return state; // impossible post-#888 (generated fallback always fills), kept as a defensive guard
 
-  return {
+  const withChoice: GameState = {
     ...state,
     pendingGeneralCandidateChoices: [
       ...(state.pendingGeneralCandidateChoices ?? []),
       { civId, candidateDefinitionIds: candidates.map(c => c.id), triggerEventLabel },
     ],
+  };
+
+  // #888: persist any newly-minted generated officer identities so the pending
+  // choice — and a save taken mid-choice — resolves them without regenerating.
+  // Only touch `generatedGenerals` when there is actually something to add
+  // (the common all-authored case leaves the field exactly as it was).
+  const fresh = newlyGeneratedIdentities(candidates, state.generatedGenerals);
+  if (fresh.length === 0) return withChoice;
+
+  return {
+    ...withChoice,
+    generatedGenerals: {
+      ...(state.generatedGenerals ?? {}),
+      ...Object.fromEntries(fresh.map(g => [g.id, g])),
+    },
   };
 }
 
@@ -294,7 +349,7 @@ export function getPassiveStabilizationTargets(state: GameState, civId: string):
 
   const stabilized = new Set<string>();
   for (const general of generals) {
-    const definition = GENERAL_DEFINITIONS.find(g => g.id === general.generalDefinitionId);
+    const definition = resolveGeneralDefinition(state, general.generalDefinitionId);
     if (!definition) continue;
     const { commandRange, commandCapacity } = getEffectiveCommandStats(general, definition);
 
@@ -342,7 +397,7 @@ export function retireGeneralsAtTurnEnd(state: GameState, civId: string, bus?: E
     .map(id => state.units[id])
     .filter((u): u is Unit => Boolean(u) && u.type === 'great_general')
     .filter(u => {
-      const definition = GENERAL_DEFINITIONS.find(g => g.id === u.generalDefinitionId);
+      const definition = resolveGeneralDefinition(state, u.generalDefinitionId);
       return definition && (u.generalCommandChargesUsed ?? 0) >= definition.maxCommandCharges;
     });
   if (retiring.length === 0) return state;
@@ -351,7 +406,7 @@ export function retireGeneralsAtTurnEnd(state: GameState, civId: string, bus?: E
   let civUnits = civ.units;
   let generalHistory = civ.generalHistory ?? [];
   for (const general of retiring) {
-    const definition = GENERAL_DEFINITIONS.find(g => g.id === general.generalDefinitionId)!;
+    const definition = resolveGeneralDefinition(state, general.generalDefinitionId)!;
     const endOfCareerLine = describeGeneralCareerEnd(definition, 'retired');
     delete units[general.id];
     civUnits = civUnits.filter(id => id !== general.id);

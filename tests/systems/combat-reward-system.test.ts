@@ -1355,6 +1355,41 @@ describe('applyCombatOutcomeToState — Great General escort/transport/death rul
     expect(entry.heroicCommandsUsed).toBe(1);
   });
 
+  it('#888: a killed General backed by a generated identity records outcome + an endOfCareerLine naming it, and stays excluded from re-draw', () => {
+    const state = makeRewardState();
+    state.turn = 9;
+    const genId = 'generated:egypt:2:c0ffee00';
+    (state as any).generatedGenerals = {
+      [genId]: {
+        id: genId, name: 'Userhat of Waset', civTypeEligibility: ['egypt'], era: 2,
+        descriptor: 'Troop Commander. An Egyptian field commander, risen through the ranks of the host.',
+        portraitIcon: '☀️', origin: 'generated', commandRange: 2, commandCapacity: 3,
+        abilityIds: ['rally', 'seize_the_moment', 'last_stand'], maxCommandCharges: 3, cooldownTurns: 10,
+      },
+    };
+    const general = {
+      ...createUnit('great_general', 'ai-1', { q: 1, r: 0 }, mkC()),
+      id: 'general-1', generalDefinitionId: genId, generalCommandChargesUsed: 2,
+    };
+    state.units['general-1'] = general;
+    state.civilizations['ai-1'].units = ['defender', 'general-1'];
+    state.civilizations['ai-1'].generalHistory = [{ unitId: 'general-1', generalDefinitionId: genId, spawnedTurn: 3 }];
+    const result: CombatResult = {
+      attackerId: 'attacker', defenderId: 'defender', attackerDamage: 0, defenderDamage: 100,
+      attackerSurvived: true, defenderSurvived: false, attackerStrength: 20, defenderStrength: 20,
+      attackerPosition: { q: 0, r: 0 }, defenderPosition: { q: 1, r: 0 },
+    };
+
+    const applied = applyCombatOutcomeToState(state, result, 64);
+
+    const entry = applied.state.civilizations['ai-1'].generalHistory!.find(e => e.unitId === 'general-1')!;
+    expect(entry.outcome).toBe('died');
+    expect(entry.endOfCareerLine).toContain('Userhat of Waset');
+    expect(entry.heroicCommandsUsed).toBe(2);
+    // registry entry is retained for #887-style history rendering
+    expect(applied.state.generatedGenerals?.[genId]?.name).toBe('Userhat of Waset');
+  });
+
   it('does NOT destroy a General at a different tile from the destroyed unit', () => {
     const state = makeRewardState();
     const general = { ...createUnit('great_general', 'ai-1', { q: 9, r: 9 }, mkC()), id: 'general-1', generalDefinitionId: 'gen_ramesses' };

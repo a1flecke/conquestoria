@@ -133,7 +133,7 @@ import { classifyOwner } from './owner-kind';
 import { consumeHerdingInsight, getStampedeLifecycleTransition, hasActiveHerdingInsight, processStampedeScheduling, processStampedeTurn } from '@/systems/stampede-system';
 import { consumeRecoveredHarnesses, getRogueElephantHostLifecycleTransition, hasActiveRecoveredHarnesses, processRogueElephantHostScheduling, processRogueElephantHostTurn } from '@/systems/rogue-elephant-host-system';
 import { checkAndQueueGeneralCandidateChoice, chooseBestGeneralCandidate, retireGeneralsAtTurnEnd, spawnGeneralForCiv } from '@/systems/great-general-system';
-import { GENERAL_DEFINITIONS, type GeneralDefinition } from '@/systems/great-general-definitions';
+import { resolveGeneralDefinition, type GeneralDefinition } from '@/systems/great-general-definitions';
 
 // #544 MR3: same char-folding convention combat-reward-system.ts's seededRoll and
 // city-capture-system.ts's assault seed already use -- turns a (turn, civId) pair into
@@ -838,7 +838,7 @@ export function processTurn(
         .find(choice => choice.civId === civId);
       if (pending) {
         const candidates = pending.candidateDefinitionIds
-          .map(id => GENERAL_DEFINITIONS.find(g => g.id === id))
+          .map(id => resolveGeneralDefinition(newState, id))
           .filter((g): g is GeneralDefinition => g !== undefined);
         if (candidates.length > 0) {
           newState = spawnGeneralForCiv(newState, civId, chooseBestGeneralCandidate(candidates).id);

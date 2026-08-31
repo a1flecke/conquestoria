@@ -263,6 +263,43 @@ export interface GeneralProgressState {
   generalsEarned: number; // count of thresholds crossed so far, this game
 }
 
+/**
+ * #544 MR3: a Great General identity — either an authored roster entry
+ * (`src/systems/great-general-definitions.ts`) or a #888 fallback-generated
+ * officer (`origin: 'generated'`, persisted in `GameState.generatedGenerals`).
+ * Lives in core `types.ts` alongside `GeneralHistoryEntry` /
+ * `PendingGeneralCandidateChoice` because `GameState` now references it;
+ * `great-general-definitions.ts` re-exports it for existing importers.
+ */
+export interface GeneralDefinition {
+  id: string;
+  name: string;
+  /** CivDefinition.id values this commander is thematically tied to. Empty
+   * array = universal/fantasy fallback, drawable by any civ. */
+  civTypeEligibility: string[];
+  era: number; // 1-12, matches this codebase's existing era numbering
+  descriptor: string; // one-line contextual text (contract §13 "Candidate presentation")
+  portraitIcon: string; // single emoji — non-bespoke-art icon convention
+  commandRange: number;
+  commandCapacity: number;
+  abilityIds: HeroicAbilityId[];
+  maxCommandCharges: number;
+  cooldownTurns: number;
+  /** #888: `'generated'` on a fallback officer; absent on authored entries. A
+   * discriminator for #885/#886/#889 to opt generated identities in/out of
+   * future per-identity content without another schema change. */
+  origin?: 'generated';
+}
+
+/** #888: a fallback-generated officer identity — structurally a
+ * `GeneralDefinition` with `origin` pinned, so every consumer works unchanged
+ * once it resolves through `resolveGeneralDefinition`. The persisted record in
+ * `GameState.generatedGenerals` is authoritative; name pools are never
+ * re-consulted to resolve one, so a pool edit cannot rename an existing officer. */
+export interface GeneratedGeneralIdentity extends GeneralDefinition {
+  origin: 'generated';
+}
+
 export interface GeneralHistoryEntry {
   unitId: string;
   generalDefinitionId: string;
@@ -2155,6 +2192,14 @@ export interface GameState {
    * crossed a threshold and not yet chosen. Mirrors BeastsState's
    * pendingHoardChoices shape/convention. */
   pendingGeneralCandidateChoices?: PendingGeneralCandidateChoice[];
+  /** #888: registry of fallback-generated officer identities that have been
+   * materialised this game (offered as a candidate and/or selected). Keyed by
+   * the generated id. The persisted record is authoritative — `resolveGeneralDefinition`
+   * reads it and the name pools are never re-consulted, so a later pool edit
+   * cannot rename an existing officer. Absent on legacy saves and minimal test
+   * fixtures; defaulted to `{}` by migration 23 + `normalizeGeneratedGenerals`,
+   * and every reader uses `?? {}` / `resolveGeneralDefinition`'s optional chain. */
+  generatedGenerals?: Record<string, GeneratedGeneralIdentity>;
 }
 
 // --- Religion (#591 MR4) ---

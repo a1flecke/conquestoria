@@ -1,24 +1,26 @@
-import type { HeroicAbilityId } from '@/core/types';
+import type { GeneralDefinition, GeneratedGeneralIdentity, HeroicAbilityId } from '@/core/types';
 
-export interface GeneralDefinition {
-  id: string;
-  name: string;
-  /** CivDefinition.id values this commander is thematically tied to. Empty
-   * array = universal/fantasy fallback, drawable by any civ. */
-  civTypeEligibility: string[];
-  era: number; // 1-12, matches this codebase's existing era numbering
-  descriptor: string; // one-line contextual text (contract §13 "Candidate presentation")
-  portraitIcon: string; // single emoji — matches this codebase's existing
-                         // emoji-icon convention for non-bespoke-art entities
-  commandRange: number;
-  commandCapacity: number;
-  /** #544 MR4. V1 entries share identical values by data coincidence, same
-   * caveat as commandRange/commandCapacity above — nothing reads these as
-   * literals, only via the definition. */
-  abilityIds: HeroicAbilityId[];
-  maxCommandCharges: number;
-  cooldownTurns: number;
-}
+// #888: the identity types now live in core `types.ts` (GameState references
+// them); re-exported here so existing `@/systems/great-general-definitions`
+// importers are unaffected.
+export type { GeneralDefinition, GeneratedGeneralIdentity } from '@/core/types';
+
+/**
+ * #888: the standard V1 command profile every generated officer inherits
+ * (Phase 9 — "mechanically ordinary"; unique mechanics are #885's scope).
+ * Kept in sync with the `V1_*` constants below by
+ * `great-general-definitions.test.ts`.
+ */
+export const STANDARD_GENERAL_COMMAND_PROFILE: Pick<
+  GeneralDefinition,
+  'commandRange' | 'commandCapacity' | 'abilityIds' | 'maxCommandCharges' | 'cooldownTurns'
+> = {
+  commandRange: 2,
+  commandCapacity: 3,
+  abilityIds: ['rally', 'seize_the_moment', 'last_stand'],
+  maxCommandCharges: 3,
+  cooldownTurns: 10,
+};
 
 // V1 command stats are deliberately uniform across every entry (contract
 // §14: "V1 definitions may share identical values... that equality is data
@@ -84,3 +86,27 @@ export const GENERAL_DEFINITIONS: GeneralDefinition[] = [
   { id: 'gen_universal_field_marshal', name: 'The Steel Field Marshal', civTypeEligibility: [], era: 6, descriptor: 'Modernized doctrine faster than any rival staff college.', portraitIcon: '🎖️', commandRange: V1_COMMAND_RANGE, commandCapacity: V1_COMMAND_CAPACITY, abilityIds: V1_ABILITY_IDS, maxCommandCharges: V1_MAX_COMMAND_CHARGES, cooldownTurns: V1_COOLDOWN_TURNS },
   { id: 'gen_universal_commodore', name: 'The Storm Commodore', civTypeEligibility: [], era: 8, descriptor: 'Made a name commanding combined arms across an entire theater.', portraitIcon: '🌩️', commandRange: V1_COMMAND_RANGE, commandCapacity: V1_COMMAND_CAPACITY, abilityIds: V1_ABILITY_IDS, maxCommandCharges: V1_MAX_COMMAND_CHARGES, cooldownTurns: V1_COOLDOWN_TURNS },
 ];
+
+const AUTHORED_BY_ID: ReadonlyMap<string, GeneralDefinition> = new Map(
+  GENERAL_DEFINITIONS.map(g => [g.id, g]),
+);
+
+/**
+ * #888: the single canonical id -> `GeneralDefinition` resolver. Authored roster
+ * always wins; a `'generated:'` id is looked up in the caller's persisted
+ * `generatedGenerals` registry. Returns `undefined` for an unknown id — every
+ * call site already has a safe degrade path for that (mirrors the pre-#888
+ * inline `GENERAL_DEFINITIONS.find(...)` returning `undefined`), and a used
+ * general is still excluded from re-draw by its id string in `generalHistory`
+ * even if its registry record was dropped by save normalization.
+ *
+ * Every consumer that previously did `GENERAL_DEFINITIONS.find(g => g.id === X)`
+ * must call this instead so generated officers resolve everywhere authored ones do.
+ */
+export function resolveGeneralDefinition(
+  source: { generatedGenerals?: Record<string, GeneratedGeneralIdentity> } | null | undefined,
+  generalId: string | undefined,
+): GeneralDefinition | undefined {
+  if (!generalId) return undefined;
+  return AUTHORED_BY_ID.get(generalId) ?? source?.generatedGenerals?.[generalId];
+}

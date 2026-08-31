@@ -134,6 +134,9 @@ describe('freshly created games need no legacy fixups', () => {
     const before = state as unknown as Record<string, unknown>;
 
     expect(Object.keys(normalized).filter(key => !(key in before)).sort()).toEqual([
+      // #888: normalizeGeneratedGenerals defaults the fallback-officer registry
+      // to {} on load, same as withReligionDefaults does for `religions`.
+      'generatedGenerals',
       'legendaryWonderAvailability',
       'nationalProjectChoices',
       'pendingEvents',

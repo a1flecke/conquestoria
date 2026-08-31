@@ -163,6 +163,92 @@ describe('generateGeneralCandidates', () => {
   });
 });
 
+/**
+ * #888 — once a civ has used every authored general it is eligible for
+ * (its own roster + the universal fallback pool), candidate generation must
+ * keep offering a full, deterministic, culturally-coherent candidate set of
+ * generated officers instead of returning fewer (or zero) candidates.
+ */
+function exhaustAuthoredPool(state: ReturnType<typeof makeGeneralsTestState>, civId: string) {
+  state.civilizations[civId] = {
+    ...state.civilizations[civId]!,
+    generalHistory: GENERAL_DEFINITIONS.map((g, i) => ({
+      unitId: `used-${i}`,
+      generalDefinitionId: g.id,
+      spawnedTurn: 1,
+      diedTurn: 2,
+      outcome: 'died' as const,
+    })),
+  };
+  return state;
+}
+
+describe('#888 — authored candidate-pool exhaustion falls back to generated officers', () => {
+  const AUTHORED_IDS = new Set(GENERAL_DEFINITIONS.map(g => g.id));
+
+  it('still returns a full 3-candidate set when every authored general has been used', () => {
+    const state = exhaustAuthoredPool(makeGeneralsTestState('888-exhaust-1'), 'player');
+    const candidates = generateGeneralCandidates(state, 'player', 5);
+    expect(candidates).toHaveLength(3);
+    expect(new Set(candidates.map(c => c.id)).size).toBe(3);
+    expect(candidates.every(c => !AUTHORED_IDS.has(c.id))).toBe(true);
+    expect(candidates.every(c => c.name.length > 0 && c.portraitIcon.length > 0)).toBe(true);
+  });
+
+  it('checkAndQueueGeneralCandidateChoice still queues a pending choice after authored exhaustion', () => {
+    const state = exhaustAuthoredPool(makeGeneralsTestState('888-exhaust-2'), 'player');
+    state.civilizations.player = {
+      ...state.civilizations.player,
+      generalProgress: { points: 99999, generalsEarned: 20 },
+    };
+    const result = checkAndQueueGeneralCandidateChoice(state, 'player', 'round-end', 5);
+    expect(result.pendingGeneralCandidateChoices ?? []).toHaveLength(1);
+    expect(result.pendingGeneralCandidateChoices![0]!.candidateDefinitionIds).toHaveLength(3);
+  });
+
+  it('fills only the missing slots — an available authored candidate is never displaced by a generated one', () => {
+    const state = makeGeneralsTestState('888-partial-1');
+    // Leave exactly ONE eligible authored general (gen_caesar) unused; burn the rest.
+    state.civilizations.player = {
+      ...state.civilizations.player,
+      generalHistory: GENERAL_DEFINITIONS
+        .filter(g => g.id !== 'gen_caesar')
+        .map((g, i) => ({ unitId: `u${i}`, generalDefinitionId: g.id, spawnedTurn: 1, diedTurn: 2, outcome: 'died' as const })),
+    };
+    const candidates = generateGeneralCandidates(state, 'player', 9);
+    expect(candidates).toHaveLength(3);
+    expect(candidates.some(c => c.id === 'gen_caesar')).toBe(true);
+    expect(candidates.filter(c => AUTHORED_IDS.has(c.id))).toHaveLength(1);
+  });
+
+  it('is deterministic: same state + seed produces identical generated candidate ids and names', () => {
+    const state = exhaustAuthoredPool(makeGeneralsTestState('888-exhaust-3'), 'player');
+    const a = generateGeneralCandidates(state, 'player', 77);
+    const b = generateGeneralCandidates(state, 'player', 77);
+    expect(a.map(c => c.id)).toEqual(b.map(c => c.id));
+    expect(a.map(c => c.name)).toEqual(b.map(c => c.name));
+    // and every generated candidate resolves to a real command profile
+    expect(a.every(c => c.maxCommandCharges === 3 && c.abilityIds.length === 3)).toBe(true);
+  });
+
+  it('never re-offers a generated officer already recorded as used in generalHistory', () => {
+    const state = exhaustAuthoredPool(makeGeneralsTestState('888-exhaust-4'), 'player');
+    const firstRound = generateGeneralCandidates(state, 'player', 31);
+    // Mark the first generated candidate as used, then draw again with the same seed.
+    state.civilizations.player = {
+      ...state.civilizations.player,
+      generalHistory: [
+        ...(state.civilizations.player.generalHistory ?? []),
+        { unitId: 'picked', generalDefinitionId: firstRound[0]!.id, spawnedTurn: 3, diedTurn: 4, outcome: 'died' as const },
+      ],
+    };
+    for (let seed = 20; seed <= 40; seed++) {
+      const again = generateGeneralCandidates(state, 'player', seed);
+      expect(again.some(c => c.id === firstRound[0]!.id)).toBe(false);
+    }
+  });
+});
+
 describe('checkAndQueueGeneralCandidateChoice', () => {
   it('queues a pending choice once points cross the next threshold', () => {
     const state = makeGeneralsTestState('gen-queue-1');
@@ -498,6 +584,13 @@ describe('#544 MR5 — chooseBestGeneralCandidate', () => {
     const candidates = [{ ...GENERAL_DEFINITIONS[0]! }];
     expect(chooseBestGeneralCandidate(candidates).id).toBe(candidates[0]!.id);
   });
+
+  it('#888 — on a stat tie, an authored candidate is preferred over a generated one (id tiebreak: "gen_*" < "generated:*")', () => {
+    const authored = { ...GENERAL_DEFINITIONS[0]!, id: 'gen_caesar' };
+    const generated = { ...GENERAL_DEFINITIONS[0]!, id: 'generated:rome:3:deadbeef', origin: 'generated' as const };
+    expect(chooseBestGeneralCandidate([generated, authored]).id).toBe('gen_caesar');
+    expect(chooseBestGeneralCandidate([authored, generated]).id).toBe('gen_caesar');
+  });
 });
 
 describe('#544 MR5 — AI civs acquire Generals automatically', () => {
@@ -531,6 +624,33 @@ describe('#544 MR5 — AI civs acquire Generals automatically', () => {
     expect(result.pendingGeneralCandidateChoices ?? []).toContainEqual(
       expect.objectContaining({ civId: 'player' }),
     );
+  });
+
+  it('#888 — an AI civ that has exhausted the authored roster still spawns a General, backed by a persisted generated identity', () => {
+    const state = createNewGame({ civType: 'rome', mapSize: 'small', opponentCount: 1, gameTitle: 't', seed: 'ai-gen-888' });
+    const aiId = Object.keys(state.civilizations).find(id => id !== 'player')!;
+    const capital = foundCity(aiId, { q: 5, r: 5 }, state.map, state.idCounters);
+    state.cities = { ...state.cities, [capital.id]: capital };
+    state.civilizations[aiId] = {
+      ...state.civilizations[aiId]!,
+      cities: [capital.id],
+      generalProgress: { points: 999999, generalsEarned: 25 },
+      generalHistory: GENERAL_DEFINITIONS.map((g, i) => ({
+        unitId: `used-${i}`, generalDefinitionId: g.id, spawnedTurn: 1, diedTurn: 2, outcome: 'died' as const,
+      })),
+    };
+
+    const result = processTurn(state, new EventBus());
+
+    const aiUnits = result.civilizations[aiId]!.units.map(id => result.units[id]);
+    const generalUnit = aiUnits.find(u => u?.type === 'great_general');
+    expect(generalUnit).toBeDefined();
+    expect(generalUnit!.generalDefinitionId!.startsWith('generated:')).toBe(true);
+    // the identity is persisted and resolvable
+    expect(result.generatedGenerals?.[generalUnit!.generalDefinitionId!]?.origin).toBe('generated');
+    // recorded in history, pending choice cleared
+    expect(result.civilizations[aiId]!.generalHistory!.some(e => e.unitId === generalUnit!.id)).toBe(true);
+    expect(result.pendingGeneralCandidateChoices ?? []).not.toContainEqual(expect.objectContaining({ civId: aiId }));
   });
 });
 

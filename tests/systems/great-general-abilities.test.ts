@@ -324,6 +324,83 @@ describe('getLastStandPreview / issueLastStand', () => {
   });
 });
 
+describe('#888 — a generated-identity General is mechanically identical to an authored one', () => {
+  const generatedId = 'generated:rome:3:abcd1234';
+  function stateWithGeneratedGeneral(seed: string) {
+    const state = createNewGame({ civType: 'rome', mapSize: 'small', opponentCount: 1, gameTitle: 't', seed });
+    state.generatedGenerals = {
+      [generatedId]: {
+        id: generatedId,
+        name: 'Marcus Valerius, the Steadfast',
+        civTypeEligibility: ['rome'],
+        era: 3,
+        descriptor: 'Legatus. A Roman field commander, risen through the ranks of the host.',
+        portraitIcon: '🦅',
+        origin: 'generated',
+        commandRange: 2,
+        commandCapacity: 3,
+        abilityIds: ['rally', 'seize_the_moment', 'last_stand'],
+        maxCommandCharges: 3,
+        cooldownTurns: 10,
+      },
+    };
+    return state;
+  }
+
+  it('heroic command eligibility resolves through the registry (charges, final-charge flag)', () => {
+    const state = stateWithGeneratedGeneral('gen888-elig');
+    const eligible = getHeroicCommandEligibility(state, makeGeneral({ generalDefinitionId: generatedId }));
+    expect(eligible.eligible).toBe(true);
+    expect(eligible.chargesRemaining).toBe(3);
+    const final = getHeroicCommandEligibility(state, makeGeneral({ generalDefinitionId: generatedId, generalCommandChargesUsed: 2 }));
+    expect(final.isFinalCharge).toBe(true);
+  });
+
+  it('Rally / Seize / Last Stand all issue and spend a charge exactly as for an authored General', () => {
+    // Rally
+    let state = stateWithGeneratedGeneral('gen888-rally');
+    state.units['gen-1'] = makeGeneral({ generalDefinitionId: generatedId });
+    state.units['unit-1'] = makeUnit({
+      id: 'unit-1', position: { q: 1, r: 0 },
+      landSupply: { state: 'severe', hostileUnsupportedTurns: 6, suppliedTurnsSinceRecovery: 0 },
+    });
+    state.civilizations.player.units = ['gen-1', 'unit-1'];
+    const rallyPreview = getRallyPreview(state, 'gen-1');
+    expect(rallyPreview.eligibility.eligible).toBe(true);
+    expect(rallyPreview.targets.length).toBeGreaterThan(0);
+    const rallied = issueRally(state, 'gen-1');
+    expect(rallied.units['gen-1'].generalCommandChargesUsed).toBe(1);
+
+    // Seize the Moment
+    state = stateWithGeneratedGeneral('gen888-seize');
+    state.units['gen-1'] = makeGeneral({ generalDefinitionId: generatedId });
+    state.units['unit-1'] = makeUnit({ id: 'unit-1', position: { q: 1, r: 0 }, hasActed: true, hasMoved: true, movementPointsLeft: 0 });
+    state.civilizations.player.units = ['gen-1', 'unit-1'];
+    const { eligibility: seizeElig, eligible } = getSeizeTheMomentEligibleUnits(state, 'gen-1');
+    expect(seizeElig.eligible).toBe(true);
+    expect(eligible.length).toBeGreaterThan(0);
+    const seized = issueSeizeTheMoment(state, 'gen-1', [eligible[0]!.unitId]);
+    expect(seized.units['gen-1'].generalCommandChargesUsed).toBe(1);
+
+    // Last Stand
+    state = stateWithGeneratedGeneral('gen888-laststand');
+    state.units['gen-1'] = makeGeneral({ generalDefinitionId: generatedId });
+    state.units['unit-1'] = makeUnit({ id: 'unit-1', type: 'warrior', position: { q: 1, r: 0 } });
+    state.civilizations.player.units = ['gen-1', 'unit-1'];
+    const lsPreview = getLastStandPreview(state, 'gen-1', { q: 1, r: 0 });
+    expect(lsPreview.eligibility.eligible).toBe(true);
+    const held = issueLastStand(state, 'gen-1', { q: 1, r: 0 });
+    expect(held.units['gen-1'].generalCommandChargesUsed).toBe(1);
+  });
+
+  it('a General whose id is missing from the registry degrades safely (ineligible, no throw)', () => {
+    const state = createNewGame({ civType: 'rome', mapSize: 'small', opponentCount: 1, gameTitle: 't', seed: 'gen888-missing' });
+    const result = getHeroicCommandEligibility(state, makeGeneral({ generalDefinitionId: 'generated:rome:3:missing00' }));
+    expect(result.eligible).toBe(false);
+    expect(result.chargesRemaining).toBe(0);
+  });
+});
+
 describe('resolveLastStandDefenseBonus', () => {
   it('returns multiplier 1 for a unit with no lastStandHold', () => {
     expect(resolveLastStandDefenseBonus(makeUnit(), 5).multiplier).toBe(1);

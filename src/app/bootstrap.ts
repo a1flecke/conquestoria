@@ -64,7 +64,7 @@ import {
 } from '@/app/cross-cutting-helpers';
 import { applyHoardChoice, getHoardChoicePreview } from '@/systems/beast-system';
 import { createBeastHoardPanel } from '@/ui/beast-hoard-panel';
-import { GENERAL_DEFINITIONS, type GeneralDefinition } from '@/systems/great-general-definitions';
+import { resolveGeneralDefinition, type GeneralDefinition } from '@/systems/great-general-definitions';
 import { getPendingGeneralChoiceForViewer, spawnGeneralForCiv } from '@/systems/great-general-system';
 import { createGeneralCandidatePanel } from '@/ui/general-candidate-panel';
 
@@ -173,7 +173,7 @@ export function createAppComposition(deps: AppCompositionDeps): AppComposition {
     const pending = getPendingGeneralChoiceForViewer(session.getState(), session.getState().currentPlayer);
     if (!pending) return;
     const candidates = pending.candidateDefinitionIds
-      .map(id => GENERAL_DEFINITIONS.find(g => g.id === id))
+      .map(id => resolveGeneralDefinition(session.getState(), id))
       .filter((g): g is GeneralDefinition => g !== undefined);
     if (candidates.length === 0) return;
     createGeneralCandidatePanel(uiLayer, candidates, generalDefinitionId => {

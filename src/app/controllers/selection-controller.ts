@@ -65,7 +65,7 @@ import { getRallyPreview, issueRally, getSeizeTheMomentEligibleUnits, issueSeize
 import { createRallyPanel, createSeizeThePanelMoment } from '@/ui/general-command-panel';
 import { createStrategicLaunchFlow } from '@/ui/strategic-launch-flow';
 import { executeStrategicLaunch } from '@/systems/strategic-launch-execution-system';
-import { GENERAL_DEFINITIONS } from '@/systems/great-general-definitions';
+import { resolveGeneralDefinition } from '@/systems/great-general-definitions';
 import { getEffectiveCommandStats } from '@/systems/great-general-system';
 
 /** The narrow slice of `RenderLoop` this controller needs. */
@@ -244,7 +244,7 @@ export function createSelectionController(deps: SelectionControllerDeps): Select
         onStartLastStandTargeting: (generalUnitId: string) => {
           const state = session.getState();
           const general = state.units[generalUnitId];
-          const definition = general ? GENERAL_DEFINITIONS.find(g => g.id === general.generalDefinitionId) : undefined;
+          const definition = general ? resolveGeneralDefinition(state, general.generalDefinitionId) : undefined;
           if (!general || !definition) return;
           const { commandRange } = getEffectiveCommandStats(general, definition);
           const range = mapHexesInRange(state.map, general.position, commandRange);

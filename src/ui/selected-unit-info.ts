@@ -2,7 +2,7 @@ import type { BuildableImprovementType, GameState, DisguiseType, HexCoord, Unit,
 import { UNIT_DEFINITIONS, UNIT_DESCRIPTIONS, canHeal } from '@/systems/unit-system';
 import { resolveSuperweaponContentDescription } from '@/systems/superweapon-content-honesty';
 import { isSuperweaponsEnabled } from '@/systems/superweapons-flag';
-import { GENERAL_DEFINITIONS } from '@/systems/great-general-definitions';
+import { resolveGeneralDefinition } from '@/systems/great-general-definitions';
 import { getHeroicCommandEligibility } from '@/systems/great-general-abilities';
 import { getEffectiveCommandStats } from '@/systems/great-general-system';
 import { createGameButton } from '@/ui/ui-kit';
@@ -356,7 +356,7 @@ export function renderSelectedUnitInfo(
   // the generic "Great General" def.name/description above -- mirrors this
   // function's existing pattern of additional info blocks beneath descDiv.
   if (unit.type === 'great_general' && unit.generalDefinitionId) {
-    const generalDef = GENERAL_DEFINITIONS.find(g => g.id === unit.generalDefinitionId);
+    const generalDef = resolveGeneralDefinition(state, unit.generalDefinitionId);
     if (generalDef) {
       const generalLine = document.createElement('div');
       generalLine.style.cssText = 'font-size:12px;margin-top:4px;color:#e8c170;font-weight:600;';

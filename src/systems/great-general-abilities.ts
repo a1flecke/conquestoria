@@ -1,5 +1,5 @@
 import type { GameState, HexCoord, LandSupplyState, LastStandHoldState, Unit } from '@/core/types';
-import { GENERAL_DEFINITIONS } from '@/systems/great-general-definitions';
+import { resolveGeneralDefinition } from '@/systems/great-general-definitions';
 import { getEffectiveCommandStats } from '@/systems/great-general-system';
 import { mapDistance, mapHexesInRange } from '@/systems/hex-utils';
 import { UNIT_DEFINITIONS } from '@/systems/unit-system';
@@ -21,10 +21,10 @@ export interface HeroicCommandEligibility {
  * function never reads state.opponentChallenge or civ.challenge).
  */
 export function getHeroicCommandEligibility(
-  state: Pick<GameState, 'turn'>,
+  state: Pick<GameState, 'turn' | 'generatedGenerals'>,
   general: Pick<Unit, 'generalDefinitionId' | 'generalNoCommandThisTurn' | 'generalCommandChargesUsed' | 'generalCommandCooldownUntilTurn'>,
 ): HeroicCommandEligibility {
-  const definition = GENERAL_DEFINITIONS.find(g => g.id === general.generalDefinitionId);
+  const definition = resolveGeneralDefinition(state, general.generalDefinitionId);
   const maxCharges = definition?.maxCommandCharges ?? 0;
   const chargesUsed = general.generalCommandChargesUsed ?? 0;
   const chargesRemaining = Math.max(0, maxCharges - chargesUsed);
@@ -65,7 +65,7 @@ export function getHeroicCommandEligibility(
  */
 export function spendHeroicCommandCharge(state: GameState, generalUnitId: string): GameState {
   const general = state.units[generalUnitId];
-  const definition = general ? GENERAL_DEFINITIONS.find(g => g.id === general.generalDefinitionId) : undefined;
+  const definition = general ? resolveGeneralDefinition(state, general.generalDefinitionId) : undefined;
   if (!general || !definition) return state;
 
   return {
@@ -149,7 +149,7 @@ export function getRallyPreview(state: GameState, generalUnitId: string): RallyP
     : { eligible: false, reason: 'General not found.', chargesRemaining: 0, isFinalCharge: false, cooldownTurnsRemaining: 0 };
   if (!general || !eligibility.eligible) return { eligibility, targets: [] };
 
-  const definition = GENERAL_DEFINITIONS.find(g => g.id === general.generalDefinitionId);
+  const definition = resolveGeneralDefinition(state, general.generalDefinitionId);
   if (!definition) return { eligibility, targets: [] };
 
   return { eligibility, targets: getRallyEligibleTargets(state, general, definition) };
@@ -221,7 +221,7 @@ export function getLastStandPreview(state: GameState, generalUnitId: string, tar
   };
   if (!general || !eligibility.eligible) return empty;
 
-  const definition = GENERAL_DEFINITIONS.find(g => g.id === general.generalDefinitionId);
+  const definition = resolveGeneralDefinition(state, general.generalDefinitionId);
   const civ = state.civilizations[general.owner];
   if (!definition || !civ) return empty;
   const { commandRange, commandCapacity } = getEffectiveCommandStats(general, definition);
@@ -316,7 +316,7 @@ export function getSeizeTheMomentEligibleUnits(
     : { eligible: false, reason: 'General not found.', chargesRemaining: 0, isFinalCharge: false, cooldownTurnsRemaining: 0 };
   if (!general || !eligibility.eligible) return { eligibility, eligible: [] };
 
-  const definition = GENERAL_DEFINITIONS.find(g => g.id === general.generalDefinitionId);
+  const definition = resolveGeneralDefinition(state, general.generalDefinitionId);
   const civ = state.civilizations[general.owner];
   if (!definition || !civ) return { eligibility, eligible: [] };
   const { commandRange } = getEffectiveCommandStats(general, definition);
@@ -358,7 +358,7 @@ export function issueSeizeTheMoment(
   if (!eligibility.eligible) return state;
 
   const general = state.units[generalUnitId];
-  const definition = GENERAL_DEFINITIONS.find(g => g.id === general?.generalDefinitionId);
+  const definition = resolveGeneralDefinition(state, general?.generalDefinitionId);
   if (!general || !definition) return state;
   const { commandCapacity } = getEffectiveCommandStats(general, definition);
 
