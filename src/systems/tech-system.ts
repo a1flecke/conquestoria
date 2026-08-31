@@ -87,6 +87,15 @@ export function isTechCompleted(state: TechState, techId: string): boolean {
  * mutating `researchProgress` to avoid the "100% but not completed" display bug.
  */
 export function applyResearchBonus(state: TechState, scienceBonus: number): ResearchResult {
+  if (!state.currentResearch) {
+    return {
+      state: {
+        ...state,
+        researchProgress: state.researchProgress + scienceBonus,
+      },
+      completedTech: null,
+    };
+  }
   return processResearch(state, scienceBonus);
 }
 

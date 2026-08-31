@@ -34,6 +34,7 @@ import { UNIT_DEFINITIONS } from '@/systems/unit-system';
 import { isOpponentChallenge } from '@/core/opponent-challenge';
 import { createEmptyOpponentAIState, normalizeOpponentAIState } from '@/core/opponent-ai-state';
 import { getCrisisFlavor } from '@/systems/crisis-flavor-definitions';
+import { createTechState } from '@/systems/tech-system';
 
 const SAVE_PREFIX = 'save:';
 const META_PREFIX = 'meta:';
@@ -68,13 +69,7 @@ function migrateLegacyPlanningState(state: GameState): GameState {
   }
 
   for (const civ of Object.values(state.civilizations ?? {})) {
-    civ.techState ??= {
-      completed: [],
-      currentResearch: null,
-      researchQueue: [],
-      researchProgress: 0,
-      trackPriorities: {} as GameState['civilizations'][string]['techState']['trackPriorities'],
-    };
+    civ.techState ??= createTechState();
     civ.techState.researchQueue ??= [];
   }
 

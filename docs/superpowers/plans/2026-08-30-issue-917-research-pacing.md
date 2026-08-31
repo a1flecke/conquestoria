@@ -120,10 +120,10 @@ Add a fixture containing exactly:
 
 ```ts
 const ISSUE_917_CITY_SCIENCE = [9, 8, 8, 8, 7, 5, 5, 4, 1, 1, 1, 1];
-expect(ISSUE_917_CITY_SCIENCE.reduce((sum, value) => sum + value, 0)).toBe(65);
+expect(ISSUE_917_CITY_SCIENCE.reduce((sum, value) => sum + value, 0)).toBe(58);
 ```
 
-At this MR's legacy identity policy, assert final science remains 65. The value changes to 24 only in MR3.
+The literal values sum to 58 (not 65); at this MR's legacy identity policy, assert final science remains 58. The value changes to 24 only in MR3.
 
 - [ ] **Step 4: Commit the characterization**
 
@@ -235,7 +235,7 @@ expect(breakdown.rows.map(row => row.kind)).toEqual([
 ]);
 ```
 
-Test authoritative input and projected input separately. Assert the helper does not mutate `state`, city focus, worked tiles, or `TechState`.
+The row sequence above is for a fixture with both a non-zero empire bonus and a non-zero temporary penalty. Always render `city-gross`, `coordination`, and `final`; render bonus and penalty rows only when they are non-zero, with negative fixtures proving absent contributors do not create misleading zero rows. Test authoritative input and projected input separately. Add a city that converts idle production to science and a fixture covering city-scoped wonder, resource, network, lowest-city, unrest/occupation/crisis, and percentage modifiers; assert projected, authoritative, and live-turn final science agree under the identity policy. Assert the helper does not mutate `state`, city focus, worked tiles, or `TechState`.
 
 - [ ] **Step 2: Run and verify the API tests fail**
 
@@ -260,7 +260,7 @@ export interface ResearchOutputBreakdown {
 }
 ```
 
-Use authoritative city values when provided; otherwise call `calculateProjectedCityYields`. Add civilization-wide wonder, national-project, empire-flat-tech, and alliance values after coordination. Apply temporary research penalty last and floor once. Default to `FULL_CONTRIBUTION_RESEARCH_POLICY` until MR3.
+Use authoritative per-city **turn contributions** when provided; each value must include both the already-calculated city science and that city's `idleScienceBonus`. Otherwise derive each city through a shared projected-research-city helper. It may reuse `calculateProjectedCityYields`, but must also apply every science modifier that live turn processing applies: active-route/base-yield context, city wonder yields, resources, network and lowest-city bonuses, unrest/occupation/crisis multipliers, empire technology percentages, and idle production conversion. Add civilization-wide wonder, national-project, empire-flat-tech, and alliance values after coordination. Apply temporary research penalty last and floor once. Default to `FULL_CONTRIBUTION_RESEARCH_POLICY` until MR3.
 
 - [ ] **Step 4: Implement marginal-value calculation through the same API**
 
@@ -331,7 +331,7 @@ Expected: FAIL where old callers still sum projected city yields.
 
 - [ ] **Step 3: Wire turn-manager authoritative values**
 
-Collect the already-calculated `yields.science` by city ID during the city loop, then call `calculateCivResearchOutput` once. Delete the local wonder/project/flat/alliance/penalty research arithmetic after parity is proven; retain unrelated gold logic.
+Collect `yields.science + result.idleScienceBonus` by city ID during the city loop, then call `calculateCivResearchOutput` once. Delete the local wonder/project/flat/alliance/penalty research arithmetic after parity is proven; retain unrelated gold logic. Add a regression proving an idle-science city remains contribution-identical before and after this refactor.
 
 - [ ] **Step 4: Replace presentation and AI sums**
 
@@ -495,7 +495,7 @@ export const RESEARCH_SCENARIOS = {
 } as const;
 ```
 
-Index `0` is Era 1. Keep the #917 scenario separate with its exact twelve city yields, turn 117, personal Era 2, gross 65, and coordinated 24; do not pretend it is the standard Era-2 cohort.
+Index `0` is Era 1. Keep the #917 scenario separate with its exact twelve city yields, turn 117, personal Era 2, gross 58, and coordinated 24; do not pretend it is the standard Era-2 cohort.
 
 - [ ] **Step 2: Write failing scenario invariants**
 
@@ -709,7 +709,7 @@ Update every changed `Tech.cost` to its pinned proposed value. Do not change IDs
 - [ ] **Step 3: Flip the #917 fixture expectation**
 
 ```ts
-expect(breakdown.grossCityScience).toBe(65);
+expect(breakdown.grossCityScience).toBe(58);
 expect(breakdown.coordinatedCityScience).toBe(24);
 const expectedEtas = Object.fromEntries(
   ['pictographs', 'sacred-sites', 'shamanism', 'sabotage', 'iron-forging',
@@ -757,7 +757,7 @@ git commit -m "fix(research): rebalance every authored era"
 
 | Before | Action | Immediate visible result |
 |---|---|---|
-| HUD shows final `+24` | Activate science item | Breakdown opens with Cities `+65`, Research network `-41`, bonuses/penalties, Final `+24` |
+| HUD shows final `+24` | Activate science item | Breakdown opens with Cities `+58`, Research network `-34`, bonuses/penalties, Final `+24` |
 | Breakdown is open | Change city focus and rerender | Every row and final value refresh from fresh state |
 | Queue A, B, C is visible | Move C up | Queue becomes A, C, B and every cumulative ETA updates |
 | Queue has A, B | Remove A | B becomes first queued item and ETA/order refreshes immediately |
@@ -1051,7 +1051,12 @@ This review was performed after the complete roadmap was drafted. Findings were 
 | Computer players | Raw building science would make AI overvalue low-impact marginal cities under coordination. | `getMarginalCivResearchGain` feeds AI production scoring; AI research uses canonical queue timing; all difficulties share the same rules. |
 | UI | Old HUD and panel paths omitted bonuses/penalties, and independent ETA division lies about queues. | One serializable breakdown feeds HUD/panel; discrete queue simulation covers active progress, order, floor, and later overflow. |
 | UX/accessibility | A clickable span, color-only negative values, stale DOM, or sub-44px controls would regress usability. | Button semantics, accessible naming, visible focus, text signs/labels, 44px targets, immutable-state replay tests, keyboard and narrow-screen browser replay. |
+| UI truth and cognitive load (review finding) | MR1’s negative-row requirement contradicted its later fixed row list, risking a detail view filled with zero-value bonuses and penalties or tests with ambiguous expectations. | Summary rows (`city-gross`, `coordination`, `final`) are always present; optional empire-bonus and temporary-penalty rows render only when non-zero. Positive and negative rendered-data tests define both cases before MR3 exposes the breakdown UI. |
 | Architecture | Turn manager, UI, and AI each owning formulas violated SRP and invited drift. | Pure coordination module, one output aggregator, research-only pacing model, progress authority in `tech-system.ts`, UI renderer with no gameplay math, and turn manager as orchestration only. |
+| Completion parity (review finding) | Wonder rewards, interrogation bonuses, and stolen technologies could complete research without applying the normal-turn Gene Therapy or obsolescence consequences. | `applyResearchCompletionConsequences` now provides the shared post-completion path; each acquisition source emits one `tech:completed` event and invokes that same state/event consequence helper. |
+| Save normalization (review finding) | Legacy-load recovery constructed a partial `TechState` outside the canonical factory, making new defaults easy to omit and undermining the progress-ownership invariant. | Recovery now uses `createTechState`; the direct-progress source guard blocks real assignments/increments but deliberately permits read-only intelligence snapshots. |
+| Live-output parity (review finding) | The proposed authoritative handoff named only `yields.science`, but the live turn also adds `idleScienceBonus`; the existing projected helper also omits several turn-only science modifiers. Either omission would make MR1 change science behavior or keep HUD/ETA dishonest. | Canonical output now accepts full per-city turn contributions (`yields.science + idleScienceBonus`) and owns a shared projected-research-city helper. MR1 parity coverage includes idle science, city wonder/resource/network/lowest-city bonuses, multipliers, and tech percentages against the real turn loop. |
+| Scenario data integrity (review finding) | The literal #917 fixture listed twelve values that sum to 58, while the plan and design claimed 65. That would make the golden test, future pacing report, and player-facing example disagree with the actual input. | Keep the supplied distribution and use its verified gross 58 everywhere; the existing diminishing-policy result remains 24, so the illustrated research-network difference is -34. |
 | SOLID/extensibility | Runtime costs or era-specific branches would violate open/closed design and make future eras fragile. | Typed policies/scenarios, explicit authored data, compatibility re-exports, generic cost algorithm, and loud missing-era failure instead of Era-13 fallback. |
 | Data integrity | Draft duplicated old-cost maps between tests and migration code. | One production-owned `src/storage/research-cost-migration-v23.ts`; tests import it, production never imports tests. |
 | SFX | Bonus/overflow completion could double-fire the existing cue; a new passive sound would be noisy. | Exactly-once viewer-scoped completion event/SFX tests and explicit no-sound rules for coordination, panel opening, migration, AI, and hidden hot-seat owners. No new asset. |

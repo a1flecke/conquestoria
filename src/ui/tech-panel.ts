@@ -1,6 +1,6 @@
 import type { GameState, Tech, TechTrack } from '@/core/types';
 import { BUILDINGS, TRAINABLE_UNITS } from '@/systems/city-system';
-import { calculateProjectedCityYields } from '@/systems/city-work-system';
+import { calculateCivResearchOutput } from '@/systems/research-output-system';
 import { estimateTurnsToComplete } from '@/systems/pacing-model';
 import {
   buildTechProgressionView,
@@ -424,11 +424,7 @@ export function createTechPanel(
   panel.style.cssText = 'position:absolute;top:0;left:0;right:0;bottom:0;background:rgba(15,15,25,0.95);z-index:30;overflow-y:auto;padding:16px;padding-bottom:80px;color:white;';
 
   const civ = state.civilizations[state.currentPlayer];
-  const sciencePerTurn = Math.max(
-    1,
-    civ.cities
-      .reduce((total, cityId) => total + calculateProjectedCityYields(state, cityId).science, 0),
-  );
+  const sciencePerTurn = Math.max(1, calculateCivResearchOutput(state, civ.id).finalScience);
   const queueTiming = getQueuedResearchTiming(civ, sciencePerTurn);
 
   let zoom: TechTreeZoom = 'focus';

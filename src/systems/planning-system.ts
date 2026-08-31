@@ -1,7 +1,7 @@
 import type { City, GameState, TechState } from '@/core/types';
 import { BUILDINGS, getAvailableBuildings, getProductionCostForItem, getTrainableUnitsForCiv } from '@/systems/city-system';
 import { calculateProjectedCityYields } from '@/systems/city-work-system';
-import { getAvailableTechs, TECH_TREE } from '@/systems/tech-system';
+import { getAvailableTechs, startResearch, TECH_TREE } from '@/systems/tech-system';
 import { resolveBuildingPacingBand, resolveUnitPacingBand } from '@/systems/pacing-model';
 import { resolveCivDefinition } from '@/systems/civ-registry';
 import { getQueueableResearchIds } from '@/systems/tech-progression';
@@ -78,11 +78,7 @@ export function enqueueResearch(state: TechState, techId: string): TechState {
   }
 
   if (!state.currentResearch) {
-    return {
-      ...state,
-      currentResearch: techId,
-      researchProgress: 0,
-    };
+    return startResearch(state, techId);
   }
 
   if (state.researchQueue.length >= MAX_RESEARCH_QUEUE_ITEMS) {
@@ -119,10 +115,8 @@ export function activateNextQueuedResearch(state: TechState): TechState {
       : { ...state, researchQueue: [] };
   }
   return {
-    ...state,
-    currentResearch,
+    ...startResearch(state, currentResearch),
     researchQueue,
-    researchProgress: 0,
   };
 }
 

@@ -89,7 +89,7 @@ For a civilization with per-city science contributions `s1...sn`:
 6. Apply temporary research penalties last.
 7. Floor once, after all contributions and penalties, and clamp the final value to zero.
 
-The issue #917 city contributions—`9, 8, 8, 8, 7, 5, 5, 4, 1, 1, 1, 1`—produce 65 gross city science and 24 final coordinated city science before any empire-flat bonus or temporary penalty. With the current costs, the screenshot's 25–155-cost technologies would take approximately 2–7 turns instead of 1–3. The all-era cost retune is still required because later representative outputs remain above the legacy single-city profiles even after coordination.
+The issue #917 city contributions—`9, 8, 8, 8, 7, 5, 5, 4, 1, 1, 1, 1`—produce 58 gross city science and 24 final coordinated city science before any empire-flat bonus or temporary penalty. With the current costs, the screenshot's 25–155-cost technologies would take approximately 2–7 turns instead of 1–3. The all-era cost retune is still required because later representative outputs remain above the legacy single-city profiles even after coordination.
 
 ### 3.2 Mathematical invariants
 
@@ -214,7 +214,7 @@ The turn manager remains the canonical mutation orchestrator. It may gather inpu
 
 | Before | Action | Immediate visible result |
 |---|---|---|
-| HUD shows `🔬 Pictographs (+24)` | Click/tap the science item | A readable breakdown shows `Cities +65`, `Research network -41`, empire bonuses/penalties, and `Final +24` |
+| HUD shows `🔬 Pictographs (+24)` | Click/tap the science item | A readable breakdown shows `Cities +58`, `Research network -34`, empire bonuses/penalties, and `Final +24` |
 | Tech panel shows current and queued ETAs | Increase a city's science and reopen/rerender | Current and every queued ETA use the new canonical final rate |
 | Queue shows A, B, C | Reorder or remove an item | Order and all cumulative ETAs recalculate immediately using overflow and the one-completion-per-turn rule |
 | A one-time reward completes the active technology | Return to/open the tech panel | Completed styling, successor, carried progress, and ETA are immediately correct |

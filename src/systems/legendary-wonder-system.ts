@@ -9,7 +9,8 @@ import type {
 } from '@/core/types';
 import { EventBus } from '@/core/event-bus';
 import { getLegendaryWonderDefinition, getLegendaryWonderDefinitions } from '@/systems/legendary-wonder-definitions';
-import { getTechById } from '@/systems/tech-system';
+import { applyResearchBonus, getTechById } from '@/systems/tech-system';
+import { applyResearchCompletionConsequences } from '@/systems/tech-completion-system';
 import { hexDistance } from '@/systems/hex-utils';
 import { routeMatchesLegendaryWonderRequirement } from '@/systems/trade-route-classification';
 import {
@@ -694,6 +695,7 @@ export function tickLegendaryWonderProjects(state: GameState, _bus: EventBus): G
   const updatedCivilizations = structuredClone(seededState.civilizations);
   const completedLegendaryWonders = { ...(seededState.completedLegendaryWonders ?? {}) };
   let legendaryWonderIntel = sanitizeLegendaryWonderIntel(seededState);
+  const completedResearches: Array<{ civId: string; techId: string }> = [];
   let changed = seededState !== state;
 
   for (const [projectId, rawProject] of Object.entries(seededState.legendaryWonderProjects)) {
@@ -728,7 +730,11 @@ export function tickLegendaryWonderProjects(state: GameState, _bus: EventBus): G
           continue;
         }
 
-        applyLegendaryWonderReward(state, updatedCivilizations, project.ownerId, definition.reward);
+        const completedTech = applyLegendaryWonderReward(state, updatedCivilizations, project.ownerId, definition.reward);
+        if (completedTech) {
+          _bus.emit('tech:completed', { civId: project.ownerId, techId: completedTech });
+          completedResearches.push({ civId: project.ownerId, techId: completedTech });
+        }
         _bus.emit('wonder:legendary-completed', {
           civId: project.ownerId,
           cityId: project.cityId,
@@ -834,7 +840,7 @@ export function tickLegendaryWonderProjects(state: GameState, _bus: EventBus): G
     return state;
   }
 
-  return {
+  let nextState: GameState = {
     ...seededState,
     cities: updatedCities,
     civilizations: updatedCivilizations,
@@ -842,6 +848,10 @@ export function tickLegendaryWonderProjects(state: GameState, _bus: EventBus): G
     completedLegendaryWonders,
     legendaryWonderIntel,
   };
+  for (const completion of completedResearches) {
+    nextState = applyResearchCompletionConsequences(nextState, completion.civId, completion.techId, _bus);
+  }
+  return nextState;
 }
 
 export function startLegendaryWonderBuild(
@@ -995,21 +1005,22 @@ function applyLegendaryWonderReward(
   civilizations: GameState['civilizations'],
   ownerId: string,
   reward: NonNullable<ReturnType<typeof getLegendaryWonderDefinition>>['reward'],
-): void {
+): string | null {
   const civilization = civilizations[ownerId];
   if (!civilization) {
-    return;
+    return null;
   }
 
   const civBonus = resolveCivDefinition(state, civilization.civType ?? '')?.bonusEffect;
   const wonderRewardMultiplier = civBonus?.type === 'wonder_rewards' ? civBonus.rewardMultiplier : 1;
 
   if (reward.instantResearch) {
-    civilization.techState = {
-      ...civilization.techState,
-      researchProgress: civilization.techState.researchProgress + Math.round(reward.instantResearch * wonderRewardMultiplier),
-    };
+    const result = applyResearchBonus(civilization.techState, Math.round(reward.instantResearch * wonderRewardMultiplier));
+    civilization.techState = result.state;
+    return result.completedTech;
   }
+
+  return null;
 }
 
 function getWonderRewardMultiplier(state: GameState, civId: string): number {

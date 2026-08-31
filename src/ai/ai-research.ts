@@ -11,7 +11,7 @@ import {
   TRAINABLE_UNITS,
   isCityCoastal,
 } from '@/systems/city-system';
-import { calculateProjectedCityYields } from '@/systems/city-work-system';
+import { calculateCivResearchOutput } from '@/systems/research-output-system';
 import { getCivAvailableResources, getCivHappinessFromResources } from '@/systems/resource-acquisition-system';
 import {
   UNREST_RELIEF_SOURCES,
@@ -340,11 +340,7 @@ export function applyAIResearch(
     const city = state.cities[cityId];
     return city ? isCityCoastal(city, state.map) : false;
   });
-  const sciencePerTurn = Math.max(
-    1,
-    civ.cities.reduce((sum, cityId) =>
-      sum + calculateProjectedCityYields(state, cityId).science, 0),
-  );
+  const sciencePerTurn = Math.max(1, calculateCivResearchOutput(state, civId).finalScience);
   // #919 MR2: how many of this civ's cities are BOTH meaningfully pressured AND carry
   // a pressure row a relief building would actually cut (distance / overextension).
   const reliefPressureGate = 0.6 * UNREST_TRIGGER_PRESSURE;

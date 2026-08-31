@@ -21,6 +21,7 @@ import { createTreasuryDrawer, type TreasuryDrawer } from '@/ui/treasury-drawer'
 import { createGameButton } from '@/ui/ui-kit';
 import { civHasAirDefenseCoverage } from '@/systems/air-defense-system';
 import { calculateProjectedCityYields } from '@/systems/city-work-system';
+import { calculateCivResearchOutput } from '@/systems/research-output-system';
 import { calculateCivEconomy, formatGoldHudText } from '@/systems/economy-system';
 import { resolveCivilizationEra } from '@/systems/tech-definitions';
 import { getCivHappinessFromResources } from '@/systems/resource-acquisition-system';
@@ -93,15 +94,15 @@ export function createHudController(deps: HudControllerDeps): HudController {
       if (!hud) return;
 
       // Sum yields across all cities
-      let totalFood = 0, totalProd = 0, totalScience = 0;
+      let totalFood = 0, totalProd = 0;
       for (const cityId of civ.cities) {
         const city = state.cities[cityId];
         if (!city) continue;
         const y = calculateProjectedCityYields(state, cityId);
         totalFood += y.food;
         totalProd += y.production;
-        totalScience += y.science;
       }
+      const totalScience = calculateCivResearchOutput(state, civ.id).finalScience;
       const economyStatus = calculateCivEconomy(state, civ.id);
 
       const techName = civ.techState.currentResearch ?? 'None';
