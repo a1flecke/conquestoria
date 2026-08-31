@@ -50,7 +50,7 @@ import { showVictoryPanel } from '@/ui/victory-panel';
 import { getCouncilInterrupt } from '@/systems/council-system';
 import { collectCouncilInterrupt } from '@/core/hotseat-events';
 import { getIdleCityIds, getRecommendedIdleCityChoice, needsResearchChoice, enqueueResearch, enqueueCityProduction } from '@/systems/planning-system';
-import { calculateProjectedCityYields } from '@/systems/city-work-system';
+import { calculateCivResearchOutput } from '@/systems/research-output-system';
 import { getAvailableTechs, getEffectiveTechCost } from '@/systems/tech-system';
 import { estimateTurnsToComplete } from '@/systems/pacing-model';
 import { finalizePlayerCityAssaultChoice } from '@/input/city-assault-flow';
@@ -227,11 +227,7 @@ export function createTurnFlowController(deps: TurnFlowControllerDeps): TurnFlow
     closePlanningPanels(document);
 
     const civ = deps.currentCiv();
-    const sciencePerTurn = Math.max(
-      1,
-      civ.cities
-        .reduce((total, cityId) => total + calculateProjectedCityYields(session.getState(), cityId).science, 0),
-    );
+    const sciencePerTurn = Math.max(1, calculateCivResearchOutput(session.getState(), civId).finalScience);
     const researchChoices = missingResearch
       ? getAvailableTechs(civ.techState).slice(0, 3).map(tech => ({
         techId: tech.id,

@@ -2,6 +2,7 @@ import {
   TECH_TREE,
   createTechState,
   getAvailableTechs,
+  applyResearchBonus,
   startResearch,
   processResearch,
   isTechCompleted,
@@ -170,6 +171,16 @@ describe('processResearch', () => {
     expect(result.completedTech).toBe('fire');
     expect(result.state.currentResearch).toBe('writing');
     expect(result.state.researchQueue).toEqual([]);
+  });
+
+  it('completes active research through a bonus instead of leaving full progress active', () => {
+    const state = startResearch(createTechState(), 'fire');
+    const result = applyResearchBonus({ ...state, researchProgress: 7 }, 1);
+
+    expect(result.completedTech).toBe('fire');
+    expect(result.state.completed).toContain('fire');
+    expect(result.state.currentResearch).toBeNull();
+    expect(result.state.researchProgress).toBe(0);
   });
 });
 

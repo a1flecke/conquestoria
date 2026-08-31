@@ -73,6 +73,20 @@ if grep -nE 'Math\.random\(' "$file_path" | grep -v '//' >/dev/null; then
 $lines"
 fi
 
+# --- research progress is owned by tech-system or a versioned save migration ---
+case "$file_path" in
+  */src/systems/tech-system.ts|*/src/storage/save-migrations.ts|*/src/storage/research-cost-migration-v*.ts)
+    : # explicit state authority / schema migration exception
+    ;;
+  *)
+    if grep -nE 'researchProgress[[:space:]]*(\+?=)|researchProgress[[:space:]]*:[[:space:]]*([^,]*researchProgress[[:space:]]*[+\-]|0[,}]?)' "$file_path" | grep -v '//' >/dev/null; then
+      lines="$(grep -nE 'researchProgress[[:space:]]*(\+?=)|researchProgress[[:space:]]*:[[:space:]]*([^,]*researchProgress[[:space:]]*[+\-]|0[,}]?)' "$file_path" | grep -v '//' | head -5)"
+      append "Direct researchProgress mutation detected — use applyResearchBonus()/processResearch() in tech-system.ts (except versioned save migrations):
+$lines"
+    fi
+    ;;
+esac
+
 # --- hardcoded 'player' ownership check ---
 if grep -nE "=== ['\"]player['\"]|owner === ['\"]player['\"]" "$file_path" >/dev/null; then
   lines="$(grep -nE "=== ['\"]player['\"]|owner === ['\"]player['\"]" "$file_path" | head -5)"

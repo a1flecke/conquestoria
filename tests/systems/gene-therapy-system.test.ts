@@ -3,6 +3,8 @@ import {
   chargeUnitsOnGeneTherapyResearch,
   applyGeneTherapyRecharge,
 } from '@/systems/gene-therapy-system';
+import { applyResearchCompletionConsequences } from '@/systems/tech-completion-system';
+import { EventBus } from '@/core/event-bus';
 import type { GameState, Unit } from '@/core/types';
 
 function makeUnit(overrides: Partial<Unit> & { id: string; type: Unit['type']; owner: string }): Unit {
@@ -96,6 +98,19 @@ describe('chargeUnitsOnGeneTherapyResearch', () => {
     chargeUnitsOnGeneTherapyResearch(state, 'p1');
 
     expect(state).toEqual(before);
+  });
+});
+
+describe('applyResearchCompletionConsequences', () => {
+  it('applies Gene Therapy readiness when research completes outside the normal turn flow', () => {
+    const state = makeState(
+      { warrior1: makeUnit({ id: 'warrior1', type: 'warrior', owner: 'p1' }) },
+      ['warrior1'],
+    );
+
+    const result = applyResearchCompletionConsequences(state, 'p1', 'gene-therapy', new EventBus());
+
+    expect(result.units.warrior1.geneTherapyReady).toBe(true);
   });
 });
 

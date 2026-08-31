@@ -76,6 +76,24 @@ state.cities[id] = { ...city };
 EOF
 expect_block "$tmp/src/systems/mutation.ts" "direct state mutation"
 
+# --- block: direct research-progress mutation outside the tech authority ---
+cat > "$tmp/src/systems/research-bug.ts" <<'EOF'
+civilization.techState.researchProgress += reward;
+EOF
+expect_block "$tmp/src/systems/research-bug.ts" "direct research progress mutation"
+
+# --- allow: tech-system owns research progress transitions ---
+cat > "$tmp/src/systems/tech-system.ts" <<'EOF'
+return { ...state, researchProgress: state.researchProgress + sciencePoints };
+EOF
+expect_allow "$tmp/src/systems/tech-system.ts" "tech-system research progress transition"
+
+# --- allow: read-only intelligence snapshot ---
+cat > "$tmp/src/systems/research-intel.ts" <<'EOF'
+return { researchProgress: target.techState.researchProgress };
+EOF
+expect_allow "$tmp/src/systems/research-intel.ts" "research progress intelligence snapshot"
+
 # --- block: innerHTML with template literal interpolation ---
 cat > "$tmp/src/ui/xss.ts" <<'EOF'
 el.innerHTML = `<div>${name}</div>`;

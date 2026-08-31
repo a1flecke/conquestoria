@@ -8,7 +8,8 @@ import { baseNewAirUnit, canCompleteAirUnitProduction } from '@/systems/air-oper
 import { getCivAvailableResources } from '@/systems/resource-acquisition-system';
 import { applyCityMaturity } from '@/systems/city-maturity-system';
 import { assignCityFocus, normalizeWorkedTilesForCity } from '@/systems/city-work-system';
-import { processResearch, getTechById, getEffectiveTechCost } from '@/systems/tech-system';
+import { applyResearchBonus, processResearch, getTechById, getEffectiveTechCost } from '@/systems/tech-system';
+import { calculateCivResearchOutput } from '@/systems/research-output-system';
 import { appendLegendaryWonderNetworkPlanResolutions } from '@/systems/legendary-wonder-history';
 import {
   processPurposefulBarbarians,
@@ -85,7 +86,8 @@ import { resolveCivilizationEra } from '@/systems/tech-definitions';
 import { resolveCombatEra, resolveNeutralPressureEra } from '@/systems/era-resolution';
 import { resolveCivDefinition } from '@/systems/civ-registry';
 import { applyProductionBonus } from '@/systems/city-system';
-import { chargeUnitsOnGeneTherapyResearch, applyGeneTherapyRecharge } from '@/systems/gene-therapy-system';
+import { applyGeneTherapyRecharge } from '@/systems/gene-therapy-system';
+import { applyResearchCompletionConsequences } from '@/systems/tech-completion-system';
 import { processCyberDrain } from '@/systems/cyber-warfare-system';
 import {
   beginNetworkPlansForVictimTurn,
@@ -251,8 +253,8 @@ export function processTurn(
     // must only consider units that already existed at turn start (see gene-therapy-system.ts).
     const unitIdsAtTurnStart = [...civ.units];
     // Process cities: food, growth, production
-    let totalScience = 0;
     let totalGold = 0;
+    const authoritativeCityScience: Record<string, number> = {};
     const baseGoldByCityId: Record<string, number> = {};
 
     const resourceYieldBonus = getCivResourceYieldBonus(newState, civId);
@@ -321,7 +323,6 @@ export function processTurn(
         gold:       Math.floor((baseYields.gold       + (wonderCityBonuses.gold       ?? 0) + resourceYieldBonus.gold)       * unrestMultiplier.gold * (1 + (empireTechPercents.gold ?? 0) / 100)),
         science:    Math.floor((baseYields.science    + networkCityBonus.science + (wonderCityBonuses.science    ?? 0) + resourceYieldBonus.science + networkGovernanceScienceForCity) * unrestMultiplier.science * (1 + (empireTechPercents.science ?? 0) / 100)),
       };
-      totalScience += yields.science;
       totalGold += yields.gold;
       baseGoldByCityId[cityId] = yields.gold;
       const effectiveProduction = isCityProductionLocked(city) ? 0 : yields.production;
@@ -349,7 +350,7 @@ export function processTurn(
         hasActiveRecoveredHarnesses(newState, civId),
       );
       totalGold += result.idleGoldBonus;
-      totalScience += result.idleScienceBonus;
+      authoritativeCityScience[cityId] = yields.science + result.idleScienceBonus;
 
       const maturityResult = applyCityMaturity(result.city, civ.techState.completed);
       newState.cities[cityId] = maturityResult.city;
@@ -527,13 +528,10 @@ export function processTurn(
 
     // Process research
     const wonderCivBonuses = getLegendaryWonderCivYieldBonus(newState, civId);
-    totalScience += wonderCivBonuses.science ?? 0;
     totalGold += wonderCivBonuses.gold ?? 0;
-    totalScience += npCivBonuses.science ?? 0;
     // NP food/production applied per-city above; NP gold handled in economy-system.ts to avoid double-counting
     totalGold += getCivLuxuryTechGold(civ.techState.completed, getCivHappinessFromResources(newState, civId));
     totalGold += empireFlatTechYields.gold;
-    totalScience += empireFlatTechYields.science;
 
     // digital-art: +gold per completed legendary wonder this civ owns.
     const completedWonderCount = Object.values(newState.completedLegendaryWonders ?? {})
@@ -559,47 +557,16 @@ export function processTurn(
     totalGold += getCivRoutePartnerTechGold(civ.techState.completed, routePartnerCivIds.size);
     if (civDef?.bonusEffect.type === 'allied_kingdoms') {
       const allianceCount = civ.diplomacy.treaties.filter(t => t.type === 'alliance').length;
-      totalScience += allianceCount * civDef.bonusEffect.allianceYieldBonus;
       totalGold += allianceCount * civDef.bonusEffect.allianceYieldBonus;
     }
 
-    const researchPenaltyMultiplier = currentCivState.researchPenaltyTurns && currentCivState.researchPenaltyTurns > 0
-      ? currentCivState.researchPenaltyMultiplier ?? 0
-      : 0;
-    const effectiveScience = Math.max(0, Math.floor(totalScience * (1 - researchPenaltyMultiplier)));
-    const researchResult = processResearch(civ.techState, effectiveScience);
+    const researchOutput = calculateCivResearchOutput(newState, civId, { authoritativeCityScience });
+    const researchResult = processResearch(civ.techState, researchOutput.finalScience);
     newState.civilizations[civId].techState = researchResult.state;
     if (researchResult.completedTech) {
       const techId = researchResult.completedTech;
       bus.emit('tech:completed', { civId, techId });
-
-      if (techId === 'gene-therapy') {
-        newState = chargeUnitsOnGeneTherapyResearch(newState, civId);
-      }
-
-      // Inline obsolescence scan — runs once synchronously per completed tech
-      const obsoletedTypes = TRAINABLE_UNITS
-        .filter(u => u.obsoletedByTech === techId)
-        .map(u => u.type);
-
-      if (obsoletedTypes.length > 0) {
-        for (const [unitId, unit] of Object.entries(newState.units)) {
-          if (unit.owner !== civId) continue;
-          if (!obsoletedTypes.includes(unit.type)) continue;
-          bus.emit('unit:obsolete', { civId, unitId, unitType: unit.type });
-        }
-
-        const civEsp = newState.espionage?.[civId];
-        if (civEsp) {
-          for (const [spyId, spy] of Object.entries(civEsp.spies)) {
-            if (!obsoletedTypes.includes(spy.unitType)) continue;
-            if (spy.status !== 'embedded' && spy.status !== 'stationed' && spy.status !== 'on_mission') continue;
-            const { [spyId]: _removed, ...remainingSpies } = newState.espionage![civId].spies;
-            newState.espionage![civId] = { ...newState.espionage![civId], spies: remainingSpies };
-            bus.emit('espionage:spy-expired', { civId, spyId, spyName: spy.name, unitType: spy.unitType });
-          }
-        }
-      }
+      newState = applyResearchCompletionConsequences(newState, civId, techId, bus);
     }
 
     // Resource outpost upkeep: 2 gold/turn per completed outpost owned by this civ
@@ -1360,19 +1327,21 @@ export function processTurn(
           const techCost = currentTech ? getEffectiveTechCost(currentTech, cap.techState.completed) : 0;
           const progressGain = techCost > 0 ? Math.floor(bonus * techCost) : 0;
           if (progressGain > 0) {
+            const researchResult = applyResearchBonus(cap.techState, progressGain);
             newState = {
               ...newState,
               civilizations: {
                 ...newState.civilizations,
                 [captorId]: {
                   ...cap,
-                  techState: {
-                    ...cap.techState,
-                    researchProgress: (cap.techState.researchProgress ?? 0) + progressGain,
-                  },
+                  techState: researchResult.state,
                 },
               },
             };
+            if (researchResult.completedTech) {
+              bus.emit('tech:completed', { civId: captorId, techId: researchResult.completedTech });
+              newState = applyResearchCompletionConsequences(newState, captorId, researchResult.completedTech, bus);
+            }
           }
         }
       }

@@ -53,6 +53,18 @@ for file_path in "$@"; do
     append_match_block "Math.random() is banned in src/ — use seeded RNG (see .claude/rules/game-systems.md#deterministic-rng)" "$lines"
   fi
 
+  case "$file_path" in
+    src/systems/tech-system.ts|src/storage/save-migrations.ts|src/storage/research-cost-migration-v*.ts)
+      : # explicit state authority / schema migration exception
+      ;;
+    *)
+      if grep -nE 'researchProgress[[:space:]]*(\+?=)|researchProgress[[:space:]]*:[[:space:]]*([^,]*researchProgress[[:space:]]*[+\-]|0[,}]?)' "$file_path" | grep -v '//' >/dev/null; then
+        lines="$(grep -nE 'researchProgress[[:space:]]*(\+?=)|researchProgress[[:space:]]*:[[:space:]]*([^,]*researchProgress[[:space:]]*[+\-]|0[,}]?)' "$file_path" | grep -v '//' | head -5)"
+        append_match_block "Direct researchProgress mutation detected — use applyResearchBonus()/processResearch() in tech-system.ts (except versioned save migrations)" "$lines"
+      fi
+      ;;
+  esac
+
   if grep -nE "=== ['\"]player['\"]|owner === ['\"]player['\"]" "$file_path" >/dev/null; then
     lines="$(grep -nE "=== ['\"]player['\"]|owner === ['\"]player['\"]" "$file_path" | head -5)"
     append_match_block "Hardcoded 'player' ownership check — use state.currentPlayer (see .claude/rules/ui-panels.md#hot-seat-multiplayer)" "$lines"

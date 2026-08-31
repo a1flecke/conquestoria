@@ -179,7 +179,7 @@ pass_status=$?
 # --- real Vitest run: keep the fixture text honest against the actually
 #     installed Vitest version, not just a hand-written guess. -----------
 
-real_scratch_dir="$ROOT/tests/tmp-scratch-892-classification"
+real_scratch_dir="$ROOT/tests/hooks/classification-assertion-probe-892"
 mkdir -p "$real_scratch_dir"
 cat > "$real_scratch_dir/real-failure.test.ts" <<'EOF'
 import { describe, it, expect } from 'vitest';
@@ -197,7 +197,7 @@ trap 'cleanup_real; rm -rf "$tmpdir"' EXIT
 real_log="$tmpdir/real-vitest-output.log"
 (
   cd "$ROOT"
-  yarn vitest run "tests/tmp-scratch-892-classification/real-failure.test.ts"
+  yarn vitest run "tests/hooks/classification-assertion-probe-892/real-failure.test.ts"
 ) > "$real_log" 2>&1 || true
 grep -Eq 'Failed Tests [0-9]+' "$real_log" || {
   echo "the installed Vitest no longer prints a 'Failed Tests N' banner for a real assertion failure -- update classify_vitest_log's product-test marker" >&2

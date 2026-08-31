@@ -7,6 +7,7 @@ import type {
   InterrogationRecord, InterrogationIntel, InterrogationIntelType,
 } from '../core/types';
 import type { EventBus } from '../core/event-bus';
+import { applyResearchCompletionConsequences } from './tech-completion-system';
 import { createRng } from './map-generator'; // Reuse existing seeded RNG
 import { hexDistance } from './hex-utils';
 import { modifyRelationship } from './diplomacy-system';
@@ -1483,9 +1484,11 @@ export function processEspionageTurn(state: GameState, bus: EventBus): GameState
           // steal_tech: add the tech to the spying civ and record dedup
           if (evt.missionType === 'steal_tech' && result.stolenTechId) {
             const stolenId = result.stolenTechId as string;
+            let completedStolenTech = false;
             if (!state.civilizations[civId].techState.completed.includes(stolenId)) {
               state.civilizations[civId].techState.completed.push(stolenId);
               bus.emit('tech:completed', { civId, techId: stolenId });
+              completedStolenTech = true;
             }
             const thisSpy = updatedEsp.spies[evt.spyId];
             if (thisSpy?.targetCivId) {
@@ -1504,6 +1507,9 @@ export function processEspionageTurn(state: GameState, bus: EventBus): GameState
                 },
               };
               state.espionage![civId] = updatedEsp;
+            }
+            if (completedStolenTech) {
+              state = applyResearchCompletionConsequences(state, civId, stolenId, bus);
             }
           }
 
@@ -2233,4 +2239,3 @@ export function attemptInfiltration(
     };
   }
 }
-
