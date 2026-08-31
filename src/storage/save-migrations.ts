@@ -296,20 +296,27 @@ function withReligionDefaults(state: GameState): GameState {
 // Unconditional + idempotent, same additive-safety rationale as
 // withReligionDefaults above; also wired as numbered migration 23 for saves
 // that predate the field.
+function isPositiveInt(value: unknown): boolean {
+  return typeof value === 'number' && Number.isInteger(value) && value > 0;
+}
+
 function isValidGeneratedGeneral(value: unknown): boolean {
   if (!value || typeof value !== 'object') return false;
   const g = value as Record<string, unknown>;
   return typeof g.id === 'string' && g.id.length > 0
     && typeof g.name === 'string' && g.name.length > 0
     && typeof g.era === 'number' && Number.isInteger(g.era) && g.era >= 1 && g.era <= 12
-    && Array.isArray(g.civTypeEligibility)
-    && typeof g.descriptor === 'string'
-    && typeof g.portraitIcon === 'string'
-    && typeof g.commandRange === 'number'
-    && typeof g.commandCapacity === 'number'
-    && Array.isArray(g.abilityIds)
-    && typeof g.maxCommandCharges === 'number'
-    && typeof g.cooldownTurns === 'number';
+    && Array.isArray(g.civTypeEligibility) && g.civTypeEligibility.every(c => typeof c === 'string')
+    && typeof g.descriptor === 'string' && g.descriptor.length > 0
+    && typeof g.portraitIcon === 'string' && g.portraitIcon.length > 0
+    // command stats must be usable — a NaN/negative range would silently break
+    // getEffectiveCommandStats / mapHexesInRange downstream, so drop the record
+    // (resolver -> undefined -> safe degrade) rather than pass garbage through.
+    && isPositiveInt(g.commandRange)
+    && isPositiveInt(g.commandCapacity)
+    && isPositiveInt(g.maxCommandCharges)
+    && isPositiveInt(g.cooldownTurns)
+    && Array.isArray(g.abilityIds) && g.abilityIds.length > 0 && g.abilityIds.every(a => typeof a === 'string');
 }
 
 export function normalizeGeneratedGenerals(state: GameState): GameState {

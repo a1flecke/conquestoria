@@ -503,6 +503,39 @@ describe('#544 MR4 — getPassiveStabilizationTargets', () => {
 
     expect(getPassiveStabilizationTargets(state, 'player').size).toBe(0);
   });
+
+  it('#888 — a General backed by a generated identity stabilizes exactly as an authored one (command stats via the registry)', () => {
+    const genId = 'generated:rome:3:5745b111';
+    const state = baseState();
+    state.generatedGenerals = {
+      [genId]: {
+        id: genId, name: 'Titus Aurelius', civTypeEligibility: ['rome'], era: 3,
+        descriptor: 'Tribune. A Roman field commander, risen through the ranks of the host.',
+        portraitIcon: '🦅', origin: 'generated', commandRange: 2, commandCapacity: 3,
+        abilityIds: ['rally', 'seize_the_moment', 'last_stand'], maxCommandCharges: 3, cooldownTurns: 10,
+      },
+    };
+    state.units['gen-1'] = {
+      id: 'gen-1', type: 'great_general', owner: 'player', position: { q: 0, r: 0 },
+      movementPointsLeft: 3, health: 100, experience: 0, hasMoved: false, hasActed: false, isResting: false,
+      generalDefinitionId: genId,
+    } as Unit;
+    state.units['near'] = {
+      id: 'near', type: 'warrior', owner: 'player', position: { q: 1, r: 0 },
+      movementPointsLeft: 1, health: 60, experience: 0, hasMoved: false, hasActed: false, isResting: false,
+      landSupply: { state: 'degraded', hostileUnsupportedTurns: 3, suppliedTurnsSinceRecovery: 0 },
+    } as Unit;
+    state.units['far'] = {
+      id: 'far', type: 'warrior', owner: 'player', position: { q: 6, r: 0 },
+      movementPointsLeft: 1, health: 60, experience: 0, hasMoved: false, hasActed: false, isResting: false,
+      landSupply: { state: 'degraded', hostileUnsupportedTurns: 3, suppliedTurnsSinceRecovery: 0 },
+    } as Unit;
+    state.civilizations.player.units = ['gen-1', 'near', 'far'];
+
+    const targets = getPassiveStabilizationTargets(state, 'player');
+    expect(targets.has('near')).toBe(true);   // within registry-sourced commandRange 2
+    expect(targets.has('far')).toBe(false);   // outside it
+  });
 });
 
 describe('describeGeneralCareerEnd', () => {
@@ -566,6 +599,35 @@ describe('#544 MR4 — retireGeneralsAtTurnEnd', () => {
   it('#544 MR4 review fix: is safe to call with no bus at all (bus is optional)', () => {
     const state = { ...setup(3), turn: 7 };
     expect(() => retireGeneralsAtTurnEnd(state, 'player')).not.toThrow();
+  });
+
+  it('#888 — retires a General backed by a generated identity and names it in the end-of-career line', () => {
+    const genId = 'generated:rome:3:c0ffee11';
+    const state = createNewGame({ civType: 'rome', mapSize: 'small', opponentCount: 1, gameTitle: 't', seed: 'retire-gen' });
+    state.turn = 12;
+    state.generatedGenerals = {
+      [genId]: {
+        id: genId, name: 'Servius Longinus', civTypeEligibility: ['rome'], era: 3,
+        descriptor: 'Legatus. A Roman field commander, risen through the ranks of the host.',
+        portraitIcon: '🦅', origin: 'generated', commandRange: 2, commandCapacity: 3,
+        abilityIds: ['rally', 'seize_the_moment', 'last_stand'], maxCommandCharges: 3, cooldownTurns: 10,
+      },
+    };
+    state.units['gen-1'] = {
+      id: 'gen-1', type: 'great_general', owner: 'player', position: { q: 0, r: 0 },
+      movementPointsLeft: 3, health: 100, experience: 0, hasMoved: false, hasActed: false, isResting: false,
+      generalDefinitionId: genId, generalCommandChargesUsed: 3,
+    } as Unit;
+    state.civilizations.player.units = ['gen-1'];
+    state.civilizations.player.generalHistory = [{ unitId: 'gen-1', generalDefinitionId: genId, spawnedTurn: 4 }];
+
+    const result = retireGeneralsAtTurnEnd(state, 'player');
+
+    expect(result.units['gen-1']).toBeUndefined();
+    const entry = result.civilizations.player.generalHistory!.find(e => e.unitId === 'gen-1')!;
+    expect(entry.outcome).toBe('retired');
+    expect(entry.endOfCareerLine).toContain('Servius Longinus');
+    expect(result.generatedGenerals?.[genId]?.name).toBe('Servius Longinus'); // registry retained for #887
   });
 });
 
