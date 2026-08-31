@@ -281,6 +281,32 @@ describe('Great General identity display (#544 MR3)', () => {
     expect(text).toContain(romeGeneral.descriptor);
   });
 
+  it('#886 — renders the authored rich-profile summary as plain text under the descriptor', () => {
+    const state = createNewGame(undefined, 'general-identity-886', 'small');
+    // gen_caesar carries a historicalProfile
+    const unit = {
+      ...createUnit('great_general', 'player', { q: 15, r: 15 }, { nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 }),
+      id: 'u1',
+      generalDefinitionId: 'gen_caesar',
+    };
+    state.currentPlayer = 'player';
+    state.units = { u1: unit };
+    state.civilizations.player.units = ['u1'];
+    const container = new MockElement('div');
+
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'u1', {});
+
+    const caesar = GENERAL_DEFINITIONS.find(g => g.id === 'gen_caesar')!;
+    const text = collectAllText(container).join(' ');
+    expect(caesar.historicalProfile?.summary).toBeTruthy();
+    expect(text).toContain(caesar.historicalProfile!.summary);
+    // the deeper content (facts, source URLs) is NOT dumped into this compact panel
+    expect(text).not.toContain('https://');
+    for (const fact of caesar.historicalProfile!.facts) {
+      expect(text).not.toContain(fact);
+    }
+  });
+
   it('#888 — shows a generated officer\'s name, era and descriptor from the generatedGenerals registry', () => {
     const state = createNewGame(undefined, 'general-identity-generated', 'small');
     const id = 'generated:rome:3:deadbeef';

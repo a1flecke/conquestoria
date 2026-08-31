@@ -21,3 +21,51 @@ When writing or editing a `Tech.unlocks` entry, `Building.description`, or `UNIT
 - [ ] Add a positive test asserting the claimed effect is real (a discount-multiplier assertion, a modifier-delta assertion, etc.) — do not rely on `description-honesty.test.ts` to validate new text; it only guards against reusing removed phrases.
 - [ ] If the text names another entity (a building, unit, or tech), verify that entity's actual gating tech/era matches what the text implies — a tech whose text promises "Concert Hall" when Concert Hall is gated by a much later tech is exactly the MR12 bug class.
 - [ ] If you knowingly leave a description that intentionally doesn't map to a mechanic (rare — e.g. a deliberately deferred feature note), say so in a comment near the definition so the next author doesn't "fix" it into a new dead promise, and consider whether it needs a denylist entry so it can never resurface as a real claim.
+
+## Great General Rich Profiles (#886)
+
+`GENERAL_PROFILES` in `src/systems/great-general-profiles.ts` carries the
+educational `summary` / `facts` / `context` / `sources` content merged onto
+`GENERAL_DEFINITIONS`. `tests/systems/great-general-profiles.test.ts` is the
+structural guardrail (every roster id has a profile; length bounds; 2–4 facts;
+`https` + parseable + unique source URLs; no duplicate summary/fact across two
+Generals; generated officers carry none). It cannot judge whether a *new*
+historical claim is accurate — that stays a human research step.
+
+When adding or editing a General profile:
+
+- [ ] **Provenance is explicit.** Every authored entry sets `provenance`:
+      `'historical'` (real person), `'legendary'` (saga/tradition figure whose
+      existence is debated), `'lore'` (fictional character from a named
+      external setting), or `'archetype'` (the nation-neutral universal
+      fallback pool). `historical`/`legendary` → `GeneralHistoricalProfile`;
+      `lore`/`archetype` → `GeneralLoreProfile`.
+- [ ] **Historical facts are sourced.** Prefer museums / national historical
+      institutions, then Encyclopaedia Britannica, then university/scholarly
+      projects. Avoid SEO history sites, fandom pages, listicles, and
+      AI-generated articles. Wikipedia is orientation only, not a cited
+      substantive source. Put the real supporting URL in a `GeneralSourceNote`
+      (`https`), and record in its `notes` exactly which claims it backs.
+- [ ] **Disputed = hedged.** Legend, later tradition, contested attributions,
+      and unreliable ancient casualty/number claims are worded as such
+      ("later accounts credit…", "traditionally linked to…"), never as settled
+      fact.
+- [ ] **Neutral tone, age 7–43.** Clear first sentence; no worshipful or
+      demonising language, no nationalist framing, no gratuitous gore, no
+      jargon without context. Do not sanitise away major context (e.g. the
+      civilian toll of a massacre) and do not turn a profile into a
+      controversy essay.
+- [ ] **Fiction is not history.** `lore`/`archetype` entries draw only from the
+      named `setting` and carry no external `sources`. Never present invented
+      material as real history.
+- [ ] **Generated officers stay fact-free.** #888 `GeneratedGeneralIdentity`
+      records get no profile — the resolver returns them with
+      `historicalProfile`/`loreProfile` absent, by design.
+- [ ] **Content is non-mechanical.** A profile grants no gameplay effect;
+      #885 owns unique General mechanics, #887 owns dynamic campaign history.
+      Keep `summary` short (it renders in the compact selected-unit panel);
+      `facts` / `context` / `sources` are inert typed data for a future detail
+      surface.
+- [ ] **No new roster members here.** #886 enriches the existing roster only.
+      A materially controversial new candidate needs maintainer review
+      (contract §13: no Nazi roster; Genghis Khan allowed).

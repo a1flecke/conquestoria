@@ -367,6 +367,18 @@ export function renderSelectedUnitInfo(
       descriptorLine.textContent = generalDef.descriptor;
       wrapper.appendChild(descriptorLine);
 
+      // #886: one-line "who was this?" summary from the rich profile, when the
+      // General has one (authored roster entries do; #888 generated officers
+      // don't). Deeper content — facts, context, source notes — is inert typed
+      // data for a future detail surface / #887, not rendered here.
+      const richSummary = generalDef.historicalProfile?.summary ?? generalDef.loreProfile?.summary;
+      if (richSummary) {
+        const summaryLine = document.createElement('div');
+        summaryLine.style.cssText = 'font-size:11px;opacity:0.7;margin-top:3px;line-height:1.35;';
+        summaryLine.textContent = richSummary;
+        wrapper.appendChild(summaryLine);
+      }
+
       // #544 MR4: exact command stats, ability buttons, and reopenable tutorial.
       const eligibility = getHeroicCommandEligibility(state, unit);
       const { commandRange, commandCapacity } = getEffectiveCommandStats(unit, generalDef);

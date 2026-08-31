@@ -264,6 +264,58 @@ export interface GeneralProgressState {
 }
 
 /**
+ * #886: provenance of a rich General profile. `historical` = a real person;
+ * `legendary` = a figure of historical tradition / saga whose existence is
+ * debated (framed as tradition, not settled fact); `lore` = a fictional
+ * character from an established setting; `archetype` = a deliberately faceless
+ * game-original stand-in (the universal fallback pool). Absent on #888
+ * generated officers — they are fact-free by design and carry `origin`
+ * instead.
+ */
+export type GeneralProvenance = 'historical' | 'legendary' | 'lore' | 'archetype';
+
+/**
+ * #886: a source note for a historical/legendary General profile. Provenance
+ * metadata for later audit — NOT necessarily player-facing copy. Same shape
+ * as `WonderCodexFactSource` (minus the cross-referenced `id`), so the two
+ * citation conventions stay aligned.
+ */
+export interface GeneralSourceNote {
+  title: string;
+  publisher: string; // authoritative organization / institution
+  sourceUrl: string; // must be https
+  notes: string;     // which claims in the profile this source supports
+}
+
+/** #886: rich educational content for a real historical (or legendary)
+ * commander. Static definition content only — never persisted per unit/game. */
+export interface GeneralHistoricalProfile {
+  /** 1-3 sentences: who this person was and why they are remembered. */
+  summary: string;
+  /** 2-4 concise, verifiable facts, one sentence each. */
+  facts: string[];
+  /** Optional one- or two-sentence historical-context note. */
+  context?: string;
+  /** At least one authoritative source. */
+  sources: GeneralSourceNote[];
+}
+
+/** #886: rich in-universe content for a fictional/lore commander or a
+ * game-original archetype. No external `sources` — fictional material's
+ * provenance is the setting itself. */
+export interface GeneralLoreProfile {
+  /** 1-3 sentences of lore-consistent summary — never framed as real history. */
+  summary: string;
+  /** 2-4 lore facts, one sentence each. */
+  facts: string[];
+  /** Optional short note on the commander's role in that civilization. */
+  context?: string;
+  /** The setting this content is drawn from, e.g.
+   * "J.R.R. Tolkien's The Lord of the Rings" or "Original Conquestoria lore". */
+  setting: string;
+}
+
+/**
  * #544 MR3: a Great General identity — either an authored roster entry
  * (`src/systems/great-general-definitions.ts`) or a #888 fallback-generated
  * officer (`origin: 'generated'`, persisted in `GameState.generatedGenerals`).
@@ -289,6 +341,16 @@ export interface GeneralDefinition {
    * discriminator for #885/#886/#889 to opt generated identities in/out of
    * future per-identity content without another schema change. */
   origin?: 'generated';
+  /** #886: which kind of profile this authored identity carries. Present on
+   * every `GENERAL_DEFINITIONS` entry; absent on generated officers. */
+  provenance?: GeneralProvenance;
+  /** #886: rich educational profile — present iff
+   * `provenance` is `'historical'` or `'legendary'`. Content only: it grants
+   * no gameplay effect (#885 owns unique General mechanics). */
+  historicalProfile?: GeneralHistoricalProfile;
+  /** #886: rich in-universe profile — present iff `provenance` is `'lore'` or
+   * `'archetype'`. */
+  loreProfile?: GeneralLoreProfile;
 }
 
 /** #888: a fallback-generated officer identity — structurally a

@@ -1,4 +1,5 @@
 import type { GeneralDefinition, GeneratedGeneralIdentity, HeroicAbilityId } from '@/core/types';
+import { GENERAL_PROFILES } from '@/systems/great-general-profiles';
 
 // #888: the identity types now live in core `types.ts` (GameState references
 // them); re-exported here so existing `@/systems/great-general-definitions`
@@ -45,7 +46,7 @@ export const STANDARD_GENERAL_COMMAND_PROFILE: Pick<
  * data change — deliberately deferred, see contract's issue E ("rich Great
  * General biographies").
  */
-export const GENERAL_DEFINITIONS: GeneralDefinition[] = [
+const GENERAL_ROSTER_BASE: GeneralDefinition[] = [
   // --- Historical civs ---
   { id: 'gen_ramesses', name: 'Ramesses II', civTypeEligibility: ['egypt'], era: 2, descriptor: 'Victor of Kadesh, builder-pharaoh of the New Kingdom.', portraitIcon: '☀️', commandRange: V1_COMMAND_RANGE, commandCapacity: V1_COMMAND_CAPACITY, abilityIds: V1_ABILITY_IDS, maxCommandCharges: V1_MAX_COMMAND_CHARGES, cooldownTurns: V1_COOLDOWN_TURNS },
   { id: 'gen_caesar', name: 'Julius Caesar', civTypeEligibility: ['rome'], era: 3, descriptor: 'Conqueror of Gaul, master of the forced march.', portraitIcon: '🦅', commandRange: V1_COMMAND_RANGE, commandCapacity: V1_COMMAND_CAPACITY, abilityIds: V1_ABILITY_IDS, maxCommandCharges: V1_MAX_COMMAND_CHARGES, cooldownTurns: V1_COOLDOWN_TURNS },
@@ -87,6 +88,24 @@ export const GENERAL_DEFINITIONS: GeneralDefinition[] = [
   { id: 'gen_universal_field_marshal', name: 'The Steel Field Marshal', civTypeEligibility: [], era: 6, descriptor: 'Modernized doctrine faster than any rival staff college.', portraitIcon: '🎖️', commandRange: V1_COMMAND_RANGE, commandCapacity: V1_COMMAND_CAPACITY, abilityIds: V1_ABILITY_IDS, maxCommandCharges: V1_MAX_COMMAND_CHARGES, cooldownTurns: V1_COOLDOWN_TURNS },
   { id: 'gen_universal_commodore', name: 'The Storm Commodore', civTypeEligibility: [], era: 8, descriptor: 'Made a name commanding combined arms across an entire theater.', portraitIcon: '🌩️', commandRange: V1_COMMAND_RANGE, commandCapacity: V1_COMMAND_CAPACITY, abilityIds: V1_ABILITY_IDS, maxCommandCharges: V1_MAX_COMMAND_CHARGES, cooldownTurns: V1_COOLDOWN_TURNS },
 ];
+
+/**
+ * #886: the compact gameplay table above, enriched with the rich educational
+ * `provenance` + `historicalProfile` / `loreProfile` content from
+ * `great-general-profiles.ts`. The merge is the single source of truth: a
+ * roster entry with no matching `GENERAL_PROFILES` key keeps `provenance`
+ * undefined and fails `great-general-profiles.test.ts`, so nothing ships
+ * content-less. Profiles are static definition data only — they never enter
+ * `GameState` and grant no gameplay effect.
+ */
+export const GENERAL_DEFINITIONS: GeneralDefinition[] = GENERAL_ROSTER_BASE.map((base): GeneralDefinition => {
+  const entry = GENERAL_PROFILES[base.id];
+  if (!entry) return base;
+  if (entry.provenance === 'historical' || entry.provenance === 'legendary') {
+    return { ...base, provenance: entry.provenance, historicalProfile: entry.profile };
+  }
+  return { ...base, provenance: entry.provenance, loreProfile: entry.profile };
+});
 
 const AUTHORED_BY_ID: ReadonlyMap<string, GeneralDefinition> = new Map(
   GENERAL_DEFINITIONS.map(g => [g.id, g]),
