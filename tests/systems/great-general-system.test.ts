@@ -14,9 +14,9 @@ import {
   getPassiveStabilizationTargets,
   describeGeneralCareerEnd,
   retireGeneralsAtTurnEnd,
-  chooseBestGeneralCandidate,
   getPendingGeneralChoiceForViewer,
 } from '@/systems/great-general-system';
+import { chooseBestGeneralCandidate } from '@/ai/ai-general-command';
 import { GENERAL_DEFINITIONS } from '@/systems/great-general-definitions';
 import { createNewGame } from '@/core/game-state';
 import { foundCity } from '@/systems/city-system';
@@ -631,27 +631,28 @@ describe('#544 MR4 — retireGeneralsAtTurnEnd', () => {
   });
 });
 
-describe('#544 MR5 — chooseBestGeneralCandidate', () => {
-  it('picks the candidate with the highest commandRange + commandCapacity + maxCommandCharges, tie-broken by id', () => {
+describe('#544 MR5 / #885 — chooseBestGeneralCandidate (now in ai-general-command)', () => {
+  const st = () => createNewGame({ civType: 'rome', mapSize: 'small', opponentCount: 1, gameTitle: 't', seed: 'cbc-legacy' });
+
+  it('still prefers the candidate with the stronger resolved stat profile, tie-broken by id', () => {
     const candidates = [
       { ...GENERAL_DEFINITIONS[0]!, id: 'z-weak', commandRange: 1, commandCapacity: 1, maxCommandCharges: 1 },
       { ...GENERAL_DEFINITIONS[0]!, id: 'a-strong', commandRange: 3, commandCapacity: 3, maxCommandCharges: 3 },
       { ...GENERAL_DEFINITIONS[0]!, id: 'b-strong', commandRange: 3, commandCapacity: 3, maxCommandCharges: 3 },
     ];
-    const picked = chooseBestGeneralCandidate(candidates);
-    expect(picked.id).toBe('a-strong');
+    expect(chooseBestGeneralCandidate(st(), 'player', candidates).id).toBe('a-strong');
   });
 
   it('returns the single candidate when only one is offered', () => {
     const candidates = [{ ...GENERAL_DEFINITIONS[0]! }];
-    expect(chooseBestGeneralCandidate(candidates).id).toBe(candidates[0]!.id);
+    expect(chooseBestGeneralCandidate(st(), 'player', candidates).id).toBe(candidates[0]!.id);
   });
 
-  it('#888 — on a stat tie, an authored candidate is preferred over a generated one (id tiebreak: "gen_*" < "generated:*")', () => {
+  it('#888 — on a tie, an authored candidate is preferred over a generated one (id tiebreak)', () => {
     const authored = { ...GENERAL_DEFINITIONS[0]!, id: 'gen_caesar' };
     const generated = { ...GENERAL_DEFINITIONS[0]!, id: 'generated:rome:3:deadbeef', origin: 'generated' as const };
-    expect(chooseBestGeneralCandidate([generated, authored]).id).toBe('gen_caesar');
-    expect(chooseBestGeneralCandidate([authored, generated]).id).toBe('gen_caesar');
+    expect(chooseBestGeneralCandidate(st(), 'player', [generated, authored]).id).toBe('gen_caesar');
+    expect(chooseBestGeneralCandidate(st(), 'player', [authored, generated]).id).toBe('gen_caesar');
   });
 });
 
@@ -741,5 +742,37 @@ describe('getPendingGeneralChoiceForViewer (#544 MR6 item 86)', () => {
     const state = createNewGame('rome', 'mr6-viewer-choice-empty', 'small');
 
     expect(getPendingGeneralChoiceForViewer(state, 'player')).toBeUndefined();
+  });
+});
+
+describe('#885 specialty-resolved effective command stats + retirement', () => {
+  it('a Swift (mobile) General has effective command range 3, capacity 2 at full supply', () => {
+    const def = GENERAL_DEFINITIONS.find(g => g.id === 'gen_genghis')!;
+    expect(getEffectiveCommandStats({ landSupply: undefined }, def)).toEqual({ commandRange: 3, commandCapacity: 2 });
+  });
+
+  it('a Defensive General has effective command range 1', () => {
+    const def = GENERAL_DEFINITIONS.find(g => g.id === 'gen_wellington')!;
+    expect(getEffectiveCommandStats({ landSupply: undefined }, def).commandRange).toBe(1);
+  });
+
+  it('a Tireless (endurance) General retires only after its 4th charge, not its 3rd', () => {
+    const state = createNewGame({ civType: 'zulu', mapSize: 'small', opponentCount: 1, gameTitle: 't', seed: 's885-ret' });
+    state.currentPlayer = 'player';
+    const g = {
+      id: 'g', type: 'great_general', owner: 'player', position: { q: 0, r: 0 },
+      movementPointsLeft: 3, health: 100, experience: 0, hasMoved: false, hasActed: false, isResting: false,
+      generalDefinitionId: 'gen_shaka', generalCommandChargesUsed: 3,
+    } as unknown as Unit;
+    state.units['g'] = g;
+    state.units['g2'] = { ...g, id: 'g2', generalCommandChargesUsed: 4 } as Unit;
+    state.civilizations.player.units = ['g', 'g2'];
+    state.civilizations.player.generalHistory = [
+      { unitId: 'g', generalDefinitionId: 'gen_shaka', spawnedTurn: 1 },
+      { unitId: 'g2', generalDefinitionId: 'gen_shaka', spawnedTurn: 1 },
+    ];
+    const after = retireGeneralsAtTurnEnd(state, 'player');
+    expect(after.units['g']).toBeDefined();     // 3/4 charges -> still active
+    expect(after.units['g2']).toBeUndefined();  // 4/4 -> retired
   });
 });

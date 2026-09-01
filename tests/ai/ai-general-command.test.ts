@@ -9,14 +9,16 @@ import {
   isGeneralInDanger,
   processAIGeneralCommand,
 } from '@/ai/ai-general-command';
+import { chooseBestGeneralCandidate } from '@/ai/ai-general-command';
 import { issueRally } from '@/systems/great-general-abilities';
+import { GENERAL_DEFINITIONS } from '@/systems/great-general-definitions';
 import type { Unit } from '@/core/types';
 
 function makeGeneral(overrides: Partial<Unit> = {}): Unit {
   return {
     id: 'gen-1', type: 'great_general', owner: 'player', position: { q: 0, r: 0 },
     movementPointsLeft: 3, health: 100, experience: 0, hasMoved: false, hasActed: false, isResting: false,
-    generalDefinitionId: 'gen_caesar', ...overrides,
+    generalDefinitionId: 'gen_hannibal', ...overrides, // #885: default to a generalist so baseline behaviour holds
   } as Unit;
 }
 
@@ -342,5 +344,63 @@ describe('#544 MR5 — shared spend layer', () => {
 
     const result = processAIGeneralCommand(state, aiId, 'post-tactical');
     expect(result.units['unit-1']!.hasActed).toBe(false);
+  });
+});
+
+// ===========================================================================
+// #885 — AI candidate valuation over resolved specialties
+// ===========================================================================
+
+const def = (id: string) => GENERAL_DEFINITIONS.find(g => g.id === id)!;
+
+function gameAtWar(seed: string) {
+  const s = createNewGame({ civType: 'rome', mapSize: 'small', opponentCount: 1, gameTitle: 't', seed });
+  s.civilizations.player!.diplomacy.atWarWith = ['ai-1'];
+  s.civilizations['ai-1']!.diplomacy.atWarWith = ['player'];
+  return s;
+}
+
+describe('#885 chooseBestGeneralCandidate — bounded, non-omniscient, difficulty-invariant', () => {
+  it('is deterministic for a fixed state + candidate set (id tiebreak)', () => {
+    const s = gameAtWar('cbc-det');
+    const cands = [def('gen_hannibal'), def('gen_wellington'), def('gen_genghis')];
+    expect(chooseBestGeneralCandidate(s, 'player', cands).id).toBe(chooseBestGeneralCandidate(s, 'player', cands).id);
+  });
+
+  it('picks the Defensive specialist when own field units are badly hurt', () => {
+    const s = gameAtWar('cbc-def');
+    s.units['h1'] = { id: 'h1', type: 'swordsman', owner: 'player', position: { q: 3, r: 3 },
+      movementPointsLeft: 1, health: 25, experience: 0, hasMoved: false, hasActed: false, isResting: false } as Unit;
+    s.units['h2'] = { ...(s.units['h1'] as Unit), id: 'h2', position: { q: 4, r: 3 } } as Unit;
+    s.units['h3'] = { ...(s.units['h1'] as Unit), id: 'h3', position: { q: 3, r: 4 } } as Unit;
+    s.civilizations.player!.units = [...s.civilizations.player!.units, 'h1', 'h2', 'h3'];
+    const cands = [def('gen_wellington'), def('gen_caesar'), def('gen_hannibal')];
+    expect(chooseBestGeneralCandidate(s, 'player', cands).id).toBe('gen_wellington');
+  });
+
+  it('picks the Supply Master when own units are in bad supply', () => {
+    const s = gameAtWar('cbc-log');
+    s.units['h1'] = { id: 'h1', type: 'swordsman', owner: 'player', position: { q: 3, r: 3 },
+      movementPointsLeft: 1, health: 100, experience: 0, hasMoved: false, hasActed: false, isResting: false,
+      landSupply: { state: 'severe', hostileUnsupportedTurns: 5, suppliedTurnsSinceRecovery: 0 } } as Unit;
+    s.units['h2'] = { ...(s.units['h1'] as Unit), id: 'h2', position: { q: 4, r: 3 } } as Unit;
+    s.units['h3'] = { ...(s.units['h1'] as Unit), id: 'h3', position: { q: 3, r: 4 } } as Unit;
+    s.civilizations.player!.units = [...s.civilizations.player!.units, 'h1', 'h2', 'h3'];
+    const cands = [def('gen_yuefei'), def('gen_wellington'), def('gen_hannibal')];
+    expect(chooseBestGeneralCandidate(s, 'player', cands).id).toBe('gen_yuefei');
+  });
+
+  it('never reads difficulty — same pick on Explorer and Veteran', () => {
+    const cands = [def('gen_wellington'), def('gen_genghis'), def('gen_hannibal')];
+    const explorer = { ...gameAtWar('cbc-diff'), opponentChallenge: 'explorer' as const };
+    const veteran = { ...gameAtWar('cbc-diff'), opponentChallenge: 'veteran' as const };
+    expect(chooseBestGeneralCandidate(explorer, 'player', cands).id)
+      .toBe(chooseBestGeneralCandidate(veteran, 'player', cands).id);
+  });
+
+  it('with no situational signal, still returns a candidate from the offered set', () => {
+    const s = createNewGame({ civType: 'rome', mapSize: 'small', opponentCount: 1, gameTitle: 't', seed: 'cbc-quiet' });
+    const cands = [def('gen_hannibal'), def('gen_shaka'), def('gen_genghis')];
+    expect(cands.map(c => c.id)).toContain(chooseBestGeneralCandidate(s, 'player', cands).id);
   });
 });

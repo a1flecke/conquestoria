@@ -8,7 +8,7 @@ function makeGeneral(overrides: Partial<Unit> = {}): Unit {
   return {
     id: 'gen-1', type: 'great_general', owner: 'player', position: { q: 0, r: 0 },
     movementPointsLeft: 3, health: 100, experience: 0, hasMoved: false, hasActed: false, isResting: false,
-    generalDefinitionId: 'gen_caesar', ...overrides,
+    generalDefinitionId: 'gen_hannibal', ...overrides,
   } as Unit;
 }
 

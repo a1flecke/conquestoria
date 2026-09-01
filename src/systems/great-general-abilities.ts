@@ -1,5 +1,6 @@
 import type { GameState, HexCoord, LandSupplyState, LastStandHoldState, Unit } from '@/core/types';
-import { resolveGeneralDefinition } from '@/systems/great-general-definitions';
+import { resolveGeneralDefinition, type GeneralDefinition } from '@/systems/great-general-definitions';
+import { BASELINE_GENERAL_MECHANICS, resolveGeneralMechanics } from '@/systems/great-general-specialties';
 import { getEffectiveCommandStats } from '@/systems/great-general-system';
 import { mapDistance, mapHexesInRange } from '@/systems/hex-utils';
 import { UNIT_DEFINITIONS } from '@/systems/unit-system';
@@ -25,7 +26,7 @@ export function getHeroicCommandEligibility(
   general: Pick<Unit, 'generalDefinitionId' | 'generalNoCommandThisTurn' | 'generalCommandChargesUsed' | 'generalCommandCooldownUntilTurn'>,
 ): HeroicCommandEligibility {
   const definition = resolveGeneralDefinition(state, general.generalDefinitionId);
-  const maxCharges = definition?.maxCommandCharges ?? 0;
+  const maxCharges = definition ? resolveGeneralMechanics(definition).maxCommandCharges : 0;
   const chargesUsed = general.generalCommandChargesUsed ?? 0;
   const chargesRemaining = Math.max(0, maxCharges - chargesUsed);
   const cooldownUntil = general.generalCommandCooldownUntilTurn ?? 0;
@@ -75,13 +76,14 @@ export function spendHeroicCommandCharge(state: GameState, generalUnitId: string
       [generalUnitId]: {
         ...general,
         generalCommandChargesUsed: (general.generalCommandChargesUsed ?? 0) + 1,
-        generalCommandCooldownUntilTurn: state.turn + definition.cooldownTurns,
+        generalCommandCooldownUntilTurn: state.turn + resolveGeneralMechanics(definition).cooldownTurns,
       },
     },
   };
 }
 
-const RALLY_HEAL_AMOUNT = 30; // contract §18: "exact HP is data-driven and not locked"
+// #885: Rally heal amount is now specialty-resolved (Supply Master 50, Tireless
+// 20, everyone else 30). See resolveGeneralMechanics(def).rally.healAmount.
 
 /** contract §18: severe -> degraded, degraded -> grace, grace -> grace (no
  * further reduction). full/stable-unsupported are not eligible targets at
@@ -112,10 +114,11 @@ export interface RallyPreview {
   targets: RallyTarget[];
 }
 
-function getRallyEligibleTargets(state: GameState, general: Unit, definition: { commandRange: number; commandCapacity: number }): RallyTarget[] {
+function getRallyEligibleTargets(state: GameState, general: Unit, definition: GeneralDefinition): RallyTarget[] {
   const civ = state.civilizations[general.owner];
   if (!civ) return [];
   const { commandRange, commandCapacity } = getEffectiveCommandStats(general, definition);
+  const healAmount = resolveGeneralMechanics(definition).rally.healAmount;
 
   const candidates = civ.units
     .map(id => state.units[id])
@@ -134,7 +137,7 @@ function getRallyEligibleTargets(state: GameState, general: Unit, definition: { 
   return candidates.map(({ unit }) => ({
     unitId: unit.id,
     healthBefore: unit.health,
-    healthAfter: Math.min(100, unit.health + RALLY_HEAL_AMOUNT),
+    healthAfter: Math.min(100, unit.health + healAmount),
     stageBefore: unit.landSupply!.state,
     stageAfter: rallyStageAfter(unit.landSupply!.state),
   }));
@@ -180,12 +183,11 @@ export function issueRally(state: GameState, generalUnitId: string): GameState {
 }
 
 // contract §20: "moderate defensive bonus... exact defense/area/duration are
-// data-driven and not locked." +15% sits between positioning's +10%/flanking
-// tile and fortification's tier multipliers -- a deliberately "moderate,"
-// not dominant, bonus for a rare 1-of-3-lifetime-uses ability.
-const LAST_STAND_DEFENSE_MULTIPLIER = 1.15;
+// data-driven and not locked." #885: defense multiplier and duration are now
+// specialty-resolved (Defensive Commander 1.25 / 3 turns, Bold Commander 1.10,
+// everyone else 1.15 / 2) — see resolveGeneralMechanics(def).lastStand. Radius
+// stays fixed at 1 for every General (radius 2 is too swingy; #885 balance rule).
 const LAST_STAND_AREA_RADIUS = 1; // target hex plus its immediate neighbors
-const LAST_STAND_DURATION_TURNS = 2; // owner-turns the Hold save + bonus remain active
 
 export interface LastStandTarget {
   unitId: string;
@@ -216,8 +218,8 @@ export function getLastStandPreview(state: GameState, generalUnitId: string, tar
     : { eligible: false, reason: 'General not found.', chargesRemaining: 0, isFinalCharge: false, cooldownTurnsRemaining: 0 };
   const empty: LastStandPreview = {
     eligibility, targetHex, area: [], targets: [],
-    defenseBonusPercent: Math.round((LAST_STAND_DEFENSE_MULTIPLIER - 1) * 100),
-    durationTurns: LAST_STAND_DURATION_TURNS,
+    defenseBonusPercent: Math.round((BASELINE_GENERAL_MECHANICS.lastStand.defenseMultiplier - 1) * 100),
+    durationTurns: BASELINE_GENERAL_MECHANICS.lastStand.durationTurns,
   };
   if (!general || !eligibility.eligible) return empty;
 
@@ -225,9 +227,15 @@ export function getLastStandPreview(state: GameState, generalUnitId: string, tar
   const civ = state.civilizations[general.owner];
   if (!definition || !civ) return empty;
   const { commandRange, commandCapacity } = getEffectiveCommandStats(general, definition);
+  const lastStand = resolveGeneralMechanics(definition).lastStand;
+  const resolved: LastStandPreview = {
+    ...empty,
+    defenseBonusPercent: Math.round((lastStand.defenseMultiplier - 1) * 100),
+    durationTurns: lastStand.durationTurns,
+  };
 
   const area = getLastStandArea(state, general, targetHex, commandRange);
-  if (!area) return empty;
+  if (!area) return resolved;
   const areaKeys = new Set(area.map(h => `${h.q},${h.r}`));
 
   const targets = civ.units
@@ -240,7 +248,7 @@ export function getLastStandPreview(state: GameState, generalUnitId: string, tar
     .slice(0, commandCapacity)
     .map(u => ({ unitId: u.id }));
 
-  return { ...empty, area, targets };
+  return { ...resolved, area, targets };
 }
 
 /** #544 MR4 review fix: mirrors issueRally's zero-target guard. */
@@ -251,10 +259,15 @@ export function issueLastStand(state: GameState, generalUnitId: string, targetHe
   // Deterministic, unique-enough-per-issuance id -- no RNG needed (Global
   // Constraints: this MR never needs Math.random or seededLcg).
   const formationId = `${generalUnitId}-${state.turn}-${targetHex.q},${targetHex.r}`;
+  // #885: the hold carries the *resolved* multiplier/duration this General had
+  // when it was cast, so an in-flight hold never retro-changes on a content patch.
+  const lastStand = resolveGeneralMechanics(
+    resolveGeneralDefinition(state, state.units[generalUnitId]!.generalDefinitionId)!,
+  ).lastStand;
   const hold: LastStandHoldState = {
     formationId,
-    defenseBonusMultiplier: LAST_STAND_DEFENSE_MULTIPLIER,
-    expiresTurn: state.turn + LAST_STAND_DURATION_TURNS,
+    defenseBonusMultiplier: lastStand.defenseMultiplier,
+    expiresTurn: state.turn + lastStand.durationTurns,
   };
 
   let units = { ...state.units };
@@ -360,10 +373,13 @@ export function issueSeizeTheMoment(
   const general = state.units[generalUnitId];
   const definition = resolveGeneralDefinition(state, general?.generalDefinitionId);
   if (!general || !definition) return state;
-  const { commandCapacity } = getEffectiveCommandStats(general, definition);
+  // #885: a Bold Commander's Seize reaches commandCapacity + 1 units (still one
+  // extra attack each, still no movement refund — no full turn reset).
+  const cap = getEffectiveCommandStats(general, definition).commandCapacity
+    + resolveGeneralMechanics(definition).seize.extraTargets;
 
   const eligibleIds = new Set(eligible.map(e => e.unitId));
-  const toActivate = selectedUnitIds.filter(id => eligibleIds.has(id)).slice(0, commandCapacity);
+  const toActivate = selectedUnitIds.filter(id => eligibleIds.has(id)).slice(0, cap);
   // #544 MR4 review fix: mirrors issueRally's zero-target guard -- confirming
   // Seize with no valid selection (empty array, or every selected id turned
   // out ineligible) must not burn one of the General's 3 lifetime charges on

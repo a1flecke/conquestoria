@@ -1,5 +1,6 @@
 import type { GameState, HeroicAbilityId, Unit } from '@/core/types';
-import { resolveGeneralDefinition } from '@/systems/great-general-definitions';
+import { resolveGeneralDefinition, type GeneralDefinition } from '@/systems/great-general-definitions';
+import { GENERAL_SPECIALTY_ASSIGNMENTS, resolveGeneralMechanics } from '@/systems/great-general-specialties';
 import { mapDistance } from '@/systems/hex-utils';
 import { getVisibility } from '@/systems/fog-of-war';
 import { isAIHostileOwner } from '@/ai/ai-hostility';
@@ -273,4 +274,92 @@ export function processAIGeneralCommand(
     working = chosen.execute(working);
   }
   return working;
+}
+
+// ---------------------------------------------------------------------------
+// #885: AI candidate valuation over resolved specialties
+// ---------------------------------------------------------------------------
+
+/** Small, ~equalised base weights so every specialty is a live pick; the
+ * situational term below is a lean, not a landslide. */
+const CANDIDATE_BASE_WEIGHTS = { charges: 2, range: 2, capacity: 2 } as const;
+/** Cap the situational term at this fraction of the base so a hot war can't
+ * landslide the choice — Swift / Tireless must stay live picks. */
+const CANDIDATE_SITUATIONAL_CAP_FRACTION = 0.3;
+const MOBILE_FRONTLINE_DISTANCE = 4;
+
+function ownFieldUnits(state: GameState, civId: string): Unit[] {
+  const civ = state.civilizations[civId];
+  return (civ?.units ?? [])
+    .map(id => state.units[id])
+    .filter((u): u is Unit => Boolean(u) && u.type !== 'great_general');
+}
+
+/**
+ * How badly this civ currently needs a given specialty, from owned units and
+ * fog-of-war-safe visible hostiles only (contract item 84 — no hidden info).
+ * Never reads difficulty.
+ */
+function specialtyNeed(state: GameState, civId: string, specialtyId: string): number {
+  const civ = state.civilizations[civId];
+  const units = ownFieldUnits(state, civId);
+  const visibility = civ?.visibility;
+  switch (specialtyId) {
+    case 'defensive':
+      return units.filter(u => u.health <= 60).length;
+    case 'logistician':
+      return units.filter(u => u.landSupply?.state === 'degraded' || u.landSupply?.state === 'severe').length;
+    case 'initiative': {
+      if (!visibility) return 0;
+      return units.filter(u => u.hasActed && Object.values(state.units).some(e =>
+        e.owner !== civId
+        && isAIHostileOwner(state, civId, e.owner)
+        && getVisibility(visibility, e.position) === 'visible'
+        && mapDistance(state.map, u.position, e.position) <= 1)).length;
+    }
+    case 'mobile': {
+      const capital = civ?.cities?.[0] ? state.cities[civ.cities[0]] : undefined;
+      if (!capital) return 0;
+      const far = units.filter(u => hasAICombatRole(u.type)
+        && mapDistance(state.map, capital.position, u.position) >= MOBILE_FRONTLINE_DISTANCE).length;
+      return Math.min(far, 4);
+    }
+    case 'endurance':
+      return Math.min((civ?.diplomacy?.atWarWith?.length ?? 0) * 2, 4);
+    default: // generalist — no situational lean (its value is the base stat term
+      // only). Returning >0 here would give generated officers a standing edge
+      // over a situationally-quiet specialist and break #888's authored-preferred
+      // tiebreak.
+      return 0;
+  }
+}
+
+/**
+ * #885: the AI's deterministic candidate pick among the 2-3 offered
+ * `GeneralDefinition`s. Replaces the pre-#885 raw stat-sum that lived in
+ * great-general-system.ts. NO General-ID branches — keyed only on the resolved
+ * specialty id. Non-omniscient (owned units + fog-safe hostiles), difficulty-
+ * invariant (never reads `state.opponentChallenge` — candidate acquisition is a
+ * one-time pick among roughly-equal options, contract item 83), deterministic
+ * (id tiebreak).
+ */
+export function chooseBestGeneralCandidate(
+  state: GameState,
+  civId: string,
+  candidates: GeneralDefinition[],
+): GeneralDefinition {
+  const scored = candidates.map(def => {
+    const mech = resolveGeneralMechanics(def);
+    const base = CANDIDATE_BASE_WEIGHTS.charges * mech.maxCommandCharges
+      + CANDIDATE_BASE_WEIGHTS.range * mech.commandRange
+      + CANDIDATE_BASE_WEIGHTS.capacity * mech.commandCapacity;
+    const specialtyId = GENERAL_SPECIALTY_ASSIGNMENTS[def.id] ?? 'generalist';
+    const situational = Math.min(
+      specialtyNeed(state, civId, specialtyId),
+      base * CANDIDATE_SITUATIONAL_CAP_FRACTION,
+    );
+    return { def, score: base + situational };
+  });
+  scored.sort((a, b) => b.score - a.score || a.def.id.localeCompare(b.def.id));
+  return scored[0]!.def;
 }

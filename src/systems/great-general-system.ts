@@ -1,5 +1,6 @@
 import type { Civilization, GameState, GeneralProgressState, GeneratedGeneralIdentity, PendingGeneralCandidateChoice, Unit } from '@/core/types';
 import { GENERAL_DEFINITIONS, resolveGeneralDefinition, type GeneralDefinition } from '@/systems/great-general-definitions';
+import { resolveGeneralMechanics } from '@/systems/great-general-specialties';
 import { generateFallbackGeneralCandidates } from '@/systems/great-general-fallback-content';
 import { seededLcg, weightedPick } from '@/systems/seeded-lcg';
 import { resolveCivilizationEra } from '@/systems/tech-definitions';
@@ -280,43 +281,31 @@ export function spawnGeneralForCiv(
 }
 
 /**
- * #544 MR5: deterministic AI candidate pick among the 2-3 offered
- * `GeneralDefinition`s. No RNG (Global Constraints) -- a simple best-stat
- * sum, tie-broken by id for determinism. Difficulty-invariant: this never
- * reads `state.opponentChallenge` (contract item 83 -- candidate acquisition
- * is not a "judgment" call worth scaling, it's a one-time pick among
- * roughly-equal options).
- */
-export function chooseBestGeneralCandidate(candidates: GeneralDefinition[]): GeneralDefinition {
-  return [...candidates].sort((a, b) =>
-    (b.commandRange + b.commandCapacity + b.maxCommandCharges)
-    - (a.commandRange + a.commandCapacity + a.maxCommandCharges)
-    || a.id.localeCompare(b.id))[0]!;
-}
-
-/**
  * Supply-based command-stat degradation (contract §15 "General supply"):
  * early stages leave command unchanged, `degraded` shrinks commandCapacity,
- * `severe` also shrinks commandRange. Nothing in MR3 consumes this yet (no
- * ability exists to read it) -- MR4's heroic-command machinery will be its
- * first real caller. This function and its test coverage exist now so MR4
- * only has to wire a caller, not design the degradation curve.
+ * `severe` also shrinks commandRange.
+ *
+ * #885: the base range/capacity are the *specialty-resolved* values
+ * (`resolveGeneralMechanics`), not raw `definition.*` — a Swift Commander
+ * reaches 3, a Defensive Commander reaches 1, before this degradation applies.
+ * Keeps the 2-arg signature so every existing caller is unchanged.
  */
 export function getEffectiveCommandStats(
   unit: Pick<Unit, 'landSupply'>,
-  definition: Pick<GeneralDefinition, 'commandRange' | 'commandCapacity'>,
+  definition: Pick<GeneralDefinition, 'id' | 'commandRange' | 'commandCapacity' | 'maxCommandCharges' | 'cooldownTurns'>,
 ): { commandRange: number; commandCapacity: number } {
+  const { commandRange, commandCapacity } = resolveGeneralMechanics(definition);
   const state = unit.landSupply?.state ?? 'full';
   if (state === 'degraded') {
-    return { commandRange: definition.commandRange, commandCapacity: Math.max(1, definition.commandCapacity - 1) };
+    return { commandRange, commandCapacity: Math.max(1, commandCapacity - 1) };
   }
   if (state === 'severe') {
     return {
-      commandRange: Math.max(1, definition.commandRange - 1),
-      commandCapacity: Math.max(1, definition.commandCapacity - 1),
+      commandRange: Math.max(1, commandRange - 1),
+      commandCapacity: Math.max(1, commandCapacity - 1),
     };
   }
-  return { commandRange: definition.commandRange, commandCapacity: definition.commandCapacity };
+  return { commandRange, commandCapacity };
 }
 
 /**
@@ -398,7 +387,7 @@ export function retireGeneralsAtTurnEnd(state: GameState, civId: string, bus?: E
     .filter((u): u is Unit => Boolean(u) && u.type === 'great_general')
     .filter(u => {
       const definition = resolveGeneralDefinition(state, u.generalDefinitionId);
-      return definition && (u.generalCommandChargesUsed ?? 0) >= definition.maxCommandCharges;
+      return definition && (u.generalCommandChargesUsed ?? 0) >= resolveGeneralMechanics(definition).maxCommandCharges;
     });
   if (retiring.length === 0) return state;
 
