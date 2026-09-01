@@ -400,6 +400,55 @@ describe('Great General identity display (#544 MR3)', () => {
     expect(text).not.toContain('About Marcus Valerius');
     expect(findDetails(container)).toBeUndefined();
   });
+
+  // -------------------------------------------------------------------------
+  // #885 — specialty line + resolved stats
+  // -------------------------------------------------------------------------
+
+  function selectGeneral(seed: string, generalId: string, gen?: Record<string, unknown>) {
+    const state = createNewGame(undefined, seed, 'small') as GameState & { generatedGenerals?: Record<string, unknown> };
+    if (gen) state.generatedGenerals = gen;
+    const unit = {
+      ...createUnit('great_general', 'player', { q: 15, r: 15 }, { nextUnitId: 1, nextCityId: 1, nextCampId: 1, nextQuestId: 1 }),
+      id: 'u1', generalDefinitionId: generalId,
+    };
+    state.currentPlayer = 'player';
+    state.units = { u1: unit } as never;
+    state.civilizations.player.units = ['u1'];
+    const container = new MockElement('div');
+    renderSelectedUnitInfo(container as unknown as HTMLElement, state, 'u1', {});
+    return collectAllText(container).join(' ');
+  }
+
+  it('#885 — a Defensive Commander shows a truthful specialty line and resolved command range 1', () => {
+    const text = selectGeneral('s885-ui-def', 'gen_wellington');
+    expect(text).toContain('Specialty: Defensive Commander');
+    expect(text).toContain('Last Stand');
+    expect(text).toContain('+25%');
+    expect(text).toContain('Command range 1');
+    expect(text).not.toContain('http');
+  });
+
+  it('#885 — a Swift Commander shows resolved command range 3', () => {
+    expect(selectGeneral('s885-ui-mob', 'gen_genghis')).toContain('Command range 3');
+  });
+
+  it('#885 — a Field Commander (generalist) shows NO specialty line', () => {
+    expect(selectGeneral('s885-ui-gen', 'gen_hannibal')).not.toContain('Specialty:');
+  });
+
+  it('#885 — a generated officer shows NO specialty line', () => {
+    const id = 'generated:rome:3:deadbeef';
+    const text = selectGeneral('s885-ui-generated', id, {
+      [id]: {
+        id, name: 'Marcus Valerius', civTypeEligibility: ['rome'], era: 3,
+        descriptor: 'Legatus. A Roman field commander.', portraitIcon: '🦅', origin: 'generated',
+        commandRange: 2, commandCapacity: 3, abilityIds: ['rally', 'seize_the_moment', 'last_stand'],
+        maxCommandCharges: 3, cooldownTurns: 10,
+      },
+    });
+    expect(text).not.toContain('Specialty:');
+  });
 });
 
 describe('#544 MR4 — General command panel', () => {

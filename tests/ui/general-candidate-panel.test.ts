@@ -2,7 +2,7 @@
 
 import { describe, it, expect, beforeEach } from 'vitest';
 import { createGeneralCandidatePanel } from '@/ui/general-candidate-panel';
-import type { GeneralDefinition } from '@/systems/great-general-definitions';
+import { GENERAL_DEFINITIONS, type GeneralDefinition } from '@/systems/great-general-definitions';
 
 describe('general candidate panel', () => {
   let container: HTMLElement;
@@ -83,5 +83,21 @@ describe('general candidate panel', () => {
     expect(genBtn).toBeTruthy();
     genBtn.click();
     expect(chosen).toEqual(['generated:rome:3:deadbeef']);
+  });
+
+  it('#885 — a specialist candidate shows its one-line specialty summary under the descriptor', () => {
+    const wellington = GENERAL_DEFINITIONS.find(g => g.id === 'gen_wellington')!;
+    createGeneralCandidatePanel(container, [wellington], () => {});
+    const panel = container.querySelector('#general-candidate-panel')!;
+    expect(panel.textContent).toContain('Defensive Commander');
+    expect(panel.textContent).toContain('holding ground');
+    expect(panel.textContent).not.toContain('http');
+  });
+
+  it('#885 — a generalist candidate shows no specialty line', () => {
+    const hannibal = GENERAL_DEFINITIONS.find(g => g.id === 'gen_hannibal')!;
+    createGeneralCandidatePanel(container, [hannibal], () => {});
+    const panel = container.querySelector('#general-candidate-panel')!;
+    expect(panel.textContent).not.toContain('Field Commander');
   });
 });

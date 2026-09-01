@@ -1,6 +1,7 @@
 import type { GameState, TutorialStep, AdvisorType, Unit } from '@/core/types';
 import { UNIT_CLASS_BY_TYPE } from '@/systems/unit-modifier-definitions';
 import { resolveGeneralDefinition } from '@/systems/great-general-definitions';
+import { resolveGeneralMechanics } from '@/systems/great-general-specialties';
 import { mapDistance } from '@/systems/hex-utils';
 import { EventBus } from '@/core/event-bus';
 import { isAtWar, getRelationship } from '@/systems/diplomacy-system';
@@ -135,7 +136,7 @@ const ADVISOR_MESSAGES: AdvisorMessage[] = [
     id: 'general_command_intro',
     advisor: 'builder',
     icon: '⚔️',
-    message: 'Your Great General can pause supply degradation for nearby units automatically, and holds 3 lifetime Command Charges shared across Rally (heal and steady a battered unit), Seize the Moment (one more action for a unit that already acted), and Last Stand (hold a position with a defense bonus and a one-time survival save). All three share one cooldown — the 3rd charge retires the General at the end of that turn.',
+    message: 'Your Great General can pause supply degradation for nearby units automatically, and holds a few lifetime Command Charges (usually 3) shared across Rally (heal and steady a battered unit), Seize the Moment (one more action for a unit that already acted), and Last Stand (hold a position with a defense bonus and a one-time survival save). All three share one cooldown — spending the last charge retires the General at the end of that turn. Some Generals have a specialty that changes these numbers.',
     // #544 MR4 review fix: scope through the current player's own unit
     // roster (civ.units), not a global Object.values(state.units) scan --
     // every other trigger/eligibility function in this arc (Rally, Seize,
@@ -169,7 +170,8 @@ const ADVISOR_MESSAGES: AdvisorMessage[] = [
       return woundedNearby.some(unit => generals.some(general => {
         const definition = resolveGeneralDefinition(state, general.generalDefinitionId);
         if (!definition) return false;
-        return mapDistance(state.map, general.position, unit.position) <= definition.commandRange;
+        return mapDistance(state.map, general.position, unit.position)
+          <= resolveGeneralMechanics(definition).commandRange;
       }));
     },
   },
