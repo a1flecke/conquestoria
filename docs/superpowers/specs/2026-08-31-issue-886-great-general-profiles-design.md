@@ -18,10 +18,13 @@ profile that is unmistakably not presented as real history.
 - No gameplay mechanics tied to profile content (#885 owns unique mechanics).
 - No campaign chronicle / Hall of Fame (#887).
 - No portraits / audio / visual effects (#889).
-- No new biography screen or modal. The maintainer cannot review new UI right
-  now, and there is no existing non-compact General detail surface, so this PR is
-  **data-first**: the typed content lands, validated and tested, with no
-  player-visible wiring. A future issue (or #887) can surface it.
+- No new biography screen or modal. The rich content is surfaced only through
+  **one collapsed `<details>` block** added to the *existing* selected-unit panel
+  (`src/ui/selected-unit-info.ts`), directly mirroring that file's existing
+  "Role details" `<details>` pattern — no new panel, no layout change, no visual
+  tuning. This is the minimal wiring `.claude/rules/end-to-end-wiring.md`
+  requires (a helper with no consumer is a bug); everything richer (a dedicated
+  detail surface, campaign chronicle) is left to #887.
 
 ## Data model
 
@@ -54,15 +57,41 @@ export interface GeneralProfile {
                                 // for the explicitly game-original entries.
 }
 
-export function getGeneralProfile(generalId: string): GeneralProfile | undefined;
+export function getGeneralProfile(generalId: string | undefined): GeneralProfile | undefined;
 ```
+
+`GENERAL_PROFILES` is typed `Record<string, GeneralProfile | undefined>` so the
+resolver's `undefined` branch is type-checked, not just true by luck.
 
 Shape mirrors the repo's existing `WonderCodexFactSource` (`title` / `publisher` /
 `sourceUrl`), plus `accessed` because these are living web references.
 
+Length bounds (enforced by the test): summary <= 340 chars, each fact <= 200,
+`context` <= 320.
+
 The short `descriptor` on `GeneralDefinition` is unchanged — it stays the
-compact chooser one-liner. Profiles are the richer layer for a future detail
-surface.
+compact chooser one-liner. Profiles are the richer layer surfaced in the
+selected-unit `<details>` (below) and reusable by #887.
+
+## UI integration (minimal, existing surface only)
+
+`src/ui/selected-unit-info.ts` already renders a Great General's
+`portraitIcon` / `name` / `era` / `descriptor` when one is selected, and already
+uses a collapsed `<details>` ("Role details") elsewhere in the same function.
+This PR adds one more collapsed `<details>` right after the descriptor line:
+
+- `<summary>` = `Who was {name}?` (historical) / `About {name}` (lore).
+- body = `summary`, then each `fact` as a `• ` row, then `context`, then a
+  `From: {loreWork}` line for lore entries.
+- `sources` are **never rendered** — provenance for audit only.
+- All text via `textContent` (XSS-safe per `ui-panels.md`). No markdown parser.
+- Collapsed by default: no forced reading for younger players, no compact-panel
+  overflow, opt-in depth for history-minded players.
+- Generated officers (#888) have no profile, so `getGeneralProfile` returns
+  `undefined` and the whole block is skipped — no `<details>`, behaviour
+  unchanged.
+- No difficulty / play-style / AI branching: it is display of the selected
+  unit's own General, identical in solo and hot-seat, and AI never reads it.
 
 ## Roster classification (34 authored entries)
 
@@ -102,20 +131,33 @@ Ragnar's non-existence as a single person.
 Catalog-derived, so a new authored roster entry fails loudly until content is
 added:
 
-- Every authored General id has a `getGeneralProfile` entry.
-- `kind` matches the classification list above.
-- summary non-empty, no control chars, length <= 320.
-- 2–4 facts; each non-empty, trimmed, no control chars, length <= 220.
+- Every authored General id has a `getGeneralProfile` entry; no stray keys;
+  `EXPECTED_KIND` covers exactly the roster; `kind` matches it.
+- summary non-empty, no control chars, no double-spaces, no `http(s)://`,
+  length <= 340, starts with a capital.
+- 2–4 facts; each non-empty, trimmed, no control chars, no `http(s)://`,
+  ends with `.`, length <= 200.
+- `context` (when present) same cleanliness checks, length <= 320.
 - historical → `sources.length >= 2`, `loreWork` absent.
-- lore → `loreWork` present, OR id in the game-original allow-set.
-- every `sourceUrl` parses, is `https:`, unique within a profile.
-- every source `title` / `publisher` non-empty; `accessed` is a valid
+- lore → `loreWork` present, OR id in `GAME_ORIGINAL_LORE_IDS` (which then also
+  requires `sources: []`).
+- every `sourceUrl` parses via `new URL()`, is `https:`, unique within a
+  profile; every source `title` / `publisher` non-empty; `accessed` a valid
   `YYYY-MM-DD`.
-- no two historical profiles share a summary or a fact string.
+- **whole-catalog** (not just historical) uniqueness: no two profiles share a
+  summary, a fact string, or a context string.
 - generated identities resolve with no profile; `getGeneralProfile` on a
-  `generated:` id returns `undefined`.
-- unknown id → `undefined`.
+  `generated:` id / `undefined` / `''` / unknown id returns `undefined`.
 - `resolveGeneralDefinition` behaviour unchanged (re-asserted).
+- **no file under `src/ai` or `src/storage`, and not `turn-manager.ts`,
+  references the profiles module** (AI/#888 Phase 22 + no save coupling), and
+  `getGeneralProfile` **has at least one real `src/` consumer** (dead-code
+  guard).
+
+`tests/ui/selected-unit-info.test.ts` adds: historical General renders a
+`<details>` with the `Who was …?` summary, summary text, and a fact, and no
+`http`; lore General renders the `From: {loreWork}` line and no `http`;
+generated officer renders name + descriptor but **no** biography `<details>`.
 
 ## Docs
 

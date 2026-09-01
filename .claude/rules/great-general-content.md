@@ -9,10 +9,15 @@ Two separate layers, do not merge them:
 | Layer | File | Purpose |
 |---|---|---|
 | `descriptor` (one line) | `src/systems/great-general-definitions.ts` | Compact chooser / HUD surfaces. Keep it a single sentence. |
-| `GeneralProfile` (rich) | `src/systems/great-general-profiles.ts` | Biography, facts, context, source notes for a future detail surface (#887 Hall of Fame is a planned consumer). Never rendered in a compact panel. |
+| `GeneralProfile` (rich) | `src/systems/great-general-profiles.ts` | Biography, facts, context, source notes. Rendered in one collapsed `<details>` in `src/ui/selected-unit-info.ts` (`summary` + facts + `context` + `From: {loreWork}`; **`sources` never shown**). #887 Hall of Fame is a further planned consumer. Never rendered in a compact/always-visible panel. |
 
 Do **not** move biography prose into `descriptor`, and do not delete the concise
 `descriptor` when adding a profile.
+
+Length bounds (enforced by `great-general-profiles.test.ts`): `summary` <= 340
+chars, each `fact` <= 200 (one sentence, ends with `.`), `context` <= 320. No
+`http(s)://` in any player-facing string. Every `summary` / `fact` / `context`
+must be unique across the whole catalog — no copy-paste between Generals.
 
 ## Profiles are static, non-mechanical, save-free
 

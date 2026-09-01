@@ -80,7 +80,7 @@ const s = (title: string, publisher: string, sourceUrl: string): GeneralSourceNo
   accessed: ACCESSED,
 });
 
-export const GENERAL_PROFILES: Readonly<Record<string, GeneralProfile>> = {
+export const GENERAL_PROFILES: Readonly<Record<string, GeneralProfile | undefined>> = {
   // ---------------------------------------------------------------------------
   // Historical
   // ---------------------------------------------------------------------------
@@ -606,23 +606,23 @@ export const GENERAL_PROFILES: Readonly<Record<string, GeneralProfile>> = {
   gen_universal_marshal: {
     kind: 'lore',
     summary:
-      `The Iron Marshal is a generic early-era commander with no fixed nation, used when a civilization has no historical or lore general of its own available. The name and background are deliberately non-specific.`,
+      `The Iron Marshal is a stock early-era commander with no set homeland — an archetype rather than a specific person. Figures like this stand in for any civilization that has no general of its own from history or story.`,
     facts: [
-      `This entry exists so that every civilization always has a commander to draw on.`,
-      `It is written to suit an early era of warfare, before large standing armies.`,
+      `The name and background are kept deliberately plain so the figure can belong to any early culture.`,
+      `It fits an age before large standing armies, when a war-leader raised troops for a single campaign and then sent them home.`,
     ],
     context:
-      `Fallback commanders like this one carry no real history on purpose, so they can stand in for any culture.`,
+      `A commander like this one carries no real history by design, which is what lets him represent any people.`,
     sources: [],
   },
 
   gen_universal_warlord: {
     kind: 'lore',
     summary:
-      `The Grey Warlord is a generic mid-era fallback commander with no set nation, used when a civilization's own generals are unavailable. Its background is left vague by design.`,
+      `The Grey Warlord is a stock mid-era commander with no set homeland — an archetype rather than a named person. The game reaches for a figure like this when a civilization has no general of its own available.`,
     facts: [
-      `It represents a commander who rose from the ranks by skill rather than birth.`,
-      `Like the other "universal" entries, it is a placeholder meant to fit many cultures rather than one.`,
+      `He is imagined as a soldier who rose to command through skill on the battlefield rather than by birth.`,
+      `The identity is left broad on purpose so it suits many cultures rather than one.`,
     ],
     sources: [],
   },
@@ -630,10 +630,10 @@ export const GENERAL_PROFILES: Readonly<Record<string, GeneralProfile>> = {
   gen_universal_field_marshal: {
     kind: 'lore',
     summary:
-      `The Steel Field Marshal is a generic gunpowder-era fallback commander without a fixed nation. It stands in when a civilization has no dedicated general available for that era.`,
+      `The Steel Field Marshal is a stock gunpowder-era commander with no set homeland — an archetype rather than a real person, used when a civilization has no dedicated general for the period.`,
     facts: [
-      `It is written to suit an age of drilled infantry and professional staff work.`,
-      `The lack of a specific identity is intentional, so it can represent any power of the period.`,
+      `The figure fits an age of drilled infantry, massed artillery, and professional staff work.`,
+      `The lack of a fixed identity is intentional, so it can represent any power of the era.`,
     ],
     sources: [],
   },
@@ -641,10 +641,10 @@ export const GENERAL_PROFILES: Readonly<Record<string, GeneralProfile>> = {
   gen_universal_commodore: {
     kind: 'lore',
     summary:
-      `The Storm Commodore is a generic modern-era fallback commander with no fixed nation, used when no dedicated general is available. Its background is deliberately unspecific.`,
+      `The Storm Commodore is a stock modern-era commander with no set homeland — an archetype rather than a named person, used when no dedicated general is available.`,
     facts: [
-      `It represents an officer experienced in coordinating land, sea, and air forces across a whole theatre of war.`,
-      `Like the other universal entries, it is a culture-neutral placeholder rather than a portrait of a real person.`,
+      `The figure is imagined as an officer used to coordinating land, sea, and air forces across a whole theatre of war.`,
+      `Like the other stock commanders, it is a culture-neutral stand-in rather than a portrait of anyone real.`,
     ],
     sources: [],
   },
